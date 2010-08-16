@@ -971,6 +971,36 @@ static void restore_init_pincfgs(struct hda_codec *codec)
 }
 
 /*
+ * audio-converter setup caches
+ */
+struct hda_cvt_setup {
+	hda_nid_t nid;
+	u8 stream_tag;
+	u8 channel_id;
+	u16 format_id;
+	unsigned char active;	/* cvt is currently used */
+	unsigned char dirty;	/* setups should be cleared */
+};
+
+/* get or create a cache entry for the given audio converter NID */
+static struct hda_cvt_setup *
+get_hda_cvt_setup(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct hda_cvt_setup *p;
+	int i;
+
+	for (i = 0; i < codec->cvt_setups.used; i++) {
+		p = snd_array_elem(&codec->cvt_setups, i);
+		if (p->nid == nid)
+			return p;
+	}
+	p = snd_array_new(&codec->cvt_setups);
+	if (p)
+		p->nid = nid;
+	return p;
+}
+
+/*
  * codec destructor
  */
 static void snd_hda_codec_free(struct hda_codec *codec)
@@ -1038,12 +1068,14 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	codec->addr = codec_addr;
 	mutex_init(&codec->spdif_mutex);
 	mutex_init(&codec->control_mutex);
+	mutex_init(&codec->prepare_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	snd_array_init(&codec->mixers, sizeof(struct hda_nid_item), 32);
 	snd_array_init(&codec->nids, sizeof(struct hda_nid_item), 32);
 	snd_array_init(&codec->init_pins, sizeof(struct hda_pincfg), 16);
 	snd_array_init(&codec->driver_pins, sizeof(struct hda_pincfg), 16);
+	snd_array_init(&codec->cvt_setups, sizeof(struct hda_cvt_setup), 8);
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
 		if (!codec->modelname) {
@@ -1181,37 +1213,119 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format)
 {
+	struct hda_cvt_setup *p;
+	unsigned int oldval, newval;
+	int i;
+
 	if (!nid)
 		return;
 
 	snd_printdd("hda_codec_setup_stream: "
 		    "NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
 		    nid, stream_tag, channel_id, format);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID,
-			    (stream_tag << 4) | channel_id);
-	msleep(1);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, format);
+	p = get_hda_cvt_setup(codec, nid);
+	if (!p)
+		return;
+	/* update the stream-id if changed */
+	if (p->stream_tag != stream_tag || p->channel_id != channel_id) {
+		oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
+		newval = (stream_tag << 4) | channel_id;
+		if (oldval != newval)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CHANNEL_STREAMID,
+					    newval);
+		p->stream_tag = stream_tag;
+		p->channel_id = channel_id;
+	}
+	/* update the format-id if changed */
+	if (p->format_id != format) {
+		oldval = snd_hda_codec_read(codec, nid, 0,
+					    AC_VERB_GET_STREAM_FORMAT, 0);
+		if (oldval != format) {
+			msleep(1);
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_STREAM_FORMAT,
+					    format);
+		}
+		p->format_id = format;
+	}
+	p->active = 1;
+	p->dirty = 0;
+
+	/* make other inactive cvts with the same stream-tag dirty */
+	for (i = 0; i < codec->cvt_setups.used; i++) {
+		p = snd_array_elem(&codec->cvt_setups, i);
+		if (!p->active && p->stream_tag == stream_tag)
+			p->dirty = 1;
+	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_setup_stream);
 
+static void really_cleanup_stream(struct hda_codec *codec,
+				  struct hda_cvt_setup *q);
+
 /**
- * snd_hda_codec_cleanup_stream - clean up the codec for closing
+ * __snd_hda_codec_cleanup_stream - clean up the codec for closing
  * @codec: the CODEC to clean up
  * @nid: the NID to clean up
+ * @do_now: really clean up the stream instead of clearing the active flag
  */
-void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
+void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
+				    int do_now)
 {
+	struct hda_cvt_setup *p;
+
 	if (!nid)
 		return;
 
 	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
-#if 0 /* keep the format */
-	msleep(1);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
-#endif
+	p = get_hda_cvt_setup(codec, nid);
+	if (p) {
+		/* here we just clear the active flag when do_now isn't set;
+		 * actual clean-ups will be done later in
+		 * purify_inactive_streams() called from snd_hda_codec_prpapre()
+		 */
+		if (do_now)
+			really_cleanup_stream(codec, p);
+		else
+			p->active = 0;
+	}
 }
-EXPORT_SYMBOL_HDA(snd_hda_codec_cleanup_stream);
+EXPORT_SYMBOL_HDA(__snd_hda_codec_cleanup_stream);
+
+static void really_cleanup_stream(struct hda_codec *codec,
+				  struct hda_cvt_setup *q)
+{
+	hda_nid_t nid = q->nid;
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
+	memset(q, 0, sizeof(*q));
+	q->nid = nid;
+}
+
+/* clean up the all conflicting obsolete streams */
+static void purify_inactive_streams(struct hda_codec *codec)
+{
+	int i;
+
+	for (i = 0; i < codec->cvt_setups.used; i++) {
+		struct hda_cvt_setup *p = snd_array_elem(&codec->cvt_setups, i);
+		if (p->dirty)
+			really_cleanup_stream(codec, p);
+	}
+}
+
+/* clean up all streams; called from suspend */
+static void hda_cleanup_all_streams(struct hda_codec *codec)
+{
+	int i;
+
+	for (i = 0; i < codec->cvt_setups.used; i++) {
+		struct hda_cvt_setup *p = snd_array_elem(&codec->cvt_setups, i);
+		if (p->stream_tag)
+			really_cleanup_stream(codec, p);
+	}
+}
 
 /*
  * amp access functions
@@ -2928,6 +3042,7 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 {
 	if (codec->patch_ops.suspend)
 		codec->patch_ops.suspend(codec, PMSG_SUSPEND);
+	hda_cleanup_all_streams(codec);
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D3);
@@ -3376,6 +3491,35 @@ static int set_pcm_default_values(struct hda_codec *codec,
 	}
 	return 0;
 }
+
+/*
+ * codec prepare/cleanup entries
+ */
+int snd_hda_codec_prepare(struct hda_codec *codec,
+			  struct hda_pcm_stream *hinfo,
+			  unsigned int stream,
+			  unsigned int format,
+			  struct snd_pcm_substream *substream)
+{
+	int ret;
+	mutex_lock(&codec->prepare_mutex);
+	ret = hinfo->ops.prepare(hinfo, codec, stream, format, substream);
+	if (ret >= 0)
+		purify_inactive_streams(codec);
+	mutex_unlock(&codec->prepare_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_prepare);
+
+void snd_hda_codec_cleanup(struct hda_codec *codec,
+			   struct hda_pcm_stream *hinfo,
+			   struct snd_pcm_substream *substream)
+{
+	mutex_lock(&codec->prepare_mutex);
+	hinfo->ops.cleanup(hinfo, codec, substream);
+	mutex_unlock(&codec->prepare_mutex);
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_cleanup);
 
 /* global */
 const char *snd_hda_pcm_type_name[HDA_PCM_NTYPES] = {

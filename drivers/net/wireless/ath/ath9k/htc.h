@@ -353,6 +353,8 @@ struct ath9k_htc_priv {
 	u16 seq_no;
 	u32 bmiss_cnt;
 
+	struct ath9k_hw_cal_data caldata[38];
+
 	spinlock_t beacon_lock;
 
 	bool tx_queues_stop;

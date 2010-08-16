@@ -21,4 +21,31 @@ extern void free_fs_struct(struct fs_struct *);
 extern void daemonize_fs_struct(void);
 extern int unshare_fs_struct(void);
 
+static inline void get_fs_root(struct fs_struct *fs, struct path *root)
+{
+	read_lock(&fs->lock);
+	*root = fs->root;
+	path_get(root);
+	read_unlock(&fs->lock);
+}
+
+static inline void get_fs_pwd(struct fs_struct *fs, struct path *pwd)
+{
+	read_lock(&fs->lock);
+	*pwd = fs->pwd;
+	path_get(pwd);
+	read_unlock(&fs->lock);
+}
+
+static inline void get_fs_root_and_pwd(struct fs_struct *fs, struct path *root,
+				       struct path *pwd)
+{
+	read_lock(&fs->lock);
+	*root = fs->root;
+	path_get(root);
+	*pwd = fs->pwd;
+	path_get(pwd);
+	read_unlock(&fs->lock);
+}
+
 #endif /* _LINUX_FS_STRUCT_H */

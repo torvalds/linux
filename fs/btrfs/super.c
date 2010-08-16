@@ -797,7 +797,7 @@ static int btrfs_unfreeze(struct super_block *sb)
 
 static const struct super_operations btrfs_super_ops = {
 	.drop_inode	= btrfs_drop_inode,
-	.delete_inode	= btrfs_delete_inode,
+	.evict_inode	= btrfs_evict_inode,
 	.put_super	= btrfs_put_super,
 	.sync_fs	= btrfs_sync_fs,
 	.show_options	= btrfs_show_options,

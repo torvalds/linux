@@ -40,7 +40,7 @@
 #ifndef __ASSEMBLY__
 
 /* MS be sure that SLAB allocates aligned objects */
-#define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 
 #define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
 

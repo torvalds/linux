@@ -850,7 +850,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 /* ======================================================================== */
 
 static int __devinit
-mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
+mpc52xx_fec_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	int rv;
 	struct net_device *ndev;
@@ -995,7 +995,7 @@ err_netdev:
 }
 
 static int
-mpc52xx_fec_remove(struct of_device *op)
+mpc52xx_fec_remove(struct platform_device *op)
 {
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv;
@@ -1025,7 +1025,7 @@ mpc52xx_fec_remove(struct of_device *op)
 }
 
 #ifdef CONFIG_PM
-static int mpc52xx_fec_of_suspend(struct of_device *op, pm_message_t state)
+static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(&op->dev);
 
@@ -1035,7 +1035,7 @@ static int mpc52xx_fec_of_suspend(struct of_device *op, pm_message_t state)
 	return 0;
 }
 
-static int mpc52xx_fec_of_resume(struct of_device *op)
+static int mpc52xx_fec_of_resume(struct platform_device *op)
 {
 	struct net_device *dev = dev_get_drvdata(&op->dev);
 

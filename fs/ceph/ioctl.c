@@ -143,6 +143,27 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	return 0;
 }
 
+static long ceph_ioctl_lazyio(struct file *file)
+{
+	struct ceph_file_info *fi = file->private_data;
+	struct inode *inode = file->f_dentry->d_inode;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	if ((fi->fmode & CEPH_FILE_MODE_LAZY) == 0) {
+		spin_lock(&inode->i_lock);
+		ci->i_nr_by_mode[fi->fmode]--;
+		fi->fmode |= CEPH_FILE_MODE_LAZY;
+		ci->i_nr_by_mode[fi->fmode]++;
+		spin_unlock(&inode->i_lock);
+		dout("ioctl_layzio: file %p marked lazy\n", file);
+
+		ceph_check_caps(ci, 0, NULL);
+	} else {
+		dout("ioctl_layzio: file %p already lazy\n", file);
+	}
+	return 0;
+}
+
 long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	dout("ioctl file %p cmd %u arg %lu\n", file, cmd, arg);
@@ -155,6 +176,9 @@ long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case CEPH_IOC_GET_DATALOC:
 		return ceph_ioctl_get_dataloc(file, (void __user *)arg);
+
+	case CEPH_IOC_LAZYIO:
+		return ceph_ioctl_lazyio(file);
 	}
 	return -ENOTTY;
 }

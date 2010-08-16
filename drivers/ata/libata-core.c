@@ -4281,7 +4281,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
  *	The special characters ?, [, -, or *, can be matched using a set, eg. [*]
  *	Behaviour with malformed patterns is undefined, though generally reasonable.
  *
- *	Example patterns:  "SD1?",  "SD1[0-5]",  "*R0",  SD*1?[012]*xx"
+ *	Sample patterns:  "SD1?",  "SD1[0-5]",  "*R0",  "SD*1?[012]*xx"
  *
  *	This function uses one level of recursion per '*' in pattern.
  *	Since it calls _nothing_ else, and has _no_ explicit local variables,

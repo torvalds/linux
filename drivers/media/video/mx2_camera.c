@@ -785,6 +785,8 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
+	if (common_flags & SOCAM_PCLK_SAMPLE_RISING)
+		csicr1 |= CSICR1_REDGE;
 	if (common_flags & SOCAM_PCLK_SAMPLE_FALLING)
 		csicr1 |= CSICR1_INV_PCLK;
 	if (common_flags & SOCAM_VSYNC_ACTIVE_HIGH)
@@ -1201,7 +1203,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 	buf = list_entry(pcdev->capture.next,
 			struct mx2_buffer, vb.queue);
 
-	buf->bufnum = bufnum;
+	buf->bufnum = !bufnum;
 
 	list_move_tail(pcdev->capture.next, &pcdev->active_bufs);
 

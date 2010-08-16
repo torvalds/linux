@@ -96,7 +96,9 @@ struct screen_info screen_info = {
 
 /* Variables required to store legacy IO irq routing */
 int of_i8042_kbd_irq;
+EXPORT_SYMBOL_GPL(of_i8042_kbd_irq);
 int of_i8042_aux_irq;
+EXPORT_SYMBOL_GPL(of_i8042_aux_irq);
 
 #ifdef __DO_IRQ_CANON
 /* XXX should go elsewhere eventually */

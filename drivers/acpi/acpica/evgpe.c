@@ -137,6 +137,79 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_raw_enable_gpe
+ *
+ * PARAMETERS:  gpe_event_info  - GPE to enable
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Add a reference to a GPE. On the first reference, the GPE is
+ *              hardware-enabled.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_raw_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+{
+	acpi_status status = AE_OK;
+
+	if (gpe_event_info->runtime_count == ACPI_UINT8_MAX) {
+		return_ACPI_STATUS(AE_LIMIT);
+	}
+
+	gpe_event_info->runtime_count++;
+	if (gpe_event_info->runtime_count == 1) {
+		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
+		if (ACPI_SUCCESS(status)) {
+			status = acpi_ev_enable_gpe(gpe_event_info);
+		}
+
+		if (ACPI_FAILURE(status)) {
+			gpe_event_info->runtime_count--;
+		}
+	}
+
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_raw_disable_gpe
+ *
+ * PARAMETERS:  gpe_event_info  - GPE to disable
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove a reference to a GPE. When the last reference is
+ *              removed, the GPE is hardware-disabled.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_raw_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+{
+	acpi_status status = AE_OK;
+
+	if (!gpe_event_info->runtime_count) {
+		return_ACPI_STATUS(AE_LIMIT);
+	}
+
+	gpe_event_info->runtime_count--;
+	if (!gpe_event_info->runtime_count) {
+		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
+		if (ACPI_SUCCESS(status)) {
+			status = acpi_hw_low_set_gpe(gpe_event_info,
+						     ACPI_GPE_DISABLE);
+		}
+
+		if (ACPI_FAILURE(status)) {
+			gpe_event_info->runtime_count++;
+		}
+	}
+
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ev_low_get_gpe_info
  *
  * PARAMETERS:  gpe_number          - Raw GPE number

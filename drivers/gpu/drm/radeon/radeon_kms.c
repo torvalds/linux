@@ -112,7 +112,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	info = data;
 	value_ptr = (uint32_t *)((unsigned long)info->value);
-	value = *value_ptr;
+	if (DRM_COPY_FROM_USER(&value, value_ptr, sizeof(value)))
+		return -EFAULT;
+
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
 		value = dev->pci_device;
@@ -160,13 +162,27 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 		}
 	case RADEON_INFO_WANT_HYPERZ:
-		mutex_lock(&dev->struct_mutex);
-		if (rdev->hyperz_filp)
-			value = 0;
-		else {
-			rdev->hyperz_filp = filp;
-			value = 1;
+		/* The "value" here is both an input and output parameter.
+		 * If the input value is 1, filp requests hyper-z access.
+		 * If the input value is 0, filp revokes its hyper-z access.
+		 *
+		 * When returning, the value is 1 if filp owns hyper-z access,
+		 * 0 otherwise. */
+		if (value >= 2) {
+			DRM_DEBUG_KMS("WANT_HYPERZ: invalid value %d\n", value);
+			return -EINVAL;
 		}
+		mutex_lock(&dev->struct_mutex);
+		if (value == 1) {
+			/* wants hyper-z */
+			if (!rdev->hyperz_filp)
+				rdev->hyperz_filp = filp;
+		} else if (value == 0) {
+			/* revokes hyper-z */
+			if (rdev->hyperz_filp == filp)
+				rdev->hyperz_filp = NULL;
+		}
+		value = rdev->hyperz_filp == filp ?  1 : 0;
 		mutex_unlock(&dev->struct_mutex);
 		break;
 	default:

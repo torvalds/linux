@@ -379,10 +379,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	priv->cfg->ops->utils->rts_tx_cmd_flag(info, &tx_flags);
-
-	if ((tx_flags & TX_CMD_FLG_RTS_MSK) || (tx_flags & TX_CMD_FLG_CTS_MSK))
-		tx_flags |= TX_CMD_FLG_FULL_TXOP_PROT_MSK;
+	priv->cfg->ops->utils->tx_cmd_protection(priv, info, fc, &tx_flags);
 
 	tx_flags &= ~(TX_CMD_FLG_ANT_SEL_MSK);
 	if (ieee80211_is_mgmt(fc)) {
@@ -455,21 +452,6 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	/* Set CCK flag as needed */
 	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
 		rate_flags |= RATE_MCS_CCK_MSK;
-
-	/* Set up RTS and CTS flags for certain packets */
-	switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
-	case cpu_to_le16(IEEE80211_STYPE_AUTH):
-	case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
-	case cpu_to_le16(IEEE80211_STYPE_ASSOC_REQ):
-	case cpu_to_le16(IEEE80211_STYPE_REASSOC_REQ):
-		if (tx_cmd->tx_flags & TX_CMD_FLG_RTS_MSK) {
-			tx_cmd->tx_flags &= ~TX_CMD_FLG_RTS_MSK;
-			tx_cmd->tx_flags |= TX_CMD_FLG_CTS_MSK;
-		}
-		break;
-	default:
-		break;
-	}
 
 	/* Set up antennas */
 	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
@@ -1117,7 +1099,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
 
-	WARN_ON(!spin_is_locked(&priv->sta_lock));
+	lockdep_assert_held(&priv->sta_lock);
 
 	switch (priv->stations[sta_id].tid[tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
@@ -1331,7 +1313,14 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	tid = ba_resp->tid;
 	agg = &priv->stations[sta_id].tid[tid].agg;
 	if (unlikely(agg->txq_id != scd_flow)) {
-		IWL_ERR(priv, "BA scd_flow %d does not match txq_id %d\n",
+		/*
+		 * FIXME: this is a uCode bug which need to be addressed,
+		 * log the information and return for now!
+		 * since it is possible happen very often and in order
+		 * not to fill the syslog, don't enable the logging by default
+		 */
+		IWL_DEBUG_TX_REPLY(priv,
+			"BA scd_flow %d does not match txq_id %d\n",
 			scd_flow, agg->txq_id);
 		return;
 	}

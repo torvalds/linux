@@ -39,6 +39,22 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			      "pointer\n", ha->host_no, __func__));
 		return status;
 	}
+
+	if (is_qla8022(ha) &&
+	    test_bit(AF_FW_RECOVERY, &ha->flags)) {
+		DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: prematurely "
+		    "completing mbx cmd as firmware recovery detected\n",
+		    ha->host_no, __func__));
+		return status;
+	}
+
+	if ((is_aer_supported(ha)) &&
+	    (test_bit(AF_PCI_CHANNEL_IO_PERM_FAILURE, &ha->flags))) {
+		DEBUG2(printk(KERN_WARNING "scsi%ld: %s: Perm failure on EEH, "
+		    "timeout MBX Exiting.\n", ha->host_no, __func__));
+		return status;
+	}
+
 	/* Mailbox code active */
 	wait_count = MBOX_TOV * 100;
 
@@ -150,6 +166,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		while (test_bit(AF_MBOX_COMMAND_DONE, &ha->flags) == 0) {
 			if (time_after_eq(jiffies, wait_count))
 				break;
+
 			/*
 			 * Service the interrupt.
 			 * The ISR will save the mailbox status registers
@@ -196,6 +213,14 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 
 	/* Check for mailbox timeout. */
 	if (!test_bit(AF_MBOX_COMMAND_DONE, &ha->flags)) {
+		if (is_qla8022(ha) &&
+		    test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+			    "scsi%ld: %s: prematurely completing mbx cmd as "
+			    "firmware recovery detected\n",
+			    ha->host_no, __func__));
+			goto mbox_exit;
+		}
 		DEBUG2(printk("scsi%ld: Mailbox Cmd 0x%08X timed out ...,"
 			      " Scheduling Adapter Reset\n", ha->host_no,
 			      mbx_cmd[0]));
@@ -244,6 +269,28 @@ mbox_exit:
 	clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
 
 	return status;
+}
+
+void qla4xxx_mailbox_premature_completion(struct scsi_qla_host *ha)
+{
+	set_bit(AF_FW_RECOVERY, &ha->flags);
+	ql4_printk(KERN_INFO, ha, "scsi%ld: %s: set FW RECOVERY!\n",
+	    ha->host_no, __func__);
+
+	if (test_bit(AF_MBOX_COMMAND, &ha->flags)) {
+		if (test_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags)) {
+			complete(&ha->mbx_intr_comp);
+			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: Due to fw "
+			    "recovery, doing premature completion of "
+			    "mbx cmd\n", ha->host_no, __func__);
+
+		} else {
+			set_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
+			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: Due to fw "
+			    "recovery, doing premature completion of "
+			    "polling mbx cmd\n", ha->host_no, __func__);
+		}
+	}
 }
 
 static uint8_t
@@ -361,7 +408,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	       min(sizeof(ha->alias), sizeof(init_fw_cb->Alias)));*/
 
 	/* Save Command Line Paramater info */
-	ha->port_down_retry_count = le16_to_cpu(init_fw_cb->conn_ka_timeout);
 	ha->discovery_wait = ql4xdiscoverywait;
 
 	if (ha->acb_version == ACB_SUPPORTED) {

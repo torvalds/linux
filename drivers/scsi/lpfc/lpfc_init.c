@@ -1032,27 +1032,46 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	/* If there is no heart beat outstanding, issue a heartbeat command */
 	if (phba->cfg_enable_hba_heartbeat) {
 		if (!phba->hb_outstanding) {
-			pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
-			if (!pmboxq) {
-				mod_timer(&phba->hb_tmofunc,
-					  jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
-				return;
-			}
+			if ((!(psli->sli_flag & LPFC_SLI_MBOX_ACTIVE)) &&
+				(list_empty(&psli->mboxq))) {
+				pmboxq = mempool_alloc(phba->mbox_mem_pool,
+							GFP_KERNEL);
+				if (!pmboxq) {
+					mod_timer(&phba->hb_tmofunc,
+						 jiffies +
+						 HZ * LPFC_HB_MBOX_INTERVAL);
+					return;
+				}
 
-			lpfc_heart_beat(phba, pmboxq);
-			pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
-			pmboxq->vport = phba->pport;
-			retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+				lpfc_heart_beat(phba, pmboxq);
+				pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
+				pmboxq->vport = phba->pport;
+				retval = lpfc_sli_issue_mbox(phba, pmboxq,
+						MBX_NOWAIT);
 
-			if (retval != MBX_BUSY && retval != MBX_SUCCESS) {
-				mempool_free(pmboxq, phba->mbox_mem_pool);
-				mod_timer(&phba->hb_tmofunc,
-					  jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
-				return;
-			}
+				if (retval != MBX_BUSY &&
+					retval != MBX_SUCCESS) {
+					mempool_free(pmboxq,
+							phba->mbox_mem_pool);
+					mod_timer(&phba->hb_tmofunc,
+						jiffies +
+						HZ * LPFC_HB_MBOX_INTERVAL);
+					return;
+				}
+				phba->skipped_hb = 0;
+				phba->hb_outstanding = 1;
+			} else if (time_before_eq(phba->last_completion_time,
+					phba->skipped_hb)) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2857 Last completion time not "
+					" updated in %d ms\n",
+					jiffies_to_msecs(jiffies
+						 - phba->last_completion_time));
+			} else
+				phba->skipped_hb = jiffies;
+
 			mod_timer(&phba->hb_tmofunc,
 				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
-			phba->hb_outstanding = 1;
 			return;
 		} else {
 			/*
@@ -3281,10 +3300,10 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 		if (!ndlp)
 			return 0;
 	}
-	if (phba->pport->port_state <= LPFC_FLOGI)
+	if (phba->pport->port_state < LPFC_FLOGI)
 		return NULL;
 	/* If virtual link is not yet instantiated ignore CVL */
-	if (vport->port_state <= LPFC_FDISC)
+	if ((vport != phba->pport) && (vport->port_state < LPFC_FDISC))
 		return NULL;
 	shost = lpfc_shost_from_vport(vport);
 	if (!shost)
@@ -3357,21 +3376,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 					"evt_tag:x%x, fcf_index:x%x\n",
 					acqe_fcoe->event_tag,
 					acqe_fcoe->index);
-		/* If the FCF discovery is in progress, do nothing. */
-		spin_lock_irq(&phba->hbalock);
-		if (phba->hba_flag & FCF_DISC_INPROGRESS) {
-			spin_unlock_irq(&phba->hbalock);
-			break;
-		}
-		/* If fast FCF failover rescan event is pending, do nothing */
-		if (phba->fcf.fcf_flag & FCF_REDISC_EVT) {
-			spin_unlock_irq(&phba->hbalock);
-			break;
-		}
-		spin_unlock_irq(&phba->hbalock);
-
-		if ((phba->fcf.fcf_flag & FCF_DISCOVERY) &&
-		    !(phba->fcf.fcf_flag & FCF_REDISC_FOV)) {
+		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
 			/*
 			 * During period of FCF discovery, read the FCF
 			 * table record indexed by the event to update
@@ -3385,13 +3390,26 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 					acqe_fcoe->index);
 			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fcoe->index);
 		}
-		/* If the FCF has been in discovered state, do nothing. */
+
+		/* If the FCF discovery is in progress, do nothing. */
 		spin_lock_irq(&phba->hbalock);
+		if (phba->hba_flag & FCF_DISC_INPROGRESS) {
+			spin_unlock_irq(&phba->hbalock);
+			break;
+		}
+		/* If fast FCF failover rescan event is pending, do nothing */
+		if (phba->fcf.fcf_flag & FCF_REDISC_EVT) {
+			spin_unlock_irq(&phba->hbalock);
+			break;
+		}
+
+		/* If the FCF has been in discovered state, do nothing. */
 		if (phba->fcf.fcf_flag & FCF_SCAN_DONE) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
 		spin_unlock_irq(&phba->hbalock);
+
 		/* Otherwise, scan the entire FCF table and re-discover SAN */
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2770 Start FCF table scan due to new FCF "
@@ -3417,13 +3435,9 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			"2549 FCF disconnected from network index 0x%x"
 			" tag 0x%x\n", acqe_fcoe->index,
 			acqe_fcoe->event_tag);
-		/* If the event is not for currently used fcf do nothing */
-		if (phba->fcf.current_rec.fcf_indx != acqe_fcoe->index)
-			break;
-		/* We request port to rediscover the entire FCF table for
-		 * a fast recovery from case that the current FCF record
-		 * is no longer valid if we are not in the middle of FCF
-		 * failover process already.
+		/*
+		 * If we are in the middle of FCF failover process, clear
+		 * the corresponding FCF bit in the roundrobin bitmap.
 		 */
 		spin_lock_irq(&phba->hbalock);
 		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
@@ -3432,9 +3446,23 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			lpfc_sli4_fcf_rr_index_clear(phba, acqe_fcoe->index);
 			break;
 		}
+		spin_unlock_irq(&phba->hbalock);
+
+		/* If the event is not for currently used fcf do nothing */
+		if (phba->fcf.current_rec.fcf_indx != acqe_fcoe->index)
+			break;
+
+		/*
+		 * Otherwise, request the port to rediscover the entire FCF
+		 * table for a fast recovery from case that the current FCF
+		 * is no longer valid as we are not in the middle of FCF
+		 * failover process already.
+		 */
+		spin_lock_irq(&phba->hbalock);
 		/* Mark the fast failover process in progress */
 		phba->fcf.fcf_flag |= FCF_DEAD_DISC;
 		spin_unlock_irq(&phba->hbalock);
+
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2771 Start FCF fast failover process due to "
 				"FCF DEAD event: evt_tag:x%x, fcf_index:x%x "
@@ -3454,12 +3482,16 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			 * as a link down to FCF registration.
 			 */
 			lpfc_sli4_fcf_dead_failthrough(phba);
-		} else
-			/* Handling fast FCF failover to a DEAD FCF event
-			 * is considered equalivant to receiving CVL to all
-			 * vports.
+		} else {
+			/* Reset FCF roundrobin bmask for new discovery */
+			memset(phba->fcf.fcf_rr_bmask, 0,
+			       sizeof(*phba->fcf.fcf_rr_bmask));
+			/*
+			 * Handling fast FCF failover to a DEAD FCF event is
+			 * considered equalivant to receiving CVL to all vports.
 			 */
 			lpfc_sli4_perform_all_vport_cvl(phba);
+		}
 		break;
 	case LPFC_FCOE_EVENT_TYPE_CVL:
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
@@ -3534,7 +3566,13 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 				 * the current registered FCF entry.
 				 */
 				lpfc_retry_pport_discovery(phba);
-			}
+			} else
+				/*
+				 * Reset FCF roundrobin bmask for new
+				 * discovery.
+				 */
+				memset(phba->fcf.fcf_rr_bmask, 0,
+				       sizeof(*phba->fcf.fcf_rr_bmask));
 		}
 		break;
 	default:

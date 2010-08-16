@@ -33,8 +33,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
@@ -81,13 +79,6 @@ module_param(bm_check_disable, uint, 0000);
 
 static unsigned int latency_factor __read_mostly = 2;
 module_param(latency_factor, uint, 0644);
-
-#ifdef CONFIG_ACPI_PROCFS
-static u64 us_to_pm_timer_ticks(s64 t)
-{
-	return div64_u64(t * PM_TIMER_FREQUENCY, 1000000);
-}
-#endif
 
 /*
  * IBM ThinkPad R40e crashes mysteriously when going into C2 or C3.
@@ -689,78 +680,6 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	return 0;
 }
 
-#ifdef CONFIG_ACPI_PROCFS
-static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
-{
-	struct acpi_processor *pr = seq->private;
-	unsigned int i;
-
-
-	if (!pr)
-		goto end;
-
-	seq_printf(seq, "active state:            C%zd\n"
-		   "max_cstate:              C%d\n"
-		   "maximum allowed latency: %d usec\n",
-		   pr->power.state ? pr->power.state - pr->power.states : 0,
-		   max_cstate, pm_qos_request(PM_QOS_CPU_DMA_LATENCY));
-
-	seq_puts(seq, "states:\n");
-
-	for (i = 1; i <= pr->power.count; i++) {
-		seq_printf(seq, "   %cC%d:                  ",
-			   (&pr->power.states[i] ==
-			    pr->power.state ? '*' : ' '), i);
-
-		if (!pr->power.states[i].valid) {
-			seq_puts(seq, "<not supported>\n");
-			continue;
-		}
-
-		switch (pr->power.states[i].type) {
-		case ACPI_STATE_C1:
-			seq_printf(seq, "type[C1] ");
-			break;
-		case ACPI_STATE_C2:
-			seq_printf(seq, "type[C2] ");
-			break;
-		case ACPI_STATE_C3:
-			seq_printf(seq, "type[C3] ");
-			break;
-		default:
-			seq_printf(seq, "type[--] ");
-			break;
-		}
-
-		seq_puts(seq, "promotion[--] ");
-
-		seq_puts(seq, "demotion[--] ");
-
-		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020Lu]\n",
-			   pr->power.states[i].latency,
-			   pr->power.states[i].usage,
-			   us_to_pm_timer_ticks(pr->power.states[i].time));
-	}
-
-      end:
-	return 0;
-}
-
-static int acpi_processor_power_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_processor_power_seq_show,
-			   PDE(inode)->data);
-}
-
-static const struct file_operations acpi_processor_power_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_processor_power_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
-
 /**
  * acpi_idle_bm_check - checks if bus master activity was detected
  */
@@ -803,13 +722,12 @@ static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 	} else if (cx->entry_method == ACPI_CSTATE_HALT) {
 		acpi_safe_halt();
 	} else {
-		int unused;
 		/* IO port based C-state */
 		inb(cx->address);
 		/* Dummy wait op - must do something useless after P_LVL2 read
 		   because chipsets cannot guarantee that STPCLK# signal
 		   gets asserted in time to freeze execution properly. */
-		unused = inl(acpi_gbl_FADT.xpm_timer_block.address);
+		inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
 	start_critical_timings();
 }
@@ -1172,9 +1090,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 {
 	acpi_status status = 0;
 	static int first_run;
-#ifdef CONFIG_ACPI_PROCFS
-	struct proc_dir_entry *entry = NULL;
-#endif
 
 	if (boot_option_idle_override)
 		return 0;
@@ -1223,15 +1138,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 		if (cpuidle_register_device(&pr->power.dev))
 			return -EIO;
 	}
-#ifdef CONFIG_ACPI_PROCFS
-	/* 'power' [R] */
-	entry = proc_create_data(ACPI_PROCESSOR_FILE_POWER,
-				 S_IRUGO, acpi_device_dir(device),
-				 &acpi_processor_power_fops,
-				 acpi_driver_data(device));
-	if (!entry)
-		return -EIO;
-#endif
 	return 0;
 }
 
@@ -1243,12 +1149,6 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 
 	cpuidle_unregister_device(&pr->power.dev);
 	pr->flags.power_setup_done = 0;
-
-#ifdef CONFIG_ACPI_PROCFS
-	if (acpi_device_dir(device))
-		remove_proc_entry(ACPI_PROCESSOR_FILE_POWER,
-				  acpi_device_dir(device));
-#endif
 
 	return 0;
 }

@@ -529,7 +529,7 @@ static void leo_fixup_var_rgb(struct fb_var_screeninfo *var)
 	var->transp.length = 0;
 }
 
-static void leo_unmap_regs(struct of_device *op, struct fb_info *info,
+static void leo_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   struct leo_par *par)
 {
 	if (par->lc_ss0_usr)
@@ -547,7 +547,7 @@ static void leo_unmap_regs(struct of_device *op, struct fb_info *info,
 		of_iounmap(&op->resource[0], info->screen_base, 0x800000);
 }
 
-static int __devinit leo_probe(struct of_device *op,
+static int __devinit leo_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -637,7 +637,7 @@ out_err:
 	return err;
 }
 
-static int __devexit leo_remove(struct of_device *op)
+static int __devexit leo_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct leo_par *par = info->par;

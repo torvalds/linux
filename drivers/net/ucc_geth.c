@@ -3601,7 +3601,7 @@ static void ucc_geth_timeout(struct net_device *dev)
 
 #ifdef CONFIG_PM
 
-static int ucc_geth_suspend(struct of_device *ofdev, pm_message_t state)
+static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
@@ -3629,7 +3629,7 @@ static int ucc_geth_suspend(struct of_device *ofdev, pm_message_t state)
 	return 0;
 }
 
-static int ucc_geth_resume(struct of_device *ofdev)
+static int ucc_geth_resume(struct platform_device *ofdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
@@ -3732,7 +3732,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 #endif
 };
 
-static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
+static int ucc_geth_probe(struct platform_device* ofdev, const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -3954,7 +3954,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	return 0;
 }
 
-static int ucc_geth_remove(struct of_device* ofdev)
+static int ucc_geth_remove(struct platform_device* ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct net_device *dev = dev_get_drvdata(device);

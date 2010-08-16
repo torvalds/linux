@@ -697,12 +697,12 @@ out:
 	page_cache_release(page);
 
 	/*
-	 * XXX(hch): the call below should probably be replaced with
+	 * XXX(truncate): the call below should probably be replaced with
 	 * a call to the gfs2-specific truncate blocks helper to actually
 	 * release disk blocks..
 	 */
 	if (pos + len > ip->i_inode.i_size)
-		simple_setsize(&ip->i_inode, ip->i_inode.i_size);
+		truncate_setsize(&ip->i_inode, ip->i_inode.i_size);
 out_endtrans:
 	gfs2_trans_end(sdp);
 out_trans_fail:
@@ -1042,9 +1042,9 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	if (rv != 1)
 		goto out; /* dio not valid, fall back to buffered i/o */
 
-	rv = blockdev_direct_IO_no_locking(rw, iocb, inode, inode->i_sb->s_bdev,
-					   iov, offset, nr_segs,
-					   gfs2_get_block_direct, NULL);
+	rv = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
+				  offset, nr_segs, gfs2_get_block_direct,
+				  NULL, NULL, 0);
 out:
 	gfs2_glock_dq_m(1, &gh);
 	gfs2_holder_uninit(&gh);

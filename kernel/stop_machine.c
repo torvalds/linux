@@ -35,9 +35,9 @@ struct cpu_stop_done {
 /* the actual stopper, one per every possible cpu, enabled on online cpus */
 struct cpu_stopper {
 	spinlock_t		lock;
+	bool			enabled;	/* is this stopper enabled? */
 	struct list_head	works;		/* list of pending works */
 	struct task_struct	*thread;	/* stopper thread */
-	bool			enabled;	/* is this stopper enabled? */
 };
 
 static DEFINE_PER_CPU(struct cpu_stopper, cpu_stopper);

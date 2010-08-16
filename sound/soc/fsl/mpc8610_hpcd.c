@@ -200,7 +200,7 @@ static struct snd_soc_ops mpc8610_hpcd_ops = {
  * SSI devices.  We also probably aren't compatible with the generic Elo DMA
  * device driver.
  */
-static int mpc8610_hpcd_probe(struct of_device *ofdev,
+static int mpc8610_hpcd_probe(struct platform_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -534,7 +534,7 @@ error:
  *
  * This function is called when the OF device is removed.
  */
-static int mpc8610_hpcd_remove(struct of_device *ofdev)
+static int mpc8610_hpcd_remove(struct platform_device *ofdev)
 {
 	struct platform_device *sound_device = dev_get_drvdata(&ofdev->dev);
 	struct mpc8610_hpcd_data *machine_data =

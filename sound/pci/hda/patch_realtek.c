@@ -137,6 +137,7 @@ enum {
 	ALC269VB_DMIC,
 	ALC269_FUJITSU,
 	ALC269_LIFEBOOK,
+	ALC271_ACER,
 	ALC269_AUTO,
 	ALC269_MODEL_LAST /* last tag */
 };
@@ -1036,7 +1037,7 @@ static void alc_dual_mic_adc_auto_switch(struct hda_codec *codec)
 	new_adc = spec->adc_nids[spec->cur_adc_idx];
 	if (spec->cur_adc && spec->cur_adc != new_adc) {
 		/* stream is running, let's swap the current ADC */
-		snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
+		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
 		spec->cur_adc = new_adc;
 		snd_hda_codec_setup_stream(codec, new_adc,
 					   spec->cur_adc_stream_tag, 0,
@@ -7041,6 +7042,7 @@ static int patch_alc260(struct hda_codec *codec)
 
 	spec->stream_analog_playback = &alc260_pcm_analog_playback;
 	spec->stream_analog_capture = &alc260_pcm_analog_capture;
+	spec->stream_analog_alt_capture = &alc260_pcm_analog_capture;
 
 	spec->stream_digital_playback = &alc260_pcm_digital_playback;
 	spec->stream_digital_capture = &alc260_pcm_digital_capture;
@@ -13475,7 +13477,6 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x14c0, 0x0025, "COMPAL IFL90/JFL-92", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x152d, 0x0763, "Diverse (CPR2000)", ALC268_ACER),
 	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
-	SND_PCI_QUIRK(0x1854, 0x1775, "LG R510", ALC268_DELL),
 	{}
 };
 
@@ -13866,6 +13867,12 @@ static struct snd_kcontrol_new alc269vb_laptop_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc269_asus_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Master Playback Switch", 0x0c, 0x0, HDA_INPUT),
+	{ } /* end */
+};
+
 /* capture mixer elements */
 static struct snd_kcontrol_new alc269_laptop_analog_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
@@ -14084,6 +14091,20 @@ static struct hda_verb alc269vb_laptop_amic_init_verbs[] = {
 	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_MIC_EVENT},
 	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
 	{}
+};
+
+static struct hda_verb alc271_acer_dmic_verbs[] = {
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x0d},
+	{0x20, AC_VERB_SET_PROC_COEF, 0x4000},
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x21, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_MIC_EVENT},
+	{0x22, AC_VERB_SET_CONNECT_SEL, 6},
+	{ }
 };
 
 /* toggle speaker-output according to the hp-jack state */
@@ -14465,6 +14486,7 @@ static const char *alc269_models[ALC269_MODEL_LAST] = {
 
 static struct snd_pci_quirk alc269_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_QUANTA_FL1),
+	SND_PCI_QUIRK(0x1025, 0x047c, "ACER ZGA", ALC271_ACER),
 	SND_PCI_QUIRK(0x1043, 0x8330, "ASUS Eeepc P703 P900A",
 		      ALC269_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x1013, "ASUS N61Da", ALC269VB_AMIC),
@@ -14625,6 +14647,23 @@ static struct alc_config_preset alc269_presets[] = {
 		.input_mux = &alc269_capture_source,
 		.unsol_event = alc269_lifebook_unsol_event,
 		.init_hook = alc269_lifebook_init_hook,
+	},
+	[ALC271_ACER] = {
+		.mixers = { alc269_asus_mixer },
+		.cap_mixer = alc269vb_laptop_digital_capture_mixer,
+		.init_verbs = { alc269_init_verbs, alc271_acer_dmic_verbs },
+		.num_dacs = ARRAY_SIZE(alc269_dac_nids),
+		.dac_nids = alc269_dac_nids,
+		.adc_nids = alc262_dmic_adc_nids,
+		.num_adc_nids = ARRAY_SIZE(alc262_dmic_adc_nids),
+		.capsrc_nids = alc262_dmic_capsrc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc269_modes),
+		.channel_mode = alc269_modes,
+		.input_mux = &alc269_capture_source,
+		.dig_out_nid = ALC880_DIGOUT_NID,
+		.unsol_event = alc_sku_unsol_event,
+		.setup = alc269vb_laptop_dmic_setup,
+		.init_hook = alc_inithook,
 	},
 };
 

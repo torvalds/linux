@@ -78,7 +78,7 @@ void nilfs_clear_gcdat_inode(struct the_nilfs *nilfs)
 	struct inode *gcdat = nilfs->ns_gc_dat;
 	struct nilfs_inode_info *gii = NILFS_I(gcdat);
 
-	gcdat->i_state = I_CLEAR;
+	gcdat->i_state = I_FREEING | I_CLEAR;
 	gii->i_flags = 0;
 
 	nilfs_palloc_clear_cache(gcdat);

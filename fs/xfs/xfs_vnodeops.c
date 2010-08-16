@@ -221,8 +221,11 @@ xfs_setattr(
 			 * transaction to modify the i_size.
 			 */
 			code = xfs_zero_eof(ip, iattr->ia_size, ip->i_size);
+			if (code)
+				goto error_return;
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		lock_flags &= ~XFS_ILOCK_EXCL;
 
 		/*
 		 * We are going to log the inode size change in this
@@ -236,36 +239,35 @@ xfs_setattr(
 		 * really care about here and prevents waiting for other data
 		 * not within the range we care about here.
 		 */
-		if (!code &&
-		    ip->i_size != ip->i_d.di_size &&
+		if (ip->i_size != ip->i_d.di_size &&
 		    iattr->ia_size > ip->i_d.di_size) {
 			code = xfs_flush_pages(ip,
 					ip->i_d.di_size, iattr->ia_size,
 					XBF_ASYNC, FI_NONE);
+			if (code)
+				goto error_return;
 		}
 
 		/* wait for all I/O to complete */
 		xfs_ioend_wait(ip);
 
-		if (!code)
-			code = xfs_itruncate_data(ip, iattr->ia_size);
-		if (code) {
-			ASSERT(tp == NULL);
-			lock_flags &= ~XFS_ILOCK_EXCL;
-			ASSERT(lock_flags == XFS_IOLOCK_EXCL || !need_iolock);
+		code = -block_truncate_page(inode->i_mapping, iattr->ia_size,
+					    xfs_get_blocks);
+		if (code)
 			goto error_return;
-		}
+
 		tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
-		if ((code = xfs_trans_reserve(tp, 0,
-					     XFS_ITRUNCATE_LOG_RES(mp), 0,
-					     XFS_TRANS_PERM_LOG_RES,
-					     XFS_ITRUNCATE_LOG_COUNT))) {
-			xfs_trans_cancel(tp, 0);
-			if (need_iolock)
-				xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-			return code;
-		}
+		code = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
+					 XFS_TRANS_PERM_LOG_RES,
+					 XFS_ITRUNCATE_LOG_COUNT);
+		if (code)
+			goto error_return;
+
+		truncate_setsize(inode, iattr->ia_size);
+
 		commit_flags = XFS_TRANS_RELEASE_LOG_RES;
+		lock_flags |= XFS_ILOCK_EXCL;
+
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 
 		xfs_trans_ijoin(tp, ip);

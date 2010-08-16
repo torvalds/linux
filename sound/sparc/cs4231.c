@@ -111,7 +111,7 @@ struct snd_cs4231 {
 	struct mutex		mce_mutex;	/* mutex for mce register */
 	struct mutex		open_mutex;	/* mutex for ALSA open/close */
 
-	struct of_device	*op;
+	struct platform_device	*op;
 	unsigned int		irq[2];
 	unsigned int		regs_size;
 	struct snd_cs4231	*next;
@@ -1771,7 +1771,7 @@ static unsigned int sbus_dma_addr(struct cs4231_dma_control *dma_cont)
 
 static int snd_cs4231_sbus_free(struct snd_cs4231 *chip)
 {
-	struct of_device *op = chip->op;
+	struct platform_device *op = chip->op;
 
 	if (chip->irq[0])
 		free_irq(chip->irq[0], chip);
@@ -1794,7 +1794,7 @@ static struct snd_device_ops snd_cs4231_sbus_dev_ops = {
 };
 
 static int __devinit snd_cs4231_sbus_create(struct snd_card *card,
-					    struct of_device *op,
+					    struct platform_device *op,
 					    int dev)
 {
 	struct snd_cs4231 *chip = card->private_data;
@@ -1856,7 +1856,7 @@ static int __devinit snd_cs4231_sbus_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit cs4231_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cs4231_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource *rp = &op->resource[0];
 	struct snd_card *card;
@@ -1931,7 +1931,7 @@ static unsigned int _ebus_dma_addr(struct cs4231_dma_control *dma_cont)
 
 static int snd_cs4231_ebus_free(struct snd_cs4231 *chip)
 {
-	struct of_device *op = chip->op;
+	struct platform_device *op = chip->op;
 
 	if (chip->c_dma.ebus_info.regs) {
 		ebus_dma_unregister(&chip->c_dma.ebus_info);
@@ -1960,7 +1960,7 @@ static struct snd_device_ops snd_cs4231_ebus_dev_ops = {
 };
 
 static int __devinit snd_cs4231_ebus_create(struct snd_card *card,
-					    struct of_device *op,
+					    struct platform_device *op,
 					    int dev)
 {
 	struct snd_cs4231 *chip = card->private_data;
@@ -2048,7 +2048,7 @@ static int __devinit snd_cs4231_ebus_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit cs4231_ebus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cs4231_ebus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct snd_card *card;
 	int err;
@@ -2072,7 +2072,7 @@ static int __devinit cs4231_ebus_probe(struct of_device *op, const struct of_dev
 }
 #endif
 
-static int __devinit cs4231_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cs4231_probe(struct platform_device *op, const struct of_device_id *match)
 {
 #ifdef EBUS_SUPPORT
 	if (!strcmp(op->dev.of_node->parent->name, "ebus"))
@@ -2086,7 +2086,7 @@ static int __devinit cs4231_probe(struct of_device *op, const struct of_device_i
 	return -ENODEV;
 }
 
-static int __devexit cs4231_remove(struct of_device *op)
+static int __devexit cs4231_remove(struct platform_device *op)
 {
 	struct snd_cs4231 *chip = dev_get_drvdata(&op->dev);
 

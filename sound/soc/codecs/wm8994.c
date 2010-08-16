@@ -95,6 +95,7 @@ struct wm8994_priv {
 
 	struct wm8994_micdet micdet[2];
 
+	int revision;
 	struct wm8994_pdata *pdata;
 };
 
@@ -3070,6 +3071,8 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -3082,11 +3085,16 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
-			/* Tweak DC servo configuration for improved
-			 * performance. */
-			snd_soc_write(codec, 0x102, 0x3);
-			snd_soc_write(codec, 0x56, 0x3);
-			snd_soc_write(codec, 0x102, 0);
+			/* Tweak DC servo and DSP configuration for
+			 * improved performance. */
+			if (wm8994->revision < 4) {
+				/* Tweak DC servo and DSP configuration for
+				 * improved performance. */
+				snd_soc_write(codec, 0x102, 0x3);
+				snd_soc_write(codec, 0x56, 0x3);
+				snd_soc_write(codec, 0x817, 0);
+				snd_soc_write(codec, 0x102, 0);
+			}
 
 			/* Discharge LINEOUT1 & 2 */
 			snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
@@ -3919,7 +3927,6 @@ static int wm8994_codec_probe(struct platform_device *pdev)
 	struct wm8994_priv *wm8994;
 	struct snd_soc_codec *codec;
 	int i;
-	u16 rev;
 
 	if (wm8994_codec) {
 		dev_err(&pdev->dev, "Another WM8994 is registered\n");
@@ -3973,8 +3980,8 @@ static int wm8994_codec_probe(struct platform_device *pdev)
 			wm8994->reg_cache[i] = 0;
 
 	/* Set revision-specific configuration */
-	rev = snd_soc_read(codec, WM8994_CHIP_REVISION);
-	switch (rev) {
+	wm8994->revision = snd_soc_read(codec, WM8994_CHIP_REVISION);
+	switch (wm8994->revision) {
 	case 2:
 	case 3:
 		wm8994->hubs.dcs_codes = -5;

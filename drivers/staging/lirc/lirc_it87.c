@@ -109,6 +109,7 @@ static DECLARE_WAIT_QUEUE_HEAD(lirc_read_queue);
 
 static DEFINE_SPINLOCK(hardware_lock);
 static DEFINE_SPINLOCK(dev_lock);
+static bool device_open;
 
 static int rx_buf[RBUF_LEN];
 unsigned int rx_tail, rx_head;
@@ -147,10 +148,11 @@ static void drop_port(void);
 static int lirc_open(struct inode *inode, struct file *file)
 {
 	spin_lock(&dev_lock);
-	if (module_refcount(THIS_MODULE)) {
+	if (device_open) {
 		spin_unlock(&dev_lock);
 		return -EBUSY;
 	}
+	device_open = true;
 	spin_unlock(&dev_lock);
 	return 0;
 }
@@ -158,6 +160,9 @@ static int lirc_open(struct inode *inode, struct file *file)
 
 static int lirc_close(struct inode *inode, struct file *file)
 {
+	spin_lock(&dev_lock);
+	device_open = false;
+	spin_unlock(&dev_lock);
 	return 0;
 }
 
@@ -363,7 +368,6 @@ static struct lirc_driver driver = {
 };
 
 
-#ifdef MODULE
 static int init_chrdev(void)
 {
 	driver.minor = lirc_register_driver(&driver);
@@ -380,7 +384,6 @@ static void drop_chrdev(void)
 {
 	lirc_unregister_driver(driver.minor);
 }
-#endif
 
 
 /* SECTION: Hardware */

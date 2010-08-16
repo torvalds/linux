@@ -412,7 +412,7 @@ static void conf_write_string(bool headerfile, const char *name,
 	while (1) {
 		l = strcspn(str, "\"\\");
 		if (l) {
-			fwrite(str, l, 1, out);
+			xfwrite(str, l, 1, out);
 			str += l;
 		}
 		if (!*str)
@@ -497,7 +497,7 @@ int conf_write_defconfig(const char *filename)
 			/*
 			 * If symbol is a choice value and equals to the
 			 * default for a choice - skip.
-			 * But only if value equal to "y".
+			 * But only if value is bool and equal to "y" .
 			 */
 			if (sym_is_choice_value(sym)) {
 				struct symbol *cs;
@@ -506,9 +506,8 @@ int conf_write_defconfig(const char *filename)
 				cs = prop_get_symbol(sym_get_choice_prop(sym));
 				ds = sym_choice_default(cs);
 				if (sym == ds) {
-					if ((sym->type == S_BOOLEAN ||
-					sym->type == S_TRISTATE) &&
-					sym_get_tristate_value(sym) == yes)
+					if ((sym->type == S_BOOLEAN) &&
+					    sym_get_tristate_value(sym) == yes)
 						goto next_menu;
 				}
 			}
@@ -919,13 +918,73 @@ void conf_set_changed_callback(void (*fn)(void))
 	conf_changed_callback = fn;
 }
 
+static void randomize_choice_values(struct symbol *csym)
+{
+	struct property *prop;
+	struct symbol *sym;
+	struct expr *e;
+	int cnt, def;
+
+	/*
+	 * If choice is mod then we may have more items slected
+	 * and if no then no-one.
+	 * In both cases stop.
+	 */
+	if (csym->curr.tri != yes)
+		return;
+
+	prop = sym_get_choice_prop(csym);
+
+	/* count entries in choice block */
+	cnt = 0;
+	expr_list_for_each_sym(prop->expr, e, sym)
+		cnt++;
+
+	/*
+	 * find a random value and set it to yes,
+	 * set the rest to no so we have only one set
+	 */
+	def = (rand() % cnt);
+
+	cnt = 0;
+	expr_list_for_each_sym(prop->expr, e, sym) {
+		if (def == cnt++) {
+			sym->def[S_DEF_USER].tri = yes;
+			csym->def[S_DEF_USER].val = sym;
+		}
+		else {
+			sym->def[S_DEF_USER].tri = no;
+		}
+	}
+	csym->flags |= SYMBOL_DEF_USER;
+	/* clear VALID to get value calculated */
+	csym->flags &= ~(SYMBOL_VALID);
+}
+
+static void set_all_choice_values(struct symbol *csym)
+{
+	struct property *prop;
+	struct symbol *sym;
+	struct expr *e;
+
+	prop = sym_get_choice_prop(csym);
+
+	/*
+	 * Set all non-assinged choice values to no
+	 */
+	expr_list_for_each_sym(prop->expr, e, sym) {
+		if (!sym_has_value(sym))
+			sym->def[S_DEF_USER].tri = no;
+	}
+	csym->flags |= SYMBOL_DEF_USER;
+	/* clear VALID to get value calculated */
+	csym->flags &= ~(SYMBOL_VALID);
+}
 
 void conf_set_all_new_symbols(enum conf_def_mode mode)
 {
 	struct symbol *sym, *csym;
-	struct property *prop;
-	struct expr *e;
-	int i, cnt, def;
+	int i, cnt;
 
 	for_all_symbols(i, sym) {
 		if (sym_has_value(sym))
@@ -961,8 +1020,6 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 
 	sym_clear_all_valid();
 
-	if (mode != def_random)
-		return;
 	/*
 	 * We have different type of choice blocks.
 	 * If curr.tri equal to mod then we can select several
@@ -977,35 +1034,9 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 			continue;
 
 		sym_calc_value(csym);
-
-		if (csym->curr.tri != yes)
-			continue;
-
-		prop = sym_get_choice_prop(csym);
-
-		/* count entries in choice block */
-		cnt = 0;
-		expr_list_for_each_sym(prop->expr, e, sym)
-			cnt++;
-
-		/*
-		 * find a random value and set it to yes,
-		 * set the rest to no so we have only one set
-		 */
-		def = (rand() % cnt);
-
-		cnt = 0;
-		expr_list_for_each_sym(prop->expr, e, sym) {
-			if (def == cnt++) {
-				sym->def[S_DEF_USER].tri = yes;
-				csym->def[S_DEF_USER].val = sym;
-			}
-			else {
-				sym->def[S_DEF_USER].tri = no;
-			}
-		}
-		csym->flags |= SYMBOL_DEF_USER;
-		/* clear VALID to get value calculated */
-		csym->flags &= ~(SYMBOL_VALID);
+		if (mode == def_random)
+			randomize_choice_values(csym);
+		else
+			set_all_choice_values(csym);
 	}
 }

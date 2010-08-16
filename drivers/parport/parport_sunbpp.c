@@ -286,7 +286,7 @@ static struct parport_operations parport_sunbpp_ops =
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit bpp_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit bpp_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct parport_operations *ops;
 	struct bpp_regs __iomem *regs;
@@ -351,7 +351,7 @@ out_unmap:
 	return err;
 }
 
-static int __devexit bpp_remove(struct of_device *op)
+static int __devexit bpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	struct parport_operations *ops = p->ops;

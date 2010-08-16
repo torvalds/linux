@@ -1270,21 +1270,18 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
 
-	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
-		err = inode_change_ok(inode, attr);
-		if (err)
-			return err;
-	}
+	if (!(fc->flags & FUSE_DEFAULT_PERMISSIONS))
+		attr->ia_valid |= ATTR_FORCE;
+
+	err = inode_change_ok(inode, attr);
+	if (err)
+		return err;
 
 	if ((attr->ia_valid & ATTR_OPEN) && fc->atomic_o_trunc)
 		return 0;
 
-	if (attr->ia_valid & ATTR_SIZE) {
-		err = inode_newsize_ok(inode, attr->ia_size);
-		if (err)
-			return err;
+	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;
-	}
 
 	req = fuse_get_req(fc);
 	if (IS_ERR(req))

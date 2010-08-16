@@ -36,6 +36,24 @@
 #include "ql4_dbg.h"
 #include "ql4_nx.h"
 
+#if defined(CONFIG_PCIEAER)
+#include <linux/aer.h>
+#else
+/* AER releated */
+static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+#endif
+
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP4010
 #define PCI_DEVICE_ID_QLOGIC_ISP4010	0x4010
 #endif
@@ -136,6 +154,9 @@
 #define ISCSI_IPADDR_SIZE		4	/* IP address size */
 #define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
 #define ISCSI_NAME_SIZE			0xE0	/* ISCSI Name size */
+
+#define QL4_SESS_RECOVERY_TMO		30	/* iSCSI session */
+						/* recovery timeout */
 
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
@@ -249,7 +270,6 @@ struct ddb_entry {
 	uint32_t default_time2wait; /* Default Min time between
 				     * relogins (+aens) */
 
-	atomic_t port_down_timer; /* Device connection timer */
 	atomic_t retry_relogin_timer; /* Min Time between relogins
 				       * (4000 only) */
 	atomic_t relogin_timer;	/* Max Time to wait for relogin to complete */
@@ -378,7 +398,9 @@ struct scsi_qla_host {
 #define AF_MSI_ENABLED			16 /* 0x00010000 */
 #define AF_MSIX_ENABLED			17 /* 0x00020000 */
 #define AF_MBOX_COMMAND_NOPOLL		18 /* 0x00040000 */
-
+#define AF_FW_RECOVERY			19 /* 0x00080000 */
+#define AF_EEH_BUSY			20 /* 0x00100000 */
+#define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
 
 	unsigned long dpc_flags;
 
@@ -474,7 +496,6 @@ struct scsi_qla_host {
 	uint32_t timer_active;
 
 	/* Recovery Timers */
-	uint32_t port_down_retry_count;
 	uint32_t discovery_wait;
 	atomic_t check_relogin_timeouts;
 	uint32_t retry_reset_ha_cnt;
@@ -611,6 +632,15 @@ static inline int is_qla4032(struct scsi_qla_host *ha)
 }
 
 static inline int is_qla8022(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
+}
+
+/* Note: Currently AER/EEH is now supported only for 8022 cards
+ * This function needs to be updated when AER/EEH is enabled
+ * for other cards.
+ */
+static inline int is_aer_supported(struct scsi_qla_host *ha)
 {
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
 }

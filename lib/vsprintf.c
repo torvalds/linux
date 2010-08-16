@@ -146,19 +146,16 @@ int strict_strtoul(const char *cp, unsigned int base, unsigned long *res)
 {
 	char *tail;
 	unsigned long val;
-	size_t len;
 
 	*res = 0;
-	len = strlen(cp);
-	if (len == 0)
+	if (!*cp)
 		return -EINVAL;
 
 	val = simple_strtoul(cp, &tail, base);
 	if (tail == cp)
 		return -EINVAL;
 
-	if ((*tail == '\0') ||
-		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
+	if ((tail[0] == '\0') || (tail[0] == '\n' && tail[1] == '\0')) {
 		*res = val;
 		return 0;
 	}
@@ -220,18 +217,15 @@ int strict_strtoull(const char *cp, unsigned int base, unsigned long long *res)
 {
 	char *tail;
 	unsigned long long val;
-	size_t len;
 
 	*res = 0;
-	len = strlen(cp);
-	if (len == 0)
+	if (!*cp)
 		return -EINVAL;
 
 	val = simple_strtoull(cp, &tail, base);
 	if (tail == cp)
 		return -EINVAL;
-	if ((*tail == '\0') ||
-		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
+	if ((tail[0] == '\0') || (tail[0] == '\n' && tail[1] == '\0')) {
 		*res = val;
 		return 0;
 	}

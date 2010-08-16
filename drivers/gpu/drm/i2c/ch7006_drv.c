@@ -470,6 +470,7 @@ static int ch7006_encoder_init(struct i2c_client *client,
 	priv->hmargin = 50;
 	priv->vmargin = 50;
 	priv->last_dpms = -1;
+	priv->chip_version = ch7006_read(client, CH7006_VERSION_ID);
 
 	if (ch7006_tv_norm) {
 		for (i = 0; i < NUM_TV_NORMS; i++) {

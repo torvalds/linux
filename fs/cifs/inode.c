@@ -1698,26 +1698,16 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	return rc;
 }
 
-static int cifs_vmtruncate(struct inode *inode, loff_t offset)
+static void cifs_setsize(struct inode *inode, loff_t offset)
 {
 	loff_t oldsize;
-	int err;
 
 	spin_lock(&inode->i_lock);
-	err = inode_newsize_ok(inode, offset);
-	if (err) {
-		spin_unlock(&inode->i_lock);
-		goto out;
-	}
-
 	oldsize = inode->i_size;
 	i_size_write(inode, offset);
 	spin_unlock(&inode->i_lock);
+
 	truncate_pagecache(inode, oldsize, offset);
-	if (inode->i_op->truncate)
-		inode->i_op->truncate(inode);
-out:
-	return err;
 }
 
 static int
@@ -1790,7 +1780,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 
 	if (rc == 0) {
 		cifsInode->server_eof = attrs->ia_size;
-		rc = cifs_vmtruncate(inode, attrs->ia_size);
+		cifs_setsize(inode, attrs->ia_size);
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
 
@@ -1815,14 +1805,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 
 	xid = GetXid();
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
-		/* check if we have permission to change attrs */
-		rc = inode_change_ok(inode, attrs);
-		if (rc < 0)
-			goto out;
-		else
-			rc = 0;
-	}
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		attrs->ia_valid |= ATTR_FORCE;
+
+	rc = inode_change_ok(inode, attrs);
+	if (rc < 0)
+		goto out;
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -1908,18 +1896,24 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 
-	if (!rc) {
-		rc = inode_setattr(inode, attrs);
+	if (rc)
+		goto out;
 
-		/* force revalidate when any of these times are set since some
-		   of the fs types (eg ext3, fat) do not have fine enough
-		   time granularity to match protocol, and we do not have a
-		   a way (yet) to query the server fs's time granularity (and
-		   whether it rounds times down).
-		*/
-		if (!rc && (attrs->ia_valid & (ATTR_MTIME | ATTR_CTIME)))
-			cifsInode->time = 0;
-	}
+	if ((attrs->ia_valid & ATTR_SIZE) &&
+	    attrs->ia_size != i_size_read(inode))
+		truncate_setsize(inode, attrs->ia_size);
+
+	setattr_copy(inode, attrs);
+	mark_inode_dirty(inode);
+
+	/* force revalidate when any of these times are set since some
+	   of the fs types (eg ext3, fat) do not have fine enough
+	   time granularity to match protocol, and we do not have a
+	   a way (yet) to query the server fs's time granularity (and
+	   whether it rounds times down).
+	*/
+	if (attrs->ia_valid & (ATTR_MTIME | ATTR_CTIME))
+		cifsInode->time = 0;
 out:
 	kfree(args);
 	kfree(full_path);
@@ -1944,14 +1938,13 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	cFYI(1, "setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid);
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
-		/* check if we have permission to change attrs */
-		rc = inode_change_ok(inode, attrs);
-		if (rc < 0) {
-			FreeXid(xid);
-			return rc;
-		} else
-			rc = 0;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		attrs->ia_valid |= ATTR_FORCE;
+
+	rc = inode_change_ok(inode, attrs);
+	if (rc < 0) {
+		FreeXid(xid);
+		return rc;
 	}
 
 	full_path = build_path_from_dentry(direntry);
@@ -2059,8 +2052,17 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	/* do not need local check to inode_check_ok since the server does
 	   that */
-	if (!rc)
-		rc = inode_setattr(inode, attrs);
+	if (rc)
+		goto cifs_setattr_exit;
+
+	if ((attrs->ia_valid & ATTR_SIZE) &&
+	    attrs->ia_size != i_size_read(inode))
+		truncate_setsize(inode, attrs->ia_size);
+
+	setattr_copy(inode, attrs);
+	mark_inode_dirty(inode);
+	return 0;
+
 cifs_setattr_exit:
 	kfree(full_path);
 	FreeXid(xid);
