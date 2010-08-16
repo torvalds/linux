@@ -37,6 +37,11 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err = 0;
 
+	if (pdata->chip.nr_chips < 1) {
+		dev_err(&pdev->dev, "invalid number of chips specified\n");
+		return -EINVAL;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENXIO;

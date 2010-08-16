@@ -635,24 +635,6 @@
 #define CLK_X  5
 #define CLK_MULTI 4
 
-/* ffsport.h */
-#define VERBOSE    1
-
-#define NAND_DBG_WARN  1
-#define NAND_DBG_DEBUG 2
-#define NAND_DBG_TRACE 3
-
-#ifdef VERBOSE
-#define nand_dbg_print(level, args...)				\
-	do {							\
-			if (level <= nand_debug_level)		\
-				printk(KERN_ALERT args);	\
-	} while (0)
-#else
-#define nand_dbg_print(level, args...)
-#endif
-
-
 /* spectraswconfig.h */
 #define CMD_DMA 0
 
