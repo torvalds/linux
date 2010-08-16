@@ -476,7 +476,7 @@ static void __exit spi_fpga_exit(void)
 	spi_unregister_driver(&spi_fpga_driver);
 }
 
-module_init(spi_fpga_init);
+subsys_initcall(spi_fpga_init);
 module_exit(spi_fpga_exit);
 
 MODULE_DESCRIPTION("Driver for spi2uart,spi2gpio,spi2i2c.");

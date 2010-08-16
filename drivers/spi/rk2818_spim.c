@@ -1103,7 +1103,7 @@ static void __exit rk2818_spim_exit(void)
 	platform_driver_unregister(&rk2818_platform_spim_driver);
 }
 
-module_init(rk2818_spim_init);
+subsys_initcall(rk2818_spim_init);
 module_exit(rk2818_spim_exit);
 
 MODULE_AUTHOR("lhh lhh@rock-chips.com");
