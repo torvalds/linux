@@ -8,20 +8,22 @@
 # for "archclean" and "archdep" for cleaning up and making dependencies for
 # this architecture
 
-ifeq ($(CROSS_COMPILE),)
 # If building with TILERA_ROOT set (i.e. using the Tilera Multicore
 # Development Environment) we can set CROSS_COMPILE based on that.
-ifdef TILERA_ROOT
-CROSS_COMPILE	= $(TILERA_ROOT)/bin/tile-
-endif
-endif
-
 # If we're not cross-compiling, make sure we're on the right architecture.
+# Only bother to test for a few common targets, to avoid useless errors.
 ifeq ($(CROSS_COMPILE),)
-HOST_ARCH = $(shell uname -m)
-ifneq ($(HOST_ARCH),$(ARCH))
+  ifdef TILERA_ROOT
+    CROSS_COMPILE := $(TILERA_ROOT)/bin/tile-
+  else
+    goals := $(if $(MAKECMDGOALS), $(MAKECMDGOALS), all)
+    ifneq ($(strip $(filter vmlinux modules all,$(goals))),)
+      HOST_ARCH := $(shell uname -m)
+      ifneq ($(HOST_ARCH),$(ARCH))
 $(error Set TILERA_ROOT or CROSS_COMPILE when building $(ARCH) on $(HOST_ARCH))
-endif
+      endif
+    endif
+  endif
 endif
 
 

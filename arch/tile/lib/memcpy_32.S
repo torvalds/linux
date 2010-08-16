@@ -17,10 +17,6 @@
 
 #include <arch/chip.h>
 
-#if CHIP_HAS_WH64() || defined(MEMCPY_TEST_WH64)
-#define MEMCPY_USE_WH64
-#endif
-
 
 #include <linux/linkage.h>
 
@@ -160,7 +156,7 @@ EX:	{ sw r0, r3; addi r0, r0, 4; addi r2, r2, -4 }
 
 	{ addi r3, r1, 60; andi r9, r9, -64 }
 
-#ifdef MEMCPY_USE_WH64
+#if CHIP_HAS_WH64()
         /* No need to prefetch dst, we'll just do the wh64
          * right before we copy a line.
 	 */
@@ -173,7 +169,7 @@ EX:	{ lw r6, r3; addi r3, r3, 64 }
         /* Intentionally stall for a few cycles to leave L2 cache alone. */
         { bnzt zero, . }
 EX:	{ lw r7, r3; addi r3, r3, 64 }
-#ifndef MEMCPY_USE_WH64
+#if !CHIP_HAS_WH64()
         /* Prefetch the dest */
         /* Intentionally stall for a few cycles to leave L2 cache alone. */
         { bnzt zero, . }
@@ -288,15 +284,7 @@ EX:	{ lw r7, r3; addi r3, r3, 64 }
         /* Fill second L1D line. */
 EX:	{ lw r17, r17; addi r1, r1, 48; mvz r3, r13, r1 } /* r17 = WORD_4 */
 
-#ifdef MEMCPY_TEST_WH64
-        /* Issue a fake wh64 that clobbers the destination words
-         * with random garbage, for testing.
-         */
-	{ movei r19, 64; crc32_32 r10, r2, r9 }
-.Lwh64_test_loop:
-EX:	{ sw r9, r10; addi r9, r9, 4; addi r19, r19, -4 }
-        { bnzt r19, .Lwh64_test_loop; crc32_32 r10, r10, r19 }
-#elif CHIP_HAS_WH64()
+#if CHIP_HAS_WH64()
         /* Prepare destination line for writing. */
 EX:	{ wh64 r9; addi r9, r9, 64 }
 #else
@@ -340,7 +328,7 @@ EX:	{ lw r18, r1; addi r1, r1, 4 }                  /* r18 = WORD_8 */
 EX:	{ sw r0, r16; addi r0, r0, 4; add r16, r0, r2 } /* store(WORD_0) */
 EX:	{ sw r0, r13; addi r0, r0, 4; andi r16, r16, -64 } /* store(WORD_1) */
 EX:	{ sw r0, r14; addi r0, r0, 4; slt_u r16, r9, r16 } /* store(WORD_2) */
-#ifdef MEMCPY_USE_WH64
+#if CHIP_HAS_WH64()
 EX:	{ sw r0, r15; addi r0, r0, 4; addi r13, sp, -64 } /* store(WORD_3) */
 #else
         /* Back up the r9 to a cache line we are already storing to

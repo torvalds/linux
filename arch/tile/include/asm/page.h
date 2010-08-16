@@ -129,6 +129,11 @@ static inline u64 pmd_val(pmd_t pmd)
 
 #endif
 
+static inline __attribute_const__ int get_order(unsigned long size)
+{
+	return BITS_PER_LONG - __builtin_clzl((size - 1) >> PAGE_SHIFT);
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
@@ -332,7 +337,6 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 	(VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/getorder.h>
 
 #endif /* __KERNEL__ */
 
