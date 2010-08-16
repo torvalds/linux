@@ -110,6 +110,7 @@
 #include <asm/numa_64.h>
 #endif
 #include <asm/mce.h>
+#include <asm/trampoline.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -997,6 +998,8 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.paging.pagetable_setup_start(swapper_pg_dir);
 	paging_init();
 	x86_init.paging.pagetable_setup_done(swapper_pg_dir);
+
+	setup_trampoline_page_table();
 
 	tboot_probe();
 
