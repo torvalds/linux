@@ -20,12 +20,12 @@
 #include <linux/init.h>
 #include <asm/irq.h>
 
-#define PIN_BASE        		0//定义RK2818内部GPIO的第一个PIN口(即GPIO0_A0)在gpio_desc数组的地址
+#define PIN_BASE        	0//定义RK2818内部GPIO的第一个PIN口(即GPIO0_A0)在gpio_desc数组的地址
 #define NUM_GROUP			8// 定义RK2818内部GPIO每一组最大的PIN数目，现在定为8个，即GPIOX_Y0~ GPIOX_Y7(其中X=0/1;Y=A/B/C/D)
 #define MAX_GPIO_BANKS		8//定义RK2818内部GPIO总共有几组，现在定为8组，即GPIO0_A~ GPIO0_D，GPIO1_A~ GPIO1_D。
 #define GPIOS_EXPANDER_BASE	(PIN_BASE+NUM_GROUP*MAX_GPIO_BANKS)
 //定义GPIO的PIN口最大数目。(NUM_GROUP*MAX_GPIO_BANKS)表示RK2818的内部GPIO的PIN口最大数目；CONFIG_ARCH_EXTEND_GPIOS表示扩展IO的最大数目。
-#define ARCH_NR_GPIOS  (NUM_GROUP*MAX_GPIO_BANKS) + CONFIG_EXPANDED_GPIO_NUM
+#define ARCH_NR_GPIOS  (NUM_GROUP*MAX_GPIO_BANKS)+CONFIG_EXPANDED_GPIO_NUM
 typedef enum eGPIOPinLevel
 {
 	GPIO_LOW=0,
@@ -122,14 +122,14 @@ struct rk2818_gpio_bank {
 #define	RK2818_PIN_PC6		(PIN_BASE + 2*NUM_GROUP + 6)
 #define	RK2818_PIN_PC7		(PIN_BASE + 2*NUM_GROUP + 7)
 
-#define	RK2818_PIN_PD0	(PIN_BASE + 3*NUM_GROUP + 0)
-#define	RK2818_PIN_PD1	(PIN_BASE + 3*NUM_GROUP + 1)
-#define	RK2818_PIN_PD2	(PIN_BASE + 3*NUM_GROUP + 2)
-#define	RK2818_PIN_PD3	(PIN_BASE + 3*NUM_GROUP + 3)
-#define	RK2818_PIN_PD4	(PIN_BASE + 3*NUM_GROUP + 4)
-#define	RK2818_PIN_PD5	(PIN_BASE + 3*NUM_GROUP + 5)
-#define	RK2818_PIN_PD6	(PIN_BASE + 3*NUM_GROUP + 6)
-#define	RK2818_PIN_PD7	(PIN_BASE + 3*NUM_GROUP + 7)
+#define	RK2818_PIN_PD0		(PIN_BASE + 3*NUM_GROUP + 0)
+#define	RK2818_PIN_PD1		(PIN_BASE + 3*NUM_GROUP + 1)
+#define	RK2818_PIN_PD2		(PIN_BASE + 3*NUM_GROUP + 2)
+#define	RK2818_PIN_PD3		(PIN_BASE + 3*NUM_GROUP + 3)
+#define	RK2818_PIN_PD4		(PIN_BASE + 3*NUM_GROUP + 4)
+#define	RK2818_PIN_PD5		(PIN_BASE + 3*NUM_GROUP + 5)
+#define	RK2818_PIN_PD6		(PIN_BASE + 3*NUM_GROUP + 6)
+#define	RK2818_PIN_PD7		(PIN_BASE + 3*NUM_GROUP + 7)
 
 #define	RK2818_PIN_PE0		(PIN_BASE + 4*NUM_GROUP + 0)
 #define	RK2818_PIN_PE1		(PIN_BASE + 4*NUM_GROUP + 1)
@@ -168,7 +168,7 @@ struct rk2818_gpio_bank {
 #define	RK2818_PIN_PH6	(PIN_BASE + 7*NUM_GROUP + 6)
 #define	RK2818_PIN_PH7	(PIN_BASE + 7*NUM_GROUP + 7)
 /***********************define extern gpio pin num******************************/
-#if defined(CONFIG_SPI_GPIO)
+#if 0//defined(CONFIG_SPI_GPIO)
 #define	FPGA_PIO0_00 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 0)
 #define	FPGA_PIO0_01 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 1)
 #define	FPGA_PIO0_02 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 2)
@@ -279,6 +279,37 @@ struct rk2818_gpio_bank {
 
 #endif
 
+#if defined(CONFIG_IOEXTEND_TCA6424)
+#define	TCA6424_P00 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 0)
+#define	TCA6424_P01 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 1)
+#define	TCA6424_P02 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 2)
+#define	TCA6424_P03 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 3)
+#define	TCA6424_P04 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 4)
+#define	TCA6424_P05 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 5)
+#define	TCA6424_P06 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 6)
+#define	TCA6424_P07 (GPIOS_EXPANDER_BASE + 0*NUM_GROUP + 7)
+
+#define	TCA6424_P10 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 0)
+#define	TCA6424_P11 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 1)
+#define	TCA6424_P12 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 2)
+#define	TCA6424_P13 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 3)
+#define	TCA6424_P14 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 4)
+#define	TCA6424_P15 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 5)
+#define	TCA6424_P16 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 6)
+#define	TCA6424_P17 (GPIOS_EXPANDER_BASE + 1*NUM_GROUP + 7)
+
+#define	TCA6424_P20 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 0)
+#define	TCA6424_P21 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 1)
+#define	TCA6424_P22 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 2)
+#define	TCA6424_P23 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 3)
+#define	TCA6424_P24 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 4)
+#define	TCA6424_P25 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 5)
+#define	TCA6424_P26 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 6)
+#define	TCA6424_P27 (GPIOS_EXPANDER_BASE + 2*NUM_GROUP + 7)
+
+#endif
+
+
 #ifndef __ASSEMBLY__
 extern void __init rk2818_gpio_init(struct rk2818_gpio_bank *data, int nr_banks);
 extern void __init rk2818_gpio_irq_setup(void);
@@ -314,12 +345,19 @@ static inline int irq_to_gpio(unsigned irq)
     {
         return (RK2818_PIN_PE0 + (irq - __gpio_to_irq(RK2818_PIN_PE0)));
     }
-#if defined(CONFIG_SPI_GPIO)
+#if 0//defined(CONFIG_SPI_GPIO)
    else if((irq - __gpio_to_irq(FPGA_PIO0_00)) <2*NUM_GROUP)
    {
 	return (FPGA_PIO0_00 + (irq - __gpio_to_irq(FPGA_PIO0_00)));
     }
 #endif
+#if defined(CONFIG_IOEXTEND_TCA6424)
+   else if((irq - __gpio_to_irq(TCA6424_P00)) <3*NUM_GROUP)
+   {
+		return (TCA6424_P00 + (irq - __gpio_to_irq(TCA6424_P00)));
+	}
+#endif
+
     else
     {
         return -ENXIO;
