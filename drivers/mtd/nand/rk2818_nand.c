@@ -884,12 +884,10 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 		this->ecc.layout = &nand_hw_eccoob_16;
 	}
       // iomux flash  cs1~cs7
-      rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
-      rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
-      rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME, IOMUXB_FLASH_CS3);
-      rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_FLASH_CS45);  
-      rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_FLASH_CS67);  
-	   
+    if (pdata && pdata->io_init) {
+        pdata->io_init();
+    }  
+   
 	/* Scan to find existence of the device */
 	   if (nand_scan(mtd, 8)) {     // rk2818 nandc support max 8 cs
 	 
@@ -900,6 +898,7 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 	}
 
 	//根据片选情况恢复IO MUX原始值
+#if 0
     chip = mtd->priv;
     switch(chip->numchips)
     {
@@ -920,6 +919,7 @@ static int rk2818_nand_probe(struct platform_device *pdev)
         default:
             DEBUG(MTD_DEBUG_LEVEL0, "RK2818 NAND: numchips error!!!\n");
     }
+#endif    
 #if 0
       // rk281x dma mode bch must  (1k data + 32 oob) bytes align , so cheat system writesize =1024,oobsize=32
 	mtd->writesize = 1024;

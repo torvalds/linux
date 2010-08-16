@@ -648,8 +648,8 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
 
-	if(pdata->cfg_gpio)
-		pdata->cfg_gpio(pdev);
+	if(pdata->io_init)
+		pdata->io_init();
 	 
 	rk2818_i2c_init_hw(i2c);
 

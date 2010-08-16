@@ -27,8 +27,6 @@
 #include <mach/adc.h>
 #include <mach/board.h>
 
-extern struct adc_key_data rk2818_adc_key;
-
 #if 0
 #define DBG(x...)   printk(x)
 #else
@@ -59,11 +57,11 @@ struct rk28_adckey
 
 struct rk28_adckey *pRk28AdcKey;
 
-unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
+unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab,struct adc_key_data *rk2818_adckey_data)
 {	
 	while(ptab->adc_value != 0)
 	{
-		if((advalue > ptab->adc_value - rk2818_adc_key.adc_drift) && (advalue < ptab->adc_value + rk2818_adc_key.adc_drift))
+		if((advalue > ptab->adc_value - rk2818_adckey_data->adc_drift) && (advalue < ptab->adc_value + rk2818_adckey_data->adc_drift))
 		    return ptab->adc_keycode;
 		ptab++;
 	}
@@ -128,12 +126,13 @@ static int rk28_adckey_resume(struct platform_device *pdev)
 static void rk28_adkeyscan_timer(unsigned long data)
 {
 	unsigned int adcvalue = -1, code;
-
+	struct adc_key_data *rk2818_adckey_data = (struct adc_key_data *)data;
+	
 	pRk28AdcKey->timer.expires  = jiffies + msecs_to_jiffies(10);
 	add_timer(&pRk28AdcKey->timer);
 
 	/*handle long press of play key*/
-	if(gpio_get_value(rk2818_adc_key.pin_playon) == rk2818_adc_key.playon_level)
+	if(gpio_get_value(rk2818_adckey_data->pin_playon) == rk2818_adckey_data->playon_level)
 	{
 		if(++gPlayCount > 20000)
 			gPlayCount = 101;
@@ -189,10 +188,10 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	gADSampleTimes = 0;
 
 	//rk28_read_adc(pRk28AdcKey);	
-	adcvalue = gAdcValue[rk2818_adc_key.adc_chn];
-	//DBG("=========== adcvalue=0x%x ===========\n",adcvalue);
+	adcvalue = gAdcValue[rk2818_adckey_data->adc_chn];
+	//printk("=========== adcvalue=0x%x ===========\n",adcvalue);
 
-	if((adcvalue > rk2818_adc_key.adc_empty) || (adcvalue < rk2818_adc_key.adc_invalid))
+	if((adcvalue > rk2818_adckey_data->adc_empty) || (adcvalue < rk2818_adckey_data->adc_invalid))
 	{
 	    //DBG("adcvalue invalid !!!\n");
 		if(gLastCode == 0) {
@@ -224,7 +223,7 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	
 	//DBG("adcvalue=0x%x\n",adcvalue);
 	
-	code=rk28_get_keycode(adcvalue,rk2818_adc_key.adc_key_table);
+	code=rk28_get_keycode(adcvalue,rk2818_adckey_data->adc_key_table,rk2818_adckey_data);
 	if(code)
 	{
 		if(code == KEYMENU)
@@ -257,8 +256,12 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 {
 	struct rk28_adckey *adckey;
 	struct input_dev *input_dev;
-	int error,i;
+	int error,i,irq_num;
+	struct rk2818_adckey_platform_data *pdata = pdev->dev.platform_data;
 
+	if (!(pdata->adc_key))
+		return -1;
+	
 	adckey = kzalloc(sizeof(struct rk28_adckey), GFP_KERNEL);
 	if (adckey == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
@@ -266,7 +269,7 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	}
 	
 	//memcpy(adckey->keycodes, gInitKeyCode, sizeof(adckey->keycodes));
-	adckey->keycodes = rk2818_adc_key.initKeyCode;
+	adckey->keycodes = pdata->adc_key->initKeyCode;
 	
 	/* Create and register the input driver. */
 	input_dev = input_allocate_device();
@@ -288,9 +291,9 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 
 	input_dev->keycode = adckey->keycodes;
 	input_dev->keycodesize = sizeof(unsigned char);
-	input_dev->keycodemax = rk2818_adc_key.adc_key_cnt;
-	for (i = 0; i < rk2818_adc_key.adc_key_cnt; i++)
-		set_bit(rk2818_adc_key.initKeyCode[i], input_dev->keybit);
+	input_dev->keycodemax = pdata->adc_key->adc_key_cnt;
+	for (i = 0; i < pdata->adc_key->adc_key_cnt; i++)
+		set_bit(pdata->adc_key->initKeyCode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
 
 	adckey->input_dev = input_dev;
@@ -309,52 +312,48 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register input device\n");
 		goto failed_free_dev;
 	}
-	
-	error = gpio_request(rk2818_adc_key.pin_playon, "play key gpio");
+
+	error = gpio_request(pdata->adc_key->pin_playon, "play key gpio");
 	if (error) {
 		dev_err(&pdev->dev, "failed to request play key gpio\n");
 		goto free_gpio;
 	}
-    if(rk2818_adc_key.playon_level)
+	
+	irq_num = gpio_to_irq(pdata->adc_key->pin_playon);
+
+    if(pdata->adc_key->playon_level)
     {
-    	gpio_pull_updown(rk2818_adc_key.pin_playon,GPIOPullDown);
-    	error = request_irq(gpio_to_irq(rk2818_adc_key.pin_playon),rk28_playkey_irq,IRQF_TRIGGER_RISING,NULL,NULL);
-    	if(error)
-    	{
-    		printk("unable to request play key irq\n");
-    		goto free_gpio_irq;
-    	}	
-    }
-    else
-    {
-    	gpio_pull_updown(rk2818_adc_key.pin_playon,GPIOPullUp);
-    	error = request_irq(gpio_to_irq(rk2818_adc_key.pin_playon),rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+    	gpio_pull_updown(pdata->adc_key->pin_playon,GPIOPullDown);		
+    	error = request_irq(irq_num,rk28_playkey_irq,IRQF_TRIGGER_RISING,NULL,NULL);
     	if(error)
     	{
     		printk("unable to request play key irq\n");
     		goto free_gpio_irq;
     	}
     }
+    else
+    {
+    	gpio_pull_updown(pdata->adc_key->pin_playon,GPIOPullUp);		
+    	error = request_irq(irq_num,rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+    	if(error)
+    	{
+    		printk("unable to request play key irq\n");
+    		goto free_gpio_irq;
+    	}
+    }
+	
+	enable_irq_wake(irq_num); // so play/wakeup key can wake up system
 
-	enable_irq_wake(gpio_to_irq(rk2818_adc_key.pin_playon)); // so play/wakeup key can wake up system
-#if 0
-	error = gpio_direction_input(rk2818_adc_key.pin_playon);
-	if (error) 
-	{
-		printk("failed to set gpio rk2818_adc_key.pin_playon input\n");
-		goto free_gpio_irq;
-	}
-#endif
-	setup_timer(&adckey->timer, rk28_adkeyscan_timer, (unsigned long)adckey);
+	setup_timer(&adckey->timer, rk28_adkeyscan_timer, (unsigned long)(pdata->adc_key));
 	adckey->timer.expires  = jiffies+50;
 	add_timer(&adckey->timer);
 	printk(KERN_INFO "rk2818_adckey: driver initialized\n");
 	return 0;
 	
 free_gpio_irq:
-	free_irq(gpio_to_irq(rk2818_adc_key.pin_playon),NULL);
+	free_irq(irq_num,NULL);
 free_gpio:	
-	gpio_free(rk2818_adc_key.pin_playon);
+	gpio_free(pdata->adc_key->pin_playon);
 failed_free_dev:
 	platform_set_drvdata(pdev, NULL);
 	input_free_device(input_dev);
@@ -366,13 +365,14 @@ failed_free:
 static int __devexit rk28_adckey_remove(struct platform_device *pdev)
 {
 	struct rk28_adckey *adckey = platform_get_drvdata(pdev);
-
+	struct rk2818_adckey_platform_data *pdata = pdev->dev.platform_data;
+	
 	input_unregister_device(adckey->input_dev);
 	input_free_device(adckey->input_dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(adckey);
-	free_irq(gpio_to_irq(rk2818_adc_key.pin_playon),NULL);
-	gpio_free(rk2818_adc_key.pin_playon);
+	free_irq(gpio_to_irq(pdata->adc_key->pin_playon), NULL);
+	gpio_free(pdata->adc_key->pin_playon);
 	return 0;
 }
 

@@ -1517,12 +1517,20 @@ dm9000_probe(struct platform_device *pdev)
 			goto out;
 		}
 	}
-	if (pdata && pdata->get_irq_num) {
-		ndev->irq = pdata->get_irq_num();
-	}
-	else {
-		ndev->irq = db->irq_res->start;
-	}
+
+	if (gpio_request(pdata->irq_pin, "dm9000 interrupt")) {
+		gpio_free(pdata->irq_pin);
+		if (pdata->io_deinit)
+			pdata->io_deinit();
+		printk("[fun:%s line:%d], request gpio for net interrupt fail\n", __func__,__LINE__);
+		ret = -EINVAL;
+		goto out;
+	}	
+	gpio_pull_updown(pdata->irq_pin, pdata->irq_pin_value);
+	gpio_direction_input(pdata->irq_pin);
+
+	ndev->irq = gpio_to_irq(pdata->irq_pin);
+	//ndev->irq = db->irq_res->start;
 	
 	/* ensure at least we have a default set of IO routines */
 	dm9000_set_io(db, iosize);
@@ -1719,6 +1727,7 @@ dm9000_drv_remove(struct platform_device *pdev)
 	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
 
 	//deinit io for dm9000
+	gpio_free(pdata->irq_pin);
 	if (pdata && pdata->io_deinit)
 		pdata->io_deinit();
 

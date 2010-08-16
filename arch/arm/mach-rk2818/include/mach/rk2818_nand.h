@@ -114,6 +114,8 @@ struct rk2818_nand_platform_data {
 	struct mtd_partition *parts;
 	unsigned int	nr_parts;
        size_t		num_flash;
+    int (*io_init)(void);
+    int (*io_deinit)(void);
 };
 
 

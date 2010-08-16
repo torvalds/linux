@@ -27,7 +27,7 @@
 #include <mach/gpio.h>
 #include <mach/adc.h>
 #include <mach/iomux.h>
-
+#include <mach/board.h>
 #if 0
 #define DBG(x...)   printk(x)
 #else
@@ -56,7 +56,6 @@
 #define BATT_PRESENT_TRUE	 1
 #define BATT_PRESENT_FALSE  0
 #define BAT_1V2_VALUE	1330
-#define CHARGEOK_PIN	RK2818_PIN_PB1
 
 #define BAT_LOADER_STATUS		0	//ÓÃµç×´Ì¬
 #define BAT_CHANGE_STATUS		1	//²¨¶¯×´Ì¬
@@ -112,6 +111,8 @@ struct rk2818_battery_data {
 	struct power_supply battery;
 	struct power_supply usb;
 	struct power_supply ac;
+
+	int charge_ok_pin;
 	
 	int adc_bat_divider;
 	int bat_max;
@@ -155,7 +156,7 @@ static void rk2818_get_bat_status(struct rk2818_battery_data *bat)
 {
 	if(rk2818_get_charge_status() == 1)
 	{
-		if(gpio_get_value (CHARGEOK_PIN) == 1) //CHG_OK ==0 
+		if(gpio_get_value (bat->charge_ok_pin) == 1) //CHG_OK ==0 
 		{
 			gBatStatus = POWER_SUPPLY_STATUS_FULL;
 			DBG("Battery is Full!\n");
@@ -543,15 +544,22 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct rk2818_battery_data *data;
+	struct rk2818_battery_platform_data *pdata = pdev->dev.platform_data;
 
-	ret = gpio_request(CHARGEOK_PIN, NULL);
+	if (pdata && pdata->io_init) {
+		ret = pdata->io_init();
+		if (ret) 
+			goto err_free_gpio1;		
+	}
+
+	ret = gpio_request(pdata->charge_ok_pin, NULL);
 	if (ret) {
 		printk("failed to request charge_ok gpio\n");
 		goto err_free_gpio1;
 	}
 	
-	gpio_pull_updown(CHARGEOK_PIN, GPIOPullUp);//important
-	ret = gpio_direction_input(CHARGEOK_PIN);
+	gpio_pull_updown(pdata->charge_ok_pin, GPIOPullUp);//important
+	ret = gpio_direction_input(pdata->charge_ok_pin);
 	if (ret) {
 		printk("failed to set gpio charge_ok input\n");
 		goto err_free_gpio1;
@@ -587,6 +595,8 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 	data->ac.get_property = rk2818_ac_get_property;
 	data->ac.name = "ac";
 	data->ac.type = POWER_SUPPLY_TYPE_MAINS;
+
+	data->charge_ok_pin = pdata->charge_ok_pin;
 	
 	ret = power_supply_register(&pdev->dev, &data->ac);
 	if (ret)
@@ -629,19 +639,20 @@ err_ac_failed:
 err_data_alloc_failed:
 
 err_free_gpio1:
-	gpio_free(CHARGEOK_PIN);
+	gpio_free(pdata->charge_ok_pin);
 	return ret;
 }
 
 static int rk2818_battery_remove(struct platform_device *pdev)
 {
 	struct rk2818_battery_data *data = platform_get_drvdata(pdev);
+	struct rk2818_battery_platform_data *pdata = pdev->dev.platform_data;
 
 	power_supply_unregister(&data->battery);
 	power_supply_unregister(&data->usb);
 	power_supply_unregister(&data->ac);
-	gpio_free(CHARGEOK_PIN);
 	free_irq(data->irq, data);
+	gpio_free(pdata->charge_ok_pin);
 	kfree(data);
 	gBatteryData = NULL;
 	return 0;

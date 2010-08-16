@@ -34,8 +34,8 @@ struct rk28camera_gpio_res {
 };
 
 struct rk28camera_platform_data {
-    int (*init)(void);
-    int (*deinit)(void);
+    int (*io_init)(void);
+    int (*io_deinit)(void);
     struct rk28camera_gpio_res gpio_res[2];
 };
 

@@ -1729,8 +1729,8 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No platform data\n");
 		return -EINVAL;
 	}
-	if(pdata->cfg_gpio)
-		pdata->cfg_gpio(pdev);
+	if(pdata->io_init)
+		pdata->io_init();
 
 	mmc = mmc_alloc_host(sizeof(struct rk2818_sdmmc_host), &pdev->dev);
 	if (!mmc)

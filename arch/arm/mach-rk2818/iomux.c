@@ -114,7 +114,10 @@ EXPORT_SYMBOL(rk2818_iomux_init);
  */ 
 void rk2818_mux_api_set(char *name, unsigned int mode)
 {
-  int i; 
+  int i;
+        if (!name) {
+                return;
+        } 
 	for(i=0;i<ARRAY_SIZE(rk2818_muxs);i++)
 	{
 		if (!strcmp(rk2818_muxs[i].name, name))
@@ -131,6 +134,9 @@ EXPORT_SYMBOL(rk2818_mux_api_set);
 void rk2818_mux_api_mode_resume(char *name)
 {
     int i; 
+        if (!name) {
+                return;
+        }
 	for(i=0;i<ARRAY_SIZE(rk2818_muxs);i++)
 	{
 		if (!strcmp(rk2818_muxs[i].name, name))

@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/mma7660.h>
 #include <mach/gpio.h>
+#include <mach/board.h>
 #ifdef CONFIG_ANDROID_POWER
 #include <linux/android_power.h>
 #endif
@@ -507,19 +508,22 @@ static int mma7660_init_client(struct i2c_client *client)
 	struct mma7660_data *data;
 	int ret;
 	data = i2c_get_clientdata(client);
+	struct rk2818_gs_platform_data *pdata = client->dev.platform_data;
 
-	rk28printk("gpio_to_irq(%d) is %d\n",client->irq,gpio_to_irq(client->irq));
-	if ( !gpio_is_valid(client->irq)) {
-		rk28printk("+++++++++++gpio_is_invalid\n");
-		return -EINVAL;
+	printk("gpio_to_irq(%d) is %d\n",pdata->gsensor_irq_pin, gpio_to_irq(pdata->gsensor_irq_pin));
+	if ( !gpio_is_valid(pdata->gsensor_irq_pin)) {
+		printk("+++++++++++gpio_is_invalid\n");
+		return -1;
 	}
-	ret = gpio_request(client->irq, "mma7660_int");
-	if (ret) {
-		rk28printk( "failed to request mma7990_trig GPIO%d\n",gpio_to_irq(client->irq));
+	ret = gpio_request(pdata->gsensor_irq_pin, "mma7660_int");
+	if (ret) {		
+		gpio_free(pdata->gsensor_irq_pin);
+		printk( "failed to request mma7990_trig GPIO%d\n",gpio_to_irq(pdata->gsensor_irq_pin));
 		return ret;
 	}
+	
+	client->irq = gpio_to_irq(pdata->gsensor_irq_pin);
 
-	client->irq = gpio_to_irq(client->irq);
 	ret = request_irq(client->irq, mma7660_interrupt, IRQF_TRIGGER_RISING, client->dev.driver->name, data);
 	rk28printk("request irq is %d,ret is  0x%x\n",client->irq,ret);
 	if (ret ) {

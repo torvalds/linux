@@ -26,6 +26,7 @@
 
 #include "rk2818_spim.h"
 #include <linux/spi/spi.h>
+#include <mach/board.h>
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -62,7 +63,7 @@ struct chip_data {
 	u32 speed_hz;		/* baud rate */
 	int (*write)(struct rk2818_spi *dws);
 	int (*read)(struct rk2818_spi *dws);
-	void (*cs_control)(u32 command);
+	void (*cs_control)(struct rk2818_spi *dws, u32 cs);
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -183,17 +184,17 @@ static void flush(struct rk2818_spi *dws)
 	wait_till_not_busy(dws);
 }
 
-static void null_cs_control(u32 command)
+static void spi_cs_control(struct rk2818_spi *dws, u32 cs)
 {
-    //printk("null_cs_control [%d]\n", command);
-	if(command == 2)	
-		gpio_direction_output(RK2818_PIN_PB0,GPIO_LOW);
-	else if(command == 1)
-		gpio_direction_output(RK2818_PIN_PB4,GPIO_LOW);
-	else{
-		gpio_direction_output(RK2818_PIN_PB0,GPIO_HIGH);
-		gpio_direction_output(RK2818_PIN_PB4,GPIO_HIGH);
-	}
+	struct rk2818_spi_platform_data *pdata = dws->master->dev.platform_data;
+	struct spi_cs_gpio *cs_gpios = pdata->chipselect_gpios;
+	int i;
+	
+	if (cs == 0)
+		for (i=0; i<pdata->num_chipselect; i++)
+			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
+	else
+		gpio_direction_output(cs_gpios[cs-1].cs_gpio, GPIO_LOW);
 }
 
 static int null_writer(struct rk2818_spi *dws)
@@ -332,7 +333,7 @@ static void giveback(struct rk2818_spi *dws)
 					transfer_list);
 
 	if (!last_transfer->cs_change)
-		dws->cs_control(MRST_SPI_DEASSERT);
+		dws->cs_control(dws,MRST_SPI_DEASSERT);
 
 	msg->state = NULL;
 	if (msg->complete)
@@ -435,7 +436,7 @@ static void spi_chip_sel(struct rk2818_spi *dws, u16 cs)
 		return;
 
 	if (dws->cs_control){
-	    dws->cs_control(cs+1);
+	    dws->cs_control(dws, cs+1);
 	}
 	//rk2818_writel(dws, SPIM_SER, 1 << cs);
 	rk2818_writel(dws, SPIM_SER, 1 << 0);
@@ -719,7 +720,7 @@ static int rk2818_spi_setup(struct spi_device *spi)
 		if (!chip)
 			return -ENOMEM;
 
-		chip->cs_control = null_cs_control;
+		chip->cs_control = spi_cs_control;
 		chip->enable_dma = 1;  //0;
 	}
 
@@ -925,10 +926,28 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	struct rk2818_spi   *dws;
 	struct spi_master   *master;
 	int			irq; 
-	int         ret;
-		
-	gpio_request(RK2818_PIN_PB0, "rk2818_spim");	
-	gpio_request(RK2818_PIN_PB4, "rk2818_spim");
+	int         ret,i,j;
+	struct rk2818_spi_platform_data *pdata = pdev->dev.platform_data;
+	struct spi_cs_gpio *cs_gpios = pdata->chipselect_gpios;
+
+	if (pdata && pdata->io_init) {
+		pdata->io_init();
+	}	
+
+	if (cs_gpios) {
+		for (i=0; i<pdata->num_chipselect; i++) {
+			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
+			if (ret) {
+				for (j=0;j<i;j++)
+					gpio_free(cs_gpios[j].cs_gpio);
+				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
+				if (pdata->io_deinit)
+					pdata->io_deinit();
+				return -1;
+			}
+		}
+	}
+	
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return -ENXIO;	
@@ -967,11 +986,8 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	}
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->bus_num = pdev->id;
-#if defined(CONFIG_MACH_RAHO)	
-	master->num_chipselect = 3; //raho 大板需要支持3个片选 dxj
-#else
-    master->num_chipselect = 2; 
-#endif
+	master->num_chipselect = pdata->num_chipselect;
+	master->dev.platform_data = pdata;
 	master->cleanup = rk2818_spi_cleanup;
 	master->setup = rk2818_spi_setup;
 	master->transfer = rk2818_spi_transfer;

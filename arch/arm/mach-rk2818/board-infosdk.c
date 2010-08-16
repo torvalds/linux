@@ -34,6 +34,7 @@
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
+#include <mach/rk2818_nand.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -41,6 +42,10 @@
 
 #include "devices.h"
 
+#include "../../../drivers/spi/rk2818_spim.h"
+#include "../../../drivers/input/touchscreen/xpt2046_ts.h"
+#include "../../../drivers/staging/android/timed_gpio.h"
+#include "../../../sound/soc/codecs/wm8994.h"
 
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
@@ -152,25 +157,20 @@ static struct map_desc rk2818_io_desc[] __initdata = {
  * SDMMC devices
  *author: kfx
 *****************************************************************************************/
- void rk2818_sdmmc0_cfg_gpio(struct platform_device *dev)
+static int rk2818_sdmmc0_io_init(void)
 {
 	rk2818_mux_api_set(GPIOF3_APWM1_MMC0DETN_NAME, IOMUXA_SDMMC1_DETECT_N);
 	rk2818_mux_api_set(GPIOH_MMC0D_SEL_NAME, IOMUXA_SDMMC0_DATA123);
 	rk2818_mux_api_set(GPIOH_MMC0_SEL_NAME, IOMUXA_SDMMC0_CMD_DATA0_CLKOUT);
+    return 0;
 }
 
-void rk2818_sdmmc1_cfg_gpio(struct platform_device *dev)
+static int rk2818_sdmmc1_io_init(void)
 {
 	rk2818_mux_api_set(GPIOG_MMC1_SEL_NAME, IOMUXA_SDMMC1_CMD_DATA0_CLKOUT);
 	rk2818_mux_api_set(GPIOG_MMC1D_SEL_NAME, IOMUXA_SDMMC1_DATA123);
-#if 0
-	/* wifi power up (gpio control) */
-	rk2818_mux_api_set(GPIOH7_HSADCCLK_SEL_NAME,IOMUXB_GPIO1_D7);
-	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
-	gpio_request(RK2818_PIN_PH7, "sdio");
-	gpio_direction_output(RK2818_PIN_PH7,GPIO_HIGH);
-#endif
 
+    return 0;
 }
 #define CONFIG_SDMMC0_USE_DMA
 #define CONFIG_SDMMC1_USE_DMA
@@ -179,7 +179,7 @@ struct rk2818_sdmmc_platform_data default_sdmmc0_data = {
 					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33| 
 					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
-	.cfg_gpio = rk2818_sdmmc0_cfg_gpio,
+	.io_init = rk2818_sdmmc0_io_init,
 	.no_detect = 0,
 	.dma_name = "sd_mmc",
 #ifdef CONFIG_SDMMC0_USE_DMA
@@ -194,7 +194,7 @@ struct rk2818_sdmmc_platform_data default_sdmmc1_data = {
 					   MMC_VDD_32_33|MMC_VDD_33_34),
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_SDIO_IRQ|
 				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
-	.cfg_gpio = rk2818_sdmmc1_cfg_gpio,
+	.io_init = rk2818_sdmmc1_io_init,
 	.no_detect = 1,
 	.dma_name = "sdio",
 #ifdef CONFIG_SDMMC1_USE_DMA
@@ -255,15 +255,15 @@ struct pca9554_platform_data rk2818_pca9554_data={
 #endif
 
 /*****************************************************************************************
- * I2C devices
- *author: kfx
+ * i2c devices
+ * author: kfx@rock-chips.com
 *****************************************************************************************/
- void rk2818_i2c0_cfg_gpio(struct platform_device *dev)
+static void rk2818_i2c0_io_init(void)
 {
 	rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, IOMUXA_I2C0);
 }
 
-void rk2818_i2c1_cfg_gpio(struct platform_device *dev)
+static void rk2818_i2c1_io_init(void)
 {
 	rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
 }
@@ -273,7 +273,7 @@ struct rk2818_i2c_platform_data default_i2c0_data = {
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_IRQ,
-	.cfg_gpio = rk2818_i2c0_cfg_gpio,
+	.io_init = rk2818_i2c0_io_init,
 };
 struct rk2818_i2c_platform_data default_i2c1_data = { 
 #ifdef CONFIG_I2C0_RK2818
@@ -285,7 +285,7 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_IRQ,
-	.cfg_gpio = rk2818_i2c1_cfg_gpio,
+	.io_init = rk2818_i2c1_io_init,
 };
 
 struct rk2818_i2c_spi_data default_i2c2_data = { 
@@ -369,7 +369,8 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
         .type           = "gs_mma7660",
         .addr           = 0x4c,
         .flags          = 0,
-        .irq            = RK2818_PIN_PE3,
+        .irq            = GS_IRQ_PIN,
+		.platform_data = &rk2818_gs_platdata,
     },
 #endif
 	{},
@@ -378,20 +379,253 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 };
+/*****************************************************************************************
+ * wm8994  codec
+ * author: cjq@rock-chips.com
+ *****************************************************************************************/
+static struct wm8994_platform_data wm8994_data = {
+    .mic_input = 0,
+    .micBase_vcc = 0,
+    .bb_input = 0, 
+    .bb_output = 0,
+    .frequence = 0,
+    .enable_pin = 0,
+    .headset_pin = 0,
+    .headset_call_vol = 0,
+    .speaker_call_vol = 0,
+    .earpiece_call_vol = 0,
+    .bt_call_vol = 0,
+};// must initialize 
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #if defined (CONFIG_SND_SOC_WM8994)
 	{
 		.type    		= "wm8994",
 		.addr           = 0x1a,
 		.flags			= 0,
+		.platform_data  = &wm8994_data,
 	},
 #endif
 };	
 
 /*****************************************************************************************
- * SPI devices
- *author: lhh
+ * battery  devices
+ * author: lw@rock-chips.com
  *****************************************************************************************/
+#define CHARGEOK_PIN	RK2818_PIN_PB1
+struct rk2818_battery_platform_data rk2818_battery_platdata = {
+	.charge_ok_pin = CHARGEOK_PIN,
+};
+/*****************************************************************************************
+ * serial devices
+ * author: lhh@rock-chips.com
+ *****************************************************************************************/
+static int serial_io_init(void)
+{
+	int ret;
+#if 1   
+	//cz@rock-chips.com
+	//20100808 
+	//UART0的四个管脚先IOMUX成GPIO
+	//然后分别设置输入输出/拉高拉低处理
+	//最后再IOMUX成UART
+	//防止直接IOMUX成UART后四个管脚的状态不对时
+	//操作UART导致UART_USR_BUSY始终为1造成如下死循环
+	//while(rk2818_uart_read(port,UART_USR)&UART_USR_BUSY)
+	//UART四个管脚在未传输时正常状态应该为：
+	//RX/TX：HIGH
+	//CTS/RTS：LOW
+	//注意：CTS/RTS为低有效，硬件上不应该强行做上拉
+		rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_GPIO1_C1 /*IOMUXA_UART0_SOUT*/);  
+		rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_GPIO1_C0 /*IOMUXA_UART0_SIN*/);
+		
+		ret = gpio_request(RK2818_PIN_PG0, NULL); 
+		if(ret != 0)
+		{
+		  gpio_free(RK2818_PIN_PG0);
+		}
+		gpio_direction_output(RK2818_PIN_PG0,GPIO_HIGH); 
+	
+		
+		ret = gpio_request(RK2818_PIN_PG1, NULL); 
+		if(ret != 0)
+		{
+		  gpio_free(RK2818_PIN_PG1);
+		}
+		gpio_direction_output(RK2818_PIN_PG1,GPIO_HIGH); 
+	
+		gpio_pull_updown(RK2818_PIN_PG1,GPIOPullUp);
+		gpio_pull_updown(RK2818_PIN_PG0,GPIOPullUp);
+	
+		rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_UART0_SOUT);  
+		rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_UART0_SIN);
+	
+		rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_GPIO0_B2/*IOMUXB_UART0_CTS_N*/);
+		rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_GPIO0_B3/*IOMUXB_UART0_RTS_N*/);
+	
+		ret = gpio_request(RK2818_PIN_PB2, NULL); 
+		if(ret != 0)
+		{
+		  gpio_free(RK2818_PIN_PB2);
+		}
+		gpio_direction_input(RK2818_PIN_PB2); 
+	//	  gpio_direction_output(RK2818_PIN_PB2,GPIO_LOW); 
+		
+		ret = gpio_request(RK2818_PIN_PB3, NULL); 
+		if(ret != 0)
+		{
+		  gpio_free(RK2818_PIN_PB3);
+		}
+		gpio_direction_output(RK2818_PIN_PB3,GPIO_LOW); 
+#endif
+
+	rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_UART0_CTS_N);
+	rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_UART0_RTS_N);
+
+	return 0;
+}
+
+struct rk2818_serial_platform_data rk2818_serial0_platdata = {
+	.io_init = serial_io_init,
+};
+
+/*****************************************************************************************
+ * i2s devices
+ * author: lhhrock-chips.com
+ *****************************************************************************************/
+static int i2s_io_init(void)
+{
+    /* Configure the I2S pins in correct mode */
+    rk2818_mux_api_set(CXGPIO_I2S_SEL_NAME,IOMUXB_I2S_INTERFACE);
+	return 0;
+}
+
+struct rk2818_i2s_platform_data rk2818_i2s_platdata = {
+	.io_init = i2s_io_init,
+};
+/*****************************************************************************************
+ * spi devices
+ * author: lhhrock-chips.com
+ *****************************************************************************************/
+#define SPI_CHIPSELECT_NUM 3
+static int spi_io_init(void)
+{	
+	//cs0
+	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME, IOMUXA_GPIO0_B4);
+	//cs1
+	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME, IOMUXA_GPIO0_B0);
+	//clk
+	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME, IOMUXA_SPI0);
+	//cs2
+	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
+	
+	return 0;
+}
+static int spi_io_deinit(void)
+{
+	rk2818_mux_api_mode_resume(GPIOB4_SPI0CS0_MMC0D4_NAME);
+	rk2818_mux_api_mode_resume(GPIOB0_SPI0CSN1_MMC1PCA_NAME);
+	rk2818_mux_api_mode_resume(GPIOB_SPI0_MMC0_NAME);	
+	rk2818_mux_api_mode_resume(GPIOF5_APWM3_DPWM3_NAME);
+	return 0;
+}
+
+struct spi_cs_gpio rk2818_spi_cs_gpios[SPI_CHIPSELECT_NUM] = {
+	{
+		.name = "spi cs0",
+		.cs_gpio = RK2818_PIN_PB4,
+	},
+	{
+		.name = "spi cs1",
+		.cs_gpio = RK2818_PIN_PB0,
+	},
+	{
+		.name = "spi cs2",
+		.cs_gpio = RK2818_PIN_PF5,
+	}
+};
+
+struct rk2818_spi_platform_data rk2818_spi_platdata = {
+	.num_chipselect = SPI_CHIPSELECT_NUM,//raho 大板需要支持3个片选 dxj
+	.chipselect_gpios = rk2818_spi_cs_gpios,
+	.io_init = spi_io_init,
+	.io_deinit = spi_io_deinit,
+};
+/*****************************************************************************************
+ * xpt2046 touch panel
+ * author: dxjrock-chips.com
+ *****************************************************************************************/
+#define XPT2046_GPIO_INT           RK2818_PIN_PE1
+#define DEBOUNCE_REPTIME  3
+
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) 
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 320,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+	.gpio_pendown		= XPT2046_GPIO_INT,
+	.penirq_recheck_delay_usecs = 1,
+};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 320,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+	.gpio_pendown		= XPT2046_GPIO_INT,
+	.penirq_recheck_delay_usecs = 1,
+};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) 
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 1,
+	.x_min			= 0,
+	.x_max			= 800,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+#if defined(CONFIG_MACH_RAHO)	
+    .gpio_pendown		= RK2818_PIN_PE1,
+#else
+	.gpio_pendown		= RK2818_PIN_PE3,
+#endif	
+	.penirq_recheck_delay_usecs = 1,
+};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 1,
+	.x_min			= 0,
+	.x_max			= 800,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+#if defined(CONFIG_MACH_RAHO)	
+    .gpio_pendown		= RK2818_PIN_PE1,
+#else
+	.gpio_pendown		= RK2818_PIN_PE3,
+#endif	
+	.penirq_recheck_delay_usecs = 1,
+};
+#endif
 static struct spi_board_info board_spi_devices[] = {
 #if defined(CONFIG_SPI_FPGA)
 	{	/* fpga ice65l08xx */
@@ -411,13 +645,15 @@ static struct spi_board_info board_spi_devices[] = {
 		.mode	= SPI_MODE_0,
 	},
 #endif	
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)\
+    ||defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
 	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 0,
 		.max_speed_hz	= 125 * 1000 * 26,/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
-		.irq		= RK2818_PIN_PE3,
+		.irq = XPT2046_GPIO_INT,
+		.platform_data = &xpt2046_info,
 	},
 #endif
 }; 
@@ -444,11 +680,69 @@ struct rk2818_fb_mach_info rk2818_fb_mach_info = {
     .iomux = &rk2818_fb_iomux_info,
 };
 
-struct rk2818bl_info rk2818_bl_info = {
-        .pwm_id   = 0,
-        .pw_pin   = GPIO_HIGH | (RK2818_PIN_PF4<< 8) ,
-        .bl_ref   = 0,
-        .pw_iomux = GPIOF34_UART3_SEL_NAME,
+/*****************************************************************************************
+ * backlight  devices
+ * author: nzy@rock-chips.com
+ *****************************************************************************************/
+ /*
+ GPIOF2_APWM0_SEL_NAME,       IOMUXB_PWM0
+ GPIOF3_APWM1_MMC0DETN_NAME,  IOMUXA_PWM1
+ GPIOF4_APWM2_MMC0WPT_NAME,   IOMUXA_PWM2
+ GPIOF5_APWM3_DPWM3_NAME,     IOMUXB_PWM3
+ */
+ 
+#define PWM_ID            0  
+#define PWM_MUX_NAME      GPIOF2_APWM0_SEL_NAME
+#define PWM_MUX_MODE      IOMUXB_PWM0
+#define PWM_EFFECT_VALUE  0
+
+
+#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
+#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
+
+#define BL_EN_PIN         RK2818_PIN_PF3
+#define BL_EN_VALUE       GPIO_HIGH
+
+
+
+static int rk2818_backlight_io_init(void)
+{
+    int ret = 0;
+    
+    rk2818_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+
+    rk2818_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE); 
+
+    ret = gpio_request(BL_EN_PIN, NULL); 
+    if(ret != 0)
+    {
+        gpio_free(BL_EN_PIN);
+        printk(KERN_ERR ">>>>>> lcd_cs gpio_request err \n ");        
+    }
+    
+    gpio_direction_output(BL_EN_PIN, 0);
+    gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+
+    return ret;
+}
+
+static int rk2818_backlight_io_deinit(void)
+{
+    int ret = 0;
+    
+    gpio_free(BL_EN_PIN);
+    
+    rk2818_mux_api_mode_resume(PWM_MUX_NAME);
+
+    rk2818_mux_api_mode_resume(BL_EN_MUX_NAME);
+
+    return ret;
+}
+struct rk2818_bl_info rk2818_bl_info = {
+    .pwm_id   = PWM_ID,
+    .bl_ref   = PWM_EFFECT_VALUE,
+    .io_init   = rk2818_backlight_io_init,
+    .io_deinit = rk2818_backlight_io_deinit, 
 };
 
 /********************************************************
@@ -474,37 +768,20 @@ GPIOE_SPI1_FLASH_SEL_NAME    IOMUXA_FLASH_CS67
 #define DM9000_IO_ADDR (RK2818_NANDC_PHYS + 0x800 + DM9000_USE_NAND_CS*0x100 + 0x8)
 #define DM9000_DATA_ADDR (RK2818_NANDC_PHYS + 0x800 + DM9000_USE_NAND_CS*0x100 + 0x4)
 
-int dm9k_gpio_set(void)
+static int dm9k_gpio_set(void)
 {
 	//cs
 	rk2818_mux_api_set(DM9000_CS_IOMUX_NAME, DM9000_CS_IOMUX_MODE);
-
 	//int
 	rk2818_mux_api_set(DM9000_INT_IOMUX_NAME, DM9000_INT_IOMUX_MODE);
-	
-	if (gpio_request(DM9000_NET_INT_PIN, "dm9000 interrupt")) {
-		gpio_free(DM9000_NET_INT_PIN);
-		rk2818_mux_api_mode_resume(DM9000_INT_IOMUX_NAME);
-		rk2818_mux_api_mode_resume(DM9000_CS_IOMUX_NAME);
-		printk("[fun:%s line:%d], request gpio for net interrupt fail\n", __func__,__LINE__);
-
-		return -1;
-	}	
-	gpio_pull_updown(DM9000_NET_INT_PIN, DM9000_INT_INIT_VALUE);
-	gpio_direction_input(DM9000_NET_INT_PIN);
-	
+		
 	return 0;
 }
-int dm9k_gpio_free(void)
+static int dm9k_gpio_free(void)
 {
-	gpio_free(DM9000_NET_INT_PIN);
 	rk2818_mux_api_mode_resume(DM9000_INT_IOMUX_NAME);
 	rk2818_mux_api_mode_resume(DM9000_CS_IOMUX_NAME);
 	return 0;
-}
-int dm9k_get_gpio_irq(void)
-{
-	return gpio_to_irq(DM9000_NET_INT_PIN);
 }
 
 static struct resource dm9k_resource[] = {
@@ -531,9 +808,10 @@ static struct resource dm9k_resource[] = {
 */
 struct dm9000_plat_data dm9k_platdata = {	
 	.flags = DM9000_PLATF_8BITONLY,
+	.irq_pin = DM9000_NET_INT_PIN,
+	.irq_pin_value = DM9000_INT_INIT_VALUE,
 	.io_init = dm9k_gpio_set,
 	.io_deinit = dm9k_gpio_free,
-	.get_irq_num = dm9k_get_gpio_irq,
 };
 
 struct platform_device rk2818_device_dm9k = {
@@ -546,6 +824,57 @@ struct platform_device rk2818_device_dm9k = {
 	}
 };
 #endif
+
+
+/*****************************************************************************************
+ * nand flash devices
+ * author: hxy@rock-chips.com
+ *****************************************************************************************/
+/*
+GPIOA5_FLASHCS1_SEL_NAME,   IOMUXB_FLASH_CS1
+GPIOA6_FLASHCS2_SEL_NAME,   IOMUXB_FLASH_CS2
+GPIOA7_FLASHCS3_SEL_NAME,   IOMUXB_FLASH_CS3
+GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_FLASH_CS45  
+GPIOE_SPI1_FLASH_SEL_NAME,  IOMUXA_FLASH_CS67  
+*/
+
+#define NAND_CS_MAX_NUM     1  /*form 0 to 8, it is 0 when no nand flash */
+
+int rk2818_nand_io_init(void)
+{
+#if (NAND_CS_MAX_NUM == 2)
+    rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+#elif (NAND_CS_MAX_NUM == 3)
+    rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+    rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
+#elif (NAND_CS_MAX_NUM == 4)
+    rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+    rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
+    rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME, IOMUXB_FLASH_CS3);
+#elif ((NAND_CS_MAX_NUM == 5) || (NAND_CS_MAX_NUM == 6))
+    rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+    rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
+    rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME, IOMUXB_FLASH_CS3);
+    rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_FLASH_CS45);  
+#elif ((NAND_CS_MAX_NUM == 7) || (NAND_CS_MAX_NUM == 8))
+    rk2818_mux_api_set(GPIOA5_FLASHCS1_SEL_NAME, IOMUXB_FLASH_CS1);
+    rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, IOMUXB_FLASH_CS2);
+    rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME, IOMUXB_FLASH_CS3);
+    rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_FLASH_CS45);  
+    rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_FLASH_CS67);  
+#endif
+    return 0;
+}
+
+struct rk2818_nand_platform_data rk2818_nand_data = {
+    .width      = 1,     /* data bus width in bytes */
+    .hw_ecc     = 1,     /* hw ecc 0: soft ecc */
+    .num_flash    = 1,
+    .io_init   = rk2818_nand_io_init,
+};
+
+
+/*****************************************/
 
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
@@ -681,6 +1010,8 @@ struct lcd_td043mgea1_data lcd_td043mgea1 = {
 };
 
 //	adc	 ---> key	
+#define PLAY_ON_PIN RK2818_PIN_PE1
+#define PLAY_ON_LEVEL 1
 static  ADC_keyst gAdcValueTab[] = 
 {
 	{95,  AD2KEY1},///VOLUME_DOWN
@@ -699,8 +1030,8 @@ static unsigned char gInitKeyCode[] =
 };
 
 struct adc_key_data rk2818_adc_key = {
-    .pin_playon     = RK2818_PIN_PE1,
-    .playon_level   = 1,
+    .pin_playon     = PLAY_ON_PIN,
+    .playon_level   = PLAY_ON_LEVEL,
     .adc_empty      = 900,
     .adc_invalid    = 20,
     .adc_drift      = 50,
@@ -709,6 +1040,14 @@ struct adc_key_data rk2818_adc_key = {
     .initKeyCode    = gInitKeyCode,
     .adc_key_cnt    = 7,
 };
+struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
+	.adc_key = &rk2818_adc_key,
+};
+#if CONFIG_ANDROID_TIMED_GPIO
+struct timed_gpio_platform_data rk28_vibrator_info = {
+	.num_gpios = 0,
+};
+#endif
 
 static void __init machine_rk2818_init_irq(void)
 {
@@ -737,9 +1076,9 @@ static void __init machine_rk2818_board_init(void)
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
-	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
-	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
-	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_SPI0);//use for SPI CLK SDI SDO
+	//rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
+	//rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
+	//rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_SPI0);//use for SPI CLK SDI SDO
 }
 
 static void __init machine_rk2818_mapio(void)

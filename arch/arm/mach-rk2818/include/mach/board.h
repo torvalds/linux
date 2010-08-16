@@ -20,6 +20,16 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+
+
+#define INVALID_GPIO        -1
+
+
+struct rk2818_io_cfg {
+	int (*io_init)(void *);
+	int (*io_deinit)(void *);
+};
+
 /* platform device data structures */
 struct platform_device;
 struct i2c_client;
@@ -29,7 +39,8 @@ struct rk2818_sdmmc_platform_data {
 	unsigned int use_dma:1;
 	unsigned int no_detect:1;
 	char dma_name[8];
-	void    (*cfg_gpio)(struct platform_device *dev);
+	int (*io_init)(void);
+	int (*io_deinit)(void);
 };
 
 struct rk2818_i2c_spi_data {
@@ -46,7 +57,8 @@ struct rk2818_i2c_platform_data {
 #define I2C_MODE_IRQ    0
 #define I2C_MODE_POLL   1
 	unsigned int    mode:1;
-	void    (*cfg_gpio)(struct platform_device *dev);
+	int (*io_init)(void);
+	int (*io_deinit)(void);
 };
 
 struct rk2818_fb_gpio{
@@ -69,11 +81,11 @@ struct rk2818_fb_mach_info {
     struct rk2818_fb_iomux *iomux;
 };
 
-struct rk2818bl_info{
+struct rk2818_bl_info{
     u32 pwm_id;
-    u32 pw_pin;
     u32 bl_ref;
-    char *pw_iomux;
+    int (*io_init)(void);
+    int (*io_deinit)(void);
     struct timer_list timer;  
     struct notifier_block freq_transition;
 };
@@ -113,6 +125,45 @@ struct lcd_td043mgea1_data{
     void (*screen_set_iomux)(u8 enable);
 };
 
+/*battery*/
+struct rk2818_battery_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	int charge_ok_pin;
+};
+
+/*g_sensor*/
+struct rk2818_gs_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	int gsensor_irq_pin;
+};
+
+/*serial*/
+struct rk2818_serial_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
+/*i2s*/
+struct rk2818_i2s_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
+/*spi*/
+struct spi_cs_gpio {
+	const char *name;
+	unsigned int cs_gpio;
+};
+
+struct rk2818_spi_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	struct spi_cs_gpio *chipselect_gpios;	
+	u16 num_chipselect;
+};
+
 //ROCKCHIP AD KEY CODE ,for demo board
 //      key		--->	EV	
 #define AD2KEY1                 114   ///VOLUME_DOWN
@@ -146,6 +197,12 @@ struct adc_key_data{
     ADC_keyst * adc_key_table;
     unsigned char *initKeyCode;
     u32 adc_key_cnt;
+};
+
+struct rk2818_adckey_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	struct adc_key_data *adc_key;
 };
 
 /* common init routines for use by arch/arm/mach-msm/board-*.c */

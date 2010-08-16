@@ -659,7 +659,13 @@ static int __devinit setup_pendown(struct spi_device *spi, struct xpt2046 *ts)
 		ts->get_pendown_state = pdata->get_pendown_state;
 		return 0;
 	}
-
+	
+    if (pdata->io_init) {
+        err = pdata->io_init();
+        if (err)
+            dev_err(&spi->dev, "xpt2046 io_init fail\n");
+    }
+    
 	err = gpio_request(pdata->gpio_pendown, "xpt2046_pendown");
 	if (err) {
 		dev_err(&spi->dev, "failed to request pendown GPIO%d\n",
@@ -693,11 +699,18 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "no IRQ?\n");
 	}
 	
+	/*
 	if (!pdata) {
 		spi->dev.platform_data = &xpt2046_info;
 		pdata = spi->dev.platform_data;
 	}
-
+    */
+    
+    if (!pdata) {
+		dev_err(&spi->dev, "empty platform_data\n");
+		return -EFAULT;
+    }
+    
 	/* don't exceed max specified sample rate */
 	if (spi->max_speed_hz > (125000 * SAMPLE_BITS)) {
 		dev_dbg(&spi->dev, "f(sample) %d KHz?\n",
@@ -747,8 +760,8 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 		ts->filter_cleanup = pdata->filter_cleanup;
 	} else if (pdata->debounce_max) {
 		ts->debounce_max = pdata->debounce_max;
-		if (ts->debounce_max < DEBOUNCE_REPTIME)
-			ts->debounce_max = DEBOUNCE_REPTIME;
+		if (ts->debounce_max < pdata->debounce_rep)
+			ts->debounce_max = pdata->debounce_rep;
 		ts->debounce_tol = pdata->debounce_tol;
 		ts->debounce_rep = pdata->debounce_rep;
 		ts->filter = xpt2046_debounce;

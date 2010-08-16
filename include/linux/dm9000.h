@@ -32,8 +32,9 @@ struct dm9000_plat_data {
 	//gpio init&deinit	
     int (*io_init)(void);
     int (*io_deinit)(void);
-	int (*get_irq_num)(void);
-
+	int irq_pin;
+	int irq_pin_value;
+		
 	/* allow replacement IO routines */
 
 	void	(*inblk)(void __iomem *reg, void *data, int len);

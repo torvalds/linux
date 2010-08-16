@@ -33,7 +33,7 @@
 #include <linux/platform_device.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
-
+#include <mach/board.h>
 #include "rk2818_serial.h"
 
 /*
@@ -340,8 +340,6 @@ static void rk2818_serial_set_termios(struct uart_port *port, struct ktermios *t
 	if(termios->c_cflag & CRTSCTS)                               
 	{        
 			/*开启uart0硬件流控*/
-		rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_UART0_CTS_N);
-		rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_UART0_RTS_N);
 		printk("start CRTSCTS control and baudrate is %d\n",baud);
 		umcon=rk2818_uart_read(port,UART_MCR);
 		printk("UART_GET_MCR umcon=0x%x\n",umcon);
@@ -623,73 +621,15 @@ static int __devinit rk2818_serial_probe(struct platform_device *pdev)
 	struct rk2818_port *rk2818_port;
 	struct resource *resource;
 	struct uart_port *port;
-    int ret = 0;
-    
+    struct rk2818_serial_platform_data *pdata = pdev->dev.platform_data;
+		
 	if (unlikely(pdev->id < 0 || pdev->id >= UART_NR))
 		return -ENXIO;
 
 	printk(KERN_INFO "rk2818_serial: detected port %d\n", pdev->id);
 
-
-#if 1   
-//cz@rock-chips.com
-//20100808 
-//UART0的四个管脚先IOMUX成GPIO
-//然后分别设置输入输出/拉高拉低处理
-//最后再IOMUX成UART
-//防止直接IOMUX成UART后四个管脚的状态不对时
-//操作UART导致UART_USR_BUSY始终为1造成如下死循环
-//while(rk2818_uart_read(port,UART_USR)&UART_USR_BUSY)
-//UART四个管脚在未传输时正常状态应该为：
-//RX/TX：HIGH
-//CTS/RTS：LOW
-//注意：CTS/RTS为低有效，硬件上不应该强行做上拉
-    if(pdev->id == 0)
-    {
-        rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_GPIO1_C1 /*IOMUXA_UART0_SOUT*/);  
-        rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_GPIO1_C0 /*IOMUXA_UART0_SIN*/);
-        
-        ret = gpio_request(RK2818_PIN_PG0, NULL); 
-        if(ret != 0)
-        {
-          gpio_free(RK2818_PIN_PG0);
-        }
-        gpio_direction_output(RK2818_PIN_PG0,GPIO_HIGH); 
-
-        
-        ret = gpio_request(RK2818_PIN_PG1, NULL); 
-        if(ret != 0)
-        {
-          gpio_free(RK2818_PIN_PG1);
-        }
-        gpio_direction_output(RK2818_PIN_PG1,GPIO_HIGH); 
-
-        gpio_pull_updown(RK2818_PIN_PG1,GPIOPullUp);
-        gpio_pull_updown(RK2818_PIN_PG0,GPIOPullUp);
-
-        rk2818_mux_api_set(GPIOG1_UART0_MMC1WPT_NAME, IOMUXA_UART0_SOUT);  
-        rk2818_mux_api_set(GPIOG0_UART0_MMC1DET_NAME, IOMUXA_UART0_SIN);
-
-        rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_GPIO0_B2/*IOMUXB_UART0_CTS_N*/);
-        rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_GPIO0_B3/*IOMUXB_UART0_RTS_N*/);
-
-        ret = gpio_request(RK2818_PIN_PB2, NULL); 
-        if(ret != 0)
-        {
-          gpio_free(RK2818_PIN_PB2);
-        }
-        gpio_direction_input(RK2818_PIN_PB2); 
-    //    gpio_direction_output(RK2818_PIN_PB2,GPIO_LOW); 
-        
-        ret = gpio_request(RK2818_PIN_PB3, NULL); 
-        if(ret != 0)
-        {
-          gpio_free(RK2818_PIN_PB3);
-        }
-        gpio_direction_output(RK2818_PIN_PB3,GPIO_LOW); 
-    }
-#endif
-
+	if (pdata && pdata->io_init)
+		pdata->io_init();
     
 	port = get_port_from_line(pdev->id);
 	port->dev = &pdev->dev;

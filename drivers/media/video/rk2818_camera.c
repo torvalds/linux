@@ -940,8 +940,8 @@ static int rk28_camera_probe(struct platform_device *pdev)
     pcdev->res = res;
 
     pcdev->pdata = pdev->dev.platform_data;             /* ddl@rock-chips.com : Request IO in init function */
-    if (pcdev->pdata && pcdev->pdata->init) {
-        pcdev->pdata->init();
+    if (pcdev->pdata && pcdev->pdata->io_init) {
+        pcdev->pdata->io_init();
     }
 
     INIT_LIST_HEAD(&pcdev->capture);
@@ -1016,8 +1016,8 @@ static int __devexit rk28_camera_remove(struct platform_device *pdev)
     res = pcdev->res;
     release_mem_region(res->start, res->end - res->start + 1);
 
-    if (pcdev->pdata && pcdev->pdata->deinit) {         /* ddl@rock-chips.com : Free IO in deinit function */
-        pcdev->pdata->deinit();
+    if (pcdev->pdata && pcdev->pdata->io_deinit) {         /* ddl@rock-chips.com : Free IO in deinit function */
+        pcdev->pdata->io_deinit();
     }
 
     kfree(pcdev);

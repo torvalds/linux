@@ -195,6 +195,9 @@ struct platform_device rk2818_device_uart0 = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_uart0),
 	.resource	= resources_uart0,
+	.dev = {
+		.platform_data = &rk2818_serial0_platdata,
+	},
 };
 struct platform_device rk2818_device_uart1 = {
 	.name	= "rk2818_serial",
@@ -235,6 +238,9 @@ struct platform_device rk2818_device_spim = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_spim),
 	.resource	= resources_spim,
+	.dev			= {
+		.platform_data	= &rk2818_spi_platdata,
+	},
 };
 
 /* rk2818 fb resource */
@@ -269,8 +275,6 @@ struct platform_device rk2818_device_fb = {
 *	author :nzy zhongyw
 *	data:2010-05-18
 ***************************************************************/
-extern struct rk2818bl_info rk2818_bl_info;
-
 struct platform_device rk2818_device_backlight = {
 		.name	= "rk2818_backlight",
 		.id 	= -1,
@@ -348,7 +352,9 @@ struct platform_device rk2818_device_adckey = {
 	.name		= "rk2818-adckey",
 	.id		= -1,
 	.dev.parent	= &rk2818_device_adc.dev,
+	.dev.platform_data = &rk2818_adckey_platdata,
 };
+
 /*
  *rk2818 i2s
  */
@@ -369,11 +375,17 @@ struct platform_device rk2818_device_i2s = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_i2s),
 	.resource	= resources_i2s,
+	.dev = {
+		.platform_data = &rk2818_i2s_platdata,
+	},
 };
 
 struct platform_device rk2818_device_battery = {
 		.name	= "rk2818-battery",
 		.id 	= -1,
+		.dev = {
+			.platform_data = &rk2818_battery_platdata,
+		},
 };
 
 /*
@@ -454,11 +466,7 @@ static struct resource nand_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	}
 };
-static struct rk2818_nand_platform_data rk2818_nand_data = {
-        .width 		= 1,     /* data bus width in bytes */
-        .hw_ecc	 	= 1,     /* hw ecc 0: soft ecc */
-	 .num_flash    = 1,
-};
+
 struct platform_device rk2818_nand_device = {
 	.name	= "rk2818-nand",
 	.id		=  -1, 
@@ -626,19 +634,6 @@ struct platform_device usb_mass_storage_device = {
 };
 
 #if CONFIG_ANDROID_TIMED_GPIO
-static struct timed_gpio timed_gpios[] = {
-	{
-		.name = "vibrator",
-		.gpio = SPI_GPIO_P1_12,
-		.max_timeout = 1000,
-		.active_low = 1,
-	},
-};
-
-static struct timed_gpio_platform_data rk28_vibrator_info = {
-	.num_gpios = 1,
-	.gpios = timed_gpios,		
-};
 struct platform_device rk28_device_vibrator ={
 	.name = "timed-gpio",
 	.id = -1,

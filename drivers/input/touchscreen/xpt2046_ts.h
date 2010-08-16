@@ -50,5 +50,7 @@ struct xpt2046_platform_data {
 	int	(*filter)	(void *filter_data, int data_idx, int *val);
 	void	(*filter_cleanup)(void *filter_data);
 	void	(*wait_for_sync)(void);
+	int (* io_init)(void);
+	int (* io_deinit)(void);
 };
 #endif

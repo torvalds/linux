@@ -2056,10 +2056,10 @@ static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
 
 static const struct snd_kcontrol_new wm8994_snd_controls[] = {
 
-/* 鍠囧彮 */
+/* 鍠囧�?*/
 SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker incall Switch", SPEAKER_INCALL),	
 SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker normal Switch", SPEAKER_NORMAL),
-/* 鍚瓛 */
+/* 鍚�?*/
 SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece incall Switch", EARPIECE_INCALL),	
 SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece normal Switch", EARPIECE_NORMAL),
 /* 鑰虫満 */
@@ -2071,7 +2071,7 @@ SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth normal Switch", BLUETOOTH_SCO_NORMAL),
 /* 钃濈墮A2DP */
 SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth-A2DP incall Switch", BLUETOOTH_A2DP_INCALL),	
 SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth-A2DP normal Switch", BLUETOOTH_A2DP_NORMAL),
-/* 鑰抽害 */
+/* 鑰抽�?*/
 SOC_DOUBLE_SWITCH_WM8994CODEC("Capture Switch", MIC_CAPTURE),
 
 };
@@ -2718,7 +2718,9 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 {
 	struct wm8994_priv *wm8994;
 	struct snd_soc_codec *codec;
+	struct wm8994_platform_data *wm8994_data = i2c->dev.platform_data;
 	wm8994_client=i2c;
+		
 	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
@@ -2729,6 +2731,12 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 
 	codec->dev = &i2c->dev;
+	
+	if (!wm8994_data) {
+		dev_err(codec->dev, "empty wm8994 platform_data\n");
+		kfree(wm8994);
+		return -EFAULT;
+	}
 
 	return wm8994_register(wm8994, SND_SOC_I2C);
 }

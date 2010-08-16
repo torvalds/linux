@@ -31,6 +31,7 @@
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
 #include <mach/scu.h> 
+#include <mach/board.h>
 
 #include "rk2818_pcm.h"
 #include "rk2818_i2s.h"
@@ -314,9 +315,6 @@ static int rockchip_i2s_dai_probe(struct platform_device *pdev, struct snd_soc_d
 {	
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
     
-    /* Configure the I2S pins in correct mode */
-    rk2818_mux_api_set(CXGPIO_I2S_SEL_NAME,IOMUXB_I2S_INTERFACE);
-    
     rockchip_snd_txctrl(0);
 	rockchip_snd_rxctrl(0);
     
@@ -377,8 +375,12 @@ EXPORT_SYMBOL_GPL(rk2818_i2s_dai);
 static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 {
 	struct resource		*regs;
+	struct rk2818_i2s_platform_data *pdata = pdev->dev.platform_data;
 
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	
+	if (pdata && pdata->io_init)
+		pdata->io_init();
 
 	rk2818_i2s_dai.dev = &pdev->dev;
 	rockchip_i2s.iis_clk = clk_get(&pdev->dev, "i2s");

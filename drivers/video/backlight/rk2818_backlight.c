@@ -62,7 +62,7 @@ static int suspend_flag = 0;
 static s32 rk2818_bl_update_status(struct backlight_device *bl)
 {
     u32 divh,div_total;
-    struct rk2818bl_info *rk2818_bl_info = bl->dev.parent->platform_data;
+    struct rk2818_bl_info *rk2818_bl_info = bl->dev.parent->platform_data;
     u32 id = rk2818_bl_info->pwm_id;
     u32 ref = rk2818_bl_info->bl_ref;
 
@@ -87,7 +87,7 @@ static s32 rk2818_bl_update_status(struct backlight_device *bl)
 static s32 rk2818_bl_get_brightness(struct backlight_device *bl)
 {
     u32 divh,div_total;
-    struct rk2818bl_info *rk2818_bl_info = bl->dev.parent->platform_data;
+    struct rk2818_bl_info *rk2818_bl_info = bl->dev.parent->platform_data;
     u32 id = rk2818_bl_info->pwm_id;
     u32 ref = rk2818_bl_info->bl_ref;
     
@@ -111,7 +111,7 @@ static struct backlight_ops rk2818_bl_ops = {
 
 static int rk2818_bl_change_clk(struct notifier_block *nb, unsigned long val, void *data)
 {
-    struct rk2818bl_info *rk2818_bl_info;
+    struct rk2818_bl_info *rk2818_bl_info;
     u32 id;
     u32 divl, divh, tmp;
     u32 div_total;
@@ -160,7 +160,7 @@ static int rk2818_bl_change_clk(struct notifier_block *nb, unsigned long val, vo
 }   
 static void rk2818_delaybacklight_timer(unsigned long data)
 {
-	struct rk2818bl_info *rk2818_bl_info = (struct rk2818bl_info *)data;
+	struct rk2818_bl_info *rk2818_bl_info = (struct rk2818_bl_info *)data;
 	u32 id, brightness;
     	u32 div_total, divh;
 	id = rk2818_bl_info->pwm_id;
@@ -179,7 +179,7 @@ static void rk2818_delaybacklight_timer(unsigned long data)
 #ifdef CONFIG_ANDROID_POWER
 static void rk2818_bl_suspend(android_early_suspend_t *h)
 {
-    struct rk2818bl_info *rk2818_bl_info;
+    struct rk2818_bl_info *rk2818_bl_info;
     u32 id;
     u32 div_total, divh;
     
@@ -205,7 +205,7 @@ static void rk2818_bl_suspend(android_early_suspend_t *h)
 
 static void rk2818_bl_resume(android_early_suspend_t *h)
 {
-    struct rk2818bl_info *rk2818_bl_info;
+    struct rk2818_bl_info *rk2818_bl_info;
    // u32 id, brightness;
     //u32 div_total, divh;
     DBG(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
@@ -235,19 +235,10 @@ static void rk2818_bl_resume(android_early_suspend_t *h)
 static android_early_suspend_t bl_early_suspend;
 #endif
 
-static char *pwm_iomux[] = {
-     GPIOF2_APWM0_SEL_NAME,
-     GPIOF3_APWM1_MMC0DETN_NAME,
-     GPIOF4_APWM2_MMC0WPT_NAME,
-     GPIOF5_APWM3_DPWM3_NAME,
-};
-
 static int rk2818_backlight_probe(struct platform_device *pdev)
 {		
     int ret = 0;
-    struct rk2818bl_info *rk2818_bl_info = pdev->dev.platform_data;
-    u32 pin =  (rk2818_bl_info->pw_pin >> 8) & 0xff;
-    u32 lev =  rk2818_bl_info->pw_pin & 0xf;
+    struct rk2818_bl_info *rk2818_bl_info = pdev->dev.platform_data;
     u32 id  =  rk2818_bl_info->pwm_id;
     u32 divh, div_total;
     struct clk* arm_pclk; 
@@ -309,30 +300,16 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
     android_register_early_suspend(&bl_early_suspend);
 #endif
 
-    rk2818_mux_api_set(pwm_iomux[id], 1);
-
-    if(rk2818_bl_info->pw_iomux)
-    {
-        rk2818_mux_api_set(rk2818_bl_info->pw_iomux, 0); 
+    if (rk2818_bl_info && rk2818_bl_info->io_init) {
+        rk2818_bl_info->io_init();
     }
 
-    ret = gpio_request(pin, NULL); 
-    if(ret != 0)
-    {
-        gpio_free(pin);
-        printk(KERN_ERR ">>>>>> lcd_cs gpio_request err \n ");        
-    }
-    
-    gpio_direction_output(pin, 0);
-    gpio_set_value(pin, lev);
-
-    return 0;
+    return ret;
 }
 
 static int rk2818_backlight_remove(struct platform_device *pdev)
 {		
-    struct rk2818bl_info *rk2818_bl_info = pdev->dev.platform_data;
-    u32 pin =  (rk2818_bl_info->pw_pin >> 8) & 0xff;
+    struct rk2818_bl_info *rk2818_bl_info = pdev->dev.platform_data;
     
 	if (rk2818_bl) {
 		backlight_device_unregister(rk2818_bl);
@@ -340,7 +317,9 @@ static int rk2818_backlight_remove(struct platform_device *pdev)
         android_unregister_early_suspend(&bl_early_suspend);
 #endif       
         cpufreq_unregister_notifier(&rk2818_bl_info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
-        gpio_free(pin); 
+        if (rk2818_bl_info && rk2818_bl_info->io_deinit) {
+            rk2818_bl_info->io_deinit();
+        }
         return 0;
     } else {
         DBG(KERN_CRIT "%s: no backlight device has registered\n",
@@ -352,14 +331,13 @@ static void rk2818_backlight_shutdown(struct platform_device *pdev)
 {
 
    u32 divh,div_total;
-    struct rk2818bl_info *rk2818_bl_info = pdev->dev.platform_data;
+    struct rk2818_bl_info *rk2818_bl_info = pdev->dev.platform_data;
     u32 id = rk2818_bl_info->pwm_id;
-    u32 pin=rk2818_bl_info->pw_pin;
     u32  brightness;
-    u8 lev;
 	brightness = rk2818_bl->props.brightness; 
 	brightness/=2;
 	div_total = read_pwm_reg(id, PWM_REG_LRC);   
+	
 	if (rk2818_bl_info->bl_ref) {
 			divh = div_total*(brightness)/BL_STEP;
 	} else {
@@ -368,6 +346,7 @@ static void rk2818_backlight_shutdown(struct platform_device *pdev)
 	write_pwm_reg(id, PWM_REG_HRC, divh);
 	//printk("divh=%d\n",divh);
 	 mdelay(100);
+	 
 	brightness/=2;
 	if (rk2818_bl_info->bl_ref) {
 	divh = div_total*(brightness)/BL_STEP;
@@ -380,11 +359,11 @@ static void rk2818_backlight_shutdown(struct platform_device *pdev)
 	/*set  PF1=1 PF2=1 for close backlight*/	
 
     if(rk2818_bl_info->bl_ref) {
-        lev = GPIO_LOW;
+        divh = 0;
     } else {
-        lev = GPIO_HIGH;
+        divh = div_total;
     }
-    gpio_set_value(pin, lev);
+    write_pwm_reg(id, PWM_REG_HRC, divh);
   
 }
 
