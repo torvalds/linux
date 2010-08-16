@@ -200,7 +200,7 @@ struct group_dual {
 			_PRE_EFLAGS("0", "4", "2")			\
 			_op _suffix " %"_x"3,%1; "			\
 			_POST_EFLAGS("0", "4", "2")			\
-			: "=m" (_eflags), "=m" (*(_dsttype*)&(_dst).val),\
+			: "=m" (_eflags), "+q" (*(_dsttype*)&(_dst).val),\
 			  "=&r" (_tmp)					\
 			: _y ((_src).val), "i" (EFLAGS_MASK));		\
 	} while (0)
