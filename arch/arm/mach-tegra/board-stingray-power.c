@@ -267,6 +267,11 @@ static struct platform_device *cpcap_devices[] = {
 struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 	{CPCAP_REG_S1C1,      0x0000},
 	{CPCAP_REG_S1C2,      0x0000},
+	{CPCAP_REG_S2C1,      0x2730},
+	{CPCAP_REG_S2C2,      0x301C},
+	{CPCAP_REG_S3C,       0x0139},
+	{CPCAP_REG_S4C1,      0x2730},
+	{CPCAP_REG_S4C2,      0x301C},
 	{CPCAP_REG_S6C,       0x0000},
 	{CPCAP_REG_VRF1C,     0x0000},
 	{CPCAP_REG_VRF2C,     0x0000},
@@ -279,8 +284,8 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 };
 
 unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
-	[CPCAP_SW2]      = 0x0100,
-	[CPCAP_SW4]      = 0x0100,
+	[CPCAP_SW2]      = 0x0700,
+	[CPCAP_SW4]      = 0x0700,
 	[CPCAP_SW5]      = 0x0022,
 	[CPCAP_VCAM]     = 0x0003,
 	[CPCAP_VCSI]     = 0x0003,
