@@ -284,7 +284,8 @@ struct ocfs2_super
 	struct super_block *sb;
 	struct inode *root_inode;
 	struct inode *sys_root_inode;
-	struct inode *system_inodes[NUM_SYSTEM_INODES];
+	struct inode *global_system_inodes[NUM_GLOBAL_SYSTEM_INODES];
+	struct inode **local_system_inodes;
 
 	struct ocfs2_slot_info *slot_info;
 

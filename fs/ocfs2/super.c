@@ -514,11 +514,11 @@ static void ocfs2_release_system_inodes(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	for (i = 0; i < NUM_SYSTEM_INODES; i++) {
-		inode = osb->system_inodes[i];
+	for (i = 0; i < NUM_GLOBAL_SYSTEM_INODES; i++) {
+		inode = osb->global_system_inodes[i];
 		if (inode) {
 			iput(inode);
-			osb->system_inodes[i] = NULL;
+			osb->global_system_inodes[i] = NULL;
 		}
 	}
 
@@ -534,6 +534,20 @@ static void ocfs2_release_system_inodes(struct ocfs2_super *osb)
 		osb->root_inode = NULL;
 	}
 
+	if (!osb->local_system_inodes)
+		goto out;
+
+	for (i = 0; i < NUM_LOCAL_SYSTEM_INODES * osb->max_slots; i++) {
+		if (osb->local_system_inodes[i]) {
+			iput(osb->local_system_inodes[i]);
+			osb->local_system_inodes[i] = NULL;
+		}
+	}
+
+	kfree(osb->local_system_inodes);
+	osb->local_system_inodes = NULL;
+
+out:
 	mlog_exit(0);
 }
 
