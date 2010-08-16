@@ -236,21 +236,13 @@ config GPIO_PCA9554
 	help
 	  Say yes here to access the PCA9554 GPIO EXPANDER
 
-config IOEXTEND_TCA6424
- 	default y
- 	bool "ROCKCHIP TCA6424 CONTROL"
-	depends on I2C
-	help
-	  Say yes here to access the TCA6424 GPIO EXPANDER
-
-
 config EXPANDED_GPIO_NUM  
 	int "setting the amount of expanded gpios"
-	default 8 if (GPIO_PCA9554||IOEXTEND_TCA6424)
+	default 8 if GPIO_PCA9554
   default 0
 	
 config EXPANDED_GPIO_IRQ_NUM
 	int "setting the amount of expanded gpio irqs"
-	default 8 if (GPIO_PCA9554||IOEXTEND_TCA6424)	
+	default 8 if GPIO_PCA9554	
 	default 0	
 endif

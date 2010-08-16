@@ -105,27 +105,6 @@ struct pca9554_platform_data {
 	char		**names;
 };
 
-struct tca6424_platform_data {
-	/*  the first extern gpio number in all of gpio groups */
-	unsigned gpio_base;
-	unsigned	gpio_pin_num;
-	/*  the first gpio irq  number in all of irq source */
-
-	unsigned gpio_irq_start;
-	unsigned irq_pin_num;        //中断的个数
-	unsigned tca6424_irq_pin;        //扩展IO的中断挂在哪个gpio
-	/* initial polarity inversion setting */
-	uint16_t	invert;
-	struct rk2818_gpio_expander_info  *settinginfo;
-	int  settinginfolen;
-	void		*context;	/* param to setup/teardown */
-
-	int		(*setup)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
-	int		(*teardown)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
-	char		**names;
-};
-
-
 /*lcd*/
 struct lcd_td043mgea1_data{
     u32 pin_txd;
