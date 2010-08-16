@@ -139,7 +139,12 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
  * @sp: srcu_struct in which to register the new reader.
  *
  * Enter an SRCU read-side critical section.  Note that SRCU read-side
- * critical sections may be nested.
+ * critical sections may be nested.  However, it is illegal to
+ * call anything that waits on an SRCU grace period for the same
+ * srcu_struct, whether directly or indirectly.  Please note that
+ * one way to indirectly wait on an SRCU grace period is to acquire
+ * a mutex that is held elsewhere while calling synchronize_srcu() or
+ * synchronize_srcu_expedited().
  */
 static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 {
