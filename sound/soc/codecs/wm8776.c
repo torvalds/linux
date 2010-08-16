@@ -177,13 +177,6 @@ static int wm8776_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_LEFT_J:
 		iface |= 0x0001;
 		break;
-		/* FIXME: CHECK A/B */
-	case SND_SOC_DAIFMT_DSP_A:
-		iface |= 0x0003;
-		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		iface |= 0x0007;
-		break;
 	default:
 		return -EINVAL;
 	}
