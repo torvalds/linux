@@ -194,10 +194,10 @@ static DECLARE_WORK(console_work, console_callback);
 int fg_console;
 int last_console;
 int want_console = -1;
-int saved_fg_console;
-int saved_last_console;
-int saved_want_console;
-int saved_vc_mode;
+static int saved_fg_console;
+static int saved_last_console;
+static int saved_want_console;
+static int saved_vc_mode;
 
 /*
  * For each existing display, we have a pointer to console currently visible
