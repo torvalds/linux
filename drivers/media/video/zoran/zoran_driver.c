@@ -3322,7 +3322,7 @@ zoran_mmap (struct file           *file,
 mmap_unlock_and_return:
 	mutex_unlock(&zr->resource_lock);
 
-	return 0;
+	return res;
 }
 
 static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
