@@ -741,7 +741,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	/* We really should validate PLL settings but not yet */
 	wm8580->sysclk[dai->id] = freq;
 
-	return snd_soc_update_bits(codec, WM8580_CLKSEL, sel, sel_mask);
+	return snd_soc_update_bits(codec, WM8580_CLKSEL, sel_mask, sel);
 }
 
 static int wm8580_digital_mute(struct snd_soc_dai *codec_dai, int mute)
