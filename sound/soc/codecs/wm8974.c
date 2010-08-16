@@ -607,7 +607,6 @@ static int wm8974_resume(struct snd_soc_codec *codec)
 
 static int wm8974_probe(struct snd_soc_codec *codec)
 {
-	struct wm8974_priv *wm8974 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_I2C);
