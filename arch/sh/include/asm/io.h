@@ -39,6 +39,8 @@
 #include <asm/io_generic.h>
 #include <asm/io_trapped.h>
 
+#ifdef CONFIG_HAS_IOPORT
+
 #define inb(p)			sh_mv.mv_inb((p))
 #define inw(p)			sh_mv.mv_inw((p))
 #define inl(p)			sh_mv.mv_inl((p))
@@ -59,6 +61,8 @@
 #define outsb(p,b,c)		sh_mv.mv_outsb((p), (b), (c))
 #define outsw(p,b,c)		sh_mv.mv_outsw((p), (b), (c))
 #define outsl(p,b,c)		sh_mv.mv_outsl((p), (b), (c))
+
+#endif
 
 #define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile u8  __force *)(a) = (v))
 #define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile u16 __force *)(a) = (v))
@@ -240,6 +244,8 @@ __BUILD_MEMORY_STRING(q, u64)
 
 #define IO_SPACE_LIMIT 0xffffffff
 
+#ifdef CONFIG_HAS_IOPORT
+
 /*
  * This function provides a method for the generic case where a
  * board-specific ioport_map simply needs to return the port + some
@@ -254,6 +260,8 @@ static inline void __set_io_port_base(unsigned long pbase)
 }
 
 #define __ioport_map(p, n) sh_mv.mv_ioport_map((p), (n))
+
+#endif
 
 /* We really want to try and get these to memcpy etc */
 void memcpy_fromio(void *, const volatile void __iomem *, unsigned long);

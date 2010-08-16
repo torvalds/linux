@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * Copyright (C) 2010 Red Hat, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -24,16 +25,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -47,135 +44,491 @@
 #include "xfs_trace.h"
 
 kmem_zone_t	*xfs_trans_zone;
+kmem_zone_t	*xfs_log_item_desc_zone;
+
 
 /*
- * Reservation functions here avoid a huge stack in xfs_trans_init
- * due to register overflow from temporaries in the calculations.
+ * Various log reservation values.
+ *
+ * These are based on the size of the file system block because that is what
+ * most transactions manipulate.  Each adds in an additional 128 bytes per
+ * item logged to try to account for the overhead of the transaction mechanism.
+ *
+ * Note:  Most of the reservations underestimate the number of allocation
+ * groups into which they could free extents in the xfs_bmap_finish() call.
+ * This is because the number in the worst case is quite high and quite
+ * unusual.  In order to fix this we need to change xfs_bmap_finish() to free
+ * extents in only a single AG at a time.  This will require changes to the
+ * EFI code as well, however, so that the EFI for the extents not freed is
+ * logged again in each transaction.  See SGI PV #261917.
+ *
+ * Reservation functions here avoid a huge stack in xfs_trans_init due to
+ * register overflow from temporaries in the calculations.
+ */
+
+
+/*
+ * In a write transaction we can allocate a maximum of 2
+ * extents.  This gives:
+ *    the inode getting the new extents: inode size
+ *    the inode's bmap btree: max depth * block size
+ *    the agfs of the ags from which the extents are allocated: 2 * sector
+ *    the superblock free block counter: sector size
+ *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
+ * And the bmap_finish transaction can free bmap blocks in a join:
+ *    the agfs of the ags containing the blocks: 2 * sector size
+ *    the agfls of the ags containing the blocks: 2 * sector size
+ *    the super block free block counter: sector size
+ *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
  */
 STATIC uint
-xfs_calc_write_reservation(xfs_mount_t *mp)
+xfs_calc_write_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_WRITE_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     XFS_FSB_TO_B(mp, XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK)) +
+		     2 * mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 2) +
+		     128 * (4 + XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK) +
+			    XFS_ALLOCFREE_LOG_COUNT(mp, 2))),
+		    (2 * mp->m_sb.sb_sectsize +
+		     2 * mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 2) +
+		     128 * (5 + XFS_ALLOCFREE_LOG_COUNT(mp, 2))));
 }
 
+/*
+ * In truncating a file we free up to two extents at once.  We can modify:
+ *    the inode being truncated: inode size
+ *    the inode's bmap btree: (max depth + 1) * block size
+ * And the bmap_finish transaction can free the blocks and bmap blocks:
+ *    the agf for each of the ags: 4 * sector size
+ *    the agfl for each of the ags: 4 * sector size
+ *    the super block to reflect the freed blocks: sector size
+ *    worst case split in allocation btrees per extent assuming 4 extents:
+ *		4 exts * 2 trees * (2 * max depth - 1) * block size
+ *    the inode btree: max depth * blocksize
+ *    the allocation btrees: 2 trees * (max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_itruncate_reservation(xfs_mount_t *mp)
+xfs_calc_itruncate_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_ITRUNCATE_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     XFS_FSB_TO_B(mp, XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK) + 1) +
+		     128 * (2 + XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK))),
+		    (4 * mp->m_sb.sb_sectsize +
+		     4 * mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 4) +
+		     128 * (9 + XFS_ALLOCFREE_LOG_COUNT(mp, 4)) +
+		     128 * 5 +
+		     XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		     128 * (2 + XFS_IALLOC_BLOCKS(mp) + mp->m_in_maxlevels +
+			    XFS_ALLOCFREE_LOG_COUNT(mp, 1))));
 }
 
+/*
+ * In renaming a files we can modify:
+ *    the four inodes involved: 4 * inode size
+ *    the two directory btrees: 2 * (max depth + v2) * dir block size
+ *    the two directory bmap btrees: 2 * max depth * block size
+ * And the bmap_finish transaction can free dir and bmap blocks (two sets
+ *	of bmap blocks) giving:
+ *    the agf for the ags in which the blocks live: 3 * sector size
+ *    the agfl for the ags in which the blocks live: 3 * sector size
+ *    the superblock for the free block count: sector size
+ *    the allocation btrees: 3 exts * 2 trees * (2 * max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_rename_reservation(xfs_mount_t *mp)
+xfs_calc_rename_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_RENAME_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((4 * mp->m_sb.sb_inodesize +
+		     2 * XFS_DIROP_LOG_RES(mp) +
+		     128 * (4 + 2 * XFS_DIROP_LOG_COUNT(mp))),
+		    (3 * mp->m_sb.sb_sectsize +
+		     3 * mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 3) +
+		     128 * (7 + XFS_ALLOCFREE_LOG_COUNT(mp, 3))));
 }
 
+/*
+ * For creating a link to an inode:
+ *    the parent directory inode: inode size
+ *    the linked inode: inode size
+ *    the directory btree could split: (max depth + v2) * dir block size
+ *    the directory bmap btree could join or split: (max depth + v2) * blocksize
+ * And the bmap_finish transaction can free some bmap blocks giving:
+ *    the agf for the ag in which the blocks live: sector size
+ *    the agfl for the ag in which the blocks live: sector size
+ *    the superblock for the free block count: sector size
+ *    the allocation btrees: 2 trees * (2 * max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_link_reservation(xfs_mount_t *mp)
+xfs_calc_link_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_LINK_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     mp->m_sb.sb_inodesize +
+		     XFS_DIROP_LOG_RES(mp) +
+		     128 * (2 + XFS_DIROP_LOG_COUNT(mp))),
+		    (mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		     128 * (3 + XFS_ALLOCFREE_LOG_COUNT(mp, 1))));
 }
 
+/*
+ * For removing a directory entry we can modify:
+ *    the parent directory inode: inode size
+ *    the removed inode: inode size
+ *    the directory btree could join: (max depth + v2) * dir block size
+ *    the directory bmap btree could join or split: (max depth + v2) * blocksize
+ * And the bmap_finish transaction can free the dir and bmap blocks giving:
+ *    the agf for the ag in which the blocks live: 2 * sector size
+ *    the agfl for the ag in which the blocks live: 2 * sector size
+ *    the superblock for the free block count: sector size
+ *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_remove_reservation(xfs_mount_t *mp)
+xfs_calc_remove_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_REMOVE_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     mp->m_sb.sb_inodesize +
+		     XFS_DIROP_LOG_RES(mp) +
+		     128 * (2 + XFS_DIROP_LOG_COUNT(mp))),
+		    (2 * mp->m_sb.sb_sectsize +
+		     2 * mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 2) +
+		     128 * (5 + XFS_ALLOCFREE_LOG_COUNT(mp, 2))));
 }
 
+/*
+ * For symlink we can modify:
+ *    the parent directory inode: inode size
+ *    the new inode: inode size
+ *    the inode btree entry: 1 block
+ *    the directory btree: (max depth + v2) * dir block size
+ *    the directory inode's bmap btree: (max depth + v2) * block size
+ *    the blocks for the symlink: 1 kB
+ * Or in the first xact we allocate some inodes giving:
+ *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
+ *    the inode blocks allocated: XFS_IALLOC_BLOCKS * blocksize
+ *    the inode btree: max depth * blocksize
+ *    the allocation btrees: 2 trees * (2 * max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_symlink_reservation(xfs_mount_t *mp)
+xfs_calc_symlink_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_SYMLINK_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     mp->m_sb.sb_inodesize +
+		     XFS_FSB_TO_B(mp, 1) +
+		     XFS_DIROP_LOG_RES(mp) +
+		     1024 +
+		     128 * (4 + XFS_DIROP_LOG_COUNT(mp))),
+		    (2 * mp->m_sb.sb_sectsize +
+		     XFS_FSB_TO_B(mp, XFS_IALLOC_BLOCKS(mp)) +
+		     XFS_FSB_TO_B(mp, mp->m_in_maxlevels) +
+		     XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		     128 * (2 + XFS_IALLOC_BLOCKS(mp) + mp->m_in_maxlevels +
+			    XFS_ALLOCFREE_LOG_COUNT(mp, 1))));
 }
 
+/*
+ * For create we can modify:
+ *    the parent directory inode: inode size
+ *    the new inode: inode size
+ *    the inode btree entry: block size
+ *    the superblock for the nlink flag: sector size
+ *    the directory btree: (max depth + v2) * dir block size
+ *    the directory inode's bmap btree: (max depth + v2) * block size
+ * Or in the first xact we allocate some inodes giving:
+ *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
+ *    the superblock for the nlink flag: sector size
+ *    the inode blocks allocated: XFS_IALLOC_BLOCKS * blocksize
+ *    the inode btree: max depth * blocksize
+ *    the allocation btrees: 2 trees * (max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_create_reservation(xfs_mount_t *mp)
+xfs_calc_create_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_CREATE_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     mp->m_sb.sb_inodesize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_FSB_TO_B(mp, 1) +
+		     XFS_DIROP_LOG_RES(mp) +
+		     128 * (3 + XFS_DIROP_LOG_COUNT(mp))),
+		    (3 * mp->m_sb.sb_sectsize +
+		     XFS_FSB_TO_B(mp, XFS_IALLOC_BLOCKS(mp)) +
+		     XFS_FSB_TO_B(mp, mp->m_in_maxlevels) +
+		     XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		     128 * (2 + XFS_IALLOC_BLOCKS(mp) + mp->m_in_maxlevels +
+			    XFS_ALLOCFREE_LOG_COUNT(mp, 1))));
 }
 
+/*
+ * Making a new directory is the same as creating a new file.
+ */
 STATIC uint
-xfs_calc_mkdir_reservation(xfs_mount_t *mp)
+xfs_calc_mkdir_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_MKDIR_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return xfs_calc_create_reservation(mp);
 }
 
+/*
+ * In freeing an inode we can modify:
+ *    the inode being freed: inode size
+ *    the super block free inode counter: sector size
+ *    the agi hash list and counters: sector size
+ *    the inode btree entry: block size
+ *    the on disk inode before ours in the agi hash list: inode cluster size
+ *    the inode btree: max depth * blocksize
+ *    the allocation btrees: 2 trees * (max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_ifree_reservation(xfs_mount_t *mp)
+xfs_calc_ifree_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_IFREE_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		mp->m_sb.sb_inodesize +
+		mp->m_sb.sb_sectsize +
+		mp->m_sb.sb_sectsize +
+		XFS_FSB_TO_B(mp, 1) +
+		MAX((__uint16_t)XFS_FSB_TO_B(mp, 1),
+		    XFS_INODE_CLUSTER_SIZE(mp)) +
+		128 * 5 +
+		XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		128 * (2 + XFS_IALLOC_BLOCKS(mp) + mp->m_in_maxlevels +
+		       XFS_ALLOCFREE_LOG_COUNT(mp, 1));
 }
 
+/*
+ * When only changing the inode we log the inode and possibly the superblock
+ * We also add a bit of slop for the transaction stuff.
+ */
 STATIC uint
-xfs_calc_ichange_reservation(xfs_mount_t *mp)
+xfs_calc_ichange_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_ICHANGE_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		mp->m_sb.sb_inodesize +
+		mp->m_sb.sb_sectsize +
+		512;
+
 }
 
+/*
+ * Growing the data section of the filesystem.
+ *	superblock
+ *	agi and agf
+ *	allocation btrees
+ */
 STATIC uint
-xfs_calc_growdata_reservation(xfs_mount_t *mp)
+xfs_calc_growdata_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_GROWDATA_LOG_RES(mp);
+	return mp->m_sb.sb_sectsize * 3 +
+		XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		128 * (3 + XFS_ALLOCFREE_LOG_COUNT(mp, 1));
 }
 
+/*
+ * Growing the rt section of the filesystem.
+ * In the first set of transactions (ALLOC) we allocate space to the
+ * bitmap or summary files.
+ *	superblock: sector size
+ *	agf of the ag from which the extent is allocated: sector size
+ *	bmap btree for bitmap/summary inode: max depth * blocksize
+ *	bitmap/summary inode: inode size
+ *	allocation btrees for 1 block alloc: 2 * (2 * maxdepth - 1) * blocksize
+ */
 STATIC uint
-xfs_calc_growrtalloc_reservation(xfs_mount_t *mp)
+xfs_calc_growrtalloc_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_GROWRTALLOC_LOG_RES(mp);
+	return 2 * mp->m_sb.sb_sectsize +
+		XFS_FSB_TO_B(mp, XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK)) +
+		mp->m_sb.sb_inodesize +
+		XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		128 * (3 + XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK) +
+		       XFS_ALLOCFREE_LOG_COUNT(mp, 1));
 }
 
+/*
+ * Growing the rt section of the filesystem.
+ * In the second set of transactions (ZERO) we zero the new metadata blocks.
+ *	one bitmap/summary block: blocksize
+ */
 STATIC uint
-xfs_calc_growrtzero_reservation(xfs_mount_t *mp)
+xfs_calc_growrtzero_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_GROWRTZERO_LOG_RES(mp);
+	return mp->m_sb.sb_blocksize + 128;
 }
 
+/*
+ * Growing the rt section of the filesystem.
+ * In the third set of transactions (FREE) we update metadata without
+ * allocating any new blocks.
+ *	superblock: sector size
+ *	bitmap inode: inode size
+ *	summary inode: inode size
+ *	one bitmap block: blocksize
+ *	summary blocks: new summary size
+ */
 STATIC uint
-xfs_calc_growrtfree_reservation(xfs_mount_t *mp)
+xfs_calc_growrtfree_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_GROWRTFREE_LOG_RES(mp);
+	return mp->m_sb.sb_sectsize +
+		2 * mp->m_sb.sb_inodesize +
+		mp->m_sb.sb_blocksize +
+		mp->m_rsumsize +
+		128 * 5;
 }
 
+/*
+ * Logging the inode modification timestamp on a synchronous write.
+ *	inode
+ */
 STATIC uint
-xfs_calc_swrite_reservation(xfs_mount_t *mp)
+xfs_calc_swrite_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_SWRITE_LOG_RES(mp);
+	return mp->m_sb.sb_inodesize + 128;
 }
 
+/*
+ * Logging the inode mode bits when writing a setuid/setgid file
+ *	inode
+ */
 STATIC uint
 xfs_calc_writeid_reservation(xfs_mount_t *mp)
 {
-	return XFS_CALC_WRITEID_LOG_RES(mp);
+	return mp->m_sb.sb_inodesize + 128;
 }
 
+/*
+ * Converting the inode from non-attributed to attributed.
+ *	the inode being converted: inode size
+ *	agf block and superblock (for block allocation)
+ *	the new block (directory sized)
+ *	bmap blocks for the new directory block
+ *	allocation btrees
+ */
 STATIC uint
-xfs_calc_addafork_reservation(xfs_mount_t *mp)
+xfs_calc_addafork_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_ADDAFORK_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		mp->m_sb.sb_inodesize +
+		mp->m_sb.sb_sectsize * 2 +
+		mp->m_dirblksize +
+		XFS_FSB_TO_B(mp, XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1) +
+		XFS_ALLOCFREE_LOG_RES(mp, 1) +
+		128 * (4 + XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1 +
+		       XFS_ALLOCFREE_LOG_COUNT(mp, 1));
 }
 
+/*
+ * Removing the attribute fork of a file
+ *    the inode being truncated: inode size
+ *    the inode's bmap btree: max depth * block size
+ * And the bmap_finish transaction can free the blocks and bmap blocks:
+ *    the agf for each of the ags: 4 * sector size
+ *    the agfl for each of the ags: 4 * sector size
+ *    the super block to reflect the freed blocks: sector size
+ *    worst case split in allocation btrees per extent assuming 4 extents:
+ *		4 exts * 2 trees * (2 * max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_attrinval_reservation(xfs_mount_t *mp)
+xfs_calc_attrinval_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_ATTRINVAL_LOG_RES(mp);
+	return MAX((mp->m_sb.sb_inodesize +
+		    XFS_FSB_TO_B(mp, XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK)) +
+		    128 * (1 + XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK))),
+		   (4 * mp->m_sb.sb_sectsize +
+		    4 * mp->m_sb.sb_sectsize +
+		    mp->m_sb.sb_sectsize +
+		    XFS_ALLOCFREE_LOG_RES(mp, 4) +
+		    128 * (9 + XFS_ALLOCFREE_LOG_COUNT(mp, 4))));
 }
 
+/*
+ * Setting an attribute.
+ *	the inode getting the attribute
+ *	the superblock for allocations
+ *	the agfs extents are allocated from
+ *	the attribute btree * max depth
+ *	the inode allocation btree
+ * Since attribute transaction space is dependent on the size of the attribute,
+ * the calculation is done partially at mount time and partially at runtime.
+ */
 STATIC uint
-xfs_calc_attrset_reservation(xfs_mount_t *mp)
+xfs_calc_attrset_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_ATTRSET_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		mp->m_sb.sb_inodesize +
+		mp->m_sb.sb_sectsize +
+		XFS_FSB_TO_B(mp, XFS_DA_NODE_MAXDEPTH) +
+		128 * (2 + XFS_DA_NODE_MAXDEPTH);
 }
 
+/*
+ * Removing an attribute.
+ *    the inode: inode size
+ *    the attribute btree could join: max depth * block size
+ *    the inode bmap btree could join or split: max depth * block size
+ * And the bmap_finish transaction can free the attr blocks freed giving:
+ *    the agf for the ag in which the blocks live: 2 * sector size
+ *    the agfl for the ag in which the blocks live: 2 * sector size
+ *    the superblock for the free block count: sector size
+ *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
+ */
 STATIC uint
-xfs_calc_attrrm_reservation(xfs_mount_t *mp)
+xfs_calc_attrrm_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_ATTRRM_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
+	return XFS_DQUOT_LOGRES(mp) +
+		MAX((mp->m_sb.sb_inodesize +
+		     XFS_FSB_TO_B(mp, XFS_DA_NODE_MAXDEPTH) +
+		     XFS_FSB_TO_B(mp, XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK)) +
+		     128 * (1 + XFS_DA_NODE_MAXDEPTH +
+			    XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK))),
+		    (2 * mp->m_sb.sb_sectsize +
+		     2 * mp->m_sb.sb_sectsize +
+		     mp->m_sb.sb_sectsize +
+		     XFS_ALLOCFREE_LOG_RES(mp, 2) +
+		     128 * (5 + XFS_ALLOCFREE_LOG_COUNT(mp, 2))));
 }
 
+/*
+ * Clearing a bad agino number in an agi hash bucket.
+ */
 STATIC uint
-xfs_calc_clear_agi_bucket_reservation(xfs_mount_t *mp)
+xfs_calc_clear_agi_bucket_reservation(
+	struct xfs_mount	*mp)
 {
-	return XFS_CALC_CLEAR_AGI_BUCKET_LOG_RES(mp);
+	return mp->m_sb.sb_sectsize + 128;
 }
 
 /*
@@ -184,11 +537,10 @@ xfs_calc_clear_agi_bucket_reservation(xfs_mount_t *mp)
  */
 void
 xfs_trans_init(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_trans_reservations_t	*resp;
+	struct xfs_trans_reservations *resp = &mp->m_reservations;
 
-	resp = &(mp->m_reservations);
 	resp->tr_write = xfs_calc_write_reservation(mp);
 	resp->tr_itruncate = xfs_calc_itruncate_reservation(mp);
 	resp->tr_rename = xfs_calc_rename_reservation(mp);
@@ -243,8 +595,7 @@ _xfs_trans_alloc(
 	tp->t_magic = XFS_TRANS_MAGIC;
 	tp->t_type = type;
 	tp->t_mountp = mp;
-	tp->t_items_free = XFS_LIC_NUM_SLOTS;
-	xfs_lic_init(&(tp->t_items));
+	INIT_LIST_HEAD(&tp->t_items);
 	INIT_LIST_HEAD(&tp->t_busy);
 	return tp;
 }
@@ -289,8 +640,7 @@ xfs_trans_dup(
 	ntp->t_magic = XFS_TRANS_MAGIC;
 	ntp->t_type = tp->t_type;
 	ntp->t_mountp = tp->t_mountp;
-	ntp->t_items_free = XFS_LIC_NUM_SLOTS;
-	xfs_lic_init(&(ntp->t_items));
+	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -770,6 +1120,108 @@ xfs_trans_unreserve_and_mod_sb(
 }
 
 /*
+ * Add the given log item to the transaction's list of log items.
+ *
+ * The log item will now point to its new descriptor with its li_desc field.
+ */
+void
+xfs_trans_add_item(
+	struct xfs_trans	*tp,
+	struct xfs_log_item	*lip)
+{
+	struct xfs_log_item_desc *lidp;
+
+	ASSERT(lip->li_mountp = tp->t_mountp);
+	ASSERT(lip->li_ailp = tp->t_mountp->m_ail);
+
+	lidp = kmem_zone_zalloc(xfs_log_item_desc_zone, KM_SLEEP | KM_NOFS);
+
+	lidp->lid_item = lip;
+	lidp->lid_flags = 0;
+	lidp->lid_size = 0;
+	list_add_tail(&lidp->lid_trans, &tp->t_items);
+
+	lip->li_desc = lidp;
+}
+
+STATIC void
+xfs_trans_free_item_desc(
+	struct xfs_log_item_desc *lidp)
+{
+	list_del_init(&lidp->lid_trans);
+	kmem_zone_free(xfs_log_item_desc_zone, lidp);
+}
+
+/*
+ * Unlink and free the given descriptor.
+ */
+void
+xfs_trans_del_item(
+	struct xfs_log_item	*lip)
+{
+	xfs_trans_free_item_desc(lip->li_desc);
+	lip->li_desc = NULL;
+}
+
+/*
+ * Unlock all of the items of a transaction and free all the descriptors
+ * of that transaction.
+ */
+STATIC void
+xfs_trans_free_items(
+	struct xfs_trans	*tp,
+	xfs_lsn_t		commit_lsn,
+	int			flags)
+{
+	struct xfs_log_item_desc *lidp, *next;
+
+	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
+		struct xfs_log_item	*lip = lidp->lid_item;
+
+		lip->li_desc = NULL;
+
+		if (commit_lsn != NULLCOMMITLSN)
+			IOP_COMMITTING(lip, commit_lsn);
+		if (flags & XFS_TRANS_ABORT)
+			lip->li_flags |= XFS_LI_ABORTED;
+		IOP_UNLOCK(lip);
+
+		xfs_trans_free_item_desc(lidp);
+	}
+}
+
+/*
+ * Unlock the items associated with a transaction.
+ *
+ * Items which were not logged should be freed.  Those which were logged must
+ * still be tracked so they can be unpinned when the transaction commits.
+ */
+STATIC void
+xfs_trans_unlock_items(
+	struct xfs_trans	*tp,
+	xfs_lsn_t		commit_lsn)
+{
+	struct xfs_log_item_desc *lidp, *next;
+
+	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
+		struct xfs_log_item	*lip = lidp->lid_item;
+
+		lip->li_desc = NULL;
+
+		if (commit_lsn != NULLCOMMITLSN)
+			IOP_COMMITTING(lip, commit_lsn);
+		IOP_UNLOCK(lip);
+
+		/*
+		 * Free the descriptor if the item is not dirty
+		 * within this transaction.
+		 */
+		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+			xfs_trans_free_item_desc(lidp);
+	}
+}
+
+/*
  * Total up the number of log iovecs needed to commit this
  * transaction.  The transaction itself needs one for the
  * transaction header.  Ask each dirty item in turn how many
@@ -780,30 +1232,27 @@ xfs_trans_count_vecs(
 	struct xfs_trans	*tp)
 {
 	int			nvecs;
-	xfs_log_item_desc_t	*lidp;
+	struct xfs_log_item_desc *lidp;
 
 	nvecs = 1;
-	lidp = xfs_trans_first_item(tp);
-	ASSERT(lidp != NULL);
 
 	/* In the non-debug case we need to start bailing out if we
 	 * didn't find a log_item here, return zero and let trans_commit
 	 * deal with it.
 	 */
-	if (lidp == NULL)
+	if (list_empty(&tp->t_items)) {
+		ASSERT(0);
 		return 0;
+	}
 
-	while (lidp != NULL) {
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		/*
 		 * Skip items which aren't dirty in this transaction.
 		 */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
-			lidp = xfs_trans_next_item(tp, lidp);
+		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
-		}
 		lidp->lid_size = IOP_SIZE(lidp->lid_item);
 		nvecs += lidp->lid_size;
-		lidp = xfs_trans_next_item(tp, lidp);
 	}
 
 	return nvecs;
@@ -823,7 +1272,7 @@ xfs_trans_fill_vecs(
 	struct xfs_trans	*tp,
 	struct xfs_log_iovec	*log_vector)
 {
-	xfs_log_item_desc_t	*lidp;
+	struct xfs_log_item_desc *lidp;
 	struct xfs_log_iovec	*vecp;
 	uint			nitems;
 
@@ -834,14 +1283,11 @@ xfs_trans_fill_vecs(
 	vecp = log_vector + 1;
 
 	nitems = 0;
-	lidp = xfs_trans_first_item(tp);
-	ASSERT(lidp);
-	while (lidp) {
+	ASSERT(!list_empty(&tp->t_items));
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
-			lidp = xfs_trans_next_item(tp, lidp);
+		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
-		}
 
 		/*
 		 * The item may be marked dirty but not log anything.  This can
@@ -852,7 +1298,6 @@ xfs_trans_fill_vecs(
 		IOP_FORMAT(lidp->lid_item, vecp);
 		vecp += lidp->lid_size;
 		IOP_PIN(lidp->lid_item);
-		lidp = xfs_trans_next_item(tp, lidp);
 	}
 
 	/*
@@ -930,7 +1375,7 @@ xfs_trans_item_committed(
 	 * log item flags, if anyone else stales the buffer we do not want to
 	 * pay any attention to it.
 	 */
-	IOP_UNPIN(lip);
+	IOP_UNPIN(lip, 0);
 }
 
 /*
@@ -947,24 +1392,15 @@ xfs_trans_committed(
 	struct xfs_trans	*tp,
 	int			abortflag)
 {
-	xfs_log_item_desc_t	*lidp;
-	xfs_log_item_chunk_t	*licp;
-	xfs_log_item_chunk_t	*next_licp;
+	struct xfs_log_item_desc *lidp, *next;
 
 	/* Call the transaction's completion callback if there is one. */
 	if (tp->t_callback != NULL)
 		tp->t_callback(tp, tp->t_callarg);
 
-	for (lidp = xfs_trans_first_item(tp);
-	     lidp != NULL;
-	     lidp = xfs_trans_next_item(tp, lidp)) {
+	list_for_each_entry_safe(lidp, next, &tp->t_items, lid_trans) {
 		xfs_trans_item_committed(lidp->lid_item, tp->t_lsn, abortflag);
-	}
-
-	/* free the item chunks, ignoring the embedded chunk */
-	for (licp = tp->t_items.lic_next; licp != NULL; licp = next_licp) {
-		next_licp = licp->lic_next;
-		kmem_free(licp);
+		xfs_trans_free_item_desc(lidp);
 	}
 
 	xfs_trans_free(tp);
@@ -979,16 +1415,14 @@ xfs_trans_uncommit(
 	struct xfs_trans	*tp,
 	uint			flags)
 {
-	xfs_log_item_desc_t	*lidp;
+	struct xfs_log_item_desc *lidp;
 
-	for (lidp = xfs_trans_first_item(tp);
-	     lidp != NULL;
-	     lidp = xfs_trans_next_item(tp, lidp)) {
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		/*
 		 * Unpin all but those that aren't dirty.
 		 */
 		if (lidp->lid_flags & XFS_LID_DIRTY)
-			IOP_UNPIN_REMOVE(lidp->lid_item, tp);
+			IOP_UNPIN(lidp->lid_item, 1);
 	}
 
 	xfs_trans_unreserve_and_mod_sb(tp);
@@ -1154,33 +1588,28 @@ STATIC struct xfs_log_vec *
 xfs_trans_alloc_log_vecs(
 	xfs_trans_t	*tp)
 {
-	xfs_log_item_desc_t	*lidp;
+	struct xfs_log_item_desc *lidp;
 	struct xfs_log_vec	*lv = NULL;
 	struct xfs_log_vec	*ret_lv = NULL;
 
-	lidp = xfs_trans_first_item(tp);
 
 	/* Bail out if we didn't find a log item.  */
-	if (!lidp) {
+	if (list_empty(&tp->t_items)) {
 		ASSERT(0);
 		return NULL;
 	}
 
-	while (lidp != NULL) {
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		struct xfs_log_vec *new_lv;
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
-			lidp = xfs_trans_next_item(tp, lidp);
+		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
-		}
 
 		/* Skip items that do not have any vectors for writing */
 		lidp->lid_size = IOP_SIZE(lidp->lid_item);
-		if (!lidp->lid_size) {
-			lidp = xfs_trans_next_item(tp, lidp);
+		if (!lidp->lid_size)
 			continue;
-		}
 
 		new_lv = kmem_zalloc(sizeof(*new_lv) +
 				lidp->lid_size * sizeof(struct xfs_log_iovec),
@@ -1195,7 +1624,6 @@ xfs_trans_alloc_log_vecs(
 		else
 			lv->lv_next = new_lv;
 		lv = new_lv;
-		lidp = xfs_trans_next_item(tp, lidp);
 	}
 
 	return ret_lv;
@@ -1354,12 +1782,6 @@ xfs_trans_cancel(
 	int			flags)
 {
 	int			log_flags;
-#ifdef DEBUG
-	xfs_log_item_chunk_t	*licp;
-	xfs_log_item_desc_t	*lidp;
-	xfs_log_item_t		*lip;
-	int			i;
-#endif
 	xfs_mount_t		*mp = tp->t_mountp;
 
 	/*
@@ -1378,21 +1800,11 @@ xfs_trans_cancel(
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	}
 #ifdef DEBUG
-	if (!(flags & XFS_TRANS_ABORT)) {
-		licp = &(tp->t_items);
-		while (licp != NULL) {
-			lidp = licp->lic_descs;
-			for (i = 0; i < licp->lic_unused; i++, lidp++) {
-				if (xfs_lic_isfree(licp, i)) {
-					continue;
-				}
+	if (!(flags & XFS_TRANS_ABORT) && !XFS_FORCED_SHUTDOWN(mp)) {
+		struct xfs_log_item_desc *lidp;
 
-				lip = lidp->lid_item;
-				if (!XFS_FORCED_SHUTDOWN(mp))
-					ASSERT(!(lip->li_type == XFS_LI_EFD));
-			}
-			licp = licp->lic_next;
-		}
+		list_for_each_entry(lidp, &tp->t_items, lid_trans)
+			ASSERT(!(lidp->lid_item->li_type == XFS_LI_EFD));
 	}
 #endif
 	xfs_trans_unreserve_and_mod_sb(tp);
@@ -1480,7 +1892,6 @@ xfs_trans_roll(
 	if (error)
 		return error;
 
-	xfs_trans_ijoin(trans, dp, XFS_ILOCK_EXCL);
-	xfs_trans_ihold(trans, dp);
+	xfs_trans_ijoin(trans, dp);
 	return 0;
 }

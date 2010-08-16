@@ -211,8 +211,9 @@ v6_dma_inv_range:
 	mcrne	p15, 0, r1, c7, c15, 1		@ clean & invalidate unified line
 #endif
 1:
-#ifdef CONFIG_SMP
-	str	r0, [r0]			@ write for ownership
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldr	r2, [r0]			@ read for ownership
+	str	r2, [r0]			@ write for ownership
 #endif
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D line
@@ -234,7 +235,7 @@ v6_dma_inv_range:
 v6_dma_clean_range:
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
-#ifdef CONFIG_SMP
+#ifdef CONFIG_DMA_CACHE_RWFO
 	ldr	r2, [r0]			@ read for ownership
 #endif
 #ifdef HARVARD_CACHE
@@ -257,7 +258,7 @@ v6_dma_clean_range:
 ENTRY(v6_dma_flush_range)
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
-#ifdef CONFIG_SMP
+#ifdef CONFIG_DMA_CACHE_RWFO
 	ldr	r2, [r0]			@ read for ownership
 	str	r2, [r0]			@ write for ownership
 #endif
@@ -283,9 +284,13 @@ ENTRY(v6_dma_map_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_FROM_DEVICE
 	beq	v6_dma_inv_range
+#ifndef CONFIG_DMA_CACHE_RWFO
+	b	v6_dma_clean_range
+#else
 	teq	r2, #DMA_TO_DEVICE
 	beq	v6_dma_clean_range
 	b	v6_dma_flush_range
+#endif
 ENDPROC(v6_dma_map_area)
 
 /*
@@ -295,6 +300,11 @@ ENDPROC(v6_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(v6_dma_unmap_area)
+#ifndef CONFIG_DMA_CACHE_RWFO
+	add	r1, r1, r0
+	teq	r2, #DMA_TO_DEVICE
+	bne	v6_dma_inv_range
+#endif
 	mov	pc, lr
 ENDPROC(v6_dma_unmap_area)
 

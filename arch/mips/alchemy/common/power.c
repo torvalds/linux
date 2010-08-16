@@ -193,9 +193,15 @@ static void restore_core_regs(void)
 
 void au_sleep(void)
 {
-	save_core_regs();
-	au1xxx_save_and_sleep();
-	restore_core_regs();
+	int cpuid = alchemy_get_cputype();
+	if (cpuid != ALCHEMY_CPU_UNKNOWN) {
+		save_core_regs();
+		if (cpuid <= ALCHEMY_CPU_AU1500)
+			alchemy_sleep_au1000();
+		else if (cpuid <= ALCHEMY_CPU_AU1200)
+			alchemy_sleep_au1550();
+		restore_core_regs();
+	}
 }
 
 #endif	/* CONFIG_PM */

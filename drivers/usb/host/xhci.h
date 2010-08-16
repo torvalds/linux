@@ -720,6 +720,14 @@ struct xhci_virt_ep {
 	struct timer_list	stop_cmd_timer;
 	int			stop_cmds_pending;
 	struct xhci_hcd		*xhci;
+	/*
+	 * Sometimes the xHC can not process isochronous endpoint ring quickly
+	 * enough, and it will miss some isoc tds on the ring and generate
+	 * a Missed Service Error Event.
+	 * Set skip flag when receive a Missed Service Error Event and
+	 * process the missed tds on the endpoint ring.
+	 */
+	bool			skip;
 };
 
 struct xhci_virt_device {
@@ -911,6 +919,9 @@ struct xhci_event_cmd {
 /* Control transfer TRB specific fields */
 #define TRB_DIR_IN		(1<<16)
 
+/* Isochronous TRB specific fields */
+#define TRB_SIA			(1<<31)
+
 struct xhci_generic_trb {
 	u32 field[4];
 };
@@ -925,6 +936,7 @@ union xhci_trb {
 /* TRB bit mask */
 #define	TRB_TYPE_BITMASK	(0xfc00)
 #define TRB_TYPE(p)		((p) << 10)
+#define TRB_FIELD_TO_TYPE(p)	(((p) & TRB_TYPE_BITMASK) >> 10)
 /* TRB type IDs */
 /* bulk, interrupt, isoc scatter/gather, and control data stage */
 #define TRB_NORMAL		1
@@ -991,6 +1003,14 @@ union xhci_trb {
 /* MFINDEX Wrap Event - microframe counter wrapped */
 #define TRB_MFINDEX_WRAP	39
 /* TRB IDs 40-47 reserved, 48-63 is vendor-defined */
+
+/* Nec vendor-specific command completion event. */
+#define	TRB_NEC_CMD_COMP	48
+/* Get NEC firmware revision. */
+#define	TRB_NEC_GET_FW		49
+
+#define NEC_FW_MINOR(p)		(((p) >> 0) & 0xff)
+#define NEC_FW_MAJOR(p)		(((p) >> 8) & 0xff)
 
 /*
  * TRBS_PER_SEGMENT must be a multiple of 4,
@@ -1073,6 +1093,12 @@ struct xhci_scratchpad {
 	dma_addr_t *sp_dma_buffers;
 };
 
+struct urb_priv {
+	int	length;
+	int	td_cnt;
+	struct	xhci_td	*td[0];
+};
+
 /*
  * Each segment table entry is 4*32bits long.  1K seems like an ok size:
  * (1K bytes * 8bytes/bit) / (4*32 bits) = 64 segment entries in the table,
@@ -1121,7 +1147,7 @@ struct xhci_hcd {
 	int		page_size;
 	/* Valid values are 12 to 20, inclusive */
 	int		page_shift;
-	/* only one MSI vector for now, but might need more later */
+	/* msi-x vectors */
 	int		msix_count;
 	struct msix_entry	*msix_entries;
 	/* data structures */
@@ -1172,6 +1198,7 @@ struct xhci_hcd {
 	unsigned int		quirks;
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
+#define XHCI_NEC_HOST		(1 << 2)
 };
 
 /* For testing purposes */
@@ -1282,6 +1309,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags);
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id);
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id, struct usb_device *udev, gfp_t flags);
 int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev);
+void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
+		struct usb_device *udev);
 unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index);
@@ -1315,11 +1344,6 @@ void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
 struct xhci_ring *xhci_dma_to_transfer_ring(
 		struct xhci_virt_ep *ep,
 		u64 address);
-struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
-		struct urb *urb);
-struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
-		unsigned int slot_id, unsigned int ep_index,
-		unsigned int stream_id);
 struct xhci_ring *xhci_stream_id_to_ring(
 		struct xhci_virt_device *dev,
 		unsigned int ep_index,
@@ -1327,6 +1351,7 @@ struct xhci_ring *xhci_stream_id_to_ring(
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 		bool allocate_in_ctx, bool allocate_completion,
 		gfp_t mem_flags);
+void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
 
@@ -1346,6 +1371,7 @@ void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
 int xhci_get_frame(struct usb_hcd *hcd);
 irqreturn_t xhci_irq(struct usb_hcd *hcd);
+irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd);
 int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
@@ -1374,11 +1400,11 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
 void *xhci_setup_one_noop(struct xhci_hcd *xhci);
-void xhci_handle_event(struct xhci_hcd *xhci);
-void xhci_set_hc_event_deq(struct xhci_hcd *xhci);
 int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);
+int xhci_queue_vendor_command(struct xhci_hcd *xhci,
+		u32 field1, u32 field2, u32 field3, u32 field4);
 int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index);
 int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
@@ -1387,6 +1413,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
+int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
+		struct urb *urb, int slot_id, unsigned int ep_index);
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id, bool command_must_succeed);
 int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,

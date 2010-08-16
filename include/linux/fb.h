@@ -3,6 +3,9 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
+#ifdef __KERNEL__
+#include <linux/kgdb.h>
+#endif /* __KERNEL__ */
 
 /* Definitions of frame buffers						*/
 
@@ -607,6 +610,12 @@ struct fb_deferred_io {
  * LOCKING NOTE: those functions must _ALL_ be called with the console
  * semaphore held, this is the only suitable locking mechanism we have
  * in 2.6. Some may be called at interrupt time at this point though.
+ *
+ * The exception to this is the debug related hooks.  Putting the fb
+ * into a debug state (e.g. flipping to the kernel console) and restoring
+ * it must be done in a lock-free manner, so low level drivers should
+ * keep track of the initial console (if applicable) and may need to
+ * perform direct, unlocked hardware writes in these hooks.
  */
 
 struct fb_ops {
@@ -676,6 +685,10 @@ struct fb_ops {
 
 	/* teardown any resources to do with this framebuffer */
 	void (*fb_destroy)(struct fb_info *info);
+
+	/* called at KDB enter and leave time to prepare the console */
+	int (*fb_debug_enter)(struct fb_info *info);
+	int (*fb_debug_leave)(struct fb_info *info);
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
@@ -786,8 +799,6 @@ struct fb_tile_ops {
 #define FBINFO_MISC_USEREVENT          0x10000 /* event request
 						  from userspace */
 #define FBINFO_MISC_TILEBLITTING       0x20000 /* use tile blitting */
-#define FBINFO_MISC_FIRMWARE           0x40000 /* a replaceable firmware
-						  inited framebuffer */
 
 /* A driver may set this flag to indicate that it does want a set_par to be
  * called every time when fbcon_switch is executed. The advantage is that with
@@ -801,6 +812,8 @@ struct fb_tile_ops {
  */
 #define FBINFO_MISC_ALWAYS_SETPAR   0x40000
 
+/* where the fb is a firmware driver, and can be replaced with a proper one */
+#define FBINFO_MISC_FIRMWARE        0x80000
 /*
  * Host and GPU endianness differ.
  */
@@ -811,6 +824,10 @@ struct fb_tile_ops {
  * and host endianness. Drivers should not use this flag.
  */
 #define FBINFO_BE_MATH  0x100000
+
+/* report to the VT layer that this fb driver can accept forced console
+   output like oopses */
+#define FBINFO_CAN_FORCE_OUTPUT     0x200000
 
 struct fb_info {
 	int node;
@@ -873,6 +890,8 @@ struct fb_info {
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 	struct apertures_struct *a = kzalloc(sizeof(struct apertures_struct)
 			+ max_num * sizeof(struct aperture), GFP_KERNEL);
+	if (!a)
+		return NULL;
 	a->count = max_num;
 	return a;
 }

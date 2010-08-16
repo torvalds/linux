@@ -627,10 +627,10 @@ mpc_dma_prep_memcpy(struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	return &mdesc->desc;
 }
 
-static int __devinit mpc_dma_probe(struct of_device *op,
+static int __devinit mpc_dma_probe(struct platform_device *op,
 					const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
 	struct dma_device *dma;
 	struct mpc_dma *mdma;
@@ -753,7 +753,7 @@ static int __devinit mpc_dma_probe(struct of_device *op,
 	return retval;
 }
 
-static int __devexit mpc_dma_remove(struct of_device *op)
+static int __devexit mpc_dma_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mpc_dma *mdma = dev_get_drvdata(dev);
@@ -771,12 +771,12 @@ static struct of_device_id mpc_dma_match[] = {
 };
 
 static struct of_platform_driver mpc_dma_driver = {
-	.match_table	= mpc_dma_match,
 	.probe		= mpc_dma_probe,
 	.remove		= __devexit_p(mpc_dma_remove),
-	.driver		= {
-		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table	= mpc_dma_match,
 	},
 };
 

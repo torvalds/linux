@@ -741,7 +741,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 		     le16_to_cpu(bg->bg_free_bits_count));
 	le32_add_cpu(&cl->cl_recs[alloc_rec].c_total,
 		     le16_to_cpu(bg->bg_bits));
-	cl->cl_recs[alloc_rec].c_blkno  = cpu_to_le64(bg->bg_blkno);
+	cl->cl_recs[alloc_rec].c_blkno = bg->bg_blkno;
 	if (le16_to_cpu(cl->cl_next_free_rec) < le16_to_cpu(cl->cl_count))
 		le16_add_cpu(&cl->cl_next_free_rec, 1);
 

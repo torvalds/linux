@@ -132,18 +132,9 @@ static void configure_channel(struct dma_channel *channel,
 	if (mode) {
 		csr |= 1 << MUSB_HSDMA_MODE1_SHIFT;
 		BUG_ON(len < packet_sz);
-
-		if (packet_sz >= 64) {
-			csr |= MUSB_HSDMA_BURSTMODE_INCR16
-					<< MUSB_HSDMA_BURSTMODE_SHIFT;
-		} else if (packet_sz >= 32) {
-			csr |= MUSB_HSDMA_BURSTMODE_INCR8
-					<< MUSB_HSDMA_BURSTMODE_SHIFT;
-		} else if (packet_sz >= 16) {
-			csr |= MUSB_HSDMA_BURSTMODE_INCR4
-					<< MUSB_HSDMA_BURSTMODE_SHIFT;
-		}
 	}
+	csr |= MUSB_HSDMA_BURSTMODE_INCR16
+				<< MUSB_HSDMA_BURSTMODE_SHIFT;
 
 	csr |= (musb_channel->epnum << MUSB_HSDMA_ENDPOINT_SHIFT)
 		| (1 << MUSB_HSDMA_ENABLE_SHIFT)
@@ -182,10 +173,7 @@ static int dma_channel_program(struct dma_channel *channel,
 	musb_channel->max_packet_sz = packet_sz;
 	channel->status = MUSB_DMA_STATUS_BUSY;
 
-	if ((mode == 1) && (len >= packet_sz))
-		configure_channel(channel, packet_sz, 1, dma_addr, len);
-	else
-		configure_channel(channel, packet_sz, 0, dma_addr, len);
+	configure_channel(channel, packet_sz, mode, dma_addr, len);
 
 	return true;
 }

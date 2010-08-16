@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/cper.h>
 #include <linux/nmi.h>
+#include <linux/hardirq.h>
 #include <acpi/apei.h>
 
 #include "apei-internal.h"
@@ -781,7 +782,7 @@ static int __init erst_init(void)
 	status = acpi_get_table(ACPI_SIG_ERST, 0,
 				(struct acpi_table_header **)&erst_tab);
 	if (status == AE_NOT_FOUND) {
-		pr_err(ERST_PFX "Table is not found!\n");
+		pr_info(ERST_PFX "Table is not found!\n");
 		goto err;
 	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);

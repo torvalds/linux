@@ -390,7 +390,9 @@ static inline int gpio_valid(int gpio)
 		return 0;
 	if (cpu_is_omap7xx() && gpio < 192)
 		return 0;
-	if (cpu_is_omap24xx() && gpio < 128)
+	if (cpu_is_omap2420() && gpio < 128)
+		return 0;
+	if (cpu_is_omap2430() && gpio < 160)
 		return 0;
 	if ((cpu_is_omap34xx() || cpu_is_omap44xx()) && gpio < 192)
 		return 0;
@@ -673,6 +675,7 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 		if (cpu_is_omap34xx() || cpu_is_omap44xx())
 			clk_disable(bank->dbck);
 	}
+	bank->dbck_enable_mask = val;
 
 	__raw_writel(val, reg);
 }

@@ -53,23 +53,6 @@ TRACE_EVENT(i915_gem_object_bind,
 		      __entry->obj, __entry->gtt_offset)
 );
 
-TRACE_EVENT(i915_gem_object_clflush,
-
-	    TP_PROTO(struct drm_gem_object *obj),
-
-	    TP_ARGS(obj),
-
-	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->obj = obj;
-			   ),
-
-	    TP_printk("obj=%p", __entry->obj)
-);
-
 TRACE_EVENT(i915_gem_object_change_domain,
 
 	    TP_PROTO(struct drm_gem_object *obj, uint32_t old_read_domains, uint32_t old_write_domain),
@@ -130,6 +113,13 @@ DECLARE_EVENT_CLASS(i915_gem_object,
 			   ),
 
 	    TP_printk("obj=%p", __entry->obj)
+);
+
+DEFINE_EVENT(i915_gem_object, i915_gem_object_clflush,
+
+	    TP_PROTO(struct drm_gem_object *obj),
+
+	    TP_ARGS(obj)
 );
 
 DEFINE_EVENT(i915_gem_object, i915_gem_object_unbind,
@@ -270,6 +260,42 @@ DEFINE_EVENT(i915_ring, i915_ring_wait_end,
 	    TP_PROTO(struct drm_device *dev),
 
 	    TP_ARGS(dev)
+);
+
+TRACE_EVENT(i915_flip_request,
+	    TP_PROTO(int plane, struct drm_gem_object *obj),
+
+	    TP_ARGS(plane, obj),
+
+	    TP_STRUCT__entry(
+		    __field(int, plane)
+		    __field(struct drm_gem_object *, obj)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->plane = plane;
+		    __entry->obj = obj;
+		    ),
+
+	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
+);
+
+TRACE_EVENT(i915_flip_complete,
+	    TP_PROTO(int plane, struct drm_gem_object *obj),
+
+	    TP_ARGS(plane, obj),
+
+	    TP_STRUCT__entry(
+		    __field(int, plane)
+		    __field(struct drm_gem_object *, obj)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->plane = plane;
+		    __entry->obj = obj;
+		    ),
+
+	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
 );
 
 #endif /* _I915_TRACE_H_ */

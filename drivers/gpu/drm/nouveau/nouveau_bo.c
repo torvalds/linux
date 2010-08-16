@@ -51,9 +51,6 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	if (nvbo->tile)
 		nv10_mem_expire_tiling(dev, nvbo->tile, NULL);
 
-	spin_lock(&dev_priv->ttm.bo_list_lock);
-	list_del(&nvbo->head);
-	spin_unlock(&dev_priv->ttm.bo_list_lock);
 	kfree(nvbo);
 }
 
@@ -166,9 +163,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	}
 	nvbo->channel = NULL;
 
-	spin_lock(&dev_priv->ttm.bo_list_lock);
-	list_add_tail(&nvbo->head, &dev_priv->ttm.bo_list);
-	spin_unlock(&dev_priv->ttm.bo_list_lock);
 	*pnvbo = nvbo;
 	return 0;
 }
@@ -461,9 +455,9 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 		return ret;
 
 	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL,
-					evict, no_wait_reserve, no_wait_gpu, new_mem);
-	if (nvbo->channel && nvbo->channel != chan)
-		ret = nouveau_fence_wait(fence, NULL, false, false);
+					evict || (nvbo->channel &&
+						  nvbo->channel != chan),
+					no_wait_reserve, no_wait_gpu, new_mem);
 	nouveau_fence_unref((void *)&fence);
 	return ret;
 }
@@ -711,8 +705,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 		return ret;
 
 	/* Software copy if the card isn't up and running yet. */
-	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE ||
-	    !dev_priv->channel) {
+	if (!dev_priv->channel) {
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 		goto out;
 	}
@@ -783,7 +776,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		break;
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
-		mem->bus.base = drm_get_resource_start(dev, 1);
+		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
 		break;
 	default:

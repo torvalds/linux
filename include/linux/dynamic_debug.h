@@ -40,7 +40,7 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 				const char *modname);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-extern int ddebug_remove_module(char *mod_name);
+extern int ddebug_remove_module(const char *mod_name);
 
 #define __dynamic_dbg_enabled(dd)  ({	     \
 	int __ret = 0;							     \
@@ -73,7 +73,7 @@ extern int ddebug_remove_module(char *mod_name);
 
 #else
 
-static inline int ddebug_remove_module(char *mod)
+static inline int ddebug_remove_module(const char *mod)
 {
 	return 0;
 }

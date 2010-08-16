@@ -3117,7 +3117,7 @@ u16_t zfWlanRxFilter(zdev_t* dev, zbuf_t* buf)
 
     index = (src[2]+up) & (ZM_FILTER_TABLE_ROW-1);
 
-    /* TBD : filter frame with source address == own MAC adress */
+    /* TBD : filter frame with source address == own MAC address */
     if ((wd->macAddr[0] == src[0]) && (wd->macAddr[1] == src[1])
             && (wd->macAddr[2] == src[2]))
     {

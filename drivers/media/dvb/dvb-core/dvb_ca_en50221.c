@@ -1318,8 +1318,11 @@ static ssize_t dvb_ca_en50221_io_write(struct file *file,
 
 		fragbuf[0] = connection_id;
 		fragbuf[1] = ((fragpos + fraglen) < count) ? 0x80 : 0x00;
-		if ((status = copy_from_user(fragbuf + 2, buf + fragpos, fraglen)) != 0)
+		status = copy_from_user(fragbuf + 2, buf + fragpos, fraglen);
+		if (status) {
+			status = -EFAULT;
 			goto exit;
+		}
 
 		timeout = jiffies + HZ / 2;
 		written = 0;
@@ -1494,8 +1497,11 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 
 	hdr[0] = slot;
 	hdr[1] = connection_id;
-	if ((status = copy_to_user(buf, hdr, 2)) != 0)
+	status = copy_to_user(buf, hdr, 2);
+	if (status) {
+		status = -EFAULT;
 		goto exit;
+	}
 	status = pktlen;
 
 exit:

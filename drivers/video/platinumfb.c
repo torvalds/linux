@@ -533,7 +533,7 @@ static int __init platinumfb_setup(char *options)
 #define invalidate_cache(addr)
 #endif
 
-static int __devinit platinumfb_probe(struct of_device* odev,
+static int __devinit platinumfb_probe(struct platform_device* odev,
 				      const struct of_device_id *match)
 {
 	struct device_node	*dp = odev->dev.of_node;
@@ -646,7 +646,7 @@ static int __devinit platinumfb_probe(struct of_device* odev,
 	return rc;
 }
 
-static int __devexit platinumfb_remove(struct of_device* odev)
+static int __devexit platinumfb_remove(struct platform_device* odev)
 {
 	struct fb_info		*info = dev_get_drvdata(&odev->dev);
 	struct fb_info_platinum	*pinfo = info->par;

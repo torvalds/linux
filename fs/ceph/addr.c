@@ -309,7 +309,8 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 			zero_user_segment(page, s, PAGE_CACHE_SIZE);
 		}
 
-		if (add_to_page_cache_lru(page, mapping, page->index, GFP_NOFS)) {
+		if (add_to_page_cache_lru(page, mapping, page->index,
+					  GFP_NOFS)) {
 			page_cache_release(page);
 			dout("readpages %p add_to_page_cache failed %p\n",
 			     inode, page);
@@ -552,7 +553,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 		 * page truncation thread, possibly losing some data that
 		 * raced its way in
 		 */
-		if ((issued & CEPH_CAP_FILE_CACHE) == 0)
+		if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0)
 			generic_error_remove_page(inode->i_mapping, page);
 
 		unlock_page(page);
@@ -797,9 +798,12 @@ get_more_pages:
 			dout("%p will write page %p idx %lu\n",
 			     inode, page, page->index);
 
-			writeback_stat = atomic_long_inc_return(&client->writeback_count);
-			if (writeback_stat > CONGESTION_ON_THRESH(client->mount_args->congestion_kb)) {
-				set_bdi_congested(&client->backing_dev_info, BLK_RW_ASYNC);
+			writeback_stat =
+			       atomic_long_inc_return(&client->writeback_count);
+			if (writeback_stat > CONGESTION_ON_THRESH(
+				    client->mount_args->congestion_kb)) {
+				set_bdi_congested(&client->backing_dev_info,
+						  BLK_RW_ASYNC);
 			}
 
 			set_page_writeback(page);
@@ -1036,7 +1040,7 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 		*pagep = page;
 
 		dout("write_begin file %p inode %p page %p %d~%d\n", file,
-	     	inode, page, (int)pos, (int)len);
+		     inode, page, (int)pos, (int)len);
 
 		r = ceph_update_writeable_page(file, pos, len, page);
 	} while (r == -EAGAIN);

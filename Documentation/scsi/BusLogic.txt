@@ -47,7 +47,7 @@ tune driver performance and error recovery to their particular needs.
 The latest information on Linux support for BusLogic SCSI Host Adapters, as
 well as the most recent release of this driver and the latest firmware for the
 BT-948/958/958D, will always be available from my Linux Home Page at URL
-"http://www.dandelion.com/Linux/".
+"http://sourceforge.net/projects/dandelion/".
 
 Bug reports should be sent via electronic mail to "lnz@dandelion.com".  Please
 include with the bug report the complete configuration messages reported by the

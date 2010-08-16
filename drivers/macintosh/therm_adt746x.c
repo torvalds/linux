@@ -84,7 +84,7 @@ struct thermostat {
 
 static enum {ADT7460, ADT7467} therm_type;
 static int therm_bus, therm_address;
-static struct of_device * of_dev;
+static struct platform_device * of_dev;
 static struct thermostat* thermostat;
 static struct task_struct *thread_therm = NULL;
 
@@ -182,7 +182,6 @@ remove_thermostat(struct i2c_client *client)
 
 	thermostat = NULL;
 
-	i2c_set_clientdata(client, NULL);
 	kfree(th);
 
 	return 0;
@@ -400,7 +399,6 @@ static int probe_thermostat(struct i2c_client *client,
 	rc = read_reg(th, CONFIG_REG);
 	if (rc < 0) {
 		dev_err(&client->dev, "Thermostat failed to read config!\n");
-		i2c_set_clientdata(client, NULL);
 		kfree(th);
 		return -ENODEV;
 	}

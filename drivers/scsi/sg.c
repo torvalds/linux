@@ -245,6 +245,10 @@ sg_open(struct inode *inode, struct file *filp)
 	if (retval)
 		goto sg_put;
 
+	retval = scsi_autopm_get_device(sdp->device);
+	if (retval)
+		goto sdp_put;
+
 	if (!((flags & O_NONBLOCK) ||
 	      scsi_block_when_processing_errors(sdp->device))) {
 		retval = -ENXIO;
@@ -302,8 +306,11 @@ sg_open(struct inode *inode, struct file *filp)
 	}
 	retval = 0;
 error_out:
-	if (retval)
+	if (retval) {
+		scsi_autopm_put_device(sdp->device);
+sdp_put:
 		scsi_device_put(sdp->device);
+	}
 sg_put:
 	if (sdp)
 		sg_put_dev(sdp);
@@ -327,6 +334,7 @@ sg_release(struct inode *inode, struct file *filp)
 	sdp->exclude = 0;
 	wake_up_interruptible(&sdp->o_excl_wait);
 
+	scsi_autopm_put_device(sdp->device);
 	kref_put(&sfp->f_ref, sg_remove_sfp);
 	return 0;
 }
@@ -729,6 +737,8 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		return k;	/* probably out of space --> ENOMEM */
 	}
 	if (sdp->detached) {
+		if (srp->bio)
+			blk_end_request_all(srp->rq, -EIO);
 		sg_finish_rem_req(srp);
 		return -ENODEV;
 	}
@@ -1676,14 +1686,9 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		int len, size = sizeof(struct sg_iovec) * iov_count;
 		struct iovec *iov;
 
-		iov = kmalloc(size, GFP_ATOMIC);
-		if (!iov)
-			return -ENOMEM;
-
-		if (copy_from_user(iov, hp->dxferp, size)) {
-			kfree(iov);
-			return -EFAULT;
-		}
+		iov = memdup_user(hp->dxferp, size);
+		if (IS_ERR(iov))
+			return PTR_ERR(iov);
 
 		len = iov_length(iov, iov_count);
 		if (hp->dxfer_len < len) {

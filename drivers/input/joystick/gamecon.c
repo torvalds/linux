@@ -89,7 +89,6 @@ struct gc_pad {
 struct gc {
 	struct pardevice *pd;
 	struct gc_pad pads[GC_MAX_DEVICES];
-	struct input_dev *dev[GC_MAX_DEVICES];
 	struct timer_list timer;
 	int pad_count[GC_MAX];
 	int used;
@@ -387,7 +386,7 @@ static void gc_nes_process_packet(struct gc *gc)
 	for (i = 0; i < GC_MAX_DEVICES; i++) {
 
 		pad = &gc->pads[i];
-		dev = gc->dev[i];
+		dev = pad->dev;
 		s = gc_status_bit[i];
 
 		switch (pad->type) {
@@ -579,7 +578,7 @@ static void gc_psx_command(struct gc *gc, int b, unsigned char *data)
 		read = parport_read_status(port) ^ 0x80;
 
 		for (j = 0; j < GC_MAX_DEVICES; j++) {
-			struct gc_pad *pad = &gc->pads[i];
+			struct gc_pad *pad = &gc->pads[j];
 
 			if (pad->type == GC_PSX || pad->type == GC_DDR)
 				data[j] |= (read & gc_status_bit[j]) ? (1 << i) : 0;

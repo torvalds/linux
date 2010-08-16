@@ -80,7 +80,6 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 	return ret;
 
 err:
-	i2c_set_clientdata(i2c, NULL);
 	kfree(wm8350);
 	return ret;
 }
@@ -90,7 +89,6 @@ static int wm8350_i2c_remove(struct i2c_client *i2c)
 	struct wm8350 *wm8350 = i2c_get_clientdata(i2c);
 
 	wm8350_device_exit(wm8350);
-	i2c_set_clientdata(i2c, NULL);
 	kfree(wm8350);
 
 	return 0;

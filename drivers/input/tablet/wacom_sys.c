@@ -508,7 +508,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	input_dev->name = wacom_wac->name;
-	input_dev->name = wacom_wac->name;
 	input_dev->dev.parent = &intf->dev;
 	input_dev->open = wacom_open;
 	input_dev->close = wacom_close;

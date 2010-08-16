@@ -699,10 +699,8 @@ void xt_free_table_info(struct xt_table_info *info)
 		vfree(info->jumpstack);
 	else
 		kfree(info->jumpstack);
-	if (sizeof(unsigned int) * nr_cpu_ids > PAGE_SIZE)
-		vfree(info->stackptr);
-	else
-		kfree(info->stackptr);
+
+	free_percpu(info->stackptr);
 
 	kfree(info);
 }
@@ -753,14 +751,9 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	unsigned int size;
 	int cpu;
 
-	size = sizeof(unsigned int) * nr_cpu_ids;
-	if (size > PAGE_SIZE)
-		i->stackptr = vmalloc(size);
-	else
-		i->stackptr = kmalloc(size, GFP_KERNEL);
+	i->stackptr = alloc_percpu(unsigned int);
 	if (i->stackptr == NULL)
 		return -ENOMEM;
-	memset(i->stackptr, 0, size);
 
 	size = sizeof(void **) * nr_cpu_ids;
 	if (size > PAGE_SIZE)
@@ -843,10 +836,6 @@ struct xt_table *xt_register_table(struct net *net,
 	int ret;
 	struct xt_table_info *private;
 	struct xt_table *t, *table;
-
-	ret = xt_jumpstack_alloc(newinfo);
-	if (ret < 0)
-		return ERR_PTR(ret);
 
 	/* Don't add one object to multiple lists. */
 	table = kmemdup(input_table, sizeof(struct xt_table), GFP_KERNEL);

@@ -61,20 +61,18 @@ static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
 };
 
 
-static char *ifname = "wlan%d";
+static char ifname[IFNAMSIZ] = "wlan%d";
 static int hwseqnum = 0;
 static int hwwep = 0;
 static int channels = 0x3fff;
 
-#define eqMacAddr(a, b)		(((a)[0] == (b)[0] && (a)[1] == (b)[1] && (a)[2] == (b)[2] && (a)[3] == (b)[3] && (a)[4] == (b)[4] && (a)[5] == (b)[5]) ? 1 : 0)
-#define cpMacAddr(des, src)		((des)[0] = (src)[0], (des)[1] = (src)[1], (des)[2] = (src)[2], (des)[3] = (src)[3], (des)[4] = (src)[4], (des)[5] = (src)[5])
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, rtl8180_pci_id_tbl);
 MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
 MODULE_DESCRIPTION("Linux driver for Realtek RTL8180 / RTL8185 WiFi cards");
 
 
-module_param(ifname, charp, S_IRUGO|S_IWUSR);
+module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
 module_param(hwseqnum, int, S_IRUGO|S_IWUSR);
 module_param(hwwep, int, S_IRUGO|S_IWUSR);
 module_param(channels, int, S_IRUGO|S_IWUSR);
@@ -3611,7 +3609,7 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 
 	if (dev_alloc_name(dev, ifname) < 0) {
 		DMESG("Oops: devname already taken! Trying wlan%%d...\n");
-		ifname = "wlan%d";
+		strcpy(ifname, "wlan%d");
 		dev_alloc_name(dev, ifname);
 	}
 

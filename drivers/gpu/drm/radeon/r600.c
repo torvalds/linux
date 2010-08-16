@@ -92,6 +92,21 @@ void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 
+/* get temperature in millidegrees */
+u32 rv6xx_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
+		ASIC_T_SHIFT;
+	u32 actual_temp = 0;
+
+	if ((temp >> 7) & 1)
+		actual_temp = 0;
+	else
+		actual_temp = (temp >> 1) & 0xff;
+
+	return actual_temp * 1000;
+}
+
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 {
 	int i;
@@ -130,9 +145,14 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 							break;
 						}
 					}
-				} else
-					rdev->pm.requested_power_state_index =
-						rdev->pm.current_power_state_index - 1;
+				} else {
+					if (rdev->pm.current_power_state_index == 0)
+						rdev->pm.requested_power_state_index =
+							rdev->pm.num_power_states - 1;
+					else
+						rdev->pm.requested_power_state_index =
+							rdev->pm.current_power_state_index - 1;
+				}
 			}
 			rdev->pm.requested_clock_mode_index = 0;
 			/* don't use the power state if crtcs are active and no display flag is set */
@@ -251,7 +271,7 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 		}
 	}
 
-	DRM_DEBUG("Requested: e: %d m: %d p: %d\n",
+	DRM_DEBUG_DRIVER("Requested: e: %d m: %d p: %d\n",
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
 		  clock_info[rdev->pm.requested_clock_mode_index].sclk,
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
@@ -291,6 +311,11 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
+		/* mid sh */
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 0;
 		/* high sh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx = 1;
@@ -301,6 +326,11 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
+		/* mid mh */
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 0;
 		/* high mh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx = 1;
@@ -317,6 +347,11 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx = 1;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
+		/* mid sh */
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx = 1;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx = 1;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 0;
 		/* high sh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx = 1;
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx = 2;
@@ -327,6 +362,11 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx = 1;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
+		/* mid mh */
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx = 1;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx = 1;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 0;
 		/* high mh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx = 1;
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx = 2;
@@ -343,6 +383,11 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx = 2;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
+		/* mid sh */
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx = 2;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx = 2;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 0;
 		/* high sh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx = 2;
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx = 3;
@@ -353,6 +398,11 @@ void rs780_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
+		/* mid mh */
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx = 2;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 0;
 		/* high mh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx = 2;
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx = 3;
@@ -375,6 +425,11 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx = rdev->pm.default_power_state_index;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
+		/* mid sh */
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx = rdev->pm.default_power_state_index;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx = rdev->pm.default_power_state_index;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 0;
 		/* high sh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx = rdev->pm.default_power_state_index;
 		rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx = rdev->pm.default_power_state_index;
@@ -385,6 +440,11 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx = rdev->pm.default_power_state_index;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
 		rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
+		/* mid mh */
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx = rdev->pm.default_power_state_index;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx = rdev->pm.default_power_state_index;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+		rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 0;
 		/* high mh */
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx = rdev->pm.default_power_state_index;
 		rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx = rdev->pm.default_power_state_index;
@@ -401,7 +461,12 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_ps_idx = 1;
 			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx = 1;
 			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
-			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 1;
+			rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
+			/* mid sh */
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx = 1;
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx = 1;
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+			rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 1;
 			/* high sh */
 			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx = 1;
 			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_on_ps_idx = 1;
@@ -411,7 +476,12 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_ps_idx = 2;
 			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx = 2;
 			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
-			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 1;
+			rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
+			/* low mh */
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx = 2;
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx = 2;
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+			rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 1;
 			/* high mh */
 			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx = 2;
 			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_ps_idx = 2;
@@ -430,14 +500,30 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 1;
+				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
 			} else {
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 1;
+				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 0;
+			}
+			/* mid sh */
+			if (rdev->flags & RADEON_IS_MOBILITY) {
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 1;
+			} else {
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_off_cm_idx = 0;
+				rdev->pm.profiles[PM_PROFILE_MID_SH_IDX].dpms_on_cm_idx = 1;
 			}
 			/* high sh */
 			rdev->pm.profiles[PM_PROFILE_HIGH_SH_IDX].dpms_off_ps_idx =
@@ -453,14 +539,30 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
 				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 2;
+				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
 			} else {
 				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
 				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
 				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 1;
+				rdev->pm.profiles[PM_PROFILE_LOW_MH_IDX].dpms_on_cm_idx = 0;
+			}
+			/* mid mh */
+			if (rdev->flags & RADEON_IS_MOBILITY) {
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 1);
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 1;
+			} else {
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_ps_idx =
+					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 1);
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_off_cm_idx = 0;
+				rdev->pm.profiles[PM_PROFILE_MID_MH_IDX].dpms_on_cm_idx = 1;
 			}
 			/* high mh */
 			rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_off_ps_idx =
@@ -475,7 +577,18 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 
 void r600_pm_misc(struct radeon_device *rdev)
 {
+	int req_ps_idx = rdev->pm.requested_power_state_index;
+	int req_cm_idx = rdev->pm.requested_clock_mode_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
+	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
+	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		if (voltage->voltage != rdev->pm.current_vddc) {
+			radeon_atom_set_voltage(rdev, voltage->voltage);
+			rdev->pm.current_vddc = voltage->voltage;
+			DRM_DEBUG_DRIVER("Setting: v: %d\n", voltage->voltage);
+		}
+	}
 }
 
 bool r600_gui_idle(struct radeon_device *rdev)
@@ -771,7 +884,17 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* flush hdp cache so updates hit vram */
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
+		u32 tmp;
+
+		/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
+		 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+		 */
+		WREG32(HDP_DEBUG1, 0);
+		tmp = readl((void __iomem *)ptr);
+	} else
+		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 
 	WREG32(VM_CONTEXT0_INVALIDATION_LOW_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_INVALIDATION_HIGH_ADDR, (rdev->mc.gtt_end - 1) >> 12);
@@ -1004,7 +1127,7 @@ static void r600_mc_program(struct radeon_device *rdev)
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
-	WREG32(HDP_NONSURFACE_SIZE, rdev->mc.mc_vram_size | 0x3FF);
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 22);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 22);
@@ -1081,6 +1204,7 @@ void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 		if (rdev->flags & RADEON_IS_IGP)
 			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
 		radeon_vram_location(rdev, &rdev->mc, base);
+		rdev->mc.gtt_base_align = 0;
 		radeon_gtt_location(rdev, mc);
 	}
 }
@@ -1118,16 +1242,18 @@ int r600_mc_init(struct radeon_device *rdev)
 	}
 	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 
-	if (rdev->flags & RADEON_IS_IGP)
+	if (rdev->flags & RADEON_IS_IGP) {
+		rs690_pm_info(rdev);
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	}
 	radeon_update_bandwidth_info(rdev);
 	return 0;
 }
@@ -1508,7 +1634,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 							 r600_count_pipe_bits((cc_rb_backend_disable &
 									       R6XX_MAX_BACKENDS_MASK) >> 16)),
 							(cc_rb_backend_disable >> 16));
-
+	rdev->config.r600.tile_config = tiling_config;
 	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
@@ -3411,5 +3537,15 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
  */
 void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 {
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
+	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+	 */
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
+		u32 tmp;
+
+		WREG32(HDP_DEBUG1, 0);
+		tmp = readl((void __iomem *)ptr);
+	} else
+		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }

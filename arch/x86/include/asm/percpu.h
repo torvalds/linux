@@ -77,6 +77,7 @@ do {							\
 	if (0) {					\
 		pto_T__ pto_tmp__;			\
 		pto_tmp__ = (val);			\
+		(void)pto_tmp__;			\
 	}						\
 	switch (sizeof(var)) {				\
 	case 1:						\
@@ -115,6 +116,7 @@ do {									\
 	if (0) {							\
 		pao_T__ pao_tmp__;					\
 		pao_tmp__ = (val);					\
+		(void)pao_tmp__;					\
 	}								\
 	switch (sizeof(var)) {						\
 	case 1:								\

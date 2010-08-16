@@ -216,9 +216,6 @@ static int lite5200_pm_enter(suspend_state_t state)
 
 	lite5200_restore_regs();
 
-	/* restart jiffies */
-	wakeup_decrementer();
-
 	iounmap(mbar);
 	return 0;
 }

@@ -302,7 +302,6 @@ out_free_irq:
 		free_irq(chip->irq, chip);
 
 out_free_chip:
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 
 	return ret;
@@ -317,7 +316,6 @@ static int __devexit adp5520_remove(struct i2c_client *client)
 
 	adp5520_remove_subdevs(chip);
 	adp5520_write(chip->dev, ADP5520_MODE_STATUS, 0);
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return 0;
 }

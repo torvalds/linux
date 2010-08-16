@@ -1483,7 +1483,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		}
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		    task->task_status.stat == SAM_GOOD) {
+		    task->task_status.stat == SAM_STAT_GOOD) {
 			res = TMF_RESP_FUNC_COMPLETE;
 			break;
 		}
@@ -1640,7 +1640,7 @@ int mvs_abort_task(struct sas_task *task)
 	struct mvs_tmf_task tmf_task;
 	struct domain_device *dev = task->dev;
 	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
-	struct mvs_info *mvi = mvi_dev->mvi_info;
+	struct mvs_info *mvi;
 	int rc = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 	u32 tag;
@@ -1649,6 +1649,8 @@ int mvs_abort_task(struct sas_task *task)
 		mv_printk("%s:%d TMF_RESP_FUNC_FAILED\n", __func__, __LINE__);
 		rc = TMF_RESP_FUNC_FAILED;
 	}
+
+	mvi = mvi_dev->mvi_info;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
@@ -1756,7 +1758,7 @@ static int mvs_sata_done(struct mvs_info *mvi, struct sas_task *task,
 	struct mvs_device *mvi_dev = task->dev->lldd_dev;
 	struct task_status_struct *tstat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)tstat->buf;
-	int stat = SAM_GOOD;
+	int stat = SAM_STAT_GOOD;
 
 
 	resp->frame_len = sizeof(struct dev_to_host_fis);
@@ -1788,13 +1790,13 @@ static int mvs_slot_err(struct mvs_info *mvi, struct sas_task *task,
 
 	MVS_CHIP_DISP->command_active(mvi, slot_idx);
 
-	stat = SAM_CHECK_COND;
+	stat = SAM_STAT_CHECK_CONDITION;
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
 		stat = SAS_ABORTED_TASK;
 		break;
 	case SAS_PROTOCOL_SMP:
-		stat = SAM_CHECK_COND;
+		stat = SAM_STAT_CHECK_CONDITION;
 		break;
 
 	case SAS_PROTOCOL_SATA:
@@ -1879,7 +1881,7 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 	case SAS_PROTOCOL_SSP:
 		/* hw says status == 0, datapres == 0 */
 		if (rx_desc & RXQ_GOOD) {
-			tstat->stat = SAM_GOOD;
+			tstat->stat = SAM_STAT_GOOD;
 			tstat->resp = SAS_TASK_COMPLETE;
 		}
 		/* response frame present */
@@ -1888,12 +1890,12 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 						sizeof(struct mvs_err_info);
 			sas_ssp_task_response(mvi->dev, task, iu);
 		} else
-			tstat->stat = SAM_CHECK_COND;
+			tstat->stat = SAM_STAT_CHECK_CONDITION;
 		break;
 
 	case SAS_PROTOCOL_SMP: {
 			struct scatterlist *sg_resp = &task->smp_task.smp_resp;
-			tstat->stat = SAM_GOOD;
+			tstat->stat = SAM_STAT_GOOD;
 			to = kmap_atomic(sg_page(sg_resp), KM_IRQ0);
 			memcpy(to + sg_resp->offset,
 				slot->response + sizeof(struct mvs_err_info),
@@ -1910,7 +1912,7 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 		}
 
 	default:
-		tstat->stat = SAM_CHECK_COND;
+		tstat->stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 	if (!slot->port->port_attached) {

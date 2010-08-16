@@ -20,8 +20,9 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
+
 #include <asm/io.h>
-#include <plat/mux.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>

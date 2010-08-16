@@ -99,6 +99,15 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 	return NULL;
 }
 
+static struct net_bridge_mdb_entry *br_mdb_ip_get(
+	struct net_bridge_mdb_htable *mdb, struct br_ip *dst)
+{
+	if (!mdb)
+		return NULL;
+
+	return __br_mdb_ip_get(mdb, dst, br_ip_hash(mdb, dst));
+}
+
 static struct net_bridge_mdb_entry *br_mdb_ip4_get(
 	struct net_bridge_mdb_htable *mdb, __be32 dst)
 {
@@ -107,7 +116,7 @@ static struct net_bridge_mdb_entry *br_mdb_ip4_get(
 	br_dst.u.ip4 = dst;
 	br_dst.proto = htons(ETH_P_IP);
 
-	return __br_mdb_ip_get(mdb, &br_dst, __br_ip4_hash(mdb, dst));
+	return br_mdb_ip_get(mdb, &br_dst);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -119,15 +128,9 @@ static struct net_bridge_mdb_entry *br_mdb_ip6_get(
 	ipv6_addr_copy(&br_dst.u.ip6, dst);
 	br_dst.proto = htons(ETH_P_IPV6);
 
-	return __br_mdb_ip_get(mdb, &br_dst, __br_ip6_hash(mdb, dst));
+	return br_mdb_ip_get(mdb, &br_dst);
 }
 #endif
-
-static struct net_bridge_mdb_entry *br_mdb_ip_get(
-	struct net_bridge_mdb_htable *mdb, struct br_ip *dst)
-{
-	return __br_mdb_ip_get(mdb, dst, br_ip_hash(mdb, dst));
-}
 
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 					struct sk_buff *skb)
@@ -135,7 +138,7 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	struct net_bridge_mdb_htable *mdb = br->mdb;
 	struct br_ip ip;
 
-	if (!mdb || br->multicast_disabled)
+	if (br->multicast_disabled)
 		return NULL;
 
 	if (BR_INPUT_SKB_CB(skb)->igmp)
@@ -1432,7 +1435,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	struct icmp6hdr *icmp6h;
 	u8 nexthdr;
 	unsigned len;
-	unsigned offset;
+	int offset;
 	int err;
 
 	if (!pskb_may_pull(skb, sizeof(*ip6h)))
@@ -1725,18 +1728,17 @@ unlock:
 int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 {
 	struct net_bridge_port *port;
-	int err = -ENOENT;
+	int err = 0;
 
 	spin_lock(&br->multicast_lock);
-	if (!netif_running(br->dev))
-		goto unlock;
-
-	err = 0;
 	if (br->multicast_disabled == !val)
 		goto unlock;
 
 	br->multicast_disabled = !val;
 	if (br->multicast_disabled)
+		goto unlock;
+
+	if (!netif_running(br->dev))
 		goto unlock;
 
 	if (br->mdb) {

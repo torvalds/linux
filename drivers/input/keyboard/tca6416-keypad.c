@@ -316,8 +316,6 @@ static int __devexit tca6416_keypad_remove(struct i2c_client *client)
 	input_unregister_device(chip->input);
 	kfree(chip);
 
-	i2c_set_clientdata(client, NULL);
-
 	return 0;
 }
 

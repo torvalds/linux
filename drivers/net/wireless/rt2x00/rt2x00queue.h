@@ -213,9 +213,16 @@ struct rxdone_entry_desc {
 /**
  * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
  *
+ * Every txdone report has to contain the basic result of the
+ * transmission, either &TXDONE_UNKNOWN, &TXDONE_SUCCESS or
+ * &TXDONE_FAILURE. The flag &TXDONE_FALLBACK can be used in
+ * conjunction with all of these flags but should only be set
+ * if retires > 0. The flag &TXDONE_EXCESSIVE_RETRY can only be used
+ * in conjunction with &TXDONE_FAILURE.
+ *
  * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
  * @TXDONE_SUCCESS: Frame was successfully send
- * @TXDONE_FALLBACK: Frame was successfully send using a fallback rate.
+ * @TXDONE_FALLBACK: Hardware used fallback rates for retries
  * @TXDONE_FAILURE: Frame was not successfully send
  * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
  *	frame transmission failed due to excessive retries.
@@ -439,6 +446,8 @@ struct data_queue {
 	enum data_queue_qid qid;
 
 	spinlock_t lock;
+	unsigned long last_index;
+	unsigned long last_index_done;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;
@@ -589,6 +598,15 @@ static inline int rt2x00queue_available(struct data_queue *queue)
 static inline int rt2x00queue_threshold(struct data_queue *queue)
 {
 	return rt2x00queue_available(queue) < queue->threshold;
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for this queue
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_index, queue->last_index_done + (HZ / 10));
 }
 
 /**

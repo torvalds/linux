@@ -211,6 +211,17 @@ EXPORT_SYMBOL_GPL(cs5535_mfgpt_alloc_timer);
  */
 void cs5535_mfgpt_free_timer(struct cs5535_mfgpt_timer *timer)
 {
+	unsigned long flags;
+	uint16_t val;
+
+	/* timer can be made available again only if never set up */
+	val = cs5535_mfgpt_read(timer, MFGPT_REG_SETUP);
+	if (!(val & MFGPT_SETUP_SETUP)) {
+		spin_lock_irqsave(&timer->chip->lock, flags);
+		__set_bit(timer->nr, timer->chip->avail);
+		spin_unlock_irqrestore(&timer->chip->lock, flags);
+	}
+
 	kfree(timer);
 }
 EXPORT_SYMBOL_GPL(cs5535_mfgpt_free_timer);
@@ -366,6 +377,6 @@ static int __init cs5535_mfgpt_init(void)
 
 module_init(cs5535_mfgpt_init);
 
-MODULE_AUTHOR("Andres Salomon <dilinger@collabora.co.uk>");
+MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
 MODULE_DESCRIPTION("CS5535/CS5536 MFGPT timer driver");
 MODULE_LICENSE("GPL");

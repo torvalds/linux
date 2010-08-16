@@ -113,6 +113,7 @@ void r100_wb_fini(struct radeon_device *rdev);
 int r100_wb_init(struct radeon_device *rdev);
 int r100_cp_reset(struct radeon_device *rdev);
 void r100_vga_render_disable(struct radeon_device *rdev);
+void r100_restore_sanity(struct radeon_device *rdev);
 int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
 					 struct radeon_cs_packet *pkt,
 					 struct radeon_bo *robj);
@@ -314,6 +315,7 @@ void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 u32 evergreen_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int evergreen_irq_set(struct radeon_device *rdev);
 int evergreen_irq_process(struct radeon_device *rdev);
+extern int evergreen_cs_parse(struct radeon_cs_parser *p);
 extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);

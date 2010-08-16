@@ -1114,6 +1114,12 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		mdev->new_state_tmp.i = ns.i;
 		ns.i = os.i;
 		ns.disk = D_NEGOTIATING;
+
+		/* We expect to receive up-to-date UUIDs soon.
+		   To avoid a race in receive_state, free p_uuid while
+		   holding req_lock. I.e. atomic with the state change */
+		kfree(mdev->p_uuid);
+		mdev->p_uuid = NULL;
 	}
 
 	rv = _drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
@@ -1551,10 +1557,6 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		sc.rate       = DRBD_RATE_DEF;
 		sc.after      = DRBD_AFTER_DEF;
 		sc.al_extents = DRBD_AL_EXTENTS_DEF;
-		sc.dp_volume  = DRBD_DP_VOLUME_DEF;
-		sc.dp_interval = DRBD_DP_INTERVAL_DEF;
-		sc.throttle_th = DRBD_RS_THROTTLE_TH_DEF;
-		sc.hold_off_th = DRBD_RS_HOLD_OFF_TH_DEF;
 	} else
 		memcpy(&sc, &mdev->sync_conf, sizeof(struct syncer_conf));
 

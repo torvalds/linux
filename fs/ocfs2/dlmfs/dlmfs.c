@@ -182,8 +182,7 @@ static int dlmfs_file_release(struct inode *inode,
 {
 	int level, status;
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
-	struct dlmfs_filp_private *fp =
-		(struct dlmfs_filp_private *) file->private_data;
+	struct dlmfs_filp_private *fp = file->private_data;
 
 	if (S_ISDIR(inode->i_mode))
 		BUG();
@@ -214,10 +213,12 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 
 	attr->ia_valid &= ~ATTR_SIZE;
 	error = inode_change_ok(inode, attr);
-	if (!error)
-		error = inode_setattr(inode, attr);
+	if (error)
+		return error;
 
-	return error;
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
@@ -355,13 +356,12 @@ static void dlmfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
 }
 
-static void dlmfs_clear_inode(struct inode *inode)
+static void dlmfs_evict_inode(struct inode *inode)
 {
 	int status;
 	struct dlmfs_inode_private *ip;
 
-	if (!inode)
-		return;
+	end_writeback(inode);
 
 	mlog(0, "inode %lu\n", inode->i_ino);
 
@@ -631,7 +631,7 @@ static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
 	.destroy_inode	= dlmfs_destroy_inode,
-	.clear_inode	= dlmfs_clear_inode,
+	.evict_inode	= dlmfs_evict_inode,
 	.drop_inode	= generic_delete_inode,
 };
 

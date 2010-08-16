@@ -200,7 +200,8 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int i, fmts = 0, raw_fmts = 0, ret;
+	unsigned int i, fmts = 0, raw_fmts = 0;
+	int ret;
 	enum v4l2_mbus_pixelcode code;
 
 	while (!v4l2_subdev_call(sd, video, enum_mbus_fmt, raw_fmts, &code))
@@ -778,9 +779,12 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	ret = ici->ops->get_crop(icd, &current_crop);
 
 	/* Prohibit window size change with initialised buffers */
-	if (icf->vb_vidq.bufs[0] && !ret &&
-	    (a->c.width != current_crop.c.width ||
-	     a->c.height != current_crop.c.height)) {
+	if (ret < 0) {
+		dev_err(&icd->dev,
+			"S_CROP denied: getting current crop failed\n");
+	} else if (icf->vb_vidq.bufs[0] &&
+		   (a->c.width != current_crop.c.width ||
+		    a->c.height != current_crop.c.height)) {
 		dev_err(&icd->dev,
 			"S_CROP denied: queue initialised and sizes differ\n");
 		ret = -EBUSY;
@@ -1106,13 +1110,14 @@ static int soc_camera_resume(struct device *dev)
 	return ret;
 }
 
-static struct bus_type soc_camera_bus_type = {
+struct bus_type soc_camera_bus_type = {
 	.name		= "soc-camera",
 	.probe		= soc_camera_probe,
 	.remove		= soc_camera_remove,
 	.suspend	= soc_camera_suspend,
 	.resume		= soc_camera_resume,
 };
+EXPORT_SYMBOL_GPL(soc_camera_bus_type);
 
 static struct device_driver ic_drv = {
 	.name	= "camera",

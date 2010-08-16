@@ -4257,10 +4257,12 @@ static int ppc440spe_adma_setup_irqs(struct ppc440spe_adma_device *adev,
 				     struct ppc440spe_adma_chan *chan,
 				     int *initcode)
 {
+	struct platform_device *ofdev;
 	struct device_node *np;
 	int ret;
 
-	np = container_of(adev->dev, struct of_device, dev)->node;
+	ofdev = container_of(adev->dev, struct platform_device, dev);
+	np = ofdev->dev.of_node;
 	if (adev->id != PPC440SPE_XOR_ID) {
 		adev->err_irq = irq_of_parse_and_map(np, 1);
 		if (adev->err_irq == NO_IRQ) {
@@ -4391,10 +4393,10 @@ static void ppc440spe_adma_release_irqs(struct ppc440spe_adma_device *adev,
 /**
  * ppc440spe_adma_probe - probe the asynch device
  */
-static int __devinit ppc440spe_adma_probe(struct of_device *ofdev,
+static int __devinit ppc440spe_adma_probe(struct platform_device *ofdev,
 					  const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct ppc440spe_adma_device *adev;
 	struct ppc440spe_adma_chan *chan;
@@ -4623,10 +4625,10 @@ out:
 /**
  * ppc440spe_adma_remove - remove the asynch device
  */
-static int __devexit ppc440spe_adma_remove(struct of_device *ofdev)
+static int __devexit ppc440spe_adma_remove(struct platform_device *ofdev)
 {
 	struct ppc440spe_adma_device *adev = dev_get_drvdata(&ofdev->dev);
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct dma_chan *chan, *_chan;
 	struct ppc_dma_chan_ref *ref, *_ref;

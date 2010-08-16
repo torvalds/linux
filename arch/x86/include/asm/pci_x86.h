@@ -30,6 +30,7 @@
 #define PCI_HAS_IO_ECS		0x40000
 #define PCI_NOASSIGN_ROMS	0x80000
 #define PCI_ROOT_NO_CRS		0x100000
+#define PCI_NOASSIGN_BARS	0x200000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
@@ -52,6 +53,8 @@ void pcibios_resource_survey(void);
 extern int pcibios_last_bus;
 extern struct pci_bus *pci_root_bus;
 extern struct pci_ops pci_root_ops;
+
+void pcibios_scan_specific_bus(int busn);
 
 /* pci-irq.c */
 

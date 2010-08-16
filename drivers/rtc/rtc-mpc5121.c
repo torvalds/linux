@@ -268,7 +268,7 @@ static const struct rtc_class_ops mpc5121_rtc_ops = {
 	.update_irq_enable = mpc5121_rtc_update_irq_enable,
 };
 
-static int __devinit mpc5121_rtc_probe(struct of_device *op,
+static int __devinit mpc5121_rtc_probe(struct platform_device *op,
 					const struct of_device_id *match)
 {
 	struct mpc5121_rtc_data *rtc;
@@ -279,7 +279,7 @@ static int __devinit mpc5121_rtc_probe(struct of_device *op,
 	if (!rtc)
 		return -ENOMEM;
 
-	rtc->regs = of_iomap(op->node, 0);
+	rtc->regs = of_iomap(op->dev.of_node, 0);
 	if (!rtc->regs) {
 		dev_err(&op->dev, "%s: couldn't map io space\n", __func__);
 		err = -ENOSYS;
@@ -290,7 +290,7 @@ static int __devinit mpc5121_rtc_probe(struct of_device *op,
 
 	dev_set_drvdata(&op->dev, rtc);
 
-	rtc->irq = irq_of_parse_and_map(op->node, 1);
+	rtc->irq = irq_of_parse_and_map(op->dev.of_node, 1);
 	err = request_irq(rtc->irq, mpc5121_rtc_handler, IRQF_DISABLED,
 						"mpc5121-rtc", &op->dev);
 	if (err) {
@@ -299,7 +299,7 @@ static int __devinit mpc5121_rtc_probe(struct of_device *op,
 		goto out_dispose;
 	}
 
-	rtc->irq_periodic = irq_of_parse_and_map(op->node, 0);
+	rtc->irq_periodic = irq_of_parse_and_map(op->dev.of_node, 0);
 	err = request_irq(rtc->irq_periodic, mpc5121_rtc_handler_upd,
 				IRQF_DISABLED, "mpc5121-rtc_upd", &op->dev);
 	if (err) {
@@ -338,7 +338,7 @@ out_free:
 	return err;
 }
 
-static int __devexit mpc5121_rtc_remove(struct of_device *op)
+static int __devexit mpc5121_rtc_remove(struct platform_device *op)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(&op->dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
@@ -365,9 +365,11 @@ static struct of_device_id mpc5121_rtc_match[] __devinitdata = {
 };
 
 static struct of_platform_driver mpc5121_rtc_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc5121-rtc",
-	.match_table = mpc5121_rtc_match,
+	.driver = {
+		.name = "mpc5121-rtc",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc5121_rtc_match,
+	},
 	.probe = mpc5121_rtc_probe,
 	.remove = __devexit_p(mpc5121_rtc_remove),
 };

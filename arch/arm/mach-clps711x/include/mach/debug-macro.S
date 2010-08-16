@@ -11,6 +11,7 @@
  *
 */
 
+#include <mach/hardware.h>
 #include <asm/hardware/clps7111.h>
 
 		.macro	addruart, rx, tmp

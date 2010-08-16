@@ -239,12 +239,18 @@
 #define	GRBM_SOFT_RESET					0x8020
 #define		SOFT_RESET_CP					(1<<0)
 
+#define	CG_THERMAL_STATUS				0x7F4
+#define		ASIC_T(x)			        ((x) << 0)
+#define		ASIC_T_MASK			        0x1FF
+#define		ASIC_T_SHIFT			        0
+
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08
 #define	HDP_NONSURFACE_SIZE				0x2C0C
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
+#define HDP_DEBUG1                                      0x2F34
 
 #define MC_VM_AGP_TOP					0x2184
 #define MC_VM_AGP_BOT					0x2188
@@ -1154,6 +1160,10 @@
 #define   S_038000_TILE_MODE(x)                        (((x) & 0xF) << 3)
 #define   G_038000_TILE_MODE(x)                        (((x) >> 3) & 0xF)
 #define   C_038000_TILE_MODE                           0xFFFFFF87
+#define     V_038000_ARRAY_LINEAR_GENERAL              0x00000000
+#define     V_038000_ARRAY_LINEAR_ALIGNED              0x00000001
+#define     V_038000_ARRAY_1D_TILED_THIN1              0x00000002
+#define     V_038000_ARRAY_2D_TILED_THIN1              0x00000004
 #define   S_038000_TILE_TYPE(x)                        (((x) & 0x1) << 7)
 #define   G_038000_TILE_TYPE(x)                        (((x) >> 7) & 0x1)
 #define   C_038000_TILE_TYPE                           0xFFFFFF7F
@@ -1357,6 +1367,8 @@
 #define   S_028010_ARRAY_MODE(x)                       (((x) & 0xF) << 15)
 #define   G_028010_ARRAY_MODE(x)                       (((x) >> 15) & 0xF)
 #define   C_028010_ARRAY_MODE                          0xFFF87FFF
+#define     V_028010_ARRAY_1D_TILED_THIN1              0x00000002
+#define     V_028010_ARRAY_2D_TILED_THIN1              0x00000004
 #define   S_028010_TILE_SURFACE_ENABLE(x)              (((x) & 0x1) << 25)
 #define   G_028010_TILE_SURFACE_ENABLE(x)              (((x) >> 25) & 0x1)
 #define   C_028010_TILE_SURFACE_ENABLE                 0xFDFFFFFF

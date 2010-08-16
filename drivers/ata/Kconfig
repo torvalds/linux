@@ -168,10 +168,10 @@ config ATA_BMDMA
 	default y
 	help
 	  This option adds support for SFF ATA controllers with BMDMA
-	  capability.  BMDMA stands for bus-master DMA and the
-	  de-facto DMA interface for SFF controllers.
+	  capability.  BMDMA stands for bus-master DMA and is the
+	  de facto DMA interface for SFF controllers.
 
-	  If unuser, say Y.
+	  If unsure, say Y.
 
 if ATA_BMDMA
 
@@ -184,6 +184,15 @@ config ATA_PIIX
 	  This option enables support for ICH5/6/7/8 Serial ATA
 	  and support for PATA on the Intel ESB/ICH/PIIX3/PIIX4 series
 	  host controllers.
+
+	  If unsure, say N.
+
+config SATA_DWC
+	tristate "DesignWare Cores SATA support"
+	depends on 460EX
+	help
+	  This option enables support for the on-chip SATA controller of the
+	  AppliedMicro processor 460EX.
 
 	  If unsure, say N.
 
@@ -642,6 +651,17 @@ config PATA_VIA
 
 	  If unsure, say N.
 
+config PATA_PXA
+	tristate "PXA DMA-capable PATA support"
+	depends on ARCH_PXA
+	help
+	  This option enables support for harddrive attached to PXA CPU's bus.
+
+	  NOTE: This driver utilizes PXA DMA controller, in case your hardware
+	        is not capable of doing MWDMA, use pata_platform instead.
+
+	  If unsure, say N.
+
 config PATA_WINBOND
 	tristate "Winbond SL82C105 PATA support"
 	depends on PCI
@@ -792,6 +812,15 @@ config PATA_RZ1000
 	depends on PCI
 	help
 	  This option enables basic support for the PC Tech RZ1000/1
+	  PATA controllers via the new ATA layer
+
+	  If unsure, say N.
+
+config PATA_SAMSUNG_CF
+	tristate "Samsung SoC PATA support"
+	depends on SAMSUNG_DEV_IDE
+	help
+	  This option enables basic support for Samsung's S3C/S5P board
 	  PATA controllers via the new ATA layer
 
 	  If unsure, say N.

@@ -1645,6 +1645,7 @@ static struct perf_event_ops event_ops = {
 	.sample			= process_sample_event,
 	.comm			= event__process_comm,
 	.lost			= event__process_lost,
+	.fork			= event__process_task,
 	.ordered_samples	= true,
 };
 

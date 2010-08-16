@@ -59,7 +59,6 @@
 #include <asm/irq.h>
 #include <asm/fs_pd.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 
@@ -1150,14 +1149,14 @@ static struct pccard_operations m8xx_services = {
 	.set_mem_map = m8xx_set_mem_map,
 };
 
-static int __init m8xx_probe(struct of_device *ofdev,
+static int __init m8xx_probe(struct platform_device *ofdev,
 			     const struct of_device_id *match)
 {
 	struct pcmcia_win *w;
 	unsigned int i, m, hwirq;
 	pcmconf8xx_t *pcmcia;
 	int status;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 
 	pcmcia_info("%s\n", version);
 
@@ -1250,7 +1249,7 @@ static int __init m8xx_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int m8xx_remove(struct of_device *ofdev)
+static int m8xx_remove(struct platform_device *ofdev)
 {
 	u32 m, i;
 	struct pcmcia_win *w;
@@ -1301,7 +1300,7 @@ static struct of_platform_driver m8xx_pcmcia_driver = {
 	.driver = {
 		.name = driver_name,
 		.owner = THIS_MODULE,
-		.match_table = m8xx_pcmcia_match,
+		.of_match_table = m8xx_pcmcia_match,
 	},
 	.probe = m8xx_probe,
 	.remove = m8xx_remove,

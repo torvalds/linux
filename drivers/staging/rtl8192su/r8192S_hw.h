@@ -1,25 +1,22 @@
-/*****************************************************************************
- *	Copyright(c) 2008,  RealTEK Technology Inc. All Right Reserved.
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
- * Module:	__INC_HAL8192SEREG_H
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * Note:	1. Define Mac register address and corresponding bit mask map
- *			2. CCX register
- *			3. Backward compatible register with useless address.
- *			4. Define 92SU required register address and definition.
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
  *
- *
- * Export:	Constants, macro, functions(API), global variables(None).
- *
- * Abbrev:
- *
- * History:
- *		Data		Who		Remark
- *      08/07/2007  MHC    	1. Porting from 9x series PHYCFG.h.
- *							2. Reorganize code architecture.
- *
- *****************************************************************************/
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
+
 #ifndef R8192S_HW
 #define R8192S_HW
 
@@ -29,21 +26,14 @@ typedef enum _VERSION_8192S{
 	VERSION_8192S_CCUT
 }VERSION_8192S,*PVERSION_8192S;
 
-//#ifdef RTL8192SU
 typedef enum _VERSION_8192SUsb{
 	VERSION_8192SU_A, //A-Cut
 	VERSION_8192SU_B, //B-Cut
 	VERSION_8192SU_C, //C-Cut
 }VERSION_8192SUsb, *PVERSION_8192SUsb;
-//#else
-typedef enum _VERSION_819xU{
-	VERSION_819xU_A, // A-cut
-	VERSION_819xU_B, // B-cut
-	VERSION_819xU_C,// C-cut
-}VERSION_819xU,*PVERSION_819xU;
-//#endif
 
-/* 2007/11/15 MH Define different RF type. */
+
+/* RF type. */
 typedef	enum _RT_RF_TYPE_DEFINITION
 {
 	RF_1T2R = 0,
@@ -51,9 +41,6 @@ typedef	enum _RT_RF_TYPE_DEFINITION
 	RF_2T2R,
 	RF_1T1R,
 	RF_2T2R_GREEN,
-	//RF_3T3R,
-	//RF_3T4R,
-	//RF_4T4R,
 	RF_819X_MAX_TYPE
 }RT_RF_TYPE_DEF_E;
 
@@ -68,12 +55,10 @@ typedef enum _BaseBand_Config_Type{
 #define	RTL8187_REQ_SET_REGS	0x05
 
 #define MAX_TX_URB 5
-#define MAX_RX_URB 16
+#define MAX_RX_URB 8
 
 #define R8180_MAX_RETRY 255
-//#define MAX_RX_NORMAL_URB 3
-//#define MAX_RX_COMMAND_URB 2
-#define RX_URB_SIZE 		9100
+#define RX_URB_SIZE 		0x4000
 
 #define BB_ANTATTEN_CHAN14	0x0c
 #define BB_ANTENNA_B 		0x40
@@ -134,7 +119,6 @@ typedef enum _BaseBand_Config_Type{
 #define MSR_LINK_ENEDCA	   	(1<<4)
 
 
-//#define Cmd9346CR_9356SEL	(1<<4)
 #define EPROM_CMD_RESERVED_MASK 			(1<<5)
 #define EPROM_CMD_OPERATING_MODE_SHIFT 	6
 #define EPROM_CMD_OPERATING_MODE_MASK 	((1<<7)|(1<<6))
@@ -146,13 +130,6 @@ typedef enum _BaseBand_Config_Type{
 #define EPROM_CK_SHIFT 			2
 #define EPROM_W_SHIFT 			1
 #define EPROM_R_SHIFT 			0
-
-//#define	MAC0 			 0x000,
-//#define	MAC1 			 0x001,
-//#define	MAC2 			 0x002,
-//#define	MAC3 			 0x003,
-//#define	MAC4 			 0x004,
-//#define	MAC5 			 0x005,
 
 //============================================================
 //       8192S Regsiter offset definition
@@ -529,14 +506,6 @@ typedef enum _BaseBand_Config_Type{
 // USB RPWM register
 #define	USB_RPWM			0xFE58
 
-//FIXLZM SVN_BRACH NOT MOD HERE, IF MOD RX IS LITTLE LOW
-//#if ((HAL_CODE_BASE == RTL8192_S) &&  (DEV_BUS_TYPE==PCI_INTERFACE))
-//#define	RPWM		PCI_RPWM
-//#elif ((HAL_CODE_BASE == RTL8192_S) &&  (DEV_BUS_TYPE==USB_INTERFACE))
-//#define	RPWM		USB_RPWM
-//#endif
-
-
 //============================================================================
 //       8190 Regsiter offset definition
 //============================================================================
@@ -777,13 +746,11 @@ typedef enum _BaseBand_Config_Type{
 #define		RCR_MXDMA_OFFSET		8
 #define		RCR_FIFO_OFFSET		13
 
-//in 92U FIXLZM
-//#ifdef RTL8192U
 #define RCR_ONLYERLPKT		BIT31			// Early Receiving based on Packet Size.
 #define RCR_ENCS2			BIT30			// Enable Carrier Sense Detection Method 2
 #define RCR_ENCS1			BIT29			// Enable Carrier Sense Detection Method 1
 #define RCR_ACKTXBW			(BIT24|BIT25)		// TXBW Setting of ACK frames
-//#endif
+
 //----------------------------------------------------------------------------
 //       8192S (MSR) Media Status Register	(Offset 0x4C, 8 bits)
 //----------------------------------------------------------------------------
@@ -1259,17 +1226,18 @@ Default: 00b.
 #define		EEPROM_CHANNEL_PLAN_GLOBAL_DOMAIN	0x9
 #define		EEPROM_CHANNEL_PLAN_WORLD_WIDE_13	0xA
 #define		EEPROM_CHANNEL_PLAN_BY_HW_MASK	0x80
+#define 	EEPROM_CID_DEFAULT			0x0
+#define 	EEPROM_CID_ALPHA			0x1
+#define 	EEPROM_CID_Senao			0x3
+#define		EEPROM_CID_CAMEO			0X8
+#define 	EEPROM_CID_SITECOM			0x9
+#define 	EEPROM_CID_COREGA			0xB
+#define 	EEPROM_CID_EDIMAX_BELKIN		0xC
+#define		EEPROM_CID_SERCOMM_BELKIN		0xE
+#define		EEPROM_CID_CAMEO1			0xF
+#define 	EEPROM_CID_WHQL 			0xFE
+#define		EEPROM_CID_NetCore			0x5
 
-#define 		EEPROM_CID_DEFAULT				0x0
-#define 		EEPROM_CID_ALPHA				0x1
-#define		EEPROM_CID_CAMEO					0X8
-#define 		EEPROM_CID_SITECOM				0x9
-
-//#define EEPROM_CID_RUNTOP						0x2
-//#define EEPROM_CID_Senao						0x3
-//#define EEPROM_CID_TOSHIBA						0x4
-//#define EEPROM_CID_NetCore						0x5
-#define 		EEPROM_CID_WHQL 				0xFE // added by chiyoko for dtm, 20090108
 
 //-----------------------------------------------------------------
 // 0x2c0 FW Command Control register definition, added by Roger, 2008.11.27.
@@ -1282,18 +1250,32 @@ Default: 00b.
 #define		FW_HIGH_PWR_ENABLE			0xfd000009
 #define		FW_TXPWR_TRACK_ENABLE		0xfd000017
 #define		FW_TXPWR_TRACK_DISABLE		0xfd000018
-#define		FW_RA_RESET					0xfd0000af
-#define		FW_RA_ACTIVE					0xfd0000a6
+#define		FW_TXPWR_TRACK_THERMAL		0xfd000019
+#define		FW_RA_INIT						0xfd000026
+#define		FW_RA_IOT_BG_COMB			0xfd000030
+#define		FW_RA_IOT_N_COMB				0xfd000031
 #define		FW_RA_REFRESH					0xfd0000a0
-#define		FW_RA_ENABLE_BG				0xfd0000ac
+#define		FW_RA_DISABLE					0xfd0000a4
+#define		FW_RA_ACTIVE					0xfd0000a6
+#define		FW_RA_DISABLE_RSSI_MASK		0xfd0000ac
+#define		FW_RA_ENABLE_RSSI_MASK		0xfd0000ad
+#define		FW_RA_RESET					0xfd0000af
+#define		FW_DM_DISABLE					0xfd00aa00
 #define		FW_IQK_ENABLE					0xf0000020
 #define		FW_IQK_SUCCESS				0x0000dddd
 #define		FW_IQK_FAIL					0x0000ffff
 #define		FW_OP_FAILURE					0xffffffff
-#define		FW_DM_DISABLE					0xfd00aa00
+#define		FW_TX_FEEDBACK_NONE				0xfb000000
+#define		FW_TX_FEEDBACK_DTM_ENABLE		(FW_TX_FEEDBACK_NONE | 0x1)
+#define		FW_TX_FEEDBACK_CCX_ENABLE		(FW_TX_FEEDBACK_NONE | 0x2)
 #define		FW_BB_RESET_ENABLE			0xff00000d
 #define		FW_BB_RESET_DISABLE			0xff00000e
-
+#define		FW_LPS_ENTER					0xfe000010
+#define		FW_LPS_LEAVE					0xfe000011
+#define		FW_INDIRECT_READ				0xf2000000
+#define		FW_INDIRECT_WRITE				0xf2000001
+#define		FW_TXANT_SWITCH_ENABLE		0xfd000023
+#define		FW_TXANT_SWITCH_DISABLE		0xfd000024
 //
 //--------------92SU require delete or move to other place later
 //
@@ -1460,34 +1442,4 @@ Default: 00b.
 #define		HAL_8192S_HW_GPIO_OFF_MASK	0xF7
 #define		HAL_8192S_HW_GPIO_WPS_BIT	BIT4
 
-#endif  //R8192S_HW
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#endif

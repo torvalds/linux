@@ -176,6 +176,11 @@ void radeon_pm_suspend(struct radeon_device *rdev);
 void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
+void rs690_pm_info(struct radeon_device *rdev);
+extern u32 rv6xx_get_temp(struct radeon_device *rdev);
+extern u32 rv770_get_temp(struct radeon_device *rdev);
+extern u32 evergreen_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -230,7 +235,7 @@ struct radeon_surface_reg {
  */
 struct radeon_mman {
 	struct ttm_bo_global_ref        bo_global_ref;
-	struct ttm_global_reference	mem_global_ref;
+	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;
@@ -349,6 +354,7 @@ struct radeon_mc {
 	int			vram_mtrr;
 	bool			vram_is_ddr;
 	bool			igp_sideport_enabled;
+	u64                     gtt_base_align;
 };
 
 bool radeon_combios_sideport_present(struct radeon_device *rdev);
@@ -618,7 +624,8 @@ enum radeon_dynpm_state {
 	DYNPM_STATE_DISABLED,
 	DYNPM_STATE_MINIMUM,
 	DYNPM_STATE_PAUSED,
-	DYNPM_STATE_ACTIVE
+	DYNPM_STATE_ACTIVE,
+	DYNPM_STATE_SUSPENDED,
 };
 enum radeon_dynpm_action {
 	DYNPM_ACTION_NONE,
@@ -647,21 +654,31 @@ enum radeon_pm_profile_type {
 	PM_PROFILE_DEFAULT,
 	PM_PROFILE_AUTO,
 	PM_PROFILE_LOW,
+	PM_PROFILE_MID,
 	PM_PROFILE_HIGH,
 };
 
 #define PM_PROFILE_DEFAULT_IDX 0
 #define PM_PROFILE_LOW_SH_IDX  1
-#define PM_PROFILE_HIGH_SH_IDX 2
-#define PM_PROFILE_LOW_MH_IDX  3
-#define PM_PROFILE_HIGH_MH_IDX 4
-#define PM_PROFILE_MAX         5
+#define PM_PROFILE_MID_SH_IDX  2
+#define PM_PROFILE_HIGH_SH_IDX 3
+#define PM_PROFILE_LOW_MH_IDX  4
+#define PM_PROFILE_MID_MH_IDX  5
+#define PM_PROFILE_HIGH_MH_IDX 6
+#define PM_PROFILE_MAX         7
 
 struct radeon_pm_profile {
 	int dpms_off_ps_idx;
 	int dpms_on_ps_idx;
 	int dpms_off_cm_idx;
 	int dpms_on_cm_idx;
+};
+
+enum radeon_int_thermal_type {
+	THERMAL_TYPE_NONE,
+	THERMAL_TYPE_RV6XX,
+	THERMAL_TYPE_RV770,
+	THERMAL_TYPE_EVERGREEN,
 };
 
 struct radeon_voltage {
@@ -744,6 +761,7 @@ struct radeon_pm {
 	int                     default_power_state_index;
 	u32                     current_sclk;
 	u32                     current_mclk;
+	u32                     current_vddc;
 	struct radeon_i2c_chan *i2c_bus;
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;
@@ -758,6 +776,9 @@ struct radeon_pm {
 	enum radeon_pm_profile_type profile;
 	int                     profile_index;
 	struct radeon_pm_profile profiles[PM_PROFILE_MAX];
+	/* internal thermal controller on rv6xx+ */
+	enum radeon_int_thermal_type int_thermal_type;
+	struct device	        *int_hwmon_dev;
 };
 
 
@@ -894,6 +915,7 @@ struct r600_asic {
 	unsigned		tiling_nbanks;
 	unsigned		tiling_npipes;
 	unsigned		tiling_group_size;
+	unsigned		tile_config;
 	struct r100_gpu_lockup	lockup;
 };
 
@@ -918,6 +940,7 @@ struct rv770_asic {
 	unsigned		tiling_nbanks;
 	unsigned		tiling_npipes;
 	unsigned		tiling_group_size;
+	unsigned		tile_config;
 	struct r100_gpu_lockup	lockup;
 };
 
@@ -943,6 +966,7 @@ struct evergreen_asic {
 	unsigned tiling_nbanks;
 	unsigned tiling_npipes;
 	unsigned tiling_group_size;
+	unsigned tile_config;
 };
 
 union radeon_asic_config {
@@ -1025,6 +1049,9 @@ struct radeon_device {
 	uint32_t                        pcie_reg_mask;
 	radeon_rreg_t			pciep_rreg;
 	radeon_wreg_t			pciep_wreg;
+	/* io port */
+	void __iomem                    *rio_mem;
+	resource_size_t			rio_mem_size;
 	struct radeon_clock             clock;
 	struct radeon_mc		mc;
 	struct radeon_gart		gart;
@@ -1061,6 +1088,7 @@ struct radeon_device {
 	struct mutex vram_mutex;
 
 	/* audio stuff */
+	bool			audio_enabled;
 	struct timer_list	audio_timer;
 	int			audio_channels;
 	int			audio_rate;
@@ -1070,6 +1098,10 @@ struct radeon_device {
 
 	bool powered_down;
 	struct notifier_block acpi_nb;
+	/* only one userspace can use Hyperz features at a time */
+	struct drm_file *hyperz_filp;
+	/* i2c buses */
+	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1103,6 +1135,26 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
 		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
+	}
+}
+
+static inline u32 r100_io_rreg(struct radeon_device *rdev, u32 reg)
+{
+	if (reg < rdev->rio_mem_size)
+		return ioread32(rdev->rio_mem + reg);
+	else {
+		iowrite32(reg, rdev->rio_mem + RADEON_MM_INDEX);
+		return ioread32(rdev->rio_mem + RADEON_MM_DATA);
+	}
+}
+
+static inline void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	if (reg < rdev->rio_mem_size)
+		iowrite32(v, rdev->rio_mem + reg);
+	else {
+		iowrite32(reg, rdev->rio_mem + RADEON_MM_INDEX);
+		iowrite32(v, rdev->rio_mem + RADEON_MM_DATA);
 	}
 }
 
@@ -1144,6 +1196,8 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
 #define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg)))
+#define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
+#define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))
 
 /*
  * Indirect registers accessor
@@ -1406,6 +1460,13 @@ extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 extern int evergreen_irq_set(struct radeon_device *rdev);
+
+/* radeon_acpi.c */ 
+#if defined(CONFIG_ACPI) 
+extern int radeon_acpi_init(struct radeon_device *rdev); 
+#else 
+static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; } 
+#endif 
 
 /* evergreen */
 struct evergreen_mc_save {

@@ -158,10 +158,14 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 	unsigned hash;
 	int ret;
 
+	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
+		return 0;
+
 	/* Hash by protocol, client address and port */
 	hash = ip_vs_conn_hashkey(cp->af, cp->protocol, &cp->caddr, cp->cport);
 
 	ct_write_lock(hash);
+	spin_lock(&cp->lock);
 
 	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
 		list_add(&cp->c_list, &ip_vs_conn_tab[hash]);
@@ -174,6 +178,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		ret = 0;
 	}
 
+	spin_unlock(&cp->lock);
 	ct_write_unlock(hash);
 
 	return ret;
@@ -193,6 +198,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 	hash = ip_vs_conn_hashkey(cp->af, cp->protocol, &cp->caddr, cp->cport);
 
 	ct_write_lock(hash);
+	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		list_del(&cp->c_list);
@@ -202,6 +208,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 	} else
 		ret = 0;
 
+	spin_unlock(&cp->lock);
 	ct_write_unlock(hash);
 
 	return ret;
@@ -263,6 +270,29 @@ struct ip_vs_conn *ip_vs_conn_in_get
 
 	return cp;
 }
+
+struct ip_vs_conn *
+ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
+			struct ip_vs_protocol *pp,
+			const struct ip_vs_iphdr *iph,
+			unsigned int proto_off, int inverse)
+{
+	__be16 _ports[2], *pptr;
+
+	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
+	if (pptr == NULL)
+		return NULL;
+
+	if (likely(!inverse))
+		return ip_vs_conn_in_get(af, iph->protocol,
+					 &iph->saddr, pptr[0],
+					 &iph->daddr, pptr[1]);
+	else
+		return ip_vs_conn_in_get(af, iph->protocol,
+					 &iph->daddr, pptr[1],
+					 &iph->saddr, pptr[0]);
+}
+EXPORT_SYMBOL_GPL(ip_vs_conn_in_get_proto);
 
 /* Get reference to connection template */
 struct ip_vs_conn *ip_vs_ct_in_get
@@ -349,14 +379,37 @@ struct ip_vs_conn *ip_vs_conn_out_get
 	return ret;
 }
 
+struct ip_vs_conn *
+ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
+			 struct ip_vs_protocol *pp,
+			 const struct ip_vs_iphdr *iph,
+			 unsigned int proto_off, int inverse)
+{
+	__be16 _ports[2], *pptr;
+
+	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
+	if (pptr == NULL)
+		return NULL;
+
+	if (likely(!inverse))
+		return ip_vs_conn_out_get(af, iph->protocol,
+					  &iph->saddr, pptr[0],
+					  &iph->daddr, pptr[1]);
+	else
+		return ip_vs_conn_out_get(af, iph->protocol,
+					  &iph->daddr, pptr[1],
+					  &iph->saddr, pptr[0]);
+}
+EXPORT_SYMBOL_GPL(ip_vs_conn_out_get_proto);
 
 /*
  *      Put back the conn and restart its timer with its timeout
  */
 void ip_vs_conn_put(struct ip_vs_conn *cp)
 {
-	/* reset it expire in its timeout */
-	mod_timer(&cp->timer, jiffies+cp->timeout);
+	unsigned long t = (cp->flags & IP_VS_CONN_F_ONE_PACKET) ?
+		0 : cp->timeout;
+	mod_timer(&cp->timer, jiffies+t);
 
 	__ip_vs_conn_put(cp);
 }
@@ -649,7 +702,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	/*
 	 *	unhash it if it is hashed in the conn table
 	 */
-	if (!ip_vs_conn_unhash(cp))
+	if (!ip_vs_conn_unhash(cp) && !(cp->flags & IP_VS_CONN_F_ONE_PACKET))
 		goto expire_later;
 
 	/*

@@ -58,7 +58,7 @@ static void rawiso_activity_cb(struct hpsb_iso *iso)
 	num = hpsb_iso_n_ready(iso);
 
 	if (!fdtv) {
-		dev_err(fdtv->device, "received at unknown iso channel\n");
+		pr_err("received at unknown iso channel\n");
 		goto out;
 	}
 

@@ -91,10 +91,14 @@ int register_trapped_io(struct trapped_io *tiop)
 	tiop->magic = IO_TRAPPED_MAGIC;
 	INIT_LIST_HEAD(&tiop->list);
 	spin_lock_irq(&trapped_lock);
+#ifdef CONFIG_HAS_IOPORT
 	if (flags & IORESOURCE_IO)
 		list_add(&tiop->list, &trapped_io);
+#endif
+#ifdef CONFIG_HAS_IOMEM
 	if (flags & IORESOURCE_MEM)
 		list_add(&tiop->list, &trapped_mem);
+#endif
 	spin_unlock_irq(&trapped_lock);
 
 	return 0;

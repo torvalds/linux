@@ -997,8 +997,11 @@ MODULE_DEVICE_TABLE (of, mace_match);
 
 static struct macio_driver mace_driver =
 {
-	.name 		= "mace",
-	.match_table	= mace_match,
+	.driver = {
+		.name 		= "mace",
+		.owner		= THIS_MODULE,
+		.of_match_table	= mace_match,
+	},
 	.probe		= mace_probe,
 	.remove		= mace_remove,
 };

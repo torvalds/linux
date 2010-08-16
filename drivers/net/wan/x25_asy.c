@@ -37,8 +37,6 @@
 #include <net/x25device.h>
 #include "x25_asy.h"
 
-#include <net/x25device.h>
-
 static struct net_device **x25_asy_devs;
 static int x25_asy_maxdev = SL_NRUNIT;
 

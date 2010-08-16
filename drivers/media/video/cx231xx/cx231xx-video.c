@@ -993,6 +993,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct cx231xx *dev = fh->dev;
 	int rc;
 	struct cx231xx_fmt *fmt;
+	struct v4l2_mbus_framefmt mbus_fmt;
 
 	rc = check_dev(dev);
 	if (rc < 0)
@@ -1026,7 +1027,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->format = fmt;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
-	call_all(dev, video, s_fmt, f);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 
 	/* Set the correct alternate setting for this resolution */
 	cx231xx_resolution_set(dev);

@@ -224,9 +224,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 
-	if (error)
-		dev_warn(DEV, "p %s: error=%d\n",
-			 bio_data_dir(bio) == WRITE ? "write" : "read", error);
 	if (!error && !uptodate) {
 		dev_warn(DEV, "p %s: setting error to -EIO\n",
 			 bio_data_dir(bio) == WRITE ? "write" : "read");
@@ -257,20 +254,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 		complete_master_bio(mdev, &m);
 }
 
-int w_io_error(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-{
-	struct drbd_request *req = container_of(w, struct drbd_request, w);
-
-	/* NOTE: mdev->ldev can be NULL by the time we get here! */
-	/* D_ASSERT(mdev->ldev->dc.on_io_error != EP_PASS_ON); */
-
-	/* the only way this callback is scheduled is from _req_may_be_done,
-	 * when it is done and had a local write error, see comments there */
-	drbd_req_free(req);
-
-	return TRUE;
-}
-
 int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
@@ -280,12 +263,9 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * to give the disk the chance to relocate that block */
 
 	spin_lock_irq(&mdev->req_lock);
-	if (cancel ||
-	    mdev->state.conn < C_CONNECTED ||
-	    mdev->state.pdsk <= D_INCONSISTENT) {
-		_req_mod(req, send_canceled);
+	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
+		_req_mod(req, read_retry_remote_canceled);
 		spin_unlock_irq(&mdev->req_lock);
-		dev_alert(DEV, "WE ARE LOST. Local IO failure, no peer.\n");
 		return 1;
 	}
 	spin_unlock_irq(&mdev->req_lock);
@@ -444,18 +424,6 @@ void resync_timer_fn(unsigned long data)
 		drbd_queue_work(&mdev->data.work, &mdev->resync_work);
 }
 
-static int calc_resync_rate(struct drbd_conf *mdev)
-{
-	int d = mdev->data_delay / 1000; /* us -> ms */
-	int td = mdev->sync_conf.throttle_th * 100;  /* 0.1s -> ms */
-	int hd = mdev->sync_conf.hold_off_th * 100;  /* 0.1s -> ms */
-	int cr = mdev->sync_conf.rate;
-
-	return d <= td ? cr :
-		d >= hd ? 0 :
-		cr + (cr * (td - d) / (hd - td));
-}
-
 int w_make_resync_request(struct drbd_conf *mdev,
 		struct drbd_work *w, int cancel)
 {
@@ -493,8 +461,7 @@ int w_make_resync_request(struct drbd_conf *mdev,
 	max_segment_size = mdev->agreed_pro_version < 94 ?
 		queue_max_segment_size(mdev->rq_queue) : DRBD_MAX_SEGMENT_SIZE;
 
-	mdev->c_sync_rate = calc_resync_rate(mdev);
-	number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
+	number = SLEEP_TIME * mdev->sync_conf.rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
 	pe = atomic_read(&mdev->rs_pending_cnt);
 
 	mutex_lock(&mdev->data.mutex);

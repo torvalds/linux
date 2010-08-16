@@ -224,7 +224,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 
-	info->flags = FBINFO_DEFAULT;
+	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &radeonfb_ops;
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
@@ -363,6 +363,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 {
 	struct radeon_fbdev *rfbdev;
 	int bpp_sel = 32;
+	int ret;
 
 	/* select 8 bpp console on RN50 or 16MB cards */
 	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
@@ -376,9 +377,14 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	rdev->mode_info.rfbdev = rfbdev;
 	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 
-	drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
-			   rdev->num_crtc,
-			   RADEONFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
+				 rdev->num_crtc,
+				 RADEONFB_CONN_LIMIT);
+	if (ret) {
+		kfree(rfbdev);
+		return ret;
+	}
+
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;

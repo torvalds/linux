@@ -114,6 +114,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss->dtim_period = tim_ie->dtim_period;
 	}
 
+	/* If the beacon had no TIM IE, or it was invalid, use 1 */
+	if (beacon && !bss->dtim_period)
+		bss->dtim_period = 1;
+
 	/* replace old supported rates if we get new values */
 	srlen = 0;
 	if (elems->supp_rates) {
@@ -396,27 +400,13 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	else
 		__set_bit(SCAN_SW_SCANNING, &local->scanning);
 
-	/*
-	 * Kicking off the scan need not be protected,
-	 * only the scan variable stuff, since now
-	 * local->scan_req is assigned and other callers
-	 * will abort their scan attempts.
-	 *
-	 * This avoids too many locking dependencies
-	 * so that the scan completed calls have more
-	 * locking freedom.
-	 */
-
 	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->scan_mtx);
 
 	if (local->ops->hw_scan) {
 		WARN_ON(!ieee80211_prep_hw_scan(local));
 		rc = drv_hw_scan(local, sdata, local->hw_scan_req);
 	} else
 		rc = ieee80211_start_sw_scan(local);
-
-	mutex_lock(&local->scan_mtx);
 
 	if (rc) {
 		kfree(local->hw_scan_req);
@@ -734,7 +724,7 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY;
-	enum nl80211_band band;
+	enum ieee80211_band band;
 
 	mutex_lock(&local->scan_mtx);
 

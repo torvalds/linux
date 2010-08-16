@@ -14,24 +14,14 @@
 
 /*
 GPIOn - Input from MAX823 (or equiv), normalizing USB +5V into a clean
-interrupt signal for determining cable presence. On the original gumstix,
-this is GPIO81, and GPIO83 needs to be defined as well. On the gumstix F,
+interrupt signal for determining cable presence. On the gumstix F,
 this moves to GPIO17 and GPIO37. */
 
 /* GPIOx - Connects to USB D+ and used as a pull-up after GPIOn
 has detected a cable insertion; driven low otherwise. */
 
-#ifdef CONFIG_ARCH_GUMSTIX_ORIG
-
-#define GPIO_GUMSTIX_USB_GPIOn		81
-#define GPIO_GUMSTIX_USB_GPIOx		83
-
-#else
-
 #define GPIO_GUMSTIX_USB_GPIOn		35
 #define GPIO_GUMSTIX_USB_GPIOx		41
-
-#endif
 
 /* usb state change */
 #define GUMSTIX_USB_INTR_IRQ		IRQ_GPIO(GPIO_GUMSTIX_USB_GPIOn)

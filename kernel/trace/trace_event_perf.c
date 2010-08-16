@@ -9,8 +9,6 @@
 #include <linux/kprobes.h>
 #include "trace.h"
 
-EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);
-
 static char *perf_trace_buf[4];
 
 /*
@@ -56,13 +54,7 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 		}
 	}
 
-	if (tp_event->class->reg)
-		ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER);
-	else
-		ret = tracepoint_probe_register(tp_event->name,
-						tp_event->class->perf_probe,
-						tp_event);
-
+	ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER);
 	if (ret)
 		goto fail;
 
@@ -96,7 +88,7 @@ int perf_trace_init(struct perf_event *p_event)
 	mutex_lock(&event_mutex);
 	list_for_each_entry(tp_event, &ftrace_events, list) {
 		if (tp_event->event.type == event_id &&
-		    tp_event->class && tp_event->class->perf_probe &&
+		    tp_event->class && tp_event->class->reg &&
 		    try_module_get(tp_event->mod)) {
 			ret = perf_trace_event_init(tp_event, p_event);
 			break;
@@ -116,7 +108,7 @@ int perf_trace_enable(struct perf_event *p_event)
 	if (WARN_ON_ONCE(!list))
 		return -EINVAL;
 
-	list = per_cpu_ptr(list, smp_processor_id());
+	list = this_cpu_ptr(list);
 	hlist_add_head_rcu(&p_event->hlist_entry, list);
 
 	return 0;
@@ -132,15 +124,17 @@ void perf_trace_destroy(struct perf_event *p_event)
 	struct ftrace_event_call *tp_event = p_event->tp_event;
 	int i;
 
+	mutex_lock(&event_mutex);
 	if (--tp_event->perf_refcount > 0)
-		return;
+		goto out;
 
-	if (tp_event->class->reg)
-		tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
-	else
-		tracepoint_probe_unregister(tp_event->name,
-					    tp_event->class->perf_probe,
-					    tp_event);
+	tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
+
+	/*
+	 * Ensure our callback won't be called anymore. The buffers
+	 * will be freed after that.
+	 */
+	tracepoint_synchronize_unregister();
 
 	free_percpu(tp_event->perf_events);
 	tp_event->perf_events = NULL;
@@ -151,6 +145,8 @@ void perf_trace_destroy(struct perf_event *p_event)
 			perf_trace_buf[i] = NULL;
 		}
 	}
+out:
+	mutex_unlock(&event_mutex);
 }
 
 __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
@@ -169,7 +165,7 @@ __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
 	if (*rctxp < 0)
 		return NULL;
 
-	raw_data = per_cpu_ptr(perf_trace_buf[*rctxp], smp_processor_id());
+	raw_data = this_cpu_ptr(perf_trace_buf[*rctxp]);
 
 	/* zero the dead bytes from align to not leak stack to user */
 	memset(&raw_data[size - sizeof(u64)], 0, sizeof(u64));

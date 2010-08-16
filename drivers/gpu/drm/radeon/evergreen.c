@@ -39,9 +39,37 @@
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 
+/* get temperature in millidegrees */
+u32 evergreen_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
+		ASIC_T_SHIFT;
+	u32 actual_temp = 0;
+
+	if ((temp >> 10) & 1)
+		actual_temp = 0;
+	else if ((temp >> 9) & 1)
+		actual_temp = 255;
+	else
+		actual_temp = (temp >> 1) & 0xff;
+
+	return actual_temp * 1000;
+}
+
 void evergreen_pm_misc(struct radeon_device *rdev)
 {
+	int req_ps_idx = rdev->pm.requested_power_state_index;
+	int req_cm_idx = rdev->pm.requested_clock_mode_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
+	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
+	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		if (voltage->voltage != rdev->pm.current_vddc) {
+			radeon_atom_set_voltage(rdev, voltage->voltage);
+			rdev->pm.current_vddc = voltage->voltage;
+			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+		}
+	}
 }
 
 void evergreen_pm_prepare(struct radeon_device *rdev)
@@ -596,7 +624,7 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
-	WREG32(HDP_NONSURFACE_SIZE, (rdev->mc.mc_vram_size - 1) | 0x3FF);
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 16);
@@ -1104,6 +1132,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 								 rdev->config.evergreen.max_backends) &
 								EVERGREEN_MAX_BACKENDS_MASK));
 
+	rdev->config.evergreen.tile_config = gb_addr_config;
 	WREG32(GB_BACKEND_MAP, gb_backend_map);
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
@@ -1211,11 +1240,11 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		ps_thread_count = 128;
 
 	sq_thread_resource_mgmt = NUM_PS_THREADS(ps_thread_count);
-	sq_thread_resource_mgmt |= NUM_VS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt |= NUM_GS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt |= NUM_ES_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt_2 = NUM_HS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt_2 |= NUM_LS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
+	sq_thread_resource_mgmt |= NUM_VS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt |= NUM_GS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt |= NUM_ES_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt_2 = NUM_HS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt_2 |= NUM_LS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
 
 	sq_stack_resource_mgmt_1 = NUM_PS_STACK_ENTRIES((rdev->config.evergreen.max_stack_entries * 1) / 6);
 	sq_stack_resource_mgmt_1 |= NUM_VS_STACK_ENTRIES((rdev->config.evergreen.max_stack_entries * 1) / 6);
@@ -1249,6 +1278,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(VGT_GS_VERTEX_REUSE, 16);
 	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
 
+	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, 14);
+	WREG32(VGT_OUT_DEALLOC_CNTL, 16);
+
 	WREG32(CB_PERF_CTR0_SEL_0, 0);
 	WREG32(CB_PERF_CTR0_SEL_1, 0);
 	WREG32(CB_PERF_CTR1_SEL_0, 0);
@@ -1257,6 +1289,26 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(CB_PERF_CTR2_SEL_1, 0);
 	WREG32(CB_PERF_CTR3_SEL_0, 0);
 	WREG32(CB_PERF_CTR3_SEL_1, 0);
+
+	/* clear render buffer base addresses */
+	WREG32(CB_COLOR0_BASE, 0);
+	WREG32(CB_COLOR1_BASE, 0);
+	WREG32(CB_COLOR2_BASE, 0);
+	WREG32(CB_COLOR3_BASE, 0);
+	WREG32(CB_COLOR4_BASE, 0);
+	WREG32(CB_COLOR5_BASE, 0);
+	WREG32(CB_COLOR6_BASE, 0);
+	WREG32(CB_COLOR7_BASE, 0);
+	WREG32(CB_COLOR8_BASE, 0);
+	WREG32(CB_COLOR9_BASE, 0);
+	WREG32(CB_COLOR10_BASE, 0);
+	WREG32(CB_COLOR11_BASE, 0);
+
+	/* set the shader const cache sizes to 0 */
+	for (i = SQ_ALU_CONST_BUFFER_SIZE_PS_0; i < 0x28200; i += 4)
+		WREG32(i, 0);
+	for (i = SQ_ALU_CONST_BUFFER_SIZE_HS_0; i < 0x29000; i += 4)
+		WREG32(i, 0);
 
 	hdp_host_path_cntl = RREG32(HDP_HOST_PATH_CNTL);
 	WREG32(HDP_HOST_PATH_CNTL, hdp_host_path_cntl);
@@ -1300,8 +1352,8 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	}
 	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* Setup GPU memory space */
 	/* size in MB on evergreen */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
@@ -2148,7 +2200,7 @@ int evergreen_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	rdev->accel_working = false;
+	rdev->accel_working = true;
 	r = evergreen_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");

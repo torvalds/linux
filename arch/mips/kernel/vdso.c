@@ -61,11 +61,9 @@ static int __init init_vdso(void)
 
 	vunmap(vdso);
 
-	pr_notice("init_vdso successfull\n");
-
 	return 0;
 }
-device_initcall(init_vdso);
+subsys_initcall(init_vdso);
 
 static unsigned long vdso_addr(unsigned long start)
 {

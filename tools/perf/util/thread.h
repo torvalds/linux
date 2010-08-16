@@ -6,7 +6,10 @@
 #include "symbol.h"
 
 struct thread {
-	struct rb_node		rb_node;
+	union {
+		struct rb_node	 rb_node;
+		struct list_head node;
+	};
 	struct map_groups	mg;
 	pid_t			pid;
 	char			shortname[3];
@@ -16,6 +19,8 @@ struct thread {
 };
 
 struct perf_session;
+
+void thread__delete(struct thread *self);
 
 int find_all_tid(int pid, pid_t ** all_tid);
 int thread__set_comm(struct thread *self, const char *comm);

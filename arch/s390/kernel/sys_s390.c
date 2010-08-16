@@ -131,9 +131,9 @@ SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 }
 
 #ifdef CONFIG_64BIT
-SYSCALL_DEFINE1(s390_personality, unsigned long, personality)
+SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 {
-	int ret;
+	unsigned int ret;
 
 	if (current->personality == PER_LINUX32 && personality == PER_LINUX)
 		personality = PER_LINUX32;

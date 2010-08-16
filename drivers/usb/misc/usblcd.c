@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
@@ -30,6 +29,7 @@
 #define IOCTL_GET_DRV_VERSION	2
 
 
+static DEFINE_MUTEX(lcd_mutex);
 static const struct usb_device_id id_table[] = {
 	{ .idVendor = 0x10D2, .match_flags = USB_DEVICE_ID_MATCH_VENDOR, },
 	{ },
@@ -74,12 +74,12 @@ static int lcd_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor, r;
 
-	lock_kernel();
+	mutex_lock(&lcd_mutex);
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&lcd_driver, subminor);
 	if (!interface) {
-		unlock_kernel();
+		mutex_unlock(&lcd_mutex);
 		err ("USBLCD: %s - error, can't find device for minor %d",
 		     __func__, subminor);
 		return -ENODEV;
@@ -89,7 +89,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		mutex_unlock(&open_disc_mutex);
-		unlock_kernel();
+		mutex_unlock(&lcd_mutex);
 		return -ENODEV;
 	}
 
@@ -101,13 +101,13 @@ static int lcd_open(struct inode *inode, struct file *file)
 	r = usb_autopm_get_interface(interface);
 	if (r < 0) {
 		kref_put(&dev->kref, lcd_delete);
-		unlock_kernel();
+		mutex_unlock(&lcd_mutex);
 		return r;
 	}
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
-	unlock_kernel();
+	mutex_unlock(&lcd_mutex);
 
 	return 0;
 }
@@ -116,7 +116,7 @@ static int lcd_release(struct inode *inode, struct file *file)
 {
 	struct usb_lcd *dev;
 
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -132,7 +132,7 @@ static ssize_t lcd_read(struct file *file, char __user * buffer, size_t count, l
 	int retval = 0;
 	int bytes_read;
 
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 
 	/* do a blocking bulk read to get data from the device */
 	retval = usb_bulk_msg(dev->udev, 
@@ -158,20 +158,20 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	u16 bcdDevice;
 	char buf[30];
 
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 	
 	switch (cmd) {
 	case IOCTL_GET_HARD_VERSION:
-		lock_kernel();
+		mutex_lock(&lcd_mutex);
 		bcdDevice = le16_to_cpu((dev->udev)->descriptor.bcdDevice);
 		sprintf(buf,"%1d%1d.%1d%1d",
 			(bcdDevice & 0xF000)>>12,
 			(bcdDevice & 0xF00)>>8,
 			(bcdDevice & 0xF0)>>4,
 			(bcdDevice & 0xF));
-		unlock_kernel();
+		mutex_unlock(&lcd_mutex);
 		if (copy_to_user((void __user *)arg,buf,strlen(buf))!=0)
 			return -EFAULT;
 		break;
@@ -217,7 +217,7 @@ static ssize_t lcd_write(struct file *file, const char __user * user_buffer, siz
 	struct urb *urb = NULL;
 	char *buf = NULL;
 	
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 	
 	/* verify that we actually have some data to write */
 	if (count == 0)

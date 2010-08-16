@@ -59,7 +59,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		wr_len = roundup(sizeof *req + sizeof *sc +
 				 roundup(copy_len, T4_ULPTX_MIN_IO), 16);
 
-		skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(wr_len, GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -764,7 +764,7 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
 	if (!c4pl)
 		return ERR_PTR(-ENOMEM);
 
-	pci_unmap_addr_set(c4pl, mapping, dma_addr);
+	dma_unmap_addr_set(c4pl, mapping, dma_addr);
 	c4pl->dma_addr = dma_addr;
 	c4pl->dev = dev;
 	c4pl->size = size;
@@ -779,7 +779,7 @@ void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *ibpl)
 	struct c4iw_fr_page_list *c4pl = to_c4iw_fr_page_list(ibpl);
 
 	dma_free_coherent(&c4pl->dev->rdev.lldi.pdev->dev, c4pl->size,
-			  c4pl, pci_unmap_addr(c4pl, mapping));
+			  c4pl, dma_unmap_addr(c4pl, mapping));
 }
 
 int c4iw_dereg_mr(struct ib_mr *ib_mr)

@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -191,6 +187,7 @@ static int mxc_audmux_v2_init(void)
 {
 	int ret;
 
+#if defined(CONFIG_ARCH_MX3)
 	if (cpu_is_mx31())
 		audmux_base = MX31_IO_ADDRESS(MX31_AUDMUX_BASE_ADDR);
 
@@ -204,7 +201,19 @@ static int mxc_audmux_v2_init(void)
 		}
 		audmux_base = MX35_IO_ADDRESS(MX35_AUDMUX_BASE_ADDR);
 	}
-
+#endif
+#if defined(CONFIG_ARCH_MX25)
+	if (cpu_is_mx25()) {
+		audmux_clk = clk_get(NULL, "audmux");
+		if (IS_ERR(audmux_clk)) {
+			ret = PTR_ERR(audmux_clk);
+			printk(KERN_ERR "%s: cannot get clock: %d\n", __func__,
+					ret);
+			return ret;
+		}
+		audmux_base = MX25_IO_ADDRESS(MX25_AUDMUX_BASE_ADDR);
+	}
+#endif
 	audmux_debugfs_init();
 
 	return 0;

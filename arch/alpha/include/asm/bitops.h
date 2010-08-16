@@ -410,7 +410,7 @@ static inline unsigned long __arch_hweight64(unsigned long w)
 	return __kernel_ctpop(w);
 }
 
-static inline unsigned int __arch_weight32(unsigned int w)
+static inline unsigned int __arch_hweight32(unsigned int w)
 {
 	return __arch_hweight64(w);
 }

@@ -29,6 +29,7 @@
 #include "quirks.h"
 #include "helper.h"
 #include "debug.h"
+#include "clock.h"
 
 /*
  * parse the audio format type I descriptor
@@ -205,30 +206,92 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 }
 
 /*
+ * Helper function to walk the array of sample rate triplets reported by
+ * the device. The problem is that we need to parse whole array first to
+ * get to know how many sample rates we have to expect.
+ * Then fp->rate_table can be allocated and filled.
+ */
+static int parse_uac2_sample_rate_range(struct audioformat *fp, int nr_triplets,
+					const unsigned char *data)
+{
+	int i, nr_rates = 0;
+
+	fp->rates = fp->rate_min = fp->rate_max = 0;
+
+	for (i = 0; i < nr_triplets; i++) {
+		int min = combine_quad(&data[2 + 12 * i]);
+		int max = combine_quad(&data[6 + 12 * i]);
+		int res = combine_quad(&data[10 + 12 * i]);
+		int rate;
+
+		if ((max < 0) || (min < 0) || (res < 0) || (max < min))
+			continue;
+
+		/*
+		 * for ranges with res == 1, we announce a continuous sample
+		 * rate range, and this function should return 0 for no further
+		 * parsing.
+		 */
+		if (res == 1) {
+			fp->rate_min = min;
+			fp->rate_max = max;
+			fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
+			return 0;
+		}
+
+		for (rate = min; rate <= max; rate += res) {
+			if (fp->rate_table)
+				fp->rate_table[nr_rates] = rate;
+			if (!fp->rate_min || rate < fp->rate_min)
+				fp->rate_min = rate;
+			if (!fp->rate_max || rate > fp->rate_max)
+				fp->rate_max = rate;
+			fp->rates |= snd_pcm_rate_to_rate_bit(rate);
+
+			nr_rates++;
+
+			/* avoid endless loop */
+			if (res == 0)
+				break;
+		}
+	}
+
+	return nr_rates;
+}
+
+/*
  * parse the format descriptor and stores the possible sample rates
  * on the audioformat table (audio class v2).
  */
 static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
-				       struct audioformat *fp,
-				       struct usb_host_interface *iface)
+				       struct audioformat *fp)
 {
 	struct usb_device *dev = chip->dev;
 	unsigned char tmp[2], *data;
-	int i, nr_rates, data_size, ret = 0;
+	int nr_triplets, data_size, ret = 0;
+	int clock = snd_usb_clock_find_source(chip, fp->clock);
+
+	if (clock < 0) {
+		snd_printk(KERN_ERR "%s(): unable to find clock source (clock %d)\n",
+				__func__, clock);
+		goto err;
+	}
 
 	/* get the number of sample rates first by only fetching 2 bytes */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			      UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
 			      tmp, sizeof(tmp), 1000);
 
 	if (ret < 0) {
-		snd_printk(KERN_ERR "unable to retrieve number of sample rates\n");
+		snd_printk(KERN_ERR "%s(): unable to retrieve number of sample rates (clock %d)\n",
+				__func__, clock);
 		goto err;
 	}
 
-	nr_rates = (tmp[1] << 8) | tmp[0];
-	data_size = 2 + 12 * nr_rates;
+	nr_triplets = (tmp[1] << 8) | tmp[0];
+	data_size = 2 + 12 * nr_triplets;
 	data = kzalloc(data_size, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
@@ -237,36 +300,40 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 
 	/* now get the full information */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
-			       USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			       UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
-			       data, data_size, 1000);
+			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
+			      data, data_size, 1000);
 
 	if (ret < 0) {
-		snd_printk(KERN_ERR "unable to retrieve sample rate range\n");
+		snd_printk(KERN_ERR "%s(): unable to retrieve sample rate range (clock %d)\n",
+				__func__, clock);
 		ret = -EINVAL;
 		goto err_free;
 	}
 
-	fp->rate_table = kmalloc(sizeof(int) * nr_rates, GFP_KERNEL);
+	/* Call the triplet parser, and make sure fp->rate_table is NULL.
+	 * We just use the return value to know how many sample rates we
+	 * will have to deal with. */
+	kfree(fp->rate_table);
+	fp->rate_table = NULL;
+	fp->nr_rates = parse_uac2_sample_rate_range(fp, nr_triplets, data);
+
+	if (fp->nr_rates == 0) {
+		/* SNDRV_PCM_RATE_CONTINUOUS */
+		ret = 0;
+		goto err_free;
+	}
+
+	fp->rate_table = kmalloc(sizeof(int) * fp->nr_rates, GFP_KERNEL);
 	if (!fp->rate_table) {
 		ret = -ENOMEM;
 		goto err_free;
 	}
 
-	fp->nr_rates = 0;
-	fp->rate_min = fp->rate_max = 0;
-
-	for (i = 0; i < nr_rates; i++) {
-		int rate = combine_quad(&data[2 + 12 * i]);
-
-		fp->rate_table[fp->nr_rates] = rate;
-		if (!fp->rate_min || rate < fp->rate_min)
-			fp->rate_min = rate;
-		if (!fp->rate_max || rate > fp->rate_max)
-			fp->rate_max = rate;
-		fp->rates |= snd_pcm_rate_to_rate_bit(rate);
-		fp->nr_rates++;
-	}
+	/* Call the triplet parser again, but this time, fp->rate_table is
+	 * allocated, so the rates will be stored */
+	parse_uac2_sample_rate_range(fp, nr_triplets, data);
 
 err_free:
 	kfree(data);
@@ -323,8 +390,12 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 		break;
 	case UAC_VERSION_2:
 		/* fp->channels is already set in this case */
-		ret = parse_audio_format_rates_v2(chip, fp, iface);
+		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
+	default:
+		snd_printk(KERN_ERR "%d:%u:%d : invalid protocol version %d\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		return -EINVAL;
 	}
 
 	if (fp->channels < 1) {
@@ -382,9 +453,13 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 		framesize = le16_to_cpu(fmt->wSamplesPerFrame);
 		snd_printd(KERN_INFO "found format II with max.bitrate = %d, frame size=%d\n", brate, framesize);
 		fp->frame_size = framesize;
-		ret = parse_audio_format_rates_v2(chip, fp, iface);
+		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
 	}
+	default:
+		snd_printk(KERN_ERR "%d:%u:%d : invalid protocol version %d\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		return -EINVAL;
 	}
 
 	return ret;

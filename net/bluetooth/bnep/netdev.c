@@ -104,6 +104,8 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 				break;
 			memcpy(__skb_put(skb, ETH_ALEN), ha->addr, ETH_ALEN);
 			memcpy(__skb_put(skb, ETH_ALEN), ha->addr, ETH_ALEN);
+
+			i++;
 		}
 		r->len = htons(skb->len - len);
 	}

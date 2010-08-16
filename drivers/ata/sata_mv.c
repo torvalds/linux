@@ -2716,34 +2716,35 @@ static void mv_err_intr(struct ata_port *ap)
 static void mv_process_crpb_response(struct ata_port *ap,
 		struct mv_crpb *response, unsigned int tag, int ncq_enabled)
 {
+	u8 ata_status;
+	u16 edma_status = le16_to_cpu(response->flags);
 	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
 
-	if (qc) {
-		u8 ata_status;
-		u16 edma_status = le16_to_cpu(response->flags);
-		/*
-		 * edma_status from a response queue entry:
-		 *   LSB is from EDMA_ERR_IRQ_CAUSE (non-NCQ only).
-		 *   MSB is saved ATA status from command completion.
-		 */
-		if (!ncq_enabled) {
-			u8 err_cause = edma_status & 0xff & ~EDMA_ERR_DEV;
-			if (err_cause) {
-				/*
-				 * Error will be seen/handled by mv_err_intr().
-				 * So do nothing at all here.
-				 */
-				return;
-			}
-		}
-		ata_status = edma_status >> CRPB_FLAG_STATUS_SHIFT;
-		if (!ac_err_mask(ata_status))
-			ata_qc_complete(qc);
-		/* else: leave it for mv_err_intr() */
-	} else {
+	if (unlikely(!qc)) {
 		ata_port_printk(ap, KERN_ERR, "%s: no qc for tag=%d\n",
 				__func__, tag);
+		return;
 	}
+
+	/*
+	 * edma_status from a response queue entry:
+	 *   LSB is from EDMA_ERR_IRQ_CAUSE (non-NCQ only).
+	 *   MSB is saved ATA status from command completion.
+	 */
+	if (!ncq_enabled) {
+		u8 err_cause = edma_status & 0xff & ~EDMA_ERR_DEV;
+		if (err_cause) {
+			/*
+			 * Error will be seen/handled by
+			 * mv_err_intr().  So do nothing at all here.
+			 */
+			return;
+		}
+	}
+	ata_status = edma_status >> CRPB_FLAG_STATUS_SHIFT;
+	if (!ac_err_mask(ata_status))
+		ata_qc_complete(qc);
+	/* else: leave it for mv_err_intr() */
 }
 
 static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp)

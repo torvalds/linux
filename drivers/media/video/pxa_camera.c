@@ -276,7 +276,7 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
 	videobuf_waiton(&buf->vb, 0, 0);
-	videobuf_dma_unmap(vq, dma);
+	videobuf_dma_unmap(vq->dev, dma);
 	videobuf_dma_free(dma);
 
 	for (i = 0; i < ARRAY_SIZE(buf->dmas); i++) {
@@ -1247,7 +1247,7 @@ static bool pxa_camera_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 		 fmt->packing == SOC_MBUS_PACKING_EXTEND16);
 }
 
-static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
+static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int idx,
 				  struct soc_camera_format_xlate *xlate)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -1264,7 +1264,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(dev, "Invalid format code #%d: %d\n", idx, code);
+		dev_err(dev, "Invalid format code #%u: %d\n", idx, code);
 		return 0;
 	}
 
@@ -1284,7 +1284,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 	}
 
 	switch (code) {
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &pxa_camera_formats[0];
@@ -1293,9 +1293,9 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 			dev_dbg(dev, "Providing format %s using code %d\n",
 				pxa_camera_formats[0].name, code);
 		}
-	case V4L2_MBUS_FMT_YVYU8_2X8_BE:
-	case V4L2_MBUS_FMT_YUYV8_2X8_LE:
-	case V4L2_MBUS_FMT_YVYU8_2X8_LE:
+	case V4L2_MBUS_FMT_VYUY8_2X8:
+	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case V4L2_MBUS_FMT_YVYU8_2X8:
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
 		if (xlate)

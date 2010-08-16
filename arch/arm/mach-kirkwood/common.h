@@ -19,6 +19,9 @@ struct mtd_partition;
 struct mtd_info;
 struct kirkwood_asoc_platform_data;
 
+#define KW_PCIE0	(1 << 0)
+#define KW_PCIE1	(1 << 1)
+
 /*
  * Basic Kirkwood init functions used early by machine-setup.
  */
@@ -35,7 +38,7 @@ void kirkwood_ehci_init(void);
 void kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data);
 void kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data);
 void kirkwood_ge00_switch_init(struct dsa_platform_data *d, int irq);
-void kirkwood_pcie_init(void);
+void kirkwood_pcie_init(unsigned int portmask);
 void kirkwood_sata_init(struct mv_sata_platform_data *sata_data);
 void kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data);
 void kirkwood_spi_init(void);

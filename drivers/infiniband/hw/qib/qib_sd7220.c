@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
+ * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -37,9 +38,13 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
 
 #include "qib.h"
 #include "qib_7220.h"
+
+#define SD7220_FW_NAME "qlogic/sd7220.fw"
+MODULE_FIRMWARE(SD7220_FW_NAME);
 
 /*
  * Same as in qib_iba7220.c, but just the registers needed here.
@@ -102,6 +107,10 @@ static int qib_internal_presets(struct qib_devdata *dd);
 /* Tweak the register (CMUCTRL5) that contains the TRIMSELF controls */
 static int qib_sd_trimself(struct qib_devdata *dd, int val);
 static int epb_access(struct qib_devdata *dd, int sdnum, int claim);
+static int qib_sd7220_ib_load(struct qib_devdata *dd,
+			      const struct firmware *fw);
+static int qib_sd7220_ib_vfy(struct qib_devdata *dd,
+			     const struct firmware *fw);
 
 /*
  * Below keeps track of whether the "once per power-on" initialization has
@@ -110,10 +119,13 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim);
  * state of the reset "pin", is no longer valid. Instead, we check for the
  * actual uC code having been loaded.
  */
-static int qib_ibsd_ucode_loaded(struct qib_pportdata *ppd)
+static int qib_ibsd_ucode_loaded(struct qib_pportdata *ppd,
+				 const struct firmware *fw)
 {
 	struct qib_devdata *dd = ppd->dd;
-	if (!dd->cspec->serdes_first_init_done && (qib_sd7220_ib_vfy(dd) > 0))
+
+	if (!dd->cspec->serdes_first_init_done &&
+	    qib_sd7220_ib_vfy(dd, fw) > 0)
 		dd->cspec->serdes_first_init_done = 1;
 	return dd->cspec->serdes_first_init_done;
 }
@@ -377,6 +389,7 @@ static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
  */
 int qib_sd7220_init(struct qib_devdata *dd)
 {
+	const struct firmware *fw;
 	int ret = 1; /* default to failure */
 	int first_reset, was_reset;
 
@@ -387,8 +400,15 @@ int qib_sd7220_init(struct qib_devdata *dd)
 		qib_ibsd_reset(dd, 1);
 		qib_sd_trimdone_monitor(dd, "Driver-reload");
 	}
+
+	ret = request_firmware(&fw, SD7220_FW_NAME, &dd->pcidev->dev);
+	if (ret) {
+		qib_dev_err(dd, "Failed to load IB SERDES image\n");
+		goto done;
+	}
+
 	/* Substitute our deduced value for was_reset */
-	ret = qib_ibsd_ucode_loaded(dd->pport);
+	ret = qib_ibsd_ucode_loaded(dd->pport, fw);
 	if (ret < 0)
 		goto bail;
 
@@ -437,13 +457,13 @@ int qib_sd7220_init(struct qib_devdata *dd)
 		int vfy;
 		int trim_done;
 
-		ret = qib_sd7220_ib_load(dd);
+		ret = qib_sd7220_ib_load(dd, fw);
 		if (ret < 0) {
 			qib_dev_err(dd, "Failed to load IB SERDES image\n");
 			goto bail;
 		} else {
 			/* Loaded image, try to verify */
-			vfy = qib_sd7220_ib_vfy(dd);
+			vfy = qib_sd7220_ib_vfy(dd, fw);
 			if (vfy != ret) {
 				qib_dev_err(dd, "SERDES PRAM VFY failed\n");
 				goto bail;
@@ -506,6 +526,8 @@ bail:
 done:
 	/* start relock timer regardless, but start at 1 second */
 	set_7220_relock_poll(dd, -1);
+
+	release_firmware(fw);
 	return ret;
 }
 
@@ -829,8 +851,8 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 
 #define PROG_CHUNK 64
 
-int qib_sd7220_prog_ld(struct qib_devdata *dd, int sdnum,
-		       u8 *img, int len, int offset)
+static int qib_sd7220_prog_ld(struct qib_devdata *dd, int sdnum,
+			      const u8 *img, int len, int offset)
 {
 	int cnt, sofar, req;
 
@@ -840,7 +862,7 @@ int qib_sd7220_prog_ld(struct qib_devdata *dd, int sdnum,
 		if (req > PROG_CHUNK)
 			req = PROG_CHUNK;
 		cnt = qib_sd7220_ram_xfer(dd, sdnum, offset + sofar,
-					  img + sofar, req, 0);
+					  (u8 *)img + sofar, req, 0);
 		if (cnt < req) {
 			sofar = -1;
 			break;
@@ -853,8 +875,8 @@ int qib_sd7220_prog_ld(struct qib_devdata *dd, int sdnum,
 #define VFY_CHUNK 64
 #define SD_PRAM_ERROR_LIMIT 42
 
-int qib_sd7220_prog_vfy(struct qib_devdata *dd, int sdnum,
-			const u8 *img, int len, int offset)
+static int qib_sd7220_prog_vfy(struct qib_devdata *dd, int sdnum,
+			       const u8 *img, int len, int offset)
 {
 	int cnt, sofar, req, idx, errors;
 	unsigned char readback[VFY_CHUNK];
@@ -879,6 +901,18 @@ int qib_sd7220_prog_vfy(struct qib_devdata *dd, int sdnum,
 		sofar += cnt;
 	}
 	return errors ? -errors : sofar;
+}
+
+static int
+qib_sd7220_ib_load(struct qib_devdata *dd, const struct firmware *fw)
+{
+	return qib_sd7220_prog_ld(dd, IB_7220_SERDES, fw->data, fw->size, 0);
+}
+
+static int
+qib_sd7220_ib_vfy(struct qib_devdata *dd, const struct firmware *fw)
+{
+	return qib_sd7220_prog_vfy(dd, IB_7220_SERDES, fw->data, fw->size, 0);
 }
 
 /*

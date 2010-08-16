@@ -400,6 +400,7 @@ static int bfin_plat_nand_dev_ready(struct mtd_info *mtd)
 
 static struct platform_nand_data bfin_plat_nand_data = {
 	.chip = {
+		.nr_chips = 1,
 		.chip_delay = 30,
 #ifdef CONFIG_MTD_PARTITIONS
 		.part_probe_types = part_probes,

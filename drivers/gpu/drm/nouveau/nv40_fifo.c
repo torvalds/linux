@@ -48,7 +48,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
 	nv_wi32(dev, fc +  4, chan->pushbuf_base);
 	nv_wi32(dev, fc + 12, chan->pushbuf->instance >> 4);
@@ -61,7 +60,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 			      0x30000000 /* no idea.. */);
 	nv_wi32(dev, fc + 56, chan->ramin_grctx->instance >> 4);
 	nv_wi32(dev, fc + 60, 0x0001FFFF);
-	dev_priv->engine.instmem.finish_access(dev);
 
 	/* enable the fifo dma operation */
 	nv_wr32(dev, NV04_PFIFO_MODE,
@@ -88,8 +86,6 @@ nv40_fifo_do_load_context(struct drm_device *dev, int chid)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t fc = NV40_RAMFC(chid), tmp, tmp2;
-
-	dev_priv->engine.instmem.prepare_access(dev, false);
 
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_PUT, nv_ri32(dev, fc + 0));
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_GET, nv_ri32(dev, fc + 4));
@@ -126,8 +122,6 @@ nv40_fifo_do_load_context(struct drm_device *dev, int chid)
 	nv_wr32(dev, 0x32e8, nv_ri32(dev, fc + 68));
 	nv_wr32(dev, 0x2088, nv_ri32(dev, fc + 76));
 	nv_wr32(dev, 0x3300, nv_ri32(dev, fc + 80));
-
-	dev_priv->engine.instmem.finish_access(dev);
 
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, 0);
@@ -166,7 +160,6 @@ nv40_fifo_unload_context(struct drm_device *dev)
 		return 0;
 	fc = NV40_RAMFC(chid);
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	nv_wi32(dev, fc + 0, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUT));
 	nv_wi32(dev, fc + 4, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_GET));
 	nv_wi32(dev, fc + 8, nv_rd32(dev, NV10_PFIFO_CACHE1_REF_CNT));
@@ -200,7 +193,6 @@ nv40_fifo_unload_context(struct drm_device *dev)
 	tmp |= (nv_rd32(dev, NV04_PFIFO_CACHE1_PUT) << 16);
 	nv_wi32(dev, fc + 72, tmp);
 #endif
-	dev_priv->engine.instmem.finish_access(dev);
 
 	nv40_fifo_do_load_context(dev, pfifo->channels - 1);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1,

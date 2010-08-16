@@ -26,7 +26,7 @@
  * the one that requires (phase B, wusbhc_b_{create,destroy}).
  *
  * This is so because usb_add_hcd() will start the HC, and thus, all
- * the HC specific stuff has to be already initialiazed (like sysfs
+ * the HC specific stuff has to be already initialized (like sysfs
  * thingies).
  */
 #include <linux/device.h>

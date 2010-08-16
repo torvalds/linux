@@ -694,7 +694,7 @@ static void usage(void)
 #endif
 "            -l|--list                  Show page details in ranges\n"
 "            -L|--list-each             Show page details one by one\n"
-"            -N|--no-summary            Don't show summay info\n"
+"            -N|--no-summary            Don't show summary info\n"
 "            -X|--hwpoison              hwpoison pages\n"
 "            -x|--unpoison              unpoison pages\n"
 "            -h|--help                  Show this usage message\n"

@@ -784,16 +784,17 @@ again:
 				struct btrfs_extent_ref_v0 *ref0;
 				ref0 = btrfs_item_ptr(eb, path1->slots[0],
 						struct btrfs_extent_ref_v0);
-				root = find_tree_root(rc, eb, ref0);
-				if (!root->ref_cows)
-					cur->cowonly = 1;
 				if (key.objectid == key.offset) {
+					root = find_tree_root(rc, eb, ref0);
 					if (root && !should_ignore_root(root))
 						cur->root = root;
 					else
 						list_add(&cur->list, &useless);
 					break;
 				}
+				if (is_cowonly_root(btrfs_ref_root_v0(eb,
+								      ref0)))
+					cur->cowonly = 1;
 			}
 #else
 		BUG_ON(key.type == BTRFS_EXTENT_REF_V0_KEY);

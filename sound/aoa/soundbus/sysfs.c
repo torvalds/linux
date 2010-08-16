@@ -16,7 +16,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct soundbus_dev *sdev = to_soundbus_device(dev);
-	struct of_device *of = &sdev->ofdev;
+	struct platform_device *of = &sdev->ofdev;
 	int length;
 
 	if (*sdev->modalias) {

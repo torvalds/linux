@@ -300,34 +300,6 @@ extern unsigned int irq_alloc_virt(struct irq_host *host,
  */
 extern void irq_free_virt(unsigned int virq, unsigned int count);
 
-
-/* -- OF helpers -- */
-
-/**
- * irq_create_of_mapping - Map a hardware interrupt into linux virq space
- * @controller: Device node of the interrupt controller
- * @inspec: Interrupt specifier from the device-tree
- * @intsize: Size of the interrupt specifier from the device-tree
- *
- * This function is identical to irq_create_mapping except that it takes
- * as input informations straight from the device-tree (typically the results
- * of the of_irq_map_*() functions.
- */
-extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					  const u32 *intspec, unsigned int intsize);
-
-/**
- * irq_of_parse_and_map - Parse and Map an interrupt into linux virq space
- * @device: Device node of the device whose interrupt is to be mapped
- * @index: Index of the interrupt to map
- *
- * This function is a wrapper that chains of_irq_map_one() and
- * irq_create_of_mapping() to make things easier to callers
- */
-extern unsigned int irq_of_parse_and_map(struct device_node *dev, int index);
-
-/* -- End OF helpers -- */
-
 /**
  * irq_early_init - Init irq remapping subsystem
  */
@@ -358,7 +330,6 @@ extern void exc_lvl_ctx_init(void);
 #define exc_lvl_ctx_init()
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 /*
  * Per-cpu stacks for handling hard and soft interrupts.
  */
@@ -369,11 +340,6 @@ extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
 extern int call_handle_irq(int irq, void *p1,
 			   struct thread_info *tp, void *func);
-#else
-#define irq_ctx_init()
-
-#endif /* CONFIG_IRQSTACKS */
-
 extern void do_IRQ(struct pt_regs *regs);
 
 #endif /* _ASM_IRQ_H */

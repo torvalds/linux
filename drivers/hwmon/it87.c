@@ -80,6 +80,13 @@ superio_inb(int reg)
 	return inb(VAL);
 }
 
+static inline void
+superio_outb(int reg, int val)
+{
+	outb(reg, REG);
+	outb(val, VAL);
+}
+
 static int superio_inw(int reg)
 {
 	int val;
@@ -252,6 +259,7 @@ struct it87_sio_data {
 	u8 revision;
 	u8 vid_value;
 	u8 beep_pin;
+	u8 internal;	/* Internal sensors can be labeled */
 	/* Features skipped based on config or DMI */
 	u8 skip_vid;
 	u8 skip_fan;
@@ -1187,6 +1195,22 @@ static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
+static ssize_t show_label(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	static const char *labels[] = {
+		"+5V",
+		"5VSB",
+		"Vbat",
+	};
+	int nr = to_sensor_dev_attr(attr)->index;
+
+	return sprintf(buf, "%s\n", labels[nr]);
+}
+static SENSOR_DEVICE_ATTR(in3_label, S_IRUGO, show_label, NULL, 0);
+static SENSOR_DEVICE_ATTR(in7_label, S_IRUGO, show_label, NULL, 1);
+static SENSOR_DEVICE_ATTR(in8_label, S_IRUGO, show_label, NULL, 2);
+
 static ssize_t show_name(struct device *dev, struct device_attribute
 			 *devattr, char *buf)
 {
@@ -1427,6 +1451,17 @@ static const struct attribute_group it87_group_vid = {
 	.attrs = it87_attributes_vid,
 };
 
+static struct attribute *it87_attributes_label[] = {
+	&sensor_dev_attr_in3_label.dev_attr.attr,
+	&sensor_dev_attr_in7_label.dev_attr.attr,
+	&sensor_dev_attr_in8_label.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group it87_group_label = {
+	.attrs = it87_attributes_vid,
+};
+
 /* SuperIO detection - will change isa_address if a chip is found */
 static int __init it87_find(unsigned short *address,
 	struct it87_sio_data *sio_data)
@@ -1480,6 +1515,9 @@ static int __init it87_find(unsigned short *address,
 	pr_info("it87: Found IT%04xF chip at 0x%x, revision %d\n",
 		chip_type, *address, sio_data->revision);
 
+	/* in8 (Vbat) is always internal */
+	sio_data->internal = (1 << 2);
+
 	/* Read GPIO config and VID value from LDN 7 (GPIO) */
 	if (sio_data->type == it87) {
 		/* The IT8705F doesn't have VID pins at all */
@@ -1517,10 +1555,25 @@ static int __init it87_find(unsigned short *address,
 			sio_data->vid_value = superio_inb(IT87_SIO_VID_REG);
 
 		reg = superio_inb(IT87_SIO_PINX2_REG);
+		/*
+		 * The IT8720F has no VIN7 pin, so VCCH should always be
+		 * routed internally to VIN7 with an internal divider.
+		 * Curiously, there still is a configuration bit to control
+		 * this, which means it can be set incorrectly. And even
+		 * more curiously, many boards out there are improperly
+		 * configured, even though the IT8720F datasheet claims
+		 * that the internal routing of VCCH to VIN7 is the default
+		 * setting. So we force the internal routing in this case.
+		 */
+		if (sio_data->type == it8720 && !(reg & (1 << 1))) {
+			reg |= (1 << 1);
+			superio_outb(IT87_SIO_PINX2_REG, reg);
+			pr_notice("it87: Routing internal VCCH to in7\n");
+		}
 		if (reg & (1 << 0))
-			pr_info("it87: in3 is VCC (+5V)\n");
+			sio_data->internal |= (1 << 0);
 		if (reg & (1 << 1))
-			pr_info("it87: in7 is VCCH (+5V Stand-By)\n");
+			sio_data->internal |= (1 << 1);
 
 		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	}
@@ -1578,6 +1631,7 @@ static void it87_remove_files(struct device *dev)
 	}
 	if (!sio_data->skip_vid)
 		sysfs_remove_group(&dev->kobj, &it87_group_vid);
+	sysfs_remove_group(&dev->kobj, &it87_group_label);
 }
 
 static int __devinit it87_probe(struct platform_device *pdev)
@@ -1699,6 +1753,16 @@ static int __devinit it87_probe(struct platform_device *pdev)
 		/* VID reading from Super-I/O config space if available */
 		data->vid = sio_data->vid_value;
 		err = sysfs_create_group(&dev->kobj, &it87_group_vid);
+		if (err)
+			goto ERROR4;
+	}
+
+	/* Export labels for internal sensors */
+	for (i = 0; i < 3; i++) {
+		if (!(sio_data->internal & (1 << i)))
+			continue;
+		err = sysfs_create_file(&dev->kobj,
+					it87_attributes_label[i]);
 		if (err)
 			goto ERROR4;
 	}

@@ -1531,7 +1531,7 @@ card_probe_error:
 }
 
 /*
- * Attempt to initialise any uninitalised cards.  Must be called with
+ * Attempt to initialise any uninitialised cards.  Must be called with
  * client_mutex.
  */
 static void snd_soc_instantiate_cards(void)

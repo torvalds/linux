@@ -17,9 +17,14 @@
 
 struct platform_device; /* don't need the contents */
 
+#include <linux/gpio.h>
+#include <plat/gpio-cfg.h>
 #include <plat/iic.h>
 
 void s3c_i2c0_cfg_gpio(struct platform_device *dev)
 {
-	/* Will be populated later */
+	s3c_gpio_cfgpin(S5P6440_GPB(5), S3C_GPIO_SFN(2));
+	s3c_gpio_setpull(S5P6440_GPB(5), S3C_GPIO_PULL_UP);
+	s3c_gpio_cfgpin(S5P6440_GPB(6), S3C_GPIO_SFN(2));
+	s3c_gpio_setpull(S5P6440_GPB(6), S3C_GPIO_PULL_UP);
 }

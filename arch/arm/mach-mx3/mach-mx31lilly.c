@@ -18,10 +18,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -46,10 +42,10 @@
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lilly.h>
-#include <mach/spi.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 /*
@@ -114,6 +110,8 @@ static struct platform_device physmap_flash_device = {
 };
 
 /* USB */
+
+#if defined(CONFIG_USB_ULPI)
 
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
@@ -244,10 +242,20 @@ static struct mxc_usbh_platform_data usbh2_pdata = {
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
-static struct platform_device *devices[] __initdata = {
-	&smsc91x_device,
-	&physmap_flash_device,
-};
+static void lilly1131_usb_init(void)
+{
+	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+
+	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+}
+
+#else
+static inline void lilly1131_usb_init(void) {}
+#endif /* CONFIG_USB_ULPI */
 
 /* SPI */
 
@@ -257,12 +265,12 @@ static int spi_internal_chipselect[] = {
 	MXC_SPI_CS(2),
 };
 
-static struct spi_imx_master spi0_pdata = {
+static const struct spi_imx_master spi0_pdata __initconst = {
 	.chipselect = spi_internal_chipselect,
 	.num_chipselect = ARRAY_SIZE(spi_internal_chipselect),
 };
 
-static struct spi_imx_master spi1_pdata = {
+static const struct spi_imx_master spi1_pdata __initconst = {
 	.chipselect = spi_internal_chipselect,
 	.num_chipselect = ARRAY_SIZE(spi_internal_chipselect),
 };
@@ -277,6 +285,12 @@ static struct spi_board_info mc13783_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select	= 0,
 	.platform_data	= &mc13783_pdata,
+	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+};
+
+static struct platform_device *devices[] __initdata = {
+	&smsc91x_device,
+	&physmap_flash_device,
 };
 
 static int mx31lilly_baseboard;
@@ -314,20 +328,14 @@ static void __init mx31lilly_board_init(void)
 	mxc_iomux_alloc_pin(MX31_PIN_CSPI2_SS1__SS1, "SPI2_SS1");
 	mxc_iomux_alloc_pin(MX31_PIN_CSPI2_SS2__SS2, "SPI2_SS2");
 
-	mxc_register_device(&mxc_spi_device0, &spi0_pdata);
-	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	imx31_add_spi_imx0(&spi0_pdata);
+	imx31_add_spi_imx1(&spi1_pdata);
 	spi_register_board_info(&mc13783_dev, 1);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* USB */
-	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
-
-	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	lilly1131_usb_init();
 }
 
 static void __init mx31lilly_timer_init(void)

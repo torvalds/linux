@@ -42,7 +42,7 @@ static int __sync_filesystem(struct super_block *sb, int wait)
 	if (wait)
 		sync_inodes_sb(sb);
 	else
-		writeback_inodes_sb_locked(sb);
+		writeback_inodes_sb(sb);
 
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);
@@ -127,31 +127,6 @@ void emergency_sync(void)
 		schedule_work(work);
 	}
 }
-
-/*
- * Generic function to fsync a file.
- */
-int file_fsync(struct file *filp, int datasync)
-{
-	struct inode *inode = filp->f_mapping->host;
-	struct super_block * sb;
-	int ret, err;
-
-	/* sync the inode to buffers */
-	ret = write_inode_now(inode, 0);
-
-	/* sync the superblock to buffers */
-	sb = inode->i_sb;
-	if (sb->s_dirt && sb->s_op->write_super)
-		sb->s_op->write_super(sb);
-
-	/* .. finally sync the buffers to disk */
-	err = sync_blockdev(sb->s_bdev);
-	if (!ret)
-		ret = err;
-	return ret;
-}
-EXPORT_SYMBOL(file_fsync);
 
 /**
  * vfs_fsync_range - helper to sync a range of data & metadata to disk

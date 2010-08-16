@@ -371,27 +371,10 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 	hugetlb_unreserve_pages(inode, start, freed);
 }
 
-static void hugetlbfs_delete_inode(struct inode *inode)
+static void hugetlbfs_evict_inode(struct inode *inode)
 {
 	truncate_hugepages(inode, 0);
-	clear_inode(inode);
-}
-
-static void hugetlbfs_forget_inode(struct inode *inode) __releases(inode_lock)
-{
-	if (generic_detach_inode(inode)) {
-		truncate_hugepages(inode, 0);
-		clear_inode(inode);
-		destroy_inode(inode);
-	}
-}
-
-static void hugetlbfs_drop_inode(struct inode *inode)
-{
-	if (!inode->i_nlink)
-		generic_delete_inode(inode);
-	else
-		hugetlbfs_forget_inode(inode);
+	end_writeback(inode);
 }
 
 static inline void
@@ -448,19 +431,20 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_change_ok(inode, attr);
 	if (error)
-		goto out;
+		return error;
 
 	if (ia_valid & ATTR_SIZE) {
 		error = -EINVAL;
-		if (!(attr->ia_size & ~huge_page_mask(h)))
-			error = hugetlb_vmtruncate(inode, attr->ia_size);
+		if (attr->ia_size & ~huge_page_mask(h))
+			return -EINVAL;
+		error = hugetlb_vmtruncate(inode, attr->ia_size);
 		if (error)
-			goto out;
-		attr->ia_valid &= ~ATTR_SIZE;
+			return error;
 	}
-	error = inode_setattr(inode, attr);
-out:
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid, 
@@ -712,9 +696,8 @@ static const struct inode_operations hugetlbfs_inode_operations = {
 static const struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
+	.evict_inode	= hugetlbfs_evict_inode,
 	.statfs		= hugetlbfs_statfs,
-	.delete_inode	= hugetlbfs_delete_inode,
-	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
 	.show_options	= generic_show_options,
 };
