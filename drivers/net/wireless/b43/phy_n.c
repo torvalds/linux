@@ -893,7 +893,7 @@ static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/WorkaroundsGainCtrl */
-static void b43_nphy_gain_crtl_workarounds(struct b43_wldev *dev)
+static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 	u8 i, j;
@@ -1094,7 +1094,7 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 		b43_nphy_set_rf_sequence(dev, 0, events1, delays1, 7);
 		b43_nphy_set_rf_sequence(dev, 1, events2, delays2, 7);
 
-		b43_nphy_gain_crtl_workarounds(dev);
+		b43_nphy_gain_ctrl_workarounds(dev);
 
 		if (dev->phy.rev < 2) {
 			if (b43_phy_read(dev, B43_NPHY_RXCTL) & 0x2)
