@@ -703,12 +703,12 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	int sel, sel_mask, sel_shift;
 
 	switch (dai->driver->id) {
-	case WM8580_DAI_PAIFTX:
+	case WM8580_DAI_PAIFRX:
 		sel_mask = 0x3;
 		sel_shift = 0;
 		break;
 
-	case WM8580_DAI_PAIFRX:
+	case WM8580_DAI_PAIFTX:
 		sel_mask = 0xc;
 		sel_shift = 2;
 		break;
