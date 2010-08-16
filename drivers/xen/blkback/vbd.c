@@ -126,6 +126,8 @@ void vbd_resize(blkif_t *blkif)
 	struct xenbus_device *dev = blkback_xenbus(blkif->be);
 	unsigned long long new_size = vbd_size(vbd);
 
+	printk(KERN_INFO "VBD Resize: Domid: %d, Device: (%d, %d)\n",
+		blkif->domid, MAJOR(vbd->pdevice), MINOR(vbd->pdevice));
 	printk(KERN_INFO "VBD Resize: new size %Lu\n", new_size);
 	vbd->size = new_size;
 again:
