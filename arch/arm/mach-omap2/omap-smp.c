@@ -102,8 +102,7 @@ static void __init wakeup_secondary(void)
 	 * Send a 'sev' to wake the secondary core from WFE.
 	 * Drain the outstanding writes to memory
 	 */
-	dsb();
-	set_event();
+	dsb_sev();
 	mb();
 }
 
