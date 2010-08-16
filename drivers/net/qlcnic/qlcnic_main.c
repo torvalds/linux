@@ -474,7 +474,7 @@ static int
 qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_pci_info *pci_info;
-	int i, ret = 0, err;
+	int i, ret = 0;
 	u8 pfn;
 
 	pci_info = kcalloc(QLCNIC_MAX_PCI_FUNC, sizeof(*pci_info), GFP_KERNEL);
@@ -484,14 +484,14 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 	adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
 				QLCNIC_MAX_PCI_FUNC, GFP_KERNEL);
 	if (!adapter->npars) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_pci_info;
 	}
 
 	adapter->eswitch = kzalloc(sizeof(struct qlcnic_eswitch) *
 				QLCNIC_NIU_MAX_XG_PORTS, GFP_KERNEL);
 	if (!adapter->eswitch) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_npars;
 	}
 
