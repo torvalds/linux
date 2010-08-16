@@ -630,9 +630,6 @@ static void edac_mci_control_release(struct kobject *kobj)
 
 	/* decrement the module ref count */
 	module_put(mci->owner);
-
-	/* free the mci instance memory here */
-	kfree(mci);
 }
 
 static struct kobj_type ktype_mci = {

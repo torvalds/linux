@@ -2085,8 +2085,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 			/* Remove MC sysfs nodes */
 			edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
 
-			/* Free data */
-			debugf1("%s: free structs\n");
+			debugf1("%s: free mci struct\n", mci->ctl_name);
 			kfree(mci->ctl_name);
 			edac_mc_free(mci);
 
