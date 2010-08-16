@@ -450,7 +450,7 @@ static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 
 	if (&orb->link != &lu->orb_list) {
 		orb->callback(orb, &status);
-		kref_put(&orb->kref, free_orb);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	} else {
 		fw_error("status write for unknown orb\n");
 	}
@@ -480,12 +480,14 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	if (orb->rcode != RCODE_COMPLETE) {
 		list_del(&orb->link);
 		spin_unlock_irqrestore(&card->lock, flags);
+
 		orb->callback(orb, NULL);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	} else {
 		spin_unlock_irqrestore(&card->lock, flags);
 	}
 
-	kref_put(&orb->kref, free_orb);
+	kref_put(&orb->kref, free_orb); /* transaction callback reference */
 }
 
 static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
@@ -501,9 +503,8 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 	list_add_tail(&orb->link, &lu->orb_list);
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
-	/* Take a ref for the orb list and for the transaction callback. */
-	kref_get(&orb->kref);
-	kref_get(&orb->kref);
+	kref_get(&orb->kref); /* transaction callback reference */
+	kref_get(&orb->kref); /* orb callback reference */
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation, device->max_speed, offset,
@@ -530,6 +531,7 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 
 		orb->rcode = RCODE_CANCELLED;
 		orb->callback(orb, NULL);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	}
 
 	return retval;
