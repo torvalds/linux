@@ -155,7 +155,7 @@ static unsigned long get_rate_arm(void)
 
 	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
 	if (aad->sel)
-		fref = fref * 2 / 3;
+		fref = fref * 3 / 4;
 
 	return fref / aad->arm;
 }
@@ -164,7 +164,7 @@ static unsigned long get_rate_ahb(struct clk *clk)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
 	struct arm_ahb_div *aad;
-	unsigned long fref = get_rate_mpll();
+	unsigned long fref = get_rate_arm();
 
 	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
 
