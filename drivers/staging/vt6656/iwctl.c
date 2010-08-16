@@ -1719,7 +1719,7 @@ int iwctl_siwgenie(struct net_device *dev,
 	}
 
 	out://not completely ...not necessary in wpa_supplicant 0.5.8
-	return 0;
+	return ret;
 }
 
 int iwctl_giwgenie(struct net_device *dev,

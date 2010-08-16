@@ -512,7 +512,7 @@ exit:
 	mutex_unlock(&context->ctx_lock);
 
 	mutex_unlock(&disconnect_lock);
-	return 0;
+	return retval;
 }
 
 /**
