@@ -2086,6 +2086,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 			edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
 
 			/* Free data */
+			debugf1("%s: free structs\n");
 			kfree(mci->ctl_name);
 			edac_mc_free(mci);
 

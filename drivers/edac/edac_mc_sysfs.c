@@ -712,6 +712,8 @@ fail_out:
  */
 void edac_mc_unregister_sysfs_main_kobj(struct mem_ctl_info *mci)
 {
+	debugf1("%s()\n", __func__);
+
 	/* delete the kobj from the mc_kset */
 	kobject_put(&mci->edac_mci_kobj);
 }

@@ -235,6 +235,8 @@ EXPORT_SYMBOL_GPL(edac_mc_alloc);
  */
 void edac_mc_free(struct mem_ctl_info *mci)
 {
+	debugf1("%s()\n", __func__);
+
 	edac_mc_unregister_sysfs_main_kobj(mci);
 }
 EXPORT_SYMBOL_GPL(edac_mc_free);
