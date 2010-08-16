@@ -471,6 +471,8 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	struct radeon_encoder *radeon_encoder = NULL;
 	u32 adjusted_clock = mode->clock;
 	int encoder_mode = 0;
+	u32 dp_clock = mode->clock;
+	int bpc = 8;
 
 	/* reset the pll flags */
 	pll->flags = 0;
@@ -513,6 +515,17 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		if (encoder->crtc == crtc) {
 			radeon_encoder = to_radeon_encoder(encoder);
 			encoder_mode = atombios_get_encoder_mode(encoder);
+			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) {
+				struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+				if (connector) {
+					struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+					struct radeon_connector_atom_dig *dig_connector =
+						radeon_connector->con_priv;
+
+					dp_clock = dig_connector->dp_clock;
+				}
+			}
+
 			if (ASIC_IS_AVIVO(rdev)) {
 				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
 				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)
@@ -555,6 +568,14 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
 				args.v1.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v1.ucEncodeMode = encoder_mode;
+				if (encoder_mode == ATOM_ENCODER_MODE_DP) {
+					/* may want to enable SS on DP eventually */
+					/* args.v1.ucConfig |=
+					   ADJUST_DISPLAY_CONFIG_SS_ENABLE;*/
+				} else if (encoder_mode == ATOM_ENCODER_MODE_LVDS) {
+					args.v1.ucConfig |=
+						ADJUST_DISPLAY_CONFIG_SS_ENABLE;
+				}
 
 				atom_execute_table(rdev->mode_info.atom_context,
 						   index, (uint32_t *)&args);
@@ -568,10 +589,20 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 					struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 
-					if (encoder_mode == ATOM_ENCODER_MODE_DP)
+					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
+						/* may want to enable SS on DP/eDP eventually */
+						/*args.v3.sInput.ucDispPllConfig |=
+						  DISPPLL_CONFIG_SS_ENABLE;*/
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
-					else {
+						/* 16200 or 27000 */
+						args.v3.sInput.usPixelClock = cpu_to_le16(dp_clock / 10);
+					} else {
+						if (encoder_mode == ATOM_ENCODER_MODE_HDMI) {
+							/* deep color support */
+							args.v3.sInput.usPixelClock =
+								cpu_to_le16((mode->clock * bpc / 8) / 10);
+						}
 						if (dig->coherent_mode)
 							args.v3.sInput.ucDispPllConfig |=
 								DISPPLL_CONFIG_COHERENT_MODE;
@@ -580,13 +611,19 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 								DISPPLL_CONFIG_DUAL_LINK;
 					}
 				} else if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-					/* may want to enable SS on DP/eDP eventually */
-					/*args.v3.sInput.ucDispPllConfig |=
-						DISPPLL_CONFIG_SS_ENABLE;*/
-					if (encoder_mode == ATOM_ENCODER_MODE_DP)
+					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
+						/* may want to enable SS on DP/eDP eventually */
+						/*args.v3.sInput.ucDispPllConfig |=
+						  DISPPLL_CONFIG_SS_ENABLE;*/
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
-					else {
+						/* 16200 or 27000 */
+						args.v3.sInput.usPixelClock = cpu_to_le16(dp_clock / 10);
+					} else if (encoder_mode == ATOM_ENCODER_MODE_LVDS) {
+						/* want to enable SS on LVDS eventually */
+						/*args.v3.sInput.ucDispPllConfig |=
+						  DISPPLL_CONFIG_SS_ENABLE;*/
+					} else {
 						if (mode->clock > 165000)
 							args.v3.sInput.ucDispPllConfig |=
 								DISPPLL_CONFIG_DUAL_LINK;
