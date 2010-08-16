@@ -2782,7 +2782,6 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 		if (IS_ERR(rescuer->task))
 			goto err;
 
-		wq->rescuer = rescuer;
 		rescuer->task->flags |= PF_THREAD_BOUND;
 		wake_up_process(rescuer->task);
 	}
@@ -2848,6 +2847,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	if (wq->flags & WQ_RESCUER) {
 		kthread_stop(wq->rescuer->task);
 		free_mayday_mask(wq->mayday_mask);
+		kfree(wq->rescuer);
 	}
 
 	free_cwqs(wq);
