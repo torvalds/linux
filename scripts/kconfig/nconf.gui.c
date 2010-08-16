@@ -137,7 +137,7 @@ void set_colors()
 	if (has_colors()) {
 		normal_color_theme();
 	} else {
-		/* give deafults */
+		/* give defaults */
 		no_colors_theme();
 	}
 }
