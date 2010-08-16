@@ -164,7 +164,7 @@ struct bd_status {
 		} fields;
 		u8 field;
 	} info;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw2100_bd {
 	u32 host_addr;
@@ -174,7 +174,7 @@ struct ipw2100_bd {
 	 * 1st TBD) */
 	u8 num_fragments;
 	u8 reserved[6];
-} __attribute__ ((packed));
+} __packed;
 
 #define IPW_BD_QUEUE_LENGTH(n) (1<<n)
 #define IPW_BD_ALIGNMENT(L)    (L*sizeof(struct ipw2100_bd))
@@ -232,7 +232,7 @@ struct ipw2100_status {
 #define IPW_STATUS_FLAG_WEP_ENCRYPTED	(1<<1)
 #define IPW_STATUS_FLAG_CRC_ERROR       (1<<2)
 	u8 rssi;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw2100_status_queue {
 	/* driver (virtual) pointer to queue */
@@ -293,7 +293,7 @@ struct ipw2100_cmd_header {
 	u32 reserved1[3];
 	u32 *ordinal1_ptr;
 	u32 *ordinal2_ptr;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw2100_data_header {
 	u32 host_command_reg;
@@ -307,7 +307,7 @@ struct ipw2100_data_header {
 	u8 src_addr[ETH_ALEN];
 	u8 dst_addr[ETH_ALEN];
 	u16 fragment_size;
-} __attribute__ ((packed));
+} __packed;
 
 /* Host command data structure */
 struct host_command {
@@ -316,7 +316,7 @@ struct host_command {
 	u32 host_command_sequence;	// UNIQUE COMMAND NUMBER (ID)
 	u32 host_command_length;	// LENGTH
 	u32 host_command_parameters[HOST_COMMAND_PARAMS_REG_LEN];	// COMMAND PARAMETERS
-} __attribute__ ((packed));
+} __packed;
 
 typedef enum {
 	POWER_ON_RESET,
@@ -382,7 +382,7 @@ struct ipw2100_notification {
 	u32 hnhdr_size;		/* size in bytes of data
 				   or number of entries, if table.
 				   Does NOT include header */
-} __attribute__ ((packed));
+} __packed;
 
 #define MAX_KEY_SIZE	16
 #define	MAX_KEYS	8
@@ -814,7 +814,7 @@ struct ipw2100_rx {
 		struct ipw2100_notification notification;
 		struct ipw2100_cmd_header command;
 	} rx_data;
-} __attribute__ ((packed));
+} __packed;
 
 /* Bit 0-7 are for 802.11b tx rates - .  Bit 5-7 are reserved */
 #define TX_RATE_1_MBIT              0x0001

@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/of_address.h>
 #include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>

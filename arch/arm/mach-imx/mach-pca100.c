@@ -408,7 +408,7 @@ static void __init pca100_init(void)
 	mxc_gpio_mode(GPIO_PORTD | 27 | GPIO_GPIO | GPIO_IN);
 	spi_register_board_info(pca100_spi_board_info,
 				ARRAY_SIZE(pca100_spi_board_info));
-	imx27_add_spi_imx0(&pca100_spi_0_data);
+	imx27_add_spi_imx0(&pca100_spi0_data);
 #endif
 
 	gpio_request(OTG_PHY_CS_GPIO, "usb-otg-cs");

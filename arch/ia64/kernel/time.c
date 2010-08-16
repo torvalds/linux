@@ -471,7 +471,8 @@ void update_vsyscall_tz(void)
 {
 }
 
-void update_vsyscall(struct timespec *wall, struct clocksource *c, u32 mult)
+void update_vsyscall(struct timespec *wall, struct timespec *wtm,
+			struct clocksource *c, u32 mult)
 {
         unsigned long flags;
 
@@ -487,9 +488,9 @@ void update_vsyscall(struct timespec *wall, struct clocksource *c, u32 mult)
 	/* copy kernel time structures */
         fsyscall_gtod_data.wall_time.tv_sec = wall->tv_sec;
         fsyscall_gtod_data.wall_time.tv_nsec = wall->tv_nsec;
-        fsyscall_gtod_data.monotonic_time.tv_sec = wall_to_monotonic.tv_sec
+	fsyscall_gtod_data.monotonic_time.tv_sec = wtm->tv_sec
 							+ wall->tv_sec;
-        fsyscall_gtod_data.monotonic_time.tv_nsec = wall_to_monotonic.tv_nsec
+	fsyscall_gtod_data.monotonic_time.tv_nsec = wtm->tv_nsec
 							+ wall->tv_nsec;
 
 	/* normalize */

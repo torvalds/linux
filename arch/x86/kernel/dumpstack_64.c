@@ -16,7 +16,6 @@
 
 #include <asm/stacktrace.h>
 
-#include "dumpstack.h"
 
 #define N_EXCEPTION_STACKS_END \
 		(N_EXCEPTION_STACKS + DEBUG_STKSZ/EXCEPTION_STKSZ - 2)

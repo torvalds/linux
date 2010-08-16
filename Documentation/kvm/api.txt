@@ -126,6 +126,10 @@ user fills in the size of the indices array in nmsrs, and in return
 kvm adjusts nmsrs to reflect the actual number of msrs and fills in
 the indices array with their numbers.
 
+Note: if kvm indicates supports MCE (KVM_CAP_MCE), then the MCE bank MSRs are
+not returned in the MSR list, as different vcpus can have a different number
+of banks, as set via the KVM_X86_SETUP_MCE ioctl.
+
 4.4 KVM_CHECK_EXTENSION
 
 Capability: basic
@@ -160,29 +164,7 @@ Type: vm ioctl
 Parameters: struct kvm_memory_region (in)
 Returns: 0 on success, -1 on error
 
-struct kvm_memory_region {
-	__u32 slot;
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size; /* bytes */
-};
-
-/* for kvm_memory_region::flags */
-#define KVM_MEM_LOG_DIRTY_PAGES  1UL
-
-This ioctl allows the user to create or modify a guest physical memory
-slot.  When changing an existing slot, it may be moved in the guest
-physical memory space, or its flags may be modified.  It may not be
-resized.  Slots may not overlap.
-
-The flags field supports just one flag, KVM_MEM_LOG_DIRTY_PAGES, which
-instructs kvm to keep track of writes to memory within the slot.  See
-the KVM_GET_DIRTY_LOG ioctl.
-
-It is recommended to use the KVM_SET_USER_MEMORY_REGION ioctl instead
-of this API, if available.  This newer API allows placing guest memory
-at specified locations in the host address space, yielding better
-control and easy access.
+This ioctl is obsolete and has been removed.
 
 4.6 KVM_CREATE_VCPU
 
@@ -226,17 +208,7 @@ Type: vm ioctl
 Parameters: struct kvm_memory_alias (in)
 Returns: 0 (success), -1 (error)
 
-struct kvm_memory_alias {
-	__u32 slot;  /* this has a different namespace than memory slots */
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size;
-	__u64 target_phys_addr;
-};
-
-Defines a guest physical address space region as an alias to another
-region.  Useful for aliased address, for example the VGA low memory
-window. Should not be used with userspace memory.
+This ioctl is obsolete and has been removed.
 
 4.9 KVM_RUN
 
@@ -891,6 +863,174 @@ arguments.
 
 This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
 irqchip, the multiprocessing state must be maintained by userspace.
+
+4.39 KVM_SET_IDENTITY_MAP_ADDR
+
+Capability: KVM_CAP_SET_IDENTITY_MAP_ADDR
+Architectures: x86
+Type: vm ioctl
+Parameters: unsigned long identity (in)
+Returns: 0 on success, -1 on error
+
+This ioctl defines the physical address of a one-page region in the guest
+physical address space.  The region must be within the first 4GB of the
+guest physical address space and must not conflict with any memory slot
+or any mmio address.  The guest may malfunction if it accesses this memory
+region.
+
+This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
+because of a quirk in the virtualization implementation (see the internals
+documentation when it pops into existence).
+
+4.40 KVM_SET_BOOT_CPU_ID
+
+Capability: KVM_CAP_SET_BOOT_CPU_ID
+Architectures: x86, ia64
+Type: vm ioctl
+Parameters: unsigned long vcpu_id
+Returns: 0 on success, -1 on error
+
+Define which vcpu is the Bootstrap Processor (BSP).  Values are the same
+as the vcpu id in KVM_CREATE_VCPU.  If this ioctl is not called, the default
+is vcpu 0.
+
+4.41 KVM_GET_XSAVE
+
+Capability: KVM_CAP_XSAVE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xsave (out)
+Returns: 0 on success, -1 on error
+
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+This ioctl would copy current vcpu's xsave struct to the userspace.
+
+4.42 KVM_SET_XSAVE
+
+Capability: KVM_CAP_XSAVE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xsave (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+This ioctl would copy userspace's xsave struct to the kernel.
+
+4.43 KVM_GET_XCRS
+
+Capability: KVM_CAP_XCRS
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xcrs (out)
+Returns: 0 on success, -1 on error
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
+};
+
+This ioctl would copy current vcpu's xcrs to the userspace.
+
+4.44 KVM_SET_XCRS
+
+Capability: KVM_CAP_XCRS
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xcrs (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
+};
+
+This ioctl would set vcpu's xcr to the value userspace specified.
+
+4.45 KVM_GET_SUPPORTED_CPUID
+
+Capability: KVM_CAP_EXT_CPUID
+Architectures: x86
+Type: system ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
+#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
+#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features which are supported by both the hardware
+and kvm.  Userspace can use the information returned by this ioctl to
+construct cpuid information (for KVM_SET_CPUID2) that is consistent with
+hardware, kernel, and userspace capabilities, and with user requirements (for
+example, the user may wish to constrain cpuid to emulate older hardware,
+or for feature consistency across a cluster).
+
+Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
+with the 'nent' field indicating the number of entries in the variable-size
+array 'entries'.  If the number of entries is too low to describe the cpu
+capabilities, an error (E2BIG) is returned.  If the number is too high,
+the 'nent' field is adjusted and an error (ENOMEM) is returned.  If the
+number is just right, the 'nent' field is adjusted to the number of valid
+entries in the 'entries' array, which is then filled.
+
+The entries returned are the host cpuid as returned by the cpuid instruction,
+with unknown or unsupported features masked out.  The fields in each entry
+are defined as follows:
+
+  function: the eax value used to obtain the entry
+  index: the ecx value used to obtain the entry (for entries that are
+         affected by ecx)
+  flags: an OR of zero or more of the following:
+        KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
+           if the index field is valid
+        KVM_CPUID_FLAG_STATEFUL_FUNC:
+           if cpuid for this function returns different values for successive
+           invocations; there will be several entries with the same function,
+           all with this flag set
+        KVM_CPUID_FLAG_STATE_READ_NEXT:
+           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
+           the first entry to be read by a cpu
+   eax, ebx, ecx, edx: the values returned by the cpuid instruction for
+         this function/index combination
 
 5. The kvm_run structure
 

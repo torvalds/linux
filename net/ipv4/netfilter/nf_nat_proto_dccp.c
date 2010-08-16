@@ -22,14 +22,14 @@
 
 static u_int16_t dccp_port_rover;
 
-static bool
+static void
 dccp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype,
 		  const struct nf_conn *ct)
 {
-	return nf_nat_proto_unique_tuple(tuple, range, maniptype, ct,
-					 &dccp_port_rover);
+	nf_nat_proto_unique_tuple(tuple, range, maniptype, ct,
+				  &dccp_port_rover);
 }
 
 static bool

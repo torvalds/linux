@@ -1,13 +1,22 @@
-/*
- * (c) Copyright 2008, RealTEK Technologies Inc. All Rights Reserved.
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ * Linux device driver for RTL8192U
  *
- * Module: r819xusb_cmdpkt.c
- * (RTL8190 TX/RX command packet handler Source C File)
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * Note: The module is responsible for handling TX and RX command packet.
- * 1.TX: Send set and query configuration command packet.
- * 2.RX: Receive tx feedback, beacon state, query configuration, command packet.
- */
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #include "r8192U.h"
 #include "r819xU_cmdpkt.h"
 
@@ -19,19 +28,13 @@ bool SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	cb_desc		    *tcb_desc;
 	unsigned char	    *ptr_buf;
 
-	/* PlatformAcquireSpinLock(Adapter, RT_TX_SPINLOCK); */
-
 	/*
 	 * Get TCB and local buffer from common pool.
 	 * (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
 	 */
 	skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + DataLen + 4);
-	if (skb == NULL) {
-		RT_TRACE(COMP_ERR, "(%s): unable to alloc skb buffer\n",
-								__func__);
-		rtStatus = false;
-		return rtStatus;
-	}
+	if (!skb)
+		return false;
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
@@ -51,7 +54,6 @@ bool SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 			priv->ieee80211->softmac_hard_start_xmit(skb, dev);
 		}
 
-	//PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
 	return rtStatus;
 }
 
@@ -224,7 +226,6 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 	if (priv->ieee80211->iw_mode == IW_MODE_ADHOC) {
 		//2 maybe need endian transform?
 		rx_intr_status.interrupt_status = *((u32 *)(pmsg + 4));
-		//rx_intr_status.InterruptStatus = N2H4BYTE(*((UINT32 *)(pMsg + 4)));
 
 		DMESG("interrupt status = 0x%x\n", rx_intr_status.interrupt_status);
 
@@ -490,6 +491,13 @@ cmpk_message_handle_rx(
 		case RX_TX_RATE_HISTORY:
 			cmpk_handle_tx_rate_history(dev, pcmd_buff);
 			cmd_length = CMPK_TX_RAHIS_SIZE;
+			break;
+		case RX_TX_TSSI_MEAN_BACK:
+			{
+				u32	*pMsg;
+				pMsg = (u32 *)pcmd_buff;
+			}
+			cmd_length = 32;
 			break;
 		default:
 			 RT_TRACE(COMP_ERR, "(%s): unknown CMD Element\n",

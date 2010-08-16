@@ -164,7 +164,7 @@ struct vmw_vga_topology_state {
 struct vmw_private {
 	struct ttm_bo_device bdev;
 	struct ttm_bo_global_ref bo_global_ref;
-	struct ttm_global_reference mem_global_ref;
+	struct drm_global_reference mem_global_ref;
 
 	struct vmw_fifo_state fifo;
 

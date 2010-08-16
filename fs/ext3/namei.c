@@ -1447,7 +1447,6 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 	struct inode *inode)
 {
 	struct inode *dir = dentry->d_parent->d_inode;
-	unsigned long offset;
 	struct buffer_head * bh;
 	struct ext3_dir_entry_2 *de;
 	struct super_block * sb;
@@ -1469,7 +1468,7 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 		ext3_mark_inode_dirty(handle, dir);
 	}
 	blocks = dir->i_size >> sb->s_blocksize_bits;
-	for (block = 0, offset = 0; block < blocks; block++) {
+	for (block = 0; block < blocks; block++) {
 		bh = ext3_bread(handle, dir, block, 0, &retval);
 		if(!bh)
 			return retval;

@@ -11,11 +11,13 @@
   This file briefly describes the existing kernel support and the socket API.
   For in-depth information, you can consult:
 
-   o The UDP-Lite Homepage: http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/
+   o The UDP-Lite Homepage:
+	http://web.archive.org/web/*/http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/ 
        From here you can also download some example application source code.
 
    o The UDP-Lite HOWTO on
-       http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/files/UDP-Lite-HOWTO.txt
+       http://web.archive.org/web/*/http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/
+	files/UDP-Lite-HOWTO.txt
 
    o The Wireshark UDP-Lite WiKi (with capture files):
        http://wiki.wireshark.org/Lightweight_User_Datagram_Protocol
@@ -26,12 +28,7 @@
   I) APPLICATIONS
 
   Several applications have been ported successfully to UDP-Lite. Ethereal
-  (now called wireshark) has UDP-Litev4/v6 support by default. The tarball on
-
-   http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/files/udplite_linux.tar.gz
-
-  has source code for several v4/v6 client-server and network testing examples.
-
+  (now called wireshark) has UDP-Litev4/v6 support by default. 
   Porting applications to UDP-Lite is straightforward: only socket level and
   IPPROTO need to be changed; senders additionally set the checksum coverage
   length (default = header length = 8). Details are in the next section.

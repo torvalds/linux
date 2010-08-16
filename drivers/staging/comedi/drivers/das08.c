@@ -29,11 +29,11 @@
  * Description: DAS-08 compatible boards
  * Author: Warren Jasper, ds, Frank Hess
  * Devices: [Keithley Metrabyte] DAS08 (isa-das08),
- * [ComputerBoards] DAS08 (isa-das08), DAS08-PGM (das08-pgm),
- * DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
- * DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
- * DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (das08),
- * PC104-DAS08 (pc104-das08), DAS08/JR/16 (das08jr/16)
+ *   [ComputerBoards] DAS08 (isa-das08), DAS08-PGM (das08-pgm),
+ *   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
+ *   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
+ *   DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (das08),
+ *   PC104-DAS08 (pc104-das08), DAS08/JR/16 (das08jr/16)
  * Status: works
  *
  * This is a rewrite of the das08 and das08jr drivers.
@@ -980,7 +980,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 #ifdef CONFIG_COMEDI_PCI
 	unsigned long pci_iobase = 0;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = NULL;
 #endif
 
 	ret = alloc_private(dev, sizeof(struct das08_private_struct));
@@ -997,9 +997,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		printk("\n");
 		/*  find card */
-		for (pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		     pdev != NULL;
-		     pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
+		for_each_pci_dev(pdev) {
 			if (pdev->vendor == PCI_VENDOR_ID_COMPUTERBOARDS
 			    && pdev->device == PCI_DEVICE_ID_PCIDAS08) {
 				if (it->options[0] || it->options[1]) {
@@ -1082,11 +1080,62 @@ int das08_common_detach(struct comedi_device *dev)
 EXPORT_SYMBOL_GPL(das08_common_detach);
 
 #ifdef CONFIG_COMEDI_PCI
-COMEDI_PCI_INITCLEANUP(driver_das08, das08_pci_table);
+static int __devinit driver_das08_pci_probe(struct pci_dev *dev,
+					    const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_das08.driver_name);
+}
+
+static void __devexit driver_das08_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_das08_pci_driver = {
+	.id_table = das08_pci_table,
+	.probe = &driver_das08_pci_probe,
+	.remove = __devexit_p(&driver_das08_pci_remove)
+};
+
+static int __init driver_das08_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_das08);
+	if (retval < 0)
+		return retval;
+
+	driver_das08_pci_driver.name = (char *)driver_das08.driver_name;
+	return pci_register_driver(&driver_das08_pci_driver);
+}
+
+static void __exit driver_das08_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_das08_pci_driver);
+	comedi_driver_unregister(&driver_das08);
+}
+
+module_init(driver_das08_init_module);
+module_exit(driver_das08_cleanup_module);
 #else
-COMEDI_INITCLEANUP(driver_das08);
+static int __init driver_das08_init_module(void)
+{
+	return comedi_driver_register(&driver_das08);
+}
+
+static void __exit driver_das08_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das08);
+}
+
+module_init(driver_das08_init_module);
+module_exit(driver_das08_cleanup_module);
 #endif
 
 #ifdef CONFIG_COMEDI_PCMCIA
 EXPORT_SYMBOL_GPL(das08_cs_boards);
 #endif
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

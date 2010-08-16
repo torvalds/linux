@@ -59,7 +59,7 @@ static int soundbus_probe(struct device *dev)
 static int soundbus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct soundbus_dev * soundbus_dev;
-	struct of_device * of;
+	struct platform_device * of;
 	const char *compat;
 	int retval = 0;
 	int cplen, seen = 0;

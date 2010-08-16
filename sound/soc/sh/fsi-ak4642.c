@@ -9,16 +9,7 @@
  * for more details.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
-#include <linux/io.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/soc.h>
-#include <sound/soc-dapm.h>
-
 #include <sound/sh_fsi.h>
 #include <../sound/soc/codecs/ak4642.h>
 
@@ -38,7 +29,7 @@ static int fsi_ak4642_dai_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link fsi_dai_link = {
 	.name		= "AK4642",
 	.stream_name	= "AK4642",
-	.cpu_dai	= &fsi_soc_dai[0], /* fsi */
+	.cpu_dai	= &fsi_soc_dai[FSI_PORT_A],
 	.codec_dai	= &ak4642_dai,
 	.init		= fsi_ak4642_dai_init,
 	.ops		= NULL,
@@ -62,7 +53,7 @@ static int __init fsi_ak4642_init(void)
 {
 	int ret = -ENOMEM;
 
-	fsi_snd_device = platform_device_alloc("soc-audio", -1);
+	fsi_snd_device = platform_device_alloc("soc-audio", FSI_PORT_A);
 	if (!fsi_snd_device)
 		goto out;
 

@@ -35,7 +35,7 @@
  *   nlmsg_new()			create a new netlink message
  *   nlmsg_put()			add a netlink message to an skb
  *   nlmsg_put_answer()			callback based nlmsg_put()
- *   nlmsg_end()			finanlize netlink message
+ *   nlmsg_end()			finalize netlink message
  *   nlmsg_get_pos()			return current position in message
  *   nlmsg_trim()			trim part of message
  *   nlmsg_cancel()			cancel message construction

@@ -381,7 +381,7 @@ static int request_ping_pong(struct snd_pcm_substream *substream,
 	/* Request ram master channel */
 	link = prtd->ram_channel = edma_alloc_channel(EDMA_CHANNEL_ANY,
 				  davinci_pcm_dma_irq, substream,
-				  EVENTQ_1);
+				  prtd->params->ram_chan_q);
 	if (link < 0)
 		goto exit1;
 
@@ -477,7 +477,8 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 
 	/* Request asp master DMA channel */
 	link = prtd->asp_channel = edma_alloc_channel(params->channel,
-			davinci_pcm_dma_irq, substream, EVENTQ_0);
+			davinci_pcm_dma_irq, substream,
+			prtd->params->asp_chan_q);
 	if (link < 0)
 		goto exit1;
 
@@ -800,7 +801,7 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 		dma_free_writecombine(pcm->card->dev, buf->bytes,
 				      buf->area, buf->addr);
 		buf->area = NULL;
-		iram_dma = (struct snd_dma_buffer *)buf->private_data;
+		iram_dma = buf->private_data;
 		if (iram_dma) {
 			sram_free(iram_dma->area, iram_dma->bytes);
 			kfree(iram_dma);

@@ -551,9 +551,9 @@ static void __init armadillo5x0_init(void)
 	/* USB */
 #if defined(CONFIG_USB_ULPI)
 	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	mxc_register_device(&mxc_otg_host, &usbotg_pdata);
 	mxc_register_device(&mxc_usbh2, &usbh2_pdata);

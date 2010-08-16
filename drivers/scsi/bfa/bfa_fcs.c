@@ -86,7 +86,7 @@ bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 	bfa_attach_fcs(bfa);
 	fcbuild_init();
 
-	for (i = 0; i < sizeof(fcs_modules) / sizeof(fcs_modules[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(fcs_modules); i++) {
 		mod = &fcs_modules[i];
 		if (mod->attach)
 			mod->attach(fcs);
@@ -99,13 +99,21 @@ bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 void
 bfa_fcs_init(struct bfa_fcs_s *fcs)
 {
-	int             i;
+	int i, npbc_vports;
 	struct bfa_fcs_mod_s  *mod;
+	struct bfi_pbc_vport_s pbc_vports[BFI_PBC_MAX_VPORTS];
 
-	for (i = 0; i < sizeof(fcs_modules) / sizeof(fcs_modules[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(fcs_modules); i++) {
 		mod = &fcs_modules[i];
 		if (mod->modinit)
 			mod->modinit(fcs);
+	}
+	/* Initialize pbc vports */
+	if (!fcs->min_cfg) {
+		npbc_vports =
+			bfa_iocfc_get_pbc_vports(fcs->bfa, pbc_vports);
+		for (i = 0; i < npbc_vports; i++)
+			bfa_fcb_pbc_vport_create(fcs->bfa->bfad, pbc_vports[i]);
 	}
 }
 
@@ -163,13 +171,11 @@ void
 bfa_fcs_exit(struct bfa_fcs_s *fcs)
 {
 	struct bfa_fcs_mod_s  *mod;
-	int             nmods, i;
+	int i;
 
 	bfa_wc_init(&fcs->wc, bfa_fcs_exit_comp, fcs);
 
-	nmods = sizeof(fcs_modules) / sizeof(fcs_modules[0]);
-
-	for (i = 0; i < nmods; i++) {
+	for (i = 0; i < ARRAY_SIZE(fcs_modules); i++) {
 
 		mod = &fcs_modules[i];
 		if (mod->modexit) {

@@ -1,4 +1,10 @@
 TODO:
+- merge realteks bugfixes and new features into the driver:
+  - an updated version of this driver can be found here:
+    http://www.getnet.eu/products_GN-621U.html
+  - note:
+    realtek has stripped alomost all comments from the source,
+    so please leave all comments that may help in development in the code.
 - prepare private ieee80211 stack for merge with rtl8187se's version:
   - remove rtl8192su's specific dead code
   - cleanup ieee80211.h
@@ -7,7 +13,6 @@ TODO:
 - switch to use shared "librtl" instead of private ieee80211 stack
 - switch to use LIB80211
 - switch to use MAC80211
-- switch to use EEPROM_93CX6
 - use kernel coding style
 - checkpatch.pl fixes
 - sparse fixes

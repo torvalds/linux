@@ -58,11 +58,13 @@
 #include <linux/tcp.h>
 #include <linux/percpu.h>
 #include <net/net_namespace.h>
+#include <linux/u64_stats_sync.h>
 
 struct pcpu_lstats {
-	unsigned long packets;
-	unsigned long bytes;
-	unsigned long drops;
+	u64			packets;
+	u64			bytes;
+	struct u64_stats_sync	syncp;
+	unsigned long		drops;
 };
 
 /*
@@ -86,31 +88,40 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
+		u64_stats_update_begin(&lb_stats->syncp);
 		lb_stats->bytes += len;
 		lb_stats->packets++;
+		u64_stats_update_end(&lb_stats->syncp);
 	} else
 		lb_stats->drops++;
 
 	return NETDEV_TX_OK;
 }
 
-static struct net_device_stats *loopback_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats)
 {
 	const struct pcpu_lstats __percpu *pcpu_lstats;
-	struct net_device_stats *stats = &dev->stats;
-	unsigned long bytes = 0;
-	unsigned long packets = 0;
-	unsigned long drops = 0;
+	u64 bytes = 0;
+	u64 packets = 0;
+	u64 drops = 0;
 	int i;
 
 	pcpu_lstats = (void __percpu __force *)dev->ml_priv;
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
+		u64 tbytes, tpackets;
+		unsigned int start;
 
 		lb_stats = per_cpu_ptr(pcpu_lstats, i);
-		bytes   += lb_stats->bytes;
-		packets += lb_stats->packets;
+		do {
+			start = u64_stats_fetch_begin(&lb_stats->syncp);
+			tbytes = lb_stats->bytes;
+			tpackets = lb_stats->packets;
+		} while (u64_stats_fetch_retry(&lb_stats->syncp, start));
 		drops   += lb_stats->drops;
+		bytes   += tbytes;
+		packets += tpackets;
 	}
 	stats->rx_packets = packets;
 	stats->tx_packets = packets;
@@ -158,7 +169,7 @@ static void loopback_dev_free(struct net_device *dev)
 static const struct net_device_ops loopback_ops = {
 	.ndo_init      = loopback_dev_init,
 	.ndo_start_xmit= loopback_xmit,
-	.ndo_get_stats = loopback_get_stats,
+	.ndo_get_stats64 = loopback_get_stats64,
 };
 
 /*

@@ -148,7 +148,7 @@
  * Driver statics
  */
 
-static struct of_device *		of_dev;
+static struct platform_device *		of_dev;
 static struct i2c_adapter *		u3_0;
 static struct i2c_adapter *		u3_1;
 static struct i2c_adapter *		k2;
@@ -2210,7 +2210,7 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 	}
 }
 
-static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
+static int fcu_of_probe(struct platform_device* dev, const struct of_device_id *match)
 {
 	state = state_detached;
 
@@ -2221,7 +2221,7 @@ static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
 	return i2c_add_driver(&therm_pm72_driver);
 }
 
-static int fcu_of_remove(struct of_device* dev)
+static int fcu_of_remove(struct platform_device* dev)
 {
 	i2c_del_driver(&therm_pm72_driver);
 

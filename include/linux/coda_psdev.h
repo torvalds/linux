@@ -86,9 +86,9 @@ struct upc_req {
 	wait_queue_head_t   uc_sleep;   /* process' wait queue */
 };
 
-#define REQ_ASYNC  0x1
-#define REQ_READ   0x2
-#define REQ_WRITE  0x4
-#define REQ_ABORT  0x8
+#define CODA_REQ_ASYNC  0x1
+#define CODA_REQ_READ   0x2
+#define CODA_REQ_WRITE  0x4
+#define CODA_REQ_ABORT  0x8
 
 #endif

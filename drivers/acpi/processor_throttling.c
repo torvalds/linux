@@ -1215,7 +1215,6 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 }
 
 /* proc interface */
-#ifdef CONFIG_ACPI_PROCFS
 static int acpi_processor_throttling_seq_show(struct seq_file *seq,
 					      void *offset)
 {
@@ -1323,4 +1322,3 @@ const struct file_operations acpi_processor_throttling_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
-#endif

@@ -72,9 +72,31 @@ in6_min_alarm		5v  output undervoltage alarm
 in7_min_alarm		3v  output undervoltage alarm
 in8_min_alarm		Vee (-12v) output undervoltage alarm
 
-in9_input		GPIO voltage data
+in9_input		GPIO voltage data (see note 1)
+in10_input		GPIO voltage data (see note 1)
+in11_input		GPIO voltage data (see note 1)
 
 power1_input		12v power usage (mW)
 power2_input		5v  power usage (mW)
 power3_input		3v  power usage (mW)
 power4_input		Vee (-12v) power usage (mW)
+
+
+Note 1
+------
+
+If you have NOT configured the driver to sample all GPIO pins as analog
+voltages, then the in10_input and in11_input sysfs attributes will not be
+created. The driver will sample the GPIO pin that is currently connected to the
+ADC as an analog voltage, and report the value in in9_input.
+
+If you have configured the driver to sample all GPIO pins as analog voltages,
+then they will be sampled in round-robin fashion. If userspace reads too
+slowly, -EAGAIN will be returned when you read the sysfs attribute containing
+the sensor reading.
+
+The LTC4245 chip can be configured to sample all GPIO pins with two methods:
+1) platform data -- see include/linux/i2c/ltc4245.h
+2) OF device tree -- add the "ltc4245,use-extra-gpios" property to each chip
+
+The default mode of operation is to sample a single GPIO pin.

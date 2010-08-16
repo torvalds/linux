@@ -11,7 +11,6 @@
  *
  */
 
-//#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -201,7 +200,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_null = {
 	.owner			= THIS_MODULE,
 };
 
-int __init ieee80211_crypto_init(void)
+int ieee80211_crypto_init(void)
 {
 	int ret = -ENOMEM;
 
@@ -221,7 +220,7 @@ out:
 	return ret;
 }
 
-void __exit ieee80211_crypto_deinit(void)
+void ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
 	struct ieee80211_crypto_alg *alg = NULL;

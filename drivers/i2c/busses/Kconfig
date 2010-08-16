@@ -448,6 +448,13 @@ config I2C_NOMADIK
 	  If you say yes to this option, support will be included for the
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures.
 
+config I2C_NUC900
+	tristate "NUC900 I2C Driver"
+	depends on ARCH_W90X900
+	help
+	  Say Y here to include support for I2C controller in the
+	  Winbond/Nuvoton NUC900 based System-on-Chip devices.
+
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
 	depends on EXPERIMENTAL
@@ -496,8 +503,8 @@ config I2C_PMCMSP
 	  will be called i2c-pmcmsp.
 
 config I2C_PNX
-	tristate "I2C bus support for Philips PNX targets"
-	depends on ARCH_PNX4008
+	tristate "I2C bus support for Philips PNX and NXP LPC targets"
+	depends on ARCH_PNX4008 || ARCH_LPC32XX
 	help
 	  This driver supports the Philips IP3204 I2C IP block master and/or
 	  slave controller
@@ -521,12 +528,19 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config HAVE_S3C2410_I2C
+	bool
+	help
+	  This will include I2C support for Samsung SoCs. If you want to
+	  include I2C support for any machine, kindly select this in the
+	  respective Kconfig file.
+
 config I2C_S3C2410
 	tristate "S3C2410 I2C Driver"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX
+	depends on HAVE_S3C2410_I2C
 	help
 	  Say Y here to include support for I2C controller in the
-	  Samsung S3C2410 based System-on-Chip devices.
+	  Samsung SoCs.
 
 config I2C_S6000
 	tristate "S6000 I2C support"
@@ -549,7 +563,7 @@ config I2C_SH7760
 
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Renesas SH-Mobile processor.

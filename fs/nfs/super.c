@@ -270,7 +270,7 @@ static const struct super_operations nfs_sops = {
 	.write_inode	= nfs_write_inode,
 	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
-	.clear_inode	= nfs_clear_inode,
+	.evict_inode	= nfs_evict_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_stats	= nfs_show_stats,
@@ -340,7 +340,7 @@ static const struct super_operations nfs4_sops = {
 	.write_inode	= nfs_write_inode,
 	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
-	.clear_inode	= nfs4_clear_inode,
+	.evict_inode	= nfs4_evict_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_stats	= nfs_show_stats,
@@ -545,6 +545,9 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 				    int showdefaults)
 {
 	struct sockaddr *sap = (struct sockaddr *)&nfss->mountd_address;
+
+	if (nfss->flags & NFS_MOUNT_LEGACY_INTERFACE)
+		return;
 
 	switch (sap->sa_family) {
 	case AF_INET: {
@@ -1780,6 +1783,7 @@ static int nfs_validate_mount_data(void *options,
 		 * can deal with.
 		 */
 		args->flags		= data->flags & NFS_MOUNT_FLAGMASK;
+		args->flags		|= NFS_MOUNT_LEGACY_INTERFACE;
 		args->rsize		= data->rsize;
 		args->wsize		= data->wsize;
 		args->timeo		= data->timeo;

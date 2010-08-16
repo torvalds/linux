@@ -6,7 +6,7 @@
  * Copyright (C) 2000-2001 VERITAS Software Corporation.
  * Copyright (C) 2002-2004 Timesys Corporation
  * Copyright (C) 2003-2004 Amit S. Kale <amitkale@linsyssoft.com>
- * Copyright (C) 2004 Pavel Machek <pavel@suse.cz>
+ * Copyright (C) 2004 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2004-2006 Tom Rini <trini@kernel.crashing.org>
  * Copyright (C) 2004-2006 LinSysSoft Technologies Pvt. Ltd.
  * Copyright (C) 2005-2009 Wind River Systems, Inc.
@@ -51,17 +51,6 @@ static unsigned long		gdb_regs[(NUMREGBYTES +
 /*
  * GDB remote protocol parser:
  */
-
-static int hex(char ch)
-{
-	if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	return -1;
-}
 
 #ifdef CONFIG_KGDB_KDB
 static int gdbstub_read_wait(void)
@@ -123,8 +112,8 @@ static void get_packet(char *buffer)
 		buffer[count] = 0;
 
 		if (ch == '#') {
-			xmitcsum = hex(gdbstub_read_wait()) << 4;
-			xmitcsum += hex(gdbstub_read_wait());
+			xmitcsum = hex_to_bin(gdbstub_read_wait()) << 4;
+			xmitcsum += hex_to_bin(gdbstub_read_wait());
 
 			if (checksum != xmitcsum)
 				/* failed checksum */
@@ -236,7 +225,7 @@ void gdbstub_msg_write(const char *s, int len)
  * buf.  Return a pointer to the last char put in buf (null). May
  * return an error.
  */
-int kgdb_mem2hex(char *mem, char *buf, int count)
+char *kgdb_mem2hex(char *mem, char *buf, int count)
 {
 	char *tmp;
 	int err;
@@ -248,17 +237,16 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 	tmp = buf + count;
 
 	err = probe_kernel_read(tmp, mem, count);
-	if (!err) {
-		while (count > 0) {
-			buf = pack_hex_byte(buf, *tmp);
-			tmp++;
-			count--;
-		}
-
-		*buf = 0;
+	if (err)
+		return NULL;
+	while (count > 0) {
+		buf = pack_hex_byte(buf, *tmp);
+		tmp++;
+		count--;
 	}
+	*buf = 0;
 
-	return err;
+	return buf;
 }
 
 /*
@@ -280,8 +268,8 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 	tmp_hex = tmp_raw - 1;
 	while (tmp_hex >= buf) {
 		tmp_raw--;
-		*tmp_raw = hex(*tmp_hex--);
-		*tmp_raw |= hex(*tmp_hex--) << 4;
+		*tmp_raw = hex_to_bin(*tmp_hex--);
+		*tmp_raw |= hex_to_bin(*tmp_hex--) << 4;
 	}
 
 	return probe_kernel_write(mem, tmp_raw, count);
@@ -304,7 +292,7 @@ int kgdb_hex2long(char **ptr, unsigned long *long_val)
 		(*ptr)++;
 	}
 	while (**ptr) {
-		hex_val = hex(**ptr);
+		hex_val = hex_to_bin(**ptr);
 		if (hex_val < 0)
 			break;
 
@@ -338,6 +326,32 @@ static int kgdb_ebin2mem(char *buf, char *mem, int count)
 
 	return probe_kernel_write(mem, c, size);
 }
+
+#if DBG_MAX_REG_NUM > 0
+void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
+{
+	int i;
+	int idx = 0;
+	char *ptr = (char *)gdb_regs;
+
+	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
+		dbg_get_reg(i, ptr + idx, regs);
+		idx += dbg_reg_def[i].size;
+	}
+}
+
+void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
+{
+	int i;
+	int idx = 0;
+	char *ptr = (char *)gdb_regs;
+
+	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
+		dbg_set_reg(i, ptr + idx, regs);
+		idx += dbg_reg_def[i].size;
+	}
+}
+#endif /* DBG_MAX_REG_NUM > 0 */
 
 /* Write memory due to an 'M' or 'X' packet. */
 static int write_mem_msg(int binary)
@@ -378,28 +392,31 @@ static void error_packet(char *pkt, int error)
  * remapped to negative TIDs.
  */
 
-#define BUF_THREAD_ID_SIZE	16
+#define BUF_THREAD_ID_SIZE	8
 
 static char *pack_threadid(char *pkt, unsigned char *id)
 {
-	char *limit;
+	unsigned char *limit;
+	int lzero = 1;
 
-	limit = pkt + BUF_THREAD_ID_SIZE;
-	while (pkt < limit)
-		pkt = pack_hex_byte(pkt, *id++);
+	limit = id + (BUF_THREAD_ID_SIZE / 2);
+	while (id < limit) {
+		if (!lzero || *id != 0) {
+			pkt = pack_hex_byte(pkt, *id);
+			lzero = 0;
+		}
+		id++;
+	}
+
+	if (lzero)
+		pkt = pack_hex_byte(pkt, 0);
 
 	return pkt;
 }
 
 static void int_to_threadref(unsigned char *id, int value)
 {
-	unsigned char *scan;
-	int i = 4;
-
-	scan = (unsigned char *)id;
-	while (i--)
-		*scan++ = 0;
-	put_unaligned_be32(value, scan);
+	put_unaligned_be32(value, id);
 }
 
 static struct task_struct *getthread(struct pt_regs *regs, int tid)
@@ -463,8 +480,7 @@ static void gdb_cmd_status(struct kgdb_state *ks)
 	pack_hex_byte(&remcom_out_buffer[1], ks->signo);
 }
 
-/* Handle the 'g' get registers request */
-static void gdb_cmd_getregs(struct kgdb_state *ks)
+static void gdb_get_regs_helper(struct kgdb_state *ks)
 {
 	struct task_struct *thread;
 	void *local_debuggerinfo;
@@ -505,6 +521,12 @@ static void gdb_cmd_getregs(struct kgdb_state *ks)
 		 */
 		sleeping_thread_to_gdb_regs(gdb_regs, thread);
 	}
+}
+
+/* Handle the 'g' get registers request */
+static void gdb_cmd_getregs(struct kgdb_state *ks)
+{
+	gdb_get_regs_helper(ks);
 	kgdb_mem2hex((char *)gdb_regs, remcom_out_buffer, NUMREGBYTES);
 }
 
@@ -527,13 +549,13 @@ static void gdb_cmd_memread(struct kgdb_state *ks)
 	char *ptr = &remcom_in_buffer[1];
 	unsigned long length;
 	unsigned long addr;
-	int err;
+	char *err;
 
 	if (kgdb_hex2long(&ptr, &addr) > 0 && *ptr++ == ',' &&
 					kgdb_hex2long(&ptr, &length) > 0) {
 		err = kgdb_mem2hex((char *)addr, remcom_out_buffer, length);
-		if (err)
-			error_packet(remcom_out_buffer, err);
+		if (!err)
+			error_packet(remcom_out_buffer, -EINVAL);
 	} else {
 		error_packet(remcom_out_buffer, -EINVAL);
 	}
@@ -549,6 +571,60 @@ static void gdb_cmd_memwrite(struct kgdb_state *ks)
 	else
 		strcpy(remcom_out_buffer, "OK");
 }
+
+#if DBG_MAX_REG_NUM > 0
+static char *gdb_hex_reg_helper(int regnum, char *out)
+{
+	int i;
+	int offset = 0;
+
+	for (i = 0; i < regnum; i++)
+		offset += dbg_reg_def[i].size;
+	return kgdb_mem2hex((char *)gdb_regs + offset, out,
+			    dbg_reg_def[i].size);
+}
+
+/* Handle the 'p' individual regster get */
+static void gdb_cmd_reg_get(struct kgdb_state *ks)
+{
+	unsigned long regnum;
+	char *ptr = &remcom_in_buffer[1];
+
+	kgdb_hex2long(&ptr, &regnum);
+	if (regnum >= DBG_MAX_REG_NUM) {
+		error_packet(remcom_out_buffer, -EINVAL);
+		return;
+	}
+	gdb_get_regs_helper(ks);
+	gdb_hex_reg_helper(regnum, remcom_out_buffer);
+}
+
+/* Handle the 'P' individual regster set */
+static void gdb_cmd_reg_set(struct kgdb_state *ks)
+{
+	unsigned long regnum;
+	char *ptr = &remcom_in_buffer[1];
+	int i = 0;
+
+	kgdb_hex2long(&ptr, &regnum);
+	if (*ptr++ != '=' ||
+	    !(!kgdb_usethread || kgdb_usethread == current) ||
+	    !dbg_get_reg(regnum, gdb_regs, ks->linux_regs)) {
+		error_packet(remcom_out_buffer, -EINVAL);
+		return;
+	}
+	memset(gdb_regs, 0, sizeof(gdb_regs));
+	while (i < sizeof(gdb_regs) * 2)
+		if (hex_to_bin(ptr[i]) >= 0)
+			i++;
+		else
+			break;
+	i = i / 2;
+	kgdb_hex2mem(ptr, (char *)gdb_regs, i);
+	dbg_set_reg(regnum, gdb_regs, ks->linux_regs);
+	strcpy(remcom_out_buffer, "OK");
+}
+#endif /* DBG_MAX_REG_NUM > 0 */
 
 /* Handle the 'X' memory binary write bytes */
 static void gdb_cmd_binwrite(struct kgdb_state *ks)
@@ -612,7 +688,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 {
 	struct task_struct *g;
 	struct task_struct *p;
-	unsigned char thref[8];
+	unsigned char thref[BUF_THREAD_ID_SIZE];
 	char *ptr;
 	int i;
 	int cpu;
@@ -632,8 +708,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			for_each_online_cpu(cpu) {
 				ks->thr_query = 0;
 				int_to_threadref(thref, -cpu - 2);
-				pack_threadid(ptr, thref);
-				ptr += BUF_THREAD_ID_SIZE;
+				ptr = pack_threadid(ptr, thref);
 				*(ptr++) = ',';
 				i++;
 			}
@@ -642,8 +717,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 		do_each_thread(g, p) {
 			if (i >= ks->thr_query && !finished) {
 				int_to_threadref(thref, p->pid);
-				pack_threadid(ptr, thref);
-				ptr += BUF_THREAD_ID_SIZE;
+				ptr = pack_threadid(ptr, thref);
 				*(ptr++) = ',';
 				ks->thr_query++;
 				if (ks->thr_query % KGDB_MAX_THREAD_QUERY == 0)
@@ -858,11 +932,14 @@ int gdb_serial_stub(struct kgdb_state *ks)
 	int error = 0;
 	int tmp;
 
-	/* Clear the out buffer. */
+	/* Initialize comm buffer and globals. */
 	memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
+	kgdb_usethread = kgdb_info[ks->cpu].task;
+	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
+	ks->pass_exception = 0;
 
 	if (kgdb_connected) {
-		unsigned char thref[8];
+		unsigned char thref[BUF_THREAD_ID_SIZE];
 		char *ptr;
 
 		/* Reply to host that an exception has occurred */
@@ -875,10 +952,6 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		*ptr++ = ';';
 		put_packet(remcom_out_buffer);
 	}
-
-	kgdb_usethread = kgdb_info[ks->cpu].task;
-	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
-	ks->pass_exception = 0;
 
 	while (1) {
 		error = 0;
@@ -904,6 +977,14 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		case 'M': /* MAA..AA,LLLL: Write LLLL bytes at address AA..AA */
 			gdb_cmd_memwrite(ks);
 			break;
+#if DBG_MAX_REG_NUM > 0
+		case 'p': /* pXX Return gdb register XX (in hex) */
+			gdb_cmd_reg_get(ks);
+			break;
+		case 'P': /* PXX=aaaa Set gdb register XX to aaaa (in hex) */
+			gdb_cmd_reg_set(ks);
+			break;
+#endif /* DBG_MAX_REG_NUM > 0 */
 		case 'X': /* XAA..AA,LLLL: Write LLLL bytes at address AA..AA */
 			gdb_cmd_binwrite(ks);
 			break;

@@ -18,7 +18,7 @@
 #include "util.h"
 #include "callchain.h"
 
-bool ip_callchain__valid(struct ip_callchain *chain, event_t *event)
+bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event)
 {
 	unsigned int chain_size = event->header.size;
 	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;

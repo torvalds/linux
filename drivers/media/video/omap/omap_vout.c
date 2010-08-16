@@ -2545,19 +2545,11 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 			/* set the update mode */
 			if (def_display->caps &
 					OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
-#ifdef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
-				if (dssdrv->enable_te)
-					dssdrv->enable_te(def_display, 1);
-				if (dssdrv->set_update_mode)
-					dssdrv->set_update_mode(def_display,
-							OMAP_DSS_UPDATE_AUTO);
-#else	/* MANUAL_UPDATE */
 				if (dssdrv->enable_te)
 					dssdrv->enable_te(def_display, 0);
 				if (dssdrv->set_update_mode)
 					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_MANUAL);
-#endif
 			} else {
 				if (dssdrv->set_update_mode)
 					dssdrv->set_update_mode(def_display,

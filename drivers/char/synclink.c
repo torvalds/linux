@@ -81,7 +81,6 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
@@ -2436,7 +2435,9 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 	if (!user_icount) {
 		memset(&info->icount, 0, sizeof(info->icount));
 	} else {
+		mutex_lock(&info->port.mutex);
 		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		mutex_unlock(&info->port.mutex);
 		if (err)
 			return -EFAULT;
 	}
@@ -2461,7 +2462,9 @@ static int mgsl_get_params(struct mgsl_struct * info, MGSL_PARAMS __user *user_p
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
+	mutex_lock(&info->port.mutex);
 	COPY_TO_USER(err,user_params, &info->params, sizeof(MGSL_PARAMS));
+	mutex_unlock(&info->port.mutex);
 	if (err) {
 		if ( debug_level >= DEBUG_LEVEL_INFO )
 			printk( "%s(%d):mgsl_get_params(%s) user buffer copy failed\n",
@@ -2501,11 +2504,13 @@ static int mgsl_set_params(struct mgsl_struct * info, MGSL_PARAMS __user *new_pa
 		return -EFAULT;
 	}
 	
+	mutex_lock(&info->port.mutex);
 	spin_lock_irqsave(&info->irq_spinlock,flags);
 	memcpy(&info->params,&tmp_params,sizeof(MGSL_PARAMS));
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 	
  	mgsl_change_params(info);
+	mutex_unlock(&info->port.mutex);
 	
 	return 0;
 	
@@ -2935,7 +2940,6 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct mgsl_struct * info = tty->driver_data;
-	int ret;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
@@ -2950,10 +2954,7 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    return -EIO;
 	}
 
-	lock_kernel();
-	ret = mgsl_ioctl_common(info, cmd, arg);
-	unlock_kernel();
-	return ret;
+	return mgsl_ioctl_common(info, cmd, arg);
 }
 
 static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigned long arg)
@@ -3109,12 +3110,14 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 
 	if (tty_port_close_start(&info->port, tty, filp) == 0)			 
 		goto cleanup;
-			
+
+	mutex_lock(&info->port.mutex);
  	if (info->port.flags & ASYNC_INITIALIZED)
  		mgsl_wait_until_sent(tty, info->timeout);
 	mgsl_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	shutdown(info);
+	mutex_unlock(&info->port.mutex);
 
 	tty_port_close_end(&info->port, tty);	
 	info->port.tty = NULL;
@@ -3162,7 +3165,6 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */ 
 
-	lock_kernel();
 	if ( info->params.data_rate ) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -3192,7 +3194,6 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 				break;
 		}
 	}
-	unlock_kernel();
       
 exit:
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3348,7 +3349,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			printk("%s(%d):block_til_ready blocking on %s count=%d\n",
 				 __FILE__,__LINE__, tty->driver->name, port->count );
 				 
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	
 	set_current_state(TASK_RUNNING);

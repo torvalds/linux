@@ -1,18 +1,3 @@
-config INOTIFY
-	bool "Inotify file change notification support"
-	default n
-	---help---
-	  Say Y here to enable legacy in kernel inotify support.  Inotify is a
-	  file change notification system.  It is a replacement for dnotify.
-	  This option only provides the legacy inotify in kernel API.  There
-	  are no in tree kernel users of this interface since it is deprecated.
-	  You only need this if you are loading an out of tree kernel module
-	  that uses inotify.
-
-	  For more information, see <file:Documentation/filesystems/inotify.txt>
-
-	  If unsure, say N.
-
 config INOTIFY_USER
 	bool "Inotify support for userspace"
 	select ANON_INODES

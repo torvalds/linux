@@ -457,8 +457,8 @@ extern void smu_poll(void);
  */
 extern int smu_init(void);
 extern int smu_present(void);
-struct of_device;
-extern struct of_device *smu_get_ofdev(void);
+struct platform_device;
+extern struct platform_device *smu_get_ofdev(void);
 
 
 /*

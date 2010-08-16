@@ -1015,7 +1015,7 @@ int RtmpOSTaskKill(struct rt_rtmp_os_task *pTask)
 	struct rt_rtmp_adapter *pAd;
 	int ret = NDIS_STATUS_FAILURE;
 
-	pAd = (struct rt_rtmp_adapter *)pTask->priv;
+	pAd = pTask->priv;
 
 #ifdef KTHREAD_SUPPORT
 	if (pTask->kthread_task) {

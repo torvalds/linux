@@ -245,9 +245,9 @@ static struct mxc_usbh_platform_data usbh2_pdata = {
 static void lilly1131_usb_init(void)
 {
 	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
 	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
