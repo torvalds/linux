@@ -156,6 +156,8 @@ struct davinci_spi {
 	struct davinci_spi_slave slave[SPI_MAX_CHIPSELECT];
 };
 
+static struct davinci_spi_config davinci_spi_default_cfg;
+
 static unsigned use_dma;
 
 static void davinci_spi_rx_buf_u8(u32 data, struct davinci_spi *davinci_spi)
@@ -434,8 +436,12 @@ static int davinci_spi_setup(struct spi_device *spi)
 	int retval;
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
+	struct davinci_spi_config *spicfg;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
+	spicfg = (struct davinci_spi_config *)spi->controller_data;
+	if (!spicfg)
+		spicfg = &davinci_spi_default_cfg;
 
 	/* if bits per word length is zero then set it default 8 */
 	if (!spi->bits_per_word)
@@ -496,31 +502,34 @@ static int davinci_spi_setup(struct spi_device *spi)
 	 */
 
 	if (davinci_spi->version == SPI_VERSION_2) {
+
 		clear_fmt_bits(davinci_spi->base, SPIFMT_WDELAY_MASK,
-				spi->chip_select);
+							spi->chip_select);
 		set_fmt_bits(davinci_spi->base,
-				(davinci_spi->pdata->wdelay
-						<< SPIFMT_WDELAY_SHIFT)
-					& SPIFMT_WDELAY_MASK,
-				spi->chip_select);
+				(spicfg->wdelay << SPIFMT_WDELAY_SHIFT) &
+				SPIFMT_WDELAY_MASK, spi->chip_select);
 
-		if (davinci_spi->pdata->odd_parity)
-			set_fmt_bits(davinci_spi->base,
-					SPIFMT_ODD_PARITY_MASK,
-					spi->chip_select);
+		if (spicfg->odd_parity)
+			set_fmt_bits(davinci_spi->base, SPIFMT_ODD_PARITY_MASK,
+							spi->chip_select);
 		else
 			clear_fmt_bits(davinci_spi->base,
 					SPIFMT_ODD_PARITY_MASK,
 					spi->chip_select);
 
-		if (davinci_spi->pdata->parity_enable)
-			set_fmt_bits(davinci_spi->base,
-					SPIFMT_PARITYENA_MASK,
-					spi->chip_select);
+		if (spicfg->parity_enable)
+			set_fmt_bits(davinci_spi->base, SPIFMT_PARITYENA_MASK,
+							spi->chip_select);
 		else
-			clear_fmt_bits(davinci_spi->base,
-					SPIFMT_PARITYENA_MASK,
-					spi->chip_select);
+			clear_fmt_bits(davinci_spi->base, SPIFMT_PARITYENA_MASK,
+							spi->chip_select);
+
+		if (spicfg->timer_disable)
+			set_fmt_bits(davinci_spi->base, SPIFMT_DISTIMER_MASK,
+							spi->chip_select);
+		else
+			clear_fmt_bits(davinci_spi->base, SPIFMT_DISTIMER_MASK,
+							spi->chip_select);
 
 		if (spi->mode & SPI_READY)
 			set_fmt_bits(davinci_spi->base,
@@ -531,14 +540,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 					SPIFMT_WAITENA_MASK,
 					spi->chip_select);
 
-		if (davinci_spi->pdata->timer_disable)
-			set_fmt_bits(davinci_spi->base,
-					SPIFMT_DISTIMER_MASK,
-					spi->chip_select);
-		else
-			clear_fmt_bits(davinci_spi->base,
-					SPIFMT_DISTIMER_MASK,
-					spi->chip_select);
 	}
 
 	retval = davinci_spi_setup_transfer(spi, NULL);
@@ -662,9 +663,13 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	u32 tx_data, data1_reg_val;
 	u32 buf_val, flg_val;
 	struct davinci_spi_platform_data *pdata;
+	struct davinci_spi_config *spicfg;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
+	spicfg = (struct davinci_spi_config *)spi->controller_data;
+	if (!spicfg)
+		spicfg = &davinci_spi_default_cfg;
 
 	davinci_spi->tx = t->tx_buf;
 	davinci_spi->rx = t->rx_buf;
@@ -684,8 +689,8 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	/* Enable SPI */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
 
-	iowrite32(0 | (pdata->c2tdelay << SPI_C2TDELAY_SHIFT) |
-			(pdata->t2cdelay << SPI_T2CDELAY_SHIFT),
+	iowrite32((spicfg->c2tdelay << SPI_C2TDELAY_SHIFT) |
+			(spicfg->t2cdelay << SPI_T2CDELAY_SHIFT),
 			davinci_spi->base + SPIDELAY);
 
 	count = davinci_spi->count;
@@ -792,12 +797,14 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	struct davinci_spi_dma *davinci_spi_dma;
 	int word_len, data_type, ret;
 	unsigned long tx_reg, rx_reg;
-	struct davinci_spi_platform_data *pdata;
+	struct davinci_spi_config *spicfg;
 	struct device *sdev;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
-	pdata = davinci_spi->pdata;
 	sdev = davinci_spi->bitbang.master->dev.parent;
+	spicfg = (struct davinci_spi_config *)spi->controller_data;
+	if (!spicfg)
+		spicfg = &davinci_spi_default_cfg;
 
 	davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
 
@@ -834,8 +841,8 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 		return ret;
 
 	/* Put delay val if required */
-	iowrite32(0 | (pdata->c2tdelay << SPI_C2TDELAY_SHIFT) |
-			(pdata->t2cdelay << SPI_T2CDELAY_SHIFT),
+	iowrite32((spicfg->c2tdelay << SPI_C2TDELAY_SHIFT) |
+			(spicfg->t2cdelay << SPI_T2CDELAY_SHIFT),
 			davinci_spi->base + SPIDELAY);
 
 	count = davinci_spi->count;	/* the number of elements */

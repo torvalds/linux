@@ -29,17 +29,20 @@ enum {
 struct davinci_spi_platform_data {
 	u8	version;
 	u8	num_chipselect;
-	u8	wdelay;
-	u8	odd_parity;
-	u8	parity_enable;
-	u8	timer_disable;
 	u8	clk_internal;
 	u8	intr_level;
 	u8	poll_mode;
 	u8	use_dma;
+	u8	*chip_sel;
+};
+
+struct davinci_spi_config {
+	u8	wdelay;
+	u8	odd_parity;
+	u8	parity_enable;
+	u8	timer_disable;
 	u8	c2tdelay;
 	u8	t2cdelay;
-	u8	*chip_sel;
 };
 
 #endif	/* __ARCH_ARM_DAVINCI_SPI_H */
