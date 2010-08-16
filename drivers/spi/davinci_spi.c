@@ -522,7 +522,7 @@ static int davinci_spi_setup(struct spi_device *spi)
 					SPIFMT_PARITYENA_MASK,
 					spi->chip_select);
 
-		if (davinci_spi->pdata->wait_enable)
+		if (spi->mode & SPI_READY)
 			set_fmt_bits(davinci_spi->base,
 					SPIFMT_WAITENA_MASK,
 					spi->chip_select);

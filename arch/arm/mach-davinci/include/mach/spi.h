@@ -32,7 +32,6 @@ struct davinci_spi_platform_data {
 	u8	wdelay;
 	u8	odd_parity;
 	u8	parity_enable;
-	u8	wait_enable;
 	u8	timer_disable;
 	u8	clk_internal;
 	u8	intr_level;
