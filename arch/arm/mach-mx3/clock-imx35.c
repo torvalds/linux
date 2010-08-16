@@ -292,7 +292,7 @@ static unsigned long get_rate_ipg_per(struct clk *clk)
 		return get_rate_arm() / (div + 1);
 	} else {
 		div = (pdr0 >> 12) & 0x7;
-		return get_rate_ahb(NULL) / div;
+		return get_rate_ahb(NULL) / (div + 1);
 	}
 }
 
