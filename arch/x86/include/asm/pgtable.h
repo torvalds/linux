@@ -603,6 +603,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm,
 	pte_update(mm, addr, ptep);
 }
 
+#define flush_tlb_fix_spurious_fault(vma, address)
+
 /*
  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
  *
