@@ -345,8 +345,11 @@
 #define __NR_pwritev		334
 #define __NR_rt_tgsigqueueinfo	335
 #define __NR_perf_event_open	336
+#define __NR_fanotify_init	337
+#define __NR_fanotify_mark	338
+#define __NR_prlimit64		339
 
-#define NR_syscalls 337
+#define NR_syscalls 340
 
 #ifdef __KERNEL__
 
