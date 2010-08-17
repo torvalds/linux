@@ -100,35 +100,6 @@ struct acx_error_counter {
 	__le32 seq_num_miss;
 } __packed;
 
-struct acx_revision {
-	struct acx_header header;
-
-	/*
-	 * The WiLink firmware version, an ASCII string x.x.x.x,
-	 * that uniquely identifies the current firmware.
-	 * The left most digit is incremented each time a
-	 * significant change is made to the firmware, such as
-	 * code redesign or new platform support.
-	 * The second digit is incremented when major enhancements
-	 * are added or major fixes are made.
-	 * The third digit is incremented for each GA release.
-	 * The fourth digit is incremented for each build.
-	 * The first two digits identify a firmware release version,
-	 * in other words, a unique set of features.
-	 * The first three digits identify a GA release.
-	 */
-	char fw_version[20];
-
-	/*
-	 * This 4 byte field specifies the WiLink hardware version.
-	 * bits 0  - 15: Reserved.
-	 * bits 16 - 23: Version ID - The WiLink version ID
-	 *              (1 = first spin, 2 = second spin, and so on).
-	 * bits 24 - 31: Chip ID - The WiLink chip ID.
-	 */
-	__le32 hw_version;
-} __packed;
-
 enum wl1271_psm_mode {
 	/* Active mode */
 	WL1271_PSM_CAM = 0,
@@ -1076,7 +1047,6 @@ enum {
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl);
 int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth);
-int wl1271_acx_fw_version(struct wl1271 *wl, char *buf, size_t len);
 int wl1271_acx_tx_power(struct wl1271 *wl, int power);
 int wl1271_acx_feature_cfg(struct wl1271 *wl);
 int wl1271_acx_mem_map(struct wl1271 *wl,
