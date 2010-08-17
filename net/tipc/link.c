@@ -1802,6 +1802,15 @@ static int link_recv_buf_validate(struct sk_buff *buf)
 	return pskb_may_pull(buf, hdr_size);
 }
 
+/**
+ * tipc_recv_msg - process TIPC messages arriving from off-node
+ * @head: pointer to message buffer chain
+ * @tb_ptr: pointer to bearer message arrived on
+ *
+ * Invoked with no locks held.  Bearer pointer must point to a valid bearer
+ * structure (i.e. cannot be NULL), but bearer can be inactive.
+ */
+
 void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 {
 	read_lock_bh(&tipc_net_lock);
@@ -1818,6 +1827,11 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 		int type;
 
 		head = head->next;
+
+		/* Ensure bearer is still enabled */
+
+		if (unlikely(!b_ptr->active))
+			goto cont;
 
 		/* Ensure message is well-formed */
 
