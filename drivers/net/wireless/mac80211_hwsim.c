@@ -9,7 +9,8 @@
 
 /*
  * TODO:
- * - IBSS mode simulation (Beacon transmission with competition for "air time")
+ * - Add TSF sync and fix IBSS beacon transmission by adding
+ *   competition for "air time" at TBTT
  * - RX filtering based on filter configuration (data->rx_filter)
  */
 
@@ -620,7 +621,8 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	hwsim_check_magic(vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
-	    vif->type != NL80211_IFTYPE_MESH_POINT)
+	    vif->type != NL80211_IFTYPE_MESH_POINT &&
+	    vif->type != NL80211_IFTYPE_ADHOC)
 		return;
 
 	skb = ieee80211_beacon_get(hw, vif);
@@ -1295,6 +1297,7 @@ static int __init init_mac80211_hwsim(void)
 		hw->wiphy->interface_modes =
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
 
 		hw->flags = IEEE80211_HW_MFP_CAPABLE |
