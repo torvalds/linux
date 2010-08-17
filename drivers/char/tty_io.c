@@ -136,6 +136,9 @@ LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 DEFINE_MUTEX(tty_mutex);
 EXPORT_SYMBOL(tty_mutex);
 
+/* Spinlock to protect the tty->tty_files list */
+DEFINE_SPINLOCK(tty_files_lock);
+
 static ssize_t tty_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t tty_write(struct file *, const char __user *, size_t, loff_t *);
 ssize_t redirected_tty_write(struct file *, const char __user *,
@@ -235,11 +238,11 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 	struct list_head *p;
 	int count = 0;
 
-	file_list_lock();
+	spin_lock(&tty_files_lock);
 	list_for_each(p, &tty->tty_files) {
 		count++;
 	}
-	file_list_unlock();
+	spin_unlock(&tty_files_lock);
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_SLAVE &&
 	    tty->link && tty->link->count)
@@ -519,7 +522,7 @@ void __tty_hangup(struct tty_struct *tty)
 	   workqueue with the lock held */
 	check_tty_count(tty, "tty_hangup");
 
-	file_list_lock();
+	spin_lock(&tty_files_lock);
 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
 	list_for_each_entry(filp, &tty->tty_files, f_u.fu_list) {
 		if (filp->f_op->write == redirected_tty_write)
@@ -530,7 +533,7 @@ void __tty_hangup(struct tty_struct *tty)
 		__tty_fasync(-1, filp, 0);	/* can't block */
 		filp->f_op = &hung_up_tty_fops;
 	}
-	file_list_unlock();
+	spin_unlock(&tty_files_lock);
 
 	tty_ldisc_hangup(tty);
 
@@ -1424,9 +1427,9 @@ static void release_one_tty(struct work_struct *work)
 	tty_driver_kref_put(driver);
 	module_put(driver->owner);
 
-	file_list_lock();
+	spin_lock(&tty_files_lock);
 	list_del_init(&tty->tty_files);
-	file_list_unlock();
+	spin_unlock(&tty_files_lock);
 
 	put_pid(tty->pgrp);
 	put_pid(tty->session);
@@ -1671,7 +1674,10 @@ int tty_release(struct inode *inode, struct file *filp)
 	 *  - do_tty_hangup no longer sees this file descriptor as
 	 *    something that needs to be handled for hangups.
 	 */
-	file_kill(filp);
+	spin_lock(&tty_files_lock);
+	BUG_ON(list_empty(&filp->f_u.fu_list));
+	list_del_init(&filp->f_u.fu_list);
+	spin_unlock(&tty_files_lock);
 	filp->private_data = NULL;
 
 	/*
@@ -1840,7 +1846,11 @@ got_driver:
 	}
 
 	filp->private_data = tty;
-	file_move(filp, &tty->tty_files);
+	BUG_ON(list_empty(&filp->f_u.fu_list));
+	file_sb_list_del(filp); /* __dentry_open has put it on the sb list */
+	spin_lock(&tty_files_lock);
+	list_add(&filp->f_u.fu_list, &tty->tty_files);
+	spin_unlock(&tty_files_lock);
 	check_tty_count(tty, "tty_open");
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)

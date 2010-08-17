@@ -470,6 +470,7 @@ extern struct tty_struct *tty_pair_get_tty(struct tty_struct *tty);
 extern struct tty_struct *tty_pair_get_pty(struct tty_struct *tty);
 
 extern struct mutex tty_mutex;
+extern spinlock_t tty_files_lock;
 
 extern void tty_write_unlock(struct tty_struct *tty);
 extern int tty_write_lock(struct tty_struct *tty, int ndelay);
