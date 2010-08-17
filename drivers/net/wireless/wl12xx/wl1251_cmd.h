@@ -111,7 +111,7 @@ struct wl1251_cmd_header {
 struct  wl1251_command {
 	struct wl1251_cmd_header header;
 	u8  parameters[MAX_CMD_PARAMS];
-};
+} __packed;
 
 enum {
 	CMD_MAILBOX_IDLE              		=  0,
@@ -164,7 +164,7 @@ struct cmd_read_write_memory {
 	   of this field is the Host in WRITE command or the Wilink in READ
 	   command. */
 	u8 value[MAX_READ_SIZE];
-};
+} __packed;
 
 #define CMDMBOX_HEADER_LEN 4
 #define CMDMBOX_INFO_ELEM_HEADER_LEN 4
@@ -339,7 +339,7 @@ struct wl1251_cmd_trigger_scan_to {
 	struct wl1251_cmd_header header;
 
 	u32 timeout;
-};
+} __packed;
 
 /* HW encryption keys */
 #define NUM_ACCESS_CATEGORIES_COPY 4
