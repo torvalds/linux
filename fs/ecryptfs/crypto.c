@@ -1793,7 +1793,7 @@ struct kmem_cache *ecryptfs_key_tfm_cache;
 static struct list_head key_tfm_list;
 struct mutex key_tfm_list_mutex;
 
-int ecryptfs_init_crypto(void)
+int __init ecryptfs_init_crypto(void)
 {
 	mutex_init(&key_tfm_list_mutex);
 	INIT_LIST_HEAD(&key_tfm_list);
