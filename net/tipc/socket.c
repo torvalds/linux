@@ -1026,9 +1026,8 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
 	unsigned int sz;
-	int sz_to_copy;
+	int sz_to_copy, target, needed;
 	int sz_copied = 0;
-	int needed;
 	char __user *crs = m->msg_iov->iov_base;
 	unsigned char *buf_crs;
 	u32 err;
@@ -1049,6 +1048,8 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 		res = -ENOTCONN;
 		goto exit;
 	}
+
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, buf_len);
 
 restart:
 
@@ -1138,7 +1139,7 @@ restart:
 
 	if ((sz_copied < buf_len) &&	/* didn't get all requested data */
 	    (!skb_queue_empty(&sk->sk_receive_queue) ||
-	     (flags & MSG_WAITALL)) &&	/* and more is ready or required */
+	    (sz_copied < target)) &&	/* and more is ready or required */
 	    (!(flags & MSG_PEEK)) &&	/* and aren't just peeking at data */
 	    (!err))			/* and haven't reached a FIN */
 		goto restart;
