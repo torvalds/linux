@@ -54,6 +54,7 @@ struct audio_stream {
 	int opened;
 	struct mutex lock;
 
+	struct tegra_audio_buf_config buf_config;
 	bool active; /* is DMA or PIO in progress? */
 	void *buffer;
 	dma_addr_t buf_phys;
@@ -104,6 +105,21 @@ struct audio_driver_state {
 	struct miscdevice misc_in;
 	struct audio_stream in;
 };
+
+static inline int buf_size(struct audio_stream *s)
+{
+	return 1 << s->buf_config.size;
+}
+
+static inline int chunk_size(struct audio_stream *s)
+{
+	return 1 << s->buf_config.chunk;
+}
+
+static inline int threshold_size(struct audio_stream *s)
+{
+	return 1 << s->buf_config.threshold;
+}
 
 static inline struct audio_driver_state *ads_from_misc_out(struct file *file)
 {
@@ -415,16 +431,12 @@ static inline u32 i2s_get_fifo_full_empty_count(unsigned long base, int fifo)
 	return val & I2S_I2S_FIFO_SCR_FIFO_FULL_EMPTY_COUNT_MASK;
 }
 
-/* FIXME: add an ioctl to report the buffer sizes */
+#define PCM_IN_BUFFER_PADDING		(1<<6) /* bytes */
+#define PCM_BUFFER_MAX_SIZE_ORDER	(PAGE_SHIFT + 2)
+#define PCM_DMA_CHUNK_MIN_SIZE_ORDER	3
 
-#define PCM_OUT_BUFFER_SIZE	(PAGE_SIZE*4)
-#define PCM_OUT_DMA_CHUNK	(PAGE_SIZE)
-#define PCM_OUT_THRESHOLD	(PAGE_SIZE*2)
-
-#define PCM_IN_BUFFER_SIZE	(PAGE_SIZE*4)
-#define PCM_IN_BUFFER_PADDING	256
-#define PCM_IN_DMA_CHUNK	(PAGE_SIZE)
-#define PCM_IN_THRESHOLD	(PAGE_SIZE*2)
+static int init_stream_buffer(struct audio_stream *,
+		struct tegra_audio_buf_config *cfg, unsigned);
 
 static int setup_dma(struct audio_driver_state *);
 static void tear_down_dma(struct audio_driver_state *);
@@ -514,6 +526,8 @@ static bool stop_recording_if_necessary_nosync(struct audio_stream *ais)
 	struct audio_driver_state *ads = ads_from_in(ais);
 
 	if (ads->recording_cancelled || kfifo_is_full(&ais->fifo)) {
+		if (kfifo_is_full(&ais->fifo))
+			pr_warn("%s: fifo is full, stop\n", __func__);
 		sound_ops->stop_recording(ais);
 		ais->active = false;
 		return true;
@@ -558,7 +572,7 @@ static int setup_dma(struct audio_driver_state *ads)
 
 	/* setup audio playback */
 	ads->out.buf_phys = dma_map_single(&ads->pdev->dev, ads->out.buffer,
-				PCM_OUT_BUFFER_SIZE, DMA_TO_DEVICE);
+				1 << PCM_BUFFER_MAX_SIZE_ORDER, DMA_TO_DEVICE);
 	BUG_ON(!ads->out.buf_phys);
 	setup_dma_tx_request(&ads->out.dma_req, &ads->out);
 	ads->out.dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
@@ -571,7 +585,8 @@ static int setup_dma(struct audio_driver_state *ads)
 
 	/* setup audio recording */
 	ads->in.buf_phys = dma_map_single(&ads->pdev->dev, ads->in.buffer,
-				PCM_IN_BUFFER_SIZE, DMA_FROM_DEVICE);
+				1 << PCM_BUFFER_MAX_SIZE_ORDER,
+				DMA_FROM_DEVICE);
 	BUG_ON(!ads->in.buf_phys);
 	setup_dma_rx_request(&ads->in.dma_req, &ads->in);
 	ads->in.dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
@@ -586,13 +601,13 @@ static int setup_dma(struct audio_driver_state *ads)
 
 fail_rx:
 	dma_unmap_single(&ads->pdev->dev, ads->in.buf_phys,
-			PCM_IN_BUFFER_SIZE, DMA_FROM_DEVICE);
+			1 << PCM_BUFFER_MAX_SIZE_ORDER, DMA_FROM_DEVICE);
 	tegra_dma_free_channel(ads->in.dma_chan);
 	ads->in.dma_chan = 0;
 
 fail_tx:
 	dma_unmap_single(&ads->pdev->dev, ads->out.buf_phys,
-			PCM_OUT_BUFFER_SIZE, DMA_TO_DEVICE);
+			1 << PCM_BUFFER_MAX_SIZE_ORDER, DMA_TO_DEVICE);
 	tegra_dma_free_channel(ads->out.dma_chan);
 	ads->out.dma_chan = 0;
 
@@ -606,14 +621,14 @@ static void tear_down_dma(struct audio_driver_state *ads)
 	tegra_dma_free_channel(ads->out.dma_chan);
 	ads->out.dma_chan = NULL;
 	dma_unmap_single(&ads->pdev->dev, ads->out.buf_phys,
-				PCM_OUT_BUFFER_SIZE,
+				buf_size(&ads->out),
 				DMA_TO_DEVICE);
 	ads->out.buf_phys = 0;
 
 	tegra_dma_free_channel(ads->in.dma_chan);
 	ads->in.dma_chan = NULL;
 	dma_unmap_single(&ads->pdev->dev, ads->in.buf_phys,
-				PCM_IN_BUFFER_SIZE,
+				buf_size(&ads->in),
 				DMA_FROM_DEVICE);
 	ads->in.buf_phys = 0;
 }
@@ -628,7 +643,7 @@ static void dma_tx_complete_callback(struct tegra_dma_req *req)
 
 	kfifo_skip(&aos->fifo, count);
 
-	if (kfifo_avail(&aos->fifo) > PCM_OUT_THRESHOLD &&
+	if (kfifo_avail(&aos->fifo) >= threshold_size(aos) &&
 			!completion_done(&aos->fifo_completion)) {
 		pr_debug("%s: complete (%d avail)\n", __func__,
 				kfifo_avail(&aos->fifo));
@@ -659,7 +674,7 @@ static void dma_rx_complete_callback(struct tegra_dma_req *req)
 	BUG_ON(kfifo_avail(&ais->fifo) < count);
 	__kfifo_add_in(&ais->fifo, count);
 
-	if (kfifo_avail(&ais->fifo) < PCM_IN_THRESHOLD &&
+	if (kfifo_avail(&ais->fifo) <= threshold_size(ais) &&
 			!completion_done(&ais->fifo_completion))
 		complete(&ais->fifo_completion);
 
@@ -742,8 +757,8 @@ static int resume_dma_playback(struct audio_stream *aos)
 			aos->buf_phys + out, req->size, DMA_TO_DEVICE);
 
 	/* Don't send all the data yet. */
-	if (req->size > PCM_OUT_DMA_CHUNK)
-		req->size = PCM_OUT_DMA_CHUNK;
+	if (req->size > chunk_size(aos))
+		req->size = chunk_size(aos);
 	pr_debug("%s resume playback (%d in fifo, writing %d, in %d out %d)\n",
 			__func__, kfifo_len(&aos->fifo), req->size, in, out);
 
@@ -765,12 +780,17 @@ static int start_dma_playback(struct audio_stream *aos)
 /* Called with aos->dma_req_lock taken. */
 static void stop_dma_playback(struct audio_stream *aos)
 {
+	int spin = 0;
 	struct audio_driver_state *ads = ads_from_out(aos);
 	pr_debug("%s\n", __func__);
 	tegra_dma_dequeue_req(ads->out.dma_chan, &ads->out.dma_req);
 	i2s_fifo_enable(ads->i2s_base, I2S_FIFO_TX, 0);
-	while (i2s_get_status(ads->i2s_base) & I2S_I2S_FIFO_TX_BUSY)
-		pr_info("%s: spin\n", __func__);
+	while ((i2s_get_status(ads->i2s_base) & I2S_I2S_FIFO_TX_BUSY) &&
+			spin < 100)
+		if (spin++ > 50)
+			pr_info("%s: spin %d\n", __func__, spin);
+	if (spin == 100)
+		pr_warn("%s: spinny\n", __func__);
 }
 
 /* This function may be called from either interrupt or process context. */
@@ -797,8 +817,8 @@ static int resume_dma_recording(struct audio_stream *ais)
 		req->size = out - in;
 
 	/* Don't send all the data yet. */
-	if (req->size > PCM_OUT_DMA_CHUNK)
-		req->size = PCM_OUT_DMA_CHUNK;
+	if (req->size > chunk_size(ais))
+		req->size = chunk_size(ais);
 
 	req->size = round_down(req->size, 4);
 
@@ -835,12 +855,17 @@ static int start_dma_recording(struct audio_stream *ais)
 /* Called with ais->dma_req_lock taken. */
 static void stop_dma_recording(struct audio_stream *ais)
 {
+	int spin = 0;
 	struct audio_driver_state *ads = ads_from_in(ais);
 	pr_info("%s\n", __func__);
 	i2s_fifo_enable(ads->i2s_base, I2S_FIFO_RX, 0);
 	i2s_fifo_clear(ads->i2s_base, I2S_FIFO_RX);
-	while (i2s_get_status(ads->i2s_base) & I2S_I2S_FIFO_RX_BUSY)
-		pr_debug("%s: spin\n", __func__);
+	while ((i2s_get_status(ads->i2s_base) & I2S_I2S_FIFO_RX_BUSY) &&
+			spin < 100)
+		if (spin++ > 50)
+			pr_info("%s: spin %d\n", __func__, spin);
+	if (spin == 100)
+		pr_warn("%s: spinny\n", __func__);
 	ais->dma_has_it = false;
 }
 
@@ -969,7 +994,7 @@ static irqreturn_t i2s_interrupt(int irq, void *data)
 
 		pr_debug("%s tx fifo is ready\n", __func__);
 
-		if (kfifo_avail(&out->fifo) > PCM_OUT_THRESHOLD &&
+		if (kfifo_avail(&out->fifo) > threshold_size(out) &&
 				!completion_done(&out->fifo_completion)) {
 			pr_debug("%s: tx complete (%d avail)\n", __func__,
 					kfifo_avail(&out->fifo));
@@ -1033,7 +1058,7 @@ check_rx:
 
 		ads->pio_stats.rx_fifo_read += full * sizeof(u16);
 
-		if (kfifo_avail(&in->fifo) < PCM_IN_THRESHOLD &&
+		if (kfifo_avail(&in->fifo) < threshold_size(in) &&
 				!completion_done(&in->fifo_completion)) {
 			pr_debug("%s: rx complete (%d avail)\n", __func__,
 					kfifo_avail(&in->fifo));
@@ -1080,6 +1105,8 @@ again:
 		goto done;
 	}
 
+	start_playback_if_necessary(&ads->out);
+
 	total += nw;
 	if (total < size) {
 		pr_debug("%s: sleep (user %d total %d nw %d)\n", __func__,
@@ -1099,9 +1126,48 @@ again:
 	rc = total;
 	*off += total;
 
-	start_playback_if_necessary(&ads->out);
 done:
 	mutex_unlock(&ads->out.lock);
+	return rc;
+}
+
+static long tegra_audio_out_ioctl(struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+	int rc = 0;
+	struct audio_driver_state *ads = ads_from_misc_out(file);
+	struct audio_stream *aos = &ads->out;
+
+	mutex_lock(&aos->lock);
+
+	switch (cmd) {
+	case TEGRA_AUDIO_OUT_SET_BUF_CONFIG: {
+		struct tegra_audio_buf_config cfg;
+		if (copy_from_user(&cfg, (void __user *)arg, sizeof(cfg))) {
+			rc = -EFAULT;
+			break;
+		}
+		if (aos->active) {
+			pr_err("%s: playback in progress\n", __func__);
+			rc = -EBUSY;
+			break;
+		}
+		rc = init_stream_buffer(aos, &cfg, 0);
+		if (rc < 0)
+			break;
+		aos->buf_config = cfg;
+	}
+		break;
+	case TEGRA_AUDIO_OUT_GET_BUF_CONFIG:
+		if (copy_to_user((void __user *)arg, &aos->buf_config,
+				sizeof(aos->buf_config)))
+			rc = -EFAULT;
+		break;
+	default:
+		rc = -EINVAL;
+	}
+
+	mutex_unlock(&aos->lock);
 	return rc;
 }
 
@@ -1181,6 +1247,28 @@ static long tegra_audio_in_ioctl(struct file *file,
 				sizeof(ads->in_config)))
 			rc = -EFAULT;
 		break;
+	case TEGRA_AUDIO_IN_SET_BUF_CONFIG: {
+		struct tegra_audio_buf_config cfg;
+		if (copy_from_user(&cfg, (void __user *)arg, sizeof(cfg))) {
+			rc = -EFAULT;
+			break;
+		}
+		if (ais->active) {
+			pr_err("%s: recording in progress\n", __func__);
+			rc = -EBUSY;
+			break;
+		}
+		rc = init_stream_buffer(ais, &cfg, PCM_IN_BUFFER_PADDING);
+		if (rc < 0)
+			break;
+		ais->buf_config = cfg;
+	}
+		break;
+	case TEGRA_AUDIO_IN_GET_BUF_CONFIG:
+		if (copy_to_user((void __user *)arg, &ais->buf_config,
+				sizeof(ais->buf_config)))
+			rc = -EFAULT;
+		break;
 	default:
 		rc = -EINVAL;
 	}
@@ -1227,8 +1315,8 @@ static int downsample(const s16 *in, int in_len,
 
 	*consumed = i;
 
-	pr_debug("%s: in_len %d out_len %d consumed %d generated %d\n", __func__,
-		in_len, out_len, *consumed, oi);
+	pr_debug("%s: in_len %d out_len %d consumed %d generated %d\n",
+		__func__, in_len, out_len, *consumed, oi);
 	return oi;
 }
 
@@ -1255,6 +1343,7 @@ static ssize_t __downsample_to_user(struct audio_driver_state *ads,
 	}
 
 	*num_consumed *= sizeof(s16);
+	BUG_ON(*num_consumed > src_size);
 
 	kfifo_skip(&ads->in.fifo, *num_consumed);
 
@@ -1327,7 +1416,7 @@ again:
 		if (in < PCM_IN_BUFFER_PADDING)
 			return 0;
 
-		memcpy(ads->in.buffer + PCM_IN_BUFFER_SIZE,
+		memcpy(ads->in.buffer + buf_size(&ads->in),
 			ads->in.buffer,
 			PCM_IN_BUFFER_PADDING);
 		bytes_till_end += PCM_IN_BUFFER_PADDING;
@@ -1356,7 +1445,7 @@ static ssize_t tegra_audio_read(struct file *file, char __user *buf,
 	}
 
 	pr_debug("%s: read %d bytes, %d available\n", __func__,
-			size, kfifo_avail(&ads->in.fifo));
+			size, kfifo_len(&ads->in.fifo));
 
 	if (!ads->recording_cancelled)
 		start_recording_if_necessary(&ads->in);
@@ -1382,7 +1471,7 @@ again:
 	pr_debug("%s: copied %d bytes to user, total %d/%d\n",
 			__func__, nr, total, size);
 
-	if (total < size && ads->in.active) {
+	if (total < size /* && ads->in.active */) {
 		if (!ads->recording_cancelled)
 			start_recording_if_necessary(&ads->in);
 		mutex_unlock(&ads->in.lock);
@@ -1592,6 +1681,7 @@ static const struct file_operations tegra_audio_out_fops = {
 	.open = tegra_audio_out_open,
 	.release = tegra_audio_out_release,
 	.write = tegra_audio_write,
+	.unlocked_ioctl = tegra_audio_out_ioctl,
 };
 
 static const struct file_operations tegra_audio_in_fops = {
@@ -1602,8 +1692,61 @@ static const struct file_operations tegra_audio_in_fops = {
 	.release = tegra_audio_in_release,
 };
 
+static int init_stream_buffer(struct audio_stream *s,
+				struct tegra_audio_buf_config *cfg,
+				unsigned padding)
+{
+	pr_info("%s (size %d threshold %d chunk %d)\n", __func__,
+		cfg->size, cfg->threshold, cfg->chunk);
+
+	if (cfg->chunk < PCM_DMA_CHUNK_MIN_SIZE_ORDER) {
+		pr_err("%s: chunk %d too small (%d min)\n", __func__,
+			cfg->chunk, PCM_DMA_CHUNK_MIN_SIZE_ORDER);
+		return -EINVAL;
+	}
+
+	if (cfg->chunk > cfg->size) {
+		pr_err("%s: chunk %d > size %d\n", __func__,
+				cfg->chunk, cfg->size);
+		return -EINVAL;
+	}
+
+	if (cfg->threshold > cfg->size) {
+		pr_err("%s: threshold %d > size %d\n", __func__,
+				cfg->threshold, cfg->size);
+		return -EINVAL;
+	}
+
+	if ((1 << cfg->size) < padding) {
+		pr_err("%s: size %d < buffer padding %d (bytes)\n", __func__,
+			cfg->size, padding);
+		return -EINVAL;
+	}
+
+	if (cfg->size > PCM_BUFFER_MAX_SIZE_ORDER) {
+		pr_err("%s: size %d exceeds max %d\n", __func__,
+			cfg->size, PCM_BUFFER_MAX_SIZE_ORDER);
+		return -EINVAL;
+	}
+
+	if (!s->buffer) {
+		pr_debug("%s: allocating buffer (size %d, padding %d)\n",
+				__func__, 1 << cfg->size, padding);
+		s->buffer = kmalloc((1 << cfg->size) + padding,
+				GFP_KERNEL | GFP_DMA);
+	}
+	if (!s->buffer) {
+		pr_err("%s: could not allocate output buffer\n", __func__);
+		return -ENOMEM;
+	}
+
+	kfifo_init(&s->fifo, s->buffer, 1 << cfg->size);
+	return 0;
+}
+
 static int tegra_audio_probe(struct platform_device *pdev)
 {
+	int rc;
 	struct resource *res;
 	struct clk *i2s_clk, *audio_sync_clk, *dap_mclk;
 	struct audio_driver_state *state;
@@ -1715,24 +1858,22 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	state->in.dma_chan = NULL;
 	state->in.dma_has_it = false;
 
-	state->out.buffer = kmalloc(PCM_OUT_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!state->out.buffer) {
-		pr_err("%s: could not allocate output buffer\n", __func__);
-		return -ENOMEM;
-	}
+	state->out.buffer = 0;
+	state->out.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
+	state->out.buf_config.threshold = PAGE_SHIFT + 1;
+	state->out.buf_config.chunk = PAGE_SHIFT;
+	rc = init_stream_buffer(&state->out, &state->out.buf_config, 0);
+	if (rc < 0)
+		return rc;
 
-	state->in.buffer = kmalloc(PCM_IN_BUFFER_SIZE + PCM_IN_BUFFER_PADDING,
-					GFP_KERNEL | GFP_DMA);
-	if (!state->in.buffer) {
-		pr_err("%s: could not allocate input buffer\n", __func__);
-		return -ENOMEM;
-	}
-
-	kfifo_init(&state->out.fifo, state->out.buffer,
-			PCM_OUT_BUFFER_SIZE);
-
-	kfifo_init(&state->in.fifo, state->in.buffer,
-			PCM_IN_BUFFER_SIZE);
+	state->in.buffer = 0;
+	state->in.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
+	state->in.buf_config.threshold = PAGE_SHIFT + 1;
+	state->in.buf_config.chunk = PAGE_SHIFT;
+	rc = init_stream_buffer(&state->in, &state->in.buf_config,
+			PCM_IN_BUFFER_PADDING);
+	if (rc < 0)
+		return rc;
 
 	if (request_irq(state->irq, i2s_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {

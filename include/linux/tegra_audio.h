@@ -36,4 +36,20 @@ struct tegra_audio_in_config {
 #define TEGRA_AUDIO_IN_GET_CONFIG	_IOR(TEGRA_AUDIO_MAGIC, 3, \
 			struct tegra_audio_in_config *)
 
+struct tegra_audio_buf_config {
+	unsigned size; /* order */
+	unsigned threshold; /* order */
+	unsigned chunk; /* order */
+};
+
+#define TEGRA_AUDIO_IN_SET_BUF_CONFIG	_IOW(TEGRA_AUDIO_MAGIC, 4, \
+			const struct tegra_audio_buf_config *)
+#define TEGRA_AUDIO_IN_GET_BUF_CONFIG	_IOR(TEGRA_AUDIO_MAGIC, 5, \
+			struct tegra_audio_buf_config *)
+
+#define TEGRA_AUDIO_OUT_SET_BUF_CONFIG	_IOW(TEGRA_AUDIO_MAGIC, 6, \
+			const struct tegra_audio_buf_config *)
+#define TEGRA_AUDIO_OUT_GET_BUF_CONFIG	_IOR(TEGRA_AUDIO_MAGIC, 7, \
+			struct tegra_audio_buf_config *)
+
 #endif/*_CPCAP_AUDIO_H*/
