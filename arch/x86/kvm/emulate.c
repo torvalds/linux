@@ -1020,6 +1020,25 @@ exception:
 	return X86EMUL_PROPAGATE_FAULT;
 }
 
+static void write_register_operand(struct operand *op)
+{
+	/* The 4-byte case *is* correct: in 64-bit mode we zero-extend. */
+	switch (op->bytes) {
+	case 1:
+		*(u8 *)op->addr.reg = (u8)op->val;
+		break;
+	case 2:
+		*(u16 *)op->addr.reg = (u16)op->val;
+		break;
+	case 4:
+		*op->addr.reg = (u32)op->val;
+		break;	/* 64b: zero-extend */
+	case 8:
+		*op->addr.reg = op->val;
+		break;
+	}
+}
+
 static inline int writeback(struct x86_emulate_ctxt *ctxt,
 			    struct x86_emulate_ops *ops)
 {
@@ -1029,23 +1048,7 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 
 	switch (c->dst.type) {
 	case OP_REG:
-		/* The 4-byte case *is* correct:
-		 * in 64-bit mode we zero-extend.
-		 */
-		switch (c->dst.bytes) {
-		case 1:
-			*(u8 *)c->dst.addr.reg = (u8)c->dst.val;
-			break;
-		case 2:
-			*(u16 *)c->dst.addr.reg = (u16)c->dst.val;
-			break;
-		case 4:
-			*c->dst.addr.reg = (u32)c->dst.val;
-			break;	/* 64b: zero-ext */
-		case 8:
-			*c->dst.addr.reg = c->dst.val;
-			break;
-		}
+		write_register_operand(&c->dst);
 		break;
 	case OP_MEM:
 		if (c->lock_prefix)
@@ -2970,25 +2973,13 @@ special_insn:
 	case 0x86 ... 0x87:	/* xchg */
 	xchg:
 		/* Write back the register source. */
-		switch (c->dst.bytes) {
-		case 1:
-			*(u8 *) c->src.addr.reg = (u8) c->dst.val;
-			break;
-		case 2:
-			*(u16 *) c->src.addr.reg = (u16) c->dst.val;
-			break;
-		case 4:
-			*c->src.addr.reg = (u32) c->dst.val;
-			break;	/* 64b reg: zero-extend */
-		case 8:
-			*c->src.addr.reg = c->dst.val;
-			break;
-		}
+		c->src.val = c->dst.val;
+		write_register_operand(&c->src);
 		/*
 		 * Write back the memory destination with implicit LOCK
 		 * prefix.
 		 */
-		c->dst.val = c->src.val;
+		c->dst.val = c->src.orig_val;
 		c->lock_prefix = 1;
 		break;
 	case 0x88 ... 0x8b:	/* mov */
