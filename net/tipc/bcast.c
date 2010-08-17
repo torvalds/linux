@@ -609,11 +609,13 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		bcbearer->remains = bcbearer->remains_new;
 	}
 
-	/* Unable to reach all targets */
+	/*
+	 * Unable to reach all targets (indicate success, since currently
+	 * there isn't code in place to properly block & unblock the
+	 * pseudo-bearer used by the broadcast link)
+	 */
 
-	bcbearer->bearer.publ.blocked = 1;
-	bcl->stats.bearer_congs++;
-	return 1;
+	return TIPC_OK;
 }
 
 /**
