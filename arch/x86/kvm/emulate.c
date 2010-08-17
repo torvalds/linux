@@ -2781,28 +2781,10 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		ctxt->restart = true;
 		/* All REP prefixes have the same first termination condition */
 		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0) {
-		string_done:
 			ctxt->restart = false;
 			ctxt->eip = c->eip;
 			goto done;
 		}
-		/* The second termination condition only applies for REPE
-		 * and REPNE. Test if the repeat string operation prefix is
-		 * REPE/REPZ or REPNE/REPNZ and if it's the case it tests the
-		 * corresponding termination condition according to:
-		 * 	- if REPE/REPZ and ZF = 0 then done
-		 * 	- if REPNE/REPNZ and ZF = 1 then done
-		 */
-		if ((c->b == 0xa6) || (c->b == 0xa7) ||
-		    (c->b == 0xae) || (c->b == 0xaf)) {
-			if ((c->rep_prefix == REPE_PREFIX) &&
-			    ((ctxt->eflags & EFLG_ZF) == 0))
-				goto string_done;
-			if ((c->rep_prefix == REPNE_PREFIX) &&
-			    ((ctxt->eflags & EFLG_ZF) == EFLG_ZF))
-				goto string_done;
-		}
-		c->eip = ctxt->eip;
 	}
 
 	if ((c->src.type == OP_MEM) && !(c->d & NoAccess)) {
@@ -3229,20 +3211,37 @@ writeback:
 	if (c->rep_prefix && (c->d & String)) {
 		struct read_cache *rc = &ctxt->decode.io_read;
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
+		/* The second termination condition only applies for REPE
+		 * and REPNE. Test if the repeat string operation prefix is
+		 * REPE/REPZ or REPNE/REPNZ and if it's the case it tests the
+		 * corresponding termination condition according to:
+		 * 	- if REPE/REPZ and ZF = 0 then done
+		 * 	- if REPNE/REPNZ and ZF = 1 then done
+		 */
+		if (((c->b == 0xa6) || (c->b == 0xa7) ||
+		     (c->b == 0xae) || (c->b == 0xaf))
+		    && (((c->rep_prefix == REPE_PREFIX) &&
+			 ((ctxt->eflags & EFLG_ZF) == 0))
+			|| ((c->rep_prefix == REPNE_PREFIX) &&
+			    ((ctxt->eflags & EFLG_ZF) == EFLG_ZF))))
+			ctxt->restart = false;
 		/*
 		 * Re-enter guest when pio read ahead buffer is empty or,
 		 * if it is not used, after each 1024 iteration.
 		 */
-		if ((rc->end == 0 && !(c->regs[VCPU_REGS_RCX] & 0x3ff)) ||
-		    (rc->end != 0 && rc->end == rc->pos))
+		else if ((rc->end == 0 && !(c->regs[VCPU_REGS_RCX] & 0x3ff)) ||
+			 (rc->end != 0 && rc->end == rc->pos)) {
 			ctxt->restart = false;
+			c->eip = ctxt->eip;
+		}
 	}
 	/*
 	 * reset read cache here in case string instruction is restared
 	 * without decoding
 	 */
 	ctxt->decode.mem_read.end = 0;
-	ctxt->eip = c->eip;
+	if (!ctxt->restart)
+		ctxt->eip = c->eip;
 
 done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
