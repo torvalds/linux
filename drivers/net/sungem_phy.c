@@ -1175,7 +1175,8 @@ int mii_phy_probe(struct mii_phy *phy, int mii_id)
 
 	/* Read ID and find matching entry */
 	id = (phy_read(phy, MII_PHYSID1) << 16 | phy_read(phy, MII_PHYSID2));
-	printk(KERN_DEBUG "PHY ID: %x, addr: %x\n", id, mii_id);
+	printk(KERN_DEBUG KBUILD_MODNAME ": " "PHY ID: %x, addr: %x\n",
+	       id, mii_id);
 	for (i=0; (def = mii_phy_table[i]) != NULL; i++)
 		if ((id & def->phy_id_mask) == def->phy_id)
 			break;
