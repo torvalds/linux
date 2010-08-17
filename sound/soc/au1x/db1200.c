@@ -49,7 +49,7 @@ static int db1200_i2s_startup(struct snd_pcm_substream *substream)
 	int ret;
 
 	/* WM8731 has its own 12MHz crystal */
-	snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
+	snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
 				12000000, SND_SOC_CLOCK_IN);
 
 	/* codec is bitclock and lrclk master */

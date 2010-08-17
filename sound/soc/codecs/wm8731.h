@@ -31,7 +31,9 @@
 
 #define WM8731_CACHEREGNUM 	10
 
-#define WM8731_SYSCLK	0
+#define WM8731_SYSCLK_XTAL 1
+#define WM8731_SYSCLK_MCLK 2
+
 #define WM8731_DAI		0
 
 #endif
