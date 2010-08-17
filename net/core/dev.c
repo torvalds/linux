@@ -2372,6 +2372,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	if (!rxqueue->rps_map && !rxqueue->rps_flow_table)
 		goto done;
 
+	skb_reset_network_header(skb);
 	if (!skb_get_rxhash(skb))
 		goto done;
 
