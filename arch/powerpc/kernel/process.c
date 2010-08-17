@@ -1034,8 +1034,9 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
 	flush_spe_to_thread(current);
-	error = do_execve(filename, (char __user * __user *) a1,
-			  (char __user * __user *) a2, regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) a1,
+			  (const char __user *const __user *) a2, regs);
 	putname(filename);
 out:
 	return error;

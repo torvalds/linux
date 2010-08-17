@@ -361,13 +361,13 @@ err:
 /*
  * count() counts the number of strings in array ARGV.
  */
-static int count(char __user * __user * argv, int max)
+static int count(const char __user * const __user * argv, int max)
 {
 	int i = 0;
 
 	if (argv != NULL) {
 		for (;;) {
-			char __user * p;
+			const char __user * p;
 
 			if (get_user(p, argv))
 				return -EFAULT;
@@ -387,7 +387,7 @@ static int count(char __user * __user * argv, int max)
  * processes's memory to the new process's stack.  The call to get_user_pages()
  * ensures the destination page is created and not swapped out.
  */
-static int copy_strings(int argc, char __user * __user * argv,
+static int copy_strings(int argc, const char __user *const __user *argv,
 			struct linux_binprm *bprm)
 {
 	struct page *kmapped_page = NULL;
@@ -396,7 +396,7 @@ static int copy_strings(int argc, char __user * __user * argv,
 	int ret;
 
 	while (argc-- > 0) {
-		char __user *str;
+		const char __user *str;
 		int len;
 		unsigned long pos;
 
@@ -470,12 +470,13 @@ out:
 /*
  * Like copy_strings, but get argv and its values from kernel memory.
  */
-int copy_strings_kernel(int argc,char ** argv, struct linux_binprm *bprm)
+int copy_strings_kernel(int argc, const char *const *argv,
+			struct linux_binprm *bprm)
 {
 	int r;
 	mm_segment_t oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	r = copy_strings(argc, (char __user * __user *)argv, bprm);
+	r = copy_strings(argc, (const char __user *const  __user *)argv, bprm);
 	set_fs(oldfs);
 	return r;
 }
@@ -997,7 +998,7 @@ EXPORT_SYMBOL(flush_old_exec);
 void setup_new_exec(struct linux_binprm * bprm)
 {
 	int i, ch;
-	char * name;
+	const char *name;
 	char tcomm[sizeof(current->comm)];
 
 	arch_pick_mmap_layout(current->mm);
@@ -1316,9 +1317,9 @@ EXPORT_SYMBOL(search_binary_handler);
 /*
  * sys_execve() executes a new program.
  */
-int do_execve(char * filename,
-	char __user *__user *argv,
-	char __user *__user *envp,
+int do_execve(const char * filename,
+	const char __user *const __user *argv,
+	const char __user *const __user *envp,
 	struct pt_regs * regs)
 {
 	struct linux_binprm *bprm;

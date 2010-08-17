@@ -633,7 +633,9 @@ dump_fpu (struct pt_regs *pt, elf_fpregset_t dst)
 }
 
 long
-sys_execve (const char __user *filename, char __user * __user *argv, char __user * __user *envp,
+sys_execve (const char __user *filename,
+	    const char __user *const __user *argv,
+	    const char __user *const __user *envp,
 	    struct pt_regs *regs)
 {
 	char *fname;
