@@ -1232,7 +1232,7 @@ int emulate_int_real(struct x86_emulate_ctxt *ctxt,
 			       struct x86_emulate_ops *ops, int irq)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc = X86EMUL_CONTINUE;
+	int rc;
 	struct desc_ptr dt;
 	gva_t cs_addr;
 	gva_t eip_addr;
@@ -1242,14 +1242,25 @@ int emulate_int_real(struct x86_emulate_ctxt *ctxt,
 	/* TODO: Add limit checks */
 	c->src.val = ctxt->eflags;
 	emulate_push(ctxt, ops);
+	rc = writeback(ctxt, ops);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
 
 	ctxt->eflags &= ~(EFLG_IF | EFLG_TF | EFLG_AC);
 
 	c->src.val = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
 	emulate_push(ctxt, ops);
+	rc = writeback(ctxt, ops);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
 
 	c->src.val = c->eip;
 	emulate_push(ctxt, ops);
+	rc = writeback(ctxt, ops);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->dst.type = OP_NONE;
 
 	ops->get_idt(&dt, ctxt->vcpu);
 
