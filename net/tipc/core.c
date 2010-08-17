@@ -169,6 +169,7 @@ void tipc_core_stop(void)
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
+	tipc_log_resize(0);
 }
 
 /**
@@ -203,7 +204,9 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	tipc_log_resize(CONFIG_TIPC_LOG);
+	if (tipc_log_resize(CONFIG_TIPC_LOG) != 0)
+		warn("Unable to create log buffer\n");
+
 	info("Activated (version " TIPC_MOD_VER
 	     " compiled " __DATE__ " " __TIME__ ")\n");
 
@@ -230,7 +233,6 @@ static void __exit tipc_exit(void)
 	tipc_core_stop_net();
 	tipc_core_stop();
 	info("Deactivated\n");
-	tipc_log_resize(0);
 }
 
 module_init(tipc_init);
