@@ -42,6 +42,8 @@
 #    mv config_strip .config
 #    make oldconfig
 #
+use strict;
+
 my $config = ".config";
 
 my $uname = `uname -r`;
@@ -291,7 +293,7 @@ if (defined($lsmod_file)) {
     # see what modules are loaded on this system
     my $lsmod;
 
-    foreach $dir ( ("/sbin", "/bin", "/usr/sbin", "/usr/bin") ) {
+    foreach my $dir ( ("/sbin", "/bin", "/usr/sbin", "/usr/bin") ) {
 	if ( -x "$dir/lsmod" ) {
 	    $lsmod = "$dir/lsmod";
 	    last;
