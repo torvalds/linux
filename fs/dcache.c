@@ -1332,31 +1332,13 @@ EXPORT_SYMBOL(d_add_ci);
  * d_lookup - search for a dentry
  * @parent: parent dentry
  * @name: qstr of name we wish to find
+ * Returns: dentry, or NULL
  *
- * Searches the children of the parent dentry for the name in question. If
- * the dentry is found its reference count is incremented and the dentry
- * is returned. The caller must use dput to free the entry when it has
- * finished using it. %NULL is returned on failure.
- *
- * __d_lookup is dcache_lock free. The hash list is protected using RCU.
- * Memory barriers are used while updating and doing lockless traversal. 
- * To avoid races with d_move while rename is happening, d_lock is used.
- *
- * Overflows in memcmp(), while d_move, are avoided by keeping the length
- * and name pointer in one structure pointed by d_qstr.
- *
- * rcu_read_lock() and rcu_read_unlock() are used to disable preemption while
- * lookup is going on.
- *
- * The dentry unused LRU is not updated even if lookup finds the required dentry
- * in there. It is updated in places such as prune_dcache, shrink_dcache_sb,
- * select_parent and __dget_locked. This laziness saves lookup from dcache_lock
- * acquisition.
- *
- * d_lookup() is protected against the concurrent renames in some unrelated
- * directory using the seqlockt_t rename_lock.
+ * d_lookup searches the children of the parent dentry for the name in
+ * question. If the dentry is found its reference count is incremented and the
+ * dentry is returned. The caller must use dput to free the entry when it has
+ * finished using it. %NULL is returned if the dentry does not exist.
  */
-
 struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 {
 	struct dentry * dentry = NULL;
@@ -1372,6 +1354,21 @@ struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 }
 EXPORT_SYMBOL(d_lookup);
 
+/*
+ * __d_lookup - search for a dentry (racy)
+ * @parent: parent dentry
+ * @name: qstr of name we wish to find
+ * Returns: dentry, or NULL
+ *
+ * __d_lookup is like d_lookup, however it may (rarely) return a
+ * false-negative result due to unrelated rename activity.
+ *
+ * __d_lookup is slightly faster by avoiding rename_lock read seqlock,
+ * however it must be used carefully, eg. with a following d_lookup in
+ * the case of failure.
+ *
+ * __d_lookup callers must be commented.
+ */
 struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 {
 	unsigned int len = name->len;
@@ -1382,6 +1379,19 @@ struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 	struct hlist_node *node;
 	struct dentry *dentry;
 
+	/*
+	 * The hash list is protected using RCU.
+	 *
+	 * Take d_lock when comparing a candidate dentry, to avoid races
+	 * with d_move().
+	 *
+	 * It is possible that concurrent renames can mess up our list
+	 * walk here and result in missing our dentry, resulting in the
+	 * false-negative result. d_lookup() protects against concurrent
+	 * renames using rename_lock seqlock.
+	 *
+	 * See Documentation/vfs/dcache-locking.txt for more details.
+	 */
 	rcu_read_lock();
 	
 	hlist_for_each_entry_rcu(dentry, node, head, d_hash) {
@@ -1396,8 +1406,8 @@ struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 
 		/*
 		 * Recheck the dentry after taking the lock - d_move may have
-		 * changed things.  Don't bother checking the hash because we're
-		 * about to compare the whole name anyway.
+		 * changed things. Don't bother checking the hash because
+		 * we're about to compare the whole name anyway.
 		 */
 		if (dentry->d_parent != parent)
 			goto next;
