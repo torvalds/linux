@@ -718,8 +718,9 @@ enum {
 #define QLCNIC_DEV_FAILED		0x6
 #define QLCNIC_DEV_QUISCENT		0x7
 
-#define QLCNIC_DEV_NPAR_NOT_RDY	0
-#define QLCNIC_DEV_NPAR_RDY		1
+#define QLCNIC_DEV_NPAR_NON_OPER	0 /* NON Operational */
+#define QLCNIC_DEV_NPAR_OPER		1 /* NPAR Operational */
+#define QLCNIC_DEV_NPAR_OPER_TIMEO	30 /* Operational time out */
 
 #define QLC_DEV_CHECK_ACTIVE(VAL, FN)		((VAL) &= (1 << (FN * 4)))
 #define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))

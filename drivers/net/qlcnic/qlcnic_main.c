@@ -2398,7 +2398,7 @@ qlcnic_fwinit_work(struct work_struct *work)
 {
 	struct qlcnic_adapter *adapter = container_of(work,
 			struct qlcnic_adapter, fw_work.work);
-	u32 dev_state = 0xf, npar_state;
+	u32 dev_state = 0xf;
 
 	if (qlcnic_api_lock(adapter))
 		goto err_ret;
@@ -2412,16 +2412,8 @@ qlcnic_fwinit_work(struct work_struct *work)
 	}
 
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
-		if (npar_state == QLCNIC_DEV_NPAR_RDY) {
-			qlcnic_api_unlock(adapter);
-			goto wait_npar;
-		} else {
-			qlcnic_schedule_work(adapter, qlcnic_fwinit_work,
-				FW_POLL_DELAY);
-			qlcnic_api_unlock(adapter);
-			return;
-		}
+		qlcnic_api_unlock(adapter);
+		goto wait_npar;
 	}
 
 	if (adapter->fw_wait_cnt++ > adapter->reset_ack_timeo) {
@@ -2470,20 +2462,17 @@ wait_npar:
 	QLCDB(adapter, HW, "Func waiting: Device state=%u\n", dev_state);
 
 	switch (dev_state) {
-	case QLCNIC_DEV_QUISCENT:
-	case QLCNIC_DEV_NEED_QUISCENT:
-	case QLCNIC_DEV_NEED_RESET:
-		qlcnic_schedule_work(adapter,
-			qlcnic_fwinit_work, FW_POLL_DELAY);
-		return;
-	case QLCNIC_DEV_FAILED:
-		break;
-
-	default:
+	case QLCNIC_DEV_READY:
 		if (!adapter->nic_ops->start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
 			return;
 		}
+	case QLCNIC_DEV_FAILED:
+		break;
+	default:
+		qlcnic_schedule_work(adapter,
+			qlcnic_fwinit_work, FW_POLL_DELAY);
+		return;
 	}
 
 err_ret:
@@ -2530,6 +2519,22 @@ err_ret:
 
 }
 
+/*Transit NPAR state to NON Operational */
+static void
+qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
+{
+	u32 state;
+
+	state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+	if (state == QLCNIC_DEV_NPAR_NON_OPER)
+		return;
+
+	if (qlcnic_api_lock(adapter))
+		return;
+	QLCWR32(adapter, QLCNIC_CRB_DEV_NPAR_STATE, QLCNIC_DEV_NPAR_NON_OPER);
+	qlcnic_api_unlock(adapter);
+}
+
 /*Transit to RESET state from READY state only */
 static void
 qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
@@ -2548,6 +2553,7 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 		qlcnic_idc_debug_info(adapter, 0);
 	}
 
+	QLCWR32(adapter, QLCNIC_CRB_DEV_NPAR_STATE, QLCNIC_DEV_NPAR_NON_OPER);
 	qlcnic_api_unlock(adapter);
 }
 
@@ -2555,21 +2561,14 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 static void
 qlcnic_dev_set_npar_ready(struct qlcnic_adapter *adapter)
 {
-	u32 state;
-
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
-		adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+	    adapter->op_mode != QLCNIC_MGMT_FUNC)
 		return;
 	if (qlcnic_api_lock(adapter))
 		return;
 
-	state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
-
-	if (state != QLCNIC_DEV_NPAR_RDY) {
-		QLCWR32(adapter, QLCNIC_CRB_DEV_NPAR_STATE,
-			QLCNIC_DEV_NPAR_RDY);
-		QLCDB(adapter, DRV, "NPAR READY state set\n");
-	}
+	QLCWR32(adapter, QLCNIC_CRB_DEV_NPAR_STATE, QLCNIC_DEV_NPAR_OPER);
+	QLCDB(adapter, DRV, "NPAR operational state set\n");
 
 	qlcnic_api_unlock(adapter);
 }
@@ -2631,8 +2630,11 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		qlcnic_dev_request_reset(adapter);
 
 	state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state == QLCNIC_DEV_NEED_RESET || state == QLCNIC_DEV_NEED_QUISCENT)
+	if (state == QLCNIC_DEV_NEED_RESET ||
+	    state == QLCNIC_DEV_NEED_QUISCENT) {
+		qlcnic_set_npar_non_operational(adapter);
 		adapter->need_fw_reset = 1;
+	}
 
 	heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
 	if (heartbit != adapter->heartbit) {
@@ -2822,10 +2824,24 @@ static int
 qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
 {
 	int err;
+	u8 npar_opt_timeo = QLCNIC_DEV_NPAR_OPER_TIMEO;
+	u32 npar_state;
 
 	err = qlcnic_can_start_firmware(adapter);
 	if (err)
 		return err;
+
+	npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+	while (npar_state != QLCNIC_DEV_NPAR_OPER && --npar_opt_timeo) {
+		msleep(1000);
+		npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+	}
+
+	if (!npar_opt_timeo) {
+		dev_err(&adapter->pdev->dev,
+			"Waiting for NPAR state to opertional timeout\n");
+		return -EIO;
+	}
 
 	qlcnic_check_options(adapter);
 
