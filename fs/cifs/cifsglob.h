@@ -492,6 +492,7 @@ struct cifsLockInfo {
 	struct list_head llist;	/* pointer to next cifsLockInfo */
 	__u64 offset;
 	__u64 length;
+	__u32 pid;
 	__u8 type;
 };
 

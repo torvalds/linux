@@ -1963,7 +1963,7 @@ CIFSSMBWrite2(const int xid, struct cifs_io_parms *io_parms,
 
 int
 CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
-	    const __u16 smb_file_id, const __u64 len,
+	    const __u16 smb_file_id, const __u32 netpid, const __u64 len,
 	    const __u64 offset, const __u32 numUnlock,
 	    const __u32 numLock, const __u8 lockType,
 	    const bool waitFlag, const __u8 oplock_level)
@@ -1999,7 +1999,7 @@ CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
 	pSMB->Fid = smb_file_id; /* netfid stays le */
 
 	if ((numLock != 0) || (numUnlock != 0)) {
-		pSMB->Locks[0].Pid = cpu_to_le16(current->tgid);
+		pSMB->Locks[0].Pid = cpu_to_le16(netpid);
 		/* BB where to store pid high? */
 		pSMB->Locks[0].LengthLow = cpu_to_le32((u32)len);
 		pSMB->Locks[0].LengthHigh = cpu_to_le32((u32)(len>>32));
