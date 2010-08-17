@@ -1157,7 +1157,7 @@ static int download_fw(struct edgeport_serial *serial)
 
 			/* Check if we have an old version in the I2C and
 			   update if necessary */
-			if (download_cur_ver != download_new_ver) {
+			if (download_cur_ver < download_new_ver) {
 				dbg("%s - Update I2C dld from %d.%d to %d.%d",
 				    __func__,
 				    firmware_version->Ver_Major,
