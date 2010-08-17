@@ -1696,7 +1696,7 @@ static int prism2_request_scan(struct net_device *dev)
 		hostap_set_word(dev, HFA384X_RID_CNFROAMINGMODE,
 				HFA384X_ROAMING_FIRMWARE);
 
-	return 0;
+	return ret;
 }
 
 #else /* !PRISM2_NO_STATION_MODES */
