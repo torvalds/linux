@@ -176,21 +176,7 @@ MODULE_PARM_DESC(use_dma, "enable DMA for data transfering to/from NAND HW");
  */
 static struct pxa3xx_nand_timing default_timing;
 static struct pxa3xx_nand_flash default_flash;
-
-static struct pxa3xx_nand_cmdset smallpage_cmdset = {
-	.read1		= 0x0000,
-	.read2		= 0x0050,
-	.program	= 0x1080,
-	.read_status	= 0x0070,
-	.read_id	= 0x0090,
-	.erase		= 0xD060,
-	.reset		= 0x00FF,
-	.lock		= 0x002A,
-	.unlock		= 0x2423,
-	.lock_status	= 0x007A,
-};
-
-static struct pxa3xx_nand_cmdset largepage_cmdset = {
+static struct pxa3xx_nand_cmdset default_cmdset = {
 	.read1		= 0x3000,
 	.read2		= 0x0050,
 	.program	= 0x1080,
@@ -203,142 +189,22 @@ static struct pxa3xx_nand_cmdset largepage_cmdset = {
 	.lock_status	= 0x007A,
 };
 
-#ifdef CONFIG_MTD_NAND_PXA3xx_BUILTIN
-static struct pxa3xx_nand_timing samsung512MbX16_timing = {
-	.tCH	= 10,
-	.tCS	= 0,
-	.tWH	= 20,
-	.tWP	= 40,
-	.tRH	= 30,
-	.tRP	= 40,
-	.tR	= 11123,
-	.tWHR	= 110,
-	.tAR	= 10,
+static struct pxa3xx_nand_timing timing[] = {
+	{ 10,  0, 20, 40, 30, 40, 11123, 110, 10, },
+	{ 10, 25, 15, 25, 15, 30, 25000,  60, 10, },
+	{ 10, 35, 15, 25, 15, 25, 25000,  60, 10, },
 };
 
-static struct pxa3xx_nand_flash samsung512MbX16 = {
-	.timing		= &samsung512MbX16_timing,
-	.cmdset		= &smallpage_cmdset,
-	.page_per_block	= 32,
-	.page_size	= 512,
-	.flash_width	= 16,
-	.dfc_width	= 16,
-	.num_blocks	= 4096,
-	.chip_id	= 0x46ec,
+static struct pxa3xx_nand_flash builtin_flash_types[] = {
+	{ 0x46ec,  32,  512, 16, 16, 4096, &default_cmdset, &timing[0] },
+	{ 0xdaec,  64, 2048,  8,  8, 2048, &default_cmdset, &timing[0] },
+	{ 0xd7ec, 128, 4096,  8,  8, 8192, &default_cmdset, &timing[0] },
+	{ 0xa12c,  64, 2048,  8,  8, 1024, &default_cmdset, &timing[1] },
+	{ 0xb12c,  64, 2048, 16, 16, 1024, &default_cmdset, &timing[1] },
+	{ 0xdc2c,  64, 2048,  8,  8, 4096, &default_cmdset, &timing[1] },
+	{ 0xcc2c,  64, 2048, 16, 16, 4096, &default_cmdset, &timing[1] },
+	{ 0xba20,  64, 2048, 16, 16, 2048, &default_cmdset, &timing[2] },
 };
-
-static struct pxa3xx_nand_flash samsung2GbX8 = {
-	.timing		= &samsung512MbX16_timing,
-	.cmdset		= &smallpage_cmdset,
-	.page_per_block	= 64,
-	.page_size	= 2048,
-	.flash_width	= 8,
-	.dfc_width	= 8,
-	.num_blocks	= 2048,
-	.chip_id	= 0xdaec,
-};
-
-static struct pxa3xx_nand_flash samsung32GbX8 = {
-	.timing		= &samsung512MbX16_timing,
-	.cmdset		= &smallpage_cmdset,
-	.page_per_block	= 128,
-	.page_size	= 4096,
-	.flash_width	= 8,
-	.dfc_width	= 8,
-	.num_blocks	= 8192,
-	.chip_id	= 0xd7ec,
-};
-
-static struct pxa3xx_nand_timing micron_timing = {
-	.tCH	= 10,
-	.tCS	= 25,
-	.tWH	= 15,
-	.tWP	= 25,
-	.tRH	= 15,
-	.tRP	= 30,
-	.tR	= 25000,
-	.tWHR	= 60,
-	.tAR	= 10,
-};
-
-static struct pxa3xx_nand_flash micron1GbX8 = {
-	.timing		= &micron_timing,
-	.cmdset		= &largepage_cmdset,
-	.page_per_block	= 64,
-	.page_size	= 2048,
-	.flash_width	= 8,
-	.dfc_width	= 8,
-	.num_blocks	= 1024,
-	.chip_id	= 0xa12c,
-};
-
-static struct pxa3xx_nand_flash micron1GbX16 = {
-	.timing		= &micron_timing,
-	.cmdset		= &largepage_cmdset,
-	.page_per_block	= 64,
-	.page_size	= 2048,
-	.flash_width	= 16,
-	.dfc_width	= 16,
-	.num_blocks	= 1024,
-	.chip_id	= 0xb12c,
-};
-
-static struct pxa3xx_nand_flash micron4GbX8 = {
-	.timing		= &micron_timing,
-	.cmdset		= &largepage_cmdset,
-	.page_per_block	= 64,
-	.page_size	= 2048,
-	.flash_width	= 8,
-	.dfc_width	= 8,
-	.num_blocks	= 4096,
-	.chip_id	= 0xdc2c,
-};
-
-static struct pxa3xx_nand_flash micron4GbX16 = {
-	.timing		= &micron_timing,
-	.cmdset		= &largepage_cmdset,
-	.page_per_block	= 64,
-	.page_size	= 2048,
-	.flash_width	= 16,
-	.dfc_width	= 16,
-	.num_blocks	= 4096,
-	.chip_id	= 0xcc2c,
-};
-
-static struct pxa3xx_nand_timing stm2GbX16_timing = {
-	.tCH = 10,
-	.tCS = 35,
-	.tWH = 15,
-	.tWP = 25,
-	.tRH = 15,
-	.tRP = 25,
-	.tR = 25000,
-	.tWHR = 60,
-	.tAR = 10,
-};
-
-static struct pxa3xx_nand_flash stm2GbX16 = {
-	.timing = &stm2GbX16_timing,
-	.cmdset	= &largepage_cmdset,
-	.page_per_block = 64,
-	.page_size = 2048,
-	.flash_width = 16,
-	.dfc_width = 16,
-	.num_blocks = 2048,
-	.chip_id = 0xba20,
-};
-
-static struct pxa3xx_nand_flash *builtin_flash_types[] = {
-	&samsung512MbX16,
-	&samsung2GbX8,
-	&samsung32GbX8,
-	&micron1GbX8,
-	&micron1GbX16,
-	&micron4GbX8,
-	&micron4GbX16,
-	&stm2GbX16,
-};
-#endif /* CONFIG_MTD_NAND_PXA3xx_BUILTIN */
 
 #define NDTR0_tCH(c)	(min((c), 7) << 19)
 #define NDTR0_tCS(c)	(min((c), 7) << 16)
@@ -1027,11 +893,6 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 	default_flash.flash_width = ndcr & NDCR_DWIDTH_M ? 16 : 8;
 	default_flash.dfc_width = ndcr & NDCR_DWIDTH_C ? 16 : 8;
 
-	if (default_flash.page_size == 2048)
-		default_flash.cmdset = &largepage_cmdset;
-	else
-		default_flash.cmdset = &smallpage_cmdset;
-
 	/* set info fields needed to __readid */
 	info->flash_info = &default_flash;
 	info->read_id_bytes = (default_flash.page_size == 2048) ? 4 : 2;
@@ -1068,6 +929,7 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 
 	pxa3xx_nand_detect_timing(info, &default_timing);
 	default_flash.timing = &default_timing;
+	default_flash.cmdset = &default_cmdset;
 
 	return 0;
 }
@@ -1096,10 +958,9 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 			return 0;
 	}
 
-#ifdef CONFIG_MTD_NAND_PXA3xx_BUILTIN
 	for (i = 0; i < ARRAY_SIZE(builtin_flash_types); i++) {
 
-		f = builtin_flash_types[i];
+		f = &builtin_flash_types[i];
 
 		if (pxa3xx_nand_config_flash(info, f))
 			continue;
@@ -1110,7 +971,6 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 		if (id == f->chip_id)
 			return 0;
 	}
-#endif
 
 	dev_warn(&info->pdev->dev,
 		 "failed to detect configured nand flash; found %04x instead of\n",
