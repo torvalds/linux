@@ -293,14 +293,14 @@ static void wl1251_irq_work(struct work_struct *work)
 			wl1251_tx_complete(wl);
 		}
 
-		if (intr & (WL1251_ACX_INTR_EVENT_A |
-			    WL1251_ACX_INTR_EVENT_B)) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)",
-				     intr);
-			if (intr & WL1251_ACX_INTR_EVENT_A)
-				wl1251_event_handle(wl, 0);
-			else
-				wl1251_event_handle(wl, 1);
+		if (intr & WL1251_ACX_INTR_EVENT_A) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT_A");
+			wl1251_event_handle(wl, 0);
+		}
+
+		if (intr & WL1251_ACX_INTR_EVENT_B) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT_B");
+			wl1251_event_handle(wl, 1);
 		}
 
 		if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
