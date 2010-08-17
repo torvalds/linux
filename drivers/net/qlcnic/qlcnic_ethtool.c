@@ -747,6 +747,14 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 {
 	memset(data, 0, sizeof(u64) * QLCNIC_TEST_LEN);
 
+	data[0] = qlcnic_reg_test(dev);
+	if (data[0])
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+
+	data[1] = (u64) qlcnic_test_link(dev);
+	if (data[1])
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		data[2] = qlcnic_irq_test(dev);
 		if (data[2])
@@ -757,15 +765,6 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 	}
-
-	data[0] = qlcnic_reg_test(dev);
-	if (data[0])
-		eth_test->flags |= ETH_TEST_FL_FAILED;
-
-	/* link test */
-	data[1] = (u64) qlcnic_test_link(dev);
-	if (data[1])
-		eth_test->flags |= ETH_TEST_FL_FAILED;
 }
 
 static void

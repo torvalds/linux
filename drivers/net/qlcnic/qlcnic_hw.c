@@ -1245,4 +1245,5 @@ void qlcnic_clear_ilb_mode(struct qlcnic_adapter *adapter)
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 
 	qlcnic_nic_set_promisc(adapter, mode);
+	msleep(1000);
 }
