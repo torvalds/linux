@@ -143,6 +143,19 @@ static void bcbuf_decr_acks(struct sk_buff *buf)
 }
 
 
+static void bclink_set_last_sent(void)
+{
+	if (bcl->next_out)
+		bcl->fsm_msg_cnt = mod(buf_seqno(bcl->next_out) - 1);
+	else
+		bcl->fsm_msg_cnt = mod(bcl->next_out_no - 1);
+}
+
+u32 tipc_bclink_get_last_sent(void)
+{
+	return bcl->fsm_msg_cnt;
+}
+
 /**
  * bclink_set_gap - set gap according to contents of current deferred pkt queue
  *
@@ -237,8 +250,10 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 
 	/* Try resolving broadcast link congestion, if necessary */
 
-	if (unlikely(bcl->next_out))
+	if (unlikely(bcl->next_out)) {
 		tipc_link_push_queue(bcl);
+		bclink_set_last_sent();
+	}
 	if (unlikely(released && !list_empty(&bcl->waiting_ports)))
 		tipc_link_wakeup_ports(bcl, 0);
 	spin_unlock_bh(&bc_lock);
@@ -394,8 +409,10 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 	res = tipc_link_send_buf(bcl, buf);
 	if (unlikely(res == -ELINKCONG))
 		buf_discard(buf);
-	else
+	else {
 		bcl->stats.sent_info++;
+		bclink_set_last_sent();
+	}
 
 	if (bcl->out_queue_size > bcl->stats.max_queue_sz)
 		bcl->stats.max_queue_sz = bcl->out_queue_size;
@@ -527,15 +544,6 @@ receive:
 		buf_discard(buf);
 	}
 	tipc_node_unlock(node);
-}
-
-u32 tipc_bclink_get_last_sent(void)
-{
-	u32 last_sent = mod(bcl->next_out_no - 1);
-
-	if (bcl->next_out)
-		last_sent = mod(buf_seqno(bcl->next_out) - 1);
-	return last_sent;
 }
 
 u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
