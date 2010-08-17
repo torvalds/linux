@@ -709,6 +709,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 	dentry = __d_lookup(nd->path.dentry, name);
 	if (!dentry)
 		goto need_lookup;
+found:
 	if (dentry->d_op && dentry->d_op->d_revalidate)
 		goto need_revalidate;
 done:
@@ -766,14 +767,7 @@ out_unlock:
 	 * we waited on the semaphore. Need to revalidate.
 	 */
 	mutex_unlock(&dir->i_mutex);
-	if (dentry->d_op && dentry->d_op->d_revalidate) {
-		dentry = do_revalidate(dentry, nd);
-		if (!dentry)
-			dentry = ERR_PTR(-ENOENT);
-	}
-	if (IS_ERR(dentry))
-		goto fail;
-	goto done;
+	goto found;
 
 need_revalidate:
 	dentry = do_revalidate(dentry, nd);
