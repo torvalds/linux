@@ -25,13 +25,6 @@
 
 #include <linux/mfd/pcf50633/core.h>
 
-int pcf50633_irq_init(struct pcf50633 *pcf, int irq);
-void pcf50633_irq_free(struct pcf50633 *pcf);
-#ifdef CONFIG_PM
-int pcf50633_irq_suspend(struct pcf50633 *pcf);
-int pcf50633_irq_resume(struct pcf50633 *pcf);
-#endif
-
 static int __pcf50633_read(struct pcf50633 *pcf, u8 reg, int num, u8 *data)
 {
 	int ret;
