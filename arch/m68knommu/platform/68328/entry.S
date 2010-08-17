@@ -43,7 +43,7 @@ badsys:
 	jra	ret_from_exception
 
 do_trace:
-	movel	#-ENOSYS,%sp@(PT_OFF_D0)	/* needed for strace*/
+	movel	#-ENOSYS,%sp@(PT_OFF_D0) /* needed for strace*/
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
@@ -57,7 +57,7 @@ do_trace:
 	lea	sys_call_table, %a0
 	jbsr	%a0@(%d1)
 
-1:	movel	%d0,%sp@(PT_OFF_D0)		/* save the return value */
+1:	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value */
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
@@ -71,9 +71,9 @@ ENTRY(system_call)
 	SAVE_ALL
 
 	/* save top of frame*/
-	pea     %sp@
-	jbsr    set_esp0
-	addql   #4,%sp
+	pea	%sp@
+	jbsr	set_esp0
+	addql	#4,%sp
 
 	movel	%sp@(PT_OFF_ORIG_D0),%d0
 
@@ -88,10 +88,10 @@ ENTRY(system_call)
 	lea	sys_call_table,%a0
 	movel	%a0@(%d0), %a0
 	jbsr	%a0@
-	movel	%d0,%sp@(PT_OFF_D0)		/* save the return value*/
+	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value*/
 
 ret_from_exception:
-	btst	#5,%sp@(PT_OFF_SR)		/* check if returning to kernel*/
+	btst	#5,%sp@(PT_OFF_SR)	/* check if returning to kernel*/
 	jeq	Luser_return		/* if so, skip resched, signals*/
 
 Lkernel_return:
