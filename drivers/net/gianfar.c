@@ -2048,7 +2048,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 bufaddr;
 	unsigned long flags;
 	unsigned int nr_frags, nr_txbds, length;
-	union skb_shared_tx *shtx;
 
 	/*
 	 * TOE=1 frames larger than 2500 bytes may see excess delays
@@ -2069,10 +2068,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	txq = netdev_get_tx_queue(dev, rq);
 	base = tx_queue->tx_bd_base;
 	regs = tx_queue->grp->regs;
-	shtx = skb_tx(skb);
 
 	/* check if time stamp should be generated */
-	if (unlikely(shtx->hardware && priv->hwts_tx_en))
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
+		     priv->hwts_tx_en))
 		do_tstamp = 1;
 
 	/* make space for additional header when fcb is needed */
@@ -2174,7 +2173,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Setup tx hardware time stamping if requested */
 	if (unlikely(do_tstamp)) {
-		shtx->in_progress = 1;
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		if (fcb == NULL)
 			fcb = gfar_add_fcb(skb);
 		fcb->ptp = 1;
@@ -2446,7 +2445,6 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	int howmany = 0;
 	u32 lstatus;
 	size_t buflen;
-	union skb_shared_tx *shtx;
 
 	rx_queue = priv->rx_queue[tx_queue->qindex];
 	bdp = tx_queue->dirty_tx;
@@ -2461,8 +2459,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		 * When time stamping, one additional TxBD must be freed.
 		 * Also, we need to dma_unmap_single() the TxPAL.
 		 */
-		shtx = skb_tx(skb);
-		if (unlikely(shtx->in_progress))
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))
 			nr_txbds = frags + 2;
 		else
 			nr_txbds = frags + 1;
@@ -2476,7 +2473,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 				(lstatus & BD_LENGTH_MASK))
 			break;
 
-		if (unlikely(shtx->in_progress)) {
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 			next = next_txbd(bdp, base, tx_ring_size);
 			buflen = next->length + GMAC_FCB_LEN;
 		} else
@@ -2485,7 +2482,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		dma_unmap_single(&priv->ofdev->dev, bdp->bufPtr,
 				buflen, DMA_TO_DEVICE);
 
-		if (unlikely(shtx->in_progress)) {
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 			struct skb_shared_hwtstamps shhwtstamps;
 			u64 *ns = (u64*) (((u32)skb->data + 0x10) & ~0x7);
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));

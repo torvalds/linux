@@ -143,7 +143,7 @@ struct igb_buffer {
 			u16 next_to_watch;
 			unsigned int bytecount;
 			u16 gso_segs;
-			union skb_shared_tx shtx;
+			u8 tx_flags;
 			u8 mapped_as_page;
 		};
 		/* RX */

@@ -803,15 +803,14 @@ static void bfin_dump_hwtamp(char *s, ktime_t *hw, ktime_t *ts, struct timecompa
 static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 {
 	struct bfin_mac_local *lp = netdev_priv(netdev);
-	union skb_shared_tx *shtx = skb_tx(skb);
 
-	if (shtx->hardware) {
+	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		int timeout_cnt = MAX_TIMEOUT_CNT;
 
 		/* When doing time stamping, keep the connection to the socket
 		 * a while longer
 		 */
-		shtx->in_progress = 1;
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 		/*
 		 * The timestamping is done at the EMAC module's MII/RMII interface
@@ -991,7 +990,6 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	struct bfin_mac_local *lp = netdev_priv(dev);
 	u16 *data;
 	u32 data_align = (unsigned long)(skb->data) & 0x3;
-	union skb_shared_tx *shtx = skb_tx(skb);
 
 	current_tx_ptr->skb = skb;
 
@@ -1005,7 +1003,7 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 		 * of this field are the length of the packet payload in bytes and the higher
 		 * 4 bits are the timestamping enable field.
 		 */
-		if (shtx->hardware)
+		if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
 			*data |= 0x1000;
 
 		current_tx_ptr->desc_a.start_addr = (u32)data;
@@ -1015,7 +1013,7 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	} else {
 		*((u16 *)(current_tx_ptr->packet)) = (u16)(skb->len);
 		/* enable timestamping for the sent packet */
-		if (shtx->hardware)
+		if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
 			*((u16 *)(current_tx_ptr->packet)) |= 0x1000;
 		memcpy((u8 *)(current_tx_ptr->packet + 2), skb->data,
 			skb->len);
