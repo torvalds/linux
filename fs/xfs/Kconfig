@@ -22,6 +22,7 @@ config XFS_FS
 config XFS_QUOTA
 	bool "XFS Quota support"
 	depends on XFS_FS
+	select QUOTACTL
 	help
 	  If you say Y here, you will be able to set limits for disk usage on
 	  a per user and/or a per group basis under XFS.  XFS considers quota
