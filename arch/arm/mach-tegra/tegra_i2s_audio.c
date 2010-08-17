@@ -50,23 +50,7 @@
 
 
 /* per stream (input/output) */
-struct audio_out_stream {
-	int opened;
-	struct mutex lock;
-
-	bool active; /* is DMA or PIO in progress? */
-	void *buffer;
-	dma_addr_t buf_phys;
-	struct kfifo fifo;
-	struct completion fifo_completion;
-
-	struct tegra_dma_channel *dma_chan;
-	spinlock_t dma_req_lock; /* guards active and dma_has_it */
-	int dma_has_it;
-	struct tegra_dma_req dma_req;
-};
-
-struct audio_in_stream {
+struct audio_stream {
 	int opened;
 	struct mutex lock;
 
@@ -115,10 +99,10 @@ struct audio_driver_state {
 	int in_divs_len;
 
 	struct miscdevice misc_out;
-	struct audio_out_stream out;
+	struct audio_stream out;
 
 	struct miscdevice misc_in;
-	struct audio_in_stream in;
+	struct audio_stream in;
 };
 
 static inline struct audio_driver_state *ads_from_misc_out(struct file *file)
@@ -140,13 +124,13 @@ static inline struct audio_driver_state *ads_from_misc_in(struct file *file)
 }
 
 static inline struct audio_driver_state *ads_from_out(
-			struct audio_out_stream *aos)
+			struct audio_stream *aos)
 {
 	return container_of(aos, struct audio_driver_state, out);
 }
 
 static inline struct audio_driver_state *ads_from_in(
-			struct audio_in_stream *ais)
+			struct audio_stream *ais)
 {
 	return container_of(ais, struct audio_driver_state, in);
 }
@@ -444,26 +428,26 @@ static inline u32 i2s_get_fifo_full_empty_count(unsigned long base, int fifo)
 
 static int setup_dma(struct audio_driver_state *);
 static void tear_down_dma(struct audio_driver_state *);
-static int start_dma_playback(struct audio_out_stream *);
-static void stop_dma_playback(struct audio_out_stream *);
-static int start_dma_recording(struct audio_in_stream *);
-static int resume_dma_recording(struct audio_in_stream *);
-static void stop_dma_recording(struct audio_in_stream *);
+static int start_dma_playback(struct audio_stream *);
+static void stop_dma_playback(struct audio_stream *);
+static int start_dma_recording(struct audio_stream *);
+static int resume_dma_recording(struct audio_stream *);
+static void stop_dma_recording(struct audio_stream *);
 
 static int setup_pio(struct audio_driver_state *);
 static void tear_down_pio(struct audio_driver_state *);
-static int start_pio_playback(struct audio_out_stream *);
-static void stop_pio_playback(struct audio_out_stream *);
-static int start_pio_recording(struct audio_in_stream *);
-static void stop_pio_recording(struct audio_in_stream *);
+static int start_pio_playback(struct audio_stream *);
+static void stop_pio_playback(struct audio_stream *);
+static int start_pio_recording(struct audio_stream *);
+static void stop_pio_recording(struct audio_stream *);
 
 struct sound_ops {
 	int (*setup)(struct audio_driver_state *);
 	void (*tear_down)(struct audio_driver_state *);
-	int (*start_playback)(struct audio_out_stream *);
-	void (*stop_playback)(struct audio_out_stream *);
-	int (*start_recording)(struct audio_in_stream *);
-	void (*stop_recording)(struct audio_in_stream *);
+	int (*start_playback)(struct audio_stream *);
+	void (*stop_playback)(struct audio_stream *);
+	int (*start_recording)(struct audio_stream *);
+	void (*stop_recording)(struct audio_stream *);
 };
 
 static const struct sound_ops dma_sound_ops = {
@@ -486,7 +470,7 @@ static const struct sound_ops pio_sound_ops = {
 
 static const struct sound_ops *sound_ops = &dma_sound_ops;
 
-static void start_playback_if_necessary(struct audio_out_stream *aos)
+static void start_playback_if_necessary(struct audio_stream *aos)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&aos->dma_req_lock, flags);
@@ -498,7 +482,7 @@ static void start_playback_if_necessary(struct audio_out_stream *aos)
 	spin_unlock_irqrestore(&aos->dma_req_lock, flags);
 }
 
-static void start_recording_if_necessary(struct audio_in_stream *ais)
+static void start_recording_if_necessary(struct audio_stream *ais)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&ais->dma_req_lock, flags);
@@ -510,7 +494,7 @@ static void start_recording_if_necessary(struct audio_in_stream *ais)
 	spin_unlock_irqrestore(&ais->dma_req_lock, flags);
 }
 
-static bool stop_playback_if_necessary(struct audio_out_stream *aos)
+static bool stop_playback_if_necessary(struct audio_stream *aos)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&aos->dma_req_lock, flags);
@@ -525,7 +509,7 @@ static bool stop_playback_if_necessary(struct audio_out_stream *aos)
 	return false;
 }
 
-static bool stop_recording_if_necessary_nosync(struct audio_in_stream *ais)
+static bool stop_recording_if_necessary_nosync(struct audio_stream *ais)
 {
 	struct audio_driver_state *ads = ads_from_in(ais);
 
@@ -538,7 +522,7 @@ static bool stop_recording_if_necessary_nosync(struct audio_in_stream *ais)
 	return false;
 }
 
-static bool stop_recording_if_necessary(struct audio_in_stream *ais)
+static bool stop_recording_if_necessary(struct audio_stream *ais)
 {
 	unsigned long flags;
 	bool ret;
@@ -559,13 +543,13 @@ static void toggle_dma(struct audio_driver_state *ads)
 
 /* DMA */
 
-static int resume_dma_playback(struct audio_out_stream *aos);
+static int resume_dma_playback(struct audio_stream *aos);
 
 static void setup_dma_tx_request(struct tegra_dma_req *req,
-		struct audio_out_stream *aos);
+		struct audio_stream *aos);
 
 static void setup_dma_rx_request(struct tegra_dma_req *req,
-		struct audio_in_stream *ais);
+		struct audio_stream *ais);
 
 static int setup_dma(struct audio_driver_state *ads)
 {
@@ -637,7 +621,7 @@ static void tear_down_dma(struct audio_driver_state *ads)
 static void dma_tx_complete_callback(struct tegra_dma_req *req)
 {
 	unsigned long flags;
-	struct audio_out_stream *aos = req->dev;
+	struct audio_stream *aos = req->dev;
 	int count = req->bytes_transferred;
 
 	pr_debug("%s bytes transferred %d\n", __func__, count);
@@ -666,7 +650,7 @@ static void dma_rx_complete_threshold(struct tegra_dma_req *req)
 static void dma_rx_complete_callback(struct tegra_dma_req *req)
 {
 	unsigned long flags;
-	struct audio_in_stream *ais = req->dev;
+	struct audio_stream *ais = req->dev;
 	int count = req->bytes_transferred;
 
 	pr_debug("%s bytes transferred %d (%d available in fifo)\n", __func__,
@@ -700,7 +684,7 @@ static void dma_rx_complete_callback(struct tegra_dma_req *req)
 }
 
 static void setup_dma_tx_request(struct tegra_dma_req *req,
-		struct audio_out_stream *aos)
+		struct audio_stream *aos)
 {
 	struct audio_driver_state *ads = ads_from_out(aos);
 
@@ -718,7 +702,7 @@ static void setup_dma_tx_request(struct tegra_dma_req *req,
 }
 
 static void setup_dma_rx_request(struct tegra_dma_req *req,
-		struct audio_in_stream *ais)
+		struct audio_stream *ais)
 {
 	struct audio_driver_state *ads = ads_from_in(ais);
 
@@ -737,7 +721,7 @@ static void setup_dma_rx_request(struct tegra_dma_req *req,
 }
 
 /* Called with aos->dma_req_lock taken. */
-static int resume_dma_playback(struct audio_out_stream *aos)
+static int resume_dma_playback(struct audio_stream *aos)
 {
 	int rc;
 	struct audio_driver_state *ads = ads_from_out(aos);
@@ -773,13 +757,13 @@ static int resume_dma_playback(struct audio_out_stream *aos)
 }
 
 /* Called with aos->dma_req_lock taken. */
-static int start_dma_playback(struct audio_out_stream *aos)
+static int start_dma_playback(struct audio_stream *aos)
 {
 	return resume_dma_playback(aos);
 }
 
 /* Called with aos->dma_req_lock taken. */
-static void stop_dma_playback(struct audio_out_stream *aos)
+static void stop_dma_playback(struct audio_stream *aos)
 {
 	struct audio_driver_state *ads = ads_from_out(aos);
 	pr_debug("%s\n", __func__);
@@ -791,7 +775,7 @@ static void stop_dma_playback(struct audio_out_stream *aos)
 
 /* This function may be called from either interrupt or process context. */
 /* Called with ais->dma_req_lock taken. */
-static int resume_dma_recording(struct audio_in_stream *ais)
+static int resume_dma_recording(struct audio_stream *ais)
 {
 	struct audio_driver_state *ads = ads_from_in(ais);
 	struct tegra_dma_req *req = &ais->dma_req;
@@ -842,14 +826,14 @@ static int resume_dma_recording(struct audio_in_stream *ais)
 }
 
 /* Called with ais->dma_req_lock taken. */
-static int start_dma_recording(struct audio_in_stream *ais)
+static int start_dma_recording(struct audio_stream *ais)
 {
 	pr_info("%s\n", __func__);
 	return resume_dma_recording(ais);
 }
 
 /* Called with ais->dma_req_lock taken. */
-static void stop_dma_recording(struct audio_in_stream *ais)
+static void stop_dma_recording(struct audio_stream *ais)
 {
 	struct audio_driver_state *ads = ads_from_in(ais);
 	pr_info("%s\n", __func__);
@@ -875,7 +859,7 @@ static void tear_down_pio(struct audio_driver_state *ads)
 	disable_irq(ads->irq);
 }
 
-static int start_pio_playback(struct audio_out_stream *aos)
+static int start_pio_playback(struct audio_stream *aos)
 {
 	struct audio_driver_state *ads = ads_from_out(aos);
 
@@ -892,7 +876,7 @@ static int start_pio_playback(struct audio_out_stream *aos)
 	return 0;
 }
 
-static void stop_pio_playback(struct audio_out_stream *aos)
+static void stop_pio_playback(struct audio_stream *aos)
 {
 	struct audio_driver_state *ads = ads_from_out(aos);
 
@@ -912,7 +896,7 @@ static void stop_pio_playback(struct audio_out_stream *aos)
 	memset(&ads->pio_stats, 0, sizeof(ads->pio_stats));
 }
 
-static int start_pio_recording(struct audio_in_stream *ais)
+static int start_pio_recording(struct audio_stream *ais)
 {
 	struct audio_driver_state *ads = ads_from_in(ais);
 
@@ -930,7 +914,7 @@ static int start_pio_recording(struct audio_in_stream *ais)
 	return 0;
 }
 
-static void stop_pio_recording(struct audio_in_stream *ais)
+static void stop_pio_recording(struct audio_stream *ais)
 {
 	struct audio_driver_state *ads = ads_from_in(ais);
 
@@ -975,7 +959,7 @@ static irqreturn_t i2s_interrupt(int irq, void *data)
 		int len;
 		u16 fifo_buffer[32];
 
-		struct audio_out_stream *out = &ads->out;
+		struct audio_stream *out = &ads->out;
 
 		if (!i2s_is_fifo_enabled(ads->i2s_base, I2S_FIFO_TX)) {
 			pr_debug("%s: tx fifo not enabled, skipping\n",
@@ -1026,7 +1010,7 @@ check_rx:
 		int nr;
 		int full;
 
-		struct audio_in_stream *in = &ads->in;
+		struct audio_stream *in = &ads->in;
 
 		if (!i2s_is_fifo_enabled(ads->i2s_base, I2S_FIFO_RX)) {
 			pr_debug("%s: rx fifo not enabled, skipping\n",
@@ -1126,7 +1110,7 @@ static long tegra_audio_in_ioctl(struct file *file,
 {
 	int rc = 0;
 	struct audio_driver_state *ads = ads_from_misc_in(file);
-	struct audio_in_stream *ais = &ads->in;
+	struct audio_stream *ais = &ads->in;
 
 	mutex_lock(&ais->lock);
 
