@@ -80,7 +80,7 @@ ENTRY(system_call)
 	movel	%sp,%d1			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d1
 	movel	%d1,%a2
-	btst    #TIF_SYSCALL_TRACE,%a2@(TI_FLAGS)
+	btst	#(TIF_SYSCALL_TRACE%8),%a2@(TI_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
 	jne	do_trace
 	cmpl	#NR_syscalls,%d0
 	jcc	badsys
