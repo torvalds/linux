@@ -339,11 +339,9 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 	if (ret < 0)
 		goto out;
 
-	/*
-	 * FIXME: we should wait for JOIN_EVENT_COMPLETE_ID but to simplify
-	 * locking we just sleep instead, for now
-	 */
-	msleep(10);
+	ret = wl1251_event_wait(wl, JOIN_EVENT_COMPLETE_ID, 100);
+	if (ret < 0)
+		wl1251_warning("join timeout");
 
 out:
 	return ret;
