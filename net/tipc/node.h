@@ -52,6 +52,7 @@
  * @active_links: pointers to active links to node
  * @links: pointers to all links to node
  * @working_links: number of working links to node (both active and standby)
+ * @cleanup_required: non-zero if cleaning up after a prior loss of contact
  * @link_cnt: number of links to node
  * @permit_changeover: non-zero if node has redundant links to this system
  * @routers: bitmap (used for multicluster communication)
@@ -78,6 +79,7 @@ struct tipc_node {
 	struct link *links[MAX_BEARERS];
 	int link_cnt;
 	int working_links;
+	int cleanup_required;
 	int permit_changeover;
 	u32 routers[512/32];
 	int last_router;

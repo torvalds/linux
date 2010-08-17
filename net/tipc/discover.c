@@ -203,6 +203,14 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 				return;
 		}
 		spin_lock_bh(&n_ptr->lock);
+
+		/* Don't talk to neighbor during cleanup after last session */
+
+		if (n_ptr->cleanup_required) {
+			spin_unlock_bh(&n_ptr->lock);
+			return;
+		}
+
 		link = n_ptr->links[b_ptr->identity];
 		if (!link) {
 			dbg("creating link\n");

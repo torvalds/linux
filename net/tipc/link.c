@@ -1869,12 +1869,21 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 				goto cont;
 		}
 
-		/* Locate unicast link endpoint that should handle message */
+		/* Locate neighboring node that sent message */
 
 		n_ptr = tipc_node_find(msg_prevnode(msg));
 		if (unlikely(!n_ptr))
 			goto cont;
 		tipc_node_lock(n_ptr);
+
+		/* Don't talk to neighbor during cleanup after last session */
+
+		if (n_ptr->cleanup_required) {
+			tipc_node_unlock(n_ptr);
+			goto cont;
+		}
+
+		/* Locate unicast link endpoint that should handle message */
 
 		l_ptr = n_ptr->links[b_ptr->identity];
 		if (unlikely(!l_ptr)) {
