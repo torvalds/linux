@@ -39,8 +39,6 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send);
-int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
-			   size_t len);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 			    void *buf, size_t buf_len, int index, u32 rates);
 int wl1271_cmd_build_null_data(struct wl1271 *wl);
@@ -160,41 +158,6 @@ enum {
 	CMD_STATUS_FW_RESET		= 22, /* Driver internal use.*/
 	MAX_COMMAND_STATUS		= 0xff
 };
-
-
-/*
- * CMD_READ_MEMORY
- *
- * The host issues this command to read the WiLink device memory/registers.
- *
- * Note: The Base Band address has special handling (16 bits registers and
- * addresses). For more information, see the hardware specification.
- */
-/*
- * CMD_WRITE_MEMORY
- *
- * The host issues this command to write the WiLink device memory/registers.
- *
- * The Base Band address has special handling (16 bits registers and
- * addresses). For more information, see the hardware specification.
- */
-#define MAX_READ_SIZE 256
-
-struct cmd_read_write_memory {
-	struct wl1271_cmd_header header;
-
-	/* The address of the memory to read from or write to.*/
-	__le32 addr;
-
-	/* The amount of data in bytes to read from or write to the WiLink
-	 * device.*/
-	__le32 size;
-
-	/* The actual value read from or written to the Wilink. The source
-	   of this field is the Host in WRITE command or the Wilink in READ
-	   command. */
-	u8 value[MAX_READ_SIZE];
-} __packed;
 
 #define CMDMBOX_HEADER_LEN 4
 #define CMDMBOX_INFO_ELEM_HEADER_LEN 4

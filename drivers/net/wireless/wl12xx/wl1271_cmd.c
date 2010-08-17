@@ -421,41 +421,6 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
-			   size_t len)
-{
-	struct cmd_read_write_memory *cmd;
-	int ret = 0;
-
-	wl1271_debug(DEBUG_CMD, "cmd read memory");
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	WARN_ON(len > MAX_READ_SIZE);
-	len = min_t(size_t, len, MAX_READ_SIZE);
-
-	cmd->addr = cpu_to_le32(addr);
-	cmd->size = cpu_to_le32(len);
-
-	ret = wl1271_cmd_send(wl, CMD_READ_MEMORY, cmd, sizeof(*cmd),
-			      sizeof(*cmd));
-	if (ret < 0) {
-		wl1271_error("read memory command failed: %d", ret);
-		goto out;
-	}
-
-	/* the read command got in */
-	memcpy(answer, cmd->value, len);
-
-out:
-	kfree(cmd);
-	return ret;
-}
-
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 			    void *buf, size_t buf_len, int index, u32 rates)
 {
