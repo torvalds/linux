@@ -35,6 +35,10 @@
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 #define RK2818_DELAY_TIME		2
 
+#if defined (CONFIG_IOEXTEND_TCA6424)
+	void tca6424_reset_itr(void);
+#endif
+
 #if 0
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
@@ -457,6 +461,14 @@ exit:
 		if((ret = rk2818_i2c_stop(i2c)) != 0)
 		{
 			dev_err(i2c->dev, "<error>rk2818_i2c_stop timeout\n");
+		}
+
+		//not I2C code,add by sxj,used for extend gpio intrrupt,set SCL and SDA pin.
+		if(msg->flags & I2C_M_RD)
+		{
+			#if defined (CONFIG_IOEXTEND_TCA6424)
+				tca6424_reset_itr( );
+			#endif	
 		}
 			
 	}

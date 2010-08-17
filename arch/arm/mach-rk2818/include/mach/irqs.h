@@ -46,7 +46,7 @@
 CONFIG_RK28_GPIO_IRQ表示RK2818的GPIO复用的最大中断数目，CONFIG_EXTEND_GPIO_IRQ表示RK2818的
 扩展IO复用的最大中断数目。*/
 #define NR_AIC_IRQS 	48
-#define	NR_IRQS		(NR_AIC_IRQS + CONFIG_RK28_GPIO_IRQ + CONFIG_EXPANDED_GPIO_IRQ_NUM)                                   
+#define	NR_IRQS		(NR_AIC_IRQS + CONFIG_RK28_GPIO_IRQ+CONFIG_EXPANDED_GPIO_IRQ_NUM+CONFIG_SPI_FPGA_GPIO_IRQ_NUM)                                   
                                    
                                    
 /*irq number*/                                   

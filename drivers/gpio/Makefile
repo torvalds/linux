@@ -20,3 +20,4 @@ obj-$(CONFIG_GPIO_BT8XX)	+= bt8xxgpio.o
 obj-$(CONFIG_GPIO_VR41XX)	+= vr41xx_giu.o
 obj-$(CONFIG_GPIO_WM831X)	+= wm831x-gpio.o
 obj-$(CONFIG_GPIO_PCA9554)	+= pca9554.o
+obj-$(CONFIG_IOEXTEND_TCA6424) += tca6424.o

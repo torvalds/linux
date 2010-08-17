@@ -254,6 +254,75 @@ struct pca9554_platform_data rk2818_pca9554_data={
 };
 #endif
 
+#if defined (CONFIG_IOEXTEND_TCA6424)
+struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
+
+	{
+		.gpio_num    		= TCA6424_P01,
+		.pin_type           = GPIO_OUT,
+		.pin_value		= GPIO_LOW,
+	},
+
+	{
+		.gpio_num    		= TCA6424_P02,// tp3
+		.pin_type           = GPIO_OUT,
+		.pin_value			= GPIO_LOW,
+	 },
+	 {
+		.gpio_num    		= TCA6424_P03,
+		.pin_type           = GPIO_OUT,
+		.pin_value			= GPIO_LOW,
+	 },
+
+	{
+		.gpio_num    		= TCA6424_P04,// tp3
+		.pin_type           = GPIO_OUT,
+		.pin_value			= GPIO_LOW,
+	 },
+	 {
+		.gpio_num    		= TCA6424_P05,
+		.pin_type           = GPIO_OUT,
+		.pin_value			= GPIO_LOW,
+	 }, 
+	 {
+		.gpio_num    		= TCA6424_P12,
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+
+	{
+		.gpio_num    		= TCA6424_P13,// tp3
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+	 {
+		.gpio_num    		= TCA6424_P14,
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+
+	 {
+		.gpio_num    		= TCA6424_P15,// tp3
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+	 
+};
+
+struct tca6424_platform_data rk2818_tca6424_data={
+	.gpio_base=GPIO_EXPANDER_BASE,
+	.gpio_pin_num=CONFIG_EXPANDED_GPIO_NUM,
+	.gpio_irq_start=NR_AIC_IRQS + 2*NUM_GROUP + CONFIG_SPI_FPGA_GPIO_IRQ_NUM,
+	.irq_pin_num=CONFIG_EXPANDED_GPIO_IRQ_NUM,
+	.tca6424_irq_pin=RK2818_PIN_PA1,
+	.settinginfo=extgpio_tca6424_settinginfo,
+	.settinginfolen=ARRAY_SIZE(extgpio_tca6424_settinginfo),
+	.names="extend_gpio_tca6424",
+};
+#endif
+
+
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -357,6 +426,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.platform_data=&rk2818_pca9554_data.gpio_base,
 	},
 #endif
+#if defined (CONFIG_IOEXTEND_TCA6424)
+	{
+		.type    		= "extend_gpio_tca6424",
+		.addr           = 0x23, 
+		.flags			= 0,
+		.platform_data=&rk2818_tca6424_data.gpio_base,
+	},
+#endif
+
 #if defined (CONFIG_PMIC_LP8725)
 	{
 		.type    		= "lp8725",

@@ -236,13 +236,32 @@ config GPIO_PCA9554
 	help
 	  Say yes here to access the PCA9554 GPIO EXPANDER
 
+config IOEXTEND_TCA6424
+ 	bool "ROCKCHIP TCA6424 CONTROL"
+	depends on I2C
+	help
+	  Say yes here to access the TCA6424 GPIO EXPANDER
+
+
 config EXPANDED_GPIO_NUM  
 	int "setting the amount of expanded gpios"
-	default 8 if GPIO_PCA9554
-  default 0
+	help
+	  for tca6424, set 24
 	
 config EXPANDED_GPIO_IRQ_NUM
 	int "setting the amount of expanded gpio irqs"
-	default 8 if GPIO_PCA9554	
-	default 0	
+	help
+	  for tca6424, set 24	
+
+config SPI_FPGA_GPIO_NUM  
+	default 96
+	int "setting the amount of fpga gpios"
+	help
+	  for fpga, set 96,no used ,set 0
+	
+config SPI_FPGA_GPIO_IRQ_NUM
+	default 16
+	int "setting the amount of fpga gpio irqs"
+	help
+	  for fpga, set 16,no used ,set 0	
 endif
