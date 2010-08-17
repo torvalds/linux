@@ -6153,7 +6153,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
 
 		break;
-	case 0xe:
+	case OUTPUT_EOL:
 		/* weird g80 mobile type that "nv" treats as a terminator */
 		dcb->entries--;
 		return false;
