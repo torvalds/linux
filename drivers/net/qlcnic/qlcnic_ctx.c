@@ -983,3 +983,128 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter, u8 id,
 
 	return err;
 }
+
+int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
+		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
+
+	size_t stats_size = sizeof(struct __qlcnic_esw_statistics);
+	dma_addr_t stats_dma_t;
+	void *stats_addr;
+	u32 arg1;
+	int err;
+
+	if (esw_stats == NULL)
+		return -ENOMEM;
+
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC &&
+	    func != adapter->ahw.pci_func) {
+		dev_err(&adapter->pdev->dev,
+			"Not privilege to query stats for func=%d", func);
+		return -EIO;
+	}
+
+	stats_addr = pci_alloc_consistent(adapter->pdev, stats_size,
+			&stats_dma_t);
+	if (!stats_addr) {
+		dev_err(&adapter->pdev->dev, "Unable to allocate memory\n");
+		return -ENOMEM;
+	}
+	memset(stats_addr, 0, stats_size);
+
+	arg1 = func | QLCNIC_STATS_VERSION << 8 | QLCNIC_STATS_PORT << 12;
+	arg1 |= rx_tx << 15 | stats_size << 16;
+
+	err = qlcnic_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			adapter->fw_hal_version,
+			arg1,
+			MSD(stats_dma_t),
+			LSD(stats_dma_t),
+			QLCNIC_CDRP_CMD_GET_ESWITCH_STATS);
+
+	if (!err)
+		memcpy(esw_stats, stats_addr, stats_size);
+
+	pci_free_consistent(adapter->pdev, stats_size, stats_addr,
+		stats_dma_t);
+	return err;
+}
+
+int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
+		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
+
+	struct __qlcnic_esw_statistics port_stats;
+	u8 i;
+	int ret = -EIO;
+
+	if (esw_stats == NULL)
+		return -ENOMEM;
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+		return -EIO;
+	if (adapter->npars == NULL)
+		return -EIO;
+
+	memset(esw_stats, 0, sizeof(struct __qlcnic_esw_statistics));
+	esw_stats->context_id = eswitch;
+
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
+		if (adapter->npars[i].phy_port != eswitch)
+			continue;
+
+		memset(&port_stats, 0, sizeof(struct __qlcnic_esw_statistics));
+		if (qlcnic_get_port_stats(adapter, i, rx_tx, &port_stats))
+			continue;
+
+		esw_stats->size = port_stats.size;
+		esw_stats->version = port_stats.version;
+		esw_stats->unicast_frames += port_stats.unicast_frames;
+		esw_stats->multicast_frames += port_stats.multicast_frames;
+		esw_stats->broadcast_frames += port_stats.broadcast_frames;
+		esw_stats->dropped_frames += port_stats.dropped_frames;
+		esw_stats->errors += port_stats.errors;
+		esw_stats->local_frames += port_stats.local_frames;
+		esw_stats->numbytes += port_stats.numbytes;
+
+		ret = 0;
+	}
+	return ret;
+}
+
+int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, const u8 func_esw,
+		const u8 port, const u8 rx_tx)
+{
+
+	u32 arg1;
+
+	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
+		return -EIO;
+
+	if (func_esw == QLCNIC_STATS_PORT) {
+		if (port >= QLCNIC_MAX_PCI_FUNC)
+			goto err_ret;
+	} else if (func_esw == QLCNIC_STATS_ESWITCH) {
+		if (port >= QLCNIC_NIU_MAX_XG_PORTS)
+			goto err_ret;
+	} else {
+		goto err_ret;
+	}
+
+	if (rx_tx > QLCNIC_QUERY_TX_COUNTER)
+		goto err_ret;
+
+	arg1 = port | QLCNIC_STATS_VERSION << 8 | func_esw << 12;
+	arg1 |= BIT_14 | rx_tx << 15;
+
+	return qlcnic_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			adapter->fw_hal_version,
+			arg1,
+			0,
+			0,
+			QLCNIC_CDRP_CMD_GET_ESWITCH_STATS);
+
+err_ret:
+	dev_err(&adapter->pdev->dev, "Invalid argument func_esw=%d port=%d"
+		"rx_ctx=%d\n", func_esw, port, rx_tx);
+	return -EIO;
+}

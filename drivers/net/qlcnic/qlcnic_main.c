@@ -3378,6 +3378,115 @@ qlcnic_sysfs_read_npar_config(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t
+qlcnic_sysfs_get_port_stats(struct file *file, struct kobject *kobj,
+	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	struct qlcnic_esw_statistics port_stats;
+	int ret;
+
+	if (size != sizeof(struct qlcnic_esw_statistics))
+		return QL_STATUS_INVALID_PARAM;
+
+	if (offset >= QLCNIC_MAX_PCI_FUNC)
+		return QL_STATUS_INVALID_PARAM;
+
+	memset(&port_stats, 0, size);
+	ret = qlcnic_get_port_stats(adapter, offset, QLCNIC_QUERY_RX_COUNTER,
+								&port_stats.rx);
+	if (ret)
+		return ret;
+
+	ret = qlcnic_get_port_stats(adapter, offset, QLCNIC_QUERY_TX_COUNTER,
+								&port_stats.tx);
+	if (ret)
+		return ret;
+
+	memcpy(buf, &port_stats, size);
+	return size;
+}
+
+static ssize_t
+qlcnic_sysfs_get_esw_stats(struct file *file, struct kobject *kobj,
+	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	struct qlcnic_esw_statistics esw_stats;
+	int ret;
+
+	if (size != sizeof(struct qlcnic_esw_statistics))
+		return QL_STATUS_INVALID_PARAM;
+
+	if (offset >= QLCNIC_NIU_MAX_XG_PORTS)
+		return QL_STATUS_INVALID_PARAM;
+
+	memset(&esw_stats, 0, size);
+	ret = qlcnic_get_eswitch_stats(adapter, offset, QLCNIC_QUERY_RX_COUNTER,
+								&esw_stats.rx);
+	if (ret)
+		return ret;
+
+	ret = qlcnic_get_eswitch_stats(adapter, offset, QLCNIC_QUERY_TX_COUNTER,
+								&esw_stats.tx);
+	if (ret)
+		return ret;
+
+	memcpy(buf, &esw_stats, size);
+	return size;
+}
+
+static ssize_t
+qlcnic_sysfs_clear_esw_stats(struct file *file, struct kobject *kobj,
+	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	int ret;
+
+	if (offset >= QLCNIC_NIU_MAX_XG_PORTS)
+		return QL_STATUS_INVALID_PARAM;
+
+	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_ESWITCH, offset,
+						QLCNIC_QUERY_RX_COUNTER);
+	if (ret)
+		return ret;
+
+	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_ESWITCH, offset,
+						QLCNIC_QUERY_TX_COUNTER);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static ssize_t
+qlcnic_sysfs_clear_port_stats(struct file *file, struct kobject *kobj,
+	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+{
+
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	int ret;
+
+	if (offset >= QLCNIC_MAX_PCI_FUNC)
+		return QL_STATUS_INVALID_PARAM;
+
+	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_PORT, offset,
+						QLCNIC_QUERY_RX_COUNTER);
+	if (ret)
+		return ret;
+
+	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_PORT, offset,
+						QLCNIC_QUERY_TX_COUNTER);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static ssize_t
 qlcnic_sysfs_read_pci_config(struct file *file, struct kobject *kobj,
 	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
 {
@@ -3426,6 +3535,20 @@ static struct bin_attribute bin_attr_pci_config = {
 	.write = NULL,
 };
 
+static struct bin_attribute bin_attr_port_stats = {
+	.attr = {.name = "port_stats", .mode = (S_IRUGO | S_IWUSR)},
+	.size = 0,
+	.read = qlcnic_sysfs_get_port_stats,
+	.write = qlcnic_sysfs_clear_port_stats,
+};
+
+static struct bin_attribute bin_attr_esw_stats = {
+	.attr = {.name = "esw_stats", .mode = (S_IRUGO | S_IWUSR)},
+	.size = 0,
+	.read = qlcnic_sysfs_get_esw_stats,
+	.write = qlcnic_sysfs_clear_esw_stats,
+};
+
 static struct bin_attribute bin_attr_esw_config = {
 	.attr = {.name = "esw_config", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
@@ -3465,6 +3588,9 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 
+	if (device_create_bin_file(dev, &bin_attr_port_stats))
+		dev_info(dev, "failed to create port stats sysfs entry");
+
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
 		return;
 	if (device_create_file(dev, &dev_attr_diag_mode))
@@ -3484,13 +3610,16 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 		dev_info(dev, "failed to create esw config sysfs entry");
 	if (device_create_bin_file(dev, &bin_attr_pm_config))
 		dev_info(dev, "failed to create pm config sysfs entry");
-
+	if (device_create_bin_file(dev, &bin_attr_esw_stats))
+		dev_info(dev, "failed to create eswitch stats sysfs entry");
 }
 
 static void
 qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
+
+	device_remove_bin_file(dev, &bin_attr_port_stats);
 
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
 		return;
@@ -3504,6 +3633,7 @@ qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 	device_remove_bin_file(dev, &bin_attr_npar_config);
 	device_remove_bin_file(dev, &bin_attr_esw_config);
 	device_remove_bin_file(dev, &bin_attr_pm_config);
+	device_remove_bin_file(dev, &bin_attr_esw_stats);
 }
 
 #ifdef CONFIG_INET
