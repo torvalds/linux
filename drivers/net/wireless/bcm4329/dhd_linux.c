@@ -496,6 +496,22 @@ extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
+static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
+{
+	int i;
+
+	DHD_TRACE(("%s: %d\n", __func__, value));
+	/* 1 - Enable packet filter, only allow unicast packet to send up */
+	/* 0 - Disable packet filter */
+	if (dhd_pkt_filter_enable) {
+		for (i = 0; i < dhd->pktfilter_count; i++) {
+			dhd_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
+			dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
+					value, dhd_master_mode);
+		}
+	}
+}
+
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 	int power_mode = PM_MAX;
@@ -505,9 +521,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #ifdef CUSTOMER_HW2
 	uint roamvar = 1;
 #endif /* CUSTOMER_HW2 */
-	int i;
 
-#define htod32(i) i
 	DHD_TRACE(("%s: enter, value = %d\n", __FUNCTION__, value));
 
 	if (dhd && dhd->up) {
@@ -518,13 +532,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				(char *)&power_mode, sizeof(power_mode));
 
 			/* Enable packet filter, only allow unicast packet to send up */
-			if (dhd_pkt_filter_enable) {
-				for (i = 0; i < dhd->pktfilter_count; i++) {
-					dhd_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
-					dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
-						1, dhd_master_mode);
-				}
-			}
+			dhd_set_packet_filter(1, dhd);
 
 			/* set bcn_li_dtim */
 			bcm_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
@@ -543,13 +551,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				sizeof(power_mode));
 
 			/* disable pkt filter */
-			if (dhd_pkt_filter_enable) {
-				for (i = 0; i < dhd->pktfilter_count; i++) {
-					dhd_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
-					dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
-						0, dhd_master_mode);
-				}
-			}
+			dhd_set_packet_filter(0, dhd);
 
 			/* set bcn_li_dtim */
 			bcn_li_dtim = 0;
@@ -3084,6 +3086,26 @@ int net_os_set_suspend(struct net_device *dev, int val)
 	if (dhd) {
 		dhd_os_proto_block(&dhd->pub);
 		ret = dhd_set_suspend(val, &dhd->pub);
+		dhd_os_proto_unblock(&dhd->pub);
+	}
+	return ret;
+}
+
+int net_os_set_packet_filter(struct net_device *dev, int val)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	int ret = 0;
+
+	/* Packet filtering is set only if we still in early-suspend and
+	 * we need either to turn it ON or turn it OFF
+	 * We can always turn it OFF in case of early-suspend, but we turn it
+	 * back ON only if suspend_disable_flag was not set */
+	if (dhd && dhd->pub.up) {
+		dhd_os_proto_block(&dhd->pub);
+		if (dhd->pub.in_suspend) {
+			if (!val || (val && !dhd->pub.suspend_disable_flag))
+				dhd_set_packet_filter(val, &dhd->pub);
+		}
 		dhd_os_proto_unblock(&dhd->pub);
 	}
 	return ret;
