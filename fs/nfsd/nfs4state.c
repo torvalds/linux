@@ -2983,7 +2983,6 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 				*filpp = find_readable_file(stp->st_file);
 			else
 				*filpp = find_writeable_file(stp->st_file);
-			BUG_ON(!*filpp); /* assured by check_openmode */
 		}
 	}
 	status = nfs_ok;
