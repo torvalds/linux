@@ -686,6 +686,35 @@ static __always_inline void follow_dotdot(struct nameidata *nd)
 }
 
 /*
+ * Allocate a dentry with name and parent, and perform a parent
+ * directory ->lookup on it. Returns the new dentry, or ERR_PTR
+ * on error. parent->d_inode->i_mutex must be held. d_lookup must
+ * have verified that no child exists while under i_mutex.
+ */
+static struct dentry *d_alloc_and_lookup(struct dentry *parent,
+				struct qstr *name, struct nameidata *nd)
+{
+	struct inode *inode = parent->d_inode;
+	struct dentry *dentry;
+	struct dentry *old;
+
+	/* Don't create child dentry for a dead directory. */
+	if (unlikely(IS_DEADDIR(inode)))
+		return ERR_PTR(-ENOENT);
+
+	dentry = d_alloc(parent, name);
+	if (unlikely(!dentry))
+		return ERR_PTR(-ENOMEM);
+
+	old = inode->i_op->lookup(inode, dentry, nd);
+	if (unlikely(old)) {
+		dput(dentry);
+		dentry = old;
+	}
+	return dentry;
+}
+
+/*
  *  It's more convoluted than I'd like it to be, but... it's still fairly
  *  small and for now I'd prefer to have fast path as straight as possible.
  *  It _is_ time-critical.
@@ -738,30 +767,13 @@ need_lookup:
 	 * so doing d_lookup() (with seqlock), instead of lockfree __d_lookup
 	 */
 	dentry = d_lookup(parent, name);
-	if (!dentry) {
-		struct dentry *new;
-
-		/* Don't create child dentry for a dead directory. */
-		dentry = ERR_PTR(-ENOENT);
-		if (IS_DEADDIR(dir))
-			goto out_unlock;
-
-		new = d_alloc(parent, name);
-		dentry = ERR_PTR(-ENOMEM);
-		if (new) {
-			dentry = dir->i_op->lookup(dir, new, nd);
-			if (dentry)
-				dput(new);
-			else
-				dentry = new;
-		}
-out_unlock:
+	if (likely(!dentry)) {
+		dentry = d_alloc_and_lookup(parent, name, nd);
 		mutex_unlock(&dir->i_mutex);
 		if (IS_ERR(dentry))
 			goto fail;
 		goto done;
 	}
-
 	/*
 	 * Uhhuh! Nasty case: the cache was re-populated while
 	 * we waited on the semaphore. Need to revalidate.
@@ -1135,24 +1147,8 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
 		dentry = do_revalidate(dentry, nd);
 
-	if (!dentry) {
-		struct dentry *new;
-
-		/* Don't create child dentry for a dead directory. */
-		dentry = ERR_PTR(-ENOENT);
-		if (IS_DEADDIR(inode))
-			goto out;
-
-		new = d_alloc(base, name);
-		dentry = ERR_PTR(-ENOMEM);
-		if (!new)
-			goto out;
-		dentry = inode->i_op->lookup(inode, new, nd);
-		if (!dentry)
-			dentry = new;
-		else
-			dput(new);
-	}
+	if (!dentry)
+		dentry = d_alloc_and_lookup(base, name, nd);
 out:
 	return dentry;
 }
