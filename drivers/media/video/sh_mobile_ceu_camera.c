@@ -1726,7 +1726,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
+static int sh_mobile_ceu_reqbufs(struct soc_camera_device *icd,
 				 struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1740,7 +1740,7 @@ static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
 	for (i = 0; i < p->count; i++) {
 		struct sh_mobile_ceu_buffer *buf;
 
-		buf = container_of(icf->vb_vidq.bufs[i],
+		buf = container_of(icd->vb_vidq.bufs[i],
 				   struct sh_mobile_ceu_buffer, vb);
 		INIT_LIST_HEAD(&buf->vb.queue);
 	}
@@ -1750,10 +1750,10 @@ static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int sh_mobile_ceu_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct sh_mobile_ceu_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next,
+	buf = list_entry(icd->vb_vidq.stream.next,
 			 struct sh_mobile_ceu_buffer, vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);

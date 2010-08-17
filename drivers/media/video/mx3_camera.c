@@ -976,7 +976,7 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mx3_camera_reqbufs(struct soc_camera_file *icf,
+static int mx3_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	return 0;
@@ -984,9 +984,9 @@ static int mx3_camera_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int mx3_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 
-	return videobuf_poll_stream(file, &icf->vb_vidq, pt);
+	return videobuf_poll_stream(file, &icd->vb_vidq, pt);
 }
 
 static int mx3_camera_querycap(struct soc_camera_host *ici,

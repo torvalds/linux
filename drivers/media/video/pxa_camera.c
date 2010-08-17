@@ -1539,7 +1539,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int pxa_camera_reqbufs(struct soc_camera_file *icf,
+static int pxa_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1551,7 +1551,7 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct pxa_buffer *buf = container_of(icf->vb_vidq.bufs[i],
+		struct pxa_buffer *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct pxa_buffer, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -1562,10 +1562,10 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int pxa_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct pxa_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct pxa_buffer,
+	buf = list_entry(icd->vb_vidq.stream.next, struct pxa_buffer,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);

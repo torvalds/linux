@@ -638,7 +638,7 @@ static int mx1_camera_try_fmt(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mx1_camera_reqbufs(struct soc_camera_file *icf,
+static int mx1_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -650,7 +650,7 @@ static int mx1_camera_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct mx1_buffer *buf = container_of(icf->vb_vidq.bufs[i],
+		struct mx1_buffer *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct mx1_buffer, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -661,10 +661,10 @@ static int mx1_camera_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int mx1_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct mx1_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct mx1_buffer,
+	buf = list_entry(icd->vb_vidq.stream.next, struct mx1_buffer,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);
