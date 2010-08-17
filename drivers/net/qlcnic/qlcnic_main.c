@@ -543,8 +543,6 @@ qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 	ret = qlcnic_api_lock(adapter);
 	if (ret)
 		goto err_lock;
-	if (QLC_DEV_CLR_REF_CNT(ref_count, adapter->ahw.pci_func))
-		goto err_npar;
 
 	if (qlcnic_config_npars) {
 		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
@@ -562,7 +560,6 @@ qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 			adapter->ahw.pci_func));
 	}
 	writel(data, priv_op);
-err_npar:
 	qlcnic_api_unlock(adapter);
 err_lock:
 	return ret;
