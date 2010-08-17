@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/lglock.h>
+
 struct super_block;
 struct linux_binprm;
 struct path;
@@ -70,7 +72,8 @@ extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
 
 extern void __init mnt_init(void);
 
-extern spinlock_t vfsmount_lock;
+DECLARE_BRLOCK(vfsmount_lock);
+
 
 /*
  * fs_struct.c
