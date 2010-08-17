@@ -651,25 +651,6 @@ static const char *set_config_filename(const char *config_filename)
 	return menu_backtitle;
 }
 
-/* command = 0 is supress, 1 is restore */
-static void supress_stdout(int command)
-{
-	static FILE *org_stdout;
-	static FILE *org_stderr;
-
-	if (command == 0) {
-		org_stdout = stdout;
-		org_stderr = stderr;
-		stdout = fopen("/dev/null", "a");
-		stderr = fopen("/dev/null", "a");
-	} else {
-		fclose(stdout);
-		fclose(stderr);
-		stdout = org_stdout;
-		stderr = org_stderr;
-	}
-}
-
 /* return = 0 means we are successful.
  * -1 means go on doing what you were doing
  */
@@ -695,9 +676,7 @@ static int do_exit(void)
 	/* if we got here, the user really wants to exit */
 	switch (res) {
 	case 0:
-		supress_stdout(0);
 		res = conf_write(filename);
-		supress_stdout(1);
 		if (res)
 			btn_dialog(
 				main_window,
@@ -707,19 +686,6 @@ static int do_exit(void)
 				  "changes were NOT saved."),
 				  1,
 				  "<OK>");
-		else {
-			char buf[1024];
-			snprintf(buf, 1024,
-				_("Configuration written to %s\n"
-				  "End of Linux kernel configuration.\n"
-				  "Execute 'make' to build the kernel or try"
-				  " 'make help'."), filename);
-			btn_dialog(
-				main_window,
-				buf,
-				1,
-				"<OK>");
-		}
 		break;
 	default:
 		btn_dialog(
@@ -1255,6 +1221,14 @@ static void conf(struct menu *menu)
 	}
 }
 
+static void conf_message_callback(const char *fmt, va_list ap)
+{
+	char buf[1024];
+
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	btn_dialog(main_window, buf, 1, "<OK>");
+}
+
 static void show_help(struct menu *menu)
 {
 	struct gstr help = str_new();
@@ -1477,16 +1451,8 @@ static void conf_save(void)
 		case 0:
 			if (!dialog_input_result[0])
 				return;
-			supress_stdout(0);
 			res = conf_write(dialog_input_result);
-			supress_stdout(1);
 			if (!res) {
-				char buf[1024];
-				sprintf(buf, "%s %s",
-					_("configuration file saved to: "),
-					dialog_input_result);
-				btn_dialog(main_window,
-					   buf, 1, "<OK>");
 				set_config_filename(dialog_input_result);
 				return;
 			}
@@ -1579,6 +1545,7 @@ int main(int ac, char **av)
 				_(menu_no_f_instructions));
 	}
 
+	conf_set_message_callback(conf_message_callback);
 	/* do the work */
 	while (!global_exit) {
 		conf(&rootmenu);

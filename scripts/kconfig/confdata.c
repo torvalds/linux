@@ -19,6 +19,9 @@
 static void conf_warning(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
+static void conf_message(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+
 static const char *conf_filename;
 static int conf_lineno, conf_warnings, conf_unsaved;
 
@@ -33,6 +36,29 @@ static void conf_warning(const char *fmt, ...)
 	fprintf(stderr, "\n");
 	va_end(ap);
 	conf_warnings++;
+}
+
+static void conf_default_message_callback(const char *fmt, va_list ap)
+{
+	printf("#\n# ");
+	vprintf(fmt, ap);
+	printf("\n#\n");
+}
+
+static void (*conf_message_callback) (const char *fmt, va_list ap) =
+	conf_default_message_callback;
+void conf_set_message_callback(void (*fn) (const char *fmt, va_list ap))
+{
+	conf_message_callback = fn;
+}
+
+static void conf_message(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (conf_message_callback)
+		conf_message_callback(fmt, ap);
 }
 
 const char *conf_get_configname(void)
@@ -184,9 +210,8 @@ int conf_read_simple(const char *name, int def)
 			name = conf_expand_value(prop->expr->left.sym->name);
 			in = zconf_fopen(name);
 			if (in) {
-				printf(_("#\n"
-					 "# using defaults found in %s\n"
-					 "#\n"), name);
+				conf_message(_("using defaults found in %s"),
+					 name);
 				goto load;
 			}
 		}
@@ -651,9 +676,7 @@ next:
 			return 1;
 	}
 
-	printf(_("#\n"
-		 "# configuration written to %s\n"
-		 "#\n"), newname);
+	conf_message(_("configuration written to %s"), newname);
 
 	sym_set_change_count(0);
 

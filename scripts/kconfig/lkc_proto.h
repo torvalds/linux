@@ -1,3 +1,4 @@
+#include <stdarg.h>
 
 /* confdata.c */
 P(conf_parse,void,(const char *name));
@@ -8,6 +9,7 @@ P(conf_write,int,(const char *name));
 P(conf_write_autoconf,int,(void));
 P(conf_get_changed,bool,(void));
 P(conf_set_changed_callback, void,(void (*fn)(void)));
+P(conf_set_message_callback, void,(void (*fn)(const char *fmt, va_list ap)));
 
 /* menu.c */
 P(rootmenu,struct menu,);
