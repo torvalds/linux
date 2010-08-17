@@ -582,6 +582,9 @@ static int __init kvm_guest_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_MAGIC_PAGE))
 		kvm_use_magic_page();
 
+	/* Enable napping */
+	powersave_nap = 1;
+
 free_tmp:
 	kvm_free_tmp();
 
