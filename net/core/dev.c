@@ -2266,7 +2266,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
  */
 __u32 __skb_get_rxhash(struct sk_buff *skb)
 {
-	int nhoff, hash = 0;
+	int nhoff, hash = 0, poff;
 	struct ipv6hdr *ip6;
 	struct iphdr *ip;
 	u8 ip_proto;
@@ -2306,24 +2306,15 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 		goto done;
 	}
 
-	switch (ip_proto) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-	case IPPROTO_DCCP:
-	case IPPROTO_ESP:
-	case IPPROTO_AH:
-	case IPPROTO_SCTP:
-	case IPPROTO_UDPLITE:
-		if (pskb_may_pull(skb, (ihl * 4) + 4 + nhoff)) {
-			ports.v32 = * (__force u32 *) (skb->data + nhoff +
-						       (ihl * 4));
+	ports.v32 = 0;
+	poff = proto_ports_offset(ip_proto);
+	if (poff >= 0) {
+		nhoff += ihl * 4 + poff;
+		if (pskb_may_pull(skb, nhoff + 4)) {
+			ports.v32 = * (__force u32 *) (skb->data + nhoff);
 			if (ports.v16[1] < ports.v16[0])
 				swap(ports.v16[0], ports.v16[1]);
-			break;
 		}
-	default:
-		ports.v32 = 0;
-		break;
 	}
 
 	/* get a consistent hash (same value on both flow directions) */
