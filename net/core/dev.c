@@ -2284,7 +2284,10 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 			goto done;
 
 		ip = (struct iphdr *) skb->data + nhoff;
-		ip_proto = ip->protocol;
+		if (ip->frag_off & htons(IP_MF | IP_OFFSET))
+			ip_proto = 0;
+		else
+			ip_proto = ip->protocol;
 		addr1 = (__force u32) ip->saddr;
 		addr2 = (__force u32) ip->daddr;
 		ihl = ip->ihl;
