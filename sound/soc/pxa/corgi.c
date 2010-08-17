@@ -30,7 +30,6 @@
 #include <mach/audio.h>
 
 #include "../codecs/wm8731.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
 
 #define CORGI_HP        0
