@@ -582,8 +582,10 @@ static int __init kvm_guest_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_MAGIC_PAGE))
 		kvm_use_magic_page();
 
+#ifdef CONFIG_PPC_BOOK3S_64
 	/* Enable napping */
 	powersave_nap = 1;
+#endif
 
 free_tmp:
 	kvm_free_tmp();
