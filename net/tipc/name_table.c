@@ -877,7 +877,7 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 			u32 index)
 {
 	char portIdStr[27];
-	char *scopeStr;
+	const char *scope_str[] = {"", " zone", " cluster", " node"};
 	struct publication *publ = sseq->zone_list;
 
 	tipc_printf(buf, "%-10u %-10u ", sseq->lower, sseq->upper);
@@ -893,15 +893,8 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 			 tipc_node(publ->node), publ->ref);
 		tipc_printf(buf, "%-26s ", portIdStr);
 		if (depth > 3) {
-			if (publ->node != tipc_own_addr)
-				scopeStr = "";
-			else if (publ->scope == TIPC_NODE_SCOPE)
-				scopeStr = "node";
-			else if (publ->scope == TIPC_CLUSTER_SCOPE)
-				scopeStr = "cluster";
-			else
-				scopeStr = "zone";
-			tipc_printf(buf, "%-10u %s", publ->key, scopeStr);
+			tipc_printf(buf, "%-10u %s", publ->key,
+				    scope_str[publ->scope]);
 		}
 
 		publ = publ->zone_list_next;
@@ -951,24 +944,19 @@ static void nameseq_list(struct name_seq *seq, struct print_buf *buf, u32 depth,
 
 static void nametbl_header(struct print_buf *buf, u32 depth)
 {
-	tipc_printf(buf, "Type       ");
+	const char *header[] = {
+		"Type       ",
+		"Lower      Upper      ",
+		"Port Identity              ",
+		"Publication Scope"
+	};
 
-	if (depth > 1)
-		tipc_printf(buf, "Lower      Upper      ");
-	if (depth > 2)
-		tipc_printf(buf, "Port Identity              ");
-	if (depth > 3)
-		tipc_printf(buf, "Publication");
+	int i;
 
-	tipc_printf(buf, "\n-----------");
-
-	if (depth > 1)
-		tipc_printf(buf, "--------------------- ");
-	if (depth > 2)
-		tipc_printf(buf, "-------------------------- ");
-	if (depth > 3)
-		tipc_printf(buf, "------------------");
-
+	if (depth > 4)
+		depth = 4;
+	for (i = 0; i < depth; i++)
+		tipc_printf(buf, header[i]);
 	tipc_printf(buf, "\n");
 }
 
