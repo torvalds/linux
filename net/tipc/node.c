@@ -237,8 +237,7 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct link *l_ptr)
 
 int tipc_node_has_active_links(struct tipc_node *n_ptr)
 {
-	return (n_ptr &&
-		((n_ptr->active_links[0]) || (n_ptr->active_links[1])));
+	return n_ptr->active_links[0] != NULL;
 }
 
 int tipc_node_has_redundant_links(struct tipc_node *n_ptr)
