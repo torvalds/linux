@@ -409,10 +409,8 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 	res = tipc_link_send_buf(bcl, buf);
 	if (unlikely(res == -ELINKCONG))
 		buf_discard(buf);
-	else {
-		bcl->stats.sent_info++;
+	else
 		bclink_set_last_sent();
-	}
 
 	if (bcl->out_queue_size > bcl->stats.max_queue_sz)
 		bcl->stats.max_queue_sz = bcl->out_queue_size;
@@ -578,6 +576,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		msg = buf_msg(buf);
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
+		bcl->stats.sent_info++;
 	}
 
 	/* Send buffer over bearers until all targets reached */
