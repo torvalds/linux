@@ -286,7 +286,6 @@ static struct clk_ops pllc2_clk_ops = {
 
 struct clk pllc2_clk = {
 	.ops		= &pllc2_clk_ops,
-	.flags		= CLK_ENABLE_ON_INIT,
 	.parent		= &extal1_div2_clk,
 	.freq_table	= pllc2_freq_table,
 	.parent_table	= pllc2_parent,
