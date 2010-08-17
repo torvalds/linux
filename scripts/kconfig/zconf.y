@@ -36,7 +36,7 @@ static struct menu *current_menu, *current_entry;
 #define YYERROR_VERBOSE
 #endif
 %}
-%expect 26
+%expect 28
 
 %union
 {
@@ -104,14 +104,15 @@ static struct menu *current_menu, *current_entry;
 %}
 
 %%
-input: stmt_list;
+input: nl start | start;
+
+start: mainmenu_stmt stmt_list | stmt_list;
 
 stmt_list:
 	  /* empty */
 	| stmt_list common_stmt
 	| stmt_list choice_stmt
 	| stmt_list menu_stmt
-	| stmt_list T_MAINMENU prompt nl
 	| stmt_list end			{ zconf_error("unexpected end statement"); }
 	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
 	| stmt_list option_name error T_EOL
@@ -341,6 +342,13 @@ if_block:
 	| if_block menu_stmt
 	| if_block choice_stmt
 ;
+
+/* mainmenu entry */
+
+mainmenu_stmt: T_MAINMENU prompt nl
+{
+	menu_add_prompt(P_MENU, $2, NULL);
+};
 
 /* menu entry */
 
