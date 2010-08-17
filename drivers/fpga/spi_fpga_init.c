@@ -64,7 +64,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 
 	switch(type)
 	{
-#if defined(CONFIG_SPI_UART)
+#if defined(CONFIG_SPI_FPGA_UART)
 		case SEL_UART:
 			index = port->uart.index;
 			reg = (((reg) | ICE_SEL_UART) | ICE_SEL_READ | ICE_SEL_UART_CH(index));
@@ -78,7 +78,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			break;
 #endif
 
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 		case SEL_GPIO:
 			reg = (((reg) | ICE_SEL_GPIO) | ICE_SEL_READ );
 			tx_buf[0] = reg & 0xff;
@@ -91,7 +91,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			break;
 #endif
 
-#if defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_FPGA_I2C)
 		case SEL_I2C:
 			reg = (((reg) | ICE_SEL_I2C) | ICE_SEL_READ );
 			tx_buf[0] = reg & 0xff;
@@ -104,7 +104,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			break;
 #endif
 
-#if defined(CONFIG_SPI_DPRAM)
+#if defined(CONFIG_SPI_FPGA_DPRAM)
 		case SEL_DPRAM:
 			reg = (((reg) | ICE_SEL_DPRAM) & ICE_SEL_DPRAM_READ );
 			tx_buf[0] = reg & 0xff;
@@ -141,7 +141,7 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 	//printk("index2=%d,",index);
 	switch(type)
 	{
-#if defined(CONFIG_SPI_UART)
+#if defined(CONFIG_SPI_FPGA_UART)
 		case SEL_UART:
 			index = port->uart.index;
 			reg = ((((reg) | ICE_SEL_UART) & ICE_SEL_WRITE) | ICE_SEL_UART_CH(index));
@@ -153,7 +153,7 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 			break;
 #endif
 
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 		case SEL_GPIO:
 			reg = (((reg) | ICE_SEL_GPIO) & ICE_SEL_WRITE );
 			tx_buf[0] = reg & 0xff;
@@ -164,7 +164,7 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 			break;
 #endif
 
-#if defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_FPGA_I2C)
 		case SEL_I2C:
 			reg = (((reg) | ICE_SEL_I2C) & ICE_SEL_WRITE);
 			tx_buf[0] = reg & 0xff;
@@ -175,7 +175,7 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 			break;
 #endif
 			
-#if defined(CONFIG_SPI_DPRAM)
+#if defined(CONFIG_SPI_FPGA_DPRAM)
 		case SEL_DPRAM:
 			reg = (((reg) | ICE_SEL_DPRAM) | ICE_SEL_DPRAM_WRITE );
 			tx_buf[0] = reg & 0xff;
@@ -231,7 +231,7 @@ static void spi_fpga_irq_work_handler(struct work_struct *work)
 	ret = spi_in(port, ICE_SEL_READ_INT_TYPE, READ_TOP_INT);
 	if((ret | ICE_INT_TYPE_UART0) == ICE_INT_TYPE_UART0)
 	{
-#if defined(CONFIG_SPI_UART)
+#if defined(CONFIG_SPI_FPGA_UART)
 		DBG("%s:ICE_INT_TYPE_UART0 ret=0x%x\n",__FUNCTION__,ret);
 		port->uart.index = uart_ch;
 		spi_uart_handle_irq(spi);
@@ -239,28 +239,28 @@ static void spi_fpga_irq_work_handler(struct work_struct *work)
 	}
 	else if((ret | ICE_INT_TYPE_GPIO) == ICE_INT_TYPE_GPIO)
 	{
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 		DBG("%s:ICE_INT_TYPE_GPIO ret=0x%x\n",__FUNCTION__,ret);
 		spi_gpio_handle_irq(spi);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_I2C2) == ICE_INT_TYPE_I2C2)
 	{
-#if defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_FPGA_I2C)
 		DBG("%s:ICE_INT_TYPE_I2C2 ret=0x%x\n",__FUNCTION__,ret);
 		spi_i2c_handle_irq(port,I2C_CH2);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_I2C3) == ICE_INT_TYPE_I2C3)
 	{
-#if defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_FPGA_I2C)
 		DBG("%s:ICE_INT_TYPE_I2C3 ret=0x%x\n",__FUNCTION__,ret);
 		spi_i2c_handle_irq(port,I2C_CH3);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_DPRAM) == ICE_INT_TYPE_DPRAM)
 	{
-#if defined(CONFIG_SPI_DPRAM)
+#if defined(CONFIG_SPI_FPGA_DPRAM)
 		DBG("%s:ICE_INT_TYPE_DPRAM ret=0x%x\n",__FUNCTION__,ret);
 		spi_dpram_handle_irq(spi);
 #endif
@@ -341,7 +341,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	}
 	INIT_WORK(&port->fpga_irq_work, spi_fpga_irq_work_handler);
 	
-#if defined(CONFIG_SPI_UART)
+#if defined(CONFIG_SPI_FPGA_UART)
 	ret = spi_uart_register(port);
 	if(ret)
 	{
@@ -350,7 +350,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 		return ret;
 	}
 #endif
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 	ret = spi_gpio_register(port);
 	if(ret)
 	{
@@ -359,7 +359,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 		return ret;
 	}
 #endif
-#if defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_FPGA_I2C)
 
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	spin_lock_init(&port->i2c.i2c_lock);
@@ -376,7 +376,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	}
 #endif
 
-#if defined(CONFIG_SPI_DPRAM)
+#if defined(CONFIG_SPI_FPGA_DPRAM)
 	ret = spi_dpram_register(port);
 	if(ret)
 	{
@@ -404,7 +404,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	pFpgaPort = port;
 	
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 	spi_gpio_init();
 #endif
 

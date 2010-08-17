@@ -25,7 +25,7 @@
 #define MAX_GPIO_BANKS		8//定义RK2818内部GPIO总共有几组，现在定为8组，即GPIO0_A~ GPIO0_D，GPIO1_A~ GPIO1_D。
 #define SPI_FPGA_EXPANDER_BASE	(PIN_BASE+NUM_GROUP*MAX_GPIO_BANKS)
 
-#if defined (CONFIG_SPI_GPIO)
+#if defined (CONFIG_SPI_FPGA_GPIO)
 #define GPIO_EXPANDER_BASE	(PIN_BASE+NUM_GROUP*MAX_GPIO_BANKS+CONFIG_SPI_FPGA_GPIO_NUM)
 #else
 #define GPIO_EXPANDER_BASE	(PIN_BASE+NUM_GROUP*MAX_GPIO_BANKS)
@@ -176,7 +176,7 @@ struct rk2818_gpio_bank {
 #define	RK2818_PIN_PH7	(PIN_BASE + 7*NUM_GROUP + 7)
 /***********************define extern gpio pin num******************************/
 
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 #define	FPGA_PIO0_00 (SPI_FPGA_EXPANDER_BASE + 0*NUM_GROUP + 0)
 #define	FPGA_PIO0_01 (SPI_FPGA_EXPANDER_BASE + 0*NUM_GROUP + 1)
 #define	FPGA_PIO0_02 (SPI_FPGA_EXPANDER_BASE + 0*NUM_GROUP + 2)
@@ -353,7 +353,7 @@ static inline int irq_to_gpio(unsigned irq)
     {
         return (RK2818_PIN_PE0 + (irq - __gpio_to_irq(RK2818_PIN_PE0)));
     }
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
    else if((irq - __gpio_to_irq(FPGA_PIO0_00)) <2*NUM_GROUP)
    {
 	return (FPGA_PIO0_00 + (irq - __gpio_to_irq(FPGA_PIO0_00)));

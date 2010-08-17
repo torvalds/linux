@@ -474,7 +474,7 @@ int spi_gpio_handle_irq(struct spi_device *spi)
 	{
 		if(((gpio_iir & (1 << i)) == 0) && ((state & (1 << i)) != 0))
 		{
-			irq = i + GPIOS_EXPANDER_BASE;
+			irq = i + SPI_FPGA_EXPANDER_BASE;
 			desc = irq_to_desc(irq);
 			if(desc->action->handler)
 			desc->action->handler(irq,desc->action->dev_id);
@@ -539,13 +539,13 @@ void spi_gpio_work_handler(struct work_struct *work)
 #elif (FPGA_TYPE == ICE_CC196)
 	for(i=4;i<81;i++)
 	{
-		gpio_direction_output(GPIOS_EXPANDER_BASE+i,TestGpioPinLevel);
+		gpio_direction_output(SPI_FPGA_EXPANDER_BASE+i,TestGpioPinLevel);
 		//ret = gpio_direction_input(GPIOS_EXPANDER_BASE+i);
 		//if (ret) {
 		//	printk("%s:failed to set GPIO[%d] input\n",__FUNCTION__,GPIOS_EXPANDER_BASE+i);
 		//}
 		udelay(1);
-		ret = gpio_get_value (GPIOS_EXPANDER_BASE+i);
+		ret = gpio_get_value (SPI_FPGA_EXPANDER_BASE+i);
 		if(ret != TestGpioPinLevel)
 		{
 			#if SPI_FPGA_TEST_DEBUG
@@ -725,7 +725,7 @@ int spi_gpio_unregister(struct spi_fpga_port *port)
 /************抽象GPIO接口函数实现部分************************/
 static int spi_gpiolib_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	int pinnum = offset + chip->base -SPI_FPGA_EXPANDER_BASE;
 	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
 	if(pinnum < 16)
 	spi_gpio_int_sel(pinnum,SPI_GPIO0_IS_GPIO);
@@ -734,7 +734,7 @@ static int spi_gpiolib_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int spi_gpiolib_direction_output(struct gpio_chip *chip, unsigned offset, int val)
 {
-	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	int pinnum = offset + chip->base -SPI_FPGA_EXPANDER_BASE;
 	if(pinnum < 16)
 	spi_gpio_int_sel(pinnum,SPI_GPIO0_IS_GPIO);
 	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
@@ -747,14 +747,14 @@ static int spi_gpiolib_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int spi_gpiolib_get_pinlevel(struct gpio_chip *chip, unsigned int offset)
 {
-	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	int pinnum = offset + chip->base -SPI_FPGA_EXPANDER_BASE;
 	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
 	return spi_gpio_get_pinlevel(pinnum);
 }
 
 static void spi_gpiolib_set_pinlevel(struct gpio_chip *chip, unsigned int offset, int val)
 {
-	int pinnum = offset + chip->base -GPIOS_EXPANDER_BASE;
+	int pinnum = offset + chip->base -SPI_FPGA_EXPANDER_BASE;
 	DBG("%s:pinnum=%d\n",__FUNCTION__,pinnum);
 	if(GPIO_HIGH == val)
 	spi_gpio_set_pinlevel(pinnum,SPI_GPIO_HIGH);
@@ -810,12 +810,12 @@ struct fpga_gpio_chip {
 	}
 
 static struct fpga_gpio_chip spi_gpio_chip[] = {
-	SPI_GPIO_CHIP_DEF("PIO0", GPIOS_EXPANDER_BASE+0*NUM_GROUP*2, NUM_GROUP<<1),
-	SPI_GPIO_CHIP_DEF("PIO1", GPIOS_EXPANDER_BASE+1*NUM_GROUP*2, NUM_GROUP<<1),
-	SPI_GPIO_CHIP_DEF("PIO2", GPIOS_EXPANDER_BASE+2*NUM_GROUP*2, NUM_GROUP<<1),
-	SPI_GPIO_CHIP_DEF("PIO3", GPIOS_EXPANDER_BASE+3*NUM_GROUP*2, NUM_GROUP<<1),
-	SPI_GPIO_CHIP_DEF("PIO4", GPIOS_EXPANDER_BASE+4*NUM_GROUP*2, NUM_GROUP<<1),
-	SPI_GPIO_CHIP_DEF("PIO5", GPIOS_EXPANDER_BASE+5*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO0", SPI_FPGA_EXPANDER_BASE+0*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO1", SPI_FPGA_EXPANDER_BASE+1*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO2", SPI_FPGA_EXPANDER_BASE+2*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO3", SPI_FPGA_EXPANDER_BASE+3*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO4", SPI_FPGA_EXPANDER_BASE+4*NUM_GROUP*2, NUM_GROUP<<1),
+	SPI_GPIO_CHIP_DEF("PIO5", SPI_FPGA_EXPANDER_BASE+5*NUM_GROUP*2, NUM_GROUP<<1),
 };
 
 
@@ -835,7 +835,7 @@ struct spi_gpio_irq_transfer
 
 static void _spi_gpio_irq_enable(unsigned irq)
 {
-	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
+	int gpio = irq_to_gpio(irq) - SPI_FPGA_EXPANDER_BASE;
 	DBG("%s:line=%d,irq=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,gpio);
 	if(gpio < 16)
 	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
@@ -849,7 +849,7 @@ static void _spi_gpio_irq_enable(unsigned irq)
 
 static void _spi_gpio_irq_disable(unsigned irq)
 {
-	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
+	int gpio = irq_to_gpio(irq) - SPI_FPGA_EXPANDER_BASE;
 	DBG("%s:line=%d,irq=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,gpio);
 	if(gpio < 16)
 	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
@@ -864,7 +864,7 @@ static void _spi_gpio_irq_disable(unsigned irq)
 
 static int _spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 {
-	int gpio = irq_to_gpio(irq) - GPIOS_EXPANDER_BASE;
+	int gpio = irq_to_gpio(irq) - SPI_FPGA_EXPANDER_BASE;
 	int int_type = 0;
 	DBG("%s:line=%d,irq=%d,type=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,type,gpio);
 	if(gpio < 16)
@@ -1058,7 +1058,7 @@ void spi_gpio_test_gpio_irq_init(void)
 
 	for(i=0;i<81;i++)
 	{
-		gpio = GPIOS_EXPANDER_BASE+i;
+		gpio = SPI_FPGA_EXPANDER_BASE+i;
 		ret = gpio_request(gpio, NULL);
 		if (ret) {
 			printk("%s:failed to request GPIO[%d]\n",__FUNCTION__,gpio);
@@ -1067,7 +1067,7 @@ void spi_gpio_test_gpio_irq_init(void)
 
 	for(i=0;i<4;i++)
 	{
-		gpio = GPIOS_EXPANDER_BASE+i;
+		gpio = SPI_FPGA_EXPANDER_BASE+i;
 		irq = gpio_to_irq(gpio);
 		printk("%s:line=%d,irq=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,gpio);
 		switch(i)
@@ -1144,7 +1144,7 @@ void spi_gpio_irq_setup(void)
 		set_irq_flags(pin+j, IRQF_VALID);
 	}
 
-	printk("%s: %d gpio irqs in %d banks\n", __FUNCTION__, pin+j-GPIOS_EXPANDER_BASE, spi_gpio_banks);
+	printk("%s: %d gpio irqs in %d banks\n", __FUNCTION__, pin+j-SPI_FPGA_EXPANDER_BASE, spi_gpio_banks);
 
 	spi_gpio_test_gpio_irq_init();
 

@@ -243,7 +243,7 @@ struct rk2818_gpio_expander_info  extern_gpio_settinginfo[] = {
 };
 
 struct pca9554_platform_data rk2818_pca9554_data={
-	.gpio_base=GPIOS_EXPANDER_BASE,
+	.gpio_base=GPIO_EXPANDER_BASE,
 	.gpio_pin_num=CONFIG_EXPANDED_GPIO_NUM,
 	.gpio_irq_start=NR_AIC_IRQS + 2*NUM_GROUP,
 	.irq_pin_num=CONFIG_EXPANDED_GPIO_IRQ_NUM,
@@ -727,7 +727,7 @@ static void __init machine_rk2818_board_init(void)
 	i2c_register_board_info(default_i2c1_data.bus_num, board_i2c1_devices,
 			ARRAY_SIZE(board_i2c1_devices));
 #endif
-#ifdef CONFIG_SPI_I2C
+#ifdef CONFIG_SPI_FPGA_I2C
 	i2c_register_board_info(default_i2c2_data.bus_num, board_i2c2_devices,
 			ARRAY_SIZE(board_i2c2_devices));
 	i2c_register_board_info(default_i2c3_data.bus_num, board_i2c3_devices,

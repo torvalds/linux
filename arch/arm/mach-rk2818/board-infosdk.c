@@ -243,7 +243,7 @@ struct rk2818_gpio_expander_info  extern_gpio_settinginfo[] = {
 };
 
 struct pca9554_platform_data rk2818_pca9554_data={
-	.gpio_base=GPIOS_EXPANDER_BASE,
+	.gpio_base=GPIO_EXPANDER_BASE,
 	.gpio_pin_num=CONFIG_EXPANDED_GPIO_NUM,
 	.gpio_irq_start=NR_AIC_IRQS + 2*NUM_GROUP,
 	.irq_pin_num=CONFIG_EXPANDED_GPIO_IRQ_NUM,
@@ -321,7 +321,14 @@ struct tca6424_platform_data rk2818_tca6424_data={
 };
 #endif
 
+/*****************************************************************************************
+ * gsensor devices
+*****************************************************************************************/
+#define GS_IRQ_PIN RK2818_PIN_PE0
 
+struct rk2818_gs_platform_data rk2818_gs_platdata = {
+	.gsensor_irq_pin = GS_IRQ_PIN,
+};
 
 /*****************************************************************************************
  * i2c devices
@@ -584,7 +591,7 @@ struct rk2818_i2s_platform_data rk2818_i2s_platdata = {
  * spi devices
  * author: lhhrock-chips.com
  *****************************************************************************************/
-#define SPI_CHIPSELECT_NUM 3
+#define SPI_CHIPSELECT_NUM 2
 static int spi_io_init(void)
 {	
 	//cs0
@@ -593,8 +600,6 @@ static int spi_io_init(void)
 	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME, IOMUXA_GPIO0_B0);
 	//clk
 	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME, IOMUXA_SPI0);
-	//cs2
-	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
 	
 	return 0;
 }
@@ -603,7 +608,6 @@ static int spi_io_deinit(void)
 	rk2818_mux_api_mode_resume(GPIOB4_SPI0CS0_MMC0D4_NAME);
 	rk2818_mux_api_mode_resume(GPIOB0_SPI0CSN1_MMC1PCA_NAME);
 	rk2818_mux_api_mode_resume(GPIOB_SPI0_MMC0_NAME);	
-	rk2818_mux_api_mode_resume(GPIOF5_APWM3_DPWM3_NAME);
 	return 0;
 }
 
@@ -615,11 +619,8 @@ struct spi_cs_gpio rk2818_spi_cs_gpios[SPI_CHIPSELECT_NUM] = {
 	{
 		.name = "spi cs1",
 		.cs_gpio = RK2818_PIN_PB0,
-	},
-	{
-		.name = "spi cs2",
-		.cs_gpio = RK2818_PIN_PF5,
 	}
+
 };
 
 struct rk2818_spi_platform_data rk2818_spi_platdata = {
@@ -632,7 +633,7 @@ struct rk2818_spi_platform_data rk2818_spi_platdata = {
  * xpt2046 touch panel
  * author: dxjrock-chips.com
  *****************************************************************************************/
-#define XPT2046_GPIO_INT           RK2818_PIN_PE1
+#define XPT2046_GPIO_INT           RK2818_PIN_PE3
 #define DEBOUNCE_REPTIME  3
 
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) 
@@ -677,11 +678,8 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_max		= 7,
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
-#if defined(CONFIG_MACH_RAHO)	
-    .gpio_pendown		= RK2818_PIN_PE1,
-#else
-	.gpio_pendown		= RK2818_PIN_PE3,
-#endif	
+	.gpio_pendown		= XPT2046_GPIO_INT,
+
 	.penirq_recheck_delay_usecs = 1,
 };
 #elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
@@ -696,11 +694,8 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_max		= 7,
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
-#if defined(CONFIG_MACH_RAHO)	
-    .gpio_pendown		= RK2818_PIN_PE1,
-#else
-	.gpio_pendown		= RK2818_PIN_PE3,
-#endif	
+	.gpio_pendown		= XPT2046_GPIO_INT,
+	
 	.penirq_recheck_delay_usecs = 1,
 };
 #endif
@@ -1146,7 +1141,7 @@ static void __init machine_rk2818_board_init(void)
 	i2c_register_board_info(default_i2c1_data.bus_num, board_i2c1_devices,
 			ARRAY_SIZE(board_i2c1_devices));
 #endif
-#ifdef CONFIG_SPI_I2C
+#ifdef CONFIG_SPI_FPGA_I2C
 	i2c_register_board_info(default_i2c2_data.bus_num, board_i2c2_devices,
 			ARRAY_SIZE(board_i2c2_devices));
 	i2c_register_board_info(default_i2c3_data.bus_num, board_i2c3_devices,

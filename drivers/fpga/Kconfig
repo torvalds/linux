@@ -27,13 +27,13 @@ if SPI_FPGA_INIT
 endif
 
 if SPI_FPGA_INIT
-config SPI_UART
+config SPI_FPGA_UART
 	tristate "spi to uart support"
 	depends on SPI && SPIM_RK2818
 	help
 	fpga driver for spi to uart.
 	
-if SPI_UART
+if SPI_FPGA_UART
 	config SPI_UART_DEBUG
 	boolean "Debug support for spi to uart drivers"
 	depends on DEBUG_KERNEL
@@ -41,13 +41,13 @@ if SPI_UART
 	Say "yes" to enable debug messaging in spi to uart drivers.
 endif
 
-config SPI_GPIO
+config SPI_FPGA_GPIO
 	tristate "spi to gpio support"
 	depends on SPI && SPIM_RK2818
 	help
 	fpga driver for spi to gpio.
 
-if SPI_GPIO
+if SPI_FPGA_GPIO
 	config SPI_GPIO_DEBUG
 	boolean "Debug support for spi to gpio drivers"
 	depends on DEBUG_KERNEL
@@ -55,13 +55,13 @@ if SPI_GPIO
 	Say "yes" to enable debug messaging in spi to gpio drivers.
 endif
 
-config SPI_I2C
+config SPI_FPGA_I2C
 	tristate "spi to i2c support"
 	depends on SPI && SPIM_RK2818
 	help
 	fpga driver for spi to i2c.
 
-if SPI_I2C
+if SPI_FPGA_I2C
 	config SPI_I2C_DEBUG
 	boolean "Debug support for spi to i2c drivers"
 	depends on DEBUG_KERNEL
@@ -69,13 +69,13 @@ if SPI_I2C
 	Say "yes" to enable debug messaging in spi to i2c drivers.
 endif
 
-config SPI_DPRAM
+config SPI_FPGA_DPRAM
 	tristate "spi to dpram support"
 	depends on SPI && SPIM_RK2818
 	help
 	fpga driver for spi to dpram.
 
-if SPI_DPRAM
+if SPI_FPGA_DPRAM
 	config SPI_DPRAM_DEBUG
 	boolean "Debug support for spi to dpram drivers"
 	depends on DEBUG_KERNEL

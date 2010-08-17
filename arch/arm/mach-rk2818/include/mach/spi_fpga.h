@@ -128,19 +128,19 @@ struct spi_fpga_port {
 	struct work_struct 	fpga_irq_work;	
 	struct timer_list 	fpga_timer;
 	/*spi2uart*/
-#ifdef CONFIG_SPI_UART
+#ifdef CONFIG_SPI_FPGA_UART
 	struct spi_uart uart;
 #endif
 	/*spi2gpio*/
-#ifdef CONFIG_SPI_GPIO
+#ifdef CONFIG_SPI_FPGA_GPIO
 	struct spi_gpio gpio;
 #endif
 	/*spi2i2c*/
-#ifdef CONFIG_SPI_I2C
+#ifdef CONFIG_SPI_FPGA_I2C
 	struct spi_i2c i2c;
 #endif
 	/*spi2dpram*/
-#ifdef CONFIG_SPI_DPRAM
+#ifdef CONFIG_SPI_FPGA_DPRAM
 	struct spi_dpram dpram;
 #endif
 
@@ -490,12 +490,12 @@ extern struct spi_fpga_port *pFpgaPort;
 extern unsigned int spi_in(struct spi_fpga_port *port, int reg, int type);
 extern void spi_out(struct spi_fpga_port *port, int reg, int value, int type);
 
-#if defined(CONFIG_SPI_UART)
+#if defined(CONFIG_SPI_FPGA_UART)
 extern void spi_uart_handle_irq(struct spi_device *spi);
 extern int spi_uart_register(struct spi_fpga_port *port);
 extern int spi_uart_unregister(struct spi_fpga_port *port);
 #endif
-#if defined(CONFIG_SPI_GPIO)
+#if defined(CONFIG_SPI_FPGA_GPIO)
 extern int spi_gpio_int_sel(eSpiGpioPinNum_t PinNum,eSpiGpioTypeSel_t type);
 extern int spi_gpio_set_pindirection(eSpiGpioPinNum_t PinNum,eSpiGpioPinDirection_t direction);
 extern int spi_gpio_set_pinlevel(eSpiGpioPinNum_t PinNum, eSpiGpioPinLevel_t PinLevel);
@@ -512,12 +512,12 @@ extern void spi_gpio_irq_setup(void);
 extern int spi_gpio_register(struct spi_fpga_port *port);
 extern int spi_gpio_unregister(struct spi_fpga_port *port);
 #endif
-#if defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_FPGA_I2C)
 extern int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel);
 extern int spi_i2c_register(struct spi_fpga_port *port,int num);
 extern int spi_i2c_unregister(struct spi_fpga_port *port);
 #endif
-#if defined(CONFIG_SPI_DPRAM)
+#if defined(CONFIG_SPI_FPGA_DPRAM)
 extern int spi_dpram_handle_irq(struct spi_device *spi);
 extern int spi_dpram_register(struct spi_fpga_port *port);
 extern int spi_dpram_unregister(struct spi_fpga_port *port);
