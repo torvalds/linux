@@ -43,7 +43,6 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
-#include <linux/ethtool.h>
 #include <linux/ieee80211.h>
 
 #include <pcmcia/cs.h>
@@ -79,8 +78,6 @@ static int ray_dev_close(struct net_device *dev);
 static int ray_dev_config(struct net_device *dev, struct ifmap *map);
 static struct net_device_stats *ray_get_stats(struct net_device *dev);
 static int ray_dev_init(struct net_device *dev);
-
-static const struct ethtool_ops netdev_ethtool_ops;
 
 static int ray_open(struct net_device *dev);
 static netdev_tx_t ray_dev_start_xmit(struct sk_buff *skb,
@@ -333,7 +330,6 @@ static int ray_probe(struct pcmcia_device *p_dev)
 
 	/* Raylink entries in the device structure */
 	dev->netdev_ops = &ray_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	dev->wireless_handlers = &ray_handler_def;
 #ifdef WIRELESS_SPY
 	local->wireless_data.spy_data = &local->spy_data;
@@ -1061,18 +1057,6 @@ AP to AP	1	1	dest AP		src AP		dest	source
 		}
 	}
 } /* end encapsulate_frame */
-
-/*===========================================================================*/
-
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "ray_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo = netdev_get_drvinfo,
-};
 
 /*====================================================================*/
 

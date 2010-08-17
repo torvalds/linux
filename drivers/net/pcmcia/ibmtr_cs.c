@@ -52,7 +52,6 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/module.h>
-#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
@@ -107,16 +106,6 @@ typedef struct ibmtr_dev_t {
     struct tok_info	*ti;
 } ibmtr_dev_t;
 
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "ibmtr_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
-
 static irqreturn_t ibmtr_interrupt(int irq, void *dev_id) {
 	ibmtr_dev_t *info = dev_id;
 	struct net_device *dev = info->dev;
@@ -158,8 +147,6 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->conf.Present = PRESENT_OPTION;
 
     info->dev = dev;
-
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     return ibmtr_config(link);
 } /* ibmtr_attach */

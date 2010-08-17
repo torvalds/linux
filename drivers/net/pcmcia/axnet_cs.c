@@ -32,7 +32,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
@@ -86,7 +85,6 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 static struct net_device_stats *get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static void axnet_tx_timeout(struct net_device *dev);
-static const struct ethtool_ops netdev_ethtool_ops;
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(u_long arg);
 static void axnet_reset_8390(struct net_device *dev);
@@ -171,7 +169,6 @@ static int axnet_probe(struct pcmcia_device *link)
 
     dev->netdev_ops = &axnet_netdev_ops;
 
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
     dev->watchdog_timeo = TX_TIMEOUT;
 
     return axnet_config(link);
@@ -657,16 +654,6 @@ reschedule:
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
 }
-
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "axnet_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
 
 /*====================================================================*/
 
