@@ -1380,7 +1380,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	/* For now, TIPC does not support the non-blocking form of connect() */
 
 	if (flags & O_NONBLOCK) {
-		res = -EWOULDBLOCK;
+		res = -EOPNOTSUPP;
 		goto exit;
 	}
 
