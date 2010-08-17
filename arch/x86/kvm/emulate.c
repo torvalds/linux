@@ -2311,7 +2311,7 @@ static struct opcode opcode_table[256] = {
 	D(DstAcc | SrcImmByte | ByteOp), D(DstAcc | SrcImm),
 	D(ByteOp | SrcAcc | DstDI | Mov | String), D(SrcAcc | DstDI | Mov | String),
 	D(ByteOp | SrcSI | DstAcc | Mov | String), D(SrcSI | DstAcc | Mov | String),
-	D(ByteOp | DstDI | String), D(DstDI | String),
+	D(ByteOp | SrcAcc | DstDI | String), D(SrcAcc | DstDI | String),
 	/* 0xB0 - 0xB7 */
 	X8(D(ByteOp | DstReg | SrcImm | Mov)),
 	/* 0xB8 - 0xBF */
@@ -3046,8 +3046,7 @@ special_insn:
 	case 0xac ... 0xad:	/* lods */
 		goto mov;
 	case 0xae ... 0xaf:	/* scas */
-		DPRINTF("Urk! I don't handle SCAS.\n");
-		goto cannot_emulate;
+		goto cmp;
 	case 0xb0 ... 0xbf: /* mov r, imm */
 		goto mov;
 	case 0xc0 ... 0xc1:
