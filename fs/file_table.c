@@ -20,7 +20,9 @@
 #include <linux/cdev.h>
 #include <linux/fsnotify.h>
 #include <linux/sysctl.h>
+#include <linux/lglock.h>
 #include <linux/percpu_counter.h>
+#include <linux/percpu.h>
 #include <linux/ima.h>
 
 #include <asm/atomic.h>
@@ -32,7 +34,8 @@ struct files_stat_struct files_stat = {
 	.max_files = NR_FILE
 };
 
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(files_lock);
+DECLARE_LGLOCK(files_lglock);
+DEFINE_LGLOCK(files_lglock);
 
 /* SLAB cache for file structures */
 static struct kmem_cache *filp_cachep __read_mostly;
@@ -336,30 +339,98 @@ void put_filp(struct file *file)
 	}
 }
 
-void file_sb_list_add(struct file *file, struct super_block *sb)
+static inline int file_list_cpu(struct file *file)
 {
-	spin_lock(&files_lock);
-	BUG_ON(!list_empty(&file->f_u.fu_list));
-	list_add(&file->f_u.fu_list, &sb->s_files);
-	spin_unlock(&files_lock);
+#ifdef CONFIG_SMP
+	return file->f_sb_list_cpu;
+#else
+	return smp_processor_id();
+#endif
 }
 
+/* helper for file_sb_list_add to reduce ifdefs */
+static inline void __file_sb_list_add(struct file *file, struct super_block *sb)
+{
+	struct list_head *list;
+#ifdef CONFIG_SMP
+	int cpu;
+	cpu = smp_processor_id();
+	file->f_sb_list_cpu = cpu;
+	list = per_cpu_ptr(sb->s_files, cpu);
+#else
+	list = &sb->s_files;
+#endif
+	list_add(&file->f_u.fu_list, list);
+}
+
+/**
+ * file_sb_list_add - add a file to the sb's file list
+ * @file: file to add
+ * @sb: sb to add it to
+ *
+ * Use this function to associate a file with the superblock of the inode it
+ * refers to.
+ */
+void file_sb_list_add(struct file *file, struct super_block *sb)
+{
+	lg_local_lock(files_lglock);
+	__file_sb_list_add(file, sb);
+	lg_local_unlock(files_lglock);
+}
+
+/**
+ * file_sb_list_del - remove a file from the sb's file list
+ * @file: file to remove
+ * @sb: sb to remove it from
+ *
+ * Use this function to remove a file from its superblock.
+ */
 void file_sb_list_del(struct file *file)
 {
 	if (!list_empty(&file->f_u.fu_list)) {
-		spin_lock(&files_lock);
+		lg_local_lock_cpu(files_lglock, file_list_cpu(file));
 		list_del_init(&file->f_u.fu_list);
-		spin_unlock(&files_lock);
+		lg_local_unlock_cpu(files_lglock, file_list_cpu(file));
 	}
 }
+
+#ifdef CONFIG_SMP
+
+/*
+ * These macros iterate all files on all CPUs for a given superblock.
+ * files_lglock must be held globally.
+ */
+#define do_file_list_for_each_entry(__sb, __file)		\
+{								\
+	int i;							\
+	for_each_possible_cpu(i) {				\
+		struct list_head *list;				\
+		list = per_cpu_ptr((__sb)->s_files, i);		\
+		list_for_each_entry((__file), list, f_u.fu_list)
+
+#define while_file_list_for_each_entry				\
+	}							\
+}
+
+#else
+
+#define do_file_list_for_each_entry(__sb, __file)		\
+{								\
+	struct list_head *list;					\
+	list = &(sb)->s_files;					\
+	list_for_each_entry((__file), list, f_u.fu_list)
+
+#define while_file_list_for_each_entry				\
+}
+
+#endif
 
 int fs_may_remount_ro(struct super_block *sb)
 {
 	struct file *file;
-
 	/* Check that no files are currently opened for writing. */
-	spin_lock(&files_lock);
-	list_for_each_entry(file, &sb->s_files, f_u.fu_list) {
+	lg_global_lock(files_lglock);
+	do_file_list_for_each_entry(sb, file) {
 		struct inode *inode = file->f_path.dentry->d_inode;
 
 		/* File with pending delete? */
@@ -369,11 +440,11 @@ int fs_may_remount_ro(struct super_block *sb)
 		/* Writeable file? */
 		if (S_ISREG(inode->i_mode) && (file->f_mode & FMODE_WRITE))
 			goto too_bad;
-	}
-	spin_unlock(&files_lock);
+	} while_file_list_for_each_entry;
+	lg_global_unlock(files_lglock);
 	return 1; /* Tis' cool bro. */
 too_bad:
-	spin_unlock(&files_lock);
+	lg_global_unlock(files_lglock);
 	return 0;
 }
 
@@ -389,8 +460,8 @@ void mark_files_ro(struct super_block *sb)
 	struct file *f;
 
 retry:
-	spin_lock(&files_lock);
-	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
+	lg_global_lock(files_lglock);
+	do_file_list_for_each_entry(sb, f) {
 		struct vfsmount *mnt;
 		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
 		       continue;
@@ -406,12 +477,12 @@ retry:
 		file_release_write(f);
 		mnt = mntget(f->f_path.mnt);
 		/* This can sleep, so we can't hold the spinlock. */
-		spin_unlock(&files_lock);
+		lg_global_unlock(files_lglock);
 		mnt_drop_write(mnt);
 		mntput(mnt);
 		goto retry;
-	}
-	spin_unlock(&files_lock);
+	} while_file_list_for_each_entry;
+	lg_global_unlock(files_lglock);
 }
 
 void __init files_init(unsigned long mempages)
@@ -431,5 +502,6 @@ void __init files_init(unsigned long mempages)
 	if (files_stat.max_files < NR_FILE)
 		files_stat.max_files = NR_FILE;
 	files_defer_init();
+	lg_lock_init(files_lglock);
 	percpu_counter_init(&nr_files, 0);
 } 
