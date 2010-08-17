@@ -398,8 +398,6 @@ static int mlx4_ethtool_op_set_flags(struct net_device *dev, u32 data)
 		return -EOPNOTSUPP;
 
 	if (data & ETH_FLAG_LRO) {
-		if (mdev->profile.num_lro == 0)
-			return -EOPNOTSUPP;
 		if (!(dev->features & NETIF_F_LRO))
 			changed = 1;
 	} else if (dev->features & NETIF_F_LRO) {

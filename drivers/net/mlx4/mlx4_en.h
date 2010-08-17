@@ -313,7 +313,6 @@ struct mlx4_en_port_profile {
 
 struct mlx4_en_profile {
 	int rss_xor;
-	int num_lro;
 	u8 rss_mask;
 	u32 active_ports;
 	u32 small_pkt_int;

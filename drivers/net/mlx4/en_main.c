@@ -69,10 +69,6 @@ MLX4_EN_PARM_INT(rss_xor, 0, "Use XOR hash function for RSS");
 /* RSS hash type mask - default to <saddr, daddr, sport, dport> */
 MLX4_EN_PARM_INT(rss_mask, 0xf, "RSS hash type bitmask");
 
-/* Number of LRO sessions per Rx ring (rounded up to a power of two) */
-MLX4_EN_PARM_INT(num_lro, MLX4_EN_MAX_LRO_DESCRIPTORS,
-		 "Number of LRO sessions per ring or disabled (0)");
-
 /* Priority pausing */
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 			   " Per priority bit mask");
@@ -109,7 +105,6 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 
 	params->rss_xor = (rss_xor != 0);
 	params->rss_mask = rss_mask & 0x1f;
-	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
 		params->prof[i].rx_pause = 1;
 		params->prof[i].rx_ppp = pfcrx;
