@@ -379,6 +379,7 @@ config ISCSI_BOOT_SYSFS
 	  say Y. Otherwise, say N.
 
 source "drivers/scsi/cxgb3i/Kconfig"
+source "drivers/scsi/cxgbi/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
 source "drivers/scsi/be2iscsi/Kconfig"
 
