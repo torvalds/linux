@@ -2385,7 +2385,8 @@ static struct opcode twobyte_table[256] = {
 	D(DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
-	N, N, N, D(DstMem | SrcReg | ModRM | Mov),
+	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	N, D(DstMem | SrcReg | ModRM | Mov),
 	N, N, N, GD(0, &group9),
 	N, N, N, N, N, N, N, N,
 	/* 0xD0 - 0xDF */
@@ -3530,6 +3531,12 @@ twobyte_insn:
 		c->dst.bytes = c->op_bytes;
 		c->dst.val = (c->d & ByteOp) ? (s8) c->src.val :
 							(s16) c->src.val;
+		break;
+	case 0xc0 ... 0xc1:	/* xadd */
+		emulate_2op_SrcV("add", c->src, c->dst, ctxt->eflags);
+		/* Write back the register source. */
+		c->src.val = c->dst.orig_val;
+		write_register_operand(&c->src);
 		break;
 	case 0xc3:		/* movnti */
 		c->dst.bytes = c->op_bytes;
