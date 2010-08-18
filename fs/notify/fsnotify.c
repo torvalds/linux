@@ -220,7 +220,7 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	struct fsnotify_event *event = NULL;
 	struct vfsmount *mnt;
 	int idx, ret = 0;
-	bool used_inode = false, used_vfsmount = false;
+	bool used_inode, used_vfsmount;
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
@@ -261,6 +261,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	}
 
 	while (inode_node || vfsmount_node) {
+		used_inode = used_vfsmount = false;
+
 		if (inode_node) {
 			inode_mark = hlist_entry(srcu_dereference(inode_node, &fsnotify_mark_srcu),
 						 struct fsnotify_mark, i.i_list);
