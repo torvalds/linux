@@ -353,6 +353,7 @@ struct cx231xx_board {
 	unsigned char xclk, i2c_speed;
 
 	enum cx231xx_decoder decoder;
+	int output_mode;
 
 	struct cx231xx_input input[MAX_CX231XX_INPUT];
 	struct cx231xx_input radio;

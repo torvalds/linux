@@ -656,12 +656,12 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 		value |= (1 << 7);
 		status = vid_blk_write_word(dev, OUT_CTRL1, value);
 
-		/* Set vip 1.1 output mode */
+		/* Set output mode */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							OUT_CTRL1,
 							FLD_OUT_MODE,
-							OUT_MODE_VIP11);
+							dev->board.output_mode);
 
 		/* Tell DIF object to go to baseband mode  */
 		status = cx231xx_dif_set_standard(dev, DIF_USE_BASEBAND);
@@ -779,11 +779,11 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			value |= (1 << 7);
 			status = vid_blk_write_word(dev, OUT_CTRL1, value);
 
-			/* Set vip 1.1 output mode */
+			/* Set output mode */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							OUT_CTRL1, FLD_OUT_MODE,
-							OUT_MODE_VIP11);
+							dev->board.output_mode);
 
 			/* Tell DIF object to go to baseband mode */
 			status = cx231xx_dif_set_standard(dev,
@@ -870,11 +870,11 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 				 (FLD_OEF_AGC_IF);
 			status = vid_blk_write_word(dev, PIN_CTRL, value);
 
-			/* Set vip 1.1 output mode */
+			/* Set output mode */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 						VID_BLK_I2C_ADDRESS,
 						OUT_CTRL1, FLD_OUT_MODE,
-						OUT_MODE_VIP11);
+						dev->board.output_mode);
 
 			/* Disable auto config of registers */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
