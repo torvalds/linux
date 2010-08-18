@@ -218,8 +218,10 @@ print_tainted()
 #endif /* defined(CONFIG_WIRELESS_EXT) */
 
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len);
+#ifdef PKT_FILTER_SUPPORT
 extern void dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg);
 extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_mode);
+#endif
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
@@ -498,18 +500,20 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 
 static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 {
-	int i;
-
 	DHD_TRACE(("%s: %d\n", __func__, value));
+#ifdef PKT_FILTER_SUPPORT
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
 	/* 0 - Disable packet filter */
 	if (dhd_pkt_filter_enable) {
+		int i;
+
 		for (i = 0; i < dhd->pktfilter_count; i++) {
 			dhd_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
 			dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
 					value, dhd_master_mode);
 		}
 	}
+#endif
 }
 
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)

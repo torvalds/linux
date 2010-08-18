@@ -972,6 +972,7 @@ void print_buf(void *pbuf, int len, int bytes_per_line)
 
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
 
+#ifdef PKT_FILTER_SUPPORT
 /* Convert user's input in hex pattern to byte-size mask */
 static int
 wl_pattern_atoh(char *src, char *dst)
@@ -1201,7 +1202,9 @@ fail:
 	if (buf)
 		MFREE(dhd->osh, buf, BUF_SIZE);
 }
+#endif
 
+#ifdef ARP_OFFLOAD_SUPPORT
 void
 dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
 {
@@ -1235,6 +1238,7 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
 		__FUNCTION__, arp_enable));
 }
+#endif
 
 int
 dhd_preinit_ioctls(dhd_pub_t *dhd)
