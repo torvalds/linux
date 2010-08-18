@@ -2300,7 +2300,7 @@ static struct opcode opcode_table[256] = {
 	/* 0x90 - 0x97 */
 	X8(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
-	N, N, D(SrcImmFAddr | No64), N,
+	D(DstAcc | SrcNone), N, D(SrcImmFAddr | No64), N,
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
 	/* 0xA0 - 0xA7 */
 	D(ByteOp | DstAcc | SrcMem | Mov | MemAbs), D(DstAcc | SrcMem | Mov | MemAbs),
@@ -3003,6 +3003,13 @@ special_insn:
 		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
 			break;
 		goto xchg;
+	case 0x98: /* cbw/cwde/cdqe */
+		switch (c->op_bytes) {
+		case 2: c->dst.val = (s8)c->dst.val; break;
+		case 4: c->dst.val = (s16)c->dst.val; break;
+		case 8: c->dst.val = (s32)c->dst.val; break;
+		}
+		break;
 	case 0x9c: /* pushf */
 		c->src.val =  (unsigned long) ctxt->eflags;
 		emulate_push(ctxt, ops);
