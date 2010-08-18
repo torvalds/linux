@@ -140,6 +140,7 @@ config MACH_MX35_3DS
 	bool "Support MX35PDK platform"
 	select ARCH_MX35
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
 	default n
 	help
 	  Include support for MX35PDK platform. This includes specific

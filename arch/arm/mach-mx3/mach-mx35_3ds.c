@@ -66,6 +66,12 @@ static struct platform_device mx35pdk_flash = {
 	.num_resources = 1,
 };
 
+static const struct mxc_nand_platform_data mx35pdk_nand_board_info __initconst = {
+	.width = 1,
+	.hw_ecc = 1,
+	.flash_bbt = 1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mxc_fec_device,
 	&mx35pdk_flash,
@@ -119,6 +125,8 @@ static void __init mxc_board_init(void)
 	imx35_add_imx_uart0(&uart_pdata);
 
 	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+
+	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 }
 
 static void __init mx35pdk_timer_init(void)
