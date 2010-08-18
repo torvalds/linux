@@ -2330,7 +2330,7 @@ static struct opcode opcode_table[256] = {
 	/* 0xD8 - 0xDF */
 	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
-	N, N, N, N,
+	X3(D(SrcImmByte)), N,
 	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
 	D(ByteOp | SrcAcc | DstImmUByte), D(SrcAcc | DstImmUByte),
 	/* 0xE8 - 0xEF */
@@ -3083,6 +3083,12 @@ special_insn:
 	case 0xd2 ... 0xd3:	/* Grp2 */
 		c->src.val = c->regs[VCPU_REGS_RCX];
 		emulate_grp2(ctxt);
+		break;
+	case 0xe0 ... 0xe2:	/* loop/loopz/loopnz */
+		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
+		if (address_mask(c, c->regs[VCPU_REGS_RCX]) != 0 &&
+		    (c->b == 0xe2 || test_cc(c->b ^ 0x5, ctxt->eflags)))
+			jmp_rel(c, c->src.val);
 		break;
 	case 0xe4: 	/* inb */
 	case 0xe5: 	/* in */
