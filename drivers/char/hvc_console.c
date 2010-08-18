@@ -651,7 +651,7 @@ int hvc_poll(struct hvc_struct *hp)
 					if (sysrq_pressed)
 						continue;
 				} else if (sysrq_pressed) {
-					handle_sysrq(buf[i], tty);
+					handle_sysrq(buf[i]);
 					sysrq_pressed = 0;
 					continue;
 				}

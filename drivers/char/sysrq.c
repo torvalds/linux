@@ -18,7 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
-#include <linux/tty.h>
 #include <linux/mount.h>
 #include <linux/kdev_t.h>
 #include <linux/major.h>
@@ -493,7 +492,7 @@ static void __sysrq_put_key_op(int key, struct sysrq_key_op *op_p)
                 sysrq_key_table[i] = op_p;
 }
 
-void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
+void __handle_sysrq(int key, bool check_mask)
 {
 	struct sysrq_key_op *op_p;
 	int orig_log_level;
@@ -545,10 +544,10 @@ void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
 	spin_unlock_irqrestore(&sysrq_key_table_lock, flags);
 }
 
-void handle_sysrq(int key, struct tty_struct *tty)
+void handle_sysrq(int key)
 {
 	if (sysrq_on())
-		__handle_sysrq(key, tty, 1);
+		__handle_sysrq(key, true);
 }
 EXPORT_SYMBOL(handle_sysrq);
 
@@ -597,7 +596,7 @@ static bool sysrq_filter(struct input_handle *handle, unsigned int type,
 
 	default:
 		if (sysrq_down && value && value != 2)
-			__handle_sysrq(sysrq_xlate[code], NULL, 1);
+			__handle_sysrq(sysrq_xlate[code], true);
 		break;
 	}
 
@@ -765,7 +764,7 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 
 		if (get_user(c, buf))
 			return -EFAULT;
-		__handle_sysrq(c, NULL, 0);
+		__handle_sysrq(c, false);
 	}
 
 	return count;
