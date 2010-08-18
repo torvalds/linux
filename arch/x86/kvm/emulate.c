@@ -58,7 +58,6 @@
 #define DstMask     (7<<1)
 /* Source operand type. */
 #define SrcNone     (0<<4)	/* No source operand. */
-#define SrcImplicit (0<<4)	/* Source operand is implicit in the opcode. */
 #define SrcReg      (1<<4)	/* Register operand. */
 #define SrcMem      (2<<4)	/* Memory operand. */
 #define SrcMem16    (3<<4)	/* Memory operand (16-bit). */
@@ -2435,7 +2434,7 @@ static struct opcode opcode_table[256] = {
 	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
 	/* 0xD0 - 0xD7 */
 	D(ByteOp | DstMem | SrcOne | ModRM), D(DstMem | SrcOne | ModRM),
-	D(ByteOp | DstMem | SrcImplicit | ModRM), D(DstMem | SrcImplicit | ModRM),
+	D(ByteOp | DstMem | ModRM), D(DstMem | ModRM),
 	N, N, N, N,
 	/* 0xD8 - 0xDF */
 	N, N, N, N, N, N, N, N,
