@@ -2402,7 +2402,8 @@ static struct opcode opcode_table[256] = {
 	N, D(DstReg | SrcMem32 | ModRM | Mov) /* movsxd (x86/64) */ ,
 	N, N, N, N,
 	/* 0x68 - 0x6F */
-	I(SrcImm | Mov | Stack, em_push), N,
+	I(SrcImm | Mov | Stack, em_push),
+	I(DstReg | SrcMem | ModRM | Src2Imm, em_imul_3op),
 	I(SrcImmByte | Mov | Stack, em_push),
 	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
 	D(DstDI | ByteOp | Mov | String), D(DstDI | Mov | String), /* insb, insw/insd */
