@@ -309,7 +309,11 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.pin_type           = GPIO_IN,
 		//.pin_value			=GPIO_HIGH,
 	 },
-	 
+	 {
+		.gpio_num    		= TCA6424_P17,// 3G PowerOn
+		.pin_type           	= GPIO_OUT,
+		.pin_value		=GPIO_HIGH,
+	 },
 };
 
 struct tca6424_platform_data rk2818_tca6424_data={
@@ -471,11 +475,12 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 	},
 #endif
 
-#if defined (CONFIG_PMIC_LP8725)
+#if defined (CONFIG_RK2818_REGULATOR_LP8725)
 	{
 		.type    		= "lp8725",
 		.addr           = 0x79, 
 		.flags			= 0,
+		.platform_data=&rk2818_lp8725_data,
 	},
 #endif
 #if defined (CONFIG_GS_MMA7660)
@@ -641,7 +646,7 @@ struct soc_camera_link rk2818_iclink = {
  * battery  devices
  * author: lw@rock-chips.com
  *****************************************************************************************/
-#define CHARGEOK_PIN	RK2818_PIN_PB1
+#define CHARGEOK_PIN	RK2818_PIN_PA4
 struct rk2818_battery_platform_data rk2818_battery_platdata = {
 	.charge_ok_pin = CHARGEOK_PIN,
 };
