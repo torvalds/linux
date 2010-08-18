@@ -444,6 +444,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct dcb_entry *dcbe = nv_encoder->dcb;
 	int head = nouveau_crtc(encoder->crtc)->index;
+	struct drm_encoder *slave_encoder;
 
 	if (dcbe->type == OUTPUT_TMDS)
 		run_tmds_table(dev, dcbe, head, nv_encoder->mode.clock);
@@ -462,9 +463,10 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
 
 	/* Init external transmitters */
-	if (get_tmds_slave(encoder))
-		get_slave_funcs(get_tmds_slave(encoder))->mode_set(
-			encoder, &nv_encoder->mode, &nv_encoder->mode);
+	slave_encoder = get_tmds_slave(encoder);
+	if (slave_encoder)
+		get_slave_funcs(slave_encoder)->mode_set(
+			slave_encoder, &nv_encoder->mode, &nv_encoder->mode);
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
