@@ -1269,6 +1269,16 @@ static int __devexit xemaclite_of_remove(struct platform_device *of_dev)
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void
+xemaclite_poll_controller(struct net_device *ndev)
+{
+	disable_irq(ndev->irq);
+	xemaclite_interrupt(ndev->irq, ndev);
+	enable_irq(ndev->irq);
+}
+#endif
+
 static struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_open		= xemaclite_open,
 	.ndo_stop		= xemaclite_close,
@@ -1276,6 +1286,9 @@ static struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
 	.ndo_get_stats		= xemaclite_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = xemaclite_poll_controller,
+#endif
 };
 
 /* Match table for OF platform binding */
