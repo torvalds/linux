@@ -1110,7 +1110,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
 		goto no_open_dput;
 	/* We can't create new files, or truncate existing ones here */
-	openflags &= ~(O_CREAT|O_TRUNC);
+	openflags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
 	/*
 	 * Note: we're not holding inode->i_mutex and so may be racing with
