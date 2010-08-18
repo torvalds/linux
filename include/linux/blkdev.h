@@ -869,11 +869,9 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 }
 enum{
 	BLKDEV_WAIT,	/* wait for completion */
-	BLKDEV_BARRIER,	/* issue request with barrier */
 	BLKDEV_SECURE,	/* secure discard */
 };
 #define BLKDEV_IFL_WAIT		(1 << BLKDEV_WAIT)
-#define BLKDEV_IFL_BARRIER	(1 << BLKDEV_BARRIER)
 #define BLKDEV_IFL_SECURE	(1 << BLKDEV_SECURE)
 extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *,
 			unsigned long);

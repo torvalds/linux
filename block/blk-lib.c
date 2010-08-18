@@ -39,8 +39,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
-	int type = flags & BLKDEV_IFL_BARRIER ?
-		DISCARD_BARRIER : DISCARD_NOBARRIER;
+	int type = REQ_WRITE | REQ_DISCARD;
 	unsigned int max_discard_sectors;
 	struct bio *bio;
 	int ret = 0;
@@ -65,7 +64,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (flags & BLKDEV_IFL_SECURE) {
 		if (!blk_queue_secdiscard(q))
 			return -EOPNOTSUPP;
-		type |= DISCARD_SECURE;
+		type |= REQ_SECURE;
 	}
 
 	while (nr_sects && !ret) {
@@ -162,12 +161,6 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	bb.wait = &wait;
 	bb.end_io = NULL;
 
-	if (flags & BLKDEV_IFL_BARRIER) {
-		/* issue async barrier before the data */
-		ret = blkdev_issue_flush(bdev, gfp_mask, NULL, 0);
-		if (ret)
-			return ret;
-	}
 submit:
 	ret = 0;
 	while (nr_sects != 0) {
@@ -199,13 +192,6 @@ submit:
 		issued++;
 		submit_bio(WRITE, bio);
 	}
-	/*
-	 * When all data bios are in flight. Send final barrier if requeted.
-	 */
-	if (nr_sects == 0 && flags & BLKDEV_IFL_BARRIER)
-		ret = blkdev_issue_flush(bdev, gfp_mask, NULL,
-					flags & BLKDEV_IFL_WAIT);
-
 
 	if (flags & BLKDEV_IFL_WAIT)
 		/* Wait for bios in-flight */

@@ -163,14 +163,6 @@ struct inodes_stat_t {
 #define WRITE_FLUSH_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
 				 REQ_FLUSH | REQ_FUA)
 
-/*
- * These aren't really reads or writes, they pass down information about
- * parts of device that are now unused by the file system.
- */
-#define DISCARD_NOBARRIER	(WRITE | REQ_DISCARD)
-#define DISCARD_BARRIER		(WRITE | REQ_DISCARD | REQ_HARDBARRIER)
-#define DISCARD_SECURE		(DISCARD_NOBARRIER | REQ_SECURE)
-
 #define SEL_IN		1
 #define SEL_OUT		2
 #define SEL_EX		4
