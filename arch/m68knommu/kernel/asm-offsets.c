@@ -21,14 +21,8 @@
 int main(void)
 {
 	/* offsets into the task struct */
-	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
-	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
-	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
-	DEFINE(TASK_BLOCKED, offsetof(struct task_struct, blocked));
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
-	DEFINE(TASK_THREAD_INFO, offsetof(struct task_struct, stack));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
-	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
 
 	/* offsets into the irq_cpustat_t struct */
 	DEFINE(CPUSTAT_SOFTIRQ_PENDING, offsetof(irq_cpustat_t, __softirq_pending));
@@ -77,11 +71,8 @@ int main(void)
 	DEFINE(THREAD_SIZE, THREAD_SIZE);
 
 	/* Offsets in thread_info structure */
-	DEFINE(TI_TASK, offsetof(struct thread_info, task));
-	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_PREEMPTCOUNT, offsetof(struct thread_info, preempt_count));
-	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 
 	return 0;
 }
