@@ -34,11 +34,14 @@
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
+#include <mach/rk2818_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <mach/rk2818_nand.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/dm9000.h>
+
+#include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 
 #include "devices.h"
 
@@ -493,6 +496,146 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
 
 };	
+
+/*****************************************************************************************
+ * camera  devices
+ * author: ddl@rock-chips.com
+ *****************************************************************************************/
+#ifdef CONFIG_VIDEO_RK2818
+
+#define RK2818_CAM_POWER_PIN    TCA6424_P16
+#define RK2818_CAM_RESET_PIN    INVALID_GPIO
+
+static int rk28_sensor_io_init(void);
+static int rk28_sensor_io_deinit(void);
+
+struct rk28camera_platform_data rk28_camera_platform_data = {
+    .io_init = rk28_sensor_io_init,
+    .io_deinit = rk28_sensor_io_deinit,
+    .gpio_res = {
+        {
+            .gpio_reset = RK2818_CAM_RESET_PIN,
+            .gpio_power = RK2818_CAM_POWER_PIN,
+            .dev_name = "ov2655"
+        }, {
+            .gpio_reset = INVALID_GPIO,
+            .gpio_power = INVALID_GPIO,
+            .dev_name = NULL
+        }
+    }
+};
+
+static int rk28_sensor_io_init(void)
+{
+    int ret = 0, i;
+    unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+
+    printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
+
+    for (i=0; i<2; i++) {
+        camera_reset = rk28_camera_platform_data.gpio_res[i].gpio_reset;
+        camera_power = rk28_camera_platform_data.gpio_res[i].gpio_power;
+
+        if (camera_power != INVALID_GPIO) {
+            ret = gpio_request(camera_power, "camera power");
+            if (ret)
+                continue;
+
+            gpio_set_value(camera_reset, 1);
+            gpio_direction_output(camera_power, 0);
+        }
+
+        if (camera_reset != INVALID_GPIO) {
+            ret = gpio_request(camera_reset, "camera reset");
+            if (ret) {
+                if (camera_power != INVALID_GPIO)
+                    gpio_free(camera_power);
+
+                continue;
+            }
+
+            gpio_set_value(camera_reset, 0);
+            gpio_direction_output(camera_reset, 0);
+        }
+    }
+
+    return 0;
+}
+
+static int rk28_sensor_io_deinit(void)
+{
+    unsigned int i;
+    unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+
+    printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
+
+    for (i=0; i<2; i++) {
+        camera_reset = rk28_camera_platform_data.gpio_res[i].gpio_reset;
+        camera_power = rk28_camera_platform_data.gpio_res[i].gpio_power;
+
+        if (camera_power != INVALID_GPIO){
+            gpio_direction_input(camera_power);
+            gpio_free(camera_power);
+        }
+
+        if (camera_reset != INVALID_GPIO)  {
+            gpio_direction_input(camera_reset);
+            gpio_free(camera_reset);
+        }
+    }
+
+    return 0;
+}
+
+
+static int rk28_sensor_power(struct device *dev, int on)
+{
+    unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+
+    if(rk28_camera_platform_data.gpio_res[0].dev_name &&  (strcmp(rk28_camera_platform_data.gpio_res[0].dev_name, dev_name(dev)) == 0)) {
+        camera_reset = rk28_camera_platform_data.gpio_res[0].gpio_reset;
+        camera_power = rk28_camera_platform_data.gpio_res[0].gpio_power;
+    } else if (rk28_camera_platform_data.gpio_res[1].dev_name && (strcmp(rk28_camera_platform_data.gpio_res[1].dev_name, dev_name(dev)) == 0)) {
+        camera_reset = rk28_camera_platform_data.gpio_res[1].gpio_reset;
+        camera_power = rk28_camera_platform_data.gpio_res[1].gpio_power;
+    }
+
+    if (camera_reset != INVALID_GPIO) {
+        gpio_set_value(camera_reset, !on);
+        //printk("\n%s..%s..ResetPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev),camera_reset, on);
+    }
+    if (camera_power != INVALID_GPIO)  {
+        gpio_set_value(camera_power, !on);
+        printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_power, !on);
+    }
+    if (camera_reset != INVALID_GPIO) {
+        msleep(3);          /* delay 3 ms */
+        gpio_set_value(camera_reset,on);
+        printk("\n%s..%s..ResetPin= %d..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_reset, on);
+    }
+    return 0;
+}
+
+
+#define OV2655_IIC_ADDR 	    0x60
+static struct i2c_board_info rk2818_i2c_cam_info[] = {
+#ifdef CONFIG_SOC_CAMERA_OV2655
+	{
+		I2C_BOARD_INFO("ov2655", OV2655_IIC_ADDR>>1)
+	},
+#endif
+};
+
+struct soc_camera_link rk2818_iclink = {
+	.bus_id		= RK28_CAM_PLATFORM_DEV_ID,
+	.power		= rk28_sensor_power,
+	.board_info	= &rk2818_i2c_cam_info[0],
+	.i2c_adapter_id	= 1,
+#ifdef CONFIG_SOC_CAMERA_OV2655
+	.module_name	= "ov2655",
+#endif
+};
+#endif
 
 /*****************************************************************************************
  * battery  devices
@@ -977,6 +1120,10 @@ static struct platform_device *devices[] __initdata = {
     &rk2818_device_fb,    
     &rk2818_device_backlight,
 	&rk2818_device_dsp,
+#ifdef CONFIG_VIDEO_RK2818
+ 	&rk2818_device_camera,      /* ddl@rock-chips.com : camera support  */
+ 	&rk2818_soc_camera_pdrv,
+#endif
 #ifdef CONFIG_MTD_NAND_RK2818
 	&rk2818_nand_device,
 #endif
@@ -1033,8 +1180,8 @@ void lcd_set_iomux(u8 enable)
     
     if(enable)
     {
-        rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
-        ret = gpio_request(RK2818_PIN_PA4, NULL); 
+        rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 0);
+        ret = gpio_request(RK2818_PIN_PH6, NULL);
         if(0)//(ret != 0)
         {
             gpio_free(RK2818_PIN_PA4);
@@ -1062,9 +1209,9 @@ void lcd_set_iomux(u8 enable)
     }
     else
     {
-         gpio_free(RK2818_PIN_PA4); 
+         //gpio_free(RK2818_PIN_PA4);
          //rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
-         rk2818_mux_api_mode_resume(CXGPIO_HSADC_SEL_NAME);
+        // rk2818_mux_api_mode_resume(CXGPIO_HSADC_SEL_NAME);
 
          gpio_free(RK2818_PIN_PE7);   
          gpio_free(RK2818_PIN_PE6); 
@@ -1080,7 +1227,7 @@ pin_err:
 struct lcd_td043mgea1_data lcd_td043mgea1 = {
     .pin_txd    = RK2818_PIN_PE6,
     .pin_clk    = RK2818_PIN_PE7,
-    .pin_cs     = RK2818_PIN_PA4,
+    .pin_cs     = RK2818_PIN_PH6,
     .screen_set_iomux = lcd_set_iomux,
 };
 

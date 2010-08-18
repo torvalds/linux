@@ -1118,9 +1118,9 @@ void lcd_set_iomux(u8 enable)
     }
     else
     {
-         gpio_free(RK2818_PIN_PH6); 
+        // gpio_free(RK2818_PIN_PH6);
          //rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 1);
-         rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
+        // rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
 
          gpio_free(RK2818_PIN_PE4);   
          gpio_free(RK2818_PIN_PE5); 
