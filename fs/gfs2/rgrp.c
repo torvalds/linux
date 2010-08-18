@@ -854,8 +854,7 @@ static void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 				if ((start + nr_sects) != blk) {
 					rv = blkdev_issue_discard(bdev, start,
 							    nr_sects, GFP_NOFS,
-							    BLKDEV_IFL_WAIT |
-							    BLKDEV_IFL_BARRIER);
+							    BLKDEV_IFL_WAIT);
 					if (rv)
 						goto fail;
 					nr_sects = 0;
@@ -870,7 +869,7 @@ start_new_extent:
 	}
 	if (nr_sects) {
 		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS,
-					 BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
+					 BLKDEV_IFL_WAIT);
 		if (rv)
 			goto fail;
 	}
