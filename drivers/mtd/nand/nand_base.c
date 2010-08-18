@@ -2934,14 +2934,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		chip->chip_shift = ffs((unsigned)(chip->chipsize >> 32)) + 32 - 1;
 
 	/* Set the bad block position */
-	if (!(busw & NAND_BUSWIDTH_16) && (*maf_id == NAND_MFR_STMICRO ||
-				(*maf_id == NAND_MFR_SAMSUNG &&
-				 mtd->writesize == 512) ||
-				*maf_id == NAND_MFR_AMD))
-		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
-	else
+	if (mtd->writesize > 512 || (busw & NAND_BUSWIDTH_16))
 		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
-
+	else
+		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
 
 	/* Get chip options, preserve non chip based options */
 	chip->options &= ~NAND_CHIPOPTIONS_MSK;
