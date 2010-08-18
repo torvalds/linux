@@ -761,8 +761,8 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	/* Reset other chips required if they are tied up with GPIO pins */
 	cx231xx_add_into_devlist(dev);
 
-	printk(KERN_INFO "attach 417 %d\n", dev->model);
 	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+		printk(KERN_INFO "attach 417 %d\n", dev->model);
 		if (cx231xx_417_register(dev) < 0) {
 			printk(KERN_ERR
 				"%s() Failed to register 417 on VID_B\n",
