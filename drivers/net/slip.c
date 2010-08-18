@@ -561,36 +561,36 @@ static int sl_change_mtu(struct net_device *dev, int new_mtu)
 static struct net_device_stats *
 sl_get_stats(struct net_device *dev)
 {
-	static struct net_device_stats stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct slip *sl = netdev_priv(dev);
+	unsigned long c_rx_dropped = 0;
 #ifdef SL_INCLUDE_CSLIP
-	struct slcompress *comp;
+	unsigned long c_rx_fifo_errors = 0;
+	unsigned long c_tx_fifo_errors = 0;
+	unsigned long c_collisions = 0;
+	struct slcompress *comp = sl->slcomp;
+
+	if (comp) {
+		c_rx_fifo_errors = comp->sls_i_compressed;
+		c_rx_dropped     = comp->sls_i_tossed;
+		c_tx_fifo_errors = comp->sls_o_compressed;
+		c_collisions     = comp->sls_o_misses;
+	}
+	stats->rx_fifo_errors = sl->rx_compressed + c_rx_fifo_errors;
+	stats->tx_fifo_errors = sl->tx_compressed + c_tx_fifo_errors;
+	stats->collisions     = sl->tx_misses + c_collisions;
 #endif
 
-	memset(&stats, 0, sizeof(struct net_device_stats));
-
-	stats.rx_packets     = sl->rx_packets;
-	stats.tx_packets     = sl->tx_packets;
-	stats.rx_bytes	     = sl->rx_bytes;
-	stats.tx_bytes	     = sl->tx_bytes;
-	stats.rx_dropped     = sl->rx_dropped;
-	stats.tx_dropped     = sl->tx_dropped;
-	stats.tx_errors      = sl->tx_errors;
-	stats.rx_errors      = sl->rx_errors;
-	stats.rx_over_errors = sl->rx_over_errors;
-#ifdef SL_INCLUDE_CSLIP
-	stats.rx_fifo_errors = sl->rx_compressed;
-	stats.tx_fifo_errors = sl->tx_compressed;
-	stats.collisions     = sl->tx_misses;
-	comp = sl->slcomp;
-	if (comp) {
-		stats.rx_fifo_errors += comp->sls_i_compressed;
-		stats.rx_dropped     += comp->sls_i_tossed;
-		stats.tx_fifo_errors += comp->sls_o_compressed;
-		stats.collisions     += comp->sls_o_misses;
-	}
-#endif /* CONFIG_INET */
-	return (&stats);
+	stats->rx_packets     = sl->rx_packets;
+	stats->tx_packets     = sl->tx_packets;
+	stats->rx_bytes	      = sl->rx_bytes;
+	stats->tx_bytes	      = sl->tx_bytes;
+	stats->rx_dropped     = sl->rx_dropped + c_rx_dropped;
+	stats->tx_dropped     = sl->tx_dropped;
+	stats->tx_errors      = sl->tx_errors;
+	stats->rx_errors      = sl->rx_errors;
+	stats->rx_over_errors = sl->rx_over_errors;
+	return stats;
 }
 
 /* Netdevice register callback */
