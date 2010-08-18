@@ -2541,6 +2541,55 @@ static struct opcode twobyte_table[256] = {
 #undef GD
 #undef I
 
+static unsigned imm_size(struct decode_cache *c)
+{
+	unsigned size;
+
+	size = (c->d & ByteOp) ? 1 : c->op_bytes;
+	if (size == 8)
+		size = 4;
+	return size;
+}
+
+static int decode_imm(struct x86_emulate_ctxt *ctxt, struct operand *op,
+		      unsigned size, bool sign_extension)
+{
+	struct decode_cache *c = &ctxt->decode;
+	struct x86_emulate_ops *ops = ctxt->ops;
+	int rc = X86EMUL_CONTINUE;
+
+	op->type = OP_IMM;
+	op->bytes = size;
+	op->addr.mem = c->eip;
+	/* NB. Immediates are sign-extended as necessary. */
+	switch (op->bytes) {
+	case 1:
+		op->val = insn_fetch(s8, 1, c->eip);
+		break;
+	case 2:
+		op->val = insn_fetch(s16, 2, c->eip);
+		break;
+	case 4:
+		op->val = insn_fetch(s32, 4, c->eip);
+		break;
+	}
+	if (!sign_extension) {
+		switch (op->bytes) {
+		case 1:
+			op->val &= 0xff;
+			break;
+		case 2:
+			op->val &= 0xffff;
+			break;
+		case 4:
+			op->val &= 0xffffffff;
+			break;
+		}
+	}
+done:
+	return rc;
+}
+
 int
 x86_decode_insn(struct x86_emulate_ctxt *ctxt)
 {
@@ -2730,52 +2779,19 @@ done_prefixes:
 		c->src = memop;
 		break;
 	case SrcImmU16:
-		c->src.bytes = 2;
-		goto srcimm;
+		rc = decode_imm(ctxt, &c->src, 2, false);
+		break;
 	case SrcImm:
+		rc = decode_imm(ctxt, &c->src, imm_size(c), true);
+		break;
 	case SrcImmU:
-		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		if (c->src.bytes == 8)
-			c->src.bytes = 4;
-	srcimm:
-		c->src.type = OP_IMM;
-		c->src.addr.mem = c->eip;
-		/* NB. Immediates are sign-extended as necessary. */
-		switch (c->src.bytes) {
-		case 1:
-			c->src.val = insn_fetch(s8, 1, c->eip);
-			break;
-		case 2:
-			c->src.val = insn_fetch(s16, 2, c->eip);
-			break;
-		case 4:
-			c->src.val = insn_fetch(s32, 4, c->eip);
-			break;
-		}
-		if ((c->d & SrcMask) == SrcImmU
-		    || (c->d & SrcMask) == SrcImmU16) {
-			switch (c->src.bytes) {
-			case 1:
-				c->src.val &= 0xff;
-				break;
-			case 2:
-				c->src.val &= 0xffff;
-				break;
-			case 4:
-				c->src.val &= 0xffffffff;
-				break;
-			}
-		}
+		rc = decode_imm(ctxt, &c->src, imm_size(c), false);
 		break;
 	case SrcImmByte:
+		rc = decode_imm(ctxt, &c->src, 1, true);
+		break;
 	case SrcImmUByte:
-		c->src.type = OP_IMM;
-		c->src.addr.mem = c->eip;
-		c->src.bytes = 1;
-		if ((c->d & SrcMask) == SrcImmByte)
-			c->src.val = insn_fetch(s8, 1, c->eip);
-		else
-			c->src.val = insn_fetch(u8, 1, c->eip);
+		rc = decode_imm(ctxt, &c->src, 1, false);
 		break;
 	case SrcAcc:
 		c->src.type = OP_REG;
@@ -2807,6 +2823,9 @@ done_prefixes:
 		break;
 	}
 
+	if (rc != X86EMUL_CONTINUE)
+		goto done;
+
 	/*
 	 * Decode and fetch the second source operand: register, memory
 	 * or immediate.
@@ -2819,16 +2838,16 @@ done_prefixes:
 		c->src2.val = c->regs[VCPU_REGS_RCX] & 0x8;
 		break;
 	case Src2ImmByte:
-		c->src2.type = OP_IMM;
-		c->src2.addr.mem = c->eip;
-		c->src2.bytes = 1;
-		c->src2.val = insn_fetch(u8, 1, c->eip);
+		rc = decode_imm(ctxt, &c->src2, 1, true);
 		break;
 	case Src2One:
 		c->src2.bytes = 1;
 		c->src2.val = 1;
 		break;
 	}
+
+	if (rc != X86EMUL_CONTINUE)
+		goto done;
 
 	/* Decode and fetch the destination operand: register or memory. */
 	switch (c->d & DstMask) {
