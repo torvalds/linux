@@ -1418,7 +1418,7 @@ static int qla4_8xxx_rcvpeg_ready(struct scsi_qla_host *ha)
 	return QLA_SUCCESS;
 }
 
-static inline void
+inline void
 qla4_8xxx_set_drv_active(struct scsi_qla_host *ha)
 {
 	uint32_t drv_active;
@@ -1441,11 +1441,15 @@ qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha)
 static inline int
 qla4_8xxx_need_reset(struct scsi_qla_host *ha)
 {
-	uint32_t drv_state;
+	uint32_t drv_state, drv_active;
 	int rval;
 
+	drv_active = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
 	drv_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
 	rval = drv_state & (1 << (ha->func_num * 4));
+	if ((test_bit(AF_EEH_BUSY, &ha->flags)) && drv_active)
+		rval = 1;
+
 	return rval;
 }
 
@@ -1949,7 +1953,8 @@ qla4_8xxx_get_fdt_info(struct scsi_qla_host *ha)
 	uint16_t cnt, chksum;
 	uint16_t *wptr;
 	struct qla_fdt_layout *fdt;
-	uint16_t mid, fid;
+	uint16_t mid = 0;
+	uint16_t fid = 0;
 	struct ql82xx_hw_data *hw = &ha->hw;
 
 	hw->flash_conf_off = FARX_ACCESS_FLASH_CONF;
@@ -2105,6 +2110,9 @@ qla4_8xxx_isp_reset(struct scsi_qla_host *ha)
 	qla4_8xxx_clear_rst_ready(ha);
 	qla4_8xxx_idc_unlock(ha);
 
+	if (rval == QLA_SUCCESS)
+		clear_bit(AF_FW_RECOVERY, &ha->flags);
+
 	return rval;
 }
 
@@ -2145,7 +2153,8 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 		goto exit_validate_mac82;
 	}
 
-	if (mbox_sts[4] < sizeof(*sys_info)) {
+	/* Make sure we receive the minimum required data to cache internally */
+	if (mbox_sts[4] < offsetof(struct mbx_sys_info, reserved)) {
 		DEBUG2(printk("scsi%ld: %s: GET_SYS_INFO data receive"
 		    " error (%x)\n", ha->host_no, __func__, mbox_sts[4]));
 		goto exit_validate_mac82;

@@ -1896,6 +1896,13 @@ config FB_W100
 
 	  If unsure, say N.
 
+config SH_MIPI_DSI
+	tristate
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+
+config SH_LCD_MIPI_DSI
+	bool
+
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
 	depends on FB && (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
@@ -1904,8 +1911,16 @@ config FB_SH_MOBILE_LCDC
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
+	select SH_MIPI_DSI if SH_LCD_MIPI_DSI
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
+
+config FB_SH_MOBILE_HDMI
+	tristate "SuperH Mobile HDMI controller support"
+	depends on FB_SH_MOBILE_LCDC
+	select FB_MODE_HELPERS
+	---help---
+	  Driver for the on-chip SH-Mobile HDMI controller.
 
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
@@ -1931,7 +1946,7 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && ARCH_S3C64XX
+	depends on FB && S3C_DEV_FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

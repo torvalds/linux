@@ -2191,8 +2191,15 @@ pfmfs_delete_dentry(struct dentry *dentry)
 	return 1;
 }
 
+static char *pfmfs_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "pfm:[%lu]",
+			     dentry->d_inode->i_ino);
+}
+
 static const struct dentry_operations pfmfs_dentry_operations = {
 	.d_delete = pfmfs_delete_dentry,
+	.d_dname = pfmfs_dname,
 };
 
 
@@ -2202,8 +2209,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 	struct file *file;
 	struct inode *inode;
 	struct path path;
-	char name[32];
-	struct qstr this;
+	struct qstr this = { .name = "" };
 
 	/*
 	 * allocate a new inode
@@ -2217,11 +2223,6 @@ pfm_alloc_file(pfm_context_t *ctx)
 	inode->i_mode = S_IFCHR|S_IRUGO;
 	inode->i_uid  = current_fsuid();
 	inode->i_gid  = current_fsgid();
-
-	sprintf(name, "[%lu]", inode->i_ino);
-	this.name = name;
-	this.len  = strlen(name);
-	this.hash = inode->i_ino;
 
 	/*
 	 * allocate a new dcache entry

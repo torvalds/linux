@@ -108,7 +108,6 @@ static bool read_memory_func(void *result, VirtualAddress address,
 /* Return a pt_regs pointer for a valid fault handler frame */
 static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 {
-#ifndef __tilegx__
 	const char *fault = NULL;  /* happy compiler */
 	char fault_buf[64];
 	VirtualAddress sp = kbt->it.sp;
@@ -146,7 +145,6 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 	}
 	if (!kbt->profile || (INT_MASK(p->faultnum) & QUEUED_INTERRUPTS) == 0)
 		return p;
-#endif
 	return NULL;
 }
 
@@ -351,12 +349,6 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		       kbt->task->pid, kbt->task->tgid, kbt->task->comm,
 		       smp_processor_id(), get_cycles());
 	}
-#ifdef __tilegx__
-	if (kbt->is_current) {
-		__insn_mtspr(SPR_SIM_CONTROL,
-			     SIM_DUMP_SPR_ARG(SIM_DUMP_BACKTRACE));
-	}
-#endif
 	kbt->verbose = 1;
 	i = 0;
 	for (; !KBacktraceIterator_end(kbt); KBacktraceIterator_next(kbt)) {

@@ -219,6 +219,13 @@ config SONYPI_COMPAT
 	  ---help---
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
 
+config IDEAPAD_ACPI
+	tristate "Lenovo IdeaPad ACPI Laptop Extras"
+	depends on ACPI
+	depends on RFKILL
+	help
+	  This is a driver for the rfkill switches on Lenovo IdeaPad netbooks.
+
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI

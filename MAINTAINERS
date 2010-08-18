@@ -616,10 +616,10 @@ M:	Richard Purdie <rpurdie@rpsys.net>
 S:	Maintained
 
 ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
-M:	Paulius Zaleckas <paulius.zaleckas@gmail.com>
+M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://gitorious.org/linux-gemini/mainline.git
-S:	Odd Fixes
+T:	git git://git.berlios.de/gemini-board
+S:	Maintained
 F:	arch/arm/mach-gemini/
 
 ARM/EBSA110 MACHINE SUPPORT
@@ -641,9 +641,10 @@ T:	topgit git://git.openezx.org/openezx.git
 F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
-M:	Paulius Zaleckas <paulius.zaleckas@gmail.com>
+M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Odd Fixes
+S:	Maintained
+T:	git://git.berlios.de/gemini-board
 F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
@@ -691,6 +692,13 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kristoffer/linux-hpc.git
 F:	arch/arm/mach-sa1100/jornada720.c
 F:	arch/arm/mach-sa1100/include/mach/jornada720.h
+
+ARM/INCOME PXA270 SUPPORT
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/income.c
+F:	arch/arm/mach-pxa/include/mach-pxa/income.h
 
 ARM/INTEL IOP32X ARM ARCHITECTURE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -947,8 +955,9 @@ ARM/SHMOBILE ARM ARCHITECTURE
 M:	Paul Mundt <lethal@linux-sh.org>
 M:	Magnus Damm <magnus.damm@gmail.com>
 L:	linux-sh@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
 W:	http://oss.renesas.com
+Q:	http://patchwork.kernel.org/project/linux-sh/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
 S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
@@ -2202,6 +2211,12 @@ S:	Maintained
 F:	drivers/misc/cb710/
 F:	drivers/mmc/host/cb710-mmc.*
 F:	include/linux/cb710.h
+
+ENE KB2426 (ENE0100/ENE020XX) INFRARED RECEIVER
+M:	Maxim Levitsky <maximlevitsky@gmail.com>
+S:	Maintained
+F:	drivers/media/IR/ene_ir.c
+F:	drivers/media/IR/ene_ir.h
 
 EPSON 1355 FRAMEBUFFER DRIVER
 M:	Christopher Hoover <ch@murgatroid.com>
@@ -4387,6 +4402,13 @@ M:	Jim Cromie <jim.cromie@gmail.com>
 S:	Maintained
 F:	drivers/char/pc8736x_gpio.c
 
+PC87427 HARDWARE MONITORING DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/pc87427
+F:	drivers/hwmon/pc87427.c
+
 PCA9532 LED DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
 S:	Maintained
@@ -5263,6 +5285,13 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/smm665
 F:	drivers/hwmon/smm665.c
+
+SMSC EMC2103 HARDWARE MONITOR DRIVER
+M:	Steve Glendinning <steve.glendinning@smsc.com>
+L:	lm-sensors@lm-sensors.org
+S:	Supported
+F:	Documentation/hwmon/emc2103
+F:	drivers/hwmon/emc2103.c
 
 SMSC47B397 HARDWARE MONITOR DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
@@ -6373,8 +6402,9 @@ S:	Supported
 F:	drivers/input/touchscreen/*wm97*
 F:	include/linux/wm97xx.h
 
-WOLFSON MICROELECTRONICS PMIC DRIVERS
+WOLFSON MICROELECTRONICS DRIVERS
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Ian Lartey <ian@opensource.wolfsonmicro.com>
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/node/8
 S:	Supported
@@ -6389,8 +6419,8 @@ F:	drivers/watchdog/wm83*_wdt.c
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
 F:	include/linux/mfd/wm8400*
-F:	sound/soc/codecs/wm8350.*
-F:	sound/soc/codecs/wm8400.*
+F:	include/sound/wm????.h
+F:	sound/soc/codecs/wm*
 
 X.25 NETWORK LAYER
 M:	Andrew Hendry <andrew.hendry@gmail.com>

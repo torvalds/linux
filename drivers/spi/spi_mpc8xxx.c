@@ -1236,7 +1236,7 @@ static int of_mpc8xxx_spi_free_chipselects(struct device *dev)
 	return 0;
 }
 
-static int __devinit of_mpc8xxx_spi_probe(struct of_device *ofdev,
+static int __devinit of_mpc8xxx_spi_probe(struct platform_device *ofdev,
 					  const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
@@ -1308,7 +1308,7 @@ err_clk:
 	return ret;
 }
 
-static int __devexit of_mpc8xxx_spi_remove(struct of_device *ofdev)
+static int __devexit of_mpc8xxx_spi_remove(struct platform_device *ofdev)
 {
 	int ret;
 

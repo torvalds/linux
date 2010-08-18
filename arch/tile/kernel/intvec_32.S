@@ -952,7 +952,7 @@ STD_ENTRY(interrupt_return)
 	 * able to safely read all the remaining words on those cache
 	 * lines without waiting for the memory subsystem.
 	 */
-	pop_reg_zero r0, r1, sp, PTREGS_OFFSET_REG(30) - PTREGS_OFFSET_REG(0)
+	pop_reg_zero r0, r28, sp, PTREGS_OFFSET_REG(30) - PTREGS_OFFSET_REG(0)
 	pop_reg_zero r30, r2, sp, PTREGS_OFFSET_PC - PTREGS_OFFSET_REG(30)
 	pop_reg_zero r21, r3, sp, PTREGS_OFFSET_EX1 - PTREGS_OFFSET_PC
 	pop_reg_zero lr, r4, sp, PTREGS_OFFSET_REG(52) - PTREGS_OFFSET_EX1
@@ -1017,7 +1017,17 @@ STD_ENTRY(interrupt_return)
 	{ move r22, zero; move r23, zero }
 	{ move r24, zero; move r25, zero }
 	{ move r26, zero; move r27, zero }
-	{ move r28, zero; move r29, zero }
+
+	/* Set r1 to errno if we are returning an error, otherwise zero. */
+	{
+	 moveli r29, 1024
+	 sub    r1, zero, r0
+	}
+	slt_u   r29, r1, r29
+	{
+	 mnz    r1, r29, r1
+	 move   r29, zero
+	}
 	iret
 
 	/*

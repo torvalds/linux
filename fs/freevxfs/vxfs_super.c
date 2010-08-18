@@ -61,7 +61,7 @@ static int		vxfs_statfs(struct dentry *, struct kstatfs *);
 static int		vxfs_remount(struct super_block *, int *, char *);
 
 static const struct super_operations vxfs_super_ops = {
-	.clear_inode =		vxfs_clear_inode,
+	.evict_inode =		vxfs_evict_inode,
 	.put_super =		vxfs_put_super,
 	.statfs =		vxfs_statfs,
 	.remount_fs =		vxfs_remount,

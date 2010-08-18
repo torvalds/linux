@@ -630,6 +630,6 @@ int efi_partition(struct parsed_partitions *state)
 	}
 	kfree(ptes);
 	kfree(gpt);
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	return 1;
 }

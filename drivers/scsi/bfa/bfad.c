@@ -788,6 +788,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	memset(&driver_info, 0, sizeof(driver_info));
 	strncpy(driver_info.version, BFAD_DRIVER_VERSION,
 		sizeof(driver_info.version) - 1);
+	__kernel_param_lock();
 	if (host_name)
 		strncpy(driver_info.host_machine_name, host_name,
 			sizeof(driver_info.host_machine_name) - 1);
@@ -797,6 +798,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	if (os_patch)
 		strncpy(driver_info.host_os_patch, os_patch,
 			sizeof(driver_info.host_os_patch) - 1);
+	__kernel_param_unlock();
 
 	strncpy(driver_info.os_device_name, bfad->pci_name,
 		sizeof(driver_info.os_device_name - 1));

@@ -816,6 +816,9 @@ irqreturn_t qla4_8xxx_intr_handler(int irq, void *dev_id)
 	unsigned long flags = 0;
 	uint8_t reqs_count = 0;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return IRQ_HANDLED;
+
 	ha->isr_count++;
 	status = qla4_8xxx_rd_32(ha, ISR_INT_VECTOR);
 	if (!(status & ha->nx_legacy_intr.int_vec_bit))

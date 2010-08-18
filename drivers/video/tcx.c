@@ -342,7 +342,7 @@ tcx_init_fix(struct fb_info *info, int linebytes)
 	info->fix.accel = FB_ACCEL_SUN_TCX;
 }
 
-static void tcx_unmap_regs(struct of_device *op, struct fb_info *info,
+static void tcx_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   struct tcx_par *par)
 {
 	if (par->tec)
@@ -362,7 +362,7 @@ static void tcx_unmap_regs(struct of_device *op, struct fb_info *info,
 			   info->screen_base, info->fix.smem_len);
 }
 
-static int __devinit tcx_probe(struct of_device *op,
+static int __devinit tcx_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -486,7 +486,7 @@ out_err:
 	return err;
 }
 
-static int __devexit tcx_remove(struct of_device *op)
+static int __devexit tcx_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct tcx_par *par = info->par;

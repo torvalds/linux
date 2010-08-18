@@ -213,9 +213,9 @@ extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
 extern int nfs_write_inode(struct inode *, struct writeback_control *);
-extern void nfs_clear_inode(struct inode *);
+extern void nfs_evict_inode(struct inode *);
 #ifdef CONFIG_NFS_V4
-extern void nfs4_clear_inode(struct inode *);
+extern void nfs4_evict_inode(struct inode *);
 #endif
 void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);

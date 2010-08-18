@@ -435,10 +435,7 @@ static void iwl3945_build_tx_cmd_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	priv->cfg->ops->utils->rts_tx_cmd_flag(info, &tx_flags);
-
-	if ((tx_flags & TX_CMD_FLG_RTS_MSK) || (tx_flags & TX_CMD_FLG_CTS_MSK))
-		tx_flags |= TX_CMD_FLG_FULL_TXOP_PROT_MSK;
+	priv->cfg->ops->utils->tx_cmd_protection(priv, info, fc, &tx_flags);
 
 	tx_flags &= ~(TX_CMD_FLG_ANT_SEL_MSK);
 	if (ieee80211_is_mgmt(fc)) {

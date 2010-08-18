@@ -29,6 +29,7 @@
 #include <linux/timex.h>
 #include <linux/cache.h>
 #include <linux/smp.h>
+#include <linux/module.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -348,6 +349,7 @@ pte_t pte_set_home(pte_t pte, int home)
 
 	return pte;
 }
+EXPORT_SYMBOL(pte_set_home);
 
 /*
  * The routines in this section are the "static" versions of the normal
@@ -403,6 +405,7 @@ struct page *homecache_alloc_pages(gfp_t gfp_mask,
 		homecache_change_page_home(page, order, home);
 	return page;
 }
+EXPORT_SYMBOL(homecache_alloc_pages);
 
 struct page *homecache_alloc_pages_node(int nid, gfp_t gfp_mask,
 					unsigned int order, int home)

@@ -80,6 +80,7 @@ static struct hda_pcm_stream intel_hdmi_pcm_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.ops = {
+		.open = hdmi_pcm_open,
 		.prepare = intel_hdmi_playback_pcm_prepare,
 		.cleanup = intel_hdmi_playback_pcm_cleanup,
 	},

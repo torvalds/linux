@@ -817,12 +817,12 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 				if (encoder_funcs->dpms)
 					(*encoder_funcs->dpms) (encoder,
 								drm_helper_choose_encoder_dpms(encoder));
-
-				crtc_funcs = crtc->helper_private;
-				if (crtc_funcs->dpms)
-					(*crtc_funcs->dpms) (crtc,
-							     drm_helper_choose_crtc_dpms(crtc));
 			}
+
+			crtc_funcs = crtc->helper_private;
+			if (crtc_funcs->dpms)
+				(*crtc_funcs->dpms) (crtc,
+						     drm_helper_choose_crtc_dpms(crtc));
 		}
 	}
 	/* disable the unused connectors while restoring the modesetting */

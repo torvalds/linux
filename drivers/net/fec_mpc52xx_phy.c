@@ -61,7 +61,7 @@ static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 		data | FEC_MII_WRITE_FRAME);
 }
 
-static int mpc52xx_fec_mdio_probe(struct of_device *of,
+static int mpc52xx_fec_mdio_probe(struct platform_device *of,
 		const struct of_device_id *match)
 {
 	struct device *dev = &of->dev;
@@ -122,7 +122,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 	return err;
 }
 
-static int mpc52xx_fec_mdio_remove(struct of_device *of)
+static int mpc52xx_fec_mdio_remove(struct platform_device *of)
 {
 	struct device *dev = &of->dev;
 	struct mii_bus *bus = dev_get_drvdata(dev);

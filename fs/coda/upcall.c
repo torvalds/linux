@@ -604,7 +604,7 @@ static void coda_unblock_signals(sigset_t *old)
 			       (((r)->uc_opcode != CODA_CLOSE && \
 				 (r)->uc_opcode != CODA_STORE && \
 				 (r)->uc_opcode != CODA_RELEASE) || \
-				(r)->uc_flags & REQ_READ))
+				(r)->uc_flags & CODA_REQ_READ))
 
 static inline void coda_waitfor_upcall(struct upc_req *req)
 {
@@ -624,7 +624,7 @@ static inline void coda_waitfor_upcall(struct upc_req *req)
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 		/* got a reply */
-		if (req->uc_flags & (REQ_WRITE | REQ_ABORT))
+		if (req->uc_flags & (CODA_REQ_WRITE | CODA_REQ_ABORT))
 			break;
 
 		if (blocked && time_after(jiffies, timeout) &&
@@ -708,7 +708,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	coda_waitfor_upcall(req);
 
 	/* Op went through, interrupt or not... */
-	if (req->uc_flags & REQ_WRITE) {
+	if (req->uc_flags & CODA_REQ_WRITE) {
 		out = (union outputArgs *)req->uc_data;
 		/* here we map positive Venus errors to kernel errors */
 		error = -out->oh.result;
@@ -717,13 +717,13 @@ static int coda_upcall(struct venus_comm *vcp,
 	}
 
 	error = -EINTR;
-	if ((req->uc_flags & REQ_ABORT) || !signal_pending(current)) {
+	if ((req->uc_flags & CODA_REQ_ABORT) || !signal_pending(current)) {
 		printk(KERN_WARNING "coda: Unexpected interruption.\n");
 		goto exit;
 	}
 
 	/* Interrupted before venus read it. */
-	if (!(req->uc_flags & REQ_READ))
+	if (!(req->uc_flags & CODA_REQ_READ))
 		goto exit;
 
 	/* Venus saw the upcall, make sure we can send interrupt signal */
@@ -747,7 +747,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	sig_inputArgs->ih.opcode = CODA_SIGNAL;
 	sig_inputArgs->ih.unique = req->uc_unique;
 
-	sig_req->uc_flags = REQ_ASYNC;
+	sig_req->uc_flags = CODA_REQ_ASYNC;
 	sig_req->uc_opcode = sig_inputArgs->ih.opcode;
 	sig_req->uc_unique = sig_inputArgs->ih.unique;
 	sig_req->uc_inSize = sizeof(struct coda_in_hdr);

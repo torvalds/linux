@@ -389,14 +389,14 @@ static inline unsigned long __must_check copy_from_user(void *to,
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-extern unsigned long __copy_in_user_asm(
+extern unsigned long __copy_in_user_inatomic(
 	void __user *to, const void __user *from, unsigned long n);
 
 static inline unsigned long __must_check
 __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	might_sleep();
-	return __copy_in_user_asm(to, from, n);
+	return __copy_in_user_inatomic(to, from, n);
 }
 
 static inline unsigned long __must_check

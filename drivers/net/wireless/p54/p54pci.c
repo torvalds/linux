@@ -43,8 +43,6 @@ static DEFINE_PCI_DEVICE_TABLE(p54p_table) = {
 	{ PCI_DEVICE(0x1260, 0x3886) },
 	/* Intersil PRISM Xbow Wireless LAN adapter (Symbol AP-300) */
 	{ PCI_DEVICE(0x1260, 0xffff) },
-	/* Standard Microsystems Corp SMC2802W Wireless PCI */
-	{ PCI_DEVICE(0x10b8, 0x2802) },
 	{ },
 };
 

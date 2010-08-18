@@ -643,11 +643,10 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (i_size_read(inode) <= offset)
 		return 0;
 
-	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
-					    inode->i_sb->s_bdev, iov, offset,
-					    nr_segs,
-					    ocfs2_direct_IO_get_blocks,
-					    ocfs2_dio_end_io);
+	ret = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
+				   iov, offset, nr_segs,
+				   ocfs2_direct_IO_get_blocks,
+				   ocfs2_dio_end_io, NULL, 0);
 
 	mlog_exit(ret);
 	return ret;

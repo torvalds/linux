@@ -600,6 +600,14 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
+	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+			/*
+			 * Driver needs to re-reg VPI in order for f/w
+			 * to update the MAC address.
+			 */
+			lpfc_register_new_vport(phba, vport, ndlp);
+			return 0;
 	}
 
 	if (phba->sli_rev < LPFC_SLI_REV4) {
@@ -801,9 +809,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on registered "
-					"FCF record fcf_index:%d, trying "
-					"to perform round robin failover\n",
-					phba->fcf.current_rec.fcf_indx);
+					"FCF record fcf_index(%d), status: "
+					"x%x/x%x, tmo:x%x, trying to perform "
+					"round robin failover\n",
+					phba->fcf.current_rec.fcf_indx,
+					irsp->ulpStatus, irsp->un.ulpWord[4],
+					irsp->ulpTimeout);
 			fcf_index = lpfc_sli4_fcf_rr_next_index_get(phba);
 			if (fcf_index == LPFC_FCOE_FCF_NEXT_NONE) {
 				/*
@@ -840,6 +851,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					goto out;
 			}
 		}
+
+		/* FLOGI failure */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				"2858 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				irsp->ulpStatus, irsp->un.ulpWord[4],
+				irsp->ulpTimeout);
 
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
@@ -1291,6 +1308,8 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t rc, keepDID = 0;
+	int  put_node;
+	int  put_rport;
 
 	/* Fabric nodes can have the same WWPN so we don't bother searching
 	 * by WWPN.  Just return the ndlp that was given to us.
@@ -1379,6 +1398,28 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		/* Two ndlps cannot have the same did */
 		ndlp->nlp_DID = keepDID;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		/* Since we are swapping the ndlp passed in with the new one
+		 * and the did has already been swapped, copy over the
+		 * state and names.
+		 */
+		memcpy(&new_ndlp->nlp_portname, &ndlp->nlp_portname,
+			sizeof(struct lpfc_name));
+		memcpy(&new_ndlp->nlp_nodename, &ndlp->nlp_nodename,
+			sizeof(struct lpfc_name));
+		new_ndlp->nlp_state = ndlp->nlp_state;
+		/* Fix up the rport accordingly */
+		rport = ndlp->rport;
+		if (rport) {
+			rdata = rport->dd_data;
+			put_node = rdata->pnode != NULL;
+			put_rport = ndlp->rport != NULL;
+			rdata->pnode = NULL;
+			ndlp->rport = NULL;
+			if (put_node)
+				lpfc_nlp_put(ndlp);
+			if (put_rport)
+				put_device(&rport->dev);
+		}
 	}
 	return new_ndlp;
 }
@@ -2880,6 +2921,17 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 0;
 
 	if (retry) {
+		if ((cmd == ELS_CMD_PLOGI) || (cmd == ELS_CMD_FDISC)) {
+			/* Stop retrying PLOGI and FDISC if in FCF discovery */
+			if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+						 "2849 Stop retry ELS command "
+						 "x%x to remote NPORT x%x, "
+						 "Data: x%x x%x\n", cmd, did,
+						 cmdiocb->retry, delay);
+				return 0;
+			}
+		}
 
 		/* Retry ELS command <elsCmd> to remote NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -6076,8 +6128,12 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (mb->mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-				 "0915 Register VPI failed: 0x%x\n",
-				 mb->mbxStatus);
+				"0915 Register VPI failed : Status: x%x"
+				" upd bit: x%x \n", mb->mbxStatus,
+				 mb->un.varRegVpi.upd);
+		if (phba->sli_rev == LPFC_SLI_REV4 &&
+			mb->un.varRegVpi.upd)
+			goto mbox_err_exit ;
 
 		switch (mb->mbxStatus) {
 		case 0x11:	/* unsupported feature */
@@ -6142,7 +6198,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		} else
 			lpfc_do_scr_ns_plogi(phba, vport);
 	}
-
+mbox_err_exit:
 	/* Now, we decrement the ndlp reference count held for this
 	 * callback function
 	 */
@@ -6387,6 +6443,14 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		else
 			vport->fc_flag |= FC_LOGO_RCVD_DID_CHNG;
 		spin_unlock_irq(shost->host_lock);
+	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+		/*
+		 * Driver needs to re-reg VPI in order for f/w
+		 * to update the MAC address.
+		 */
+		lpfc_register_new_vport(phba, vport, ndlp);
+		return ;
 	}
 
 	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI)

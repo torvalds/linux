@@ -2033,7 +2033,7 @@ void reiserfs_read_locked_inode(struct inode *inode,
 				struct reiserfs_iget_args *args);
 int reiserfs_find_actor(struct inode *inode, void *p);
 int reiserfs_init_locked_inode(struct inode *inode, void *p);
-void reiserfs_delete_inode(struct inode *inode);
+void reiserfs_evict_inode(struct inode *inode);
 int reiserfs_write_inode(struct inode *inode, struct writeback_control *wbc);
 int reiserfs_get_block(struct inode *inode, sector_t block,
 		       struct buffer_head *bh_result, int create);

@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/aer.h>
 #include <linux/gfp.h>
+#include <linux/kernel.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -1239,6 +1240,44 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_fips_level_show - Return the current FIPS level for the HBA
+ * @dev: class unused variable.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the module description text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_fips_level_show(struct device *dev,  struct device_attribute *attr,
+		     char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", phba->fips_level);
+}
+
+/**
+ * lpfc_fips_rev_show - Return the FIPS Spec revision for the HBA
+ * @dev: class unused variable.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the module description text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_fips_rev_show(struct device *dev,  struct device_attribute *attr,
+		   char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", phba->fips_spec_rev);
+}
+
+/**
  * lpfc_param_show - Return a cfg attribute value in decimal
  *
  * Description:
@@ -1676,6 +1715,8 @@ static DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
 static DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
 static DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
 static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
+static DEVICE_ATTR(lpfc_fips_level, S_IRUGO, lpfc_fips_level_show, NULL);
+static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
 
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
@@ -1795,12 +1836,11 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 
 	/* Validate and store the new name */
 	for (i=0, j=0; i < 16; i++) {
-		if ((*buf >= 'a') && (*buf <= 'f'))
-			j = ((j << 4) | ((*buf++ -'a') + 10));
-		else if ((*buf >= 'A') && (*buf <= 'F'))
-			j = ((j << 4) | ((*buf++ -'A') + 10));
-		else if ((*buf >= '0') && (*buf <= '9'))
-			j = ((j << 4) | (*buf++ -'0'));
+		int value;
+
+		value = hex_to_bin(*buf++);
+		if (value >= 0)
+			j = (j << 4) | value;
 		else
 			return -EINVAL;
 		if (i % 2) {
@@ -1888,12 +1928,11 @@ lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 
 	/* Validate and store the new name */
 	for (i=0, j=0; i < 16; i++) {
-		if ((*buf >= 'a') && (*buf <= 'f'))
-			j = ((j << 4) | ((*buf++ -'a') + 10));
-		else if ((*buf >= 'A') && (*buf <= 'F'))
-			j = ((j << 4) | ((*buf++ -'A') + 10));
-		else if ((*buf >= '0') && (*buf <= '9'))
-			j = ((j << 4) | (*buf++ -'0'));
+		int value;
+
+		value = hex_to_bin(*buf++);
+		if (value >= 0)
+			j = (j << 4) | value;
 		else
 			return -EINVAL;
 		if (i % 2) {
@@ -3279,7 +3318,7 @@ LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
 #	- Default will result in registering capabilities for all profiles.
 #
 */
-unsigned int lpfc_prot_mask =   SHOST_DIX_TYPE0_PROTECTION;
+unsigned int lpfc_prot_mask = SHOST_DIF_TYPE1_PROTECTION;
 
 module_param(lpfc_prot_mask, uint, 0);
 MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
@@ -3384,6 +3423,8 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_iocb_hw,
 	&dev_attr_txq_hw,
 	&dev_attr_txcmplq_hw,
+	&dev_attr_lpfc_fips_level,
+	&dev_attr_lpfc_fips_rev,
 	NULL,
 };
 
@@ -3410,6 +3451,8 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
 	&dev_attr_lpfc_static_vport,
+	&dev_attr_lpfc_fips_level,
+	&dev_attr_lpfc_fips_rev,
 	NULL,
 };
 

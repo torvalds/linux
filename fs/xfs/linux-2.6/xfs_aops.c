@@ -1478,20 +1478,36 @@ xfs_vm_direct_IO(
 	if (rw & WRITE) {
 		iocb->private = xfs_alloc_ioend(inode, IO_NEW);
 
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode, bdev, iov,
-						    offset, nr_segs,
-						    xfs_get_blocks_direct,
-						    xfs_end_io_direct_write);
+		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
+					    offset, nr_segs,
+					    xfs_get_blocks_direct,
+					    xfs_end_io_direct_write, NULL, 0);
 		if (ret != -EIOCBQUEUED && iocb->private)
 			xfs_destroy_ioend(iocb->private);
 	} else {
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode, bdev, iov,
-						    offset, nr_segs,
-						    xfs_get_blocks_direct,
-						    NULL);
+		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
+					    offset, nr_segs,
+					    xfs_get_blocks_direct,
+					    NULL, NULL, 0);
 	}
 
 	return ret;
+}
+
+STATIC void
+xfs_vm_write_failed(
+	struct address_space	*mapping,
+	loff_t			to)
+{
+	struct inode		*inode = mapping->host;
+
+	if (to > inode->i_size) {
+		struct iattr	ia = {
+			.ia_valid	= ATTR_SIZE | ATTR_FORCE,
+			.ia_size	= inode->i_size,
+		};
+		xfs_setattr(XFS_I(inode), &ia, XFS_ATTR_NOLOCK);
+	}
 }
 
 STATIC int
@@ -1504,9 +1520,31 @@ xfs_vm_write_begin(
 	struct page		**pagep,
 	void			**fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags | AOP_FLAG_NOFS,
-				 pagep, fsdata, xfs_get_blocks);
+	int			ret;
+
+	ret = block_write_begin(mapping, pos, len, flags | AOP_FLAG_NOFS,
+				pagep, xfs_get_blocks);
+	if (unlikely(ret))
+		xfs_vm_write_failed(mapping, pos + len);
+	return ret;
+}
+
+STATIC int
+xfs_vm_write_end(
+	struct file		*file,
+	struct address_space	*mapping,
+	loff_t			pos,
+	unsigned		len,
+	unsigned		copied,
+	struct page		*page,
+	void			*fsdata)
+{
+	int			ret;
+
+	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	if (unlikely(ret < len))
+		xfs_vm_write_failed(mapping, pos + len);
+	return ret;
 }
 
 STATIC sector_t
@@ -1551,7 +1589,7 @@ const struct address_space_operations xfs_address_space_operations = {
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,
 	.write_begin		= xfs_vm_write_begin,
-	.write_end		= generic_write_end,
+	.write_end		= xfs_vm_write_end,
 	.bmap			= xfs_vm_bmap,
 	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,

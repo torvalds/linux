@@ -1185,13 +1185,13 @@ END(kernel_thread_helper)
  * execve(). This function needs to use IRET, not SYSRET, to set up all state properly.
  *
  * C extern interface:
- *	 extern long execve(char *name, char **argv, char **envp)
+ *	 extern long execve(const char *name, char **argv, char **envp)
  *
  * asm input arguments:
  *	rdi: name, rsi: argv, rdx: envp
  *
  * We want to fallback into:
- *	extern long sys_execve(char *name, char **argv,char **envp, struct pt_regs *regs)
+ *	extern long sys_execve(const char *name, char **argv,char **envp, struct pt_regs *regs)
  *
  * do_sys_execve asm fallback arguments:
  *	rdi: name, rsi: argv, rdx: envp, rcx: fake frame on the stack

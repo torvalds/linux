@@ -673,17 +673,17 @@ struct flash_sys_info {
 };	/* 200 */
 
 struct mbx_sys_info {
-	uint8_t board_id_str[16];	/* Keep board ID string first */
-					/* in this structure for GUI. */
-	uint16_t board_id;	/* board ID code */
-	uint16_t phys_port_cnt;	/* number of physical network ports */
-	uint16_t port_num;	/* network port for this PCI function */
+	uint8_t board_id_str[16];   /*  0-f  Keep board ID string first */
+				/* in this structure for GUI. */
+	uint16_t board_id;	/* 10-11 board ID code */
+	uint16_t phys_port_cnt;	/* 12-13 number of physical network ports */
+	uint16_t port_num;	/* 14-15 network port for this PCI function */
 				/* (port 0 is first port) */
-	uint8_t mac_addr[6];	/* MAC address for this PCI function */
-	uint32_t iscsi_pci_func_cnt;	/* number of iSCSI PCI functions */
-	uint32_t pci_func;		/* this PCI function */
-	unsigned char serial_number[16];	/* serial number string */
-	uint8_t reserved[16];
+	uint8_t mac_addr[6];	/* 16-1b MAC address for this PCI function */
+	uint32_t iscsi_pci_func_cnt;  /* 1c-1f number of iSCSI PCI functions */
+	uint32_t pci_func;	      /* 20-23 this PCI function */
+	unsigned char serial_number[16];  /* 24-33 serial number string */
+	uint8_t reserved[12];		  /* 34-3f */
 };
 
 struct crash_record {

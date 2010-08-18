@@ -159,7 +159,7 @@ static void temac_dma_dcr_out(struct temac_local *lp, int reg, u32 value)
  * temac_dcr_setup - If the DMA is DCR based, then setup the address and
  * I/O  functions
  */
-static int temac_dcr_setup(struct temac_local *lp, struct of_device *op,
+static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 				struct device_node *np)
 {
 	unsigned int dcrs;
@@ -184,7 +184,7 @@ static int temac_dcr_setup(struct temac_local *lp, struct of_device *op,
  * temac_dcr_setup - This is a stub for when DCR is not supported,
  * such as with MicroBlaze
  */
-static int temac_dcr_setup(struct temac_local *lp, struct of_device *op,
+static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 				struct device_node *np)
 {
 	return -1;
@@ -952,7 +952,7 @@ static const struct attribute_group temac_attr_group = {
 };
 
 static int __init
-temac_of_probe(struct of_device *op, const struct of_device_id *match)
+temac_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *np;
 	struct temac_local *lp;
@@ -1094,7 +1094,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	return rc;
 }
 
-static int __devexit temac_of_remove(struct of_device *op)
+static int __devexit temac_of_remove(struct platform_device *op)
 {
 	struct net_device *ndev = dev_get_drvdata(&op->dev);
 	struct temac_local *lp = netdev_priv(ndev);

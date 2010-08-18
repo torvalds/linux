@@ -80,7 +80,7 @@ xfs_mark_inode_dirty_sync(
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty_sync(inode);
 }
 
@@ -90,7 +90,7 @@ xfs_mark_inode_dirty(
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty(inode);
 }
 
@@ -540,21 +540,6 @@ xfs_vn_setattr(
 	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0);
 }
 
-/*
- * block_truncate_page can return an error, but we can't propagate it
- * at all here. Leave a complaint + stack trace in the syslog because
- * this could be bad. If it is bad, we need to propagate the error further.
- */
-STATIC void
-xfs_vn_truncate(
-	struct inode	*inode)
-{
-	int	error;
-	error = block_truncate_page(inode->i_mapping, inode->i_size,
-							xfs_get_blocks);
-	WARN_ON(error);
-}
-
 STATIC long
 xfs_vn_fallocate(
 	struct inode	*inode,
@@ -694,7 +679,6 @@ xfs_vn_fiemap(
 
 static const struct inode_operations xfs_inode_operations = {
 	.check_acl		= xfs_check_acl,
-	.truncate		= xfs_vn_truncate,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,

@@ -182,7 +182,7 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 				host->data_dma, sizeof(*host->data),
 				DMA_FROM_DEVICE);
 
-	status = spi_sync(host->spi, &host->readback);
+	status = spi_sync_locked(host->spi, &host->readback);
 
 	if (host->dma_dev)
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -541,7 +541,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 				host->data_dma, sizeof(*host->data),
 				DMA_BIDIRECTIONAL);
 	}
-	status = spi_sync(host->spi, &host->m);
+	status = spi_sync_locked(host->spi, &host->m);
 
 	if (host->dma_dev)
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -685,7 +685,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 				host->data_dma, sizeof(*scratch),
 				DMA_BIDIRECTIONAL);
 
-	status = spi_sync(spi, &host->m);
+	status = spi_sync_locked(spi, &host->m);
 
 	if (status != 0) {
 		dev_dbg(&spi->dev, "write error (%d)\n", status);
@@ -822,7 +822,7 @@ mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t,
 				DMA_FROM_DEVICE);
 	}
 
-	status = spi_sync(spi, &host->m);
+	status = spi_sync_locked(spi, &host->m);
 
 	if (host->dma_dev) {
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -1018,7 +1018,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 					host->data_dma, sizeof(*scratch),
 					DMA_BIDIRECTIONAL);
 
-		tmp = spi_sync(spi, &host->m);
+		tmp = spi_sync_locked(spi, &host->m);
 
 		if (host->dma_dev)
 			dma_sync_single_for_cpu(host->dma_dev,
@@ -1084,6 +1084,9 @@ static void mmc_spi_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 #endif
 
+	/* request exclusive bus access */
+	spi_bus_lock(host->spi->master);
+
 	/* issue command; then optionally data and stop */
 	status = mmc_spi_command_send(host, mrq, mrq->cmd, mrq->data != NULL);
 	if (status == 0 && mrq->data) {
@@ -1093,6 +1096,9 @@ static void mmc_spi_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		else
 			mmc_cs_off(host);
 	}
+
+	/* release the bus */
+	spi_bus_unlock(host->spi->master);
 
 	mmc_request_done(host->mmc, mrq);
 }
@@ -1290,23 +1296,6 @@ mmc_spi_detect_irq(int irq, void *mmc)
 	return IRQ_HANDLED;
 }
 
-struct count_children {
-	unsigned	n;
-	struct bus_type	*bus;
-};
-
-static int maybe_count_child(struct device *dev, void *c)
-{
-	struct count_children *ccp = c;
-
-	if (dev->bus == ccp->bus) {
-		if (ccp->n)
-			return -EBUSY;
-		ccp->n++;
-	}
-	return 0;
-}
-
 static int mmc_spi_probe(struct spi_device *spi)
 {
 	void			*ones;
@@ -1336,32 +1325,6 @@ static int mmc_spi_probe(struct spi_device *spi)
 				spi->mode, spi->max_speed_hz / 1000,
 				status);
 		return status;
-	}
-
-	/* We can use the bus safely iff nobody else will interfere with us.
-	 * Most commands consist of one SPI message to issue a command, then
-	 * several more to collect its response, then possibly more for data
-	 * transfer.  Clocking access to other devices during that period will
-	 * corrupt the command execution.
-	 *
-	 * Until we have software primitives which guarantee non-interference,
-	 * we'll aim for a hardware-level guarantee.
-	 *
-	 * REVISIT we can't guarantee another device won't be added later...
-	 */
-	if (spi->master->num_chipselect > 1) {
-		struct count_children cc;
-
-		cc.n = 0;
-		cc.bus = spi->dev.bus;
-		status = device_for_each_child(spi->dev.parent, &cc,
-				maybe_count_child);
-		if (status < 0) {
-			dev_err(&spi->dev, "can't share SPI bus\n");
-			return status;
-		}
-
-		dev_warn(&spi->dev, "ASSUMING SPI bus stays unshared!\n");
 	}
 
 	/* We need a supply of ones to transmit.  This is the only time
@@ -1536,6 +1499,7 @@ static int __devexit mmc_spi_remove(struct spi_device *spi)
 #if defined(CONFIG_OF)
 static struct of_device_id mmc_spi_of_match_table[] __devinitdata = {
 	{ .compatible = "mmc-spi-slot", },
+	{},
 };
 #endif
 

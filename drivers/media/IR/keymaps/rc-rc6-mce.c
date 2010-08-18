@@ -74,6 +74,8 @@ static struct ir_scancode rc6_mce[] = {
 	{ 0x800f045a, KEY_SUBTITLE }, /* Caption/Teletext */
 	{ 0x800f044d, KEY_TITLE },
 
+       { 0x800f044e, KEY_PRINT }, /* Print - HP OEM version of remote */
+
 	{ 0x800f040c, KEY_POWER },
 	{ 0x800f040d, KEY_PROG1 }, /* Windows MCE button */
 

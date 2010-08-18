@@ -420,31 +420,6 @@ typedef struct _VirtDevice {
 #define MPT_TARGET_FLAGS_LED_ON		0x80
 
 /*
- *	/proc/mpt interface
- */
-typedef struct {
-	const char	*name;
-	mode_t		 mode;
-	int		 pad;
-	read_proc_t	*read_proc;
-	write_proc_t	*write_proc;
-} mpt_proc_entry_t;
-
-#define MPT_PROC_READ_RETURN(buf,start,offset,request,eof,len) \
-do { \
-	len -= offset;			\
-	if (len < request) {		\
-		*eof = 1;		\
-		if (len <= 0)		\
-			return 0;	\
-	} else				\
-		len = request;		\
-	*start = buf + offset;		\
-	return len;			\
-} while (0)
-
-
-/*
  *	IOCTL structure and associated defines
  */
 

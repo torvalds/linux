@@ -1682,9 +1682,9 @@ int drm_mode_addfb(struct drm_device *dev,
 	/* TODO setup destructor callback */
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
-	if (!fb) {
+	if (IS_ERR(fb)) {
 		DRM_ERROR("could not create framebuffer\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(fb);
 		goto out;
 	}
 
@@ -2541,7 +2541,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
+	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);

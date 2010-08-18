@@ -322,7 +322,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EBADF;
+		return -ENOENT;
 
 again:
 	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0) {

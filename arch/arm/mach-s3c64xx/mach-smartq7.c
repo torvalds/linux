@@ -12,7 +12,6 @@
 #include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
-#include <linux/i2c-gpio.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/leds.h>
@@ -32,31 +31,6 @@
 #include <plat/gpio-cfg.h>
 
 #include "mach-smartq.h"
-
-static void __init smartq7_lcd_setup_gpio(void)
-{
-	gpio_request(S3C64XX_GPM(0), "LCD CSB pin");
-	gpio_request(S3C64XX_GPM(3), "LCD power");
-	gpio_request(S3C64XX_GPM(4), "LCD power status");
-
-	/* turn power off */
-	gpio_direction_output(S3C64XX_GPM(0), 1);
-	gpio_direction_output(S3C64XX_GPM(3), 0);
-	gpio_direction_input(S3C64XX_GPM(4));
-}
-
-static struct i2c_gpio_platform_data smartq7_lcd_control = {
-	.sda_pin		= S3C64XX_GPM(2),
-	.scl_pin		= S3C64XX_GPM(1),
-	.sda_is_open_drain	= 1,
-	.scl_is_open_drain	= 1,
-};
-
-static struct platform_device smartq7_lcd_control_device = {
-	.name			= "i2c-gpio",
-	.id			= 1,
-	.dev.platform_data	= &smartq7_lcd_control,
-};
 
 static struct gpio_led smartq7_leds[] __initdata = {
 	{
@@ -150,8 +124,6 @@ static struct platform_device smartq7_buttons_device  = {
 
 static struct s3c_fb_pd_win smartq7_fb_win0 = {
 	.win_mode	= {
-		.pixclock	= 1000000000000ULL /
-				((3+10+5+800)*(1+3+20+480)*80),
 		.left_margin	= 3,
 		.right_margin	= 5,
 		.upper_margin	= 1,
@@ -160,6 +132,7 @@ static struct s3c_fb_pd_win smartq7_fb_win0 = {
 		.vsync_len	= 3,
 		.xres		= 800,
 		.yres		= 480,
+		.refresh	= 80,
 	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
@@ -176,7 +149,6 @@ static struct s3c_fb_platdata smartq7_lcd_pdata __initdata = {
 static struct platform_device *smartq7_devices[] __initdata = {
 	&smartq7_leds_device,
 	&smartq7_buttons_device,
-	&smartq7_lcd_control_device,
 };
 
 static void __init smartq7_machine_init(void)
@@ -184,7 +156,6 @@ static void __init smartq7_machine_init(void)
 	s3c_fb_set_platdata(&smartq7_lcd_pdata);
 
 	smartq_machine_init();
-	smartq7_lcd_setup_gpio();
 
 	platform_add_devices(smartq7_devices, ARRAY_SIZE(smartq7_devices));
 }

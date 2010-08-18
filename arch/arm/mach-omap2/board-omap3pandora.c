@@ -32,6 +32,7 @@
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
+#include <linux/mmc/card.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -258,6 +259,20 @@ static struct platform_device pandora_dss_device = {
 	},
 };
 
+static void pandora_wl1251_init_card(struct mmc_card *card)
+{
+	/*
+	 * We have TI wl1251 attached to MMC3. Pass this information to
+	 * SDIO core because it can't be probed by normal methods.
+	 */
+	card->quirks |= MMC_QUIRK_NONSTD_SDIO;
+	card->cccr.wide_bus = 1;
+	card->cis.vendor = 0x104c;
+	card->cis.device = 0x9066;
+	card->cis.blksize = 512;
+	card->cis.max_dtr = 20000000;
+}
+
 static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 	{
 		.mmc		= 1,
@@ -279,6 +294,7 @@ static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 		.wires		= 4,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
+		.init_card	= pandora_wl1251_init_card,
 	},
 	{}	/* Terminator */
 };

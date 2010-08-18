@@ -135,15 +135,9 @@ int drm_open(struct inode *inode, struct file *filp)
 	retcode = drm_open_helper(inode, filp, dev);
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
-		spin_lock(&dev->count_lock);
-		if (!dev->open_count++) {
-			spin_unlock(&dev->count_lock);
+		if (!dev->open_count++)
 			retcode = drm_setup(dev);
-			goto out;
-		}
-		spin_unlock(&dev->count_lock);
 	}
-out:
 	if (!retcode) {
 		mutex_lock(&dev->struct_mutex);
 		if (minor->type == DRM_MINOR_LEGACY) {
@@ -570,18 +564,14 @@ int drm_release(struct inode *inode, struct file *filp)
 	 */
 
 	atomic_inc(&dev->counts[_DRM_STAT_CLOSES]);
-	spin_lock(&dev->count_lock);
 	if (!--dev->open_count) {
 		if (atomic_read(&dev->ioctl_count)) {
 			DRM_ERROR("Device busy: %d\n",
 				  atomic_read(&dev->ioctl_count));
 			retcode = -EBUSY;
-			goto out;
-		}
-		retcode = drm_lastclose(dev);
+		} else
+			retcode = drm_lastclose(dev);
 	}
-out:
-	spin_unlock(&dev->count_lock);
 	mutex_unlock(&drm_global_mutex);
 
 	return retcode;

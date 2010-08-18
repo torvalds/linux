@@ -1037,7 +1037,7 @@ static void alc_dual_mic_adc_auto_switch(struct hda_codec *codec)
 	new_adc = spec->adc_nids[spec->cur_adc_idx];
 	if (spec->cur_adc && spec->cur_adc != new_adc) {
 		/* stream is running, let's swap the current ADC */
-		snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
+		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
 		spec->cur_adc = new_adc;
 		snd_hda_codec_setup_stream(codec, new_adc,
 					   spec->cur_adc_stream_tag, 0,
