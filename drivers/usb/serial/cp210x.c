@@ -223,8 +223,8 @@ static struct usb_serial_driver cp210x_device = {
 #define BITS_STOP_2		0x0002
 
 /* CP210X_SET_BREAK */
-#define BREAK_ON		0x0000
-#define BREAK_OFF		0x0001
+#define BREAK_ON		0x0001
+#define BREAK_OFF		0x0000
 
 /* CP210X_(SET_MHS|GET_MDMSTS) */
 #define CONTROL_DTR		0x0001
