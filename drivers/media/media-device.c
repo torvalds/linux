@@ -22,13 +22,70 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <linux/media.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
 #include <media/media-entity.h>
 
+/* -----------------------------------------------------------------------------
+ * Userspace API
+ */
+
+static int media_device_open(struct file *filp)
+{
+	return 0;
+}
+
+static int media_device_close(struct file *filp)
+{
+	return 0;
+}
+
+static int media_device_get_info(struct media_device *dev,
+				 struct media_device_info __user *__info)
+{
+	struct media_device_info info;
+
+	memset(&info, 0, sizeof(info));
+
+	strlcpy(info.driver, dev->dev->driver->name, sizeof(info.driver));
+	strlcpy(info.model, dev->model, sizeof(info.model));
+	strlcpy(info.serial, dev->serial, sizeof(info.serial));
+	strlcpy(info.bus_info, dev->bus_info, sizeof(info.bus_info));
+
+	info.media_version = MEDIA_API_VERSION;
+	info.hw_revision = dev->hw_revision;
+	info.driver_version = dev->driver_version;
+
+	return copy_to_user(__info, &info, sizeof(*__info));
+}
+
+static long media_device_ioctl(struct file *filp, unsigned int cmd,
+			       unsigned long arg)
+{
+	struct media_devnode *devnode = media_devnode_data(filp);
+	struct media_device *dev = to_media_device(devnode);
+	long ret;
+
+	switch (cmd) {
+	case MEDIA_IOC_DEVICE_INFO:
+		ret = media_device_get_info(dev,
+				(struct media_device_info __user *)arg);
+		break;
+
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+
 static const struct media_file_operations media_device_fops = {
 	.owner = THIS_MODULE,
+	.open = media_device_open,
+	.ioctl = media_device_ioctl,
+	.release = media_device_close,
 };
 
 /* -----------------------------------------------------------------------------

@@ -11,6 +11,10 @@
 <!ENTITY func-select "<link linkend='func-select'><function>select()</function></link>">
 <!ENTITY func-write "<link linkend='func-write'><function>write()</function></link>">
 
+<!ENTITY media-func-close "<link linkend='media-func-close'><function>close()</function></link>">
+<!ENTITY media-func-ioctl "<link linkend='media-func-ioctl'><function>ioctl()</function></link>">
+<!ENTITY media-func-open "<link linkend='media-func-open'><function>open()</function></link>">
+
 <!-- Ioctls -->
 <!ENTITY VIDIOC-CROPCAP "<link linkend='vidioc-cropcap'><constant>VIDIOC_CROPCAP</constant></link>">
 <!ENTITY VIDIOC-DBG-G-CHIP-IDENT "<link linkend='vidioc-dbg-g-chip-ident'><constant>VIDIOC_DBG_G_CHIP_IDENT</constant></link>">
@@ -86,6 +90,8 @@
 <!ENTITY VIDIOC-TRY-EXT-CTRLS "<link linkend='vidioc-g-ext-ctrls'><constant>VIDIOC_TRY_EXT_CTRLS</constant></link>">
 <!ENTITY VIDIOC-TRY-FMT "<link linkend='vidioc-g-fmt'><constant>VIDIOC_TRY_FMT</constant></link>">
 <!ENTITY VIDIOC-UNSUBSCRIBE-EVENT "<link linkend='vidioc-subscribe-event'><constant>VIDIOC_UNSUBSCRIBE_EVENT</constant></link>">
+
+<!ENTITY MEDIA-IOC-DEVICE-INFO "<link linkend='media-ioc-device-info'><constant>MEDIA_IOC_DEVICE_INFO</constant></link>">
 
 <!-- Types -->
 <!ENTITY v4l2-std-id "<link linkend='v4l2-std-id'>v4l2_std_id</link>">
@@ -183,6 +189,8 @@
 <!ENTITY v4l2-tuner "struct&nbsp;<link linkend='v4l2-tuner'>v4l2_tuner</link>">
 <!ENTITY v4l2-vbi-format "struct&nbsp;<link linkend='v4l2-vbi-format'>v4l2_vbi_format</link>">
 <!ENTITY v4l2-window "struct&nbsp;<link linkend='v4l2-window'>v4l2_window</link>">
+
+<!ENTITY media-device-info "struct&nbsp;<link linkend='media-device-info'>media_device_info</link>">
 
 <!-- Error Codes -->
 <!ENTITY EACCES "<errorcode>EACCES</errorcode> error code">
@@ -328,6 +336,10 @@
 <!ENTITY sub-media-indices SYSTEM "media-indices.tmpl">
 
 <!ENTITY sub-media-controller SYSTEM "v4l/media-controller.xml">
+<!ENTITY sub-media-open SYSTEM "v4l/media-func-open.xml">
+<!ENTITY sub-media-close SYSTEM "v4l/media-func-close.xml">
+<!ENTITY sub-media-ioctl SYSTEM "v4l/media-func-ioctl.xml">
+<!ENTITY sub-media-ioc-device-info SYSTEM "v4l/media-ioc-device-info.xml">
 
 <!-- Function Reference -->
 <!ENTITY close SYSTEM "v4l/func-close.xml">

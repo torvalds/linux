@@ -74,3 +74,13 @@
     pad to a sink pad.</para>
   </section>
 </chapter>
+
+<appendix id="media-user-func">
+  <title>Function Reference</title>
+  <!-- Keep this alphabetically sorted. -->
+  &sub-media-open;
+  &sub-media-close;
+  &sub-media-ioctl;
+  <!-- All ioctls go here. -->
+  &sub-media-ioc-device-info;
+</appendix>

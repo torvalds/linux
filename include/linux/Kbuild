@@ -233,6 +233,7 @@ header-y += magic.h
 header-y += major.h
 header-y += map_to_7segment.h
 header-y += matroxfb.h
+header-y += media.h
 header-y += mempolicy.h
 header-y += meye.h
 header-y += mii.h
