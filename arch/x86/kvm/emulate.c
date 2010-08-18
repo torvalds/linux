@@ -2264,13 +2264,20 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_imul(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV_nobyte("imul", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
 static int em_imul_3op(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 
 	c->dst.val = c->src2.val;
-	emulate_2op_SrcV_nobyte("imul", c->src, c->dst, ctxt->eflags);
-	return X86EMUL_CONTINUE;
+	return em_imul(ctxt);
 }
 
 #define D(_y) { .flags = (_y) }
@@ -2488,7 +2495,7 @@ static struct opcode twobyte_table[256] = {
 	N, D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM),
-	D(ModRM), N,
+	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
 	N, D(DstMem | SrcReg | ModRM | BitOp | Lock),
