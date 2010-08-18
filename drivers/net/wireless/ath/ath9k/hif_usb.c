@@ -920,7 +920,8 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	}
 
 	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
-				&hif_dev->udev->dev, hif_dev->device_id);
+				&hif_dev->udev->dev, hif_dev->device_id,
+				hif_dev->udev->product);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_htc_hw_init;

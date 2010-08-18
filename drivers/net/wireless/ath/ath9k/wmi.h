@@ -71,6 +71,7 @@ enum wmi_cmd_id {
 	WMI_TX_AGGR_ENABLE_CMDID,
 	WMI_TGT_DETACH_CMDID,
 	WMI_TGT_TXQ_ENABLE_CMDID,
+	WMI_AGGR_LIMIT_CMD = 0x0026,
 };
 
 enum wmi_event_id {
