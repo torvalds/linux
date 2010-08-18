@@ -559,7 +559,7 @@ static struct resource fsi_resources[] = {
 
 static struct platform_device fsi_device = {
 	.name		= "sh_fsi2",
-	.id		= 0,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(fsi_resources),
 	.resource	= fsi_resources,
 	.dev	= {
