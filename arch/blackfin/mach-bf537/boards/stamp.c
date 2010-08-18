@@ -2347,7 +2347,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #endif
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 	{
-		I2C_BOARD_INFO("bf537-lq035-ad5280", 0x2C),
+		I2C_BOARD_INFO("bf537-lq035-ad5280", 0x2F),
 	},
 #endif
 #if defined(CONFIG_BACKLIGHT_ADP8870) || defined(CONFIG_BACKLIGHT_ADP8870_MODULE)
