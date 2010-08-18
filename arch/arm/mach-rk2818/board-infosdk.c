@@ -331,6 +331,24 @@ struct rk2818_gs_platform_data rk2818_gs_platdata = {
 };
 
 /*****************************************************************************************
+ * wm8994  codec
+ * author: cjq@rock-chips.com
+ *****************************************************************************************/
+static struct wm8994_platform_data wm8994_data = {
+    .mic_input = 0,
+    .micBase_vcc = 0,
+    .bb_input = 0, 
+    .bb_output = 0,
+    .frequence = 0,
+    .enable_pin = 0,
+    .headset_pin = 0,
+    .headset_call_vol = 0,
+    .speaker_call_vol = 0,
+    .earpiece_call_vol = 0,
+    .bt_call_vol = 0,
+};// must initialize 
+
+/*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
 *****************************************************************************************/
@@ -409,6 +427,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	}
 #endif	
+#if defined (CONFIG_SND_SOC_WM8994)
+	{
+		.type    		= "wm8994",
+		.addr           = 0x1a,
+		.flags			= 0,
+		.platform_data  = &wm8994_data,
+	},
+#endif
 };
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
 #if defined (CONFIG_RTC_HYM8563)
@@ -464,32 +490,8 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 };
-/*****************************************************************************************
- * wm8994  codec
- * author: cjq@rock-chips.com
- *****************************************************************************************/
-static struct wm8994_platform_data wm8994_data = {
-    .mic_input = 0,
-    .micBase_vcc = 0,
-    .bb_input = 0, 
-    .bb_output = 0,
-    .frequence = 0,
-    .enable_pin = 0,
-    .headset_pin = 0,
-    .headset_call_vol = 0,
-    .speaker_call_vol = 0,
-    .earpiece_call_vol = 0,
-    .bt_call_vol = 0,
-};// must initialize 
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
-#if defined (CONFIG_SND_SOC_WM8994)
-	{
-		.type    		= "wm8994",
-		.addr           = 0x1a,
-		.flags			= 0,
-		.platform_data  = &wm8994_data,
-	},
-#endif
+
 };	
 
 /*****************************************************************************************
