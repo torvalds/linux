@@ -38,6 +38,7 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
+#include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -105,12 +106,22 @@ static struct pad_desc mx35pdk_pads[] = {
 	/* USBOTG */
 	MX35_PAD_USBOTG_PWR__USB_TOP_USBOTG_PWR,
 	MX35_PAD_USBOTG_OC__USB_TOP_USBOTG_OC,
+	/* USBH1 */
+	MX35_PAD_I2C2_CLK__USB_TOP_USBH2_PWR,
+	MX35_PAD_I2C2_DAT__USB_TOP_USBH2_OC,
 };
 
 /* OTG config */
 static struct fsl_usb2_platform_data usb_otg_pdata = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
+};
+
+/* USB HOST config */
+static struct mxc_usbh_platform_data usb_host_pdata = {
+	.portsc		= MXC_EHCI_MODE_SERIAL,
+	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
+			  MXC_EHCI_INTERNAL_PHY,
 };
 
 /*
@@ -125,6 +136,8 @@ static void __init mxc_board_init(void)
 	imx35_add_imx_uart0(&uart_pdata);
 
 	mxc_register_device(&mxc_otg_udc_device, &usb_otg_pdata);
+
+	mxc_register_device(&mxc_usbh1, &usb_host_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 }
