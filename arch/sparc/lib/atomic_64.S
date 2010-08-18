@@ -52,10 +52,9 @@ atomic_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
 	cas	[%o1], %g1, %g7
 	cmp	%g1, %g7
 	bne,pn	%icc, 2f
-	 add	%g7, %o0, %g7
-	sra	%g7, 0, %o0
+	 add	%g1, %o0, %g1
 	retl
-	 nop
+	 sra	%g1, 0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
 	.size	atomic_add_ret, .-atomic_add_ret
 
@@ -68,10 +67,9 @@ atomic_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
 	cas	[%o1], %g1, %g7
 	cmp	%g1, %g7
 	bne,pn	%icc, 2f
-	 sub	%g7, %o0, %g7
-	sra	%g7, 0, %o0
+	 sub	%g1, %o0, %g1
 	retl
-	 nop
+	 sra	%g1, 0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
 	.size	atomic_sub_ret, .-atomic_sub_ret
 
@@ -114,10 +112,9 @@ atomic64_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
 	casx	[%o1], %g1, %g7
 	cmp	%g1, %g7
 	bne,pn	%xcc, 2f
-	 add	%g7, %o0, %g7
-	mov	%g7, %o0
-	retl
 	 nop
+	retl
+	 add	%g1, %o0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
 	.size	atomic64_add_ret, .-atomic64_add_ret
 
@@ -130,9 +127,8 @@ atomic64_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
 	casx	[%o1], %g1, %g7
 	cmp	%g1, %g7
 	bne,pn	%xcc, 2f
-	 sub	%g7, %o0, %g7
-	mov	%g7, %o0
-	retl
 	 nop
+	retl
+	 sub	%g1, %o0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
 	.size	atomic64_sub_ret, .-atomic64_sub_ret
