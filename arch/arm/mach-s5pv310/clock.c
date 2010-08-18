@@ -588,6 +588,54 @@ static struct clksrc_sources clkset_group = {
 	.nr_sources	= ARRAY_SIZE(clkset_group_list),
 };
 
+static struct clk *clkset_mout_g2d0_list[] = {
+	[0] = &clk_mout_mpll.clk,
+	[1] = &clk_sclk_apll.clk,
+};
+
+static struct clksrc_sources clkset_mout_g2d0 = {
+	.sources	= clkset_mout_g2d0_list,
+	.nr_sources	= ARRAY_SIZE(clkset_mout_g2d0_list),
+};
+
+static struct clksrc_clk clk_mout_g2d0 = {
+	.clk	= {
+		.name		= "mout_g2d0",
+		.id		= -1,
+	},
+	.sources	= &clkset_mout_g2d0,
+	.reg_src	= { .reg = S5P_CLKSRC_IMAGE, .shift = 0, .size = 1 },
+};
+
+static struct clk *clkset_mout_g2d1_list[] = {
+	[0] = &clk_mout_epll.clk,
+	[1] = &clk_sclk_vpll.clk,
+};
+
+static struct clksrc_sources clkset_mout_g2d1 = {
+	.sources	= clkset_mout_g2d1_list,
+	.nr_sources	= ARRAY_SIZE(clkset_mout_g2d1_list),
+};
+
+static struct clksrc_clk clk_mout_g2d1 = {
+	.clk	= {
+		.name		= "mout_g2d1",
+		.id		= -1,
+	},
+	.sources	= &clkset_mout_g2d1,
+	.reg_src	= { .reg = S5P_CLKSRC_IMAGE, .shift = 4, .size = 1 },
+};
+
+static struct clk *clkset_mout_g2d_list[] = {
+	[0] = &clk_mout_g2d0.clk,
+	[1] = &clk_mout_g2d1.clk,
+};
+
+static struct clksrc_sources clkset_mout_g2d = {
+	.sources	= clkset_mout_g2d_list,
+	.nr_sources	= ARRAY_SIZE(clkset_mout_g2d_list),
+};
+
 static struct clksrc_clk clk_dout_mmc0 = {
 	.clk		= {
 		.name		= "dout_mmc0",
