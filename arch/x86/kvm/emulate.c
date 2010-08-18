@@ -2264,6 +2264,15 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_imul_3op(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->dst.val = c->src2.val;
+	emulate_2op_SrcV_nobyte("imul", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2371,7 +2380,8 @@ static struct opcode opcode_table[256] = {
 	N, N, N, N,
 	/* 0x68 - 0x6F */
 	I(SrcImm | Mov | Stack, em_push), N,
-	I(SrcImmByte | Mov | Stack, em_push), N,
+	I(SrcImmByte | Mov | Stack, em_push),
+	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
 	D(DstDI | ByteOp | Mov | String), D(DstDI | Mov | String), /* insb, insw/insd */
 	D(SrcSI | ByteOp | ImplicitOps | String), D(SrcSI | ImplicitOps | String), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
