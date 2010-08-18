@@ -99,8 +99,6 @@
 
 #define EDMA_MAX_DMACH           64
 #define EDMA_MAX_PARAMENTRY     512
-#define EDMA_MAX_CC               2
-
 
 /*****************************************************************************/
 
@@ -205,6 +203,18 @@ static inline void edma_parm_or(unsigned ctlr, int offset, int param_no,
 		unsigned or)
 {
 	edma_or(ctlr, EDMA_PARM + offset + (param_no << 5), or);
+}
+
+static inline void set_bits(int offset, int len, unsigned long *p)
+{
+	for (; len > 0; len--)
+		set_bit(offset + (len - 1), p);
+}
+
+static inline void clear_bits(int offset, int len, unsigned long *p)
+{
+	for (; len > 0; len--)
+		clear_bit(offset + (len - 1), p);
 }
 
 /*****************************************************************************/
@@ -1376,11 +1386,13 @@ EXPORT_SYMBOL(edma_clear_event);
 
 static int __init edma_probe(struct platform_device *pdev)
 {
-	struct edma_soc_info	*info = pdev->dev.platform_data;
+	struct edma_soc_info	**info = pdev->dev.platform_data;
 	const s8		(*queue_priority_mapping)[2];
 	const s8		(*queue_tc_mapping)[2];
-	int			i, j, found = 0;
+	int			i, j, off, ln, found = 0;
 	int			status = -1;
+	const s16		(*rsv_chans)[2];
+	const s16		(*rsv_slots)[2];
 	int			irq[EDMA_MAX_CC] = {0, 0};
 	int			err_irq[EDMA_MAX_CC] = {0, 0};
 	struct resource		*r[EDMA_MAX_CC] = {NULL};
@@ -1395,7 +1407,7 @@ static int __init edma_probe(struct platform_device *pdev)
 		sprintf(res_name, "edma_cc%d", j);
 		r[j] = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						res_name);
-		if (!r[j]) {
+		if (!r[j] || !info[j]) {
 			if (found)
 				break;
 			else
@@ -1426,13 +1438,14 @@ static int __init edma_probe(struct platform_device *pdev)
 		}
 		memset(edma_cc[j], 0, sizeof(struct edma));
 
-		edma_cc[j]->num_channels = min_t(unsigned, info[j].n_channel,
+		edma_cc[j]->num_channels = min_t(unsigned, info[j]->n_channel,
 							EDMA_MAX_DMACH);
-		edma_cc[j]->num_slots = min_t(unsigned, info[j].n_slot,
+		edma_cc[j]->num_slots = min_t(unsigned, info[j]->n_slot,
 							EDMA_MAX_PARAMENTRY);
-		edma_cc[j]->num_cc = min_t(unsigned, info[j].n_cc, EDMA_MAX_CC);
+		edma_cc[j]->num_cc = min_t(unsigned, info[j]->n_cc,
+							EDMA_MAX_CC);
 
-		edma_cc[j]->default_queue = info[j].default_queue;
+		edma_cc[j]->default_queue = info[j]->default_queue;
 		if (!edma_cc[j]->default_queue)
 			edma_cc[j]->default_queue = EVENTQ_1;
 
@@ -1446,6 +1459,31 @@ static int __init edma_probe(struct platform_device *pdev)
 		/* Mark all channels as unused */
 		memset(edma_cc[j]->edma_unused, 0xff,
 			sizeof(edma_cc[j]->edma_unused));
+
+		if (info[j]->rsv) {
+
+			/* Clear the reserved channels in unused list */
+			rsv_chans = info[j]->rsv->rsv_chans;
+			if (rsv_chans) {
+				for (i = 0; rsv_chans[i][0] != -1; i++) {
+					off = rsv_chans[i][0];
+					ln = rsv_chans[i][1];
+					clear_bits(off, ln,
+						edma_cc[j]->edma_unused);
+				}
+			}
+
+			/* Set the reserved slots in inuse list */
+			rsv_slots = info[j]->rsv->rsv_slots;
+			if (rsv_slots) {
+				for (i = 0; rsv_slots[i][0] != -1; i++) {
+					off = rsv_slots[i][0];
+					ln = rsv_slots[i][1];
+					set_bits(off, ln,
+						edma_cc[j]->edma_inuse);
+				}
+			}
+		}
 
 		sprintf(irq_name, "edma%d", j);
 		irq[j] = platform_get_irq_byname(pdev, irq_name);
@@ -1476,8 +1514,8 @@ static int __init edma_probe(struct platform_device *pdev)
 		for (i = 0; i < edma_cc[j]->num_channels; i++)
 			map_dmach_queue(j, i, EVENTQ_1);
 
-		queue_tc_mapping = info[j].queue_tc_mapping;
-		queue_priority_mapping = info[j].queue_priority_mapping;
+		queue_tc_mapping = info[j]->queue_tc_mapping;
+		queue_priority_mapping = info[j]->queue_priority_mapping;
 
 		/* Event queue to TC mapping */
 		for (i = 0; queue_tc_mapping[i][0] != -1; i++)
@@ -1496,7 +1534,7 @@ static int __init edma_probe(struct platform_device *pdev)
 		if (edma_read(j, EDMA_CCCFG) & CHMAP_EXIST)
 			map_dmach_param(j);
 
-		for (i = 0; i < info[j].n_region; i++) {
+		for (i = 0; i < info[j]->n_region; i++) {
 			edma_write_array2(j, EDMA_DRAE, i, 0, 0x0);
 			edma_write_array2(j, EDMA_DRAE, i, 1, 0x0);
 			edma_write_array(j, EDMA_QRAE, i, 0x0);

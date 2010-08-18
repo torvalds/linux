@@ -442,15 +442,15 @@
 /* Two-Wire Interface 0	(0xFFC01400 - 0xFFC014FF)			 */
 #define	TWI0_CLKDIV			0xFFC01400	/* Serial Clock	Divider	Register */
 #define	TWI0_CONTROL		0xFFC01404	/* TWI0	Master Internal	Time Reference Register */
-#define	TWI0_SLAVE_CTRL		0xFFC01408	/* Slave Mode Control Register */
+#define	TWI0_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register */
 #define	TWI0_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register */
 #define	TWI0_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register */
-#define	TWI0_MASTER_CTRL	0xFFC01414	/* Master Mode Control Register */
+#define	TWI0_MASTER_CTL	0xFFC01414	/* Master Mode Control Register */
 #define	TWI0_MASTER_STAT	0xFFC01418	/* Master Mode Status Register */
 #define	TWI0_MASTER_ADDR	0xFFC0141C	/* Master Mode Address Register */
 #define	TWI0_INT_STAT		0xFFC01420	/* TWI0	Master Interrupt Register */
 #define	TWI0_INT_MASK		0xFFC01424	/* TWI0	Master Interrupt Mask Register */
-#define	TWI0_FIFO_CTRL		0xFFC01428	/* FIFO	Control	Register */
+#define	TWI0_FIFO_CTL		0xFFC01428	/* FIFO	Control	Register */
 #define	TWI0_FIFO_STAT		0xFFC0142C	/* FIFO	Status Register */
 #define	TWI0_XMT_DATA8		0xFFC01480	/* FIFO	Transmit Data Single Byte Register */
 #define	TWI0_XMT_DATA16		0xFFC01484	/* FIFO	Transmit Data Double Byte Register */
@@ -761,15 +761,15 @@
 /* Two-Wire Interface 1	(0xFFC02200 - 0xFFC022FF)			 */
 #define	TWI1_CLKDIV			0xFFC02200	/* Serial Clock	Divider	Register */
 #define	TWI1_CONTROL		0xFFC02204	/* TWI1	Master Internal	Time Reference Register */
-#define	TWI1_SLAVE_CTRL		0xFFC02208	/* Slave Mode Control Register */
+#define	TWI1_SLAVE_CTL		0xFFC02208	/* Slave Mode Control Register */
 #define	TWI1_SLAVE_STAT		0xFFC0220C	/* Slave Mode Status Register */
 #define	TWI1_SLAVE_ADDR		0xFFC02210	/* Slave Mode Address Register */
-#define	TWI1_MASTER_CTRL	0xFFC02214	/* Master Mode Control Register */
+#define	TWI1_MASTER_CTL	0xFFC02214	/* Master Mode Control Register */
 #define	TWI1_MASTER_STAT	0xFFC02218	/* Master Mode Status Register */
 #define	TWI1_MASTER_ADDR	0xFFC0221C	/* Master Mode Address Register */
 #define	TWI1_INT_STAT		0xFFC02220	/* TWI1	Master Interrupt Register */
 #define	TWI1_INT_MASK		0xFFC02224	/* TWI1	Master Interrupt Mask Register */
-#define	TWI1_FIFO_CTRL		0xFFC02228	/* FIFO	Control	Register */
+#define	TWI1_FIFO_CTL		0xFFC02228	/* FIFO	Control	Register */
 #define	TWI1_FIFO_STAT		0xFFC0222C	/* FIFO	Status Register */
 #define	TWI1_XMT_DATA8		0xFFC02280	/* FIFO	Transmit Data Single Byte Register */
 #define	TWI1_XMT_DATA16		0xFFC02284	/* FIFO	Transmit Data Double Byte Register */
@@ -2401,7 +2401,7 @@
 #define	XMTSERV		0x0040		/* Transmit FIFO Service */
 #define	RCVSERV		0x0080		/* Receive FIFO	Service */
 
-/* TWIx_FIFO_CTRL Masks					 */
+/* TWIx_FIFO_CTL Masks					 */
 #define	XMTFLUSH	0x0001		/* Transmit Buffer Flush */
 #define	RCVFLUSH	0x0002		/* Receive Buffer Flush */
 #define	XMTINTLEN	0x0004		/* Transmit Buffer Interrupt Length */

@@ -1,4 +1,5 @@
 #include "sort.h"
+#include "hist.h"
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -10,10 +11,6 @@ int		sort__has_parent = 0;
 
 enum sort_type	sort__first_dimension;
 
-unsigned int dsos__col_width;
-unsigned int comms__col_width;
-unsigned int threads__col_width;
-static unsigned int parent_symbol__col_width;
 char * field_sep;
 
 LIST_HEAD(hist_entry__sort_list);
@@ -28,12 +25,14 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 				    size_t size, unsigned int width);
 static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width);
+static int hist_entry__cpu_snprintf(struct hist_entry *self, char *bf,
+				    size_t size, unsigned int width);
 
 struct sort_entry sort_thread = {
 	.se_header	= "Command:  Pid",
 	.se_cmp		= sort__thread_cmp,
 	.se_snprintf	= hist_entry__thread_snprintf,
-	.se_width	= &threads__col_width,
+	.se_width_idx	= HISTC_THREAD,
 };
 
 struct sort_entry sort_comm = {
@@ -41,27 +40,35 @@ struct sort_entry sort_comm = {
 	.se_cmp		= sort__comm_cmp,
 	.se_collapse	= sort__comm_collapse,
 	.se_snprintf	= hist_entry__comm_snprintf,
-	.se_width	= &comms__col_width,
+	.se_width_idx	= HISTC_COMM,
 };
 
 struct sort_entry sort_dso = {
 	.se_header	= "Shared Object",
 	.se_cmp		= sort__dso_cmp,
 	.se_snprintf	= hist_entry__dso_snprintf,
-	.se_width	= &dsos__col_width,
+	.se_width_idx	= HISTC_DSO,
 };
 
 struct sort_entry sort_sym = {
 	.se_header	= "Symbol",
 	.se_cmp		= sort__sym_cmp,
 	.se_snprintf	= hist_entry__sym_snprintf,
+	.se_width_idx	= HISTC_SYMBOL,
 };
 
 struct sort_entry sort_parent = {
 	.se_header	= "Parent symbol",
 	.se_cmp		= sort__parent_cmp,
 	.se_snprintf	= hist_entry__parent_snprintf,
-	.se_width	= &parent_symbol__col_width,
+	.se_width_idx	= HISTC_PARENT,
+};
+ 
+struct sort_entry sort_cpu = {
+	.se_header      = "CPU",
+	.se_cmp	        = sort__cpu_cmp,
+	.se_snprintf    = hist_entry__cpu_snprintf,
+	.se_width_idx	= HISTC_CPU,
 };
 
 struct sort_dimension {
@@ -76,6 +83,7 @@ static struct sort_dimension sort_dimensions[] = {
 	{ .name = "dso",	.entry = &sort_dso,	},
 	{ .name = "symbol",	.entry = &sort_sym,	},
 	{ .name = "parent",	.entry = &sort_parent,	},
+	{ .name = "cpu",	.entry = &sort_cpu,	},
 };
 
 int64_t cmp_null(void *l, void *r)
@@ -242,6 +250,20 @@ static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
 			      self->parent ? self->parent->name : "[other]");
 }
 
+/* --sort cpu */
+
+int64_t
+sort__cpu_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->cpu - left->cpu;
+}
+
+static int hist_entry__cpu_snprintf(struct hist_entry *self, char *bf,
+				       size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*d", width, self->cpu);
+}
+
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
@@ -281,6 +303,8 @@ int sort_dimension__add(const char *tok)
 				sort__first_dimension = SORT_SYM;
 			else if (!strcmp(sd->name, "parent"))
 				sort__first_dimension = SORT_PARENT;
+			else if (!strcmp(sd->name, "cpu"))
+				sort__first_dimension = SORT_CPU;
 		}
 
 		list_add_tail(&sd->entry->list, &hist_entry__sort_list);

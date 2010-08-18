@@ -43,6 +43,8 @@ static DEFINE_PCI_DEVICE_TABLE(p54p_table) = {
 	{ PCI_DEVICE(0x1260, 0x3886) },
 	/* Intersil PRISM Xbow Wireless LAN adapter (Symbol AP-300) */
 	{ PCI_DEVICE(0x1260, 0xffff) },
+	/* Standard Microsystems Corp SMC2802W Wireless PCI */
+	{ PCI_DEVICE(0x10b8, 0x2802) },
 	{ },
 };
 
@@ -466,8 +468,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 	P54P_READ(dev_int);
 
 	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
-		printk(KERN_ERR "%s: Cannot boot firmware!\n",
-		       wiphy_name(dev->wiphy));
+		wiphy_err(dev->wiphy, "cannot boot firmware!\n");
 		p54p_stop(dev);
 		return -ETIMEDOUT;
 	}

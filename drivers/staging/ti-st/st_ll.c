@@ -34,7 +34,7 @@ static void send_ll_cmd(struct st_data_s *st_data,
 
 static void ll_device_want_to_sleep(struct st_data_s *st_data)
 {
-	pr_info("%s", __func__);
+	pr_debug("%s", __func__);
 	/* sanity check */
 	if (st_data->ll_state != ST_LL_AWAKE)
 		pr_err("ERR hcill: ST_LL_GO_TO_SLEEP_IND"
@@ -101,7 +101,7 @@ void st_ll_wakeup(struct st_data_s *ll)
 /* called when ST Core wants the state */
 unsigned long st_ll_getstate(struct st_data_s *ll)
 {
-	pr_info(" returning state %ld", ll->ll_state);
+	pr_debug(" returning state %ld", ll->ll_state);
 	return ll->ll_state;
 }
 
@@ -127,9 +127,9 @@ unsigned long st_ll_sleep_state(struct st_data_s *st_data,
 		break;
 	default:
 		pr_err(" unknown input/state ");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
-	return ST_SUCCESS;
+	return 0;
 }
 
 /* Called from ST CORE to initialize ST LL */

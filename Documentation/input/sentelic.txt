@@ -341,7 +341,7 @@ Byte 5~8: Don't care (Absolute packet)
 FSP supports basic PS/2 commanding set and modes, refer to following URL for
 details about PS/2 commands:
 
-http://www.computer-engineering.org/index.php?title=PS/2_Mouse_Interface
+http://www.computer-engineering.org/ps2mouse/
 
 ==============================================================================
 * Programming Sequence for Determining Packet Parsing Flow

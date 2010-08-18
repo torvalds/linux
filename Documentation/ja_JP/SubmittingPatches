@@ -97,7 +97,7 @@ Quilt:
 http://savannah.nongnu.org/projects/quilt
 
 Andrew Morton's patch scripts:
-http://www.zip.com.au/~akpm/linux/patches/
+http://userweb.kernel.org/~akpm/stuff/tpp.txt
 このリンクの先のスクリプトの代わりとして、quilt がパッチマネジメント
 ツールとして推奨されています(上のリンクを見てください)。
 
@@ -210,7 +210,7 @@ VGER.KERNEL.ORG でホスティングされているメーリングリストの�
  ・移植性のないコードから移植性のあるコードへの置き換え(小さい範囲で
    あればアーキテクチャ特有のことでも他の人がコピーできます)
  ・作者やメンテナによる修正(すなわち patch monkey の再転送モード)
-URL: <http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/>
+EMAIL: <trivial@kernel.org>
 
 7) MIME やリンクや圧縮ファイルや添付ファイルではなくプレインテキストのみ
 
@@ -534,7 +534,7 @@ gcc においては、マクロと同じくらい軽いです。
 ----------------------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt>
+  <http://userweb.kernel.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <http://linux.yyz.us/patch-format.html>

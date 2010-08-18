@@ -232,6 +232,13 @@ static int nes_netdev_open(struct net_device *netdev)
 				NES_MAC_INT_TX_UNDERFLOW | NES_MAC_INT_TX_ERROR));
 		first_nesvnic = nesvnic;
 	}
+
+	if (nesvnic->of_device_registered) {
+		nesdev->iw_status = 1;
+		nesdev->nesadapter->send_term_ok = 1;
+		nes_port_ibevent(nesvnic);
+	}
+
 	if (first_nesvnic->linkup) {
 		/* Enable network packets */
 		nesvnic->linkup = 1;
@@ -309,9 +316,9 @@ static int nes_netdev_stop(struct net_device *netdev)
 
 
 	if (nesvnic->of_device_registered) {
-		nes_destroy_ofa_device(nesvnic->nesibdev);
-		nesvnic->nesibdev = NULL;
-		nesvnic->of_device_registered = 0;
+		nesdev->nesadapter->send_term_ok = 0;
+		nesdev->iw_status = 0;
+		nes_port_ibevent(nesvnic);
 	}
 	nes_destroy_nic_qp(nesvnic);
 
@@ -463,7 +470,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u16 nhoffset;
 	u16 wqes_needed;
 	u16 wqes_available;
-	u32 old_head;
 	u32 wqe_misc;
 
 	/*
@@ -503,7 +509,6 @@ sq_no_longer_full:
 		if (skb_is_gso(skb)) {
 			nesvnic->segmented_tso_requests++;
 			nesvnic->tso_requests++;
-			old_head = nesnic->sq_head;
 			/* Basically 4 fragments available per WQE with extended fragments */
 			wqes_needed = nr_frags >> 2;
 			wqes_needed += (nr_frags&3)?1:0;
@@ -1567,6 +1572,12 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 }
 
 
+static int nes_netdev_set_flags(struct net_device *netdev, u32 flags)
+{
+	return ethtool_op_set_flags(netdev, flags, ETH_FLAG_LRO);
+}
+
+
 static const struct ethtool_ops nes_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_settings = nes_netdev_get_settings,
@@ -1588,7 +1599,7 @@ static const struct ethtool_ops nes_ethtool_ops = {
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 	.get_flags = ethtool_op_get_flags,
-	.set_flags = ethtool_op_set_flags,
+	.set_flags = nes_netdev_set_flags,
 };
 
 

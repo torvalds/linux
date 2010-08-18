@@ -636,7 +636,7 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 		min_datainterval = min(min_datainterval, fp->datainterval);
 	}
 	if (min_datainterval == 0xff) {
-		hwc_debug("  --> get emtpy\n");
+		hwc_debug("  --> get empty\n");
 		it->empty = 1;
 		return -EINVAL;
 	}

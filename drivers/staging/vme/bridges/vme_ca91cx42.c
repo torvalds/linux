@@ -900,7 +900,8 @@ unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	/* Address must be 4-byte aligned */
 	if (pci_addr & 0x3) {
 		dev_err(dev, "RMW Address not 4-byte aligned\n");
-		return -EINVAL;
+		result = -EINVAL;
+		goto out;
 	}
 
 	/* Ensure RMW Disabled whilst configuring */
@@ -921,6 +922,7 @@ unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	/* Disable RMW */
 	iowrite32(0, bridge->base + SCYC_CTL);
 
+out:
 	spin_unlock(&(image->lock));
 
 	mutex_unlock(&(bridge->vme_rmw));
@@ -961,11 +963,11 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 
 	if (dest->type == VME_DMA_VME) {
 		entry->descriptor.dctl |= CA91CX42_DCTL_L2V;
-		vme_attr = (struct vme_dma_vme *)dest->private;
-		pci_attr = (struct vme_dma_pci *)src->private;
+		vme_attr = dest->private;
+		pci_attr = src->private;
 	} else {
-		vme_attr = (struct vme_dma_vme *)src->private;
-		pci_attr = (struct vme_dma_pci *)dest->private;
+		vme_attr = src->private;
+		pci_attr = dest->private;
 	}
 
 	/* Check we can do fullfill required attributes */

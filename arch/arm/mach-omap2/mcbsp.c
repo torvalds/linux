@@ -20,17 +20,18 @@
 
 #include <mach/irqs.h>
 #include <plat/dma.h>
-#include <plat/mux.h>
 #include <plat/cpu.h>
 #include <plat/mcbsp.h>
 
+#include "mux.h"
+
 static void omap2_mcbsp2_mux_setup(void)
 {
-	omap_cfg_reg(Y15_24XX_MCBSP2_CLKX);
-	omap_cfg_reg(R14_24XX_MCBSP2_FSX);
-	omap_cfg_reg(W15_24XX_MCBSP2_DR);
-	omap_cfg_reg(V15_24XX_MCBSP2_DX);
-	omap_cfg_reg(V14_24XX_GPIO117);
+	omap_mux_init_signal("eac_ac_sclk.mcbsp2_clkx", OMAP_PULL_ENA);
+	omap_mux_init_signal("eac_ac_fs.mcbsp2_fsx", OMAP_PULL_ENA);
+	omap_mux_init_signal("eac_ac_din.mcbsp2_dr", OMAP_PULL_ENA);
+	omap_mux_init_signal("eac_ac_dout.mcbsp2_dx", OMAP_PULL_ENA);
+	omap_mux_init_gpio(117, OMAP_PULL_ENA);
 	/*
 	 * TODO: Need to add MUX settings for OMAP 2430 SDP
 	 */

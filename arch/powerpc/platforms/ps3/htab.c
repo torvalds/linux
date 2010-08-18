@@ -136,7 +136,7 @@ static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	 * As lv1_read_htab_entries() does not give us the RPN, we can
 	 * not synthesize the new hpte_r value here, and therefore can
 	 * not update the hpte with lv1_insert_htab_entry(), so we
-	 * insted invalidate it and ask the caller to update it via
+	 * instead invalidate it and ask the caller to update it via
 	 * ps3_hpte_insert() by returning a -1 value.
 	 */
 	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {

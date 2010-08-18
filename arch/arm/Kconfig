@@ -10,6 +10,7 @@ config ARM
 	default y
 	select HAVE_AOUT
 	select HAVE_IDE
+	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
 	select GENERIC_ATOMIC64 if (!CPU_32v6K)
@@ -24,6 +25,7 @@ config ARM
 	select HAVE_KERNEL_LZMA
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -41,10 +43,6 @@ config SYS_SUPPORTS_APM_EMULATION
 config GENERIC_GPIO
 	bool
 
-config GENERIC_TIME
-	bool
-	default y
-
 config ARCH_USES_GETTIMEOFFSET
 	bool
 	default n
@@ -55,7 +53,7 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
-	default y if SMP && !LOCAL_TIMERS
+	default y if SMP
 
 config HAVE_TCM
 	bool
@@ -301,6 +299,7 @@ config ARCH_CNS3XXX
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select ARM_GIC
+	select PCI_DOMAINS if PCI
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
@@ -439,21 +438,6 @@ config ARCH_IXP4XX
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
-config ARCH_L7200
-	bool "LinkUp-L7200"
-	select CPU_ARM720T
-	select FIQ
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Say Y here if you intend to run this kernel on a LinkUp Systems
-	  L7200 Software Development Board which uses an ARM720T processor.
-	  Information on this board can be obtained at:
-
-	  <http://www.linkupsys.com/>
-
-	  If you have any questions or comments about the Linux kernel port
-	  to this board, send e-mail to <sjhill@cotw.com>.
-
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select PCI
@@ -481,6 +465,19 @@ config ARCH_LOKI
 	select PLAT_ORION
 	help
 	  Support for the Marvell Loki (88RC8480) SoC.
+
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select ARM_AMBA
+	select USB_ARCH_HAS_OHCI
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for the NXP LPC32XX family of processors
 
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
@@ -561,6 +558,18 @@ config ARCH_NUC93X
 	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
 	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
 
+config ARCH_TEGRA
+	bool "NVIDIA Tegra"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select ARCH_HAS_BARRIERS if CACHE_L2X0
+	help
+	  This enables support for NVIDIA Tegra based systems (Tegra APX,
+	  Tegra 6xx and Tegra 2 series).
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
@@ -586,6 +595,7 @@ config ARCH_MSM
 	bool "Qualcomm MSM"
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Qualcomm MSM/QSD based systems.  This runs on the
 	  apps processor of the MSM/QSD and depends on a shared memory
@@ -719,7 +729,6 @@ config ARCH_SHARK
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
 	select CPU_ARM922T
-	select ARCH_DISCONTIGMEM_ENABLE if !LH7A40X_CONTIGMEM
 	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
 	select ARCH_USES_GETTIMEOFFSET
 	help
@@ -845,6 +854,8 @@ source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
 
+source "arch/arm/mach-lpc32xx/Kconfig"
+
 source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
@@ -907,6 +918,8 @@ source "arch/arm/mach-s5pv210/Kconfig"
 source "arch/arm/mach-shmobile/Kconfig"
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
+
+source "arch/arm/mach-tegra/Kconfig"
 
 source "arch/arm/mach-u300/Kconfig"
 
@@ -1031,11 +1044,6 @@ endmenu
 
 source "arch/arm/common/Kconfig"
 
-config FORCE_MAX_ZONEORDER
-	int
-	depends on SA1111
-	default "9"
-
 menu "Bus support"
 
 config ARM_AMBA
@@ -1060,7 +1068,7 @@ config ISA_DMA_API
 	bool
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE
+	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE || ARCH_CNS3XXX
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -1100,10 +1108,11 @@ config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
 		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 ||\
-		 ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+		 ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || ARCH_TEGRA)
 	depends on GENERIC_CLOCKEVENTS
 	select USE_GENERIC_SMP_HELPERS
-	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500 || \
+		 ARCH_VEXPRESS_CA9X4 || ARCH_TEGRA)
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1172,9 +1181,11 @@ config HOTPLUG_CPU
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
-		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || ARCH_U8500)
+		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
+		ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || ARCH_TEGRA)
 	default y
-	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500)
+	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || \\
+		ARCH_U8500 || ARCH_TEGRA
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1185,10 +1196,10 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 128 if ARCH_L7200
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
+	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
 	default 100
 
 config THUMB2_KERNEL
@@ -1241,10 +1252,6 @@ config OABI_COMPAT
 config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
 
-# Discontigmem is deprecated
-config ARCH_DISCONTIGMEM_ENABLE
-	bool
-
 config ARCH_SPARSEMEM_ENABLE
 	bool
 
@@ -1252,13 +1259,7 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SELECT_MEMORY_MODEL
-	def_bool ARCH_DISCONTIGMEM_ENABLE && ARCH_SPARSEMEM_ENABLE
-
-config NODES_SHIFT
-	int
-	default "4" if ARCH_LH7A40X
-	default "2"
-	depends on NEED_MULTIPLE_NODES
+	def_bool ARCH_SPARSEMEM_ENABLE
 
 config HIGHMEM
 	bool "High Memory Support (EXPERIMENTAL)"
@@ -1290,7 +1291,32 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config SPARSE_IRQ
+	def_bool n
+	help
+	  This enables support for sparse irqs. This is useful in general
+	  as most CPUs have a fairly sparse array of IRQ vectors, which
+	  the irq_desc then maps directly on to. Systems with a high
+	  number of off-chip IRQs will want to treat this as
+	  experimental until they have been independently verified.
+
 source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order" if ARCH_SHMOBILE
+	range 11 64 if ARCH_SHMOBILE
+	default "9" if SA1111
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 config LEDS
 	bool "Timer and CPU usage LEDs"
@@ -1374,6 +1400,24 @@ config UACCESS_WITH_MEMCPY
 
 	  However, if the CPU data cache is using a write-allocate mode,
 	  this option is unlikely to provide any performance gain.
+
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	help
+	  This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+	  This feature requires gcc version 4.2 or above.
+
+config DEPRECATED_PARAM_STRUCT
+	bool "Provide old way to pass kernel parameters"
+	help
+	  This was deprecated in 2001 and announced to live on for 5 years.
+	  Some old boot loaders still use this way.
 
 endmenu
 
@@ -1484,6 +1528,105 @@ config ATAGS_PROC
 	help
 	  Should the atags used to boot the kernel be exported in an "atags"
 	  file in procfs. Useful with kexec.
+
+config AUTO_ZRELADDR
+	bool "Auto calculation of the decompressed kernel image address"
+	depends on !ZBOOT_ROM && !ARCH_U300
+	help
+	  ZRELADDR is the physical address where the decompressed kernel
+	  image will be placed. If AUTO_ZRELADDR is selected, the address
+	  will be determined at run-time by masking the current IP with
+	  0xf8000000. This assumes the zImage being placed in the first 128MB
+	  from start of memory.
+
+config ZRELADDR
+	hex "Physical address of the decompressed kernel image"
+	depends on !AUTO_ZRELADDR
+	default 0x00008000 if ARCH_BCMRING ||\
+		ARCH_CNS3XXX ||\
+		ARCH_DOVE ||\
+		ARCH_EBSA110 ||\
+		ARCH_FOOTBRIDGE ||\
+		ARCH_INTEGRATOR ||\
+		ARCH_IOP13XX ||\
+		ARCH_IOP33X ||\
+		ARCH_IXP2000 ||\
+		ARCH_IXP23XX ||\
+		ARCH_IXP4XX ||\
+		ARCH_KIRKWOOD ||\
+		ARCH_KS8695 ||\
+		ARCH_LOKI ||\
+		ARCH_MMP ||\
+		ARCH_MV78XX0 ||\
+		ARCH_NOMADIK ||\
+		ARCH_NUC93X ||\
+		ARCH_NS9XXX ||\
+		ARCH_ORION5X ||\
+		ARCH_SPEAR3XX ||\
+		ARCH_SPEAR6XX ||\
+		ARCH_U8500 ||\
+		ARCH_VERSATILE ||\
+		ARCH_W90X900
+	default 0x08008000 if ARCH_MX1 ||\
+		ARCH_SHARK
+	default 0x10008000 if ARCH_MSM ||\
+		ARCH_OMAP1 ||\
+		ARCH_RPC
+	default 0x20008000 if ARCH_S5P6440 ||\
+		ARCH_S5P6442 ||\
+		ARCH_S5PC100 ||\
+		ARCH_S5PV210
+	default 0x30008000 if ARCH_S3C2410 ||\
+		ARCH_S3C2400 ||\
+		ARCH_S3C2412 ||\
+		ARCH_S3C2416 ||\
+		ARCH_S3C2440 ||\
+		ARCH_S3C2443
+	default 0x40008000 if ARCH_STMP378X ||\
+		ARCH_STMP37XX ||\
+		ARCH_SH7372 ||\
+		ARCH_SH7377
+	default 0x50008000 if ARCH_S3C64XX ||\
+		ARCH_SH7367
+	default 0x60008000 if ARCH_VEXPRESS
+	default 0x80008000 if ARCH_MX25 ||\
+		ARCH_MX3 ||\
+		ARCH_NETX ||\
+		ARCH_OMAP2PLUS ||\
+		ARCH_PNX4008
+	default 0x90008000 if ARCH_MX5 ||\
+		ARCH_MX91231
+	default 0xa0008000 if ARCH_IOP32X ||\
+		ARCH_PXA ||\
+		MACH_MX27
+	default 0xc0008000 if ARCH_LH7A40X ||\
+		MACH_MX21
+	default 0xf0008000 if ARCH_AAEC2000 ||\
+		ARCH_L7200
+	default 0xc0028000 if ARCH_CLPS711X
+	default 0x70008000 if ARCH_AT91 && (ARCH_AT91CAP9 || ARCH_AT91SAM9G45)
+	default 0x20008000 if ARCH_AT91 && !(ARCH_AT91CAP9 || ARCH_AT91SAM9G45)
+	default 0xc0008000 if ARCH_DAVINCI && ARCH_DAVINCI_DA8XX
+	default 0x80008000 if ARCH_DAVINCI && !ARCH_DAVINCI_DA8XX
+	default 0x00008000 if ARCH_EP93XX && EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	default 0xc0008000 if ARCH_EP93XX && EP93XX_SDCE0_PHYS_OFFSET
+	default 0xd0008000 if ARCH_EP93XX && EP93XX_SDCE1_PHYS_OFFSET
+	default 0xe0008000 if ARCH_EP93XX && EP93XX_SDCE2_PHYS_OFFSET
+	default 0xf0008000 if ARCH_EP93XX && EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	default 0x00008000 if ARCH_GEMINI && GEMINI_MEM_SWAP
+	default 0x10008000 if ARCH_GEMINI && !GEMINI_MEM_SWAP
+	default 0x70008000 if ARCH_REALVIEW && REALVIEW_HIGH_PHYS_OFFSET
+	default 0x00008000 if ARCH_REALVIEW && !REALVIEW_HIGH_PHYS_OFFSET
+	default 0xc0208000 if ARCH_SA1100 && SA1111
+	default 0xc0008000 if ARCH_SA1100 && !SA1111
+	default 0x30108000 if ARCH_S3C2410 && PM_H1940
+	default 0x28E08000 if ARCH_U300 && MACH_U300_SINGLE_RAM
+	default 0x48008000 if ARCH_U300 && !MACH_U300_SINGLE_RAM
+	help
+	  ZRELADDR is the physical address where the decompressed kernel
+	  image will be placed. ZRELADDR has to be specified when the
+	  assumption of AUTO_ZRELADDR is not valid, or when ZBOOT_ROM is
+	  selected.
 
 endmenu
 

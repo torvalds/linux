@@ -74,8 +74,8 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP3_SPI_MISO,
 	MPP4_SATA1_ACTn,
 	MPP5_SATA0_ACTn,
-	MPP8_TW_SDA,
-	MPP9_TW_SCK,
+	MPP8_TW0_SDA,
+	MPP9_TW0_SCK,
 	MPP10_UART0_TXD,
 	MPP11_UART0_RXD,
 	MPP13_UART1_TXD,	/* PIC controller */
@@ -83,6 +83,7 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP15_GPIO,		/* USB Copy button */
 	MPP16_GPIO,		/* Reset button */
 	MPP36_GPIO,		/* RAM: 0: 256 MB, 1: 512 MB */
+	MPP44_GPIO,		/* Board ID: 0: TS-11x, 1: TS-21x */
 	0
 };
 
@@ -110,10 +111,10 @@ static void __init qnap_ts219_init(void)
 
 static int __init ts219_pci_init(void)
 {
-   if (machine_is_ts219())
-           kirkwood_pcie_init();
+	if (machine_is_ts219())
+		kirkwood_pcie_init(KW_PCIE0);
 
-   return 0;
+	return 0;
 }
 subsys_initcall(ts219_pci_init);
 

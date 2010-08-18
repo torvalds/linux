@@ -141,8 +141,12 @@ static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
 		if (!(p_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
 		/* fall through */
-	case ZFCP_ERP_ACTION_REOPEN_PORT:
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
+		p_status = atomic_read(&port->status);
+		if (!(p_status & ZFCP_STATUS_COMMON_OPEN))
+			need = ZFCP_ERP_ACTION_REOPEN_PORT;
+		/* fall through */
+	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		p_status = atomic_read(&port->status);
 		if (p_status & ZFCP_STATUS_COMMON_ERP_INUSE)
 			return 0;
@@ -893,8 +897,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 		}
 		if (port->d_id && !(p_status & ZFCP_STATUS_COMMON_NOESC)) {
 			port->d_id = 0;
-			_zfcp_erp_port_reopen(port, 0, "erpsoc1", NULL);
-			return ZFCP_ERP_EXIT;
+			return ZFCP_ERP_FAILED;
 		}
 		/* fall through otherwise */
 	}
@@ -1188,19 +1191,14 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
-			get_device(&unit->dev);
-			if (scsi_queue_work(unit->port->adapter->scsi_host,
-					    &unit->scsi_work) <= 0)
-				put_device(&unit->dev);
-		}
 		put_device(&unit->dev);
 		break;
 
-	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		if (result == ZFCP_ERP_SUCCEEDED)
 			zfcp_scsi_schedule_rport_register(port);
+		/* fall through */
+	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		put_device(&port->dev);
 		break;
 
@@ -1247,6 +1245,11 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 		goto unlock;
 	}
 
+	if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
+		retval = ZFCP_ERP_FAILED;
+		goto check_target;
+	}
+
 	zfcp_erp_action_to_running(erp_action);
 
 	/* no lock to allow for blocking operations */
@@ -1279,6 +1282,7 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 		goto unlock;
 	}
 
+check_target:
 	retval = zfcp_erp_strategy_check_target(erp_action, retval);
 	zfcp_erp_action_dequeue(erp_action);
 	retval = zfcp_erp_strategy_statechange(erp_action, retval);

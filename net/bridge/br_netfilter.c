@@ -55,6 +55,9 @@ static int brnf_call_arptables __read_mostly = 1;
 static int brnf_filter_vlan_tagged __read_mostly = 0;
 static int brnf_filter_pppoe_tagged __read_mostly = 0;
 #else
+#define brnf_call_iptables 1
+#define brnf_call_ip6tables 1
+#define brnf_call_arptables 1
 #define brnf_filter_vlan_tagged 0
 #define brnf_filter_pppoe_tagged 0
 #endif
@@ -117,26 +120,27 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 {
 	struct rtable *rt = &br->fake_rtable;
 
-	atomic_set(&rt->u.dst.__refcnt, 1);
-	rt->u.dst.dev = br->dev;
-	rt->u.dst.path = &rt->u.dst;
-	rt->u.dst.metrics[RTAX_MTU - 1] = 1500;
-	rt->u.dst.flags	= DST_NOXFRM;
-	rt->u.dst.ops = &fake_dst_ops;
+	atomic_set(&rt->dst.__refcnt, 1);
+	rt->dst.dev = br->dev;
+	rt->dst.path = &rt->dst;
+	rt->dst.metrics[RTAX_MTU - 1] = 1500;
+	rt->dst.flags	= DST_NOXFRM;
+	rt->dst.ops = &fake_dst_ops;
 }
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
-	struct net_bridge_port *port = rcu_dereference(dev->br_port);
-
-	return port ? &port->br->fake_rtable : NULL;
+	if (!br_port_exists(dev))
+		return NULL;
+	return &br_port_get_rcu(dev)->br->fake_rtable;
 }
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
 {
-	struct net_bridge_port *port = rcu_dereference(dev->br_port);
+	if (!br_port_exists(dev))
+		return NULL;
 
-	return port ? port->br->dev : NULL;
+	return br_port_get_rcu(dev)->br->dev;
 }
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
@@ -244,8 +248,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 		kfree_skb(skb);
 		return 0;
 	}
-	dst_hold(&rt->u.dst);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set_noref(skb, &rt->dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
@@ -396,8 +399,7 @@ bridged_dnat:
 			kfree_skb(skb);
 			return 0;
 		}
-		dst_hold(&rt->u.dst);
-		skb_dst_set(skb, &rt->u.dst);
+		skb_dst_set_noref(skb, &rt->dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -545,25 +547,30 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	struct iphdr *iph;
 	__u32 len = nf_bridge_encap_header_len(skb);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
 		goto out;
 
+	p = br_port_get_rcu(in);
+	if (p == NULL)
+		goto out;
+	br = p->br;
+
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
 	    IS_PPPOE_IPV6(skb)) {
-#ifdef CONFIG_SYSCTL
-		if (!brnf_call_ip6tables)
+		if (!brnf_call_ip6tables && !br->nf_call_ip6tables)
 			return NF_ACCEPT;
-#endif
+
 		nf_bridge_pull_encap_header_rcsum(skb);
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
-#ifdef CONFIG_SYSCTL
-	if (!brnf_call_iptables)
+
+	if (!brnf_call_iptables && !br->nf_call_iptables)
 		return NF_ACCEPT;
-#endif
 
 	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP(skb) &&
 	    !IS_PPPOE_IP(skb))
@@ -719,12 +726,17 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	struct net_device **d = (struct net_device **)(skb->cb);
 
-#ifdef CONFIG_SYSCTL
-	if (!brnf_call_arptables)
+	p = br_port_get_rcu(out);
+	if (p == NULL)
 		return NF_ACCEPT;
-#endif
+	br = p->br;
+
+	if (!brnf_call_arptables && !br->nf_call_arptables)
+		return NF_ACCEPT;
 
 	if (skb->protocol != htons(ETH_P_ARP)) {
 		if (!IS_VLAN_ARP(skb))

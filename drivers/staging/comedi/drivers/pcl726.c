@@ -162,7 +162,18 @@ static struct comedi_driver driver_pcl726 = {
 	.offset = sizeof(struct pcl726_board),
 };
 
-COMEDI_INITCLEANUP(driver_pcl726);
+static int __init driver_pcl726_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl726);
+}
+
+static void __exit driver_pcl726_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl726);
+}
+
+module_init(driver_pcl726_init_module);
+module_exit(driver_pcl726_cleanup_module);
 
 struct pcl726_private {
 
@@ -381,3 +392,7 @@ static int pcl726_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

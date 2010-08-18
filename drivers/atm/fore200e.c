@@ -2657,7 +2657,7 @@ static int __devinit fore200e_sba_probe(struct of_device *op,
 
 	fore200e->bus = bus;
 	fore200e->bus_dev = op;
-	fore200e->irq = op->irqs[0];
+	fore200e->irq = op->archdata.irqs[0];
 	fore200e->phys_base = op->resource[0].start;
 
 	sprintf(fore200e->name, "%s-%d", bus->model_name, index);
@@ -2795,7 +2795,7 @@ static int __init fore200e_module_init(void)
 	printk(FORE200E "FORE Systems 200E-series ATM driver - version " FORE200E_VERSION "\n");
 
 #ifdef CONFIG_SBUS
-	err = of_register_driver(&fore200e_sba_driver, &of_bus_type);
+	err = of_register_platform_driver(&fore200e_sba_driver);
 	if (err)
 		return err;
 #endif
@@ -2806,7 +2806,7 @@ static int __init fore200e_module_init(void)
 
 #ifdef CONFIG_SBUS
 	if (err)
-		of_unregister_driver(&fore200e_sba_driver);
+		of_unregister_platform_driver(&fore200e_sba_driver);
 #endif
 
 	return err;
@@ -2818,7 +2818,7 @@ static void __exit fore200e_module_cleanup(void)
 	pci_unregister_driver(&fore200e_pca_driver);
 #endif
 #ifdef CONFIG_SBUS
-	of_unregister_driver(&fore200e_sba_driver);
+	of_unregister_platform_driver(&fore200e_sba_driver);
 #endif
 }
 

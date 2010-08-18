@@ -34,6 +34,15 @@ enum bfa_itnim_state {
 	BFA_ITNIM_INITIATIOR 	= 7,	/*  initiator */
 };
 
+struct bfa_itnim_latency_s {
+	u32	min;
+	u32	max;
+	u32	count;
+	u32	clock_res;
+	u32	avg;
+	u32	rsvd;
+};
+
 struct bfa_itnim_hal_stats_s {
 	u32	onlines;	/*  ITN nexus onlines (PRLI done) */
 	u32	offlines;	/*  ITN Nexus offlines 	*/
@@ -91,6 +100,7 @@ struct bfa_itnim_attr_s {
 	u8	task_retry_id;  /*  task retry ident support   */
 	u8 rec_support;    /*  REC supported              */
 	u8 conf_comp;      /*  confirmed completion supp  */
+	struct bfa_itnim_latency_s  io_latency; /* IO latency  */
 };
 
 /**

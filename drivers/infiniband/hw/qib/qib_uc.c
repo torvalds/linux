@@ -272,9 +272,6 @@ void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	opcode >>= 24;
 	memset(&wc, 0, sizeof wc);
 
-	/* Prevent simultaneous processing after APM on different CPUs */
-	spin_lock(&qp->r_lock);
-
 	/* Compare the PSN verses the expected PSN. */
 	if (unlikely(qib_cmp24(psn, qp->r_psn) != 0)) {
 		/*
@@ -534,7 +531,6 @@ rdma_last:
 	}
 	qp->r_psn++;
 	qp->r_state = opcode;
-	spin_unlock(&qp->r_lock);
 	return;
 
 rewind:
@@ -542,12 +538,10 @@ rewind:
 	qp->r_sge.num_sge = 0;
 drop:
 	ibp->n_pkt_drops++;
-	spin_unlock(&qp->r_lock);
 	return;
 
 op_err:
 	qib_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-	spin_unlock(&qp->r_lock);
 	return;
 
 sunlock:

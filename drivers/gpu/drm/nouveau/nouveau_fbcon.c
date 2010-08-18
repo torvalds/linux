@@ -333,7 +333,7 @@ nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 	drm_fb_helper_hotplug_event(&dev_priv->nfbdev->helper);
 }
 
-int
+static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 {
 	struct nouveau_framebuffer *nouveau_fb = &nfbdev->nouveau_fb;

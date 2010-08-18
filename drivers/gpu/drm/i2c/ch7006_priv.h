@@ -77,7 +77,7 @@ struct ch7006_state {
 };
 
 struct ch7006_priv {
-	struct ch7006_encoder_params *params;
+	struct ch7006_encoder_params params;
 	struct ch7006_mode *mode;
 
 	struct ch7006_state state;

@@ -328,7 +328,7 @@ static struct irq_host_ops msic_host_ops = {
 	.map	= msic_host_map,
 };
 
-static int axon_msi_shutdown(struct of_device *device)
+static int axon_msi_shutdown(struct platform_device *device)
 {
 	struct axon_msic *msic = dev_get_drvdata(&device->dev);
 	u32 tmp;
@@ -342,7 +342,7 @@ static int axon_msi_shutdown(struct of_device *device)
 	return 0;
 }
 
-static int axon_msi_probe(struct of_device *device,
+static int axon_msi_probe(struct platform_device *device,
 			  const struct of_device_id *device_id)
 {
 	struct device_node *dn = device->dev.of_node;

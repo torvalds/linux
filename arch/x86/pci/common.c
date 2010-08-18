@@ -125,6 +125,23 @@ void __init dmi_check_skip_isa_align(void)
 static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
+	struct resource *bar_r;
+	int bar;
+
+	if (pci_probe & PCI_NOASSIGN_BARS) {
+		/*
+		* If the BIOS did not assign the BAR, zero out the
+		* resource so the kernel doesn't attmept to assign
+		* it later on in pci_assign_unassigned_resources
+		*/
+		for (bar = 0; bar <= PCI_STD_RESOURCE_END; bar++) {
+			bar_r = &dev->resource[bar];
+			if (bar_r->start == 0 && bar_r->end != 0) {
+				bar_r->flags = 0;
+				bar_r->end = 0;
+			}
+		}
+	}
 
 	if (pci_probe & PCI_NOASSIGN_ROMS) {
 		if (rom_r->parent)
@@ -508,6 +525,9 @@ char * __devinit  pcibios_setup(char *str)
 		return NULL;
 	} else if (!strcmp(str, "norom")) {
 		pci_probe |= PCI_NOASSIGN_ROMS;
+		return NULL;
+	} else if (!strcmp(str, "nobar")) {
+		pci_probe |= PCI_NOASSIGN_BARS;
 		return NULL;
 	} else if (!strcmp(str, "assign-busses")) {
 		pci_probe |= PCI_ASSIGN_ALL_BUSSES;

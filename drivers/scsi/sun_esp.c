@@ -116,7 +116,7 @@ static int __devinit esp_sbus_register_irq(struct esp *esp)
 	struct Scsi_Host *host = esp->host;
 	struct of_device *op = esp->dev;
 
-	host->irq = op->irqs[0];
+	host->irq = op->archdata.irqs[0];
 	return request_irq(host->irq, scsi_esp_intr, IRQF_SHARED, "ESP", esp);
 }
 
@@ -644,12 +644,12 @@ static struct of_platform_driver esp_sbus_driver = {
 
 static int __init sunesp_init(void)
 {
-	return of_register_driver(&esp_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&esp_sbus_driver);
 }
 
 static void __exit sunesp_exit(void)
 {
-	of_unregister_driver(&esp_sbus_driver);
+	of_unregister_platform_driver(&esp_sbus_driver);
 }
 
 MODULE_DESCRIPTION("Sun ESP SCSI driver");

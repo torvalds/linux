@@ -4,6 +4,7 @@
  * compatible drivers/servers. */
 #include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
+#include <linux/types.h>
 
 /* The feature bitmap for virtio 9P */
 

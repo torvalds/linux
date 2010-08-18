@@ -282,7 +282,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 	return block;
 
 carp:
-	dev_warn(&connector->dev->pdev->dev, "%s: EDID block %d invalid.\n",
+	dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
 		 drm_get_connector_name(connector), j);
 
 out:
@@ -929,13 +929,11 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
 		{ 1440,  576 },
 		{ 2880,  576 },
 	};
-	static const int n_sizes =
-		sizeof(cea_interlaced)/sizeof(cea_interlaced[0]);
 
 	if (!(pt->misc & DRM_EDID_PT_INTERLACED))
 		return;
 
-	for (i = 0; i < n_sizes; i++) {
+	for (i = 0; i < ARRAY_SIZE(cea_interlaced); i++) {
 		if ((mode->hdisplay == cea_interlaced[i].w) &&
 		    (mode->vdisplay == cea_interlaced[i].h / 2)) {
 			mode->vdisplay *= 2;
@@ -1375,7 +1373,6 @@ static const struct {
 	{ 1920, 1440, 60, 0 },
 	{ 1920, 1440, 75, 0 },
 };
-static const int num_est3_modes = sizeof(est3_modes) / sizeof(est3_modes[0]);
 
 static int
 drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
@@ -1387,7 +1384,7 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 	for (i = 0; i < 6; i++) {
 		for (j = 7; j > 0; j--) {
 			m = (i * 8) + (7 - j);
-			if (m >= num_est3_modes)
+			if (m >= ARRAY_SIZE(est3_modes))
 				break;
 			if (est[i] & (1 << j)) {
 				mode = drm_mode_find_dmt(connector->dev,
@@ -1626,7 +1623,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		return 0;
 	}
 	if (!drm_edid_is_valid(edid)) {
-		dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
+		dev_warn(connector->dev->dev, "%s: EDID invalid.\n",
 			 drm_get_connector_name(connector));
 		return 0;
 	}

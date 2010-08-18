@@ -19,6 +19,15 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
+#define RPC_CREDCACHE_DEFAULT_HASHBITS	(4)
+struct rpc_cred_cache {
+	struct hlist_head	*hashtable;
+	unsigned int		hashbits;
+	spinlock_t		lock;
+};
+
+static unsigned int auth_hashbits = RPC_CREDCACHE_DEFAULT_HASHBITS;
+
 static DEFINE_SPINLOCK(rpc_authflavor_lock);
 static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 	&authnull_ops,		/* AUTH_NULL */
@@ -28,6 +37,42 @@ static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 
 static LIST_HEAD(cred_unused);
 static unsigned long number_cred_unused;
+
+#define MAX_HASHTABLE_BITS (10) 
+static int param_set_hashtbl_sz(const char *val, struct kernel_param *kp)
+{
+	unsigned long num;
+	unsigned int nbits;
+	int ret;
+
+	if (!val)
+		goto out_inval;
+	ret = strict_strtoul(val, 0, &num);
+	if (ret == -EINVAL)
+		goto out_inval;
+	nbits = fls(num);
+	if (num > (1U << nbits))
+		nbits++;
+	if (nbits > MAX_HASHTABLE_BITS || nbits < 2)
+		goto out_inval;
+	*(unsigned int *)kp->arg = nbits;
+	return 0;
+out_inval:
+	return -EINVAL;
+}
+
+static int param_get_hashtbl_sz(char *buffer, struct kernel_param *kp)
+{
+	unsigned int nbits;
+
+	nbits = *(unsigned int *)kp->arg;
+	return sprintf(buffer, "%u", 1U << nbits);
+}
+
+#define param_check_hashtbl_sz(name, p) __param_check(name, p, unsigned int);
+
+module_param_named(auth_hashtable_size, auth_hashbits, hashtbl_sz, 0644);
+MODULE_PARM_DESC(auth_hashtable_size, "RPC credential cache hashtable size");
 
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
@@ -145,16 +190,23 @@ int
 rpcauth_init_credcache(struct rpc_auth *auth)
 {
 	struct rpc_cred_cache *new;
-	int i;
+	unsigned int hashsize;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
-	for (i = 0; i < RPC_CREDCACHE_NR; i++)
-		INIT_HLIST_HEAD(&new->hashtable[i]);
+		goto out_nocache;
+	new->hashbits = auth_hashbits;
+	hashsize = 1U << new->hashbits;
+	new->hashtable = kcalloc(hashsize, sizeof(new->hashtable[0]), GFP_KERNEL);
+	if (!new->hashtable)
+		goto out_nohashtbl;
 	spin_lock_init(&new->lock);
 	auth->au_credcache = new;
 	return 0;
+out_nohashtbl:
+	kfree(new);
+out_nocache:
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
 
@@ -183,11 +235,12 @@ rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 	LIST_HEAD(free);
 	struct hlist_head *head;
 	struct rpc_cred	*cred;
+	unsigned int hashsize = 1U << cache->hashbits;
 	int		i;
 
 	spin_lock(&rpc_credcache_lock);
 	spin_lock(&cache->lock);
-	for (i = 0; i < RPC_CREDCACHE_NR; i++) {
+	for (i = 0; i < hashsize; i++) {
 		head = &cache->hashtable[i];
 		while (!hlist_empty(head)) {
 			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
@@ -216,6 +269,7 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 	if (cache) {
 		auth->au_credcache = NULL;
 		rpcauth_clear_credcache(cache);
+		kfree(cache->hashtable);
 		kfree(cache);
 	}
 }
@@ -297,7 +351,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 			*entry, *new;
 	unsigned int nr;
 
-	nr = hash_long(acred->uid, RPC_CREDCACHE_HASHBITS);
+	nr = hash_long(acred->uid, cache->hashbits);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, pos, &cache->hashtable[nr], cr_hash) {
@@ -390,16 +444,16 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
-void
+struct rpc_cred *
 rpcauth_generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred, int lookupflags)
 {
-	task->tk_msg.rpc_cred = get_rpccred(cred);
 	dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
 			cred->cr_auth->au_ops->au_name, cred);
+	return get_rpccred(cred);
 }
 EXPORT_SYMBOL_GPL(rpcauth_generic_bind_cred);
 
-static void
+static struct rpc_cred *
 rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
@@ -407,45 +461,43 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 		.uid = 0,
 		.gid = 0,
 	};
-	struct rpc_cred *ret;
 
 	dprintk("RPC: %5u looking up %s cred\n",
 		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
-	ret = auth->au_ops->lookup_cred(auth, &acred, lookupflags);
-	if (!IS_ERR(ret))
-		task->tk_msg.rpc_cred = ret;
-	else
-		task->tk_status = PTR_ERR(ret);
+	return auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 }
 
-static void
+static struct rpc_cred *
 rpcauth_bind_new_cred(struct rpc_task *task, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
-	struct rpc_cred *ret;
 
 	dprintk("RPC: %5u looking up %s cred\n",
 		task->tk_pid, auth->au_ops->au_name);
-	ret = rpcauth_lookupcred(auth, lookupflags);
-	if (!IS_ERR(ret))
-		task->tk_msg.rpc_cred = ret;
-	else
-		task->tk_status = PTR_ERR(ret);
+	return rpcauth_lookupcred(auth, lookupflags);
 }
 
-void
+static int
 rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 {
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_cred *new;
 	int lookupflags = 0;
 
 	if (flags & RPC_TASK_ASYNC)
 		lookupflags |= RPCAUTH_LOOKUP_NEW;
 	if (cred != NULL)
-		cred->cr_ops->crbind(task, cred, lookupflags);
+		new = cred->cr_ops->crbind(task, cred, lookupflags);
 	else if (flags & RPC_TASK_ROOTCREDS)
-		rpcauth_bind_root_cred(task, lookupflags);
+		new = rpcauth_bind_root_cred(task, lookupflags);
 	else
-		rpcauth_bind_new_cred(task, lookupflags);
+		new = rpcauth_bind_new_cred(task, lookupflags);
+	if (IS_ERR(new))
+		return PTR_ERR(new);
+	if (req->rq_cred != NULL)
+		put_rpccred(req->rq_cred);
+	req->rq_cred = new;
+	return 0;
 }
 
 void
@@ -484,22 +536,10 @@ out_nodestroy:
 }
 EXPORT_SYMBOL_GPL(put_rpccred);
 
-void
-rpcauth_unbindcred(struct rpc_task *task)
-{
-	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
-
-	dprintk("RPC: %5u releasing %s cred %p\n",
-		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
-
-	put_rpccred(cred);
-	task->tk_msg.rpc_cred = NULL;
-}
-
 __be32 *
 rpcauth_marshcred(struct rpc_task *task, __be32 *p)
 {
-	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
+	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
 
 	dprintk("RPC: %5u marshaling %s cred %p\n",
 		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
@@ -510,7 +550,7 @@ rpcauth_marshcred(struct rpc_task *task, __be32 *p)
 __be32 *
 rpcauth_checkverf(struct rpc_task *task, __be32 *p)
 {
-	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
+	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
 
 	dprintk("RPC: %5u validating %s cred %p\n",
 		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
@@ -522,7 +562,7 @@ int
 rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp,
 		__be32 *data, void *obj)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 
 	dprintk("RPC: %5u using %s cred %p to wrap rpc data\n",
 			task->tk_pid, cred->cr_ops->cr_name, cred);
@@ -536,7 +576,7 @@ int
 rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 		__be32 *data, void *obj)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 
 	dprintk("RPC: %5u using %s cred %p to unwrap rpc data\n",
 			task->tk_pid, cred->cr_ops->cr_name, cred);
@@ -550,13 +590,21 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 int
 rpcauth_refreshcred(struct rpc_task *task)
 {
-	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
+	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
 	int err;
 
+	cred = task->tk_rqstp->rq_cred;
+	if (cred == NULL) {
+		err = rpcauth_bindcred(task, task->tk_msg.rpc_cred, task->tk_flags);
+		if (err < 0)
+			goto out;
+		cred = task->tk_rqstp->rq_cred;
+	};
 	dprintk("RPC: %5u refreshing %s cred %p\n",
 		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
 
 	err = cred->cr_ops->crrefresh(task);
+out:
 	if (err < 0)
 		task->tk_status = err;
 	return err;
@@ -565,7 +613,7 @@ rpcauth_refreshcred(struct rpc_task *task)
 void
 rpcauth_invalcred(struct rpc_task *task)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 
 	dprintk("RPC: %5u invalidating %s cred %p\n",
 		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
@@ -576,7 +624,7 @@ rpcauth_invalcred(struct rpc_task *task)
 int
 rpcauth_uptodatecred(struct rpc_task *task)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 
 	return cred == NULL ||
 		test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0;
@@ -587,14 +635,27 @@ static struct shrinker rpc_cred_shrinker = {
 	.seeks = DEFAULT_SEEKS,
 };
 
-void __init rpcauth_init_module(void)
+int __init rpcauth_init_module(void)
 {
-	rpc_init_authunix();
-	rpc_init_generic_auth();
+	int err;
+
+	err = rpc_init_authunix();
+	if (err < 0)
+		goto out1;
+	err = rpc_init_generic_auth();
+	if (err < 0)
+		goto out2;
 	register_shrinker(&rpc_cred_shrinker);
+	return 0;
+out2:
+	rpc_destroy_authunix();
+out1:
+	return err;
 }
 
 void __exit rpcauth_remove_module(void)
 {
+	rpc_destroy_authunix();
+	rpc_destroy_generic_auth();
 	unregister_shrinker(&rpc_cred_shrinker);
 }

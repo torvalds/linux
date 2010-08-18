@@ -115,6 +115,7 @@ MODULE_PARM_DESC(mpt_fwfault_debug, "Enable detection of Firmware fault"
 	" and halt Firmware on fault - (default=0)");
 
 
+static char	MptCallbacksName[MPT_MAX_PROTOCOL_DRIVERS][50];
 
 #ifdef MFCNT
 static int mfcounter = 0;
@@ -213,7 +214,7 @@ static int	ProcessEventNotification(MPT_ADAPTER *ioc,
 static void	mpt_iocstatus_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf);
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
-static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
+static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info , u8 cb_idx);
 static int	mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 static void	mpt_inactive_raid_list_free(MPT_ADAPTER *ioc);
 
@@ -490,7 +491,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 		else if (ioc->bus_type == SPI)
 			mpt_spi_log_info(ioc, log_info);
 		else if (ioc->bus_type == SAS)
-			mpt_sas_log_info(ioc, log_info);
+			mpt_sas_log_info(ioc, log_info, cb_idx);
 	}
 
 	if (ioc_stat & MPI_IOCSTATUS_MASK)
@@ -644,7 +645,7 @@ mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
  *	considered an error by the caller.
  */
 u8
-mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass)
+mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass, char *func_name)
 {
 	u8 cb_idx;
 	last_drv_idx = MPT_MAX_PROTOCOL_DRIVERS;
@@ -659,6 +660,8 @@ mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass)
 			MptDriverClass[cb_idx] = dclass;
 			MptEvHandlers[cb_idx] = NULL;
 			last_drv_idx = cb_idx;
+			memcpy(MptCallbacksName[cb_idx], func_name,
+			    strlen(func_name) > 50 ? 50 : strlen(func_name));
 			break;
 		}
 	}
@@ -1632,6 +1635,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 		} else {
 			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
 			    ioc->name, pci_name(pdev));
+			pci_release_selected_regions(pdev, ioc->bars);
 			return r;
 		}
 	} else {
@@ -1645,6 +1649,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 		} else {
 			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
 			    ioc->name, pci_name(pdev));
+			pci_release_selected_regions(pdev, ioc->bars);
 			return r;
 		}
 	}
@@ -1675,6 +1680,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 	if (mem == NULL) {
 		printk(MYIOC_s_ERR_FMT ": ERROR - Unable to map adapter"
 			" memory!\n", ioc->name);
+		pci_release_selected_regions(pdev, ioc->bars);
 		return -EINVAL;
 	}
 	ioc->memmap = mem;
@@ -1770,7 +1776,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->req_sz = MPT_DEFAULT_FRAME_SIZE;		/* avoid div by zero! */
 	ioc->reply_sz = MPT_REPLY_FRAME_SIZE;
 
-	ioc->pcidev = pdev;
 
 	spin_lock_init(&ioc->taskmgmt_lock);
 	mutex_init(&ioc->internal_cmds.mutex);
@@ -1794,7 +1799,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->sh = NULL;
 	ioc->cached_fw = NULL;
 
-	/* Initilize SCSI Config Data structure
+	/* Initialize SCSI Config Data structure
 	 */
 	memset(&ioc->spi_data, 0, sizeof(SpiCfgData));
 
@@ -1913,6 +1918,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->msi_enable = 0;
 		break;
 	}
+
+	ioc->fw_events_off = 1;
+
 	if (ioc->errata_flag_1064)
 		pci_disable_io_access(pdev);
 
@@ -2051,7 +2059,6 @@ mpt_detach(struct pci_dev *pdev)
 
 	mpt_adapter_dispose(ioc);
 
-	pci_set_drvdata(pdev, NULL);
 }
 
 /**************************************************************************
@@ -2471,7 +2478,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP)) {
 
 		/*
-		 * Initalize link list for inactive raid volumes.
+		 * Initialize link list for inactive raid volumes.
 		 */
 		mutex_init(&ioc->raid_data.inactive_list_mutex);
 		INIT_LIST_HEAD(&ioc->raid_data.inactive_list);
@@ -5062,8 +5069,9 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
 			goto out;
 		if (!timeleft) {
-			printk(KERN_DEBUG "%s: Issuing Reset from %s!!\n",
-			    ioc->name, __func__);
+			printk(MYIOC_s_WARN_FMT
+			       "Issuing Reset from %s!!, doorbell=0x%08x\n",
+			       ioc->name, __func__, mpt_GetIocState(ioc, 0));
 			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 			mpt_free_msg_frame(ioc, mf);
 		}
@@ -6454,8 +6462,9 @@ out:
 	mutex_unlock(&ioc->mptbase_cmds.mutex);
 	if (issue_hard_reset) {
 		issue_hard_reset = 0;
-		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
-		    ioc->name, __func__);
+		printk(MYIOC_s_WARN_FMT
+		       "Issuing Reset from %s!!, doorbell=0x%08x\n",
+		       ioc->name, __func__, mpt_GetIocState(ioc, 0));
 		if (retry_count == 0) {
 			if (mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP) != 0)
 				retry_count++;
@@ -6971,6 +6980,7 @@ mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	if (ioc->taskmgmt_in_progress) {
+		ioc->ioc_reset_in_progress = 0;
 		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 		return -1;
 	}
@@ -7144,7 +7154,8 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	rc = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_RECOVER, sleepFlag);
 	if (rc != 0) {
 		printk(KERN_WARNING MYNAM
-		    ": WARNING - (%d) Cannot recover %s\n", rc, ioc->name);
+		       ": WARNING - (%d) Cannot recover %s, doorbell=0x%08x\n",
+		       rc, ioc->name, mpt_GetIocState(ioc, 0));
 	} else {
 		if (ioc->hard_resets < -1)
 			ioc->hard_resets++;
@@ -7997,7 +8008,7 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
  *	Refer to lsi/mpi_log_sas.h.
  **/
 static void
-mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info)
+mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info, u8 cb_idx)
 {
 union loginfo_type {
 	u32	loginfo;
@@ -8051,21 +8062,22 @@ union loginfo_type {
 	if (sub_code_desc != NULL)
 		printk(MYIOC_s_INFO_FMT
 			"LogInfo(0x%08x): Originator={%s}, Code={%s},"
-			" SubCode={%s}\n",
+			" SubCode={%s} cb_idx %s\n",
 			ioc->name, log_info, originator_desc, code_desc,
-			sub_code_desc);
+			sub_code_desc, MptCallbacksName[cb_idx]);
 	else if (code_desc != NULL)
 		printk(MYIOC_s_INFO_FMT
 			"LogInfo(0x%08x): Originator={%s}, Code={%s},"
-			" SubCode(0x%04x)\n",
+			" SubCode(0x%04x) cb_idx %s\n",
 			ioc->name, log_info, originator_desc, code_desc,
-			sas_loginfo.dw.subcode);
+			sas_loginfo.dw.subcode, MptCallbacksName[cb_idx]);
 	else
 		printk(MYIOC_s_INFO_FMT
 			"LogInfo(0x%08x): Originator={%s}, Code=(0x%02x),"
-			" SubCode(0x%04x)\n",
+			" SubCode(0x%04x) cb_idx %s\n",
 			ioc->name, log_info, originator_desc,
-			sas_loginfo.dw.code, sas_loginfo.dw.subcode);
+			sas_loginfo.dw.code, sas_loginfo.dw.subcode,
+			MptCallbacksName[cb_idx]);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -8430,7 +8442,8 @@ fusion_init(void)
 	/*  Register ourselves (mptbase) in order to facilitate
 	 *  EventNotification handling.
 	 */
-	mpt_base_index = mpt_register(mptbase_reply, MPTBASE_DRIVER);
+	mpt_base_index = mpt_register(mptbase_reply, MPTBASE_DRIVER,
+	    "mptbase_reply");
 
 	/* Register for hard reset handling callbacks.
 	 */

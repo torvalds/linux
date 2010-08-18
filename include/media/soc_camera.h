@@ -12,11 +12,14 @@
 #ifndef SOC_CAMERA_H
 #define SOC_CAMERA_H
 
+#include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/v4l2-device.h>
+
+extern struct bus_type soc_camera_bus_type;
 
 struct soc_camera_device {
 	struct list_head list;

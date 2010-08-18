@@ -54,31 +54,62 @@ static int      bfa_io_max_sge = BFAD_IO_MAX_SGE;
 static int      log_level = BFA_LOG_WARNING;
 static int      ioc_auto_recover = BFA_TRUE;
 static int      ipfc_enable = BFA_FALSE;
-static int      ipfc_mtu = -1;
 static int	fdmi_enable = BFA_TRUE;
 int 		bfa_lun_queue_depth = BFAD_LUN_QUEUE_DEPTH;
 int      	bfa_linkup_delay = -1;
+int		bfa_debugfs_enable = 1;
 
 module_param(os_name, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(os_name, "OS name of the hba host machine");
 module_param(os_patch, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(os_patch, "OS patch level of the hba host machine");
 module_param(host_name, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(host_name, "Hostname of the hba host machine");
 module_param(num_rports, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_rports, "Max number of rports supported per port"
+		" (physical/logical), default=1024");
 module_param(num_ios, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_ios, "Max number of ioim requests, default=2000");
 module_param(num_tms, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_tms, "Max number of task im requests, default=128");
 module_param(num_fcxps, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_fcxps, "Max number of fcxp requests, default=64");
 module_param(num_ufbufs, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_ufbufs, "Max number of unsolicited frame buffers,"
+		" default=64");
 module_param(reqq_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reqq_size, "Max number of request queue elements,"
+		" default=256");
 module_param(rspq_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rspq_size, "Max number of response queue elements,"
+		" default=64");
 module_param(num_sgpgs, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_sgpgs, "Number of scatter/gather pages, default=2048");
 module_param(rport_del_timeout, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rport_del_timeout, "Rport delete timeout, default=90 secs,"
+		" Range[>0]");
 module_param(bfa_lun_queue_depth, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_lun_queue_depth, "Lun queue depth, default=32,"
+		" Range[>0]");
 module_param(bfa_io_max_sge, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_io_max_sge, "Max io scatter/gather elements, default=255");
 module_param(log_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(log_level, "Driver log level, default=3,"
+		" Range[Critical:1|Error:2|Warning:3|Info:4]");
 module_param(ioc_auto_recover, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ioc_auto_recover, "IOC auto recovery, default=1,"
+		" Range[off:0|on:1]");
 module_param(ipfc_enable, int, S_IRUGO | S_IWUSR);
-module_param(ipfc_mtu, int, S_IRUGO | S_IWUSR);
-module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ipfc_enable, "Enable IPoFC, default=0, Range[off:0|on:1]");
 module_param(bfa_linkup_delay, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_linkup_delay, "Link up delay, default=30 secs for boot"
+		" port. Otherwise Range[>0]");
+module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1,"
+		" Range[false:0|true:1]");
+module_param(bfa_debugfs_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
+		" Range[false:0|true:1]");
 
 /*
  * Stores the module parm num_sgpgs value;
@@ -322,7 +353,31 @@ ext:
 	return rc;
 }
 
+/**
+ * @brief
+ * FCS PBC VPORT Create
+ */
+void
+bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s pbc_vport)
+{
 
+	struct bfad_pcfg_s *pcfg;
+
+	pcfg = kzalloc(sizeof(struct bfad_pcfg_s), GFP_ATOMIC);
+	if (!pcfg) {
+		bfa_trc(bfad, 0);
+		return;
+	}
+
+	pcfg->port_cfg.roles = BFA_PORT_ROLE_FCP_IM;
+	pcfg->port_cfg.pwwn = pbc_vport.vp_pwwn;
+	pcfg->port_cfg.nwwn = pbc_vport.vp_nwwn;
+	pcfg->port_cfg.preboot_vp  = BFA_TRUE;
+
+	list_add_tail(&pcfg->list_entry, &bfad->pbc_pcfg_list);
+
+	return;
+}
 
 void
 bfad_hal_mem_release(struct bfad_s *bfad)
@@ -481,10 +536,10 @@ ext:
  */
 bfa_status_t
 bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-		  struct bfa_port_cfg_s *port_cfg, struct device *dev)
+			struct bfa_port_cfg_s *port_cfg, struct device *dev)
 {
 	struct bfad_vport_s *vport;
-	int             rc = BFA_STATUS_OK;
+	int rc = BFA_STATUS_OK;
 	unsigned long   flags;
 	struct completion fcomp;
 
@@ -496,8 +551,12 @@ bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 
 	vport->drv_port.bfad = bfad;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_fcs_vport_create(&vport->fcs_vport, &bfad->bfa_fcs, vf_id,
-				  port_cfg, vport);
+	if (port_cfg->preboot_vp == BFA_TRUE)
+		rc = bfa_fcs_pbc_vport_create(&vport->fcs_vport,
+				&bfad->bfa_fcs, vf_id, port_cfg, vport);
+	else
+		rc = bfa_fcs_vport_create(&vport->fcs_vport,
+				&bfad->bfa_fcs, vf_id, port_cfg, vport);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	if (rc != BFA_STATUS_OK)
@@ -848,6 +907,10 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role)
 		bfad->pport.roles |= BFA_PORT_ROLE_FCP_IM;
 	}
 
+	/* Setup the debugfs node for this scsi_host */
+	if (bfa_debugfs_enable)
+		bfad_debugfs_init(&bfad->pport);
+
 	bfad->bfad_flags |= BFAD_CFG_PPORT_DONE;
 
 out:
@@ -857,6 +920,10 @@ out:
 void
 bfad_uncfg_pport(struct bfad_s *bfad)
 {
+	 /* Remove the debugfs node for this scsi_host */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
+
 	if ((bfad->pport.roles & BFA_PORT_ROLE_FCP_IPFC) && ipfc_enable) {
 		bfad_ipfc_port_delete(bfad, &bfad->pport);
 		bfad->pport.roles &= ~BFA_PORT_ROLE_FCP_IPFC;
@@ -884,6 +951,7 @@ bfa_status_t
 bfad_start_ops(struct bfad_s *bfad)
 {
 	int retval;
+	struct bfad_pcfg_s *pcfg, *pcfg_new;
 
 	/* PPORT FCS config */
 	bfad_fcs_port_cfg(bfad);
@@ -900,6 +968,27 @@ bfad_start_ops(struct bfad_s *bfad)
 	}
 
 	bfad_drv_start(bfad);
+
+	/* pbc vport creation */
+	list_for_each_entry_safe(pcfg, pcfg_new,  &bfad->pbc_pcfg_list,
+					list_entry) {
+		struct fc_vport_identifiers vid;
+		struct fc_vport *fc_vport;
+
+		memset(&vid, 0, sizeof(vid));
+		vid.roles = FC_PORT_ROLE_FCP_INITIATOR;
+		vid.vport_type = FC_PORTTYPE_NPIV;
+		vid.disable = false;
+		vid.node_name = wwn_to_u64((u8 *)&pcfg->port_cfg.nwwn);
+		vid.port_name = wwn_to_u64((u8 *)&pcfg->port_cfg.pwwn);
+		fc_vport = fc_vport_create(bfad->pport.im_port->shost, 0, &vid);
+		if (!fc_vport)
+			printk(KERN_WARNING "bfad%d: failed to create pbc vport"
+				" %llx\n", bfad->inst_no, vid.port_name);
+		list_del(&pcfg->list_entry);
+		kfree(pcfg);
+
+	}
 
 	/*
 	 * If bfa_linkup_delay is set to -1 default; try to retrive the
@@ -928,7 +1017,7 @@ out_cfg_pport_failure:
 }
 
 int
-bfad_worker (void *ptr)
+bfad_worker(void *ptr)
 {
 	struct bfad_s *bfad;
 	unsigned long   flags;
@@ -1031,6 +1120,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	bfad->ref_count = 0;
 	bfad->pport.bfad = bfad;
+	INIT_LIST_HEAD(&bfad->pbc_pcfg_list);
 
 	bfad->bfad_tsk = kthread_create(bfad_worker, (void *) bfad, "%s",
 					"bfad_worker");
@@ -1172,6 +1262,14 @@ static struct pci_device_id bfad_id_table[] = {
 	 .class = (PCI_CLASS_SERIAL_FIBER << 8),
 	 .class_mask = ~0,
 	 },
+	{
+	 .vendor = BFA_PCI_VENDOR_ID_BROCADE,
+	 .device = BFA_PCI_DEVICE_ID_CT_FC,
+	 .subvendor = PCI_ANY_ID,
+	 .subdevice = PCI_ANY_ID,
+	 .class = (PCI_CLASS_SERIAL_FIBER << 8),
+	 .class_mask = ~0,
+	},
 
 	{0, 0},
 };

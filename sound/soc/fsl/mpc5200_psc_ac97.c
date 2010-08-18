@@ -20,6 +20,7 @@
 
 #include <asm/time.h>
 #include <asm/delay.h>
+#include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
 
 #include "mpc5200_dma.h"
@@ -100,19 +101,32 @@ static void psc_ac97_warm_reset(struct snd_ac97 *ac97)
 {
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 
+	mutex_lock(&psc_dma->mutex);
+
 	out_be32(&regs->sicr, psc_dma->sicr | MPC52xx_PSC_SICR_AWR);
 	udelay(3);
 	out_be32(&regs->sicr, psc_dma->sicr);
+
+	mutex_unlock(&psc_dma->mutex);
 }
 
 static void psc_ac97_cold_reset(struct snd_ac97 *ac97)
 {
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 
-	/* Do a cold reset */
-	out_8(&regs->op1, MPC52xx_PSC_OP_RES);
-	udelay(10);
-	out_8(&regs->op0, MPC52xx_PSC_OP_RES);
+	mutex_lock(&psc_dma->mutex);
+	dev_dbg(psc_dma->dev, "cold reset\n");
+
+	mpc5200_psc_ac97_gpio_reset(psc_dma->id);
+
+	/* Notify the PSC that a reset has occurred */
+	out_be32(&regs->sicr, psc_dma->sicr | MPC52xx_PSC_SICR_ACRB);
+
+	/* Re-enable RX and TX */
+	out_8(&regs->command, MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
+
+	mutex_unlock(&psc_dma->mutex);
+
 	msleep(1);
 	psc_ac97_warm_reset(ac97);
 }

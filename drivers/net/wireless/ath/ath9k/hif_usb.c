@@ -16,12 +16,27 @@
 
 #include "htc.h"
 
-#define ATH9K_FW_USB_DEV(devid, fw)					\
-	{ USB_DEVICE(0x0cf3, devid), .driver_info = (unsigned long) fw }
+/* identify firmware images */
+#define FIRMWARE_AR7010		"ar7010.fw"
+#define FIRMWARE_AR7010_1_1	"ar7010_1_1.fw"
+#define FIRMWARE_AR9271		"ar9271.fw"
+
+MODULE_FIRMWARE(FIRMWARE_AR7010);
+MODULE_FIRMWARE(FIRMWARE_AR7010_1_1);
+MODULE_FIRMWARE(FIRMWARE_AR9271);
 
 static struct usb_device_id ath9k_hif_usb_ids[] = {
-	ATH9K_FW_USB_DEV(0x9271, "ar9271.fw"),
-	ATH9K_FW_USB_DEV(0x1006, "ar9271.fw"),
+	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x7010) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x7015) }, /* Atheros */
+	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
+	{ USB_DEVICE(0x0846, 0x9018) }, /* Netgear WNDA3200 */
+	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
+	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
+	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
+	{ USB_DEVICE(0x083A, 0xA704) }, /* SMC Networks */
 	{ },
 };
 
@@ -760,6 +775,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	size_t len = hif_dev->firmware->size;
 	u32 addr = AR9271_FIRMWARE;
 	u8 *buf = kzalloc(4096, GFP_KERNEL);
+	u32 firm_offset;
 
 	if (!buf)
 		return -ENOMEM;
@@ -783,32 +799,37 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
+	if (hif_dev->device_id == 0x7010)
+		firm_offset = AR7010_FIRMWARE_TEXT;
+	else
+		firm_offset = AR9271_FIRMWARE_TEXT;
+
 	/*
 	 * Issue FW download complete command to firmware.
 	 */
 	err = usb_control_msg(hif_dev->udev, usb_sndctrlpipe(hif_dev->udev, 0),
 			      FIRMWARE_DOWNLOAD_COMP,
 			      0x40 | USB_DIR_OUT,
-			      AR9271_FIRMWARE_TEXT >> 8, 0, NULL, 0, HZ);
+			      firm_offset >> 8, 0, NULL, 0, HZ);
 	if (err)
 		return -EIO;
 
 	dev_info(&hif_dev->udev->dev, "ath9k_htc: Transferred FW: %s, size: %ld\n",
-		 "ar9271.fw", (unsigned long) hif_dev->firmware->size);
+		 hif_dev->fw_name, (unsigned long) hif_dev->firmware->size);
 
 	return 0;
 }
 
-static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
-				  const char *fw_name)
+static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 {
 	int ret;
 
 	/* Request firmware */
-	ret = request_firmware(&hif_dev->firmware, fw_name, &hif_dev->udev->dev);
+	ret = request_firmware(&hif_dev->firmware, hif_dev->fw_name,
+			       &hif_dev->udev->dev);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s not found\n", fw_name);
+			"ath9k_htc: Firmware - %s not found\n", hif_dev->fw_name);
 		goto err_fw_req;
 	}
 
@@ -824,7 +845,8 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
 	ret = ath9k_hif_usb_download_fw(hif_dev);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s download failed\n", fw_name);
+			"ath9k_htc: Firmware - %s download failed\n",
+			hif_dev->fw_name);
 		goto err_fw_download;
 	}
 
@@ -851,7 +873,6 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev;
-	const char *fw_name = (const char *) id->driver_info;
 	int ret = 0;
 
 	hif_dev = kzalloc(sizeof(struct hif_device_usb), GFP_KERNEL);
@@ -876,7 +897,27 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 		goto err_htc_hw_alloc;
 	}
 
-	ret = ath9k_hif_usb_dev_init(hif_dev, fw_name);
+	/* Find out which firmware to load */
+
+	switch(hif_dev->device_id) {
+	case 0x7010:
+	case 0x9018:
+		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
+			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
+		else
+			hif_dev->fw_name = FIRMWARE_AR7010;
+		break;
+	default:
+		hif_dev->fw_name = FIRMWARE_AR9271;
+		break;
+	}
+
+	if (!hif_dev->fw_name) {
+		dev_err(&udev->dev, "Can't determine firmware !\n");
+		goto err_htc_hw_alloc;
+	}
+
+	ret = ath9k_hif_usb_dev_init(hif_dev);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_hif_init_usb;
@@ -911,11 +952,9 @@ static void ath9k_hif_usb_reboot(struct usb_device *udev)
 	void *buf;
 	int ret;
 
-	buf = kmalloc(4, GFP_KERNEL);
+	buf = kmemdup(&reboot_cmd, 4, GFP_KERNEL);
 	if (!buf)
 		return;
-
-	memcpy(buf, &reboot_cmd, 4);
 
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, USB_REG_OUT_PIPE),
 			   buf, 4, NULL, HZ);

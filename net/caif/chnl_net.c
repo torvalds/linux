@@ -23,7 +23,7 @@
 #include <net/caif/caif_dev.h>
 
 /* GPRS PDP connection has MTU to 1500 */
-#define SIZE_MTU 1500
+#define GPRS_PDP_MTU 1500
 /* 5 sec. connect timeout */
 #define CONNECT_TIMEOUT (5 * HZ)
 #define CAIF_NET_DEFAULT_QUEUE_LEN 500
@@ -232,6 +232,8 @@ static int chnl_net_open(struct net_device *dev)
 {
 	struct chnl_net *priv = NULL;
 	int result = -1;
+	int llifindex, headroom, tailroom, mtu;
+	struct net_device *lldev;
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	if (!priv) {
@@ -241,41 +243,88 @@ static int chnl_net_open(struct net_device *dev)
 
 	if (priv->state != CAIF_CONNECTING) {
 		priv->state = CAIF_CONNECTING;
-		result = caif_connect_client(&priv->conn_req, &priv->chnl);
+		result = caif_connect_client(&priv->conn_req, &priv->chnl,
+					&llifindex, &headroom, &tailroom);
 		if (result != 0) {
-				priv->state = CAIF_DISCONNECTED;
 				pr_debug("CAIF: %s(): err: "
 					"Unable to register and open device,"
 					" Err:%d\n",
 					__func__,
 					result);
-				return result;
+				goto error;
+		}
+
+		lldev = dev_get_by_index(dev_net(dev), llifindex);
+
+		if (lldev == NULL) {
+			pr_debug("CAIF: %s(): no interface?\n", __func__);
+			result = -ENODEV;
+			goto error;
+		}
+
+		dev->needed_tailroom = tailroom + lldev->needed_tailroom;
+		dev->hard_header_len = headroom + lldev->hard_header_len +
+			lldev->needed_tailroom;
+
+		/*
+		 * MTU, head-room etc is not know before we have a
+		 * CAIF link layer device available. MTU calculation may
+		 * override initial RTNL configuration.
+		 * MTU is minimum of current mtu, link layer mtu pluss
+		 * CAIF head and tail, and PDP GPRS contexts max MTU.
+		 */
+		mtu = min_t(int, dev->mtu, lldev->mtu - (headroom + tailroom));
+		mtu = min_t(int, GPRS_PDP_MTU, mtu);
+		dev_set_mtu(dev, mtu);
+		dev_put(lldev);
+
+		if (mtu < 100) {
+			pr_warning("CAIF: %s(): "
+				"CAIF Interface MTU too small (%d)\n",
+				__func__, mtu);
+			result = -ENODEV;
+			goto error;
 		}
 	}
+
+	rtnl_unlock();  /* Release RTNL lock during connect wait */
 
 	result = wait_event_interruptible_timeout(priv->netmgmt_wq,
 						priv->state != CAIF_CONNECTING,
 						CONNECT_TIMEOUT);
 
+	rtnl_lock();
+
 	if (result == -ERESTARTSYS) {
 		pr_debug("CAIF: %s(): wait_event_interruptible"
 			 " woken by a signal\n", __func__);
-		return -ERESTARTSYS;
+		result = -ERESTARTSYS;
+		goto error;
 	}
+
 	if (result == 0) {
 		pr_debug("CAIF: %s(): connect timeout\n", __func__);
 		caif_disconnect_client(&priv->chnl);
 		priv->state = CAIF_DISCONNECTED;
 		pr_debug("CAIF: %s(): state disconnected\n", __func__);
-		return -ETIMEDOUT;
+		result = -ETIMEDOUT;
+		goto error;
 	}
 
 	if (priv->state != CAIF_CONNECTED) {
 		pr_debug("CAIF: %s(): connect failed\n", __func__);
-		return -ECONNREFUSED;
+		result = -ECONNREFUSED;
+		goto error;
 	}
 	pr_debug("CAIF: %s(): CAIF Netdevice connected\n", __func__);
 	return 0;
+
+error:
+	caif_disconnect_client(&priv->chnl);
+	priv->state = CAIF_DISCONNECTED;
+	pr_debug("CAIF: %s(): state disconnected\n", __func__);
+	return result;
+
 }
 
 static int chnl_net_stop(struct net_device *dev)
@@ -321,9 +370,7 @@ static void ipcaif_net_setup(struct net_device *dev)
 	dev->destructor = free_netdev;
 	dev->flags |= IFF_NOARP;
 	dev->flags |= IFF_POINTOPOINT;
-	dev->needed_headroom = CAIF_NEEDED_HEADROOM;
-	dev->needed_tailroom = CAIF_NEEDED_TAILROOM;
-	dev->mtu = SIZE_MTU;
+	dev->mtu = GPRS_PDP_MTU;
 	dev->tx_queue_len = CAIF_NET_DEFAULT_QUEUE_LEN;
 
 	priv = netdev_priv(dev);

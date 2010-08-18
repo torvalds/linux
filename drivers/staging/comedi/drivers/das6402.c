@@ -109,7 +109,18 @@ static struct comedi_driver driver_das6402 = {
 	.detach = das6402_detach,
 };
 
-COMEDI_INITCLEANUP(driver_das6402);
+static int __init driver_das6402_init_module(void)
+{
+	return comedi_driver_register(&driver_das6402);
+}
+
+static void __exit driver_das6402_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das6402);
+}
+
+module_init(driver_das6402_init_module);
+module_exit(driver_das6402_cleanup_module);
 
 struct das6402_private {
 	int ai_bytes_to_read;
@@ -360,3 +371,7 @@ static int das6402_attach(struct comedi_device *dev,
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

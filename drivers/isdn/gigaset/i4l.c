@@ -419,6 +419,8 @@ oom:
 	dev_err(bcs->cs->dev, "out of memory\n");
 	for (i = 0; i < AT_NUM; ++i)
 		kfree(commands[i]);
+	kfree(commands);
+	gigaset_free_channel(bcs);
 	return -ENOMEM;
 }
 
@@ -643,9 +645,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->maxbufsize = MAX_BUF_SIZE;
 	iif->features = ISDN_FEATURE_L2_TRANS |
 		ISDN_FEATURE_L2_HDLC |
-#ifdef GIG_X75
 		ISDN_FEATURE_L2_X75I |
-#endif
 		ISDN_FEATURE_L3_TRANS |
 		ISDN_FEATURE_P_EURO;
 	iif->hl_hdrlen = HW_HDR_LEN;		/* Area for storing ack */

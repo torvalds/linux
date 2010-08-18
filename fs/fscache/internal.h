@@ -82,6 +82,14 @@ extern unsigned fscache_defer_lookup;
 extern unsigned fscache_defer_create;
 extern unsigned fscache_debug;
 extern struct kobject *fscache_root;
+extern struct workqueue_struct *fscache_object_wq;
+extern struct workqueue_struct *fscache_op_wq;
+DECLARE_PER_CPU(wait_queue_head_t, fscache_object_cong_wait);
+
+static inline bool fscache_object_congested(void)
+{
+	return workqueue_congested(WORK_CPU_UNBOUND, fscache_object_wq);
+}
 
 extern int fscache_wait_bit(void *);
 extern int fscache_wait_bit_interruptible(void *);

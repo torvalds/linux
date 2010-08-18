@@ -39,7 +39,7 @@ struct fsl_pq_mdio {
 	u8 reserved[28];	/* Space holder */
 	u32 utbipar;		/* TBI phy address reg (only on UCC) */
 	u8 res4[2728];
-} __attribute__ ((packed));
+} __packed;
 
 int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum);
 int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value);

@@ -46,9 +46,11 @@ void netpoll_poll(struct netpoll *np);
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len);
 void netpoll_print_options(struct netpoll *np);
 int netpoll_parse_options(struct netpoll *np, char *opt);
+int __netpoll_setup(struct netpoll *np);
 int netpoll_setup(struct netpoll *np);
 int netpoll_trap(void);
 void netpoll_set_trap(int trap);
+void __netpoll_cleanup(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
 int __netpoll_rx(struct sk_buff *skb);
 void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
@@ -57,12 +59,15 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
 #ifdef CONFIG_NETPOLL
 static inline bool netpoll_rx(struct sk_buff *skb)
 {
-	struct netpoll_info *npinfo = skb->dev->npinfo;
+	struct netpoll_info *npinfo;
 	unsigned long flags;
 	bool ret = false;
 
+	rcu_read_lock_bh();
+	npinfo = rcu_dereference_bh(skb->dev->npinfo);
+
 	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
-		return false;
+		goto out;
 
 	spin_lock_irqsave(&npinfo->rx_lock, flags);
 	/* check rx_flags again with the lock held */
@@ -70,12 +75,14 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 		ret = true;
 	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 
+out:
+	rcu_read_unlock_bh();
 	return ret;
 }
 
 static inline int netpoll_rx_on(struct sk_buff *skb)
 {
-	struct netpoll_info *npinfo = skb->dev->npinfo;
+	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
 	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
 }
@@ -91,7 +98,6 @@ static inline void *netpoll_poll_lock(struct napi_struct *napi)
 {
 	struct net_device *dev = napi->dev;
 
-	rcu_read_lock(); /* deal with race on ->npinfo */
 	if (dev && dev->npinfo) {
 		spin_lock(&napi->poll_lock);
 		napi->poll_owner = smp_processor_id();
@@ -108,7 +114,11 @@ static inline void netpoll_poll_unlock(void *have)
 		napi->poll_owner = -1;
 		spin_unlock(&napi->poll_lock);
 	}
-	rcu_read_unlock();
+}
+
+static inline int netpoll_tx_running(struct net_device *dev)
+{
+	return irqs_disabled();
 }
 
 #else
@@ -133,6 +143,10 @@ static inline void netpoll_poll_unlock(void *have)
 }
 static inline void netpoll_netdev_init(struct net_device *dev)
 {
+}
+static inline int netpoll_tx_running(struct net_device *dev)
+{
+	return 0;
 }
 #endif
 

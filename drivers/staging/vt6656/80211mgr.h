@@ -19,7 +19,7 @@
  *
  * File: 80211mgr.h
  *
- * Purpose: 802.11 managment frames pre-defines.
+ * Purpose: 802.11 management frames pre-defines.
  *
  *
  * Author: Lyndon Chen
@@ -222,14 +222,11 @@
 #define MEASURE_MODE_INCAPABLE  0x02
 #define MEASURE_MODE_REFUSED    0x04
 
-
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Types  ------------------------------*/
-
 
 // Information Element Types
 
@@ -237,9 +234,8 @@
 typedef struct tagWLAN_IE {
     BYTE   byElementID;
     BYTE   len;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE, *PWLAN_IE;
-
 
 // Service Set Identity (SSID)
 #pragma pack(1)
@@ -247,9 +243,8 @@ typedef struct tagWLAN_IE_SSID {
     BYTE   byElementID;
     BYTE   len;
     BYTE   abySSID[1];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_SSID, *PWLAN_IE_SSID;
-
 
 // Supported Rates
 #pragma pack(1)
@@ -257,10 +252,8 @@ typedef struct tagWLAN_IE_SUPP_RATES {
     BYTE   byElementID;
     BYTE   len;
     BYTE   abyRates[1];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_SUPP_RATES,  *PWLAN_IE_SUPP_RATES;
-
-
 
 // FH Parameter Set
 #pragma pack(1)
@@ -279,9 +272,8 @@ typedef struct tagWLAN_IE_DS_PARMS {
     BYTE   byElementID;
     BYTE   len;
     BYTE   byCurrChannel;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_DS_PARMS,  *PWLAN_IE_DS_PARMS;
-
 
 // CF Parameter Set
 #pragma pack(1)
@@ -292,9 +284,8 @@ typedef struct tagWLAN_IE_CF_PARMS {
     BYTE   byCFPPeriod;
     WORD   wCFPMaxDuration;
     WORD   wCFPDurRemaining;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_CF_PARMS,  *PWLAN_IE_CF_PARMS;
-
 
 // TIM
 #pragma pack(1)
@@ -305,9 +296,8 @@ typedef struct tagWLAN_IE_TIM {
     BYTE   byDTIMPeriod;
     BYTE   byBitMapCtl;
     BYTE   byVirtBitMap[1];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_TIM,  *PWLAN_IE_TIM;
-
 
 // IBSS Parameter Set
 #pragma pack(1)
@@ -315,9 +305,8 @@ typedef struct tagWLAN_IE_IBSS_PARMS {
     BYTE   byElementID;
     BYTE   len;
     WORD   wATIMWindow;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_IBSS_PARMS, *PWLAN_IE_IBSS_PARMS;
-
 
 // Challenge Text
 #pragma pack(1)
@@ -325,9 +314,8 @@ typedef struct tagWLAN_IE_CHALLENGE {
     BYTE   byElementID;
     BYTE   len;
     BYTE   abyChallenge[1];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_CHALLENGE,  *PWLAN_IE_CHALLENGE;
-
 
 #pragma pack(1)
 typedef struct tagWLAN_IE_RSN_EXT {
@@ -391,9 +379,8 @@ typedef struct tagWLAN_IE_ERP {
     BYTE   byElementID;
     BYTE   len;
     BYTE   byContext;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_IE_ERP,  *PWLAN_IE_ERP;
-
 
 #pragma pack(1)
 typedef struct _MEASEURE_REQ {

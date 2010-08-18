@@ -317,7 +317,7 @@ static struct bbc_i2c_bus * __init attach_one_i2c(struct of_device *op, int inde
 
 	bp->waiting = 0;
 	init_waitqueue_head(&bp->wq);
-	if (request_irq(op->irqs[0], bbc_i2c_interrupt,
+	if (request_irq(op->archdata.irqs[0], bbc_i2c_interrupt,
 			IRQF_SHARED, "bbc_i2c", bp))
 		goto fail;
 
@@ -373,7 +373,7 @@ static int __devinit bbc_i2c_probe(struct of_device *op,
 
 	err = bbc_envctrl_init(bp);
 	if (err) {
-		free_irq(op->irqs[0], bp);
+		free_irq(op->archdata.irqs[0], bp);
 		if (bp->i2c_bussel_reg)
 			of_iounmap(&op->resource[0], bp->i2c_bussel_reg, 1);
 		if (bp->i2c_control_regs)
@@ -392,7 +392,7 @@ static int __devexit bbc_i2c_remove(struct of_device *op)
 
 	bbc_envctrl_cleanup(bp);
 
-	free_irq(op->irqs[0], bp);
+	free_irq(op->archdata.irqs[0], bp);
 
 	if (bp->i2c_bussel_reg)
 		of_iounmap(&op->resource[0], bp->i2c_bussel_reg, 1);
@@ -425,12 +425,12 @@ static struct of_platform_driver bbc_i2c_driver = {
 
 static int __init bbc_i2c_init(void)
 {
-	return of_register_driver(&bbc_i2c_driver, &of_bus_type);
+	return of_register_platform_driver(&bbc_i2c_driver);
 }
 
 static void __exit bbc_i2c_exit(void)
 {
-	of_unregister_driver(&bbc_i2c_driver);
+	of_unregister_platform_driver(&bbc_i2c_driver);
 }
 
 module_init(bbc_i2c_init);

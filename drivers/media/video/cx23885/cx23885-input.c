@@ -37,161 +37,55 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 #include <media/v4l2-subdev.h>
 
 #include "cx23885.h"
 
-#define RC5_BITS		14
-#define RC5_HALF_BITS		(2*RC5_BITS)
-#define RC5_HALF_BITS_MASK	((1 << RC5_HALF_BITS) - 1)
-
-#define RC5_START_BITS_NORMAL	0x3 /* Command range  0 -  63 */
-#define RC5_START_BITS_EXTENDED	0x2 /* Command range 64 - 127 */
-
-#define RC5_EXTENDED_COMMAND_OFFSET	64
-
 #define MODULE_NAME "cx23885"
 
-static inline unsigned int rc5_command(u32 rc5_baseband)
+static void convert_measurement(u32 x, struct ir_raw_event *y)
 {
-	return RC5_INSTR(rc5_baseband) +
-		((RC5_START(rc5_baseband) == RC5_START_BITS_EXTENDED)
-			? RC5_EXTENDED_COMMAND_OFFSET : 0);
+	if (x == V4L2_SUBDEV_IR_PULSE_RX_SEQ_END) {
+		y->pulse = false;
+		y->duration = V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
+		return;
+	}
+
+	y->pulse = (x & V4L2_SUBDEV_IR_PULSE_LEVEL_MASK) ? true : false;
+	y->duration = x & V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
 }
 
-static void cx23885_input_process_raw_rc5(struct cx23885_dev *dev)
+static void cx23885_input_process_measurements(struct cx23885_dev *dev,
+					       bool overrun)
 {
-	struct card_ir *ir_input = dev->ir_input;
-	unsigned int code, command;
-	u32 rc5;
+	struct cx23885_kernel_ir *kernel_ir = dev->kernel_ir;
+	struct ir_raw_event kernel_ir_event;
 
-	/* Ignore codes that are too short to be valid RC-5 */
-	if (ir_input->last_bit < (RC5_HALF_BITS - 1))
-		return;
-
-	/* The library has the manchester coding backwards; XOR to adapt. */
-	code = (ir_input->code & RC5_HALF_BITS_MASK) ^ RC5_HALF_BITS_MASK;
-	rc5 = ir_rc5_decode(code);
-
-	switch (RC5_START(rc5)) {
-	case RC5_START_BITS_NORMAL:
-		break;
-	case RC5_START_BITS_EXTENDED:
-		/* Don't allow if the remote only emits standard commands */
-		if (ir_input->start == RC5_START_BITS_NORMAL)
-			return;
-		break;
-	default:
-		return;
-	}
-
-	if (ir_input->addr != RC5_ADDR(rc5))
-		return;
-
-	/* Don't generate a keypress for RC-5 auto-repeated keypresses */
-	command = rc5_command(rc5);
-	if (RC5_TOGGLE(rc5) != RC5_TOGGLE(ir_input->last_rc5) ||
-	    command != rc5_command(ir_input->last_rc5) ||
-	    /* Catch T == 0, CMD == 0 (e.g. '0') as first keypress after init */
-	    RC5_START(ir_input->last_rc5) == 0) {
-		/* This keypress is differnet: not an auto repeat */
-		ir_input_nokey(ir_input->dev, &ir_input->ir);
-		ir_input_keydown(ir_input->dev, &ir_input->ir, command);
-	}
-	ir_input->last_rc5 = rc5;
-
-	/* Schedule when we should do the key up event: ir_input_nokey() */
-	mod_timer(&ir_input->timer_keyup,
-		  jiffies + msecs_to_jiffies(ir_input->rc5_key_timeout));
-}
-
-static void cx23885_input_next_pulse_width_rc5(struct cx23885_dev *dev,
-					       u32 ns_pulse)
-{
-	const int rc5_quarterbit_ns = 444444; /* 32 cycles/36 kHz/2 = 444 us */
-	struct card_ir *ir_input = dev->ir_input;
-	int i, level, quarterbits, halfbits;
-
-	if (!ir_input->active) {
-		ir_input->active = 1;
-		/* assume an initial space that we may not detect or measure */
-		ir_input->code = 0;
-		ir_input->last_bit = 0;
-	}
-
-	if (ns_pulse == V4L2_SUBDEV_IR_PULSE_RX_SEQ_END) {
-		ir_input->last_bit++; /* Account for the final space */
-		ir_input->active = 0;
-		cx23885_input_process_raw_rc5(dev);
-		return;
-	}
-
-	level = (ns_pulse & V4L2_SUBDEV_IR_PULSE_LEVEL_MASK) ? 1 : 0;
-
-	/* Skip any leading space to sync to the start bit */
-	if (ir_input->last_bit == 0 && level == 0)
-		return;
-
-	/*
-	 * With valid RC-5 we can get up to two consecutive half-bits in a
-	 * single pulse measurment.  Experiments have shown that the duration
-	 * of a half-bit can vary.  Make sure we always end up with an even
-	 * number of quarter bits at the same level (mark or space).
-	 */
-	ns_pulse &= V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
-	quarterbits = ns_pulse / rc5_quarterbit_ns;
-	if (quarterbits & 1)
-		quarterbits++;
-	halfbits = quarterbits / 2;
-
-	for (i = 0; i < halfbits; i++) {
-		ir_input->last_bit++;
-		ir_input->code |= (level << ir_input->last_bit);
-
-		if (ir_input->last_bit >= RC5_HALF_BITS-1) {
-			ir_input->active = 0;
-			cx23885_input_process_raw_rc5(dev);
-			/*
-			 * If level is 1, a leading mark is invalid for RC5.
-			 * If level is 0, we scan past extra intial space.
-			 * Either way we don't want to reactivate collecting
-			 * marks or spaces here with any left over half-bits.
-			 */
-			break;
-		}
-	}
-}
-
-static void cx23885_input_process_pulse_widths_rc5(struct cx23885_dev *dev,
-						   bool add_eom)
-{
-	struct card_ir *ir_input = dev->ir_input;
-	struct ir_input_state *ir_input_state = &ir_input->ir;
-
-	u32 ns_pulse[RC5_HALF_BITS+1];
-	ssize_t num = 0;
+	u32 sd_ir_data[64];
+	ssize_t num;
 	int count, i;
+	bool handle = false;
 
 	do {
-		v4l2_subdev_call(dev->sd_ir, ir, rx_read, (u8 *) ns_pulse,
-				 sizeof(ns_pulse), &num);
+		num = 0;
+		v4l2_subdev_call(dev->sd_ir, ir, rx_read, (u8 *) sd_ir_data,
+				 sizeof(sd_ir_data), &num);
 
 		count = num / sizeof(u32);
 
-		/* Append an end of Rx seq, if the caller requested */
-		if (add_eom && count < ARRAY_SIZE(ns_pulse)) {
-			ns_pulse[count] = V4L2_SUBDEV_IR_PULSE_RX_SEQ_END;
-			count++;
+		for (i = 0; i < count; i++) {
+			convert_measurement(sd_ir_data[i], &kernel_ir_event);
+			ir_raw_event_store(kernel_ir->inp_dev,
+					   &kernel_ir_event);
+			handle = true;
 		}
-
-		/* Just drain the Rx FIFO, if we're called, but not RC-5 */
-		if (ir_input_state->ir_type != IR_TYPE_RC5)
-			continue;
-
-		for (i = 0; i < count; i++)
-			cx23885_input_next_pulse_width_rc5(dev, ns_pulse[i]);
 	} while (num != 0);
+
+	if (overrun)
+		ir_raw_event_reset(kernel_ir->inp_dev);
+	else if (handle)
+		ir_raw_event_handle(kernel_ir->inp_dev);
 }
 
 void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
@@ -230,7 +124,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	}
 
 	if (data_available)
-		cx23885_input_process_pulse_widths_rc5(dev, overrun);
+		cx23885_input_process_measurements(dev, overrun);
 
 	if (overrun) {
 		/* If there was a FIFO overrun, clear & restart the device */
@@ -241,33 +135,14 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	}
 }
 
-static void cx23885_input_ir_start(struct cx23885_dev *dev)
+static int cx23885_input_ir_start(struct cx23885_dev *dev)
 {
-	struct card_ir *ir_input = dev->ir_input;
-	struct ir_input_state *ir_input_state = &ir_input->ir;
 	struct v4l2_subdev_ir_parameters params;
 
 	if (dev->sd_ir == NULL)
-		return;
+		return -ENODEV;
 
 	atomic_set(&dev->ir_input_stopping, 0);
-
-	/* keyup timer set up, if needed */
-	switch (dev->board) {
-	case CX23885_BOARD_HAUPPAUGE_HVR1850:
-	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		setup_timer(&ir_input->timer_keyup,
-			    ir_rc5_timer_keyup,	/* Not actually RC-5 specific */
-			    (unsigned long) ir_input);
-		if (ir_input_state->ir_type == IR_TYPE_RC5) {
-			/*
-			 * RC-5 repeats a held key every
-			 * 64 bits * (2 * 32/36000) sec/bit = 113.778 ms
-			 */
-			ir_input->rc5_key_timeout = 115;
-		}
-		break;
-	}
 
 	v4l2_subdev_call(dev->sd_ir, ir, rx_g_parameters, &params);
 	switch (dev->board) {
@@ -299,11 +174,21 @@ static void cx23885_input_ir_start(struct cx23885_dev *dev)
 		break;
 	}
 	v4l2_subdev_call(dev->sd_ir, ir, rx_s_parameters, &params);
+	return 0;
+}
+
+static int cx23885_input_ir_open(void *priv)
+{
+	struct cx23885_kernel_ir *kernel_ir = priv;
+
+	if (kernel_ir->cx == NULL)
+		return -ENODEV;
+
+	return cx23885_input_ir_start(kernel_ir->cx);
 }
 
 static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 {
-	struct card_ir *ir_input = dev->ir_input;
 	struct v4l2_subdev_ir_parameters params;
 
 	if (dev->sd_ir == NULL)
@@ -327,21 +212,26 @@ static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 	}
 
 	flush_scheduled_work();
+}
 
-	switch (dev->board) {
-	case CX23885_BOARD_HAUPPAUGE_HVR1850:
-	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		del_timer_sync(&ir_input->timer_keyup);
-		break;
-	}
+static void cx23885_input_ir_close(void *priv)
+{
+	struct cx23885_kernel_ir *kernel_ir = priv;
+
+	if (kernel_ir->cx != NULL)
+		cx23885_input_ir_stop(kernel_ir->cx);
 }
 
 int cx23885_input_init(struct cx23885_dev *dev)
 {
-	struct card_ir *ir;
-	struct input_dev *input_dev;
-	char *ir_codes = NULL;
-	int ir_type, ir_addr, ir_start;
+	struct cx23885_kernel_ir *kernel_ir;
+	struct input_dev *inp_dev;
+	struct ir_dev_props *props;
+
+	char *rc_map;
+	enum rc_driver_type driver_type;
+	unsigned long allowed_protos;
+
 	int ret;
 
 	/*
@@ -354,53 +244,59 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		/* Parameters for the grey Hauppauge remote for the HVR-1850 */
-		ir_codes = RC_MAP_HAUPPAUGE_NEW;
-		ir_type = IR_TYPE_RC5;
-		ir_addr = 0x1e; /* RC-5 system bits emitted by the remote */
-		ir_start = RC5_START_BITS_NORMAL; /* A basic RC-5 remote */
+		/* Integrated CX23888 IR controller */
+		driver_type = RC_DRIVER_IR_RAW;
+		allowed_protos = IR_TYPE_ALL;
+		/* The grey Hauppauge RC-5 remote */
+		rc_map = RC_MAP_RC5_HAUPPAUGE_NEW;
 		break;
-	}
-	if (ir_codes == NULL)
+	default:
 		return -ENODEV;
+	}
 
-	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ir || !input_dev) {
+	/* cx23885 board instance kernel IR state */
+	kernel_ir = kzalloc(sizeof(struct cx23885_kernel_ir), GFP_KERNEL);
+	if (kernel_ir == NULL)
+		return -ENOMEM;
+
+	kernel_ir->cx = dev;
+	kernel_ir->name = kasprintf(GFP_KERNEL, "cx23885 IR (%s)",
+				    cx23885_boards[dev->board].name);
+	kernel_ir->phys = kasprintf(GFP_KERNEL, "pci-%s/ir0",
+				    pci_name(dev->pci));
+
+	/* input device */
+	inp_dev = input_allocate_device();
+	if (inp_dev == NULL) {
 		ret = -ENOMEM;
 		goto err_out_free;
 	}
 
-	ir->dev = input_dev;
-	ir->addr = ir_addr;
-	ir->start = ir_start;
-
-	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "cx23885 IR (%s)",
-		 cx23885_boards[dev->board].name);
-	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(dev->pci));
-
-	ret = ir_input_init(input_dev, &ir->ir, ir_type);
-	if (ret < 0)
-		goto err_out_free;
-
-	input_dev->name = ir->name;
-	input_dev->phys = ir->phys;
-	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 1;
+	kernel_ir->inp_dev = inp_dev;
+	inp_dev->name = kernel_ir->name;
+	inp_dev->phys = kernel_ir->phys;
+	inp_dev->id.bustype = BUS_PCI;
+	inp_dev->id.version = 1;
 	if (dev->pci->subsystem_vendor) {
-		input_dev->id.vendor  = dev->pci->subsystem_vendor;
-		input_dev->id.product = dev->pci->subsystem_device;
+		inp_dev->id.vendor  = dev->pci->subsystem_vendor;
+		inp_dev->id.product = dev->pci->subsystem_device;
 	} else {
-		input_dev->id.vendor  = dev->pci->vendor;
-		input_dev->id.product = dev->pci->device;
+		inp_dev->id.vendor  = dev->pci->vendor;
+		inp_dev->id.product = dev->pci->device;
 	}
-	input_dev->dev.parent = &dev->pci->dev;
+	inp_dev->dev.parent = &dev->pci->dev;
 
-	dev->ir_input = ir;
-	cx23885_input_ir_start(dev);
+	/* kernel ir device properties */
+	props = &kernel_ir->props;
+	props->driver_type = driver_type;
+	props->allowed_protos = allowed_protos;
+	props->priv = kernel_ir;
+	props->open = cx23885_input_ir_open;
+	props->close = cx23885_input_ir_close;
 
-	ret = ir_input_register(ir->dev, ir_codes, NULL, MODULE_NAME);
+	/* Go */
+	dev->kernel_ir = kernel_ir;
+	ret = ir_input_register(inp_dev, rc_map, props, MODULE_NAME);
 	if (ret)
 		goto err_out_stop;
 
@@ -408,9 +304,12 @@ int cx23885_input_init(struct cx23885_dev *dev)
 
 err_out_stop:
 	cx23885_input_ir_stop(dev);
-	dev->ir_input = NULL;
+	dev->kernel_ir = NULL;
+	/* TODO: double check clean-up of kernel_ir->inp_dev */
 err_out_free:
-	kfree(ir);
+	kfree(kernel_ir->phys);
+	kfree(kernel_ir->name);
+	kfree(kernel_ir);
 	return ret;
 }
 
@@ -419,9 +318,11 @@ void cx23885_input_fini(struct cx23885_dev *dev)
 	/* Always stop the IR hardware from generating interrupts */
 	cx23885_input_ir_stop(dev);
 
-	if (dev->ir_input == NULL)
+	if (dev->kernel_ir == NULL)
 		return;
-	ir_input_unregister(dev->ir_input->dev);
-	kfree(dev->ir_input);
-	dev->ir_input = NULL;
+	ir_input_unregister(dev->kernel_ir->inp_dev);
+	kfree(dev->kernel_ir->phys);
+	kfree(dev->kernel_ir->name);
+	kfree(dev->kernel_ir);
+	dev->kernel_ir = NULL;
 }

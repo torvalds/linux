@@ -455,6 +455,9 @@ enum {
 #define __PSS_LPU0_RAM_ERR               0x00000001
 #define ERR_SET_REG			 0x00018818
 #define __PSS_ERR_STATUS_SET		 0x003fffff
+#define PMM_1T_RESET_REG_P0              0x0002381c
+#define __PMM_1T_RESET_P                 0x00000001
+#define PMM_1T_RESET_REG_P1              0x00023c1c
 #define HQM_QSET0_RXQ_DRBL_P0            0x00038000
 #define __RXQ0_ADD_VECTORS_P             0x80000000
 #define __RXQ0_STOP_P                    0x40000000

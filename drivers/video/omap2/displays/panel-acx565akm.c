@@ -592,7 +592,7 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	r = omapdss_sdi_display_enable(dssdev);
 	if (r) {
 		pr_err("%s sdi enable failed\n", __func__);
-		return r;
+		goto fail_unlock;
 	}
 
 	/*FIXME tweak me */
@@ -633,6 +633,8 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 	return acx565akm_bl_update_status(md->bl_dev);
 fail:
 	omapdss_sdi_display_disable(dssdev);
+fail_unlock:
+	mutex_unlock(&md->mutex);
 	return r;
 }
 

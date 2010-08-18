@@ -39,19 +39,6 @@
 #include <asm/shmparam.h>
 #include "drmP.h"
 
-resource_size_t drm_get_resource_start(struct drm_device *dev, unsigned int resource)
-{
-	return pci_resource_start(dev->pdev, resource);
-}
-EXPORT_SYMBOL(drm_get_resource_start);
-
-resource_size_t drm_get_resource_len(struct drm_device *dev, unsigned int resource)
-{
-	return pci_resource_len(dev->pdev, resource);
-}
-
-EXPORT_SYMBOL(drm_get_resource_len);
-
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
 {
@@ -189,7 +176,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	switch (map->type) {
 	case _DRM_REGISTERS:
 	case _DRM_FRAME_BUFFER:
-#if !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__)
+#if !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__) && !defined(__arm__)
 		if (map->offset + (map->size-1) < map->offset ||
 		    map->offset < virt_to_phys(high_memory)) {
 			kfree(map);

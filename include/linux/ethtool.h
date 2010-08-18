@@ -386,6 +386,15 @@ struct ethtool_rxnfc {
 	__u32				rule_locs[0];
 };
 
+struct ethtool_rxfh_indir {
+	__u32	cmd;
+	/* On entry, this is the array size of the user buffer.  On
+	 * return from ETHTOOL_GRXFHINDIR, this is the array size of
+	 * the hardware indirection table. */
+	__u32	size;
+	__u32	ring_index[0];	/* ring/queue index for each hash value */
+};
+
 struct ethtool_rx_ntuple_flow_spec {
 	__u32		 flow_type;
 	union {
@@ -459,7 +468,7 @@ int ethtool_op_set_tso(struct net_device *dev, u32 data);
 u32 ethtool_op_get_ufo(struct net_device *dev);
 int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 u32 ethtool_op_get_flags(struct net_device *dev);
-int ethtool_op_set_flags(struct net_device *dev, u32 data);
+int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported);
 void ethtool_ntuple_flush(struct net_device *dev);
 
 /**
@@ -578,6 +587,10 @@ struct ethtool_ops {
 	int	(*set_rx_ntuple)(struct net_device *,
 				 struct ethtool_rx_ntuple *);
 	int	(*get_rx_ntuple)(struct net_device *, u32 stringset, void *);
+	int	(*get_rxfh_indir)(struct net_device *,
+				  struct ethtool_rxfh_indir *);
+	int	(*set_rxfh_indir)(struct net_device *,
+				  const struct ethtool_rxfh_indir *);
 };
 #endif /* __KERNEL__ */
 
@@ -588,29 +601,29 @@ struct ethtool_ops {
 #define ETHTOOL_GREGS		0x00000004 /* Get NIC registers. */
 #define ETHTOOL_GWOL		0x00000005 /* Get wake-on-lan options. */
 #define ETHTOOL_SWOL		0x00000006 /* Set wake-on-lan options. */
-#define ETHTOOL_GMSGLVL	0x00000007 /* Get driver message level */
-#define ETHTOOL_SMSGLVL	0x00000008 /* Set driver msg level. */
+#define ETHTOOL_GMSGLVL		0x00000007 /* Get driver message level */
+#define ETHTOOL_SMSGLVL		0x00000008 /* Set driver msg level. */
 #define ETHTOOL_NWAY_RST	0x00000009 /* Restart autonegotiation. */
 #define ETHTOOL_GLINK		0x0000000a /* Get link status (ethtool_value) */
-#define ETHTOOL_GEEPROM	0x0000000b /* Get EEPROM data */
-#define ETHTOOL_SEEPROM	0x0000000c /* Set EEPROM data. */
+#define ETHTOOL_GEEPROM		0x0000000b /* Get EEPROM data */
+#define ETHTOOL_SEEPROM		0x0000000c /* Set EEPROM data. */
 #define ETHTOOL_GCOALESCE	0x0000000e /* Get coalesce config */
 #define ETHTOOL_SCOALESCE	0x0000000f /* Set coalesce config. */
 #define ETHTOOL_GRINGPARAM	0x00000010 /* Get ring parameters */
 #define ETHTOOL_SRINGPARAM	0x00000011 /* Set ring parameters. */
 #define ETHTOOL_GPAUSEPARAM	0x00000012 /* Get pause parameters */
 #define ETHTOOL_SPAUSEPARAM	0x00000013 /* Set pause parameters. */
-#define ETHTOOL_GRXCSUM	0x00000014 /* Get RX hw csum enable (ethtool_value) */
-#define ETHTOOL_SRXCSUM	0x00000015 /* Set RX hw csum enable (ethtool_value) */
-#define ETHTOOL_GTXCSUM	0x00000016 /* Get TX hw csum enable (ethtool_value) */
-#define ETHTOOL_STXCSUM	0x00000017 /* Set TX hw csum enable (ethtool_value) */
+#define ETHTOOL_GRXCSUM		0x00000014 /* Get RX hw csum enable (ethtool_value) */
+#define ETHTOOL_SRXCSUM		0x00000015 /* Set RX hw csum enable (ethtool_value) */
+#define ETHTOOL_GTXCSUM		0x00000016 /* Get TX hw csum enable (ethtool_value) */
+#define ETHTOOL_STXCSUM		0x00000017 /* Set TX hw csum enable (ethtool_value) */
 #define ETHTOOL_GSG		0x00000018 /* Get scatter-gather enable
 					    * (ethtool_value) */
 #define ETHTOOL_SSG		0x00000019 /* Set scatter-gather enable
 					    * (ethtool_value). */
 #define ETHTOOL_TEST		0x0000001a /* execute NIC self-test. */
 #define ETHTOOL_GSTRINGS	0x0000001b /* get specified string set */
-#define ETHTOOL_PHYS_ID	0x0000001c /* identify the NIC */
+#define ETHTOOL_PHYS_ID		0x0000001c /* identify the NIC */
 #define ETHTOOL_GSTATS		0x0000001d /* get NIC-specific statistics */
 #define ETHTOOL_GTSO		0x0000001e /* Get TSO enable (ethtool_value) */
 #define ETHTOOL_STSO		0x0000001f /* Set TSO enable (ethtool_value) */
@@ -621,8 +634,8 @@ struct ethtool_ops {
 #define ETHTOOL_SGSO		0x00000024 /* Set GSO enable (ethtool_value) */
 #define ETHTOOL_GFLAGS		0x00000025 /* Get flags bitmap(ethtool_value) */
 #define ETHTOOL_SFLAGS		0x00000026 /* Set flags bitmap(ethtool_value) */
-#define ETHTOOL_GPFLAGS	0x00000027 /* Get driver-private flags bitmap */
-#define ETHTOOL_SPFLAGS	0x00000028 /* Set driver-private flags bitmap */
+#define ETHTOOL_GPFLAGS		0x00000027 /* Get driver-private flags bitmap */
+#define ETHTOOL_SPFLAGS		0x00000028 /* Set driver-private flags bitmap */
 
 #define ETHTOOL_GRXFH		0x00000029 /* Get RX flow hash configuration */
 #define ETHTOOL_SRXFH		0x0000002a /* Set RX flow hash configuration */
@@ -639,6 +652,8 @@ struct ethtool_ops {
 #define ETHTOOL_SRXNTUPLE	0x00000035 /* Add an n-tuple filter to device */
 #define ETHTOOL_GRXNTUPLE	0x00000036 /* Get n-tuple filters from device */
 #define ETHTOOL_GSSET_INFO	0x00000037 /* Get string set info */
+#define ETHTOOL_GRXFHINDIR	0x00000038 /* Get RX flow hash indir'n table */
+#define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -647,18 +662,18 @@ struct ethtool_ops {
 /* Indicates what features are supported by the interface. */
 #define SUPPORTED_10baseT_Half		(1 << 0)
 #define SUPPORTED_10baseT_Full		(1 << 1)
-#define SUPPORTED_100baseT_Half	(1 << 2)
-#define SUPPORTED_100baseT_Full	(1 << 3)
+#define SUPPORTED_100baseT_Half		(1 << 2)
+#define SUPPORTED_100baseT_Full		(1 << 3)
 #define SUPPORTED_1000baseT_Half	(1 << 4)
 #define SUPPORTED_1000baseT_Full	(1 << 5)
 #define SUPPORTED_Autoneg		(1 << 6)
 #define SUPPORTED_TP			(1 << 7)
 #define SUPPORTED_AUI			(1 << 8)
 #define SUPPORTED_MII			(1 << 9)
-#define SUPPORTED_FIBRE		(1 << 10)
+#define SUPPORTED_FIBRE			(1 << 10)
 #define SUPPORTED_BNC			(1 << 11)
 #define SUPPORTED_10000baseT_Full	(1 << 12)
-#define SUPPORTED_Pause		(1 << 13)
+#define SUPPORTED_Pause			(1 << 13)
 #define SUPPORTED_Asym_Pause		(1 << 14)
 #define SUPPORTED_2500baseX_Full	(1 << 15)
 #define SUPPORTED_Backplane		(1 << 16)
@@ -668,8 +683,8 @@ struct ethtool_ops {
 #define SUPPORTED_10000baseR_FEC	(1 << 20)
 
 /* Indicates what features are advertised by the interface. */
-#define ADVERTISED_10baseT_Half	(1 << 0)
-#define ADVERTISED_10baseT_Full	(1 << 1)
+#define ADVERTISED_10baseT_Half		(1 << 0)
+#define ADVERTISED_10baseT_Full		(1 << 1)
 #define ADVERTISED_100baseT_Half	(1 << 2)
 #define ADVERTISED_100baseT_Full	(1 << 3)
 #define ADVERTISED_1000baseT_Half	(1 << 4)
@@ -708,12 +723,12 @@ struct ethtool_ops {
 #define DUPLEX_FULL		0x01
 
 /* Which connector port. */
-#define PORT_TP		0x00
+#define PORT_TP			0x00
 #define PORT_AUI		0x01
 #define PORT_MII		0x02
 #define PORT_FIBRE		0x03
 #define PORT_BNC		0x04
-#define PORT_DA		0x05
+#define PORT_DA			0x05
 #define PORT_NONE		0xef
 #define PORT_OTHER		0xff
 
@@ -727,7 +742,7 @@ struct ethtool_ops {
 /* Enable or disable autonegotiation.  If this is set to enable,
  * the forced link modes above are completely ignored.
  */
-#define AUTONEG_DISABLE	0x00
+#define AUTONEG_DISABLE		0x00
 #define AUTONEG_ENABLE		0x01
 
 /* Mode MDI or MDI-X */

@@ -101,10 +101,10 @@ struct str_TimerMainHeader {
 };
 
 
-typedef struct {
+struct str_AnalogOutputHeader {
 	unsigned short w_Nchannel;
 	unsigned char b_Resolution;
-} str_AnalogOutputHeader;
+};
 
 struct str_AnalogInputHeader {
 	unsigned short w_Nchannel;
@@ -136,7 +136,7 @@ int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_AnalogOutputHeader *s_Header);
+	struct str_AnalogOutputHeader *s_Header);
 
 int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
@@ -635,7 +635,7 @@ void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromComman
 
 | Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
 
-|		      unsigned short    w_offset : Offset of the adress to read             |
+|		      unsigned short    w_offset : Offset of the address to read             |
 
 |		      unsigned short *   pw_Value : PCI eeprom 16 bit read value.            |
 
@@ -811,7 +811,7 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	struct str_DigitalInputHeader s_DigitalInputHeader;
 	struct str_DigitalOutputHeader s_DigitalOutputHeader;
 	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
-	str_AnalogOutputHeader s_AnalogOutputHeader;
+	struct str_AnalogOutputHeader s_AnalogOutputHeader;
 	struct str_AnalogInputHeader s_AnalogInputHeader;
 
 	/* Read size */
@@ -1081,7 +1081,7 @@ int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_AnalogOutputHeader *s_Header)
+	struct str_AnalogOutputHeader *s_Header)
 {
 	unsigned short w_Temp;
 	/*  No of channels for 1st hard component */

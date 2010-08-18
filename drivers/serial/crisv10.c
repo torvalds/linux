@@ -3724,6 +3724,17 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 		return e100_enable_rs485(tty, &rs485data);
 	}
 
+	case TIOCGRS485:
+	{
+		struct serial_rs485 *rs485data =
+			&(((struct e100_serial *)tty->driver_data)->rs485);
+		/* This is the ioctl to get RS485 data from user-space */
+		if (copy_to_user((struct serial_rs485 *) arg,
+					rs485data,
+					sizeof(serial_rs485)))
+			return -EFAULT;
+		break;
+	}
 
 	case TIOCSERWRRS485:
 	{

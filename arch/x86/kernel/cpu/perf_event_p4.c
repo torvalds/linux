@@ -21,22 +21,36 @@ struct p4_event_bind {
 	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on abscence */
 };
 
-struct p4_cache_event_bind {
+struct p4_pebs_bind {
 	unsigned int metric_pebs;
 	unsigned int metric_vert;
 };
 
-#define P4_GEN_CACHE_EVENT_BIND(name)		\
-	[P4_CACHE__##name] = {			\
-		.metric_pebs = P4_PEBS__##name,	\
-		.metric_vert = P4_VERT__##name,	\
+/* it sets P4_PEBS_ENABLE_UOP_TAG as well */
+#define P4_GEN_PEBS_BIND(name, pebs, vert)			\
+	[P4_PEBS_METRIC__##name] = {				\
+		.metric_pebs = pebs | P4_PEBS_ENABLE_UOP_TAG,	\
+		.metric_vert = vert,				\
 	}
 
-static struct p4_cache_event_bind p4_cache_event_bind_map[] = {
-	P4_GEN_CACHE_EVENT_BIND(1stl_cache_load_miss_retired),
-	P4_GEN_CACHE_EVENT_BIND(2ndl_cache_load_miss_retired),
-	P4_GEN_CACHE_EVENT_BIND(dtlb_load_miss_retired),
-	P4_GEN_CACHE_EVENT_BIND(dtlb_store_miss_retired),
+/*
+ * note we have P4_PEBS_ENABLE_UOP_TAG always set here
+ *
+ * it's needed for mapping P4_PEBS_CONFIG_METRIC_MASK bits of
+ * event configuration to find out which values are to be
+ * written into MSR_IA32_PEBS_ENABLE and MSR_P4_PEBS_MATRIX_VERT
+ * resgisters
+ */
+static struct p4_pebs_bind p4_pebs_bind_map[] = {
+	P4_GEN_PEBS_BIND(1stl_cache_load_miss_retired,	0x0000001, 0x0000001),
+	P4_GEN_PEBS_BIND(2ndl_cache_load_miss_retired,	0x0000002, 0x0000001),
+	P4_GEN_PEBS_BIND(dtlb_load_miss_retired,	0x0000004, 0x0000001),
+	P4_GEN_PEBS_BIND(dtlb_store_miss_retired,	0x0000004, 0x0000002),
+	P4_GEN_PEBS_BIND(dtlb_all_miss_retired,		0x0000004, 0x0000003),
+	P4_GEN_PEBS_BIND(tagged_mispred_branch,		0x0018000, 0x0000010),
+	P4_GEN_PEBS_BIND(mob_load_replay_retired,	0x0000200, 0x0000001),
+	P4_GEN_PEBS_BIND(split_load_retired,		0x0000400, 0x0000001),
+	P4_GEN_PEBS_BIND(split_store_retired,		0x0000400, 0x0000002),
 };
 
 /*
@@ -281,10 +295,10 @@ static struct p4_event_bind p4_event_bind_map[] = {
 	},
 };
 
-#define P4_GEN_CACHE_EVENT(event, bit, cache_event)			  \
+#define P4_GEN_CACHE_EVENT(event, bit, metric)				  \
 	p4_config_pack_escr(P4_ESCR_EVENT(event)			| \
 			    P4_ESCR_EMASK_BIT(event, bit))		| \
-	p4_config_pack_cccr(cache_event					| \
+	p4_config_pack_cccr(metric					| \
 			    P4_CCCR_ESEL(P4_OPCODE_ESEL(P4_OPCODE(event))))
 
 static __initconst const u64 p4_hw_cache_event_ids
@@ -296,34 +310,34 @@ static __initconst const u64 p4_hw_cache_event_ids
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0,
 		[ C(RESULT_MISS)   ] = P4_GEN_CACHE_EVENT(P4_EVENT_REPLAY_EVENT, NBOGUS,
-						P4_CACHE__1stl_cache_load_miss_retired),
+						P4_PEBS_METRIC__1stl_cache_load_miss_retired),
 	},
  },
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0,
 		[ C(RESULT_MISS)   ] = P4_GEN_CACHE_EVENT(P4_EVENT_REPLAY_EVENT, NBOGUS,
-						P4_CACHE__2ndl_cache_load_miss_retired),
+						P4_PEBS_METRIC__2ndl_cache_load_miss_retired),
 	},
 },
  [ C(DTLB) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0,
 		[ C(RESULT_MISS)   ] = P4_GEN_CACHE_EVENT(P4_EVENT_REPLAY_EVENT, NBOGUS,
-						P4_CACHE__dtlb_load_miss_retired),
+						P4_PEBS_METRIC__dtlb_load_miss_retired),
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0,
 		[ C(RESULT_MISS)   ] = P4_GEN_CACHE_EVENT(P4_EVENT_REPLAY_EVENT, NBOGUS,
-						P4_CACHE__dtlb_store_miss_retired),
+						P4_PEBS_METRIC__dtlb_store_miss_retired),
 	},
  },
  [ C(ITLB) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = P4_GEN_CACHE_EVENT(P4_EVENT_ITLB_REFERENCE, HIT,
-						P4_CACHE__itlb_reference_hit),
+						P4_PEBS_METRIC__none),
 		[ C(RESULT_MISS)   ] = P4_GEN_CACHE_EVENT(P4_EVENT_ITLB_REFERENCE, MISS,
-						P4_CACHE__itlb_reference_miss),
+						P4_PEBS_METRIC__none),
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = -1,
@@ -414,11 +428,37 @@ static u64 p4_pmu_event_map(int hw_event)
 	return config;
 }
 
+static int p4_validate_raw_event(struct perf_event *event)
+{
+	unsigned int v;
+
+	/* user data may have out-of-bound event index */
+	v = p4_config_unpack_event(event->attr.config);
+	if (v >= ARRAY_SIZE(p4_event_bind_map)) {
+		pr_warning("P4 PMU: Unknown event code: %d\n", v);
+		return -EINVAL;
+	}
+
+	/*
+	 * it may have some screwed PEBS bits
+	 */
+	if (p4_config_pebs_has(event->attr.config, P4_PEBS_CONFIG_ENABLE)) {
+		pr_warning("P4 PMU: PEBS are not supported yet\n");
+		return -EINVAL;
+	}
+	v = p4_config_unpack_metric(event->attr.config);
+	if (v >= ARRAY_SIZE(p4_pebs_bind_map)) {
+		pr_warning("P4 PMU: Unknown metric code: %d\n", v);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int p4_hw_config(struct perf_event *event)
 {
 	int cpu = get_cpu();
 	int rc = 0;
-	unsigned int evnt;
 	u32 escr, cccr;
 
 	/*
@@ -438,12 +478,9 @@ static int p4_hw_config(struct perf_event *event)
 
 	if (event->attr.type == PERF_TYPE_RAW) {
 
-		/* user data may have out-of-bound event index */
-		evnt = p4_config_unpack_event(event->attr.config);
-		if (evnt >= ARRAY_SIZE(p4_event_bind_map)) {
-			rc = -EINVAL;
+		rc = p4_validate_raw_event(event);
+		if (rc)
 			goto out;
-		}
 
 		/*
 		 * We don't control raw events so it's up to the caller
@@ -451,12 +488,15 @@ static int p4_hw_config(struct perf_event *event)
 		 * on HT machine but allow HT-compatible specifics to be
 		 * passed on)
 		 *
+		 * Note that for RAW events we allow user to use P4_CCCR_RESERVED
+		 * bits since we keep additional info here (for cache events and etc)
+		 *
 		 * XXX: HT wide things should check perf_paranoid_cpu() &&
 		 *      CAP_SYS_ADMIN
 		 */
 		event->hw.config |= event->attr.config &
 			(p4_config_pack_escr(P4_ESCR_MASK_HT) |
-			 p4_config_pack_cccr(P4_CCCR_MASK_HT));
+			 p4_config_pack_cccr(P4_CCCR_MASK_HT | P4_CCCR_RESERVED));
 	}
 
 	rc = x86_setup_perfctr(event);
@@ -480,6 +520,29 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	}
 
 	return overflow;
+}
+
+static void p4_pmu_disable_pebs(void)
+{
+	/*
+	 * FIXME
+	 *
+	 * It's still allowed that two threads setup same cache
+	 * events so we can't simply clear metrics until we knew
+	 * noone is depending on us, so we need kind of counter
+	 * for "ReplayEvent" users.
+	 *
+	 * What is more complex -- RAW events, if user (for some
+	 * reason) will pass some cache event metric with improper
+	 * event opcode -- it's fine from hardware point of view
+	 * but completely nonsence from "meaning" of such action.
+	 *
+	 * So at moment let leave metrics turned on forever -- it's
+	 * ok for now but need to be revisited!
+	 *
+	 * (void)checking_wrmsrl(MSR_IA32_PEBS_ENABLE, (u64)0);
+	 * (void)checking_wrmsrl(MSR_P4_PEBS_MATRIX_VERT, (u64)0);
+	 */
 }
 
 static inline void p4_pmu_disable_event(struct perf_event *event)
@@ -507,6 +570,26 @@ static void p4_pmu_disable_all(void)
 			continue;
 		p4_pmu_disable_event(event);
 	}
+
+	p4_pmu_disable_pebs();
+}
+
+/* configuration must be valid */
+static void p4_pmu_enable_pebs(u64 config)
+{
+	struct p4_pebs_bind *bind;
+	unsigned int idx;
+
+	BUILD_BUG_ON(P4_PEBS_METRIC__max > P4_PEBS_CONFIG_METRIC_MASK);
+
+	idx = p4_config_unpack_metric(config);
+	if (idx == P4_PEBS_METRIC__none)
+		return;
+
+	bind = &p4_pebs_bind_map[idx];
+
+	(void)checking_wrmsrl(MSR_IA32_PEBS_ENABLE,	(u64)bind->metric_pebs);
+	(void)checking_wrmsrl(MSR_P4_PEBS_MATRIX_VERT,	(u64)bind->metric_vert);
 }
 
 static void p4_pmu_enable_event(struct perf_event *event)
@@ -515,9 +598,7 @@ static void p4_pmu_enable_event(struct perf_event *event)
 	int thread = p4_ht_config_thread(hwc->config);
 	u64 escr_conf = p4_config_unpack_escr(p4_clear_ht_bit(hwc->config));
 	unsigned int idx = p4_config_unpack_event(hwc->config);
-	unsigned int idx_cache = p4_config_unpack_cache_event(hwc->config);
 	struct p4_event_bind *bind;
-	struct p4_cache_event_bind *bind_cache;
 	u64 escr_addr, cccr;
 
 	bind = &p4_event_bind_map[idx];
@@ -537,16 +618,10 @@ static void p4_pmu_enable_event(struct perf_event *event)
 	cccr = p4_config_unpack_cccr(hwc->config);
 
 	/*
-	 * it could be Cache event so that we need to
-	 * set metrics into additional MSRs
+	 * it could be Cache event so we need to write metrics
+	 * into additional MSRs
 	 */
-	BUILD_BUG_ON(P4_CACHE__MAX > P4_CCCR_CACHE_OPS_MASK);
-	if (idx_cache > P4_CACHE__NONE &&
-		idx_cache < ARRAY_SIZE(p4_cache_event_bind_map)) {
-		bind_cache = &p4_cache_event_bind_map[idx_cache];
-		(void)checking_wrmsrl(MSR_IA32_PEBS_ENABLE, (u64)bind_cache->metric_pebs);
-		(void)checking_wrmsrl(MSR_P4_PEBS_MATRIX_VERT, (u64)bind_cache->metric_vert);
-	}
+	p4_pmu_enable_pebs(hwc->config);
 
 	(void)checking_wrmsrl(escr_addr, escr_conf);
 	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
@@ -829,6 +904,15 @@ static __initconst const struct x86_pmu p4_pmu = {
 	.max_period		= (1ULL << 39) - 1,
 	.hw_config		= p4_hw_config,
 	.schedule_events	= p4_pmu_schedule_events,
+	/*
+	 * This handles erratum N15 in intel doc 249199-029,
+	 * the counter may not be updated correctly on write
+	 * so we need a second write operation to do the trick
+	 * (the official workaround didn't work)
+	 *
+	 * the former idea is taken from OProfile code
+	 */
+	.perfctr_second_write	= 1,
 };
 
 static __init int p4_pmu_init(void)

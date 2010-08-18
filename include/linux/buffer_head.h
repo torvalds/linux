@@ -314,15 +314,10 @@ map_bh(struct buffer_head *bh, struct super_block *sb, sector_t block)
 	bh->b_size = sb->s_blocksize;
 }
 
-/*
- * Calling wait_on_buffer() for a zero-ref buffer is illegal, so we call into
- * __wait_on_buffer() just to trip a debug check.  Because debug code in inline
- * functions is bloaty.
- */
 static inline void wait_on_buffer(struct buffer_head *bh)
 {
 	might_sleep();
-	if (buffer_locked(bh) || atomic_read(&bh->b_count) == 0)
+	if (buffer_locked(bh))
 		__wait_on_buffer(bh);
 }
 

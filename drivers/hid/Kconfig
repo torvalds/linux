@@ -68,6 +68,14 @@ config HID_A4TECH
 	---help---
 	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
 
+config HID_ACRUX_FF
+	tristate "ACRUX force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you want to enable force feedback support for ACRUX
+	game controllers.
+
 config HID_APPLE
 	tristate "Apple" if EMBEDDED
 	depends on (USB_HID || BT_HIDP)
@@ -147,6 +155,12 @@ config HID_EGALAX
 	depends on USB_HID
 	---help---
 	Support for the eGalax dual-touch panel.
+
+config HID_ELECOM
+	tristate "ELECOM"
+	depends on BT_HIDP
+	---help---
+	Support for the ELECOM BM084 (bluetooth mouse).
 
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
@@ -417,10 +431,11 @@ config SMARTJOYPLUS_FF
 	enable force feedback support for it.
 
 config HID_TOPSEED
-	tristate "TopSeed Cyberlink remote control support"
+	tristate "TopSeed Cyberlink, BTC Emprex, Conceptronic remote control support"
 	depends on USB_HID
 	---help---
-	Say Y if you have a TopSeed Cyberlink or BTC Emprex remote control.
+	Say Y if you have a TopSeed Cyberlink or BTC Emprex or Conceptronic
+	CLLRCMCE remote control.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"

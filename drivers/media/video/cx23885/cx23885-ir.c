@@ -53,7 +53,7 @@ void cx23885_ir_rx_work_handler(struct work_struct *work)
 	if (events == 0)
 		return;
 
-	if (dev->ir_input)
+	if (dev->kernel_ir)
 		cx23885_input_rx_work_handler(dev, events);
 }
 

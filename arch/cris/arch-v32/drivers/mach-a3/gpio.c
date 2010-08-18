@@ -72,8 +72,7 @@ static char gpio_name[] = "etrax gpio";
 static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg);
 #endif
-static int gpio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t gpio_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
@@ -521,7 +520,7 @@ static inline unsigned long setget_output(struct gpio_private *priv,
 	return dir_shadow;
 } /* setget_output */
 
-static int gpio_ioctl(struct inode *inode, struct file *file,
+static long gpio_ioctl_unlocked(struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
@@ -662,6 +661,17 @@ static int gpio_ioctl(struct inode *inode, struct file *file,
 	} /* switch */
 
 	return 0;
+}
+
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+       long ret;
+
+       lock_kernel();
+       ret = gpio_ioctl_unlocked(file, cmd, arg);
+       unlock_kernel();
+
+       return ret;
 }
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
@@ -877,12 +887,12 @@ static int gpio_pwm_ioctl(struct gpio_private *priv, unsigned int cmd,
 }
 
 static const struct file_operations gpio_fops = {
-	.owner       = THIS_MODULE,
-	.poll        = gpio_poll,
-	.ioctl       = gpio_ioctl,
-	.write       = gpio_write,
-	.open        = gpio_open,
-	.release     = gpio_release,
+	.owner		= THIS_MODULE,
+	.poll		= gpio_poll,
+	.unlocked_ioctl	= gpio_ioctl,
+	.write		= gpio_write,
+	.open		= gpio_open,
+	.release	= gpio_release,
 };
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO

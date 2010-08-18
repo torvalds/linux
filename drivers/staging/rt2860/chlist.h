@@ -73,35 +73,31 @@ struct rt_ch_freq_map {
 extern struct rt_ch_freq_map CH_HZ_ID_MAP[];
 extern int CH_HZ_ID_MAP_NUM;
 
-#define     MAP_CHANNEL_ID_TO_KHZ(_ch, _khz)					\
-		do{													\
-			int _chIdx;											\
-			for (_chIdx = 0; _chIdx < CH_HZ_ID_MAP_NUM; _chIdx++)\
-			{													\
-				if ((_ch) == CH_HZ_ID_MAP[_chIdx].channel)			\
-				{												\
-					(_khz) = CH_HZ_ID_MAP[_chIdx].freqKHz * 1000;	\
-					break;										\
-				}												\
-			}													\
-			if (_chIdx == CH_HZ_ID_MAP_NUM)					\
-				(_khz) = 2412000;									\
-            }while(0)
+#define     MAP_CHANNEL_ID_TO_KHZ(_ch, _khz)		\
+		do {							\
+			int _chIdx;					\
+			for (_chIdx = 0; _chIdx < CH_HZ_ID_MAP_NUM; _chIdx++) {\
+				if ((_ch) == CH_HZ_ID_MAP[_chIdx].channel) { \
+					(_khz) = CH_HZ_ID_MAP[_chIdx].freqKHz * 1000;\
+					break;				\
+				}					\
+			}						\
+			if (_chIdx == CH_HZ_ID_MAP_NUM)	\
+				(_khz) = 2412000;		\
+		} while (0)
 
 #define     MAP_KHZ_TO_CHANNEL_ID(_khz, _ch)                 \
-		do{													\
-			int _chIdx;											\
-			for (_chIdx = 0; _chIdx < CH_HZ_ID_MAP_NUM; _chIdx++)\
-			{													\
-				if ((_khz) == CH_HZ_ID_MAP[_chIdx].freqKHz)			\
-				{												\
-					(_ch) = CH_HZ_ID_MAP[_chIdx].channel;			\
-					break;										\
-				}												\
-			}													\
-			if (_chIdx == CH_HZ_ID_MAP_NUM)					\
-				(_ch) = 1;											\
-		}while(0)
+		do {							\
+			int _chIdx;				\
+			for (_chIdx = 0; _chIdx < CH_HZ_ID_MAP_NUM; _chIdx++) {\
+				if ((_khz) == CH_HZ_ID_MAP[_chIdx].freqKHz) {\
+					(_ch) = CH_HZ_ID_MAP[_chIdx].channel; \
+					break;			\
+				}					\
+			}						\
+			if (_chIdx == CH_HZ_ID_MAP_NUM)			\
+				(_ch) = 1;				\
+		} while (0)
 
 void BuildChannelListEx(struct rt_rtmp_adapter *pAd);
 
