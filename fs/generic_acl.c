@@ -94,6 +94,7 @@ generic_acl_set(struct dentry *dentry, const char *name, const void *value,
 			if (error < 0)
 				goto failed;
 			inode->i_mode = mode;
+			inode->i_ctime = CURRENT_TIME;
 			if (error == 0) {
 				posix_acl_release(acl);
 				acl = NULL;
