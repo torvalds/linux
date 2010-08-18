@@ -148,13 +148,14 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 			 const unsigned char *file_name,
 			 struct fsnotify_event **event)
 {
-	struct fsnotify_group *group = inode_mark->group;
+	struct fsnotify_group *group = NULL;
 	__u32 inode_test_mask = (mask & ~FS_EVENT_ON_CHILD);
 	__u32 vfsmount_test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
-	pr_debug("%s: group=%p to_tell=%p mnt=%p mark=%p mask=%x data=%p"
-		 " data_is=%d cookie=%d event=%p\n", __func__, group, to_tell,
-		 mnt, inode_mark, mask, data, data_is, cookie, *event);
+	if (unlikely(!inode_mark && !vfsmount_mark)) {
+		BUG();
+		return 0;
+	}
 
 	/* clear ignored on inode modification */
 	if (mask & FS_MODIFY) {
@@ -168,17 +169,23 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 
 	/* does the inode mark tell us to do something? */
 	if (inode_mark) {
+		group = inode_mark->group;
 		inode_test_mask &= inode_mark->mask;
 		inode_test_mask &= ~inode_mark->ignored_mask;
 	}
 
 	/* does the vfsmount_mark tell us to do something? */
 	if (vfsmount_mark) {
+		group = vfsmount_mark->group;
 		vfsmount_test_mask &= vfsmount_mark->mask;
 		vfsmount_test_mask &= ~vfsmount_mark->ignored_mask;
 		if (inode_mark)
 			vfsmount_test_mask &= ~inode_mark->ignored_mask;
 	}
+
+	pr_debug("%s: group=%p to_tell=%p mnt=%p mark=%p mask=%x data=%p"
+		 " data_is=%d cookie=%d event=%p\n", __func__, group, to_tell,
+		 mnt, inode_mark, mask, data, data_is, cookie, *event);
 
 	if (!inode_test_mask && !vfsmount_test_mask)
 		return 0;
