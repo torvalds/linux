@@ -223,7 +223,7 @@ static struct clk *clkset_aclk_top_list[] = {
 	[1] = &clk_sclk_apll.clk,
 };
 
-static struct clksrc_sources clkset_aclk_200 = {
+static struct clksrc_sources clkset_aclk = {
 	.sources	= clkset_aclk_top_list,
 	.nr_sources	= ARRAY_SIZE(clkset_aclk_top_list),
 };
@@ -233,14 +233,9 @@ static struct clksrc_clk clk_aclk_200 = {
 		.name		= "aclk_200",
 		.id		= -1,
 	},
-	.sources	= &clkset_aclk_200,
+	.sources	= &clkset_aclk,
 	.reg_src	= { .reg = S5P_CLKSRC_TOP0, .shift = 12, .size = 1 },
 	.reg_div	= { .reg = S5P_CLKDIV_TOP, .shift = 0, .size = 3 },
-};
-
-static struct clksrc_sources clkset_aclk_100 = {
-	.sources	= clkset_aclk_top_list,
-	.nr_sources	= ARRAY_SIZE(clkset_aclk_top_list),
 };
 
 static struct clksrc_clk clk_aclk_100 = {
@@ -248,14 +243,9 @@ static struct clksrc_clk clk_aclk_100 = {
 		.name		= "aclk_100",
 		.id		= -1,
 	},
-	.sources	= &clkset_aclk_100,
+	.sources	= &clkset_aclk,
 	.reg_src	= { .reg = S5P_CLKSRC_TOP0, .shift = 16, .size = 1 },
 	.reg_div	= { .reg = S5P_CLKDIV_TOP, .shift = 4, .size = 4 },
-};
-
-static struct clksrc_sources clkset_aclk_160 = {
-	.sources	= clkset_aclk_top_list,
-	.nr_sources	= ARRAY_SIZE(clkset_aclk_top_list),
 };
 
 static struct clksrc_clk clk_aclk_160 = {
@@ -263,14 +253,9 @@ static struct clksrc_clk clk_aclk_160 = {
 		.name		= "aclk_160",
 		.id		= -1,
 	},
-	.sources	= &clkset_aclk_160,
+	.sources	= &clkset_aclk,
 	.reg_src	= { .reg = S5P_CLKSRC_TOP0, .shift = 20, .size = 1 },
 	.reg_div	= { .reg = S5P_CLKDIV_TOP, .shift = 8, .size = 3 },
-};
-
-static struct clksrc_sources clkset_aclk_133 = {
-	.sources	= clkset_aclk_top_list,
-	.nr_sources	= ARRAY_SIZE(clkset_aclk_top_list),
 };
 
 static struct clksrc_clk clk_aclk_133 = {
@@ -278,7 +263,7 @@ static struct clksrc_clk clk_aclk_133 = {
 		.name		= "aclk_133",
 		.id		= -1,
 	},
-	.sources	= &clkset_aclk_133,
+	.sources	= &clkset_aclk,
 	.reg_src	= { .reg = S5P_CLKSRC_TOP0, .shift = 24, .size = 1 },
 	.reg_div	= { .reg = S5P_CLKDIV_TOP, .shift = 12, .size = 3 },
 };
