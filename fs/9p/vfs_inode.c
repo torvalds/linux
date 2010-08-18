@@ -876,6 +876,8 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir, struct dentry *dentry,
 	v9ses = v9fs_inode2v9ses(dir);
 
 	mode |= S_IFDIR;
+	if (dir->i_mode & S_ISGID)
+		mode |= S_ISGID;
 	dir_dentry = v9fs_dentry_from_dir_inode(dir);
 	dfid = v9fs_fid_lookup(dir_dentry);
 	if (IS_ERR(dfid)) {
