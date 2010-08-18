@@ -1,5 +1,6 @@
 /*
  * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009 Marc Kleine-Budde, Pengutronix
  *
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
  *
@@ -27,6 +28,8 @@
 #include <linux/gpio.h>
 #include <linux/fsl_devices.h>
 
+#include <linux/mtd/physmap.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -43,8 +46,29 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
+static struct physmap_flash_data mx35pdk_flash_data = {
+	.width  = 2,
+};
+
+static struct resource mx35pdk_flash_resource = {
+	.start	= MX35_CS0_BASE_ADDR,
+	.end	= MX35_CS0_BASE_ADDR + SZ_64M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device mx35pdk_flash = {
+	.name	= "physmap-flash",
+	.id	= 0,
+	.dev	= {
+		.platform_data  = &mx35pdk_flash_data,
+	},
+	.resource = &mx35pdk_flash_resource,
+	.num_resources = 1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mxc_fec_device,
+	&mx35pdk_flash,
 };
 
 static struct pad_desc mx35pdk_pads[] = {
