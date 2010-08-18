@@ -437,14 +437,6 @@ void ath_ani_calibrate(unsigned long data);
 /* BTCOEX */
 /**********/
 
-/* Defines the BT AR_BT_COEX_WGHT used */
-enum ath_stomp_type {
-	ATH_BTCOEX_NO_STOMP,
-	ATH_BTCOEX_STOMP_ALL,
-	ATH_BTCOEX_STOMP_LOW,
-	ATH_BTCOEX_STOMP_NONE
-};
-
 struct ath_btcoex {
 	bool hw_timer_enabled;
 	spinlock_t btcoex_lock;

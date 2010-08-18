@@ -420,6 +420,37 @@ int ath9k_cmn_count_streams(unsigned int chainmask, int max)
 }
 EXPORT_SYMBOL(ath9k_cmn_count_streams);
 
+/*
+ * Configures appropriate weight based on stomp type.
+ */
+void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
+				  enum ath_stomp_type stomp_type)
+{
+	struct ath_hw *ah = common->ah;
+
+	switch (stomp_type) {
+	case ATH_BTCOEX_STOMP_ALL:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_ALL_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_LOW:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_NONE:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_NONE_WLAN_WGHT);
+		break;
+	default:
+		ath_print(common, ATH_DBG_BTCOEX,
+			  "Invalid Stomptype\n");
+		break;
+	}
+
+	ath9k_hw_btcoex_enable(ah);
+}
+EXPORT_SYMBOL(ath9k_cmn_btcoex_bt_stomp);
+
 static int __init ath9k_cmn_init(void)
 {
 	return 0;
