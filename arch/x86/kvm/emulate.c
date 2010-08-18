@@ -95,6 +95,7 @@
 #define Src2CL      (1<<29)
 #define Src2ImmByte (2<<29)
 #define Src2One     (3<<29)
+#define Src2Imm     (4<<29)
 #define Src2Mask    (7<<29)
 
 #define X2(x...) x, x
@@ -2843,6 +2844,9 @@ done_prefixes:
 	case Src2One:
 		c->src2.bytes = 1;
 		c->src2.val = 1;
+		break;
+	case Src2Imm:
+		rc = decode_imm(ctxt, &c->src2, imm_size(c), true);
 		break;
 	}
 
