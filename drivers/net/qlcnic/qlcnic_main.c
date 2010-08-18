@@ -1983,8 +1983,6 @@ static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;
 
-	memset(stats, 0, sizeof(*stats));
-
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;
 	stats->rx_bytes = adapter->stats.rxbytes + adapter->stats.lrobytes;
