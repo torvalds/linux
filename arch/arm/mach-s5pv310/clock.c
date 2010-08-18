@@ -30,6 +30,22 @@ static struct clk clk_sclk_hdmi27m = {
 	.rate		= 27000000,
 };
 
+static struct clk clk_sclk_hdmiphy = {
+	.name		= "sclk_hdmiphy",
+	.id		= -1,
+};
+
+static struct clk clk_sclk_usbphy0 = {
+	.name		= "sclk_usbphy0",
+	.id		= -1,
+	.rate		= 27000000,
+};
+
+static struct clk clk_sclk_usbphy1 = {
+	.name		= "sclk_usbphy1",
+	.id		= -1,
+};
+
 static int s5pv310_clksrc_mask_peril0_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLKSRC_MASK_PERIL0, clk, enable);
@@ -354,6 +370,9 @@ static struct clk *clkset_group_list[] = {
 	[0] = &clk_ext_xtal_mux,
 	[1] = &clk_xusbxti,
 	[2] = &clk_sclk_hdmi27m,
+	[3] = &clk_sclk_usbphy0,
+	[4] = &clk_sclk_usbphy1,
+	[5] = &clk_sclk_hdmiphy,
 	[6] = &clk_mout_mpll.clk,
 	[7] = &clk_mout_epll.clk,
 	[8] = &clk_sclk_vpll.clk,
