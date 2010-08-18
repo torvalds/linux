@@ -39,6 +39,14 @@ static struct clksrc_clk clk_mout_apll = {
 	},
 	.sources	= &clk_src_apll,
 	.reg_src	= { .reg = S5P_CLKSRC_CPU, .shift = 0, .size = 1 },
+};
+
+static struct clksrc_clk clk_sclk_apll = {
+	.clk	= {
+		.name		= "sclk_apll",
+		.id		= -1,
+		.parent		= &clk_mout_apll.clk,
+	},
 	.reg_div	= { .reg = S5P_CLKDIV_CPU, .shift = 24, .size = 3 },
 };
 
@@ -61,7 +69,7 @@ static struct clksrc_clk clk_mout_mpll = {
 };
 
 static struct clk *clkset_moutcore_list[] = {
-	[0] = &clk_mout_apll.clk,
+	[0] = &clk_sclk_apll.clk,
 	[1] = &clk_mout_mpll.clk,
 };
 
@@ -154,7 +162,7 @@ static struct clksrc_clk clk_pclk_dbg = {
 
 static struct clk *clkset_corebus_list[] = {
 	[0] = &clk_mout_mpll.clk,
-	[1] = &clk_mout_apll.clk,
+	[1] = &clk_sclk_apll.clk,
 };
 
 static struct clksrc_sources clkset_mout_corebus = {
@@ -220,7 +228,7 @@ static struct clksrc_clk clk_pclk_acp = {
 
 static struct clk *clkset_aclk_top_list[] = {
 	[0] = &clk_mout_mpll.clk,
-	[1] = &clk_mout_apll.clk,
+	[1] = &clk_sclk_apll.clk,
 };
 
 static struct clksrc_sources clkset_aclk_200 = {
@@ -411,6 +419,7 @@ static struct clksrc_clk clksrcs[] = {
 /* Clock initialization code */
 static struct clksrc_clk *sysclks[] = {
 	&clk_mout_apll,
+	&clk_sclk_apll,
 	&clk_mout_epll,
 	&clk_mout_mpll,
 	&clk_moutcore,
