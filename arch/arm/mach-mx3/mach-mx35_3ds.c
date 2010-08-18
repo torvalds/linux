@@ -108,7 +108,7 @@ static struct pad_desc mx35pdk_pads[] = {
 };
 
 /* OTG config */
-static struct fsl_usb2_platform_data usb_pdata = {
+static struct fsl_usb2_platform_data usb_otg_pdata = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
@@ -124,7 +124,7 @@ static void __init mxc_board_init(void)
 
 	imx35_add_imx_uart0(&uart_pdata);
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+	mxc_register_device(&mxc_otg_udc_device, &usb_otg_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 }
