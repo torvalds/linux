@@ -288,13 +288,9 @@ static void set_config_filename(const char *config_filename)
 {
 	static char menu_backtitle[PATH_MAX+128];
 	int size;
-	struct symbol *sym;
 
-	sym = sym_lookup("KERNELVERSION", 0);
-	sym_calc_value(sym);
 	size = snprintf(menu_backtitle, sizeof(menu_backtitle),
-	                _("%s - Linux Kernel v%s Configuration"),
-		        config_filename, sym_get_string_value(sym));
+	                "%s - %s", config_filename, rootmenu.prompt->text);
 	if (size >= sizeof(menu_backtitle))
 		menu_backtitle[sizeof(menu_backtitle)-1] = '\0';
 	set_dialog_backtitle(menu_backtitle);

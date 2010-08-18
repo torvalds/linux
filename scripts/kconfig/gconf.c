@@ -133,7 +133,6 @@ void init_main_window(const gchar * glade_file)
 	GladeXML *xml;
 	GtkWidget *widget;
 	GtkTextBuffer *txtbuf;
-	char title[256];
 	GtkStyle *style;
 
 	xml = glade_xml_new(glade_file, "window1", NULL);
@@ -210,9 +209,7 @@ void init_main_window(const gchar * glade_file)
 					  /*"style", PANGO_STYLE_OBLIQUE, */
 					  NULL);
 
-	sprintf(title, _("Linux Kernel v%s Configuration"),
-		getenv("KERNELVERSION"));
-	gtk_window_set_title(GTK_WINDOW(main_wnd), title);
+	gtk_window_set_title(GTK_WINDOW(main_wnd), rootmenu.prompt->text);
 
 	gtk_widget_show(main_wnd);
 }
