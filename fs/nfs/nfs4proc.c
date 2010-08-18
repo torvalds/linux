@@ -2036,7 +2036,8 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	struct dentry *res;
-	fmode_t fmode = nd->intent.open.flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
+	int open_flags = nd->intent.open.flags;
+	fmode_t fmode = open_flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
 
 	if (nd->flags & LOOKUP_CREATE) {
 		attr.ia_mode = nd->intent.open.create_mode;
@@ -2044,8 +2045,9 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		if (!IS_POSIXACL(dir))
 			attr.ia_mode &= ~current_umask();
 	} else {
+		open_flags &= ~O_EXCL;
 		attr.ia_valid = 0;
-		BUG_ON(nd->intent.open.flags & O_CREAT);
+		BUG_ON(open_flags & O_CREAT);
 	}
 
 	cred = rpc_lookup_cred();
@@ -2054,7 +2056,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
 	nfs_block_sillyrename(parent);
-	state = nfs4_do_open(dir, &path, fmode, nd->intent.open.flags, &attr, cred);
+	state = nfs4_do_open(dir, &path, fmode, open_flags, &attr, cred);
 	put_rpccred(cred);
 	if (IS_ERR(state)) {
 		if (PTR_ERR(state) == -ENOENT) {
@@ -2273,8 +2275,7 @@ static int nfs4_get_referral(struct inode *dir, const struct qstr *name, struct 
 out:
 	if (page)
 		__free_page(page);
-	if (locations)
-		kfree(locations);
+	kfree(locations);
 	return status;
 }
 
