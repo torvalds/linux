@@ -909,6 +909,7 @@ get_counters(const struct xt_table_info *t,
 		if (cpu == curcpu)
 			continue;
 		i = 0;
+		local_bh_disable();
 		xt_info_wrlock(cpu);
 		xt_entry_foreach(iter, t->entries[cpu], t->size) {
 			ADD_COUNTER(counters[i], iter->counters.bcnt,
@@ -916,6 +917,7 @@ get_counters(const struct xt_table_info *t,
 			++i; /* macro does multi eval of i */
 		}
 		xt_info_wrunlock(cpu);
+		local_bh_enable();
 	}
 	put_cpu();
 }

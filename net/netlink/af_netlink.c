@@ -1406,7 +1406,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	int noblock = flags&MSG_DONTWAIT;
 	size_t copied;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *frag __maybe_unused = NULL;
 	int err;
 
 	if (flags&MSG_OOB)
@@ -1441,21 +1441,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 			kfree_skb(skb);
 			skb = compskb;
 		} else {
-			/*
-			 * Before setting frag_list to NULL, we must get a
-			 * private copy of skb if shared (because of MSG_PEEK)
-			 */
-			if (skb_shared(skb)) {
-				struct sk_buff *nskb;
-
-				nskb = pskb_copy(skb, GFP_KERNEL);
-				kfree_skb(skb);
-				skb = nskb;
-				err = -ENOMEM;
-				if (!skb)
-					goto out;
-			}
-			kfree_skb(skb_shinfo(skb)->frag_list);
+			frag = skb_shinfo(skb)->frag_list;
 			skb_shinfo(skb)->frag_list = NULL;
 		}
 	}
@@ -1491,6 +1477,10 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	siocb->scm->creds = *NETLINK_CREDS(skb);
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
+
+#ifdef CONFIG_COMPAT_NETLINK_MESSAGES
+	skb_shinfo(skb)->frag_list = frag;
+#endif
 
 	skb_free_datagram(sk, skb);
 
