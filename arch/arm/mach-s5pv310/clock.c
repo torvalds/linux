@@ -46,6 +46,11 @@ static struct clk clk_sclk_usbphy1 = {
 	.id		= -1,
 };
 
+static int s5pv310_clksrc_mask_top_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLKSRC_MASK_TOP, clk, enable);
+}
+
 static int s5pv310_clksrc_mask_peril0_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLKSRC_MASK_PERIL0, clk, enable);
@@ -298,6 +303,8 @@ static struct clksrc_clk clk_vpllsrc = {
 	.clk	= {
 		.name		= "vpll_src",
 		.id		= -1,
+		.enable		= s5pv310_clksrc_mask_top_ctrl,
+		.ctrlbit	= (1 << 0),
 	},
 	.sources	= &clkset_vpllsrc,
 	.reg_src	= { .reg = S5P_CLKSRC_TOP1, .shift = 0, .size = 1 },
