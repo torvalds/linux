@@ -20,6 +20,7 @@
 
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include <plat/omap_device.h>
 #include <plat/smartreflex.h>
@@ -51,7 +52,21 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 			GFP_KERNEL);
 
 	for (i = 0; i < count; i++) {
-		u32 v = omap_ctrl_readl(volt_data[i].sr_efuse_offs);
+		u32 v;
+		/*
+		 * In OMAP4 the efuse registers are 24 bit aligned.
+		 * A __raw_readl will fail for non-32 bit aligned address
+		 * and hence the 8-bit read and shift.
+		 */
+		if (cpu_is_omap44xx()) {
+			u16 offset = volt_data[i].sr_efuse_offs;
+
+			v = omap_ctrl_readb(offset) |
+				omap_ctrl_readb(offset + 1) << 8 |
+				omap_ctrl_readb(offset + 2) << 16;
+		} else {
+			 v = omap_ctrl_readl(volt_data[i].sr_efuse_offs);
+		}
 
 		nvalue_table[i].efuse_offs = volt_data[i].sr_efuse_offs;
 		nvalue_table[i].nvalue = v;

@@ -37,7 +37,7 @@ config OMAP_DEBUG_LEDS
 
 config OMAP_SMARTREFLEX
 	bool "SmartReflex support"
-	depends on ARCH_OMAP3 && PM
+	depends on (ARCH_OMAP3 || ARCH_OMAP4) && PM
 	help
 	  Say Y if you want to enable SmartReflex.
 
