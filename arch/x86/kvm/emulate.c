@@ -2249,6 +2249,21 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	c->dst.type = OP_REG;
+	c->dst.addr.reg = &c->eip;
+	c->dst.bytes = c->op_bytes;
+	rc = emulate_pop(ctxt, ctxt->ops, &c->dst.val, c->op_bytes);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->src.val);
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2394,7 +2409,9 @@ static struct opcode opcode_table[256] = {
 	X8(D(DstReg | SrcImm | Mov)),
 	/* 0xC0 - 0xC7 */
 	D(ByteOp | DstMem | SrcImm | ModRM), D(DstMem | SrcImmByte | ModRM),
-	N, D(ImplicitOps | Stack), N, N,
+	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
+	D(ImplicitOps | Stack),
+	N, N,
 	D(ByteOp | DstMem | SrcImm | ModRM | Mov), D(DstMem | SrcImm | ModRM | Mov),
 	/* 0xC8 - 0xCF */
 	N, N, N, D(ImplicitOps | Stack),
