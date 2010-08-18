@@ -11,6 +11,7 @@ config ARCH_MSM7X00A
 	select MSM_SMD_PKG3
 	select CPU_V6
 	select MSM_PROC_COMM
+	select HAS_MSM_DEBUG_UART_PHYS
 
 config ARCH_MSM7X30
 	bool "MSM7x30"
@@ -21,6 +22,7 @@ config ARCH_MSM7X30
 	select MSM_REMOTE_SPINLOCK_DEKKERS
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
+	select HAS_MSM_DEBUG_UART_PHYS
 
 config ARCH_QSD8X50
 	bool "QSD8X50"
@@ -31,6 +33,8 @@ config ARCH_QSD8X50
 	select MSM_REMOTE_SPINLOCK_LDREX
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
+	select HAS_MSM_DEBUG_UART_PHYS
+
 endchoice
 
 config MSM_SOC_REV_A
@@ -39,6 +43,9 @@ config MSM_SOC_REV_A
 config  ARCH_MSM_ARM11
 	bool
 config  ARCH_MSM_SCORPION
+	bool
+
+config HAS_MSM_DEBUG_UART_PHYS
 	bool
 
 config  MSM_VIC
@@ -93,6 +100,7 @@ config MSM_DEBUG_UART
 	default 2 if MSM_DEBUG_UART2
 	default 3 if MSM_DEBUG_UART3
 
+if HAS_MSM_DEBUG_UART_PHYS
 choice
 	prompt "Debug UART"
 
@@ -110,6 +118,7 @@ choice
 	config MSM_DEBUG_UART3
 		bool "UART3"
 endchoice
+endif
 
 config MSM_SMD_PKG3
 	bool
