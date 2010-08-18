@@ -2175,6 +2175,45 @@ static int em_push(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_das(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	u8 al, old_al;
+	bool af, cf, old_cf;
+
+	cf = ctxt->eflags & X86_EFLAGS_CF;
+	al = c->dst.val;
+
+	old_al = al;
+	old_cf = cf;
+	cf = false;
+	af = ctxt->eflags & X86_EFLAGS_AF;
+	if ((al & 0x0f) > 9 || af) {
+		al -= 6;
+		cf = old_cf | (al >= 250);
+		af = true;
+	} else {
+		af = false;
+	}
+	if (old_al > 0x99 || old_cf) {
+		al -= 0x60;
+		cf = true;
+	}
+
+	c->dst.val = al;
+	/* Set PF, ZF, SF */
+	c->src.type = OP_IMM;
+	c->src.val = 0;
+	c->src.bytes = 1;
+	emulate_2op_SrcV("or", c->src, c->dst, ctxt->eflags);
+	ctxt->eflags &= ~(X86_EFLAGS_AF | X86_EFLAGS_CF);
+	if (cf)
+		ctxt->eflags |= X86_EFLAGS_CF;
+	if (af)
+		ctxt->eflags |= X86_EFLAGS_AF;
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2258,7 +2297,8 @@ static struct opcode opcode_table[256] = {
 	/* 0x28 - 0x2F */
 	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
 	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm), N, N,
+	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm),
+	N, I(ByteOp | DstAcc | No64, em_das),
 	/* 0x30 - 0x37 */
 	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
 	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
