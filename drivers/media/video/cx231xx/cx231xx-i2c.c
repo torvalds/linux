@@ -509,9 +509,6 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	if (0 == bus->i2c_rc) {
 		if (i2c_scan)
 			cx231xx_do_i2c_scan(dev, &bus->i2c_client);
-
-		/* Instantiate the IR receiver device, if present */
-		cx231xx_register_i2c_ir(dev);
 	} else
 		cx231xx_warn("%s: i2c bus %d register FAILED\n",
 			     dev->name, bus->nr);

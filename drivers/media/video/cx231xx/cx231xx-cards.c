@@ -546,38 +546,6 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 
 }
 
-/* ----------------------------------------------------------------------- */
-void cx231xx_register_i2c_ir(struct cx231xx *dev)
-{
-	if (disable_ir)
-		return;
-
-	/* REVISIT: instantiate IR device */
-
-	/* detect & configure */
-	switch (dev->model) {
-
-	case CX231XX_BOARD_CNXT_CARRAERA:
-		break;
-	case CX231XX_BOARD_CNXT_RDE_250:
-		break;
-	case CX231XX_BOARD_CNXT_SHELBY:
-		break;
-	case CX231XX_BOARD_CNXT_RDU_250:
-		break;
-	case CX231XX_BOARD_CNXT_RDE_253S:
-		break;
-	case CX231XX_BOARD_CNXT_RDU_253S:
-		break;
-	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
-		break;
-	case CX231XX_BOARD_HAUPPAUGE_EXETER:
-		break;
-	default:
-		break;
-	}
-}
-
 void cx231xx_card_setup(struct cx231xx *dev)
 {
 
