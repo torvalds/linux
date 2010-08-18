@@ -787,8 +787,8 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
-	const bool do_sync = (bio->bi_rw & REQ_SYNC);
-	bool do_barriers;
+	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
+	unsigned long do_barriers;
 	mdk_rdev_t *blocked_rdev;
 
 	/*
@@ -1643,7 +1643,7 @@ static void raid1d(mddev_t *mddev)
 			 * We already have a nr_pending reference on these rdevs.
 			 */
 			int i;
-			const bool do_sync = (r1_bio->master_bio->bi_rw & REQ_SYNC);
+			const unsigned long do_sync = (r1_bio->master_bio->bi_rw & REQ_SYNC);
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
 			clear_bit(R1BIO_Barrier, &r1_bio->state);
 			for (i=0; i < conf->raid_disks; i++)
@@ -1699,7 +1699,7 @@ static void raid1d(mddev_t *mddev)
 				       (unsigned long long)r1_bio->sector);
 				raid_end_bio_io(r1_bio);
 			} else {
-				const bool do_sync = r1_bio->master_bio->bi_rw & REQ_SYNC;
+				const unsigned long do_sync = r1_bio->master_bio->bi_rw & REQ_SYNC;
 				r1_bio->bios[r1_bio->read_disk] =
 					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;
