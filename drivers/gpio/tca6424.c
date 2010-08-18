@@ -834,22 +834,6 @@ int tca6424_init_pintype(struct tca6424_chip *chip,struct i2c_client *client)
 
 	return 0;
 }
-void tca6424_reset_itr(void)
-{
-		rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_GPIO1_A67);
-		gpio_request(RK2818_PIN_PE6,NULL);
-		gpio_request(RK2818_PIN_PE7,NULL);
-
-		gpio_direction_output(RK2818_PIN_PE6,GPIO_HIGH);
-		gpio_direction_output(RK2818_PIN_PE7,GPIO_LOW);
-		udelay(3);
-		gpio_set_value(RK2818_PIN_PE7,GPIO_HIGH);
-		udelay(1);
-		rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
-		
-		gpio_free(RK2818_PIN_PE6);
-		gpio_free(RK2818_PIN_PE7);
-}
 
 static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
@@ -871,6 +855,8 @@ static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_de
 		ret = -EINVAL;
 		goto out_failed;
 	}
+
+	client->adapter->dev.platform_data = pdata;
 	
 	chip->gpio_start = pdata->gpio_base;
 	chip->gpio_irq_start =pdata->gpio_irq_start;
@@ -905,7 +891,6 @@ static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_de
 	tca6424_gpio_irq_setup(chip);
 	i2c_set_clientdata(client, chip);
 	chip->client = client;
-
 	return 0;
 
 out_failed:

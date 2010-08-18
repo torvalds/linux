@@ -316,6 +316,23 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 	 },
 };
 
+void tca6424_reset_itr(void)
+{
+		rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_GPIO1_A67);
+		gpio_request(RK2818_PIN_PE6,NULL);
+		gpio_request(RK2818_PIN_PE7,NULL);
+
+		gpio_direction_output(RK2818_PIN_PE6,GPIO_HIGH);
+		gpio_direction_output(RK2818_PIN_PE7,GPIO_LOW);
+		udelay(3);
+		gpio_set_value(RK2818_PIN_PE7,GPIO_HIGH);
+		udelay(1);
+		
+		gpio_free(RK2818_PIN_PE6);
+		gpio_free(RK2818_PIN_PE7);
+		rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
+}
+
 struct tca6424_platform_data rk2818_tca6424_data={
 	.gpio_base=GPIO_EXPANDER_BASE,
 	.gpio_pin_num=CONFIG_EXPANDED_GPIO_NUM,
@@ -325,6 +342,7 @@ struct tca6424_platform_data rk2818_tca6424_data={
 	.settinginfo=extgpio_tca6424_settinginfo,
 	.settinginfolen=ARRAY_SIZE(extgpio_tca6424_settinginfo),
 	.names="extend_gpio_tca6424",
+	.reseti2cpin = tca6424_reset_itr,
 };
 #endif
 

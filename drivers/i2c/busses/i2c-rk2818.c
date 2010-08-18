@@ -35,10 +35,6 @@
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 #define RK2818_DELAY_TIME		2
 
-#if defined (CONFIG_IOEXTEND_TCA6424)
-	void tca6424_reset_itr(void);
-#endif
-
 #if 0
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
@@ -421,7 +417,10 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 	struct rk2818_i2c_data *i2c = (struct rk2818_i2c_data *)adap->algo_data;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	int ret = 0;
-
+	
+	#if defined (CONFIG_IOEXTEND_TCA6424)
+	struct tca6424_platform_data  *pdata = adap->dev.platform_data;
+	#endif
 	
 	if(msg->len == 0)
 	{
@@ -467,7 +466,9 @@ exit:
 		if(msg->flags & I2C_M_RD)
 		{
 			#if defined (CONFIG_IOEXTEND_TCA6424)
-				tca6424_reset_itr( );
+			if (pdata && pdata->reseti2cpin) {
+				pdata->reseti2cpin();
+			}
 			#endif	
 		}
 			
