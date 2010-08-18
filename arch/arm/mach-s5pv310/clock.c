@@ -150,24 +150,6 @@ static struct clksrc_clk clk_periphclk = {
 	.reg_div	= { .reg = S5P_CLKDIV_CPU, .shift = 12, .size = 3 },
 };
 
-static struct clksrc_clk clk_atclk = {
-	.clk	= {
-		.name		= "atclk",
-		.id		= -1,
-		.parent		= &clk_moutcore.clk,
-	},
-	.reg_div	= { .reg = S5P_CLKDIV_CPU, .shift = 16, .size = 3 },
-};
-
-static struct clksrc_clk clk_pclk_dbg = {
-	.clk	= {
-		.name		= "pclk_dbg",
-		.id		= -1,
-		.parent		= &clk_atclk.clk,
-	},
-	.reg_div	= { .reg = S5P_CLKDIV_CPU, .shift = 20, .size = 3 },
-};
-
 /* Core list of CMU_CORE side */
 
 static struct clk *clkset_corebus_list[] = {
@@ -464,8 +446,6 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_aclk_cores,
 	&clk_aclk_corem1,
 	&clk_periphclk,
-	&clk_atclk,
-	&clk_pclk_dbg,
 	&clk_mout_corebus,
 	&clk_sclk_dmc,
 	&clk_aclk_cored,
@@ -490,15 +470,7 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 	unsigned long vpllsrc;
 	unsigned long xtal;
 	unsigned long armclk;
-	unsigned long aclk_corem0;
-	unsigned long aclk_cores;
-	unsigned long aclk_corem1;
-	unsigned long periphclk;
 	unsigned long sclk_dmc;
-	unsigned long aclk_cored;
-	unsigned long aclk_corep;
-	unsigned long aclk_acp;
-	unsigned long pclk_acp;
 	unsigned int ptr;
 
 	printk(KERN_DEBUG "%s: registering clocks\n", __func__);
@@ -529,26 +501,12 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 			apll, mpll, epll, vpll);
 
 	armclk = clk_get_rate(&clk_armclk.clk);
-	aclk_corem0 = clk_get_rate(&clk_aclk_corem0.clk);
-	aclk_cores = clk_get_rate(&clk_aclk_cores.clk);
-	aclk_corem1 = clk_get_rate(&clk_aclk_corem1.clk);
-	periphclk = clk_get_rate(&clk_periphclk.clk);
 	sclk_dmc = clk_get_rate(&clk_sclk_dmc.clk);
-	aclk_cored = clk_get_rate(&clk_aclk_cored.clk);
-	aclk_corep = clk_get_rate(&clk_aclk_corep.clk);
-	aclk_acp = clk_get_rate(&clk_aclk_acp.clk);
-	pclk_acp = clk_get_rate(&clk_pclk_acp.clk);
 
-	printk(KERN_INFO "S5PV310: ARMCLK=%ld, COREM0=%ld, CORES=%ld\n"
-			 "COREM1=%ld, PERI=%ld, DMC=%ld, CORED=%ld\n"
-			 "COREP=%ld, ACLK_ACP=%ld, PCLK_ACP=%ld",
-			armclk, aclk_corem0, aclk_cores, aclk_corem1,
-			periphclk, sclk_dmc, aclk_cored, aclk_corep,
-			aclk_acp, pclk_acp);
+	printk(KERN_INFO "S5PV310: ARMCLK=%ld, DMC=%ld\n", armclk, sclk_dmc);
 
 	clk_f.rate = armclk;
 	clk_h.rate = sclk_dmc;
-	clk_p.rate = periphclk;
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
 		s3c_set_clksrc(&clksrcs[ptr], true);
