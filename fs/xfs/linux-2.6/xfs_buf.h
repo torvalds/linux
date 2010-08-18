@@ -86,14 +86,6 @@ typedef enum {
  */
 #define _XBF_PAGE_LOCKED	(1 << 22)
 
-/*
- * If we try a barrier write, but it fails we have to communicate
- * this to the upper layers.  Unfortunately b_error gets overwritten
- * when the buffer is re-issued so we have to add another flag to
- * keep this information.
- */
-#define _XFS_BARRIER_FAILED	(1 << 23)
-
 typedef unsigned int xfs_buf_flags_t;
 
 #define XFS_BUF_FLAGS \
@@ -114,8 +106,7 @@ typedef unsigned int xfs_buf_flags_t;
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_RUN_QUEUES,	"RUN_QUEUES" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
-	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }, \
-	{ _XFS_BARRIER_FAILED,	"BARRIER_FAILED" }
+	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }
 
 
 typedef enum {
