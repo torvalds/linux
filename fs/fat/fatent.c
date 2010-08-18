@@ -579,7 +579,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 					fat_clus_to_blknr(sbi, first_cl),
 					nr_clus * sbi->sec_per_clus,
 					GFP_NOFS,
-					BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
+					BLKDEV_IFL_WAIT);
 
 				first_cl = cluster;
 			}
