@@ -178,17 +178,9 @@ static int nilfs_sync_super(struct nilfs_sb_info *sbi, int flag)
 
  retry:
 	set_buffer_dirty(nilfs->ns_sbh[0]);
-
 	if (nilfs_test_opt(sbi, BARRIER)) {
 		err = __sync_dirty_buffer(nilfs->ns_sbh[0],
-					  WRITE_SYNC | WRITE_BARRIER);
-		if (err == -EOPNOTSUPP) {
-			nilfs_warning(sbi->s_super, __func__,
-				      "barrier-based sync failed. "
-				      "disabling barriers\n");
-			nilfs_clear_opt(sbi, BARRIER);
-			goto retry;
-		}
+					  WRITE_SYNC | WRITE_FLUSH_FUA);
 	} else {
 		err = sync_dirty_buffer(nilfs->ns_sbh[0]);
 	}
