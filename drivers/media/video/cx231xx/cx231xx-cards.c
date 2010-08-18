@@ -253,22 +253,12 @@ struct cx231xx_board cx231xx_boards[] = {
 	},
 	[CX231XX_BOARD_CNXT_VIDEO_GRABBER] = {
 		.name = "Conexant VIDEO GRABBER",
-		.tuner_type = TUNER_NXP_TDA18271,
-		.tuner_addr = 0x60,
-		.tuner_gpio = RDE250_XCV_TUNER,
-		.tuner_sif_gpio = 0x05,
-		.tuner_scl_gpio = 0x1a,
-		.tuner_sda_gpio = 0x1b,
+		.tuner_type = TUNER_ABSENT,
 		.decoder = CX231XX_AVDECODER,
 		.output_mode = OUT_MODE_VIP11,
-		.demod_xfer_mode = 0,
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x1c,
 		.gpio_pin_status_mask = 0x4001000,
-		.tuner_i2c_master = 1,
-		.demod_i2c_master = 2,
-		.has_dvb = 0,
-		.demod_addr = 0x02,
 		.norm = V4L2_STD_PAL,
 
 		.input = {{
@@ -282,11 +272,6 @@ struct cx231xx_board cx231xx_boards[] = {
 					(CX231XX_VIN_1_2 << 8) |
 					CX25840_SVIDEO_ON,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = NULL,
-			}, {
-				.type = CX231XX_VMUX_TELEVISION,
-				.vmux = CX231XX_VIN_3_1,
-				.amux = CX231XX_AMUX_VIDEO,
 				.gpio = NULL,
 			}
 		},
