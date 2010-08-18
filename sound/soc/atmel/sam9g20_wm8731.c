@@ -205,6 +205,12 @@ static int __init at91sam9g20ek_init(void)
 	if (!(machine_is_at91sam9g20ek() || machine_is_at91sam9g20ek_2mmc()))
 		return -ENODEV;
 
+	ret = atmel_ssc_set_audio(0);
+	if (ret != 0) {
+		pr_err("Failed to set SSC 0 for audio: %d\n", ret);
+		return ret;
+	}
+
 	/*
 	 * Codec MCLK is supplied by PCK0 - set it up.
 	 */
