@@ -876,7 +876,7 @@ static void *hostfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		char *path = dentry_name(dentry);
 		int err = -ENOMEM;
 		if (path) {
-			int err = hostfs_do_readlink(path, link, PATH_MAX);
+			err = hostfs_do_readlink(path, link, PATH_MAX);
 			if (err == PATH_MAX)
 				err = -E2BIG;
 			__putname(path);
