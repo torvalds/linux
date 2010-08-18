@@ -1135,6 +1135,7 @@ static int raid1_spare_active(mddev_t *mddev)
 			spin_lock_irqsave(&conf->device_lock, flags);
 			mddev->degraded--;
 			spin_unlock_irqrestore(&conf->device_lock, flags);
+			sysfs_notify_dirent(rdev->sysfs_state);
 		}
 	}
 
