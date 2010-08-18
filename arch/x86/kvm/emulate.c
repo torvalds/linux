@@ -2279,6 +2279,22 @@ static int em_imul_3op(struct x86_emulate_ctxt *ctxt)
 	return em_imul(ctxt);
 }
 
+static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
+{
+	unsigned cpl = ctxt->ops->cpl(ctxt->vcpu);
+	struct decode_cache *c = &ctxt->decode;
+	u64 tsc = 0;
+
+	if (cpl > 0 && (ctxt->ops->get_cr(4, ctxt->vcpu) & X86_CR4_TSD)) {
+		emulate_gp(ctxt, 0);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+	ctxt->ops->get_msr(ctxt->vcpu, MSR_IA32_TSC, &tsc);
+	c->regs[VCPU_REGS_RAX] = (u32)tsc;
+	c->regs[VCPU_REGS_RDX] = tsc >> 32;
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2469,7 +2485,8 @@ static struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
-	D(ImplicitOps | Priv), N, D(ImplicitOps | Priv), N,
+	D(ImplicitOps | Priv), I(ImplicitOps, em_rdtsc),
+	D(ImplicitOps | Priv), N,
 	D(ImplicitOps), D(ImplicitOps | Priv), N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
