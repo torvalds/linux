@@ -2136,16 +2136,6 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 	 * with the rest of the array)
 	 */
 	mdk_rdev_t *rdev;
-
-	/* First make sure individual recovery_offsets are correct */
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		if (rdev->raid_disk >= 0 &&
-		    mddev->delta_disks >= 0 &&
-		    !test_bit(In_sync, &rdev->flags) &&
-		    mddev->curr_resync_completed > rdev->recovery_offset)
-				rdev->recovery_offset = mddev->curr_resync_completed;
-
-	}	
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->sb_events == mddev->events ||
 		    (nospares &&
@@ -2167,11 +2157,26 @@ static void md_update_sb(mddev_t * mddev, int force_change)
 	int sync_req;
 	int nospares = 0;
 
-	mddev->utime = get_seconds();
-	if (mddev->external)
-		return;
 repeat:
+	/* First make sure individual recovery_offsets are correct */
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk >= 0 &&
+		    mddev->delta_disks >= 0 &&
+		    !test_bit(In_sync, &rdev->flags) &&
+		    mddev->curr_resync_completed > rdev->recovery_offset)
+				rdev->recovery_offset = mddev->curr_resync_completed;
+
+	}	
+	if (mddev->external || !mddev->persistent) {
+		clear_bit(MD_CHANGE_DEVS, &mddev->flags);
+		clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
+		wake_up(&mddev->sb_wait);
+		return;
+	}
+
 	spin_lock_irq(&mddev->write_lock);
+
+	mddev->utime = get_seconds();
 
 	set_bit(MD_CHANGE_PENDING, &mddev->flags);
 	if (test_and_clear_bit(MD_CHANGE_DEVS, &mddev->flags))
@@ -2220,19 +2225,6 @@ repeat:
 		 */
 		MD_BUG();
 		mddev->events --;
-	}
-
-	/*
-	 * do not write anything to disk if using
-	 * nonpersistent superblocks
-	 */
-	if (!mddev->persistent) {
-		if (!mddev->external)
-			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
-
-		spin_unlock_irq(&mddev->write_lock);
-		wake_up(&mddev->sb_wait);
-		return;
 	}
 	sync_sbs(mddev, nospares);
 	spin_unlock_irq(&mddev->write_lock);
