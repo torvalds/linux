@@ -2214,6 +2214,40 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_call_far(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	u16 sel, old_cs;
+	ulong old_eip;
+	int rc;
+
+	old_cs = ctxt->ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
+	old_eip = c->eip;
+
+	memcpy(&sel, c->src.valptr + c->op_bytes, 2);
+	if (load_segment_descriptor(ctxt, ctxt->ops, sel, VCPU_SREG_CS))
+		return X86EMUL_CONTINUE;
+
+	c->eip = 0;
+	memcpy(&c->eip, c->src.valptr, c->op_bytes);
+
+	c->src.val = old_cs;
+	emulate_push(ctxt, ctxt->ops);
+	rc = writeback(ctxt, ctxt->ops);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->src.val = old_eip;
+	emulate_push(ctxt, ctxt->ops);
+	rc = writeback(ctxt, ctxt->ops);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->dst.type = OP_NONE;
+
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
@@ -2241,7 +2275,8 @@ static struct opcode group4[] = {
 
 static struct opcode group5[] = {
 	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
-	D(SrcMem | ModRM | Stack), N,
+	D(SrcMem | ModRM | Stack),
+	I(SrcMemFAddr | ModRM | ImplicitOps | Stack, em_call_far),
 	D(SrcMem | ModRM | Stack), D(SrcMemFAddr | ModRM | ImplicitOps),
 	D(SrcMem | ModRM | Stack), N,
 };
