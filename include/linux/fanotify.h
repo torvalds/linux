@@ -95,11 +95,4 @@ struct fanotify_response {
 				(long)(meta)->event_len >= (long)FAN_EVENT_METADATA_LEN && \
 				(long)(meta)->event_len <= (long)(len))
 
-#ifdef __KERNEL__
-
-struct fanotify_wait {
-	struct fsnotify_event *event;
-	__s32 fd;
-};
-#endif /* __KERNEL__ */
 #endif /* _LINUX_FANOTIFY_H */
