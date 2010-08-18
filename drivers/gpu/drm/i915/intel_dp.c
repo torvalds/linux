@@ -1145,12 +1145,13 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 {
 	struct drm_device *dev = intel_dp->base.enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.enc.crtc);
 	int ret;
 
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
 	POSTING_READ(intel_dp->output_reg);
 	if (first)
-		intel_wait_for_vblank(dev);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	intel_dp_aux_native_write_1(intel_dp,
 				    DP_TRAINING_PATTERN_SET,

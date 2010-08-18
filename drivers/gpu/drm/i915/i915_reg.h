@@ -2081,6 +2081,7 @@
 #define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
+#define   DSL_LINEMASK	       	0x00000fff
 #define PIPEACONF		0x70008
 #define   PIPEACONF_ENABLE	(1<<31)
 #define   PIPEACONF_DISABLE	0

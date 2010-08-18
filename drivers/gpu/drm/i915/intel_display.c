@@ -977,14 +977,54 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
     return true;
 }
 
-void
-intel_wait_for_vblank(struct drm_device *dev)
+/**
+ * intel_wait_for_vblank - wait for vblank on a given pipe
+ * @dev: drm device
+ * @pipe: pipe to wait for
+ *
+ * Wait for vblank to occur on a given pipe.  Needed for various bits of
+ * mode setting code.
+ */
+void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
-	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	if (in_dbg_master())
-		mdelay(20); /* The kernel debugger cannot call msleep() */
-	else
-		msleep(20);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipestat_reg = (pipe == 0 ? PIPEASTAT : PIPEBSTAT);
+
+	/* Wait for vblank interrupt bit to set */
+	if (wait_for((I915_READ(pipestat_reg) &
+		      PIPE_VBLANK_INTERRUPT_STATUS) == 0,
+		     50, 0))
+		DRM_DEBUG_KMS("vblank wait timed out\n");
+}
+
+/**
+ * intel_wait_for_vblank_off - wait for vblank after disabling a pipe
+ * @dev: drm device
+ * @pipe: pipe to wait for
+ *
+ * After disabling a pipe, we can't wait for vblank in the usual way,
+ * spinning on the vblank interrupt status bit, since we won't actually
+ * see an interrupt when the pipe is disabled.
+ *
+ * So this function waits for the display line value to settle (it
+ * usually ends up stopping at the start of the next frame).
+ */
+void intel_wait_for_vblank_off(struct drm_device *dev, int pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipedsl_reg = (pipe == 0 ? PIPEADSL : PIPEBDSL);
+	unsigned long timeout = jiffies + msecs_to_jiffies(100);
+	u32 last_line;
+
+	/* Wait for the display line to settle */
+	do {
+		last_line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
+		mdelay(5);
+	} while (((I915_READ(pipedsl_reg) & DSL_LINEMASK) != last_line) &&
+		 time_after(timeout, jiffies));
+
+	if (time_after(jiffies, timeout))
+		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
 /* Parameters have changed, update FBC info */
@@ -1057,8 +1097,6 @@ void i8xx_disable_fbc(struct drm_device *dev)
 		return;
 	}
 
-	intel_wait_for_vblank(dev);
-
 	DRM_DEBUG_KMS("disabled FBC\n");
 }
 
@@ -1115,7 +1153,6 @@ void g4x_disable_fbc(struct drm_device *dev)
 	dpfc_ctl = I915_READ(DPFC_CONTROL);
 	dpfc_ctl &= ~DPFC_CTL_EN;
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl);
-	intel_wait_for_vblank(dev);
 
 	DRM_DEBUG_KMS("disabled FBC\n");
 }
@@ -1176,7 +1213,6 @@ void ironlake_disable_fbc(struct drm_device *dev)
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
 	dpfc_ctl &= ~DPFC_CTL_EN;
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
-	intel_wait_for_vblank(dev);
 
 	DRM_DEBUG_KMS("disabled FBC\n");
 }
@@ -1475,7 +1511,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if ((IS_I965G(dev) || plane == 0))
 		intel_update_fbc(crtc, &crtc->mode);
 
-	intel_wait_for_vblank(dev);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	intel_increase_pllclock(crtc, true);
 
 	return 0;
@@ -1593,7 +1629,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if ((IS_I965G(dev) || plane == 0))
 		intel_update_fbc(crtc, &crtc->mode);
 
-	intel_wait_for_vblank(dev);
+	intel_wait_for_vblank(dev, pipe);
 
 	if (old_fb) {
 		intel_fb = to_intel_framebuffer(old_fb);
@@ -2343,10 +2379,8 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(dspbase_reg);
 		}
 
-		if (!IS_I9XX(dev)) {
-			/* Wait for vblank for the disable to take effect */
-			intel_wait_for_vblank(dev);
-		}
+		/* Wait for vblank for the disable to take effect */
+		intel_wait_for_vblank_off(dev, pipe);
 
 		/* Don't disable pipe A or pipe A PLLs if needed */
 		if (pipeconf_reg == PIPEACONF &&
@@ -2361,7 +2395,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		/* Wait for vblank for the disable to take effect. */
-		intel_wait_for_vblank(dev);
+		intel_wait_for_vblank_off(dev, pipe);
 
 		temp = I915_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -4096,7 +4130,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(pipeconf_reg, pipeconf);
 	I915_READ(pipeconf_reg);
 
-	intel_wait_for_vblank(dev);
+	intel_wait_for_vblank(dev, pipe);
 
 	if (IS_IRONLAKE(dev)) {
 		/* enable address swizzle for tiling buffer */
@@ -4508,7 +4542,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 		encoder_funcs->commit(encoder);
 	}
 	/* let the connector get through one full cycle before testing */
-	intel_wait_for_vblank(dev);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	return crtc;
 }
@@ -4713,7 +4747,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
 		dpll = I915_READ(dpll_reg);
-		intel_wait_for_vblank(dev);
+		intel_wait_for_vblank(dev, pipe);
 		dpll = I915_READ(dpll_reg);
 		if (dpll & DISPLAY_RATE_SELECT_FPA1)
 			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
@@ -4757,7 +4791,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
 		dpll = I915_READ(dpll_reg);
-		intel_wait_for_vblank(dev);
+		intel_wait_for_vblank(dev, pipe);
 		dpll = I915_READ(dpll_reg);
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
 			DRM_DEBUG_DRIVER("failed to downclock LVDS!\n");

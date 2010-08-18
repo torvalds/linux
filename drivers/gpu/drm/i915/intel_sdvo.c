@@ -1218,6 +1218,7 @@ static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	u32 temp;
 
 	if (mode != DRM_MODE_DPMS_ON) {
@@ -1240,7 +1241,7 @@ static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 		if ((temp & SDVO_ENABLE) == 0)
 			intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
 		for (i = 0; i < 2; i++)
-		  intel_wait_for_vblank(dev);
+			intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 		status = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
 		/* Warn if the device reported failure to sync.
