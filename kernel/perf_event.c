@@ -827,6 +827,8 @@ perf_install_in_context(struct perf_event_context *ctx,
 {
 	struct task_struct *task = ctx->task;
 
+	event->ctx = ctx;
+
 	if (!task) {
 		/*
 		 * Per cpu events are installed via an smp call and
@@ -5038,20 +5040,17 @@ struct pmu *perf_init_event(struct perf_event *event)
  * Allocate and initialize a event structure
  */
 static struct perf_event *
-perf_event_alloc(struct perf_event_attr *attr,
-		   int cpu,
-		   struct perf_event_context *ctx,
+perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		   struct perf_event *group_leader,
 		   struct perf_event *parent_event,
-		   perf_overflow_handler_t overflow_handler,
-		   gfp_t gfpflags)
+		   perf_overflow_handler_t overflow_handler)
 {
 	struct pmu *pmu;
 	struct perf_event *event;
 	struct hw_perf_event *hwc;
 	long err;
 
-	event = kzalloc(sizeof(*event), gfpflags);
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
 		return ERR_PTR(-ENOMEM);
 
@@ -5076,7 +5075,6 @@ perf_event_alloc(struct perf_event_attr *attr,
 	event->attr		= *attr;
 	event->group_leader	= group_leader;
 	event->pmu		= NULL;
-	event->ctx		= ctx;
 	event->oncpu		= -1;
 
 	event->parent		= parent_event;
@@ -5321,20 +5319,26 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (event_fd < 0)
 		return event_fd;
 
+	event = perf_event_alloc(&attr, cpu, group_leader, NULL, NULL);
+	if (IS_ERR(event)) {
+		err = PTR_ERR(event);
+		goto err_fd;
+	}
+
 	/*
 	 * Get the target context (task or percpu):
 	 */
 	ctx = find_get_context(pid, cpu);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
-		goto err_fd;
+		goto err_alloc;
 	}
 
 	if (group_fd != -1) {
 		group_leader = perf_fget_light(group_fd, &fput_needed);
 		if (IS_ERR(group_leader)) {
 			err = PTR_ERR(group_leader);
-			goto err_put_context;
+			goto err_context;
 		}
 		group_file = group_leader->filp;
 		if (flags & PERF_FLAG_FD_OUTPUT)
@@ -5354,37 +5358,30 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * becoming part of another group-sibling):
 		 */
 		if (group_leader->group_leader != group_leader)
-			goto err_put_context;
+			goto err_context;
 		/*
 		 * Do not allow to attach to a group in a different
 		 * task or CPU context:
 		 */
 		if (group_leader->ctx != ctx)
-			goto err_put_context;
+			goto err_context;
 		/*
 		 * Only a group leader can be exclusive or pinned
 		 */
 		if (attr.exclusive || attr.pinned)
-			goto err_put_context;
-	}
-
-	event = perf_event_alloc(&attr, cpu, ctx, group_leader,
-				     NULL, NULL, GFP_KERNEL);
-	if (IS_ERR(event)) {
-		err = PTR_ERR(event);
-		goto err_put_context;
+			goto err_context;
 	}
 
 	if (output_event) {
 		err = perf_event_set_output(event, output_event);
 		if (err)
-			goto err_free_put_context;
+			goto err_context;
 	}
 
 	event_file = anon_inode_getfile("[perf_event]", &perf_fops, event, O_RDWR);
 	if (IS_ERR(event_file)) {
 		err = PTR_ERR(event_file);
-		goto err_free_put_context;
+		goto err_context;
 	}
 
 	event->filp = event_file;
@@ -5410,11 +5407,11 @@ SYSCALL_DEFINE5(perf_event_open,
 	fd_install(event_fd, event_file);
 	return event_fd;
 
-err_free_put_context:
-	free_event(event);
-err_put_context:
+err_context:
 	fput_light(group_file, fput_needed);
 	put_ctx(ctx);
+err_alloc:
+	free_event(event);
 err_fd:
 	put_unused_fd(event_fd);
 	return err;
@@ -5432,25 +5429,24 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 				 pid_t pid,
 				 perf_overflow_handler_t overflow_handler)
 {
-	struct perf_event *event;
 	struct perf_event_context *ctx;
+	struct perf_event *event;
 	int err;
 
 	/*
 	 * Get the target context (task or percpu):
 	 */
 
+	event = perf_event_alloc(attr, cpu, NULL, NULL, overflow_handler);
+	if (IS_ERR(event)) {
+		err = PTR_ERR(event);
+		goto err;
+	}
+
 	ctx = find_get_context(pid, cpu);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
-		goto err_exit;
-	}
-
-	event = perf_event_alloc(attr, cpu, ctx, NULL,
-				 NULL, overflow_handler, GFP_KERNEL);
-	if (IS_ERR(event)) {
-		err = PTR_ERR(event);
-		goto err_put_context;
+		goto err_free;
 	}
 
 	event->filp = NULL;
@@ -5468,9 +5464,9 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	return event;
 
- err_put_context:
-	put_ctx(ctx);
- err_exit:
+err_free:
+	free_event(event);
+err:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(perf_event_create_kernel_counter);
@@ -5498,9 +5494,9 @@ inherit_event(struct perf_event *parent_event,
 		parent_event = parent_event->parent;
 
 	child_event = perf_event_alloc(&parent_event->attr,
-					   parent_event->cpu, child_ctx,
+					   parent_event->cpu,
 					   group_leader, parent_event,
-					   NULL, GFP_KERNEL);
+					   NULL);
 	if (IS_ERR(child_event))
 		return child_event;
 	get_ctx(child_ctx);
@@ -5525,6 +5521,7 @@ inherit_event(struct perf_event *parent_event,
 		local64_set(&hwc->period_left, sample_period);
 	}
 
+	child_event->ctx = child_ctx;
 	child_event->overflow_handler = parent_event->overflow_handler;
 
 	/*
