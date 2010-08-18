@@ -2537,7 +2537,7 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
 /**
  * ieee80211_request_smps - request SM PS transition
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- * @mode: new SM PS mode
+ * @smps_mode: new SM PS mode
  *
  * This allows the driver to request an SM PS transition in managed
  * mode. This is useful when the driver has more information than
