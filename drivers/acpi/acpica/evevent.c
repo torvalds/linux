@@ -102,9 +102,8 @@ acpi_status acpi_ev_initialize_events(void)
  * RETURN:      Status
  *
  * DESCRIPTION: Completes initialization of the FADT-defined GPE blocks
- *              (0 and 1). This causes the _PRW methods to be run, so the HW
- *              must be fully initialized at this point, including global lock
- *              support.
+ *              (0 and 1). The HW must be fully initialized at this point,
+ *              including global lock support.
  *
  ******************************************************************************/
 

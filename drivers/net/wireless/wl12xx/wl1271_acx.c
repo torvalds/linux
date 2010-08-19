@@ -1075,8 +1075,7 @@ out:
 	return ret;
 }
 
-int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
-			     u8 version)
+int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, __be32 address)
 {
 	struct wl1271_acx_arp_filter *acx;
 	int ret;
@@ -1089,17 +1088,11 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 		goto out;
 	}
 
-	acx->version = version;
+	acx->version = ACX_IPV4_VERSION;
 	acx->enable = enable;
 
-	if (enable == true) {
-		if (version == ACX_IPV4_VERSION)
-			memcpy(acx->address, address, ACX_IPV4_ADDR_SIZE);
-		else if (version == ACX_IPV6_VERSION)
-			memcpy(acx->address, address, sizeof(acx->address));
-		else
-			wl1271_error("Invalid IP version");
-	}
+	if (enable == true)
+		memcpy(acx->address, &address, ACX_IPV4_ADDR_SIZE);
 
 	ret = wl1271_cmd_configure(wl, ACX_ARP_IP_FILTER,
 				   acx, sizeof(*acx));
@@ -1264,5 +1257,31 @@ int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl)
 
 out:
 	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
+{
+	struct wl1271_acx_fw_tsf_information *tsf_info;
+	int ret;
+
+	tsf_info = kzalloc(sizeof(*tsf_info), GFP_KERNEL);
+	if (!tsf_info) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_interrogate(wl, ACX_TSF_INFO,
+				     tsf_info, sizeof(*tsf_info));
+	if (ret < 0) {
+		wl1271_warning("acx tsf info interrogate failed");
+		goto out;
+	}
+
+	*mactime = le32_to_cpu(tsf_info->current_tsf_low) |
+		((u64) le32_to_cpu(tsf_info->current_tsf_high) << 32);
+
+out:
+	kfree(tsf_info);
 	return ret;
 }

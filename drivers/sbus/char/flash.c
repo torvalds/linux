@@ -10,7 +10,7 @@
 #include <linux/fcntl.h>
 #include <linux/poll.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/of.h>
@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <asm/upa.h>
 
+static DEFINE_MUTEX(flash_mutex);
 static DEFINE_SPINLOCK(flash_lock);
 static struct {
 	unsigned long read_base;	/* Physical read address */
@@ -80,7 +81,7 @@ flash_mmap(struct file *file, struct vm_area_struct *vma)
 static long long
 flash_llseek(struct file *file, long long offset, int origin)
 {
-	lock_kernel();
+	mutex_lock(&flash_mutex);
 	switch (origin) {
 		case 0:
 			file->f_pos = offset;
@@ -94,10 +95,10 @@ flash_llseek(struct file *file, long long offset, int origin)
 			file->f_pos = flash.read_size;
 			break;
 		default:
-			unlock_kernel();
+			mutex_unlock(&flash_mutex);
 			return -EINVAL;
 	}
-	unlock_kernel();
+	mutex_unlock(&flash_mutex);
 	return file->f_pos;
 }
 
@@ -125,13 +126,13 @@ flash_read(struct file * file, char __user * buf,
 static int
 flash_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	mutex_lock(&flash_mutex);
 	if (test_and_set_bit(0, (void *)&flash.busy) != 0) {
-		unlock_kernel();
+		mutex_unlock(&flash_mutex);
 		return -EBUSY;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&flash_mutex);
 	return 0;
 }
 
@@ -159,7 +160,7 @@ static const struct file_operations flash_fops = {
 
 static struct miscdevice flash_dev = { FLASH_MINOR, "flash", &flash_fops };
 
-static int __devinit flash_probe(struct of_device *op,
+static int __devinit flash_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -191,7 +192,7 @@ static int __devinit flash_probe(struct of_device *op,
 	return misc_register(&flash_dev);
 }
 
-static int __devexit flash_remove(struct of_device *op)
+static int __devexit flash_remove(struct platform_device *op)
 {
 	misc_deregister(&flash_dev);
 
@@ -218,12 +219,12 @@ static struct of_platform_driver flash_driver = {
 
 static int __init flash_init(void)
 {
-	return of_register_driver(&flash_driver, &of_bus_type);
+	return of_register_platform_driver(&flash_driver);
 }
 
 static void __exit flash_cleanup(void)
 {
-	of_unregister_driver(&flash_driver);
+	of_unregister_platform_driver(&flash_driver);
 }
 
 module_init(flash_init);

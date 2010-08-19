@@ -27,7 +27,6 @@ struct generic_cred {
 };
 
 static struct rpc_auth generic_auth;
-static struct rpc_cred_cache generic_cred_cache;
 static const struct rpc_credops generic_credops;
 
 /*
@@ -55,18 +54,13 @@ struct rpc_cred *rpc_lookup_machine_cred(void)
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_machine_cred);
 
-static void
-generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred, int lookupflags)
+static struct rpc_cred *generic_bind_cred(struct rpc_task *task,
+		struct rpc_cred *cred, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 	struct auth_cred *acred = &container_of(cred, struct generic_cred, gc_base)->acred;
-	struct rpc_cred *ret;
 
-	ret = auth->au_ops->lookup_cred(auth, acred, lookupflags);
-	if (!IS_ERR(ret))
-		task->tk_msg.rpc_cred = ret;
-	else
-		task->tk_status = PTR_ERR(ret);
+	return auth->au_ops->lookup_cred(auth, acred, lookupflags);
 }
 
 /*
@@ -159,19 +153,15 @@ out_nomatch:
 	return 0;
 }
 
-void __init rpc_init_generic_auth(void)
+int __init rpc_init_generic_auth(void)
 {
-	spin_lock_init(&generic_cred_cache.lock);
+	return rpcauth_init_credcache(&generic_auth);
 }
 
 void __exit rpc_destroy_generic_auth(void)
 {
-	rpcauth_clear_credcache(&generic_cred_cache);
+	rpcauth_destroy_credcache(&generic_auth);
 }
-
-static struct rpc_cred_cache generic_cred_cache = {
-	{{ NULL, },},
-};
 
 static const struct rpc_authops generic_auth_ops = {
 	.owner = THIS_MODULE,
@@ -183,7 +173,6 @@ static const struct rpc_authops generic_auth_ops = {
 static struct rpc_auth generic_auth = {
 	.au_ops = &generic_auth_ops,
 	.au_count = ATOMIC_INIT(0),
-	.au_credcache = &generic_cred_cache,
 };
 
 static const struct rpc_credops generic_credops = {

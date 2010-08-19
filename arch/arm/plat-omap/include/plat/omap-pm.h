@@ -1,8 +1,8 @@
 /*
  * omap-pm.h - OMAP power management interface
  *
- * Copyright (C) 2008-2009 Texas Instruments, Inc.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Texas Instruments, Inc.
+ * Copyright (C) 2008-2010 Nokia Corporation
  * Paul Walmsley
  *
  * Interface developed by (in alphabetical order): Karthik Dasu, Jouni
@@ -16,6 +16,7 @@
 
 #include <linux/device.h>
 #include <linux/cpufreq.h>
+#include <linux/clk.h>
 
 #include "powerdomain.h"
 
@@ -89,7 +90,7 @@ void omap_pm_if_exit(void);
  * @t: maximum MPU wakeup latency in microseconds
  *
  * Request that the maximum interrupt latency for the MPU to be no
- * greater than 't' microseconds. "Interrupt latency" in this case is
+ * greater than @t microseconds. "Interrupt latency" in this case is
  * defined as the elapsed time from the occurrence of a hardware or
  * timer interrupt to the time when the device driver's interrupt
  * service routine has been entered by the MPU.
@@ -105,15 +106,19 @@ void omap_pm_if_exit(void);
  * elapsed from when a device driver enables a hardware device with
  * clk_enable(), to when the device is ready for register access or
  * other use.  To control this device wakeup latency, use
- * set_max_dev_wakeup_lat()
+ * omap_pm_set_max_dev_wakeup_lat()
  *
- * Multiple calls to set_max_mpu_wakeup_lat() will replace the
+ * Multiple calls to omap_pm_set_max_mpu_wakeup_lat() will replace the
  * previous t value.  To remove the latency target for the MPU, call
  * with t = -1.
  *
- * No return value.
+ * XXX This constraint will be deprecated soon in favor of the more
+ * general omap_pm_set_max_dev_wakeup_lat()
+ *
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
+int omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
 
 
 /**
@@ -123,8 +128,8 @@ void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
  * @r: minimum throughput (in KiB/s)
  *
  * Request that the minimum data throughput on the OCP interconnect
- * attached to device 'dev' interconnect agent 'tbus_id' be no less
- * than 'r' KiB/s.
+ * attached to device @dev interconnect agent @tbus_id be no less
+ * than @r KiB/s.
  *
  * It is expected that the OMAP PM or bus code will use this
  * information to set the interconnect clock to run at the lowest
@@ -138,40 +143,44 @@ void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
  * code will also need to add an minimum L3 interconnect speed
  * constraint,
  *
- * Multiple calls to set_min_bus_tput() will replace the previous rate
- * value for this device.  To remove the interconnect throughput
- * restriction for this device, call with r = 0.
+ * Multiple calls to omap_pm_set_min_bus_tput() will replace the
+ * previous rate value for this device.  To remove the interconnect
+ * throughput restriction for this device, call with r = 0.
  *
- * No return value.
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_min_bus_tput(struct device *dev, u8 agent_id, unsigned long r);
+int omap_pm_set_min_bus_tput(struct device *dev, u8 agent_id, unsigned long r);
 
 
 /**
  * omap_pm_set_max_dev_wakeup_lat - set the maximum device enable latency
- * @dev: struct device *
+ * @req_dev: struct device * requesting the constraint, or NULL if none
+ * @dev: struct device * to set the constraint one
  * @t: maximum device wakeup latency in microseconds
  *
- * Request that the maximum amount of time necessary for a device to
- * become accessible after its clocks are enabled should be no greater
- * than 't' microseconds.  Specifically, this represents the time from
- * when a device driver enables device clocks with clk_enable(), to
- * when the register reads and writes on the device will succeed.
- * This function should be called before clk_disable() is called,
- * since the power state transition decision may be made during
- * clk_disable().
+ * Request that the maximum amount of time necessary for a device @dev
+ * to become accessible after its clocks are enabled should be no
+ * greater than @t microseconds.  Specifically, this represents the
+ * time from when a device driver enables device clocks with
+ * clk_enable(), to when the register reads and writes on the device
+ * will succeed.  This function should be called before clk_disable()
+ * is called, since the power state transition decision may be made
+ * during clk_disable().
  *
  * It is intended that underlying PM code will use this information to
  * determine what power state to put the powerdomain enclosing this
  * device into.
  *
- * Multiple calls to set_max_dev_wakeup_lat() will replace the
- * previous wakeup latency values for this device.  To remove the wakeup
- * latency restriction for this device, call with t = -1.
+ * Multiple calls to omap_pm_set_max_dev_wakeup_lat() will replace the
+ * previous wakeup latency values for this device.  To remove the
+ * wakeup latency restriction for this device, call with t = -1.
  *
- * No return value.
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_max_dev_wakeup_lat(struct device *dev, long t);
+int omap_pm_set_max_dev_wakeup_lat(struct device *req_dev, struct device *dev,
+				   long t);
 
 
 /**
@@ -198,10 +207,71 @@ void omap_pm_set_max_dev_wakeup_lat(struct device *dev, long t);
  * value for this device.  To remove the maximum DMA latency for this
  * device, call with t = -1.
  *
- * No return value.
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_max_sdma_lat(struct device *dev, long t);
+int omap_pm_set_max_sdma_lat(struct device *dev, long t);
 
+
+/**
+ * omap_pm_set_min_clk_rate - set minimum clock rate requested by @dev
+ * @dev: struct device * requesting the constraint
+ * @clk: struct clk * to set the minimum rate constraint on
+ * @r: minimum rate in Hz
+ *
+ * Request that the minimum clock rate on the device @dev's clk @clk
+ * be no less than @r Hz.
+ *
+ * It is expected that the OMAP PM code will use this information to
+ * find an OPP or clock setting that will satisfy this clock rate
+ * constraint, along with any other applicable system constraints on
+ * the clock rate or corresponding voltage, etc.
+ *
+ * omap_pm_set_min_clk_rate() differs from the clock code's
+ * clk_set_rate() in that it considers other constraints before taking
+ * any hardware action, and may change a system OPP rather than just a
+ * clock rate.  clk_set_rate() is intended to be a low-level
+ * interface.
+ *
+ * omap_pm_set_min_clk_rate() is easily open to abuse.  A better API
+ * would be something like "omap_pm_set_min_dev_performance()";
+ * however, there is no easily-generalizable concept of performance
+ * that applies to all devices.  Only a device (and possibly the
+ * device subsystem) has both the subsystem-specific knowledge, and
+ * the hardware IP block-specific knowledge, to translate a constraint
+ * on "touchscreen sampling accuracy" or "number of pixels or polygons
+ * rendered per second" to a clock rate.  This translation can be
+ * dependent on the hardware IP block's revision, or firmware version,
+ * and the driver is the only code on the system that has this
+ * information and can know how to translate that into a clock rate.
+ *
+ * The intended use-case for this function is for userspace or other
+ * kernel code to communicate a particular performance requirement to
+ * a subsystem; then for the subsystem to communicate that requirement
+ * to something that is meaningful to the device driver; then for the
+ * device driver to convert that requirement to a clock rate, and to
+ * then call omap_pm_set_min_clk_rate().
+ *
+ * Users of this function (such as device drivers) should not simply
+ * call this function with some high clock rate to ensure "high
+ * performance."  Rather, the device driver should take a performance
+ * constraint from its subsystem, such as "render at least X polygons
+ * per second," and use some formula or table to convert that into a
+ * clock rate constraint given the hardware type and hardware
+ * revision.  Device drivers or subsystems should not assume that they
+ * know how to make a power/performance tradeoff - some device use
+ * cases may tolerate a lower-fidelity device function for lower power
+ * consumption; others may demand a higher-fidelity device function,
+ * no matter what the power consumption.
+ *
+ * Multiple calls to omap_pm_set_min_clk_rate() will replace the
+ * previous rate value for the device @dev.  To remove the minimum clock
+ * rate constraint for the device, call with r = 0.
+ *
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
+ */
+int omap_pm_set_min_clk_rate(struct device *dev, struct clk *c, long r);
 
 /*
  * DSP Bridge-specific constraints

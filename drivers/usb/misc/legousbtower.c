@@ -448,7 +448,7 @@ static int tower_release (struct inode *inode, struct file *file)
 
 	dbg(2, "%s: enter", __func__);
 
-	dev = (struct lego_usb_tower *)file->private_data;
+	dev = file->private_data;
 
 	if (dev == NULL) {
 		dbg(1, "%s: object is NULL", __func__);
@@ -597,7 +597,7 @@ static ssize_t tower_read (struct file *file, char __user *buffer, size_t count,
 
 	dbg(2, "%s: enter, count = %Zd", __func__, count);
 
-	dev = (struct lego_usb_tower *)file->private_data;
+	dev = file->private_data;
 
 	/* lock this object */
 	if (mutex_lock_interruptible(&dev->lock)) {
@@ -686,7 +686,7 @@ static ssize_t tower_write (struct file *file, const char __user *buffer, size_t
 
 	dbg(2, "%s: enter, count = %Zd", __func__, count);
 
-	dev = (struct lego_usb_tower *)file->private_data;
+	dev = file->private_data;
 
 	/* lock this object */
 	if (mutex_lock_interruptible(&dev->lock)) {

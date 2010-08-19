@@ -1096,7 +1096,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 {
 	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
-	u32 hstatus, qc_active = 0;
+	u32 hstatus, done_mask = 0;
 	struct ata_queued_cmd *qc;
 	u32 SError;
 
@@ -1116,28 +1116,28 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 	}
 
 	/* Read command completed register */
-	qc_active = ioread32(hcr_base + CC);
+	done_mask = ioread32(hcr_base + CC);
 
 	VPRINTK("Status of all queues :\n");
-	VPRINTK("qc_active/CC = 0x%x, CA = 0x%x, CE=0x%x,CQ=0x%x,apqa=0x%x\n",
-		qc_active,
+	VPRINTK("done_mask/CC = 0x%x, CA = 0x%x, CE=0x%x,CQ=0x%x,apqa=0x%x\n",
+		done_mask,
 		ioread32(hcr_base + CA),
 		ioread32(hcr_base + CE),
 		ioread32(hcr_base + CQ),
 		ap->qc_active);
 
-	if (qc_active & ap->qc_active) {
+	if (done_mask & ap->qc_active) {
 		int i;
 		/* clear CC bit, this will also complete the interrupt */
-		iowrite32(qc_active, hcr_base + CC);
+		iowrite32(done_mask, hcr_base + CC);
 
 		DPRINTK("Status of all queues :\n");
-		DPRINTK("qc_active/CC = 0x%x, CA = 0x%x, CE=0x%x\n",
-			qc_active, ioread32(hcr_base + CA),
+		DPRINTK("done_mask/CC = 0x%x, CA = 0x%x, CE=0x%x\n",
+			done_mask, ioread32(hcr_base + CA),
 			ioread32(hcr_base + CE));
 
 		for (i = 0; i < SATA_FSL_QUEUE_DEPTH; i++) {
-			if (qc_active & (1 << i)) {
+			if (done_mask & (1 << i)) {
 				qc = ata_qc_from_tag(ap, i);
 				if (qc) {
 					ata_qc_complete(qc);
@@ -1164,7 +1164,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 		/* Spurious Interrupt!! */
 		DPRINTK("spurious interrupt!!, CC = 0x%x\n",
 			ioread32(hcr_base + CC));
-		iowrite32(qc_active, hcr_base + CC);
+		iowrite32(done_mask, hcr_base + CC);
 		return;
 	}
 }
@@ -1296,7 +1296,7 @@ static const struct ata_port_info sata_fsl_port_info[] = {
 	 },
 };
 
-static int sata_fsl_probe(struct of_device *ofdev,
+static int sata_fsl_probe(struct platform_device *ofdev,
 			const struct of_device_id *match)
 {
 	int retval = -ENXIO;
@@ -1370,7 +1370,7 @@ error_exit_with_cleanup:
 	return retval;
 }
 
-static int sata_fsl_remove(struct of_device *ofdev)
+static int sata_fsl_remove(struct platform_device *ofdev)
 {
 	struct ata_host *host = dev_get_drvdata(&ofdev->dev);
 	struct sata_fsl_host_priv *host_priv = host->private_data;
@@ -1387,13 +1387,13 @@ static int sata_fsl_remove(struct of_device *ofdev)
 }
 
 #ifdef CONFIG_PM
-static int sata_fsl_suspend(struct of_device *op, pm_message_t state)
+static int sata_fsl_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct ata_host *host = dev_get_drvdata(&op->dev);
 	return ata_host_suspend(host, state);
 }
 
-static int sata_fsl_resume(struct of_device *op)
+static int sata_fsl_resume(struct platform_device *op)
 {
 	struct ata_host *host = dev_get_drvdata(&op->dev);
 	struct sata_fsl_host_priv *host_priv = host->private_data;

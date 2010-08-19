@@ -69,7 +69,7 @@ static struct at_desc *atc_first_queued(struct at_dma_chan *atchan)
 }
 
 /**
- * atc_alloc_descriptor - allocate and return an initilized descriptor
+ * atc_alloc_descriptor - allocate and return an initialized descriptor
  * @chan: the channel to allocate descriptors for
  * @gfp_flags: GFP allocation flags
  *
@@ -790,11 +790,11 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	list_splice_init(&atchan->queue, &list);
 	list_splice_init(&atchan->active_list, &list);
 
-	spin_unlock_bh(&atchan->lock);
-
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		atc_chain_complete(atchan, desc);
+
+	spin_unlock_bh(&atchan->lock);
 
 	return 0;
 }

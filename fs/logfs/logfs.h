@@ -504,8 +504,7 @@ extern const struct inode_operations logfs_reg_iops;
 extern const struct file_operations logfs_reg_fops;
 extern const struct address_space_operations logfs_reg_aops;
 int logfs_readpage(struct file *file, struct page *page);
-int logfs_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		unsigned long arg);
+long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int logfs_fsync(struct file *file, int datasync);
 
 /* gc.c */
@@ -525,13 +524,11 @@ struct inode *logfs_new_meta_inode(struct super_block *sb, u64 ino);
 struct inode *logfs_read_meta_inode(struct super_block *sb, u64 ino);
 int logfs_init_inode_cache(void);
 void logfs_destroy_inode_cache(void);
-void destroy_meta_inode(struct inode *inode);
 void logfs_set_blocks(struct inode *inode, u64 no);
 /* these logically belong into inode.c but actually reside in readwrite.c */
 int logfs_read_inode(struct inode *inode);
 int __logfs_write_inode(struct inode *inode, long flags);
-void logfs_delete_inode(struct inode *inode);
-void logfs_clear_inode(struct inode *inode);
+void logfs_evict_inode(struct inode *inode);
 
 /* journal.c */
 void logfs_write_anchor(struct super_block *sb);

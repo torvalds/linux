@@ -22,7 +22,6 @@
 #define MODULE_NAME "sonixj"
 
 #include <linux/input.h>
-#include <linux/slab.h>
 #include "gspca.h"
 #include "jpeg.h"
 
@@ -67,7 +66,11 @@ struct sd {
 #define BRIDGE_SN9C110 2
 #define BRIDGE_SN9C120 3
 	u8 sensor;			/* Type of image sensor chip */
-enum {
+	u8 i2c_addr;
+
+	u8 jpeg_hdr[JPEG_HDR_SZ];
+};
+enum sensors {
 	SENSOR_ADCM1700,
 	SENSOR_GC0307,
 	SENSOR_HV7131R,
@@ -82,10 +85,6 @@ enum {
 	SENSOR_PO2030N,
 	SENSOR_SOI768,
 	SENSOR_SP80708,
-} sensors;
-	u8 i2c_addr;
-
-	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -392,7 +391,7 @@ static const u8 sn_gc0307[0x1c] = {
 
 static const u8 sn_hv7131[0x1c] = {
 /*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
-	0x00,	0x03,	0x64,	0x00,	0x1a,	0x20,	0x20,	0x20,
+	0x00,	0x03,	0x60,	0x00,	0x1a,	0x20,	0x20,	0x20,
 /*	reg8	reg9	rega	regb	regc	regd	rege	regf */
 	0x81,	0x11,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
 /*	reg10	reg11	reg12	reg13	reg14	reg15	reg16	reg17 */
@@ -403,7 +402,7 @@ static const u8 sn_hv7131[0x1c] = {
 
 static const u8 sn_mi0360[0x1c] = {
 /*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
-	0x00,	0x61,	0x44,	0x00,	0x1a,	0x20,	0x20,	0x20,
+	0x00,	0x61,	0x40,	0x00,	0x1a,	0x20,	0x20,	0x20,
 /*	reg8	reg9	rega	regb	regc	regd	rege	regf */
 	0x81,	0x5d,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
 /*	reg10	reg11	reg12	reg13	reg14	reg15	reg16	reg17 */
@@ -1644,6 +1643,7 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 			  const u8 *sn9c1xx)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 reg0102[2];
 	const u8 *reg9a;
 	static const u8 reg9a_def[] =
 		{0x00, 0x40, 0x20, 0x00, 0x00, 0x00};
@@ -1656,7 +1656,11 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 
 	/* configure gpio */
-	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 2);
+	reg0102[0] = sn9c1xx[1];
+	reg0102[1] = sn9c1xx[2];
+	if (gspca_dev->audio)
+		reg0102[1] |= 0x04;	/* keep the audio connection */
+	reg_w(gspca_dev, 0x01, reg0102, 2);
 	reg_w(gspca_dev, 0x08, &sn9c1xx[8], 2);
 	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);
 	switch (sd->sensor) {
@@ -1737,13 +1741,12 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x01, 0x40);
 		break;
 	case SENSOR_PO2030N:
+	case SENSOR_OV7660:
 		reg_w1(gspca_dev, 0x01, 0x63);
 		reg_w1(gspca_dev, 0x17, 0x20);
 		reg_w1(gspca_dev, 0x01, 0x62);
 		reg_w1(gspca_dev, 0x01, 0x42);
 		break;
-	case SENSOR_OV7660:
-		/* fall thru */
 	case SENSOR_SP80708:
 		reg_w1(gspca_dev, 0x01, 0x63);
 		reg_w1(gspca_dev, 0x17, 0x20);
@@ -1816,7 +1819,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	const u8 *sn9c1xx;
-	u8 regGpio[] = { 0x29, 0x74 };
+	u8 regGpio[] = { 0x29, 0x74 };		/* with audio */
 	u8 regF1;
 
 	/* setup a selector by bridge */
@@ -1856,7 +1859,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			po2030n_probe(gspca_dev);
 			break;
 		}
-		regGpio[1] = 0x70;
+		regGpio[1] = 0x70;		/* no audio */
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	default:
@@ -2274,7 +2277,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
-	u8 reg1, reg2, reg17;
+	u8 reg1, reg17;
 	const u8 *sn9c1xx;
 	const u8 (*init)[8];
 	int mode;
@@ -2303,23 +2306,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* initialize the sensor */
 	i2c_w_seq(gspca_dev, sensor_init[sd->sensor]);
-
-	switch (sd->sensor) {
-	case SENSOR_ADCM1700:
-		reg2 = 0x60;
-		break;
-	case SENSOR_OM6802:
-		reg2 = 0x71;
-		break;
-	case SENSOR_SP80708:
-		reg2 = 0x62;
-		break;
-	default:
-		reg2 = 0x40;
-		break;
-	}
-	reg_w1(gspca_dev, 0x02, reg2);
-	reg_w1(gspca_dev, 0x02, reg2);
 
 	reg_w1(gspca_dev, 0x15, sn9c1xx[0x15]);
 	reg_w1(gspca_dev, 0x16, sn9c1xx[0x16]);

@@ -1610,11 +1610,8 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 
 static int __init pc87360_device_add(unsigned short address)
 {
-	struct resource res = {
-		.name	= "pc87360",
-		.flags	= IORESOURCE_IO,
-	};
-	int err, i;
+	struct resource res[3];
+	int err, i, res_count;
 
 	pdev = platform_device_alloc("pc87360", address);
 	if (!pdev) {
@@ -1623,22 +1620,28 @@ static int __init pc87360_device_add(unsigned short address)
 		goto exit;
 	}
 
+	memset(res, 0, 3 * sizeof(struct resource));
+	res_count = 0;
 	for (i = 0; i < 3; i++) {
 		if (!extra_isa[i])
 			continue;
-		res.start = extra_isa[i];
-		res.end = extra_isa[i] + PC87360_EXTENT - 1;
+		res[res_count].start = extra_isa[i];
+		res[res_count].end = extra_isa[i] + PC87360_EXTENT - 1;
+		res[res_count].name = "pc87360",
+		res[res_count].flags = IORESOURCE_IO,
 
-		err = acpi_check_resource_conflict(&res);
+		err = acpi_check_resource_conflict(&res[res_count]);
 		if (err)
 			goto exit_device_put;
 
-		err = platform_device_add_resources(pdev, &res, 1);
-		if (err) {
-			printk(KERN_ERR "pc87360: Device resource[%d] "
-			       "addition failed (%d)\n", i, err);
-			goto exit_device_put;
-		}
+		res_count++;
+	}
+
+	err = platform_device_add_resources(pdev, res, res_count);
+	if (err) {
+		printk(KERN_ERR "pc87360: Device resources addition failed "
+		       "(%d)\n", err);
+		goto exit_device_put;
 	}
 
 	err = platform_device_add(pdev);

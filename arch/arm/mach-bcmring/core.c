@@ -91,14 +91,23 @@ static struct clk uart_clk = {
 	.parent = &pll1_clk,
 };
 
+static struct clk dummy_apb_pclk = {
+	.name = "BUSCLK",
+	.type = CLK_TYPE_PRIMARY,
+	.mode = CLK_MODE_XTAL,
+};
+
 static struct clk_lookup lookups[] = {
-	{			/* UART0 */
-	 .dev_id = "uarta",
-	 .clk = &uart_clk,
-	 }, {			/* UART1 */
-	     .dev_id = "uartb",
-	     .clk = &uart_clk,
-	     }
+	{			/* Bus clock */
+		.con_id = "apb_pclk",
+		.clk = &dummy_apb_pclk,
+	}, {			/* UART0 */
+		.dev_id = "uarta",
+		.clk = &uart_clk,
+	}, {			/* UART1 */
+		.dev_id = "uartb",
+		.clk = &uart_clk,
+	}
 };
 
 static struct amba_device *amba_devs[] __initdata = {

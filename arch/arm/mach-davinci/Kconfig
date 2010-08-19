@@ -50,6 +50,11 @@ config ARCH_DAVINCI_DM365
 	select AINTC
 	select ARCH_DAVINCI_DMx
 
+config ARCH_DAVINCI_TNETV107X
+	select CPU_V6
+	select CP_INTC
+	bool "TNETV107X based system"
+
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
@@ -172,6 +177,13 @@ config DA850_UI_RMII
 	  not be functional if RMII mode is selected.
 
 endchoice
+
+config MACH_TNETV107X
+	bool "TI TNETV107X Reference Platform"
+	default ARCH_DAVINCI_TNETV107X
+	depends on ARCH_DAVINCI_TNETV107X
+	help
+	  Say Y here to select the TI TNETV107X Evaluation Module.
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"

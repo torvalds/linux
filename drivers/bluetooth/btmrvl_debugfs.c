@@ -216,7 +216,7 @@ static const struct file_operations btmrvl_gpiogap_fops = {
 static ssize_t btmrvl_hscmd_write(struct file *file, const char __user *ubuf,
 						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv = (struct btmrvl_private *) file->private_data;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
 	long result, ret;
 

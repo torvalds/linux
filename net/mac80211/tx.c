@@ -576,17 +576,6 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_sta(struct ieee80211_tx_data *tx)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-
-	if (tx->sta && tx->sta->uploaded)
-		info->control.sta = &tx->sta->sta;
-
-	return TX_CONTINUE;
-}
-
-static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -1092,6 +1081,59 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	return true;
 }
 
+static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
+				  struct sk_buff *skb,
+				  struct ieee80211_tx_info *info,
+				  struct tid_ampdu_tx *tid_tx,
+				  int tid)
+{
+	bool queued = false;
+
+	if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
+		info->flags |= IEEE80211_TX_CTL_AMPDU;
+	} else if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
+		/*
+		 * nothing -- this aggregation session is being started
+		 * but that might still fail with the driver
+		 */
+	} else {
+		spin_lock(&tx->sta->lock);
+		/*
+		 * Need to re-check now, because we may get here
+		 *
+		 *  1) in the window during which the setup is actually
+		 *     already done, but not marked yet because not all
+		 *     packets are spliced over to the driver pending
+		 *     queue yet -- if this happened we acquire the lock
+		 *     either before or after the splice happens, but
+		 *     need to recheck which of these cases happened.
+		 *
+		 *  2) during session teardown, if the OPERATIONAL bit
+		 *     was cleared due to the teardown but the pointer
+		 *     hasn't been assigned NULL yet (or we loaded it
+		 *     before it was assigned) -- in this case it may
+		 *     now be NULL which means we should just let the
+		 *     packet pass through because splicing the frames
+		 *     back is already done.
+		 */
+		tid_tx = tx->sta->ampdu_mlme.tid_tx[tid];
+
+		if (!tid_tx) {
+			/* do nothing, let packet pass through */
+		} else if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
+			info->flags |= IEEE80211_TX_CTL_AMPDU;
+		} else {
+			queued = true;
+			info->control.vif = &tx->sdata->vif;
+			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+			__skb_queue_tail(&tid_tx->pending, skb);
+		}
+		spin_unlock(&tx->sta->lock);
+	}
+
+	return queued;
+}
+
 /*
  * initialises @tx
  */
@@ -1104,8 +1146,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int hdrlen, tid;
-	u8 *qc, *state;
-	bool queued = false;
+	u8 *qc;
 
 	memset(tx, 0, sizeof(*tx));
 	tx->skb = skb;
@@ -1157,35 +1198,16 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
 
-		spin_lock(&tx->sta->lock);
-		/*
-		 * XXX: This spinlock could be fairly expensive, but see the
-		 *	comment in agg-tx.c:ieee80211_agg_tx_operational().
-		 *	One way to solve this would be to do something RCU-like
-		 *	for managing the tid_tx struct and using atomic bitops
-		 *	for the actual state -- by introducing an actual
-		 *	'operational' bit that would be possible. It would
-		 *	require changing ieee80211_agg_tx_operational() to
-		 *	set that bit, and changing the way tid_tx is managed
-		 *	everywhere, including races between that bit and
-		 *	tid_tx going away (tid_tx being added can be easily
-		 *	committed to memory before the 'operational' bit).
-		 */
-		tid_tx = tx->sta->ampdu_mlme.tid_tx[tid];
-		state = &tx->sta->ampdu_mlme.tid_state_tx[tid];
-		if (*state == HT_AGG_STATE_OPERATIONAL) {
-			info->flags |= IEEE80211_TX_CTL_AMPDU;
-		} else if (*state != HT_AGG_STATE_IDLE) {
-			/* in progress */
-			queued = true;
-			info->control.vif = &sdata->vif;
-			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-			__skb_queue_tail(&tid_tx->pending, skb);
-		}
-		spin_unlock(&tx->sta->lock);
+		tid_tx = rcu_dereference(tx->sta->ampdu_mlme.tid_tx[tid]);
+		if (tid_tx) {
+			bool queued;
 
-		if (unlikely(queued))
-			return TX_QUEUED;
+			queued = ieee80211_tx_prep_agg(tx, skb, info,
+						       tid_tx, tid);
+
+			if (unlikely(queued))
+				return TX_QUEUED;
+		}
 	}
 
 	if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1274,6 +1296,11 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 			break;
 		}
 
+		if (sta && sta->uploaded)
+			info->control.sta = &sta->sta;
+		else
+			info->control.sta = NULL;
+
 		ret = drv_tx(local, skb);
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
@@ -1313,7 +1340,6 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_check_assoc);
 	CALL_TXH(ieee80211_tx_h_ps_buf);
 	CALL_TXH(ieee80211_tx_h_select_key);
-	CALL_TXH(ieee80211_tx_h_sta);
 	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
 
@@ -1909,11 +1935,13 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		h_pos += encaps_len;
 	}
 
+#ifdef CONFIG_MAC80211_MESH
 	if (meshhdrlen > 0) {
 		memcpy(skb_push(skb, meshhdrlen), &mesh_hdr, meshhdrlen);
 		nh_pos += meshhdrlen;
 		h_pos += meshhdrlen;
 	}
+#endif
 
 	if (ieee80211_is_data_qos(fc)) {
 		__le16 *qos_control;

@@ -562,7 +562,7 @@ compare the codec registers directly.
 Send a bug report either the followings:
 
 kernel-bugzilla::
-  http://bugme.linux-foundation.org/
+  https://bugzilla.kernel.org/
 alsa-devel ML::
   alsa-devel@alsa-project.org
 

@@ -54,7 +54,7 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 		return;
 	}
 
-	ieee80211_queue_work(&local->hw, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
 /**
@@ -345,7 +345,7 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 		return;
 	}
 
-	ieee80211_queue_work(&local->hw, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
 static void ieee80211_mesh_path_root_timer(unsigned long data)
@@ -362,7 +362,7 @@ static void ieee80211_mesh_path_root_timer(unsigned long data)
 		return;
 	}
 
-	ieee80211_queue_work(&local->hw, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
@@ -484,9 +484,6 @@ void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	/* might restart the timer but that doesn't matter */
-	cancel_work_sync(&ifmsh->work);
-
 	/* use atomic bitops in case both timers fire at the same time */
 
 	if (del_timer_sync(&ifmsh->housekeeping_timer))
@@ -518,7 +515,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
-	ieee80211_queue_work(&local->hw, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &sdata->work);
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED |
@@ -536,16 +533,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	 * whether the interface is running, which, at this point,
 	 * it no longer is.
 	 */
-	cancel_work_sync(&sdata->u.mesh.work);
-
-	/*
-	 * When we get here, the interface is marked down.
-	 * Call synchronize_rcu() to wait for the RX path
-	 * should it be using the interface and enqueuing
-	 * frames at this very time on another CPU.
-	 */
-	rcu_barrier(); /* Wait for RX path and call_rcu()'s */
-	skb_queue_purge(&sdata->u.mesh.skb_queue);
+	cancel_work_sync(&sdata->work);
 }
 
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
@@ -608,8 +596,8 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-static void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
-					  struct sk_buff *skb)
+void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_if_mesh *ifmsh;
@@ -632,26 +620,11 @@ static void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
-
-	kfree_skb(skb);
 }
 
-static void ieee80211_mesh_work(struct work_struct *work)
+void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data, u.mesh.work);
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct sk_buff *skb;
-
-	if (!ieee80211_sdata_running(sdata))
-		return;
-
-	if (local->scanning)
-		return;
-
-	while ((skb = skb_dequeue(&ifmsh->skb_queue)))
-		ieee80211_mesh_rx_queued_mgmt(sdata, skb);
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -678,7 +651,7 @@ void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list)
 		if (ieee80211_vif_is_mesh(&sdata->vif))
-			ieee80211_queue_work(&local->hw, &sdata->u.mesh.work);
+			ieee80211_queue_work(&local->hw, &sdata->work);
 	rcu_read_unlock();
 }
 
@@ -686,11 +659,9 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	INIT_WORK(&ifmsh->work, ieee80211_mesh_work);
 	setup_timer(&ifmsh->housekeeping_timer,
 		    ieee80211_mesh_housekeeping_timer,
 		    (unsigned long) sdata);
-	skb_queue_head_init(&sdata->u.mesh.skb_queue);
 
 	ifmsh->mshcfg.dot11MeshRetryTimeout = MESH_RET_T;
 	ifmsh->mshcfg.dot11MeshConfirmTimeout = MESH_CONF_T;
@@ -730,30 +701,4 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 	INIT_LIST_HEAD(&ifmsh->preq_queue.list);
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
-}
-
-ieee80211_rx_result
-ieee80211_mesh_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_mgmt *mgmt;
-	u16 fc;
-
-	if (skb->len < 24)
-		return RX_DROP_MONITOR;
-
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	fc = le16_to_cpu(mgmt->frame_control);
-
-	switch (fc & IEEE80211_FCTL_STYPE) {
-	case IEEE80211_STYPE_ACTION:
-	case IEEE80211_STYPE_PROBE_RESP:
-	case IEEE80211_STYPE_BEACON:
-		skb_queue_tail(&ifmsh->skb_queue, skb);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
-		return RX_QUEUED;
-	}
-
-	return RX_CONTINUE;
 }

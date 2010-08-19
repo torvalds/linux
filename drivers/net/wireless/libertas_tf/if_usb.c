@@ -538,15 +538,14 @@ static void if_usb_receive_fwload(struct urb *urb)
 		return;
 	}
 
-	syncfwheader = kmalloc(sizeof(struct fwsyncheader), GFP_ATOMIC);
+	syncfwheader = kmemdup(skb->data, sizeof(struct fwsyncheader),
+			       GFP_ATOMIC);
 	if (!syncfwheader) {
 		lbtf_deb_usbd(&cardp->udev->dev, "Failure to allocate syncfwheader\n");
 		kfree_skb(skb);
 		lbtf_deb_leave(LBTF_DEB_USB);
 		return;
 	}
-
-	memcpy(syncfwheader, skb->data, sizeof(struct fwsyncheader));
 
 	if (!syncfwheader->cmd) {
 		lbtf_deb_usb2(&cardp->udev->dev, "FW received Blk with correct CRC\n");
@@ -812,12 +811,15 @@ static int if_usb_prog_firmware(struct if_usb_card *cardp)
 
 	lbtf_deb_enter(LBTF_DEB_USB);
 
+	kparam_block_sysfs_write(fw_name);
 	ret = request_firmware(&cardp->fw, lbtf_fw_name, &cardp->udev->dev);
 	if (ret < 0) {
 		pr_err("request_firmware() failed with %#x\n", ret);
 		pr_err("firmware %s not found\n", lbtf_fw_name);
+		kparam_unblock_sysfs_write(fw_name);
 		goto done;
 	}
+	kparam_unblock_sysfs_write(fw_name);
 
 	if (check_fwfile_format(cardp->fw->data, cardp->fw->size))
 		goto release_fw;

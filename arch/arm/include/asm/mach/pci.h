@@ -46,6 +46,7 @@ struct pci_sys_data {
 					/* IRQ mapping				*/
 	int		(*map_irq)(struct pci_dev *, u8, u8);
 	struct hw_pci	*hw;
+	void		*private_data;	/* platform controller private data	*/
 };
 
 /*

@@ -822,7 +822,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 
 	dmcst = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
 	if (dmcst == NULL)
-		return -ENODEV;
+		return -ENOMEM;
 
 	dmcst->i2c_adap = i2c;
 

@@ -158,6 +158,22 @@ static struct em28xx_reg_seq evga_indtube_digital[] = {
 	{ -1,			-1,	-1,		-1},
 };
 
+/*
+ * KWorld PlusTV 340U and UB435-Q (ATSC) GPIOs map:
+ * EM_GPIO_0 - currently unknown
+ * EM_GPIO_1 - LED disable/enable (1 = off, 0 = on)
+ * EM_GPIO_2 - currently unknown
+ * EM_GPIO_3 - currently unknown
+ * EM_GPIO_4 - TDA18271HD/C1 tuner (1 = active, 0 = in reset)
+ * EM_GPIO_5 - LGDT3304 ATSC/QAM demod (1 = active, 0 = in reset)
+ * EM_GPIO_6 - currently unknown
+ * EM_GPIO_7 - currently unknown
+ */
+static struct em28xx_reg_seq kworld_a340_digital[] = {
+	{EM28XX_R08_GPIO,	0x6d,		~EM_GPIO_4,	10},
+	{ -1,			-1,		-1,		-1},
+};
+
 /* Pinnacle Hybrid Pro eb1a:2881 */
 static struct em28xx_reg_seq pinnacle_hybrid_pro_analog[] = {
 	{EM28XX_R08_GPIO,	0xfd,   ~EM_GPIO_4,	10},
@@ -1667,6 +1683,16 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio    = reddo_dvb_c_usb_box,
 		.has_dvb       = 1,
 	},
+	/* 1b80:a340 - Empia EM2870, NXP TDA18271HD and LG DT3304, sold
+	 * initially as the KWorld PlusTV 340U, then as the UB435-Q.
+	 * Early variants have a TDA18271HD/C1, later ones a TDA18271HD/C2 */
+	[EM2870_BOARD_KWORLD_A340] = {
+		.name       = "KWorld PlusTV 340U or UB435-Q (ATSC)",
+		.tuner_type = TUNER_ABSENT,	/* Digital-only TDA18271HD */
+		.has_dvb    = 1,
+		.dvb_gpio   = kworld_a340_digital,
+		.tuner_gpio = default_tuner_gpio,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1788,6 +1814,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2820_BOARD_IODATA_GVMVP_SZ },
 	{ USB_DEVICE(0xeb1a, 0x50a6),
 			.driver_info = EM2860_BOARD_GADMEI_UTV330 },
+	{ USB_DEVICE(0x1b80, 0xa340),
+			.driver_info = EM2870_BOARD_KWORLD_A340 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2357,7 +2385,7 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 
 	if (dev->init_data.name)
 		info.platform_data = &dev->init_data;
-	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
+	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list, NULL);
 }
 
 void em28xx_card_setup(struct em28xx *dev)

@@ -53,5 +53,8 @@ endif
 obj-$(CONFIG_EVENT_TRACING) += trace_events_filter.o
 obj-$(CONFIG_KPROBE_EVENT) += trace_kprobe.o
 obj-$(CONFIG_EVENT_TRACING) += power-traces.o
+ifeq ($(CONFIG_TRACING),y)
+obj-$(CONFIG_KGDB_KDB) += trace_kdb.o
+endif
 
 libftrace-y := ftrace.o

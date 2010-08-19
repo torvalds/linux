@@ -84,7 +84,7 @@
  */
 #define AT91_ECC	(0xffffe200 - AT91_BASE_SYS)
 #define AT91_BCRAMC	(0xffffe400 - AT91_BASE_SYS)
-#define AT91_DDRSDRC	(0xffffe600 - AT91_BASE_SYS)
+#define AT91_DDRSDRC0	(0xffffe600 - AT91_BASE_SYS)
 #define AT91_SMC	(0xffffe800 - AT91_BASE_SYS)
 #define AT91_MATRIX	(0xffffea00 - AT91_BASE_SYS)
 #define AT91_CCFG	(0xffffeb10 - AT91_BASE_SYS)

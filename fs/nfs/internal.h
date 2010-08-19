@@ -213,9 +213,9 @@ extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
 extern int nfs_write_inode(struct inode *, struct writeback_control *);
-extern void nfs_clear_inode(struct inode *);
+extern void nfs_evict_inode(struct inode *);
 #ifdef CONFIG_NFS_V4
-extern void nfs4_clear_inode(struct inode *);
+extern void nfs4_evict_inode(struct inode *);
 #endif
 void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
@@ -370,10 +370,9 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
  * Helper for restarting RPC calls in the possible presence of NFSv4.1
  * sessions.
  */
-static inline void nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
+static inline int nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp))
-		rpc_restart_call_prepare(task);
-	else
-		rpc_restart_call(task);
+		return rpc_restart_call_prepare(task);
+	return rpc_restart_call(task);
 }

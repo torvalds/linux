@@ -1759,6 +1759,7 @@ static int o2net_accept_one(struct socket *sock)
 	struct sockaddr_in sin;
 	struct socket *new_sock = NULL;
 	struct o2nm_node *node = NULL;
+	struct o2nm_node *local_node = NULL;
 	struct o2net_sock_container *sc = NULL;
 	struct o2net_node *nn;
 
@@ -1796,11 +1797,15 @@ static int o2net_accept_one(struct socket *sock)
 		goto out;
 	}
 
-	if (o2nm_this_node() > node->nd_num) {
-		mlog(ML_NOTICE, "unexpected connect attempted from a lower "
-		     "numbered node '%s' at " "%pI4:%d with num %u\n",
-		     node->nd_name, &sin.sin_addr.s_addr,
-		     ntohs(sin.sin_port), node->nd_num);
+	if (o2nm_this_node() >= node->nd_num) {
+		local_node = o2nm_get_node_by_num(o2nm_this_node());
+		mlog(ML_NOTICE, "unexpected connect attempt seen at node '%s' ("
+		     "%u, %pI4:%d) from node '%s' (%u, %pI4:%d)\n",
+		     local_node->nd_name, local_node->nd_num,
+		     &(local_node->nd_ipv4_address),
+		     ntohs(local_node->nd_ipv4_port),
+		     node->nd_name, node->nd_num, &sin.sin_addr.s_addr,
+		     ntohs(sin.sin_port));
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1857,6 +1862,8 @@ out:
 		sock_release(new_sock);
 	if (node)
 		o2nm_node_put(node);
+	if (local_node)
+		o2nm_node_put(local_node);
 	if (sc)
 		sc_put(sc);
 	return ret;

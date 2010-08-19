@@ -251,7 +251,7 @@ Check www.immerse.com for Immersion Studio, and www.fcoder.com for ComPortSpy.
 
 ** Author of this document **
 Johann Deneux <johann.deneux@gmail.com>
-Home page at http://www.esil.univ-mrs.fr/~jdeneux/projects/ff/
+Home page at http://web.archive.org/web/*/http://www.esil.univ-mrs.fr
 
 Additions by Vojtech Pavlik.
 

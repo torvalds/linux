@@ -345,3 +345,4 @@ module_exit(wl1251_spi_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");
+MODULE_ALIAS("spi:wl1251");

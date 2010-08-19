@@ -33,6 +33,15 @@
  * subject to backwards-compatibility constraints.
  */
 
+#ifdef __KERNEL__
+/* For use by IPS driver */
+extern unsigned long i915_read_mch_val(void);
+extern bool i915_gpu_raise(void);
+extern bool i915_gpu_lower(void);
+extern bool i915_gpu_busy(void);
+extern bool i915_gpu_turbo_disable(void);
+#endif
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use

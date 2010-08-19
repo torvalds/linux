@@ -61,8 +61,8 @@ struct bfa_fcs_s {
 /*
  * bfa fcs API functions
  */
-void bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
-			bfa_boolean_t min_cfg);
+void bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa,
+			struct bfad_s *bfad, bfa_boolean_t min_cfg);
 void bfa_fcs_init(struct bfa_fcs_s *fcs);
 void bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 			struct bfa_fcs_driver_info_s *driver_info);

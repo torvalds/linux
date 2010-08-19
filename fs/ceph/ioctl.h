@@ -37,4 +37,6 @@ struct ceph_ioctl_dataloc {
 #define CEPH_IOC_GET_DATALOC _IOWR(CEPH_IOCTL_MAGIC, 3,	\
 				   struct ceph_ioctl_dataloc)
 
+#define CEPH_IOC_LAZYIO _IO(CEPH_IOCTL_MAGIC, 4)
+
 #endif

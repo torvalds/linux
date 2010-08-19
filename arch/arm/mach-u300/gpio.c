@@ -523,7 +523,7 @@ static void gpio_set_initial_values(void)
 
 	/*
 	 * Put all pins that are set to either 'GPIO_OUT' or 'GPIO_NOT_USED'
-	 * to output and 'GPIO_IN' to input for each port. And initalize
+	 * to output and 'GPIO_IN' to input for each port. And initialize
 	 * default value on outputs.
 	 */
 	for (i = 0; i < U300_GPIO_NUM_PORTS; i++) {

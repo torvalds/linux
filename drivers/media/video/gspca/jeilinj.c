@@ -50,7 +50,7 @@ struct sd {
 	struct workqueue_struct *work_thread;
 	u8 quality;				 /* image quality */
 	u8 jpegqual;				/* webcam quality */
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 	struct jlj_command {
@@ -282,7 +282,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	destroy_workqueue(dev->work_thread);
 	dev->work_thread = NULL;
 	mutex_lock(&gspca_dev->usb_lock);
-	kfree(dev->jpeg_hdr);
 }
 
 /* this function is called at probe and resume time */
@@ -298,9 +297,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int ret;
 
 	/* create the JPEG header */
-	dev->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (dev->jpeg_hdr == NULL)
-		return -ENOMEM;
 	jpeg_define(dev->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);          /* JPEG 422 */
 	jpeg_set_qual(dev->jpeg_hdr, dev->quality);

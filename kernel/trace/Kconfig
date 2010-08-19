@@ -153,7 +153,7 @@ config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
 	default n
 	depends on TRACE_IRQFLAGS_SUPPORT
-	depends on GENERIC_TIME
+	depends on !ARCH_USES_GETTIMEOFFSET
 	select TRACE_IRQFLAGS
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
@@ -175,7 +175,7 @@ config IRQSOFF_TRACER
 config PREEMPT_TRACER
 	bool "Preemption-off Latency Tracer"
 	default n
-	depends on GENERIC_TIME
+	depends on !ARCH_USES_GETTIMEOFFSET
 	depends on PREEMPT
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
@@ -322,17 +322,6 @@ config STACK_TRACER
 	  sysctl kernel.stack_tracer_enabled
 
 	  Say N if unsure.
-
-config WORKQUEUE_TRACER
-	bool "Trace workqueues"
-	select GENERIC_TRACER
-	help
-	  The workqueue tracer provides some statistical information
-          about each cpu workqueue thread such as the number of the
-          works inserted and executed since their creation. It can help
-          to evaluate the amount of work each of them has to perform.
-          For example it can help a developer to decide whether he should
-          choose a per-cpu workqueue instead of a singlethreaded one.
 
 config BLK_DEV_IO_TRACE
 	bool "Support for tracing block IO actions"
