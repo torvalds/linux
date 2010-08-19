@@ -775,12 +775,19 @@ struct qlcnic_legacy_intr_set {
 #define QLCNIC_DRV_OP_MODE	0x1b2170
 #define QLCNIC_MSIX_BASE	0x132110
 #define QLCNIC_MAX_PCI_FUNC	8
+#define QLCNIC_MAX_VLAN_FILTERS	64
 
 /* PCI function operational mode */
 enum {
 	QLCNIC_MGMT_FUNC	= 0,
 	QLCNIC_PRIV_FUNC	= 1,
 	QLCNIC_NON_PRIV_FUNC	= 2
+};
+
+enum {
+	QLCNIC_PORT_DEFAULTS	= 0,
+	QLCNIC_ADD_VLAN	= 1,
+	QLCNIC_DEL_VLAN	= 2
 };
 
 #define QLC_DEV_DRV_DEFAULT 0x11111111

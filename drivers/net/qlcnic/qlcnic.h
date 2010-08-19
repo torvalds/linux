@@ -556,6 +556,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_GET_ESWITCH_STATUS	0x00000026
 #define QLCNIC_CDRP_CMD_SET_PORTMIRRORING	0x00000027
 #define QLCNIC_CDRP_CMD_CONFIGURE_ESWITCH	0x00000028
+#define QLCNIC_CDRP_CMD_GET_ESWITCH_PORT_CONFIG	0x00000029
 #define QLCNIC_CDRP_CMD_GET_ESWITCH_STATS	0x0000002a
 
 #define QLCNIC_RCODE_SUCCESS		0
@@ -1044,7 +1045,7 @@ struct qlcnic_pci_info {
 };
 
 struct qlcnic_npar_info {
-	u16	vlan_id;
+	u16	pvid;
 	u16	min_bw;
 	u16	max_bw;
 	u8	phy_port;
@@ -1052,11 +1053,13 @@ struct qlcnic_npar_info {
 	u8	active;
 	u8	enable_pm;
 	u8	dest_npar;
-	u8	host_vlan_tag;
-	u8	promisc_mode;
 	u8	discard_tagged;
 	u8	mac_learning;
+	u8	mac_anti_spoof;
+	u8	promisc_mode;
+	u8	offload_flags;
 };
+
 struct qlcnic_eswitch {
 	u8	port;
 	u8	active_vports;
@@ -1088,7 +1091,6 @@ struct qlcnic_eswitch {
 #define IS_VALID_BW(bw)		(bw >= MIN_BW && bw <= MAX_BW)
 #define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
 #define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)
-#define IS_VALID_MODE(mode)	(mode == 0 || mode == 1)
 
 struct qlcnic_pci_func_cfg {
 	u16	func_type;
@@ -1120,12 +1122,16 @@ struct qlcnic_pm_func_cfg {
 
 struct qlcnic_esw_func_cfg {
 	u16	vlan_id;
+	u8	op_mode;
+	u8	op_type;
 	u8	pci_func;
 	u8	host_vlan_tag;
 	u8	promisc_mode;
 	u8	discard_tagged;
 	u8	mac_learning;
-	u8	reserved;
+	u8	mac_anti_spoof;
+	u8	offload_flags;
+	u8	reserved[5];
 };
 
 #define QLCNIC_STATS_VERSION		1
@@ -1276,8 +1282,10 @@ int qlcnic_get_eswitch_capabilities(struct qlcnic_adapter *, u8,
 int qlcnic_get_eswitch_status(struct qlcnic_adapter *, u8,
 				struct qlcnic_eswitch *);
 int qlcnic_toggle_eswitch(struct qlcnic_adapter *, u8, u8);
-int qlcnic_config_switch_port(struct qlcnic_adapter *, u8, int, u8, u8,
-			u8, u8, u16);
+int qlcnic_config_switch_port(struct qlcnic_adapter *,
+				struct qlcnic_esw_func_cfg *);
+int qlcnic_get_eswitch_port_config(struct qlcnic_adapter *,
+				struct qlcnic_esw_func_cfg *);
 int qlcnic_config_port_mirroring(struct qlcnic_adapter *, u8, u8, u8);
 int qlcnic_get_port_stats(struct qlcnic_adapter *, const u8, const u8,
 					struct __qlcnic_esw_statistics *);
