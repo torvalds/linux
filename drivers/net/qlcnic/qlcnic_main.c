@@ -762,6 +762,11 @@ static void
 qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
+	adapter->flags &= ~QLCNIC_MACSPOOF;
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+		if (esw_cfg->mac_anti_spoof)
+			adapter->flags |= QLCNIC_MACSPOOF;
+
 	qlcnic_set_netdev_features(adapter, esw_cfg);
 }
 
@@ -1910,6 +1915,12 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
+	}
+
+	if (adapter->flags & QLCNIC_MACSPOOF) {
+		if (compare_ether_addr(eth_hdr(skb)->h_source,
+					adapter->mac_addr))
+			goto drop_packet;
 	}
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
