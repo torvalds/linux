@@ -73,6 +73,10 @@ static int __init testfunc(void)
 	ret = kfifo_in(&test, buf, ret);
 	printk(KERN_INFO "ret: %d\n", ret);
 
+	/* skip first element of the fifo */
+	printk(KERN_INFO "skip 1st element\n");
+	kfifo_skip(&test);
+
 	/* put values into the fifo until is full */
 	for (i = 20; kfifo_put(&test, &i); i++)
 		;
