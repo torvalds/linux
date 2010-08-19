@@ -2338,7 +2338,7 @@ out_dio:
 	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
 
 	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
-	    ((file->f_flags & O_DIRECT) && has_refcount)) {
+	    ((file->f_flags & O_DIRECT) && !direct_io)) {
 		ret = filemap_fdatawrite_range(file->f_mapping, pos,
 					       pos + count - 1);
 		if (ret < 0)
