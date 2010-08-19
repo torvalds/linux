@@ -2429,6 +2429,12 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 		__u8 rcv_wscale;
 		/* Set this up on the first call only */
 		req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+
+		/* limit the window selection if the user enforce a smaller rx buffer */
+		if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+		    (req->window_clamp > tcp_full_space(sk) || req->window_clamp == 0))
+			req->window_clamp = tcp_full_space(sk);
+
 		/* tcp_full_space because it is guaranteed to be the first packet */
 		tcp_select_initial_window(tcp_full_space(sk),
 			mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
@@ -2554,6 +2560,11 @@ static void tcp_connect_init(struct sock *sk)
 		tp->advmss = tp->rx_opt.user_mss;
 
 	tcp_initialize_rcv_mss(sk);
+
+	/* limit the window selection if the user enforce a smaller rx buffer */
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (tp->window_clamp > tcp_full_space(sk) || tp->window_clamp == 0))
+		tp->window_clamp = tcp_full_space(sk);
 
 	tcp_select_initial_window(tcp_full_space(sk),
 				  tp->advmss - (tp->rx_opt.ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
