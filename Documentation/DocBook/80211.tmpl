@@ -65,18 +65,144 @@
     </abstract>
   </setinfo>
   <book id="cfg80211-developers-guide">
+!Ainclude/net/cfg80211.h
     <bookinfo>
       <title>The cfg80211 subsystem</title>
 
       <abstract>
-        <para>
-MISSING
-        </para>
+!Pinclude/net/cfg80211.h Introduction
       </abstract>
     </bookinfo>
-    <part><chapter>
+      <chapter>
+      <title>Device registration</title>
+!Pinclude/net/cfg80211.h Device registration
 !Finclude/net/cfg80211.h ieee80211_band
-    </chapter></part>
+!Finclude/net/cfg80211.h ieee80211_channel_flags
+!Finclude/net/cfg80211.h ieee80211_channel
+!Finclude/net/cfg80211.h ieee80211_rate_flags
+!Finclude/net/cfg80211.h ieee80211_rate
+!Finclude/net/cfg80211.h ieee80211_sta_ht_cap
+!Finclude/net/cfg80211.h ieee80211_supported_band
+!Finclude/net/cfg80211.h cfg80211_signal_type
+!Finclude/net/cfg80211.h wiphy_params_flags
+!Finclude/net/cfg80211.h wiphy_flags
+!Finclude/net/cfg80211.h wiphy
+!Finclude/net/cfg80211.h wireless_dev
+!Finclude/net/cfg80211.h wiphy_new
+!Finclude/net/cfg80211.h wiphy_register
+!Finclude/net/cfg80211.h wiphy_unregister
+!Finclude/net/cfg80211.h wiphy_free
+
+!Finclude/net/cfg80211.h wiphy_name
+!Finclude/net/cfg80211.h wiphy_dev
+!Finclude/net/cfg80211.h wiphy_priv
+!Finclude/net/cfg80211.h priv_to_wiphy
+!Finclude/net/cfg80211.h set_wiphy_dev
+!Finclude/net/cfg80211.h wdev_priv
+      </chapter>
+      <chapter>
+      <title>Actions and configuration</title>
+!Pinclude/net/cfg80211.h Actions and configuration
+!Finclude/net/cfg80211.h cfg80211_ops
+!Finclude/net/cfg80211.h vif_params
+!Finclude/net/cfg80211.h key_params
+!Finclude/net/cfg80211.h survey_info_flags
+!Finclude/net/cfg80211.h survey_info
+!Finclude/net/cfg80211.h beacon_parameters
+!Finclude/net/cfg80211.h plink_actions
+!Finclude/net/cfg80211.h station_parameters
+!Finclude/net/cfg80211.h station_info_flags
+!Finclude/net/cfg80211.h rate_info_flags
+!Finclude/net/cfg80211.h rate_info
+!Finclude/net/cfg80211.h station_info
+!Finclude/net/cfg80211.h monitor_flags
+!Finclude/net/cfg80211.h mpath_info_flags
+!Finclude/net/cfg80211.h mpath_info
+!Finclude/net/cfg80211.h bss_parameters
+!Finclude/net/cfg80211.h ieee80211_txq_params
+!Finclude/net/cfg80211.h cfg80211_crypto_settings
+!Finclude/net/cfg80211.h cfg80211_auth_request
+!Finclude/net/cfg80211.h cfg80211_assoc_request
+!Finclude/net/cfg80211.h cfg80211_deauth_request
+!Finclude/net/cfg80211.h cfg80211_disassoc_request
+!Finclude/net/cfg80211.h cfg80211_ibss_params
+!Finclude/net/cfg80211.h cfg80211_connect_params
+!Finclude/net/cfg80211.h cfg80211_pmksa
+!Finclude/net/cfg80211.h cfg80211_send_rx_auth
+!Finclude/net/cfg80211.h cfg80211_send_auth_timeout
+!Finclude/net/cfg80211.h __cfg80211_auth_canceled
+!Finclude/net/cfg80211.h cfg80211_send_rx_assoc
+!Finclude/net/cfg80211.h cfg80211_send_assoc_timeout
+!Finclude/net/cfg80211.h cfg80211_send_deauth
+!Finclude/net/cfg80211.h __cfg80211_send_deauth
+!Finclude/net/cfg80211.h cfg80211_send_disassoc
+!Finclude/net/cfg80211.h __cfg80211_send_disassoc
+!Finclude/net/cfg80211.h cfg80211_ibss_joined
+!Finclude/net/cfg80211.h cfg80211_connect_result
+!Finclude/net/cfg80211.h cfg80211_roamed
+!Finclude/net/cfg80211.h cfg80211_disconnected
+!Finclude/net/cfg80211.h cfg80211_ready_on_channel
+!Finclude/net/cfg80211.h cfg80211_remain_on_channel_expired
+!Finclude/net/cfg80211.h cfg80211_new_sta
+!Finclude/net/cfg80211.h cfg80211_rx_mgmt
+!Finclude/net/cfg80211.h cfg80211_mgmt_tx_status
+!Finclude/net/cfg80211.h cfg80211_cqm_rssi_notify
+!Finclude/net/cfg80211.h cfg80211_michael_mic_failure
+      </chapter>
+      <chapter>
+      <title>Scanning and BSS list handling</title>
+!Pinclude/net/cfg80211.h Scanning and BSS list handling
+!Finclude/net/cfg80211.h cfg80211_ssid
+!Finclude/net/cfg80211.h cfg80211_scan_request
+!Finclude/net/cfg80211.h cfg80211_scan_done
+!Finclude/net/cfg80211.h cfg80211_bss
+!Finclude/net/cfg80211.h cfg80211_inform_bss_frame
+!Finclude/net/cfg80211.h cfg80211_inform_bss
+!Finclude/net/cfg80211.h cfg80211_unlink_bss
+!Finclude/net/cfg80211.h cfg80211_find_ie
+!Finclude/net/cfg80211.h ieee80211_bss_get_ie
+      </chapter>
+      <chapter>
+      <title>Utility functions</title>
+!Pinclude/net/cfg80211.h Utility functions
+!Finclude/net/cfg80211.h ieee80211_channel_to_frequency
+!Finclude/net/cfg80211.h ieee80211_frequency_to_channel
+!Finclude/net/cfg80211.h ieee80211_get_channel
+!Finclude/net/cfg80211.h ieee80211_get_response_rate
+!Finclude/net/cfg80211.h ieee80211_hdrlen
+!Finclude/net/cfg80211.h ieee80211_get_hdrlen_from_skb
+!Finclude/net/cfg80211.h ieee80211_radiotap_iterator
+      </chapter>
+      <chapter>
+      <title>Data path helpers</title>
+!Pinclude/net/cfg80211.h Data path helpers
+!Finclude/net/cfg80211.h ieee80211_data_to_8023
+!Finclude/net/cfg80211.h ieee80211_data_from_8023
+!Finclude/net/cfg80211.h ieee80211_amsdu_to_8023s
+!Finclude/net/cfg80211.h cfg80211_classify8021d
+      </chapter>
+      <chapter>
+      <title>Regulatory enforcement infrastructure</title>
+!Pinclude/net/cfg80211.h Regulatory enforcement infrastructure
+!Finclude/net/cfg80211.h regulatory_hint
+!Finclude/net/cfg80211.h wiphy_apply_custom_regulatory
+!Finclude/net/cfg80211.h freq_reg_info
+      </chapter>
+      <chapter>
+      <title>RFkill integration</title>
+!Pinclude/net/cfg80211.h RFkill integration
+!Finclude/net/cfg80211.h wiphy_rfkill_set_hw_state
+!Finclude/net/cfg80211.h wiphy_rfkill_start_polling
+!Finclude/net/cfg80211.h wiphy_rfkill_stop_polling
+      </chapter>
+      <chapter>
+      <title>Test mode</title>
+!Pinclude/net/cfg80211.h Test mode
+!Finclude/net/cfg80211.h cfg80211_testmode_alloc_reply_skb
+!Finclude/net/cfg80211.h cfg80211_testmode_reply
+!Finclude/net/cfg80211.h cfg80211_testmode_alloc_event_skb
+!Finclude/net/cfg80211.h cfg80211_testmode_event
+      </chapter>
   </book>
   <book id="mac80211-developers-guide">
     <bookinfo>

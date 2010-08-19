@@ -25,6 +25,43 @@
 #include <linux/wireless.h>
 
 
+/**
+ * DOC: Introduction
+ *
+ * cfg80211 is the configuration API for 802.11 devices in Linux. It bridges
+ * userspace and drivers, and offers some utility functionality associated
+ * with 802.11. cfg80211 must, directly or indirectly via mac80211, be used
+ * by all modern wireless drivers in Linux, so that they offer a consistent
+ * API through nl80211. For backward compatibility, cfg80211 also offers
+ * wireless extensions to userspace, but hides them from drivers completely.
+ *
+ * Additionally, cfg80211 contains code to help enforce regulatory spectrum
+ * use restrictions.
+ */
+
+
+/**
+ * DOC: Device registration
+ *
+ * In order for a driver to use cfg80211, it must register the hardware device
+ * with cfg80211. This happens through a number of hardware capability structs
+ * described below.
+ *
+ * The fundamental structure for each device is the 'wiphy', of which each
+ * instance describes a physical wireless device connected to the system. Each
+ * such wiphy can have zero, one, or many virtual interfaces associated with
+ * it, which need to be identified as such by pointing the network interface's
+ * @ieee80211_ptr pointer to a &struct wireless_dev which further describes
+ * the wireless part of the interface, normally this struct is embedded in the
+ * network interface's private data area. Drivers can optionally allow creating
+ * or destroying virtual interfaces on the fly, but without at least one or the
+ * ability to create some the wireless device isn't useful.
+ *
+ * Each wiphy structure contains device capability information, and also has
+ * a pointer to the various operations the driver offers. The definitions and
+ * structures here describe these capabilities in detail.
+ */
+
 /*
  * wireless hardware capability structures
  */
@@ -202,6 +239,21 @@ struct ieee80211_supported_band {
 
 /*
  * Wireless hardware/device configuration structures and methods
+ */
+
+/**
+ * DOC: Actions and configuration
+ *
+ * Each wireless device and each virtual interface offer a set of configuration
+ * operations and other actions that are invoked by userspace. Each of these
+ * actions is described in the operations structure, and the parameters these
+ * operations use are described separately.
+ *
+ * Additionally, some operations are asynchronous and expect to get status
+ * information via some functions that drivers need to call.
+ *
+ * Scanning and BSS list handling with its associated functionality is described
+ * in a separate chapter.
  */
 
 /**
@@ -570,8 +622,28 @@ struct ieee80211_txq_params {
 /* from net/wireless.h */
 struct wiphy;
 
-/* from net/ieee80211.h */
-struct ieee80211_channel;
+/**
+ * DOC: Scanning and BSS list handling
+ *
+ * The scanning process itself is fairly simple, but cfg80211 offers quite
+ * a bit of helper functionality. To start a scan, the scan operation will
+ * be invoked with a scan definition. This scan definition contains the
+ * channels to scan, and the SSIDs to send probe requests for (including the
+ * wildcard, if desired). A passive scan is indicated by having no SSIDs to
+ * probe. Additionally, a scan request may contain extra information elements
+ * that should be added to the probe request. The IEs are guaranteed to be
+ * well-formed, and will not exceed the maximum length the driver advertised
+ * in the wiphy structure.
+ *
+ * When scanning finds a BSS, cfg80211 needs to be notified of that, because
+ * it is responsible for maintaining the BSS list; the driver should not
+ * maintain a list itself. For this notification, various functions exist.
+ *
+ * Since drivers do not maintain a BSS list, there are also a number of
+ * functions to search for a BSS and obtain information about it from the
+ * BSS structure cfg80211 maintains. The BSS list is also made available
+ * to userspace.
+ */
 
 /**
  * struct cfg80211_ssid - SSID description
@@ -1574,8 +1646,10 @@ static inline void *wdev_priv(struct wireless_dev *wdev)
 	return wiphy_priv(wdev->wiphy);
 }
 
-/*
- * Utility functions
+/**
+ * DOC: Utility functions
+ *
+ * cfg80211 offers a number of utility functions that can be useful.
  */
 
 /**
@@ -1729,6 +1803,14 @@ unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
 unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc);
 
 /**
+ * DOC: Data path helpers
+ *
+ * In addition to generic utilities, cfg80211 also offers
+ * functions that help implement the data path for devices
+ * that do not do the 802.11/802.3 conversion on the device.
+ */
+
+/**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
  * @skb: the 802.11 data frame
  * @addr: the device MAC address
@@ -1788,8 +1870,10 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb);
  */
 const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
 
-/*
- * Regulatory helper functions for wiphys
+/**
+ * DOC: Regulatory enforcement infrastructure
+ *
+ * TODO
  */
 
 /**
@@ -2192,6 +2276,20 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp);
 
 /**
+ * DOC: RFkill integration
+ *
+ * RFkill integration in cfg80211 is almost invisible to drivers,
+ * as cfg80211 automatically registers an rfkill instance for each
+ * wireless device it knows about. Soft kill is also translated
+ * into disconnecting and turning all interfaces off, drivers are
+ * expected to turn off the device when all interfaces are down.
+ *
+ * However, devices may have a hard RFkill line, in which case they
+ * also need to interact with the rfkill subsystem, via cfg80211.
+ * They can do this with a few helper functions documented here.
+ */
+
+/**
  * wiphy_rfkill_set_hw_state - notify cfg80211 about hw block state
  * @wiphy: the wiphy
  * @blocked: block status
@@ -2211,6 +2309,17 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy);
 void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
 
 #ifdef CONFIG_NL80211_TESTMODE
+/**
+ * DOC: Test mode
+ *
+ * Test mode is a set of utility functions to allow drivers to
+ * interact with driver-specific tools to aid, for instance,
+ * factory programming.
+ *
+ * This chapter describes how drivers interact with it, for more
+ * information see the nl80211 book's chapter on it.
+ */
+
 /**
  * cfg80211_testmode_alloc_reply_skb - allocate testmode reply
  * @wiphy: the wiphy
