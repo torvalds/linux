@@ -1012,21 +1012,21 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 		status =  cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
-							FLD_VBLANK_CNT, 0x24);
+							FLD_VBLANK_CNT, 0x20);
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VACTIVE_CNT,
 							cx231xx_set_field
 							(FLD_VACTIVE_CNT,
-							 0x240));
+							 0x244));
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_V656BLANK_CNT,
 							cx231xx_set_field
 							(FLD_V656BLANK_CNT,
-							0x28));
+							0x24));
 		/* Adjust the active video horizontal start point */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
@@ -1039,21 +1039,21 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
-							FLD_VBLANK_CNT, 0x24);
+							FLD_VBLANK_CNT, 0x20);
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VACTIVE_CNT,
 							cx231xx_set_field
 							(FLD_VACTIVE_CNT,
-							 0x240));
+							 0x244));
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_V656BLANK_CNT,
 							cx231xx_set_field
 							(FLD_V656BLANK_CNT,
-							0x28));
+							0x24));
 		/* Adjust the active video horizontal start point */
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
