@@ -2424,6 +2424,45 @@ static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 	e_info(hw, "Legacy interrupt IVAR setup done\n");
 }
 
+static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 rttdcs;
+	u32 mask;
+
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
+
+	/* disable the arbiter while setting MTQC */
+	rttdcs = IXGBE_READ_REG(hw, IXGBE_RTTDCS);
+	rttdcs |= IXGBE_RTTDCS_ARBDIS;
+	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
+
+	/* set transmit pool layout */
+	mask = (IXGBE_FLAG_SRIOV_ENABLED | IXGBE_FLAG_DCB_ENABLED);
+	switch (adapter->flags & mask) {
+
+	case (IXGBE_FLAG_SRIOV_ENABLED):
+		IXGBE_WRITE_REG(hw, IXGBE_MTQC,
+				(IXGBE_MTQC_VT_ENA | IXGBE_MTQC_64VF));
+		break;
+
+	case (IXGBE_FLAG_DCB_ENABLED):
+		/* We enable 8 traffic classes, DCB only */
+		IXGBE_WRITE_REG(hw, IXGBE_MTQC,
+			      (IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ));
+		break;
+
+	default:
+		IXGBE_WRITE_REG(hw, IXGBE_MTQC, IXGBE_MTQC_64Q_1PB);
+		break;
+	}
+
+	/* re-enable the arbiter */
+	rttdcs &= ~IXGBE_RTTDCS_ARBDIS;
+	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
+}
+
 /**
  * ixgbe_configure_tx - Configure 8259x Transmit Unit after Reset
  * @adapter: board private structure
@@ -2475,39 +2514,7 @@ static void ixgbe_configure_tx(struct ixgbe_adapter *adapter)
 		}
 	}
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		u32 rttdcs;
-		u32 mask;
-
-		/* disable the arbiter while setting MTQC */
-		rttdcs = IXGBE_READ_REG(hw, IXGBE_RTTDCS);
-		rttdcs |= IXGBE_RTTDCS_ARBDIS;
-		IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
-
-		/* set transmit pool layout */
-		mask = (IXGBE_FLAG_SRIOV_ENABLED | IXGBE_FLAG_DCB_ENABLED);
-		switch (adapter->flags & mask) {
-
-		case (IXGBE_FLAG_SRIOV_ENABLED):
-			IXGBE_WRITE_REG(hw, IXGBE_MTQC,
-					(IXGBE_MTQC_VT_ENA | IXGBE_MTQC_64VF));
-			break;
-
-		case (IXGBE_FLAG_DCB_ENABLED):
-			/* We enable 8 traffic classes, DCB only */
-			IXGBE_WRITE_REG(hw, IXGBE_MTQC,
-				      (IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ));
-			break;
-
-		default:
-			IXGBE_WRITE_REG(hw, IXGBE_MTQC, IXGBE_MTQC_64Q_1PB);
-			break;
-		}
-
-		/* re-eable the arbiter */
-		rttdcs &= ~IXGBE_RTTDCS_ARBDIS;
-		IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
-	}
+	ixgbe_setup_mtqc(adapter);
 }
 
 #define IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT 2
