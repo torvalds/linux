@@ -23,6 +23,7 @@
 #include <linux/gfp.h>
 #include <linux/of_platform.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -895,11 +896,11 @@ static struct snd_pcm_ops fsl_dma_ops = {
 	.pointer	= fsl_dma_pointer,
 };
 
-static int __devinit fsl_soc_dma_probe(struct of_device *of_dev,
+static int __devinit fsl_soc_dma_probe(struct platform_device *pdev,
 				       const struct of_device_id *match)
  {
 	struct dma_object *dma;
-	struct device_node *np = of_dev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node;
 	struct device_node *ssi_np;
 	struct resource res;
 	const uint32_t *iprop;
@@ -908,13 +909,13 @@ static int __devinit fsl_soc_dma_probe(struct of_device *of_dev,
 	/* Find the SSI node that points to us. */
 	ssi_np = find_ssi_node(np);
 	if (!ssi_np) {
-		dev_err(&of_dev->dev, "cannot find parent SSI node\n");
+		dev_err(&pdev->dev, "cannot find parent SSI node\n");
 		return -ENODEV;
 	}
 
 	ret = of_address_to_resource(ssi_np, 0, &res);
 	if (ret) {
-		dev_err(&of_dev->dev, "could not determine resources for %s\n",
+		dev_err(&pdev->dev, "could not determine resources for %s\n",
 			ssi_np->full_name);
 		of_node_put(ssi_np);
 		return ret;
@@ -922,7 +923,7 @@ static int __devinit fsl_soc_dma_probe(struct of_device *of_dev,
 
 	dma = kzalloc(sizeof(*dma) + strlen(np->full_name), GFP_KERNEL);
 	if (!dma) {
-		dev_err(&of_dev->dev, "could not allocate dma object\n");
+		dev_err(&pdev->dev, "could not allocate dma object\n");
 		of_node_put(ssi_np);
 		return -ENOMEM;
 	}
@@ -945,9 +946,9 @@ static int __devinit fsl_soc_dma_probe(struct of_device *of_dev,
 
 	of_node_put(ssi_np);
 
-	ret = snd_soc_register_platform(&of_dev->dev, &dma->dai);
+	ret = snd_soc_register_platform(&pdev->dev, &dma->dai);
 	if (ret) {
-		dev_err(&of_dev->dev, "could not register platform\n");
+		dev_err(&pdev->dev, "could not register platform\n");
 		kfree(dma);
 		return ret;
 	}
@@ -955,16 +956,16 @@ static int __devinit fsl_soc_dma_probe(struct of_device *of_dev,
 	dma->channel = of_iomap(np, 0);
 	dma->irq = irq_of_parse_and_map(np, 0);
 
-	dev_set_drvdata(&of_dev->dev, dma);
+	dev_set_drvdata(&pdev->dev, dma);
 
 	return 0;
 }
 
-static int __devexit fsl_soc_dma_remove(struct of_device *of_dev)
+static int __devexit fsl_soc_dma_remove(struct platform_device *pdev)
 {
-	struct dma_object *dma = dev_get_drvdata(&of_dev->dev);
+	struct dma_object *dma = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_platform(&of_dev->dev);
+	snd_soc_unregister_platform(&pdev->dev);
 	iounmap(dma->channel);
 	irq_dispose_mapping(dma->irq);
 	kfree(dma);
