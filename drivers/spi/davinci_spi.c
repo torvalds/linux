@@ -726,9 +726,6 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	if (ret != 0)
 		return ret;
 
-	/* SPI Framework maintains the count only in bytes so convert back */
-	davinci_spi->count *= conv;
-
 	return t->len;
 }
 
@@ -879,9 +876,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	ret = davinci_spi_check_error(davinci_spi, int_status);
 	if (ret != 0)
 		return ret;
-
-	/* SPI Framework maintains the count only in bytes so convert back */
-	davinci_spi->count *= conv;
 
 	return t->len;
 }
