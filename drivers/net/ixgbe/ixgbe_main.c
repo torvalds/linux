@@ -3157,6 +3157,15 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	u32 txdctl;
 	int i, j;
 
+	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED)) {
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			netif_set_gso_max_size(adapter->netdev, 65536);
+		return;
+	}
+
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		netif_set_gso_max_size(adapter->netdev, 32768);
+
 	ixgbe_dcb_check_config(&adapter->dcb_cfg);
 	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, DCB_TX_CONFIG);
 	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, DCB_RX_CONFIG);
@@ -3188,17 +3197,7 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 
 	ixgbe_restore_vlan(adapter);
 #ifdef CONFIG_IXGBE_DCB
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		if (hw->mac.type == ixgbe_mac_82598EB)
-			netif_set_gso_max_size(netdev, 32768);
-		else
-			netif_set_gso_max_size(netdev, 65536);
-		ixgbe_configure_dcb(adapter);
-	} else {
-		netif_set_gso_max_size(netdev, 65536);
-	}
-#else
-	netif_set_gso_max_size(netdev, 65536);
+	ixgbe_configure_dcb(adapter);
 #endif
 
 #ifdef IXGBE_FCOE
