@@ -188,7 +188,12 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 	int temp[2] = {0,0};
 	value = gAdcValue[CHN_BAT_ADC];
 	if(0 != gAdcValue[3])
+#ifdef 	CONFIG_MACH_RAHO
+    gBatVoltage = (value * BAT_1V2_VALUE * 3)/(gAdcValue[3]*2);
+#else    
 	gBatVoltage = (value * BAT_1V2_VALUE * 2)/gAdcValue[3];	// channel 3 is about 1.42v,need modified
+#endif    
+    
 	/*Ïû³ýÃ«´ÌµçÑ¹*/
 	if(gBatVoltage >= BATT_MAX_VOL_VALUE + 10)
 		gBatVoltage = BATT_MAX_VOL_VALUE + 10;

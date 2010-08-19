@@ -902,8 +902,12 @@ static int rk2818_sdmmc_get_cd(struct mmc_host *mmc)
 {
 	struct rk2818_sdmmc_host *host = mmc_priv(mmc);
 	u32 cdetect = readl(host->regs + SDMMC_CDETECT);
-	
+
+#ifdef CONFIG_MACH_RAHO	
+    return 1;
+#else
 	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
+#endif
 
 }
 

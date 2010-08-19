@@ -1,0 +1,2 @@
+config HEADSET_DET
+	tristate "headset detech support"

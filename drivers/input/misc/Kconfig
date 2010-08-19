@@ -12,6 +12,9 @@ menuconfig INPUT_MISC
 
 if INPUT_MISC
 
+config INPUT_LPSENSOR_CM3602
+	tristate "l/p sensor input support"
+	
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM

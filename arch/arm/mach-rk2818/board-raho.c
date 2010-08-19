@@ -43,6 +43,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/dm9000.h>
+#include <linux/capella_cm3602.h>
 
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 
@@ -54,6 +55,7 @@
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
 #include "../../../drivers/staging/android/timed_gpio.h"
 #include "../../../sound/soc/codecs/wm8994.h"
+#include "../../../drivers/headset_observe/rk2818_headset.h"
 
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
@@ -812,7 +814,7 @@ struct soc_camera_link rk2818_iclink = {
  * battery  devices
  * author: lw@rock-chips.com
  *****************************************************************************************/
-#define CHARGEOK_PIN	RK2818_PIN_PB1
+#define CHARGEOK_PIN	SPI_GPIO_P6_06//RK2818_PIN_PB1
 struct rk2818_battery_platform_data rk2818_battery_platdata = {
 	.charge_ok_pin = CHARGEOK_PIN,
 };
@@ -1033,7 +1035,7 @@ static struct spi_board_info board_spi_devices[] = {
 	{	/* fpga ice65l08xx */
 		.modalias	= "spi_fpga",
 		.chip_select	= 1,
-		.max_speed_hz	= 8 * 1000 * 1000,
+		.max_speed_hz	= 18 * 1000 * 1000,
 		.bus_num	= 0,
 		.mode	= SPI_MODE_0,
 		//.platform_data = &rk2818_spi_platdata,
@@ -1097,7 +1099,6 @@ void lcd_set_iomux(u8 enable)
             printk(">>>>>> lcd cs gpio_request err \n ");           
             goto pin_err;
         }  
-        
         rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 1);    
 
         ret = gpio_request(RK2818_PIN_PE4, NULL); 
@@ -1107,7 +1108,6 @@ void lcd_set_iomux(u8 enable)
             printk(">>>>>> lcd clk gpio_request err \n "); 
             goto pin_err;
         }  
-        
         ret = gpio_request(RK2818_PIN_PE5, NULL); 
         if(ret != 0)
         {
@@ -1118,13 +1118,11 @@ void lcd_set_iomux(u8 enable)
     }
     else
     {
-        // gpio_free(RK2818_PIN_PH6);
-         //rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 1);
-        // rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
+         gpio_free(RK2818_PIN_PH6);
+         rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
 
          gpio_free(RK2818_PIN_PE4);   
          gpio_free(RK2818_PIN_PE5); 
-         //rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 0);
          rk2818_mux_api_mode_resume(GPIOE_I2C0_SEL_NAME);
     }
     return ;
@@ -1287,6 +1285,45 @@ struct platform_device rk2818_device_dm9k = {
 };
 #endif
 
+#ifdef CONFIG_HEADSET_DET
+struct rk2818_headset_data rk2818_headset_info = {
+    .irq = FPGA_PIO0_00,
+};
+
+struct platform_device rk28_device_headset = {
+		.name	= "rk2818_headsetdet",
+		.id 	= 0,
+		.dev    = {
+		    .platform_data = &rk2818_headset_info,
+		}
+};
+#endif
+
+#ifdef CONFIG_INPUT_LPSENSOR_CM3602 
+static int capella_cm3602_power(int on)
+{	/* TODO eolsen Add Voltage reg control */	
+    if (on) {		
+    //		gpio_direction_output(MAHIMAHI_GPIO_PROXIMITY_EN, 0);
+    }
+    else {		
+    //		gpio_direction_output(MAHIMAHI_GPIO_PROXIMITY_EN, 1);
+    }	
+    return 0;
+}
+
+static struct capella_cm3602_platform_data capella_cm3602_pdata = {	
+	.power = capella_cm3602_power,
+	//.p_out = MAHIMAHI_GPIO_PROXIMITY_INT_N
+	};
+
+struct platform_device rk2818_device_cm3605 = {	
+	    .name = CAPELLA_CM3602,
+		.id = -1,
+		.dev = {		
+		.platform_data = &capella_cm3602_pdata	
+			}
+	};
+#endif
 
 /*****************************************************************************************
  * nand flash devices
@@ -1380,7 +1417,12 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_DM9000
 	&rk2818_device_dm9k,
 #endif
-
+#ifdef CONFIG_INPUT_LPSENSOR_CM3602 
+    &rk2818_device_cm3605,
+#endif
+#ifdef CONFIG_HEADSET_DET
+    &rk28_device_headset,
+#endif
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
 #endif
