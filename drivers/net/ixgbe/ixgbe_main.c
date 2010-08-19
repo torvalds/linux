@@ -2709,7 +2709,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i;
 	u32 rxctrl;
-	u32 hlreg0;
+	u32 hlreg0, gcr_ext;
 	u32 rdrxctl;
 	int rx_buf_len;
 
@@ -2813,24 +2813,21 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), (1 << vf_shift));
 		IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), (1 << vf_shift));
 		IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
-		ixgbe_set_vmolr(hw, adapter->num_vfs, true);
 	}
 
 	/* Program MRQC for the distribution of queues */
 	ixgbe_setup_mrqc(adapter);
 
 	if (adapter->num_vfs) {
-		u32 reg;
-
 		/* Map PF MAC address in RAR Entry 0 to first pool
 		 * following VFs */
 		hw->mac.ops.set_vmdq(hw, 0, adapter->num_vfs);
 
 		/* Set up VF register offsets for selected VT Mode, i.e.
 		 * 64 VFs for SR-IOV */
-		reg = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
-		reg |= IXGBE_GCR_EXT_SRIOV;
-		IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, reg);
+		gcr_ext = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
+		gcr_ext |= IXGBE_GCR_EXT_SRIOV;
+		IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, gcr_ext);
 	}
 
 	if (hw->mac.type == ixgbe_mac_82599EB) {
