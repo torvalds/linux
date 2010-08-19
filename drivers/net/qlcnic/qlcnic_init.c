@@ -136,8 +136,6 @@ void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 
-		spin_lock(&rds_ring->lock);
-
 		INIT_LIST_HEAD(&rds_ring->free_list);
 
 		rx_buf = rds_ring->rx_buf_arr;
@@ -146,8 +144,6 @@ void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter)
 					&rds_ring->free_list);
 			rx_buf++;
 		}
-
-		spin_unlock(&rds_ring->lock);
 	}
 }
 
@@ -1587,8 +1583,6 @@ qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
 	int producer, count = 0;
 	struct list_head *head;
 
-	spin_lock(&rds_ring->lock);
-
 	producer = rds_ring->producer;
 
 	head = &rds_ring->free_list;
@@ -1618,7 +1612,6 @@ qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
 		writel((producer-1) & (rds_ring->num_desc-1),
 				rds_ring->crb_rcv_producer);
 	}
-	spin_unlock(&rds_ring->lock);
 }
 
 static void
