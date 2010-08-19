@@ -145,6 +145,21 @@ void NvRmModuleGetBaseAddress( NvRmDeviceHandle hRmDeviceHandle, NvRmModuleID Mo
 		*pSize = 256 * 1024;
 		break;
 
+	case NvRmModuleID_Vcp:
+		*pBaseAddress = 0x6000e000;
+		*pSize = 4096;
+		break;
+
+    case NvRmModuleID_BseA:
+        *pBaseAddress = 0x60011000;
+        *pSize = 4096;
+        break;
+
+    case NvRmModuleID_Vde:
+        *pBaseAddress = 0x6001a000;
+        *pSize = 0x3c00;
+        break;
+
 	case NvRmModuleID_Vi:
 		*pBaseAddress = 0x54080000;
 		*pSize = 256 * 1024;
@@ -167,6 +182,9 @@ void NvRmModuleGetBaseAddress( NvRmDeviceHandle hRmDeviceHandle, NvRmModuleID Mo
 #define is_csi(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Csi)
 #define is_isp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Isp)
 #define is_vi(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vi)
+#define is_vcp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vcp)
+#define is_bsea(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_BseA)
+#define is_vde(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vde)
 
 void NvRmModuleReset(NvRmDeviceHandle hRmDevice, NvRmModuleID Module)
 {
@@ -183,6 +201,12 @@ void NvRmModuleReset(NvRmDeviceHandle hRmDevice, NvRmModuleID Module)
         clk = clk_get_sys("vi", NULL);
     else if (is_isp(Module))
         clk = clk_get_sys("isp", NULL);
+    else if (is_vcp(Module))
+        clk = clk_get_sys("vcp", NULL);
+    else if (is_bsea(Module))
+        clk = clk_get_sys("bsea", NULL);
+    else if (is_vde(Module))
+        clk = clk_get_sys("vde", NULL);
     else {
         printk("%s MOD[%lu] INST[%lu] not implemented\n", __func__,
                NVRM_MODULE_ID_MODULE(Module),

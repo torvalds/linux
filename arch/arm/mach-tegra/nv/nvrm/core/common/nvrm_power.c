@@ -48,6 +48,12 @@
 
 #define is_isp(module) (NVRM_MODULE_ID_MODULE(module)==NvRmModuleID_Isp)
 
+#define is_vcp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vcp)
+
+#define is_bsea(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_BseA)
+
+#define is_vde(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vde)
+
 #define CLK_VI_CORE_EXTERNAL (1<<24)
 #define CLK_VI_PAD_INTERNAL (1<<25)
 
@@ -138,6 +144,9 @@ NvError NvRmPowerModuleClockControl(
     const char *vi_names[] = { "vi", "vi_sensor", "csus", NULL };
     const char *csi_names[] = { "csi", NULL };
     const char *isp_names[] = { "isp", NULL };
+    const char *vcp_names[] = { "vcp", NULL };
+    const char *bsea_names[] = { "bsea", NULL };
+    const char *vde_names[] = { "vde", NULL };
     const char **names = NULL;
 
     if (is_vi(ModuleId))
@@ -146,12 +155,18 @@ NvError NvRmPowerModuleClockControl(
         names = csi_names;
     else if (is_isp(ModuleId))
         names = isp_names;
+    else if (is_vcp(ModuleId))
+        names = vcp_names;
+    else if (is_bsea(ModuleId))
+        names = bsea_names;
+    else if (is_vde(ModuleId))
+        names = vde_names;
 
     if (!names) {
         pr_err("%s: MOD[%lu] INST[%lu] not supported\n", __func__,
                NVRM_MODULE_ID_MODULE(ModuleId),
                NVRM_MODULE_ID_INSTANCE(ModuleId));
-        return NvSuccess;
+        return NvError_BadParameter;
     }
 
     for ( ; *names ; names++) {
