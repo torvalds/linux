@@ -44,7 +44,7 @@ static struct kfifo test;
 static DECLARE_KFIFO(test, unsigned char, FIFO_SIZE);
 #endif
 
-static unsigned char expected_result[FIFO_SIZE] = {
+static const unsigned char expected_result[FIFO_SIZE] = {
 	 3,  4,  5,  6,  7,  8,  9,  0,
 	 1, 20, 21, 22, 23, 24, 25, 26,
 	27, 28, 29, 30, 31, 32, 33, 34,
@@ -90,9 +90,14 @@ static int __init testfunc(void)
 
 	printk(KERN_INFO "queue len: %u\n", kfifo_len(&test));
 
+	/* show the first value without removing from the fifo */
+	if (kfifo_peek(&test, &i))
+		printk(KERN_INFO "%d\n", i);
+
 	/* check the correctness of all values in the fifo */
 	j = 0;
 	while (kfifo_get(&test, &i)) {
+		printk(KERN_INFO "item = %d\n", i);
 		if (i != expected_result[j++]) {
 			printk(KERN_WARNING "value mismatch: test failed\n");
 			return -EIO;
