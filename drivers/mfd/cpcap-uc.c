@@ -611,7 +611,8 @@ int cpcap_uc_start(struct cpcap_device *cpcap, enum cpcap_macro macro)
 	    (data->uc_reset == 0)) {
 		if ((macro == CPCAP_MACRO_4) ||
 		    ((cpcap->vendor == CPCAP_VENDOR_ST) &&
-		     ((macro == CPCAP_MACRO_12) || (macro == CPCAP_MACRO_14)))) {
+		     ((macro == CPCAP_MACRO_12) || (macro == CPCAP_MACRO_14) ||
+		      (macro == CPCAP_MACRO_15)))) {
 			retval = cpcap_regacc_write(cpcap, CPCAP_REG_MI2,
 						    (1 << macro),
 						    (1 << macro));
@@ -632,7 +633,8 @@ int cpcap_uc_stop(struct cpcap_device *cpcap, enum cpcap_macro macro)
 	if ((macro > CPCAP_MACRO_4) &&
 	    (macro < CPCAP_MACRO__END)) {
 		if ((cpcap->vendor == CPCAP_VENDOR_ST) &&
-		    ((macro == CPCAP_MACRO_12) || (macro == CPCAP_MACRO_14))) {
+		    ((macro == CPCAP_MACRO_12) || (macro == CPCAP_MACRO_14) ||
+		     (macro == CPCAP_MACRO_15))) {
 			retval = cpcap_regacc_write(cpcap, CPCAP_REG_MI2,
 						    0, (1 << macro));
 		} else {
@@ -654,7 +656,8 @@ unsigned char cpcap_uc_status(struct cpcap_device *cpcap,
 	if (macro < CPCAP_MACRO__END) {
 		if ((macro <= CPCAP_MACRO_4) ||
 		    ((cpcap->vendor == CPCAP_VENDOR_ST) &&
-		     ((macro == CPCAP_MACRO_12) || (macro == CPCAP_MACRO_14)))) {
+		     ((macro == CPCAP_MACRO_12) || (macro == CPCAP_MACRO_14) ||
+		      (macro == CPCAP_MACRO_15)))) {
 			cpcap_regacc_read(cpcap, CPCAP_REG_MI2, &regval);
 
 			if (regval & (1 << macro))
