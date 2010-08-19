@@ -110,6 +110,9 @@
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
+/* Lenz LI-USB Computer Interface. */
+#define FTDI_LENZ_LIUSB_PID	0xD780
+
 /*
  * Xsens Technologies BV products (http://www.xsens.com).
  */
