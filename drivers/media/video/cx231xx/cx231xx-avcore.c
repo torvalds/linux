@@ -1482,43 +1482,38 @@ void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev)
 void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 		 u8 spectral_invert, u32 mode)
 {
-
-    u32 colibri_carrier_offset = 0;
-    u8 status = 0;
-    u32 func_mode = 0x01; /* Device has an DIF if this function is called */
-    u32 standard = 0;
+	u32 colibri_carrier_offset = 0;
+	u8 status = 0;
+	u32 func_mode = 0x01; /* Device has a DIF if this function is called */
+	u32 standard = 0;
 	u8 value[4] = { 0, 0, 0, 0 };
 
 	cx231xx_info("Enter cx231xx_set_Colibri_For_LowIF()\n");
-		value[0] = (u8) 0x6F;
-		value[1] = (u8) 0x6F;
-		value[2] = (u8) 0x6F;
-		value[3] = (u8) 0x6F;
-		status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-						PWR_CTL_EN, value, 4);
-    if (1) {
+	value[0] = (u8) 0x6F;
+	value[1] = (u8) 0x6F;
+	value[2] = (u8) 0x6F;
+	value[3] = (u8) 0x6F;
+	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+					PWR_CTL_EN, value, 4);
 
 	/*Set colibri for low IF*/
 	status = cx231xx_afe_set_mode(dev, AFE_MODE_LOW_IF);
 
-
 	/* Set C2HH for low IF operation.*/
 	standard = dev->norm;
 	status = cx231xx_dif_configure_C2HH_for_low_IF(dev, dev->active_mode,
-						  func_mode, standard);
-
+						       func_mode, standard);
 
 	/* Get colibri offsets.*/
 	colibri_carrier_offset = cx231xx_Get_Colibri_CarrierOffset(mode,
-					 standard);
+								   standard);
 
 	cx231xx_info("colibri_carrier_offset=%d, standard=0x%x\n",
-				 colibri_carrier_offset, standard);
+		     colibri_carrier_offset, standard);
 
 	/* Set the band Pass filter for DIF*/
-	cx231xx_set_DIF_bandpass(dev, (if_freq+colibri_carrier_offset)
-		 , spectral_invert, mode);
-    }
+	cx231xx_set_DIF_bandpass(dev, (if_freq+colibri_carrier_offset),
+				 spectral_invert, mode);
 }
 
 u32 cx231xx_Get_Colibri_CarrierOffset(u32 mode, u32 standerd)
