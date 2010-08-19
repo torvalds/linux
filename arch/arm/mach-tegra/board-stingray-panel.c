@@ -31,6 +31,7 @@
 #include "gpio-names.h"
 
 #define STINGRAY_AUO_DISP_BL	TEGRA_GPIO_PD0
+#define STINGRAY_LVDS_SHDN_B	TEGRA_GPIO_PB2
 
 /* Display Controller */
 static struct resource stingray_disp1_resources[] = {
@@ -101,6 +102,26 @@ static struct tegra_fb_data stingray_fb_data = {
 	.bits_per_pixel	= 32,
 };
 
+static int stingray_display_init(void)
+{
+	tegra_gpio_enable(STINGRAY_LVDS_SHDN_B);
+	gpio_request(STINGRAY_LVDS_SHDN_B, "lvds_shdn_b");
+	gpio_direction_output(STINGRAY_LVDS_SHDN_B, 1);
+	return 0;
+}
+
+static int stingray_display_suspend(pm_message_t state)
+{
+	gpio_set_value(STINGRAY_LVDS_SHDN_B, 0);
+	return 0;
+}
+
+static int stingray_display_resume(void)
+{
+	gpio_set_value(STINGRAY_LVDS_SHDN_B, 1);
+	return 0;
+}
+
 static struct tegra_dc_out stingray_disp1_out = {
 	.type = TEGRA_DC_OUT_RGB,
 
@@ -109,6 +130,10 @@ static struct tegra_dc_out stingray_disp1_out = {
 
 	.modes = stingray_panel_modes,
 	.n_modes = ARRAY_SIZE(stingray_panel_modes),
+
+	.init = stingray_display_init,
+	.suspend = stingray_display_suspend,
+	.resume = stingray_display_resume,
 };
 
 static struct tegra_dc_platform_data stingray_disp1_pdata = {
