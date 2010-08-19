@@ -30,8 +30,6 @@
 #define U8500_ICN_BASE		0x81000000
 
 #define U8500_BOOT_ROM_BASE	0x90000000
-/* ASIC ID is at 0xff4 offset within this region */
-#define U8500_ASIC_ID_BASE	0x9001F000
 
 #define U8500_PER6_BASE		0xa03c0000
 #define U8500_PER5_BASE		0xa03e0000
