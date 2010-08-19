@@ -2672,6 +2672,29 @@ static void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	ring->tail = IXGBE_RDT(reg_idx);
 }
 
+static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int p;
+
+	/* PSRTYPE must be initialized in non 82598 adapters */
+	u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
+	              IXGBE_PSRTYPE_UDPHDR |
+	              IXGBE_PSRTYPE_IPV4HDR |
+		      IXGBE_PSRTYPE_L2HDR |
+	              IXGBE_PSRTYPE_IPV6HDR;
+
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
+
+	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED)
+		psrtype |= (adapter->num_rx_queues_per_pool << 29);
+
+	for (p = 0; p < adapter->num_rx_pools; p++)
+		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(adapter->num_vfs + p),
+				psrtype);
+}
+
 /**
  * ixgbe_configure_rx - Configure 8259x Receive Unit after Reset
  * @adapter: board private structure
@@ -2690,6 +2713,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	u32 rdrxctl;
 	int rx_buf_len;
 
+	ixgbe_setup_psrtype(adapter);
+
 	/* Decide whether to use packet split mode or not */
 	/* Do not use packet split if we're in SR-IOV Mode */
 	if (!adapter->num_vfs)
@@ -2698,17 +2723,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	/* Set the RX buffer length according to the mode */
 	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
 		rx_buf_len = IXGBE_RX_HDR_SIZE;
-		if (hw->mac.type == ixgbe_mac_82599EB) {
-			/* PSRTYPE must be initialized in 82599 */
-			u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
-			              IXGBE_PSRTYPE_UDPHDR |
-			              IXGBE_PSRTYPE_IPV4HDR |
-			              IXGBE_PSRTYPE_IPV6HDR |
-			              IXGBE_PSRTYPE_L2HDR;
-			IXGBE_WRITE_REG(hw,
-					IXGBE_PSRTYPE(adapter->num_vfs),
-					psrtype);
-		}
 	} else {
 		if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
 		    (netdev->mtu <= ETH_DATA_LEN))
