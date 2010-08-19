@@ -955,7 +955,6 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
 	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
 	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-	skb_record_rx_queue(skb, ring->queue_index);
 	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
 		if (adapter->vlgrp && is_vlan && (tag & VLAN_VID_MASK))
 			vlan_gro_receive(napi, adapter->vlgrp, tag, skb);
@@ -1037,10 +1036,12 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
                                    struct ixgbe_ring *rx_ring,
                                    int cleaned_count)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
 	unsigned int i;
+	unsigned int bufsz = rx_ring->rx_buf_len;
 
 	i = rx_ring->next_to_use;
 	bi = &rx_ring->rx_buffer_info[i];
@@ -1051,7 +1052,7 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 		if (!bi->page_dma &&
 		    (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)) {
 			if (!bi->page) {
-				bi->page = alloc_page(GFP_ATOMIC);
+				bi->page = netdev_alloc_page(netdev);
 				if (!bi->page) {
 					adapter->alloc_rx_page_failed++;
 					goto no_buffers;
@@ -1069,22 +1070,21 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 		}
 
 		if (!bi->skb) {
-			struct sk_buff *skb;
-			/* netdev_alloc_skb reserves 32 bytes up front!! */
-			uint bufsz = rx_ring->rx_buf_len + SMP_CACHE_BYTES;
-			skb = netdev_alloc_skb(adapter->netdev, bufsz);
+			struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev,
+									bufsz);
+			bi->skb = skb;
 
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
 			}
+			/* initialize queue mapping */
+			skb_record_rx_queue(skb, rx_ring->queue_index);
+		}
 
-			/* advance the data pointer to the next cache line */
-			skb_reserve(skb, (PTR_ALIGN(skb->data, SMP_CACHE_BYTES)
-			                  - skb->data));
-
-			bi->skb = skb;
-			bi->dma = dma_map_single(&pdev->dev, skb->data,
+		if (!bi->dma) {
+			bi->dma = dma_map_single(&pdev->dev,
+						 bi->skb->data,
 			                         rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 		}
