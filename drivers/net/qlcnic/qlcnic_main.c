@@ -916,6 +916,27 @@ qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+static int qlcnic_check_npar_opertional(struct qlcnic_adapter *adapter)
+{
+	u8 npar_opt_timeo = QLCNIC_DEV_NPAR_OPER_TIMEO;
+	u32 npar_state;
+
+	if (adapter->op_mode == QLCNIC_MGMT_FUNC)
+		return 0;
+
+	npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+	while (npar_state != QLCNIC_DEV_NPAR_OPER && --npar_opt_timeo) {
+		msleep(1000);
+		npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+	}
+	if (!npar_opt_timeo) {
+		dev_err(&adapter->pdev->dev,
+			"Waiting for NPAR state to opertional timeout\n");
+		return -EIO;
+	}
+	return 0;
+}
+
 static int
 qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 {
@@ -978,6 +999,11 @@ wait_init:
 
 	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
 	qlcnic_idc_debug_info(adapter, 1);
+	err = qlcnic_check_npar_opertional(adapter);
+	if (err) {
+		qlcnic_release_firmware(adapter);
+		return err;
+	}
 	if (qlcnic_set_default_offload_settings(adapter))
 		goto err_out;
 	if (qlcnic_reset_npar_config(adapter))
@@ -2919,29 +2945,18 @@ static void qlcnic_io_resume(struct pci_dev *pdev)
 						FW_POLL_DELAY);
 }
 
-
 static int
 qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
 {
 	int err;
-	u8 npar_opt_timeo = QLCNIC_DEV_NPAR_OPER_TIMEO;
-	u32 npar_state;
 
 	err = qlcnic_can_start_firmware(adapter);
 	if (err)
 		return err;
 
-	npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
-	while (npar_state != QLCNIC_DEV_NPAR_OPER && --npar_opt_timeo) {
-		msleep(1000);
-		npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
-	}
-
-	if (!npar_opt_timeo) {
-		dev_err(&adapter->pdev->dev,
-			"Waiting for NPAR state to opertional timeout\n");
-		return -EIO;
-	}
+	err = qlcnic_check_npar_opertional(adapter);
+	if (err)
+		return err;
 
 	qlcnic_check_options(adapter);
 
