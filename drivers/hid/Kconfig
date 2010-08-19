@@ -264,6 +264,13 @@ config HID_MONTEREY
 	---help---
 	Support for Monterey Genius KB29E.
 
+config HID_MOTOROLA
+	tristate "Motorola" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Motorola HID devices
+
 config HID_NTRIG
 	tristate "NTrig"
 	depends on USB_HID
