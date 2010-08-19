@@ -154,7 +154,7 @@ static int mma7660_start_dev(char rate)
 	ret = mma7660_tx_data(&buffer[0], 2);
 	ret = mma7660_rx_data(&buffer[0], 1);
 
-	enable_irq(56);
+	enable_irq(this_client->irq);
 	rk28printk("\n----------------------------mma7660_start------------------------\n");
 	
 	return ret;
