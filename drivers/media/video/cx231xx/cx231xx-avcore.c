@@ -1485,26 +1485,9 @@ void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 
     u32 colibri_carrier_offset = 0;
     u8 status = 0;
-    u32 func_mode = 0;
+    u32 func_mode = 0x01; /* Device has an DIF if this function is called */
     u32 standard = 0;
 	u8 value[4] = { 0, 0, 0, 0 };
-
-	switch (dev->model) {
-	case CX231XX_BOARD_CNXT_CARRAERA:
-	case CX231XX_BOARD_CNXT_RDE_250:
-	case CX231XX_BOARD_CNXT_SHELBY:
-	case CX231XX_BOARD_CNXT_RDU_250:
-	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
-		func_mode = 0x03;
-		break;
-	case CX231XX_BOARD_CNXT_RDE_253S:
-	case CX231XX_BOARD_CNXT_RDU_253S:
-		func_mode = 0x01;
-		break;
-
-	default:
-		func_mode = 0x01;
-	}
 
 	cx231xx_info("Enter cx231xx_set_Colibri_For_LowIF()\n");
 		value[0] = (u8) 0x6F;
