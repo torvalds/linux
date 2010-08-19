@@ -421,6 +421,7 @@ static void i915_error_work_func(struct work_struct *work)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
 i915_error_object_create(struct drm_device *dev,
 			 struct drm_gem_object *src)
@@ -744,6 +745,9 @@ void i915_destroy_error_state(struct drm_device *dev)
 	if (error)
 		i915_error_state_free(dev, error);
 }
+#else
+#define i915_capture_error_state(x)
+#endif
 
 static void i915_report_and_clear_eir(struct drm_device *dev)
 {

@@ -874,7 +874,6 @@ extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
-void i915_destroy_error_state(struct drm_device *dev);
 extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,
@@ -910,6 +909,12 @@ void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 
 void intel_enable_asle (struct drm_device *dev);
+
+#ifdef CONFIG_DEBUG_FS
+extern void i915_destroy_error_state(struct drm_device *dev);
+#else
+#define i915_destroy_error_state(x)
+#endif
 
 
 /* i915_mem.c */
@@ -1091,8 +1096,10 @@ extern void intel_detect_pch (struct drm_device *dev);
 extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 
 /* overlay */
+#ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
 extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_state *error);
+#endif
 
 /**
  * Lock test for when it's just for synchronization of ring access.

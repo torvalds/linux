@@ -190,31 +190,6 @@ struct intel_overlay {
 };
 
 static struct overlay_registers *
-intel_overlay_map_regs_atomic(struct intel_overlay *overlay,
-			      int slot)
-{
-        drm_i915_private_t *dev_priv = overlay->dev->dev_private;
-	struct overlay_registers *regs;
-
-	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		regs = overlay->reg_bo->phys_obj->handle->vaddr;
-	else
-		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-						overlay->reg_bo->gtt_offset,
-						slot);
-
-	return regs;
-}
-
-static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay,
-					    int slot,
-					    struct overlay_registers *regs)
-{
-	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		io_mapping_unmap_atomic(regs, slot);
-}
-
-static struct overlay_registers *
 intel_overlay_map_regs(struct intel_overlay *overlay)
 {
         drm_i915_private_t *dev_priv = overlay->dev->dev_private;
@@ -1454,12 +1429,41 @@ void intel_cleanup_overlay(struct drm_device *dev)
 	kfree(dev_priv->overlay);
 }
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+
 struct intel_overlay_error_state {
 	struct overlay_registers regs;
 	unsigned long base;
 	u32 dovsta;
 	u32 isr;
 };
+
+static struct overlay_registers *
+intel_overlay_map_regs_atomic(struct intel_overlay *overlay,
+			      int slot)
+{
+        drm_i915_private_t *dev_priv = overlay->dev->dev_private;
+	struct overlay_registers *regs;
+
+	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
+		regs = overlay->reg_bo->phys_obj->handle->vaddr;
+	else
+		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+						overlay->reg_bo->gtt_offset,
+						slot);
+
+	return regs;
+}
+
+static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay,
+					    int slot,
+					    struct overlay_registers *regs)
+{
+	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
+		io_mapping_unmap_atomic(regs, slot);
+}
+
 
 struct intel_overlay_error_state *
 intel_overlay_capture_error_state(struct drm_device *dev)
@@ -1549,3 +1553,4 @@ intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_s
 	P(UVSCALEV);
 #undef P
 }
+#endif
