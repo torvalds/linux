@@ -27,20 +27,22 @@
 #include <linux/freezer.h>
 #include <linux/mma7660.h>
 #include <mach/gpio.h>
-#include <mach/board.h>
 #ifdef CONFIG_ANDROID_POWER
 #include <linux/android_power.h>
 #endif
 
 //#define RK28_PRINT
 //#include <asm/arch/rk28_debug.h>
-
+#if 0
 #define rk28printk(x...) printk(x)
-
+#else
+#define rk28printk(x...)
+#endif
 static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
 
-#define MMA7660_GPIO_INT     RK2818_PIN_PE3
+#define MMA7660_GPIO_INT     RK2818_PIN_PE0
+#define MMA7660_SPEED		200 * 1000
 
 /* Addresses to scan -- protected by sense_data_mutex */
 static char sense_data[RBUFF_SIZE + 1];
@@ -98,75 +100,18 @@ err:
 
 static int mma7660_rx_data(char *rxData, int length)
 {
-#if 0
-	struct i2c_msg msgs[] = {
-		{
-		 .addr = this_client->addr,
-		 .flags = 1,
-		 .len = length,
-		 .buf = rxData,
-		 },
-	};
-
-	if (i2c_transfer(this_client->adapter, msgs, 1) < 0) {
-		rk28printk(KERN_ERR "MMA7660 mma7660_rx_data: transfer error\n");
-		return -EIO;
-	} else
-		return 0;
-#else
-    int ret;
-	struct i2c_adapter *adap = this_client->adapter;
-	struct i2c_msg msgs[2];
-
-	msgs[0].addr = this_client->addr;
-	msgs[0].buf = (char *)rxData;
-	msgs[0].flags = this_client->flags;
-	msgs[0].len = 1;
-	msgs[0].scl_rate = 200*1000;
-
-	msgs[1].addr = this_client->addr;
-	msgs[1].buf = (char *)rxData;
-	msgs[1].flags = this_client->flags | I2C_M_RD;
-	msgs[1].len = 3;
-	msgs[1].scl_rate = 200*1000;
-
-	ret = i2c_transfer(adap, msgs, 2);
-
-	return ret;
-#endif
+	int ret = 0;
+	char reg = rxData[0];
+	ret = i2c_master_reg8_recv(this_client, reg, rxData, length, MMA7660_SPEED);
+	return (ret > 0)? 0 : ret;
 }
 
 static int mma7660_tx_data(char *txData, int length)
 {
-#if 0
-	struct i2c_msg msg[] = {
-		{
-		 .addr = this_client->addr,
-		 .flags = 0,
-		 .len = length,
-		 .buf = txData,
-		 },
-	};
-	if (i2c_transfer(this_client->adapter, msg, 1) < 0) {
-		rk28printk(KERN_ERR "MMA7660 mma7660_tx_data: transfer error\n");
-		return -EIO;
-	} else
-		return 0;
-#else
-    int ret;
-	struct i2c_adapter *adap = this_client->adapter;
-	struct i2c_msg msg;
-
-	msg.addr = this_client->addr;
-	msg.buf = txData;
-	msg.len = length;
-	msg.flags = this_client->flags;
-	msg.scl_rate = 200*1000;
-    
-	ret = i2c_transfer(adap, &msg, 1);
-
-	return ret;
-#endif
+	int ret = 0;
+	char reg = txData[0];
+	ret = i2c_master_reg8_send(this_client, reg, &txData[1], length-1, MMA7660_SPEED);
+	return (ret > 0)? 0 : ret;
 }
 
 static int mma7660_set_rate(char rate)
@@ -187,6 +132,7 @@ static int mma7660_set_rate(char rate)
 	buffer[1] = 0xf8 | (0x07 & (~i));
 
 	ret = mma7660_tx_data(&(buffer[0]), 2);
+	ret = mma7660_rx_data(&(buffer[0]), 1);
 
 	return ret;
 }
@@ -199,13 +145,16 @@ static int mma7660_start_dev(char rate)
 	buffer[0] = MMA7660_REG_INTSU;
 	buffer[1] = 0x10;	//0x10; modify by zhao
 	ret = mma7660_tx_data(&buffer[0], 2);
+	ret = mma7660_rx_data(&buffer[0], 1);
 
 	ret = mma7660_set_rate(rate);
 
 	buffer[0] = MMA7660_REG_MODE;
 	buffer[1] = 0x81;
 	ret = mma7660_tx_data(&buffer[0], 2);
+	ret = mma7660_rx_data(&buffer[0], 1);
 
+	enable_irq(56);
 	rk28printk("\n----------------------------mma7660_start------------------------\n");
 	
 	return ret;
@@ -397,6 +346,7 @@ static void mma7660_work_func(struct work_struct *work)
 	if (mma7660_get_data() < 0) 
 		rk28printk(KERN_ERR "MMA7660 mma_work_func: Get data failed\n");
 		
+	enable_irq(this_client->irq);	
     //GPIOClrearInmarkIntr(MMA7660_GPIO_INT);
 	
 	rk28printk("---------------------------------------mma7660_work_func----------------------------------\n");
@@ -407,7 +357,7 @@ static void  mma7660_delaywork_func(struct work_struct  *work)
 	
 	if (mma7660_get_data() < 0) 
 		rk28printk(KERN_ERR "MMA7660 mma_work_func: Get data failed\n");
-		
+	enable_irq(this_client->irq);	
 	//GPIOClrearInmarkIntr(MMA7660_GPIO_INT);
 	
 	rk28printk("---------------------------------------mma7660_delaywork_func------------------------------\n");
@@ -420,6 +370,7 @@ static irqreturn_t mma7660_interrupt(int irq, void *dev_id)
 
 	///GPIOInmarkIntr(MMA7660_GPIO_INT);
 	//schedule_work(&data->work);
+	disable_irq_nosync(this_client->irq);
 	schedule_delayed_work(&data->delaywork,msecs_to_jiffies(30));
 	rk28printk("--------------------------------------mma7660_interrupt---------------------------------------\n");
 	
@@ -508,28 +459,24 @@ static int mma7660_init_client(struct i2c_client *client)
 	struct mma7660_data *data;
 	int ret;
 	data = i2c_get_clientdata(client);
-	struct rk2818_gs_platform_data *pdata = client->dev.platform_data;
-
-	printk("gpio_to_irq(%d) is %d\n",pdata->gsensor_irq_pin, gpio_to_irq(pdata->gsensor_irq_pin));
-	if ( !gpio_is_valid(pdata->gsensor_irq_pin)) {
-		printk("+++++++++++gpio_is_invalid\n");
-		return -1;
+	rk28printk("gpio_to_irq(%d) is %d\n",client->irq,gpio_to_irq(client->irq));
+	if ( !gpio_is_valid(client->irq)) {
+		rk28printk("+++++++++++gpio_is_invalid\n");
+		return -EINVAL;
 	}
-	ret = gpio_request(pdata->gsensor_irq_pin, "mma7660_int");
-	if (ret) {		
-		gpio_free(pdata->gsensor_irq_pin);
-		printk( "failed to request mma7990_trig GPIO%d\n",gpio_to_irq(pdata->gsensor_irq_pin));
+	ret = gpio_request(client->irq, "mma7660_int");
+	if (ret) {
+		rk28printk( "failed to request mma7990_trig GPIO%d\n",gpio_to_irq(client->irq));
 		return ret;
 	}
-	
-	client->irq = gpio_to_irq(pdata->gsensor_irq_pin);
-
-	ret = request_irq(client->irq, mma7660_interrupt, IRQF_TRIGGER_RISING, client->dev.driver->name, data);
+	client->irq = gpio_to_irq(client->irq);
+	ret = request_irq(client->irq, mma7660_interrupt, IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING, client->dev.driver->name, data);
 	rk28printk("request irq is %d,ret is  0x%x\n",client->irq,ret);
 	if (ret ) {
 		rk28printk(KERN_ERR "mma7660_init_client: request irq failed,ret is %d\n",ret);
         return ret;
 	}
+	disable_irq(client->irq);
 	init_waitqueue_head(&data_ready_wq);
  
 	return 0;
@@ -609,7 +556,9 @@ static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id 
     mma7660_early_suspend.level = 0x2;
     android_register_early_suspend(&mma7660_early_suspend);
 #endif
-
+	rk28printk(KERN_INFO "mma7660 probe ok\n");
+	mma->status = -1;
+	mma7660_start(MMA7660_RATE_32);
 	return 0;
 
 exit_gsensor_sysfs_init_failed:
