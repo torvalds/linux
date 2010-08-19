@@ -61,7 +61,7 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	if (wl1271_11a_enabled()) {
+	if (wl->enable_11a) {
 		size_t size = sizeof(struct wl12xx_probe_req_template);
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
 					      NULL, size, 0,

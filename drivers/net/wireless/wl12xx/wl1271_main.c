@@ -622,20 +622,6 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	/*
-	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
-	 * configurations) can be removed when those NVS files stop floating
-	 * around.
-	 */
-	if (fw->size != sizeof(struct wl1271_nvs_file) &&
-	    (fw->size != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
-	     wl1271_11a_enabled())) {
-		wl1271_error("nvs size is not as expected: %zu != %zu",
-			     fw->size, sizeof(struct wl1271_nvs_file));
-		ret = -EILSEQ;
-		goto out;
-	}
-
 	wl->nvs = kmemdup(fw->data, sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
@@ -643,6 +629,8 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	wl->nvs_len = fw->size;
 
 out:
 	release_firmware(fw);
@@ -2414,7 +2402,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1271_band_2ghz;
 
-	if (wl1271_11a_enabled())
+	if (wl->enable_11a)
 		wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
 
 	wl->hw->queues = 4;

@@ -188,7 +188,7 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		ret = wl1271_scan_send(wl, IEEE80211_BAND_2GHZ, true,
 				       wl->conf.tx.basic_rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
-			if (wl1271_11a_enabled())
+			if (wl->enable_11a)
 				wl->scan.state = WL1271_SCAN_STATE_5GHZ_ACTIVE;
 			else
 				wl->scan.state = WL1271_SCAN_STATE_DONE;

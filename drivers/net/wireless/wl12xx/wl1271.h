@@ -117,11 +117,6 @@ enum {
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
 
-/*
- * Enable/disable 802.11a support for WL1273
- */
-#undef WL1271_80211A_ENABLED
-
 #define WL1271_BUSY_WORD_CNT 1
 #define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
 
@@ -363,6 +358,7 @@ struct wl1271 {
 	u8 *fw;
 	size_t fw_len;
 	struct wl1271_nvs_file *nvs;
+	size_t nvs_len;
 
 	s8 hw_pg_ver;
 
@@ -476,6 +472,8 @@ struct wl1271 {
 
 	bool sg_enabled;
 
+	bool enable_11a;
+
 	struct list_head list;
 
 	/* Most recently reported noise in dBm */
@@ -498,15 +496,5 @@ int wl1271_plt_stop(struct wl1271 *wl);
    on in case is has been shut down shortly before */
 #define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
-
-static inline bool wl1271_11a_enabled(void)
-{
-	/* FIXME: this could be determined based on the NVS-INI file */
-#ifdef WL1271_80211A_ENABLED
-	return true;
-#else
-	return false;
-#endif
-}
 
 #endif
