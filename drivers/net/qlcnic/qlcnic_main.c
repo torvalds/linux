@@ -709,24 +709,8 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 {
 	u32 fw_major, fw_minor, fw_build;
 	char brd_name[QLCNIC_MAX_BOARD_NAME_LEN];
-	char serial_num[32];
-	int i, offset, val;
-	int *ptr32;
 	struct pci_dev *pdev = adapter->pdev;
 	struct qlcnic_info nic_info;
-	adapter->driver_mismatch = 0;
-
-	ptr32 = (int *)&serial_num;
-	offset = QLCNIC_FW_SERIAL_NUM_OFFSET;
-	for (i = 0; i < 8; i++) {
-		if (qlcnic_rom_fast_read(adapter, offset, &val) == -1) {
-			dev_err(&pdev->dev, "error reading board info\n");
-			adapter->driver_mismatch = 1;
-			return;
-		}
-		ptr32[i] = cpu_to_le32(val);
-		offset += sizeof(u32);
-	}
 
 	fw_major = QLCRD32(adapter, QLCNIC_FW_VERSION_MAJOR);
 	fw_minor = QLCRD32(adapter, QLCNIC_FW_VERSION_MINOR);
@@ -1583,9 +1567,6 @@ static int qlcnic_open(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err;
-
-	if (adapter->driver_mismatch)
-		return -EIO;
 
 	err = qlcnic_attach(adapter);
 	if (err)
