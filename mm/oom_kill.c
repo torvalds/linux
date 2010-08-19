@@ -401,10 +401,9 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
 {
 	p = find_lock_task_mm(p);
-	if (!p) {
-		task_unlock(p);
+	if (!p)
 		return 1;
-	}
+
 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
 		task_pid_nr(p), p->comm, K(p->mm->total_vm),
 		K(get_mm_counter(p->mm, MM_ANONPAGES)),
