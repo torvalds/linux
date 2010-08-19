@@ -1117,6 +1117,7 @@ static struct snd_soc_dai_driver aic3x_dai = {
 		.rates = AIC3X_RATES,
 		.formats = AIC3X_FORMATS,},
 	.ops = &aic3x_dai_ops,
+	.symmetric_rates = 1,
 };
 
 static int aic3x_suspend(struct snd_soc_codec *codec, pm_message_t state)
