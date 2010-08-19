@@ -549,7 +549,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 	if (!max8998)
 		return -ENOMEM;
 
-	size = sizeof(struct regulator_dev *) * (pdata->num_regulators + 1);
+	size = sizeof(struct regulator_dev *) * pdata->num_regulators;
 	max8998->rdev = kzalloc(size, GFP_KERNEL);
 	if (!max8998->rdev) {
 		kfree(max8998);
@@ -583,7 +583,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	for (i = 0; i <= max8998->num_regulators; i++)
+	for (i = 0; i < max8998->num_regulators; i++)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
 
@@ -599,7 +599,7 @@ static int __devexit max8998_pmic_remove(struct platform_device *pdev)
 	struct regulator_dev **rdev = max8998->rdev;
 	int i;
 
-	for (i = 0; i <= max8998->num_regulators; i++)
+	for (i = 0; i < max8998->num_regulators; i++)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
 
