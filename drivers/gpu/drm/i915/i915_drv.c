@@ -236,7 +236,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	intel_opregion_free(dev, 1);
+	intel_opregion_fini(dev);
 
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
@@ -276,8 +276,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 	int error = 0;
 
 	i915_restore_state(dev);
-
-	intel_opregion_init(dev, 1);
+	intel_opregion_setup(dev);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -292,6 +291,8 @@ static int i915_drm_thaw(struct drm_device *dev)
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
 	}
+
+	intel_opregion_init(dev);
 
 	dev_priv->modeset_on_lid = 0;
 

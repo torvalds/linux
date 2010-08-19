@@ -40,6 +40,7 @@
 #include <linux/pnp.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
+#include <acpi/video.h>
 
 extern int intel_max_stolen; /* from AGP driver */
 
@@ -2166,6 +2167,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
+	intel_opregion_setup(dev);
 
 	i915_gem_load(dev);
 
@@ -2221,7 +2223,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	/* Must be done after probing outputs */
-	intel_opregion_init(dev, 0);
+	intel_opregion_init(dev);
+	acpi_video_register();
 
 	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
 		    (unsigned long) dev);
@@ -2271,6 +2274,8 @@ int i915_driver_unload(struct drm_device *dev)
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 
+	acpi_video_unregister();
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);
 
@@ -2299,7 +2304,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		iounmap(dev_priv->regs);
 
-	intel_opregion_free(dev, 0);
+	intel_opregion_fini(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		/* Flush any outstanding unpin_work. */

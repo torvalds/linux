@@ -317,7 +317,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 
 static void
 parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
-		       struct bdb_header *bdb)
+			  struct bdb_header *bdb)
 {
 	struct sdvo_device_mapping *p_mapping;
 	struct bdb_general_definitions *p_defs;
@@ -327,7 +327,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found\n");
+		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -460,7 +460,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found\n");
+		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -513,17 +513,13 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	}
 	return;
 }
+
 /**
  * intel_init_bios - initialize VBIOS settings & find VBT
  * @dev: DRM device
  *
  * Loads the Video BIOS and checks that the VBT exists.  Sets scratch registers
  * to appropriate values.
- *
- * VBT existence is a sanity check that is relied on by other i830_bios.c code.
- * Note that it would be better to use a BIOS call to get the VBT, as BIOSes may
- * feed an updated VBT back through that, compared to what we'll fetch using
- * this method of groping around in the BIOS data.
  *
  * Returns 0 on success, nonzero on failure.
  */
@@ -532,31 +528,45 @@ intel_init_bios(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	struct vbt_header *vbt = NULL;
-	struct bdb_header *bdb;
-	u8 __iomem *bios;
-	size_t size;
-	int i;
+	struct bdb_header *bdb = NULL;
+	u8 __iomem *bios = NULL;
 
-	bios = pci_map_rom(pdev, &size);
-	if (!bios)
-		return -1;
+	/* XXX Should this validation be moved to intel_opregion.c? */
+	if (dev_priv->opregion.vbt) {
+		struct vbt_header *vbt = dev_priv->opregion.vbt;
+		if (memcmp(vbt->signature, "$VBT", 4) == 0) {
+			DRM_DEBUG_DRIVER("Using VBT from OpRegion: %20s\n",
+					 vbt->signature);
+			bdb = (struct bdb_header *)((char *)vbt + vbt->bdb_offset);
+		} else
+			dev_priv->opregion.vbt = NULL;
+	}
 
-	/* Scour memory looking for the VBT signature */
-	for (i = 0; i + 4 < size; i++) {
-		if (!memcmp(bios + i, "$VBT", 4)) {
-			vbt = (struct vbt_header *)(bios + i);
-			break;
+	if (bdb == NULL) {
+		struct vbt_header *vbt = NULL;
+		size_t size;
+		int i;
+
+		bios = pci_map_rom(pdev, &size);
+		if (!bios)
+			return -1;
+
+		/* Scour memory looking for the VBT signature */
+		for (i = 0; i + 4 < size; i++) {
+			if (!memcmp(bios + i, "$VBT", 4)) {
+				vbt = (struct vbt_header *)(bios + i);
+				break;
+			}
 		}
-	}
 
-	if (!vbt) {
-		DRM_ERROR("VBT signature missing\n");
-		pci_unmap_rom(pdev, bios);
-		return -1;
-	}
+		if (!vbt) {
+			DRM_ERROR("VBT signature missing\n");
+			pci_unmap_rom(pdev, bios);
+			return -1;
+		}
 
-	bdb = (struct bdb_header *)(bios + i + vbt->bdb_offset);
+		bdb = (struct bdb_header *)(bios + i + vbt->bdb_offset);
+	}
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
@@ -568,7 +578,8 @@ intel_init_bios(struct drm_device *dev)
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 
-	pci_unmap_rom(pdev, bios);
+	if (bios)
+		pci_unmap_rom(pdev, bios);
 
 	return 0;
 }

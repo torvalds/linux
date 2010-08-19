@@ -36,12 +36,11 @@
 #define PCI_LBPC 0xf4
 #define PCI_ASLS 0xfc
 
-#define OPREGION_SZ            (8*1024)
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100
 #define OPREGION_SWSCI_OFFSET  0x200
 #define OPREGION_ASLE_OFFSET   0x300
-#define OPREGION_VBT_OFFSET    0x1000
+#define OPREGION_VBT_OFFSET    0x400
 
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
 #define MBOX_ACPI      (1<<0)
@@ -143,6 +142,7 @@ struct opregion_asle {
 #define ACPI_DIGITAL_OUTPUT (3<<8)
 #define ACPI_LVDS_OUTPUT (4<<8)
 
+#ifdef CONFIG_ACPI
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -465,7 +465,58 @@ blind_set:
 	goto end;
 }
 
-int intel_opregion_init(struct drm_device *dev, int resume)
+void intel_opregion_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+
+	if (!opregion->header)
+		return;
+
+	if (opregion->acpi) {
+		if (drm_core_check_feature(dev, DRIVER_MODESET))
+			intel_didl_outputs(dev);
+
+		/* Notify BIOS we are ready to handle ACPI video ext notifs.
+		 * Right now, all the events are handled by the ACPI video module.
+		 * We don't actually need to do anything with them. */
+		opregion->acpi->csts = 0;
+		opregion->acpi->drdy = 1;
+
+		system_opregion = opregion;
+		register_acpi_notifier(&intel_opregion_notifier);
+	}
+
+	if (opregion->asle)
+		intel_opregion_enable_asle(dev);
+}
+
+void intel_opregion_fini(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+
+	if (!opregion->header)
+		return;
+
+	if (opregion->acpi) {
+		opregion->acpi->drdy = 0;
+
+		system_opregion = NULL;
+		unregister_acpi_notifier(&intel_opregion_notifier);
+	}
+
+	/* just clear all opregion memory pointers now */
+	iounmap(opregion->header);
+	opregion->header = NULL;
+	opregion->acpi = NULL;
+	opregion->swsci = NULL;
+	opregion->asle = NULL;
+	opregion->vbt = NULL;
+}
+#endif
+
+int intel_opregion_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
@@ -480,29 +531,23 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 		return -ENOTSUPP;
 	}
 
-	base = ioremap(asls, OPREGION_SZ);
+	base = ioremap(asls, OPREGION_SIZE);
 	if (!base)
 		return -ENOMEM;
 
-	opregion->header = base;
-	if (memcmp(opregion->header->signature, OPREGION_SIGNATURE, 16)) {
+	if (memcmp(base, OPREGION_SIGNATURE, 16)) {
 		DRM_DEBUG_DRIVER("opregion signature mismatch\n");
 		err = -EINVAL;
 		goto err_out;
 	}
+	opregion->header = base;
+	opregion->vbt = base + OPREGION_VBT_OFFSET;
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
-		if (drm_core_check_feature(dev, DRIVER_MODESET))
-			intel_didl_outputs(dev);
-	} else {
-		DRM_DEBUG_DRIVER("Public ACPI methods not supported\n");
-		err = -ENOTSUPP;
-		goto err_out;
 	}
-	opregion->enabled = 1;
 
 	if (mboxes & MBOX_SWSCI) {
 		DRM_DEBUG_DRIVER("SWSCI supported\n");
@@ -511,53 +556,11 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
-		intel_opregion_enable_asle(dev);
 	}
-
-	if (!resume)
-		acpi_video_register();
-
-
-	/* Notify BIOS we are ready to handle ACPI video ext notifs.
-	 * Right now, all the events are handled by the ACPI video module.
-	 * We don't actually need to do anything with them. */
-	opregion->acpi->csts = 0;
-	opregion->acpi->drdy = 1;
-
-	system_opregion = opregion;
-	register_acpi_notifier(&intel_opregion_notifier);
 
 	return 0;
 
 err_out:
 	iounmap(opregion->header);
-	opregion->header = NULL;
-	acpi_video_register();
 	return err;
-}
-
-void intel_opregion_free(struct drm_device *dev, int suspend)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_opregion *opregion = &dev_priv->opregion;
-
-	if (!opregion->enabled)
-		return;
-
-	if (!suspend)
-		acpi_video_unregister();
-
-	opregion->acpi->drdy = 0;
-
-	system_opregion = NULL;
-	unregister_acpi_notifier(&intel_opregion_notifier);
-
-	/* just clear all opregion memory pointers now */
-	iounmap(opregion->header);
-	opregion->header = NULL;
-	opregion->acpi = NULL;
-	opregion->swsci = NULL;
-	opregion->asle = NULL;
-
-	opregion->enabled = 0;
 }

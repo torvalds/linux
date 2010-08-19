@@ -110,8 +110,9 @@ struct intel_opregion {
 	struct opregion_acpi *acpi;
 	struct opregion_swsci *swsci;
 	struct opregion_asle *asle;
-	int enabled;
+	void *vbt;
 };
+#define OPREGION_SIZE            (8*1024)
 
 struct intel_overlay;
 struct intel_overlay_error_state;
@@ -1053,16 +1054,17 @@ extern int i915_restore_state(struct drm_device *dev);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
-#ifdef CONFIG_ACPI
 /* intel_opregion.c */
-extern int intel_opregion_init(struct drm_device *dev, int resume);
-extern void intel_opregion_free(struct drm_device *dev, int suspend);
+extern int intel_opregion_setup(struct drm_device *dev);
+#ifdef CONFIG_ACPI
+extern void intel_opregion_init(struct drm_device *dev);
+extern void intel_opregion_fini(struct drm_device *dev);
 extern void intel_opregion_asle_intr(struct drm_device *dev);
 extern void intel_opregion_gse_intr(struct drm_device *dev);
 extern void intel_opregion_enable_asle(struct drm_device *dev);
 #else
-static inline int intel_opregion_init(struct drm_device *dev, int resume) { return 0; }
-static inline void intel_opregion_free(struct drm_device *dev, int suspend) { return; }
+static inline void intel_opregion_init(struct drm_device *dev) { return; }
+static inline void intel_opregion_fini(struct drm_device *dev) { return; }
 static inline void intel_opregion_asle_intr(struct drm_device *dev) { return; }
 static inline void intel_opregion_gse_intr(struct drm_device *dev) { return; }
 static inline void intel_opregion_enable_asle(struct drm_device *dev) { return; }
