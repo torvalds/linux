@@ -1175,21 +1175,17 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 
 		status = restartAudioFirmware(dev);
 
-		switch (dev->model) {
-		case CX231XX_BOARD_CNXT_CARRAERA:
-		case CX231XX_BOARD_CNXT_RDE_250:
-		case CX231XX_BOARD_CNXT_SHELBY:
-		case CX231XX_BOARD_CNXT_RDU_250:
-		case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
+		switch (dev->board.tuner_type) {
+		case TUNER_XC5000:
+			/* SIF passthrough at 28.6363 MHz sample rate */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 					VID_BLK_I2C_ADDRESS,
 					CHIP_CTRL,
 					FLD_SIF_EN,
 					cx231xx_set_field(FLD_SIF_EN, 1));
 			break;
-		case CX231XX_BOARD_CNXT_RDE_253S:
-		case CX231XX_BOARD_CNXT_RDU_253S:
-		case CX231XX_BOARD_HAUPPAUGE_EXETER:
+		case TUNER_NXP_TDA18271:
+			/* Normal mode: SIF passthrough at 14.32 MHz */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 					VID_BLK_I2C_ADDRESS,
 					CHIP_CTRL,
@@ -1197,6 +1193,10 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 					cx231xx_set_field(FLD_SIF_EN, 0));
 			break;
 		default:
+			/* This is just a casual suggestion to people adding
+			   new boards in case they use a tuner type we don't
+			   currently know about */
+			printk(KERN_INFO "Unknown tuner type configuring SIF");
 			break;
 		}
 		break;
