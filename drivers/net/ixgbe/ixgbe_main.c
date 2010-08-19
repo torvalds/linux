@@ -601,9 +601,9 @@ static inline void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter,
 	}
 }
 
-static void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *adapter,
-                                             struct ixgbe_tx_buffer
-                                             *tx_buffer_info)
+void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *adapter,
+                                      struct ixgbe_tx_buffer
+                                      *tx_buffer_info)
 {
 	if (tx_buffer_info->dma) {
 		if (tx_buffer_info->mapped_as_page)
@@ -1032,9 +1032,9 @@ static inline void ixgbe_release_rx_desc(struct ixgbe_hw *hw,
  * ixgbe_alloc_rx_buffers - Replace used receive buffers; packet split
  * @adapter: address of board private structure
  **/
-static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
-                                   struct ixgbe_ring *rx_ring,
-                                   int cleaned_count)
+void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
+                            struct ixgbe_ring *rx_ring,
+                            int cleaned_count)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
@@ -1095,6 +1095,7 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 		} else {
 			rx_desc->read.pkt_addr = cpu_to_le64(bi->dma);
+			rx_desc->read.hdr_addr = 0;
 		}
 
 		i++;
@@ -2431,8 +2432,8 @@ static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
  *
  * Configure the Tx descriptor ring after a reset.
  **/
- static void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
-				     struct ixgbe_ring *ring)
+void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
+			     struct ixgbe_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u64 tdba = ring->dma;
@@ -2759,8 +2760,8 @@ static void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 	}
 }
 
-static void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
-				    struct ixgbe_ring *ring)
+void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
+			     struct ixgbe_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u64 rdba = ring->dma;
@@ -3671,8 +3672,11 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 	unsigned long size;
 	unsigned int i;
 
-	/* Free all the Rx ring sk_buffs */
+	/* ring already cleared, nothing to do */
+	if (!rx_ring->rx_buffer_info)
+		return;
 
+	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		struct ixgbe_rx_buffer *rx_buffer_info;
 
@@ -3739,8 +3743,11 @@ static void ixgbe_clean_tx_ring(struct ixgbe_adapter *adapter,
 	unsigned long size;
 	unsigned int i;
 
-	/* Free all the Tx ring sk_buffs */
+	/* ring already cleared, nothing to do */
+	if (!tx_ring->tx_buffer_info)
+		return;
 
+	/* Free all the Tx ring sk_buffs */
 	for (i = 0; i < tx_ring->count; i++) {
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
 		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
@@ -6239,11 +6246,10 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return skb_tx_hash(dev, skb);
 }
 
-static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
-				    struct net_device *netdev)
+netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev,
+			  struct ixgbe_adapter *adapter,
+			  struct ixgbe_ring *tx_ring)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_ring *tx_ring;
 	struct netdev_queue *txq;
 	unsigned int first;
 	unsigned int tx_flags = 0;
@@ -6266,8 +6272,6 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	}
-
-	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
 #ifdef IXGBE_FCOE
 	/* for FCoE with DCB, we force the priority to what
@@ -6360,6 +6364,15 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	}
 
 	return NETDEV_TX_OK;
+}
+
+static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_ring *tx_ring;
+
+	tx_ring = adapter->tx_ring[skb->queue_mapping];
+	return ixgbe_xmit_frame_ring(skb, netdev, adapter, tx_ring);
 }
 
 /**
