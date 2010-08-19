@@ -110,6 +110,82 @@ struct platform_device u8500_i2c4_device = {
 	.num_resources	= ARRAY_SIZE(u8500_i2c4_resources),
 };
 
+/*
+ * SD/MMC
+ */
+
+struct amba_device u8500_sdi0_device = {
+	.dev		= {
+		.init_name = "sdi0",
+	},
+	.res		= {
+		.start	= U8500_SDI0_BASE,
+		.end	= U8500_SDI0_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC0, NO_IRQ},
+};
+
+struct amba_device u8500_sdi1_device = {
+	.dev		= {
+		.init_name = "sdi1",
+	},
+	.res		= {
+		.start	= U8500_SDI1_BASE,
+		.end	= U8500_SDI1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC1, NO_IRQ},
+};
+
+struct amba_device u8500_sdi2_device = {
+	.dev		= {
+		.init_name = "sdi2",
+	},
+	.res		= {
+		.start	= U8500_SDI2_BASE,
+		.end	= U8500_SDI2_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC2, NO_IRQ},
+};
+
+struct amba_device u8500_sdi3_device = {
+	.dev		= {
+		.init_name = "sdi3",
+	},
+	.res		= {
+		.start	= U8500_SDI3_BASE,
+		.end	= U8500_SDI3_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC3, NO_IRQ},
+};
+
+struct amba_device u8500_sdi4_device = {
+	.dev		= {
+		.init_name = "sdi4",
+	},
+	.res		= {
+		.start	= U8500_SDI4_BASE,
+		.end	= U8500_SDI4_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC4, NO_IRQ},
+};
+
+struct amba_device u8500_sdi5_device = {
+	.dev		= {
+		.init_name = "sdi5",
+	},
+	.res		= {
+		.start	= U8500_SDI5_BASE,
+		.end	= U8500_SDI5_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC5, NO_IRQ},
+};
+
 static struct resource dma40_resources[] = {
 	[0] = {
 		.start = U8500_DMA_BASE,
