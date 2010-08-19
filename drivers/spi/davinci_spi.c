@@ -119,10 +119,7 @@
 #define SPIFMT0		0x50
 
 struct davinci_spi_slave {
-	u32	cmd_to_write;
-	u32	clk_ctrl_to_write;
 	u32	bytes_per_word;
-	u8	active_cs;
 };
 
 /* We have 2 DMA channels per CS, one for RX and one for TX */
@@ -494,8 +491,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 	/* if bits per word length is zero then set it default 8 */
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
-
-	davinci_spi->slave[spi->chip_select].cmd_to_write = 0;
 
 	if (use_dma && davinci_spi->dma_channels) {
 		davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
