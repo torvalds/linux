@@ -39,9 +39,6 @@
 #define CS_DEFAULT	0xFF
 
 #define SPI_BUFSIZ	(SMP_CACHE_BYTES + 1)
-#define DAVINCI_DMA_DATA_TYPE_S8	0x01
-#define DAVINCI_DMA_DATA_TYPE_S16	0x02
-#define DAVINCI_DMA_DATA_TYPE_S32	0x04
 
 #define SPIFMT_PHASE_MASK	BIT(16)
 #define SPIFMT_POLARITY_MASK	BIT(17)
@@ -729,19 +726,14 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	return t->len;
 }
 
-#define DAVINCI_DMA_DATA_TYPE_S8	0x01
-#define DAVINCI_DMA_DATA_TYPE_S16	0x02
-#define DAVINCI_DMA_DATA_TYPE_S32	0x04
-
 static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *davinci_spi;
 	int int_status = 0;
 	int count, temp_count;
-	u8 conv = 1;
 	u32 data1_reg_val;
 	struct davinci_spi_dma *davinci_spi_dma;
-	int word_len, data_type, ret;
+	int data_type, ret;
 	unsigned long tx_reg, rx_reg;
 	struct device *sdev;
 
@@ -757,8 +749,8 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	davinci_spi->rx = t->rx_buf;
 
 	/* convert len to words based on bits_per_word */
-	conv = davinci_spi->bytes_per_word[spi->chip_select];
-	davinci_spi->count = t->len / conv;
+	data_type = davinci_spi->bytes_per_word[spi->chip_select];
+	davinci_spi->count = t->len / data_type;
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
@@ -766,17 +758,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 
 	init_completion(&davinci_spi_dma->dma_rx_completion);
 	init_completion(&davinci_spi_dma->dma_tx_completion);
-
-	word_len = conv * 8;
-
-	if (word_len <= 8)
-		data_type = DAVINCI_DMA_DATA_TYPE_S8;
-	else if (word_len <= 16)
-		data_type = DAVINCI_DMA_DATA_TYPE_S16;
-	else if (word_len <= 32)
-		data_type = DAVINCI_DMA_DATA_TYPE_S32;
-	else
-		return -EINVAL;
 
 	ret = davinci_spi_bufs_prep(spi, davinci_spi);
 	if (ret)
