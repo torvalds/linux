@@ -303,21 +303,29 @@ static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = fsl_dma_dmamask;
 
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
-		fsl_dma_hardware.buffer_bytes_max,
-		&pcm->streams[0].substream->dma_buffer);
-	if (ret) {
-		dev_err(card->dev, "can't allocate playback dma buffer\n");
-		return ret;
+	/* Some codecs have separate DAIs for playback and capture, so we
+	 * should allocate a DMA buffer only for the streams that are valid.
+	 */
+
+	if (dai->driver->playback.channels_min) {
+		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
+			fsl_dma_hardware.buffer_bytes_max,
+			&pcm->streams[0].substream->dma_buffer);
+		if (ret) {
+			dev_err(card->dev, "can't alloc playback dma buffer\n");
+			return ret;
+		}
 	}
 
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
-		fsl_dma_hardware.buffer_bytes_max,
-		&pcm->streams[1].substream->dma_buffer);
-	if (ret) {
-		snd_dma_free_pages(&pcm->streams[0].substream->dma_buffer);
-		dev_err(card->dev, "can't allocate capture dma buffer\n");
-		return ret;
+	if (dai->driver->capture.channels_min) {
+		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
+			fsl_dma_hardware.buffer_bytes_max,
+			&pcm->streams[1].substream->dma_buffer);
+		if (ret) {
+			snd_dma_free_pages(&pcm->streams[0].substream->dma_buffer);
+			dev_err(card->dev, "can't alloc capture dma buffer\n");
+			return ret;
+		}
 	}
 
 	return 0;
