@@ -43,6 +43,8 @@ struct davinci_spi_config {
 	u8	timer_disable;
 	u8	c2tdelay;
 	u8	t2cdelay;
+	u8	t2edelay;
+	u8	c2edelay;
 };
 
 #endif	/* __ARCH_ARM_DAVINCI_SPI_H */

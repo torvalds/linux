@@ -78,6 +78,16 @@
 #define SPIBUF_TXFULL_MASK	BIT(29)
 #define SPIBUF_RXEMPTY_MASK	BIT(31)
 
+/* SPIDELAY */
+#define SPIDELAY_C2TDELAY_SHIFT 24
+#define SPIDELAY_C2TDELAY_MASK  (0xFF << SPIDELAY_C2TDELAY_SHIFT)
+#define SPIDELAY_T2CDELAY_SHIFT 16
+#define SPIDELAY_T2CDELAY_MASK  (0xFF << SPIDELAY_T2CDELAY_SHIFT)
+#define SPIDELAY_T2EDELAY_SHIFT 8
+#define SPIDELAY_T2EDELAY_MASK  (0xFF << SPIDELAY_T2EDELAY_SHIFT)
+#define SPIDELAY_C2EDELAY_SHIFT 0
+#define SPIDELAY_C2EDELAY_MASK  0xFF
+
 /* Error Masks */
 #define SPIFLG_DLEN_ERR_MASK		BIT(0)
 #define SPIFLG_TIMEOUT_MASK		BIT(1)
@@ -94,9 +104,6 @@
 #define SPIINT_RX_INTR		BIT(8)
 #define SPIINT_TX_INTR		BIT(9)
 #define SPIINT_DMA_REQ_EN	BIT(16)
-
-#define SPI_T2CDELAY_SHIFT	16
-#define SPI_C2TDELAY_SHIFT	24
 
 /* SPI Controller registers */
 #define SPIGCR0		0x00
@@ -363,6 +370,8 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 
 	if (davinci_spi->version == SPI_VERSION_2) {
 
+		u32 delay = 0;
+
 		spifmt |= ((spicfg->wdelay << SPIFMT_WDELAY_SHIFT)
 							& SPIFMT_WDELAY_MASK);
 
@@ -372,15 +381,24 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 		if (spicfg->parity_enable)
 			spifmt |= SPIFMT_PARITYENA_MASK;
 
-		if (spicfg->timer_disable)
+		if (spicfg->timer_disable) {
 			spifmt |= SPIFMT_DISTIMER_MASK;
-		else
-			iowrite32((spicfg->c2tdelay << SPI_C2TDELAY_SHIFT) |
-				  (spicfg->t2cdelay << SPI_T2CDELAY_SHIFT),
-				  davinci_spi->base + SPIDELAY);
+		} else {
+			delay |= (spicfg->c2tdelay << SPIDELAY_C2TDELAY_SHIFT)
+						& SPIDELAY_C2TDELAY_MASK;
+			delay |= (spicfg->t2cdelay << SPIDELAY_T2CDELAY_SHIFT)
+						& SPIDELAY_T2CDELAY_MASK;
+		}
 
-		if (spi->mode & SPI_READY)
+		if (spi->mode & SPI_READY) {
 			spifmt |= SPIFMT_WAITENA_MASK;
+			delay |= (spicfg->t2edelay << SPIDELAY_T2EDELAY_SHIFT)
+						& SPIDELAY_T2EDELAY_MASK;
+			delay |= (spicfg->c2edelay << SPIDELAY_C2EDELAY_SHIFT)
+						& SPIDELAY_C2EDELAY_MASK;
+		}
+
+		iowrite32(delay, davinci_spi->base + SPIDELAY);
 	}
 
 	iowrite32(spifmt, davinci_spi->base + SPIFMT0);
