@@ -21,7 +21,7 @@ atomic_add: /* %o0 = increment, %o1 = atomic_ptr */
 	add	%g1, %o0, %g7
 	cas	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%icc, 2f
+	bne,pn	%icc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop
@@ -36,7 +36,7 @@ atomic_sub: /* %o0 = decrement, %o1 = atomic_ptr */
 	sub	%g1, %o0, %g7
 	cas	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%icc, 2f
+	bne,pn	%icc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop
@@ -51,7 +51,7 @@ atomic_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
 	add	%g1, %o0, %g7
 	cas	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%icc, 2f
+	bne,pn	%icc, BACKOFF_LABEL(2f, 1b)
 	 add	%g1, %o0, %g1
 	retl
 	 sra	%g1, 0, %o0
@@ -66,7 +66,7 @@ atomic_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
 	sub	%g1, %o0, %g7
 	cas	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%icc, 2f
+	bne,pn	%icc, BACKOFF_LABEL(2f, 1b)
 	 sub	%g1, %o0, %g1
 	retl
 	 sra	%g1, 0, %o0
@@ -81,7 +81,7 @@ atomic64_add: /* %o0 = increment, %o1 = atomic_ptr */
 	add	%g1, %o0, %g7
 	casx	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop
@@ -96,7 +96,7 @@ atomic64_sub: /* %o0 = decrement, %o1 = atomic_ptr */
 	sub	%g1, %o0, %g7
 	casx	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 nop
@@ -111,7 +111,7 @@ atomic64_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
 	add	%g1, %o0, %g7
 	casx	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 add	%g1, %o0, %o0
@@ -126,7 +126,7 @@ atomic64_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
 	sub	%g1, %o0, %g7
 	casx	[%o1], %g1, %g7
 	cmp	%g1, %g7
-	bne,pn	%xcc, 2f
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
 	 nop
 	retl
 	 sub	%g1, %o0, %o0
