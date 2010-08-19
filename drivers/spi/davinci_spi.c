@@ -158,37 +158,41 @@ static unsigned use_dma;
 
 static void davinci_spi_rx_buf_u8(u32 data, struct davinci_spi *davinci_spi)
 {
-	u8 *rx = davinci_spi->rx;
-
-	*rx++ = (u8)data;
-	davinci_spi->rx = rx;
+	if (davinci_spi->rx) {
+		u8 *rx = davinci_spi->rx;
+		*rx++ = (u8)data;
+		davinci_spi->rx = rx;
+	}
 }
 
 static void davinci_spi_rx_buf_u16(u32 data, struct davinci_spi *davinci_spi)
 {
-	u16 *rx = davinci_spi->rx;
-
-	*rx++ = (u16)data;
-	davinci_spi->rx = rx;
+	if (davinci_spi->rx) {
+		u16 *rx = davinci_spi->rx;
+		*rx++ = (u16)data;
+		davinci_spi->rx = rx;
+	}
 }
 
 static u32 davinci_spi_tx_buf_u8(struct davinci_spi *davinci_spi)
 {
-	u32 data;
-	const u8 *tx = davinci_spi->tx;
-
-	data = *tx++;
-	davinci_spi->tx = tx;
+	u32 data = 0;
+	if (davinci_spi->tx) {
+		const u8 *tx = davinci_spi->tx;
+		data = *tx++;
+		davinci_spi->tx = tx;
+	}
 	return data;
 }
 
 static u32 davinci_spi_tx_buf_u16(struct davinci_spi *davinci_spi)
 {
-	u32 data;
-	const u16 *tx = davinci_spi->tx;
-
-	data = *tx++;
-	davinci_spi->tx = tx;
+	u32 data = 0;
+	if (davinci_spi->tx) {
+		const u16 *tx = davinci_spi->tx;
+		data = *tx++;
+		davinci_spi->tx = tx;
+	}
 	return data;
 }
 
