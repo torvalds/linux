@@ -946,6 +946,7 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
 
 	size_t stats_size = sizeof(struct __qlcnic_esw_statistics);
+	struct __qlcnic_esw_statistics *stats;
 	dma_addr_t stats_dma_t;
 	void *stats_addr;
 	u32 arg1;
@@ -980,8 +981,21 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 			LSD(stats_dma_t),
 			QLCNIC_CDRP_CMD_GET_ESWITCH_STATS);
 
-	if (!err)
-		memcpy(esw_stats, stats_addr, stats_size);
+	if (!err) {
+		stats = (struct __qlcnic_esw_statistics *)stats_addr;
+		esw_stats->context_id = le16_to_cpu(stats->context_id);
+		esw_stats->version = le16_to_cpu(stats->version);
+		esw_stats->size = le16_to_cpu(stats->size);
+		esw_stats->multicast_frames =
+				le64_to_cpu(stats->multicast_frames);
+		esw_stats->broadcast_frames =
+				le64_to_cpu(stats->broadcast_frames);
+		esw_stats->unicast_frames = le64_to_cpu(stats->unicast_frames);
+		esw_stats->dropped_frames = le64_to_cpu(stats->dropped_frames);
+		esw_stats->local_frames = le64_to_cpu(stats->local_frames);
+		esw_stats->errors = le64_to_cpu(stats->errors);
+		esw_stats->numbytes = le64_to_cpu(stats->numbytes);
+	}
 
 	pci_free_consistent(adapter->pdev, stats_size, stats_addr,
 		stats_dma_t);
