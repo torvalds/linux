@@ -804,6 +804,20 @@ qlcnic_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static int qlcnic_set_tx_csum(struct net_device *dev, u32 data)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED))
+		return -EOPNOTSUPP;
+	if (data)
+		dev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+	else
+		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+
+	return 0;
+
+}
 static u32 qlcnic_get_tx_csum(struct net_device *dev)
 {
 	return dev->features & NETIF_F_IP_CSUM;
@@ -819,6 +833,8 @@ static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 
+	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED))
+		return -EOPNOTSUPP;
 	if (!!data) {
 		adapter->rx_csum = !!data;
 		return 0;
@@ -1070,7 +1086,7 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_pauseparam = qlcnic_get_pauseparam,
 	.set_pauseparam = qlcnic_set_pauseparam,
 	.get_tx_csum = qlcnic_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,
+	.set_tx_csum = qlcnic_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = qlcnic_get_tso,
 	.set_tso = qlcnic_set_tso,
