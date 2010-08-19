@@ -44,6 +44,9 @@ static LIST_HEAD(i7core_edac_list);
 static DEFINE_MUTEX(i7core_edac_lock);
 static int probed;
 
+static int use_pci_fixup;
+module_param(use_pci_fixup, int, 0444);
+MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 /*
  * This is used for Nehalem-EP and Nehalem-EX devices, where the non-core
  * registers start at bus 255, and are not reported by BIOS.
@@ -1257,6 +1260,7 @@ static void __init i7core_xeon_pci_fixup(const struct pci_id_table *table)
 {
 	struct pci_dev *pdev = NULL;
 	int i;
+
 	/*
 	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core pci buses
 	 * aren't announced by acpi. So, we need to use a legacy scan probing
@@ -2126,7 +2130,8 @@ static int __init i7core_init(void)
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
 
-	i7core_xeon_pci_fixup(pci_dev_table);
+	if (use_pci_fixup)
+		i7core_xeon_pci_fixup(pci_dev_table);
 
 	pci_rc = pci_register_driver(&i7core_driver);
 
