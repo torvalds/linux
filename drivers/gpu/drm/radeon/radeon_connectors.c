@@ -977,24 +977,25 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
-	u8 sink_type;
 
 	if (radeon_connector->edid) {
 		kfree(radeon_connector->edid);
 		radeon_connector->edid = NULL;
 	}
 
-	sink_type = radeon_dp_getsinktype(radeon_connector);
-	if ((sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-	    (sink_type == CONNECTOR_OBJECT_ID_eDP)) {
-		if (radeon_dp_getdpcd(radeon_connector)) {
-			radeon_dig_connector->dp_sink_type = sink_type;
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		/* eDP is always DP */
+		radeon_dig_connector->dp_sink_type = CONNECTOR_OBJECT_ID_DISPLAYPORT;
+		if (radeon_dp_getdpcd(radeon_connector))
 			ret = connector_status_connected;
-		}
 	} else {
-		if (radeon_ddc_probe(radeon_connector)) {
-			radeon_dig_connector->dp_sink_type = sink_type;
-			ret = connector_status_connected;
+		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
+		if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+			if (radeon_dp_getdpcd(radeon_connector))
+				ret = connector_status_connected;
+		} else {
+			if (radeon_ddc_probe(radeon_connector))
+				ret = connector_status_connected;
 		}
 	}
 
