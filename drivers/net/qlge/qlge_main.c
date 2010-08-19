@@ -2222,10 +2222,11 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 		ql_update_cq(rx_ring);
 		prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	}
+	if (!net_rsp)
+		return 0;
 	ql_write_cq_idx(rx_ring);
 	tx_ring = &qdev->tx_ring[net_rsp->txq_idx];
-	if (__netif_subqueue_stopped(qdev->ndev, tx_ring->wq_id) &&
-					net_rsp != NULL) {
+	if (__netif_subqueue_stopped(qdev->ndev, tx_ring->wq_id)) {
 		if (atomic_read(&tx_ring->queue_stopped) &&
 		    (atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
 			/*
