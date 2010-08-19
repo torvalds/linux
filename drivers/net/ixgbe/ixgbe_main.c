@@ -3411,6 +3411,12 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_MHADD, mhadd);
 	}
 
+	if (hw->mac.type == ixgbe_mac_82599EB) {
+		/* DMATXCTL.EN must be set after all Tx queue config is done */
+		dmatxctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
+		dmatxctl |= IXGBE_DMATXCTL_TE;
+		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, dmatxctl);
+	}
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		j = adapter->tx_ring[i]->reg_idx;
 		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(j));
@@ -3421,18 +3427,6 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 			/* enable WTHRESH=8 descriptors, to encourage burst writeback */
 			txdctl |= (8 << 16);
 		}
-		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(j), txdctl);
-	}
-
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		/* DMATXCTL.EN must be set after all Tx queue config is done */
-		dmatxctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
-		dmatxctl |= IXGBE_DMATXCTL_TE;
-		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, dmatxctl);
-	}
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		j = adapter->tx_ring[i]->reg_idx;
-		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(j));
 		txdctl |= IXGBE_TXDCTL_ENABLE;
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(j), txdctl);
 		if (hw->mac.type == ixgbe_mac_82599EB) {
