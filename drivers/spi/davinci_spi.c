@@ -118,10 +118,6 @@
 #define SPIDEF		0x4c
 #define SPIFMT0		0x50
 
-struct davinci_spi_slave {
-	u32	bytes_per_word;
-};
-
 /* We have 2 DMA channels per CS, one for RX and one for TX */
 struct davinci_spi_dma {
 	int			dma_tx_channel;
@@ -156,7 +152,7 @@ struct davinci_spi {
 	void			(*get_rx)(u32 rx_data, struct davinci_spi *);
 	u32			(*get_tx)(struct davinci_spi *);
 
-	struct davinci_spi_slave slave[SPI_MAX_CHIPSELECT];
+	u8			bytes_per_word[SPI_MAX_CHIPSELECT];
 };
 
 static struct davinci_spi_config davinci_spi_default_cfg;
@@ -324,11 +320,11 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	if (bits_per_word <= 8 && bits_per_word >= 2) {
 		davinci_spi->get_rx = davinci_spi_rx_buf_u8;
 		davinci_spi->get_tx = davinci_spi_tx_buf_u8;
-		davinci_spi->slave[spi->chip_select].bytes_per_word = 1;
+		davinci_spi->bytes_per_word[spi->chip_select] = 1;
 	} else if (bits_per_word <= 16 && bits_per_word >= 2) {
 		davinci_spi->get_rx = davinci_spi_rx_buf_u16;
 		davinci_spi->get_tx = davinci_spi_tx_buf_u16;
-		davinci_spi->slave[spi->chip_select].bytes_per_word = 2;
+		davinci_spi->bytes_per_word[spi->chip_select] = 2;
 	} else
 		return -EINVAL;
 
@@ -632,7 +628,7 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	davinci_spi->rx = t->rx_buf;
 
 	/* convert len to words based on bits_per_word */
-	conv = davinci_spi->slave[spi->chip_select].bytes_per_word;
+	conv = davinci_spi->bytes_per_word[spi->chip_select];
 	davinci_spi->count = t->len / conv;
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
@@ -764,7 +760,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	davinci_spi->rx = t->rx_buf;
 
 	/* convert len to words based on bits_per_word */
-	conv = davinci_spi->slave[spi->chip_select].bytes_per_word;
+	conv = davinci_spi->bytes_per_word[spi->chip_select];
 	davinci_spi->count = t->len / conv;
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
