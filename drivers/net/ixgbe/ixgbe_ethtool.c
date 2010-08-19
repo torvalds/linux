@@ -1560,7 +1560,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TXDCTL(0), reg_data);
 
 	for (i = 0; i < tx_ring->count; i++) {
-		union ixgbe_adv_tx_desc *desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+		union ixgbe_adv_tx_desc *desc = IXGBE_TX_DESC_ADV(tx_ring, i);
 		struct sk_buff *skb;
 		unsigned int size = 1024;
 
@@ -1661,7 +1661,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	for (i = 0; i < rx_ring->count; i++) {
 		union ixgbe_adv_rx_desc *rx_desc =
-		                                 IXGBE_RX_DESC_ADV(*rx_ring, i);
+		                                 IXGBE_RX_DESC_ADV(rx_ring, i);
 		struct sk_buff *skb;
 
 		skb = alloc_skb(IXGBE_RXBUFFER_2048 + NET_IP_ALIGN, GFP_KERNEL);

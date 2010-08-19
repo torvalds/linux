@@ -385,7 +385,7 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 			"leng  ntw timestamp        bi->skb\n");
 
 		for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
-			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+			tx_desc = IXGBE_TX_DESC_ADV(tx_ring, i);
 			tx_buffer_info = &tx_ring->tx_buffer_info[i];
 			u0 = (struct my_u0 *)tx_desc;
 			printk(KERN_INFO "T [0x%03X]    %016llX %016llX %016llX"
@@ -466,7 +466,7 @@ rx_ring_summary:
 
 		for (i = 0; i < rx_ring->count; i++) {
 			rx_buffer_info = &rx_ring->rx_buffer_info[i];
-			rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
+			rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
 			u0 = (struct my_u0 *)rx_desc;
 			staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 			if (staterr & IXGBE_RXD_STAT_DD) {
@@ -695,7 +695,7 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 	    ixgbe_tx_xon_state(adapter, tx_ring)) {
 		/* detected Tx unit hang */
 		union ixgbe_adv_tx_desc *tx_desc;
-		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
+		tx_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
 		e_err(drv, "Detected Tx Unit Hang\n"
 		      "  Tx Queue             <%d>\n"
 		      "  TDH, TDT             <%x>, <%x>\n"
@@ -743,7 +743,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->tx_buffer_info[i].next_to_watch;
-	eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
+	eop_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
 
 	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
 	       (count < tx_ring->work_limit)) {
@@ -751,7 +751,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		rmb(); /* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
-			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+			tx_desc = IXGBE_TX_DESC_ADV(tx_ring, i);
 			tx_buffer_info = &tx_ring->tx_buffer_info[i];
 			cleaned = (i == eop);
 			skb = tx_buffer_info->skb;
@@ -791,7 +791,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		}
 
 		eop = tx_ring->tx_buffer_info[i].next_to_watch;
-		eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
+		eop_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
 	}
 
 	tx_ring->next_to_clean = i;
@@ -1047,7 +1047,7 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 	bi = &rx_ring->rx_buffer_info[i];
 
 	while (cleaned_count--) {
-		rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
+		rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
 
 		if (!bi->page_dma &&
 		    (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)) {
@@ -1188,7 +1188,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 #endif /* IXGBE_FCOE */
 
 	i = rx_ring->next_to_clean;
-	rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
+	rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	rx_buffer_info = &rx_ring->rx_buffer_info[i];
 
@@ -1263,7 +1263,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		if (i == rx_ring->count)
 			i = 0;
 
-		next_rxd = IXGBE_RX_DESC_ADV(*rx_ring, i);
+		next_rxd = IXGBE_RX_DESC_ADV(rx_ring, i);
 		prefetch(next_rxd);
 		cleaned_count++;
 
@@ -5813,7 +5813,7 @@ static int ixgbe_tso(struct ixgbe_adapter *adapter,
 		i = tx_ring->next_to_use;
 
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IXGBE_TX_CTXTDESC_ADV(*tx_ring, i);
+		context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
 
 		/* VLAN MACLEN IPLEN */
 		if (tx_flags & IXGBE_TX_FLAGS_VLAN)
@@ -5872,7 +5872,7 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 	    (tx_flags & IXGBE_TX_FLAGS_VLAN)) {
 		i = tx_ring->next_to_use;
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IXGBE_TX_CTXTDESC_ADV(*tx_ring, i);
+		context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
 
 		if (tx_flags & IXGBE_TX_FLAGS_VLAN)
 			vlan_macip_lens |=
@@ -6101,7 +6101,7 @@ static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
 	i = tx_ring->next_to_use;
 	while (count--) {
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+		tx_desc = IXGBE_TX_DESC_ADV(tx_ring, i);
 		tx_desc->read.buffer_addr = cpu_to_le64(tx_buffer_info->dma);
 		tx_desc->read.cmd_type_len =
 		        cpu_to_le32(cmd_type_len | tx_buffer_info->length);

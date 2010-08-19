@@ -471,7 +471,7 @@ int ixgbe_fso(struct ixgbe_adapter *adapter,
 
 	/* write context desc */
 	i = tx_ring->next_to_use;
-	context_desc = IXGBE_TX_CTXTDESC_ADV(*tx_ring, i);
+	context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
 	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
 	context_desc->seqnum_seed	= cpu_to_le32(fcoe_sof_eof);
 	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
