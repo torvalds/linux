@@ -218,7 +218,7 @@ static int initialize_otg_port(struct platform_device *pdev)
 {
 	u32 v;
 	void __iomem *usb_base;
-	u32 usbother_base;
+	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -236,7 +236,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 {
 	u32 v;
 	void __iomem *usb_base;
-	u32 usbother_base;
+	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
