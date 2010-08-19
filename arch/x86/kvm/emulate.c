@@ -2487,7 +2487,7 @@ static struct opcode opcode_table[256] = {
 	/* 0xD8 - 0xDF */
 	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
-	X3(D(SrcImmByte)), N,
+	X4(D(SrcImmByte)),
 	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
 	D(ByteOp | SrcAcc | DstImmUByte), D(SrcAcc | DstImmUByte),
 	/* 0xE8 - 0xEF */
@@ -3283,6 +3283,10 @@ special_insn:
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 		if (address_mask(c, c->regs[VCPU_REGS_RCX]) != 0 &&
 		    (c->b == 0xe2 || test_cc(c->b ^ 0x5, ctxt->eflags)))
+			jmp_rel(c, c->src.val);
+		break;
+	case 0xe3:	/* jcxz/jecxz/jrcxz */
+		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0)
 			jmp_rel(c, c->src.val);
 		break;
 	case 0xe4: 	/* inb */
