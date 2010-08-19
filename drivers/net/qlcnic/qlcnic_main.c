@@ -754,7 +754,7 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 
 	adapter->num_txd = MAX_CMD_DESCRIPTORS;
 
-	adapter->max_rds_rings = 2;
+	adapter->max_rds_rings = MAX_RDS_RINGS;
 }
 
 static int

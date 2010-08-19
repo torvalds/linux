@@ -553,12 +553,12 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	}
 	adapter->physical_port = (val >> 2);
 	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DEV_INIT_TIMEOUT, &timeo))
-		timeo = 30;
+		timeo = QLCNIC_INIT_TIMEOUT_SECS;
 
 	adapter->dev_init_timeo = timeo;
 
 	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DRV_RESET_TIMEOUT, &timeo))
-		timeo = 10;
+		timeo = QLCNIC_RESET_TIMEOUT_SECS;
 
 	adapter->reset_ack_timeo = timeo;
 

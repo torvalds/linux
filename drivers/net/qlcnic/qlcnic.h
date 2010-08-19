@@ -148,6 +148,7 @@
 
 #define DEFAULT_RCV_DESCRIPTORS_1G	2048
 #define DEFAULT_RCV_DESCRIPTORS_10G	4096
+#define MAX_RDS_RINGS                   2
 
 #define get_next_index(index, length)	\
 	(((index) + 1) & ((length) - 1))
