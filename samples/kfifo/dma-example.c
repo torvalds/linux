@@ -105,9 +105,7 @@ static int __init example_init(void)
 
 static void __exit example_exit(void)
 {
-#ifdef DYNAMIC
-	kfifo_free(&test);
-#endif
+	kfifo_free(&fifo);
 }
 
 module_init(example_init);
