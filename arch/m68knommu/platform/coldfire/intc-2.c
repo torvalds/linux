@@ -1,5 +1,9 @@
 /*
- * intc-1.c
+ * intc-2.c
+ *
+ * General interrupt controller code for the many ColdFire version 2 cores
+ * that use the two region INTC interrupt controller. This includes the
+ * 523x family, 5270, 5271, 5274, 5275, and the 528x families.
  *
  * (C) Copyright 2009, Greg Ungerer <gerg@snapgear.com>
  *

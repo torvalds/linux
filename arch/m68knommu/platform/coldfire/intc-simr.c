@@ -1,6 +1,8 @@
 /*
  * intc-simr.c
  *
+ * Interrupt controller code for the ColdFire 5208, 5207 & 532x parts.
+ *
  * (C) Copyright 2009, Greg Ungerer <gerg@snapgear.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
