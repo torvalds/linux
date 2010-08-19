@@ -3362,38 +3362,15 @@ static inline void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 	                      (adapter->rx_ring[rxr]->count - 1));
 }
 
-static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
+static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int i, j = 0;
-	int num_rx_rings = adapter->num_rx_queues;
-	int err;
-	u32 txdctl, rxdctl;
-	u32 dmatxctl;
-	u32 gpie;
-	u32 ctrl_ext;
-
-	ixgbe_get_hw_control(adapter);
-
-	if ((adapter->flags & IXGBE_FLAG_MSIX_ENABLED) ||
-	    (adapter->flags & IXGBE_FLAG_MSI_ENABLED)) {
-		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-			gpie = (IXGBE_GPIE_MSIX_MODE | IXGBE_GPIE_EIAME |
-			        IXGBE_GPIE_PBA_SUPPORT | IXGBE_GPIE_OCD);
-		} else {
-			/* MSI only */
-			gpie = 0;
-		}
-		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-			gpie &= ~IXGBE_GPIE_VTMODE_MASK;
-			gpie |= IXGBE_GPIE_VTMODE_64;
-		}
-		/* XXX: to interrupt immediately for EICS writes, enable this */
-		/* gpie |= IXGBE_GPIE_EIMEN; */
-		IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
-	}
+	u32 gpie = 0;
 
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+		gpie = IXGBE_GPIE_MSIX_MODE | IXGBE_GPIE_PBA_SUPPORT |
+		       IXGBE_GPIE_OCD;
+		gpie |= IXGBE_GPIE_EIAME;
 		/*
 		 * use EIAM to auto-mask when MSI-X interrupt is asserted
 		 * this saves a register write for every interrupt
@@ -3414,26 +3391,37 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
 	}
 
-	/* Enable Thermal over heat sensor interrupt */
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) {
-		gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
-		gpie |= IXGBE_SDP0_GPIEN;
-		IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
+	/* XXX: to interrupt immediately for EICS writes, enable this */
+	/* gpie |= IXGBE_GPIE_EIMEN; */
+
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
+		gpie &= ~IXGBE_GPIE_VTMODE_MASK;
+		gpie |= IXGBE_GPIE_VTMODE_64;
 	}
 
-	/* Enable fan failure interrupt if media type is copper */
-	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
-		gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
+	/* Enable fan failure interrupt */
+	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		gpie |= IXGBE_SDP1_GPIEN;
-		IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
-	}
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
+	if (hw->mac.type == ixgbe_mac_82599EB)
 		gpie |= IXGBE_SDP1_GPIEN;
 		gpie |= IXGBE_SDP2_GPIEN;
-		IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
-	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
+}
+
+static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i, j = 0;
+	int num_rx_rings = adapter->num_rx_queues;
+	int err;
+	u32 txdctl, rxdctl;
+	u32 dmatxctl;
+	u32 ctrl_ext;
+
+	ixgbe_get_hw_control(adapter);
+	ixgbe_setup_gpie(adapter);
 
 	if (hw->mac.type == ixgbe_mac_82599EB) {
 		/* DMATXCTL.EN must be set after all Tx queue config is done */
