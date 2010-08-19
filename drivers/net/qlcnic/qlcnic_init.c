@@ -928,15 +928,25 @@ qlcnic_get_bios_version(struct qlcnic_adapter *adapter)
 	return (bios_ver << 16) + ((bios_ver >> 8) & 0xff00) + (bios_ver >> 24);
 }
 
+static void qlcnic_rom_lock_recovery(struct qlcnic_adapter *adapter)
+{
+	if (qlcnic_pcie_sem_lock(adapter, 2, QLCNIC_ROM_LOCK_ID))
+		dev_info(&adapter->pdev->dev, "Resetting rom_lock\n");
+
+	qlcnic_pcie_sem_unlock(adapter, 2);
+}
+
 int
 qlcnic_need_fw_reset(struct qlcnic_adapter *adapter)
 {
 	u32 val, version, major, minor, build;
 
-	if (adapter->need_fw_reset)
+	if (qlcnic_check_fw_status(adapter)) {
+		qlcnic_rom_lock_recovery(adapter);
 		return 1;
+	}
 
-	if (qlcnic_check_fw_status(adapter))
+	if (adapter->need_fw_reset)
 		return 1;
 
 	/* check if we have got newer or different file firmware */
