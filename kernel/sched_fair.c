@@ -1963,6 +1963,8 @@ static void task_fork_fair(struct task_struct *p)
 
 	spin_lock_irqsave(&rq->lock, flags);
 
+	update_rq_clock(rq);
+
 	if (unlikely(task_cpu(p) != this_cpu))
 		__set_task_cpu(p, this_cpu);
 
