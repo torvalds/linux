@@ -54,6 +54,8 @@
 #define _QLCNIC_LINUX_SUBVERSION 7
 #define QLCNIC_LINUX_VERSIONID  "5.0.7"
 #define QLCNIC_DRV_IDC_VER  0x01
+#define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
+		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -1233,7 +1235,7 @@ void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter);
 void qlcnic_release_rx_buffers(struct qlcnic_adapter *adapter);
 void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter);
 
-int qlcnic_init_firmware(struct qlcnic_adapter *adapter);
+int qlcnic_check_fw_status(struct qlcnic_adapter *adapter);
 void qlcnic_watchdog_task(struct work_struct *work);
 void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
 		struct qlcnic_host_rds_ring *rds_ring);

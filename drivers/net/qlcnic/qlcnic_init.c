@@ -435,11 +435,14 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	u32 off;
 	struct pci_dev *pdev = adapter->pdev;
 
-	/* resetall */
+	QLCWR32(adapter, CRB_CMDPEG_STATE, 0);
+	QLCWR32(adapter, CRB_RCVPEG_STATE, 0);
+
 	qlcnic_rom_lock(adapter);
 	QLCWR32(adapter, QLCNIC_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	qlcnic_rom_unlock(adapter);
 
+	/* Init HW CRB block */
 	if (qlcnic_rom_fast_read(adapter, 0, &n) != 0 || (n != 0xcafecafe) ||
 			qlcnic_rom_fast_read(adapter, 4, &n) != 0) {
 		dev_err(&pdev->dev, "ERROR Reading crb_init area: val:%x\n", n);
@@ -520,13 +523,10 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	}
 	kfree(buf);
 
-	/* p2dn replyCount */
+	/* Initialize protocol process engine */
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_D + 0xec, 0x1e);
-	/* disable_peg_cache 0 & 1*/
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_D + 0x4c, 8);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_I + 0x4c, 8);
-
-	/* peg_clr_all */
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_0 + 0x8, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_0 + 0xc, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_1 + 0x8, 0);
@@ -535,7 +535,33 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_2 + 0xc, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_3 + 0x8, 0);
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_3 + 0xc, 0);
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0x8, 0);
+	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0xc, 0);
+	msleep(1);
+	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
+	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
 	return 0;
+}
+
+int
+qlcnic_check_fw_status(struct qlcnic_adapter *adapter)
+{
+	u32 heartbit, ret = -EIO;
+	int retries = QLCNIC_HEARTBEAT_RETRY_COUNT;
+
+	adapter->heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+	do {
+		msleep(QLCNIC_HEARTBEAT_PERIOD_MSECS);
+		heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+		if (heartbit != adapter->heartbit) {
+			/* Complete firmware handshake */
+			QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
+			ret = QLCNIC_RCODE_SUCCESS;
+			break;
+		}
+	} while (--retries);
+
+	return ret;
 }
 
 int
@@ -905,35 +931,12 @@ qlcnic_get_bios_version(struct qlcnic_adapter *adapter)
 int
 qlcnic_need_fw_reset(struct qlcnic_adapter *adapter)
 {
-	u32 count, old_count;
 	u32 val, version, major, minor, build;
-	int i, timeout;
 
 	if (adapter->need_fw_reset)
 		return 1;
 
-	/* last attempt had failed */
-	if (QLCRD32(adapter, CRB_CMDPEG_STATE) == PHAN_INITIALIZE_FAILED)
-		return 1;
-
-	old_count = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
-
-	for (i = 0; i < 10; i++) {
-
-		timeout = msleep_interruptible(200);
-		if (timeout) {
-			QLCWR32(adapter, CRB_CMDPEG_STATE,
-					PHAN_INITIALIZE_FAILED);
-			return -EINTR;
-		}
-
-		count = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
-		if (count != old_count)
-			break;
-	}
-
-	/* firmware is dead */
-	if (count == old_count)
+	if (qlcnic_check_fw_status(adapter))
 		return 1;
 
 	/* check if we have got newer or different file firmware */
@@ -1156,78 +1159,6 @@ qlcnic_release_firmware(struct qlcnic_adapter *adapter)
 	if (adapter->fw)
 		release_firmware(adapter->fw);
 	adapter->fw = NULL;
-}
-
-static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
-{
-	u32 val;
-	int retries = 60;
-
-	do {
-		val = QLCRD32(adapter, CRB_CMDPEG_STATE);
-
-		switch (val) {
-		case PHAN_INITIALIZE_COMPLETE:
-		case PHAN_INITIALIZE_ACK:
-			return 0;
-		case PHAN_INITIALIZE_FAILED:
-			goto out_err;
-		default:
-			break;
-		}
-
-		msleep(500);
-
-	} while (--retries);
-
-	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
-
-out_err:
-	dev_err(&adapter->pdev->dev, "Command Peg initialization not "
-		      "complete, state: 0x%x.\n", val);
-	return -EIO;
-}
-
-static int
-qlcnic_receive_peg_ready(struct qlcnic_adapter *adapter)
-{
-	u32 val;
-	int retries = 2000;
-
-	do {
-		val = QLCRD32(adapter, CRB_RCVPEG_STATE);
-
-		if (val == PHAN_PEG_RCV_INITIALIZED)
-			return 0;
-
-		msleep(10);
-
-	} while (--retries);
-
-	if (!retries) {
-		dev_err(&adapter->pdev->dev, "Receive Peg initialization not "
-			      "complete, state: 0x%x.\n", val);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-int qlcnic_init_firmware(struct qlcnic_adapter *adapter)
-{
-	int err;
-
-	err = qlcnic_cmd_peg_ready(adapter);
-	if (err)
-		return err;
-
-	err = qlcnic_receive_peg_ready(adapter);
-	if (err)
-		return err;
-
-	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
-
-	return err;
 }
 
 static void

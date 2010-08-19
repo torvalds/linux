@@ -940,18 +940,13 @@ static int qlcnic_check_npar_opertional(struct qlcnic_adapter *adapter)
 static int
 qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 {
-	int val, err, first_boot;
+	int err;
 
 	err = qlcnic_can_start_firmware(adapter);
 	if (err < 0)
 		return err;
 	else if (!err)
-		goto wait_init;
-
-	first_boot = QLCRD32(adapter, QLCNIC_CAM_RAM(0x1fc));
-	if (first_boot == 0x55555555)
-		/* This is the first boot after power up */
-		QLCWR32(adapter, QLCNIC_CAM_RAM(0x1fc), QLCNIC_BDINFO_MAGIC);
+		goto check_fw_status;
 
 	if (load_fw_file)
 		qlcnic_request_firmware(adapter);
@@ -963,21 +958,12 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 	}
 
 	err = qlcnic_need_fw_reset(adapter);
-	if (err < 0)
-		goto err_out;
 	if (err == 0)
-		goto wait_init;
+		goto set_dev_ready;
 
-	if (first_boot != 0x55555555) {
-		QLCWR32(adapter, CRB_CMDPEG_STATE, 0);
-		QLCWR32(adapter, CRB_RCVPEG_STATE, 0);
-		qlcnic_pinit_from_rom(adapter);
-		msleep(1);
-	}
-
-	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
-	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
-
+	err = qlcnic_pinit_from_rom(adapter);
+	if (err)
+		goto err_out;
 	qlcnic_set_port_mode(adapter);
 
 	err = qlcnic_load_firmware(adapter);
@@ -985,18 +971,14 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 		goto err_out;
 
 	qlcnic_release_firmware(adapter);
+	QLCWR32(adapter, CRB_DRIVER_VERSION, QLCNIC_DRIVER_VERSION);
 
-	val = (_QLCNIC_LINUX_MAJOR << 16)
-		| ((_QLCNIC_LINUX_MINOR << 8))
-		| (_QLCNIC_LINUX_SUBVERSION);
-	QLCWR32(adapter, CRB_DRIVER_VERSION, val);
-
-wait_init:
-	/* Handshake with the card before we register the devices. */
-	err = qlcnic_init_firmware(adapter);
+check_fw_status:
+	err = qlcnic_check_fw_status(adapter);
 	if (err)
 		goto err_out;
 
+set_dev_ready:
 	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
 	qlcnic_idc_debug_info(adapter, 1);
 	err = qlcnic_check_npar_opertional(adapter);
