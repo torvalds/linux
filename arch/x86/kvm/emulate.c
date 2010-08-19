@@ -2280,6 +2280,18 @@ static int em_imul_3op(struct x86_emulate_ctxt *ctxt)
 	return em_imul(ctxt);
 }
 
+static int em_cwd(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->dst.type = OP_REG;
+	c->dst.bytes = c->src.bytes;
+	c->dst.addr.reg = &c->regs[VCPU_REGS_RDX];
+	c->dst.val = ~((c->src.val >> (c->src.bytes * 8 - 1)) - 1);
+
+	return X86EMUL_CONTINUE;
+}
+
 static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 {
 	unsigned cpl = ctxt->ops->cpl(ctxt->vcpu);
@@ -2425,7 +2437,8 @@ static struct opcode opcode_table[256] = {
 	/* 0x90 - 0x97 */
 	X8(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
-	D(DstAcc | SrcNone), N, D(SrcImmFAddr | No64), N,
+	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
+	D(SrcImmFAddr | No64), N,
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
 	/* 0xA0 - 0xA7 */
 	D(ByteOp | DstAcc | SrcMem | Mov | MemAbs), D(DstAcc | SrcMem | Mov | MemAbs),
