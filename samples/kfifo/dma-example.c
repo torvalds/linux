@@ -45,6 +45,7 @@ static int __init example_init(void)
 
 	printk(KERN_INFO "queue len: %u\n", kfifo_len(&fifo));
 
+	sg_init_table(sg, ARRAY_SIZE(sg));
 	ret = kfifo_dma_in_prepare(&fifo, sg, ARRAY_SIZE(sg), FIFO_SIZE);
 	printk(KERN_INFO "DMA sgl entries: %d\n", ret);
 
