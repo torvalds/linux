@@ -2709,7 +2709,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i;
 	u32 rxctrl;
-	u32 fctrl, hlreg0;
+	u32 hlreg0;
 	u32 rdrxctl;
 	int rx_buf_len;
 
@@ -2730,12 +2730,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		else
 			rx_buf_len = ALIGN(max_frame, 1024);
 	}
-
-	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
-	fctrl |= IXGBE_FCTRL_BAM;
-	fctrl |= IXGBE_FCTRL_DPF; /* discard pause frames when FC enabled */
-	fctrl |= IXGBE_FCTRL_PMCF;
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, fctrl);
 
 	hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	if (adapter->netdev->mtu <= ETH_DATA_LEN)
@@ -3054,6 +3048,11 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	/* Check for Promiscuous and All Multicast modes */
 
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+
+	/* set all bits that we expect to always be set */
+	fctrl |= IXGBE_FCTRL_BAM;
+	fctrl |= IXGBE_FCTRL_DPF; /* discard pause frames when FC enabled */
+	fctrl |= IXGBE_FCTRL_PMCF;
 
 	/* clear the bits we are changing the status of */
 	fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
