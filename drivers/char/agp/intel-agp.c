@@ -819,6 +819,8 @@ static const struct intel_driver_description {
 	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG,
 	    "Sandybridge", NULL, &intel_gen6_driver },
+	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_D0_IG,
+	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ 0, 0, NULL, NULL, NULL }
 };
 
