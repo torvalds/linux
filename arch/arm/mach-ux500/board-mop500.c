@@ -30,6 +30,7 @@
 #include <mach/devices.h>
 
 #include "pins-db8500.h"
+#include "board-mop500.h"
 
 static pin_cfg_t mop500_pins[] = {
 	/* SSP0 */
@@ -162,6 +163,8 @@ static void __init u8500_init_machine(void)
 		amba_device_register(amba_devs[i], &iomem_resource);
 
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
+
+	mop500_sdi_init();
 
 	spi_register_board_info(u8500_spi_devices,
 			ARRAY_SIZE(u8500_spi_devices));
