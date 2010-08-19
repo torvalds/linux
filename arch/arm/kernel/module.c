@@ -80,12 +80,20 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 			maps[ARM_SEC_DEVINIT].unw_sec = s;
 		else if (strcmp(".ARM.exidx", secname) == 0)
 			maps[ARM_SEC_CORE].unw_sec = s;
+		else if (strcmp(".ARM.exidx.exit.text", secname) == 0)
+			maps[ARM_SEC_EXIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx.devexit.text", secname) == 0)
+			maps[ARM_SEC_DEVEXIT].unw_sec = s;
 		else if (strcmp(".init.text", secname) == 0)
 			maps[ARM_SEC_INIT].sec_text = s;
 		else if (strcmp(".devinit.text", secname) == 0)
 			maps[ARM_SEC_DEVINIT].sec_text = s;
 		else if (strcmp(".text", secname) == 0)
 			maps[ARM_SEC_CORE].sec_text = s;
+		else if (strcmp(".exit.text", secname) == 0)
+			maps[ARM_SEC_EXIT].sec_text = s;
+		else if (strcmp(".devexit.text", secname) == 0)
+			maps[ARM_SEC_DEVEXIT].sec_text = s;
 	}
 #endif
 	return 0;
