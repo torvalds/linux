@@ -2250,8 +2250,6 @@ int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	i915_destroy_error_state(dev);
-
 	spin_lock(&mchdev_lock);
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
@@ -2280,8 +2278,10 @@ int i915_driver_unload(struct drm_device *dev)
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
 
+	/* Free error state after interrupts are fully disabled. */
 	del_timer_sync(&dev_priv->hangcheck_timer);
 	cancel_work_sync(&dev_priv->error_work);
+	i915_destroy_error_state(dev);
 
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
