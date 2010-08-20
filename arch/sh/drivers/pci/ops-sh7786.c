@@ -25,14 +25,15 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 		struct pci_bus *bus, unsigned int devfn, int where, u32 *data)
 {
 	struct pci_channel *chan = bus->sysdata;
-	int dev, func;
+	int dev, func, type;
 
 	dev = PCI_SLOT(devfn);
 	func = PCI_FUNC(devfn);
+	type = !!bus->parent;
 
 	if (bus->number > 255 || dev > 31 || func > 7)
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
-	if (devfn)
+	if (bus->parent == NULL && dev)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Clear errors */
@@ -43,13 +44,7 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 				(func << 16) | (where & ~3), SH4A_PCIEPAR);
 
 	/* Enable the configuration access */
-	if (bus->number) {
-		/* Type 1 */
-		pci_write_reg(chan, (1 << 31) | (1 << 8), SH4A_PCIEPCTLR);
-	} else {
-		/* Type 0 */
-		pci_write_reg(chan, (1 << 31), SH4A_PCIEPCTLR);
-	}
+	pci_write_reg(chan, (1 << 31) | (type << 8), SH4A_PCIEPCTLR);
 
 	/* Check for errors */
 	if (pci_read_reg(chan, SH4A_PCIEERRFR) & 0x10)
