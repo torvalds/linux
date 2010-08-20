@@ -28,9 +28,28 @@
 #include <mach/usb_phy.h>
 #include <mach/iomap.h>
 
+#define USB_USBCMD		0x140
+
+#define USB_USBSTS		0x144
+#define   USB_USBSTS_PCI	(1 << 2)
+
+#define USB_USBINTR		0x148
+#define USB_PERIODICLISTBASE	0x154
+#define USB_ASYNCLISTADDR	0x158
+#define USB_TXFILLTUNING	0x164
+
 #define USB_PORTSC1		0x184
 #define   USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
+#define   USB_PORTSC1_PSPD(x)	(((x) & 0x3) << 26)
 #define   USB_PORTSC1_PHCD	(1 << 23)
+#define   USB_PORTSC1_PTC(x)	(((x) & 0xf) << 16)
+#define   USB_PORTSC1_PP	(1 << 12)
+#define   USB_PORTSC1_SUSP	(1 << 7)
+#define   USB_PORTSC1_PE	(1 << 2)
+#define   USB_PORTSC1_CCS	(1 << 0)
+
+#define USB_OTGSC		0x1a4
+#define USB_USBMODE		0x1a8
 
 #define USB_SUSP_CTRL		0x400
 #define   USB_WAKE_ON_CNNT_EN_DEV	(1 << 3)
@@ -215,21 +234,143 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 	return 0;
 }
 
-static int utmi_phy_wait_stable(struct tegra_usb_phy *phy)
+static int utmi_wait_register(void __iomem *reg, u32 mask, u32 result)
+{
+	unsigned long timeout = 1000000;
+	do {
+		if ((readl(reg) & mask) == result)
+			return 0;
+		udelay(1);
+		timeout--;
+	} while (timeout);
+	return -1;
+}
+
+static int utmi_phy_restore_context(struct tegra_usb_phy *phy)
 {
 	void __iomem *base = phy->regs;
-	unsigned long timeout = jiffies + HZ;
+	unsigned long val = 0;
+	int count = 0;
 
-	while (time_before(jiffies, timeout)) {
-		if (readl(base + USB_SUSP_CTRL) & USB_PHY_CLK_VALID)
-			return 0;
-		udelay(10);
-		cpu_relax();
+	/* If any saved context is present, restore it */
+	if (!phy->context.valid)
+		return -1;
+
+	/* Restore register context */
+	count = phy->context.regs_count;
+	count--;
+	writel(phy->context.regs[count--], base + USB_USBMODE);
+	writel(phy->context.regs[count--], base + USB_OTGSC);
+	writel(phy->context.regs[count--], base + USB_TXFILLTUNING);
+	writel(phy->context.regs[count--], base + USB_ASYNCLISTADDR);
+	writel(phy->context.regs[count--], base + USB_PERIODICLISTBASE);
+	/* Restore interrupt context later */
+	count--;
+	writel(phy->context.regs[count--], base + USB_USBCMD);
+
+	/* Enable Port Power */
+	val = readl(base + USB_PORTSC1);
+	val |= USB_PORTSC1_PP;
+	writel(val, base + USB_PORTSC1);
+	udelay(10);
+
+	/* Program the field PTC in PORTSC based on the saved speed mode */
+	if (phy->context.port_speed == TEGRA_USB_PHY_PORT_HIGH) {
+		val = readl(base + USB_PORTSC1);
+		val &= ~(USB_PORTSC1_PTC(~0));
+		val |= USB_PORTSC1_PTC(5);
+		writel(val, base + USB_PORTSC1);
+	} else if (phy->context.port_speed == TEGRA_USB_PHY_PORT_SPEED_FULL) {
+		val = readl(base + USB_PORTSC1);
+		val &= ~(USB_PORTSC1_PTC(~0));
+		val |= USB_PORTSC1_PTC(6);
+		writel(val, base + USB_PORTSC1);
+	} else if (phy->context.port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW) {
+		val = readl(base + USB_PORTSC1);
+		val &= ~(USB_PORTSC1_PTC(~0));
+		val |= USB_PORTSC1_PTC(7);
+		writel(val, base + USB_PORTSC1);
+	} else {
+		pr_err("%s: speed is not configureed properly\n", __func__);
+		return -1;
 	}
-	if (readl(base + USB_SUSP_CTRL) & USB_PHY_CLK_VALID)
+	udelay(10);
+
+	/* Disable test mode by setting PTC field to NORMAL_OP */
+	val = readl(base + USB_PORTSC1);
+	val &= ~(USB_PORTSC1_PTC(~0));
+	writel(val, base + USB_PORTSC1);
+
+	/* Poll until CCS is enabled */
+	if (utmi_wait_register(base + USB_PORTSC1, USB_PORTSC1_CCS,
+						   USB_PORTSC1_CCS)) {
+		pr_err("%s: timeout waiting for USB_PORTSC1_CCS\n", __func__);
+		return -1;
+	}
+
+	/* Poll until PE is enabled */
+	if (utmi_wait_register(base + USB_PORTSC1, USB_PORTSC1_PE,
+						   USB_PORTSC1_PE)) {
+		pr_err("%s: timeout waiting for USB_PORTSC1_PE\n", __func__);
+		return -1;
+	}
+
+	/* Clear the PCI status, to avoid an interrupt taken upon resume */
+	val = readl(base + USB_USBSTS);
+	val |= USB_USBSTS_PCI;
+	writel(val, base + USB_USBSTS);
+	if (utmi_wait_register(base + USB_USBSTS, USB_USBSTS_PCI, 0) < 0) {
+		pr_err("%s: timeout waiting for USB_USBSTS_PCI\n", __func__);
+		return -1;
+	}
+
+	/* Put controller in suspend mode by writing 1 to SUSP bit of PORTSC */
+	val = readl(base + USB_PORTSC1);
+	if ((val & USB_PORTSC1_PP) && (val & USB_PORTSC1_PE)) {
+		val |= USB_PORTSC1_SUSP;
+		writel(val, base + USB_PORTSC1);
+
+		/* Wait until port suspend completes */
+		if (utmi_wait_register(base + USB_PORTSC1, USB_PORTSC1_SUSP,
+							   USB_PORTSC1_SUSP)) {
+			pr_err("%s: timeout waiting for USB_PORTSC1_SUSP\n",
+								__func__);
+			return -1;
+		}
+	}
+
+	/* Restore interrupt register */
+	writel(phy->context.regs[1], base + USB_USBINTR);
+	udelay(10);
+
+	return 0;
+}
+
+static int utmi_phy_save_context(struct tegra_usb_phy *phy)
+{
+	void __iomem *base = phy->regs;
+	int count = 0;
+
+	phy->context.port_speed = (readl(base + USB_PORTSC1)
+					& USB_PORTSC1_PSPD(3)) >> 26;
+
+	/* If no device connection or invalid speeds just return */
+	if (phy->context.port_speed > TEGRA_USB_PHY_PORT_HIGH) {
+		phy->context.valid = false;
 		return 0;
-	else
-		return -ETIMEDOUT;
+	}
+
+	phy->context.regs[count++] = readl(base + USB_USBCMD);
+	phy->context.regs[count++] = readl(base + USB_USBINTR);
+	phy->context.regs[count++] = readl(base + USB_PERIODICLISTBASE);
+	phy->context.regs[count++] = readl(base + USB_ASYNCLISTADDR);
+	phy->context.regs[count++] = readl(base + USB_TXFILLTUNING);
+	phy->context.regs[count++] = readl(base + USB_OTGSC);
+	phy->context.regs[count++] = readl(base + USB_USBMODE);
+	phy->context.regs_count = count;
+	phy->context.valid = true;
+
+	return 0;
 }
 
 static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
@@ -281,14 +422,68 @@ static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
 	writel(val, base + UTMIP_PLL_CFG1);
 }
 
-void utmi_phy_power_on(struct tegra_usb_phy *phy,
-		       enum tegra_usb_phy_mode phy_mode)
+static void utmi_phy_clk_disable(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+
+	if (phy->instance == 0) {
+		val = readl(base + USB_SUSP_CTRL);
+		val |= USB_SUSP_SET;
+		writel(val, base + USB_SUSP_CTRL);
+
+		udelay(10);
+
+		val = readl(base + USB_SUSP_CTRL);
+		val &= ~USB_SUSP_SET;
+		writel(val, base + USB_SUSP_CTRL);
+	}
+
+	if (phy->instance == 2) {
+		val = readl(base + USB_PORTSC1);
+		val |= USB_PORTSC1_PHCD;
+		writel(val, base + USB_PORTSC1);
+	}
+
+	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID, 0) < 0)
+		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
+}
+
+static void utmi_phy_clk_enable(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+
+	if (phy->instance == 0) {
+		val = readl(base + USB_SUSP_CTRL);
+		val |= USB_SUSP_CLR;
+		writel(val, base + USB_SUSP_CTRL);
+
+		udelay(10);
+
+		val = readl(base + USB_SUSP_CTRL);
+		val &= ~USB_SUSP_CLR;
+		writel(val, base + USB_SUSP_CTRL);
+	}
+
+	if (phy->instance == 2) {
+		val = readl(base + USB_PORTSC1);
+		val &= ~USB_PORTSC1_PHCD;
+		writel(val, base + USB_PORTSC1);
+	}
+
+	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
+						     USB_PHY_CLK_VALID))
+		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
+}
+
+static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
 	struct tegra_utmip_config *config = phy->config;
 
-	if (phy_mode == TEGRA_USB_PHY_MODE_DEVICE) {
+	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~(USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV);
 		writel(val, base + USB_SUSP_CTRL);
@@ -335,20 +530,9 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~USB_SUSP_SET;
 		writel(val, base + USB_SUSP_CTRL);
-
-		val = readl(base + USB_SUSP_CTRL);
-		val |= USB_SUSP_CLR;
-		writel(val, base + USB_SUSP_CTRL);
-
-		udelay(10);
-
-		val = readl(base + USB_SUSP_CTRL);
-		val &= ~USB_SUSP_CLR;
-		writel(val, base + USB_SUSP_CTRL);
 	}
 
-	if (utmi_phy_wait_stable(phy))
-		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
+	utmi_phy_clk_enable(phy);
 
 	if (phy->instance == 2) {
 		val = readl(base + USB_PORTSC1);
@@ -357,28 +541,12 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy,
 	}
 }
 
-void utmi_phy_power_off(struct tegra_usb_phy *phy)
+static void utmi_phy_power_off(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
-	if (phy->instance == 0) {
-		val = readl(base + USB_SUSP_CTRL);
-		val |= USB_SUSP_SET;
-		writel(val, base + USB_SUSP_CTRL);
-
-		udelay(10);
-
-		val = readl(base + USB_SUSP_CTRL);
-		val &= ~USB_SUSP_SET;
-		writel(val, base + USB_SUSP_CTRL);
-	}
-
-	if (phy->instance == 2) {
-		val = readl(base + USB_PORTSC1);
-		val |= USB_PORTSC1_PHCD;
-		writel(val, base + USB_PORTSC1);
-	}
+	utmi_phy_clk_disable(phy);
 
 	val = readl(base + USB_SUSP_CTRL);
 	val |= USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV;
@@ -406,7 +574,8 @@ void utmi_phy_power_off(struct tegra_usb_phy *phy)
 }
 
 struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
-					 struct tegra_utmip_config *config)
+					 struct tegra_utmip_config *config,
+					 enum tegra_usb_phy_mode phy_mode)
 {
 	struct tegra_usb_phy *phy;
 	unsigned long parent_rate;
@@ -420,6 +589,8 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	phy->instance = instance;
 	phy->regs = regs;
 	phy->config = config;
+	phy->context.valid = false;
+	phy->mode = phy_mode;
 
 	if (!phy->config)
 		phy->config = &utmip_default[instance];
@@ -430,6 +601,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		err = PTR_ERR(phy->pll_u);
 		goto err0;
 	}
+	clk_enable(phy->pll_u);
 
 	parent_rate = clk_get_rate(clk_get_parent(phy->pll_u));
 	for (freq_sel = 0; freq_sel < ARRAY_SIZE(udc_freq_table); freq_sel++) {
@@ -460,13 +632,11 @@ err0:
 	return ERR_PTR(err);
 }
 
-int tegra_usb_phy_power_on(struct tegra_usb_phy *phy,
-			   enum tegra_usb_phy_mode phy_mode)
+int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 {
 	/* TODO usb2 ulpi */
-	clk_enable(phy->pll_u);
 	if (phy->instance != 1)
-		utmi_phy_power_on(phy, phy_mode);
+		utmi_phy_power_on(phy);
 
 	return 0;
 }
@@ -476,7 +646,42 @@ int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 	/* TODO usb2 ulpi */
 	if (phy->instance != 1)
 		utmi_phy_power_off(phy);
-	clk_disable(phy->pll_u);
+
+	return 0;
+}
+
+int tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 1)
+		utmi_phy_clk_disable(phy);
+
+	return 0;
+}
+
+int tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 1)
+		utmi_phy_clk_enable(phy);
+
+	return 0;
+}
+
+int tegra_usb_phy_suspend(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 1) {
+		utmi_phy_save_context(phy);
+		utmi_phy_power_off(phy);
+	}
+
+	return 0;
+}
+
+int tegra_usb_phy_resume(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 1) {
+		utmi_phy_power_on(phy);
+		return utmi_phy_restore_context(phy);
+	}
 
 	return 0;
 }
@@ -485,6 +690,7 @@ int tegra_usb_phy_close(struct tegra_usb_phy *phy)
 {
 	if (phy->instance != 1)
 		utmip_pad_close(phy);
+	clk_disable(phy->pll_u);
 	clk_put(phy->pll_u);
 	kfree(phy);
 	return 0;

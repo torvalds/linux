@@ -20,6 +20,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
+#define USB_PHY_MAX_CONTEXT_REGS 10
+
 struct tegra_utmip_config {
 	u8 hssync_start_delay;
 	u8 elastic_limit;
@@ -30,13 +32,17 @@ struct tegra_utmip_config {
 	u8 xcvr_lsrslew;
 };
 
-struct tegra_usb_phy {
-	int instance;
-	void __iomem *regs;
-	void __iomem *pad_regs;
-	struct clk *pll_u;
-	struct clk *pad_clk;
-	struct tegra_utmip_config *config;
+enum tegra_usb_phy_port_speed {
+	TEGRA_USB_PHY_PORT_SPEED_FULL = 0,
+	TEGRA_USB_PHY_PORT_SPEED_LOW,
+	TEGRA_USB_PHY_PORT_HIGH,
+};
+
+struct tegra_utmip_context {
+	bool valid;
+	u32 regs[USB_PHY_MAX_CONTEXT_REGS];
+	int regs_count;
+	enum tegra_usb_phy_port_speed port_speed;
 };
 
 enum tegra_usb_phy_mode {
@@ -44,11 +50,30 @@ enum tegra_usb_phy_mode {
 	TEGRA_USB_PHY_MODE_HOST,
 };
 
-struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
-					 struct tegra_utmip_config *config);
+struct tegra_usb_phy {
+	int instance;
+	void __iomem *regs;
+	void __iomem *pad_regs;
+	struct clk *pll_u;
+	struct clk *pad_clk;
+	enum tegra_usb_phy_mode mode;
+	struct tegra_utmip_config *config;
+	struct tegra_utmip_context context;
+};
 
-int tegra_usb_phy_power_on(struct tegra_usb_phy *phy,
-			   enum tegra_usb_phy_mode phy_mode);
+struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
+					 struct tegra_utmip_config *config,
+					 enum tegra_usb_phy_mode phy_mode);
+
+int tegra_usb_phy_power_on(struct tegra_usb_phy *phy);
+
+int tegra_usb_phy_suspend(struct tegra_usb_phy *phy);
+
+int tegra_usb_phy_resume(struct tegra_usb_phy *phy);
+
+int tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy);
+
+int tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy);
 
 int tegra_usb_phy_power_off(struct tegra_usb_phy *phy);
 
