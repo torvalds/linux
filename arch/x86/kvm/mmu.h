@@ -52,7 +52,8 @@ int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4]);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
-	return kvm->arch.n_free_mmu_pages;
+	return kvm->arch.n_max_mmu_pages -
+		kvm->arch.n_used_mmu_pages;
 }
 
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)

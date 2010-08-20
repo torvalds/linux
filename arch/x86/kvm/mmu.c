@@ -980,7 +980,7 @@ static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (!sp->role.direct)
 		__free_page(virt_to_page(sp->gfns));
 	kmem_cache_free(mmu_page_header_cache, sp);
-	++kvm->arch.n_free_mmu_pages;
+	--kvm->arch.n_used_mmu_pages;
 }
 
 static unsigned kvm_page_table_hashfn(gfn_t gfn)
@@ -1003,7 +1003,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	bitmap_zero(sp->slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
 	sp->multimapped = 0;
 	sp->parent_pte = parent_pte;
-	--vcpu->kvm->arch.n_free_mmu_pages;
+	++vcpu->kvm->arch.n_used_mmu_pages;
 	return sp;
 }
 
@@ -1689,41 +1689,32 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 
 /*
  * Changing the number of mmu pages allocated to the vm
- * Note: if kvm_nr_mmu_pages is too small, you will get dead lock
+ * Note: if goal_nr_mmu_pages is too small, you will get dead lock
  */
-void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
+void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int goal_nr_mmu_pages)
 {
-	int used_pages;
 	LIST_HEAD(invalid_list);
-
-	used_pages = kvm->arch.n_max_mmu_pages - kvm_mmu_available_pages(kvm);
-	used_pages = max(0, used_pages);
-
 	/*
 	 * If we set the number of mmu pages to be smaller be than the
 	 * number of actived pages , we must to free some mmu pages before we
 	 * change the value
 	 */
 
-	if (used_pages > kvm_nr_mmu_pages) {
-		while (used_pages > kvm_nr_mmu_pages &&
+	if (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages) {
+		while (kvm->arch.n_used_mmu_pages > goal_nr_mmu_pages &&
 			!list_empty(&kvm->arch.active_mmu_pages)) {
 			struct kvm_mmu_page *page;
 
 			page = container_of(kvm->arch.active_mmu_pages.prev,
 					    struct kvm_mmu_page, link);
-			used_pages -= kvm_mmu_prepare_zap_page(kvm, page,
+			kvm_mmu_prepare_zap_page(kvm, page,
 							       &invalid_list);
 		}
 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
-		kvm_nr_mmu_pages = used_pages;
-		kvm->arch.n_free_mmu_pages = 0;
+		goal_nr_mmu_pages = kvm->arch.n_used_mmu_pages;
 	}
-	else
-		kvm->arch.n_free_mmu_pages += kvm_nr_mmu_pages
-					 - kvm->arch.n_max_mmu_pages;
 
-	kvm->arch.n_max_mmu_pages = kvm_nr_mmu_pages;
+	kvm->arch.n_max_mmu_pages = goal_nr_mmu_pages;
 }
 
 static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)

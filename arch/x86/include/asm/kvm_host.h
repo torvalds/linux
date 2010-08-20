@@ -367,7 +367,7 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_arch {
-	unsigned int n_free_mmu_pages;
+	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
 	unsigned int n_max_mmu_pages;
 	atomic_t invlpg_counter;
