@@ -564,8 +564,9 @@ kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask)
 {
-
+	bool pgd_changed = false;
 	unsigned long next, last_map_addr = end;
+	unsigned long addr;
 
 	start = (unsigned long)__va(start);
 	end = (unsigned long)__va(end);
@@ -593,7 +594,12 @@ kernel_physical_mapping_init(unsigned long start,
 		spin_lock(&init_mm.page_table_lock);
 		pgd_populate(&init_mm, pgd, __va(pud_phys));
 		spin_unlock(&init_mm.page_table_lock);
+		pgd_changed = true;
 	}
+
+	if (pgd_changed)
+		sync_global_pgds(addr, end);
+
 	__flush_tlb_all();
 
 	return last_map_addr;
@@ -1033,6 +1039,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 		}
 
 	}
+	sync_global_pgds((unsigned long)start_page, end);
 	return 0;
 }
 
