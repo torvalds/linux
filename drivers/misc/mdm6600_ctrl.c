@@ -37,6 +37,27 @@
 #define BP_STATUS_SHUTDOWN_ACK      0x06
 #define BP_STATUS_UNDEFINED         0x07
 
+#define LOOP_DELAY_TIME_MS          500
+
+char *bp_status[8] = {
+	"panic",
+	"panic busy wait",
+	"qc dload",
+	"ram downloader",
+	"awake",
+	"asleep",
+	"shutdown ack",
+	"undefined",
+};
+
+static char *bp_status_string(unsigned int stat)
+{
+	if (stat < 8)
+		return bp_status[stat];
+	else
+		return "status out of range";
+}
+
 static unsigned int mdm_gpio_get_value(struct mdm_ctrl_gpio gpio)
 {
 	return gpio_get_value(gpio.number);
@@ -57,13 +78,12 @@ static void mdm_gpio_free(struct mdm_ctrl_gpio *gpio)
 
 static int mdm_gpio_setup(struct mdm_ctrl_gpio *gpio)
 {
-	snprintf(gpio->name, MAX_GPIO_NAME, "mdm_gpio_%05d", gpio->number);
-
 	if (gpio_request(gpio->number, gpio->name))  {
 		printk(KERN_ERR "failed to aquire gpio %s", gpio->name);
 		return -1;
 	}
 	gpio->allocated = 1;
+	gpio_export(gpio->number, false);
 	if (gpio->direction == MDM_GPIO_DIRECTION_IN)
 		gpio_direction_input(gpio->number);
 	else if (gpio->direction == MDM_GPIO_DIRECTION_OUT)
@@ -160,31 +180,34 @@ static int __devexit mdm_ctrl_remove(struct platform_device *pdev)
 }
 
 static unsigned int __devexit bp_shutdown_wait(struct platform_device *pdev,
-		     struct mdm_ctrl_platform_data *pdata)
+		struct mdm_ctrl_platform_data *pdata,
+		unsigned int delay_sec)
 {
-	unsigned int delay;
+	unsigned int i, loop_count;
 	unsigned int bp_status;
 	unsigned int gpio_value;
 	unsigned int pd_failure = 1;
 
-	for (delay = 0; delay < 10; delay++) {
+	loop_count = (delay_sec * 1000) / LOOP_DELAY_TIME_MS;
+
+	for (i = 0; i < loop_count; i++) {
+		msleep(LOOP_DELAY_TIME_MS);
 		bp_status = get_bp_status(pdata);
 		if (bp_status == BP_STATUS_SHUTDOWN_ACK) {
-			dev_info(&pdev->dev, "Modem power down success.\n");
+			dev_info(&pdev->dev, "Modem powered off (with ack).\n");
 			pd_failure = 0;
 			break;
 		}
 		gpio_value = mdm_gpio_get_value(
 			pdata->gpios[MDM_CTRL_GPIO_BP_RESOUT]);
 
-		dev_info(&pdev->dev, "gpio_resout_gpio = %d\n", gpio_value);
-		if (!gpio_value) {
-			dev_info(&pdev->dev, "Modem reporting Panic.\n");
+		if (gpio_value == 0) {
+			dev_info(&pdev->dev, "Modem powered off.\n");
 			pd_failure = 0;
 			break;
 		} else {
-			dev_info(&pdev->dev, "Modem status 0x%x\n", bp_status);
-			msleep(500);
+			dev_info(&pdev->dev, "Modem status %s [0x%x]\n",
+				 bp_status_string(bp_status), bp_status);
 		}
 	}
 	return pd_failure;
@@ -193,16 +216,15 @@ static unsigned int __devexit bp_shutdown_wait(struct platform_device *pdev,
 static void __devexit mdm_ctrl_shutdown(struct platform_device *pdev)
 {
 	unsigned int pd_failure;
+	unsigned int bp_status;
 
 	struct mdm_ctrl_platform_data *pdata = pdev->dev.platform_data;
 
 	dev_info(&pdev->dev, "Shutting down modem.\n");
 
-	dev_info(&pdev->dev, "Initial modem status 0x%x\n",
-		 get_bp_status(pdata));
-
-	dev_info(&pdev->dev, "Initial ap status 0x%x\n",
-		 get_ap_status(pdata));
+	bp_status = get_bp_status(pdata);
+	dev_info(&pdev->dev, "Initial Modem status %s [0x%x]\n",
+		 bp_status_string(bp_status), bp_status);
 
 	set_ap_status(pdata, AP_STATUS_BP_SHUTDOWN_REQ);
 
@@ -220,16 +242,15 @@ static void __devexit mdm_ctrl_shutdown(struct platform_device *pdev)
 	/* if this doesn't work, reset the modem and try */
 	/* one more time, ultimately the modem will be   */
 	/* hard powered off */
-	pd_failure = bp_shutdown_wait(pdev, pdata);
+	pd_failure = bp_shutdown_wait(pdev, pdata, 5);
 	if (pd_failure) {
-		mdm_gpio_set_value(pdata->gpios[MDM_CTRL_GPIO_BP_PWRON], 1);
-		pd_failure = bp_shutdown_wait(pdev, pdata);
+		dev_info(&pdev->dev, "Resetting unresponsive modem.\n");
+		mdm_gpio_set_value(pdata->gpios[MDM_CTRL_GPIO_BP_RESIN], 1);
+		pd_failure = bp_shutdown_wait(pdev, pdata, 5);
 	}
 
 	if (pd_failure)
 		dev_err(&pdev->dev, "Modem failed to power down.\n");
-	else
-		dev_info(&pdev->dev, "Modem successfully powered down.\n");
 }
 
 static struct platform_driver mdm6x00_ctrl_driver = {

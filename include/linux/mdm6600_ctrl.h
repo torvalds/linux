@@ -38,7 +38,6 @@ enum {
 enum {
 	MDM_GPIO_DIRECTION_IN,
 	MDM_GPIO_DIRECTION_OUT,
-	MDM_GPIO_DIRECTION_OUT_NO_DEFAULT,
 };
 
 struct mdm_ctrl_gpio {
@@ -46,7 +45,7 @@ struct mdm_ctrl_gpio {
 	unsigned int direction;
 	unsigned int default_value;
 	unsigned int allocated;
-	char name[MAX_GPIO_NAME];
+	char *name;
 };
 
 struct mdm_ctrl_platform_data {
