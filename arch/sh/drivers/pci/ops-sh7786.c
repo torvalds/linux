@@ -1,7 +1,7 @@
 /*
  * Generic SH7786 PCI-Express operations.
  *
- *  Copyright (C) 2009  Paul Mundt
+ *  Copyright (C) 2009 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License v2. See the file "COPYING" in the main directory of this archive
@@ -35,21 +35,33 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 	if (devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
+	/* Clear errors */
+	pci_write_reg(chan, pci_read_reg(chan, SH4A_PCIEERRFR), SH4A_PCIEERRFR);
+
 	/* Set the PIO address */
 	pci_write_reg(chan, (bus->number << 24) | (dev << 19) |
 				(func << 16) | (where & ~3), SH4A_PCIEPAR);
 
 	/* Enable the configuration access */
-	pci_write_reg(chan, (1 << 31), SH4A_PCIEPCTLR);
+	if (bus->number) {
+		/* Type 1 */
+		pci_write_reg(chan, (1 << 31) | (1 << 8), SH4A_PCIEPCTLR);
+	} else {
+		/* Type 0 */
+		pci_write_reg(chan, (1 << 31), SH4A_PCIEPCTLR);
+	}
+
+	/* Check for errors */
+	if (pci_read_reg(chan, SH4A_PCIEERRFR) & 0x10)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	/* Check for master and target aborts */
+	if (pci_read_reg(chan, SH4A_PCIEPCICONF1) & ((1 << 29) | (1 << 28)))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (access_type == PCI_ACCESS_READ)
 		*data = pci_read_reg(chan, SH4A_PCIEPDR);
 	else
 		pci_write_reg(chan, *data, SH4A_PCIEPDR);
-
-	/* Check for master and target aborts */
-	if (pci_read_reg(chan, SH4A_PCIEPCICONF1) & ((1 << 29) | (1 << 28)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -69,8 +81,10 @@ static int sh7786_pcie_read(struct pci_bus *bus, unsigned int devfn,
 	spin_lock_irqsave(&sh7786_pcie_lock, flags);
 	ret = sh7786_pcie_config_access(PCI_ACCESS_READ, bus,
 					devfn, where, &data);
-	if (ret != PCIBIOS_SUCCESSFUL)
+	if (ret != PCIBIOS_SUCCESSFUL) {
+		*val = 0xffffffff;
 		goto out;
+	}
 
 	if (size == 1)
 		*val = (data >> ((where & 3) << 3)) & 0xff;
