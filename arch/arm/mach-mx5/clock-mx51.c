@@ -949,6 +949,16 @@ DEFINE_CLOCK(fec_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG12_OFFSET,
 DEFINE_CLOCK1(nfc_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG10_OFFSET,
 	clk_nfc, &emi_slow_clk, NULL);
 
+/* SSI */
+DEFINE_CLOCK(ssi1_ipg_clk, 0, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG8_OFFSET,
+	NULL, NULL, &ipg_clk, NULL);
+DEFINE_CLOCK(ssi1_clk, 0, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG9_OFFSET,
+	NULL, NULL, &pll3_sw_clk, &ssi1_ipg_clk);
+DEFINE_CLOCK(ssi2_ipg_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG10_OFFSET,
+	NULL, NULL, &ipg_clk, NULL);
+DEFINE_CLOCK(ssi2_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG11_OFFSET,
+	NULL, NULL, &pll3_sw_clk, &ssi2_ipg_clk);
+
 /* eCSPI */
 DEFINE_CLOCK_FULL(ecspi1_ipg_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG9_OFFSET,
 		NULL, NULL, _clk_ccgr_enable_inrun, _clk_ccgr_disable,
@@ -991,6 +1001,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", ahb_clk)
 	_REGISTER_CLOCK("imx-keypad.0", NULL, kpp_clk)
 	_REGISTER_CLOCK("mxc_nand", NULL, nfc_clk)
+	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
+	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
 	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
 	_REGISTER_CLOCK("imx51-cspi.0", NULL, cspi_clk)
