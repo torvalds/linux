@@ -898,11 +898,40 @@ static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
-	u64 offset;
+	u64 offset, ns, elapsed;
 	unsigned long flags;
+	struct timespec ts;
 
 	spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = data - native_read_tsc();
+	ktime_get_ts(&ts);
+	monotonic_to_bootbased(&ts);
+	ns = timespec_to_ns(&ts);
+	elapsed = ns - kvm->arch.last_tsc_nsec;
+
+	/*
+	 * Special case: identical write to TSC within 5 seconds of
+	 * another CPU is interpreted as an attempt to synchronize
+	 * (the 5 seconds is to accomodate host load / swapping).
+	 *
+	 * In that case, for a reliable TSC, we can match TSC offsets,
+	 * or make a best guest using kernel_ns value.
+	 */
+	if (data == kvm->arch.last_tsc_write && elapsed < 5ULL * NSEC_PER_SEC) {
+		if (!check_tsc_unstable()) {
+			offset = kvm->arch.last_tsc_offset;
+			pr_debug("kvm: matched tsc offset for %llu\n", data);
+		} else {
+			u64 tsc_delta = elapsed * __get_cpu_var(cpu_tsc_khz);
+			tsc_delta = tsc_delta / USEC_PER_SEC;
+			offset += tsc_delta;
+			pr_debug("kvm: adjusted tsc offset by %llu\n", tsc_delta);
+		}
+		ns = kvm->arch.last_tsc_nsec;
+	}
+	kvm->arch.last_tsc_nsec = ns;
+	kvm->arch.last_tsc_write = data;
+	kvm->arch.last_tsc_offset = offset;
 	kvm_x86_ops->write_tsc_offset(vcpu, offset);
 	spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
