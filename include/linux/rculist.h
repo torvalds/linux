@@ -10,6 +10,15 @@
 #include <linux/rcupdate.h>
 
 /*
+ * Why is there no list_empty_rcu()?  Because list_empty() serves this
+ * purpose.  The list_empty() function fetches the RCU-protected pointer
+ * and compares it to the address of the list head, but neither dereferences
+ * this pointer itself nor provides this pointer to the caller.  Therefore,
+ * it is not necessary to use rcu_dereference(), so that list_empty() can
+ * be used anywhere you would want to use a list_empty_rcu().
+ */
+
+/*
  * return the ->next pointer of a list_head in an rcu safe
  * way, we must not access it directly
  */
