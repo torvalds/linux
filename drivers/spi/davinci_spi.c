@@ -590,10 +590,6 @@ static int davinci_spi_check_error(struct davinci_spi *davinci_spi,
 			dev_dbg(sdev, "SPI Data Overrun error\n");
 			return -EIO;
 		}
-		if (int_status & SPIFLG_TX_INTR_MASK) {
-			dev_dbg(sdev, "SPI TX intr bit set\n");
-			return -EIO;
-		}
 		if (int_status & SPIFLG_BUF_INIT_ACTIVE_MASK) {
 			dev_dbg(sdev, "SPI Buffer Init Active\n");
 			return -EBUSY;
