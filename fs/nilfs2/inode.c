@@ -808,11 +808,16 @@ int nilfs_mark_inode_dirty(struct inode *inode)
 void nilfs_dirty_inode(struct inode *inode)
 {
 	struct nilfs_transaction_info ti;
+	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
 
 	if (is_bad_inode(inode)) {
 		nilfs_warning(inode->i_sb, __func__,
 			      "tried to mark bad_inode dirty. ignored.\n");
 		dump_stack();
+		return;
+	}
+	if (mdi) {
+		nilfs_mdt_mark_dirty(inode);
 		return;
 	}
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
