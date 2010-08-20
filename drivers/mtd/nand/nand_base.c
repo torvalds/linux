@@ -2866,6 +2866,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		 */
 		if (id_data[0] == id_data[6] && id_data[1] == id_data[7] &&
 				id_data[0] == NAND_MFR_SAMSUNG &&
+				(chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
 				id_data[5] != 0x00) {
 			/* Calc pagesize */
 			mtd->writesize = 2048 << (extid & 0x03);
