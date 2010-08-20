@@ -142,7 +142,6 @@ struct davinci_spi {
 	const void		*tx;
 	void			*rx;
 	u8			*tmp_buf;
-	int			count;
 	struct davinci_spi_dma	*dma_channels;
 	struct davinci_spi_platform_data *pdata;
 
@@ -630,8 +629,6 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 
 	/* convert len to words based on bits_per_word */
 	conv = davinci_spi->bytes_per_word[spi->chip_select];
-	davinci_spi->count = t->len / conv;
-
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
 	INIT_COMPLETION(davinci_spi->done);
@@ -643,7 +640,7 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	/* Enable SPI */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
 
-	count = davinci_spi->count;
+	count = t->len / conv;
 
 	/* Determine the command to execute READ or WRITE */
 	if (t->tx_buf) {
@@ -699,7 +696,7 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 		} else {	/* Receive in Interrupt mode */
 			int i;
 
-			for (i = 0; i < davinci_spi->count; i++) {
+			for (i = 0; i < count; i++) {
 				set_io_bits(davinci_spi->base + SPIINT,
 						SPIINT_BITERR_INTR
 						| SPIINT_OVRRUN_INTR
@@ -754,7 +751,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 
 	/* convert len to words based on bits_per_word */
 	data_type = davinci_spi->bytes_per_word[spi->chip_select];
-	davinci_spi->count = t->len / data_type;
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
@@ -767,7 +763,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	if (ret)
 		return ret;
 
-	count = davinci_spi->count;	/* the number of elements */
+	count = t->len / data_type;	/* the number of elements */
 
 	/* disable all interrupts for dma transfers */
 	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
