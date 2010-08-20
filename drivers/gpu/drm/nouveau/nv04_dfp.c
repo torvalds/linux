@@ -475,6 +475,27 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
 
+static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = encoder->dev;
+
+	/* BIOS scripts usually take care of the backlight, thanks
+	 * Apple for your consistency.
+	 */
+	if (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	    dev->pci_device == 0x0329) {
+		if (mode == DRM_MODE_DPMS_ON) {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 0, 1 << 31);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 1);
+		} else {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 0);
+		}
+	}
+#endif
+}
+
 static inline bool is_powersaving_dpms(int mode)
 {
 	return (mode != DRM_MODE_DPMS_ON);
@@ -522,6 +543,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 					 LVDS_PANEL_OFF, 0);
 	}
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 
 	if (mode == DRM_MODE_DPMS_ON)
@@ -545,6 +567,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 	NV_INFO(dev, "Setting dpms mode %d on tmds encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 }
 
