@@ -1479,6 +1479,15 @@ intel_dp_destroy (struct drm_connector *connector)
 	kfree(connector);
 }
 
+static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+	i2c_del_adapter(&intel_dp->adapter);
+	drm_encoder_cleanup(encoder);
+	kfree(intel_dp);
+}
+
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 	.dpms = intel_dp_dpms,
 	.mode_fixup = intel_dp_mode_fixup,
@@ -1501,7 +1510,7 @@ static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs =
 };
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
-	.destroy = intel_encoder_destroy,
+	.destroy = intel_dp_encoder_destroy,
 };
 
 void
