@@ -4408,7 +4408,7 @@ i915_gem_idle(struct drm_device *dev)
 	 * And not confound mm.suspended!
 	 */
 	dev_priv->mm.suspended = 1;
-	del_timer(&dev_priv->hangcheck_timer);
+	del_timer_sync(&dev_priv->hangcheck_timer);
 
 	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);

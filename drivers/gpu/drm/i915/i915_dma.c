@@ -2256,9 +2256,6 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
 
-	destroy_workqueue(dev_priv->wq);
-	del_timer_sync(&dev_priv->hangcheck_timer);
-
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
@@ -2283,6 +2280,9 @@ int i915_driver_unload(struct drm_device *dev)
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
 
+	del_timer_sync(&dev_priv->hangcheck_timer);
+	cancel_work_sync(&dev_priv->error_work);
+
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
@@ -2306,6 +2306,8 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	intel_teardown_mchbar(dev);
+
+	destroy_workqueue(dev_priv->wq);
 
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev->dev_private);
