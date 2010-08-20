@@ -155,6 +155,7 @@ struct inode *nilfs_alloc_inode_common(struct the_nilfs *nilfs)
 		return NULL;
 	ii->i_bh = NULL;
 	ii->i_state = 0;
+	ii->i_cno = 0;
 	ii->vfs_inode.i_version = 1;
 	nilfs_btnode_cache_init(&ii->i_btnode_cache, nilfs->ns_bdi);
 	return &ii->vfs_inode;

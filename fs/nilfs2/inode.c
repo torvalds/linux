@@ -34,6 +34,11 @@
 #include "cpfile.h"
 #include "ifile.h"
 
+struct nilfs_iget_args {
+	u64 ino;
+	__u64 cno;
+	int for_gc;
+};
 
 /**
  * nilfs_get_block() - get a file block on the filesystem (callback function)
@@ -320,7 +325,6 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
-	ii->i_cno = 0;
 	nilfs_set_inode_flags(inode);
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;
@@ -410,7 +414,6 @@ int nilfs_read_inode_common(struct inode *inode,
 		0 : le32_to_cpu(raw_inode->i_dir_acl);
 #endif
 	ii->i_dir_start_lookup = 0;
-	ii->i_cno = 0;
 	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
 
 	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
@@ -476,12 +479,40 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 	return err;
 }
 
+static int nilfs_iget_test(struct inode *inode, void *opaque)
+{
+	struct nilfs_iget_args *args = opaque;
+	struct nilfs_inode_info *ii;
+
+	if (args->ino != inode->i_ino)
+		return 0;
+
+	ii = NILFS_I(inode);
+	if (!test_bit(NILFS_I_GCINODE, &ii->i_state))
+		return !args->for_gc;
+
+	return args->for_gc && args->cno == ii->i_cno;
+}
+
+static int nilfs_iget_set(struct inode *inode, void *opaque)
+{
+	struct nilfs_iget_args *args = opaque;
+
+	inode->i_ino = args->ino;
+	if (args->for_gc) {
+		NILFS_I(inode)->i_state = 1 << NILFS_I_GCINODE;
+		NILFS_I(inode)->i_cno = args->cno;
+	}
+	return 0;
+}
+
 struct inode *nilfs_iget(struct super_block *sb, unsigned long ino)
 {
+	struct nilfs_iget_args args = { .ino = ino, .cno = 0, .for_gc = 0 };
 	struct inode *inode;
 	int err;
 
-	inode = iget_locked(sb, ino);
+	inode = iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
