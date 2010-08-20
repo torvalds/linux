@@ -580,12 +580,13 @@ static int i7core_get_active_channels(const u8 socket, unsigned *channels,
 	return 0;
 }
 
-static int get_dimm_config(const struct mem_ctl_info *mci, int *csrow)
+static int get_dimm_config(const struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csr;
 	struct pci_dev *pdev;
 	int i, j;
+	int csrow = 0;
 	unsigned long last_page = 0;
 	enum edac_type mode;
 	enum mem_type mtype;
@@ -701,7 +702,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci, int *csrow)
 
 			npages = MiB_TO_PAGES(size);
 
-			csr = &mci->csrows[*csrow];
+			csr = &mci->csrows[csrow];
 			csr->first_page = last_page + 1;
 			last_page += npages;
 			csr->last_page = last_page;
@@ -709,13 +710,13 @@ static int get_dimm_config(const struct mem_ctl_info *mci, int *csrow)
 
 			csr->page_mask = 0;
 			csr->grain = 8;
-			csr->csrow_idx = *csrow;
+			csr->csrow_idx = csrow;
 			csr->nr_channels = 1;
 
 			csr->channels[0].chan_idx = i;
 			csr->channels[0].ce_count = 0;
 
-			pvt->csrow_map[i][j] = *csrow;
+			pvt->csrow_map[i][j] = csrow;
 
 			switch (banks) {
 			case 4:
@@ -734,7 +735,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci, int *csrow)
 			csr->edac_mode = mode;
 			csr->mtype = mtype;
 
-			(*csrow)++;
+			csrow++;
 		}
 
 		pci_read_config_dword(pdev, MC_SAG_CH_0, &value[0]);
@@ -1951,7 +1952,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
-	int csrow = 0;
 	int rc, channels, csrows;
 
 	/* Check the number of active and not disabled channels */
@@ -1996,7 +1996,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 		mci->mc_driver_sysfs_attributes = i7core_sysfs_udimm_attrs;
 
 	/* Get dimm basic config */
-	get_dimm_config(mci, &csrow);
+	get_dimm_config(mci);
 	/* record ptr to the generic device */
 	mci->dev = &i7core_dev->pdev[0]->dev;
 	/* Set the function pointer to an actual operation function */
