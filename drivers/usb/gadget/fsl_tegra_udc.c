@@ -51,14 +51,15 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	if (instance == -1)
 		instance = 0;
 
-	phy = tegra_usb_phy_open(instance, udc_base, pdata->phy_config);
+	phy = tegra_usb_phy_open(instance, udc_base, pdata->phy_config,
+						TEGRA_USB_PHY_MODE_DEVICE);
 	if (IS_ERR(phy)) {
 		dev_err(&pdev->dev, "Can't open phy\n");
 		err = PTR_ERR(phy);
 		goto err1;
 	}
 
-	tegra_usb_phy_power_on(phy, TEGRA_USB_PHY_MODE_DEVICE);
+	tegra_usb_phy_power_on(phy);
 
 	return 0;
 err1:
@@ -92,5 +93,5 @@ void fsl_udc_clk_suspend(void)
 void fsl_udc_clk_resume(void)
 {
 	clk_enable(udc_clk);
-	tegra_usb_phy_power_on(phy, TEGRA_USB_PHY_MODE_DEVICE);
+	tegra_usb_phy_power_on(phy);
 }
