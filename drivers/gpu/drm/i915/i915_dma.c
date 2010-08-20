@@ -891,7 +891,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 	int reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
-	int ret = 0;
+	int ret;
 
 	if (IS_I965G(dev))
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
@@ -901,22 +901,23 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
 #ifdef CONFIG_PNP
 	if (mchbar_addr &&
-	    pnp_range_reserved(mchbar_addr, mchbar_addr + MCHBAR_SIZE)) {
-		ret = 0;
-		goto out;
-	}
+	    pnp_range_reserved(mchbar_addr, mchbar_addr + MCHBAR_SIZE))
+		return 0;
 #endif
 
 	/* Get some space for it */
-	ret = pci_bus_alloc_resource(dev_priv->bridge_dev->bus, &dev_priv->mch_res,
+	dev_priv->mch_res.name = "i915 MCHBAR";
+	dev_priv->mch_res.flags = IORESOURCE_MEM;
+	ret = pci_bus_alloc_resource(dev_priv->bridge_dev->bus,
+				     &dev_priv->mch_res,
 				     MCHBAR_SIZE, MCHBAR_SIZE,
 				     PCIBIOS_MIN_MEM,
-				     0,   pcibios_align_resource,
+				     0, pcibios_align_resource,
 				     dev_priv->bridge_dev);
 	if (ret) {
 		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
 		dev_priv->mch_res.start = 0;
-		goto out;
+		return ret;
 	}
 
 	if (IS_I965G(dev))
@@ -925,8 +926,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 
 	pci_write_config_dword(dev_priv->bridge_dev, reg,
 			       lower_32_bits(dev_priv->mch_res.start));
-out:
-	return ret;
+	return 0;
 }
 
 /* Setup MCHBAR if possible, return true if we should disable it again */
