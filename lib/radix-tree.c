@@ -625,6 +625,8 @@ EXPORT_SYMBOL(radix_tree_tag_get);
  *
  * The function returns number of leaves where the tag was set and sets
  * *first_indexp to the first unscanned index.
+ * WARNING! *first_indexp can wrap if last_index is ULONG_MAX. Caller must
+ * be prepared to handle that.
  */
 unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		unsigned long *first_indexp, unsigned long last_index,
@@ -675,7 +677,8 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 next:
 		/* Go to next item at level determined by 'shift' */
 		index = ((index >> shift) + 1) << shift;
-		if (index > last_index)
+		/* Overflow can happen when last_index is ~0UL... */
+		if (index > last_index || !index)
 			break;
 		if (tagged >= nr_to_tag)
 			break;
