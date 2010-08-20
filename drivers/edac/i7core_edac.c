@@ -1300,12 +1300,13 @@ static unsigned i7core_pci_lastbus(void)
  *
  *			Need to 'get' device 16 func 1 and func 2
  */
-int i7core_get_onedevice(struct pci_dev **prev, const int devno,
-			 const struct pci_id_descr *dev_descr,
-			 const unsigned n_devs,
-			 const unsigned last_bus)
+static int i7core_get_onedevice(struct pci_dev **prev,
+				const struct pci_id_table *table,
+				const unsigned devno,
+				const unsigned last_bus)
 {
 	struct i7core_dev *i7core_dev;
+	const struct pci_id_descr *dev_descr = &table->descr[devno];
 
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
@@ -1357,14 +1358,14 @@ int i7core_get_onedevice(struct pci_dev **prev, const int devno,
 		i7core_dev = kzalloc(sizeof(*i7core_dev), GFP_KERNEL);
 		if (!i7core_dev)
 			return -ENOMEM;
-		i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev) * n_devs,
-					   GFP_KERNEL);
+		i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev)
+						* table->n_devs, GFP_KERNEL);
 		if (!i7core_dev->pdev) {
 			kfree(i7core_dev);
 			return -ENOMEM;
 		}
 		i7core_dev->socket = socket;
-		i7core_dev->n_devs = n_devs;
+		i7core_dev->n_devs = table->n_devs;
 		list_add_tail(&i7core_dev->list, &i7core_edac_list);
 	}
 
@@ -1416,18 +1417,14 @@ static int i7core_get_devices(const struct pci_id_table *table)
 {
 	int i, rc, last_bus;
 	struct pci_dev *pdev = NULL;
-	const struct pci_id_descr *dev_descr;
 
 	last_bus = i7core_pci_lastbus();
 
 	while (table && table->descr) {
-		dev_descr = table->descr;
 		for (i = 0; i < table->n_devs; i++) {
 			pdev = NULL;
 			do {
-				rc = i7core_get_onedevice(&pdev, i,
-							  &dev_descr[i],
-							  table->n_devs,
+				rc = i7core_get_onedevice(&pdev, table, i,
 							  last_bus);
 				if (rc < 0) {
 					if (i == 0) {
