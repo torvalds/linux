@@ -36,8 +36,10 @@
 #include <linux/debugfs.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>
+#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/ktime.h>
+#include <linux/sysfs.h>
 
 #include <linux/tegra_audio.h>
 
@@ -1726,113 +1728,6 @@ static int tegra_audio_in_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static DEFINE_MUTEX(debugfs_lock);
-
-ssize_t debugfs_read(struct file *file, char __user *buf,
-		size_t size, loff_t *off)
-{
-	int rc = 0;
-	struct audio_driver_state *ads = file->private_data;
-	static bool r;
-
-	mutex_lock(&debugfs_lock);
-
-	if (r) {
-		r = false;
-		goto done;
-	}
-
-	if (size < 5) {
-		rc = -ETOOSMALL;
-		goto done;
-	}
-
-	if (copy_to_user(buf, ads->using_dma ? "dma\n" : "pio\n", 5)) {
-		rc = -EFAULT;
-		goto done;
-	}
-
-	r = true;
-	rc = *off = 5;
-done:
-	mutex_unlock(&debugfs_lock);
-	return rc;
-}
-
-ssize_t debugfs_write(struct file *file,
-		const char __user *buf, size_t size, loff_t *off)
-{
-	char cmd[5];
-	int use_dma;
-
-	struct audio_driver_state *ads = file->private_data;
-
-	if (size < 4) {
-		pr_err("%s: buffer size %d too small\n", __func__, size);
-		return -ETOOSMALL;
-	}
-
-	if (copy_from_user(cmd, buf, 4)) {
-		pr_err("%s: could not copy from user\n", __func__);
-		return -EFAULT;
-	}
-	cmd[3] = 0;
-
-	use_dma = 0;
-	if (!strcmp(cmd, "dma"))
-		use_dma = 1;
-	else if (strcmp(cmd, "pio")) {
-		pr_err("%s: invalid string [%s]\n", __func__, cmd);
-		return -EINVAL;
-	}
-
-	mutex_lock(&ads->out.lock);
-	mutex_lock(&ads->in.lock);
-	if (ads->out.active || ads->in.active) {
-		pr_err("%s: playback or recording in progress.\n", __func__);
-		mutex_unlock(&ads->in.lock);
-		mutex_unlock(&ads->out.lock);
-		return -EBUSY;
-	}
-	if (!!use_dma ^ !!ads->using_dma)
-		toggle_dma(ads);
-	else
-		pr_info("%s: no change\n", __func__);
-	mutex_unlock(&ads->in.lock);
-	mutex_unlock(&ads->out.lock);
-
-	return 5;
-}
-
-static const struct file_operations debugfs_ops = {
-	.read = debugfs_read,
-	.write = debugfs_write,
-	.open = debugfs_open,
-};
-
-static void setup_tegra_audio_debugfs(struct audio_driver_state *ads)
-{
-	struct dentry *dent;
-
-	dent = debugfs_create_dir("tegra_audio", 0);
-	if (IS_ERR(dent)) {
-		pr_err("%s: could not create dentry\n", __func__);
-		return;
-	}
-
-	debugfs_create_file("dma", 0666, dent, ads, &debugfs_ops);
-}
-#else
-static inline void setup_tegra_audio_debugfs(struct audio_driver_state *ads) {}
-#endif
-
 static const struct file_operations tegra_audio_out_fops = {
 	.owner = THIS_MODULE,
 	.open = tegra_audio_out_open,
@@ -1956,6 +1851,166 @@ done:
 	return rc;
 }
 
+static ssize_t dma_toggle_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct tegra_audio_platform_data *pdata = dev->platform_data;
+	struct audio_driver_state *ads = pdata->driver_data;
+	return sprintf(buf, "%s\n", ads->using_dma ? "dma" : "pio");
+}
+
+static ssize_t dma_toggle_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	int use_dma;
+	struct tegra_audio_platform_data *pdata = dev->platform_data;
+	struct audio_driver_state *ads = pdata->driver_data;
+
+	if (count < 4)
+		return -EINVAL;
+
+	use_dma = 0;
+	if (!strncmp(buf, "dma", 3))
+		use_dma = 1;
+	else if (strncmp(buf, "pio", 3)) {
+		dev_err(dev, "%s: invalid string [%s]\n", __func__, buf);
+		return -EINVAL;
+	}
+
+	mutex_lock(&ads->out.lock);
+	mutex_lock(&ads->in.lock);
+	if (ads->out.active || ads->in.active) {
+		dev_err(dev, "%s: playback or recording in progress.\n",
+			__func__);
+		mutex_unlock(&ads->in.lock);
+		mutex_unlock(&ads->out.lock);
+		return -EBUSY;
+	}
+	if (!!use_dma ^ !!ads->using_dma)
+		toggle_dma(ads);
+	else
+		dev_info(dev, "%s: no change\n", __func__);
+	mutex_unlock(&ads->in.lock);
+	mutex_unlock(&ads->out.lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(dma_toggle, 0644, dma_toggle_show, dma_toggle_store);
+
+static ssize_t __attr_fifo_atn_read(char *buf, int atn_lvl)
+{
+	switch (atn_lvl) {
+	case I2S_FIFO_ATN_LVL_ONE_SLOT:
+		strncpy(buf, "1\n", 2);
+		return 2;
+	case I2S_FIFO_ATN_LVL_FOUR_SLOTS:
+		strncpy(buf, "4\n", 2);
+		return 2;
+	case I2S_FIFO_ATN_LVL_EIGHT_SLOTS:
+		strncpy(buf, "8\n", 2);
+		return 2;
+	case I2S_FIFO_ATN_LVL_TWELVE_SLOTS:
+		strncpy(buf, "12\n", 3);
+		return 3;
+	default:
+		BUG_ON(1);
+		return -EIO;
+	}
+}
+
+static ssize_t __attr_fifo_atn_write(struct audio_driver_state *ads,
+		struct audio_stream *as,
+		int *fifo_lvl,
+		const char *buf, size_t size)
+{
+	int lvl;
+
+	if (size > 3) {
+		pr_err("%s: buffer size %d too big\n", __func__, size);
+		return -EINVAL;
+	}
+
+	if (sscanf(buf, "%d", &lvl) != 1) {
+		pr_err("%s: invalid input string [%s]\n", __func__, buf);
+		return -EINVAL;
+	}
+
+	switch (lvl) {
+	case 1:
+		lvl = I2S_FIFO_ATN_LVL_ONE_SLOT;
+		break;
+	case 4:
+		lvl = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
+		break;
+	case 8:
+		lvl = I2S_FIFO_ATN_LVL_EIGHT_SLOTS;
+		break;
+	case 12:
+		lvl = I2S_FIFO_ATN_LVL_TWELVE_SLOTS;
+		break;
+	default:
+		pr_err("%s: invalid attention level %d\n", __func__, lvl);
+		return -EINVAL;
+	}
+
+	mutex_lock(&as->lock);
+	if (as->active) {
+		pr_err("%s: in progress.\n", __func__);
+		mutex_unlock(&as->lock);
+		return -EBUSY;
+	}
+	*fifo_lvl = lvl;
+	pr_info("%s: fifo level %d\n", __func__, *fifo_lvl);
+	mutex_unlock(&as->lock);
+
+	return size;
+}
+
+static ssize_t tx_fifo_atn_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct tegra_audio_platform_data *pdata = dev->platform_data;
+	struct audio_driver_state *ads = pdata->driver_data;
+	return __attr_fifo_atn_read(buf, ads->out.i2s_fifo_atn_level);
+}
+
+static ssize_t tx_fifo_atn_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct tegra_audio_platform_data *pdata = dev->platform_data;
+	struct audio_driver_state *ads = pdata->driver_data;
+	return __attr_fifo_atn_write(ads, &ads->out,
+			&ads->out.i2s_fifo_atn_level, buf, count);
+}
+
+static DEVICE_ATTR(tx_fifo_atn, 0644, tx_fifo_atn_show, tx_fifo_atn_store);
+
+static ssize_t rx_fifo_atn_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct tegra_audio_platform_data *pdata = dev->platform_data;
+	struct audio_driver_state *ads = pdata->driver_data;
+	return __attr_fifo_atn_read(buf, ads->in.i2s_fifo_atn_level);
+}
+
+static ssize_t rx_fifo_atn_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct tegra_audio_platform_data *pdata = dev->platform_data;
+	struct audio_driver_state *ads = pdata->driver_data;
+	return __attr_fifo_atn_write(ads, &ads->in,
+			&ads->in.i2s_fifo_atn_level, buf, count);
+}
+
+static DEVICE_ATTR(rx_fifo_atn, 0644, rx_fifo_atn_show, rx_fifo_atn_store);
+
 static int tegra_audio_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -1971,6 +2026,7 @@ static int tegra_audio_probe(struct platform_device *pdev)
 
 	state->pdev = pdev;
 	state->pdata = pdev->dev.platform_data;
+	state->pdata->driver_data = state;
 	BUG_ON(!state->pdata);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2013,27 +2069,31 @@ static int tegra_audio_probe(struct platform_device *pdev)
 
 	i2s_clk = clk_get(&pdev->dev, NULL);
 	if (!i2s_clk) {
-		pr_err("%s: could not get i2s1 clock\n", __func__);
+		dev_err(&pdev->dev, "%s: could not get i2s1 clock\n",
+			__func__);
 		return -EIO;
 	}
 
 	clk_set_rate(i2s_clk, state->pdata->i2s_clk_rate);
 	if (clk_enable(i2s_clk)) {
-		pr_err("%s: failed to enable i2s1 clock\n", __func__);
+		dev_err(&pdev->dev, "%s: failed to enable i2s1 clock\n",
+			__func__);
 		return -EIO;
 	}
 	pr_info("%s: i2s_clk rate %ld\n", __func__, clk_get_rate(i2s_clk));
 
 	dap_mclk = tegra_get_clock_by_name(state->pdata->dap_clk);
 	if (!dap_mclk) {
-		pr_err("%s: could not get DAP clock\n", __func__);
+		dev_err(&pdev->dev, "%s: could not get DAP clock\n",
+			__func__);
 		return -EIO;
 	}
 	clk_enable(dap_mclk);
 
 	audio_sync_clk = tegra_get_clock_by_name(state->pdata->audio_sync_clk);
 	if (!audio_sync_clk) {
-		pr_err("%s: could not get audio_2x clock\n", __func__);
+		dev_err(&pdev->dev, "%s: could not get audio_2x clock\n",
+			__func__);
 		return -EIO;
 	}
 	clk_enable(audio_sync_clk);
@@ -2096,7 +2156,8 @@ static int tegra_audio_probe(struct platform_device *pdev)
 
 	if (request_irq(state->irq, i2s_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {
-		pr_err("%s: could not register handler for irq %d\n",
+		dev_err(&pdev->dev,
+			"%s: could not register handler for irq %d\n",
 			__func__, state->irq);
 		return -EIO;
 	}
@@ -2130,12 +2191,31 @@ static int tegra_audio_probe(struct platform_device *pdev)
 		sound_ops = &pio_sound_ops;
 	sound_ops->setup(state);
 
+	rc = device_create_file(&pdev->dev, &dev_attr_dma_toggle);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "%s: could not create sysfs entry %s: %d\n",
+			__func__, dev_attr_dma_toggle.attr.name, rc);
+		return rc;
+	}
+
+	rc = device_create_file(&pdev->dev, &dev_attr_tx_fifo_atn);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "%s: could not create sysfs entry %s: %d\n",
+			__func__, dev_attr_tx_fifo_atn.attr.name, rc);
+		return rc;
+	}
+
+	rc = device_create_file(&pdev->dev, &dev_attr_rx_fifo_atn);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "%s: could not create sysfs entry %s: %d\n",
+			__func__, dev_attr_rx_fifo_atn.attr.name, rc);
+		return rc;
+	}
+
 	state->in_config.rate = 11025;
 	state->in_config.stereo = false;
 	state->in_divs = divs_11025;
 	state->in_divs_len = ARRAY_SIZE(divs_11025);
-
-	setup_tegra_audio_debugfs(state);
 
 	return 0;
 }

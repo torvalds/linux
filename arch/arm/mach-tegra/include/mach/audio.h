@@ -41,6 +41,8 @@ struct tegra_audio_platform_data {
 	int mode; /* I2S, LJM, RJM, etc. */
 	int fifo_fmt;
 	int bit_size;
+
+	void *driver_data;
 };
 
 #endif /* __ARCH_ARM_MACH_TEGRA_AUDIO_H */
