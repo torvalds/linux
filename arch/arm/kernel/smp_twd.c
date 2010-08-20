@@ -25,6 +25,8 @@
 void __iomem *twd_base;
 
 static unsigned long twd_timer_rate;
+static unsigned long twd_periphclk_prescaler;
+static unsigned long twd_target_rate;
 
 static void twd_set_mode(enum clock_event_mode mode,
 			struct clock_event_device *clk)
@@ -79,10 +81,31 @@ int twd_timer_ack(void)
 	return 0;
 }
 
-static void __cpuinit twd_calibrate_rate(void)
+void twd_recalc_prescaler(unsigned long new_rate)
+{
+	u32 ctrl;
+	int prescaler;
+	unsigned long periphclk_rate;
+
+	BUG_ON(twd_periphclk_prescaler == 0 || twd_timer_rate == 0);
+
+	periphclk_rate = new_rate / twd_periphclk_prescaler;
+
+	prescaler = DIV_ROUND_UP(periphclk_rate, twd_timer_rate);
+	prescaler = clamp(prescaler - 1, 0, 0xFF);
+
+	ctrl = __raw_readl(twd_base + TWD_TIMER_CONTROL);
+	ctrl &= ~TWD_TIMER_CONTROL_PRESCALE_MASK;
+	ctrl |= prescaler << 8;
+	__raw_writel(ctrl, twd_base + TWD_TIMER_CONTROL);
+}
+
+static void __cpuinit twd_calibrate_rate(unsigned long target_rate,
+	unsigned int periphclk_prescaler)
 {
 	unsigned long load, count;
 	u64 waitjiffies;
+	unsigned long cpu_rate;
 
 	/*
 	 * If this is the first time round, we need to work out how fast
@@ -113,8 +136,22 @@ static void __cpuinit twd_calibrate_rate(void)
 
 		twd_timer_rate = (0xFFFFFFFFU - count) * (HZ / 5);
 
+		/*
+		 * If a target rate has been requested, adjust the TWD prescaler
+		 * to get the closest lower frequency.
+		 */
+		if (target_rate) {
+			twd_periphclk_prescaler = periphclk_prescaler;
+			twd_target_rate = target_rate;
+
+			cpu_rate = twd_timer_rate * periphclk_prescaler;
+			twd_recalc_prescaler(cpu_rate);
+
+			twd_timer_rate = twd_target_rate;
+		}
+
 		printk("%lu.%02luMHz.\n", twd_timer_rate / 1000000,
-			(twd_timer_rate / 100000) % 100);
+			(twd_timer_rate / 10000) % 100);
 	}
 
 	load = twd_timer_rate / HZ;
@@ -125,11 +162,12 @@ static void __cpuinit twd_calibrate_rate(void)
 /*
  * Setup the local clock events for a CPU.
  */
-void __cpuinit twd_timer_setup(struct clock_event_device *clk)
+static void __cpuinit __twd_timer_setup(struct clock_event_device *clk,
+	unsigned long target_rate, unsigned int periphclk_prescaler)
 {
 	unsigned long flags;
 
-	twd_calibrate_rate();
+	twd_calibrate_rate(target_rate, periphclk_prescaler);
 
 	clk->name = "local_timer";
 	clk->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
@@ -149,6 +187,17 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 	local_irq_restore(flags);
 
 	clockevents_register_device(clk);
+}
+
+void __cpuinit twd_timer_setup_scalable(struct clock_event_device *clk,
+	unsigned long target_rate, unsigned int periphclk_prescaler)
+{
+	__twd_timer_setup(clk, target_rate, periphclk_prescaler);
+}
+
+void __cpuinit twd_timer_setup(struct clock_event_device *clk)
+{
+	__twd_timer_setup(clk, 0, 0);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

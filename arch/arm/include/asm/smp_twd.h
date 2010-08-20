@@ -17,6 +17,7 @@
 #define TWD_TIMER_CONTROL_ONESHOT	(0 << 1)
 #define TWD_TIMER_CONTROL_PERIODIC	(1 << 1)
 #define TWD_TIMER_CONTROL_IT_ENABLE	(1 << 2)
+#define TWD_TIMER_CONTROL_PRESCALE_MASK	(0xFF << 8)
 
 struct clock_event_device;
 
@@ -25,5 +26,23 @@ extern void __iomem *twd_base;
 void twd_timer_stop(void);
 int twd_timer_ack(void);
 void twd_timer_setup(struct clock_event_device *);
+
+/*
+ * Use this setup function on systems where the cpu clock frequency may
+ * change.  periphclk_prescaler is the fixed divider value between the cpu
+ * clock and the PERIPHCLK clock that feeds the TWD.  target_rate should be
+ * low enough that the prescaler can accurately reach the target rate from the
+ * lowest cpu frequency.
+ */
+void twd_timer_setup_scalable(struct clock_event_device *,
+	unsigned long target_rate, unsigned int periphclk_prescaler);
+
+/*
+ * Recalculate the twd prescaler value when the cpu frequency changes. To
+ * prevent early timer interrupts, must be called before changing the cpu
+ * frequency if the frequency is increasing, or after if the frequency is
+ * decreasing.
+ */
+void twd_recalc_prescaler(unsigned long new_rate);
 
 #endif
