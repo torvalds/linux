@@ -4850,8 +4850,22 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct intel_unpin_work *work;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	work = intel_crtc->unpin_work;
+	intel_crtc->unpin_work = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (work) {
+		cancel_work_sync(&work->work);
+		kfree(work);
+	}
 
 	drm_crtc_cleanup(crtc);
+
 	kfree(intel_crtc);
 }
 
