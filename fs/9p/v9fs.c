@@ -237,6 +237,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		__putname(v9ses->uname);
 		return ERR_PTR(-ENOMEM);
 	}
+	init_rwsem(&v9ses->rename_sem);
 
 	rc = bdi_setup_and_register(&v9ses->bdi, "9p", BDI_CAP_MAP_COPY);
 	if (rc) {
@@ -278,7 +279,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
 	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
-	if (!v9fs_proto_dotu(v9ses) &&
+	if (!(v9fs_proto_dotu(v9ses) || v9fs_proto_dotl(v9ses)) &&
 		((v9ses->flags&V9FS_ACCESS_MASK) == V9FS_ACCESS_USER)) {
 
 		v9ses->flags &= ~V9FS_ACCESS_MASK;

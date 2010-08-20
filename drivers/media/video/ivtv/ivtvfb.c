@@ -53,6 +53,7 @@
 #include "ivtv-i2c.h"
 #include "ivtv-udma.h"
 #include "ivtv-mailbox.h"
+#include "ivtv-firmware.h"
 
 /* card parameters */
 static int ivtvfb_card_id = -1;
@@ -178,6 +179,12 @@ struct osd_info {
 	struct fb_info ivtvfb_info;
 	struct fb_var_screeninfo ivtvfb_defined;
 	struct fb_fix_screeninfo ivtvfb_fix;
+
+	/* Used for a warm start */
+	struct fb_var_screeninfo fbvar_cur;
+	int blank_cur;
+	u32 palette_cur[256];
+	u32 pan_cur;
 };
 
 struct ivtv_osd_coords {
@@ -199,6 +206,7 @@ static int ivtvfb_get_framebuffer(struct ivtv *itv, u32 *fbbase,
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	int rc;
 
+	ivtv_firmware_check(itv, "ivtvfb_get_framebuffer");
 	rc = ivtv_vapi_result(itv, data, CX2341X_OSD_GET_FRAMEBUFFER, 0);
 	*fbbase = data[0];
 	*fblength = data[1];
@@ -581,8 +589,10 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	ivtv_window.height = var->yres;
 
 	/* Minimum margin cannot be 0, as X won't allow such a mode */
-	if (!var->upper_margin) var->upper_margin++;
-	if (!var->left_margin) var->left_margin++;
+	if (!var->upper_margin)
+		var->upper_margin++;
+	if (!var->left_margin)
+		var->left_margin++;
 	ivtv_window.top = var->upper_margin - 1;
 	ivtv_window.left = var->left_margin - 1;
 
@@ -594,6 +604,9 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 
 	/* Force update of yuv registers */
 	itv->yuv_info.yuv_forced_update = 1;
+
+	/* Keep a copy of these settings */
+	memcpy(&oi->fbvar_cur, var, sizeof(oi->fbvar_cur));
 
 	IVTVFB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
@@ -829,6 +842,8 @@ static int ivtvfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 	itv->yuv_info.osd_y_pan = var->yoffset;
 	/* Force update of yuv registers */
 	itv->yuv_info.yuv_forced_update = 1;
+	/* Remember this value */
+	itv->osd_info->pan_cur = osd_pan_index;
 	return 0;
 }
 
@@ -842,6 +857,7 @@ static int ivtvfb_set_par(struct fb_info *info)
 	rc = ivtvfb_set_var(itv, &info->var);
 	ivtvfb_pan_display(&info->var, info);
 	ivtvfb_get_fix(itv, &info->fix);
+	ivtv_firmware_check(itv, "ivtvfb_set_par");
 	return rc;
 }
 
@@ -859,6 +875,7 @@ static int ivtvfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->var.bits_per_pixel <= 8) {
 		write_reg(regno, 0x02a30);
 		write_reg(color, 0x02a34);
+		itv->osd_info->palette_cur[regno] = color;
 		return 0;
 	}
 	if (regno >= 16)
@@ -911,6 +928,7 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
 		break;
 	}
+	itv->osd_info->blank_cur = blank_mode;
 	return 0;
 }
 
@@ -928,6 +946,21 @@ static struct fb_ops ivtvfb_ops = {
 	.fb_pan_display = ivtvfb_pan_display,
 	.fb_blank       = ivtvfb_blank,
 };
+
+/* Restore hardware after firmware restart */
+static void ivtvfb_restore(struct ivtv *itv)
+{
+	struct osd_info *oi = itv->osd_info;
+	int i;
+
+	ivtvfb_set_var(itv, &oi->fbvar_cur);
+	ivtvfb_blank(oi->blank_cur, &oi->ivtvfb_info);
+	for (i = 0; i < 256; i++) {
+		write_reg(i, 0x02a30);
+		write_reg(oi->palette_cur[i], 0x02a34);
+	}
+	write_reg(oi->pan_cur, 0x02a0c);
+}
 
 /* Initialization */
 
@@ -1192,6 +1225,9 @@ static int ivtvfb_init_card(struct ivtv *itv)
 	/* Enable the osd */
 	ivtvfb_blank(FB_BLANK_UNBLANK, &itv->osd_info->ivtvfb_info);
 
+	/* Enable restart */
+	itv->ivtvfb_restore = ivtvfb_restore;
+
 	/* Allocate DMA */
 	ivtv_udma_alloc(itv);
 	return 0;
@@ -1203,7 +1239,7 @@ static int __init ivtvfb_callback_init(struct device *dev, void *p)
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 	struct ivtv *itv = container_of(v4l2_dev, struct ivtv, v4l2_dev);
 
-	if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		if (ivtvfb_init_card(itv) == 0) {
 			IVTVFB_INFO("Framebuffer registered on %s\n",
 					itv->v4l2_dev.name);
@@ -1219,13 +1255,14 @@ static int ivtvfb_callback_cleanup(struct device *dev, void *p)
 	struct ivtv *itv = container_of(v4l2_dev, struct ivtv, v4l2_dev);
 	struct osd_info *oi = itv->osd_info;
 
-	if (itv && (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		if (unregister_framebuffer(&itv->osd_info->ivtvfb_info)) {
 			IVTVFB_WARN("Framebuffer %d is in use, cannot unload\n",
 				       itv->instance);
 			return 0;
 		}
 		IVTVFB_INFO("Unregister framebuffer %d\n", itv->instance);
+		itv->ivtvfb_restore = NULL;
 		ivtvfb_blank(FB_BLANK_VSYNC_SUSPEND, &oi->ivtvfb_info);
 		ivtvfb_release_buffers(itv);
 		itv->osd_video_pbase = 0;

@@ -600,6 +600,14 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
+	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+			/*
+			 * Driver needs to re-reg VPI in order for f/w
+			 * to update the MAC address.
+			 */
+			lpfc_register_new_vport(phba, vport, ndlp);
+			return 0;
 	}
 
 	if (phba->sli_rev < LPFC_SLI_REV4) {
@@ -796,12 +804,17 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * due to new FCF discovery
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
-		    (phba->fcf.fcf_flag & FCF_DISCOVERY)) {
+		    (phba->fcf.fcf_flag & FCF_DISCOVERY) &&
+		    (irsp->ulpStatus != IOSTAT_LOCAL_REJECT) &&
+		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on registered "
-					"FCF record fcf_index:%d, trying "
-					"to perform round robin failover\n",
-					phba->fcf.current_rec.fcf_indx);
+					"FCF record fcf_index(%d), status: "
+					"x%x/x%x, tmo:x%x, trying to perform "
+					"round robin failover\n",
+					phba->fcf.current_rec.fcf_indx,
+					irsp->ulpStatus, irsp->un.ulpWord[4],
+					irsp->ulpTimeout);
 			fcf_index = lpfc_sli4_fcf_rr_next_index_get(phba);
 			if (fcf_index == LPFC_FCOE_FCF_NEXT_NONE) {
 				/*
@@ -811,18 +824,21 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 */
 				lpfc_printf_log(phba, KERN_WARNING,
 						LOG_FIP | LOG_ELS,
-						"2760 FLOGI exhausted FCF "
-						"round robin failover list, "
-						"retry FLOGI on the current "
-						"registered FCF index:%d\n",
+						"2760 Completed one round "
+						"of FLOGI FCF round robin "
+						"failover list, retry FLOGI "
+						"on currently registered "
+						"FCF index:%d\n",
 						phba->fcf.current_rec.fcf_indx);
-				spin_lock_irq(&phba->hbalock);
-				phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-				spin_unlock_irq(&phba->hbalock);
 			} else {
+				lpfc_printf_log(phba, KERN_INFO,
+						LOG_FIP | LOG_ELS,
+						"2794 FLOGI FCF round robin "
+						"failover to FCF index x%x\n",
+						fcf_index);
 				rc = lpfc_sli4_fcf_rr_read_fcf_rec(phba,
 								   fcf_index);
-				if (rc) {
+				if (rc)
 					lpfc_printf_log(phba, KERN_WARNING,
 							LOG_FIP | LOG_ELS,
 							"2761 FLOGI round "
@@ -831,13 +847,16 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 							"rc:x%x, fcf_index:"
 							"%d\n", rc,
 						phba->fcf.current_rec.fcf_indx);
-					spin_lock_irq(&phba->hbalock);
-					phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-					spin_unlock_irq(&phba->hbalock);
-				} else
+				else
 					goto out;
 			}
 		}
+
+		/* FLOGI failure */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				"2858 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				irsp->ulpStatus, irsp->un.ulpWord[4],
+				irsp->ulpTimeout);
 
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
@@ -890,9 +909,39 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (sp->cmn.fPort)
 			rc = lpfc_cmpl_els_flogi_fabric(vport, ndlp, sp, irsp);
-		else
+		else if (!(phba->hba_flag & HBA_FCOE_SUPPORT))
 			rc = lpfc_cmpl_els_flogi_nport(vport, ndlp, sp);
-
+		else {
+			lpfc_printf_vlog(vport, KERN_ERR,
+				LOG_FIP | LOG_ELS,
+				"2831 FLOGI response with cleared Fabric "
+				"bit fcf_index 0x%x "
+				"Switch Name %02x%02x%02x%02x%02x%02x%02x%02x "
+				"Fabric Name "
+				"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				phba->fcf.current_rec.fcf_indx,
+				phba->fcf.current_rec.switch_name[0],
+				phba->fcf.current_rec.switch_name[1],
+				phba->fcf.current_rec.switch_name[2],
+				phba->fcf.current_rec.switch_name[3],
+				phba->fcf.current_rec.switch_name[4],
+				phba->fcf.current_rec.switch_name[5],
+				phba->fcf.current_rec.switch_name[6],
+				phba->fcf.current_rec.switch_name[7],
+				phba->fcf.current_rec.fabric_name[0],
+				phba->fcf.current_rec.fabric_name[1],
+				phba->fcf.current_rec.fabric_name[2],
+				phba->fcf.current_rec.fabric_name[3],
+				phba->fcf.current_rec.fabric_name[4],
+				phba->fcf.current_rec.fabric_name[5],
+				phba->fcf.current_rec.fabric_name[6],
+				phba->fcf.current_rec.fabric_name[7]);
+			lpfc_nlp_put(ndlp);
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+			spin_unlock_irq(&phba->hbalock);
+			goto out;
+		}
 		if (!rc) {
 			/* Mark the FCF discovery process done */
 			if (phba->hba_flag & HBA_FIP_SUPPORT)
@@ -1259,6 +1308,8 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t rc, keepDID = 0;
+	int  put_node;
+	int  put_rport;
 
 	/* Fabric nodes can have the same WWPN so we don't bother searching
 	 * by WWPN.  Just return the ndlp that was given to us.
@@ -1347,6 +1398,28 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		/* Two ndlps cannot have the same did */
 		ndlp->nlp_DID = keepDID;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		/* Since we are swapping the ndlp passed in with the new one
+		 * and the did has already been swapped, copy over the
+		 * state and names.
+		 */
+		memcpy(&new_ndlp->nlp_portname, &ndlp->nlp_portname,
+			sizeof(struct lpfc_name));
+		memcpy(&new_ndlp->nlp_nodename, &ndlp->nlp_nodename,
+			sizeof(struct lpfc_name));
+		new_ndlp->nlp_state = ndlp->nlp_state;
+		/* Fix up the rport accordingly */
+		rport = ndlp->rport;
+		if (rport) {
+			rdata = rport->dd_data;
+			put_node = rdata->pnode != NULL;
+			put_rport = ndlp->rport != NULL;
+			rdata->pnode = NULL;
+			ndlp->rport = NULL;
+			if (put_node)
+				lpfc_nlp_put(ndlp);
+			if (put_rport)
+				put_device(&rport->dev);
+		}
 	}
 	return new_ndlp;
 }
@@ -1472,8 +1545,12 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 			goto out;
 		}
-		/* PLOGI failed */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		/* PLOGI failed Don't print the vport to vport rjts */
+		if (irsp->ulpStatus != IOSTAT_LS_RJT ||
+			(((irsp->un.ulpWord[4]) >> 16 != LSRJT_INVALID_CMD) &&
+			((irsp->un.ulpWord[4]) >> 16 != LSRJT_UNABLE_TPC)) ||
+			(phba)->pport->cfg_log_verbose & LOG_ELS)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "2753 PLOGI failure DID:%06X Status:x%x/x%x\n",
 				 ndlp->nlp_DID, irsp->ulpStatus,
 				 irsp->un.ulpWord[4]);
@@ -2740,6 +2817,15 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			}
+			if (stat.un.b.lsRjtRsnCodeExp ==
+			    LSEXP_CANT_GIVE_DATA) {
+				if (cmd == ELS_CMD_PLOGI) {
+					delay = 1000;
+					maxretry = 48;
+				}
+				retry = 1;
+				break;
+			}
 			if (cmd == ELS_CMD_PLOGI) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
@@ -2835,6 +2921,17 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 0;
 
 	if (retry) {
+		if ((cmd == ELS_CMD_PLOGI) || (cmd == ELS_CMD_FDISC)) {
+			/* Stop retrying PLOGI and FDISC if in FCF discovery */
+			if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+						 "2849 Stop retry ELS command "
+						 "x%x to remote NPORT x%x, "
+						 "Data: x%x x%x\n", cmd, did,
+						 cmdiocb->retry, delay);
+				return 0;
+			}
+		}
 
 		/* Retry ELS command <elsCmd> to remote NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -5135,6 +5232,7 @@ lpfc_els_timeout(unsigned long ptr)
 	return;
 }
 
+
 /**
  * lpfc_els_timeout_handler - Process an els timeout event
  * @vport: pointer to a virtual N_Port data structure.
@@ -5155,13 +5253,19 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	uint32_t els_command = 0;
 	uint32_t timeout;
 	uint32_t remote_ID = 0xffffffff;
+	LIST_HEAD(txcmplq_completions);
+	LIST_HEAD(abort_list);
 
-	spin_lock_irq(&phba->hbalock);
+
 	timeout = (uint32_t)(phba->fc_ratov << 1);
 
 	pring = &phba->sli.ring[LPFC_ELS_RING];
 
-	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
+	spin_lock_irq(&phba->hbalock);
+	list_splice_init(&pring->txcmplq, &txcmplq_completions);
+	spin_unlock_irq(&phba->hbalock);
+
+	list_for_each_entry_safe(piocb, tmp_iocb, &txcmplq_completions, list) {
 		cmd = &piocb->iocb;
 
 		if ((piocb->iocb_flag & LPFC_IO_LIBDFC) != 0 ||
@@ -5198,13 +5302,22 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 			if (ndlp && NLP_CHK_NODE_ACT(ndlp))
 				remote_ID = ndlp->nlp_DID;
 		}
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0127 ELS timeout Data: x%x x%x x%x "
-				 "x%x\n", els_command,
-				 remote_ID, cmd->ulpCommand, cmd->ulpIoTag);
-		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
+		list_add_tail(&piocb->dlist, &abort_list);
 	}
+	spin_lock_irq(&phba->hbalock);
+	list_splice(&txcmplq_completions, &pring->txcmplq);
 	spin_unlock_irq(&phba->hbalock);
+
+	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			 "0127 ELS timeout Data: x%x x%x x%x "
+			 "x%x\n", els_command,
+			 remote_ID, cmd->ulpCommand, cmd->ulpIoTag);
+		spin_lock_irq(&phba->hbalock);
+		list_del_init(&piocb->dlist);
+		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
+		spin_unlock_irq(&phba->hbalock);
+	}
 
 	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt)
 		mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
@@ -6015,8 +6128,12 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (mb->mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-				 "0915 Register VPI failed: 0x%x\n",
-				 mb->mbxStatus);
+				"0915 Register VPI failed : Status: x%x"
+				" upd bit: x%x \n", mb->mbxStatus,
+				 mb->un.varRegVpi.upd);
+		if (phba->sli_rev == LPFC_SLI_REV4 &&
+			mb->un.varRegVpi.upd)
+			goto mbox_err_exit ;
 
 		switch (mb->mbxStatus) {
 		case 0x11:	/* unsupported feature */
@@ -6081,7 +6198,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		} else
 			lpfc_do_scr_ns_plogi(phba, vport);
 	}
-
+mbox_err_exit:
 	/* Now, we decrement the ndlp reference count held for this
 	 * callback function
 	 */
@@ -6326,6 +6443,14 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		else
 			vport->fc_flag |= FC_LOGO_RCVD_DID_CHNG;
 		spin_unlock_irq(shost->host_lock);
+	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+		/*
+		 * Driver needs to re-reg VPI in order for f/w
+		 * to update the MAC address.
+		 */
+		lpfc_register_new_vport(phba, vport, ndlp);
+		return ;
 	}
 
 	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI)
@@ -6901,6 +7026,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	unsigned long iflag = 0;
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	spin_lock(&phba->sli4_hba.abts_sgl_list_lock);
@@ -6913,6 +7039,10 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 			sglq_entry->state = SGL_FREED;
 			spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
+
+			/* Check if TXQ queue needs to be serviced */
+			if (pring->txq_cnt)
+				lpfc_worker_wake_up(phba);
 			return;
 		}
 	}

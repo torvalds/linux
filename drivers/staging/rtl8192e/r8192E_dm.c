@@ -26,20 +26,20 @@ Major Change History:
 // Indicate different AP vendor for IOT issue.
 //
 #ifdef  RTL8190P
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0x5e4322, 	0x5e4322,  	0x604322, 	0xa44f, 	0x5e4322,	0x5e4322};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0xa44f, 	0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322,	0x5e4322};
 #else
 #ifdef RTL8192E
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5e4322,	0x5e4322};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0xa44f,		0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322, 	0x5e4322};
 #else
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f, 	0x5e4322};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0xa44f, 	0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f, 	0x5e4322};
 #endif
 #endif
@@ -592,7 +592,7 @@ static void dm_bandwidth_autoswitch(struct net_device * dev)
 
 //OFDM default at 0db, index=6.
 #ifndef RTL8190P
-static u32 OFDMSwingTable[OFDM_Table_Length] = {
+static const u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x7f8001fe,	// 0, +6db
 	0x71c001c7,	// 1, +5db
 	0x65400195,	// 2, +4db
@@ -613,7 +613,7 @@ static u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x12000048,	// 17, -11db
 	0x10000040	// 18, -12db
 };
-static u8	CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
+static const u8 CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
 	{0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04},	// 0, +0db ===> CCK40M default
 	{0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03},	// 1, -1db
 	{0x2b, 0x2a, 0x25, 0x1e, 0x16, 0x0e, 0x07, 0x03},	// 2, -2db
@@ -628,7 +628,7 @@ static u8	CCKSwingTable_Ch1_Ch13[CCK_Table_length][8] = {
 	{0x0f, 0x0f, 0x0d, 0x0b, 0x08, 0x05, 0x03, 0x01}	// 11, -11db
 };
 
-static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
+static const u8 CCKSwingTable_Ch14[CCK_Table_length][8] = {
 	{0x36, 0x35, 0x2e, 0x1b, 0x00, 0x00, 0x00, 0x00},	// 0, +0db  ===> CCK40M default
 	{0x30, 0x2f, 0x29, 0x18, 0x00, 0x00, 0x00, 0x00},	// 1, -1db
 	{0x2b, 0x2a, 0x25, 0x15, 0x00, 0x00, 0x00, 0x00},	// 2, -2db
@@ -2094,8 +2094,6 @@ static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 		dm_ctrl_initgain_byrssi_by_fwfalse_alarm(dev);
 	else if(dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
 		dm_ctrl_initgain_byrssi_by_driverrssi(dev);
-	else
-		return;
 }
 
 
@@ -2937,8 +2935,6 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
-
-		bActuallySet=false;
 
 		if(!priv->up)
 		{

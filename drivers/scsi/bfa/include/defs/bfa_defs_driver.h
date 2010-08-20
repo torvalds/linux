@@ -29,7 +29,7 @@ struct bfa_driver_stats_s {
     u16    tm_target_reset;
     u16    tm_bus_reset;
     u16    ioc_restart;        /*  IOC restart count */
-    u16    io_pending;         /*  outstanding io count per-IOC */
+    u16    rsvd;
     u64    control_req;
     u64    input_req;
     u64    output_req;

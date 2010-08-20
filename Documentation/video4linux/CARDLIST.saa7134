@@ -178,4 +178,5 @@
 177 -> Hawell HW-404M7
 178 -> Beholder BeholdTV H7                     [5ace:7190]
 179 -> Beholder BeholdTV A7                     [5ace:7090]
-180 -> Avermedia M733A                          [1461:4155,1461:4255]
+180 -> Avermedia PCI M733A                      [1461:4155,1461:4255]
+181 -> TechoTrend TT-budget T-3000              [13c2:2804]

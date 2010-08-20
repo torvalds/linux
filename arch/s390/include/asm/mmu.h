@@ -13,4 +13,9 @@ typedef struct {
 	int alloc_pgste; /* cloned contexts will have extended page tables */
 } mm_context_t;
 
+#define INIT_MM_CONTEXT(name)						      \
+	.context.list_lock    = __SPIN_LOCK_UNLOCKED(name.context.list_lock), \
+	.context.crst_list    = LIST_HEAD_INIT(name.context.crst_list),	      \
+	.context.pgtable_list = LIST_HEAD_INIT(name.context.pgtable_list),
+
 #endif

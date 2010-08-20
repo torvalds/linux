@@ -14,9 +14,9 @@
 #include <asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
 #include <asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
 #include <linux/compiler.h>
-#include <linux/kmemtrace.h>
 
-#ifndef ARCH_KMALLOC_MINALIGN
+#include <trace/events/kmem.h>
+
 /*
  * Enforce a minimum alignment for the kmalloc caches.
  * Usually, the kmalloc caches are cache_line_size() aligned, except when
@@ -26,6 +26,9 @@
  * ARCH_KMALLOC_MINALIGN allows that.
  * Note that increasing this value may disable some debug features.
  */
+#ifdef ARCH_DMA_MINALIGN
+#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
+#else
 #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
 #endif
 

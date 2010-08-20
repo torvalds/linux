@@ -40,6 +40,7 @@
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "fscache.h"
 
 static inline int cifs_convert_flags(unsigned int flags)
 {
@@ -282,6 +283,9 @@ int cifs_open(struct inode *inode, struct file *file)
 				CIFSSMBClose(xid, tcon, netfid);
 				rc = -ENOMEM;
 			}
+
+			cifs_fscache_set_inode_cookie(inode, file);
+
 			goto out;
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
@@ -373,6 +377,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
+	cifs_fscache_set_inode_cookie(inode, file);
+
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to
 		   problems creating new read-only files */
@@ -427,7 +433,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	__u16 netfid;
 
 	if (file->private_data)
-		pCifsFile = (struct cifsFileInfo *)file->private_data;
+		pCifsFile = file->private_data;
 	else
 		return -EBADF;
 
@@ -565,8 +571,7 @@ int cifs_close(struct inode *inode, struct file *file)
 	int xid, timeout;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	struct cifsFileInfo *pSMBFile =
-		(struct cifsFileInfo *)file->private_data;
+	struct cifsFileInfo *pSMBFile = file->private_data;
 
 	xid = GetXid();
 
@@ -641,8 +646,7 @@ int cifs_closedir(struct inode *inode, struct file *file)
 {
 	int rc = 0;
 	int xid;
-	struct cifsFileInfo *pCFileStruct =
-	    (struct cifsFileInfo *)file->private_data;
+	struct cifsFileInfo *pCFileStruct = file->private_data;
 	char *ptmp;
 
 	cFYI(1, "Closedir inode = 0x%p", inode);
@@ -863,8 +867,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 				      length, pfLock,
 				      posix_lock_type, wait_flag);
 	} else {
-		struct cifsFileInfo *fid =
-			(struct cifsFileInfo *)file->private_data;
+		struct cifsFileInfo *fid = file->private_data;
 
 		if (numLock) {
 			rc = CIFSSMBLock(xid, tcon, netfid, length,
@@ -965,7 +968,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	if (file->private_data == NULL)
 		return -EBADF;
-	open_file = (struct cifsFileInfo *) file->private_data;
+	open_file = file->private_data;
 
 	rc = generic_write_checks(file, poffset, &write_size, 0);
 	if (rc)
@@ -1067,7 +1070,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 	if (file->private_data == NULL)
 		return -EBADF;
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 
 	xid = GetXid();
 
@@ -1651,8 +1654,7 @@ int cifs_fsync(struct file *file, int datasync)
 	int xid;
 	int rc = 0;
 	struct cifsTconInfo *tcon;
-	struct cifsFileInfo *smbfile =
-		(struct cifsFileInfo *)file->private_data;
+	struct cifsFileInfo *smbfile = file->private_data;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	xid = GetXid();
@@ -1756,7 +1758,7 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 		FreeXid(xid);
 		return rc;
 	}
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1837,7 +1839,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 		FreeXid(xid);
 		return rc;
 	}
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1942,6 +1944,9 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 		SetPageUptodate(page);
 		unlock_page(page);
 		data += PAGE_CACHE_SIZE;
+
+		/* add page to FS-Cache */
+		cifs_readpage_to_fscache(mapping->host, page);
 	}
 	return;
 }
@@ -1968,9 +1973,18 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		FreeXid(xid);
 		return rc;
 	}
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
+
+	/*
+	 * Reads as many pages as possible from fscache. Returns -ENOBUFS
+	 * immediately if the cookie is negative
+	 */
+	rc = cifs_readpages_from_fscache(mapping->host, mapping, page_list,
+					 &num_pages);
+	if (rc == 0)
+		goto read_complete;
 
 	cFYI(DBG2, "rpages: num pages %d", num_pages);
 	for (i = 0; i < num_pages; ) {
@@ -2082,6 +2096,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		smb_read_data = NULL;
 	}
 
+read_complete:
 	FreeXid(xid);
 	return rc;
 }
@@ -2091,6 +2106,11 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 {
 	char *read_data;
 	int rc;
+
+	/* Is the page cached? */
+	rc = cifs_readpage_from_fscache(file->f_path.dentry->d_inode, page);
+	if (rc == 0)
+		goto read_complete;
 
 	page_cache_get(page);
 	read_data = kmap(page);
@@ -2111,11 +2131,17 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 
 	flush_dcache_page(page);
 	SetPageUptodate(page);
+
+	/* send this page to the cache */
+	cifs_readpage_to_fscache(file->f_path.dentry->d_inode, page);
+
 	rc = 0;
 
 io_error:
 	kunmap(page);
 	page_cache_release(page);
+
+read_complete:
 	return rc;
 }
 
@@ -2265,8 +2291,23 @@ out:
 	return rc;
 }
 
-static void
-cifs_oplock_break(struct slow_work *work)
+static int cifs_release_page(struct page *page, gfp_t gfp)
+{
+	if (PagePrivate(page))
+		return 0;
+
+	return cifs_fscache_release_page(page, gfp);
+}
+
+static void cifs_invalidate_page(struct page *page, unsigned long offset)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(page->mapping->host);
+
+	if (offset == 0)
+		cifs_fscache_invalidate_page(page, &cifsi->vfs_inode);
+}
+
+void cifs_oplock_break(struct work_struct *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
@@ -2303,32 +2344,29 @@ cifs_oplock_break(struct slow_work *work)
 				 LOCKING_ANDX_OPLOCK_RELEASE, false);
 		cFYI(1, "Oplock release rc = %d", rc);
 	}
+
+	/*
+	 * We might have kicked in before is_valid_oplock_break()
+	 * finished grabbing reference for us.  Make sure it's done by
+	 * waiting for GlobalSMSSeslock.
+	 */
+	write_lock(&GlobalSMBSeslock);
+	write_unlock(&GlobalSMBSeslock);
+
+	cifs_oplock_break_put(cfile);
 }
 
-static int
-cifs_oplock_break_get(struct slow_work *work)
+void cifs_oplock_break_get(struct cifsFileInfo *cfile)
 {
-	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
-						  oplock_break);
 	mntget(cfile->mnt);
 	cifsFileInfo_get(cfile);
-	return 0;
 }
 
-static void
-cifs_oplock_break_put(struct slow_work *work)
+void cifs_oplock_break_put(struct cifsFileInfo *cfile)
 {
-	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
-						  oplock_break);
 	mntput(cfile->mnt);
 	cifsFileInfo_put(cfile);
 }
-
-const struct slow_work_ops cifs_oplock_break_ops = {
-	.get_ref	= cifs_oplock_break_get,
-	.put_ref	= cifs_oplock_break_put,
-	.execute	= cifs_oplock_break,
-};
 
 const struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
@@ -2338,6 +2376,8 @@ const struct address_space_operations cifs_addr_ops = {
 	.write_begin = cifs_write_begin,
 	.write_end = cifs_write_end,
 	.set_page_dirty = __set_page_dirty_nobuffers,
+	.releasepage = cifs_release_page,
+	.invalidatepage = cifs_invalidate_page,
 	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };
@@ -2354,6 +2394,8 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.write_begin = cifs_write_begin,
 	.write_end = cifs_write_end,
 	.set_page_dirty = __set_page_dirty_nobuffers,
+	.releasepage = cifs_release_page,
+	.invalidatepage = cifs_invalidate_page,
 	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };

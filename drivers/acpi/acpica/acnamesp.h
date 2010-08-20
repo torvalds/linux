@@ -369,11 +369,4 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle);
 
 void acpi_ns_terminate(void);
 
-struct acpi_namespace_node *acpi_ns_get_parent_node(struct acpi_namespace_node
-						    *node);
-
-struct acpi_namespace_node *acpi_ns_get_next_valid_node(struct
-							acpi_namespace_node
-							*node);
-
 #endif				/* __ACNAMESP_H__ */

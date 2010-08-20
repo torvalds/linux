@@ -395,11 +395,12 @@ DEFINE_EVENT(ext4__mb_new_pa, ext4_mb_new_group_pa,
 );
 
 TRACE_EVENT(ext4_mb_release_inode_pa,
-	TP_PROTO(struct ext4_allocation_context *ac,
+	TP_PROTO(struct super_block *sb,
+		 struct ext4_allocation_context *ac,
 		 struct ext4_prealloc_space *pa,
 		 unsigned long long block, unsigned int count),
 
-	TP_ARGS(ac, pa, block, count),
+	TP_ARGS(sb, ac, pa, block, count),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
@@ -410,8 +411,9 @@ TRACE_EVENT(ext4_mb_release_inode_pa,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ac->ac_sb->s_dev;
-		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->dev		= sb->s_dev;
+		__entry->ino		= (ac && ac->ac_inode) ? 
+						ac->ac_inode->i_ino : 0;
 		__entry->block		= block;
 		__entry->count		= count;
 	),
@@ -422,10 +424,11 @@ TRACE_EVENT(ext4_mb_release_inode_pa,
 );
 
 TRACE_EVENT(ext4_mb_release_group_pa,
-	TP_PROTO(struct ext4_allocation_context *ac,
+	TP_PROTO(struct super_block *sb,
+		 struct ext4_allocation_context *ac,
 		 struct ext4_prealloc_space *pa),
 
-	TP_ARGS(ac, pa),
+	TP_ARGS(sb, ac, pa),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
@@ -436,8 +439,9 @@ TRACE_EVENT(ext4_mb_release_group_pa,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ac->ac_sb->s_dev;
-		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->dev		= sb->s_dev;
+		__entry->ino		= (ac && ac->ac_inode) ?
+						ac->ac_inode->i_ino : 0;
 		__entry->pa_pstart	= pa->pa_pstart;
 		__entry->pa_len		= pa->pa_len;
 	),

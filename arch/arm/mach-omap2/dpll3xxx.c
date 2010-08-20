@@ -463,7 +463,7 @@ int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 	}
 	if (!ret) {
 		/*
-		 * Switch the parent clock in the heirarchy, and make sure
+		 * Switch the parent clock in the hierarchy, and make sure
 		 * that the new parent's usecount is correct.  Note: we
 		 * enable the new parent before disabling the old to avoid
 		 * any unnecessary hardware disable->enable transitions.

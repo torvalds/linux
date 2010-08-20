@@ -160,7 +160,7 @@ static int amd64_search_set_scrub_rate(struct pci_dev *ctl, u32 new_bw,
 	return 0;
 }
 
-static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 *bandwidth)
+static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bandwidth)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 min_scrubrate = 0x0;
@@ -178,10 +178,10 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 *bandwidth)
 
 	default:
 		amd64_printk(KERN_ERR, "Unsupported family!\n");
-		break;
+		return -EINVAL;
 	}
-	return amd64_search_set_scrub_rate(pvt->misc_f3_ctl, *bandwidth,
-			min_scrubrate);
+	return amd64_search_set_scrub_rate(pvt->misc_f3_ctl, bandwidth,
+					   min_scrubrate);
 }
 
 static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
@@ -796,6 +796,11 @@ static int sys_addr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr)
 
 static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
 
+static u16 extract_syndrome(struct err_regs *err)
+{
+	return ((err->nbsh >> 15) & 0xff) | ((err->nbsl >> 16) & 0xff00);
+}
+
 static void amd64_cpu_display_info(struct amd64_pvt *pvt)
 {
 	if (boot_cpu_data.x86 == 0x11)
@@ -887,6 +892,9 @@ static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 		amd64_debug_display_dimm_sizes(0, pvt);
 		return;
 	}
+
+	amd64_printk(KERN_INFO, "using %s syndromes.\n",
+		     ((pvt->syn_type == 8) ? "x8" : "x4"));
 
 	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
@@ -1101,20 +1109,17 @@ static void k8_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-					struct err_regs *info,
-					u64 sys_addr)
+				    struct err_regs *err_info, u64 sys_addr)
 {
 	struct mem_ctl_info *src_mci;
-	unsigned short syndrome;
 	int channel, csrow;
 	u32 page, offset;
+	u16 syndrome;
 
-	/* Extract the syndrome parts and form a 16-bit syndrome */
-	syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
-	syndrome |= LOW_SYNDROME(info->nbsh);
+	syndrome = extract_syndrome(err_info);
 
 	/* CHIPKILL enabled */
-	if (info->nbcfg & K8_NBCFG_CHIPKILL) {
+	if (err_info->nbcfg & K8_NBCFG_CHIPKILL) {
 		channel = get_channel_from_ecc_syndrome(mci, syndrome);
 		if (channel < 0) {
 			/*
@@ -1123,8 +1128,8 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 			 * as suspect.
 			 */
 			amd64_mc_printk(mci, KERN_WARNING,
-				       "unknown syndrome 0x%x - possible error "
-				       "reporting race\n", syndrome);
+					"unknown syndrome 0x%04x - possible "
+					"error reporting race\n", syndrome);
 			edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR);
 			return;
 		}
@@ -1430,7 +1435,7 @@ static inline u64 f10_get_base_addr_offset(u64 sys_addr, int hi_range_sel,
 	u64 chan_off;
 
 	if (hi_range_sel) {
-		if (!(dct_sel_base_addr & 0xFFFFF800) &&
+		if (!(dct_sel_base_addr & 0xFFFF0000) &&
 		   hole_valid && (sys_addr >= 0x100000000ULL))
 			chan_off = hole_off << 16;
 		else
@@ -1654,13 +1659,13 @@ static int f10_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
  * (MCX_ADDR).
  */
 static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-				     struct err_regs *info,
+				     struct err_regs *err_info,
 				     u64 sys_addr)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 page, offset;
-	unsigned short syndrome;
 	int nid, csrow, chan = 0;
+	u16 syndrome;
 
 	csrow = f10_translate_sysaddr_to_cs(pvt, sys_addr, &nid, &chan);
 
@@ -1671,15 +1676,14 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 
 	error_address_to_page_and_offset(sys_addr, &page, &offset);
 
-	syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
-	syndrome |= LOW_SYNDROME(info->nbsh);
+	syndrome = extract_syndrome(err_info);
 
 	/*
 	 * We need the syndromes for channel detection only when we're
 	 * ganged. Otherwise @chan should already contain the channel at
 	 * this point.
 	 */
-	if (dct_ganging_enabled(pvt) && pvt->nbcfg & K8_NBCFG_CHIPKILL)
+	if (dct_ganging_enabled(pvt) && (pvt->nbcfg & K8_NBCFG_CHIPKILL))
 		chan = get_channel_from_ecc_syndrome(mci, syndrome);
 
 	if (chan >= 0)
@@ -1878,7 +1882,7 @@ static u16 x8_vectors[] = {
 };
 
 static int decode_syndrome(u16 syndrome, u16 *vectors, int num_vecs,
-				 int v_dim)
+			   int v_dim)
 {
 	unsigned int i, err_sym;
 
@@ -1955,124 +1959,23 @@ static int map_err_sym_to_channel(int err_sym, int sym_size)
 static int get_channel_from_ecc_syndrome(struct mem_ctl_info *mci, u16 syndrome)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u32 value = 0;
-	int err_sym = 0;
+	int err_sym = -1;
 
-	if (boot_cpu_data.x86 == 0x10) {
-
-		amd64_read_pci_cfg(pvt->misc_f3_ctl, 0x180, &value);
-
-		/* F3x180[EccSymbolSize]=1 => x8 symbols */
-		if (boot_cpu_data.x86_model > 7 &&
-		    value & BIT(25)) {
-			err_sym = decode_syndrome(syndrome, x8_vectors,
-						  ARRAY_SIZE(x8_vectors), 8);
-			return map_err_sym_to_channel(err_sym, 8);
-		}
+	if (pvt->syn_type == 8)
+		err_sym = decode_syndrome(syndrome, x8_vectors,
+					  ARRAY_SIZE(x8_vectors),
+					  pvt->syn_type);
+	else if (pvt->syn_type == 4)
+		err_sym = decode_syndrome(syndrome, x4_vectors,
+					  ARRAY_SIZE(x4_vectors),
+					  pvt->syn_type);
+	else {
+		amd64_printk(KERN_WARNING, "%s: Illegal syndrome type: %u\n",
+					   __func__, pvt->syn_type);
+		return err_sym;
 	}
-	err_sym = decode_syndrome(syndrome, x4_vectors, ARRAY_SIZE(x4_vectors), 4);
-	return map_err_sym_to_channel(err_sym, 4);
-}
 
-/*
- * Check for valid error in the NB Status High register. If so, proceed to read
- * NB Status Low, NB Address Low and NB Address High registers and store data
- * into error structure.
- *
- * Returns:
- *	- 1: if hardware regs contains valid error info
- *	- 0: if no valid error is indicated
- */
-static int amd64_get_error_info_regs(struct mem_ctl_info *mci,
-				     struct err_regs *regs)
-{
-	struct amd64_pvt *pvt;
-	struct pci_dev *misc_f3_ctl;
-
-	pvt = mci->pvt_info;
-	misc_f3_ctl = pvt->misc_f3_ctl;
-
-	if (amd64_read_pci_cfg(misc_f3_ctl, K8_NBSH, &regs->nbsh))
-		return 0;
-
-	if (!(regs->nbsh & K8_NBSH_VALID_BIT))
-		return 0;
-
-	/* valid error, read remaining error information registers */
-	if (amd64_read_pci_cfg(misc_f3_ctl, K8_NBSL, &regs->nbsl) ||
-	    amd64_read_pci_cfg(misc_f3_ctl, K8_NBEAL, &regs->nbeal) ||
-	    amd64_read_pci_cfg(misc_f3_ctl, K8_NBEAH, &regs->nbeah) ||
-	    amd64_read_pci_cfg(misc_f3_ctl, K8_NBCFG, &regs->nbcfg))
-		return 0;
-
-	return 1;
-}
-
-/*
- * This function is called to retrieve the error data from hardware and store it
- * in the info structure.
- *
- * Returns:
- *	- 1: if a valid error is found
- *	- 0: if no error is found
- */
-static int amd64_get_error_info(struct mem_ctl_info *mci,
-				struct err_regs *info)
-{
-	struct amd64_pvt *pvt;
-	struct err_regs regs;
-
-	pvt = mci->pvt_info;
-
-	if (!amd64_get_error_info_regs(mci, info))
-		return 0;
-
-	/*
-	 * Here's the problem with the K8's EDAC reporting: There are four
-	 * registers which report pieces of error information. They are shared
-	 * between CEs and UEs. Furthermore, contrary to what is stated in the
-	 * BKDG, the overflow bit is never used! Every error always updates the
-	 * reporting registers.
-	 *
-	 * Can you see the race condition? All four error reporting registers
-	 * must be read before a new error updates them! There is no way to read
-	 * all four registers atomically. The best than can be done is to detect
-	 * that a race has occured and then report the error without any kind of
-	 * precision.
-	 *
-	 * What is still positive is that errors are still reported and thus
-	 * problems can still be detected - just not localized because the
-	 * syndrome and address are spread out across registers.
-	 *
-	 * Grrrrr!!!!!  Here's hoping that AMD fixes this in some future K8 rev.
-	 * UEs and CEs should have separate register sets with proper overflow
-	 * bits that are used! At very least the problem can be fixed by
-	 * honoring the ErrValid bit in 'nbsh' and not updating registers - just
-	 * set the overflow bit - unless the current error is CE and the new
-	 * error is UE which would be the only situation for overwriting the
-	 * current values.
-	 */
-
-	regs = *info;
-
-	/* Use info from the second read - most current */
-	if (unlikely(!amd64_get_error_info_regs(mci, info)))
-		return 0;
-
-	/* clear the error bits in hardware */
-	pci_write_bits32(pvt->misc_f3_ctl, K8_NBSH, 0, K8_NBSH_VALID_BIT);
-
-	/* Check for the possible race condition */
-	if ((regs.nbsh != info->nbsh) ||
-	     (regs.nbsl != info->nbsl) ||
-	     (regs.nbeah != info->nbeah) ||
-	     (regs.nbeal != info->nbeal)) {
-		amd64_mc_printk(mci, KERN_WARNING,
-				"hardware STATUS read access race condition "
-				"detected!\n");
-		return 0;
-	}
-	return 1;
+	return map_err_sym_to_channel(err_sym, pvt->syn_type);
 }
 
 /*
@@ -2177,7 +2080,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	 * catastrophic.
 	 */
 	if (info->nbsh & K8_NBSH_OVERFLOW)
-		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR "Error Overflow");
+		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR " Error Overflow");
 }
 
 void amd64_decode_bus_error(int node_id, struct err_regs *regs)
@@ -2196,20 +2099,6 @@ void amd64_decode_bus_error(int node_id, struct err_regs *regs)
 	if (regs->nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
 		edac_mc_handle_ue_no_info(mci, "UE bit is set");
 
-}
-
-/*
- * The main polling 'check' function, called FROM the edac core to perform the
- * error checking and if an error is encountered, error processing.
- */
-static void amd64_check(struct mem_ctl_info *mci)
-{
-	struct err_regs regs;
-
-	if (amd64_get_error_info(mci, &regs)) {
-		struct amd64_pvt *pvt = mci->pvt_info;
-		amd_decode_nb_mce(pvt->mc_node_id, &regs, 1);
-	}
 }
 
 /*
@@ -2284,6 +2173,7 @@ static void amd64_free_mc_sibling_devices(struct amd64_pvt *pvt)
 static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 {
 	u64 msr_val;
+	u32 tmp;
 	int dram;
 
 	/*
@@ -2349,10 +2239,22 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0);
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_0, &pvt->dchr0);
 
-	if (!dct_ganging_enabled(pvt) && boot_cpu_data.x86 >= 0x10) {
-		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1);
-		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_1, &pvt->dchr1);
+	if (boot_cpu_data.x86 >= 0x10) {
+		if (!dct_ganging_enabled(pvt)) {
+			amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1);
+			amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_1, &pvt->dchr1);
+		}
+		amd64_read_pci_cfg(pvt->misc_f3_ctl, EXT_NB_MCA_CFG, &tmp);
 	}
+
+	if (boot_cpu_data.x86 == 0x10 &&
+	    boot_cpu_data.x86_model > 7 &&
+	    /* F3x180[EccSymbolSize]=1 => x8 symbols */
+	    tmp & BIT(25))
+		pvt->syn_type = 8;
+	else
+		pvt->syn_type = 4;
+
 	amd64_dump_misc_regs(pvt);
 }
 
@@ -2738,9 +2640,6 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 	mci->ctl_name		= get_amd_family_name(pvt->mc_type_index);
 	mci->dev_name		= pci_name(pvt->dram_f2_ctl);
 	mci->ctl_page_to_phys	= NULL;
-
-	/* IMPORTANT: Set the polling 'check' function in this module */
-	mci->edac_check		= amd64_check;
 
 	/* memory scrubber interface */
 	mci->set_sdram_scrub_rate = amd64_set_scrub_rate;

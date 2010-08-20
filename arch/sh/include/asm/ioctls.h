@@ -69,6 +69,7 @@
 # define TIOCPKT_START		 8
 # define TIOCPKT_NOSTOP		16
 # define TIOCPKT_DOSTOP		32
+# define TIOCPKT_IOCTL		64
 
 
 #define TIOCNOTTY	_IO('T', 34) /* 0x5422 */
@@ -84,6 +85,7 @@
 #define TCSETSF2	_IOW('T', 45, struct termios2)
 #define TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
+#define TIOCSIG		_IOW('T',0x36, int)  /* Generate signal on Pty slave */
 
 #define TIOCSERCONFIG	_IO('T', 83) /* 0x5453 */
 #define TIOCSERGWILD	_IOR('T', 84,  int) /* 0x5454 */

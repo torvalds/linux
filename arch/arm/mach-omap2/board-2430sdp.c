@@ -31,13 +31,13 @@
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
-#include <plat/mux.h>
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/gpmc-smc91x.h>
 
+#include "mux.h"
 #include "hsmmc.h"
 
 #define SDP2430_CS0_BASE	0x04000000
@@ -122,11 +122,7 @@ static struct omap_smc91x_platform_data board_smc91x_data = {
 
 static void __init board_smc91x_init(void)
 {
-	if (omap_rev() > OMAP3430_REV_ES1_0)
-		board_smc91x_data.gpio_irq = 6;
-	else
-		board_smc91x_data.gpio_irq = 29;
-
+	omap_mux_init_gpio(149, OMAP_PIN_INPUT);
 	gpmc_smc91x_init(&board_smc91x_data);
 }
 
@@ -217,17 +213,30 @@ static struct omap_usb_config sdp2430_usb_config __initdata = {
 	.pins[0]	= 3,
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_2430sdp_init(void)
 {
 	int ret;
+
+	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 
 	omap2430_i2c_init();
 
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
 	omap_serial_init();
 	omap2_hsmmc_init(mmc);
-	omap_usb_init(&sdp2430_usb_config);
+	omap2_usbfs_init(&sdp2430_usb_config);
+
+	omap_mux_init_signal("usb0hs_stp", OMAP_PULL_ENA | OMAP_PULL_UP);
 	usb_musb_init(&musb_board_data);
+
 	board_smc91x_init();
 
 	/* Turn off secondary LCD backlight */
@@ -248,6 +257,7 @@ MACHINE_START(OMAP_2430SDP, "OMAP2430 sdp2430 board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_2430sdp_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_2430sdp_init_irq,
 	.init_machine	= omap_2430sdp_init,
 	.timer		= &omap_timer,

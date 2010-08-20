@@ -360,7 +360,7 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *s
 	hdrlen = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
 	atomic_inc(&crypt->refcnt);
-	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
+	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv,ieee);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"

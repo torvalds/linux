@@ -410,6 +410,8 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 				    WM8993_HPOUT1L_DLY |
 				    WM8993_HPOUT1R_DLY, 0);
 
+		snd_soc_write(codec, WM8993_DC_SERVO_0, 0);
+
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,
 				    0);

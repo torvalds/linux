@@ -157,11 +157,11 @@ config PCMCIA_M8XX
 
 config PCMCIA_AU1X00
 	tristate "Au1x00 pcmcia support"
-	depends on SOC_AU1X00 && PCMCIA
+	depends on MIPS_ALCHEMY && PCMCIA
 
 config PCMCIA_ALCHEMY_DEVBOARD
 	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
-	depends on SOC_AU1X00 && PCMCIA
+	depends on MIPS_ALCHEMY && PCMCIA
 	select 64BIT_PHYS_ADDR
 	help
 	  Enable this driver of you want PCMCIA support on your Alchemy
@@ -215,7 +215,7 @@ config PCMCIA_PXA2XX
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
 		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
 		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
-		    || MACH_VPAC270)
+		    || MACH_VPAC270 || MACH_BALLOON3)
 	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller

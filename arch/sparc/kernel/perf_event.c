@@ -572,18 +572,18 @@ static u64 sparc_perf_event_update(struct perf_event *event,
 	s64 delta;
 
 again:
-	prev_raw_count = atomic64_read(&hwc->prev_count);
+	prev_raw_count = local64_read(&hwc->prev_count);
 	new_raw_count = read_pmc(idx);
 
-	if (atomic64_cmpxchg(&hwc->prev_count, prev_raw_count,
+	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 			     new_raw_count) != prev_raw_count)
 		goto again;
 
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
 	delta >>= shift;
 
-	atomic64_add(delta, &event->count);
-	atomic64_sub(delta, &hwc->period_left);
+	local64_add(delta, &event->count);
+	local64_sub(delta, &hwc->period_left);
 
 	return new_raw_count;
 }
@@ -591,27 +591,27 @@ again:
 static int sparc_perf_event_set_period(struct perf_event *event,
 				       struct hw_perf_event *hwc, int idx)
 {
-	s64 left = atomic64_read(&hwc->period_left);
+	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int ret = 0;
 
 	if (unlikely(left <= -period)) {
 		left = period;
-		atomic64_set(&hwc->period_left, left);
+		local64_set(&hwc->period_left, left);
 		hwc->last_period = period;
 		ret = 1;
 	}
 
 	if (unlikely(left <= 0)) {
 		left += period;
-		atomic64_set(&hwc->period_left, left);
+		local64_set(&hwc->period_left, left);
 		hwc->last_period = period;
 		ret = 1;
 	}
 	if (left > MAX_PERIOD)
 		left = MAX_PERIOD;
 
-	atomic64_set(&hwc->prev_count, (u64)-left);
+	local64_set(&hwc->prev_count, (u64)-left);
 
 	write_pmc(idx, (u64)(-left) & 0xffffffff);
 
@@ -1006,7 +1006,7 @@ static int sparc_pmu_enable(struct perf_event *event)
 	 * skip the schedulability test here, it will be peformed
 	 * at commit time(->commit_txn) as a whole
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN_STARTED)
+	if (cpuc->group_flag & PERF_EVENT_TXN)
 		goto nocheck;
 
 	if (check_excludes(cpuc->event, n0, 1))
@@ -1088,7 +1088,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (!hwc->sample_period) {
 		hwc->sample_period = MAX_PERIOD;
 		hwc->last_period = hwc->sample_period;
-		atomic64_set(&hwc->period_left, hwc->sample_period);
+		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
 	return 0;
@@ -1103,7 +1103,7 @@ static void sparc_pmu_start_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	cpuhw->group_flag |= PERF_EVENT_TXN_STARTED;
+	cpuhw->group_flag |= PERF_EVENT_TXN;
 }
 
 /*
@@ -1115,7 +1115,7 @@ static void sparc_pmu_cancel_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	cpuhw->group_flag &= ~PERF_EVENT_TXN_STARTED;
+	cpuhw->group_flag &= ~PERF_EVENT_TXN;
 }
 
 /*
@@ -1138,6 +1138,7 @@ static int sparc_pmu_commit_txn(const struct pmu *pmu)
 	if (sparc_check_constraints(cpuc->event, cpuc->events, n))
 		return -EAGAIN;
 
+	cpuc->group_flag &= ~PERF_EVENT_TXN;
 	return 0;
 }
 

@@ -179,7 +179,7 @@ static const struct i2c_reg_value tvp7002_init_default[] = {
 /* Register parameters for 480P */
 static const struct i2c_reg_value tvp7002_parms_480P[] = {
 	{ TVP7002_HPLL_FDBK_DIV_MSBS, 0x35, TVP7002_WRITE },
-	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x0a, TVP7002_WRITE },
+	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0xa0, TVP7002_WRITE },
 	{ TVP7002_HPLL_CRTL, 0x02, TVP7002_WRITE },
 	{ TVP7002_HPLL_PHASE_SEL, 0x14, TVP7002_WRITE },
 	{ TVP7002_AVID_START_PIXEL_LSBS, 0x91, TVP7002_WRITE },
@@ -223,7 +223,7 @@ static const struct i2c_reg_value tvp7002_parms_576P[] = {
 /* Register parameters for 1080I60 */
 static const struct i2c_reg_value tvp7002_parms_1080I60[] = {
 	{ TVP7002_HPLL_FDBK_DIV_MSBS, 0x89, TVP7002_WRITE },
-	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x08, TVP7002_WRITE },
+	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x80, TVP7002_WRITE },
 	{ TVP7002_HPLL_CRTL, 0x98, TVP7002_WRITE },
 	{ TVP7002_HPLL_PHASE_SEL, 0x14, TVP7002_WRITE },
 	{ TVP7002_AVID_START_PIXEL_LSBS, 0x06, TVP7002_WRITE },
@@ -245,7 +245,7 @@ static const struct i2c_reg_value tvp7002_parms_1080I60[] = {
 /* Register parameters for 1080P60 */
 static const struct i2c_reg_value tvp7002_parms_1080P60[] = {
 	{ TVP7002_HPLL_FDBK_DIV_MSBS, 0x89, TVP7002_WRITE },
-	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x08, TVP7002_WRITE },
+	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x80, TVP7002_WRITE },
 	{ TVP7002_HPLL_CRTL, 0xE0, TVP7002_WRITE },
 	{ TVP7002_HPLL_PHASE_SEL, 0x14, TVP7002_WRITE },
 	{ TVP7002_AVID_START_PIXEL_LSBS, 0x06, TVP7002_WRITE },
@@ -289,7 +289,7 @@ static const struct i2c_reg_value tvp7002_parms_1080I50[] = {
 /* Register parameters for 720P60 */
 static const struct i2c_reg_value tvp7002_parms_720P60[] = {
 	{ TVP7002_HPLL_FDBK_DIV_MSBS, 0x67, TVP7002_WRITE },
-	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x02, TVP7002_WRITE },
+	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x20, TVP7002_WRITE },
 	{ TVP7002_HPLL_CRTL, 0xa0, TVP7002_WRITE },
 	{ TVP7002_HPLL_PHASE_SEL, 0x16, TVP7002_WRITE },
 	{ TVP7002_AVID_START_PIXEL_LSBS, 0x47, TVP7002_WRITE },
@@ -311,7 +311,7 @@ static const struct i2c_reg_value tvp7002_parms_720P60[] = {
 /* Register parameters for 720P50 */
 static const struct i2c_reg_value tvp7002_parms_720P50[] = {
 	{ TVP7002_HPLL_FDBK_DIV_MSBS, 0x7b, TVP7002_WRITE },
-	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0x0c, TVP7002_WRITE },
+	{ TVP7002_HPLL_FDBK_DIV_LSBS, 0xc0, TVP7002_WRITE },
 	{ TVP7002_HPLL_CRTL, 0x98, TVP7002_WRITE },
 	{ TVP7002_HPLL_PHASE_SEL, 0x16, TVP7002_WRITE },
 	{ TVP7002_AVID_START_PIXEL_LSBS, 0x47, TVP7002_WRITE },

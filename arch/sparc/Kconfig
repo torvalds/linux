@@ -18,6 +18,7 @@ config 64BIT
 config SPARC
 	bool
 	default y
+	select OF
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
@@ -65,9 +66,6 @@ config BITS
 	int
 	default 32 if SPARC32
 	default 64 if SPARC64
-
-config GENERIC_TIME
-	def_bool y
 
 config ARCH_USES_GETTIMEOFFSET
 	bool
@@ -146,9 +144,6 @@ config GENERIC_GPIO
 	  Generic GPIO API support
 
 config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-
-config OF
 	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC

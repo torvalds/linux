@@ -602,7 +602,9 @@ void i915_save_display(struct drm_device *dev)
 
 	/* Only save FBC state on the platform that supports FBC */
 	if (I915_HAS_FBC(dev)) {
-		if (IS_GM45(dev)) {
+		if (IS_IRONLAKE_M(dev)) {
+			dev_priv->saveDPFC_CB_BASE = I915_READ(ILK_DPFC_CB_BASE);
+		} else if (IS_GM45(dev)) {
 			dev_priv->saveDPFC_CB_BASE = I915_READ(DPFC_CB_BASE);
 		} else {
 			dev_priv->saveFBC_CFB_BASE = I915_READ(FBC_CFB_BASE);
@@ -706,7 +708,10 @@ void i915_restore_display(struct drm_device *dev)
 
 	/* only restore FBC info on the platform that supports FBC*/
 	if (I915_HAS_FBC(dev)) {
-		if (IS_GM45(dev)) {
+		if (IS_IRONLAKE_M(dev)) {
+			ironlake_disable_fbc(dev);
+			I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
+		} else if (IS_GM45(dev)) {
 			g4x_disable_fbc(dev);
 			I915_WRITE(DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
 		} else {

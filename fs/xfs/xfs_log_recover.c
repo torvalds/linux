@@ -24,15 +24,11 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
@@ -1565,9 +1561,7 @@ xlog_recover_reorder_trans(
 
 	list_splice_init(&trans->r_itemq, &sort_list);
 	list_for_each_entry_safe(item, n, &sort_list, ri_list) {
-		xfs_buf_log_format_t	*buf_f;
-
-		buf_f = (xfs_buf_log_format_t *)item->ri_buf[0].i_addr;
+		xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
 
 		switch (ITEM_TYPE(item)) {
 		case XFS_LI_BUF:
@@ -1892,9 +1886,8 @@ xlog_recover_do_inode_buffer(
 		 * current di_next_unlinked field.  Extract its value
 		 * and copy it to the buffer copy.
 		 */
-		logged_nextp = (xfs_agino_t *)
-			       ((char *)(item->ri_buf[item_index].i_addr) +
-				(next_unlinked_offset - reg_buf_offset));
+		logged_nextp = item->ri_buf[item_index].i_addr +
+				next_unlinked_offset - reg_buf_offset;
 		if (unlikely(*logged_nextp == 0)) {
 			xfs_fs_cmn_err(CE_ALERT, mp,
 				"bad inode buffer log record (ptr = 0x%p, bp = 0x%p).  XFS trying to replay bad (0) inode di_next_unlinked field",
@@ -1973,8 +1966,7 @@ xlog_recover_do_reg_buffer(
 					item->ri_buf[i].i_len, __func__);
 				goto next;
 			}
-			error = xfs_qm_dqcheck((xfs_disk_dquot_t *)
-					       item->ri_buf[i].i_addr,
+			error = xfs_qm_dqcheck(item->ri_buf[i].i_addr,
 					       -1, 0, XFS_QMOPT_DOWARN,
 					       "dquot_buf_recover");
 			if (error)
@@ -2187,7 +2179,7 @@ xlog_recover_do_buffer_trans(
 	xlog_recover_item_t	*item,
 	int			pass)
 {
-	xfs_buf_log_format_t	*buf_f;
+	xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
 	xfs_mount_t		*mp;
 	xfs_buf_t		*bp;
 	int			error;
@@ -2196,8 +2188,6 @@ xlog_recover_do_buffer_trans(
 	int			len;
 	ushort			flags;
 	uint			buf_flags;
-
-	buf_f = (xfs_buf_log_format_t *)item->ri_buf[0].i_addr;
 
 	if (pass == XLOG_RECOVER_PASS1) {
 		/*
@@ -2319,10 +2309,9 @@ xlog_recover_do_inode_trans(
 	}
 
 	if (item->ri_buf[0].i_len == sizeof(xfs_inode_log_format_t)) {
-		in_f = (xfs_inode_log_format_t *)item->ri_buf[0].i_addr;
+		in_f = item->ri_buf[0].i_addr;
 	} else {
-		in_f = (xfs_inode_log_format_t *)kmem_alloc(
-			sizeof(xfs_inode_log_format_t), KM_SLEEP);
+		in_f = kmem_alloc(sizeof(xfs_inode_log_format_t), KM_SLEEP);
 		need_free = 1;
 		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)
@@ -2370,7 +2359,7 @@ xlog_recover_do_inode_trans(
 		error = EFSCORRUPTED;
 		goto error;
 	}
-	dicp = (xfs_icdinode_t *)(item->ri_buf[1].i_addr);
+	dicp = item->ri_buf[1].i_addr;
 	if (unlikely(dicp->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
@@ -2461,7 +2450,7 @@ xlog_recover_do_inode_trans(
 	}
 
 	/* The core is in in-core format */
-	xfs_dinode_to_disk(dip, (xfs_icdinode_t *)item->ri_buf[1].i_addr);
+	xfs_dinode_to_disk(dip, item->ri_buf[1].i_addr);
 
 	/* the rest is in on-disk format */
 	if (item->ri_buf[1].i_len > sizeof(struct xfs_icdinode)) {
@@ -2578,7 +2567,7 @@ xlog_recover_do_quotaoff_trans(
 		return (0);
 	}
 
-	qoff_f = (xfs_qoff_logformat_t *)item->ri_buf[0].i_addr;
+	qoff_f = item->ri_buf[0].i_addr;
 	ASSERT(qoff_f);
 
 	/*
@@ -2622,9 +2611,8 @@ xlog_recover_do_dquot_trans(
 	if (mp->m_qflags == 0)
 		return (0);
 
-	recddq = (xfs_disk_dquot_t *)item->ri_buf[1].i_addr;
-
-	if (item->ri_buf[1].i_addr == NULL) {
+	recddq = item->ri_buf[1].i_addr;
+	if (recddq == NULL) {
 		cmn_err(CE_ALERT,
 			"XFS: NULL dquot in %s.", __func__);
 		return XFS_ERROR(EIO);
@@ -2654,7 +2642,7 @@ xlog_recover_do_dquot_trans(
 	 * The other possibility, of course, is that the quota subsystem was
 	 * removed since the last mount - ENOSYS.
 	 */
-	dq_f = (xfs_dq_logformat_t *)item->ri_buf[0].i_addr;
+	dq_f = item->ri_buf[0].i_addr;
 	ASSERT(dq_f);
 	if ((error = xfs_qm_dqcheck(recddq,
 			   dq_f->qlf_id,
@@ -2721,7 +2709,7 @@ xlog_recover_do_efi_trans(
 		return 0;
 	}
 
-	efi_formatp = (xfs_efi_log_format_t *)item->ri_buf[0].i_addr;
+	efi_formatp = item->ri_buf[0].i_addr;
 
 	mp = log->l_mp;
 	efip = xfs_efi_init(mp, efi_formatp->efi_nextents);
@@ -2767,7 +2755,7 @@ xlog_recover_do_efd_trans(
 		return;
 	}
 
-	efd_formatp = (xfs_efd_log_format_t *)item->ri_buf[0].i_addr;
+	efd_formatp = item->ri_buf[0].i_addr;
 	ASSERT((item->ri_buf[0].i_len == (sizeof(xfs_efd_log_format_32_t) +
 		((efd_formatp->efd_nextents - 1) * sizeof(xfs_extent_32_t)))) ||
 	       (item->ri_buf[0].i_len == (sizeof(xfs_efd_log_format_64_t) +

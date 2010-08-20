@@ -1087,7 +1087,7 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *mdev,
 			} else {
 				epoch->flags = 0;
 				atomic_set(&epoch->epoch_size, 0);
-				/* atomic_set(&epoch->active, 0); is alrady zero */
+				/* atomic_set(&epoch->active, 0); is already zero */
 				if (rv == FE_STILL_LIVE)
 					rv = FE_RECYCLED;
 			}
@@ -1180,7 +1180,7 @@ next_bio:
 	bio->bi_sector = sector;
 	bio->bi_bdev = mdev->ldev->backing_bdev;
 	/* we special case some flags in the multi-bio case, see below
-	 * (BIO_RW_UNPLUG, BIO_RW_BARRIER) */
+	 * (REQ_UNPLUG, REQ_HARDBARRIER) */
 	bio->bi_rw = rw;
 	bio->bi_private = e;
 	bio->bi_end_io = drbd_endio_sec;
@@ -1209,16 +1209,16 @@ next_bio:
 		bios = bios->bi_next;
 		bio->bi_next = NULL;
 
-		/* strip off BIO_RW_UNPLUG unless it is the last bio */
+		/* strip off REQ_UNPLUG unless it is the last bio */
 		if (bios)
-			bio->bi_rw &= ~(1<<BIO_RW_UNPLUG);
+			bio->bi_rw &= ~REQ_UNPLUG;
 
 		drbd_generic_make_request(mdev, fault_type, bio);
 
-		/* strip off BIO_RW_BARRIER,
+		/* strip off REQ_HARDBARRIER,
 		 * unless it is the first or last bio */
 		if (bios && bios->bi_next)
-			bios->bi_rw &= ~(1<<BIO_RW_BARRIER);
+			bios->bi_rw &= ~REQ_HARDBARRIER;
 	} while (bios);
 	maybe_kick_lo(mdev);
 	return 0;
@@ -1233,7 +1233,7 @@ fail:
 }
 
 /**
- * w_e_reissue() - Worker callback; Resubmit a bio, without BIO_RW_BARRIER set
+ * w_e_reissue() - Worker callback; Resubmit a bio, without REQ_HARDBARRIER set
  * @mdev:	DRBD device.
  * @w:		work object.
  * @cancel:	The connection will be closed anyways (unused in this callback)
@@ -1245,7 +1245,7 @@ int w_e_reissue(struct drbd_conf *mdev, struct drbd_work *w, int cancel) __relea
 	   (and DE_BARRIER_IN_NEXT_EPOCH_ISSUED in the previous Epoch)
 	   so that we can finish that epoch in drbd_may_finish_epoch().
 	   That is necessary if we already have a long chain of Epochs, before
-	   we realize that BIO_RW_BARRIER is actually not supported */
+	   we realize that REQ_HARDBARRIER is actually not supported */
 
 	/* As long as the -ENOTSUPP on the barrier is reported immediately
 	   that will never trigger. If it is reported late, we will just
@@ -1824,14 +1824,14 @@ static int receive_Data(struct drbd_conf *mdev, struct p_header *h)
 		epoch = list_entry(e->epoch->list.prev, struct drbd_epoch, list);
 		if (epoch == e->epoch) {
 			set_bit(DE_CONTAINS_A_BARRIER, &e->epoch->flags);
-			rw |= (1<<BIO_RW_BARRIER);
+			rw |= REQ_HARDBARRIER;
 			e->flags |= EE_IS_BARRIER;
 		} else {
 			if (atomic_read(&epoch->epoch_size) > 1 ||
 			    !test_bit(DE_CONTAINS_A_BARRIER, &epoch->flags)) {
 				set_bit(DE_BARRIER_IN_NEXT_EPOCH_ISSUED, &epoch->flags);
 				set_bit(DE_CONTAINS_A_BARRIER, &e->epoch->flags);
-				rw |= (1<<BIO_RW_BARRIER);
+				rw |= REQ_HARDBARRIER;
 				e->flags |= EE_IS_BARRIER;
 			}
 		}
@@ -1841,10 +1841,10 @@ static int receive_Data(struct drbd_conf *mdev, struct p_header *h)
 	dp_flags = be32_to_cpu(p->dp_flags);
 	if (dp_flags & DP_HARDBARRIER) {
 		dev_err(DEV, "ASSERT FAILED would have submitted barrier request\n");
-		/* rw |= (1<<BIO_RW_BARRIER); */
+		/* rw |= REQ_HARDBARRIER; */
 	}
 	if (dp_flags & DP_RW_SYNC)
-		rw |= (1<<BIO_RW_SYNCIO) | (1<<BIO_RW_UNPLUG);
+		rw |= REQ_SYNC | REQ_UNPLUG;
 	if (dp_flags & DP_MAY_SET_IN_SYNC)
 		e->flags |= EE_MAY_SET_IN_SYNC;
 
@@ -3555,14 +3555,15 @@ static int receive_bitmap(struct drbd_conf *mdev, struct p_header *h)
 	return ok;
 }
 
-static int receive_skip(struct drbd_conf *mdev, struct p_header *h)
+static int receive_skip_(struct drbd_conf *mdev, struct p_header *h, int silent)
 {
 	/* TODO zero copy sink :) */
 	static char sink[128];
 	int size, want, r;
 
-	dev_warn(DEV, "skipping unknown optional packet type %d, l: %d!\n",
-	     h->command, h->length);
+	if (!silent)
+		dev_warn(DEV, "skipping unknown optional packet type %d, l: %d!\n",
+		     h->command, h->length);
 
 	size = h->length;
 	while (size > 0) {
@@ -3574,6 +3575,16 @@ static int receive_skip(struct drbd_conf *mdev, struct p_header *h)
 	return size == 0;
 }
 
+static int receive_skip(struct drbd_conf *mdev, struct p_header *h)
+{
+	return receive_skip_(mdev, h, 0);
+}
+
+static int receive_skip_silent(struct drbd_conf *mdev, struct p_header *h)
+{
+	return receive_skip_(mdev, h, 1);
+}
+
 static int receive_UnplugRemote(struct drbd_conf *mdev, struct p_header *h)
 {
 	if (mdev->state.disk >= D_INCONSISTENT)
@@ -3583,92 +3594,6 @@ static int receive_UnplugRemote(struct drbd_conf *mdev, struct p_header *h)
 	 * with the data requests being unplugged */
 	drbd_tcp_quickack(mdev->data.socket);
 
-	return TRUE;
-}
-
-static void timeval_sub_us(struct timeval* tv, unsigned int us)
-{
-	tv->tv_sec -= us / 1000000;
-	us = us % 1000000;
-	if (tv->tv_usec > us) {
-		tv->tv_usec += 1000000;
-		tv->tv_sec--;
-	}
-	tv->tv_usec -= us;
-}
-
-static void got_delay_probe(struct drbd_conf *mdev, int from, struct p_delay_probe *p)
-{
-	struct delay_probe *dp;
-	struct list_head *le;
-	struct timeval now;
-	int seq_num;
-	int offset;
-	int data_delay;
-
-	seq_num = be32_to_cpu(p->seq_num);
-	offset  = be32_to_cpu(p->offset);
-
-	spin_lock(&mdev->peer_seq_lock);
-	if (!list_empty(&mdev->delay_probes)) {
-		if (from == USE_DATA_SOCKET)
-			le = mdev->delay_probes.next;
-		else
-			le = mdev->delay_probes.prev;
-
-		dp = list_entry(le, struct delay_probe, list);
-
-		if (dp->seq_num == seq_num) {
-			list_del(le);
-			spin_unlock(&mdev->peer_seq_lock);
-			do_gettimeofday(&now);
-			timeval_sub_us(&now, offset);
-			data_delay =
-				now.tv_usec - dp->time.tv_usec +
-				(now.tv_sec - dp->time.tv_sec) * 1000000;
-
-			if (data_delay > 0)
-				mdev->data_delay = data_delay;
-
-			kfree(dp);
-			return;
-		}
-
-		if (dp->seq_num > seq_num) {
-			spin_unlock(&mdev->peer_seq_lock);
-			dev_warn(DEV, "Previous allocation failure of struct delay_probe?\n");
-			return; /* Do not alloca a struct delay_probe.... */
-		}
-	}
-	spin_unlock(&mdev->peer_seq_lock);
-
-	dp = kmalloc(sizeof(struct delay_probe), GFP_NOIO);
-	if (!dp) {
-		dev_warn(DEV, "Failed to allocate a struct delay_probe, do not worry.\n");
-		return;
-	}
-
-	dp->seq_num = seq_num;
-	do_gettimeofday(&dp->time);
-	timeval_sub_us(&dp->time, offset);
-
-	spin_lock(&mdev->peer_seq_lock);
-	if (from == USE_DATA_SOCKET)
-		list_add(&dp->list, &mdev->delay_probes);
-	else
-		list_add_tail(&dp->list, &mdev->delay_probes);
-	spin_unlock(&mdev->peer_seq_lock);
-}
-
-static int receive_delay_probe(struct drbd_conf *mdev, struct p_header *h)
-{
-	struct p_delay_probe *p = (struct p_delay_probe *)h;
-
-	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
-	if (drbd_recv(mdev, h->payload, h->length) != h->length)
-		return FALSE;
-
-	got_delay_probe(mdev, USE_DATA_SOCKET, p);
 	return TRUE;
 }
 
@@ -3695,7 +3620,7 @@ static drbd_cmd_handler_f drbd_default_handler[] = {
 	[P_OV_REQUEST]      = receive_DataRequest,
 	[P_OV_REPLY]        = receive_DataRequest,
 	[P_CSUM_RS_REQUEST]    = receive_DataRequest,
-	[P_DELAY_PROBE]     = receive_delay_probe,
+	[P_DELAY_PROBE]     = receive_skip_silent,
 	/* anything missing from this table is in
 	 * the asender_tbl, see get_asender_cmd */
 	[P_MAX_CMD]	    = NULL,
@@ -4472,11 +4397,9 @@ static int got_OVResult(struct drbd_conf *mdev, struct p_header *h)
 	return TRUE;
 }
 
-static int got_delay_probe_m(struct drbd_conf *mdev, struct p_header *h)
+static int got_something_to_ignore_m(struct drbd_conf *mdev, struct p_header *h)
 {
-	struct p_delay_probe *p = (struct p_delay_probe *)h;
-
-	got_delay_probe(mdev, USE_META_SOCKET, p);
+	/* IGNORE */
 	return TRUE;
 }
 
@@ -4504,7 +4427,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
 	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
 	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
-	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe), got_delay_probe_m },
+	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe), got_something_to_ignore_m },
 	[P_MAX_CMD]	    = { 0, NULL },
 	};
 	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)

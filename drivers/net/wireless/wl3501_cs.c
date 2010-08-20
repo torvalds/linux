@@ -48,7 +48,6 @@
 
 #include <net/iw_handler.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -88,13 +87,6 @@
  */
 static int wl3501_config(struct pcmcia_device *link);
 static void wl3501_release(struct pcmcia_device *link);
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card configuration
- * database.
- */
-static dev_info_t wl3501_dev_info = "wl3501_cs";
 
 static const struct {
 	int reg_domain;
@@ -1421,7 +1413,7 @@ static struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 
 static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, wl3501_dev_info, sizeof(info->driver));
+	strlcpy(info->driver, "wl3501_cs", sizeof(info->driver));
 }
 
 static const struct ethtool_ops ops = {
@@ -1892,9 +1884,8 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	struct wl3501_card *this;
 
 	/* The io structure describes IO port mapping */
-	p_dev->io.NumPorts1	= 16;
-	p_dev->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines	= 5;
+	p_dev->resource[0]->end	= 16;
+	p_dev->resource[0]->flags	= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
 	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
@@ -1940,13 +1931,14 @@ static int wl3501_config(struct pcmcia_device *link)
 	/* Try allocating IO ports.  This tries a few fixed addresses.  If you
 	 * want, you can also read the card's config table to pick addresses --
 	 * see the serial driver for an example. */
+	link->io_lines = 5;
 
 	for (j = 0x280; j < 0x400; j += 0x20) {
 		/* The '^0x300' is so that we probe 0x300-0x3ff first, then
 		 * 0x200-0x2ff, and so on, because this seems safer */
-		link->io.BasePort1 = j;
-		link->io.BasePort2 = link->io.BasePort1 + 0x10;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = j;
+		link->resource[1]->start = link->resource[0]->start + 0x10;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}
@@ -1968,7 +1960,7 @@ static int wl3501_config(struct pcmcia_device *link)
 		goto failed;
 
 	dev->irq = link->irq;
-	dev->base_addr = link->io.BasePort1;
+	dev->base_addr = link->resource[0]->start;
 	SET_NETDEV_DEV(dev, &link->dev);
 	if (register_netdev(dev)) {
 		printk(KERN_NOTICE "wl3501_cs: register_netdev() failed\n");

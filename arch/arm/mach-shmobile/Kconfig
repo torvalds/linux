@@ -7,6 +7,7 @@ config ARCH_SH7367
 	select CPU_V6
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select SH_CLK_CPG
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7377
@@ -14,6 +15,7 @@ config ARCH_SH7377
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select SH_CLK_CPG
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7372
@@ -21,6 +23,7 @@ config ARCH_SH7372
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select SH_CLK_CPG
 	select GENERIC_CLOCKEVENTS
 
 comment "SH-Mobile Board Type"
@@ -39,6 +42,20 @@ config MACH_AP4EVB
 	bool "AP4EVB board"
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
+	select SH_LCD_MIPI_DSI
+
+choice
+	prompt "AP4EVB LCD panel selection"
+	default AP4EVB_QHD
+	depends on MACH_AP4EVB
+
+config AP4EVB_QHD
+	bool "MIPI-DSI QHD (960x540)"
+
+config AP4EVB_WVGA
+	bool "Parallel WVGA (800x480)"
+
+endchoice
 
 comment "SH-Mobile System Configuration"
 
@@ -70,12 +87,33 @@ endmenu
 
 menu "Timer and clock configuration"
 
+config SHMOBILE_TIMER_HZ
+	int "Kernel HZ (jiffies per second)"
+	range 32 1024
+	default "128"
+	help
+	  Allows the configuration of the timer frequency. It is customary
+	  to have the timer interrupt run at 1000 Hz or 100 Hz, but in the
+	  case of low timer frequencies other values may be more suitable.
+	  SH-Mobile systems using a 32768 Hz RCLK for clock events may want
+	  to select a HZ value such as 128 that can evenly divide RCLK.
+	  A HZ value that does not divide evenly may cause timer drift.
+
 config SH_TIMER_CMT
 	bool "CMT timer driver"
 	default y
 	help
 	  This enables build of the CMT timer driver.
 
+config SH_TIMER_TMU
+	bool "TMU timer driver"
+	default y
+	help
+	  This enables build of the TMU timer driver.
+
 endmenu
+
+config SH_CLK_CPG
+	bool
 
 endif

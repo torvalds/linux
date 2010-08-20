@@ -131,6 +131,12 @@ ENTRY(startup_32)
 	movsl
 1:
 
+#ifdef CONFIG_OLPC_OPENFIRMWARE
+	/* save OFW's pgdir table for later use when calling into OFW */
+	movl %cr3, %eax
+	movl %eax, pa(olpc_ofw_pgd)
+#endif
+
 #ifdef CONFIG_PARAVIRT
 	/* This is can only trip for a broken bootloader... */
 	cmpw $0x207, pa(boot_params + BP_version)

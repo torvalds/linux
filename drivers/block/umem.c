@@ -478,7 +478,7 @@ static void process_page(unsigned long data)
 				le32_to_cpu(desc->local_addr)>>9,
 				le32_to_cpu(desc->transfer_size));
 			dump_dmastat(card, control);
-		} else if (test_bit(BIO_RW, &bio->bi_rw) &&
+		} else if ((bio->bi_rw & REQ_WRITE) &&
 			   le32_to_cpu(desc->local_addr) >> 9 ==
 				card->init_size) {
 			card->init_size += le32_to_cpu(desc->transfer_size) >> 9;

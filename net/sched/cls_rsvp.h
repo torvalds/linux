@@ -143,9 +143,17 @@ static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	u8 tunnelid = 0;
 	u8 *xprt;
 #if RSVP_DST_LEN == 4
-	struct ipv6hdr *nhptr = ipv6_hdr(skb);
+	struct ipv6hdr *nhptr;
+
+	if (!pskb_network_may_pull(skb, sizeof(*nhptr)))
+		return -1;
+	nhptr = ipv6_hdr(skb);
 #else
-	struct iphdr *nhptr = ip_hdr(skb);
+	struct iphdr *nhptr;
+
+	if (!pskb_network_may_pull(skb, sizeof(*nhptr)))
+		return -1;
+	nhptr = ip_hdr(skb);
 #endif
 
 restart:

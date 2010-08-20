@@ -22,7 +22,7 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
-/* net device transmit always called with no BH (preempt_disabled) */
+/* net device transmit always called with BH disabled */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -38,17 +38,26 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 
+	u64_stats_update_begin(&brstats->syncp);
 	brstats->tx_packets++;
 	brstats->tx_bytes += skb->len;
+	u64_stats_update_end(&brstats->syncp);
 
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
 
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
+	rcu_read_lock();
 	if (is_multicast_ether_addr(dest)) {
-		if (br_multicast_rcv(br, NULL, skb))
+		if (unlikely(netpoll_tx_running(dev))) {
+			br_flood_deliver(br, skb);
 			goto out;
+		}
+		if (br_multicast_rcv(br, NULL, skb)) {
+			kfree_skb(skb);
+			goto out;
+		}
 
 		mdst = br_mdb_get(br, skb);
 		if (mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb))
@@ -61,6 +70,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		br_flood_deliver(br, skb);
 
 out:
+	rcu_read_unlock();
 	return NETDEV_TX_OK;
 }
 
@@ -92,21 +102,25 @@ static int br_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *br_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *stats)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	struct net_device_stats *stats = &dev->stats;
-	struct br_cpu_netstats sum = { 0 };
+	struct br_cpu_netstats tmp, sum = { 0 };
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
+		unsigned int start;
 		const struct br_cpu_netstats *bstats
 			= per_cpu_ptr(br->stats, cpu);
-
-		sum.tx_bytes   += bstats->tx_bytes;
-		sum.tx_packets += bstats->tx_packets;
-		sum.rx_bytes   += bstats->rx_bytes;
-		sum.rx_packets += bstats->rx_packets;
+		do {
+			start = u64_stats_fetch_begin(&bstats->syncp);
+			memcpy(&tmp, bstats, sizeof(tmp));
+		} while (u64_stats_fetch_retry(&bstats->syncp, start));
+		sum.tx_bytes   += tmp.tx_bytes;
+		sum.tx_packets += tmp.tx_packets;
+		sum.rx_bytes   += tmp.rx_bytes;
+		sum.rx_packets += tmp.rx_packets;
 	}
 
 	stats->tx_bytes   = sum.tx_bytes;
@@ -127,7 +141,7 @@ static int br_change_mtu(struct net_device *dev, int new_mtu)
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 	/* remember the MTU in the rtable for PMTU */
-	br->fake_rtable.u.dst.metrics[RTAX_MTU - 1] = new_mtu;
+	br->fake_rtable.dst.metrics[RTAX_MTU - 1] = new_mtu;
 #endif
 
 	return 0;
@@ -199,65 +213,81 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static bool br_devices_support_netpoll(struct net_bridge *br)
+static void br_poll_controller(struct net_device *br_dev)
 {
-	struct net_bridge_port *p;
-	bool ret = true;
-	int count = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&br->lock, flags);
-	list_for_each_entry(p, &br->port_list, list) {
-		count++;
-		if ((p->dev->priv_flags & IFF_DISABLE_NETPOLL) ||
-		    !p->dev->netdev_ops->ndo_poll_controller)
-			ret = false;
-	}
-	spin_unlock_irqrestore(&br->lock, flags);
-	return count != 0 && ret;
 }
 
-void br_netpoll_cleanup(struct net_device *dev)
+static void br_netpoll_cleanup(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p, *n;
-	const struct net_device_ops *ops;
 
-	br->dev->npinfo = NULL;
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
-		if (p->dev) {
-			ops = p->dev->netdev_ops;
-			if (ops->ndo_netpoll_cleanup)
-				ops->ndo_netpoll_cleanup(p->dev);
-			else
-				p->dev->npinfo = NULL;
-		}
+		br_netpoll_disable(p);
 	}
 }
 
-void br_netpoll_disable(struct net_bridge *br,
-			struct net_device *dev)
+static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
 {
-	if (br_devices_support_netpoll(br))
-		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-	if (dev->netdev_ops->ndo_netpoll_cleanup)
-		dev->netdev_ops->ndo_netpoll_cleanup(dev);
-	else
-		dev->npinfo = NULL;
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_port *p, *n;
+	int err = 0;
+
+	list_for_each_entry_safe(p, n, &br->port_list, list) {
+		if (!p->dev)
+			continue;
+
+		err = br_netpoll_enable(p);
+		if (err)
+			goto fail;
+	}
+
+out:
+	return err;
+
+fail:
+	br_netpoll_cleanup(dev);
+	goto out;
 }
 
-void br_netpoll_enable(struct net_bridge *br,
-		       struct net_device *dev)
+int br_netpoll_enable(struct net_bridge_port *p)
 {
-	if (br_devices_support_netpoll(br)) {
-		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-		if (br->dev->npinfo)
-			dev->npinfo = br->dev->npinfo;
-	} else if (!(br->dev->priv_flags & IFF_DISABLE_NETPOLL)) {
-		br->dev->priv_flags |= IFF_DISABLE_NETPOLL;
-		br_info(br,"new device %s does not support netpoll (disabling)",
-			dev->name);
+	struct netpoll *np;
+	int err = 0;
+
+	np = kzalloc(sizeof(*p->np), GFP_KERNEL);
+	err = -ENOMEM;
+	if (!np)
+		goto out;
+
+	np->dev = p->dev;
+
+	err = __netpoll_setup(np);
+	if (err) {
+		kfree(np);
+		goto out;
 	}
+
+	p->np = np;
+
+out:
+	return err;
+}
+
+void br_netpoll_disable(struct net_bridge_port *p)
+{
+	struct netpoll *np = p->np;
+
+	if (!np)
+		return;
+
+	p->np = NULL;
+
+	/* Wait for transmitting packets to finish before freeing. */
+	synchronize_rcu_bh();
+
+	__netpoll_cleanup(np);
+	kfree(np);
 }
 
 #endif
@@ -280,13 +310,15 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_open		 = br_dev_open,
 	.ndo_stop		 = br_dev_stop,
 	.ndo_start_xmit		 = br_dev_xmit,
-	.ndo_get_stats		 = br_get_stats,
+	.ndo_get_stats64	 = br_get_stats64,
 	.ndo_set_mac_address	 = br_set_mac_address,
 	.ndo_set_multicast_list	 = br_dev_set_multicast_list,
 	.ndo_change_mtu		 = br_change_mtu,
 	.ndo_do_ioctl		 = br_dev_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_netpoll_setup	 = br_netpoll_setup,
 	.ndo_netpoll_cleanup	 = br_netpoll_cleanup,
+	.ndo_poll_controller	 = br_poll_controller,
 #endif
 };
 

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/key.h>
 #include <linux/ctype.h>
+#include <linux/dns_resolver.h>
 #include <linux/sched.h>
 #include <keys/rxrpc-type.h>
 #include "internal.h"
@@ -30,21 +31,24 @@ static struct afs_cell *afs_cell_root;
  * allocate a cell record and fill in its name, VL server address list and
  * allocate an anonymous key
  */
-static struct afs_cell *afs_cell_alloc(const char *name, char *vllist)
+static struct afs_cell *afs_cell_alloc(const char *name, unsigned namelen,
+				       char *vllist)
 {
 	struct afs_cell *cell;
 	struct key *key;
-	size_t namelen;
 	char keyname[4 + AFS_MAXCELLNAME + 1], *cp, *dp, *next;
+	char  *dvllist = NULL, *_vllist = NULL;
+	char  delimiter = ':';
 	int ret;
 
-	_enter("%s,%s", name, vllist);
+	_enter("%*.*s,%s", namelen, namelen, name ?: "", vllist);
 
 	BUG_ON(!name); /* TODO: want to look up "this cell" in the cache */
 
-	namelen = strlen(name);
-	if (namelen > AFS_MAXCELLNAME)
+	if (namelen > AFS_MAXCELLNAME) {
+		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
+	}
 
 	/* allocate and initialise a cell record */
 	cell = kzalloc(sizeof(struct afs_cell) + namelen + 1, GFP_KERNEL);
@@ -64,15 +68,35 @@ static struct afs_cell *afs_cell_alloc(const char *name, char *vllist)
 	INIT_LIST_HEAD(&cell->vl_list);
 	spin_lock_init(&cell->vl_lock);
 
+	/* if the ip address is invalid, try dns query */
+	if (!vllist || strlen(vllist) < 7) {
+		ret = dns_query("afsdb", name, namelen, "ipv4", &dvllist, NULL);
+		if (ret < 0) {
+			if (ret == -ENODATA || ret == -EAGAIN || ret == -ENOKEY)
+				/* translate these errors into something
+				 * userspace might understand */
+				ret = -EDESTADDRREQ;
+			_leave(" = %d", ret);
+			return ERR_PTR(ret);
+		}
+		_vllist = dvllist;
+
+		/* change the delimiter for user-space reply */
+		delimiter = ',';
+
+	} else {
+		_vllist = vllist;
+	}
+
 	/* fill in the VL server list from the rest of the string */
 	do {
 		unsigned a, b, c, d;
 
-		next = strchr(vllist, ':');
+		next = strchr(_vllist, delimiter);
 		if (next)
 			*next++ = 0;
 
-		if (sscanf(vllist, "%u.%u.%u.%u", &a, &b, &c, &d) != 4)
+		if (sscanf(_vllist, "%u.%u.%u.%u", &a, &b, &c, &d) != 4)
 			goto bad_address;
 
 		if (a > 255 || b > 255 || c > 255 || d > 255)
@@ -81,7 +105,7 @@ static struct afs_cell *afs_cell_alloc(const char *name, char *vllist)
 		cell->vl_addrs[cell->vl_naddrs++].s_addr =
 			htonl((a << 24) | (b << 16) | (c << 8) | d);
 
-	} while (cell->vl_naddrs < AFS_CELL_MAX_ADDRS && (vllist = next));
+	} while (cell->vl_naddrs < AFS_CELL_MAX_ADDRS && (_vllist = next));
 
 	/* create a key to represent an anonymous user */
 	memcpy(keyname, "afs@", 4);
@@ -110,32 +134,36 @@ bad_address:
 	ret = -EINVAL;
 error:
 	key_put(cell->anonymous_key);
+	kfree(dvllist);
 	kfree(cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }
 
 /*
- * create a cell record
- * - "name" is the name of the cell
- * - "vllist" is a colon separated list of IP addresses in "a.b.c.d" format
+ * afs_cell_crate() - create a cell record
+ * @name:	is the name of the cell.
+ * @namsesz:	is the strlen of the cell name.
+ * @vllist:	is a colon separated list of IP addresses in "a.b.c.d" format.
+ * @retref:	is T to return the cell reference when the cell exists.
  */
-struct afs_cell *afs_cell_create(const char *name, char *vllist)
+struct afs_cell *afs_cell_create(const char *name, unsigned namesz,
+				 char *vllist, bool retref)
 {
 	struct afs_cell *cell;
 	int ret;
 
-	_enter("%s,%s", name, vllist);
+	_enter("%*.*s,%s", namesz, namesz, name ?: "", vllist);
 
 	down_write(&afs_cells_sem);
 	read_lock(&afs_cells_lock);
 	list_for_each_entry(cell, &afs_cells, link) {
-		if (strcasecmp(cell->name, name) == 0)
+		if (strncasecmp(cell->name, name, namesz) == 0)
 			goto duplicate_name;
 	}
 	read_unlock(&afs_cells_lock);
 
-	cell = afs_cell_alloc(name, vllist);
+	cell = afs_cell_alloc(name, namesz, vllist);
 	if (IS_ERR(cell)) {
 		_leave(" = %ld", PTR_ERR(cell));
 		up_write(&afs_cells_sem);
@@ -175,8 +203,18 @@ error:
 	return ERR_PTR(ret);
 
 duplicate_name:
+	if (retref && !IS_ERR(cell))
+		afs_get_cell(cell);
+
 	read_unlock(&afs_cells_lock);
 	up_write(&afs_cells_sem);
+
+	if (retref) {
+		_leave(" = %p", cell);
+		return cell;
+	}
+
+	_leave(" = -EEXIST");
 	return ERR_PTR(-EEXIST);
 }
 
@@ -201,15 +239,13 @@ int afs_cell_init(char *rootcell)
 	}
 
 	cp = strchr(rootcell, ':');
-	if (!cp) {
-		printk(KERN_ERR "kAFS: no VL server IP addresses specified\n");
-		_leave(" = -EINVAL");
-		return -EINVAL;
-	}
+	if (!cp)
+		_debug("kAFS: no VL server IP addresses specified");
+	else
+		*cp++ = 0;
 
 	/* allocate a cell record for the root cell */
-	*cp++ = 0;
-	new_root = afs_cell_create(rootcell, cp);
+	new_root = afs_cell_create(rootcell, strlen(rootcell), cp, false);
 	if (IS_ERR(new_root)) {
 		_leave(" = %ld", PTR_ERR(new_root));
 		return PTR_ERR(new_root);
@@ -229,11 +265,12 @@ int afs_cell_init(char *rootcell)
 /*
  * lookup a cell record
  */
-struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz)
+struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz,
+				 bool dns_cell)
 {
 	struct afs_cell *cell;
 
-	_enter("\"%*.*s\",", namesz, namesz, name ? name : "");
+	_enter("\"%*.*s\",", namesz, namesz, name ?: "");
 
 	down_read(&afs_cells_sem);
 	read_lock(&afs_cells_lock);
@@ -247,6 +284,8 @@ struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz)
 			}
 		}
 		cell = ERR_PTR(-ENOENT);
+		if (dns_cell)
+			goto create_cell;
 	found:
 		;
 	} else {
@@ -267,6 +306,15 @@ struct afs_cell *afs_cell_lookup(const char *name, unsigned namesz)
 
 	read_unlock(&afs_cells_lock);
 	up_read(&afs_cells_sem);
+	_leave(" = %p", cell);
+	return cell;
+
+create_cell:
+	read_unlock(&afs_cells_lock);
+	up_read(&afs_cells_sem);
+
+	cell = afs_cell_create(name, namesz, NULL, true);
+
 	_leave(" = %p", cell);
 	return cell;
 }

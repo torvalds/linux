@@ -36,24 +36,9 @@
 //
 // constants
 //
-#define U_CRC_LEN           4           //
 #define U_ETHER_ADDR_STR_LEN (ETH_ALEN * 2 + 1)
                                         // Ethernet address string length
-
-#define MIN_DATA_LEN        46          // min data length
-#define MAX_DATA_LEN        1500        // max data length
-
-#define MIN_PACKET_LEN      (MIN_DATA_LEN + ETH_HLEN)
-                                        // 60
-                                        // min total packet length (tx)
-#define MAX_PACKET_LEN      (MAX_DATA_LEN + ETH_HLEN)
-                                        // 1514
-                                        // max total packet length (tx)
-
-#define MAX_LOOKAHEAD_SIZE  MAX_PACKET_LEN
-
 #define U_MULTI_ADDR_LEN    8           // multicast address length
-
 
 #ifdef __BIG_ENDIAN
 
@@ -168,7 +153,7 @@ typedef struct tagSEthernetHeader {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
     WORD    wType;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 SEthernetHeader, *PSEthernetHeader;
 
 
@@ -179,7 +164,7 @@ typedef struct tagS802_3Header {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
     WORD    wLen;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
 
 //
@@ -193,30 +178,10 @@ typedef struct tagS802_11Header {
     BYTE    abyAddr3[ETH_ALEN];
     WORD    wSeqCtl;
     BYTE    abyAddr4[ETH_ALEN];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/
-// Frame type macro
-
-#define IS_MULTICAST_ADDRESS(pbyEtherAddr)          \
-    ((*(PBYTE)(pbyEtherAddr) & 0x01) == 1)
-
-#define IS_BROADCAST_ADDRESS(pbyEtherAddr) (        \
-    (*(PDWORD)(pbyEtherAddr) == 0xFFFFFFFFL) &&     \
-    (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0xFFFF) \
-)
-
-#define IS_NULL_ADDRESS(pbyEtherAddr) (             \
-    (*(PDWORD)(pbyEtherAddr) == 0L) &&              \
-    (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0)      \
-)
-
-#define IS_ETH_ADDRESS_EQUAL(pbyAddr1, pbyAddr2) (  \
-    (*(PDWORD)(pbyAddr1) == *(PDWORD)(pbyAddr2)) && \
-    (*(PWORD)((PBYTE)(pbyAddr1) + 4) ==             \
-    *(PWORD)((PBYTE)(pbyAddr2) + 4))                \
-)
 
 /*---------------------  Export Classes  ----------------------------*/
 

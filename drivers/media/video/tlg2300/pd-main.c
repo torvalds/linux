@@ -227,12 +227,11 @@ static int firmware_download(struct usb_device *udev)
 
 	fwlength = fw->size;
 
-	fwbuf = kzalloc(fwlength, GFP_KERNEL);
+	fwbuf = kmemdup(fw->data, fwlength, GFP_KERNEL);
 	if (!fwbuf) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memcpy(fwbuf, fw->data, fwlength);
 
 	max_packet_size = udev->ep_out[0x1]->desc.wMaxPacketSize;
 	log("\t\t download size : %d", (int)max_packet_size);

@@ -113,7 +113,7 @@
 #define CON_PFAULT_INTR_MASK	(1 << 28)
 #define MRL_CHANGE_SERR_MASK	(1 << 29)
 #define CON_PFAULT_SERR_MASK	(1 << 30)
-#define SLOT_REG_RSVDZ_MASK	(1 << 15) | (7 << 21)
+#define SLOT_REG_RSVDZ_MASK	((1 << 15) | (7 << 21))
 
 /*
  * SHPC Command Code definitnions

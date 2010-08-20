@@ -47,7 +47,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	/*
 	 * This skb 'survived' a round-trip through the driver, and
 	 * hopefully the driver didn't mangle it too badly. However,
-	 * we can definitely not rely on the the control information
+	 * we can definitely not rely on the control information
 	 * being correct. Clear it so we don't get junk there, and
 	 * indicate that it needs new processing, but must not be
 	 * modified/encrypted again.
@@ -377,7 +377,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2) {
 					skb2->dev = prev_dev;
-					netif_rx(skb2);
+					netif_receive_skb(skb2);
 				}
 			}
 
@@ -386,7 +386,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 	if (prev_dev) {
 		skb->dev = prev_dev;
-		netif_rx(skb);
+		netif_receive_skb(skb);
 		skb = NULL;
 	}
 	rcu_read_unlock();

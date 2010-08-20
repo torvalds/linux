@@ -140,19 +140,19 @@ static struct dma_map_ops ibmebus_dma_ops = {
 
 static int ibmebus_match_path(struct device *dev, void *data)
 {
-	struct device_node *dn = to_of_device(dev)->dev.of_node;
+	struct device_node *dn = to_platform_device(dev)->dev.of_node;
 	return (dn->full_name &&
 		(strcasecmp((char *)data, dn->full_name) == 0));
 }
 
 static int ibmebus_match_node(struct device *dev, void *data)
 {
-	return to_of_device(dev)->dev.of_node == data;
+	return to_platform_device(dev)->dev.of_node == data;
 }
 
 static int ibmebus_create_device(struct device_node *dn)
 {
-	struct of_device *dev;
+	struct platform_device *dev;
 	int ret;
 
 	dev = of_device_alloc(dn, NULL, &ibmebus_bus_device);
@@ -298,7 +298,7 @@ static ssize_t ibmebus_store_remove(struct bus_type *bus,
 
 	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, path,
 				   ibmebus_match_path))) {
-		of_device_unregister(to_of_device(dev));
+		of_device_unregister(to_platform_device(dev));
 
 		kfree(path);
 		return count;

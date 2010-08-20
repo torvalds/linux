@@ -718,7 +718,7 @@ static void __devinit cg6_chip_init(struct fb_info *info)
 	sbus_writel(info->var.yres - 1, &fbc->clipmaxy);
 }
 
-static void cg6_unmap_regs(struct of_device *op, struct fb_info *info,
+static void cg6_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   struct cg6_par *par)
 {
 	if (par->fbc)
@@ -737,7 +737,7 @@ static void cg6_unmap_regs(struct of_device *op, struct fb_info *info,
 			   info->fix.smem_len);
 }
 
-static int __devinit cg6_probe(struct of_device *op,
+static int __devinit cg6_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -827,7 +827,7 @@ out_err:
 	return err;
 }
 
-static int __devexit cg6_remove(struct of_device *op)
+static int __devexit cg6_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct cg6_par *par = info->par;
@@ -870,12 +870,12 @@ static int __init cg6_init(void)
 	if (fb_get_options("cg6fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&cg6_driver, &of_bus_type);
+	return of_register_platform_driver(&cg6_driver);
 }
 
 static void __exit cg6_exit(void)
 {
-	of_unregister_driver(&cg6_driver);
+	of_unregister_platform_driver(&cg6_driver);
 }
 
 module_init(cg6_init);

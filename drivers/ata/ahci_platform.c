@@ -54,19 +54,13 @@ static int __init ahci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdata && pdata->init) {
-		rc = pdata->init(dev);
-		if (rc)
-			return rc;
-	}
-
 	if (pdata && pdata->ata_port_info)
 		pi = *pdata->ata_port_info;
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv) {
-		rc = -ENOMEM;
-		goto err0;
+		dev_err(dev, "can't alloc ahci_host_priv\n");
+		return -ENOMEM;
 	}
 
 	hpriv->flags |= (unsigned long)pi.private_data;
@@ -74,8 +68,19 @@ static int __init ahci_probe(struct platform_device *pdev)
 	hpriv->mmio = devm_ioremap(dev, mem->start, resource_size(mem));
 	if (!hpriv->mmio) {
 		dev_err(dev, "can't map %pR\n", mem);
-		rc = -ENOMEM;
-		goto err0;
+		return -ENOMEM;
+	}
+
+	/*
+	 * Some platforms might need to prepare for mmio region access,
+	 * which could be done in the following init call. So, the mmio
+	 * region shouldn't be accessed before init (if provided) has
+	 * returned successfully.
+	 */
+	if (pdata && pdata->init) {
+		rc = pdata->init(dev, hpriv->mmio);
+		if (rc)
+			return rc;
 	}
 
 	ahci_save_initial_config(dev, hpriv,
@@ -166,7 +171,6 @@ static int __devexit ahci_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ahci_driver = {
-	.probe = ahci_probe,
 	.remove = __devexit_p(ahci_remove),
 	.driver = {
 		.name = "ahci",

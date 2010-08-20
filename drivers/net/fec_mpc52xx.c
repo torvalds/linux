@@ -826,7 +826,7 @@ static int mpc52xx_fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!priv->phydev)
 		return -ENOTSUPP;
 
-	return phy_mii_ioctl(priv->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
 static const struct net_device_ops mpc52xx_fec_netdev_ops = {
@@ -850,7 +850,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 /* ======================================================================== */
 
 static int __devinit
-mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
+mpc52xx_fec_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	int rv;
 	struct net_device *ndev;
@@ -875,17 +875,21 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	if (rv) {
 		printk(KERN_ERR DRIVER_NAME ": "
 				"Error while parsing device node resource\n" );
-		return rv;
+		goto err_netdev;
 	}
 	if ((mem.end - mem.start + 1) < sizeof(struct mpc52xx_fec)) {
 		printk(KERN_ERR DRIVER_NAME
 			" - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 			(unsigned long)(mem.end - mem.start + 1), sizeof(struct mpc52xx_fec));
-		return -EINVAL;
+		rv = -EINVAL;
+		goto err_netdev;
 	}
 
-	if (!request_mem_region(mem.start, sizeof(struct mpc52xx_fec), DRIVER_NAME))
-		return -EBUSY;
+	if (!request_mem_region(mem.start, sizeof(struct mpc52xx_fec),
+				DRIVER_NAME)) {
+		rv = -EBUSY;
+		goto err_netdev;
+	}
 
 	/* Init ether ndev with what we have */
 	ndev->netdev_ops	= &mpc52xx_fec_netdev_ops;
@@ -901,7 +905,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	if (!priv->fec) {
 		rv = -ENOMEM;
-		goto probe_error;
+		goto err_mem_region;
 	}
 
 	/* Bestcomm init */
@@ -914,7 +918,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
 		printk(KERN_ERR DRIVER_NAME ": Can not init SDMA tasks\n" );
 		rv = -ENOMEM;
-		goto probe_error;
+		goto err_rx_tx_dmatsk;
 	}
 
 	/* Get the IRQ we need one by one */
@@ -966,40 +970,32 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	rv = register_netdev(ndev);
 	if (rv < 0)
-		goto probe_error;
+		goto err_node;
 
 	/* We're done ! */
 	dev_set_drvdata(&op->dev, ndev);
 
 	return 0;
 
-
-	/* Error handling - free everything that might be allocated */
-probe_error:
-
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	priv->phy_node = NULL;
-
+err_node:
+	of_node_put(priv->phy_node);
 	irq_dispose_mapping(ndev->irq);
-
+err_rx_tx_dmatsk:
 	if (priv->rx_dmatsk)
 		bcom_fec_rx_release(priv->rx_dmatsk);
 	if (priv->tx_dmatsk)
 		bcom_fec_tx_release(priv->tx_dmatsk);
-
-	if (priv->fec)
-		iounmap(priv->fec);
-
+	iounmap(priv->fec);
+err_mem_region:
 	release_mem_region(mem.start, sizeof(struct mpc52xx_fec));
-
+err_netdev:
 	free_netdev(ndev);
 
 	return rv;
 }
 
 static int
-mpc52xx_fec_remove(struct of_device *op)
+mpc52xx_fec_remove(struct platform_device *op)
 {
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv;
@@ -1029,7 +1025,7 @@ mpc52xx_fec_remove(struct of_device *op)
 }
 
 #ifdef CONFIG_PM
-static int mpc52xx_fec_of_suspend(struct of_device *op, pm_message_t state)
+static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(&op->dev);
 
@@ -1039,7 +1035,7 @@ static int mpc52xx_fec_of_suspend(struct of_device *op, pm_message_t state)
 	return 0;
 }
 
-static int mpc52xx_fec_of_resume(struct of_device *op)
+static int mpc52xx_fec_of_resume(struct platform_device *op)
 {
 	struct net_device *dev = dev_get_drvdata(&op->dev);
 

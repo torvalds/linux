@@ -44,8 +44,6 @@
 
 #include <asm/system.h>
 #include <asm/mach-types.h>
-#include <linux/types.h>
-#include <linux/dma-mapping.h>
 
 #include "msm_fb_panel.h"
 

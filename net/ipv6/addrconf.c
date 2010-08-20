@@ -121,8 +121,6 @@ static inline void addrconf_sysctl_unregister(struct inet6_dev *idev)
 static int __ipv6_regen_rndid(struct inet6_dev *idev);
 static int __ipv6_try_regen_rndid(struct inet6_dev *idev, struct in6_addr *tmpaddr);
 static void ipv6_regen_rndid(unsigned long data);
-
-static int desync_factor = MAX_DESYNC_FACTOR * HZ;
 #endif
 
 static int ipv6_generate_eui64(u8 *eui, struct net_device *dev);
@@ -284,13 +282,16 @@ static void addrconf_mod_timer(struct inet6_ifaddr *ifp,
 static int snmp6_alloc_dev(struct inet6_dev *idev)
 {
 	if (snmp_mib_init((void __percpu **)idev->stats.ipv6,
-			  sizeof(struct ipstats_mib)) < 0)
+			  sizeof(struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip;
 	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6,
-			  sizeof(struct icmpv6_mib)) < 0)
+			  sizeof(struct icmpv6_mib),
+			  __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp;
 	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6msg,
-			  sizeof(struct icmpv6msg_mib)) < 0)
+			  sizeof(struct icmpv6msg_mib),
+			  __alignof__(struct icmpv6msg_mib)) < 0)
 		goto err_icmpmsg;
 
 	return 0;
@@ -557,7 +558,7 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 		pr_warning("Freeing alive inet6 address %p\n", ifp);
 		return;
 	}
-	dst_release(&ifp->rt->u.dst);
+	dst_release(&ifp->rt->dst);
 
 	call_rcu(&ifp->rcu, inet6_ifa_finish_destroy_rcu);
 }
@@ -823,7 +824,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 				rt->rt6i_flags |= RTF_EXPIRES;
 			}
 		}
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 	}
 
 out:
@@ -890,7 +891,8 @@ retry:
 			      idev->cnf.temp_valid_lft);
 	tmp_prefered_lft = min_t(__u32,
 				 ifp->prefered_lft,
-				 idev->cnf.temp_prefered_lft - desync_factor / HZ);
+				 idev->cnf.temp_prefered_lft -
+				 idev->cnf.max_desync_factor);
 	tmp_plen = ifp->prefix_len;
 	max_addresses = idev->cnf.max_addresses;
 	tmp_cstamp = ifp->cstamp;
@@ -1650,7 +1652,8 @@ static void ipv6_regen_rndid(unsigned long data)
 
 	expires = jiffies +
 		idev->cnf.temp_prefered_lft * HZ -
-		idev->cnf.regen_max_retry * idev->cnf.dad_transmits * idev->nd_parms->retrans_time - desync_factor;
+		idev->cnf.regen_max_retry * idev->cnf.dad_transmits * idev->nd_parms->retrans_time -
+		idev->cnf.max_desync_factor * HZ;
 	if (time_before(expires, jiffies)) {
 		printk(KERN_WARNING
 			"ipv6_regen_rndid(): too short regeneration interval; timer disabled for %s.\n",
@@ -1866,7 +1869,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 					      dev, expires, flags);
 		}
 		if (rt)
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 	}
 
 	/* Try to figure out our local address for this prefix */
@@ -3496,8 +3499,12 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 				preferred -= tval;
 			else
 				preferred = 0;
-			if (valid != INFINITY_LIFE_TIME)
-				valid -= tval;
+			if (valid != INFINITY_LIFE_TIME) {
+				if (valid > tval)
+					valid -= tval;
+				else
+					valid = 0;
+			}
 		}
 	} else {
 		preferred = INFINITY_LIFE_TIME;
@@ -3859,12 +3866,28 @@ static inline void __snmp6_fill_stats(u64 *stats, void __percpu **mib,
 	memset(&stats[items], 0, pad);
 }
 
+static inline void __snmp6_fill_stats64(u64 *stats, void __percpu **mib,
+				      int items, int bytes, size_t syncpoff)
+{
+	int i;
+	int pad = bytes - sizeof(u64) * items;
+	BUG_ON(pad < 0);
+
+	/* Use put_unaligned() because stats may not be aligned for u64. */
+	put_unaligned(items, &stats[0]);
+	for (i = 1; i < items; i++)
+		put_unaligned(snmp_fold_field64(mib, i, syncpoff), &stats[i]);
+
+	memset(&stats[items], 0, pad);
+}
+
 static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 			     int bytes)
 {
 	switch (attrtype) {
 	case IFLA_INET6_STATS:
-		__snmp6_fill_stats(stats, (void __percpu **)idev->stats.ipv6, IPSTATS_MIB_MAX, bytes);
+		__snmp6_fill_stats64(stats, (void __percpu **)idev->stats.ipv6,
+				     IPSTATS_MIB_MAX, bytes, offsetof(struct ipstats_mib, syncp));
 		break;
 	case IFLA_INET6_ICMP6STATS:
 		__snmp6_fill_stats(stats, (void __percpu **)idev->stats.icmpv6, ICMP6_MIB_MAX, bytes);
@@ -4097,11 +4120,11 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		if (ifp->idev->cnf.forwarding)
 			addrconf_leave_anycast(ifp);
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
-		dst_hold(&ifp->rt->u.dst);
+		dst_hold(&ifp->rt->dst);
 
 		if (ifp->state == INET6_IFADDR_STATE_DEAD &&
 		    ip6_del_rt(ifp->rt))
-			dst_free(&ifp->rt->u.dst);
+			dst_free(&ifp->rt->dst);
 		break;
 	}
 }

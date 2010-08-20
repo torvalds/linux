@@ -71,7 +71,7 @@ do {                                            			\
 #define IWL_DEBUG(__priv, level, fmt, args...)
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)
 static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
-				      void *p, u32 len)
+				      const void *p, u32 len)
 {}
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 

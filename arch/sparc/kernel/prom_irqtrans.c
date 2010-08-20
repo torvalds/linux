@@ -719,7 +719,7 @@ static unsigned int central_build_irq(struct device_node *dp,
 				      void *_data)
 {
 	struct device_node *central_dp = _data;
-	struct of_device *central_op = of_find_device_by_node(central_dp);
+	struct platform_device *central_op = of_find_device_by_node(central_dp);
 	struct resource *res;
 	unsigned long imap, iclr;
 	u32 tmp;

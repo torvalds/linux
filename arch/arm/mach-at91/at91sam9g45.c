@@ -20,6 +20,7 @@
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
 #include <mach/at91_shdwc.h>
+#include <mach/cpu.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -176,6 +177,13 @@ static struct clk mmc1_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 
+/* Video decoder clock - Only for sam9m10/sam9m11 */
+static struct clk vdec_clk = {
+	.name		= "vdec_clk",
+	.pmc_mask	= 1 << AT91SAM9G45_ID_VDEC,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+
 /* One additional fake clock for ohci */
 static struct clk ohci_clk = {
 	.name		= "ohci_clk",
@@ -238,6 +246,9 @@ static void __init at91sam9g45_register_clocks(void)
 
 	for (i = 0; i < ARRAY_SIZE(periph_clocks); i++)
 		clk_register(periph_clocks[i]);
+
+	if (cpu_is_at91sam9m10() || cpu_is_at91sam9m11())
+		clk_register(&vdec_clk);
 
 	clk_register(&pck0);
 	clk_register(&pck1);

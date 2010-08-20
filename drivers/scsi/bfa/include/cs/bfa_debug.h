@@ -28,7 +28,8 @@
 } while (0)
 
 #define bfa_sm_fault(__mod, __event)	do {				\
-	bfa_sm_panic((__mod)->logm, __LINE__, __FILE__, __event);      \
+	bfa_trc(__mod, (((uint32_t)0xDEAD << 16) | __event));		\
+	bfa_sm_panic((__mod)->logm, __LINE__, __FILE__, __event); 	\
 } while (0)
 
 #ifndef BFA_PERF_BUILD
