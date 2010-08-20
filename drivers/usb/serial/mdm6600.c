@@ -227,12 +227,12 @@ static int mdm6600_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	dbg("%s: port %d", __func__, port->number);
 
-	BUG_ON(modem->port != port);
+	WARN_ON_ONCE(modem->port != port);
 
 	modem->tiocm_status = 0;
 
 	if (port->number == MODEM_INTERFACE_NUM) {
-		BUG_ON(!port->interrupt_in_urb);
+		WARN_ON_ONCE(!port->interrupt_in_urb);
 		rc = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (rc) {
 			dev_err(&port->dev,
