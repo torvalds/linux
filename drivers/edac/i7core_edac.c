@@ -447,6 +447,29 @@ static struct i7core_dev *get_i7core_dev(u8 socket)
 	return NULL;
 }
 
+static struct i7core_dev *alloc_i7core_dev(u8 socket,
+					   const struct pci_id_table *table)
+{
+	struct i7core_dev *i7core_dev;
+
+	i7core_dev = kzalloc(sizeof(*i7core_dev), GFP_KERNEL);
+	if (!i7core_dev)
+		return NULL;
+
+	i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev) * table->n_devs,
+				   GFP_KERNEL);
+	if (!i7core_dev->pdev) {
+		kfree(i7core_dev);
+		return NULL;
+	}
+
+	i7core_dev->socket = socket;
+	i7core_dev->n_devs = table->n_devs;
+	list_add_tail(&i7core_dev->list, &i7core_edac_list);
+
+	return i7core_dev;
+}
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -1355,18 +1378,9 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 
 	i7core_dev = get_i7core_dev(socket);
 	if (!i7core_dev) {
-		i7core_dev = kzalloc(sizeof(*i7core_dev), GFP_KERNEL);
+		i7core_dev = alloc_i7core_dev(socket, table);
 		if (!i7core_dev)
 			return -ENOMEM;
-		i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev)
-						* table->n_devs, GFP_KERNEL);
-		if (!i7core_dev->pdev) {
-			kfree(i7core_dev);
-			return -ENOMEM;
-		}
-		i7core_dev->socket = socket;
-		i7core_dev->n_devs = table->n_devs;
-		list_add_tail(&i7core_dev->list, &i7core_edac_list);
 	}
 
 	if (i7core_dev->pdev[devno]) {
