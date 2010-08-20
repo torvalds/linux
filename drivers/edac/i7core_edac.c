@@ -2095,9 +2095,9 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 
 			/* Release PCI resources */
 			i7core_put_devices(i7core_dev);
+			list_del(&i7core_dev->list);
+			kfree(i7core_dev);
 		}
-		list_del(&i7core_dev->list);
-		kfree(i7core_dev);
 	}
 	probed--;
 
