@@ -1384,8 +1384,10 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 	i7core_dev = get_i7core_dev(socket);
 	if (!i7core_dev) {
 		i7core_dev = alloc_i7core_dev(socket, table);
-		if (!i7core_dev)
+		if (!i7core_dev) {
+			pci_dev_put(pdev);
 			return -ENOMEM;
+		}
 	}
 
 	if (i7core_dev->pdev[devno]) {
