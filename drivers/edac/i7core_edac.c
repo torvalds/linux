@@ -2099,7 +2099,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 	}
 
 	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
-		mci = find_mci_by_dev(&i7core_dev->pdev[0]->dev);
+		mci = i7core_dev->mci;
 		if (unlikely(!mci || !mci->pvt_info)) {
 			debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
 				__func__, &i7core_dev->pdev[0]->dev);
@@ -2108,7 +2108,6 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 				      "Couldn't find mci hanler\n");
 		} else {
 			pvt = mci->pvt_info;
-			i7core_dev = pvt->i7core_dev;
 
 			debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 				__func__, mci, &i7core_dev->pdev[0]->dev);
@@ -2120,7 +2119,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 			i7core_pci_ctl_release(pvt);
 
 			/* Remove MC sysfs nodes */
-			edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
+			edac_mc_del_mc(mci->dev);
 
 			debugf1("%s: free mci struct\n", mci->ctl_name);
 			kfree(mci->ctl_name);
