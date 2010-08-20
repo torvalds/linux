@@ -444,6 +444,7 @@ config ABX500_CORE
 config AB3100_CORE
 	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
 	depends on I2C=y && ABX500_CORE
+	select MFD_CORE
 	default y if ARCH_U300
 	help
 	  Select this to enable the AB3100 Mixed Signal IC core
