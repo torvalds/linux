@@ -676,19 +676,11 @@ static irqreturn_t dma_isr(int irq, void *data)
 		pr_warning("Got a spurious ISR for DMA channel %d\n", ch->id);
 		return IRQ_HANDLED;
 	}
-	return IRQ_WAKE_THREAD;
-}
-
-static irqreturn_t dma_thread_fn(int irq, void *data)
-{
-	struct tegra_dma_channel *ch = data;
 
 	if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
 		handle_oneshot_dma(ch);
 	else
 		handle_continuous_dma(ch);
-
-
 	return IRQ_HANDLED;
 }
 
@@ -727,8 +719,7 @@ int __init tegra_dma_init(void)
 		INIT_LIST_HEAD(&ch->list);
 
 		irq = INT_APB_DMA_CH0 + i;
-		ret = request_threaded_irq(irq, dma_isr, dma_thread_fn, 0,
-			dma_channels[i].name, ch);
+		ret = request_irq(irq, dma_isr, 0, dma_channels[i].name, ch);
 		if (ret) {
 			pr_err("Failed to register IRQ %d for DMA %d\n",
 				irq, i);
