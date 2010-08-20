@@ -178,6 +178,7 @@ typedef void (*mmu_parent_walk_fn) (struct kvm_mmu_page *sp, u64 *spte);
 static struct kmem_cache *pte_chain_cache;
 static struct kmem_cache *rmap_desc_cache;
 static struct kmem_cache *mmu_page_header_cache;
+static struct percpu_counter kvm_total_used_mmu_pages;
 
 static u64 __read_mostly shadow_trap_nonpresent_pte;
 static u64 __read_mostly shadow_notrap_nonpresent_pte;
@@ -971,6 +972,18 @@ static int is_empty_shadow_page(u64 *spt)
 }
 #endif
 
+/*
+ * This value is the sum of all of the kvm instances's
+ * kvm->arch.n_used_mmu_pages values.  We need a global,
+ * aggregate version in order to make the slab shrinker
+ * faster
+ */
+static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, int nr)
+{
+	kvm->arch.n_used_mmu_pages += nr;
+	percpu_counter_add(&kvm_total_used_mmu_pages, nr);
+}
+
 static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	ASSERT(is_empty_shadow_page(sp->spt));
@@ -980,7 +993,7 @@ static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (!sp->role.direct)
 		__free_page(virt_to_page(sp->gfns));
 	kmem_cache_free(mmu_page_header_cache, sp);
-	--kvm->arch.n_used_mmu_pages;
+	kvm_mod_used_mmu_pages(kvm, -1);
 }
 
 static unsigned kvm_page_table_hashfn(gfn_t gfn)
@@ -1003,7 +1016,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	bitmap_zero(sp->slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
 	sp->multimapped = 0;
 	sp->parent_pte = parent_pte;
-	++vcpu->kvm->arch.n_used_mmu_pages;
+	kvm_mod_used_mmu_pages(vcpu->kvm, +1);
 	return sp;
 }
 
@@ -3122,23 +3135,22 @@ static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 {
 	struct kvm *kvm;
 	struct kvm *kvm_freed = NULL;
-	int cache_count = 0;
+
+	if (nr_to_scan == 0)
+		goto out;
 
 	spin_lock(&kvm_lock);
 
 	list_for_each_entry(kvm, &vm_list, vm_list) {
-		int npages, idx, freed_pages;
+		int idx, freed_pages;
 		LIST_HEAD(invalid_list);
 
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
-		npages = kvm->arch.n_max_mmu_pages -
-			 kvm_mmu_available_pages(kvm);
-		cache_count += npages;
-		if (!kvm_freed && nr_to_scan > 0 && npages > 0) {
+		if (!kvm_freed && nr_to_scan > 0 &&
+		    kvm->arch.n_used_mmu_pages > 0) {
 			freed_pages = kvm_mmu_remove_some_alloc_mmu_pages(kvm,
 							  &invalid_list);
-			cache_count -= freed_pages;
 			kvm_freed = kvm;
 		}
 		nr_to_scan--;
@@ -3152,7 +3164,8 @@ static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 
 	spin_unlock(&kvm_lock);
 
-	return cache_count;
+out:
+	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
 }
 
 static struct shrinker mmu_shrinker = {
@@ -3195,6 +3208,7 @@ int kvm_mmu_module_init(void)
 	if (!mmu_page_header_cache)
 		goto nomem;
 
+	percpu_counter_init(&kvm_total_used_mmu_pages, 0);
 	register_shrinker(&mmu_shrinker);
 
 	return 0;
