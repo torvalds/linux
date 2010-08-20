@@ -378,10 +378,6 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
 	acpi_handle tmp;
 	struct acpi_pci_root *root;
 
-	status = acpi_get_handle(handle, "_OSC", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
-
 	control_req = (flags & OSC_PCI_CONTROL_MASKS);
 	if (!control_req)
 		return AE_TYPE;
@@ -389,6 +385,10 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
 	root = acpi_pci_find_root(handle);
 	if (!root)
 		return AE_NOT_EXIST;
+
+	status = acpi_get_handle(handle, "_OSC", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
 
 	mutex_lock(&osc_lock);
 	/* No need to evaluate _OSC if the control was already granted. */
