@@ -339,6 +339,8 @@ struct kvm_vcpu_arch {
 	unsigned int time_offset;
 	struct page *time_page;
 	u64 last_host_tsc;
+	u64 last_guest_tsc;
+	u64 last_kernel_ns;
 
 	bool nmi_pending;
 	bool nmi_injected;
