@@ -6073,6 +6073,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	mutex_unlock(&dev->struct_mutex);
 
+	/* Disable the irq before mode object teardown, for the irq might
+	 * enqueue unpin/hotplug work. */
+	drm_irq_uninstall(dev);
+	cancel_work_sync(&dev_priv->hotplug_work);
+
 	drm_mode_config_cleanup(dev);
 }
 

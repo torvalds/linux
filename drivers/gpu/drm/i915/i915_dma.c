@@ -2275,7 +2275,7 @@ int i915_driver_unload(struct drm_device *dev)
 			dev_priv->child_dev = NULL;
 			dev_priv->child_dev_num = 0;
 		}
-		drm_irq_uninstall(dev);
+
 		vga_switcheroo_unregister_client(dev->pdev);
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
