@@ -29,6 +29,18 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
+/* If this switch is set, PCIe port native services should not be enabled. */
+bool pcie_ports_disabled;
+
+static int __init pcie_port_setup(char *str)
+{
+	if (!strncmp(str, "compat", 6))
+		pcie_ports_disabled = true;
+
+	return 1;
+}
+__setup("pcie_ports=", pcie_port_setup);
+
 /* global data */
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
@@ -300,6 +312,9 @@ static struct dmi_system_id __initdata pcie_portdrv_dmi_table[] = {
 static int __init pcie_portdrv_init(void)
 {
 	int retval;
+
+	if (pcie_ports_disabled)
+		return -EACCES;
 
 	dmi_check_system(pcie_portdrv_dmi_table);
 
