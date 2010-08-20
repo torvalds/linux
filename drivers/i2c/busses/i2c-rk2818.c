@@ -214,7 +214,7 @@ static int wait_for_completion_poll_timeout(struct rk2818_i2c_data *i2c, unsigne
 	unsigned int time = RK2818_DELAY_TIME;
 	int res;
 
-	while(!time_after(jiffies, timeout))
+	while(!time_after(jiffies, jiffies + timeout))
 	{
 		res = rk2818_event_occurred(i2c);
 		if(res)
