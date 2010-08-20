@@ -1968,6 +1968,10 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
 
+	/* Associates i7core_dev and mci for future usage */
+	pvt->i7core_dev = i7core_dev;
+	i7core_dev->mci = mci;
+
 	/*
 	 * FIXME: how to handle RDDR3 at MCI level? It is possible to have
 	 * Mixed RDDR3/UDDR3 with Nehalem, provided that they are on different
@@ -2032,10 +2036,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 			": %s(): failed edac_mce_register()\n", __func__);
 		goto fail1;
 	}
-
-	/* Associates i7core_dev and mci for future usage */
-	pvt->i7core_dev = i7core_dev;
-	i7core_dev->mci = mci;
 
 	return 0;
 
