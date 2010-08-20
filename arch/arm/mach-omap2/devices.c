@@ -498,6 +498,76 @@ static void omap_init_sham(void)
 static inline void omap_init_sham(void) { }
 #endif
 
+#if defined(CONFIG_CRYPTO_DEV_OMAP_AES) || defined(CONFIG_CRYPTO_DEV_OMAP_AES_MODULE)
+
+#ifdef CONFIG_ARCH_OMAP2
+static struct resource omap2_aes_resources[] = {
+	{
+		.start	= OMAP24XX_SEC_AES_BASE,
+		.end	= OMAP24XX_SEC_AES_BASE + 0x4C,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= OMAP24XX_DMA_AES_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= OMAP24XX_DMA_AES_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+static int omap2_aes_resources_sz = ARRAY_SIZE(omap2_aes_resources);
+#else
+#define omap2_aes_resources		NULL
+#define omap2_aes_resources_sz		0
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+static struct resource omap3_aes_resources[] = {
+	{
+		.start	= OMAP34XX_SEC_AES_BASE,
+		.end	= OMAP34XX_SEC_AES_BASE + 0x4C,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= OMAP34XX_DMA_AES2_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= OMAP34XX_DMA_AES2_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+static int omap3_aes_resources_sz = ARRAY_SIZE(omap3_aes_resources);
+#else
+#define omap3_aes_resources		NULL
+#define omap3_aes_resources_sz		0
+#endif
+
+static struct platform_device aes_device = {
+	.name		= "omap-aes",
+	.id		= -1,
+};
+
+static void omap_init_aes(void)
+{
+	if (cpu_is_omap24xx()) {
+		aes_device.resource = omap2_aes_resources;
+		aes_device.num_resources = omap2_aes_resources_sz;
+	} else if (cpu_is_omap34xx()) {
+		aes_device.resource = omap3_aes_resources;
+		aes_device.num_resources = omap3_aes_resources_sz;
+	} else {
+		pr_err("%s: platform not supported\n", __func__);
+		return;
+	}
+	platform_device_register(&aes_device);
+}
+
+#else
+static inline void omap_init_aes(void) { }
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
@@ -854,6 +924,7 @@ static int __init omap2_init_devices(void)
 	omap_hdq_init();
 	omap_init_sti();
 	omap_init_sham();
+	omap_init_aes();
 	omap_init_vout();
 
 	return 0;
