@@ -796,6 +796,7 @@ static void trace(struct kmem_cache *s, struct page *page, void *object,
  */
 static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
 {
+	flags &= gfp_allowed_mask;
 	lockdep_trace_alloc(flags);
 	might_sleep_if(flags & __GFP_WAIT);
 
@@ -804,6 +805,7 @@ static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
 
 static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
 {
+	flags &= gfp_allowed_mask;
 	kmemcheck_slab_alloc(s, flags, object, s->objsize);
 	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
 }
@@ -1677,6 +1679,7 @@ new_slab:
 		goto load_freelist;
 	}
 
+	gfpflags &= gfp_allowed_mask;
 	if (gfpflags & __GFP_WAIT)
 		local_irq_enable();
 
@@ -1724,8 +1727,6 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	void **object;
 	struct kmem_cache_cpu *c;
 	unsigned long flags;
-
-	gfpflags &= gfp_allowed_mask;
 
 	if (slab_pre_alloc_hook(s, gfpflags))
 		return NULL;
