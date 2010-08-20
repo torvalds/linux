@@ -956,6 +956,7 @@ MACHINE_START(TOSA, "SHARP Tosa")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup          = fixup_tosa,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= TOSA_NR_IRQS,
 	.init_irq       = pxa25x_init_irq,
 	.init_machine   = tosa_init,
 	.timer          = &pxa_timer,

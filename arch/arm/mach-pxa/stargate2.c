@@ -56,6 +56,8 @@
 #include "devices.h"
 #include "generic.h"
 
+#define STARGATE_NR_IRQS	(IRQ_BOARD_START + 8)
+
 /* Bluetooth */
 #define SG2_BT_RESET		81
 
@@ -1011,6 +1013,7 @@ MACHINE_START(STARGATE2, "Stargate 2")
 	.phys_io = 0x40000000,
 	.io_pg_offst = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io = pxa_map_io,
+	.nr_irqs = STARGATE_NR_IRQS,
 	.init_irq = pxa27x_init_irq,
 	.timer = &pxa_timer,
 	.init_machine = stargate2_init,
