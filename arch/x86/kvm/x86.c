@@ -895,6 +895,22 @@ static void kvm_set_time_scale(uint32_t tsc_khz, struct pvclock_vcpu_time_info *
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 
+void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
+{
+	struct kvm *kvm = vcpu->kvm;
+	u64 offset;
+	unsigned long flags;
+
+	spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
+	offset = data - native_read_tsc();
+	kvm_x86_ops->write_tsc_offset(vcpu, offset);
+	spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
+
+	/* Reset of TSC must disable overshoot protection below */
+	vcpu->arch.hv_clock.tsc_timestamp = 0;
+}
+EXPORT_SYMBOL_GPL(kvm_write_tsc);
+
 static void kvm_write_guest_time(struct kvm_vcpu *v)
 {
 	struct timespec ts;
@@ -5494,6 +5510,8 @@ struct  kvm *kvm_arch_create_vm(void)
 
 	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
 	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
+
+	spin_lock_init(&kvm->arch.tsc_write_lock);
 
 	return kvm;
 }

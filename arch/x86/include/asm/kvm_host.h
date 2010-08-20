@@ -395,6 +395,7 @@ struct kvm_arch {
 
 	unsigned long irq_sources_bitmap;
 	s64 kvmclock_offset;
+	spinlock_t tsc_write_lock;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
@@ -520,6 +521,8 @@ struct kvm_x86_ops {
 	void (*set_supported_cpuid)(u32 func, struct kvm_cpuid_entry2 *entry);
 
 	bool (*has_wbinvd_exit)(void);
+
+	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	const struct trace_print_flags *exit_reasons_str;
 };
