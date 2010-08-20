@@ -87,10 +87,9 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
 
 	if (ret && ret != -ENOSPC && ret != -EOPNOTSUPP)
-		printk(KERN_ERR "mac80211-%s: failed to set key "
-		       "(%d, %pM) to hardware (%d)\n",
-		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+		wiphy_err(key->local->hw.wiphy,
+			  "failed to set key (%d, %pM) to hardware (%d)\n",
+			  key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
 }
 
 static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
@@ -121,10 +120,9 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 			  sta, &key->conf);
 
 	if (ret)
-		printk(KERN_ERR "mac80211-%s: failed to remove key "
-		       "(%d, %pM) from hardware (%d)\n",
-		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+		wiphy_err(key->local->hw.wiphy,
+			  "failed to remove key (%d, %pM) from hardware (%d)\n",
+			  key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
 
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 }

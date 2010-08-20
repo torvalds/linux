@@ -713,16 +713,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	result = ieee80211_wep_init(local);
 	if (result < 0)
-		printk(KERN_DEBUG "%s: Failed to initialize wep: %d\n",
-		       wiphy_name(local->hw.wiphy), result);
+		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
+			    result);
 
 	rtnl_lock();
 
 	result = ieee80211_init_rate_ctrl_alg(local,
 					      hw->rate_control_algorithm);
 	if (result < 0) {
-		printk(KERN_DEBUG "%s: Failed to initialize rate control "
-		       "algorithm\n", wiphy_name(local->hw.wiphy));
+		wiphy_debug(local->hw.wiphy,
+			    "Failed to initialize rate control algorithm\n");
 		goto fail_rate;
 	}
 
@@ -731,8 +731,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		result = ieee80211_if_add(local, "wlan%d", NULL,
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)
-			printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
-			       wiphy_name(local->hw.wiphy));
+			wiphy_warn(local->hw.wiphy,
+				   "Failed to add default virtual iface\n");
 	}
 
 	rtnl_unlock();
@@ -815,8 +815,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	if (skb_queue_len(&local->skb_queue) ||
 	    skb_queue_len(&local->skb_queue_unreliable))
-		printk(KERN_WARNING "%s: skb_queue not empty\n",
-		       wiphy_name(local->hw.wiphy));
+		wiphy_warn(local->hw.wiphy, "skb_queue not empty\n");
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
 

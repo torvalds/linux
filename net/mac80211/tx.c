@@ -351,8 +351,8 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 
 	local->total_ps_buffered = total;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
-	       wiphy_name(local->hw.wiphy), purged);
+	wiphy_debug(local->hw.wiphy, "PS buffers full - purged %d frames\n",
+		    purged);
 #endif
 }
 
@@ -1513,8 +1513,8 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 		I802_DEBUG_INC(local->tx_expand_skb_head);
 
 	if (pskb_expand_head(skb, head_need, tail_need, GFP_ATOMIC)) {
-		printk(KERN_DEBUG "%s: failed to reallocate TX buffer\n",
-		       wiphy_name(local->hw.wiphy));
+		wiphy_debug(local->hw.wiphy,
+			    "failed to reallocate TX buffer\n");
 		return -ENOMEM;
 	}
 
