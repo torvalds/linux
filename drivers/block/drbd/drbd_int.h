@@ -626,7 +626,7 @@ DCBP_set_pad_bits(struct p_compressed_bm *p, int n)
 #endif
 
 union p_polymorph {
-        struct p_header80        header;
+        union p_header           header;
         struct p_handshake       handshake;
         struct p_data            data;
         struct p_block_ack       block_ack;
@@ -641,6 +641,8 @@ union p_polymorph {
         struct p_req_state       req_state;
         struct p_req_state_reply req_state_reply;
         struct p_block_req       block_req;
+	struct p_delay_probe93   delay_probe93;
+	struct p_rs_uuid         rs_uuid;
 } __packed;
 
 /**********************************************************************/
