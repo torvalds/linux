@@ -50,9 +50,14 @@
 
 int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4]);
 
+static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
+{
+	return kvm->arch.n_free_mmu_pages;
+}
+
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {
-	if (unlikely(vcpu->kvm->arch.n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
+	if (unlikely(kvm_mmu_available_pages(vcpu->kvm)< KVM_MIN_FREE_MMU_PAGES))
 		__kvm_mmu_free_some_pages(vcpu);
 }
 
