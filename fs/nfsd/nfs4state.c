@@ -2450,14 +2450,13 @@ nfsd4_truncate(struct svc_rqst *rqstp, struct svc_fh *fh,
 static __be32
 nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *cur_fh, struct nfs4_stateid *stp, struct nfsd4_open *open)
 {
-	u32 op_share_access, new_access;
+	u32 op_share_access = open->op_share_access & ~NFS4_SHARE_WANT_MASK;
+	bool new_access;
 	__be32 status;
 
-	set_access(&new_access, stp->st_access_bmap);
-	new_access = (~new_access) & open->op_share_access & ~NFS4_SHARE_WANT_MASK;
-
+	new_access = !test_bit(op_share_access, &stp->st_access_bmap);
 	if (new_access) {
-		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, new_access);
+		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, op_share_access);
 		if (status)
 			return status;
 	}
@@ -2470,7 +2469,6 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 		return status;
 	}
 	/* remember the open */
-	op_share_access = open->op_share_access & ~NFS4_SHARE_WANT_MASK;
 	__set_bit(op_share_access, &stp->st_access_bmap);
 	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
 
@@ -3560,7 +3558,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfs4_stateowner *open_sop = NULL;
 	struct nfs4_stateowner *lock_sop = NULL;
 	struct nfs4_stateid *lock_stp;
-	struct file *filp;
+	struct nfs4_file *fp;
+	struct file *filp = NULL;
 	struct file_lock file_lock;
 	struct file_lock conflock;
 	__be32 status = 0;
@@ -3590,7 +3589,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		 * lock stateid.
 		 */
 		struct nfs4_stateid *open_stp = NULL;
-		struct nfs4_file *fp;
 		
 		status = nfserr_stale_clientid;
 		if (!nfsd4_has_session(cstate) &&
@@ -3633,6 +3631,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (status)
 			goto out;
 		lock_sop = lock->lk_replay_owner;
+		fp = lock_stp->st_file;
 	}
 	/* lock->lk_replay_owner and lock_stp have been created or found */
 
@@ -3647,13 +3646,19 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (lock->lk_type) {
 		case NFS4_READ_LT:
 		case NFS4_READW_LT:
-			filp = find_readable_file(lock_stp->st_file);
+			if (find_readable_file(lock_stp->st_file)) {
+				nfs4_get_vfs_file(rqstp, fp, &cstate->current_fh, NFS4_SHARE_ACCESS_READ);
+				filp = find_readable_file(lock_stp->st_file);
+			}
 			file_lock.fl_type = F_RDLCK;
 			cmd = F_SETLK;
 		break;
 		case NFS4_WRITE_LT:
 		case NFS4_WRITEW_LT:
-			filp = find_writeable_file(lock_stp->st_file);
+			if (find_writeable_file(lock_stp->st_file)) {
+				nfs4_get_vfs_file(rqstp, fp, &cstate->current_fh, NFS4_SHARE_ACCESS_WRITE);
+				filp = find_writeable_file(lock_stp->st_file);
+			}
 			file_lock.fl_type = F_WRLCK;
 			cmd = F_SETLK;
 		break;
