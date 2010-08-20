@@ -593,7 +593,7 @@ static struct tegra_i2c_platform_data stingray_i2c4_platform_data = {
 static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartb",	"clk_m",	26000000,	true},
-	{ "uartc",	"pll_p",	216000000,	false},
+	{ "uartc",	"pll_m",	600000000,	false},
 	/*{ "emc",	"pll_p",	0,		true},
 	{ "pll_m",	NULL,		600000000,	true},
 	{ "emc",	"pll_m",	600000000,	false},*/
