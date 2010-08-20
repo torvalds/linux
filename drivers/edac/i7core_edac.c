@@ -1895,6 +1895,26 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	return 1;
 }
 
+static void i7core_pci_ctl_create(struct i7core_pvt *pvt)
+{
+	pvt->i7core_pci = edac_pci_create_generic_ctl(
+						&pvt->i7core_dev->pdev[0]->dev,
+						EDAC_MOD_STR);
+	if (unlikely(!pvt->i7core_pci))
+		pr_warn("Unable to setup PCI error report via EDAC\n");
+}
+
+static void i7core_pci_ctl_release(struct i7core_pvt *pvt)
+{
+	if (likely(pvt->i7core_pci))
+		edac_pci_release_generic_ctl(pvt->i7core_pci);
+	else
+		i7core_printk(KERN_ERR,
+				"Couldn't find mem_ctl_info for socket %d\n",
+				pvt->i7core_dev->socket);
+	pvt->i7core_pci = NULL;
+}
+
 static int i7core_register_mci(struct i7core_dev *i7core_dev,
 			       const int num_channels, const int num_csrows)
 {
@@ -1969,22 +1989,12 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	pvt->inject.page = -1;
 	pvt->inject.col = -1;
 
+	/* allocating generic PCI control info */
+	i7core_pci_ctl_create(pvt);
+
 	/* Registers on edac_mce in order to receive memory errors */
 	pvt->edac_mce.priv = mci;
 	pvt->edac_mce.check_error = i7core_mce_check_error;
-
-	/* allocating generic PCI control info */
-	pvt->i7core_pci = edac_pci_create_generic_ctl(&i7core_dev->pdev[0]->dev,
-						 EDAC_MOD_STR);
-	if (unlikely(!pvt->i7core_pci)) {
-		printk(KERN_WARNING
-			"%s(): Unable to create PCI control\n",
-			__func__);
-		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
-			__func__);
-	}
-
 	rc = edac_mce_register(&pvt->edac_mce);
 	if (unlikely(rc < 0)) {
 		debugf0("MC: " __FILE__
@@ -2094,13 +2104,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 			edac_mce_unregister(&pvt->edac_mce);
 
 			/* Disable EDAC polling */
-			if (likely(pvt->i7core_pci))
-				edac_pci_release_generic_ctl(pvt->i7core_pci);
-			else
-				i7core_printk(KERN_ERR,
-					      "Couldn't find mem_ctl_info for socket %d\n",
-					      i7core_dev->socket);
-			pvt->i7core_pci = NULL;
+			i7core_pci_ctl_release(pvt);
 
 			/* Remove MC sysfs nodes */
 			edac_mc_del_mc(&i7core_dev->pdev[0]->dev);
