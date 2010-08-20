@@ -1961,7 +1961,9 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	case CPU_STARTING:
 		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
 		       cpu);
+		spin_lock(&kvm_lock);
 		hardware_enable(NULL);
+		spin_unlock(&kvm_lock);
 		break;
 	}
 	return NOTIFY_OK;
@@ -2168,8 +2170,10 @@ static int kvm_suspend(struct sys_device *dev, pm_message_t state)
 
 static int kvm_resume(struct sys_device *dev)
 {
-	if (kvm_usage_count)
+	if (kvm_usage_count) {
+		WARN_ON(spin_is_locked(&kvm_lock));
 		hardware_enable(NULL);
+	}
 	return 0;
 }
 
