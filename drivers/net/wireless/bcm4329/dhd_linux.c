@@ -279,6 +279,8 @@ typedef struct dhd_info {
 	int wl_count;
 	int wl_packet;
 
+	int hang_was_sent;
+
 	/* Thread to issue ioctl for multicast */
 	long sysioc_pid;
 	struct semaphore sysioc_sem;
@@ -1113,7 +1115,7 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 		/* Send Event when bus down detected during data session */
 		if (dhd->pub.busstate == DHD_BUS_DOWN)  {
 			DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
-			wl_iw_send_priv_event(net, "HANG");
+			net_os_send_hang_message(net);
 		}
 		dhd_os_wake_unlock(&dhd->pub);
 		return -ENODEV;
@@ -1806,7 +1808,7 @@ done:
 	if ((bcmerror == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) &&
 			(!dhd->pub.dongle_reset))) {
 		DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
-		wl_iw_send_priv_event(net, "HANG");
+		net_os_send_hang_message(net);
 	}
 
 	if (!bcmerror && buf && ioc.buf) {
@@ -3111,6 +3113,20 @@ int net_os_set_packet_filter(struct net_device *dev, int val)
 				dhd_set_packet_filter(val, &dhd->pub);
 		}
 		dhd_os_proto_unblock(&dhd->pub);
+	}
+	return ret;
+}
+
+int net_os_send_hang_message(struct net_device *dev)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	int ret = 0;
+
+	if (dhd) {
+		if (!dhd->hang_was_sent) {
+			dhd->hang_was_sent = 1;
+			ret = wl_iw_send_priv_event(dev, "HANG");
+		}
 	}
 	return ret;
 }
