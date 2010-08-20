@@ -1647,7 +1647,7 @@ void drbd_thread_current_set_cpu(struct drbd_conf *mdev)
 
 /* the appropriate socket mutex must be held already */
 int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
-			  enum drbd_packets cmd, struct p_header *h,
+			  enum drbd_packets cmd, struct p_header80 *h,
 			  size_t size, unsigned msg_flags)
 {
 	int sent, ok;
@@ -1657,7 +1657,7 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 
 	h->magic   = BE_DRBD_MAGIC;
 	h->command = cpu_to_be16(cmd);
-	h->length  = cpu_to_be16(size-sizeof(struct p_header));
+	h->length  = cpu_to_be16(size-sizeof(struct p_header80));
 
 	sent = drbd_send(mdev, sock, h, size, msg_flags);
 
@@ -1672,7 +1672,7 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
  * when we hold the appropriate socket mutex.
  */
 int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
-		  enum drbd_packets cmd, struct p_header *h, size_t size)
+		  enum drbd_packets cmd, struct p_header80 *h, size_t size)
 {
 	int ok = 0;
 	struct socket *sock;
@@ -1700,7 +1700,7 @@ int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
 int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd, char *data,
 		   size_t size)
 {
-	struct p_header h;
+	struct p_header80 h;
 	int ok;
 
 	h.magic   = BE_DRBD_MAGIC;
@@ -1807,7 +1807,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 		strcpy(p->integrity_alg, mdev->net_conf->integrity_alg);
 
 	rv = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_PROTOCOL,
-			   (struct p_header *)p, size);
+			   (struct p_header80 *)p, size);
 	kfree(p);
 	return rv;
 }
@@ -1833,7 +1833,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 	put_ldev(mdev);
 
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, P_UUIDS,
-			     (struct p_header *)&p, sizeof(p));
+			     (struct p_header80 *)&p, sizeof(p));
 }
 
 int drbd_send_uuids(struct drbd_conf *mdev)
@@ -1854,7 +1854,7 @@ int drbd_send_sync_uuid(struct drbd_conf *mdev, u64 val)
 	p.uuid = cpu_to_be64(val);
 
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, P_SYNC_UUID,
-			     (struct p_header *)&p, sizeof(p));
+			     (struct p_header80 *)&p, sizeof(p));
 }
 
 int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags)
@@ -1884,7 +1884,7 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 	p.dds_flags = cpu_to_be16(flags);
 
 	ok = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_SIZES,
-			   (struct p_header *)&p, sizeof(p));
+			   (struct p_header80 *)&p, sizeof(p));
 	return ok;
 }
 
@@ -1909,7 +1909,7 @@ int drbd_send_state(struct drbd_conf *mdev)
 
 	if (likely(sock != NULL)) {
 		ok = _drbd_send_cmd(mdev, sock, P_STATE,
-				    (struct p_header *)&p, sizeof(p), 0);
+				    (struct p_header80 *)&p, sizeof(p), 0);
 	}
 
 	mutex_unlock(&mdev->data.mutex);
@@ -1927,7 +1927,7 @@ int drbd_send_state_req(struct drbd_conf *mdev,
 	p.val     = cpu_to_be32(val.i);
 
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, P_STATE_CHG_REQ,
-			     (struct p_header *)&p, sizeof(p));
+			     (struct p_header80 *)&p, sizeof(p));
 }
 
 int drbd_send_sr_reply(struct drbd_conf *mdev, int retcode)
@@ -1937,7 +1937,7 @@ int drbd_send_sr_reply(struct drbd_conf *mdev, int retcode)
 	p.retcode    = cpu_to_be32(retcode);
 
 	return drbd_send_cmd(mdev, USE_META_SOCKET, P_STATE_CHG_REPLY,
-			     (struct p_header *)&p, sizeof(p));
+			     (struct p_header80 *)&p, sizeof(p));
 }
 
 int fill_bitmap_rle_bits(struct drbd_conf *mdev,
@@ -2036,7 +2036,7 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 
 enum { OK, FAILED, DONE }
 send_bitmap_rle_or_plain(struct drbd_conf *mdev,
-	struct p_header *h, struct bm_xfer_ctx *c)
+	struct p_header80 *h, struct bm_xfer_ctx *c)
 {
 	struct p_compressed_bm *p = (void*)h;
 	unsigned long num_words;
@@ -2066,12 +2066,12 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 		if (len)
 			drbd_bm_get_lel(mdev, c->word_offset, num_words, (unsigned long*)h->payload);
 		ok = _drbd_send_cmd(mdev, mdev->data.socket, P_BITMAP,
-				   h, sizeof(struct p_header) + len, 0);
+				   h, sizeof(struct p_header80) + len, 0);
 		c->word_offset += num_words;
 		c->bit_offset = c->word_offset * BITS_PER_LONG;
 
 		c->packets[1]++;
-		c->bytes[1] += sizeof(struct p_header) + len;
+		c->bytes[1] += sizeof(struct p_header80) + len;
 
 		if (c->bit_offset > c->bm_bits)
 			c->bit_offset = c->bm_bits;
@@ -2087,14 +2087,14 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 int _drbd_send_bitmap(struct drbd_conf *mdev)
 {
 	struct bm_xfer_ctx c;
-	struct p_header *p;
+	struct p_header80 *p;
 	int ret;
 
 	ERR_IF(!mdev->bitmap) return FALSE;
 
 	/* maybe we should use some per thread scratch page,
 	 * and allocate that during initial device creation? */
-	p = (struct p_header *) __get_free_page(GFP_NOIO);
+	p = (struct p_header80 *) __get_free_page(GFP_NOIO);
 	if (!p) {
 		dev_err(DEV, "failed to allocate one page buffer in %s\n", __func__);
 		return FALSE;
@@ -2152,7 +2152,7 @@ int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr, u32 set_size)
 	if (mdev->state.conn < C_CONNECTED)
 		return FALSE;
 	ok = drbd_send_cmd(mdev, USE_META_SOCKET, P_BARRIER_ACK,
-			(struct p_header *)&p, sizeof(p));
+			(struct p_header80 *)&p, sizeof(p));
 	return ok;
 }
 
@@ -2180,7 +2180,7 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 	if (!mdev->meta.socket || mdev->state.conn < C_CONNECTED)
 		return FALSE;
 	ok = drbd_send_cmd(mdev, USE_META_SOCKET, cmd,
-				(struct p_header *)&p, sizeof(p));
+				(struct p_header80 *)&p, sizeof(p));
 	return ok;
 }
 
@@ -2188,8 +2188,8 @@ int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
 		     struct p_data *dp)
 {
 	const int header_size = sizeof(struct p_data)
-			      - sizeof(struct p_header);
-	int data_size  = ((struct p_header *)dp)->length - header_size;
+			      - sizeof(struct p_header80);
+	int data_size  = ((struct p_header80 *)dp)->length - header_size;
 
 	return _drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
 			      dp->block_id);
@@ -2238,7 +2238,7 @@ int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 	p.blksize  = cpu_to_be32(size);
 
 	ok = drbd_send_cmd(mdev, USE_DATA_SOCKET, cmd,
-				(struct p_header *)&p, sizeof(p));
+				(struct p_header80 *)&p, sizeof(p));
 	return ok;
 }
 
@@ -2256,7 +2256,7 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev,
 
 	p.head.magic   = BE_DRBD_MAGIC;
 	p.head.command = cpu_to_be16(cmd);
-	p.head.length  = cpu_to_be16(sizeof(p) - sizeof(struct p_header) + digest_size);
+	p.head.length  = cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + digest_size);
 
 	mutex_lock(&mdev->data.mutex);
 
@@ -2278,7 +2278,7 @@ int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
 	p.blksize  = cpu_to_be32(size);
 
 	ok = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_OV_REQUEST,
-			   (struct p_header *)&p, sizeof(p));
+			   (struct p_header80 *)&p, sizeof(p));
 	return ok;
 }
 
@@ -2447,10 +2447,17 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
-	p.head.magic   = BE_DRBD_MAGIC;
-	p.head.command = cpu_to_be16(P_DATA);
-	p.head.length  =
-		cpu_to_be16(sizeof(p) - sizeof(struct p_header) + dgs + req->size);
+	if (req->size <= (1 << 15)) {
+		p.head.h80.magic   = BE_DRBD_MAGIC;
+		p.head.h80.command = cpu_to_be16(P_DATA);
+		p.head.h80.length  =
+			cpu_to_be16(sizeof(p) - sizeof(union p_header) + dgs + req->size);
+	} else {
+		p.head.h95.magic   = BE_DRBD_MAGIC_BIG;
+		p.head.h95.command = cpu_to_be16(P_DATA);
+		p.head.h95.length  =
+			cpu_to_be32(sizeof(p) - sizeof(union p_header) + dgs + req->size);
+	}
 
 	p.sector   = cpu_to_be64(req->sector);
 	p.block_id = (unsigned long)req;
@@ -2511,10 +2518,17 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
-	p.head.magic   = BE_DRBD_MAGIC;
-	p.head.command = cpu_to_be16(cmd);
-	p.head.length  =
-		cpu_to_be16(sizeof(p) - sizeof(struct p_header) + dgs + e->size);
+	if (e->size <= (1 << 15)) {
+		p.head.h80.magic   = BE_DRBD_MAGIC;
+		p.head.h80.command = cpu_to_be16(cmd);
+		p.head.h80.length  =
+			cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
+	} else {
+		p.head.h95.magic   = BE_DRBD_MAGIC_BIG;
+		p.head.h95.command = cpu_to_be16(cmd);
+		p.head.h95.length  =
+			cpu_to_be32(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
+	}
 
 	p.sector   = cpu_to_be64(e->sector);
 	p.block_id = e->block_id;
@@ -2527,8 +2541,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	if (!drbd_get_data_sock(mdev))
 		return 0;
 
-	ok = sizeof(p) == drbd_send(mdev, mdev->data.socket, &p,
-					sizeof(p), dgs ? MSG_MORE : 0);
+	ok = sizeof(p) == drbd_send(mdev, mdev->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_ee(mdev, mdev->integrity_w_tfm, e, dgb);
