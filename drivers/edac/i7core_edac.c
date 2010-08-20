@@ -1947,17 +1947,20 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	i7core_dev->mci = NULL;
 }
 
-static int i7core_register_mci(struct i7core_dev *i7core_dev,
-			       const int num_channels, const int num_csrows)
+static int i7core_register_mci(struct i7core_dev *i7core_dev)
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
 	int csrow = 0;
-	int rc;
+	int rc, channels, csrows;
+
+	/* Check the number of active and not disabled channels */
+	rc = i7core_get_active_channels(i7core_dev->socket, &channels, &csrows);
+	if (unlikely(rc < 0))
+		return rc;
 
 	/* allocate a new MC control structure */
-	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels,
-			    i7core_dev->socket);
+	mci = edac_mc_alloc(sizeof(*pvt), csrows, channels, i7core_dev->socket);
 	if (unlikely(!mci))
 		return -ENOMEM;
 
@@ -2079,16 +2082,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 		goto fail0;
 
 	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
-		int channels;
-		int csrows;
-
-		/* Check the number of active and not disabled channels */
-		rc = i7core_get_active_channels(i7core_dev->socket,
-						&channels, &csrows);
-		if (unlikely(rc < 0))
-			goto fail1;
-
-		rc = i7core_register_mci(i7core_dev, channels, csrows);
+		rc = i7core_register_mci(i7core_dev);
 		if (unlikely(rc < 0))
 			goto fail1;
 	}
