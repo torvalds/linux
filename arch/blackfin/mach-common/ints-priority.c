@@ -511,7 +511,7 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 	int i, irq = 0;
 	u32 status = bfin_read_EMAC_SYSTAT();
 
-	for (i = 0; i < (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
+	for (i = 0; i <= (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
 		if (status & (1L << i)) {
 			irq = IRQ_MAC_PHYINT + i;
 			break;
@@ -529,8 +529,9 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 	} else
 		printk(KERN_ERR
 		       "%s : %s : LINE %d :\nIRQ ?: MAC ERROR"
-		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
-		       __func__, __FILE__, __LINE__);
+		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND"
+		       "(EMAC_SYSTAT=0x%X)\n",
+		       __func__, __FILE__, __LINE__, status);
 }
 #endif
 
