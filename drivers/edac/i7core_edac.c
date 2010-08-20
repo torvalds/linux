@@ -243,8 +243,6 @@ struct i7core_pvt {
 	struct i7core_inject	inject;
 	struct i7core_channel	channel[NUM_CHANS];
 
-	int		channels; /* Number of active channels */
-
 	int		ce_count_available;
 	int 		csrow_map[NUM_CHANS][MAX_DIMMS];
 
