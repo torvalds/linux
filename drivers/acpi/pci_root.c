@@ -226,22 +226,35 @@ static acpi_status acpi_pci_run_osc(acpi_handle handle,
 	return status;
 }
 
-static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root, u32 flags)
+static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
+					u32 support,
+					u32 *control)
 {
 	acpi_status status;
-	u32 support_set, result, capbuf[3];
+	u32 result, capbuf[3];
 
-	/* do _OSC query for all possible controls */
-	support_set = root->osc_support_set | (flags & OSC_PCI_SUPPORT_MASKS);
+	support &= OSC_PCI_SUPPORT_MASKS;
+	support |= root->osc_support_set;
+
 	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_TYPE] = support_set;
-	capbuf[OSC_CONTROL_TYPE] = OSC_PCI_CONTROL_MASKS;
+	capbuf[OSC_SUPPORT_TYPE] = support;
+	if (control) {
+		*control &= OSC_PCI_CONTROL_MASKS;
+		capbuf[OSC_CONTROL_TYPE] = *control | root->osc_control_set;
+	} else {
+		/* Run _OSC query for all possible controls. */
+		capbuf[OSC_CONTROL_TYPE] = OSC_PCI_CONTROL_MASKS;
+	}
 
 	status = acpi_pci_run_osc(root->device->handle, capbuf, &result);
 	if (ACPI_SUCCESS(status)) {
-		root->osc_support_set = support_set;
-		root->osc_control_qry = result;
-		root->osc_queried = 1;
+		root->osc_support_set = support;
+		if (control) {
+			*control = result;
+		} else {
+			root->osc_control_qry = result;
+			root->osc_queried = 1;
+		}
 	}
 	return status;
 }
@@ -255,7 +268,7 @@ static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 	if (ACPI_FAILURE(status))
 		return status;
 	mutex_lock(&osc_lock);
-	status = acpi_pci_query_osc(root, flags);
+	status = acpi_pci_query_osc(root, flags, NULL);
 	mutex_unlock(&osc_lock);
 	return status;
 }
@@ -397,7 +410,7 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
 
 	/* Need to query controls first before requesting them */
 	if (!root->osc_queried) {
-		status = acpi_pci_query_osc(root, root->osc_support_set);
+		status = acpi_pci_query_osc(root, root->osc_support_set, NULL);
 		if (ACPI_FAILURE(status))
 			goto out;
 	}
