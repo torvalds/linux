@@ -1696,7 +1696,7 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 	int used_pages;
 	LIST_HEAD(invalid_list);
 
-	used_pages = kvm->arch.n_alloc_mmu_pages - kvm_mmu_available_pages(kvm);
+	used_pages = kvm->arch.n_max_mmu_pages - kvm_mmu_available_pages(kvm);
 	used_pages = max(0, used_pages);
 
 	/*
@@ -1721,9 +1721,9 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 	}
 	else
 		kvm->arch.n_free_mmu_pages += kvm_nr_mmu_pages
-					 - kvm->arch.n_alloc_mmu_pages;
+					 - kvm->arch.n_max_mmu_pages;
 
-	kvm->arch.n_alloc_mmu_pages = kvm_nr_mmu_pages;
+	kvm->arch.n_max_mmu_pages = kvm_nr_mmu_pages;
 }
 
 static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
@@ -3141,7 +3141,7 @@ static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
-		npages = kvm->arch.n_alloc_mmu_pages -
+		npages = kvm->arch.n_max_mmu_pages -
 			 kvm_mmu_available_pages(kvm);
 		cache_count += npages;
 		if (!kvm_freed && nr_to_scan > 0 && npages > 0) {
