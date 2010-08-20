@@ -973,9 +973,9 @@ static int kvm_write_guest_time(struct kvm_vcpu *v)
 		return 1;
 	}
 
-	if (unlikely(vcpu->hv_clock_tsc_khz != this_tsc_khz)) {
+	if (unlikely(vcpu->hw_tsc_khz != this_tsc_khz)) {
 		kvm_set_time_scale(this_tsc_khz, &vcpu->hv_clock);
-		vcpu->hv_clock_tsc_khz = this_tsc_khz;
+		vcpu->hw_tsc_khz = this_tsc_khz;
 	}
 
 	/* With all the info we got, fill in the values */
@@ -1866,13 +1866,24 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
-	kvm_request_guest_time_update(vcpu);
+	if (unlikely(vcpu->cpu != cpu)) {
+		/* Make sure TSC doesn't go backwards */
+		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
+				native_read_tsc() - vcpu->arch.last_host_tsc;
+		if (tsc_delta < 0)
+			mark_tsc_unstable("KVM discovered backwards TSC");
+		if (check_tsc_unstable())
+			kvm_x86_ops->adjust_tsc_offset(vcpu, -tsc_delta);
+		kvm_migrate_timers(vcpu);
+		vcpu->cpu = cpu;
+	}
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops->vcpu_put(vcpu);
 	kvm_put_guest_fpu(vcpu);
+	vcpu->arch.last_host_tsc = native_read_tsc();
 }
 
 static int is_efer_nx(void)
