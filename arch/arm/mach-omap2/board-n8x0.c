@@ -614,29 +614,24 @@ static int n8x0_menelaus_late_init(struct device *dev)
 	return 0;
 }
 
-static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] = {
-	{
-		I2C_BOARD_INFO("menelaus", 0x72),
-		.irq = INT_24XX_SYS_NIRQ,
-	},
-};
+#else
+static int n8x0_menelaus_late_init(struct device *dev)
+{
+	return 0;
+}
+#endif
 
-static struct menelaus_platform_data n8x0_menelaus_platform_data = {
+static struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
-static void __init n8x0_menelaus_init(void)
-{
-	n8x0_i2c_board_info_1[0].platform_data = &n8x0_menelaus_platform_data;
-	omap_register_i2c_bus(1, 400, n8x0_i2c_board_info_1,
-			      ARRAY_SIZE(n8x0_i2c_board_info_1));
-}
-
-#else
-static inline void __init n8x0_menelaus_init(void)
-{
-}
-#endif
+static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] __initdata = {
+	{
+		I2C_BOARD_INFO("menelaus", 0x72),
+		.irq = INT_24XX_SYS_NIRQ,
+		.platform_data = &n8x0_menelaus_platform_data,
+	},
+};
 
 static void __init n8x0_map_io(void)
 {
@@ -665,9 +660,10 @@ static void __init n8x0_init_machine(void)
 	/* FIXME: add n810 spi devices */
 	spi_register_board_info(n800_spi_board_info,
 				ARRAY_SIZE(n800_spi_board_info));
+	omap_register_i2c_bus(1, 400, n8x0_i2c_board_info_1,
+			      ARRAY_SIZE(n8x0_i2c_board_info_1));
 
 	omap_serial_init();
-	n8x0_menelaus_init();
 	n8x0_onenand_init();
 	n8x0_mmc_init();
 	n8x0_usb_init();
