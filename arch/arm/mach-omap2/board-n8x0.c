@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
+#include <sound/tlv320aic3x.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -633,6 +634,17 @@ static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] __initdata = {
 	},
 };
 
+static struct aic3x_pdata n810_aic33_data __initdata = {
+	.gpio_reset = 118,
+};
+
+static struct i2c_board_info n810_i2c_board_info_2[] __initdata = {
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+		.platform_data = &n810_aic33_data,
+	},
+};
+
 static void __init n8x0_map_io(void)
 {
 	omap2_set_globals_242x();
@@ -662,6 +674,10 @@ static void __init n8x0_init_machine(void)
 				ARRAY_SIZE(n800_spi_board_info));
 	omap_register_i2c_bus(1, 400, n8x0_i2c_board_info_1,
 			      ARRAY_SIZE(n8x0_i2c_board_info_1));
+	omap_register_i2c_bus(2, 400, NULL, 0);
+	if (machine_is_nokia_n810())
+		i2c_register_board_info(2, n810_i2c_board_info_2,
+					ARRAY_SIZE(n810_i2c_board_info_2));
 
 	omap_serial_init();
 	n8x0_onenand_init();
