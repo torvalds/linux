@@ -5,6 +5,7 @@ config ARCH_MX51
 	default y
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
+	select ARCH_MXC_AUDMUX_V2
 
 comment "MX5 platforms:"
 
