@@ -1610,7 +1610,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
-		return NULL;
+		return;
 	}
 
 	perf_callchain_store(entry, regs->ip);
@@ -1663,7 +1663,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
-		return NULL;
+		return;
 	}
 
 	fp = (void __user *)regs->bp;
