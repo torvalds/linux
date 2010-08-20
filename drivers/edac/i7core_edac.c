@@ -1933,9 +1933,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 		__func__, mci, &i7core_dev->pdev[0]->dev);
 
-	/* record ptr to the generic device */
-	mci->dev = &i7core_dev->pdev[0]->dev;
-
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
 
@@ -1954,21 +1951,22 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	mci->dev_name = pci_name(i7core_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
 
-	if (pvt->is_registered)
-		mci->mc_driver_sysfs_attributes = i7core_sysfs_rdimm_attrs;
-	else
-		mci->mc_driver_sysfs_attributes = i7core_sysfs_udimm_attrs;
-
-	/* Set the function pointer to an actual operation function */
-	mci->edac_check = i7core_check_error;
-
 	/* Store pci devices at mci for faster access */
 	rc = mci_bind_devs(mci, i7core_dev);
 	if (unlikely(rc < 0))
 		goto fail;
 
+	if (pvt->is_registered)
+		mci->mc_driver_sysfs_attributes = i7core_sysfs_rdimm_attrs;
+	else
+		mci->mc_driver_sysfs_attributes = i7core_sysfs_udimm_attrs;
+
 	/* Get dimm basic config */
 	get_dimm_config(mci, &csrow);
+	/* record ptr to the generic device */
+	mci->dev = &i7core_dev->pdev[0]->dev;
+	/* Set the function pointer to an actual operation function */
+	mci->edac_check = i7core_check_error;
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (unlikely(edac_mc_add_mc(mci))) {
