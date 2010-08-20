@@ -167,6 +167,12 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 
 void nilfs_destroy_inode(struct inode *inode)
 {
+	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	if (mdi) {
+		kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
+		kfree(mdi);
+	}
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
 }
 
