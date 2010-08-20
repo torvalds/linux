@@ -1954,7 +1954,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	/* Store pci devices at mci for faster access */
 	rc = mci_bind_devs(mci, i7core_dev);
 	if (unlikely(rc < 0))
-		goto fail;
+		goto fail0;
 
 	if (pvt->is_registered)
 		mci->mc_driver_sysfs_attributes = i7core_sysfs_rdimm_attrs;
@@ -1977,7 +1977,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 		 */
 
 		rc = -EINVAL;
-		goto fail;
+		goto fail0;
 	}
 
 	/* Default error mask is any memory */
@@ -1998,11 +1998,17 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	if (unlikely(rc < 0)) {
 		debugf0("MC: " __FILE__
 			": %s(): failed edac_mce_register()\n", __func__);
+		goto fail1;
 	}
 
-fail:
-	if (rc < 0)
-		edac_mc_free(mci);
+	return 0;
+
+fail1:
+	i7core_pci_ctl_release(pvt);
+	edac_mc_del_mc(mci->dev);
+fail0:
+	kfree(mci->ctl_name);
+	edac_mc_free(mci);
 	return rc;
 }
 
