@@ -1262,6 +1262,26 @@ static long tegra_audio_out_ioctl(struct file *file,
 		if (!rc)
 			aos->errors = 0;
 		break;
+	case TEGRA_AUDIO_OUT_PRELOAD_FIFO: {
+		struct tegra_audio_out_preload preload;
+		if (copy_from_user(&preload, (void __user *)arg,
+				sizeof(preload))) {
+			rc = -EFAULT;
+			break;
+		}
+		rc = kfifo_from_user(&ads->out.fifo,
+				(void __user *)preload.data, preload.len,
+				&preload.len_written);
+		if (rc < 0) {
+			pr_err("%s: error copying from user\n", __func__);
+			break;
+		}
+		if (copy_to_user((void __user *)arg, &preload, sizeof(preload)))
+			rc = -EFAULT;
+		pr_info("%s: preloaded output fifo with %d bytes\n", __func__,
+			preload.len_written);
+	}
+		break;
 	default:
 		rc = -EINVAL;
 	}

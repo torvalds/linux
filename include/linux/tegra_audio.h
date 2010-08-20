@@ -58,5 +58,13 @@ struct tegra_audio_buf_config {
 #define TEGRA_AUDIO_OUT_GET_ERROR_COUNT	_IOR(TEGRA_AUDIO_MAGIC, 9, \
 			unsigned *)
 
+struct tegra_audio_out_preload {
+	void *data;
+	size_t len;
+	size_t len_written;
+};
+
+#define TEGRA_AUDIO_OUT_PRELOAD_FIFO	_IOWR(TEGRA_AUDIO_MAGIC, 10, \
+			struct tegra_audio_out_preload *)
 
 #endif/*_CPCAP_AUDIO_H*/
