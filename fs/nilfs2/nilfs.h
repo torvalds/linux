@@ -248,6 +248,8 @@ extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
 extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
 extern struct inode *nilfs_iget(struct super_block *, unsigned long);
+extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
+				       unsigned long ino, __u64 cno);
 extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
@@ -292,11 +294,8 @@ int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
 int nilfs_gccache_submit_read_node(struct inode *, sector_t, __u64,
 				   struct buffer_head **);
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *);
-int nilfs_init_gccache(struct the_nilfs *);
-void nilfs_destroy_gccache(struct the_nilfs *);
-void nilfs_clear_gcinode(struct inode *);
-struct inode *nilfs_gc_iget(struct the_nilfs *, ino_t, __u64);
-void nilfs_remove_all_gcinode(struct the_nilfs *);
+int nilfs_init_gcinode(struct inode *inode);
+void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs);
 
 /* gcdat.c */
 int nilfs_init_gcdat_inode(struct the_nilfs *);

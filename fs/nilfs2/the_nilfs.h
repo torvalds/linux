@@ -81,7 +81,6 @@ enum {
  * @ns_sufile: segusage file inode
  * @ns_gc_dat: shadow inode of the DAT file inode for GC
  * @ns_gc_inodes: dummy inodes to keep live blocks
- * @ns_gc_inodes_h: hash list to keep dummy inode holding live blocks
  * @ns_blocksize_bits: bit length of block size
  * @ns_blocksize: block size
  * @ns_nsegments: number of segments in filesystem
@@ -165,9 +164,8 @@ struct the_nilfs {
 	struct inode	       *ns_sufile;
 	struct inode	       *ns_gc_dat;
 
-	/* GC inode list and hash table head */
+	/* GC inode list */
 	struct list_head	ns_gc_inodes;
-	struct hlist_head      *ns_gc_inodes_h;
 
 	/* Disk layout information (static) */
 	unsigned int		ns_blocksize_bits;
@@ -181,9 +179,6 @@ struct the_nilfs {
 	int			ns_first_ino;
 	u32			ns_crc_seed;
 };
-
-#define NILFS_GCINODE_HASH_BITS		8
-#define NILFS_GCINODE_HASH_SIZE		(1<<NILFS_GCINODE_HASH_BITS)
 
 #define THE_NILFS_FNS(bit, name)					\
 static inline void set_nilfs_##name(struct the_nilfs *nilfs)		\

@@ -2451,9 +2451,8 @@ nilfs_remove_written_gcinodes(struct the_nilfs *nilfs, struct list_head *head)
 	list_for_each_entry_safe(ii, n, head, i_dirty) {
 		if (!test_bit(NILFS_I_UPDATED, &ii->i_state))
 			continue;
-		hlist_del_init(&ii->vfs_inode.i_hash);
 		list_del_init(&ii->i_dirty);
-		nilfs_clear_gcinode(&ii->vfs_inode);
+		iput(&ii->vfs_inode);
 	}
 }
 

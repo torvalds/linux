@@ -527,6 +527,28 @@ struct inode *nilfs_iget(struct super_block *sb, unsigned long ino)
 	return inode;
 }
 
+struct inode *nilfs_iget_for_gc(struct super_block *sb, unsigned long ino,
+				__u64 cno)
+{
+	struct nilfs_iget_args args = { .ino = ino, .cno = cno, .for_gc = 1 };
+	struct inode *inode;
+	int err;
+
+	inode = iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
+	if (unlikely(!inode))
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
+	err = nilfs_init_gcinode(inode);
+	if (unlikely(err)) {
+		iget_failed(inode);
+		return ERR_PTR(err);
+	}
+	unlock_new_inode(inode);
+	return inode;
+}
+
 void nilfs_write_inode_common(struct inode *inode,
 			      struct nilfs_inode *raw_inode, int has_bmap)
 {
