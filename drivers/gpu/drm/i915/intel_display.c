@@ -43,7 +43,7 @@
 
 bool intel_pipe_has_type (struct drm_crtc *crtc, int type);
 static void intel_update_watermarks(struct drm_device *dev);
-static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule);
+static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc);
 
 typedef struct {
@@ -1527,7 +1527,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		intel_update_fbc(crtc, &crtc->mode);
 
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
-	intel_increase_pllclock(crtc, true);
+	intel_increase_pllclock(crtc);
 
 	return 0;
 }
@@ -4664,7 +4664,7 @@ static void intel_crtc_idle_timer(unsigned long arg)
 	queue_work(dev_priv->wq, &dev_priv->idle_work);
 }
 
-static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
+static void intel_increase_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -4699,9 +4699,8 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 	}
 
 	/* Schedule downclock */
-	if (schedule)
-		mod_timer(&intel_crtc->idle_timer, jiffies +
-			  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
+	mod_timer(&intel_crtc->idle_timer, jiffies +
+		  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
 }
 
 static void intel_decrease_pllclock(struct drm_crtc *crtc)
@@ -4837,7 +4836,7 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 					I915_WRITE(FW_BLC_SELF, fw_blc_self | FW_BLC_SELF_EN_MASK);
 				}
 				/* Non-busy -> busy, upclock */
-				intel_increase_pllclock(crtc, true);
+				intel_increase_pllclock(crtc);
 				intel_crtc->busy = true;
 			} else {
 				/* Busy -> busy, put off timer */
@@ -6039,11 +6038,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 			continue;
 
 		intel_crtc = to_intel_crtc(crtc);
-		intel_increase_pllclock(crtc, false);
-		del_timer_sync(&intel_crtc->idle_timer);
+		intel_increase_pllclock(crtc);
 	}
-
-	del_timer_sync(&dev_priv->idle_timer);
 
 	if (dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
@@ -6078,9 +6074,16 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	drm_irq_uninstall(dev);
 	cancel_work_sync(&dev_priv->hotplug_work);
 
+	/* Shut off idle work before the crtcs get freed. */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+		del_timer_sync(&intel_crtc->idle_timer);
+	}
+	del_timer_sync(&dev_priv->idle_timer);
+	cancel_work_sync(&dev_priv->idle_work);
+
 	drm_mode_config_cleanup(dev);
 }
-
 
 /*
  * Return which encoder is currently attached for connector.
