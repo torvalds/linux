@@ -571,6 +571,7 @@ struct gfs2_sbd {
 	struct list_head sd_rindex_mru_list;
 	struct gfs2_rgrpd *sd_rindex_forward;
 	unsigned int sd_rgrps;
+	unsigned int sd_max_rg_data;
 
 	/* Journal index stuff */
 

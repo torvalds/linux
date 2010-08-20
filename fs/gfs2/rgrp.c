@@ -589,6 +589,8 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	struct inode *inode = &ip->i_inode;
 	struct file_ra_state ra_state;
 	u64 rgrp_count = i_size_read(inode);
+	struct gfs2_rgrpd *rgd;
+	unsigned int max_data = 0;
 	int error;
 
 	do_div(rgrp_count, sizeof(struct gfs2_rindex));
@@ -603,6 +605,10 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		}
 	}
 
+	list_for_each_entry(rgd, &sdp->sd_rindex_list, rd_list)
+		if (rgd->rd_data > max_data)
+			max_data = rgd->rd_data;
+	sdp->sd_max_rg_data = max_data;
 	sdp->sd_rindex_uptodate = 1;
 	return 0;
 }
@@ -622,6 +628,8 @@ static int gfs2_ri_update_special(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
 	struct file_ra_state ra_state;
+	struct gfs2_rgrpd *rgd;
+	unsigned int max_data = 0;
 	int error;
 
 	file_ra_state_init(&ra_state, inode->i_mapping);
@@ -636,6 +644,10 @@ static int gfs2_ri_update_special(struct gfs2_inode *ip)
 			return error;
 		}
 	}
+	list_for_each_entry(rgd, &sdp->sd_rindex_list, rd_list)
+		if (rgd->rd_data > max_data)
+			max_data = rgd->rd_data;
+	sdp->sd_max_rg_data = max_data;
 
 	sdp->sd_rindex_uptodate = 1;
 	return 0;
