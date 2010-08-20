@@ -1369,11 +1369,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 				  unsigned long agp_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int fb_bar = IS_I9XX(dev) ? 2 : 0;
 	int ret = 0;
-
-	dev->mode_config.fb_base = pci_resource_start(dev->pdev, fb_bar) &
-		0xff000000;
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
