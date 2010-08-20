@@ -290,42 +290,113 @@ static int lp8725_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 static int lp8725_dcdc_is_enabled(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
-	int buck = rdev_get_id(dev) - LP8725_DCDC1;
-	u16 mask = 1 << (buck * 2);
+	int buck = rdev_get_id(dev);
 	u16 val;
+	u16 mask,mask2;
 
-	val = lp8725_reg_read(lp8725, LP8725_BUCK_VOL_ENABLE_REG);
-	return (val & mask) != 0;
+	switch(buck)
+	{
+	case LP8725_DCDC1:
+		mask = 1 << 0;
+		mask2 = 1 << 2;		
+		val = lp8725_reg_read(lp8725, LP8725_BUCK_VOL_ENABLE_REG);		
+		return ((val & mask) && (val & mask2)) != 0;	
+	case LP8725_DCDC2:		
+		mask = 1 << 4;
+		mask2 = 1 << 3;
+		val = lp8725_reg_read(lp8725, LP8725_BUCK_VOL_ENABLE_REG);		
+		return ((val & mask) && (val & mask2)) != 0;
+	case LP8725_DCDC1_V2:
+		mask = 1 << 0;
+		mask2 = 1<< 2;
+		val = lp8725_reg_read(lp8725, LP8725_BUCK_VOL_ENABLE_REG);		
+		return  ((val & mask) && (!(val & mask2))) !=0;
+	case LP8725_DCDC2_V2:		
+		mask = 1 << 4;
+		mask2 = 1 << 3;
+		val = lp8725_reg_read(lp8725, LP8725_BUCK_VOL_ENABLE_REG);		
+		return ((val & mask) && (!(val & mask2))) !=0;
+	}
 }
 
 static int lp8725_dcdc_enable(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
-	int buck = rdev_get_id(dev) - LP8725_DCDC1;
-	u16 mask = 1 << (buck * 2);
-
-	return lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);
+	int buck = rdev_get_id(dev);
+	u16 mask;
+	int ret = 0;
+	switch(buck)
+	{
+	case LP8725_DCDC1:
+		mask = 1 << 0;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);
+		mask = 1 << 2;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);		
+		break;
+	case LP8725_DCDC1_V2:
+		mask = 1 << 0;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);
+		mask = 1 << 2;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, 0);		
+		break;
+	case LP8725_DCDC2:
+		mask = 1 << 4;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);	
+		mask = 1 << 3;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);		
+		break;
+	case LP8725_DCDC2_V2:
+		mask = 1 << 4;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);	
+		mask = 1 << 3;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, 0);		
+		break;
+	}
+	dev->use_count--;
+	return ret;
 }
 
 static int lp8725_dcdc_disable(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
-	int buck = rdev_get_id(dev) - LP8725_DCDC1;
-	u16 mask = 1 << (buck * 2);
+	int buck = rdev_get_id(dev) ;
+	u16 mask;	
 
-	return lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, 0);
+	switch(buck)
+	{
+	case LP8725_DCDC1:
+	case LP8725_DCDC1_V2:
+		mask = 1 << 0;
+		return lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, 0);
+	case LP8725_DCDC2:
+	case LP8725_DCDC2_V2:
+		mask = 1 << 4;
+		return lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask,0);
+	}
 }
 
 static int lp8725_dcdc_get_voltage(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
-	int buck = rdev_get_id(dev) - LP8725_DCDC1;
-	u16 reg;
+	int buck = rdev_get_id(dev) ;
+	u16 reg = 0;
 	int val;
 
-	reg = lp8725_reg_read(lp8725, LP8725_BUCK_TARGET_VOL1_REG(buck));
-	reg &= BUCK_TARGET_VOL_MASK;
+	switch(buck)
+	{
+	case LP8725_DCDC1:
+	case LP8725_DCDC2:
+		buck -= LP8725_DCDC1;
+		reg = lp8725_reg_read(lp8725, LP8725_BUCK_TARGET_VOL1_REG(buck));
+		break;
+	case LP8725_DCDC1_V2:
+	case LP8725_DCDC2_V2:
+		buck -= LP8725_DCDC1_V2;
+		reg = lp8725_reg_read(lp8725, LP8725_BUCK_TARGET_VOL2_REG(buck));
+		break;
+	}
 
+	reg &= BUCK_TARGET_VOL_MASK;
 	val = 1000 * buck_voltage_map[reg];
 	
 	return val;
@@ -335,11 +406,11 @@ static int lp8725_dcdc_set_voltage(struct regulator_dev *dev,
 				  int min_uV, int max_uV)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
-	int buck = rdev_get_id(dev) - LP8725_DCDC1;
+	int buck = rdev_get_id(dev);
 	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
 	const int *vol_map = buck_voltage_map;
 	u16 val;
-	int ret;
+	int ret = 0;
 
 	if (min_vol < vol_map[BUCK_TARGET_VOL_MIN_IDX] ||
 	    min_vol > vol_map[BUCK_TARGET_VOL_MAX_IDX])
@@ -353,17 +424,55 @@ static int lp8725_dcdc_set_voltage(struct regulator_dev *dev,
 	if (vol_map[val] > max_vol)
 		return -EINVAL;
 
-	ret = lp8725_set_bits(lp8725, LP8725_BUCK_TARGET_VOL1_REG(buck),
-	       BUCK_TARGET_VOL_MASK, val);
-	if (ret)
-		return ret;
+	switch(buck)
+	{
+	case LP8725_DCDC1:
+	case LP8725_DCDC2:
+		buck -= LP8725_DCDC1;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_TARGET_VOL1_REG(buck),
+	       	BUCK_TARGET_VOL_MASK, val);
+		if (ret)
+			return ret;
+		break;
+	case LP8725_DCDC1_V2:
+	case LP8725_DCDC2_V2:
+		buck -= LP8725_DCDC1_V2;
+		ret = lp8725_set_bits(lp8725, LP8725_BUCK_TARGET_VOL2_REG(buck),
+	       	BUCK_TARGET_VOL_MASK, val);
+		if (ret)
+			return ret;
+		break;
+	}
 
-	ret = lp8725_set_bits(lp8725, LP8725_BUCK_TARGET_VOL2_REG(buck),
-	       BUCK_TARGET_VOL_MASK, val);
-	if (ret)
-		return ret;
+	return ret;
+}
 
-		return ret;
+static int lp8725_dcdc_get_mode(struct regulator_dev *dev)
+{
+	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
+	u16 mask = 1 << 1;
+	u16 val;
+	val = lp8725_reg_read(lp8725, LP8725_BUCK_VOL_ENABLE_REG);
+	if ((val & mask) == 0)
+		return REGULATOR_MODE_NORMAL;
+	else
+		return REGULATOR_MODE_IDLE;
+}
+
+static int lp8725_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
+{
+	struct lp8725 *lp8725 = rdev_get_drvdata(dev);	
+	u16 mask = 1 << 1;
+	switch(mode)
+	{
+	case REGULATOR_MODE_NORMAL:
+		return lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, 0);		
+	case REGULATOR_MODE_IDLE:
+		return lp8725_set_bits(lp8725, LP8725_BUCK_VOL_ENABLE_REG, mask, mask);
+	default:
+		printk("error:pmu_lp8725 only normal and idle mode\n");
+		return -EINVAL;
+	}	
 }
 
 static struct regulator_ops lp8725_dcdc_ops = {
@@ -373,6 +482,8 @@ static struct regulator_ops lp8725_dcdc_ops = {
 	.disable = lp8725_dcdc_disable,
 	.get_voltage = lp8725_dcdc_get_voltage,
 	.set_voltage = lp8725_dcdc_set_voltage,
+	.get_mode = lp8725_dcdc_get_mode,
+	.set_mode = lp8725_dcdc_set_mode,
 };
 
 static struct regulator_desc regulators[] = {
@@ -443,6 +554,22 @@ static struct regulator_desc regulators[] = {
 	{
 		.name = "DCDC2",
 		.id = LP8725_DCDC2,
+		.ops = &lp8725_dcdc_ops,
+		.n_voltages = ARRAY_SIZE(buck_voltage_map),
+		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
+	},
+	{
+		.name = "DCDC1_V2",
+		.id = LP8725_DCDC1_V2,
+		.ops = &lp8725_dcdc_ops,
+		.n_voltages = ARRAY_SIZE(buck_voltage_map),
+		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
+	},
+	{
+		.name = "DCDC2_V2",
+		.id = LP8725_DCDC2_V2,
 		.ops = &lp8725_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck_voltage_map),
 		.type = REGULATOR_VOLTAGE,
@@ -545,7 +672,6 @@ static int lp8725_set_bits(struct lp8725 *lp8725, u8 reg, u16 mask, u16 val)
 
 static int lp8725_set_init(void)
 {
-	int ret;
 	int tmp = 0;
 	struct regulator *ldo1,*ldo2,*ldo3,*ldo4,*ldo5;
 	struct regulator *lilo1,*lilo2;

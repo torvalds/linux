@@ -417,7 +417,8 @@ static struct regulator_init_data rk2818_lp8725_buck1_data = {
 		.max_uV = 1500000,
 		.apply_uV = 1,
 		.always_on = 1,
-		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(buck1_consumers),
 	.consumer_supplies = buck1_consumers
@@ -437,14 +438,51 @@ static struct regulator_init_data rk2818_lp8725_buck2_data = {
 		.max_uV = 1800000,
 		.apply_uV = 1,
 		.always_on = 1,
-		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(buck2_consumers),
 	.consumer_supplies = buck2_consumers
 };
 
+/*buck1_v2 VDD12 Core*/
+static struct regulator_consumer_supply buck1_v2_consumers[] = {
+	{
+		.supply = "vdd12_v2",
+	}
+};
 
+static struct regulator_init_data rk2818_lp8725_buck1_v2_data = {
+	.constraints = {
+		.name = "VDD12_V2",
+		.min_uV = 800000,
+		.max_uV = 1500000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(buck1_v2_consumers),
+	.consumer_supplies = buck1_v2_consumers
+};
 
+/*buck2_v2 VDDDR MobileDDR VCC*/
+static struct regulator_consumer_supply buck2_v2_consumers[] = {
+	{
+		.supply = "vccdr_v2",
+	}
+};
+
+static struct regulator_init_data rk2818_lp8725_buck2_v2_data = {
+	.constraints = {
+		.name = "VCCDR_V2",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(buck2_v2_consumers),
+	.consumer_supplies = buck2_v2_consumers
+};
 
 struct lp8725_regulator_subdev rk2818_lp8725_regulator_subdev[] = {
 	{
@@ -491,7 +529,15 @@ struct lp8725_regulator_subdev rk2818_lp8725_regulator_subdev[] = {
 		.id=LP8725_DCDC2,
 		.initdata=&rk2818_lp8725_buck2_data,		
 	 },
-	
+	{
+		.id=LP8725_DCDC1_V2,
+		.initdata=&rk2818_lp8725_buck1_v2_data,		
+	 },
+
+	{
+		.id=LP8725_DCDC2_V2,
+		.initdata=&rk2818_lp8725_buck2_v2_data,		
+	 },
 };
 
 struct lp8725_platform_data rk2818_lp8725_data={

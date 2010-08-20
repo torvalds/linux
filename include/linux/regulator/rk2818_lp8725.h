@@ -28,8 +28,10 @@
 
 #define LP8725_DCDC1 7
 #define LP8725_DCDC2 8
+#define LP8725_DCDC1_V2 9
+#define LP8725_DCDC2_V2 10
 
-#define LP8725_NUM_REGULATORS 9
+#define LP8725_NUM_REGULATORS 11
 
 struct lp8725_regulator_subdev {
 	int id;
