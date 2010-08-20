@@ -688,23 +688,23 @@ static struct i2c_board_info __initdata stingray_i2c_bus4_power_info[] = {
 
 static struct mdm_ctrl_platform_data mdm_ctrl_platform_data = {
 	.gpios[MDM_CTRL_GPIO_AP_STATUS_0] = {
-		TEGRA_GPIO_PC1, MDM_GPIO_DIRECTION_OUT, 0, 0},
-	.gpios[MDM_CTRL_GPIO_AP_STATUS_1] = { TEGRA_GPIO_PC6,
-		MDM_GPIO_DIRECTION_OUT, 0, 0},
+		TEGRA_GPIO_PC1, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_ap_status0"},
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_1] = {
+		TEGRA_GPIO_PC6, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_ap_status1"},
 	.gpios[MDM_CTRL_GPIO_AP_STATUS_2] = {
-		TEGRA_GPIO_PQ3, MDM_GPIO_DIRECTION_OUT, 0, 0},
+		TEGRA_GPIO_PQ3, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_ap_status2"},
 	.gpios[MDM_CTRL_GPIO_BP_STATUS_0] = {
-		TEGRA_GPIO_PK3, MDM_GPIO_DIRECTION_IN, 0, 0},
+		TEGRA_GPIO_PK3, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_status0"},
 	.gpios[MDM_CTRL_GPIO_BP_STATUS_1] = {
-		TEGRA_GPIO_PK4, MDM_GPIO_DIRECTION_IN, 0, 0},
+		TEGRA_GPIO_PK4, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_status1"},
 	.gpios[MDM_CTRL_GPIO_BP_STATUS_2] = {
-		TEGRA_GPIO_PK2, MDM_GPIO_DIRECTION_IN, 0, 0},
+		TEGRA_GPIO_PK2, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_status2"},
 	.gpios[MDM_CTRL_GPIO_BP_RESOUT]   = {
-		TEGRA_GPIO_PS4, MDM_GPIO_DIRECTION_IN, 0, 0},
+		TEGRA_GPIO_PS4, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_resout"},
 	.gpios[MDM_CTRL_GPIO_BP_RESIN]    = {
-		TEGRA_GPIO_PZ1, MDM_GPIO_DIRECTION_OUT_NO_DEFAULT, 0, 0},
+		TEGRA_GPIO_PZ1, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_bp_resin"},
 	.gpios[MDM_CTRL_GPIO_BP_PWRON]    = {
-		TEGRA_GPIO_PS6, MDM_GPIO_DIRECTION_OUT_NO_DEFAULT, 0, 0},
+		TEGRA_GPIO_PS6, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_bp_pwr_on"},
 };
 
 static struct platform_device mdm_ctrl_platform_device = {
