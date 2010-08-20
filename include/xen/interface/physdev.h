@@ -121,6 +121,12 @@ struct physdev_op {
 	} u;
 };
 
+#define PHYSDEVOP_get_nr_pirqs    22
+struct physdev_nr_pirqs {
+    /* OUT */
+    uint32_t nr_pirqs;
+};
+
 /*
  * Notify that some PIRQ-bound event channels have been unmasked.
  * ** This command is obsolete since interface version 0x00030202 and is **

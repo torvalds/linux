@@ -102,6 +102,7 @@ struct irq_info
 
 static struct irq_info *irq_info;
 static int *pirq_to_irq;
+static int nr_pirqs;
 
 static int *evtchn_to_irq;
 struct cpu_evtchn_s {
@@ -378,10 +379,12 @@ static int get_nr_hw_irqs(void)
 	return ret;
 }
 
+/* callers of this function should make sure that PHYSDEVOP_get_nr_pirqs
+ * succeeded otherwise nr_pirqs won't hold the right value */
 static int find_unbound_pirq(void)
 {
 	int i;
-	for (i = 0; i < nr_irqs; i++) {
+	for (i = nr_pirqs-1; i >= 0; i--) {
 		if (pirq_to_irq[i] < 0)
 			return i;
 	}
@@ -601,6 +604,13 @@ int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 	struct physdev_irq irq_op;
 
 	spin_lock(&irq_mapping_update_lock);
+
+	if ((pirq > nr_pirqs) || (gsi > nr_irqs)) {
+		printk(KERN_WARNING "xen_map_pirq_gsi: %s %s is incorrect!\n",
+			pirq > nr_pirqs ? "nr_pirqs" :"",
+			gsi > nr_irqs ? "nr_irqs" : "");
+		goto out;
+	}
 
 	irq = find_irq_by_gsi(gsi);
 	if (irq != -1) {
@@ -1349,14 +1359,26 @@ void xen_callback_vector(void) {}
 
 void __init xen_init_IRQ(void)
 {
-	int i;
+	int i, rc;
+	struct physdev_nr_pirqs op_nr_pirqs;
 
 	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
 				    GFP_KERNEL);
 	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
 
-	pirq_to_irq = kcalloc(nr_irqs, sizeof(*pirq_to_irq), GFP_KERNEL);
-	for (i = 0; i < nr_irqs; i++)
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_nr_pirqs, &op_nr_pirqs);
+	if (rc < 0) {
+		nr_pirqs = nr_irqs;
+		if (rc != -ENOSYS)
+			printk(KERN_WARNING "PHYSDEVOP_get_nr_pirqs returned rc=%d\n", rc);
+	} else {
+		if (xen_pv_domain() && !xen_initial_domain())
+			nr_pirqs = max((int)op_nr_pirqs.nr_pirqs, nr_irqs);
+		else
+			nr_pirqs = op_nr_pirqs.nr_pirqs;
+	}
+	pirq_to_irq = kcalloc(nr_pirqs, sizeof(*pirq_to_irq), GFP_KERNEL);
+	for (i = 0; i < nr_pirqs; i++)
 		pirq_to_irq[i] = -1;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
