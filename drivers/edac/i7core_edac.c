@@ -2091,10 +2091,9 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	return 0;
 
 fail1:
-	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
-		if (i7core_dev->mci)
-			i7core_unregister_mci(i7core_dev);
-	}
+	list_for_each_entry(i7core_dev, &i7core_edac_list, list)
+		i7core_unregister_mci(i7core_dev);
+
 	i7core_put_all_devices();
 fail0:
 	mutex_unlock(&i7core_edac_lock);
@@ -2126,10 +2125,8 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
-		if (i7core_dev->mci)
-			i7core_unregister_mci(i7core_dev);
-	}
+	list_for_each_entry(i7core_dev, &i7core_edac_list, list)
+		i7core_unregister_mci(i7core_dev);
 
 	/* Release PCI resources */
 	i7core_put_all_devices();
