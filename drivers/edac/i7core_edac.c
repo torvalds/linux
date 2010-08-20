@@ -1471,10 +1471,6 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 	struct pci_dev *pdev;
 	int i, func, slot;
 
-	/* Associates i7core_dev and mci for future usage */
-	pvt->i7core_dev = i7core_dev;
-	i7core_dev->mci = mci;
-
 	pvt->is_registered = 0;
 	for (i = 0; i < i7core_dev->n_devs; i++) {
 		pdev = i7core_dev->pdev[i];
@@ -1918,6 +1914,39 @@ static void i7core_pci_ctl_release(struct i7core_pvt *pvt)
 	pvt->i7core_pci = NULL;
 }
 
+static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
+{
+	struct mem_ctl_info *mci = i7core_dev->mci;
+	struct i7core_pvt *pvt;
+
+	if (unlikely(!mci || !mci->pvt_info)) {
+		debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
+			__func__, &i7core_dev->pdev[0]->dev);
+
+		i7core_printk(KERN_ERR, "Couldn't find mci handler\n");
+		return;
+	}
+
+	pvt = mci->pvt_info;
+
+	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
+		__func__, mci, &i7core_dev->pdev[0]->dev);
+
+	/* Disable MCE NMI handler */
+	edac_mce_unregister(&pvt->edac_mce);
+
+	/* Disable EDAC polling */
+	i7core_pci_ctl_release(pvt);
+
+	/* Remove MC sysfs nodes */
+	edac_mc_del_mc(mci->dev);
+
+	debugf1("%s: free mci struct\n", mci->ctl_name);
+	kfree(mci->ctl_name);
+	edac_mc_free(mci);
+	i7core_dev->mci = NULL;
+}
+
 static int i7core_register_mci(struct i7core_dev *i7core_dev,
 			       const int num_channels, const int num_csrows)
 {
@@ -2003,6 +2032,10 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 		goto fail1;
 	}
 
+	/* Associates i7core_dev and mci for future usage */
+	pvt->i7core_dev = i7core_dev;
+	i7core_dev->mci = mci;
+
 	return 0;
 
 fail1:
@@ -2011,6 +2044,7 @@ fail1:
 fail0:
 	kfree(mci->ctl_name);
 	edac_mc_free(mci);
+	i7core_dev->mci = NULL;
 	return rc;
 }
 
@@ -2065,6 +2099,10 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	return 0;
 
 fail1:
+	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
+		if (i7core_dev->mci)
+			i7core_unregister_mci(i7core_dev);
+	}
 	i7core_put_all_devices();
 fail0:
 	mutex_unlock(&i7core_edac_lock);
@@ -2077,9 +2115,7 @@ fail0:
  */
 static void __devexit i7core_remove(struct pci_dev *pdev)
 {
-	struct mem_ctl_info *mci;
 	struct i7core_dev *i7core_dev;
-	struct i7core_pvt *pvt;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
 
@@ -2099,32 +2135,8 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 	}
 
 	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
-		mci = i7core_dev->mci;
-		if (unlikely(!mci || !mci->pvt_info)) {
-			debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
-				__func__, &i7core_dev->pdev[0]->dev);
-
-				i7core_printk(KERN_ERR,
-				      "Couldn't find mci hanler\n");
-		} else {
-			pvt = mci->pvt_info;
-
-			debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-				__func__, mci, &i7core_dev->pdev[0]->dev);
-
-			/* Disable MCE NMI handler */
-			edac_mce_unregister(&pvt->edac_mce);
-
-			/* Disable EDAC polling */
-			i7core_pci_ctl_release(pvt);
-
-			/* Remove MC sysfs nodes */
-			edac_mc_del_mc(mci->dev);
-
-			debugf1("%s: free mci struct\n", mci->ctl_name);
-			kfree(mci->ctl_name);
-			edac_mc_free(mci);
-		}
+		if (i7core_dev->mci)
+			i7core_unregister_mci(i7core_dev);
 	}
 
 	/* Release PCI resources */
