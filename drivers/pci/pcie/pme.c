@@ -23,8 +23,8 @@
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 
-#include "../../pci.h"
-#include "../portdrv.h"
+#include "../pci.h"
+#include "portdrv.h"
 
 #define PCI_EXP_RTSTA_PME	0x10000 /* PME status */
 #define PCI_EXP_RTSTA_PENDING	0x20000 /* PME pending */
