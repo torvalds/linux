@@ -59,8 +59,6 @@
 #define SPIPC0_SPIENA_MASK	BIT(8)		/* nREADY */
 
 #define SPIINT_MASKALL		0x0101035F
-#define SPI_INTLVL_1		0x000001FFu
-#define SPI_INTLVL_0		0x00000000u
 
 /* SPIDAT1 (upper 16 bit defines) */
 #define SPIDAT1_CSHOLD_MASK	BIT(12)
@@ -92,14 +90,8 @@
 #define SPIFLG_DESYNC_MASK		BIT(3)
 #define SPIFLG_BITERR_MASK		BIT(4)
 #define SPIFLG_OVRRUN_MASK		BIT(6)
-#define SPIFLG_RX_INTR_MASK		BIT(8)
-#define SPIFLG_TX_INTR_MASK		BIT(9)
 #define SPIFLG_BUF_INIT_ACTIVE_MASK	BIT(24)
 
-#define SPIINT_BITERR_INTR	BIT(4)
-#define SPIINT_OVRRUN_INTR	BIT(6)
-#define SPIINT_RX_INTR		BIT(8)
-#define SPIINT_TX_INTR		BIT(9)
 #define SPIINT_DMA_REQ_EN	BIT(16)
 
 /* SPI Controller registers */
@@ -136,8 +128,6 @@ struct davinci_spi {
 	resource_size_t		pbase;
 	void __iomem		*base;
 	size_t			region_size;
-	u32			irq;
-	struct completion	done;
 
 	const void		*tx;
 	void			*rx;
@@ -611,7 +601,7 @@ static int davinci_spi_check_error(struct davinci_spi *davinci_spi,
 static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *davinci_spi;
-	int int_status, count, ret;
+	int status, count, ret;
 	u8 conv;
 	u32 tx_data, data1_reg_val;
 	u32 buf_val, flg_val;
@@ -627,8 +617,6 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	conv = davinci_spi->bytes_per_word[spi->chip_select];
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
-	INIT_COMPLETION(davinci_spi->done);
-
 	ret = davinci_spi_bufs_prep(spi, davinci_spi);
 	if (ret)
 		return ret;
@@ -638,9 +626,10 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 
 	count = t->len / conv;
 
+	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
+
 	/* Determine the command to execute READ or WRITE */
 	if (t->tx_buf) {
-		clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
 
 		while (1) {
 			tx_data = davinci_spi->get_tx(davinci_spi);
@@ -668,45 +657,25 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 				break;
 		}
 	} else {
-		if (pdata->poll_mode) {
-			while (1) {
-				/* keeps the serial clock going */
-				if ((ioread32(davinci_spi->base + SPIBUF)
-						& SPIBUF_TXFULL_MASK) == 0)
-					iowrite32(data1_reg_val,
-						davinci_spi->base + SPIDAT1);
+		while (1) {
+			/* keeps the serial clock going */
+			if ((ioread32(davinci_spi->base + SPIBUF)
+					& SPIBUF_TXFULL_MASK) == 0)
+				iowrite32(data1_reg_val,
+					davinci_spi->base + SPIDAT1);
 
 				while (ioread32(davinci_spi->base + SPIBUF) &
-						SPIBUF_RXEMPTY_MASK)
+							SPIBUF_RXEMPTY_MASK)
 					cpu_relax();
 
-				flg_val = ioread32(davinci_spi->base + SPIFLG);
-				buf_val = ioread32(davinci_spi->base + SPIBUF);
+			flg_val = ioread32(davinci_spi->base + SPIFLG);
+			buf_val = ioread32(davinci_spi->base + SPIBUF);
 
-				davinci_spi->get_rx(buf_val, davinci_spi);
+			davinci_spi->get_rx(buf_val, davinci_spi);
 
-				count--;
-				if (count <= 0)
-					break;
-			}
-		} else {	/* Receive in Interrupt mode */
-			int i;
-
-			for (i = 0; i < count; i++) {
-				set_io_bits(davinci_spi->base + SPIINT,
-						SPIINT_BITERR_INTR
-						| SPIINT_OVRRUN_INTR
-						| SPIINT_RX_INTR);
-
-				iowrite32(data1_reg_val,
-						davinci_spi->base + SPIDAT1);
-
-				while (ioread32(davinci_spi->base + SPIINT) &
-						SPIINT_RX_INTR)
-					cpu_relax();
-			}
-			iowrite32((data1_reg_val & 0x0ffcffff),
-					davinci_spi->base + SPIDAT1);
+			count--;
+			if (count <= 0)
+				break;
 		}
 	}
 
@@ -714,9 +683,9 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	 * Check for bit error, desync error,parity error,timeout error and
 	 * receive overflow errors
 	 */
-	int_status = ioread32(davinci_spi->base + SPIFLG);
+	status = ioread32(davinci_spi->base + SPIFLG);
 
-	ret = davinci_spi_check_error(davinci_spi, int_status);
+	ret = davinci_spi_check_error(davinci_spi, status);
 	if (ret != 0)
 		return ret;
 
@@ -854,38 +823,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 }
 
 /**
- * davinci_spi_irq - IRQ handler for DaVinci SPI
- * @irq: IRQ number for this SPI Master
- * @context_data: structure for SPI Master controller davinci_spi
- */
-static irqreturn_t davinci_spi_irq(s32 irq, void *context_data)
-{
-	struct davinci_spi *davinci_spi = context_data;
-	u32 int_status, rx_data = 0;
-	irqreturn_t ret = IRQ_NONE;
-
-	int_status = ioread32(davinci_spi->base + SPIFLG);
-
-	while ((int_status & SPIFLG_RX_INTR_MASK)) {
-		if (likely(int_status & SPIFLG_RX_INTR_MASK)) {
-			ret = IRQ_HANDLED;
-
-			rx_data = ioread32(davinci_spi->base + SPIBUF);
-			davinci_spi->get_rx(rx_data, davinci_spi);
-
-			/* Disable Receive Interrupt */
-			iowrite32(~(SPIINT_RX_INTR | SPIINT_TX_INTR),
-					davinci_spi->base + SPIINT);
-		} else
-			(void)davinci_spi_check_error(davinci_spi, int_status);
-
-		int_status = ioread32(davinci_spi->base + SPIFLG);
-	}
-
-	return ret;
-}
-
-/**
  * davinci_spi_probe - probe function for SPI Master Controller
  * @pdev: platform_device structure which contains plateform specific data
  */
@@ -943,22 +880,11 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto release_region;
 	}
 
-	davinci_spi->irq = platform_get_irq(pdev, 0);
-	if (davinci_spi->irq <= 0) {
-		ret = -EINVAL;
-		goto unmap_io;
-	}
-
-	ret = request_irq(davinci_spi->irq, davinci_spi_irq, IRQF_DISABLED,
-			  dev_name(&pdev->dev), davinci_spi);
-	if (ret)
-		goto unmap_io;
-
 	/* Allocate tmp_buf for tx_buf */
 	davinci_spi->tmp_buf = kzalloc(SPI_BUFSIZ, GFP_KERNEL);
 	if (davinci_spi->tmp_buf == NULL) {
 		ret = -ENOMEM;
-		goto irq_free;
+		goto unmap_io;
 	}
 
 	davinci_spi->bitbang.master = spi_master_get(master);
@@ -1034,8 +960,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	davinci_spi->get_rx = davinci_spi_rx_buf_u8;
 	davinci_spi->get_tx = davinci_spi_tx_buf_u8;
 
-	init_completion(&davinci_spi->done);
-
 	/* Reset In/OUT SPI module */
 	iowrite32(0, davinci_spi->base + SPIGCR0);
 	udelay(100);
@@ -1062,20 +986,11 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	/* master mode default */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_MASTER_MASK);
 
-	if (davinci_spi->pdata->intr_level)
-		iowrite32(SPI_INTLVL_1, davinci_spi->base + SPILVL);
-	else
-		iowrite32(SPI_INTLVL_0, davinci_spi->base + SPILVL);
-
 	ret = spi_bitbang_start(&davinci_spi->bitbang);
 	if (ret)
 		goto free_clk;
 
 	dev_info(&pdev->dev, "Controller at 0x%p\n", davinci_spi->base);
-
-	if (!pdata->poll_mode)
-		dev_info(&pdev->dev, "Operating in interrupt mode"
-			" using IRQ %d\n", davinci_spi->irq);
 
 	return ret;
 
@@ -1086,8 +1001,6 @@ put_master:
 	spi_master_put(master);
 free_tmp_buf:
 	kfree(davinci_spi->tmp_buf);
-irq_free:
-	free_irq(davinci_spi->irq, davinci_spi);
 unmap_io:
 	iounmap(davinci_spi->base);
 release_region:
@@ -1121,7 +1034,6 @@ static int __exit davinci_spi_remove(struct platform_device *pdev)
 	clk_put(davinci_spi->clk);
 	spi_master_put(master);
 	kfree(davinci_spi->tmp_buf);
-	free_irq(davinci_spi->irq, davinci_spi);
 	iounmap(davinci_spi->base);
 	release_mem_region(davinci_spi->pbase, davinci_spi->region_size);
 

@@ -626,7 +626,6 @@ static struct davinci_spi_platform_data dm365_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
 	.clk_internal	= 1,
-	.poll_mode	= 1,	/* 0 -> interrupt mode 1-> polling mode */
 };
 
 static struct resource dm365_spi0_resources[] = {

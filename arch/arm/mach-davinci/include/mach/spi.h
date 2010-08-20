@@ -30,8 +30,6 @@ struct davinci_spi_platform_data {
 	u8	version;
 	u8	num_chipselect;
 	u8	clk_internal;
-	u8	intr_level;
-	u8	poll_mode;
 	u8	use_dma;
 	u8	*chip_sel;
 };
