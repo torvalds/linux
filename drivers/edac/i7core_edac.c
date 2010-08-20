@@ -2092,6 +2092,12 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 	 */
 
 	mutex_lock(&i7core_edac_lock);
+
+	if (unlikely(!probed)) {
+		mutex_unlock(&i7core_edac_lock);
+		return;
+	}
+
 	list_for_each_entry(i7core_dev, &i7core_edac_list, list) {
 		mci = find_mci_by_dev(&i7core_dev->pdev[0]->dev);
 		if (unlikely(!mci || !mci->pvt_info)) {
