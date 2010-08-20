@@ -2770,11 +2770,18 @@ static inline int check_stack_guard_page(struct vm_area_struct *vma, unsigned lo
 {
 	address &= PAGE_MASK;
 	if ((vma->vm_flags & VM_GROWSDOWN) && address == vma->vm_start) {
-		address -= PAGE_SIZE;
-		if (find_vma(vma->vm_mm, address) != vma)
-			return -ENOMEM;
+		struct vm_area_struct *prev = vma->vm_prev;
 
-		expand_stack(vma, address);
+		/*
+		 * Is there a mapping abutting this one below?
+		 *
+		 * That's only ok if it's the same stack mapping
+		 * that has gotten split..
+		 */
+		if (prev && prev->vm_end == address)
+			return prev->vm_flags & VM_GROWSDOWN ? 0 : -ENOMEM;
+
+		expand_stack(vma, address - PAGE_SIZE);
 	}
 	return 0;
 }
