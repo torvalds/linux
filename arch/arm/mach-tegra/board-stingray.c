@@ -75,6 +75,8 @@
 #define USB_PRODUCT_ID_BLAN             0x70A3
 #define USB_PRODUCT_ID_MTP              0x70A8
 #define USB_PRODUCT_ID_MTP_ADB          0x70A9
+#define USB_PRODUCT_ID_RNDIS            0x70AE
+#define USB_PRODUCT_ID_RNDIS_ADB        0x70AF
 #define USB_VENDOR_ID                   0x22b8
 
 struct tag_tegra {
@@ -329,20 +331,43 @@ static struct tegra_audio_platform_data tegra_audio_pdata = {
 	.bit_size	= I2S_BIT_SIZE_16,
 };
 
-static char *usb_functions[] = { "mtp" };
-static char *usb_functions_adb[] = { "mtp", "adb" };
+static char *usb_functions_mtp[] = { "mtp" };
+static char *usb_functions_mtp_adb[] = { "mtp", "adb" };
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static char *usb_functions_rndis[] = { "rndis" };
+static char *usb_functions_rndis_adb[] = { "rndis", "adb" };
+#endif
+static char *usb_functions_all[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	"rndis",
+#endif
+	"mtp",
+	"adb"
+};
 
 static struct android_usb_product usb_products[] = {
 	{
 		.product_id	= USB_PRODUCT_ID_MTP,
-		.num_functions	= ARRAY_SIZE(usb_functions),
-		.functions	= usb_functions,
+		.num_functions	= ARRAY_SIZE(usb_functions_mtp),
+		.functions	= usb_functions_mtp,
 	},
 	{
 		.product_id	= USB_PRODUCT_ID_MTP_ADB,
-		.num_functions	= ARRAY_SIZE(usb_functions_adb),
-		.functions	= usb_functions_adb,
+		.num_functions	= ARRAY_SIZE(usb_functions_mtp_adb),
+		.functions	= usb_functions_mtp_adb,
 	},
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	{
+		.product_id	= USB_PRODUCT_ID_RNDIS,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis),
+		.functions	= usb_functions_rndis,
+	},
+	{
+		.product_id	= USB_PRODUCT_ID_RNDIS_ADB,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb),
+		.functions	= usb_functions_rndis_adb,
+	},
+#endif
 };
 
 /* standard android USB platform data */
@@ -354,10 +379,9 @@ static struct android_usb_platform_data andusb_plat = {
 	.serial_number		= "0000",
 	.num_products = ARRAY_SIZE(usb_products),
 	.products = usb_products,
-	.num_functions = ARRAY_SIZE(usb_functions_adb),
-	.functions = usb_functions_adb,
+	.num_functions = ARRAY_SIZE(usb_functions_all),
+	.functions = usb_functions_all,
 };
-
 
 static struct platform_device androidusb_device = {
 	.name	= "android_usb",
@@ -395,6 +419,22 @@ static struct android_usb_platform_data andusb_plat_factory = {
 static struct platform_device usbnet_device = {
 	.name = "usbnet",
 };
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static struct usb_ether_platform_data rndis_pdata = {
+	/* ethaddr is filled by board_serialno_setup */
+	.vendorID	= USB_VENDOR_ID,
+	.vendorDescr	= USB_MANUFACTURER_NAME,
+};
+
+static struct platform_device rndis_device = {
+	.name	= "rndis",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &rndis_pdata,
+	},
+};
+#endif
 
 static struct tegra_utmip_config host_phy_config[] = {
 	[0] = {
@@ -693,6 +733,9 @@ __setup("androidboot.serialno=", mot_usb_serial_num_setup);
 
 static void stingray_usb_init(void)
 {
+	char *src;
+	int i;
+
 	struct android_usb_platform_data *platform_data;
 
 	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
@@ -702,14 +745,28 @@ static void stingray_usb_init(void)
 	platform_device_register(&tegra_udc_device);
 	platform_device_register(&tegra_ehci1_device);
 	platform_device_register(&tegra_ehci3_device);
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	src = usb_serial_num;
+
+	/* create a fake MAC address from our serial number.
+	 * first byte is 0x02 to signify locally administered.
+	 */
+	rndis_pdata.ethaddr[0] = 0x02;
+	for (i = 0; *src; i++) {
+		/* XOR the USB serial across the remaining bytes */
+		rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
+	}
+	platform_device_register(&rndis_device);
+#endif
 
 	if (powerup_reason & PU_REASON_FACTORY_CABLE)
 	{
 		platform_data = &andusb_plat_factory;
 		platform_device_register(&usbnet_device);
 	}
-	else
+	else {
 		platform_data = &andusb_plat;
+	}
 
 	platform_data->serial_number = usb_serial_num;
 	androidusb_device.dev.platform_data = platform_data;
