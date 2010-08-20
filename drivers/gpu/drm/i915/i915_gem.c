@@ -1797,7 +1797,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 		i915_gem_retire_requests_ring(dev, &dev_priv->bsd_ring);
 }
 
-void
+static void
 i915_gem_retire_work_handler(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv;

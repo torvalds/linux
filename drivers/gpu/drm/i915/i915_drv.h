@@ -978,7 +978,6 @@ bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 int i915_gem_object_put_fence_reg(struct drm_gem_object *obj);
 void i915_gem_retire_requests(struct drm_device *dev);
-void i915_gem_retire_work_handler(struct work_struct *work);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
 int i915_gem_object_set_domain(struct drm_gem_object *obj,
 			       uint32_t read_domains,

@@ -2261,6 +2261,9 @@ int i915_driver_unload(struct drm_device *dev)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
 	mutex_unlock(&dev->struct_mutex);
 
+	/* Cancel the retire work handler, which should be idle now. */
+	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
+
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
