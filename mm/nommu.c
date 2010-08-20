@@ -608,7 +608,7 @@ static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
  */
 static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	struct vm_area_struct *pvma, **pp;
+	struct vm_area_struct *pvma, **pp, *next;
 	struct address_space *mapping;
 	struct rb_node **p, *parent;
 
@@ -668,8 +668,11 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 			break;
 	}
 
-	vma->vm_next = *pp;
+	next = *pp;
 	*pp = vma;
+	vma->vm_next = next;
+	if (next)
+		next->vm_prev = vma;
 }
 
 /*
