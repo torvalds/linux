@@ -107,6 +107,7 @@ struct nilfs_segsum_pointer {
  * @sc_datablk_cnt: Data block count of a file
  * @sc_nblk_this_inc: Number of blocks included in the current logical segment
  * @sc_seg_ctime: Creation time
+ * @sc_cno: checkpoint number of current log
  * @sc_flags: Internal flags
  * @sc_state_lock: spinlock for sc_state and so on
  * @sc_state: Segctord state flags
@@ -156,7 +157,7 @@ struct nilfs_sc_info {
 	unsigned long		sc_datablk_cnt;
 	unsigned long		sc_nblk_this_inc;
 	time_t			sc_seg_ctime;
-
+	__u64			sc_cno;
 	unsigned long		sc_flags;
 
 	spinlock_t		sc_state_lock;

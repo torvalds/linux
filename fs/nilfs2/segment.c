@@ -366,8 +366,7 @@ static int nilfs_segctor_reset_segment_buffer(struct nilfs_sc_info *sci)
 
 	if (nilfs_doing_gc())
 		flags = NILFS_SS_GC;
-	err = nilfs_segbuf_reset(segbuf, flags, sci->sc_seg_ctime,
-				 sci->sc_sbi->s_nilfs->ns_cno);
+	err = nilfs_segbuf_reset(segbuf, flags, sci->sc_seg_ctime, sci->sc_cno);
 	if (unlikely(err))
 		return err;
 
@@ -440,17 +439,26 @@ static void nilfs_segctor_end_finfo(struct nilfs_sc_info *sci,
 	struct nilfs_finfo *finfo;
 	struct nilfs_inode_info *ii;
 	struct nilfs_segment_buffer *segbuf;
+	__u64 cno;
 
 	if (sci->sc_blk_cnt == 0)
 		return;
 
 	ii = NILFS_I(inode);
+
+	if (test_bit(NILFS_I_GCINODE, &ii->i_state))
+		cno = ii->i_cno;
+	else if (NILFS_ROOT_METADATA_FILE(inode->i_ino))
+		cno = 0;
+	else
+		cno = sci->sc_cno;
+
 	finfo = nilfs_segctor_map_segsum_entry(sci, &sci->sc_finfo_ptr,
 						 sizeof(*finfo));
 	finfo->fi_ino = cpu_to_le64(inode->i_ino);
 	finfo->fi_nblocks = cpu_to_le32(sci->sc_blk_cnt);
 	finfo->fi_ndatablk = cpu_to_le32(sci->sc_datablk_cnt);
-	finfo->fi_cno = cpu_to_le64(ii->i_cno);
+	finfo->fi_cno = cpu_to_le64(cno);
 
 	segbuf = sci->sc_curseg;
 	segbuf->sb_sum.sumbytes = sci->sc_binfo_ptr.offset +
@@ -1976,7 +1984,6 @@ static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
 					struct nilfs_sb_info *sbi)
 {
 	struct nilfs_inode_info *ii, *n;
-	__u64 cno = sbi->s_nilfs->ns_cno;
 
 	spin_lock(&sbi->s_inode_lock);
  retry:
@@ -2002,7 +2009,6 @@ static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
 				brelse(ibh);
 			goto retry;
 		}
-		ii->i_cno = cno;
 
 		clear_bit(NILFS_I_QUEUED, &ii->i_state);
 		set_bit(NILFS_I_BUSY, &ii->i_state);
@@ -2010,8 +2016,6 @@ static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
 		list_add_tail(&ii->i_dirty, &sci->sc_dirty_files);
 	}
 	spin_unlock(&sbi->s_inode_lock);
-
-	NILFS_I(sbi->s_ifile)->i_cno = cno;
 
 	return 0;
 }
@@ -2021,19 +2025,13 @@ static void nilfs_segctor_check_out_files(struct nilfs_sc_info *sci,
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
 	struct nilfs_inode_info *ii, *n;
-	__u64 cno = sbi->s_nilfs->ns_cno;
 
 	spin_lock(&sbi->s_inode_lock);
 	list_for_each_entry_safe(ii, n, &sci->sc_dirty_files, i_dirty) {
 		if (!test_and_clear_bit(NILFS_I_UPDATED, &ii->i_state) ||
-		    test_bit(NILFS_I_DIRTY, &ii->i_state)) {
-			/* The current checkpoint number (=nilfs->ns_cno) is
-			   changed between check-in and check-out only if the
-			   super root is written out.  So, we can update i_cno
-			   for the inodes that remain in the dirty list. */
-			ii->i_cno = cno;
+		    test_bit(NILFS_I_DIRTY, &ii->i_state))
 			continue;
-		}
+
 		clear_bit(NILFS_I_BUSY, &ii->i_state);
 		brelse(ii->i_bh);
 		ii->i_bh = NULL;
@@ -2054,6 +2052,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 	int err;
 
 	sci->sc_stage.scnt = NILFS_ST_INIT;
+	sci->sc_cno = nilfs->ns_cno;
 
 	err = nilfs_segctor_check_in_files(sci, sbi);
 	if (unlikely(err))
