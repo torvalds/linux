@@ -1444,12 +1444,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
 
-	/*
-	 * Initialize the hardware status page IRQ location.
-	 */
-
-	I915_WRITE(INSTPM, (1 << 5) | (1 << 21));
-
 	ret = intel_fbdev_init(dev);
 	if (ret)
 		goto cleanup_irq;
