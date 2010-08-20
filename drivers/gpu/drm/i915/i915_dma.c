@@ -2249,10 +2249,17 @@ free_priv:
 int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	spin_lock(&mchdev_lock);
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
+
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_gpu_idle(dev);
+	if (ret)
+		DRM_ERROR("failed to idle hardware: %d\n", ret);
+	mutex_unlock(&dev->struct_mutex);
 
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
@@ -2303,7 +2310,6 @@ int i915_driver_unload(struct drm_device *dev)
 		if (I915_HAS_FBC(dev) && i915_powersave)
 			i915_cleanup_compression(dev);
 		drm_mm_takedown(&dev_priv->vram);
-		i915_gem_lastclose(dev);
 
 		intel_cleanup_overlay(dev);
 	}
