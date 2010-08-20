@@ -179,9 +179,6 @@ void NvRmModuleGetBaseAddress( NvRmDeviceHandle hRmDeviceHandle, NvRmModuleID Mo
 }
 
 #define is_avp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Avp)
-#define is_csi(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Csi)
-#define is_isp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Isp)
-#define is_vi(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vi)
 #define is_vcp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vcp)
 #define is_bsea(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_BseA)
 #define is_vde(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vde)
@@ -195,13 +192,7 @@ void NvRmModuleReset(NvRmDeviceHandle hRmDevice, NvRmModuleID Module)
         writel(1<<1, clk_rst + 0x300);
         udelay(10);
         writel(1<<1, clk_rst + 0x304);
-    } else if (is_csi(Module))
-        clk = clk_get_sys("csi", NULL);
-    else if (is_vi(Module))
-        clk = clk_get_sys("vi", NULL);
-    else if (is_isp(Module))
-        clk = clk_get_sys("isp", NULL);
-    else if (is_vcp(Module))
+    } else if (is_vcp(Module))
         clk = clk_get_sys("vcp", NULL);
     else if (is_bsea(Module))
         clk = clk_get_sys("bsea", NULL);

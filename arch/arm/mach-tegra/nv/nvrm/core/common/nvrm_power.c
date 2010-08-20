@@ -42,12 +42,6 @@
 #include "nvrm_power.h"
 #include "../../../../clock.h"
 
-#define is_vi(module) (NVRM_MODULE_ID_MODULE(module)==NvRmModuleID_Vi)
-
-#define is_csi(module) (NVRM_MODULE_ID_MODULE(module)==NvRmModuleID_Csi)
-
-#define is_isp(module) (NVRM_MODULE_ID_MODULE(module)==NvRmModuleID_Isp)
-
 #define is_vcp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vcp)
 
 #define is_bsea(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_BseA)
@@ -68,70 +62,9 @@ NvError NvRmPowerModuleClockConfig(
     NvRmFreqKHz *CurrentFreq,
     NvU32 flags)
 {
-    struct clk *clk = NULL;
-    const char *name;
-    unsigned long rate;
-    int ret;
-
     if (CurrentFreq)
         *CurrentFreq = 0;
 
-    if (!is_vi(ModuleId))
-        return NvSuccess;
-
-    if (flags & NvRmClockConfig_SubConfig)
-        name = "vi_sensor";
-    else
-        name = "vi";
-
-    clk = clk_get_sys(name, NULL);
-
-    if (IS_ERR_OR_NULL(clk)) {
-        pr_err("%s: failed to get struct clk %s\n", __func__, name);
-        return NvSuccess;
-    }
-
-    if (PrefFreqListCount)
-        rate = *PrefFreqList * 1000;
-    else if (MaxFreq != NvRmFreqUnspecified)
-        rate = MaxFreq * 1000;
-    else if (MinFreq != NvRmFreqUnspecified)
-        rate = MinFreq * 1000;
-    else
-        rate = INT_MAX;
-
-    ret = clk_set_rate(clk, rate);
-    if (ret) {
-        pr_err("%s: err %d setting %s to %luHz\n", __func__, ret, name, rate);
-        clk_put(clk);
-        return NvError_BadParameter;
-    }
-
-    rate = clk_get_rate(clk);
-    if (CurrentFreq)
-        *CurrentFreq = (rate+500) / 1000;
-
-
-    if (!(flags & NvRmClockConfig_SubConfig)) {
-        void __iomem *car = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
-        u32 val;
-
-        if ((flags & NvRmClockConfig_InternalClockForPads) &&
-            (flags & NvRmClockConfig_ExternalClockForCore)) {
-            pr_err("%s: invalid VI flag combination: %08x\n", __func__, flags);
-            clk_put(clk);
-            return NvError_BadParameter;
-        }
-        val = readl(car + clk->reg);  
-        val &= ~(CLK_VI_CORE_EXTERNAL | CLK_VI_PAD_INTERNAL);
-        if (flags & NvRmClockConfig_InternalClockForPads)
-            val |= CLK_VI_PAD_INTERNAL;
-        else if (flags & NvRmClockConfig_ExternalClockForCore)
-            val |= CLK_VI_CORE_EXTERNAL;
-        writel(val, car + clk->reg);
-    }
-
-    clk_put(clk);
     return NvSuccess;
 }
 
@@ -141,21 +74,12 @@ NvError NvRmPowerModuleClockControl(
     NvU32 ClientId,
     NvBool Enable)
 {
-    const char *vi_names[] = { "vi", "vi_sensor", "csus", NULL };
-    const char *csi_names[] = { "csi", NULL };
-    const char *isp_names[] = { "isp", NULL };
     const char *vcp_names[] = { "vcp", NULL };
     const char *bsea_names[] = { "bsea", NULL };
     const char *vde_names[] = { "vde", NULL };
     const char **names = NULL;
 
-    if (is_vi(ModuleId))
-        names = vi_names;
-    else if (is_csi(ModuleId))
-        names = csi_names;
-    else if (is_isp(ModuleId))
-        names = isp_names;
-    else if (is_vcp(ModuleId))
+    if (is_vcp(ModuleId))
         names = vcp_names;
     else if (is_bsea(ModuleId))
         names = bsea_names;
