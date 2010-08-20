@@ -34,6 +34,9 @@
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
 
+static bool drm_kms_helper_poll = true;
+module_param_named(poll, drm_kms_helper_poll, bool, 0600);
+
 static void drm_mode_validate_flag(struct drm_connector *connector,
 				   int flags)
 {
@@ -99,8 +102,10 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 			connector->status = connector_status_disconnected;
 		if (connector->funcs->force)
 			connector->funcs->force(connector);
-	} else
+	} else {
 		connector->status = connector->funcs->detect(connector);
+		drm_helper_hpd_irq_event(dev);
+	}
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
@@ -840,6 +845,9 @@ static void output_poll_execute(struct work_struct *work)
 	enum drm_connector_status old_status, status;
 	bool repoll = false, changed = false;
 
+	if (!drm_kms_helper_poll)
+		return;
+
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 
@@ -890,6 +898,9 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 	bool poll = false;
 	struct drm_connector *connector;
 
+	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
+		return;
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->polled)
 			poll = true;
@@ -919,8 +930,10 @@ void drm_helper_hpd_irq_event(struct drm_device *dev)
 {
 	if (!dev->mode_config.poll_enabled)
 		return;
+
 	/* kill timer and schedule immediate execution, this doesn't block */
 	cancel_delayed_work(&dev->mode_config.output_poll_work);
-	queue_delayed_work(system_nrt_wq, &dev->mode_config.output_poll_work, 0);
+	if (drm_kms_helper_poll)
+		queue_delayed_work(system_nrt_wq, &dev->mode_config.output_poll_work, 0);
 }
 EXPORT_SYMBOL(drm_helper_hpd_irq_event);
