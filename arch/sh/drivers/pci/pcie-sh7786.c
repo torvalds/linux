@@ -148,15 +148,10 @@ static int pci_wait_for_irq(struct pci_channel *chan, unsigned int mask)
 static void phy_write_reg(struct pci_channel *chan, unsigned int addr,
 			  unsigned int lane, unsigned int data)
 {
-	unsigned long phyaddr, ctrl;
+	unsigned long phyaddr;
 
 	phyaddr = (1 << BITS_CMD) + ((lane & 0xf) << BITS_LANE) +
 			((addr & 0xff) << BITS_ADR);
-
-	/* Enable clock */
-	ctrl = pci_read_reg(chan, SH4A_PCIEPHYCTLR);
-	ctrl |= (1 << BITS_CKE);
-	pci_write_reg(chan, ctrl, SH4A_PCIEPHYCTLR);
 
 	/* Set write data */
 	pci_write_reg(chan, data, SH4A_PCIEPHYDOUTR);
@@ -165,19 +160,21 @@ static void phy_write_reg(struct pci_channel *chan, unsigned int addr,
 	phy_wait_for_ack(chan);
 
 	/* Clear command */
+	pci_write_reg(chan, 0, SH4A_PCIEPHYDOUTR);
 	pci_write_reg(chan, 0, SH4A_PCIEPHYADRR);
 
 	phy_wait_for_ack(chan);
-
-	/* Disable clock */
-	ctrl = pci_read_reg(chan, SH4A_PCIEPHYCTLR);
-	ctrl &= ~(1 << BITS_CKE);
-	pci_write_reg(chan, ctrl, SH4A_PCIEPHYCTLR);
 }
 
 static int phy_init(struct pci_channel *chan)
 {
+	unsigned long ctrl;
 	unsigned int timeout = 100;
+
+	/* Enable clock */
+	ctrl = pci_read_reg(chan, SH4A_PCIEPHYCTLR);
+	ctrl |= (1 << BITS_CKE);
+	pci_write_reg(chan, ctrl, SH4A_PCIEPHYCTLR);
 
 	/* Initialize the phy */
 	phy_write_reg(chan, 0x60, 0xf, 0x004b008b);
@@ -187,9 +184,15 @@ static int phy_init(struct pci_channel *chan)
 	phy_write_reg(chan, 0x66, 0xf, 0x00000010);
 	phy_write_reg(chan, 0x74, 0xf, 0x0007001c);
 	phy_write_reg(chan, 0x79, 0xf, 0x01fc000d);
+	phy_write_reg(chan, 0xb0, 0xf, 0x00000610);
 
 	/* Deassert Standby */
-	phy_write_reg(chan, 0x67, 0xf, 0x00000400);
+	phy_write_reg(chan, 0x67, 0x1, 0x00000400);
+
+	/* Disable clock */
+	ctrl = pci_read_reg(chan, SH4A_PCIEPHYCTLR);
+	ctrl &= ~(1 << BITS_CKE);
+	pci_write_reg(chan, ctrl, SH4A_PCIEPHYCTLR);
 
 	while (timeout--) {
 		if (pci_read_reg(chan, SH4A_PCIEPHYSR))
@@ -286,6 +289,9 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	 */
 	__raw_writel(memphys, chan->reg_base + SH4A_PCIELAR0);
 	__raw_writel((memsize - SZ_256) | 1, chan->reg_base + SH4A_PCIELAMR0);
+
+	__raw_writel(memphys, chan->reg_base + SH4A_PCIEPCICONF4);
+	__raw_writel(0, chan->reg_base + SH4A_PCIEPCICONF5);
 
 	/* Finish initialization */
 	data = pci_read_reg(chan, SH4A_PCIETCTLR);
