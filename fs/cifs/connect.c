@@ -1707,6 +1707,7 @@ cifs_put_smb_ses(struct cifsSesInfo *ses)
 		CIFSSMBLogoff(xid, ses);
 		_FreeXid(xid);
 	}
+	cifs_crypto_shash_release(server);
 	sesInfoFree(ses);
 	cifs_put_tcp_session(server);
 }
@@ -1786,13 +1787,23 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	ses->linux_uid = volume_info->linux_uid;
 	ses->overrideSecFlg = volume_info->secFlg;
 
+	rc = cifs_crypto_shash_allocate(server);
+	if (rc) {
+		cERROR(1, "could not setup hash structures rc %d", rc);
+		goto get_ses_fail;
+	}
+	server->tilen = 0;
+	server->tiblob = NULL;
+
 	mutex_lock(&ses->session_mutex);
 	rc = cifs_negotiate_protocol(xid, ses);
 	if (!rc)
 		rc = cifs_setup_session(xid, ses, volume_info->local_nls);
 	mutex_unlock(&ses->session_mutex);
-	if (rc)
+	if (rc) {
+		cifs_crypto_shash_release(ses->server);
 		goto get_ses_fail;
+	}
 
 	/* success, put it on the list */
 	write_lock(&cifs_tcp_ses_lock);
