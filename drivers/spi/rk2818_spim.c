@@ -928,25 +928,13 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	int			irq; 
 	int         ret,i,j;
 	struct rk2818_spi_platform_data *pdata = pdev->dev.platform_data;
-	struct spi_cs_gpio *cs_gpios = pdata->chipselect_gpios;
 
 	if (pdata && pdata->io_init) {
-		pdata->io_init();
-	}	
-
-	if (cs_gpios) {
-		for (i=0; i<pdata->num_chipselect; i++) {
-			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
-			if (ret) {
-				for (j=0;j<i;j++)
-					gpio_free(cs_gpios[j].cs_gpio);
-				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
-				if (pdata->io_deinit)
-					pdata->io_deinit();
-				return -1;
-			}
+		ret = pdata->io_init(pdata->chipselect_gpios, pdata->num_chipselect);
+		if (ret) {			
+			return -ENXIO;	
 		}
-	}
+	}	
 	
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)

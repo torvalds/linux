@@ -177,11 +177,13 @@ struct rk2818_i2s_platform_data {
 struct spi_cs_gpio {
 	const char *name;
 	unsigned int cs_gpio;
+	char *cs_iomux_name;
+	unsigned int cs_iomux_mode;
 };
 
 struct rk2818_spi_platform_data {
-	int (*io_init)(void);
-	int (*io_deinit)(void);
+	int (*io_init)(struct spi_cs_gpio*, int);
+	int (*io_deinit)(struct spi_cs_gpio*, int);
 	struct spi_cs_gpio *chipselect_gpios;	
 	u16 num_chipselect;
 };

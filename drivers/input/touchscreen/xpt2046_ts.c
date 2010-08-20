@@ -201,25 +201,6 @@ struct dfr_req {
 	struct spi_transfer	xfer[4];
 };
 
-static struct xpt2046_platform_data xpt2046_info = {
-	.model			= 2046,
-	.keep_vref_on 	= 1,
-	.swap_xy		= 1,
-	.x_min			= 0,
-	.x_max			= 800,
-	.y_min			= 0,
-	.y_max			= 480,
-	.debounce_max		= 7,
-	.debounce_rep		= DEBOUNCE_REPTIME,
-	.debounce_tol		= 20,
-#if defined(CONFIG_MACH_RAHO)	
-    .gpio_pendown		= RK2818_PIN_PE1,
-#else
-	.gpio_pendown		= RK2818_PIN_PE3,
-#endif	
-	.penirq_recheck_delay_usecs = 1,
-
-};
 static void xpt2046_enable(struct xpt2046 *ts);
 static void xpt2046_disable(struct xpt2046 *ts);
 
@@ -698,14 +679,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 		spi->irq = gpio_to_irq(spi->irq);
 		dev_dbg(&spi->dev, "no IRQ?\n");
 	}
-	
-	/*
-	if (!pdata) {
-		spi->dev.platform_data = &xpt2046_info;
-		pdata = spi->dev.platform_data;
-	}
-    */
-    
+	    
     if (!pdata) {
 		dev_err(&spi->dev, "empty platform_data\n");
 		return -EFAULT;

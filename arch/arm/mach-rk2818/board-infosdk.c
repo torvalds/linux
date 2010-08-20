@@ -760,36 +760,59 @@ struct rk2818_i2s_platform_data rk2818_i2s_platdata = {
  * author: lhhrock-chips.com
  *****************************************************************************************/
 #define SPI_CHIPSELECT_NUM 2
-static int spi_io_init(void)
-{	
-	//cs0
-	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME, IOMUXA_GPIO0_B4);
-	//cs1
-	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME, IOMUXA_GPIO0_B0);
-	//clk
-	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME, IOMUXA_SPI0);
-	
-	return 0;
-}
-static int spi_io_deinit(void)
-{
-	rk2818_mux_api_mode_resume(GPIOB4_SPI0CS0_MMC0D4_NAME);
-	rk2818_mux_api_mode_resume(GPIOB0_SPI0CSN1_MMC1PCA_NAME);
-	rk2818_mux_api_mode_resume(GPIOB_SPI0_MMC0_NAME);	
-	return 0;
-}
-
 struct spi_cs_gpio rk2818_spi_cs_gpios[SPI_CHIPSELECT_NUM] = {
 	{
 		.name = "spi cs0",
 		.cs_gpio = RK2818_PIN_PB4,
+		.cs_iomux_name = GPIOB4_SPI0CS0_MMC0D4_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = IOMUXA_GPIO0_B4,
 	},
 	{
 		.name = "spi cs1",
 		.cs_gpio = RK2818_PIN_PB0,
+		.cs_iomux_name = GPIOB0_SPI0CSN1_MMC1PCA_NAME,
+		.cs_iomux_mode = IOMUXA_GPIO0_B0,
 	}
 
 };
+
+static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
+{	
+	int i,j,ret;
+	//clk
+	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME, IOMUXA_SPI0);
+	//cs
+	if (cs_gpios) {
+		for (i=0; i<cs_num; i++) {
+			rk2818_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
+			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
+			if (ret) {
+				for (j=0;j<i;j++) {
+					gpio_free(cs_gpios[j].cs_gpio);
+					rk2818_mux_api_mode_resume(cs_gpios[j].cs_iomux_name);
+				}
+				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
+static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
+{
+	int i;
+	rk2818_mux_api_mode_resume(GPIOB_SPI0_MMC0_NAME);	
+	
+	if (cs_gpios) {
+		for (i=0; i<cs_num; i++) {
+			gpio_free(cs_gpios[i].cs_gpio);
+			rk2818_mux_api_mode_resume(cs_gpios[i].cs_iomux_name);
+		}
+	}
+	
+	return 0;
+}
 
 struct rk2818_spi_platform_data rk2818_spi_platdata = {
 	.num_chipselect = SPI_CHIPSELECT_NUM,//raho 大板需要支持3个片选 dxj
@@ -1207,7 +1230,7 @@ void lcd_set_iomux(u8 enable)
         ret = gpio_request(RK2818_PIN_PH6, NULL);
         if(0)//(ret != 0)
         {
-            gpio_free(RK2818_PIN_PA4);
+            gpio_free(RK2818_PIN_PH6);
             printk(">>>>>> lcd cs gpio_request err \n ");           
             goto pin_err;
         }  
@@ -1232,13 +1255,11 @@ void lcd_set_iomux(u8 enable)
     }
     else
     {
-         //gpio_free(RK2818_PIN_PA4);
-         //rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
-        // rk2818_mux_api_mode_resume(CXGPIO_HSADC_SEL_NAME);
+         gpio_free(RK2818_PIN_PH6);
+         rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
 
          gpio_free(RK2818_PIN_PE7);   
          gpio_free(RK2818_PIN_PE6); 
-         //rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
          rk2818_mux_api_mode_resume(GPIOE_U1IR_I2C1_NAME);
     }
     return ;

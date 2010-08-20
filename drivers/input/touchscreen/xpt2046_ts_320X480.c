@@ -342,7 +342,8 @@ static void null_wait_for_sync(void)
 
 static void xpt2046_rx(void *xpt)
 {
-	struct xpt2046		*ts = xpt;
+	struct xpt2046		*ts = xpt;	
+	struct xpt2046_platform_data	*pdata = ts->spi->dev.platform_data;
 	struct xpt2046_packet	*packet = ts->packet;
 	unsigned		Rt = 1;
 	u16			x, y;
@@ -421,7 +422,7 @@ static void xpt2046_rx(void *xpt)
 			}
 					
 		}
-		else if (y <= xpt2046_info.y_max)
+		else if (y <= pdata->y_max)
 		{
 			if (!ts->pendown) {
 				input_report_key(input, BTN_TOUCH, 1);
@@ -768,14 +769,6 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 		spi->irq = gpio_to_irq(spi->irq);
 		dev_dbg(&spi->dev, "no IRQ?\n");
 	}
-	
-	/*
-	if (!pdata) {
-		xpt2046printk("-----------------pdata is null -------------------------\n");
-		spi->dev.platform_data = &xpt2046_info;
-		pdata = spi->dev.platform_data;
-	}
-	*/
 
     if (!pdata) {
         dev_err(&spi->dev, "empty platform_data\n");

@@ -40,8 +40,6 @@
 #endif
 static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
-
-#define MMA7660_GPIO_INT     RK2818_PIN_PE0
 #define MMA7660_SPEED		200 * 1000
 
 /* Addresses to scan -- protected by sense_data_mutex */
@@ -346,9 +344,7 @@ static void mma7660_work_func(struct work_struct *work)
 	if (mma7660_get_data() < 0) 
 		rk28printk(KERN_ERR "MMA7660 mma_work_func: Get data failed\n");
 		
-	enable_irq(this_client->irq);	
-    //GPIOClrearInmarkIntr(MMA7660_GPIO_INT);
-	
+	enable_irq(this_client->irq);		
 	rk28printk("---------------------------------------mma7660_work_func----------------------------------\n");
 }
 
@@ -357,9 +353,7 @@ static void  mma7660_delaywork_func(struct work_struct  *work)
 	
 	if (mma7660_get_data() < 0) 
 		rk28printk(KERN_ERR "MMA7660 mma_work_func: Get data failed\n");
-	enable_irq(this_client->irq);	
-	//GPIOClrearInmarkIntr(MMA7660_GPIO_INT);
-	
+	enable_irq(this_client->irq);		
 	rk28printk("---------------------------------------mma7660_delaywork_func------------------------------\n");
 
 }
@@ -367,9 +361,6 @@ static void  mma7660_delaywork_func(struct work_struct  *work)
 static irqreturn_t mma7660_interrupt(int irq, void *dev_id)
 {
 	struct mma7660_data *data = dev_id;
-
-	///GPIOInmarkIntr(MMA7660_GPIO_INT);
-	//schedule_work(&data->work);
 	disable_irq_nosync(this_client->irq);
 	schedule_delayed_work(&data->delaywork,msecs_to_jiffies(30));
 	rk28printk("--------------------------------------mma7660_interrupt---------------------------------------\n");
