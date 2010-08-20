@@ -85,7 +85,7 @@ ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
 }
 
 /* For display hotplug interrupt */
-void
+static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	if ((dev_priv->irq_mask_reg & mask) != 0) {
@@ -305,7 +305,7 @@ static void i915_handle_rps_change(struct drm_device *dev)
 	return;
 }
 
-irqreturn_t ironlake_irq_handler(struct drm_device *dev)
+static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
@@ -1315,7 +1315,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	return -EINVAL;
 }
 
-struct drm_i915_gem_request *
+static struct drm_i915_gem_request *
 i915_get_tail_request(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;

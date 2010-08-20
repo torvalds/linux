@@ -219,8 +219,8 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intel_fb_find_or_create_single,
 };
 
-int intel_fbdev_destroy(struct drm_device *dev,
-			struct intel_fbdev *ifbdev)
+static int intel_fbdev_destroy(struct drm_device *dev,
+			       struct intel_fbdev *ifbdev)
 {
 	struct fb_info *info;
 	struct intel_framebuffer *ifb = &ifbdev->ifb;

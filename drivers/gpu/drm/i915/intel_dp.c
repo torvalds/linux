@@ -1513,7 +1513,7 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 	.destroy = intel_dp_encoder_destroy,
 };
 
-void
+static void
 intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);

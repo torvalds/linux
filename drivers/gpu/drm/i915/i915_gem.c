@@ -4635,8 +4635,8 @@ i915_gem_load(struct drm_device *dev)
  * Create a physically contiguous memory object for this object
  * e.g. for cursor + overlay regs
  */
-int i915_gem_init_phys_object(struct drm_device *dev,
-			      int id, int size, int align)
+static int i915_gem_init_phys_object(struct drm_device *dev,
+				     int id, int size, int align)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_phys_object *phys_obj;
@@ -4668,7 +4668,7 @@ kfree_obj:
 	return ret;
 }
 
-void i915_gem_free_phys_object(struct drm_device *dev, int id)
+static void i915_gem_free_phys_object(struct drm_device *dev, int id)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_phys_object *phys_obj;

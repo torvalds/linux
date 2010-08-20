@@ -1902,7 +1902,7 @@ static struct drm_i915_private *i915_mch_dev;
  *   - dev_priv->fmax
  *   - dev_priv->gpu_busy
  */
-DEFINE_SPINLOCK(mchdev_lock);
+static DEFINE_SPINLOCK(mchdev_lock);
 
 /**
  * i915_read_mch_val - return value for IPS use
