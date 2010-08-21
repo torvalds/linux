@@ -338,9 +338,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 	acpi_handle chandle, handle;
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	flags &= (OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |
-		  OSC_SHPC_NATIVE_HP_CONTROL |
-		  OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+	flags &= OSC_SHPC_NATIVE_HP_CONTROL;
 	if (!flags) {
 		err("Invalid flags %u specified!\n", flags);
 		return -EINVAL;
