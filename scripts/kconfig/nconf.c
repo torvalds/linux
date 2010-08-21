@@ -217,8 +217,8 @@ save_config_help[] = N_(
 "leave this blank.\n"),
 search_help[] = N_(
 "\n"
-"Search for CONFIG_ symbols and display their relations.\n"
-"Regular expressions are allowed.\n"
+"Search for symbols and display their relations. Regular expressions\n"
+"are allowed.\n"
 "Example: search for \"^FOO\"\n"
 "Result:\n"
 "-----------------------------------------------------------------\n"
@@ -234,7 +234,7 @@ search_help[] = N_(
 "Selected by: BAR\n"
 "-----------------------------------------------------------------\n"
 "o The line 'Prompt:' shows the text used in the menu structure for\n"
-"  this CONFIG_ symbol\n"
+"  this symbol\n"
 "o The 'Defined at' line tell at what file / line number the symbol\n"
 "  is defined\n"
 "o The 'Depends on:' line tell what symbols needs to be defined for\n"
@@ -250,9 +250,9 @@ search_help[] = N_(
 "Only relevant lines are shown.\n"
 "\n\n"
 "Search examples:\n"
-"Examples: USB   = > find all CONFIG_ symbols containing USB\n"
-"          ^USB => find all CONFIG_ symbols starting with USB\n"
-"          USB$ => find all CONFIG_ symbols ending with USB\n"
+"Examples: USB   = > find all symbols containing USB\n"
+"          ^USB => find all symbols starting with USB\n"
+"          USB$ => find all symbols ending with USB\n"
 "\n");
 
 struct mitem {
