@@ -2987,7 +2987,7 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 
 
 /*
- * Set transmition power
+ * Set transmission power
  */
 int
 ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
