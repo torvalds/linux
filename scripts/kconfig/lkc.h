@@ -31,7 +31,10 @@ extern "C" {
 
 #define SRCTREE "srctree"
 
+#ifndef PACKAGE
 #define PACKAGE "linux"
+#endif
+
 #define LOCALEDIR "/usr/share/locale"
 
 #define _(text) gettext(text)
