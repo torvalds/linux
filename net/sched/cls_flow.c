@@ -306,6 +306,11 @@ static u32 flow_get_vlan_tag(const struct sk_buff *skb)
 	return tag & VLAN_VID_MASK;
 }
 
+static u32 flow_get_rxhash(struct sk_buff *skb)
+{
+	return skb_get_rxhash(skb);
+}
+
 static u32 flow_key_get(struct sk_buff *skb, int key)
 {
 	switch (key) {
@@ -343,6 +348,8 @@ static u32 flow_key_get(struct sk_buff *skb, int key)
 		return flow_get_skgid(skb);
 	case FLOW_KEY_VLAN_TAG:
 		return flow_get_vlan_tag(skb);
+	case FLOW_KEY_RXHASH:
+		return flow_get_rxhash(skb);
 	default:
 		WARN_ON(1);
 		return 0;
