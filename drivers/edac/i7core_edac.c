@@ -1395,6 +1395,13 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 		dev_descr->func,
 		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
+	/*
+	 * As stated on drivers/pci/search.c, the reference count for
+	 * @from is always decremented if it is not %NULL. So, as we need
+	 * to get all devices up to null, we need to do a get for the device
+	 */
+	pci_dev_get(pdev);
+
 	*prev = pdev;
 
 	return 0;
