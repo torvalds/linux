@@ -1103,7 +1103,7 @@ static struct spi_board_info board_spi_devices[] = {
 	{	/* fpga ice65l08xx */
 		.modalias	= "spi_fpga",
 		.chip_select	= 1,
-		.max_speed_hz	= 18 * 1000 * 1000,
+		.max_speed_hz	= 12 * 1000 * 1000,
 		.bus_num	= 0,
 		.mode	= SPI_MODE_0,
 		//.platform_data = &rk2818_spi_platdata,
@@ -1127,6 +1127,15 @@ static struct spi_board_info board_spi_devices[] = {
 		.bus_num	= 0,
 		.irq = XPT2046_GPIO_INT,
 		.platform_data = &xpt2046_info,
+	},
+#endif
+#if defined(CONFIG_SMS_SPI_ROCKCHIP)
+  	{
+		.modalias	= "siano1186",           
+		.chip_select	= 0,                                  
+		.max_speed_hz	= 12*1000*1000,         
+		.bus_num	= 0,
+		.irq		= RK2818_PIN_PA6,
 	},
 #endif
 }; 
