@@ -41,6 +41,7 @@
 #include <linux/ktime.h>
 #include <linux/sysfs.h>
 #include <linux/pm_qos_params.h>
+#include <linux/wakelock.h>
 
 #include <linux/tegra_audio.h>
 
@@ -84,6 +85,7 @@ struct audio_stream {
 	struct tegra_dma_req dma_req;
 
 	struct pm_qos_request_list *pm_qos;
+	struct wake_lock wake_lock;
 };
 
 struct i2s_pio_stats {
@@ -530,8 +532,10 @@ static int start_playback(struct audio_stream *aos)
 	pr_debug("%s: starting playback\n", __func__);
 	rc = sound_ops->start_playback(aos);
 	spin_unlock_irqrestore(&aos->dma_req_lock, flags);
-	if (!rc)
+	if (!rc) {
 		pm_qos_update_request(aos->pm_qos, 0);
+		wake_lock(&aos->wake_lock);
+	}
 	return rc;
 }
 
@@ -547,8 +551,10 @@ static int start_recording_if_necessary(struct audio_stream *ais)
 		rc = sound_ops->start_recording(ais);
 	}
 	spin_unlock_irqrestore(&ais->dma_req_lock, flags);
-	if (!rc)
+	if (!rc) {
 		pm_qos_update_request(ais->pm_qos, 0);
+		wake_lock(&ais->wake_lock);
+	}
 	return rc;
 }
 
@@ -562,6 +568,7 @@ static bool stop_playback_if_necessary(struct audio_stream *aos)
 			aos->errors.full_empty++; /* underflow */
 		spin_unlock_irqrestore(&aos->dma_req_lock, flags);
 		pm_qos_update_request(aos->pm_qos, PM_QOS_DEFAULT_VALUE);
+		wake_unlock(&aos->wake_lock);
 		return true;
 	}
 	spin_unlock_irqrestore(&aos->dma_req_lock, flags);
@@ -591,6 +598,7 @@ static bool stop_recording(struct audio_stream *ais)
 			&ais->stop_completion);
 	pr_debug("%s: done: %d\n", __func__, rc);
 	pm_qos_update_request(ais->pm_qos, PM_QOS_DEFAULT_VALUE);
+	wake_unlock(&ais->wake_lock);
 	return true;
 }
 
@@ -890,7 +898,7 @@ static int resume_dma_recording(struct audio_stream *ais)
 
 	if (ais->dma_has_it) {
 		pr_debug("%s: recording already in progress\n", __func__);
-		return 0;
+		return -EALREADY;
 	}
 
 	/* Don't send all the data yet. */
@@ -976,7 +984,7 @@ static int start_pio_playback(struct audio_stream *aos)
 
 	if (i2s_is_fifo_enabled(ads->i2s_base, I2S_FIFO_TX)) {
 		pr_debug("%s: playback is already in progress\n", __func__);
-		return 0;
+		return -EALREADY;
 	}
 
 	pr_debug("%s\n", __func__);
@@ -1020,7 +1028,7 @@ static int start_pio_recording(struct audio_stream *ais)
 
 	if (i2s_is_fifo_enabled(ads->i2s_base, I2S_FIFO_RX)) {
 		pr_debug("%s: already started\n", __func__);
-		return 0;
+		return -EALREADY;
 	}
 
 	pr_debug("%s: start\n", __func__);
@@ -1216,7 +1224,7 @@ again:
 	}
 
 	rc = start_playback(&ads->out);
-	if (rc < 0) {
+	if (rc < 0 && rc != -EALREADY) {
 		pr_err("%s: could not start playback: %d\n", __func__, rc);
 		goto done;
 	}
@@ -1624,7 +1632,7 @@ static ssize_t tegra_audio_read(struct file *file, char __user *buf,
 			size, kfifo_len(&ads->in.fifo));
 
 	rc = start_recording_if_necessary(&ads->in);
-	if (rc < 0) {
+	if (rc < 0 && rc != -EALREADY) {
 		pr_err("%s: could not start recording\n", __func__);
 		goto done_err;
 	}
@@ -1657,7 +1665,7 @@ again:
 		 * it here.
 		*/
 		rc = start_recording_if_necessary(&ads->in);
-		if (rc < 0) {
+		if (rc < 0 && rc != -EALREADY) {
 			pr_err("%s: could not resume recording\n", __func__);
 			goto done_err;
 		}
@@ -2201,6 +2209,11 @@ static int tegra_audio_probe(struct platform_device *pdev)
 			__func__);
 		return -EIO;
 	}
+
+	wake_lock_init(&state->in.wake_lock, WAKE_LOCK_SUSPEND,
+			"tegra-audio-in");
+	wake_lock_init(&state->out.wake_lock, WAKE_LOCK_SUSPEND,
+			"tegra-audio-out");
 
 	if (request_irq(state->irq, i2s_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {
