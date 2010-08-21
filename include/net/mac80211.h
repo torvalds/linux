@@ -1242,8 +1242,8 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * %IEEE80211_CONF_PS flag enabled means that the powersave mode defined in
  * IEEE 802.11-2007 section 11.2 is enabled. This is not to be confused
  * with hardware wakeup and sleep states. Driver is responsible for waking
- * up the hardware before issueing commands to the hardware and putting it
- * back to sleep at approriate times.
+ * up the hardware before issuing commands to the hardware and putting it
+ * back to sleep at appropriate times.
  *
  * When PS is enabled, hardware needs to wakeup for beacons and receive the
  * buffered multicast/broadcast frames after the beacon. Also it must be
@@ -1264,7 +1264,7 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * there's data traffic and still saving significantly power in idle
  * periods.
  *
- * Dynamic powersave is supported by simply mac80211 enabling and disabling
+ * Dynamic powersave is simply supported by mac80211 enabling and disabling
  * PS based on traffic. Driver needs to only set %IEEE80211_HW_SUPPORTS_PS
  * flag and mac80211 will handle everything automatically. Additionally,
  * hardware having support for the dynamic PS feature may set the
@@ -2458,7 +2458,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING and
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTER and
  * %IEEE80211_CONF_PS is set, the driver needs to inform whenever the
  * hardware is not receiving beacons with this function.
  */
@@ -2469,7 +2469,7 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING, and
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTER, and
  * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
  * needs to inform if the connection to the AP has been lost.
  *
