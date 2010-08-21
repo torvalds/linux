@@ -1,0 +1,11 @@
+
+ menu "CMMB"
+ config CMMB
+-tristate "ROCKCHIP CMMB"
+ >---default y
+ >---help
+          rk28 cmmb module.
+ ----------
+ 
+ source "drivers/cmmb/siano/Kconfig"
+ endmenu
