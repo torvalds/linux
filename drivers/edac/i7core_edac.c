@@ -2068,7 +2068,8 @@ static void i7core_pci_ctl_create(struct i7core_pvt *pvt)
 						&pvt->i7core_dev->pdev[0]->dev,
 						EDAC_MOD_STR);
 	if (unlikely(!pvt->i7core_pci))
-		pr_warn("Unable to setup PCI error report via EDAC\n");
+		i7core_printk(KERN_WARNING,
+			      "Unable to setup PCI error report via EDAC\n");
 }
 
 static void i7core_pci_ctl_release(struct i7core_pvt *pvt)
