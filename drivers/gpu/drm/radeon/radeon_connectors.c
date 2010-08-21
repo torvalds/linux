@@ -999,6 +999,7 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 		}
 	}
 
+	radeon_connector_update_scratch_regs(connector, ret);
 	return ret;
 }
 
