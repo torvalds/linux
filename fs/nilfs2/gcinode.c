@@ -225,10 +225,14 @@ static struct inode *alloc_gcinode(struct the_nilfs *nilfs, ino_t ino,
 	struct inode *inode;
 	struct nilfs_inode_info *ii;
 
-	inode = nilfs_mdt_new_common(nilfs, NULL, ino, GFP_NOFS, 0);
+	inode = nilfs_mdt_new_common(nilfs, NULL, ino);
 	if (!inode)
 		return NULL;
 
+	if (nilfs_mdt_init(inode, nilfs, GFP_NOFS, 0) < 0) {
+		nilfs_destroy_inode(inode);
+		return NULL;
+	}
 	inode->i_op = NULL;
 	inode->i_fop = NULL;
 	inode->i_mapping->a_ops = &def_gcinode_aops;

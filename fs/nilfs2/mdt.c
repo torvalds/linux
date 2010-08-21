@@ -439,6 +439,27 @@ static const struct address_space_operations def_mdt_aops = {
 static const struct inode_operations def_mdt_iops;
 static const struct file_operations def_mdt_fops;
 
+
+int nilfs_mdt_init(struct inode *inode, struct the_nilfs *nilfs,
+		   gfp_t gfp_mask, size_t objsz)
+{
+	struct nilfs_mdt_info *mi;
+
+	mi = kzalloc(max(sizeof(*mi), objsz), GFP_NOFS);
+	if (!mi)
+		return -ENOMEM;
+
+	mi->mi_nilfs = nilfs;
+	init_rwsem(&mi->mi_sem);
+	inode->i_private = mi;
+
+	inode->i_mode = S_IFREG;
+	mapping_set_gfp_mask(inode->i_mapping, gfp_mask);
+	inode->i_mapping->backing_dev_info = nilfs->ns_bdi;
+
+	return 0;
+}
+
 /*
  * NILFS2 uses pseudo inodes for meta data files such as DAT, cpfile, sufile,
  * ifile, or gcinodes.  This allows the B-tree code and segment constructor
@@ -454,12 +475,10 @@ static const struct file_operations def_mdt_fops;
  * @nilfs: nilfs object
  * @sb: super block instance the metadata file belongs to
  * @ino: inode number
- * @gfp_mask: gfp mask for data pages
- * @objsz: size of the private object attached to inode->i_private
  */
 struct inode *
 nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
-		     ino_t ino, gfp_t gfp_mask, size_t objsz)
+		     ino_t ino)
 {
 	struct inode *inode = nilfs_alloc_inode_common(nilfs);
 
@@ -467,15 +486,6 @@ nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 		return NULL;
 	else {
 		struct address_space * const mapping = &inode->i_data;
-		struct nilfs_mdt_info *mi;
-
-		mi = kzalloc(max(sizeof(*mi), objsz), GFP_NOFS);
-		if (!mi) {
-			nilfs_destroy_inode(inode);
-			return NULL;
-		}
-		mi->mi_nilfs = nilfs;
-		init_rwsem(&mi->mi_sem);
 
 		inode->i_sb = sb; /* sb may be NULL for some meta data files */
 		inode->i_blkbits = nilfs->ns_blocksize_bits;
@@ -483,8 +493,6 @@ nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 		atomic_set(&inode->i_count, 1);
 		inode->i_nlink = 1;
 		inode->i_ino = ino;
-		inode->i_mode = S_IFREG;
-		inode->i_private = mi;
 
 #ifdef INIT_UNUSED_INODE_FIELDS
 		atomic_set(&inode->i_writecount, 0);
@@ -515,9 +523,7 @@ nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 
 		mapping->host = NULL;  /* instead of inode */
 		mapping->flags = 0;
-		mapping_set_gfp_mask(mapping, gfp_mask);
 		mapping->assoc_mapping = NULL;
-		mapping->backing_dev_info = nilfs->ns_bdi;
 
 		inode->i_mapping = mapping;
 	}
@@ -530,10 +536,14 @@ struct inode *nilfs_mdt_new(struct the_nilfs *nilfs, struct super_block *sb,
 {
 	struct inode *inode;
 
-	inode = nilfs_mdt_new_common(nilfs, sb, ino, NILFS_MDT_GFP, objsz);
+	inode = nilfs_mdt_new_common(nilfs, sb, ino);
 	if (!inode)
 		return NULL;
 
+	if (nilfs_mdt_init(inode, nilfs, NILFS_MDT_GFP, objsz) < 0) {
+		nilfs_destroy_inode(inode);
+		return NULL;
+	}
 	inode->i_op = &def_mdt_iops;
 	inode->i_fop = &def_mdt_fops;
 	inode->i_mapping->a_ops = &def_mdt_aops;

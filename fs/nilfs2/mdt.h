@@ -76,10 +76,12 @@ int nilfs_mdt_forget_block(struct inode *, unsigned long);
 int nilfs_mdt_mark_block_dirty(struct inode *, unsigned long);
 int nilfs_mdt_fetch_dirty(struct inode *);
 
+int nilfs_mdt_init(struct inode *inode, struct the_nilfs *nilfs,
+		   gfp_t gfp_mask, size_t objsz);
 struct inode *nilfs_mdt_new(struct the_nilfs *, struct super_block *, ino_t,
 			    size_t);
 struct inode *nilfs_mdt_new_common(struct the_nilfs *, struct super_block *,
-				   ino_t, gfp_t, size_t);
+				   ino_t);
 void nilfs_mdt_destroy(struct inode *);
 void nilfs_mdt_set_entry_size(struct inode *, unsigned, unsigned);
 void nilfs_mdt_set_shadow(struct inode *, struct inode *);
