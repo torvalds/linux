@@ -7,7 +7,11 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -60,6 +64,61 @@ static struct s3c2410_uartcfg universal_uartcfgs[] __initdata = {
 	},
 };
 
+static struct gpio_keys_button universal_gpio_keys_tables[] = {
+	{
+		.code			= KEY_VOLUMEUP,
+		.gpio			= S5PV310_GPX2(0),	/* XEINT16 */
+		.desc			= "gpio-keys: KEY_VOLUMEUP",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_VOLUMEDOWN,
+		.gpio			= S5PV310_GPX2(1),	/* XEINT17 */
+		.desc			= "gpio-keys: KEY_VOLUMEDOWN",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_CONFIG,
+		.gpio			= S5PV310_GPX2(2),	/* XEINT18 */
+		.desc			= "gpio-keys: KEY_CONFIG",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_CAMERA,
+		.gpio			= S5PV310_GPX2(3),	/* XEINT19 */
+		.desc			= "gpio-keys: KEY_CAMERA",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_OK,
+		.gpio			= S5PV310_GPX3(5),	/* XEINT29 */
+		.desc			= "gpio-keys: KEY_OK",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.debounce_interval	= 1,
+	},
+};
+
+static struct gpio_keys_platform_data universal_gpio_keys_data = {
+	.buttons	= universal_gpio_keys_tables,
+	.nbuttons	= ARRAY_SIZE(universal_gpio_keys_tables),
+};
+
+static struct platform_device universal_gpio_keys = {
+	.name			= "gpio-keys",
+	.dev			= {
+		.platform_data	= &universal_gpio_keys_data,
+	},
+};
+
+static struct platform_device *universal_devices[] __initdata = {
+	&universal_gpio_keys,
+};
+
 static void __init universal_map_io(void)
 {
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
@@ -72,6 +131,9 @@ static void __init universal_machine_init(void)
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_init(S5P_VA_L2CC, 1 << 28, 0xffffffff);
 #endif
+
+	/* Last */
+	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
 }
 
 MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
