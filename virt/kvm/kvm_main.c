@@ -927,11 +927,6 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
 	return memslot - slots->memslots;
 }
 
-static unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
-{
-	return slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE;
-}
-
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
@@ -943,18 +938,24 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
-static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
+static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic)
 {
 	struct page *page[1];
 	int npages;
 	pfn_t pfn;
 
-	might_sleep();
-
-	npages = get_user_pages_fast(addr, 1, 1, page);
+	if (atomic)
+		npages = __get_user_pages_fast(addr, 1, 1, page);
+	else {
+		might_sleep();
+		npages = get_user_pages_fast(addr, 1, 1, page);
+	}
 
 	if (unlikely(npages != 1)) {
 		struct vm_area_struct *vma;
+
+		if (atomic)
+			goto return_fault_page;
 
 		down_read(&current->mm->mmap_sem);
 		if (is_hwpoison_address(addr)) {
@@ -968,6 +969,7 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 		if (vma == NULL || addr < vma->vm_start ||
 		    !(vma->vm_flags & VM_PFNMAP)) {
 			up_read(&current->mm->mmap_sem);
+return_fault_page:
 			get_page(fault_page);
 			return page_to_pfn(fault_page);
 		}
@@ -981,6 +983,12 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 	return pfn;
 }
 
+pfn_t hva_to_pfn_atomic(struct kvm *kvm, unsigned long addr)
+{
+	return hva_to_pfn(kvm, addr, true);
+}
+EXPORT_SYMBOL_GPL(hva_to_pfn_atomic);
+
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 {
 	unsigned long addr;
@@ -991,7 +999,7 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 		return page_to_pfn(bad_page);
 	}
 
-	return hva_to_pfn(kvm, addr);
+	return hva_to_pfn(kvm, addr, false);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
 
@@ -999,7 +1007,7 @@ pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
-	return hva_to_pfn(kvm, addr);
+	return hva_to_pfn(kvm, addr, false);
 }
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
