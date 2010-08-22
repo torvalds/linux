@@ -154,7 +154,7 @@ static unsigned int ip_vs_conn_hashkey_param(const struct ip_vs_conn_param *p,
 	const union nf_inet_addr *addr;
 	__be16 port;
 
-	if (p->pe && p->pe->hashkey_raw)
+	if (p->pe_data && p->pe->hashkey_raw)
 		return p->pe->hashkey_raw(p, ip_vs_conn_rnd, inverse) &
 			ip_vs_conn_tab_mask;
 
@@ -353,7 +353,7 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 	ct_read_lock(hash);
 
 	list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
-		if (p->pe && p->pe->ct_match) {
+		if (p->pe_data && p->pe->ct_match) {
 			if (p->pe->ct_match(p, cp))
 				goto out;
 			continue;
@@ -956,7 +956,7 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 		char pe_data[IP_VS_PENAME_MAXLEN + IP_VS_PEDATA_MAXLEN + 3];
 		size_t len = 0;
 
-		if (cp->dest && cp->dest->svc->pe &&
+		if (cp->dest && cp->pe_data &&
 		    cp->dest->svc->pe->show_pe_data) {
 			pe_data[0] = ' ';
 			len = strlen(cp->dest->svc->pe->name);
