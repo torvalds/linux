@@ -572,6 +572,7 @@ struct ip_vs_pe {
 			 struct ip_vs_conn *ct);
 	u32 (*hashkey_raw)(const struct ip_vs_conn_param *p, u32 initval,
 			   bool inverse);
+	int (*show_pe_data)(const struct ip_vs_conn *cp, char *buf);
 };
 
 /*
