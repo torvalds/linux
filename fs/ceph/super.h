@@ -216,8 +216,7 @@ struct ceph_cap_snap {
 	uid_t uid;
 	gid_t gid;
 
-	void *xattr_blob;
-	int xattr_len;
+	struct ceph_buffer *xattr_blob;
 	u64 xattr_version;
 
 	u64 size;
@@ -229,8 +228,11 @@ struct ceph_cap_snap {
 
 static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 {
-	if (atomic_dec_and_test(&capsnap->nref))
+	if (atomic_dec_and_test(&capsnap->nref)) {
+		if (capsnap->xattr_blob)
+			ceph_buffer_put(capsnap->xattr_blob);
 		kfree(capsnap);
+	}
 }
 
 /*

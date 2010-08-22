@@ -1282,7 +1282,7 @@ retry:
 			     &capsnap->mtime, &capsnap->atime,
 			     capsnap->time_warp_seq,
 			     capsnap->uid, capsnap->gid, capsnap->mode,
-			     0, NULL,
+			     capsnap->xattr_version, capsnap->xattr_blob,
 			     capsnap->follows);
 
 		next_follows = capsnap->follows + 1;

@@ -435,7 +435,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap_snap *capsnap;
-	int used;
+	int used, dirty;
 
 	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
 	if (!capsnap) {
@@ -445,6 +445,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 	spin_lock(&inode->i_lock);
 	used = __ceph_caps_used(ci);
+	dirty = __ceph_caps_dirty(ci);
 	if (__ceph_have_pending_cap_snap(ci)) {
 		/* there is no point in queuing multiple "pending" cap_snaps,
 		   as no new writes are allowed to start when pending, so any
@@ -452,11 +453,13 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
-	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR)) {
+	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR) ||
+		   (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
+			     CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
 
 		igrab(inode);
-
+		
 		atomic_set(&capsnap->nref, 1);
 		capsnap->ci = ci;
 		INIT_LIST_HEAD(&capsnap->ci_item);
@@ -464,15 +467,21 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 		capsnap->follows = snapc->seq - 1;
 		capsnap->issued = __ceph_caps_issued(ci, NULL);
-		capsnap->dirty = __ceph_caps_dirty(ci);
+		capsnap->dirty = dirty;
 
 		capsnap->mode = inode->i_mode;
 		capsnap->uid = inode->i_uid;
 		capsnap->gid = inode->i_gid;
 
-		/* fixme? */
-		capsnap->xattr_blob = NULL;
-		capsnap->xattr_len = 0;
+		if (dirty & CEPH_CAP_XATTR_EXCL) {
+			__ceph_build_xattrs_blob(ci);
+			capsnap->xattr_blob =
+				ceph_buffer_get(ci->i_xattrs.blob);
+			capsnap->xattr_version = ci->i_xattrs.version;
+		} else {
+			capsnap->xattr_blob = NULL;
+			capsnap->xattr_version = 0;
+		}
 
 		/* dirty page count moved from _head to this cap_snap;
 		   all subsequent writes page dirties occur _after_ this
