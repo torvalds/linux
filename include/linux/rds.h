@@ -36,15 +36,6 @@
 
 #include <linux/types.h>
 
-/* These sparse annotated types shouldn't be in any user
- * visible header file. We should clean this up rather
- * than kludging around them. */
-#ifndef __KERNEL__
-#define __be16	u_int16_t
-#define __be32	u_int32_t
-#define __be64	u_int64_t
-#endif
-
 #define RDS_IB_ABI_VERSION		0x301
 
 /*
