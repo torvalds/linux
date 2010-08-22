@@ -413,23 +413,6 @@ static inline void ccid2_new_ack(struct sock *sk,
 			       hc->tx_srtt, hc->tx_rttvar,
 			       hc->tx_rto, HZ, r);
 	}
-
-	/* we got a new ack, so re-start RTO timer */
-	ccid2_hc_tx_kill_rto_timer(sk);
-	ccid2_start_rto_timer(sk);
-}
-
-static void ccid2_hc_tx_dec_pipe(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	if (hc->tx_pipe == 0)
-		DCCP_BUG("pipe == 0");
-	else
-		hc->tx_pipe--;
-
-	if (hc->tx_pipe == 0)
-		ccid2_hc_tx_kill_rto_timer(sk);
 }
 
 static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
@@ -572,7 +555,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 					seqp->ccid2s_acked = 1;
 					ccid2_pr_debug("Got ack for %llu\n",
 						       (unsigned long long)seqp->ccid2s_seq);
-					ccid2_hc_tx_dec_pipe(sk);
+					hc->tx_pipe--;
 				}
 				if (seqp == hc->tx_seqt) {
 					done = 1;
@@ -629,7 +612,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				 * one ack vector.
 				 */
 				ccid2_congestion_event(sk, seqp);
-				ccid2_hc_tx_dec_pipe(sk);
+				hc->tx_pipe--;
 			}
 			if (seqp == hc->tx_seqt)
 				break;
@@ -646,6 +629,12 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 		hc->tx_seqt = hc->tx_seqt->ccid2s_next;
 	}
+
+	/* restart RTO timer if not all outstanding data has been acked */
+	if (hc->tx_pipe == 0)
+		sk_stop_timer(sk, &hc->tx_rtotimer);
+	else
+		sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 }
 
 static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
