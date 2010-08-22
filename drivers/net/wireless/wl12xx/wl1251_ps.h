@@ -1,6 +1,3 @@
-#ifndef __WL1251_PS_H__
-#define __WL1251_PS_H__
-
 /*
  * This file is part of wl1251
  *
@@ -22,6 +19,9 @@
  * 02110-1301 USA
  *
  */
+
+#ifndef __WL1251_PS_H__
+#define __WL1251_PS_H__
 
 #include "wl1251.h"
 #include "wl1251_acx.h"
