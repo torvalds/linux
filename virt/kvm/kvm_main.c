@@ -927,14 +927,24 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
 	return memslot - slots->memslots;
 }
 
-unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
+				     gfn_t *nr_pages)
 {
 	struct kvm_memory_slot *slot;
 
 	slot = gfn_to_memslot(kvm, gfn);
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return bad_hva();
+
+	if (nr_pages)
+		*nr_pages = slot->npages - (gfn - slot->base_gfn);
+
 	return gfn_to_hva_memslot(slot, gfn);
+}
+
+unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_hva_many(kvm, gfn, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
@@ -1009,6 +1019,23 @@ pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
 	return hva_to_pfn(kvm, addr, false);
 }
+
+int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
+								  int nr_pages)
+{
+	unsigned long addr;
+	gfn_t entry;
+
+	addr = gfn_to_hva_many(kvm, gfn, &entry);
+	if (kvm_is_error_hva(addr))
+		return -1;
+
+	if (entry < nr_pages)
+		return 0;
+
+	return __get_user_pages_fast(addr, nr_pages, 1, pages);
+}
+EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
