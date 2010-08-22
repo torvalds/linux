@@ -1134,6 +1134,7 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 {
 	int ret = 0;
 	struct ip_vs_scheduler *sched = NULL;
+	struct ip_vs_pe *pe = NULL;
 	struct ip_vs_service *svc = NULL;
 
 	/* increase the module use count */
@@ -1145,6 +1146,16 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 		pr_info("Scheduler module ip_vs_%s not found\n", u->sched_name);
 		ret = -ENOENT;
 		goto out_err;
+	}
+
+	if (u->pe_name && *u->pe_name) {
+		pe = ip_vs_pe_get(u->pe_name);
+		if (pe == NULL) {
+			pr_info("persistence engine module ip_vs_pe_%s "
+				"not found\n", u->pe_name);
+			ret = -ENOENT;
+			goto out_err;
+		}
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1184,6 +1195,10 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 		goto out_err;
 	sched = NULL;
 
+	/* Bind the ct retriever */
+	ip_vs_bind_pe(svc, pe);
+	pe = NULL;
+
 	/* Update the virtual service counters */
 	if (svc->port == FTPPORT)
 		atomic_inc(&ip_vs_ftpsvc_counter);
@@ -1215,6 +1230,7 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 		kfree(svc);
 	}
 	ip_vs_scheduler_put(sched);
+	ip_vs_pe_put(pe);
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
@@ -1230,6 +1246,7 @@ static int
 ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 {
 	struct ip_vs_scheduler *sched, *old_sched;
+	struct ip_vs_pe *pe = NULL, *old_pe = NULL;
 	int ret = 0;
 
 	/*
@@ -1241,6 +1258,17 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		return -ENOENT;
 	}
 	old_sched = sched;
+
+	if (u->pe_name && *u->pe_name) {
+		pe = ip_vs_pe_get(u->pe_name);
+		if (pe == NULL) {
+			pr_info("persistence engine module ip_vs_pe_%s "
+				"not found\n", u->pe_name);
+			ret = -ENOENT;
+			goto out;
+		}
+		old_pe = pe;
+	}
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
@@ -1293,12 +1321,17 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		}
 	}
 
+	old_pe = svc->pe;
+	if (pe != old_pe) {
+		ip_vs_unbind_pe(svc);
+		ip_vs_bind_pe(svc, pe);
+	}
+
   out_unlock:
 	write_unlock_bh(&__ip_vs_svc_lock);
-#ifdef CONFIG_IP_VS_IPV6
   out:
-#endif
 	ip_vs_scheduler_put(old_sched);
+	ip_vs_pe_put(old_pe);
 	return ret;
 }
 
@@ -1312,6 +1345,9 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 {
 	struct ip_vs_dest *dest, *nxt;
 	struct ip_vs_scheduler *old_sched;
+	struct ip_vs_pe *old_pe;
+
+	pr_info("%s: enter\n", __func__);
 
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
@@ -1323,6 +1359,11 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	old_sched = svc->scheduler;
 	ip_vs_unbind_scheduler(svc);
 	ip_vs_scheduler_put(old_sched);
+
+	/* Unbind persistence engine */
+	old_pe = svc->pe;
+	ip_vs_unbind_pe(svc);
+	ip_vs_pe_put(old_pe);
 
 	/* Unbind app inc */
 	if (svc->inc) {
@@ -2026,6 +2067,8 @@ static const unsigned char set_arglen[SET_CMDID(IP_VS_SO_SET_MAX)+1] = {
 static void ip_vs_copy_usvc_compat(struct ip_vs_service_user_kern *usvc,
 				  struct ip_vs_service_user *usvc_compat)
 {
+	memset(usvc, 0, sizeof(*usvc));
+
 	usvc->af		= AF_INET;
 	usvc->protocol		= usvc_compat->protocol;
 	usvc->addr.ip		= usvc_compat->addr;
@@ -2043,6 +2086,8 @@ static void ip_vs_copy_usvc_compat(struct ip_vs_service_user_kern *usvc,
 static void ip_vs_copy_udest_compat(struct ip_vs_dest_user_kern *udest,
 				   struct ip_vs_dest_user *udest_compat)
 {
+	memset(udest, 0, sizeof(*udest));
+
 	udest->addr.ip		= udest_compat->addr;
 	udest->port		= udest_compat->port;
 	udest->conn_flags	= udest_compat->conn_flags;
@@ -2539,6 +2584,8 @@ static const struct nla_policy ip_vs_svc_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_FWMARK]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_SCHED_NAME]	= { .type = NLA_NUL_STRING,
 					    .len = IP_VS_SCHEDNAME_MAXLEN },
+	[IPVS_SVC_ATTR_PE_NAME]		= { .type = NLA_NUL_STRING,
+					    .len = IP_VS_PENAME_MAXLEN },
 	[IPVS_SVC_ATTR_FLAGS]		= { .type = NLA_BINARY,
 					    .len = sizeof(struct ip_vs_flags) },
 	[IPVS_SVC_ATTR_TIMEOUT]		= { .type = NLA_U32 },
@@ -2615,6 +2662,8 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	}
 
 	NLA_PUT_STRING(skb, IPVS_SVC_ATTR_SCHED_NAME, svc->scheduler->name);
+	if (svc->pe)
+		NLA_PUT_STRING(skb, IPVS_SVC_ATTR_PE_NAME, svc->pe->name);
 	NLA_PUT(skb, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags);
 	NLA_PUT_U32(skb, IPVS_SVC_ATTR_TIMEOUT, svc->timeout / HZ);
 	NLA_PUT_U32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask);
@@ -2741,11 +2790,12 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 
 	/* If a full entry was requested, check for the additional fields */
 	if (full_entry) {
-		struct nlattr *nla_sched, *nla_flags, *nla_timeout,
+		struct nlattr *nla_sched, *nla_flags, *nla_pe, *nla_timeout,
 			      *nla_netmask;
 		struct ip_vs_flags flags;
 
 		nla_sched = attrs[IPVS_SVC_ATTR_SCHED_NAME];
+		nla_pe = attrs[IPVS_SVC_ATTR_PE_NAME];
 		nla_flags = attrs[IPVS_SVC_ATTR_FLAGS];
 		nla_timeout = attrs[IPVS_SVC_ATTR_TIMEOUT];
 		nla_netmask = attrs[IPVS_SVC_ATTR_NETMASK];
@@ -2763,6 +2813,7 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 		usvc->flags = (usvc->flags & ~flags.mask) |
 			      (flags.flags & flags.mask);
 		usvc->sched_name = nla_data(nla_sched);
+		usvc->pe_name = nla_pe ? nla_data(nla_pe) : NULL;
 		usvc->timeout = nla_get_u32(nla_timeout);
 		usvc->netmask = nla_get_u32(nla_netmask);
 	}

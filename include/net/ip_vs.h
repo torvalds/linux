@@ -444,6 +444,7 @@ struct ip_vs_service_user_kern {
 
 	/* virtual service options */
 	char			*sched_name;
+	char			*pe_name;
 	unsigned		flags;		/* virtual service flags */
 	unsigned		timeout;	/* persistent timeout in sec */
 	u32			netmask;	/* persistent netmask */
