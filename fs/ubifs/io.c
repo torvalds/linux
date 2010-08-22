@@ -815,7 +815,8 @@ int ubifs_read_node(const struct ubifs_info *c, void *buf, int type, int len,
 	return 0;
 
 out:
-	ubifs_err("bad node at LEB %d:%d", lnum, offs);
+	ubifs_err("bad node at LEB %d:%d, LEB mapping status %d", lnum, offs,
+		  ubi_is_mapped(c->ubi, lnum));
 	dbg_dump_node(c, buf);
 	dbg_dump_stack();
 	return -EINVAL;
