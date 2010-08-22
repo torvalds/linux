@@ -558,6 +558,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 
 	rdev = max8998->rdev;
 	max8998->iodev = iodev;
+	max8998->num_regulators = pdata->num_regulators;
 	platform_set_drvdata(pdev, max8998);
 
 	for (i = 0; i < pdata->num_regulators; i++) {
