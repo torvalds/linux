@@ -140,6 +140,7 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 {
 	struct nf_conntrack_tuple *orig, new_reply;
 	struct ip_vs_conn *cp;
+	struct ip_vs_conn_param p;
 
 	if (exp->tuple.src.l3num != PF_INET)
 		return;
@@ -154,9 +155,10 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 
 	/* RS->CLIENT */
 	orig = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-	cp = ip_vs_conn_out_get(exp->tuple.src.l3num, orig->dst.protonum,
-				&orig->src.u3, orig->src.u.tcp.port,
-				&orig->dst.u3, orig->dst.u.tcp.port);
+	ip_vs_conn_fill_param(exp->tuple.src.l3num, orig->dst.protonum,
+			      &orig->src.u3, orig->src.u.tcp.port,
+			      &orig->dst.u3, orig->dst.u.tcp.port, &p);
+	cp = ip_vs_conn_out_get(&p);
 	if (cp) {
 		/* Change reply CLIENT->RS to CLIENT->VS */
 		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
@@ -176,9 +178,7 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 	}
 
 	/* CLIENT->VS */
-	cp = ip_vs_conn_in_get(exp->tuple.src.l3num, orig->dst.protonum,
-			       &orig->src.u3, orig->src.u.tcp.port,
-			       &orig->dst.u3, orig->dst.u.tcp.port);
+	cp = ip_vs_conn_in_get(&p);
 	if (cp) {
 		/* Change reply VS->CLIENT to RS->CLIENT */
 		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;

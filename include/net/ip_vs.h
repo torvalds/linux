@@ -357,6 +357,15 @@ struct ip_vs_protocol {
 
 extern struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto);
 
+struct ip_vs_conn_param {
+	const union nf_inet_addr	*caddr;
+	const union nf_inet_addr	*vaddr;
+	__be16				cport;
+	__be16				vport;
+	__u16				protocol;
+	u16				af;
+};
+
 /*
  *	IP_VS structure allocated for each dynamically scheduled connection
  */
@@ -626,13 +635,23 @@ enum {
 	IP_VS_DIR_LAST,
 };
 
-extern struct ip_vs_conn *ip_vs_conn_in_get
-(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
- const union nf_inet_addr *d_addr, __be16 d_port);
+static inline void ip_vs_conn_fill_param(int af, int protocol,
+					 const union nf_inet_addr *caddr,
+					 __be16 cport,
+					 const union nf_inet_addr *vaddr,
+					 __be16 vport,
+					 struct ip_vs_conn_param *p)
+{
+	p->af = af;
+	p->protocol = protocol;
+	p->caddr = caddr;
+	p->cport = cport;
+	p->vaddr = vaddr;
+	p->vport = vport;
+}
 
-extern struct ip_vs_conn *ip_vs_ct_in_get
-(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
- const union nf_inet_addr *d_addr, __be16 d_port);
+struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p);
+struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 					    struct ip_vs_protocol *pp,
@@ -640,9 +659,7 @@ struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 					    unsigned int proto_off,
 					    int inverse);
 
-extern struct ip_vs_conn *ip_vs_conn_out_get
-(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
- const union nf_inet_addr *d_addr, __be16 d_port);
+struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
 					     struct ip_vs_protocol *pp,
@@ -658,11 +675,10 @@ static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 extern void ip_vs_conn_put(struct ip_vs_conn *cp);
 extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 
-extern struct ip_vs_conn *
-ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
-	       const union nf_inet_addr *vaddr, __be16 vport,
-	       const union nf_inet_addr *daddr, __be16 dport, unsigned flags,
-	       struct ip_vs_dest *dest);
+struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p,
+				  const union nf_inet_addr *daddr,
+				  __be16 dport, unsigned flags,
+				  struct ip_vs_dest *dest);
 extern void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 
 extern const char * ip_vs_state_name(__u16 proto, int state);

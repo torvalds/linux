@@ -193,14 +193,11 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
-	int protocol = iph.protocol;
 	__be16 dport = 0;		/* destination port to forward */
-	__be16 vport = 0;		/* virtual service port */
 	unsigned int flags;
+	struct ip_vs_conn_param param;
 	union nf_inet_addr snet;	/* source network of the client,
 					   after masking */
-	const union nf_inet_addr fwmark = { .ip = htonl(svc->fwmark) };
-	const union nf_inet_addr *vaddr = &iph.daddr;
 
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 
@@ -232,6 +229,11 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	 * is created for other persistent services.
 	 */
 	{
+		int protocol = iph.protocol;
+		const union nf_inet_addr *vaddr = &iph.daddr;
+		const union nf_inet_addr fwmark = { .ip = htonl(svc->fwmark) };
+		__be16 vport = 0;
+
 		if (ports[1] == svc->port) {
 			/* non-FTP template:
 			 * <protocol, caddr, 0, vaddr, vport, daddr, dport>
@@ -253,11 +255,12 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 				vaddr = &fwmark;
 			}
 		}
+		ip_vs_conn_fill_param(svc->af, protocol, &snet, 0,
+				      vaddr, vport, &param);
 	}
 
 	/* Check if a template already exists */
-	ct = ip_vs_ct_in_get(svc->af, protocol, &snet, 0, vaddr, vport);
-
+	ct = ip_vs_ct_in_get(&param);
 	if (!ct || !ip_vs_check_template(ct)) {
 		/* No template found or the dest of the connection
 		 * template is not available.
@@ -272,8 +275,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 			dport = dest->port;
 
 		/* Create a template */
-		ct = ip_vs_conn_new(svc->af, protocol, &snet, 0,vaddr, vport,
-				    &dest->addr, dport,
+		ct = ip_vs_conn_new(&param, &dest->addr, dport,
 				    IP_VS_CONN_F_TEMPLATE, dest);
 		if (ct == NULL)
 			return NULL;
@@ -294,12 +296,9 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/*
 	 *    Create a new connection according to the template
 	 */
-	cp = ip_vs_conn_new(svc->af, iph.protocol,
-			    &iph.saddr, ports[0],
-			    &iph.daddr, ports[1],
-			    &dest->addr, dport,
-			    flags,
-			    dest);
+	ip_vs_conn_fill_param(svc->af, iph.protocol, &iph.saddr, ports[0],
+			      &iph.daddr, ports[1], &param);
+	cp = ip_vs_conn_new(&param, &dest->addr, dport, flags, dest);
 	if (cp == NULL) {
 		ip_vs_conn_put(ct);
 		return NULL;
@@ -366,14 +365,16 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	/*
 	 *    Create a connection entry.
 	 */
-	cp = ip_vs_conn_new(svc->af, iph.protocol,
-			    &iph.saddr, pptr[0],
-			    &iph.daddr, pptr[1],
-			    &dest->addr, dest->port ? dest->port : pptr[1],
-			    flags,
-			    dest);
-	if (cp == NULL)
-		return NULL;
+	{
+		struct ip_vs_conn_param p;
+		ip_vs_conn_fill_param(svc->af, iph.protocol, &iph.saddr,
+				      pptr[0], &iph.daddr, pptr[1], &p);
+		cp = ip_vs_conn_new(&p, &dest->addr,
+				    dest->port ? dest->port : pptr[1],
+				    flags, dest);
+		if (!cp)
+			return NULL;
+	}
 
 	IP_VS_DBG_BUF(6, "Schedule fwd:%c c:%s:%u v:%s:%u "
 		      "d:%s:%u conn->flags:%X conn->refcnt:%d\n",
@@ -429,14 +430,17 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 
 		/* create a new connection entry */
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
-		cp = ip_vs_conn_new(svc->af, iph.protocol,
-				    &iph.saddr, pptr[0],
-				    &iph.daddr, pptr[1],
-				    &daddr, 0,
-				    IP_VS_CONN_F_BYPASS | flags,
-				    NULL);
-		if (cp == NULL)
-			return NF_DROP;
+		{
+			struct ip_vs_conn_param p;
+			ip_vs_conn_fill_param(svc->af, iph.protocol,
+					      &iph.saddr, pptr[0],
+					      &iph.daddr, pptr[1], &p);
+			cp = ip_vs_conn_new(&p, &daddr, 0,
+					    IP_VS_CONN_F_BYPASS | flags,
+					    NULL);
+			if (!cp)
+				return NF_DROP;
+		}
 
 		/* statistics */
 		ip_vs_in_stats(cp, skb);

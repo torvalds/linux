@@ -195,13 +195,17 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		/*
 		 * Now update or create an connection entry for it
 		 */
-		n_cp = ip_vs_conn_out_get(AF_INET, iph->protocol, &from, port,
-					  &cp->caddr, 0);
+		{
+			struct ip_vs_conn_param p;
+			ip_vs_conn_fill_param(AF_INET, iph->protocol,
+					      &from, port, &cp->caddr, 0, &p);
+			n_cp = ip_vs_conn_out_get(&p);
+		}
 		if (!n_cp) {
-			n_cp = ip_vs_conn_new(AF_INET, IPPROTO_TCP,
-					      &cp->caddr, 0,
-					      &cp->vaddr, port,
-					      &from, port,
+			struct ip_vs_conn_param p;
+			ip_vs_conn_fill_param(AF_INET, IPPROTO_TCP, &cp->caddr,
+					      0, &cp->vaddr, port, &p);
+			n_cp = ip_vs_conn_new(&p, &from, port,
 					      IP_VS_CONN_F_NO_CPORT |
 					      IP_VS_CONN_F_NFCT,
 					      cp->dest);
@@ -347,21 +351,22 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		  ip_vs_proto_name(iph->protocol),
 		  &to.ip, ntohs(port), &cp->vaddr.ip, 0);
 
-	n_cp = ip_vs_conn_in_get(AF_INET, iph->protocol,
-				 &to, port,
-				 &cp->vaddr, htons(ntohs(cp->vport)-1));
-	if (!n_cp) {
-		n_cp = ip_vs_conn_new(AF_INET, IPPROTO_TCP,
-				      &to, port,
+	{
+		struct ip_vs_conn_param p;
+		ip_vs_conn_fill_param(AF_INET, iph->protocol, &to, port,
 				      &cp->vaddr, htons(ntohs(cp->vport)-1),
-				      &cp->daddr, htons(ntohs(cp->dport)-1),
-				      IP_VS_CONN_F_NFCT,
-				      cp->dest);
-		if (!n_cp)
-			return 0;
+				      &p);
+		n_cp = ip_vs_conn_in_get(&p);
+		if (!n_cp) {
+			n_cp = ip_vs_conn_new(&p, &cp->daddr,
+					      htons(ntohs(cp->dport)-1),
+					      IP_VS_CONN_F_NFCT, cp->dest);
+			if (!n_cp)
+				return 0;
 
-		/* add its controller */
-		ip_vs_control_add(n_cp, cp);
+			/* add its controller */
+			ip_vs_control_add(n_cp, cp);
+		}
 	}
 
 	/*
