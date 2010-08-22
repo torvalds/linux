@@ -169,6 +169,7 @@ static netdev_tx_t irlan_eth_xmit(struct sk_buff *skb,
 {
 	struct irlan_cb *self = netdev_priv(dev);
 	int ret;
+	unsigned int len;
 
 	/* skb headroom large enough to contain all IrDA-headers? */
 	if ((skb_headroom(skb) < self->max_header_size) || (skb_shared(skb))) {
@@ -188,6 +189,7 @@ static netdev_tx_t irlan_eth_xmit(struct sk_buff *skb,
 
 	dev->trans_start = jiffies;
 
+	len = skb->len;
 	/* Now queue the packet in the transport layer */
 	if (self->use_udata)
 		ret = irttp_udata_request(self->tsap_data, skb);
@@ -209,7 +211,7 @@ static netdev_tx_t irlan_eth_xmit(struct sk_buff *skb,
 		self->stats.tx_dropped++;
 	} else {
 		self->stats.tx_packets++;
-		self->stats.tx_bytes += skb->len;
+		self->stats.tx_bytes += len;
 	}
 
 	return NETDEV_TX_OK;
