@@ -1144,7 +1144,7 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	if (sched == NULL) {
 		pr_info("Scheduler module ip_vs_%s not found\n", u->sched_name);
 		ret = -ENOENT;
-		goto out_mod_dec;
+		goto out_err;
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1204,7 +1204,7 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	*svc_p = svc;
 	return 0;
 
-  out_err:
+ out_err:
 	if (svc != NULL) {
 		if (svc->scheduler)
 			ip_vs_unbind_scheduler(svc);
@@ -1217,7 +1217,6 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	}
 	ip_vs_scheduler_put(sched);
 
-  out_mod_dec:
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
 
@@ -1300,10 +1299,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 #ifdef CONFIG_IP_VS_IPV6
   out:
 #endif
-
-	if (old_sched)
-		ip_vs_scheduler_put(old_sched);
-
+	ip_vs_scheduler_put(old_sched);
 	return ret;
 }
 
@@ -1327,8 +1323,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	/* Unbind scheduler */
 	old_sched = svc->scheduler;
 	ip_vs_unbind_scheduler(svc);
-	if (old_sched)
-		ip_vs_scheduler_put(old_sched);
+	ip_vs_scheduler_put(old_sched);
 
 	/* Unbind app inc */
 	if (svc->inc) {
