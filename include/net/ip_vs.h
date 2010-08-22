@@ -796,6 +796,12 @@ extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_init(void);
 extern void ip_vs_app_cleanup(void);
 
+void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe);
+void ip_vs_unbind_pe(struct ip_vs_service *svc);
+int register_ip_vs_pe(struct ip_vs_pe *pe);
+int unregister_ip_vs_pe(struct ip_vs_pe *pe);
+extern struct ip_vs_pe *ip_vs_pe_get(const char *name);
+extern void ip_vs_pe_put(struct ip_vs_pe *pe);
 
 /*
  *	IPVS protocol functions (from ip_vs_proto.c)
