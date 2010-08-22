@@ -1212,6 +1212,7 @@ static void worker_leave_idle(struct worker *worker)
  * bound), %false if offline.
  */
 static bool worker_maybe_bind_and_lock(struct worker *worker)
+__acquires(&gcwq->lock)
 {
 	struct global_cwq *gcwq = worker->gcwq;
 	struct task_struct *task = worker->task;
