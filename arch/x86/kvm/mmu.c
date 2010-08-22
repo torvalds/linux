@@ -89,6 +89,8 @@ module_param(oos_shadow, bool, 0644);
 	}
 #endif
 
+#define PTE_PREFETCH_NUM		8
+
 #define PT_FIRST_AVAIL_BITS_SHIFT 9
 #define PT64_SECOND_AVAIL_BITS_SHIFT 52
 
@@ -400,7 +402,7 @@ static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache(&vcpu->arch.mmu_rmap_desc_cache,
-				   rmap_desc_cache, 4);
+				   rmap_desc_cache, 4 + PTE_PREFETCH_NUM);
 	if (r)
 		goto out;
 	r = mmu_topup_memory_cache_page(&vcpu->arch.mmu_page_cache, 8);
@@ -2089,6 +2091,105 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
+static struct kvm_memory_slot *
+pte_prefetch_gfn_to_memslot(struct kvm_vcpu *vcpu, gfn_t gfn, bool no_dirty_log)
+{
+	struct kvm_memory_slot *slot;
+
+	slot = gfn_to_memslot(vcpu->kvm, gfn);
+	if (!slot || slot->flags & KVM_MEMSLOT_INVALID ||
+	      (no_dirty_log && slot->dirty_bitmap))
+		slot = NULL;
+
+	return slot;
+}
+
+static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
+				     bool no_dirty_log)
+{
+	struct kvm_memory_slot *slot;
+	unsigned long hva;
+
+	slot = pte_prefetch_gfn_to_memslot(vcpu, gfn, no_dirty_log);
+	if (!slot) {
+		get_page(bad_page);
+		return page_to_pfn(bad_page);
+	}
+
+	hva = gfn_to_hva_memslot(slot, gfn);
+
+	return hva_to_pfn_atomic(vcpu->kvm, hva);
+}
+
+static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
+				    struct kvm_mmu_page *sp,
+				    u64 *start, u64 *end)
+{
+	struct page *pages[PTE_PREFETCH_NUM];
+	unsigned access = sp->role.access;
+	int i, ret;
+	gfn_t gfn;
+
+	gfn = kvm_mmu_page_get_gfn(sp, start - sp->spt);
+	if (!pte_prefetch_gfn_to_memslot(vcpu, gfn, access & ACC_WRITE_MASK))
+		return -1;
+
+	ret = gfn_to_page_many_atomic(vcpu->kvm, gfn, pages, end - start);
+	if (ret <= 0)
+		return -1;
+
+	for (i = 0; i < ret; i++, gfn++, start++)
+		mmu_set_spte(vcpu, start, ACC_ALL,
+			     access, 0, 0, 1, NULL,
+			     sp->role.level, gfn,
+			     page_to_pfn(pages[i]), true, true);
+
+	return 0;
+}
+
+static void __direct_pte_prefetch(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu_page *sp, u64 *sptep)
+{
+	u64 *spte, *start = NULL;
+	int i;
+
+	WARN_ON(!sp->role.direct);
+
+	i = (sptep - sp->spt) & ~(PTE_PREFETCH_NUM - 1);
+	spte = sp->spt + i;
+
+	for (i = 0; i < PTE_PREFETCH_NUM; i++, spte++) {
+		if (*spte != shadow_trap_nonpresent_pte || spte == sptep) {
+			if (!start)
+				continue;
+			if (direct_pte_prefetch_many(vcpu, sp, start, spte) < 0)
+				break;
+			start = NULL;
+		} else if (!start)
+			start = spte;
+	}
+}
+
+static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
+{
+	struct kvm_mmu_page *sp;
+
+	/*
+	 * Since it's no accessed bit on EPT, it's no way to
+	 * distinguish between actually accessed translations
+	 * and prefetched, so disable pte prefetch if EPT is
+	 * enabled.
+	 */
+	if (!shadow_accessed_mask)
+		return;
+
+	sp = page_header(__pa(sptep));
+	if (sp->role.level > PT_PAGE_TABLE_LEVEL)
+		return;
+
+	__direct_pte_prefetch(vcpu, sp, sptep);
+}
+
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			int level, gfn_t gfn, pfn_t pfn)
 {
@@ -2102,6 +2203,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, ACC_ALL,
 				     0, write, 1, &pt_write,
 				     level, gfn, pfn, false, true);
+			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
 			break;
 		}

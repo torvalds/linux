@@ -310,6 +310,77 @@ static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
 	return r || curr_pte != gw->ptes[level - 1];
 }
 
+static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, u64 *sptep)
+{
+	struct kvm_mmu_page *sp;
+	pt_element_t gptep[PTE_PREFETCH_NUM];
+	gpa_t first_pte_gpa;
+	int offset = 0, i;
+	u64 *spte;
+
+	sp = page_header(__pa(sptep));
+
+	if (sp->role.level > PT_PAGE_TABLE_LEVEL)
+		return;
+
+	if (sp->role.direct)
+		return __direct_pte_prefetch(vcpu, sp, sptep);
+
+	i = (sptep - sp->spt) & ~(PTE_PREFETCH_NUM - 1);
+
+	if (PTTYPE == 32)
+		offset = sp->role.quadrant << PT64_LEVEL_BITS;
+
+	first_pte_gpa = gfn_to_gpa(sp->gfn) +
+				(offset + i) * sizeof(pt_element_t);
+
+	if (kvm_read_guest_atomic(vcpu->kvm, first_pte_gpa, gptep,
+					sizeof(gptep)) < 0)
+		return;
+
+	spte = sp->spt + i;
+
+	for (i = 0; i < PTE_PREFETCH_NUM; i++, spte++) {
+		pt_element_t gpte;
+		unsigned pte_access;
+		gfn_t gfn;
+		pfn_t pfn;
+		bool dirty;
+
+		if (spte == sptep)
+			continue;
+
+		if (*spte != shadow_trap_nonpresent_pte)
+			continue;
+
+		gpte = gptep[i];
+
+		if (!is_present_gpte(gpte) ||
+		      is_rsvd_bits_set(vcpu, gpte, PT_PAGE_TABLE_LEVEL)) {
+			if (!sp->unsync)
+				__set_spte(spte, shadow_notrap_nonpresent_pte);
+			continue;
+		}
+
+		if (!(gpte & PT_ACCESSED_MASK))
+			continue;
+
+		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
+		gfn = gpte_to_gfn(gpte);
+		dirty = is_dirty_gpte(gpte);
+		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
+				      (pte_access & ACC_WRITE_MASK) && dirty);
+		if (is_error_pfn(pfn)) {
+			kvm_release_pfn_clean(pfn);
+			break;
+		}
+
+		mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
+			     dirty, NULL, PT_PAGE_TABLE_LEVEL, gfn,
+			     pfn, true, true);
+	}
+}
+
 /*
  * Fetch a shadow pte for a specific level in the paging hierarchy.
  */
@@ -391,6 +462,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
 		     user_fault, write_fault, dirty, ptwrite, it.level,
 		     gw->gfn, pfn, false, true);
+	FNAME(pte_prefetch)(vcpu, it.sptep);
 
 	return it.sptep;
 
