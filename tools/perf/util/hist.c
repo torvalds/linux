@@ -226,6 +226,8 @@ static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 
 		if (!cmp) {
 			iter->period += he->period;
+			if (symbol_conf.use_callchain)
+				callchain_merge(iter->callchain, he->callchain);
 			hist_entry__free(he);
 			return false;
 		}

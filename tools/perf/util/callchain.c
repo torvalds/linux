@@ -28,6 +28,9 @@ bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event)
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, brothers)
 
+#define chain_for_each_child_safe(child, next, parent)	\
+	list_for_each_entry_safe(child, next, &parent->children, brothers)
+
 static void
 rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 		    enum chain_mode mode)
@@ -405,4 +408,57 @@ end:
 	free(filtered);
 
 	return 0;
+}
+
+static int
+merge_chain_branch(struct callchain_node *dst, struct callchain_node *src,
+		   struct resolved_chain *chain)
+{
+	struct callchain_node *child, *next_child;
+	struct callchain_list *list, *next_list;
+	int old_pos = chain->nr;
+	int err = 0;
+
+	list_for_each_entry_safe(list, next_list, &src->val, list) {
+		chain->ips[chain->nr].ip = list->ip;
+		chain->ips[chain->nr].ms = list->ms;
+		chain->nr++;
+		list_del(&list->list);
+		free(list);
+	}
+
+	if (src->hit)
+		append_chain_children(dst, chain, 0, src->hit);
+
+	chain_for_each_child_safe(child, next_child, src) {
+		err = merge_chain_branch(dst, child, chain);
+		if (err)
+			break;
+
+		list_del(&child->brothers);
+		free(child);
+	}
+
+	chain->nr = old_pos;
+
+	return err;
+}
+
+int callchain_merge(struct callchain_root *dst, struct callchain_root *src)
+{
+	struct resolved_chain *chain;
+	int err;
+
+	chain = malloc(sizeof(*chain) +
+		       src->max_depth * sizeof(struct resolved_ip));
+	if (!chain)
+		return -ENOMEM;
+
+	chain->nr = 0;
+
+	err = merge_chain_branch(&dst->node, &src->node, chain);
+
+	free(chain);
+
+	return err;
 }
