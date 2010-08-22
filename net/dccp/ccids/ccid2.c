@@ -193,8 +193,8 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	hc->tx_ssthresh = hc->tx_cwnd / 2;
 	if (hc->tx_ssthresh < 2)
 		hc->tx_ssthresh = 2;
-	hc->tx_cwnd	 = 1;
-	hc->tx_pipe	 = 0;
+	hc->tx_cwnd	= 1;
+	hc->tx_pipe	= 0;
 
 	/* clear state about stuff we sent */
 	hc->tx_seqt = hc->tx_seqh;

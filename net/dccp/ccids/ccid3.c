@@ -218,9 +218,9 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 
 	/*
 	 * Determine new allowed sending rate X as per draft rfc3448bis-00, 4.4
+	 * RTO is 0 if and only if no feedback has been received yet.
 	 */
-	if (hc->tx_t_rto == 0 ||	/* no feedback received yet */
-	    hc->tx_p == 0) {
+	if (hc->tx_t_rto == 0 || hc->tx_p == 0) {
 
 		/* halve send rate directly */
 		hc->tx_x = max(hc->tx_x / 2,
@@ -256,7 +256,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	 * Set new timeout for the nofeedback timer.
 	 * See comments in packet_recv() regarding the value of t_RTO.
 	 */
-	if (unlikely(hc->tx_t_rto == 0))	/* no feedback yet */
+	if (unlikely(hc->tx_t_rto == 0))	/* no feedback received yet */
 		t_nfb = TFRC_INITIAL_TIMEOUT;
 	else
 		t_nfb = max(hc->tx_t_rto, 2 * hc->tx_t_ipi);
@@ -372,7 +372,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
-	struct ccid3_options_received *opt_recv;
+	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
 	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
@@ -386,7 +386,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	    hc->tx_state != TFRC_SSTATE_NO_FBACK)
 		return;
 
-	opt_recv = &hc->tx_options_received;
 	now = ktime_get_real();
 
 	/* Estimate RTT from history if ACK number is valid */
@@ -489,10 +488,8 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	int rc = 0;
 	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
-	struct ccid3_options_received *opt_recv;
+	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
 	__be32 opt_val;
-
-	opt_recv = &hc->tx_options_received;
 
 	if (opt_recv->ccid3or_seqno != dp->dccps_gsr) {
 		opt_recv->ccid3or_seqno		     = dp->dccps_gsr;
@@ -582,6 +579,7 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
 	const struct ccid3_hc_tx_sock *hc;
+	struct tfrc_tx_info tfrc;
 	const void *val;
 
 	/* Listen socks doesn't have a private CCID block */
@@ -591,10 +589,17 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 	hc = ccid3_hc_tx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_TX_INFO:
-		if (len < sizeof(hc->tx_tfrc))
+		if (len < sizeof(tfrc))
 			return -EINVAL;
-		len = sizeof(hc->tx_tfrc);
-		val = &hc->tx_tfrc;
+		tfrc.tfrctx_x	   = hc->tx_x;
+		tfrc.tfrctx_x_recv = hc->tx_x_recv;
+		tfrc.tfrctx_x_calc = hc->tx_x_calc;
+		tfrc.tfrctx_rtt	   = hc->tx_rtt;
+		tfrc.tfrctx_p	   = hc->tx_p;
+		tfrc.tfrctx_rto	   = hc->tx_t_rto;
+		tfrc.tfrctx_ipi	   = hc->tx_t_ipi;
+		len = sizeof(tfrc);
+		val = &tfrc;
 		break;
 	default:
 		return -ENOPROTOOPT;
@@ -749,10 +754,11 @@ static u32 ccid3_first_li(struct sock *sk)
 	x_recv = scaled_div32(hc->rx_bytes_recv, delta);
 	if (x_recv == 0) {		/* would also trigger divide-by-zero */
 		DCCP_WARN("X_recv==0\n");
-		if ((x_recv = hc->rx_x_recv) == 0) {
+		if (hc->rx_x_recv == 0) {
 			DCCP_BUG("stored value of X_recv is zero");
 			return ~0U;
 		}
+		x_recv = hc->rx_x_recv;
 	}
 
 	fval = scaled_div(hc->rx_s, hc->rx_rtt);

@@ -95,14 +95,13 @@ enum ccid3_hc_tx_states {
  * @tx_options_received:  Parsed set of retrieved options
  */
 struct ccid3_hc_tx_sock {
-	struct tfrc_tx_info		tx_tfrc;
-#define tx_x				tx_tfrc.tfrctx_x
-#define tx_x_recv			tx_tfrc.tfrctx_x_recv
-#define tx_x_calc			tx_tfrc.tfrctx_x_calc
-#define tx_rtt				tx_tfrc.tfrctx_rtt
-#define tx_p				tx_tfrc.tfrctx_p
-#define tx_t_rto			tx_tfrc.tfrctx_rto
-#define tx_t_ipi			tx_tfrc.tfrctx_ipi
+	u64				tx_x;
+	u64				tx_x_recv;
+	u32				tx_x_calc;
+	u32				tx_rtt;
+	u32				tx_p;
+	u32				tx_t_rto;
+	u32				tx_t_ipi;
 	u16				tx_s;
 	enum ccid3_hc_tx_states		tx_state:8;
 	u8				tx_last_win_count;
@@ -131,16 +130,12 @@ enum ccid3_hc_rx_states {
 
 /**
  * struct ccid3_hc_rx_sock - CCID3 receiver half-connection socket
- * @rx_x_recv:		     Receiver estimate of send rate (RFC 3448 4.3)
- * @rx_rtt:		     Receiver estimate of rtt (non-standard)
- * @rx_p:		     Current loss event rate (RFC 3448 5.4)
  * @rx_last_counter:	     Tracks window counter (RFC 4342, 8.1)
  * @rx_state:		     Receiver state, one of %ccid3_hc_rx_states
  * @rx_bytes_recv:	     Total sum of DCCP payload bytes
  * @rx_x_recv:		     Receiver estimate of send rate (RFC 3448, sec. 4.3)
  * @rx_rtt:		     Receiver estimate of RTT
  * @rx_tstamp_last_feedback: Time at which last feedback was sent
- * @rx_tstamp_last_ack:	     Time at which last feedback was sent
  * @rx_hist:		     Packet history (loss detection + RTT sampling)
  * @rx_li_hist:		     Loss Interval database
  * @rx_s:		     Received packet size in bytes
