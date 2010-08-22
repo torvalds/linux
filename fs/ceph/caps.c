@@ -1082,6 +1082,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	gid_t gid;
 	struct ceph_mds_session *session;
 	u64 xattr_version = 0;
+	struct ceph_buffer *xattr_blob = NULL;
 	int delayed = 0;
 	u64 flush_tid = 0;
 	int i;
@@ -1160,9 +1161,10 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	gid = inode->i_gid;
 	mode = inode->i_mode;
 
-	if (dropping & CEPH_CAP_XATTR_EXCL) {
+	if (flushing & CEPH_CAP_XATTR_EXCL) {
 		__ceph_build_xattrs_blob(ci);
-		xattr_version = ci->i_xattrs.version + 1;
+		xattr_blob = ci->i_xattrs.blob;
+		xattr_version = ci->i_xattrs.version;
 	}
 
 	spin_unlock(&inode->i_lock);
@@ -1170,9 +1172,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	ret = send_cap_msg(session, ceph_vino(inode).ino, cap_id,
 		op, keep, want, flushing, seq, flush_tid, issue_seq, mseq,
 		size, max_size, &mtime, &atime, time_warp_seq,
-		uid, gid, mode,
-		xattr_version,
-		(flushing & CEPH_CAP_XATTR_EXCL) ? ci->i_xattrs.blob : NULL,
+		uid, gid, mode, xattr_version, xattr_blob,
 		follows);
 	if (ret < 0) {
 		dout("error sending cap msg, must requeue %p\n", inode);
