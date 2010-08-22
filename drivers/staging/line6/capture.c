@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -19,7 +19,6 @@
 #include "pcm.h"
 #include "pod.h"
 
-
 /*
 	Find a free URB and submit it.
 */
@@ -28,6 +27,7 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 	int index;
 	unsigned long flags;
 	int i, urb_size;
+	int ret;
 	struct urb *urb_in;
 
 	spin_lock_irqsave(&line6pcm->lock_audio_in, flags);
@@ -57,11 +57,13 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 	urb_in->transfer_buffer_length = urb_size;
 	urb_in->context = line6pcm;
 
-	if (usb_submit_urb(urb_in, GFP_ATOMIC) == 0)
+	ret = usb_submit_urb(urb_in, GFP_ATOMIC);
+
+	if (ret == 0)
 		set_bit(index, &line6pcm->active_urb_in);
 	else
 		dev_err(line6pcm->line6->ifcdev,
-			"URB in #%d submission failed\n", index);
+			"URB in #%d submission failed (%d)\n", index, ret);
 
 	spin_unlock_irqrestore(&line6pcm->lock_audio_in, flags);
 	return 0;
@@ -147,9 +149,9 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 
 	if (line6pcm->pos_in_done + frames > runtime->buffer_size) {
 		/*
-		  The transferred area goes over buffer boundary,
-		  copy two separate chunks.
-		*/
+		   The transferred area goes over buffer boundary,
+		   copy two separate chunks.
+		 */
 		int len;
 		len = runtime->buffer_size - line6pcm->pos_in_done;
 
@@ -216,7 +218,7 @@ static void audio_in_callback(struct urb *urb)
 		int fsize;
 		struct usb_iso_packet_descriptor *fin = &urb->iso_frame_desc[i];
 
-		if (fin->status == -18) {
+		if (fin->status == -EXDEV) {
 			shutdown = 1;
 			break;
 		}
@@ -258,8 +260,11 @@ static void audio_in_callback(struct urb *urb)
 	if (!shutdown) {
 		submit_audio_in_urb(line6pcm);
 
-		if (test_bit(BIT_PCM_ALSA_CAPTURE, &line6pcm->flags))
-			line6_capture_check_period(line6pcm, length);
+#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
+		if (!(line6pcm->flags & MASK_PCM_IMPULSE))
+#endif
+			if (test_bit(BIT_PCM_ALSA_CAPTURE, &line6pcm->flags))
+				line6_capture_check_period(line6pcm, length);
 	}
 }
 
@@ -272,8 +277,8 @@ static int snd_line6_capture_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_ratdens(runtime, 0,
 					    SNDRV_PCM_HW_PARAM_RATE,
-					    (&line6pcm->properties->
-					     snd_line6_rates));
+					    (&line6pcm->
+					     properties->snd_line6_rates));
 	if (err < 0)
 		return err;
 
@@ -366,14 +371,14 @@ snd_line6_capture_pointer(struct snd_pcm_substream *substream)
 
 /* capture operators */
 struct snd_pcm_ops snd_line6_capture_ops = {
-	.open =        snd_line6_capture_open,
-	.close =       snd_line6_capture_close,
-	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_line6_capture_hw_params,
-	.hw_free =     snd_line6_capture_hw_free,
-	.prepare =     snd_line6_prepare,
-	.trigger =     snd_line6_trigger,
-	.pointer =     snd_line6_capture_pointer,
+	.open = snd_line6_capture_open,
+	.close = snd_line6_capture_close,
+	.ioctl = snd_pcm_lib_ioctl,
+	.hw_params = snd_line6_capture_hw_params,
+	.hw_free = snd_line6_capture_hw_free,
+	.prepare = snd_line6_prepare,
+	.trigger = snd_line6_trigger,
+	.pointer = snd_line6_capture_pointer,
 };
 
 int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
@@ -396,8 +401,8 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		urb->dev = line6pcm->line6->usbdev;
 		urb->pipe =
 		    usb_rcvisocpipe(line6pcm->line6->usbdev,
-				    line6pcm->
-				    ep_audio_read & USB_ENDPOINT_NUMBER_MASK);
+				    line6pcm->ep_audio_read &
+				    USB_ENDPOINT_NUMBER_MASK);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->start_frame = -1;
 		urb->number_of_packets = LINE6_ISO_PACKETS;

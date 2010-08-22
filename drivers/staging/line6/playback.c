@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -68,7 +68,16 @@ static void create_impulse_test_signal(struct snd_line6_pcm *line6pcm,
 	int frames = urb_out->transfer_buffer_length / bytes_per_frame;
 
 	if (bytes_per_frame == 4) {
-		/* TODO: add code for TonePort etc. */
+		int i;
+		short *pi = (short *)line6pcm->prev_fbuf;
+		short *po = (short *)urb_out->transfer_buffer;
+
+		for (i = 0; i < frames; ++i) {
+			po[0] = pi[0];
+			po[1] = 0;
+			pi += 2;
+			po += 2;
+		}
 	} else if (bytes_per_frame == 6) {
 		int i, j;
 		unsigned char *pi = line6pcm->prev_fbuf;
@@ -84,14 +93,12 @@ static void create_impulse_test_signal(struct snd_line6_pcm *line6pcm,
 			pi += bytes_per_frame;
 			po += bytes_per_frame;
 		}
-
-		if (--line6pcm->impulse_count <= 0) {
-			((unsigned char *)(urb_out->
-					   transfer_buffer))[bytes_per_frame -
-							     1] =
-			    line6pcm->impulse_volume;
-			line6pcm->impulse_count = line6pcm->impulse_period;
-		}
+	}
+	if (--line6pcm->impulse_count <= 0) {
+		((unsigned char *)(urb_out->transfer_buffer))[bytes_per_frame -
+							      1] =
+		    line6pcm->impulse_volume;
+		line6pcm->impulse_count = line6pcm->impulse_period;
 	}
 }
 
@@ -117,9 +124,9 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 	}
 
 	/*
-	  We don't need to handle devices with 6 bytes per frame here
-	  since they all support hardware monitoring.
-	*/
+	   We don't need to handle devices with 6 bytes per frame here
+	   since they all support hardware monitoring.
+	 */
 }
 
 /*
@@ -130,6 +137,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	int index;
 	unsigned long flags;
 	int i, urb_size, urb_frames;
+	int ret;
 	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
 	const int frame_increment =
 	    line6pcm->properties->snd_line6_rates.rats[0].num_min;
@@ -244,16 +252,20 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
 			if (line6pcm->flags & MASK_PCM_ALSA_CAPTURE) {
-				line6_capture_copy(line6pcm, urb_out->transfer_buffer,
-						   urb_out->transfer_buffer_length);
+				line6_capture_copy(line6pcm,
+						   urb_out->transfer_buffer,
+						   urb_out->
+						   transfer_buffer_length);
+				line6_capture_check_period(line6pcm,
+							   urb_out->transfer_buffer_length);
 			}
 		} else {
 #endif
 			if (!
-			    (line6pcm->line6->properties->
-			     capabilities & LINE6_BIT_HWMON)
-			    && (line6pcm->flags & MASK_PLAYBACK)
-			    && (line6pcm->flags & MASK_CAPTURE))
+			    (line6pcm->line6->
+			     properties->capabilities & LINE6_BIT_HWMON)
+&& (line6pcm->flags & MASK_PLAYBACK)
+&& (line6pcm->flags & MASK_CAPTURE))
 				add_monitor_signal(urb_out, line6pcm->prev_fbuf,
 						   line6pcm->volume_monitor,
 						   bytes_per_frame);
@@ -271,11 +283,13 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	}
 #endif
 
-	if (usb_submit_urb(urb_out, GFP_ATOMIC) == 0)
+	ret = usb_submit_urb(urb_out, GFP_ATOMIC);
+
+	if (ret == 0)
 		set_bit(index, &line6pcm->active_urb_out);
 	else
 		dev_err(line6pcm->line6->ifcdev,
-			"URB out #%d submission failed\n", index);
+			"URB out #%d submission failed (%d)\n", index, ret);
 
 	spin_unlock_irqrestore(&line6pcm->lock_audio_out, flags);
 	return 0;
@@ -355,8 +369,7 @@ static void audio_out_callback(struct urb *urb)
 	int i, index, length = 0, shutdown = 0;
 	unsigned long flags;
 
-	struct snd_line6_pcm *line6pcm =
-	    (struct snd_line6_pcm *)urb->context;
+	struct snd_line6_pcm *line6pcm = (struct snd_line6_pcm *)urb->context;
 	struct snd_pcm_substream *substream =
 	    get_substream(line6pcm, SNDRV_PCM_STREAM_PLAYBACK);
 
@@ -391,7 +404,7 @@ static void audio_out_callback(struct urb *urb)
 	clear_bit(index, &line6pcm->active_urb_out);
 
 	for (i = LINE6_ISO_PACKETS; i--;)
-		if (urb->iso_frame_desc[i].status == -ESHUTDOWN) {
+		if (urb->iso_frame_desc[i].status == -EXDEV) {
 			shutdown = 1;
 			break;
 		}
@@ -422,8 +435,8 @@ static int snd_line6_playback_open(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
 	err = snd_pcm_hw_constraint_ratdens(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-					    (&line6pcm->properties->
-					     snd_line6_rates));
+					    (&line6pcm->
+					     properties->snd_line6_rates));
 	if (err < 0)
 		return err;
 
@@ -524,14 +537,14 @@ snd_line6_playback_pointer(struct snd_pcm_substream *substream)
 
 /* playback operators */
 struct snd_pcm_ops snd_line6_playback_ops = {
-	.open =        snd_line6_playback_open,
-	.close =       snd_line6_playback_close,
-	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_line6_playback_hw_params,
-	.hw_free =     snd_line6_playback_hw_free,
-	.prepare =     snd_line6_prepare,
-	.trigger =     snd_line6_trigger,
-	.pointer =     snd_line6_playback_pointer,
+	.open = snd_line6_playback_open,
+	.close = snd_line6_playback_close,
+	.ioctl = snd_pcm_lib_ioctl,
+	.hw_params = snd_line6_playback_hw_params,
+	.hw_free = snd_line6_playback_hw_free,
+	.prepare = snd_line6_prepare,
+	.trigger = snd_line6_trigger,
+	.pointer = snd_line6_playback_pointer,
 };
 
 int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
@@ -554,8 +567,8 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 		urb->dev = line6pcm->line6->usbdev;
 		urb->pipe =
 		    usb_sndisocpipe(line6pcm->line6->usbdev,
-				    line6pcm->
-				    ep_audio_write & USB_ENDPOINT_NUMBER_MASK);
+				    line6pcm->ep_audio_write &
+				    USB_ENDPOINT_NUMBER_MASK);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->start_frame = -1;
 		urb->number_of_packets = LINE6_ISO_PACKETS;

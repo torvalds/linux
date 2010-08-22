@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2005-2008 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -11,7 +11,6 @@
 
 #ifndef USBDEFS_H
 #define USBDEFS_H
-
 
 #define LINE6_VENDOR_ID  0x0e41
 
@@ -79,6 +78,5 @@
 
 #define LINE6_FALLBACK_INTERVAL		10
 #define LINE6_FALLBACK_MAXPACKETSIZE	16
-
 
 #endif

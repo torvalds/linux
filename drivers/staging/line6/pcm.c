@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -21,10 +21,9 @@
 #include "playback.h"
 #include "pod.h"
 
-
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 
-static struct snd_line6_pcm* dev2pcm(struct device *dev)
+static struct snd_line6_pcm *dev2pcm(struct device *dev)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
@@ -36,8 +35,7 @@ static struct snd_line6_pcm* dev2pcm(struct device *dev)
 	"read" request on "impulse_volume" special file.
 */
 static ssize_t pcm_get_impulse_volume(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
+				      struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_volume);
 }
@@ -53,7 +51,7 @@ static ssize_t pcm_set_impulse_volume(struct device *dev,
 	int value = simple_strtoul(buf, NULL, 10);
 	line6pcm->impulse_volume = value;
 
-	if(value > 0)
+	if (value > 0)
 		line6_pcm_start(line6pcm, MASK_PCM_IMPULSE);
 	else
 		line6_pcm_stop(line6pcm, MASK_PCM_IMPULSE);
@@ -65,8 +63,7 @@ static ssize_t pcm_set_impulse_volume(struct device *dev,
 	"read" request on "impulse_period" special file.
 */
 static ssize_t pcm_get_impulse_period(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
+				      struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_period);
 }
@@ -82,87 +79,100 @@ static ssize_t pcm_set_impulse_period(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(impulse_volume, S_IWUGO | S_IRUGO, pcm_get_impulse_volume, pcm_set_impulse_volume);
-static DEVICE_ATTR(impulse_period, S_IWUGO | S_IRUGO, pcm_get_impulse_period, pcm_set_impulse_period);
+static DEVICE_ATTR(impulse_volume, S_IWUGO | S_IRUGO, pcm_get_impulse_volume,
+		   pcm_set_impulse_volume);
+static DEVICE_ATTR(impulse_period, S_IWUGO | S_IRUGO, pcm_get_impulse_period,
+		   pcm_set_impulse_period);
 
 #endif
 
 int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels)
 {
-	unsigned long flags_old = __sync_fetch_and_or(&line6pcm->flags, channels);
+	unsigned long flags_old =
+	    __sync_fetch_and_or(&line6pcm->flags, channels);
 	unsigned long flags_new = flags_old | channels;
 	int err = 0;
 
 #if LINE6_BACKUP_MONITOR_SIGNAL
 	if (!(line6pcm->line6->properties->capabilities & LINE6_BIT_HWMON)) {
-		line6pcm->prev_fbuf = kmalloc(LINE6_ISO_PACKETS * line6pcm->max_packet_size, GFP_KERNEL);
+		line6pcm->prev_fbuf =
+		    kmalloc(LINE6_ISO_PACKETS * line6pcm->max_packet_size,
+			    GFP_KERNEL);
 
 		if (!line6pcm->prev_fbuf) {
-			dev_err(line6pcm->line6->ifcdev, "cannot malloc monitor buffer\n");
+			dev_err(line6pcm->line6->ifcdev,
+				"cannot malloc monitor buffer\n");
 			return -ENOMEM;
 		}
 	}
 #else
 	line6pcm->prev_fbuf = NULL;
 #endif
-		
+
 	if (((flags_old & MASK_CAPTURE) == 0) &&
 	    ((flags_new & MASK_CAPTURE) != 0)) {
 		/*
-		  Waiting for completion of active URBs in the stop handler is
-		  a bug, we therefore report an error if capturing is restarted
-		  too soon.
-		*/
-		if(line6pcm->active_urb_in | line6pcm->unlink_urb_in)
+		   Waiting for completion of active URBs in the stop handler is
+		   a bug, we therefore report an error if capturing is restarted
+		   too soon.
+		 */
+		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in)
 			return -EBUSY;
 
-		line6pcm->buffer_in = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS * line6pcm->max_packet_size, GFP_KERNEL);
+		line6pcm->buffer_in =
+		    kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			    line6pcm->max_packet_size, GFP_KERNEL);
 
 		if (!line6pcm->buffer_in) {
-			dev_err(line6pcm->line6->ifcdev, "cannot malloc capture buffer\n");
+			dev_err(line6pcm->line6->ifcdev,
+				"cannot malloc capture buffer\n");
 			return -ENOMEM;
 		}
 
 		line6pcm->count_in = 0;
 		line6pcm->prev_fsize = 0;
 		err = line6_submit_audio_in_all_urbs(line6pcm);
-		
+
 		if (err < 0) {
 			__sync_fetch_and_and(&line6pcm->flags, ~channels);
 			return err;
 		}
 	}
-	
+
 	if (((flags_old & MASK_PLAYBACK) == 0) &&
 	    ((flags_new & MASK_PLAYBACK) != 0)) {
 		/*
-		  See comment above regarding PCM restart.
-		*/
-		if(line6pcm->active_urb_out | line6pcm->unlink_urb_out)
+		   See comment above regarding PCM restart.
+		 */
+		if (line6pcm->active_urb_out | line6pcm->unlink_urb_out)
 			return -EBUSY;
 
-		line6pcm->buffer_out = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS * line6pcm->max_packet_size, GFP_KERNEL);
+		line6pcm->buffer_out =
+		    kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			    line6pcm->max_packet_size, GFP_KERNEL);
 
 		if (!line6pcm->buffer_out) {
-			dev_err(line6pcm->line6->ifcdev, "cannot malloc playback buffer\n");
+			dev_err(line6pcm->line6->ifcdev,
+				"cannot malloc playback buffer\n");
 			return -ENOMEM;
 		}
 
 		line6pcm->count_out = 0;
 		err = line6_submit_audio_out_all_urbs(line6pcm);
-		
+
 		if (err < 0) {
 			__sync_fetch_and_and(&line6pcm->flags, ~channels);
 			return err;
 		}
 	}
-	
+
 	return 0;
 }
 
 int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels)
 {
-	unsigned long flags_old = __sync_fetch_and_and(&line6pcm->flags, ~channels);
+	unsigned long flags_old =
+	    __sync_fetch_and_and(&line6pcm->flags, ~channels);
 	unsigned long flags_new = flags_old & ~channels;
 
 	if (((flags_old & MASK_CAPTURE) != 0) &&
@@ -178,7 +188,6 @@ int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels)
 		kfree(line6pcm->buffer_out);
 		line6pcm->buffer_out = NULL;
 	}
-
 #if LINE6_BACKUP_MONITOR_SIGNAL
 	if (line6pcm->prev_fbuf != NULL)
 		kfree(line6pcm->prev_fbuf);
@@ -223,8 +232,8 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 			break;
 
 		default:
-			dev_err(line6pcm->line6->ifcdev, "Unknown stream direction %d\n",
-				s->stream);
+			dev_err(line6pcm->line6->ifcdev,
+				"Unknown stream direction %d\n", s->stream);
 		}
 	}
 
@@ -264,8 +273,10 @@ static int snd_line6_control_playback_put(struct snd_kcontrol *kcontrol,
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 
 	for (i = 2; i--;)
-		if (line6pcm->volume_playback[i] != ucontrol->value.integer.value[i]) {
-			line6pcm->volume_playback[i] = ucontrol->value.integer.value[i];
+		if (line6pcm->volume_playback[i] !=
+		    ucontrol->value.integer.value[i]) {
+			line6pcm->volume_playback[i] =
+			    ucontrol->value.integer.value[i];
 			changed = 1;
 		}
 
@@ -315,8 +326,8 @@ static int snd_line6_new_pcm(struct snd_line6_pcm *line6pcm)
 	int err;
 
 	err = snd_pcm_new(line6pcm->line6->card,
-			 (char *)line6pcm->line6->properties->name,
-			 0, 1, 1, &pcm);
+			  (char *)line6pcm->line6->properties->name,
+			  0, 1, 1, &pcm);
 	if (err < 0)
 		return err;
 
@@ -328,13 +339,13 @@ static int snd_line6_new_pcm(struct snd_line6_pcm *line6pcm)
 	/* set operators */
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			&snd_line6_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
-			&snd_line6_capture_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_line6_capture_ops);
 
 	/* pre-allocation of buffers */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					snd_dma_continuous_data(GFP_KERNEL),
-					64 * 1024, 128 * 1024);
+					      snd_dma_continuous_data
+					      (GFP_KERNEL), 64 * 1024,
+					      128 * 1024);
 
 	return 0;
 }
@@ -350,7 +361,7 @@ static int snd_line6_pcm_free(struct snd_device *device)
 */
 static void pcm_disconnect_substream(struct snd_pcm_substream *substream)
 {
-	if(substream->runtime && snd_pcm_running(substream)) {
+	if (substream->runtime && snd_pcm_running(substream)) {
 		snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
 	}
 }
@@ -360,8 +371,10 @@ static void pcm_disconnect_substream(struct snd_pcm_substream *substream)
 */
 void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm)
 {
-	pcm_disconnect_substream(get_substream(line6pcm, SNDRV_PCM_STREAM_CAPTURE));
-	pcm_disconnect_substream(get_substream(line6pcm, SNDRV_PCM_STREAM_PLAYBACK));
+	pcm_disconnect_substream(get_substream
+				 (line6pcm, SNDRV_PCM_STREAM_CAPTURE));
+	pcm_disconnect_substream(get_substream
+				 (line6pcm, SNDRV_PCM_STREAM_PLAYBACK));
 	line6_unlink_wait_clear_audio_out_urbs(line6pcm);
 	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
 }
@@ -382,7 +395,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	struct snd_line6_pcm *line6pcm;
 
 	if (!(line6->properties->capabilities & LINE6_BIT_PCM))
-		return 0;  /* skip PCM initialization and report success */
+		return 0;	/* skip PCM initialization and report success */
 
 	/* initialize PCM subsystem based on product id: */
 	switch (line6->product) {
@@ -392,18 +405,18 @@ int line6_init_pcm(struct usb_line6 *line6,
 	case LINE6_DEVID_PODXT:
 	case LINE6_DEVID_PODXTLIVE:
 	case LINE6_DEVID_PODXTPRO:
-		ep_read  = 0x82;
+		ep_read = 0x82;
 		ep_write = 0x01;
 		break;
 
 	case LINE6_DEVID_PODX3:
 	case LINE6_DEVID_PODX3LIVE:
-		ep_read  = 0x86;
+		ep_read = 0x86;
 		ep_write = 0x02;
 		break;
 
 	case LINE6_DEVID_POCKETPOD:
-		ep_read  = 0x82;
+		ep_read = 0x82;
 		ep_write = 0x02;
 		break;
 
@@ -414,17 +427,17 @@ int line6_init_pcm(struct usb_line6 *line6,
 	case LINE6_DEVID_TONEPORT_GX:
 	case LINE6_DEVID_TONEPORT_UX1:
 	case LINE6_DEVID_TONEPORT_UX2:
-		ep_read  = 0x82;
+		ep_read = 0x82;
 		ep_write = 0x01;
 		break;
 
 		/* this is for interface_number == 1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-		ep_read  = 0x87;
-		ep_write = 0x00;
-		break;
-		*/
+		   case LINE6_DEVID_TONEPORT_UX2:
+		   case LINE6_DEVID_PODSTUDIO_UX2:
+		   ep_read  = 0x87;
+		   ep_write = 0x00;
+		   break;
+		 */
 
 	default:
 		MISSING_CASE;
@@ -442,8 +455,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	line6pcm->ep_audio_write = ep_write;
 	line6pcm->max_packet_size = usb_maxpacket(line6->usbdev,
 						  usb_rcvintpipe(line6->usbdev,
-								ep_read),
-						  0);
+								 ep_read), 0);
 	line6pcm->properties = properties;
 	line6->line6pcm = line6pcm;
 
@@ -471,7 +483,9 @@ int line6_init_pcm(struct usb_line6 *line6,
 		return err;
 
 	/* mixer: */
-	err = snd_ctl_add(line6->card, snd_ctl_new1(&line6_control_playback, line6pcm));
+	err =
+	    snd_ctl_add(line6->card,
+			snd_ctl_new1(&line6_control_playback, line6pcm));
 	if (err < 0)
 		return err;
 

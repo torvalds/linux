@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -16,14 +16,12 @@
 #include "driver.h"
 #include "variax.h"
 
-
 #define VARIAX_SYSEX_CODE 7
 #define VARIAX_SYSEX_PARAM 0x3b
 #define VARIAX_SYSEX_ACTIVATE 0x2a
 #define VARIAX_MODEL_HEADER_LENGTH 7
 #define VARIAX_MODEL_MESSAGE_LENGTH 199
 #define VARIAX_OFFSET_ACTIVATE 7
-
 
 /*
 	This message is sent by the device during initialization and identifies
@@ -71,13 +69,11 @@ static const char variax_request_model2[] = {
 	0x00, 0x00, 0x00, 0xf7
 };
 
-
 /* forward declarations: */
 static int variax_create_files2(struct device *dev);
 static void variax_startup2(unsigned long data);
 static void variax_startup4(unsigned long data);
 static void variax_startup5(unsigned long data);
-
 
 /*
 	Decode data transmitted by workbench.
@@ -110,17 +106,25 @@ static void variax_activate_async(struct usb_line6_variax *variax, int a)
 
 static void variax_startup1(struct usb_line6_variax *variax)
 {
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 1);
+	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_INIT);
 
 	/* delay startup procedure: */
-	line6_start_timer(&variax->startup_timer, VARIAX_STARTUP_DELAY1, variax_startup2, (unsigned long)variax);
+	line6_start_timer(&variax->startup_timer1, VARIAX_STARTUP_DELAY1,
+			  variax_startup2, (unsigned long)variax);
 }
 
 static void variax_startup2(unsigned long data)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *)data;
 	struct usb_line6 *line6 = &variax->line6;
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 2);
+
+	/* schedule another startup procedure until startup is complete: */
+	if (variax->startup_progress >= VARIAX_STARTUP_LAST)
+		return;
+
+	variax->startup_progress = VARIAX_STARTUP_VERSIONREQ;
+	line6_start_timer(&variax->startup_timer1, VARIAX_STARTUP_DELAY1,
+			  variax_startup2, (unsigned long)variax);
 
 	/* request firmware version: */
 	line6_version_request_async(line6);
@@ -128,35 +132,41 @@ static void variax_startup2(unsigned long data)
 
 static void variax_startup3(struct usb_line6_variax *variax)
 {
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 3);
+	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_WAIT);
 
 	/* delay startup procedure: */
-	line6_start_timer(&variax->startup_timer, VARIAX_STARTUP_DELAY3, variax_startup4, (unsigned long)variax);
+	line6_start_timer(&variax->startup_timer2, VARIAX_STARTUP_DELAY3,
+			  variax_startup4, (unsigned long)variax);
 }
 
 static void variax_startup4(unsigned long data)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *)data;
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 4);
+	CHECK_STARTUP_PROGRESS(variax->startup_progress,
+			       VARIAX_STARTUP_ACTIVATE);
 
 	/* activate device: */
 	variax_activate_async(variax, 1);
-	line6_start_timer(&variax->startup_timer, VARIAX_STARTUP_DELAY4, variax_startup5, (unsigned long)variax);
+	line6_start_timer(&variax->startup_timer2, VARIAX_STARTUP_DELAY4,
+			  variax_startup5, (unsigned long)variax);
 }
 
 static void variax_startup5(unsigned long data)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *)data;
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 5);
+	CHECK_STARTUP_PROGRESS(variax->startup_progress,
+			       VARIAX_STARTUP_DUMPREQ);
 
 	/* current model dump: */
-	line6_dump_request_async(&variax->dumpreq, &variax->line6, 0, VARIAX_DUMP_PASS1);
+	line6_dump_request_async(&variax->dumpreq, &variax->line6, 0,
+				 VARIAX_DUMP_PASS1);
 	/* passes 2 and 3 are performed implicitly before entering variax_startup6 */
 }
 
 static void variax_startup6(struct usb_line6_variax *variax)
 {
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 6);
+	CHECK_STARTUP_PROGRESS(variax->startup_progress,
+			       VARIAX_STARTUP_WORKQUEUE);
 
 	/* schedule work for global work queue: */
 	schedule_work(&variax->startup_work);
@@ -164,10 +174,11 @@ static void variax_startup6(struct usb_line6_variax *variax)
 
 static void variax_startup7(struct work_struct *work)
 {
-	struct usb_line6_variax *variax = container_of(work, struct usb_line6_variax, startup_work);
+	struct usb_line6_variax *variax =
+	    container_of(work, struct usb_line6_variax, startup_work);
 	struct usb_line6 *line6 = &variax->line6;
 
-	CHECK_STARTUP_PROGRESS(variax->startup_progress, 7);
+	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_SETUP);
 
 	/* ALSA audio interface: */
 	line6_register_audio(&variax->line6);
@@ -200,7 +211,8 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST:
 		variax->model = buf[1];
-		line6_dump_request_async(&variax->dumpreq, &variax->line6, 0, VARIAX_DUMP_PASS1);
+		line6_dump_request_async(&variax->dumpreq, &variax->line6, 0,
+					 VARIAX_DUMP_PASS1);
 		break;
 
 	case LINE6_RESET:
@@ -214,20 +226,44 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 			    VARIAX_MODEL_MESSAGE_LENGTH) {
 				switch (variax->dumpreq.in_progress) {
 				case VARIAX_DUMP_PASS1:
-					variax_decode(buf + VARIAX_MODEL_HEADER_LENGTH, (unsigned char *)&variax->model_data,
-												(sizeof(variax->model_data.name) + sizeof(variax->model_data.control) / 2) * 2);
-					line6_dump_request_async(&variax->dumpreq, &variax->line6, 1, VARIAX_DUMP_PASS2);
+					variax_decode(buf +
+						      VARIAX_MODEL_HEADER_LENGTH,
+						      (unsigned char *)
+						      &variax->model_data,
+						      (sizeof
+						       (variax->model_data.
+							name) +
+						       sizeof(variax->
+							      model_data.
+							      control)
+						       / 2) * 2);
+					line6_dump_request_async
+					    (&variax->dumpreq, &variax->line6,
+					     1, VARIAX_DUMP_PASS2);
 					break;
 
 				case VARIAX_DUMP_PASS2:
 					/* model name is transmitted twice, so skip it here: */
-					variax_decode(buf + VARIAX_MODEL_HEADER_LENGTH,
-						      (unsigned char *)&variax->model_data.control + sizeof(variax->model_data.control) / 2,
-						      sizeof(variax->model_data.control) / 2 * 2);
-					line6_dump_request_async(&variax->dumpreq, &variax->line6, 2, VARIAX_DUMP_PASS3);
+					variax_decode(buf +
+						      VARIAX_MODEL_HEADER_LENGTH,
+						      (unsigned char *)
+						      &variax->
+						      model_data.control +
+						      sizeof(variax->model_data.
+							     control)
+						      / 2,
+						      sizeof(variax->model_data.
+							     control)
+						      / 2 * 2);
+					line6_dump_request_async
+					    (&variax->dumpreq, &variax->line6,
+					     2, VARIAX_DUMP_PASS3);
 				}
 			} else {
-				DEBUG_MESSAGES(dev_err(variax->line6.ifcdev, "illegal length %d of model data\n", variax->line6.message_length));
+				DEBUG_MESSAGES(dev_err
+					       (variax->line6.ifcdev,
+						"illegal length %d of model data\n",
+						variax->line6.message_length));
 				line6_dump_finished(&variax->dumpreq);
 			}
 		} else if (memcmp(buf + 1, variax_request_bank + 1,
@@ -257,7 +293,9 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 		break;
 
 	default:
-		DEBUG_MESSAGES(dev_err(variax->line6.ifcdev, "Variax: unknown message %02X\n", buf[0]));
+		DEBUG_MESSAGES(dev_err
+			       (variax->line6.ifcdev,
+				"Variax: unknown message %02X\n", buf[0]));
 	}
 }
 
@@ -267,7 +305,8 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 static ssize_t variax_get_volume(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->volume);
 }
 
@@ -278,7 +317,8 @@ static ssize_t variax_set_volume(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	unsigned long value;
 	int ret;
 
@@ -299,7 +339,8 @@ static ssize_t variax_set_volume(struct device *dev,
 static ssize_t variax_get_model(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->model);
 }
 
@@ -310,7 +351,8 @@ static ssize_t variax_set_model(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	unsigned long value;
 	int ret;
 
@@ -330,8 +372,10 @@ static ssize_t variax_set_model(struct device *dev,
 static ssize_t variax_get_active(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
-	return sprintf(buf, "%d\n", variax->buffer_activate[VARIAX_OFFSET_ACTIVATE]);
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
+	return sprintf(buf, "%d\n",
+		       variax->buffer_activate[VARIAX_OFFSET_ACTIVATE]);
 }
 
 /*
@@ -341,7 +385,8 @@ static ssize_t variax_set_active(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	unsigned long value;
 	int ret;
 
@@ -359,7 +404,8 @@ static ssize_t variax_set_active(struct device *dev,
 static ssize_t variax_get_tone(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%d\n", variax->tone);
 }
 
@@ -370,7 +416,8 @@ static ssize_t variax_set_tone(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	unsigned long value;
 	int ret;
 
@@ -407,7 +454,8 @@ static ssize_t get_string(char *buf, const char *data, int length)
 static ssize_t variax_get_name(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	line6_dump_wait_interruptible(&variax->dumpreq);
 	return get_string(buf, variax->model_data.name,
 			  sizeof(variax->model_data.name));
@@ -419,7 +467,8 @@ static ssize_t variax_get_name(struct device *dev,
 static ssize_t variax_get_bank(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	line6_dump_wait_interruptible(&variax->dumpreq);
 	return get_string(buf, variax->bank, sizeof(variax->bank));
 }
@@ -430,7 +479,8 @@ static ssize_t variax_get_bank(struct device *dev,
 static ssize_t variax_get_dump(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	int retval;
 	retval = line6_dump_wait_interruptible(&variax->dumpreq);
 	if (retval < 0)
@@ -446,15 +496,18 @@ static ssize_t variax_get_dump(struct device *dev,
 static ssize_t variax_get_guitar(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	return sprintf(buf, "%s\n", variax->guitar);
 }
 
 #ifdef CONFIG_LINE6_USB_RAW
 
-static char *variax_alloc_sysex_buffer(struct usb_line6_variax *variax, int code, int size)
+static char *variax_alloc_sysex_buffer(struct usb_line6_variax *variax,
+				       int code, int size)
 {
-	return line6_alloc_sysex_buffer(&variax->line6, VARIAX_SYSEX_CODE, code, size);
+	return line6_alloc_sysex_buffer(&variax->line6, VARIAX_SYSEX_CODE, code,
+					size);
 }
 
 /*
@@ -464,7 +517,8 @@ static ssize_t variax_set_raw2(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(to_usb_interface(dev));
+	struct usb_line6_variax *variax =
+	    usb_get_intfdata(to_usb_interface(dev));
 	int size;
 	int i;
 	char *sysex;
@@ -495,20 +549,22 @@ static ssize_t variax_set_raw2(struct device *dev,
 #endif
 
 /* Variax workbench special files: */
-static DEVICE_ATTR(model, S_IWUGO | S_IRUGO, variax_get_model, variax_set_model);
-static DEVICE_ATTR(volume, S_IWUGO | S_IRUGO, variax_get_volume, variax_set_volume);
+static DEVICE_ATTR(model, S_IWUGO | S_IRUGO, variax_get_model,
+		   variax_set_model);
+static DEVICE_ATTR(volume, S_IWUGO | S_IRUGO, variax_get_volume,
+		   variax_set_volume);
 static DEVICE_ATTR(tone, S_IWUGO | S_IRUGO, variax_get_tone, variax_set_tone);
 static DEVICE_ATTR(name, S_IRUGO, variax_get_name, line6_nop_write);
 static DEVICE_ATTR(bank, S_IRUGO, variax_get_bank, line6_nop_write);
 static DEVICE_ATTR(dump, S_IRUGO, variax_get_dump, line6_nop_write);
-static DEVICE_ATTR(active, S_IWUGO | S_IRUGO, variax_get_active, variax_set_active);
+static DEVICE_ATTR(active, S_IWUGO | S_IRUGO, variax_get_active,
+		   variax_set_active);
 static DEVICE_ATTR(guitar, S_IRUGO, variax_get_guitar, line6_nop_write);
 
 #ifdef CONFIG_LINE6_USB_RAW
 static DEVICE_ATTR(raw, S_IWUGO, line6_nop_read, line6_set_raw);
 static DEVICE_ATTR(raw2, S_IWUGO, line6_nop_read, variax_set_raw2);
 #endif
-
 
 /*
 	Variax destructor.
@@ -524,6 +580,10 @@ static void variax_destruct(struct usb_interface *interface)
 	if (line6 == NULL)
 		return;
 	line6_cleanup_audio(line6);
+
+	del_timer(&variax->startup_timer1);
+	del_timer(&variax->startup_timer2);
+	cancel_work_sync(&variax->startup_work);
 
 	/* free dump request data: */
 	line6_dumpreq_destructbuf(&variax->dumpreq, 2);
@@ -562,11 +622,12 @@ static int variax_try_init(struct usb_interface *interface,
 {
 	int err;
 
+	init_timer(&variax->startup_timer1);
+	init_timer(&variax->startup_timer2);
+	INIT_WORK(&variax->startup_work, variax_startup7);
+
 	if ((interface == NULL) || (variax == NULL))
 		return -ENODEV;
-
-	init_timer(&variax->startup_timer);
-	INIT_WORK(&variax->startup_work, variax_startup7);
 
 	/* initialize USB buffers: */
 	err = line6_dumpreq_init(&variax->dumpreq, variax_request_model1,

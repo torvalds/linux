@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -12,17 +12,14 @@
 #ifndef DUMPREQUEST_H
 #define DUMPREQUEST_H
 
-
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include <sound/core.h>
-
 
 enum {
 	LINE6_DUMP_NONE,
 	LINE6_DUMP_CURRENT
 };
-
 
 struct line6_dump_reqbuf {
 	/**
@@ -75,6 +72,5 @@ extern void line6_dump_wait(struct line6_dump_request *l6dr);
 extern int line6_dump_wait_interruptible(struct line6_dump_request *l6dr);
 extern int line6_dump_wait_timeout(struct line6_dump_request *l6dr,
 				   long timeout);
-
 
 #endif

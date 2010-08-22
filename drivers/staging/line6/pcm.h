@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -16,12 +16,10 @@
 #ifndef PCM_H
 #define PCM_H
 
-
 #include <sound/pcm.h>
 
 #include "driver.h"
 #include "usbdefs.h"
-
 
 /* number of URBs */
 #define LINE6_ISO_BUFFERS	2
@@ -44,12 +42,10 @@
 #define LINE6_BACKUP_MONITOR_SIGNAL 0
 #define LINE6_REUSE_DMA_AREA_FOR_PLAYBACK 0
 
-
 /*
 	Get substream from Line6 PCM data structure
 */
 #define get_substream(line6pcm, stream) (line6pcm->pcm->streams[stream].substream)
-
 
 /*
 	PCM mode bits and masks.
@@ -71,6 +67,7 @@ enum {
 	BIT_PREPARED,
 
 	/* individual masks: */
+/* *INDENT-OFF* */
 	MASK_PCM_ALSA_PLAYBACK    = 1 << BIT_PCM_ALSA_PLAYBACK,
 	MASK_PCM_ALSA_CAPTURE     = 1 << BIT_PCM_ALSA_CAPTURE,
 	MASK_PCM_MONITOR_PLAYBACK = 1 << BIT_PCM_MONITOR_PLAYBACK,
@@ -81,9 +78,10 @@ enum {
 #endif
 	MASK_PAUSE_PLAYBACK       = 1 << BIT_PAUSE_PLAYBACK,
 	MASK_PREPARED             = 1 << BIT_PREPARED,
+/* *INDENT-ON* */
 
 	/* combined masks (by operation): */
-	MASK_PCM_ALSA    = MASK_PCM_ALSA_PLAYBACK    | MASK_PCM_ALSA_CAPTURE,
+	MASK_PCM_ALSA = MASK_PCM_ALSA_PLAYBACK | MASK_PCM_ALSA_CAPTURE,
 	MASK_PCM_MONITOR = MASK_PCM_MONITOR_PLAYBACK | MASK_PCM_MONITOR_CAPTURE,
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	MASK_PCM_IMPULSE = MASK_PCM_IMPULSE_PLAYBACK | MASK_PCM_IMPULSE_CAPTURE,
@@ -91,11 +89,15 @@ enum {
 
 	/* combined masks (by direction): */
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-	MASK_PLAYBACK = MASK_PCM_ALSA_PLAYBACK | MASK_PCM_MONITOR_PLAYBACK | MASK_PCM_IMPULSE_PLAYBACK,
-	MASK_CAPTURE  = MASK_PCM_ALSA_CAPTURE  | MASK_PCM_MONITOR_CAPTURE  | MASK_PCM_IMPULSE_CAPTURE
+	MASK_PLAYBACK =
+	    MASK_PCM_ALSA_PLAYBACK | MASK_PCM_MONITOR_PLAYBACK |
+	    MASK_PCM_IMPULSE_PLAYBACK,
+	MASK_CAPTURE =
+	    MASK_PCM_ALSA_CAPTURE | MASK_PCM_MONITOR_CAPTURE |
+	    MASK_PCM_IMPULSE_CAPTURE
 #else
 	MASK_PLAYBACK = MASK_PCM_ALSA_PLAYBACK | MASK_PCM_MONITOR_PLAYBACK,
-	MASK_CAPTURE  = MASK_PCM_ALSA_CAPTURE  | MASK_PCM_MONITOR_CAPTURE
+	MASK_CAPTURE = MASK_PCM_ALSA_CAPTURE | MASK_PCM_MONITOR_CAPTURE
 #endif
 };
 
@@ -302,7 +304,6 @@ struct snd_line6_pcm {
 	int last_frame_in, last_frame_out;
 };
 
-
 extern int line6_init_pcm(struct usb_line6 *line6,
 			  struct line6_pcm_properties *properties);
 extern int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd);
@@ -310,7 +311,6 @@ extern int snd_line6_prepare(struct snd_pcm_substream *substream);
 extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
 extern int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels);
 extern int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels);
-
 
 #define PRINT_FRAME_DIFF(op) {																		\
 	static int diff_prev = 1000;																		\
@@ -320,6 +320,5 @@ extern int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels);
 		diff_prev = diff;																							\
 	}																																\
 	}
-
 
 #endif

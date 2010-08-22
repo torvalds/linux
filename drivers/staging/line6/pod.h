@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -12,7 +12,6 @@
 #ifndef POD_H
 #define POD_H
 
-
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
@@ -22,7 +21,6 @@
 
 #include "driver.h"
 #include "dumprequest.h"
-
 
 /*
 	PODxt Live interfaces
@@ -41,7 +39,19 @@
 */
 #define POD_CONTROL_SIZE 0x80
 #define POD_BUFSIZE_DUMPREQ 7
-#define POD_STARTUP_DELAY 3000
+#define POD_STARTUP_DELAY 1000
+
+/*
+	Stages of POD startup procedure
+*/
+enum {
+	POD_STARTUP_INIT = 1,
+	POD_STARTUP_DUMPREQ,
+	POD_STARTUP_VERSIONREQ,
+	POD_STARTUP_WORKQUEUE,
+	POD_STARTUP_SETUP,
+	POD_STARTUP_LAST = POD_STARTUP_SETUP - 1
+};
 
 /**
 	Data structure for values that need to be requested explicitly.
@@ -183,14 +193,13 @@ struct usb_line6_pod {
 	char midi_postprocess;
 };
 
-
 extern void line6_pod_disconnect(struct usb_interface *interface);
-extern int line6_pod_init(struct usb_interface *interface, struct usb_line6_pod *pod);
+extern int line6_pod_init(struct usb_interface *interface,
+			  struct usb_line6_pod *pod);
 extern void line6_pod_midi_postprocess(struct usb_line6_pod *pod,
 				       unsigned char *data, int length);
 extern void line6_pod_process_message(struct usb_line6_pod *pod);
 extern void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 					 int value);
-
 
 #endif

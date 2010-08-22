@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -13,7 +13,6 @@
 
 #include "midibuf.h"
 
-
 static int midibuf_message_length(unsigned char code)
 {
 	if (code < 0x80)
@@ -23,12 +22,13 @@ static int midibuf_message_length(unsigned char code)
 		return length[(code >> 4) - 8];
 	} else {
 		/*
-		  Note that according to the MIDI specification 0xf2 is
-		  the "Song Position Pointer", but this is used by Line6
-		  to send sysex messages to the host.
-		*/
+		   Note that according to the MIDI specification 0xf2 is
+		   the "Song Position Pointer", but this is used by Line6
+		   to send sysex messages to the host.
+		 */
 		static const int length[] = { -1, 2, -1, 2, -1, -1, 1, 1, 1, 1,
-					       1, 1, 1, -1, 1, 1 };
+			1, 1, 1, -1, 1, 1
+		};
 		return length[code & 0x0f];
 	}
 }
@@ -72,20 +72,23 @@ void line6_midibuf_status(struct MidiBuffer *this)
 int line6_midibuf_bytes_free(struct MidiBuffer *this)
 {
 	return
-		midibuf_is_full(this) ?
-		0 :
-		(this->pos_read - this->pos_write + this->size - 1) % this->size + 1;
+	    midibuf_is_full(this) ?
+	    0 :
+	    (this->pos_read - this->pos_write + this->size - 1) % this->size +
+	    1;
 }
 
 int line6_midibuf_bytes_used(struct MidiBuffer *this)
 {
 	return
-		midibuf_is_empty(this) ?
-		0 :
-		(this->pos_write - this->pos_read + this->size - 1) % this->size + 1;
+	    midibuf_is_empty(this) ?
+	    0 :
+	    (this->pos_write - this->pos_read + this->size - 1) % this->size +
+	    1;
 }
 
-int line6_midibuf_write(struct MidiBuffer *this, unsigned char *data, int length)
+int line6_midibuf_write(struct MidiBuffer *this, unsigned char *data,
+			int length)
 {
 	int bytes_free;
 	int length1, length2;
@@ -158,7 +161,8 @@ int line6_midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
 		this->command_prev = command;
 	} else {
 		if (this->command_prev > 0) {
-			int midi_length_prev = midibuf_message_length(this->command_prev);
+			int midi_length_prev =
+			    midibuf_message_length(this->command_prev);
 
 			if (midi_length_prev > 0) {
 				midi_length = midi_length_prev - 1;
@@ -198,15 +202,15 @@ int line6_midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
 		}
 
 		if (midi_length == length)
-			midi_length = -1;  /* end of message not found */
+			midi_length = -1;	/* end of message not found */
 	}
 
 	if (midi_length < 0) {
 		if (!this->split)
-			return 0;  /* command is not yet complete */
+			return 0;	/* command is not yet complete */
 	} else {
 		if (length < midi_length)
-			return 0;  /* command is not yet complete */
+			return 0;	/* command is not yet complete */
 
 		length = midi_length;
 	}

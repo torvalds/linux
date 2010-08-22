@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -13,7 +13,6 @@
 
 #include "driver.h"
 #include "dumprequest.h"
-
 
 /*
 	Set "dump in progress" flag.
@@ -63,7 +62,8 @@ int line6_dump_request_async(struct line6_dump_request *l6dr,
 */
 int line6_dump_wait_interruptible(struct line6_dump_request *l6dr)
 {
-	return wait_event_interruptible(l6dr->wait, l6dr->in_progress == LINE6_DUMP_NONE);
+	return wait_event_interruptible(l6dr->wait,
+					l6dr->in_progress == LINE6_DUMP_NONE);
 }
 
 /*
@@ -79,7 +79,9 @@ void line6_dump_wait(struct line6_dump_request *l6dr)
 */
 int line6_dump_wait_timeout(struct line6_dump_request *l6dr, long timeout)
 {
-	return wait_event_timeout(l6dr->wait, l6dr->in_progress == LINE6_DUMP_NONE, timeout);
+	return wait_event_timeout(l6dr->wait,
+				  l6dr->in_progress == LINE6_DUMP_NONE,
+				  timeout);
 }
 
 /*

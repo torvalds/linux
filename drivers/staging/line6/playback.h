@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -12,11 +12,9 @@
 #ifndef PLAYBACK_H
 #define PLAYBACK_H
 
-
 #include <sound/pcm.h>
 
 #include "driver.h"
-
 
 /*
   When the TonePort is used with jack in full duplex mode and the outputs are
@@ -27,7 +25,6 @@
   solution. Until one is found, this workaround can be used to fix the problem.
 */
 #define USE_CLEAR_BUFFER_WORKAROUND 1
-
 
 extern struct snd_pcm_ops snd_line6_playback_ops;
 

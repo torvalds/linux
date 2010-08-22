@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -12,13 +12,11 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 #include <sound/core.h>
 
 #include "midi.h"
-
 
 #define DRIVER_NAME "line6usb"
 
@@ -51,7 +49,7 @@
 */
 #define LINE6_CHANNEL_DEVICE 0x02
 
-#define LINE6_CHANNEL_UNKNOWN 5  /* don't know yet what this is good for */
+#define LINE6_CHANNEL_UNKNOWN 5	/* don't know yet what this is good for */
 
 #define LINE6_CHANNEL_MASK 0x0f
 
@@ -61,11 +59,9 @@
 #define DEBUG_MESSAGES(x)
 #endif
 
-
 #define MISSING_CASE	\
 	printk(KERN_ERR "line6usb driver bug: missing case in %s:%d\n", \
 		__FILE__, __LINE__)
-
 
 #define CHECK_RETURN(x)		\
 do {				\
@@ -79,13 +75,11 @@ do {				\
 		return;			   \
 	x = (n);
 
-
 extern const unsigned char line6_midi_id[3];
 extern struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
 
 static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
 static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;
-
 
 /**
 	 Common properties of Line6 devices.
@@ -202,7 +196,6 @@ struct usb_line6 {
 	int message_length;
 };
 
-
 extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1,
 				      int code2, int size);
 extern ssize_t line6_nop_read(struct device *dev,
@@ -226,7 +219,8 @@ extern int line6_send_sysex_message_async(struct usb_line6 *line6,
 extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count);
 extern void line6_start_timer(struct timer_list *timer, unsigned int msecs,
-			      void (*function)(unsigned long), unsigned long data);
+			      void (*function) (unsigned long),
+			      unsigned long data);
 extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
 				    int value);
 extern int line6_version_request_async(struct usb_line6 *line6);
@@ -237,6 +231,5 @@ extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 extern void line6_write_hexdump(struct usb_line6 *line6, char dir,
 				const unsigned char *buffer, int size);
 #endif
-
 
 #endif

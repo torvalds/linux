@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -20,10 +20,10 @@
 #include "playback.h"
 #include "pod.h"
 
-
 #define POD_SYSEX_CODE 3
-#define POD_BYTES_PER_FRAME 6  /* 24bit audio (stereo) */
+#define POD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
 
+/* *INDENT-OFF* */
 
 enum {
 	POD_SYSEX_CLIP      = 0x0f,
@@ -49,6 +49,8 @@ enum {
 	POD_system_invalid = 0x10000
 };
 
+/* *INDENT-ON* */
+
 enum {
 	POD_DUMP_MEMORY = 2
 };
@@ -61,7 +63,6 @@ enum {
 	POD_BUSY_MIDISEND
 };
 
-
 static struct snd_ratden pod_ratden = {
 	.num_min = 78125,
 	.num_max = 78125,
@@ -71,52 +72,49 @@ static struct snd_ratden pod_ratden = {
 
 static struct line6_pcm_properties pod_pcm_properties = {
 	.snd_line6_playback_hw = {
-		.info = (SNDRV_PCM_INFO_MMAP |
-			 SNDRV_PCM_INFO_INTERLEAVED |
-			 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			 SNDRV_PCM_INFO_MMAP_VALID |
-			 SNDRV_PCM_INFO_PAUSE |
+				  .info = (SNDRV_PCM_INFO_MMAP |
+					   SNDRV_PCM_INFO_INTERLEAVED |
+					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					   SNDRV_PCM_INFO_MMAP_VALID |
+					   SNDRV_PCM_INFO_PAUSE |
 #ifdef CONFIG_PM
-			 SNDRV_PCM_INFO_RESUME |
+					   SNDRV_PCM_INFO_RESUME |
 #endif
-			 SNDRV_PCM_INFO_SYNC_START),
-		.formats =          SNDRV_PCM_FMTBIT_S24_3LE,
-		.rates =            SNDRV_PCM_RATE_KNOT,
-		.rate_min =         39062,
-		.rate_max =         39063,
-		.channels_min =     2,
-		.channels_max =     2,
-		.buffer_bytes_max = 60000,
-		.period_bytes_min = 64,
-		.period_bytes_max = 8192,
-		.periods_min =      1,
-		.periods_max =      1024
-	},
+					   SNDRV_PCM_INFO_SYNC_START),
+				  .formats = SNDRV_PCM_FMTBIT_S24_3LE,
+				  .rates = SNDRV_PCM_RATE_KNOT,
+				  .rate_min = 39062,
+				  .rate_max = 39063,
+				  .channels_min = 2,
+				  .channels_max = 2,
+				  .buffer_bytes_max = 60000,
+				  .period_bytes_min = 64,
+				  .period_bytes_max = 8192,
+				  .periods_min = 1,
+				  .periods_max = 1024},
 	.snd_line6_capture_hw = {
-		.info = (SNDRV_PCM_INFO_MMAP |
-			 SNDRV_PCM_INFO_INTERLEAVED |
-			 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			 SNDRV_PCM_INFO_MMAP_VALID |
+				 .info = (SNDRV_PCM_INFO_MMAP |
+					  SNDRV_PCM_INFO_INTERLEAVED |
+					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					  SNDRV_PCM_INFO_MMAP_VALID |
 #ifdef CONFIG_PM
-			 SNDRV_PCM_INFO_RESUME |
+					  SNDRV_PCM_INFO_RESUME |
 #endif
-			 SNDRV_PCM_INFO_SYNC_START),
-		.formats =          SNDRV_PCM_FMTBIT_S24_3LE,
-		.rates =            SNDRV_PCM_RATE_KNOT,
-		.rate_min =         39062,
-		.rate_max =         39063,
-		.channels_min =     2,
-		.channels_max =     2,
-		.buffer_bytes_max = 60000,
-		.period_bytes_min = 64,
-		.period_bytes_max = 8192,
-		.periods_min =      1,
-		.periods_max =      1024
-	},
+					  SNDRV_PCM_INFO_SYNC_START),
+				 .formats = SNDRV_PCM_FMTBIT_S24_3LE,
+				 .rates = SNDRV_PCM_RATE_KNOT,
+				 .rate_min = 39062,
+				 .rate_max = 39063,
+				 .channels_min = 2,
+				 .channels_max = 2,
+				 .buffer_bytes_max = 60000,
+				 .period_bytes_min = 64,
+				 .period_bytes_max = 8192,
+				 .periods_min = 1,
+				 .periods_max = 1024},
 	.snd_line6_rates = {
-		.nrats = 1,
-		.rats = &pod_ratden
-	},
+			    .nrats = 1,
+			    .rats = &pod_ratden},
 	.bytes_per_frame = POD_BYTES_PER_FRAME
 };
 
@@ -124,16 +122,14 @@ static const char pod_request_channel[] = {
 	0xf0, 0x00, 0x01, 0x0c, 0x03, 0x75, 0xf7
 };
 
-static const char pod_version_header[]  = {
+static const char pod_version_header[] = {
 	0xf2, 0x7e, 0x7f, 0x06, 0x02
 };
-
 
 /* forward declarations: */
 static void pod_startup2(unsigned long data);
 static void pod_startup3(struct usb_line6_pod *pod);
 static void pod_startup4(struct usb_line6_pod *pod);
-
 
 /*
 	Mark all parameters as dirty and notify waiting processes.
@@ -146,9 +142,11 @@ static void pod_mark_batch_all_dirty(struct usb_line6_pod *pod)
 		set_bit(i, pod->param_dirty);
 }
 
-static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code, int size)
+static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
+				    int size)
 {
-	return line6_alloc_sysex_buffer(&pod->line6, POD_SYSEX_CODE, code, size);
+	return line6_alloc_sysex_buffer(&pod->line6, POD_SYSEX_CODE, code,
+					size);
 }
 
 /*
@@ -183,7 +181,8 @@ static void pod_store_parameter(struct usb_line6_pod *pod, int param, int value)
 /*
 	Handle SAVE button.
 */
-static void pod_save_button_pressed(struct usb_line6_pod *pod, int type, int index)
+static void pod_save_button_pressed(struct usb_line6_pod *pod, int type,
+				    int index)
 {
 	pod->dirty = 0;
 	set_bit(POD_SAVE_PRESSED, &pod->atomic_flags);
@@ -201,10 +200,10 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 	case LINE6_PARAM_CHANGE:
 	case LINE6_PROGRAM_CHANGE:
 	case LINE6_SYSEX_BEGIN:
-		break;  /* handle these further down */
+		break;		/* handle these further down */
 
 	default:
-		return;  /* ignore all others */
+		return;		/* ignore all others */
 	}
 
 	/* process all remaining messages */
@@ -217,7 +216,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		if ((buf[1] == POD_amp_model_setup) ||
 		    (buf[1] == POD_effect_setup))
 			/* these also affect other settings */
-			line6_dump_request_async(&pod->dumpreq, &pod->line6, 0, LINE6_DUMP_CURRENT);
+			line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
+						 LINE6_DUMP_CURRENT);
 
 		break;
 
@@ -226,7 +226,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		pod->channel_num = buf[1];
 		pod->dirty = 0;
 		set_bit(POD_CHANNEL_DIRTY, &pod->atomic_flags);
-		line6_dump_request_async(&pod->dumpreq, &pod->line6, 0, LINE6_DUMP_CURRENT);
+		line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
+					 LINE6_DUMP_CURRENT);
 		break;
 
 	case LINE6_SYSEX_BEGIN | LINE6_CHANNEL_DEVICE:
@@ -234,31 +235,50 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) == 0) {
 			switch (buf[5]) {
 			case POD_SYSEX_DUMP:
-				if (pod->line6.message_length == sizeof(pod->prog_data) + 7) {
+				if (pod->line6.message_length ==
+				    sizeof(pod->prog_data) + 7) {
 					switch (pod->dumpreq.in_progress) {
 					case LINE6_DUMP_CURRENT:
-						memcpy(&pod->prog_data, buf + 7, sizeof(pod->prog_data));
+						memcpy(&pod->prog_data, buf + 7,
+						       sizeof(pod->prog_data));
 						pod_mark_batch_all_dirty(pod);
 						break;
 
 					case POD_DUMP_MEMORY:
-						memcpy(&pod->prog_data_buf, buf + 7, sizeof(pod->prog_data_buf));
+						memcpy(&pod->prog_data_buf,
+						       buf + 7,
+						       sizeof
+						       (pod->prog_data_buf));
 						break;
 
 					default:
-						DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "unknown dump code %02X\n", pod->dumpreq.in_progress));
+						DEBUG_MESSAGES(dev_err
+							       (pod->
+								line6.ifcdev,
+								"unknown dump code %02X\n",
+								pod->
+								dumpreq.in_progress));
 					}
 
 					line6_dump_finished(&pod->dumpreq);
 					pod_startup3(pod);
 				} else
-					DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "wrong size of channel dump message (%d instead of %d)\n",
-																 pod->line6.message_length, (int)sizeof(pod->prog_data) + 7));
+					DEBUG_MESSAGES(dev_err
+						       (pod->line6.ifcdev,
+							"wrong size of channel dump message (%d instead of %d)\n",
+							pod->
+							line6.message_length,
+							(int)
+							sizeof(pod->prog_data) +
+							7));
 
 				break;
 
-			case POD_SYSEX_SYSTEM: {
-				short value = ((int)buf[7] << 12) | ((int)buf[8] << 8) | ((int)buf[9] << 4) | (int)buf[10];
+			case POD_SYSEX_SYSTEM:{
+					short value =
+					    ((int)buf[7] << 12) | ((int)buf[8]
+								   << 8) |
+					    ((int)buf[9] << 4) | (int)buf[10];
 
 #define PROCESS_SYSTEM_PARAM(x) \
 					case POD_ ## x: \
@@ -266,22 +286,31 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 						wake_up(&pod->x.wait); \
 						break;
 
-				switch (buf[6]) {
-					PROCESS_SYSTEM_PARAM(monitor_level);
-					PROCESS_SYSTEM_PARAM(routing);
-					PROCESS_SYSTEM_PARAM(tuner_mute);
-					PROCESS_SYSTEM_PARAM(tuner_freq);
-					PROCESS_SYSTEM_PARAM(tuner_note);
-					PROCESS_SYSTEM_PARAM(tuner_pitch);
+					switch (buf[6]) {
+						PROCESS_SYSTEM_PARAM
+						    (monitor_level);
+						PROCESS_SYSTEM_PARAM(routing);
+						PROCESS_SYSTEM_PARAM
+						    (tuner_mute);
+						PROCESS_SYSTEM_PARAM
+						    (tuner_freq);
+						PROCESS_SYSTEM_PARAM
+						    (tuner_note);
+						PROCESS_SYSTEM_PARAM
+						    (tuner_pitch);
 
 #undef PROCESS_SYSTEM_PARAM
 
-				default:
-					DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "unknown tuner/system response %02X\n", buf[6]));
-				}
+					default:
+						DEBUG_MESSAGES(dev_err
+							       (pod->
+								line6.ifcdev,
+								"unknown tuner/system response %02X\n",
+								buf[6]));
+					}
 
-				break;
-			}
+					break;
+				}
 
 			case POD_SYSEX_FINISH:
 				/* do we need to respond to this? */
@@ -292,24 +321,40 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 				break;
 
 			case POD_SYSEX_CLIP:
-				DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "audio clipped\n"));
+				DEBUG_MESSAGES(dev_err
+					       (pod->line6.ifcdev,
+						"audio clipped\n"));
 				pod->clipping.value = 1;
 				wake_up(&pod->clipping.wait);
 				break;
 
 			case POD_SYSEX_STORE:
-				DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "message %02X not yet implemented\n", buf[5]));
+				DEBUG_MESSAGES(dev_err
+					       (pod->line6.ifcdev,
+						"message %02X not yet implemented\n",
+						buf[5]));
 				break;
 
 			default:
-				DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "unknown sysex message %02X\n", buf[5]));
+				DEBUG_MESSAGES(dev_err
+					       (pod->line6.ifcdev,
+						"unknown sysex message %02X\n",
+						buf[5]));
 			}
-		} else if (memcmp(buf, pod_version_header, sizeof(pod_version_header)) == 0) {
-			pod->firmware_version = buf[13] * 100 + buf[14] * 10 + buf[15];
-			pod->device_id = ((int)buf[8] << 16) | ((int)buf[9] << 8) | (int)buf[10];
+		} else
+		    if (memcmp
+			(buf, pod_version_header,
+			 sizeof(pod_version_header)) == 0) {
+			pod->firmware_version =
+			    buf[13] * 100 + buf[14] * 10 + buf[15];
+			pod->device_id =
+			    ((int)buf[8] << 16) | ((int)buf[9] << 8) | (int)
+			    buf[10];
 			pod_startup4(pod);
 		} else
-			DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "unknown sysex header\n"));
+			DEBUG_MESSAGES(dev_err
+				       (pod->line6.ifcdev,
+					"unknown sysex header\n"));
 
 		break;
 
@@ -317,7 +362,9 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		break;
 
 	default:
-		DEBUG_MESSAGES(dev_err(pod->line6.ifcdev, "POD: unknown message %02X\n", buf[0]));
+		DEBUG_MESSAGES(dev_err
+			       (pod->line6.ifcdev,
+				"POD: unknown message %02X\n", buf[0]));
 	}
 }
 
@@ -332,7 +379,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 	*) This method fails if a param change message is "chopped" after the first
 	byte.
 */
-void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data, int length)
+void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data,
+				int length)
 {
 	int i;
 
@@ -343,8 +391,11 @@ void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data, 
 		if (data[i] == (LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST)) {
 			line6_invalidate_current(&pod->dumpreq);
 			break;
-		} else if ((data[i] == (LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST)) && (i < length - 1))
-			if ((data[i + 1] == POD_amp_model_setup) || (data[i + 1] == POD_effect_setup)) {
+		} else
+		    if ((data[i] == (LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST))
+			&& (i < length - 1))
+			if ((data[i + 1] == POD_amp_model_setup)
+			    || (data[i + 1] == POD_effect_setup)) {
 				line6_invalidate_current(&pod->dumpreq);
 				break;
 			}
@@ -367,19 +418,21 @@ static void pod_send_channel(struct usb_line6_pod *pod, int value)
 /*
 	Transmit PODxt Pro control parameter.
 */
-void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param, int value)
+void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
+				  int value)
 {
 	if (line6_transmit_parameter(&pod->line6, param, value) == 0)
 		pod_store_parameter(pod, param, value);
 
-	if ((param == POD_amp_model_setup) || (param == POD_effect_setup))  /* these also affect other settings */
+	if ((param == POD_amp_model_setup) || (param == POD_effect_setup))	/* these also affect other settings */
 		line6_invalidate_current(&pod->dumpreq);
 }
 
 /*
 	Resolve value to memory location.
 */
-static int pod_resolve(const char *buf, short block0, short block1, unsigned char *location)
+static int pod_resolve(const char *buf, short block0, short block1,
+		       unsigned char *location)
 {
 	unsigned long value;
 	short block;
@@ -399,7 +452,8 @@ static int pod_resolve(const char *buf, short block0, short block1, unsigned cha
 /*
 	Send command to store channel/effects setup/amp setup to PODxt Pro.
 */
-static ssize_t pod_send_store_command(struct device *dev, const char *buf, size_t count, short block0, short block1)
+static ssize_t pod_send_store_command(struct device *dev, const char *buf,
+				      size_t count, short block0, short block1)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -410,14 +464,15 @@ static ssize_t pod_send_store_command(struct device *dev, const char *buf, size_
 	if (!sysex)
 		return 0;
 
-	sysex[SYSEX_DATA_OFS] = 5;  /* see pod_dump() */
+	sysex[SYSEX_DATA_OFS] = 5;	/* see pod_dump() */
 	ret = pod_resolve(buf, block0, block1, sysex + SYSEX_DATA_OFS + 1);
 	if (ret) {
 		kfree(sysex);
 		return ret;
 	}
 
-	memcpy(sysex + SYSEX_DATA_OFS + 3, &pod->prog_data_buf, sizeof(pod->prog_data_buf));
+	memcpy(sysex + SYSEX_DATA_OFS + 3, &pod->prog_data_buf,
+	       sizeof(pod->prog_data_buf));
 
 	line6_send_sysex_message(&pod->line6, sysex, size);
 	kfree(sysex);
@@ -428,7 +483,9 @@ static ssize_t pod_send_store_command(struct device *dev, const char *buf, size_
 /*
 	Send command to retrieve channel/effects setup/amp setup to PODxt Pro.
 */
-static ssize_t pod_send_retrieve_command(struct device *dev, const char *buf, size_t count, short block0, short block1)
+static ssize_t pod_send_retrieve_command(struct device *dev, const char *buf,
+					 size_t count, short block0,
+					 short block1)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
@@ -459,7 +516,8 @@ static ssize_t pod_send_retrieve_command(struct device *dev, const char *buf, si
 /*
 	Generic get name function.
 */
-static ssize_t get_name_generic(struct usb_line6_pod *pod, const char *str, char *buf)
+static ssize_t get_name_generic(struct usb_line6_pod *pod, const char *str,
+				char *buf)
 {
 	int length = 0;
 	const char *p1;
@@ -521,7 +579,8 @@ static ssize_t pod_get_name(struct device *dev, struct device_attribute *attr,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return get_name_generic(pod, pod->prog_data.header + POD_NAME_OFFSET, buf);
+	return get_name_generic(pod, pod->prog_data.header + POD_NAME_OFFSET,
+				buf);
 }
 
 /*
@@ -532,7 +591,9 @@ static ssize_t pod_get_name_buf(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return get_name_generic(pod, pod->prog_data_buf.header + POD_NAME_OFFSET, buf);
+	return get_name_generic(pod,
+				pod->prog_data_buf.header + POD_NAME_OFFSET,
+				buf);
 }
 
 /*
@@ -561,8 +622,8 @@ static ssize_t pod_set_dump(struct device *dev, struct device_attribute *attr,
 
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
-						"data block must be exactly %d bytes\n",
-						(int)sizeof(pod->prog_data));
+			"data block must be exactly %d bytes\n",
+			(int)sizeof(pod->prog_data));
 		return -EINVAL;
 	}
 
@@ -576,24 +637,24 @@ static ssize_t pod_set_dump(struct device *dev, struct device_attribute *attr,
 static bool pod_is_tuner(int code)
 {
 	return
-		(code == POD_tuner_mute) ||
-		(code == POD_tuner_freq) ||
-		(code == POD_tuner_note) ||
-		(code == POD_tuner_pitch);
+	    (code == POD_tuner_mute) ||
+	    (code == POD_tuner_freq) ||
+	    (code == POD_tuner_note) || (code == POD_tuner_pitch);
 }
 
 /*
 	Get system parameter (as integer).
 	@param tuner non-zero, if code refers to a tuner parameter
 */
-static int pod_get_system_param_int(struct usb_line6_pod *pod, int *value, int code,
-				    struct ValueWait *param, int sign)
+static int pod_get_system_param_int(struct usb_line6_pod *pod, int *value,
+				    int code, struct ValueWait *param, int sign)
 {
 	char *sysex;
 	static const int size = 1;
 	int retval = 0;
 
-	if (((pod->prog_data.control[POD_tuner] & 0x40) == 0) && pod_is_tuner(code))
+	if (((pod->prog_data.control[POD_tuner] & 0x40) == 0)
+	    && pod_is_tuner(code))
 		return -ENODEV;
 
 	/* send value request to device: */
@@ -608,15 +669,18 @@ static int pod_get_system_param_int(struct usb_line6_pod *pod, int *value, int c
 	kfree(sysex);
 
 	/* wait for device to respond: */
-	retval = wait_event_interruptible(param->wait, param->value != POD_system_invalid);
+	retval =
+	    wait_event_interruptible(param->wait,
+				     param->value != POD_system_invalid);
 
 	if (retval < 0)
 		return retval;
 
-	*value = sign ? (int)(signed short)param->value : (int)(unsigned short)param->value;
+	*value = sign ? (int)(signed short)param->value : (int)(unsigned short)
+	    param->value;
 
-	if(*value == POD_system_invalid)
-		*value = 0;  /* don't report uninitialized values */
+	if (*value == POD_system_invalid)
+		*value = 0;	/* don't report uninitialized values */
 
 	return 0;
 }
@@ -625,13 +689,14 @@ static int pod_get_system_param_int(struct usb_line6_pod *pod, int *value, int c
 	Get system parameter (as string).
 	@param tuner non-zero, if code refers to a tuner parameter
 */
-static ssize_t pod_get_system_param_string(struct usb_line6_pod *pod, char *buf, int code,
-					   struct ValueWait *param, int sign)
+static ssize_t pod_get_system_param_string(struct usb_line6_pod *pod, char *buf,
+					   int code, struct ValueWait *param,
+					   int sign)
 {
 	int retval, value = 0;
 	retval = pod_get_system_param_int(pod, &value, code, param, sign);
 
-	if(retval < 0)
+	if (retval < 0)
 		return retval;
 
 	return sprintf(buf, "%d\n", value);
@@ -641,12 +706,14 @@ static ssize_t pod_get_system_param_string(struct usb_line6_pod *pod, char *buf,
 	Send system parameter (from integer).
 	@param tuner non-zero, if code refers to a tuner parameter
 */
-static int pod_set_system_param_int(struct usb_line6_pod *pod, int value, int code)
+static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
+				    int code)
 {
 	char *sysex;
 	static const int size = 5;
 
-	if (((pod->prog_data.control[POD_tuner] & 0x40) == 0) && pod_is_tuner(code))
+	if (((pod->prog_data.control[POD_tuner] & 0x40) == 0)
+	    && pod_is_tuner(code))
 		return -EINVAL;
 
 	/* send value to tuner: */
@@ -655,9 +722,9 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value, int co
 		return -ENOMEM;
 	sysex[SYSEX_DATA_OFS] = code;
 	sysex[SYSEX_DATA_OFS + 1] = (value >> 12) & 0x0f;
-	sysex[SYSEX_DATA_OFS + 2] = (value >>  8) & 0x0f;
-	sysex[SYSEX_DATA_OFS + 3] = (value >>  4) & 0x0f;
-	sysex[SYSEX_DATA_OFS + 4] = (value      ) & 0x0f;
+	sysex[SYSEX_DATA_OFS + 2] = (value >> 8) & 0x0f;
+	sysex[SYSEX_DATA_OFS + 3] = (value >> 4) & 0x0f;
+	sysex[SYSEX_DATA_OFS + 4] = (value) & 0x0f;
 	line6_send_sysex_message(&pod->line6, sysex, size);
 	kfree(sysex);
 	return 0;
@@ -667,8 +734,9 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value, int co
 	Send system parameter (from string).
 	@param tuner non-zero, if code refers to a tuner parameter
 */
-static ssize_t pod_set_system_param_string(struct usb_line6_pod *pod, const char *buf,
-					   int count, int code, unsigned short mask)
+static ssize_t pod_set_system_param_string(struct usb_line6_pod *pod,
+					   const char *buf, int count, int code,
+					   unsigned short mask)
 {
 	int retval;
 	unsigned short value = simple_strtoul(buf, NULL, 10) & mask;
@@ -878,7 +946,8 @@ static ssize_t pod_wait_for_clip(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return wait_event_interruptible(pod->clipping.wait, pod->clipping.value != 0);
+	return wait_event_interruptible(pod->clipping.wait,
+					pod->clipping.value != 0);
 }
 
 /*
@@ -890,25 +959,34 @@ static ssize_t pod_wait_for_clip(struct device *dev,
 
 static void pod_startup1(struct usb_line6_pod *pod)
 {
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, 1);
+	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_INIT);
 
 	/* delay startup procedure: */
-	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2, (unsigned long)pod);
+	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2,
+			  (unsigned long)pod);
 }
 
 static void pod_startup2(unsigned long data)
 {
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)data;
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, 2);
+
+	/* schedule another startup procedure until startup is complete: */
+	if (pod->startup_progress >= POD_STARTUP_LAST)
+		return;
+
+	pod->startup_progress = POD_STARTUP_DUMPREQ;
+	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2,
+			  (unsigned long)pod);
 
 	/* current channel dump: */
-	line6_dump_request_async(&pod->dumpreq, &pod->line6, 0, LINE6_DUMP_CURRENT);
+	line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
+				 LINE6_DUMP_CURRENT);
 }
 
 static void pod_startup3(struct usb_line6_pod *pod)
 {
 	struct usb_line6 *line6 = &pod->line6;
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, 3);
+	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_VERSIONREQ);
 
 	/* request firmware version: */
 	line6_version_request_async(line6);
@@ -916,7 +994,7 @@ static void pod_startup3(struct usb_line6_pod *pod)
 
 static void pod_startup4(struct usb_line6_pod *pod)
 {
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, 4);
+	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_WORKQUEUE);
 
 	/* schedule work for global work queue: */
 	schedule_work(&pod->startup_work);
@@ -924,10 +1002,11 @@ static void pod_startup4(struct usb_line6_pod *pod)
 
 static void pod_startup5(struct work_struct *work)
 {
-	struct usb_line6_pod *pod = container_of(work, struct usb_line6_pod, startup_work);
+	struct usb_line6_pod *pod =
+	    container_of(work, struct usb_line6_pod, startup_work);
 	struct usb_line6 *line6 = &pod->line6;
 
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, 5);
+	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_SETUP);
 
 	/* serial number: */
 	line6_read_serial_number(&pod->line6, &pod->serial_number);
@@ -936,7 +1015,8 @@ static void pod_startup5(struct work_struct *work)
 	line6_register_audio(line6);
 
 	/* device files: */
-	line6_pod_create_files(pod->firmware_version, line6->properties->device_bit, line6->ifcdev);
+	line6_pod_create_files(pod->firmware_version,
+			       line6->properties->device_bit, line6->ifcdev);
 }
 
 #define POD_GET_SYSTEM_PARAM(code, sign) \
@@ -971,28 +1051,43 @@ POD_GET_SYSTEM_PARAM(tuner_pitch, 1);
 #undef GET_SYSTEM_PARAM
 
 /* POD special files: */
-static DEVICE_ATTR(channel, S_IWUGO | S_IRUGO, pod_get_channel, pod_set_channel);
+static DEVICE_ATTR(channel, S_IWUGO | S_IRUGO, pod_get_channel,
+		   pod_set_channel);
 static DEVICE_ATTR(clip, S_IRUGO, pod_wait_for_clip, line6_nop_write);
 static DEVICE_ATTR(device_id, S_IRUGO, pod_get_device_id, line6_nop_write);
 static DEVICE_ATTR(dirty, S_IRUGO, pod_get_dirty, line6_nop_write);
 static DEVICE_ATTR(dump, S_IWUGO | S_IRUGO, pod_get_dump, pod_set_dump);
-static DEVICE_ATTR(dump_buf, S_IWUGO | S_IRUGO, pod_get_dump_buf, pod_set_dump_buf);
+static DEVICE_ATTR(dump_buf, S_IWUGO | S_IRUGO, pod_get_dump_buf,
+		   pod_set_dump_buf);
 static DEVICE_ATTR(finish, S_IWUGO, line6_nop_read, pod_set_finish);
-static DEVICE_ATTR(firmware_version, S_IRUGO, pod_get_firmware_version, line6_nop_write);
-static DEVICE_ATTR(midi_postprocess, S_IWUGO | S_IRUGO, pod_get_midi_postprocess, pod_set_midi_postprocess);
-static DEVICE_ATTR(monitor_level, S_IWUGO | S_IRUGO, pod_get_monitor_level, pod_set_monitor_level);
+static DEVICE_ATTR(firmware_version, S_IRUGO, pod_get_firmware_version,
+		   line6_nop_write);
+static DEVICE_ATTR(midi_postprocess, S_IWUGO | S_IRUGO,
+		   pod_get_midi_postprocess, pod_set_midi_postprocess);
+static DEVICE_ATTR(monitor_level, S_IWUGO | S_IRUGO, pod_get_monitor_level,
+		   pod_set_monitor_level);
 static DEVICE_ATTR(name, S_IRUGO, pod_get_name, line6_nop_write);
 static DEVICE_ATTR(name_buf, S_IRUGO, pod_get_name_buf, line6_nop_write);
-static DEVICE_ATTR(retrieve_amp_setup, S_IWUGO, line6_nop_read, pod_set_retrieve_amp_setup);
-static DEVICE_ATTR(retrieve_channel, S_IWUGO, line6_nop_read, pod_set_retrieve_channel);
-static DEVICE_ATTR(retrieve_effects_setup, S_IWUGO, line6_nop_read, pod_set_retrieve_effects_setup);
-static DEVICE_ATTR(routing, S_IWUGO | S_IRUGO, pod_get_routing, pod_set_routing);
-static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number, line6_nop_write);
-static DEVICE_ATTR(store_amp_setup, S_IWUGO, line6_nop_read, pod_set_store_amp_setup);
-static DEVICE_ATTR(store_channel, S_IWUGO, line6_nop_read, pod_set_store_channel);
-static DEVICE_ATTR(store_effects_setup, S_IWUGO, line6_nop_read, pod_set_store_effects_setup);
-static DEVICE_ATTR(tuner_freq, S_IWUGO | S_IRUGO, pod_get_tuner_freq, pod_set_tuner_freq);
-static DEVICE_ATTR(tuner_mute, S_IWUGO | S_IRUGO, pod_get_tuner_mute, pod_set_tuner_mute);
+static DEVICE_ATTR(retrieve_amp_setup, S_IWUGO, line6_nop_read,
+		   pod_set_retrieve_amp_setup);
+static DEVICE_ATTR(retrieve_channel, S_IWUGO, line6_nop_read,
+		   pod_set_retrieve_channel);
+static DEVICE_ATTR(retrieve_effects_setup, S_IWUGO, line6_nop_read,
+		   pod_set_retrieve_effects_setup);
+static DEVICE_ATTR(routing, S_IWUGO | S_IRUGO, pod_get_routing,
+		   pod_set_routing);
+static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
+		   line6_nop_write);
+static DEVICE_ATTR(store_amp_setup, S_IWUGO, line6_nop_read,
+		   pod_set_store_amp_setup);
+static DEVICE_ATTR(store_channel, S_IWUGO, line6_nop_read,
+		   pod_set_store_channel);
+static DEVICE_ATTR(store_effects_setup, S_IWUGO, line6_nop_read,
+		   pod_set_store_effects_setup);
+static DEVICE_ATTR(tuner_freq, S_IWUGO | S_IRUGO, pod_get_tuner_freq,
+		   pod_set_tuner_freq);
+static DEVICE_ATTR(tuner_mute, S_IWUGO | S_IRUGO, pod_get_tuner_mute,
+		   pod_set_tuner_mute);
 static DEVICE_ATTR(tuner_note, S_IRUGO, pod_get_tuner_note, line6_nop_write);
 static DEVICE_ATTR(tuner_pitch, S_IRUGO, pod_get_tuner_pitch, line6_nop_write);
 
@@ -1028,11 +1123,12 @@ static int snd_pod_control_monitor_put(struct snd_kcontrol *kcontrol,
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6pcm->line6;
 
-	if(ucontrol->value.integer.value[0] == pod->monitor_level.value)
+	if (ucontrol->value.integer.value[0] == pod->monitor_level.value)
 		return 0;
 
 	pod->monitor_level.value = ucontrol->value.integer.value[0];
-	pod_set_system_param_int(pod, ucontrol->value.integer.value[0], POD_monitor_level);
+	pod_set_system_param_int(pod, ucontrol->value.integer.value[0],
+				 POD_monitor_level);
 	return 1;
 }
 
@@ -1061,6 +1157,9 @@ static void pod_destruct(struct usb_interface *interface)
 	if (line6 == NULL)
 		return;
 	line6_cleanup_audio(line6);
+
+	del_timer(&pod->startup_timer);
+	cancel_work_sync(&pod->startup_work);
 
 	/* free dump request data: */
 	line6_dumpreq_destruct(&pod->dumpreq);
@@ -1108,10 +1207,14 @@ static int pod_create_files2(struct device *dev)
 /*
 	 Try to init POD device.
 */
-static int pod_try_init(struct usb_interface *interface, struct usb_line6_pod *pod)
+static int pod_try_init(struct usb_interface *interface,
+			struct usb_line6_pod *pod)
 {
 	int err;
 	struct usb_line6 *line6 = &pod->line6;
+
+	init_timer(&pod->startup_timer);
+	INIT_WORK(&pod->startup_work, pod_startup5);
 
 	if ((interface == NULL) || (pod == NULL))
 		return -ENODEV;
@@ -1126,8 +1229,6 @@ static int pod_try_init(struct usb_interface *interface, struct usb_line6_pod *p
 	init_waitqueue_head(&pod->tuner_note.wait);
 	init_waitqueue_head(&pod->tuner_pitch.wait);
 	init_waitqueue_head(&pod->clipping.wait);
-	init_timer(&pod->startup_timer);
-	INIT_WORK(&pod->startup_work, pod_startup5);
 
 	memset(pod->param_dirty, 0xff, sizeof(pod->param_dirty));
 
@@ -1164,16 +1265,18 @@ static int pod_try_init(struct usb_interface *interface, struct usb_line6_pod *p
 	}
 
 	/* register monitor control: */
-	err = snd_ctl_add(line6->card, snd_ctl_new1(&pod_control_monitor, line6->line6pcm));
+	err =
+	    snd_ctl_add(line6->card,
+			snd_ctl_new1(&pod_control_monitor, line6->line6pcm));
 	if (err < 0) {
 		return err;
 	}
 
 	/*
-	  When the sound card is registered at this point, the PODxt Live
-	  displays "Invalid Code Error 07", so we do it later in the event
-	  handler.
-	*/
+	   When the sound card is registered at this point, the PODxt Live
+	   displays "Invalid Code Error 07", so we do it later in the event
+	   handler.
+	 */
 
 	if (pod->line6.properties->capabilities & LINE6_BIT_CONTROL) {
 		pod->monitor_level.value = POD_system_invalid;
@@ -1220,7 +1323,9 @@ void line6_pod_disconnect(struct usb_interface *interface)
 
 		if (dev != NULL) {
 			/* remove sysfs entries: */
-			line6_pod_remove_files(pod->firmware_version, pod->line6.properties->device_bit, dev);
+			line6_pod_remove_files(pod->firmware_version,
+					       pod->line6.
+					       properties->device_bit, dev);
 
 			device_remove_file(dev, &dev_attr_channel);
 			device_remove_file(dev, &dev_attr_clip);
@@ -1236,7 +1341,8 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_name_buf);
 			device_remove_file(dev, &dev_attr_retrieve_amp_setup);
 			device_remove_file(dev, &dev_attr_retrieve_channel);
-			device_remove_file(dev, &dev_attr_retrieve_effects_setup);
+			device_remove_file(dev,
+					   &dev_attr_retrieve_effects_setup);
 			device_remove_file(dev, &dev_attr_routing);
 			device_remove_file(dev, &dev_attr_serial_number);
 			device_remove_file(dev, &dev_attr_store_amp_setup);
