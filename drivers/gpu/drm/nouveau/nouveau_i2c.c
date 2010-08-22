@@ -163,7 +163,7 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 	if (entry->chan)
 		return -EEXIST;
 
-	if (dev_priv->card_type == NV_C0 && entry->read >= NV50_I2C_PORTS) {
+	if (dev_priv->card_type >= NV_50 && entry->read >= NV50_I2C_PORTS) {
 		NV_ERROR(dev, "unknown i2c port %d\n", entry->read);
 		return -EINVAL;
 	}
