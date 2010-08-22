@@ -284,19 +284,18 @@ split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
 }
 
 static int
-__append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	       unsigned int start, u64 period);
+append_chain(struct callchain_node *root, struct resolved_chain *chain,
+	     unsigned int start, u64 period);
 
 static void
-__append_chain_children(struct callchain_node *root,
-			struct resolved_chain *chain,
-			unsigned int start, u64 period)
+append_chain_children(struct callchain_node *root, struct resolved_chain *chain,
+		      unsigned int start, u64 period)
 {
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
 	chain_for_each_child(rnode, root) {
-		unsigned int ret = __append_chain(rnode, chain, start, period);
+		unsigned int ret = append_chain(rnode, chain, start, period);
 
 		if (!ret)
 			goto inc_children_hit;
@@ -309,8 +308,8 @@ inc_children_hit:
 }
 
 static int
-__append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	       unsigned int start, u64 period)
+append_chain(struct callchain_node *root, struct resolved_chain *chain,
+	     unsigned int start, u64 period)
 {
 	struct callchain_list *cnode;
 	unsigned int i = start;
@@ -357,7 +356,7 @@ __append_chain(struct callchain_node *root, struct resolved_chain *chain,
 	}
 
 	/* We match the node and still have a part remaining */
-	__append_chain_children(root, chain, i, period);
+	append_chain_children(root, chain, i, period);
 
 	return 0;
 }
@@ -380,8 +379,8 @@ static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
 }
 
 
-int append_chain(struct callchain_root *root, struct ip_callchain *chain,
-		 struct map_symbol *syms, u64 period)
+int callchain_append(struct callchain_root *root, struct ip_callchain *chain,
+		     struct map_symbol *syms, u64 period)
 {
 	struct resolved_chain *filtered;
 
@@ -398,7 +397,7 @@ int append_chain(struct callchain_root *root, struct ip_callchain *chain,
 	if (!filtered->nr)
 		goto end;
 
-	__append_chain_children(&root->node, filtered, 0, period);
+	append_chain_children(&root->node, filtered, 0, period);
 
 	if (filtered->nr > root->max_depth)
 		root->max_depth = filtered->nr;
