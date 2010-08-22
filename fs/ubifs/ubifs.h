@@ -119,8 +119,12 @@
  * in TNC. However, when replaying, it is handy to introduce fake "truncation"
  * keys for truncation nodes because the code becomes simpler. So we define
  * %UBIFS_TRUN_KEY type.
+ *
+ * But otherwise, out of the journal reply scope, the truncation keys are
+ * invalid.
  */
-#define UBIFS_TRUN_KEY UBIFS_KEY_TYPES_CNT
+#define UBIFS_TRUN_KEY    UBIFS_KEY_TYPES_CNT
+#define UBIFS_INVALID_KEY UBIFS_KEY_TYPES_CNT
 
 /*
  * How much a directory entry/extended attribute entry adds to the parent/host

@@ -197,7 +197,7 @@ int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 	struct ubifs_ino_node *ino = buf;
 	struct ubifs_scan_node *snod;
 
-	snod = kzalloc(sizeof(struct ubifs_scan_node), GFP_NOFS);
+	snod = kmalloc(sizeof(struct ubifs_scan_node), GFP_NOFS);
 	if (!snod)
 		return -ENOMEM;
 
@@ -217,6 +217,9 @@ int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		 * nodes.
 		 */
 		key_read(c, &ino->key, &snod->key);
+		break;
+	default:
+		invalid_key_init(c, &snod->key);
 		break;
 	}
 	list_add_tail(&snod->list, &sleb->nodes);
