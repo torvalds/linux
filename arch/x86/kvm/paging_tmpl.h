@@ -67,6 +67,7 @@ struct guest_walker {
 	int level;
 	gfn_t table_gfn[PT_MAX_FULL_LEVELS];
 	pt_element_t ptes[PT_MAX_FULL_LEVELS];
+	pt_element_t prefetch_ptes[PTE_PREFETCH_NUM];
 	gpa_t pte_gpa[PT_MAX_FULL_LEVELS];
 	unsigned pt_access;
 	unsigned pte_access;
@@ -302,21 +303,33 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
 				struct guest_walker *gw, int level)
 {
-	int r;
 	pt_element_t curr_pte;
+	gpa_t base_gpa, pte_gpa = gw->pte_gpa[level - 1];
+	u64 mask;
+	int r, index;
 
-	r = kvm_read_guest_atomic(vcpu->kvm, gw->pte_gpa[level - 1],
+	if (level == PT_PAGE_TABLE_LEVEL) {
+		mask = PTE_PREFETCH_NUM * sizeof(pt_element_t) - 1;
+		base_gpa = pte_gpa & ~mask;
+		index = (pte_gpa - base_gpa) / sizeof(pt_element_t);
+
+		r = kvm_read_guest_atomic(vcpu->kvm, base_gpa,
+				gw->prefetch_ptes, sizeof(gw->prefetch_ptes));
+		curr_pte = gw->prefetch_ptes[index];
+	} else
+		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa,
 				  &curr_pte, sizeof(curr_pte));
+
 	return r || curr_pte != gw->ptes[level - 1];
 }
 
-static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, u64 *sptep)
+static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
+				u64 *sptep)
 {
 	struct kvm_mmu_page *sp;
-	pt_element_t gptep[PTE_PREFETCH_NUM];
-	gpa_t first_pte_gpa;
-	int offset = 0, i;
+	pt_element_t *gptep = gw->prefetch_ptes;
 	u64 *spte;
+	int i;
 
 	sp = page_header(__pa(sptep));
 
@@ -327,17 +340,6 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, u64 *sptep)
 		return __direct_pte_prefetch(vcpu, sp, sptep);
 
 	i = (sptep - sp->spt) & ~(PTE_PREFETCH_NUM - 1);
-
-	if (PTTYPE == 32)
-		offset = sp->role.quadrant << PT64_LEVEL_BITS;
-
-	first_pte_gpa = gfn_to_gpa(sp->gfn) +
-				(offset + i) * sizeof(pt_element_t);
-
-	if (kvm_read_guest_atomic(vcpu->kvm, first_pte_gpa, gptep,
-					sizeof(gptep)) < 0)
-		return;
-
 	spte = sp->spt + i;
 
 	for (i = 0; i < PTE_PREFETCH_NUM; i++, spte++) {
@@ -462,7 +464,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
 		     user_fault, write_fault, dirty, ptwrite, it.level,
 		     gw->gfn, pfn, false, true);
-	FNAME(pte_prefetch)(vcpu, it.sptep);
+	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 
 	return it.sptep;
 
