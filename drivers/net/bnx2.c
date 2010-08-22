@@ -49,6 +49,7 @@
 #include <linux/cache.h>
 #include <linux/firmware.h>
 #include <linux/log2.h>
+#include <linux/aer.h>
 
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
@@ -7890,6 +7891,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	int rc, i, j;
 	u32 reg;
 	u64 dma_mask, persist_dma_mask;
+	int err;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	bp = netdev_priv(dev);
@@ -7923,6 +7925,14 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting\n");
 		goto err_out_disable;
+	}
+
+	/* AER (Advanced Error Reporting) hooks */
+	err = pci_enable_pcie_error_reporting(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
+				    "0x%x\n", err);
+		/* non-fatal, continue */
 	}
 
 	pci_set_master(pdev);
@@ -8246,6 +8256,7 @@ err_out_unmap:
 	}
 
 err_out_release:
+	pci_disable_pcie_error_reporting(pdev);
 	pci_release_regions(pdev);
 
 err_out_disable:
@@ -8436,6 +8447,9 @@ bnx2_remove_one(struct pci_dev *pdev)
 	kfree(bp->temp_stats_blk);
 
 	free_netdev(dev);
+
+	pci_disable_pcie_error_reporting(pdev);
+
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -8527,25 +8541,35 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = netdev_priv(dev);
+	pci_ers_result_t result;
+	int err;
 
 	rtnl_lock();
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset\n");
-		rtnl_unlock();
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-	pci_set_master(pdev);
-	pci_restore_state(pdev);
-	pci_save_state(pdev);
+		result = PCI_ERS_RESULT_DISCONNECT;
+	} else {
+		pci_set_master(pdev);
+		pci_restore_state(pdev);
+		pci_save_state(pdev);
 
-	if (netif_running(dev)) {
-		bnx2_set_power_state(bp, PCI_D0);
-		bnx2_init_nic(bp, 1);
+		if (netif_running(dev)) {
+			bnx2_set_power_state(bp, PCI_D0);
+			bnx2_init_nic(bp, 1);
+		}
+		result = PCI_ERS_RESULT_RECOVERED;
 	}
-
 	rtnl_unlock();
-	return PCI_ERS_RESULT_RECOVERED;
+
+	err = pci_cleanup_aer_uncorrect_error_status(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n",
+			 err); /* non-fatal, continue */
+	}
+
+	return result;
 }
 
 /**
