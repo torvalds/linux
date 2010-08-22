@@ -86,10 +86,10 @@ __sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
  * sort them by hit
  */
 static void
-sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+sort_chain_flat(struct rb_root *rb_root, struct callchain_root *root,
 		u64 min_hit, struct callchain_param *param __used)
 {
-	__sort_chain_flat(rb_root, node, min_hit);
+	__sort_chain_flat(rb_root, &root->node, min_hit);
 }
 
 static void __sort_chain_graph_abs(struct callchain_node *node,
@@ -108,11 +108,11 @@ static void __sort_chain_graph_abs(struct callchain_node *node,
 }
 
 static void
-sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_node *chain_root,
+sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_root *chain_root,
 		     u64 min_hit, struct callchain_param *param __used)
 {
-	__sort_chain_graph_abs(chain_root, min_hit);
-	rb_root->rb_node = chain_root->rb_root.rb_node;
+	__sort_chain_graph_abs(&chain_root->node, min_hit);
+	rb_root->rb_node = chain_root->node.rb_root.rb_node;
 }
 
 static void __sort_chain_graph_rel(struct callchain_node *node,
@@ -133,11 +133,11 @@ static void __sort_chain_graph_rel(struct callchain_node *node,
 }
 
 static void
-sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_node *chain_root,
+sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_root *chain_root,
 		     u64 min_hit __used, struct callchain_param *param)
 {
-	__sort_chain_graph_rel(chain_root, param->min_percent / 100.0);
-	rb_root->rb_node = chain_root->rb_root.rb_node;
+	__sort_chain_graph_rel(&chain_root->node, param->min_percent / 100.0);
+	rb_root->rb_node = chain_root->node.rb_root.rb_node;
 }
 
 int register_callchain_param(struct callchain_param *param)
@@ -380,7 +380,7 @@ static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
 }
 
 
-int append_chain(struct callchain_node *root, struct ip_callchain *chain,
+int append_chain(struct callchain_root *root, struct ip_callchain *chain,
 		 struct map_symbol *syms, u64 period)
 {
 	struct resolved_chain *filtered;
@@ -398,7 +398,10 @@ int append_chain(struct callchain_node *root, struct ip_callchain *chain,
 	if (!filtered->nr)
 		goto end;
 
-	__append_chain_children(root, filtered, 0, period);
+	__append_chain_children(&root->node, filtered, 0, period);
+
+	if (filtered->nr > root->max_depth)
+		root->max_depth = filtered->nr;
 end:
 	free(filtered);
 

@@ -87,7 +87,7 @@ static void hist_entry__add_cpumode_period(struct hist_entry *self,
 
 static struct hist_entry *hist_entry__new(struct hist_entry *template)
 {
-	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_node) : 0;
+	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_root) : 0;
 	struct hist_entry *self = malloc(sizeof(*self) + callchain_size);
 
 	if (self != NULL) {
