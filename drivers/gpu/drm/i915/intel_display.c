@@ -3508,10 +3508,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll = 0, fp = 0, fp2 = 0, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
-	bool is_edp = false;
+	struct intel_encoder *has_edp_encoder = NULL;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_encoder *encoder;
-	struct intel_encoder *intel_encoder = NULL;
 	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
@@ -3532,12 +3531,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	drm_vblank_pre_modeset(dev, pipe);
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
+		struct intel_encoder *intel_encoder;
 
-		if (!encoder || encoder->crtc != crtc)
+		if (encoder->crtc != crtc)
 			continue;
 
 		intel_encoder = enc_to_intel_encoder(encoder);
-
 		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
@@ -3561,7 +3560,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_dp = true;
 			break;
 		case INTEL_OUTPUT_EDP:
-			is_edp = true;
+			has_edp_encoder = intel_encoder;
 			break;
 		}
 
@@ -3639,10 +3638,10 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		int lane = 0, link_bw, bpp;
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
-		if (is_edp) {
+		if (has_edp_encoder) {
 			target_clock = mode->clock;
-			intel_edp_link_config(intel_encoder,
-					&lane, &link_bw);
+			intel_edp_link_config(has_edp_encoder,
+					      &lane, &link_bw);
 		} else {
 			/* DP over FDI requires target mode clock
 			   instead of link clock */
@@ -3663,7 +3662,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
-		} else if (is_edp || (is_dp && intel_pch_has_edp(crtc))) {
+		} else if (has_edp_encoder || (is_dp && intel_pch_has_edp(crtc))) {
 			switch (dev_priv->edp_bpp/3) {
 			case 8:
 				temp |= PIPE_8BPC;
@@ -3736,7 +3735,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		udelay(200);
 
-		if (is_edp) {
+		if (has_edp_encoder) {
 			if (dev_priv->lvds_use_ssc) {
 				temp |= DREF_SSC1_ENABLE;
 				I915_WRITE(PCH_DREF_CONTROL, temp);
@@ -3885,7 +3884,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		dpll_reg = pch_dpll_reg;
 	}
 
-	if (!is_edp) {
+	if (!has_edp_encoder) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
 		I915_READ(dpll_reg);
@@ -3980,7 +3979,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!is_edp) {
+	if (!has_edp_encoder) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll);
 		I915_READ(dpll_reg);
@@ -4059,7 +4058,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(link_m1_reg, m_n.link_m);
 		I915_WRITE(link_n1_reg, m_n.link_n);
 
-		if (is_edp) {
+		if (has_edp_encoder) {
 			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 		} else {
 			/* enable FDI RX PLL too */
