@@ -44,6 +44,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
+#include <net/gre.h>
 
 #ifdef CONFIG_IPV6
 #include <net/ipv6.h>
@@ -1278,10 +1279,9 @@ static void ipgre_fb_tunnel_init(struct net_device *dev)
 }
 
 
-static const struct net_protocol ipgre_protocol = {
-	.handler	=	ipgre_rcv,
-	.err_handler	=	ipgre_err,
-	.netns_ok	=	1,
+static const struct gre_protocol ipgre_protocol = {
+	.handler     = ipgre_rcv,
+	.err_handler = ipgre_err,
 };
 
 static void ipgre_destroy_tunnels(struct ipgre_net *ign, struct list_head *head)
@@ -1663,7 +1663,7 @@ static int __init ipgre_init(void)
 	if (err < 0)
 		return err;
 
-	err = inet_add_protocol(&ipgre_protocol, IPPROTO_GRE);
+	err = gre_add_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	if (err < 0) {
 		printk(KERN_INFO "ipgre init: can't add protocol\n");
 		goto add_proto_failed;
@@ -1683,7 +1683,7 @@ out:
 tap_ops_failed:
 	rtnl_link_unregister(&ipgre_link_ops);
 rtnl_link_failed:
-	inet_del_protocol(&ipgre_protocol, IPPROTO_GRE);
+	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 add_proto_failed:
 	unregister_pernet_device(&ipgre_net_ops);
 	goto out;
@@ -1693,7 +1693,7 @@ static void __exit ipgre_fini(void)
 {
 	rtnl_link_unregister(&ipgre_tap_ops);
 	rtnl_link_unregister(&ipgre_link_ops);
-	if (inet_del_protocol(&ipgre_protocol, IPPROTO_GRE) < 0)
+	if (gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO) < 0)
 		printk(KERN_INFO "ipgre close: can't remove protocol\n");
 	unregister_pernet_device(&ipgre_net_ops);
 }
