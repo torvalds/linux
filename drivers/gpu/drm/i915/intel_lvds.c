@@ -777,38 +777,44 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
  * If it is present, return 1.
  * If it is not present, return false.
  * If no child dev is parsed from VBT, it assumes that the LVDS is present.
- * Note: The addin_offset should also be checked for LVDS panel.
- * Only when it is non-zero, it is assumed that it is present.
  */
-static int lvds_is_present_in_vbt(struct drm_device *dev)
+static bool lvds_is_present_in_vbt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct child_device_config *p_child;
-	int i, ret;
+	int i;
 
 	if (!dev_priv->child_dev_num)
-		return 1;
+		return true;
 
-	ret = 0;
 	for (i = 0; i < dev_priv->child_dev_num; i++) {
-		p_child = dev_priv->child_dev + i;
-		/*
-		 * If the device type is not LFP, continue.
-		 * If the device type is 0x22, it is also regarded as LFP.
+		struct child_device_config *child = dev_priv->child_dev + i;
+
+		/* If the device type is not LFP, continue.
+		 * We have to check both the new identifiers as well as the
+		 * old for compatibility with some BIOSes.
 		 */
-		if (p_child->device_type != DEVICE_TYPE_INT_LFP &&
-			p_child->device_type != DEVICE_TYPE_LFP)
+		if (child->device_type != DEVICE_TYPE_INT_LFP &&
+		    child->device_type != DEVICE_TYPE_LFP)
 			continue;
 
-		/* The addin_offset should be checked. Only when it is
-		 * non-zero, it is regarded as present.
+		/* However, we cannot trust the BIOS writers to populate
+		 * the VBT correctly.  Since LVDS requires additional
+		 * information from AIM blocks, a non-zero addin offset is
+		 * a good indicator that the LVDS is actually present.
 		 */
-		if (p_child->addin_offset) {
-			ret = 1;
-			break;
-		}
+		if (child->addin_offset)
+			return true;
+
+		/* But even then some BIOS writers perform some black magic
+		 * and instantiate the device without reference to any
+		 * additional data.  Trust that if the VBT was written into
+		 * the OpRegion then they have validated the LVDS's existence.
+		 */
+		if (dev_priv->opregion.vbt)
+			return true;
 	}
-	return ret;
+
+	return false;
 }
 
 /**
