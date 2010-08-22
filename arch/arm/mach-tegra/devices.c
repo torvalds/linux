@@ -1,4 +1,4 @@
-/*
+	/*
  * arch/arm/mach-tegra/devices.c
  *
  * Copyright (C) 2010 Google, Inc.
@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
+#include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/dma.h>
@@ -491,4 +492,24 @@ struct platform_device tegra_gart_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(tegra_gart_resources),
 	.resource	= tegra_gart_resources
+};
+
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start	= INT_CPU0_PMU_INTR,
+		.end	= INT_CPU0_PMU_INTR,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= INT_CPU1_PMU_INTR,
+		.end	= INT_CPU1_PMU_INTR,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pmu_device = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= ARRAY_SIZE(pmu_resources),
+	.resource	= pmu_resources,
 };
