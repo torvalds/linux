@@ -166,6 +166,7 @@ static struct platform_device pda_power_device = {
 
 static struct platform_device *harmony_devices[] __initdata = {
 	&debug_uart,
+	&pmu_device,
 	&tegra_nand_device,
 	&tegra_udc_device,
 	&pda_power_device,
