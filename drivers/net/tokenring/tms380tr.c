@@ -1321,14 +1321,12 @@ static int tms380tr_reset_adapter(struct net_device *dev)
 
 			/* Clear CPHALT and start BUD */
 			SIFWRITEW(c, SIFACL);
-			if (fw_entry)
-				release_firmware(fw_entry);
+			release_firmware(fw_entry);
 			return (1);
 		}
 	} while(count == 0);
 
-	if (fw_entry)
-		release_firmware(fw_entry);
+	release_firmware(fw_entry);
 	printk(KERN_INFO "%s: Adapter Download Failed\n", dev->name);
 	return (-1);
 }
