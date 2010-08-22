@@ -141,7 +141,7 @@ struct sk_buff *br_handle_frame(struct sk_buff *skb)
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	int (*rhook)(struct sk_buff *skb);
 
-	if (skb->pkt_type == PACKET_LOOPBACK)
+	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return skb;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
