@@ -499,6 +499,13 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 		}
 	}
 
+
+	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+		BEGIN_LP_RING(2);
+		OUT_RING(MI_FLUSH | MI_NO_WRITE_FLUSH | MI_INVALIDATE_ISP);
+		OUT_RING(MI_NOOP);
+		ADVANCE_LP_RING();
+	}
 	i915_emit_breadcrumb(dev);
 
 	return 0;

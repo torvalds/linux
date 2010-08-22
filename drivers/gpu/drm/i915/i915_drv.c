@@ -181,6 +181,7 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x0046, &intel_ironlake_m_info),
 	INTEL_VGA_DEVICE(0x0102, &intel_sandybridge_d_info),
 	INTEL_VGA_DEVICE(0x0106, &intel_sandybridge_m_info),
+	INTEL_VGA_DEVICE(0x0126, &intel_sandybridge_m_info),
 	{0, 0, 0}
 };
 
