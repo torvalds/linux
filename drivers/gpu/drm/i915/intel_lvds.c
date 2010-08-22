@@ -54,43 +54,6 @@ static struct intel_lvds *enc_to_intel_lvds(struct drm_encoder *encoder)
 }
 
 /**
- * Sets the backlight level.
- *
- * \param level backlight level, from 0 to intel_lvds_get_max_backlight().
- */
-static void intel_lvds_set_backlight(struct drm_device *dev, int level)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 blc_pwm_ctl, reg;
-
-	if (HAS_PCH_SPLIT(dev))
-		reg = BLC_PWM_CPU_CTL;
-	else
-		reg = BLC_PWM_CTL;
-
-	blc_pwm_ctl = I915_READ(reg) & ~BACKLIGHT_DUTY_CYCLE_MASK;
-	I915_WRITE(reg, (blc_pwm_ctl |
-				 (level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
-}
-
-/**
- * Returns the maximum level of the backlight duty cycle field.
- */
-static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
-
-	if (HAS_PCH_SPLIT(dev))
-		reg = BLC_PWM_PCH_CTL2;
-	else
-		reg = BLC_PWM_CTL;
-
-	return ((I915_READ(reg) & BACKLIGHT_MODULATION_FREQ_MASK) >>
-		BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
-}
-
-/**
  * Sets the power state for the panel.
  */
 static void intel_lvds_set_power(struct drm_device *dev, bool on)
@@ -117,9 +80,9 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 		if (wait_for(I915_READ(status_reg) & PP_ON, 1000))
 			DRM_ERROR("timed out waiting to enable LVDS pipe");
 
-		intel_lvds_set_backlight(dev, dev_priv->backlight_duty_cycle);
+		intel_panel_set_backlight(dev, dev_priv->backlight_level);
 	} else {
-		intel_lvds_set_backlight(dev, 0);
+		intel_panel_set_backlight(dev, 0);
 
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) &
 			   ~POWER_TARGET_ON);
@@ -386,16 +349,8 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
 
-	if (HAS_PCH_SPLIT(dev))
-		reg = BLC_PWM_CPU_CTL;
-	else
-		reg = BLC_PWM_CTL;
-
-	dev_priv->saveBLC_PWM_CTL = I915_READ(reg);
-	dev_priv->backlight_duty_cycle = (dev_priv->saveBLC_PWM_CTL &
-				       BACKLIGHT_DUTY_CYCLE_MASK);
+	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 
 	intel_lvds_set_power(dev, false);
 }
@@ -405,9 +360,8 @@ static void intel_lvds_commit( struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->backlight_duty_cycle == 0)
-		dev_priv->backlight_duty_cycle =
-			intel_lvds_get_max_backlight(dev);
+	if (dev_priv->backlight_level == 0)
+		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
 
 	intel_lvds_set_power(dev, true);
 }

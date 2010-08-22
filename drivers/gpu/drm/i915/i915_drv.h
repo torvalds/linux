@@ -319,7 +319,7 @@ typedef struct drm_i915_private {
 	struct intel_overlay *overlay;
 
 	/* LVDS info */
-	int backlight_duty_cycle;  /* restore backlight to this value */
+	int backlight_level;  /* restore backlight to this value */
 	bool panel_wants_dither;
 	struct drm_display_mode *panel_fixed_mode;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
