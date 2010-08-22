@@ -150,7 +150,7 @@ static int tps6586x_dvm_set_voltage(struct regulator_dev *rdev,
 	if (ret)
 		return ret;
 
-	return tps6586x_set_bits(parent, ri->go_reg, ri->go_bit);
+	return tps6586x_set_bits(parent, ri->go_reg, 1 << ri->go_bit);
 }
 
 static int tps6586x_regulator_enable(struct regulator_dev *rdev)
