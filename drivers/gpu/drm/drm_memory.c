@@ -106,9 +106,9 @@ DRM_AGP_MEM *drm_alloc_agp(struct drm_device * dev, int pages, u32 type)
 }
 
 /** Wrapper around agp_free_memory() */
-int drm_free_agp(DRM_AGP_MEM * handle, int pages)
+void drm_free_agp(DRM_AGP_MEM * handle, int pages)
 {
-	return drm_agp_free_memory(handle) ? 0 : -EINVAL;
+	drm_agp_free_memory(handle);
 }
 EXPORT_SYMBOL(drm_free_agp);
 

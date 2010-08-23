@@ -1178,8 +1178,8 @@ extern int drm_mem_info(char *buf, char **start, off_t offset,
 			int request, int *eof, void *data);
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
 
+extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
 extern DRM_AGP_MEM *drm_alloc_agp(struct drm_device *dev, int pages, u32 type);
-extern int drm_free_agp(DRM_AGP_MEM * handle, int pages);
 extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
 extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
 				       struct page **pages,
