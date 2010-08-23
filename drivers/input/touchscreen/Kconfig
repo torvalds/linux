@@ -92,7 +92,16 @@ config TOUCHSCREEN_XPT2046_320X480_CBN_SPI
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called xpt2046_cbn_ts.	  
+	  module will be called xpt2046_cbn_ts.	
+      
+config TOUCHSCREEN_IT7250
+	tristate "IT7250 based touchscreens: IT7250 Interface"
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  xpt2046 controller, and your board-specific initialization
+	  code includes that in its table of SPI devices.
+
+	  If unsure, say N (but it's safe to say "Y").
 
 config TOUCHSCREEN_AD7879_I2C
 	tristate "AD7879 based touchscreens: AD7879-1 I2C Interface"
