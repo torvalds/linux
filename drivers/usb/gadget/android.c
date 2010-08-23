@@ -333,12 +333,12 @@ void android_enable_function(struct usb_function *f, int enable)
 				dev->cdev->desc.bDeviceClass = USB_CLASS_PER_INTERFACE;
 
 			/* Windows does not support other interfaces when RNDIS is enabled,
-			 * so we disable UMS when RNDIS is on.
+			 * so we disable UMS and MTP when RNDIS is on.
 			 */
 			list_for_each_entry(func, &android_config_driver.functions, list) {
-				if (!strcmp(func->name, "usb_mass_storage")) {
+				if (!strcmp(func->name, "usb_mass_storage")
+					|| !strcmp(func->name, "mtp")) {
 					usb_function_set_enabled(func, !enable);
-					break;
 				}
 			}
 		}
