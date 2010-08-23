@@ -969,6 +969,7 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 {
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
 	struct net_device_stats *nstats = &bp->dev->stats;
+	unsigned long tmp;
 	int i;
 
 	nstats->rx_packets =
@@ -985,10 +986,10 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 
 	nstats->tx_bytes = bnx2x_hilo(&estats->total_bytes_transmitted_hi);
 
-	nstats->rx_dropped = estats->mac_discard;
+	tmp = estats->mac_discard;
 	for_each_queue(bp, i)
-		nstats->rx_dropped +=
-			le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
+		tmp += le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
+	nstats->rx_dropped = tmp;
 
 	nstats->tx_dropped = 0;
 
