@@ -975,7 +975,7 @@ out_free:	dev_kfree_skb(skb);
 	}
 
 	cpl->ctrl0 = htonl(TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(0));
+			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(adap->fn));
 	cpl->pack = htons(0);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
