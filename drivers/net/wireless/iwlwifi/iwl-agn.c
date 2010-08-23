@@ -2823,6 +2823,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_clear_driver_stations(priv);
 
 	/* reset BT coex data */
+	priv->bt_status = 0;
 	priv->bt_traffic_load = priv->cfg->bt_init_traffic_load;
 	priv->bt_sco_active = false;
 	priv->bt_full_concurrent = false;
@@ -3133,6 +3134,7 @@ static void iwl_bg_restart(struct work_struct *data)
 		bool bt_sco, bt_full_concurrent;
 		u8 bt_ci_compliance;
 		u8 bt_load;
+		u8 bt_status;
 
 		mutex_lock(&priv->mutex);
 		priv->vif = NULL;
@@ -3151,6 +3153,7 @@ static void iwl_bg_restart(struct work_struct *data)
 		bt_full_concurrent = priv->bt_full_concurrent;
 		bt_ci_compliance = priv->bt_ci_compliance;
 		bt_load = priv->bt_traffic_load;
+		bt_status = priv->bt_status;
 
 		__iwl_down(priv);
 
@@ -3158,6 +3161,7 @@ static void iwl_bg_restart(struct work_struct *data)
 		priv->bt_full_concurrent = bt_full_concurrent;
 		priv->bt_ci_compliance = bt_ci_compliance;
 		priv->bt_traffic_load = bt_load;
+		priv->bt_status = bt_status;
 
 		mutex_unlock(&priv->mutex);
 		iwl_cancel_deferred_work(priv);

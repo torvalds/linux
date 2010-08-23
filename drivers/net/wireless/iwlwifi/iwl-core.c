@@ -780,8 +780,12 @@ EXPORT_SYMBOL(iwl_set_rxon_ht);
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
-		/* operated as 1x1 in full concurrency mode */
+	if (priv->cfg->advanced_bt_coexist && (priv->bt_full_concurrent ||
+	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
+		/*
+		 * only use chain 'A' in bt high traffic load or
+		 * full concurrency mode
+		 */
 		return IWL_NUM_RX_CHAINS_SINGLE;
 	}
 	/* # of Rx chains to use when expecting MIMO. */
@@ -845,8 +849,12 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	else
 		active_chains = priv->hw_params.valid_rx_ant;
 
-	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
-		/* operated as 1x1 in full concurrency mode */
+	if (priv->cfg->advanced_bt_coexist && (priv->bt_full_concurrent ||
+	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
+		/*
+		 * only use chain 'A' in bt high traffic load or
+		 * full concurrency mode
+		 */
 		active_chains = first_antenna(active_chains);
 	}
 

@@ -428,6 +428,9 @@ static void iwl6000g2b_bt_traffic_change_work(struct work_struct *work)
 		container_of(work, struct iwl_priv, bt_traffic_change_work);
 	int smps_request = -1;
 
+	IWL_DEBUG_INFO(priv, "BT traffic load changes: %d\n",
+		       priv->bt_traffic_load);
+
 	switch (priv->bt_traffic_load) {
 	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
 		smps_request = IEEE80211_SMPS_AUTOMATIC;
@@ -446,6 +449,9 @@ static void iwl6000g2b_bt_traffic_change_work(struct work_struct *work)
 	}
 
 	mutex_lock(&priv->mutex);
+
+	if (priv->cfg->ops->lib->update_chain_flags)
+		priv->cfg->ops->lib->update_chain_flags(priv);
 
 	if (smps_request != -1 &&
 	    priv->vif && priv->vif->type == NL80211_IFTYPE_STATION)
@@ -549,6 +555,7 @@ static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
 	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
 	struct iwl6000g2b_bt_sco_cmd sco_cmd = { .flags = 0 };
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
+	u8 last_traffic_load;
 
 	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
 	IWL_DEBUG_NOTIF(priv, "    status: %d\n", coex->bt_status);
@@ -556,16 +563,28 @@ static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
 	IWL_DEBUG_NOTIF(priv, "    CI compliance: %d\n", coex->bt_ci_compliance);
 	iwlagn_print_uartmsg(priv, uart_msg);
 
+	last_traffic_load = priv->notif_bt_traffic_load;
 	priv->notif_bt_traffic_load = coex->bt_traffic_load;
-
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
-		if (coex->bt_traffic_load != priv->bt_traffic_load) {
-			priv->bt_traffic_load = coex->bt_traffic_load;
-
+		if (priv->bt_status != coex->bt_status ||
+		    last_traffic_load != coex->bt_traffic_load) {
+			if (coex->bt_status) {
+				/* BT on */
+				if (!priv->bt_ch_announce)
+					priv->bt_traffic_load =
+						IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
+				else
+					priv->bt_traffic_load =
+						coex->bt_traffic_load;
+			} else {
+				/* BT off */
+				priv->bt_traffic_load =
+					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
+			}
+			priv->bt_status = coex->bt_status;
 			queue_work(priv->workqueue,
 				   &priv->bt_traffic_change_work);
 		}
-
 		if (priv->bt_sco_active !=
 		    (uart_msg->frame3 & BT_UART_MSG_FRAME3SCOESCO_MSK)) {
 			priv->bt_sco_active = uart_msg->frame3 &
