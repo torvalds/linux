@@ -4718,6 +4718,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	h->scatter_list = kmalloc(h->max_commands *
 						sizeof(struct scatterlist *),
 						GFP_KERNEL);
+	if (!h->scatter_list)
+		goto clean4;
+
 	for (k = 0; k < h->nr_cmds; k++) {
 		h->scatter_list[k] = kmalloc(sizeof(struct scatterlist) *
 							h->maxsgentries,
