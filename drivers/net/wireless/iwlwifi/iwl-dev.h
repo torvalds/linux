@@ -502,6 +502,7 @@ struct iwl_station_entry {
 };
 
 struct iwl_station_priv_common {
+	struct iwl_rxon_context *ctx;
 	u8 sta_id;
 };
 

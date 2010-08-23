@@ -3751,7 +3751,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		sta_priv->client = true;
 
 	ret = iwl_add_station_common(priv, vif_priv->ctx, sta->addr,
-				     is_ap, &sta->ht_cap, &sta_id);
+				     is_ap, sta, &sta_id);
 	if (ret) {
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);

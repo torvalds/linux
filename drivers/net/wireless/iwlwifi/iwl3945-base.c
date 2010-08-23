@@ -3390,7 +3390,7 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 
 
 	ret = iwl_add_station_common(priv, &priv->contexts[IWL_RXON_CTX_BSS],
-				     sta->addr, is_ap, &sta->ht_cap, &sta_id);
+				     sta->addr, is_ap, sta, &sta_id);
 	if (ret) {
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);

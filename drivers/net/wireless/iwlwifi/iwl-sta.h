@@ -74,7 +74,7 @@ int iwl_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			  const u8 *addr, bool init_rs, u8 *sta_id_r);
 int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   const u8 *addr, bool is_ap,
-			   struct ieee80211_sta_ht_cap *ht_info, u8 *sta_id_r);
+			   struct ieee80211_sta *sta, u8 *sta_id_r);
 int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

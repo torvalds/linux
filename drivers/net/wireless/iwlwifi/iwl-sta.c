@@ -172,12 +172,13 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
-				   struct ieee80211_sta_ht_cap *sta_ht_inf)
+				   struct ieee80211_sta *sta)
 {
+	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
 	__le32 sta_flags;
 	u8 mimo_ps_mode;
 
-	if (!sta_ht_inf || !sta_ht_inf->ht_supported)
+	if (!sta || !sta_ht_inf->ht_supported)
 		goto done;
 
 	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
@@ -228,7 +229,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
  */
 static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   const u8 *addr, bool is_ap,
-			   struct ieee80211_sta_ht_cap *ht_info)
+			   struct ieee80211_sta *sta)
 {
 	struct iwl_station_entry *station;
 	int i;
@@ -292,12 +293,19 @@ static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	station->sta.station_flags = ctx->station_flags;
 	station->ctxid = ctx->ctxid;
 
+	if (sta) {
+		struct iwl_station_priv_common *sta_priv;
+
+		sta_priv = (void *)sta->drv_priv;
+		sta_priv->ctx = ctx;
+	}
+
 	/*
 	 * OK to call unconditionally, since local stations (IBSS BSSID
-	 * STA and broadcast STA) pass in a NULL ht_info, and mac80211
+	 * STA and broadcast STA) pass in a NULL sta, and mac80211
 	 * doesn't allow HT IBSS.
 	 */
-	iwl_set_ht_add_station(priv, sta_id, ht_info);
+	iwl_set_ht_add_station(priv, sta_id, sta);
 
 	/* 3945 only */
 	rate = (priv->band == IEEE80211_BAND_5GHZ) ?
@@ -316,7 +324,7 @@ static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
  */
 int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   const u8 *addr, bool is_ap,
-			   struct ieee80211_sta_ht_cap *ht_info, u8 *sta_id_r)
+			   struct ieee80211_sta *sta, u8 *sta_id_r)
 {
 	unsigned long flags_spin;
 	int ret = 0;
@@ -325,7 +333,7 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	*sta_id_r = 0;
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	sta_id = iwl_prep_station(priv, ctx, addr, is_ap, ht_info);
+	sta_id = iwl_prep_station(priv, ctx, addr, is_ap, sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Unable to prepare station %pM for addition\n",
 			addr);
