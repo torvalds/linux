@@ -91,6 +91,10 @@
 #define SPIFLG_BITERR_MASK		BIT(4)
 #define SPIFLG_OVRRUN_MASK		BIT(6)
 #define SPIFLG_BUF_INIT_ACTIVE_MASK	BIT(24)
+#define SPIFLG_ERROR_MASK		(SPIFLG_DLEN_ERR_MASK \
+				| SPIFLG_TIMEOUT_MASK | SPIFLG_PARERR_MASK \
+				| SPIFLG_DESYNC_MASK | SPIFLG_BITERR_MASK \
+				| SPIFLG_OVRRUN_MASK)
 
 #define SPIINT_DMA_REQ_EN	BIT(16)
 
@@ -601,10 +605,10 @@ static int davinci_spi_check_error(struct davinci_spi *davinci_spi,
 static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *davinci_spi;
-	int status, count, ret;
-	u8 conv;
+	int ret;
+	int rcount, wcount;
 	u32 tx_data, data1_reg_val;
-	u32 buf_val, flg_val;
+	u32 errors = 0;
 	struct davinci_spi_platform_data *pdata;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
@@ -612,70 +616,51 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 
 	davinci_spi->tx = t->tx_buf;
 	davinci_spi->rx = t->rx_buf;
-
-	/* convert len to words based on bits_per_word */
-	conv = davinci_spi->bytes_per_word[spi->chip_select];
-	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
+	wcount = t->len / davinci_spi->bytes_per_word[spi->chip_select];
+	rcount = wcount;
 
 	ret = davinci_spi_bufs_prep(spi, davinci_spi);
 	if (ret)
 		return ret;
 
+	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
+
 	/* Enable SPI */
 	set_io_bits(davinci_spi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
 
-	count = t->len / conv;
-
 	clear_io_bits(davinci_spi->base + SPIINT, SPIINT_MASKALL);
 
-	/* Determine the command to execute READ or WRITE */
-	if (t->tx_buf) {
+	/* start the transfer */
+	wcount--;
+	tx_data = davinci_spi->get_tx(davinci_spi);
+	data1_reg_val &= 0xFFFF0000;
+	data1_reg_val |= tx_data & 0xFFFF;
+	iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
 
-		while (1) {
-			tx_data = davinci_spi->get_tx(davinci_spi);
+	while (rcount > 0 || wcount > 0) {
 
-			data1_reg_val &= ~(0xFFFF);
-			data1_reg_val |= (0xFFFF & tx_data);
+		u32 buf, status;
 
-			buf_val = ioread32(davinci_spi->base + SPIBUF);
-			if ((buf_val & SPIBUF_TXFULL_MASK) == 0) {
-				iowrite32(data1_reg_val,
-						davinci_spi->base + SPIDAT1);
+		buf = ioread32(davinci_spi->base + SPIBUF);
 
-				count--;
-			}
-			while (ioread32(davinci_spi->base + SPIBUF)
-					& SPIBUF_RXEMPTY_MASK)
-				cpu_relax();
-
-			/* getting the returned byte */
-			if (t->rx_buf) {
-				buf_val = ioread32(davinci_spi->base + SPIBUF);
-				davinci_spi->get_rx(buf_val, davinci_spi);
-			}
-			if (count <= 0)
-				break;
+		if (!(buf & SPIBUF_RXEMPTY_MASK)) {
+			davinci_spi->get_rx(buf & 0xFFFF, davinci_spi);
+			rcount--;
 		}
-	} else {
-		while (1) {
-			/* keeps the serial clock going */
-			if ((ioread32(davinci_spi->base + SPIBUF)
-					& SPIBUF_TXFULL_MASK) == 0)
-				iowrite32(data1_reg_val,
-					davinci_spi->base + SPIDAT1);
 
-				while (ioread32(davinci_spi->base + SPIBUF) &
-							SPIBUF_RXEMPTY_MASK)
-					cpu_relax();
+		status = ioread32(davinci_spi->base + SPIFLG);
 
-			flg_val = ioread32(davinci_spi->base + SPIFLG);
-			buf_val = ioread32(davinci_spi->base + SPIBUF);
+		if (unlikely(status & SPIFLG_ERROR_MASK)) {
+			errors = status & SPIFLG_ERROR_MASK;
+			break;
+		}
 
-			davinci_spi->get_rx(buf_val, davinci_spi);
-
-			count--;
-			if (count <= 0)
-				break;
+		if (wcount > 0 && !(buf & SPIBUF_TXFULL_MASK)) {
+			wcount--;
+			tx_data = davinci_spi->get_tx(davinci_spi);
+			data1_reg_val &= ~0xFFFF;
+			data1_reg_val |= 0xFFFF & tx_data;
+			iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
 		}
 	}
 
@@ -683,11 +668,12 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 	 * Check for bit error, desync error,parity error,timeout error and
 	 * receive overflow errors
 	 */
-	status = ioread32(davinci_spi->base + SPIFLG);
-
-	ret = davinci_spi_check_error(davinci_spi, status);
-	if (ret != 0)
+	if (errors) {
+		ret = davinci_spi_check_error(davinci_spi, errors);
+		WARN(!ret, "%s: error reported but no error found!\n",
+							dev_name(&spi->dev));
 		return ret;
+	}
 
 	return t->len;
 }
