@@ -113,6 +113,7 @@ struct rk2818_battery_data {
 	struct power_supply ac;
 
 	int charge_ok_pin;
+	int charge_ok_level;
 	
 	int adc_bat_divider;
 	int bat_max;
@@ -156,7 +157,7 @@ static void rk2818_get_bat_status(struct rk2818_battery_data *bat)
 {
 	if(rk2818_get_charge_status() == 1)
 	{
-		if(gpio_get_value (bat->charge_ok_pin) == 1) //CHG_OK ==0 
+		if(gpio_get_value (bat->charge_ok_pin) == bat->charge_ok_level)
 		{
 			gBatStatus = POWER_SUPPLY_STATUS_FULL;
 			DBG("Battery is Full!\n");
@@ -602,6 +603,7 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 	data->ac.type = POWER_SUPPLY_TYPE_MAINS;
 
 	data->charge_ok_pin = pdata->charge_ok_pin;
+	data->charge_ok_level = pdata->charge_ok_level;
 	
 	ret = power_supply_register(&pdev->dev, &data->ac);
 	if (ret)

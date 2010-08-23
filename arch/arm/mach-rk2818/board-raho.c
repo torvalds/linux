@@ -863,6 +863,7 @@ struct soc_camera_link rk2818_iclink = {
 #define CHARGEOK_PIN	SPI_GPIO_P6_06//RK2818_PIN_PB1
 struct rk2818_battery_platform_data rk2818_battery_platdata = {
 	.charge_ok_pin = CHARGEOK_PIN,
+	.charge_ok_level = 0,
 };
 
 

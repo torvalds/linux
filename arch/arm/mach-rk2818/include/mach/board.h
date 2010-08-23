@@ -152,6 +152,7 @@ struct rk2818_battery_platform_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 	int charge_ok_pin;
+	int charge_ok_level;
 };
 
 /*g_sensor*/
