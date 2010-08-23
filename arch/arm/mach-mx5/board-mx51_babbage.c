@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
+#include <linux/fec.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -35,7 +36,8 @@
 
 #define BABBAGE_USB_HUB_RESET	(0*32 + 7)	/* GPIO_1_7 */
 #define BABBAGE_USBH1_STP	(0*32 + 27)	/* GPIO_1_27 */
-#define BABBAGE_PHY_RESET (1*32 +5)	/* GPIO_2_5 */
+#define BABBAGE_PHY_RESET	(1*32 + 5)	/* GPIO_2_5 */
+#define BABBAGE_FEC_PHY_RESET	(1*32 + 14)	/* GPIO_2_14 */
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET			0x10
@@ -93,6 +95,28 @@ static struct pad_desc mx51babbage_pads[] = {
 
 	/* USB HUB reset line*/
 	MX51_PAD_GPIO_1_7__GPIO_1_7,
+
+	/* FEC */
+	MX51_PAD_EIM_EB2__FEC_MDIO,
+	MX51_PAD_EIM_EB3__FEC_RDAT1,
+	MX51_PAD_EIM_CS2__FEC_RDAT2,
+	MX51_PAD_EIM_CS3__FEC_RDAT3,
+	MX51_PAD_EIM_CS4__FEC_RX_ER,
+	MX51_PAD_EIM_CS5__FEC_CRS,
+	MX51_PAD_NANDF_RB2__FEC_COL,
+	MX51_PAD_NANDF_RB3__FEC_RXCLK,
+	MX51_PAD_NANDF_RB6__FEC_RDAT0,
+	MX51_PAD_NANDF_RB7__FEC_TDAT0,
+	MX51_PAD_NANDF_CS2__FEC_TX_ER,
+	MX51_PAD_NANDF_CS3__FEC_MDC,
+	MX51_PAD_NANDF_CS4__FEC_TDAT1,
+	MX51_PAD_NANDF_CS5__FEC_TDAT2,
+	MX51_PAD_NANDF_CS6__FEC_TDAT3,
+	MX51_PAD_NANDF_CS7__FEC_TX_EN,
+	MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK,
+
+	/* FEC PHY reset line */
+	MX51_PAD_EIM_A20__GPIO_2_14,
 };
 
 /* Serial ports */
@@ -169,6 +193,22 @@ static inline void babbage_usbhub_reset(void)
 	gpio_set_value(BABBAGE_USB_HUB_RESET, 0);
 	msleep(1);
 	gpio_set_value(BABBAGE_USB_HUB_RESET, 1);
+}
+
+static inline void babbage_fec_reset(void)
+{
+	int ret;
+
+	/* reset FEC PHY */
+	ret = gpio_request(BABBAGE_FEC_PHY_RESET, "fec-phy-reset");
+	if (ret) {
+		printk(KERN_ERR"failed to get GPIO_FEC_PHY_RESET: %d\n", ret);
+		return;
+	}
+	gpio_direction_output(BABBAGE_FEC_PHY_RESET, 0);
+	gpio_set_value(BABBAGE_FEC_PHY_RESET, 0);
+	msleep(1);
+	gpio_set_value(BABBAGE_FEC_PHY_RESET, 1);
 }
 
 /* This function is board specific as the bit mask for the plldiv will also
@@ -250,6 +290,7 @@ static void __init mxc_board_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
 					ARRAY_SIZE(mx51babbage_pads));
 	mxc_init_imx_uart();
+	babbage_fec_reset();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	mxc_register_device(&mxc_i2c_device0, &babbage_i2c_data);
