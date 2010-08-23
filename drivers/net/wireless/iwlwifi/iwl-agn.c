@@ -3079,10 +3079,30 @@ static void iwl_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
+		bool bt_sco;
+		u8 bt_load;
+
 		mutex_lock(&priv->mutex);
 		priv->vif = NULL;
 		priv->is_open = 0;
+
+		/*
+		 * __iwl_down() will clear the BT status variables,
+		 * which is correct, but when we restart we really
+		 * want to keep them so restore them afterwards.
+		 *
+		 * The restart process will later pick them up and
+		 * re-configure the hw when we reconfigure the BT
+		 * command.
+		 */
+		bt_sco = priv->bt_sco_active;
+		bt_load = priv->bt_traffic_load;
+
 		__iwl_down(priv);
+
+		priv->bt_sco_active = bt_sco;
+		priv->bt_traffic_load = bt_load;
+
 		mutex_unlock(&priv->mutex);
 		iwl_cancel_deferred_work(priv);
 		ieee80211_restart_hw(priv->hw);

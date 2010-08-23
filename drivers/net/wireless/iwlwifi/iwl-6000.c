@@ -241,6 +241,22 @@ static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 
 	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG, sizeof(bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
+
+	/*
+	 * When we are doing a restart, need to also reconfigure BT
+	 * SCO to the device. If not doing a restart, bt_sco_active
+	 * will always be false, so there's no need to have an extra
+	 * variable to check for it.
+	 */
+	if (priv->bt_sco_active) {
+		struct iwl6000g2b_bt_sco_cmd sco_cmd = { .flags = 0 };
+
+		if (priv->bt_sco_active)
+			sco_cmd.flags |= IWL6000G2B_BT_SCO_ACTIVE;
+		if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_SCO,
+				     sizeof(sco_cmd), &sco_cmd))
+			IWL_ERR(priv, "failed to send BT SCO command\n");
+	}
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
