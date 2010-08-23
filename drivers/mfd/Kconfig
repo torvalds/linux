@@ -294,14 +294,15 @@ config MFD_MAX8925
 	  to use the functionality of the device.
 
 config MFD_MAX8998
-	bool "Maxim Semiconductor MAX8998 PMIC Support"
+	bool "Maxim Semiconductor MAX8998/National LP3974 PMIC Support"
 	depends on I2C=y
 	select MFD_CORE
 	help
-	  Say yes here to support for Maxim Semiconductor MAX8998. This is
-	  a Power Management IC. This driver provies common support for
-	  accessing the device, additional drivers must be enabled in order
-	  to use the functionality of the device.
+	  Say yes here to support for Maxim Semiconductor MAX8998 and
+	  National Semiconductor LP3974. This is a Power Management IC.
+	  This driver provies common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"

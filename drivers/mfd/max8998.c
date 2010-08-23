@@ -125,8 +125,9 @@ static int max8998_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id max8998_i2c_id[] = {
-       { "max8998", 0 },
-       { }
+	{ "max8998", 0 },
+	{ "lp3974", 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 
