@@ -183,14 +183,12 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	iwl_set_rxon_hwcrypto(priv, ctx, !priv->cfg->mod_params->sw_crypto);
 
 	if (new_assoc) {
-		if (WARN_ON(!ctx->vif))
-			return -EINVAL;
 		/*
 		 * First of all, before setting associated, we need to
 		 * send RXON timing so the device knows about the DTIM
 		 * period and other timing values
 		 */
-		ret = iwl_send_rxon_timing(priv, ctx->vif);
+		ret = iwl_send_rxon_timing(priv, ctx);
 		if (ret) {
 			IWL_ERR(priv, "Error setting RXON timing!\n");
 			return ret;
@@ -3296,7 +3294,7 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv, ctx);
 
-	ret = iwl_send_rxon_timing(priv, vif);
+	ret = iwl_send_rxon_timing(priv, ctx);
 	if (ret)
 		IWL_WARN(priv, "RXON timing - "
 			    "Attempting to continue.\n");
@@ -3536,7 +3534,7 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		iwlcore_commit_rxon(priv, ctx);
 
 		/* RXON Timing */
-		ret = iwl_send_rxon_timing(priv, vif);
+		ret = iwl_send_rxon_timing(priv, ctx);
 		if (ret)
 			IWL_WARN(priv, "RXON timing failed - "
 					"Attempting to continue.\n");

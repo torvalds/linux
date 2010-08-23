@@ -500,13 +500,13 @@ static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 	return new_val;
 }
 
-int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
+int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	u64 tsf;
 	s32 interval_tm, rem;
 	struct ieee80211_conf *conf = NULL;
 	u16 beacon_int;
-	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+	struct ieee80211_vif *vif = ctx->vif;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -517,15 +517,13 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	ctx->timing.timestamp = cpu_to_le64(priv->timestamp);
 	ctx->timing.listen_interval = cpu_to_le16(conf->listen_interval);
 
-	beacon_int = vif->bss_conf.beacon_int;
+	beacon_int = vif ? vif->bss_conf.beacon_int : 0;
 
-	if (vif->type == NL80211_IFTYPE_ADHOC) {
-		/* TODO: we need to get atim_window from upper stack
-		 * for now we set to 0 */
-		ctx->timing.atim_window = 0;
-	} else {
-		ctx->timing.atim_window = 0;
-	}
+	/*
+	 * TODO: For IBSS we need to get atim_window from mac80211,
+	 *	 for now just always use 0
+	 */
+	ctx->timing.atim_window = 0;
 
 	beacon_int = iwl_adjust_beacon_interval(beacon_int,
 				priv->hw_params.max_beacon_itrvl * TIME_UNIT);
@@ -536,7 +534,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	rem = do_div(tsf, interval_tm);
 	ctx->timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
 
-	ctx->timing.dtim_period = vif->bss_conf.dtim_period;
+	ctx->timing.dtim_period = vif ? (vif->bss_conf.dtim_period ?: 1) : 1;
 
 	IWL_DEBUG_ASSOC(priv,
 			"beacon interval %d beacon timer %d beacon tim %d\n",

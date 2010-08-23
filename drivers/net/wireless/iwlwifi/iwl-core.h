@@ -728,7 +728,7 @@ extern int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
-int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif);
+int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv,
 				      struct iwl_rxon_context *ctx)
 {
