@@ -74,6 +74,7 @@
 #include <linux/highmem.h>
 #include <linux/kthread.h>
 #include <linux/splice.h>
+#include <linux/sysfs.h>
 
 #include <asm/uaccess.h>
 
@@ -737,6 +738,103 @@ static inline int is_loop_device(struct file *file)
 	return i && S_ISBLK(i->i_mode) && MAJOR(i->i_rdev) == LOOP_MAJOR;
 }
 
+/* loop sysfs attributes */
+
+static ssize_t loop_attr_show(struct device *dev, char *page,
+			      ssize_t (*callback)(struct loop_device *, char *))
+{
+	struct loop_device *l, *lo = NULL;
+
+	mutex_lock(&loop_devices_mutex);
+	list_for_each_entry(l, &loop_devices, lo_list)
+		if (disk_to_dev(l->lo_disk) == dev) {
+			lo = l;
+			break;
+		}
+	mutex_unlock(&loop_devices_mutex);
+
+	return lo ? callback(lo, page) : -EIO;
+}
+
+#define LOOP_ATTR_RO(_name)						\
+static ssize_t loop_attr_##_name##_show(struct loop_device *, char *);	\
+static ssize_t loop_attr_do_show_##_name(struct device *d,		\
+				struct device_attribute *attr, char *b)	\
+{									\
+	return loop_attr_show(d, b, loop_attr_##_name##_show);		\
+}									\
+static struct device_attribute loop_attr_##_name =			\
+	__ATTR(_name, S_IRUGO, loop_attr_do_show_##_name, NULL);
+
+static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
+{
+	ssize_t ret;
+	char *p = NULL;
+
+	mutex_lock(&lo->lo_ctl_mutex);
+	if (lo->lo_backing_file)
+		p = d_path(&lo->lo_backing_file->f_path, buf, PAGE_SIZE - 1);
+	mutex_unlock(&lo->lo_ctl_mutex);
+
+	if (IS_ERR_OR_NULL(p))
+		ret = PTR_ERR(p);
+	else {
+		ret = strlen(p);
+		memmove(buf, p, ret);
+		buf[ret++] = '\n';
+		buf[ret] = 0;
+	}
+
+	return ret;
+}
+
+static ssize_t loop_attr_offset_show(struct loop_device *lo, char *buf)
+{
+	return sprintf(buf, "%llu\n", (unsigned long long)lo->lo_offset);
+}
+
+static ssize_t loop_attr_sizelimit_show(struct loop_device *lo, char *buf)
+{
+	return sprintf(buf, "%llu\n", (unsigned long long)lo->lo_sizelimit);
+}
+
+static ssize_t loop_attr_autoclear_show(struct loop_device *lo, char *buf)
+{
+	int autoclear = (lo->lo_flags & LO_FLAGS_AUTOCLEAR);
+
+	return sprintf(buf, "%s\n", autoclear ? "1" : "0");
+}
+
+LOOP_ATTR_RO(backing_file);
+LOOP_ATTR_RO(offset);
+LOOP_ATTR_RO(sizelimit);
+LOOP_ATTR_RO(autoclear);
+
+static struct attribute *loop_attrs[] = {
+	&loop_attr_backing_file.attr,
+	&loop_attr_offset.attr,
+	&loop_attr_sizelimit.attr,
+	&loop_attr_autoclear.attr,
+	NULL,
+};
+
+static struct attribute_group loop_attribute_group = {
+	.name = "loop",
+	.attrs= loop_attrs,
+};
+
+static int loop_sysfs_init(struct loop_device *lo)
+{
+	return sysfs_create_group(&disk_to_dev(lo->lo_disk)->kobj,
+				  &loop_attribute_group);
+}
+
+static void loop_sysfs_exit(struct loop_device *lo)
+{
+	sysfs_remove_group(&disk_to_dev(lo->lo_disk)->kobj,
+			   &loop_attribute_group);
+}
+
 static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		       struct block_device *bdev, unsigned int arg)
 {
@@ -836,6 +934,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 
 	set_capacity(lo->lo_disk, size);
 	bd_set_size(bdev, size << 9);
+	loop_sysfs_init(lo);
 	/* let user-space know about the new size */
 	kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 
@@ -854,6 +953,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	return 0;
 
 out_clr:
+	loop_sysfs_exit(lo);
 	lo->lo_thread = NULL;
 	lo->lo_device = NULL;
 	lo->lo_backing_file = NULL;
@@ -950,6 +1050,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	set_capacity(lo->lo_disk, 0);
 	if (bdev) {
 		bd_set_size(bdev, 0);
+		loop_sysfs_exit(lo);
 		/* let user-space know about this change */
 		kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 	}
