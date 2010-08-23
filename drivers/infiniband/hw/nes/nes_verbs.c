@@ -584,7 +584,9 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	props->lmc = 0;
 	props->sm_lid = 0;
 	props->sm_sl = 0;
-	if (nesvnic->linkup)
+	if (netif_queue_stopped(netdev))
+		props->state = IB_PORT_DOWN;
+	else if (nesvnic->linkup)
 		props->state = IB_PORT_ACTIVE;
 	else
 		props->state = IB_PORT_DOWN;
