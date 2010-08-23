@@ -52,7 +52,7 @@
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
 #define IWL6050_UCODE_API_MAX 4
-#define IWL6000G2_UCODE_API_MAX 4
+#define IWL6000G2_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
@@ -120,6 +120,120 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 	/* else do nothing, uCode configured */
 	if (priv->cfg->ops->lib->temp_ops.set_calib_version)
 		priv->cfg->ops->lib->temp_ops.set_calib_version(priv);
+}
+
+/*
+ * Macros to access the lookup table.
+ *
+ * The lookup table has 7 inputs: bt3_prio, bt3_txrx, bt_rf_act, wifi_req,
+ * wifi_prio, wifi_txrx and wifi_sh_ant_req.
+ *
+ * It has three outputs: WLAN_ACTIVE, WLAN_KILL and ANT_SWITCH
+ *
+ * The format is that "registers" 8 through 11 contain the WLAN_ACTIVE bits
+ * one after another in 32-bit registers, and "registers" 0 through 7 contain
+ * the WLAN_KILL and ANT_SWITCH bits interleaved (in that order).
+ *
+ * These macros encode that format.
+ */
+#define LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, wifi_req, wifi_prio, \
+	wifi_txrx, wifi_sh_ant_req) \
+	(bt3_prio | (bt3_txrx << 1) | (bt_rf_act << 2) | (wifi_req << 3) | \
+	(wifi_prio << 4) | (wifi_txrx << 5) | (wifi_sh_ant_req << 6))
+
+#define LUT_PTA_WLAN_ACTIVE_OP(lut, op, val) \
+	lut[8 + ((val) >> 5)] op (cpu_to_le32(BIT((val) & 0x1f)))
+#define LUT_TEST_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	(!!(LUT_PTA_WLAN_ACTIVE_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx,\
+	bt_rf_act, wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))))
+#define LUT_SET_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_PTA_WLAN_ACTIVE_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, \
+	bt_rf_act, wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+#define LUT_CLEAR_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_PTA_WLAN_ACTIVE_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, \
+	bt_rf_act, wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+
+#define LUT_WLAN_KILL_OP(lut, op, val) \
+	lut[(val) >> 4] op (cpu_to_le32(BIT(((val) << 1) & 0x1e)))
+#define LUT_TEST_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+	wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	(!!(LUT_WLAN_KILL_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))))
+#define LUT_SET_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+	wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_WLAN_KILL_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+#define LUT_CLEAR_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+	wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_WLAN_KILL_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+
+#define LUT_ANT_SWITCH_OP(lut, op, val) \
+	lut[(val) >> 4] op (cpu_to_le32(BIT((((val) << 1) & 0x1e) + 1)))
+#define LUT_TEST_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+	wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	(!!(LUT_ANT_SWITCH_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))))
+#define LUT_SET_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+	wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_ANT_SWITCH_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+#define LUT_CLEAR_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+	wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_ANT_SWITCH_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+	wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+
+static const __le32 iwl6000g2b_def_3w_lookup[12] = {
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaeaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xcc00ff28),
+	cpu_to_le32(0x0000aaaa),
+	cpu_to_le32(0xcc00aaaa),
+	cpu_to_le32(0x0000aaaa),
+	cpu_to_le32(0xc0004000),
+	cpu_to_le32(0x00004000),
+	cpu_to_le32(0xf0005000),
+	cpu_to_le32(0xf0004000),
+};
+
+static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
+{
+	struct iwl6000g2b_bt_cmd bt_cmd = {
+		.prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
+		.max_kill = IWL6000G2B_BT_MAX_KILL_DEFAULT,
+		.bt3_timer_t7_value = IWL6000G2B_BT3_T7_DEFAULT,
+		.kill_ack_mask = IWL6000G2B_BT_KILL_ACK_MASK_DEFAULT,
+		.kill_cts_mask = IWL6000G2B_BT_KILL_CTS_MASK_DEFAULT,
+		.bt3_prio_sample_time = IWL6000G2B_BT3_PRIO_SAMPLE_DEFAULT,
+		.bt3_timer_t2_value = IWL6000G2B_BT3_T2_DEFAULT,
+		.valid = IWL6000G2B_BT_VALID_ENABLE_FLAGS,
+	};
+
+	BUILD_BUG_ON(sizeof(iwl6000g2b_def_3w_lookup) !=
+			sizeof(bt_cmd.bt3_lookup_table));
+
+	if (!bt_coex_active) {
+		bt_cmd.flags = 0;
+	} else {
+		bt_cmd.flags = IWL6000G2B_BT_FLAG_CHANNEL_INHIBITION |
+				IWL6000G2B_BT_FLAG_COEX_MODE_3W <<
+					IWL6000G2B_BT_FLAG_COEX_MODE_SHIFT;
+		bt_cmd.valid |= IWL6000G2B_BT_ALL_VALID_MSK;
+	}
+
+	memcpy(bt_cmd.bt3_lookup_table, iwl6000g2b_def_3w_lookup,
+		sizeof(iwl6000g2b_def_3w_lookup));
+
+	IWL_DEBUG_INFO(priv, "BT coex %s\n",
+		       bt_cmd.flags ? "active" : "disabled");
+
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG, sizeof(bt_cmd), &bt_cmd))
+		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
@@ -344,16 +458,12 @@ static const struct iwl_ops iwl6000_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-static void do_not_send_bt_config(struct iwl_priv *priv)
-{
-}
-
 static struct iwl_hcmd_ops iwl6000g2b_hcmd = {
 	.rxon_assoc = iwlagn_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
-	.send_bt_config = do_not_send_bt_config,
+	.send_bt_config = iwl6000g2b_send_bt_config,
 };
 
 static const struct iwl_ops iwl6000g2b_ops = {
@@ -507,6 +617,9 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.advanced_bt_coexist = true,
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
@@ -543,6 +656,9 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.advanced_bt_coexist = true,
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
@@ -581,6 +697,9 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.advanced_bt_coexist = true,
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
@@ -617,6 +736,9 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.advanced_bt_coexist = true,
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
@@ -655,6 +777,9 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.advanced_bt_coexist = true,
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
@@ -691,6 +816,9 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 	.bt_statistics = true,
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.advanced_bt_coexist = true,
 };
 
 /*

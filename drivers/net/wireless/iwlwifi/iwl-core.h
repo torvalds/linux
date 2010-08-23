@@ -278,6 +278,7 @@ struct iwl_mod_params {
  * @chain_noise_calib_by_driver: driver has the capability to perform
  *	chain noise calibration operation
  * @scan_antennas: available antenna for scan operation
+ * @advanced_bt_coexist: support advanced bt coexist
  * @need_dc_calib: need to perform init dc calibration
  * @bt_statistics: use BT version of statistics notification
  * @agg_time_limit: maximum number of uSec in aggregation
@@ -351,6 +352,7 @@ struct iwl_cfg {
 	const bool chain_noise_calib_by_driver;
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
+	bool advanced_bt_coexist;
 	const bool need_dc_calib;
 	const bool bt_statistics;
 	u16 agg_time_limit;
@@ -732,4 +734,7 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 {
 	return priv->hw->wiphy->bands[band];
 }
+
+extern bool bt_coex_active;
+
 #endif /* __iwl_core_h__ */
