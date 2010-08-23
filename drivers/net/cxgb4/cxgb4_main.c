@@ -423,10 +423,11 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (likely(opcode == CPL_SGE_EGR_UPDATE)) {
 		const struct cpl_sge_egr_update *p = (void *)rsp;
 		unsigned int qid = EGR_QID(ntohl(p->opcode_qid));
-		struct sge_txq *txq = q->adap->sge.egr_map[qid];
+		struct sge_txq *txq;
 
+		txq = q->adap->sge.egr_map[qid - q->adap->sge.egr_start];
 		txq->restarts++;
-		if ((u8 *)txq < (u8 *)q->adap->sge.ethrxq) {
+		if ((u8 *)txq < (u8 *)q->adap->sge.ofldtxq) {
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
@@ -655,6 +656,15 @@ static int setup_rss(struct adapter *adap)
 			return err;
 	}
 	return 0;
+}
+
+/*
+ * Return the channel of the ingress queue with the given qid.
+ */
+static unsigned int rxq_to_chan(const struct sge *p, unsigned int qid)
+{
+	qid -= p->ingr_start;
+	return netdev2pinfo(p->ingr_map[qid]->netdev)->tx_chan;
 }
 
 /*
@@ -2304,7 +2314,7 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 	req->peer_port = htons(0);
 	req->local_ip = sip;
 	req->peer_ip = htonl(0);
-	chan = netdev2pinfo(adap->sge.ingr_map[queue]->netdev)->tx_chan;
+	chan = rxq_to_chan(&adap->sge, queue);
 	req->opt0 = cpu_to_be64(TX_CHAN(chan));
 	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
 				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
@@ -2346,7 +2356,7 @@ int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
 	req->local_ip_lo = *(__be64 *)(sip->s6_addr + 8);
 	req->peer_ip_hi = cpu_to_be64(0);
 	req->peer_ip_lo = cpu_to_be64(0);
-	chan = netdev2pinfo(adap->sge.ingr_map[queue]->netdev)->tx_chan;
+	chan = rxq_to_chan(&adap->sge, queue);
 	req->opt0 = cpu_to_be64(TX_CHAN(chan));
 	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
 				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
@@ -3061,12 +3071,16 @@ static int adap_init0(struct adapter *adap)
 	params[2] = FW_PARAM_PFVF(L2T_END);
 	params[3] = FW_PARAM_PFVF(FILTER_START);
 	params[4] = FW_PARAM_PFVF(FILTER_END);
-	ret = t4_query_params(adap, adap->fn, adap->fn, 0, 5, params, val);
+	params[5] = FW_PARAM_PFVF(IQFLINT_START);
+	params[6] = FW_PARAM_PFVF(EQ_START);
+	ret = t4_query_params(adap, adap->fn, adap->fn, 0, 7, params, val);
 	if (ret < 0)
 		goto bye;
 	port_vec = val[0];
 	adap->tids.ftid_base = val[3];
 	adap->tids.nftids = val[4] - val[3] + 1;
+	adap->sge.ingr_start = val[5];
+	adap->sge.egr_start = val[6];
 
 	if (c.ofldcaps) {
 		/* query offload-related parameters */

@@ -463,6 +463,8 @@ struct sge {
 	u8 counter_val[SGE_NCOUNTERS];
 	unsigned int starve_thres;
 	u8 idma_state[2];
+	unsigned int egr_start;
+	unsigned int ingr_start;
 	void *egr_map[MAX_EGRQ];    /* qid->queue egress queue map */
 	struct sge_rspq *ingr_map[MAX_INGQ]; /* qid->queue ingress queue map */
 	DECLARE_BITMAP(starving_fl, MAX_EGRQ);
