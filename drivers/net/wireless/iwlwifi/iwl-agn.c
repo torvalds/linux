@@ -613,6 +613,16 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 		goto out;
 	}
 
+	if (priv->beacon_ctx->vif->type != NL80211_IFTYPE_AP) {
+		/*
+		 * The ucode will send beacon notifications even in
+		 * IBSS mode, but we don't want to process them. But
+		 * we need to defer the type check to here due to
+		 * requiring locking around the beacon_ctx access.
+		 */
+		goto out;
+	}
+
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
 	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif);
 	if (!beacon) {
@@ -846,8 +856,7 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 
 	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
-	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
-	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
 		queue_work(priv->workqueue, &priv->beacon_update);
 }
 
