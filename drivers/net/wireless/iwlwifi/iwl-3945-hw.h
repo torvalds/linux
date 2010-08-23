@@ -62,7 +62,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-3945-hw.h) only for hardware-related definitions.
- * Please use iwl-3945-commands.h for uCode API definitions.
+ * Please use iwl-commands.h for uCode API definitions.
  * Please use iwl-3945.h for driver implementation definitions.
  */
 

@@ -62,7 +62,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-6000-hw.h) only for hardware-related definitions.
- * Use iwl-5000-commands.h for uCode API definitions.
+ * Use iwl-commands.h for uCode API definitions.
  */
 
 #ifndef __iwl_6000_hw_h__
