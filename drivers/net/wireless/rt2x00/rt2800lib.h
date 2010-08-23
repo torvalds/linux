@@ -140,6 +140,8 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 			const u8 command, const u8 token,
 			const u8 arg0, const u8 arg1);
 
+int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev);
+
 int rt2800_check_firmware(struct rt2x00_dev *rt2x00dev,
 			  const u8 *data, const size_t len);
 int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
@@ -176,10 +178,8 @@ void rt2800_reset_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual);
 void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 		       const u32 count);
 
-int rt2800_init_registers(struct rt2x00_dev *rt2x00dev);
-int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev);
-int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev);
-int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev);
+int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev);
+void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_efuse_detect(struct rt2x00_dev *rt2x00dev);
 void rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev);

@@ -399,78 +399,18 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-	u16 word;
-
-	/*
-	 * Initialize all registers.
-	 */
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800pci_init_queues(rt2x00dev) ||
-		     rt2800_init_registers(rt2x00dev) ||
-		     rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800_init_bbp(rt2x00dev) ||
-		     rt2800_init_rfcsr(rt2x00dev)))
+		     rt2800pci_init_queues(rt2x00dev)))
 		return -EIO;
 
-	/*
-	 * Send signal to firmware during boot time.
-	 */
-	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
-
-	/*
-	 * Enable RX.
-	 */
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 1);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 1);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_WP_DMA_BURST_SIZE, 2);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	/*
-	 * Initialize LED control
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED1, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED2, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED3, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	return 0;
+	return rt2800_enable_radio(rt2x00dev);
 }
 
 static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
-
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0);
-	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0);
-	rt2800_register_write(rt2x00dev, TX_PIN_CFG, 0);
+	rt2800_disable_radio(rt2x00dev);
 
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00001280);
 
@@ -486,9 +426,6 @@ static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
-
-	/* Wait for DMA, ignore error */
-	rt2800_wait_wpdma_ready(rt2x00dev);
 }
 
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
