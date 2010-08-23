@@ -659,8 +659,9 @@ int spi_gpio_init_first(void)
 	spi_gpio_set_pindirection(SPI_GPIO_P2_10, SPI_GPIO_IN);		//X-XL input
 	spi_gpio_set_pindirection(SPI_GPIO_P2_11, SPI_GPIO_IN);		//X+XR input
 	
-	spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_HIGH);		//LCD_RESET output//
+	spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_LOW);		//LCD_RESET output//
 	spi_gpio_set_pindirection(SPI_GPIO_P2_12, SPI_GPIO_OUT);
+	spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_HIGH);
 	spi_gpio_set_pinlevel(SPI_GPIO_P2_13, SPI_GPIO_HIGH);		//USB_PWR_EN output
 	spi_gpio_set_pindirection(SPI_GPIO_P2_13, SPI_GPIO_OUT);
 	spi_gpio_set_pinlevel(SPI_GPIO_P2_14, SPI_GPIO_LOW);		//WL_HOST_WAKE_B output
@@ -957,10 +958,10 @@ static void spi_gpio_irq_enable(unsigned irq)
 	t->irq = irq;
 	t->id = ID_SPI_GPIO_IRQ_ENABLE;
 	
-	spin_lock_irqsave(&port->spi_lock, flags);
+	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
 	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
-	spin_unlock_irqrestore(&port->spi_lock, flags);
+	spin_unlock_irqrestore(&port->work_lock, flags);
 }
 
 static void spi_gpio_irq_disable(unsigned irq)
@@ -977,10 +978,10 @@ static void spi_gpio_irq_disable(unsigned irq)
 	t->irq = irq;
 	t->id = ID_SPI_GPIO_IRQ_DISABLE;
 	
-	spin_lock_irqsave(&port->spi_lock, flags);
+	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
 	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
-	spin_unlock_irqrestore(&port->spi_lock, flags);
+	spin_unlock_irqrestore(&port->work_lock, flags);
 
 
 }
@@ -1010,10 +1011,10 @@ static int spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	t->id = ID_SPI_GPIO_IRQ_SET_TYPE;
 	t->type = type;
 	
-	spin_lock_irqsave(&port->spi_lock, flags);
+	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
 	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
-	spin_unlock_irqrestore(&port->spi_lock, flags);
+	spin_unlock_irqrestore(&port->work_lock, flags);
 	return 0;
 }
 
@@ -1032,10 +1033,10 @@ static int spi_gpio_irq_set_wake(unsigned irq, unsigned state)
 	t->id = ID_SPI_GPIO_IRQ_SET_WAKE;
 	t->state = state;
 	
-	spin_lock_irqsave(&port->spi_lock, flags);
+	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
 	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
-	spin_unlock_irqrestore(&port->spi_lock, flags);
+	spin_unlock_irqrestore(&port->work_lock, flags);
 	return 0;
 }
 

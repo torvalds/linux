@@ -9,9 +9,9 @@ defines of FPGA chip ICE65L08's register
 #include <linux/miscdevice.h>
 
 #define SPI_FPGA_INT_PIN RK2818_PIN_PA4
-#define SPI_DPRAM_BUSY_PIN RK2818_PIN_PA2
+#define SPI_DPRAM_INT_PIN RK2818_PIN_PA2
 #define SPI_FPGA_STANDBY_PIN RK2818_PIN_PH7
-#define SPI_FPGA_RST_PIN RK2818_PIN_PH6
+#define SPI_FPGA_RST_PIN RK2818_PIN_PF4
 
 #define SPI_FPGA_TEST_DEBUG	0
 #if SPI_FPGA_TEST_DEBUG
@@ -95,8 +95,8 @@ struct spi_dpram
 {
 	struct workqueue_struct 	*spi_dpram_workqueue;
 	struct work_struct 	spi_dpram_work;	
-	struct workqueue_struct 	*spi_dpram_busy_workqueue;
-	struct work_struct 	spi_dpram_busy_work;
+	struct workqueue_struct 	*spi_dpram_irq_workqueue;
+	struct work_struct 	spi_dpram_irq_work;
 	struct timer_list 	dpram_timer;
 	unsigned char		*prx;
 	unsigned char		*ptx;
@@ -115,14 +115,17 @@ struct spi_dpram
 	int (*read_dpram)(struct spi_dpram *, unsigned short int addr, unsigned char *buf, unsigned int len);
 	int (*write_ptr)(struct spi_dpram *, unsigned short int addr, unsigned int size);
 	int (*read_ptr)(struct spi_dpram *, unsigned short int addr);
-	int (*write_mailbox)(struct spi_dpram *, unsigned int mailbox);
-	int (*read_mailbox)(struct spi_dpram *);
+	int (*write_irq)(struct spi_dpram *, unsigned int mailbox);
+	int (*read_irq)(struct spi_dpram *);
+	int (*write_ack)(struct spi_dpram *, unsigned int mailbox);
+	int (*read_ack)(struct spi_dpram *);
 
 };
 
 struct spi_fpga_port {
 	const char *name;
 	struct spi_device 	*spi;
+	spinlock_t		work_lock;
 	struct mutex		spi_lock;
 	struct workqueue_struct 	*fpga_irq_workqueue;
 	struct work_struct 	fpga_irq_work;	
@@ -518,7 +521,7 @@ extern int spi_i2c_register(struct spi_fpga_port *port,int num);
 extern int spi_i2c_unregister(struct spi_fpga_port *port);
 #endif
 #if defined(CONFIG_SPI_FPGA_DPRAM)
-extern int spi_dpram_handle_irq(struct spi_device *spi);
+extern int spi_dpram_handle_ack(struct spi_device *spi);
 extern int spi_dpram_register(struct spi_fpga_port *port);
 extern int spi_dpram_unregister(struct spi_fpga_port *port);
 #endif

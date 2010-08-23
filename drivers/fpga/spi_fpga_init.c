@@ -69,10 +69,10 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			index = port->uart.index;
 			reg = (((reg) | ICE_SEL_UART) | ICE_SEL_READ | ICE_SEL_UART_CH(index));
 			tx_buf[0] = reg & 0xff;
-			tx_buf[1] = 0;
+			tx_buf[1] = 1;//give fpga 8 clks for reading data
 			rx_buf[0] = 0;
 			rx_buf[1] = 0;	
-			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf)-1, rx_buf, n_rx);
+			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf), rx_buf, n_rx);
 			result = (rx_buf[0] << 8) | rx_buf[1];
 			DBG("%s,SEL_UART reg=0x%x,result=0x%x\n",__FUNCTION__,reg&0xff,result&0xff);
 			break;
@@ -262,7 +262,7 @@ static void spi_fpga_irq_work_handler(struct work_struct *work)
 	{
 #if defined(CONFIG_SPI_FPGA_DPRAM)
 		DBG("%s:ICE_INT_TYPE_DPRAM ret=0x%x\n",__FUNCTION__,ret);
-		spi_dpram_handle_irq(spi);
+		spi_dpram_handle_ack(spi);
 #endif
 	}
 	else
@@ -308,6 +308,25 @@ static int spi_open_sysclk(int set)
 }
 
 
+static int spi_fpga_rst(void)
+{
+	int ret;
+	ret = gpio_request(SPI_FPGA_RST_PIN, NULL);
+	if (ret) {
+		printk("%s:failed to request fpga rst pin\n",__FUNCTION__);
+		return ret;
+	}
+	rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME,0);	
+	gpio_direction_output(SPI_FPGA_RST_PIN,GPIO_HIGH);
+	gpio_direction_output(SPI_FPGA_RST_PIN,GPIO_LOW);
+	mdelay(1);
+	gpio_direction_output(SPI_FPGA_RST_PIN,GPIO_HIGH);
+
+	gpio_direction_input(SPI_FPGA_RST_PIN);
+
+	return 0;
+}
+
 static int __devinit spi_fpga_probe(struct spi_device * spi)
 {
 	struct spi_fpga_port *port;
@@ -329,10 +348,12 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 		return -ENOMEM;
 	DBG("port=0x%x\n",(int)port);
 
+	spin_lock_init(&port->work_lock);
 	mutex_init(&port->spi_lock);
 
 	spi_open_sysclk(GPIO_HIGH);
 
+	spi_fpga_rst();
 	sprintf(b, "fpga_irq_workqueue");
 	port->fpga_irq_workqueue = create_freezeable_workqueue(b);
 	if (!port->fpga_irq_workqueue) {
@@ -394,8 +415,9 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 		goto err1;
 	}
 
+	rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME,IOMUXB_GPIO2_14_23);
 	gpio_pull_updown(SPI_FPGA_INT_PIN,GPIOPullUp);
-	ret = request_irq(gpio_to_irq(SPI_FPGA_INT_PIN),spi_fpga_irq,IRQF_TRIGGER_RISING,NULL,port);
+	ret = request_irq(gpio_to_irq(SPI_FPGA_INT_PIN),spi_fpga_irq,IRQF_TRIGGER_FALLING,NULL,port);
 	if(ret)
 	{
 		printk("unable to request spi_uart irq\n");

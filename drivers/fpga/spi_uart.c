@@ -38,14 +38,14 @@
 #define SPI_UART_TEST 0
 
 #define SPI_UART_FIFO_LEN	32
-#define SPI_UART_TXRX_BUF	0		//send or recieve several bytes one time
+#define SPI_UART_TXRX_BUF	1		//send or recieve several bytes one time
 
 static struct tty_driver *spi_uart_tty_driver;
 /*------------------------以下是spi2uart变量-----------------------*/
 
 #define UART_NR		1	/* Number of UARTs this driver can handle */
 
-#define UART_XMIT_SIZE	PAGE_SIZE
+#define UART_XMIT_SIZE	(PAGE_SIZE<<1)
 #define WAKEUP_CHARS	1024
 
 #define circ_empty(circ)	((circ)->head == (circ)->tail)
@@ -68,15 +68,19 @@ static int spi_uart_write_buf(struct spi_uart *uart, unsigned char *buf, int len
 {
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	int index = port->uart.index;
-	int reg = 0;
-	unsigned char tx_buf[SPI_UART_TXRX_BUF+2];//uart's tx fifo max lenth + 1
-	
+	int reg = 0, stat = 0;
+	int i;
+
+	for(i=len+2;i>1;i--)
+	buf[i] = buf[i-2];
 	reg = ((((reg) | ICE_SEL_UART) & ICE_SEL_WRITE) | ICE_SEL_UART_CH(index));
-	tx_buf[0] = reg & 0xff;
-	tx_buf[1] = 0;
-	memcpy(tx_buf+2, buf, len);
-	spi_write(port->spi, (const u8 *)&tx_buf, len+2);
-	DBG("%s,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)tx_buf,len);
+	buf[0] = reg & 0xff;
+	buf[1] = 0;
+
+	stat = spi_write(port->spi, buf, len+2);
+	if(stat)
+	printk("%s:spi_write err!!!\n\n\n",__FUNCTION__);			
+	DBG("%s:reg=0x%x,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)buf,len);
 	return 0;
 }
 
@@ -86,14 +90,21 @@ static int spi_uart_read_buf(struct spi_uart *uart, unsigned char *buf, int len)
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	int index = port->uart.index;
 	int reg = 0,stat = 0;
-	unsigned char tx_buf[1],rx_buf[SPI_UART_FIFO_LEN+1];
+	unsigned char tx_buf[2],rx_buf[SPI_UART_FIFO_LEN+1];
 	
 	reg = (((reg) | ICE_SEL_UART) | ICE_SEL_READ | ICE_SEL_UART_CH(index));
 	tx_buf[0] = reg & 0xff;
+	tx_buf[1] = len;
 	//give fpga 8 clks for reading data
-	stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, 1, rx_buf, len+1);
+	stat = spi_write_then_read(port->spi, tx_buf, sizeof(tx_buf), rx_buf, len+1);	
+	if(stat)
+	{
+		printk("%s:spi_write_then_read is error!,err=%d\n\n",__FUNCTION__,stat);
+		return -1;
+	}
+	
 	memcpy(buf, rx_buf+1, len);
-	DBG("%s,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)buf,len);
+	DBG("%s:reg=0x%x,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)buf,len);
 	return stat;
 }
 
@@ -204,7 +215,7 @@ static unsigned int spi_uart_get_mctrl(struct spi_uart *uart)
 #endif
 	if (status & UART_MSR_CTS)
 		ret = TIOCM_CAR | TIOCM_DSR | TIOCM_CTS;
-	DBG("Enter::%s,LINE=%d,ret=0x%x************************\n",__FUNCTION__,__LINE__,ret);
+	DBG("%s:LINE=%d,ret=0x%x\n",__FUNCTION__,__LINE__,ret);
 	return ret;
 }
 
@@ -229,7 +240,7 @@ static void spi_uart_write_mctrl(struct spi_uart *uart, unsigned int mctrl)
 	
 #endif
 	
-	DBG("Enter::%s,LINE=%d,mcr=0x%x\n",__FUNCTION__,__LINE__,mcr);
+	DBG("%s:LINE=%d,mcr=0x%x\n",__FUNCTION__,__LINE__,mcr);
 	spi_out(port, UART_MCR, mcr, SEL_UART);
 }
 
@@ -237,7 +248,7 @@ static inline void spi_uart_update_mctrl(struct spi_uart *uart,
 					  unsigned int set, unsigned int clear)
 {
 	unsigned int old;
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	old = uart->mctrl;
 	uart->mctrl = (old & ~clear) | set;
 	if (old != uart->mctrl)
@@ -349,7 +360,7 @@ static void spi_uart_change_speed(struct spi_uart *uart,
 	spi_out(port, UART_DLM, quot >> 8, SEL_UART);
 	spi_out(port, UART_LCR, cval, SEL_UART);
 	spi_out(port, UART_FCR, fcr, SEL_UART);
-	DBG("Enter::%s,LINE=%d,baud=%d,uart->ier=0x%x,cval=0x%x,fcr=0x%x,quot=0x%x\n",
+	DBG("%s:LINE=%d,baud=%d,uart->ier=0x%x,cval=0x%x,fcr=0x%x,quot=0x%x\n",
 		__FUNCTION__,__LINE__,baud,uart->ier,cval,fcr,quot);
 	spi_uart_write_mctrl(uart, uart->mctrl);
 }
@@ -367,7 +378,7 @@ static void spi_uart_start_tx(struct spi_uart *uart)
 		printk("t,");
 	}	
 	
-	DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+	DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 #endif
 }
 
@@ -382,7 +393,7 @@ static void spi_uart_stop_tx(struct spi_uart *uart)
 		//spin_unlock_irqrestore(&uart->write_lock, flags);	
 		//printk("p");
 	}
-	DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+	DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 }
 
 static void spi_uart_stop_rx(struct spi_uart *uart)
@@ -403,11 +414,11 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 #if SPI_UART_TXRX_BUF
 	int ret,count,stat = 0,num = 0;
 	unsigned char buf[SPI_UART_FIFO_LEN];
-	max_count = 512;
 	while (max_count >0 )
 	{
 		ret = spi_in(port, UART_RX, SEL_UART);
-		count = (ret >> 8) & 0xff;	
+		count = (ret >> 8) & 0x3f;	
+		DBG("%s:count=%d\n",__FUNCTION__,count);
 		if(count == 0)
 		break;
 		buf[0] = ret & 0xff;
@@ -423,11 +434,11 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 			flag = TTY_NORMAL;
 			ch = buf[num++];
 			tty_insert_flip_char(tty, ch, flag);
+			//printk("%c,",ch);
 		}
-		
+		//printk("\n");
 		tty_flip_buffer_push(tty); 
 	}
-	printk("r%d\n",1024-max_count);
 #else	
 	//printk("rx:");
 	while (--max_count >0 )
@@ -478,11 +489,11 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 			break;
 	} 
 	//printk("\n");
-	DBG("Enter::%s,LINE=%d,rx_count=%d********\n",__FUNCTION__,__LINE__,(1024-max_count));
-	printk("r%d\n",1024-max_count);
+	DBG("%s:LINE=%d,rx_count=%d\n",__FUNCTION__,__LINE__,(1024-max_count));
 	tty_flip_buffer_push(tty);
 
 #endif
+	printk("r%d\n",1024-max_count);
 	
 }
 
@@ -499,12 +510,12 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		spi_out(port, UART_TX, uart->x_char, SEL_UART);
 		uart->icount.tx++;
 		uart->x_char = 0;
-		printk("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+		printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 		return;
 	}
 	if (circ_empty(xmit) || uart->tty->stopped || uart->tty->hw_stopped) {
 		spi_uart_stop_tx(uart);
-		DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 		//printk("circ_empty()\n");
 		return;
 	}
@@ -512,20 +523,21 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 
 #if SPI_UART_TXRX_BUF
 	//send several bytes one time
-	count = 0;
-	while(count < SPI_UART_FIFO_LEN)
+	count = SPI_UART_FIFO_LEN;
+	while(count > 0)
 	{
-		buf[count] = xmit->buf[xmit->tail];
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		uart->icount.tx++;
-		count++;
 		if (circ_empty(xmit))
 		break;
+		buf[SPI_UART_FIFO_LEN - count] = xmit->buf[xmit->tail];
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		uart->icount.tx++;
+		--count;
 	}
-	spi_uart_write_buf(uart,buf,count);
+	if(SPI_UART_FIFO_LEN - count > 0)
+	spi_uart_write_buf(uart,buf,SPI_UART_FIFO_LEN - count);
 #else
 	//send one byte one time
-	count = SPI_UART_FIFO_LEN;//
+	count = SPI_UART_FIFO_LEN;
 	while(count > 0)
 	{
 		spi_out(port, UART_TX, xmit->buf[xmit->tail], SEL_UART);
@@ -538,21 +550,21 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 	}
 #endif
 	//printk("\n");
-	DBG("Enter::%s,LINE=%d,tx_count=%d\n",__FUNCTION__,__LINE__,(32-count));
+	DBG("%s:LINE=%d,tx_count=%d\n",__FUNCTION__,__LINE__,(SPI_UART_FIFO_LEN-count));
 	if (circ_chars_pending(xmit) < WAKEUP_CHARS)
 	{	
 		tty_wakeup(uart->tty);
-		printk("k,");
+		//printk("k,");
 	}
-	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	if (circ_empty(xmit))
 	{
 		DBG("circ_empty(xmit)\n");
 		spi_uart_stop_tx(uart);
-		printk("e,");
+		//printk("e,");
 	}
 	
-	printk("t%d\n",32-count);
+	printk("t%d\n",SPI_UART_FIFO_LEN-count);
 
 	DBG("uart->tty->hw_stopped = %d\n",uart->tty->hw_stopped);
 }
@@ -564,7 +576,7 @@ static void spi_uart_check_modem_status(struct spi_uart *uart)
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	
 	status = spi_in(port, UART_MSR, SEL_UART);//
-	DBG("Enter::%s,LINE=%d,status=0x%x*******\n",__FUNCTION__,__LINE__,status);
+	DBG("%s:LINE=%d,status=0x%x*******\n",__FUNCTION__,__LINE__,status);
 	if ((status & UART_MSR_ANY_DELTA) == 0)
 		return;
 
@@ -582,26 +594,26 @@ static void spi_uart_check_modem_status(struct spi_uart *uart)
 				if (cts) {
 					uart->tty->hw_stopped = 0;
 					spi_uart_start_tx(uart);
-					DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+					DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 					tty_wakeup(uart->tty);
 				}
 			} else {
 				if (!cts) {
 					uart->tty->hw_stopped = 1;
-					DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+					DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 					spi_uart_stop_tx(uart);
 				}
 			}
 		}
 	}
-	DBG("Enter::%s,LINE=%d,status=0x%x*******\n",__FUNCTION__,__LINE__,status);
+	DBG("%s:LINE=%d,status=0x%x*******\n",__FUNCTION__,__LINE__,status);
 }
 #endif
 
 
 #if SPI_UART_TEST
-#define UART_TEST_LEN 16	//8bit
-unsigned char buf_test_uart[UART_TEST_LEN];
+#define UART_TEST_LEN 32	//8bit
+unsigned char buf_test_uart[UART_TEST_LEN+2];
 
 void spi_uart_test_init(struct spi_fpga_port *port)
 {
@@ -610,7 +622,7 @@ void spi_uart_test_init(struct spi_fpga_port *port)
 	unsigned char mcr = 0;
 	int ret;
 	
-	DBG("Enter::%s,LINE=%d,mcr=0x%x\n",__FUNCTION__,__LINE__,mcr);
+	DBG("%s:LINE=%d,mcr=0x%x\n",__FUNCTION__,__LINE__,mcr);
 	spi_out(port, UART_MCR, mcr, SEL_UART);
 	baud = 1500000;
 	cval = UART_LCR_WLEN8;
@@ -627,7 +639,13 @@ void spi_uart_test_init(struct spi_fpga_port *port)
 	spi_out(port, UART_LCR, cval | UART_LCR_DLAB, SEL_UART);
 	spi_out(port, UART_DLL, quot & 0xff, SEL_UART);	
 	ret = spi_in(port, UART_DLL, SEL_UART)&0xff;
-	printk("%s:quot=0x%x,UART_DLL=0x%x\n",__FUNCTION__,quot,ret);
+	if(ret != quot)
+	{
+		#if SPI_FPGA_TEST_DEBUG
+		spi_test_wrong_handle();
+		#endif
+		printk("%s:quot=0x%x,UART_DLL=0x%x\n",__FUNCTION__,quot,ret);
+	}
 	spi_out(port, UART_DLM, quot >> 8, SEL_UART);	
 	spi_out(port, UART_LCR, cval, SEL_UART);
 	spi_out(port, UART_FCR, fcr, SEL_UART);
@@ -647,14 +665,28 @@ void spi_uart_work_handler(struct work_struct *work)
 	for(i=0;i<UART_TEST_LEN;i++)
 	buf_test_uart[i] = '0'+i;		
 	count = UART_TEST_LEN;
+
 #if SPI_UART_TXRX_BUF
 	spi_uart_write_buf(&port->uart, buf_test_uart, count);
+	mdelay(5);
+	spi_uart_read_buf(&port->uart, buf_test_uart, count);
+	for(i=0;i<UART_TEST_LEN;i++)
+	{
+		if(buf_test_uart[i] != '0'+i)
+		{
+			#if SPI_FPGA_TEST_DEBUG
+			spi_test_wrong_handle();
+			#endif
+			printk("err:%s:buf_t[%d]=0x%x,buf_r[%d]=0x%x\n",__FUNCTION__,i,'0'+i,i,buf_test_uart[i]);
+		}
+	}
 #else
 	while(count > 0)
 	{
 		spi_out(port, UART_TX, buf_test_uart[UART_TEST_LEN-count], SEL_UART);
 		--count;
 	}
+	printk("%s,line=%d\n",__FUNCTION__,__LINE__);
 #endif
 
 }
@@ -662,16 +694,13 @@ void spi_uart_work_handler(struct work_struct *work)
 static void spi_testuart_timer(unsigned long data)
 {
 	struct spi_fpga_port *port = (struct spi_fpga_port *)data;
-	port->uart.uart_timer.expires  = jiffies + msecs_to_jiffies(1000);
+	port->uart.uart_timer.expires  = jiffies + msecs_to_jiffies(300);
 	add_timer(&port->uart.uart_timer);
 	//schedule_work(&port->gpio.spi_gpio_work);
 	queue_work(port->uart.spi_uart_workqueue, &port->uart.spi_uart_work);
 }
 
 #endif
-
-
-
 
 /*
  * This handles the interrupt from one port.
@@ -684,7 +713,7 @@ void spi_uart_handle_irq(struct spi_device *spi)
 
 	if (unlikely(uart->in_spi_uart_irq == current))
 		return;
-	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 
 	/*
 	 * In a few places spi_uart_handle_irq() is called directly instead of
@@ -696,19 +725,18 @@ void spi_uart_handle_irq(struct spi_device *spi)
 	 */
 	 
 	uart_iir = spi_in(port, UART_IIR, SEL_UART);//	
+	DBG("%s:iir=0x%x\n",__FUNCTION__,uart_iir);	
 	if (uart_iir & UART_IIR_NO_INT)
 		return;
-	
-	DBG("iir=0x%x\n",uart_iir);
 		
 	uart->in_spi_uart_irq = current;
 	lsr = spi_in(port, UART_LSR, SEL_UART);//
-	DBG("lsr=0x%x\n",lsr);
+	DBG("%s:lsr=0x%x\n",__FUNCTION__,lsr);
 
 	if (lsr & UART_LSR_DR)
 	//if (((uart_iir & UART_IIR_RDI) | (uart_iir & UART_IIR_RLSI)) &&  (lsr & UART_LSR_DR))
 	{
-		DBG("Enter::%s,LINE=%d,lsr & UART_LSR_DR************\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d,start recieve data!\n",__FUNCTION__,__LINE__);
 		spi_uart_receive_chars(uart, &lsr);	
 	}
 
@@ -718,13 +746,12 @@ void spi_uart_handle_irq(struct spi_device *spi)
 	if (lsr & UART_LSR_THRE)
 	//if ((uart_iir & UART_IIR_THRI)&&(lsr & UART_LSR_THRE))
 	{
-		DBG("Enter::%s,LINE=%d,ICE_STATUS_TXF == 0************\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d,start send data!\n",__FUNCTION__,__LINE__);
 		spi_uart_transmit_chars(uart);
 	}
 
 	uart->in_spi_uart_irq = NULL;
 
-	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	
 }
 
@@ -733,7 +760,7 @@ static int spi_uart_startup(struct spi_uart *uart)
 	unsigned long page;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	/*
 	 * Set the TTY IO error marker - we will only clear this
 	 * once we have successfully opened the port.
@@ -786,7 +813,7 @@ static int spi_uart_startup(struct spi_uart *uart)
 			uart->tty->hw_stopped = 1;
 
 	clear_bit(TTY_IO_ERROR, &uart->tty->flags);
-	DBG("Enter::%s,LINE=%d,uart->ier=0x%x\n",__FUNCTION__,__LINE__,uart->ier);
+	DBG("%s:LINE=%d,uart->ier=0x%x\n",__FUNCTION__,__LINE__,uart->ier);
 	/* Kick the IRQ handler once while we're still holding the host lock */
 	//spi_uart_handle_irq(port->spi);
 	//mutex_unlock(&port->spi_lock);
@@ -800,8 +827,10 @@ static int spi_uart_startup(struct spi_uart *uart)
 static void spi_uart_shutdown(struct spi_uart *uart)
 {
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
+
 	//mutex_lock(&port->spi_lock);
+#if 1
 	spi_uart_stop_rx(uart);
 
 	/* TODO: wait here for TX FIFO to drain */
@@ -824,7 +853,7 @@ static void spi_uart_shutdown(struct spi_uart *uart)
 				 UART_FCR_CLEAR_RCVR |
 				 UART_FCR_CLEAR_XMIT, SEL_UART);
 	spi_out(port, UART_FCR, 0, SEL_UART);
-
+#endif
 	//mutex_unlock(&port->spi_lock);
 
 //skip:
@@ -840,10 +869,10 @@ static int spi_uart_open (struct tty_struct *tty, struct file * filp)
 	uart = spi_uart_port_get(tty->index);
 	if (!uart)
 	{
-		DBG("Enter::%s,LINE=%d,!port\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d,!port\n",__FUNCTION__,__LINE__);
 		return -ENODEV;
 	}
-	DBG("Enter::%s,LINE=%d,tty->index=%d\n",__FUNCTION__,__LINE__,tty->index);
+	DBG("%s:LINE=%d,tty->index=%d\n",__FUNCTION__,__LINE__,tty->index);
 	mutex_lock(&uart->open_lock);
 
 	/*
@@ -853,7 +882,7 @@ static int spi_uart_open (struct tty_struct *tty, struct file * filp)
 	if (tty->driver_data && tty->driver_data != uart) {
 		mutex_unlock(&uart->open_lock);
 		spi_uart_port_put(uart);
-		DBG("Enter::%s,LINE=%d,!= uart\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d,!= uart\n",__FUNCTION__,__LINE__);
 		return -EBUSY;
 	}
 
@@ -866,12 +895,12 @@ static int spi_uart_open (struct tty_struct *tty, struct file * filp)
 			uart->tty = NULL;
 			mutex_unlock(&uart->open_lock);
 			spi_uart_port_put(uart);
-			DBG("Enter::%s,LINE=%d,ret=%d\n",__FUNCTION__,__LINE__,ret);
+			DBG("%s:LINE=%d,ret=%d\n",__FUNCTION__,__LINE__,ret);
 			return ret;
 		}
 	}
 	uart->opened++;
-	DBG("Enter::%s,uart->opened++=%d\n",__FUNCTION__,uart->opened);
+	DBG("%s:uart->opened++=%d\n",__FUNCTION__,uart->opened);
 	mutex_unlock(&uart->open_lock);
 	return 0;
 }
@@ -879,7 +908,7 @@ static int spi_uart_open (struct tty_struct *tty, struct file * filp)
 static void spi_uart_close(struct tty_struct *tty, struct file * filp)
 {
 	struct spi_uart *uart = tty->driver_data;
-	printk("Enter::%s,LINE=%d,tty->hw_stopped=%d\n",__FUNCTION__,__LINE__,tty->hw_stopped);
+	printk("%s:LINE=%d,tty->hw_stopped=%d\n",__FUNCTION__,__LINE__,tty->hw_stopped);
 	if (!uart)
 		return;
 
@@ -897,7 +926,7 @@ static void spi_uart_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	if (--uart->opened == 0) {
-		DBG("Enter::%s,opened=%d\n",__FUNCTION__,uart->opened);
+		DBG("%s:opened=%d\n",__FUNCTION__,uart->opened);
 		tty->closing = 1;
 		spi_uart_shutdown(uart);
 		tty_ldisc_flush(tty);
@@ -945,11 +974,11 @@ static int spi_uart_write(struct tty_struct * tty, const unsigned char *buf,
 #if 1
 	if ( !(uart->ier & UART_IER_THRI)) {
 		//mutex_lock(&port->spi_lock);
-			DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+			DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 			/*Note:ICE65L08 output a 'Transmitter holding register interrupt' after 1us*/
-			//printk("s,");
+			printk("s,");
 			spi_uart_start_tx(uart);
-			spi_uart_handle_irq(port->spi);
+		//	spi_uart_handle_irq(port->spi);
 		//mutex_unlock(&port->spi_lock);	
 	}	
 #endif	
@@ -961,14 +990,14 @@ static int spi_uart_write(struct tty_struct * tty, const unsigned char *buf,
 static int spi_uart_write_room(struct tty_struct *tty)
 {
 	struct spi_uart *uart = tty->driver_data;
-	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	return uart ? circ_chars_free(&uart->xmit) : 0;
 }
 
 static int spi_uart_chars_in_buffer(struct tty_struct *tty)
 {
 	struct spi_uart *uart = tty->driver_data;
-	printk("Enter::%s,LINE=%d,circ=%ld****\n",__FUNCTION__,__LINE__,circ_chars_pending(&uart->xmit));	
+	printk("%s:LINE=%d,circ=%ld\n",__FUNCTION__,__LINE__,circ_chars_pending(&uart->xmit));	
 	return uart ? circ_chars_pending(&uart->xmit) : 0;
 }
 
@@ -976,12 +1005,12 @@ static void spi_uart_send_xchar(struct tty_struct *tty, char ch)
 {
 	struct spi_uart *uart = tty->driver_data;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	printk("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	uart->x_char = ch;
 	if (ch && !(uart->ier & UART_IER_THRI)) {
 		//mutex_lock(&port->spi_lock);
 		spi_uart_start_tx(uart);
-		printk("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+		printk("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 		spi_uart_handle_irq(port->spi);
 		//mutex_unlock(&port->spi_lock);		
 	}
@@ -991,15 +1020,15 @@ static void spi_uart_throttle(struct tty_struct *tty)
 {
 	struct spi_uart *uart = tty->driver_data;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	printk("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	if (!I_IXOFF(tty) && !(tty->termios->c_cflag & CRTSCTS))
 		return;
-	printk("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	//mutex_lock(&port->spi_lock);
 	if (I_IXOFF(tty)) {
 		uart->x_char = STOP_CHAR(tty);
 		spi_uart_start_tx(uart);
-		DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+		DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 	}
 
 	if (tty->termios->c_cflag & CRTSCTS)
@@ -1013,7 +1042,7 @@ static void spi_uart_unthrottle(struct tty_struct *tty)
 {
 	struct spi_uart *uart = tty->driver_data;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	printk("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	if (!I_IXOFF(tty) && !(tty->termios->c_cflag & CRTSCTS))
 		return;
 	//mutex_lock(&port->spi_lock);
@@ -1023,7 +1052,7 @@ static void spi_uart_unthrottle(struct tty_struct *tty)
 		} else {
 			uart->x_char = START_CHAR(tty);
 			spi_uart_start_tx(uart);
-			DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+			DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 		}
 	}
 
@@ -1037,9 +1066,10 @@ static void spi_uart_unthrottle(struct tty_struct *tty)
 static void spi_uart_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct spi_uart *uart = tty->driver_data;
+	//struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	unsigned int cflag = tty->termios->c_cflag;
 	unsigned int mask = TIOCM_DTR;
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	
 #define RELEVANT_IFLAG(iflag)   ((iflag) & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
@@ -1052,14 +1082,14 @@ static void spi_uart_set_termios(struct tty_struct *tty, struct ktermios *old_te
 
 	/* Handle transition to B0 status */
 	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD)){
-		DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 		spi_uart_clear_mctrl(uart, TIOCM_RTS | TIOCM_DTR);
 		//spi_uart_clear_mctrl(uart, TIOCM_RTS);
 		}
 	
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
-		DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+		DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 		if (!(cflag & CRTSCTS) || !test_bit(TTY_THROTTLED, &tty->flags))
 			mask |= TIOCM_RTS;
 		spi_uart_set_mctrl(uart, mask);
@@ -1067,18 +1097,16 @@ static void spi_uart_set_termios(struct tty_struct *tty, struct ktermios *old_te
 
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) && !(cflag & CRTSCTS)) {
-		DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
 		tty->hw_stopped = 0;
 		spi_uart_start_tx(uart);
-		DBG("Enter::%s,UART_IER=0x%x\n",__FUNCTION__,uart->ier);
+		DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 	}
 
 	/* Handle turning on CRTSCTS */
 	if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
-		DBG("Enter::%s,LINE=%d,status=0x%x,Handle turning on CRTSCTS*****************\n",__FUNCTION__,__LINE__,spi_uart_get_mctrl(uart));
 		//spi_uart_set_mctrl(uart, TIOCM_RTS);
 		if (!(spi_uart_get_mctrl(uart) & TIOCM_CTS)) {
-			DBG("Enter::%s,LINE=%d,tty->hw_stopped = 1********\n",__FUNCTION__,__LINE__);
+			DBG("%s:LINE=%d,tty->hw_stopped = 1\n",__FUNCTION__,__LINE__);
 			tty->hw_stopped = 1;
 			spi_uart_stop_tx(uart);
 		}
@@ -1091,7 +1119,7 @@ static int spi_uart_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct spi_uart *uart = tty->driver_data;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart); 
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	//mutex_lock(&port->spi_lock);
 	if (break_state == -1)
 		uart->lcr |= UART_LCR_SBC;
@@ -1105,8 +1133,9 @@ static int spi_uart_break_ctl(struct tty_struct *tty, int break_state)
 static int spi_uart_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct spi_uart *uart = tty->driver_data;
+	//struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	int result;
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	//mutex_lock(&port->spi_lock);
 	result = uart->mctrl | spi_uart_get_mctrl(uart);
 	//mutex_unlock(&port->spi_lock);
@@ -1117,7 +1146,8 @@ static int spi_uart_tiocmset(struct tty_struct *tty, struct file *file,
 			      unsigned int set, unsigned int clear)
 {
 	struct spi_uart *uart = tty->driver_data;
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	//struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	//mutex_lock(&port->spi_lock);
 	spi_uart_update_mctrl(uart, set, clear);
 	//mutex_unlock(&port->spi_lock);
@@ -1131,7 +1161,7 @@ static int spi_uart_read_proc(char *page, char **start, off_t off,
 {
 	int i, len = 0;
 	off_t begin = 0;
-	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d************************\n",__FUNCTION__,__LINE__);
 	len += sprintf(page, "serinfo:1.0 driver%s%s revision:%s\n",
 		       "", "", "");
 	for (i = 0; i < UART_NR && len < PAGE_SIZE - 96; i++) {
