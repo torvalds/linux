@@ -1290,6 +1290,12 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			rate = IWL_RATE_1M_PLCP;
 			rate_flags = RATE_MCS_CCK_MSK;
 		}
+		/*
+		 * Internal scans are passive, so we can indiscriminately set
+		 * the BT ignore flag on 2.4 GHz since it applies to TX only.
+		 */
+		if (priv->cfg->advanced_bt_coexist)
+			scan->tx_cmd.tx_flags |= TX_CMD_FLG_IGNORE_BT;
 		scan->good_CRC_th = IWL_GOOD_CRC_TH_DISABLED;
 		break;
 	case IEEE80211_BAND_5GHZ:

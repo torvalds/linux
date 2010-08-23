@@ -342,10 +342,11 @@ static inline int get_queue_from_ac(u16 ac)
  * handle build REPLY_TX command notification.
  */
 static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
-				  struct iwl_tx_cmd *tx_cmd,
-				  struct ieee80211_tx_info *info,
-				  struct ieee80211_hdr *hdr,
-				  u8 std_id)
+					struct sk_buff *skb,
+					struct iwl_tx_cmd *tx_cmd,
+					struct ieee80211_tx_info *info,
+					struct ieee80211_hdr *hdr,
+					u8 std_id)
 {
 	__le16 fc = hdr->frame_control;
 	__le32 tx_flags = tx_cmd->tx_flags;
@@ -365,6 +366,12 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 
 	if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
+	else if (info->band == IEEE80211_BAND_2GHZ &&
+		 priv->cfg->advanced_bt_coexist &&
+		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
+		 ieee80211_is_reassoc_req(fc) ||
+		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		tx_flags |= TX_CMD_FLG_IGNORE_BT;
 
 
 	tx_cmd->sta_id = std_id;
@@ -655,7 +662,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwlagn_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb, sta_id);
 
 	/* TODO need this for burst mode later on */
-	iwlagn_tx_cmd_build_basic(priv, tx_cmd, info, hdr, sta_id);
+	iwlagn_tx_cmd_build_basic(priv, skb, tx_cmd, info, hdr, sta_id);
 	iwl_dbg_log_tx_data_frame(priv, len, hdr);
 
 	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, fc);
