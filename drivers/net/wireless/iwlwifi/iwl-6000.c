@@ -201,6 +201,21 @@ static const __le32 iwl6000g2b_def_3w_lookup[12] = {
 	cpu_to_le32(0xf0004000),
 };
 
+static const __le32 iwl6000g2b_concurrent_lookup[12] = {
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+};
+
 static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 {
 	struct iwl6000g2b_bt_cmd bt_cmd = {
@@ -233,11 +248,17 @@ static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 		bt_cmd.valid |= IWL6000G2B_BT_ALL_VALID_MSK;
 	}
 
-	memcpy(bt_cmd.bt3_lookup_table, iwl6000g2b_def_3w_lookup,
-		sizeof(iwl6000g2b_def_3w_lookup));
+	if (priv->bt_full_concurrent)
+		memcpy(bt_cmd.bt3_lookup_table, iwl6000g2b_concurrent_lookup,
+			sizeof(iwl6000g2b_concurrent_lookup));
+	else
+		memcpy(bt_cmd.bt3_lookup_table, iwl6000g2b_def_3w_lookup,
+			sizeof(iwl6000g2b_def_3w_lookup));
 
-	IWL_DEBUG_INFO(priv, "BT coex %s\n",
-		       bt_cmd.flags ? "active" : "disabled");
+	IWL_DEBUG_INFO(priv, "BT coex %s in %s mode\n",
+		       bt_cmd.flags ? "active" : "disabled",
+		       priv->bt_full_concurrent ?
+		       "full concurrency" : "3-wire");
 
 	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG, sizeof(bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
@@ -435,6 +456,7 @@ static void iwl6000g2b_bt_traffic_change_work(struct work_struct *work)
 static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
 					     struct iwl_rx_mem_buffer *rxb)
 {
+	unsigned long flags;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
 	struct iwl6000g2b_bt_sco_cmd sco_cmd = { .flags = 0 };
@@ -466,6 +488,10 @@ static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
 		iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
 				       sizeof(sco_cmd), &sco_cmd, NULL);
 	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->bt_ci_compliance = coex->bt_ci_compliance;
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 void iwl6000g2b_rx_handler_setup(struct iwl_priv *priv)

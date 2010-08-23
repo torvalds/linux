@@ -780,6 +780,10 @@ EXPORT_SYMBOL(iwl_set_rxon_ht);
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
+	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+		/* operated as 1x1 in full concurrency mode */
+		return IWL_NUM_RX_CHAINS_SINGLE;
+	}
 	/* # of Rx chains to use when expecting MIMO. */
 	if (is_single_rx_stream(priv))
 		return IWL_NUM_RX_CHAINS_SINGLE;
@@ -836,10 +840,15 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	 * Before first association, we assume all antennas are connected.
 	 * Just after first association, iwl_chain_noise_calibration()
 	 *    checks which antennas actually *are* connected. */
-	 if (priv->chain_noise_data.active_chains)
+	if (priv->chain_noise_data.active_chains)
 		active_chains = priv->chain_noise_data.active_chains;
 	else
 		active_chains = priv->hw_params.valid_rx_ant;
+
+	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+		/* operated as 1x1 in full concurrency mode */
+		active_chains = first_antenna(active_chains);
+	}
 
 	rx_chain = active_chains << RXON_RX_CHAIN_VALID_POS;
 

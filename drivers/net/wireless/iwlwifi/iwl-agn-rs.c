@@ -758,6 +758,32 @@ static bool table_type_matches(struct iwl_scale_tbl_info *a,
 		(a->is_SGI == b->is_SGI);
 }
 
+static void rs_bt_update_lq(struct iwl_priv *priv,
+			       struct iwl_lq_sta *lq_sta)
+{
+	struct iwl_scale_tbl_info *tbl;
+	bool full_concurrent;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->bt_ci_compliance && priv->bt_ant_couple_ok)
+		full_concurrent = true;
+	else
+		full_concurrent = false;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (priv->bt_full_concurrent != full_concurrent) {
+		priv->bt_full_concurrent = full_concurrent;
+
+		/* Update uCode's rate table. */
+		tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+		rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
+		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
+
+		queue_work(priv->workqueue, &priv->bt_full_concurrency);
+	}
+}
+
 /*
  * mac80211 sends us Tx status
  */
@@ -940,6 +966,10 @@ done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
+
+	/* Is there a need to switch between full concurrency and 3-wire? */
+	if (priv->bt_ant_couple_ok)
+		rs_bt_update_lq(priv, lq_sta);
 }
 
 /*
@@ -1325,6 +1355,15 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	else if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
 		   tbl->action > IWL_LEGACY_SWITCH_SISO)
 		tbl->action = IWL_LEGACY_SWITCH_SISO;
+
+	/* configure as 1x1 if bt full concurrency */
+	if (priv->bt_full_concurrent) {
+		if (!iwl_ht_enabled(priv))
+			tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
+		else if (tbl->action >= IWL_LEGACY_SWITCH_ANTENNA2)
+			tbl->action = IWL_LEGACY_SWITCH_SISO;
+	}
+
 	start_action = tbl->action;
 	for (; ;) {
 		lq_sta->action_counter++;
@@ -1484,6 +1523,12 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 		/* stay in SISO */
 		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 	}
+
+	/* configure as 1x1 if bt full concurrency */
+	if (priv->bt_full_concurrent &&
+	    tbl->action >= IWL_LEGACY_SWITCH_ANTENNA2)
+		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+
 	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
@@ -1645,6 +1690,13 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 		/* switch in SISO */
 		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
 	}
+
+	/* configure as 1x1 if bt full concurrency */
+	if (priv->bt_full_concurrent &&
+	    (tbl->action < IWL_MIMO2_SWITCH_SISO_A ||
+	     tbl->action > IWL_MIMO2_SWITCH_SISO_C))
+		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+
 	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
@@ -1810,6 +1862,13 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 		/* switch in SISO */
 		tbl->action = IWL_MIMO3_SWITCH_SISO_A;
 	}
+
+	/* configure as 1x1 if bt full concurrency */
+	if (priv->bt_full_concurrent &&
+	    (tbl->action < IWL_MIMO3_SWITCH_SISO_A ||
+	     tbl->action > IWL_MIMO3_SWITCH_SISO_C))
+		tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+
 	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
@@ -2741,7 +2800,8 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	/* Fill 1st table entry (index 0) */
 	lq_cmd->rs_table[index].rate_n_flags = cpu_to_le32(new_rate);
 
-	if (num_of_ant(tbl_type.ant_type) == 1) {
+	if (num_of_ant(tbl_type.ant_type) == 1 ||
+	    (priv && priv->bt_full_concurrent)) {
 		lq_cmd->general_params.single_stream_ant_msk =
 						tbl_type.ant_type;
 	} else if (num_of_ant(tbl_type.ant_type) == 2) {
@@ -2752,8 +2812,12 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	index++;
 	repeat_rate--;
 
-	if (priv)
-		valid_tx_ant = priv->hw_params.valid_tx_ant;
+	if (priv) {
+		if (priv->bt_full_concurrent)
+			valid_tx_ant = ANT_A;
+		else
+			valid_tx_ant = priv->hw_params.valid_tx_ant;
+	}
 
 	/* Fill rest of rate table */
 	while (index < LINK_QUAL_MAX_RETRY_NUM) {

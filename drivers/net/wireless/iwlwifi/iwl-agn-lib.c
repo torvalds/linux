@@ -1333,6 +1333,12 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (priv->cfg->scan_tx_antennas[band])
 		scan_tx_antennas = priv->cfg->scan_tx_antennas[band];
 
+	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+		/* operated as 1x1 in full concurrency mode */
+		scan_tx_antennas =
+			first_antenna(priv->cfg->scan_tx_antennas[band]);
+	}
+
 	priv->scan_tx_ant[band] = iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band],
 						    scan_tx_antennas);
 	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
@@ -1351,6 +1357,11 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		rx_ant = first_antenna(active_chains);
 	}
+	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+		/* operated as 1x1 in full concurrency mode */
+		rx_ant = first_antenna(rx_ant);
+	}
+
 	/* MIMO is not used here, but value is required */
 	rx_chain |= priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;

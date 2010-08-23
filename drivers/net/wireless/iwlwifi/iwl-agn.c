@@ -87,6 +87,8 @@ MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("iwl4965");
 
+static int iwlagn_ant_coupling;
+
 /**
  * iwl_commit_rxon - commit staging_rxon to hardware
  *
@@ -610,6 +612,33 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 
 	iwl_send_beacon_cmd(priv);
+}
+
+static void iwl_bg_bt_full_concurrency(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, bt_full_concurrency);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	/* dont send host command if rf-kill is on */
+	if (!iwl_is_ready_rf(priv))
+		return;
+
+	IWL_DEBUG_INFO(priv, "BT coex in %s mode\n",
+		       priv->bt_full_concurrent ?
+		       "full concurrency" : "3-wire");
+
+	/*
+	 * LQ & RXON updated cmds must be sent before BT Config cmd
+	 * to avoid 3-wire collisions
+	 */
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+	iwlcore_commit_rxon(priv);
+
+	priv->cfg->ops->hcmd->send_bt_config(priv);
 }
 
 /**
@@ -2776,6 +2805,8 @@ static void __iwl_down(struct iwl_priv *priv)
 	/* reset BT coex data */
 	priv->bt_traffic_load = 0;
 	priv->bt_sco_active = false;
+	priv->bt_full_concurrent = false;
+	priv->bt_ci_compliance = 0;
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
@@ -3079,7 +3110,8 @@ static void iwl_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
-		bool bt_sco;
+		bool bt_sco, bt_full_concurrent;
+		u8 bt_ci_compliance;
 		u8 bt_load;
 
 		mutex_lock(&priv->mutex);
@@ -3096,11 +3128,15 @@ static void iwl_bg_restart(struct work_struct *data)
 		 * command.
 		 */
 		bt_sco = priv->bt_sco_active;
+		bt_full_concurrent = priv->bt_full_concurrent;
+		bt_ci_compliance = priv->bt_ci_compliance;
 		bt_load = priv->bt_traffic_load;
 
 		__iwl_down(priv);
 
 		priv->bt_sco_active = bt_sco;
+		priv->bt_full_concurrent = bt_full_concurrent;
+		priv->bt_ci_compliance = bt_ci_compliance;
 		priv->bt_traffic_load = bt_load;
 
 		mutex_unlock(&priv->mutex);
@@ -3856,6 +3892,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
 	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
+	INIT_WORK(&priv->bt_full_concurrency, iwl_bg_bt_full_concurrency);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
@@ -3898,6 +3935,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);
+	cancel_work_sync(&priv->bt_full_concurrency);
 	del_timer_sync(&priv->statistics_periodic);
 	del_timer_sync(&priv->ucode_trace);
 }
@@ -4077,6 +4115,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->cfg = cfg;
 	priv->pci_dev = pdev;
 	priv->inta_mask = CSR_INI_SET_MASK;
+
+	/* is antenna coupling more than 35dB ? */
+	priv->bt_ant_couple_ok =
+		(iwlagn_ant_coupling > IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
+		true : false;
 
 	if (iwl_alloc_traffic_mem(priv))
 		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
@@ -4611,3 +4654,7 @@ module_param_named(ucode_alternative, iwlagn_wanted_ucode_alternative, int,
 		   S_IRUGO);
 MODULE_PARM_DESC(ucode_alternative,
 		 "specify ucode alternative to use from ucode file");
+
+module_param_named(antenna_coupling, iwlagn_ant_coupling, int, S_IRUGO);
+MODULE_PARM_DESC(antenna_coupling,
+		 "specify antenna coupling in dB (defualt: 0 dB)");

@@ -736,5 +736,6 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 }
 
 extern bool bt_coex_active;
+extern bool bt_siso_mode;
 
 #endif /* __iwl_core_h__ */
