@@ -1111,6 +1111,11 @@ enum iwl_rxon_context_id {
 
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
+
+	const u8 *ac_to_fifo;
+	const u8 *ac_to_queue;
+	u8 mcast_queue;
+
 	enum iwl_rxon_context_id ctxid;
 	/*
 	 * We declare this const so it can only be

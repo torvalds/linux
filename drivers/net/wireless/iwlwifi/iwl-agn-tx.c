@@ -71,18 +71,6 @@ static const u8 tid_to_ac[] = {
 	2, 3, 3, 2, 1, 1, 0, 0
 };
 
-static const u8 ac_to_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-};
-
-static inline int get_fifo_from_ac(u8 ac)
-{
-	return ac_to_fifo[ac];
-}
-
 static inline int get_ac_from_tid(u16 tid)
 {
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
@@ -92,10 +80,10 @@ static inline int get_ac_from_tid(u16 tid)
 	return -EINVAL;
 }
 
-static inline int get_fifo_from_tid(u16 tid)
+static inline int get_fifo_from_tid(struct iwl_rxon_context *ctx, u16 tid)
 {
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return get_fifo_from_ac(tid_to_ac[tid]);
+		return ctx->ac_to_fifo[tid_to_ac[tid]];
 
 	/* no support for TIDs 8-15 yet */
 	return -EINVAL;
@@ -331,11 +319,6 @@ int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask)
 {
 	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, mask);
-}
-
-static inline int get_queue_from_ac(u16 ac)
-{
-	return ac;
 }
 
 /*
@@ -595,7 +578,20 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
-	txq_id = get_queue_from_ac(skb_get_queue_mapping(skb));
+	/*
+	 * Send this frame after DTIM -- there's a special queue
+	 * reserved for this for contexts that support AP mode.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+		txq_id = ctx->mcast_queue;
+		/*
+		 * The microcode will clear the more data
+		 * bit in the last frame it transmits.
+		 */
+		hdr->frame_control |=
+			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	} else
+		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
 	/* irqs already disabled/saved above when locking priv->lock */
 	spin_lock(&priv->sta_lock);
@@ -984,7 +980,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
 
-	tx_fifo = get_fifo_from_tid(tid);
+	tx_fifo = get_fifo_from_tid(iwl_rxon_ctx_from_vif(vif), tid);
 	if (unlikely(tx_fifo < 0))
 		return tx_fifo;
 
@@ -1045,7 +1041,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	int write_ptr, read_ptr;
 	unsigned long flags;
 
-	tx_fifo_id = get_fifo_from_tid(tid);
+	tx_fifo_id = get_fifo_from_tid(iwl_rxon_ctx_from_vif(vif), tid);
 	if (unlikely(tx_fifo_id < 0))
 		return tx_fifo_id;
 
@@ -1133,7 +1129,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		if ((txq_id  == tid_data->agg.txq_id) &&
 		    (q->read_ptr == q->write_ptr)) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
-			int tx_fifo = get_fifo_from_tid(tid);
+			int tx_fifo = get_fifo_from_tid(ctx, tid);
 			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);
