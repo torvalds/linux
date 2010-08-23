@@ -1389,10 +1389,12 @@ struct bm_extent {
 #endif
 
 /* Sector shift value for the "hash" functions of tl_hash and ee_hash tables.
- * With a value of 6 all IO in one 32K block make it to the same slot of the
+ * With a value of 8 all IO in one 128K block make it to the same slot of the
  * hash table. */
-#define HT_SHIFT 6
+#define HT_SHIFT 8
 #define DRBD_MAX_SEGMENT_SIZE (1U<<(9+HT_SHIFT))
+
+#define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
 
 /* Number of elements in the app_reads_hash */
 #define APP_R_HSIZE 15

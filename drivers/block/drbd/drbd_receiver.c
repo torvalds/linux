@@ -925,6 +925,11 @@ retry:
 
 	drbd_thread_start(&mdev->asender);
 
+	if (mdev->agreed_pro_version < 95 && get_ldev(mdev)) {
+		drbd_setup_queue_param(mdev, DRBD_MAX_SIZE_H80_PACKET);
+		put_ldev(mdev);
+	}
+
 	if (!drbd_send_protocol(mdev))
 		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);

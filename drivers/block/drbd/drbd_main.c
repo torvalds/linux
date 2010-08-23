@@ -2447,7 +2447,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
-	if (req->size <= (1 << 15)) {
+	if (req->size <= DRBD_MAX_SIZE_H80_PACKET) {
 		p.head.h80.magic   = BE_DRBD_MAGIC;
 		p.head.h80.command = cpu_to_be16(P_DATA);
 		p.head.h80.length  =
@@ -2518,7 +2518,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
-	if (e->size <= (1 << 15)) {
+	if (e->size <= DRBD_MAX_SIZE_H80_PACKET) {
 		p.head.h80.magic   = BE_DRBD_MAGIC;
 		p.head.h80.command = cpu_to_be16(cmd);
 		p.head.h80.length  =

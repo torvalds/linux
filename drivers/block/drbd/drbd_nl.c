@@ -1063,7 +1063,9 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	mdev->read_cnt = 0;
 	mdev->writ_cnt = 0;
 
-	drbd_setup_queue_param(mdev, DRBD_MAX_SEGMENT_SIZE);
+	drbd_setup_queue_param(mdev, mdev->state.conn == C_CONNECTED &&
+			       mdev->agreed_pro_version < 95 ?
+			       DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_SEGMENT_SIZE);
 
 	/* If I am currently not R_PRIMARY,
 	 * but meta data primary indicator is set,
