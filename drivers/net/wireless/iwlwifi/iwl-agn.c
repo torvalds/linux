@@ -2805,7 +2805,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_clear_driver_stations(priv);
 
 	/* reset BT coex data */
-	priv->bt_traffic_load = 0;
+	priv->bt_traffic_load = priv->cfg->bt_init_traffic_load;
 	priv->bt_sco_active = false;
 	priv->bt_full_concurrent = false;
 	priv->bt_ci_compliance = 0;

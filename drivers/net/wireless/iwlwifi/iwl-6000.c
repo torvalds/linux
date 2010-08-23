@@ -832,6 +832,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
@@ -871,6 +872,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
@@ -912,6 +914,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
@@ -951,6 +954,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
@@ -992,6 +996,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
@@ -1031,6 +1036,7 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 };
 
 /*

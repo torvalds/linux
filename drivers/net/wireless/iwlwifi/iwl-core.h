@@ -279,6 +279,7 @@ struct iwl_mod_params {
  *	chain noise calibration operation
  * @scan_antennas: available antenna for scan operation
  * @advanced_bt_coexist: support advanced bt coexist
+ * @bt_init_traffic_load: specify initial bt traffic load
  * @need_dc_calib: need to perform init dc calibration
  * @bt_statistics: use BT version of statistics notification
  * @agg_time_limit: maximum number of uSec in aggregation
@@ -353,6 +354,7 @@ struct iwl_cfg {
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	bool advanced_bt_coexist;
+	u8 bt_init_traffic_load;
 	const bool need_dc_calib;
 	const bool bt_statistics;
 	u16 agg_time_limit;
