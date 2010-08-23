@@ -480,6 +480,9 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
+	if (length > sizeof(line))				\
+		return -EINVAL;					\
+								\
 	if (copy_from_user(line, buf, length))			\
 		return -EFAULT;					\
 								\
