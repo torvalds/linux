@@ -124,9 +124,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
 	}
 
-	if (dev->driver->dma_ready && (lock->flags & _DRM_LOCK_READY))
-		dev->driver->dma_ready(dev);
-
 	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))
 	{
 		if (dev->driver->dma_quiescent(dev)) {

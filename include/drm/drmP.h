@@ -699,7 +699,6 @@ struct drm_driver {
 	int (*suspend) (struct drm_device *, pm_message_t state);
 	int (*resume) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
-	void (*dma_ready) (struct drm_device *);
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_ctor) (struct drm_device *dev, int context);
 	int (*context_dtor) (struct drm_device *dev, int context);
