@@ -420,4 +420,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_accept4
 	PTR     compat_sys_recvmmsg
 	PTR     sys_getdents64
+	PTR	sys_fanotify_init		/* 6300 */
+	PTR	sys_fanotify_mark
+	PTR	sys_prlimit64
 	.size	sysn32_call_table,.-sysn32_call_table
