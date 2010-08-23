@@ -242,9 +242,11 @@ static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		bt_cmd.flags = 0;
 	} else {
-		bt_cmd.flags = IWL6000G2B_BT_FLAG_CHANNEL_INHIBITION |
-				IWL6000G2B_BT_FLAG_COEX_MODE_3W <<
+		bt_cmd.flags = IWL6000G2B_BT_FLAG_COEX_MODE_3W <<
 					IWL6000G2B_BT_FLAG_COEX_MODE_SHIFT;
+		if (priv->bt_ch_announce)
+			bt_cmd.flags |= IWL6000G2B_BT_FLAG_CHANNEL_INHIBITION;
+		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", bt_cmd.flags);
 	}
 
 	if (priv->bt_full_concurrent)

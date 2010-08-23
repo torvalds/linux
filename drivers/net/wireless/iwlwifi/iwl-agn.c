@@ -88,6 +88,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("iwl4965");
 
 static int iwlagn_ant_coupling;
+static bool iwlagn_bt_ch_announce = 1;
 
 /**
  * iwl_commit_rxon - commit staging_rxon to hardware
@@ -2606,6 +2607,9 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		return pos;
 	}
 
+	/* enable/disable bt channel announcement */
+	priv->bt_ch_announce = iwlagn_bt_ch_announce;
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) && !full_log)
 		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
@@ -4150,6 +4154,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(iwlagn_ant_coupling > IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
 		true : false;
 
+	/* enable/disable bt channel announcement */
+	priv->bt_ch_announce = iwlagn_bt_ch_announce;
+
 	if (iwl_alloc_traffic_mem(priv))
 		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
 
@@ -4687,3 +4694,7 @@ MODULE_PARM_DESC(ucode_alternative,
 module_param_named(antenna_coupling, iwlagn_ant_coupling, int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (defualt: 0 dB)");
+
+module_param_named(bt_ch_announce, iwlagn_bt_ch_announce, bool, S_IRUGO);
+MODULE_PARM_DESC(bt_ch_announce,
+		 "Enable BT channel announcement mode (default: enable)");

@@ -1368,6 +1368,7 @@ struct iwl_priv {
 
 	/* bt coex */
 	u8 bt_traffic_load, notif_bt_traffic_load;
+	bool bt_ch_announce;
 	bool bt_sco_active;
 	bool bt_full_concurrent;
 	bool bt_ant_couple_ok;
