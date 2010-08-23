@@ -1366,6 +1366,7 @@ struct iwl_priv {
 #endif
 	};
 
+	/* bt coex */
 	u8 bt_traffic_load, notif_bt_traffic_load;
 	bool bt_sco_active;
 	bool bt_full_concurrent;
@@ -1373,6 +1374,10 @@ struct iwl_priv {
 	__le32 kill_ack_mask;
 	__le32 kill_cts_mask;
 	__le16 bt_valid;
+	u16 bt_on_thresh;
+	u16 bt_duration;
+	u16 dynamic_frag_thresh;
+	u16 dynamic_agg_thresh;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
 

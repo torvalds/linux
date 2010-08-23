@@ -4014,6 +4014,17 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	iwl_init_scan_params(priv);
 
+	/* init bt coex */
+	if (priv->cfg->advanced_bt_coexist) {
+		priv->kill_ack_mask = IWL6000G2B_BT_KILL_ACK_MASK_DEFAULT;
+		priv->kill_cts_mask = IWL6000G2B_BT_KILL_CTS_MASK_DEFAULT;
+		priv->bt_valid = IWL6000G2B_BT_ALL_VALID_MSK;
+		priv->bt_on_thresh = BT_ON_THRESHOLD_DEF;
+		priv->bt_duration = BT_DURATION_LIMIT_DEF;
+		priv->dynamic_frag_thresh = BT_FRAG_THRESHOLD_DEF;
+		priv->dynamic_agg_thresh = BT_AGG_THRESHOLD_DEF;
+	}
+
 	/* Set the tx_power_user_lmt to the lowest power level
 	 * this value will get overwritten by channel max power avg
 	 * from eeprom */

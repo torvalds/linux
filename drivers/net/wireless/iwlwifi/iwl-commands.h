@@ -2379,6 +2379,22 @@ struct iwl_link_quality_cmd {
 #define BT_MAX_KILL_DEF (0x5)
 #define BT_MAX_KILL_MAX (0xFF)
 
+#define BT_DURATION_LIMIT_DEF	625
+#define BT_DURATION_LIMIT_MAX	1250
+#define BT_DURATION_LIMIT_MIN	625
+
+#define BT_ON_THRESHOLD_DEF	4
+#define BT_ON_THRESHOLD_MAX	1000
+#define BT_ON_THRESHOLD_MIN	1
+
+#define BT_FRAG_THRESHOLD_DEF	0
+#define BT_FRAG_THRESHOLD_MAX	0
+#define BT_FRAG_THRESHOLD_MIN	0
+
+#define BT_AGG_THRESHOLD_DEF	0
+#define BT_AGG_THRESHOLD_MAX	0
+#define BT_AGG_THRESHOLD_MIN	0
+
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
  *
