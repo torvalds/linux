@@ -1125,9 +1125,12 @@ struct iwl_rxon_context {
 
 	struct iwl_rxon_time_cmd timing;
 
+	struct iwl_qos_info qos_data;
+
 	u8 bcast_sta_id;
 
 	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
+	u8 qos_cmd;
 };
 
 struct iwl_priv {
@@ -1417,8 +1420,6 @@ struct iwl_priv {
 	struct iwl_hw_params hw_params;
 
 	u32 inta_mask;
-
-	struct iwl_qos_info qos_data;
 
 	struct workqueue_struct *workqueue;
 

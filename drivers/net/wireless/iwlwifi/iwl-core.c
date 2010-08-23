@@ -191,27 +191,27 @@ EXPORT_SYMBOL(iwl_alloc_all);
 /*
  * QoS  support
 */
-static void iwl_update_qos(struct iwl_priv *priv)
+static void iwl_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	priv->qos_data.def_qos_parm.qos_flags = 0;
+	ctx->qos_data.def_qos_parm.qos_flags = 0;
 
-	if (priv->qos_data.qos_active)
-		priv->qos_data.def_qos_parm.qos_flags |=
+	if (ctx->qos_data.qos_active)
+		ctx->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
 
 	if (priv->current_ht_config.is_ht)
-		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
+		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
 	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-		      priv->qos_data.qos_active,
-		      priv->qos_data.def_qos_parm.qos_flags);
+		      ctx->qos_data.qos_active,
+		      ctx->qos_data.def_qos_parm.qos_flags);
 
-	iwl_send_cmd_pdu_async(priv, REPLY_QOS_PARAM,
+	iwl_send_cmd_pdu_async(priv, ctx->qos_cmd,
 			       sizeof(struct iwl_qosparam_cmd),
-			       &priv->qos_data.def_qos_parm, NULL);
+			       &ctx->qos_data.def_qos_parm, NULL);
 }
 
 #define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
@@ -1584,6 +1584,7 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_rxon_context *ctx;
 	unsigned long flags;
 	int q;
 
@@ -1603,13 +1604,21 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	priv->qos_data.def_qos_parm.ac[q].cw_min = cpu_to_le16(params->cw_min);
-	priv->qos_data.def_qos_parm.ac[q].cw_max = cpu_to_le16(params->cw_max);
-	priv->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
-	priv->qos_data.def_qos_parm.ac[q].edca_txop =
-			cpu_to_le16((params->txop * 32));
+	/*
+	 * MULTI-FIXME
+	 * This may need to be done per interface in nl80211/cfg80211/mac80211.
+	 */
+	for_each_context(priv, ctx) {
+		ctx->qos_data.def_qos_parm.ac[q].cw_min =
+			cpu_to_le16(params->cw_min);
+		ctx->qos_data.def_qos_parm.ac[q].cw_max =
+			cpu_to_le16(params->cw_max);
+		ctx->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
+		ctx->qos_data.def_qos_parm.ac[q].edca_txop =
+				cpu_to_le16((params->txop * 32));
 
-	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
+		ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
+	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1751,8 +1760,8 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->lock, flags);
-		priv->qos_data.qos_active = bss_conf->qos;
-		iwl_update_qos(priv);
+		ctx->qos_data.qos_active = bss_conf->qos;
+		iwl_update_qos(priv, ctx);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
