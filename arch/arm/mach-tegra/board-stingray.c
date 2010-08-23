@@ -842,7 +842,7 @@ static struct tegra_suspend_platform_data stingray_suspend = {
         .corereq_high = true,
 	.sysclkreq_high = true,
 	.dram_suspend = true,
-	.core_off = false,
+	.core_off = true,
 };
 
 static void *das_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
