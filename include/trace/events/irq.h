@@ -5,7 +5,9 @@
 #define _TRACE_IRQ_H
 
 #include <linux/tracepoint.h>
-#include <linux/interrupt.h>
+
+struct irqaction;
+struct softirq_action;
 
 #define softirq_name(sirq) { sirq##_SOFTIRQ, #sirq }
 #define show_softirq_name(val)				\
@@ -93,7 +95,10 @@ DECLARE_EVENT_CLASS(softirq,
 	),
 
 	TP_fast_assign(
-		__entry->vec = (int)(h - vec);
+		if (vec)
+			__entry->vec = (int)(h - vec);
+		else
+			__entry->vec = (int)(long)h;
 	),
 
 	TP_printk("vec=%d [action=%s]", __entry->vec,
@@ -130,6 +135,23 @@ DEFINE_EVENT(softirq, softirq_entry,
  * latency.
  */
 DEFINE_EVENT(softirq, softirq_exit,
+
+	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+
+	TP_ARGS(h, vec)
+);
+
+/**
+ * softirq_raise - called immediately when a softirq is raised
+ * @h: pointer to struct softirq_action
+ * @vec: pointer to first struct softirq_action in softirq_vec array
+ *
+ * The @h parameter contains a pointer to the softirq vector number which is
+ * raised. @vec is NULL and it means @h includes vector number not
+ * softirq_action. When used in combination with the softirq_entry tracepoint
+ * we can determine the softirq raise latency.
+ */
+DEFINE_EVENT(softirq, softirq_raise,
 
 	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
 
