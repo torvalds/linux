@@ -365,7 +365,6 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 	e->size = data_size;
 	e->flags = 0;
 	e->sector = sector;
-	e->sector = sector;
 	e->block_id = id;
 
 	return e;
