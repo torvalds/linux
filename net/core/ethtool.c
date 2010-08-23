@@ -1423,6 +1423,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 
 	/* Allow some commands to be done by anyone */
 	switch (ethcmd) {
+	case ETHTOOL_GSET:
 	case ETHTOOL_GDRVINFO:
 	case ETHTOOL_GMSGLVL:
 	case ETHTOOL_GCOALESCE:
