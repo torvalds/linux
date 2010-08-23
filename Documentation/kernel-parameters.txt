@@ -2631,6 +2631,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			all -- unplug all emulated devices (NICs and IDE disks)
 			ignore -- continue loading the Xen platform PCI driver even
 				if the version check failed
+			never -- do not unplug even if version check succeeds
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:

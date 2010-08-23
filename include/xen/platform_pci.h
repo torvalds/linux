@@ -21,6 +21,7 @@
 #define XEN_UNPLUG_AUX_IDE_DISKS 4
 #define XEN_UNPLUG_ALL 7
 #define XEN_UNPLUG_IGNORE 8
+#define XEN_UNPLUG_NEVER 16
 
 static inline int xen_must_unplug_nics(void) {
 #if (defined(CONFIG_XEN_NETDEV_FRONTEND) || \

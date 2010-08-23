@@ -72,6 +72,9 @@ void __init xen_unplug_emulated_devices(void)
 {
 	int r;
 
+	/* user explicitly requested no unplug */
+	if (xen_emul_unplug & XEN_UNPLUG_NEVER)
+		return;
 	/* check the version of the xen platform PCI device */
 	r = check_platform_magic();
 	/* If the version matches enable the Xen platform PCI driver.
@@ -127,6 +130,8 @@ static int __init parse_xen_emul_unplug(char *arg)
 			xen_emul_unplug |= XEN_UNPLUG_ALL_NICS;
 		else if (!strncmp(p, "ignore", l))
 			xen_emul_unplug |= XEN_UNPLUG_IGNORE;
+		else if (!strncmp(p, "never", l))
+			xen_emul_unplug |= XEN_UNPLUG_NEVER;
 		else
 			printk(KERN_WARNING "unrecognised option '%s' "
 				 "in parameter 'xen_emul_unplug'\n", p);
