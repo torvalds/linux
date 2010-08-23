@@ -1037,12 +1037,6 @@ struct drm_device {
 	struct drm_minor *control;		/**< Control node for card */
 	struct drm_minor *primary;		/**< render type primary screen head */
 
-	/** \name Drawable information */
-	/*@{ */
-	spinlock_t drw_lock;
-	struct idr drw_idr;
-	/*@} */
-
         struct drm_mode_config mode_config;	/**< Current mode config */
 
 	/** \name GEM information */
@@ -1228,15 +1222,6 @@ extern int drm_setsareactx(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 extern int drm_getsareactx(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
-
-				/* Drawable IOCTL support (drm_drawable.h) */
-extern int drm_adddraw(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-extern int drm_rmdraw(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-extern int drm_update_drawable_info(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-extern void drm_drawable_free_all(struct drm_device *dev);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct drm_device *dev, void *data,
