@@ -54,6 +54,7 @@ struct stmmac_priv {
 	unsigned int dma_buf_sz;
 	struct device *device;
 	struct mac_device_info *hw;
+	void __iomem *ioaddr;
 
 	struct stmmac_extra_stats xstats;
 	struct napi_struct napi;
@@ -65,7 +66,7 @@ struct stmmac_priv {
 	int phy_mask;
 	int (*phy_reset) (void *priv);
 	void (*fix_mac_speed) (void *priv, unsigned int speed);
-	void (*bus_setup)(unsigned long ioaddr);
+	void (*bus_setup)(void __iomem *ioaddr);
 	void *bsp_priv;
 
 	int phy_irq;

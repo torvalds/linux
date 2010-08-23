@@ -177,21 +177,21 @@ void stmmac_ethtool_gregs(struct net_device *dev,
 	if (!priv->is_gmac) {
 		/* MAC registers */
 		for (i = 0; i < 12; i++)
-			reg_space[i] = readl(dev->base_addr + (i * 4));
+			reg_space[i] = readl(priv->ioaddr + (i * 4));
 		/* DMA registers */
 		for (i = 0; i < 9; i++)
 			reg_space[i + 12] =
-			    readl(dev->base_addr + (DMA_BUS_MODE + (i * 4)));
-		reg_space[22] = readl(dev->base_addr + DMA_CUR_TX_BUF_ADDR);
-		reg_space[23] = readl(dev->base_addr + DMA_CUR_RX_BUF_ADDR);
+			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
+		reg_space[22] = readl(priv->ioaddr + DMA_CUR_TX_BUF_ADDR);
+		reg_space[23] = readl(priv->ioaddr + DMA_CUR_RX_BUF_ADDR);
 	} else {
 		/* MAC registers */
 		for (i = 0; i < 55; i++)
-			reg_space[i] = readl(dev->base_addr + (i * 4));
+			reg_space[i] = readl(priv->ioaddr + (i * 4));
 		/* DMA registers */
 		for (i = 0; i < 22; i++)
 			reg_space[i + 55] =
-			    readl(dev->base_addr + (DMA_BUS_MODE + (i * 4)));
+			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
 	}
 }
 
@@ -263,11 +263,9 @@ stmmac_set_pauseparam(struct net_device *netdev,
 			cmd.phy_address = phy->addr;
 			ret = phy_ethtool_sset(phy, &cmd);
 		}
-	} else {
-		unsigned long ioaddr = netdev->base_addr;
-		priv->hw->mac->flow_ctrl(ioaddr, phy->duplex,
+	} else
+		priv->hw->mac->flow_ctrl(priv->ioaddr, phy->duplex,
 					 priv->flow_ctrl, priv->pause);
-	}
 	spin_unlock(&priv->lock);
 	return ret;
 }
@@ -276,12 +274,11 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	unsigned long ioaddr = dev->base_addr;
 	int i;
 
 	/* Update HW stats if supported */
 	priv->hw->dma->dma_diagnostic_fr(&dev->stats, (void *) &priv->xstats,
-					 ioaddr);
+					 priv->ioaddr);
 
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;

@@ -31,7 +31,7 @@
 #include <linux/crc32.h>
 #include "dwmac100.h"
 
-static void dwmac100_core_init(unsigned long ioaddr)
+static void dwmac100_core_init(void __iomem *ioaddr)
 {
 	u32 value = readl(ioaddr + MAC_CONTROL);
 
@@ -42,12 +42,12 @@ static void dwmac100_core_init(unsigned long ioaddr)
 #endif
 }
 
-static void dwmac100_dump_mac_regs(unsigned long ioaddr)
+static void dwmac100_dump_mac_regs(void __iomem *ioaddr)
 {
 	pr_info("\t----------------------------------------------\n"
 		"\t  DWMAC 100 CSR (base addr = 0x%8x)\n"
 		"\t----------------------------------------------\n",
-		(unsigned int)ioaddr);
+		(unsigned int) ioaddr);
 	pr_info("\tcontrol reg (offset 0x%x): 0x%08x\n", MAC_CONTROL,
 		readl(ioaddr + MAC_CONTROL));
 	pr_info("\taddr HI (offset 0x%x): 0x%08x\n ", MAC_ADDR_HIGH,
@@ -77,18 +77,18 @@ static void dwmac100_dump_mac_regs(unsigned long ioaddr)
 		MMC_LOW_INTR_MASK, readl(ioaddr + MMC_LOW_INTR_MASK));
 }
 
-static void dwmac100_irq_status(unsigned long ioaddr)
+static void dwmac100_irq_status(void __iomem *ioaddr)
 {
 	return;
 }
 
-static void dwmac100_set_umac_addr(unsigned long ioaddr, unsigned char *addr,
+static void dwmac100_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 				   unsigned int reg_n)
 {
 	stmmac_set_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
 }
 
-static void dwmac100_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
+static void dwmac100_get_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 				   unsigned int reg_n)
 {
 	stmmac_get_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
@@ -96,7 +96,7 @@ static void dwmac100_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
 
 static void dwmac100_set_filter(struct net_device *dev)
 {
-	unsigned long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = (void __iomem *) dev->base_addr;
 	u32 value = readl(ioaddr + MAC_CONTROL);
 
 	if (dev->flags & IFF_PROMISC) {
@@ -145,7 +145,7 @@ static void dwmac100_set_filter(struct net_device *dev)
 	    readl(ioaddr + MAC_HASH_HIGH), readl(ioaddr + MAC_HASH_LOW));
 }
 
-static void dwmac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
+static void dwmac100_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
 			       unsigned int fc, unsigned int pause_time)
 {
 	unsigned int flow = MAC_FLOW_CTRL_ENABLE;
@@ -158,7 +158,7 @@ static void dwmac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 /* No PMT module supported for this Ethernet Controller.
  * Tested on ST platforms only.
  */
-static void dwmac100_pmt(unsigned long ioaddr, unsigned long mode)
+static void dwmac100_pmt(void __iomem *ioaddr, unsigned long mode)
 {
 	return;
 }
@@ -174,7 +174,7 @@ struct stmmac_ops dwmac100_ops = {
 	.get_umac_addr = dwmac100_get_umac_addr,
 };
 
-struct mac_device_info *dwmac100_setup(unsigned long ioaddr)
+struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
 {
 	struct mac_device_info *mac;
 
