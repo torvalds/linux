@@ -139,6 +139,14 @@ int kdb_process_cpu(const struct task_struct *p)
 
 /* kdb access to register set for stack dumping */
 extern struct pt_regs *kdb_current_regs;
+#ifdef CONFIG_KALLSYMS
+extern const char *kdb_walk_kallsyms(loff_t *pos);
+#else /* ! CONFIG_KALLSYMS */
+static inline const char *kdb_walk_kallsyms(loff_t *pos)
+{
+	return NULL;
+}
+#endif /* ! CONFIG_KALLSYMS */
 
 /* Dynamic kdb shell command registration */
 extern int kdb_register(char *, kdb_func_t, char *, char *, short);

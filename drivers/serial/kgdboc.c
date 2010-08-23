@@ -243,7 +243,7 @@ static struct kgdb_io kgdboc_io_ops = {
 
 #ifdef CONFIG_KGDB_SERIAL_CONSOLE
 /* This is only available if kgdboc is a built in for early debugging */
-int __init kgdboc_early_init(char *opt)
+static int __init kgdboc_early_init(char *opt)
 {
 	/* save the first character of the config string because the
 	 * init routine can destroy it.
