@@ -1114,6 +1114,7 @@ enum iwl_rxon_context_id {
 };
 
 struct iwl_rxon_context {
+	struct ieee80211_vif *vif;
 	enum iwl_rxon_context_id ctxid;
 	/*
 	 * We declare this const so it can only be
@@ -1321,7 +1322,6 @@ struct iwl_priv {
 
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
-	struct ieee80211_vif *vif;
 
 	union {
 #if defined(CONFIG_IWL3945) || defined(CONFIG_IWL3945_MODULE)

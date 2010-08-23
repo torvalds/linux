@@ -1462,7 +1462,7 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 	u32 tsf_low;
 	u8 switch_count;
 	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
-	struct ieee80211_vif *vif = priv->vif;
+	struct ieee80211_vif *vif = ctx->vif;
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
 	is_ht40 = is_ht40_channel(ctx->staging.flags);

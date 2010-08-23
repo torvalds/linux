@@ -1720,6 +1720,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, bt_traffic_change_work);
+	struct iwl_rxon_context *ctx;
 	int smps_request = -1;
 
 	IWL_DEBUG_INFO(priv, "BT traffic load changes: %d\n",
@@ -1747,9 +1748,12 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	if (priv->cfg->ops->lib->update_chain_flags)
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
-	if (smps_request != -1 &&
-	    priv->vif && priv->vif->type == NL80211_IFTYPE_STATION)
-		ieee80211_request_smps(priv->vif, smps_request);
+	if (smps_request != -1) {
+		for_each_context(priv, ctx) {
+			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION)
+				ieee80211_request_smps(ctx->vif, smps_request);
+		}
+	}
 
 	mutex_unlock(&priv->mutex);
 }

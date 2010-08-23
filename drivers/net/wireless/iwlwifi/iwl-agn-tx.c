@@ -1120,6 +1120,9 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	struct iwl_queue *q = &priv->txq[txq_id].q;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+	struct iwl_rxon_context *ctx;
+
+	ctx = &priv->contexts[priv->stations[sta_id].ctxid];
 
 	lockdep_assert_held(&priv->sta_lock);
 
@@ -1135,7 +1138,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
-			ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, addr, tid);
+			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1143,7 +1146,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		if (tid_data->tfds_in_queue == 0) {
 			IWL_DEBUG_HT(priv, "HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
-			ieee80211_start_tx_ba_cb_irqsafe(priv->vif, addr, tid);
+			ieee80211_start_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
 		}
 		break;
 	}
@@ -1151,14 +1154,14 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	return 0;
 }
 
-static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
+static void iwlagn_tx_status(struct iwl_priv *priv, struct iwl_tx_info *tx_info)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx_info->skb->data;
 	struct ieee80211_sta *sta;
 	struct iwl_station_priv *sta_priv;
 
 	rcu_read_lock();
-	sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+	sta = ieee80211_find_sta(tx_info->ctx->vif, hdr->addr1);
 	if (sta) {
 		sta_priv = (void *)sta->drv_priv;
 		/* avoid atomic ops if this isn't a client */
@@ -1168,7 +1171,7 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 	rcu_read_unlock();
 
-	ieee80211_tx_status_irqsafe(priv->hw, skb);
+	ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb);
 }
 
 int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
@@ -1191,7 +1194,7 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		iwlagn_tx_status(priv, tx_info->skb);
+		iwlagn_tx_status(priv, tx_info);
 
 		hdr = (struct ieee80211_hdr *)tx_info->skb->data;
 		if (hdr && ieee80211_is_data_qos(hdr->frame_control))

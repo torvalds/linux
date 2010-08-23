@@ -1133,11 +1133,17 @@ EXPORT_SYMBOL(iwl_set_rate);
 
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 {
+	/*
+	 * MULTI-FIXME
+	 * See iwl_mac_channel_switch.
+	 */
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (priv->switch_rxon.switch_in_progress) {
-		ieee80211_chswitch_done(priv->vif, is_success);
+		ieee80211_chswitch_done(ctx->vif, is_success);
 		mutex_lock(&priv->mutex);
 		priv->switch_rxon.switch_in_progress = false;
 		mutex_unlock(&priv->mutex);
@@ -1149,9 +1155,11 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
-#if !TODO
+	/*
+	 * MULTI-FIXME
+	 * See iwl_mac_channel_switch.
+	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-#endif
 	struct iwl_rxon_cmd *rxon = (void *)&ctx->active;
 
 	if (priv->switch_rxon.switch_in_progress) {
@@ -1735,7 +1743,9 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	priv->cfg->ops->lib->post_associate(priv, priv->vif);
+#warning "use beacon context?"
+	priv->cfg->ops->lib->post_associate(
+			priv, priv->contexts[IWL_RXON_CTX_BSS].vif);
 
 	return 0;
 }
@@ -1927,6 +1937,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	struct iwl_rxon_context *ctx;
 	int err = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
@@ -1934,20 +1945,23 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_lock(&priv->mutex);
 
-	vif_priv->ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	/* For now always use this context. */
+	ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
+	vif_priv->ctx = ctx;
 
 	if (WARN_ON(!iwl_is_ready_rf(priv))) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (priv->vif) {
+	if (ctx->vif) {
 		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	priv->vif = vif;
+	ctx->vif = vif;
 	priv->iw_mode = vif->type;
 
 	err = iwl_set_mode(priv, vif);
@@ -1967,7 +1981,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	goto out;
 
  out_err:
-	priv->vif = NULL;
+	ctx->vif = NULL;
 	priv->iw_mode = NL80211_IFTYPE_STATION;
  out:
 	mutex_unlock(&priv->mutex);
@@ -1993,14 +2007,11 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv, ctx);
 	}
-	if (priv->vif == vif) {
-		priv->vif = NULL;
-		if (priv->scan_vif == vif) {
-			scan_completed = true;
-			priv->scan_vif = NULL;
-			priv->scan_request = NULL;
-		}
-		memset(priv->bssid, 0, ETH_ALEN);
+
+	if (priv->scan_vif == vif) {
+		scan_completed = true;
+		priv->scan_vif = NULL;
+		priv->scan_request = NULL;
 	}
 
 	/*
@@ -2013,6 +2024,9 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_ADHOC)
 		priv->bt_traffic_load = priv->notif_bt_traffic_load;
 
+	WARN_ON(ctx->vif != vif);
+	ctx->vif = NULL;
+	memset(priv->bssid, 0, ETH_ALEN);
 	mutex_unlock(&priv->mutex);
 
 	if (scan_completed)
@@ -2117,7 +2131,7 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 			iwl_set_rxon_ht(priv, ht_conf);
 
 			iwl_set_flags_for_band(priv, ctx, channel->band,
-					       priv->vif);
+					       ctx->vif);
 		}
 
 		spin_unlock_irqrestore(&priv->lock, flags);

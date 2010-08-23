@@ -802,7 +802,8 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 	struct sk_buff *beacon;
 
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
+	beacon = ieee80211_beacon_get(priv->hw,
+			priv->contexts[IWL_RXON_CTX_BSS].vif);
 
 	if (!beacon) {
 		IWL_ERR(priv, "update beacon failed\n");
@@ -3048,8 +3049,10 @@ static void iwl3945_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
+		struct iwl_rxon_context *ctx;
 		mutex_lock(&priv->mutex);
-		priv->vif = NULL;
+		for_each_context(priv, ctx)
+			ctx->vif = NULL;
 		priv->is_open = 0;
 		mutex_unlock(&priv->mutex);
 		iwl3945_down(priv);

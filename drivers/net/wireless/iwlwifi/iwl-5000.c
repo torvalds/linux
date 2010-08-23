@@ -287,7 +287,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	u32 tsf_low;
 	u8 switch_count;
 	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
-	struct ieee80211_vif *vif = priv->vif;
+	struct ieee80211_vif *vif = ctx->vif;
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = sizeof(cmd),

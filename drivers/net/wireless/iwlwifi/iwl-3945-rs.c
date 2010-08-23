@@ -932,7 +932,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta = ieee80211_find_sta(priv->vif,
+	sta = ieee80211_find_sta(priv->contexts[IWL_RXON_CTX_BSS].vif,
 				 priv->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		IWL_DEBUG_RATE(priv, "Unable to find station to initialize rate scaling.\n");

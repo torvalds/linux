@@ -603,7 +603,9 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	struct sk_buff *beacon;
 
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
+#warning "introduce and use beacon context"
+	beacon = ieee80211_beacon_get(priv->hw,
+			priv->contexts[IWL_RXON_CTX_BSS].vif);
 
 	if (!beacon) {
 		IWL_ERR(priv, "update beacon failed\n");
@@ -3154,13 +3156,15 @@ static void iwl_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
+		struct iwl_rxon_context *ctx;
 		bool bt_sco, bt_full_concurrent;
 		u8 bt_ci_compliance;
 		u8 bt_load;
 		u8 bt_status;
 
 		mutex_lock(&priv->mutex);
-		priv->vif = NULL;
+		for_each_context(priv, ctx)
+			ctx->vif = NULL;
 		priv->is_open = 0;
 
 		/*
@@ -3838,7 +3842,7 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 			iwl_set_rxon_channel(priv, channel, ctx);
 			iwl_set_rxon_ht(priv, ht_conf);
 			iwl_set_flags_for_band(priv, ctx, channel->band,
-					       priv->vif);
+					       ctx->vif);
 			spin_unlock_irqrestore(&priv->lock, flags);
 
 			iwl_set_rate(priv);
@@ -3855,7 +3859,7 @@ out:
 	mutex_unlock(&priv->mutex);
 out_exit:
 	if (!priv->switch_rxon.switch_in_progress)
-		ieee80211_chswitch_done(priv->vif, false);
+		ieee80211_chswitch_done(ctx->vif, false);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
