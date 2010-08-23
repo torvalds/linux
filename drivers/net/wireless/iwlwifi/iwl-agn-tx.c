@@ -1036,7 +1036,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid)
 {
-	int tx_fifo_id, txq_id, sta_id, ssn = -1;
+	int tx_fifo_id, txq_id, sta_id, ssn;
 	struct iwl_tid_data *tid_data;
 	int write_ptr, read_ptr;
 	unsigned long flags;
@@ -1054,21 +1054,26 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
-	if (priv->stations[sta_id].tid[tid].agg.state ==
-				IWL_EMPTYING_HW_QUEUE_ADDBA) {
-		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
-		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
-		return 0;
-	}
-
-	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
-		IWL_WARN(priv, "Stopping AGG while state not ON or starting\n");
-
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
 	txq_id = tid_data->agg.txq_id;
+
+	switch (priv->stations[sta_id].tid[tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/*
+		 * This can happen if the peer stops aggregation
+		 * again before we've had a chance to drain the
+		 * queue we selected previously, i.e. before the
+		 * session was really started completely.
+		 */
+		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
+		goto turn_off;
+	case IWL_AGG_ON:
+		break;
+	default:
+		IWL_WARN(priv, "Stopping AGG while state not ON or starting\n");
+	}
+
 	write_ptr = priv->txq[txq_id].q.write_ptr;
 	read_ptr = priv->txq[txq_id].q.read_ptr;
 
@@ -1082,6 +1087,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	}
 
 	IWL_DEBUG_HT(priv, "HW queue is empty\n");
+ turn_off:
 	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 
 	/* do not restore/save irqs */
