@@ -236,7 +236,7 @@ static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	u16 rate;
 
 	if (is_ap)
-		sta_id = IWL_AP_ID;
+		sta_id = ctx->ap_sta_id;
 	else if (is_broadcast_ether_addr(addr))
 		sta_id = ctx->bcast_sta_id;
 	else
@@ -810,6 +810,7 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_remove_default_wep_key);
 
 int iwl_set_default_wep_key(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
 			    struct ieee80211_key_conf *keyconf)
 {
 	int ret;
@@ -824,7 +825,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
-	priv->stations[IWL_AP_ID].keyinfo.cipher = keyconf->cipher;
+	priv->stations[ctx->ap_sta_id].keyinfo.cipher = keyconf->cipher;
 
 	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,

@@ -1129,7 +1129,7 @@ struct iwl_rxon_context {
 
 	struct iwl_qos_info qos_data;
 
-	u8 bcast_sta_id;
+	u8 bcast_sta_id, ap_sta_id;
 
 	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
 	u8 qos_cmd;
