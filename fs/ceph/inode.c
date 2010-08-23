@@ -677,6 +677,7 @@ static int fill_inode(struct inode *inode,
 		if (ci->i_files == 0 && ci->i_subdirs == 0 &&
 		    ceph_snap(inode) == CEPH_NOSNAP &&
 		    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
+		    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
 			dout(" marking %p complete (empty)\n", inode);
 			ci->i_ceph_flags |= CEPH_I_COMPLETE;
