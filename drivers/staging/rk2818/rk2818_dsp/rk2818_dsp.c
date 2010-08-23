@@ -50,6 +50,8 @@
 	#define dspprintk(msg...)
 #endif
 
+#define CONFIG_CHIP_RK2818 1 //the 32 kernel for rk2818
+
 #define USE_PLL_REG		0		//是否直接控制PLL寄存器
 #define ENTER_SLOW		0		//是否不使用DSP的时候立即进入SLOW MODE(DSP PLL BYPASS)
 #define FIXED_REQ		560		//使用固定频率值, 0为禁用
@@ -168,6 +170,8 @@ static int rcv_quit = 0;
 
 
 void dsp_powerctl(int ctl, int arg);
+
+static int video_type = 0;//h264:1 ,rv40:2 , other: 0.
 
 //need reset reg value when finishing the video play
 static void resetRegValueForVideo()
