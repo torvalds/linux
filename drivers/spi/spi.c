@@ -774,7 +774,7 @@ int spi_sync(struct spi_device *spi, struct spi_message *message)
 EXPORT_SYMBOL_GPL(spi_sync);
 
 /* portable code must never pass more than 32 bytes */
-#define	SPI_BUFSIZ	max(32,SMP_CACHE_BYTES)
+#define	SPI_BUFSIZ	max(1028,SMP_CACHE_BYTES)
 
 static u8	*buf;
 
