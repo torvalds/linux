@@ -80,6 +80,24 @@ o	A CPU looping with bottom halves disabled.  This condition can
 o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the kernel
 	without invoking schedule().
 
+o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
+	happen to preempt a low-priority task in the middle of an RCU
+	read-side critical section.   This is especially damaging if
+	that low-priority task is not permitted to run on any other CPU,
+	in which case the next RCU grace period can never complete, which
+	will eventually cause the system to run out of memory and hang.
+	While the system is in the process of running itself out of
+	memory, you might see stall-warning messages.
+
+o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
+	is running at a higher priority than the RCU softirq threads.
+	This will prevent RCU callbacks from ever being invoked,
+	and in a CONFIG_TREE_PREEMPT_RCU kernel will further prevent
+	RCU grace periods from ever completing.  Either way, the
+	system will eventually run out of memory and hang.  In the
+	CONFIG_TREE_PREEMPT_RCU case, you might see stall-warning
+	messages.
+
 o	A bug in the RCU implementation.
 
 o	A hardware failure.  This is quite unlikely, but has occurred
