@@ -29,6 +29,7 @@
 #include <linux/igmp.h>
 #include <net/tcp.h>
 #include <net/udp.h>
+#include <net/ip6_checksum.h>
 
 #include <net/act_api.h>
 
