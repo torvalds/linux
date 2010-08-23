@@ -289,7 +289,7 @@ static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	memcpy(station->sta.sta.addr, addr, ETH_ALEN);
 	station->sta.mode = 0;
 	station->sta.sta.sta_id = sta_id;
-	station->sta.station_flags = 0;
+	station->sta.station_flags = ctx->station_flags;
 	station->ctxid = ctx->ctxid;
 
 	/*

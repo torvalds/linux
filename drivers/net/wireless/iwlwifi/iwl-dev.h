@@ -1137,6 +1137,8 @@ struct iwl_rxon_context {
 
 	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
 	u8 key_mapping_keys;
+
+	__le32 station_flags;
 };
 
 struct iwl_priv {
