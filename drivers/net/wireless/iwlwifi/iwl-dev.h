@@ -144,6 +144,7 @@ struct iwl_queue {
 /* One for each TFD */
 struct iwl_tx_info {
 	struct sk_buff *skb;
+	struct iwl_rxon_context *ctx;
 };
 
 /**
