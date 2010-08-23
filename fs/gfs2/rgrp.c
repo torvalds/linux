@@ -1496,10 +1496,18 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	struct gfs2_alloc *al = ip->i_alloc;
-	struct gfs2_rgrpd *rgd = al->al_rgd;
+	struct gfs2_rgrpd *rgd;
 	u32 goal, blk;
 	u64 block;
 	int error;
+
+	/* Only happens if there is a bug in gfs2, return something distinctive
+	 * to ensure that it is noticed.
+	 */
+	if (al == NULL)
+		return -ECANCELED;
+
+	rgd = al->al_rgd;
 
 	if (rgrp_contains_block(rgd, ip->i_goal))
 		goal = ip->i_goal - rgd->rd_data0;
