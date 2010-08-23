@@ -178,6 +178,7 @@ enum {
 	REPLY_BT_COEX_PRIO_TABLE = 0xcc,
 	REPLY_BT_COEX_PROT_ENV = 0xcd,
 	REPLY_BT_COEX_PROFILE_NOTIF = 0xce,
+	REPLY_BT_COEX_SCO = 0xcf,
 
 	REPLY_MAX = 0xff
 };
@@ -2454,6 +2455,12 @@ struct iwl6000g2b_bt_cmd {
 	__le16 valid;
 	u8 prio_boost;
 	u8 reserved[3];
+};
+
+#define IWL6000G2B_BT_SCO_ACTIVE	cpu_to_le32(BIT(0))
+
+struct iwl6000g2b_bt_sco_cmd {
+	__le32 flags;
 };
 
 /******************************************************************************

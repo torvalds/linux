@@ -1362,6 +1362,10 @@ struct iwl_priv {
 #endif
 	};
 
+	u8 bt_traffic_load;
+	bool bt_sco_active;
+	struct work_struct bt_traffic_change_work;
+
 	struct iwl_hw_params hw_params;
 
 	u32 inta_mask;

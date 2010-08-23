@@ -377,6 +377,90 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	return iwl_send_cmd_sync(priv, &hcmd);
 }
 
+static void iwl6000g2b_bt_traffic_change_work(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, bt_traffic_change_work);
+	int smps_request = -1;
+
+	switch (priv->bt_traffic_load) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		smps_request = IEEE80211_SMPS_AUTOMATIC;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		smps_request = IEEE80211_SMPS_DYNAMIC;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		smps_request = IEEE80211_SMPS_STATIC;
+		break;
+	default:
+		IWL_ERR(priv, "Invalid BT traffic load: %d\n",
+			priv->bt_traffic_load);
+		break;
+	}
+
+	mutex_lock(&priv->mutex);
+
+	if (smps_request != -1 &&
+	    priv->vif && priv->vif->type == NL80211_IFTYPE_STATION)
+		ieee80211_request_smps(priv->vif, smps_request);
+
+	mutex_unlock(&priv->mutex);
+}
+
+static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
+					     struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
+	struct iwl6000g2b_bt_sco_cmd sco_cmd = { .flags = 0 };
+
+	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
+	IWL_DEBUG_NOTIF(priv, "    status: %d\n", coex->bt_status);
+	IWL_DEBUG_NOTIF(priv, "    traffic load: %d\n", coex->bt_traffic_load);
+	IWL_DEBUG_NOTIF(priv, "    CI compliance: %d\n", coex->bt_ci_compliance);
+	IWL_DEBUG_NOTIF(priv, "    UART msg: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x:"
+			      "%.2x:%.2x\n",
+			coex->uart_msg[0], coex->uart_msg[1], coex->uart_msg[2],
+			coex->uart_msg[3], coex->uart_msg[4], coex->uart_msg[5],
+			coex->uart_msg[6], coex->uart_msg[7]);
+
+	if (coex->bt_traffic_load != priv->bt_traffic_load) {
+		priv->bt_traffic_load = coex->bt_traffic_load;
+
+		queue_work(priv->workqueue, &priv->bt_traffic_change_work);
+	}
+
+	/* FIXME: add defines for this check */
+	priv->bt_sco_active = coex->uart_msg[3] & 1;
+	if (priv->bt_sco_active)
+		sco_cmd.flags |= IWL6000G2B_BT_SCO_ACTIVE;
+	iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
+			       sizeof(sco_cmd), &sco_cmd, NULL);
+}
+
+void iwl6000g2b_rx_handler_setup(struct iwl_priv *priv)
+{
+	iwlagn_rx_handler_setup(priv);
+	priv->rx_handlers[REPLY_BT_COEX_PROFILE_NOTIF] =
+		iwl6000g2b_bt_coex_profile_notif;
+}
+
+static void iwl6000g2b_bt_setup_deferred_work(struct iwl_priv *priv)
+{
+	iwlagn_setup_deferred_work(priv);
+
+	INIT_WORK(&priv->bt_traffic_change_work,
+		  iwl6000g2b_bt_traffic_change_work);
+
+}
+
+static void iwl6000g2b_bt_cancel_deferred_work(struct iwl_priv *priv)
+{
+	cancel_work_sync(&priv->bt_traffic_change_work);
+}
+
 static struct iwl_lib_ops iwl6000_lib = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
@@ -389,6 +473,81 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.txq_init = iwl_hw_tx_queue_init,
 	.rx_handler_setup = iwlagn_rx_handler_setup,
 	.setup_deferred_work = iwlagn_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
+	.load_ucode = iwlagn_load_ucode,
+	.dump_nic_event_log = iwl_dump_nic_event_log,
+	.dump_nic_error_log = iwl_dump_nic_error_log,
+	.dump_csr = iwl_dump_csr,
+	.dump_fh = iwl_dump_fh,
+	.init_alive_start = iwlagn_init_alive_start,
+	.alive_notify = iwlagn_alive_notify,
+	.send_tx_power = iwlagn_send_tx_power,
+	.update_chain_flags = iwl_update_chain_flags,
+	.set_channel_switch = iwl6000_hw_channel_switch,
+	.apm_ops = {
+		.init = iwl_apm_init,
+		.stop = iwl_apm_stop,
+		.config = iwl6000_nic_config,
+		.set_pwr_src = iwl_set_pwr_src,
+	},
+	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_REG_BAND_1_CHANNELS,
+			EEPROM_REG_BAND_2_CHANNELS,
+			EEPROM_REG_BAND_3_CHANNELS,
+			EEPROM_REG_BAND_4_CHANNELS,
+			EEPROM_REG_BAND_5_CHANNELS,
+			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_REG_BAND_52_HT40_CHANNELS
+		},
+		.verify_signature  = iwlcore_eeprom_verify_signature,
+		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
+		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.calib_version	= iwlagn_eeprom_calib_version,
+		.query_addr = iwlagn_eeprom_query_addr,
+		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
+	},
+	.post_associate = iwl_post_associate,
+	.isr = iwl_isr_ict,
+	.config_ap = iwl_config_ap,
+	.temp_ops = {
+		.temperature = iwlagn_temperature,
+		.set_ct_kill = iwl6000_set_ct_threshold,
+		.set_calib_version = iwl6000_set_calib_version,
+	 },
+	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+		.bt_stats_read = iwl_ucode_bt_stats_read,
+	},
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.check_plcp_health = iwl_good_plcp_health,
+	.check_ack_health = iwl_good_ack_health,
+	.txfifo_flush = iwlagn_txfifo_flush,
+	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
+	.tt_ops = {
+		.lower_power_detection = iwl_tt_is_low_power_state,
+		.tt_power_mode = iwl_tt_current_power_mode,
+		.ct_kill_check = iwl_check_for_ct_kill,
+	}
+};
+
+static struct iwl_lib_ops iwl6000g2b_lib = {
+	.set_hw_params = iwl6000_hw_set_hw_params,
+	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
+	.txq_set_sched = iwlagn_txq_set_sched,
+	.txq_agg_enable = iwlagn_txq_agg_enable,
+	.txq_agg_disable = iwlagn_txq_agg_disable,
+	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
+	.txq_free_tfd = iwl_hw_txq_free_tfd,
+	.txq_init = iwl_hw_tx_queue_init,
+	.rx_handler_setup = iwl6000g2b_rx_handler_setup,
+	.setup_deferred_work = iwl6000g2b_bt_setup_deferred_work,
+	.cancel_deferred_work = iwl6000g2b_bt_cancel_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.load_ucode = iwlagn_load_ucode,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
@@ -467,7 +626,7 @@ static struct iwl_hcmd_ops iwl6000g2b_hcmd = {
 };
 
 static const struct iwl_ops iwl6000g2b_ops = {
-	.lib = &iwl6000_lib,
+	.lib = &iwl6000g2b_lib,
 	.hcmd = &iwl6000g2b_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
