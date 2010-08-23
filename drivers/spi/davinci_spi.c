@@ -750,8 +750,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
-	INIT_COMPLETION(davinci_spi->done);
-
 	init_completion(&davinci_spi_dma->dma_rx_completion);
 	init_completion(&davinci_spi_dma->dma_tx_completion);
 
