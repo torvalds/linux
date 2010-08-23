@@ -629,7 +629,7 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 static void rt2800pci_kick_tx_queue(struct data_queue *queue)
 {
 	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	unsigned int idx = queue->index[Q_INDEX];
+	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	unsigned int qidx = 0;
 
 	if (queue->qid == QID_MGMT)
@@ -637,7 +637,7 @@ static void rt2800pci_kick_tx_queue(struct data_queue *queue)
 	else
 		qidx = queue->qid;
 
-	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), idx);
+	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), entry->entry_idx);
 }
 
 static void rt2800pci_kill_tx_queue(struct data_queue *queue)

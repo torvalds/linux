@@ -625,6 +625,51 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
+void rt2x00queue_for_each_entry(struct data_queue *queue,
+				enum queue_index start,
+				enum queue_index end,
+				void (*fn)(struct queue_entry *entry))
+{
+	unsigned long irqflags;
+	unsigned int index_start;
+	unsigned int index_end;
+	unsigned int i;
+
+	if (unlikely(start >= Q_INDEX_MAX || end >= Q_INDEX_MAX)) {
+		ERROR(queue->rt2x00dev,
+		      "Entry requested from invalid index range (%d - %d)\n",
+		      start, end);
+		return;
+	}
+
+	/*
+	 * Only protect the range we are going to loop over,
+	 * if during our loop a extra entry is set to pending
+	 * it should not be kicked during this run, since it
+	 * is part of another TX operation.
+	 */
+	spin_lock_irqsave(&queue->lock, irqflags);
+	index_start = queue->index[start];
+	index_end = queue->index[end];
+	spin_unlock_irqrestore(&queue->lock, irqflags);
+
+	/*
+	 * Start from the TX done pointer, this guarentees that we will
+	 * send out all frames in the correct order.
+	 */
+	if (index_start < index_end) {
+		for (i = index_start; i < index_end; i++)
+			fn(&queue->entries[i]);
+	} else {
+		for (i = index_start; i < queue->limit; i++)
+			fn(&queue->entries[i]);
+
+		for (i = 0; i < index_end; i++)
+			fn(&queue->entries[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_for_each_entry);
+
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
 {

@@ -225,7 +225,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 }
 
-static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
+static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
@@ -252,69 +252,34 @@ static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 
 void rt2x00usb_kick_tx_queue(struct data_queue *queue)
 {
-	unsigned long irqflags;
-	unsigned int index;
-	unsigned int index_done;
-	unsigned int i;
-
-	/*
-	 * Only protect the range we are going to loop over,
-	 * if during our loop a extra entry is set to pending
-	 * it should not be kicked during this run, since it
-	 * is part of another TX operation.
-	 */
-	spin_lock_irqsave(&queue->lock, irqflags);
-	index = queue->index[Q_INDEX];
-	index_done = queue->index[Q_INDEX_DONE];
-	spin_unlock_irqrestore(&queue->lock, irqflags);
-
-	/*
-	 * Start from the TX done pointer, this guarentees that we will
-	 * send out all frames in the correct order.
-	 */
-	if (index_done < index) {
-		for (i = index_done; i < index; i++)
-			rt2x00usb_kick_tx_entry(&queue->entries[i]);
-	} else {
-		for (i = index_done; i < queue->limit; i++)
-			rt2x00usb_kick_tx_entry(&queue->entries[i]);
-
-		for (i = 0; i < index; i++)
-			rt2x00usb_kick_tx_entry(&queue->entries[i]);
-	}
+	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+				   rt2x00usb_kick_tx_entry);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_tx_queue);
 
+static void rt2x00usb_kill_tx_entry(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
+	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
+
+	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+		return;
+
+	usb_kill_urb(entry_priv->urb);
+
+	/*
+	 * Kill guardian urb (if required by driver).
+	 */
+	if ((entry->queue->qid == QID_BEACON) &&
+	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
+		usb_kill_urb(bcn_priv->guardian_urb);
+}
+
 void rt2x00usb_kill_tx_queue(struct data_queue *queue)
 {
-	struct queue_entry_priv_usb *entry_priv;
-	struct queue_entry_priv_usb_bcn *bcn_priv;
-	unsigned int i;
-	bool kill_guard;
-
-	/*
-	 * When killing the beacon queue, we must also kill
-	 * the beacon guard byte.
-	 */
-	kill_guard =
-	    (queue->qid == QID_BEACON) &&
-	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &queue->rt2x00dev->flags));
-
-	/*
-	 * Cancel all entries.
-	 */
-	for (i = 0; i < queue->limit; i++) {
-		entry_priv = queue->entries[i].priv_data;
-		usb_kill_urb(entry_priv->urb);
-
-		/*
-		 * Kill guardian urb (if required by driver).
-		 */
-		if (kill_guard) {
-			bcn_priv = queue->entries[i].priv_data;
-			usb_kill_urb(bcn_priv->guardian_urb);
-		}
-	}
+	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+				   rt2x00usb_kill_tx_entry);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
 
