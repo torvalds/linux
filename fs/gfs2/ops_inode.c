@@ -1423,7 +1423,7 @@ static void calc_max_reserv(struct gfs2_inode *ip, loff_t max, loff_t *len,
 		max_data -= tmp;
 	}
 	/* This calculation isn't the exact reverse of gfs2_write_calc_reserve,
- 	   so it might end up with fewer data blocks */
+	   so it might end up with fewer data blocks */
 	if (max_data <= *data_blocks)
 		return;
 	*data_blocks = max_data;
