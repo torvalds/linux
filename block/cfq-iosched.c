@@ -378,6 +378,21 @@ CFQ_CFQQ_FNS(wait_busy);
 			&cfqg->service_trees[i][j]: NULL) \
 
 
+static inline bool iops_mode(struct cfq_data *cfqd)
+{
+	/*
+	 * If we are not idling on queues and it is a NCQ drive, parallel
+	 * execution of requests is on and measuring time is not possible
+	 * in most of the cases until and unless we drive shallower queue
+	 * depths and that becomes a performance bottleneck. In such cases
+	 * switch to start providing fairness in terms of number of IOs.
+	 */
+	if (!cfqd->cfq_slice_idle && cfqd->hw_tag)
+		return true;
+	else
+		return false;
+}
+
 static inline enum wl_prio_t cfqq_prio(struct cfq_queue *cfqq)
 {
 	if (cfq_class_idle(cfqq))
@@ -906,7 +921,6 @@ static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
 			slice_used = cfqq->allocated_slice;
 	}
 
-	cfq_log_cfqq(cfqq->cfqd, cfqq, "sl_used=%u", slice_used);
 	return slice_used;
 }
 
@@ -914,19 +928,21 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 				struct cfq_queue *cfqq)
 {
 	struct cfq_rb_root *st = &cfqd->grp_service_tree;
-	unsigned int used_sl, charge_sl;
+	unsigned int used_sl, charge;
 	int nr_sync = cfqg->nr_cfqq - cfqg_busy_async_queues(cfqd, cfqg)
 			- cfqg->service_tree_idle.count;
 
 	BUG_ON(nr_sync < 0);
-	used_sl = charge_sl = cfq_cfqq_slice_usage(cfqq);
+	used_sl = charge = cfq_cfqq_slice_usage(cfqq);
 
-	if (!cfq_cfqq_sync(cfqq) && !nr_sync)
-		charge_sl = cfqq->allocated_slice;
+	if (iops_mode(cfqd))
+		charge = cfqq->slice_dispatch;
+	else if (!cfq_cfqq_sync(cfqq) && !nr_sync)
+		charge = cfqq->allocated_slice;
 
 	/* Can't update vdisktime while group is on service tree */
 	cfq_rb_erase(&cfqg->rb_node, st);
-	cfqg->vdisktime += cfq_scale_slice(charge_sl, cfqg);
+	cfqg->vdisktime += cfq_scale_slice(charge, cfqg);
 	__cfq_group_service_tree_add(st, cfqg);
 
 	/* This group is being expired. Save the context */
@@ -940,6 +956,8 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 
 	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
 					st->min_vdisktime);
+	cfq_log_cfqq(cfqq->cfqd, cfqq, "sl_used=%u disp=%u charge=%u iops=%u",
+			used_sl, cfqq->slice_dispatch, charge, iops_mode(cfqd));
 	cfq_blkiocg_update_timeslice_used(&cfqg->blkg, used_sl);
 	cfq_blkiocg_set_start_empty_time(&cfqg->blkg);
 }
