@@ -247,7 +247,14 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 		struct iwl_ht_agg *agg;
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
-
+		/*
+		 * If the BT kill count is non-zero, we'll get this
+		 * notification again.
+		 */
+		if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
+		    priv->cfg->advanced_bt_coexist) {
+			IWL_WARN(priv, "receive reply tx with bt_kill\n");
+		}
 		iwlagn_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
 
 		/* check if BAR is needed */
