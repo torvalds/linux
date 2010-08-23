@@ -360,9 +360,6 @@ struct txentry_desc {
  * @ENTRY_OWNER_DEVICE_DATA: This entry is owned by the device for data
  *	transfer (either TX or RX depending on the queue). The entry should
  *	only be touched after the device has signaled it is done with it.
- * @ENTRY_OWNER_DEVICE_CRYPTO: This entry is owned by the device for data
- *	encryption or decryption. The entry should only be touched after
- *	the device has signaled it is done with it.
  * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
  *	for the signal to start sending.
  * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occured
@@ -372,7 +369,6 @@ struct txentry_desc {
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
-	ENTRY_OWNER_DEVICE_CRYPTO,
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED
 };
@@ -408,15 +404,12 @@ struct queue_entry {
  * @Q_INDEX_DONE: Index pointer to the next entry which will be completed by
  *	the hardware and for which we need to run the txdone handler. If this
  *	entry is not owned by the hardware the queue is considered to be empty.
- * @Q_INDEX_CRYPTO: Index pointer to the next entry which encryption/decription
- *	will be completed by the hardware next.
  * @Q_INDEX_MAX: Keep last, used in &struct data_queue to determine the size
  *	of the index array.
  */
 enum queue_index {
 	Q_INDEX,
 	Q_INDEX_DONE,
-	Q_INDEX_CRYPTO,
 	Q_INDEX_MAX,
 };
 
