@@ -238,6 +238,9 @@ static void stmmac_adjust_link(struct net_device *dev)
 			case 1000:
 				if (likely(priv->is_gmac))
 					ctrl &= ~priv->hw->link.port;
+				if (likely(priv->fix_mac_speed))
+					priv->fix_mac_speed(priv->bsp_priv,
+							    phydev->speed);
 				break;
 			case 100:
 			case 10:
