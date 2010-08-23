@@ -42,7 +42,6 @@ static struct pci_device_id pciidlist[] = {
 static struct drm_driver driver = {
 	.driver_features = DRIVER_USE_MTRR,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
