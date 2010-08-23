@@ -173,11 +173,10 @@ error:
 /**
  * Caller must hold the drawable spinlock!
  */
-struct drm_drawable_info *drm_get_drawable_info(struct drm_device *dev, drm_drawable_t id)
+static struct drm_drawable_info *drm_get_drawable_info(struct drm_device *dev, drm_drawable_t id)
 {
 	return idr_find(&dev->drw_idr, id);
 }
-EXPORT_SYMBOL(drm_get_drawable_info);
 
 static int drm_drawable_free(int idr, void *p, void *data)
 {

@@ -1238,8 +1238,6 @@ extern int drm_rmdraw(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 extern int drm_update_drawable_info(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
-extern struct drm_drawable_info *drm_get_drawable_info(struct drm_device *dev,
-						  drm_drawable_t id);
 extern void drm_drawable_free_all(struct drm_device *dev);
 
 				/* Authentication IOCTL support (drm_auth.h) */
