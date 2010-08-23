@@ -789,13 +789,14 @@ static struct snd_soc_dai_driver atmel_ssc_dai[NUM_SSC_DEVICES] = {
 
 static __devinit int asoc_ssc_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_dais(&pdev->dev, atmel_ssc_dai,
-			ARRAY_SIZE(atmel_ssc_dai));
+	BUG_ON(pdev->id < 0);
+	BUG_ON(pdev->id >= ARRAY_SIZE(atmel_ssc_dai));
+	return snd_soc_register_dai(&pdev->dev, &atmel_ssc_dai[pdev->id]);
 }
 
 static int __devexit asoc_ssc_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(atmel_ssc_dai));
+	snd_soc_unregister_dai(&pdev->dev);
 	return 0;
 }
 
@@ -808,6 +809,56 @@ static struct platform_driver asoc_ssc_driver = {
 	.probe = asoc_ssc_probe,
 	.remove = __devexit_p(asoc_ssc_remove),
 };
+
+/**
+ * atmel_ssc_set_audio - Allocate the specified SSC for audio use.
+ */
+int atmel_ssc_set_audio(int ssc_id)
+{
+	struct ssc_device *ssc;
+	static struct platform_device *dma_pdev;
+	struct platform_device *ssc_pdev;
+	int ret;
+
+	if (ssc_id < 0 || ssc_id >= ARRAY_SIZE(atmel_ssc_dai))
+		return -EINVAL;
+
+	/* Allocate a dummy device for DMA if we don't have one already */
+	if (!dma_pdev) {
+		dma_pdev = platform_device_alloc("atmel-pcm-audio", -1);
+		if (!dma_pdev)
+			return -ENOMEM;
+
+		ret = platform_device_add(dma_pdev);
+		if (ret < 0) {
+			platform_device_put(dma_pdev);
+			dma_pdev = NULL;
+			return ret;
+		}
+	}
+
+	ssc_pdev = platform_device_alloc("atmel-ssc-dai", ssc_id);
+	if (!ssc_pdev) {
+		ssc_free(ssc);
+		return -ENOMEM;
+	}
+
+	/* If we can grab the SSC briefly to parent the DAI device off it */
+	ssc = ssc_request(ssc_id);
+	if (IS_ERR(ssc))
+		pr_warn("Unable to parent ASoC SSC DAI on SSC: %ld\n",
+			PTR_ERR(ssc));
+	else
+		ssc_pdev->dev.parent = &(ssc->pdev->dev);
+	ssc_free(ssc);
+
+	ret = platform_device_add(ssc_pdev);
+	if (ret < 0)
+		platform_device_put(ssc_pdev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(atmel_ssc_set_audio);
 
 static int __init snd_atmel_ssc_init(void)
 {

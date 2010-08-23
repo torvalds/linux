@@ -111,6 +111,8 @@
 #define DACL1_2_MONOLOPM_VOL		75
 #define DACR1_2_MONOLOPM_VOL		78
 #define MONOLOPM_CTRL			79
+/* Class-D speaker driver on tlv320aic3007 */
+#define CLASSD_CTRL			73
 /* Line Output Plus/Minus control registers */
 #define LINE2L_2_LLOPM_VOL		80
 #define LINE2L_2_RLOPM_VOL		87

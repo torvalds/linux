@@ -198,6 +198,9 @@ free_mic_amp_gpio:
 static void __exit e740_exit(void)
 {
 	platform_device_unregister(e740_snd_device);
+	gpio_free(GPIO_E740_WM9705_nAVDD2);
+	gpio_free(GPIO_E740_AMP_ON);
+	gpio_free(GPIO_E740_MIC_ON);
 }
 
 module_init(e740_init);

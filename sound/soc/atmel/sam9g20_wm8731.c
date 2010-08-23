@@ -146,7 +146,7 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 			"at91sam9g20ek_wm8731 "
 			": at91sam9g20ek_wm8731_init() called\n");
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
 		MCLK_RATE, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		printk(KERN_ERR "Failed to set WM8731 SYSCLK: %d\n", ret);
@@ -183,8 +183,8 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.cpu_dai_name = "atmel-ssc-dai.0",
 	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
-	.platform_name = "atmel_pcm-audio",
-	.codec_name = "wm8731-codec.0-001a",
+	.platform_name = "atmel-pcm-audio",
+	.codec_name = "wm8731-codec.0-001b",
 	.ops = &at91sam9g20ek_ops,
 };
 
@@ -204,6 +204,12 @@ static int __init at91sam9g20ek_init(void)
 
 	if (!(machine_is_at91sam9g20ek() || machine_is_at91sam9g20ek_2mmc()))
 		return -ENODEV;
+
+	ret = atmel_ssc_set_audio(0);
+	if (ret != 0) {
+		pr_err("Failed to set SSC 0 for audio: %d\n", ret);
+		return ret;
+	}
 
 	/*
 	 * Codec MCLK is supplied by PCK0 - set it up.

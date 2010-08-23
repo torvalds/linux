@@ -46,6 +46,7 @@ struct wm8731_priv {
 	struct regulator_bulk_data supplies[WM8731_NUM_SUPPLIES];
 	u16 reg_cache[WM8731_CACHEREGNUM];
 	unsigned int sysclk;
+	int sysclk_type;
 };
 
 
@@ -110,6 +111,7 @@ static const struct snd_kcontrol_new wm8731_input_mux_controls =
 SOC_DAPM_ENUM("Input Select", wm8731_enum[0]);
 
 static const struct snd_soc_dapm_widget wm8731_dapm_widgets[] = {
+SND_SOC_DAPM_SUPPLY("OSC", WM8731_PWR, 5, 1, NULL, 0),
 SND_SOC_DAPM_MIXER("Output Mixer", WM8731_PWR, 4, 1,
 	&wm8731_output_mixer_controls[0],
 	ARRAY_SIZE(wm8731_output_mixer_controls)),
@@ -127,7 +129,18 @@ SND_SOC_DAPM_INPUT("RLINEIN"),
 SND_SOC_DAPM_INPUT("LLINEIN"),
 };
 
+static int wm8731_check_osc(struct snd_soc_dapm_widget *source,
+			    struct snd_soc_dapm_widget *sink)
+{
+	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(source->codec);
+
+	return wm8731->sysclk_type == WM8731_SYSCLK_MCLK;
+}
+
 static const struct snd_soc_dapm_route intercon[] = {
+	{"DAC", NULL, "OSC", wm8731_check_osc},
+	{"ADC", NULL, "OSC", wm8731_check_osc},
+
 	/* output mixer */
 	{"Output Mixer", "Line Bypass Switch", "Line Input"},
 	{"Output Mixer", "HiFi Playback Switch", "DAC"},
@@ -285,6 +298,15 @@ static int wm8731_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(codec);
 
+	switch (clk_id) {
+	case WM8731_SYSCLK_XTAL:
+	case WM8731_SYSCLK_MCLK:
+		wm8731->sysclk_type = clk_id;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	switch (freq) {
 	case 11289600:
 	case 12000000:
@@ -292,9 +314,14 @@ static int wm8731_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	case 16934400:
 	case 18432000:
 		wm8731->sysclk = freq;
-		return 0;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	snd_soc_dapm_sync(codec);
+
+	return 0;
 }
 
 
