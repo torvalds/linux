@@ -219,7 +219,6 @@ static const __le32 iwl6000g2b_concurrent_lookup[12] = {
 static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 {
 	struct iwl6000g2b_bt_cmd bt_cmd = {
-		.prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 		.max_kill = IWL6000G2B_BT_MAX_KILL_DEFAULT,
 		.bt3_timer_t7_value = IWL6000G2B_BT3_T7_DEFAULT,
 		.kill_ack_mask = IWL6000G2B_BT_KILL_ACK_MASK_DEFAULT,
@@ -231,6 +230,8 @@ static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 
 	BUILD_BUG_ON(sizeof(iwl6000g2b_def_3w_lookup) !=
 			sizeof(bt_cmd.bt3_lookup_table));
+
+	bt_cmd.prio_boost = priv->cfg->bt_prio_boost;
 
 	/*
 	 * Configure BT coex mode to "no coexistence" when the
@@ -487,6 +488,8 @@ static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
 		iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
 				       sizeof(sco_cmd), &sco_cmd, NULL);
 	}
+
+	/* FIXME: based on notification, adjust the prio_boost */
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
@@ -833,6 +836,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
@@ -873,6 +877,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
@@ -915,6 +920,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
@@ -955,6 +961,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
@@ -997,6 +1004,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
@@ -1037,6 +1045,7 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 	.advanced_bt_coexist = true,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWL6000G2B_BT_PRIO_BOOST_DEFAULT,
 };
 
 /*
