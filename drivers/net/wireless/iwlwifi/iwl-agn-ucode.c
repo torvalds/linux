@@ -464,7 +464,12 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	if (priv->cfg->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
 		/* need to perform this before any calibration */
+		priv->bt_valid = IWL6000G2B_BT_ALL_VALID_MSK;
+		priv->kill_ack_mask = IWL6000G2B_BT_KILL_ACK_MASK_DEFAULT;
+		priv->kill_cts_mask = IWL6000G2B_BT_KILL_CTS_MASK_DEFAULT;
 		priv->cfg->ops->hcmd->send_bt_config(priv);
+		priv->bt_valid = IWL6000G2B_BT_VALID_ENABLE_FLAGS;
+
 		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 			iwlagn_send_prio_tbl(priv);
 			iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,

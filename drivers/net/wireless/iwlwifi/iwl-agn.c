@@ -614,6 +614,20 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	iwl_send_beacon_cmd(priv);
 }
 
+static void iwl_bg_bt_runtime_config(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, bt_runtime_config);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	/* dont send host command if rf-kill is on */
+	if (!iwl_is_ready_rf(priv))
+		return;
+	priv->cfg->ops->hcmd->send_bt_config(priv);
+}
+
 static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 {
 	struct iwl_priv *priv =
@@ -3895,6 +3909,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
 	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_WORK(&priv->bt_full_concurrency, iwl_bg_bt_full_concurrency);
+	INIT_WORK(&priv->bt_runtime_config, iwl_bg_bt_runtime_config);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
@@ -3938,6 +3953,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);
 	cancel_work_sync(&priv->bt_full_concurrency);
+	cancel_work_sync(&priv->bt_runtime_config);
 	del_timer_sync(&priv->statistics_periodic);
 	del_timer_sync(&priv->ucode_trace);
 }

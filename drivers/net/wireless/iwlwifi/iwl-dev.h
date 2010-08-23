@@ -1370,6 +1370,9 @@ struct iwl_priv {
 	bool bt_sco_active;
 	bool bt_full_concurrent;
 	bool bt_ant_couple_ok;
+	__le32 kill_ack_mask;
+	__le32 kill_cts_mask;
+	__le16 bt_valid;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
 
@@ -1392,6 +1395,7 @@ struct iwl_priv {
 	struct work_struct start_internal_scan;
 	struct work_struct tx_flush;
 	struct work_struct bt_full_concurrency;
+	struct work_struct bt_runtime_config;
 
 	struct tasklet_struct irq_tasklet;
 
