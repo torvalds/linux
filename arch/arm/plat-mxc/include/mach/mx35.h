@@ -145,7 +145,7 @@
 #define MX35_INT_GPT		29
 #define MX35_INT_POWER_FAIL	30
 #define MX35_INT_UART2		32
-#define MX35_INT_NANDFC		33
+#define MX35_INT_NFC		33
 #define MX35_INT_SDMA		34
 #define MX35_INT_USBHS		35
 #define MX35_INT_USBOTG		37

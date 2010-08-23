@@ -34,8 +34,9 @@ extern const struct imx_imx_uart_1irq_data imx25_imx_uart_data[] __initconst;
 #define imx25_add_imx_uart3(pdata)	imx25_add_imx_uart(3, pdata)
 #define imx25_add_imx_uart4(pdata)	imx25_add_imx_uart(4, pdata)
 
+extern const struct imx_mxc_nand_data imx25_mxc_nand_data __initconst;
 #define imx25_add_mxc_nand(pdata)	\
-	imx_add_mxc_nand_v21(MX25_NFC_BASE_ADDR, MX25_INT_NANDFC, pdata)
+	imx_add_mxc_nand(&imx25_mxc_nand_data, pdata)
 
 extern const struct imx_spi_imx_data imx25_spi_imx_data[] __initconst;
 #define imx25_add_spi_imx(id, pdata)	\

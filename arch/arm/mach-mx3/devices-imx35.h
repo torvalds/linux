@@ -32,8 +32,9 @@ extern const struct imx_imx_uart_1irq_data imx35_imx_uart_data[] __initconst;
 #define imx35_add_imx_uart1(pdata)	imx35_add_imx_uart(1, pdata)
 #define imx35_add_imx_uart2(pdata)	imx35_add_imx_uart(2, pdata)
 
+extern const struct imx_mxc_nand_data imx35_mxc_nand_data __initconst;
 #define imx35_add_mxc_nand(pdata)	\
-	imx_add_mxc_nand_v21(MX35_NFC_BASE_ADDR, MX35_INT_NANDFC, pdata)
+	imx_add_mxc_nand(&imx35_mxc_nand_data, pdata)
 
 extern const struct imx_spi_imx_data imx35_cspi_data[] __initconst;
 #define imx35_add_cspi(id, pdata)	\

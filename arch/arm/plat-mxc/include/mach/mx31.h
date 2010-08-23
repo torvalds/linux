@@ -168,7 +168,7 @@ static inline void mx31_setup_weimcs(size_t cs,
 #define MX31_INT_POWER_FAIL	30
 #define MX31_INT_CCM_DVFS	31
 #define MX31_INT_UART2		32
-#define MX31_INT_NANDFC		33
+#define MX31_INT_NFC		33
 #define MX31_INT_SDMA		34
 #define MX31_INT_USB1		35
 #define MX31_INT_USB2		36

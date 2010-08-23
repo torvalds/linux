@@ -69,7 +69,7 @@
 #define MX25_INT_KPP		24
 #define MX25_INT_DRYICE		25
 #define MX25_INT_UART2		32
-#define MX25_INT_NANDFC		33
+#define MX25_INT_NFC		33
 #define MX25_INT_LCDC		39
 #define MX25_INT_UART5		40
 #define MX25_INT_CAN1		43
