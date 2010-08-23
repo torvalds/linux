@@ -182,6 +182,21 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	iwl_set_rxon_hwcrypto(priv, ctx, !priv->cfg->mod_params->sw_crypto);
 
+	if (new_assoc) {
+		if (WARN_ON(!ctx->vif))
+			return -EINVAL;
+		/*
+		 * First of all, before setting associated, we need to
+		 * send RXON timing so the device knows about the DTIM
+		 * period and other timing values
+		 */
+		ret = iwl_send_rxon_timing(priv, ctx->vif);
+		if (ret) {
+			IWL_ERR(priv, "Error setting RXON timing!\n");
+			return ret;
+		}
+	}
+
 	/* Apply the new configuration
 	 * RXON unassoc clears the station table in uCode so restoration of
 	 * stations is needed after it (the RXON command) completes
@@ -3355,6 +3370,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
+		    IEEE80211_HW_NEED_DTIM_PERIOD |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
 	if (!priv->cfg->broken_powersave)
