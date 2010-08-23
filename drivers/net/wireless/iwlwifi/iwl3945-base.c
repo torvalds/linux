@@ -4001,6 +4001,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv = hw->priv;
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
+	priv->cmd_queue = IWL39_CMD_QUEUE_NUM;
+
 	/* 3945 has only one valid context */
 	priv->valid_contexts = BIT(IWL_RXON_CTX_BSS);
 

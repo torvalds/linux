@@ -265,11 +265,10 @@ struct iwl_channel_info {
 #define IWL_MIN_NUM_QUEUES	10
 
 /*
- * Queue #4 is the command queue for 3945/4965/5x00/1000/6x00,
- * the driver maps it into the appropriate device FIFO for the
- * uCode.
+ * Command queue depends on iPAN support.
  */
-#define IWL_CMD_QUEUE_NUM	4
+#define IWL_DEFAULT_CMD_QUEUE_NUM	4
+#define IWL_IPAN_CMD_QUEUE_NUM		9
 
 /* Power management (not Tx power) structures */
 
@@ -1196,6 +1195,9 @@ struct iwl_priv {
 
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;
+
+	/* command queue number */
+	u8 cmd_queue;
 
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];

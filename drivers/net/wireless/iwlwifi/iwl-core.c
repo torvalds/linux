@@ -2757,14 +2757,14 @@ void iwl_bg_monitor_recover(unsigned long data)
 		return;
 
 	/* monitor and check for stuck cmd queue */
-	if (iwl_check_stuck_queue(priv, IWL_CMD_QUEUE_NUM))
+	if (iwl_check_stuck_queue(priv, priv->cmd_queue))
 		return;
 
 	/* monitor and check for other stuck queues */
 	if (iwl_is_any_associated(priv)) {
 		for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
 			/* skip as we already checked the command queue */
-			if (cnt == IWL_CMD_QUEUE_NUM)
+			if (cnt == priv->cmd_queue)
 				continue;
 			if (iwl_check_stuck_queue(priv, cnt))
 				return;

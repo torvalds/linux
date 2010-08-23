@@ -52,6 +52,19 @@ static const s8 iwlagn_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_UNUSED,
 };
 
+static const s8 iwlagn_ipan_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+	IWL_TX_FIFO_UNUSED, /* FIXME */
+	IWL_TX_FIFO_UNUSED, /* FIXME */
+	IWL_TX_FIFO_UNUSED, /* FIXME */
+	IWL_TX_FIFO_UNUSED, /* FIXME */
+	IWL_TX_FIFO_UNUSED, /* FIXME */
+	IWLAGN_CMD_FIFO_NUM,
+};
+
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
 	 0, COEX_UNASSOC_IDLE_FLAGS},
@@ -376,6 +389,7 @@ static void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
+	const s8 *queues;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -410,7 +424,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	iwl_write_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL,
-		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
+		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv));
 	iwl_write_prph(priv, IWLAGN_SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
@@ -436,7 +450,13 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	/* Activate all Tx DMA/FIFO channels */
 	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
 
-	iwlagn_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
+	/* map queues to FIFOs */
+	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+		queues = iwlagn_ipan_queue_to_tx_fifo;
+	else
+		queues = iwlagn_default_queue_to_tx_fifo;
+
+	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
@@ -445,11 +465,12 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
-	/* map qos queues to fifos one-to-one */
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
 
-	for (i = 0; i < ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo); i++) {
-		int ac = iwlagn_default_queue_to_tx_fifo[i];
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
+
+	for (i = 0; i < 10; i++) {
+		int ac = queues[i];
 
 		iwl_txq_ctx_activate(priv, i);
 

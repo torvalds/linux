@@ -273,7 +273,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 	struct iwl_queue *q = &txq->q;
 	struct iwl_tx_info *tx_info;
 
-	BUG_ON(txq_id == IWL_CMD_QUEUE_NUM);
+	BUG_ON(txq_id == IWL39_CMD_QUEUE_NUM);
 
 	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
@@ -285,7 +285,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 	}
 
 	if (iwl_queue_space(q) > q->low_mark && (txq_id >= 0) &&
-			(txq_id != IWL_CMD_QUEUE_NUM) &&
+			(txq_id != IWL39_CMD_QUEUE_NUM) &&
 			priv->mac80211_registered)
 		iwl_wake_queue(priv, txq_id);
 }
@@ -760,7 +760,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 		data_retry_limit = IWL_DEFAULT_TX_RETRY;
 	tx_cmd->data_retry_limit = data_retry_limit;
 
-	if (tx_id >= IWL_CMD_QUEUE_NUM)
+	if (tx_id >= IWL39_CMD_QUEUE_NUM)
 		rts_retry_limit = 3;
 	else
 		rts_retry_limit = 7;
@@ -909,7 +909,7 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 
 	/* Tx queue(s) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
+		slots_num = (txq_id == IWL39_CMD_QUEUE_NUM) ?
 				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		rc = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
 				       txq_id);
@@ -1072,7 +1072,7 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 	if (priv->txq)
 		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num;
 		     txq_id++)
-			if (txq_id == IWL_CMD_QUEUE_NUM)
+			if (txq_id == IWL39_CMD_QUEUE_NUM)
 				iwl_cmd_queue_free(priv);
 			else
 				iwl_tx_queue_free(priv, txq_id);

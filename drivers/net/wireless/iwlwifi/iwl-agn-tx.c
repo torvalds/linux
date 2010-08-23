@@ -118,7 +118,7 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 
 	WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	if (txq_id != IWL_CMD_QUEUE_NUM) {
+	if (txq_id != priv->cmd_queue) {
 		sta_id = txq->cmd[txq->q.write_ptr]->cmd.tx.sta_id;
 		sec_ctl = txq->cmd[txq->q.write_ptr]->cmd.tx.sec_ctl;
 
@@ -155,7 +155,7 @@ void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	if (txq_id != IWL_CMD_QUEUE_NUM)
+	if (txq_id != priv->cmd_queue)
 		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
@@ -825,7 +825,7 @@ void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv)
 	/* Tx queues */
 	if (priv->txq) {
 		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-			if (txq_id == IWL_CMD_QUEUE_NUM)
+			if (txq_id == priv->cmd_queue)
 				iwl_cmd_queue_free(priv);
 			else
 				iwl_tx_queue_free(priv, txq_id);
@@ -882,9 +882,9 @@ int iwlagn_txq_ctx_alloc(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Alloc and init all Tx queues, including the command queue (#4) */
+	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
+		slots_num = (txq_id == priv->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
 				       txq_id);
@@ -922,7 +922,7 @@ void iwlagn_txq_ctx_reset(struct iwl_priv *priv)
 
 	/* Alloc and init all Tx queues, including the command queue (#4) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		slots_num = txq_id == IWL_CMD_QUEUE_NUM ?
+		slots_num = txq_id == priv->cmd_queue ?
 			    TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		iwl_tx_queue_reset(priv, &priv->txq[txq_id], slots_num, txq_id);
 	}

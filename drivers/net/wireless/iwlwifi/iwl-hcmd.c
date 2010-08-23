@@ -232,7 +232,7 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		priv->txq[IWL_CMD_QUEUE_NUM].meta[cmd_idx].flags &=
+		priv->txq[priv->cmd_queue].meta[cmd_idx].flags &=
 							~CMD_WANT_SKB;
 	}
 fail:

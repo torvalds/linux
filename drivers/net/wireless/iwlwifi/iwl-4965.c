@@ -576,7 +576,7 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	/* Activate all Tx DMA/FIFO channels */
 	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 6));
 
-	iwl4965_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
+	iwl4965_set_wr_ptrs(priv, IWL_DEFAULT_CMD_QUEUE_NUM, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
@@ -587,6 +587,7 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	priv->txq_ctx_active_msk = 0;
 	/* Map each Tx/cmd queue to its corresponding fifo */
 	BUILD_BUG_ON(ARRAY_SIZE(default_queue_to_tx_fifo) != 7);
+
 	for (i = 0; i < ARRAY_SIZE(default_queue_to_tx_fifo); i++) {
 		int ac = default_queue_to_tx_fifo[i];
 
