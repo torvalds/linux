@@ -700,7 +700,6 @@ struct drm_driver {
 	int (*resume) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	int (*dma_quiescent) (struct drm_device *);
-	int (*context_ctor) (struct drm_device *dev, int context);
 	int (*context_dtor) (struct drm_device *dev, int context);
 
 	/**
