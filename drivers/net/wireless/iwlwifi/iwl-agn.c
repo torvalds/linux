@@ -2773,6 +2773,10 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_dealloc_bcast_station(priv);
 	iwl_clear_driver_stations(priv);
 
+	/* reset BT coex data */
+	priv->bt_traffic_load = 0;
+	priv->bt_sco_active = false;
+
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
 
@@ -3078,8 +3082,9 @@ static void iwl_bg_restart(struct work_struct *data)
 		mutex_lock(&priv->mutex);
 		priv->vif = NULL;
 		priv->is_open = 0;
+		__iwl_down(priv);
 		mutex_unlock(&priv->mutex);
-		iwl_down(priv);
+		iwl_cancel_deferred_work(priv);
 		ieee80211_restart_hw(priv->hw);
 	} else {
 		iwl_down(priv);
