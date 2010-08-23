@@ -1126,6 +1126,8 @@ struct iwl_rxon_context {
 	struct iwl_rxon_time_cmd timing;
 
 	u8 bcast_sta_id;
+
+	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
 };
 
 struct iwl_priv {

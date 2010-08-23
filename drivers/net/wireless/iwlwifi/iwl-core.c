@@ -545,7 +545,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			le32_to_cpu(ctx->timing.beacon_init_val),
 			le16_to_cpu(ctx->timing.atim_window));
 
-	return iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
+	return iwl_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
 				sizeof(ctx->timing), &ctx->timing);
 }
 EXPORT_SYMBOL(iwl_send_rxon_timing);

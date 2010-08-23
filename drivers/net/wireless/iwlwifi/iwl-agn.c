@@ -152,7 +152,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		IWL_DEBUG_INFO(priv, "Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
-		ret = iwl_send_cmd_pdu(priv, REPLY_RXON,
+		ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
 				       sizeof(struct iwl_rxon_cmd),
 				       active_rxon);
 
@@ -187,7 +187,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * stations is needed after it (the RXON command) completes
 	 */
 	if (!new_assoc) {
-		ret = iwl_send_cmd_pdu(priv, REPLY_RXON,
+		ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
 			      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 		if (ret) {
 			IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -209,7 +209,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		/* Apply the new configuration
 		 * RXON assoc doesn't clear the station table in uCode,
 		 */
-		ret = iwl_send_cmd_pdu(priv, REPLY_RXON,
+		ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
 			      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 		if (ret) {
 			IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -3244,7 +3244,7 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	ret = iwl_send_rxon_timing(priv, vif);
 	if (ret)
-		IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
+		IWL_WARN(priv, "RXON timing - "
 			    "Attempting to continue.\n");
 
 	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
@@ -3481,7 +3481,7 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		/* RXON Timing */
 		ret = iwl_send_rxon_timing(priv, vif);
 		if (ret)
-			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
+			IWL_WARN(priv, "RXON timing failed - "
 					"Attempting to continue.\n");
 
 		/* AP has all antennas */
@@ -4199,6 +4199,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	for (i = 0; i < NUM_IWL_RXON_CTX; i++)
 		priv->contexts[i].ctxid = i;
+
+	priv->contexts[IWL_RXON_CTX_BSS].rxon_cmd = REPLY_RXON;
+	priv->contexts[IWL_RXON_CTX_BSS].rxon_timing_cmd = REPLY_RXON_TIMING;
+	priv->contexts[IWL_RXON_CTX_BSS].rxon_assoc_cmd = REPLY_RXON_ASSOC;
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 1);
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
