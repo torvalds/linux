@@ -602,11 +602,13 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
  * Green-field mode is valid if the station supports it and
  * there are no non-GF stations present in the BSS.
  */
-static inline u8 rs_use_green(struct ieee80211_sta *sta,
-			      struct iwl_ht_config *ht_conf)
+static bool rs_use_green(struct ieee80211_sta *sta)
 {
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+
 	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
-		!(ht_conf->non_GF_STA_present);
+		!(ctx->ht.non_gf_sta_present);
 }
 
 /**
@@ -758,8 +760,8 @@ static bool table_type_matches(struct iwl_scale_tbl_info *a,
 		(a->is_SGI == b->is_SGI);
 }
 
-static void rs_bt_update_lq(struct iwl_priv *priv,
-			       struct iwl_lq_sta *lq_sta)
+static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+			    struct iwl_lq_sta *lq_sta)
 {
 	struct iwl_scale_tbl_info *tbl;
 	bool full_concurrent;
@@ -778,7 +780,7 @@ static void rs_bt_update_lq(struct iwl_priv *priv,
 		/* Update uCode's rate table. */
 		tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
-		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
+		iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
 
 		queue_work(priv->workqueue, &priv->bt_full_concurrency);
 	}
@@ -803,6 +805,8 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	u32 tx_rate;
 	struct iwl_scale_tbl_info tbl_type;
 	struct iwl_scale_tbl_info *curr_tbl, *other_tbl, *tmp_tbl;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
 
 	IWL_DEBUG_RATE_LIMIT(priv, "get frame ack response, update rate scale window\n");
 
@@ -869,7 +873,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		lq_sta->missed_rate_counter++;
 		if (lq_sta->missed_rate_counter > IWL_MISSED_RATE_MAX) {
 			lq_sta->missed_rate_counter = 0;
-			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
+			iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
 		}
 		/* Regardless, ignore this status info for outdated rate */
 		return;
@@ -969,7 +973,7 @@ done:
 
 	/* Is there a need to switch between full concurrency and 3-wire? */
 	if (priv->bt_ant_couple_ok)
-		rs_bt_update_lq(priv, lq_sta);
+		rs_bt_update_lq(priv, ctx, lq_sta);
 }
 
 /*
@@ -1163,6 +1167,8 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	u16 rate_mask;
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1183,7 +1189,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_mimo2_rate;
 
-	if (iwl_is_ht40_tx_allowed(priv, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1217,6 +1223,8 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	u16 rate_mask;
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1237,7 +1245,7 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	tbl->max_search = IWL_MAX_11N_MIMO3_SEARCH;
 	rate_mask = lq_sta->active_mimo3_rate;
 
-	if (iwl_is_ht40_tx_allowed(priv, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1272,6 +1280,8 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	u16 rate_mask;
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1284,7 +1294,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (iwl_is_ht40_tx_allowed(priv, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -2086,6 +2096,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
  * return rate_n_flags as used in the table
  */
 static u32 rs_update_rate_tbl(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx,
 				struct iwl_lq_sta *lq_sta,
 				struct iwl_scale_tbl_info *tbl,
 				int index, u8 is_green)
@@ -2095,7 +2106,7 @@ static u32 rs_update_rate_tbl(struct iwl_priv *priv,
 	/* Update uCode's rate table. */
 	rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
 	rs_fill_link_cmd(priv, lq_sta, rate);
-	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
+	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
 
 	return rate;
 }
@@ -2134,6 +2145,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	s32 sr;
 	u8 tid = MAX_TID_COUNT;
 	struct iwl_tid_data *tid_data;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
 
 	IWL_DEBUG_RATE(priv, "rate scale calculate new rate for skb\n");
 
@@ -2172,7 +2185,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (is_legacy(tbl->lq_type))
 		lq_sta->is_green = 0;
 	else
-		lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
+		lq_sta->is_green = rs_use_green(sta);
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
@@ -2211,7 +2224,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 			/* get "active" rate info */
 			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
-			rate = rs_update_rate_tbl(priv, lq_sta,
+			rate = rs_update_rate_tbl(priv, ctx, lq_sta,
 						  tbl, index, is_green);
 		}
 		return;
@@ -2453,7 +2466,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq)
-		rate = rs_update_rate_tbl(priv, lq_sta,
+		rate = rs_update_rate_tbl(priv, ctx, lq_sta,
 					  tbl, index, is_green);
 
 	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_MULTI) {
@@ -2495,7 +2508,7 @@ lq_update:
 			IWL_DEBUG_RATE(priv, "Switch current  mcs: %X index: %d\n",
 				     tbl->current_rate, index);
 			rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
-			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
+			iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
 		} else
 			done_search = 1;
 	}
@@ -2565,12 +2578,17 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = rs_use_green(sta, &priv->current_ht_config);
+	u8 use_green = rs_use_green(sta);
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
+	struct iwl_station_priv *sta_priv;
+	struct iwl_rxon_context *ctx;
 
 	if (!sta || !lq_sta)
-		goto out;
+		return;
+
+	sta_priv = (void *)sta->drv_priv;
+	ctx = sta_priv->common.ctx;
 
 	i = lq_sta->last_txrate_idx;
 
@@ -2602,9 +2620,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, lq_sta, rate);
 	priv->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
-	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_SYNC, true);
- out:
-	return;
+	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_SYNC, true);
 }
 
 static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
@@ -2732,7 +2748,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	lq_sta->is_dup = 0;
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
-	lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
+	lq_sta->is_green = rs_use_green(sta);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
 	lq_sta->band = priv->band;
 	/*
@@ -2992,6 +3008,9 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 	char buf[64];
 	int buf_size;
 	u32 parsed_rate;
+	struct iwl_station_priv *sta_priv =
+		container_of(lq_sta, struct iwl_station_priv, lq_sta);
+	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
 
 	priv = lq_sta->drv;
 	memset(buf, 0, sizeof(buf));
@@ -3014,7 +3033,8 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 
 	if (lq_sta->dbg_fixed_rate) {
 		rs_fill_link_cmd(NULL, lq_sta, lq_sta->dbg_fixed_rate);
-		iwl_send_lq_cmd(lq_sta->drv, &lq_sta->lq, CMD_ASYNC, false);
+		iwl_send_lq_cmd(lq_sta->drv, ctx, &lq_sta->lq, CMD_ASYNC,
+				false);
 	}
 
 	return count;

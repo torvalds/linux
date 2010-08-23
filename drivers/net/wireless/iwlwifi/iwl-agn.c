@@ -3671,8 +3671,8 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 
 			sta_priv->lq_sta.lq.general_params.flags &=
 				~LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
-			iwl_send_lq_cmd(priv, &sta_priv->lq_sta.lq,
-				CMD_ASYNC, false);
+			iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
+					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
 		}
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
@@ -3687,8 +3687,8 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 
 			sta_priv->lq_sta.lq.general_params.flags |=
 				LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
-			iwl_send_lq_cmd(priv, &sta_priv->lq_sta.lq,
-				CMD_ASYNC, false);
+			iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
+					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
 		}
 		ret = 0;
 		break;
@@ -3824,23 +3824,23 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 			priv->current_ht_config.smps = conf->smps_mode;
 
 			/* Configure HT40 channels */
-			ht_conf->is_ht = conf_is_ht(conf);
-			if (ht_conf->is_ht) {
+			ctx->ht.enabled = conf_is_ht(conf);
+			if (ctx->ht.enabled) {
 				if (conf_is_ht40_minus(conf)) {
-					ht_conf->extension_chan_offset =
+					ctx->ht.extension_chan_offset =
 						IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-					ht_conf->is_40mhz = true;
+					ctx->ht.is_40mhz = true;
 				} else if (conf_is_ht40_plus(conf)) {
-					ht_conf->extension_chan_offset =
+					ctx->ht.extension_chan_offset =
 						IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-					ht_conf->is_40mhz = true;
+					ctx->ht.is_40mhz = true;
 				} else {
-					ht_conf->extension_chan_offset =
+					ctx->ht.extension_chan_offset =
 						IEEE80211_HT_PARAM_CHA_SEC_NONE;
-					ht_conf->is_40mhz = false;
+					ctx->ht.is_40mhz = false;
 				}
 			} else
-				ht_conf->is_40mhz = false;
+				ctx->ht.is_40mhz = false;
 
 			if ((le16_to_cpu(ctx->staging.channel) != ch))
 				ctx->staging.flags = 0;

@@ -389,8 +389,9 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 u8 iwl_get_single_channel_number(struct iwl_priv *priv,
 				  enum ieee80211_band band);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
-u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
-			 struct ieee80211_sta_ht_cap *sta_ht_inf);
+bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    struct ieee80211_sta_ht_cap *ht_cap);
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif);
 void iwl_set_rate(struct iwl_priv *priv);
@@ -720,7 +721,7 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
-extern int iwl_send_lq_cmd(struct iwl_priv *priv,
+extern int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);

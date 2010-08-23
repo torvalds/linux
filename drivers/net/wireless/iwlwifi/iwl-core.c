@@ -202,7 +202,7 @@ static void iwl_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		ctx->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
 
-	if (priv->current_ht_config.is_ht)
+	if (ctx->ht.enabled)
 		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
 	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
@@ -441,15 +441,15 @@ static bool is_single_rx_stream(struct iwl_priv *priv)
 	       priv->current_ht_config.single_chain_sufficient;
 }
 
-static u8 iwl_is_channel_extension(struct iwl_priv *priv,
-				   enum ieee80211_band band,
-				   u16 channel, u8 extension_chan_offset)
+static bool iwl_is_channel_extension(struct iwl_priv *priv,
+				     enum ieee80211_band band,
+				     u16 channel, u8 extension_chan_offset)
 {
 	const struct iwl_channel_info *ch_info;
 
 	ch_info = iwl_get_channel_info(priv, band, channel);
 	if (!is_channel_valid(ch_info))
-		return 0;
+		return false;
 
 	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
 		return !(ch_info->ht40_extension_channel &
@@ -458,34 +458,31 @@ static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 		return !(ch_info->ht40_extension_channel &
 					IEEE80211_CHAN_NO_HT40MINUS);
 
-	return 0;
+	return false;
 }
 
-u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
-			 struct ieee80211_sta_ht_cap *sta_ht_inf)
+bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    struct ieee80211_sta_ht_cap *ht_cap)
 {
-	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
-#if !TODO
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-#endif
+	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
+		return false;
 
-	if (!ht_conf->is_ht || !ht_conf->is_40mhz)
-		return 0;
-
-	/* We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
+	/*
+	 * We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
 	 * the bit will not set if it is pure 40MHz case
 	 */
-	if (sta_ht_inf) {
-		if (!sta_ht_inf->ht_supported)
-			return 0;
-	}
+	if (ht_cap && !ht_cap->ht_supported)
+		return false;
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (priv->disable_ht40)
-		return 0;
+		return false;
 #endif
+
 	return iwl_is_channel_extension(priv, priv->band,
 			le16_to_cpu(ctx->staging.channel),
-			ht_conf->extension_chan_offset);
+			ctx->ht.extension_chan_offset);
 }
 EXPORT_SYMBOL(iwl_is_ht40_tx_allowed);
 
@@ -724,7 +721,7 @@ static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 {
 	struct iwl_rxon_cmd *rxon = &ctx->staging;
 
-	if (!ht_conf->is_ht) {
+	if (!ctx->ht.enabled) {
 		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
 			RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
 			RXON_FLG_HT40_PROT_MSK |
@@ -732,22 +729,22 @@ static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 		return;
 	}
 
-	/* FIXME: if the definition of ht_protection changed, the "translation"
+	/* FIXME: if the definition of ht.protection changed, the "translation"
 	 * will be needed for rxon->flags
 	 */
-	rxon->flags |= cpu_to_le32(ht_conf->ht_protection << RXON_FLG_HT_OPERATING_MODE_POS);
+	rxon->flags |= cpu_to_le32(ctx->ht.protection << RXON_FLG_HT_OPERATING_MODE_POS);
 
 	/* Set up channel bandwidth:
 	 * 20 MHz only, 20/40 mixed or pure 40 if ht40 ok */
 	/* clear the HT channel mode before set the mode */
 	rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
 			 RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
-	if (iwl_is_ht40_tx_allowed(priv, NULL)) {
+	if (iwl_is_ht40_tx_allowed(priv, ctx, NULL)) {
 		/* pure ht40 */
-		if (ht_conf->ht_protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ) {
+		if (ctx->ht.protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ) {
 			rxon->flags |= RXON_FLG_CHANNEL_MODE_PURE_40;
 			/* Note: control channel is opposite of extension channel */
-			switch (ht_conf->extension_chan_offset) {
+			switch (ctx->ht.extension_chan_offset) {
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 				rxon->flags &= ~RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
 				break;
@@ -757,7 +754,7 @@ static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 			}
 		} else {
 			/* Note: control channel is opposite of extension channel */
-			switch (ht_conf->extension_chan_offset) {
+			switch (ctx->ht.extension_chan_offset) {
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 				rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
 				rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED;
@@ -782,8 +779,8 @@ static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 
 	IWL_DEBUG_ASSOC(priv, "rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x\n",
-			le32_to_cpu(rxon->flags), ht_conf->ht_protection,
-			ht_conf->extension_chan_offset);
+			le32_to_cpu(rxon->flags), ctx->ht.protection,
+			ctx->ht.extension_chan_offset);
 }
 
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
@@ -1649,15 +1646,16 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	struct ieee80211_sta *sta;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 
 	IWL_DEBUG_MAC80211(priv, "enter:\n");
 
-	if (!ht_conf->is_ht)
+	if (!ctx->ht.enabled)
 		return;
 
-	ht_conf->ht_protection =
+	ctx->ht.protection =
 		bss_conf->ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION;
-	ht_conf->non_GF_STA_present =
+	ctx->ht.non_gf_sta_present =
 		!!(bss_conf->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 
 	ht_conf->single_chain_sufficient = false;
@@ -2098,29 +2096,32 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		spin_lock_irqsave(&priv->lock, flags);
 
-		/* Configure HT40 channels */
-		ht_conf->is_ht = conf_is_ht(conf);
-		if (ht_conf->is_ht) {
-			if (conf_is_ht40_minus(conf)) {
-				ht_conf->extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-				ht_conf->is_40mhz = true;
-			} else if (conf_is_ht40_plus(conf)) {
-				ht_conf->extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-				ht_conf->is_40mhz = true;
-			} else {
-				ht_conf->extension_chan_offset =
-					IEEE80211_HT_PARAM_CHA_SEC_NONE;
-				ht_conf->is_40mhz = false;
-			}
-		} else
-			ht_conf->is_40mhz = false;
-		/* Default to no protection. Protection mode will later be set
-		 * from BSS config in iwl_ht_conf */
-		ht_conf->ht_protection = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
-
 		for_each_context(priv, ctx) {
+			/* Configure HT40 channels */
+			ctx->ht.enabled = conf_is_ht(conf);
+			if (ctx->ht.enabled) {
+				if (conf_is_ht40_minus(conf)) {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+					ctx->ht.is_40mhz = true;
+				} else if (conf_is_ht40_plus(conf)) {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+					ctx->ht.is_40mhz = true;
+				} else {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_NONE;
+					ctx->ht.is_40mhz = false;
+				}
+			} else
+				ctx->ht.is_40mhz = false;
+
+			/*
+			 * Default to no protection. Protection mode will
+			 * later be set from BSS config in iwl_ht_conf
+			 */
+			ctx->ht.protection = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
+
 			/* if we are switching from ht to 2.4 clear flags
 			 * from any ht related info since 2.4 does not
 			 * support ht */

@@ -470,15 +470,8 @@ union iwl_ht_rate_supp {
 #define CFG_HT_MPDU_DENSITY_MIN     (0x1)
 
 struct iwl_ht_config {
-	/* self configuration data */
-	bool is_ht;
-	bool is_40mhz;
 	bool single_chain_sufficient;
 	enum ieee80211_smps_mode smps; /* current smps mode */
-	/* BSS related data */
-	u8 extension_chan_offset;
-	u8 ht_protection;
-	u8 non_GF_STA_present;
 };
 
 /* QoS structures */
@@ -1140,6 +1133,13 @@ struct iwl_rxon_context {
 	u8 key_mapping_keys;
 
 	__le32 station_flags;
+
+	struct {
+		bool non_gf_sta_present;
+		u8 protection;
+		bool enabled, is_40mhz;
+		u8 extension_chan_offset;
+	} ht;
 };
 
 struct iwl_priv {

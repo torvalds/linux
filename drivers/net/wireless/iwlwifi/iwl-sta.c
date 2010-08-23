@@ -172,7 +172,8 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
-				   struct ieee80211_sta *sta)
+				   struct ieee80211_sta *sta,
+				   struct iwl_rxon_context *ctx)
 {
 	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
 	__le32 sta_flags;
@@ -212,7 +213,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	sta_flags |= cpu_to_le32(
 	      (u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (iwl_is_ht40_tx_allowed(priv, sta_ht_inf))
+	if (iwl_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
 		sta_flags |= STA_FLG_HT40_EN_MSK;
 	else
 		sta_flags &= ~STA_FLG_HT40_EN_MSK;
@@ -305,7 +306,7 @@ static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	 * STA and broadcast STA) pass in a NULL sta, and mac80211
 	 * doesn't allow HT IBSS.
 	 */
-	iwl_set_ht_add_station(priv, sta_id, sta);
+	iwl_set_ht_add_station(priv, sta_id, sta, ctx);
 
 	/* 3945 only */
 	rate = (priv->band == IEEE80211_BAND_5GHZ) ?
@@ -472,7 +473,7 @@ int iwl_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			return -ENOMEM;
 		}
 
-		ret = iwl_send_lq_cmd(priv, link_cmd, CMD_SYNC, true);
+		ret = iwl_send_lq_cmd(priv, ctx, link_cmd, CMD_SYNC, true);
 		if (ret)
 			IWL_ERR(priv, "Link quality command failed (%d)\n", ret);
 
@@ -714,7 +715,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			 * current LQ command
 			 */
 			if (send_lq)
-				iwl_send_lq_cmd(priv, &lq, CMD_SYNC, true);
+				iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
 			spin_lock_irqsave(&priv->sta_lock, flags_spin);
 			priv->stations[i].used &= ~IWL_STA_UCODE_INPROGRESS;
 		}
@@ -1173,16 +1174,12 @@ static inline void iwl_dump_lq_cmd(struct iwl_priv *priv,
  * RXON flags are updated and when LQ command is updated.
  */
 static bool is_lq_table_valid(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx,
 			      struct iwl_link_quality_cmd *lq)
 {
 	int i;
-	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
-#if !TODO
-	struct iwl_rxon_context *ctx =
-			&priv->contexts[IWL_RXON_CTX_BSS];
-#endif
 
-	if (ht_conf->is_ht)
+	if (ctx->ht.enabled)
 		return true;
 
 	IWL_DEBUG_INFO(priv, "Channel %u is not an HT channel\n",
@@ -1208,7 +1205,7 @@ static bool is_lq_table_valid(struct iwl_priv *priv,
  * this case to clear the state indicating that station creation is in
  * progress.
  */
-int iwl_send_lq_cmd(struct iwl_priv *priv,
+int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    struct iwl_link_quality_cmd *lq, u8 flags, bool init)
 {
 	int ret = 0;
@@ -1227,7 +1224,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 	iwl_dump_lq_cmd(priv, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));
 
-	if (is_lq_table_valid(priv, lq))
+	if (is_lq_table_valid(priv, ctx, lq))
 		ret = iwl_send_cmd(priv, &cmd);
 	else
 		ret = -EINVAL;
