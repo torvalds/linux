@@ -1064,6 +1064,7 @@ struct iwl_event_log {
 #define IWL_DEF_MONITORING_PERIOD	(1000)
 #define IWL_LONG_MONITORING_PERIOD	(5000)
 #define IWL_ONE_HUNDRED_MSECS   (100)
+#define IWL_MAX_MONITORING_PERIOD	(60000)
 
 /* BT Antenna Coupling Threshold (dB) */
 #define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)

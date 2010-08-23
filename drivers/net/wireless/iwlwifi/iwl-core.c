@@ -2697,12 +2697,14 @@ void iwl_bg_monitor_recover(unsigned long data)
 				return;
 		}
 	}
-	/*
-	 * Reschedule the timer to occur in
-	 * priv->cfg->monitor_recover_period
-	 */
-	mod_timer(&priv->monitor_recover,
-		jiffies + msecs_to_jiffies(priv->cfg->monitor_recover_period));
+	if (priv->cfg->monitor_recover_period) {
+		/*
+		 * Reschedule the timer to occur in
+		 * priv->cfg->monitor_recover_period
+		 */
+		mod_timer(&priv->monitor_recover, jiffies + msecs_to_jiffies(
+			  priv->cfg->monitor_recover_period));
+	}
 }
 EXPORT_SYMBOL(iwl_bg_monitor_recover);
 

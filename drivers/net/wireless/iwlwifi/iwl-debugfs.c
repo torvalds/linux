@@ -1527,6 +1527,34 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 			user_buf, count, ppos);
 }
 
+static ssize_t iwl_dbgfs_monitor_period_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int period;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &period) != 1)
+		return -EINVAL;
+	if (period < 0 || period > IWL_MAX_MONITORING_PERIOD)
+		priv->cfg->monitor_recover_period = IWL_DEF_MONITORING_PERIOD;
+	else
+		priv->cfg->monitor_recover_period = period;
+
+	if (priv->cfg->monitor_recover_period)
+		mod_timer(&priv->monitor_recover, jiffies + msecs_to_jiffies(
+			  priv->cfg->monitor_recover_period));
+	else
+		del_timer_sync(&priv->monitor_recover);
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -1550,6 +1578,7 @@ DEBUGFS_READ_FILE_OPS(rxon_flags);
 DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
 DEBUGFS_WRITE_FILE_OPS(txfifo_flush);
 DEBUGFS_READ_FILE_OPS(ucode_bt_stats);
+DEBUGFS_WRITE_FILE_OPS(monitor_period);
 
 /*
  * Create the debugfs files and directories
@@ -1621,6 +1650,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(monitor_period, dir_debug, S_IWUSR);
 	if (priv->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &priv->disable_sens_cal);
