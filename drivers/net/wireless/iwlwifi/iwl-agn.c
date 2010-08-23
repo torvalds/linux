@@ -2813,6 +2813,22 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	if (iwl_is_rfkill(priv))
 		return;
 
+	if (priv->cfg->advanced_bt_coexist) {
+		/* Configure Bluetooth device coexistence support */
+		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
+		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
+		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
+		priv->cfg->ops->hcmd->send_bt_config(priv);
+		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
+		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC)
+			iwlagn_send_prio_tbl(priv);
+
+		/* FIXME: w/a to force change uCode BT state machine */
+		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
+			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+	}
 	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = IWL_RATES_MASK;
