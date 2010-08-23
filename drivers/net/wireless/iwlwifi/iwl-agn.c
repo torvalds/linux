@@ -3012,7 +3012,10 @@ static int __iwl_up(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 
 	/* must be initialised before iwl_hw_nic_init */
-	priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+		priv->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+	else
+		priv->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 
 	ret = iwlagn_hw_nic_init(priv);
 	if (ret) {

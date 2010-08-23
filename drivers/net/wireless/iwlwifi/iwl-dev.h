@@ -253,10 +253,14 @@ struct iwl_channel_info {
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
-#define IWL_TX_FIFO_BK		0
+#define IWL_TX_FIFO_BK		0	/* shared */
 #define IWL_TX_FIFO_BE		1
-#define IWL_TX_FIFO_VI		2
+#define IWL_TX_FIFO_VI		2	/* shared */
 #define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
+#define IWL_TX_FIFO_BE_IPAN	4
+#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
+#define IWL_TX_FIFO_VO_IPAN	5
 #define IWL_TX_FIFO_UNUSED	-1
 
 /* Minimum number of queues. MAX_NUM is defined in hw specific files.
@@ -269,6 +273,13 @@ struct iwl_channel_info {
  */
 #define IWL_DEFAULT_CMD_QUEUE_NUM	4
 #define IWL_IPAN_CMD_QUEUE_NUM		9
+
+/*
+ * This queue number is required for proper operation
+ * because the ucode will stop/start the scheduler as
+ * required.
+ */
+#define IWL_IPAN_MCAST_QUEUE		8
 
 /* Power management (not Tx power) structures */
 
