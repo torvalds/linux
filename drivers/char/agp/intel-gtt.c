@@ -1333,8 +1333,8 @@ static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
 static unsigned long intel_gen6_mask_memory(struct agp_bridge_data *bridge,
 					    dma_addr_t addr, int type)
 {
-	/* Shift high bits down */
-	addr |= (addr >> 28) & 0xff;
+	/* gen6 has bit11-4 for physical addr bit39-32 */
+	addr |= (addr >> 28) & 0xff0;
 
 	/* Type checking must be done elsewhere */
 	return addr | bridge->driver->masks[type].mask;
