@@ -1252,7 +1252,6 @@ extern int drm_lock(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 extern int drm_unlock(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
-extern int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
 extern int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context);
 extern void drm_idlelock_take(struct drm_lock_data *lock_data);
 extern void drm_idlelock_release(struct drm_lock_data *lock_data);
