@@ -974,8 +974,7 @@ static int mg_probe(struct platform_device *plat_dev)
 	host->breq->queuedata = host;
 
 	/* mflash is random device, thanx for the noop */
-	elevator_exit(host->breq->elevator);
-	err = elevator_init(host->breq, "noop");
+	err = elevator_change(host->breq, "noop");
 	if (err) {
 		printk(KERN_ERR "%s:%d (elevator_init) fail\n",
 				__func__, __LINE__);
