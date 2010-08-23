@@ -1117,6 +1117,10 @@ struct iwl_rxon_context {
 	u8 mcast_queue;
 
 	enum iwl_rxon_context_id ctxid;
+
+	u32 interface_modes, exclusive_interface_modes;
+	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
+
 	/*
 	 * We declare this const so it can only be
 	 * changed via explicit cast within the

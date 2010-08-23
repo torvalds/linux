@@ -394,7 +394,7 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
 			    struct ieee80211_sta_ht_cap *ht_cap);
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif);
+				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
 int iwl_set_decrypted_flag(struct iwl_priv *priv,
 			   struct ieee80211_hdr *hdr,

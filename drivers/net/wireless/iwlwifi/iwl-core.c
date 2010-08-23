@@ -1028,38 +1028,34 @@ EXPORT_SYMBOL(iwl_set_flags_for_band);
  * initialize rxon structure with default values from eeprom
  */
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif)
+				   struct iwl_rxon_context *ctx)
 {
 	const struct iwl_channel_info *ch_info;
-	enum nl80211_iftype type = NL80211_IFTYPE_STATION;
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-
-	if (vif) {
-		type = vif->type;
-		ctx = iwl_rxon_ctx_from_vif(vif);
-	}
 
 	memset(&ctx->staging, 0, sizeof(ctx->staging));
 
-	switch (type) {
+	if (!ctx->vif) {
+		ctx->staging.dev_type = ctx->unused_devtype;
+	} else switch (ctx->vif->type) {
 	case NL80211_IFTYPE_AP:
-		ctx->staging.dev_type = RXON_DEV_TYPE_AP;
+		ctx->staging.dev_type = ctx->ap_devtype;
 		break;
 
 	case NL80211_IFTYPE_STATION:
-		ctx->staging.dev_type = RXON_DEV_TYPE_ESS;
+		ctx->staging.dev_type = ctx->station_devtype;
 		ctx->staging.filter_flags = RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 
 	case NL80211_IFTYPE_ADHOC:
-		ctx->staging.dev_type = RXON_DEV_TYPE_IBSS;
+		ctx->staging.dev_type = ctx->ibss_devtype;
 		ctx->staging.flags = RXON_FLG_SHORT_PREAMBLE_MSK;
 		ctx->staging.filter_flags = RXON_FILTER_BCON_AWARE_MSK |
 						  RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 
 	default:
-		IWL_ERR(priv, "Unsupported interface type %d\n", type);
+		IWL_ERR(priv, "Unsupported interface type %d\n",
+			ctx->vif->type);
 		break;
 	}
 
@@ -1081,7 +1077,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	ctx->staging.channel = cpu_to_le16(ch_info->channel);
 	priv->band = ch_info->band;
 
-	iwl_set_flags_for_band(priv, ctx, priv->band, vif);
+	iwl_set_flags_for_band(priv, ctx, priv->band, ctx->vif);
 
 	ctx->staging.ofdm_basic_rates =
 	    (IWL_OFDM_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
@@ -1091,8 +1087,8 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	/* clear both MIX and PURE40 mode flag */
 	ctx->staging.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
 					RXON_FLG_CHANNEL_MODE_PURE_40);
-	if (vif)
-		memcpy(ctx->staging.node_addr, vif->addr, ETH_ALEN);
+	if (ctx->vif)
+		memcpy(ctx->staging.node_addr, ctx->vif->addr, ETH_ALEN);
 
 	ctx->staging.ofdm_ht_single_stream_basic_rates = 0xff;
 	ctx->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
@@ -1952,7 +1948,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 
-	iwl_connection_init_rx_config(priv, vif);
+	iwl_connection_init_rx_config(priv, ctx);
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
@@ -1964,7 +1960,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-	struct iwl_rxon_context *ctx;
+	struct iwl_rxon_context *tmp, *ctx = NULL;
 	int err = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
@@ -1972,23 +1968,45 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_lock(&priv->mutex);
 
-	/* For now always use this context. */
-	ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-
-	vif_priv->ctx = ctx;
-
 	if (WARN_ON(!iwl_is_ready_rf(priv))) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (ctx->vif) {
-		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
+	for_each_context(priv, tmp) {
+		u32 possible_modes =
+			tmp->interface_modes | tmp->exclusive_interface_modes;
+
+		if (tmp->vif) {
+			/* check if this busy context is exclusive */
+			if (tmp->exclusive_interface_modes &
+						BIT(tmp->vif->type)) {
+				err = -EINVAL;
+				goto out;
+			}
+			continue;
+		}
+
+		if (!(possible_modes & BIT(vif->type)))
+			continue;
+
+		/* have maybe usable context w/o interface */
+		ctx = tmp;
+		break;
+	}
+
+	if (!ctx) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
+	vif_priv->ctx = ctx;
 	ctx->vif = vif;
+	/*
+	 * This variable will be correct only when there's just
+	 * a single context, but all code using it is for hardware
+	 * that supports only one context.
+	 */
 	priv->iw_mode = vif->type;
 
 	err = iwl_set_mode(priv, vif);
@@ -2029,11 +2047,11 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (iwl_is_ready_rf(priv)) {
-		iwl_scan_cancel_timeout(priv, 100);
-		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv, ctx);
-	}
+	WARN_ON(ctx->vif != vif);
+	ctx->vif = NULL;
+
+	iwl_scan_cancel_timeout(priv, 100);
+	iwl_set_mode(priv, vif);
 
 	if (priv->scan_vif == vif) {
 		scan_completed = true;
@@ -2051,8 +2069,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_ADHOC)
 		priv->bt_traffic_load = priv->notif_bt_traffic_load;
 
-	WARN_ON(ctx->vif != vif);
-	ctx->vif = NULL;
 	memset(priv->bssid, 0, ETH_ALEN);
 	mutex_unlock(&priv->mutex);
 
