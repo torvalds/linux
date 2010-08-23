@@ -515,13 +515,6 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-resource_size_t drm_core_get_map_ofs(struct drm_local_map * map)
-{
-	return map->offset;
-}
-
-EXPORT_SYMBOL(drm_core_get_map_ofs);
-
 resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 {
 #ifdef __alpha__

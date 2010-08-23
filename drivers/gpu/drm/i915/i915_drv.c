@@ -524,7 +524,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = i915_driver_irq_uninstall,
 	.irq_handler = i915_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,

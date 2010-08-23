@@ -71,7 +71,6 @@ static struct drm_driver driver = {
 	.reclaim_buffers = NULL,
 	.reclaim_buffers_idlelocked = sis_reclaim_buffers_locked,
 	.lastclose = sis_lastclose,
-	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = sis_ioctls,
 	.fops = {
