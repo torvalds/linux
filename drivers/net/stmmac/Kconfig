@@ -3,10 +3,10 @@ config STMMAC_ETH
 	select MII
 	select PHYLIB
 	select CRC32
-	depends on NETDEVICES && CPU_SUBTYPE_ST40
+	depends on NETDEVICES
 	help
 	  This is the driver for the Ethernet IPs are built around a
-	  Synopsys IP Core and fully tested on the STMicroelectronics
+	  Synopsys IP Core and only tested on the STMicroelectronics
 	  platforms.
 
 if STMMAC_ETH
