@@ -5440,13 +5440,13 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	init_timer(&np->oom_kick);
 	np->oom_kick.data = (unsigned long) dev;
-	np->oom_kick.function = &nv_do_rx_refill;	/* timer handler */
+	np->oom_kick.function = nv_do_rx_refill;	/* timer handler */
 	init_timer(&np->nic_poll);
 	np->nic_poll.data = (unsigned long) dev;
-	np->nic_poll.function = &nv_do_nic_poll;	/* timer handler */
+	np->nic_poll.function = nv_do_nic_poll;	/* timer handler */
 	init_timer(&np->stats_poll);
 	np->stats_poll.data = (unsigned long) dev;
-	np->stats_poll.function = &nv_do_stats_poll;	/* timer handler */
+	np->stats_poll.function = nv_do_stats_poll;	/* timer handler */
 
 	err = pci_enable_device(pci_dev);
 	if (err)

@@ -1888,9 +1888,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		goto err_eeprom;
 	}
 
-	setup_timer(&adapter->watchdog_timer, &igb_watchdog,
+	setup_timer(&adapter->watchdog_timer, igb_watchdog,
 	            (unsigned long) adapter);
-	setup_timer(&adapter->phy_info_timer, &igb_update_phy_info,
+	setup_timer(&adapter->phy_info_timer, igb_update_phy_info,
 	            (unsigned long) adapter);
 
 	INIT_WORK(&adapter->reset_task, igb_reset_task);

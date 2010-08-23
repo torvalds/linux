@@ -296,7 +296,7 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_tx_timeout 	= smc_tx_timeout,
 	.ndo_set_config 	= s9k_config,
 	.ndo_set_multicast_list = set_rx_mode,
-	.ndo_do_ioctl		= &smc_ioctl,
+	.ndo_do_ioctl		= smc_ioctl,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1117,7 +1117,7 @@ static int smc_open(struct net_device *dev)
 
     smc_reset(dev);
     init_timer(&smc->media);
-    smc->media.function = &media_check;
+    smc->media.function = media_check;
     smc->media.data = (u_long) dev;
     smc->media.expires = jiffies + HZ;
     add_timer(&smc->media);

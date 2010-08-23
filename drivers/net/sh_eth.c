@@ -1031,7 +1031,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	mdp->duplex = -1;
 
 	/* Try connect to PHY */
-	phydev = phy_connect(ndev, phy_id, &sh_eth_adjust_link,
+	phydev = phy_connect(ndev, phy_id, sh_eth_adjust_link,
 				0, PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phydev)) {
 		dev_err(&ndev->dev, "phy_connect failed\n");

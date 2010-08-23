@@ -2316,7 +2316,7 @@ static int __devinit atl1e_probe(struct pci_dev *pdev,
 	netif_napi_add(netdev, &adapter->napi, atl1e_clean, 64);
 
 	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl1e_phy_config;
+	adapter->phy_config_timer.function = atl1e_phy_config;
 	adapter->phy_config_timer.data = (unsigned long) adapter;
 
 	/* get user settings */

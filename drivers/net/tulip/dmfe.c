@@ -599,7 +599,7 @@ static int dmfe_open(struct DEVICE *dev)
 	init_timer(&db->timer);
 	db->timer.expires = DMFE_TIMER_WUT + HZ * 2;
 	db->timer.data = (unsigned long)dev;
-	db->timer.function = &dmfe_timer;
+	db->timer.function = dmfe_timer;
 	add_timer(&db->timer);
 
 	return 0;

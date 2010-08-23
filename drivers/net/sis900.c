@@ -1042,7 +1042,7 @@ sis900_open(struct net_device *net_dev)
 	init_timer(&sis_priv->timer);
 	sis_priv->timer.expires = jiffies + HZ;
 	sis_priv->timer.data = (unsigned long)net_dev;
-	sis_priv->timer.function = &sis900_timer;
+	sis_priv->timer.function = sis900_timer;
 	add_timer(&sis_priv->timer);
 
 	return 0;

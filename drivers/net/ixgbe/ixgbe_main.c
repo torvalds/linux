@@ -6730,7 +6730,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	 * which might start the timer
 	 */
 	init_timer(&adapter->sfp_timer);
-	adapter->sfp_timer.function = &ixgbe_sfp_timer;
+	adapter->sfp_timer.function = ixgbe_sfp_timer;
 	adapter->sfp_timer.data = (unsigned long) adapter;
 
 	INIT_WORK(&adapter->sfp_task, ixgbe_sfp_task);
@@ -6862,7 +6862,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		hw->mac.ops.disable_tx_laser(hw);
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &ixgbe_watchdog;
+	adapter->watchdog_timer.function = ixgbe_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, ixgbe_reset_task);

@@ -1444,11 +1444,11 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 	atl2_check_options(adapter);
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &atl2_watchdog;
+	adapter->watchdog_timer.function = atl2_watchdog;
 	adapter->watchdog_timer.data = (unsigned long) adapter;
 
 	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl2_phy_config;
+	adapter->phy_config_timer.function = atl2_phy_config;
 	adapter->phy_config_timer.data = (unsigned long) adapter;
 
 	INIT_WORK(&adapter->reset_task, atl2_reset_task);

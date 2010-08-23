@@ -1570,7 +1570,7 @@ static int netdev_open(struct net_device *dev)
 	init_timer(&np->timer);
 	np->timer.expires = round_jiffies(jiffies + NATSEMI_TIMER_FREQ);
 	np->timer.data = (unsigned long)dev;
-	np->timer.function = &netdev_timer; /* timer handler */
+	np->timer.function = netdev_timer; /* timer handler */
 	add_timer(&np->timer);
 
 	return 0;

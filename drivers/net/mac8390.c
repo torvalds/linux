@@ -562,19 +562,19 @@ static int __init mac8390_initdev(struct net_device *dev,
 
 		case ACCESS_16:
 			/* 16 bit card, register map is reversed */
-			ei_status.reset_8390 = &mac8390_no_reset;
-			ei_status.block_input = &slow_sane_block_input;
-			ei_status.block_output = &slow_sane_block_output;
-			ei_status.get_8390_hdr = &slow_sane_get_8390_hdr;
+			ei_status.reset_8390 = mac8390_no_reset;
+			ei_status.block_input = slow_sane_block_input;
+			ei_status.block_output = slow_sane_block_output;
+			ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
 			ei_status.reg_offset = back4_offsets;
 			break;
 
 		case ACCESS_32:
 			/* 32 bit card, register map is reversed */
-			ei_status.reset_8390 = &mac8390_no_reset;
-			ei_status.block_input = &sane_block_input;
-			ei_status.block_output = &sane_block_output;
-			ei_status.get_8390_hdr = &sane_get_8390_hdr;
+			ei_status.reset_8390 = mac8390_no_reset;
+			ei_status.block_input = sane_block_input;
+			ei_status.block_output = sane_block_output;
+			ei_status.get_8390_hdr = sane_get_8390_hdr;
 			ei_status.reg_offset = back4_offsets;
 			access_bitmode = 1;
 			break;
@@ -586,19 +586,19 @@ static int __init mac8390_initdev(struct net_device *dev,
 		 * but overwrite system memory when run at 32 bit.
 		 * so we run them all at 16 bit.
 		 */
-		ei_status.reset_8390 = &mac8390_no_reset;
-		ei_status.block_input = &slow_sane_block_input;
-		ei_status.block_output = &slow_sane_block_output;
-		ei_status.get_8390_hdr = &slow_sane_get_8390_hdr;
+		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.block_input = slow_sane_block_input;
+		ei_status.block_output = slow_sane_block_output;
+		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
 		ei_status.reg_offset = back4_offsets;
 		break;
 
 	case MAC8390_CABLETRON:
 		/* 16 bit card, register map is short forward */
-		ei_status.reset_8390 = &mac8390_no_reset;
-		ei_status.block_input = &slow_sane_block_input;
-		ei_status.block_output = &slow_sane_block_output;
-		ei_status.get_8390_hdr = &slow_sane_get_8390_hdr;
+		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.block_input = slow_sane_block_input;
+		ei_status.block_output = slow_sane_block_output;
+		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
 		ei_status.reg_offset = fwrd2_offsets;
 		break;
 
@@ -606,19 +606,19 @@ static int __init mac8390_initdev(struct net_device *dev,
 	case MAC8390_KINETICS:
 		/* 16 bit memory, register map is forward */
 		/* dayna and similar */
-		ei_status.reset_8390 = &mac8390_no_reset;
-		ei_status.block_input = &dayna_block_input;
-		ei_status.block_output = &dayna_block_output;
-		ei_status.get_8390_hdr = &dayna_get_8390_hdr;
+		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.block_input = dayna_block_input;
+		ei_status.block_output = dayna_block_output;
+		ei_status.get_8390_hdr = dayna_get_8390_hdr;
 		ei_status.reg_offset = fwrd4_offsets;
 		break;
 
 	case MAC8390_INTERLAN:
 		/* 16 bit memory, register map is forward */
-		ei_status.reset_8390 = &interlan_reset;
-		ei_status.block_input = &slow_sane_block_input;
-		ei_status.block_output = &slow_sane_block_output;
-		ei_status.get_8390_hdr = &slow_sane_get_8390_hdr;
+		ei_status.reset_8390 = interlan_reset;
+		ei_status.block_input = slow_sane_block_input;
+		ei_status.block_output = slow_sane_block_output;
+		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
 		ei_status.reg_offset = fwrd4_offsets;
 		break;
 

@@ -1105,7 +1105,7 @@ static int lmc_open(struct net_device *dev)
     init_timer (&sc->timer);
     sc->timer.expires = jiffies + HZ;
     sc->timer.data = (unsigned long) dev;
-    sc->timer.function = &lmc_watchdog;
+    sc->timer.function = lmc_watchdog;
     add_timer (&sc->timer);
 
     lmc_trace(dev, "lmc_open out");

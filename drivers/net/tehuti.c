@@ -92,7 +92,7 @@ static void bdx_rx_free(struct bdx_priv *priv);
 static void bdx_tx_free(struct bdx_priv *priv);
 
 /* Definitions needed by bdx_probe */
-static void bdx_ethtool_ops(struct net_device *netdev);
+static void bdx_set_ethtool_ops(struct net_device *netdev);
 
 /*************************************************************************
  *    Print Info                                                         *
@@ -2005,7 +2005,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev->netdev_ops = &bdx_netdev_ops;
 		ndev->tx_queue_len = BDX_NDEV_TXQ_LEN;
 
-		bdx_ethtool_ops(ndev);	/* ethtool interface */
+		bdx_set_ethtool_ops(ndev);	/* ethtool interface */
 
 		/* these fields are used for info purposes only
 		 * so we can have them same for all ports of the board */
@@ -2410,10 +2410,10 @@ static void bdx_get_ethtool_stats(struct net_device *netdev,
 }
 
 /*
- * bdx_ethtool_ops - ethtool interface implementation
+ * bdx_set_ethtool_ops - ethtool interface implementation
  * @netdev
  */
-static void bdx_ethtool_ops(struct net_device *netdev)
+static void bdx_set_ethtool_ops(struct net_device *netdev)
 {
 	static const struct ethtool_ops bdx_ethtool_ops = {
 		.get_settings = bdx_get_settings,

@@ -624,7 +624,7 @@ static int pcnet_config(struct pcmcia_device *link)
 
     ei_status.name = "NE2000";
     ei_status.word16 = 1;
-    ei_status.reset_8390 = &pcnet_reset_8390;
+    ei_status.reset_8390 = pcnet_reset_8390;
 
     if (info->flags & (IS_DL10019|IS_DL10022))
 	mii_phy_probe(dev);
@@ -957,7 +957,7 @@ static int pcnet_open(struct net_device *dev)
     info->phy_id = info->eth_phy;
     info->link_status = 0x00;
     init_timer(&info->watchdog);
-    info->watchdog.function = &ei_watchdog;
+    info->watchdog.function = ei_watchdog;
     info->watchdog.data = (u_long)dev;
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
@@ -1341,9 +1341,9 @@ static int setup_dma_config(struct pcmcia_device *link, int start_pg,
     ei_status.stop_page = stop_pg;
 
     /* set up block i/o functions */
-    ei_status.get_8390_hdr = &dma_get_8390_hdr;
-    ei_status.block_input = &dma_block_input;
-    ei_status.block_output = &dma_block_output;
+    ei_status.get_8390_hdr = dma_get_8390_hdr;
+    ei_status.block_input = dma_block_input;
+    ei_status.block_output = dma_block_output;
 
     return 0;
 }
@@ -1489,9 +1489,9 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     ei_status.stop_page = start_pg + ((req.Size - offset) >> 8);
 
     /* set up block i/o functions */
-    ei_status.get_8390_hdr = &shmem_get_8390_hdr;
-    ei_status.block_input = &shmem_block_input;
-    ei_status.block_output = &shmem_block_output;
+    ei_status.get_8390_hdr = shmem_get_8390_hdr;
+    ei_status.block_input = shmem_block_input;
+    ei_status.block_output = shmem_block_output;
 
     info->flags |= USE_SHMEM;
     return 0;

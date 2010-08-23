@@ -538,7 +538,7 @@ static int el3_open(struct net_device *dev)
 
     tc589_reset(dev);
     init_timer(&lp->media);
-    lp->media.function = &media_check;
+    lp->media.function = media_check;
     lp->media.data = (unsigned long) dev;
     lp->media.expires = jiffies + HZ;
     add_timer(&lp->media);

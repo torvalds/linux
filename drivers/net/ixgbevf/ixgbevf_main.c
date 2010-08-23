@@ -3426,7 +3426,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	}
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &ixgbevf_watchdog;
+	adapter->watchdog_timer.function = ixgbevf_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, ixgbevf_reset_task);

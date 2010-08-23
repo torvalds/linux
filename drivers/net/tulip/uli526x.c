@@ -480,7 +480,7 @@ static int uli526x_open(struct net_device *dev)
 	init_timer(&db->timer);
 	db->timer.expires = ULI526X_TIMER_WUT + HZ * 2;
 	db->timer.data = (unsigned long)dev;
-	db->timer.function = &uli526x_timer;
+	db->timer.function = uli526x_timer;
 	add_timer(&db->timer);
 
 	return 0;

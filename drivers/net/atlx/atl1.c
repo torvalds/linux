@@ -3036,7 +3036,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	setup_timer(&adapter->phy_config_timer, &atl1_phy_config,
+	setup_timer(&adapter->phy_config_timer, atl1_phy_config,
 		    (unsigned long)adapter);
 	adapter->phy_timer_pending = false;
 

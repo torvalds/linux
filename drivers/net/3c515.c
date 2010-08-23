@@ -734,7 +734,7 @@ static int corkscrew_open(struct net_device *dev)
 		init_timer(&vp->timer);
 		vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
 		vp->timer.data = (unsigned long) dev;
-		vp->timer.function = &corkscrew_timer;	/* timer handler */
+		vp->timer.function = corkscrew_timer;	/* timer handler */
 		add_timer(&vp->timer);
 	} else
 		dev->if_port = vp->default_media;

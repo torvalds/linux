@@ -356,10 +356,10 @@ static int axnet_config(struct pcmcia_device *link)
     ei_status.tx_start_page = AXNET_START_PG;
     ei_status.rx_start_page = AXNET_START_PG + TX_PAGES;
     ei_status.stop_page = AXNET_STOP_PG;
-    ei_status.reset_8390 = &axnet_reset_8390;
-    ei_status.get_8390_hdr = &get_8390_hdr;
-    ei_status.block_input = &block_input;
-    ei_status.block_output = &block_output;
+    ei_status.reset_8390 = axnet_reset_8390;
+    ei_status.get_8390_hdr = get_8390_hdr;
+    ei_status.block_input = block_input;
+    ei_status.block_output = block_output;
 
     if (inb(dev->base_addr + AXNET_TEST) != 0)
 	info->flags |= IS_AX88790;
@@ -530,7 +530,7 @@ static int axnet_open(struct net_device *dev)
 
     info->link_status = 0x00;
     init_timer(&info->watchdog);
-    info->watchdog.function = &ei_watchdog;
+    info->watchdog.function = ei_watchdog;
     info->watchdog.data = (u_long)dev;
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);

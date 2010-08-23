@@ -155,10 +155,10 @@ static int __devinit hydra_init(struct zorro_dev *z)
 
     ei_status.rx_start_page = start_page + TX_PAGES;
 
-    ei_status.reset_8390 = &hydra_reset_8390;
-    ei_status.block_input = &hydra_block_input;
-    ei_status.block_output = &hydra_block_output;
-    ei_status.get_8390_hdr = &hydra_get_8390_hdr;
+    ei_status.reset_8390 = hydra_reset_8390;
+    ei_status.block_input = hydra_block_input;
+    ei_status.block_output = hydra_block_output;
+    ei_status.get_8390_hdr = hydra_get_8390_hdr;
     ei_status.reg_offset = hydra_offsets;
 
     dev->netdev_ops = &hydra_netdev_ops;

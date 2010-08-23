@@ -1409,7 +1409,7 @@ force_link:
 	hp->timer_ticks = 0;
 	hp->happy_timer.expires = jiffies + (12 * HZ)/10;  /* 1.2 sec. */
 	hp->happy_timer.data = (unsigned long) hp;
-	hp->happy_timer.function = &happy_meal_timer;
+	hp->happy_timer.function = happy_meal_timer;
 	add_timer(&hp->happy_timer);
 }
 

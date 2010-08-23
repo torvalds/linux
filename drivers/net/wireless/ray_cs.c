@@ -604,7 +604,7 @@ static int dl_startup_params(struct net_device *dev)
 	/* Start kernel timer to wait for dl startup to complete. */
 	local->timer.expires = jiffies + HZ / 2;
 	local->timer.data = (long)local;
-	local->timer.function = &verify_dl_startup;
+	local->timer.function = verify_dl_startup;
 	add_timer(&local->timer);
 	dev_dbg(&link->dev,
 	      "ray_cs dl_startup_params started timer for verify_dl_startup\n");
@@ -1981,12 +1981,12 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" start failed\n",
 					      local->sparm.b4.a_current_ess_id);
-					local->timer.function = &start_net;
+					local->timer.function = start_net;
 				} else {
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" join failed\n",
 					      local->sparm.b4.a_current_ess_id);
-					local->timer.function = &join_net;
+					local->timer.function = join_net;
 				}
 				add_timer(&local->timer);
 			}
@@ -2454,9 +2454,9 @@ static void authenticate(ray_dev_t *local)
 
 	del_timer(&local->timer);
 	if (build_auth_frame(local, local->bss_id, OPEN_AUTH_REQUEST)) {
-		local->timer.function = &join_net;
+		local->timer.function = join_net;
 	} else {
-		local->timer.function = &authenticate_timeout;
+		local->timer.function = authenticate_timeout;
 	}
 	local->timer.expires = jiffies + HZ * 2;
 	local->timer.data = (long)local;
@@ -2541,7 +2541,7 @@ static void associate(ray_dev_t *local)
 		del_timer(&local->timer);
 		local->timer.expires = jiffies + HZ * 2;
 		local->timer.data = (long)local;
-		local->timer.function = &join_net;
+		local->timer.function = join_net;
 		add_timer(&local->timer);
 		local->card_status = CARD_ASSOC_FAILED;
 		return;
