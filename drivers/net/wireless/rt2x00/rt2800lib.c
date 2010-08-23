@@ -650,7 +650,6 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		txdesc.flags = 0;
 		rt2x00_desc_read(txwi, 0, &word);
 		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
-		mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
 		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
 
 		/*
