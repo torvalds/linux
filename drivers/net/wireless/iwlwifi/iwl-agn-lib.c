@@ -1542,3 +1542,373 @@ done:
 	ieee80211_wake_queues(priv->hw);
 	mutex_unlock(&priv->mutex);
 }
+
+/*
+ * BT coex
+ */
+/*
+ * Macros to access the lookup table.
+ *
+ * The lookup table has 7 inputs: bt3_prio, bt3_txrx, bt_rf_act, wifi_req,
+* wifi_prio, wifi_txrx and wifi_sh_ant_req.
+ *
+ * It has three outputs: WLAN_ACTIVE, WLAN_KILL and ANT_SWITCH
+ *
+ * The format is that "registers" 8 through 11 contain the WLAN_ACTIVE bits
+ * one after another in 32-bit registers, and "registers" 0 through 7 contain
+ * the WLAN_KILL and ANT_SWITCH bits interleaved (in that order).
+ *
+ * These macros encode that format.
+ */
+#define LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, wifi_req, wifi_prio, \
+		  wifi_txrx, wifi_sh_ant_req) \
+	(bt3_prio | (bt3_txrx << 1) | (bt_rf_act << 2) | (wifi_req << 3) | \
+	(wifi_prio << 4) | (wifi_txrx << 5) | (wifi_sh_ant_req << 6))
+
+#define LUT_PTA_WLAN_ACTIVE_OP(lut, op, val) \
+	lut[8 + ((val) >> 5)] op (cpu_to_le32(BIT((val) & 0x1f)))
+#define LUT_TEST_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+				 wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	(!!(LUT_PTA_WLAN_ACTIVE_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, \
+				   bt_rf_act, wifi_req, wifi_prio, wifi_txrx, \
+				   wifi_sh_ant_req))))
+#define LUT_SET_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+				wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_PTA_WLAN_ACTIVE_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, \
+			       bt_rf_act, wifi_req, wifi_prio, wifi_txrx, \
+			       wifi_sh_ant_req))
+#define LUT_CLEAR_PTA_WLAN_ACTIVE(lut, bt3_prio, bt3_txrx, bt_rf_act, \
+				  wifi_req, wifi_prio, wifi_txrx, \
+				  wifi_sh_ant_req) \
+	LUT_PTA_WLAN_ACTIVE_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, \
+			       bt_rf_act, wifi_req, wifi_prio, wifi_txrx, \
+			       wifi_sh_ant_req))
+
+#define LUT_WLAN_KILL_OP(lut, op, val) \
+	lut[(val) >> 4] op (cpu_to_le32(BIT(((val) << 1) & 0x1e)))
+#define LUT_TEST_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+			   wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	(!!(LUT_WLAN_KILL_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+			     wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))))
+#define LUT_SET_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+			  wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_WLAN_KILL_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+			 wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+#define LUT_CLEAR_WLAN_KILL(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+			    wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_WLAN_KILL_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+			 wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+
+#define LUT_ANT_SWITCH_OP(lut, op, val) \
+	lut[(val) >> 4] op (cpu_to_le32(BIT((((val) << 1) & 0x1e) + 1)))
+#define LUT_TEST_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+			    wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	(!!(LUT_ANT_SWITCH_OP(lut, &, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+			      wifi_req, wifi_prio, wifi_txrx, \
+			      wifi_sh_ant_req))))
+#define LUT_SET_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+			   wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_ANT_SWITCH_OP(lut, |=, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+			  wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+#define LUT_CLEAR_ANT_SWITCH(lut, bt3_prio, bt3_txrx, bt_rf_act, wifi_req, \
+			     wifi_prio, wifi_txrx, wifi_sh_ant_req) \
+	LUT_ANT_SWITCH_OP(lut, &= ~, LUT_VALUE(bt3_prio, bt3_txrx, bt_rf_act, \
+			  wifi_req, wifi_prio, wifi_txrx, wifi_sh_ant_req))
+
+static const __le32 iwlagn_def_3w_lookup[12] = {
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaeaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xcc00ff28),
+	cpu_to_le32(0x0000aaaa),
+	cpu_to_le32(0xcc00aaaa),
+	cpu_to_le32(0x0000aaaa),
+	cpu_to_le32(0xc0004000),
+	cpu_to_le32(0x00004000),
+	cpu_to_le32(0xf0005000),
+	cpu_to_le32(0xf0004000),
+};
+
+static const __le32 iwlagn_concurrent_lookup[12] = {
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0xaaaaaaaa),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+	cpu_to_le32(0x00000000),
+};
+
+void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
+{
+	struct iwlagn_bt_cmd bt_cmd = {
+		.max_kill = IWLAGN_BT_MAX_KILL_DEFAULT,
+		.bt3_timer_t7_value = IWLAGN_BT3_T7_DEFAULT,
+		.bt3_prio_sample_time = IWLAGN_BT3_PRIO_SAMPLE_DEFAULT,
+		.bt3_timer_t2_value = IWLAGN_BT3_T2_DEFAULT,
+	};
+
+	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
+			sizeof(bt_cmd.bt3_lookup_table));
+
+	bt_cmd.prio_boost = priv->cfg->bt_prio_boost;
+	bt_cmd.kill_ack_mask = priv->kill_ack_mask;
+	bt_cmd.kill_cts_mask = priv->kill_cts_mask;
+	bt_cmd.valid = priv->bt_valid;
+
+	/*
+	 * Configure BT coex mode to "no coexistence" when the
+	 * user disabled BT coexistence, we have no interface
+	 * (might be in monitor mode), or the interface is in
+	 * IBSS mode (no proper uCode support for coex then).
+	 */
+	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
+		bt_cmd.flags = 0;
+	} else {
+		bt_cmd.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
+					IWLAGN_BT_FLAG_COEX_MODE_SHIFT;
+		if (priv->bt_ch_announce)
+			bt_cmd.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
+		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", bt_cmd.flags);
+	}
+	if (priv->bt_full_concurrent)
+		memcpy(bt_cmd.bt3_lookup_table, iwlagn_concurrent_lookup,
+			sizeof(iwlagn_concurrent_lookup));
+	else
+		memcpy(bt_cmd.bt3_lookup_table, iwlagn_def_3w_lookup,
+			sizeof(iwlagn_def_3w_lookup));
+
+	IWL_DEBUG_INFO(priv, "BT coex %s in %s mode\n",
+		       bt_cmd.flags ? "active" : "disabled",
+		       priv->bt_full_concurrent ?
+		       "full concurrency" : "3-wire");
+
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG, sizeof(bt_cmd), &bt_cmd))
+		IWL_ERR(priv, "failed to send BT Coex Config\n");
+
+	/*
+	 * When we are doing a restart, need to also reconfigure BT
+	 * SCO to the device. If not doing a restart, bt_sco_active
+	 * will always be false, so there's no need to have an extra
+	 * variable to check for it.
+	 */
+	if (priv->bt_sco_active) {
+		struct iwlagn_bt_sco_cmd sco_cmd = { .flags = 0 };
+
+		if (priv->bt_sco_active)
+			sco_cmd.flags |= IWLAGN_BT_SCO_ACTIVE;
+		if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_SCO,
+				     sizeof(sco_cmd), &sco_cmd))
+			IWL_ERR(priv, "failed to send BT SCO command\n");
+	}
+}
+
+static void iwlagn_bt_traffic_change_work(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, bt_traffic_change_work);
+	int smps_request = -1;
+
+	IWL_DEBUG_INFO(priv, "BT traffic load changes: %d\n",
+		       priv->bt_traffic_load);
+
+	switch (priv->bt_traffic_load) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		smps_request = IEEE80211_SMPS_AUTOMATIC;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		smps_request = IEEE80211_SMPS_DYNAMIC;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		smps_request = IEEE80211_SMPS_STATIC;
+		break;
+	default:
+		IWL_ERR(priv, "Invalid BT traffic load: %d\n",
+			priv->bt_traffic_load);
+		break;
+	}
+
+	mutex_lock(&priv->mutex);
+
+	if (priv->cfg->ops->lib->update_chain_flags)
+		priv->cfg->ops->lib->update_chain_flags(priv);
+
+	if (smps_request != -1 &&
+	    priv->vif && priv->vif->type == NL80211_IFTYPE_STATION)
+		ieee80211_request_smps(priv->vif, smps_request);
+
+	mutex_unlock(&priv->mutex);
+}
+
+static void iwlagn_print_uartmsg(struct iwl_priv *priv,
+				struct iwl_bt_uart_msg *uart_msg)
+{
+	IWL_DEBUG_NOTIF(priv, "Message Type = 0x%X, SSN = 0x%X, "
+			"Update Req = 0x%X",
+		(BT_UART_MSG_FRAME1MSGTYPE_MSK & uart_msg->frame1) >>
+			BT_UART_MSG_FRAME1MSGTYPE_POS,
+		(BT_UART_MSG_FRAME1SSN_MSK & uart_msg->frame1) >>
+			BT_UART_MSG_FRAME1SSN_POS,
+		(BT_UART_MSG_FRAME1UPDATEREQ_MSK & uart_msg->frame1) >>
+			BT_UART_MSG_FRAME1UPDATEREQ_POS);
+
+	IWL_DEBUG_NOTIF(priv, "Open connections = 0x%X, Traffic load = 0x%X, "
+			"Chl_SeqN = 0x%X, In band = 0x%X",
+		(BT_UART_MSG_FRAME2OPENCONNECTIONS_MSK & uart_msg->frame2) >>
+			BT_UART_MSG_FRAME2OPENCONNECTIONS_POS,
+		(BT_UART_MSG_FRAME2TRAFFICLOAD_MSK & uart_msg->frame2) >>
+			BT_UART_MSG_FRAME2TRAFFICLOAD_POS,
+		(BT_UART_MSG_FRAME2CHLSEQN_MSK & uart_msg->frame2) >>
+			BT_UART_MSG_FRAME2CHLSEQN_POS,
+		(BT_UART_MSG_FRAME2INBAND_MSK & uart_msg->frame2) >>
+			BT_UART_MSG_FRAME2INBAND_POS);
+
+	IWL_DEBUG_NOTIF(priv, "SCO/eSCO = 0x%X, Sniff = 0x%X, A2DP = 0x%X, "
+			"ACL = 0x%X, Master = 0x%X, OBEX = 0x%X",
+		(BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3) >>
+			BT_UART_MSG_FRAME3SCOESCO_POS,
+		(BT_UART_MSG_FRAME3SNIFF_MSK & uart_msg->frame3) >>
+			BT_UART_MSG_FRAME3SNIFF_POS,
+		(BT_UART_MSG_FRAME3A2DP_MSK & uart_msg->frame3) >>
+			BT_UART_MSG_FRAME3A2DP_POS,
+		(BT_UART_MSG_FRAME3ACL_MSK & uart_msg->frame3) >>
+			BT_UART_MSG_FRAME3ACL_POS,
+		(BT_UART_MSG_FRAME3MASTER_MSK & uart_msg->frame3) >>
+			BT_UART_MSG_FRAME3MASTER_POS,
+		(BT_UART_MSG_FRAME3OBEX_MSK & uart_msg->frame3) >>
+			BT_UART_MSG_FRAME3OBEX_POS);
+
+	IWL_DEBUG_NOTIF(priv, "Idle duration = 0x%X",
+		(BT_UART_MSG_FRAME4IDLEDURATION_MSK & uart_msg->frame4) >>
+			BT_UART_MSG_FRAME4IDLEDURATION_POS);
+
+	IWL_DEBUG_NOTIF(priv, "Tx Activity = 0x%X, Rx Activity = 0x%X, "
+			"eSCO Retransmissions = 0x%X",
+		(BT_UART_MSG_FRAME5TXACTIVITY_MSK & uart_msg->frame5) >>
+			BT_UART_MSG_FRAME5TXACTIVITY_POS,
+		(BT_UART_MSG_FRAME5RXACTIVITY_MSK & uart_msg->frame5) >>
+			BT_UART_MSG_FRAME5RXACTIVITY_POS,
+		(BT_UART_MSG_FRAME5ESCORETRANSMIT_MSK & uart_msg->frame5) >>
+			BT_UART_MSG_FRAME5ESCORETRANSMIT_POS);
+
+	IWL_DEBUG_NOTIF(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X",
+		(BT_UART_MSG_FRAME6SNIFFINTERVAL_MSK & uart_msg->frame6) >>
+			BT_UART_MSG_FRAME6SNIFFINTERVAL_POS,
+		(BT_UART_MSG_FRAME6DISCOVERABLE_MSK & uart_msg->frame6) >>
+			BT_UART_MSG_FRAME6DISCOVERABLE_POS);
+
+	IWL_DEBUG_NOTIF(priv, "Sniff Activity = 0x%X, Inquiry/Page SR Mode = "
+			"0x%X, Connectable = 0x%X",
+		(BT_UART_MSG_FRAME7SNIFFACTIVITY_MSK & uart_msg->frame7) >>
+			BT_UART_MSG_FRAME7SNIFFACTIVITY_POS,
+		(BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_MSK & uart_msg->frame7) >>
+			BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_POS,
+		(BT_UART_MSG_FRAME7CONNECTABLE_MSK & uart_msg->frame7) >>
+			BT_UART_MSG_FRAME7CONNECTABLE_POS);
+}
+
+static void iwlagn_set_kill_ack_msk(struct iwl_priv *priv,
+				     struct iwl_bt_uart_msg *uart_msg)
+{
+	u8 kill_ack_msk;
+	__le32 bt_kill_ack_msg[2] = {
+			cpu_to_le32(0xFFFFFFF), cpu_to_le32(0xFFFFFC00) };
+
+	kill_ack_msk = (((BT_UART_MSG_FRAME3A2DP_MSK |
+			BT_UART_MSG_FRAME3SNIFF_MSK |
+			BT_UART_MSG_FRAME3SCOESCO_MSK) &
+			uart_msg->frame3) == 0) ? 1 : 0;
+	if (priv->kill_ack_mask != bt_kill_ack_msg[kill_ack_msk]) {
+		priv->bt_valid |= IWLAGN_BT_VALID_KILL_ACK_MASK;
+		priv->kill_ack_mask = bt_kill_ack_msg[kill_ack_msk];
+		/* schedule to send runtime bt_config */
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
+	}
+
+}
+
+void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+					     struct iwl_rx_mem_buffer *rxb)
+{
+	unsigned long flags;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
+	struct iwlagn_bt_sco_cmd sco_cmd = { .flags = 0 };
+	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
+	u8 last_traffic_load;
+
+	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
+	IWL_DEBUG_NOTIF(priv, "    status: %d\n", coex->bt_status);
+	IWL_DEBUG_NOTIF(priv, "    traffic load: %d\n", coex->bt_traffic_load);
+	IWL_DEBUG_NOTIF(priv, "    CI compliance: %d\n",
+			coex->bt_ci_compliance);
+	iwlagn_print_uartmsg(priv, uart_msg);
+
+	last_traffic_load = priv->notif_bt_traffic_load;
+	priv->notif_bt_traffic_load = coex->bt_traffic_load;
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
+		if (priv->bt_status != coex->bt_status ||
+		    last_traffic_load != coex->bt_traffic_load) {
+			if (coex->bt_status) {
+				/* BT on */
+				if (!priv->bt_ch_announce)
+					priv->bt_traffic_load =
+						IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
+				else
+					priv->bt_traffic_load =
+						coex->bt_traffic_load;
+			} else {
+				/* BT off */
+				priv->bt_traffic_load =
+					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
+			}
+			priv->bt_status = coex->bt_status;
+			queue_work(priv->workqueue,
+				   &priv->bt_traffic_change_work);
+		}
+		if (priv->bt_sco_active !=
+		    (uart_msg->frame3 & BT_UART_MSG_FRAME3SCOESCO_MSK)) {
+			priv->bt_sco_active = uart_msg->frame3 &
+				BT_UART_MSG_FRAME3SCOESCO_MSK;
+			if (priv->bt_sco_active)
+				sco_cmd.flags |= IWLAGN_BT_SCO_ACTIVE;
+			iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
+				       sizeof(sco_cmd), &sco_cmd, NULL);
+		}
+	}
+
+	iwlagn_set_kill_ack_msk(priv, uart_msg);
+
+	/* FIXME: based on notification, adjust the prio_boost */
+
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->bt_ci_compliance = coex->bt_ci_compliance;
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
+{
+	iwlagn_rx_handler_setup(priv);
+	priv->rx_handlers[REPLY_BT_COEX_PROFILE_NOTIF] =
+		iwlagn_bt_coex_profile_notif;
+}
+
+void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv)
+{
+	iwlagn_setup_deferred_work(priv);
+
+	INIT_WORK(&priv->bt_traffic_change_work,
+		  iwlagn_bt_traffic_change_work);
+}
+
+void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv)
+{
+	cancel_work_sync(&priv->bt_traffic_change_work);
+}
