@@ -108,19 +108,43 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /**
- * srcu_dereference - fetch SRCU-protected pointer with checking
+ * srcu_dereference_check - fetch SRCU-protected pointer for later dereferencing
+ * @p: the pointer to fetch and protect for later dereferencing
+ * @sp: pointer to the srcu_struct, which is used to check that we
+ *	really are in an SRCU read-side critical section.
+ * @c: condition to check for update-side use
  *
- * Makes rcu_dereference_check() do the dirty work.
+ * If PROVE_RCU is enabled, invoking this outside of an RCU read-side
+ * critical section will result in an RCU-lockdep splat, unless @c evaluates
+ * to 1.  The @c argument will normally be a logical expression containing
+ * lockdep_is_held() calls.
  */
-#define srcu_dereference(p, sp) \
-		rcu_dereference_check(p, srcu_read_lock_held(sp))
+#define srcu_dereference_check(p, sp, c) \
+	__rcu_dereference_check((p), srcu_read_lock_held(sp) || (c), __rcu)
+
+/**
+ * srcu_dereference - fetch SRCU-protected pointer for later dereferencing
+ * @p: the pointer to fetch and protect for later dereferencing
+ * @sp: pointer to the srcu_struct, which is used to check that we
+ *	really are in an SRCU read-side critical section.
+ *
+ * Makes rcu_dereference_check() do the dirty work.  If PROVE_RCU
+ * is enabled, invoking this outside of an RCU read-side critical
+ * section will result in an RCU-lockdep splat.
+ */
+#define srcu_dereference(p, sp) srcu_dereference_check((p), (sp), 0)
 
 /**
  * srcu_read_lock - register a new reader for an SRCU-protected structure.
  * @sp: srcu_struct in which to register the new reader.
  *
  * Enter an SRCU read-side critical section.  Note that SRCU read-side
- * critical sections may be nested.
+ * critical sections may be nested.  However, it is illegal to
+ * call anything that waits on an SRCU grace period for the same
+ * srcu_struct, whether directly or indirectly.  Please note that
+ * one way to indirectly wait on an SRCU grace period is to acquire
+ * a mutex that is held elsewhere while calling synchronize_srcu() or
+ * synchronize_srcu_expedited().
  */
 static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 {

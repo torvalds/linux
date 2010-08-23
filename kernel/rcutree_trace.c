@@ -262,7 +262,7 @@ static void print_rcu_pendings(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_data *rdp;
 
 	for_each_possible_cpu(cpu) {
-		rdp = rsp->rda[cpu];
+		rdp = per_cpu_ptr(rsp->rda, cpu);
 		if (rdp->beenonline)
 			print_one_rcu_pending(m, rdp);
 	}

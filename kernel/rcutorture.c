@@ -303,6 +303,10 @@ static void rcu_read_delay(struct rcu_random_state *rrsp)
 		mdelay(longdelay_ms);
 	if (!(rcu_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
 		udelay(shortdelay_us);
+#ifdef CONFIG_PREEMPT
+	if (!preempt_count() && !(rcu_random(rrsp) % (nrealreaders * 20000)))
+		preempt_schedule();  /* No QS if preempt_disable() in effect */
+#endif
 }
 
 static void rcu_torture_read_unlock(int idx) __releases(RCU)
@@ -536,6 +540,8 @@ static void srcu_read_delay(struct rcu_random_state *rrsp)
 	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay * uspertick);
 	if (!delay)
 		schedule_timeout_interruptible(longdelay);
+	else
+		rcu_read_delay(rrsp);
 }
 
 static void srcu_torture_read_unlock(int idx) __releases(&srcu_ctl)
