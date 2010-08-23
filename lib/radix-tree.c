@@ -174,14 +174,16 @@ static void radix_tree_node_rcu_free(struct rcu_head *head)
 {
 	struct radix_tree_node *node =
 			container_of(head, struct radix_tree_node, rcu_head);
+	int i;
 
 	/*
 	 * must only free zeroed nodes into the slab. radix_tree_shrink
 	 * can leave us with a non-NULL entry in the first slot, so clear
 	 * that here to make sure.
 	 */
-	tag_clear(node, 0, 0);
-	tag_clear(node, 1, 0);
+	for (i = 0; i < RADIX_TREE_MAX_TAGS; i++)
+		tag_clear(node, i, 0);
+
 	node->slots[0] = NULL;
 	node->count = 0;
 
