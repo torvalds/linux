@@ -286,19 +286,28 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 			       enum ieee80211_band band,
 			       struct ieee80211_vif *vif)
 {
+	struct iwl_rxon_context *ctx;
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
 
 	if (iwl_is_any_associated(priv)) {
-		/* TODO: should use minimum of all contexts */
-		/* If we're associated, we clamp the maximum passive
-		 * dwell time to be 98% of the beacon interval (minus
-		 * 2 * channel tune time) */
-		passive = vif ? vif->bss_conf.beacon_int : 0;
-		if ((passive > IWL_PASSIVE_DWELL_BASE) || !passive)
-			passive = IWL_PASSIVE_DWELL_BASE;
-		passive = (passive * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+		/*
+		 * If we're associated, we clamp the maximum passive
+		 * dwell time to be 98% of the smallest beacon interval
+		 * (minus 2 * channel tune time)
+		 */
+		for_each_context(priv, ctx) {
+			u16 value;
+
+			if (!iwl_is_associated_ctx(ctx))
+				continue;
+			value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
+			if ((value > IWL_PASSIVE_DWELL_BASE) || !value)
+				value = IWL_PASSIVE_DWELL_BASE;
+			value = (value * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+			passive = min(value, passive);
+		}
 	}
 
 	return passive;
