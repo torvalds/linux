@@ -281,6 +281,20 @@ struct cx88_subid {
 	u32     card;
 };
 
+enum cx88_tvaudio {
+	WW_NONE = 1,
+	WW_BTSC,
+	WW_BG,
+	WW_DK,
+	WW_I,
+	WW_L,
+	WW_EIAJ,
+	WW_I2SPT,
+	WW_FM,
+	WW_I2SADC,
+	WW_M
+};
+
 #define INPUT(nr) (core->board.input[nr])
 
 /* ----------------------------------------------------------- */
@@ -352,7 +366,7 @@ struct cx88_core {
 	/* state info */
 	struct task_struct         *kthread;
 	v4l2_std_id                tvnorm;
-	u32                        tvaudio;
+	enum cx88_tvaudio          tvaudio;
 	u32                        audiomode_manual;
 	u32                        audiomode_current;
 	u32                        input;
@@ -650,18 +664,6 @@ extern void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */
-
-#define WW_NONE		 1
-#define WW_BTSC		 2
-#define WW_BG		 3
-#define WW_DK		 4
-#define WW_I		 5
-#define WW_L		 6
-#define WW_EIAJ		 7
-#define WW_I2SPT	 8
-#define WW_FM		 9
-#define WW_I2SADC	 10
-#define WW_M		 11
 
 void cx88_set_tvaudio(struct cx88_core *core);
 void cx88_newstation(struct cx88_core *core);
