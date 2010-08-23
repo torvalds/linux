@@ -710,10 +710,6 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vio			= &rx51_vio,
 };
 
-static struct aic3x_pdata rx51_aic3x_data __initdata = {
-	.gpio_reset		= 60,
-};
-
 static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata = {
 	.id			= TPA6130A2,
 	.power_gpio		= 98,
