@@ -301,7 +301,19 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				      struct ieee80211_sta *sta)
 {
 	int ret = -EAGAIN;
-	u32 load = rs_tl_get_load(lq_data, tid);
+	u32 load;
+
+	/*
+	 * Don't create TX aggregation sessions when in high
+	 * BT traffic, as they would just be disrupted by BT.
+	 */
+	if (priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH) {
+		IWL_ERR(priv, "BT traffic (%d), no aggregation allowed\n",
+			priv->bt_traffic_load);
+		return ret;
+	}
+
+	load = rs_tl_get_load(lq_data, tid);
 
 	if (load > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
@@ -1286,6 +1298,27 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	int ret = 0;
 	u8 update_search_tbl_counter = 0;
 
+	switch (priv->bt_traffic_load) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_LEGACY_SWITCH_ANTENNA2)
+			tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action >= IWL_LEGACY_SWITCH_ANTENNA2 &&
+		    tbl->action != IWL_LEGACY_SWITCH_SISO)
+			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+		break;
+	default:
+		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		break;
+	}
+
 	if (!iwl_ht_enabled(priv))
 		/* stay in Legacy */
 		tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
@@ -1425,6 +1458,27 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	switch (priv->bt_traffic_load) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_SISO_SWITCH_ANTENNA2)
+			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action >= IWL_SISO_SWITCH_ANTENNA2 &&
+		    tbl->action != IWL_SISO_SWITCH_GI)
+			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+		break;
+	default:
+		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		break;
+	}
+
 	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
 	    tbl->action > IWL_SISO_SWITCH_ANTENNA2) {
 		/* stay in SISO */
@@ -1563,6 +1617,27 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
 	int ret;
+
+	switch (priv->bt_traffic_load) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action == IWL_MIMO2_SWITCH_MIMO3_ABC)
+			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_MIMO2_SWITCH_ANTENNA2)
+			tbl->action = IWL_MIMO2_SWITCH_ANTENNA1;
+		else if (tbl->action == IWL_MIMO2_SWITCH_SISO_B)
+			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+		break;
+	default:
+		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		break;
+	}
 
 	if ((iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE) &&
 	    (tbl->action < IWL_MIMO2_SWITCH_SISO_A ||
@@ -1705,6 +1780,29 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	int ret;
 	u8 update_search_tbl_counter = 0;
+
+	switch (priv->bt_traffic_load) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action == IWL_MIMO3_SWITCH_MIMO2_AB ||
+		    tbl->action == IWL_MIMO3_SWITCH_MIMO2_AC ||
+		    tbl->action == IWL_MIMO3_SWITCH_MIMO2_BC)
+			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_MIMO3_SWITCH_SISO_B)
+			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+		else if (tbl->action == IWL_MIMO3_SWITCH_ANTENNA2)
+			tbl->action = IWL_MIMO3_SWITCH_ANTENNA1;
+		break;
+	default:
+		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		break;
+	}
 
 	if ((iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE) &&
 	    (tbl->action < IWL_MIMO3_SWITCH_SISO_A ||
@@ -2234,6 +2332,19 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (iwl_tx_ant_restriction(priv) != IWL_ANT_OK_MULTI &&
 		(is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type)))
 		scale_action = -1;
+
+	if (lq_sta->last_bt_traffic > priv->bt_traffic_load) {
+		lq_sta->last_bt_traffic = priv->bt_traffic_load;
+		/*
+		 * don't set scale_action, don't want to scale up if
+		 * the rate scale doesn't otherwise think that is a
+		 * good idea.
+		 */
+	} else if (lq_sta->last_bt_traffic < priv->bt_traffic_load) {
+		lq_sta->last_bt_traffic = priv->bt_traffic_load;
+		scale_action = -1;
+	}
+
 	switch (scale_action) {
 	case -1:
 		/* Decrease starting rate, update uCode's rate table */
