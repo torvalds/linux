@@ -1872,6 +1872,16 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (err)
 		goto out_err;
 
+	if (priv->cfg->advanced_bt_coexist &&
+	    vif->type == NL80211_IFTYPE_ADHOC) {
+		/*
+		 * pretend to have high BT traffic as long as we
+		 * are operating in IBSS mode, as this will cause
+		 * the rate scaling etc. to behave as intended.
+		 */
+		priv->bt_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
+	}
+
 	goto out;
 
  out_err:
@@ -1909,6 +1919,17 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 		}
 		memset(priv->bssid, 0, ETH_ALEN);
 	}
+
+	/*
+	 * When removing the IBSS interface, overwrite the
+	 * BT traffic load with the stored one from the last
+	 * notification, if any. If this is a device that
+	 * doesn't implement this, this has no effect since
+	 * both values are the same and zero.
+	 */
+	if (vif->type == NL80211_IFTYPE_ADHOC)
+		priv->bt_traffic_load = priv->notif_bt_traffic_load;
+
 	mutex_unlock(&priv->mutex);
 
 	if (scan_completed)

@@ -217,7 +217,14 @@ static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(iwl6000g2b_def_3w_lookup) !=
 			sizeof(bt_cmd.bt3_lookup_table));
 
-	if (!bt_coex_active) {
+	/*
+	 * Configure BT coex mode to "no coexistence" when the
+	 * user disabled BT coexistence, we have no interface
+	 * (might be in monitor mode), or the interface is in
+	 * IBSS mode (no proper uCode support for coex then).
+	 */
+	if (!bt_coex_active || !priv->vif ||
+	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		bt_cmd.flags = 0;
 	} else {
 		bt_cmd.flags = IWL6000G2B_BT_FLAG_CHANNEL_INHIBITION |
@@ -426,18 +433,23 @@ static void iwl6000g2b_bt_coex_profile_notif(struct iwl_priv *priv,
 			coex->uart_msg[3], coex->uart_msg[4], coex->uart_msg[5],
 			coex->uart_msg[6], coex->uart_msg[7]);
 
-	if (coex->bt_traffic_load != priv->bt_traffic_load) {
-		priv->bt_traffic_load = coex->bt_traffic_load;
+	priv->notif_bt_traffic_load = coex->bt_traffic_load;
 
-		queue_work(priv->workqueue, &priv->bt_traffic_change_work);
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
+		if (coex->bt_traffic_load != priv->bt_traffic_load) {
+			priv->bt_traffic_load = coex->bt_traffic_load;
+
+			queue_work(priv->workqueue,
+				   &priv->bt_traffic_change_work);
+		}
+
+		/* FIXME: add defines for this check */
+		priv->bt_sco_active = coex->uart_msg[3] & 1;
+		if (priv->bt_sco_active)
+			sco_cmd.flags |= IWL6000G2B_BT_SCO_ACTIVE;
+		iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
+				       sizeof(sco_cmd), &sco_cmd, NULL);
 	}
-
-	/* FIXME: add defines for this check */
-	priv->bt_sco_active = coex->uart_msg[3] & 1;
-	if (priv->bt_sco_active)
-		sco_cmd.flags |= IWL6000G2B_BT_SCO_ACTIVE;
-	iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
-			       sizeof(sco_cmd), &sco_cmd, NULL);
 }
 
 void iwl6000g2b_rx_handler_setup(struct iwl_priv *priv)

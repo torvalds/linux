@@ -1362,7 +1362,7 @@ struct iwl_priv {
 #endif
 	};
 
-	u8 bt_traffic_load;
+	u8 bt_traffic_load, notif_bt_traffic_load;
 	bool bt_sco_active;
 	struct work_struct bt_traffic_change_work;
 
