@@ -730,7 +730,7 @@ static ssize_t iwl_dbgfs_disable_ht40_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%d", &ht40) != 1)
 		return -EFAULT;
-	if (!iwl_is_associated(priv))
+	if (!iwl_is_any_associated(priv))
 		priv->disable_ht40 = ht40 ? true : false;
 	else {
 		IWL_ERR(priv, "Sta associated with AP - "
@@ -1319,7 +1319,8 @@ static ssize_t iwl_dbgfs_rxon_flags_read(struct file *file,
 	int len = 0;
 	char buf[20];
 
-	len = sprintf(buf, "0x%04X\n", le32_to_cpu(priv->active_rxon.flags));
+	len = sprintf(buf, "0x%04X\n",
+		le32_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1332,7 +1333,7 @@ static ssize_t iwl_dbgfs_rxon_filter_flags_read(struct file *file,
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-		      le32_to_cpu(priv->active_rxon.filter_flags));
+		le32_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.filter_flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 

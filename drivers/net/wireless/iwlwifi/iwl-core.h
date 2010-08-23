@@ -88,9 +88,10 @@ struct iwl_cmd;
 #define IWL_CMD(x) case x: return #x
 
 struct iwl_hcmd_ops {
-	int (*rxon_assoc)(struct iwl_priv *priv);
-	int (*commit_rxon)(struct iwl_priv *priv);
-	void (*set_rxon_chain)(struct iwl_priv *priv);
+	int (*rxon_assoc)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+	int (*commit_rxon)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+	void (*set_rxon_chain)(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx);
 	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
 	void (*send_bt_config)(struct iwl_priv *priv);
 };
@@ -374,12 +375,15 @@ void iwl_activate_qos(struct iwl_priv *priv);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);
-void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt);
-int iwl_check_rxon_cmd(struct iwl_priv *priv);
-int iwl_full_rxon_required(struct iwl_priv *priv);
-void iwl_set_rxon_chain(struct iwl_priv *priv);
-int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
+void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+			   int hw_decrypt);
+int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+int iwl_full_rxon_required(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwl_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+			 struct iwl_rxon_context *ctx);
 void iwl_set_flags_for_band(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
 			    enum ieee80211_band band,
 			    struct ieee80211_vif *vif);
 u8 iwl_get_single_channel_number(struct iwl_priv *priv,
@@ -400,7 +404,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
-int iwl_commit_rxon(struct iwl_priv *priv);
+int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
@@ -632,9 +636,11 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv,
 void iwl_dump_csr(struct iwl_priv *priv);
 int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG
-void iwl_print_rx_config_cmd(struct iwl_priv *priv);
+void iwl_print_rx_config_cmd(struct iwl_priv *priv,
+			     struct iwl_rxon_context *ctx);
 #else
-static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv)
+static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
+					   struct iwl_rxon_context *ctx)
 {
 }
 #endif
@@ -720,13 +726,15 @@ void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif);
-static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
+static inline int iwl_send_rxon_assoc(struct iwl_priv *priv,
+				      struct iwl_rxon_context *ctx)
 {
-	return priv->cfg->ops->hcmd->rxon_assoc(priv);
+	return priv->cfg->ops->hcmd->rxon_assoc(priv, ctx);
 }
-static inline int iwlcore_commit_rxon(struct iwl_priv *priv)
+static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
+				      struct iwl_rxon_context *ctx)
 {
-	return priv->cfg->ops->hcmd->commit_rxon(priv);
+	return priv->cfg->ops->hcmd->commit_rxon(priv, ctx);
 }
 static inline void iwlcore_config_ap(struct iwl_priv *priv,
 				     struct ieee80211_vif *vif)

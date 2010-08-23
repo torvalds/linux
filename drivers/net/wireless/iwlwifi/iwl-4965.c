@@ -347,7 +347,7 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &(priv->chain_noise_data);
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
-	     iwl_is_associated(priv)) {
+	    iwl_is_any_associated(priv)) {
 		struct iwl_calib_diff_gain_cmd cmd;
 
 		/* clear data for chain noise calibration algorithm */
@@ -1374,6 +1374,7 @@ static int iwl4965_send_tx_power(struct iwl_priv *priv)
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
 		/* If this gets hit a lot, switch it to a BUG() and catch
@@ -1385,17 +1386,16 @@ static int iwl4965_send_tx_power(struct iwl_priv *priv)
 
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
-	is_ht40 =  is_ht40_channel(priv->active_rxon.flags);
+	is_ht40 = is_ht40_channel(ctx->active.flags);
 
-	if (is_ht40 &&
-	    (priv->active_rxon.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	if (is_ht40 && (ctx->active.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
-	cmd.channel = priv->active_rxon.channel;
+	cmd.channel = ctx->active.channel;
 
 	ret = iwl4965_fill_txpower_tbl(priv, band,
-				le16_to_cpu(priv->active_rxon.channel),
+				le16_to_cpu(ctx->active.channel),
 				is_ht40, ctrl_chan_high, &cmd.tx_power);
 	if (ret)
 		goto out;
@@ -1406,12 +1406,13 @@ out:
 	return ret;
 }
 
-static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
+static int iwl4965_send_rxon_assoc(struct iwl_priv *priv,
+				   struct iwl_rxon_context *ctx)
 {
 	int ret = 0;
 	struct iwl4965_rxon_assoc_cmd rxon_assoc;
-	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
-	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
+	const struct iwl_rxon_cmd *rxon1 = &ctx->staging;
+	const struct iwl_rxon_cmd *rxon2 = &ctx->active;
 
 	if ((rxon1->flags == rxon2->flags) &&
 	    (rxon1->filter_flags == rxon2->filter_flags) &&
@@ -1426,16 +1427,16 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 		return 0;
 	}
 
-	rxon_assoc.flags = priv->staging_rxon.flags;
-	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
-	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
-	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
+	rxon_assoc.flags = ctx->staging.flags;
+	rxon_assoc.filter_flags = ctx->staging.filter_flags;
+	rxon_assoc.ofdm_basic_rates = ctx->staging.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = ctx->staging.cck_basic_rates;
 	rxon_assoc.reserved = 0;
 	rxon_assoc.ofdm_ht_single_stream_basic_rates =
-	    priv->staging_rxon.ofdm_ht_single_stream_basic_rates;
+	    ctx->staging.ofdm_ht_single_stream_basic_rates;
 	rxon_assoc.ofdm_ht_dual_stream_basic_rates =
-	    priv->staging_rxon.ofdm_ht_dual_stream_basic_rates;
-	rxon_assoc.rx_chain_select_flags = priv->staging_rxon.rx_chain;
+	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
+	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
 
 	ret = iwl_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
@@ -1448,6 +1449,7 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 				     struct ieee80211_channel_switch *ch_switch)
 {
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
@@ -1458,22 +1460,22 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 	u16 ch;
 	u32 tsf_low;
 	u8 switch_count;
-	u16 beacon_interval = le16_to_cpu(priv->rxon_timing.beacon_interval);
+	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
 	struct ieee80211_vif *vif = priv->vif;
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
-	is_ht40 = is_ht40_channel(priv->staging_rxon.flags);
+	is_ht40 = is_ht40_channel(ctx->staging.flags);
 
 	if (is_ht40 &&
-	    (priv->staging_rxon.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	    (ctx->staging.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
 	ch = ch_switch->channel->hw_value;
 	cmd.channel = cpu_to_le16(ch);
-	cmd.rxon_flags = priv->staging_rxon.flags;
-	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
+	cmd.rxon_flags = ctx->staging.flags;
+	cmd.rxon_filter_flags = ctx->staging.filter_flags;
 	switch_count = ch_switch->count;
 	tsf_low = ch_switch->timestamp & 0x0ffffffff;
 	/*
@@ -1508,7 +1510,7 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 		cmd.expect_beacon = is_channel_radar(ch_info);
 	else {
 		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			priv->active_rxon.channel, ch);
+			ctx->active.channel, ch);
 		return -EFAULT;
 	}
 

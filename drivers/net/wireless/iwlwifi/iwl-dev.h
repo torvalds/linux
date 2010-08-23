@@ -519,6 +519,7 @@ struct iwl_station_priv {
  * space for us to put data into.
  */
 struct iwl_vif_priv {
+	struct iwl_rxon_context *ctx;
 	u8 ibss_bssid_sta_id;
 };
 
@@ -1097,6 +1098,26 @@ struct iwl_force_reset {
  */
 #define IWLAGN_EXT_BEACON_TIME_POS	22
 
+enum iwl_rxon_context_id {
+	IWL_RXON_CTX_BSS,
+
+	NUM_IWL_RXON_CTX
+};
+
+struct iwl_rxon_context {
+	enum iwl_rxon_context_id ctxid;
+	/*
+	 * We declare this const so it can only be
+	 * changed via explicit cast within the
+	 * routines that actually update the physical
+	 * hardware.
+	 */
+	const struct iwl_rxon_cmd active;
+	struct iwl_rxon_cmd staging;
+
+	struct iwl_rxon_time_cmd timing;
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1173,6 +1194,9 @@ struct iwl_priv {
 	u32  hw_wa_rev;
 	u8   rev_id;
 
+	/* microcode/device supports multiple contexts */
+	u8 valid_contexts;
+
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 
@@ -1190,15 +1214,7 @@ struct iwl_priv {
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
-
-	struct iwl_rxon_time_cmd rxon_timing;
-
-	/* We declare this const so it can only be
-	 * changed via explicit cast within the
-	 * routines that actually update the physical
-	 * hardware */
-	const struct iwl_rxon_cmd active_rxon;
-	struct iwl_rxon_cmd staging_rxon;
+	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	struct iwl_switch_rxon switch_rxon;
 
@@ -1490,10 +1506,34 @@ static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
 	return NULL;
 }
 
-
-static inline int iwl_is_associated(struct iwl_priv *priv)
+static inline struct iwl_rxon_context *
+iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 {
-	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+
+	return vif_priv->ctx;
+}
+
+#define for_each_context(priv, ctx)				\
+	for (ctx = &priv->contexts[IWL_RXON_CTX_BSS];		\
+	     ctx < &priv->contexts[NUM_IWL_RXON_CTX]; ctx++)	\
+		if (priv->valid_contexts & BIT(ctx->ctxid))
+
+static inline int iwl_is_associated(struct iwl_priv *priv,
+				    enum iwl_rxon_context_id ctxid)
+{
+	return (priv->contexts[ctxid].active.filter_flags &
+			RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+}
+
+static inline int iwl_is_any_associated(struct iwl_priv *priv)
+{
+	return iwl_is_associated(priv, IWL_RXON_CTX_BSS);
+}
+
+static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
+{
+	return (ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int is_channel_valid(const struct iwl_channel_info *ch_info)

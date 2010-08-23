@@ -1153,12 +1153,16 @@ static bool is_lq_table_valid(struct iwl_priv *priv,
 {
 	int i;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
+#if !TODO
+	struct iwl_rxon_context *ctx =
+			&priv->contexts[IWL_RXON_CTX_BSS];
+#endif
 
 	if (ht_conf->is_ht)
 		return true;
 
 	IWL_DEBUG_INFO(priv, "Channel %u is not an HT channel\n",
-		       priv->active_rxon.channel);
+		       ctx->active.channel);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
 		if (le32_to_cpu(lq->rs_table[i].rate_n_flags) & RATE_MCS_HT_MSK) {
 			IWL_DEBUG_INFO(priv,
