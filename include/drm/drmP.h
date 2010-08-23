@@ -792,8 +792,6 @@ struct drm_driver {
 	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv,
 			    bool from_release);
 
-	int (*proc_init)(struct drm_minor *minor);
-	void (*proc_cleanup)(struct drm_minor *minor);
 	int (*debugfs_init)(struct drm_minor *minor);
 	void (*debugfs_cleanup)(struct drm_minor *minor);
 
