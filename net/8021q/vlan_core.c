@@ -35,7 +35,7 @@ drop:
 }
 EXPORT_SYMBOL(__vlan_hwaccel_rx);
 
-int vlan_hwaccel_do_receive(struct sk_buff *skb)
+void vlan_hwaccel_do_receive(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct vlan_rx_stats     *rx_stats;
@@ -69,7 +69,6 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 		break;
 	}
 	u64_stats_update_end(&rx_stats->syncp);
-	return 0;
 }
 
 struct net_device *vlan_dev_real_dev(const struct net_device *dev)

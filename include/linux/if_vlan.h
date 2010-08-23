@@ -119,7 +119,7 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     u16 vlan_tci, int polling);
-extern int vlan_hwaccel_do_receive(struct sk_buff *skb);
+extern void vlan_hwaccel_do_receive(struct sk_buff *skb);
 extern gro_result_t
 vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 		 unsigned int vlan_tci, struct sk_buff *skb);
@@ -147,9 +147,8 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 	return NET_XMIT_SUCCESS;
 }
 
-static inline int vlan_hwaccel_do_receive(struct sk_buff *skb)
+static inline void vlan_hwaccel_do_receive(struct sk_buff *skb)
 {
-	return 0;
 }
 
 static inline gro_result_t
