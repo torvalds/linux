@@ -3013,7 +3013,7 @@ struct iwl_scanresults_notification {
 struct iwl_scancomplete_notification {
 	u8 scanned_channels;
 	u8 status;
-	u8 reserved;
+	u8 bt_status;	/* BT On/Off status */
 	u8 last_channel;
 	__le32 tsf_low;
 	__le32 tsf_high;
