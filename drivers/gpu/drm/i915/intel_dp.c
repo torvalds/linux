@@ -772,7 +772,7 @@ static void ironlake_edp_panel_on (struct drm_device *dev)
 	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 
-	if (wait_for(I915_READ(PCH_PP_STATUS) & PP_ON, 5000, 10))
+	if (wait_for(I915_READ(PCH_PP_STATUS) & PP_ON, 5000))
 		DRM_ERROR("panel on wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
 
@@ -797,7 +797,7 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	pp &= ~POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 
-	if (wait_for((I915_READ(PCH_PP_STATUS) & PP_ON) == 0, 5000, 10))
+	if (wait_for((I915_READ(PCH_PP_STATUS) & PP_ON) == 0, 5000))
 		DRM_ERROR("panel off wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
 

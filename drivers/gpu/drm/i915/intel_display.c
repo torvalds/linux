@@ -1007,9 +1007,9 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 		   I915_READ(pipestat_reg) | PIPE_VBLANK_INTERRUPT_STATUS);
 
 	/* Wait for vblank interrupt bit to set */
-	if (wait_for((I915_READ(pipestat_reg) &
-		      PIPE_VBLANK_INTERRUPT_STATUS),
-		     50, 0))
+	if (wait_for(I915_READ(pipestat_reg) &
+		     PIPE_VBLANK_INTERRUPT_STATUS,
+		     50))
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
@@ -1108,7 +1108,7 @@ void i8xx_disable_fbc(struct drm_device *dev)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	if (wait_for((I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) == 0, 10, 0)) {
+	if (wait_for((I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) == 0, 10)) {
 		DRM_DEBUG_KMS("FBC idle timed out\n");
 		return;
 	}
@@ -2070,7 +2070,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(transconf_reg, temp | TRANS_ENABLE);
 			I915_READ(transconf_reg);
 
-			if (wait_for(I915_READ(transconf_reg) & TRANS_STATE_ENABLE, 100, 1))
+			if (wait_for(I915_READ(transconf_reg) & TRANS_STATE_ENABLE, 100))
 				DRM_ERROR("failed to enable transcoder\n");
 		}
 
@@ -2102,7 +2102,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
 
 			/* wait for cpu pipe off, pipe state */
-			if (wait_for((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) == 0, 50, 1))
+			if (wait_for((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) == 0, 50))
 				DRM_ERROR("failed to turn off cpu pipe\n");
 		} else
 			DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
@@ -2160,7 +2160,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(transconf_reg, temp & ~TRANS_ENABLE);
 
 			/* wait for PCH transcoder off, transcoder state */
-			if (wait_for((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) == 0, 50, 1))
+			if (wait_for((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) == 0, 50))
 				DRM_ERROR("failed to disable transcoder\n");
 		}
 
@@ -5521,7 +5521,7 @@ void ironlake_enable_drps(struct drm_device *dev)
 	rgvmodectl |= MEMMODE_SWMODE_EN;
 	I915_WRITE(MEMMODECTL, rgvmodectl);
 
-	if (wait_for((I915_READ(MEMSWCTL) & MEMCTL_CMD_STS) == 0, 1, 0))
+	if (wait_for((I915_READ(MEMSWCTL) & MEMCTL_CMD_STS) == 0, 10))
 		DRM_ERROR("stuck trying to change perf mode\n");
 	msleep(1);
 

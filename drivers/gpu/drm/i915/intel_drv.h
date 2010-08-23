@@ -33,7 +33,7 @@
 
 #include "drm_crtc_helper.h"
 
-#define wait_for(COND, MS, W) ({ \
+#define _wait_for(COND, MS, W) ({ \
 	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
 	int ret__ = 0;							\
 	while (! (COND)) {						\
@@ -45,6 +45,9 @@
 	}								\
 	ret__;								\
 })
+
+#define wait_for(COND, MS) _wait_for(COND, MS, 1)
+#define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
 
 /*
  * Display related stuff
