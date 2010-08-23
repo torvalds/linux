@@ -249,12 +249,8 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 	status = acpi_pci_run_osc(root->device->handle, capbuf, &result);
 	if (ACPI_SUCCESS(status)) {
 		root->osc_support_set = support;
-		if (control) {
+		if (control)
 			*control = result;
-		} else {
-			root->osc_control_qry = result;
-			root->osc_queried = 1;
-		}
 	}
 	return status;
 }
@@ -409,14 +405,12 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
 		goto out;
 
 	/* Need to query controls first before requesting them */
-	if (!root->osc_queried) {
-		status = acpi_pci_query_osc(root, root->osc_support_set, NULL);
-		if (ACPI_FAILURE(status))
-			goto out;
-	}
-	if ((root->osc_control_qry & control_req) != control_req) {
-		printk(KERN_DEBUG
-		       "Firmware did not grant requested _OSC control\n");
+	flags = control_req;
+	status = acpi_pci_query_osc(root, root->osc_support_set, &flags);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	if (flags != control_req) {
 		status = AE_SUPPORT;
 		goto out;
 	}
