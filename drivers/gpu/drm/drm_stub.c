@@ -241,7 +241,6 @@ int drm_fill_in_dev(struct drm_device *dev,
 
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->event_lock);
-	init_timer(&dev->timer);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 

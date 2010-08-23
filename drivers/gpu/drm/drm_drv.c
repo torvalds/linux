@@ -180,8 +180,6 @@ int drm_lastclose(struct drm_device * dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	del_timer(&dev->timer);
-
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp &&
 			!drm_core_check_feature(dev, DRIVER_MODESET)) {
