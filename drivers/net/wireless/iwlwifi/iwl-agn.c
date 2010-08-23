@@ -3559,6 +3559,8 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 				ctx->staging.flags &=
 					~RXON_FLG_SHORT_SLOT_MSK;
 		}
+		/* need to send beacon cmd before committing assoc RXON! */
+		iwl_send_beacon_cmd(priv);
 		/* restore RXON assoc */
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv, ctx);
