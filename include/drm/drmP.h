@@ -1171,7 +1171,6 @@ extern int drm_mem_info(char *buf, char **start, off_t offset,
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
 
 extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
-extern DRM_AGP_MEM *drm_alloc_agp(struct drm_device *dev, int pages, u32 type);
 extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
 extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
 				       struct page **pages,
@@ -1331,10 +1330,6 @@ extern int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
 extern int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
 extern int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-extern DRM_AGP_MEM *drm_agp_allocate_memory(struct agp_bridge_data *bridge, size_t pages, u32 type);
-extern int drm_agp_free_memory(DRM_AGP_MEM * handle);
-extern int drm_agp_bind_memory(DRM_AGP_MEM * handle, off_t start);
-extern int drm_agp_unbind_memory(DRM_AGP_MEM * handle);
 extern void drm_agp_chipset_flush(struct drm_device *dev);
 
 				/* Stub support (drm_stub.h) */
