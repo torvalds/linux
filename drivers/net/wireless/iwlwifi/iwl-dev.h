@@ -1133,6 +1133,10 @@ struct iwl_rxon_context {
 
 	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
 	u8 qos_cmd;
+	u8 wep_key_cmd;
+
+	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
+	u8 key_mapping_keys;
 };
 
 struct iwl_priv {
@@ -1217,6 +1221,9 @@ struct iwl_priv {
 	/* command queue number */
 	u8 cmd_queue;
 
+	/* max number of station keys */
+	u8 sta_key_max_num;
+
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 
@@ -1296,8 +1303,6 @@ struct iwl_priv {
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWL_STATION_COUNT];
-	struct iwl_wep_key wep_keys[WEP_KEYS_MAX]; /* protected by mutex */
-	u8 key_mapping_key;
 	unsigned long ucode_key_table;
 
 	/* queue refcounts */

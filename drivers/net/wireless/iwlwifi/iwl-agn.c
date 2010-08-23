@@ -165,7 +165,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 		iwl_clear_ucode_stations(priv, ctx);
 		iwl_restore_stations(priv, ctx);
-		ret = iwl_restore_default_wep_keys(priv);
+		ret = iwl_restore_default_wep_keys(priv, ctx);
 		if (ret) {
 			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
 			return ret;
@@ -197,7 +197,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
 		iwl_clear_ucode_stations(priv, ctx);
 		iwl_restore_stations(priv, ctx);
-		ret = iwl_restore_default_wep_keys(priv);
+		ret = iwl_restore_default_wep_keys(priv, ctx);
 		if (ret) {
 			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
 			return ret;
@@ -2222,6 +2222,11 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->_agn.inst_evtlog_size = priv->cfg->max_event_log_size;
 	priv->_agn.inst_errlog_ptr = pieces.inst_errlog_ptr;
 
+	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+	else
+		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
+
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
@@ -3548,6 +3553,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	struct iwl_rxon_context *ctx = vif_priv->ctx;
 	int ret;
 	u8 sta_id;
 	bool is_default_wep_key = false;
@@ -3576,7 +3582,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
 	    !sta) {
 		if (cmd == SET_KEY)
-			is_default_wep_key = !priv->key_mapping_key;
+			is_default_wep_key = !ctx->key_mapping_keys;
 		else
 			is_default_wep_key =
 					(key->hw_key_idx == HW_KEY_DEFAULT);
@@ -3594,9 +3600,9 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	case DISABLE_KEY:
 		if (is_default_wep_key)
-			ret = iwl_remove_default_wep_key(priv, key);
+			ret = iwl_remove_default_wep_key(priv, ctx, key);
 		else
-			ret = iwl_remove_dynamic_key(priv, key, sta_id);
+			ret = iwl_remove_dynamic_key(priv, ctx, key, sta_id);
 
 		IWL_DEBUG_MAC80211(priv, "disable hwcrypto key\n");
 		break;
@@ -4209,6 +4215,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->contexts[IWL_RXON_CTX_BSS].rxon_assoc_cmd = REPLY_RXON_ASSOC;
 	priv->contexts[IWL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
 	priv->contexts[IWL_RXON_CTX_BSS].ap_sta_id = IWL_AP_ID;
+	priv->contexts[IWL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 1);
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);

@@ -724,7 +724,7 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
 	int i;
 
-	for (i = 0; i < STA_KEY_MAX_NUM; i++)
+	for (i = 0; i < priv->sta_key_max_num; i++)
 		if (!test_and_set_bit(i, &priv->ucode_key_table))
 			return i;
 
@@ -732,7 +732,9 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_get_free_ucode_key_index);
 
-static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
+static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
+				      struct iwl_rxon_context *ctx,
+				      bool send_if_empty)
 {
 	int i, not_empty = 0;
 	u8 buff[sizeof(struct iwl_wep_cmd) +
@@ -740,7 +742,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	struct iwl_wep_cmd *wep_cmd = (struct iwl_wep_cmd *)buff;
 	size_t cmd_size  = sizeof(struct iwl_wep_cmd);
 	struct iwl_host_cmd cmd = {
-		.id = REPLY_WEPKEY,
+		.id = ctx->wep_key_cmd,
 		.data = wep_cmd,
 		.flags = CMD_SYNC,
 	};
@@ -752,16 +754,16 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 
 	for (i = 0; i < WEP_KEYS_MAX ; i++) {
 		wep_cmd->key[i].key_index = i;
-		if (priv->wep_keys[i].key_size) {
+		if (ctx->wep_keys[i].key_size) {
 			wep_cmd->key[i].key_offset = i;
 			not_empty = 1;
 		} else {
 			wep_cmd->key[i].key_offset = WEP_INVALID_OFFSET;
 		}
 
-		wep_cmd->key[i].key_size = priv->wep_keys[i].key_size;
-		memcpy(&wep_cmd->key[i].key[3], priv->wep_keys[i].key,
-				priv->wep_keys[i].key_size);
+		wep_cmd->key[i].key_size = ctx->wep_keys[i].key_size;
+		memcpy(&wep_cmd->key[i].key[3], ctx->wep_keys[i].key,
+				ctx->wep_keys[i].key_size);
 	}
 
 	wep_cmd->global_key_type = WEP_KEY_WEP_TYPE;
@@ -777,15 +779,17 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 		return 0;
 }
 
-int iwl_restore_default_wep_keys(struct iwl_priv *priv)
+int iwl_restore_default_wep_keys(struct iwl_priv *priv,
+				 struct iwl_rxon_context *ctx)
 {
 	lockdep_assert_held(&priv->mutex);
 
-	return iwl_send_static_wepkey_cmd(priv, 0);
+	return iwl_send_static_wepkey_cmd(priv, ctx, false);
 }
 EXPORT_SYMBOL(iwl_restore_default_wep_keys);
 
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx,
 			       struct ieee80211_key_conf *keyconf)
 {
 	int ret;
@@ -795,13 +799,13 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
 
-	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
+	memset(&ctx->wep_keys[keyconf->keyidx], 0, sizeof(ctx->wep_keys[0]));
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
 		/* but keys in device are clear anyway so return success */
 		return 0;
 	}
-	ret = iwl_send_static_wepkey_cmd(priv, 1);
+	ret = iwl_send_static_wepkey_cmd(priv, ctx, 1);
 	IWL_DEBUG_WEP(priv, "Remove default WEP key: idx=%d ret=%d\n",
 		      keyconf->keyidx, ret);
 
@@ -827,11 +831,11 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
 	priv->stations[ctx->ap_sta_id].keyinfo.cipher = keyconf->cipher;
 
-	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
-	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,
+	ctx->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
+	memcpy(&ctx->wep_keys[keyconf->keyidx].key, &keyconf->key,
 							keyconf->keylen);
 
-	ret = iwl_send_static_wepkey_cmd(priv, 0);
+	ret = iwl_send_static_wepkey_cmd(priv, ctx, false);
 	IWL_DEBUG_WEP(priv, "Set default WEP key: len=%d idx=%d ret=%d\n",
 		keyconf->keylen, keyconf->keyidx, ret);
 
@@ -1029,8 +1033,9 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_update_tkip_key);
 
 int iwl_remove_dynamic_key(struct iwl_priv *priv,
-				struct ieee80211_key_conf *keyconf,
-				u8 sta_id)
+			   struct iwl_rxon_context *ctx,
+			   struct ieee80211_key_conf *keyconf,
+			   u8 sta_id)
 {
 	unsigned long flags;
 	u16 key_flags;
@@ -1039,7 +1044,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 
 	lockdep_assert_held(&priv->mutex);
 
-	priv->key_mapping_key--;
+	ctx->key_mapping_keys--;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
@@ -1098,7 +1103,7 @@ int iwl_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	lockdep_assert_held(&priv->mutex);
 
-	priv->key_mapping_key++;
+	ctx->key_mapping_keys++;
 	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
 
 	switch (keyconf->cipher) {

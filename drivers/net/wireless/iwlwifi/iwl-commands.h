@@ -1001,6 +1001,7 @@ struct iwl_qosparam_cmd {
 #define STA_KEY_FLG_KEY_SIZE_MSK     cpu_to_le16(0x1000)
 #define STA_KEY_MULTICAST_MSK        cpu_to_le16(0x4000)
 #define STA_KEY_MAX_NUM		8
+#define STA_KEY_MAX_NUM_PAN	16
 
 /* Flags indicate whether to modify vs. don't change various station params */
 #define	STA_MODIFY_KEY_MASK		0x01
