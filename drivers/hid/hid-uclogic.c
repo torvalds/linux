@@ -343,26 +343,23 @@ static __u8 wp8060u_rdesc_fixed[] = {
 };
 
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
+					unsigned int *rsize)
 {
 	switch (hdev->product) {
 	case USB_DEVICE_ID_UCLOGIC_TABLET_WP4030U:
-		if (*rsize == WPXXXXU_RDESC_ORIG_SIZE)
-		{
+		if (*rsize == WPXXXXU_RDESC_ORIG_SIZE) {
 			rdesc = wp4030u_rdesc_fixed;
 			*rsize = sizeof(wp4030u_rdesc_fixed);
 		}
 		break;
 	case USB_DEVICE_ID_UCLOGIC_TABLET_WP5540U:
-		if (*rsize == WPXXXXU_RDESC_ORIG_SIZE)
-		{
+		if (*rsize == WPXXXXU_RDESC_ORIG_SIZE) {
 			rdesc = wp5540u_rdesc_fixed;
 			*rsize = sizeof(wp5540u_rdesc_fixed);
 		}
 		break;
 	case USB_DEVICE_ID_UCLOGIC_TABLET_WP8060U:
-		if (*rsize == WPXXXXU_RDESC_ORIG_SIZE)
-		{
+		if (*rsize == WPXXXXU_RDESC_ORIG_SIZE) {
 			rdesc = wp8060u_rdesc_fixed;
 			*rsize = sizeof(wp8060u_rdesc_fixed);
 		}
