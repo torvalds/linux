@@ -2661,13 +2661,17 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->channels_info = info;
 
 	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_G_START);
-	for (i = 0; i < 14; i++)
-		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	for (i = 0; i < 14; i++) {
+		info[i].max_power = MAX_TXPOWER;
+		info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	}
 
 	if (spec->num_channels > 14) {
 		tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A_START);
-		for (i = 14; i < spec->num_channels; i++)
-			info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+		for (i = 14; i < spec->num_channels; i++) {
+			info[i].max_power = MAX_TXPOWER;
+			info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+		}
 	}
 
 	return 0;
