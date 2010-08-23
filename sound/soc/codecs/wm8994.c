@@ -3316,20 +3316,24 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		bclk_reg = WM8994_AIF1_BCLK;
 		rate_reg = WM8994_AIF1_RATE;
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK ||
-		    wm8994->lrclk_shared[0])
+		    wm8994->lrclk_shared[0]) {
 			lrclk_reg = WM8994_AIF1DAC_LRCLK;
-		else
+		} else {
 			lrclk_reg = WM8994_AIF1ADC_LRCLK;
+			dev_dbg(codec->dev, "AIF1 using split LRCLK\n");
+		}
 		break;
 	case 2:
 		aif1_reg = WM8994_AIF2_CONTROL_1;
 		bclk_reg = WM8994_AIF2_BCLK;
 		rate_reg = WM8994_AIF2_RATE;
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK ||
-		    wm8994->lrclk_shared[1])
+		    wm8994->lrclk_shared[1]) {
 			lrclk_reg = WM8994_AIF2DAC_LRCLK;
-		else
+		} else {
 			lrclk_reg = WM8994_AIF2ADC_LRCLK;
+			dev_dbg(codec->dev, "AIF2 using split LRCLK\n");
+		}
 		break;
 	default:
 		return -EINVAL;
