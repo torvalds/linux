@@ -703,9 +703,6 @@ struct drm_driver {
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_ctor) (struct drm_device *dev, int context);
 	int (*context_dtor) (struct drm_device *dev, int context);
-	int (*kernel_context_switch) (struct drm_device *dev, int old,
-				      int new);
-	void (*kernel_context_switch_unlock) (struct drm_device *dev);
 
 	/**
 	 * get_vblank_counter - get raw hardware vblank counter

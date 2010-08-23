@@ -136,12 +136,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		}
 	}
 
-	if (dev->driver->kernel_context_switch &&
-	    dev->last_context != lock->context) {
-		dev->driver->kernel_context_switch(dev, dev->last_context,
-						   lock->context);
-	}
-
 	return 0;
 }
 
@@ -159,7 +153,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_lock *lock = data;
-	struct drm_master *master = file_priv->master;
 
 	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
@@ -168,17 +161,6 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
-
-	/* kernel_context_switch isn't used by any of the x86 drm
-	 * modules but is required by the Sparc driver.
-	 */
-	if (dev->driver->kernel_context_switch_unlock)
-		dev->driver->kernel_context_switch_unlock(dev);
-	else {
-		if (drm_lock_free(&master->lock, lock->context)) {
-			/* FIXME: Should really bail out here. */
-		}
-	}
 
 	unblock_all_signals();
 	return 0;
