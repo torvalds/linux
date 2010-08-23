@@ -8,13 +8,49 @@
 #undef memmove
 void *memmove(void *dest, const void *src, size_t count)
 {
+	unsigned long d0, d1, d2, d3;
 	if (dest < src) {
-		return memcpy(dest, src, count);
+		if ((dest + count) < src)
+			 return memcpy(dest, src, count);
+		else
+			__asm__ __volatile__(
+				"movq %0, %3\n\t"
+				"shr $3, %0\n\t"
+				"andq $7, %3\n\t"
+				"rep\n\t"
+				"movsq\n\t"
+				"movq %3, %0\n\t"
+				"rep\n\t"
+				"movsb"
+				: "=&c" (d0), "=&S" (d1), "=&D" (d2), "=r" (d3)
+				:"0" (count),
+				 "1" (src),
+				 "2" (dest)
+				:"memory");
 	} else {
-		char *p = dest + count;
-		const char *s = src + count;
-		while (count--)
-			*--p = *--s;
+		if((src + count) < dest)
+			return memcpy(dest, src, count);
+		else
+			__asm__ __volatile__(
+				"movq %0, %3\n\t"
+				"lea -8(%1, %0), %1\n\t"
+				"lea -8(%2, %0), %2\n\t"
+				"shr $3, %0\n\t"
+				"andq $7, %3\n\t"
+				"std\n\t"
+				"rep\n\t"
+				"movsq\n\t"
+				"lea 7(%1), %1\n\t"
+				"lea 7(%2), %2\n\t"
+				"movq %3, %0\n\t"
+				"rep\n\t"
+				"movsb\n\t"
+				"cld"
+				: "=&c" (d0), "=&S" (d1), "=&D" (d2), "=r" (d3)
+				:"0" (count),
+				 "1" (src),
+				 "2" (dest)
+				:"memory");
 	}
 	return dest;
 }

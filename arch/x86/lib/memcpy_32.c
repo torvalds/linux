@@ -25,19 +25,35 @@ void *memmove(void *dest, const void *src, size_t n)
 	int d0, d1, d2;
 
 	if (dest < src) {
-		memcpy(dest, src, n);
+		if ((dest + n) < src)
+			 return memcpy(dest, src, n);
+		else
+			__asm__ __volatile__(
+				"rep\n\t"
+				"movsb\n\t"
+				: "=&c" (d0), "=&S" (d1), "=&D" (d2)
+				:"0" (n),
+				 "1" (src),
+				 "2" (dest)
+				:"memory");
+
 	} else {
-		__asm__ __volatile__(
-			"std\n\t"
-			"rep\n\t"
-			"movsb\n\t"
-			"cld"
-			: "=&c" (d0), "=&S" (d1), "=&D" (d2)
-			:"0" (n),
-			 "1" (n-1+src),
-			 "2" (n-1+dest)
-			:"memory");
+
+		if((src + count) < dest)
+			return memcpy(dest, src, count);
+		else
+			__asm__ __volatile__(
+				"std\n\t"
+				"rep\n\t"
+				"movsb\n\t"
+				"cld"
+				: "=&c" (d0), "=&S" (d1), "=&D" (d2)
+				:"0" (n),
+				 "1" (n-1+src),
+				 "2" (n-1+dest)
+				:"memory");
 	}
+
 	return dest;
 }
 EXPORT_SYMBOL(memmove);
