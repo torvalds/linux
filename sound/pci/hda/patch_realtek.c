@@ -14467,6 +14467,7 @@ static const struct alc_fixup alc269_fixups[] = {
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9071, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
+	SND_PCI_QUIRK(0x104d, 0x9077, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	{}
 };
 
