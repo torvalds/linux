@@ -146,9 +146,9 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpio_set_value(RX51_SPEAKER_AMP_TWL_GPIO, 1);
+		gpio_set_value_cansleep(RX51_SPEAKER_AMP_TWL_GPIO, 1);
 	else
-		gpio_set_value(RX51_SPEAKER_AMP_TWL_GPIO, 0);
+		gpio_set_value_cansleep(RX51_SPEAKER_AMP_TWL_GPIO, 0);
 
 	return 0;
 }
