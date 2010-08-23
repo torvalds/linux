@@ -699,11 +699,9 @@ int iwl_full_rxon_required(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_full_rxon_required);
 
-u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv)
+u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx)
 {
-#if !TODO
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-#endif
 	/*
 	 * Assign the lowest rate -- should really get this from
 	 * the beacon skb from mac80211.
@@ -1723,6 +1721,14 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
+	lockdep_assert_held(&priv->mutex);
+
+	if (!priv->beacon_ctx) {
+		IWL_ERR(priv, "update beacon but no beacon context!\n");
+		dev_kfree_skb(skb);
+		return -EINVAL;
+	}
+
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
 		return -EIO;
@@ -1741,9 +1747,7 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-#warning "use beacon context?"
-	priv->cfg->ops->lib->post_associate(
-			priv, priv->contexts[IWL_RXON_CTX_BSS].vif);
+	priv->cfg->ops->lib->post_associate(priv, priv->beacon_ctx->vif);
 
 	return 0;
 }
@@ -1771,6 +1775,18 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		ctx->qos_data.qos_active = bss_conf->qos;
 		iwl_update_qos(priv, ctx);
 		spin_unlock_irqrestore(&priv->lock, flags);
+	}
+
+	if (changes & BSS_CHANGED_BEACON_ENABLED) {
+		/*
+		 * the add_interface code must make sure we only ever
+		 * have a single interface that could be beaconing at
+		 * any time.
+		 */
+		if (vif->bss_conf.enable_beacon)
+			priv->beacon_ctx = ctx;
+		else
+			priv->beacon_ctx = NULL;
 	}
 
 	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_AP) {

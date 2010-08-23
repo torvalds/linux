@@ -343,7 +343,8 @@ static int iwl3945_send_beacon_cmd(struct iwl_priv *priv)
 		return -ENOMEM;
 	}
 
-	rate = iwl_rate_get_lowest_plcp(priv);
+	rate = iwl_rate_get_lowest_plcp(priv,
+				&priv->contexts[IWL_RXON_CTX_BSS]);
 
 	frame_size = iwl3945_hw_get_beacon_cmd(priv, frame, rate);
 

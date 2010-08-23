@@ -345,6 +345,13 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 	 * beacon contents.
 	 */
 
+	lockdep_assert_held(&priv->mutex);
+
+	if (!priv->beacon_ctx) {
+		IWL_ERR(priv, "trying to build beacon w/o beacon context!\n");
+		return -EINVAL;
+	}
+
 	/* Initialize memory */
 	tx_beacon_cmd = &frame->u.beacon;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
@@ -357,9 +364,7 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
-#warning "Use proper STA ID"
-	tx_beacon_cmd->tx.sta_id =
-		priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id;
+	tx_beacon_cmd->tx.sta_id = priv->beacon_ctx->bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 	tx_beacon_cmd->tx.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK |
 		TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK;
@@ -369,7 +374,7 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 			frame_size);
 
 	/* Set up packet rate and flags */
-	rate = iwl_rate_get_lowest_plcp(priv);
+	rate = iwl_rate_get_lowest_plcp(priv, priv->beacon_ctx);
 	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
 					      priv->hw_params.valid_tx_ant);
 	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
@@ -602,25 +607,28 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 		container_of(work, struct iwl_priv, beacon_update);
 	struct sk_buff *beacon;
 
-	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-#warning "introduce and use beacon context"
-	beacon = ieee80211_beacon_get(priv->hw,
-			priv->contexts[IWL_RXON_CTX_BSS].vif);
-
-	if (!beacon) {
-		IWL_ERR(priv, "update beacon failed\n");
-		return;
+	mutex_lock(&priv->mutex);
+	if (!priv->beacon_ctx) {
+		IWL_ERR(priv, "updating beacon w/o beacon context!\n");
+		goto out;
 	}
 
-	mutex_lock(&priv->mutex);
+	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
+	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif);
+	if (!beacon) {
+		IWL_ERR(priv, "update beacon failed\n");
+		goto out;
+	}
+
 	/* new beacon skb is allocated every time; dispose previous.*/
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);
 
 	priv->ibss_beacon = beacon;
-	mutex_unlock(&priv->mutex);
 
 	iwl_send_beacon_cmd(priv);
+ out:
+	mutex_unlock(&priv->mutex);
 }
 
 static void iwl_bg_bt_runtime_config(struct work_struct *work)
@@ -3476,6 +3484,8 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 	int ret = 0;
+
+	lockdep_assert_held(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
