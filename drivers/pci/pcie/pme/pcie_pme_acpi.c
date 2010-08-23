@@ -28,6 +28,7 @@ int pcie_pme_acpi_setup(struct pcie_device *srv)
 	acpi_status status = AE_NOT_FOUND;
 	struct pci_dev *port = srv->port;
 	acpi_handle handle;
+	u32 flags;
 	int error = 0;
 
 	if (acpi_pci_disabled)
@@ -39,9 +40,10 @@ int pcie_pme_acpi_setup(struct pcie_device *srv)
 	if (!handle)
 		return -EINVAL;
 
-	status = acpi_pci_osc_control_set(handle,
-			OSC_PCI_EXPRESS_PME_CONTROL |
-			OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+	flags = OSC_PCI_EXPRESS_PME_CONTROL |
+		OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL;
+
+	status = acpi_pci_osc_control_set(handle, &flags, flags);
 	if (ACPI_FAILURE(status)) {
 		dev_info(&port->dev,
 			"Failed to receive control of PCIe PME service: %s\n",
