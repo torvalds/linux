@@ -105,6 +105,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	int ret;
 	bool new_assoc =
 		!!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
+	bool old_assoc = !!(ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK);
 
 	if (!iwl_is_alive(priv))
 		return -EBUSY;
@@ -182,7 +183,7 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	iwl_set_rxon_hwcrypto(priv, ctx, !priv->cfg->mod_params->sw_crypto);
 
-	if (new_assoc) {
+	if (!old_assoc) {
 		/*
 		 * First of all, before setting associated, we need to
 		 * send RXON timing so the device knows about the DTIM
