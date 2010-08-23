@@ -36,6 +36,8 @@
 
 #include <plat/omap_hwmod.h>
 
+extern struct device omap_device_parent;
+
 /* omap_device._state values */
 #define OMAP_DEVICE_STATE_UNKNOWN	0
 #define OMAP_DEVICE_STATE_ENABLED	1

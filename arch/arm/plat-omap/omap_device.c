@@ -465,6 +465,7 @@ int omap_device_register(struct omap_device *od)
 {
 	pr_debug("omap_device: %s: registering\n", od->pdev.name);
 
+	od->pdev.dev.parent = &omap_device_parent;
 	return platform_device_register(&od->pdev);
 }
 
@@ -737,3 +738,14 @@ int omap_device_enable_clocks(struct omap_device *od)
 	/* XXX pass along return value here? */
 	return 0;
 }
+
+struct device omap_device_parent = {
+	.init_name	= "omap",
+	.parent         = &platform_bus,
+};
+
+static int __init omap_device_init(void)
+{
+	return device_register(&omap_device_parent);
+}
+core_initcall(omap_device_init);
