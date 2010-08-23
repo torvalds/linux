@@ -553,6 +553,8 @@ calc_seckey(struct TCP_Server_Info *server)
 		return 1;
 	}
 
+	desc.tfm = tfm_arc4;
+
 	crypto_blkcipher_setkey(tfm_arc4,
 		server->session_key.data.ntlmv2.key, CIFS_CPHTXT_SIZE);
 	sg_init_one(&sgin, sec_key, CIFS_CPHTXT_SIZE);
