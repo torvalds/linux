@@ -4078,34 +4078,63 @@ struct iwl_bt_coex_profile_notif {
 	u8 reserved;
 } __attribute__((packed));
 
-#define IWL_BT_COEX_PRIO_SHARED_ANTENNA		0x1
-#define IWL_BT_COEX_PRIO_PRIO_MASK		0xe
-#define IWL_BT_COEX_PRIO_PRIO_SHIFT		1
+#define IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS	0
+#define IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_MSK	0x1
+#define IWL_BT_COEX_PRIO_TBL_PRIO_POS		1
+#define IWL_BT_COEX_PRIO_TBL_PRIO_MASK		0x0e
+#define IWL_BT_COEX_PRIO_TBL_RESERVED_POS	4
+#define IWL_BT_COEX_PRIO_TBL_RESERVED_MASK	0xf0
+#define IWL_BT_COEX_PRIO_TBL_PRIO_SHIFT		1
 
 /*
  * BT Coexistence Priority table
  * REPLY_BT_COEX_PRIO_TABLE = 0xcc
  */
+enum bt_coex_prio_table_events {
+	BT_COEX_PRIO_TBL_EVT_INIT_CALIB1 = 0,
+	BT_COEX_PRIO_TBL_EVT_INIT_CALIB2 = 1,
+	BT_COEX_PRIO_TBL_EVT_PERIODIC_CALIB_LOW1 = 2,
+	BT_COEX_PRIO_TBL_EVT_PERIODIC_CALIB_LOW2 = 3, /* DC calib */
+	BT_COEX_PRIO_TBL_EVT_PERIODIC_CALIB_HIGH1 = 4,
+	BT_COEX_PRIO_TBL_EVT_PERIODIC_CALIB_HIGH2 = 5,
+	BT_COEX_PRIO_TBL_EVT_DTIM = 6,
+	BT_COEX_PRIO_TBL_EVT_SCAN52 = 7,
+	BT_COEX_PRIO_TBL_EVT_SCAN24 = 8,
+	BT_COEX_PRIO_TBL_EVT_RESERVED0 = 9,
+	BT_COEX_PRIO_TBL_EVT_RESERVED1 = 10,
+	BT_COEX_PRIO_TBL_EVT_RESERVED2 = 11,
+	BT_COEX_PRIO_TBL_EVT_RESERVED3 = 12,
+	BT_COEX_PRIO_TBL_EVT_RESERVED4 = 13,
+	BT_COEX_PRIO_TBL_EVT_RESERVED5 = 14,
+	BT_COEX_PRIO_TBL_EVT_RESERVED6 = 15,
+	/* BT_COEX_PRIO_TBL_EVT_MAX should always be last */
+	BT_COEX_PRIO_TBL_EVT_MAX,
+};
+
+enum bt_coex_prio_table_priorities {
+	BT_COEX_PRIO_TBL_DISABLED = 0,
+	BT_COEX_PRIO_TBL_PRIO_LOW = 1,
+	BT_COEX_PRIO_TBL_PRIO_HIGH = 2,
+	BT_COEX_PRIO_TBL_PRIO_BYPASS = 3,
+	BT_COEX_PRIO_TBL_PRIO_COEX_OFF = 4,
+	BT_COEX_PRIO_TBL_PRIO_COEX_ON = 5,
+	BT_COEX_PRIO_TBL_PRIO_RSRVD1 = 6,
+	BT_COEX_PRIO_TBL_PRIO_RSRVD2 = 7,
+	BT_COEX_PRIO_TBL_MAX,
+};
+
 struct iwl_bt_coex_prio_table_cmd {
-	u8 init_calib_protection_cfg1,
-	   init_calib_protection_cfg2,
-	   init_calib_protection_lowprio_cfg1,
-	   init_calib_protection_lowprio_cfg2,
-	   init_calib_protection_highprio_cfg1,
-	   init_calib_protection_highprio_cfg2,
-	   dtim_protection_prio_cfg,
-	   scan_52_protection_cfg,
-	   scan_24_protection_cfg,
-	   bc_mc_protection_cfg;
-	u8 reserved[6];
+	u8 prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX];
 } __attribute__((packed));
 
+#define IWL_BT_COEX_ENV_CLOSE	0
+#define IWL_BT_COEX_ENV_OPEN	1
 /*
  * BT Protection Envelope
  * REPLY_BT_COEX_PROT_ENV = 0xcd
  */
 struct iwl_bt_coex_prot_env_cmd {
-	u8 open; /* 0 = closed, 1 = open */
+	u8 action; /* 0 = closed, 1 = open */
 	u8 type; /* 0 .. 15 */
 	u8 reserved[2];
 } __attribute__((packed));

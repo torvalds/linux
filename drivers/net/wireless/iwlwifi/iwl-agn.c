@@ -2754,8 +2754,10 @@ static void iwl_alive_start(struct iwl_priv *priv)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv);
 	}
 
-	/* Configure Bluetooth device coexistence support */
-	priv->cfg->ops->hcmd->send_bt_config(priv);
+	if (!priv->cfg->advanced_bt_coexist) {
+		/* Configure Bluetooth device coexistence support */
+		priv->cfg->ops->hcmd->send_bt_config(priv);
+	}
 
 	iwl_reset_run_time_calib(priv);
 

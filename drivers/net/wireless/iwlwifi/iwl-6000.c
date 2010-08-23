@@ -235,11 +235,10 @@ static void iwl6000g2b_send_bt_config(struct iwl_priv *priv)
 	/*
 	 * Configure BT coex mode to "no coexistence" when the
 	 * user disabled BT coexistence, we have no interface
-	 * (might be in monitor mode), or the interface is in
+	 * user disabled BT coexistence, or the interface is in
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
-	if (!bt_coex_active || !priv->vif ||
-	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
+	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		bt_cmd.flags = 0;
 	} else {
 		bt_cmd.flags = IWL6000G2B_BT_FLAG_CHANNEL_INHIBITION |

@@ -329,6 +329,51 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 				sizeof(coex_cmd), &coex_cmd);
 }
 
+static const u8 iwlagn_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_LOW << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_LOW << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_HIGH << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_HIGH << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_COEX_OFF << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_COEX_ON << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	0, 0, 0, 0, 0, 0, 0
+};
+
+static void iwlagn_send_prio_tbl(struct iwl_priv *priv)
+{
+	struct iwl_bt_coex_prio_table_cmd prio_tbl_cmd;
+
+	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
+		sizeof(iwlagn_bt_prio_tbl));
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PRIO_TABLE,
+				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
+		IWL_ERR(priv, "failed to send BT prio tbl command\n");
+}
+
+static void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
+{
+	struct iwl_bt_coex_prot_env_cmd env_cmd;
+
+	env_cmd.action = action;
+	env_cmd.type = type;
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PROT_ENV,
+			     sizeof(env_cmd), &env_cmd))
+		IWL_ERR(priv, "failed to send BT env command\n");
+}
+
+
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
@@ -415,6 +460,20 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (priv->cfg->advanced_bt_coexist) {
+		/* Configure Bluetooth device coexistence support */
+		/* need to perform this before any calibration */
+		priv->cfg->ops->hcmd->send_bt_config(priv);
+		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC) {
+			iwlagn_send_prio_tbl(priv);
+			iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+				BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+			iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
+				BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+		}
+
+	}
 
 	iwlagn_send_wimax_coex(priv);
 
