@@ -329,12 +329,11 @@ static __le32 *rt2800usb_get_txwi(struct queue_entry *entry)
 		return (__le32 *) (entry->skb->data + TXINFO_DESC_SIZE);
 }
 
-static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txi = (__le32 *) skb->data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	__le32 *txi = (__le32 *) entry->skb->data;
 	u32 word;
 
 	/*
@@ -342,7 +341,7 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00_desc_read(txi, 0, &word);
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
-			   skb->len - TXINFO_DESC_SIZE);
+			   entry->skb->len - TXINFO_DESC_SIZE);
 	rt2x00_set_field32(&word, TXINFO_W0_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXINFO_W0_QSEL, 2);

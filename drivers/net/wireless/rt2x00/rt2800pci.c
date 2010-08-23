@@ -571,12 +571,11 @@ static __le32 *rt2800pci_get_txwi(struct queue_entry *entry)
 	return (__le32 *) entry->skb->data;
 }
 
-static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *txd = entry_priv->desc;
 	u32 word;
 
@@ -596,7 +595,7 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 0, word);
 
 	rt2x00_desc_read(txd, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_SD_LEN1, skb->len);
+	rt2x00_set_field32(&word, TXD_W1_SD_LEN1, entry->skb->len);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC1,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_BURST,
@@ -627,41 +626,35 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 /*
  * TX data initialization
  */
-static void rt2800pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid queue_idx)
+static void rt2800pci_kick_tx_queue(struct data_queue *queue)
 {
-	struct data_queue *queue;
-	unsigned int idx, qidx = 0;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	unsigned int idx = queue->index[Q_INDEX];
+	unsigned int qidx = 0;
 
-	if (queue_idx > QID_HCCA && queue_idx != QID_MGMT)
-		return;
-
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
-	idx = queue->index[Q_INDEX];
-
-	if (queue_idx == QID_MGMT)
+	if (queue->qid == QID_MGMT)
 		qidx = 5;
 	else
-		qidx = queue_idx;
+		qidx = queue->qid;
 
 	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), idx);
 }
 
-static void rt2800pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid qid)
+static void rt2800pci_kill_tx_queue(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	u32 reg;
 
-	if (qid == QID_BEACON) {
+	if (queue->qid == QID_BEACON) {
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, 0);
 		return;
 	}
 
 	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, (qid == QID_AC_BE));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, (qid == QID_AC_BK));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, (qid == QID_AC_VI));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, (qid == QID_AC_VO));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, (queue->qid == QID_AC_BE));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, (queue->qid == QID_AC_BK));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, (queue->qid == QID_AC_VI));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, (queue->qid == QID_AC_VO));
 	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
 }
 

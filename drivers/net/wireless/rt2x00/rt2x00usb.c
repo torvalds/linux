@@ -249,10 +249,8 @@ static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 	}
 }
 
-void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-			     const enum data_queue_qid qid)
+void rt2x00usb_kick_tx_queue(struct data_queue *queue)
 {
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, qid);
 	unsigned long irqflags;
 	unsigned int index;
 	unsigned int index_done;
@@ -286,10 +284,8 @@ void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_tx_queue);
 
-void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-			     const enum data_queue_qid qid)
+void rt2x00usb_kill_tx_queue(struct data_queue *queue)
 {
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, qid);
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
@@ -300,8 +296,8 @@ void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
 	 * the beacon guard byte.
 	 */
 	kill_guard =
-	    (qid == QID_BEACON) &&
-	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags));
+	    (queue->qid == QID_BEACON) &&
+	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &queue->rt2x00dev->flags));
 
 	/*
 	 * Cancel all entries.
@@ -447,7 +443,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * The USB version of kill_tx_queue also works
 	 * on the RX queue.
 	 */
-	rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, QID_RX);
+	rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev->rx);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 

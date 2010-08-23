@@ -1766,12 +1766,11 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				  struct sk_buff *skb,
+static void rt61pci_write_tx_desc(struct queue_entry *entry,
 				  struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *txd = entry_priv->desc;
 	u32 word;
 
@@ -1802,11 +1801,11 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	}
 
 	rt2x00_desc_read(txd, 5, &word);
-	rt2x00_set_field32(&word, TXD_W5_PID_TYPE, skbdesc->entry->queue->qid);
+	rt2x00_set_field32(&word, TXD_W5_PID_TYPE, entry->queue->qid);
 	rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE,
 			   skbdesc->entry->entry_idx);
 	rt2x00_set_field32(&word, TXD_W5_TX_POWER,
-			   TXPOWER_TO_DEV(rt2x00dev->tx_power));
+			   TXPOWER_TO_DEV(entry->queue->rt2x00dev->tx_power));
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
 	rt2x00_desc_write(txd, 5, word);
 
@@ -1882,7 +1881,7 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	/*
 	 * Write the TX descriptor for the beacon.
 	 */
-	rt61pci_write_tx_desc(rt2x00dev, entry->skb, txdesc);
+	rt61pci_write_tx_desc(entry, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.
@@ -1918,34 +1917,34 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	entry->skb = NULL;
 }
 
-static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				  const enum data_queue_qid queue)
+static void rt61pci_kick_tx_queue(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0, (queue == QID_AC_BE));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1, (queue == QID_AC_BK));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2, (queue == QID_AC_VI));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3, (queue == QID_AC_VO));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0, (queue->qid == QID_AC_BE));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1, (queue->qid == QID_AC_BK));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2, (queue->qid == QID_AC_VI));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3, (queue->qid == QID_AC_VO));
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 
-static void rt61pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-				  const enum data_queue_qid qid)
+static void rt61pci_kill_tx_queue(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	u32 reg;
 
-	if (qid == QID_BEACON) {
+	if (queue->qid == QID_BEACON) {
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
 		return;
 	}
 
 	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC0, (qid == QID_AC_BE));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC1, (qid == QID_AC_BK));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, (qid == QID_AC_VI));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, (qid == QID_AC_VO));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC0, (queue->qid == QID_AC_BE));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC1, (queue->qid == QID_AC_BK));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, (queue->qid == QID_AC_VI));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, (queue->qid == QID_AC_VO));
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 

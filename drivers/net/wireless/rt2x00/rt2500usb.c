@@ -1041,12 +1041,11 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txd = (__le32 *) skb->data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	__le32 *txd = (__le32 *) entry->skb->data;
 	u32 word;
 
 	/*
@@ -1129,7 +1128,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	/*
 	 * Write the TX descriptor for the beacon.
 	 */
-	rt2500usb_write_tx_desc(rt2x00dev, entry->skb, txdesc);
+	rt2500usb_write_tx_desc(entry, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.
