@@ -1514,6 +1514,23 @@ static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static int emulate_load_segment(struct x86_emulate_ctxt *ctxt,
+			   struct x86_emulate_ops *ops, int seg)
+{
+	struct decode_cache *c = &ctxt->decode;
+	unsigned short sel;
+	int rc;
+
+	memcpy(&sel, c->src.valptr + c->op_bytes, 2);
+
+	rc = load_segment_descriptor(ctxt, ops, sel, seg);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	c->dst.val = c->src.val;
+	return rc;
+}
+
 static inline void
 setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct x86_emulate_ops *ops, struct desc_struct *cs,
@@ -2458,7 +2475,7 @@ static struct opcode opcode_table[256] = {
 	D(ByteOp | DstMem | SrcImm | ModRM), D(DstMem | SrcImmByte | ModRM),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	D(ImplicitOps | Stack),
-	N, N,
+	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
 	D(ByteOp | DstMem | SrcImm | ModRM | Mov), D(DstMem | SrcImm | ModRM | Mov),
 	/* 0xC8 - 0xCF */
 	N, N, N, D(ImplicitOps | Stack),
@@ -2529,9 +2546,9 @@ static struct opcode twobyte_table[256] = {
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	N, D(DstMem | SrcReg | ModRM | BitOp | Lock),
-	N, N, D(ByteOp | DstReg | SrcMem | ModRM | Mov),
-	    D(DstReg | SrcMem16 | ModRM | Mov),
+	D(DstReg | SrcMemFAddr | ModRM), D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	D(DstReg | SrcMemFAddr | ModRM), D(DstReg | SrcMemFAddr | ModRM),
+	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
 	G(BitOp, group8), D(DstMem | SrcReg | ModRM | BitOp | Lock),
@@ -3214,6 +3231,16 @@ special_insn:
 		c->dst.addr.reg = &c->eip;
 		c->dst.bytes = c->op_bytes;
 		goto pop_instruction;
+	case 0xc4:		/* les */
+		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_ES);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		break;
+	case 0xc5:		/* lds */
+		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_DS);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		break;
 	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
 	mov:
 		c->dst.val = c->src.val;
@@ -3659,9 +3686,24 @@ twobyte_insn:
 			c->dst.addr.reg = (unsigned long *)&c->regs[VCPU_REGS_RAX];
 		}
 		break;
+	case 0xb2:		/* lss */
+		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_SS);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		break;
 	case 0xb3:
 	      btr:		/* btr */
 		emulate_2op_SrcV_nobyte("btr", c->src, c->dst, ctxt->eflags);
+		break;
+	case 0xb4:		/* lfs */
+		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_FS);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
+		break;
+	case 0xb5:		/* lgs */
+		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_GS);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		c->dst.bytes = c->op_bytes;
