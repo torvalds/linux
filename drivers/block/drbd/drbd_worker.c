@@ -1052,7 +1052,9 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 			ok = drbd_send_ack(mdev, P_RS_IS_IN_SYNC, e);
 		} else {
 			inc_rs_pending(mdev);
-			e->block_id = ID_SYNCER;
+			e->block_id = ID_SYNCER; /* By setting block_id, digest pointer becomes invalid! */
+			e->flags &= ~EE_HAS_DIGEST; /* This e no longer has a digest pointer */
+			kfree(di);
 			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, e);
 		}
 	} else {
