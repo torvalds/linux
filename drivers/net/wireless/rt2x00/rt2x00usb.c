@@ -232,21 +232,22 @@ static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	u32 length;
 
-	if (test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags)) {
-		/*
-		 * USB devices cannot blindly pass the skb->len as the
-		 * length of the data to usb_fill_bulk_urb. Pass the skb
-		 * to the driver to determine what the length should be.
-		 */
-		length = rt2x00dev->ops->lib->get_tx_data_len(entry);
+	if (!test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
+		return;
 
-		usb_fill_bulk_urb(entry_priv->urb, usb_dev,
-				  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
-				  entry->skb->data, length,
-				  rt2x00usb_interrupt_txdone, entry);
+	/*
+	 * USB devices cannot blindly pass the skb->len as the
+	 * length of the data to usb_fill_bulk_urb. Pass the skb
+	 * to the driver to determine what the length should be.
+	 */
+	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
 
-		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
-	}
+	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
+			  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
+			  entry->skb->data, length,
+			  rt2x00usb_interrupt_txdone, entry);
+
+	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 }
 
 void rt2x00usb_kick_tx_queue(struct data_queue *queue)
