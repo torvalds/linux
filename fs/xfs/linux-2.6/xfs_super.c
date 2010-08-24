@@ -1407,7 +1407,7 @@ xfs_fs_freeze(
 
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
-	return -xfs_fs_log_dummy(mp);
+	return -xfs_fs_log_dummy(mp, SYNC_WAIT);
 }
 
 STATIC int
