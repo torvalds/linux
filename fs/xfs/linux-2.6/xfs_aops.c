@@ -852,8 +852,8 @@ xfs_convert_page(
 		SetPageUptodate(page);
 
 	if (count) {
-		wbc->nr_to_write--;
-		if (wbc->nr_to_write <= 0)
+		if (--wbc->nr_to_write <= 0 &&
+		    wbc->sync_mode == WB_SYNC_NONE)
 			done = 1;
 	}
 	xfs_start_page_writeback(page, !page_dirty, count);
