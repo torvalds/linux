@@ -33,11 +33,6 @@
 
 #include "ad1980.h"
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
-	unsigned int reg);
-static int ac97_write(struct snd_soc_codec *codec,
-	unsigned int reg, unsigned int val);
-
 /*
  * AD1980 register cache
  */
