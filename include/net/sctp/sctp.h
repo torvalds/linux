@@ -275,24 +275,35 @@ struct sctp_mib {
 /* Print debugging messages.  */
 #if SCTP_DEBUG
 extern int sctp_debug_flag;
-#define SCTP_DEBUG_PRINTK(whatever...) \
-	((void) (sctp_debug_flag && printk(KERN_DEBUG whatever)))
-#define SCTP_DEBUG_PRINTK_IPADDR(lead, trail, leadparm, saddr, otherparms...) \
-	if (sctp_debug_flag) { \
-		if (saddr->sa.sa_family == AF_INET6) { \
-			printk(KERN_DEBUG \
-			       lead "%pI6" trail, \
-			       leadparm, \
-			       &saddr->v6.sin6_addr, \
-			       otherparms); \
-		} else { \
-			printk(KERN_DEBUG \
-			       lead "%pI4" trail, \
-			       leadparm, \
-			       &saddr->v4.sin_addr.s_addr, \
-			       otherparms); \
-		} \
-	}
+#define SCTP_DEBUG_PRINTK(fmt, args...)			\
+do {							\
+	if (sctp_debug_flag)				\
+		printk(KERN_DEBUG pr_fmt(fmt), ##args);	\
+} while (0)
+#define SCTP_DEBUG_PRINTK_CONT(fmt, args...)		\
+do {							\
+	if (sctp_debug_flag)				\
+		pr_cont(fmt, ##args);			\
+} while (0)
+#define SCTP_DEBUG_PRINTK_IPADDR(fmt_lead, fmt_trail,			\
+				 args_lead, saddr, args_trail...)	\
+do {									\
+	if (sctp_debug_flag) {						\
+		if (saddr->sa.sa_family == AF_INET6) {			\
+			printk(KERN_DEBUG				\
+			       pr_fmt(fmt_lead "%pI6" fmt_trail),	\
+			       args_lead,				\
+			       &saddr->v6.sin6_addr,			\
+			       args_trail);				\
+		} else {						\
+			printk(KERN_DEBUG				\
+			       pr_fmt(fmt_lead "%pI4" fmt_trail),	\
+			       args_lead,				\
+			       &saddr->v4.sin_addr.s_addr,		\
+			       args_trail);				\
+		}							\
+	}								\
+} while (0)
 #define SCTP_ENABLE_DEBUG { sctp_debug_flag = 1; }
 #define SCTP_DISABLE_DEBUG { sctp_debug_flag = 0; }
 
@@ -306,6 +317,7 @@ extern int sctp_debug_flag;
 #else	/* SCTP_DEBUG */
 
 #define SCTP_DEBUG_PRINTK(whatever...)
+#define SCTP_DEBUG_PRINTK_CONT(fmt, args...)
 #define SCTP_DEBUG_PRINTK_IPADDR(whatever...)
 #define SCTP_ENABLE_DEBUG
 #define SCTP_DISABLE_DEBUG

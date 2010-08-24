@@ -48,6 +48,8 @@
  * be incorporated into the next SCTP release.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/random.h>
@@ -244,10 +246,9 @@ void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 	struct dst_entry *dst;
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
-		printk(KERN_WARNING "%s: Reported pmtu %d too low, "
-		       "using default minimum of %d\n",
-		       __func__, pmtu,
-		       SCTP_DEFAULT_MINSEGMENT);
+		pr_warn("%s: Reported pmtu %d too low, using default minimum of %d\n",
+			__func__, pmtu,
+			SCTP_DEFAULT_MINSEGMENT);
 		/* Use default minimum segment size and disable
 		 * pmtu discovery on this transport.
 		 */

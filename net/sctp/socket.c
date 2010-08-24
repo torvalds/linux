@@ -57,6 +57,8 @@
  * be incorporated into the next SCTP release.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -2458,9 +2460,8 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 		if (params.sack_delay == 0 && params.sack_freq == 0)
 			return 0;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
-		printk(KERN_WARNING "SCTP: Use of struct sctp_assoc_value "
-		       "in delayed_ack socket option deprecated\n");
-		printk(KERN_WARNING "SCTP: Use struct sctp_sack_info instead\n");
+		pr_warn("Use of struct sctp_assoc_value in delayed_ack socket option deprecated\n");
+		pr_warn("Use struct sctp_sack_info instead\n");
 		if (copy_from_user(&params, optval, optlen))
 			return -EFAULT;
 
@@ -2868,10 +2869,8 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 	int val;
 
 	if (optlen == sizeof(int)) {
-		printk(KERN_WARNING
-		   "SCTP: Use of int in maxseg socket option deprecated\n");
-		printk(KERN_WARNING
-		   "SCTP: Use struct sctp_assoc_value instead\n");
+		pr_warn("Use of int in maxseg socket option deprecated\n");
+		pr_warn("Use struct sctp_assoc_value instead\n");
 		if (copy_from_user(&val, optval, optlen))
 			return -EFAULT;
 		params.assoc_id = 0;
@@ -3121,10 +3120,8 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 	int assoc_id = 0;
 
 	if (optlen == sizeof(int)) {
-		printk(KERN_WARNING
-		   "SCTP: Use of int in max_burst socket option deprecated\n");
-		printk(KERN_WARNING
-		   "SCTP: Use struct sctp_assoc_value instead\n");
+		pr_warn("Use of int in max_burst socket option deprecated\n");
+		pr_warn("Use struct sctp_assoc_value instead\n");
 		if (copy_from_user(&val, optval, optlen))
 			return -EFAULT;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
@@ -4281,9 +4278,8 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else if (len == sizeof(struct sctp_assoc_value)) {
-		printk(KERN_WARNING "SCTP: Use of struct sctp_assoc_value "
-		       "in delayed_ack socket option deprecated\n");
-		printk(KERN_WARNING "SCTP: Use struct sctp_sack_info instead\n");
+		pr_warn("Use of struct sctp_assoc_value in delayed_ack socket option deprecated\n");
+		pr_warn("Use struct sctp_sack_info instead\n");
 		if (copy_from_user(&params, optval, len))
 			return -EFAULT;
 	} else
@@ -4929,10 +4925,8 @@ static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 	struct sctp_association *asoc;
 
 	if (len == sizeof(int)) {
-		printk(KERN_WARNING
-		   "SCTP: Use of int in maxseg socket option deprecated\n");
-		printk(KERN_WARNING
-		   "SCTP: Use struct sctp_assoc_value instead\n");
+		pr_warn("Use of int in maxseg socket option deprecated\n");
+		pr_warn("Use struct sctp_assoc_value instead\n");
 		params.assoc_id = 0;
 	} else if (len >= sizeof(struct sctp_assoc_value)) {
 		len = sizeof(struct sctp_assoc_value);
@@ -5023,10 +5017,8 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 	struct sctp_association *asoc;
 
 	if (len == sizeof(int)) {
-		printk(KERN_WARNING
-		   "SCTP: Use of int in max_burst socket option deprecated\n");
-		printk(KERN_WARNING
-		   "SCTP: Use struct sctp_assoc_value instead\n");
+		pr_warn("Use of int in max_burst socket option deprecated\n");
+		pr_warn("Use struct sctp_assoc_value instead\n");
 		params.assoc_id = 0;
 	} else if (len >= sizeof(struct sctp_assoc_value)) {
 		len = sizeof(struct sctp_assoc_value);
@@ -5586,8 +5578,7 @@ SCTP_STATIC int sctp_listen_start(struct sock *sk, int backlog)
 		tfm = crypto_alloc_hash(sctp_hmac_alg, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR(tfm)) {
 			if (net_ratelimit()) {
-				printk(KERN_INFO
-				       "SCTP: failed to load transform for %s: %ld\n",
+				pr_info("failed to load transform for %s: %ld\n",
 					sctp_hmac_alg, PTR_ERR(tfm));
 			}
 			return -ENOSYS;
