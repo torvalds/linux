@@ -394,8 +394,9 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	tx_size = max_t(u32, tx_size, MLX4_EN_MIN_TX_SIZE);
 	tx_size = min_t(u32, tx_size, MLX4_EN_MAX_TX_SIZE);
 
-	if (rx_size == priv->prof->rx_ring_size &&
-	    tx_size == priv->prof->tx_ring_size)
+	if (rx_size == (priv->port_up ? priv->rx_ring[0].actual_size :
+					priv->rx_ring[0].size) &&
+	    tx_size == priv->tx_ring[0].size)
 		return 0;
 
 	mutex_lock(&mdev->state_lock);
@@ -429,13 +430,13 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 				  struct ethtool_ringparam *param)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
 
 	memset(param, 0, sizeof(*param));
 	param->rx_max_pending = MLX4_EN_MAX_RX_SIZE;
 	param->tx_max_pending = MLX4_EN_MAX_TX_SIZE;
-	param->rx_pending = mdev->profile.prof[priv->port].rx_ring_size;
-	param->tx_pending = mdev->profile.prof[priv->port].tx_ring_size;
+	param->rx_pending = priv->port_up ?
+		priv->rx_ring[0].actual_size : priv->rx_ring[0].size;
+	param->tx_pending = priv->tx_ring[0].size;
 }
 
 static int mlx4_ethtool_op_set_flags(struct net_device *dev, u32 data)
