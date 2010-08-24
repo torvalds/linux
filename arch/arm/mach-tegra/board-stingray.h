@@ -17,6 +17,8 @@
 #ifndef _MACH_TEGRA_BOARD_STINGRAY_H
 #define _MACH_TEGRA_BOARD_STINGRAY_H
 
+void stingray_fb_alloc(void);
+
 void stingray_pinmux_init(void);
 int stingray_panel_init(void);
 int stingray_keypad_init(void);

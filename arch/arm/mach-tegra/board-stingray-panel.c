@@ -21,17 +21,21 @@
 #include <linux/leds-lp8550.h>
 #include <linux/platform_device.h>
 #include <linux/nvhost.h>
+#include <linux/bootmem.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <linux/regulator/consumer.h>
 
 #include "board-stingray.h"
 #include "gpio-names.h"
 
 #define STINGRAY_AUO_DISP_BL	TEGRA_GPIO_PD0
 #define STINGRAY_LVDS_SHDN_B	TEGRA_GPIO_PB2
+#define STINGRAY_HDMI_5V_EN	TEGRA_GPIO_PC4
+#define STINGRAY_HDMI_HPD	TEGRA_GPIO_PN7
 
 /* Display Controller */
 static struct resource stingray_disp1_resources[] = {
@@ -53,7 +57,31 @@ static struct resource stingray_disp1_resources[] = {
 		.end	= 0x1c038000 + 0x500000 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
+};
 
+static struct resource stingray_disp2_resources[] = {
+	{
+		.name	= "irq",
+		.start	= INT_DISPLAY_B_GENERAL,
+		.end	= INT_DISPLAY_B_GENERAL,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "regs",
+		.start	= TEGRA_DISPLAY2_BASE,
+		.end	= TEGRA_DISPLAY2_BASE + TEGRA_DISPLAY2_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "fbmem",
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "hdmi_regs",
+		.start	= TEGRA_HDMI_BASE,
+		.end	= TEGRA_HDMI_BASE + TEGRA_HDMI_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
 };
 
 static struct tegra_dc_mode stingray_panel_modes_p0[] = {
@@ -102,23 +130,15 @@ static struct tegra_fb_data stingray_fb_data = {
 	.bits_per_pixel	= 32,
 };
 
-static int stingray_display_init(void)
-{
-	tegra_gpio_enable(STINGRAY_LVDS_SHDN_B);
-	gpio_request(STINGRAY_LVDS_SHDN_B, "lvds_shdn_b");
-	gpio_direction_output(STINGRAY_LVDS_SHDN_B, 1);
-	return 0;
-}
-
-static int stingray_display_suspend(pm_message_t state)
-{
-	gpio_set_value(STINGRAY_LVDS_SHDN_B, 0);
-	return 0;
-}
-
-static int stingray_display_resume(void)
+static int stingray_panel_enable(void)
 {
 	gpio_set_value(STINGRAY_LVDS_SHDN_B, 1);
+	return 0;
+}
+
+static int stingray_panel_disable(void)
+{
+	gpio_set_value(STINGRAY_LVDS_SHDN_B, 0);
 	return 0;
 }
 
@@ -131,9 +151,8 @@ static struct tegra_dc_out stingray_disp1_out = {
 	.modes = stingray_panel_modes,
 	.n_modes = ARRAY_SIZE(stingray_panel_modes),
 
-	.init = stingray_display_init,
-	.suspend = stingray_display_suspend,
-	.resume = stingray_display_resume,
+	.enable = stingray_panel_enable,
+	.disable = stingray_panel_disable,
 };
 
 static struct tegra_dc_platform_data stingray_disp1_pdata = {
@@ -151,6 +170,80 @@ static struct nvhost_device stingray_disp1_device = {
 		.platform_data = &stingray_disp1_pdata,
 	},
 };
+
+static struct regulator *stingray_hdmi_reg;
+
+static int stingray_hdmi_init(void)
+{
+	tegra_gpio_enable(STINGRAY_HDMI_5V_EN);
+	gpio_request(STINGRAY_HDMI_5V_EN, "hdmi_5v_en");
+	gpio_direction_output(STINGRAY_HDMI_5V_EN, 1);
+
+	tegra_gpio_enable(STINGRAY_HDMI_HPD);
+	gpio_request(STINGRAY_HDMI_HPD, "hdmi_hpd");
+	gpio_direction_input(STINGRAY_HDMI_HPD);
+
+
+	return 0;
+}
+
+static int stingray_hdmi_enable(void)
+{
+	if (!stingray_hdmi_reg) {
+		stingray_hdmi_reg = regulator_get(NULL, "vwlan2");
+		if (IS_ERR_OR_NULL(stingray_hdmi_reg)) {
+			pr_err("hdmi: couldn't get regulator vwlan2\n");
+			stingray_hdmi_reg = NULL;
+			return PTR_ERR(stingray_hdmi_reg);
+		}
+	}
+	regulator_enable(stingray_hdmi_reg);
+	return 0;
+}
+
+static int stingray_hdmi_disable(void)
+{
+	regulator_disable(stingray_hdmi_reg);
+	return 0;
+}
+
+static struct tegra_dc_out stingray_disp2_out = {
+	.type = TEGRA_DC_OUT_HDMI,
+	.flags = TEGRA_DC_OUT_HOTPLUG_HIGH,
+
+	.dcc_bus = 1,
+	.hotplug_gpio = STINGRAY_HDMI_HPD,
+
+	.align = TEGRA_DC_ALIGN_MSB,
+	.order = TEGRA_DC_ORDER_RED_BLUE,
+
+	.enable = stingray_hdmi_enable,
+	.disable = stingray_hdmi_disable,
+};
+
+static struct tegra_fb_data stingray_disp2_fb_data = {
+	.win		= 0,
+	.xres		= 1280,
+	.yres		= 720,
+	.bits_per_pixel	= 32,
+};
+
+static struct tegra_dc_platform_data stingray_disp2_pdata = {
+	.flags		= 0,
+	.default_out	= &stingray_disp2_out,
+	.fb		= &stingray_disp2_fb_data,
+};
+
+static struct nvhost_device stingray_disp2_device = {
+	.name		= "tegradc",
+	.id		= 1,
+	.resource	= stingray_disp2_resources,
+	.num_resources	= ARRAY_SIZE(stingray_disp2_resources),
+	.dev = {
+		.platform_data = &stingray_disp2_pdata,
+	},
+};
+
 
 static void stingray_backlight_enable(void)
 {
@@ -216,6 +309,17 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_led_info[] = {
 	 },
 };
 
+#define FB_MEM_SIZE	(1920 * 1080 * 4 * 2)
+void __init stingray_fb_alloc(void)
+{
+	u32 *fb_mem = alloc_bootmem(FB_MEM_SIZE);
+
+	stingray_disp2_resources[2].start = virt_to_phys(fb_mem);
+	stingray_disp2_resources[2].end = virt_to_phys(fb_mem) + FB_MEM_SIZE - 1;
+}
+
+static struct regulator *stingray_csi_reg;
+
 int __init stingray_panel_init(void)
 {
 	if (stingray_revision() < STINGRAY_REVISION_P1) {
@@ -230,6 +334,20 @@ int __init stingray_panel_init(void)
 			ARRAY_SIZE(stingray_i2c_bus1_led_info));
 	}
 
-	return  nvhost_device_register(&stingray_disp1_device);
+	tegra_gpio_enable(STINGRAY_LVDS_SHDN_B);
+	gpio_request(STINGRAY_LVDS_SHDN_B, "lvds_shdn_b");
+	gpio_direction_output(STINGRAY_LVDS_SHDN_B, 1);
+
+	stingray_hdmi_init();
+
+	stingray_csi_reg = regulator_get(NULL, "vcsi");
+	if (IS_ERR(stingray_csi_reg)) {
+		pr_err("hdmi: couldn't get regulator vcsi");
+	} else {
+		regulator_enable(stingray_csi_reg);
+	}
+
+	nvhost_device_register(&stingray_disp1_device);
+	return  nvhost_device_register(&stingray_disp2_device);
 }
 

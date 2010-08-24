@@ -1009,6 +1009,12 @@ static void __init tegra_stingray_init(void)
 	stingray_usb_init();
 }
 
+void __init stingray_map_io(void)
+{
+	tegra_map_common_io();
+	stingray_fb_alloc();
+}
+
 MACHINE_START(STINGRAY, "stingray")
 	.boot_params	= 0x00000100,
 	.phys_io	= IO_APB_PHYS,
@@ -1016,6 +1022,6 @@ MACHINE_START(STINGRAY, "stingray")
 	.fixup		= tegra_stingray_fixup,
 	.init_irq	= tegra_init_irq,
 	.init_machine	= tegra_stingray_init,
-	.map_io		= tegra_map_common_io,
+	.map_io		= stingray_map_io,
 	.timer		= &tegra_timer,
 MACHINE_END
