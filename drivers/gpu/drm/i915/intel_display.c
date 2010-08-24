@@ -992,7 +992,7 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 
 	/* Wait for vblank interrupt bit to set */
 	if (wait_for((I915_READ(pipestat_reg) &
-		      PIPE_VBLANK_INTERRUPT_STATUS) == 0,
+		      PIPE_VBLANK_INTERRUPT_STATUS),
 		     50, 0))
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
