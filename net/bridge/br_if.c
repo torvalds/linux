@@ -61,11 +61,7 @@ static int port_cost(struct net_device *dev)
 }
 
 
-/*
- * Check for port carrier transistions.
- * Called from work queue to allow for calling functions that
- * might sleep (such as speed check), and to debounce.
- */
+/* Check for port carrier transistions. */
 void br_port_carrier_check(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
