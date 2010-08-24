@@ -196,12 +196,13 @@ static inline struct tty_struct *file_tty(struct file *file)
 }
 
 /* Associate a new file with the tty structure */
-void tty_add_file(struct tty_struct *tty, struct file *file)
+int tty_add_file(struct tty_struct *tty, struct file *file)
 {
 	struct tty_file_private *priv;
 
-	/* XXX: must implement proper error handling in callers */
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL|__GFP_NOFAIL);
+	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	priv->tty = tty;
 	priv->file = file;
@@ -210,6 +211,8 @@ void tty_add_file(struct tty_struct *tty, struct file *file)
 	spin_lock(&tty_files_lock);
 	list_add(&priv->list, &tty->tty_files);
 	spin_unlock(&tty_files_lock);
+
+	return 0;
 }
 
 /* Delete file from its tty */
@@ -1877,7 +1880,11 @@ got_driver:
 		return PTR_ERR(tty);
 	}
 
-	tty_add_file(tty, filp);
+	retval = tty_add_file(tty, filp);
+	if (retval) {
+		tty_unlock();
+		return retval;
+	}
 
 	check_tty_count(tty, "tty_open");
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
