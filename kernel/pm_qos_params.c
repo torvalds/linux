@@ -348,7 +348,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 
 	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
 	if (pm_qos_class >= 0) {
-		struct pm_qos_request_list *req = kzalloc(GFP_KERNEL, sizeof(*req));
+               struct pm_qos_request_list *req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
 			return -ENOMEM;
 
