@@ -365,11 +365,6 @@ static void be_rx_eqd_update(struct be_adapter *adapter)
 	rx_eq->cur_eqd = eqd;
 }
 
-static struct net_device_stats *be_get_stats(struct net_device *dev)
-{
-	return &dev->stats;
-}
-
 static u32 be_calc_rate(u64 bytes, unsigned long ticks)
 {
 	u64 rate = bytes;
@@ -2399,7 +2394,6 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
 	.ndo_start_xmit		= be_xmit,
-	.ndo_get_stats		= be_get_stats,
 	.ndo_set_rx_mode	= be_set_multicast_list,
 	.ndo_set_mac_address	= be_mac_addr_set,
 	.ndo_change_mtu		= be_change_mtu,
