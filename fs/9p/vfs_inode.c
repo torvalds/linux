@@ -1128,6 +1128,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	v9fs_stat2inode(st, dentry->d_inode, dentry->d_inode->i_sb);
 		generic_fillattr(dentry->d_inode, stat);
 
+	p9stat_free(st);
 	kfree(st);
 	return 0;
 }
@@ -1489,6 +1490,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 
 	retval = strnlen(buffer, buflen);
 done:
+	p9stat_free(st);
 	kfree(st);
 	return retval;
 }
