@@ -634,6 +634,8 @@ static int wl1271_setup(struct wl1271 *wl)
 
 	INIT_WORK(&wl->irq_work, wl1271_irq_work);
 	INIT_WORK(&wl->tx_work, wl1271_tx_work);
+	INIT_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
+
 	return 0;
 }
 
@@ -961,6 +963,8 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	int i;
+
+	cancel_work_sync(&wl->scan_complete_work);
 
 	mutex_lock(&wl->mutex);
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");

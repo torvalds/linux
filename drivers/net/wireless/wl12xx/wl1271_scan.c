@@ -28,6 +28,23 @@
 #include "wl1271_scan.h"
 #include "wl1271_acx.h"
 
+void wl1271_scan_complete_work(struct work_struct *work)
+{
+	struct wl1271 *wl =
+		container_of(work, struct wl1271, scan_complete_work);
+
+	wl1271_debug(DEBUG_SCAN, "Scanning complete");
+
+	mutex_lock(&wl->mutex);
+	wl->scan.state = WL1271_SCAN_STATE_IDLE;
+	kfree(wl->scan.scanned_ch);
+	wl->scan.scanned_ch = NULL;
+	mutex_unlock(&wl->mutex);
+
+	ieee80211_scan_completed(wl->hw, false);
+}
+
+
 static int wl1271_get_scan_channels(struct wl1271 *wl,
 				    struct cfg80211_scan_request *req,
 				    struct basic_scan_channel_params *channels,
@@ -218,11 +235,7 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_DONE:
-		kfree(wl->scan.scanned_ch);
-		wl->scan.scanned_ch = NULL;
-
-		wl->scan.state = WL1271_SCAN_STATE_IDLE;
-		ieee80211_scan_completed(wl->hw, false);
+		ieee80211_queue_work(wl->hw, &wl->scan_complete_work);
 		break;
 
 	default:

@@ -32,6 +32,7 @@ int wl1271_scan_build_probe_req(struct wl1271 *wl,
 				const u8 *ssid, size_t ssid_len,
 				const u8 *ie, size_t ie_len, u8 band);
 void wl1271_scan_stm(struct wl1271 *wl);
+void wl1271_scan_complete_work(struct work_struct *work);
 
 #define WL1271_SCAN_MAX_CHANNELS       24
 #define WL1271_SCAN_DEFAULT_TAG        1

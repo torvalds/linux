@@ -416,6 +416,7 @@ struct wl1271 {
 
 	/* Are we currently scanning */
 	struct wl1271_scan scan;
+	struct work_struct scan_complete_work;
 
 	/* Our association ID */
 	u16 aid;
