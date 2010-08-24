@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmpcispi.c,v 1.22.2.4.4.5 2008/07/09 21:23:30 Exp $
+ * $Id: bcmpcispi.c,v 1.22.2.4.4.5.6.1 2010/08/13 00:26:05 Exp $
  */
 
 #include <typedefs.h>
@@ -606,18 +606,23 @@ spi_spinbits(sdioh_info_t *sd)
 	spin_count = 0;
 	while ((SPIPCI_RREG(sd->osh, &regs->spih_stat) & SPIH_WFEMPTY) == 0) {
 		if (spin_count > SPI_SPIN_BOUND) {
-			ASSERT(FALSE); /* Spin bound exceeded */
+			sd_err(("%s: SPIH_WFEMPTY spin bits out of bound %u times \n",
+				__FUNCTION__, spin_count));
+			ASSERT(FALSE);
 		}
 		spin_count++;
 	}
-	spin_count = 0;
+
 	/* Wait for SPI Transfer state machine to return to IDLE state.
 	 * The state bits are only implemented in Rev >= 5 FPGA.  These
 	 * bits are hardwired to 00 for Rev < 5, so this check doesn't cause
 	 * any problems.
 	 */
+	spin_count = 0;
 	while ((SPIPCI_RREG(osh, &regs->spih_stat) & SPIH_STATE_MASK) != 0) {
 		if (spin_count > SPI_SPIN_BOUND) {
+			sd_err(("%s: SPIH_STATE_MASK spin bits out of bound %u times \n",
+				__FUNCTION__, spin_count));
 			ASSERT(FALSE);
 		}
 		spin_count++;

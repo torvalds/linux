@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.24 2010/07/27 20:46:02 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.35 2010/08/20 02:42:33 Exp $
  */
 
 
@@ -45,6 +45,21 @@
 
 #define BAND_GET_CMD				"GETBAND"
 #define BAND_SET_CMD				"SETBAND"
+#define DTIM_SKIP_GET_CMD			"DTIMSKIPGET"
+#define DTIM_SKIP_SET_CMD			"DTIMSKIPSET"
+#define SETSUSPEND_CMD				"SETSUSPEND"
+#define PNOSSIDCLR_SET_CMD			"PNOSSIDCLR"
+#define PNOSETUP_SET_CMD			"PNOSETUP"
+#define PNOENABLE_SET_CMD			"PNOFORCE"
+#define PNODEBUG_SET_CMD			"PNODEBUG"
+
+#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+
+
+typedef struct wl_iw_extra_params {
+	int 	target_channel;
+} wl_iw_extra_params_t;
 
 #define	WL_IW_RSSI_MINVAL	-200
 #define	WL_IW_RSSI_NO_SIGNAL	-91
@@ -179,6 +194,7 @@ extern int net_os_wake_lock_timeout(struct net_device *dev);
 extern int net_os_wake_lock_timeout_enable(struct net_device *dev);
 extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val);
+extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern int net_os_send_hang_message(struct net_device *dev);
 
@@ -197,6 +213,31 @@ extern int net_os_send_hang_message(struct net_device *dev);
 #define IWE_STREAM_ADD_POINT(info, stream, ends, iwe, extra) \
 	iwe_stream_add_point(stream, ends, iwe, extra)
 #endif
+
+extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
+extern int dhd_pno_clean(dhd_pub_t *dhd);
+extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, uchar  scan_fr);
+extern int dhd_pno_get_status(dhd_pub_t *dhd);
+extern int dhd_dev_pno_reset(struct net_device *dev);
+extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, \
+				 int nssid, uchar  scan_fr);
+extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
+extern int dhd_dev_get_pno_status(struct net_device *dev);
+
+#define PNO_TLV_PREFIX			'S'
+#define PNO_TLV_VERSION			1
+#define PNO_TLV_SUBVERSION 		0
+#define PNO_TLV_RESERVED		0
+#define PNO_TLV_TYPE_SSID_IE		'S'
+#define PNO_TLV_TYPE_TIME		'T'
+#define  PNO_EVENT_UP			"PNO_EVENT"
+
+typedef struct cmd_tlv {
+	char prefix;
+	char version;
+	char subver;
+	char reserved;
+} cmd_tlv_t;
 
 #if defined(CSCAN)
 

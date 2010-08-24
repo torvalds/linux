@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h,v 1.32.4.7.2.4.14.44 2010/06/03 21:27:48 Exp $
+ * $Id: dhd.h,v 1.32.4.7.2.4.14.49 2010/08/20 17:32:48 Exp $
  */
 
 /****************
@@ -151,8 +151,12 @@ typedef struct dhd_pub {
 	int dongle_error;
 
 	/* Suspend disable flag and "in suspend" flag */
-	int suspend_disable_flag;
-	int in_suspend;
+	int suspend_disable_flag; /* "1" to disable all extra powersaving during suspend */
+	int in_suspend;			/* flag set to 1 when early suspend called */
+#ifdef PNO_SUPPORT
+	int pno_enable;                 /* pno status : "1" is pno enable */
+#endif /* PNO_SUPPORT */
+	int dtim_skip;         /* dtim skip , default 0 means wake each dtim */
 
 	/* Pkt filter defination */
 	char * pktfilter[100];
@@ -412,9 +416,6 @@ extern char nv_path[MOD_PARAM_PATHLEN];
 #define DHD_DEL_IF	-0xe
 #define DHD_BAD_IF	-0xf
 
-#ifdef APSTA_PINGTEST
-#define MAX_GUEST 8
-#endif
 
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);

@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h,v 1.601.4.15.2.14.2.61 2010/05/04 20:26:25 Exp $
+ * $Id: wlioctl.h,v 1.601.4.15.2.14.2.62 2010/08/19 01:20:12 Exp $
  */
 
 
@@ -1316,6 +1316,8 @@ enum {
 #define	AUTO_CONNECT_MASK		0x10
 
 #define PFN_VERSION			1
+
+#define MAX_PFN_LIST_COUNT	16
 
 
 typedef struct wl_pfn_param {
