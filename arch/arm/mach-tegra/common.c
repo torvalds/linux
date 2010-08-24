@@ -26,10 +26,23 @@
 
 #include <mach/iomap.h>
 #include <mach/dma.h>
+#include <mach/system.h>
 
 #include "board.h"
 #include "clock.h"
 #include "fuse.h"
+
+void (*arch_reset)(char mode, const char *cmd) = tegra_assert_system_reset;
+
+void tegra_assert_system_reset(char mode, const char *cmd)
+{
+	void __iomem *reset = IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x04);
+	u32 reg;
+
+	reg = readl(reset);
+	reg |= 0x04;
+	writel(reg, reset);
+}
 
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
