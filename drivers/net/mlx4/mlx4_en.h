@@ -318,6 +318,8 @@ struct mlx4_en_port_profile {
 
 struct mlx4_en_profile {
 	int rss_xor;
+	int tcp_rss;
+	int udp_rss;
 	u8 rss_mask;
 	u32 active_ports;
 	u32 small_pkt_int;
@@ -360,6 +362,7 @@ struct mlx4_en_rss_context {
 	u8 hash_fn;
 	u8 flags;
 	__be32 rss_key[10];
+	__be32 base_qpn_udp;
 };
 
 struct mlx4_en_port_state {
