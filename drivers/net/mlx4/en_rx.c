@@ -302,8 +302,6 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 
 	return 0;
 
-err_map:
-	mlx4_en_unmap_buffer(&ring->wqres.buf);
 err_hwq:
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 err_ring:
