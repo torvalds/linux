@@ -541,6 +541,21 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 	return skb;
 }
 
+static void validate_loopback(struct mlx4_en_priv *priv, struct sk_buff *skb)
+{
+	int i;
+	int offset = ETH_HLEN;
+
+	for (i = 0; i < MLX4_LOOPBACK_TEST_PAYLOAD; i++, offset++) {
+		if (*(skb->data + offset) != (unsigned char) (i & 0xff))
+			goto out_loopback;
+	}
+	/* Loopback found */
+	priv->loopback_ok = 1;
+
+out_loopback:
+	dev_kfree_skb_any(skb);
+}
 
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
@@ -652,6 +667,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				     ring->page_alloc, length);
 		if (!skb) {
 			priv->stats.rx_dropped++;
+			goto next;
+		}
+
+                if (unlikely(priv->validate_loopback)) {
+			validate_loopback(priv, skb);
 			goto next;
 		}
 

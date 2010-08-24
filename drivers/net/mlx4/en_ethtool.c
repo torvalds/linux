@@ -125,6 +125,14 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 #define NUM_MAIN_STATS	21
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + NUM_PERF_STATS)
 
+static const char mlx4_en_test_names[][ETH_GSTRING_LEN]= {
+	"Interupt Test",
+	"Link Test",
+	"Speed Test",
+	"Register Test",
+	"Loopback Test",
+};
+
 static u32 mlx4_en_get_msglevel(struct net_device *dev)
 {
 	return ((struct mlx4_en_priv *) netdev_priv(dev))->msg_enable;
@@ -146,10 +154,15 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
-	if (sset != ETH_SS_STATS)
+	switch (sset) {
+	case ETH_SS_STATS:
+		return NUM_ALL_STATS +
+			(priv->tx_ring_num + priv->rx_ring_num) * 2;
+	case ETH_SS_TEST:
+		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.loopback_support) * 2;
+	default:
 		return -EOPNOTSUPP;
-
-	return NUM_ALL_STATS + (priv->tx_ring_num + priv->rx_ring_num) * 2;
+	}
 }
 
 static void mlx4_en_get_ethtool_stats(struct net_device *dev,
@@ -181,6 +194,12 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 
 }
 
+static void mlx4_en_self_test(struct net_device *dev,
+			      struct ethtool_test *etest, u64 *buf)
+{
+	mlx4_en_ex_selftest(dev, &etest->flags, buf);
+}
+
 static void mlx4_en_get_strings(struct net_device *dev,
 				uint32_t stringset, uint8_t *data)
 {
@@ -188,30 +207,39 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	int index = 0;
 	int i;
 
-	if (stringset != ETH_SS_STATS)
-		return;
+	switch (stringset) {
+	case ETH_SS_TEST:
+		for (i = 0; i < MLX4_EN_NUM_SELF_TEST - 2; i++)
+			strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+		if (priv->mdev->dev->caps.loopback_support)
+			for (; i < MLX4_EN_NUM_SELF_TEST; i++)
+				strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+		break;
 
-	/* Add main counters */
-	for (i = 0; i < NUM_MAIN_STATS; i++)
-		strcpy(data + (index++) * ETH_GSTRING_LEN, main_strings[i]);
-	for (i = 0; i < NUM_PORT_STATS; i++)
-		strcpy(data + (index++) * ETH_GSTRING_LEN,
+	case ETH_SS_STATS:
+		/* Add main counters */
+		for (i = 0; i < NUM_MAIN_STATS; i++)
+			strcpy(data + (index++) * ETH_GSTRING_LEN, main_strings[i]);
+		for (i = 0; i< NUM_PORT_STATS; i++)
+			strcpy(data + (index++) * ETH_GSTRING_LEN,
 			main_strings[i + NUM_MAIN_STATS]);
-	for (i = 0; i < priv->tx_ring_num; i++) {
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"tx%d_packets", i);
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"tx%d_bytes", i);
-	}
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"rx%d_packets", i);
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"rx%d_bytes", i);
-	}
-	for (i = 0; i < NUM_PKT_STATS; i++)
-		strcpy(data + (index++) * ETH_GSTRING_LEN,
+		for (i = 0; i < priv->tx_ring_num; i++) {
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"tx%d_packets", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"tx%d_bytes", i);
+		}
+		for (i = 0; i < priv->rx_ring_num; i++) {
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_packets", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_bytes", i);
+		}
+		for (i = 0; i< NUM_PKT_STATS; i++)
+			strcpy(data + (index++) * ETH_GSTRING_LEN,
 			main_strings[i + NUM_MAIN_STATS + NUM_PORT_STATS]);
+		break;
+	}
 }
 
 static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -439,6 +467,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_strings = mlx4_en_get_strings,
 	.get_sset_count = mlx4_en_get_sset_count,
 	.get_ethtool_stats = mlx4_en_get_ethtool_stats,
+	.self_test = mlx4_en_self_test,
 	.get_wol = mlx4_en_get_wol,
 	.get_msglevel = mlx4_en_get_msglevel,
 	.set_msglevel = mlx4_en_set_msglevel,
