@@ -639,29 +639,29 @@ static int asus_backlight_notify(struct asus_laptop *asus)
 static int asus_backlight_init(struct asus_laptop *asus)
 {
 	struct backlight_device *bd;
-	struct device *dev = &asus->platform_device->dev;
 	struct backlight_properties props;
 
-	if (!acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_GET, NULL) &&
-	    !acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_SET, NULL) &&
-	    lcd_switch_handle) {
-		memset(&props, 0, sizeof(struct backlight_properties));
-		props.max_brightness = 15;
+	if (acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_GET, NULL) ||
+	    acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_SET, NULL) ||
+	    !lcd_switch_handle)
+		return 0;
 
-		bd = backlight_device_register(ASUS_LAPTOP_FILE, dev,
-					       asus, &asusbl_ops, &props);
-		if (IS_ERR(bd)) {
-			pr_err("Could not register asus backlight device\n");
-			asus->backlight_device = NULL;
-			return PTR_ERR(bd);
-		}
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 15;
 
-		asus->backlight_device = bd;
-
-		bd->props.power = FB_BLANK_UNBLANK;
-		bd->props.brightness = asus_read_brightness(bd);
-		backlight_update_status(bd);
+	bd = backlight_device_register(ASUS_LAPTOP_FILE,
+				       &asus->platform_device->dev, asus,
+				       &asusbl_ops, &props);
+	if (IS_ERR(bd)) {
+		pr_err("Could not register asus backlight device\n");
+		asus->backlight_device = NULL;
+		return PTR_ERR(bd);
 	}
+
+	asus->backlight_device = bd;
+	bd->props.brightness = asus_read_brightness(bd);
+	bd->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(bd);
 	return 0;
 }
 
@@ -1130,7 +1130,6 @@ static int asus_input_init(struct asus_laptop *asus)
 	input->phys = ASUS_LAPTOP_FILE "/input0";
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = &asus->platform_device->dev;
-	input_set_drvdata(input, asus);
 
 	error = sparse_keymap_setup(input, asus_keymap, NULL);
 	if (error) {
@@ -1159,6 +1158,7 @@ static void asus_input_exit(struct asus_laptop *asus)
 		sparse_keymap_free(asus->inputdev);
 		input_unregister_device(asus->inputdev);
 	}
+	asus->inputdev = NULL;
 }
 
 /*
@@ -1278,19 +1278,19 @@ static int asus_sysfs_init(struct asus_laptop *asus)
 
 static int asus_platform_init(struct asus_laptop *asus)
 {
-	int err;
+	int result;
 
 	asus->platform_device = platform_device_alloc(ASUS_LAPTOP_FILE, -1);
 	if (!asus->platform_device)
 		return -ENOMEM;
 	platform_set_drvdata(asus->platform_device, asus);
 
-	err = platform_device_add(asus->platform_device);
-	if (err)
+	result = platform_device_add(asus->platform_device);
+	if (result)
 		goto fail_platform_device;
 
-	err = asus_sysfs_init(asus);
-	if (err)
+	result = asus_sysfs_init(asus);
+	if (result)
 		goto fail_sysfs;
 	return 0;
 
@@ -1299,7 +1299,7 @@ fail_sysfs:
 	platform_device_del(asus->platform_device);
 fail_platform_device:
 	platform_device_put(asus->platform_device);
-	return err;
+	return result;
 }
 
 static void asus_platform_exit(struct asus_laptop *asus)
@@ -1428,8 +1428,6 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	return AE_OK;
 }
 
-static bool asus_device_present;
-
 static int __devinit asus_acpi_init(struct asus_laptop *asus)
 {
 	int result = 0;
@@ -1473,6 +1471,8 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	asus->lcd_state = 1; /* LCD should be on when the module load */
 	return result;
 }
+
+static bool asus_device_present;
 
 static int __devinit asus_acpi_add(struct acpi_device *device)
 {
