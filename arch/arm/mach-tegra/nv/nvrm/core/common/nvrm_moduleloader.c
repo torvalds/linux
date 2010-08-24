@@ -31,6 +31,7 @@
 #include <linux/fs.h>
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 
 #include "nvcommon.h"
@@ -1631,14 +1632,64 @@ NvError NvRmPrivGetProcAddress(NvRmLibraryHandle Handle,
 	return Error;
 }
 
+NvError NvRmPrivSuspendAvp(NvRmRPCHandle hRPCHandle);
+NvError NvRmPrivResumeAvp(NvRmRPCHandle hRPCHandle);
+
+static int avp_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	NvError err;
+
+	err = NvRmPrivSuspendAvp(s_RPCHandle);
+	if (err != NvSuccess)
+		return -EIO;
+	return 0;
+}
+
+static int avp_resume(struct platform_device *pdev)
+{
+	NvError err;
+
+	err = NvRmPrivResumeAvp(s_RPCHandle);
+	if (err != NvSuccess)
+		return -EIO;
+	return 0;
+}
+
+static struct platform_driver avp_nvfw_driver = {
+	.suspend = avp_suspend,
+	.resume  = avp_resume,
+	.driver  = {
+		.name  = "nvfw-avp-device",
+		.owner = THIS_MODULE,
+	},
+};
+
+int __init _avp_suspend_resume_init(void);
+
 static int __init nvfw_init(void)
 {
 	int ret = 0;
+	struct platform_device *pdev;
 
 	NvOsDebugPrintf("%s: called\n", __func__);
 	ret = misc_register(&nvfw_dev);
 	if (ret) panic("%s: misc_register FAILED\n", __func__);
 
+	ret = _avp_suspend_resume_init();
+	if (ret)
+		goto err;
+	pdev = platform_create_bundle(&avp_nvfw_driver, NULL, NULL, 0, NULL, 0);
+	if (!pdev) {
+		pr_err("%s: Can't reg platform driver\n", __func__);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	pr_info("avp driver initialized\n");
+
+	return 0;
+
+err:
 	return ret;
 }
 
