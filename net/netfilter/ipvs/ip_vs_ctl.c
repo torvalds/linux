@@ -2155,7 +2155,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	if (cmd != IP_VS_SO_SET_ADD
 	    && (svc == NULL || svc->protocol != usvc.protocol)) {
 		ret = -ESRCH;
-		goto out_unlock;
+		goto out_drop_service;
 	}
 
 	switch (cmd) {
@@ -2189,6 +2189,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		ret = -EINVAL;
 	}
 
+out_drop_service:
 	if (svc)
 		ip_vs_service_put(svc);
 
