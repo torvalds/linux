@@ -1164,7 +1164,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 		I915_WRITE(pipeconf_reg, pipeconf & ~PIPEACONF_ENABLE);
 		/* Wait for vblank for the disable to take effect. */
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
+		intel_wait_for_vblank_off(dev, intel_crtc->pipe);
 
 		/* Filter ctl must be set before TV_WIN_SIZE */
 		I915_WRITE(TV_FILTER_CTL_1, TV_AUTO_SCALE);
