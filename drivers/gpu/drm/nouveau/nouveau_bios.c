@@ -6166,22 +6166,14 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->type = OUTPUT_TV;
 		break;
 	case 2:
+	case 4:
+		if (conn & 0x10)
+			entry->type = OUTPUT_LVDS;
+		else
+			entry->type = OUTPUT_TMDS;
+		break;
 	case 3:
 		entry->type = OUTPUT_LVDS;
-		break;
-	case 4:
-		switch ((conn & 0x000000f0) >> 4) {
-		case 0:
-			entry->type = OUTPUT_TMDS;
-			break;
-		case 1:
-			entry->type = OUTPUT_LVDS;
-			break;
-		default:
-			NV_ERROR(dev, "Unknown DCB subtype 4/%d\n",
-				 (conn & 0x000000f0) >> 4);
-			return false;
-		}
 		break;
 	default:
 		NV_ERROR(dev, "Unknown DCB type %d\n", conn & 0x0000000f);
