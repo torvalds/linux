@@ -1720,10 +1720,9 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int goal_nr_mmu_pages)
 
 			page = container_of(kvm->arch.active_mmu_pages.prev,
 					    struct kvm_mmu_page, link);
-			kvm_mmu_prepare_zap_page(kvm, page,
-							       &invalid_list);
+			kvm_mmu_prepare_zap_page(kvm, page, &invalid_list);
+			kvm_mmu_commit_zap_page(kvm, &invalid_list);
 		}
-		kvm_mmu_commit_zap_page(kvm, &invalid_list);
 		goal_nr_mmu_pages = kvm->arch.n_used_mmu_pages;
 	}
 
@@ -2972,9 +2971,9 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 		sp = container_of(vcpu->kvm->arch.active_mmu_pages.prev,
 				  struct kvm_mmu_page, link);
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, &invalid_list);
+		kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 		++vcpu->kvm->stat.mmu_recycled;
 	}
-	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 }
 
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
