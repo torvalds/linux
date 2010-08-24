@@ -704,9 +704,8 @@ void mlx4_en_stop_port(struct net_device *dev)
 	netif_tx_stop_all_queues(dev);
 	netif_tx_unlock_bh(dev);
 
-	/* close port*/
+	/* Set port as not active */
 	priv->port_up = false;
-	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 
 	/* Unregister Mac address for the port */
 	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac_index);
@@ -731,6 +730,9 @@ void mlx4_en_stop_port(struct net_device *dev)
 			msleep(1);
 		mlx4_en_deactivate_cq(priv, &priv->rx_cq[i]);
 	}
+
+	/* close port*/
+	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 }
 
 static void mlx4_en_restart(struct work_struct *work)
