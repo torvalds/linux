@@ -933,6 +933,7 @@ CONFIG_MEDIA_SUPPORT=y
 #
 # Multimedia drivers
 #
+# CONFIG_SMS_SIANO_MDTV is not set
 # CONFIG_DAB is not set
 
 #
@@ -1286,6 +1287,10 @@ CONFIG_ANDROID_LOW_MEMORY_KILLER=y
 #
 CONFIG_RK2818_POWER=y
 
+#
+# CMMB
+#
+# CONFIG_CMMB is not set
 #
 # File systems
 #
