@@ -123,12 +123,19 @@ struct cifs_cred {
 	struct cifs_ace *aces;
 };
 
+struct sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
 struct ntlmssp_auth {
 	__u32 client_flags;
 	__u32 server_flags;
 	unsigned char ciphertext[CIFS_CPHTXT_SIZE];
 	struct crypto_shash *hmacmd5;
 	struct crypto_shash *md5;
+	struct sdesc *sdeschmacmd5;
+	struct sdesc *sdescmd5;
 };
 
 /*
