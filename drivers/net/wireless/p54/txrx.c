@@ -540,7 +540,7 @@ static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
 	case P54_TRAP_BEACON_TX:
 		break;
 	case P54_TRAP_RADAR:
-		wiphy_info(priv->hw->wiphy, "radar (freq:%d mhz)\n", freq);
+		wiphy_info(priv->hw->wiphy, "radar (freq:%d MHz)\n", freq);
 		break;
 	case P54_TRAP_NO_BEACON:
 		if (priv->vif)
