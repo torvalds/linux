@@ -5,6 +5,7 @@ header-y += chsc.h
 header-y += cmb.h
 header-y += dasd.h
 header-y += debug.h
+header-y += kvm_virtio.h
 header-y += monwriter.h
 header-y += qeth.h
 header-y += schid.h
