@@ -513,6 +513,10 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 	}
+	if (mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port]) {
+		queue_work(mdev->workqueue, &priv->mac_task);
+		mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port] = 0;
+	}
 	mutex_unlock(&mdev->state_lock);
 }
 
@@ -653,6 +657,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		en_err(priv, "Failed setting port mac\n");
 		goto tx_err;
 	}
+	mdev->mac_removed[priv->port] = 0;
 
 	/* Init port */
 	en_dbg(HW, priv, "Initializing port\n");
@@ -709,6 +714,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Unregister Mac address for the port */
 	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac_index);
+	mdev->mac_removed[priv->port] = 1;
 
 	/* Free TX Rings */
 	for (i = 0; i < priv->tx_ring_num; i++) {

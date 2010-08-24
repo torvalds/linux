@@ -341,6 +341,7 @@ struct mlx4_en_dev {
 	struct mlx4_mr		mr;
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
+	u8			mac_removed[MLX4_MAX_PORTS + 1];
 };
 
 
