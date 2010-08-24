@@ -36,7 +36,7 @@ MODULE_PARM_DESC(ir_debug, "enable debug message [IR]");
 
 static unsigned int enable_ir = 1;
 module_param(enable_ir, int, 0644);
-MODULE_PARM_DESC(enable_ir, "enable ir (default is enable");
+MODULE_PARM_DESC(enable_ir, "enable ir (default is enable)");
 
 #undef dprintk
 
