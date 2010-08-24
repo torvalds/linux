@@ -2328,8 +2328,10 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(dspbase_reg);
 		}
 
-		/* Wait for vblank for the disable to take effect */
-		intel_wait_for_vblank_off(dev, pipe);
+		if (!IS_I9XX(dev)) {
+			/* Wait for vblank for the disable to take effect */
+			intel_wait_for_vblank_off(dev, pipe);
+		}
 
 		/* Don't disable pipe A or pipe A PLLs if needed */
 		if (pipeconf_reg == PIPEACONF &&
