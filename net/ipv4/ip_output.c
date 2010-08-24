@@ -837,10 +837,9 @@ int ip_append_data(struct sock *sk,
 		inet->cork.length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
-		if ((exthdrlen = rt->dst.header_len) != 0) {
-			length += exthdrlen;
-			transhdrlen += exthdrlen;
-		}
+		exthdrlen = rt->dst.header_len;
+		length += exthdrlen;
+		transhdrlen += exthdrlen;
 	} else {
 		rt = (struct rtable *)inet->cork.dst;
 		if (inet->cork.flags & IPCORK_OPT)
