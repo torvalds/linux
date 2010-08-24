@@ -554,6 +554,8 @@ do {								\
 	en_print(KERN_WARNING, priv, format, ##arg)
 #define en_err(priv, format, arg...)			\
 	en_print(KERN_ERR, priv, format, ##arg)
+#define en_info(priv, format, arg...)			\
+	en_print(KERN_INFO, priv, format, ## arg)
 
 #define mlx4_err(mdev, format, arg...)			\
 	pr_err("%s %s: " format, DRV_NAME,		\

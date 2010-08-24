@@ -528,10 +528,10 @@ static void mlx4_en_linkstate(struct work_struct *work)
 	 * report to system log */
 	if (priv->last_link_state != linkstate) {
 		if (linkstate == MLX4_DEV_EVENT_PORT_DOWN) {
-			en_dbg(LINK, priv, "Link Down\n");
+			en_info(priv, "Link Down\n");
 			netif_carrier_off(priv->dev);
 		} else {
-			en_dbg(LINK, priv, "Link Up\n");
+			en_info(priv, "Link Up\n");
 			netif_carrier_on(priv->dev);
 		}
 	}
