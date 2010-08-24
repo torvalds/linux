@@ -270,14 +270,9 @@ xlog_cil_insert(
 static void
 xlog_cil_format_items(
 	struct log		*log,
-	struct xfs_log_vec	*log_vector,
-	struct xlog_ticket	*ticket,
-	xfs_lsn_t		*start_lsn)
+	struct xfs_log_vec	*log_vector)
 {
 	struct xfs_log_vec *lv;
-
-	if (start_lsn)
-		*start_lsn = log->l_cilp->xc_ctx->sequence;
 
 	ASSERT(log_vector);
 	for (lv = log_vector; lv; lv = lv->lv_next) {
@@ -302,9 +297,24 @@ xlog_cil_format_items(
 			ptr += vec->i_len;
 		}
 		ASSERT(ptr == lv->lv_buf + lv->lv_buf_len);
-
-		xlog_cil_insert(log, ticket, lv->lv_item, lv);
 	}
+}
+
+static void
+xlog_cil_insert_items(
+	struct log		*log,
+	struct xfs_log_vec	*log_vector,
+	struct xlog_ticket	*ticket,
+	xfs_lsn_t		*start_lsn)
+{
+	struct xfs_log_vec *lv;
+
+	if (start_lsn)
+		*start_lsn = log->l_cilp->xc_ctx->sequence;
+
+	ASSERT(log_vector);
+	for (lv = log_vector; lv; lv = lv->lv_next)
+		xlog_cil_insert(log, ticket, lv->lv_item, lv);
 }
 
 static void
@@ -612,9 +622,17 @@ xfs_log_commit_cil(
 		return XFS_ERROR(EIO);
 	}
 
+	/*
+	 * do all the hard work of formatting items (including memory
+	 * allocation) outside the CIL context lock. This prevents stalling CIL
+	 * pushes when we are low on memory and a transaction commit spends a
+	 * lot of time in memory reclaim.
+	 */
+	xlog_cil_format_items(log, log_vector);
+
 	/* lock out background commit */
 	down_read(&log->l_cilp->xc_ctx_lock);
-	xlog_cil_format_items(log, log_vector, tp->t_ticket, commit_lsn);
+	xlog_cil_insert_items(log, log_vector, tp->t_ticket, commit_lsn);
 
 	/* check we didn't blow the reservation */
 	if (tp->t_ticket->t_curr_res < 0)
