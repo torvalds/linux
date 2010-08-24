@@ -1279,7 +1279,6 @@ static void plip_attach (struct parport *port)
 		if (!nl->pardev) {
 			printk(KERN_ERR "%s: parport_register failed\n", name);
 			goto err_free_dev;
-			return;
 		}
 
 		plip_init_netdev(dev);
