@@ -1,6 +1,14 @@
+config TEGRA_GRHOST
+	tristate "Tegra graphics host driver"
+	depends on TEGRA_IOVMM
+        default n
+	help
+	  Driver for the Tegra graphics host hardware.
+
 config TEGRA_DC
 	tristate "Tegra Display Contoller"
 	depends on ARCH_TEGRA
+	select FB_MODE_HELPERS
 	help
 	  Tegra display controller support.
 
