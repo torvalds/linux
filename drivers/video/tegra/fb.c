@@ -24,7 +24,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/nvhost_bus.h>
+#include <linux/nvhost.h>
 
 #include <asm/atomic.h>
 

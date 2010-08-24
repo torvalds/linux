@@ -22,7 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/nvhost_bus.h>
+#include <linux/nvhost.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
