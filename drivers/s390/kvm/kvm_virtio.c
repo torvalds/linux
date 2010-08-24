@@ -334,7 +334,7 @@ static void kvm_extint_handler(u16 code)
 {
 	struct virtqueue *vq;
 	u16 subcode;
-	int config_changed;
+	u32 param;
 
 	subcode = S390_lowcore.cpu_addr;
 	if ((subcode & 0xff00) != VIRTIO_SUBCODE_64)
@@ -343,18 +343,25 @@ static void kvm_extint_handler(u16 code)
 	/* The LSB might be overloaded, we have to mask it */
 	vq = (struct virtqueue *)(S390_lowcore.ext_params2 & ~1UL);
 
-	/* We use the LSB of extparam, to decide, if this interrupt is a config
-	 * change or a "standard" interrupt */
-	config_changed = S390_lowcore.ext_params & 1;
+	/* We use ext_params to decide what this interrupt means */
+	param = S390_lowcore.ext_params & VIRTIO_PARAM_MASK;
 
-	if (config_changed) {
+	switch (param) {
+	case VIRTIO_PARAM_CONFIG_CHANGED:
+	{
 		struct virtio_driver *drv;
 		drv = container_of(vq->vdev->dev.driver,
 				   struct virtio_driver, driver);
 		if (drv->config_changed)
 			drv->config_changed(vq->vdev);
-	} else
+
+		break;
+	}
+	case VIRTIO_PARAM_VRING_INTERRUPT:
+	default:
 		vring_interrupt(0, vq);
+		break;
+	}
 }
 
 /*
