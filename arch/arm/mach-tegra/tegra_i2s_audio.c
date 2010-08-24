@@ -84,10 +84,11 @@ struct i2s_pio_stats {
 	u32 rx_fifo_read;
 };
 
-static const int divs_8000[] = { 5, 6, 6, 5 };
+static const int divs_8000[] = { 5, 6, 6, 5 }; /* 8018.(18) Hz */
 static const int divs_11025[] = { 4 };
 static const int divs_22050[] = { 2 };
 static const int divs_44100[] = { 1 };
+static const int divs_16000[] = { 2, 3, 3, 3, 3, 3, 3, 2 }; /* 16036.(36) Hz */
 
 /* per i2s controller */
 struct audio_driver_state {
@@ -1352,6 +1353,10 @@ static long tegra_audio_in_ioctl(struct file *file,
 		case 11025:
 			ads->in_divs = divs_11025;
 			ads->in_divs_len = ARRAY_SIZE(divs_11025);
+			break;
+		case 16000:
+			ads->in_divs = divs_16000;
+			ads->in_divs_len = ARRAY_SIZE(divs_16000);
 			break;
 		case 22050:
 			ads->in_divs = divs_22050;
