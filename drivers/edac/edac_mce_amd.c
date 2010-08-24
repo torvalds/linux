@@ -365,11 +365,10 @@ static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
 
 	pr_emerg("MC%d_STATUS: ", m->bank);
 
-	pr_cont("%sorrected error, report: %s, MiscV: %svalid, "
+	pr_cont("%sorrected error, other errors lost: %s, "
 		 "CPU context corrupt: %s",
 		 ((m->status & MCI_STATUS_UC) ? "Unc"  : "C"),
-		 ((m->status & MCI_STATUS_EN) ? "yes"  : "no"),
-		 ((m->status & MCI_STATUS_MISCV) ? ""  : "in"),
+		 ((m->status & MCI_STATUS_OVER) ? "yes"  : "no"),
 		 ((m->status & MCI_STATUS_PCC) ? "yes" : "no"));
 
 	/* do the two bits[14:13] together */
