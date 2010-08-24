@@ -9,6 +9,7 @@ config TEGRA_DC
 	tristate "Tegra Display Contoller"
 	depends on ARCH_TEGRA
 	select FB_MODE_HELPERS
+	select I2C
 	help
 	  Tegra display controller support.
 

@@ -20,12 +20,17 @@
 #ifndef __MACH_TEGRA_FB_H
 #define __MACH_TEGRA_FB_H
 
+#include <linux/fb.h>
+
 #ifdef CONFIG_FB_TEGRA
 struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 					struct tegra_dc *dc,
 					struct tegra_fb_data *fb_data,
 					struct resource *fb_mem);
 void tegra_fb_unregister(struct tegra_fb_info *fb_info);
+void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
+			      struct fb_monspecs *specs,
+			      bool (*mode_filter)(struct fb_videomode *mode));
 #else
 static inline struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 						      struct tegra_dc *dc,
@@ -36,6 +41,12 @@ static inline struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev
 }
 
 static inline void tegra_fb_unregister(struct tegra_fb_info *fb_info)
+{
+}
+
+void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
+			      struct fb_monspecs *specs,
+			      bool (*mode_filter)(struct fb_videomode *mode))
 {
 }
 #endif

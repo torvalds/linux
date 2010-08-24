@@ -46,7 +46,7 @@ static const u32 tegra_dc_rgb_pintable[] = {
 };
 
 
-void tegra_dc_rgb_init(struct tegra_dc *dc)
+void tegra_dc_rgb_enable(struct tegra_dc *dc)
 {
 	tegra_dc_writel(dc, PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
 			PW4_ENABLE | PM0_ENABLE | PM1_ENABLE,
@@ -58,6 +58,6 @@ void tegra_dc_rgb_init(struct tegra_dc *dc)
 }
 
 struct tegra_dc_out_ops tegra_dc_rgb_ops = {
-	.init = tegra_dc_rgb_init,
+	.enable = tegra_dc_rgb_enable,
 };
 

@@ -117,19 +117,6 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 	int i;
 	char buff[256];
 
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_CONT_SYNCPT_VSYNC);
 	DUMP_REG(DC_CMD_DISPLAY_COMMAND_OPTION0);
 	DUMP_REG(DC_CMD_DISPLAY_COMMAND);
 	DUMP_REG(DC_CMD_SIGNAL_RAISE);
@@ -368,12 +355,17 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	struct tegra_dc *dc;
 	unsigned long update_mask = GENERAL_ACT_REQ;
 	unsigned long val;
-	unsigned long flags;
 	int i;
 
 	dc = windows[0]->dc;
 
-	spin_lock_irqsave(&dc->lock, flags);
+	mutex_lock(&dc->lock);
+
+	if (!dc->enabled) {
+		mutex_unlock(&dc->lock);
+		return -EFAULT;
+	}
+
 	for (i = 0; i < n; i++) {
 		struct tegra_dc_win *win = windows[i];
 		unsigned h_dda;
@@ -441,7 +433,8 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	tegra_dc_writel(dc, val, DC_CMD_INT_MASK);
 
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
-	spin_unlock_irqrestore(&dc->lock, flags);
+
+	mutex_unlock(&dc->lock);
 
 	return 0;
 }
@@ -466,6 +459,9 @@ int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n)
 	if (n < 1 || n > DC_N_WINDOWS)
 		return -EINVAL;
 
+	if (!windows[0]->dc->enabled)
+		return -EFAULT;
+
 	return wait_event_interruptible_timeout(windows[0]->dc->wq,
 					 tegra_dc_windows_are_clean(windows, n),
 					 HZ);
@@ -489,7 +485,12 @@ void tegra_dc_set_blending(struct tegra_dc *dc, struct tegra_dc_blend *blend)
 }
 EXPORT_SYMBOL(tegra_dc_set_blending);
 
-int tegra_dc_set_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
+void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
+{
+	/* clock setup for DSI/HDMI to go here */
+}
+
+static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 {
 	unsigned long val;
 	unsigned long rate;
@@ -547,6 +548,14 @@ int tegra_dc_set_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 
 	return 0;
 }
+
+
+int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode)
+{
+	memcpy(&dc->mode, mode, sizeof(dc->mode));
+
+	return 0;
+}
 EXPORT_SYMBOL(tegra_dc_set_mode);
 
 static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
@@ -554,10 +563,7 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 	dc->out = out;
 
 	if (out->n_modes > 0)
-		dc->mode = &dc->out->modes[0];
-	else
-		dev_err(&dc->ndev->dev,
-			"No default modes specified.  Leaving output disabled.\n");
+		tegra_dc_set_mode(dc, &dc->out->modes[0]);
 
 	switch (out->type) {
 	case TEGRA_DC_OUT_RGB:
@@ -568,6 +574,10 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 		dc->out_ops = NULL;
 		break;
 	}
+
+	if (dc->out_ops && dc->out_ops->init)
+		dc->out_ops->init(dc);
+
 }
 
 
@@ -575,10 +585,8 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 {
 	struct tegra_dc *dc = ptr;
 	unsigned long status;
-	unsigned long flags;
 	unsigned long val;
 	int i;
-
 
 	status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
 	tegra_dc_writel(dc, status, DC_CMD_INT_STATUS);
@@ -587,7 +595,6 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 		int completed = 0;
 		int dirty = 0;
 
-		spin_lock_irqsave(&dc->lock, flags);
 		val = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 		for (i = 0; i < DC_N_WINDOWS; i++) {
 			if (!(val & (WIN_A_ACT_REQ << i))) {
@@ -604,8 +611,6 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 			tegra_dc_writel(dc, val, DC_CMD_INT_ENABLE);
 		}
 
-		spin_unlock_irqrestore(&dc->lock, flags);
-
 		if (completed)
 			wake_up(&dc->wq);
 	}
@@ -618,7 +623,7 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
 	if (dc->ndev->id == 0)
 		tegra_dc_writel(dc, 0x0000011a, DC_CMD_CONT_SYNCPT_VSYNC);
-	else if (dc->ndev->id == 1)
+	else
 		tegra_dc_writel(dc, 0x0000011b, DC_CMD_CONT_SYNCPT_VSYNC);
 	tegra_dc_writel(dc, 0x00004700, DC_CMD_INT_TYPE);
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_POLARITY);
@@ -628,12 +633,67 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x0001c702, DC_CMD_INT_MASK);
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_ENABLE);
 
-	if (dc->mode)
-		tegra_dc_set_mode(dc, dc->mode);
+	if (dc->mode.pclk)
+		tegra_dc_program_mode(dc, &dc->mode);
+}
+
+static void _tegra_dc_enable(struct tegra_dc *dc)
+{
+	if (dc->out && dc->out->enable)
+		dc->out->enable();
+
+	tegra_dc_setup_clk(dc, dc->clk);
+
+	clk_enable(dc->host1x_clk);
+	clk_enable(dc->clk);
+	tegra_periph_reset_deassert(dc->clk);
+	enable_irq(dc->irq);
+
+	tegra_dc_init(dc);
+
+	if (dc->out_ops && dc->out_ops->enable)
+		dc->out_ops->enable(dc);
+
+	tegra_dc_set_blending(dc, tegra_dc_blend_modes[0]);
+}
+
+void tegra_dc_enable(struct tegra_dc *dc)
+{
+	mutex_lock(&dc->lock);
+
+	if (!dc->enabled) {
+		_tegra_dc_enable(dc);
+		dc->enabled = true;
+	}
+
+	mutex_unlock(&dc->lock);
+}
+
+static void _tegra_dc_disable(struct tegra_dc *dc)
+{
+	if (dc->out_ops && dc->out_ops->disable)
+		dc->out_ops->disable(dc);
+
+	disable_irq(dc->irq);
+	tegra_periph_reset_assert(dc->clk);
+	clk_disable(dc->clk);
+	clk_disable(dc->host1x_clk);
+
+	if (dc->out && dc->out->disable)
+		dc->out->disable();
+}
 
 
-	if (dc->out_ops && dc->out_ops->init)
-		dc->out_ops->init(dc);
+void tegra_dc_disable(struct tegra_dc *dc)
+{
+	mutex_lock(&dc->lock);
+
+	if (dc->enabled) {
+		dc->enabled = false;
+		_tegra_dc_disable(dc);
+	}
+
+	mutex_unlock(&dc->lock);
 }
 
 static int tegra_dc_probe(struct nvhost_device *ndev)
@@ -688,9 +748,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		goto err_release_resource_reg;
 	}
 
-	res = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "fbmem");
-	if (res)
-		fb_mem = request_mem_region(res->start, resource_size(res), ndev->name);
+	fb_mem = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "fbmem");
 
 	host1x_clk = clk_get(&ndev->dev, "host1x");
 	if (IS_ERR_OR_NULL(host1x_clk)) {
@@ -698,7 +756,6 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		ret = -ENOENT;
 		goto err_iounmap_reg;
 	}
-	clk_enable(host1x_clk);
 
 	clk = clk_get(&ndev->dev, NULL);
 	if (IS_ERR_OR_NULL(clk)) {
@@ -707,8 +764,6 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 		goto err_put_host1x_clk;
 	}
-	clk_enable(clk);
-	tegra_periph_reset_deassert(clk);
 
 	dc->clk = clk;
 	dc->host1x_clk = host1x_clk;
@@ -717,9 +772,12 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 	dc->irq = irq;
 	dc->ndev = ndev;
 	dc->pdata = ndev->dev.platform_data;
-	spin_lock_init(&dc->lock);
-	init_waitqueue_head(&dc->wq);
 
+	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED)
+		dc->enabled = true;
+
+	mutex_init(&dc->lock);
+	init_waitqueue_head(&dc->wq);
 
 	dc->n_windows = DC_N_WINDOWS;
 	for (i = 0; i < dc->n_windows; i++) {
@@ -734,46 +792,45 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		goto err_put_clk;
 	}
 
+	/* hack to ballence enable_irq calls in _tegra_dc_enable() */
+	disable_irq(dc->irq);
+
 	ret = tegra_dc_add(dc, ndev->id);
 	if (ret < 0) {
 		dev_err(&ndev->dev, "can't add dc\n");
 		goto err_free_irq;
 	}
 
-	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
-		if (dc->pdata->default_out)
-			tegra_dc_set_out(dc, dc->pdata->default_out);
-		else
-			dev_err(&ndev->dev, "No default output specified.  Leaving output disabled.\n");
-	}
-
-	tegra_dc_init(dc);
-	if (dc->out && dc->out->init)
-		dc->out->init();
-
-	tegra_dc_set_blending(dc, tegra_dc_blend_modes[0]);
-
 	nvhost_set_drvdata(ndev, dc);
+
+	if (dc->pdata->default_out)
+		tegra_dc_set_out(dc, dc->pdata->default_out);
+	else
+		dev_err(&ndev->dev, "No default output specified.  Leaving output disabled.\n");
+
+	if (dc->enabled)
+		_tegra_dc_enable(dc);
 
 	tegra_dc_dbg_add(dc);
 
 	dev_info(&ndev->dev, "probed\n");
 
-	if (fb_mem && dc->pdata->fb) {
+	if (dc->pdata->fb) {
 		dc->fb = tegra_fb_register(ndev, dc, dc->pdata->fb, fb_mem);
 		if (IS_ERR_OR_NULL(dc->fb))
 			dc->fb = NULL;
 	}
+
+	if (dc->out_ops && dc->out_ops->detect)
+		dc->out_ops->detect(dc);
 
 	return 0;
 
 err_free_irq:
 	free_irq(irq, dc);
 err_put_clk:
-	clk_disable(clk);
 	clk_put(clk);
 err_put_host1x_clk:
-	clk_disable(host1x_clk);
 	clk_put(host1x_clk);
 err_iounmap_reg:
 	iounmap(base);
@@ -793,14 +850,16 @@ static int tegra_dc_remove(struct nvhost_device *ndev)
 
 	if (dc->fb) {
 		tegra_fb_unregister(dc->fb);
-		release_resource(dc->fb_mem);
+		if (dc->fb_mem)
+			release_resource(dc->fb_mem);
 	}
 
+
+	if (dc->enabled)
+		_tegra_dc_disable(dc);
+
 	free_irq(dc->irq, dc);
-	tegra_periph_reset_assert(dc->clk);
-	clk_disable(dc->clk);
 	clk_put(dc->clk);
-	clk_disable(dc->host1x_clk);
 	clk_put(dc->host1x_clk);
 	iounmap(dc->base);
 	if (dc->fb_mem)
@@ -816,12 +875,8 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 
 	dev_info(&ndev->dev, "suspend\n");
 
-	if (dc->out && dc->out->suspend)
-		dc->out->suspend(state);
-
-	disable_irq(dc->irq);
-	tegra_periph_reset_assert(dc->clk);
-	clk_disable(dc->clk);
+	if (dc->enabled)
+		_tegra_dc_disable(dc);
 
 	return 0;
 }
@@ -834,19 +889,14 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 
 	dev_info(&ndev->dev, "resume\n");
 
-	clk_enable(dc->clk);
-	tegra_periph_reset_deassert(dc->clk);
-	enable_irq(dc->irq);
+	if (dc->enabled) {
+		for (i = 0; i < dc->n_windows; i++)
+			wins[i] = &dc->windows[i];
 
-	for (i = 0; i < dc->n_windows; i++)
-		wins[i] = &dc->windows[i];
+		_tegra_dc_enable(dc);
 
-	tegra_dc_init(dc);
-	if (dc->out && dc->out->resume)
-		dc->out->resume();
-
-	tegra_dc_set_blending(dc, tegra_dc_blend_modes[0]);
-	tegra_dc_update_windows(wins, dc->n_windows);
+		tegra_dc_update_windows(wins, dc->n_windows);
+	}
 
 	return 0;
 }
@@ -900,4 +950,4 @@ static void __exit tegra_dc_module_exit(void)
 }
 
 module_exit(tegra_dc_module_exit);
-module_init(tegra_dc_module_init);
+late_initcall(tegra_dc_module_init);

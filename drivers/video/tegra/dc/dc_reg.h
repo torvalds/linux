@@ -136,11 +136,31 @@
 #define DC_COM_CRC_CHECKSUM_LATCHED		0x329
 
 #define DC_DISP_DISP_SIGNAL_OPTIONS0		0x400
+#define  H_PULSE_0_ENABLE		(1 << 8)
+#define  H_PULSE_1_ENABLE		(1 << 10)
+#define  H_PULSE_2_ENABLE		(1 << 12)
+#define  V_PULSE_0_ENABLE		(1 << 16)
+#define  V_PULSE_1_ENABLE		(1 << 18)
+#define  V_PULSE_2_ENABLE		(1 << 19)
+#define  V_PULSE_3_ENABLE		(1 << 20)
+#define  M0_ENABLE			(1 << 24)
+#define  M1_ENABLE			(1 << 26)
+
 #define DC_DISP_DISP_SIGNAL_OPTIONS1		0x401
+#define  DI_ENABLE			(1 << 16)
+#define  PP_ENABLE			(1 << 18)
+
 #define DC_DISP_DISP_WIN_OPTIONS		0x402
+#define  CURSOR_ENABLE			(1 << 16)
+#define  TVO_ENABLE			(1 << 28)
+#define  DSI_ENABLE			(1 << 29)
+#define  HDMI_ENABLE			(1 << 30)
+
 #define DC_DISP_MEM_HIGH_PRIORITY		0x403
 #define DC_DISP_MEM_HIGH_PRIORITY_TIMER		0x404
 #define DC_DISP_DISP_TIMING_OPTIONS		0x405
+#define  VSYNC_H_POSITION(x)		((x) & 0xfff)
+
 #define DC_DISP_REF_TO_SYNC			0x406
 #define DC_DISP_SYNC_WIDTH			0x407
 #define DC_DISP_BACK_PORCH			0x408
@@ -181,6 +201,26 @@
 #define DC_DISP_PP_SELECT_B			0x42b
 #define DC_DISP_PP_SELECT_C			0x42c
 #define DC_DISP_PP_SELECT_D			0x42d
+
+#define  PULSE_MODE_NORMAL		(0 << 3)
+#define  PULSE_MODE_ONE_CLOCK		(1 << 3)
+#define  PULSE_POLARITY_HIGH		(0 << 4)
+#define  PULSE_POLARITY_LOW		(1 << 4)
+#define  PULSE_QUAL_ALWAYS		(0 << 6)
+#define  PULSE_QUAL_VACTIVE		(2 << 6)
+#define  PULSE_QUAL_VACTIVE1		(3 << 6)
+#define  PULSE_LAST_START_A		(0 << 8)
+#define  PULSE_LAST_END_A		(1 << 8)
+#define  PULSE_LAST_START_B		(2 << 8)
+#define  PULSE_LAST_END_B		(3 << 8)
+#define  PULSE_LAST_START_C		(4 << 8)
+#define  PULSE_LAST_END_C		(5 << 8)
+#define  PULSE_LAST_START_D		(6 << 8)
+#define  PULSE_LAST_END_D		(7 << 8)
+
+#define  PULSE_START(x)			((x) & 0xfff)
+#define  PULSE_END(x)			(((x) & 0xfff) << 16)
+
 #define DC_DISP_DISP_CLOCK_CONTROL		0x42e
 #define  PIXEL_CLK_DIVIDER_PCD1		(0 << 8)
 #define  PIXEL_CLK_DIVIDER_PCD1H	(1 << 8)
@@ -213,6 +253,20 @@
 #define  DISP_DATA_ORDER_BLUE_RED	(1 << 9)
 
 #define DC_DISP_DISP_COLOR_CONTROL		0x430
+#define  BASE_COLOR_SIZE666		(0 << 0)
+#define  BASE_COLOR_SIZE111		(1 << 0)
+#define  BASE_COLOR_SIZE222		(2 << 0)
+#define  BASE_COLOR_SIZE333		(3 << 0)
+#define  BASE_COLOR_SIZE444		(4 << 0)
+#define  BASE_COLOR_SIZE555		(5 << 0)
+#define  BASE_COLOR_SIZE565		(6 << 0)
+#define  BASE_COLOR_SIZE332		(7 << 0)
+#define  BASE_COLOR_SIZE888		(8 << 0)
+
+#define  DITHER_CONTROL_DISABLE		(0 << 8)
+#define  DITHER_CONTROL_ORDERED		(2 << 8)
+#define  DITHER_CONTROL_ERRDIFF		(3 << 8)
+
 #define DC_DISP_SHIFT_CLOCK_OPTIONS		0x431
 #define DC_DISP_DATA_ENABLE_OPTIONS		0x432
 #define   DE_SELECT_ACTIVE_BLANK	0x0

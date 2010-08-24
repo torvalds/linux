@@ -57,6 +57,10 @@ enum {
 
 struct tegra_dc_out {
 	int			type;
+	unsigned		flags;
+
+	int			dcc_bus;
+	int			hotplug_gpio;
 
 	unsigned		order;
 	unsigned		align;
@@ -64,10 +68,13 @@ struct tegra_dc_out {
 	struct tegra_dc_mode	*modes;
 	int			n_modes;
 
-	int	(*init)(void);
-	int	(*suspend)(pm_message_t state);
-	int	(*resume)(void);
+	int	(*enable)(void);
+	int	(*disable)(void);
 };
+
+#define TEGRA_DC_OUT_HOTPLUG_HIGH	(0 << 1)
+#define TEGRA_DC_OUT_HOTPLUG_LOW	(1 << 1)
+#define TEGRA_DC_OUT_HOTPLUG_MASK	(1 << 1)
 
 #define TEGRA_DC_ALIGN_MSB		0
 #define TEGRA_DC_ALIGN_LSB		1
@@ -143,6 +150,9 @@ struct tegra_dc_platform_data {
 struct tegra_dc *tegra_dc_get_dc(unsigned idx);
 struct tegra_dc_win *tegra_dc_get_window(struct tegra_dc *dc, unsigned win);
 
+void tegra_dc_enable(struct tegra_dc *dc);
+void tegra_dc_disable(struct tegra_dc *dc);
+
 /* tegra_dc_update_windows and tegra_dc_sync_windows do not support windows
  * with differenct dcs in one call
  */
@@ -152,6 +162,6 @@ int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n);
 /* will probably be replaced with an interface describing the window order */
 void tegra_dc_set_blending(struct tegra_dc *dc, struct tegra_dc_blend *blend);
 
-int tegra_dc_set_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode);
+int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode);
 
 #endif
