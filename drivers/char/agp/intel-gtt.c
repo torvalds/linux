@@ -84,6 +84,7 @@ static struct gatt_mask intel_gen6_masks[] =
 static struct _intel_private {
 	struct intel_gtt base;
 	struct pci_dev *pcidev;	/* device one */
+	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
 	u32 __iomem *gtt;		/* I915G */
 	int num_dcache_entries;
@@ -221,11 +222,12 @@ static int intel_i810_fetch_size(void)
 	u32 smram_miscc;
 	struct aper_size_info_fixed *values;
 
-	pci_read_config_dword(agp_bridge->dev, I810_SMRAM_MISCC, &smram_miscc);
+	pci_read_config_dword(intel_private.bridge_dev,
+			      I810_SMRAM_MISCC, &smram_miscc);
 	values = A_SIZE_FIX(agp_bridge->driver->aperture_sizes);
 
 	if ((smram_miscc & I810_GMS) == I810_GMS_DISABLE) {
-		dev_warn(&agp_bridge->dev->dev, "i810 is disabled\n");
+		dev_warn(&intel_private.bridge_dev->dev, "i810 is disabled\n");
 		return 0;
 	}
 	if ((smram_miscc & I810_GFX_MEM_WIN_SIZE) == I810_GFX_MEM_WIN_32M) {
@@ -538,7 +540,8 @@ static void intel_i830_init_gtt_entries(void)
 	static const int ddt[4] = { 0, 16, 32, 64 };
 	int size; /* reserved space (in kb) at the top of stolen memory */
 
-	pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
+	pci_read_config_word(intel_private.bridge_dev,
+			     I830_GMCH_CTRL, &gmch_ctrl);
 
 	if (IS_I965) {
 		u32 pgetbl_ctl;
@@ -583,7 +586,7 @@ static void intel_i830_init_gtt_entries(void)
 			size = 2048;
 			break;
 		default:
-			dev_info(&agp_bridge->dev->dev,
+			dev_info(&intel_private.bridge_dev->dev,
 				 "unknown page table size 0x%x, assuming 512KB\n",
 				(gmch_ctrl & G33_PGETBL_SIZE_MASK));
 			size = 512;
@@ -602,8 +605,8 @@ static void intel_i830_init_gtt_entries(void)
 		size = agp_bridge->driver->fetch_size() + 4;
 	}
 
-	if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82830_HB ||
-	    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82845G_HB) {
+	if (intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82830_HB ||
+	    intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82845G_HB) {
 		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
 		case I830_GMCH_GMS_STOLEN_512:
 			gtt_entries = KB(512) - KB(size);
@@ -753,16 +756,16 @@ static void intel_i830_init_gtt_entries(void)
 		}
 	}
 	if (!local && gtt_entries > intel_max_stolen) {
-		dev_info(&agp_bridge->dev->dev,
+		dev_info(&intel_private.bridge_dev->dev,
 			 "detected %dK stolen memory, trimming to %dK\n",
 			 gtt_entries / KB(1), intel_max_stolen / KB(1));
 		gtt_entries = intel_max_stolen / KB(4);
 	} else if (gtt_entries > 0) {
-		dev_info(&agp_bridge->dev->dev, "detected %dK %s memory\n",
+		dev_info(&intel_private.bridge_dev->dev, "detected %dK %s memory\n",
 		       gtt_entries / KB(1), local ? "local" : "stolen");
 		gtt_entries /= KB(4);
 	} else {
-		dev_info(&agp_bridge->dev->dev,
+		dev_info(&intel_private.bridge_dev->dev,
 		       "no pre-allocated video memory detected\n");
 		gtt_entries = 0;
 	}
@@ -871,15 +874,15 @@ static int intel_i830_fetch_size(void)
 
 	values = A_SIZE_FIX(agp_bridge->driver->aperture_sizes);
 
-	if (agp_bridge->dev->device != PCI_DEVICE_ID_INTEL_82830_HB &&
-	    agp_bridge->dev->device != PCI_DEVICE_ID_INTEL_82845G_HB) {
+	if (intel_private.bridge_dev->device != PCI_DEVICE_ID_INTEL_82830_HB &&
+	    intel_private.bridge_dev->device != PCI_DEVICE_ID_INTEL_82845G_HB) {
 		/* 855GM/852GM/865G has 128MB aperture size */
 		agp_bridge->current_size = (void *) values;
 		agp_bridge->aperture_size_idx = 0;
 		return values[0].size;
 	}
 
-	pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
+	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
 
 	if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
 		agp_bridge->current_size = (void *) values;
@@ -906,9 +909,9 @@ static int intel_i830_configure(void)
 	pci_read_config_dword(intel_private.pcidev, I810_GMADDR, &temp);
 	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
 
-	pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
+	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
 	gmch_ctrl |= I830_GMCH_ENABLED;
-	pci_write_config_word(agp_bridge->dev, I830_GMCH_CTRL, gmch_ctrl);
+	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
 
 	writel(agp_bridge->gatt_bus_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
@@ -1021,9 +1024,9 @@ static struct agp_memory *intel_i830_alloc_by_type(size_t pg_count, int type)
 static int intel_alloc_chipset_flush_resource(void)
 {
 	int ret;
-	ret = pci_bus_alloc_resource(agp_bridge->dev->bus, &intel_private.ifp_resource, PAGE_SIZE,
+	ret = pci_bus_alloc_resource(intel_private.bridge_dev->bus, &intel_private.ifp_resource, PAGE_SIZE,
 				     PAGE_SIZE, PCIBIOS_MIN_MEM, 0,
-				     pcibios_align_resource, agp_bridge->dev);
+				     pcibios_align_resource, intel_private.bridge_dev);
 
 	return ret;
 }
@@ -1033,11 +1036,11 @@ static void intel_i915_setup_chipset_flush(void)
 	int ret;
 	u32 temp;
 
-	pci_read_config_dword(agp_bridge->dev, I915_IFPADDR, &temp);
+	pci_read_config_dword(intel_private.bridge_dev, I915_IFPADDR, &temp);
 	if (!(temp & 0x1)) {
 		intel_alloc_chipset_flush_resource();
 		intel_private.resource_valid = 1;
-		pci_write_config_dword(agp_bridge->dev, I915_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
+		pci_write_config_dword(intel_private.bridge_dev, I915_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
 	} else {
 		temp &= ~1;
 
@@ -1056,17 +1059,17 @@ static void intel_i965_g33_setup_chipset_flush(void)
 	u32 temp_hi, temp_lo;
 	int ret;
 
-	pci_read_config_dword(agp_bridge->dev, I965_IFPADDR + 4, &temp_hi);
-	pci_read_config_dword(agp_bridge->dev, I965_IFPADDR, &temp_lo);
+	pci_read_config_dword(intel_private.bridge_dev, I965_IFPADDR + 4, &temp_hi);
+	pci_read_config_dword(intel_private.bridge_dev, I965_IFPADDR, &temp_lo);
 
 	if (!(temp_lo & 0x1)) {
 
 		intel_alloc_chipset_flush_resource();
 
 		intel_private.resource_valid = 1;
-		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR + 4,
+		pci_write_config_dword(intel_private.bridge_dev, I965_IFPADDR + 4,
 			upper_32_bits(intel_private.ifp_resource.start));
-		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
+		pci_write_config_dword(intel_private.bridge_dev, I965_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
 	} else {
 		u64 l64;
 
@@ -1123,9 +1126,9 @@ static int intel_i9xx_configure(void)
 
 	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
 
-	pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
+	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
 	gmch_ctrl |= I830_GMCH_ENABLED;
-	pci_write_config_word(agp_bridge->dev, I830_GMCH_CTRL, gmch_ctrl);
+	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
 
 	writel(agp_bridge->gatt_bus_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
@@ -1267,7 +1270,7 @@ static int intel_i915_get_gtt_size(void)
 		u16 gmch_ctrl;
 
 		/* G33's GTT size defined in gmch_ctrl */
-		pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
+		pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
 		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
 		case I830_GMCH_GMS_STOLEN_512:
 			size = 512;
@@ -1279,7 +1282,7 @@ static int intel_i915_get_gtt_size(void)
 			size = 8*1024;
 			break;
 		default:
-			dev_info(&agp_bridge->dev->dev,
+			dev_info(&intel_private.bridge_dev->dev,
 				 "unknown page table size 0x%x, assuming 512KB\n",
 				(gmch_ctrl & I830_GMCH_GMS_MASK));
 			size = 512;
@@ -1380,7 +1383,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
 	u16 snb_gmch_ctl;
 
-	switch (agp_bridge->dev->device) {
+	switch (intel_private.bridge_dev->device) {
 	case PCI_DEVICE_ID_INTEL_GM45_HB:
 	case PCI_DEVICE_ID_INTEL_EAGLELAKE_HB:
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
@@ -1755,6 +1758,8 @@ int intel_gmch_probe(struct pci_dev *pdev,
 	bridge->dev_private_data = &intel_private;
 	bridge->dev = pdev;
 
+	intel_private.bridge_dev = pci_dev_get(pdev);
+
 	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
 
 	if (bridge->driver->mask_memory == intel_gen6_mask_memory)
@@ -1779,6 +1784,8 @@ void intel_gmch_remove(struct pci_dev *pdev)
 {
 	if (intel_private.pcidev)
 		pci_dev_put(intel_private.pcidev);
+	if (intel_private.bridge_dev)
+		pci_dev_put(intel_private.bridge_dev);
 }
 EXPORT_SYMBOL(intel_gmch_remove);
 
