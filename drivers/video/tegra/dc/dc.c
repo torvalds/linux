@@ -487,7 +487,24 @@ EXPORT_SYMBOL(tegra_dc_set_blending);
 
 void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 {
-	/* clock setup for DSI/HDMI to go here */
+	if (dc->out->type == TEGRA_DC_OUT_HDMI) {
+		unsigned long rate;
+		struct clk *pll_d_out0_clk =
+			clk_get_sys(NULL, "pll_d_out0");
+		struct clk *pll_d_clk =
+			clk_get_sys(NULL, "pll_d");
+
+		if (dc->mode.pclk > 70000)
+			rate = 594000000;
+		else
+			rate = 216000000;
+
+		if (rate != clk_get_rate(pll_d_clk))
+		    clk_set_rate(pll_d_clk, rate);
+
+		if (clk_get_parent(clk) != pll_d_out0_clk)
+			clk_set_parent(clk, pll_d_out0_clk);
+	}
 }
 
 static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
@@ -568,6 +585,10 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 	switch (out->type) {
 	case TEGRA_DC_OUT_RGB:
 		dc->out_ops = &tegra_dc_rgb_ops;
+		break;
+
+	case TEGRA_DC_OUT_HDMI:
+		dc->out_ops = &tegra_dc_hdmi_ops;
 		break;
 
 	default:
