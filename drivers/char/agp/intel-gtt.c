@@ -25,6 +25,7 @@
 #include "agp.h"
 #include "intel-agp.h"
 #include <linux/intel-gtt.h>
+#include <drm/intel-gtt.h>
 
 /*
  * If we have Intel graphics, we're not going to have anything other than
@@ -81,17 +82,11 @@ static struct gatt_mask intel_gen6_masks[] =
 };
 
 static struct _intel_private {
+	struct intel_gtt base;
 	struct pci_dev *pcidev;	/* device one */
 	u8 __iomem *registers;
 	u32 __iomem *gtt;		/* I915G */
 	int num_dcache_entries;
-	/* gtt_entries is the number of gtt entries that are already mapped
-	 * to stolen memory.  Stolen memory is larger than the memory mapped
-	 * through gtt_entries, as it includes some reserved space for the BIOS
-	 * popup and for the GTT.
-	 */
-	int gtt_entries;			/* i830+ */
-	int gtt_total_size;
 	union {
 		void __iomem *i9xx_flush_page;
 		void *i8xx_flush_page;
@@ -772,7 +767,7 @@ static void intel_i830_init_gtt_entries(void)
 		gtt_entries = 0;
 	}
 
-	intel_private.gtt_entries = gtt_entries;
+	intel_private.base.gtt_stolen_entries = gtt_entries;
 }
 
 static void intel_i830_fini_flush(void)
@@ -849,7 +844,7 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* we have to call this as early as possible after the MMIO base address is known */
 	intel_i830_init_gtt_entries();
-	if (intel_private.gtt_entries == 0) {
+	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.registers);
 		return -ENOMEM;
 	}
@@ -919,7 +914,7 @@ static int intel_i830_configure(void)
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
 
 	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = intel_private.gtt_entries; i < current_size->num_entries; i++) {
+		for (i = intel_private.base.gtt_stolen_entries; i < current_size->num_entries; i++) {
 			writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
 		}
 		readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));	/* PCI Posting. */
@@ -950,10 +945,10 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
 
-	if (pg_start < intel_private.gtt_entries) {
+	if (pg_start < intel_private.base.gtt_stolen_entries) {
 		dev_printk(KERN_DEBUG, &intel_private.pcidev->dev,
-			   "pg_start == 0x%.8lx, intel_private.gtt_entries == 0x%.8x\n",
-			   pg_start, intel_private.gtt_entries);
+			   "pg_start == 0x%.8lx, gtt_stolen_entries == 0x%.8x\n",
+			   pg_start, intel_private.base.gtt_stolen_entries);
 
 		dev_info(&intel_private.pcidev->dev,
 			 "trying to insert into local/stolen memory\n");
@@ -1001,7 +996,7 @@ static int intel_i830_remove_entries(struct agp_memory *mem, off_t pg_start,
 	if (mem->page_count == 0)
 		return 0;
 
-	if (pg_start < intel_private.gtt_entries) {
+	if (pg_start < intel_private.base.gtt_stolen_entries) {
 		dev_info(&intel_private.pcidev->dev,
 			 "trying to disable local/stolen memory\n");
 		return -EINVAL;
@@ -1136,7 +1131,8 @@ static int intel_i9xx_configure(void)
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
 
 	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = intel_private.gtt_entries; i < intel_private.gtt_total_size; i++) {
+		for (i = intel_private.base.gtt_stolen_entries; i <
+				intel_private.base.gtt_total_entries; i++) {
 			writel(agp_bridge->scratch_page, intel_private.gtt+i);
 		}
 		readl(intel_private.gtt+i-1);	/* PCI Posting. */
@@ -1181,10 +1177,10 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
 
-	if (pg_start < intel_private.gtt_entries) {
+	if (pg_start < intel_private.base.gtt_stolen_entries) {
 		dev_printk(KERN_DEBUG, &intel_private.pcidev->dev,
-			   "pg_start == 0x%.8lx, intel_private.gtt_entries == 0x%.8x\n",
-			   pg_start, intel_private.gtt_entries);
+			   "pg_start == 0x%.8lx, gtt_stolen_entries == 0x%.8x\n",
+			   pg_start, intel_private.base.gtt_stolen_entries);
 
 		dev_info(&intel_private.pcidev->dev,
 			 "trying to insert into local/stolen memory\n");
@@ -1227,7 +1223,7 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
 	if (mem->page_count == 0)
 		return 0;
 
-	if (pg_start < intel_private.gtt_entries) {
+	if (pg_start < intel_private.base.gtt_stolen_entries) {
 		dev_info(&intel_private.pcidev->dev,
 			 "trying to disable local/stolen memory\n");
 		return -EINVAL;
@@ -1323,7 +1319,7 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	if (!intel_private.gtt)
 		return -ENOMEM;
 
-	intel_private.gtt_total_size = gtt_map_size / 4;
+	intel_private.base.gtt_total_entries = gtt_map_size / 4;
 
 	temp &= 0xfff80000;
 
@@ -1338,7 +1334,7 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* we have to call this as early as possible after the MMIO base address is known */
 	intel_i830_init_gtt_entries();
-	if (intel_private.gtt_entries == 0) {
+	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.gtt);
 		iounmap(intel_private.registers);
 		return -ENOMEM;
@@ -1449,7 +1445,7 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 	if (!intel_private.gtt)
 		return -ENOMEM;
 
-	intel_private.gtt_total_size = gtt_size / 4;
+	intel_private.base.gtt_total_entries = gtt_size / 4;
 
 	intel_private.registers = ioremap(temp, 128 * 4096);
 	if (!intel_private.registers) {
@@ -1462,7 +1458,7 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* we have to call this as early as possible after the MMIO base address is known */
 	intel_i830_init_gtt_entries();
-	if (intel_private.gtt_entries == 0) {
+	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.gtt);
 		iounmap(intel_private.registers);
 		return -ENOMEM;

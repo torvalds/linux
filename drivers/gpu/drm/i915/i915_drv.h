@@ -34,6 +34,7 @@
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
+#include <drm/intel-gtt.h>
 
 /* General customization:
  */

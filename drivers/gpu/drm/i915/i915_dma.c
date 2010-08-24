@@ -42,8 +42,6 @@
 #include <linux/slab.h>
 #include <acpi/video.h>
 
-extern int intel_max_stolen; /* from AGP driver */
-
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
