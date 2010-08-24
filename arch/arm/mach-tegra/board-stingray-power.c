@@ -172,13 +172,6 @@ static int cpcap_validity_probe(struct platform_device *pdev)
 	} else
 		dev_info(&pdev->dev, "Not starting macro 14 (no hw support)\n");
 
-	/* Enable workaround to allow soft resets to work */
-	/* TODO: Only enable this on non-production hardware. */
-	cpcap_regacc_write(cpcap_di, CPCAP_REG_PGC,
-			   CPCAP_BIT_SYS_RST_MODE, CPCAP_BIT_SYS_RST_MODE);
-	err = cpcap_uc_start(cpcap_di, CPCAP_MACRO_15);
-	dev_info(&pdev->dev, "Started macro 15: %d\n", err);
-
 	return 0;
 }
 

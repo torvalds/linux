@@ -47,7 +47,6 @@
 #include <mach/i2s.h>
 #include <mach/audio.h>
 #include <mach/cpcap_audio.h>
-#include <mach/system.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -786,17 +785,6 @@ static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *t
 	mi->bank[1].size = SZ_512M - SZ_256K;
 }
 
-static void stingray_reset(char mode, const char *cmd)
-{
-	/* Signal to CPCAP to stop the uC. */
-	gpio_set_value(TEGRA_GPIO_PG3, 0);
-	mdelay(100);
-	gpio_set_value(TEGRA_GPIO_PG3, 1);
-	mdelay(100);
-
-	tegra_assert_system_reset();
-}
-
 static void stingray_power_off(void)
 {
 	printk(KERN_INFO "stingray_pm_power_off...\n");
@@ -814,11 +802,6 @@ static void stingray_power_off(void)
 
 static void __init stingray_power_off_init(void)
 {
-	tegra_gpio_enable(TEGRA_GPIO_PG3);
-	gpio_request(TEGRA_GPIO_PG3, "sys_restart_b");
-	gpio_direction_output(TEGRA_GPIO_PG3, 1);
-	tegra_reset = stingray_reset;
-
 	tegra_gpio_enable(TEGRA_GPIO_PV7);
 	if (!gpio_request(TEGRA_GPIO_PV7, "wdi"))
 		pm_power_off = stingray_power_off;
@@ -903,6 +886,10 @@ static void __init tegra_stingray_init(void)
 	tegra_gpio_enable(TEGRA_GPIO_PV4);
 	gpio_request(TEGRA_GPIO_PV4, "usb_data_en");
 	gpio_direction_output(TEGRA_GPIO_PV4, 1);
+
+	tegra_gpio_enable(TEGRA_GPIO_PG3);
+	gpio_request(TEGRA_GPIO_PG3, "sys_restart_b");
+	gpio_direction_output(TEGRA_GPIO_PG3, 1);
 
 	/* ULPI_PHY_RESET_B (TEGRA_GPIO_PG2) can be initialized as
 	   output low when the kernel boots.
