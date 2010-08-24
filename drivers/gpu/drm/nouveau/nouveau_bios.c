@@ -2166,7 +2166,7 @@ peek_fb(struct drm_device *dev, struct io_mapping *fb,
 	uint32_t val = 0;
 
 	if (off < pci_resource_len(dev->pdev, 1)) {
-		uint32_t __iomem *p =
+		uint8_t __iomem *p =
 			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
 
 		val = ioread32(p + (off & ~PAGE_MASK));
@@ -2182,7 +2182,7 @@ poke_fb(struct drm_device *dev, struct io_mapping *fb,
 	uint32_t off, uint32_t val)
 {
 	if (off < pci_resource_len(dev->pdev, 1)) {
-		uint32_t __iomem *p =
+		uint8_t __iomem *p =
 			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
 
 		iowrite32(val, p + (off & ~PAGE_MASK));
@@ -4587,7 +4587,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -1) {
@@ -4597,7 +4597,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk == -2) {
@@ -4610,7 +4610,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing output script 2\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 2\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk > 0) {
@@ -4622,7 +4622,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 0\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	} else
 	if (pxclk < 0) {
@@ -4634,7 +4634,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			return 1;
 		}
 
-		NV_TRACE(dev, "0x%04X: parsing clock script 1\n", script);
+		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent);
 	}
 
@@ -5357,19 +5357,17 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	}
 
 	tmdstableptr = ROM16(bios->data[bitentry->offset]);
-
-	if (tmdstableptr == 0x0) {
+	if (!tmdstableptr) {
 		NV_ERROR(dev, "Pointer to TMDS table invalid\n");
 		return -EINVAL;
 	}
 
+	NV_INFO(dev, "TMDS table version %d.%d\n",
+		bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+
 	/* nv50+ has v2.0, but we don't parse it atm */
-	if (bios->data[tmdstableptr] != 0x11) {
-		NV_WARN(dev,
-			"TMDS table revision %d.%d not currently supported\n",
-			bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+	if (bios->data[tmdstableptr] != 0x11)
 		return -ENOSYS;
-	}
 
 	/*
 	 * These two scripts are odd: they don't seem to get run even when
@@ -5809,6 +5807,22 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			gpio->line = tvdac_gpio[1] >> 4;
 			gpio->invert = tvdac_gpio[0] & 2;
 		}
+	} else {
+		/*
+		 * No systematic way to store GPIO info on pre-v2.2
+		 * DCBs, try to match the PCI device IDs.
+		 */
+
+		/* Apple iMac G4 NV18 */
+		if (dev->pdev->device == 0x0189 &&
+		    dev->pdev->subsystem_vendor == 0x10de &&
+		    dev->pdev->subsystem_device == 0x0010) {
+			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
+
+			gpio->tag = DCB_GPIO_TVDAC0;
+			gpio->line = 4;
+		}
+
 	}
 
 	if (!gpio_table_ptr)

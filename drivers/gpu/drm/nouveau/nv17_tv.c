@@ -129,6 +129,14 @@ get_tv_detect_quirks(struct drm_device *dev, uint32_t *pin_mask)
 		return false;
 	}
 
+	/* MSI nForce2 IGP */
+	if (dev->pdev->device == 0x01f0 &&
+	    dev->pdev->subsystem_vendor == 0x1462 &&
+	    dev->pdev->subsystem_device == 0x5710) {
+		*pin_mask = 0xc;
+		return false;
+	}
+
 	return true;
 }
 

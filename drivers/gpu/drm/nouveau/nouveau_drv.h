@@ -1165,6 +1165,7 @@ extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
+extern int nouveau_bo_sync_gpu(struct nouveau_bo *, struct nouveau_channel *);
 
 /* nouveau_fence.c */
 struct nouveau_fence;
