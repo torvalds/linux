@@ -64,6 +64,8 @@ struct audio_stream {
 
 	unsigned errors;
 
+	int i2s_fifo_atn_level;
+
 	ktime_t last_dma_ts;
 	struct tegra_dma_channel *dma_chan;
 	struct completion stop_completion;
@@ -810,6 +812,12 @@ static int resume_dma_playback(struct audio_stream *aos)
 		return 0;
 	}
 
+#if 0
+	i2s_fifo_clear(ads->i2s_base, I2S_FIFO_TX);
+#endif
+	i2s_fifo_set_attention_level(ads->i2s_base,
+			I2S_FIFO_TX, aos->i2s_fifo_atn_level);
+
 	req->source_addr = aos->buf_phys + out;
 	if (out < in)
 		req->size = in - out;
@@ -825,8 +833,6 @@ static int resume_dma_playback(struct audio_stream *aos)
 	pr_debug("%s resume playback (%d in fifo, writing %d, in %d out %d)\n",
 			__func__, kfifo_len(&aos->fifo), req->size, in, out);
 
-	i2s_fifo_set_attention_level(ads->i2s_base,
-			I2S_FIFO_TX, I2S_FIFO_ATN_LVL_FOUR_SLOTS);
 	i2s_fifo_enable(ads->i2s_base, I2S_FIFO_TX, 1);
 
 	aos->last_dma_ts = ktime_get_real();
@@ -906,9 +912,11 @@ static int resume_dma_recording(struct audio_stream *ais)
 		return -EINVAL;
 	}
 
+#if 0
 	i2s_fifo_clear(ads->i2s_base, I2S_FIFO_RX);
+#endif
 	i2s_fifo_set_attention_level(ads->i2s_base,
-			I2S_FIFO_RX, I2S_FIFO_ATN_LVL_TWELVE_SLOTS);
+			I2S_FIFO_RX, ais->i2s_fifo_atn_level);
 	i2s_fifo_enable(ads->i2s_base, I2S_FIFO_RX, 1);
 	return 0;
 }
@@ -963,8 +971,10 @@ static int start_pio_playback(struct audio_stream *aos)
 	pr_debug("%s\n", __func__);
 
 	i2s_fifo_set_attention_level(ads->i2s_base,
-			I2S_FIFO_TX, I2S_FIFO_ATN_LVL_ONE_SLOT);
+			I2S_FIFO_TX, aos->i2s_fifo_atn_level);
+#if 0
 	i2s_fifo_clear(ads->i2s_base, I2S_FIFO_TX);
+#endif
 
 	i2s_set_fifo_irq_on_err(ads->i2s_base, I2S_FIFO_TX, 1);
 	i2s_set_fifo_irq_on_qe(ads->i2s_base, I2S_FIFO_TX, 1);
@@ -1005,8 +1015,10 @@ static int start_pio_recording(struct audio_stream *ais)
 	pr_debug("%s: start\n", __func__);
 
 	i2s_fifo_set_attention_level(ads->i2s_base,
-			I2S_FIFO_RX, I2S_FIFO_ATN_LVL_TWELVE_SLOTS);
+			I2S_FIFO_RX, ais->i2s_fifo_atn_level);
+#if 0
 	i2s_fifo_clear(ads->i2s_base, I2S_FIFO_RX);
+#endif
 
 	i2s_set_fifo_irq_on_err(ads->i2s_base, I2S_FIFO_RX, 1);
 	i2s_set_fifo_irq_on_qe(ads->i2s_base, I2S_FIFO_RX, 1);
@@ -1980,6 +1992,9 @@ static int tegra_audio_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
+	state->out.i2s_fifo_atn_level = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
+	state->in.i2s_fifo_atn_level = I2S_FIFO_ATN_LVL_FOUR_SLOTS;
+
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no dma resource!\n");
@@ -2024,6 +2039,8 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	clk_enable(audio_sync_clk);
 
 	/* disable interrupts from I2S */
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
 	i2s_enable_fifos(state->i2s_base, 0);
 
 	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
