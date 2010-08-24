@@ -86,6 +86,7 @@ struct lp8550_reg {
 
 static uint32_t lp8550_debug;
 module_param_named(als_debug, lp8550_debug, uint, 0664);
+static void lp8550_brightness_write(struct lp8550_data *led_data);
 
 static int lp8550_read_reg(struct lp8550_data *led_data, uint8_t reg,
 		   uint8_t *value)
@@ -213,12 +214,16 @@ EXPORT_SYMBOL(ld_lp8550_brightness_set);
 
 static void lp8550_brightness_work(struct work_struct *work)
 {
-	int brightness = 0;
-	int error = 0;
 	struct lp8550_data *led_data =
 		container_of(work, struct lp8550_data, wq);
 
-	brightness = led_data->brightness;
+	lp8550_brightness_write(led_data);
+}
+
+static void lp8550_brightness_write(struct lp8550_data *led_data)
+{
+	int error = 0;
+	int brightness = led_data->brightness;
 
 	if (lp8550_debug)
 		pr_info("%s: setting brightness to %i\n",
@@ -413,10 +418,9 @@ static int lp8550_resume(struct i2c_client *client)
 
 	if (lp8550_debug)
 		pr_info("%s: Resuming with brightness %i\n",
-		__func__, led_data->brightness);
+			__func__, led_data->brightness);
 
-	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-        led_data->led_pdata->dev_ctrl_config | 0x01);
+	lp8550_brightness_write(led_data);
 
 	return 0;
 }
