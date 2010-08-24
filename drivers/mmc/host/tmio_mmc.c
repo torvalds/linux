@@ -756,10 +756,23 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 		(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT)) ? 0 : 1;
 }
 
+static int tmio_mmc_get_cd(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
+
+	if (!pdata->get_cd)
+		return -ENOSYS;
+	else
+		return pdata->get_cd(host->pdev);
+}
+
 static const struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
+	.get_cd		= tmio_mmc_get_cd,
 };
 
 #ifdef CONFIG_PM
