@@ -458,6 +458,8 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 			     CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
 
+		dout("queue_cap_snap %p cap_snap %p queuing under %p\n", inode,
+		     capsnap, snapc);
 		igrab(inode);
 		
 		atomic_set(&capsnap->nref, 1);
@@ -489,7 +491,9 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		capsnap->dirty_pages = ci->i_wrbuffer_ref_head;
 		ci->i_wrbuffer_ref_head = 0;
 		capsnap->context = snapc;
-		ci->i_head_snapc = NULL;
+		ci->i_head_snapc =
+			ceph_get_snap_context(ci->i_snap_realm->cached_context);
+		dout(" new snapc is %p\n", ci->i_head_snapc);
 		list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
 
 		if (used & CEPH_CAP_FILE_WR) {

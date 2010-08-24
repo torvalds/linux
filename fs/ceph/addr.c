@@ -87,7 +87,7 @@ static int ceph_set_page_dirty(struct page *page)
 
 	/* dirty the head */
 	spin_lock(&inode->i_lock);
-	if (ci->i_wrbuffer_ref_head == 0)
+	if (ci->i_head_snapc == NULL)
 		ci->i_head_snapc = ceph_get_snap_context(snapc);
 	++ci->i_wrbuffer_ref_head;
 	if (ci->i_wrbuffer_ref == 0)
@@ -346,7 +346,7 @@ static struct ceph_snap_context *get_oldest_context(struct inode *inode,
 			break;
 		}
 	}
-	if (!snapc && ci->i_head_snapc) {
+	if (!snapc && ci->i_wrbuffer_ref_head) {
 		snapc = ceph_get_snap_context(ci->i_head_snapc);
 		dout(" head snapc %p has %d dirty pages\n",
 		     snapc, ci->i_wrbuffer_ref_head);
