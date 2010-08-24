@@ -1414,10 +1414,8 @@ static int ethernet_phy_setup(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	if (pep->pd != NULL) {
-		if (pep->pd->init)
-			pep->pd->init();
-	}
+	if (pep->pd->init)
+		pep->pd->init();
 	pep->phy = phy_scan(pep, pep->pd->phy_addr & 0x1f);
 	if (pep->phy != NULL)
 		phy_init(pep, pep->pd->speed, pep->pd->duplex);
