@@ -1047,7 +1047,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->features |= NETIF_F_HW_VLAN_TX |
 			 NETIF_F_HW_VLAN_RX |
 			 NETIF_F_HW_VLAN_FILTER;
-	dev->features |= NETIF_F_LRO;
+	dev->features |= NETIF_F_GRO;
 	if (mdev->LSO_support) {
 		dev->features |= NETIF_F_TSO;
 		dev->features |= NETIF_F_TSO6;

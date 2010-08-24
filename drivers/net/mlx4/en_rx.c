@@ -42,18 +42,6 @@
 #include "mlx4_en.h"
 
 
-static int mlx4_en_get_frag_header(struct skb_frag_struct *frags, void **mac_hdr,
-				   void **ip_hdr, void **tcpudp_hdr,
-				   u64 *hdr_flags, void *priv)
-{
-	*mac_hdr = page_address(frags->page) + frags->page_offset;
-	*ip_hdr = *mac_hdr + ETH_HLEN;
-	*tcpudp_hdr = (struct tcphdr *)(*ip_hdr + sizeof(struct iphdr));
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-
-	return 0;
-}
-
 static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 			      struct mlx4_en_rx_desc *rx_desc,
 			      struct skb_frag_struct *skb_frags,
@@ -312,24 +300,6 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	}
 	ring->buf = ring->wqres.buf.direct.buf;
 
-	/* Configure lro mngr */
-	memset(&ring->lro, 0, sizeof(struct net_lro_mgr));
-	ring->lro.dev = priv->dev;
-	ring->lro.features = LRO_F_NAPI;
-	ring->lro.frag_align_pad = NET_IP_ALIGN;
-	ring->lro.ip_summed = CHECKSUM_UNNECESSARY;
-	ring->lro.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	ring->lro.max_desc = MLX4_EN_MAX_LRO_DESCRIPTORS;
-	ring->lro.max_aggr = MAX_SKB_FRAGS;
-	ring->lro.lro_arr = kcalloc(MLX4_EN_MAX_LRO_DESCRIPTORS,
-				    sizeof(struct net_lro_desc),
-				    GFP_KERNEL);
-	if (!ring->lro.lro_arr) {
-		en_err(priv, "Failed to allocate lro array\n");
-		goto err_map;
-	}
-	ring->lro.get_frag_header = mlx4_en_get_frag_header;
-
 	return 0;
 
 err_map:
@@ -412,7 +382,6 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	kfree(ring->lro.lro_arr);
 	mlx4_en_unmap_buffer(&ring->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size + TXBB_SIZE);
 	vfree(ring->rx_info);
@@ -563,7 +532,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mlx4_cqe *cqe;
 	struct mlx4_en_rx_ring *ring = &priv->rx_ring[cq->ring];
 	struct skb_frag_struct *skb_frags;
-	struct skb_frag_struct lro_frags[MLX4_EN_MAX_RX_FRAGS];
 	struct mlx4_en_rx_desc *rx_desc;
 	struct sk_buff *skb;
 	int index;
@@ -623,37 +591,33 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				 * - TCP/IP (v4)
 				 * - without IP options
 				 * - not an IP fragment */
-				if (mlx4_en_can_lro(cqe->status) &&
-				    dev->features & NETIF_F_LRO) {
+				if (dev->features & NETIF_F_GRO) {
+					struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
 
 					nr = mlx4_en_complete_rx_desc(
 						priv, rx_desc,
-						skb_frags, lro_frags,
+						skb_frags, skb_shinfo(gro_skb)->frags,
 						ring->page_alloc, length);
 					if (!nr)
 						goto next;
 
+					skb_shinfo(gro_skb)->nr_frags = nr;
+					gro_skb->len = length;
+					gro_skb->data_len = length;
+					gro_skb->truesize += length;
+					gro_skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 					if (priv->vlgrp && (cqe->vlan_my_qpn &
-							    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK))) {
-						lro_vlan_hwaccel_receive_frags(
-						       &ring->lro, lro_frags,
-						       length, length,
-						       priv->vlgrp,
-						       be16_to_cpu(cqe->sl_vid),
-						       NULL, 0);
-					} else
-						lro_receive_frags(&ring->lro,
-								  lro_frags,
-								  length,
-								  length,
-								  NULL, 0);
+							    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)))
+						vlan_gro_frags(&cq->napi, priv->vlgrp, be16_to_cpu(cqe->sl_vid));
+					else
+						napi_gro_frags(&cq->napi);
 
 					goto next;
 				}
 
 				/* LRO not possible, complete processing here */
 				ip_summed = CHECKSUM_UNNECESSARY;
-				INC_PERF_COUNTER(priv->pstats.lro_misses);
 			} else {
 				ip_summed = CHECKSUM_NONE;
 				priv->port_stats.rx_chksum_none++;
@@ -694,13 +658,9 @@ next:
 		if (++polled == budget) {
 			/* We are here because we reached the NAPI budget -
 			 * flush only pending LRO sessions */
-			lro_flush_all(&ring->lro);
 			goto out;
 		}
 	}
-
-	/* If CQ is empty flush all LRO sessions unconditionally */
-	lro_flush_all(&ring->lro);
 
 out:
 	AVG_PERF_COUNTER(priv->pstats.rx_coal_avg, polled);

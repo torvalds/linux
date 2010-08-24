@@ -39,21 +39,6 @@
 #include "en_port.h"
 
 
-static void mlx4_en_update_lro_stats(struct mlx4_en_priv *priv)
-{
-	int i;
-
-	priv->port_stats.lro_aggregated = 0;
-	priv->port_stats.lro_flushed = 0;
-	priv->port_stats.lro_no_desc = 0;
-
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		priv->port_stats.lro_aggregated += priv->rx_ring[i].lro.stats.aggregated;
-		priv->port_stats.lro_flushed += priv->rx_ring[i].lro.stats.flushed;
-		priv->port_stats.lro_no_desc += priv->rx_ring[i].lro.stats.no_desc;
-	}
-}
-
 static void
 mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
@@ -112,7 +97,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tx_heartbeat_errors", "tx_window_errors",
 
 	/* port statistics */
-	"lro_aggregated", "lro_flushed", "lro_no_desc", "tso_packets",
+	"tso_packets",
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
 	"rx_csum_good", "rx_csum_none", "tx_chksum_offload",
 
@@ -122,7 +107,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tx_prio_1", "tx_prio_2", "tx_prio_3", "tx_prio_4", "tx_prio_5",
 	"tx_prio_6", "tx_prio_7",
 };
-#define NUM_MAIN_STATS	21
+#define NUM_MAIN_STATS	18
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + NUM_PERF_STATS)
 
 static const char mlx4_en_test_names[][ETH_GSTRING_LEN]= {
@@ -173,8 +158,6 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 	int i;
 
 	spin_lock_bh(&priv->stats_lock);
-
-	mlx4_en_update_lro_stats(priv);
 
 	for (i = 0; i < NUM_MAIN_STATS; i++)
 		data[index++] = ((unsigned long *) &priv->stats)[i];
@@ -439,40 +422,6 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 	param->tx_pending = priv->tx_ring[0].size;
 }
 
-static int mlx4_ethtool_op_set_flags(struct net_device *dev, u32 data)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	int rc = 0;
-	int changed = 0;
-
-	if (data & ~ETH_FLAG_LRO)
-		return -EOPNOTSUPP;
-
-	if (data & ETH_FLAG_LRO) {
-		if (!(dev->features & NETIF_F_LRO))
-			changed = 1;
-	} else if (dev->features & NETIF_F_LRO) {
-		changed = 1;
-	}
-
-	if (changed) {
-		if (netif_running(dev)) {
-			mutex_lock(&mdev->state_lock);
-			mlx4_en_stop_port(dev);
-		}
-		dev->features ^= NETIF_F_LRO;
-		if (netif_running(dev)) {
-			rc = mlx4_en_start_port(dev);
-			if (rc)
-				en_err(priv, "Failed to restart port\n");
-			mutex_unlock(&mdev->state_lock);
-		}
-	}
-
-	return rc;
-}
-
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -502,7 +451,6 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
 	.get_flags = ethtool_op_get_flags,
-	.set_flags = mlx4_ethtool_op_set_flags,
 };
 
 

@@ -38,6 +38,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
+#include <linux/tcp.h>
 
 #include "mlx4_en.h"
 
