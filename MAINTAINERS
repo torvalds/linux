@@ -1387,6 +1387,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bfa/
 
+BROCADE BNA 10 GIGABIT ETHERNET DRIVER
+M:	Rasesh Mody <rmody@brocade.com>
+M:	Debashis Dutt <ddutt@brocade.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/bna/
+
 BSG (block layer generic sg v4 driver)
 M:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 L:	linux-scsi@vger.kernel.org
