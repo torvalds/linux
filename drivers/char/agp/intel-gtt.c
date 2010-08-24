@@ -531,10 +531,10 @@ static struct aper_size_info_fixed intel_i830_sizes[] =
 	{512, 131072, 7},
 };
 
-static void intel_i830_init_gtt_entries(void)
+static unsigned int intel_gtt_stolen_entries(void)
 {
 	u16 gmch_ctrl;
-	int gtt_entries = 0;
+	unsigned int gtt_entries = 0;
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
@@ -770,7 +770,7 @@ static void intel_i830_init_gtt_entries(void)
 		gtt_entries = 0;
 	}
 
-	intel_private.base.gtt_stolen_entries = gtt_entries;
+	return gtt_entries;
 }
 
 static void intel_i830_fini_flush(void)
@@ -846,7 +846,7 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	global_cache_flush();	/* FIXME: ?? */
 
 	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_i830_init_gtt_entries();
+	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
 	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.registers);
 		return -ENOMEM;
@@ -1336,7 +1336,7 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	global_cache_flush();	/* FIXME: ? */
 
 	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_i830_init_gtt_entries();
+	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
 	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.gtt);
 		iounmap(intel_private.registers);
@@ -1460,7 +1460,7 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 	global_cache_flush();   /* FIXME: ? */
 
 	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_i830_init_gtt_entries();
+	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
 	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.gtt);
 		iounmap(intel_private.registers);
