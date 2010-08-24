@@ -347,7 +347,7 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 
 
 	if (de_iir & DE_GSE)
-		ironlake_opregion_gse_intr(dev);
+		intel_opregion_gse_intr(dev);
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
@@ -1065,7 +1065,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		if ((pipea_stats & PIPE_LEGACY_BLC_EVENT_STATUS) ||
 		    (pipeb_stats & PIPE_LEGACY_BLC_EVENT_STATUS) ||
 		    (iir & I915_ASLE_INTERRUPT))
-			opregion_asle_intr(dev);
+			intel_opregion_asle_intr(dev);
 
 		/* With MSI, interrupts are only generated when iir
 		 * transitions from zero to nonzero.  If another bit got
@@ -1252,7 +1252,7 @@ void i915_enable_interrupt (struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!HAS_PCH_SPLIT(dev))
-		opregion_enable_asle(dev);
+		intel_opregion_enable_asle(dev);
 	dev_priv->irq_enabled = 1;
 }
 
@@ -1570,7 +1570,7 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 	}
 
-	opregion_enable_asle(dev);
+	intel_opregion_enable_asle(dev);
 
 	return 0;
 }

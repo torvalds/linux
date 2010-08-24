@@ -32,7 +32,7 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o i915_mem.o \
 	  dvo_tfp410.o \
 	  dvo_sil164.o
 
-i915-$(CONFIG_ACPI)	+= i915_opregion.o
+i915-$(CONFIG_ACPI)	+= intel_opregion.o
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o

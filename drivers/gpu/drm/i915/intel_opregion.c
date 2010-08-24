@@ -211,7 +211,7 @@ static u32 asle_set_pfit(struct drm_device *dev, u32 pfit)
 	return 0;
 }
 
-void opregion_asle_intr(struct drm_device *dev)
+void intel_opregion_asle_intr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
@@ -273,7 +273,8 @@ static u32 asle_set_backlight_ironlake(struct drm_device *dev, u32 bclp)
 	return 0;
 }
 
-void ironlake_opregion_gse_intr(struct drm_device *dev)
+/* Only present on Ironlake+ */
+void intel_opregion_gse_intr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
@@ -315,7 +316,7 @@ void ironlake_opregion_gse_intr(struct drm_device *dev)
 #define ASLE_PFIT_EN   (1<<2)
 #define ASLE_PFMB_EN   (1<<3)
 
-void opregion_enable_asle(struct drm_device *dev)
+void intel_opregion_enable_asle(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
@@ -510,7 +511,7 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
-		opregion_enable_asle(dev);
+		intel_opregion_enable_asle(dev);
 	}
 
 	if (!resume)
