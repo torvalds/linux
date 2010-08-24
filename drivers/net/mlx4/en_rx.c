@@ -251,7 +251,6 @@ reduce_rings:
 			ring->prod--;
 			mlx4_en_free_rx_desc(priv, ring, ring->actual_size);
 		}
-		ring->size_mask = ring->actual_size - 1;
 	}
 
 	return 0;
@@ -389,6 +388,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
 		ring = &priv->rx_ring[ring_ind];
 
+		ring->size_mask = ring->actual_size - 1;
 		mlx4_en_update_rx_prod_db(ring);
 	}
 
@@ -816,7 +816,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	qp->event = mlx4_en_sqp_event;
 
 	memset(context, 0, sizeof *context);
-	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 0, 0,
+	mlx4_en_fill_qp_context(priv, ring->actual_size, ring->stride, 0, 0,
 				qpn, ring->cqn, context);
 	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);
 
