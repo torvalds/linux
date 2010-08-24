@@ -87,7 +87,8 @@ enum {
 /*
  * Structure fields follow one of the following exclusion rules.
  *
- * I: Set during initialization and read-only afterwards.
+ * I: Modifiable by initialization/destruction paths and read-only for
+ *    everyone else.
  *
  * P: Preemption protected.  Disabling preemption is enough and should
  *    only be modified and accessed from the local cpu.
@@ -943,6 +944,9 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	unsigned long flags;
 
 	debug_work_activate(work);
+
+	if (WARN_ON_ONCE(wq->flags & WQ_DYING))
+		return;
 
 	/* determine gcwq to use */
 	if (!(wq->flags & WQ_UNBOUND)) {
@@ -2828,6 +2832,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 {
 	unsigned int cpu;
 
+	wq->flags |= WQ_DYING;
 	flush_workqueue(wq);
 
 	/*
