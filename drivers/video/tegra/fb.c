@@ -138,6 +138,11 @@ static int tegra_fb_set_par(struct fb_info *info)
 		mode.v_front_porch = info->mode->lower_margin;
 
 		tegra_dc_set_mode(tegra_fb->win->dc, &mode);
+
+		tegra_fb->win->w = info->mode->xres;
+		tegra_fb->win->h = info->mode->xres;
+		tegra_fb->win->out_w = info->mode->xres;
+		tegra_fb->win->out_h = info->mode->xres;
 	}
 	return 0;
 }
