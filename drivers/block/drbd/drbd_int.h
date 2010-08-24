@@ -749,17 +749,12 @@ struct drbd_epoch {
 
 /* drbd_epoch flag bits */
 enum {
-	DE_BARRIER_IN_NEXT_EPOCH_ISSUED,
-	DE_BARRIER_IN_NEXT_EPOCH_DONE,
-	DE_CONTAINS_A_BARRIER,
 	DE_HAVE_BARRIER_NUMBER,
-	DE_IS_FINISHING,
 };
 
 enum epoch_event {
 	EV_PUT,
 	EV_GOT_BARRIER_NR,
-	EV_BARRIER_DONE,
 	EV_BECAME_LAST,
 	EV_CLEANUP = 32, /* used as flag */
 };
@@ -801,11 +796,6 @@ enum {
 	__EE_CALL_AL_COMPLETE_IO,
 	__EE_MAY_SET_IN_SYNC,
 
-	/* This epoch entry closes an epoch using a barrier.
-	 * On sucessful completion, the epoch is released,
-	 * and the P_BARRIER_ACK send. */
-	__EE_IS_BARRIER,
-
 	/* In case a barrier failed,
 	 * we need to resubmit without the barrier flag. */
 	__EE_RESUBMITTED,
@@ -820,7 +810,6 @@ enum {
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
-#define EE_IS_BARRIER          (1<<__EE_IS_BARRIER)
 #define	EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
@@ -948,7 +937,6 @@ enum write_ordering_e {
 	WO_none,
 	WO_drain_io,
 	WO_bdev_flush,
-	WO_bio_barrier
 };
 
 struct fifo_buffer {

@@ -1117,8 +1117,8 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	nbc = NULL;
 	resync_lru = NULL;
 
-	mdev->write_ordering = WO_bio_barrier;
-	drbd_bump_write_ordering(mdev, WO_bio_barrier);
+	mdev->write_ordering = WO_bdev_flush;
+	drbd_bump_write_ordering(mdev, WO_bdev_flush);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_CRASHED_PRIMARY))
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
