@@ -1350,7 +1350,7 @@ static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	if (pep->phy != NULL)
-		return phy_mii_ioctl(pep->phy, if_mii(ifr), cmd);
+		return phy_mii_ioctl(pep->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }
