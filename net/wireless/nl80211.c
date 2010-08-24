@@ -636,6 +636,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 			nla_nest_end(msg, nl_ftypes);
 		}
 
+		nla_nest_end(msg, nl_ifs);
+
 		nl_ifs = nla_nest_start(msg, NL80211_ATTR_RX_FRAME_TYPES);
 		if (!nl_ifs)
 			goto nla_put_failure;
