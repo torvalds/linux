@@ -612,6 +612,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	int lso_header_size;
 	void *fragptr;
 
+	if (!priv->port_up)
+		goto tx_drop;
+
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
 		goto tx_drop;
