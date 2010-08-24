@@ -756,7 +756,7 @@ static int r6040_open(struct net_device *dev)
 	ret = request_irq(dev->irq, r6040_interrupt,
 		IRQF_SHARED, dev->name, dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Set MAC address */
 	r6040_mac_address(dev);
@@ -764,30 +764,37 @@ static int r6040_open(struct net_device *dev)
 	/* Allocate Descriptor memory */
 	lp->rx_ring =
 		pci_alloc_consistent(lp->pdev, RX_DESC_SIZE, &lp->rx_ring_dma);
-	if (!lp->rx_ring)
-		return -ENOMEM;
+	if (!lp->rx_ring) {
+		ret = -ENOMEM;
+		goto err_free_irq;
+	}
 
 	lp->tx_ring =
 		pci_alloc_consistent(lp->pdev, TX_DESC_SIZE, &lp->tx_ring_dma);
 	if (!lp->tx_ring) {
-		pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
-				     lp->rx_ring_dma);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_free_rx_ring;
 	}
 
 	ret = r6040_up(dev);
-	if (ret) {
-		pci_free_consistent(lp->pdev, TX_DESC_SIZE, lp->tx_ring,
-							lp->tx_ring_dma);
-		pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
-							lp->rx_ring_dma);
-		return ret;
-	}
+	if (ret)
+		goto err_free_tx_ring;
 
 	napi_enable(&lp->napi);
 	netif_start_queue(dev);
 
 	return 0;
+
+err_free_tx_ring:
+	pci_free_consistent(lp->pdev, TX_DESC_SIZE, lp->tx_ring,
+			lp->tx_ring_dma);
+err_free_rx_ring:
+	pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
+			lp->rx_ring_dma);
+err_free_irq:
+	free_irq(dev->irq, dev);
+out:
+	return ret;
 }
 
 static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
