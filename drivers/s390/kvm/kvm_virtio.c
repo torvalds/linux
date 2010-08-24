@@ -32,6 +32,7 @@
  * The pointer to our (page) of device descriptions.
  */
 static void *kvm_devices;
+struct work_struct hotplug_work;
 
 struct kvm_device {
 	struct virtio_device vdev;
@@ -328,6 +329,47 @@ static void scan_devices(void)
 }
 
 /*
+ * match for a kvm device with a specific desc pointer
+ */
+static int match_desc(struct device *dev, void *data)
+{
+	if ((ulong)to_kvmdev(dev_to_virtio(dev))->desc == (ulong)data)
+		return 1;
+
+	return 0;
+}
+
+/*
+ * hotplug_device tries to find changes in the device page.
+ */
+static void hotplug_devices(struct work_struct *dummy)
+{
+	unsigned int i;
+	struct kvm_device_desc *d;
+	struct device *dev;
+
+	for (i = 0; i < PAGE_SIZE; i += desc_size(d)) {
+		d = kvm_devices + i;
+
+		/* end of list */
+		if (d->type == 0)
+			break;
+
+		/* device already exists */
+		dev = device_find_child(kvm_root, d, match_desc);
+		if (dev) {
+			/* XXX check for hotplug remove */
+			put_device(dev);
+			continue;
+		}
+
+		/* new device */
+		printk(KERN_INFO "Adding new virtio device %p\n", d);
+		add_kvm_device(d, i);
+	}
+}
+
+/*
  * we emulate the request_irq behaviour on top of s390 extints
  */
 static void kvm_extint_handler(u16 code)
@@ -357,6 +399,9 @@ static void kvm_extint_handler(u16 code)
 
 		break;
 	}
+	case VIRTIO_PARAM_DEV_ADD:
+		schedule_work(&hotplug_work);
+		break;
 	case VIRTIO_PARAM_VRING_INTERRUPT:
 	default:
 		vring_interrupt(0, vq);
@@ -389,6 +434,8 @@ static int __init kvm_devices_init(void)
 	}
 
 	kvm_devices = (void *) real_memory_size;
+
+	INIT_WORK(&hotplug_work, hotplug_devices);
 
 	ctl_set_bit(0, 9);
 	register_external_interrupt(0x2603, kvm_extint_handler);

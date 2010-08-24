@@ -59,5 +59,6 @@ struct kvm_vqconfig {
 #define VIRTIO_PARAM_MASK		0xff
 #define VIRTIO_PARAM_VRING_INTERRUPT	0x0
 #define VIRTIO_PARAM_CONFIG_CHANGED	0x1
+#define VIRTIO_PARAM_DEV_ADD		0x2
 
 #endif
