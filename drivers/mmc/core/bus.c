@@ -253,14 +253,16 @@ int mmc_add_card(struct mmc_card *card)
 	}
 
 	if (mmc_host_is_spi(card->host)) {
-		printk(KERN_INFO "%s: new %s%s card on SPI\n",
+		printk(KERN_INFO "%s: new %s%s%s card on SPI\n",
 			mmc_hostname(card->host),
 			mmc_card_highspeed(card) ? "high speed " : "",
+			mmc_card_ddr_mode(card) ? "DDR " : "",
 			type);
 	} else {
-		printk(KERN_INFO "%s: new %s%s card at address %04x\n",
+		printk(KERN_INFO "%s: new %s%s%s card at address %04x\n",
 			mmc_hostname(card->host),
 			mmc_card_highspeed(card) ? "high speed " : "",
+			mmc_card_ddr_mode(card) ? "DDR " : "",
 			type, card->rca);
 	}
 

@@ -375,7 +375,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *oldcard)
 {
 	struct mmc_card *card;
-	int err;
+	int err, ddr = 0;
 	u32 cid[4];
 	unsigned int max_dtr;
 
@@ -518,32 +518,32 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	mmc_set_clock(host, max_dtr);
 
 	/*
-	 * Activate DDR50 mode (if supported).
+	 * Indicate DDR mode (if supported).
 	 */
 	if (mmc_card_highspeed(card)) {
 		if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
 			&& (host->caps & (MMC_CAP_1_8V_DDR)))
-				mmc_card_set_ddr_mode(card);
+				ddr = 1;
 		else if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
 			&& (host->caps & (MMC_CAP_1_2V_DDR)))
-				mmc_card_set_ddr_mode(card);
+				ddr = 1;
 	}
 
 	/*
-	 * Activate wide bus (if supported).
+	 * Activate wide bus and DDR (if supported).
 	 */
 	if ((card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
 	    (host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA))) {
 		unsigned ext_csd_bit, bus_width;
 
 		if (host->caps & MMC_CAP_8_BIT_DATA) {
-			if (mmc_card_ddr_mode(card))
+			if (ddr)
 				ext_csd_bit = EXT_CSD_DDR_BUS_WIDTH_8;
 			else
 				ext_csd_bit = EXT_CSD_BUS_WIDTH_8;
 			bus_width = MMC_BUS_WIDTH_8;
 		} else {
-			if (mmc_card_ddr_mode(card))
+			if (ddr)
 				ext_csd_bit = EXT_CSD_DDR_BUS_WIDTH_4;
 			else
 				ext_csd_bit = EXT_CSD_BUS_WIDTH_4;
@@ -557,12 +557,13 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 
 		if (err) {
-			printk(KERN_WARNING "%s: switch to bus width %d "
+			printk(KERN_WARNING "%s: switch to bus width %d ddr %d "
 			       "failed\n", mmc_hostname(card->host),
-			       1 << bus_width);
+			       1 << bus_width, ddr);
 			err = 0;
 		} else {
-			mmc_set_bus_width(card->host, bus_width);
+			mmc_card_set_ddr_mode(card);
+			mmc_set_bus_width_ddr(card->host, bus_width, ddr);
 		}
 	}
 

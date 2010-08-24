@@ -155,17 +155,7 @@ struct mmc_test_card {
  */
 static int mmc_test_set_blksize(struct mmc_test_card *test, unsigned size)
 {
-	struct mmc_command cmd;
-	int ret;
-
-	cmd.opcode = MMC_SET_BLOCKLEN;
-	cmd.arg = size;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	ret = mmc_wait_for_cmd(test->card->host, &cmd, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return mmc_set_blocklen(test->card, size);
 }
 
 /*

@@ -50,6 +50,11 @@ struct mmc_ios {
 #define MMC_TIMING_LEGACY	0
 #define MMC_TIMING_MMC_HS	1
 #define MMC_TIMING_SD_HS	2
+
+	unsigned char	ddr;			/* dual data rate used */
+
+#define MMC_SDR_MODE		0
+#define MMC_DDR_MODE		1
 };
 
 struct mmc_host_ops {

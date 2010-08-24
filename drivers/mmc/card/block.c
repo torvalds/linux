@@ -373,8 +373,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			readcmd = MMC_READ_SINGLE_BLOCK;
 			writecmd = MMC_WRITE_BLOCK;
 		}
-		if (mmc_card_ddr_mode(card))
-			brq.data.flags |= MMC_DDR_MODE;
 		if (rq_data_dir(req) == READ) {
 			brq.cmd.opcode = readcmd;
 			brq.data.flags |= MMC_DATA_READ;
@@ -653,26 +651,15 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 static int
 mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 {
-	struct mmc_command cmd;
 	int err;
 
-	/*
-	 * Block-addressed and ddr mode supported cards
-	 * ignore MMC_SET_BLOCKLEN.
-	 */
-	if (mmc_card_blockaddr(card) || mmc_card_ddr_mode(card))
-		return 0;
-
 	mmc_claim_host(card->host);
-	cmd.opcode = MMC_SET_BLOCKLEN;
-	cmd.arg = 512;
-	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
-	err = mmc_wait_for_cmd(card->host, &cmd, 5);
+	err = mmc_set_blocklen(card, 512);
 	mmc_release_host(card->host);
 
 	if (err) {
-		printk(KERN_ERR "%s: unable to set block size to %d: %d\n",
-			md->disk->disk_name, cmd.arg, err);
+		printk(KERN_ERR "%s: unable to set block size to 512: %d\n",
+			md->disk->disk_name, err);
 		return -EINVAL;
 	}
 
