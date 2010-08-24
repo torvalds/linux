@@ -384,12 +384,20 @@ static int __devinit pcap_add_subdev(struct pcap_chip *pcap,
 						struct pcap_subdev *subdev)
 {
 	struct platform_device *pdev;
+	int ret;
 
 	pdev = platform_device_alloc(subdev->name, subdev->id);
+	if (!pdev)
+		return -ENOMEM;
+
 	pdev->dev.parent = &pcap->spi->dev;
 	pdev->dev.platform_data = subdev->platform_data;
 
-	return platform_device_add(pdev);
+	ret = platform_device_add(pdev);
+	if (ret)
+		platform_device_put(pdev);
+
+	return ret;
 }
 
 static int __devexit ezx_pcap_remove(struct spi_device *spi)
