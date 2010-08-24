@@ -221,8 +221,7 @@ load:
 	while (fgets(line, sizeof(line), in)) {
 		conf_lineno++;
 		sym = NULL;
-		switch (line[0]) {
-		case '#':
+		if (line[0] == '#') {
 			if (memcmp(line + 2, "CONFIG_", 7))
 				continue;
 			p = strchr(line + 9, ' ');
@@ -254,12 +253,7 @@ load:
 			default:
 				;
 			}
-			break;
-		case 'C':
-			if (memcmp(line, "CONFIG_", 7)) {
-				conf_warning("unexpected data");
-				continue;
-			}
+		} else if (memcmp(line, "CONFIG_", 7) == 0) {
 			p = strchr(line + 7, '=');
 			if (!p)
 				continue;
@@ -286,12 +280,9 @@ load:
 			}
 			if (conf_set_sym_val(sym, def, def_flags, p))
 				continue;
-			break;
-		case '\r':
-		case '\n':
-			break;
-		default:
-			conf_warning("unexpected data");
+		} else {
+			if (line[0] != '\r' && line[0] != '\n')
+				conf_warning("unexpected data");
 			continue;
 		}
 		if (sym && sym_is_choice_value(sym)) {
