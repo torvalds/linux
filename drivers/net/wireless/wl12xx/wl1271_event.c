@@ -52,7 +52,7 @@ void wl1271_pspoll_work(struct work_struct *work)
 	 * delivery failure occurred, and no-one changed state since, so
 	 * we should go back to powersave.
 	 */
-	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, true);
+	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, wl->basic_rate, true);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -70,7 +70,8 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
 
 	/* force active mode receive data from the AP */
 	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE, true);
+		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+					 wl->basic_rate, true);
 		if (ret < 0)
 			return;
 		set_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
@@ -91,6 +92,8 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 				  bool *beacon_loss)
 {
 	int ret = 0;
+	u32 total_retries = wl->conf.conn.psm_entry_retries;
+	u32 rates;
 
 	wl1271_debug(DEBUG_EVENT, "ps_status: 0x%x", mbox->ps_status);
 
@@ -104,10 +107,14 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 			break;
 		}
 
-		if (wl->psm_entry_retry < wl->conf.conn.psm_entry_retries) {
+		if (wl->psm_entry_retry < total_retries) {
 			wl->psm_entry_retry++;
+			if (wl->psm_entry_retry == total_retries)
+				rates = wl->basic_rate;
+			else
+				rates = wl->basic_rate_set;
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-						 true);
+						 rates, true);
 		} else {
 			wl1271_info("No ack to nullfunc from AP.");
 			wl->psm_entry_retry = 0;
@@ -143,7 +150,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		/* make sure the firmware goes to active mode - the frame to
 		   be sent next will indicate to the AP, that we are active. */
 		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-					 false);
+					 wl->basic_rate, false);
 		break;
 	case EVENT_EXIT_POWER_SAVE_SUCCESS:
 	default:
