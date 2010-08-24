@@ -141,6 +141,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	struct mlx4_cmd_mailbox *mailbox;
 	u32 *outbox;
 	u8 field;
+	u32 field32;
 	u16 size;
 	u16 stat_rate;
 	int err;
@@ -368,6 +369,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
 #define QUERY_PORT_MAX_VL_OFFSET		0x0b
 #define QUERY_PORT_MAC_OFFSET			0x10
+#define QUERY_PORT_TRANS_VENDOR_OFFSET		0x18
+#define QUERY_PORT_WAVELENGTH_OFFSET		0x1c
+#define QUERY_PORT_TRANS_CODE_OFFSET		0x20
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
 			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
@@ -391,6 +395,11 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev_cap->log_max_vlans[i] = field >> 4;
 			MLX4_GET(dev_cap->eth_mtu[i], outbox, QUERY_PORT_ETH_MTU_OFFSET);
 			MLX4_GET(dev_cap->def_mac[i], outbox, QUERY_PORT_MAC_OFFSET);
+			MLX4_GET(field32, outbox, QUERY_PORT_TRANS_VENDOR_OFFSET);
+			dev_cap->trans_type[i] = field32 >> 24;
+			dev_cap->vendor_oui[i] = field32 & 0xffffff;
+			MLX4_GET(dev_cap->wavelength[i], outbox, QUERY_PORT_WAVELENGTH_OFFSET);
+			MLX4_GET(dev_cap->trans_code[i], outbox, QUERY_PORT_TRANS_CODE_OFFSET);
 		}
 	}
 

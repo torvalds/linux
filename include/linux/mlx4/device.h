@@ -186,6 +186,10 @@ struct mlx4_caps {
 	int			eth_mtu_cap[MLX4_MAX_PORTS + 1];
 	int			gid_table_len[MLX4_MAX_PORTS + 1];
 	int			pkey_table_len[MLX4_MAX_PORTS + 1];
+	int			trans_type[MLX4_MAX_PORTS + 1];
+	int			vendor_oui[MLX4_MAX_PORTS + 1];
+	int			wavelength[MLX4_MAX_PORTS + 1];
+	u64			trans_code[MLX4_MAX_PORTS + 1];
 	int			local_ca_ack_delay;
 	int			num_uars;
 	int			bf_reg_size;
