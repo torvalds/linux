@@ -129,16 +129,16 @@ static void callchain_node__init_have_children_rb_tree(struct callchain_node *se
 	for (nd = rb_first(&self->rb_root); nd; nd = rb_next(nd)) {
 		struct callchain_node *child = rb_entry(nd, struct callchain_node, rb_node);
 		struct callchain_list *chain;
-		int first = true;
+		bool first = true;
 
 		list_for_each_entry(chain, &child->val, list) {
 			if (first) {
 				first = false;
 				chain->ms.has_children = chain->list.next != &child->val ||
-							 rb_first(&child->rb_root) != NULL;
+							 !RB_EMPTY_ROOT(&child->rb_root);
 			} else
 				chain->ms.has_children = chain->list.next == &child->val &&
-							 rb_first(&child->rb_root) != NULL;
+							 !RB_EMPTY_ROOT(&child->rb_root);
 		}
 
 		callchain_node__init_have_children_rb_tree(child);
@@ -150,7 +150,7 @@ static void callchain_node__init_have_children(struct callchain_node *self)
 	struct callchain_list *chain;
 
 	list_for_each_entry(chain, &self->val, list)
-		chain->ms.has_children = rb_first(&self->rb_root) != NULL;
+		chain->ms.has_children = !RB_EMPTY_ROOT(&self->rb_root);
 
 	callchain_node__init_have_children_rb_tree(self);
 }
@@ -301,11 +301,11 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *self,
 			if (first) {
 				first = false;
 				chain->ms.has_children = chain->list.next != &child->val ||
-							 rb_first(&child->rb_root) != NULL;
+							 !RB_EMPTY_ROOT(&child->rb_root);
 			} else {
 				extra_offset = LEVEL_OFFSET_STEP;
 				chain->ms.has_children = chain->list.next == &child->val &&
-							 rb_first(&child->rb_root) != NULL;
+							 !RB_EMPTY_ROOT(&child->rb_root);
 			}
 
 			folded_sign = callchain_list__folded(chain);
@@ -381,7 +381,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *self,
 		 * probably when the callchain is created, so as not to
 		 * traverse it all over again
 		 */
-		chain->ms.has_children = rb_first(&node->rb_root) != NULL;
+		chain->ms.has_children = !RB_EMPTY_ROOT(&node->rb_root);
 		folded_sign = callchain_list__folded(chain);
 
 		if (*row_offset != 0) {
