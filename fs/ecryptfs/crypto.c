@@ -2169,7 +2169,6 @@ int ecryptfs_encrypt_and_encode_filename(
 				(ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE
 				 + encoded_name_no_prefix_size);
 			(*encoded_name)[(*encoded_name_size)] = '\0';
-			(*encoded_name_size)++;
 		} else {
 			rc = -EOPNOTSUPP;
 		}
