@@ -37,8 +37,6 @@ struct Ctp_it7250_data {
 };
 static struct i2c_client *Ctp_it7250_client;
 
-#define Ctp_it7250_GPIO_INT     RK2818_PIN_PE1
-
 #if 0
 #define rk28printk(x...) printk(x)
 #else
@@ -806,7 +804,7 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
 //	rk28printk("%s++++ %d \r\n",__FUNCTION__,__LINE__);
 
 
-	PE1status =  gpio_get_value(Ctp_it7250_GPIO_INT);
+	PE1status =  gpio_get_value(Ctp_it7250->client->irq);
 	//  PE1status 为低，表示低电平中断有效 
 	if (!PE1status)
 		{
