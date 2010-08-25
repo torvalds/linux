@@ -1582,7 +1582,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 			else if (curr_sym_off >= 31 && curr_sym_off <= 46)
 				mag_mask[2] |=
 					plt_mag_map << (curr_sym_off - 31) * 2;
-			else if (curr_sym_off >= 46 && curr_sym_off <= 53)
+			else if (curr_sym_off >= 47 && curr_sym_off <= 53)
 				mag_mask[3] |=
 					plt_mag_map << (curr_sym_off - 47) * 2;
 
