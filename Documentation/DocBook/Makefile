@@ -12,7 +12,7 @@ DOCBOOKS := z8530book.xml mcabook.xml device-drivers.xml \
 	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    mac80211.xml debugobjects.xml sh.xml regulator.xml \
+	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
 	    tracepoint.xml media.xml drm.xml
 

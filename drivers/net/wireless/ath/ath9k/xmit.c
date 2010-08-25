@@ -1407,22 +1407,6 @@ static enum ath9k_pkt_type get_hw_packet_type(struct sk_buff *skb)
 	return htype;
 }
 
-static int get_hw_crypto_keytype(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-
-	if (tx_info->control.hw_key) {
-		if (tx_info->control.hw_key->alg == ALG_WEP)
-			return ATH9K_KEY_TYPE_WEP;
-		else if (tx_info->control.hw_key->alg == ALG_TKIP)
-			return ATH9K_KEY_TYPE_TKIP;
-		else if (tx_info->control.hw_key->alg == ALG_CCMP)
-			return ATH9K_KEY_TYPE_AES;
-	}
-
-	return ATH9K_KEY_TYPE_CLEAR;
-}
-
 static void assign_aggr_tid_seqno(struct sk_buff *skb,
 				  struct ath_buf *bf)
 {
@@ -1661,7 +1645,7 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 		bf->bf_state.bfs_paprd_timestamp = jiffies;
 	bf->bf_flags = setup_tx_flags(skb, use_ldpc);
 
-	bf->bf_keytype = get_hw_crypto_keytype(skb);
+	bf->bf_keytype = ath9k_cmn_get_hw_crypto_keytype(skb);
 	if (bf->bf_keytype != ATH9K_KEY_TYPE_CLEAR) {
 		bf->bf_frmlen += tx_info->control.hw_key->icv_len;
 		bf->bf_keyix = tx_info->control.hw_key->hw_key_idx;

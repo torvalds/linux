@@ -229,6 +229,11 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.check_ack_health = iwl_good_ack_health,
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
+	.tt_ops = {
+		.lower_power_detection = iwl_tt_is_low_power_state,
+		.tt_power_mode = iwl_tt_current_power_mode,
+		.ct_kill_check = iwl_check_for_ct_kill,
+	}
 };
 
 static const struct iwl_ops iwl1000_ops = {

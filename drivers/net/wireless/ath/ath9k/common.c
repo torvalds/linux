@@ -46,12 +46,17 @@ int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb)
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
 	if (tx_info->control.hw_key) {
-		if (tx_info->control.hw_key->alg == ALG_WEP)
+		switch (tx_info->control.hw_key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
 			return ATH9K_KEY_TYPE_WEP;
-		else if (tx_info->control.hw_key->alg == ALG_TKIP)
+		case WLAN_CIPHER_SUITE_TKIP:
 			return ATH9K_KEY_TYPE_TKIP;
-		else if (tx_info->control.hw_key->alg == ALG_CCMP)
+		case WLAN_CIPHER_SUITE_CCMP:
 			return ATH9K_KEY_TYPE_AES;
+		default:
+			break;
+		}
 	}
 
 	return ATH9K_KEY_TYPE_CLEAR;
@@ -212,11 +217,11 @@ static int ath_reserve_key_cache_slot_tkip(struct ath_common *common)
 }
 
 static int ath_reserve_key_cache_slot(struct ath_common *common,
-				      enum ieee80211_key_alg alg)
+				      u32 cipher)
 {
 	int i;
 
-	if (alg == ALG_TKIP)
+	if (cipher == WLAN_CIPHER_SUITE_TKIP)
 		return ath_reserve_key_cache_slot_tkip(common);
 
 	/* First, try to find slots that would not be available for TKIP. */
@@ -293,14 +298,15 @@ int ath9k_cmn_key_config(struct ath_common *common,
 
 	memset(&hk, 0, sizeof(hk));
 
-	switch (key->alg) {
-	case ALG_WEP:
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		hk.kv_type = ATH9K_CIPHER_WEP;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		hk.kv_type = ATH9K_CIPHER_TKIP;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		hk.kv_type = ATH9K_CIPHER_AES_CCM;
 		break;
 	default:
@@ -316,7 +322,7 @@ int ath9k_cmn_key_config(struct ath_common *common,
 			memcpy(gmac, vif->addr, ETH_ALEN);
 			gmac[0] |= 0x01;
 			mac = gmac;
-			idx = ath_reserve_key_cache_slot(common, key->alg);
+			idx = ath_reserve_key_cache_slot(common, key->cipher);
 			break;
 		case NL80211_IFTYPE_ADHOC:
 			if (!sta) {
@@ -326,7 +332,7 @@ int ath9k_cmn_key_config(struct ath_common *common,
 			memcpy(gmac, sta->addr, ETH_ALEN);
 			gmac[0] |= 0x01;
 			mac = gmac;
-			idx = ath_reserve_key_cache_slot(common, key->alg);
+			idx = ath_reserve_key_cache_slot(common, key->cipher);
 			break;
 		default:
 			idx = key->keyidx;
@@ -348,13 +354,13 @@ int ath9k_cmn_key_config(struct ath_common *common,
 			return -EOPNOTSUPP;
 		mac = sta->addr;
 
-		idx = ath_reserve_key_cache_slot(common, key->alg);
+		idx = ath_reserve_key_cache_slot(common, key->cipher);
 	}
 
 	if (idx < 0)
 		return -ENOSPC; /* no free key cache entries */
 
-	if (key->alg == ALG_TKIP)
+	if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 		ret = ath_setkey_tkip(common, idx, key->key, &hk, mac,
 				      vif->type == NL80211_IFTYPE_AP);
 	else
@@ -364,7 +370,7 @@ int ath9k_cmn_key_config(struct ath_common *common,
 		return -EIO;
 
 	set_bit(idx, common->keymap);
-	if (key->alg == ALG_TKIP) {
+	if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		set_bit(idx + 64, common->keymap);
 		if (common->splitmic) {
 			set_bit(idx + 32, common->keymap);
@@ -389,7 +395,7 @@ void ath9k_cmn_key_delete(struct ath_common *common,
 		return;
 
 	clear_bit(key->hw_key_idx, common->keymap);
-	if (key->alg != ALG_TKIP)
+	if (key->cipher != WLAN_CIPHER_SUITE_TKIP)
 		return;
 
 	clear_bit(key->hw_key_idx + 64, common->keymap);
@@ -413,6 +419,37 @@ int ath9k_cmn_count_streams(unsigned int chainmask, int max)
 	return streams;
 }
 EXPORT_SYMBOL(ath9k_cmn_count_streams);
+
+/*
+ * Configures appropriate weight based on stomp type.
+ */
+void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
+				  enum ath_stomp_type stomp_type)
+{
+	struct ath_hw *ah = common->ah;
+
+	switch (stomp_type) {
+	case ATH_BTCOEX_STOMP_ALL:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_ALL_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_LOW:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_NONE:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_NONE_WLAN_WGHT);
+		break;
+	default:
+		ath_print(common, ATH_DBG_BTCOEX,
+			  "Invalid Stomptype\n");
+		break;
+	}
+
+	ath9k_hw_btcoex_enable(ah);
+}
+EXPORT_SYMBOL(ath9k_cmn_btcoex_bt_stomp);
 
 static int __init ath9k_cmn_init(void)
 {

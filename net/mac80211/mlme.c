@@ -1103,8 +1103,11 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "Connection to AP %pM lost.\n", bssid);
 
 	ieee80211_set_disassoc(sdata, true);
-	ieee80211_recalc_idle(local);
 	mutex_unlock(&ifmgd->mtx);
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
 	/*
 	 * must be outside lock due to cfg80211,
 	 * but that's not a problem.
@@ -1173,7 +1176,9 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 			sdata->name, bssid, reason_code);
 
 	ieee80211_set_disassoc(sdata, true);
+	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&sdata->local->mtx);
 
 	return RX_MGMT_CFG80211_DEAUTH;
 }
@@ -1203,7 +1208,9 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 			sdata->name, mgmt->sa, reason_code);
 
 	ieee80211_set_disassoc(sdata, true);
+	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&sdata->local->mtx);
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
@@ -1751,7 +1758,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_local *local = sdata->local;
 		struct ieee80211_work *wk;
 
-		mutex_lock(&local->work_mtx);
+		mutex_lock(&local->mtx);
 		list_for_each_entry(wk, &local->work_list, list) {
 			if (wk->sdata != sdata)
 				continue;
@@ -1783,7 +1790,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			free_work(wk);
 			break;
 		}
-		mutex_unlock(&local->work_mtx);
+		mutex_unlock(&local->mtx);
 
 		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 	}
@@ -1840,8 +1847,10 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				" after %dms, disconnecting.\n",
 				bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
 			ieee80211_set_disassoc(sdata, true);
-			ieee80211_recalc_idle(local);
 			mutex_unlock(&ifmgd->mtx);
+			mutex_lock(&local->mtx);
+			ieee80211_recalc_idle(local);
+			mutex_unlock(&local->mtx);
 			/*
 			 * must be outside lock due to cfg80211,
 			 * but that's not a problem.
@@ -1917,6 +1926,8 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 	 * time -- the code here is properly synchronised.
 	 */
 
+	cancel_work_sync(&ifmgd->request_smps_work);
+
 	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
 	if (del_timer_sync(&ifmgd->timer))
 		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
@@ -1952,6 +1963,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	INIT_WORK(&ifmgd->chswitch_work, ieee80211_chswitch_work);
 	INIT_WORK(&ifmgd->beacon_connection_loss_work,
 		  ieee80211_beacon_connection_loss_work);
+	INIT_WORK(&ifmgd->request_smps_work, ieee80211_request_smps_work);
 	setup_timer(&ifmgd->timer, ieee80211_sta_timer,
 		    (unsigned long) sdata);
 	setup_timer(&ifmgd->bcn_mon_timer, ieee80211_sta_bcn_mon_timer,
@@ -2275,7 +2287,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 		mutex_unlock(&ifmgd->mtx);
 
-		mutex_lock(&local->work_mtx);
+		mutex_lock(&local->mtx);
 		list_for_each_entry(wk, &local->work_list, list) {
 			if (wk->sdata != sdata)
 				continue;
@@ -2294,7 +2306,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			free_work(wk);
 			break;
 		}
-		mutex_unlock(&local->work_mtx);
+		mutex_unlock(&local->mtx);
 
 		/*
 		 * If somebody requests authentication and we haven't
@@ -2319,7 +2331,9 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	if (assoc_bss)
 		sta_info_destroy_addr(sdata, bssid);
 
+	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&sdata->local->mtx);
 
 	return 0;
 }
@@ -2357,7 +2371,9 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 			cookie, !req->local_state_change);
 	sta_info_destroy_addr(sdata, bssid);
 
+	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&sdata->local->mtx);
 
 	return 0;
 }

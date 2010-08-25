@@ -552,9 +552,9 @@ ath5k_ani_mib_intr(struct ath5k_hw *ah)
 	if (ah->ah_sc->ani_state.ani_mode != ATH5K_ANI_MODE_AUTO)
 		return;
 
-	/* if one of the errors triggered, we can get a superfluous second
-	 * interrupt, even though we have already reset the register. the
-	 * function detects that so we can return early */
+	/* If one of the errors triggered, we can get a superfluous second
+	 * interrupt, even though we have already reset the register. The
+	 * function detects that so we can return early. */
 	if (ath5k_ani_save_and_clear_phy_errors(ah, as) == 0)
 		return;
 

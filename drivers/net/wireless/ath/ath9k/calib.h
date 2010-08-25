@@ -113,6 +113,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan);
 bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan);
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 				  struct ath9k_channel *chan);
+void ath9k_hw_bstuck_nfcal(struct ath_hw *ah);
 s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan);
 void ath9k_hw_reset_calibration(struct ath_hw *ah,
 				struct ath9k_cal_list *currCal);

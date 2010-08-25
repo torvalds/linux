@@ -818,7 +818,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
-	priv->stations[IWL_AP_ID].keyinfo.alg = ALG_WEP;
+	priv->stations[IWL_AP_ID].keyinfo.cipher = keyconf->cipher;
 
 	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,
@@ -856,7 +856,7 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
-	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
+	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
 	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
 	priv->stations[sta_id].keyinfo.keyidx = keyconf->keyidx;
 
@@ -906,7 +906,7 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
+	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
 	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
 
 	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key,
@@ -955,7 +955,7 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
-	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
+	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
 	priv->stations[sta_id].keyinfo.keylen = 16;
 
 	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
@@ -1090,24 +1090,26 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 	priv->key_mapping_key++;
 	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
 
-	switch (keyconf->alg) {
-	case ALG_CCMP:
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		ret = iwl_set_ccmp_dynamic_key_info(priv, keyconf, sta_id);
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		ret = iwl_set_tkip_dynamic_key_info(priv, keyconf, sta_id);
 		break;
-	case ALG_WEP:
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		ret = iwl_set_wep_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	default:
 		IWL_ERR(priv,
-			"Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
+			"Unknown alg: %s cipher = %x\n", __func__,
+			keyconf->cipher);
 		ret = -EINVAL;
 	}
 
-	IWL_DEBUG_WEP(priv, "Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
-		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
+	IWL_DEBUG_WEP(priv, "Set dynamic key: cipher=%x len=%d idx=%d sta=%d ret=%d\n",
+		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
 		      sta_id, ret);
 
 	return ret;

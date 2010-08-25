@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -763,10 +764,10 @@ static void iwl_bg_ucode_trace(unsigned long data)
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl4965_beacon_notif *beacon =
 		(struct iwl4965_beacon_notif *)pkt->u.raw;
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	IWL_DEBUG_RX(priv, "beacon status %x retries %d iss %d "
@@ -777,6 +778,8 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 		le32_to_cpu(beacon->high_tsf),
 		le32_to_cpu(beacon->low_tsf), rate);
 #endif
+
+	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
 	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
@@ -1656,24 +1659,37 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
 static int iwl_mac_setup_register(struct iwl_priv *priv,
 				  struct iwlagn_ucode_capabilities *capa);
 
+#define UCODE_EXPERIMENTAL_INDEX	100
+#define UCODE_EXPERIMENTAL_TAG		"exp"
+
 static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 {
 	const char *name_pre = priv->cfg->fw_name_pre;
+	char tag[8];
 
-	if (first)
+	if (first) {
+#ifdef CONFIG_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+		priv->fw_index = UCODE_EXPERIMENTAL_INDEX;
+		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
+	} else if (priv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
+#endif
 		priv->fw_index = priv->cfg->ucode_api_max;
-	else
+		sprintf(tag, "%d", priv->fw_index);
+	} else {
 		priv->fw_index--;
+		sprintf(tag, "%d", priv->fw_index);
+	}
 
 	if (priv->fw_index < priv->cfg->ucode_api_min) {
 		IWL_ERR(priv, "no suitable firmware found!\n");
 		return -ENOENT;
 	}
 
-	sprintf(priv->firmware_name, "%s%d%s",
-		name_pre, priv->fw_index, ".ucode");
+	sprintf(priv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
 
-	IWL_DEBUG_INFO(priv, "attempting to load firmware '%s'\n",
+	IWL_DEBUG_INFO(priv, "attempting to load firmware %s'%s'\n",
+		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? "EXPERIMENTAL " : "",
 		       priv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
@@ -1968,8 +1984,10 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
-		IWL_ERR(priv, "request for firmware file '%s' failed.\n",
-			priv->firmware_name);
+		if (priv->fw_index <= priv->cfg->ucode_api_max)
+			IWL_ERR(priv,
+				"request for firmware file '%s' failed.\n",
+				priv->firmware_name);
 		goto try_again;
 	}
 
@@ -2016,7 +2034,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			  api_max, api_ver);
 
 	if (build)
-		sprintf(buildstr, " build %u", build);
+		sprintf(buildstr, " build %u%s", build,
+		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? " (EXP)" : "");
 	else
 		buildstr[0] = '\0';
 
@@ -2589,6 +2609,52 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	return pos;
 }
 
+static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
+{
+	struct iwl_ct_kill_config cmd;
+	struct iwl_ct_kill_throttling_config adv_cmd;
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
+	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->thermal_throttle.ct_kill_toggle = false;
+
+	if (priv->cfg->support_ct_kill_exit) {
+		adv_cmd.critical_temperature_enter =
+			cpu_to_le32(priv->hw_params.ct_kill_threshold);
+		adv_cmd.critical_temperature_exit =
+			cpu_to_le32(priv->hw_params.ct_kill_exit_threshold);
+
+		ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
+				       sizeof(adv_cmd), &adv_cmd);
+		if (ret)
+			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
+		else
+			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
+					"succeeded, "
+					"critical temperature enter is %d,"
+					"exit is %d\n",
+				       priv->hw_params.ct_kill_threshold,
+				       priv->hw_params.ct_kill_exit_threshold);
+	} else {
+		cmd.critical_temperature_R =
+			cpu_to_le32(priv->hw_params.ct_kill_threshold);
+
+		ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
+				       sizeof(cmd), &cmd);
+		if (ret)
+			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
+		else
+			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
+					"succeeded, "
+					"critical temperature is %d\n",
+					priv->hw_params.ct_kill_threshold);
+	}
+}
+
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
@@ -3060,9 +3126,7 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv);
 
-	iwl_setup_rxon_timing(priv, vif);
-	ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
-			      sizeof(priv->rxon_timing), &priv->rxon_timing);
+	ret = iwl_send_rxon_timing(priv, vif);
 	if (ret)
 		IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
@@ -3298,9 +3362,7 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		iwlcore_commit_rxon(priv);
 
 		/* RXON Timing */
-		iwl_setup_rxon_timing(priv, vif);
-		ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
-				sizeof(priv->rxon_timing), &priv->rxon_timing);
+		ret = iwl_send_rxon_timing(priv, vif);
 		if (ret)
 			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
@@ -3386,7 +3448,9 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * in 1X mode.
 	 * In legacy wep mode, we use another host command to the uCode.
 	 */
-	if (key->alg == ALG_WEP && !sta && vif->type != NL80211_IFTYPE_AP) {
+	if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
+	    !sta) {
 		if (cmd == SET_KEY)
 			is_default_wep_key = !priv->key_mapping_key;
 		else
@@ -3581,6 +3645,7 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	const struct iwl_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_channel *channel = ch_switch->channel;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	u16 ch;
 	unsigned long flags = 0;
@@ -3604,11 +3669,10 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 	if (priv->cfg->ops->lib->set_channel_switch) {
 
-		ch = ieee80211_frequency_to_channel(
-			ch_switch->channel->center_freq);
+		ch = channel->hw_value;
 		if (le16_to_cpu(priv->active_rxon.channel) != ch) {
 			ch_info = iwl_get_channel_info(priv,
-						       conf->channel->band,
+						       channel->band,
 						       ch);
 			if (!is_channel_valid(ch_info)) {
 				IWL_DEBUG_MAC80211(priv, "invalid channel\n");
@@ -3637,15 +3701,12 @@ static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
 			} else
 				ht_conf->is_40mhz = false;
 
-			/* if we are switching from ht to 2.4 clear flags
-			 * from any ht related info since 2.4 does not
-			 * support ht */
-			if ((le16_to_cpu(priv->staging_rxon.channel) != ch))
+			if (le16_to_cpu(priv->staging_rxon.channel) != ch)
 				priv->staging_rxon.flags = 0;
 
-			iwl_set_rxon_channel(priv, conf->channel);
+			iwl_set_rxon_channel(priv, channel);
 			iwl_set_rxon_ht(priv, ht_conf);
-			iwl_set_flags_for_band(priv, conf->channel->band,
+			iwl_set_flags_for_band(priv, channel->band,
 					       priv->vif);
 			spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -3923,7 +3984,34 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.sta_remove = iwl_mac_sta_remove,
 	.channel_switch = iwl_mac_channel_switch,
 	.flush = iwl_mac_flush,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
+
+static void iwl_hw_detect(struct iwl_priv *priv)
+{
+	priv->hw_rev = _iwl_read32(priv, CSR_HW_REV);
+	priv->hw_wa_rev = _iwl_read32(priv, CSR_HW_REV_WA_REG);
+	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &priv->rev_id);
+	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", priv->rev_id);
+}
+
+static int iwl_set_hw_params(struct iwl_priv *priv)
+{
+	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
+	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	if (priv->cfg->mod_params->amsdu_size_8K)
+		priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_8K);
+	else
+		priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_4K);
+
+	priv->hw_params.max_beacon_itrvl = IWL_MAX_UCODE_BEACON_INTERVAL;
+
+	if (priv->cfg->mod_params->disable_11n)
+		priv->cfg->sku &= ~IWL_SKU_N;
+
+	/* Device-specific setup */
+	return priv->cfg->ops->lib->set_hw_params(priv);
+}
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -3968,6 +4056,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/**************************
 	 * 2. Initializing PCI bus
 	 **************************/
+	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
+				PCIE_LINK_STATE_CLKPM);
+
 	if (pci_enable_device(pdev)) {
 		err = -ENODEV;
 		goto out_ieee80211_free_hw;

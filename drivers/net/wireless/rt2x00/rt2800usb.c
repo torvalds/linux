@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
+	Copyright (C) 2009 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Mattias Nissler <mattias.nissler@gmx.de>
 	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	Copyright (C) 2009 Xose Vazquez Perez <xose.vazquez@gmail.com>
@@ -320,14 +321,13 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt2800usb_write_tx_data(struct queue_entry* entry,
-				    struct txentry_desc *txdesc)
+static __le32 *rt2800usb_get_txwi(struct queue_entry *entry)
 {
-	__le32 *txwi = (__le32 *) (entry->skb->data + TXINFO_DESC_SIZE);
-
-	rt2800_write_txwi(txwi, txdesc);
+	if (entry->queue->qid == QID_BEACON)
+		return (__le32 *) (entry->skb->data);
+	else
+		return (__le32 *) (entry->skb->data + TXINFO_DESC_SIZE);
 }
-
 
 static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct sk_buff *skb,
@@ -376,6 +376,38 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 	length += (4 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
+}
+
+/*
+ * TX control handlers
+ */
+static void rt2800usb_work_txdone(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, txdone_work);
+	struct data_queue *queue;
+	struct queue_entry *entry;
+
+	rt2800_txdone(rt2x00dev);
+
+	/*
+	 * Process any trailing TX status reports for IO failures,
+	 * we loop until we find the first non-IO error entry. This
+	 * can either be a frame which is free, is being uploaded,
+	 * or has completed the upload but didn't have an entry
+	 * in the TX_STAT_FIFO register yet.
+	 */
+	tx_queue_for_each(rt2x00dev, queue) {
+		while (!rt2x00queue_empty(queue)) {
+			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+
+			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+			    !test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+				break;
+
+			rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+		}
+	}
 }
 
 /*
@@ -514,6 +546,11 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->rssi_offset = DEFAULT_RSSI_OFFSET;
 
+	/*
+	 * Overwrite TX done handler
+	 */
+	PREPARE_WORK(&rt2x00dev->txdone_work, rt2800usb_work_txdone);
+
 	return 0;
 }
 
@@ -549,6 +586,7 @@ static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.regbusy_read		= rt2x00usb_regbusy_read,
 	.drv_write_firmware	= rt2800usb_write_firmware,
 	.drv_init_registers	= rt2800usb_init_registers,
+	.drv_get_txwi		= rt2800usb_get_txwi,
 };
 
 static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
@@ -566,7 +604,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_tuner		= rt2800_link_tuner,
 	.watchdog		= rt2x00usb_watchdog,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
-	.write_tx_data		= rt2800usb_write_tx_data,
+	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.kick_tx_queue		= rt2x00usb_kick_tx_queue,

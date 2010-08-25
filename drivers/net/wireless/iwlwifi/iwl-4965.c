@@ -1470,7 +1470,7 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
-	ch = ieee80211_frequency_to_channel(ch_switch->channel->center_freq);
+	ch = ch_switch->channel->hw_value;
 	cmd.channel = cpu_to_le16(ch);
 	cmd.rxon_flags = priv->staging_rxon.flags;
 	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;

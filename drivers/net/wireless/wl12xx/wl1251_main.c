@@ -293,14 +293,14 @@ static void wl1251_irq_work(struct work_struct *work)
 			wl1251_tx_complete(wl);
 		}
 
-		if (intr & (WL1251_ACX_INTR_EVENT_A |
-			    WL1251_ACX_INTR_EVENT_B)) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)",
-				     intr);
-			if (intr & WL1251_ACX_INTR_EVENT_A)
-				wl1251_event_handle(wl, 0);
-			else
-				wl1251_event_handle(wl, 1);
+		if (intr & WL1251_ACX_INTR_EVENT_A) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT_A");
+			wl1251_event_handle(wl, 0);
+		}
+
+		if (intr & WL1251_ACX_INTR_EVENT_B) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT_B");
+			wl1251_event_handle(wl, 1);
 		}
 
 		if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
@@ -339,11 +339,9 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 	if (ret < 0)
 		goto out;
 
-	/*
-	 * FIXME: we should wait for JOIN_EVENT_COMPLETE_ID but to simplify
-	 * locking we just sleep instead, for now
-	 */
-	msleep(10);
+	ret = wl1251_event_wait(wl, JOIN_EVENT_COMPLETE_ID, 100);
+	if (ret < 0)
+		wl1251_warning("join timeout");
 
 out:
 	return ret;
@@ -725,8 +723,9 @@ static int wl1251_set_key_type(struct wl1251 *wl,
 			       struct ieee80211_key_conf *mac80211_key,
 			       const u8 *addr)
 {
-	switch (mac80211_key->alg) {
-	case ALG_WEP:
+	switch (mac80211_key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		if (is_broadcast_ether_addr(addr))
 			key->key_type = KEY_WEP_DEFAULT;
 		else
@@ -734,7 +733,7 @@ static int wl1251_set_key_type(struct wl1251 *wl,
 
 		mac80211_key->hw_key_idx = mac80211_key->keyidx;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		if (is_broadcast_ether_addr(addr))
 			key->key_type = KEY_TKIP_MIC_GROUP;
 		else
@@ -742,7 +741,7 @@ static int wl1251_set_key_type(struct wl1251 *wl,
 
 		mac80211_key->hw_key_idx = mac80211_key->keyidx;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		if (is_broadcast_ether_addr(addr))
 			key->key_type = KEY_AES_GROUP;
 		else
@@ -750,7 +749,7 @@ static int wl1251_set_key_type(struct wl1251 *wl,
 		mac80211_key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		break;
 	default:
-		wl1251_error("Unknown key algo 0x%x", mac80211_key->alg);
+		wl1251_error("Unknown key cipher 0x%x", mac80211_key->cipher);
 		return -EOPNOTSUPP;
 	}
 
@@ -783,7 +782,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	wl1251_debug(DEBUG_CRYPT, "CMD: 0x%x", cmd);
 	wl1251_dump(DEBUG_CRYPT, "ADDR: ", addr, ETH_ALEN);
 	wl1251_debug(DEBUG_CRYPT, "Key: algo:0x%x, id:%d, len:%d flags 0x%x",
-		     key->alg, key->keyidx, key->keylen, key->flags);
+		     key->cipher, key->keyidx, key->keylen, key->flags);
 	wl1251_dump(DEBUG_CRYPT, "KEY: ", key->key, key->keylen);
 
 	if (is_zero_ether_addr(addr)) {

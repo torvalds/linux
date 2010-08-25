@@ -265,3 +265,31 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 
 	return 0;
 }
+
+void ieee80211_request_smps_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.request_smps_work);
+
+	mutex_lock(&sdata->u.mgd.mtx);
+	__ieee80211_request_smps(sdata, sdata->u.mgd.driver_smps_mode);
+	mutex_unlock(&sdata->u.mgd.mtx);
+}
+
+void ieee80211_request_smps(struct ieee80211_vif *vif,
+			    enum ieee80211_smps_mode smps_mode)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	if (WARN_ON(smps_mode == IEEE80211_SMPS_OFF))
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	ieee80211_queue_work(&sdata->local->hw,
+			     &sdata->u.mgd.request_smps_work);
+}
+/* this might change ... don't want non-open drivers using it */
+EXPORT_SYMBOL_GPL(ieee80211_request_smps);

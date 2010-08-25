@@ -240,7 +240,7 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 
 	keyidx = skb->data[hdrlen + 3] >> 6;
 
-	if (!key || keyidx != key->conf.keyidx || key->conf.alg != ALG_WEP)
+	if (!key || keyidx != key->conf.keyidx)
 		return -1;
 
 	klen = 3 + key->conf.keylen;

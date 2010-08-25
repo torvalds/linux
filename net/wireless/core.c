@@ -253,11 +253,16 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 			WARN_ON(err);
 			wdev->netdev->features |= NETIF_F_NETNS_LOCAL;
 		}
+
+		return err;
 	}
 
 	wiphy_net_set(&rdev->wiphy, net);
 
-	return err;
+	err = device_rename(&rdev->wiphy.dev, dev_name(&rdev->wiphy.dev));
+	WARN_ON(err);
+
+	return 0;
 }
 
 static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
@@ -428,7 +433,7 @@ int wiphy_register(struct wiphy *wiphy)
 
 	/* sanity check ifmodes */
 	WARN_ON(!ifmodes);
-	ifmodes &= ((1 << __NL80211_IFTYPE_AFTER_LAST) - 1) & ~1;
+	ifmodes &= ((1 << NUM_NL80211_IFTYPES) - 1) & ~1;
 	if (WARN_ON(ifmodes != wiphy->interface_modes))
 		wiphy->interface_modes = ifmodes;
 
@@ -680,8 +685,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		INIT_WORK(&wdev->cleanup_work, wdev_cleanup_work);
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
-		INIT_LIST_HEAD(&wdev->action_registrations);
-		spin_lock_init(&wdev->action_registrations_lock);
+		INIT_LIST_HEAD(&wdev->mgmt_registrations);
+		spin_lock_init(&wdev->mgmt_registrations_lock);
 
 		mutex_lock(&rdev->devlist_mtx);
 		list_add_rcu(&wdev->list, &rdev->netdev_list);
@@ -801,7 +806,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_rcu(&wdev->list);
 			rdev->devlist_generation++;
-			cfg80211_mlme_purge_actions(wdev);
+			cfg80211_mlme_purge_registrations(wdev);
 #ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.keys);
 #endif

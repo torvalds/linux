@@ -1,4 +1,5 @@
 /*
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
 	Copyright (C) 2009 Gertjan van Wingerde <gwingerde@gmail.com>
@@ -427,8 +428,10 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_load_firmware);
 
-void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
+void rt2800_write_tx_data(struct queue_entry *entry,
+			  struct txentry_desc *txdesc)
 {
+	__le32 *txwi = rt2800_drv_get_txwi(entry);
 	u32 word;
 
 	/*
@@ -437,7 +440,8 @@ void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 	rt2x00_desc_read(txwi, 0, &word);
 	rt2x00_set_field32(&word, TXWI_W0_FRAG,
 			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS, 0);
+	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS,
+			   test_bit(ENTRY_TXD_HT_MIMO_PS, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W0_CF_ACK, 0);
 	rt2x00_set_field32(&word, TXWI_W0_TS,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
@@ -478,7 +482,7 @@ void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 	_rt2x00_desc_write(txwi, 2, 0 /* skbdesc->iv[0] */);
 	_rt2x00_desc_write(txwi, 3, 0 /* skbdesc->iv[1] */);
 }
-EXPORT_SYMBOL_GPL(rt2800_write_txwi);
+EXPORT_SYMBOL_GPL(rt2800_write_tx_data);
 
 static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxwi_w2)
 {
@@ -490,7 +494,7 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxwi_w2)
 	u8 offset1;
 	u8 offset2;
 
-	if (rt2x00dev->rx_status.band == IEEE80211_BAND_2GHZ) {
+	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_BG, &eeprom);
 		offset0 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET0);
 		offset1 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET1);
@@ -569,6 +573,122 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
+void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+	__le32 *txwi;
+	struct txdone_entry_desc txdesc;
+	u32 word;
+	u32 reg;
+	int wcid, ack, pid, tx_wcid, tx_ack, tx_pid;
+	u16 mcs, real_mcs;
+	int i;
+
+	/*
+	 * TX_STA_FIFO is a stack of X entries, hence read TX_STA_FIFO
+	 * at most X times and also stop processing once the TX_STA_FIFO_VALID
+	 * flag is not set anymore.
+	 *
+	 * The legacy drivers use X=TX_RING_SIZE but state in a comment
+	 * that the TX_STA_FIFO stack has a size of 16. We stick to our
+	 * tx ring size for now.
+	 */
+	for (i = 0; i < TX_ENTRIES; i++) {
+		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &reg);
+		if (!rt2x00_get_field32(reg, TX_STA_FIFO_VALID))
+			break;
+
+		wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+		ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+		pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+
+		/*
+		 * Skip this entry when it contains an invalid
+		 * queue identication number.
+		 */
+		if (pid <= 0 || pid > QID_RX)
+			continue;
+
+		queue = rt2x00queue_get_queue(rt2x00dev, pid - 1);
+		if (unlikely(!queue))
+			continue;
+
+		/*
+		 * Inside each queue, we process each entry in a chronological
+		 * order. We first check that the queue is not empty.
+		 */
+		entry = NULL;
+		while (!rt2x00queue_empty(queue)) {
+			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+			if (!test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+				break;
+
+			rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+		}
+
+		if (!entry || rt2x00queue_empty(queue))
+			break;
+
+		/*
+		 * Check if we got a match by looking at WCID/ACK/PID
+		 * fields
+		 */
+		txwi = rt2800_drv_get_txwi(entry);
+
+		rt2x00_desc_read(txwi, 1, &word);
+		tx_wcid	= rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+		tx_ack	= rt2x00_get_field32(word, TXWI_W1_ACK);
+		tx_pid	= rt2x00_get_field32(word, TXWI_W1_PACKETID);
+
+		if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid))
+			WARNING(rt2x00dev, "invalid TX_STA_FIFO content");
+
+		/*
+		 * Obtain the status about this packet.
+		 */
+		txdesc.flags = 0;
+		rt2x00_desc_read(txwi, 0, &word);
+		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
+		mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
+		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
+
+		/*
+		 * Ralink has a retry mechanism using a global fallback
+		 * table. We setup this fallback table to try the immediate
+		 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
+		 * always contains the MCS used for the last transmission, be
+		 * it successful or not.
+		 */
+		if (rt2x00_get_field32(reg, TX_STA_FIFO_TX_SUCCESS)) {
+			/*
+			 * Transmission succeeded. The number of retries is
+			 * mcs - real_mcs
+			 */
+			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
+			txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
+		} else {
+			/*
+			 * Transmission failed. The number of retries is
+			 * always 7 in this case (for a total number of 8
+			 * frames sent).
+			 */
+			__set_bit(TXDONE_FAILURE, &txdesc.flags);
+			txdesc.retry = rt2x00dev->long_retry;
+		}
+
+		/*
+		 * the frame was retried at least once
+		 * -> hw used fallback rates
+		 */
+		if (txdesc.retry)
+			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
+
+		rt2x00lib_txdone(entry, &txdesc);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2800_txdone);
+
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
@@ -600,7 +720,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	/*
 	 * Add the TXWI for the beacon to the skb.
 	 */
-	rt2800_write_txwi((__le32 *)entry->skb->data, txdesc);
+	rt2800_write_tx_data(entry, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.

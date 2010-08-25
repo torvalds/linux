@@ -336,7 +336,7 @@ TRACE_EVENT(drv_set_key,
 		LOCAL_ENTRY
 		VIF_ENTRY
 		STA_ENTRY
-		__field(enum ieee80211_key_alg, alg)
+		__field(u32, cipher)
 		__field(u8, hw_key_idx)
 		__field(u8, flags)
 		__field(s8, keyidx)
@@ -346,7 +346,7 @@ TRACE_EVENT(drv_set_key,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		STA_ASSIGN;
-		__entry->alg = key->alg;
+		__entry->cipher = key->cipher;
 		__entry->flags = key->flags;
 		__entry->keyidx = key->keyidx;
 		__entry->hw_key_idx = key->hw_key_idx;

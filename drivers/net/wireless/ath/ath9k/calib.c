@@ -19,8 +19,7 @@
 
 /* Common calibration code */
 
-/* We can tune this as we go by monitoring really low values */
-#define ATH9K_NF_TOO_LOW	-60
+#define ATH9K_NF_TOO_HIGH	-60
 
 static int16_t ath9k_hw_get_nf_hist_mid(int16_t *nfCalBuffer)
 {
@@ -45,10 +44,38 @@ static int16_t ath9k_hw_get_nf_hist_mid(int16_t *nfCalBuffer)
 	return nfval;
 }
 
-static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
+static struct ath_nf_limits *ath9k_hw_get_nf_limits(struct ath_hw *ah,
+						    struct ath9k_channel *chan)
+{
+	struct ath_nf_limits *limit;
+
+	if (!chan || IS_CHAN_2GHZ(chan))
+		limit = &ah->nf_2g;
+	else
+		limit = &ah->nf_5g;
+
+	return limit;
+}
+
+static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
+				   struct ath9k_channel *chan)
+{
+	return ath9k_hw_get_nf_limits(ah, chan)->nominal;
+}
+
+
+static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
+					      struct ath9k_hw_cal_data *cal,
 					      int16_t *nfarray)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_nf_limits *limit;
+	struct ath9k_nfcal_hist *h;
+	bool high_nf_mid = false;
 	int i;
+
+	h = cal->nfCalHist;
+	limit = ath9k_hw_get_nf_limits(ah, ah->curchan);
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		h[i].nfCalBuffer[h[i].currIndex] = nfarray[i];
@@ -63,7 +90,39 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
 			h[i].privNF =
 				ath9k_hw_get_nf_hist_mid(h[i].nfCalBuffer);
 		}
+
+		if (!h[i].privNF)
+			continue;
+
+		if (h[i].privNF > limit->max) {
+			high_nf_mid = true;
+
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "NFmid[%d] (%d) > MAX (%d), %s\n",
+				  i, h[i].privNF, limit->max,
+				  (cal->nfcal_interference ?
+				   "not corrected (due to interference)" :
+				   "correcting to MAX"));
+
+			/*
+			 * Normally we limit the average noise floor by the
+			 * hardware specific maximum here. However if we have
+			 * encountered stuck beacons because of interference,
+			 * we bypass this limit here in order to better deal
+			 * with our environment.
+			 */
+			if (!cal->nfcal_interference)
+				h[i].privNF = limit->max;
+		}
 	}
+
+	/*
+	 * If the noise floor seems normal for all chains, assume that
+	 * there is no significant interference in the environment anymore.
+	 * Re-enable the enforcement of the NF maximum again.
+	 */
+	if (!high_nf_mid)
+		cal->nfcal_interference = false;
 }
 
 static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,
@@ -102,19 +161,6 @@ void ath9k_hw_reset_calibration(struct ath_hw *ah,
 	}
 
 	ah->cal_samples = 0;
-}
-
-static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
-				   struct ath9k_channel *chan)
-{
-	struct ath_nf_limits *limit;
-
-	if (!chan || IS_CHAN_2GHZ(chan))
-		limit = &ah->nf_2g;
-	else
-		limit = &ah->nf_5g;
-
-	return limit->nominal;
 }
 
 /* This is done for the currently configured channel */
@@ -277,10 +323,10 @@ static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
 			  "NF calibrated [%s] [chain %d] is %d\n",
 			  (i >= 3 ? "ext" : "ctl"), i % 3, nf[i]);
 
-		if (nf[i] > limit->max) {
+		if (nf[i] > ATH9K_NF_TOO_HIGH) {
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "NF[%d] (%d) > MAX (%d), correcting to MAX",
-				  i, nf[i], limit->max);
+				  i, nf[i], ATH9K_NF_TOO_HIGH);
 			nf[i] = limit->max;
 		} else if (nf[i] < limit->min) {
 			ath_print(common, ATH_DBG_CALIBRATE,
@@ -326,7 +372,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	h = caldata->nfCalHist;
 	caldata->nfcal_pending = false;
-	ath9k_hw_update_nfcal_hist_buffer(h, nfarray);
+	ath9k_hw_update_nfcal_hist_buffer(ah, caldata, nfarray);
 	caldata->rawNoiseFloor = h[0].privNF;
 	return true;
 }
@@ -361,3 +407,28 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 	return ah->caldata->rawNoiseFloor;
 }
 EXPORT_SYMBOL(ath9k_hw_getchan_noise);
+
+void ath9k_hw_bstuck_nfcal(struct ath_hw *ah)
+{
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
+
+	if (unlikely(!caldata))
+		return;
+
+	/*
+	 * If beacons are stuck, the most likely cause is interference.
+	 * Triggering a noise floor calibration at this point helps the
+	 * hardware adapt to a noisy environment much faster.
+	 * To ensure that we recover from stuck beacons quickly, let
+	 * the baseband update the internal NF value itself, similar to
+	 * what is being done after a full reset.
+	 */
+	if (!caldata->nfcal_pending)
+		ath9k_hw_start_nfcal(ah, true);
+	else if (!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF))
+		ath9k_hw_getnf(ah, ah->curchan);
+
+	caldata->nfcal_interference = true;
+}
+EXPORT_SYMBOL(ath9k_hw_bstuck_nfcal);
+

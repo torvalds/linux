@@ -470,8 +470,8 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
-	switch (keyconf->alg) {
-	case ALG_CCMP:
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
@@ -479,19 +479,19 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		IWL_DEBUG_TX(priv, "tx_cmd with AES hwcrypto\n");
 		break;
 
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
 		ieee80211_get_tkip_key(keyconf, skb_frag,
 			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
 		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 
-	case ALG_WEP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
+		/* fall through */
+	case WLAN_CIPHER_SUITE_WEP40:
 		tx_cmd->sec_ctl |= (TX_CMD_SEC_WEP |
 			(keyconf->keyidx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT);
-
-		if (keyconf->keylen == WEP_KEY_LEN_128)
-			tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
 
 		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
 
@@ -500,7 +500,7 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		IWL_ERR(priv, "Unknown encode alg %d\n", keyconf->alg);
+		IWL_ERR(priv, "Unknown encode cipher %x\n", keyconf->cipher);
 		break;
 	}
 }

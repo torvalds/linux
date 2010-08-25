@@ -82,6 +82,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 				   struct iwl_lq_sta *lq_sta);
 static void rs_fill_link_cmd(struct iwl_priv *priv,
 			     struct iwl_lq_sta *lq_sta, u32 rate_n_flags);
+static void rs_stay_in_table(struct iwl_lq_sta *lq_sta);
 
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -502,6 +503,7 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 	u8 num_of_ant = get_num_of_ant_from_rate(rate_n_flags);
 	u8 mcs;
 
+	memset(tbl, 0, sizeof(struct iwl_scale_tbl_info));
 	*rate_idx = iwl_hwrate_to_plcp_idx(rate_n_flags);
 
 	if (*rate_idx  == IWL_RATE_INVALID) {
@@ -848,7 +850,20 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		other_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	} else {
 		IWL_DEBUG_RATE(priv, "Neither active nor search matches tx rate\n");
-		return;
+		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+		IWL_DEBUG_RATE(priv, "active- lq:%x, ant:%x, SGI:%d\n",
+			tmp_tbl->lq_type, tmp_tbl->ant_type, tmp_tbl->is_SGI);
+		tmp_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
+		IWL_DEBUG_RATE(priv, "search- lq:%x, ant:%x, SGI:%d\n",
+			tmp_tbl->lq_type, tmp_tbl->ant_type, tmp_tbl->is_SGI);
+		IWL_DEBUG_RATE(priv, "actual- lq:%x, ant:%x, SGI:%d\n",
+			tbl_type.lq_type, tbl_type.ant_type, tbl_type.is_SGI);
+		/*
+		 * no matching table found, let's by-pass the data collection
+		 * and continue to perform rate scale to find the rate table
+		 */
+		rs_stay_in_table(lq_sta);
+		goto done;
 	}
 
 	/*
@@ -909,7 +924,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	}
 	/* The last TX rate is cached in lq_sta; it's set in if/else above */
 	lq_sta->last_rate_n_flags = tx_rate;
-
+done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
@@ -1265,7 +1280,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	int ret = 0;
@@ -1277,6 +1292,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	else if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
 		   tbl->action > IWL_LEGACY_SWITCH_SISO)
 		tbl->action = IWL_LEGACY_SWITCH_SISO;
+	start_action = tbl->action;
 	for (; ;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1403,7 +1419,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
@@ -1414,6 +1430,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 		/* stay in SISO */
 		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 	}
+	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1541,7 +1558,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
@@ -1553,6 +1570,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 		/* switch in SISO */
 		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
 	}
+	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1682,7 +1700,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
-	u8 start_action = tbl->action;
+	u8 start_action;
 	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
 	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 	int ret;
@@ -1694,6 +1712,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 		/* switch in SISO */
 		tbl->action = IWL_MIMO3_SWITCH_SISO_A;
 	}
+	start_action = tbl->action;
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -2594,7 +2613,6 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	rs_dbgfs_set_mcs(lq_sta, &new_rate, index);
 
 	/* Interpret new_rate (rate_n_flags) */
-	memset(&tbl_type, 0, sizeof(tbl_type));
 	rs_get_tbl_info_from_mcs(new_rate, lq_sta->band,
 				  &tbl_type, &rate_idx);
 
@@ -2694,8 +2712,18 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 
 	lq_cmd->agg_params.agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	lq_cmd->agg_params.agg_dis_start_th = LINK_QUAL_AGG_DISABLE_START_DEF;
+
 	lq_cmd->agg_params.agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
+	/*
+	 * overwrite if needed, pass aggregation time limit
+	 * to uCode in uSec
+	 */
+	if (priv && priv->cfg->agg_time_limit &&
+	    priv->cfg->agg_time_limit >= LINK_QUAL_AGG_TIME_LIMIT_MIN &&
+	    priv->cfg->agg_time_limit <= LINK_QUAL_AGG_TIME_LIMIT_MAX)
+		lq_cmd->agg_params.agg_time_limit =
+			cpu_to_le16(priv->cfg->agg_time_limit);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)

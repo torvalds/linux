@@ -359,11 +359,12 @@ void ath_beacon_tasklet(unsigned long data)
 		sc->beacon.bmisscnt++;
 
 		if (sc->beacon.bmisscnt < BSTUCK_THRESH) {
-			ath_print(common, ATH_DBG_BEACON,
+			ath_print(common, ATH_DBG_BSTUCK,
 				  "missed %u consecutive beacons\n",
 				  sc->beacon.bmisscnt);
+			ath9k_hw_bstuck_nfcal(ah);
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
-			ath_print(common, ATH_DBG_BEACON,
+			ath_print(common, ATH_DBG_BSTUCK,
 				  "beacon is officially stuck\n");
 			sc->sc_flags |= SC_OP_TSF_RESET;
 			ath_reset(sc, false);
@@ -373,7 +374,7 @@ void ath_beacon_tasklet(unsigned long data)
 	}
 
 	if (sc->beacon.bmisscnt != 0) {
-		ath_print(common, ATH_DBG_BEACON,
+		ath_print(common, ATH_DBG_BSTUCK,
 			  "resume beacon xmit after %u misses\n",
 			  sc->beacon.bmisscnt);
 		sc->beacon.bmisscnt = 0;

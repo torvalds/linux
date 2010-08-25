@@ -1367,21 +1367,24 @@ struct iwl4965_rx_non_cfg_phy {
 } __packed;
 
 
-#define IWL50_RX_RES_PHY_CNT 8
-#define IWL50_RX_RES_AGC_IDX     1
-#define IWL50_RX_RES_RSSI_AB_IDX 2
-#define IWL50_RX_RES_RSSI_C_IDX  3
-#define IWL50_OFDM_AGC_MSK 0xfe00
-#define IWL50_OFDM_AGC_BIT_POS 9
-#define IWL50_OFDM_RSSI_A_MSK 0x00ff
-#define IWL50_OFDM_RSSI_A_BIT_POS 0
-#define IWL50_OFDM_RSSI_B_MSK 0xff0000
-#define IWL50_OFDM_RSSI_B_BIT_POS 16
-#define IWL50_OFDM_RSSI_C_MSK 0x00ff
-#define IWL50_OFDM_RSSI_C_BIT_POS 0
+#define IWLAGN_RX_RES_PHY_CNT 8
+#define IWLAGN_RX_RES_AGC_IDX     1
+#define IWLAGN_RX_RES_RSSI_AB_IDX 2
+#define IWLAGN_RX_RES_RSSI_C_IDX  3
+#define IWLAGN_OFDM_AGC_MSK 0xfe00
+#define IWLAGN_OFDM_AGC_BIT_POS 9
+#define IWLAGN_OFDM_RSSI_INBAND_A_BITMSK 0x00ff
+#define IWLAGN_OFDM_RSSI_ALLBAND_A_BITMSK 0xff00
+#define IWLAGN_OFDM_RSSI_A_BIT_POS 0
+#define IWLAGN_OFDM_RSSI_INBAND_B_BITMSK 0xff0000
+#define IWLAGN_OFDM_RSSI_ALLBAND_B_BITMSK 0xff000000
+#define IWLAGN_OFDM_RSSI_B_BIT_POS 16
+#define IWLAGN_OFDM_RSSI_INBAND_C_BITMSK 0x00ff
+#define IWLAGN_OFDM_RSSI_ALLBAND_C_BITMSK 0xff00
+#define IWLAGN_OFDM_RSSI_C_BIT_POS 0
 
-struct iwl5000_non_cfg_phy {
-	__le32 non_cfg_phy[IWL50_RX_RES_PHY_CNT];  /* up to 8 phy entries */
+struct iwlagn_non_cfg_phy {
+	__le32 non_cfg_phy[IWLAGN_RX_RES_PHY_CNT];  /* up to 8 phy entries */
 } __packed;
 
 
@@ -1401,7 +1404,7 @@ struct iwl_rx_phy_res {
 	u8 non_cfg_phy_buf[32]; /* for various implementations of non_cfg_phy */
 	__le32 rate_n_flags;	/* RATE_MCS_* */
 	__le16 byte_count;	/* frame's byte-count */
-	__le16 reserved3;
+	__le16 frame_time;	/* frame's time on the air */
 } __packed;
 
 struct iwl_rx_mpdu_res_start {
@@ -2092,8 +2095,8 @@ struct iwl_link_qual_general_params {
 } __packed;
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
-#define LINK_QUAL_AGG_TIME_LIMIT_MAX	(65535)
-#define LINK_QUAL_AGG_TIME_LIMIT_MIN	(0)
+#define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
+#define LINK_QUAL_AGG_TIME_LIMIT_MIN	(100)
 
 #define LINK_QUAL_AGG_DISABLE_START_DEF	(3)
 #define LINK_QUAL_AGG_DISABLE_START_MAX	(255)
@@ -2110,8 +2113,10 @@ struct iwl_link_qual_general_params {
  */
 struct iwl_link_qual_agg_params {
 
-	/* Maximum number of uSec in aggregation.
-	 * Driver should set this to 4000 (4 milliseconds). */
+	/*
+	 *Maximum number of uSec in aggregation.
+	 * default set to 4000 (4 milliseconds) if not configured in .cfg
+	 */
 	__le16 agg_time_limit;
 
 	/*
@@ -2918,6 +2923,11 @@ struct iwl_scancomplete_notification {
  * IBSS/AP Commands and Notifications:
  *
  *****************************************************************************/
+
+enum iwl_ibss_manager {
+	IWL_NOT_IBSS_MANAGER = 0,
+	IWL_IBSS_MANAGER = 1,
+};
 
 /*
  * BEACON_NOTIFICATION = 0x90 (notification only, not a command)

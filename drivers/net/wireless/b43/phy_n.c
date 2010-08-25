@@ -893,7 +893,7 @@ static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/WorkaroundsGainCtrl */
-static void b43_nphy_gain_crtl_workarounds(struct b43_wldev *dev)
+static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 	u8 i, j;
@@ -1094,11 +1094,12 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 		b43_nphy_set_rf_sequence(dev, 0, events1, delays1, 7);
 		b43_nphy_set_rf_sequence(dev, 1, events2, delays2, 7);
 
-		b43_nphy_gain_crtl_workarounds(dev);
+		b43_nphy_gain_ctrl_workarounds(dev);
 
 		if (dev->phy.rev < 2) {
 			if (b43_phy_read(dev, B43_NPHY_RXCTL) & 0x2)
-				; /*TODO: b43_mhf(dev, 2, 0x0010, 0x0010, 3);*/
+				b43_hf_write(dev, b43_hf_read(dev) |
+						B43_HF_MLADVW);
 		} else if (dev->phy.rev == 2) {
 			b43_phy_write(dev, B43_NPHY_CRSCHECK2, 0);
 			b43_phy_write(dev, B43_NPHY_CRSCHECK3, 0);
@@ -3073,6 +3074,55 @@ static int b43_nphy_cal_rx_iq(struct b43_wldev *dev,
 		return b43_nphy_rev2_cal_rx_iq(dev, target, type, debug);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
+static void b43_nphy_mac_phy_clock_set(struct b43_wldev *dev, bool on)
+{
+	u32 tmslow = ssb_read32(dev->dev, SSB_TMSLOW);
+	if (on)
+		tmslow |= SSB_TMSLOW_PHYCLK;
+	else
+		tmslow &= ~SSB_TMSLOW_PHYCLK;
+	ssb_write32(dev->dev, SSB_TMSLOW, tmslow);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreSetState */
+static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = phy->n;
+	u16 buf[16];
+
+	if (0 /* FIXME clk */)
+		return;
+
+	b43_mac_suspend(dev);
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, true);
+
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_RXEN,
+			(mask & 0x3) << B43_NPHY_RFSEQCA_RXEN_SHIFT);
+
+	if (mask & 0x3 != 0x3) {
+		b43_phy_write(dev, B43_NPHY_HPANT_SWTHRES, 1);
+		if (dev->phy.rev >= 3) {
+			/* TODO */
+		}
+	} else {
+		b43_phy_write(dev, B43_NPHY_HPANT_SWTHRES, 0x1E);
+		if (dev->phy.rev >= 3) {
+			/* TODO */
+		}
+	}
+
+	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, false);
+
+	b43_mac_enable(dev);
+}
+
 /*
  * Init N-PHY
  * http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N
@@ -3173,7 +3223,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_BBCFG, tmp & ~B43_NPHY_BBCFG_RSTCCA);
 	b43_nphy_bmac_clock_fgc(dev, 0);
 
-	/* TODO N PHY MAC PHY Clock Set with argument 1 */
+	b43_nphy_mac_phy_clock_set(dev, true);
 
 	b43_nphy_pa_override(dev, false);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RX2TX);
@@ -3199,7 +3249,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	}
 
 	if (nphy->phyrxchain != 3)
-		;/* TODO N PHY RX Core Set State with phyrxchain as argument */
+		b43_nphy_set_rx_core_state(dev, nphy->phyrxchain);
 	if (nphy->mphase_cal_phase_id > 0)
 		;/* TODO PHY Periodic Calibration Multi-Phase Restart */
 

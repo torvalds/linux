@@ -37,7 +37,7 @@ struct acx_header {
 
 	/* payload length (not including headers */
 	u16 len;
-};
+} __packed;
 
 struct acx_error_counter {
 	struct acx_header header;
@@ -459,8 +459,8 @@ struct acx_beacon_filter_ie_table {
 	struct acx_header header;
 
 	u8 num_ie;
-	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 	u8 pad[3];
+	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 } __packed;
 
 #define SYNCH_FAIL_DEFAULT_THRESHOLD    10     /* number of beacons */
@@ -471,7 +471,7 @@ struct acx_conn_monit_params {
 
 	u32 synch_fail_thold; /* number of beacons missed */
 	u32 bss_lose_timeout; /* number of TU's from synch fail */
-};
+} __packed;
 
 enum {
 	SG_ENABLE = 0,
@@ -1056,7 +1056,7 @@ struct acx_rate_class {
 	u8 long_retry_limit;
 	u8 aflags;
 	u8 reserved;
-};
+} __packed;
 
 struct acx_rate_policy {
 	struct acx_header header;

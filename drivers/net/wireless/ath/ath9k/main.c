@@ -226,9 +226,10 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		caldata = &aphy->caldata;
 
 	ath_print(common, ATH_DBG_CONFIG,
-		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d\n",
+		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d fastcc: %d\n",
 		  sc->sc_ah->curchan->channel,
-		  channel->center_freq, conf_is_ht40(conf));
+		  channel->center_freq, conf_is_ht40(conf),
+		  fastcc);
 
 	spin_lock_bh(&sc->sc_resetlock);
 
@@ -395,7 +396,12 @@ void ath_ani_calibrate(unsigned long data)
 	bool shortcal = false;
 	bool aniflag = false;
 	unsigned int timestamp = jiffies_to_msecs(jiffies);
-	u32 cal_interval, short_cal_interval;
+	u32 cal_interval, short_cal_interval, long_cal_interval;
+
+	if (ah->caldata && ah->caldata->nfcal_interference)
+		long_cal_interval = ATH_LONG_CALINTERVAL_INT;
+	else
+		long_cal_interval = ATH_LONG_CALINTERVAL;
 
 	short_cal_interval = (ah->opmode == NL80211_IFTYPE_AP) ?
 		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
@@ -407,7 +413,7 @@ void ath_ani_calibrate(unsigned long data)
 	ath9k_ps_wakeup(sc);
 
 	/* Long calibration runs independently of short calibration. */
-	if ((timestamp - common->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
+	if ((timestamp - common->ani.longcal_timer) >= long_cal_interval) {
 		longcal = true;
 		ath_print(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
 		common->ani.longcal_timer = timestamp;
@@ -1776,9 +1782,10 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-			if (key->alg == ALG_TKIP)
+			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-			if (sc->sc_ah->sw_mgmt_crypto && key->alg == ALG_CCMP)
+			if (sc->sc_ah->sw_mgmt_crypto &&
+			    key->cipher == WLAN_CIPHER_SUITE_CCMP)
 				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
 			ret = 0;
 		}

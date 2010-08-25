@@ -170,6 +170,7 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 #define IEEE80211_RX_RA_MATCH		BIT(1)
 #define IEEE80211_RX_AMSDU		BIT(2)
 #define IEEE80211_RX_FRAGMENTED		BIT(3)
+#define IEEE80211_MALFORMED_ACTION_FRM	BIT(4)
 /* only add flags here that do not change with subframes of an aMPDU */
 
 struct ieee80211_rx_data {
@@ -343,7 +344,10 @@ struct ieee80211_if_managed {
 	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
-				 ap_smps; /* smps mode AP thinks we're in */
+				 ap_smps, /* smps mode AP thinks we're in */
+				 driver_smps_mode; /* smps mode request */
+
+	struct work_struct request_smps_work;
 
 	unsigned int flags;
 
@@ -497,6 +501,9 @@ struct ieee80211_sub_if_data {
 	 */
 	bool ht_opmode_valid;
 
+	/* to detect idle changes */
+	bool old_idle;
+
 	/* Fragment table for host-based reassembly */
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
@@ -634,7 +641,6 @@ struct ieee80211_local {
 	/*
 	 * work stuff, potentially off-channel (in the future)
 	 */
-	struct mutex work_mtx;
 	struct list_head work_list;
 	struct timer_list work_timer;
 	struct work_struct work_work;
@@ -746,9 +752,10 @@ struct ieee80211_local {
 	 */
 	struct mutex key_mtx;
 
+	/* mutex for scan and work locking */
+	struct mutex mtx;
 
 	/* Scanning and BSS list */
-	struct mutex scan_mtx;
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request *int_scan_req;
@@ -870,6 +877,11 @@ struct ieee80211_local {
 		struct dentry *keys;
 	} debugfs;
 #endif
+
+	/* dummy netdev for use w/ NAPI */
+	struct net_device napi_dev;
+
+	struct napi_struct napi;
 };
 
 static inline struct ieee80211_sub_if_data *
@@ -1105,6 +1117,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid);
+void ieee80211_request_smps_work(struct work_struct *work);
 
 void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     u16 initiator, u16 reason);
@@ -1131,6 +1144,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
 void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
 void ieee80211_ba_session_work(struct work_struct *work);
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid);
+void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,

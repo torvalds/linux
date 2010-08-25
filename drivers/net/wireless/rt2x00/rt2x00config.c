@@ -126,11 +126,6 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * ANTENNA_SW_DIVERSITY state to the driver.
 	 * If that happens, fallback to hardware defaults,
 	 * or our own default.
-	 * If diversity handling is active for a particular antenna,
-	 * we shouldn't overwrite that antenna.
-	 * The calls to rt2x00lib_config_antenna_check()
-	 * might have caused that we restore back to the already
-	 * active setting. If that has happened we can quit.
 	 */
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
 		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
@@ -141,9 +136,6 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 		config.tx = rt2x00lib_config_antenna_check(config.tx, def->tx);
 	else
 		config.tx = active->tx;
-
-	if (config.rx == active->rx && config.tx == active->tx)
-		return;
 
 	/*
 	 * Antenna setup changes require the RX to be disabled,
@@ -209,10 +201,8 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		rt2x00link_reset_tuner(rt2x00dev, false);
 
 	rt2x00dev->curr_band = conf->channel->band;
+	rt2x00dev->curr_freq = conf->channel->center_freq;
 	rt2x00dev->tx_power = conf->power_level;
 	rt2x00dev->short_retry = conf->short_frame_max_tx_count;
 	rt2x00dev->long_retry = conf->long_frame_max_tx_count;
-
-	rt2x00dev->rx_status.band = conf->channel->band;
-	rt2x00dev->rx_status.freq = conf->channel->center_freq;
 }

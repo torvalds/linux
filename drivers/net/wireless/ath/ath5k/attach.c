@@ -139,12 +139,12 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	else
 		ah->ah_version = AR5K_AR5212;
 
-	/*Fill the ath5k_hw struct with the needed functions*/
+	/* Fill the ath5k_hw struct with the needed functions */
 	ret = ath5k_hw_init_desc_functions(ah);
 	if (ret)
 		goto err_free;
 
-	/* Bring device out of sleep and reset it's units */
+	/* Bring device out of sleep and reset its units */
 	ret = ath5k_hw_nic_wakeup(ah, 0, true);
 	if (ret)
 		goto err_free;
@@ -158,7 +158,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 			CHANNEL_5GHZ);
 	ah->ah_phy = AR5K_PHY(0);
 
-	/* Try to identify radio chip based on it's srev */
+	/* Try to identify radio chip based on its srev */
 	switch (ah->ah_radio_5ghz_revision & 0xf0) {
 	case AR5K_SREV_RAD_5111:
 		ah->ah_radio = AR5K_RF5111;
@@ -329,7 +329,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
-	ath5k_hw_set_associd(ah);
+	ath5k_hw_set_bssid(ah);
 	ath5k_hw_set_opmode(ah, sc->opmode);
 
 	ath5k_hw_rfgain_opt_init(ah);

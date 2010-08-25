@@ -1318,7 +1318,25 @@
 #define TX_STA_CNT2_TX_UNDER_FLOW_COUNT	FIELD32(0xffff0000)
 
 /*
- * TX_STA_FIFO: TX Result for specific PID status fifo register
+ * TX_STA_FIFO: TX Result for specific PID status fifo register.
+ *
+ * This register is implemented as FIFO with 16 entries in the HW. Each
+ * register read fetches the next tx result. If the FIFO is full because
+ * it wasn't read fast enough after the according interrupt (TX_FIFO_STATUS)
+ * triggered, the hw seems to simply drop further tx results.
+ *
+ * VALID: 1: this tx result is valid
+ *        0: no valid tx result -> driver should stop reading
+ * PID_TYPE: The PID latched from the PID field in the TXWI, can be used
+ *           to match a frame with its tx result (even though the PID is
+ *           only 4 bits wide).
+ * TX_SUCCESS: Indicates tx success (1) or failure (0)
+ * TX_AGGRE: Indicates if the frame was part of an aggregate (1) or not (0)
+ * TX_ACK_REQUIRED: Indicates if the frame needed to get ack'ed (1) or not (0)
+ * WCID: The wireless client ID.
+ * MCS: The tx rate used during the last transmission of this frame, be it
+ *      successful or not.
+ * PHYMODE: The phymode used for the transmission.
  */
 #define TX_STA_FIFO			0x1718
 #define TX_STA_FIFO_VALID		FIELD32(0x00000001)
@@ -1945,6 +1963,13 @@ struct mac_iveiv_entry {
 
 /*
  * Word1
+ * ACK: 0: No Ack needed, 1: Ack needed
+ * NSEQ: 0: Don't assign hw sequence number, 1: Assign hw sequence number
+ * BW_WIN_SIZE: BA windows size of the recipient
+ * WIRELESS_CLI_ID: Client ID for WCID table access
+ * MPDU_TOTAL_BYTE_COUNT: Length of 802.11 frame
+ * PACKETID: Will be latched into the TX_STA_FIFO register once the according
+ *           frame was processed. 0: Don't report tx status for this frame.
  */
 #define TXWI_W1_ACK			FIELD32(0x00000001)
 #define TXWI_W1_NSEQ			FIELD32(0x00000002)

@@ -85,6 +85,8 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_TGT_DETACH_CMDID";
 	case WMI_TGT_TXQ_ENABLE_CMDID:
 		return "WMI_TGT_TXQ_ENABLE_CMDID";
+	case WMI_AGGR_LIMIT_CMD:
+		return "WMI_AGGR_LIMIT_CMD";
 	}
 
 	return "Bogus";

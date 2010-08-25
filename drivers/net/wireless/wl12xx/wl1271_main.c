@@ -1439,7 +1439,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	wl1271_debug(DEBUG_CRYPT, "CMD: 0x%x", cmd);
 	wl1271_dump(DEBUG_CRYPT, "ADDR: ", addr, ETH_ALEN);
 	wl1271_debug(DEBUG_CRYPT, "Key: algo:0x%x, id:%d, len:%d flags 0x%x",
-		     key_conf->alg, key_conf->keyidx,
+		     key_conf->cipher, key_conf->keyidx,
 		     key_conf->keylen, key_conf->flags);
 	wl1271_dump(DEBUG_CRYPT, "KEY: ", key_conf->key, key_conf->keylen);
 
@@ -1455,20 +1455,21 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (ret < 0)
 		goto out_unlock;
 
-	switch (key_conf->alg) {
-	case ALG_WEP:
+	switch (key_conf->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		key_type = KEY_WEP;
 
 		key_conf->hw_key_idx = key_conf->keyidx;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		key_type = KEY_TKIP;
 
 		key_conf->hw_key_idx = key_conf->keyidx;
 		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
 		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		key_type = KEY_AES;
 
 		key_conf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -1476,7 +1477,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
 		break;
 	default:
-		wl1271_error("Unknown key algo 0x%x", key_conf->alg);
+		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
 
 		ret = -EOPNOTSUPP;
 		goto out_sleep;

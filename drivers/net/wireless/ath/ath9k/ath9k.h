@@ -423,6 +423,7 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
 #define ATH_ANI_POLLINTERVAL_OLD  100     /* 100 ms */
 #define ATH_ANI_POLLINTERVAL_NEW  1000    /* 1000 ms */
+#define ATH_LONG_CALINTERVAL_INT  1000    /* 1000 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
@@ -435,14 +436,6 @@ void ath_ani_calibrate(unsigned long data);
 /**********/
 /* BTCOEX */
 /**********/
-
-/* Defines the BT AR_BT_COEX_WGHT used */
-enum ath_stomp_type {
-	ATH_BTCOEX_NO_STOMP,
-	ATH_BTCOEX_STOMP_ALL,
-	ATH_BTCOEX_STOMP_LOW,
-	ATH_BTCOEX_STOMP_NONE
-};
 
 struct ath_btcoex {
 	bool hw_timer_enabled;

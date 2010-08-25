@@ -200,7 +200,7 @@ int wl1251_cmd_vbm(struct wl1251 *wl, u8 identity,
 
 out:
 	kfree(vbm);
-	return 0;
+	return ret;
 }
 
 int wl1251_cmd_data_path(struct wl1251 *wl, u8 channel, bool enable)

@@ -920,11 +920,13 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
 	sdata->u.ibss.ssid_len = params->ssid_len;
 
+	mutex_unlock(&sdata->u.ibss.mtx);
+
+	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&sdata->local->mtx);
 
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
-
-	mutex_unlock(&sdata->u.ibss.mtx);
 
 	return 0;
 }
@@ -980,7 +982,9 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 
 	mutex_unlock(&sdata->u.ibss.mtx);
 
+	mutex_lock(&local->mtx);
 	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&local->mtx);
 
 	return 0;
 }

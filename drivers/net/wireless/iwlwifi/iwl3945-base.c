@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -151,7 +152,7 @@ static int iwl3945_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	key_flags &= ~STA_KEY_FLG_INVALID;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
+	priv->stations[sta_id].keyinfo.cipher = keyconf->cipher;
 	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
 	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key,
 	       keyconf->keylen);
@@ -222,23 +223,25 @@ static int iwl3945_set_dynamic_key(struct iwl_priv *priv,
 
 	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
 
-	switch (keyconf->alg) {
-	case ALG_CCMP:
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		ret = iwl3945_set_ccmp_dynamic_key_info(priv, keyconf, sta_id);
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		ret = iwl3945_set_tkip_dynamic_key_info(priv, keyconf, sta_id);
 		break;
-	case ALG_WEP:
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		ret = iwl3945_set_wep_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	default:
-		IWL_ERR(priv, "Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
+		IWL_ERR(priv, "Unknown alg: %s alg=%x\n", __func__,
+			keyconf->cipher);
 		ret = -EINVAL;
 	}
 
-	IWL_DEBUG_WEP(priv, "Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
-		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
+	IWL_DEBUG_WEP(priv, "Set dynamic key: alg=%x len=%d idx=%d sta=%d ret=%d\n",
+		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
 		      sta_id, ret);
 
 	return ret;
@@ -254,10 +257,11 @@ static int iwl3945_remove_static_key(struct iwl_priv *priv)
 static int iwl3945_set_static_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *key)
 {
-	if (key->alg == ALG_WEP)
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
 		return -EOPNOTSUPP;
 
-	IWL_ERR(priv, "Static key invalid: alg %d\n", key->alg);
+	IWL_ERR(priv, "Static key invalid: cipher %x\n", key->cipher);
 	return -EINVAL;
 }
 
@@ -369,22 +373,24 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 	struct iwl3945_tx_cmd *tx_cmd = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
 	struct iwl_hw_key *keyinfo = &priv->stations[sta_id].keyinfo;
 
-	switch (keyinfo->alg) {
-	case ALG_CCMP:
+	tx_cmd->sec_ctl = 0;
+
+	switch (keyinfo->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(tx_cmd->key, keyinfo->key, keyinfo->keylen);
 		IWL_DEBUG_TX(priv, "tx_cmd with AES hwcrypto\n");
 		break;
 
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		break;
 
-	case ALG_WEP:
-		tx_cmd->sec_ctl = TX_CMD_SEC_WEP |
+	case WLAN_CIPHER_SUITE_WEP104:
+		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
+		/* fall through */
+	case WLAN_CIPHER_SUITE_WEP40:
+		tx_cmd->sec_ctl |= TX_CMD_SEC_WEP |
 		    (info->control.hw_key->hw_key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
-
-		if (keyinfo->keylen == 13)
-			tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
 
 		memcpy(&tx_cmd->key[3], keyinfo->key, keyinfo->keylen);
 
@@ -393,7 +399,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		IWL_ERR(priv, "Unknown encode alg %d\n", keyinfo->alg);
+		IWL_ERR(priv, "Unknown encode cipher %x\n", keyinfo->cipher);
 		break;
 	}
 }
@@ -813,9 +819,9 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl3945_beacon_notif *beacon = &(pkt->u.beacon_status);
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u8 rate = beacon->beacon_notify_hdr.rate;
 
 	IWL_DEBUG_RX(priv, "beacon status %x retries %d iss %d "
@@ -826,6 +832,8 @@ static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 		le32_to_cpu(beacon->high_tsf),
 		le32_to_cpu(beacon->low_tsf), rate);
 #endif
+
+	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
 	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
@@ -3086,10 +3094,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv);
 
-	memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
-	iwl_setup_rxon_timing(priv, vif);
-	rc = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
-			      sizeof(priv->rxon_timing), &priv->rxon_timing);
+	rc = iwl_send_rxon_timing(priv, vif);
 	if (rc)
 		IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
@@ -3263,11 +3268,7 @@ void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		iwlcore_commit_rxon(priv);
 
 		/* RXON Timing */
-		memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
-		iwl_setup_rxon_timing(priv, vif);
-		rc = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
-				      sizeof(priv->rxon_timing),
-				      &priv->rxon_timing);
+		rc = iwl_send_rxon_timing(priv, vif);
 		if (rc)
 			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
@@ -3785,10 +3786,8 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl3945_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->_3945.rfkill_poll, iwl3945_rfkill_poll);
-	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
-	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
-	INIT_WORK(&priv->start_internal_scan, iwl_bg_start_internal_scan);
-	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
+
+	iwl_setup_scan_deferred_work(priv);
 
 	iwl3945_hw_setup_deferred_work(priv);
 
@@ -3853,6 +3852,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.hw_scan = iwl_mac_hw_scan,
 	.sta_add = iwl3945_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)
@@ -4009,6 +4009,9 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/***************************
 	 * 2. Initializing PCI bus
 	 * *************************/
+	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
+				PCIE_LINK_STATE_CLKPM);
+
 	if (pci_enable_device(pdev)) {
 		err = -ENODEV;
 		goto out_ieee80211_free_hw;

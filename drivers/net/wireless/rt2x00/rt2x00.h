@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
@@ -698,6 +699,7 @@ struct rt2x00_dev {
 	struct ieee80211_hw *hw;
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	enum ieee80211_band curr_band;
+	int curr_freq;
 
 	/*
 	 * If enabled, the debugfs interface structures
@@ -850,17 +852,18 @@ struct rt2x00_dev {
 	struct ieee80211_low_level_stats low_level_stats;
 
 	/*
-	 * RX configuration information.
-	 */
-	struct ieee80211_rx_status rx_status;
-
-	/*
 	 * Scheduled work.
 	 * NOTE: intf_work will use ieee80211_iterate_active_interfaces()
 	 * which means it cannot be placed on the hw->workqueue
 	 * due to RTNL locking requirements.
 	 */
 	struct work_struct intf_work;
+
+	/**
+	 * Scheduled work for TX/RX done handling (USB devices)
+	 */
+	struct work_struct rxdone_work;
+	struct work_struct txdone_work;
 
 	/*
 	 * Data queue arrays for RX, TX and Beacon.
@@ -1071,6 +1074,7 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
+void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status);
 void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 		      struct queue_entry *entry);
 

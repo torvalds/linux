@@ -175,7 +175,7 @@
 #define AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF	0
 #define AR5K_TUNE_RADAR_ALERT			false
 #define AR5K_TUNE_MIN_TX_FIFO_THRES		1
-#define AR5K_TUNE_MAX_TX_FIFO_THRES		((IEEE80211_MAX_LEN / 64) + 1)
+#define AR5K_TUNE_MAX_TX_FIFO_THRES	((IEEE80211_MAX_FRAME_LEN / 64) + 1)
 #define AR5K_TUNE_REGISTER_TIMEOUT		20000
 /* Register for RSSI threshold has a mask of 0xff, so 255 seems to
  * be the max value. */
@@ -342,9 +342,6 @@ struct ath5k_srev_name {
 #define AR5K_SREV_PHY_2413	0x45
 #define AR5K_SREV_PHY_5413	0x61
 #define AR5K_SREV_PHY_2425	0x70
-
-/* IEEE defs */
-#define IEEE80211_MAX_LEN       2500
 
 /* TODO add support to mac80211 for vendor-specific rates and modes */
 
@@ -1190,7 +1187,7 @@ extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* BSSID Functions */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
-void ath5k_hw_set_associd(struct ath5k_hw *ah);
+void ath5k_hw_set_bssid(struct ath5k_hw *ah);
 void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
 /* Receive start/stop functions */
 void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah);

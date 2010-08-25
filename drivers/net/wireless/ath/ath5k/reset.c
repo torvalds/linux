@@ -959,7 +959,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 						AR5K_QUEUE_DCU_SEQNUM(0));
 			}
 
-			/* TSF accelerates on AR5211 durring reset
+			/* TSF accelerates on AR5211 during reset
 			 * As a workaround save it here and restore
 			 * it later so that it's back in time after
 			 * reset. This way it'll get re-synced on the
@@ -1080,7 +1080,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 				return ret;
 
 			/* Spur info is available only from EEPROM versions
-			 * bigger than 5.3 but but the EEPOM routines will use
+			 * greater than 5.3, but the EEPROM routines will use
 			 * static values for older versions */
 			if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
 				ath5k_hw_set_spur_mitigation_filter(ah,
@@ -1160,7 +1160,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 
 	/* Restore bssid and bssid mask */
-	ath5k_hw_set_associd(ah);
+	ath5k_hw_set_bssid(ah);
 
 	/* Set PCU config */
 	ath5k_hw_set_opmode(ah, op_mode);
@@ -1173,11 +1173,11 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/* Set RSSI/BRSSI thresholds
 	 *
 	 * Note: If we decide to set this value
-	 * dynamicaly, have in mind that when AR5K_RSSI_THR
-	 * register is read it might return 0x40 if we haven't
-	 * wrote anything to it plus BMISS RSSI threshold is zeroed.
+	 * dynamically, keep in mind that when AR5K_RSSI_THR
+	 * register is read, it might return 0x40 if we haven't
+	 * written anything to it.  Also, BMISS RSSI threshold is zeroed.
 	 * So doing a save/restore procedure here isn't the right
-	 * choice. Instead store it on ath5k_hw */
+	 * choice. Instead, store it in ath5k_hw */
 	ath5k_hw_reg_write(ah, (AR5K_TUNE_RSSI_THRES |
 				AR5K_TUNE_BMISS_THRES <<
 				AR5K_RSSI_THR_BMISS_S),
@@ -1235,7 +1235,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 	/*
 	 * Perform ADC test to see if baseband is ready
-	 * Set tx hold and check adc test register
+	 * Set TX hold and check ADC test register
 	 */
 	phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
 	ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
@@ -1254,15 +1254,15 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 *
 	 * This method is used to calibrate some static offsets
 	 * used together with on-the fly I/Q calibration (the
-	 * one performed via ath5k_hw_phy_calibrate), that doesn't
+	 * one performed via ath5k_hw_phy_calibrate), which doesn't
 	 * interrupt rx path.
 	 *
 	 * While rx path is re-routed to the power detector we also
-	 * start a noise floor calibration, to measure the
+	 * start a noise floor calibration to measure the
 	 * card's noise floor (the noise we measure when we are not
-	 * transmiting or receiving anything).
+	 * transmitting or receiving anything).
 	 *
-	 * If we are in a noisy environment AGC calibration may time
+	 * If we are in a noisy environment, AGC calibration may time
 	 * out and/or noise floor calibration might timeout.
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,

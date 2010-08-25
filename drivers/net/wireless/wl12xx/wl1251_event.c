@@ -97,6 +97,35 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 	return 0;
 }
 
+/*
+ * Poll the mailbox event field until any of the bits in the mask is set or a
+ * timeout occurs (WL1251_EVENT_TIMEOUT in msecs)
+ */
+int wl1251_event_wait(struct wl1251 *wl, u32 mask, int timeout_ms)
+{
+	u32 events_vector, event;
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(timeout_ms);
+
+	do {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+
+		msleep(1);
+
+		/* read from both event fields */
+		wl1251_mem_read(wl, wl->mbox_ptr[0], &events_vector,
+				sizeof(events_vector));
+		event = events_vector & mask;
+		wl1251_mem_read(wl, wl->mbox_ptr[1], &events_vector,
+				sizeof(events_vector));
+		event |= events_vector & mask;
+	} while (!event);
+
+	return 0;
+}
+
 int wl1251_event_unmask(struct wl1251 *wl)
 {
 	int ret;

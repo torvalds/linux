@@ -1210,6 +1210,12 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ieee80211_wake_queues(hw);
 
+	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE) {
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		ath9k_hw_btcoex_enable(ah);
+		ath_htc_resume_btcoex_work(priv);
+	}
 	mutex_unlock(&priv->mutex);
 
 	return ret;
@@ -1252,6 +1258,12 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 		else
 			ath_print(common, ATH_DBG_CONFIG,
 				  "Monitor interface removed\n");
+	}
+
+	if (ah->btcoex_hw.enabled) {
+		ath9k_hw_btcoex_disable(ah);
+		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_htc_cancel_btcoex_work(priv);
 	}
 
 	ath9k_hw_phy_disable(ah);
@@ -1585,9 +1597,10 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-			if (key->alg == ALG_TKIP)
+			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-			if (priv->ah->sw_mgmt_crypto && key->alg == ALG_CCMP)
+			if (priv->ah->sw_mgmt_crypto &&
+			    key->cipher == WLAN_CIPHER_SUITE_CCMP)
 				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
 			ret = 0;
 		}

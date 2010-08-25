@@ -467,8 +467,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 		for (i = 0; i < supp_band->n_channels; i++)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"%d: %ddBm: BSS%s%s, %s.\n",
-					ieee80211_frequency_to_channel(
-					channels[i].center_freq),
+					channels[i].hw_value,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
@@ -491,8 +490,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 		for (i = 0; i < supp_band->n_channels; i++)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"%d: %ddBm: BSS%s%s, %s.\n",
-					ieee80211_frequency_to_channel(
-					channels[i].center_freq),
+					channels[i].hw_value,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",

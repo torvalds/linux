@@ -612,7 +612,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		goto err_free;
 	}
 
-	/*If we passed the test malloc a ath5k_hw struct*/
+	/* If we passed the test, malloc an ath5k_hw struct */
 	sc->ah = kzalloc(sizeof(struct ath5k_hw), GFP_KERNEL);
 	if (!sc->ah) {
 		ret = -ENOMEM;
@@ -786,8 +786,8 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	/*
 	 * Check if the MAC has multi-rate retry support.
 	 * We do this by trying to setup a fake extended
-	 * descriptor.  MAC's that don't have support will
-	 * return false w/o doing anything.  MAC's that do
+	 * descriptor.  MACs that don't have support will
+	 * return false w/o doing anything.  MACs that do
 	 * support it will return true w/o doing anything.
 	 */
 	ret = ath5k_hw_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
@@ -827,7 +827,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	/*
 	 * Allocate hardware transmit queues: one queue for
 	 * beacon frames and one data queue for each QoS
-	 * priority.  Note that hw functions handle reseting
+	 * priority.  Note that hw functions handle resetting
 	 * these queues at the needed time.
 	 */
 	ret = ath5k_beaconq_setup(ah);
@@ -909,7 +909,7 @@ ath5k_detach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	/*
 	 * NB: the order of these is important:
 	 * o call the 802.11 layer before detaching ath5k_hw to
-	 *   insure callbacks into the driver to delete global
+	 *   ensure callbacks into the driver to delete global
 	 *   key cache entries can be handled
 	 * o reclaim the tx queue data structures after calling
 	 *   the 802.11 layer as we'll get called back to reclaim
@@ -1514,7 +1514,7 @@ ath5k_txq_setup(struct ath5k_softc *sc,
 	/*
 	 * Enable interrupts only for EOL and DESC conditions.
 	 * We mark tx descriptors to receive a DESC interrupt
-	 * when a tx queue gets deep; otherwise waiting for the
+	 * when a tx queue gets deep; otherwise we wait for the
 	 * EOL to reap descriptors.  Note that this is done to
 	 * reduce interrupt load and this only defers reaping
 	 * descriptors, never transmitting frames.  Aside from
@@ -1709,7 +1709,7 @@ ath5k_rx_start(struct ath5k_softc *sc)
 	struct ath5k_buf *bf;
 	int ret;
 
-	common->rx_bufsize = roundup(IEEE80211_MAX_LEN, common->cachelsz);
+	common->rx_bufsize = roundup(IEEE80211_MAX_FRAME_LEN, common->cachelsz);
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rx_bufsize %u\n",
 		  common->cachelsz, common->rx_bufsize);
@@ -1859,7 +1859,7 @@ ath5k_update_beacon_rssi(struct ath5k_softc *sc, struct sk_buff *skb, int rssi)
 }
 
 /*
- * Compute padding position. skb must contains an IEEE 802.11 frame
+ * Compute padding position. skb must contain an IEEE 802.11 frame
  */
 static int ath5k_common_padpos(struct sk_buff *skb)
 {
@@ -1878,10 +1878,9 @@ static int ath5k_common_padpos(struct sk_buff *skb)
 }
 
 /*
- * This function expects a 802.11 frame and returns the number of
- * bytes added, or -1 if we don't have enought header room.
+ * This function expects an 802.11 frame and returns the number of
+ * bytes added, or -1 if we don't have enough header room.
  */
-
 static int ath5k_add_padding(struct sk_buff *skb)
 {
 	int padpos = ath5k_common_padpos(skb);
@@ -1901,10 +1900,18 @@ static int ath5k_add_padding(struct sk_buff *skb)
 }
 
 /*
- * This function expects a 802.11 frame and returns the number of
- * bytes removed
+ * The MAC header is padded to have 32-bit boundary if the
+ * packet payload is non-zero. The general calculation for
+ * padsize would take into account odd header lengths:
+ * padsize = 4 - (hdrlen & 3); however, since only
+ * even-length headers are used, padding can only be 0 or 2
+ * bytes and we can optimize this a bit.  We must not try to
+ * remove padding from short control frames that do not have a
+ * payload.
+ *
+ * This function expects an 802.11 frame and returns the number of
+ * bytes removed.
  */
-
 static int ath5k_remove_padding(struct sk_buff *skb)
 {
 	int padpos = ath5k_common_padpos(skb);
@@ -1925,14 +1932,6 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 {
 	struct ieee80211_rx_status *rxs;
 
-	/* The MAC header is padded to have 32-bit boundary if the
-	 * packet payload is non-zero. The general calculation for
-	 * padsize would take into account odd header lengths:
-	 * padsize = (4 - hdrlen % 4) % 4; However, since only
-	 * even-length headers are used, padding can only be 0 or 2
-	 * bytes and we can optimize this a bit. In addition, we must
-	 * not try to remove padding from short control frames that do
-	 * not have payload. */
 	ath5k_remove_padding(skb);
 
 	rxs = IEEE80211_SKB_RXCB(skb);
@@ -2036,9 +2035,8 @@ ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
 			return true;
 		}
 
-		/* let crypto-error packets fall through in MNTR */
-		if ((rs->rs_status & ~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
-		    sc->opmode != NL80211_IFTYPE_MONITOR)
+		/* reject any frames with non-crypto errors */
+		if (rs->rs_status & ~(AR5K_RXERR_DECRYPT))
 			return false;
 	}
 
@@ -2281,10 +2279,11 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	 * default antenna which is supposed to be an omni.
 	 *
 	 * Note2: On sectored scenarios it's possible to have
-	 * multiple antennas (1omni -the default- and 14 sectors)
-	 * so if we choose to actually support this mode we need
-	 * to allow user to set how many antennas we have and tweak
-	 * the code below to send beacons on all of them.
+	 * multiple antennas (1 omni -- the default -- and 14
+	 * sectors), so if we choose to actually support this
+	 * mode, we need to allow the user to set how many antennas
+	 * we have and tweak the code below to send beacons
+	 * on all of them.
 	 */
 	if (ah->ah_ant_mode == AR5K_ANTMODE_SECTOR_AP)
 		antenna = sc->bsent & 4 ? 2 : 1;
@@ -2326,14 +2325,13 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 
 	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON, "in beacon_send\n");
 
-	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION ||
-			sc->opmode == NL80211_IFTYPE_MONITOR)) {
+	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION)) {
 		ATH5K_WARN(sc, "bf=%p bf_skb=%p\n", bf, bf ? bf->skb : NULL);
 		return;
 	}
 	/*
 	 * Check if the previous beacon has gone out.  If
-	 * not don't don't try to post another, skip this
+	 * not, don't don't try to post another: skip this
 	 * period and wait for the next.  Missed beacons
 	 * indicate a problem and should not occur.  If we
 	 * miss too many consecutive beacons reset the device.
@@ -2901,12 +2899,9 @@ static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	ath5k_debug_dump_skb(sc, skb, "TX  ", 1);
 
-	if (sc->opmode == NL80211_IFTYPE_MONITOR)
-		ATH5K_DBG(sc, ATH5K_DEBUG_XMIT, "tx in monitor (scan?)\n");
-
 	/*
-	 * the hardware expects the header padded to 4 byte boundaries
-	 * if this is not the case we add the padding after the header
+	 * The hardware expects the header padded to 4 byte boundaries.
+	 * If this is not the case, we add the padding after the header.
 	 */
 	padsize = ath5k_add_padding(skb);
 	if (padsize < 0) {
@@ -3049,7 +3044,6 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_MONITOR:
 		sc->opmode = vif->type;
 		break;
 	default:
@@ -3233,9 +3227,9 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		rfilt |= AR5K_RX_FILTER_PHYERR;
 
 	/* FIF_BCN_PRBRESP_PROMISC really means to enable beacons
-	* and probes for any BSSID, this needs testing */
+	* and probes for any BSSID */
 	if (*new_flags & FIF_BCN_PRBRESP_PROMISC)
-		rfilt |= AR5K_RX_FILTER_BEACON | AR5K_RX_FILTER_PROBEREQ;
+		rfilt |= AR5K_RX_FILTER_BEACON;
 
 	/* FIF_CONTROL doc says that if FIF_PROMISC_IN_BSS is not
 	 * set we should only pass on control frames for this
@@ -3251,7 +3245,6 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	switch (sc->opmode) {
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_MONITOR:
 		rfilt |= AR5K_RX_FILTER_CONTROL |
 			 AR5K_RX_FILTER_BEACON |
 			 AR5K_RX_FILTER_PROBEREQ |
@@ -3274,7 +3267,7 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	/* Set multicast bits */
 	ath5k_hw_set_mcast_filter(ah, mfilt[0], mfilt[1]);
-	/* Set the cached hw filter flags, this will alter actually
+	/* Set the cached hw filter flags, this will later actually
 	 * be set in HW */
 	sc->filter_flags = rfilt;
 
@@ -3297,11 +3290,12 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (sc->opmode == NL80211_IFTYPE_AP)
 		return -EOPNOTSUPP;
 
-	switch (key->alg) {
-	case ALG_WEP:
-	case ALG_TKIP:
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		if (sc->ah->ah_aes_support)
 			break;
 
@@ -3475,7 +3469,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		/* Cache for later use during resets */
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = 0;
-		ath5k_hw_set_associd(ah);
+		ath5k_hw_set_bssid(ah);
 		mmiowb();
 	}
 
@@ -3493,7 +3487,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 				  "Bss Info ASSOC %d, bssid: %pM\n",
 				  bss_conf->aid, common->curbssid);
 			common->curaid = bss_conf->aid;
-			ath5k_hw_set_associd(ah);
+			ath5k_hw_set_bssid(ah);
 			/* Once ANI is available you would start it here */
 		}
 	}

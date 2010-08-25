@@ -149,6 +149,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_ARP_FILTER: Hardware ARP filter address list or state changed.
  * @BSS_CHANGED_QOS: QoS for this association was enabled/disabled. Note
  *	that it is only ever disabled for station mode.
+ * @BSS_CHANGED_IDLE: Idle changed for this BSS/interface.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -165,6 +166,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_IBSS		= 1<<11,
 	BSS_CHANGED_ARP_FILTER		= 1<<12,
 	BSS_CHANGED_QOS			= 1<<13,
+	BSS_CHANGED_IDLE		= 1<<14,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -223,6 +225,9 @@ enum ieee80211_bss_change {
  *	hardware must not perform any ARP filtering. Note, that the filter will
  *	be enabled also in promiscuous mode.
  * @qos: This is a QoS-enabled BSS.
+ * @idle: This interface is idle. There's also a global idle flag in the
+ *	hardware config which may be more appropriate depending on what
+ *	your driver/device needs to do.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -247,6 +252,7 @@ struct ieee80211_bss_conf {
 	u8 arp_addr_cnt;
 	bool arp_filter_enabled;
 	bool qos;
+	bool idle;
 };
 
 /**
@@ -783,20 +789,6 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 }
 
 /**
- * enum ieee80211_key_alg - key algorithm
- * @ALG_WEP: WEP40 or WEP104
- * @ALG_TKIP: TKIP
- * @ALG_CCMP: CCMP (AES)
- * @ALG_AES_CMAC: AES-128-CMAC
- */
-enum ieee80211_key_alg {
-	ALG_WEP,
-	ALG_TKIP,
-	ALG_CCMP,
-	ALG_AES_CMAC,
-};
-
-/**
  * enum ieee80211_key_flags - key flags
  *
  * These flags are used for communication about keys between the driver
@@ -833,7 +825,7 @@ enum ieee80211_key_flags {
  * @hw_key_idx: To be set by the driver, this is the key index the driver
  *	wants to be given when a frame is transmitted and needs to be
  *	encrypted in hardware.
- * @alg: The key algorithm.
+ * @cipher: The key's cipher suite selector.
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
  * @keylen: key material length
@@ -846,7 +838,7 @@ enum ieee80211_key_flags {
  * @iv_len: The IV length for this key type
  */
 struct ieee80211_key_conf {
-	enum ieee80211_key_alg alg;
+	u32 cipher;
 	u8 icv_len;
 	u8 iv_len;
 	u8 hw_key_idx;
@@ -1102,6 +1094,10 @@ enum ieee80211_hw_flags {
  *
  * @max_rates: maximum number of alternate rate retry stages
  * @max_rate_tries: maximum number of tries for each stage
+ *
+ * @napi_weight: weight used for NAPI polling.  You must specify an
+ *	appropriate value here if a napi_poll operation is provided
+ *	by your driver.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1113,6 +1109,7 @@ struct ieee80211_hw {
 	int channel_change_time;
 	int vif_data_size;
 	int sta_data_size;
+	int napi_weight;
 	u16 queues;
 	u16 max_listen_interval;
 	s8 max_signal;
@@ -1687,6 +1684,8 @@ enum ieee80211_ampdu_mlme_action {
  *	switch operation for CSAs received from the AP may implement this
  *	callback. They must then call ieee80211_chswitch_done() to indicate
  *	completion of the channel switch.
+ *
+ * @napi_poll: Poll Rx queue for incoming data frames.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1752,6 +1751,7 @@ struct ieee80211_ops {
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
+	int (*napi_poll)(struct ieee80211_hw *hw, int budget);
 };
 
 /**
@@ -1896,6 +1896,22 @@ void ieee80211_free_hw(struct ieee80211_hw *hw);
  * @hw: the hardware to restart
  */
 void ieee80211_restart_hw(struct ieee80211_hw *hw);
+
+/** ieee80211_napi_schedule - schedule NAPI poll
+ *
+ * Use this function to schedule NAPI polling on a device.
+ *
+ * @hw: the hardware to start polling
+ */
+void ieee80211_napi_schedule(struct ieee80211_hw *hw);
+
+/** ieee80211_napi_complete - complete NAPI polling
+ *
+ * Use this function to finish NAPI polling on a device.
+ *
+ * @hw: the hardware to stop polling
+ */
+void ieee80211_napi_complete(struct ieee80211_hw *hw);
 
 /**
  * ieee80211_rx - receive frame
@@ -2517,6 +2533,18 @@ void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
  * and wake up the suspended queues.
  */
 void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
+
+/**
+ * ieee80211_request_smps - request SM PS transition
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @smps_mode: new SM PS mode
+ *
+ * This allows the driver to request an SM PS transition in managed
+ * mode. This is useful when the driver has more information than
+ * the stack about possible interference, for example by bluetooth.
+ */
+void ieee80211_request_smps(struct ieee80211_vif *vif,
+			    enum ieee80211_smps_mode smps_mode);
 
 /* Rate control API */
 

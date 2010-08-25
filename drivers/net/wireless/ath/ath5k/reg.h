@@ -1911,7 +1911,7 @@
 #define	AR5K_PHY_TURBO			0x9804			/* Register Address */
 #define	AR5K_PHY_TURBO_MODE		0x00000001	/* Enable turbo mode */
 #define	AR5K_PHY_TURBO_SHORT		0x00000002	/* Set short symbols to turbo mode */
-#define	AR5K_PHY_TURBO_MIMO		0x00000004	/* Set turbo for mimo mimo */
+#define	AR5K_PHY_TURBO_MIMO		0x00000004	/* Set turbo for mimo */
 
 /*
  * PHY agility command register

@@ -380,7 +380,7 @@ int wl1251_acx_pd_threshold(struct wl1251 *wl)
 
 out:
 	kfree(pd);
-	return 0;
+	return ret;
 }
 
 int wl1251_acx_slot(struct wl1251 *wl, enum acx_slot_type slot_time)

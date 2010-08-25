@@ -3056,9 +3056,9 @@ static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 
 		packet = list_entry(element, struct ipw2100_tx_packet, list);
 
-		IPW_DEBUG_TX("using TBD at virt=%p, phys=%p\n",
+		IPW_DEBUG_TX("using TBD at virt=%p, phys=%04X\n",
 			     &txq->drv[txq->next],
-			     (void *)(txq->nic + txq->next *
+			     (u32) (txq->nic + txq->next *
 				      sizeof(struct ipw2100_bd)));
 
 		packet->index = txq->next;

@@ -2061,11 +2061,12 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	int i;
 
-	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->alg %d key->keyidx %d "
+	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->cipher %d key->keyidx %d "
 		 "key->keylen %d",
-		 __func__, cmd, key->alg, key->keyidx, key->keylen);
+		 __func__, cmd, key->cipher, key->keyidx, key->keylen);
 
-	if (key->alg != ALG_WEP)
+	if ((key->cipher != WLAN_CIPHER_SUITE_WEP40) &&
+	    (key->cipher != WLAN_CIPHER_SUITE_WEP104))
 		return -EOPNOTSUPP;
 
 	key->hw_key_idx = key->keyidx;
