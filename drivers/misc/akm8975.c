@@ -29,10 +29,10 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <linux/akm8975.h>
-#include <linux/earlysuspend.h>
 
 #define AK8975DRV_CALL_DBG 0
 #if AK8975DRV_CALL_DBG
@@ -46,13 +46,10 @@
 
 struct akm8975_data {
 	struct i2c_client *this_client;
-	struct akm8975_platform_data *pdata;
 	struct input_dev *input_dev;
 	struct work_struct work;
 	struct mutex flags_lock;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
+	struct regulator *regulator;
 };
 
 /*
@@ -429,80 +426,35 @@ static irqreturn_t akm8975_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int akm8975_power_off(struct akm8975_data *akm)
-{
-#if AK8975DRV_CALL_DBG
-	pr_info("%s\n", __func__);
-#endif
-	if (akm->pdata->power_off)
-		akm->pdata->power_off();
-
-	return 0;
-}
-
-static int akm8975_power_on(struct akm8975_data *akm)
-{
-	int err;
-
-#if AK8975DRV_CALL_DBG
-	pr_info("%s\n", __func__);
-#endif
-	if (akm->pdata->power_on) {
-		err = akm->pdata->power_on();
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 static int akm8975_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct akm8975_data *akm = i2c_get_clientdata(client);
+	int ret = 0;
 
 #if AK8975DRV_CALL_DBG
 	pr_info("%s\n", __func__);
 #endif
 	/* TO DO: might need more work after power mgmt
 	   is enabled */
-	return akm8975_power_off(akm);
+	if (akm->regulator)
+		ret = regulator_disable(akm->regulator);
+	return ret;
 }
 
 static int akm8975_resume(struct i2c_client *client)
 {
 	struct akm8975_data *akm = i2c_get_clientdata(client);
+	int ret = 0;
 
 #if AK8975DRV_CALL_DBG
 	pr_info("%s\n", __func__);
 #endif
 	/* TO DO: might need more work after power mgmt
 	   is enabled */
-	return akm8975_power_on(akm);
+	if (akm->regulator)
+		ret = regulator_enable(akm->regulator);
+	return ret;
 }
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void akm8975_early_suspend(struct early_suspend *handler)
-{
-	struct akm8975_data *akm;
-	akm = container_of(handler, struct akm8975_data, early_suspend);
-
-#if AK8975DRV_CALL_DBG
-	pr_info("%s\n", __func__);
-#endif
-	akm8975_suspend(akm->this_client, PMSG_SUSPEND);
-}
-
-static void akm8975_early_resume(struct early_suspend *handler)
-{
-	struct akm8975_data *akm;
-	akm = container_of(handler, struct akm8975_data, early_suspend);
-
-#if AK8975DRV_CALL_DBG
-	pr_info("%s\n", __func__);
-#endif
-	akm8975_resume(akm->this_client);
-}
-#endif
-
 
 static int akm8975_init_client(struct i2c_client *client)
 {
@@ -566,12 +518,6 @@ int akm8975_probe(struct i2c_client *client,
 	int err;
 	FUNCDBG("called");
 
-	if (client->dev.platform_data == NULL) {
-		dev_err(&client->dev, "platform data is NULL. exiting.\n");
-		err = -ENODEV;
-		goto exit_platform_data_null;
-	}
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "platform data is NULL. exiting.\n");
 		err = -ENODEV;
@@ -586,15 +532,17 @@ int akm8975_probe(struct i2c_client *client,
 		goto exit_alloc_data_failed;
 	}
 
-	akm->pdata = client->dev.platform_data;
-
 	mutex_init(&akm->flags_lock);
 	INIT_WORK(&akm->work, akm_work_func);
 	i2c_set_clientdata(client, akm);
 
-	err = akm8975_power_on(akm);
-	if (err < 0)
-		goto exit_power_on_failed;
+	akm->regulator = regulator_get(&client->dev, "vcc");
+	if (IS_ERR_OR_NULL(akm->regulator)) {
+		dev_err(&client->dev, "unable to get regulator %s\n", dev_name(&client->dev));
+		akm->regulator = NULL;
+	} else {
+		regulator_enable(akm->regulator);
+	}
 
 	akm8975_init_client(client);
 	akm->this_client = client;
@@ -657,24 +605,17 @@ int akm8975_probe(struct i2c_client *client,
 	}
 
 	err = device_create_file(&client->dev, &dev_attr_akm_ms1);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	akm->early_suspend.suspend = akm8975_early_suspend;
-	akm->early_suspend.resume = akm8975_early_resume;
-	register_early_suspend(&akm->early_suspend);
-#endif
 	return 0;
 
 exit_misc_device_register_failed:
 exit_input_register_device_failed:
 	input_free_device(akm->input_dev);
 exit_input_dev_alloc_failed:
-	akm8975_power_off(akm);
-exit_power_on_failed:
+	if (akm->regulator)
+		regulator_put(akm->regulator);
 	kfree(akm);
 exit_alloc_data_failed:
 exit_check_functionality_failed:
-exit_platform_data_null:
 	return err;
 }
 
@@ -686,7 +627,10 @@ static int __devexit akm8975_remove(struct i2c_client *client)
 	input_unregister_device(akm->input_dev);
 	misc_deregister(&akmd_device);
 	misc_deregister(&akm_aot_device);
-	akm8975_power_off(akm);
+	if (akm->regulator) {
+		regulator_disable(akm->regulator);
+		regulator_put(akm->regulator);
+	}
 	kfree(akm);
 	return 0;
 }
@@ -701,10 +645,8 @@ MODULE_DEVICE_TABLE(i2c, akm8975_id);
 static struct i2c_driver akm8975_driver = {
 	.probe = akm8975_probe,
 	.remove = akm8975_remove,
-#ifndef CONFIG_HAS_EARLYSUSPEND
 	.resume = akm8975_resume,
 	.suspend = akm8975_suspend,
-#endif
 	.id_table = akm8975_id,
 	.driver = {
 		.name = "akm8975",
