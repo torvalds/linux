@@ -147,7 +147,6 @@ struct nilfs_super_root {
 #define NILFS_MOUNT_ERRORS_CONT		0x0010  /* Continue on errors */
 #define NILFS_MOUNT_ERRORS_RO		0x0020  /* Remount fs ro on errors */
 #define NILFS_MOUNT_ERRORS_PANIC	0x0040  /* Panic on errors */
-#define NILFS_MOUNT_SNAPSHOT		0x0080  /* Snapshot flag */
 #define NILFS_MOUNT_BARRIER		0x1000  /* Use block barriers */
 #define NILFS_MOUNT_STRICT_ORDER	0x2000  /* Apply strict in-order
 						   semantics also for data */
