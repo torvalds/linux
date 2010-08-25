@@ -187,6 +187,302 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	return btrfs_update_inode(trans, root, inode);
 }
 
+static int readahead_cache(struct inode *inode)
+{
+	struct file_ra_state *ra;
+	unsigned long last_index;
+
+	ra = kzalloc(sizeof(*ra), GFP_NOFS);
+	if (!ra)
+		return -ENOMEM;
+
+	file_ra_state_init(ra, inode->i_mapping);
+	last_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
+
+	page_cache_sync_readahead(inode->i_mapping, ra, NULL, 0, last_index);
+
+	kfree(ra);
+
+	return 0;
+}
+
+int load_free_space_cache(struct btrfs_fs_info *fs_info,
+			  struct btrfs_block_group_cache *block_group)
+{
+	struct btrfs_root *root = fs_info->tree_root;
+	struct inode *inode;
+	struct btrfs_free_space_header *header;
+	struct extent_buffer *leaf;
+	struct page *page;
+	struct btrfs_path *path;
+	u32 *checksums = NULL, *crc;
+	char *disk_crcs = NULL;
+	struct btrfs_key key;
+	struct list_head bitmaps;
+	u64 num_entries;
+	u64 num_bitmaps;
+	u64 generation;
+	u32 cur_crc = ~(u32)0;
+	pgoff_t index = 0;
+	unsigned long first_page_offset;
+	int num_checksums;
+	int ret = 0;
+
+	/*
+	 * If we're unmounting then just return, since this does a search on the
+	 * normal root and not the commit root and we could deadlock.
+	 */
+	smp_mb();
+	if (fs_info->closing)
+		return 0;
+
+	/*
+	 * If this block group has been marked to be cleared for one reason or
+	 * another then we can't trust the on disk cache, so just return.
+	 */
+	spin_lock(&block_group->lock);
+	if (block_group->disk_cache_state != BTRFS_DC_WRITTEN) {
+		printk(KERN_ERR "not reading block group %llu, dcs is %d\n", block_group->key.objectid,
+		       block_group->disk_cache_state);
+		spin_unlock(&block_group->lock);
+		return 0;
+	}
+	spin_unlock(&block_group->lock);
+
+	INIT_LIST_HEAD(&bitmaps);
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return 0;
+
+	inode = lookup_free_space_inode(root, block_group, path);
+	if (IS_ERR(inode)) {
+		btrfs_free_path(path);
+		return 0;
+	}
+
+	/* Nothing in the space cache, goodbye */
+	if (!i_size_read(inode)) {
+		btrfs_free_path(path);
+		goto out;
+	}
+
+	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
+	key.offset = block_group->key.objectid;
+	key.type = 0;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret) {
+		btrfs_free_path(path);
+		goto out;
+	}
+
+	leaf = path->nodes[0];
+	header = btrfs_item_ptr(leaf, path->slots[0],
+				struct btrfs_free_space_header);
+	num_entries = btrfs_free_space_entries(leaf, header);
+	num_bitmaps = btrfs_free_space_bitmaps(leaf, header);
+	generation = btrfs_free_space_generation(leaf, header);
+	btrfs_free_path(path);
+
+	if (BTRFS_I(inode)->generation != generation) {
+		printk(KERN_ERR "btrfs: free space inode generation (%llu) did"
+		       " not match free space cache generation (%llu) for "
+		       "block group %llu\n",
+		       (unsigned long long)BTRFS_I(inode)->generation,
+		       (unsigned long long)generation,
+		       (unsigned long long)block_group->key.objectid);
+		goto out;
+	}
+
+	if (!num_entries)
+		goto out;
+
+	/* Setup everything for doing checksumming */
+	num_checksums = i_size_read(inode) / PAGE_CACHE_SIZE;
+	checksums = crc = kzalloc(sizeof(u32) * num_checksums, GFP_NOFS);
+	if (!checksums)
+		goto out;
+	first_page_offset = (sizeof(u32) * num_checksums) + sizeof(u64);
+	disk_crcs = kzalloc(first_page_offset, GFP_NOFS);
+	if (!disk_crcs)
+		goto out;
+
+	ret = readahead_cache(inode);
+	if (ret) {
+		ret = 0;
+		goto out;
+	}
+
+	while (1) {
+		struct btrfs_free_space_entry *entry;
+		struct btrfs_free_space *e;
+		void *addr;
+		unsigned long offset = 0;
+		unsigned long start_offset = 0;
+		int need_loop = 0;
+
+		if (!num_entries && !num_bitmaps)
+			break;
+
+		if (index == 0) {
+			start_offset = first_page_offset;
+			offset = start_offset;
+		}
+
+		page = grab_cache_page(inode->i_mapping, index);
+		if (!page) {
+			ret = 0;
+			goto free_cache;
+		}
+
+		if (!PageUptodate(page)) {
+			btrfs_readpage(NULL, page);
+			lock_page(page);
+			if (!PageUptodate(page)) {
+				unlock_page(page);
+				page_cache_release(page);
+				printk(KERN_ERR "btrfs: error reading free "
+				       "space cache: %llu\n",
+				       (unsigned long long)
+				       block_group->key.objectid);
+				goto free_cache;
+			}
+		}
+		addr = kmap(page);
+
+		if (index == 0) {
+			u64 *gen;
+
+			memcpy(disk_crcs, addr, first_page_offset);
+			gen = addr + (sizeof(u32) * num_checksums);
+			if (*gen != BTRFS_I(inode)->generation) {
+				printk(KERN_ERR "btrfs: space cache generation"
+				       " (%llu) does not match inode (%llu) "
+				       "for block group %llu\n",
+				       (unsigned long long)*gen,
+				       (unsigned long long)
+				       BTRFS_I(inode)->generation,
+				       (unsigned long long)
+				       block_group->key.objectid);
+				kunmap(page);
+				unlock_page(page);
+				page_cache_release(page);
+				goto free_cache;
+			}
+			crc = (u32 *)disk_crcs;
+		}
+		entry = addr + start_offset;
+
+		/* First lets check our crc before we do anything fun */
+		cur_crc = ~(u32)0;
+		cur_crc = btrfs_csum_data(root, addr + start_offset, cur_crc,
+					  PAGE_CACHE_SIZE - start_offset);
+		btrfs_csum_final(cur_crc, (char *)&cur_crc);
+		if (cur_crc != *crc) {
+			printk(KERN_ERR "btrfs: crc mismatch for page %lu in "
+			       "block group %llu\n", index,
+			       (unsigned long long)block_group->key.objectid);
+			kunmap(page);
+			unlock_page(page);
+			page_cache_release(page);
+			goto free_cache;
+		}
+		crc++;
+
+		while (1) {
+			if (!num_entries)
+				break;
+
+			need_loop = 1;
+			e = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
+			if (!e) {
+				kunmap(page);
+				unlock_page(page);
+				page_cache_release(page);
+				goto free_cache;
+			}
+
+			e->offset = le64_to_cpu(entry->offset);
+			e->bytes = le64_to_cpu(entry->bytes);
+			if (!e->bytes) {
+				kunmap(page);
+				kfree(e);
+				unlock_page(page);
+				page_cache_release(page);
+				goto free_cache;
+			}
+
+			if (entry->type == BTRFS_FREE_SPACE_EXTENT) {
+				spin_lock(&block_group->tree_lock);
+				ret = link_free_space(block_group, e);
+				spin_unlock(&block_group->tree_lock);
+				BUG_ON(ret);
+			} else {
+				e->bitmap = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+				if (!e->bitmap) {
+					kunmap(page);
+					kfree(e);
+					unlock_page(page);
+					page_cache_release(page);
+					goto free_cache;
+				}
+				spin_lock(&block_group->tree_lock);
+				ret = link_free_space(block_group, e);
+				block_group->total_bitmaps++;
+				recalculate_thresholds(block_group);
+				spin_unlock(&block_group->tree_lock);
+				list_add_tail(&e->list, &bitmaps);
+			}
+
+			num_entries--;
+			offset += sizeof(struct btrfs_free_space_entry);
+			if (offset + sizeof(struct btrfs_free_space_entry) >=
+			    PAGE_CACHE_SIZE)
+				break;
+			entry++;
+		}
+
+		/*
+		 * We read an entry out of this page, we need to move on to the
+		 * next page.
+		 */
+		if (need_loop) {
+			kunmap(page);
+			goto next;
+		}
+
+		/*
+		 * We add the bitmaps at the end of the entries in order that
+		 * the bitmap entries are added to the cache.
+		 */
+		e = list_entry(bitmaps.next, struct btrfs_free_space, list);
+		list_del_init(&e->list);
+		memcpy(e->bitmap, addr, PAGE_CACHE_SIZE);
+		kunmap(page);
+		num_bitmaps--;
+next:
+		unlock_page(page);
+		page_cache_release(page);
+		index++;
+	}
+
+	ret = 1;
+out:
+	kfree(checksums);
+	kfree(disk_crcs);
+	iput(inode);
+	return ret;
+
+free_cache:
+	/* This cache is bogus, make sure it gets cleared */
+	spin_lock(&block_group->lock);
+	block_group->disk_cache_state = BTRFS_DC_CLEAR;
+	spin_unlock(&block_group->lock);
+	btrfs_remove_free_space_cache(block_group);
+	goto out;
+}
+
 int btrfs_write_out_cache(struct btrfs_root *root,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
