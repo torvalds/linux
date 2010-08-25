@@ -1160,6 +1160,7 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 	case QLCNIC_DEL_VLAN:
 			arg1 |= (BIT_3 | BIT_5);
 			arg1 &= ~(0x0ffff << 16);
+			break;
 	default:
 		return err;
 	}

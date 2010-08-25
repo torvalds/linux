@@ -3301,8 +3301,6 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 				return QL_STATUS_INVALID_PARAM;
 			break;
 		case QLCNIC_DEL_VLAN:
-			if (!IS_VALID_VLAN(esw_cfg[i].vlan_id))
-				return QL_STATUS_INVALID_PARAM;
 			if (!esw_cfg[i].op_type)
 				return QL_STATUS_INVALID_PARAM;
 			break;
@@ -3338,21 +3336,25 @@ qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
 		if (adapter->op_mode == QLCNIC_MGMT_FUNC)
 			if (qlcnic_config_switch_port(adapter, &esw_cfg[i]))
 				return QL_STATUS_INVALID_PARAM;
-		if (adapter->ahw.pci_func == esw_cfg[i].pci_func)
-			op_mode = esw_cfg[i].op_mode;
-			qlcnic_get_eswitch_port_config(adapter, &esw_cfg[i]);
-			esw_cfg[i].op_mode = op_mode;
-			esw_cfg[i].pci_func = adapter->ahw.pci_func;
-			switch (esw_cfg[i].op_mode) {
-			case QLCNIC_PORT_DEFAULTS:
-				qlcnic_set_eswitch_port_features(adapter,
-								&esw_cfg[i]);
-				break;
+
+		if (adapter->ahw.pci_func != esw_cfg[i].pci_func)
+			continue;
+
+		op_mode = esw_cfg[i].op_mode;
+		qlcnic_get_eswitch_port_config(adapter, &esw_cfg[i]);
+		esw_cfg[i].op_mode = op_mode;
+		esw_cfg[i].pci_func = adapter->ahw.pci_func;
+
+		switch (esw_cfg[i].op_mode) {
+		case QLCNIC_PORT_DEFAULTS:
+			qlcnic_set_eswitch_port_features(adapter, &esw_cfg[i]);
+			break;
 		}
 	}
 
 	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
 		goto out;
+
 	for (i = 0; i < count; i++) {
 		pci_func = esw_cfg[i].pci_func;
 		npar = &adapter->npars[pci_func];
