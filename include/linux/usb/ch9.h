@@ -808,4 +808,14 @@ enum usb_device_state {
 	 */
 };
 
+/*-------------------------------------------------------------------------*/
+
+/*
+ * As per USB compliance update, a device that is actively drawing
+ * more than 100mA from USB must report itself as bus-powered in
+ * the GetStatus(DEVICE) call.
+ * http://compliance.usb.org/index.asp?UpdateFile=Electrical&Format=Standard#34
+ */
+#define USB_SELF_POWER_VBUS_MAX_DRAW		100
+
 #endif /* __LINUX_USB_CH9_H */
