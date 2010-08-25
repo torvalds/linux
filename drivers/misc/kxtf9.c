@@ -25,6 +25,7 @@
 #include <linux/input-polldev.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
@@ -128,6 +129,7 @@ struct kxtf9_data {
 	u8 resume_state[RESUME_ENTRIES];
 	int irq;
 	struct tap_sensitivity ts_regs[SENSITIVITY_LEVELS];
+	struct regulator *regulator;
 };
 
 struct kxtf9_data *kxtf9_misc_data;
@@ -271,9 +273,9 @@ static void kxtf9_device_power_off(struct kxtf9_data *tf9)
 	err = kxtf9_i2c_write(tf9, buf, 1);
 	if (err < 0)
 		dev_err(&tf9->client->dev, "soft power off failed: %d\n", err);
-	if (tf9->pdata->power_off) {
+	if (tf9->regulator) {
 		disable_irq_nosync(tf9->irq);
-		tf9->pdata->power_off();
+		regulator_disable(tf9->regulator);
 		tf9->hw_initialized = 0;
 	}
 }
@@ -282,8 +284,8 @@ static int kxtf9_device_power_on(struct kxtf9_data *tf9)
 {
 	int err;
 
-	if (tf9->pdata->power_on) {
-		err = tf9->pdata->power_on();
+	if (tf9->regulator) {
+		err = regulator_enable(tf9->regulator);
 		if (err < 0) {
 			dev_err(&tf9->client->dev,
 				"power_on failed: %d\n", err);
@@ -1099,13 +1101,13 @@ static int kxtf9_probe(struct i2c_client *client,
 		goto err3;
 	}
 	i2c_set_clientdata(client, tf9);
-	if (tf9->pdata->init) {
-		err = tf9->pdata->init();
-		if (err < 0) {
-			dev_err(&client->dev, "init failed: %d\n", err);
-			goto err3;
-		}
+
+	tf9->regulator = regulator_get(&client->dev, "vcc");
+	if (IS_ERR_OR_NULL(tf9->regulator)) {
+		dev_err(&client->dev, "unable to get regulator\n");
+		tf9->regulator = NULL;
 	}
+
 	kxtf9_sensitivity_init(tf9);
 
 	tf9->irq = client->irq;
@@ -1173,8 +1175,8 @@ err6:
 err5:
 	kxtf9_device_power_off(tf9);
 err4:
-	if (tf9->pdata->exit)
-		tf9->pdata->exit();
+	if (tf9->regulator)
+		regulator_put(tf9->regulator);
 err3:
 	kfree(tf9->pdata);
 err2:
@@ -1194,8 +1196,8 @@ static int __devexit kxtf9_remove(struct i2c_client *client)
 	misc_deregister(&kxtf9_misc_device);
 	kxtf9_input_cleanup(tf9);
 	kxtf9_device_power_off(tf9);
-	if (tf9->pdata->exit)
-		tf9->pdata->exit();
+	if (tf9->regulator)
+		regulator_put(tf9->regulator);
 	kfree(tf9->pdata);
 	destroy_workqueue(tf9->irq_work_queue);
 	kfree(tf9);
