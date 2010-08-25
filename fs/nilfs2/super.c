@@ -750,6 +750,39 @@ int nilfs_check_feature_compatibility(struct super_block *sb,
 	return 0;
 }
 
+static int nilfs_get_root_dentry(struct super_block *sb,
+				 struct nilfs_root *root,
+				 struct dentry **root_dentry)
+{
+	struct inode *inode;
+	struct dentry *dentry;
+	int ret = 0;
+
+	inode = nilfs_iget(sb, root, NILFS_ROOT_INO);
+	if (IS_ERR(inode)) {
+		printk(KERN_ERR "NILFS: get root inode failed\n");
+		ret = PTR_ERR(inode);
+		goto out;
+	}
+	if (!S_ISDIR(inode->i_mode) || !inode->i_blocks || !inode->i_size) {
+		iput(inode);
+		printk(KERN_ERR "NILFS: corrupt root inode.\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	dentry = d_alloc_root(inode);
+	if (!dentry) {
+		iput(inode);
+		printk(KERN_ERR "NILFS: get root dentry failed\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+	*root_dentry = dentry;
+ out:
+	return ret;
+}
+
 /**
  * nilfs_fill_super() - initialize a super block instance
  * @sb: super_block
@@ -766,7 +799,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 {
 	struct nilfs_sb_info *sbi;
 	struct nilfs_root *fsroot;
-	struct inode *root;
 	__u64 cno;
 	int err, curr_mnt;
 
@@ -850,25 +882,9 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 			goto failed_checkpoint;
 	}
 
-	root = nilfs_iget(sb, fsroot, NILFS_ROOT_INO);
-	if (IS_ERR(root)) {
-		printk(KERN_ERR "NILFS: get root inode failed\n");
-		err = PTR_ERR(root);
+	err = nilfs_get_root_dentry(sb, fsroot, &sb->s_root);
+	if (err)
 		goto failed_segctor;
-	}
-	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
-		iput(root);
-		printk(KERN_ERR "NILFS: corrupt root inode.\n");
-		err = -EINVAL;
-		goto failed_segctor;
-	}
-	sb->s_root = d_alloc_root(root);
-	if (!sb->s_root) {
-		iput(root);
-		printk(KERN_ERR "NILFS: get root dentry failed\n");
-		err = -ENOMEM;
-		goto failed_segctor;
-	}
 
 	nilfs_put_root(fsroot);
 
