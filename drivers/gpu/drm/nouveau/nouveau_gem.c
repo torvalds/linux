@@ -663,7 +663,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 				      push[i].length);
 		}
 	} else
-	if (dev_priv->card_type >= NV_20) {
+	if (dev_priv->chipset >= 0x25) {
 		ret = RING_SPACE(chan, req->nr_push * 2);
 		if (ret) {
 			NV_ERROR(dev, "cal_space: %d\n", ret);
@@ -738,7 +738,7 @@ out_next:
 		req->suffix0 = 0x00000000;
 		req->suffix1 = 0x00000000;
 	} else
-	if (dev_priv->card_type >= NV_20) {
+	if (dev_priv->chipset >= 0x25) {
 		req->suffix0 = 0x00020000;
 		req->suffix1 = 0x00000000;
 	} else {
