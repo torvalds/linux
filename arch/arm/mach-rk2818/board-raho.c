@@ -701,6 +701,14 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.platform_data = &rk2818_gs_platdata,
     },
 #endif
+#if defined (CONFIG_TOUCHSCREEN_IT7250)  //add by robert for ctp_it7250
+    {
+        .type           = "Ctp_it7250",
+        .addr           = 0x46,
+        .flags          = 0,
+        .irq            = RK2818_PIN_PE1,
+    },
+#endif  //end add
 	{},
 };
 
