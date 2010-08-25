@@ -825,6 +825,7 @@ static void ironlake_edp_panel_vdd_on(struct drm_device *dev)
 	pp |= EDP_FORCE_VDD;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
+	msleep(300);
 }
 
 static void ironlake_edp_panel_vdd_off(struct drm_device *dev)
@@ -836,6 +837,7 @@ static void ironlake_edp_panel_vdd_off(struct drm_device *dev)
 	pp &= ~EDP_FORCE_VDD;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
+	msleep(300);
 }
 
 static void ironlake_edp_backlight_on (struct drm_device *dev)
