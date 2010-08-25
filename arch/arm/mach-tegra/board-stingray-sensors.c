@@ -26,7 +26,6 @@
 #include <linux/l3g4200d.h>
 #include <linux/led-lm3559.h>
 #include <linux/max9635.h>
-#include <linux/akm8975.h>
 #include <media/ov5650.h>
 #include <media/soc2030.h>
 #include <linux/platform_device.h>
@@ -153,7 +152,6 @@ struct soc2030_platform_data stingray_soc2030_data = {
 	.power_off = stingray_soc2030_power_off,
 };
 
-static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
 {
 	/*struct regulator *reg;*/
@@ -162,35 +160,9 @@ static int stingray_bmp085_init(void)
 	gpio_request(BMP085_IRQ_GPIO, "bmp085_irq");
 	gpio_direction_input(BMP085_IRQ_GPIO);
 
-/*TO DO add regulator calls in once regulator FW is ready
-	reg = regulator_get(NULL, "vhvio");
-	if (IS_ERR(reg))
-		return PTR_ERR(reg);
-	stingray_bmp085_regulator = reg;*/
-	stingray_bmp085_regulator = NULL;
-
 	return 0;
 }
 
-static void stingray_bmp085_exit(void)
-{
-	if (stingray_bmp085_regulator)
-		regulator_put(stingray_bmp085_regulator);
-	gpio_free(BMP085_IRQ_GPIO);
-	return;
-}
-static int stingray_bmp085_power_on(void)
-{
-	if (stingray_bmp085_regulator)
-		return regulator_enable(stingray_bmp085_regulator);
-	return 0;
-}
-static int stingray_bmp085_power_off(void)
-{
-	if (stingray_bmp085_regulator)
-		return regulator_disable(stingray_bmp085_regulator);
-	return 0;
-}
 struct bmp085_platform_data stingray_barom_pdata = {
 	.poll_interval = 200,
 	.min_interval = 20,
@@ -198,49 +170,7 @@ struct bmp085_platform_data stingray_barom_pdata = {
 	.max_p = 125000,
 	.fuzz = 5,
 	.flat = 5,
-
-	.init = stingray_bmp085_init,
-	.exit = stingray_bmp085_exit,
-	.power_on = stingray_bmp085_power_on,
-	.power_off = stingray_bmp085_power_off,
-
 };
-static struct regulator *stingray_kxtf9_regulator;
-static int stingray_kxtf9_regulator_init(void)
-{
-/*TO DO add regulator calls in once regulator FW is ready
-	struct regulator *reg;
-	reg = regulator_get(NULL, "vhvio");
-	if (IS_ERR(reg))
-		return PTR_ERR(reg);
-	stingray_kxtf9_regulator = reg;
-*/
-	stingray_kxtf9_regulator = NULL;
-	return 0;
-}
-
-static void stingray_kxtf9_regulator_exit(void)
-{
-	if (stingray_kxtf9_regulator)
-		regulator_put(stingray_kxtf9_regulator);
-}
-
-static int stingray_kxtf9_power_on(void)
-{
-	if (stingray_kxtf9_regulator)
-		return regulator_enable(stingray_kxtf9_regulator);
-
-	return 0;
-}
-
-static int stingray_kxtf9_power_off(void)
-{
-
-	if (stingray_kxtf9_regulator)
-		return regulator_disable(stingray_kxtf9_regulator);
-
-	return 0;
-}
 
 static int stingray_kxtf9_gpio_level(void)
 {
@@ -250,11 +180,6 @@ static int stingray_kxtf9_gpio_level(void)
 
 
 struct kxtf9_platform_data stingray_kxtf9_pdata = {
-	.init = stingray_kxtf9_regulator_init,
-	.exit = stingray_kxtf9_regulator_exit,
-	.power_on = stingray_kxtf9_power_on,
-	.power_off = stingray_kxtf9_power_off,
-
 	.min_interval	= 2,
 	.poll_interval	= 200,
 
@@ -303,19 +228,6 @@ static void stingray_kxtf9_init(void)
 	gpio_direction_input(KXTF9_IRQ_GPIO);
 }
 
-static struct regulator *stingray_max9635_regulator;
-static int stingray_max9635_power_on(void)
-{
-	if (stingray_max9635_regulator)
-		return regulator_enable(stingray_max9635_regulator);
-	return 0;
-}
-static int stingray_max9635_power_off(void)
-{
-	if (stingray_max9635_regulator)
-		return regulator_disable(stingray_max9635_regulator);
-	return 0;
-}
 struct max9635_als_zone_data stingray_zone_data[] = {
 	{ 0x00, 0x57},
 	{ 0x58, 0x95},
@@ -332,8 +244,6 @@ struct max9635_platform_data stingray_max9635_pdata = {
 	.lens_percent_t = 100,
 	.als_lux_table = stingray_zone_data,
 	.num_of_zones = ARRAY_SIZE(stingray_zone_data),
-	.power_on = stingray_max9635_power_on,
-	.power_off = stingray_max9635_power_off
 };
 
 static int stingray_max9635_init(void)
@@ -341,55 +251,17 @@ static int stingray_max9635_init(void)
 	tegra_gpio_enable(MAX9635_IRQ_GPIO);
 	gpio_request(MAX9635_IRQ_GPIO, "max9635_irq");
 	gpio_direction_input(MAX9635_IRQ_GPIO);
-
-/*TO DO add regulator calls in once regulator FW is ready
-	struct regulator *reg;
-	reg = regulator_get(NULL, "vhvio");
-	if (IS_ERR(reg))
-		return PTR_ERR(reg);
-	stingray_max9635_regulator = reg;
-*/
-	stingray_max9635_regulator = NULL;
 	return 0;
 }
 
-static struct regulator *stingray_l3g4200d_regulator;
 static int stingray_l3g4200d_init(void)
 {
 	tegra_gpio_enable(L3G4200D_IRQ_GPIO);
 	gpio_request(L3G4200D_IRQ_GPIO, "l3g4200d_irq");
 	gpio_direction_input(L3G4200D_IRQ_GPIO);
-
-	/* TO DO: Add regulator init code here as well
-	struct regulator *reg;
-	reg = regulator_get(NULL, "vhvio");
-	if (IS_ERR(reg))
-		return PTR_ERR(reg);
-	stingray_max9635_regulator = reg;
-*/
-	stingray_l3g4200d_regulator = NULL;
 	return 0;
 }
 
-static void stingray_l3g4200d_exit(void)
-{
-	if (stingray_l3g4200d_regulator)
-		regulator_put(stingray_l3g4200d_regulator);
-
-	gpio_free(L3G4200D_IRQ_GPIO);
-}
-static int stingray_l3g4200d_power_on(void)
-{
-	if (stingray_l3g4200d_regulator)
-		return regulator_enable(stingray_l3g4200d_regulator);
-	return 0;
-}
-static int stingray_l3g4200d_power_off(void)
-{
-	if (stingray_l3g4200d_regulator)
-		return regulator_disable(stingray_l3g4200d_regulator);
-	return 0;
-}
 struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.poll_interval = 200,
 	.min_interval = 0,
@@ -418,61 +290,15 @@ struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.negate_x = 0,
 	.negate_y = 0,
 	.negate_z = 0,
-
-	.exit = stingray_l3g4200d_exit,
-	.power_on = stingray_l3g4200d_power_on,
-	.power_off = stingray_l3g4200d_power_off,
-
 };
-
-static struct regulator *stingray_akm8975_regulator;
 
 static int stingray_akm8975_init(void)
 {
-	/*struct regulator *reg;*/
-
 	tegra_gpio_enable(AKM8975_IRQ_GPIO);
 	gpio_request(AKM8975_IRQ_GPIO, "akm8975");
 	gpio_direction_input(AKM8975_IRQ_GPIO);
-
-/*TO DO: add regulator calls later
-	reg = regulator_get(NULL, "vhvio");
-	if (IS_ERR(reg))
-		return PTR_ERR(reg);
-	stingray_akm8975_regulator = reg;*/
-	stingray_akm8975_regulator = NULL;
-
 	return 0;
 }
-
-static void stingray_akm8975_exit(void)
-{
-	if (stingray_akm8975_regulator)
-		regulator_put(stingray_akm8975_regulator);
-	gpio_free(AKM8975_IRQ_GPIO);
-	return;
-}
-
-static int stingray_akm8975_power_on(void)
-{
-	if (stingray_akm8975_regulator)
-		regulator_put(stingray_akm8975_regulator);
-	return 0;
-}
-
-static int stingray_akm8975_power_off(void)
-{
-	if (stingray_akm8975_regulator)
-		regulator_put(stingray_akm8975_regulator);
-	return 0;
-}
-
-struct akm8975_platform_data stingray_akm8975_pdata = {
-	.init = stingray_akm8975_init,
-	.exit = stingray_akm8975_exit,
-	.power_on = stingray_akm8975_power_on,
-	.power_off = stingray_akm8975_power_off,
-};
 
 struct lm3559_platform_data stingray_lm3559_data = {
 	.flags = (LM3559_TORCH | LM3559_FLASH | LM3559_FLASH_LIGHT),
@@ -510,7 +336,6 @@ static void stingray_lm3559_init(void)
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("akm8975", 0x0C),
-		.platform_data = &stingray_akm8975_pdata,
 		.irq = TEGRA_GPIO_TO_IRQ(AKM8975_IRQ_GPIO),
 	},
 	{
