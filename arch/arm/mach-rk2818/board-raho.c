@@ -1399,6 +1399,9 @@ static int capella_cm3602_power(int on)
 
 static struct capella_cm3602_platform_data capella_cm3602_pdata = {	
 	.power = capella_cm3602_power,
+	.irq_pin = SPI_GPIO_P6_04,
+	.pwd_out_pin = SPI_GPIO_P4_07,
+	.ps_shutdown_pin = SPI_GPIO_P4_08,
 	//.p_out = MAHIMAHI_GPIO_PROXIMITY_INT_N
 	};
 

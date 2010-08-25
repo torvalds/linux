@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/circ_buf.h>
+#include <linux/interrupt.h>
 #include <mach/spi_fpga.h>
 
 #define D(x...) printk(x)
@@ -46,7 +47,7 @@ static bool time_enable = true;
 static int capella_cm3602_report(struct capella_cm3602_data *data)
 {
 	//int val = gpio_get_value(data->pdata->p_out);
-	int val = spi_gpio_get_pinlevel(SPI_GPIO_P6_04);
+	int val = gpio_get_value(data->pdata->irq_pin);
 	if (val < 0) {
 		pr_err("%s: gpio_get_value error %d\n", __func__, val);
 		return val;
@@ -80,8 +81,8 @@ static int capella_cm3602_enable(struct capella_cm3602_data *data)
 		D("%s: already enabled\n", __func__);
 		return 0;
 	}
-	spi_gpio_set_pinlevel(SPI_GPIO_P4_07, SPI_GPIO_LOW);		//CM3605_PWD output
-	spi_gpio_set_pinlevel(SPI_GPIO_P4_08, SPI_GPIO_LOW);		//CM3605_PS_SHUTDOWN
+	gpio_set_value(data->pdata->pwd_out_pin, SPI_GPIO_LOW);		//CM3605_PWD output
+	gpio_set_value(data->pdata->ps_shutdown_pin, SPI_GPIO_LOW);		//CM3605_PS_SHUTDOWN
 	data->pdata->power(1);
 	data->enabled = !rc;
 	if (!rc)
@@ -98,8 +99,8 @@ static int capella_cm3602_disable(struct capella_cm3602_data *data)
 		D("%s: already disabled\n", __func__);
 		return 0;
 	}
-	spi_gpio_set_pinlevel(SPI_GPIO_P4_07, SPI_GPIO_HIGH);		//CM3605_PWD output
-	spi_gpio_set_pinlevel(SPI_GPIO_P4_08, SPI_GPIO_HIGH);		//CM3605_PS_SHUTDOWN
+	gpio_set_value(data->pdata->pwd_out_pin, GPIO_HIGH);		//CM3605_PWD output
+	gpio_set_value(data->pdata->ps_shutdown_pin, GPIO_HIGH);		//CM3605_PS_SHUTDOWN
 	data->pdata->power(0);
 	data->enabled = 0;
 	return rc;
@@ -107,10 +108,9 @@ static int capella_cm3602_disable(struct capella_cm3602_data *data)
 
 void cm3602_work_handler(struct work_struct *work)
 {
-	struct capella_cm3602_data *pdata;
-	int val = spi_gpio_get_pinlevel(SPI_GPIO_P6_04);
 
-	pdata = container_of(work, struct capella_cm3602_data, cm3602_work);
+	struct capella_cm3602_data *pdata = container_of(work, struct capella_cm3602_data, cm3602_work);
+	int val = gpio_get_value(pdata->pdata->irq_pin);
 	printk("-------------------cm3602_work_handler,pinlevel:%d----------------\n",val);
 	if (val == 1)
 	{
@@ -159,7 +159,26 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 	}
 */
 
-	rc = spi_request_gpio_irq(SPI_GPIO_P6_04,capella_cm3602_irq_handler,SPI_GPIO_EDGE_FALLING,ip);
+	rc = gpio_request(pdata->pwd_out_pin, "cm3602 out");
+	if (rc) {
+		pr_err("%s: request gpio %d failed \n",	__func__, pdata->pwd_out_pin);
+		return rc;
+	}
+	rc = gpio_request(pdata->ps_shutdown_pin, "shut down pin");
+	if (rc) {
+		gpio_free(pdata->pwd_out_pin);
+		pr_err("%s: request gpio %d failed \n",	__func__, pdata->ps_shutdown_pin);
+		return rc;
+	}
+	rc = gpio_request(pdata->irq_pin, "cm3602 irq");
+	if (rc) {
+		gpio_free(pdata->pwd_out_pin);
+		gpio_free(pdata->ps_shutdown_pin);
+		pr_err("%s: request gpio %d failed \n",	__func__, pdata->irq_pin);
+		return rc;
+	}
+	rc = gpio_direction_input(pdata->irq_pin);
+	rc = request_irq(gpio_to_irq(pdata->irq_pin),capella_cm3602_irq_handler,SPI_GPIO_EDGE_FALLING,NULL, NULL);
 	if (rc < 0) {
 		pr_err("%s: request_irq failed for gpio %d (%d)\n",
 			__func__, 
@@ -195,7 +214,7 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 fail_free_irq:
 	free_irq(irq, 0);*/
 fail_free_p_out:
-	gpio_free(pdata->p_out);
+	gpio_free(pdata->irq_pin);
 done:
 	return rc;
 }
