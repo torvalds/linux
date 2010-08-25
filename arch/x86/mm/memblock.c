@@ -211,7 +211,7 @@ void __init memblock_x86_to_bootmem(u64 start, u64 end)
 }
 #endif
 
-u64 __init memblock_x86_free_memory_in_range(u64 addr, u64 limit)
+static u64 __init __memblock_x86_memory_in_range(u64 addr, u64 limit, bool get_free)
 {
 	int i, count;
 	struct range *range;
@@ -240,6 +240,10 @@ u64 __init memblock_x86_free_memory_in_range(u64 addr, u64 limit)
 	}
 	subtract_range(range, count, 0, addr);
 	subtract_range(range, count, limit, -1ULL);
+
+	/* Subtract memblock.reserved.region in range ? */
+	if (!get_free)
+		goto sort_and_count_them;
 	for_each_memblock(reserved, r) {
 		final_start = PFN_DOWN(r->base);
 		final_end = PFN_UP(r->base + r->size);
@@ -250,6 +254,8 @@ u64 __init memblock_x86_free_memory_in_range(u64 addr, u64 limit)
 
 		subtract_range(range, count, final_start, final_end);
 	}
+
+sort_and_count_them:
 	nr_range = clean_sort_range(range, count);
 
 	free_size = 0;
@@ -257,6 +263,16 @@ u64 __init memblock_x86_free_memory_in_range(u64 addr, u64 limit)
 		free_size += range[i].end - range[i].start;
 
 	return free_size << PAGE_SHIFT;
+}
+
+u64 __init memblock_x86_free_memory_in_range(u64 addr, u64 limit)
+{
+	return __memblock_x86_memory_in_range(addr, limit, true);
+}
+
+u64 __init memblock_x86_memory_in_range(u64 addr, u64 limit)
+{
+	return __memblock_x86_memory_in_range(addr, limit, false);
 }
 
 void __init memblock_x86_reserve_range(u64 start, u64 end, char *name)
