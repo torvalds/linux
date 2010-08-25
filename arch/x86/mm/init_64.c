@@ -572,23 +572,7 @@ kernel_physical_mapping_init(unsigned long start,
 void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 				int acpi, int k8)
 {
-#ifndef CONFIG_NO_BOOTMEM
-	unsigned long bootmap_size, bootmap;
-
-	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
-	bootmap = memblock_find_in_range(0, end_pfn<<PAGE_SHIFT, bootmap_size,
-				 PAGE_SIZE);
-	if (bootmap == MEMBLOCK_ERROR)
-		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
-	memblock_x86_reserve_range(bootmap, bootmap + bootmap_size, "BOOTMAP");
-	/* don't touch min_low_pfn */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap >> PAGE_SHIFT,
-					 0, end_pfn);
 	memblock_x86_register_active_regions(0, start_pfn, end_pfn);
-	free_bootmem_with_active_regions(0, end_pfn);
-#else
-	memblock_x86_register_active_regions(0, start_pfn, end_pfn);
-#endif
 }
 #endif
 
@@ -796,31 +780,6 @@ void mark_rodata_ro(void)
 			(unsigned long) page_address(virt_to_page(data_start)));
 }
 
-#endif
-
-#ifndef CONFIG_NO_BOOTMEM
-int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
-				   int flags)
-{
-	unsigned long pfn = phys >> PAGE_SHIFT;
-
-	if (pfn >= max_pfn) {
-		/*
-		 * This can happen with kdump kernels when accessing
-		 * firmware tables:
-		 */
-		if (pfn < max_pfn_mapped)
-			return -EFAULT;
-
-		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %lu\n",
-				phys, len);
-		return -EFAULT;
-	}
-
-	reserve_bootmem(phys, len, flags);
-
-	return 0;
-}
 #endif
 
 int kern_addr_valid(unsigned long addr)

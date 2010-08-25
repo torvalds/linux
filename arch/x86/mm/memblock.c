@@ -109,7 +109,6 @@ static __init struct range *find_range_array(int count)
 	return range;
 }
 
-#ifdef CONFIG_NO_BOOTMEM
 static void __init memblock_x86_subtract_reserved(struct range *range, int az)
 {
 	u64 final_start, final_end;
@@ -182,34 +181,6 @@ int __init get_free_all_memory_range(struct range **rangep, int nodeid)
 	*rangep = range;
 	return nr_range;
 }
-#else
-void __init memblock_x86_to_bootmem(u64 start, u64 end)
-{
-	int count;
-	u64 final_start, final_end;
-	struct memblock_region *r;
-
-	/* Take out region array itself */
-	memblock_free_reserved_regions();
-
-	count  = memblock.reserved.cnt;
-	memblock_dbg("(%d early reservations) ==> bootmem [%#010llx-%#010llx]\n", count, start, end - 1);
-	for_each_memblock(reserved, r) {
-		memblock_dbg("  [%#010llx-%#010llx] ", (u64)r->base, (u64)r->base + r->size - 1);
-		final_start = max(start, r->base);
-		final_end = min(end, r->base + r->size);
-		if (final_start >= final_end) {
-			memblock_dbg("\n");
-			continue;
-		}
-		memblock_dbg(" ==> [%#010llx-%#010llx]\n", final_start, final_end - 1);
-		reserve_bootmem_generic(final_start, final_end - final_start, BOOTMEM_DEFAULT);
-	}
-
-	/* Put region array back ? */
-	memblock_reserve_reserved_regions();
-}
-#endif
 
 static u64 __init __memblock_x86_memory_in_range(u64 addr, u64 limit, bool get_free)
 {

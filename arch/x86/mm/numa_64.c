@@ -199,10 +199,6 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	unsigned long start_pfn, last_pfn, nodedata_phys;
 	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	int nid;
-#ifndef CONFIG_NO_BOOTMEM
-	unsigned long bootmap_start, bootmap_pages, bootmap_size;
-	void *bootmap;
-#endif
 
 	if (!end)
 		return;
@@ -238,47 +234,6 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	NODE_DATA(nodeid)->node_id = nodeid;
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
 	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
-
-#ifndef CONFIG_NO_BOOTMEM
-	NODE_DATA(nodeid)->bdata = &bootmem_node_data[nodeid];
-
-	/*
-	 * Find a place for the bootmem map
-	 * nodedata_phys could be on other nodes by alloc_bootmem,
-	 * so need to sure bootmap_start not to be small, otherwise
-	 * early_node_mem will get that with memblock_find_in_range instead
-	 * of alloc_bootmem, that could clash with reserved range
-	 */
-	bootmap_pages = bootmem_bootmap_pages(last_pfn - start_pfn);
-	bootmap_start = roundup(nodedata_phys + pgdat_size, PAGE_SIZE);
-	/*
-	 * SMP_CACHE_BYTES could be enough, but init_bootmem_node like
-	 * to use that to align to PAGE_SIZE
-	 */
-	bootmap = early_node_mem(nodeid, bootmap_start, end,
-				 bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
-	if (bootmap == NULL)  {
-		memblock_x86_free_range(nodedata_phys, nodedata_phys + pgdat_size);
-		node_data[nodeid] = NULL;
-		return;
-	}
-	bootmap_start = __pa(bootmap);
-	memblock_x86_reserve_range(bootmap_start, bootmap_start+(bootmap_pages<<PAGE_SHIFT),
-			"BOOTMAP");
-
-	bootmap_size = init_bootmem_node(NODE_DATA(nodeid),
-					 bootmap_start >> PAGE_SHIFT,
-					 start_pfn, last_pfn);
-
-	printk(KERN_INFO "  bootmap [%016lx -  %016lx] pages %lx\n",
-		 bootmap_start, bootmap_start + bootmap_size - 1,
-		 bootmap_pages);
-	nid = phys_to_nid(bootmap_start);
-	if (nid != nodeid)
-		printk(KERN_INFO "    bootmap(%d) on node %d\n", nodeid, nid);
-
-	free_bootmem_with_active_regions(nodeid, end);
-#endif
 
 	node_set_online(nodeid);
 }
@@ -704,9 +659,7 @@ unsigned long __init numa_free_all_bootmem(void)
 	for_each_online_node(i)
 		pages += free_all_bootmem_node(NODE_DATA(i));
 
-#ifdef CONFIG_NO_BOOTMEM
 	pages += free_all_memory_core_early(MAX_NUMNODES);
-#endif
 
 	return pages;
 }

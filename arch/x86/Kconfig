@@ -585,15 +585,7 @@ config PARAVIRT_DEBUG
 	  a paravirt_op is missing when it is called.
 
 config NO_BOOTMEM
-	default y
-	bool "Disable Bootmem code"
-	---help---
-	  Use memblock directly instead of bootmem before slab is ready.
-		- allocator (buddy) [generic]
-		- early allocator (bootmem) [generic]
-		- very early allocator (memblock) [some generic]
-		- very very early allocator (early brk model) [x86]
-	  So reduce one layer between early allocator to final allocator
+	def_bool y
 
 config MEMTEST
 	bool "Memtest"
