@@ -540,7 +540,7 @@ qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 	void __iomem *priv_op = adapter->ahw.pci_base0 + QLCNIC_DRV_OP_MODE;
 
 	/* If other drivers are not in use set their privilege level */
-	ref_count = QLCRD32(adapter, QLCNIC_CRB_DEV_REF_COUNT);
+	ref_count = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
 	ret = qlcnic_api_lock(adapter);
 	if (ret)
 		goto err_lock;
@@ -2404,9 +2404,9 @@ qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8 failed)
 	if (qlcnic_api_lock(adapter))
 		goto err;
 
-	val = QLCRD32(adapter, QLCNIC_CRB_DEV_REF_COUNT);
+	val = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
 	QLC_DEV_CLR_REF_CNT(val, adapter->portnum);
-	QLCWR32(adapter, QLCNIC_CRB_DEV_REF_COUNT, val);
+	QLCWR32(adapter, QLCNIC_CRB_DRV_ACTIVE, val);
 
 	if (failed) {
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_FAILED);
@@ -2433,7 +2433,7 @@ qlcnic_check_drv_state(struct qlcnic_adapter *adapter)
 	int act, state;
 
 	state = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
-	act = QLCRD32(adapter, QLCNIC_CRB_DEV_REF_COUNT);
+	act = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
 
 	if (((state & 0x11111111) == (act & 0x11111111)) ||
 			((act & 0x11111111) == ((state >> 1) & 0x11111111)))
@@ -2468,10 +2468,10 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	if (qlcnic_api_lock(adapter))
 		return -1;
 
-	val = QLCRD32(adapter, QLCNIC_CRB_DEV_REF_COUNT);
+	val = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
 	if (!(val & (1 << (portnum * 4)))) {
 		QLC_DEV_SET_REF_CNT(val, portnum);
-		QLCWR32(adapter, QLCNIC_CRB_DEV_REF_COUNT, val);
+		QLCWR32(adapter, QLCNIC_CRB_DRV_ACTIVE, val);
 	}
 
 	prev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
