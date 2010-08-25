@@ -35,6 +35,7 @@
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/firmware.h>
+
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -56,22 +57,14 @@
 #include "mach/io.h"
 #include "mach/iomap.h"
 
-static NvU32 s_AvpInitialized = NV_FALSE;
-static NvRmLibraryHandle s_hAvpLibrary = NULL;
-
-#define _TEGRA_AVP_RESET_VECTOR_ADDR	\
-	(IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE) + EVP_COP_RESET_VECTOR_0)
-
 #define NV_USE_AOS 1
-
-#define AVP_EXECUTABLE_NAME "nvrm_avp.axf"
 
 void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int messageLength)
 {
     NvError Error = NvSuccess;
     NvRmMemHandle hMem;
 
-    switch ((NvRmMsg)*pRecvMessage) {
+    switch (*(NvRmMsg *)pRecvMessage) {
 
     case NvRmMsg_MemHandleCreate:
     {
@@ -107,7 +100,7 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         NvRmMessage_Response msgResponse;
         msgMemAlloc = (NvRmMessage_MemAlloc*)pRecvMessage;
 
-        Error = NvRmMemAlloc(msgMemAlloc->hMem,
+         Error = NvRmMemAlloc(msgMemAlloc->hMem,
                     (msgMemAlloc->NumHeaps == 0) ? NULL : msgMemAlloc->Heaps,
                     msgMemAlloc->NumHeaps,
                     msgMemAlloc->Alignment,
@@ -267,175 +260,15 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         NvRmMessage_RemotePrintf *msg;
 
         msg = (NvRmMessage_RemotePrintf*)pRecvMessage;
-        NvOsDebugPrintf("AVP: %s", msg->string);
+        printk("AVP: %s", msg->string);
     }
     break;
     case NvRmMsg_AVP_Reset:
         NvOsDebugPrintf("AVP has been reset by WDT\n");
         break;
     default:
-        NV_ASSERT( !"AVP Service::ProcessMessage: bad message" );
-        break;
+	    panic("AVP Service::ProcessMessage: bad message");
+	    break;
     }
 }
 
-NvError
-NvRmPrivInitAvp(NvRmDeviceHandle hDevice)
-{
-    NvError err = NvSuccess;
-    void* avpExecutionJumpAddress;
-    NvU32 RegVal, resetVector;
-
-    // Do this only once.
-    if (s_AvpInitialized) return NvSuccess;
-
-    NvOsDebugPrintf("%s <kernel impl>: called\n", __func__);
-
-    err = NvRmPrivLoadKernelLibrary(hDevice, AVP_EXECUTABLE_NAME, &s_hAvpLibrary);
-    if (err != NvSuccess) {
-        NV_DEBUG_PRINTF(("AVP executable file not found\n"));
-        NV_ASSERT(!"AVP executable file not found");
-    }
-
-    err = NvRmGetProcAddress(s_hAvpLibrary, "main", &avpExecutionJumpAddress);
-    NV_ASSERT(err == NvSuccess);
-    NvOsDebugPrintf("%s <kernel impl>: avpExecutionJumpAddress=%x\n", __func__, avpExecutionJumpAddress);
-
-    resetVector = (NvU32)avpExecutionJumpAddress & 0xFFFFFFFE;
-
-    NV_WRITE32(_TEGRA_AVP_RESET_VECTOR_ADDR, resetVector);
-    RegVal = NV_READ32(_TEGRA_AVP_RESET_VECTOR_ADDR);
-    NV_ASSERT( RegVal == resetVector );
-
-    NvRmModuleReset(hDevice, NvRmModuleID_Avp);
-
-    /// Resume AVP
-    RegVal = NV_DRF_DEF(FLOW_CTLR, HALT_COP_EVENTS, MODE, FLOW_MODE_NONE);
-    NV_WRITE32(IO_ADDRESS(TEGRA_FLOW_CTRL_BASE) +  FLOW_CTLR_HALT_COP_EVENTS_0, RegVal);
-
-    s_AvpInitialized = NV_TRUE;
-
-    err = NvRmPrivInitService(hDevice);
-    if (err) return err;
-
-    err = NvRmPrivInitModuleLoaderRPC(hDevice);
-    if (err) return err;
-
-    return err;
-}
-
-static void __iomem *iram_base = IO_ADDRESS(TEGRA_IRAM_BASE);
-static void __iomem *iram_backup;
-static dma_addr_t iram_backup_addr;
-static u32 iram_size = TEGRA_IRAM_SIZE;
-static u32 iram_backup_size = TEGRA_IRAM_SIZE + 4;
-static u32 avp_resume_addr;
-
-NvError
-NvRmPrivSuspendAvp(NvRmRPCHandle hRPCHandle)
-{
-    NvError err = NvSuccess;
-    NvRmMessage_InitiateLP0 lp0_msg;
-    void *avp_suspend_done = iram_backup + iram_size;
-    unsigned long timeout;
-
-    pr_info("%s()+\n", __func__);
-
-    if (!s_AvpInitialized)
-        goto done;
-    else if (!iram_backup_addr) {
-        /* XXX: should we return error? */
-        pr_warning("%s: iram backup ram missing, not suspending avp\n",
-                   __func__);
-        goto done;
-    }
-
-    NV_ASSERT(hRPCHandle->svcTransportHandle != NULL);
-
-    lp0_msg.msg = NvRmMsg_InitiateLP0;
-    lp0_msg.sourceAddr = (u32)TEGRA_IRAM_BASE;
-    lp0_msg.bufferAddr = (u32)iram_backup_addr;
-    lp0_msg.bufferSize = (u32)iram_size;
-
-    writel(0, avp_suspend_done);
-
-    NvOsMutexLock(hRPCHandle->RecvLock);
-    err = NvRmTransportSendMsg(hRPCHandle->svcTransportHandle, &lp0_msg,
-                               sizeof(lp0_msg), 1000);
-    NvOsMutexUnlock(hRPCHandle->RecvLock);
-
-    if (err != NvSuccess) {
-        pr_err("%s: cannot send AVP LP0 message\n", __func__);
-        goto done;
-    }
-
-    timeout = jiffies + msecs_to_jiffies(1000);
-    while (!readl(avp_suspend_done) && time_before(jiffies, timeout)) {
-        udelay(10);
-        cpu_relax();
-    }
-
-    if (!readl(avp_suspend_done)) {
-        pr_err("%s: AVP failed to suspend\n", __func__);
-        err = NvError_Timeout;
-        goto done;
-    }
-
-    avp_resume_addr = readl(iram_base);
-    if (!avp_resume_addr) {
-        pr_err("%s: AVP failed to set it's resume address\n", __func__);
-        err = NvError_InvalidState;
-        goto done;
-    }
-
-    pr_info("avp_suspend: resume_addr=%x\n", avp_resume_addr);
-    avp_resume_addr &= 0xFFFFFFFE;
-
-    pr_info("%s()-\n", __func__);
-
-done:
-    return err;
-}
-
-NvError
-NvRmPrivResumeAvp(NvRmRPCHandle hRPCHandle)
-{
-    NvError ret = NvSuccess;
-    u32 tmp;
-
-    pr_info("%s()+\n", __func__);
-    if (!s_AvpInitialized || !avp_resume_addr)
-        goto done;
-
-    writel(avp_resume_addr, _TEGRA_AVP_RESET_VECTOR_ADDR);
-    tmp = readl(_TEGRA_AVP_RESET_VECTOR_ADDR);
-    NV_ASSERT(tmp == resetVector);
-
-    NvRmModuleReset(hRPCHandle->hRmDevice, NvRmModuleID_Avp);
-
-    /// Resume AVP
-    tmp = NV_DRF_DEF(FLOW_CTLR, HALT_COP_EVENTS, MODE, FLOW_MODE_NONE);
-    writel(tmp, IO_ADDRESS(TEGRA_FLOW_CTRL_BASE) + FLOW_CTLR_HALT_COP_EVENTS_0);
-
-    /* clear the avp resume addr so that if suspend fails, we don't try to
-     * resume */
-    avp_resume_addr = 0;
-
-    pr_info("%s()-\n", __func__);
-
-done:
-    return ret;
-}
-
-int __init _avp_suspend_resume_init(void)
-{
-	/* allocate an iram sized chunk of ram to give to the AVP */
-	iram_backup = dma_alloc_coherent(NULL, iram_backup_size,
-					 &iram_backup_addr, GFP_KERNEL);
-	if (!iram_backup) {
-		pr_err("%s: Unable to allocate iram backup mem\n", __func__);
-		return -ENOMEM;
-	}
-
-	return 0;
-}

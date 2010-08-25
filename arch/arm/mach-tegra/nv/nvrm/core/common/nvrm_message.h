@@ -121,7 +121,7 @@ typedef struct{
 typedef struct{
     NvRmMsg             msg;
     NvRmMemHandle       hMem;
-    NvRmHeap            Heaps[NvRmHeap_Num];
+    NvRmHeap            Heaps[4];
     NvU32               NumHeaps;
     NvU32               Alignment;
     NvOsMemAttribute    Coherency;
@@ -244,21 +244,23 @@ typedef struct{
 
 typedef struct{
     NvRmMsg       msg;
-    NvU32         entryAddress;
+    NvU32         address;
     NvU32         size;
+    NvU32         filesize;
     char          args[MAX_ARGS_SIZE];
     NvU32         reason;
 }NvRmMessage_AttachModule;
 
-typedef struct{
+typedef struct {
     NvRmMsg       msg;
     NvError       error;
+    NvU32         libraryId;
 }NvRmMessage_AttachModuleResponse;
 
-typedef struct{
+typedef struct {
     NvRmMsg       msg;
     NvU32         reason;
-    NvU32         entryAddress;
+    NvU32         libraryId;
 }NvRmMessage_DetachModule;
 
 typedef struct{

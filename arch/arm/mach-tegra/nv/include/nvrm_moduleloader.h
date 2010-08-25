@@ -50,6 +50,7 @@ typedef enum
 {
     NvRmModuleLoaderReason_Attach = 0,
     NvRmModuleLoaderReason_Detach,
+    NvRmModuleLoaderReason_AttachGreedy,
     NvRmModuleLoaderReason_Num,
     NvRmModuleLoaderReason_Force32 = 0x7FFFFFFF
 } NvRmModuleLoaderReason;

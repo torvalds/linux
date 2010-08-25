@@ -93,9 +93,7 @@ struct SegmentRec
 /// ModuleLoader handle structure
 typedef struct NvRmLibraryRec
 {
-    void* pLibBaseAddress;
-    void* EntryAddress;
-    SegmentNode *pList;
+    NvU32 libraryId;
 } NvRmLibHandle;
 
 NvError
@@ -148,7 +146,6 @@ NvRmPrivGetProcAddress(NvRmLibraryHandle Handle,
 NvError NvRmPrivFreeLibrary(NvRmLibHandle *hLibHandle);
 
 NvError NvRmPrivInitModuleLoaderRPC(NvRmDeviceHandle hDevice);
-NvError NvRmPrivInitAvp(NvRmDeviceHandle hDevice);
 
 /// Unmap memory segments
 void UnMapRegion(SegmentNode *pList);

@@ -10,6 +10,7 @@ ccflags-y += -Iarch/arm/mach-tegra/nv/include
 ccflags-y += -Iarch/arm/mach-tegra/nv/nvrm/core/common
 ccflags-y += -Iarch/arm/mach-tegra/nv/nvrm/core
 
+obj-y += headavp.o
 obj-y += nvrm_avp_cpu_rpc.o
 obj-y += nvrm_moduleloader.o
 obj-y += nvrm_rmctrace.o

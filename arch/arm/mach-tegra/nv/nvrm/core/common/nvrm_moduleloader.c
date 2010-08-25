@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/miscdevice.h>
@@ -32,6 +34,7 @@
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
+#include <asm/cacheflush.h>
 #include <asm/io.h>
 
 #include "nvcommon.h"
@@ -46,29 +49,44 @@
 #include "nvrm_graphics_private.h"
 #include "nvrm_structure.h"
 #include "nvfw.h"
+#include "ap15/arflow_ctlr.h"
+#include "ap15/arevp.h"
+#include "mach/io.h"
+#include "mach/iomap.h"
+#include "headavp.h"
 
 #define DEVICE_NAME "nvfw"
 
+#define _TEGRA_AVP_RESET_VECTOR_ADDR	\
+	(IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE) + EVP_COP_RESET_VECTOR_0)
+
 static const struct firmware *s_FwEntry;
 static NvRmRPCHandle s_RPCHandle = NULL;
+static NvRmMemHandle s_KernelImage = NULL;
 static NvError SendMsgDetachModule(NvRmLibraryHandle  hLibHandle);
-static NvError SendMsgAttachModule(NvRmLibraryHandle *hLibHandle,
-				void* pArgs,
-				NvU32 sizeOfArgs);
+static NvError SendMsgAttachModule(
+    NvRmLibraryHandle hLibHandle,
+    void* pArgs,
+    NvU32 loadAddress,
+    NvU32 fileSize,
+    NvBool greedy,
+    NvU32 sizeOfArgs);
 NvU32 NvRmModuleGetChipId(NvRmDeviceHandle hDevice);
 NvError NvRmPrivInitModuleLoaderRPC(NvRmDeviceHandle hDevice);
 void NvRmPrivDeInitModuleLoaderRPC(void);
+static NvError NvRmPrivInitAvp(NvRmDeviceHandle hDevice);
+
+#define AVP_KERNEL_SIZE_MAX	SZ_1M
 
 #define ADD_MASK                   0x00000001
 #define SUB_MASK                   0xFFFFFFFD
-// For the elf to be relocatable, we need atleast 2 program segments
-// Although even elfs with more than 1 program segment may not be relocatable.
-#define MIN_SEGMENTS_FOR_DYNAMIC_LOADING    2
 
 static int nvfw_open(struct inode *inode, struct file *file);
 static int nvfw_close(struct inode *inode, struct file *file);
 static long nvfw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 static ssize_t nvfw_write(struct file *, const char __user *, size_t, loff_t *);
+
+static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm);
 
 static const struct file_operations nvfw_fops =
 {
@@ -97,18 +115,15 @@ ssize_t nvfw_write(struct file *file, const char __user *buff, size_t count, lof
 	printk(KERN_INFO "%s: entry\n", __func__);
 
 	error = copy_from_user(filename, buff, count);
-	if (error)
-		panic("%s: line=%d\n", __func__, __LINE__);
+	if (error) panic("%s: line=%d\n", __func__, __LINE__);
 	filename[count] = 0;
 	printk(KERN_INFO "%s: filename=%s\n", __func__, filename);
 
 	error = NvRmOpen( &hRmDevice, 0 );
-	if (error)
-		panic("%s: line=%d\n", __func__, __LINE__);
+	if (error) panic("%s: line=%d\n", __func__, __LINE__);
 
 	error = NvRmLoadLibrary(hRmDevice, filename, NULL, 0, &hRmLibHandle);
-	if (error)
-		panic("%s: line=%d\n", __func__, __LINE__);
+	if (error) panic("%s: line=%d\n", __func__, __LINE__);
 
 	printk(KERN_INFO "%s: return\n", __func__);
 	return count;
@@ -135,31 +150,25 @@ static int nvfw_ioctl_load_library(struct file *filp, void __user *arg)
 
 	error = copy_from_user(&op, arg, sizeof(op));
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	filename = NvOsAlloc(op.length + 1);
 	error = copy_from_user(filename, op.filename, op.length + 1);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 	printk(KERN_INFO "%s: filename=%s\n", __func__, filename);
 
 	args = NvOsAlloc(op.argssize);
 	error = copy_from_user(args, op.args, op.argssize);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmOpen( &hRmDevice, 0 );
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmLoadLibrary(hRmDevice, filename, args, op.argssize, &hRmLibHandle);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	op.handle = hRmLibHandle;
 	error = copy_to_user(arg, &op, sizeof(op));
 
-error_exit:
 	NvOsFree(filename);
 	NvOsFree(args);
 	return error;
@@ -176,31 +185,25 @@ static int nvfw_ioctl_load_library_ex(struct file *filp, void __user *arg)
 
 	error = copy_from_user(&op, arg, sizeof(op));
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	filename = NvOsAlloc(op.length + 1);
 	error = copy_from_user(filename, op.filename, op.length + 1);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 	printk(KERN_INFO "%s: filename=%s\n", __func__, filename);
 
 	args = NvOsAlloc(op.argssize);
 	error = copy_from_user(args, op.args, op.argssize);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmOpen( &hRmDevice, 0 );
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmLoadLibraryEx(hRmDevice, filename, args, op.argssize, op.greedy, &hRmLibHandle);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	op.handle = hRmLibHandle;
 	error = copy_to_user(arg, &op, sizeof(op));
 
-error_exit:
 	NvOsFree(filename);
 	NvOsFree(args);
 	return error;
@@ -214,17 +217,13 @@ static int nvfw_ioctl_free_library(struct file *filp, void __user *arg)
 
 	error = copy_from_user(&op, arg, sizeof(op));
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmOpen( &hRmDevice, 0 );
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmFreeLibrary(op.handle);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
-error_exit:
 	return error;
 }
 
@@ -237,25 +236,20 @@ static int nvfw_ioctl_get_proc_address(struct file *filp, void __user *arg)
 
 	error = copy_from_user(&op, arg, sizeof(op));
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	symbolname = NvOsAlloc(op.length + 1);
 	error = copy_from_user(symbolname, op.symbolname, op.length + 1);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 	printk(KERN_INFO "%s: symbolname=%s\n", __func__, symbolname);
 
 	error = NvRmOpen( &hRmDevice, 0 );
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = NvRmGetProcAddress(op.handle, symbolname, &op.address);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	if (error) goto error_exit;
 
 	error = copy_to_user(arg, &op, sizeof(op));
 
-error_exit:
 	NvOsFree(symbolname);
 	return error;
 }
@@ -285,1355 +279,433 @@ static long nvfw_ioctl(struct file *filp,
 	return err;
 }
 
-static NvError
-PrivateOsFopen(const char *filename, NvU32 flags, PrivateOsFileHandle *file)
+static NvError PrivateOsFopen(
+    const char *filename,
+    NvU32 flags,
+    PrivateOsFileHandle *file)
 {
-	PrivateOsFileHandle hFile;
+    PrivateOsFileHandle hFile;
 
-	hFile = NvOsAlloc(sizeof(PrivateOsFile));
-	if (hFile == NULL) {
-		return NvError_InsufficientMemory;
-	}
+    hFile = NvOsAlloc(sizeof(PrivateOsFile));
+    if (hFile == NULL)
+        return NvError_InsufficientMemory;
 
-	NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, filename);
-	NvOsDebugPrintf("%s <kernel impl>: calling request_firmware()\n", __func__);
-	if (request_firmware(&s_FwEntry, filename, nvfw_dev.this_device) != 0) {
-		printk(KERN_ERR "%s: Cannot read firmware '%s'\n", __func__, filename);
-		return NvError_FileReadFailed;
-	}
-	NvOsDebugPrintf("%s <kernel impl>: back from request_firmware()\n", __func__);
-	hFile->pstart = s_FwEntry->data;
-	hFile->pread = s_FwEntry->data;
-	hFile->pend = s_FwEntry->data + s_FwEntry->size;
+    NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, filename);
+    NvOsDebugPrintf("%s <kernel impl>: calling request_firmware()\n", __func__);
+    if (request_firmware(&s_FwEntry, filename, nvfw_dev.this_device) != 0)
+    {
+        pr_err("%s: Cannot read firmware '%s'\n", __func__, filename);
+        return NvError_FileReadFailed;
+    }
+    NvOsDebugPrintf("%s <kernel impl>: back from request_firmware()\n", __func__);
+    hFile->pstart = s_FwEntry->data;
+    hFile->pread = s_FwEntry->data;
+    hFile->pend = s_FwEntry->data + s_FwEntry->size;
 
-	*file = hFile;
+    *file = hFile;
 
-	return NvError_Success;
+    return NvError_Success;
 }
 
-static void
-PrivateOsFclose(PrivateOsFileHandle hFile)
+static void PrivateOsFclose(PrivateOsFileHandle hFile)
 {
-	release_firmware(s_FwEntry);
-	NV_ASSERT(hFile);
-	NvOsFree(hFile);
+    release_firmware(s_FwEntry);
+    NV_ASSERT(hFile);
+    NvOsFree(hFile);
 }
 
-static NvError
-PrivateOsFread(
-	PrivateOsFileHandle hFile,
-	void *ptr,
-	size_t size,
-	size_t *bytes)
+NvError NvRmLoadLibrary(
+    NvRmDeviceHandle hDevice,
+    const char *pLibName,
+    void* pArgs,
+    NvU32 sizeOfArgs,
+    NvRmLibraryHandle *hLibHandle)
 {
-	size_t nBytesRead = size;
-	NvError err = NvError_Success;
+    NvError Error = NvSuccess;
+    NV_ASSERT(sizeOfArgs <= MAX_ARGS_SIZE);
 
-	if (hFile->pread >= hFile->pend) {
-		nBytesRead = 0;
-		err = NvError_EndOfFile;
-		goto epilogue;
-	}
-
-	else if (hFile->pread + size > hFile->pend) {
-		nBytesRead = hFile->pend - hFile->pread;
-		NvOsMemcpy(ptr, hFile->pread, nBytesRead);
-		err = NvError_EndOfFile;
-		goto epilogue;
-	}
-
-	else {
-		NvOsMemcpy(ptr, hFile->pread, nBytesRead);
-		goto epilogue;
-	}
-
-epilogue:
-	hFile->pread += nBytesRead;
-	*bytes = nBytesRead;
-	return err;
+    NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
+    Error = NvRmLoadLibraryEx(hDevice, pLibName, pArgs, sizeOfArgs, NV_FALSE,
+                              hLibHandle);
+    return Error;
 }
 
-static NvError
-PrivateOsFseek(PrivateOsFileHandle file, NvS64 offset, NvOsSeekEnum whence)
+NvError NvRmLoadLibraryEx(
+    NvRmDeviceHandle hDevice,
+    const char *pLibName,
+    void* pArgs,
+    NvU32 sizeOfArgs,
+    NvBool IsApproachGreedy,
+    NvRmLibraryHandle *hLibHandle)
 {
-	NV_ASSERT(whence == NvOsSeek_Set);
-	file->pread = file->pstart + (NvU32)offset;
+    NvRmLibraryHandle library = NULL;
+    NvError e = NvSuccess;
+    PrivateOsFileHandle hFile = NULL;
+    NvRmMemHandle hMem = NULL;
+    NvRmHeap loadHeap = NvRmHeap_ExternalCarveOut;
+    void *loadAddr = NULL;
+    NvU32 len = 0;
+    NvU32 physAddr;
 
-	return NvError_Success;
+    NV_ASSERT(sizeOfArgs <= MAX_ARGS_SIZE);
+
+    NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
+
+    NV_CHECK_ERROR_CLEANUP(NvRmPrivInitAvp(hDevice));
+
+    e = NvRmPrivRPCConnect(s_RPCHandle);
+    if (e != NvSuccess)
+    {
+        NvOsDebugPrintf("RPCConnect timed out during NvRmLoadLibrary\n");
+        goto fail;
+    }
+
+    library = NvOsAlloc(sizeof(*library));
+    if (!library)
+    {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
+
+    NV_CHECK_ERROR_CLEANUP(PrivateOsFopen(pLibName, NVOS_OPEN_READ, &hFile));
+    len = (NvU32)hFile->pend - (NvU32)hFile->pstart;
+
+    NV_CHECK_ERROR_CLEANUP(NvRmMemHandleCreate(hDevice, &hMem, len));
+
+    NV_CHECK_ERROR_CLEANUP(NvRmMemAlloc(hMem, &loadHeap, 1, L1_CACHE_BYTES,
+                                        NvOsMemAttribute_WriteCombined));
+
+    NV_CHECK_ERROR_CLEANUP(NvRmMemMap(hMem, 0, len, NVOS_MEM_READ_WRITE, &loadAddr));
+
+    physAddr = NvRmMemPin(hMem);
+
+    NvOsMemcpy(loadAddr, hFile->pstart, len);
+
+    NvOsFlushWriteCombineBuffer();
+
+    NV_CHECK_ERROR_CLEANUP(SendMsgAttachModule(library, pArgs, physAddr, len,
+                                               IsApproachGreedy, sizeOfArgs));
+
+fail:
+    if (loadAddr)
+    {
+        NvRmMemUnpin(hMem);
+        NvRmMemUnmap(hMem, loadAddr, len);
+    }
+
+    NvRmMemHandleFree(hMem);
+    if (hFile)
+        PrivateOsFclose(hFile);
+
+    if (e != NvSuccess)
+    {
+        NvOsFree(library);
+        library = NULL;
+    }
+
+    *hLibHandle = library;
+    return e;
 }
 
-NvError
-NvRmPrivLoadKernelLibrary(NvRmDeviceHandle hDevice,
-			const char *pLibName,
-			NvRmLibraryHandle *hLibHandle)
+NvError NvRmGetProcAddress(
+    NvRmLibraryHandle Handle,
+    const char *pSymbol,
+    void **pSymAddress)
 {
-	NvError Error = NvSuccess;
-
-	NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
-	if ((Error = NvRmPrivLoadLibrary(hDevice, pLibName, 0, NV_FALSE,
-							hLibHandle)) != NvSuccess)
-	{
-		return Error;
-	}
-	return Error;
-}
-
-NvError
-NvRmLoadLibrary(NvRmDeviceHandle hDevice,
-                const char *pLibName,
-                void* pArgs,
-                NvU32 sizeOfArgs,
-                NvRmLibraryHandle *hLibHandle)
-{
-	NvError Error = NvSuccess;
-	NV_ASSERT(sizeOfArgs <= MAX_ARGS_SIZE);
-
-	NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
-	Error = NvRmLoadLibraryEx(hDevice, pLibName, pArgs, sizeOfArgs, NV_FALSE,
-				hLibHandle);
-	return Error;
-}
-
-NvError
-NvRmLoadLibraryEx(NvRmDeviceHandle hDevice,
-                const char *pLibName,
-                void* pArgs,
-                NvU32 sizeOfArgs,
-                NvBool IsApproachGreedy,
-                NvRmLibraryHandle *hLibHandle)
-{
-	NvError Error = NvSuccess;
-	NV_ASSERT(sizeOfArgs <= MAX_ARGS_SIZE);
-
-	NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
-
-	/* NvRmPrivInitModuleLoaderRPC(hDevice); */
-	if ((Error = NvRmPrivInitAvp(hDevice)) != NvSuccess)
-	{
-		return Error;
-	}
-
-	if ((Error = NvRmPrivLoadLibrary(hDevice, pLibName, 0, IsApproachGreedy,
-							hLibHandle)) != NvSuccess)
-	{
-		return Error;
-	}
-
-	if ((Error = NvRmPrivRPCConnect(s_RPCHandle)) == NvSuccess)
-	{
-		Error = SendMsgAttachModule(hLibHandle, pArgs, sizeOfArgs);
-	}
-	else
-	{
-		NvOsDebugPrintf("RPCConnect timedout during NvRmLoadLibraryEx\r\n");
-	}
-	if (Error)
-	{
-		NvRmPrivFreeLibrary(*hLibHandle);
-	}
-	return Error;
-}
-
-NvError
-NvRmGetProcAddress(NvRmLibraryHandle Handle,
-		const char *pSymbol,
-		void **pSymAddress)
-{
-	NvError Error = NvSuccess;
-	NV_ASSERT(Handle);
-	Error = NvRmPrivGetProcAddress(Handle, pSymbol, pSymAddress);
-	return Error;
+    NvError Error = NvSuccess;
+    NV_ASSERT(Handle);
+    Error = NvRmPrivGetProcAddress(Handle, pSymbol, pSymAddress);
+    return Error;
 }
 
 NvError NvRmFreeLibrary(NvRmLibraryHandle hLibHandle)
 {
-	NvError Error = NvSuccess;
-	NV_ASSERT(hLibHandle);
-	if((Error = NvRmPrivRPCConnect(s_RPCHandle)) == NvSuccess)
-	{
-		Error = SendMsgDetachModule(hLibHandle);
-	}
-	if (Error == NvSuccess)
-	{
-		Error = NvRmPrivFreeLibrary(hLibHandle);
-	}
+    NvError e = NvSuccess;
+    NV_ASSERT(hLibHandle);
 
-	return Error;
-}
+    e = NvRmPrivRPCConnect(s_RPCHandle);
+    if (e != NvSuccess)
+        return e;
 
-NvU32 NvRmModuleGetChipId(NvRmDeviceHandle hDevice)
-{
-	typedef struct
-	{
-		NvU32 Id;
-	}Capabilities;
+    e = SendMsgDetachModule(hLibHandle);
+    if (e != NvSuccess)
+        return e;
 
-	NvError Error = NvSuccess;
-	NvRmModuleCapability caps[3];
-	Capabilities Cap15, Cap20,Cap16,*capabilities;
-
-	// for AP20
-	Cap20.Id = 0x20;
-	caps[0].MajorVersion = 1;
-	caps[0].MinorVersion = 1;
-	caps[0].EcoLevel = 0;
-	caps[0].Capability = (void *)&Cap20;
-
-	//for AP15 A01
-	Cap15.Id = 0x15;
-	caps[1].MajorVersion = 1;
-	caps[1].MinorVersion = 0;
-	caps[1].EcoLevel = 0;
-	caps[1].Capability = (void *)&Cap15;
-
-	//for AP15 A02
-	Cap16.Id = 0x15;
-	caps[2].MajorVersion = 1;
-	caps[2].MinorVersion = 1;
-	caps[2].EcoLevel = 0;
-	caps[2].Capability = (void *)&Cap16;
-
-	Error = NvRmModuleGetCapabilities(hDevice, NvRmModuleID_BseA, caps, 3, (void **)&capabilities);
-
-	return capabilities->Id;
+    NvOsFree(hLibHandle);
+    return NvSuccess;
 }
 
 //before unloading loading send message to avp with args and entry point via transport
 static NvError SendMsgDetachModule(NvRmLibraryHandle hLibHandle)
 {
-	NvError Error = NvSuccess;
-	NvU32 RecvMsgSize;
-	NvRmMessage_DetachModule Msg;
-	NvRmMessage_DetachModuleResponse MsgR;
-	void *address = NULL;
+    NvU32 RecvMsgSize;
+    NvRmMessage_DetachModule Msg;
+    NvRmMessage_DetachModuleResponse MsgR;
 
-	Msg.msg = NvRmMsg_DetachModule;
+    Msg.msg = NvRmMsg_DetachModule;
 
-	if ((Error = NvRmGetProcAddress(hLibHandle, "main", &address)) != NvSuccess)
-	{
-		goto exit_gracefully;
-	}
-	Msg.msg = NvRmMsg_DetachModule;
-	Msg.reason = NvRmModuleLoaderReason_Detach;
-	Msg.entryAddress = (NvU32)address;
-	RecvMsgSize = sizeof(NvRmMessage_DetachModuleResponse);
-	NvRmPrivRPCSendMsgWithResponse(s_RPCHandle,
-				&MsgR,
-				RecvMsgSize,
-				&RecvMsgSize,
-				&Msg,
-				sizeof(Msg));
+    Msg.msg = NvRmMsg_DetachModule;
+    Msg.reason = NvRmModuleLoaderReason_Detach;
+    Msg.libraryId = hLibHandle->libraryId;
+    RecvMsgSize = sizeof(NvRmMessage_DetachModuleResponse);
+    NvRmPrivRPCSendMsgWithResponse(s_RPCHandle, &MsgR, RecvMsgSize,
+                                   &RecvMsgSize, &Msg, sizeof(Msg));
 
-	Error = MsgR.error;
-	if (Error)
-	{
-		goto exit_gracefully;
-	}
-exit_gracefully:
-	return Error;
+    return MsgR.error;
 }
 
 //after successful loading send message to avp with args and entry point via transport
-static NvError SendMsgAttachModule(NvRmLibraryHandle *hLibHandle,
-				void* pArgs,
-				NvU32 sizeOfArgs)
+static NvError SendMsgAttachModule(
+    NvRmLibraryHandle hLibHandle,
+    void* pArgs,
+    NvU32 loadAddress,
+    NvU32 fileSize,
+    NvBool greedy,
+    NvU32 sizeOfArgs)
 {
-	NvError Error = NvSuccess;
-	NvU32 RecvMsgSize;
-	NvRmMessage_AttachModule *MsgPtr=NULL;
-	NvRmMessage_AttachModuleResponse MsgR;
-	void *address = NULL;
+    NvU32 RecvMsgSize;
+    NvRmMessage_AttachModule Msg;
+    NvRmMessage_AttachModuleResponse MsgR;
 
-	MsgPtr = NvOsAlloc(sizeof(*MsgPtr));
-	if(MsgPtr==NULL)
-	{
-		Error = NvError_InsufficientMemory;
-		goto exit_gracefully;
-	}
-	MsgPtr->msg = NvRmMsg_AttachModule;
+    NvOsMemset(&Msg, 0, sizeof(Msg));
+    Msg.msg = NvRmMsg_AttachModule;
 
-	if(pArgs)
-	{
-		NvOsMemcpy(MsgPtr->args, pArgs, sizeOfArgs);
-	}
+    if(pArgs)
+        NvOsMemcpy(Msg.args, pArgs, sizeOfArgs);
 
-	MsgPtr->size = sizeOfArgs;
-	if ((Error = NvRmGetProcAddress(*hLibHandle, "main", &address)) != NvSuccess)
-	{
-		goto exit_gracefully;
-	}
-	MsgPtr->entryAddress = (NvU32)address;
-	MsgPtr->reason = NvRmModuleLoaderReason_Attach;
-	RecvMsgSize = sizeof(NvRmMessage_AttachModuleResponse);
-	NvRmPrivRPCSendMsgWithResponse(s_RPCHandle,
-				&MsgR,
-				RecvMsgSize,
-				&RecvMsgSize,
-				MsgPtr,
-				sizeof(*MsgPtr));
+    Msg.size = sizeOfArgs;
+    Msg.address = loadAddress;
+    Msg.filesize = fileSize;
+    if (greedy)
+        Msg.reason = NvRmModuleLoaderReason_AttachGreedy;
+    else
+        Msg.reason = NvRmModuleLoaderReason_Attach;
 
-	Error = MsgR.error;
-	if (Error)
-	{
-		goto exit_gracefully;
-	}
-exit_gracefully:
-	NvOsFree(MsgPtr);
-	return Error;
+    RecvMsgSize = sizeof(NvRmMessage_AttachModuleResponse);
+
+    NvRmPrivRPCSendMsgWithResponse(s_RPCHandle, &MsgR, RecvMsgSize,
+                                   &RecvMsgSize, &Msg, sizeof(Msg));
+
+    hLibHandle->libraryId = MsgR.libraryId;
+    return MsgR.error;
 }
 
 
 NvError NvRmPrivInitModuleLoaderRPC(NvRmDeviceHandle hDevice)
 {
-	NvError err = NvSuccess;
+    NvError err = NvSuccess;
 
-	// Run only once.
-	if (s_RPCHandle) return NvError_Success;
+    if (s_RPCHandle)
+        return NvError_Success;
 
-	NvOsDebugPrintf("%s <kernel impl>: NvRmPrivRPCInit(RPC_AVP_PORT)\n", __func__);
-	err = NvRmPrivRPCInit(hDevice, "RPC_AVP_PORT", &s_RPCHandle);
-	if (err) panic("%s: NvRmPrivRPCInit FAILED\n", __func__);
+    NvOsDebugPrintf("%s <kernel impl>: NvRmPrivRPCInit(RPC_AVP_PORT)\n", __func__);
+    err = NvRmPrivRPCInit(hDevice, "RPC_AVP_PORT", &s_RPCHandle);
+    if (err) panic("%s: NvRmPrivRPCInit FAILED\n", __func__);
 
-	return err;
+    return err;
 }
 
 void NvRmPrivDeInitModuleLoaderRPC()
 {
-	NvRmPrivRPCDeInit(s_RPCHandle);
+    NvRmPrivRPCDeInit(s_RPCHandle);
 }
 
-SegmentNode* AddToSegmentList(SegmentNode *pList,
-			NvRmMemHandle pRegion,
-			Elf32_Phdr Phdr,
-			NvU32 Idx,
-			NvU32 PhysAddr,
-			void* MapAddress)
+NvError NvRmPrivGetProcAddress(
+    NvRmLibraryHandle Handle,
+    const char *pSymbol,
+    void **pSymAddress)
 {
-	SegmentNode *TempRec = NULL;
-	SegmentNode *CurrentRec = NULL;
+    NvRmLibHandle *hHandle = Handle;
 
-	TempRec = NvOsAlloc(sizeof(SegmentNode));
-	if (TempRec != NULL)
-	{
-		TempRec->pLoadRegion = pRegion;
-		TempRec->Index = Idx;
-		TempRec->VirtualAddr = Phdr.p_vaddr;
-		TempRec->MemorySize = Phdr.p_memsz;
-		TempRec->FileOffset = Phdr.p_offset;
-		TempRec->FileSize = Phdr.p_filesz;
-		TempRec->LoadAddress = PhysAddr;
-		TempRec->MapAddr = MapAddress;
-		TempRec->Next = NULL;
+    if (hHandle->libraryId == 0)
+        return NvError_SymbolNotFound;
 
-		CurrentRec = pList;
-		if (CurrentRec == NULL)
-		{
-			pList = TempRec;
-		}
-		else
-		{
-			while (CurrentRec->Next != NULL)
-			{
-				CurrentRec = CurrentRec->Next;
-			}
-			CurrentRec->Next = TempRec;
-		}
-	}
-	return pList;
+    *pSymAddress = (void *)hHandle->libraryId;
+    return NvSuccess;
 }
-void RemoveRegion(SegmentNode *pList)
+
+static void NvRmPrivResetAvp(NvRmDeviceHandle hRm, unsigned long reset_va)
 {
-	if (pList != NULL)
-	{
-		SegmentNode *pCurrentRec;
-		SegmentNode *pTmpRec;
-		pCurrentRec = pList;
-		while (pCurrentRec != NULL)
-		{
-			NvRmMemUnpin(pCurrentRec->pLoadRegion);
-			NvRmMemHandleFree(pCurrentRec->pLoadRegion);
-			pCurrentRec->pLoadRegion = NULL;
-			pTmpRec = pCurrentRec;
-			pCurrentRec = pCurrentRec->Next;
-			NvOsFree( pTmpRec );
-		}
-		pList = NULL;
-	}
+    u32 *stub_va = &_tegra_avp_launcher_stub_data[AVP_LAUNCHER_START_VA];
+    unsigned long stub_addr = virt_to_phys(_tegra_avp_launcher_stub);
+    unsigned int tmp;
+
+    *stub_va = reset_va;
+    __cpuc_flush_dcache_area(stub_va, sizeof(*stub_va));
+    outer_clean_range(__pa(stub_va), __pa(stub_va+1));
+
+    tmp = readl(_TEGRA_AVP_RESET_VECTOR_ADDR);
+    writel(stub_addr, _TEGRA_AVP_RESET_VECTOR_ADDR);
+    barrier();
+    NvRmModuleReset(hRm, NvRmModuleID_Avp);
+    writel(0, IO_ADDRESS(TEGRA_FLOW_CTRL_BASE) + FLOW_CTRL_HALT_COP);
+    barrier();
+    writel(tmp, _TEGRA_AVP_RESET_VECTOR_ADDR);
 }
 
-void UnMapRegion(SegmentNode *pList)
+static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
 {
-	if (pList != NULL)
-	{
-		SegmentNode *pCurrentRec;
-		pCurrentRec = pList;
-		while (pCurrentRec != NULL && pCurrentRec->MapAddr )
-		{
-			NvRmMemUnmap(pCurrentRec->pLoadRegion, pCurrentRec->MapAddr,
-				pCurrentRec->MemorySize);
-			pCurrentRec = pCurrentRec->Next;
-		}
-	}
+    u32 *stub_phys = &_tegra_avp_launcher_stub_data[AVP_LAUNCHER_MMU_PHYSICAL];
+    NvRmHeap heaps[] = { NvRmHeap_External, NvRmHeap_ExternalCarveOut };
+    PrivateOsFileHandle kernel;
+    void *map = NULL;
+    NvError e;
+    NvU32 len;
+    NvU32 phys;
+
+    if (s_KernelImage)
+        return NvSuccess;
+
+    NV_CHECK_ERROR_CLEANUP(NvRmMemHandleCreate(hRm, &s_KernelImage, SZ_1M));
+    NV_CHECK_ERROR_CLEANUP(NvRmMemAlloc(s_KernelImage, heaps,
+                                        NV_ARRAY_SIZE(heaps), SZ_1M,
+                                        NvOsMemAttribute_WriteCombined));
+    NV_CHECK_ERROR_CLEANUP(NvRmMemMap(s_KernelImage, 0, SZ_1M,
+                                      NVOS_MEM_READ_WRITE, &map));
+    
+    phys = NvRmMemPin(s_KernelImage);
+
+    NV_CHECK_ERROR_CLEANUP(PrivateOsFopen("nvrm_avp.bin",
+                                          NVOS_OPEN_READ, &kernel));
+
+    NvOsMemset(map, 0, SZ_1M);
+    len = (NvU32)kernel->pend - (NvU32)kernel->pstart;
+    NvOsMemcpy(map, kernel->pstart, len);
+
+    PrivateOsFclose(kernel);
+
+    *stub_phys = phys;
+    __cpuc_flush_dcache_area(stub_phys, sizeof(*stub_phys));
+    outer_clean_range(__pa(stub_phys), __pa(stub_phys+1));
+
+    NvRmPrivResetAvp(hRm, 0x00100000ul);
+
+    NV_CHECK_ERROR_CLEANUP(NvRmPrivInitService(hRm));
+    e = NvRmPrivInitModuleLoaderRPC(hRm);
+    if (e != NvSuccess)
+    {
+        NvRmPrivServiceDeInit();
+        goto fail;
+    }
+
+    NvRmMemUnmap(s_KernelImage, map, SZ_1M);
+
+    return NvSuccess;
+
+fail:
+    writel(2 << 29, IO_ADDRESS(TEGRA_FLOW_CTRL_BASE) + FLOW_CTRL_HALT_COP);
+    if (map)
+    {
+        NvRmMemUnpin(s_KernelImage);
+        NvRmMemUnmap(s_KernelImage, map, SZ_1M);
+    }
+    NvRmMemHandleFree(s_KernelImage);
+    s_KernelImage = NULL;
+    return e;
 }
 
-NvError
-ApplyRelocation(SegmentNode *pList,
-                NvU32 FileOffset,
-                NvU32 SegmentOffset,
-                NvRmMemHandle pRegion,
-                const Elf32_Rel *pRel)
+static void __iomem *iram_base = IO_ADDRESS(TEGRA_IRAM_BASE);
+static void __iomem *iram_backup;
+static dma_addr_t iram_backup_addr;
+static u32 iram_size = TEGRA_IRAM_SIZE;
+static u32 iram_backup_size = TEGRA_IRAM_SIZE + 4;
+static u32 avp_resume_addr;
+
+static NvError NvRmPrivSuspendAvp(NvRmRPCHandle hRPCHandle)
 {
-	NvError Error = NvSuccess;
-	NvU8 Type = 0;
-	NvU32 SymIndex = 0;
-	Elf32_Word Word = 0;
-	SegmentNode *pCur;
-	NvU32 TargetVirtualAddr = 0;
-	NvU32 LoadAddress = 0;
-	NV_ASSERT(NULL != pRel);
+    NvError err = NvSuccess;
+    NvRmMessage_InitiateLP0 lp0_msg;
+    void *avp_suspend_done = iram_backup + iram_size;
+    unsigned long timeout;
 
-	NvRmMemRead(pRegion, SegmentOffset,&Word, sizeof(Word));
-	NV_DEBUG_PRINTF(("NvRmMemRead: SegmentOffset 0x%04x, word %p\r\n",
-					SegmentOffset, Word));
-	Type = ELF32_R_TYPE(pRel->r_info);
+    pr_info("%s()+\n", __func__);
 
-	switch (Type)
-	{
-	case R_ARM_NONE:
-		break;
-	case R_ARM_CALL:
-		break;
-	case R_ARM_RABS32:
-		SymIndex = ELF32_R_SYM(pRel->r_info);
-		if (pList != NULL)
-		{
-			pCur = pList;
-			while (pCur != NULL)
-			{
-				if (pCur->Index == (SymIndex - 1))
-				{
-					TargetVirtualAddr = pCur->VirtualAddr;
-					LoadAddress = pCur->LoadAddress;
-				}
-				pCur = pCur->Next;
-			}
-			if (LoadAddress > TargetVirtualAddr)
-			{
-				Word = Word + (LoadAddress - TargetVirtualAddr);
-			}
-			else //handle negative displacement
-			{
-				Word = Word - (TargetVirtualAddr - LoadAddress);
-			}
-			NV_DEBUG_PRINTF(("NvRmMemWrite: SegmentOffset 0x%04x, word %p\r\n",
-							SegmentOffset, Word));
-			NvRmMemWrite(pRegion, SegmentOffset, &Word, sizeof(Word));
-		}
-		break;
-	default:
-		Error = NvError_NotSupported;
-		NV_DEBUG_PRINTF(("This relocation type is not handled = %d\r\n", Type));
-		break;
-	}
-	return Error;
+    if (!s_KernelImage)
+        goto done;
+    else if (!iram_backup_addr) {
+        /* XXX: should we return error? */
+        pr_warning("%s: iram backup ram missing, not suspending avp\n",
+                   __func__);
+        goto done;
+    }
+
+    NV_ASSERT(hRPCHandle->svcTransportHandle != NULL);
+
+    lp0_msg.msg = NvRmMsg_InitiateLP0;
+    lp0_msg.sourceAddr = (u32)TEGRA_IRAM_BASE;
+    lp0_msg.bufferAddr = (u32)iram_backup_addr;
+    lp0_msg.bufferSize = (u32)iram_size;
+
+    writel(0, avp_suspend_done);
+
+    NvOsMutexLock(hRPCHandle->RecvLock);
+    err = NvRmTransportSendMsg(hRPCHandle->svcTransportHandle, &lp0_msg,
+                               sizeof(lp0_msg), 1000);
+    NvOsMutexUnlock(hRPCHandle->RecvLock);
+
+    if (err != NvSuccess) {
+        pr_err("%s: cannot send AVP LP0 message\n", __func__);
+        goto done;
+    }
+
+    timeout = jiffies + msecs_to_jiffies(1000);
+    while (!readl(avp_suspend_done) && time_before(jiffies, timeout)) {
+        udelay(10);
+        cpu_relax();
+    }
+
+    if (!readl(avp_suspend_done)) {
+        pr_err("%s: AVP failed to suspend\n", __func__);
+        err = NvError_Timeout;
+        goto done;
+    }
+
+    avp_resume_addr = readl(iram_base);
+    if (!avp_resume_addr) {
+        pr_err("%s: AVP failed to set it's resume address\n", __func__);
+        err = NvError_InvalidState;
+        goto done;
+    }
+
+    pr_info("avp_suspend: resume_addr=%x\n", avp_resume_addr);
+    avp_resume_addr &= 0xFFFFFFFE;
+
+    pr_info("%s()-\n", __func__);
+
+done:
+    return err;
 }
 
-NvError
-GetSpecialSectionName(Elf32_Word SectionType,
-		Elf32_Word SectionFlags,
-		const char** SpecialSectionName)
+static NvError NvRmPrivResumeAvp(NvRmRPCHandle hRPCHandle)
 {
-	const char *unknownSection = "Unknown\r\n";
-	*SpecialSectionName = unknownSection;
-	/// Mask off the high 16 bits for now
-	switch (SectionFlags & 0xffff)
-	{
-	case SHF_ALLOC|SHF_WRITE:
-		if (SectionType == SHT_NOBITS)
-			*SpecialSectionName = ".bss\r\n";
-		else if (SectionType == SHT_PROGBITS)
-			*SpecialSectionName = ".data\r\n";
-		else if (SectionType == SHT_FINI_ARRAY)
-			*SpecialSectionName = ".fini_array\r\n";
-		else if (SectionType == SHT_INIT_ARRAY)
-			*SpecialSectionName = ".init_array\r\n";
-		break;
-	case SHF_ALLOC|SHF_EXECINSTR:
-		if (SectionType == SHT_PROGBITS)
-			*SpecialSectionName = ".init or fini \r\n";
+    NvError ret = NvSuccess;
 
-		break;
-	case SHF_ALLOC:
-		if (SectionType == SHT_STRTAB)
-			*SpecialSectionName = ".dynstr\r\n";
-		else if (SectionType == SHT_DYNSYM)
-			*SpecialSectionName = ".dynsym\r\n";
-		else if (SectionType == SHT_HASH)
-			*SpecialSectionName = ".hash\r\n";
-		else if (SectionType == SHT_PROGBITS)
-			*SpecialSectionName = ".rodata\r\n";
-		else
-			*SpecialSectionName = unknownSection;
-		break;
-	default:
-		if (SectionType == SHT_PROGBITS)
-			*SpecialSectionName = ".comment\r\n";
-		else
-			*SpecialSectionName = unknownSection;
-		break;
-	}
-	return NvSuccess;
+    pr_info("%s()+\n", __func__);
+    if (!s_KernelImage || !avp_resume_addr)
+        goto done;
+
+    NvRmPrivResetAvp(hRPCHandle->hRmDevice, avp_resume_addr);
+    avp_resume_addr = 0;
+
+    pr_info("%s()-\n", __func__);
+
+done:
+    return ret;
 }
 
-NvError
-ParseDynamicSegment(SegmentNode *pList,
-		const char* pSegmentData,
-		size_t SegmentSize,
-		NvU32 DynamicSegmentOffset)
+int __init _avp_suspend_resume_init(void)
 {
-	NvError Error = NvSuccess;
-	Elf32_Dyn* pDynSeg = NULL;
-	NvU32  Counter = 0;
-	NvU32 RelocationTableAddressOffset = 0;
-	NvU32 RelocationTableSize = 0;
-	NvU32 RelocationEntrySize = 0;
-	const Elf32_Rel* RelocationTablePtr = NULL;
-	NvU32 SymbolTableAddressOffset = 0;
-	NvU32 SymbolTableEntrySize = 0;
-	NvU32 SymbolTableSize = 0;
-	NvU32 SegmentOffset = 0;
-	NvU32 FileOffset = 0;
-	SegmentNode *node;
-#if NV_ENABLE_DEBUG_PRINTS
-	// Strings for interpreting ELF header e_type field.
-	static const char * s_DynSecTypeText[] =
-		{
-			"DT_NULL",
-			"DT_NEEDED",
-			"DT_PLTRELSZ",
-			"DT_PLTGOT",
-			"DT_HASH",
-//        "DT_STRTAB",
-			"String Table Address",
-//        "DT_SYMTAB",
-			"Symbol Table Address",
-//        "DT_RELA",
-			"Relocation Table Address",
-//        "DT_RELASZ",
-			"Relocation Table Size",
-//        "DT_RELAENT",
-			"Relocation Entry Size",
-//        "DT_STRSZ",
-			"String Table Size",
-//        "DT_SYMENT",
-			"Symbol Table Entry Size",
-			"DT_INIT",
-			"DT_FINI",
-			"DT_SONAME",
-			"DT_RPATH",
-			"DT_SYMBOLIC",
-//        "DT_REL",
-			"Relocation Table Address",
-//        "DT_RELSZ",
-			"Relocation Table Size",
-//        "DT_RELENT",
-			"Relocation Entry Size",
-			"DT_PLTREL",
-			"DT_DEBUG",
-			"DT_TEXTREL",
-			"DT_JMPREL",
-			"DT_BIND_NOW",
-			"DT_INIT_ARRAY",
-			"DT_FINI_ARRAY",
-			"DT_INIT_ARRAYSZ",
-			"DT_FINI_ARRAYSZ",
-			"DT_RUNPATH",
-			"DT_FLAGS",
-			"DT_ENCODING",
-			"DT_PREINIT_ARRAY",
-			"DT_PREINIT_ARRAYSZ",
-			"DT_NUM",
-			"DT_OS-specific",
-			"DT_PROC-specific",
-			""
-		};
-#else
-#define s_DynSecTypeText ((char**)0)
-#endif
+    /* allocate an iram sized chunk of ram to give to the AVP */
+    iram_backup = dma_alloc_coherent(NULL, iram_backup_size,
+                                     &iram_backup_addr, GFP_KERNEL);
+    if (!iram_backup)
+    {
+        pr_err("%s: Unable to allocate iram backup mem\n", __func__);
+        return -ENOMEM;
+    }
 
-	pDynSeg = (Elf32_Dyn*)pSegmentData;
-	do
-	{
-		if (pDynSeg->d_tag < DT_NUM)
-		{
-			NV_DEBUG_PRINTF(("Entry %d with Tag %s %d\r\n",
-							Counter++, s_DynSecTypeText[pDynSeg->d_tag], pDynSeg->d_val));
-		}
-		else
-		{
-			NV_DEBUG_PRINTF(("Entry %d Special Compatibility Range %x %d\r\n",
-							Counter++, pDynSeg->d_tag, pDynSeg->d_val));
-		}
-		if (pDynSeg->d_tag == DT_NULL)
-			break;
-		if ((pDynSeg->d_tag == DT_REL) || (pDynSeg->d_tag == DT_RELA))
-			RelocationTableAddressOffset = pDynSeg->d_un.d_val;
-		if ((pDynSeg->d_tag == DT_RELENT) || (pDynSeg->d_tag == DT_RELAENT))
-			RelocationEntrySize = pDynSeg->d_un.d_val;
-		if ((pDynSeg->d_tag == DT_RELSZ) || (pDynSeg->d_tag == DT_RELASZ))
-			RelocationTableSize = pDynSeg->d_un.d_val;
-		if (pDynSeg->d_tag == DT_SYMTAB)
-			SymbolTableAddressOffset = pDynSeg->d_un.d_val;
-		if (pDynSeg->d_tag == DT_SYMENT)
-			SymbolTableEntrySize = pDynSeg->d_un.d_val;
-		if (pDynSeg->d_tag == DT_ARM_RESERVED1)
-			SymbolTableSize = pDynSeg->d_un.d_val;
-		pDynSeg++;
-
-	}while ((Counter*sizeof(Elf32_Dyn)) < SegmentSize);
-
-	if (RelocationTableAddressOffset && RelocationTableSize && RelocationEntrySize)
-	{
-		RelocationTablePtr = (const Elf32_Rel*)&pSegmentData[RelocationTableAddressOffset];
-
-		for (Counter = 0; Counter < (RelocationTableSize/RelocationEntrySize); Counter++)
-		{
-			//calculate the actual offset of the reloc entry
-			NV_DEBUG_PRINTF(("Reloc %d offset is %x RType %d SymIdx %d \r\n",
-							Counter, RelocationTablePtr->r_offset,
-							ELF32_R_TYPE(RelocationTablePtr->r_info),
-							ELF32_R_SYM(RelocationTablePtr->r_info)));
-
-			node = pList;
-			while (node != NULL)
-			{
-				if ( (RelocationTablePtr->r_offset > node->VirtualAddr) &&
-					(RelocationTablePtr->r_offset <=
-						(node->VirtualAddr + node->MemorySize)))
-				{
-					FileOffset = node->FileOffset +
-						(RelocationTablePtr->r_offset - node->VirtualAddr);
-
-					NV_DEBUG_PRINTF(("File offset to be relocated %d \r\n", FileOffset));
-
-					SegmentOffset = (RelocationTablePtr->r_offset - node->VirtualAddr);
-
-					NV_DEBUG_PRINTF(("Segment offset to be relocated %d \r\n", SegmentOffset));
-
-					Error = ApplyRelocation(pList, FileOffset, SegmentOffset,
-								node->pLoadRegion, RelocationTablePtr);
-
-				}
-				node = node->Next;
-			}
-			RelocationTablePtr++;
-		}
-
-	}
-	if (SymbolTableAddressOffset && SymbolTableSize && SymbolTableEntrySize)
-	{
-#if 0
-		const Elf32_Sym* SymbolTablePtr = NULL;
-		SymbolTablePtr = (const Elf32_Sym*)&pSegmentData[SymbolTableAddressOffset];
-		for (Counter = 0; Counter <SymbolTableSize/SymbolTableEntrySize; Counter++)
-		{
-
-			NvOsDebugPrintf("Symbol name %x, value %x, size %x, info %x, other %x, shndx %x\r\n",
-					SymbolTablePtr->st_name, SymbolTablePtr->st_value,
-					SymbolTablePtr->st_size, SymbolTablePtr->st_info,
-					SymbolTablePtr->st_other, SymbolTablePtr->st_shndx);
-			NV_DEBUG_PRINTF(("Symbol name %x, value %x, size %x, info %x, other %x, shndx %x\r\n",
-							SymbolTablePtr->st_name, SymbolTablePtr->st_value,
-							SymbolTablePtr->st_size, SymbolTablePtr->st_info,
-							SymbolTablePtr->st_other, SymbolTablePtr->st_shndx));
-
-			SymbolTablePtr++;
-		}
-#endif
-	}
-	return Error;
+    return 0;
 }
-
-NvError
-LoadLoadableProgramSegment(PrivateOsFileHandle elfSourceHandle,
-			NvRmDeviceHandle hDevice,
-			NvRmLibraryHandle hLibHandle,
-			Elf32_Phdr Phdr,
-			Elf32_Ehdr Ehdr,
-			const NvRmHeap * Heaps,
-			NvU32 NumHeaps,
-			NvU32 loop,
-			const char *Filename,
-			SegmentNode **segmentList)
-{
-	NvError Error = NvSuccess;
-	NvRmMemHandle pLoadRegion = NULL;
-	void* pLoadAddress = NULL;
-	NvU32 offset = 0;
-	NvU32 addr;  // address of pLoadRegion
-	size_t bytesRead = 0;
-
-	Error = NvRmMemHandleCreate(hDevice,
-                                &pLoadRegion,
-                                Phdr.p_memsz);
-
-	if (Error != NvSuccess)
-		goto CleanUpExit;
-
-	Error = NvRmMemAlloc(pLoadRegion,
-			Heaps,
-			NumHeaps,
-			NV_MAX(16, Phdr.p_align),
-			NvOsMemAttribute_Uncached);
-
-	if (Error != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("Memory Allocation %d Failed\r\n",Error));
-		NvRmMemHandleFree(pLoadRegion);
-		pLoadRegion = NULL;
-		goto CleanUpExit;
-	}
-	addr = NvRmMemPin(pLoadRegion);
-
-	Error = NvRmMemMap(pLoadRegion, 0, Phdr.p_memsz,
-			NVOS_MEM_READ_WRITE, &pLoadAddress);
-	if (Error != NvSuccess)
-	{
-		pLoadAddress = NULL;
-	}
-
-	// This will initialize ZI to zero
-	if( pLoadAddress )
-	{
-		NvOsMemset(pLoadAddress, 0, Phdr.p_memsz);
-	}
-	else
-	{
-		NvU8 *tmp = NvOsAlloc( Phdr.p_memsz );
-		if( !tmp )
-		{
-			goto CleanUpExit;
-		}
-		NvOsMemset( tmp, 0, Phdr.p_memsz );
-		NvRmMemWrite( pLoadRegion, 0, tmp, Phdr.p_memsz );
-		NvOsFree( tmp );
-	}
-
-	if(Phdr.p_filesz)
-	{
-		if( pLoadAddress )
-		{
-			if ((Error = PrivateOsFread(elfSourceHandle, pLoadAddress,
-								Phdr.p_filesz, &bytesRead)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-				goto CleanUpExit;
-			}
-		}
-		else
-		{
-			NvU8 *tmp = NvOsAlloc( Phdr.p_filesz );
-			if( !tmp )
-			{
-				goto CleanUpExit;
-			}
-
-			Error = PrivateOsFread( elfSourceHandle, tmp, Phdr.p_filesz,
-					&bytesRead );
-			if( Error != NvSuccess )
-			{
-				NvOsFree( tmp );
-				goto CleanUpExit;
-			}
-
-			NvRmMemWrite( pLoadRegion, 0, tmp, Phdr.p_filesz );
-
-			NvOsFree( tmp );
-		}
-	}
-	if ((Ehdr.e_entry >= Phdr.p_vaddr)
-		&& (Ehdr.e_entry < (Phdr.p_vaddr + Phdr.p_memsz)))
-	{
-		// Odd address indicates entry point is Thumb code.
-		// The address needs to be masked with LSB before being invoked.
-		if (addr > Phdr.p_vaddr)
-		{
-			offset = (addr - Phdr.p_vaddr) | ADD_MASK;
-			hLibHandle->EntryAddress = (void*)(Ehdr.e_entry + offset);
-		}
-		else
-		{
-			offset = ((Phdr.p_vaddr - addr) | (ADD_MASK)) & (SUB_MASK);
-			hLibHandle->EntryAddress = (void*)(Ehdr.e_entry - offset);
-		}
-		NV_DEBUG_PRINTF(("Load Address for %s segment %d:%x\r\n",
-						Filename, loop, addr));
-		NvOsDebugPrintf("Load Address for %s segment %d:%x\r\n",
-				Filename, loop, addr);
-	}
-
-	*segmentList = AddToSegmentList((*segmentList), pLoadRegion, Phdr, loop,
-					addr, pLoadAddress);
-
-CleanUpExit:
-	if (Error != NvSuccess)
-	{
-		if(pLoadRegion != NULL)
-		{
-			if( pLoadAddress )
-			{
-				NvRmMemUnmap(pLoadRegion, pLoadAddress, Phdr.p_memsz);
-			}
-
-			NvRmMemUnpin(pLoadRegion);
-			NvRmMemHandleFree(pLoadRegion);
-		}
-	}
-	return Error;
-}
-
-NvError
-NvRmPrivLoadLibrary(NvRmDeviceHandle hDevice,
-		const char *Filename,
-		NvU32 Address,
-		NvBool IsApproachGreedy,
-		NvRmLibraryHandle *hLibHandle)
-{
-	NvError Error = NvSuccess;
-	PrivateOsFileHandle elfSourceHandle = 0;
-	size_t bytesRead = 0;
-	Elf32_Ehdr elf;
-	Elf32_Phdr progHeader;
-	NvU32 loop = 0;
-	char *dynamicSegementBuffer = NULL;
-	int dynamicSegmentOffset = 0;
-	int lastFileOffset = 0;
-	SegmentNode *segmentList = NULL;
-	NvRmHeap HeapProperty[2];
-	NvU32 HeapSize = 0;
-
-	NV_ASSERT(NULL != Filename);
-	*hLibHandle = NULL;
-
-	NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, Filename);
-	if ((Error = PrivateOsFopen(Filename, NVOS_OPEN_READ,
-						&elfSourceHandle)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("Elf source file Not found Error = %d\r\n", Error));
-		NvOsDebugPrintf("Failed to load library %s, NvError=%d."
-				" Make sure it is present on the device\r\n", Filename, Error);
-		return Error;
-	}
-	if ((Error = PrivateOsFread(elfSourceHandle, &elf,
-						sizeof(elf), &bytesRead)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("File Read size mismatch %d\r\n", bytesRead));
-		goto CleanUpExit;
-	}
-	// Parse the elf headers and display information
-	parseElfHeader(&elf);
-	/// Parse the Program Segment Headers and display information
-	if ((Error = parseProgramSegmentHeaders(elfSourceHandle, elf.e_phoff, elf.e_phnum)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("parseProgramSegmentHeaders failed %d\r\n", Error));
-		goto CleanUpExit;
-	}
-	/// Parse the section Headers and display information
-	if ((Error = parseSectionHeaders(elfSourceHandle, &elf)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("parseSectionHeaders failed %d\r\n", Error));
-		goto CleanUpExit;
-	}
-	// allocate memory for handle....
-	*hLibHandle = NvOsAlloc(sizeof(NvRmLibHandle));
-	if (!*hLibHandle)
-	{
-		Error = NvError_InsufficientMemory;
-		goto CleanUpExit;
-	}
-
-	if (elf.e_phnum && elf.e_phnum < MIN_SEGMENTS_FOR_DYNAMIC_LOADING)
-	{
-		if ((Error = loadSegmentsInFixedMemory(elfSourceHandle,
-								&elf, 0, &(*hLibHandle)->pLibBaseAddress)) != NvSuccess)
-		{
-			NV_DEBUG_PRINTF(("LoadSegmentsInFixedMemory Failed %d\r\n", Error));
-			goto CleanUpExit;
-		}
-		(*hLibHandle)->EntryAddress = (*hLibHandle)->pLibBaseAddress;
-		return Error;
-	}
-	else if (elf.e_phnum)
-	{
-		if ((Error = PrivateOsFseek(elfSourceHandle,
-							elf.e_phoff, NvOsSeek_Set)) != NvSuccess)
-		{
-			NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-			goto CleanUpExit;
-		}
-		lastFileOffset = elf.e_phoff;
-		// load the IRAM mandatory  and DRAM mandatory sections first...
-		for (loop = 0; loop < elf.e_phnum; loop++)
-		{
-			if ((Error = PrivateOsFread(elfSourceHandle, &progHeader,
-								sizeof(Elf32_Phdr), &bytesRead)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-				goto CleanUpExit;
-			}
-			lastFileOffset += bytesRead;
-			if (progHeader.p_type == PT_LOAD)
-			{
-				NV_DEBUG_PRINTF(("Found load segment %d\r\n",loop));
-				if ((Error = PrivateOsFseek(elfSourceHandle,
-									progHeader.p_offset, NvOsSeek_Set)) != NvSuccess)
-				{
-					NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-					goto CleanUpExit;
-				}
-				if (progHeader.p_vaddr >= DRAM_MAND_ADDRESS && progHeader.p_vaddr < IRAM_PREF_EXT_ADDRESS)
-				{
-
-
-					if (progHeader.p_vaddr >= DRAM_MAND_ADDRESS && progHeader.p_vaddr < IRAM_MAND_ADDRESS)
-					{
-						HeapProperty[0] = NvRmHeap_ExternalCarveOut;
-					}
-					else if (progHeader.p_vaddr >= IRAM_MAND_ADDRESS)
-					{
-						HeapProperty[0] = NvRmHeap_IRam;
-					}
-					Error = LoadLoadableProgramSegment(elfSourceHandle, hDevice, (*hLibHandle),
-                                                                        progHeader, elf, HeapProperty, 1, loop,
-                                                                        Filename, &segmentList);
-					if (Error != NvSuccess)
-					{
-						NV_DEBUG_PRINTF(("Unable to load segment %d \r\n", loop));
-						goto CleanUpExit;
-					}
-				}
-				if ((Error = PrivateOsFseek(elfSourceHandle,
-									lastFileOffset, NvOsSeek_Set)) != NvSuccess)
-				{
-					NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-					goto CleanUpExit;
-				}
-			}
-		}
-
-		// now load the preferred and dynamic sections
-		if ((Error = PrivateOsFseek(elfSourceHandle,
-							elf.e_phoff, NvOsSeek_Set)) != NvSuccess)
-		{
-			NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-			goto CleanUpExit;
-		}
-		lastFileOffset = elf.e_phoff;
-		for (loop = 0; loop < elf.e_phnum; loop++)
-		{
-			if ((Error = PrivateOsFread(elfSourceHandle, &progHeader,
-								sizeof(Elf32_Phdr), &bytesRead)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-				goto CleanUpExit;
-			}
-			lastFileOffset += bytesRead;
-			if (progHeader.p_type == PT_LOAD)
-			{
-				NV_DEBUG_PRINTF(("Found load segment %d\r\n",loop));
-				if ((Error = PrivateOsFseek(elfSourceHandle,
-									progHeader.p_offset, NvOsSeek_Set)) != NvSuccess)
-				{
-					NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-					goto CleanUpExit;
-				}
-				if (progHeader.p_vaddr < DRAM_MAND_ADDRESS)
-				{
-					if (IsApproachGreedy == NV_FALSE)
-					{
-						HeapSize = 1;
-						//conservative allocation - IRAM_PREF sections in DRAM.
-						HeapProperty[0] = NvRmHeap_ExternalCarveOut;
-					}
-					else
-					{
-						// greedy allocation - IRAM_PREF sections in IRAM, otherwise fallback to DRAM
-						HeapSize = 2;
-						HeapProperty[0] = NvRmHeap_IRam;
-						HeapProperty[1] = NvRmHeap_ExternalCarveOut;
-					}
-					Error = LoadLoadableProgramSegment(elfSourceHandle, hDevice,
-                                                                        (*hLibHandle), progHeader, elf,
-                                                                        HeapProperty, HeapSize, loop,
-                                                                        Filename, &segmentList);
-					if (Error != NvSuccess)
-					{
-						NV_DEBUG_PRINTF(("Unable to load segment %d \r\n", loop));
-						goto CleanUpExit;
-					}
-				}
-				else if (progHeader.p_vaddr >= IRAM_PREF_EXT_ADDRESS)
-				{
-					NvU32 Chipid = NvRmModuleGetChipId(hDevice);
-					if(Chipid == 0x15 || Chipid == 0x16)
-					{
-						HeapSize = 1;
-						//conservative allocation - IRAM_PREF_EXT sections in DRAM for AP15.
-						HeapProperty[0] = NvRmHeap_ExternalCarveOut;
-					}
-					else if(Chipid >= 0x20)
-					{
-						if (IsApproachGreedy == NV_FALSE)
-						{
-							HeapSize = 1;
-							//conservative allocation - IRAM_PREF sections in DRAM.
-							HeapProperty[0] = NvRmHeap_ExternalCarveOut;
-						}
-						else
-						{
-							// greedy allocation - IRAM_PREF sections in IRAM, otherwise fallback to DRAM
-							HeapSize = 2;
-							HeapProperty[0] = NvRmHeap_IRam;
-							HeapProperty[1] = NvRmHeap_ExternalCarveOut;
-						}
-					}
-					Error = LoadLoadableProgramSegment(elfSourceHandle, hDevice,
-                                                                        (*hLibHandle), progHeader, elf,
-                                                                        HeapProperty, HeapSize, loop,
-                                                                        Filename, &segmentList);
-					if (Error != NvSuccess)
-					{
-						NV_DEBUG_PRINTF(("Unable to load segment %d \r\n", loop));
-						goto CleanUpExit;
-					}
-				}
-				if ((Error = PrivateOsFseek(elfSourceHandle,
-									lastFileOffset, NvOsSeek_Set)) != NvSuccess)
-				{
-					NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-					goto CleanUpExit;
-				}
-			}
-			if (progHeader.p_type != PT_DYNAMIC)
-				continue;
-			dynamicSegmentOffset = progHeader.p_offset;
-			if ((Error = PrivateOsFseek(elfSourceHandle,
-								dynamicSegmentOffset, NvOsSeek_Set)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-				goto CleanUpExit;
-			}
-			dynamicSegementBuffer = NvOsAlloc(progHeader.p_filesz);
-			if (dynamicSegementBuffer == NULL)
-			{
-				NV_DEBUG_PRINTF(("Memory Allocation %d Failed\r\n", progHeader.p_filesz));
-				goto CleanUpExit;
-			}
-			if ((Error = PrivateOsFread(elfSourceHandle, dynamicSegementBuffer,
-								progHeader.p_filesz, &bytesRead)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-				goto CleanUpExit;
-			}
-			if ((Error = ParseDynamicSegment(
-						segmentList,
-						dynamicSegementBuffer,
-						progHeader.p_filesz,
-						dynamicSegmentOffset)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("Parsing and relocation of segment failed \r\n"));
-				goto CleanUpExit;
-			}
-			(*hLibHandle)->pList = segmentList;
-			if ((Error = PrivateOsFseek(elfSourceHandle,
-								lastFileOffset, NvOsSeek_Set)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-				goto CleanUpExit;
-			}
-		}
-	}
-
-CleanUpExit:
-	{
-		if (Error == NvSuccess)
-		{
-			UnMapRegion(segmentList);
-			NvOsFree(dynamicSegementBuffer);
-			PrivateOsFclose(elfSourceHandle);
-		}
-		else
-		{
-			RemoveRegion(segmentList);
-			NvOsFree(dynamicSegementBuffer);
-			PrivateOsFclose(elfSourceHandle);
-			NvOsFree(*hLibHandle);
-		}
-	}
-	return Error;
-}
-
-NvError NvRmPrivFreeLibrary(NvRmLibHandle *hLibHandle)
-{
-	NvError Error = NvSuccess;
-	RemoveRegion(hLibHandle->pList);
-	NvOsFree(hLibHandle);
-	return Error;
-}
-
-void parseElfHeader(Elf32_Ehdr *elf)
-{
-	if (elf->e_ident[0] == ELF_MAG0)
-	{
-		NV_DEBUG_PRINTF(("File is elf Object File with Identification %c%c%c\r\n",
-						elf->e_ident[1], elf->e_ident[2], elf->e_ident[3]));
-		NV_DEBUG_PRINTF(("Type of ELF is %x\r\n", elf->e_type));
-		//An object file conforming to this specification must have
-		//the value EM_ARM (40, 0x28).
-		NV_DEBUG_PRINTF(("Machine type of the file is %x\r\n", elf->e_machine));
-		//Address of entry point for this file. bit 1:0
-		//indicates if entry point is ARM or thum mode
-		NV_DEBUG_PRINTF(("Entry point for this axf is %x\r\n", elf->e_entry));
-		NV_DEBUG_PRINTF(("Version of the ELF is %d\r\n", elf->e_version));
-		NV_DEBUG_PRINTF(("Program Table Header Offset %d\r\n", elf->e_phoff));
-		NV_DEBUG_PRINTF(("Section Table Header Offset %d\r\n", elf->e_shoff));
-		NV_DEBUG_PRINTF(("Elf Header size %d\r\n", elf->e_ehsize));
-		NV_DEBUG_PRINTF(("Section Header's Size %d\r\n", elf->e_shentsize));
-		NV_DEBUG_PRINTF(("Number of Section Headers %d\r\n", elf->e_shnum));
-		NV_DEBUG_PRINTF(("String Table Section Header Index %d\r\n", elf->e_shstrndx));
-		NV_DEBUG_PRINTF(("\r\n"));
-	}
-}
-
-NvError parseProgramSegmentHeaders(PrivateOsFileHandle elfSourceHandle,
-				NvU32 segmentHeaderOffset,
-				NvU32 segmentCount)
-{
-	Elf32_Phdr progHeader;
-	size_t bytesRead = 0;
-	NvU32 loop = 0;
-	NvError Error = NvSuccess;
-	if (segmentCount)
-	{
-		NV_DEBUG_PRINTF(("Program Headers Found %d\r\n", segmentCount));
-		if ((Error = PrivateOsFseek(elfSourceHandle,
-							segmentHeaderOffset, NvOsSeek_Set)) != NvSuccess)
-		{
-			NV_DEBUG_PRINTF(("File Seek failed %d\r\n", Error));
-			return Error;
-		}
-
-		for (loop = 0; loop < segmentCount; loop++)
-		{
-			if ((Error = PrivateOsFread(elfSourceHandle, &progHeader,
-								sizeof(progHeader), &bytesRead)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-				return Error;
-			}
-
-			NV_DEBUG_PRINTF(("Program %d Header type %d\r\n",
-							loop, progHeader.p_type));
-			NV_DEBUG_PRINTF(("Program %d Header offset %d\r\n",
-							loop, progHeader.p_offset));
-			NV_DEBUG_PRINTF(("Program %d Header Virtual Address %x\r\n",
-							loop, progHeader.p_vaddr));
-			NV_DEBUG_PRINTF(("Program %d Header Physical Address %x\r\n",
-							loop, progHeader.p_paddr));
-			NV_DEBUG_PRINTF(("Program %d Header Filesize %d\r\n",
-							loop, progHeader.p_filesz));
-			NV_DEBUG_PRINTF(("Program %d Header Memory Size %d\r\n",
-							loop, progHeader.p_memsz));
-			NV_DEBUG_PRINTF(("Program %d Header Flags %x\r\n",
-							loop, progHeader.p_flags));
-			NV_DEBUG_PRINTF(("Program %d Header alignment %d\r\n",
-							loop, progHeader.p_align));
-			NV_DEBUG_PRINTF(("\r\n"));
-		}
-	}
-	return NvSuccess;
-}
-
-NvError
-parseSectionHeaders(PrivateOsFileHandle elfSourceHandle, Elf32_Ehdr *elf)
-{
-	NvError Error = NvSuccess;
-	NvU32 stringTableOffset = 0;
-	Elf32_Shdr sectionHeader;
-	size_t bytesRead = 0;
-	NvU32 loop = 0;
-	char* stringTable = NULL;
-	const char *specialNamePtr = NULL;
-
-	// Try to get to the string table so that we can get section names
-	stringTableOffset = elf->e_shoff + (elf->e_shentsize * elf->e_shstrndx);
-
-	NV_DEBUG_PRINTF(("String Table File Offset is %d\r\n", stringTableOffset));
-
-	if ((Error = PrivateOsFseek(elfSourceHandle,
-						stringTableOffset, NvOsSeek_Set)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-		return Error;
-	}
-	if ((Error = PrivateOsFread(elfSourceHandle, &sectionHeader,
-						sizeof(sectionHeader), &bytesRead)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-		return Error;
-	}
-	if (sectionHeader.sh_type == SHT_STRTAB)
-	{
-		NV_DEBUG_PRINTF(("Found Section is string Table\r\n"));
-		if (sectionHeader.sh_size)
-		{
-			stringTable = NvOsAlloc(sectionHeader.sh_size);
-			if (stringTable == NULL)
-			{
-				NV_DEBUG_PRINTF(("String table mem allocation failed for %d\r\n",
-								sectionHeader.sh_size));
-				return  NvError_InsufficientMemory;
-			}
-			if ((Error = PrivateOsFseek(elfSourceHandle,
-								sectionHeader.sh_offset, NvOsSeek_Set)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-				goto CleanUpExit_parseSectionHeaders;
-			}
-			if ((Error = PrivateOsFread(elfSourceHandle, stringTable,
-								sectionHeader.sh_size, &bytesRead)) != NvSuccess)
-			{
-				NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-				goto CleanUpExit_parseSectionHeaders;
-			}
-		}
-	}
-	if ((Error = PrivateOsFseek(elfSourceHandle,
-						elf->e_shoff, NvOsSeek_Set)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("File Seek failed %d\r\n", bytesRead));
-		goto CleanUpExit_parseSectionHeaders;
-	}
-	for (loop = 0; loop < elf->e_shnum; loop++)
-	{
-		if ((Error = PrivateOsFread(elfSourceHandle, &sectionHeader,
-							sizeof(sectionHeader), &bytesRead)) != NvSuccess)
-		{
-			NV_DEBUG_PRINTF(("File Read failed %d\r\n", bytesRead));
-			goto CleanUpExit_parseSectionHeaders;
-		}
-
-		NV_DEBUG_PRINTF(("Section %d is named %s\r\n",
-						loop, &stringTable[sectionHeader.sh_name]));
-		NV_DEBUG_PRINTF(("Section %d Type %d\r\n",
-						loop, sectionHeader.sh_type));
-		NV_DEBUG_PRINTF(("Section %d Flags %x\r\n",
-						loop, sectionHeader.sh_flags));
-
-		GetSpecialSectionName(sectionHeader.sh_type,
-				sectionHeader.sh_flags, &specialNamePtr);
-
-		NV_DEBUG_PRINTF(("Section %d Special Name is %s",
-						loop, specialNamePtr));
-		NV_DEBUG_PRINTF(("Section %d Address %x\r\n",
-						loop, sectionHeader.sh_addr));
-		NV_DEBUG_PRINTF(("Section %d File Offset %d\r\n",
-						loop, sectionHeader.sh_offset));
-		NV_DEBUG_PRINTF(("Section %d Size %d \r\n",
-						loop, sectionHeader.sh_size));
-		NV_DEBUG_PRINTF(("Section %d Link %d \r\n",
-						loop, sectionHeader.sh_link));
-		NV_DEBUG_PRINTF(("Section %d Info %d\r\n",
-						loop, sectionHeader.sh_info));
-		NV_DEBUG_PRINTF(("Section %d alignment %d\r\n",
-						loop, sectionHeader.sh_addralign));
-		NV_DEBUG_PRINTF(("Section %d Fixed Entry Size %d\r\n",
-						loop, sectionHeader.sh_entsize));
-		NV_DEBUG_PRINTF(("\r\n"));
-
-	}
-CleanUpExit_parseSectionHeaders:
-	if (stringTable)
-		NvOsFree(stringTable);
-	return Error;
-}
-
-
-NvError
-loadSegmentsInFixedMemory(PrivateOsFileHandle elfSourceHandle,
-			Elf32_Ehdr *elf, NvU32 segmentIndex, void **loadaddress)
-{
-	NvError Error = NvSuccess;
-	size_t bytesRead = 0;
-	Elf32_Phdr progHeader;
-
-	if ((Error = PrivateOsFseek(elfSourceHandle,
-						elf->e_phoff + (segmentIndex * sizeof(progHeader)), NvOsSeek_Set)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("loadSegmentsInFixedMemory File Seek failed %d\r\n", bytesRead));
-		return Error;
-	}
-
-	if ((Error = PrivateOsFread(elfSourceHandle, &progHeader,
-						sizeof(Elf32_Phdr), &bytesRead)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF((" loadSegmentsInFixedMemory File Read failed %d\r\n", bytesRead));
-		return Error;
-	}
-	NV_ASSERT(progHeader.p_type == PT_LOAD);
-	if ((Error = PrivateOsFseek(elfSourceHandle,
-						progHeader.p_offset, NvOsSeek_Set)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("loadSegmentsInFixedMemory File Seek failed %d\r\n", Error));
-		return Error;
-	}
-
-	/* if((Error = NvRmPhysicalMemMap(progHeader.p_vaddr, */
-	/* 					progHeader.p_memsz, NVOS_MEM_READ_WRITE, */
-	/* 					NvOsMemAttribute_Uncached, loadaddress)) != NvSuccess) */
-	/* { */
-	/* 	NV_DEBUG_PRINTF(("loadSegmentsInFixedMemory Failed trying to Mem Map %x\r\n", progHeader.p_vaddr)); */
-	/* 	return Error; */
-	/* } */
-	// This will initialize ZI to zero
-	*loadaddress = ioremap_nocache(progHeader.p_vaddr, progHeader.p_memsz);
-
-	NvOsMemset(*loadaddress, 0, progHeader.p_memsz);
-	if ((Error = PrivateOsFread(elfSourceHandle, *loadaddress,
-						progHeader.p_filesz, &bytesRead)) != NvSuccess)
-	{
-		NV_DEBUG_PRINTF(("loadSegmentsInFixedMemory File Read failed %d\r\n", bytesRead));
-		return Error;
-	}
-	// Load address need to be reset to the physical address as this is passed to the AVP as the entry point.
-	*loadaddress = (void *)progHeader.p_vaddr;
-
-	return Error;
-}
-
-NvError NvRmPrivGetProcAddress(NvRmLibraryHandle Handle,
-			const char *pSymbol,
-			void **pSymAddress)
-{
-	NvError Error = NvSuccess;
-	// In phase 1, this API will just return the load address as entry address
-	NvRmLibHandle *hHandle = Handle;
-
-	//NOTE: The EntryAddress is pointing to a THUMB function
-	//(LSB is set). The Entry Function must be in THUMB mode.
-	if (hHandle->EntryAddress != NULL)
-	{
-		*pSymAddress = hHandle->EntryAddress;
-	}
-	else
-	{
-		Error = NvError_SymbolNotFound;
-	}
-	return Error;
-}
-
-NvError NvRmPrivSuspendAvp(NvRmRPCHandle hRPCHandle);
-NvError NvRmPrivResumeAvp(NvRmRPCHandle hRPCHandle);
 
 static int avp_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -1668,34 +740,35 @@ int __init _avp_suspend_resume_init(void);
 
 static int __init nvfw_init(void)
 {
-	int ret = 0;
-	struct platform_device *pdev;
+    int ret = 0;
+    struct platform_device *pdev;
 
-	NvOsDebugPrintf("%s: called\n", __func__);
-	ret = misc_register(&nvfw_dev);
-	if (ret) panic("%s: misc_register FAILED\n", __func__);
+    NvOsDebugPrintf("%s: called\n", __func__);
+    ret = misc_register(&nvfw_dev);
+    s_KernelImage = NULL;
+    if (ret) panic("%s: misc_register FAILED\n", __func__);
 
-	ret = _avp_suspend_resume_init();
-	if (ret)
-		goto err;
-	pdev = platform_create_bundle(&avp_nvfw_driver, NULL, NULL, 0, NULL, 0);
-	if (!pdev) {
-		pr_err("%s: Can't reg platform driver\n", __func__);
-		ret = -EINVAL;
-		goto err;
-	}
+    ret = _avp_suspend_resume_init();
+    if (ret)
+        goto err;
+    pdev = platform_create_bundle(&avp_nvfw_driver, NULL, NULL, 0, NULL, 0);
+    if (!pdev) {
+        pr_err("%s: Can't reg platform driver\n", __func__);
+        ret = -EINVAL;
+        goto err;
+    }
 
-	pr_info("avp driver initialized\n");
+    pr_info("avp driver initialized\n");
 
-	return 0;
+    return 0;
 
 err:
-	return ret;
+    return ret;
 }
 
 static void __exit nvfw_deinit(void)
 {
-	misc_deregister(&nvfw_dev);
+    misc_deregister(&nvfw_dev);
 }
 
 module_init(nvfw_init);
