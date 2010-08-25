@@ -58,6 +58,7 @@ int mgr_create(struct mgr_object **mgr_obj,
 {
 	int status = 0;
 	struct mgr_object *pmgr_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(mgr_obj != NULL);
 	DBC_REQUIRE(refs > 0);
@@ -67,7 +68,14 @@ int mgr_create(struct mgr_object **mgr_obj,
 		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->hdcd_mgr);
 		if (!status) {
 			/* If succeeded store the handle in the MGR Object */
-			status = cfg_set_object((u32) pmgr_obj, REG_MGR_OBJECT);
+			if (drv_datap) {
+				drv_datap->mgr_object = (void *)pmgr_obj;
+			} else {
+				status = -EPERM;
+				pr_err("%s: Failed to store MGR object\n",
+								__func__);
+			}
+
 			if (!status) {
 				*mgr_obj = pmgr_obj;
 			} else {
@@ -94,6 +102,7 @@ int mgr_destroy(struct mgr_object *hmgr_obj)
 {
 	int status = 0;
 	struct mgr_object *pmgr_obj = (struct mgr_object *)hmgr_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hmgr_obj);
@@ -103,8 +112,13 @@ int mgr_destroy(struct mgr_object *hmgr_obj)
 		dcd_destroy_manager(hmgr_obj->hdcd_mgr);
 
 	kfree(pmgr_obj);
-	/* Update the Registry with NULL for MGR Object */
-	(void)cfg_set_object(0, REG_MGR_OBJECT);
+	/* Update the driver data with NULL for MGR Object */
+	if (drv_datap) {
+		drv_datap->mgr_object = NULL;
+	} else {
+		status = -EPERM;
+		pr_err("%s: Failed to store MGR object\n", __func__);
+	}
 
 	return status;
 }

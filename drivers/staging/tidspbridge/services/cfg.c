@@ -30,32 +30,3 @@
 #include <dspbridge/cfg.h>
 #include <dspbridge/drv.h>
 
-/*
- *  ======== cfg_set_object ========
- *  Purpose:
- *      Store the Driver Object handle
- */
-int cfg_set_object(u32 value, u8 dw_type)
-{
-	int status = -EINVAL;
-	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	if (!drv_datap)
-		return -EPERM;
-
-	switch (dw_type) {
-	case (REG_DRV_OBJECT):
-		drv_datap->drv_object = (void *)value;
-		status = 0;
-		break;
-	case (REG_MGR_OBJECT):
-		drv_datap->mgr_object = (void *)value;
-		status = 0;
-		break;
-	default:
-		break;
-	}
-	if (status)
-		pr_err("%s: Failed, status 0x%x\n", __func__, status);
-	return status;
-}

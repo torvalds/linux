@@ -78,21 +78,4 @@ extern void cfg_get_perf_value(bool *enable_perf);
 extern int cfg_get_zl_file(struct cfg_devnode *dev_node_obj,
 				  u32 buf_size, char *str_zl_file_name);
 
-/*
- *  ======== CFG_SetDrvObject ========
- *  Purpose:
- *      Store the Driver Object handle.
- *  Parameters:
- *      value:          Arbitrary value to store.
- *      dw_type          Type of Object to Store
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Internal Error.
- *  Requires:
- *      CFG initialized.
- *  Ensures:
- *      0:        The Private u32 was successfully set.
- */
-extern int cfg_set_object(u32 value, u8 dw_type);
-
 #endif /* CFG_ */

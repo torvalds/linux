@@ -309,6 +309,7 @@ int drv_create(struct drv_object **drv_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(drv_obj != NULL);
 	DBC_REQUIRE(refs > 0);
@@ -335,9 +336,16 @@ int drv_create(struct drv_object **drv_obj)
 	} else {
 		status = -ENOMEM;
 	}
-	/* Store the DRV Object in the Registry */
-	if (!status)
-		status = cfg_set_object((u32) pdrv_object, REG_DRV_OBJECT);
+	/* Store the DRV Object in the driver data */
+	if (!status) {
+		if (drv_datap) {
+			drv_datap->drv_object = (void *)pdrv_object;
+		} else {
+			status = -EPERM;
+			pr_err("%s: Failed to store DRV object\n", __func__);
+		}
+	}
+
 	if (!status) {
 		*drv_obj = pdrv_object;
 	} else {
@@ -374,6 +382,7 @@ int drv_destroy(struct drv_object *driver_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pdrv_object);
@@ -386,8 +395,13 @@ int drv_destroy(struct drv_object *driver_obj)
 	kfree(pdrv_object->dev_list);
 	kfree(pdrv_object->dev_node_string);
 	kfree(pdrv_object);
-	/* Update the DRV Object in Registry to be 0 */
-	(void)cfg_set_object(0, REG_DRV_OBJECT);
+	/* Update the DRV Object in the driver data */
+	if (drv_datap) {
+		drv_datap->drv_object = NULL;
+	} else {
+		status = -EPERM;
+		pr_err("%s: Failed to store DRV object\n", __func__);
+	}
 
 	return status;
 }
