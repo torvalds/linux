@@ -36,8 +36,6 @@ struct max9635_platform_data {
 	u32 lens_percent_t;
 	struct max9635_als_zone_data *als_lux_table;
 	u8  num_of_zones;
-	int (*power_on)(void);
-	int (*power_off)(void);
 };
 
 #endif	/* __KERNEL__ */
