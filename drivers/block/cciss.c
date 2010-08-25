@@ -297,6 +297,8 @@ static void enqueue_cmd_and_start_io(ctlr_info_t *h,
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
 	h->Qdepth++;
+	if (h->Qdepth > h->maxQsinceinit)
+		h->maxQsinceinit = h->Qdepth;
 	start_io(h);
 	spin_unlock_irqrestore(&h->lock, flags);
 }
