@@ -1753,6 +1753,18 @@ static int drbd_wait_peer_seq(struct drbd_conf *mdev, const u32 packet_seq)
 	return ret;
 }
 
+static unsigned long write_flags_to_bio(struct drbd_conf *mdev, u32 dpf)
+{
+	if (mdev->agreed_pro_version >= 95)
+		return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
+			(dpf & DP_UNPLUG ? REQ_UNPLUG : 0) |
+			(dpf & DP_FUA ? REQ_FUA : 0) |
+			(dpf & DP_FLUSH ? REQ_FUA : 0) |
+			(dpf & DP_DISCARD ? REQ_DISCARD : 0);
+	else
+		return dpf & DP_RW_SYNC ? (REQ_SYNC | REQ_UNPLUG) : 0;
+}
+
 /* mirrored write */
 static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
 {
@@ -1818,12 +1830,8 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 	spin_unlock(&mdev->epoch_lock);
 
 	dp_flags = be32_to_cpu(p->dp_flags);
-	if (dp_flags & DP_HARDBARRIER) {
-		dev_err(DEV, "ASSERT FAILED would have submitted barrier request\n");
-		/* rw |= REQ_HARDBARRIER; */
-	}
-	if (dp_flags & DP_RW_SYNC)
-		rw |= REQ_SYNC | REQ_UNPLUG;
+	rw |= write_flags_to_bio(mdev, dp_flags);
+
 	if (dp_flags & DP_MAY_SET_IN_SYNC)
 		e->flags |= EE_MAY_SET_IN_SYNC;
 

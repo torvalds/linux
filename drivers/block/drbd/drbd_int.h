@@ -374,9 +374,13 @@ union p_header {
  */
 
 /* these defines must not be changed without changing the protocol version */
-#define DP_HARDBARRIER	      1
-#define DP_RW_SYNC	      2
+#define DP_HARDBARRIER	      1 /* depricated */
+#define DP_RW_SYNC	      2 /* equals REQ_SYNC    */
 #define DP_MAY_SET_IN_SYNC    4
+#define DP_UNPLUG             8 /* equals REQ_UNPLUG  */
+#define DP_FUA               16 /* equals REQ_FUA     */
+#define DP_FLUSH             32 /* equals REQ_FLUSH   */
+#define DP_DISCARD           64 /* equals REQ_DISCARD */
 
 struct p_data {
 	union p_header head;

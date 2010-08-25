@@ -2426,6 +2426,18 @@ static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 	return 1;
 }
 
+static u32 bio_flags_to_wire(struct drbd_conf *mdev, unsigned long bi_rw)
+{
+	if (mdev->agreed_pro_version >= 95)
+		return  (bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
+			(bi_rw & REQ_UNPLUG ? DP_UNPLUG : 0) |
+			(bi_rw & REQ_FUA ? DP_FUA : 0) |
+			(bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
+			(bi_rw & REQ_DISCARD ? DP_DISCARD : 0);
+	else
+		return bi_rw & (REQ_SYNC | REQ_UNPLUG) ? DP_RW_SYNC : 0;
+}
+
 /* Used to send write requests
  * R_PRIMARY -> Peer	(P_DATA)
  */
@@ -2459,21 +2471,9 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	p.block_id = (unsigned long)req;
 	p.seq_num  = cpu_to_be32(req->seq_num =
 				 atomic_add_return(1, &mdev->packet_seq));
-	dp_flags = 0;
 
-	/* NOTE: no need to check if barriers supported here as we would
-	 *       not pass the test in make_request_common in that case
-	 */
-	if (req->master_bio->bi_rw & REQ_HARDBARRIER) {
-		dev_err(DEV, "ASSERT FAILED would have set DP_HARDBARRIER\n");
-		/* dp_flags |= DP_HARDBARRIER; */
-	}
-	if (req->master_bio->bi_rw & REQ_SYNC)
-		dp_flags |= DP_RW_SYNC;
-	/* for now handle SYNCIO and UNPLUG
-	 * as if they still were one and the same flag */
-	if (req->master_bio->bi_rw & REQ_UNPLUG)
-		dp_flags |= DP_RW_SYNC;
+	dp_flags = bio_flags_to_wire(mdev, req->master_bio->bi_rw);
+
 	if (mdev->state.conn >= C_SYNC_SOURCE &&
 	    mdev->state.conn <= C_PAUSED_SYNC_T)
 		dp_flags |= DP_MAY_SET_IN_SYNC;
