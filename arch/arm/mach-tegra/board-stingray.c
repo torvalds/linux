@@ -47,6 +47,7 @@
 #include <mach/i2s.h>
 #include <mach/audio.h>
 #include <mach/cpcap_audio.h>
+#include <mach/suspend.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -55,7 +56,6 @@
 #include "clock.h"
 #include "gpio-names.h"
 #include "devices.h"
-#include "power.h"
 #include "nv/include/linux/nvmem_ioctl.h"
 
 /* NVidia bootloader tags */
@@ -841,8 +841,7 @@ static struct tegra_suspend_platform_data stingray_suspend = {
 	.separate_req = true,
         .corereq_high = true,
 	.sysclkreq_high = true,
-	.dram_suspend = true,
-	.core_off = true,
+	.suspend_mode = TEGRA_SUSPEND_LP0,
 };
 
 static void *das_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
