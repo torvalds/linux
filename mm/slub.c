@@ -1098,6 +1098,18 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
 static inline void dec_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
+
+static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
+							{ return 0; }
+
+static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
+		void *object) {}
+
+static inline void slab_free_hook(struct kmem_cache *s, void *x) {}
+
+static inline void slab_free_hook_irq(struct kmem_cache *s,
+		void *object) {}
+
 #endif
 
 /*
