@@ -44,6 +44,46 @@
 #define FLUSHING_LIST	2
 #define INACTIVE_LIST	3
 
+static const char *yesno(int v)
+{
+	return v ? "yes" : "no";
+}
+
+static int i915_capabilities(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	const struct intel_device_info *info = INTEL_INFO(dev);
+
+	seq_printf(m, "gen: %d\n", info->gen);
+#define B(x) seq_printf(m, #x ": %s\n", yesno(info->x))
+	B(is_mobile);
+	B(is_i8xx);
+	B(is_i85x);
+	B(is_i915g);
+	B(is_i9xx);
+	B(is_i945gm);
+	B(is_i965g);
+	B(is_i965gm);
+	B(is_g33);
+	B(need_gfx_hws);
+	B(is_g4x);
+	B(is_pineview);
+	B(is_broadwater);
+	B(is_crestline);
+	B(is_ironlake);
+	B(has_fbc);
+	B(has_rc6);
+	B(has_pipe_cxsr);
+	B(has_hotplug);
+	B(cursor_needs_physical);
+	B(has_overlay);
+	B(overlay_needs_physical);
+#undef B
+
+	return 0;
+}
+
 static const char *get_pin_flag(struct drm_i915_gem_object *obj_priv)
 {
 	if (obj_priv->user_pin_count > 0)
@@ -880,6 +920,7 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 }
 
 static struct drm_info_list i915_debugfs_list[] = {
+	{"i915_capabilities", i915_capabilities, 0, 0},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
