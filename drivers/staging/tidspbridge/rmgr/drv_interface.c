@@ -54,7 +54,6 @@
 /*  ----------------------------------- This */
 #include <drv_interface.h>
 
-#include <dspbridge/cfg.h>
 #include <dspbridge/resourcecleanup.h>
 #include <dspbridge/chnl.h>
 #include <dspbridge/proc.h>

@@ -42,7 +42,6 @@
 /*  ----------------------------------- This */
 #include <dspbridge/strm.h>
 
-#include <dspbridge/cfg.h>
 #include <dspbridge/resourcecleanup.h>
 
 /*  ----------------------------------- Defines, Data Structures, Typedefs */

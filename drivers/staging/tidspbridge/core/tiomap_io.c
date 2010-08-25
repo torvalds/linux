@@ -27,7 +27,6 @@
 #include <dspbridge/drv.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/wdt.h>
 
 /*  ----------------------------------- specific to this file */

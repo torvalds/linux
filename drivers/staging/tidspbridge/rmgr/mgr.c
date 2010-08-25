@@ -20,6 +20,9 @@
 
 #include <linux/types.h>
 
+/*  ----------------------------------- Host OS */
+#include <dspbridge/host_os.h>
+
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
@@ -27,7 +30,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/sync.h>
 
 /*  ----------------------------------- Others */

@@ -27,7 +27,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/list.h>
 #include <dspbridge/memdefs.h>
 #include <dspbridge/proc.h>

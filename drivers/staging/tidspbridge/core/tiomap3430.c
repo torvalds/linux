@@ -30,7 +30,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/sync.h>
 
