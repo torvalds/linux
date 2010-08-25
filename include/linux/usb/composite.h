@@ -247,6 +247,7 @@ int usb_add_config(struct usb_composite_dev *,
  *	value; it should return zero on successful initialization.
  * @unbind: Reverses @bind(); called as a side effect of unregistering
  *	this driver.
+ * @disconnect: optional driver disconnect method
  * @suspend: Notifies when the host stops sending USB traffic,
  *	after function notifications
  * @resume: Notifies configuration when the host restarts USB traffic,

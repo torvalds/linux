@@ -51,7 +51,9 @@ long old_mmap(unsigned long addr, unsigned long len,
 	return err;
 }
 
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	mm_segment_t fs;
 	int ret;

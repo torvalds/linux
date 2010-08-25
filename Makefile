@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 36
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc2
 NAME = Sheep on Meth
 
 # *DOCUMENTATION*
@@ -1408,8 +1408,8 @@ checkstack:
 	$(OBJDUMP) -d vmlinux $$(find . -name '*.ko') | \
 	$(PERL) $(src)/scripts/checkstack.pl $(CHECKSTACK_ARCH)
 
-kernelrelease: include/config/kernel.release
-	@echo $(KERNELRELEASE)
+kernelrelease:
+	@echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
 
 kernelversion:
 	@echo $(KERNELVERSION)

@@ -6303,6 +6303,21 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76b5, .name = "92HD71B6X", .patch = patch_stac92hd71bxx },
 	{ .id = 0x111d76b6, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
 	{ .id = 0x111d76b7, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
+	{ .id = 0x111d76c0, .name = "92HD89C3", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c1, .name = "92HD89C2", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c2, .name = "92HD89C1", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c3, .name = "92HD89B3", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c4, .name = "92HD89B2", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c5, .name = "92HD89B1", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c6, .name = "92HD89E3", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c7, .name = "92HD89E2", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c8, .name = "92HD89E1", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76c9, .name = "92HD89D3", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76ca, .name = "92HD89D2", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76cb, .name = "92HD89D1", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76cc, .name = "92HD89F3", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76cd, .name = "92HD89F2", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76ce, .name = "92HD89F1", .patch = patch_stac92hd73xx },
 	{} /* terminator */
 };
 

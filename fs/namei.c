@@ -595,15 +595,16 @@ int follow_up(struct path *path)
 {
 	struct vfsmount *parent;
 	struct dentry *mountpoint;
-	spin_lock(&vfsmount_lock);
+
+	br_read_lock(vfsmount_lock);
 	parent = path->mnt->mnt_parent;
 	if (parent == path->mnt) {
-		spin_unlock(&vfsmount_lock);
+		br_read_unlock(vfsmount_lock);
 		return 0;
 	}
 	mntget(parent);
 	mountpoint = dget(path->mnt->mnt_mountpoint);
-	spin_unlock(&vfsmount_lock);
+	br_read_unlock(vfsmount_lock);
 	dput(path->dentry);
 	path->dentry = mountpoint;
 	mntput(path->mnt);
@@ -686,6 +687,35 @@ static __always_inline void follow_dotdot(struct nameidata *nd)
 }
 
 /*
+ * Allocate a dentry with name and parent, and perform a parent
+ * directory ->lookup on it. Returns the new dentry, or ERR_PTR
+ * on error. parent->d_inode->i_mutex must be held. d_lookup must
+ * have verified that no child exists while under i_mutex.
+ */
+static struct dentry *d_alloc_and_lookup(struct dentry *parent,
+				struct qstr *name, struct nameidata *nd)
+{
+	struct inode *inode = parent->d_inode;
+	struct dentry *dentry;
+	struct dentry *old;
+
+	/* Don't create child dentry for a dead directory. */
+	if (unlikely(IS_DEADDIR(inode)))
+		return ERR_PTR(-ENOENT);
+
+	dentry = d_alloc(parent, name);
+	if (unlikely(!dentry))
+		return ERR_PTR(-ENOMEM);
+
+	old = inode->i_op->lookup(inode, dentry, nd);
+	if (unlikely(old)) {
+		dput(dentry);
+		dentry = old;
+	}
+	return dentry;
+}
+
+/*
  *  It's more convoluted than I'd like it to be, but... it's still fairly
  *  small and for now I'd prefer to have fast path as straight as possible.
  *  It _is_ time-critical.
@@ -706,9 +736,15 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 			return err;
 	}
 
+	/*
+	 * Rename seqlock is not required here because in the off chance
+	 * of a false negative due to a concurrent rename, we're going to
+	 * do the non-racy lookup, below.
+	 */
 	dentry = __d_lookup(nd->path.dentry, name);
 	if (!dentry)
 		goto need_lookup;
+found:
 	if (dentry->d_op && dentry->d_op->d_revalidate)
 		goto need_revalidate;
 done:
@@ -724,56 +760,28 @@ need_lookup:
 	mutex_lock(&dir->i_mutex);
 	/*
 	 * First re-do the cached lookup just in case it was created
-	 * while we waited for the directory semaphore..
+	 * while we waited for the directory semaphore, or the first
+	 * lookup failed due to an unrelated rename.
 	 *
-	 * FIXME! This could use version numbering or similar to
-	 * avoid unnecessary cache lookups.
-	 *
-	 * The "dcache_lock" is purely to protect the RCU list walker
-	 * from concurrent renames at this point (we mustn't get false
-	 * negatives from the RCU list walk here, unlike the optimistic
-	 * fast walk).
-	 *
-	 * so doing d_lookup() (with seqlock), instead of lockfree __d_lookup
+	 * This could use version numbering or similar to avoid unnecessary
+	 * cache lookups, but then we'd have to do the first lookup in the
+	 * non-racy way. However in the common case here, everything should
+	 * be hot in cache, so would it be a big win?
 	 */
 	dentry = d_lookup(parent, name);
-	if (!dentry) {
-		struct dentry *new;
-
-		/* Don't create child dentry for a dead directory. */
-		dentry = ERR_PTR(-ENOENT);
-		if (IS_DEADDIR(dir))
-			goto out_unlock;
-
-		new = d_alloc(parent, name);
-		dentry = ERR_PTR(-ENOMEM);
-		if (new) {
-			dentry = dir->i_op->lookup(dir, new, nd);
-			if (dentry)
-				dput(new);
-			else
-				dentry = new;
-		}
-out_unlock:
+	if (likely(!dentry)) {
+		dentry = d_alloc_and_lookup(parent, name, nd);
 		mutex_unlock(&dir->i_mutex);
 		if (IS_ERR(dentry))
 			goto fail;
 		goto done;
 	}
-
 	/*
 	 * Uhhuh! Nasty case: the cache was re-populated while
 	 * we waited on the semaphore. Need to revalidate.
 	 */
 	mutex_unlock(&dir->i_mutex);
-	if (dentry->d_op && dentry->d_op->d_revalidate) {
-		dentry = do_revalidate(dentry, nd);
-		if (!dentry)
-			dentry = ERR_PTR(-ENOENT);
-	}
-	if (IS_ERR(dentry))
-		goto fail;
-	goto done;
+	goto found;
 
 need_revalidate:
 	dentry = do_revalidate(dentry, nd);
@@ -1130,35 +1138,18 @@ static struct dentry *__lookup_hash(struct qstr *name,
 			goto out;
 	}
 
-	dentry = __d_lookup(base, name);
-
-	/* lockess __d_lookup may fail due to concurrent d_move()
-	 * in some unrelated directory, so try with d_lookup
+	/*
+	 * Don't bother with __d_lookup: callers are for creat as
+	 * well as unlink, so a lot of the time it would cost
+	 * a double lookup.
 	 */
-	if (!dentry)
-		dentry = d_lookup(base, name);
+	dentry = d_lookup(base, name);
 
 	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
 		dentry = do_revalidate(dentry, nd);
 
-	if (!dentry) {
-		struct dentry *new;
-
-		/* Don't create child dentry for a dead directory. */
-		dentry = ERR_PTR(-ENOENT);
-		if (IS_DEADDIR(inode))
-			goto out;
-
-		new = d_alloc(base, name);
-		dentry = ERR_PTR(-ENOMEM);
-		if (!new)
-			goto out;
-		dentry = inode->i_op->lookup(inode, new, nd);
-		if (!dentry)
-			dentry = new;
-		else
-			dput(new);
-	}
+	if (!dentry)
+		dentry = d_alloc_and_lookup(base, name, nd);
 out:
 	return dentry;
 }

@@ -110,6 +110,9 @@
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
+/* Lenz LI-USB Computer Interface. */
+#define FTDI_LENZ_LIUSB_PID	0xD780
+
 /*
  * Xsens Technologies BV products (http://www.xsens.com).
  */
@@ -987,6 +990,12 @@
 /* Alti-2 products  http://www.alti-2.com */
 #define ALTI2_VID	0x1BC9
 #define ALTI2_N3_PID	0x6001	/* Neptune 3 */
+
+/*
+ * Ionics PlugComputer
+ */
+#define IONICS_VID			0x1c0c
+#define IONICS_PLUGCOMPUTER_PID		0x0102
 
 /*
  * Dresden Elektronik Sensor Terminal Board

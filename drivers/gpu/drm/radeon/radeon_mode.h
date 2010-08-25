@@ -342,6 +342,7 @@ struct radeon_atom_ss {
 };
 
 struct radeon_encoder_atom_dig {
+	bool linkb;
 	/* atom dig */
 	bool coherent_mode;
 	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB */
@@ -360,6 +361,7 @@ struct radeon_encoder_atom_dac {
 
 struct radeon_encoder {
 	struct drm_encoder base;
+	uint32_t encoder_enum;
 	uint32_t encoder_id;
 	uint32_t devices;
 	uint32_t active_device;
@@ -378,7 +380,6 @@ struct radeon_encoder {
 
 struct radeon_connector_atom_dig {
 	uint32_t igp_lane_info;
-	bool linkb;
 	/* displayport */
 	struct radeon_i2c_chan *dp_i2c_bus;
 	u8 dpcd[8];

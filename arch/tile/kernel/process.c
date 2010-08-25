@@ -543,8 +543,9 @@ long _sys_vfork(struct pt_regs *regs)
 /*
  * sys_execve() executes a new program.
  */
-long _sys_execve(char __user *path, char __user *__user *argv,
-		 char __user *__user *envp, struct pt_regs *regs)
+long _sys_execve(const char __user *path,
+		 const char __user *const __user *argv,
+		 const char __user *const __user *envp, struct pt_regs *regs)
 {
 	long error;
 	char *filename;

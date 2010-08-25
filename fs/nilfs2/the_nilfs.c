@@ -608,11 +608,11 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 		return -EINVAL;
 	}
 
-	if (swp) {
+	if (!valid[!swp])
 		printk(KERN_WARNING "NILFS warning: broken superblock. "
 		       "using spare superblock.\n");
+	if (swp)
 		nilfs_swap_super_block(nilfs);
-	}
 
 	nilfs->ns_sbwcount = 0;
 	nilfs->ns_sbwtime = le64_to_cpu(sbp[0]->s_wtime);
@@ -775,6 +775,7 @@ int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
 						   start * sects_per_block,
 						   nblocks * sects_per_block,
 						   GFP_NOFS,
+						   BLKDEV_IFL_WAIT |
 						   BLKDEV_IFL_BARRIER);
 			if (ret < 0)
 				return ret;
@@ -785,7 +786,8 @@ int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
 		ret = blkdev_issue_discard(nilfs->ns_bdev,
 					   start * sects_per_block,
 					   nblocks * sects_per_block,
-					   GFP_NOFS, BLKDEV_IFL_BARRIER);
+					   GFP_NOFS,
+					  BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 	return ret;
 }
 

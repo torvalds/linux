@@ -610,7 +610,7 @@ void dp_link_train(struct drm_encoder *encoder,
 		enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER;
 	else
 		enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER;
-	if (dig_connector->linkb)
+	if (dig->linkb)
 		enc_id |= ATOM_DP_CONFIG_LINK_B;
 	else
 		enc_id |= ATOM_DP_CONFIG_LINK_A;

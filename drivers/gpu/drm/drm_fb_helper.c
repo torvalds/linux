@@ -94,10 +94,11 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_conn
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 	struct drm_fb_helper_cmdline_mode *cmdline_mode;
-	struct drm_connector *connector = fb_helper_conn->connector;
+	struct drm_connector *connector;
 
 	if (!fb_helper_conn)
 		return false;
+	connector = fb_helper_conn->connector;
 
 	cmdline_mode = &fb_helper_conn->cmdline_mode;
 	if (!mode_option)

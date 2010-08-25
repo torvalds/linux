@@ -819,13 +819,16 @@ static const struct intel_driver_description {
 	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG,
 	    "Sandybridge", NULL, &intel_gen6_driver },
+	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_D0_IG,
+	    "Sandybridge", NULL, &intel_gen6_driver },
 	{ 0, 0, NULL, NULL, NULL }
 };
 
 static int __devinit intel_gmch_probe(struct pci_dev *pdev,
 				      struct agp_bridge_data *bridge)
 {
-	int i;
+	int i, mask;
+
 	bridge->driver = NULL;
 
 	for (i = 0; intel_agp_chipsets[i].name != NULL; i++) {
@@ -845,14 +848,19 @@ static int __devinit intel_gmch_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_agp_chipsets[i].name);
 
-	if (bridge->driver->mask_memory == intel_i965_mask_memory) {
-		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
-			dev_err(&intel_private.pcidev->dev,
-				"set gfx device dma mask 36bit failed!\n");
-		else
-			pci_set_consistent_dma_mask(intel_private.pcidev,
-						    DMA_BIT_MASK(36));
-	}
+	if (bridge->driver->mask_memory == intel_gen6_mask_memory)
+		mask = 40;
+	else if (bridge->driver->mask_memory == intel_i965_mask_memory)
+		mask = 36;
+	else
+		mask = 32;
+
+	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
+		dev_err(&intel_private.pcidev->dev,
+			"set gfx device dma mask %d-bit failed!\n", mask);
+	else
+		pci_set_consistent_dma_mask(intel_private.pcidev,
+					    DMA_BIT_MASK(mask));
 
 	return 1;
 }
