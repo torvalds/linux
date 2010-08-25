@@ -31,37 +31,6 @@
 #include <dspbridge/drv.h>
 
 /*
- *  ======== cfg_get_exec_file ========
- *  Purpose:
- *      Retreive the default executable, if any, for this board.
- */
-int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 buf_size,
-			     char *str_exec_file)
-{
-	int status = 0;
-	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	if (!dev_node_obj)
-		status = -EFAULT;
-
-	else if (!str_exec_file || !drv_datap)
-		status = -EFAULT;
-
-	if (strlen(drv_datap->base_img) > buf_size)
-		status = -EINVAL;
-
-	if (!status && drv_datap->base_img)
-		strcpy(str_exec_file, drv_datap->base_img);
-
-	if (status)
-		pr_err("%s: Failed, status 0x%x\n", __func__, status);
-	DBC_ENSURE(((status == 0) &&
-		    (strlen(str_exec_file) <= buf_size))
-		   || (status != 0));
-	return status;
-}
-
-/*
  *  ======== cfg_get_object ========
  *  Purpose:
  *      Retrieve the Object handle from the Registry

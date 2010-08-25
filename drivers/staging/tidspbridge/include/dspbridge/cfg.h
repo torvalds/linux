@@ -41,28 +41,6 @@
 extern int cfg_get_cd_version(u32 *version);
 
 /*
- *  ======== cfg_get_exec_file ========
- *  Purpose:
- *      Retreive the default executable, if any, for this board.
- *  Parameters:
- *      dev_node_obj: Handle to the dev_node who's driver we are querying.
- *      buf_size:       Size of buffer.
- *      str_exec_file:  Ptr to character buf to hold ExecFile.
- *  Returns:
- *      0:                Success.
- *      -EFAULT:  dev_node_obj is invalid or str_exec_file is invalid.
- *      -ENODATA: The resource is not available.
- *  Requires:
- *      CFG initialized.
- *  Ensures:
- *      0:    Not more than buf_size bytes were copied into str_exec_file,
- *                  and *str_exec_file contains default executable for this
- *                  devnode.
- */
-extern int cfg_get_exec_file(struct cfg_devnode *dev_node_obj,
-				    u32 buf_size, char *str_exec_file);
-
-/*
  *  ======== cfg_get_object ========
  *  Purpose:
  *      Retrieve the Driver Object handle From the Registry
