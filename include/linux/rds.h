@@ -95,7 +95,7 @@
 struct rds_info_counter {
 	u_int8_t	name[32];
 	u_int64_t	value;
-} __packed;
+} __attribute__((packed));
 
 #define RDS_INFO_CONNECTION_FLAG_SENDING	0x01
 #define RDS_INFO_CONNECTION_FLAG_CONNECTING	0x02
@@ -110,7 +110,7 @@ struct rds_info_connection {
 	__be32		faddr;
 	u_int8_t	transport[TRANSNAMSIZ];		/* null term ascii */
 	u_int8_t	flags;
-} __packed;
+} __attribute__((packed));
 
 struct rds_info_flow {
 	__be32		laddr;
@@ -118,7 +118,7 @@ struct rds_info_flow {
 	u_int32_t	bytes;
 	__be16		lport;
 	__be16		fport;
-} __packed;
+} __attribute__((packed));
 
 #define RDS_INFO_MESSAGE_FLAG_ACK               0x01
 #define RDS_INFO_MESSAGE_FLAG_FAST_ACK          0x02
@@ -131,7 +131,7 @@ struct rds_info_message {
 	__be16		lport;
 	__be16		fport;
 	u_int8_t	flags;
-} __packed;
+} __attribute__((packed));
 
 struct rds_info_socket {
 	u_int32_t	sndbuf;
@@ -141,7 +141,7 @@ struct rds_info_socket {
 	__be16		connected_port;
 	u_int32_t	rcvbuf;
 	u_int64_t	inum;
-} __packed;
+} __attribute__((packed));
 
 struct rds_info_tcp_socket {
 	__be32          local_addr;
@@ -153,7 +153,7 @@ struct rds_info_tcp_socket {
 	u_int32_t       last_sent_nxt;
 	u_int32_t       last_expected_una;
 	u_int32_t       last_seen_una;
-} __packed;
+} __attribute__((packed));
 
 #define RDS_IB_GID_LEN	16
 struct rds_info_rdma_connection {
