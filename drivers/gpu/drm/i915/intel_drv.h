@@ -99,6 +99,24 @@
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
 
+/* drm_display_mode->private_flags */
+#define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
+#define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
+
+static inline void
+intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
+				int multiplier)
+{
+	mode->clock *= multiplier;
+	mode->private_flags |= multiplier;
+}
+
+static inline int
+intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
+{
+	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK) >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
+}
+
 struct intel_i2c_chan {
 	struct drm_device *drm_dev; /* for getting at dev. private (mmio etc.) */
 	u32 reg; /* GPIO reg */

@@ -3519,7 +3519,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int trans_dpll_sel = (pipe == 0) ? 0 : 1;
 	int lvds_reg = LVDS;
 	u32 temp;
-	int sdvo_pixel_multiply;
 	int target_clock;
 
 	drm_vblank_pre_modeset(dev, pipe);
@@ -3770,12 +3769,14 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		else
 			dpll |= DPLLB_MODE_DAC_SERIAL;
 		if (is_sdvo) {
+			int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+			if (pixel_multiplier > 1) {
+				if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+					dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+				else if (HAS_PCH_SPLIT(dev))
+					dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
+			}
 			dpll |= DPLL_DVO_HIGH_SPEED;
-			sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
-			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-				dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-			else if (HAS_PCH_SPLIT(dev))
-				dpll |= (sdvo_pixel_multiply - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 		}
 		if (is_dp)
 			dpll |= DPLL_DVO_HIGH_SPEED;
@@ -3982,9 +3983,15 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
 			if (is_sdvo) {
-				sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
-				I915_WRITE(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
-					((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+				int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+				if (pixel_multiplier > 1)
+					pixel_multiplier = (pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+				else
+					pixel_multiplier = 0;
+
+				I915_WRITE(dpll_md_reg,
+					   (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+					   pixel_multiplier);
 			} else
 				I915_WRITE(dpll_md_reg, 0);
 		} else {

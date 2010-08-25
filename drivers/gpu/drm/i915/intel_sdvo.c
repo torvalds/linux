@@ -106,14 +106,10 @@ struct intel_sdvo {
 	bool is_hdmi;
 
 	/**
-	 * This is set if we detect output of sdvo device as LVDS.
+	 * This is set if we detect output of sdvo device as LVDS and
+	 * have a valid fixed mode to use with the panel.
 	 */
 	bool is_lvds;
-
-	/**
-	 * This is sdvo flags for input timing.
-	 */
-	uint8_t sdvo_flags;
 
 	/**
 	 * This is sdvo fixed pannel mode pointer
@@ -132,6 +128,8 @@ struct intel_sdvo {
 	/* Mac mini hack -- use the same DDC as the analog connector */
 	struct i2c_adapter *analog_ddc_bus;
 
+	/* Input timings for adjusted_mode */
+	struct intel_sdvo_dtd input_dtd;
 };
 
 struct intel_sdvo_connector {
@@ -1022,8 +1020,6 @@ intel_sdvo_set_input_timings_for_mode(struct intel_sdvo *intel_sdvo,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode)
 {
-	struct intel_sdvo_dtd input_dtd;
-
 	/* Reset the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return false;
@@ -1035,14 +1031,12 @@ intel_sdvo_set_input_timings_for_mode(struct intel_sdvo *intel_sdvo,
 		return false;
 
 	if (!intel_sdvo_get_preferred_input_timing(intel_sdvo,
-						   &input_dtd))
+						   &intel_sdvo->input_dtd))
 		return false;
 
-	intel_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
-	intel_sdvo->sdvo_flags = input_dtd.part2.sdvo_flags;
+	intel_sdvo_get_mode_from_dtd(adjusted_mode, &intel_sdvo->input_dtd);
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
-	mode->clock = adjusted_mode->clock;
 	return true;
 }
 
@@ -1051,6 +1045,7 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	int multiplier;
 
 	/* We need to construct preferred input timings based on our
 	 * output timings.  To do that, we have to set the output
@@ -1065,10 +1060,8 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 							     mode,
 							     adjusted_mode);
 	} else if (intel_sdvo->is_lvds) {
-		drm_mode_set_crtcinfo(intel_sdvo->sdvo_lvds_fixed_mode, 0);
-
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
-							    intel_sdvo->sdvo_lvds_fixed_mode))
+							     intel_sdvo->sdvo_lvds_fixed_mode))
 			return false;
 
 		(void) intel_sdvo_set_input_timings_for_mode(intel_sdvo,
@@ -1077,9 +1070,10 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	/* Make the CRTC code factor in the SDVO pixel multiplier.  The
-	 * SDVO device will be told of the multiplier during mode_set.
+	 * SDVO device will factor out the multiplier during mode_set.
 	 */
-	adjusted_mode->clock *= intel_sdvo_get_pixel_multiplier(mode);
+	multiplier = intel_sdvo_get_pixel_multiplier(adjusted_mode);
+	intel_mode_set_pixel_multiplier(adjusted_mode, multiplier);
 
 	return true;
 }
@@ -1093,10 +1087,11 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-	u32 sdvox = 0;
-	int sdvo_pixel_multiply, rate;
+	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
 	struct intel_sdvo_dtd input_dtd;
+	int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+	int rate;
 
 	if (!mode)
 		return;
@@ -1114,28 +1109,23 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 			     SDVO_CMD_SET_IN_OUT_MAP,
 			     &in_out, sizeof(in_out));
 
-	if (intel_sdvo->is_hdmi) {
-		if (!intel_sdvo_set_avi_infoframe(intel_sdvo, mode))
-			return;
-
-		sdvox |= SDVO_AUDIO_ENABLE;
-	}
+	/* Set the output timings to the screen */
+	if (!intel_sdvo_set_target_output(intel_sdvo,
+					  intel_sdvo->attached_output))
+		return;
 
 	/* We have tried to get input timing in mode_fixup, and filled into
-	   adjusted_mode */
-	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
-		input_dtd.part2.sdvo_flags = intel_sdvo->sdvo_flags;
-
-	/* If it's a TV, we already set the output timing in mode_fixup.
-	 * Otherwise, the output timing is equal to the input timing.
+	 * adjusted_mode.
 	 */
-	if (!intel_sdvo->is_tv && !intel_sdvo->is_lvds) {
+	if (intel_sdvo->is_tv || intel_sdvo->is_lvds) {
+		input_dtd = intel_sdvo->input_dtd;
+	} else {
 		/* Set the output timing to the screen */
 		if (!intel_sdvo_set_target_output(intel_sdvo,
 						  intel_sdvo->attached_output))
 			return;
 
+		intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
 		(void) intel_sdvo_set_output_timing(intel_sdvo, &input_dtd);
 	}
 
@@ -1143,31 +1133,18 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (intel_sdvo->is_tv) {
-		if (!intel_sdvo_set_tv_format(intel_sdvo))
-			return;
-	}
+	if (intel_sdvo->is_hdmi &&
+	    !intel_sdvo_set_avi_infoframe(intel_sdvo, mode))
+		return;
 
-	/* We would like to use intel_sdvo_create_preferred_input_timing() to
-	 * provide the device with a timing it can support, if it supports that
-	 * feature.  However, presumably we would need to adjust the CRTC to
-	 * output the preferred timing, and we don't support that currently.
-	 */
-#if 0
-	success = intel_sdvo_create_preferred_input_timing(encoder, clock,
-							   width, height);
-	if (success) {
-		struct intel_sdvo_dtd *input_dtd;
+	if (intel_sdvo->is_tv &&
+	    !intel_sdvo_set_tv_format(intel_sdvo))
+		return;
 
-		intel_sdvo_get_preferred_input_timing(encoder, &input_dtd);
-		intel_sdvo_set_input_timing(encoder, &input_dtd);
-	}
-#else
 	(void) intel_sdvo_set_input_timing(intel_sdvo, &input_dtd);
-#endif
 
-	sdvo_pixel_multiply = intel_sdvo_get_pixel_multiplier(mode);
-	switch (sdvo_pixel_multiply) {
+	switch (pixel_multiplier) {
+	default:
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
 	case 2: rate = SDVO_CLOCK_RATE_MULT_2X; break;
 	case 4: rate = SDVO_CLOCK_RATE_MULT_4X; break;
@@ -1177,13 +1154,13 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* Set the SDVO control regs. */
 	if (IS_I965G(dev)) {
-		sdvox |= SDVO_BORDER_ENABLE;
+		sdvox = SDVO_BORDER_ENABLE;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 	} else {
-		sdvox |= I915_READ(intel_sdvo->sdvo_reg);
+		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		switch (intel_sdvo->sdvo_reg) {
 		case SDVOB:
 			sdvox &= SDVOB_PRESERVE_MASK;
@@ -1196,16 +1173,18 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 	if (intel_crtc->pipe == 1)
 		sdvox |= SDVO_PIPE_B_SELECT;
+	if (intel_sdvo->is_hdmi)
+		sdvox |= SDVO_AUDIO_ENABLE;
 
 	if (IS_I965G(dev)) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
 	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
-		sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
+		sdvox |= (pixel_multiplier - 1) << SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
-	if (intel_sdvo->sdvo_flags & SDVO_NEED_TO_STALL)
+	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL)
 		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
 }
@@ -1692,6 +1671,10 @@ end:
 		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
 			intel_sdvo->sdvo_lvds_fixed_mode =
 				drm_mode_duplicate(connector->dev, newmode);
+
+			drm_mode_set_crtcinfo(intel_sdvo->sdvo_lvds_fixed_mode,
+					      0);
+
 			intel_sdvo->is_lvds = true;
 			break;
 		}
