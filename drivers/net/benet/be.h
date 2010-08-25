@@ -413,6 +413,20 @@ static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
 	adapter->is_virtfn = (data != 0xAA);
 }
 
+static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
+{
+	u32 addr;
+
+	addr = jhash(adapter->netdev->dev_addr, ETH_ALEN, 0);
+
+	mac[5] = (u8)(addr & 0xFF);
+	mac[4] = (u8)((addr >> 8) & 0xFF);
+	mac[3] = (u8)((addr >> 16) & 0xFF);
+	mac[2] = 0xC9;
+	mac[1] = 0x00;
+	mac[0] = 0x00;
+}
+
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
