@@ -106,11 +106,6 @@ struct kxtf9_platform_data {
 	u8 tdt_latency_timer_init;
 	u8 tdt_window_timer_init;
 
-	int (*init)(void);
-	void (*exit)(void);
-	int (*power_on)(void);
-	int (*power_off)(void);
-
 	int (*gpio)(void);
 
 	u8 gesture;
