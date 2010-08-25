@@ -19,33 +19,6 @@
 #include "rate.h"
 #include "mesh.h"
 
-static bool nl80211_type_check(enum nl80211_iftype type)
-{
-	switch (type) {
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_MONITOR:
-#ifdef CONFIG_MAC80211_MESH
-	case NL80211_IFTYPE_MESH_POINT:
-#endif
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_WDS:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static bool nl80211_params_check(enum nl80211_iftype type,
-				 struct vif_params *params)
-{
-	if (!nl80211_type_check(type))
-		return false;
-
-	return true;
-}
-
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 			       enum nl80211_iftype type, u32 *flags,
 			       struct vif_params *params)
@@ -54,9 +27,6 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	struct net_device *dev;
 	struct ieee80211_sub_if_data *sdata;
 	int err;
-
-	if (!nl80211_params_check(type, params))
-		return -EINVAL;
 
 	err = ieee80211_if_add(local, name, &dev, type, params);
 	if (err || type != NL80211_IFTYPE_MONITOR || !flags)
@@ -84,9 +54,6 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 
 	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
-
-	if (!nl80211_params_check(type, params))
-		return -EINVAL;
 
 	ret = ieee80211_if_change_type(sdata, type);
 	if (ret)
