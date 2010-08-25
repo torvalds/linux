@@ -75,6 +75,8 @@
 #define RDS_CMSG_CONG_UPDATE		5
 #define RDS_CMSG_ATOMIC_FADD		6
 #define RDS_CMSG_ATOMIC_CSWP		7
+#define RDS_CMSG_MASKED_ATOMIC_FADD	8
+#define RDS_CMSG_MASKED_ATOMIC_CSWP	9
 
 #define RDS_INFO_FIRST			10000
 #define RDS_INFO_COUNTERS		10000
@@ -251,6 +253,16 @@ struct rds_atomic_args {
 		struct {
 			uint64_t	add;
 		} fadd;
+		struct {
+			uint64_t	compare;
+			uint64_t	swap;
+			uint64_t	compare_mask;
+			uint64_t	swap_mask;
+		} m_cswp;
+		struct {
+			uint64_t	add;
+			uint64_t	nocarry_mask;
+		} m_fadd;
 	};
 	uint64_t	flags;
 	uint64_t	user_token;

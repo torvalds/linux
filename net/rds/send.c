@@ -843,6 +843,8 @@ static int rds_rm_size(struct msghdr *msg, int data_len)
 
 		case RDS_CMSG_ATOMIC_CSWP:
 		case RDS_CMSG_ATOMIC_FADD:
+		case RDS_CMSG_MASKED_ATOMIC_CSWP:
+		case RDS_CMSG_MASKED_ATOMIC_FADD:
 			cmsg_groups |= 1;
 			size += sizeof(struct scatterlist);
 			break;
@@ -894,6 +896,8 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 			break;
 		case RDS_CMSG_ATOMIC_CSWP:
 		case RDS_CMSG_ATOMIC_FADD:
+		case RDS_CMSG_MASKED_ATOMIC_CSWP:
+		case RDS_CMSG_MASKED_ATOMIC_FADD:
 			ret = rds_cmsg_atomic(rs, rm, cmsg);
 			break;
 

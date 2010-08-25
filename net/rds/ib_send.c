@@ -807,13 +807,17 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	send->s_queued = jiffies;
 
 	if (op->op_type == RDS_ATOMIC_TYPE_CSWP) {
-		send->s_wr.opcode = IB_WR_ATOMIC_CMP_AND_SWP;
-		send->s_wr.wr.atomic.compare_add = op->op_compare;
-		send->s_wr.wr.atomic.swap = op->op_swap_add;
+		send->s_wr.opcode = IB_WR_MASKED_ATOMIC_CMP_AND_SWP;
+		send->s_wr.wr.atomic.compare_add = op->op_m_cswp.compare;
+		send->s_wr.wr.atomic.swap = op->op_m_cswp.swap;
+		send->s_wr.wr.atomic.compare_add_mask = op->op_m_cswp.compare_mask;
+		send->s_wr.wr.atomic.swap_mask = op->op_m_cswp.swap_mask;
 	} else { /* FADD */
-		send->s_wr.opcode = IB_WR_ATOMIC_FETCH_AND_ADD;
-		send->s_wr.wr.atomic.compare_add = op->op_swap_add;
+		send->s_wr.opcode = IB_WR_MASKED_ATOMIC_FETCH_AND_ADD;
+		send->s_wr.wr.atomic.compare_add = op->op_m_fadd.add;
 		send->s_wr.wr.atomic.swap = 0;
+		send->s_wr.wr.atomic.compare_add_mask = op->op_m_fadd.nocarry_mask;
+		send->s_wr.wr.atomic.swap_mask = 0;
 	}
 	nr_sig = rds_ib_set_wr_signal_state(ic, send, op->op_notify);
 	send->s_wr.num_sge = 1;

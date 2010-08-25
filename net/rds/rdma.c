@@ -738,13 +738,34 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 
 	args = CMSG_DATA(cmsg);
 
-	if (cmsg->cmsg_type == RDS_CMSG_ATOMIC_CSWP) {
-		rm->atomic.op_type = RDS_ATOMIC_TYPE_CSWP;
-		rm->atomic.op_swap_add = args->cswp.swap;
-		rm->atomic.op_compare = args->cswp.compare;
-	} else {
+	/* Nonmasked & masked cmsg ops converted to masked hw ops */
+	switch (cmsg->cmsg_type) {
+	case RDS_CMSG_ATOMIC_FADD:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
-		rm->atomic.op_swap_add = args->fadd.add;
+		rm->atomic.op_m_fadd.add = args->fadd.add;
+		rm->atomic.op_m_fadd.nocarry_mask = 0;
+		break;
+	case RDS_CMSG_MASKED_ATOMIC_FADD:
+		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
+		rm->atomic.op_m_fadd.add = args->m_fadd.add;
+		rm->atomic.op_m_fadd.nocarry_mask = args->m_fadd.nocarry_mask;
+		break;
+	case RDS_CMSG_ATOMIC_CSWP:
+		rm->atomic.op_type = RDS_ATOMIC_TYPE_CSWP;
+		rm->atomic.op_m_cswp.compare = args->cswp.compare;
+		rm->atomic.op_m_cswp.swap = args->cswp.swap;
+		rm->atomic.op_m_cswp.compare_mask = ~0;
+		rm->atomic.op_m_cswp.swap_mask = ~0;
+		break;
+	case RDS_CMSG_MASKED_ATOMIC_CSWP:
+		rm->atomic.op_type = RDS_ATOMIC_TYPE_CSWP;
+		rm->atomic.op_m_cswp.compare = args->m_cswp.compare;
+		rm->atomic.op_m_cswp.swap = args->m_cswp.swap;
+		rm->atomic.op_m_cswp.compare_mask = args->m_cswp.compare_mask;
+		rm->atomic.op_m_cswp.swap_mask = args->m_cswp.swap_mask;
+		break;
+	default:
+		BUG(); /* should never happen */
 	}
 
 	rm->atomic.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);

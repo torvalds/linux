@@ -316,8 +316,18 @@ struct rds_message {
 	struct {
 		struct rm_atomic_op {
 			int			op_type;
-			uint64_t		op_swap_add;
-			uint64_t		op_compare;
+			union {
+				struct {
+					uint64_t	compare;
+					uint64_t	swap;
+					uint64_t	compare_mask;
+					uint64_t	swap_mask;
+				} op_m_cswp;
+				struct {
+					uint64_t	add;
+					uint64_t	nocarry_mask;
+				} op_m_fadd;
+			};
 
 			u32			op_rkey;
 			u64			op_remote_addr;
