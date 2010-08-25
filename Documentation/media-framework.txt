@@ -313,3 +313,41 @@ Link configuration must not have any side effect on other links. If an enabled
 link at a sink pad prevents another link at the same pad from being disabled,
 the link_setup operation must return -EBUSY and can't implicitly disable the
 first enabled link.
+
+
+Pipelines and media streams
+---------------------------
+
+When starting streaming, drivers must notify all entities in the pipeline to
+prevent link states from being modified during streaming by calling
+
+	media_entity_pipeline_start(struct media_entity *entity,
+				    struct media_pipeline *pipe);
+
+The function will mark all entities connected to the given entity through
+enabled links, either directly or indirectly, as streaming.
+
+The media_pipeline instance pointed to by the pipe argument will be stored in
+every entity in the pipeline. Drivers should embed the media_pipeline structure
+in higher-level pipeline structures and can then access the pipeline through
+the media_entity pipe field.
+
+Calls to media_entity_pipeline_start() can be nested. The pipeline pointer must
+be identical for all nested calls to the function.
+
+When stopping the stream, drivers must notify the entities with
+
+	media_entity_pipeline_stop(struct media_entity *entity);
+
+If multiple calls to media_entity_pipeline_start() have been made the same
+number of media_entity_pipeline_stop() calls are required to stop streaming. The
+media_entity pipe field is reset to NULL on the last nested stop call.
+
+Link configuration will fail with -EBUSY by default if either end of the link is
+a streaming entity. Links that can be modified while streaming must be marked
+with the MEDIA_LNK_FL_DYNAMIC flag.
+
+If other operations need to be disallowed on streaming entities (such as
+changing entities configuration parameters) drivers can explictly check the
+media_entity stream_count field to find out if an entity is streaming. This
+operation must be done with the media_device graph_mutex held.

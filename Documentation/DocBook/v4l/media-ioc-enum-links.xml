@@ -179,6 +179,11 @@
 	    <entry>The link enabled state can't be modified at runtime. An
 	    immutable link is always enabled.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_LNK_FL_DYNAMIC</constant></entry>
+	    <entry>The link enabled state can be modified during streaming. This
+	    flag is set by drivers and is read-only for applications.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

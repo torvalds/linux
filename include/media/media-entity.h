@@ -26,6 +26,9 @@
 #include <linux/list.h>
 #include <linux/media.h>
 
+struct media_pipeline {
+};
+
 struct media_link {
 	struct media_pad *source;	/* Source pad */
 	struct media_pad *sink;		/* Sink pad  */
@@ -71,7 +74,10 @@ struct media_entity {
 	 * purpose: a simple WARN_ON(<0) check can be used to detect reference
 	 * count bugs that would make them negative.
 	 */
+	int stream_count;		/* Stream count for the entity. */
 	int use_count;			/* Use count for the entity. */
+
+	struct media_pipeline *pipe;	/* Pipeline this entity belongs to. */
 
 	union {
 		/* Node specifications */
@@ -118,6 +124,7 @@ struct media_entity_graph {
 int media_entity_init(struct media_entity *entity, u16 num_pads,
 		struct media_pad *pads, u16 extra_links);
 void media_entity_cleanup(struct media_entity *entity);
+
 int media_entity_create_link(struct media_entity *source, u16 source_pad,
 		struct media_entity *sink, u16 sink_pad, u32 flags);
 int __media_entity_setup_link(struct media_link *link, u32 flags);
@@ -133,6 +140,9 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 		struct media_entity *entity);
 struct media_entity *
 media_entity_graph_walk_next(struct media_entity_graph *graph);
+void media_entity_pipeline_start(struct media_entity *entity,
+		struct media_pipeline *pipe);
+void media_entity_pipeline_stop(struct media_entity *entity);
 
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\

@@ -106,6 +106,7 @@ struct media_pad_desc {
 
 #define MEDIA_LNK_FL_ENABLED		(1 << 0)
 #define MEDIA_LNK_FL_IMMUTABLE		(1 << 1)
+#define MEDIA_LNK_FL_DYNAMIC		(1 << 2)
 
 struct media_link_desc {
 	struct media_pad_desc source;
