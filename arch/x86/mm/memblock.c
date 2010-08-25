@@ -118,10 +118,10 @@ static void __init memblock_x86_subtract_reserved(struct range *range, int az)
 	/* Take out region array itself at first*/
 	memblock_free_reserved_regions();
 
-	pr_info("Subtract (%ld early reservations)\n", memblock.reserved.cnt);
+	memblock_dbg("Subtract (%ld early reservations)\n", memblock.reserved.cnt);
 
 	for_each_memblock(reserved, r) {
-		pr_info("  [%010llx-%010llx]\n", (u64)r->base, (u64)r->base + r->size - 1);
+		memblock_dbg("  [%010llx-%010llx]\n", (u64)r->base, (u64)r->base + r->size - 1);
 		final_start = PFN_DOWN(r->base);
 		final_end = PFN_UP(r->base + r->size);
 		if (final_start >= final_end)
@@ -193,16 +193,16 @@ void __init memblock_x86_to_bootmem(u64 start, u64 end)
 	memblock_free_reserved_regions();
 
 	count  = memblock.reserved.cnt;
-	pr_info("(%d early reservations) ==> bootmem [%010llx-%010llx]\n", count, start, end - 1);
+	memblock_dbg("(%d early reservations) ==> bootmem [%#010llx-%#010llx]\n", count, start, end - 1);
 	for_each_memblock(reserved, r) {
-		pr_info("  [%010llx-%010llx] ", (u64)r->base, (u64)r->base + r->size - 1);
+		memblock_dbg("  [%#010llx-%#010llx] ", (u64)r->base, (u64)r->base + r->size - 1);
 		final_start = max(start, r->base);
 		final_end = min(end, r->base + r->size);
 		if (final_start >= final_end) {
-			pr_cont("\n");
+			memblock_dbg("\n");
 			continue;
 		}
-		pr_cont(" ==> [%010llx-%010llx]\n", final_start, final_end - 1);
+		memblock_dbg(" ==> [%#010llx-%#010llx]\n", final_start, final_end - 1);
 		reserve_bootmem_generic(final_start, final_end - final_start, BOOTMEM_DEFAULT);
 	}
 
@@ -280,8 +280,10 @@ void __init memblock_x86_reserve_range(u64 start, u64 end, char *name)
 	if (start == end)
 		return;
 
-	if (WARN_ONCE(start > end, "memblock_x86_reserve_range: wrong range [%#llx, %#llx]\n", start, end))
+	if (WARN_ONCE(start > end, "memblock_x86_reserve_range: wrong range [%#llx, %#llx)\n", start, end))
 		return;
+
+	memblock_dbg("    memblock_x86_reserve_range: [%#010llx-%#010llx] %16s\n", start, end - 1, name);
 
 	memblock_reserve(start, end - start);
 }
@@ -291,8 +293,10 @@ void __init memblock_x86_free_range(u64 start, u64 end)
 	if (start == end)
 		return;
 
-	if (WARN_ONCE(start > end, "memblock_x86_free_range: wrong range [%#llx, %#llx]\n", start, end))
+	if (WARN_ONCE(start > end, "memblock_x86_free_range: wrong range [%#llx, %#llx)\n", start, end))
 		return;
+
+	memblock_dbg("       memblock_x86_free_range: [%#010llx-%#010llx]\n", start, end - 1);
 
 	memblock_free(start, end - start);
 }
