@@ -2455,7 +2455,7 @@ static struct opcode opcode_table[256] = {
 	X8(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
-	D(SrcImmFAddr | No64), N,
+	I(SrcImmFAddr | No64, em_call_far), N,
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
 	/* 0xA0 - 0xA7 */
 	D(ByteOp | DstAcc | SrcMem | Mov | MemAbs), D(DstAcc | SrcMem | Mov | MemAbs),
