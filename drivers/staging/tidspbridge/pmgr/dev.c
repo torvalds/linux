@@ -898,6 +898,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 	char bridge_file_name[CFG_MAXSEARCHPATHLEN] = "UMA";
 	int status;
 	struct mgr_object *hmgr_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(refs > 0);
 
@@ -906,23 +907,26 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 				   dev_node_obj);
 	if (!status) {
 		/* Store away the hdev_obj with the DEVNODE */
-		status = cfg_set_dev_object(dev_node_obj, (u32) hdev_obj);
+		if (!drv_datap || !dev_node_obj) {
+			status = -EFAULT;
+			pr_err("%s: Failed, status 0x%x\n", __func__, status);
+		} else if (!(strcmp((char *)dev_node_obj, "TIOMAP1510"))) {
+			drv_datap->dev_object = (void *) hdev_obj;
+		}
+		if (!status) {
+			/* Create the Manager Object */
+			status = mgr_create(&hmgr_obj, dev_node_obj);
+			if (status && !(strcmp((char *)dev_node_obj,
+							"TIOMAP1510"))) {
+				/* Ensure the device extension is NULL */
+				drv_datap->dev_object = NULL;
+			}
+		}
 		if (status) {
 			/* Clean up */
 			dev_destroy_device(hdev_obj);
 			hdev_obj = NULL;
 		}
-	}
-	if (!status) {
-		/* Create the Manager Object */
-		status = mgr_create(&hmgr_obj, dev_node_obj);
-	}
-	if (status) {
-		if (hdev_obj)
-			dev_destroy_device(hdev_obj);
-
-		/* Ensure the device extension is NULL */
-		cfg_set_dev_object(dev_node_obj, 0L);
 	}
 
 	return status;

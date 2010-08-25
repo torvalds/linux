@@ -31,36 +31,6 @@
 #include <dspbridge/drv.h>
 
 /*
- *  ======== cfg_set_dev_object ========
- *  Purpose:
- *      Store the Device Object handle and dev_node pointer for a given devnode.
- */
-int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 value)
-{
-	int status = 0;
-	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	if (!drv_datap) {
-		pr_err("%s: Failed, status 0x%x\n", __func__, status);
-		return -EPERM;
-	}
-
-	if (!dev_node_obj)
-		status = -EFAULT;
-
-	if (!status) {
-		/* Store the Bridge device object in the Registry */
-
-		if (!(strcmp((char *)dev_node_obj, "TIOMAP1510")))
-			drv_datap->dev_object = (void *) value;
-	}
-	if (status)
-		pr_err("%s: Failed, status 0x%x\n", __func__, status);
-
-	return status;
-}
-
-/*
  *  ======== cfg_set_object ========
  *  Purpose:
  *      Store the Driver Object handle

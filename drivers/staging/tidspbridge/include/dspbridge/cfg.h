@@ -79,25 +79,6 @@ extern int cfg_get_zl_file(struct cfg_devnode *dev_node_obj,
 				  u32 buf_size, char *str_zl_file_name);
 
 /*
- *  ======== cfg_set_dev_object ========
- *  Purpose:
- *      Store the Device Object handle for a given devnode.
- *  Parameters:
- *      dev_node_obj:   Platform's dev_node handle we are storing value with.
- *      value:    Arbitrary value to store.
- *  Returns:
- *      0:                Success.
- *      -EFAULT:  dev_node_obj is invalid.
- *      -EPERM:              Internal Error.
- *  Requires:
- *      CFG initialized.
- *  Ensures:
- *      0:    The Private u32 was successfully set.
- */
-extern int cfg_set_dev_object(struct cfg_devnode *dev_node_obj,
-				     u32 value);
-
-/*
  *  ======== CFG_SetDrvObject ========
  *  Purpose:
  *      Store the Driver Object handle.
