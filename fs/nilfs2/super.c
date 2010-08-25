@@ -391,18 +391,24 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 	return err;
 }
 
-int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
+int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
+			    struct nilfs_root **rootp)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct nilfs_root *root;
 	struct nilfs_checkpoint *raw_cp;
 	struct buffer_head *bh_cp;
-	int err;
+	int err = -ENOMEM;
+
+	root = nilfs_find_or_create_root(
+		nilfs, curr_mnt ? NILFS_CPTREE_CURRENT_CNO : cno);
+	if (!root)
+		return err;
 
 	down_write(&nilfs->ns_super_sem);
 	list_add(&sbi->s_list, &nilfs->ns_supers);
 	up_write(&nilfs->ns_super_sem);
 
-	err = -ENOMEM;
 	sbi->s_ifile = nilfs_ifile_new(sbi, nilfs->ns_inode_size);
 	if (!sbi->s_ifile)
 		goto delist;
@@ -428,6 +434,8 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	atomic_set(&sbi->s_blocks_count, le64_to_cpu(raw_cp->cp_blocks_count));
 
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
+
+	*rootp = root;
 	return 0;
 
  failed_bh:
@@ -440,6 +448,7 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	down_write(&nilfs->ns_super_sem);
 	list_del_init(&sbi->s_list);
 	up_write(&nilfs->ns_super_sem);
+	nilfs_put_root(root);
 
 	return err;
 }
@@ -551,12 +560,20 @@ static struct inode *
 nilfs_nfs_get_inode(struct super_block *sb, u64 ino, u32 generation)
 {
 	struct inode *inode;
+	struct nilfs_root *root;
 
 	if (ino < NILFS_FIRST_INO(sb) && ino != NILFS_ROOT_INO &&
 	    ino != NILFS_SKETCH_INO)
 		return ERR_PTR(-ESTALE);
 
-	inode = nilfs_iget(sb, ino);
+	root = nilfs_lookup_root(NILFS_SB(sb)->s_nilfs,
+				 NILFS_CPTREE_CURRENT_CNO);
+	if (!root)
+		return ERR_PTR(-ESTALE);
+
+	/* new file handle type is required to export snapshots */
+	inode = nilfs_iget(sb, root, ino);
+	nilfs_put_root(root);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 	if (generation && inode->i_generation != generation) {
@@ -815,9 +832,10 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		 struct the_nilfs *nilfs)
 {
 	struct nilfs_sb_info *sbi;
+	struct nilfs_root *fsroot;
 	struct inode *root;
 	__u64 cno;
-	int err;
+	int err, curr_mnt;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -859,6 +877,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		goto failed_sbi;
 
 	cno = nilfs_last_cno(nilfs);
+	curr_mnt = true;
 
 	if (sb->s_flags & MS_RDONLY) {
 		if (nilfs_test_opt(sbi, SNAPSHOT)) {
@@ -881,10 +900,11 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 				goto failed_sbi;
 			}
 			cno = sbi->s_snapshot_cno;
+			curr_mnt = false;
 		}
 	}
 
-	err = nilfs_attach_checkpoint(sbi, cno);
+	err = nilfs_attach_checkpoint(sbi, cno, curr_mnt, &fsroot);
 	if (err) {
 		printk(KERN_ERR "NILFS: error loading a checkpoint"
 		       " (checkpoint number=%llu).\n", (unsigned long long)cno);
@@ -897,7 +917,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 			goto failed_checkpoint;
 	}
 
-	root = nilfs_iget(sb, NILFS_ROOT_INO);
+	root = nilfs_iget(sb, fsroot, NILFS_ROOT_INO);
 	if (IS_ERR(root)) {
 		printk(KERN_ERR "NILFS: get root inode failed\n");
 		err = PTR_ERR(root);
@@ -917,6 +937,8 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		goto failed_segctor;
 	}
 
+	nilfs_put_root(fsroot);
+
 	if (!(sb->s_flags & MS_RDONLY)) {
 		down_write(&nilfs->ns_sem);
 		nilfs_setup_super(sbi);
@@ -935,6 +957,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 
  failed_checkpoint:
 	nilfs_detach_checkpoint(sbi);
+	nilfs_put_root(fsroot);
 
  failed_sbi:
 	put_nilfs(nilfs);

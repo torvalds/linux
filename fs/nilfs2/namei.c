@@ -70,7 +70,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	ino = nilfs_inode_by_name(dir, &dentry->d_name);
 	inode = NULL;
 	if (ino) {
-		inode = nilfs_iget(dir->i_sb, ino);
+		inode = nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino);
 		if (IS_ERR(inode))
 			return ERR_CAST(inode);
 	}
@@ -87,7 +87,8 @@ struct dentry *nilfs_get_parent(struct dentry *child)
 	if (!ino)
 		return ERR_PTR(-ENOENT);
 
-	inode = nilfs_iget(child->d_inode->i_sb, ino);
+	inode = nilfs_iget(child->d_inode->i_sb,
+			   NILFS_I(child->d_inode)->i_root, ino);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 	return d_obtain_alias(inode);

@@ -504,6 +504,7 @@ static int nilfs_recovery_copy_block(struct the_nilfs *nilfs,
 
 static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 				      struct nilfs_sb_info *sbi,
+				      struct nilfs_root *root,
 				      struct list_head *head,
 				      unsigned long *nr_salvaged_blocks)
 {
@@ -515,7 +516,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 	int err = 0, err2 = 0;
 
 	list_for_each_entry_safe(rb, n, head, list) {
-		inode = nilfs_iget(sbi->s_super, rb->ino);
+		inode = nilfs_iget(sbi->s_super, root, rb->ino);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			inode = NULL;
@@ -578,6 +579,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
  */
 static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 				 struct nilfs_sb_info *sbi,
+				 struct nilfs_root *root,
 				 struct nilfs_recovery_info *ri)
 {
 	struct buffer_head *bh_sum = NULL;
@@ -649,7 +651,7 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 				goto failed;
 			if (flags & NILFS_SS_LOGEND) {
 				err = nilfs_recover_dsync_blocks(
-					nilfs, sbi, &dsync_blocks,
+					nilfs, sbi, root, &dsync_blocks,
 					&nsalvaged_blocks);
 				if (unlikely(err))
 					goto failed;
@@ -746,19 +748,20 @@ int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
 			      struct nilfs_sb_info *sbi,
 			      struct nilfs_recovery_info *ri)
 {
+	struct nilfs_root *root;
 	int err;
 
 	if (ri->ri_lsegs_start == 0 || ri->ri_lsegs_end == 0)
 		return 0;
 
-	err = nilfs_attach_checkpoint(sbi, ri->ri_cno);
+	err = nilfs_attach_checkpoint(sbi, ri->ri_cno, true, &root);
 	if (unlikely(err)) {
 		printk(KERN_ERR
 		       "NILFS: error loading the latest checkpoint.\n");
 		return err;
 	}
 
-	err = nilfs_do_roll_forward(nilfs, sbi, ri);
+	err = nilfs_do_roll_forward(nilfs, sbi, root, ri);
 	if (unlikely(err))
 		goto failed;
 
@@ -789,6 +792,7 @@ int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
 
  failed:
 	nilfs_detach_checkpoint(sbi);
+	nilfs_put_root(root);
 	return err;
 }
 

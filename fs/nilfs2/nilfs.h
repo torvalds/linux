@@ -59,6 +59,7 @@ struct nilfs_inode_info {
 #endif
 	struct buffer_head *i_bh;	/* i_bh contains a new or dirty
 					   disk inode */
+	struct nilfs_root *i_root;
 	struct inode vfs_inode;
 };
 
@@ -247,7 +248,8 @@ extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
 extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
-extern struct inode *nilfs_iget(struct super_block *, unsigned long);
+struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long ino);
 extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
 				       unsigned long ino, __u64 cno);
 extern void nilfs_update_inode(struct inode *, struct buffer_head *);
@@ -285,7 +287,8 @@ extern struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *,
 						      int flip);
 extern int nilfs_commit_super(struct nilfs_sb_info *, int);
 extern int nilfs_cleanup_super(struct nilfs_sb_info *);
-extern int nilfs_attach_checkpoint(struct nilfs_sb_info *, __u64);
+int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
+			    struct nilfs_root **root);
 extern void nilfs_detach_checkpoint(struct nilfs_sb_info *);
 
 /* gcinode.c */
