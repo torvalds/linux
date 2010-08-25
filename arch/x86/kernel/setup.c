@@ -1013,6 +1013,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	initmem_init(0, max_pfn, acpi, k8);
+	memblock_find_dma_reserve();
 #ifndef CONFIG_NO_BOOTMEM
 	memblock_x86_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 #endif
