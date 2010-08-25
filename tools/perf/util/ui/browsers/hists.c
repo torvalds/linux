@@ -168,6 +168,7 @@ static void callchain__init_have_children(struct rb_root *self)
 static void hist_entry__init_have_children(struct hist_entry *self)
 {
 	if (!self->init_have_children) {
+		self->ms.has_children = !RB_EMPTY_ROOT(&self->sorted_chain);
 		callchain__init_have_children(&self->sorted_chain);
 		self->init_have_children = true;
 	}
