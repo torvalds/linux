@@ -66,6 +66,15 @@ struct nouveau_grctx;
 #define NV50_VM_BLOCK    (512*1024*1024ULL)
 #define NV50_VM_VRAM_NR  (NV50_VM_MAX_VRAM / NV50_VM_BLOCK)
 
+struct nouveau_vram {
+	struct drm_device *dev;
+
+	struct list_head regions;
+	u32 memtype;
+	u64 offset;
+	u64 size;
+};
+
 struct nouveau_tile_reg {
 	bool used;
 	uint32_t addr;
@@ -821,6 +830,7 @@ extern int  nv50_mem_vm_bind_linear(struct drm_device *, uint64_t virt,
 				    uint64_t phys);
 extern void nv50_mem_vm_unbind(struct drm_device *, uint64_t virt,
 			       uint32_t size);
+extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 
 /* nouveau_notifier.c */
 extern int  nouveau_notifier_init_channel(struct nouveau_channel *);

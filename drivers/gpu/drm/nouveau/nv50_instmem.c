@@ -325,6 +325,7 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 			     0, 0x0000, true, false, &node->vram);
 	if (ret) {
 		NV_ERROR(dev, "error getting PRAMIN backing pages: %d\n", ret);
+		WARN_ON(1);
 		return ret;
 	}
 

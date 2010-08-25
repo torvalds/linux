@@ -57,42 +57,7 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	/*
-	 * Some of the tile_flags have a periodic structure of N*4096 bytes,
-	 * align to to that as well as the page size. Align the size to the
-	 * appropriate boundaries. This does imply that sizes are rounded up
-	 * 3-7 pages, so be aware of this and do not waste memory by allocating
-	 * many small buffers.
-	 */
-	if (dev_priv->card_type == NV_50) {
-		uint32_t block_size = dev_priv->vram_size >> 15;
-		int i;
-
-		switch (tile_flags) {
-		case 0x1800:
-		case 0x2800:
-		case 0x4800:
-		case 0x7a00:
-			if (is_power_of_2(block_size)) {
-				for (i = 1; i < 10; i++) {
-					*align = 12 * i * block_size;
-					if (!(*align % 65536))
-						break;
-				}
-			} else {
-				for (i = 1; i < 10; i++) {
-					*align = 8 * i * block_size;
-					if (!(*align % 65536))
-						break;
-				}
-			}
-			*size = roundup(*size, *align);
-			break;
-		default:
-			break;
-		}
-
-	} else {
+	if (dev_priv->card_type < NV_50) {
 		if (tile_mode) {
 			if (dev_priv->chipset >= 0x40) {
 				*align = 65536;
@@ -115,7 +80,6 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 
 	/* ALIGN works only on powers of two. */
 	*size = roundup(*size, PAGE_SIZE);
-
 	if (dev_priv->card_type == NV_50) {
 		*size = roundup(*size, 65536);
 		*align = max(65536, *align);
@@ -422,7 +386,10 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
-		man->func = &ttm_bo_manager_func;
+		if (dev_priv->card_type == NV_50)
+			man->func = &nouveau_vram_manager;
+		else
+			man->func = &ttm_bo_manager_func;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
