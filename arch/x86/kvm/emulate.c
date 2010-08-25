@@ -437,7 +437,6 @@ static void emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
 	ctxt->exception = vec;
 	ctxt->error_code = error;
 	ctxt->error_code_valid = valid;
-	ctxt->restart = false;
 }
 
 static void emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
@@ -2633,9 +2632,6 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt)
 	struct opcode opcode, *g_mod012, *g_mod3;
 	struct operand memop = { .type = OP_NONE };
 
-	/* we cannot decode insn before we complete previous rep insn */
-	WARN_ON(ctxt->restart);
-
 	c->eip = ctxt->eip;
 	c->fetch.start = c->fetch.end = c->eip;
 	ctxt->cs_base = seg_base(ctxt, ops, VCPU_SREG_CS);
@@ -2985,10 +2981,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	if (c->rep_prefix && (c->d & String)) {
-		ctxt->restart = true;
 		/* All REP prefixes have the same first termination condition */
 		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0) {
-			ctxt->restart = false;
 			ctxt->eip = c->eip;
 			goto done;
 		}
@@ -3446,28 +3440,29 @@ writeback:
 		struct read_cache *r = &ctxt->decode.io_read;
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 
-		if (string_insn_completed(ctxt))
-			ctxt->restart = false;
-		/*
-		 * Re-enter guest when pio read ahead buffer is empty or,
-		 * if it is not used, after each 1024 iteration.
-		 */
-		else if ((r->end == 0 && !(c->regs[VCPU_REGS_RCX] & 0x3ff)) ||
-			 (r->end != 0 && r->end == r->pos)) {
-			ctxt->restart = false;
-			c->eip = ctxt->eip;
+		if (!string_insn_completed(ctxt)) {
+			/*
+			 * Re-enter guest when pio read ahead buffer is empty
+			 * or, if it is not used, after each 1024 iteration.
+			 */
+			if ((r->end != 0 || c->regs[VCPU_REGS_RCX] & 0x3ff) &&
+			    (r->end == 0 || r->end != r->pos)) {
+				/*
+				 * Reset read cache. Usually happens before
+				 * decode, but since instruction is restarted
+				 * we have to do it here.
+				 */
+				ctxt->decode.mem_read.end = 0;
+				return EMULATION_RESTART;
+			}
+			goto done; /* skip rip writeback */
 		}
 	}
-	/*
-	 * reset read cache here in case string instruction is restared
-	 * without decoding
-	 */
-	ctxt->decode.mem_read.end = 0;
-	if (!ctxt->restart)
-		ctxt->eip = c->eip;
+
+	ctxt->eip = c->eip;
 
 done:
-	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
+	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 
 twobyte_insn:
 	switch (c->b) {

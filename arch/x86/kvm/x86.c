@@ -4181,18 +4181,17 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt);
 
-	if (r) { /* emulation failed */
+	if (r == EMULATION_FAILED) {
 		if (reexecute_instruction(vcpu, cr2))
 			return EMULATE_DONE;
 
 		return handle_emulation_failure(vcpu);
 	}
 
-	r = EMULATE_DONE;
-
-	if (vcpu->arch.emulate_ctxt.exception >= 0)
+	if (vcpu->arch.emulate_ctxt.exception >= 0) {
 		inject_emulated_exception(vcpu);
-	else if (vcpu->arch.pio.count) {
+		r = EMULATE_DONE;
+	} else if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in)
 			vcpu->arch.pio.count = 0;
 		r = EMULATE_DO_MMIO;
@@ -4200,8 +4199,10 @@ restart:
 		if (vcpu->mmio_is_write)
 			vcpu->mmio_needed = 0;
 		r = EMULATE_DO_MMIO;
-	} else if (vcpu->arch.emulate_ctxt.restart)
+	} else if (r == EMULATION_RESTART)
 		goto restart;
+	else
+		r = EMULATE_DONE;
 
 	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
@@ -5100,8 +5101,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (!irqchip_in_kernel(vcpu->kvm))
 		kvm_set_cr8(vcpu, kvm_run->cr8);
 
-	if (vcpu->arch.pio.count || vcpu->mmio_needed ||
-	    vcpu->arch.emulate_ctxt.restart) {
+	if (vcpu->arch.pio.count || vcpu->mmio_needed) {
 		if (vcpu->mmio_needed) {
 			memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
 			vcpu->mmio_read_completed = 1;

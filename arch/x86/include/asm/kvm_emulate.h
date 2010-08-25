@@ -224,7 +224,6 @@ struct x86_emulate_ctxt {
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
 
-	bool restart; /* restart string instruction after writeback */
 	bool perm_ok; /* do not check permissions if true */
 
 	int exception; /* exception that happens during emulation or -1 */
@@ -255,6 +254,9 @@ struct x86_emulate_ctxt {
 #endif
 
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt);
+#define EMULATION_FAILED -1
+#define EMULATION_OK 0
+#define EMULATION_RESTART 1
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 			 u16 tss_selector, int reason,
