@@ -1571,9 +1571,6 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
  * callchain support
  */
 
-static DEFINE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry_nmi);
-
-
 static void
 backtrace_warning_symbol(void *data, char *msg, unsigned long symbol)
 {
