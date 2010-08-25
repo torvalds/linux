@@ -10,7 +10,7 @@
 #include <mach/devices-common.h>
 
 extern const struct imx_imx_i2c_data imx21_imx_i2c_data __initconst;
-#define imx21_add_i2c_imx(pdata)	\
+#define imx21_add_imx_i2c(pdata)	\
 	imx_add_imx_i2c(&imx21_imx_i2c_data, pdata)
 
 extern const struct imx_imx_ssi_data imx21_imx_ssi_data[] __initconst;

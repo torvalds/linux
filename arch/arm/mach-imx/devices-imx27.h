@@ -12,8 +12,6 @@
 extern const struct imx_imx_i2c_data imx27_imx_i2c_data[] __initconst;
 #define imx27_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx27_imx_i2c_data[id], pdata)
-#define imx27_add_i2c_imx0(pdata)	imx27_add_imx_i2c(0, pdata)
-#define imx27_add_i2c_imx1(pdata)	imx27_add_imx_i2c(1, pdata)
 
 extern const struct imx_imx_ssi_data imx27_imx_ssi_data[] __initconst;
 #define imx27_add_imx_ssi(id, pdata)    \

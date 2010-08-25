@@ -255,8 +255,8 @@ static void __init mxt_td60_board_init(void)
 	i2c_register_board_info(1, mxt_td60_i2c2_devices,
 				ARRAY_SIZE(mxt_td60_i2c2_devices));
 
-	imx27_add_i2c_imx0(&mxt_td60_i2c0_data);
-	imx27_add_i2c_imx1(&mxt_td60_i2c1_data);
+	imx27_add_imx_i2c(0, &mxt_td60_i2c0_data);
+	imx27_add_imx_i2c(1, &mxt_td60_i2c1_data);
 	mxc_register_device(&mxc_fb_device, &mxt_td60_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
 

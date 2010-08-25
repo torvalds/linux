@@ -236,8 +236,8 @@ static void __init visstrim_m10_board_init(void)
 
 	i2c_register_board_info(0, visstrim_m10_i2c_devices,
 				ARRAY_SIZE(visstrim_m10_i2c_devices));
-	imx27_add_i2c_imx0(&visstrim_m10_i2c_data);
-	imx27_add_i2c_imx1(&visstrim_m10_i2c_data);
+	imx27_add_imx_i2c(0, &visstrim_m10_i2c_data);
+	imx27_add_imx_i2c(1, &visstrim_m10_i2c_data);
 	mxc_register_device(&mxc_sdhc_device0, &visstrim_m10_sdhc_pdata);
 	mxc_register_device(&mxc_otg_host, &visstrim_m10_usbotg_pdata);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));

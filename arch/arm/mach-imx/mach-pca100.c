@@ -400,7 +400,7 @@ static void __init pca100_init(void)
 	i2c_register_board_info(1, pca100_i2c_devices,
 				ARRAY_SIZE(pca100_i2c_devices));
 
-	imx27_add_i2c_imx1(&pca100_i2c1_data);
+	imx27_add_imx_i2c(1, &pca100_i2c1_data);
 
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 	mxc_gpio_mode(GPIO_PORTD | 28 | GPIO_GPIO | GPIO_IN);
