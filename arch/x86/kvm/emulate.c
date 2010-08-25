@@ -2933,6 +2933,28 @@ done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
 }
 
+static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	/* The second termination condition only applies for REPE
+	 * and REPNE. Test if the repeat string operation prefix is
+	 * REPE/REPZ or REPNE/REPNZ and if it's the case it tests the
+	 * corresponding termination condition according to:
+	 * 	- if REPE/REPZ and ZF = 0 then done
+	 * 	- if REPNE/REPNZ and ZF = 1 then done
+	 */
+	if (((c->b == 0xa6) || (c->b == 0xa7) ||
+	     (c->b == 0xae) || (c->b == 0xaf))
+	    && (((c->rep_prefix == REPE_PREFIX) &&
+		 ((ctxt->eflags & EFLG_ZF) == 0))
+		|| ((c->rep_prefix == REPNE_PREFIX) &&
+		    ((ctxt->eflags & EFLG_ZF) == EFLG_ZF))))
+		return true;
+
+	return false;
+}
+
 int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 {
@@ -3423,19 +3445,8 @@ writeback:
 	if (c->rep_prefix && (c->d & String)) {
 		struct read_cache *r = &ctxt->decode.io_read;
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
-		/* The second termination condition only applies for REPE
-		 * and REPNE. Test if the repeat string operation prefix is
-		 * REPE/REPZ or REPNE/REPNZ and if it's the case it tests the
-		 * corresponding termination condition according to:
-		 * 	- if REPE/REPZ and ZF = 0 then done
-		 * 	- if REPNE/REPNZ and ZF = 1 then done
-		 */
-		if (((c->b == 0xa6) || (c->b == 0xa7) ||
-		     (c->b == 0xae) || (c->b == 0xaf))
-		    && (((c->rep_prefix == REPE_PREFIX) &&
-			 ((ctxt->eflags & EFLG_ZF) == 0))
-			|| ((c->rep_prefix == REPNE_PREFIX) &&
-			    ((ctxt->eflags & EFLG_ZF) == EFLG_ZF))))
+
+		if (string_insn_completed(ctxt))
 			ctxt->restart = false;
 		/*
 		 * Re-enter guest when pio read ahead buffer is empty or,
