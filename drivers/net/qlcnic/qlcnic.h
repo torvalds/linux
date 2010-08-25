@@ -175,7 +175,7 @@
 	((_desc)->port_ctxid = ((_port) & 0xf) | (((_port) << 4) & 0xf0))
 
 #define qlcnic_set_tx_flags_opcode(_desc, _flags, _opcode) \
-	((_desc)->flags_opcode = \
+	((_desc)->flags_opcode |= \
 	cpu_to_le16(((_flags) & 0x7f) | (((_opcode) & 0x3f) << 7)))
 
 #define qlcnic_set_tx_frags_len(_desc, _frags, _len) \
@@ -902,6 +902,7 @@ struct qlcnic_mac_req {
 #define QLCNIC_BRIDGE_ENABLED       	0X10
 #define QLCNIC_DIAG_ENABLED		0x20
 #define QLCNIC_ESWITCH_ENABLED		0x40
+#define QLCNIC_TAGGING_ENABLED		0x100
 #define QLCNIC_MACSPOOF			0x200
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
@@ -967,6 +968,7 @@ struct qlcnic_adapter {
 	u16 max_tx_ques;
 	u16 max_rx_ques;
 	u16 max_mtu;
+	u16 pvid;
 
 	u32 fw_hal_version;
 	u32 capabilities;

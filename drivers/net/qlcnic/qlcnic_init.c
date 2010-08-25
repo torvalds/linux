@@ -25,6 +25,7 @@
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
 #include "qlcnic.h"
 
 struct crb_addr_pair {
@@ -1302,6 +1303,27 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 	return skb;
 }
 
+static int
+qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter, struct sk_buff *skb)
+{
+	u16 vlan_tag;
+	struct ethhdr *eth_hdr;
+
+	if (!__vlan_get_tag(skb, &vlan_tag)) {
+		if (vlan_tag == adapter->pvid) {
+			/* strip the tag from the packet and send it up */
+			eth_hdr = (struct ethhdr *) skb->data;
+			memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
+			skb_pull(skb, VLAN_HLEN);
+			return 0;
+		}
+	}
+	if (adapter->flags & QLCNIC_TAGGING_ENABLED)
+		return 0;
+
+	return -EIO;
+}
+
 static struct qlcnic_rx_buffer *
 qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_sds_ring *sds_ring,
@@ -1342,6 +1364,15 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 		skb_pull(skb, pkt_offset);
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
+
+	if (unlikely(adapter->pvid)) {
+		if (qlcnic_check_rx_tagging(adapter, skb)) {
+			adapter->stats.rxdropped++;
+			dev_kfree_skb_any(skb);
+			return buffer;
+		}
+	}
+
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	napi_gro_receive(&sds_ring->napi, skb);
@@ -1406,6 +1437,14 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
 
 	skb_pull(skb, l2_hdr_offset);
+
+	if (unlikely(adapter->pvid)) {
+		if (qlcnic_check_rx_tagging(adapter, skb)) {
+			adapter->stats.rxdropped++;
+			dev_kfree_skb_any(skb);
+			return buffer;
+		}
+	}
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	iph = (struct iphdr *)skb->data;

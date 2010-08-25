@@ -759,6 +759,21 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 }
 
 static void
+qlcnic_set_vlan_config(struct qlcnic_adapter *adapter,
+		struct qlcnic_esw_func_cfg *esw_cfg)
+{
+	if (esw_cfg->discard_tagged)
+		adapter->flags &= ~QLCNIC_TAGGING_ENABLED;
+	else
+		adapter->flags |= QLCNIC_TAGGING_ENABLED;
+
+	if (esw_cfg->vlan_id)
+		adapter->pvid = esw_cfg->vlan_id;
+	else
+		adapter->pvid = 0;
+}
+
+static void
 qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
@@ -781,6 +796,7 @@ qlcnic_set_eswitch_port_config(struct qlcnic_adapter *adapter)
 	esw_cfg.pci_func = adapter->ahw.pci_func;
 	if (qlcnic_get_eswitch_port_config(adapter, &esw_cfg))
 			return -EIO;
+	qlcnic_set_vlan_config(adapter, &esw_cfg);
 	qlcnic_set_eswitch_port_features(adapter, &esw_cfg);
 
 	return 0;
@@ -1728,26 +1744,13 @@ qlcnic_tso_check(struct net_device *netdev,
 {
 	u8 opcode = TX_ETHER_PKT;
 	__be16 protocol = skb->protocol;
-	u16 flags = 0, vid = 0;
-	int copied, offset, copy_len, hdr_len = 0, tso = 0, vlan_oob = 0;
+	u16 flags = 0;
+	int copied, offset, copy_len, hdr_len = 0, tso = 0;
 	struct cmd_desc_type0 *hwdesc;
 	struct vlan_ethhdr *vh;
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	u32 producer = tx_ring->producer;
-
-	if (protocol == cpu_to_be16(ETH_P_8021Q)) {
-
-		vh = (struct vlan_ethhdr *)skb->data;
-		protocol = vh->h_vlan_encapsulated_proto;
-		flags = FLAGS_VLAN_TAGGED;
-
-	} else if (vlan_tx_tag_present(skb)) {
-
-		flags = FLAGS_VLAN_OOB;
-		vid = vlan_tx_tag_get(skb);
-		qlcnic_set_tx_vlan_tci(first_desc, vid);
-		vlan_oob = 1;
-	}
+	int vlan_oob = first_desc->flags_opcode & cpu_to_le16(FLAGS_VLAN_OOB);
 
 	if (*(skb->data) & BIT_0) {
 		flags |= BIT_0;
@@ -1818,7 +1821,7 @@ qlcnic_tso_check(struct net_device *netdev,
 		vh = (struct vlan_ethhdr *)((char *)hwdesc + 2);
 		skb_copy_from_linear_data(skb, vh, 12);
 		vh->h_vlan_proto = htons(ETH_P_8021Q);
-		vh->h_vlan_TCI = htons(vid);
+		vh->h_vlan_TCI = htons(first_desc->vlan_TCI);
 		skb_copy_from_linear_data_offset(skb, 12,
 				(char *)vh + 16, copy_len - 16);
 
@@ -1898,11 +1901,47 @@ out_err:
 	return -ENOMEM;
 }
 
+static int
+qlcnic_check_tx_tagging(struct qlcnic_adapter *adapter,
+			struct sk_buff *skb,
+			struct cmd_desc_type0 *first_desc)
+{
+	u8 opcode = 0;
+	u16 flags = 0;
+	__be16 protocol = skb->protocol;
+	struct vlan_ethhdr *vh;
+
+	if (protocol == cpu_to_be16(ETH_P_8021Q)) {
+		vh = (struct vlan_ethhdr *)skb->data;
+		protocol = vh->h_vlan_encapsulated_proto;
+		flags = FLAGS_VLAN_TAGGED;
+		qlcnic_set_tx_vlan_tci(first_desc, ntohs(vh->h_vlan_TCI));
+	} else if (vlan_tx_tag_present(skb)) {
+		flags = FLAGS_VLAN_OOB;
+		qlcnic_set_tx_vlan_tci(first_desc, vlan_tx_tag_get(skb));
+	}
+	if (unlikely(adapter->pvid)) {
+		if (first_desc->vlan_TCI &&
+				!(adapter->flags & QLCNIC_TAGGING_ENABLED))
+			return -EIO;
+		if (first_desc->vlan_TCI &&
+				(adapter->flags & QLCNIC_TAGGING_ENABLED))
+			goto set_flags;
+
+		flags = FLAGS_VLAN_OOB;
+		qlcnic_set_tx_vlan_tci(first_desc, adapter->pvid);
+	}
+set_flags:
+	qlcnic_set_tx_flags_opcode(first_desc, flags, opcode);
+	return 0;
+}
+
 static inline void
 qlcnic_clear_cmddesc(u64 *desc)
 {
 	desc[0] = 0ULL;
 	desc[2] = 0ULL;
+	desc[7] = 0ULL;
 }
 
 netdev_tx_t
@@ -1952,6 +1991,12 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	pdev = adapter->pdev;
 
+	first_desc = hwdesc = &tx_ring->desc_head[producer];
+	qlcnic_clear_cmddesc((u64 *)hwdesc);
+
+	if (qlcnic_check_tx_tagging(adapter, skb, first_desc))
+		goto drop_packet;
+
 	if (qlcnic_map_tx_skb(pdev, skb, pbuf)) {
 		adapter->stats.tx_dma_map_error++;
 		goto drop_packet;
@@ -1959,9 +2004,6 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	pbuf->skb = skb;
 	pbuf->frag_count = frag_count;
-
-	first_desc = hwdesc = &tx_ring->desc_head[producer];
-	qlcnic_clear_cmddesc((u64 *)hwdesc);
 
 	qlcnic_set_tx_frags_len(first_desc, frag_count, skb->len);
 	qlcnic_set_tx_port(first_desc, adapter->portnum);
@@ -3348,6 +3390,13 @@ qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
 			qlcnic_set_eswitch_port_features(adapter, &esw_cfg[i]);
+			break;
+		case QLCNIC_ADD_VLAN:
+			qlcnic_set_vlan_config(adapter, &esw_cfg[i]);
+			break;
+		case QLCNIC_DEL_VLAN:
+			esw_cfg[i].vlan_id = 0;
+			qlcnic_set_vlan_config(adapter, &esw_cfg[i]);
 			break;
 		}
 	}
