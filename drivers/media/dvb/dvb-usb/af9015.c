@@ -1308,6 +1308,7 @@ static struct usb_device_id af9015_usb_table[] = {
 /* 30 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_UB383_T)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_4)},
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
+	{USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_T_STICK_RC)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1635,6 +1636,24 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "AverMedia AVerTV Volar M (A815Mac)",
 				.cold_ids = {&af9015_usb_table[32], NULL},
+				.warm_ids = {NULL},
+			},
+		},
+
+		.identify_state = af9015_identify_state,
+
+		.rc.legacy = {
+			.rc_query         = af9015_rc_query,
+			.rc_interval      = 150,
+		},
+
+		.i2c_algo = &af9015_i2c_algo,
+
+		.num_device_descs = 1, /* max 9 */
+		.devices = {
+			{
+				.name = "TerraTec Cinergy T Stick RC",
+				.cold_ids = {&af9015_usb_table[33], NULL},
 				.warm_ids = {NULL},
 			},
 		}
