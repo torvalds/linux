@@ -234,6 +234,21 @@ void __init memblock_x86_free_range(u64 start, u64 end)
 }
 
 /*
+ * Need to call this function after memblock_x86_register_active_regions,
+ * so early_node_map[] is filled already.
+ */
+u64 __init memblock_x86_find_in_range_node(int nid, u64 start, u64 end, u64 size, u64 align)
+{
+	u64 addr;
+	addr = find_memory_core_early(nid, size, align, start, end);
+	if (addr != MEMBLOCK_ERROR)
+		return addr;
+
+	/* Fallback, should already have start end within node range */
+	return memblock_find_in_range(start, end, size, align);
+}
+
+/*
  * Finds an active region in the address range from start_pfn to last_pfn and
  * returns its range in ei_startpfn and ei_endpfn for the memblock entry.
  */
