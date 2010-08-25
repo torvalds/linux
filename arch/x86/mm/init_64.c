@@ -799,13 +799,10 @@ void mark_rodata_ro(void)
 
 #endif
 
+#ifndef CONFIG_NO_BOOTMEM
 int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 				   int flags)
 {
-#ifdef CONFIG_NUMA
-	int nid, next_nid;
-	int ret;
-#endif
 	unsigned long pfn = phys >> PAGE_SHIFT;
 
 	if (pfn >= max_pfn) {
@@ -821,21 +818,7 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 		return -EFAULT;
 	}
 
-	/* Should check here against the e820 map to avoid double free */
-#ifdef CONFIG_NUMA
-	nid = phys_to_nid(phys);
-	next_nid = phys_to_nid(phys + len - 1);
-	if (nid == next_nid)
-		ret = reserve_bootmem_node(NODE_DATA(nid), phys, len, flags);
-	else
-		ret = reserve_bootmem(phys, len, flags);
-
-	if (ret != 0)
-		return ret;
-
-#else
 	reserve_bootmem(phys, len, flags);
-#endif
 
 	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;
@@ -844,6 +827,7 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 
 	return 0;
 }
+#endif
 
 int kern_addr_valid(unsigned long addr)
 {

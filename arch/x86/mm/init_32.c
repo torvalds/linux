@@ -1069,9 +1069,3 @@ void mark_rodata_ro(void)
 #endif
 }
 #endif
-
-int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
-				   int flags)
-{
-	return reserve_bootmem(phys, len, flags);
-}
