@@ -835,8 +835,7 @@ enum {
 	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
-	MD_NO_BARRIER,		/* meta data device does not support barriers,
-				   so don't even try */
+	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
 	SUSPEND_IO,		/* suspend application io */
 	BITMAP_IO,		/* suspend application io;
 				   once no more io in flight, start bitmap io */
@@ -2404,13 +2403,13 @@ static inline void drbd_md_flush(struct drbd_conf *mdev)
 {
 	int r;
 
-	if (test_bit(MD_NO_BARRIER, &mdev->flags))
+	if (test_bit(MD_NO_FUA, &mdev->flags))
 		return;
 
 	r = blkdev_issue_flush(mdev->ldev->md_bdev, GFP_KERNEL, NULL,
 			BLKDEV_IFL_WAIT);
 	if (r) {
-		set_bit(MD_NO_BARRIER, &mdev->flags);
+		set_bit(MD_NO_FUA, &mdev->flags);
 		dev_err(DEV, "meta data flush failed with status %d, disabling md-flushes\n", r);
 	}
 }
