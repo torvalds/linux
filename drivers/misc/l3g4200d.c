@@ -19,14 +19,12 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 #include <linux/fs.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input-polldev.h>
 #include <linux/miscdevice.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -103,10 +101,7 @@ struct l3g4200d_data {
 	int hw_initialized;
 	atomic_t enabled;
 	int on_before_suspend;
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
+	struct regulator *regulator;
 
 	u8 shift_adj;
 	u8 resume_state[5];
@@ -143,11 +138,6 @@ struct l3g4200d_reg {
 #endif
 static uint32_t l3g4200d_debug = 0xff;
 module_param_named(gyro_debug, l3g4200d_debug, uint, 0664);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void l3g4200d_early_suspend(struct early_suspend *handler);
-static void l3g4200d_late_resume(struct early_suspend *handler);
-#endif
 
 /*
  * Because misc devices can not carry a pointer from driver register to
@@ -247,8 +237,8 @@ static void l3g4200d_device_power_off(struct l3g4200d_data *gyro)
 	if (err < 0)
 		dev_err(&gyro->client->dev, "soft power off failed\n");
 
-	if (gyro->pdata->power_off) {
-		gyro->pdata->power_off();
+	if (gyro->regulator) {
+		regulator_disable(gyro->regulator);
 		gyro->hw_initialized = 0;
 	}
 }
@@ -257,8 +247,8 @@ static int l3g4200d_device_power_on(struct l3g4200d_data *gyro)
 {
 	int err;
 
-	if (gyro->pdata->power_on) {
-		err = gyro->pdata->power_on();
+	if (gyro->regulator) {
+		err = regulator_enable(gyro->regulator);
 		if (err < 0)
 			return err;
 	}
@@ -656,6 +646,12 @@ static int l3g4200d_probe(struct i2c_client *client,
 		goto err2;
 	}
 
+	gyro->regulator = regulator_get(&client->dev, "vcc");
+	if (IS_ERR_OR_NULL(gyro->regulator)) {
+		dev_err(&client->dev, "unable to get regulator\n");
+		gyro->regulator = NULL;
+	}
+
 	i2c_set_clientdata(client, gyro);
 
 	memset(gyro->resume_state, 0, ARRAY_SIZE(gyro->resume_state));
@@ -668,13 +664,6 @@ static int l3g4200d_probe(struct i2c_client *client,
 
 	/* As default, do not report information */
 	atomic_set(&gyro->enabled, 0);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	gyro->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	gyro->early_suspend.suspend = l3g4200d_early_suspend;
-	gyro->early_suspend.resume = l3g4200d_late_resume;
-	register_early_suspend(&gyro->early_suspend);
-#endif
 
 	err = l3g4200d_input_init(gyro);
 	if (err < 0)
@@ -699,8 +688,8 @@ static int l3g4200d_probe(struct i2c_client *client,
 err4:
 	l3g4200d_input_cleanup(gyro);
 err3:
-	if (gyro->pdata->exit)
-		gyro->pdata->exit();
+	if (gyro->regulator)
+		regulator_put(gyro->regulator);
 err2:
 	kfree(gyro->pdata);
 err1:
@@ -718,9 +707,9 @@ static int __devexit l3g4200d_remove(struct i2c_client *client)
 #endif
 	misc_deregister(&l3g4200d_misc_device);
 	l3g4200d_input_cleanup(gyro);
-	l3g4200d_device_power_off(gyro);
-	if (gyro->pdata->exit)
-		gyro->pdata->exit();
+	l3g4200d_disable(gyro);
+	if (gyro->regulator)
+		regulator_put(gyro->regulator);
 	kfree(gyro->pdata);
 	kfree(gyro);
 
@@ -744,24 +733,6 @@ static int l3g4200d_suspend(struct i2c_client *client, pm_message_t mesg)
 	return l3g4200d_disable(gyro);
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void l3g4200d_early_suspend(struct early_suspend *handler)
-{
-	struct l3g4200d_data *gyro;
-
-	gyro = container_of(handler, struct l3g4200d_data, early_suspend);
-	l3g4200d_suspend(gyro->client, PMSG_SUSPEND);
-}
-
-static void l3g4200d_late_resume(struct early_suspend *handler)
-{
-	struct l3g4200d_data *gyro;
-
-	gyro = container_of(handler, struct l3g4200d_data, early_suspend);
-	l3g4200d_resume(gyro->client);
-}
-#endif
-
 static const struct i2c_device_id l3g4200d_id[] = {
 	{L3G4200D_NAME, 0},
 	{},
@@ -775,10 +746,8 @@ static struct i2c_driver l3g4200d_driver = {
 		   },
 	.probe = l3g4200d_probe,
 	.remove = __devexit_p(l3g4200d_remove),
-#ifndef CONFIG_HAS_EARLYSUSPEND
 	.resume = l3g4200d_resume,
 	.suspend = l3g4200d_suspend,
-#endif
 	.id_table = l3g4200d_id,
 };
 
