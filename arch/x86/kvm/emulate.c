@@ -3421,7 +3421,7 @@ writeback:
 				&c->dst);
 
 	if (c->rep_prefix && (c->d & String)) {
-		struct read_cache *rc = &ctxt->decode.io_read;
+		struct read_cache *r = &ctxt->decode.io_read;
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 		/* The second termination condition only applies for REPE
 		 * and REPNE. Test if the repeat string operation prefix is
@@ -3441,8 +3441,8 @@ writeback:
 		 * Re-enter guest when pio read ahead buffer is empty or,
 		 * if it is not used, after each 1024 iteration.
 		 */
-		else if ((rc->end == 0 && !(c->regs[VCPU_REGS_RCX] & 0x3ff)) ||
-			 (rc->end != 0 && rc->end == rc->pos)) {
+		else if ((r->end == 0 && !(c->regs[VCPU_REGS_RCX] & 0x3ff)) ||
+			 (r->end != 0 && r->end == r->pos)) {
 			ctxt->restart = false;
 			c->eip = ctxt->eip;
 		}
