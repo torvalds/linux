@@ -618,6 +618,8 @@ static __init void reserve_ibft_region(void)
 		reserve_early_overlap_ok(addr, addr + size, "ibft");
 }
 
+static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
+
 static void __init trim_bios_range(void)
 {
 	/*
@@ -627,9 +629,9 @@ static void __init trim_bios_range(void)
 	 *
 	 * This typically reserves additional memory (64KiB by default)
 	 * since some BIOSes are known to corrupt low memory.  See the
-	 * Kconfig help text for X86_LOW_RESERVE.
+	 * Kconfig help text for X86_RESERVE_LOW.
 	 */
-	e820_update_range(0, ALIGN(CONFIG_X86_LOW_RESERVE << 10, PAGE_SIZE),
+	e820_update_range(0, ALIGN(reserve_low, PAGE_SIZE),
 			  E820_RAM, E820_RESERVED);
 
 	/*
@@ -640,6 +642,28 @@ static void __init trim_bios_range(void)
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }
+
+static int __init parse_reservelow(char *p)
+{
+	unsigned long long size;
+
+	if (!p)
+		return -EINVAL;
+
+	size = memparse(p, &p);
+
+	if (size < 4096)
+		size = 4096;
+
+	if (size > 640*1024)
+		size = 640*1024;
+
+	reserve_low = size;
+
+	return 0;
+}
+
+early_param("reservelow", parse_reservelow);
 
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been

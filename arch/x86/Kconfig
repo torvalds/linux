@@ -1326,7 +1326,7 @@ config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
 	  Set whether the default state of memory_corruption_check is
 	  on or off.
 
-config X86_LOW_RESERVE
+config X86_RESERVE_LOW
 	int "Amount of low memory, in kilobytes, to reserve for the BIOS"
 	default 64
 	range 4 640
