@@ -963,7 +963,6 @@ struct s2io_nic {
 
 	unsigned long	clubbed_frms_cnt;
 	unsigned long	sending_both;
-	u8		lro;
 	u16		lro_max_aggr_per_sess;
 	volatile unsigned long state;
 	u64		general_int_mask;
