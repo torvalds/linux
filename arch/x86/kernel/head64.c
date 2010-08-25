@@ -12,6 +12,7 @@
 #include <linux/percpu.h>
 #include <linux/start_kernel.h>
 #include <linux/io.h>
+#include <linux/memblock.h>
 
 #include <asm/processor.h>
 #include <asm/proto.h>
@@ -97,6 +98,8 @@ void __init x86_64_start_kernel(char * real_mode_data)
 void __init x86_64_start_reservations(char *real_mode_data)
 {
 	copy_bootdata(__va(real_mode_data));
+
+	memblock_init();
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");
 

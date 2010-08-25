@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/start_kernel.h>
 #include <linux/mm.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/sections.h>
@@ -30,14 +31,15 @@ static void __init i386_default_early_setup(void)
 
 void __init i386_start_kernel(void)
 {
+	memblock_init();
+
 #ifdef CONFIG_X86_TRAMPOLINE
 	/*
 	 * But first pinch a few for the stack/trampoline stuff
 	 * FIXME: Don't need the extra page at 4K, but need to fix
 	 * trampoline before removing it. (see the GDT stuff)
 	 */
-	reserve_early_overlap_ok(PAGE_SIZE, PAGE_SIZE + PAGE_SIZE,
-					 "EX TRAMPOLINE");
+	memblock_x86_reserve_range(PAGE_SIZE, PAGE_SIZE + PAGE_SIZE, "EX TRAMPOLINE");
 #endif
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");

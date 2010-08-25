@@ -31,6 +31,7 @@
 #include <linux/apm_bios.h>
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/mca.h>
@@ -614,7 +615,7 @@ static __init void reserve_ibft_region(void)
 	addr = find_ibft_region(&size);
 
 	if (size)
-		reserve_early_overlap_ok(addr, addr + size, "ibft");
+		memblock_x86_reserve_range(addr, addr + size, "* ibft");
 }
 
 #ifdef CONFIG_X86_RESERVE_LOW_64K
@@ -706,6 +707,15 @@ static void __init trim_bios_range(void)
 	 */
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+}
+
+static u64 __init get_max_mapped(void)
+{
+	u64 end = max_pfn_mapped;
+
+	end <<= PAGE_SHIFT;
+
+	return end;
 }
 
 /*
@@ -891,8 +901,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	max_pfn = e820_end_of_ram_pfn();
 
-	/* preallocate 4k for mptable mpc */
-	early_reserve_e820_mpc_new();
 	/* update e820 for memory not covered by WB MTRRs */
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
@@ -917,21 +925,32 @@ void __init setup_arch(char **cmdline_p)
 	max_pfn_mapped = KERNEL_IMAGE_SIZE >> PAGE_SHIFT;
 #endif
 
-#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
-	setup_bios_corruption_check();
-#endif
-
-	printk(KERN_DEBUG "initial memory mapped : 0 - %08lx\n",
-			max_pfn_mapped<<PAGE_SHIFT);
-
-	reserve_brk();
-
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
 	find_smp_config();
 
 	reserve_ibft_region();
+
+	/*
+	 * Need to conclude brk, before memblock_x86_fill()
+	 *  it could use memblock_find_in_range, could overlap with
+	 *  brk area.
+	 */
+	reserve_brk();
+
+	memblock.current_limit = get_max_mapped();
+	memblock_x86_fill();
+
+	/* preallocate 4k for mptable mpc */
+	early_reserve_e820_mpc_new();
+
+#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
+	setup_bios_corruption_check();
+#endif
+
+	printk(KERN_DEBUG "initial memory mapped : 0 - %08lx\n",
+			max_pfn_mapped<<PAGE_SHIFT);
 
 	reserve_trampoline_memory();
 
@@ -956,6 +975,7 @@ void __init setup_arch(char **cmdline_p)
 		max_low_pfn = max_pfn;
 	}
 #endif
+	memblock.current_limit = get_max_mapped();
 
 	/*
 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
@@ -995,7 +1015,7 @@ void __init setup_arch(char **cmdline_p)
 
 	initmem_init(0, max_pfn, acpi, k8);
 #ifndef CONFIG_NO_BOOTMEM
-	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
+	memblock_x86_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 #endif
 
 	dma32_reserve_bootmem();

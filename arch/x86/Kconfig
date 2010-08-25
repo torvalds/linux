@@ -27,6 +27,7 @@ config X86
 	select HAVE_PERF_EVENTS if (!M386 && !M486)
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
+	select HAVE_MEMBLOCK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_DMA_ATTRS
@@ -193,9 +194,6 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-	def_bool y
-
-config HAVE_EARLY_RES
 	def_bool y
 
 config HAVE_INTEL_TXT
@@ -590,13 +588,12 @@ config NO_BOOTMEM
 	default y
 	bool "Disable Bootmem code"
 	---help---
-	  Use early_res directly instead of bootmem before slab is ready.
+	  Use memblock directly instead of bootmem before slab is ready.
 		- allocator (buddy) [generic]
 		- early allocator (bootmem) [generic]
-		- very early allocator (reserve_early*()) [x86]
+		- very early allocator (memblock) [some generic]
 		- very very early allocator (early brk model) [x86]
 	  So reduce one layer between early allocator to final allocator
-
 
 config MEMTEST
 	bool "Memtest"

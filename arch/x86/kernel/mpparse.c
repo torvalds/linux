@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
@@ -641,7 +642,7 @@ static void __init smp_reserve_memory(struct mpf_intel *mpf)
 {
 	unsigned long size = get_mpc_size(mpf->physptr);
 
-	reserve_early_overlap_ok(mpf->physptr, mpf->physptr+size, "MP-table mpc");
+	memblock_x86_reserve_range(mpf->physptr, mpf->physptr+size, "* MP-table mpc");
 }
 
 static int __init smp_scan_config(unsigned long base, unsigned long length)
@@ -670,7 +671,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 			       mpf, (u64)virt_to_phys(mpf));
 
 			mem = virt_to_phys(mpf);
-			reserve_early_overlap_ok(mem, mem + sizeof(*mpf), "MP-table mpf");
+			memblock_x86_reserve_range(mem, mem + sizeof(*mpf), "* MP-table mpf");
 			if (mpf->physptr)
 				smp_reserve_memory(mpf);
 

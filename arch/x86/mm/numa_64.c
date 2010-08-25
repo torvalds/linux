@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
@@ -171,8 +172,8 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 	if (start < (MAX_DMA32_PFN<<PAGE_SHIFT) &&
 	    end > (MAX_DMA32_PFN<<PAGE_SHIFT))
 		start = MAX_DMA32_PFN<<PAGE_SHIFT;
-	mem = find_e820_area(start, end, size, align);
-	if (mem != -1L)
+	mem = memblock_x86_find_in_range_node(nodeid, start, end, size, align);
+	if (mem != MEMBLOCK_ERROR)
 		return __va(mem);
 
 	/* extend the search scope */
@@ -181,8 +182,8 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 		start = MAX_DMA32_PFN<<PAGE_SHIFT;
 	else
 		start = MAX_DMA_PFN<<PAGE_SHIFT;
-	mem = find_e820_area(start, end, size, align);
-	if (mem != -1L)
+	mem = memblock_x86_find_in_range_node(nodeid, start, end, size, align);
+	if (mem != MEMBLOCK_ERROR)
 		return __va(mem);
 
 	printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
