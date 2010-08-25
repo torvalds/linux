@@ -832,7 +832,6 @@ enum {
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
 	WRITE_BM_AFTER_RESYNC,	/* A kmalloc() during resync failed */
-	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */

@@ -1032,20 +1032,6 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 		return 0;
 	}
 
-	/* Reject barrier requests if we know the underlying device does
-	 * not support them.
-	 * XXX: Need to get this info from peer as well some how so we
-	 * XXX: reject if EITHER side/data/metadata area does not support them.
-	 *
-	 * because of those XXX, this is not yet enabled,
-	 * i.e. in drbd_init_set_defaults we set the NO_BARRIER_SUPP bit.
-	 */
-	if (unlikely(bio->bi_rw & REQ_HARDBARRIER) && test_bit(NO_BARRIER_SUPP, &mdev->flags)) {
-		/* dev_warn(DEV, "Rejecting barrier request as underlying device does not support\n"); */
-		bio_endio(bio, -EOPNOTSUPP);
-		return 0;
-	}
-
 	/*
 	 * what we "blindly" assume:
 	 */

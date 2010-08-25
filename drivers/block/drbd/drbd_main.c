@@ -2788,11 +2788,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 
 	drbd_set_defaults(mdev);
 
-	/* for now, we do NOT yet support it,
-	 * even though we start some framework
-	 * to eventually support barriers */
-	set_bit(NO_BARRIER_SUPP, &mdev->flags);
-
 	atomic_set(&mdev->ap_bio_cnt, 0);
 	atomic_set(&mdev->ap_pending_cnt, 0);
 	atomic_set(&mdev->rs_pending_cnt, 0);
