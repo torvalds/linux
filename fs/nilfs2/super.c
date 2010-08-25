@@ -783,6 +783,40 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 	return ret;
 }
 
+static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
+				 struct dentry **root_dentry)
+{
+	struct the_nilfs *nilfs = NILFS_SB(s)->s_nilfs;
+	struct nilfs_root *root;
+	int ret;
+
+	down_read(&nilfs->ns_segctor_sem);
+	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, cno);
+	up_read(&nilfs->ns_segctor_sem);
+	if (ret < 0) {
+		ret = (ret == -ENOENT) ? -EINVAL : ret;
+		goto out;
+	} else if (!ret) {
+		printk(KERN_ERR "NILFS: The specified checkpoint is "
+		       "not a snapshot (checkpoint number=%llu).\n",
+		       (unsigned long long)cno);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = nilfs_attach_checkpoint(NILFS_SB(s), cno, false, &root);
+	if (ret) {
+		printk(KERN_ERR "NILFS: error loading snapshot "
+		       "(checkpoint number=%llu).\n",
+	       (unsigned long long)cno);
+		goto out;
+	}
+	ret = nilfs_get_root_dentry(s, root, root_dentry);
+	nilfs_put_root(root);
+ out:
+	return ret;
+}
+
 /**
  * nilfs_fill_super() - initialize a super block instance
  * @sb: super_block
@@ -800,7 +834,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	struct nilfs_sb_info *sbi;
 	struct nilfs_root *fsroot;
 	__u64 cno;
-	int err, curr_mnt;
+	int err;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -841,35 +875,17 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	if (err)
 		goto failed_sbi;
 
-	cno = nilfs_last_cno(nilfs);
-	curr_mnt = true;
+	if (nilfs_test_opt(sbi, SNAPSHOT)) {
+		err = nilfs_attach_snapshot(sb, sbi->s_snapshot_cno,
+					    &sb->s_root);
+		if (err)
+			goto failed_sbi;
 
-	if (sb->s_flags & MS_RDONLY) {
-		if (nilfs_test_opt(sbi, SNAPSHOT)) {
-			down_read(&nilfs->ns_segctor_sem);
-			err = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile,
-						       sbi->s_snapshot_cno);
-			up_read(&nilfs->ns_segctor_sem);
-			if (err < 0) {
-				if (err == -ENOENT)
-					err = -EINVAL;
-				goto failed_sbi;
-			}
-			if (!err) {
-				printk(KERN_ERR
-				       "NILFS: The specified checkpoint is "
-				       "not a snapshot "
-				       "(checkpoint number=%llu).\n",
-				       (unsigned long long)sbi->s_snapshot_cno);
-				err = -EINVAL;
-				goto failed_sbi;
-			}
-			cno = sbi->s_snapshot_cno;
-			curr_mnt = false;
-		}
+		goto add_to_supers;
 	}
 
-	err = nilfs_attach_checkpoint(sbi, cno, curr_mnt, &fsroot);
+	cno = nilfs_last_cno(nilfs);
+	err = nilfs_attach_checkpoint(sbi, cno, true, &fsroot);
 	if (err) {
 		printk(KERN_ERR "NILFS: error loading a checkpoint"
 		       " (checkpoint number=%llu).\n", (unsigned long long)cno);
@@ -894,6 +910,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		up_write(&nilfs->ns_sem);
 	}
 
+ add_to_supers:
 	down_write(&nilfs->ns_super_sem);
 	list_add(&sbi->s_list, &nilfs->ns_supers);
 	if (!nilfs_test_opt(sbi, SNAPSHOT))
