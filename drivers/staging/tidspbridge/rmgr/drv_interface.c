@@ -39,7 +39,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/services.h>
 #include <dspbridge/clk.h>
 #include <dspbridge/sync.h>
 
@@ -270,7 +269,6 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 #endif
 
 	dsp_clk_init();
-	services_init();
 
 	drv_datap = kzalloc(sizeof(struct drv_data), GFP_KERNEL);
 	if (!drv_datap) {
@@ -327,7 +325,6 @@ err1:
 					CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 	dsp_clk_exit();
-	services_exit();
 
 	return err;
 }
@@ -420,7 +417,6 @@ func_cont:
 	mem_ext_phys_pool_release();
 
 	dsp_clk_exit();
-	services_exit();
 
 	devno = MKDEV(driver_major, 0);
 	cdev_del(&bridge_cdev);

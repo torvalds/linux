@@ -29,7 +29,6 @@
 
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/ntfy.h>
-#include <dspbridge/services.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/chnl.h>
