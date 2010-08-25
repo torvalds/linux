@@ -914,24 +914,24 @@ DEFINE_CLOCK(spba_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG0_OFFSET,
 	NULL,  NULL, &ipg_clk, NULL);
 
 /* UART */
-DEFINE_CLOCK(uart1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG4_OFFSET,
-	NULL,  NULL, &uart_root_clk, NULL);
-DEFINE_CLOCK(uart2_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG6_OFFSET,
-	NULL,  NULL, &uart_root_clk, NULL);
-DEFINE_CLOCK(uart3_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG8_OFFSET,
-	NULL,  NULL, &uart_root_clk, NULL);
 DEFINE_CLOCK(uart1_ipg_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG3_OFFSET,
 	NULL,  NULL, &ipg_clk, &aips_tz1_clk);
 DEFINE_CLOCK(uart2_ipg_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG5_OFFSET,
 	NULL,  NULL, &ipg_clk, &aips_tz1_clk);
 DEFINE_CLOCK(uart3_ipg_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG7_OFFSET,
 	NULL,  NULL, &ipg_clk, &spba_clk);
+DEFINE_CLOCK(uart1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG4_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart1_ipg_clk);
+DEFINE_CLOCK(uart2_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG6_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart2_ipg_clk);
+DEFINE_CLOCK(uart3_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG8_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart3_ipg_clk);
 
 /* GPT */
-DEFINE_CLOCK(gpt_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG9_OFFSET,
-	NULL,  NULL, &ipg_clk, NULL);
 DEFINE_CLOCK(gpt_ipg_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG10_OFFSET,
 	NULL,  NULL, &ipg_clk, NULL);
+DEFINE_CLOCK(gpt_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG9_OFFSET,
+	NULL,  NULL, &ipg_clk, &gpt_ipg_clk);
 
 /* I2C */
 DEFINE_CLOCK(i2c1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG9_OFFSET,
@@ -1003,6 +1003,9 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc_nand", NULL, nfc_clk)
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
+	_REGISTER_CLOCK(NULL, "ckih", ckih_clk)
+	_REGISTER_CLOCK(NULL, "ckih2", ckih2_clk)
+	_REGISTER_CLOCK(NULL, "gpt_32k", gpt_32k_clk)
 	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
 	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
 	_REGISTER_CLOCK("imx51-cspi.0", NULL, cspi_clk)
