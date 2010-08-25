@@ -369,8 +369,9 @@ compare:
 	 * after setting the 4BITECC_ADD_CALC_START bit. So if you immediately
 	 * begin trying to poll for the state, you may fall right out of your
 	 * loop without any of the correction calculations having taken place.
-	 * The recommendation from the hardware team is to wait till ECC_STATE
-	 * reads less than 4, which means ECC HW has entered correction state.
+	 * The recommendation from the hardware team is to initially delay as
+	 * long as ECC_STATE reads less than 4. After that, ECC HW has entered
+	 * correction state.
 	 */
 	do {
 		ecc_state = (davinci_nand_readl(info,
