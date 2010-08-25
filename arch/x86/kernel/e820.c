@@ -739,32 +739,6 @@ core_initcall(e820_mark_nvs_memory);
 #endif
 
 /*
- * Find a free area with specified alignment in a specific range.
- */
-u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
-{
-	u64 mem = memblock_find_in_range(start, end, size, align);
-
-	if (mem == MEMBLOCK_ERROR)
-		return -1ULL;
-
-	return mem;
-}
-
-/*
- * Find next free range after *start
- */
-u64 __init find_e820_area_size(u64 start, u64 *sizep, u64 align)
-{
-	u64 mem = memblock_x86_find_in_range_size(start, sizep, align);
-
-	if (mem == MEMBLOCK_ERROR)
-		return -1ULL
-
-	return mem;
-}
-
-/*
  * pre allocated 4k and reserved it in memblock and e820_saved
  */
 u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
@@ -854,32 +828,6 @@ unsigned long __init e820_end_of_ram_pfn(void)
 unsigned long __init e820_end_of_low_ram_pfn(void)
 {
 	return e820_end_pfn(1UL<<(32 - PAGE_SHIFT), E820_RAM);
-}
-
-/* Walk the e820 map and register active regions within a node */
-void __init e820_register_active_regions(int nid, unsigned long start_pfn,
-					 unsigned long last_pfn)
-{
-	memblock_x86_register_active_regions(nid, start_pfn, last_pfn);
-}
-
-/*
- * Find the hole size (in bytes) in the memory range.
- * @start: starting address of the memory range to scan
- * @end: ending address of the memory range to scan
- */
-u64 __init e820_hole_size(u64 start, u64 end)
-{
-	return memblock_x86_hole_size(start, end);
-}
-
-void reserve_early(u64 start, u64 end, char *name)
-{
-	memblock_x86_reserve_range(start, end, name);
-}
-void free_early(u64 start, u64 end)
-{
-	memblock_x86_free_range(start, end);
 }
 
 static void early_panic(char *msg)
