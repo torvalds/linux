@@ -436,7 +436,7 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 {
 #ifdef CONFIG_NO_BOOTMEM
 	kmemleak_free_part(__va(physaddr), size);
-	free_early(physaddr, physaddr + size);
+	memblock_x86_free_range(physaddr, physaddr + size);
 #else
 	unsigned long start, end;
 
@@ -462,7 +462,7 @@ void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 #ifdef CONFIG_NO_BOOTMEM
 	kmemleak_free_part(__va(addr), size);
-	free_early(addr, addr + size);
+	memblock_x86_free_range(addr, addr + size);
 #else
 	unsigned long start, end;
 

@@ -21,6 +21,7 @@
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
 #include <linux/pfn.h>
@@ -577,18 +578,18 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 	unsigned long bootmap_size, bootmap;
 
 	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
-	bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size,
+	bootmap = memblock_find_in_range(0, end_pfn<<PAGE_SHIFT, bootmap_size,
 				 PAGE_SIZE);
-	if (bootmap == -1L)
+	if (bootmap == MEMBLOCK_ERROR)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
-	reserve_early(bootmap, bootmap + bootmap_size, "BOOTMAP");
+	memblock_x86_reserve_range(bootmap, bootmap + bootmap_size, "BOOTMAP");
 	/* don't touch min_low_pfn */
 	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap >> PAGE_SHIFT,
 					 0, end_pfn);
-	e820_register_active_regions(0, start_pfn, end_pfn);
+	memblock_x86_register_active_regions(0, start_pfn, end_pfn);
 	free_bootmem_with_active_regions(0, end_pfn);
 #else
-	e820_register_active_regions(0, start_pfn, end_pfn);
+	memblock_x86_register_active_regions(0, start_pfn, end_pfn);
 #endif
 }
 #endif
