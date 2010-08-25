@@ -25,6 +25,21 @@ struct platform_device *__init imx_add_imx_i2c(int id,
 		resource_size_t iobase, resource_size_t iosize, int irq,
 		const struct imxi2c_platform_data *pdata);
 
+#include <mach/ssi.h>
+struct imx_imx_ssi_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+	resource_size_t dmatx0;
+	resource_size_t dmarx0;
+	resource_size_t dmatx1;
+	resource_size_t dmarx1;
+};
+struct platform_device *__init imx_add_imx_ssi(
+		const struct imx_imx_ssi_data *data,
+		const struct imx_ssi_platform_data *pdata);
+
 #include <mach/imx-uart.h>
 struct imx_imx_uart_3irq_data {
 	int id;

@@ -38,7 +38,6 @@
 #include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
 #include <mach/audmux.h>
-#include <mach/ssi.h>
 #include <mach/mxc_nand.h>
 #include <mach/irqs.h>
 #include <mach/mmc.h>
@@ -252,7 +251,7 @@ static void pca100_ac97_cold_reset(struct snd_ac97 *ac97)
 	msleep(2);
 }
 
-static struct imx_ssi_platform_data pca100_ssi_pdata = {
+static const struct imx_ssi_platform_data pca100_ssi_pdata __initconst = {
 	.ac97_reset		= pca100_ac97_cold_reset,
 	.ac97_warm_reset	= pca100_ac97_warm_reset,
 	.flags			= IMX_SSI_USE_AC97,
@@ -389,7 +388,7 @@ static void __init pca100_init(void)
 	if (ret)
 		printk(KERN_ERR "pca100: Failed to setup pins (%d)\n", ret);
 
-	mxc_register_device(&imx_ssi_device0, &pca100_ssi_pdata);
+	imx27_add_imx_ssi(0, &pca100_ssi_pdata);
 
 	imx27_add_imx_uart0(&uart_pdata);
 

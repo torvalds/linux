@@ -16,6 +16,10 @@
 #define imx31_add_imx_i2c2(pdata)	\
 	imx_add_imx_i2c(2, MX31_I2C3_BASE_ADDR, SZ_4K, MX31_INT_I2C3, pdata)
 
+extern const struct imx_imx_ssi_data imx31_imx_ssi_data[] __initconst;
+#define imx31_add_imx_ssi(id, pdata)    \
+	imx_add_imx_ssi(&imx31_imx_ssi_data[id], pdata)
+
 extern const struct imx_imx_uart_1irq_data imx31_imx_uart_data[] __initconst;
 #define imx31_add_imx_uart(id, pdata)	\
 	imx_add_imx_uart_1irq(&imx31_imx_uart_data[id], pdata)

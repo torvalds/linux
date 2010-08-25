@@ -146,8 +146,8 @@ choice
 	default MACH_EUKREA_MBIMX27_BASEBOARD
 
 config MACH_EUKREA_MBIMX27_BASEBOARD
-	prompt "Eukrea MBIMX27 development board"
-	bool
+	bool "Eukrea MBIMX27 development board"
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
@@ -182,6 +182,7 @@ config MACH_IMX27LITE
 config MACH_PCA100
 	bool "Phytec phyCARD-s (pca100)"
 	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SPI_IMX

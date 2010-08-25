@@ -21,6 +21,10 @@
 #define imx25_add_imx_i2c2(pdata)	\
 	imx_add_imx_i2c(2, MX25_I2C3_BASE_ADDR, SZ_16K, MX25_INT_I2C3, pdata)
 
+extern const struct imx_imx_ssi_data imx25_imx_ssi_data[] __initconst;
+#define imx25_add_imx_ssi(id, pdata)	\
+	imx_add_imx_ssi(&imx25_imx_ssi_data[id], pdata)
+
 extern const struct imx_imx_uart_1irq_data imx25_imx_uart_data[] __initconst;
 #define imx25_add_imx_uart(id, pdata)	\
 	imx_add_imx_uart_1irq(&imx25_imx_uart_data[id], pdata)

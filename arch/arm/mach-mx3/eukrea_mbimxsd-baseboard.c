@@ -43,7 +43,6 @@
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
 #include <mach/audmux.h>
-#include <mach/ssi.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -206,7 +205,8 @@ static struct i2c_board_info eukrea_mbimxsd_i2c_devices[] = {
 	},
 };
 
-struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata = {
+static const
+struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata __initconst = {
 	.flags = IMX_SSI_SYN | IMX_SSI_NET | IMX_SSI_USE_I2S_SLAVE,
 };
 
@@ -242,7 +242,7 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 
-	mxc_register_device(&imx_ssi_device0, &eukrea_mbimxsd_ssi_pdata);
+	imx35_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);
