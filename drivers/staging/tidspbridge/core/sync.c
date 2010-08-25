@@ -21,6 +21,7 @@
 
 /*  ----------------------------------- This */
 #include <dspbridge/sync.h>
+#include <dspbridge/ntfy.h>
 
 DEFINE_SPINLOCK(sync_lock);
 
@@ -102,3 +103,19 @@ func_end:
 	return status;
 }
 
+/**
+ * dsp_notifier_event() - callback function to nofity events
+ * @this:		pointer to itself struct notifier_block
+ * @event:	event to be notified.
+ * @data:		Currently not used.
+ *
+ */
+int dsp_notifier_event(struct notifier_block *this, unsigned long event,
+							void *data)
+{
+	struct  ntfy_event *ne = container_of(this, struct ntfy_event,
+							noti_block);
+	if (ne->event & event)
+		sync_set_event(&ne->sync_obj);
+	return NOTIFY_OK;
+}
