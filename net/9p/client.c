@@ -1168,6 +1168,12 @@ int p9_client_clunk(struct p9_fid *fid)
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 
+	if (!fid) {
+		P9_EPRINTK(KERN_WARNING, "Trying to clunk with NULL fid\n");
+		dump_stack();
+		return 0;
+	}
+
 	P9_DPRINTK(P9_DEBUG_9P, ">>> TCLUNK fid %d\n", fid->fid);
 	err = 0;
 	clnt = fid->clnt;
