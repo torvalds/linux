@@ -33,6 +33,7 @@
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
 #include <linux/spi/spi.h>
+#include <linux/l3g4200d.h>
 
 #include <mach/gpio.h>
 #include <mach/iomap.h>
@@ -383,13 +384,10 @@ struct regulator_consumer_supply cpcap_vcam_consumers[] = {
 
 struct regulator_consumer_supply cpcap_vhvio_consumers[] = {
 	REGULATOR_CONSUMER("vhvio", NULL /* lighting_driver */),
-#if 0
-	REGULATOR_CONSUMER("vhvio", NULL /* lighting_driver */),
-	REGULATOR_CONSUMER("vhvio", NULL /* magnetometer */),
-	REGULATOR_CONSUMER("vhvio", NULL /* light sensor */),
-	REGULATOR_CONSUMER("vhvio", NULL /* accelerometer */),
-	REGULATOR_CONSUMER("vhvio", NULL /* display */),
-#endif
+	REGULATOR_CONSUMER("vcc", "2-0068" /* gyro*/),
+	REGULATOR_CONSUMER("vcc", "3-000c" /* magnetometer */),
+	REGULATOR_CONSUMER("vcc", "0-0077" /* barometer */),
+	REGULATOR_CONSUMER("vcc", "3-000f" /* accelerometer */),
 };
 
 struct regulator_consumer_supply cpcap_vsdio_consumers[] = {
