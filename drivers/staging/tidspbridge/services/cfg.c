@@ -30,47 +30,6 @@
 #include <dspbridge/cfg.h>
 #include <dspbridge/drv.h>
 
-struct drv_ext {
-	struct list_head link;
-	char sz_string[MAXREGPATHLENGTH];
-};
-
-/*
- *  ======== cfg_get_dev_object ========
- *  Purpose:
- *      Retrieve the Device Object handle for a given devnode.
- */
-int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
-			      u32 *value)
-{
-	int status = 0;
-	u32 dw_buf_size;
-	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	if (!drv_datap)
-		status = -EPERM;
-
-	if (!dev_node_obj)
-		status = -EFAULT;
-
-	if (!value)
-		status = -EFAULT;
-
-	dw_buf_size = sizeof(value);
-	if (!status) {
-
-		/* check the device string and then store dev object */
-		if (!
-		    (strcmp
-		     ((char *)((struct drv_ext *)dev_node_obj)->sz_string,
-		      "TIOMAP1510")))
-			*value = (u32)drv_datap->dev_object;
-	}
-	if (status)
-		pr_err("%s: Failed, status 0x%x\n", __func__, status);
-	return status;
-}
-
 /*
  *  ======== cfg_get_exec_file ========
  *  Purpose:

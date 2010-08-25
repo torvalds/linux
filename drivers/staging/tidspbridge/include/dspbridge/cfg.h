@@ -41,27 +41,6 @@
 extern int cfg_get_cd_version(u32 *version);
 
 /*
- *  ======== cfg_get_dev_object ========
- *  Purpose:
- *      Retrieve the Device Object handle for a given devnode.
- *  Parameters:
- *      dev_node_obj:	Platform's dev_node handle from which to retrieve
- *      		value.
- *      value:          Ptr to location to store the value.
- *  Returns:
- *      0:                Success.
- *      -EFAULT: dev_node_obj is invalid or device_obj is invalid.
- *      -ENODATA: The resource is not available.
- *  Requires:
- *      CFG initialized.
- *  Ensures:
- *      0:    *value is set to the retrieved u32.
- *      else:       *value is set to 0L.
- */
-extern int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
-				     u32 *value);
-
-/*
  *  ======== cfg_get_exec_file ========
  *  Purpose:
  *      Retreive the default executable, if any, for this board.

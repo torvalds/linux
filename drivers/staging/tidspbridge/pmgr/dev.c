@@ -85,6 +85,11 @@ struct dev_object {
 	struct node_mgr *hnode_mgr;
 };
 
+struct drv_ext {
+	struct list_head link;
+	char sz_string[MAXREGPATHLENGTH];
+};
+
 /*  ----------------------------------- Globals */
 static u32 refs;		/* Module reference count */
 
@@ -812,17 +817,30 @@ int dev_remove_device(struct cfg_devnode *dev_node_obj)
 {
 	struct dev_object *hdev_obj;	/* handle to device object */
 	int status = 0;
-	struct dev_object *dev_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
+
+	if (!drv_datap)
+		status = -ENODATA;
+
+	if (!dev_node_obj)
+		status = -EFAULT;
 
 	/* Retrieve the device object handle originaly stored with
 	 * the dev_node: */
-	status = cfg_get_dev_object(dev_node_obj, (u32 *) &hdev_obj);
 	if (!status) {
-		/* Remove the Processor List */
-		dev_obj = (struct dev_object *)hdev_obj;
-		/* Destroy the device object. */
-		status = dev_destroy_device(hdev_obj);
+		/* check the device string and then store dev object */
+		if (!strcmp((char *)((struct drv_ext *)dev_node_obj)->sz_string,
+								"TIOMAP1510")) {
+			hdev_obj = drv_datap->dev_object;
+			/* Destroy the device object. */
+			status = dev_destroy_device(hdev_obj);
+		} else {
+			status = -EPERM;
+		}
 	}
+
+	if (status)
+		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 
 	return status;
 }
