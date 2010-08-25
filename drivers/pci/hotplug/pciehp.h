@@ -178,5 +178,9 @@ static inline void pciehp_firmware_init(void)
 }
 #else
 #define pciehp_firmware_init()				do {} while (0)
+static inline int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
+{
+	return 0;
+}
 #endif 				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */
