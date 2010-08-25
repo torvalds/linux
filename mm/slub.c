@@ -2909,7 +2909,7 @@ static void slab_mem_offline_callback(void *arg)
 			BUG_ON(slabs_node(s, offline_node));
 
 			s->node[offline_node] = NULL;
-			kmem_cache_free(kmalloc_caches, n);
+			kmem_cache_free(kmem_cache_node, n);
 		}
 	}
 	up_read(&slub_lock);
@@ -2942,7 +2942,7 @@ static int slab_mem_going_online_callback(void *arg)
 		 *      since memory is not yet available from the node that
 		 *      is brought up.
 		 */
-		n = kmem_cache_alloc(kmalloc_caches, GFP_KERNEL);
+		n = kmem_cache_alloc(kmem_cache_node, GFP_KERNEL);
 		if (!n) {
 			ret = -ENOMEM;
 			goto out;
