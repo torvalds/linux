@@ -104,6 +104,27 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj_priv)
     }
 }
 
+static void
+describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
+{
+	seq_printf(m, "%p: %s%s %8zd %08x %08x %d%s%s",
+		   &obj->base,
+		   get_pin_flag(obj),
+		   get_tiling_flag(obj),
+		   obj->base.size,
+		   obj->base.read_domains,
+		   obj->base.write_domain,
+		   obj->last_rendering_seqno,
+		   obj->dirty ? " dirty" : "",
+		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
+	if (obj->base.name)
+		seq_printf(m, " (name: %d)", obj->base.name);
+	if (obj->fence_reg != I915_FENCE_REG_NONE)
+		seq_printf(m, " (fence: %d)", obj->fence_reg);
+	if (obj->gtt_space != NULL)
+		seq_printf(m, " (gtt_offset: %08x)", obj->gtt_offset);
+}
+
 static int i915_gem_object_list_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -137,23 +158,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	list_for_each_entry(obj_priv, head, list) {
-		seq_printf(m, "    %p: %s %8zd %08x %08x %d%s%s",
-			   &obj_priv->base,
-			   get_pin_flag(obj_priv),
-			   obj_priv->base.size,
-			   obj_priv->base.read_domains,
-			   obj_priv->base.write_domain,
-			   obj_priv->last_rendering_seqno,
-			   obj_priv->dirty ? " dirty" : "",
-			   obj_priv->madv == I915_MADV_DONTNEED ? " purgeable" : "");
-
-		if (obj_priv->base.name)
-			seq_printf(m, " (name: %d)", obj_priv->base.name);
-		if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-			seq_printf(m, " (fence: %d)", obj_priv->fence_reg);
-		if (obj_priv->gtt_space != NULL)
-			seq_printf(m, " (gtt_offset: %08x)", obj_priv->gtt_offset);
-
+		seq_printf(m, "   ");
+		describe_obj(m, obj_priv);
 		seq_printf(m, "\n");
 	}
 
@@ -815,6 +821,48 @@ static int i915_opregion(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_fbdev *ifbdev;
+	struct intel_framebuffer *fb;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (ret)
+		return ret;
+
+	ifbdev = dev_priv->fbdev;
+	fb = to_intel_framebuffer(ifbdev->helper.fb);
+
+	seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, obj ",
+		   fb->base.width,
+		   fb->base.height,
+		   fb->base.depth,
+		   fb->base.bits_per_pixel);
+	describe_obj(m, to_intel_bo(fb->obj));
+	seq_printf(m, "\n");
+
+	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
+		if (&fb->base == ifbdev->helper.fb)
+			continue;
+
+		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, obj ",
+			   fb->base.width,
+			   fb->base.height,
+			   fb->base.depth,
+			   fb->base.bits_per_pixel);
+		describe_obj(m, to_intel_bo(fb->obj));
+		seq_printf(m, "\n");
+	}
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return 0;
+}
+
 static int
 i915_wedged_open(struct inode *inode,
 		 struct file *filp)
@@ -944,6 +992,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_fbc_status", i915_fbc_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
+	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

@@ -30,8 +30,8 @@
 #include <linux/i2c-algo-bit.h>
 #include "i915_drv.h"
 #include "drm_crtc.h"
-
 #include "drm_crtc_helper.h"
+#include "drm_fb_helper.h"
 
 #define _wait_for(COND, MS, W) ({ \
 	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
@@ -129,6 +129,12 @@ struct intel_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+struct intel_fbdev {
+	struct drm_fb_helper helper;
+	struct intel_framebuffer ifb;
+	struct list_head fbdev_list;
+	struct drm_display_mode *our_mode;
+};
 
 struct intel_encoder {
 	struct drm_encoder enc;

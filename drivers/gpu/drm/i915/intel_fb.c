@@ -44,13 +44,6 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-struct intel_fbdev {
-	struct drm_fb_helper helper;
-	struct intel_framebuffer ifb;
-	struct list_head fbdev_list;
-	struct drm_display_mode *our_mode;
-};
-
 static struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
