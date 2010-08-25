@@ -236,7 +236,6 @@ struct asus_laptop {
 	u8 light_level;		/* light sensor level */
 	u8 light_switch;	/* light sensor switch value */
 	u16 event_count[128];	/* count for each event TODO make this better */
-	u16 *keycode_map;
 };
 
 static const struct key_entry asus_keymap[] = {
