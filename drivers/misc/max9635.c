@@ -17,7 +17,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/earlysuspend.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/input.h>
@@ -58,7 +57,6 @@ struct max9635_data {
 	struct i2c_client *client;
 	struct delayed_work working_queue;
 	struct max9635_platform_data *als_pdata;
-	struct early_suspend early_suspend;
 	struct max9635_zone_conv max9635_zone_info[255];
 	atomic_t enabled;
 	int irq;
@@ -80,11 +78,6 @@ struct max9635_reg {
 	{"ALS_THRESH_L",	MAX9635_ALS_THRESH_L},
 	{"ALS_THRESH_TIMER",	MAX9635_THRESH_TIMER},
 };
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void max9635_early_suspend(struct early_suspend *handler);
-static void max9635_late_resume(struct early_suspend *handler);
 #endif
 
 static uint32_t max9635_debug = 0x00;
@@ -580,13 +573,6 @@ static int max9635_probe(struct i2c_client *client,
 		goto err_create_registers_file_failed;
 	}
 #endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	als_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	als_data->early_suspend.suspend = max9635_early_suspend;
-	als_data->early_suspend.resume = max9635_late_resume;
-	register_early_suspend(&als_data->early_suspend);
-#endif
 	disable_irq_nosync(als_data->client->irq);
 	schedule_delayed_work(&als_data->working_queue, 0);
 
@@ -655,24 +641,6 @@ static int max9635_resume(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void max9635_early_suspend(struct early_suspend *handler)
-{
-	struct max9635_data *als_data;
-
-	als_data = container_of(handler, struct max9635_data, early_suspend);
-	max9635_suspend(als_data->client, PMSG_SUSPEND);
-}
-
-static void max9635_late_resume(struct early_suspend *handler)
-{
-	struct max9635_data *als_data;
-
-	als_data = container_of(handler, struct max9635_data, early_suspend);
-	max9635_resume(als_data->client);
-}
-#endif
-
 static const struct i2c_device_id max9635_id[] = {
 	{MAX9635_NAME, 0},
 	{}
@@ -681,10 +649,8 @@ static const struct i2c_device_id max9635_id[] = {
 static struct i2c_driver max9635_i2c_driver = {
 	.probe = max9635_probe,
 	.remove = max9635_remove,
-#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend = max9635_suspend,
 	.resume = max9635_resume,
-#endif
 	.id_table = max9635_id,
 	.driver = {
 	   .name = MAX9635_NAME,
