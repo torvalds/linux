@@ -148,6 +148,7 @@ int dev_create_device(struct dev_object **device_obj,
 	struct io_attrs io_mgr_attrs;
 	u32 num_windows;
 	struct drv_object *hdrv_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(device_obj != NULL);
@@ -163,10 +164,15 @@ int dev_create_device(struct dev_object **device_obj,
 
 	/*  Get the Bridge driver interface functions */
 	bridge_drv_entry(&drv_fxns, driver_file_name);
-	if (cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT)) {
-		/* don't propogate CFG errors from this PROC function */
+
+	/* Retrieve the Object handle from the driver data */
+	if (drv_datap && drv_datap->drv_object) {
+		hdrv_obj = drv_datap->drv_object;
+	} else {
 		status = -EPERM;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
+
 	/* Create the device object, and pass a handle to the Bridge driver for
 	 * storage. */
 	if (!status) {

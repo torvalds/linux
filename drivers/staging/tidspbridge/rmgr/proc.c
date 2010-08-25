@@ -280,6 +280,7 @@ proc_attach(u32 processor_id,
 	struct proc_object *p_proc_object = NULL;
 	struct mgr_object *hmgr_obj = NULL;
 	struct drv_object *hdrv_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	u8 dev_type;
 
 	DBC_REQUIRE(refs > 0);
@@ -291,9 +292,13 @@ proc_attach(u32 processor_id,
 	}
 
 	/* Get the Driver and Manager Object Handles */
-	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
-	if (!status)
-		status = cfg_get_object((u32 *) &hmgr_obj, REG_MGR_OBJECT);
+	if (!drv_datap || !drv_datap->drv_object || !drv_datap->mgr_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to get object handles\n", __func__);
+	} else {
+		hdrv_obj = drv_datap->drv_object;
+		hmgr_obj = drv_datap->mgr_object;
+	}
 
 	if (!status) {
 		/* Get the Device Object */
@@ -440,6 +445,7 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 	char sz_exec_file[MAXCMDLINELEN];
 	char *argv[2];
 	struct mgr_object *hmgr_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	u8 dev_type;
 
 	DBC_REQUIRE(refs > 0);
@@ -447,9 +453,13 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 	DBC_REQUIRE(hdev_obj != NULL);
 
 	/* Create a Dummy PROC Object */
-	status = cfg_get_object((u32 *) &hmgr_obj, REG_MGR_OBJECT);
-	if (status)
+	if (!drv_datap || !drv_datap->mgr_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 		goto func_end;
+	} else {
+		hmgr_obj = drv_datap->mgr_object;
+	}
 
 	p_proc_object = kzalloc(sizeof(struct proc_object), GFP_KERNEL);
 	if (p_proc_object == NULL) {

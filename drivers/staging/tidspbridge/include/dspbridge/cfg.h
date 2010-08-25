@@ -41,23 +41,6 @@
 extern int cfg_get_cd_version(u32 *version);
 
 /*
- *  ======== cfg_get_object ========
- *  Purpose:
- *      Retrieve the Driver Object handle From the Registry
- *  Parameters:
- *      value:      Ptr to location to store the value.
- *      dw_type      Type of Object to Get
- *  Returns:
- *      0:    Success.
- *  Requires:
- *      CFG initialized.
- *  Ensures:
- *      0:    *value is set to the retrieved u32(non-Zero).
- *      else:       *value is set to 0L.
- */
-extern int cfg_get_object(u32 *value, u8 dw_type);
-
-/*
  *  ======== cfg_get_perf_value ========
  *  Purpose:
  *      Retrieve a flag indicating whether PERF should log statistics for the

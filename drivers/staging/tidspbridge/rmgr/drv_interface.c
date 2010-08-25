@@ -394,11 +394,14 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 	dev_t devno;
 	bool ret;
 	int status = 0;
-	void *hdrv_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
-	if (status)
+	/* Retrieve the Object handle from the driver data */
+	if (!drv_datap || !drv_datap->drv_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 		goto func_cont;
+	}
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	if (cpufreq_unregister_notifier(&iva_clk_notifier,

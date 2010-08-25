@@ -123,6 +123,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	u32 node_index = 0;
 	struct dcd_genericobj gen_obj;
 	struct mgr_object *pmgr_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(pndb_props != NULL);
 	DBC_REQUIRE(pu_num_nodes != NULL);
@@ -130,10 +131,14 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	DBC_REQUIRE(refs > 0);
 
 	*pu_num_nodes = 0;
-	/* Get The Manager Object from the Registry */
-	status = cfg_get_object((u32 *) &pmgr_obj, REG_MGR_OBJECT);
-	if (status)
+	/* Get the Manager Object from the driver data */
+	if (!drv_datap || !drv_datap->mgr_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 		goto func_cont;
+	} else {
+		pmgr_obj = drv_datap->mgr_object;
+	}
 
 	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit failed or no more items in the
@@ -195,6 +200,7 @@ int mgr_enum_processor_info(u32 processor_id,
 	struct drv_object *hdrv_obj;
 	u8 dev_type;
 	struct cfg_devnode *dev_node;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	bool proc_detect = false;
 
 	DBC_REQUIRE(processor_info != NULL);
@@ -203,7 +209,15 @@ int mgr_enum_processor_info(u32 processor_id,
 	DBC_REQUIRE(refs > 0);
 
 	*pu_num_procs = 0;
-	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
+
+	/* Retrieve the Object handle from the driver data */
+	if (!drv_datap || !drv_datap->drv_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
+	} else {
+		hdrv_obj = drv_datap->drv_object;
+	}
+
 	if (!status) {
 		status = drv_get_dev_object(processor_id, hdrv_obj, &hdev_obj);
 		if (!status) {
@@ -219,8 +233,10 @@ int mgr_enum_processor_info(u32 processor_id,
 	if (status)
 		goto func_end;
 
-	/* Get The Manager Object from the Registry */
-	if (cfg_get_object((u32 *) &pmgr_obj, REG_MGR_OBJECT)) {
+	/* Get The Manager Object from the driver data */
+	if (drv_datap && drv_datap->mgr_object) {
+		pmgr_obj = drv_datap->mgr_object;
+	} else {
 		dev_dbg(bridge, "%s: Failed to get MGR Object\n", __func__);
 		goto func_end;
 	}

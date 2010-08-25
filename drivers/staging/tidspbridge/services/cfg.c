@@ -31,50 +31,6 @@
 #include <dspbridge/drv.h>
 
 /*
- *  ======== cfg_get_object ========
- *  Purpose:
- *      Retrieve the Object handle from the Registry
- */
-int cfg_get_object(u32 *value, u8 dw_type)
-{
-	int status = -EINVAL;
-	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	DBC_REQUIRE(value != NULL);
-
-	if (!drv_datap)
-		return -EPERM;
-
-	switch (dw_type) {
-	case (REG_DRV_OBJECT):
-		if (drv_datap->drv_object) {
-			*value = (u32)drv_datap->drv_object;
-			status = 0;
-		} else {
-			status = -ENODATA;
-		}
-		break;
-	case (REG_MGR_OBJECT):
-		if (drv_datap->mgr_object) {
-			*value = (u32)drv_datap->mgr_object;
-			status = 0;
-		} else {
-			status = -ENODATA;
-		}
-		break;
-
-	default:
-		break;
-	}
-	if (status) {
-		*value = 0;
-		pr_err("%s: Failed, status 0x%x\n", __func__, status);
-	}
-	DBC_ENSURE((!status && *value != 0) || (status && *value == 0));
-	return status;
-}
-
-/*
  *  ======== cfg_set_dev_object ========
  *  Purpose:
  *      Store the Device Object handle and dev_node pointer for a given devnode.
