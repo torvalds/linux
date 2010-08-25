@@ -43,7 +43,6 @@
  */
 void services_exit(void)
 {
-	cfg_exit();
 }
 
 /*
@@ -54,17 +53,6 @@ void services_exit(void)
 bool services_init(void)
 {
 	bool ret = true;
-	bool fcfg;
-
-	/* Perform required initialization of SERVICES modules. */
-	fcfg = cfg_init();
-
-	ret = fcfg;
-
-	if (!ret) {
-		if (fcfg)
-			cfg_exit();
-	}
 
 	return ret;
 }

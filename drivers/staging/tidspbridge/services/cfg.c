@@ -36,16 +36,6 @@ struct drv_ext {
 };
 
 /*
- *  ======== cfg_exit ========
- *  Purpose:
- *      Discontinue usage of the CFG module.
- */
-void cfg_exit(void)
-{
-	/* Do nothing */
-}
-
-/*
  *  ======== cfg_get_dev_object ========
  *  Purpose:
  *      Retrieve the Device Object handle for a given devnode.
@@ -154,16 +144,6 @@ int cfg_get_object(u32 *value, u8 dw_type)
 	}
 	DBC_ENSURE((!status && *value != 0) || (status && *value == 0));
 	return status;
-}
-
-/*
- *  ======== cfg_init ========
- *  Purpose:
- *      Initialize the CFG module's private state.
- */
-bool cfg_init(void)
-{
-	return true;
 }
 
 /*

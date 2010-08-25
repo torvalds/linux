@@ -22,19 +22,6 @@
 #include <dspbridge/cfgdefs.h>
 
 /*
- *  ======== cfg_exit ========
- *  Purpose:
- *      Discontinue usage of the CFG module.
- *  Parameters:
- *  Returns:
- *  Requires:
- *      cfg_init(void) was previously called.
- *  Ensures:
- *      Resources acquired in cfg_init(void) are freed.
- */
-extern void cfg_exit(void);
-
-/*
  *  ======== cfg_get_cd_version ========
  *  Purpose:
  *      Retrieves the version of the PM Class Driver.
@@ -150,19 +137,6 @@ extern void cfg_get_perf_value(bool *enable_perf);
  */
 extern int cfg_get_zl_file(struct cfg_devnode *dev_node_obj,
 				  u32 buf_size, char *str_zl_file_name);
-
-/*
- *  ======== cfg_init ========
- *  Purpose:
- *      Initialize the CFG module's private state.
- *  Parameters:
- *  Returns:
- *      TRUE if initialized; FALSE if error occured.
- *  Requires:
- *  Ensures:
- *      A requirement for each of the other public CFG functions.
- */
-extern bool cfg_init(void);
 
 /*
  *  ======== cfg_set_dev_object ========
