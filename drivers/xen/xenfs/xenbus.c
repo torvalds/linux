@@ -142,7 +142,7 @@ static ssize_t xenbus_file_read(struct file *filp,
 		i += sz - ret;
 		rb->cons += sz - ret;
 
-		if (ret != sz) {
+		if (ret != 0) {
 			if (i == 0)
 				i = -EFAULT;
 			goto out;
@@ -453,7 +453,7 @@ static ssize_t xenbus_file_write(struct file *filp,
 
 	ret = copy_from_user(u->u.buffer + u->len, ubuf, len);
 
-	if (ret == len) {
+	if (ret != 0) {
 		rc = -EFAULT;
 		goto out;
 	}
