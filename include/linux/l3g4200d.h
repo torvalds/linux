@@ -63,10 +63,6 @@ struct l3g4200d_platform_data {
 	u8 negate_y;
 	u8 negate_z;
 
-	void (*exit)(void);
-	int (*power_on)(void);
-	int (*power_off)(void);
-
 };
 #endif /* __KERNEL__ */
 
