@@ -53,11 +53,11 @@ struct xc5000_config {
     (defined(CONFIG_MEDIA_TUNER_XC5000_MODULE) && defined(MODULE))
 extern struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
-					  struct xc5000_config *cfg);
+					  const struct xc5000_config *cfg);
 #else
 static inline struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 						 struct i2c_adapter *i2c,
-						 struct xc5000_config *cfg)
+						 const struct xc5000_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

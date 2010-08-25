@@ -230,7 +230,7 @@ static void vbi_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	cx88_free_buffer(q,buf);
 }
 
-struct videobuf_queue_ops cx8800_vbi_qops = {
+const struct videobuf_queue_ops cx8800_vbi_qops = {
 	.buf_setup    = vbi_setup,
 	.buf_prepare  = vbi_prepare,
 	.buf_queue    = vbi_queue,

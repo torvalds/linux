@@ -78,7 +78,7 @@ static int stv0288_writeregI(struct stv0288_state *state, u8 reg, u8 data)
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
-static int stv0288_write(struct dvb_frontend *fe, u8 *buf, int len)
+static int stv0288_write(struct dvb_frontend *fe, const u8 buf[], int len)
 {
 	struct stv0288_state *state = fe->demodulator_priv;
 

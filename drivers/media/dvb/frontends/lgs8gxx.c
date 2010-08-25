@@ -662,7 +662,7 @@ static void lgs8gxx_release(struct dvb_frontend *fe)
 }
 
 
-static int lgs8gxx_write(struct dvb_frontend *fe, u8 *buf, int len)
+static int lgs8gxx_write(struct dvb_frontend *fe, const u8 buf[], int len)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 

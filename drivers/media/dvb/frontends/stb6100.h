@@ -97,13 +97,13 @@ struct stb6100_state {
 #if defined(CONFIG_DVB_STB6100) || (defined(CONFIG_DVB_STB6100_MODULE) && defined(MODULE))
 
 extern struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
-					   struct stb6100_config *config,
+					   const struct stb6100_config *config,
 					   struct i2c_adapter *i2c);
 
 #else
 
 static inline struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
-						  struct stb6100_config *config,
+						  const struct stb6100_config *config,
 						  struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: Driver disabled by Kconfig\n", __func__);

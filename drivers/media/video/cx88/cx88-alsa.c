@@ -94,7 +94,7 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
  ****************************************************************************/
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
+static const char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
 
 module_param_array(enable, bool, NULL, 0444);
@@ -131,7 +131,7 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 {
 	struct cx88_audio_buffer *buf = chip->buf;
 	struct cx88_core *core=chip->core;
-	struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
+	const struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
 
 	/* Make sure RISC/FIFO are off before changing FIFO/RISC settings */
 	cx_clear(MO_AUD_DMACNTRL, 0x11);
@@ -197,7 +197,7 @@ static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 /*
  * BOARD Specific: IRQ dma bits
  */
-static char *cx88_aud_irqs[32] = {
+static const char *cx88_aud_irqs[32] = {
 	"dn_risci1", "up_risci1", "rds_dn_risc1", /* 0-2 */
 	NULL,					  /* reserved */
 	"dn_risci2", "up_risci2", "rds_dn_risc2", /* 4-6 */
@@ -308,7 +308,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
  * Digital hardware definition
  */
 #define DEFAULT_FIFO_SIZE	4096
-static struct snd_pcm_hardware snd_cx88_digital_hw = {
+static const struct snd_pcm_hardware snd_cx88_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -533,7 +533,7 @@ static struct snd_pcm_ops snd_cx88_pcm_ops = {
 /*
  * create a PCM device
  */
-static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, char *name)
+static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, const char *name)
 {
 	int err;
 	struct snd_pcm *pcm;
@@ -614,7 +614,7 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(snd_cx88_db_scale, -6300, 100, 0);
 
-static struct snd_kcontrol_new snd_cx88_volume = {
+static const struct snd_kcontrol_new snd_cx88_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -656,7 +656,7 @@ static int snd_cx88_switch_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
-static struct snd_kcontrol_new snd_cx88_dac_switch = {
+static const struct snd_kcontrol_new snd_cx88_dac_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Playback Switch",
 	.info = snd_ctl_boolean_mono_info,
@@ -665,7 +665,7 @@ static struct snd_kcontrol_new snd_cx88_dac_switch = {
 	.private_value = (1<<8),
 };
 
-static struct snd_kcontrol_new snd_cx88_source_switch = {
+static const struct snd_kcontrol_new snd_cx88_source_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Switch",
 	.info = snd_ctl_boolean_mono_info,
@@ -683,7 +683,7 @@ static struct snd_kcontrol_new snd_cx88_source_switch = {
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-static struct pci_device_id cx88_audio_pci_tbl[] __devinitdata = {
+static const struct pci_device_id const cx88_audio_pci_tbl[] __devinitdata = {
 	{0x14f1,0x8801,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0x14f1,0x8811,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0, }

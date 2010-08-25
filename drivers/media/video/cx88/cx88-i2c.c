@@ -108,7 +108,7 @@ static const struct i2c_algo_bit_data cx8800_i2c_algo_template = {
 
 /* ----------------------------------------------------------------------- */
 
-static char *i2c_devs[128] = {
+static const char * const i2c_devs[128] = {
 	[ 0x1c >> 1 ] = "lgdt330x",
 	[ 0x86 >> 1 ] = "tda9887/cx22702",
 	[ 0xa0 >> 1 ] = "eeprom",
@@ -117,7 +117,7 @@ static char *i2c_devs[128] = {
 	[ 0xc8 >> 1 ] = "xc5000",
 };
 
-static void do_i2c_scan(char *name, struct i2c_client *c)
+static void do_i2c_scan(const char *name, struct i2c_client *c)
 {
 	unsigned char buf;
 	int i,rc;

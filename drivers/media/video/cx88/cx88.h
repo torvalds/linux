@@ -108,7 +108,7 @@ static unsigned int inline norm_maxh(v4l2_std_id norm)
 /* static data                                                 */
 
 struct cx8800_fmt {
-	char  *name;
+	const char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;
 	int   flags;
@@ -138,7 +138,7 @@ struct cx88_ctrl {
 /* more */
 
 struct sram_channel {
-	char *name;
+	const char *name;
 	u32  cmds_start;
 	u32  ctrl_start;
 	u32  cdt;
@@ -149,7 +149,7 @@ struct sram_channel {
 	u32  cnt1_reg;
 	u32  cnt2_reg;
 };
-extern struct sram_channel cx88_sram_channels[];
+extern const struct sram_channel const cx88_sram_channels[];
 
 /* ----------------------------------------------------------- */
 /* card configuration                                          */
@@ -262,7 +262,7 @@ struct cx88_input {
 };
 
 struct cx88_board {
-	char                    *name;
+	const char              *name;
 	unsigned int            tuner_type;
 	unsigned int		radio_type;
 	unsigned char		tuner_addr;
@@ -314,7 +314,7 @@ struct cx88_buffer {
 	/* cx88 specific */
 	unsigned int           bpl;
 	struct btcx_riscmem    risc;
-	struct cx8800_fmt      *fmt;
+	const struct cx8800_fmt *fmt;
 	u32                    count;
 };
 
@@ -424,7 +424,7 @@ struct cx8800_fh {
 	unsigned int               nclips;
 
 	/* video capture */
-	struct cx8800_fmt          *fmt;
+	const struct cx8800_fmt    *fmt;
 	unsigned int               width,height;
 	struct videobuf_queue      vidq;
 
@@ -579,7 +579,7 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
 
-extern void cx88_print_irqbits(char *name, char *tag, char **strings,
+extern void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
 			       int len, u32 bits, u32 mask);
 
 extern int cx88_core_irq(struct cx88_core *core, u32 status);
@@ -606,10 +606,10 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf);
 extern void cx88_risc_disasm(struct cx88_core *core,
 			     struct btcx_riscmem *risc);
 extern int cx88_sram_channel_setup(struct cx88_core *core,
-				   struct sram_channel *ch,
+				   const struct sram_channel *ch,
 				   unsigned int bpl, u32 risc);
 extern void cx88_sram_channel_dump(struct cx88_core *core,
-				   struct sram_channel *ch);
+				   const struct sram_channel *ch);
 
 extern int cx88_set_scale(struct cx88_core *core, unsigned int width,
 			  unsigned int height, enum v4l2_field field);
@@ -617,8 +617,8 @@ extern int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm);
 
 extern struct video_device *cx88_vdev_init(struct cx88_core *core,
 					   struct pci_dev *pci,
-					   struct video_device *template,
-					   char *type);
+					   const struct video_device *template_,
+					   const char *type);
 extern struct cx88_core* cx88_core_get(struct pci_dev *pci);
 extern void cx88_core_put(struct cx88_core *core,
 			  struct pci_dev *pci);
@@ -644,7 +644,7 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 			     struct cx88_dmaqueue *q);
 void cx8800_vbi_timeout(unsigned long data);
 
-extern struct videobuf_queue_ops cx8800_vbi_qops;
+extern const struct videobuf_queue_ops cx8800_vbi_qops;
 
 /* ----------------------------------------------------------- */
 /* cx88-i2c.c                                                  */

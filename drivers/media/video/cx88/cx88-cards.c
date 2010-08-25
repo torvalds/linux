@@ -2673,10 +2673,10 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 /* ----------------------------------------------------------------------- */
 /* some GDI (was: Modular Technology) specific stuff                       */
 
-static struct {
+static const struct {
 	int  id;
 	int  fm;
-	char *name;
+	const char *name;
 } gdi_tuner[] = {
 	[ 0x01 ] = { .id   = TUNER_ABSENT,
 		     .name = "NTSC_M" },
@@ -2710,7 +2710,7 @@ static struct {
 
 static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 {
-	char *name = (eeprom_data[0x0d] < ARRAY_SIZE(gdi_tuner))
+	const char *name = (eeprom_data[0x0d] < ARRAY_SIZE(gdi_tuner))
 		? gdi_tuner[eeprom_data[0x0d]].name : NULL;
 
 	info_printk(core, "GDI: tuner=%s\n", name ? name : "unknown");

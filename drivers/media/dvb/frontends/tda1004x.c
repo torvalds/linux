@@ -598,7 +598,7 @@ static int tda1004x_decode_fec(int tdafec)
 	return -1;
 }
 
-static int tda1004x_write(struct dvb_frontend* fe, u8 *buf, int len)
+static int tda1004x_write(struct dvb_frontend* fe, const u8 buf[], int len)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
 

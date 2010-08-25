@@ -1042,7 +1042,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 
 struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 				   struct i2c_adapter *i2c,
-				   struct xc5000_config *cfg)
+				   const struct xc5000_config *cfg)
 {
 	struct xc5000_priv *priv = NULL;
 	int instance;

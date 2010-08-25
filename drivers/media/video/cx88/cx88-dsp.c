@@ -230,7 +230,7 @@ static s32 detect_btsc(struct cx88_core *core, s16 x[], u32 N)
 
 static s16 *read_rds_samples(struct cx88_core *core, u32 *N)
 {
-	struct sram_channel *srch = &cx88_sram_channels[SRAM_CH27];
+	const struct sram_channel *srch = &cx88_sram_channels[SRAM_CH27];
 	s16 *samples;
 
 	unsigned int i;

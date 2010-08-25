@@ -70,7 +70,7 @@ MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
 
 /* ----------------------------------------------------------- */
 
-static char *aud_ctl_names[64] = {
+static const char * const aud_ctl_names[64] = {
 	[EN_BTSC_FORCE_MONO] = "BTSC_FORCE_MONO",
 	[EN_BTSC_FORCE_STEREO] = "BTSC_FORCE_STEREO",
 	[EN_BTSC_FORCE_SAP] = "BTSC_FORCE_SAP",
@@ -809,8 +809,8 @@ void cx88_newstation(struct cx88_core *core)
 
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 {
-	static char *m[] = { "stereo", "dual mono", "mono", "sap" };
-	static char *p[] = { "no pilot", "pilot c1", "pilot c2", "?" };
+	static const char * const m[] = { "stereo", "dual mono", "mono", "sap" };
+	static const char * const p[] = { "no pilot", "pilot c1", "pilot c2", "?" };
 	u32 reg, mode, pilot;
 
 	reg = cx_read(AUD_STATUS);

@@ -78,7 +78,7 @@ MODULE_PARM_DESC(vid_limit,"capture memory limit in megabytes");
 /* ------------------------------------------------------------------- */
 /* static data                                                         */
 
-static struct cx8800_fmt formats[] = {
+static const struct cx8800_fmt formats[] = {
 	{
 		.name     = "8 bpp, gray",
 		.fourcc   = V4L2_PIX_FMT_GREY,
@@ -142,7 +142,7 @@ static struct cx8800_fmt formats[] = {
 	},
 };
 
-static struct cx8800_fmt* format_by_fourcc(unsigned int fourcc)
+static const struct cx8800_fmt* format_by_fourcc(unsigned int fourcc)
 {
 	unsigned int i;
 
@@ -159,7 +159,7 @@ static const struct v4l2_queryctrl no_ctl = {
 	.flags = V4L2_CTRL_FLAG_DISABLED,
 };
 
-static struct cx88_ctrl cx8800_ctls[] = {
+static const struct cx88_ctrl cx8800_ctls[] = {
 	/* --- video --- */
 	{
 		.v = {
@@ -288,7 +288,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 		.shift                 = 0,
 	}
 };
-static const int CX8800_CTLS = ARRAY_SIZE(cx8800_ctls);
+enum { CX8800_CTLS = ARRAY_SIZE(cx8800_ctls) };
 
 /* Must be sorted from low to high control ID! */
 const u32 cx88_user_ctrls[] = {
@@ -306,7 +306,7 @@ const u32 cx88_user_ctrls[] = {
 };
 EXPORT_SYMBOL(cx88_user_ctrls);
 
-static const u32 *ctrl_classes[] = {
+static const u32 * const ctrl_classes[] = {
 	cx88_user_ctrls,
 	NULL
 };
@@ -710,7 +710,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	cx88_free_buffer(q,buf);
 }
 
-static struct videobuf_queue_ops cx8800_video_qops = {
+static const struct videobuf_queue_ops cx8800_video_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -944,7 +944,7 @@ video_mmap(struct file *file, struct vm_area_struct * vma)
 
 int cx88_get_control (struct cx88_core  *core, struct v4l2_control *ctl)
 {
-	struct cx88_ctrl  *c    = NULL;
+	const struct cx88_ctrl  *c    = NULL;
 	u32 value;
 	int i;
 
@@ -976,7 +976,7 @@ EXPORT_SYMBOL(cx88_get_control);
 
 int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 {
-	struct cx88_ctrl *c = NULL;
+	const struct cx88_ctrl *c = NULL;
 	u32 value,mask;
 	int i;
 
@@ -1072,7 +1072,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
-	struct cx8800_fmt *fmt;
+	const struct cx8800_fmt *fmt;
 	enum v4l2_field   field;
 	unsigned int      maxw, maxh;
 
@@ -1247,7 +1247,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *tvnorms)
 /* only one input in this sample driver */
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 {
-	static const char *iname[] = {
+	static const char * const iname[] = {
 		[ CX88_VMUX_COMPOSITE1 ] = "Composite1",
 		[ CX88_VMUX_COMPOSITE2 ] = "Composite2",
 		[ CX88_VMUX_COMPOSITE3 ] = "Composite3",
@@ -1579,7 +1579,7 @@ static void cx8800_vid_timeout(unsigned long data)
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
-static char *cx88_vid_irqs[32] = {
+static const char *cx88_vid_irqs[32] = {
 	"y_risci1", "u_risci1", "v_risci1", "vbi_risc1",
 	"y_risci2", "u_risci2", "v_risci2", "vbi_risc2",
 	"y_oflow",  "u_oflow",  "v_oflow",  "vbi_oflow",
@@ -1724,7 +1724,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 
 static struct video_device cx8800_vbi_template;
 
-static struct video_device cx8800_video_template = {
+static const struct video_device cx8800_video_template = {
 	.name                 = "cx8800-video",
 	.fops                 = &video_fops,
 	.ioctl_ops 	      = &video_ioctl_ops,
@@ -1759,7 +1759,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 #endif
 };
 
-static struct video_device cx8800_radio_template = {
+static const struct video_device cx8800_radio_template = {
 	.name                 = "cx8800-radio",
 	.fops                 = &radio_fops,
 	.ioctl_ops 	      = &radio_ioctl_ops,
@@ -1886,7 +1886,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	switch (core->boardnr) {
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
 	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD: {
-		static struct i2c_board_info rtc_info = {
+		static const struct i2c_board_info rtc_info = {
 			I2C_BOARD_INFO("isl1208", 0x6f)
 		};
 
@@ -2083,7 +2083,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 
 /* ----------------------------------------------------------- */
 
-static struct pci_device_id cx8800_pci_tbl[] = {
+static const struct pci_device_id cx8800_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8800,
