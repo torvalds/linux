@@ -381,8 +381,8 @@ int api_init_complete2(void)
 	int status = 0;
 	struct cfg_devnode *dev_node;
 	struct dev_object *hdev_obj;
+	struct drv_data *drv_datap;
 	u8 dev_type;
-	u32 tmp;
 
 	DBC_REQUIRE(api_c_refs > 0);
 
@@ -397,10 +397,12 @@ int api_init_complete2(void)
 		if (dev_get_dev_type(hdev_obj, &dev_type))
 			continue;
 
-		if ((dev_type == DSP_UNIT) || (dev_type == IVA_UNIT))
-			if (cfg_get_auto_start(dev_node, &tmp) == 0
-									&& tmp)
+		if ((dev_type == DSP_UNIT) || (dev_type == IVA_UNIT)) {
+			drv_datap = dev_get_drvdata(bridge);
+
+			if (drv_datap && drv_datap->base_img)
 				proc_auto_start(dev_node, hdev_obj);
+		}
 	}
 
 	return status;

@@ -35,25 +35,6 @@
 extern void cfg_exit(void);
 
 /*
- *  ======== cfg_get_auto_start ========
- *  Purpose:
- *      Retreive the autostart mask, if any, for this board.
- *  Parameters:
- *      dev_node_obj:  Handle to the dev_node who's driver we are querying.
- *      auto_start:   Ptr to location for 32 bit autostart mask.
- *  Returns:
- *      0:                Success.
- *      -EFAULT:  dev_node_obj is invalid.
- *      -ENODATA: Unable to retreive resource.
- *  Requires:
- *      CFG initialized.
- *  Ensures:
- *      0:        *auto_start contains autostart mask for this devnode.
- */
-extern int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
-				     u32 *auto_start);
-
-/*
  *  ======== cfg_get_cd_version ========
  *  Purpose:
  *      Retrieves the version of the PM Class Driver.
