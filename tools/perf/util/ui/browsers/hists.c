@@ -298,15 +298,10 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *self,
 			int color;
 			bool was_first = first;
 
-			if (first) {
+			if (first)
 				first = false;
-				chain->ms.has_children = chain->list.next != &child->val ||
-							 !RB_EMPTY_ROOT(&child->rb_root);
-			} else {
+			else
 				extra_offset = LEVEL_OFFSET_STEP;
-				chain->ms.has_children = chain->list.next == &child->val &&
-							 !RB_EMPTY_ROOT(&child->rb_root);
-			}
 
 			folded_sign = callchain_list__folded(chain);
 			if (*row_offset != 0) {
@@ -376,12 +371,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *self,
 	list_for_each_entry(chain, &node->val, list) {
 		char ipstr[BITS_PER_LONG / 4 + 1], *s;
 		int color;
-		/*
-		 * FIXME: This should be moved to somewhere else,
-		 * probably when the callchain is created, so as not to
-		 * traverse it all over again
-		 */
-		chain->ms.has_children = !RB_EMPTY_ROOT(&node->rb_root);
+
 		folded_sign = callchain_list__folded(chain);
 
 		if (*row_offset != 0) {
@@ -457,7 +447,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	}
 
 	if (symbol_conf.use_callchain) {
-		entry->ms.has_children = !RB_EMPTY_ROOT(&entry->sorted_chain);
+		hist_entry__init_have_children(entry);
 		folded_sign = hist_entry__folded(entry);
 	}
 
