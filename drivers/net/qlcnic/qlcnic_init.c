@@ -547,7 +547,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 int
 qlcnic_check_fw_status(struct qlcnic_adapter *adapter)
 {
-	u32 heartbit, ret = -EIO;
+	u32 heartbit, cmdpeg_state, ret = -EIO;
 	int retries = QLCNIC_HEARTBEAT_RETRY_COUNT;
 
 	adapter->heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
@@ -555,10 +555,16 @@ qlcnic_check_fw_status(struct qlcnic_adapter *adapter)
 		msleep(QLCNIC_HEARTBEAT_PERIOD_MSECS);
 		heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
 		if (heartbit != adapter->heartbit) {
-			/* Complete firmware handshake */
-			QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
-			ret = QLCNIC_RCODE_SUCCESS;
-			break;
+			cmdpeg_state = QLCRD32(adapter, CRB_CMDPEG_STATE);
+			/* Ensure peg states are initialized */
+			if (cmdpeg_state == PHAN_INITIALIZE_COMPLETE ||
+				cmdpeg_state == PHAN_INITIALIZE_ACK) {
+				/* Complete firmware handshake */
+				QLCWR32(adapter, CRB_CMDPEG_STATE,
+					PHAN_INITIALIZE_ACK);
+				ret = QLCNIC_RCODE_SUCCESS;
+				break;
+			}
 		}
 	} while (--retries);
 

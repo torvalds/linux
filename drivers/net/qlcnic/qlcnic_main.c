@@ -566,12 +566,11 @@ err_lock:
 	return ret;
 }
 
-static u32
-qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
+static void
+qlcnic_check_vf(struct qlcnic_adapter *adapter)
 {
 	void __iomem *msix_base_addr;
 	void __iomem *priv_op;
-	struct qlcnic_info nic_info;
 	u32 func;
 	u32 msix_base;
 	u32 op_mode, priv_level;
@@ -586,20 +585,6 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 	func = (func - msix_base)/QLCNIC_MSIX_TBL_PGSIZE;
 	adapter->ahw.pci_func = func;
 
-	if (!qlcnic_get_nic_info(adapter, &nic_info, adapter->ahw.pci_func)) {
-		adapter->capabilities = nic_info.capabilities;
-
-		if (adapter->capabilities & BIT_6)
-			adapter->flags |= QLCNIC_ESWITCH_ENABLED;
-		else
-			adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
-	}
-
-	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))	{
-		adapter->nic_ops = &qlcnic_ops;
-		return adapter->fw_hal_version;
-	}
-
 	/* Determine function privilege level */
 	priv_op = adapter->ahw.pci_base0 + QLCNIC_DRV_OP_MODE;
 	op_mode = readl(priv_op);
@@ -608,37 +593,14 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 	else
 		priv_level = QLC_DEV_GET_DRV(op_mode, adapter->ahw.pci_func);
 
-	switch (priv_level) {
-	case QLCNIC_MGMT_FUNC:
-		adapter->op_mode = QLCNIC_MGMT_FUNC;
-		adapter->nic_ops = &qlcnic_ops;
-		qlcnic_init_pci_info(adapter);
-		/* Set privilege level for other functions */
-		qlcnic_set_function_modes(adapter);
-		dev_info(&adapter->pdev->dev,
-			"HAL Version: %d, Management function\n",
-			adapter->fw_hal_version);
-		break;
-	case QLCNIC_PRIV_FUNC:
-		adapter->op_mode = QLCNIC_PRIV_FUNC;
-		dev_info(&adapter->pdev->dev,
-			"HAL Version: %d, Privileged function\n",
-			adapter->fw_hal_version);
-		adapter->nic_ops = &qlcnic_ops;
-		break;
-	case QLCNIC_NON_PRIV_FUNC:
+	if (priv_level == QLCNIC_NON_PRIV_FUNC) {
 		adapter->op_mode = QLCNIC_NON_PRIV_FUNC;
 		dev_info(&adapter->pdev->dev,
 			"HAL Version: %d Non Privileged function\n",
 			adapter->fw_hal_version);
 		adapter->nic_ops = &qlcnic_vf_ops;
-		break;
-	default:
-		dev_info(&adapter->pdev->dev, "Unknown function mode: %d\n",
-			priv_level);
-		return 0;
-	}
-	return adapter->fw_hal_version;
+	} else
+		adapter->nic_ops = &qlcnic_ops;
 }
 
 static int
@@ -671,10 +633,7 @@ qlcnic_setup_pci_map(struct qlcnic_adapter *adapter)
 	adapter->ahw.pci_base0 = mem_ptr0;
 	adapter->ahw.pci_len0 = pci_len0;
 
-	if (!qlcnic_get_driver_mode(adapter)) {
-		iounmap(adapter->ahw.pci_base0);
-		return -EIO;
-	}
+	qlcnic_check_vf(adapter);
 
 	adapter->ahw.ocm_win_crb = qlcnic_get_ioaddr(adapter,
 		QLCNIC_PCIX_PS_REG(PCIX_OCM_WINDOW_REG(adapter->ahw.pci_func)));
@@ -719,6 +678,9 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 
 	adapter->fw_version = QLCNIC_VERSION_CODE(fw_major, fw_minor, fw_build);
 
+	if (!(adapter->flags & QLCNIC_ADAPTER_INITIALIZED))
+		if (qlcnic_read_mac_addr(adapter))
+			dev_warn(&pdev->dev, "failed to read mac addr\n");
 	if (adapter->portnum == 0) {
 		get_brd_name(adapter, brd_name);
 
@@ -834,6 +796,51 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 	}
 
 	netdev->vlan_features = (features & vlan_features);
+}
+
+static int
+qlcnic_check_eswitch_mode(struct qlcnic_adapter *adapter)
+{
+	void __iomem *priv_op;
+	u32 op_mode, priv_level;
+	int err = 0;
+
+	if (adapter->flags & QLCNIC_ADAPTER_INITIALIZED)
+		return 0;
+
+	priv_op = adapter->ahw.pci_base0 + QLCNIC_DRV_OP_MODE;
+	op_mode = readl(priv_op);
+	priv_level = QLC_DEV_GET_DRV(op_mode, adapter->ahw.pci_func);
+
+	if (op_mode == QLC_DEV_DRV_DEFAULT)
+		priv_level = QLCNIC_MGMT_FUNC;
+	else
+		priv_level = QLC_DEV_GET_DRV(op_mode, adapter->ahw.pci_func);
+
+	if (adapter->capabilities & BIT_6) {
+		adapter->flags |= QLCNIC_ESWITCH_ENABLED;
+		if (priv_level == QLCNIC_MGMT_FUNC) {
+			adapter->op_mode = QLCNIC_MGMT_FUNC;
+			err = qlcnic_init_pci_info(adapter);
+			if (err)
+				return err;
+			/* Set privilege level for other functions */
+			qlcnic_set_function_modes(adapter);
+			dev_info(&adapter->pdev->dev,
+				"HAL Version: %d, Management function\n",
+				adapter->fw_hal_version);
+		} else if (priv_level == QLCNIC_PRIV_FUNC) {
+			adapter->op_mode = QLCNIC_PRIV_FUNC;
+			dev_info(&adapter->pdev->dev,
+				"HAL Version: %d, Privileged function\n",
+				adapter->fw_hal_version);
+		}
+	} else
+		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
+
+	adapter->flags |= QLCNIC_ADAPTER_INITIALIZED;
+
+	return err;
 }
 
 static int
@@ -1005,8 +1012,14 @@ set_dev_ready:
 	err = qlcnic_reset_npar_config(adapter);
 	if (err)
 		goto err_out;
-	qlcnic_dev_set_npar_ready(adapter);
 	qlcnic_check_options(adapter);
+	err = qlcnic_check_eswitch_mode(adapter);
+	if (err) {
+		dev_err(&adapter->pdev->dev,
+			"Memory allocation failed for eswitch\n");
+		goto err_out;
+	}
+	qlcnic_dev_set_npar_ready(adapter);
 	adapter->need_fw_reset = 0;
 
 	qlcnic_release_firmware(adapter);
@@ -1015,6 +1028,7 @@ set_dev_ready:
 err_out:
 	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_FAILED);
 	dev_err(&adapter->pdev->dev, "Device state set to failed\n");
+
 	qlcnic_release_firmware(adapter);
 	return err;
 }
@@ -1419,9 +1433,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 		netdev->features |= NETIF_F_LRO;
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	if (qlcnic_read_mac_addr(adapter))
-		dev_warn(&pdev->dev, "failed to read mac addr\n");
-
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
@@ -1514,9 +1525,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error getting board config info.\n");
 		goto err_out_iounmap;
 	}
-
-	if (qlcnic_read_mac_addr(adapter))
-		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
 	err = qlcnic_setup_idc_param(adapter);
 	if (err)
