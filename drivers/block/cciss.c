@@ -1345,6 +1345,18 @@ static int cciss_getheartbeat(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getbustypes(ctlr_info_t *h, void __user *argp)
+{
+	BusTypes_type BusTypes;
+
+	if (!argp)
+		return -EINVAL;
+	BusTypes = readl(&h->cfgtable->BusTypes);
+	if (copy_to_user(argp, &BusTypes, sizeof(BusTypes_type)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1369,17 +1381,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_GETHEARTBEAT:
 		return cciss_getheartbeat(h, argp);
 	case CCISS_GETBUSTYPES:
-		{
-			BusTypes_type BusTypes;
-
-			if (!arg)
-				return -EINVAL;
-			BusTypes = readl(&h->cfgtable->BusTypes);
-			if (copy_to_user
-			    (argp, &BusTypes, sizeof(BusTypes_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getbustypes(h, argp);
 	case CCISS_GETFIRMVER:
 		{
 			FirmwareVer_type firmware;
