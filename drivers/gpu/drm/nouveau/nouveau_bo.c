@@ -478,10 +478,12 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 }
 
 static inline uint32_t
-nouveau_bo_mem_ctxdma(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
-		      struct ttm_mem_reg *mem)
+nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
+		      struct nouveau_channel *chan, struct ttm_mem_reg *mem)
 {
-	if (chan == nouveau_bdev(nvbo->bo.bdev)->channel) {
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	if (nvbo->no_vm) {
 		if (mem->mem_type == TTM_PL_TT)
 			return NvDmaGART;
 		return NvDmaVRAM;
@@ -493,85 +495,180 @@ nouveau_bo_mem_ctxdma(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
 }
 
 static int
-nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
-		     bool no_wait_reserve, bool no_wait_gpu,
-		     struct ttm_mem_reg *new_mem)
+nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct nouveau_channel *chan;
-	uint64_t src_offset, dst_offset;
-	uint32_t page_count;
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	u64 length = (new_mem->num_pages << PAGE_SHIFT);
+	u64 src_offset, dst_offset;
 	int ret;
-
-	chan = nvbo->channel;
-	if (!chan || nvbo->tile_flags || nvbo->no_vm)
-		chan = dev_priv->channel;
 
 	src_offset = old_mem->mm_node->start << PAGE_SHIFT;
 	dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
-	if (chan != dev_priv->channel) {
-		if (old_mem->mem_type == TTM_PL_TT)
-			src_offset += dev_priv->vm_gart_base;
-		else
+	if (!nvbo->no_vm) {
+		if (old_mem->mem_type == TTM_PL_VRAM)
 			src_offset += dev_priv->vm_vram_base;
-
-		if (new_mem->mem_type == TTM_PL_TT)
-			dst_offset += dev_priv->vm_gart_base;
 		else
+			src_offset += dev_priv->vm_gart_base;
+
+		if (new_mem->mem_type == TTM_PL_VRAM)
 			dst_offset += dev_priv->vm_vram_base;
+		else
+			dst_offset += dev_priv->vm_gart_base;
 	}
 
 	ret = RING_SPACE(chan, 3);
 	if (ret)
 		return ret;
-	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE, 2);
-	OUT_RING(chan, nouveau_bo_mem_ctxdma(nvbo, chan, old_mem));
-	OUT_RING(chan, nouveau_bo_mem_ctxdma(nvbo, chan, new_mem));
 
-	if (dev_priv->card_type >= NV_50) {
-		ret = RING_SPACE(chan, 4);
+	BEGIN_RING(chan, NvSubM2MF, 0x0184, 2);
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_mem));
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_mem));
+
+	while (length) {
+		u32 amount, stride, height;
+
+		amount  = min(length, (u64)(16 * 1024 * 1024));
+		stride  = 64 * 4;
+		height  = amount / stride;
+
+		if (new_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x0200, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0x20);
+			OUT_RING  (chan, stride);
+			OUT_RING  (chan, height);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+		} else {
+			ret = RING_SPACE(chan, 2);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x0200, 1);
+			OUT_RING  (chan, 1);
+		}
+		if (old_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x021c, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0x20);
+			OUT_RING  (chan, stride);
+			OUT_RING  (chan, height);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+		} else {
+			ret = RING_SPACE(chan, 2);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x021c, 1);
+			OUT_RING  (chan, 1);
+		}
+
+		ret = RING_SPACE(chan, 14);
 		if (ret)
 			return ret;
-		BEGIN_RING(chan, NvSubM2MF, 0x0200, 1);
-		OUT_RING(chan, 1);
-		BEGIN_RING(chan, NvSubM2MF, 0x021c, 1);
-		OUT_RING(chan, 1);
+
+		BEGIN_RING(chan, NvSubM2MF, 0x0238, 2);
+		OUT_RING  (chan, upper_32_bits(src_offset));
+		OUT_RING  (chan, upper_32_bits(dst_offset));
+		BEGIN_RING(chan, NvSubM2MF, 0x030c, 8);
+		OUT_RING  (chan, lower_32_bits(src_offset));
+		OUT_RING  (chan, lower_32_bits(dst_offset));
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, height);
+		OUT_RING  (chan, 0x00000101);
+		OUT_RING  (chan, 0x00000000);
+		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
+		OUT_RING  (chan, 0);
+
+		length -= amount;
+		src_offset += amount;
+		dst_offset += amount;
 	}
+
+	return 0;
+}
+
+static int
+nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	u32 src_offset = old_mem->mm_node->start << PAGE_SHIFT;
+	u32 dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
+	u32 page_count = new_mem->num_pages;
+	int ret;
+
+	ret = RING_SPACE(chan, 3);
+	if (ret)
+		return ret;
+
+	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE, 2);
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_mem));
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_mem));
 
 	page_count = new_mem->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 
-		if (dev_priv->card_type >= NV_50) {
-			ret = RING_SPACE(chan, 3);
-			if (ret)
-				return ret;
-			BEGIN_RING(chan, NvSubM2MF, 0x0238, 2);
-			OUT_RING(chan, upper_32_bits(src_offset));
-			OUT_RING(chan, upper_32_bits(dst_offset));
-		}
 		ret = RING_SPACE(chan, 11);
 		if (ret)
 			return ret;
+
 		BEGIN_RING(chan, NvSubM2MF,
 				 NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING(chan, lower_32_bits(src_offset));
-		OUT_RING(chan, lower_32_bits(dst_offset));
-		OUT_RING(chan, PAGE_SIZE); /* src_pitch */
-		OUT_RING(chan, PAGE_SIZE); /* dst_pitch */
-		OUT_RING(chan, PAGE_SIZE); /* line_length */
-		OUT_RING(chan, line_count);
-		OUT_RING(chan, (1<<8)|(1<<0));
-		OUT_RING(chan, 0);
+		OUT_RING  (chan, src_offset);
+		OUT_RING  (chan, dst_offset);
+		OUT_RING  (chan, PAGE_SIZE); /* src_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* dst_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* line_length */
+		OUT_RING  (chan, line_count);
+		OUT_RING  (chan, 0x00000101);
+		OUT_RING  (chan, 0x00000000);
 		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
-		OUT_RING(chan, 0);
+		OUT_RING  (chan, 0);
 
 		page_count -= line_count;
 		src_offset += (PAGE_SIZE * line_count);
 		dst_offset += (PAGE_SIZE * line_count);
 	}
+
+	return 0;
+}
+
+static int
+nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
+		     bool no_wait_reserve, bool no_wait_gpu,
+		     struct ttm_mem_reg *new_mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_channel *chan;
+	int ret;
+
+	chan = nvbo->channel;
+	if (!chan || nvbo->no_vm)
+		chan = dev_priv->channel;
+
+	if (dev_priv->card_type < NV_50)
+		ret = nv04_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	else
+		ret = nv50_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	if (ret)
+		return ret;
 
 	return nouveau_bo_move_accel_cleanup(chan, nvbo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 }
