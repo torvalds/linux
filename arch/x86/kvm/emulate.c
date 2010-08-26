@@ -2974,6 +2974,11 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		goto done;
 	}
 
+	if ((c->d & SrcMask) == SrcMemFAddr && c->src.type != OP_MEM) {
+		emulate_ud(ctxt);
+		goto done;
+	}
+
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
 		emulate_gp(ctxt, 0);
