@@ -219,61 +219,80 @@ wrong_dc_mce:
 	pr_emerg(HW_ERR "Corrupted DC MCE info?\n");
 }
 
+static bool k8_ic_mce(u16 ec)
+{
+	u8 ll	 = ec & 0x3;
+	u8 r4	 = (ec >> 4) & 0xf;
+	bool ret = true;
+
+	if (!MEM_ERROR(ec))
+		return false;
+
+	if (ll == 0x2)
+		pr_cont("during a linefill from L2.\n");
+	else if (ll == 0x1) {
+		switch (r4) {
+		case R4_IRD:
+			pr_cont("Parity error during data load.\n");
+			break;
+
+		case R4_EVICT:
+			pr_cont("Copyback Parity/Victim error.\n");
+			break;
+
+		case R4_SNOOP:
+			pr_cont("Tag Snoop error.\n");
+			break;
+
+		default:
+			ret = false;
+			break;
+		}
+	} else
+		ret = false;
+
+	return ret;
+}
+
+static bool f14h_ic_mce(u16 ec)
+{
+	u8 ll    = ec & 0x3;
+	u8 tt    = (ec >> 2) & 0x3;
+	u8 r4  = (ec >> 4) & 0xf;
+	bool ret = true;
+
+	if (MEM_ERROR(ec)) {
+		if (tt != 0 || ll != 1)
+			ret = false;
+
+		if (r4 == R4_IRD)
+			pr_cont("Data/tag array parity error for a tag hit.\n");
+		else if (r4 == R4_SNOOP)
+			pr_cont("Tag error during snoop/victimization.\n");
+		else
+			ret = false;
+	}
+	return ret;
+}
+
 static void amd_decode_ic_mce(struct mce *m)
 {
-	u32 ec  = m->status & 0xffff;
-	u32 xec = (m->status >> 16) & 0xf;
+	u16 ec = m->status & 0xffff;
+	u8 xec = (m->status >> 16) & 0xf;
 
-	pr_emerg(HW_ERR "Instruction Cache Error");
+	pr_emerg(HW_ERR "Instruction Cache Error: ");
 
-	if (xec == 1 && TLB_ERROR(ec))
-		pr_cont(": %s TLB multimatch.\n", LL_MSG(ec));
-	else if (xec == 0) {
-		if (TLB_ERROR(ec))
-			pr_cont(": %s TLB Parity error.\n", LL_MSG(ec));
-		else if (BUS_ERROR(ec)) {
-			if (boot_cpu_data.x86 == 0xf &&
-			    (m->status & BIT(58)))
-				pr_cont(" during system linefill.\n");
-			else
-				pr_cont(" during attempted NB data read.\n");
-		} else if (MEM_ERROR(ec)) {
-			u8 ll   = ec & 0x3;
-			u8 rrrr = (ec >> 4) & 0xf;
+	if (TLB_ERROR(ec))
+		pr_cont("%s TLB %s.\n", LL_MSG(ec),
+			(xec ? "multimatch" : "parity error"));
+	else if (BUS_ERROR(ec)) {
+		bool k8 = (boot_cpu_data.x86 == 0xf && (m->status & BIT(58)));
 
-			if (ll == 0x2)
-				pr_cont(" during a linefill from L2.\n");
-			else if (ll == 0x1) {
-
-				switch (rrrr) {
-				case 0x5:
-					pr_cont(": Parity error during "
-					       "data load.\n");
-					break;
-
-				case 0x7:
-					pr_cont(": Copyback Parity/Victim"
-						" error.\n");
-					break;
-
-				case 0x8:
-					pr_cont(": Tag Snoop error.\n");
-					break;
-
-				default:
-					goto wrong_ic_mce;
-					break;
-				}
-			}
-		} else
-			goto wrong_ic_mce;
-	} else
-		goto wrong_ic_mce;
-
-	return;
-
-wrong_ic_mce:
-	pr_emerg(HW_ERR "Corrupted IC MCE info?\n");
+		pr_cont("during %s.\n", (k8 ? "system linefill" : "NB data read"));
+	} else if (fam_ops->ic_mce(ec))
+		;
+	else
+		pr_emerg(HW_ERR "Corrupted IC MCE info?\n");
 }
 
 static void amd_decode_bu_mce(struct mce *m)
@@ -481,14 +500,17 @@ static int __init mce_amd_init(void)
 	switch (boot_cpu_data.x86) {
 	case 0xf:
 		fam_ops->dc_mce = k8_dc_mce;
+		fam_ops->ic_mce = k8_ic_mce;
 		break;
 
 	case 0x10:
 		fam_ops->dc_mce = f10h_dc_mce;
+		fam_ops->ic_mce = k8_ic_mce;
 		break;
 
 	case 0x14:
 		fam_ops->dc_mce = f14h_dc_mce;
+		fam_ops->ic_mce = f14h_ic_mce;
 		break;
 
 	default:

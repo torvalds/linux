@@ -101,6 +101,7 @@ struct err_regs {
  */
 struct amd_decoder_ops {
 	bool (*dc_mce)(u16);
+	bool (*ic_mce)(u16);
 };
 
 void amd_report_gart_errors(bool);
