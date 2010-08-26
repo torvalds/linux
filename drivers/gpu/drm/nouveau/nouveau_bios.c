@@ -3869,27 +3869,10 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entr
 	}
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
-	if ((dev->pci_device & 0xffff) == 0x0179 ||
-	    (dev->pci_device & 0xffff) == 0x0189 ||
-	    (dev->pci_device & 0xffff) == 0x0329) {
-		if (script == LVDS_RESET) {
-			nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
-
-		} else if (script == LVDS_PANEL_ON) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
-				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
-				  | (1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
-				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) | 1);
-
-		} else if (script == LVDS_PANEL_OFF) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
-				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
-				  & ~(1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
-				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) & ~3);
-		}
-	}
+	if (script == LVDS_RESET &&
+	    (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	     dev->pci_device == 0x0329))
+		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
 #endif
 
 	return 0;
@@ -4381,11 +4364,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 *
 	 * For the moment, a quirk will do :)
 	 */
-	if ((dev->pdev->device == 0x01d7) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x01c2)) {
+	if (nv_match_device(dev, 0x01d7, 0x1028, 0x01c2))
 		bios->fp.duallink_transition_clk = 80000;
-	}
 
 	/* set dual_link flag for EDID case */
 	if (pxclk && (chip_version < 0x25 || chip_version > 0x28))
@@ -5814,9 +5794,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 		 */
 
 		/* Apple iMac G4 NV18 */
-		if (dev->pdev->device == 0x0189 &&
-		    dev->pdev->subsystem_vendor == 0x10de &&
-		    dev->pdev->subsystem_device == 0x0010) {
+		if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
 			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
 
 			gpio->tag = DCB_GPIO_TVDAC0;
@@ -5898,9 +5876,7 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	struct drm_device *dev = bios->dev;
 
 	/* Gigabyte NX85T */
-	if ((dev->pdev->device == 0x0421) &&
-	    (dev->pdev->subsystem_vendor == 0x1458) &&
-	    (dev->pdev->subsystem_device == 0x344c)) {
+	if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
 		if (cte->type == DCB_CONNECTOR_HDMI_1)
 			cte->type = DCB_CONNECTOR_DVI_I;
 	}
@@ -6153,7 +6129,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
 
 		break;
-	case 0xe:
+	case OUTPUT_EOL:
 		/* weird g80 mobile type that "nv" treats as a terminator */
 		dcb->entries--;
 		return false;
@@ -6190,22 +6166,14 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->type = OUTPUT_TV;
 		break;
 	case 2:
+	case 4:
+		if (conn & 0x10)
+			entry->type = OUTPUT_LVDS;
+		else
+			entry->type = OUTPUT_TMDS;
+		break;
 	case 3:
 		entry->type = OUTPUT_LVDS;
-		break;
-	case 4:
-		switch ((conn & 0x000000f0) >> 4) {
-		case 0:
-			entry->type = OUTPUT_TMDS;
-			break;
-		case 1:
-			entry->type = OUTPUT_LVDS;
-			break;
-		default:
-			NV_ERROR(dev, "Unknown DCB subtype 4/%d\n",
-				 (conn & 0x000000f0) >> 4);
-			return false;
-		}
 		break;
 	default:
 		NV_ERROR(dev, "Unknown DCB type %d\n", conn & 0x0000000f);
@@ -6321,9 +6289,7 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	 * nasty problems until this is sorted (assuming it's not a
 	 * VBIOS bug).
 	 */
-	if ((dev->pdev->device == 0x040d) &&
-	    (dev->pdev->subsystem_vendor == 0x1028) &&
-	    (dev->pdev->subsystem_device == 0x019b)) {
+	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
 		if (*conn == 0x02026312 && *conf == 0x00000020)
 			return false;
 	}

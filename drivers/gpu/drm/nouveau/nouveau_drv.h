@@ -1389,6 +1389,15 @@ nv_two_reg_pll(struct drm_device *dev)
 	return false;
 }
 
+static inline bool
+nv_match_device(struct drm_device *dev, unsigned device,
+		unsigned sub_vendor, unsigned sub_device)
+{
+	return dev->pdev->device == device &&
+		dev->pdev->subsystem_vendor == sub_vendor &&
+		dev->pdev->subsystem_device == sub_device;
+}
+
 #define NV_SW                                                        0x0000506e
 #define NV_SW_DMA_SEMAPHORE                                          0x00000060
 #define NV_SW_SEMAPHORE_OFFSET                                       0x00000064
