@@ -956,12 +956,17 @@ static int acpi_wmi_add(struct acpi_device *device)
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_wmi_ec_space_handler,
 						    NULL, NULL);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_ERR PREFIX "Error installing EC region handler\n");
 		return -ENODEV;
+	}
 
 	status = parse_wdg(device->handle);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX "Error installing EC region handler\n");
+		acpi_remove_address_space_handler(device->handle,
+						  ACPI_ADR_SPACE_EC,
+						  &acpi_wmi_ec_space_handler);
+		printk(KERN_ERR PREFIX "Failed to parse WDG method\n");
 		return -ENODEV;
 	}
 
