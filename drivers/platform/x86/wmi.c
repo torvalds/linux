@@ -220,7 +220,7 @@ static int wmi_gtoa(const char *in, char *out)
 	for (i = 10; i <= 15; i++)
 		out += sprintf(out, "%02X", in[i] & 0xFF);
 
-	out = '\0';
+	*out = '\0';
 	return 0;
 }
 
