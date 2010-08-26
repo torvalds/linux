@@ -50,7 +50,7 @@
  *	Except on Single Channel mode of operation
  *		just slot 0/channel0 filled on this mode
  *	On normal operation mode, the two channels on a branch should be
-		filled together for the same SLOT#
+ *		filled together for the same SLOT#
  * When in mirrored mode, Branch 1 replicate memory at Branch 0, so, the four
  *		channels on both branches should be filled
  */
@@ -67,16 +67,22 @@
 #define to_csrow(slot, ch, branch)					\
 		(to_channel(ch, branch) | ((slot) << 2))
 
-
-/* Device 16,
- * Function 0: System Address (not documented)
- * Function 1: Memory Branch Map, Control, Errors Register
- * Function 2: FSB Error Registers
- *
+/*
+ * I7300 devices
  * All 3 functions of Device 16 (0,1,2) share the SAME DID and
  * uses PCI_DEVICE_ID_INTEL_I7300_MCH_ERR for device 16 (0,1,2),
  * PCI_DEVICE_ID_INTEL_I7300_MCH_FB0 and PCI_DEVICE_ID_INTEL_I7300_MCH_FB1
  * for device 21 (0,1).
+ */
+
+/****************************************************
+ * i7300 Register definitions for memory enumberation
+ ****************************************************/
+
+/*
+ * Device 16,
+ * Function 0: System Address (not documented)
+ * Function 1: Memory Branch Map, Control, Errors Register
  */
 
 	/* OFFSETS for Function 0 */
@@ -93,50 +99,6 @@
 #define MIR0			0x80
 #define MIR1			0x84
 #define MIR2			0x88
-
-#if 0
-#define		AMIR0			0x8c
-#define		AMIR1			0x90
-#define		AMIR2			0x94
-
-/*TODO: double check it */
-#define			REC_ECC_LOCATOR_ODD(x)	((x) & 0x3fe00) /* bits [17:9] indicate ODD, [8:0]  indicate EVEN */
-
-	/* Fatal error registers */
-#define		FERR_FAT_FBD		0x98
-
-/*TODO: double check it */
-#define			FERR_FAT_FBDCHAN (3<<28)	/* channel index where the highest-order error occurred */
-
-#define		NERR_FAT_FBD		0x9c
-#define		FERR_NF_FBD		0xa0
-
-	/* Non-fatal error register */
-#define		NERR_NF_FBD		0xa4
-
-	/* Enable error mask */
-#define		EMASK_FBD		0xa8
-
-#define		ERR0_FBD		0xac
-#define		ERR1_FBD		0xb0
-#define		ERR2_FBD		0xb4
-#define		MCERR_FBD		0xb8
-
-#endif
-
-/* TODO: Dev 16 fn1 allows memory error injection - offsets 0x100-0x10b */
-
-	/* TODO: OFFSETS for Device 16 Function 2 */
-
-/*
- * Device 21,
- * Function 0: Memory Map Branch 0
- *
- * Device 22,
- * Function 0: Memory Map Branch 1
- */
-
-	/* OFFSETS for Function 0 */
 
 /*
  * Note: Other Intel EDAC drivers use AMBPRESENT to identify if the available
@@ -171,37 +133,6 @@ const static u16 mtr_regs [MAX_SLOTS] = {
 #define MTR_DIMM_COLS(mtr)		((mtr) & 0x3)
 #define MTR_DIMM_COLS_ADDR_BITS(mtr)	(MTR_DIMM_COLS(mtr) + 10)
 
-#if 0
-	/* OFFSETS for Function 1 */
-
-/* TODO */
-#define NRECFGLOG		0x74
-#define RECFGLOG		0x78
-#define NRECMEMA		0xbe
-#define NRECMEMB		0xc0
-#define NRECFB_DIMMA		0xc4
-#define NRECFB_DIMMB		0xc8
-#define NRECFB_DIMMC		0xcc
-#define NRECFB_DIMMD		0xd0
-#define NRECFB_DIMME		0xd4
-#define NRECFB_DIMMF		0xd8
-#define REDMEMA			0xdC
-#define RECMEMA			0xf0
-#define RECMEMB			0xf4
-#define RECFB_DIMMA		0xf8
-#define RECFB_DIMMB		0xec
-#define RECFB_DIMMC		0xf0
-#define RECFB_DIMMD		0xf4
-#define RECFB_DIMME		0xf8
-#define RECFB_DIMMF		0xfC
-
-/* This applies to FERR_NF_FB-DIMM as well as FERR_FAT_FB-DIMM */
-static inline int extract_fbdchan_indx(u32 x)
-{
-	return (x>>28) & 0x3;
-}
-#endif
-
 #ifdef CONFIG_EDAC_DEBUG
 /* MTR NUMROW */
 static const char *numrow_toString[] = {
@@ -219,6 +150,85 @@ static const char *numcol_toString[] = {
 	"reserved"
 };
 #endif
+
+/************************************************
+ * i7300 Register definitions for error detection
+ ************************************************/
+/*
+ * Device 16.2: Global Error Registers
+ */
+
+#define FERR_GLOBAL_LO	0x40
+static const char *ferr_global_name[] = {
+	[31] = "Internal MCH Fatal Error",
+	[30] = "Intel QuickData Technology Device Fatal Error",
+	[29] = "FSB1 Fatal Error",
+	[28] = "FSB0 Fatal Error",
+	[27] = "FBD Channel 3 Fatal Error",
+	[26] = "FBD Channel 2 Fatal Error",
+	[25] = "FBD Channel 1 Fatal Error",
+	[24] = "FBD Channel 0 Fatal Error",
+	[23] = "PCI Express Device 7Fatal Error",
+	[22] = "PCI Express Device 6 Fatal Error",
+	[21] = "PCI Express Device 5 Fatal Error",
+	[20] = "PCI Express Device 4 Fatal Error",
+	[19] = "PCI Express Device 3 Fatal Error",
+	[18] = "PCI Express Device 2 Fatal Error",
+	[17] = "PCI Express Device 1 Fatal Error",
+	[16] = "ESI Fatal Error",
+	[15] = "Internal MCH Non-Fatal Error",
+	[14] = "Intel QuickData Technology Device Non Fatal Error",
+	[13] = "FSB1 Non-Fatal Error",
+	[12] = "FSB 0 Non-Fatal Error",
+	[11] = "FBD Channel 3 Non-Fatal Error",
+	[10] = "FBD Channel 2 Non-Fatal Error",
+	[9]  = "FBD Channel 1 Non-Fatal Error",
+	[8]  = "FBD Channel 0 Non-Fatal Error",
+	[7]  = "PCI Express Device 7 Non-Fatal Error",
+	[6]  = "PCI Express Device 6 Non-Fatal Error",
+	[5]  = "PCI Express Device 5 Non-Fatal Error",
+	[4]  = "PCI Express Device 4 Non-Fatal Error",
+	[3]  = "PCI Express Device 3 Non-Fatal Error",
+	[2]  = "PCI Express Device 2 Non-Fatal Error",
+	[1]  = "PCI Express Device 1 Non-Fatal Error",
+	[0]  = "ESI Non-Fatal Error",
+};
+
+#define NERR_GLOBAL	0x44
+static const char *nerr_global_name[] = {
+	[31] = "Internal MCH Fatal Error",
+	[30] = "Intel QuickData Technology Device Fatal Error",
+	[29] = "FSB1 Fatal Error",
+	[28] = "FSB0 Fatal Error",
+	[27] = "FSB2 Fatal Error",
+	[26] = "FSB3 Fatal Error",
+	[25] = "Reserved",
+	[24] = "FBD Channel 0,1,2 or 3 Fatal Error",
+	[23] = "PCI Express Device 7 Fatal Error",
+	[22] = "PCI Express Device 6 Fatal Error",
+	[21] = "PCI Express Device 5 Fatal Error",
+	[20] = "PCI Express Device 4 Fatal Error",
+	[19] = "PCI Express Device 3 Fatal Error",
+	[18] = "PCI Express Device 2 Fatal Error",
+	[17] = "PCI Express Device 1 Fatal Error",
+	[16] = "ESI Fatal Error",
+	[15] = "Internal MCH Non-Fatal Error",
+	[14] = "Intel QuickData Technology Device Non Fatal Error",
+	[13] = "FSB1 Non-Fatal Error",
+	[12] = "FSB0 Non-Fatal Error",
+	[11] = "FSB2 Non-Fatal Error",
+	[10] = "FSB3 Non-Fatal Error",
+	[9] = "Reserved",
+	[8] = "FBD Channel 0,1, 2 or 3 Non-Fatal Error",
+	[7] = "PCI Express Device 7 Non-Fatal Error",
+	[6] = "PCI Express Device 6 Non-Fatal Error",
+	[5] = "PCI Express Device 5 Non-Fatal Error",
+	[4] = "PCI Express Device 4 Non-Fatal Error",
+	[3] = "PCI Express Device 3 Non-Fatal Error",
+	[2] = "PCI Express Device 2 Non-Fatal Error",
+	[1] = "PCI Express Device 1 Non-Fatal Error",
+	[0] = "ESI Non-Fatal Error",
+};
 
 #if 0
 
