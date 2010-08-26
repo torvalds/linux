@@ -50,12 +50,6 @@ struct ieee80211_local;
  * increased memory use (about 2 kB of RAM per entry). */
 #define IEEE80211_FRAGMENT_MAX 4
 
-/*
- * Time after which we ignore scan results and no longer report/use
- * them in any way.
- */
-#define IEEE80211_SCAN_RESULT_EXPIRE (10 * HZ)
-
 #define TU_TO_EXP_TIME(x)	(jiffies + usecs_to_jiffies((x) * 1024))
 
 #define IEEE80211_DEFAULT_UAPSD_QUEUES \
