@@ -56,6 +56,7 @@
 #include <asm/i387.h>
 #include <asm/xcr.h>
 #include <asm/pvclock.h>
+#include <asm/div64.h>
 
 #define MAX_IO_MSRS 256
 #define CR0_RESERVED_BITS						\
@@ -917,11 +918,15 @@ static inline int kvm_tsc_changes_freq(void)
 
 static inline u64 nsec_to_cycles(u64 nsec)
 {
+	u64 ret;
+
 	WARN_ON(preemptible());
 	if (kvm_tsc_changes_freq())
 		printk_once(KERN_WARNING
 		 "kvm: unreliable cycle conversion on adjustable rate TSC\n");
-	return (nsec * __get_cpu_var(cpu_tsc_khz)) / USEC_PER_SEC;
+	ret = nsec * __get_cpu_var(cpu_tsc_khz);
+	do_div(ret, USEC_PER_SEC);
+	return ret;
 }
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
