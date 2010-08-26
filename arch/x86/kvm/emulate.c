@@ -2429,8 +2429,8 @@ static struct opcode opcode_table[256] = {
 	I(DstReg | SrcMem | ModRM | Src2Imm, em_imul_3op),
 	I(SrcImmByte | Mov | Stack, em_push),
 	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
-	D(DstDI | ByteOp | Mov | String), D(DstDI | Mov | String), /* insb, insw/insd */
-	D(SrcSI | ByteOp | ImplicitOps | String), D(SrcSI | ImplicitOps | String), /* outsb, outsw/outsd */
+	D2bv(DstDI | Mov | String), /* insb, insw/insd */
+	D2bv(SrcSI | ImplicitOps | String), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
 	X16(D(SrcImmByte)),
 	/* 0x80 - 0x87 */
@@ -2454,13 +2454,12 @@ static struct opcode opcode_table[256] = {
 	/* 0xA0 - 0xA7 */
 	D(ByteOp | DstAcc | SrcMem | Mov | MemAbs), D(DstAcc | SrcMem | Mov | MemAbs),
 	D(ByteOp | DstMem | SrcAcc | Mov | MemAbs), D(DstMem | SrcAcc | Mov | MemAbs),
-	D(ByteOp | SrcSI | DstDI | Mov | String), D(SrcSI | DstDI | Mov | String),
-	D(ByteOp | SrcSI | DstDI | String), D(SrcSI | DstDI | String),
+	D2bv(SrcSI | DstDI | Mov | String), D2bv(SrcSI | DstDI | String),
 	/* 0xA8 - 0xAF */
 	D(DstAcc | SrcImmByte | ByteOp), D(DstAcc | SrcImm),
-	D(ByteOp | SrcAcc | DstDI | Mov | String), D(SrcAcc | DstDI | Mov | String),
-	D(ByteOp | SrcSI | DstAcc | Mov | String), D(SrcSI | DstAcc | Mov | String),
-	D(ByteOp | SrcAcc | DstDI | String), D(SrcAcc | DstDI | String),
+	D2bv(SrcAcc | DstDI | Mov | String),
+	D2bv(SrcSI | DstAcc | Mov | String),
+	D2bv(SrcAcc | DstDI | String),
 	/* 0xB0 - 0xB7 */
 	X8(D(ByteOp | DstReg | SrcImm | Mov)),
 	/* 0xB8 - 0xBF */
