@@ -138,7 +138,8 @@ static inline void check_zero(void)
  * large enough to allocate page table pages to allocate the rest.
  * Each page can map 2MB.
  */
-static pte_t level1_ident_pgt[PTRS_PER_PTE * 4] __page_aligned_bss;
+#define LEVEL1_IDENT_ENTRIES	(PTRS_PER_PTE * 4)
+static RESERVE_BRK_ARRAY(pte_t, level1_ident_pgt, LEVEL1_IDENT_ENTRIES);
 
 #ifdef CONFIG_X86_64
 /* l3 pud for userspace vsyscall mapping */
@@ -1718,6 +1719,9 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 	unsigned ident_pte;
 	unsigned long pfn;
 
+	level1_ident_pgt = extend_brk(sizeof(pte_t) * LEVEL1_IDENT_ENTRIES,
+				      PAGE_SIZE);
+
 	ident_pte = 0;
 	pfn = 0;
 	for (pmdidx = 0; pmdidx < PTRS_PER_PMD && pfn < max_pfn; pmdidx++) {
@@ -1728,7 +1732,7 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 			pte_page = m2v(pmd[pmdidx].pmd);
 		else {
 			/* Check for free pte pages */
-			if (ident_pte == ARRAY_SIZE(level1_ident_pgt))
+			if (ident_pte == LEVEL1_IDENT_ENTRIES)
 				break;
 
 			pte_page = &level1_ident_pgt[ident_pte];
