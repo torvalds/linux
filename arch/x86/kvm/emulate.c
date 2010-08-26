@@ -331,6 +331,27 @@ struct group_dual {
 			  "a" (_rax), "d" (_rdx));			\
 	} while (0)
 
+#define __emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, _eflags, _suffix, _ex) \
+	do {								\
+		unsigned long _tmp;					\
+									\
+		__asm__ __volatile__ (					\
+			_PRE_EFLAGS("0", "5", "1")			\
+			"1: \n\t"					\
+			_op _suffix " %6; "				\
+			"2: \n\t"					\
+			_POST_EFLAGS("0", "5", "1")			\
+			".pushsection .fixup,\"ax\" \n\t"		\
+			"3: movb $1, %4 \n\t"				\
+			"jmp 2b \n\t"					\
+			".popsection \n\t"				\
+			_ASM_EXTABLE(1b, 3b)				\
+			: "=m" (_eflags), "=&r" (_tmp),			\
+			  "+a" (_rax), "+d" (_rdx), "+qm"(_ex)		\
+			: "i" (EFLAGS_MASK), "m" ((_src).val),		\
+			  "a" (_rax), "d" (_rdx));			\
+	} while (0)
+
 /* instruction has only one source operand, destination is implicit (e.g. mul, div, imul, idiv) */
 #define emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags)			\
 	do {									\
@@ -339,6 +360,28 @@ struct group_dual {
 		case 2: __emulate_1op_rax_rdx(_op, _src, _rax, _rdx,  _eflags, "w"); break; \
 		case 4: __emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, "l"); break; \
 		case 8: ON64(__emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, "q")); break; \
+		}							\
+	} while (0)
+
+#define emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, _eflags, _ex)	\
+	do {								\
+		switch((_src).bytes) {					\
+		case 1:							\
+			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx,	\
+						 _eflags, "b", _ex);	\
+			break;						\
+		case 2:							\
+			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, \
+						 _eflags, "w", _ex);	\
+			break;						\
+		case 4:							\
+			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, \
+						 _eflags, "l", _ex);	\
+			break;						\
+		case 8: ON64(						\
+			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, \
+						 _eflags, "q", _ex));	\
+			break;						\
 		}							\
 	} while (0)
 
