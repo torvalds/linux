@@ -169,25 +169,27 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
  */
 #define USER_LIMIT	((STACK_TOP_MAX + PGDIR_SIZE - 1) & PGDIR_MASK)
 
+static unsigned long max_p2m_pfn __read_mostly = MAX_DOMAIN_PAGES;
 
-#define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
-#define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
+#define P2M_ENTRIES_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
+#define TOP_ENTRIES(pages)		((pages) / P2M_ENTRIES_PER_PAGE)
+#define MAX_TOP_ENTRIES			TOP_ENTRIES(MAX_DOMAIN_PAGES)
 
 /* Placeholder for holes in the address space */
 static RESERVE_BRK_ARRAY(unsigned long, p2m_missing, P2M_ENTRIES_PER_PAGE);
 
  /* Array of pointers to pages containing p2m entries */
-static RESERVE_BRK_ARRAY(unsigned long *, p2m_top, TOP_ENTRIES);
+static RESERVE_BRK_ARRAY(unsigned long *, p2m_top, MAX_TOP_ENTRIES);
 
 /* Arrays of p2m arrays expressed in mfns used for save/restore */
-static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn, TOP_ENTRIES);
+static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn, MAX_TOP_ENTRIES);
 
 static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn_list,
-			 (TOP_ENTRIES / P2M_ENTRIES_PER_PAGE));
+			 (MAX_TOP_ENTRIES / P2M_ENTRIES_PER_PAGE));
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
-	BUG_ON(pfn >= MAX_DOMAIN_PAGES);
+	BUG_ON(pfn >= max_p2m_pfn);
 	return pfn / P2M_ENTRIES_PER_PAGE;
 }
 
@@ -201,13 +203,15 @@ void xen_build_mfn_list_list(void)
 {
 	unsigned pfn, idx;
 
-	for (pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_ENTRIES_PER_PAGE) {
+	for (pfn = 0; pfn < max_p2m_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
 
 		p2m_top_mfn[topidx] = virt_to_mfn(p2m_top[topidx]);
 	}
 
-	for (idx = 0; idx < TOP_ENTRIES/P2M_ENTRIES_PER_PAGE; idx++) {
+	for (idx = 0;
+	     idx < TOP_ENTRIES(max_p2m_pfn)/P2M_ENTRIES_PER_PAGE;
+	     idx++) {
 		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
 		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
 	}
@@ -230,19 +234,22 @@ void __init xen_build_dynamic_phys_to_machine(void)
 	unsigned pfn;
 	unsigned i;
 
+	max_p2m_pfn = max_pfn;
+
 	p2m_missing = extend_brk(sizeof(*p2m_missing) * P2M_ENTRIES_PER_PAGE,
 				 PAGE_SIZE);
 	for (i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
 		p2m_missing[i] = ~0UL;
 
-	p2m_top = extend_brk(sizeof(*p2m_top) * TOP_ENTRIES,
+	p2m_top = extend_brk(sizeof(*p2m_top) * TOP_ENTRIES(max_pfn),
 			     PAGE_SIZE);
-	for (i = 0; i < TOP_ENTRIES; i++)
+	for (i = 0; i < TOP_ENTRIES(max_pfn); i++)
 		p2m_top[i] = p2m_missing;
 
-	p2m_top_mfn = extend_brk(sizeof(*p2m_top_mfn) * TOP_ENTRIES, PAGE_SIZE);
+	p2m_top_mfn = extend_brk(sizeof(*p2m_top_mfn) * TOP_ENTRIES(max_pfn),
+				 PAGE_SIZE);
 	p2m_top_mfn_list = extend_brk(sizeof(*p2m_top_mfn_list) *
-				      (TOP_ENTRIES / P2M_ENTRIES_PER_PAGE),
+				      (TOP_ENTRIES(max_pfn) / P2M_ENTRIES_PER_PAGE),
 				      PAGE_SIZE);
 
 	for (pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
@@ -258,7 +265,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 {
 	unsigned topidx, idx;
 
-	if (unlikely(pfn >= MAX_DOMAIN_PAGES))
+	if (unlikely(pfn >= max_p2m_pfn))
 		return INVALID_P2M_ENTRY;
 
 	topidx = p2m_top_index(pfn);
@@ -304,7 +311,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	unsigned topidx, idx;
 
-	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
+	if (unlikely(pfn >= max_p2m_pfn)) {
 		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
 	}
