@@ -264,14 +264,12 @@ static int stingray_l3g4200d_init(void)
 
 struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.poll_interval = 200,
-	.min_interval = 0,
+	.min_interval = 20,
 
-	.g_range = 0,
-
-	.ctrl_reg_1 = 0xbf,
+	.ctrl_reg_1 = 0x3f,
 	.ctrl_reg_2 = 0x00,
 	.ctrl_reg_3 = 0x00,
-	.ctrl_reg_4 = 0x00,
+	.ctrl_reg_4 = 0x20,
 	.ctrl_reg_5 = 0x00,
 	.int_config = 0x00,
 	.int_source = 0x00,
@@ -283,8 +281,8 @@ struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.int_th_z_l = 0x00,
 	.int_duration = 0x00,
 
-	.axis_map_x = 1,
-	.axis_map_y = 0,
+	.axis_map_x = 0,
+	.axis_map_y = 1,
 	.axis_map_z = 2,
 
 	.negate_x = 0,
