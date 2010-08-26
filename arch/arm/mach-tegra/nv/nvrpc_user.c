@@ -184,7 +184,6 @@ static int nvrpc_ioctl_open(struct file *filp,
 		if (e != NvSuccess)
 			goto fail;
 	}
-	printk(KERN_ERR "%s: NvRmTransportOpen\n", __func__);
 	op.ret_val = NvRmTransportOpen(s_hRmGlobal, p_name, recv_sem,
 				       (void *)&op.transport_handle);
 	error = copy_to_user(arg, &op, sizeof(op));
@@ -194,7 +193,6 @@ static int nvrpc_ioctl_open(struct file *filp,
 	    }
 	    g_hTransportCpu = (NvRmTransportHandle)op.transport_handle;
 	    g_hTransportCpuSem = (NvOsSemaphoreHandle) op.sem;
-	    printk(KERN_ERR "%s: g_hTransportCpu=%p\n", __func__, g_hTransportCpu);
 	}
 	if (p_name && ! strcmp(p_name, "RPC_AVP_PORT")) {
 	    if (g_hTransportAvp) {
@@ -202,7 +200,6 @@ static int nvrpc_ioctl_open(struct file *filp,
 	    }
 	    g_hTransportAvp = (NvRmTransportHandle)op.transport_handle;
 	    g_hTransportAvpSem = (NvOsSemaphoreHandle) op.sem;
-	    printk(KERN_ERR "%s: g_hTransportAvp=%p\n", __func__, g_hTransportAvp);
 	}
 
 fail:
@@ -296,7 +293,6 @@ static int nvrpc_ioctl_connect(struct file *filp,
 
 	NvRmTransportGetPortName((void *)op.handle,
 				 port_name, sizeof(port_name));
-	printk(KERN_INFO "%s: port_name=%s\n", __func__, port_name);
 
 
 	op.ret_val = NvRmTransportConnect(
@@ -659,7 +655,6 @@ static int __init nvrpc_init(void)
 	if (s_init_done == NV_FALSE) {
 		NvError e;
 
-		printk(KERN_INFO "%s: NvRmTransportInit\n", __func__);
 		e = NvRmOpen(&s_hRmGlobal, 0);
 		e = NvRmTransportInit(s_hRmGlobal);
 		s_init_done = NV_TRUE;

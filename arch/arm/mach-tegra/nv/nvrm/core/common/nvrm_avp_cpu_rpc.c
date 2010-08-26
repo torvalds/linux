@@ -63,8 +63,6 @@ static void ServiceThread( void *args )
 	static NvU8 ReceiveMessage[MAX_MESSAGE_LENGTH];
 	NvU32 MessageLength = 0;
 
-	NvOsDebugPrintf("%s: started\n", __func__);
-
 	Error = NvRmPrivRPCWaitForConnect(gs_hRPCHandle);
 	if (Error)
 	{
@@ -95,8 +93,6 @@ NvError NvRmPrivRPCInit(NvRmDeviceHandle hDeviceHandle, char* portName,
 {
 	NvError Error = NvSuccess;
 
-	NvOsDebugPrintf("%s: portName=%s\n", __func__, portName);
-
 	*hRPCHandle = NvOsAlloc(sizeof(NvRmRPC));
 	if (!*hRPCHandle)
 	{
@@ -115,8 +111,6 @@ NvError NvRmPrivRPCInit(NvRmDeviceHandle hDeviceHandle, char* portName,
 	}
 	if (! strcmp(portName, "RPC_AVP_PORT")) {
 		if (g_hTransportAvp) panic("%s: g_hTransportAvp is already set.\n", __func__);
-		NvOsDebugPrintf("%s: creating RPC_AVP_PORT.\n", __func__);
-
 		Error = NvOsSemaphoreCreate(&g_hTransportAvpSem, 0);
 		if (Error != NvSuccess) panic(__func__);
 
@@ -127,12 +121,9 @@ NvError NvRmPrivRPCInit(NvRmDeviceHandle hDeviceHandle, char* portName,
 		(*hRPCHandle)->svcTransportHandle = g_hTransportAvp;
 		(*hRPCHandle)->TransportRecvSemId = g_hTransportAvpSem;
 		(*hRPCHandle)->isConnected = g_hTransportAvpIsConnected;
-		NvOsDebugPrintf("%s: isConnected=%d\n", __func__, g_hTransportAvpIsConnected);
 	}
 	if (! strcmp(portName, "RPC_CPU_PORT")) {
 		if (g_hTransportCpu) panic("%s: g_hTransportCpu is already set.\n", __func__);
-		NvOsDebugPrintf("%s: creating RPC_CPU_PORT.\n", __func__);
-
 		Error = NvOsSemaphoreCreate(&g_hTransportCpuSem, 0);
 		if (Error != NvSuccess) panic(__func__);
 
@@ -143,7 +134,6 @@ NvError NvRmPrivRPCInit(NvRmDeviceHandle hDeviceHandle, char* portName,
 		(*hRPCHandle)->svcTransportHandle = g_hTransportCpu;
 		(*hRPCHandle)->TransportRecvSemId = g_hTransportCpuSem;
 		(*hRPCHandle)->isConnected = g_hTransportCpuIsConnected;
-		NvOsDebugPrintf("%s: isConnected=%d\n", __func__, g_hTransportCpuIsConnected);
 	}
 	(*hRPCHandle)->hRmDevice = hDeviceHandle;
 
@@ -190,11 +180,9 @@ void NvRmPrivRPCSendMsgWithResponse( NvRmRPCHandle hRPCHandle,
 				NvU32 MessageSize)
 {
 	NvError Error = NvSuccess;
-	NvOsDebugPrintf("%s: started\n", __func__);
 	NV_ASSERT(hRPCHandle->svcTransportHandle != NULL);
 
 	NvOsMutexLock(hRPCHandle->RecvLock);
-	NvOsDebugPrintf("%s: calling NvRmTransportSendMsg\n", __func__);
 	Error = NvRmTransportSendMsg(hRPCHandle->svcTransportHandle,
 				pSendMessageBuffer, MessageSize, NV_WAIT_INFINITE);
 	if (Error)
@@ -203,12 +191,8 @@ void NvRmPrivRPCSendMsgWithResponse( NvRmRPCHandle hRPCHandle,
 		NvOsDebugPrintf("%s: error in NvRmTransportSendMsg\n", __func__);
 		goto clean_up;
 	}
-	NvOsDebugPrintf("%s: returned from NvRmTransportSendMsg\n", __func__);
-
-	NvOsDebugPrintf("%s: NvOsSemaphoreWait(TransportRecvSemId=%x)\n", __func__,hRPCHandle->TransportRecvSemId);
 	NvOsSemaphoreWait(hRPCHandle->TransportRecvSemId);
 
-	NvOsDebugPrintf("%s: calling NvRmTransportRecvMsg\n", __func__);
 	Error = NvRmTransportRecvMsg(hRPCHandle->svcTransportHandle,
 				pRecvMessageBuffer, MaxSize, pMessageSize);
 	if (Error)
@@ -216,7 +200,6 @@ void NvRmPrivRPCSendMsgWithResponse( NvRmRPCHandle hRPCHandle,
 		NvOsDebugPrintf("%s: error in NvRmTransportRecvMsg\n", __func__);
 		goto clean_up;
 	}
-	NvOsDebugPrintf("%s: returned from NvRmTransportRecvMsg\n", __func__);
 
 clean_up:
 	NV_ASSERT(Error == NvSuccess);
@@ -243,10 +226,8 @@ NvError NvRmPrivRPCWaitForConnect( NvRmRPCHandle hRPCHandle )
 		// Connect to the other end
 		while (s_ContinueProcessing)
 		{
-			/* NvOsDebugPrintf("%s: NvRmTransportWaitForConnect(handle=%x)\n", __func__, hRPCHandle->svcTransportHandle); */
 			Error = NvRmTransportWaitForConnect(
 				hRPCHandle->svcTransportHandle, 100 );
-			/* NvOsDebugPrintf("%s: NvRmTransportWaitForConnect=%d\n", __func__, Error); */
 			if (Error == NvSuccess)
 			{
 				hRPCHandle->isConnected = NV_TRUE;
@@ -290,13 +271,10 @@ NvError NvRmPrivRPCConnect( NvRmRPCHandle hRPCHandle )
 	// Connect to the other end with a large timeout
 	// Timeout value has been increased to suit slow enviornments like
 	// emulation FPGAs
-	NvOsDebugPrintf("%s: NvRmTransportConnect(handle=%x)\n", __func__, hRPCHandle->svcTransportHandle);
 	Error = NvRmTransportConnect(hRPCHandle->svcTransportHandle,
 				CONNECTION_TIMEOUT );
-	NvOsDebugPrintf("%s: NvRmTransportConnect=%d\n", __func__, Error);
 	if(Error == NvSuccess)
 	{
-		NvOsDebugPrintf("%s: Connected.\n", __func__);
 		hRPCHandle->isConnected = NV_TRUE;
 	}
 	else
@@ -353,7 +331,6 @@ NvError NvRmPrivInitService(NvRmDeviceHandle hDeviceHandle)
 {
 	NvError Error = NvSuccess;
 
-	NvOsDebugPrintf("%s <kernel>: called\n", __func__);
 	Error = NvRmPrivRPCInit(hDeviceHandle, PORT_NAME, &gs_hRPCHandle);
 	if( Error != NvSuccess)
 	{
@@ -364,7 +341,6 @@ NvError NvRmPrivInitService(NvRmDeviceHandle hDeviceHandle)
 #if !NV_IS_AVP
 	Error = NvOsInterruptPriorityThreadCreate(ServiceThread, NULL,
 						&s_RecvThreadId_Service);
-	NvOsDebugPrintf("%s: s_RecvThreadId_Service=%p\n", __func__, s_RecvThreadId_Service);
 #else
 	Error = NvOsThreadCreate(ServiceThread, NULL, &s_RecvThreadId_Service);
 #endif

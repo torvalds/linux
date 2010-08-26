@@ -112,20 +112,15 @@ ssize_t nvfw_write(struct file *file, const char __user *buff, size_t count, lof
 	char filename[100];
 	int error;
 
-	printk(KERN_INFO "%s: entry\n", __func__);
-
 	error = copy_from_user(filename, buff, count);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
 	filename[count] = 0;
-	printk(KERN_INFO "%s: filename=%s\n", __func__, filename);
-
 	error = NvRmOpen( &hRmDevice, 0 );
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
 
 	error = NvRmLoadLibrary(hRmDevice, filename, NULL, 0, &hRmLibHandle);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
 
-	printk(KERN_INFO "%s: return\n", __func__);
 	return count;
 }
 
@@ -154,7 +149,6 @@ static int nvfw_ioctl_load_library(struct file *filp, void __user *arg)
 	filename = NvOsAlloc(op.length + 1);
 	error = copy_from_user(filename, op.filename, op.length + 1);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	printk(KERN_INFO "%s: filename=%s\n", __func__, filename);
 
 	args = NvOsAlloc(op.argssize);
 	error = copy_from_user(args, op.args, op.argssize);
@@ -189,7 +183,6 @@ static int nvfw_ioctl_load_library_ex(struct file *filp, void __user *arg)
 	filename = NvOsAlloc(op.length + 1);
 	error = copy_from_user(filename, op.filename, op.length + 1);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	printk(KERN_INFO "%s: filename=%s\n", __func__, filename);
 
 	args = NvOsAlloc(op.argssize);
 	error = copy_from_user(args, op.args, op.argssize);
@@ -240,7 +233,6 @@ static int nvfw_ioctl_get_proc_address(struct file *filp, void __user *arg)
 	symbolname = NvOsAlloc(op.length + 1);
 	error = copy_from_user(symbolname, op.symbolname, op.length + 1);
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
-	printk(KERN_INFO "%s: symbolname=%s\n", __func__, symbolname);
 
 	error = NvRmOpen( &hRmDevice, 0 );
 	if (error) panic("%s: line=%d\n", __func__, __LINE__);
@@ -743,7 +735,6 @@ static int __init nvfw_init(void)
     int ret = 0;
     struct platform_device *pdev;
 
-    NvOsDebugPrintf("%s: called\n", __func__);
     ret = misc_register(&nvfw_dev);
     s_KernelImage = NULL;
     if (ret) panic("%s: misc_register FAILED\n", __func__);
@@ -757,8 +748,6 @@ static int __init nvfw_init(void)
         ret = -EINVAL;
         goto err;
     }
-
-    pr_info("avp driver initialized\n");
 
     return 0;
 
