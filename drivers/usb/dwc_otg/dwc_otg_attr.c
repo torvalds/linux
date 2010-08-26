@@ -268,7 +268,7 @@
  * MACROs for defining sysfs attribute
  */
 #define DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_,_addr_,_mask_,_shift_,_string_) \
-static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
+static ssize_t _otg_attr_name_##_show (struct device *_dev, struct device_attribute *attr, char *buf) \
 { \
         dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t val; \
@@ -277,7 +277,7 @@ static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
 	return sprintf (buf, "%s = 0x%x\n", _string_, val); \
 }
 #define DWC_OTG_DEVICE_ATTR_BITFIELD_STORE(_otg_attr_name_,_addr_,_mask_,_shift_,_string_) \
-static ssize_t _otg_attr_name_##_store (struct device *_dev, const char *buf, size_t count) \
+static ssize_t _otg_attr_name_##_store (struct device *_dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
         dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t set = simple_strtoul(buf, NULL, 16); \
@@ -302,7 +302,7 @@ DEVICE_ATTR(_otg_attr_name_,0444,_otg_attr_name_##_show,NULL);
  * MACROs for defining sysfs attribute for 32-bit registers
  */
 #define DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_,_addr_,_string_) \
-static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
+static ssize_t _otg_attr_name_##_show (struct device *_dev, struct device_attribute *attr, char *buf) \
 { \
         dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t val; \
@@ -310,7 +310,7 @@ static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
 	return sprintf (buf, "%s = 0x%08x\n", _string_, val); \
 }
 #define DWC_OTG_DEVICE_ATTR_REG_STORE(_otg_attr_name_,_addr_,_string_) \
-static ssize_t _otg_attr_name_##_store (struct device *_dev, const char *buf, size_t count) \
+static ssize_t _otg_attr_name_##_store (struct device *_dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
         dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t val = simple_strtoul(buf, NULL, 16); \
@@ -335,17 +335,19 @@ DEVICE_ATTR(_otg_attr_name_,0444,_otg_attr_name_##_show,NULL);
 /**
  * Show the register offset of the Register Access.
  */
-static ssize_t regoffset_show( struct device *_dev, char *buf) 
+static ssize_t regoffset_show( struct device *_dev,
+							struct device_attribute *attr, char *buf) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
+        
 	return snprintf(buf, sizeof("0xFFFFFFFF\n")+1,"0x%08x\n", otg_dev->reg_offset);
 }
 
 /**
  * Set the register offset for the next Register Access 	Read/Write
  */
-static ssize_t regoffset_store( struct device *_dev, const char *buf, 
-                                size_t count ) 
+static ssize_t regoffset_store( struct device *_dev, struct device_attribute *attr,
+							const char *buf, size_t count ) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t offset = simple_strtoul(buf, NULL, 16);
@@ -366,7 +368,8 @@ DEVICE_ATTR(regoffset, S_IRUGO|S_IWUSR, regoffset_show, regoffset_store);
  * Show the value of the register at the offset in the reg_offset
  * attribute.
  */
-static ssize_t regvalue_show( struct device *_dev, char *buf) 
+static ssize_t regvalue_show( struct device *_dev,
+								struct device_attribute *attr, char *buf) 
 {
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val;
@@ -395,8 +398,9 @@ static ssize_t regvalue_show( struct device *_dev, char *buf)
  * attribute.
  * 
  */
-static ssize_t regvalue_store( struct device *_dev, const char *buf, 
-                               size_t count ) 
+static ssize_t regvalue_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf,  size_t count ) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	volatile uint32_t * addr;
@@ -449,7 +453,8 @@ DWC_OTG_DEVICE_ATTR_REG32_RW(hprt0,otg_dev->core_if->host_if->hprt0,"HPRT0");
 /**
  * Show the HNP status bit
  */
-static ssize_t hnp_show( struct device *_dev, char *buf) 
+static ssize_t hnp_show( struct device *_dev,
+								struct device_attribute *attr,  char *buf) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	gotgctl_data_t val;
@@ -460,8 +465,9 @@ static ssize_t hnp_show( struct device *_dev, char *buf)
 /**
  * Set the HNP Request bit
  */
-static ssize_t hnp_store( struct device *_dev, const char *buf, 
-			  size_t count ) 
+static ssize_t hnp_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf, size_t count ) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
@@ -481,7 +487,8 @@ DEVICE_ATTR(hnp, 0644, hnp_show, hnp_store);
 /**
  * Show the SRP status bit
  */
-static ssize_t srp_show( struct device *_dev, char *buf) 
+static ssize_t srp_show( struct device *_dev,
+								struct device_attribute *attr,  char *buf) 
 {
 #ifndef DWC_HOST_ONLY
         dwc_otg_device_t *otg_dev = _dev->platform_data;
@@ -498,8 +505,9 @@ static ssize_t srp_show( struct device *_dev, char *buf)
 /**
  * Set the SRP Request bit
  */
-static ssize_t srp_store( struct device *_dev, const char *buf, 
-			  size_t count ) 
+static ssize_t srp_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf, size_t count ) 
 {
 #ifndef DWC_HOST_ONLY
         dwc_otg_device_t *otg_dev = _dev->platform_data;
@@ -515,7 +523,8 @@ DEVICE_ATTR(srp, 0644, srp_show, srp_store);
 /**
  * Show the Bus Power status
  */
-static ssize_t buspower_show( struct device *_dev, char *buf) 
+static ssize_t buspower_show( struct device *_dev,
+								struct device_attribute *attr,  char *buf) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	hprt0_data_t val;
@@ -527,8 +536,9 @@ static ssize_t buspower_show( struct device *_dev, char *buf)
 /**
  * Set the Bus Power status
  */
-static ssize_t buspower_store( struct device *_dev, const char *buf, 
-                               size_t count ) 
+static ssize_t buspower_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf, size_t count ) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t on = simple_strtoul(buf, NULL, 16);
@@ -551,7 +561,8 @@ DEVICE_ATTR(buspower, 0644, buspower_show, buspower_store);
 /**
  * Show the Bus Suspend status
  */
-static ssize_t bussuspend_show( struct device *_dev, char *buf) 
+static ssize_t bussuspend_show( struct device *_dev,
+								struct device_attribute *attr,  char *buf) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	hprt0_data_t val;
@@ -562,8 +573,9 @@ static ssize_t bussuspend_show( struct device *_dev, char *buf)
 /**
  * Set the Bus Suspend status
  */
-static ssize_t bussuspend_store( struct device *_dev, const char *buf, 
-                                 size_t count ) 
+static ssize_t bussuspend_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf, size_t count ) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
@@ -580,7 +592,8 @@ DEVICE_ATTR(bussuspend, 0644, bussuspend_show, bussuspend_store);
 /**
  * Show the status of Remote Wakeup.
  */
-static ssize_t remote_wakeup_show( struct device *_dev, char *buf) 
+static ssize_t remote_wakeup_show( struct device *_dev, 
+										struct device_attribute *attr,char *buf) 
 {
 #ifndef DWC_HOST_ONLY
         dwc_otg_device_t *otg_dev = _dev->platform_data;
@@ -599,8 +612,9 @@ static ssize_t remote_wakeup_show( struct device *_dev, char *buf)
  * flag is set.
  * 
  */
-static ssize_t remote_wakeup_store( struct device *_dev, const char *buf, 
-                                    size_t count ) 
+static ssize_t remote_wakeup_store( struct device *_dev, 
+						struct device_attribute *attr,
+						const char *buf,  size_t count ) 
 {
 #ifndef DWC_HOST_ONLY
         uint32_t val = simple_strtoul(buf, NULL, 16);        
@@ -614,14 +628,15 @@ static ssize_t remote_wakeup_store( struct device *_dev, const char *buf,
 #endif
 	return count;
 }
-DEVICE_ATTR(remote_wakeup,  S_IRUGO|S_IWUSR, remote_wakeup_show, 
+static DEVICE_ATTR(remote_wakeup,  S_IRUGO|S_IWUSR, remote_wakeup_show, 
             remote_wakeup_store);
 
 /**
  * Dump global registers and either host or device registers (depending on the
  * current mode of the core).
  */
-static ssize_t regdump_show( struct device *_dev, char *buf) 
+static ssize_t regdump_show( struct device *_dev, 
+								struct device_attribute *attr, char *buf) 
 {
         dwc_otg_device_t *otg_dev = _dev->platform_data;
         dwc_otg_dump_global_registers( otg_dev->core_if);
@@ -638,7 +653,8 @@ DEVICE_ATTR(regdump, S_IRUGO|S_IWUSR, regdump_show, 0);
 /**
  * Dump the current hcd state.
  */
-static ssize_t hcddump_show( struct device *_dev, char *buf) 
+static ssize_t hcddump_show( struct device *_dev, 
+								struct device_attribute *attr, char *buf) 
 {
 #ifndef DWC_DEVICE_ONLY
         dwc_otg_device_t *otg_dev = _dev->platform_data;
@@ -654,7 +670,8 @@ DEVICE_ATTR(hcddump, S_IRUGO|S_IWUSR, hcddump_show, 0);
  * determine average interrupt latency. Frame remaining is also shown for
  * start transfer and two additional sample points.
  */
-static ssize_t hcd_frrem_show( struct device *_dev, char *buf) 
+static ssize_t hcd_frrem_show( struct device *_dev,
+								struct device_attribute *attr,  char *buf) 
 {
 #ifndef DWC_DEVICE_ONLY
         dwc_otg_device_t *otg_dev = _dev->platform_data;
@@ -671,7 +688,8 @@ DEVICE_ATTR(hcd_frrem, S_IRUGO|S_IWUSR, hcd_frrem_show, 0);
  */
 #define RW_REG_COUNT 10000000
 #define MSEC_PER_JIFFIE 1000/HZ	
-static ssize_t rd_reg_test_show( struct device *_dev, char *buf) 
+static ssize_t rd_reg_test_show( struct device *_dev, 
+								struct device_attribute *attr, char *buf) 
 {
 	int i;
 	int time;
@@ -695,7 +713,8 @@ DEVICE_ATTR(rd_reg_test, S_IRUGO|S_IWUSR, rd_reg_test_show, 0);
  * Displays the time required to write the GNPTXFSIZ register many times (the
  * output shows the number of times the register is written).
  */
-static ssize_t wr_reg_test_show( struct device *_dev, char *buf) 
+static ssize_t wr_reg_test_show( struct device *_dev, 
+								struct device_attribute *attr, char *buf) 
 {
 	int i;
 	int time;

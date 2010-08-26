@@ -361,6 +361,8 @@ typedef struct dwc_otg_hcd {
 	/* Tasket to do a reset */
 	struct tasklet_struct   *reset_tasklet;
 
+	spinlock_t global_lock;
+
 #ifdef DEBUG
 	uint32_t 		frrem_samples;
 	uint64_t 		frrem_accum;
@@ -416,8 +418,7 @@ extern int dwc_otg_hcd_urb_dequeue(struct usb_hcd *hcd,
 				   int status);
 extern void dwc_otg_hcd_endpoint_disable(struct usb_hcd *hcd,
 					 struct usb_host_endpoint *ep);
-extern irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *hcd, 
-				   struct pt_regs *regs);
+extern irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *hcd);
 extern int dwc_otg_hcd_hub_status_data(struct usb_hcd *hcd, 
 				       char *buf);
 extern int dwc_otg_hcd_hub_control(struct usb_hcd *hcd, 

@@ -67,7 +67,7 @@
 #include "dwc_otg_driver.h"
 #include "dwc_otg_cil.h"
 #define SCU_BASE_ADDR_VA RK2818_SCU_BASE
-static dwc_otg_core_if_t * dwc_core_if;
+static dwc_otg_core_if_t * dwc_core_if = NULL;
 /** 
  * This function is called to initialize the DWC_otg CSR data
  * structures.	The register addresses in the device and host
@@ -212,6 +212,7 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t *_reg_base_addr,
 	core_if->srp_timer_started = 0;
 
 	core_if->usb_wakeup = 0;
+	if(dwc_core_if  ==  NULL)
              dwc_core_if = core_if;
 	return core_if;
 }
@@ -383,7 +384,7 @@ static uint32_t calc_num_in_eps(dwc_otg_core_if_t *_core_if)
 	
 	for(i = 0; i < num_eps; ++i)
 	{
-		if(!(hwcfg1 & 0x1))
+		if((hwcfg1 & 0x3) == 0x01)
 			num_in_eps++;
 		
 		hwcfg1 >>= 2;
@@ -413,7 +414,7 @@ static uint32_t calc_num_out_eps(dwc_otg_core_if_t *_core_if)
 	
 	for(i = 0; i < num_eps; ++i)
 	{
-		if(!(hwcfg1 & 0x2))
+		if((hwcfg1 & 0x3) == 0x02)
 			num_out_eps++;
 		
 		hwcfg1 >>= 2;
@@ -1051,6 +1052,16 @@ void dwc_otg_hc_init(dwc_otg_core_if_t *_core_if, dwc_hc_t *_hc)
 				}
 			}
 		}
+#if 1
+		//yk@rk 20100714
+		if((_core_if->core_params->host_channels <= 2)&&
+			_hc->ep_is_in && 
+			_hc->ep_type == DWC_OTG_EP_TYPE_BULK)
+		{
+			//DWC_PRINT("%s bulk in\n",__func__);
+			hc_intr_mask.b.nak = 1;
+		}
+#endif
 	} 
 	else 
 	{
@@ -1223,8 +1234,6 @@ void dwc_otg_hc_halt(dwc_otg_core_if_t *_core_if,
 			 dwc_hc_t *_hc,
 			 dwc_otg_halt_status_e _halt_status)
 {
-	gnptxsts_data_t			nptxsts;
-	hptxsts_data_t			hptxsts;
 	hcchar_data_t			hcchar;
 	dwc_otg_hc_regs_t		*hc_regs;
 	dwc_otg_core_global_regs_t	*global_regs;
@@ -1289,56 +1298,38 @@ void dwc_otg_hc_halt(dwc_otg_core_if_t *_core_if,
 		 * happen when a transfer is aborted by a higher level in
 		 * the stack.
 		 */
-#ifdef DEBUG
+		
 		DWC_PRINT("*** %s: Channel %d, _hc->halt_pending already set ***\n",
 			  __func__, _hc->hc_num);
+#ifdef DEBUG
 
 /*		dwc_otg_dump_global_registers(_core_if); */
 /*		dwc_otg_dump_host_registers(_core_if); */
 #endif		
 		return;
 	}
+    
 
 	hcchar.d32 = dwc_read_reg32(&hc_regs->hcchar);
-	hcchar.b.chen = 1;
-	hcchar.b.chdis = 1;
-
-	if (!_core_if->dma_enable) 
+	//hcchar.b.chen = 1;
+	//hcchar.b.chdis = 1;
+	if(hcchar.b.chen)
 	{
-		/* Check for space in the request queue to issue the halt. */
-		if (_hc->ep_type == DWC_OTG_EP_TYPE_CONTROL ||
-			_hc->ep_type == DWC_OTG_EP_TYPE_BULK) 
-		{
-			nptxsts.d32 = dwc_read_reg32(&global_regs->gnptxsts);
-			if (nptxsts.b.nptxqspcavail == 0) 
-			{
-				hcchar.b.chen = 0;
-			}
-		} 
-		else 
-		{
-			hptxsts.d32 = dwc_read_reg32(&host_global_regs->hptxsts);
-			if ((hptxsts.b.ptxqspcavail == 0) || (_core_if->queuing_high_bandwidth)) 
-			{
-				hcchar.b.chen = 0;
-			}
-		}
-	}
-
-	dwc_write_reg32(&hc_regs->hcchar, hcchar.d32);
-
-	_hc->halt_status = _halt_status;
-
-	if (hcchar.b.chen) 
-	{
+		hcchar.b.chen = 0;
+		hcchar.b.chdis = 1;
+		//hcchar.b.epdir = 0;
+		dwc_write_reg32(&hc_regs->hcchar, hcchar.d32);
+		
 		_hc->halt_pending = 1;
 		_hc->halt_on_queue = 0;
-	} 
-	else 
+		_hc->halt_status = _halt_status;
+	}
+	else
 	{
+		DWC_PRINT("%s channel already halt!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", __func__);
 		_hc->halt_on_queue = 1;
 	}
-
+	
 	DWC_DEBUGPL(DBG_HCDV, "%s: Channel %d\n", __func__, _hc->hc_num);
 	DWC_DEBUGPL(DBG_HCDV, "	 hcchar: 0x%08x\n", hcchar.d32);
 	DWC_DEBUGPL(DBG_HCDV, "	 halt_pending: %d\n", _hc->halt_pending);
@@ -2898,7 +2889,8 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
 {
 	dwc_otg_core_global_regs_t *global_regs = _core_if->core_global_regs;
 	volatile grstctl_t greset = { .d32 = 0};
-	gusbcfg_data_t usbcfg = { .d32 = 0 };
+	volatile gusbcfg_data_t usbcfg = { .d32 = 0 };
+	volatile gintsts_data_t gintsts =  { .d32 = 0 };
 	int count = 0;
 	DWC_DEBUGPL(DBG_CILV, "%s\n", __func__);
 	/* Wait for AHB master IDLE state. */
@@ -2950,7 +2942,21 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->gusbcfg, usbcfg.d32 );
 	/* Wait for 3 PHY Clocks*/
 	//DWC_PRINT("100ms\n");
-	MDELAY(100);
+	mdelay(10);
+	count = 0;
+	if(usbcfg.b.force_hst_mode)
+	do 
+	{
+		gintsts.d32 = dwc_read_reg32( &global_regs->gintsts);
+		if (++count > 100)
+		{
+			DWC_WARN("%s() ERROR! Force host mode GINTSTS=%0x\n", __func__, 
+				gintsts.d32);
+			break;
+		}
+		mdelay(5);
+	} 
+	while (gintsts.b.curmode != DWC_HOST_MODE);
 }
 
 
@@ -2987,22 +2993,20 @@ extern void dwc_otg_cil_register_pcd_callbacks( dwc_otg_core_if_t *_core_if,
 	_cb->p = _p;
 }
 
-void rk28_usb_force_disconnect( void )
+void rk28_usb_force_disconnect( dwc_otg_core_if_t *core_if )
 {
         gotgctl_data_t    gctrl;
         dctl_data_t dctl = {.d32=0};
-        if( dwc_core_if == NULL )
-                return ;
 
-        gctrl.d32 = dwc_read_reg32( &dwc_core_if->core_global_regs->gotgctl );
+        gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
         if( !gctrl.b.bsesvld )
                 return ;
 
         printk("%s\n" , __func__);
         /* soft disconnect */
-        dctl.d32 = dwc_read_reg32( &dwc_core_if->dev_if->dev_global_regs->dctl );
+        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
         dctl.b.sftdiscon = 1;
-        dwc_write_reg32( &dwc_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
 }
 
 /**

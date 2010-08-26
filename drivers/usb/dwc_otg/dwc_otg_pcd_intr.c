@@ -37,7 +37,7 @@
 #include "dwc_otg_pcd.h"
 
 
-#define DEBUG_EP0
+//#define DEBUG_EP0
 
 /* request functions defined in "dwc_otg_pcd.c" */
 extern void request_done( dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req, 
@@ -875,6 +875,7 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *_pcd)
 	gusbcfg.d32 = dwc_read_reg32(&global_regs->gusbcfg);
 	if (_pcd->gadget.speed == USB_SPEED_HIGH) 
 	{
+    	depctl.b.mps = 0x200;
 		if (GET_CORE_IF(_pcd)->hwcfg2.b.hs_phy_type == DWC_HWCFG2_HS_PHY_TYPE_ULPI) 
 		{
 			/* ULPI interface */
@@ -925,6 +926,7 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *_pcd)
 	} 
 	else 
 	{
+    	depctl.b.mps = 0x40;
 		/* Full or low speed */
 		gusbcfg.b.usbtrdtim = 9;
 	}
@@ -936,14 +938,12 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *_pcd)
 	dwc_write_reg32( &GET_CORE_IF(_pcd)->core_global_regs->gintsts, 
 						 gintsts.d32 );
 	/* enable ep2out */
-	depctl.d32 = 0;
 	depctl.b.setd0pid = 1;
     dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->in_ep_regs[1]->diepctl, depctl.d32);
 	depctl.b.snak = 1;
 	depctl.b.txfnum = 2;
 	depctl.b.eptype = 2;
     depctl.b.usbactep = 1;
-    depctl.b.mps = 0x200;
     dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[2]->doepctl, depctl.d32 );
 	return 1;
 }
@@ -2536,7 +2536,6 @@ int32_t dwc_otg_pcd_handle_out_nak_effective( dwc_otg_pcd_t *_pcd )
  * All interrupt registers are processed from LSB to MSB.
  * 
  */
- extern void dwc_otg_dump_global_registers(dwc_otg_core_if_t *_core_if);
 int32_t dwc_otg_pcd_handle_intr( dwc_otg_pcd_t *_pcd )
 {
 	dwc_otg_core_if_t *core_if = GET_CORE_IF(_pcd);

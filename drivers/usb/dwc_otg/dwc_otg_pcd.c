@@ -330,7 +330,16 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 			ep->dwc_ep.tx_fifo_num = assign_tx_fifo(pcd->otg_dev->core_if);
 		}
                         #endif 
-                         ep->dwc_ep.tx_fifo_num = ep->dwc_ep.num ; /* 1,3,5 */
+        /* yk@rk
+         * ep0 -- tx fifo 0
+         * ep1 -- tx fifo 1
+         * ep3 -- tx fifo 2
+         * ep5 -- tx fifo 3
+         */
+        if(ep->dwc_ep.num == 0)
+	        ep->dwc_ep.tx_fifo_num = 0;
+        else
+    	    ep->dwc_ep.tx_fifo_num = (ep->dwc_ep.num>>1)+1 ; /* 1,3,5 */
 	}		 
 	/* Set initial data PID. */
 	if ((_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == 
@@ -398,7 +407,7 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
  * @param _gfp_flags the GFP_* flags to use.
  */
 static struct usb_request *dwc_otg_pcd_alloc_request(struct usb_ep *_ep,
-													 int _gfp_flags)
+													 gfp_t _gfp_flags)
 {
 	dwc_otg_pcd_request_t *req;
 	DWC_DEBUGPL(DBG_PCDV,"%s(%p,%d)\n", __func__, _ep, _gfp_flags);
@@ -536,7 +545,7 @@ static void dwc_otg_pcd_free_buffer(struct usb_ep *_ep, void *_buf,
  *	  flag.
  */
 static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep, 
-								struct usb_request *_req, int _gfp_flags)
+								struct usb_request *_req, gfp_t _gfp_flags)
 {
 	int prevented = 0;
 	dwc_otg_pcd_request_t *req;
@@ -557,13 +566,12 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	/* 20091226,HSL@RK */
 	if ( !list_empty(&req->queue) ) 
 	{
-			return -EINVAL;
-	                printk("%s::req not empty,done it error!\n" , __func__ );
-	                while(!list_empty(&req->queue) ) {
-	                        ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
-	                        request_done(ep, req, -ECONNABORTED);
-	                }
-		
+        printk("%s::ep %s req not empty,done it error!\n" , __func__, _ep->name);
+		return -EINVAL;
+        while(!list_empty(&req->queue) ) {
+                ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
+                request_done(ep, req, -ECONNABORTED);
+        }
 	}
 	
 	ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
@@ -1026,7 +1034,7 @@ void dwc_otg_pcd_update_otg( dwc_otg_pcd_t *_pcd, const unsigned _reset )
  * This function is the top level PCD interrupt handler.
  */
 static irqreturn_t 
-dwc_otg_pcd_irq(int _irq, void *_dev, struct pt_regs *_r)
+dwc_otg_pcd_irq(int _irq, void *_dev)
 {
 	dwc_otg_pcd_t *pcd = _dev;
 	int32_t retval = IRQ_NONE;
@@ -1599,11 +1607,13 @@ void dwc_otg_msc_unlock(void)
 
 static void dwc_phy_reconnect(struct work_struct *work)
 {
-        dwc_otg_pcd_t *pcd = container_of(work, dwc_otg_pcd_t, reconnect.work);;
-        dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
+        dwc_otg_pcd_t *pcd;
+        dwc_otg_core_if_t *core_if;
         gotgctl_data_t    gctrl;
         dctl_data_t dctl = {.d32=0};
 
+        pcd = container_of(work, dwc_otg_pcd_t, reconnect.work);
+        core_if = GET_CORE_IF(pcd); 
         gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
         if( gctrl.b.bsesvld  ) {
             dwc_otg_msc_lock();
@@ -1978,6 +1988,10 @@ int rk28_msc_switch(int action)
 	return 0;
 }
 #else
+int dwc_otg_set_vbus_status(int status)
+{
+    return 0;
+}
 int rk28_usb_suspend( int exitsuspend )
 {
 	return 0;

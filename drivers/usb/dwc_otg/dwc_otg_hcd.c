@@ -57,11 +57,111 @@
 
 static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 {
-	return 0;
+#if 1
+    dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (hcd);
+    dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+    hprt0_data_t hprt0;
+    pcgcctl_data_t pcgcctl;
+    //dwc_debug(1);
+    
+    if(core_if->op_state == B_PERIPHERAL)
+    {
+    	printk("%s, usb device mode\n", __func__);
+    	return 0;
+    }
+    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
+    //partial power-down
+    if(!hprt0.b.prtsusp)
+    {
+        //hprt0.d32 = 0;
+        hprt0.b.prtsusp = 1;
+        hprt0.b.prtena = 0;
+        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+    }
+    udelay(10);
+    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
+    if(!hprt0.b.prtsusp)
+    {
+        //hprt0.d32 = 0;
+        hprt0.b.prtsusp = 1;
+        hprt0.b.prtena = 0;
+        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+    }
+    mdelay(5);
+#if 1
+    pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);
+    pcgcctl.b.pwrclmp = 1;//power clamp
+    dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
+    udelay(1);
+    //pcgcctl.b.rstpdwnmodule = 1;//reset PDM
+    pcgcctl.b.stoppclk = 1;//stop phy clk
+    dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
+#endif
+#endif
+    //power off
+    return 0;
 }
 
 static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 {
+#if 1
+    dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (hcd);
+    dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+    hprt0_data_t hprt0;
+    pcgcctl_data_t pcgcctl;
+    gintmsk_data_t gintmsk;
+	
+    if(core_if->op_state == B_PERIPHERAL)
+    {
+    	printk("%s, usb device mode\n", __func__);
+    	return 0;
+    }
+#if 1
+    //partial power-down
+    //power on
+    pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);;
+    pcgcctl.b.stoppclk = 0;//stop phy clk
+    dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
+    udelay(1);
+    pcgcctl.b.pwrclmp = 0;//power clamp
+    dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
+    udelay(2);
+#endif
+    //dwc_debug(3);
+    //dwc_debug(1);
+    gintmsk.d32 = dwc_read_reg32(&core_if->core_global_regs->gintmsk);
+    gintmsk.b.portintr = 0;
+    dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
+
+    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
+    hprt0.b.prtpwr = 1;    
+    hprt0.b.prtres = 1;
+    hprt0.b.prtena = 0;
+    dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+    mdelay(20);
+    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
+    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
+    //hprt0.d32 = 0;
+    hprt0.b.prtpwr = 1;    
+    hprt0.b.prtres = 0;
+    hprt0.b.prtena = 0;
+    dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+    hprt0.d32 = 0;
+    hprt0.b.prtpwr = 1;
+    hprt0.b.prtena = 0;
+    hprt0.b.prtconndet = 1;
+    dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+
+    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
+    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
+	
+    gintmsk.b.portintr = 1;
+    dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
+    mdelay(10);
+#endif
 	return 0;
 }
 
@@ -468,10 +568,6 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 	dwc_hc_t	*channel;
 
 	int retval = 0;
-	printk("dwc_otg_hcd_init everest\n");
-//	g_dbg_lvl = 0xff;
-	
-	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
 #if 1  //kaiker .these code must execute before usb_create_hcd
 	/* Set device flags indicating whether the HCD supports DMA. */
 	static u64 usb_dmamask = 0xffffffffUL;
@@ -485,6 +581,10 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 		dev->coherent_dma_mask = 0;
 	}
 #endif
+	printk("dwc_otg_hcd_init everest\n");
+//	g_dbg_lvl = 0xff;
+	
+	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
 
 	/*
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
@@ -500,6 +600,9 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 
 	/* Initialize the DWC OTG HCD. */
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+
+	spin_lock_init(&dwc_otg_hcd->global_lock);
+
 	dwc_otg_hcd->core_if = otg_dev->core_if;
 	otg_dev->hcd = dwc_otg_hcd;
 
@@ -625,10 +728,6 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 	dwc_hc_t	*channel;
 
 	int retval = 0;
-	printk("%s everest\n",__func__);
-//	g_dbg_lvl = 0xff;
-	
-	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
 #if 1  //kaiker .these code must execute before usb_create_hcd
 	/* Set device flags indicating whether the HCD supports DMA. */
 	static u64 usb_dmamask = 0xffffffffUL;
@@ -642,6 +741,10 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 		dev->coherent_dma_mask = 0;
 	}
 #endif
+	printk("%s everest\n",__func__);
+//	g_dbg_lvl = 0xff;
+	
+	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
 
 	/*
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
@@ -659,6 +762,9 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 	dwc_otg_hcd->core_if = otg_dev->core_if;
 	otg_dev->hcd = dwc_otg_hcd;
+
+	spin_lock_init(&dwc_otg_hcd->global_lock);
+
 
         /* Register the HCD CIL Callbacks */
         dwc_otg_cil_register_hcd_callbacks(otg_dev->core_if, 
@@ -826,11 +932,13 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 {
     dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+	unsigned long flags;
 	
   	struct usb_device *udev;
   	struct usb_bus *bus;
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD START\n");
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 #if 0
 	unsigned int regvalue;
 	printk("__________________________________________________________________\n");
@@ -886,6 +994,7 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 	}
 	hcd_reinit(dwc_otg_hcd);
 out:
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 
 	return 0;
 }
@@ -1109,8 +1218,11 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 
 	retval = usb_hcd_link_urb_to_ep(_hcd, _urb);
 	if (retval)
+	{
+		printk("%s, usb_hcd_link_urb_to_ep error\n", __func__);
 		return retval;
-	local_irq_save(flags);
+	}
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 #if 1
 	/*
 	 * Make sure the start of frame interrupt is enabled now that
@@ -1145,7 +1257,8 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 		dwc_otg_hcd_qtd_free(qtd);
 	}
 out:
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+
 	return retval;
 }
 
@@ -1169,10 +1282,10 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 		return -1;
 	}
 	qh = (dwc_otg_qh_t *) _ep->hcpriv;
-	local_irq_save(flags);
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 	retval = usb_hcd_check_unlink_urb(_hcd, _urb, _status);
 	if (retval) {
-		local_irq_restore(flags);
+		spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 		return retval;
 	}
 
@@ -1217,7 +1330,7 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 		dwc_otg_hcd_qh_remove(dwc_otg_hcd, qh);
 	}
 #endif
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 	_urb->hcpriv = NULL;
 	usb_hcd_unlink_urb_from_ep(_hcd, _urb);
     /* Higher layer software sets URB status. */
@@ -1237,8 +1350,11 @@ void dwc_otg_hcd_endpoint_disable(struct usb_hcd *_hcd,
 				  struct usb_host_endpoint *_ep)
 				  
 {
+	unsigned long flags;
 	dwc_otg_qh_t *qh;
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
+
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD EP DISABLE: _bEndpointAddress=0x%02x, "
 		    "endpoint=%d\n", _ep->desc.bEndpointAddress,
@@ -1258,6 +1374,8 @@ void dwc_otg_hcd_endpoint_disable(struct usb_hcd *_hcd,
 		_ep->hcpriv = NULL;
 	}
 
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+
 	return;
 }
 
@@ -1266,11 +1384,19 @@ void dwc_otg_hcd_endpoint_disable(struct usb_hcd *_hcd,
  * interrupt.
  *
  * This function is called by the USB core when an interrupt occurs */
-irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *_hcd, 
-                            struct pt_regs *_regs)
+irqreturn_t dwc_otg_hcd_irq(struct usb_hcd *_hcd)
 {
+	irqreturn_t result;
+	unsigned long flags;
 	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
-	return IRQ_RETVAL(dwc_otg_hcd_handle_intr(dwc_otg_hcd));
+
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
+
+	result = IRQ_RETVAL(dwc_otg_hcd_handle_intr(dwc_otg_hcd));
+
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+
+	return result;
 }
 
 /** Creates Status Change bitmap for the root hub and root port. The bitmap is
@@ -1829,6 +1955,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 			    u16 _wLength)
 {
 	int retval = 0;
+	unsigned long flags;
 
         dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
         dwc_otg_core_if_t *core_if = hcd_to_dwc_otg_hcd (_hcd)->core_if;
@@ -1836,6 +1963,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 	hprt0_data_t hprt0 = {.d32 = 0};
 
 	uint32_t port_status;
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
 	switch (_typeReq) {
 	case ClearHubFeature:
@@ -2221,6 +2349,7 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 		break;
 	}
 
+	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 	return retval;
 }
 
@@ -2440,9 +2569,15 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 	qh_ptr = _hcd->non_periodic_sched_inactive.next;
 	num_channels = _hcd->core_if->core_params->host_channels;
 	while (qh_ptr != &_hcd->non_periodic_sched_inactive &&
+		/*yk@rk 20100714
 	       (_hcd->non_periodic_channels <
 		num_channels - _hcd->periodic_channels) &&
+		*/
 	       !list_empty(&_hcd->free_hc_list)) {
+	       
+	    if((num_channels > 2)&&(_hcd->non_periodic_channels >=
+		num_channels - _hcd->periodic_channels))
+			break;
 
 		qh = list_entry(qh_ptr, dwc_otg_qh_t, qh_list_entry);
 		assign_and_init_hc(_hcd, qh);

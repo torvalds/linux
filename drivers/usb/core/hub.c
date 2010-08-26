@@ -1170,7 +1170,8 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	kref_put(&hub->kref, hub_release);
 }
-
+struct usb_hub *g_root_hub20 = NULL;
+struct usb_hub *g_root_hub11 = NULL;
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_host_interface *desc;
@@ -1221,7 +1222,13 @@ descriptor_error:
 		dev_dbg (&intf->dev, "couldn't kmalloc hub struct\n");
 		return -ENOMEM;
 	}
-
+	if(hdev->parent == NULL)
+	{
+		if(!g_root_hub20)
+			g_root_hub20 = hub;
+		else if(!g_root_hub11)
+			g_root_hub11 = hub;
+	}
 	kref_init(&hub->kref);
 	INIT_LIST_HEAD(&hub->event_list);
 	hub->intfdev = &intf->dev;
@@ -3381,15 +3388,13 @@ loop:
 
         } /* end while (1) */
 }
-// cmy@091222: 当开Host端口所连接的设备，供host/slave切换用
-void hub_disconnect_device()
+
+/* yk@rk 20100730 
+ * disconnect all devices on root hub
+ */
+void hub_disconnect_device(struct usb_hub *hub)
 {
-    if(g_usb_device)
-    {
-        struct usb_hub *hub = hdev_to_hub(g_usb_device->parent);
-        // cmy: 断开设备连接
     	hub_port_connect_change(hub, 1, 0, 0x2);
-    }
 }
 
 static int hub_thread(void *__unused)

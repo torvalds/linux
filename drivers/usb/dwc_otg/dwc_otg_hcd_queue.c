@@ -86,10 +86,8 @@ void dwc_otg_hcd_qh_free (dwc_otg_qh_t *_qh)
 {
 	dwc_otg_qtd_t *qtd;
 	struct list_head *pos;
-	unsigned long flags;
 
 	/* Free each QTD in the QTD list */
-	local_irq_save (flags);
 	for (pos = _qh->qtd_list.next;
 	     pos != &_qh->qtd_list;
 	     pos = _qh->qtd_list.next)
@@ -98,7 +96,6 @@ void dwc_otg_hcd_qh_free (dwc_otg_qh_t *_qh)
 		qtd = dwc_list_to_qtd (pos);
 		dwc_otg_hcd_qtd_free (qtd);
 	}
-	local_irq_restore (flags);
 
 	kfree (_qh);
 	return;
@@ -145,6 +142,8 @@ void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_ur
 	/* yk@rk 20100625
 	 * _urb->dev->tt->hub may be null
 	 */
+	if((_urb->dev->tt)&&(!_urb->dev->tt->hub))
+		printk("%s tt->hub null!\n",__func__);
 	if (((_urb->dev->speed == USB_SPEED_LOW) || 
 	     (_urb->dev->speed == USB_SPEED_FULL)) &&
 	    (_urb->dev->tt) && (_urb->dev->tt->hub)&&
@@ -163,10 +162,15 @@ void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_ur
 
 		/** @todo Account for split transfers in the bus time. */
 		int bytecount = dwc_hb_mult(_qh->maxp) * dwc_max_packet(_qh->maxp);
+		/*
+		 * The results from usb_calc_bus_time are in nanosecs,
+		 * so divide the result by 1000 to convert to
+		 * microsecs expected by this driver
+		 */
 		_qh->usecs = usb_calc_bus_time(_urb->dev->speed,
 					       usb_pipein(_urb->pipe),
 					       (_qh->ep_type == USB_ENDPOINT_XFER_ISOC),
-					       bytecount);
+					       bytecount) / 1000;
 
 		/* Start in a slightly future (micro)frame. */
 		_qh->sched_frame = dwc_frame_num_inc(_hcd->frame_number,
@@ -237,8 +241,9 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 	 * non-periodic transactions.
 	 */
 	int status;
+/*yk@rk modified for usb host 1.1*/
+#if 0
 	int num_channels;
-
 	num_channels = _hcd->core_if->core_params->host_channels;
 	if ((_hcd->periodic_channels + _hcd->non_periodic_channels < num_channels) &&
 	    (_hcd->periodic_channels < num_channels - 1)) {
@@ -250,7 +255,9 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 			   _hcd->non_periodic_channels);
 		status = -ENOSPC;
 	}
-
+#else
+	status = 0;
+#endif
 	return status;
 }
 
@@ -392,10 +399,12 @@ static int schedule_periodic(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
  */
 int dwc_otg_hcd_qh_add (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 {
-	//unsigned long flags;
 	int status = 0;
 
-	//local_irq_save(flags);
+	if (!spin_is_locked(&_hcd->global_lock))	{
+		//pr_err("%s don't have hcd->global_lock\n", __func__);
+		//BUG();
+	}
 
 	if (!list_empty(&_qh->qh_list_entry)) {
 		/* QH already in a schedule. */
@@ -454,9 +463,10 @@ static void deschedule_periodic(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
  * @param[in] _qh QH to remove from schedule. */
 void dwc_otg_hcd_qh_remove (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
+	if (!spin_is_locked(&_hcd->global_lock))	{
+		//pr_err("%s don't have hcd->global_lock\n", __func__);
+		//BUG();
+	}
 
 	if (list_empty(&_qh->qh_list_entry)) {
 		/* QH is not in a schedule. */
@@ -473,7 +483,7 @@ void dwc_otg_hcd_qh_remove (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 	}
 
  done:
-	local_irq_restore(flags);
+	;
 }
 
 /**
@@ -491,14 +501,16 @@ void dwc_otg_hcd_qh_remove (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
  */
 void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, int sched_next_periodic_split)
 {
-	unsigned long flags;
-	local_irq_save(flags);
-
+	if (!spin_is_locked(&_hcd->global_lock))	{
+		//pr_err("%s don't have hcd->global_lock\n", __func__);
+		//BUG();
+	}
 	if (dwc_qh_is_non_per(_qh)) {
 		dwc_otg_hcd_qh_remove(_hcd, _qh);
 		if (!list_empty(&_qh->qtd_list)) {
 			/* Add back to inactive non-periodic schedule. */
 			dwc_otg_hcd_qh_add(_hcd, _qh);
+		return;
 		}
 	} else {
 		uint16_t frame_number =	dwc_otg_hcd_get_frame_number(dwc_otg_hcd_to_hcd(_hcd));
@@ -554,7 +566,7 @@ void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, int sched
 		}
 	}
 
-	local_irq_restore(flags);
+
 }
 
 /** 

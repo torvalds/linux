@@ -407,9 +407,9 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *_core_if)
                         MDELAY(100);
                         if (++count > 10000) *(uint32_t*)NULL=0;
                 }
-        _core_if->op_state = B_PERIPHERAL;
 
         hcd_stop(_core_if);
+        _core_if->op_state = B_PERIPHERAL;
         pcd->phy_suspend = 1;
         pcd->vbus_status = 0;
     	dwc_otg_pcd_start_vbus_timer( pcd );
