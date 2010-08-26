@@ -10,7 +10,8 @@
 #include <asm/iommu.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
-
+#include <asm/xen/swiotlb-xen.h>
+#include <asm/iommu_table.h>
 int swiotlb __read_mostly;
 
 static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
@@ -55,6 +56,10 @@ int __init pci_swiotlb_detect_override(void)
 
 	return use_swiotlb;
 }
+IOMMU_INIT_FINISH(pci_swiotlb_detect_override,
+		  pci_xen_swiotlb_detect,
+		  pci_swiotlb_init,
+		  pci_swiotlb_late_init);
 
 /*
  * if 4GB or more detected (and iommu=off not set) return 1
@@ -69,6 +74,10 @@ int __init pci_swiotlb_detect_4gb(void)
 #endif
 	return swiotlb;
 }
+IOMMU_INIT(pci_swiotlb_detect_4gb,
+	   pci_swiotlb_detect_override,
+	   pci_swiotlb_init,
+	   pci_swiotlb_late_init);
 
 void __init pci_swiotlb_init(void)
 {
