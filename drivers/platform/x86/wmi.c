@@ -795,6 +795,16 @@ static bool guid_already_parsed(const char *guid_string)
 	return false;
 }
 
+static void free_wmi_blocks(void)
+{
+	struct wmi_block *wblock, *next;
+
+	list_for_each_entry_safe(wblock, next, &wmi_blocks.list, list) {
+		list_del(&wblock->list);
+		kfree(wblock);
+	}
+}
+
 /*
  * Parse the _WDG method for the GUID data blocks
  */
@@ -853,7 +863,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 		wblock->handle = handle;
 		if (debug_event) {
 			wblock->handler = wmi_notify_debug;
-			status = wmi_method_enable(wblock, 1);
+			wmi_method_enable(wblock, 1);
 		}
 		list_add_tail(&wblock->list, &wmi_blocks.list);
 	}
@@ -862,6 +872,9 @@ out_free_gblock:
 	kfree(gblock);
 out_free_pointer:
 	kfree(out.pointer);
+
+	if (ACPI_FAILURE(status))
+		free_wmi_blocks();
 
 	return status;
 }
@@ -1002,19 +1015,11 @@ static int __init acpi_wmi_init(void)
 
 static void __exit acpi_wmi_exit(void)
 {
-	struct list_head *p, *tmp;
-	struct wmi_block *wblock;
-
 	wmi_class_exit();
 
 	acpi_bus_unregister_driver(&acpi_wmi_driver);
 
-	list_for_each_safe(p, tmp, &wmi_blocks.list) {
-		wblock = list_entry(p, struct wmi_block, list);
-
-		list_del(p);
-		kfree(wblock);
-	}
+	free_wmi_blocks();
 
 	printk(KERN_INFO PREFIX "Mapper unloaded\n");
 }
