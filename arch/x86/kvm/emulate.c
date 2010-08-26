@@ -2330,6 +2330,9 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 #define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 
+#define D2bv(_f)      D((_f) | ByteOp), D(_f)
+#define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
+
 static struct opcode group1[] = {
 	X7(D(Lock)), N
 };
@@ -2571,6 +2574,9 @@ static struct opcode twobyte_table[256] = {
 #undef G
 #undef GD
 #undef I
+
+#undef D2bv
+#undef I2bv
 
 static unsigned imm_size(struct decode_cache *c)
 {
