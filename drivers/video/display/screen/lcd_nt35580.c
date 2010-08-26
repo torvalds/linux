@@ -3,6 +3,7 @@
 #include "../../rk2818_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/board.h>
 #include "screen.h"
 
 
@@ -26,22 +27,25 @@
 #define DCLK_POL		0
 #define SWAP_RB			0
 
+#define TXD_PORT        gLcd_info->txd_pin
+#define CLK_PORT        gLcd_info->clk_pin
+#define CS_PORT         gLcd_info->cs_pin
 
-#define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
-#define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
-#define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C1_SCL
-#define CLK_SET()       gpio_set_value(RK2818_PIN_PE7, GPIO_HIGH)
-#define CLK_CLR()       gpio_set_value(RK2818_PIN_PE7, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C1_SDA
-#define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
-#define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
-#define TXD_IN()        gpio_direction_input(RK2818_PIN_PE6)
-#define TXD_GET()       gpio_get_value(RK2818_PIN_PE6)
+#define CS_OUT()        gpio_direction_output(CS_PORT, 0)
+#define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0) 
+#define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0) 
+#define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
+#define TXD_IN()        gpio_direction_input(TXD_PORT)
+#define TXD_GET()       gpio_get_value(TXD_PORT)
 
 
 #define delay_us(i)      udelay(i)
-
+static struct rk2818lcd_info *gLcd_info = NULL;
 
 u32 spi_screenreg_get(u32 Addr)
 {
@@ -308,7 +312,8 @@ int lcd_init(void)
     GPIO_SetPinLevel(reset_pin,GPIO_HIGH);
 #endif
 
-    rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_GPIO1_A67);
+    if(gLcd_info)
+        gLcd_info->io_init();
 
     spi_screenreg_set(0x2E80, 0x0001);
     spi_screenreg_set(0x0680, 0x002D);
@@ -405,7 +410,8 @@ int lcd_init(void)
     }
 #endif
 
-    rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
     return 0;
 }
 
@@ -416,7 +422,7 @@ int lcd_standby(u8 enable)
 }
 
 
-void set_lcd_info(struct rk28fb_screen *screen)
+void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;
@@ -451,6 +457,8 @@ void set_lcd_info(struct rk28fb_screen *screen)
     /* Operation function*/
     screen->init = lcd_init;
     screen->standby = lcd_standby;
+    if(lcd_info)
+        gLcd_info = lcd_info;
 }
 
 

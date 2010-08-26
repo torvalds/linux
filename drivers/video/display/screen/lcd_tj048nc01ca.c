@@ -3,6 +3,7 @@
 #include "../../rk2818_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/board.h>
 #include "screen.h"
 
  
@@ -26,69 +27,27 @@
 #define DCLK_POL		1
 #define SWAP_RB			0
 
-#define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
-#define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
-#define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C1_SCL
-#define CLK_SET()       gpio_set_value(RK2818_PIN_PE7, GPIO_HIGH)
-#define CLK_CLR()       gpio_set_value(RK2818_PIN_PE7, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C1_SDA
-#define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
-#define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
+#define TXD_PORT        gLcd_info->txd_pin
+#define CLK_PORT        gLcd_info->clk_pin
+#define CS_PORT         gLcd_info->cs_pin
+
+#define CS_OUT()        gpio_direction_output(CS_PORT, 0)
+#define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0) 
+#define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0) 
+#define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
 
 #define DRVDelayUs(i)   udelay(i*2)
 
+static struct rk2818lcd_info *gLcd_info = NULL;
 int lcd_init(void);
 int lcd_standby(u8 enable);
 
-void screen_set_iomux(u8 enable)
-{
-    int ret=-1;
-    if(enable)
-    {
-        rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
-        ret = gpio_request(RK2818_PIN_PA4, NULL); 
-        if(0)//(ret != 0)
-        {
-            gpio_free(RK2818_PIN_PA4);
-            printk(">>>>>> lcd cs gpio_request err \n ");           
-            goto pin_err;
-        }  
-        
-        rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 0);                   
-
-        ret = gpio_request(RK2818_PIN_PE7, NULL); 
-        if(0)//(ret != 0)
-        {
-            gpio_free(RK2818_PIN_PE7);
-            printk(">>>>>> lcd clk gpio_request err \n "); 
-            goto pin_err;
-        }  
-        
-        ret = gpio_request(RK2818_PIN_PE6, NULL); 
-        if(0)//(ret != 0)
-        {
-            gpio_free(RK2818_PIN_PE6);
-            printk(">>>>>> lcd txd gpio_request err \n "); 
-            goto pin_err;
-        }        
-    }
-    else
-    {
-         gpio_free(RK2818_PIN_PA4); 
-        // rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
-
-         gpio_free(RK2818_PIN_PE7);   
-         gpio_free(RK2818_PIN_PE6); 
-         rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
-   }
-    return ;
-pin_err:
-    return ;
-
-}
-
-void set_lcd_info(struct rk28fb_screen *screen)
+void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;
@@ -121,9 +80,10 @@ void set_lcd_info(struct rk28fb_screen *screen)
     screen->swap_dumy = 0;
 
     /* Operation function*/
-    //screen->init = lcd_init;
+    screen->init = lcd_init;
     screen->standby = lcd_standby;
-
+    if(lcd_info)
+        gLcd_info = lcd_info;
 }
 
 void spi_screenreg_set(u32 Addr, u32 Data)
@@ -188,7 +148,8 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 
 int lcd_init(void)
 {
-    screen_set_iomux(1);
+    if(gLcd_info)
+        gLcd_info->io_init();
 	//R(0xess (A5~A0) Data(D7~D0)
 #if 0
     spi_screenreg_set(0x03, 0x86);
@@ -219,19 +180,22 @@ int lcd_init(void)
     spi_screenreg_set(0x26, 0xFF);
 #endif
 
-    screen_set_iomux(0);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
     return 0;
 }
 
 int lcd_standby(u8 enable)
 {
-    screen_set_iomux(1);
+    if(gLcd_info)
+        gLcd_info->io_init();
 	if(enable) {
 		spi_screenreg_set(0x43, 0x20);
 	} else {
 		spi_screenreg_set(0x43, 0xE0);
 	}
-    screen_set_iomux(0);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
     return 0;
 }
 

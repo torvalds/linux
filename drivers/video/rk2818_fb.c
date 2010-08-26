@@ -206,44 +206,29 @@ static int wq_condition = 0;
 void set_lcd_pin(struct platform_device *pdev, int enable)
 {
     int ret =0;
-	struct rk2818_fb_mach_info *mach_info = pdev->dev.platform_data;
+	struct rk2818fb_info *mach_info = pdev->dev.platform_data;
 
-	unsigned display_on = mach_info->gpio->display_on&0xffff;
-	unsigned lcd_standby = mach_info->gpio->lcd_standby&0xffff;
+	unsigned display_on = mach_info->disp_on_pin;
+	unsigned lcd_standby = mach_info->standby_pin;
     
-	int display_on_pol = (mach_info->gpio->display_on>>16)&0xffff;
-	int lcd_standby_pol = (mach_info->gpio->lcd_standby>>16)&0xffff;
+	int display_on_pol = mach_info->disp_on_value;
+	int lcd_standby_pol = mach_info->standby_value;
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 	fbprintk(">>>>>> display_on(%d) = %d \n", display_on, enable ? display_on_pol : !display_on_pol);
 	fbprintk(">>>>>> lcd_standby(%d) = %d \n", lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
 
     // set display_on   
-    if(mach_info->gpio->display_on) 
-    {
-        ret = gpio_request(display_on, NULL); 
-        if(ret != 0)
+
+    if(display_on != INVALID_GPIO) 
         {
-            gpio_free(display_on);
-            printk(KERN_ERR ">>>>>> display_on gpio_request err \n ");
-            goto pin_err;
-        }
         gpio_direction_output(display_on, 0);
 		gpio_set_value(display_on, enable ? display_on_pol : !display_on_pol);
-        gpio_free(display_on);
     }
-    if(mach_info->gpio->lcd_standby) 
+    if(lcd_standby != INVALID_GPIO) 
     {
-        ret = gpio_request(lcd_standby, NULL); 
-        if(ret != 0)
-        {
-            gpio_free(lcd_standby);
-            printk(KERN_ERR ">>>>>> lcd_standby gpio_request err \n ");
-            goto pin_err;
-        }
         gpio_direction_output(lcd_standby, 0);
 		gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
-        gpio_free(lcd_standby);
     }	
     
     return;
@@ -1896,7 +1881,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 static int win1fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
-    struct rk2818_fb_mach_info *mach_info = info->device->platform_data;
+    struct rk2818fb_info *mach_info = info->device->platform_data;
     unsigned display_on;    
     int display_on_pol;
 
@@ -1928,10 +1913,10 @@ static int win1fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             // operate the display_on pin to power down the lcd
             if(SCREEN_RGB==inf->cur_screen->type || SCREEN_MCU==inf->cur_screen->type) 
             {
-                if(mach_info && mach_info->gpio && mach_info->gpio->display_on)
+                if(mach_info && mach_info->disp_on_pin)
                 {
-                    display_on = mach_info->gpio->display_on&0xffff;    
-                    display_on_pol = (mach_info->gpio->display_on>>16)&0xffff;                    
+                    display_on = mach_info->disp_on_pin;    
+                    display_on_pol = mach_info->disp_on_value;                    
                     gpio_direction_output(display_on, 0);
             		gpio_set_value(display_on, !display_on_pol);
                 }
@@ -2129,7 +2114,8 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     struct rk2818fb_inf *inf = NULL;
     struct resource *res = NULL;
     struct resource *mem = NULL;
-    struct rk2818_fb_mach_info *mach_info = NULL;
+    struct rk2818_fb_setting_info *fb_setting = NULL;
+    struct rk2818fb_info *mach_info = NULL;
     struct rk28fb_screen *screen = NULL;
 	int irq = 0;
     int ret = 0;
@@ -2148,9 +2134,10 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     memset(inf, 0, sizeof(struct rk2818fb_inf));
 	platform_set_drvdata(pdev, inf);
 
+    mach_info = pdev->dev.platform_data;
     /* Fill screen info and set current screen */
     fbprintk(">> Fill screen info and set current screen \n");
-    set_lcd_info(&inf->lcd_info);
+    set_lcd_info(&inf->lcd_info, mach_info->lcd_info);
     set_tv_info(&inf->tv_info[0]);
     set_hdmi_info(&inf->hdmi_info[0]);
     inf->cur_screen = &inf->lcd_info;
@@ -2350,22 +2337,30 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
   #endif
 	fbprintk("got clock\n");  
     
-	mach_info = pdev->dev.platform_data;
 	if(mach_info)
     {
+        fb_setting = kmalloc(sizeof(struct rk2818_fb_setting_info), GFP_KERNEL);
         if( OUT_P888==inf->lcd_info.face ||
             OUT_P888==inf->tv_info[0].face ||
             OUT_P888==inf->hdmi_info[0].face )     // set lcdc iomux
         {
-            printk("set iomux\n");  
-            rk2818_mux_api_set(mach_info->iomux->data24, 1);        
+            fb_setting->data_num = 24;     
         } 
+        else if(OUT_P666 == inf->lcd_info.face )
+        {
+            fb_setting->data_num = 18; 
+        }        
         else 
         {
-            rk2818_mux_api_set(mach_info->iomux->data18, 1);
+            fb_setting->data_num = 16; 
         }        
-        rk2818_mux_api_set(mach_info->iomux->den, 1);
-        rk2818_mux_api_set(mach_info->iomux->vsync, 1);
+        fb_setting->den_en = 1;
+        fb_setting->vsync_en = 1;
+        fb_setting->disp_on_en = 1;
+        fb_setting->standby_en = 1;
+        if( inf->lcd_info.mcu_usefmk )
+            fb_setting->mcu_fmk_en =1;        
+        mach_info->io_init(fb_setting);
     }
     
 	set_lcd_pin(pdev, 1);
@@ -2415,10 +2410,9 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
         goto release_irq;
     }
     
-    if((mach_info->iomux->mcu_fmk) && (mach_info->gpio->mcu_fmk_pin))
+    if( inf->lcd_info.mcu_usefmk && (mach_info->mcu_fmk_pin != -1) )
     {
-        rk2818_mux_api_set(mach_info->iomux->mcu_fmk, mach_info->gpio->mcu_fmk_pin);
-        ret = request_irq(gpio_to_irq(mach_info->gpio->mcu_fmk_pin), mcu_irqfmk, GPIOEdgelFalling, pdev->name, pdev);
+        ret = request_irq(gpio_to_irq(mach_info->mcu_fmk_pin), mcu_irqfmk, GPIOEdgelFalling, pdev->name, pdev);
         if (ret) 
         {
             dev_err(&pdev->dev, "cannot get fmk irq %d - err %d\n", irq, ret);
@@ -2462,7 +2456,7 @@ static int rk2818fb_remove(struct platform_device *pdev)
     struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
     struct fb_info *info = NULL;
 	//pm_message_t msg;
-    struct rk2818_fb_mach_info *mach_info = NULL;
+    struct rk2818fb_info *mach_info = NULL;
     int irq = 0;
     
 	fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
@@ -2479,9 +2473,9 @@ static int rk2818fb_remove(struct platform_device *pdev)
     }
      
     mach_info = pdev->dev.platform_data;
-    if(mach_info->gpio->mcu_fmk_pin)
+    if(mach_info->mcu_fmk_pin)
     {
-        free_irq(gpio_to_irq(mach_info->gpio->mcu_fmk_pin), pdev);
+        free_irq(gpio_to_irq(mach_info->mcu_fmk_pin), pdev);
     }
 
 	set_lcd_pin(pdev, 0);

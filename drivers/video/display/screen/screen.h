@@ -79,7 +79,7 @@ struct rk28fb_screen {
 
 };
 
-extern void set_lcd_info(struct rk28fb_screen *screen);
+extern void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info);
 extern void set_tv_info(struct rk28fb_screen *screen);
 extern void set_hdmi_info(struct rk28fb_screen *screen);
 

@@ -1149,79 +1149,192 @@ static struct spi_board_info board_spi_devices[] = {
 #endif
 }; 
 
-/*rk2818_fb gpio information*/
-static struct rk2818_fb_gpio rk2818_fb_gpio_info = {
-    .display_on = (GPIO_LOW<<16)|RK2818_PIN_PA2,
-    .lcd_standby = 0,
-    .mcu_fmk_pin = 0,
-};
-
-/*rk2818_fb iomux information*/
-static struct rk2818_fb_iomux rk2818_fb_iomux_info = {
-    .data16     = GPIOC_LCDC16BIT_SEL_NAME,
-    .data18     = GPIOC_LCDC18BIT_SEL_NAME,
-    .data24     = GPIOC_LCDC24BIT_SEL_NAME,
-    .den        = CXGPIO_LCDDEN_SEL_NAME,
-    .vsync      = CXGPIO_LCDVSYNC_SEL_NAME,
-    .mcu_fmk    = 0,
-};
-/*rk2818_fb*/
-struct rk2818_fb_mach_info rk2818_fb_mach_info = {
-    .gpio = &rk2818_fb_gpio_info,
-    .iomux = &rk2818_fb_iomux_info,
-};
-
-void lcd_set_iomux(u8 enable)
+/*****************************************************************************************
+ * lcd  devices
+ * author: zyw@rock-chips.com
+ *****************************************************************************************/
+//#ifdef  CONFIG_LCD_TD043MGEA1
+#define LCD_TXD_PIN          RK2818_PIN_PE4
+#define LCD_CLK_PIN          RK2818_PIN_PE5
+#define LCD_CS_PIN           RK2818_PIN_PH6
+#define LCD_TXD_MUX_NAME     GPIOE_I2C0_SEL_NAME
+#define LCD_CLK_MUX_NAME     NULL
+#define LCD_CS_MUX_NAME      GPIOH6_IQ_SEL_NAME
+#define LCD_TXD_MUX_MODE     1
+#define LCD_CLK_MUX_MODE     1
+#define LCD_CS_MUX_MODE      0
+//#endif
+static int rk2818_lcd_io_init(void)
 {
-    int ret=-1;
-
-    if(enable)
-    {
-        rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 0);
-        ret = gpio_request(RK2818_PIN_PH6, NULL); 
+    int ret = 0;
+    
+    rk2818_mux_api_set(LCD_CS_MUX_NAME, LCD_CS_MUX_MODE);
+    if (LCD_CS_PIN != INVALID_GPIO) {
+        ret = gpio_request(LCD_CS_PIN, NULL); 
         if(ret != 0)
         {
-            gpio_free(RK2818_PIN_PH6);
-            printk(">>>>>> lcd cs gpio_request err \n ");           
-            goto pin_err;
-        }  
-        rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 1);    
-
-        ret = gpio_request(RK2818_PIN_PE4, NULL); 
-        if(ret != 0)
-        {
-            gpio_free(RK2818_PIN_PE4);
-            printk(">>>>>> lcd clk gpio_request err \n "); 
-            goto pin_err;
-        }  
-        ret = gpio_request(RK2818_PIN_PE5, NULL); 
-        if(ret != 0)
-        {
-            gpio_free(RK2818_PIN_PE5);
-            printk(">>>>>> lcd txd gpio_request err \n "); 
-            goto pin_err;
-        }        
+            goto err1;
+            printk(">>>>>> lcd cs gpio_request err \n ");                    
+        } 
     }
-    else
-    {
-         gpio_free(RK2818_PIN_PH6);
-         rk2818_mux_api_mode_resume(GPIOH6_IQ_SEL_NAME);
-
-         gpio_free(RK2818_PIN_PE4);   
-         gpio_free(RK2818_PIN_PE5); 
-         rk2818_mux_api_mode_resume(GPIOE_I2C0_SEL_NAME);
+    
+    rk2818_mux_api_set(LCD_CLK_MUX_NAME, LCD_CLK_MUX_MODE);
+    if (LCD_CLK_PIN != INVALID_GPIO) {
+        ret = gpio_request(LCD_CLK_PIN, NULL); 
+        if(ret != 0)
+        {
+            goto err2;
+            printk(">>>>>> lcd clk gpio_request err \n ");             
+        }  
     }
-    return ;
-pin_err:
-    return ;
+    
+    rk2818_mux_api_set(LCD_TXD_MUX_NAME, LCD_TXD_MUX_MODE); 
+    if (LCD_TXD_PIN != INVALID_GPIO) {
+        ret = gpio_request(LCD_TXD_PIN, NULL); 
+        if(ret != 0)
+        {
+            goto err3;
+            printk(">>>>>> lcd txd gpio_request err \n ");             
+        } 
+    }
 
+    return 0;
+    
+err3:
+    if (LCD_CLK_PIN != INVALID_GPIO) {
+        gpio_free(LCD_CLK_PIN);
+    }
+err2:
+    if (LCD_CS_PIN != INVALID_GPIO) {
+        gpio_free(LCD_CS_PIN);
+    }
+err1:
+    return ret;
 }
 
-struct lcd_td043mgea1_data lcd_td043mgea1 = {
-    .pin_txd    = RK2818_PIN_PE4,
-    .pin_clk    = RK2818_PIN_PE5,
-    .pin_cs     = RK2818_PIN_PH6,
-    .screen_set_iomux = lcd_set_iomux,
+static int rk2818_lcd_io_deinit(void)
+{
+    int ret = 0;
+    gpio_free(LCD_CS_PIN); 
+    rk2818_mux_api_mode_resume(LCD_CS_MUX_NAME);
+    gpio_free(LCD_CLK_PIN);   
+    gpio_free(LCD_TXD_PIN); 
+    rk2818_mux_api_mode_resume(LCD_TXD_MUX_NAME);
+    rk2818_mux_api_mode_resume(LCD_CLK_MUX_NAME);
+    
+    return ret;
+}
+
+struct rk2818lcd_info rk2818_lcd_info = {
+    .txd_pin  = LCD_TXD_PIN,
+    .clk_pin = LCD_CLK_PIN,
+    .cs_pin = LCD_CS_PIN,
+    .io_init   = rk2818_lcd_io_init,
+    .io_deinit = rk2818_lcd_io_deinit, 
+};
+
+
+/*****************************************************************************************
+ * frame buffe  devices
+ * author: zyw@rock-chips.com
+ *****************************************************************************************/
+#define FB_ID                       0
+#define FB_DISPLAY_ON_PIN           RK2818_PIN_PA2
+#define FB_LCD_STANDBY_PIN          INVALID_GPIO
+#define FB_MCU_FMK_PIN              INVALID_GPIO
+
+#define FB_DISPLAY_ON_VALUE         GPIO_LOW
+#define FB_LCD_STANDBY_VALUE        0
+
+#define FB_DISPLAY_ON_MUX_NAME      GPIOA23_UART2_SEL_NAME
+#define FB_DISPLAY_ON_MUX_MODE      IOMUXB_GPIO0_A23
+
+#define FB_LCD_STANDBY_MUX_NAME     NULL
+#define FB_LCD_STANDBY_MUX_MODE     1
+
+#define FB_MCU_FMK_PIN_MUX_NAME     NULL
+#define FB_MCU_FMK_MUX_MODE         0
+
+#define FB_DATA0_16_MUX_NAME       GPIOC_LCDC16BIT_SEL_NAME
+#define FB_DATA0_16_MUX_MODE        1
+
+#define FB_DATA17_18_MUX_NAME      GPIOC_LCDC18BIT_SEL_NAME
+#define FB_DATA17_18_MUX_MODE       1
+
+#define FB_DATA19_24_MUX_NAME      GPIOC_LCDC24BIT_SEL_NAME
+#define FB_DATA19_24_MUX_MODE       1
+
+#define FB_DEN_MUX_NAME            CXGPIO_LCDDEN_SEL_NAME
+#define FB_DEN_MUX_MODE             1
+
+#define FB_VSYNC_MUX_NAME          CXGPIO_LCDVSYNC_SEL_NAME
+#define FB_VSYNC_MUX_MODE           1
+
+#define FB_MCU_FMK_MUX_NAME        NULL
+#define FB_MCU_FMK_MUX_MODE         0
+
+static int rk2818_fb_io_init(struct rk2818_fb_setting_info *fb_setting)
+{
+    int ret = 0;
+    if(fb_setting->data_num <=16)
+        rk2818_mux_api_set(FB_DATA0_16_MUX_NAME, FB_DATA0_16_MUX_MODE);
+    if(fb_setting->data_num >16 && fb_setting->data_num<=18)
+        rk2818_mux_api_set(FB_DATA17_18_MUX_NAME, FB_DATA17_18_MUX_MODE);
+    if(fb_setting->data_num >18)
+        rk2818_mux_api_set(FB_DATA19_24_MUX_NAME, FB_DATA19_24_MUX_MODE);
+    
+    if(fb_setting->vsync_en)
+        rk2818_mux_api_set(FB_VSYNC_MUX_NAME, FB_VSYNC_MUX_MODE);
+    
+    if(fb_setting->den_en)
+        rk2818_mux_api_set(FB_DEN_MUX_NAME, FB_DEN_MUX_MODE);
+    
+    if(fb_setting->mcu_fmk_en && FB_MCU_FMK_MUX_NAME && (FB_MCU_FMK_PIN != INVALID_GPIO))
+    {
+        rk2818_mux_api_set(FB_MCU_FMK_MUX_NAME, FB_MCU_FMK_MUX_MODE);
+        ret = gpio_request(FB_MCU_FMK_PIN, NULL);         
+        if(ret != 0)
+        {
+            gpio_free(FB_MCU_FMK_PIN);
+            printk(">>>>>> FB_MCU_FMK_PIN gpio_request err \n ");             
+        } 
+        gpio_direction_input(FB_MCU_FMK_PIN);
+    }
+
+    if(fb_setting->disp_on_en && FB_DISPLAY_ON_MUX_NAME && (FB_DISPLAY_ON_PIN != INVALID_GPIO))
+    {
+        rk2818_mux_api_set(FB_DISPLAY_ON_MUX_NAME, FB_DISPLAY_ON_MUX_MODE);
+        ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);         
+        if(ret != 0)
+        {
+            gpio_free(FB_DISPLAY_ON_PIN);
+            printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");             
+        }         
+    }
+
+    if(fb_setting->disp_on_en && FB_LCD_STANDBY_MUX_NAME && (FB_LCD_STANDBY_PIN != INVALID_GPIO))
+    {
+        rk2818_mux_api_set(FB_LCD_STANDBY_MUX_NAME, FB_LCD_STANDBY_MUX_MODE);
+        ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);         
+        if(ret != 0)
+        {
+            gpio_free(FB_LCD_STANDBY_PIN);
+            printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");             
+        }
+    }
+
+    return ret;
+}
+
+struct rk2818fb_info rk2818_fb_info = {
+    .fb_id   = FB_ID,  
+    .disp_on_pin = FB_DISPLAY_ON_PIN,
+    .disp_on_value = FB_DISPLAY_ON_VALUE,
+    .standby_pin = FB_LCD_STANDBY_PIN,
+    .standby_value = FB_LCD_STANDBY_VALUE,
+    .mcu_fmk_pin = FB_MCU_FMK_PIN,  
+    .lcd_info = &rk2818_lcd_info,
+    .io_init   = rk2818_fb_io_init,
 };
 
 /*****************************************************************************************
@@ -1637,16 +1750,6 @@ static void __init machine_rk2818_board_init(void)
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
-	//rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
-	//rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
-	//rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_SPI0);//use for SPI CLK SDI SDO
-
-	//rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
-	//if(0 != gpio_request(RK2818_PIN_PF5, NULL))
-    //{
-    //    gpio_free(RK2818_PIN_PF5);
-    //    printk(">>>>>> RK2818_PIN_PF5 gpio_request err \n "); 
-    //} 
 }
 
 static void __init machine_rk2818_mapio(void)

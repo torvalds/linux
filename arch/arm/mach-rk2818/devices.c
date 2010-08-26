@@ -258,7 +258,7 @@ static struct resource rk2818_fb_resource[] = {
 };
 
 /*platform_device*/
-extern struct rk2818_fb_mach_info rk2818_fb_mach_info;
+extern struct rk2818fb_info rk2818_fb_info;
 
 struct platform_device rk2818_device_fb = {
 	.name		  = "rk2818-fb",
@@ -266,7 +266,7 @@ struct platform_device rk2818_device_fb = {
 	.num_resources	  = ARRAY_SIZE(rk2818_fb_resource),
 	.resource	  = rk2818_fb_resource,
 	.dev            = {
-		.platform_data  = &rk2818_fb_mach_info,
+		.platform_data  = &rk2818_fb_info,
 	}
 };
 

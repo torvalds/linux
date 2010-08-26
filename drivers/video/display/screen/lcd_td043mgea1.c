@@ -3,10 +3,9 @@
 #include "../../rk2818_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
-#include "screen.h"
 #include <mach/board.h>
+#include "screen.h"
 
-extern struct lcd_td043mgea1_data lcd_td043mgea1;
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -28,9 +27,9 @@ extern struct lcd_td043mgea1_data lcd_td043mgea1;
 #define DCLK_POL		0
 #define SWAP_RB			0
 
-#define TXD_PORT        lcd_td043mgea1.pin_txd
-#define CLK_PORT        lcd_td043mgea1.pin_clk
-#define CS_PORT         lcd_td043mgea1.pin_cs
+#define TXD_PORT        gLcd_info->txd_pin
+#define CLK_PORT        gLcd_info->clk_pin
+#define CS_PORT         gLcd_info->cs_pin
 
 #define CS_OUT()        gpio_direction_output(CS_PORT, 0)
 #define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
@@ -42,10 +41,11 @@ extern struct lcd_td043mgea1_data lcd_td043mgea1;
 #define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
 #define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
 
+static struct rk2818lcd_info *gLcd_info = NULL;
 int init(void);
 int standby(u8 enable);
 
-void set_lcd_info(struct rk28fb_screen *screen)
+void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;
@@ -80,6 +80,8 @@ void set_lcd_info(struct rk28fb_screen *screen)
     /* Operation function*/
     screen->init = init;
     screen->standby = standby;
+    if(lcd_info)
+        gLcd_info = lcd_info;
 }
 
 
@@ -157,7 +159,8 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 
 int init(void)
 {    
-    lcd_td043mgea1.screen_set_iomux(1);
+    if(gLcd_info)
+        gLcd_info->io_init();
 
     spi_screenreg_set(0x02, 0x07);
     spi_screenreg_set(0x03, 0x5f);
@@ -195,19 +198,22 @@ int init(void)
     spi_screenreg_set(0x21, 0xF0);
     spi_screenreg_set(0x22, 0x09);
 
-    lcd_td043mgea1.screen_set_iomux(0);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
     return 0;
 }
 
 int standby(u8 enable)
 {       
-    lcd_td043mgea1.screen_set_iomux(1);
+    if(gLcd_info)
+        gLcd_info->io_init();
 	if(enable) {
 		spi_screenreg_set(0x03, 0xde);
 	} else {
 		spi_screenreg_set(0x03, 0x5f);
 	}
-    lcd_td043mgea1.screen_set_iomux(0);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
     return 0;
 }
 

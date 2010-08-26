@@ -3,10 +3,9 @@
 #include "../../rk2818_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
-#include "screen.h"
 #include <mach/board.h>
+#include "screen.h"
 
-extern struct lcd_td043mgea1_data lcd_td043mgea1;
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -28,13 +27,14 @@ extern struct lcd_td043mgea1_data lcd_td043mgea1;
 #define DCLK_POL		0 
 #define SWAP_RB			0
 
+static struct rk2818lcd_info *gLcd_info = NULL;
 int init(void);
 int standby(u8 enable);
-void set_lcd_info(struct rk28fb_screen *screen);
 
-#define TXD_PORT        lcd_td043mgea1.pin_txd
-#define CLK_PORT        lcd_td043mgea1.pin_clk
-#define CS_PORT         lcd_td043mgea1.pin_cs
+
+#define TXD_PORT        gLcd_info->txd_pin
+#define CLK_PORT        gLcd_info->clk_pin
+#define CS_PORT         gLcd_info->cs_pin
 
 #define CS_OUT()        gpio_direction_output(CS_PORT, 0)
 #define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
@@ -161,7 +161,7 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 	DRVDelayUs(2);
 }
 
-void set_lcd_info(struct rk28fb_screen *screen)
+void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
 {
 	//printk("lcd_hx8357 set_lcd_info \n"); 
     /* screen type & face */
@@ -197,13 +197,15 @@ void set_lcd_info(struct rk28fb_screen *screen)
     /* Operation function*/
     screen->init = init;
     screen->standby = standby;
+    if(lcd_info)
+        gLcd_info = lcd_info;
 }
 
 int init(void)
 { 
 
-	//printk("lcd_hx8357 init \n"); 
-	lcd_td043mgea1.screen_set_iomux(1);
+    if(gLcd_info)
+        gLcd_info->io_init();
 
 #if 0 											//***这句代码是不是写错了 
     spi_screenreg_set(0x02, 0x07);
@@ -329,7 +331,8 @@ int init(void)
 	spi_screenreg_set(0x2d, 0x1f); 
 	spi_screenreg_set(0xe8, 0x90); 
 #endif 
-	lcd_td043mgea1.screen_set_iomux(0);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
 
     return 0;
 }
@@ -337,7 +340,8 @@ int init(void)
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
 	
-     lcd_td043mgea1.screen_set_iomux(1);
+    if(gLcd_info)
+        gLcd_info->io_init();
 	if(enable) {
 		//printk("---------hx8357   screen suspend--------------\n");
 		#if 0 
@@ -382,7 +386,8 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		#endif 
 	}
 
-    lcd_td043mgea1.screen_set_iomux(0);
+    if(gLcd_info)
+        gLcd_info->io_deinit();
     return 0;
 }
 
