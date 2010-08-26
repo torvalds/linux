@@ -2385,42 +2385,34 @@ static struct group_dual group9 = { {
 
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x08 - 0x0F */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm),
 	D(ImplicitOps | Stack | No64), N,
 	/* 0x10 - 0x17 */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x18 - 0x1F */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x20 - 0x27 */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm), N, N,
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm), N, N,
 	/* 0x28 - 0x2F */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm),
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm),
 	N, I(ByteOp | DstAcc | No64, em_das),
 	/* 0x30 - 0x37 */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImmByte), D(DstAcc | SrcImm), N, N,
+	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm), N, N,
 	/* 0x38 - 0x3F */
-	D(ByteOp | DstMem | SrcReg | ModRM), D(DstMem | SrcReg | ModRM),
-	D(ByteOp | DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
-	D(ByteOp | DstAcc | SrcImm), D(DstAcc | SrcImm),
+	D2bv(DstMem | SrcReg | ModRM), D2bv(DstReg | SrcMem | ModRM),
+	D2bv(DstAcc | SrcImm),
 	N, N,
 	/* 0x40 - 0x4F */
 	X16(D(DstReg)),
