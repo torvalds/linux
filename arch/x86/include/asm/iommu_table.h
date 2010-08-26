@@ -92,4 +92,10 @@ struct iommu_table_entry {
 #define IOMMU_INIT(_detect, _depend, _init, _late_init)			\
 	__IOMMU_INIT(_detect, _depend, _init, _late_init, 0)
 
+void sort_iommu_table(struct iommu_table_entry *start,
+		      struct iommu_table_entry *finish);
+
+void check_iommu_entries(struct iommu_table_entry *start,
+			 struct iommu_table_entry *finish);
+
 #endif /* _ASM_X86_IOMMU_TABLE_H */
