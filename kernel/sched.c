@@ -2123,10 +2123,12 @@ migrate_task(struct task_struct *p, int dest_cpu, struct migration_req *req)
 
 	/*
 	 * If the task is not on a runqueue (and not running), then
-	 * the next wake-up will properly place the task.
+	 * it is sufficient to simply update the task's cpu field.
 	 */
-	if (!p->se.on_rq && !task_running(rq, p))
+	if (!p->se.on_rq && !task_running(rq, p)) {
+		set_task_cpu(p, dest_cpu);
 		return 0;
+	}
 
 	init_completion(&req->done);
 	req->task = p;
@@ -7217,9 +7219,6 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 	/* Already moved. */
 	if (task_cpu(p) != src_cpu)
 		goto done;
-	/* Waking up, don't get in the way of try_to_wake_up(). */
-	if (p->state == TASK_WAKING)
-		goto fail;
 	/* Affinity changed (again). */
 	if (!cpumask_test_cpu(dest_cpu, &p->cpus_allowed))
 		goto fail;
