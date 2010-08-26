@@ -25,6 +25,8 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <mach/powergate.h>
+#include <mach/clk.h>
 
 #define ACM_TIMEOUT 1*HZ
 
@@ -33,11 +35,17 @@ void nvhost_module_busy(struct nvhost_module *mod)
 	mutex_lock(&mod->lock);
 	cancel_delayed_work(&mod->powerdown);
 	if ((atomic_inc_return(&mod->refcount) == 1) && !mod->powered) {
-		int i;
 		if (mod->parent)
 			nvhost_module_busy(mod->parent);
-		for (i = 0; i < mod->num_clks; i++)
-			clk_enable(mod->clk[i]);
+		if (mod->powergate_id != -1) {
+			BUG_ON(mod->num_clks != 1);
+			tegra_powergate_sequence_power_up(
+				mod->powergate_id, mod->clk[0]);
+		} else {
+			int i;
+			for (i = 0; i < mod->num_clks; i++)
+				clk_enable(mod->clk[i]);
+		}
 		if (mod->func)
 			mod->func(mod, NVHOST_POWER_ACTION_ON);
 		mod->powered = true;
@@ -50,13 +58,17 @@ static void powerdown_handler(struct work_struct *work)
 	struct nvhost_module *mod;
 	mod = container_of(to_delayed_work(work), struct nvhost_module, powerdown);
 	mutex_lock(&mod->lock);
-	BUG_ON(!mod->powered);
-	if (atomic_read(&mod->refcount) == 0) {
+	if ((atomic_read(&mod->refcount) == 0) && mod->powered) {
 		int i;
 		if (mod->func)
 			mod->func(mod, NVHOST_POWER_ACTION_OFF);
-		for (i = 0; i < mod->num_clks; i++)
+		for (i = 0; i < mod->num_clks; i++) {
 			clk_disable(mod->clk[i]);
+		}
+		if (mod->powergate_id != -1) {
+			tegra_periph_reset_assert(mod->clk[0]);
+			tegra_powergate_power_off(mod->powergate_id);
+		}
 		mod->powered = false;
 		if (mod->parent)
 			nvhost_module_idle(mod->parent);
@@ -89,12 +101,20 @@ static const char *get_module_clk_id(const char *module, int index)
 	return NULL;
 }
 
+static int get_module_powergate_id(const char *module)
+{
+	if (strcmp(module, "gr3d") == 0)
+		return TEGRA_POWERGATE_3D;
+	else if (strcmp(module, "mpe") == 0)
+		return TEGRA_POWERGATE_MPE;
+	return -1;
+}
+
 int nvhost_module_init(struct nvhost_module *mod, const char *name,
 		nvhost_modulef func, struct nvhost_module *parent,
 		struct device *dev)
 {
 	int i = 0;
-
 	mod->name = name;
 
 	while (i < NVHOST_MODULE_MAX_CLOCKS) {
@@ -108,7 +128,9 @@ int nvhost_module_init(struct nvhost_module *mod, const char *name,
 				__func__, name);
 			break;
 		}
-		clk_set_rate(mod->clk[i], rate);
+		if (rate != clk_get_rate(mod->clk[i])) {
+			clk_set_rate(mod->clk[i], rate);
+		}
 		i++;
 	}
 
@@ -116,6 +138,7 @@ int nvhost_module_init(struct nvhost_module *mod, const char *name,
 	mod->func = func;
 	mod->parent = parent;
 	mod->powered = false;
+	mod->powergate_id = get_module_powergate_id(name);
 	mutex_init(&mod->lock);
 	init_waitqueue_head(&mod->idle);
 	INIT_DELAYED_WORK(&mod->powerdown, powerdown_handler);
