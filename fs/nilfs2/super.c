@@ -48,10 +48,10 @@
 #include <linux/vfs.h>
 #include <linux/writeback.h>
 #include <linux/kobject.h>
-#include <linux/exportfs.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include "nilfs.h"
+#include "export.h"
 #include "mdt.h"
 #include "alloc.h"
 #include "btree.h"
@@ -554,56 +554,6 @@ static const struct super_operations nilfs_sops = {
 	.remount_fs     = nilfs_remount,
 	/* .umount_begin */
 	.show_options = nilfs_show_options
-};
-
-static struct inode *
-nilfs_nfs_get_inode(struct super_block *sb, u64 ino, u32 generation)
-{
-	struct inode *inode;
-	struct nilfs_root *root;
-
-	if (ino < NILFS_FIRST_INO(sb) && ino != NILFS_ROOT_INO &&
-	    ino != NILFS_SKETCH_INO)
-		return ERR_PTR(-ESTALE);
-
-	root = nilfs_lookup_root(NILFS_SB(sb)->s_nilfs,
-				 NILFS_CPTREE_CURRENT_CNO);
-	if (!root)
-		return ERR_PTR(-ESTALE);
-
-	/* new file handle type is required to export snapshots */
-	inode = nilfs_iget(sb, root, ino);
-	nilfs_put_root(root);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	if (generation && inode->i_generation != generation) {
-		iput(inode);
-		return ERR_PTR(-ESTALE);
-	}
-
-	return inode;
-}
-
-static struct dentry *
-nilfs_fh_to_dentry(struct super_block *sb, struct fid *fid, int fh_len,
-		   int fh_type)
-{
-	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    nilfs_nfs_get_inode);
-}
-
-static struct dentry *
-nilfs_fh_to_parent(struct super_block *sb, struct fid *fid, int fh_len,
-		   int fh_type)
-{
-	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    nilfs_nfs_get_inode);
-}
-
-static const struct export_operations nilfs_export_ops = {
-	.fh_to_dentry = nilfs_fh_to_dentry,
-	.fh_to_parent = nilfs_fh_to_parent,
-	.get_parent = nilfs_get_parent,
 };
 
 enum {

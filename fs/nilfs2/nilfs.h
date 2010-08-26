@@ -264,9 +264,6 @@ extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
 
-/* namei.c */
-extern struct dentry *nilfs_get_parent(struct dentry *);
-
 /* super.c */
 extern struct inode *nilfs_alloc_inode_common(struct the_nilfs *);
 extern struct inode *nilfs_alloc_inode(struct super_block *);
