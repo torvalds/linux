@@ -355,7 +355,8 @@ nouveau_mem_reset_agp(struct drm_device *dev)
 	/* First of all, disable fast writes, otherwise if it's
 	 * already enabled in the AGP bridge and we disable the card's
 	 * AGP controller we might be locking ourselves out of it. */
-	if (nv_rd32(dev, NV04_PBUS_PCI_NV_19) & PCI_AGP_COMMAND_FW) {
+	if ((nv_rd32(dev, NV04_PBUS_PCI_NV_19) |
+	     dev->agp->mode) & PCI_AGP_COMMAND_FW) {
 		struct drm_agp_info info;
 		struct drm_agp_mode mode;
 
