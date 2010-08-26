@@ -687,7 +687,7 @@ failed:
 	return 0;
 }
 
-void __init detect_intel_iommu(void)
+int __init detect_intel_iommu(void)
 {
 	int ret;
 
@@ -723,6 +723,8 @@ void __init detect_intel_iommu(void)
 	}
 	early_acpi_os_unmap_memory(dmar_tbl, dmar_tbl_size);
 	dmar_tbl = NULL;
+
+	return (ret ? 1 : -ENODEV);
 }
 
 

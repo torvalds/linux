@@ -1382,13 +1382,13 @@ static int __init early_amd_iommu_detect(struct acpi_table_header *table)
 	return 0;
 }
 
-void __init amd_iommu_detect(void)
+int __init amd_iommu_detect(void)
 {
 	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
-		return;
+		return -ENODEV;
 
 	if (amd_iommu_disabled)
-		return;
+		return -ENODEV;
 
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
@@ -1397,7 +1397,9 @@ void __init amd_iommu_detect(void)
 
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
+		return 1;
 	}
+	return -ENODEV;
 }
 
 /****************************************************************************

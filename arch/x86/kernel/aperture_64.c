@@ -371,7 +371,7 @@ void __init early_gart_iommu_check(void)
 
 static int __initdata printed_gart_size_msg;
 
-void __init gart_iommu_hole_init(void)
+int __init gart_iommu_hole_init(void)
 {
 	u32 agp_aper_base = 0, agp_aper_order = 0;
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
@@ -381,7 +381,7 @@ void __init gart_iommu_hole_init(void)
 
 	if (gart_iommu_aperture_disabled || !fix_aperture ||
 	    !early_pci_allowed())
-		return;
+		return -ENODEV;
 
 	printk(KERN_INFO  "Checking aperture...\n");
 
@@ -463,8 +463,9 @@ out:
 			unsigned long n = (32 * 1024 * 1024) << last_aper_order;
 
 			insert_aperture_resource((u32)last_aper_base, n);
+			return 1;
 		}
-		return;
+		return 0;
 	}
 
 	if (!fallback_aper_force) {
@@ -500,7 +501,7 @@ out:
 			panic("Not enough memory for aperture");
 		}
 	} else {
-		return;
+		return 0;
 	}
 
 	/* Fix up the north bridges */
@@ -524,4 +525,6 @@ out:
 	}
 
 	set_up_gart_resume(aper_order, aper_alloc);
+
+	return 1;
 }
