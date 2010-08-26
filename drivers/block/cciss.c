@@ -1305,6 +1305,34 @@ static int cciss_getnodename(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_setnodename(ctlr_info_t *h, void __user *argp)
+{
+	NodeName_type NodeName;
+	unsigned long flags;
+	int i;
+
+	if (!argp)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(NodeName, argp, sizeof(NodeName_type)))
+		return -EFAULT;
+	spin_lock_irqsave(&h->lock, flags);
+	/* Update the field, and then ring the doorbell */
+	for (i = 0; i < 16; i++)
+		writeb(NodeName[i], &h->cfgtable->ServerName[i]);
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+	for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		udelay(1000); /* delay and try again */
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	if (i >= MAX_IOCTL_CONFIG_WAIT)
+		return -EAGAIN;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1325,42 +1353,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_GETNODENAME:
 		return cciss_getnodename(h, argp);
 	case CCISS_SETNODENAME:
-		{
-			NodeName_type NodeName;
-			unsigned long flags;
-			int i;
-
-			if (!arg)
-				return -EINVAL;
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-
-			if (copy_from_user
-			    (NodeName, argp, sizeof(NodeName_type)))
-				return -EFAULT;
-
-			spin_lock_irqsave(&h->lock, flags);
-
-			/* Update the field, and then ring the doorbell */
-			for (i = 0; i < 16; i++)
-				writeb(NodeName[i],
-				       &h->cfgtable->ServerName[i]);
-
-			writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-
-			for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
-				if (!(readl(h->vaddr + SA5_DOORBELL)
-				      & CFGTBL_ChangeReq))
-					break;
-				/* delay and try again */
-				udelay(1000);
-			}
-			spin_unlock_irqrestore(&h->lock, flags);
-			if (i >= MAX_IOCTL_CONFIG_WAIT)
-				return -EAGAIN;
-			return 0;
-		}
-
+		return cciss_setnodename(h, argp);
 	case CCISS_GETHEARTBEAT:
 		{
 			Heartbeat_type heartbeat;
