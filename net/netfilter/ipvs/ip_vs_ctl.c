@@ -61,7 +61,7 @@ static DEFINE_RWLOCK(__ip_vs_svc_lock);
 static DEFINE_RWLOCK(__ip_vs_rs_lock);
 
 /* lock for state and timeout tables */
-static DEFINE_RWLOCK(__ip_vs_securetcp_lock);
+static DEFINE_SPINLOCK(ip_vs_securetcp_lock);
 
 /* lock for drop entry handling */
 static DEFINE_SPINLOCK(__ip_vs_dropentry_lock);
@@ -204,7 +204,7 @@ static void update_defense_level(void)
 	spin_unlock(&__ip_vs_droppacket_lock);
 
 	/* secure_tcp */
-	write_lock(&__ip_vs_securetcp_lock);
+	spin_lock(&ip_vs_securetcp_lock);
 	switch (sysctl_ip_vs_secure_tcp) {
 	case 0:
 		if (old_secure_tcp >= 2)
@@ -238,7 +238,7 @@ static void update_defense_level(void)
 	old_secure_tcp = sysctl_ip_vs_secure_tcp;
 	if (to_change >= 0)
 		ip_vs_protocol_timeout_change(sysctl_ip_vs_secure_tcp>1);
-	write_unlock(&__ip_vs_securetcp_lock);
+	spin_unlock(&ip_vs_securetcp_lock);
 
 	local_bh_enable();
 }
