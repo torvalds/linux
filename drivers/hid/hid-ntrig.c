@@ -377,8 +377,8 @@ static struct attribute_group ntrig_attribute_group = {
  */
 
 static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
-		struct hid_field *field, struct hid_usage *usage,
-		unsigned long **bit, int *max)
+			       struct hid_field *field, struct hid_usage *usage,
+			       unsigned long **bit, int *max)
 {
 	struct ntrig_data *nd = hid_get_drvdata(hdev);
 
@@ -448,13 +448,13 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		/* width/height mapped on TouchMajor/TouchMinor/Orientation */
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
-					EV_ABS, ABS_MT_TOUCH_MAJOR);
+				      EV_ABS, ABS_MT_TOUCH_MAJOR);
 			return 1;
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
-					EV_ABS, ABS_MT_TOUCH_MINOR);
+				      EV_ABS, ABS_MT_TOUCH_MINOR);
 			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
-					0, 1, 0, 0);
+					     0, 1, 0, 0);
 			return 1;
 		}
 		return 0;
@@ -468,8 +468,8 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 }
 
 static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
-		struct hid_field *field, struct hid_usage *usage,
-		unsigned long **bit, int *max)
+			      struct hid_field *field, struct hid_usage *usage,
+			      unsigned long **bit, int *max)
 {
 	/* No special mappings needed for the pen and single touch */
 	if (field->physical)
@@ -489,7 +489,7 @@ static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
  * and call input_mt_sync after each point if necessary
  */
 static int ntrig_event (struct hid_device *hid, struct hid_field *field,
-		                        struct hid_usage *usage, __s32 value)
+			struct hid_usage *usage, __s32 value)
 {
 	struct input_dev *input = field->hidinput->input;
 	struct ntrig_data *nd = hid_get_drvdata(hid);
@@ -860,7 +860,7 @@ err_free:
 static void ntrig_remove(struct hid_device *hdev)
 {
 	sysfs_remove_group(&hdev->dev.kobj,
-			&ntrig_attribute_group);
+			   &ntrig_attribute_group);
 	hid_hw_stop(hdev);
 	kfree(hid_get_drvdata(hdev));
 }
