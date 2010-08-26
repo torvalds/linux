@@ -337,7 +337,9 @@ retry:
 				return -EINVAL;
 			}
 
+			mutex_unlock(&drm_global_mutex);
 			ret = ttm_bo_wait_cpu(&nvbo->bo, false);
+			mutex_lock(&drm_global_mutex);
 			if (ret) {
 				NV_ERROR(dev, "fail wait_cpu\n");
 				return ret;
