@@ -314,6 +314,26 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.pin_type           	= GPIO_OUT,
 		.pin_value		=GPIO_HIGH,
 	 },
+         {
+                .gpio_num               = TCA6424_P25,  //wifi reg on
+                .pin_type               = GPIO_OUT,
+                .pin_value              = GPIO_HIGH,
+	},
+	{
+                .gpio_num               = TCA6424_P27,  //wifi reset
+                .pin_type               = GPIO_OUT,
+                .pin_value              = GPIO_HIGH,
+	},
+{
+                .gpio_num               = TCA6424_P25,  //wifi reg on
+                .pin_type               = GPIO_OUT,
+                .pin_value              = GPIO_HIGH,
+        },
+        {
+                .gpio_num               = TCA6424_P27,  //wifi reset
+                .pin_type               = GPIO_OUT,
+                .pin_value              = GPIO_HIGH,
+        },
 };
 
 void tca6424_reset_itr(void)
