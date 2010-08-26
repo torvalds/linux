@@ -36,6 +36,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <asm/iommu_table.h>
 
 #define PREFIX "DMAR: "
 
@@ -724,7 +725,7 @@ int __init detect_intel_iommu(void)
 	early_acpi_os_unmap_memory(dmar_tbl, dmar_tbl_size);
 	dmar_tbl = NULL;
 
-	return (ret ? 1 : -ENODEV);
+	return ret ? 1 : -ENODEV;
 }
 
 
@@ -1457,3 +1458,4 @@ int __init dmar_ir_support(void)
 		return 0;
 	return dmar->flags & 0x1;
 }
+IOMMU_INIT_POST(detect_intel_iommu);
