@@ -1580,28 +1580,19 @@ static int cciss_bigpassthru(ctlr_info_t *h, void __user *argp)
 	}
 	c->cmd_type = CMD_IOCTL_PEND;
 	c->Header.ReplyQueue = 0;
-
-	if (ioc->buf_size > 0) {
-		c->Header.SGList = sg_used;
-		c->Header.SGTotal = sg_used;
-	} else {
-		c->Header.SGList = 0;
-		c->Header.SGTotal = 0;
-	}
+	c->Header.SGList = sg_used;
+	c->Header.SGTotal = sg_used;
 	c->Header.LUN = ioc->LUN_info;
 	c->Header.Tag.lower = c->busaddr;
 
 	c->Request = ioc->Request;
-	if (ioc->buf_size > 0) {
-		for (i = 0; i < sg_used; i++) {
-			temp64.val =
-			    pci_map_single(h->pdev, buff[i], buff_size[i],
+	for (i = 0; i < sg_used; i++) {
+		temp64.val = pci_map_single(h->pdev, buff[i], buff_size[i],
 				    PCI_DMA_BIDIRECTIONAL);
-			c->SG[i].Addr.lower = temp64.val32.lower;
-			c->SG[i].Addr.upper = temp64.val32.upper;
-			c->SG[i].Len = buff_size[i];
-			c->SG[i].Ext = 0;	/* we are not chaining */
-		}
+		c->SG[i].Addr.lower = temp64.val32.lower;
+		c->SG[i].Addr.upper = temp64.val32.upper;
+		c->SG[i].Len = buff_size[i];
+		c->SG[i].Ext = 0;	/* we are not chaining */
 	}
 	c->waiting = &wait;
 	enqueue_cmd_and_start_io(h, c);
