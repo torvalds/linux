@@ -23,6 +23,7 @@
 #include <mach/mfp-pxa168.h>
 #include <mach/pxa168.h>
 #include <mach/gpio.h>
+#include <video/pxa168fb.h>
 
 #include "common.h"
 
@@ -66,6 +67,36 @@ static unsigned long common_pin_config[] __initdata = {
 	GPIO115_I2S_BCLK,
 	GPIO116_I2S_RXD,
 	GPIO117_I2S_TXD,
+
+	/* LCD */
+	GPIO56_LCD_FCLK_RD,
+	GPIO57_LCD_LCLK_A0,
+	GPIO58_LCD_PCLK_WR,
+	GPIO59_LCD_DENA_BIAS,
+	GPIO60_LCD_DD0,
+	GPIO61_LCD_DD1,
+	GPIO62_LCD_DD2,
+	GPIO63_LCD_DD3,
+	GPIO64_LCD_DD4,
+	GPIO65_LCD_DD5,
+	GPIO66_LCD_DD6,
+	GPIO67_LCD_DD7,
+	GPIO68_LCD_DD8,
+	GPIO69_LCD_DD9,
+	GPIO70_LCD_DD10,
+	GPIO71_LCD_DD11,
+	GPIO72_LCD_DD12,
+	GPIO73_LCD_DD13,
+	GPIO74_LCD_DD14,
+	GPIO75_LCD_DD15,
+	GPIO76_LCD_DD16,
+	GPIO77_LCD_DD17,
+	GPIO78_LCD_DD18,
+	GPIO79_LCD_DD19,
+	GPIO80_LCD_DD20,
+	GPIO81_LCD_DD21,
+	GPIO82_LCD_DD22,
+	GPIO83_LCD_DD23,
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -134,6 +165,34 @@ static struct i2c_board_info aspenite_i2c_info[] __initdata = {
 	{ I2C_BOARD_INFO("wm8753", 0x1b), },
 };
 
+static struct fb_videomode video_modes[] = {
+	[0] = {
+		.pixclock	= 30120,
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 480,
+		.hsync_len	= 1,
+		.left_margin	= 215,
+		.right_margin	= 40,
+		.vsync_len	= 1,
+		.upper_margin	= 34,
+		.lower_margin	= 10,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+	},
+};
+
+struct pxa168fb_mach_info aspenite_lcd_info = {
+	.id			= "Graphic Frame",
+	.modes			= video_modes,
+	.num_modes		= ARRAY_SIZE(video_modes),
+	.pix_fmt		= PIX_FMT_RGB565,
+	.io_pin_allocation_mode = PIN_MODE_DUMB_24,
+	.dumb_mode		= DUMB_MODE_RGB888,
+	.active			= 1,
+	.panel_rbswap		= 0,
+	.invert_pixclock	= 0,
+};
+
 static void __init common_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(common_pin_config));
@@ -143,6 +202,7 @@ static void __init common_init(void)
 	pxa168_add_twsi(1, NULL, ARRAY_AND_SIZE(aspenite_i2c_info));
 	pxa168_add_ssp(1);
 	pxa168_add_nand(&aspenite_nand_info);
+	pxa168_add_fb(&aspenite_lcd_info);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);
