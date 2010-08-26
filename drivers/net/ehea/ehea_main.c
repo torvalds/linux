@@ -107,10 +107,10 @@ struct ehea_fw_handle_array ehea_fw_handles;
 struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
-static int __devinit ehea_probe_adapter(struct of_device *dev,
+static int __devinit ehea_probe_adapter(struct platform_device *dev,
 					const struct of_device_id *id);
 
-static int __devexit ehea_remove(struct of_device *dev);
+static int __devexit ehea_remove(struct platform_device *dev);
 
 static struct of_device_id ehea_device_table[] = {
 	{
@@ -335,7 +335,7 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 
 	memset(stats, 0, sizeof(*stats));
 
-	cb2 = (void *)get_zeroed_page(GFP_ATOMIC);
+	cb2 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb2) {
 		ehea_error("no mem for cb2");
 		goto out;
@@ -867,6 +867,7 @@ static int ehea_poll(struct napi_struct *napi, int budget)
 		ehea_reset_cq_ep(pr->send_cq);
 		ehea_reset_cq_n1(pr->recv_cq);
 		ehea_reset_cq_n1(pr->send_cq);
+		rmb();
 		cqe = ehea_poll_rq1(pr->qp, &wqe_index);
 		cqe_skb = ehea_poll_cq(pr->send_cq);
 
@@ -2859,6 +2860,7 @@ static void ehea_reset_port(struct work_struct *work)
 		container_of(work, struct ehea_port, reset_task);
 	struct net_device *dev = port->netdev;
 
+	mutex_lock(&dlpar_mem_lock);
 	port->resets++;
 	mutex_lock(&port->port_lock);
 	netif_stop_queue(dev);
@@ -2881,6 +2883,7 @@ static void ehea_reset_port(struct work_struct *work)
 	netif_wake_queue(dev);
 out:
 	mutex_unlock(&port->port_lock);
+	mutex_unlock(&dlpar_mem_lock);
 }
 
 static void ehea_rereg_mrs(struct work_struct *work)
@@ -3373,7 +3376,7 @@ static ssize_t ehea_remove_port(struct device *dev,
 static DEVICE_ATTR(probe_port, S_IWUSR, NULL, ehea_probe_port);
 static DEVICE_ATTR(remove_port, S_IWUSR, NULL, ehea_remove_port);
 
-int ehea_create_device_sysfs(struct of_device *dev)
+int ehea_create_device_sysfs(struct platform_device *dev)
 {
 	int ret = device_create_file(&dev->dev, &dev_attr_probe_port);
 	if (ret)
@@ -3384,13 +3387,13 @@ out:
 	return ret;
 }
 
-void ehea_remove_device_sysfs(struct of_device *dev)
+void ehea_remove_device_sysfs(struct platform_device *dev)
 {
 	device_remove_file(&dev->dev, &dev_attr_probe_port);
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int __devinit ehea_probe_adapter(struct of_device *dev,
+static int __devinit ehea_probe_adapter(struct platform_device *dev,
 					const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
@@ -3489,7 +3492,7 @@ out:
 	return ret;
 }
 
-static int __devexit ehea_remove(struct of_device *dev)
+static int __devexit ehea_remove(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
 	int i;
@@ -3542,10 +3545,7 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 	int ret = NOTIFY_BAD;
 	struct memory_notify *arg = data;
 
-	if (!mutex_trylock(&dlpar_mem_lock)) {
-		ehea_info("ehea_mem_notifier must not be called parallelized");
-		goto out;
-	}
+	mutex_lock(&dlpar_mem_lock);
 
 	switch (action) {
 	case MEM_CANCEL_OFFLINE:
@@ -3574,7 +3574,6 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 
 out_unlock:
 	mutex_unlock(&dlpar_mem_lock);
-out:
 	return ret;
 }
 

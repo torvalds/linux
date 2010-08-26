@@ -2433,7 +2433,8 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 
 	if (wm8904_codec) {
 		dev_err(codec->dev, "Another WM8904 is registered\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	mutex_init(&codec->mutex);
@@ -2462,7 +2463,8 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	default:
 		dev_err(codec->dev, "Unknown device type %d\n",
 			wm8904->devtype);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	memcpy(codec->reg_cache, wm8904_reg, sizeof(wm8904_reg));
@@ -2566,18 +2568,19 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		return ret;
+		goto err_enable;
 	}
 
 	ret = snd_soc_register_dai(&wm8904_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		return ret;
+		goto err_codec;
 	}
 
 	return 0;
 
+err_codec:
+	snd_soc_unregister_codec(codec);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
 err_get:

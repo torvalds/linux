@@ -1,6 +1,12 @@
 #ifndef __PLAT_MTU_H
 #define __PLAT_MTU_H
 
+/*
+ * Guaranteed runtime conversion range in seconds for
+ * the clocksource and clockevent.
+ */
+#define MTU_MIN_RANGE 4
+
 /* should be set by the platform code */
 extern void __iomem *mtu_base;
 

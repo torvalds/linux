@@ -25,6 +25,8 @@ config BLACKFIN
 	def_bool y
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
@@ -32,6 +34,7 @@ config BLACKFIN
 	select HAVE_KERNEL_GZIP if RAMKERNEL
 	select HAVE_KERNEL_BZIP2 if RAMKERNEL
 	select HAVE_KERNEL_LZMA if RAMKERNEL
+	select HAVE_KERNEL_LZO if RAMKERNEL
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
@@ -328,11 +331,6 @@ config BF53x
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
 
-config MEM_GENERIC_BOARD
-	bool
-	depends on GENERIC_BOARD
-	default y
-
 config MEM_MT48LC64M4A2FB_7E
 	bool
 	depends on (BFIN533_STAMP)
@@ -614,9 +612,6 @@ comment "Kernel Timer/Scheduler"
 
 source kernel/Kconfig.hz
 
-config GENERIC_TIME
-	def_bool y
-
 config GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
 	default y
@@ -852,6 +847,18 @@ config CPLB_SWITCH_TAB_L1
 	help
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
+
+config CACHE_FLUSH_L1
+	bool "Locate cache flush funcs in L1 Inst Memory"
+	default y
+	help
+	  If enabled, the Blackfin cache flushing functions are linked
+	  into L1 instruction memory.
+
+	  Note that this might be required to address anomalies, but
+	  these functions are pretty small, so it shouldn't be too bad.
+	  If you are using a processor affected by an anomaly, the build
+	  system will double check for you and prevent it.
 
 config APP_STACK_L1
 	bool "Support locating application stack in L1 Scratch Memory"

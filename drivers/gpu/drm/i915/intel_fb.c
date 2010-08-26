@@ -61,6 +61,8 @@ static struct fb_ops intelfb_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static int intelfb_create(struct intel_fbdev *ifbdev,
@@ -98,14 +100,18 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_object_pin(fbo, 64*1024);
+	ret = intel_pin_and_fence_fb_obj(dev, fbo);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
 	}
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	i915_gem_object_set_to_gtt_domain(fbo, 1);
+	ret = i915_gem_object_set_to_gtt_domain(fbo, 1);
+	if (ret) {
+		DRM_ERROR("failed to bind fb: %d.\n", ret);
+		goto out_unpin;
+	}
 
 	info = framebuffer_alloc(0, device);
 	if (!info) {
@@ -115,7 +121,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->par = ifbdev;
 
-	intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
+	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
+	if (ret)
+		goto out_unpin;
 
 	fb = &ifbdev->ifb.base;
 
@@ -124,7 +132,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	strcpy(info->fix.id, "inteldrmfb");
 
-	info->flags = FBINFO_DEFAULT;
+	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &intelfb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
@@ -141,8 +149,6 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->fix.smem_start = dev->mode_config.fb_base + obj_priv->gtt_offset;
 	info->fix.smem_len = size;
-
-	info->flags = FBINFO_DEFAULT;
 
 	info->screen_base = ioremap_wc(dev->agp->base + obj_priv->gtt_offset,
 				       size);
@@ -232,7 +238,7 @@ int intel_fbdev_destroy(struct drm_device *dev,
 
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj)
-		drm_gem_object_unreference_unlocked(ifb->obj);
+		drm_gem_object_unreference(ifb->obj);
 
 	return 0;
 }
@@ -241,6 +247,7 @@ int intel_fbdev_init(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
 	if (!ifbdev)
@@ -249,8 +256,13 @@ int intel_fbdev_init(struct drm_device *dev)
 	dev_priv->fbdev = ifbdev;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
 
-	drm_fb_helper_init(dev, &ifbdev->helper, 2,
-			   INTELFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(dev, &ifbdev->helper,
+				 dev_priv->num_pipe,
+				 INTELFB_CONN_LIMIT);
+	if (ret) {
+		kfree(ifbdev);
+		return ret;
+	}
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 	drm_fb_helper_initial_config(&ifbdev->helper, 32);

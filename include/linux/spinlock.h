@@ -60,7 +60,7 @@
 /*
  * Must define these before including other files, inline functions need them
  */
-#define LOCK_SECTION_NAME ".text.lock."KBUILD_BASENAME
+#define LOCK_SECTION_NAME ".text..lock."KBUILD_BASENAME
 
 #define LOCK_SECTION_START(extra)               \
         ".subsection 1\n\t"                     \

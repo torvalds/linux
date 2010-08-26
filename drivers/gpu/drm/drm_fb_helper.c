@@ -146,7 +146,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_conn
 				cvt = 1;
 			break;
 		case 'R':
-			if (!cvt)
+			if (cvt)
 				rb = 1;
 			break;
 		case 'm':
@@ -241,6 +241,80 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 
+int drm_fb_helper_debug_enter(struct fb_info *info)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct drm_crtc_helper_funcs *funcs;
+	int i;
+
+	if (list_empty(&kernel_fb_helper_list))
+		return false;
+
+	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
+		for (i = 0; i < helper->crtc_count; i++) {
+			struct drm_mode_set *mode_set =
+				&helper->crtc_info[i].mode_set;
+
+			if (!mode_set->crtc->enabled)
+				continue;
+
+			funcs =	mode_set->crtc->helper_private;
+			funcs->mode_set_base_atomic(mode_set->crtc,
+						    mode_set->fb,
+						    mode_set->x,
+						    mode_set->y);
+
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_debug_enter);
+
+/* Find the real fb for a given fb helper CRTC */
+static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc *c;
+
+	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
+		if (crtc->base.id == c->base.id)
+			return c->fb;
+	}
+
+	return NULL;
+}
+
+int drm_fb_helper_debug_leave(struct fb_info *info)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct drm_crtc *crtc;
+	struct drm_crtc_helper_funcs *funcs;
+	struct drm_framebuffer *fb;
+	int i;
+
+	for (i = 0; i < helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set = &helper->crtc_info[i].mode_set;
+		crtc = mode_set->crtc;
+		funcs = crtc->helper_private;
+		fb = drm_mode_config_fb(crtc);
+
+		if (!crtc->enabled)
+			continue;
+
+		if (!fb) {
+			DRM_ERROR("no fb to restore??\n");
+			continue;
+		}
+
+		funcs->mode_set_base_atomic(mode_set->crtc, fb, crtc->x,
+					    crtc->y);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_debug_leave);
+
 bool drm_fb_helper_force_kernel_mode(void)
 {
 	int i = 0;
@@ -264,7 +338,7 @@ bool drm_fb_helper_force_kernel_mode(void)
 int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 			void *panic_str)
 {
-	DRM_ERROR("panic occurred, switching back to text console\n");
+	printk(KERN_ERR "panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
 	return 0;
 }
@@ -315,8 +389,9 @@ static void drm_fb_helper_on(struct fb_info *info)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int i;
+	int i, j;
 
 	/*
 	 * For each CRTC in this fb, turn the crtc on then,
@@ -332,7 +407,14 @@ static void drm_fb_helper_on(struct fb_info *info)
 
 		crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 
-
+		/* Walk the connectors & encoders on this fb turning them on */
+		for (j = 0; j < fb_helper->connector_count; j++) {
+			connector = fb_helper->connector_info[j]->connector;
+			connector->dpms = DRM_MODE_DPMS_ON;
+			drm_connector_property_set_value(connector,
+							 dev->mode_config.dpms_property,
+							 DRM_MODE_DPMS_ON);
+		}
 		/* Found a CRTC on this fb, now find encoders */
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			if (encoder->crtc == crtc) {
@@ -352,8 +434,9 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int i;
+	int i, j;
 
 	/*
 	 * For each CRTC in this fb, find all associated encoders
@@ -367,6 +450,14 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 		if (!crtc->enabled)
 			continue;
 
+		/* Walk the connectors on this fb and mark them off */
+		for (j = 0; j < fb_helper->connector_count; j++) {
+			connector = fb_helper->connector_info[j]->connector;
+			connector->dpms = dpms_mode;
+			drm_connector_property_set_value(connector,
+							 dev->mode_config.dpms_property,
+							 dpms_mode);
+		}
 		/* Found a CRTC on this fb, now find encoders */
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			if (encoder->crtc == crtc) {
@@ -594,7 +685,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (var->pixclock != 0)
+	if (var->pixclock != 0 || in_dbg_master())
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
@@ -1024,11 +1115,18 @@ static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_conne
 	}
 
 create_mode:
-	mode = drm_cvt_mode(fb_helper_conn->connector->dev, cmdline_mode->xres,
-			    cmdline_mode->yres,
-			    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
-			    cmdline_mode->rb, cmdline_mode->interlace,
-			    cmdline_mode->margins);
+	if (cmdline_mode->cvt)
+		mode = drm_cvt_mode(fb_helper_conn->connector->dev,
+				    cmdline_mode->xres, cmdline_mode->yres,
+				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+				    cmdline_mode->rb, cmdline_mode->interlace,
+				    cmdline_mode->margins);
+	else
+		mode = drm_gtf_mode(fb_helper_conn->connector->dev,
+				    cmdline_mode->xres, cmdline_mode->yres,
+				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+				    cmdline_mode->interlace,
+				    cmdline_mode->margins);
 	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	list_add(&mode->head, &fb_helper_conn->connector->modes);
 	return mode;

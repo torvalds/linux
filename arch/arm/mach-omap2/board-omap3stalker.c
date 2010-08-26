@@ -538,9 +538,7 @@ static void ads7846_dev_init(void)
 		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
 
 	gpio_direction_input(OMAP3_STALKER_TS_GPIO);
-
-	omap_set_gpio_debounce(OMAP3_STALKER_TS_GPIO, 1);
-	omap_set_gpio_debounce_time(OMAP3_STALKER_TS_GPIO, 0xa);
+	gpio_set_debounce(OMAP3_STALKER_TS_GPIO, 310);
 }
 
 static int ads7846_get_pendown_state(void)
@@ -654,18 +652,12 @@ static void __init omap3_stalker_init(void)
 	omap_mux_init_signal("sdr_cke1", OMAP_PIN_OUTPUT);
 }
 
-static void __init omap3_stalker_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(SBC3530, "OMAP3 STALKER")
 	/* Maintainer: Jason Lam -lzg@ema-tech.com */
 	.phys_io		= 0x48000000,
 	.io_pg_offst		= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params		= 0x80000100,
-	.map_io			= omap3_stalker_map_io,
+	.map_io			= omap3_map_io,
 	.init_irq		= omap3_stalker_init_irq,
 	.init_machine		= omap3_stalker_init,
 	.timer			= &omap_timer,

@@ -209,6 +209,9 @@ void proc_device_tree_add_node(struct device_node *np,
 	for (pp = np->properties; pp != NULL; pp = pp->next) {
 		p = pp->name;
 
+		if (strchr(p, '/'))
+			continue;
+
 		if (duplicate_name(de, p))
 			p = fixup_name(np, de, p);
 

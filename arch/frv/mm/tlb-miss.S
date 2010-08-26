@@ -15,7 +15,7 @@
 #include <asm/pgtable.h>
 #include <asm/spr-regs.h>
 
-	.section	.text.tlbmiss
+	.section	.text..tlbmiss
 	.balign		4
 
 	.globl		__entry_insn_mmu_miss

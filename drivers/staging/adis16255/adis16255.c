@@ -303,7 +303,7 @@ static int spi_adis16255_bringup(struct spi_adis16255_data *spiadis)
 	if (status != 0)
 		goto err;
 	if (value != 0x0800) {
-		dev_warn(&spiadis->spi->dev, "Scale factor is none default"
+		dev_warn(&spiadis->spi->dev, "Scale factor is none default "
 				"value (%.4x)\n", value);
 	}
 
@@ -338,7 +338,7 @@ static int spi_adis16255_bringup(struct spi_adis16255_data *spiadis)
 			status = -ENODEV;
 			goto err;
 		} else if (value & 0x3)	{
-			dev_warn(&spiadis->spi->dev, "Sensor voltage"
+			dev_warn(&spiadis->spi->dev, "Sensor voltage "
 						"out of range.\n");
 			status = -ENODEV;
 			goto err;
@@ -361,7 +361,7 @@ err:
 
 /*-------------------------------------------------------------------------*/
 
-static int spi_adis16255_probe(struct spi_device *spi)
+static int __devinit spi_adis16255_probe(struct spi_device *spi)
 {
 
 	struct adis16255_init_data *init_data = spi->dev.platform_data;
@@ -421,7 +421,7 @@ err:
 	return status;
 }
 
-static int spi_adis16255_remove(struct spi_device *spi)
+static int __devexit spi_adis16255_remove(struct spi_device *spi)
 {
 	struct spi_adis16255_data  *spiadis    = dev_get_drvdata(&spi->dev);
 

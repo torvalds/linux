@@ -3,5 +3,6 @@ config RTL8192E
 	depends on PCI && WLAN
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select CRYPTO
 	default N
 	---help---

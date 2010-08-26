@@ -50,14 +50,13 @@
 #include <mach/udc.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/corgi.h>
-#include <mach/sharpsl.h>
+#include <mach/sharpsl_pm.h>
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
 #include "devices.h"
-#include "sharpsl.h"
 
 static unsigned long corgi_pin_config[] __initdata = {
 	/* Static Memory I/O */
@@ -184,8 +183,6 @@ static struct scoop_pcmcia_config corgi_pcmcia_config = {
 	.devs         = &corgi_pcmcia_scoop[0],
 	.num_devs     = 1,
 };
-
-EXPORT_SYMBOL(corgiscoop_device);
 
 static struct w100_mem_info corgi_fb_mem = {
 	.ext_cntl          = 0x00040003,
@@ -446,7 +443,7 @@ static struct platform_device corgiled_device = {
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= -1,
+	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
 	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
 	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
@@ -715,7 +712,6 @@ static void __init fixup_corgi(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	if (machine_is_corgi())
 		mi->bank[0].size = (32*1024*1024);
 	else

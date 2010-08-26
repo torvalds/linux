@@ -1,7 +1,7 @@
 /*
  * omap_device implementation
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009-2010 Nokia Corporation
  * Paul Walmsley, Kevin Hilman
  *
  * Developed in collaboration with (alphabetical order): Benoit
@@ -90,8 +90,11 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-
-#define OMAP_DEVICE_MAGIC 0xf00dcafe
+/*
+ * OMAP_DEVICE_MAGIC: used to determine whether a struct omap_device
+ * obtained via container_of() is in fact a struct omap_device
+ */
+#define OMAP_DEVICE_MAGIC		 0xf00dcafe
 
 /* Private functions */
 
@@ -359,7 +362,7 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	struct omap_device *od;
 	char *pdev_name2;
 	struct resource *res = NULL;
-	int res_count;
+	int i, res_count;
 	struct omap_hwmod **hwmods;
 
 	if (!ohs || oh_cnt == 0 || !pdev_name)
@@ -404,7 +407,9 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	od->pdev.num_resources = res_count;
 	od->pdev.resource = res;
 
-	platform_device_add_data(&od->pdev, pdata, pdata_len);
+	ret = platform_device_add_data(&od->pdev, pdata, pdata_len);
+	if (ret)
+		goto odbs_exit4;
 
 	od->pm_lats = pm_lats;
 	od->pm_lats_cnt = pm_lats_cnt;
@@ -415,6 +420,9 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 		ret = omap_early_device_register(od);
 	else
 		ret = omap_device_register(od);
+
+	for (i = 0; i < oh_cnt; i++)
+		hwmods[i]->od = od;
 
 	if (ret)
 		goto odbs_exit4;
@@ -650,6 +658,25 @@ struct powerdomain *omap_device_get_pwrdm(struct omap_device *od)
 		return NULL;
 
 	return omap_hwmod_get_pwrdm(od->hwmods[0]);
+}
+
+/**
+ * omap_device_get_mpu_rt_va - return the MPU's virtual addr for the hwmod base
+ * @od: struct omap_device *
+ *
+ * Return the MPU's virtual address for the base of the hwmod, from
+ * the ioremap() that the hwmod code does.  Only valid if there is one
+ * hwmod associated with this device.  Returns NULL if there are zero
+ * or more than one hwmods associated with this omap_device;
+ * otherwise, passes along the return value from
+ * omap_hwmod_get_mpu_rt_va().
+ */
+void __iomem *omap_device_get_rt_va(struct omap_device *od)
+{
+	if (od->hwmods_cnt != 1)
+		return NULL;
+
+	return omap_hwmod_get_mpu_rt_va(od->hwmods[0]);
 }
 
 /*

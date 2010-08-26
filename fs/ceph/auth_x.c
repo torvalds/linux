@@ -87,8 +87,8 @@ static int ceph_x_decrypt(struct ceph_crypto_key *secret,
 /*
  * get existing (or insert new) ticket handler
  */
-struct ceph_x_ticket_handler *get_ticket_handler(struct ceph_auth_client *ac,
-						 int service)
+static struct ceph_x_ticket_handler *
+get_ticket_handler(struct ceph_auth_client *ac, int service)
 {
 	struct ceph_x_ticket_handler *th;
 	struct ceph_x_info *xi = ac->private;
@@ -429,7 +429,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		auth->struct_v = 1;
 		auth->key = 0;
 		for (u = (u64 *)tmp_enc; u + 1 <= (u64 *)(tmp_enc + ret); u++)
-			auth->key ^= *u;
+			auth->key ^= *(__le64 *)u;
 		dout(" server_challenge %llx client_challenge %llx key %llx\n",
 		     xi->server_challenge, le64_to_cpu(auth->client_challenge),
 		     le64_to_cpu(auth->key));
@@ -493,7 +493,7 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 		return -EAGAIN;
 	}
 
-	op = le32_to_cpu(head->op);
+	op = le16_to_cpu(head->op);
 	result = le32_to_cpu(head->result);
 	dout("handle_reply op %d result %d\n", op, result);
 	switch (op) {
@@ -612,6 +612,9 @@ static void ceph_x_destroy(struct ceph_auth_client *ac)
 			rb_entry(p, struct ceph_x_ticket_handler, node);
 		remove_ticket_handler(ac, th);
 	}
+
+	if (xi->auth_authorizer.buf)
+		ceph_buffer_put(xi->auth_authorizer.buf);
 
 	kfree(ac->private);
 	ac->private = NULL;

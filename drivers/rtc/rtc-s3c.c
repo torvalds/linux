@@ -1,5 +1,8 @@
 /* drivers/rtc/rtc-s3c.c
  *
+ * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com/
+ *
  * Copyright (c) 2004,2006 Simtec Electronics
  *	Ben Dooks, <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
@@ -39,6 +42,7 @@ enum s3c_cpu_type {
 
 static struct resource *s3c_rtc_mem;
 
+static struct clk *rtc_clk;
 static void __iomem *s3c_rtc_base;
 static int s3c_rtc_alarmno = NO_IRQ;
 static int s3c_rtc_tickno  = NO_IRQ;
@@ -53,6 +57,10 @@ static irqreturn_t s3c_rtc_alarmirq(int irq, void *id)
 	struct rtc_device *rdev = id;
 
 	rtc_update_irq(rdev, 1, RTC_AF | RTC_IRQF);
+
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
+		writeb(S3C2410_INTP_ALM, s3c_rtc_base + S3C2410_INTP);
+
 	return IRQ_HANDLED;
 }
 
@@ -61,6 +69,10 @@ static irqreturn_t s3c_rtc_tickirq(int irq, void *id)
 	struct rtc_device *rdev = id;
 
 	rtc_update_irq(rdev, 1, RTC_PF | RTC_IRQF);
+
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
+		writeb(S3C2410_INTP_TIC, s3c_rtc_base + S3C2410_INTP);
+
 	return IRQ_HANDLED;
 }
 
@@ -94,7 +106,7 @@ static int s3c_rtc_setpie(struct device *dev, int enabled)
 		if (enabled)
 			tmp |= S3C64XX_RTCCON_TICEN;
 
-		writeb(tmp, s3c_rtc_base + S3C2410_RTCCON);
+		writew(tmp, s3c_rtc_base + S3C2410_RTCCON);
 	} else {
 		tmp = readb(s3c_rtc_base + S3C2410_TICNT);
 		tmp &= ~S3C2410_TICNT_ENABLE;
@@ -128,7 +140,7 @@ static int s3c_rtc_setfreq(struct device *dev, int freq)
 
 	tmp |= (rtc_dev->max_user_freq / freq)-1;
 
-	writeb(tmp, s3c_rtc_base + S3C2410_TICNT);
+	writel(tmp, s3c_rtc_base + S3C2410_TICNT);
 	spin_unlock_irq(&s3c_rtc_pie_lock);
 
 	return 0;
@@ -431,6 +443,10 @@ static int __devexit s3c_rtc_remove(struct platform_device *dev)
 	s3c_rtc_setpie(&dev->dev, 0);
 	s3c_rtc_setaie(0);
 
+	clk_disable(rtc_clk);
+	clk_put(rtc_clk);
+	rtc_clk = NULL;
+
 	iounmap(s3c_rtc_base);
 	release_resource(s3c_rtc_mem);
 	kfree(s3c_rtc_mem);
@@ -442,6 +458,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
+	unsigned int tmp, i;
 	int ret;
 
 	pr_debug("%s: probe=%p\n", __func__, pdev);
@@ -488,14 +505,22 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		goto err_nomap;
 	}
 
+	rtc_clk = clk_get(&pdev->dev, "rtc");
+	if (IS_ERR(rtc_clk)) {
+		dev_err(&pdev->dev, "failed to find rtc clock source\n");
+		ret = PTR_ERR(rtc_clk);
+		rtc_clk = NULL;
+		goto err_clk;
+	}
+
+	clk_enable(rtc_clk);
+
 	/* check to see if everything is setup correctly */
 
 	s3c_rtc_enable(pdev, 1);
 
  	pr_debug("s3c2410_rtc: RTCCON=%02x\n",
 		 readb(s3c_rtc_base + S3C2410_RTCCON));
-
-	s3c_rtc_setfreq(&pdev->dev, 1);
 
 	device_init_wakeup(&pdev->dev, 1);
 
@@ -510,18 +535,34 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		goto err_nortc;
 	}
 
+	s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
+
+	/* Check RTC Time */
+
+	for (i = S3C2410_RTCSEC; i <= S3C2410_RTCYEAR; i += 0x4) {
+		tmp = readb(s3c_rtc_base + i);
+
+		if ((tmp & 0xf) > 0x9 || ((tmp >> 4) & 0xf) > 0x9)
+			writeb(0, s3c_rtc_base + i);
+	}
+
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
 		rtc->max_user_freq = 32768;
 	else
 		rtc->max_user_freq = 128;
 
-	s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
-
 	platform_set_drvdata(pdev, rtc);
+
+	s3c_rtc_setfreq(&pdev->dev, 1);
+
 	return 0;
 
  err_nortc:
 	s3c_rtc_enable(pdev, 0);
+	clk_disable(rtc_clk);
+	clk_put(rtc_clk);
+
+ err_clk:
 	iounmap(s3c_rtc_base);
 
  err_nomap:

@@ -482,7 +482,6 @@ static __devexit int si470x_i2c_remove(struct i2c_client *client)
 	cancel_work_sync(&radio->radio_work);
 	video_unregister_device(radio->videodev);
 	kfree(radio);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

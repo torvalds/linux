@@ -74,6 +74,8 @@ int ibm_partition(struct parsed_partitions *state)
 	} *label;
 	unsigned char *data;
 	Sector sect;
+	sector_t labelsect;
+	char tmp[64];
 
 	res = 0;
 	blocksize = bdev_logical_block_size(bdev);
@@ -98,10 +100,19 @@ int ibm_partition(struct parsed_partitions *state)
 		goto out_freeall;
 
 	/*
+	 * Special case for FBA disks: label sector does not depend on
+	 * blocksize.
+	 */
+	if ((info->cu_type == 0x6310 && info->dev_type == 0x9336) ||
+	    (info->cu_type == 0x3880 && info->dev_type == 0x3370))
+		labelsect = info->label_block;
+	else
+		labelsect = info->label_block * (blocksize >> 9);
+
+	/*
 	 * Get volume label, extract name and type.
 	 */
-	data = read_part_sector(state, info->label_block*(blocksize/512),
-				&sect);
+	data = read_part_sector(state, labelsect, &sect);
 	if (data == NULL)
 		goto out_readerr;
 
@@ -134,13 +145,15 @@ int ibm_partition(struct parsed_partitions *state)
 			 */
 			blocksize = label->cms.block_size;
 			if (label->cms.disk_offset != 0) {
-				printk("CMS1/%8s(MDSK):", name);
+				snprintf(tmp, sizeof(tmp), "CMS1/%8s(MDSK):", name);
+				strlcat(state->pp_buf, tmp, PAGE_SIZE);
 				/* disk is reserved minidisk */
 				offset = label->cms.disk_offset;
 				size = (label->cms.block_count - 1)
 					* (blocksize >> 9);
 			} else {
-				printk("CMS1/%8s:", name);
+				snprintf(tmp, sizeof(tmp), "CMS1/%8s:", name);
+				strlcat(state->pp_buf, tmp, PAGE_SIZE);
 				offset = (info->label_block + 1);
 				size = label->cms.block_count
 					* (blocksize >> 9);
@@ -149,7 +162,8 @@ int ibm_partition(struct parsed_partitions *state)
 				      size-offset*(blocksize >> 9));
 		} else {
 			if (strncmp(type, "LNX1", 4) == 0) {
-				printk("LNX1/%8s:", name);
+				snprintf(tmp, sizeof(tmp), "LNX1/%8s:", name);
+				strlcat(state->pp_buf, tmp, PAGE_SIZE);
 				if (label->lnx.ldl_version == 0xf2) {
 					fmt_size = label->lnx.formatted_blocks
 						* (blocksize >> 9);
@@ -168,7 +182,7 @@ int ibm_partition(struct parsed_partitions *state)
 				offset = (info->label_block + 1);
 			} else {
 				/* unlabeled disk */
-				printk("(nonl)");
+				strlcat(state->pp_buf, "(nonl)", PAGE_SIZE);
 				size = i_size >> 9;
 				offset = (info->label_block + 1);
 			}
@@ -187,7 +201,8 @@ int ibm_partition(struct parsed_partitions *state)
 		 * if not, something is wrong, skipping partition detection
 		 */
 		if (strncmp(type, "VOL1",  4) == 0) {
-			printk("VOL1/%8s:", name);
+			snprintf(tmp, sizeof(tmp), "VOL1/%8s:", name);
+			strlcat(state->pp_buf, tmp, PAGE_SIZE);
 			/*
 			 * get block number and read then go through format1
 			 * labels
@@ -243,7 +258,7 @@ int ibm_partition(struct parsed_partitions *state)
 
 	}
 
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	goto out_freeall;
 
 

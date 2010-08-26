@@ -48,19 +48,16 @@
  * below 128M
  */
 static inline void
-__arch_adjust_zones(int node, unsigned long *size, unsigned long *holes)
+__arch_adjust_zones(unsigned long *size, unsigned long *holes)
 {
 	unsigned int sz = (128<<20) >> PAGE_SHIFT;
-
-	if (node != 0)
-		sz = 0;
 
 	size[1] = size[0] - sz;
 	size[0] = sz;
 }
 
-#define arch_adjust_zones(node, zone_size, holes) \
-        if ((meminfo.bank[0].size >> 20) > 128) __arch_adjust_zones(node, zone_size, holes)
+#define arch_adjust_zones(zone_size, holes) \
+        if ((meminfo.bank[0].size >> 20) > 128) __arch_adjust_zones(zone_size, holes)
 
 #define ISA_DMA_THRESHOLD	(PHYS_OFFSET + (128<<20) - 1)
 #define MAX_DMA_ADDRESS		(PAGE_OFFSET + (128<<20))

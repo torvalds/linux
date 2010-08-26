@@ -729,7 +729,7 @@ static int __init e820_mark_nvs_memory(void)
 		struct e820entry *ei = &e820.map[i];
 
 		if (ei->type == E820_NVS)
-			hibernate_nvs_register(ei->addr, ei->size);
+			suspend_nvs_register(ei->addr, ei->size);
 	}
 
 	return 0;

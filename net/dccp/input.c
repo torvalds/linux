@@ -430,7 +430,7 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		if (dccp_parse_options(sk, NULL, skb))
 			return 1;
 
-		/* Obtain usec RTT sample from SYN exchange (used by CCID 3) */
+		/* Obtain usec RTT sample from SYN exchange (used by TFRC). */
 		if (likely(dp->dccps_options_received.dccpor_timestamp_echo))
 			dp->dccps_syn_rtt = dccp_sample_rtt(sk, 10 * (tstamp -
 			    dp->dccps_options_received.dccpor_timestamp_echo));
@@ -535,6 +535,8 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 						   const struct dccp_hdr *dh,
 						   const unsigned len)
 {
+	struct dccp_sock *dp = dccp_sk(sk);
+	u32 sample = dp->dccps_options_received.dccpor_timestamp_echo;
 	int queued = 0;
 
 	switch (dh->dccph_type) {
@@ -559,7 +561,14 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 		if (sk->sk_state == DCCP_PARTOPEN)
 			inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 
-		dccp_sk(sk)->dccps_osr = DCCP_SKB_CB(skb)->dccpd_seq;
+		/* Obtain usec RTT sample from SYN exchange (used by TFRC). */
+		if (likely(sample)) {
+			long delta = dccp_timestamp() - sample;
+
+			dp->dccps_syn_rtt = dccp_sample_rtt(sk, 10 * delta);
+		}
+
+		dp->dccps_osr = DCCP_SKB_CB(skb)->dccpd_seq;
 		dccp_set_state(sk, DCCP_OPEN);
 
 		if (dh->dccph_type == DCCP_PKT_DATAACK ||

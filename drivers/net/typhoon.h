@@ -77,7 +77,7 @@ struct typhoon_indexes {
 	volatile __le32 cmdCleared;
 	volatile __le32 respReady;
 	volatile __le32 rxHiReady;
-} __attribute__ ((packed));
+} __packed;
 
 /* The host<->Typhoon interface
  * Our means of communicating where things are
@@ -125,7 +125,7 @@ struct typhoon_interface {
 	__le32 rxHiAddr;
 	__le32 rxHiAddrHi;
 	__le32 rxHiSize;
-} __attribute__ ((packed));
+} __packed;
 
 /* The Typhoon transmit/fragment descriptor
  *
@@ -187,7 +187,7 @@ struct tx_desc {
 #define TYPHOON_TX_PF_VLAN_MASK		cpu_to_le32(0x0ffff000)
 #define TYPHOON_TX_PF_INTERNAL		cpu_to_le32(0xf0000000)
 #define TYPHOON_TX_PF_VLAN_TAG_SHIFT	12
-} __attribute__ ((packed));
+} __packed;
 
 /* The TCP Segmentation offload option descriptor
  *
@@ -208,7 +208,7 @@ struct tcpopt_desc {
 	__le32 respAddrLo;
 	__le32 bytesTx;
 	__le32 status;
-} __attribute__ ((packed));
+} __packed;
 
 /* The IPSEC Offload descriptor
  *
@@ -227,7 +227,7 @@ struct ipsec_desc {
 	__le32 sa1;
 	__le32 sa2;
 	__le32 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 /* The Typhoon receive descriptor (Updated by NIC)
  *
@@ -284,7 +284,7 @@ struct rx_desc {
 #define TYPHOON_RX_UNKNOWN_SA		cpu_to_le16(0x0100)
 #define TYPHOON_RX_ESP_FORMAT_ERR	cpu_to_le16(0x0200)
 	__be32 vlanTag;
-} __attribute__ ((packed));
+} __packed;
 
 /* The Typhoon free buffer descriptor, used to give a buffer to the NIC
  *
@@ -301,7 +301,7 @@ struct rx_free {
 	__le32 physAddrHi;
 	u32 virtAddr;
 	u32 virtAddrHi;
-} __attribute__ ((packed));
+} __packed;
 
 /* The Typhoon command descriptor, used for commands and responses
  *
@@ -347,7 +347,7 @@ struct cmd_desc {
 	__le16 parm1;
 	__le32 parm2;
 	__le32 parm3;
-} __attribute__ ((packed));
+} __packed;
 
 /* The Typhoon response descriptor, see command descriptor for details
  */
@@ -359,7 +359,7 @@ struct resp_desc {
 	__le16 parm1;
 	__le32 parm2;
 	__le32 parm3;
-} __attribute__ ((packed));
+} __packed;
 
 #define INIT_COMMAND_NO_RESPONSE(x, command)				\
 	do { struct cmd_desc *_ptr = (x);				\
@@ -427,7 +427,7 @@ struct stats_resp {
 #define TYPHOON_LINK_HALF_DUPLEX	cpu_to_le32(0x00000000)
 	__le32 unused2;
 	__le32 unused3;
-} __attribute__ ((packed));
+} __packed;
 
 /* TYPHOON_CMD_XCVR_SELECT xcvr values (resp.parm1)
  */
@@ -488,7 +488,7 @@ struct sa_descriptor {
 	u32 index;
 	u32 unused;
 	u32 unused2;
-} __attribute__ ((packed));
+} __packed;
 
 /* TYPHOON_CMD_SET_OFFLOAD_TASKS bits (cmd.parm2 (Tx) & cmd.parm3 (Rx))
  * This is all for IPv4.
@@ -518,14 +518,14 @@ struct typhoon_file_header {
 	__le32 numSections;
 	__le32 startAddr;
 	__le32 hmacDigest[5];
-} __attribute__ ((packed));
+} __packed;
 
 struct typhoon_section_header {
 	__le32 len;
 	u16 checksum;
 	u16 reserved;
 	__le32 startAddr;
-} __attribute__ ((packed));
+} __packed;
 
 /* The Typhoon Register offsets
  */

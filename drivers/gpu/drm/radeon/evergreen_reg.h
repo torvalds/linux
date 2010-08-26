@@ -61,6 +61,11 @@
 #       define EVERGREEN_GRPH_FORMAT_8B_BGRA1010102     5
 #       define EVERGREEN_GRPH_FORMAT_RGB111110          6
 #       define EVERGREEN_GRPH_FORMAT_BGR101111          7
+#       define EVERGREEN_GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
+#       define EVERGREEN_GRPH_ARRAY_LINEAR_GENERAL      0
+#       define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1
+#       define EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1      2
+#       define EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1      4
 #define EVERGREEN_GRPH_SWAP_CONTROL                     0x680c
 #       define EVERGREEN_GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
 #       define EVERGREEN_GRPH_ENDIAN_NONE               0
@@ -151,6 +156,9 @@
 #define EVERGREEN_DATA_FORMAT                           0x6b00
 #       define EVERGREEN_INTERLEAVE_EN                  (1 << 0)
 #define EVERGREEN_DESKTOP_HEIGHT                        0x6b04
+#define EVERGREEN_VLINE_START_END                       0x6b08
+#define EVERGREEN_VLINE_STATUS                          0x6bb8
+#       define EVERGREEN_VLINE_STAT                     (1 << 12)
 
 #define EVERGREEN_VIEWPORT_START                        0x6d70
 #define EVERGREEN_VIEWPORT_SIZE                         0x6d74

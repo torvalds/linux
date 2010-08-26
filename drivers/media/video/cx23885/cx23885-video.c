@@ -441,7 +441,7 @@ static int cx23885_start_video_dma(struct cx23885_dev *dev,
 	q->count = 1;
 
 	/* enable irq */
-	cx_set(PCI_INT_MSK, cx_read(PCI_INT_MSK) | 0x01);
+	cx23885_irq_add_enable(dev, 0x01);
 	cx_set(VID_A_INT_MSK, 0x000011);
 
 	/* start dma */
@@ -976,6 +976,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx23885_fh *fh = priv;
 	struct cx23885_dev *dev  = ((struct cx23885_fh *)priv)->dev;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int err;
 
 	dprintk(2, "%s()\n", __func__);
@@ -989,7 +990,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->vidq.field = f->fmt.pix.field;
 	dprintk(2, "%s() width=%d height=%d field=%d\n", __func__,
 		fh->width, fh->height, fh->vidq.field);
-	call_all(dev, video, s_fmt, f);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 	return 0;
 }
 
@@ -1202,6 +1205,21 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
+static int vidioc_log_status(struct file *file, void *priv)
+{
+	struct cx23885_fh  *fh  = priv;
+	struct cx23885_dev *dev = fh->dev;
+
+	printk(KERN_INFO
+		"%s/0: ============  START LOG STATUS  ============\n",
+	       dev->name);
+	call_all(dev, core, log_status);
+	printk(KERN_INFO
+		"%s/0: =============  END LOG STATUS  =============\n",
+	       dev->name);
+	return 0;
+}
+
 static int vidioc_queryctrl(struct file *file, void *priv,
 				struct v4l2_queryctrl *qctrl)
 {
@@ -1407,6 +1425,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
+	.vidioc_log_status    = vidioc_log_status,
 	.vidioc_queryctrl     = vidioc_queryctrl,
 	.vidioc_g_ctrl        = vidioc_g_ctrl,
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
@@ -1446,7 +1465,7 @@ static const struct v4l2_file_operations radio_fops = {
 void cx23885_video_unregister(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
-	cx_clear(PCI_INT_MSK, 1);
+	cx23885_irq_remove(dev, 0x01);
 
 	if (dev->video_dev) {
 		if (video_is_registered(dev->video_dev))
@@ -1483,7 +1502,8 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		VID_A_DMA_CTL, 0x11, 0x00);
 
 	/* Don't enable VBI yet */
-	cx_set(PCI_INT_MSK, 1);
+
+	cx23885_irq_add_enable(dev, 0x01);
 
 	if (TUNER_ABSENT != dev->tuner_type) {
 		struct v4l2_subdev *sd = NULL;

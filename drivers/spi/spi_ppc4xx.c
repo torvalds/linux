@@ -388,16 +388,16 @@ static void free_gpios(struct ppc4xx_spi *hw)
 }
 
 /*
- * of_device layer stuff...
+ * platform_device layer stuff...
  */
-static int __init spi_ppc4xx_of_probe(struct of_device *op,
+static int __init spi_ppc4xx_of_probe(struct platform_device *op,
 				      const struct of_device_id *match)
 {
 	struct ppc4xx_spi *hw;
 	struct spi_master *master;
 	struct spi_bitbang *bbp;
 	struct resource resource;
-	struct device_node *np = op->node;
+	struct device_node *np = op->dev.of_node;
 	struct device *dev = &op->dev;
 	struct device_node *opbnp;
 	int ret;
@@ -407,6 +407,7 @@ static int __init spi_ppc4xx_of_probe(struct of_device *op,
 	master = spi_alloc_master(dev, sizeof *hw);
 	if (master == NULL)
 		return -ENOMEM;
+	master->dev.of_node = np;
 	dev_set_drvdata(dev, master);
 	hw = spi_master_get_devdata(master);
 	hw->master = spi_master_get(master);
@@ -545,7 +546,6 @@ static int __init spi_ppc4xx_of_probe(struct of_device *op,
 	}
 
 	dev_info(dev, "driver initialized\n");
-	of_register_spi_devices(master, np);
 
 	return 0;
 
@@ -565,7 +565,7 @@ free_master:
 	return ret;
 }
 
-static int __exit spi_ppc4xx_of_remove(struct of_device *op)
+static int __exit spi_ppc4xx_of_remove(struct platform_device *op)
 {
 	struct spi_master *master = dev_get_drvdata(&op->dev);
 	struct ppc4xx_spi *hw = spi_master_get_devdata(master);

@@ -41,10 +41,10 @@ void pxa27x_clear_otgph(void)
 EXPORT_SYMBOL(pxa27x_clear_otgph);
 
 static unsigned long ac97_reset_config[] = {
-	GPIO95_AC97_nRESET,
-	GPIO95_GPIO,
-	GPIO113_AC97_nRESET,
 	GPIO113_GPIO,
+	GPIO113_AC97_nRESET,
+	GPIO95_GPIO,
+	GPIO95_AC97_nRESET,
 };
 
 void pxa27x_assert_ac97reset(int reset_gpio, int on)
@@ -383,6 +383,7 @@ void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
+	&pxa_device_pmu,
 	&pxa_device_i2s,
 	&sa1100_device_rtc,
 	&pxa_device_rtc,

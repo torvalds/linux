@@ -377,7 +377,7 @@ static int lp3971_i2c_read(struct i2c_client *i2c, char reg, int count,
 	if (count != 1)
 		return -EIO;
 	ret = i2c_smbus_read_byte_data(i2c, reg);
-	if (ret < 0 || count != 1)
+	if (ret < 0)
 		return -EIO;
 
 	*dest = ret;
@@ -387,15 +387,9 @@ static int lp3971_i2c_read(struct i2c_client *i2c, char reg, int count,
 static int lp3971_i2c_write(struct i2c_client *i2c, char reg, int count,
 	const u16 *src)
 {
-	int ret;
-
 	if (count != 1)
 		return -EIO;
-	ret = i2c_smbus_write_byte_data(i2c, reg, *src);
-	if (ret >= 0)
-		return 0;
-
-	return ret;
+	return i2c_smbus_write_byte_data(i2c, reg, *src);
 }
 
 static u8 lp3971_reg_read(struct lp3971 *lp3971, u8 reg)
@@ -518,8 +512,6 @@ static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
 	int i;
-
-	i2c_set_clientdata(i2c, NULL);
 
 	for (i = 0; i < lp3971->num_regulators; i++)
 		regulator_unregister(lp3971->rdev[i]);

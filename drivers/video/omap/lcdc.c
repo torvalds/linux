@@ -572,22 +572,12 @@ static enum omapfb_update_mode omap_lcdc_get_update_mode(void)
 /* PM code called only in internal controller mode */
 static void omap_lcdc_suspend(void)
 {
-	if (lcdc.update_mode == OMAPFB_AUTO_UPDATE) {
-		disable_controller();
-		omap_stop_lcd_dma();
-	}
+	omap_lcdc_set_update_mode(OMAPFB_UPDATE_DISABLED);
 }
 
 static void omap_lcdc_resume(void)
 {
-	if (lcdc.update_mode == OMAPFB_AUTO_UPDATE) {
-		setup_regs();
-		load_palette();
-		setup_lcd_dma();
-		set_load_mode(OMAP_LCDC_LOAD_FRAME);
-		enable_irqs(OMAP_LCDC_IRQ_DONE);
-		enable_controller();
-	}
+	omap_lcdc_set_update_mode(OMAPFB_AUTO_UPDATE);
 }
 
 static void omap_lcdc_get_caps(int plane, struct omapfb_caps *caps)

@@ -450,7 +450,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 		}
 	}
 
-	i2c_set_clientdata(client, rdev);
+	i2c_set_clientdata(client, max8660);
 	dev_info(&client->dev, "Maxim 8660/8661 regulator driver loaded\n");
 	return 0;
 
@@ -465,14 +465,13 @@ out:
 
 static int __devexit max8660_remove(struct i2c_client *client)
 {
-	struct regulator_dev **rdev = i2c_get_clientdata(client);
+	struct max8660 *max8660 = i2c_get_clientdata(client);
 	int i;
 
 	for (i = 0; i < MAX8660_V_END; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-	i2c_set_clientdata(client, NULL);
-	kfree(rdev);
+		if (max8660->rdev[i])
+			regulator_unregister(max8660->rdev[i]);
+	kfree(max8660);
 
 	return 0;
 }

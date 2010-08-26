@@ -84,7 +84,7 @@ static int iget_skip_test(struct inode *inode, void *opaque)
 	struct gfs2_skip_data *data = opaque;
 
 	if (ip->i_no_addr == data->no_addr) {
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
+		if (inode->i_state & (I_FREEING|I_WILL_FREE)){
 			data->skipped = 1;
 			return 0;
 		}
@@ -169,7 +169,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 {
 	struct inode *inode;
 	struct gfs2_inode *ip;
-	struct gfs2_glock *io_gl;
+	struct gfs2_glock *io_gl = NULL;
 	int error;
 
 	inode = gfs2_iget(sb, no_addr);
@@ -198,6 +198,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 		ip->i_iopen_gh.gh_gl->gl_object = ip;
 
 		gfs2_glock_put(io_gl);
+		io_gl = NULL;
 
 		if ((type == DT_UNKNOWN) && (no_formal_ino == 0))
 			goto gfs2_nfsbypass;
@@ -228,7 +229,8 @@ gfs2_nfsbypass:
 fail_glock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
 fail_iopen:
-	gfs2_glock_put(io_gl);
+	if (io_gl)
+		gfs2_glock_put(io_gl);
 fail_put:
 	if (inode->i_state & I_NEW)
 		ip->i_gl->gl_object = NULL;
@@ -256,7 +258,7 @@ void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 {
 	struct gfs2_sbd *sdp;
 	struct gfs2_inode *ip;
-	struct gfs2_glock *io_gl;
+	struct gfs2_glock *io_gl = NULL;
 	int error;
 	struct gfs2_holder gh;
 	struct inode *inode;
@@ -293,6 +295,7 @@ void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 
 	ip->i_iopen_gh.gh_gl->gl_object = ip;
 	gfs2_glock_put(io_gl);
+	io_gl = NULL;
 
 	inode->i_mode = DT2IF(DT_UNKNOWN);
 
@@ -319,7 +322,8 @@ void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 fail_glock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
 fail_iopen:
-	gfs2_glock_put(io_gl);
+	if (io_gl)
+		gfs2_glock_put(io_gl);
 fail_put:
 	ip->i_gl->gl_object = NULL;
 	gfs2_glock_put(ip->i_gl);
@@ -987,18 +991,29 @@ fail:
 
 static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 {
+	struct inode *inode = &ip->i_inode;
 	struct buffer_head *dibh;
 	int error;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		error = inode_setattr(&ip->i_inode, attr);
-		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+	if (error)
+		return error;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
 	}
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	gfs2_assert_warn(GFS2_SB(inode), !error);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+	return 0;
 }
 
 /**

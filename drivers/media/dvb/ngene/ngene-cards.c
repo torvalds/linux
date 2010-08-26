@@ -217,6 +217,19 @@ static struct ngene_info ngene_info_cineS2v5 = {
 	.fw_version	= 15,
 };
 
+static struct ngene_info ngene_info_duoFlexS2 = {
+	.type           = NGENE_SIDEWINDER,
+	.name           = "Digital Devices DuoFlex S2 miniPCIe",
+	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN},
+	.demod_attach   = {demod_attach_stv0900, demod_attach_stv0900},
+	.tuner_attach   = {tuner_attach_stv6110, tuner_attach_stv6110},
+	.fe_config      = {&fe_cineS2, &fe_cineS2},
+	.tuner_config   = {&tuner_cineS2_0, &tuner_cineS2_1},
+	.lnb            = {0x0a, 0x08},
+	.tsf            = {3, 3},
+	.fw_version     = 15,
+};
+
 static struct ngene_info ngene_info_m780 = {
 	.type           = NGENE_APP,
 	.name           = "Aver M780 ATSC/QAM-B",
@@ -256,6 +269,8 @@ static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixS2),
 	NGENE_ID(0x18c3, 0xdb02, ngene_info_satixS2v2),
 	NGENE_ID(0x18c3, 0xdd00, ngene_info_cineS2v5),
+	NGENE_ID(0x18c3, 0xdd10, ngene_info_duoFlexS2),
+	NGENE_ID(0x18c3, 0xdd20, ngene_info_duoFlexS2),
 	NGENE_ID(0x1461, 0x062e, ngene_info_m780),
 	{0}
 };

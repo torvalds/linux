@@ -1188,24 +1188,6 @@ static void write_iso_tasklet(unsigned long data)
 					break;
 				}
 			}
-#ifdef CONFIG_GIGASET_DEBUG
-			/* check assumption on remaining frames */
-			for (; i < BAS_NUMFRAMES; i++) {
-				ifd = &urb->iso_frame_desc[i];
-				if (ifd->status != -EINPROGRESS
-				    || ifd->actual_length != 0) {
-					dev_warn(cs->dev,
-					     "isochronous write: frame %d: %s, "
-					     "%d of %d bytes sent\n",
-					     i, get_usb_statmsg(ifd->status),
-					     ifd->actual_length, ifd->length);
-					offset = (ifd->offset +
-						  ifd->actual_length)
-						 % BAS_OUTBUFSIZE;
-					break;
-				}
-			}
-#endif
 			break;
 		case -EPIPE:			/* stall - probably underrun */
 			dev_err(cs->dev, "isochronous write stalled\n");
@@ -1913,55 +1895,33 @@ static int start_cbsend(struct cardstate *cs)
  * USB transmission is started if necessary.
  * parameters:
  *	cs		controller state structure
- *	buf		command string to send
- *	len		number of bytes to send (max. IF_WRITEBUF)
- *	wake_tasklet	tasklet to run when transmission is completed
- *			(NULL if none)
+ *	cb		command buffer structure
  * return value:
  *	number of bytes queued on success
  *	error code < 0 on error
  */
-static int gigaset_write_cmd(struct cardstate *cs,
-			     const unsigned char *buf, int len,
-			     struct tasklet_struct *wake_tasklet)
+static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 {
-	struct cmdbuf_t *cb;
 	unsigned long flags;
 	int rc;
 
 	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
-			   "CMD Transmit", len, buf);
-
-	if (len <= 0) {
-		/* nothing to do */
-		rc = 0;
-		goto notqueued;
-	}
+			   "CMD Transmit", cb->len, cb->buf);
 
 	/* translate "+++" escape sequence sent as a single separate command
 	 * into "close AT channel" command for error recovery
 	 * The next command will reopen the AT channel automatically.
 	 */
-	if (len == 3 && !memcmp(buf, "+++", 3)) {
+	if (cb->len == 3 && !memcmp(cb->buf, "+++", 3)) {
 		rc = req_submit(cs->bcs, HD_CLOSE_ATCHANNEL, 0, BAS_TIMEOUT);
-		goto notqueued;
+		if (cb->wake_tasklet)
+			tasklet_schedule(cb->wake_tasklet);
+		if (!rc)
+			rc = cb->len;
+		kfree(cb);
+		return rc;
 	}
-
-	if (len > IF_WRITEBUF)
-		len = IF_WRITEBUF;
-	cb = kmalloc(sizeof(struct cmdbuf_t) + len, GFP_ATOMIC);
-	if (!cb) {
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
-		rc = -ENOMEM;
-		goto notqueued;
-	}
-
-	memcpy(cb->buf, buf, len);
-	cb->len = len;
-	cb->offset = 0;
-	cb->next = NULL;
-	cb->wake_tasklet = wake_tasklet;
 
 	spin_lock_irqsave(&cs->cmdlock, flags);
 	cb->prev = cs->lastcmdbuf;
@@ -1969,9 +1929,9 @@ static int gigaset_write_cmd(struct cardstate *cs,
 		cs->lastcmdbuf->next = cb;
 	else {
 		cs->cmdbuf = cb;
-		cs->curlen = len;
+		cs->curlen = cb->len;
 	}
-	cs->cmdbytes += len;
+	cs->cmdbytes += cb->len;
 	cs->lastcmdbuf = cb;
 	spin_unlock_irqrestore(&cs->cmdlock, flags);
 
@@ -1988,12 +1948,7 @@ static int gigaset_write_cmd(struct cardstate *cs,
 	}
 	rc = start_cbsend(cs);
 	spin_unlock_irqrestore(&cs->lock, flags);
-	return rc < 0 ? rc : len;
-
-notqueued:			/* request handled without queuing */
-	if (wake_tasklet)
-		tasklet_schedule(wake_tasklet);
-	return rc;
+	return rc < 0 ? rc : cb->len;
 }
 
 /* gigaset_write_room

@@ -282,6 +282,7 @@ enum rtattr_type_t {
 	RTA_SESSION, /* no longer used */
 	RTA_MP_ALGO, /* no longer used */
 	RTA_TABLE,
+	RTA_MARK,
 	__RTA_MAX
 };
 

@@ -28,8 +28,6 @@
 #define MCI_4BIT_BUS		(1 << 11)
 /* 8bit wide buses supported in ST Micro versions */
 #define MCI_ST_8BIT_BUS		(1 << 12)
-/* HW flow control on the ST Micro version */
-#define MCI_ST_FCEN		(1 << 13)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
@@ -145,6 +143,7 @@
 #define NR_SG		16
 
 struct clk;
+struct variant_data;
 
 struct mmci_host {
 	void __iomem		*base;
@@ -164,6 +163,7 @@ struct mmci_host {
 	unsigned int		cclk;
 	u32			pwr;
 	struct mmci_platform_data *plat;
+	struct variant_data	*variant;
 
 	u8			hw_designer;
 	u8			hw_revision:4;
@@ -171,42 +171,9 @@ struct mmci_host {
 	struct timer_list	timer;
 	unsigned int		oldstat;
 
-	unsigned int		sg_len;
-
 	/* pio stuff */
-	struct scatterlist	*sg_ptr;
-	unsigned int		sg_off;
+	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
 	struct regulator	*vcc;
 };
 
-static inline void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
-{
-	/*
-	 * Ideally, we want the higher levels to pass us a scatter list.
-	 */
-	host->sg_len = data->sg_len;
-	host->sg_ptr = data->sg;
-	host->sg_off = 0;
-}
-
-static inline int mmci_next_sg(struct mmci_host *host)
-{
-	host->sg_ptr++;
-	host->sg_off = 0;
-	return --host->sg_len;
-}
-
-static inline char *mmci_kmap_atomic(struct mmci_host *host, unsigned long *flags)
-{
-	struct scatterlist *sg = host->sg_ptr;
-
-	local_irq_save(*flags);
-	return kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
-}
-
-static inline void mmci_kunmap_atomic(struct mmci_host *host, void *buffer, unsigned long *flags)
-{
-	kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
-	local_irq_restore(*flags);
-}

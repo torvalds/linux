@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-traffic.c: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+ * vxge-traffic.c: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
  *                 Virtualized Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #include <linux/etherdevice.h>
 
@@ -2466,14 +2466,12 @@ enum vxge_hw_status vxge_hw_vpath_poll_rx(struct __vxge_hw_ring *ring)
  * the same.
  * @fifo: Handle to the fifo object used for non offload send
  *
- * The function	polls the Tx for the completed	descriptors and	calls
+ * The function polls the Tx for the completed descriptors and calls
  * the driver via supplied completion callback.
  *
  * Returns: VXGE_HW_OK, if the polling is completed successful.
  * VXGE_HW_COMPLETIONS_REMAIN: There are still more completed
  * descriptors available which are yet to be processed.
- *
- * See also: vxge_hw_vpath_poll_tx().
  */
 enum vxge_hw_status vxge_hw_vpath_poll_tx(struct __vxge_hw_fifo *fifo,
 					struct sk_buff ***skb_ptr, int nr_skb,

@@ -352,6 +352,6 @@ static void __exit cs5535_gpio_exit(void)
 module_init(cs5535_gpio_init);
 module_exit(cs5535_gpio_exit);
 
-MODULE_AUTHOR("Andres Salomon <dilinger@collabora.co.uk>");
+MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
 MODULE_DESCRIPTION("AMD CS5535/CS5536 GPIO driver");
 MODULE_LICENSE("GPL");

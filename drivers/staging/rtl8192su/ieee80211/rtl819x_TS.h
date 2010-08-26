@@ -1,3 +1,21 @@
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #ifndef _TSTYPE_H_
 #define _TSTYPE_H_
 #include "rtl819x_Qos.h"
@@ -30,10 +48,10 @@ typedef struct _TX_TS_RECORD{
 	u16				TxCurSeq;
 	BA_RECORD			TxPendingBARecord;  	// For BA Originator
 	BA_RECORD			TxAdmittedBARecord;	// For BA Originator
-//	QOS_DL_RECORD		DLRecord;
 	u8				bAddBaReqInProgress;
 	u8				bAddBaReqDelayed;
 	u8				bUsingBa;
+	u8 				bDisable_AddBa;
 	struct timer_list		TsAddBaTimer;
 	u8				num;
 } TX_TS_RECORD, *PTX_TS_RECORD;
@@ -48,9 +66,6 @@ typedef struct _RX_TS_RECORD {
 	u16				RxLastSeqNum;
 	u8				RxLastFragNum;
 	u8				num;
-//	QOS_DL_RECORD		DLRecord;
 } RX_TS_RECORD, *PRX_TS_RECORD;
 
-
 #endif
-

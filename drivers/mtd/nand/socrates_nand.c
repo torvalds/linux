@@ -162,7 +162,7 @@ static const char *part_probes[] = { "cmdlinepart", NULL };
 /*
  * Probe for the NAND device.
  */
-static int __devinit socrates_nand_probe(struct of_device *ofdev,
+static int __devinit socrates_nand_probe(struct platform_device *ofdev,
 					 const struct of_device_id *ofid)
 {
 	struct socrates_nand_host *host;
@@ -183,7 +183,7 @@ static int __devinit socrates_nand_probe(struct of_device *ofdev,
 		return -ENOMEM;
 	}
 
-	host->io_base = of_iomap(ofdev->node, 0);
+	host->io_base = of_iomap(ofdev->dev.of_node, 0);
 	if (host->io_base == NULL) {
 		printk(KERN_ERR "socrates_nand: ioremap failed\n");
 		kfree(host);
@@ -244,7 +244,7 @@ static int __devinit socrates_nand_probe(struct of_device *ofdev,
 #ifdef CONFIG_MTD_OF_PARTS
 	if (num_partitions == 0) {
 		num_partitions = of_mtd_parse_partitions(&ofdev->dev,
-							 ofdev->node,
+							 ofdev->dev.of_node,
 							 &partitions);
 		if (num_partitions < 0) {
 			res = num_partitions;
@@ -276,7 +276,7 @@ out:
 /*
  * Remove a NAND device.
  */
-static int __devexit socrates_nand_remove(struct of_device *ofdev)
+static int __devexit socrates_nand_remove(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host = dev_get_drvdata(&ofdev->dev);
 	struct mtd_info *mtd = &host->mtd;

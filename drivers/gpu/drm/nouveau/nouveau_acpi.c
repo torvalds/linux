@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
+#include <acpi/video.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -11,6 +12,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nv50_display.h"
+#include "nouveau_connector.h"
 
 #include <linux/vga_switcheroo.h>
 
@@ -34,7 +36,7 @@
 static struct nouveau_dsm_priv {
 	bool dsm_detected;
 	acpi_handle dhandle;
-	acpi_handle dsm_handle;
+	acpi_handle rom_handle;
 } nouveau_dsm_priv;
 
 static const char nouveau_dsm_muid[] = {
@@ -42,7 +44,7 @@ static const char nouveau_dsm_muid[] = {
 	0xB3, 0x4D, 0x7E, 0x5F, 0xEA, 0x12, 0x9F, 0xD4,
 };
 
-static int nouveau_dsm(acpi_handle handle, int func, int arg, int *result)
+static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_object_list input;
@@ -107,9 +109,9 @@ static int nouveau_dsm_set_discrete_state(acpi_handle handle, enum vga_switchero
 static int nouveau_dsm_switchto(enum vga_switcheroo_client_id id)
 {
 	if (id == VGA_SWITCHEROO_IGD)
-		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dsm_handle, NOUVEAU_DSM_LED_STAMINA);
+		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_LED_STAMINA);
 	else
-		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dsm_handle, NOUVEAU_DSM_LED_SPEED);
+		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_LED_SPEED);
 }
 
 static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
@@ -118,7 +120,7 @@ static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
 	if (id == VGA_SWITCHEROO_IGD)
 		return 0;
 
-	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dsm_handle, state);
+	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dhandle, state);
 }
 
 static int nouveau_dsm_init(void)
@@ -151,18 +153,18 @@ static bool nouveau_dsm_pci_probe(struct pci_dev *pdev)
 	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
+
 	status = acpi_get_handle(dhandle, "_DSM", &nvidia_handle);
 	if (ACPI_FAILURE(status)) {
 		return false;
 	}
 
-	ret= nouveau_dsm(nvidia_handle, NOUVEAU_DSM_SUPPORTED,
-			 NOUVEAU_DSM_SUPPORTED_FUNCTIONS, &result);
+	ret = nouveau_dsm(dhandle, NOUVEAU_DSM_SUPPORTED,
+			  NOUVEAU_DSM_SUPPORTED_FUNCTIONS, &result);
 	if (ret < 0)
 		return false;
 
 	nouveau_dsm_priv.dhandle = dhandle;
-	nouveau_dsm_priv.dsm_handle = nvidia_handle;
 	return true;
 }
 
@@ -173,6 +175,7 @@ static bool nouveau_dsm_detect(void)
 	struct pci_dev *pdev = NULL;
 	int has_dsm = 0;
 	int vga_count = 0;
+
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
 
@@ -180,7 +183,7 @@ static bool nouveau_dsm_detect(void)
 	}
 
 	if (vga_count == 2 && has_dsm) {
-		acpi_get_name(nouveau_dsm_priv.dsm_handle, ACPI_FULL_PATHNAME, &buffer);
+		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME, &buffer);
 		printk(KERN_INFO "VGA switcheroo: detected DSM switching method %s handle\n",
 		       acpi_method_name);
 		nouveau_dsm_priv.dsm_detected = true;
@@ -203,4 +206,92 @@ void nouveau_register_dsm_handler(void)
 void nouveau_unregister_dsm_handler(void)
 {
 	vga_switcheroo_unregister_handler();
+}
+
+/* retrieve the ROM in 4k blocks */
+static int nouveau_rom_call(acpi_handle rom_handle, uint8_t *bios,
+			    int offset, int len)
+{
+	acpi_status status;
+	union acpi_object rom_arg_elements[2], *obj;
+	struct acpi_object_list rom_arg;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL};
+
+	rom_arg.count = 2;
+	rom_arg.pointer = &rom_arg_elements[0];
+
+	rom_arg_elements[0].type = ACPI_TYPE_INTEGER;
+	rom_arg_elements[0].integer.value = offset;
+
+	rom_arg_elements[1].type = ACPI_TYPE_INTEGER;
+	rom_arg_elements[1].integer.value = len;
+
+	status = acpi_evaluate_object(rom_handle, NULL, &rom_arg, &buffer);
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_INFO "failed to evaluate ROM got %s\n", acpi_format_exception(status));
+		return -ENODEV;
+	}
+	obj = (union acpi_object *)buffer.pointer;
+	memcpy(bios+offset, obj->buffer.pointer, len);
+	kfree(buffer.pointer);
+	return len;
+}
+
+bool nouveau_acpi_rom_supported(struct pci_dev *pdev)
+{
+	acpi_status status;
+	acpi_handle dhandle, rom_handle;
+
+	if (!nouveau_dsm_priv.dsm_detected)
+		return false;
+
+	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	if (!dhandle)
+		return false;
+
+	status = acpi_get_handle(dhandle, "_ROM", &rom_handle);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	nouveau_dsm_priv.rom_handle = rom_handle;
+	return true;
+}
+
+int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
+{
+	return nouveau_rom_call(nouveau_dsm_priv.rom_handle, bios, offset, len);
+}
+
+int
+nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct acpi_device *acpidev;
+	acpi_handle handle;
+	int type, ret;
+	void *edid;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_eDP:
+		type = ACPI_VIDEO_DISPLAY_LCD;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	if (!handle)
+		return -ENODEV;
+
+	ret = acpi_bus_get_device(handle, &acpidev);
+	if (ret)
+		return -ENODEV;
+
+	ret = acpi_video_get_edid(acpidev, type, -1, &edid);
+	if (ret < 0)
+		return ret;
+
+	nv_connector->edid = edid;
+	return 0;
 }

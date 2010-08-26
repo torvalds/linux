@@ -79,6 +79,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
 	req->wb_context = get_nfs_open_context(ctx);
+	req->wb_lock_context = nfs_get_lock_context(ctx);
 	kref_init(&req->wb_kref);
 	return req;
 }
@@ -141,10 +142,15 @@ void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
 	struct nfs_open_context *ctx = req->wb_context;
+	struct nfs_lock_context *l_ctx = req->wb_lock_context;
 
 	if (page != NULL) {
 		page_cache_release(page);
 		req->wb_page = NULL;
+	}
+	if (l_ctx != NULL) {
+		nfs_put_lock_context(l_ctx);
+		req->wb_lock_context = NULL;
 	}
 	if (ctx != NULL) {
 		put_nfs_open_context(ctx);
@@ -235,7 +241,7 @@ static int nfs_can_coalesce_requests(struct nfs_page *prev,
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
 		return 0;
-	if (req->wb_context->lockowner != prev->wb_context->lockowner)
+	if (req->wb_lock_context->lockowner != prev->wb_lock_context->lockowner)
 		return 0;
 	if (req->wb_context->state != prev->wb_context->state)
 		return 0;

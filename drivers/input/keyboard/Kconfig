@@ -73,7 +73,7 @@ config KEYBOARD_ATKBD
 	default y
 	select SERIO
 	select SERIO_LIBPS2
-	select SERIO_I8042 if X86 && !X86_MRST
+	select SERIO_I8042 if X86
 	select SERIO_GSCPS2 if GSC
 	help
 	  Say Y here if you want to use a standard AT or PS/2 keyboard. Usually
@@ -124,7 +124,7 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
-config QT2160
+config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
 	depends on I2C && EXPERIMENTAL
 	help
@@ -297,6 +297,18 @@ config KEYBOARD_MAX7359
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
 
+config KEYBOARD_MCS
+	tristate "MELFAS MCS Touchkey"
+	depends on I2C
+	help
+	  Say Y here if you have the MELFAS MCS5000/5080 touchkey controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcs_touchkey.
+
 config KEYBOARD_IMX
 	tristate "IMX keypad support"
 	depends on ARCH_MXC
@@ -342,6 +354,15 @@ config KEYBOARD_PXA930_ROTARY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa930_rotary.
 
+config KEYBOARD_SAMSUNG
+	tristate "Samsung keypad support"
+	depends on SAMSUNG_DEV_KEYPAD
+	help
+	  Say Y here if you want to use the Samsung keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called samsung-keypad.
+
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
 	select SERIO
@@ -373,6 +394,16 @@ config KEYBOARD_SH_KEYSC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sh_keysc.
+
+config KEYBOARD_STMPE
+	tristate "STMPE keypad support"
+	depends on MFD_STMPE
+	help
+	  Say Y here if you want to use the keypad controller on STMPE I/O
+	  expanders.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called stmpe-keypad.
 
 config KEYBOARD_DAVINCI
 	tristate "TI DaVinci Key Scan"

@@ -104,6 +104,7 @@ struct v9fs_session_info {
 	struct p9_client *clnt;	/* 9p client */
 	struct list_head slist; /* list of sessions registered with v9fs */
 	struct backing_dev_info bdi;
+	struct rw_semaphore rename_sem;
 };
 
 struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,

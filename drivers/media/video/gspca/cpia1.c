@@ -1760,22 +1760,19 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	    data[25] == sd->params.roi.colEnd &&
 	    data[26] == sd->params.roi.rowStart &&
 	    data[27] == sd->params.roi.rowEnd) {
-		struct gspca_frame *frame = gspca_get_i_frame(gspca_dev);
+		u8 *image;
 
 		atomic_set(&sd->cam_exposure, data[39] * 2);
 		atomic_set(&sd->fps, data[41]);
 
-		if (frame == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
-
 		/* Check for proper EOF for last frame */
-		if ((frame->data_end - frame->data) > 4 &&
-		    frame->data_end[-4] == 0xff &&
-		    frame->data_end[-3] == 0xff &&
-		    frame->data_end[-2] == 0xff &&
-		    frame->data_end[-1] == 0xff)
+		image = gspca_dev->image;
+		if (image != NULL &&
+		    gspca_dev->image_len > 4 &&
+		    image[gspca_dev->image_len - 4] == 0xff &&
+		    image[gspca_dev->image_len - 3] == 0xff &&
+		    image[gspca_dev->image_len - 2] == 0xff &&
+		    image[gspca_dev->image_len - 1] == 0xff)
 			gspca_frame_add(gspca_dev, LAST_PACKET,
 						NULL, 0);
 

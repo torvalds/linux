@@ -78,13 +78,36 @@
  *
  */
 
-void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+static void
+uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
 {
 	mutex_init(&queue->mutex);
 	spin_lock_init(&queue->irqlock);
 	INIT_LIST_HEAD(&queue->mainqueue);
 	INIT_LIST_HEAD(&queue->irqqueue);
 	queue->type = type;
+}
+
+/*
+ * Free the video buffers.
+ *
+ * This function must be called with the queue lock held.
+ */
+static int uvc_free_buffers(struct uvc_video_queue *queue)
+{
+	unsigned int i;
+
+	for (i = 0; i < queue->count; ++i) {
+		if (queue->buffer[i].vma_use_count != 0)
+			return -EBUSY;
+	}
+
+	if (queue->count) {
+		vfree(queue->mem);
+		queue->count = 0;
+	}
+
+	return 0;
 }
 
 /*
@@ -95,8 +118,9 @@ void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
  *
  * Buffers will be individually mapped, so they must all be page aligned.
  */
-int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
-		unsigned int buflength)
+static int
+uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
+		  unsigned int buflength)
 {
 	unsigned int bufsize = PAGE_ALIGN(buflength);
 	unsigned int i;
@@ -150,28 +174,6 @@ done:
 	return ret;
 }
 
-/*
- * Free the video buffers.
- *
- * This function must be called with the queue lock held.
- */
-int uvc_free_buffers(struct uvc_video_queue *queue)
-{
-	unsigned int i;
-
-	for (i = 0; i < queue->count; ++i) {
-		if (queue->buffer[i].vma_use_count != 0)
-			return -EBUSY;
-	}
-
-	if (queue->count) {
-		vfree(queue->mem);
-		queue->count = 0;
-	}
-
-	return 0;
-}
-
 static void __uvc_query_buffer(struct uvc_buffer *buf,
 		struct v4l2_buffer *v4l2_buf)
 {
@@ -195,8 +197,8 @@ static void __uvc_query_buffer(struct uvc_buffer *buf,
 	}
 }
 
-int uvc_query_buffer(struct uvc_video_queue *queue,
-		struct v4l2_buffer *v4l2_buf)
+static int
+uvc_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *v4l2_buf)
 {
 	int ret = 0;
 
@@ -217,8 +219,8 @@ done:
  * Queue a video buffer. Attempting to queue a buffer that has already been
  * queued will return -EINVAL.
  */
-int uvc_queue_buffer(struct uvc_video_queue *queue,
-	struct v4l2_buffer *v4l2_buf)
+static int
+uvc_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *v4l2_buf)
 {
 	struct uvc_buffer *buf;
 	unsigned long flags;
@@ -298,8 +300,9 @@ static int uvc_queue_waiton(struct uvc_buffer *buf, int nonblocking)
  * Dequeue a video buffer. If nonblocking is false, block until a buffer is
  * available.
  */
-int uvc_dequeue_buffer(struct uvc_video_queue *queue,
-		struct v4l2_buffer *v4l2_buf, int nonblocking)
+static int
+uvc_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *v4l2_buf,
+		   int nonblocking)
 {
 	struct uvc_buffer *buf;
 	int ret = 0;
@@ -359,8 +362,9 @@ done:
  * This function implements video queue polling and is intended to be used by
  * the device poll handler.
  */
-unsigned int uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
-		poll_table *wait)
+static unsigned int
+uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
+	       poll_table *wait)
 {
 	struct uvc_buffer *buf;
 	unsigned int mask = 0;
@@ -407,7 +411,8 @@ static struct vm_operations_struct uvc_vm_ops = {
  * This function implements video buffer memory mapping and is intended to be
  * used by the device mmap handler.
  */
-int uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
+static int
+uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
 {
 	struct uvc_buffer *uninitialized_var(buffer);
 	struct page *page;
@@ -458,6 +463,42 @@ done:
 }
 
 /*
+ * Cancel the video buffers queue.
+ *
+ * Cancelling the queue marks all buffers on the irq queue as erroneous,
+ * wakes them up and removes them from the queue.
+ *
+ * If the disconnect parameter is set, further calls to uvc_queue_buffer will
+ * fail with -ENODEV.
+ *
+ * This function acquires the irq spinlock and can be called from interrupt
+ * context.
+ */
+static void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
+{
+	struct uvc_buffer *buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+	while (!list_empty(&queue->irqqueue)) {
+		buf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
+				       queue);
+		list_del(&buf->queue);
+		buf->state = UVC_BUF_STATE_ERROR;
+		wake_up(&buf->wait);
+	}
+	/* This must be protected by the irqlock spinlock to avoid race
+	 * conditions between uvc_queue_buffer and the disconnection event that
+	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
+	 * blindly replace this logic by checking for the UVC_DEV_DISCONNECTED
+	 * state outside the queue code.
+	 */
+	if (disconnect)
+		queue->flags |= UVC_QUEUE_DISCONNECTED;
+	spin_unlock_irqrestore(&queue->irqlock, flags);
+}
+
+/*
  * Enable or disable the video buffers queue.
  *
  * The queue must be enabled before starting video acquisition and must be
@@ -474,7 +515,7 @@ done:
  * This function can't be called from interrupt context. Use
  * uvc_queue_cancel() instead.
  */
-int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
+static int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 {
 	unsigned int i;
 	int ret = 0;
@@ -503,44 +544,8 @@ done:
 	return ret;
 }
 
-/*
- * Cancel the video buffers queue.
- *
- * Cancelling the queue marks all buffers on the irq queue as erroneous,
- * wakes them up and removes them from the queue.
- *
- * If the disconnect parameter is set, further calls to uvc_queue_buffer will
- * fail with -ENODEV.
- *
- * This function acquires the irq spinlock and can be called from interrupt
- * context.
- */
-void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
-{
-	struct uvc_buffer *buf;
-	unsigned long flags;
-
-	spin_lock_irqsave(&queue->irqlock, flags);
-	while (!list_empty(&queue->irqqueue)) {
-		buf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
-				       queue);
-		list_del(&buf->queue);
-		buf->state = UVC_BUF_STATE_ERROR;
-		wake_up(&buf->wait);
-	}
-	/* This must be protected by the irqlock spinlock to avoid race
-	 * conditions between uvc_queue_buffer and the disconnection event that
-	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
-	 * blindly replace this logic by checking for the UVC_DEV_DISCONNECTED
-	 * state outside the queue code.
-	 */
-	if (disconnect)
-		queue->flags |= UVC_QUEUE_DISCONNECTED;
-	spin_unlock_irqrestore(&queue->irqlock, flags);
-}
-
-struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
-		struct uvc_buffer *buf)
+static struct uvc_buffer *
+uvc_queue_next_buffer(struct uvc_video_queue *queue, struct uvc_buffer *buf)
 {
 	struct uvc_buffer *nextbuf;
 	unsigned long flags;
@@ -568,7 +573,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	return nextbuf;
 }
 
-struct uvc_buffer *uvc_queue_head(struct uvc_video_queue *queue)
+static struct uvc_buffer *uvc_queue_head(struct uvc_video_queue *queue)
 {
 	struct uvc_buffer *buf = NULL;
 

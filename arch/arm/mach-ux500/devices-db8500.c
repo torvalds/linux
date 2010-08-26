@@ -65,7 +65,7 @@ struct amba_device u8500_ssp0_device = {
 		.end   = U8500_SSP0_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_SSP0, NO_IRQ },
+	.irq = {IRQ_DB8500_SSP0, NO_IRQ },
 	/* ST-Ericsson modified id */
 	.periphid = SSP_PER_ID,
 };
@@ -77,8 +77,8 @@ static struct resource u8500_i2c0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_I2C0,
-		.end	= IRQ_I2C0,
+		.start	= IRQ_DB8500_I2C0,
+		.end	= IRQ_DB8500_I2C0,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -97,8 +97,8 @@ static struct resource u8500_i2c4_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_I2C4,
-		.end	= IRQ_I2C4,
+		.start	= IRQ_DB8500_I2C4,
+		.end	= IRQ_DB8500_I2C4,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -113,26 +113,21 @@ struct platform_device u8500_i2c4_device = {
 static struct resource dma40_resources[] = {
 	[0] = {
 		.start = U8500_DMA_BASE,
-		.end = U8500_DMA_BASE + SZ_4K - 1,
+		.end   = U8500_DMA_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
-		.name = "base",
+		.name  = "base",
 	},
 	[1] = {
 		.start = U8500_DMA_LCPA_BASE,
-		.end = U8500_DMA_LCPA_BASE + SZ_4K - 1,
+		.end   = U8500_DMA_LCPA_BASE + 2 * SZ_1K - 1,
 		.flags = IORESOURCE_MEM,
-		.name = "lcpa",
+		.name  = "lcpa",
 	},
 	[2] = {
-		.start = U8500_DMA_LCLA_BASE,
-		.end = U8500_DMA_LCLA_BASE + 16 * 1024 - 1,
-		.flags = IORESOURCE_MEM,
-		.name = "lcla",
-	},
-	[3] = {
-		.start = IRQ_DMA,
-		.end = IRQ_DMA,
-		.flags = IORESOURCE_IRQ}
+		.start = IRQ_DB8500_DMA,
+		.end   = IRQ_DB8500_DMA,
+		.flags = IORESOURCE_IRQ,
+	}
 };
 
 /* Default configuration for physcial memcpy */
@@ -145,11 +140,12 @@ struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_PHY_1,
+	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
 	.dst_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
 	.dst_info.psize = STEDMA40_PSIZE_PHY_1,
-
+	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 };
 /* Default configuration for logical memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_log = {
@@ -162,11 +158,12 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_LOG_1,
+	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
 	.dst_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
-
+	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 };
 
 /*
@@ -180,10 +177,12 @@ static const dma_addr_t dma40_rx_map[STEDMA40_NR_DEV];
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {
+	STEDMA40_MEMCPY_TX_0,
 	STEDMA40_MEMCPY_TX_1,
 	STEDMA40_MEMCPY_TX_2,
 	STEDMA40_MEMCPY_TX_3,
 	STEDMA40_MEMCPY_TX_4,
+	STEDMA40_MEMCPY_TX_5,
 };
 
 static struct stedma40_platform_data dma40_plat_data = {
@@ -195,6 +194,7 @@ static struct stedma40_platform_data dma40_plat_data = {
 	.memcpy_conf_phy = &dma40_memcpy_conf_phy,
 	.memcpy_conf_log = &dma40_memcpy_conf_log,
 	.llis_per_log = 8,
+	.disabled_channels = {-1},
 };
 
 struct platform_device u8500_dma40_device = {
@@ -213,4 +213,6 @@ void dma40_u8500ed_fixup(void)
 	dma40_plat_data.memcpy_len = 0;
 	dma40_resources[0].start = U8500_DMA_BASE_ED;
 	dma40_resources[0].end = U8500_DMA_BASE_ED + SZ_4K - 1;
+	dma40_resources[1].start = U8500_DMA_LCPA_BASE_ED;
+	dma40_resources[1].end = U8500_DMA_LCPA_BASE_ED + 2 * SZ_1K - 1;
 }

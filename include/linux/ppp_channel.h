@@ -36,7 +36,7 @@ struct ppp_channel_ops {
 
 struct ppp_channel {
 	void		*private;	/* channel private data */
-	struct ppp_channel_ops *ops;	/* operations for this channel */
+	const struct ppp_channel_ops *ops; /* operations for this channel */
 	int		mtu;		/* max transmit packet size */
 	int		hdrlen;		/* amount of headroom channel needs */
 	void		*ppp;		/* opaque to channel */

@@ -33,26 +33,13 @@ BFA_TRC_FILE(CNA, IOC_CB);
 static bfa_status_t bfa_ioc_cb_pll_init(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc);
-static u32  *bfa_ioc_cb_fwimg_get_chunk(struct bfa_ioc_s *ioc, u32 off);
-static u32 bfa_ioc_cb_fwimg_get_size(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_map_port(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
 static void bfa_ioc_cb_notify_hbfail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc);
 
-struct bfa_ioc_hwif_s hwif_cb = {
-	bfa_ioc_cb_pll_init,
-	bfa_ioc_cb_firmware_lock,
-	bfa_ioc_cb_firmware_unlock,
-	bfa_ioc_cb_fwimg_get_chunk,
-	bfa_ioc_cb_fwimg_get_size,
-	bfa_ioc_cb_reg_init,
-	bfa_ioc_cb_map_port,
-	bfa_ioc_cb_isr_mode_set,
-	bfa_ioc_cb_notify_hbfail,
-	bfa_ioc_cb_ownership_reset,
-};
+struct bfa_ioc_hwif_s hwif_cb;
 
 /**
  * Called from bfa_ioc_attach() to map asic specific calls.
@@ -60,19 +47,16 @@ struct bfa_ioc_hwif_s hwif_cb = {
 void
 bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 {
+	hwif_cb.ioc_pll_init = bfa_ioc_cb_pll_init;
+	hwif_cb.ioc_firmware_lock = bfa_ioc_cb_firmware_lock;
+	hwif_cb.ioc_firmware_unlock = bfa_ioc_cb_firmware_unlock;
+	hwif_cb.ioc_reg_init = bfa_ioc_cb_reg_init;
+	hwif_cb.ioc_map_port = bfa_ioc_cb_map_port;
+	hwif_cb.ioc_isr_mode_set = bfa_ioc_cb_isr_mode_set;
+	hwif_cb.ioc_notify_hbfail = bfa_ioc_cb_notify_hbfail;
+	hwif_cb.ioc_ownership_reset = bfa_ioc_cb_ownership_reset;
+
 	ioc->ioc_hwif = &hwif_cb;
-}
-
-static u32 *
-bfa_ioc_cb_fwimg_get_chunk(struct bfa_ioc_s *ioc, u32 off)
-{
-	return bfi_image_cb_get_chunk(off);
-}
-
-static u32
-bfa_ioc_cb_fwimg_get_size(struct bfa_ioc_s *ioc)
-{
-	return bfi_image_cb_size;
 }
 
 /**

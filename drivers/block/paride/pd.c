@@ -153,6 +153,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_GEO, D_SBY, D_DLY, D_SLV};
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/kernel.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/workqueue.h>
 
@@ -439,7 +440,7 @@ static char *pd_buf;		/* buffer for request in progress */
 
 static enum action do_pd_io_start(void)
 {
-	if (blk_special_request(pd_req)) {
+	if (pd_req->cmd_type == REQ_TYPE_SPECIAL) {
 		phase = pd_special;
 		return pd_special();
 	}
@@ -735,12 +736,14 @@ static int pd_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pd_unit *disk = bdev->bd_disk->private_data;
 
+	lock_kernel();
 	disk->access++;
 
 	if (disk->removable) {
 		pd_special_command(disk, pd_media_check);
 		pd_special_command(disk, pd_door_lock);
 	}
+	unlock_kernel();
 	return 0;
 }
 
@@ -768,8 +771,10 @@ static int pd_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch (cmd) {
 	case CDROMEJECT:
+		lock_kernel();
 		if (disk->access == 1)
 			pd_special_command(disk, pd_eject);
+		unlock_kernel();
 		return 0;
 	default:
 		return -EINVAL;
@@ -780,8 +785,10 @@ static int pd_release(struct gendisk *p, fmode_t mode)
 {
 	struct pd_unit *disk = p->private_data;
 
+	lock_kernel();
 	if (!--disk->access && disk->removable)
 		pd_special_command(disk, pd_door_unlock);
+	unlock_kernel();
 
 	return 0;
 }
@@ -812,7 +819,7 @@ static const struct block_device_operations pd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pd_open,
 	.release	= pd_release,
-	.locked_ioctl	= pd_ioctl,
+	.ioctl		= pd_ioctl,
 	.getgeo		= pd_getgeo,
 	.media_changed	= pd_check_media,
 	.revalidate_disk= pd_revalidate

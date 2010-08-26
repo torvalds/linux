@@ -131,17 +131,6 @@ When mounting an XFS filesystem, the following options are accepted.
 	Don't check for double mounted file systems using the file system uuid.
 	This is useful to mount LVM snapshot volumes.
 
-  osyncisosync
-	Make O_SYNC writes implement true O_SYNC.  WITHOUT this option,
-	Linux XFS behaves as if an "osyncisdsync" option is used,
-	which will make writes to files opened with the O_SYNC flag set
-	behave as if the O_DSYNC flag had been used instead.
-	This can result in better performance without compromising
-	data safety.
-	However if this option is not in effect, timestamp updates from
-	O_SYNC writes can be lost if the system crashes.
-	If timestamp updates are critical, use the osyncisosync option.
-
   uquota/usrquota/uqnoenforce/quota
 	User disk quota accounting enabled, and limits (optionally)
 	enforced.  Refer to xfs_quota(8) for further details.

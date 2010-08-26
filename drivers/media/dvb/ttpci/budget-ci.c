@@ -215,6 +215,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		break;
 	case 0x1010:
 	case 0x1017:
+	case 0x1019:
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
 		ir_codes = RC_MAP_TT_1500;

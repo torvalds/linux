@@ -38,6 +38,7 @@
 ; to handle the fault.
 .macro	MMU_BUS_FAULT_HANDLER handler, mmu, we, ex
 	.globl	\handler
+	.type   \handler,"function"
 \handler:
 	SAVE_ALL
 	move	\mmu, $srs	; Select MMU support register bank
@@ -52,6 +53,7 @@
 	nop
 	ba	ret_from_intr
 	nop
+	.size   \handler, . - \handler
 .endm
 
 ; Refill handler. Three cases may occur:
@@ -84,6 +86,7 @@
 2:	.dword	0		; last_refill_cause
 	.text
 	.globl \handler
+	.type   \handler, "function"
 \handler:
 	subq	4, $sp
 ; (The pipeline stalls for one cycle; $sp used as address in the next cycle.)
@@ -196,6 +199,7 @@
 	; Return
 	ba	ret_from_intr
 	nop
+	.size   \handler, . - \handler
 .endm
 
 	; This is the MMU bus fault handlers.

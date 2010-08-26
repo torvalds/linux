@@ -133,7 +133,7 @@ TROUBLESHOOTING SERIAL CONSOLE PROBLEMS
 
 
 
-[1] http://www.dig64.org/specifications/DIG64_PCDPv20.pdf
+[1] http://www.dig64.org/specifications/agreement 
     The table was originally defined as the "HCDP" for "Headless
     Console/Debug Port."  The current version is the "PCDP" for
     "Primary Console and Debug Port Devices."

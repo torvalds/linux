@@ -193,7 +193,7 @@ static void ipheth_rcvbulk_callback(struct urb *urb)
 	case 0:
 		break;
 	default:
-		err("%s: urb status: %d", __func__, urb->status);
+		err("%s: urb status: %d", __func__, status);
 		return;
 	}
 
@@ -222,16 +222,17 @@ static void ipheth_rcvbulk_callback(struct urb *urb)
 static void ipheth_sndbulk_callback(struct urb *urb)
 {
 	struct ipheth_device *dev;
+	int status = urb->status;
 
 	dev = urb->context;
 	if (dev == NULL)
 		return;
 
-	if (urb->status != 0 &&
-	    urb->status != -ENOENT &&
-	    urb->status != -ECONNRESET &&
-	    urb->status != -ESHUTDOWN)
-		err("%s: urb status: %d", __func__, urb->status);
+	if (status != 0 &&
+	    status != -ENOENT &&
+	    status != -ECONNRESET &&
+	    status != -ESHUTDOWN)
+		err("%s: urb status: %d", __func__, status);
 
 	dev_kfree_skb_irq(dev->tx_skb);
 	netif_wake_queue(dev->net);

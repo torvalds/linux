@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
 #include <linux/cdrom.h>
+#include <linux/smp_lock.h>
 
 #include <asm/unaligned.h>
 
@@ -275,12 +276,15 @@ int ide_floppy_ioctl(ide_drive_t *drive, struct block_device *bdev,
 	void __user *argp = (void __user *)arg;
 	int err;
 
-	if (cmd == CDROMEJECT || cmd == CDROM_LOCKDOOR)
-		return ide_floppy_lockdoor(drive, &pc, arg, cmd);
+	lock_kernel();
+	if (cmd == CDROMEJECT || cmd == CDROM_LOCKDOOR) {
+		err = ide_floppy_lockdoor(drive, &pc, arg, cmd);
+		goto out;
+	}
 
 	err = ide_floppy_format_ioctl(drive, &pc, mode, cmd, argp);
 	if (err != -ENOTTY)
-		return err;
+		goto out;
 
 	/*
 	 * skip SCSI_IOCTL_SEND_COMMAND (deprecated)
@@ -293,5 +297,7 @@ int ide_floppy_ioctl(ide_drive_t *drive, struct block_device *bdev,
 	if (err == -ENOTTY)
 		err = generic_ide_ioctl(drive, bdev, cmd, arg);
 
+out:
+	unlock_kernel();
 	return err;
 }

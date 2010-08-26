@@ -17,6 +17,7 @@
 #define OMFS_EXTENT_CONT 0x40
 #define OMFS_XOR_COUNT 19
 #define OMFS_MAX_BLOCK_SIZE 8192
+#define OMFS_MAX_CLUSTER_SIZE 8
 
 struct omfs_super_block {
 	char s_fill1[256];

@@ -10,7 +10,7 @@ int regulatory_hint_user(const char *alpha2);
 
 void reg_device_remove(struct wiphy *wiphy);
 
-int regulatory_init(void);
+int __init regulatory_init(void);
 void regulatory_exit(void);
 
 int set_regdom(const struct ieee80211_regdomain *rd);

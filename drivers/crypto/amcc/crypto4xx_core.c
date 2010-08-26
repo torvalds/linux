@@ -1150,7 +1150,7 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 /**
  * Module Initialization Routine
  */
-static int __init crypto4xx_probe(struct of_device *ofdev,
+static int __init crypto4xx_probe(struct platform_device *ofdev,
 				  const struct of_device_id *match)
 {
 	int rc;
@@ -1158,7 +1158,7 @@ static int __init crypto4xx_probe(struct of_device *ofdev,
 	struct device *dev = &ofdev->dev;
 	struct crypto4xx_core_device *core_dev;
 
-	rc = of_address_to_resource(ofdev->node, 0, &res);
+	rc = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (rc)
 		return -ENODEV;
 
@@ -1215,13 +1215,13 @@ static int __init crypto4xx_probe(struct of_device *ofdev,
 		     (unsigned long) dev);
 
 	/* Register for Crypto isr, Crypto Engine IRQ */
-	core_dev->irq = irq_of_parse_and_map(ofdev->node, 0);
+	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	rc = request_irq(core_dev->irq, crypto4xx_ce_interrupt_handler, 0,
 			 core_dev->dev->name, dev);
 	if (rc)
 		goto err_request_irq;
 
-	core_dev->dev->ce_base = of_iomap(ofdev->node, 0);
+	core_dev->dev->ce_base = of_iomap(ofdev->dev.of_node, 0);
 	if (!core_dev->dev->ce_base) {
 		dev_err(dev, "failed to of_iomap\n");
 		goto err_iomap;
@@ -1258,7 +1258,7 @@ err_alloc_dev:
 	return rc;
 }
 
-static int __exit crypto4xx_remove(struct of_device *ofdev)
+static int __exit crypto4xx_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);

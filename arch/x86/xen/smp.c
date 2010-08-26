@@ -394,6 +394,8 @@ static void stop_self(void *v)
 	load_cr3(swapper_pg_dir);
 	/* should set up a minimal gdt */
 
+	set_cpu_online(cpu, false);
+
 	HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL);
 	BUG();
 }

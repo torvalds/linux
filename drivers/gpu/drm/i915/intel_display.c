@@ -33,6 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "drm_dp_helper.h"
 
 #include "drm_crtc_helper.h"
@@ -42,6 +43,7 @@
 bool intel_pipe_has_type (struct drm_crtc *crtc, int type);
 static void intel_update_watermarks(struct drm_device *dev);
 static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule);
+static void intel_crtc_update_cursor(struct drm_crtc *crtc);
 
 typedef struct {
     /* given values */
@@ -321,6 +323,9 @@ struct intel_limit {
 #define IRONLAKE_DP_P2_LIMIT		0
 #define IRONLAKE_DP_P1_MIN		1
 #define IRONLAKE_DP_P1_MAX		2
+
+/* FDI */
+#define IRONLAKE_FDI_FREQ		2700000 /* in kHz for mode->clock */
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
@@ -862,8 +867,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int max_n;
 	bool found;
-	/* approximately equals target * 0.00488 */
-	int err_most = (target >> 8) + (target >> 10);
+	/* approximately equals target * 0.00585 */
+	int err_most = (target >> 8) + (target >> 9);
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
@@ -975,7 +980,10 @@ void
 intel_wait_for_vblank(struct drm_device *dev)
 {
 	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	msleep(20);
+	if (in_dbg_master())
+		mdelay(20); /* The kernel debugger cannot call msleep() */
+	else
+		msleep(20);
 }
 
 /* Parameters have changed, update FBC info */
@@ -1029,10 +1037,14 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1);
 	u32 fbc_ctl;
 
 	if (!I915_HAS_FBC(dev))
 		return;
+
+	if (!(I915_READ(FBC_CONTROL) & FBC_CTL_EN))
+		return;	/* Already off, just return */
 
 	/* Disable compression */
 	fbc_ctl = I915_READ(FBC_CONTROL);
@@ -1040,8 +1052,13 @@ void i8xx_disable_fbc(struct drm_device *dev)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	while (I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING)
-		; /* nothing */
+	while (I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) {
+		if (time_after(jiffies, timeout)) {
+			DRM_DEBUG_DRIVER("FBC idle timed out\n");
+			break;
+		}
+		; /* do nothing */
+	}
 
 	intel_wait_for_vblank(dev);
 
@@ -1113,6 +1130,67 @@ static bool g4x_fbc_enabled(struct drm_device *dev)
 	return I915_READ(DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(intel_fb->obj);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int plane = (intel_crtc->plane == 0) ? DPFC_CTL_PLANEA :
+					       DPFC_CTL_PLANEB;
+	unsigned long stall_watermark = 200;
+	u32 dpfc_ctl;
+
+	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
+	dev_priv->cfb_fence = obj_priv->fence_reg;
+	dev_priv->cfb_plane = intel_crtc->plane;
+
+	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
+	dpfc_ctl &= DPFC_RESERVED;
+	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
+	if (obj_priv->tiling_mode != I915_TILING_NONE) {
+		dpfc_ctl |= (DPFC_CTL_FENCE_EN | dev_priv->cfb_fence);
+		I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
+	} else {
+		I915_WRITE(ILK_DPFC_CHICKEN, ~DPFC_HT_MODIFY);
+	}
+
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
+	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
+		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
+		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
+	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
+	I915_WRITE(ILK_FBC_RT_BASE, obj_priv->gtt_offset | ILK_FBC_RT_VALID);
+	/* enable it... */
+	I915_WRITE(ILK_DPFC_CONTROL, I915_READ(ILK_DPFC_CONTROL) |
+		   DPFC_CTL_EN);
+
+	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+}
+
+void ironlake_disable_fbc(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dpfc_ctl;
+
+	/* Disable compression */
+	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
+	dpfc_ctl &= ~DPFC_CTL_EN;
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
+	intel_wait_for_vblank(dev);
+
+	DRM_DEBUG_KMS("disabled FBC\n");
+}
+
+static bool ironlake_fbc_enabled(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return I915_READ(ILK_DPFC_CONTROL) & DPFC_CTL_EN;
+}
+
 bool intel_fbc_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1171,8 +1249,12 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	struct drm_framebuffer *fb = crtc->fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj_priv;
+	struct drm_crtc *tmp_crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane;
+	int crtcs_enabled = 0;
+
+	DRM_DEBUG_KMS("\n");
 
 	if (!i915_powersave)
 		return;
@@ -1190,10 +1272,21 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	 * If FBC is already on, we just have to verify that we can
 	 * keep it that way...
 	 * Need to disable if:
+	 *   - more than one pipe is active
 	 *   - changing FBC params (stride, fence, mode)
 	 *   - new fb is too large to fit in compressed buffer
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
+	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
+		if (tmp_crtc->enabled)
+			crtcs_enabled++;
+	}
+	DRM_DEBUG_KMS("%d pipes active\n", crtcs_enabled);
+	if (crtcs_enabled > 1) {
+		DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
+		goto out_disable;
+	}
 	if (intel_fb->obj->size > dev_priv->cfb_size) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling "
 				"compression\n");
@@ -1224,6 +1317,10 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 		goto out_disable;
 	}
 
+	/* If the kernel debugger is active, always disable compression */
+	if (in_dbg_master())
+		goto out_disable;
+
 	if (intel_fbc_enabled(dev)) {
 		/* We can re-enable it in this case, but need to update pitch */
 		if ((fb->pitch > dev_priv->cfb_pitch) ||
@@ -1239,13 +1336,14 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	return;
 
 out_disable:
-	DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 	/* Multiple disables should be harmless */
-	if (intel_fbc_enabled(dev))
+	if (intel_fbc_enabled(dev)) {
+		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 		intel_disable_fbc(dev);
+	}
 }
 
-static int
+int
 intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
@@ -1254,7 +1352,12 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 
 	switch (obj_priv->tiling_mode) {
 	case I915_TILING_NONE:
-		alignment = 64 * 1024;
+		if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
+			alignment = 128 * 1024;
+		else if (IS_I965G(dev))
+			alignment = 4 * 1024;
+		else
+			alignment = 64 * 1024;
 		break;
 	case I915_TILING_X:
 		/* pin() will align the object as required by fence */
@@ -1285,6 +1388,98 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 			return ret;
 		}
 	}
+
+	return 0;
+}
+
+/* Assume fb object is pinned & idle & fenced and just update base pointers */
+static int
+intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			   int x, int y)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_framebuffer *intel_fb;
+	struct drm_i915_gem_object *obj_priv;
+	struct drm_gem_object *obj;
+	int plane = intel_crtc->plane;
+	unsigned long Start, Offset;
+	int dspbase = (plane == 0 ? DSPAADDR : DSPBADDR);
+	int dspsurf = (plane == 0 ? DSPASURF : DSPBSURF);
+	int dspstride = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
+	int dsptileoff = (plane == 0 ? DSPATILEOFF : DSPBTILEOFF);
+	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
+	u32 dspcntr;
+
+	switch (plane) {
+	case 0:
+	case 1:
+		break;
+	default:
+		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
+		return -EINVAL;
+	}
+
+	intel_fb = to_intel_framebuffer(fb);
+	obj = intel_fb->obj;
+	obj_priv = to_intel_bo(obj);
+
+	dspcntr = I915_READ(dspcntr_reg);
+	/* Mask out pixel format bits in case we change it */
+	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
+	switch (fb->bits_per_pixel) {
+	case 8:
+		dspcntr |= DISPPLANE_8BPP;
+		break;
+	case 16:
+		if (fb->depth == 15)
+			dspcntr |= DISPPLANE_15_16BPP;
+		else
+			dspcntr |= DISPPLANE_16BPP;
+		break;
+	case 24:
+	case 32:
+		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		break;
+	default:
+		DRM_ERROR("Unknown color depth\n");
+		return -EINVAL;
+	}
+	if (IS_I965G(dev)) {
+		if (obj_priv->tiling_mode != I915_TILING_NONE)
+			dspcntr |= DISPPLANE_TILED;
+		else
+			dspcntr &= ~DISPPLANE_TILED;
+	}
+
+	if (IS_IRONLAKE(dev))
+		/* must disable */
+		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+
+	I915_WRITE(dspcntr_reg, dspcntr);
+
+	Start = obj_priv->gtt_offset;
+	Offset = y * fb->pitch + x * (fb->bits_per_pixel / 8);
+
+	DRM_DEBUG("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
+	I915_WRITE(dspstride, fb->pitch);
+	if (IS_I965G(dev)) {
+		I915_WRITE(dspbase, Offset);
+		I915_READ(dspbase);
+		I915_WRITE(dspsurf, Start);
+		I915_READ(dspsurf);
+		I915_WRITE(dsptileoff, (y << 16) | x);
+	} else {
+		I915_WRITE(dspbase, Start + Offset);
+		I915_READ(dspbase);
+	}
+
+	if ((IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
+
+	intel_wait_for_vblank(dev);
+	intel_increase_pllclock(crtc, true);
 
 	return 0;
 }
@@ -1386,7 +1581,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	Start = obj_priv->gtt_offset;
 	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
 
-	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
+	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
+		      Start, Offset, x, y, crtc->fb->pitch);
 	I915_WRITE(dspstride, crtc->fb->pitch);
 	if (IS_I965G(dev)) {
 		I915_WRITE(dspbase, Offset);
@@ -1528,6 +1724,15 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	u32 temp, tries = 0;
 
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
@@ -1545,16 +1750,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	I915_READ(fdi_rx_reg);
 	udelay(150);
 
-	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
-	   for train result */
-	temp = I915_READ(fdi_rx_imr_reg);
-	temp &= ~FDI_RX_SYMBOL_LOCK;
-	temp &= ~FDI_RX_BIT_LOCK;
-	I915_WRITE(fdi_rx_imr_reg, temp);
-	I915_READ(fdi_rx_imr_reg);
-	udelay(150);
-
-	for (;;) {
+	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(fdi_rx_iir_reg);
 		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
@@ -1564,14 +1760,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 				   temp | FDI_RX_BIT_LOCK);
 			break;
 		}
-
-		tries++;
-
-		if (tries > 5) {
-			DRM_DEBUG_KMS("FDI train 1 fail!\n");
-			break;
-		}
 	}
+	if (tries == 5)
+		DRM_DEBUG_KMS("FDI train 1 fail!\n");
 
 	/* Train 2 */
 	temp = I915_READ(fdi_tx_reg);
@@ -1587,7 +1778,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 
 	tries = 0;
 
-	for (;;) {
+	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(fdi_rx_iir_reg);
 		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
@@ -1597,14 +1788,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 			DRM_DEBUG_KMS("FDI train 2 done.\n");
 			break;
 		}
-
-		tries++;
-
-		if (tries > 5) {
-			DRM_DEBUG_KMS("FDI train 2 fail!\n");
-			break;
-		}
 	}
+	if (tries == 5)
+		DRM_DEBUG_KMS("FDI train 2 fail!\n");
 
 	DRM_DEBUG_KMS("FDI train done\n");
 }
@@ -1629,6 +1815,15 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	u32 temp, i;
 
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
@@ -1652,15 +1847,6 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	}
 	I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENABLE);
 	I915_READ(fdi_rx_reg);
-	udelay(150);
-
-	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
-	   for train result */
-	temp = I915_READ(fdi_rx_imr_reg);
-	temp &= ~FDI_RX_SYMBOL_LOCK;
-	temp &= ~FDI_RX_BIT_LOCK;
-	I915_WRITE(fdi_rx_imr_reg, temp);
-	I915_READ(fdi_rx_imr_reg);
 	udelay(150);
 
 	for (i = 0; i < 4; i++ ) {
@@ -1817,7 +2003,8 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		/* Enable panel fitting for LVDS */
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
+		    || HAS_eDP || intel_pch_has_edp(crtc)) {
 			temp = I915_READ(pf_ctl_reg);
 			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE | PF_FILTER_MED_3x3);
 
@@ -1912,9 +2099,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 				reg = I915_READ(trans_dp_ctl);
 				reg &= ~TRANS_DP_PORT_SEL_MASK;
 				reg = TRANS_DP_OUTPUT_ENABLE |
-				      TRANS_DP_ENH_FRAMING |
-				      TRANS_DP_VSYNC_ACTIVE_HIGH |
-				      TRANS_DP_HSYNC_ACTIVE_HIGH;
+				      TRANS_DP_ENH_FRAMING;
+
+				if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+				      reg |= TRANS_DP_HSYNC_ACTIVE_HIGH;
+				if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+				      reg |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 				switch (intel_trans_dp_port_sel(crtc)) {
 				case PCH_DP_B:
@@ -1954,6 +2144,8 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		intel_crtc_load_lut(crtc);
 
+		intel_update_fbc(crtc, &crtc->mode);
+
 	break;
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
@@ -1967,6 +2159,10 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
 			I915_READ(dspbase_reg);
 		}
+
+		if (dev_priv->cfb_plane == plane &&
+		    dev_priv->display.disable_fbc)
+			dev_priv->display.disable_fbc(dev);
 
 		i915_disable_vga(dev);
 
@@ -2244,6 +2440,11 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			intel_wait_for_vblank(dev);
 		}
 
+		/* Don't disable pipe A or pipe A PLLs if needed */
+		if (pipeconf_reg == PIPEACONF &&
+		    (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+			goto skip_pipe_off;
+
 		/* Next, disable display pipes */
 		temp = I915_READ(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
@@ -2259,7 +2460,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
 			I915_READ(dpll_reg);
 		}
-
+	skip_pipe_off:
 		/* Wait for the clocks to turn off. */
 		udelay(150);
 		break;
@@ -2342,8 +2543,8 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	if (HAS_PCH_SPLIT(dev)) {
 		/* FDI link clock is fixed at 2.7G */
-		if (mode->clock * 3 > 27000 * 4)
-			return MODE_CLOCK_HIGH;
+		if (mode->clock * 3 > IRONLAKE_FDI_FREQ * 4)
+			return false;
 	}
 	return true;
 }
@@ -2525,6 +2726,20 @@ static struct intel_watermark_params g4x_wm_info = {
 	2,
 	G4X_FIFO_LINE_SIZE,
 };
+static struct intel_watermark_params g4x_cursor_wm_info = {
+	I965_CURSOR_FIFO,
+	I965_CURSOR_MAX_WM,
+	I965_CURSOR_DFT_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
+};
+static struct intel_watermark_params i965_cursor_wm_info = {
+	I965_CURSOR_FIFO,
+	I965_CURSOR_MAX_WM,
+	I965_CURSOR_DFT_WM,
+	2,
+	I915_FIFO_LINE_SIZE,
+};
 static struct intel_watermark_params i945_wm_info = {
 	I945_FIFO_SIZE,
 	I915_MAX_WM,
@@ -2558,6 +2773,14 @@ static struct intel_watermark_params ironlake_display_wm_info = {
 	ILK_DISPLAY_FIFO,
 	ILK_DISPLAY_MAXWM,
 	ILK_DISPLAY_DFTWM,
+	2,
+	ILK_FIFO_LINE_SIZE
+};
+
+static struct intel_watermark_params ironlake_cursor_wm_info = {
+	ILK_CURSOR_FIFO,
+	ILK_CURSOR_MAXWM,
+	ILK_CURSOR_DFTWM,
 	2,
 	ILK_FIFO_LINE_SIZE
 };
@@ -2611,7 +2834,7 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	 */
 	entries_required = ((clock_in_khz / 1000) * pixel_size * latency_ns) /
 		1000;
-	entries_required /= wm->cacheline_size;
+	entries_required = DIV_ROUND_UP(entries_required, wm->cacheline_size);
 
 	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries_required);
 
@@ -2622,13 +2845,20 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	/* Don't promote wm_size to unsigned... */
 	if (wm_size > (long)wm->max_wm)
 		wm_size = wm->max_wm;
-	if (wm_size <= 0)
+	if (wm_size <= 0) {
 		wm_size = wm->default_wm;
+		DRM_ERROR("Insufficient FIFO for plane, expect flickering:"
+			  " entries required = %ld, available = %lu.\n",
+			  entries_required + wm->guard_size,
+			  wm->fifo_size);
+	}
+
 	return wm_size;
 }
 
 struct cxsr_latency {
 	int is_desktop;
+	int is_ddr3;
 	unsigned long fsb_freq;
 	unsigned long mem_freq;
 	unsigned long display_sr;
@@ -2638,33 +2868,45 @@ struct cxsr_latency {
 };
 
 static struct cxsr_latency cxsr_latency_table[] = {
-	{1, 800, 400, 3382, 33382, 3983, 33983},    /* DDR2-400 SC */
-	{1, 800, 667, 3354, 33354, 3807, 33807},    /* DDR2-667 SC */
-	{1, 800, 800, 3347, 33347, 3763, 33763},    /* DDR2-800 SC */
+	{1, 0, 800, 400, 3382, 33382, 3983, 33983},    /* DDR2-400 SC */
+	{1, 0, 800, 667, 3354, 33354, 3807, 33807},    /* DDR2-667 SC */
+	{1, 0, 800, 800, 3347, 33347, 3763, 33763},    /* DDR2-800 SC */
+	{1, 1, 800, 667, 6420, 36420, 6873, 36873},    /* DDR3-667 SC */
+	{1, 1, 800, 800, 5902, 35902, 6318, 36318},    /* DDR3-800 SC */
 
-	{1, 667, 400, 3400, 33400, 4021, 34021},    /* DDR2-400 SC */
-	{1, 667, 667, 3372, 33372, 3845, 33845},    /* DDR2-667 SC */
-	{1, 667, 800, 3386, 33386, 3822, 33822},    /* DDR2-800 SC */
+	{1, 0, 667, 400, 3400, 33400, 4021, 34021},    /* DDR2-400 SC */
+	{1, 0, 667, 667, 3372, 33372, 3845, 33845},    /* DDR2-667 SC */
+	{1, 0, 667, 800, 3386, 33386, 3822, 33822},    /* DDR2-800 SC */
+	{1, 1, 667, 667, 6438, 36438, 6911, 36911},    /* DDR3-667 SC */
+	{1, 1, 667, 800, 5941, 35941, 6377, 36377},    /* DDR3-800 SC */
 
-	{1, 400, 400, 3472, 33472, 4173, 34173},    /* DDR2-400 SC */
-	{1, 400, 667, 3443, 33443, 3996, 33996},    /* DDR2-667 SC */
-	{1, 400, 800, 3430, 33430, 3946, 33946},    /* DDR2-800 SC */
+	{1, 0, 400, 400, 3472, 33472, 4173, 34173},    /* DDR2-400 SC */
+	{1, 0, 400, 667, 3443, 33443, 3996, 33996},    /* DDR2-667 SC */
+	{1, 0, 400, 800, 3430, 33430, 3946, 33946},    /* DDR2-800 SC */
+	{1, 1, 400, 667, 6509, 36509, 7062, 37062},    /* DDR3-667 SC */
+	{1, 1, 400, 800, 5985, 35985, 6501, 36501},    /* DDR3-800 SC */
 
-	{0, 800, 400, 3438, 33438, 4065, 34065},    /* DDR2-400 SC */
-	{0, 800, 667, 3410, 33410, 3889, 33889},    /* DDR2-667 SC */
-	{0, 800, 800, 3403, 33403, 3845, 33845},    /* DDR2-800 SC */
+	{0, 0, 800, 400, 3438, 33438, 4065, 34065},    /* DDR2-400 SC */
+	{0, 0, 800, 667, 3410, 33410, 3889, 33889},    /* DDR2-667 SC */
+	{0, 0, 800, 800, 3403, 33403, 3845, 33845},    /* DDR2-800 SC */
+	{0, 1, 800, 667, 6476, 36476, 6955, 36955},    /* DDR3-667 SC */
+	{0, 1, 800, 800, 5958, 35958, 6400, 36400},    /* DDR3-800 SC */
 
-	{0, 667, 400, 3456, 33456, 4103, 34106},    /* DDR2-400 SC */
-	{0, 667, 667, 3428, 33428, 3927, 33927},    /* DDR2-667 SC */
-	{0, 667, 800, 3443, 33443, 3905, 33905},    /* DDR2-800 SC */
+	{0, 0, 667, 400, 3456, 33456, 4103, 34106},    /* DDR2-400 SC */
+	{0, 0, 667, 667, 3428, 33428, 3927, 33927},    /* DDR2-667 SC */
+	{0, 0, 667, 800, 3443, 33443, 3905, 33905},    /* DDR2-800 SC */
+	{0, 1, 667, 667, 6494, 36494, 6993, 36993},    /* DDR3-667 SC */
+	{0, 1, 667, 800, 5998, 35998, 6460, 36460},    /* DDR3-800 SC */
 
-	{0, 400, 400, 3528, 33528, 4255, 34255},    /* DDR2-400 SC */
-	{0, 400, 667, 3500, 33500, 4079, 34079},    /* DDR2-667 SC */
-	{0, 400, 800, 3487, 33487, 4029, 34029},    /* DDR2-800 SC */
+	{0, 0, 400, 400, 3528, 33528, 4255, 34255},    /* DDR2-400 SC */
+	{0, 0, 400, 667, 3500, 33500, 4079, 34079},    /* DDR2-667 SC */
+	{0, 0, 400, 800, 3487, 33487, 4029, 34029},    /* DDR2-800 SC */
+	{0, 1, 400, 667, 6566, 36566, 7145, 37145},    /* DDR3-667 SC */
+	{0, 1, 400, 800, 6042, 36042, 6584, 36584},    /* DDR3-800 SC */
 };
 
-static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int fsb,
-						   int mem)
+static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int is_ddr3, 
+						   int fsb, int mem)
 {
 	int i;
 	struct cxsr_latency *latency;
@@ -2675,6 +2917,7 @@ static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int fsb,
 	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
 		latency = &cxsr_latency_table[i];
 		if (is_desktop == latency->is_desktop &&
+		    is_ddr3 == latency->is_ddr3 &&
 		    fsb == latency->fsb_freq && mem == latency->mem_freq)
 			return latency;
 	}
@@ -2718,11 +2961,9 @@ static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
-	if (plane == 0)
-		size = dsparb & 0x7f;
-	else
-		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) -
-			(dsparb & 0x7f);
+	size = dsparb & 0x7f;
+	if (plane)
+		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) - size;
 
 	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
 			plane ? "B" : "A", size);
@@ -2736,11 +2977,9 @@ static int i85x_get_fifo_size(struct drm_device *dev, int plane)
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
-	if (plane == 0)
-		size = dsparb & 0x1ff;
-	else
-		size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) -
-			(dsparb & 0x1ff);
+	size = dsparb & 0x1ff;
+	if (plane)
+		size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) - size;
 	size >>= 1; /* Convert to cachelines */
 
 	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
@@ -2781,7 +3020,8 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 }
 
 static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int pixel_size)
+			  int planeb_clock, int sr_hdisplay, int unused,
+			  int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
@@ -2789,8 +3029,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 	struct cxsr_latency *latency;
 	int sr_clock;
 
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->fsb_freq,
-					 dev_priv->mem_freq);
+	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->is_ddr3, 
+					 dev_priv->fsb_freq, dev_priv->mem_freq);
 	if (!latency) {
 		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
 		pineview_disable_cxsr(dev);
@@ -2846,7 +3086,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 }
 
 static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int pixel_size)
+			  int planeb_clock, int sr_hdisplay, int sr_htotal,
+			  int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int total_size, cacheline_size;
@@ -2870,12 +3111,12 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 	 */
 	entries_required = ((planea_clock / 1000) * pixel_size * latency_ns) /
 		1000;
-	entries_required /= G4X_FIFO_LINE_SIZE;
+	entries_required = DIV_ROUND_UP(entries_required, G4X_FIFO_LINE_SIZE);
 	planea_wm = entries_required + planea_params.guard_size;
 
 	entries_required = ((planeb_clock / 1000) * pixel_size * latency_ns) /
 		1000;
-	entries_required /= G4X_FIFO_LINE_SIZE;
+	entries_required = DIV_ROUND_UP(entries_required, G4X_FIFO_LINE_SIZE);
 	planeb_wm = entries_required + planeb_params.guard_size;
 
 	cursora_wm = cursorb_wm = 16;
@@ -2889,13 +3130,24 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
-			      pixel_size * sr_hdisplay) / 1000;
-		sr_entries = roundup(sr_entries / cacheline_size, 1);
-		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			      pixel_size * sr_hdisplay;
+		sr_entries = DIV_ROUND_UP(sr_entries, cacheline_size);
+
+		entries_required = (((sr_latency_ns / line_time_us) +
+				     1000) / 1000) * pixel_size * 64;
+		entries_required = DIV_ROUND_UP(entries_required,
+					   g4x_cursor_wm_info.cacheline_size);
+		cursor_sr = entries_required + g4x_cursor_wm_info.guard_size;
+
+		if (cursor_sr > g4x_cursor_wm_info.max_wm)
+			cursor_sr = g4x_cursor_wm_info.max_wm;
+		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
+			      "cursor %d\n", sr_entries, cursor_sr);
+
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
@@ -2920,11 +3172,13 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 }
 
 static void i965_update_wm(struct drm_device *dev, int planea_clock,
-			   int planeb_clock, int sr_hdisplay, int pixel_size)
+			   int planeb_clock, int sr_hdisplay, int sr_htotal,
+			   int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long line_time_us;
 	int sr_clock, sr_entries, srwm = 1;
+	int cursor_sr = 16;
 
 	/* Calc sr entries for one plane configs */
 	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
@@ -2932,22 +3186,38 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
-			      pixel_size * sr_hdisplay) / 1000;
-		sr_entries = roundup(sr_entries / I915_FIFO_LINE_SIZE, 1);
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			      pixel_size * sr_hdisplay;
+		sr_entries = DIV_ROUND_UP(sr_entries, I915_FIFO_LINE_SIZE);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
-		srwm = I945_FIFO_SIZE - sr_entries;
+		srwm = I965_FIFO_SIZE - sr_entries;
 		if (srwm < 0)
 			srwm = 1;
-		srwm &= 0x3f;
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+		srwm &= 0x1ff;
+
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			     pixel_size * 64;
+		sr_entries = DIV_ROUND_UP(sr_entries,
+					  i965_cursor_wm_info.cacheline_size);
+		cursor_sr = i965_cursor_wm_info.fifo_size -
+			    (sr_entries + i965_cursor_wm_info.guard_size);
+
+		if (cursor_sr > i965_cursor_wm_info.max_wm)
+			cursor_sr = i965_cursor_wm_info.max_wm;
+
+		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
+			      "cursor %d\n", srwm, cursor_sr);
+
+		if (IS_I965GM(dev))
+			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
-		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
-					& ~FW_BLC_SELF_EN);
+		if (IS_I965GM(dev))
+			I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+				   & ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR %d\n",
@@ -2957,10 +3227,13 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) | (8 << 16) | (8 << 8) |
 		   (8 << 0));
 	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
+	/* update cursor SR watermark */
+	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
 static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
-			   int planeb_clock, int sr_hdisplay, int pixel_size)
+			   int planeb_clock, int sr_hdisplay, int sr_htotal,
+			   int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t fwater_lo;
@@ -3005,12 +3278,12 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		static const int sr_latency_ns = 6000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
-			      pixel_size * sr_hdisplay) / 1000;
-		sr_entries = roundup(sr_entries / cacheline_size, 1);
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			      pixel_size * sr_hdisplay;
+		sr_entries = DIV_ROUND_UP(sr_entries, cacheline_size);
 		DRM_DEBUG_KMS("self-refresh entries: %d\n", sr_entries);
 		srwm = total_size - sr_entries;
 		if (srwm < 0)
@@ -3048,7 +3321,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 }
 
 static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
-			   int unused2, int pixel_size)
+			   int unused2, int unused3, int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t fwater_lo = I915_READ(FW_BLC) & ~0xfff;
@@ -3066,9 +3339,11 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
 }
 
 #define ILK_LP0_PLANE_LATENCY		700
+#define ILK_LP0_CURSOR_LATENCY		1300
 
 static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
-		       int planeb_clock, int sr_hdisplay, int pixel_size)
+		       int planeb_clock, int sr_hdisplay, int sr_htotal,
+		       int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -3076,20 +3351,48 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 	unsigned long line_time_us;
 	int sr_clock, entries_required;
 	u32 reg_value;
+	int line_count;
+	int planea_htotal = 0, planeb_htotal = 0;
+	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
+
+	/* Need htotal for all active display plane */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+		if (crtc->enabled) {
+			if (intel_crtc->plane == 0)
+				planea_htotal = crtc->mode.htotal;
+			else
+				planeb_htotal = crtc->mode.htotal;
+		}
+	}
 
 	/* Calculate and update the watermark for plane A */
 	if (planea_clock) {
 		entries_required = ((planea_clock / 1000) * pixel_size *
 				     ILK_LP0_PLANE_LATENCY) / 1000;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_display_wm_info.cacheline_size);
+						ironlake_display_wm_info.cacheline_size);
 		planea_wm = entries_required +
 			    ironlake_display_wm_info.guard_size;
 
 		if (planea_wm > (int)ironlake_display_wm_info.max_wm)
 			planea_wm = ironlake_display_wm_info.max_wm;
 
-		cursora_wm = 16;
+		/* Use the large buffer method to calculate cursor watermark */
+		line_time_us = (planea_htotal * 1000) / planea_clock;
+
+		/* Use ns/us then divide to preserve precision */
+		line_count = (ILK_LP0_CURSOR_LATENCY / line_time_us + 1000) / 1000;
+
+		/* calculate the cursor watermark for cursor A */
+		entries_required = line_count * 64 * pixel_size;
+		entries_required = DIV_ROUND_UP(entries_required,
+						ironlake_cursor_wm_info.cacheline_size);
+		cursora_wm = entries_required + ironlake_cursor_wm_info.guard_size;
+		if (cursora_wm > ironlake_cursor_wm_info.max_wm)
+			cursora_wm = ironlake_cursor_wm_info.max_wm;
+
 		reg_value = I915_READ(WM0_PIPEA_ILK);
 		reg_value &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
 		reg_value |= (planea_wm << WM0_PIPE_PLANE_SHIFT) |
@@ -3103,14 +3406,27 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		entries_required = ((planeb_clock / 1000) * pixel_size *
 				     ILK_LP0_PLANE_LATENCY) / 1000;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_display_wm_info.cacheline_size);
+						ironlake_display_wm_info.cacheline_size);
 		planeb_wm = entries_required +
 			    ironlake_display_wm_info.guard_size;
 
 		if (planeb_wm > (int)ironlake_display_wm_info.max_wm)
 			planeb_wm = ironlake_display_wm_info.max_wm;
 
-		cursorb_wm = 16;
+		/* Use the large buffer method to calculate cursor watermark */
+		line_time_us = (planeb_htotal * 1000) / planeb_clock;
+
+		/* Use ns/us then divide to preserve precision */
+		line_count = (ILK_LP0_CURSOR_LATENCY / line_time_us + 1000) / 1000;
+
+		/* calculate the cursor watermark for cursor B */
+		entries_required = line_count * 64 * pixel_size;
+		entries_required = DIV_ROUND_UP(entries_required,
+						ironlake_cursor_wm_info.cacheline_size);
+		cursorb_wm = entries_required + ironlake_cursor_wm_info.guard_size;
+		if (cursorb_wm > ironlake_cursor_wm_info.max_wm)
+			cursorb_wm = ironlake_cursor_wm_info.max_wm;
+
 		reg_value = I915_READ(WM0_PIPEB_ILK);
 		reg_value &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
 		reg_value |= (planeb_wm << WM0_PIPE_PLANE_SHIFT) |
@@ -3125,12 +3441,12 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 	 * display plane is used.
 	 */
 	if (!planea_clock || !planeb_clock) {
-		int line_count;
+
 		/* Read the self-refresh latency. The unit is 0.5us */
 		int ilk_sr_latency = I915_READ(MLTR_ILK) & ILK_SRLT_MASK;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
 		line_count = ((ilk_sr_latency * 500) / line_time_us + 1000)
@@ -3139,14 +3455,14 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		/* calculate the self-refresh watermark for display plane */
 		entries_required = line_count * sr_hdisplay * pixel_size;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_display_srwm_info.cacheline_size);
+						ironlake_display_srwm_info.cacheline_size);
 		sr_wm = entries_required +
 			ironlake_display_srwm_info.guard_size;
 
 		/* calculate the self-refresh watermark for display cursor */
 		entries_required = line_count * pixel_size * 64;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_cursor_srwm_info.cacheline_size);
+						ironlake_cursor_srwm_info.cacheline_size);
 		cursor_wm = entries_required +
 			    ironlake_cursor_srwm_info.guard_size;
 
@@ -3190,6 +3506,7 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
  *       bytes per pixel
  *   where
  *     line time = htotal / dotclock
+ *     surface width = hdisplay for normal plane and 64 for cursor
  *   and latency is assumed to be high, as above.
  *
  * The final value programmed to the register should always be rounded up,
@@ -3206,6 +3523,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 	int sr_hdisplay = 0;
 	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
 	int enabled = 0, pixel_size = 0;
+	int sr_htotal = 0;
 
 	if (!dev_priv->display.update_wm)
 		return;
@@ -3226,6 +3544,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 			}
 			sr_hdisplay = crtc->mode.hdisplay;
 			sr_clock = crtc->mode.clock;
+			sr_htotal = crtc->mode.htotal;
 			if (crtc->fb)
 				pixel_size = crtc->fb->bits_per_pixel / 8;
 			else
@@ -3237,7 +3556,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 		return;
 
 	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
-				    sr_hdisplay, pixel_size);
+				    sr_hdisplay, sr_htotal, pixel_size);
 }
 
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
@@ -3356,6 +3675,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	/* Ensure that the cursor is valid for the new mode before changing... */
+	intel_crtc_update_cursor(crtc);
+
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
 		has_reduced_clock = limit->find_pll(limit, crtc,
 							    dev_priv->lvds_downclock,
@@ -3422,7 +3744,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
-		} else if (is_edp) {
+		} else if (is_edp || (is_dp && intel_pch_has_edp(crtc))) {
 			switch (dev_priv->edp_bpp/3) {
 			case 8:
 				temp |= PIPE_8BPC;
@@ -3626,6 +3948,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
 	}
 
+	dspcntr |= DISPLAY_PLANE_ENABLE;
+	pipeconf |= PIPEACONF_ENABLE;
+	dpll |= DPLL_VCO_ENABLE;
+
+
 	/* Disable the panel fitter if it was on our pipe */
 	if (!HAS_PCH_SPLIT(dev) && intel_panel_fitter_pipe(dev) == pipe)
 		I915_WRITE(PFIT_CONTROL, 0);
@@ -3658,6 +3985,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(PCH_DPLL_SEL, temp);
 		I915_READ(PCH_DPLL_SEL);
 		udelay(150);
+	}
+
+	if (HAS_PCH_SPLIT(dev)) {
+		pipeconf &= ~PIPE_ENABLE_DITHER;
+		pipeconf &= ~PIPE_DITHER_TYPE_MASK;
 	}
 
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
@@ -3706,11 +4038,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				} else
 					lvds |= LVDS_ENABLE_DITHER;
 			} else {
-				if (HAS_PCH_SPLIT(dev)) {
-					pipeconf &= ~PIPE_ENABLE_DITHER;
-					pipeconf &= ~PIPE_DITHER_TYPE_MASK;
-				} else
+				if (!HAS_PCH_SPLIT(dev)) {
 					lvds &= ~LVDS_ENABLE_DITHER;
+				}
 			}
 		}
 		I915_WRITE(lvds_reg, lvds);
@@ -3771,6 +4101,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
 		}
 	}
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+		/* the chip adds 2 halflines automatically */
+		adjusted_mode->crtc_vdisplay -= 1;
+		adjusted_mode->crtc_vtotal -= 1;
+		adjusted_mode->crtc_vblank_start -= 1;
+		adjusted_mode->crtc_vblank_end -= 1;
+		adjusted_mode->crtc_vsync_end -= 1;
+		adjusted_mode->crtc_vsync_start -= 1;
+	} else
+		pipeconf &= ~PIPECONF_INTERLACE_W_FIELD_INDICATION; /* progressive */
 
 	I915_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
 		   ((adjusted_mode->crtc_htotal - 1) << 16));
@@ -3874,6 +4216,85 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	}
 }
 
+/* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
+static void intel_crtc_update_cursor(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int x = intel_crtc->cursor_x;
+	int y = intel_crtc->cursor_y;
+	uint32_t base, pos;
+	bool visible;
+
+	pos = 0;
+
+	if (crtc->fb) {
+		base = intel_crtc->cursor_addr;
+		if (x > (int) crtc->fb->width)
+			base = 0;
+
+		if (y > (int) crtc->fb->height)
+			base = 0;
+	} else
+		base = 0;
+
+	if (x < 0) {
+		if (x + intel_crtc->cursor_width < 0)
+			base = 0;
+
+		pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
+		x = -x;
+	}
+	pos |= x << CURSOR_X_SHIFT;
+
+	if (y < 0) {
+		if (y + intel_crtc->cursor_height < 0)
+			base = 0;
+
+		pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
+		y = -y;
+	}
+	pos |= y << CURSOR_Y_SHIFT;
+
+	visible = base != 0;
+	if (!visible && !intel_crtc->cursor_visble)
+		return;
+
+	I915_WRITE(pipe == 0 ? CURAPOS : CURBPOS, pos);
+	if (intel_crtc->cursor_visble != visible) {
+		uint32_t cntl = I915_READ(pipe == 0 ? CURACNTR : CURBCNTR);
+		if (base) {
+			/* Hooray for CUR*CNTR differences */
+			if (IS_MOBILE(dev) || IS_I9XX(dev)) {
+				cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
+				cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+				cntl |= pipe << 28; /* Connect to correct pipe */
+			} else {
+				cntl &= ~(CURSOR_FORMAT_MASK);
+				cntl |= CURSOR_ENABLE;
+				cntl |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
+			}
+		} else {
+			if (IS_MOBILE(dev) || IS_I9XX(dev)) {
+				cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
+				cntl |= CURSOR_MODE_DISABLE;
+			} else {
+				cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
+			}
+		}
+		I915_WRITE(pipe == 0 ? CURACNTR : CURBCNTR, cntl);
+
+		intel_crtc->cursor_visble = visible;
+	}
+	/* and commit changes on next vblank */
+	I915_WRITE(pipe == 0 ? CURABASE : CURBBASE, base);
+
+	if (visible)
+		intel_mark_busy(dev, to_intel_framebuffer(crtc->fb)->obj);
+}
+
 static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 struct drm_file *file_priv,
 				 uint32_t handle,
@@ -3884,11 +4305,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_gem_object *bo;
 	struct drm_i915_gem_object *obj_priv;
-	int pipe = intel_crtc->pipe;
-	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
-	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
-	uint32_t temp = I915_READ(control);
-	size_t addr;
+	uint32_t addr;
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
@@ -3896,12 +4313,6 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	/* if we want to turn off the cursor ignore width and height */
 	if (!handle) {
 		DRM_DEBUG_KMS("cursor off\n");
-		if (IS_MOBILE(dev) || IS_I9XX(dev)) {
-			temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			temp |= CURSOR_MODE_DISABLE;
-		} else {
-			temp &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
-		}
 		addr = 0;
 		bo = NULL;
 		mutex_lock(&dev->struct_mutex);
@@ -3934,9 +4345,17 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			DRM_ERROR("failed to pin cursor bo\n");
 			goto fail_locked;
 		}
+
+		ret = i915_gem_object_set_to_gtt_domain(bo, 0);
+		if (ret) {
+			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			goto fail_unpin;
+		}
+
 		addr = obj_priv->gtt_offset;
 	} else {
-		ret = i915_gem_attach_phys_object(dev, bo, (pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
+		ret = i915_gem_attach_phys_object(dev, bo,
+						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
 		if (ret) {
 			DRM_ERROR("failed to attach phys object\n");
 			goto fail_locked;
@@ -3947,21 +4366,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!IS_I9XX(dev))
 		I915_WRITE(CURSIZE, (height << 12) | width);
 
-	/* Hooray for CUR*CNTR differences */
-	if (IS_MOBILE(dev) || IS_I9XX(dev)) {
-		temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-		temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-		temp |= (pipe << 28); /* Connect to correct pipe */
-	} else {
-		temp &= ~(CURSOR_FORMAT_MASK);
-		temp |= CURSOR_ENABLE;
-		temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
-	}
-
  finish:
-	I915_WRITE(control, temp);
-	I915_WRITE(base, addr);
-
 	if (intel_crtc->cursor_bo) {
 		if (dev_priv->info->cursor_needs_physical) {
 			if (intel_crtc->cursor_bo != bo)
@@ -3975,8 +4380,14 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = bo;
+	intel_crtc->cursor_width = width;
+	intel_crtc->cursor_height = height;
+
+	intel_crtc_update_cursor(crtc);
 
 	return 0;
+fail_unpin:
+	i915_gem_object_unpin(bo);
 fail_locked:
 	mutex_unlock(&dev->struct_mutex);
 fail:
@@ -3986,34 +4397,12 @@ fail:
 
 static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_framebuffer *intel_fb;
-	int pipe = intel_crtc->pipe;
-	uint32_t temp = 0;
-	uint32_t adder;
 
-	if (crtc->fb) {
-		intel_fb = to_intel_framebuffer(crtc->fb);
-		intel_mark_busy(dev, intel_fb->obj);
-	}
+	intel_crtc->cursor_x = x;
+	intel_crtc->cursor_y = y;
 
-	if (x < 0) {
-		temp |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
-		x = -x;
-	}
-	if (y < 0) {
-		temp |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
-		y = -y;
-	}
-
-	temp |= x << CURSOR_X_SHIFT;
-	temp |= y << CURSOR_Y_SHIFT;
-
-	adder = intel_crtc->cursor_addr;
-	I915_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
-	I915_WRITE((pipe == 0) ? CURABASE : CURBBASE, adder);
+	intel_crtc_update_cursor(crtc);
 
 	return 0;
 }
@@ -4040,15 +4429,12 @@ void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 }
 
 static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t size)
+				 u16 *blue, uint32_t start, uint32_t size)
 {
+	int end = (start + size > 256) ? 256 : start + size, i;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int i;
 
-	if (size != 256)
-		return;
-
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		intel_crtc->lut_r[i] = red[i] >> 8;
 		intel_crtc->lut_g[i] = green[i] >> 8;
 		intel_crtc->lut_b[i] = blue[i] >> 8;
@@ -4357,7 +4743,8 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 		DRM_DEBUG_DRIVER("upclocking LVDS\n");
 
 		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | (0xabcd << 16));
+		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
+			   PANEL_UNLOCK_REGS);
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
@@ -4400,7 +4787,8 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 		DRM_DEBUG_DRIVER("downclocking LVDS\n");
 
 		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | (0xabcd << 16));
+		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
+			   PANEL_UNLOCK_REGS);
 
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
@@ -4430,25 +4818,29 @@ static void intel_idle_update(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
+	int enabled = 0;
 
 	if (!i915_powersave)
 		return;
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (IS_I945G(dev) || IS_I945GM(dev)) {
-		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
-	}
+	i915_update_gfx_val(dev_priv);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
 		if (!crtc->fb)
 			continue;
 
+		enabled++;
 		intel_crtc = to_intel_crtc(crtc);
 		if (!intel_crtc->busy)
 			intel_decrease_pllclock(crtc);
+	}
+
+	if ((enabled == 1) && (IS_I945G(dev) || IS_I945GM(dev))) {
+		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -4546,10 +4938,10 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	kfree(work);
 }
 
-void intel_finish_page_flip(struct drm_device *dev, int pipe)
+static void do_intel_finish_page_flip(struct drm_device *dev,
+				      struct drm_crtc *crtc)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj_priv;
@@ -4564,12 +4956,6 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 	if (work == NULL || !work->pending) {
-		if (work && !work->pending) {
-			obj_priv = to_intel_bo(work->pending_flip_obj);
-			DRM_DEBUG_DRIVER("flip finish: %p (%d) not pending?\n",
-					 obj_priv,
-					 atomic_read(&obj_priv->pending_flip));
-		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return;
 	}
@@ -4597,6 +4983,24 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	    atomic_dec_and_test(&obj_priv->pending_flip))
 		DRM_WAKEUP(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
+
+	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
+}
+
+void intel_finish_page_flip(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	do_intel_finish_page_flip(dev, crtc);
+}
+
+void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
+
+	do_intel_finish_page_flip(dev, crtc);
 }
 
 void intel_prepare_page_flip(struct drm_device *dev, int plane)
@@ -4626,16 +5030,14 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_gem_object *obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
-	unsigned long flags;
+	unsigned long flags, offset;
 	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int ret, pipesrc;
-	RING_LOCALS;
+	u32 flip_mask;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
-
-	mutex_lock(&dev->struct_mutex);
 
 	work->event = event;
 	work->dev = crtc->dev;
@@ -4646,10 +5048,10 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (intel_crtc->unpin_work) {
-		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
-		mutex_unlock(&dev->struct_mutex);
+
+		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		return -EBUSY;
 	}
 	intel_crtc->unpin_work = work;
@@ -4658,44 +5060,78 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
+	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
-	if (ret != 0) {
-		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
-			  to_intel_bo(obj));
-		kfree(work);
-		intel_crtc->unpin_work = NULL;
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	if (ret)
+		goto cleanup_work;
 
 	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(work->old_fb_obj);
 	drm_gem_object_reference(obj);
 
 	crtc->fb = fb;
-	i915_gem_object_flush_write_domain(obj);
-	drm_vblank_get(dev, intel_crtc->pipe);
+	ret = i915_gem_object_flush_write_domain(obj);
+	if (ret)
+		goto cleanup_objs;
+
+	ret = drm_vblank_get(dev, intel_crtc->pipe);
+	if (ret)
+		goto cleanup_objs;
+
 	obj_priv = to_intel_bo(obj);
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
+	if (intel_crtc->plane)
+		flip_mask = I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+	else
+		flip_mask = I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT;
+
+	/* Wait for any previous flip to finish */
+	if (IS_GEN3(dev))
+		while (I915_READ(ISR) & flip_mask)
+			;
+
+	/* Offset into the new buffer for cases of shared fbs between CRTCs */
+	offset = obj_priv->gtt_offset;
+	offset += (crtc->y * fb->pitch) + (crtc->x * (fb->bits_per_pixel) / 8);
+
 	BEGIN_LP_RING(4);
-	OUT_RING(MI_DISPLAY_FLIP |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
 	if (IS_I965G(dev)) {
-		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
+		OUT_RING(MI_DISPLAY_FLIP |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch);
+		OUT_RING(offset | obj_priv->tiling_mode);
 		pipesrc = I915_READ(pipesrc_reg); 
 		OUT_RING(pipesrc & 0x0fff0fff);
 	} else {
-		OUT_RING(obj_priv->gtt_offset);
+		OUT_RING(MI_DISPLAY_FLIP_I915 |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch);
+		OUT_RING(offset);
 		OUT_RING(MI_NOOP);
 	}
 	ADVANCE_LP_RING();
 
 	mutex_unlock(&dev->struct_mutex);
 
+	trace_i915_flip_request(intel_crtc->plane, obj);
+
 	return 0;
+
+cleanup_objs:
+	drm_gem_object_unreference(work->old_fb_obj);
+	drm_gem_object_unreference(obj);
+cleanup_work:
+	mutex_unlock(&dev->struct_mutex);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	intel_crtc->unpin_work = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	kfree(work);
+
+	return ret;
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
@@ -4703,6 +5139,7 @@ static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_fixup = intel_crtc_mode_fixup,
 	.mode_set = intel_crtc_mode_set,
 	.mode_set_base = intel_pipe_set_base,
+	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.prepare = intel_crtc_prepare,
 	.commit = intel_crtc_commit,
 	.load_lut = intel_crtc_load_lut,
@@ -4821,18 +5258,25 @@ static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_encoder *encoder;
+	bool dpd_is_edp = false;
 
-	intel_crt_init(dev);
-
-	/* Set up integrated LVDS */
 	if (IS_MOBILE(dev) && !IS_I830(dev))
 		intel_lvds_init(dev);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		int found;
+		dpd_is_edp = intel_dpd_is_edp(dev);
 
 		if (IS_MOBILE(dev) && (I915_READ(DP_A) & DP_DETECTED))
 			intel_dp_init(dev, DP_A);
+
+		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
+			intel_dp_init(dev, PCH_DP_D);
+	}
+
+	intel_crt_init(dev);
+
+	if (HAS_PCH_SPLIT(dev)) {
+		int found;
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
@@ -4852,7 +5296,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_C);
 
-		if (I915_READ(PCH_DP_D) & DP_DETECTED)
+		if (!dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
 			intel_dp_init(dev, PCH_DP_D);
 
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
@@ -4965,18 +5409,18 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(dev, filp, mode_cmd->handle);
 	if (!obj)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ret = intel_framebuffer_init(dev, intel_fb,
 				     mode_cmd, obj);
 	if (ret) {
 		drm_gem_object_unreference_unlocked(obj);
 		kfree(intel_fb);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	return &intel_fb->base;
@@ -5023,10 +5467,32 @@ err_unref:
 	return NULL;
 }
 
+bool ironlake_set_drps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u16 rgvswctl;
+
+	rgvswctl = I915_READ16(MEMSWCTL);
+	if (rgvswctl & MEMCTL_CMD_STS) {
+		DRM_DEBUG("gpu busy, RCS change rejected\n");
+		return false; /* still busy with another command */
+	}
+
+	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
+		(val << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
+	I915_WRITE16(MEMSWCTL, rgvswctl);
+	POSTING_READ16(MEMSWCTL);
+
+	rgvswctl |= MEMCTL_CMD_STS;
+	I915_WRITE16(MEMSWCTL, rgvswctl);
+
+	return true;
+}
+
 void ironlake_enable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvmodectl = I915_READ(MEMMODECTL), rgvswctl;
+	u32 rgvmodectl = I915_READ(MEMMODECTL);
 	u8 fmax, fmin, fstart, vstart;
 	int i = 0;
 
@@ -5045,12 +5511,20 @@ void ironlake_enable_drps(struct drm_device *dev)
 	fmin = (rgvmodectl & MEMMODE_FMIN_MASK);
 	fstart = (rgvmodectl & MEMMODE_FSTART_MASK) >>
 		MEMMODE_FSTART_SHIFT;
+	fstart = fmax;
+
 	vstart = (I915_READ(PXVFREQ_BASE + (fstart * 4)) & PXVFREQ_PX_MASK) >>
 		PXVFREQ_PX_SHIFT;
 
-	dev_priv->max_delay = fstart; /* can't go to fmax w/o IPS */
+	dev_priv->fmax = fstart; /* IPS callback will increase this */
+	dev_priv->fstart = fstart;
+
+	dev_priv->max_delay = fmax;
 	dev_priv->min_delay = fmin;
 	dev_priv->cur_delay = fstart;
+
+	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n", fmax, fmin,
+			 fstart);
 
 	I915_WRITE(MEMINTREN, MEMINT_CX_SUPR_EN | MEMINT_EVAL_CHG_EN);
 
@@ -5073,20 +5547,19 @@ void ironlake_enable_drps(struct drm_device *dev)
 	}
 	msleep(1);
 
-	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
-		(fstart << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
-	I915_WRITE(MEMSWCTL, rgvswctl);
-	POSTING_READ(MEMSWCTL);
+	ironlake_set_drps(dev, fstart);
 
-	rgvswctl |= MEMCTL_CMD_STS;
-	I915_WRITE(MEMSWCTL, rgvswctl);
+	dev_priv->last_count1 = I915_READ(0x112e4) + I915_READ(0x112e8) +
+		I915_READ(0x112e0);
+	dev_priv->last_time1 = jiffies_to_msecs(jiffies);
+	dev_priv->last_count2 = I915_READ(0x112f4);
+	getrawmonotonic(&dev_priv->last_time2);
 }
 
 void ironlake_disable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvswctl;
-	u8 fstart;
+	u16 rgvswctl = I915_READ16(MEMSWCTL);
 
 	/* Ack interrupts, disable EFC interrupt */
 	I915_WRITE(MEMINTREN, I915_READ(MEMINTREN) & ~MEMINT_EVAL_CHG_EN);
@@ -5096,16 +5569,98 @@ void ironlake_disable_drps(struct drm_device *dev)
 	I915_WRITE(DEIMR, I915_READ(DEIMR) | DE_PCU_EVENT);
 
 	/* Go back to the starting frequency */
-	fstart = (I915_READ(MEMMODECTL) & MEMMODE_FSTART_MASK) >>
-		MEMMODE_FSTART_SHIFT;
-	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
-		(fstart << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
-	I915_WRITE(MEMSWCTL, rgvswctl);
+	ironlake_set_drps(dev, dev_priv->fstart);
 	msleep(1);
 	rgvswctl |= MEMCTL_CMD_STS;
 	I915_WRITE(MEMSWCTL, rgvswctl);
 	msleep(1);
 
+}
+
+static unsigned long intel_pxfreq(u32 vidfreq)
+{
+	unsigned long freq;
+	int div = (vidfreq & 0x3f0000) >> 16;
+	int post = (vidfreq & 0x3000) >> 12;
+	int pre = (vidfreq & 0x7);
+
+	if (!pre)
+		return 0;
+
+	freq = ((div * 133333) / ((1<<post) * pre));
+
+	return freq;
+}
+
+void intel_init_emon(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 lcfuse;
+	u8 pxw[16];
+	int i;
+
+	/* Disable to program */
+	I915_WRITE(ECR, 0);
+	POSTING_READ(ECR);
+
+	/* Program energy weights for various events */
+	I915_WRITE(SDEW, 0x15040d00);
+	I915_WRITE(CSIEW0, 0x007f0000);
+	I915_WRITE(CSIEW1, 0x1e220004);
+	I915_WRITE(CSIEW2, 0x04000004);
+
+	for (i = 0; i < 5; i++)
+		I915_WRITE(PEW + (i * 4), 0);
+	for (i = 0; i < 3; i++)
+		I915_WRITE(DEW + (i * 4), 0);
+
+	/* Program P-state weights to account for frequency power adjustment */
+	for (i = 0; i < 16; i++) {
+		u32 pxvidfreq = I915_READ(PXVFREQ_BASE + (i * 4));
+		unsigned long freq = intel_pxfreq(pxvidfreq);
+		unsigned long vid = (pxvidfreq & PXVFREQ_PX_MASK) >>
+			PXVFREQ_PX_SHIFT;
+		unsigned long val;
+
+		val = vid * vid;
+		val *= (freq / 1000);
+		val *= 255;
+		val /= (127*127*900);
+		if (val > 0xff)
+			DRM_ERROR("bad pxval: %ld\n", val);
+		pxw[i] = val;
+	}
+	/* Render standby states get 0 weight */
+	pxw[14] = 0;
+	pxw[15] = 0;
+
+	for (i = 0; i < 4; i++) {
+		u32 val = (pxw[i*4] << 24) | (pxw[(i*4)+1] << 16) |
+			(pxw[(i*4)+2] << 8) | (pxw[(i*4)+3]);
+		I915_WRITE(PXW + (i * 4), val);
+	}
+
+	/* Adjust magic regs to magic values (more experimental results) */
+	I915_WRITE(OGW0, 0);
+	I915_WRITE(OGW1, 0);
+	I915_WRITE(EG0, 0x00007f00);
+	I915_WRITE(EG1, 0x0000000e);
+	I915_WRITE(EG2, 0x000e0000);
+	I915_WRITE(EG3, 0x68000300);
+	I915_WRITE(EG4, 0x42000000);
+	I915_WRITE(EG5, 0x00140031);
+	I915_WRITE(EG6, 0);
+	I915_WRITE(EG7, 0);
+
+	for (i = 0; i < 8; i++)
+		I915_WRITE(PXWL + (i * 4), 0);
+
+	/* Enable PMON + select events */
+	I915_WRITE(ECR, 0x80000019);
+
+	lcfuse = I915_READ(LCFUSE02);
+
+	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
 void intel_init_clock_gating(struct drm_device *dev)
@@ -5149,6 +5704,26 @@ void intel_init_clock_gating(struct drm_device *dev)
 			I915_WRITE(DISP_ARB_CTL,
 					(I915_READ(DISP_ARB_CTL) |
 						DISP_FBC_WM_DIS));
+		}
+		/*
+		 * Based on the document from hardware guys the following bits
+		 * should be set unconditionally in order to enable FBC.
+		 * The bit 22 of 0x42000
+		 * The bit 22 of 0x42004
+		 * The bit 7,8,9 of 0x42020.
+		 */
+		if (IS_IRONLAKE_M(dev)) {
+			I915_WRITE(ILK_DISPLAY_CHICKEN1,
+				   I915_READ(ILK_DISPLAY_CHICKEN1) |
+				   ILK_FBCQ_DIS);
+			I915_WRITE(ILK_DISPLAY_CHICKEN2,
+				   I915_READ(ILK_DISPLAY_CHICKEN2) |
+				   ILK_DPARB_GATE);
+			I915_WRITE(ILK_DSPCLK_GATE,
+				   I915_READ(ILK_DSPCLK_GATE) |
+				   ILK_DPFC_DIS1 |
+				   ILK_DPFC_DIS2 |
+				   ILK_CLK_FBC);
 		}
 		return;
 	} else if (IS_G4X(dev)) {
@@ -5228,7 +5803,11 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.dpms = i9xx_crtc_dpms;
 
 	if (I915_HAS_FBC(dev)) {
-		if (IS_GM45(dev)) {
+		if (IS_IRONLAKE_M(dev)) {
+			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
+			dev_priv->display.enable_fbc = ironlake_enable_fbc;
+			dev_priv->display.disable_fbc = ironlake_disable_fbc;
+		} else if (IS_GM45(dev)) {
 			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
 			dev_priv->display.enable_fbc = g4x_enable_fbc;
 			dev_priv->display.disable_fbc = g4x_disable_fbc;
@@ -5277,11 +5856,13 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_PINEVIEW(dev)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
+					    dev_priv->is_ddr3,
 					    dev_priv->fsb_freq,
 					    dev_priv->mem_freq)) {
 			DRM_INFO("failed to find known CxSR latency "
-				 "(found fsb freq %d, mem freq %d), "
+				 "(found ddr%s fsb freq %d, mem freq %d), "
 				 "disabling CxSR\n",
+				 (dev_priv->is_ddr3 == 1) ? "3": "2",
 				 dev_priv->fsb_freq, dev_priv->mem_freq);
 			/* Disable CxSR and never update its watermark again */
 			pineview_disable_cxsr(dev);
@@ -5307,10 +5888,69 @@ static void intel_init_display(struct drm_device *dev)
 	}
 }
 
+/*
+ * Some BIOSes insist on assuming the GPU's pipe A is enabled at suspend,
+ * resume, or other times.  This quirk makes sure that's the case for
+ * affected systems.
+ */
+static void quirk_pipea_force (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
+	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
+}
+
+struct intel_quirk {
+	int device;
+	int subsystem_vendor;
+	int subsystem_device;
+	void (*hook)(struct drm_device *dev);
+};
+
+struct intel_quirk intel_quirks[] = {
+	/* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
+	{ 0x2a42, 0x103c, 0x30eb, quirk_pipea_force },
+	/* HP Mini needs pipe A force quirk (LP: #322104) */
+	{ 0x27ae,0x103c, 0x361a, quirk_pipea_force },
+
+	/* Thinkpad R31 needs pipe A force quirk */
+	{ 0x3577, 0x1014, 0x0505, quirk_pipea_force },
+	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
+	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
+
+	/* ThinkPad X30 needs pipe A force quirk (LP: #304614) */
+	{ 0x3577,  0x1014, 0x0513, quirk_pipea_force },
+	/* ThinkPad X40 needs pipe A force quirk */
+
+	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
+	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
+
+	/* 855 & before need to leave pipe A & dpll A up */
+	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+};
+
+static void intel_init_quirks(struct drm_device *dev)
+{
+	struct pci_dev *d = dev->pdev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
+		struct intel_quirk *q = &intel_quirks[i];
+
+		if (d->device == q->device &&
+		    (d->subsystem_vendor == q->subsystem_vendor ||
+		     q->subsystem_vendor == PCI_ANY_ID) &&
+		    (d->subsystem_device == q->subsystem_device ||
+		     q->subsystem_device == PCI_ANY_ID))
+			q->hook(dev);
+	}
+}
+
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int num_pipe;
 	int i;
 
 	drm_mode_config_init(dev);
@@ -5319,6 +5959,8 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 
 	dev->mode_config.funcs = (void *)&intel_mode_funcs;
+
+	intel_init_quirks(dev);
 
 	intel_init_display(dev);
 
@@ -5340,13 +5982,13 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
 
 	if (IS_MOBILE(dev) || IS_I9XX(dev))
-		num_pipe = 2;
+		dev_priv->num_pipe = 2;
 	else
-		num_pipe = 1;
+		dev_priv->num_pipe = 1;
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		  num_pipe, num_pipe > 1 ? "s" : "");
+		      dev_priv->num_pipe, dev_priv->num_pipe > 1 ? "s" : "");
 
-	for (i = 0; i < num_pipe; i++) {
+	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
 	}
 
@@ -5354,8 +5996,10 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_init_clock_gating(dev);
 
-	if (IS_IRONLAKE_M(dev))
+	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
+		intel_init_emon(dev);
+	}
 
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,

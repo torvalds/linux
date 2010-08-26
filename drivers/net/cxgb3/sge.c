@@ -203,15 +203,11 @@ static inline void refill_rspq(struct adapter *adapter,
  */
 static inline int need_skb_unmap(void)
 {
-	/*
-	 * This structure is used to tell if the platform needs buffer
-	 * unmapping by checking if DECLARE_PCI_UNMAP_ADDR defines anything.
-	 */
-	struct dummy {
-		DEFINE_DMA_UNMAP_ADDR(addr);
-	};
-
-	return sizeof(struct dummy) != 0;
+#ifdef CONFIG_NEED_DMA_MAP_STATE
+	return 1;
+#else
+	return 0;
+#endif
 }
 
 /**

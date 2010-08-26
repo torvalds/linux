@@ -543,7 +543,7 @@ struct vendor_txdds_ent {
 static void write_tx_serdes_param(struct qib_pportdata *, struct txdds_ent *);
 
 #define TXDDS_TABLE_SZ 16 /* number of entries per speed in onchip table */
-#define TXDDS_EXTRA_SZ 11 /* number of extra tx settings entries */
+#define TXDDS_EXTRA_SZ 13 /* number of extra tx settings entries */
 #define SERDES_CHANS 4 /* yes, it's obvious, but one less magic number */
 
 #define H1_FORCE_VAL 8
@@ -1100,9 +1100,9 @@ static const struct qib_hwerror_msgs qib_7322_hwerror_msgs[] = {
 	HWE_AUTO_P(SDmaMemReadErr, 1),
 	HWE_AUTO_P(SDmaMemReadErr, 0),
 	HWE_AUTO_P(IBCBusFromSPCParityErr, 1),
+	HWE_AUTO_P(IBCBusToSPCParityErr, 1),
 	HWE_AUTO_P(IBCBusFromSPCParityErr, 0),
-	HWE_AUTO_P(statusValidNoEop, 1),
-	HWE_AUTO_P(statusValidNoEop, 0),
+	HWE_AUTO(statusValidNoEop),
 	HWE_AUTO(LATriggered),
 	{ .mask = 0 }
 };
@@ -4763,6 +4763,8 @@ static void qib_7322_mini_pcs_reset(struct qib_pportdata *ppd)
 		SYM_MASK(IBPCSConfig_0, tx_rx_reset);
 
 	val = qib_read_kreg_port(ppd, krp_ib_pcsconfig);
+	qib_write_kreg(dd, kr_hwerrmask,
+		       dd->cspec->hwerrmask & ~HWE_MASK(statusValidNoEop));
 	qib_write_kreg_port(ppd, krp_ibcctrl_a,
 			    ppd->cpspec->ibcctrl_a &
 			    ~SYM_MASK(IBCCtrlA_0, IBLinkEn));
@@ -4772,6 +4774,9 @@ static void qib_7322_mini_pcs_reset(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_ib_pcsconfig, val & ~reset_bits);
 	qib_write_kreg_port(ppd, krp_ibcctrl_a, ppd->cpspec->ibcctrl_a);
 	qib_write_kreg(dd, kr_scratch, 0ULL);
+	qib_write_kreg(dd, kr_hwerrclear,
+		       SYM_MASK(HwErrClear, statusValidNoEopClear));
+	qib_write_kreg(dd, kr_hwerrmask, dd->cspec->hwerrmask);
 }
 
 /*
@@ -5624,6 +5629,8 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 			if (ppd->port != port || !ppd->link_speed_supported)
 				continue;
 			ppd->cpspec->no_eep = val;
+			if (seth1)
+				ppd->cpspec->h1_val = h1;
 			/* now change the IBC and serdes, overriding generic */
 			init_txdds_table(ppd, 1);
 			any++;
@@ -5857,7 +5864,7 @@ static void write_7322_initregs(struct qib_devdata *dd)
 	 * Doesn't clear any of the error bits that might be set.
 	 */
 	val = TIDFLOW_ERRBITS; /* these are W1C */
-	for (i = 0; i < dd->ctxtcnt; i++) {
+	for (i = 0; i < dd->cfgctxts; i++) {
 		int flow;
 		for (flow = 0; flow < NUM_TIDFLOWS_CTXT; flow++)
 			qib_write_ureg(dd, ur_rcvflowtable+flow, val, i);
@@ -6064,9 +6071,9 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		 * the "cable info" setup here.  Can be overridden
 		 * in adapter-specific routines.
 		 */
-		if (!(ppd->dd->flags & QIB_HAS_QSFP)) {
-			if (!IS_QMH(ppd->dd) && !IS_QME(ppd->dd))
-				qib_devinfo(ppd->dd->pcidev, "IB%u:%u: "
+		if (!(dd->flags & QIB_HAS_QSFP)) {
+			if (!IS_QMH(dd) && !IS_QME(dd))
+				qib_devinfo(dd->pcidev, "IB%u:%u: "
 					    "Unknown mezzanine card type\n",
 					    dd->unit, ppd->port);
 			cp->h1_val = IS_QMH(dd) ? H1_FORCE_QMH : H1_FORCE_QME;
@@ -6119,8 +6126,24 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	qib_set_ctxtcnt(dd);
 
 	if (qib_wc_pat) {
-		ret = init_chip_wc_pat(dd, NUM_VL15_BUFS * dd->align4k);
+		resource_size_t vl15off;
+		/*
+		 * We do not set WC on the VL15 buffers to avoid
+		 * a rare problem with unaligned writes from
+		 * interrupt-flushed store buffers, so we need
+		 * to map those separately here.  We can't solve
+		 * this for the rarely used mtrr case.
+		 */
+		ret = init_chip_wc_pat(dd, 0);
 		if (ret)
+			goto bail;
+
+		/* vl15 buffers start just after the 4k buffers */
+		vl15off = dd->physaddr + (dd->piobufbase >> 32) +
+			dd->piobcnt4k * dd->align4k;
+		dd->piovl15base	= ioremap_nocache(vl15off,
+						  NUM_VL15_BUFS * dd->align4k);
+		if (!dd->piovl15base)
 			goto bail;
 	}
 	qib_7322_set_baseaddrs(dd); /* set chip access pointers now */
@@ -6932,6 +6955,8 @@ static const struct txdds_ent txdds_extra_sdr[TXDDS_EXTRA_SZ] = {
 	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
 	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
 	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
+	{  0, 0, 0,  3 },	/* QMH7342 backplane settings */
+	{  0, 0, 0,  4 },	/* QMH7342 backplane settings */
 };
 
 static const struct txdds_ent txdds_extra_ddr[TXDDS_EXTRA_SZ] = {
@@ -6947,6 +6972,8 @@ static const struct txdds_ent txdds_extra_ddr[TXDDS_EXTRA_SZ] = {
 	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
 	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
 	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
+	{  0, 0, 0,  9 },	/* QMH7342 backplane settings */
+	{  0, 0, 0, 10 },	/* QMH7342 backplane settings */
 };
 
 static const struct txdds_ent txdds_extra_qdr[TXDDS_EXTRA_SZ] = {
@@ -6962,6 +6989,8 @@ static const struct txdds_ent txdds_extra_qdr[TXDDS_EXTRA_SZ] = {
 	{  0, 1, 12,  6 },	/* QME7342 backplane setting */
 	{  0, 1, 12,  7 },	/* QME7342 backplane setting */
 	{  0, 1, 12,  8 },	/* QME7342 backplane setting */
+	{  0, 1,  0, 10 },	/* QMH7342 backplane settings */
+	{  0, 1,  0, 12 },	/* QMH7342 backplane settings */
 };
 
 static const struct txdds_ent *get_atten_table(const struct txdds_ent *txdds,
@@ -7242,6 +7271,8 @@ static int serdes_7322_init(struct qib_pportdata *ppd)
 	ibsd_wr_allchans(ppd, 20, (4 << 13), BMASK(15, 13)); /* SDR */
 
 	data = qib_read_kreg_port(ppd, krp_serdesctrl);
+	/* Turn off IB latency mode */
+	data &= ~SYM_MASK(IBSerdesCtrl_0, IB_LAT_MODE);
 	qib_write_kreg_port(ppd, krp_serdesctrl, data |
 		SYM_MASK(IBSerdesCtrl_0, RXLOSEN));
 

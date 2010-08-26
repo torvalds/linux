@@ -360,6 +360,8 @@ static struct dentry *get_default_root(struct super_block *sb,
 	 */
 	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir_id, "default", 7, 0);
+	if (IS_ERR(di))
+		return ERR_CAST(di);
 	if (!di) {
 		/*
 		 * Ok the default dir item isn't there.  This is weird since
@@ -390,8 +392,8 @@ setup_root:
 	location.offset = 0;
 
 	inode = btrfs_iget(sb, &location, new_root, &new);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 	/*
 	 * If we're just mounting the root most subvol put the inode and return
@@ -795,7 +797,7 @@ static int btrfs_unfreeze(struct super_block *sb)
 
 static const struct super_operations btrfs_super_ops = {
 	.drop_inode	= btrfs_drop_inode,
-	.delete_inode	= btrfs_delete_inode,
+	.evict_inode	= btrfs_evict_inode,
 	.put_super	= btrfs_put_super,
 	.sync_fs	= btrfs_sync_fs,
 	.show_options	= btrfs_show_options,

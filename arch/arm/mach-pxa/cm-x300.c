@@ -689,6 +689,7 @@ static void __init cm_x300_init_da9030(void)
 {
 	pxa3xx_set_i2c_power_info(&cm_x300_pwr_i2c_info);
 	i2c_register_board_info(1, &cm_x300_pmic_info, 1);
+	set_irq_wake(IRQ_WAKEUP0, 1);
 }
 
 static void __init cm_x300_init_wi2wi(void)
@@ -745,9 +746,10 @@ static void __init cm_x300_init(void)
 {
 	cm_x300_init_mfp();
 
-	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
+	if (cpu_is_pxa300())
+		pxa_set_ffuart_info(NULL);
 
 	cm_x300_init_da9030();
 	cm_x300_init_dm9000();

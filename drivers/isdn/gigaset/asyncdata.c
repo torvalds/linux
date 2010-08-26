@@ -126,26 +126,6 @@ static unsigned lock_loop(unsigned numbytes, struct inbuf_t *inbuf)
 	return numbytes;
 }
 
-/* set up next receive skb for data mode
- */
-static void new_rcv_skb(struct bc_state *bcs)
-{
-	struct cardstate *cs = bcs->cs;
-	unsigned short hw_hdr_len = cs->hw_hdr_len;
-
-	if (bcs->ignore) {
-		bcs->skb = NULL;
-		return;
-	}
-
-	bcs->skb = dev_alloc_skb(SBUFSIZE + hw_hdr_len);
-	if (bcs->skb == NULL) {
-		dev_warn(cs->dev, "could not allocate new skb\n");
-		return;
-	}
-	skb_reserve(bcs->skb, hw_hdr_len);
-}
-
 /* process a block of received bytes in HDLC data mode
  * (mstate != MS_LOCKED && !(inputstate & INS_command) && proto2 == L2_HDLC)
  * Collect HDLC frames, undoing byte stuffing and watching for DLE escapes.
@@ -159,8 +139,8 @@ static unsigned hdlc_loop(unsigned numbytes, struct inbuf_t *inbuf)
 	struct cardstate *cs = inbuf->cs;
 	struct bc_state *bcs = cs->bcs;
 	int inputstate = bcs->inputstate;
-	__u16 fcs = bcs->fcs;
-	struct sk_buff *skb = bcs->skb;
+	__u16 fcs = bcs->rx_fcs;
+	struct sk_buff *skb = bcs->rx_skb;
 	unsigned char *src = inbuf->data + inbuf->head;
 	unsigned procbytes = 0;
 	unsigned char c;
@@ -245,8 +225,7 @@ byte_stuff:
 
 				/* prepare reception of next frame */
 				inputstate &= ~INS_have_data;
-				new_rcv_skb(bcs);
-				skb = bcs->skb;
+				skb = gigaset_new_rx_skb(bcs);
 			} else {
 				/* empty frame (7E 7E) */
 #ifdef CONFIG_GIGASET_DEBUG
@@ -255,8 +234,7 @@ byte_stuff:
 				if (!skb) {
 					/* skipped (?) */
 					gigaset_isdn_rcv_err(bcs);
-					new_rcv_skb(bcs);
-					skb = bcs->skb;
+					skb = gigaset_new_rx_skb(bcs);
 				}
 			}
 
@@ -279,11 +257,11 @@ byte_stuff:
 #endif
 		inputstate |= INS_have_data;
 		if (skb) {
-			if (skb->len == SBUFSIZE) {
+			if (skb->len >= bcs->rx_bufsize) {
 				dev_warn(cs->dev, "received packet too long\n");
 				dev_kfree_skb_any(skb);
 				/* skip remainder of packet */
-				bcs->skb = skb = NULL;
+				bcs->rx_skb = skb = NULL;
 			} else {
 				*__skb_put(skb, 1) = c;
 				fcs = crc_ccitt_byte(fcs, c);
@@ -292,7 +270,7 @@ byte_stuff:
 	}
 
 	bcs->inputstate = inputstate;
-	bcs->fcs = fcs;
+	bcs->rx_fcs = fcs;
 	return procbytes;
 }
 
@@ -308,18 +286,18 @@ static unsigned iraw_loop(unsigned numbytes, struct inbuf_t *inbuf)
 	struct cardstate *cs = inbuf->cs;
 	struct bc_state *bcs = cs->bcs;
 	int inputstate = bcs->inputstate;
-	struct sk_buff *skb = bcs->skb;
+	struct sk_buff *skb = bcs->rx_skb;
 	unsigned char *src = inbuf->data + inbuf->head;
 	unsigned procbytes = 0;
 	unsigned char c;
 
 	if (!skb) {
 		/* skip this block */
-		new_rcv_skb(bcs);
+		gigaset_new_rx_skb(bcs);
 		return numbytes;
 	}
 
-	while (procbytes < numbytes && skb->len < SBUFSIZE) {
+	while (procbytes < numbytes && skb->len < bcs->rx_bufsize) {
 		c = *src++;
 		procbytes++;
 
@@ -343,7 +321,7 @@ static unsigned iraw_loop(unsigned numbytes, struct inbuf_t *inbuf)
 	if (inputstate & INS_have_data) {
 		gigaset_skb_rcvd(bcs, skb);
 		inputstate &= ~INS_have_data;
-		new_rcv_skb(bcs);
+		gigaset_new_rx_skb(bcs);
 	}
 
 	bcs->inputstate = inputstate;

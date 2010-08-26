@@ -97,50 +97,6 @@ static ssize_t cur_speed_read_file(struct pci_slot *slot, char *buf)
 	return bus_speed_read(slot->bus->cur_bus_speed, buf);
 }
 
-static void remove_sysfs_files(struct pci_slot *slot)
-{
-	char func[10];
-	struct list_head *tmp;
-
-	list_for_each(tmp, &slot->bus->devices) {
-		struct pci_dev *dev = pci_dev_b(tmp);
-		if (PCI_SLOT(dev->devfn) != slot->number)
-			continue;
-		sysfs_remove_link(&dev->dev.kobj, "slot");
-
-		snprintf(func, 10, "function%d", PCI_FUNC(dev->devfn));
-		sysfs_remove_link(&slot->kobj, func);
-	}
-}
-
-static int create_sysfs_files(struct pci_slot *slot)
-{
-	int result;
-	char func[10];
-	struct list_head *tmp;
-
-	list_for_each(tmp, &slot->bus->devices) {
-		struct pci_dev *dev = pci_dev_b(tmp);
-		if (PCI_SLOT(dev->devfn) != slot->number)
-			continue;
-
-		result = sysfs_create_link(&dev->dev.kobj, &slot->kobj, "slot");
-		if (result)
-			goto fail;
-
-		snprintf(func, 10, "function%d", PCI_FUNC(dev->devfn));
-		result = sysfs_create_link(&slot->kobj, &dev->dev.kobj, func);
-		if (result)
-			goto fail;
-	}
-
-	return 0;
-
-fail:
-	remove_sysfs_files(slot);
-	return result;
-}
-
 static void pci_slot_release(struct kobject *kobj)
 {
 	struct pci_dev *dev;
@@ -152,8 +108,6 @@ static void pci_slot_release(struct kobject *kobj)
 	list_for_each_entry(dev, &slot->bus->devices, bus_list)
 		if (PCI_SLOT(dev->devfn) == slot->number)
 			dev->slot = NULL;
-
-	remove_sysfs_files(slot);
 
 	list_del(&slot->list);
 
@@ -345,8 +299,6 @@ placeholder:
 
 	INIT_LIST_HEAD(&slot->list);
 	list_add(&slot->list, &parent->slots);
-
-	create_sysfs_files(slot);
 
 	list_for_each_entry(dev, &parent->devices, bus_list)
 		if (PCI_SLOT(dev->devfn) == slot_nr)

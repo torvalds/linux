@@ -2673,7 +2673,6 @@ static void dm_check_edca_turbo(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	//PSTA_QOS			pStaQos = pMgntInfo->pStaQos;
 
 	// Keep past Tx/Rx packet count for RT-to-RT EDCA turbo.
 	static unsigned long			lastTxOkCnt = 0;
@@ -2681,10 +2680,8 @@ static void dm_check_edca_turbo(
 	unsigned long				curTxOkCnt = 0;
 	unsigned long				curRxOkCnt = 0;
 
-	//
-	// Do not be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
-	// should follow the settings from QAP. By Bruce, 2007-12-07.
-	//
+	u32				EDCA_BE_UL = edca_setting_UL[pHTInfo->IOTPeer];
+	u32				EDCA_BE_DL = edca_setting_DL[pHTInfo->IOTPeer];
 	#if 1
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -2692,6 +2689,14 @@ static void dm_check_edca_turbo(
 	// We do not turn on EDCA turbo mode for some AP that has IOT issue
 	if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
+
+	if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_FORCED_ENABLE_BE_TXOP)
+	{
+		if(!(EDCA_BE_UL & 0xffff0000))
+			EDCA_BE_UL |= 0x005e0000;
+		if(!(EDCA_BE_DL & 0xffff0000))
+			EDCA_BE_DL |= 0x005e0000;
+	}
 
 	{
 		u8* peername[11] = {"unknown", "realtek", "realtek_92se", "broadcom", "ralink", "atheros", "cisco", "marvell", "92u_softap", "self_softap"};
@@ -2714,7 +2719,7 @@ static void dm_check_edca_turbo(
 			{
 				if(priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
 				{
-					write_nic_dword(dev, EDCAPARA_BE, edca_setting_UL[pHTInfo->IOTPeer]);
+					write_nic_dword(dev, EDCAPARA_BE, EDCA_BE_UL);
 					priv->bis_cur_rdlstate = false;
 				}
 			}
@@ -2722,7 +2727,7 @@ static void dm_check_edca_turbo(
 			{
 				if(!priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
 				{
-					write_nic_dword(dev, EDCAPARA_BE, edca_setting_DL[pHTInfo->IOTPeer]);
+					write_nic_dword(dev, EDCAPARA_BE, EDCA_BE_DL);
 					priv->bis_cur_rdlstate = true;
 				}
 			}
@@ -2734,7 +2739,7 @@ static void dm_check_edca_turbo(
 			{
 				if(!priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
 				{
-					write_nic_dword(dev, EDCAPARA_BE, edca_setting_DL[pHTInfo->IOTPeer]);
+					write_nic_dword(dev, EDCAPARA_BE, EDCA_BE_DL);
 					priv->bis_cur_rdlstate = true;
 				}
 			}
@@ -2742,7 +2747,7 @@ static void dm_check_edca_turbo(
 			{
 				if(priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
 				{
-					write_nic_dword(dev, EDCAPARA_BE, edca_setting_UL[pHTInfo->IOTPeer]);
+					write_nic_dword(dev, EDCAPARA_BE, EDCA_BE_UL);
 					priv->bis_cur_rdlstate = false;
 				}
 			}
@@ -2771,7 +2776,7 @@ static void dm_check_edca_turbo(
 					(((u32)(qos_parameters->cw_max[0]))<< AC_PARAM_ECW_MAX_OFFSET)|
 					(((u32)(qos_parameters->cw_min[0]))<< AC_PARAM_ECW_MIN_OFFSET)|
 					((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-			//write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);
+
 				write_nic_dword(dev, EDCAPARA_BE,  u4bAcParam);
 
 			// Check ACM bit.
@@ -2780,7 +2785,7 @@ static void dm_check_edca_turbo(
 			// TODO:  Modified this part and try to set acm control in only 1 IO processing!!
 
 					PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
-					u8		AcmCtrl = read_nic_byte( dev, AcmHwCtrl );
+					u8		AcmCtrl = priv->AcmControl | 0x1;
 					if( pAciAifsn->f.ACM )
 					{ // ACM bit is 1.
 						AcmCtrl |= AcmHw_BeqEn;
@@ -2804,7 +2809,7 @@ dm_CheckEdcaTurbo_EXIT:
 	priv->ieee80211->bis_any_nonbepkts = false;
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
-}	// dm_CheckEdcaTurbo
+}
 #endif
 
 extern void DM_CTSToSelfSetting(struct net_device * dev,u32 DM_Type, u32 DM_Value)

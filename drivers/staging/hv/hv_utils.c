@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/reboot.h>
+#include <linux/dmi.h>
+#include <linux/pci.h>
 
 #include "logging.h"
 #include "osd.h"
@@ -49,8 +51,6 @@ static void shutdown_onchannelcallback(void *context)
 
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
-
-	DPRINT_ENTER(VMBUS);
 
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
@@ -99,8 +99,6 @@ static void shutdown_onchannelcallback(void *context)
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 
 	if (execute_shutdown == true)
 		orderly_poweroff(false);
@@ -158,8 +156,6 @@ static void timesync_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct ictimesync_data *timedatap;
 
-	DPRINT_ENTER(VMBUS);
-
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
@@ -190,8 +186,6 @@ static void timesync_onchannelcallback(void *context)
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -207,8 +201,6 @@ static void heartbeat_onchannelcallback(void *context)
 	u64 requestid;
 	struct icmsg_hdr *icmsghdrp;
 	struct heartbeat_msg_data *heartbeat_msg;
-
-	DPRINT_ENTER(VMBUS);
 
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
@@ -247,13 +239,37 @@ static void heartbeat_onchannelcallback(void *context)
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 }
+
+static const struct pci_device_id __initconst
+hv_utils_pci_table[] __maybe_unused = {
+	{ PCI_DEVICE(0x1414, 0x5353) }, /* Hyper-V emulated VGA controller */
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, hv_utils_pci_table);
+
+
+static const struct dmi_system_id __initconst
+hv_utils_dmi_table[] __maybe_unused  = {
+	{
+		.ident = "Hyper-V",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
+			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
+		},
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(dmi, hv_utils_dmi_table);
+
 
 static int __init init_hyperv_utils(void)
 {
 	printk(KERN_INFO "Registering HyperV Utility Driver\n");
+
+	if (!dmi_check_system(hv_utils_dmi_table))
+		return -ENODEV;
 
 	hv_cb_utils[HV_SHUTDOWN_MSG].channel->OnChannelCallback =
 		&shutdown_onchannelcallback;

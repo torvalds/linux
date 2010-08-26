@@ -172,9 +172,8 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
-	return blockdev_direct_IO_no_locking_newtrunc(rw, iocb, inode,
-				I_BDEV(inode), iov, offset, nr_segs,
-				blkdev_get_blocks, NULL);
+	return __blockdev_direct_IO(rw, iocb, inode, I_BDEV(inode), iov, offset,
+				    nr_segs, blkdev_get_blocks, NULL, NULL, 0);
 }
 
 int __sync_blockdev(struct block_device *bdev, int wait)
@@ -309,9 +308,8 @@ static int blkdev_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin_newtrunc(file, mapping, pos, len, flags,
-				pagep, fsdata, blkdev_get_block);
+	return block_write_begin(mapping, pos, len, flags, pagep,
+				 blkdev_get_block);
 }
 
 static int blkdev_write_end(struct file *file, struct address_space *mapping,
@@ -428,10 +426,13 @@ static inline void __bd_forget(struct inode *inode)
 	inode->i_mapping = &inode->i_data;
 }
 
-static void bdev_clear_inode(struct inode *inode)
+static void bdev_evict_inode(struct inode *inode)
 {
 	struct block_device *bdev = &BDEV_I(inode)->bdev;
 	struct list_head *p;
+	truncate_inode_pages(&inode->i_data, 0);
+	invalidate_inode_buffers(inode); /* is it needed here? */
+	end_writeback(inode);
 	spin_lock(&bdev_lock);
 	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
 		__bd_forget(list_entry(p, struct inode, i_devices));
@@ -445,7 +446,7 @@ static const struct super_operations bdev_sops = {
 	.alloc_inode = bdev_alloc_inode,
 	.destroy_inode = bdev_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.clear_inode = bdev_clear_inode,
+	.evict_inode = bdev_evict_inode,
 };
 
 static int bd_get_sb(struct file_system_type *fs_type,
@@ -681,8 +682,8 @@ retry:
 	if (!bd_may_claim(bdev, whole, holder))
 		return -EBUSY;
 
-	/* if someone else is claiming, wait for it to finish */
-	if (whole->bd_claiming && whole->bd_claiming != holder) {
+	/* if claiming is already in progress, wait for it to finish */
+	if (whole->bd_claiming) {
 		wait_queue_head_t *wq = bit_waitqueue(&whole->bd_claiming, 0);
 		DEFINE_WAIT(wait);
 
@@ -706,8 +707,13 @@ retry:
  * @bdev is about to be opened exclusively.  Check @bdev can be opened
  * exclusively and mark that an exclusive open is in progress.  Each
  * successful call to this function must be matched with a call to
- * either bd_claim() or bd_abort_claiming().  If this function
- * succeeds, the matching bd_claim() is guaranteed to succeed.
+ * either bd_finish_claiming() or bd_abort_claiming() (which do not
+ * fail).
+ *
+ * This function is used to gain exclusive access to the block device
+ * without actually causing other exclusive open attempts to fail. It
+ * should be used when the open sequence itself requires exclusive
+ * access but may subsequently fail.
  *
  * CONTEXT:
  * Might sleep.
@@ -734,6 +740,7 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 		return ERR_PTR(-ENXIO);
 
 	whole = bdget_disk(disk, 0);
+	module_put(disk->fops->owner);
 	put_disk(disk);
 	if (!whole)
 		return ERR_PTR(-ENOMEM);
@@ -782,15 +789,46 @@ static void bd_abort_claiming(struct block_device *whole, void *holder)
 	__bd_abort_claiming(whole, holder);		/* releases bdev_lock */
 }
 
+/* increment holders when we have a legitimate claim. requires bdev_lock */
+static void __bd_claim(struct block_device *bdev, struct block_device *whole,
+					void *holder)
+{
+	/* note that for a whole device bd_holders
+	 * will be incremented twice, and bd_holder will
+	 * be set to bd_claim before being set to holder
+	 */
+	whole->bd_holders++;
+	whole->bd_holder = bd_claim;
+	bdev->bd_holders++;
+	bdev->bd_holder = holder;
+}
+
+/**
+ * bd_finish_claiming - finish claiming a block device
+ * @bdev: block device of interest (passed to bd_start_claiming())
+ * @whole: whole block device returned by bd_start_claiming()
+ * @holder: holder trying to claim @bdev
+ *
+ * Finish a claiming block started by bd_start_claiming().
+ *
+ * CONTEXT:
+ * Grabs and releases bdev_lock.
+ */
+static void bd_finish_claiming(struct block_device *bdev,
+				struct block_device *whole, void *holder)
+{
+	spin_lock(&bdev_lock);
+	BUG_ON(!bd_may_claim(bdev, whole, holder));
+	__bd_claim(bdev, whole, holder);
+	__bd_abort_claiming(whole, holder); /* not actually an abort */
+}
+
 /**
  * bd_claim - claim a block device
  * @bdev: block device to claim
  * @holder: holder trying to claim @bdev
  *
- * Try to claim @bdev which must have been opened successfully.  This
- * function may be called with or without preceding
- * blk_start_claiming().  In the former case, this function is always
- * successful and terminates the claiming block.
+ * Try to claim @bdev which must have been opened successfully.
  *
  * CONTEXT:
  * Might sleep.
@@ -806,23 +844,10 @@ int bd_claim(struct block_device *bdev, void *holder)
 	might_sleep();
 
 	spin_lock(&bdev_lock);
-
 	res = bd_prepare_to_claim(bdev, whole, holder);
-	if (res == 0) {
-		/* note that for a whole device bd_holders
-		 * will be incremented twice, and bd_holder will
-		 * be set to bd_claim before being set to holder
-		 */
-		whole->bd_holders++;
-		whole->bd_holder = bd_claim;
-		bdev->bd_holders++;
-		bdev->bd_holder = holder;
-	}
-
-	if (whole->bd_claiming)
-		__bd_abort_claiming(whole, holder);	/* releases bdev_lock */
-	else
-		spin_unlock(&bdev_lock);
+	if (res == 0)
+		__bd_claim(bdev, whole, holder);
+	spin_unlock(&bdev_lock);
 
 	return res;
 }
@@ -1315,19 +1340,20 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	/*
 	 * hooks: /n/, see "layering violations".
 	 */
-	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-	if (ret != 0) {
-		bdput(bdev);
-		return ret;
+	if (!for_part) {
+		ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+		if (ret != 0) {
+			bdput(bdev);
+			return ret;
+		}
 	}
 
-	lock_kernel();
  restart:
 
 	ret = -ENXIO;
 	disk = get_gendisk(bdev->bd_dev, &partno);
 	if (!disk)
-		goto out_unlock_kernel;
+		goto out;
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
@@ -1407,7 +1433,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	if (for_part)
 		bdev->bd_part_count++;
 	mutex_unlock(&bdev->bd_mutex);
-	unlock_kernel();
 	return 0;
 
  out_clear:
@@ -1420,9 +1445,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	bdev->bd_contains = NULL;
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
- out_unlock_kernel:
-	unlock_kernel();
-
+ out:
 	if (disk)
 		module_put(disk->fops->owner);
 	put_disk(disk);
@@ -1476,7 +1499,7 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 
 	if (whole) {
 		if (res == 0)
-			BUG_ON(bd_claim(bdev, filp) != 0);
+			bd_finish_claiming(bdev, whole, filp);
 		else
 			bd_abort_claiming(whole, filp);
 	}
@@ -1491,7 +1514,6 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 	struct block_device *victim = NULL;
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
-	lock_kernel();
 	if (for_part)
 		bdev->bd_part_count--;
 
@@ -1516,7 +1538,6 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
 	}
-	unlock_kernel();
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
 	if (victim)
@@ -1712,7 +1733,7 @@ struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *h
 	if ((mode & FMODE_WRITE) && bdev_read_only(bdev))
 		goto out_blkdev_put;
 
-	BUG_ON(bd_claim(bdev, holder) != 0);
+	bd_finish_claiming(bdev, whole, holder);
 	return bdev;
 
 out_blkdev_put:

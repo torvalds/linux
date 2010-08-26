@@ -1355,8 +1355,11 @@ static struct of_device_id pata_macio_match[] =
 
 static struct macio_driver pata_macio_driver =
 {
-	.name 		= "pata-macio",
-	.match_table	= pata_macio_match,
+	.driver = {
+		.name 		= "pata-macio",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pata_macio_match,
+	},
 	.probe		= pata_macio_attach,
 	.remove		= pata_macio_detach,
 #ifdef CONFIG_PM
@@ -1366,9 +1369,6 @@ static struct macio_driver pata_macio_driver =
 #ifdef CONFIG_PMAC_MEDIABAY
 	.mediabay_event	= pata_macio_mb_event,
 #endif
-	.driver = {
-		.owner		= THIS_MODULE,
-	},
 };
 
 static const struct pci_device_id pata_macio_pci_match[] = {

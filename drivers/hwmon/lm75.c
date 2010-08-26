@@ -192,7 +192,6 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &lm75_group);
 exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return status;
 }
@@ -204,7 +203,6 @@ static int lm75_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm75_group);
 	lm75_write_value(client, LM75_REG_CONF, data->orig_conf);
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }
@@ -282,10 +280,49 @@ static int lm75_detect(struct i2c_client *new_client,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int lm75_suspend(struct device *dev)
+{
+	int status;
+	struct i2c_client *client = to_i2c_client(dev);
+	status = lm75_read_value(client, LM75_REG_CONF);
+	if (status < 0) {
+		dev_dbg(&client->dev, "Can't read config? %d\n", status);
+		return status;
+	}
+	status = status | LM75_SHUTDOWN;
+	lm75_write_value(client, LM75_REG_CONF, status);
+	return 0;
+}
+
+static int lm75_resume(struct device *dev)
+{
+	int status;
+	struct i2c_client *client = to_i2c_client(dev);
+	status = lm75_read_value(client, LM75_REG_CONF);
+	if (status < 0) {
+		dev_dbg(&client->dev, "Can't read config? %d\n", status);
+		return status;
+	}
+	status = status & ~LM75_SHUTDOWN;
+	lm75_write_value(client, LM75_REG_CONF, status);
+	return 0;
+}
+
+static const struct dev_pm_ops lm75_dev_pm_ops = {
+	.suspend	= lm75_suspend,
+	.resume		= lm75_resume,
+};
+#define LM75_DEV_PM_OPS (&lm75_dev_pm_ops)
+#else
+#define LM75_DEV_PM_OPS NULL
+#endif /* CONFIG_PM */
+
 static struct i2c_driver lm75_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm75",
+		.pm	= LM75_DEV_PM_OPS,
 	},
 	.probe		= lm75_probe,
 	.remove		= lm75_remove,

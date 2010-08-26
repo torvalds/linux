@@ -349,7 +349,7 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 			 * FE_CAN_QAM_16 is for compatibility
 			 * (Myth incorrectly detects Turbo-QPSK as plain QAM-16)
 			 */
-			FE_CAN_QPSK | FE_CAN_QAM_16
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_TURBO_FEC
 	},
 
 	.release = gp8psk_fe_release,

@@ -33,7 +33,7 @@
 #include <linux/serial_8250.h>
 #include <linux/debugfs.h>
 #include <linux/percpu.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/paca.h>
@@ -93,6 +93,12 @@ struct screen_info screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
+
+/* Variables required to store legacy IO irq routing */
+int of_i8042_kbd_irq;
+EXPORT_SYMBOL_GPL(of_i8042_kbd_irq);
+int of_i8042_aux_irq;
+EXPORT_SYMBOL_GPL(of_i8042_aux_irq);
 
 #ifdef __DO_IRQ_CANON
 /* XXX should go elsewhere eventually */
@@ -575,6 +581,15 @@ int check_legacy_ioport(unsigned long base_port)
 			np = of_find_compatible_node(NULL, NULL, "pnpPNP,f03");
 		if (np) {
 			parent = of_get_parent(np);
+
+			of_i8042_kbd_irq = irq_of_parse_and_map(parent, 0);
+			if (!of_i8042_kbd_irq)
+				of_i8042_kbd_irq = 1;
+
+			of_i8042_aux_irq = irq_of_parse_and_map(parent, 1);
+			if (!of_i8042_aux_irq)
+				of_i8042_aux_irq = 12;
+
 			of_node_put(np);
 			np = parent;
 			break;
@@ -701,16 +716,9 @@ static struct notifier_block ppc_dflt_plat_bus_notifier = {
 	.priority = INT_MAX,
 };
 
-static struct notifier_block ppc_dflt_of_bus_notifier = {
-	.notifier_call = ppc_dflt_bus_notify,
-	.priority = INT_MAX,
-};
-
 static int __init setup_bus_notifier(void)
 {
 	bus_register_notifier(&platform_bus_type, &ppc_dflt_plat_bus_notifier);
-	bus_register_notifier(&of_platform_bus_type, &ppc_dflt_of_bus_notifier);
-
 	return 0;
 }
 

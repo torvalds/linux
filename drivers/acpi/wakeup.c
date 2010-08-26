@@ -21,70 +21,40 @@
 ACPI_MODULE_NAME("wakeup_devices")
 
 /**
- * acpi_enable_wakeup_device_prep - Prepare wake-up devices.
+ * acpi_enable_wakeup_devices - Enable wake-up device GPEs.
  * @sleep_state: ACPI system sleep state.
  *
- * Enable all wake-up devices' power, unless the requested system sleep state is
- * too deep.
+ * Enable wakeup device power of devices with the state.enable flag set and set
+ * the wakeup enable mask bits in the GPE registers that correspond to wakeup
+ * devices.
  */
-void acpi_enable_wakeup_device_prep(u8 sleep_state)
+void acpi_enable_wakeup_devices(u8 sleep_state)
 {
 	struct list_head *node, *next;
 
-	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-		struct acpi_device *dev = container_of(node,
-						       struct acpi_device,
-						       wakeup_list);
-
-		if (!dev->wakeup.flags.valid || !dev->wakeup.state.enabled
-		    || (sleep_state > (u32) dev->wakeup.sleep_state))
-			continue;
-
-		acpi_enable_wakeup_device_power(dev, sleep_state);
-	}
-}
-
-/**
- * acpi_enable_wakeup_device - Enable wake-up device GPEs.
- * @sleep_state: ACPI system sleep state.
- *
- * Enable all wake-up devices' GPEs, with the assumption that
- * acpi_disable_all_gpes() was executed before, so we don't need to disable any
- * GPEs here.
- */
-void acpi_enable_wakeup_device(u8 sleep_state)
-{
-	struct list_head *node, *next;
-
-	/* 
-	 * Caution: this routine must be invoked when interrupt is disabled 
-	 * Refer ACPI2.0: P212
-	 */
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev =
 			container_of(node, struct acpi_device, wakeup_list);
 
-		if (!dev->wakeup.flags.valid)
-			continue;
-
-		if ((!dev->wakeup.state.enabled && !dev->wakeup.prepare_count)
+		if (!dev->wakeup.flags.valid
+		    || !(dev->wakeup.state.enabled || dev->wakeup.prepare_count)
 		    || sleep_state > (u32) dev->wakeup.sleep_state)
 			continue;
 
+		if (dev->wakeup.state.enabled)
+			acpi_enable_wakeup_device_power(dev, sleep_state);
+
 		/* The wake-up power should have been enabled already. */
-		acpi_set_gpe(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
+		acpi_gpe_wakeup(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
 				ACPI_GPE_ENABLE);
 	}
 }
 
 /**
- * acpi_disable_wakeup_device - Disable devices' wakeup capability.
+ * acpi_disable_wakeup_devices - Disable devices' wakeup capability.
  * @sleep_state: ACPI system sleep state.
- *
- * This function only affects devices with wakeup.state.enabled set, which means
- * that it reverses the changes made by acpi_enable_wakeup_device_prep().
  */
-void acpi_disable_wakeup_device(u8 sleep_state)
+void acpi_disable_wakeup_devices(u8 sleep_state)
 {
 	struct list_head *node, *next;
 
@@ -92,11 +62,16 @@ void acpi_disable_wakeup_device(u8 sleep_state)
 		struct acpi_device *dev =
 			container_of(node, struct acpi_device, wakeup_list);
 
-		if (!dev->wakeup.flags.valid || !dev->wakeup.state.enabled
+		if (!dev->wakeup.flags.valid
+		    || !(dev->wakeup.state.enabled || dev->wakeup.prepare_count)
 		    || (sleep_state > (u32) dev->wakeup.sleep_state))
 			continue;
 
-		acpi_disable_wakeup_device_power(dev);
+		acpi_gpe_wakeup(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
+				ACPI_GPE_DISABLE);
+
+		if (dev->wakeup.state.enabled)
+			acpi_disable_wakeup_device_power(dev);
 	}
 }
 
@@ -109,13 +84,8 @@ int __init acpi_wakeup_device_init(void)
 		struct acpi_device *dev = container_of(node,
 						       struct acpi_device,
 						       wakeup_list);
-		/* In case user doesn't load button driver */
-		if (!dev->wakeup.flags.always_enabled ||
-		    dev->wakeup.state.enabled)
-			continue;
- 		acpi_enable_gpe(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
- 				ACPI_GPE_TYPE_WAKE);
-		dev->wakeup.state.enabled = 1;
+		if (dev->wakeup.flags.always_enabled)
+			dev->wakeup.state.enabled = 1;
 	}
 	mutex_unlock(&acpi_device_lock);
 	return 0;

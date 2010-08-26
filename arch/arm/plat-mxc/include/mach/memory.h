@@ -44,12 +44,12 @@
  */
 #define CONSISTENT_DMA_SIZE SZ_8M
 
-#elif defined(CONFIG_MX1_VIDEO)
+#elif defined(CONFIG_MX1_VIDEO) || defined(CONFIG_VIDEO_MX2_HOSTSUPPORT)
 /*
  * Increase size of DMA-consistent memory region.
  * This is required for i.MX camera driver to capture at least four VGA frames.
  */
 #define CONSISTENT_DMA_SIZE SZ_4M
-#endif /* CONFIG_MX1_VIDEO */
+#endif /* CONFIG_MX1_VIDEO || CONFIG_VIDEO_MX2_HOSTSUPPORT */
 
 #endif /* __ASM_ARCH_MXC_MEMORY_H__ */

@@ -197,7 +197,7 @@ struct cpc_can_err_counter {
 };
 
 /* Main message type used between library and application */
-struct __attribute__ ((packed)) ems_cpc_msg {
+struct __packed ems_cpc_msg {
 	u8 type;	/* type of message */
 	u8 length;	/* length of data within union 'msg' */
 	u8 msgid;	/* confirmation handle */

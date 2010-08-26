@@ -35,9 +35,9 @@ struct cpu_stop_done {
 /* the actual stopper, one per every possible cpu, enabled on online cpus */
 struct cpu_stopper {
 	spinlock_t		lock;
+	bool			enabled;	/* is this stopper enabled? */
 	struct list_head	works;		/* list of pending works */
 	struct task_struct	*thread;	/* stopper thread */
-	bool			enabled;	/* is this stopper enabled? */
 };
 
 static DEFINE_PER_CPU(struct cpu_stopper, cpu_stopper);
@@ -321,7 +321,7 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
-	case CPU_DEAD:
+	case CPU_POST_DEAD:
 	{
 		struct cpu_stop_work *work;
 

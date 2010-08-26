@@ -1197,7 +1197,6 @@ ERROR4:
 	if (data->lm75[1])
 		i2c_unregister_device(data->lm75[1]);
 ERROR3:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 ERROR1:
 	return err;
@@ -1219,7 +1218,6 @@ w83781d_remove(struct i2c_client *client)
 	if (data->lm75[1])
 		i2c_unregister_device(data->lm75[1]);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return 0;
