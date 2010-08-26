@@ -504,6 +504,12 @@ static void emulate_ts(struct x86_emulate_ctxt *ctxt, int err)
 	emulate_exception(ctxt, TS_VECTOR, err, true);
 }
 
+static int emulate_de(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_exception(ctxt, DE_VECTOR, 0, false);
+	return X86EMUL_PROPAGATE_FAULT;
+}
+
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 			      struct x86_emulate_ops *ops,
 			      unsigned long eip, u8 *dest)
@@ -1458,6 +1464,7 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	unsigned long *rax = &c->regs[VCPU_REGS_RAX];
 	unsigned long *rdx = &c->regs[VCPU_REGS_RDX];
+	u8 de = 0;
 
 	switch (c->modrm_reg) {
 	case 0 ... 1:	/* test */
@@ -1476,14 +1483,18 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 		emulate_1op_rax_rdx("imul", c->src, *rax, *rdx, ctxt->eflags);
 		break;
 	case 6: /* div */
-		emulate_1op_rax_rdx("div", c->src, *rax, *rdx, ctxt->eflags);
+		emulate_1op_rax_rdx_ex("div", c->src, *rax, *rdx,
+				       ctxt->eflags, de);
 		break;
 	case 7: /* idiv */
-		emulate_1op_rax_rdx("idiv", c->src, *rax, *rdx, ctxt->eflags);
+		emulate_1op_rax_rdx_ex("idiv", c->src, *rax, *rdx,
+				       ctxt->eflags, de);
 		break;
 	default:
 		return X86EMUL_UNHANDLEABLE;
 	}
+	if (de)
+		return emulate_de(ctxt);
 	return X86EMUL_CONTINUE;
 }
 
@@ -3413,8 +3424,9 @@ special_insn:
 		ctxt->eflags ^= EFLG_CF;
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
-		if (emulate_grp3(ctxt, ops) != X86EMUL_CONTINUE)
-			goto cannot_emulate;
+		rc = emulate_grp3(ctxt, ops);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
