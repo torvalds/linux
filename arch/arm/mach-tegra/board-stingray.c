@@ -640,13 +640,8 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ "uartb",	"clk_m",	26000000,	true},
 	{ "uartc",	"pll_m",	600000000,	false},
 	/*{ "emc",	"pll_p",	0,		true},
-	{ "pll_m",	NULL,		600000000,	true},
 	{ "emc",	"pll_m",	600000000,	false},*/
-	{ "host1x",	"pll_m",	150000000,	true},
-	{ "2d",		"pll_m",	300000000,	true},
-	{ "3d",		"pll_m",	300000000,	true},
-	{ "epp",	"pll_m",	100000000,	true},
-	{ "vi",		"pll_m",	100000000,	true},
+	{ "pll_m",	NULL,		600000000,	true},
 	{ "pll_a",	NULL,		24000000,	false},
 	{ "pll_a_out0",	NULL,		24000000,	false},
 	{ "i2s1",	"pll_a_out0",	24000000,	false},
@@ -980,15 +975,6 @@ static void __init tegra_stingray_init(void)
 
 	nvmap_add_carveout_heap(TEGRA_IRAM_BASE, TEGRA_IRAM_SIZE, "iram",
 				NVMEM_HEAP_CARVEOUT_IRAM);
-
-	clk = clk_get_sys("3d", NULL);
-	tegra_periph_reset_assert(clk);
-	writel(0x101, IO_ADDRESS(TEGRA_PMC_BASE) + 0x30);
-	clk_enable(clk);
-	udelay(10);
-	writel(1 << 1, IO_ADDRESS(TEGRA_PMC_BASE) + 0x34);
-	tegra_periph_reset_deassert(clk);
-	clk_put(clk);
 
 	init_das();
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
