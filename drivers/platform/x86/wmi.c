@@ -824,6 +824,8 @@ static acpi_status parse_wdg(acpi_handle handle)
 		return status;
 
 	obj = (union acpi_object *) out.pointer;
+	if (!obj)
+		return AE_ERROR;
 
 	if (obj->type != ACPI_TYPE_BUFFER) {
 		status = AE_ERROR;
