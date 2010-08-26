@@ -637,8 +637,6 @@ void radeon_pm_fini(struct radeon_device *rdev)
 	}
 
 	radeon_hwmon_fini(rdev);
-	if (rdev->pm.i2c_bus)
-		radeon_i2c_destroy(rdev->pm.i2c_bus);
 }
 
 void radeon_pm_compute_clocks(struct radeon_device *rdev)
