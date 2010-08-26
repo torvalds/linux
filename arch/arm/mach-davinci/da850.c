@@ -325,10 +325,17 @@ static struct clk lcdc_clk = {
 	.gpsc		= 1,
 };
 
-static struct clk mmcsd_clk = {
-	.name		= "mmcsd",
+static struct clk mmcsd0_clk = {
+	.name		= "mmcsd0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC0_MMC_SD,
+};
+
+static struct clk mmcsd1_clk = {
+	.name		= "mmcsd1",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA850_LPSC1_MMC_SD1,
+	.gpsc		= 1,
 };
 
 static struct clk aemif_clk = {
@@ -377,7 +384,8 @@ static struct clk_lookup da850_clks[] = {
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
-	CLK("davinci_mmc.0",	NULL,		&mmcsd_clk),
+	CLK("davinci_mmc.0",	NULL,		&mmcsd0_clk),
+	CLK("davinci_mmc.1",	NULL,		&mmcsd1_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		NULL,		NULL),
 };
