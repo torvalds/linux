@@ -80,17 +80,19 @@
  */
 
 	/* OFFSETS for Function 0 */
-#define		AMBASE			0x48 /* AMB Mem Mapped Reg Region Base */
-#define		MAXCH			0x56 /* Max Channel Number */
-#define		MAXDIMMPERCH		0x57 /* Max DIMM PER Channel Number */
+#define AMBASE			0x48 /* AMB Mem Mapped Reg Region Base */
+#define MAXCH			0x56 /* Max Channel Number */
+#define MAXDIMMPERCH		0x57 /* Max DIMM PER Channel Number */
 
 	/* OFFSETS for Function 1 */
-#define		TOLM			0x6C
-#define		REDMEMB			0x7C
+#define MC_SETTINGS		0x40
 
-#define		MIR0			0x80
-#define		MIR1			0x84
-#define		MIR2			0x88
+#define TOLM			0x6C
+#define REDMEMB			0x7C
+
+#define MIR0			0x80
+#define MIR1			0x84
+#define MIR2			0x88
 
 #if 0
 #define		AMIR0			0x8c
@@ -393,6 +395,7 @@ struct i7300_pvt {
 
 	u16 tolm;				/* top of low memory */
 	u64 ambase;				/* AMB BAR */
+	u32 mc_settings;
 
 	u16 mir[MAX_MIR];
 
@@ -1020,6 +1023,15 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 	debugf2("Actual TOLM byte addr=%u.%03u GB (0x%x)\n",
 		actual_tolm/1000, actual_tolm % 1000, pvt->tolm << 28);
 
+	/* Get memory controller settings */
+	pci_read_config_dword(pvt->branchmap_werrors, MC_SETTINGS,
+			     &pvt->mc_settings);
+	debugf0("Memory controller operating on %s mode\n",
+		pvt->mc_settings & (1 << 16)? "mirrored" : "non-mirrored");
+	debugf0("Error detection is %s\n",
+		pvt->mc_settings & (1 << 5)? "enabled" : "disabled");
+
+	/* Get Memory Interleave Range registers */
 	pci_read_config_word(pvt->branchmap_werrors, MIR0, &pvt->mir[0]);
 	pci_read_config_word(pvt->branchmap_werrors, MIR1, &pvt->mir[1]);
 	pci_read_config_word(pvt->branchmap_werrors, MIR2, &pvt->mir[2]);
