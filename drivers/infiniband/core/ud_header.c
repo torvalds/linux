@@ -33,6 +33,7 @@
 
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/if_ether.h>
 
 #include <rdma/ib_pack.h>
 
@@ -100,6 +101,17 @@ static const struct ib_field eth_table[]  = {
 	{ STRUCT_FIELD(eth, type),
 	  .offset_words = 3,
 	  .offset_bits  = 0,
+	  .size_bits    = 16 }
+};
+
+static const struct ib_field vlan_table[]  = {
+	{ STRUCT_FIELD(vlan, tag),
+	  .offset_words = 0,
+	  .offset_bits  = 0,
+	  .size_bits    = 16 },
+	{ STRUCT_FIELD(vlan, type),
+	  .offset_words = 0,
+	  .offset_bits  = 16,
 	  .size_bits    = 16 }
 };
 
@@ -205,6 +217,7 @@ static const struct ib_field deth_table[] = {
  * @payload_bytes:Length of packet payload
  * @lrh_present: specify if LRH is present
  * @eth_present: specify if Eth header is present
+ * @vlan_present: packet is tagged vlan
  * @grh_present:GRH flag (if non-zero, GRH will be included)
  * @immediate_present: specify if immediate data is present
  * @header:Structure to initialize
@@ -212,6 +225,7 @@ static const struct ib_field deth_table[] = {
 void ib_ud_header_init(int     		    payload_bytes,
 		       int		    lrh_present,
 		       int		    eth_present,
+		       int		    vlan_present,
 		       int    		    grh_present,
 		       int		    immediate_present,
 		       struct ib_ud_header *header)
@@ -234,6 +248,9 @@ void ib_ud_header_init(int     		    payload_bytes,
 		header->lrh.packet_length = cpu_to_be16(packet_length);
 	}
 
+	if (vlan_present)
+		header->eth.type = cpu_to_be16(ETH_P_8021Q);
+
 	if (grh_present) {
 		header->grh.ip_version      = 6;
 		header->grh.payload_length  =
@@ -254,6 +271,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 
 	header->lrh_present = lrh_present;
 	header->eth_present = eth_present;
+	header->vlan_present = vlan_present;
 	header->grh_present = grh_present;
 	header->immediate_present = immediate_present;
 }
@@ -311,6 +329,11 @@ int ib_ud_header_pack(struct ib_ud_header *header,
 		ib_pack(eth_table, ARRAY_SIZE(eth_table),
 			&header->eth, buf + len);
 		len += IB_ETH_BYTES;
+	}
+	if (header->vlan_present) {
+		ib_pack(vlan_table, ARRAY_SIZE(vlan_table),
+			&header->vlan, buf + len);
+		len += IB_VLAN_BYTES;
 	}
 	if (header->grh_present) {
 		ib_pack(grh_table, ARRAY_SIZE(grh_table),

@@ -39,6 +39,7 @@
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/socket.h>
+#include <linux/if_vlan.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
 
@@ -129,21 +130,41 @@ static inline int rdma_addr_gid_offset(struct rdma_dev_addr *dev_addr)
 	return dev_addr->dev_type == ARPHRD_INFINIBAND ? 4 : 0;
 }
 
-static inline void iboe_mac_to_ll(union ib_gid *gid, u8 *mac)
+static inline void iboe_mac_vlan_to_ll(union ib_gid *gid, u8 *mac, u16 vid)
 {
 	memset(gid->raw, 0, 16);
 	*((__be32 *) gid->raw) = cpu_to_be32(0xfe800000);
-	gid->raw[12] = 0xfe;
-	gid->raw[11] = 0xff;
+	if (vid < 0x1000) {
+		gid->raw[12] = vid & 0xff;
+		gid->raw[11] = vid >> 8;
+	} else {
+		gid->raw[12] = 0xfe;
+		gid->raw[11] = 0xff;
+	}
 	memcpy(gid->raw + 13, mac + 3, 3);
 	memcpy(gid->raw + 8, mac, 3);
 	gid->raw[8] ^= 2;
 }
 
+static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_802_1Q_VLAN ?
+		vlan_dev_vlan_id(dev) : 0xffff;
+}
+
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 				      union ib_gid *gid)
 {
-	iboe_mac_to_ll(gid, dev_addr->src_dev_addr);
+	struct net_device *dev;
+	u16 vid = 0xffff;
+
+	dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+	if (dev) {
+		vid = rdma_vlan_dev_vlan_id(dev);
+		dev_put(dev);
+	}
+
+	iboe_mac_vlan_to_ll(gid, dev_addr->src_dev_addr, vid);
 }
 
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
@@ -242,6 +263,20 @@ static inline void rdma_get_mcast_mac(struct in6_addr *addr, u8 *mac)
 	mac[1] = 0x33;
 	for (i = 2; i < 6; ++i)
 		mac[i] = addr->s6_addr[i + 10];
+}
+
+static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
+{
+	u16 vid;
+
+	vid = dgid->raw[11] << 8 | dgid->raw[12];
+	return vid < 0x1000 ? vid : 0xffff;
+}
+
+static inline struct net_device *rdma_vlan_dev_real_dev(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_802_1Q_VLAN ?
+		vlan_dev_real_dev(dev) : 0;
 }
 
 #endif /* IB_ADDR_H */

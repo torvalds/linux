@@ -1791,6 +1791,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	struct sockaddr_in *src_addr = (struct sockaddr_in *)&route->addr.src_addr;
 	struct sockaddr_in *dst_addr = (struct sockaddr_in *)&route->addr.dst_addr;
 	struct net_device *ndev = NULL;
+	u16 vid;
 
 	if (src_addr->sin_family != dst_addr->sin_family)
 		return -EINVAL;
@@ -1810,20 +1811,23 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 
 	route->num_paths = 1;
 
-	iboe_mac_to_ll(&route->path_rec->sgid, addr->dev_addr.src_dev_addr);
-	iboe_mac_to_ll(&route->path_rec->dgid, addr->dev_addr.dst_dev_addr);
-
-	route->path_rec->hop_limit = 1;
-	route->path_rec->reversible = 1;
-	route->path_rec->pkey = cpu_to_be16(0xffff);
-	route->path_rec->mtu_selector = IB_SA_EQ;
-
 	if (addr->dev_addr.bound_dev_if)
 		ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
 	if (!ndev) {
 		ret = -ENODEV;
 		goto err2;
 	}
+
+	vid = rdma_vlan_dev_vlan_id(ndev);
+
+	iboe_mac_vlan_to_ll(&route->path_rec->sgid, addr->dev_addr.src_dev_addr, vid);
+	iboe_mac_vlan_to_ll(&route->path_rec->dgid, addr->dev_addr.dst_dev_addr, vid);
+
+	route->path_rec->hop_limit = 1;
+	route->path_rec->reversible = 1;
+	route->path_rec->pkey = cpu_to_be16(0xffff);
+	route->path_rec->mtu_selector = IB_SA_EQ;
+	route->path_rec->sl = id_priv->tos >> 5;
 
 	route->path_rec->mtu = iboe_get_mtu(ndev->mtu);
 	route->path_rec->rate_selector = IB_SA_EQ;

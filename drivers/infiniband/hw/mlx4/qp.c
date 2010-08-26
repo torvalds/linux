@@ -1291,7 +1291,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 
 	is_eth = rdma_port_get_link_layer(sqp->qp.ibqp.device, sqp->qp.port) == IB_LINK_LAYER_ETHERNET;
 	is_grh = mlx4_ib_ah_grh_present(ah);
-	ib_ud_header_init(send_size, !is_eth, is_eth, is_grh, 0, &sqp->ud_header);
+	ib_ud_header_init(send_size, !is_eth, is_eth, 0, is_grh, 0, &sqp->ud_header);
 
 	if (!is_eth) {
 		sqp->ud_header.lrh.service_level =

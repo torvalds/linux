@@ -38,6 +38,7 @@
 enum {
 	IB_LRH_BYTES  = 8,
 	IB_ETH_BYTES  = 14,
+	IB_VLAN_BYTES = 4,
 	IB_GRH_BYTES  = 40,
 	IB_BTH_BYTES  = 12,
 	IB_DETH_BYTES = 8
@@ -219,11 +220,18 @@ struct ib_unpacked_eth {
 	__be16	type;
 };
 
+struct ib_unpacked_vlan {
+	__be16  tag;
+	__be16  type;
+};
+
 struct ib_ud_header {
 	int                     lrh_present;
 	struct ib_unpacked_lrh  lrh;
 	int			eth_present;
 	struct ib_unpacked_eth	eth;
+	int                     vlan_present;
+	struct ib_unpacked_vlan vlan;
 	int			grh_present;
 	struct ib_unpacked_grh	grh;
 	struct ib_unpacked_bth	bth;
@@ -245,6 +253,7 @@ void ib_unpack(const struct ib_field        *desc,
 void ib_ud_header_init(int		    payload_bytes,
 		       int		    lrh_present,
 		       int		    eth_present,
+		       int		    vlan_present,
 		       int		    grh_present,
 		       int		    immediate_present,
 		       struct ib_ud_header *header);
