@@ -2324,7 +2324,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		path = ceph_mdsc_build_path(dentry, &pathlen, &pathbase, 0);
 		if (IS_ERR(path)) {
 			err = PTR_ERR(path);
-			BUG_ON(err);
+			goto out_dput;
 		}
 	} else {
 		path = NULL;
@@ -2332,7 +2332,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	}
 	err = ceph_pagelist_encode_string(pagelist, path, pathlen);
 	if (err)
-		goto out;
+		goto out_free;
 
 	spin_lock(&inode->i_lock);
 	cap->seq = 0;        /* reset cap seq */
@@ -2376,8 +2376,9 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		unlock_kernel();
 	}
 
-out:
+out_free:
 	kfree(path);
+out_dput:
 	dput(dentry);
 	return err;
 }
