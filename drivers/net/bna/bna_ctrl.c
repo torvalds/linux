@@ -81,7 +81,7 @@ bna_ll_isr(void *llarg, struct bfi_mbmsg *msg)
 			/* Post the next entry, if needed */
 			if (to_post) {
 				mb_qe = bfa_q_first(&bna->mbox_mod.posted_q);
-				bfa_ioc_mbox_queue(&bna->device.ioc,
+				bfa_nw_ioc_mbox_queue(&bna->device.ioc,
 							&mb_qe->cmd);
 			}
 		} else {
@@ -107,7 +107,7 @@ bna_err_handler(struct bna *bna, u32 intr_status)
 		writel(init_halt, bna->device.ioc.ioc_regs.ll_halt);
 	}
 
-	bfa_ioc_error_isr(&bna->device.ioc);
+	bfa_nw_ioc_error_isr(&bna->device.ioc);
 }
 
 void
@@ -118,7 +118,7 @@ bna_mbox_handler(struct bna *bna, u32 intr_status)
 		return;
 	}
 	if (BNA_IS_MBOX_INTR(intr_status))
-		bfa_ioc_mbox_isr(&bna->device.ioc);
+		bfa_nw_ioc_mbox_isr(&bna->device.ioc);
 }
 
 void
@@ -133,7 +133,7 @@ bna_mbox_send(struct bna *bna, struct bna_mbox_qe *mbox_qe)
 	bna->mbox_mod.msg_pending++;
 	if (bna->mbox_mod.state == BNA_MBOX_FREE) {
 		list_add_tail(&mbox_qe->qe, &bna->mbox_mod.posted_q);
-		bfa_ioc_mbox_queue(&bna->device.ioc, &mbox_qe->cmd);
+		bfa_nw_ioc_mbox_queue(&bna->device.ioc, &mbox_qe->cmd);
 		bna->mbox_mod.state = BNA_MBOX_POSTED;
 	} else {
 		list_add_tail(&mbox_qe->qe, &bna->mbox_mod.posted_q);
@@ -180,7 +180,7 @@ bna_mbox_mod_stop(struct bna_mbox_mod *mbox_mod)
 void
 bna_mbox_mod_init(struct bna_mbox_mod *mbox_mod, struct bna *bna)
 {
-	bfa_ioc_mbox_regisr(&bna->device.ioc, BFI_MC_LL, bna_ll_isr, bna);
+	bfa_nw_ioc_mbox_regisr(&bna->device.ioc, BFI_MC_LL, bna_ll_isr, bna);
 	mbox_mod->state = BNA_MBOX_FREE;
 	mbox_mod->msg_ctr = mbox_mod->msg_pending = 0;
 	INIT_LIST_HEAD(&mbox_mod->posted_q);
@@ -1289,7 +1289,7 @@ bna_port_mtu_set(struct bna_port *port, int mtu,
 void
 bna_port_mac_get(struct bna_port *port, mac_t *mac)
 {
-	*mac = bfa_ioc_get_mac(&port->bna->device.ioc);
+	*mac = bfa_nw_ioc_get_mac(&port->bna->device.ioc);
 }
 
 /**
@@ -1427,7 +1427,7 @@ bna_device_sm_stopped(struct bna_device *device,
 	case DEVICE_E_ENABLE:
 		if (device->intr_type == BNA_INTR_T_MSIX)
 			bna_mbox_msix_idx_set(device);
-		bfa_ioc_enable(&device->ioc);
+		bfa_nw_ioc_enable(&device->ioc);
 		bfa_fsm_set_state(device, bna_device_sm_ioc_ready_wait);
 		break;
 
@@ -1547,7 +1547,7 @@ bna_device_sm_port_stop_wait(struct bna_device *device,
 static void
 bna_device_sm_ioc_disable_wait_entry(struct bna_device *device)
 {
-	bfa_ioc_disable(&device->ioc);
+	bfa_nw_ioc_disable(&device->ioc);
 }
 
 static void
@@ -1655,12 +1655,12 @@ bna_device_init(struct bna_device *device, struct bna *bna,
 	 *	1. DMA memory for IOC attributes
 	 *	2. Kernel memory for FW trace
 	 */
-	bfa_ioc_attach(&device->ioc, device, &bfa_iocll_cbfn);
-	bfa_ioc_pci_init(&device->ioc, &bna->pcidev, BFI_MC_LL);
+	bfa_nw_ioc_attach(&device->ioc, device, &bfa_iocll_cbfn);
+	bfa_nw_ioc_pci_init(&device->ioc, &bna->pcidev, BFI_MC_LL);
 
 	BNA_GET_DMA_ADDR(
 		&res_info[BNA_RES_MEM_T_ATTR].res_u.mem_info.mdl[0].dma, dma);
-	bfa_ioc_mem_claim(&device->ioc,
+	bfa_nw_ioc_mem_claim(&device->ioc,
 		res_info[BNA_RES_MEM_T_ATTR].res_u.mem_info.mdl[0].kva,
 			  dma);
 
@@ -1686,9 +1686,7 @@ bna_device_uninit(struct bna_device *device)
 {
 	bna_mbox_mod_uninit(&device->bna->mbox_mod);
 
-	bfa_cee_detach(&device->bna->cee);
-
-	bfa_ioc_detach(&device->ioc);
+	bfa_nw_ioc_detach(&device->ioc);
 
 	device->bna = NULL;
 }
@@ -1783,10 +1781,10 @@ bna_adv_device_init(struct bna_device *device, struct bna *bna,
 		&res_info[BNA_RES_MEM_T_COM].res_u.mem_info.mdl[0].dma, dma);
 	kva = res_info[BNA_RES_MEM_T_COM].res_u.mem_info.mdl[0].kva;
 
-	bfa_cee_attach(&bna->cee, &device->ioc, bna);
-	bfa_cee_mem_claim(&bna->cee, kva, dma);
-	kva += bfa_cee_meminfo();
-	dma += bfa_cee_meminfo();
+	bfa_nw_cee_attach(&bna->cee, &device->ioc, bna);
+	bfa_nw_cee_mem_claim(&bna->cee, kva, dma);
+	kva += bfa_nw_cee_meminfo();
+	dma += bfa_nw_cee_meminfo();
 
 }
 
@@ -1800,7 +1798,7 @@ bna_adv_res_req(struct bna_res_info *res_info)
 	res_info[BNA_RES_MEM_T_COM].res_u.mem_info.mem_type = BNA_MEM_T_DMA;
 	res_info[BNA_RES_MEM_T_COM].res_u.mem_info.num = 1;
 	res_info[BNA_RES_MEM_T_COM].res_u.mem_info.len = ALIGN(
-				bfa_cee_meminfo(), PAGE_SIZE);
+				bfa_nw_cee_meminfo(), PAGE_SIZE);
 
 	/* Virtual memory for retreiving fw_trc */
 	res_info[BNA_RES_MEM_T_FWTRC].res_type = BNA_RES_T_MEM;
@@ -3333,7 +3331,7 @@ bna_res_req(struct bna_res_info *res_info)
 	res_info[BNA_RES_MEM_T_ATTR].res_u.mem_info.mem_type = BNA_MEM_T_DMA;
 	res_info[BNA_RES_MEM_T_ATTR].res_u.mem_info.num = 1;
 	res_info[BNA_RES_MEM_T_ATTR].res_u.mem_info.len =
-				ALIGN(bfa_ioc_meminfo(), PAGE_SIZE);
+				ALIGN(bfa_nw_ioc_meminfo(), PAGE_SIZE);
 
 	/* DMA memory for index segment of an IB */
 	res_info[BNA_RES_MEM_T_IBIDX].res_type = BNA_RES_T_MEM;

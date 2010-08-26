@@ -152,7 +152,7 @@ bfa_cee_reset_stats_isr(struct bfa_cee *cee, enum bfa_status status)
 		cee->cbfn.reset_stats_cbfn(cee->cbfn.reset_stats_cbarg, status);
 }
 /**
- * bfa_cee_meminfo()
+ * bfa_nw_cee_meminfo()
  *
  * @brief Returns the size of the DMA memory needed by CEE module
  *
@@ -161,13 +161,13 @@ bfa_cee_reset_stats_isr(struct bfa_cee *cee, enum bfa_status status)
  * @return Size of DMA region
  */
 u32
-bfa_cee_meminfo(void)
+bfa_nw_cee_meminfo(void)
 {
 	return bfa_cee_attr_meminfo() + bfa_cee_stats_meminfo();
 }
 
 /**
- * bfa_cee_mem_claim()
+ * bfa_nw_cee_mem_claim()
  *
  * @brief Initialized CEE DMA Memory
  *
@@ -178,7 +178,7 @@ bfa_cee_meminfo(void)
  * @return void
  */
 void
-bfa_cee_mem_claim(struct bfa_cee *cee, u8 *dma_kva, u64 dma_pa)
+bfa_nw_cee_mem_claim(struct bfa_cee *cee, u8 *dma_kva, u64 dma_pa)
 {
 	cee->attr_dma.kva = dma_kva;
 	cee->attr_dma.pa = dma_pa;
@@ -187,108 +187,6 @@ bfa_cee_mem_claim(struct bfa_cee *cee, u8 *dma_kva, u64 dma_pa)
 	cee->attr = (struct bfa_cee_attr *) dma_kva;
 	cee->stats = (struct bfa_cee_stats *)
 		(dma_kva + bfa_cee_attr_meminfo());
-}
-
-/**
- * bfa_cee_get_attr()
- *
- * @brief
- *   Send the request to the f/w to fetch CEE attributes.
- *
- * @param[in] Pointer to the CEE module data structure.
- *
- * @return Status
- */
-
-enum bfa_status
-bfa_cee_get_attr(struct bfa_cee *cee, struct bfa_cee_attr *attr,
-		     bfa_cee_get_attr_cbfn_t cbfn, void *cbarg)
-{
-	struct bfi_cee_get_req *cmd;
-
-	BUG_ON(!((cee != NULL) && (cee->ioc != NULL)));
-	if (!bfa_ioc_is_operational(cee->ioc))
-		return BFA_STATUS_IOC_FAILURE;
-	if (cee->get_attr_pending == true)
-		return 	BFA_STATUS_DEVBUSY;
-	cee->get_attr_pending = true;
-	cmd = (struct bfi_cee_get_req *) cee->get_cfg_mb.msg;
-	cee->attr = attr;
-	cee->cbfn.get_attr_cbfn = cbfn;
-	cee->cbfn.get_attr_cbarg = cbarg;
-	bfi_h2i_set(cmd->mh, BFI_MC_CEE, BFI_CEE_H2I_GET_CFG_REQ,
-	    bfa_ioc_portid(cee->ioc));
-	bfa_dma_be_addr_set(cmd->dma_addr, cee->attr_dma.pa);
-	bfa_ioc_mbox_queue(cee->ioc, &cee->get_cfg_mb);
-
-	return BFA_STATUS_OK;
-}
-
-/**
- * bfa_cee_get_stats()
- *
- * @brief
- *   Send the request to the f/w to fetch CEE statistics.
- *
- * @param[in] Pointer to the CEE module data structure.
- *
- * @return Status
- */
-
-enum bfa_status
-bfa_cee_get_stats(struct bfa_cee *cee, struct bfa_cee_stats *stats,
-		      bfa_cee_get_stats_cbfn_t cbfn, void *cbarg)
-{
-	struct bfi_cee_get_req *cmd;
-
-	BUG_ON(!((cee != NULL) && (cee->ioc != NULL)));
-
-	if (!bfa_ioc_is_operational(cee->ioc))
-		return BFA_STATUS_IOC_FAILURE;
-	if (cee->get_stats_pending == true)
-		return 	BFA_STATUS_DEVBUSY;
-	cee->get_stats_pending = true;
-	cmd = (struct bfi_cee_get_req *) cee->get_stats_mb.msg;
-	cee->stats = stats;
-	cee->cbfn.get_stats_cbfn = cbfn;
-	cee->cbfn.get_stats_cbarg = cbarg;
-	bfi_h2i_set(cmd->mh, BFI_MC_CEE, BFI_CEE_H2I_GET_STATS_REQ,
-	    bfa_ioc_portid(cee->ioc));
-	bfa_dma_be_addr_set(cmd->dma_addr, cee->stats_dma.pa);
-	bfa_ioc_mbox_queue(cee->ioc, &cee->get_stats_mb);
-
-	return BFA_STATUS_OK;
-}
-
-/**
- * bfa_cee_reset_stats()
- *
- * @brief Clears CEE Stats in the f/w.
- *
- * @param[in] Pointer to the CEE module data structure.
- *
- * @return Status
- */
-
-enum bfa_status
-bfa_cee_reset_stats(struct bfa_cee *cee, bfa_cee_reset_stats_cbfn_t cbfn,
-			void *cbarg)
-{
-	struct bfi_cee_reset_stats *cmd;
-
-	BUG_ON(!((cee != NULL) && (cee->ioc != NULL)));
-	if (!bfa_ioc_is_operational(cee->ioc))
-		return BFA_STATUS_IOC_FAILURE;
-	if (cee->reset_stats_pending == true)
-		return 	BFA_STATUS_DEVBUSY;
-	cee->reset_stats_pending = true;
-	cmd = (struct bfi_cee_reset_stats *) cee->reset_stats_mb.msg;
-	cee->cbfn.reset_stats_cbfn = cbfn;
-	cee->cbfn.reset_stats_cbarg = cbarg;
-	bfi_h2i_set(cmd->mh, BFI_MC_CEE, BFI_CEE_H2I_RESET_STATS,
-	    bfa_ioc_portid(cee->ioc));
-	bfa_ioc_mbox_queue(cee->ioc, &cee->reset_stats_mb);
-	return BFA_STATUS_OK;
 }
 
 /**
@@ -301,7 +199,7 @@ bfa_cee_reset_stats(struct bfa_cee *cee, bfa_cee_reset_stats_cbfn_t cbfn,
  * @return void
  */
 
-void
+static void
 bfa_cee_isr(void *cbarg, struct bfi_mbmsg *m)
 {
 	union bfi_cee_i2h_msg_u *msg;
@@ -334,7 +232,7 @@ bfa_cee_isr(void *cbarg, struct bfi_mbmsg *m)
  * @return void
  */
 
-void
+static void
 bfa_cee_hbfail(void *arg)
 {
 	struct bfa_cee *cee;
@@ -367,7 +265,7 @@ bfa_cee_hbfail(void *arg)
 }
 
 /**
- * bfa_cee_attach()
+ * bfa_nw_cee_attach()
  *
  * @brief CEE module-attach API
  *
@@ -380,28 +278,14 @@ bfa_cee_hbfail(void *arg)
  * @return void
  */
 void
-bfa_cee_attach(struct bfa_cee *cee, struct bfa_ioc *ioc,
+bfa_nw_cee_attach(struct bfa_cee *cee, struct bfa_ioc *ioc,
 		void *dev)
 {
 	BUG_ON(!(cee != NULL));
 	cee->dev = dev;
 	cee->ioc = ioc;
 
-	bfa_ioc_mbox_regisr(cee->ioc, BFI_MC_CEE, bfa_cee_isr, cee);
+	bfa_nw_ioc_mbox_regisr(cee->ioc, BFI_MC_CEE, bfa_cee_isr, cee);
 	bfa_ioc_hbfail_init(&cee->hbfail, bfa_cee_hbfail, cee);
-	bfa_ioc_hbfail_register(cee->ioc, &cee->hbfail);
-}
-
-/**
- * bfa_cee_detach()
- *
- * @brief CEE module-detach API
- *
- * @param[in] cee - Pointer to the CEE module data structure
- *
- * @return void
- */
-void
-bfa_cee_detach(struct bfa_cee *cee)
-{
+	bfa_nw_ioc_hbfail_register(cee->ioc, &cee->hbfail);
 }

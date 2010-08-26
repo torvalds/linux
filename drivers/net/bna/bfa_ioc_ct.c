@@ -32,25 +32,26 @@ static void bfa_ioc_ct_map_port(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc *ioc, bool msix);
 static void bfa_ioc_ct_notify_hbfail(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc);
+static enum bfa_status bfa_ioc_ct_pll_init(void __iomem *rb, bool fcmode);
 
-struct bfa_ioc_hwif hwif_ct;
+struct bfa_ioc_hwif nw_hwif_ct;
 
 /**
  * Called from bfa_ioc_attach() to map asic specific calls.
  */
 void
-bfa_ioc_set_ct_hwif(struct bfa_ioc *ioc)
+bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc)
 {
-	hwif_ct.ioc_pll_init = bfa_ioc_ct_pll_init;
-	hwif_ct.ioc_firmware_lock = bfa_ioc_ct_firmware_lock;
-	hwif_ct.ioc_firmware_unlock = bfa_ioc_ct_firmware_unlock;
-	hwif_ct.ioc_reg_init = bfa_ioc_ct_reg_init;
-	hwif_ct.ioc_map_port = bfa_ioc_ct_map_port;
-	hwif_ct.ioc_isr_mode_set = bfa_ioc_ct_isr_mode_set;
-	hwif_ct.ioc_notify_hbfail = bfa_ioc_ct_notify_hbfail;
-	hwif_ct.ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
+	nw_hwif_ct.ioc_pll_init = bfa_ioc_ct_pll_init;
+	nw_hwif_ct.ioc_firmware_lock = bfa_ioc_ct_firmware_lock;
+	nw_hwif_ct.ioc_firmware_unlock = bfa_ioc_ct_firmware_unlock;
+	nw_hwif_ct.ioc_reg_init = bfa_ioc_ct_reg_init;
+	nw_hwif_ct.ioc_map_port = bfa_ioc_ct_map_port;
+	nw_hwif_ct.ioc_isr_mode_set = bfa_ioc_ct_isr_mode_set;
+	nw_hwif_ct.ioc_notify_hbfail = bfa_ioc_ct_notify_hbfail;
+	nw_hwif_ct.ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
 
-	ioc->ioc_hwif = &hwif_ct;
+	ioc->ioc_hwif = &nw_hwif_ct;
 }
 
 /**
@@ -76,7 +77,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 						BFA_IOC_FWIMG_MINSZ)
 		return true;
 
-	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
+	bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
 
 	/**
@@ -84,7 +85,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	 */
 	if (usecnt == 0) {
 		writel(1, ioc->ioc_regs.ioc_usage_reg);
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 		return true;
 	}
 
@@ -98,9 +99,9 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	/**
 	 * Check if another driver with a different firmware is active
 	 */
-	bfa_ioc_fwver_get(ioc, &fwhdr);
-	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr)) {
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
+	if (!bfa_nw_ioc_fwver_cmp(ioc, &fwhdr)) {
+		bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 		return false;
 	}
 
@@ -109,7 +110,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	 */
 	usecnt++;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 	return true;
 }
 
@@ -134,14 +135,14 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 	/**
 	 * decrement usage count
 	 */
-	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
+	bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
 	BUG_ON(!(usecnt > 0));
 
 	usecnt--;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
 
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
 /**
@@ -302,9 +303,9 @@ static void
 bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 {
 	if (ioc->cna) {
-		bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
+		bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(0, ioc->ioc_regs.ioc_usage_reg);
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 	}
 
 	/*
@@ -313,10 +314,10 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
-	bfa_ioc_hw_sem_release(ioc);
+	bfa_nw_ioc_hw_sem_release(ioc);
 }
 
-enum bfa_status
+static enum bfa_status
 bfa_ioc_ct_pll_init(void __iomem *rb, bool fcmode)
 {
 	u32	pll_sclk, pll_fclk, r32;

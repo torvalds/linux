@@ -1365,7 +1365,7 @@ bnad_ioc_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_ioc_timeout((void *) &bnad->bna.device.ioc);
+	bfa_nw_ioc_timeout((void *) &bnad->bna.device.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -1376,7 +1376,7 @@ bnad_ioc_hb_check(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_ioc_hb_check((void *) &bnad->bna.device.ioc);
+	bfa_nw_ioc_hb_check((void *) &bnad->bna.device.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -1387,7 +1387,7 @@ bnad_ioc_sem_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_ioc_sem_timeout((void *) &bnad->bna.device.ioc);
+	bfa_nw_ioc_sem_timeout((void *) &bnad->bna.device.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -3067,7 +3067,6 @@ bnad_pci_probe(struct pci_dev *pdev,
 	}
 	bnad = netdev_priv(netdev);
 
-
 	/*
 	 * PCI initialization
 	 * 	Output : using_dac = 1 for 64 bit DMA
@@ -3239,7 +3238,7 @@ bnad_module_init(void)
 
 	pr_info("Brocade 10G Ethernet driver\n");
 
-	bfa_ioc_auto_recover(bnad_ioc_auto_recover);
+	bfa_nw_ioc_auto_recover(bnad_ioc_auto_recover);
 
 	err = pci_register_driver(&bnad_pci_driver);
 	if (err < 0) {

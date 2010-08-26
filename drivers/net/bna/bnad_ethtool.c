@@ -276,7 +276,7 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	if (ioc_attr) {
 		memset(ioc_attr, 0, sizeof(*ioc_attr));
 		spin_lock_irqsave(&bnad->bna_lock, flags);
-		bfa_ioc_get_attr(&bnad->bna.device.ioc, ioc_attr);
+		bfa_nw_ioc_get_attr(&bnad->bna.device.ioc, ioc_attr);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 		strncpy(drvinfo->fw_version, ioc_attr->adapter_attr.fw_ver,
