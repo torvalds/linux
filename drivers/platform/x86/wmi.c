@@ -47,6 +47,7 @@ MODULE_LICENSE("GPL");
 #define PREFIX "ACPI: WMI: "
 
 static DEFINE_MUTEX(wmi_data_lock);
+static LIST_HEAD(wmi_block_list);
 
 struct guid_block {
 	char guid[16];
@@ -70,7 +71,6 @@ struct wmi_block {
 	struct device *dev;
 };
 
-static struct wmi_block wmi_blocks;
 
 /*
  * If the GUID data block is marked as expensive, we must enable and
@@ -234,7 +234,7 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 	wmi_parse_guid(guid_string, tmp);
 	wmi_swap_bytes(tmp, guid_input);
 
-	list_for_each(p, &wmi_blocks.list) {
+	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 		block = &wblock->gblock;
 
@@ -621,7 +621,7 @@ acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
 	params[0].type = ACPI_TYPE_INTEGER;
 	params[0].integer.value = event;
 
-	list_for_each(p, &wmi_blocks.list) {
+	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 		gblock = &wblock->gblock;
 
@@ -709,7 +709,7 @@ static int wmi_create_devs(void)
 	struct device *guid_dev;
 
 	/* Create devices for all the GUIDs */
-	list_for_each(p, &wmi_blocks.list) {
+	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 
 		guid_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
@@ -746,7 +746,7 @@ static void wmi_remove_devs(void)
 	struct device *guid_dev;
 
 	/* Delete devices for all the GUIDs */
-	list_for_each(p, &wmi_blocks.list) {
+	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 
 		guid_dev = wblock->dev;
@@ -785,7 +785,7 @@ static bool guid_already_parsed(const char *guid_string)
 	struct wmi_block *wblock;
 	struct list_head *p;
 
-	list_for_each(p, &wmi_blocks.list) {
+	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 		gblock = &wblock->gblock;
 
@@ -799,7 +799,7 @@ static void free_wmi_blocks(void)
 {
 	struct wmi_block *wblock, *next;
 
-	list_for_each_entry_safe(wblock, next, &wmi_blocks.list, list) {
+	list_for_each_entry_safe(wblock, next, &wmi_block_list, list) {
 		list_del(&wblock->list);
 		kfree(wblock);
 	}
@@ -864,7 +864,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 			wblock->handler = wmi_notify_debug;
 			wmi_method_enable(wblock, 1);
 		}
-		list_add_tail(&wblock->list, &wmi_blocks.list);
+		list_add_tail(&wblock->list, &wmi_block_list);
 	}
 
 out_free_pointer:
@@ -927,7 +927,7 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 	struct list_head *p;
 	char guid_string[37];
 
-	list_for_each(p, &wmi_blocks.list) {
+	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 		block = &wblock->gblock;
 
@@ -986,8 +986,6 @@ static int acpi_wmi_add(struct acpi_device *device)
 static int __init acpi_wmi_init(void)
 {
 	int result;
-
-	INIT_LIST_HEAD(&wmi_blocks.list);
 
 	if (acpi_disabled)
 		return -ENODEV;
