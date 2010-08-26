@@ -1230,9 +1230,22 @@ static void check_ioctl_unit_attention(ctlr_info_t *h, CommandList_struct *c)
 			c->err_info->ScsiStatus != SAM_STAT_CHECK_CONDITION)
 		(void)check_for_unit_attention(h, c);
 }
-/*
- * ioctl
- */
+
+static int cciss_getpciinfo(ctlr_info_t *h, void __user *argp)
+{
+	cciss_pci_info_struct pciinfo;
+
+	if (!argp)
+		return -EINVAL;
+	pciinfo.domain = pci_domain_nr(h->pdev->bus);
+	pciinfo.bus = h->pdev->bus->number;
+	pciinfo.dev_fn = h->pdev->devfn;
+	pciinfo.board_id = h->board_id;
+	if (copy_to_user(argp, &pciinfo, sizeof(cciss_pci_info_struct)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1245,20 +1258,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		cmd, arg);
 	switch (cmd) {
 	case CCISS_GETPCIINFO:
-		{
-			cciss_pci_info_struct pciinfo;
-
-			if (!arg)
-				return -EINVAL;
-			pciinfo.domain = pci_domain_nr(h->pdev->bus);
-			pciinfo.bus = h->pdev->bus->number;
-			pciinfo.dev_fn = h->pdev->devfn;
-			pciinfo.board_id = h->board_id;
-			if (copy_to_user
-			    (argp, &pciinfo, sizeof(cciss_pci_info_struct)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getpciinfo(h, argp);
 	case CCISS_GETINTINFO:
 		{
 			cciss_coalint_struct intinfo;
