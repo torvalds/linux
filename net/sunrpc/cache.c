@@ -509,17 +509,6 @@ static LIST_HEAD(cache_defer_list);
 static struct list_head cache_defer_hash[DFR_HASHSIZE];
 static int cache_defer_cnt;
 
-struct thread_deferred_req {
-	struct cache_deferred_req handle;
-	struct completion completion;
-};
-static void cache_restart_thread(struct cache_deferred_req *dreq, int too_many)
-{
-	struct thread_deferred_req *dr =
-		container_of(dreq, struct thread_deferred_req, handle);
-	complete(&dr->completion);
-}
-
 static void __unhash_deferred_req(struct cache_deferred_req *dreq)
 {
 	list_del_init(&dreq->recent);
@@ -537,29 +526,9 @@ static void __hash_deferred_req(struct cache_deferred_req *dreq, struct cache_he
 	list_add(&dreq->hash, &cache_defer_hash[hash]);
 }
 
-static int cache_defer_req(struct cache_req *req, struct cache_head *item)
+static int setup_deferral(struct cache_deferred_req *dreq, struct cache_head *item)
 {
-	struct cache_deferred_req *dreq, *discard;
-	struct thread_deferred_req sleeper;
-
-	if (cache_defer_cnt >= DFR_MAX) {
-		/* too much in the cache, randomly drop this one,
-		 * or continue and drop the oldest below
-		 */
-		if (net_random()&1)
-			return -ENOMEM;
-	}
-	if (req->thread_wait) {
-		dreq = &sleeper.handle;
-		sleeper.completion =
-			COMPLETION_INITIALIZER_ONSTACK(sleeper.completion);
-		dreq->revisit = cache_restart_thread;
-	} else
-		dreq = req->defer(req);
-
- retry:
-	if (dreq == NULL)
-		return -ENOMEM;
+	struct cache_deferred_req *discard;
 
 	dreq->item = item;
 
@@ -585,42 +554,88 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 		cache_revisit_request(item);
 		return -EAGAIN;
 	}
-
-	if (dreq == &sleeper.handle) {
-		if (wait_for_completion_interruptible_timeout(
-			    &sleeper.completion, req->thread_wait) <= 0) {
-			/* The completion wasn't completed, so we need
-			 * to clean up
-			 */
-			spin_lock(&cache_defer_lock);
-			if (!list_empty(&sleeper.handle.hash)) {
-				__unhash_deferred_req(&sleeper.handle);
-				spin_unlock(&cache_defer_lock);
-			} else {
-				/* cache_revisit_request already removed
-				 * this from the hash table, but hasn't
-				 * called ->revisit yet.  It will very soon
-				 * and we need to wait for it.
-				 */
-				spin_unlock(&cache_defer_lock);
-				wait_for_completion(&sleeper.completion);
-			}
-		}
-		if (test_bit(CACHE_PENDING, &item->flags)) {
-			/* item is still pending, try request
-			 * deferral
-			 */
-			dreq = req->defer(req);
-			goto retry;
-		}
-		/* only return success if we actually deferred the
-		 * request.  In this case we waited until it was
-		 * answered so no deferral has happened - rather
-		 * an answer already exists.
-		 */
-		return -EEXIST;
-	}
 	return 0;
+}
+
+struct thread_deferred_req {
+	struct cache_deferred_req handle;
+	struct completion completion;
+};
+
+static void cache_restart_thread(struct cache_deferred_req *dreq, int too_many)
+{
+	struct thread_deferred_req *dr =
+		container_of(dreq, struct thread_deferred_req, handle);
+	complete(&dr->completion);
+}
+
+static int cache_wait_req(struct cache_req *req, struct cache_head *item)
+{
+	struct thread_deferred_req sleeper;
+	struct cache_deferred_req *dreq = &sleeper.handle;
+	int ret;
+
+	sleeper.completion = COMPLETION_INITIALIZER_ONSTACK(sleeper.completion);
+	dreq->revisit = cache_restart_thread;
+
+	ret = setup_deferral(dreq, item);
+	if (ret)
+		return ret;
+
+	if (wait_for_completion_interruptible_timeout(
+		    &sleeper.completion, req->thread_wait) <= 0) {
+		/* The completion wasn't completed, so we need
+		 * to clean up
+		 */
+		spin_lock(&cache_defer_lock);
+		if (!list_empty(&sleeper.handle.hash)) {
+			__unhash_deferred_req(&sleeper.handle);
+			spin_unlock(&cache_defer_lock);
+		} else {
+			/* cache_revisit_request already removed
+			 * this from the hash table, but hasn't
+			 * called ->revisit yet.  It will very soon
+			 * and we need to wait for it.
+			 */
+			spin_unlock(&cache_defer_lock);
+			wait_for_completion(&sleeper.completion);
+		}
+	}
+	if (test_bit(CACHE_PENDING, &item->flags)) {
+		/* item is still pending, try request
+		 * deferral
+		 */
+		return -ETIMEDOUT;
+	}
+	/* only return success if we actually deferred the
+	 * request.  In this case we waited until it was
+	 * answered so no deferral has happened - rather
+	 * an answer already exists.
+	 */
+	return -EEXIST;
+}
+
+static int cache_defer_req(struct cache_req *req, struct cache_head *item)
+{
+	struct cache_deferred_req *dreq;
+	int ret;
+
+	if (cache_defer_cnt >= DFR_MAX) {
+		/* too much in the cache, randomly drop this one,
+		 * or continue and drop the oldest
+		 */
+		if (net_random()&1)
+			return -ENOMEM;
+	}
+	if (req->thread_wait) {
+		ret = cache_wait_req(req, item);
+		if (ret != -ETIMEDOUT)
+			return ret;
+	}
+	dreq = req->defer(req);
+	if (dreq == NULL)
+		return -ENOMEM;
+	return setup_deferral(dreq, item);
 }
 
 static void cache_revisit_request(struct cache_head *item)
