@@ -637,10 +637,12 @@ void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	}
 
 	/* And finally the ICMP checksum */
-	icmph->icmp6_cksum = 0;
-	/* TODO IPv6: is this correct for ICMPv6? */
-	ip_vs_checksum_complete(skb, icmp_offset);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	icmph->icmp6_cksum = ~csum_ipv6_magic(&iph->saddr, &iph->daddr,
+					      skb->len - icmp_offset,
+					      IPPROTO_ICMPV6, 0);
+	skb->csum_start = skb_network_header(skb) - skb->head + icmp_offset;
+	skb->csum_offset = offsetof(struct icmp6hdr, icmp6_cksum);
+	skb->ip_summed = CHECKSUM_PARTIAL;
 
 	if (inout)
 		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
