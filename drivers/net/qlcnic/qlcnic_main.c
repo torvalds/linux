@@ -967,7 +967,8 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 	if (load_fw_file)
 		qlcnic_request_firmware(adapter);
 	else {
-		if (qlcnic_check_flash_fw_ver(adapter))
+		err = qlcnic_check_flash_fw_ver(adapter);
+		if (err)
 			goto err_out;
 
 		adapter->fw_type = QLCNIC_FLASH_ROMIMAGE;
@@ -998,9 +999,11 @@ set_dev_ready:
 	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
 	qlcnic_idc_debug_info(adapter, 1);
 
-	if (qlcnic_set_default_offload_settings(adapter))
+	err = qlcnic_set_default_offload_settings(adapter);
+	if (err)
 		goto err_out;
-	if (qlcnic_reset_npar_config(adapter))
+	err = qlcnic_reset_npar_config(adapter);
+	if (err)
 		goto err_out;
 	qlcnic_dev_set_npar_ready(adapter);
 	qlcnic_check_options(adapter);
@@ -1515,7 +1518,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
-	if (qlcnic_setup_idc_param(adapter))
+	err = qlcnic_setup_idc_param(adapter);
+	if (err)
 		goto err_out_iounmap;
 
 	err = adapter->nic_ops->start_firmware(adapter);
