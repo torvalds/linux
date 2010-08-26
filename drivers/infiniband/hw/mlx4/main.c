@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_vlan.h>
 
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
@@ -78,6 +79,8 @@ static void init_query_mad(struct ib_smp *mad)
 	mad->class_version = 1;
 	mad->method	   = IB_MGMT_METHOD_GET;
 }
+
+static union ib_gid zgid;
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props)
@@ -755,12 +758,17 @@ static struct device_attribute *mlx4_class_attributes[] = {
 	&dev_attr_board_id
 };
 
-static void mlx4_addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
+static void mlx4_addrconf_ifid_eui48(u8 *eui, u16 vlan_id, struct net_device *dev)
 {
 	memcpy(eui, dev->dev_addr, 3);
 	memcpy(eui + 5, dev->dev_addr + 3, 3);
-	eui[3] = 0xFF;
-	eui[4] = 0xFE;
+	if (vlan_id < 0x1000) {
+		eui[3] = vlan_id >> 8;
+		eui[4] = vlan_id & 0xff;
+	} else {
+		eui[3] = 0xff;
+		eui[4] = 0xfe;
+	}
 	eui[0] ^= 2;
 }
 
@@ -802,28 +810,93 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 {
 	struct net_device *ndev = dev->iboe.netdevs[port - 1];
 	struct update_gid_work *work;
+	struct net_device *tmp;
+	int i;
+	u8 *hits;
+	int ret;
+	union ib_gid gid;
+	int free;
+	int found;
+	int need_update = 0;
+	u16 vid;
 
 	work = kzalloc(sizeof *work, GFP_ATOMIC);
 	if (!work)
 		return -ENOMEM;
 
-	if (!clear) {
-		mlx4_addrconf_ifid_eui48(&work->gids[0].raw[8], ndev);
-		work->gids[0].global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
+	hits = kzalloc(128, GFP_ATOMIC);
+	if (!hits) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	INIT_WORK(&work->work, update_gids_task);
-	work->port = port;
-	work->dev = dev;
-	queue_work(wq, &work->work);
+	read_lock(&dev_base_lock);
+	for_each_netdev(&init_net, tmp) {
+		if (ndev && (tmp == ndev || rdma_vlan_dev_real_dev(tmp) == ndev)) {
+			gid.global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
+			vid = rdma_vlan_dev_vlan_id(tmp);
+			mlx4_addrconf_ifid_eui48(&gid.raw[8], vid, ndev);
+			found = 0;
+			free = -1;
+			for (i = 0; i < 128; ++i) {
+				if (free < 0 &&
+				    !memcmp(&dev->iboe.gid_table[port - 1][i], &zgid, sizeof zgid))
+					free = i;
+				if (!memcmp(&dev->iboe.gid_table[port - 1][i], &gid, sizeof gid)) {
+					hits[i] = 1;
+					found = 1;
+					break;
+				}
+			}
 
+			if (!found) {
+				if (tmp == ndev &&
+				    (memcmp(&dev->iboe.gid_table[port - 1][0],
+					    &gid, sizeof gid) ||
+				     !memcmp(&dev->iboe.gid_table[port - 1][0],
+					     &zgid, sizeof gid))) {
+					dev->iboe.gid_table[port - 1][0] = gid;
+					++need_update;
+					hits[0] = 1;
+				} else if (free >= 0) {
+					dev->iboe.gid_table[port - 1][free] = gid;
+					hits[free] = 1;
+					++need_update;
+				}
+			}
+		}
+	}
+	read_unlock(&dev_base_lock);
+
+	for (i = 0; i < 128; ++i)
+		if (!hits[i]) {
+			if (memcmp(&dev->iboe.gid_table[port - 1][i], &zgid, sizeof zgid))
+				++need_update;
+			dev->iboe.gid_table[port - 1][i] = zgid;
+		}
+
+	if (need_update) {
+		memcpy(work->gids, dev->iboe.gid_table[port - 1], sizeof work->gids);
+		INIT_WORK(&work->work, update_gids_task);
+		work->port = port;
+		work->dev = dev;
+		queue_work(wq, &work->work);
+	} else
+		kfree(work);
+
+	kfree(hits);
 	return 0;
+
+out:
+	kfree(work);
+	return ret;
 }
 
 static void handle_en_event(struct mlx4_ib_dev *dev, int port, unsigned long event)
 {
 	switch (event) {
 	case NETDEV_UP:
+	case NETDEV_CHANGEADDR:
 		update_ipv6_gids(dev, port, 0);
 		break;
 
@@ -871,9 +944,11 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 		}
 	}
 
-	if (dev == iboe->netdevs[0])
+	if (dev == iboe->netdevs[0] ||
+	    (iboe->netdevs[0] && rdma_vlan_dev_real_dev(dev) == iboe->netdevs[0]))
 		handle_en_event(ibdev, 1, event);
-	else if (dev == iboe->netdevs[1])
+	else if (dev == iboe->netdevs[1]
+		 || (iboe->netdevs[1] && rdma_vlan_dev_real_dev(dev) == iboe->netdevs[1]))
 		handle_en_event(ibdev, 2, event);
 
 	spin_unlock(&iboe->lock);
