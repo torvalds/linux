@@ -2387,6 +2387,11 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
 #define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
 
+#define D6ALU(_f) D2bv((_f) | DstMem | SrcReg | ModRM),			\
+		D2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock),		\
+		D2bv(((_f) & ~Lock) | DstAcc | SrcImm)
+
+
 static struct opcode group1[] = {
 	X7(D(Lock)), N
 };
@@ -2439,35 +2444,25 @@ static struct group_dual group9 = { {
 
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm),
+	D6ALU(Lock),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x08 - 0x0F */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm),
+	D6ALU(Lock),
 	D(ImplicitOps | Stack | No64), N,
 	/* 0x10 - 0x17 */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm),
+	D6ALU(Lock),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x18 - 0x1F */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm),
+	D6ALU(Lock),
 	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
 	/* 0x20 - 0x27 */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm), N, N,
+	D6ALU(Lock), N, N,
 	/* 0x28 - 0x2F */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm),
-	N, I(ByteOp | DstAcc | No64, em_das),
+	D6ALU(Lock), N, I(ByteOp | DstAcc | No64, em_das),
 	/* 0x30 - 0x37 */
-	D2bv(DstMem | SrcReg | ModRM | Lock), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm), N, N,
+	D6ALU(Lock), N, N,
 	/* 0x38 - 0x3F */
-	D2bv(DstMem | SrcReg | ModRM), D2bv(DstReg | SrcMem | ModRM),
-	D2bv(DstAcc | SrcImm),
-	N, N,
+	D6ALU(0), N, N,
 	/* 0x40 - 0x4F */
 	X16(D(DstReg)),
 	/* 0x50 - 0x57 */
@@ -2618,6 +2613,7 @@ static struct opcode twobyte_table[256] = {
 
 #undef D2bv
 #undef I2bv
+#undef D6ALU
 
 static unsigned imm_size(struct decode_cache *c)
 {
