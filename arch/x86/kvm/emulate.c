@@ -2464,17 +2464,16 @@ static struct opcode opcode_table[256] = {
 	/* 0xB8 - 0xBF */
 	X8(D(DstReg | SrcImm | Mov)),
 	/* 0xC0 - 0xC7 */
-	D(ByteOp | DstMem | SrcImm | ModRM), D(DstMem | SrcImmByte | ModRM),
+	D2bv(DstMem | SrcImmByte | ModRM),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	D(ImplicitOps | Stack),
 	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
-	D(ByteOp | DstMem | SrcImm | ModRM | Mov), D(DstMem | SrcImm | ModRM | Mov),
+	D2bv(DstMem | SrcImm | ModRM | Mov),
 	/* 0xC8 - 0xCF */
 	N, N, N, D(ImplicitOps | Stack),
 	D(ImplicitOps), D(SrcImmByte), D(ImplicitOps | No64), D(ImplicitOps),
 	/* 0xD0 - 0xD7 */
-	D(ByteOp | DstMem | SrcOne | ModRM), D(DstMem | SrcOne | ModRM),
-	D(ByteOp | DstMem | ModRM), D(DstMem | ModRM),
+	D2bv(DstMem | SrcOne | ModRM), D2bv(DstMem | ModRM),
 	N, N, N, N,
 	/* 0xD8 - 0xDF */
 	N, N, N, N, N, N, N, N,
