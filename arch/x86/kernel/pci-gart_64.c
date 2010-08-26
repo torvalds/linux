@@ -41,6 +41,7 @@
 #include <asm/dma.h>
 #include <asm/k8.h>
 #include <asm/x86_init.h>
+#include <asm/iommu_table.h>
 
 static unsigned long iommu_bus_base;	/* GART remapping area (physical) */
 static unsigned long iommu_size;	/* size of remapping area bytes */
@@ -896,3 +897,4 @@ void __init gart_parse_options(char *p)
 		}
 	}
 }
+IOMMU_INIT_POST(gart_iommu_hole_init);

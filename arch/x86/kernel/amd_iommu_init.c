@@ -31,7 +31,7 @@
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
-
+#include <asm/iommu_table.h>
 /*
  * definitions for the ACPI scanning code
  */
@@ -1430,3 +1430,8 @@ static int __init parse_amd_iommu_options(char *str)
 
 __setup("amd_iommu_dump", parse_amd_iommu_dump);
 __setup("amd_iommu=", parse_amd_iommu_options);
+
+IOMMU_INIT_FINISH(amd_iommu_detect,
+		  gart_iommu_hole_init,
+		  0,
+		  0);
