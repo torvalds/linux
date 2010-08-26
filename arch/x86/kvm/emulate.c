@@ -2451,11 +2451,11 @@ static struct opcode opcode_table[256] = {
 	I(SrcImmFAddr | No64, em_call_far), N,
 	D(ImplicitOps | Stack), D(ImplicitOps | Stack), N, N,
 	/* 0xA0 - 0xA7 */
-	D(ByteOp | DstAcc | SrcMem | Mov | MemAbs), D(DstAcc | SrcMem | Mov | MemAbs),
-	D(ByteOp | DstMem | SrcAcc | Mov | MemAbs), D(DstMem | SrcAcc | Mov | MemAbs),
+	D2bv(DstAcc | SrcMem | Mov | MemAbs),
+	D2bv(DstMem | SrcAcc | Mov | MemAbs),
 	D2bv(SrcSI | DstDI | Mov | String), D2bv(SrcSI | DstDI | String),
 	/* 0xA8 - 0xAF */
-	D(DstAcc | SrcImmByte | ByteOp), D(DstAcc | SrcImm),
+	D2bv(DstAcc | SrcImm),
 	D2bv(SrcAcc | DstDI | Mov | String),
 	D2bv(SrcSI | DstAcc | Mov | String),
 	D2bv(SrcAcc | DstDI | String),
