@@ -2268,7 +2268,8 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  *
  * When hardware scan offload is used (i.e. the hw_scan() callback is
  * assigned) this function needs to be called by the driver to notify
- * mac80211 that the scan finished.
+ * mac80211 that the scan finished. This function can be called from
+ * any context, including hardirq context.
  *
  * @hw: the hardware that finished the scan
  * @aborted: set to true if scan was aborted
