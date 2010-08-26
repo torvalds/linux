@@ -1208,28 +1208,6 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
             //WAIT_ME();
             while(!(pDDR_Reg->CTRL_REG_03 & 0x100));
             pDDR_Reg->CTRL_REG_10 &= ~(0x1);
-            if(memType == DDRII)
-            {
-                if(333000 < KHz)
-                {
-                    pDDR_Reg->CTRL_REG_82 = 0x00885555;
-                }
-                else
-                {
-                    pDDR_Reg->CTRL_REG_82 = 0x00685555;
-                }
-            }
-            else
-            {
-                if(133000 < KHz)
-                {
-                    pDDR_Reg->CTRL_REG_82 = 0x00840000; 
-                }
-                else
-                {
-                    pDDR_Reg->CTRL_REG_82 = 0x00640000; 
-                }
-            }
             if(110000 > KHz)
             {
                 DLLBypass(KHz);
@@ -1506,14 +1484,12 @@ static void  SDRAM_DDR_Init(void)
     telement = 0;
     if(memType == DDRII)
     {
-        pDDR_Reg->CTRL_REG_82 = 0x00685555;
-                //tXSR = tXSRD = 200 tCK
+        //tXSR = tXSRD = 200 tCK
         pDDR_Reg->CTRL_REG_67 = TXSR(200);
      }
      else
      {
         pDDR_Reg->CTRL_REG_11 = 0x101;
-        pDDR_Reg->CTRL_REG_82 = 0x00640000; 
      }
             /* 20100609,HSL@RK,disable ddr interrupt .*/
             pDDR_Reg->CTRL_REG_45 = 0x07ff03ff; 

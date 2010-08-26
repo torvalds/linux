@@ -247,8 +247,8 @@ static int mma7660_get_data(void)
 	axis.y = -mma7660_convert_to_int(buffer[MMA7660_REG_Y_OUT]);
 	axis.z = -mma7660_convert_to_int(buffer[MMA7660_REG_Z_OUT]);
 
-    rk28printk( "%s: -------------------------------------------mma7660_GetData axis = %d  %d  %d-----------------------------------------------\n",
-           __func__, axis.x, axis.y, axis.z); 
+    //rk28printk( "%s: ------------------mma7660_GetData axis = %d  %d  %d--------------\n",
+    //       __func__, axis.x, axis.y, axis.z); 
      
     memcpy(sense_data, &axis, sizeof(axis));
     mma7660_report_value(sense_data);
@@ -354,7 +354,7 @@ static void  mma7660_delaywork_func(struct work_struct  *work)
 	if (mma7660_get_data() < 0) 
 		rk28printk(KERN_ERR "MMA7660 mma_work_func: Get data failed\n");
 	enable_irq(this_client->irq);		
-	rk28printk("---------------------------------------mma7660_delaywork_func------------------------------\n");
+	//rk28printk("---------------------------------------mma7660_delaywork_func------------------------------\n");
 
 }
 
@@ -363,7 +363,7 @@ static irqreturn_t mma7660_interrupt(int irq, void *dev_id)
 	struct mma7660_data *data = dev_id;
 	disable_irq_nosync(this_client->irq);
 	schedule_delayed_work(&data->delaywork,msecs_to_jiffies(30));
-	rk28printk("--------------------------------------mma7660_interrupt---------------------------------------\n");
+	//rk28printk("--------------------------------------mma7660_interrupt---------------------------------------\n");
 	
 	return IRQ_HANDLED;
 }
@@ -377,7 +377,7 @@ static struct file_operations mma7660_fops = {
 
 static struct miscdevice mma7660_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "mma7660_daemon",
+	.name = "gsensor",//"mma7660_daemon",
 	.fops = &mma7660_fops,
 };
 
@@ -549,7 +549,7 @@ static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id 
 #endif
 	rk28printk(KERN_INFO "mma7660 probe ok\n");
 	mma->status = -1;
-	mma7660_start(MMA7660_RATE_32);
+	//mma7660_start(MMA7660_RATE_32);
 	return 0;
 
 exit_gsensor_sysfs_init_failed:
