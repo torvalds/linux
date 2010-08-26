@@ -248,6 +248,8 @@ void vpa_init(int cpu)
 	int hwcpu = get_hard_smp_processor_id(cpu);
 	unsigned long addr;
 	long ret;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca_of(cpu).vmxregs_in_use = 1;
@@ -273,6 +275,25 @@ void vpa_init(int cpu)
 			       "WARNING: vpa_init: SLB shadow buffer "
 			       "registration for cpu %d (hw %d) of area %lx "
 			       "returns %ld\n", cpu, hwcpu, addr, ret);
+	}
+
+	/*
+	 * Register dispatch trace log, if one has been allocated.
+	 */
+	pp = &paca[cpu];
+	dtl = pp->dispatch_log;
+	if (dtl) {
+		pp->dtl_ridx = 0;
+		pp->dtl_curr = dtl;
+		lppaca_of(cpu).dtl_idx = 0;
+
+		/* hypervisor reads buffer length from this field */
+		dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+		ret = register_dtl(hwcpu, __pa(dtl));
+		if (ret)
+			pr_warn("DTL registration failed for cpu %d (%ld)\n",
+				cpu, ret);
+		lppaca_of(cpu).dtl_enable_mask = 2;
 	}
 }
 

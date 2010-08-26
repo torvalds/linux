@@ -517,7 +517,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	account_system_vtime(current);
 	account_process_vtime(current);
-	calculate_steal_time();
 
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a

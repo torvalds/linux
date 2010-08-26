@@ -27,26 +27,9 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/firmware.h>
+#include <asm/lppaca.h>
 
 #include "plpar_wrappers.h"
-
-/*
- * Layout of entries in the hypervisor's DTL buffer. Although we don't
- * actually access the internals of an entry (we only need to know the size),
- * we might as well define it here for reference.
- */
-struct dtl_entry {
-	u8	dispatch_reason;
-	u8	preempt_reason;
-	u16	processor_id;
-	u32	enqueue_to_dispatch_time;
-	u32	ready_to_enqueue_time;
-	u32	waiting_to_ready_time;
-	u64	timebase;
-	u64	fault_addr;
-	u64	srr0;
-	u64	srr1;
-};
 
 struct dtl {
 	struct dtl_entry	*buf;
@@ -236,6 +219,11 @@ static int dtl_init(void)
 {
 	struct dentry *event_mask_file, *buf_entries_file;
 	int rc, i;
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	/* disable this for now */
+	return -ENODEV;
+#endif
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -ENODEV;

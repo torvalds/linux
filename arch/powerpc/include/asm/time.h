@@ -34,7 +34,6 @@ extern void to_tm(int tim, struct rtc_time * tm);
 extern void GregorianDay(struct rtc_time *tm);
 
 extern void generic_calibrate_decr(void);
-extern void snapshot_timebase(void);
 
 extern void set_dec_cpu6(unsigned int val);
 
@@ -212,12 +211,8 @@ struct cpu_usage {
 DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING)
-extern void calculate_steal_time(void);
-extern void snapshot_timebases(void);
 #define account_process_vtime(tsk)		account_process_tick(tsk, 0)
 #else
-#define calculate_steal_time()			do { } while (0)
-#define snapshot_timebases()			do { } while (0)
 #define account_process_vtime(tsk)		do { } while (0)
 #endif
 

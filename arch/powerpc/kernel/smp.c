@@ -508,9 +508,6 @@ int __devinit start_secondary(void *unused)
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
 
-	if (system_state > SYSTEM_BOOTING)
-		snapshot_timebase();
-
 	secondary_cpu_time_init();
 
 	ipi_call_lock();
@@ -574,8 +571,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	set_cpus_allowed_ptr(current, old_mask);
 
 	free_cpumask_var(old_mask);
-
-	snapshot_timebases();
 
 	dump_numa_cpu_topology();
 }

@@ -273,6 +273,58 @@ static struct notifier_block pci_dn_reconfig_nb = {
 	.notifier_call = pci_dn_reconfig_notifier,
 };
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+/*
+ * Allocate space for the dispatch trace log for all possible cpus
+ * and register the buffers with the hypervisor.  This is used for
+ * computing time stolen by the hypervisor.
+ */
+static int alloc_dispatch_logs(void)
+{
+	int cpu, ret;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
+
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
+		return 0;
+
+	for_each_possible_cpu(cpu) {
+		pp = &paca[cpu];
+		dtl = kmalloc_node(DISPATCH_LOG_BYTES, GFP_KERNEL,
+				   cpu_to_node(cpu));
+		if (!dtl) {
+			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
+				cpu);
+			pr_warn("Stolen time statistics will be unreliable\n");
+			break;
+		}
+
+		pp->dtl_ridx = 0;
+		pp->dispatch_log = dtl;
+		pp->dispatch_log_end = dtl + N_DISPATCH_LOG;
+		pp->dtl_curr = dtl;
+	}
+
+	/* Register the DTL for the current (boot) cpu */
+	dtl = get_paca()->dispatch_log;
+	get_paca()->dtl_ridx = 0;
+	get_paca()->dtl_curr = dtl;
+	get_paca()->lppaca_ptr->dtl_idx = 0;
+
+	/* hypervisor reads buffer length from this field */
+	dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+	ret = register_dtl(hard_smp_processor_id(), __pa(dtl));
+	if (ret)
+		pr_warn("DTL registration failed for boot cpu %d (%d)\n",
+			smp_processor_id(), ret);
+	get_paca()->lppaca_ptr->dtl_enable_mask = 2;
+
+	return 0;
+}
+
+early_initcall(alloc_dispatch_logs);
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+
 static void __init pSeries_setup_arch(void)
 {
 	/* Discover PIC type and setup ppc_md accordingly */

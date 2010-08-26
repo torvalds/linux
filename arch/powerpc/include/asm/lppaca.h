@@ -172,6 +172,25 @@ struct slb_shadow {
 
 extern struct slb_shadow slb_shadow[];
 
+/*
+ * Layout of entries in the hypervisor's dispatch trace log buffer.
+ */
+struct dtl_entry {
+	u8	dispatch_reason;
+	u8	preempt_reason;
+	u16	processor_id;
+	u32	enqueue_to_dispatch_time;
+	u32	ready_to_enqueue_time;
+	u32	waiting_to_ready_time;
+	u64	timebase;
+	u64	fault_addr;
+	u64	srr0;
+	u64	srr1;
+};
+
+#define DISPATCH_LOG_BYTES	4096	/* bytes per cpu */
+#define N_DISPATCH_LOG		(DISPATCH_LOG_BYTES / sizeof(struct dtl_entry))
+
 #endif /* CONFIG_PPC_BOOK3S */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_LPPACA_H */
