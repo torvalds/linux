@@ -1260,6 +1260,37 @@ static int cciss_getintinfo(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_setintinfo(ctlr_info_t *h, void __user *argp)
+{
+	cciss_coalint_struct intinfo;
+	unsigned long flags;
+	int i;
+
+	if (!argp)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(&intinfo, argp, sizeof(intinfo)))
+		return -EFAULT;
+	if ((intinfo.delay == 0) && (intinfo.count == 0))
+		return -EINVAL;
+	spin_lock_irqsave(&h->lock, flags);
+	/* Update the field, and then ring the doorbell */
+	writel(intinfo.delay, &(h->cfgtable->HostWrite.CoalIntDelay));
+	writel(intinfo.count, &(h->cfgtable->HostWrite.CoalIntCount));
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+
+	for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		udelay(1000); /* delay and try again */
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	if (i >= MAX_IOCTL_CONFIG_WAIT)
+		return -EAGAIN;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1276,40 +1307,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_GETINTINFO:
 		return cciss_getintinfo(h, argp);
 	case CCISS_SETINTINFO:
-		{
-			cciss_coalint_struct intinfo;
-			unsigned long flags;
-			int i;
-
-			if (!arg)
-				return -EINVAL;
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-			if (copy_from_user
-			    (&intinfo, argp, sizeof(cciss_coalint_struct)))
-				return -EFAULT;
-			if ((intinfo.delay == 0) && (intinfo.count == 0))
-				return -EINVAL;
-			spin_lock_irqsave(&h->lock, flags);
-			/* Update the field, and then ring the doorbell */
-			writel(intinfo.delay,
-			       &(h->cfgtable->HostWrite.CoalIntDelay));
-			writel(intinfo.count,
-			       &(h->cfgtable->HostWrite.CoalIntCount));
-			writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-
-			for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
-				if (!(readl(h->vaddr + SA5_DOORBELL)
-				      & CFGTBL_ChangeReq))
-					break;
-				/* delay and try again */
-				udelay(1000);
-			}
-			spin_unlock_irqrestore(&h->lock, flags);
-			if (i >= MAX_IOCTL_CONFIG_WAIT)
-				return -EAGAIN;
-			return 0;
-		}
+		return cciss_setintinfo(h, argp);
 	case CCISS_GETNODENAME:
 		{
 			NodeName_type NodeName;
