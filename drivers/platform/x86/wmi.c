@@ -475,7 +475,7 @@ const struct acpi_buffer *in)
 }
 EXPORT_SYMBOL_GPL(wmi_set_block);
 
-static void wmi_dump_wdg(struct guid_block *g)
+static void wmi_dump_wdg(const struct guid_block *g)
 {
 	char guid_string[37];
 
@@ -812,7 +812,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
-	struct guid_block *gblock;
+	const struct guid_block *gblock;
 	struct wmi_block *wblock;
 	char guid_string[37];
 	acpi_status status;
@@ -832,13 +832,8 @@ static acpi_status parse_wdg(acpi_handle handle)
 		goto out_free_pointer;
 	}
 
+	gblock = (const struct guid_block *)obj->buffer.pointer;
 	total = obj->buffer.length / sizeof(struct guid_block);
-
-	gblock = kmemdup(obj->buffer.pointer, obj->buffer.length, GFP_KERNEL);
-	if (!gblock) {
-		status = AE_NO_MEMORY;
-		goto out_free_pointer;
-	}
 
 	for (i = 0; i < total; i++) {
 		/*
@@ -860,7 +855,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
 		if (!wblock) {
 			status = AE_NO_MEMORY;
-			goto out_free_gblock;
+			goto out_free_pointer;
 		}
 
 		wblock->gblock = gblock[i];
@@ -872,8 +867,6 @@ static acpi_status parse_wdg(acpi_handle handle)
 		list_add_tail(&wblock->list, &wmi_blocks.list);
 	}
 
-out_free_gblock:
-	kfree(gblock);
 out_free_pointer:
 	kfree(out.pointer);
 
