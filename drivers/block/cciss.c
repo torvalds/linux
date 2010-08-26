@@ -1371,8 +1371,19 @@ static int cciss_getfirmver(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getdrivver(ctlr_info_t *h, void __user *argp)
+{
+	DriverVer_type DriverVer = DRIVER_VERSION;
+
+	if (!argp)
+		return -EINVAL;
+	if (copy_to_user(argp, &DriverVer, sizeof(DriverVer_type)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
-		       unsigned int cmd, unsigned long arg)
+	unsigned int cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	ctlr_info_t *h = get_host(disk);
@@ -1399,18 +1410,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_GETFIRMVER:
 		return cciss_getfirmver(h, argp);
 	case CCISS_GETDRIVVER:
-		{
-			DriverVer_type DriverVer = DRIVER_VERSION;
-
-			if (!arg)
-				return -EINVAL;
-
-			if (copy_to_user
-			    (argp, &DriverVer, sizeof(DriverVer_type)))
-				return -EFAULT;
-			return 0;
-		}
-
+		return cciss_getdrivver(h, argp);
 	case CCISS_DEREGDISK:
 	case CCISS_REGNEWD:
 	case CCISS_REVALIDVOLS:
