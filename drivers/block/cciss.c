@@ -1382,12 +1382,27 @@ static int cciss_getdrivver(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getluninfo(ctlr_info_t *h,
+	struct gendisk *disk, void __user *argp)
+{
+	LogvolInfo_struct luninfo;
+	drive_info_struct *drv = get_drv(disk);
+
+	if (!argp)
+		return -EINVAL;
+	memcpy(&luninfo.LunID, drv->LunID, sizeof(luninfo.LunID));
+	luninfo.num_opens = drv->usage_count;
+	luninfo.num_parts = 0;
+	if (copy_to_user(argp, &luninfo, sizeof(LogvolInfo_struct)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	ctlr_info_t *h = get_host(disk);
-	drive_info_struct *drv = get_drv(disk);
 	void __user *argp = (void __user *)arg;
 
 	dev_dbg(&h->pdev->dev, "cciss_ioctl: Called with cmd=%x %lx\n",
@@ -1415,19 +1430,8 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_REGNEWD:
 	case CCISS_REVALIDVOLS:
 		return rebuild_lun_table(h, 0, 1);
-
-	case CCISS_GETLUNINFO:{
-			LogvolInfo_struct luninfo;
-
-			memcpy(&luninfo.LunID, drv->LunID,
-				sizeof(luninfo.LunID));
-			luninfo.num_opens = drv->usage_count;
-			luninfo.num_parts = 0;
-			if (copy_to_user(argp, &luninfo,
-					 sizeof(LogvolInfo_struct)))
-				return -EFAULT;
-			return 0;
-		}
+	case CCISS_GETLUNINFO:
+		return cciss_getluninfo(h, disk, argp);
 	case CCISS_PASSTHRU:
 		{
 			IOCTL_Command_struct iocommand;
