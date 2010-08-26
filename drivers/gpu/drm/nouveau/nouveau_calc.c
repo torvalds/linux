@@ -234,7 +234,7 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 }
 
 static void
-nv30_update_arb(int *burst, int *lwm)
+nv20_update_arb(int *burst, int *lwm)
 {
 	unsigned int fifo_size, burst_size, graphics_lwm;
 
@@ -251,14 +251,14 @@ nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->card_type < NV_30)
+	if (dev_priv->card_type < NV_20)
 		nv04_update_arb(dev, vclk, bpp, burst, lwm);
 	else if ((dev->pci_device & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
 		 (dev->pci_device & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {
 		*burst = 128;
 		*lwm = 0x0480;
 	} else
-		nv30_update_arb(burst, lwm);
+		nv20_update_arb(burst, lwm);
 }
 
 static int

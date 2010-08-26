@@ -866,10 +866,11 @@ nv_save_state_ext(struct drm_device *dev, int head,
 	rd_cio_state(dev, head, regp, NV_CIO_CRE_FFLWM__INDEX);
 	rd_cio_state(dev, head, regp, NV_CIO_CRE_21);
 
-	if (dev_priv->card_type >= NV_30) {
+	if (dev_priv->card_type >= NV_20)
 		rd_cio_state(dev, head, regp, NV_CIO_CRE_47);
+
+	if (dev_priv->card_type >= NV_30)
 		rd_cio_state(dev, head, regp, 0x9f);
-	}
 
 	rd_cio_state(dev, head, regp, NV_CIO_CRE_49);
 	rd_cio_state(dev, head, regp, NV_CIO_CRE_HCUR_ADDR0_INDEX);
@@ -976,10 +977,11 @@ nv_load_state_ext(struct drm_device *dev, int head,
 	wr_cio_state(dev, head, regp, NV_CIO_CRE_FF_INDEX);
 	wr_cio_state(dev, head, regp, NV_CIO_CRE_FFLWM__INDEX);
 
-	if (dev_priv->card_type >= NV_30) {
+	if (dev_priv->card_type >= NV_20)
 		wr_cio_state(dev, head, regp, NV_CIO_CRE_47);
+
+	if (dev_priv->card_type >= NV_30)
 		wr_cio_state(dev, head, regp, 0x9f);
-	}
 
 	wr_cio_state(dev, head, regp, NV_CIO_CRE_49);
 	wr_cio_state(dev, head, regp, NV_CIO_CRE_HCUR_ADDR0_INDEX);
