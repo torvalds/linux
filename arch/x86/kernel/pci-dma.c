@@ -133,8 +133,10 @@ void __init pci_iommu_alloc(void)
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
 
-	if (pci_xen_swiotlb_detect() || pci_swiotlb_detect())
+	if (pci_xen_swiotlb_detect() || pci_swiotlb_detect_override())
 		goto out;
+
+	pci_swiotlb_detect_4gb();
 
 	gart_iommu_hole_init();
 
