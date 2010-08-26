@@ -1333,6 +1333,18 @@ static int cciss_setnodename(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getheartbeat(ctlr_info_t *h, void __user *argp)
+{
+	Heartbeat_type heartbeat;
+
+	if (!argp)
+		return -EINVAL;
+	heartbeat = readl(&h->cfgtable->HeartBeat);
+	if (copy_to_user(argp, &heartbeat, sizeof(Heartbeat_type)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1355,17 +1367,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_SETNODENAME:
 		return cciss_setnodename(h, argp);
 	case CCISS_GETHEARTBEAT:
-		{
-			Heartbeat_type heartbeat;
-
-			if (!arg)
-				return -EINVAL;
-			heartbeat = readl(&h->cfgtable->HeartBeat);
-			if (copy_to_user
-			    (argp, &heartbeat, sizeof(Heartbeat_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getheartbeat(h, argp);
 	case CCISS_GETBUSTYPES:
 		{
 			BusTypes_type BusTypes;
