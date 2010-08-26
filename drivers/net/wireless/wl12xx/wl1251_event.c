@@ -34,9 +34,7 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 		     mbox->scheduled_scan_channels);
 
 	if (wl->scanning) {
-		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, false);
-		mutex_lock(&wl->mutex);
 		wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan completed");
 		wl->scanning = false;
 	}

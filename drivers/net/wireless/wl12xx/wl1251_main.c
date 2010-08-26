@@ -467,9 +467,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	WARN_ON(wl->state != WL1251_STATE_ON);
 
 	if (wl->scanning) {
-		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, true);
-		mutex_lock(&wl->mutex);
 		wl->scanning = false;
 	}
 
