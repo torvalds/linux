@@ -520,10 +520,26 @@ static void cache_restart_thread(struct cache_deferred_req *dreq, int too_many)
 	complete(&dr->completion);
 }
 
+static void __unhash_deferred_req(struct cache_deferred_req *dreq)
+{
+	list_del_init(&dreq->recent);
+	list_del_init(&dreq->hash);
+	cache_defer_cnt--;
+}
+
+static void __hash_deferred_req(struct cache_deferred_req *dreq, struct cache_head *item)
+{
+	int hash = DFR_HASH(item);
+
+	list_add(&dreq->recent, &cache_defer_list);
+	if (cache_defer_hash[hash].next == NULL)
+		INIT_LIST_HEAD(&cache_defer_hash[hash]);
+	list_add(&dreq->hash, &cache_defer_hash[hash]);
+}
+
 static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
 	struct cache_deferred_req *dreq, *discard;
-	int hash = DFR_HASH(item);
 	struct thread_deferred_req sleeper;
 
 	if (cache_defer_cnt >= DFR_MAX) {
@@ -549,20 +565,14 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 
 	spin_lock(&cache_defer_lock);
 
-	list_add(&dreq->recent, &cache_defer_list);
-
-	if (cache_defer_hash[hash].next == NULL)
-		INIT_LIST_HEAD(&cache_defer_hash[hash]);
-	list_add(&dreq->hash, &cache_defer_hash[hash]);
+	__hash_deferred_req(dreq, item);
 
 	/* it is in, now maybe clean up */
 	discard = NULL;
 	if (++cache_defer_cnt > DFR_MAX) {
 		discard = list_entry(cache_defer_list.prev,
 				     struct cache_deferred_req, recent);
-		list_del_init(&discard->recent);
-		list_del_init(&discard->hash);
-		cache_defer_cnt--;
+		__unhash_deferred_req(discard);
 	}
 	spin_unlock(&cache_defer_lock);
 
@@ -584,9 +594,7 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 			 */
 			spin_lock(&cache_defer_lock);
 			if (!list_empty(&sleeper.handle.hash)) {
-				list_del_init(&sleeper.handle.recent);
-				list_del_init(&sleeper.handle.hash);
-				cache_defer_cnt--;
+				__unhash_deferred_req(&sleeper.handle);
 				spin_unlock(&cache_defer_lock);
 			} else {
 				/* cache_revisit_request already removed
@@ -632,9 +640,8 @@ static void cache_revisit_request(struct cache_head *item)
 			dreq = list_entry(lp, struct cache_deferred_req, hash);
 			lp = lp->next;
 			if (dreq->item == item) {
-				list_del_init(&dreq->hash);
-				list_move(&dreq->recent, &pending);
-				cache_defer_cnt--;
+				__unhash_deferred_req(dreq);
+				list_add(&dreq->recent, &pending);
 			}
 		}
 	}
@@ -657,11 +664,8 @@ void cache_clean_deferred(void *owner)
 	spin_lock(&cache_defer_lock);
 
 	list_for_each_entry_safe(dreq, tmp, &cache_defer_list, recent) {
-		if (dreq->owner == owner) {
-			list_del_init(&dreq->hash);
-			list_move(&dreq->recent, &pending);
-			cache_defer_cnt--;
-		}
+		if (dreq->owner == owner)
+			__unhash_deferred_req(dreq);
 	}
 	spin_unlock(&cache_defer_lock);
 

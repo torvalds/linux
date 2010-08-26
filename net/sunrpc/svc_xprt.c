@@ -665,7 +665,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 
 		/* As there is a shortage of threads and this request
-		 * had to be queue, don't allow the thread to wait so
+		 * had to be queued, don't allow the thread to wait so
 		 * long for cache updates.
 		 */
 		rqstp->rq_chandle.thread_wait = 1*HZ;
