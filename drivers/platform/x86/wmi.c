@@ -825,8 +825,10 @@ static acpi_status parse_wdg(acpi_handle handle)
 
 	obj = (union acpi_object *) out.pointer;
 
-	if (obj->type != ACPI_TYPE_BUFFER)
-		return AE_ERROR;
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		status = AE_ERROR;
+		goto out_free_pointer;
+	}
 
 	total = obj->buffer.length / sizeof(struct guid_block);
 
