@@ -27,10 +27,10 @@
 static struct snd_soc_dai_link db1200_ac97_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",
-	.cpu_dai_name	= "au1xpsc-ac97",
 	.codec_dai_name	= "ac97-hifi",
-	.platform_name	=  "au1xpsc-pcm-audio",
-	.codec_name	= "ac97-codec",
+	.cpu_dai_name	= "au1xpsc_ac97.1",
+	.platform_name	= "au1xpsc-pcm.1",
+	.codec_name	= "ac97-codec.1",
 };
 
 static struct snd_soc_card db1200_ac97_machine = {
@@ -75,10 +75,10 @@ static struct snd_soc_ops db1200_i2s_wm8731_ops = {
 static struct snd_soc_dai_link db1200_i2s_dai = {
 	.name		= "WM8731",
 	.stream_name	= "WM8731 PCM",
-	.cpu_dai_name	= "au1xpsc",
-	.codec_dai_name	= "wm8731-hifi"
-	.platform_name	= "au1xpsc-pcm-audio",
-	.codec_name	= "wm8731-codec.0-001a",
+	.codec_dai_name	= "wm8731-hifi",
+	.cpu_dai_name	= "au1xpsc_i2s.1",
+	.platform_name	= "au1xpsc-pcm.1",
+	.codec_name	= "wm8731-codec.0-001b",
 	.ops		= &db1200_i2s_wm8731_ops,
 };
 
@@ -97,7 +97,7 @@ static int __init db1200_audio_load(void)
 	int ret;
 
 	ret = -ENOMEM;
-	db1200_asoc_dev = platform_device_alloc("soc-audio", -1);
+	db1200_asoc_dev = platform_device_alloc("soc-audio", 1); /* PSC1 */
 	if (!db1200_asoc_dev)
 		goto out;
 
