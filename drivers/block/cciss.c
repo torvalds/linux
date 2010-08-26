@@ -1357,6 +1357,20 @@ static int cciss_getbustypes(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getfirmver(ctlr_info_t *h, void __user *argp)
+{
+	FirmwareVer_type firmware;
+
+	if (!argp)
+		return -EINVAL;
+	memcpy(firmware, h->firm_ver, 4);
+
+	if (copy_to_user
+	    (argp, firmware, sizeof(FirmwareVer_type)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1383,18 +1397,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_GETBUSTYPES:
 		return cciss_getbustypes(h, argp);
 	case CCISS_GETFIRMVER:
-		{
-			FirmwareVer_type firmware;
-
-			if (!arg)
-				return -EINVAL;
-			memcpy(firmware, h->firm_ver, 4);
-
-			if (copy_to_user
-			    (argp, firmware, sizeof(FirmwareVer_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getfirmver(h, argp);
 	case CCISS_GETDRIVVER:
 		{
 			DriverVer_type DriverVer = DRIVER_VERSION;
