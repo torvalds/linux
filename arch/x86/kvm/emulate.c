@@ -2479,13 +2479,11 @@ static struct opcode opcode_table[256] = {
 	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
 	X4(D(SrcImmByte)),
-	D(ByteOp | SrcImmUByte | DstAcc), D(SrcImmUByte | DstAcc),
-	D(ByteOp | SrcAcc | DstImmUByte), D(SrcAcc | DstImmUByte),
+	D2bv(SrcImmUByte | DstAcc), D2bv(SrcAcc | DstImmUByte),
 	/* 0xE8 - 0xEF */
 	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
 	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
-	D(SrcNone | ByteOp | DstAcc), D(SrcNone | DstAcc),
-	D(ByteOp | SrcAcc | ImplicitOps), D(SrcAcc | ImplicitOps),
+	D2bv(SrcNone | DstAcc),	D2bv(SrcAcc | ImplicitOps),
 	/* 0xF0 - 0xF7 */
 	N, N, N, N,
 	D(ImplicitOps | Priv), D(ImplicitOps), G(ByteOp, group3), G(0, group3),
