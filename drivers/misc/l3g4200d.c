@@ -32,10 +32,6 @@
 
 #define DEBUG 1
 
-#define L3G4200D_G_2G			0x00
-#define L3G4200D_G_4G			0x10
-#define L3G4200D_G_8G			0x30
-
 /** Register map */
 #define L3G4200D_WHO_AM_I		0x0f
 #define L3G4200D_CTRL_REG1		0x20
@@ -64,19 +60,10 @@
 #define L3G4200D_INTERRUPT_THRESH_Z_L	0x37
 #define L3G4200D_INTERRUPT_DURATION	0x38
 
-/** Maximum polled-device-reported g value */
-#define G_MAX				8000
-
-#define SHIFT_ADJ_2G			4
-#define SHIFT_ADJ_4G			3
-#define SHIFT_ADJ_8G			2
-
 #define PM_OFF				0x00
 #define PM_NORMAL			0x20
 #define ENABLE_ALL_AXES			0x07
 
-#define FUZZ				32
-#define FLAT				32
 #define I2C_RETRY_DELAY			5
 #define I2C_RETRIES			5
 #define AUTO_INCREMENT			0x80
@@ -105,6 +92,7 @@ struct l3g4200d_data {
 
 	u8 shift_adj;
 	u8 resume_state[5];
+	u8 multiplier;
 };
 #ifdef DEBUG
 struct l3g4200d_reg {
@@ -136,7 +124,7 @@ struct l3g4200d_reg {
 	{ "OUT_Z_L",		L3G4200D_OUT_Z_L },
 };
 #endif
-static uint32_t l3g4200d_debug = 0xff;
+static uint32_t l3g4200d_debug;
 module_param_named(gyro_debug, l3g4200d_debug, uint, 0664);
 
 /*
@@ -285,25 +273,22 @@ static int l3g4200d_get_gyro_data(struct l3g4200d_data *gyro, int *xyz)
 	hw_d[1] = (hw_d[1] & 0x8000) ? (hw_d[1] | 0xFFFF0000) : (hw_d[1]);
 	hw_d[2] = (hw_d[2] & 0x8000) ? (hw_d[2] | 0xFFFF0000) : (hw_d[2]);
 
-	hw_d[0] >>= gyro->shift_adj;
-	hw_d[1] >>= gyro->shift_adj;
-	hw_d[2] >>= gyro->shift_adj;
-
 	xyz[0] = ((gyro->pdata->negate_x) ? (-hw_d[gyro->pdata->axis_map_x])
-		  : (hw_d[gyro->pdata->axis_map_x]));
+		  : (hw_d[gyro->pdata->axis_map_x])) * gyro->multiplier;
 	xyz[1] = ((gyro->pdata->negate_y) ? (-hw_d[gyro->pdata->axis_map_y])
-		  : (hw_d[gyro->pdata->axis_map_y]));
+		  : (hw_d[gyro->pdata->axis_map_y])) * gyro->multiplier;
 	xyz[2] = ((gyro->pdata->negate_z) ? (-hw_d[gyro->pdata->axis_map_z])
-		  : (hw_d[gyro->pdata->axis_map_z]));
+		  : (hw_d[gyro->pdata->axis_map_z])) * gyro->multiplier;
 
 	return err;
 }
 
 static void l3g4200d_report_values(struct l3g4200d_data *gyro, int *xyz)
 {
-	input_report_abs(gyro->input_dev, ABS_X, xyz[0]);
-	input_report_abs(gyro->input_dev, ABS_Y, xyz[1]);
-	input_report_abs(gyro->input_dev, ABS_Z, xyz[2]);
+	input_report_rel(gyro->input_dev, REL_RX, xyz[0]);
+	input_report_rel(gyro->input_dev, REL_RY, xyz[1]);
+	input_report_rel(gyro->input_dev, REL_RZ, xyz[2]);
+
 	if (l3g4200d_debug)
 		pr_info("%s: Reporting x: %d, y: %d, z: %d\n",
 		__func__, xyz[0], xyz[1], xyz[2]);
@@ -354,7 +339,6 @@ static int l3g4200d_misc_ioctl(struct inode *inode, struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	int err = 0;
 	int interval;
 	struct l3g4200d_data *gyro = file->private_data;
 
@@ -366,17 +350,12 @@ static int l3g4200d_misc_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case L3G4200D_IOCTL_SET_DELAY:
-		if (copy_from_user(&interval, argp, sizeof(interval)))
+		if (copy_from_user(&interval, argp, sizeof(interval))) {
+			gyro->pdata->poll_interval = 0;
 			return -EFAULT;
-		if (interval < 0 || interval > 200)
-			return -EINVAL;
-
+		}
 		gyro->pdata->poll_interval =
 		    max(interval, gyro->pdata->min_interval);
-		/* TODO: if update fails poll is still set */
-		if (err < 0)
-			return err;
-
 		break;
 
 	case L3G4200D_IOCTL_SET_ENABLE:
@@ -575,11 +554,9 @@ static int l3g4200d_input_init(struct l3g4200d_data *gyro)
 
 	input_set_drvdata(gyro->input_dev, gyro);
 
-	set_bit(EV_ABS, gyro->input_dev->evbit);
-
-	input_set_abs_params(gyro->input_dev, ABS_X, -G_MAX, G_MAX, FUZZ, FLAT);
-	input_set_abs_params(gyro->input_dev, ABS_Y, -G_MAX, G_MAX, FUZZ, FLAT);
-	input_set_abs_params(gyro->input_dev, ABS_Z, -G_MAX, G_MAX, FUZZ, FLAT);
+	input_set_capability(gyro->input_dev, EV_REL, REL_RX);
+	input_set_capability(gyro->input_dev, EV_REL, REL_RY);
+	input_set_capability(gyro->input_dev, EV_REL, REL_RZ);
 
 	gyro->input_dev->name = "gyroscope";
 
@@ -610,6 +587,7 @@ static int l3g4200d_probe(struct i2c_client *client,
 {
 	struct l3g4200d_data *gyro;
 	int err = -1;
+	u8 full_scale;
 
 	pr_err("%s:Enter\n", __func__);
 	if (client->dev.platform_data == NULL) {
@@ -681,6 +659,14 @@ static int l3g4200d_probe(struct i2c_client *client,
 	if (err < 0)
 		pr_err("%s:File device creation failed: %d\n", __func__, err);
 #endif
+	full_scale = gyro->pdata->ctrl_reg_4 & 0x30;
+	if ( full_scale == 0x00)
+		gyro->multiplier = 1;
+	if ( full_scale == 0x10)
+		gyro->multiplier = 2;
+	if ((full_scale == 0x20) || (full_scale == 0x30))
+		gyro->multiplier = 8;
+	pr_info("%s: multiplier %d\n",  __func__, gyro->multiplier);
 
 	pr_err("%s:Gyro probed\n", __func__);
 	return 0;

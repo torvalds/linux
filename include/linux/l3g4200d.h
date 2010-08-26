@@ -53,8 +53,6 @@ struct l3g4200d_platform_data {
 	u8 int_th_z_l;
 	u8 int_duration;
 
-	u8 g_range;
-
 	u8 axis_map_x;
 	u8 axis_map_y;
 	u8 axis_map_z;
