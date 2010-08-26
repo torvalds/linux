@@ -16,7 +16,7 @@
 
 /*
  * Revised by AKM 2009/04/02
- * Revised by Motorola 2010/05/27
+ * Revised by Motorola 2010/08/16
  *
  */
 
@@ -36,7 +36,7 @@
 
 #define AK8975DRV_CALL_DBG 0
 #if AK8975DRV_CALL_DBG
-#define FUNCDBG(msg)	pr_err("%s:%s\n", __func__, msg);
+#define FUNCDBG(msg)	pr_info("%s:%s\n", __func__, msg);
 #else
 #define FUNCDBG(msg)
 #endif
@@ -63,8 +63,6 @@ static DECLARE_WAIT_QUEUE_HEAD(open_wq);
 static atomic_t open_flag;
 
 static short m_flag;
-static short a_flag;
-static short t_flag;
 static short mv_flag;
 
 static short akmd_delay;
@@ -159,18 +157,6 @@ static void akm8975_ecs_report_value(struct akm8975_data *akm, short *rbuf)
 		input_report_abs(data->input_dev, ABS_RUDDER, rbuf[4]);
 	}
 
-	/* Report acceleration sensor information */
-	if (a_flag) {
-		input_report_abs(data->input_dev, ABS_X, rbuf[6]);
-		input_report_abs(data->input_dev, ABS_Y, rbuf[7]);
-		input_report_abs(data->input_dev, ABS_Z, rbuf[8]);
-		input_report_abs(data->input_dev, ABS_WHEEL, rbuf[5]);
-	}
-
-	/* Report temperature information */
-	if (t_flag)
-		input_report_abs(data->input_dev, ABS_THROTTLE, rbuf[3]);
-
 	if (mv_flag) {
 		input_report_abs(data->input_dev, ABS_HAT0X, rbuf[9]);
 		input_report_abs(data->input_dev, ABS_HAT0Y, rbuf[10]);
@@ -185,10 +171,8 @@ static void akm8975_ecs_close_done(struct akm8975_data *akm)
 {
 	FUNCDBG("called");
 	mutex_lock(&akm->flags_lock);
-	m_flag = 1;
-	a_flag = 1;
-	t_flag = 1;
-	mv_flag = 1;
+	m_flag = 0;
+	mv_flag = 0;
 	mutex_unlock(&akm->flags_lock);
 }
 
@@ -230,7 +214,6 @@ static int akm_aot_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case ECS_IOCTL_APP_SET_MFLAG:
-	case ECS_IOCTL_APP_SET_AFLAG:
 	case ECS_IOCTL_APP_SET_MVFLAG:
 		if (copy_from_user(&flag, argp, sizeof(flag)))
 			return -EFAULT;
@@ -248,16 +231,10 @@ static int akm_aot_ioctl(struct inode *inode, struct file *file,
 	mutex_lock(&akm->flags_lock);
 	switch (cmd) {
 	case ECS_IOCTL_APP_SET_MFLAG:
-	  m_flag = flag;
+		m_flag = flag;
 		break;
 	case ECS_IOCTL_APP_GET_MFLAG:
 		flag = m_flag;
-		break;
-	case ECS_IOCTL_APP_SET_AFLAG:
-		a_flag = flag;
-		break;
-	case ECS_IOCTL_APP_GET_AFLAG:
-		flag = a_flag;
 		break;
 	case ECS_IOCTL_APP_SET_MVFLAG:
 		mv_flag = flag;
@@ -272,13 +249,13 @@ static int akm_aot_ioctl(struct inode *inode, struct file *file,
 		flag = akmd_delay;
 		break;
 	default:
+		mutex_unlock(&akm->flags_lock);
 		return -ENOTTY;
 	}
 	mutex_unlock(&akm->flags_lock);
 
 	switch (cmd) {
 	case ECS_IOCTL_APP_GET_MFLAG:
-	case ECS_IOCTL_APP_GET_AFLAG:
 	case ECS_IOCTL_APP_GET_MVFLAG:
 	case ECS_IOCTL_APP_GET_DELAY:
 		if (copy_to_user(argp, &flag, sizeof(flag)))
@@ -474,10 +451,8 @@ static int akm8975_init_client(struct i2c_client *client)
 	init_waitqueue_head(&open_wq);
 
 	mutex_lock(&data->flags_lock);
-	m_flag = 1;
-	a_flag = 1;
-	t_flag = 1;
-	mv_flag = 1;
+	m_flag = 0;
+	mv_flag = 0;
 	mutex_unlock(&data->flags_lock);
 
 	return 0;
@@ -558,24 +533,16 @@ int akm8975_probe(struct i2c_client *client,
 
 	set_bit(EV_ABS, akm->input_dev->evbit);
 
-	/* yaw */
+	/* orientation: yaw */
 	input_set_abs_params(akm->input_dev, ABS_RX, 0, 23040, 0, 0);
-	/* pitch */
+	/* orientation: pitch */
 	input_set_abs_params(akm->input_dev, ABS_RY, -11520, 11520, 0, 0);
-	/* roll */
+	/* orientation: roll */
 	input_set_abs_params(akm->input_dev, ABS_RZ, -5760, 5760, 0, 0);
-	/* x-axis acceleration */
-	input_set_abs_params(akm->input_dev, ABS_X, -5760, 5760, 0, 0);
-	/* y-axis acceleration */
-	input_set_abs_params(akm->input_dev, ABS_Y, -5760, 5760, 0, 0);
-	/* z-axis acceleration */
-	input_set_abs_params(akm->input_dev, ABS_Z, -5760, 5760, 0, 0);
-	/* temparature */
-	input_set_abs_params(akm->input_dev, ABS_THROTTLE, -30, 85, 0, 0);
-	/* status of magnetic sensor */
+
+	/* status of orientation sensor */
 	input_set_abs_params(akm->input_dev, ABS_RUDDER, 0, 3, 0, 0);
-	/* status of acceleration sensor */
-	input_set_abs_params(akm->input_dev, ABS_WHEEL, 0, 3, 0, 0);
+
 	/* x-axis of raw magnetic vector */
 	input_set_abs_params(akm->input_dev, ABS_HAT0X, -20480, 20479, 0, 0);
 	/* y-axis of raw magnetic vector */
@@ -656,13 +623,11 @@ static struct i2c_driver akm8975_driver = {
 static int __init akm8975_init(void)
 {
 	pr_info("AK8975 compass driver: init\n");
-	FUNCDBG("AK8975 compass driver: init\n");
 	return i2c_add_driver(&akm8975_driver);
 }
 
 static void __exit akm8975_exit(void)
 {
-	FUNCDBG("AK8975 compass driver: exit\n");
 	i2c_del_driver(&akm8975_driver);
 }
 
