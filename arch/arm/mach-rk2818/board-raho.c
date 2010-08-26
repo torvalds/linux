@@ -1239,15 +1239,15 @@ struct rk2818lcd_info rk2818_lcd_info = {
  * author: zyw@rock-chips.com
  *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK2818_PIN_PA2
+#define FB_DISPLAY_ON_PIN           INVALID_GPIO
 #define FB_LCD_STANDBY_PIN          INVALID_GPIO
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_LOW
 #define FB_LCD_STANDBY_VALUE        0
 
-#define FB_DISPLAY_ON_MUX_NAME      GPIOA23_UART2_SEL_NAME
-#define FB_DISPLAY_ON_MUX_MODE      IOMUXB_GPIO0_A23
+#define FB_DISPLAY_ON_MUX_NAME      NULL
+#define FB_DISPLAY_ON_MUX_MODE      0
 
 #define FB_LCD_STANDBY_MUX_NAME     NULL
 #define FB_LCD_STANDBY_MUX_MODE     1
