@@ -497,6 +497,8 @@ static int p4_hw_config(struct perf_event *event)
 		event->hw.config |= event->attr.config &
 			(p4_config_pack_escr(P4_ESCR_MASK_HT) |
 			 p4_config_pack_cccr(P4_CCCR_MASK_HT | P4_CCCR_RESERVED));
+
+		event->hw.config &= ~P4_CCCR_FORCE_OVF;
 	}
 
 	rc = x86_setup_perfctr(event);

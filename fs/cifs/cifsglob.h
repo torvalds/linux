@@ -25,6 +25,9 @@
 #include <linux/workqueue.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
+#include <crypto/internal/hash.h>
+#include <linux/scatterlist.h>
+
 /*
  * The sizes of various internal tables and strings
  */
@@ -97,7 +100,7 @@ enum protocolEnum {
 	/* Netbios frames protocol not supported at this time */
 };
 
-struct mac_key {
+struct session_key {
 	unsigned int len;
 	union {
 		char ntlm[CIFS_SESS_KEY_SIZE + 16];
@@ -118,6 +121,21 @@ struct cifs_cred {
 	struct cifs_sid gsid;
 	struct cifs_ntace *ntaces;
 	struct cifs_ace *aces;
+};
+
+struct sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
+struct ntlmssp_auth {
+	__u32 client_flags;
+	__u32 server_flags;
+	unsigned char ciphertext[CIFS_CPHTXT_SIZE];
+	struct crypto_shash *hmacmd5;
+	struct crypto_shash *md5;
+	struct sdesc *sdeschmacmd5;
+	struct sdesc *sdescmd5;
 };
 
 /*
@@ -182,11 +200,14 @@ struct TCP_Server_Info {
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
-	struct mac_key mac_signing_key;
+	struct session_key session_key;
 	char ntlmv2_hash[16];
 	unsigned long lstrp; /* when we got last response from this server */
 	u16 dialect; /* dialect index that server chose */
 	/* extended security flavors that server supports */
+	unsigned int tilen; /* length of the target info blob */
+	unsigned char *tiblob; /* target info blob in challenge response */
+	struct ntlmssp_auth ntlmssp; /* various keys, ciphers, flags */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	bool	sec_kerberosu2u;	/* supports U2U Kerberos */

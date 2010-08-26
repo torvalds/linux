@@ -518,6 +518,7 @@ void usb_serial_generic_disconnect(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i)
 		generic_cleanup(serial->port[i]);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_disconnect);
 
 void usb_serial_generic_release(struct usb_serial *serial)
 {

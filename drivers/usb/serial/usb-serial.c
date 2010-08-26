@@ -736,6 +736,7 @@ int usb_serial_probe(struct usb_interface *interface,
 
 	serial = create_serial(dev, interface, type);
 	if (!serial) {
+		module_put(type->driver.owner);
 		dev_err(&interface->dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
@@ -746,11 +747,11 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		id = get_iface_id(type, interface);
 		retval = type->probe(serial, id);
-		module_put(type->driver.owner);
 
 		if (retval) {
 			dbg("sub driver rejected device");
 			kfree(serial);
+			module_put(type->driver.owner);
 			return retval;
 		}
 	}
@@ -822,6 +823,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		if (num_bulk_in == 0 || num_bulk_out == 0) {
 			dev_info(&interface->dev, "PL-2303 hack: descriptors matched but endpoints did not\n");
 			kfree(serial);
+			module_put(type->driver.owner);
 			return -ENODEV;
 		}
 	}
@@ -835,22 +837,15 @@ int usb_serial_probe(struct usb_interface *interface,
 			dev_err(&interface->dev,
 			    "Generic device with no bulk out, not allowed.\n");
 			kfree(serial);
+			module_put(type->driver.owner);
 			return -EIO;
 		}
 	}
 #endif
 	if (!num_ports) {
 		/* if this device type has a calc_num_ports function, call it */
-		if (type->calc_num_ports) {
-			if (!try_module_get(type->driver.owner)) {
-				dev_err(&interface->dev,
-					"module get failed, exiting\n");
-				kfree(serial);
-				return -EIO;
-			}
+		if (type->calc_num_ports)
 			num_ports = type->calc_num_ports(serial);
-			module_put(type->driver.owner);
-		}
 		if (!num_ports)
 			num_ports = type->num_ports;
 	}
@@ -1039,13 +1034,7 @@ int usb_serial_probe(struct usb_interface *interface,
 
 	/* if this device type has an attach function, call it */
 	if (type->attach) {
-		if (!try_module_get(type->driver.owner)) {
-			dev_err(&interface->dev,
-					"module get failed, exiting\n");
-			goto probe_error;
-		}
 		retval = type->attach(serial);
-		module_put(type->driver.owner);
 		if (retval < 0)
 			goto probe_error;
 		serial->attached = 1;
@@ -1088,10 +1077,12 @@ int usb_serial_probe(struct usb_interface *interface,
 exit:
 	/* success */
 	usb_set_intfdata(interface, serial);
+	module_put(type->driver.owner);
 	return 0;
 
 probe_error:
 	usb_serial_put(serial);
+	module_put(type->driver.owner);
 	return -EIO;
 }
 EXPORT_SYMBOL_GPL(usb_serial_probe);
