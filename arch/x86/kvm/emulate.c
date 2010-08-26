@@ -2534,7 +2534,7 @@ static struct opcode twobyte_table[256] = {
 	D(DstMem | SrcReg | Src2CL | ModRM),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D2bv(DstMem | SrcReg | ModRM | Lock),
 	D(DstReg | SrcMemFAddr | ModRM), D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	D(DstReg | SrcMemFAddr | ModRM), D(DstReg | SrcMemFAddr | ModRM),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
@@ -2544,7 +2544,7 @@ static struct opcode twobyte_table[256] = {
 	D(DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
-	D(ByteOp | DstMem | SrcReg | ModRM | Lock), D(DstMem | SrcReg | ModRM | Lock),
+	D2bv(DstMem | SrcReg | ModRM | Lock),
 	N, D(DstMem | SrcReg | ModRM | Mov),
 	N, N, N, GD(0, &group9),
 	N, N, N, N, N, N, N, N,
