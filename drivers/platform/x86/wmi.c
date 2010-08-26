@@ -649,7 +649,7 @@ EXPORT_SYMBOL_GPL(wmi_has_guid);
 /*
  * sysfs interface
  */
-static ssize_t show_modalias(struct device *dev, struct device_attribute *attr,
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	char guid_string[37];
@@ -663,7 +663,11 @@ static ssize_t show_modalias(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "wmi:%s\n", guid_string);
 }
-static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
+
+static struct device_attribute wmi_dev_attrs[] = {
+	__ATTR_RO(modalias),
+	__ATTR_NULL
+};
 
 static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -696,6 +700,7 @@ static struct class wmi_class = {
 	.name = "wmi",
 	.dev_release = wmi_dev_free,
 	.dev_uevent = wmi_dev_uevent,
+	.dev_attrs = wmi_dev_attrs,
 };
 
 static int wmi_create_devs(void)
@@ -728,10 +733,6 @@ static int wmi_create_devs(void)
 		result = device_register(guid_dev);
 		if (result)
 			return result;
-
-		result = device_create_file(guid_dev, &dev_attr_modalias);
-		if (result)
-			return result;
 	}
 
 	return 0;
@@ -750,8 +751,6 @@ static void wmi_remove_devs(void)
 
 		guid_dev = wblock->dev;
 		gblock = &wblock->gblock;
-
-		device_remove_file(guid_dev, &dev_attr_modalias);
 
 		device_unregister(guid_dev);
 	}
