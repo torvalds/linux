@@ -174,18 +174,16 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
 #define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
 
 /* Placeholder for holes in the address space */
-static unsigned long p2m_missing[P2M_ENTRIES_PER_PAGE] __page_aligned_data =
-		{ [ 0 ... P2M_ENTRIES_PER_PAGE-1 ] = ~0UL };
+static RESERVE_BRK_ARRAY(unsigned long, p2m_missing, P2M_ENTRIES_PER_PAGE);
 
  /* Array of pointers to pages containing p2m entries */
-static unsigned long *p2m_top[TOP_ENTRIES] __page_aligned_data =
-		{ [ 0 ... TOP_ENTRIES - 1] = &p2m_missing[0] };
+static RESERVE_BRK_ARRAY(unsigned long *, p2m_top, TOP_ENTRIES);
 
 /* Arrays of p2m arrays expressed in mfns used for save/restore */
-static unsigned long p2m_top_mfn[TOP_ENTRIES] __page_aligned_bss;
+static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn, TOP_ENTRIES);
 
-static unsigned long p2m_top_mfn_list[TOP_ENTRIES / P2M_ENTRIES_PER_PAGE]
-	__page_aligned_bss;
+static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn_list,
+			 (TOP_ENTRIES / P2M_ENTRIES_PER_PAGE));
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
@@ -209,7 +207,7 @@ void xen_build_mfn_list_list(void)
 		p2m_top_mfn[topidx] = virt_to_mfn(p2m_top[topidx]);
 	}
 
-	for (idx = 0; idx < ARRAY_SIZE(p2m_top_mfn_list); idx++) {
+	for (idx = 0; idx < TOP_ENTRIES/P2M_ENTRIES_PER_PAGE; idx++) {
 		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
 		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
 	}
@@ -230,6 +228,22 @@ void __init xen_build_dynamic_phys_to_machine(void)
 	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
 	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 	unsigned pfn;
+	unsigned i;
+
+	p2m_missing = extend_brk(sizeof(*p2m_missing) * P2M_ENTRIES_PER_PAGE,
+				 PAGE_SIZE);
+	for (i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
+		p2m_missing[i] = ~0UL;
+
+	p2m_top = extend_brk(sizeof(*p2m_top) * TOP_ENTRIES,
+			     PAGE_SIZE);
+	for (i = 0; i < TOP_ENTRIES; i++)
+		p2m_top[i] = p2m_missing;
+
+	p2m_top_mfn = extend_brk(sizeof(*p2m_top_mfn) * TOP_ENTRIES, PAGE_SIZE);
+	p2m_top_mfn_list = extend_brk(sizeof(*p2m_top_mfn_list) *
+				      (TOP_ENTRIES / P2M_ENTRIES_PER_PAGE),
+				      PAGE_SIZE);
 
 	for (pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
