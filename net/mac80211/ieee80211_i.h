@@ -369,6 +369,13 @@ struct ieee80211_if_managed {
 	int ave_beacon_signal;
 
 	/*
+	 * Number of Beacon frames used in ave_beacon_signal. This can be used
+	 * to avoid generating less reliable cqm events that would be based
+	 * only on couple of received frames.
+	 */
+	unsigned int count_beacon_signal;
+
+	/*
 	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
 	 * that triggered a cqm event. 0 indicates that no event has been
 	 * generated for the current association.
