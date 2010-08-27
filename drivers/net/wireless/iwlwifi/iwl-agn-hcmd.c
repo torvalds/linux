@@ -270,12 +270,86 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
+static int iwlagn_set_pan_params(struct iwl_priv *priv)
+{
+	struct iwl_wipan_params_cmd cmd;
+	struct iwl_rxon_context *ctx_bss, *ctx_pan;
+	int slot0 = 300, slot1 = 0;
+	int ret;
+
+	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+		return 0;
+
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+
+	lockdep_assert_held(&priv->mutex);
+
+	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
+	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	/* only 2 slots are currently allowed */
+	cmd.num_slots = 2;
+
+	cmd.slots[0].type = 0; /* BSS */
+	cmd.slots[1].type = 1; /* PAN */
+
+	if (ctx_bss->vif && ctx_pan->vif) {
+		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
+
+		/* should be set, but seems unused?? */
+		cmd.flags |= cpu_to_le16(IWL_WIPAN_PARAMS_FLG_SLOTTED_MODE);
+
+		if (ctx_pan->vif->type == NL80211_IFTYPE_AP &&
+		    bcnint &&
+		    bcnint != ctx_bss->vif->bss_conf.beacon_int) {
+			IWL_ERR(priv,
+				"beacon intervals don't match (%d, %d)\n",
+				ctx_bss->vif->bss_conf.beacon_int,
+				ctx_pan->vif->bss_conf.beacon_int);
+		} else
+			bcnint = max_t(int, bcnint,
+				       ctx_bss->vif->bss_conf.beacon_int);
+		if (!bcnint)
+			bcnint = 100;
+		slot0 = bcnint / 2;
+		slot1 = bcnint - slot0;
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
+		    (!ctx_bss->vif->bss_conf.idle &&
+		     !ctx_bss->vif->bss_conf.assoc)) {
+			slot0 = bcnint * 3 - 20;
+			slot1 = 20;
+		} else if (!ctx_pan->vif->bss_conf.idle &&
+                           !ctx_pan->vif->bss_conf.assoc) {
+			slot1 = bcnint * 3 - 20;
+			slot0 = 20;
+		}
+	} else if (ctx_pan->vif) {
+		slot0 = 0;
+		slot1 = max_t(int, 1, ctx_pan->vif->bss_conf.dtim_period) *
+					ctx_pan->vif->bss_conf.beacon_int;
+		slot1 = max_t(int, 100, slot1);
+	}
+
+	cmd.slots[0].width = cpu_to_le16(slot0);
+	cmd.slots[1].width = cpu_to_le16(slot1);
+
+	ret = iwl_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
+
+	return ret;
+}
+
 struct iwl_hcmd_ops iwlagn_hcmd = {
 	.rxon_assoc = iwlagn_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
 	.send_bt_config = iwl_send_bt_config,
+	.set_pan_params = iwlagn_set_pan_params,
 };
 
 struct iwl_hcmd_ops iwlagn_bt_hcmd = {
@@ -284,6 +358,7 @@ struct iwl_hcmd_ops iwlagn_bt_hcmd = {
 	.set_rxon_chain = iwl_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
 	.send_bt_config = iwlagn_send_advance_bt_config,
+	.set_pan_params = iwlagn_set_pan_params,
 };
 
 struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {

@@ -94,6 +94,7 @@ struct iwl_hcmd_ops {
 			       struct iwl_rxon_context *ctx);
 	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
 	void (*send_bt_config)(struct iwl_priv *priv);
+	int (*set_pan_params)(struct iwl_priv *priv);
 };
 
 struct iwl_hcmd_utils_ops {

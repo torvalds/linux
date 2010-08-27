@@ -1931,6 +1931,12 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				bss_conf->bssid);
 	}
 
+	if (changes & BSS_CHANGED_IDLE &&
+	    priv->cfg->ops->hcmd->set_pan_params) {
+		if (priv->cfg->ops->hcmd->set_pan_params(priv))
+			IWL_ERR(priv, "failed to update PAN params\n");
+	}
+
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");

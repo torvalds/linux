@@ -1424,6 +1424,11 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->len = cpu_to_le16(cmd.len);
 
 	set_bit(STATUS_SCAN_HW, &priv->status);
+
+	if (priv->cfg->ops->hcmd->set_pan_params &&
+	    priv->cfg->ops->hcmd->set_pan_params(priv))
+		goto done;
+
 	if (iwl_send_cmd_sync(priv, &cmd))
 		goto done;
 

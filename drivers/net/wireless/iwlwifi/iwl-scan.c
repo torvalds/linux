@@ -572,6 +572,9 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 		iwlcore_commit_rxon(priv, ctx);
 
  out:
+	if (priv->cfg->ops->hcmd->set_pan_params)
+		priv->cfg->ops->hcmd->set_pan_params(priv);
+
 	mutex_unlock(&priv->mutex);
 
 	/*
