@@ -1433,6 +1433,9 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_free_emma;
 
+	dev_info(&pdev->dev, "MX2 Camera (CSI) driver probed, clock frequency: %ld\n",
+			clk_get_rate(pcdev->clk_csi));
+
 	return 0;
 
 exit_free_emma:
