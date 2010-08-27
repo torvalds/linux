@@ -357,7 +357,9 @@ static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
-	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
+#warning "Use proper STA ID"
+	tx_beacon_cmd->tx.sta_id =
+		priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 	tx_beacon_cmd->tx.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK |
 		TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK;
@@ -2829,7 +2831,7 @@ static void __iwl_down(struct iwl_priv *priv)
 		del_timer_sync(&priv->monitor_recover);
 
 	iwl_clear_ucode_stations(priv);
-	iwl_dealloc_bcast_station(priv);
+	iwl_dealloc_bcast_stations(priv);
 	iwl_clear_driver_stations(priv);
 
 	/* reset BT coex data */
@@ -2971,6 +2973,7 @@ static int iwl_prepare_card_hw(struct iwl_priv *priv)
 
 static int __iwl_up(struct iwl_priv *priv)
 {
+	struct iwl_rxon_context *ctx;
 	int i;
 	int ret;
 
@@ -2984,9 +2987,13 @@ static int __iwl_up(struct iwl_priv *priv)
 		return -EIO;
 	}
 
-	ret = iwl_alloc_bcast_station(priv, true);
-	if (ret)
-		return ret;
+	for_each_context(priv, ctx) {
+		ret = iwl_alloc_bcast_station(priv, ctx, true);
+		if (ret) {
+			iwl_dealloc_bcast_stations(priv);
+			return ret;
+		}
+	}
 
 	iwl_prepare_card_hw(priv);
 
@@ -3520,9 +3527,11 @@ static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
 {
 
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	iwl_update_tkip_key(priv, keyconf, sta,
+	iwl_update_tkip_key(priv, vif_priv->ctx, keyconf, sta,
 			    iv32, phase1key);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -3534,6 +3543,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			   struct ieee80211_key_conf *key)
 {
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	int ret;
 	u8 sta_id;
 	bool is_default_wep_key = false;
@@ -3545,7 +3555,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
-	sta_id = iwl_sta_id_or_broadcast(priv, sta);
+	sta_id = iwl_sta_id_or_broadcast(priv, vif_priv->ctx, sta);
 	if (sta_id == IWL_INVALID_STATION)
 		return -EINVAL;
 
@@ -3573,7 +3583,8 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		if (is_default_wep_key)
 			ret = iwl_set_default_wep_key(priv, key);
 		else
-			ret = iwl_set_dynamic_key(priv, key, sta_id);
+			ret = iwl_set_dynamic_key(priv, vif_priv->ctx,
+						  key, sta_id);
 
 		IWL_DEBUG_MAC80211(priv, "enable hwcrypto key\n");
 		break;
@@ -3713,6 +3724,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	int ret;
 	u8 sta_id;
@@ -3728,8 +3740,8 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_AP)
 		sta_priv->client = true;
 
-	ret = iwl_add_station_common(priv, sta->addr, is_ap, &sta->ht_cap,
-				     &sta_id);
+	ret = iwl_add_station_common(priv, vif_priv->ctx, sta->addr,
+				     is_ap, &sta->ht_cap, &sta_id);
 	if (ret) {
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);

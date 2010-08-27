@@ -144,7 +144,7 @@ static int iwl3945_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	key_flags |= (STA_KEY_FLG_CCMP | STA_KEY_FLG_MAP_KEY_MSK);
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 
-	if (sta_id == priv->hw_params.bcast_sta_id)
+	if (sta_id == priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -512,7 +512,9 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find index into station table for destination station */
-	sta_id = iwl_sta_id_or_broadcast(priv, info->control.sta);
+	sta_id = iwl_sta_id_or_broadcast(
+			priv, &priv->contexts[IWL_RXON_CTX_BSS],
+			info->control.sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
@@ -2580,7 +2582,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 
 	/* Station information will now be cleared in device */
 	iwl_clear_ucode_stations(priv);
-	iwl_dealloc_bcast_station(priv);
+	iwl_dealloc_bcast_stations(priv);
 	iwl_clear_driver_stations(priv);
 
 	/* Unblock any waiting calls */
@@ -2662,7 +2664,8 @@ static int __iwl3945_up(struct iwl_priv *priv)
 {
 	int rc, i;
 
-	rc = iwl_alloc_bcast_station(priv, false);
+	rc = iwl_alloc_bcast_station(priv, &priv->contexts[IWL_RXON_CTX_BSS],
+				     false);
 	if (rc)
 		return rc;
 
@@ -2946,7 +2949,7 @@ void iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	/* We don't build a direct scan probe request; the uCode will do
 	 * that based on the direct_mask added to each channel entry */
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = priv->hw_params.bcast_sta_id;
+	scan->tx_cmd.sta_id = priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	/* flags + rate selection */
@@ -3330,7 +3333,8 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	static_key = !iwl_is_associated(priv, IWL_RXON_CTX_BSS);
 
 	if (!static_key) {
-		sta_id = iwl_sta_id_or_broadcast(priv, sta);
+		sta_id = iwl_sta_id_or_broadcast(
+				priv, &priv->contexts[IWL_RXON_CTX_BSS], sta);
 		if (sta_id == IWL_INVALID_STATION)
 			return -EINVAL;
 	}
@@ -3381,8 +3385,8 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 	sta_priv->common.sta_id = IWL_INVALID_STATION;
 
 
-	ret = iwl_add_station_common(priv, sta->addr, is_ap, &sta->ht_cap,
-				     &sta_id);
+	ret = iwl_add_station_common(priv, &priv->contexts[IWL_RXON_CTX_BSS],
+				     sta->addr, is_ap, &sta->ht_cap, &sta_id);
 	if (ret) {
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);

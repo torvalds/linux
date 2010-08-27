@@ -343,7 +343,7 @@ void iwl3945_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 s
 	int i;
 
 	IWL_DEBUG_INFO(priv, "enter\n");
-	if (sta_id == priv->hw_params.bcast_sta_id)
+	if (sta_id == priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id)
 		goto out;
 
 	psta = (struct iwl3945_sta_priv *) sta->drv_priv;

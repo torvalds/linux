@@ -206,7 +206,7 @@ struct iwl_lib_ops {
 	/* station management */
 	int (*manage_ibss_station)(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif, bool add);
-	int (*update_bcast_station)(struct iwl_priv *priv);
+	int (*update_bcast_stations)(struct iwl_priv *priv);
 	/* recover from tx queue stall */
 	void (*recover_from_tx_stall)(unsigned long data);
 	/* check for plcp health */

@@ -2113,8 +2113,8 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 
-		if (priv->cfg->ops->lib->update_bcast_station)
-			ret = priv->cfg->ops->lib->update_bcast_station(priv);
+		if (priv->cfg->ops->lib->update_bcast_stations)
+			ret = priv->cfg->ops->lib->update_bcast_stations(priv);
 
  set_ch_out:
 		/* The list of supported rates and rate mask can be different

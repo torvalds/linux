@@ -681,7 +681,6 @@ struct iwl_sensitivity_ranges {
  * @rx_page_order: Rx buffer page order
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
- * @bcast_sta_id:
  * @ht40_channel: is 40MHz width possible in band 2.4
  * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
  * @sw_crypto: 0 for hw, 1 for sw
@@ -705,7 +704,6 @@ struct iwl_hw_params {
 	u32 rx_page_order;
 	u32 rx_wrt_ptr_reg;
 	u8  max_stations;
-	u8  bcast_sta_id;
 	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
@@ -1126,6 +1124,8 @@ struct iwl_rxon_context {
 	struct iwl_rxon_cmd staging;
 
 	struct iwl_rxon_time_cmd timing;
+
+	u8 bcast_sta_id;
 };
 
 struct iwl_priv {
