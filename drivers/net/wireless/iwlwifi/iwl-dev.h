@@ -945,7 +945,7 @@ enum iwl_pa_type {
 struct isr_statistics {
 	u32 hw;
 	u32 sw;
-	u32 sw_err;
+	u32 err_code;
 	u32 sch;
 	u32 alive;
 	u32 rfkill;

@@ -575,10 +575,10 @@ static ssize_t iwl_dbgfs_interrupt_read(struct file *file,
 		priv->isr_stats.hw);
 	pos += scnprintf(buf + pos, bufsz - pos, "SW Error:\t\t\t %u\n",
 		priv->isr_stats.sw);
-	if (priv->isr_stats.sw > 0) {
+	if (priv->isr_stats.sw || priv->isr_stats.hw) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"\tLast Restarting Code:  0x%X\n",
-			priv->isr_stats.sw_err);
+			priv->isr_stats.err_code);
 	}
 #ifdef CONFIG_IWLWIFI_DEBUG
 	pos += scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
