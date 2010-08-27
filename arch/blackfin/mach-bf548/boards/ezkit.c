@@ -837,8 +837,12 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "linux kernel(nand)",
+		.name = "bootloader(nand)",
 		.offset = 0,
+		.size = 0x80000,
+	}, {
+		.name = "linux kernel(nand)",
+		.offset = MTDPART_OFS_APPEND,
 		.size = 4 * 1024 * 1024,
 	},
 	{
@@ -901,7 +905,7 @@ static struct platform_device bf54x_sdh_device = {
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
-		.size       = 0x40000,
+		.size       = 0x80000,
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
@@ -943,7 +947,7 @@ static struct platform_device ezkit_flash_device = {
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		.name = "bootloader(spi)",
-		.size = 0x00040000,
+		.size = 0x00080000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
