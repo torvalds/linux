@@ -46,3 +46,8 @@ config S5P_DEV_FIMC2
 	bool
 	help
 	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
