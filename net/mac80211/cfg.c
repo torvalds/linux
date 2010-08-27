@@ -52,9 +52,6 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret;
 
-	if (ieee80211_sdata_running(sdata))
-		return -EBUSY;
-
 	ret = ieee80211_if_change_type(sdata, type);
 	if (ret)
 		return ret;

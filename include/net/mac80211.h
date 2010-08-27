@@ -1537,6 +1537,12 @@ enum ieee80211_ampdu_mlme_action {
  *	negative error code (which will be seen in userspace.)
  *	Must be implemented and can sleep.
  *
+ * @change_interface: Called when a netdevice changes type. This callback
+ *	is optional, but only if it is supported can interface types be
+ *	switched while the interface is UP. The callback may sleep.
+ *	Note that while an interface is being switched, it will not be
+ *	found by the interface iteration callbacks.
+ *
  * @remove_interface: Notifies a driver that an interface is going down.
  *	The @stop callback is called after this if it is the last interface
  *	and no monitor interfaces are present.
@@ -1693,6 +1699,9 @@ struct ieee80211_ops {
 	void (*stop)(struct ieee80211_hw *hw);
 	int (*add_interface)(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
+	int (*change_interface)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				enum nl80211_iftype new_type);
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif);
 	int (*config)(struct ieee80211_hw *hw, u32 changed);

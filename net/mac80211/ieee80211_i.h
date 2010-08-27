@@ -472,6 +472,16 @@ enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 };
 
+/**
+ * enum ieee80211_sdata_state_bits - virtual interface state bits
+ * @SDATA_STATE_RUNNING: virtual interface is up & running; this
+ *	mirrors netif_running() but is separate for interface type
+ *	change handling while the interface is up
+ */
+enum ieee80211_sdata_state_bits {
+	SDATA_STATE_RUNNING,
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -484,6 +494,8 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_local *local;
 
 	unsigned int flags;
+
+	unsigned long state;
 
 	int drop_unencrypted;
 
@@ -1087,7 +1099,7 @@ void ieee80211_recalc_idle(struct ieee80211_local *local);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
-	return netif_running(sdata->dev);
+	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
 }
 
 /* tx handling */

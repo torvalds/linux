@@ -148,7 +148,12 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-static int ieee80211_open(struct net_device *dev)
+/*
+ * NOTE: Be very careful when changing this function, it must NOT return
+ * an error on interface type changes that have been pre-checked, so most
+ * checks should be in ieee80211_check_concurrent_iface.
+ */
+static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
@@ -156,15 +161,6 @@ static int ieee80211_open(struct net_device *dev)
 	u32 changed = 0;
 	int res;
 	u32 hw_reconf_flags = 0;
-
-	/* fail early if user set an invalid address */
-	if (!is_zero_ether_addr(dev->dev_addr) &&
-	    !is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
-
-	res = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
-	if (res)
-		return res;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_WDS:
@@ -258,9 +254,11 @@ static int ieee80211_open(struct net_device *dev)
 		netif_carrier_on(dev);
 		break;
 	default:
-		res = drv_add_interface(local, &sdata->vif);
-		if (res)
-			goto err_stop;
+		if (coming_up) {
+			res = drv_add_interface(local, &sdata->vif);
+			if (res)
+				goto err_stop;
+		}
 
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
 			local->fif_other_bss++;
@@ -316,7 +314,9 @@ static int ieee80211_open(struct net_device *dev)
 	hw_reconf_flags |= __ieee80211_recalc_idle(local);
 	mutex_unlock(&local->mtx);
 
-	local->open_count++;
+	if (coming_up)
+		local->open_count++;
+
 	if (hw_reconf_flags) {
 		ieee80211_hw_config(local, hw_reconf_flags);
 		/*
@@ -331,6 +331,8 @@ static int ieee80211_open(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
+
 	return 0;
  err_del_interface:
 	drv_remove_interface(local, &sdata->vif);
@@ -344,19 +346,38 @@ static int ieee80211_open(struct net_device *dev)
 	return res;
 }
 
-static int ieee80211_stop(struct net_device *dev)
+static int ieee80211_open(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int err;
+
+	/* fail early if user set an invalid address */
+	if (!is_zero_ether_addr(dev->dev_addr) &&
+	    !is_valid_ether_addr(dev->dev_addr))
+		return -EADDRNOTAVAIL;
+
+	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
+	if (err)
+		return err;
+
+	return ieee80211_do_open(dev, true);
+}
+
+static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
+			      bool going_down)
+{
 	struct ieee80211_local *local = sdata->local;
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
 	int i;
 
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
+
 	/*
 	 * Stop TX on this interface first.
 	 */
-	netif_tx_stop_all_queues(dev);
+	netif_tx_stop_all_queues(sdata->dev);
 
 	/*
 	 * Purge work for this interface.
@@ -394,11 +415,12 @@ static int ieee80211_stop(struct net_device *dev)
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
 		local->fif_pspoll--;
 
-	netif_addr_lock_bh(dev);
+	netif_addr_lock_bh(sdata->dev);
 	spin_lock_bh(&local->filter_lock);
-	__hw_addr_unsync(&local->mc_list, &dev->mc, dev->addr_len);
+	__hw_addr_unsync(&local->mc_list, &sdata->dev->mc,
+			 sdata->dev->addr_len);
 	spin_unlock_bh(&local->filter_lock);
-	netif_addr_unlock_bh(dev);
+	netif_addr_unlock_bh(sdata->dev);
 
 	ieee80211_configure_filter(local);
 
@@ -432,7 +454,8 @@ static int ieee80211_stop(struct net_device *dev)
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
 	}
 
-	local->open_count--;
+	if (going_down)
+		local->open_count--;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
@@ -504,7 +527,8 @@ static int ieee80211_stop(struct net_device *dev)
 		 */
 		ieee80211_free_keys(sdata);
 
-		drv_remove_interface(local, &sdata->vif);
+		if (going_down)
+			drv_remove_interface(local, &sdata->vif);
 	}
 
 	sdata->bss = NULL;
@@ -540,6 +564,13 @@ static int ieee80211_stop(struct net_device *dev)
 		}
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+}
+
+static int ieee80211_stop(struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	ieee80211_do_stop(sdata, true);
 
 	return 0;
 }
@@ -857,9 +888,72 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	ieee80211_debugfs_add_netdev(sdata);
 }
 
+static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
+					   enum nl80211_iftype type)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret, err;
+
+	ASSERT_RTNL();
+
+	if (!local->ops->change_interface)
+		return -EBUSY;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+		/*
+		 * Could maybe also all others here?
+		 * Just not sure how that interacts
+		 * with the RX/config path e.g. for
+		 * mesh.
+		 */
+		break;
+	default:
+		return -EBUSY;
+	}
+
+	switch (type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+		/*
+		 * Could probably support everything
+		 * but WDS here (WDS do_open can fail
+		 * under memory pressure, which this
+		 * code isn't prepared to handle).
+		 */
+		break;
+	default:
+		return -EBUSY;
+	}
+
+	ret = ieee80211_check_concurrent_iface(sdata, type);
+	if (ret)
+		return ret;
+
+	ieee80211_do_stop(sdata, false);
+
+	ieee80211_teardown_sdata(sdata->dev);
+
+	ret = drv_change_interface(local, sdata, type);
+	if (ret)
+		type = sdata->vif.type;
+
+	ieee80211_setup_sdata(sdata, type);
+
+	err = ieee80211_do_open(sdata->dev, false);
+	WARN(err, "type change: do_open returned %d", err);
+
+	return ret;
+}
+
 int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 			     enum nl80211_iftype type)
 {
+	int ret;
+
 	ASSERT_RTNL();
 
 	if (type == sdata->vif.type)
@@ -870,18 +964,15 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	    type == NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
-	/*
-	 * We could, here, on changes between IBSS/STA/MESH modes,
-	 * invoke an MLME function instead that disassociates etc.
-	 * and goes into the requested mode.
-	 */
-
-	if (ieee80211_sdata_running(sdata))
-		return -EBUSY;
-
-	/* Purge and reset type-dependent state. */
-	ieee80211_teardown_sdata(sdata->dev);
-	ieee80211_setup_sdata(sdata, type);
+	if (ieee80211_sdata_running(sdata)) {
+		ret = ieee80211_runtime_change_iftype(sdata, type);
+		if (ret)
+			return ret;
+	} else {
+		/* Purge and reset type-dependent state. */
+		ieee80211_teardown_sdata(sdata->dev);
+		ieee80211_setup_sdata(sdata, type);
+	}
 
 	/* reset some values that shouldn't be kept across type changes */
 	sdata->vif.bss_conf.basic_rates =
