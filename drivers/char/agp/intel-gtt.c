@@ -537,76 +537,19 @@ static unsigned int intel_gtt_stolen_entries(void)
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
-	int size; /* reserved space (in kb) at the top of stolen memory */
 	unsigned int overhead_entries, stolen_entries;
 	unsigned int stolen_size = 0;
 
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
 
-	if (IS_I965) {
-		u32 pgetbl_ctl;
-		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
+	if (IS_G4X || IS_PINEVIEW)
+		overhead_entries = 0;
+	else
+		overhead_entries = intel_private.base.gtt_mappable_entries
+			/ 1024;
 
-		/* The 965 has a field telling us the size of the GTT,
-		 * which may be larger than what is necessary to map the
-		 * aperture.
-		 */
-		switch (pgetbl_ctl & I965_PGETBL_SIZE_MASK) {
-		case I965_PGETBL_SIZE_128KB:
-			size = 128;
-			break;
-		case I965_PGETBL_SIZE_256KB:
-			size = 256;
-			break;
-		case I965_PGETBL_SIZE_512KB:
-			size = 512;
-			break;
-		case I965_PGETBL_SIZE_1MB:
-			size = 1024;
-			break;
-		case I965_PGETBL_SIZE_2MB:
-			size = 2048;
-			break;
-		case I965_PGETBL_SIZE_1_5MB:
-			size = 1024 + 512;
-			break;
-		default:
-			dev_info(&intel_private.pcidev->dev,
-				 "unknown page table size, assuming 512KB\n");
-			size = 512;
-		}
-		size += 4; /* add in BIOS popup space */
-	} else if (IS_G33 && !IS_PINEVIEW) {
-	/* G33's GTT size defined in gmch_ctrl */
-		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
-		case G33_PGETBL_SIZE_1M:
-			size = 1024;
-			break;
-		case G33_PGETBL_SIZE_2M:
-			size = 2048;
-			break;
-		default:
-			dev_info(&intel_private.bridge_dev->dev,
-				 "unknown page table size 0x%x, assuming 512KB\n",
-				(gmch_ctrl & G33_PGETBL_SIZE_MASK));
-			size = 512;
-		}
-		size += 4;
-	} else if (IS_G4X || IS_PINEVIEW) {
-		/* On 4 series hardware, GTT stolen is separate from graphics
-		 * stolen, ignore it in stolen gtt entries counting.  However,
-		 * 4KB of the stolen memory doesn't get mapped to the GTT.
-		 */
-		size = 4;
-	} else {
-		/* On previous hardware, the GTT size was just what was
-		 * required to map the aperture.
-		 */
-		size = agp_bridge->driver->fetch_size() + 4;
-	}
-
-	overhead_entries = size/4;
+	overhead_entries += 1; /* BIOS popup */
 
 	if (intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82830_HB ||
 	    intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82845G_HB) {
@@ -751,6 +694,78 @@ static unsigned int intel_gtt_stolen_entries(void)
 
 	return stolen_entries;
 }
+
+#if 0 /* extracted code in bad shape, needs some cleaning before use */
+static unsigned int intel_gtt_total_entries(void)
+{
+	int size;
+	u16 gmch_ctrl;
+
+	if (IS_I965) {
+		u32 pgetbl_ctl;
+		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
+
+		/* The 965 has a field telling us the size of the GTT,
+		 * which may be larger than what is necessary to map the
+		 * aperture.
+		 */
+		switch (pgetbl_ctl & I965_PGETBL_SIZE_MASK) {
+		case I965_PGETBL_SIZE_128KB:
+			size = 128;
+			break;
+		case I965_PGETBL_SIZE_256KB:
+			size = 256;
+			break;
+		case I965_PGETBL_SIZE_512KB:
+			size = 512;
+			break;
+		case I965_PGETBL_SIZE_1MB:
+			size = 1024;
+			break;
+		case I965_PGETBL_SIZE_2MB:
+			size = 2048;
+			break;
+		case I965_PGETBL_SIZE_1_5MB:
+			size = 1024 + 512;
+			break;
+		default:
+			dev_info(&intel_private.pcidev->dev,
+				 "unknown page table size, assuming 512KB\n");
+			size = 512;
+		}
+		size += 4; /* add in BIOS popup space */
+	} else if (IS_G33 && !IS_PINEVIEW) {
+	/* G33's GTT size defined in gmch_ctrl */
+		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
+		case G33_PGETBL_SIZE_1M:
+			size = 1024;
+			break;
+		case G33_PGETBL_SIZE_2M:
+			size = 2048;
+			break;
+		default:
+			dev_info(&intel_private.bridge_dev->dev,
+				 "unknown page table size 0x%x, assuming 512KB\n",
+				(gmch_ctrl & G33_PGETBL_SIZE_MASK));
+			size = 512;
+		}
+		size += 4;
+	} else if (IS_G4X || IS_PINEVIEW) {
+		/* On 4 series hardware, GTT stolen is separate from graphics
+		 * stolen, ignore it in stolen gtt entries counting.  However,
+		 * 4KB of the stolen memory doesn't get mapped to the GTT.
+		 */
+		size = 4;
+	} else {
+		/* On previous hardware, the GTT size was just what was
+		 * required to map the aperture.
+		 */
+		size = agp_bridge->driver->fetch_size() + 4;
+	}
+
+	return size/KB(4);
+}
+#endif
 
 static unsigned int intel_gtt_mappable_entries(void)
 {
