@@ -283,8 +283,11 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 
 	if (skb_queue_empty(&local->pending[queue])) {
 		rcu_read_lock();
-		list_for_each_entry_rcu(sdata, &local->interfaces, list)
+		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+			if (test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
+				continue;
 			netif_wake_subqueue(sdata->dev, queue);
+		}
 		rcu_read_unlock();
 	} else
 		tasklet_schedule(&local->tx_pending_tasklet);

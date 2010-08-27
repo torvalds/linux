@@ -477,9 +477,12 @@ enum ieee80211_sub_if_data_flags {
  * @SDATA_STATE_RUNNING: virtual interface is up & running; this
  *	mirrors netif_running() but is separate for interface type
  *	change handling while the interface is up
+ * @SDATA_STATE_OFFCHANNEL: This interface is currently in offchannel
+ *	mode, so queues are stopped
  */
 enum ieee80211_sdata_state_bits {
 	SDATA_STATE_RUNNING,
+	SDATA_STATE_OFFCHANNEL,
 };
 
 struct ieee80211_sub_if_data {
