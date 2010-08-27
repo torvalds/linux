@@ -30,6 +30,11 @@ static struct clk clk_sclk_hdmi27m = {
 	.rate		= 27000000,
 };
 
+static int s5pv310_clksrc_mask_peril0_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLKSRC_MASK_PERIL0, clk, enable);
+}
+
 static int s5pv310_clk_ip_peril_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLKGATE_IP_PERIL, clk, enable);
@@ -397,7 +402,7 @@ static struct clksrc_clk clksrcs[] = {
 		.clk	= {
 			.name		= "uclk1",
 			.id		= 0,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
 			.ctrlbit	= (1 << 0),
 		},
 		.sources = &clkset_group,
@@ -407,8 +412,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "uclk1",
 			.id		= 1,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
-			.ctrlbit	= (1 << 1),
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
+			.ctrlbit	= (1 << 4),
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 4, .size = 4 },
@@ -417,8 +422,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "uclk1",
 			.id		= 2,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
-			.ctrlbit	= (1 << 2),
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
+			.ctrlbit	= (1 << 8),
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 8, .size = 4 },
@@ -427,8 +432,8 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "uclk1",
 			.id		= 3,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
-			.ctrlbit	= (1 << 3),
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
+			.ctrlbit	= (1 << 12),
 		},
 		.sources = &clkset_group,
 		.reg_src = { .reg = S5P_CLKSRC_PERIL0, .shift = 12, .size = 4 },
@@ -437,7 +442,7 @@ static struct clksrc_clk clksrcs[] = {
 		.clk		= {
 			.name		= "sclk_pwm",
 			.id		= -1,
-			.enable		= s5pv310_clk_ip_peril_ctrl,
+			.enable		= s5pv310_clksrc_mask_peril0_ctrl,
 			.ctrlbit	= (1 << 24),
 		},
 		.sources = &clkset_group,
