@@ -1832,8 +1832,9 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv,
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
-		iwl_clear_ucode_stations(priv);
-		iwl_restore_stations(priv);
+		iwl_clear_ucode_stations(priv,
+					 &priv->contexts[IWL_RXON_CTX_BSS]);
+		iwl_restore_stations(priv, &priv->contexts[IWL_RXON_CTX_BSS]);
 	}
 
 	IWL_DEBUG_INFO(priv, "Sending RXON\n"
@@ -1865,8 +1866,9 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv,
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
 	if (!new_assoc) {
-		iwl_clear_ucode_stations(priv);
-		iwl_restore_stations(priv);
+		iwl_clear_ucode_stations(priv,
+					 &priv->contexts[IWL_RXON_CTX_BSS]);
+		iwl_restore_stations(priv, &priv->contexts[IWL_RXON_CTX_BSS]);
 	}
 
 	/* If we issue a new RXON command which required a tune then we must

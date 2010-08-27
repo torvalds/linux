@@ -2581,7 +2581,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 		del_timer_sync(&priv->monitor_recover);
 
 	/* Station information will now be cleared in device */
-	iwl_clear_ucode_stations(priv);
+	iwl_clear_ucode_stations(priv, NULL);
 	iwl_dealloc_bcast_stations(priv);
 	iwl_clear_driver_stations(priv);
 

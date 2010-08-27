@@ -495,7 +495,7 @@ struct iwl_qos_info {
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
-	u8 used;
+	u8 used, ctxid;
 	struct iwl_hw_key keyinfo;
 	struct iwl_link_quality_cmd *lq;
 };

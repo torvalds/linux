@@ -163,8 +163,8 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			IWL_ERR(priv, "Error clearing ASSOC_MSK (%d)\n", ret);
 			return ret;
 		}
-		iwl_clear_ucode_stations(priv);
-		iwl_restore_stations(priv);
+		iwl_clear_ucode_stations(priv, ctx);
+		iwl_restore_stations(priv, ctx);
 		ret = iwl_restore_default_wep_keys(priv);
 		if (ret) {
 			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
@@ -195,8 +195,8 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 		IWL_DEBUG_INFO(priv, "Return from !new_assoc RXON.\n");
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
-		iwl_clear_ucode_stations(priv);
-		iwl_restore_stations(priv);
+		iwl_clear_ucode_stations(priv, ctx);
+		iwl_restore_stations(priv, ctx);
 		ret = iwl_restore_default_wep_keys(priv);
 		if (ret) {
 			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
@@ -2830,7 +2830,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	if (priv->cfg->ops->lib->recover_from_tx_stall)
 		del_timer_sync(&priv->monitor_recover);
 
-	iwl_clear_ucode_stations(priv);
+	iwl_clear_ucode_stations(priv, NULL);
 	iwl_dealloc_bcast_stations(priv);
 	iwl_clear_driver_stations(priv);
 

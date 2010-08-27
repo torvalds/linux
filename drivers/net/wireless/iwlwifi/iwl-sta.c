@@ -290,6 +290,7 @@ static u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	station->sta.mode = 0;
 	station->sta.sta.sta_id = sta_id;
 	station->sta.station_flags = 0;
+	station->ctxid = ctx->ctxid;
 
 	/*
 	 * OK to call unconditionally, since local stations (IBSS BSSID
@@ -615,7 +616,8 @@ EXPORT_SYMBOL_GPL(iwl_remove_station);
  * other than explicit station management would cause this in
  * the ucode, e.g. unassociated RXON.
  */
-void iwl_clear_ucode_stations(struct iwl_priv *priv)
+void iwl_clear_ucode_stations(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx)
 {
 	int i;
 	unsigned long flags_spin;
@@ -625,6 +627,9 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
 	for (i = 0; i < priv->hw_params.max_stations; i++) {
+		if (ctx && ctx->ctxid != priv->stations[i].ctxid)
+			continue;
+
 		if (priv->stations[i].used & IWL_STA_UCODE_ACTIVE) {
 			IWL_DEBUG_INFO(priv, "Clearing ucode active for station %d\n", i);
 			priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
@@ -646,7 +651,7 @@ EXPORT_SYMBOL(iwl_clear_ucode_stations);
  *
  * Function sleeps.
  */
-void iwl_restore_stations(struct iwl_priv *priv)
+void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	struct iwl_addsta_cmd sta_cmd;
 	struct iwl_link_quality_cmd lq;
@@ -664,6 +669,8 @@ void iwl_restore_stations(struct iwl_priv *priv)
 	IWL_DEBUG_ASSOC(priv, "Restoring all known stations ... start.\n");
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
 	for (i = 0; i < priv->hw_params.max_stations; i++) {
+		if (ctx->ctxid != priv->stations[i].ctxid)
+			continue;
 		if ((priv->stations[i].used & IWL_STA_DRIVER_ACTIVE) &&
 			    !(priv->stations[i].used & IWL_STA_UCODE_ACTIVE)) {
 			IWL_DEBUG_ASSOC(priv, "Restoring sta %pM\n",

@@ -57,8 +57,9 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 			 struct ieee80211_key_conf *keyconf,
 			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
 
-void iwl_restore_stations(struct iwl_priv *priv);
-void iwl_clear_ucode_stations(struct iwl_priv *priv);
+void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwl_clear_ucode_stations(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx);
 int iwl_alloc_bcast_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			    bool init_lq);
 void iwl_dealloc_bcast_stations(struct iwl_priv *priv);
