@@ -306,6 +306,9 @@ struct i7300_pvt {
 
 	/* DIMM information matrix, allocating architecture maximums */
 	struct i7300_dimm_info dimm_info[MAX_SLOTS][MAX_CHANNELS];
+
+	/* Temporary buffer for use when preparing error messages */
+	char *tmp_prt_buffer;
 };
 
 /* FIXME: Why do we need to have this static? */
@@ -611,17 +614,12 @@ static int decode_mtr(struct i7300_pvt *pvt,
 static void print_dimm_size(struct i7300_pvt *pvt)
 {
 	struct i7300_dimm_info *dinfo;
-	char *p, *mem_buffer;
+	char *p;
 	int space, n;
 	int channel, slot;
 
 	space = PAGE_SIZE;
-	mem_buffer = p = kmalloc(space, GFP_KERNEL);
-	if (p == NULL) {
-		i7300_printk(KERN_ERR, "MC: %s:%s() kmalloc() failed\n",
-			__FILE__, __func__);
-		return;
-	}
+	p = pvt->tmp_prt_buffer;
 
 	n = snprintf(p, space, "              ");
 	p += n;
@@ -631,15 +629,15 @@ static void print_dimm_size(struct i7300_pvt *pvt)
 		p += n;
 		space -= n;
 	}
-	debugf2("%s\n", mem_buffer);
-	p = mem_buffer;
+	debugf2("%s\n", pvt->tmp_prt_buffer);
+	p = pvt->tmp_prt_buffer;
 	space = PAGE_SIZE;
 	n = snprintf(p, space, "-------------------------------"
 		               "------------------------------");
 	p += n;
 	space -= n;
-	debugf2("%s\n", mem_buffer);
-	p = mem_buffer;
+	debugf2("%s\n", pvt->tmp_prt_buffer);
+	p = pvt->tmp_prt_buffer;
 	space = PAGE_SIZE;
 
 	for (slot = 0; slot < MAX_SLOTS; slot++) {
@@ -654,8 +652,8 @@ static void print_dimm_size(struct i7300_pvt *pvt)
 			space -= n;
 		}
 
-		debugf2("%s\n", mem_buffer);
-		p = mem_buffer;
+		debugf2("%s\n", pvt->tmp_prt_buffer);
+		p = pvt->tmp_prt_buffer;
 		space = PAGE_SIZE;
 	}
 
@@ -663,11 +661,9 @@ static void print_dimm_size(struct i7300_pvt *pvt)
 		               "------------------------------");
 	p += n;
 	space -= n;
-	debugf2("%s\n", mem_buffer);
-	p = mem_buffer;
+	debugf2("%s\n", pvt->tmp_prt_buffer);
+	p = pvt->tmp_prt_buffer;
 	space = PAGE_SIZE;
-
-	kfree(mem_buffer);
 }
 
 /*
@@ -978,6 +974,12 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 	pvt = mci->pvt_info;
 	pvt->pci_dev_16_0_fsb_ctlr = pdev;	/* Record this device in our private */
 
+	pvt->tmp_prt_buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!pvt->tmp_prt_buffer) {
+		edac_mc_free(mci);
+		return -ENOMEM;
+	}
+
 	/* 'get' the pci devices we want to reserve for our use */
 	if (i7300_get_devices(mci, dev_idx))
 		goto fail0;
@@ -1038,6 +1040,7 @@ fail1:
 	i7300_put_devices(mci);
 
 fail0:
+	kfree(pvt->tmp_prt_buffer);
 	edac_mc_free(mci);
 	return -ENODEV;
 }
@@ -1072,6 +1075,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 static void __devexit i7300_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
+	char *tmp;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
 
@@ -1082,9 +1086,12 @@ static void __devexit i7300_remove_one(struct pci_dev *pdev)
 	if (!mci)
 		return;
 
+	tmp = ((struct i7300_pvt *)mci->pvt_info)->tmp_prt_buffer;
+
 	/* retrieve references to resources, and free those resources */
 	i7300_put_devices(mci);
 
+	kfree(tmp);
 	edac_mc_free(mci);
 }
 
