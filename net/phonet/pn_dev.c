@@ -292,8 +292,7 @@ static void phonet_route_autodel(struct net_device *dev)
 	if (bitmap_empty(deleted, 64))
 		return; /* short-circuit RCU */
 	synchronize_rcu();
-	for (i = find_first_bit(deleted, 64); i < 64;
-			i = find_next_bit(deleted, 64, i + 1)) {
+	for_each_set_bit(i, deleted, 64) {
 		rtm_phonet_notify(RTM_DELROUTE, dev, i);
 		dev_put(dev);
 	}
