@@ -4939,39 +4939,15 @@ static int ipr_eh_abort(struct scsi_cmnd * scsi_cmd)
 /**
  * ipr_handle_other_interrupt - Handle "other" interrupts
  * @ioa_cfg:	ioa config struct
+ * @int_reg:	interrupt register
  *
  * Return value:
  * 	IRQ_NONE / IRQ_HANDLED
  **/
-static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg)
+static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
+					      volatile u32 int_reg)
 {
 	irqreturn_t rc = IRQ_HANDLED;
-	volatile u32 int_reg, int_mask_reg;
-
-	int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg32);
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32) & ~int_mask_reg;
-
-	/* If an interrupt on the adapter did not occur, ignore it.
-	 * Or in the case of SIS 64, check for a stage change interrupt.
-	 */
-	if ((int_reg & IPR_PCII_OPER_INTERRUPTS) == 0) {
-		if (ioa_cfg->sis64) {
-			int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
-			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
-			if (int_reg & IPR_PCII_IPL_STAGE_CHANGE) {
-
-				/* clear stage change */
-				writel(IPR_PCII_IPL_STAGE_CHANGE, ioa_cfg->regs.clr_interrupt_reg);
-				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
-				list_del(&ioa_cfg->reset_cmd->queue);
-				del_timer(&ioa_cfg->reset_cmd->timer);
-				ipr_reset_ioa_job(ioa_cfg->reset_cmd);
-				return IRQ_HANDLED;
-			}
-		}
-
-		return IRQ_NONE;
-	}
 
 	if (int_reg & IPR_PCII_IOA_TRANS_TO_OPER) {
 		/* Mask the interrupt */
@@ -5032,7 +5008,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)devp;
 	unsigned long lock_flags = 0;
-	volatile u32 int_reg;
+	volatile u32 int_reg, int_mask_reg;
 	u32 ioasc;
 	u16 cmd_index;
 	int num_hrrq = 0;
@@ -5043,6 +5019,33 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 
 	/* If interrupts are disabled, ignore the interrupt */
 	if (!ioa_cfg->allow_interrupts) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		return IRQ_NONE;
+	}
+
+	int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg32);
+	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32) & ~int_mask_reg;
+
+	/* If an interrupt on the adapter did not occur, ignore it.
+	 * Or in the case of SIS 64, check for a stage change interrupt.
+	 */
+	if (unlikely((int_reg & IPR_PCII_OPER_INTERRUPTS) == 0)) {
+		if (ioa_cfg->sis64) {
+			int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
+			if (int_reg & IPR_PCII_IPL_STAGE_CHANGE) {
+
+				/* clear stage change */
+				writel(IPR_PCII_IPL_STAGE_CHANGE, ioa_cfg->regs.clr_interrupt_reg);
+				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
+				list_del(&ioa_cfg->reset_cmd->queue);
+				del_timer(&ioa_cfg->reset_cmd->timer);
+				ipr_reset_ioa_job(ioa_cfg->reset_cmd);
+				spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+				return IRQ_HANDLED;
+			}
+		}
+
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return IRQ_NONE;
 	}
@@ -5086,7 +5089,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 			/* Clear the PCI interrupt */
 			do {
 				writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
-				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
+				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32) & ~int_mask_reg;
 			} while (int_reg & IPR_PCII_HRRQ_UPDATED &&
 					num_hrrq++ < IPR_MAX_HRRQ_RETRIES);
 
@@ -5101,7 +5104,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	}
 
 	if (unlikely(rc == IRQ_NONE))
-		rc = ipr_handle_other_interrupt(ioa_cfg);
+		rc = ipr_handle_other_interrupt(ioa_cfg, int_reg);
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	return rc;
