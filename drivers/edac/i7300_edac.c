@@ -101,7 +101,6 @@
   #define IS_SINGLE_MODE(mca)		((mca) & (1 << 14))
 
 #define TOLM			0x6C
-#define REDMEMB			0x7C
 
 #define MIR0			0x80
 #define MIR1			0x84
@@ -279,6 +278,9 @@ static const char *ferr_global_lo_name[] = {
 
 #define REDMEMA		0xdc
 
+#define REDMEMB		0x7c
+  #define IS_SECOND_CH(v)	((v) * (1 << 17))
+
 #define RECMEMA		0xe0
   #define RECMEMA_BANK(v)	(((v) >> 12) & 7)
   #define RECMEMA_RANK(v)	(((v) >> 8) & 15)
@@ -414,7 +416,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 	struct i7300_pvt *pvt;
 	u32 errnum, value;
 	u16 val16;
-	unsigned branch, bank, rank, cas, ras;
+	unsigned branch, channel, bank, rank, cas, ras;
 	u32 syndrome;
 
 	unsigned long errors;
@@ -488,12 +490,19 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		cas = RECMEMB_CAS(value);
 		ras = RECMEMB_RAS(value);
 
+		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+				     REDMEMB, &value);
+
+		channel = (branch << 1);
+		if (IS_SECOND_CH(value))
+			channel++;
+
 		/* Form out message */
 		snprintf(pvt->tmp_prt_buffer, PAGE_SIZE,
-			"Corrected error (Branch=%d (channel %d or %d), "
+			"Corrected error (Branch=%d, Channel %d), "
 			" DRAM-Bank=%d %s "
 			"RAS=%d CAS=%d, CE Err=0x%lx, Syndrome=0x%08x(%s))",
-			branch, branch << 1, (branch << 1) + 1,
+			branch, channel,
 			bank,
 			is_wr ? "RDWR" : "RD",
 			ras, cas,
@@ -505,7 +514,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		 *	 Currently, we don't know how to identify the right
 		 *	 channel.
 		 */
-		edac_mc_handle_fbd_ce(mci, rank, branch << 1,
+		edac_mc_handle_fbd_ce(mci, rank, channel,
 				      pvt->tmp_prt_buffer);
 	}
 	return;
