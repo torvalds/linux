@@ -104,7 +104,7 @@ struct i7300_pvt {
 
 	u16 mir[MAX_MIR];			/* Memory Interleave Reg*/
 
-	u16 mtr[MAX_SLOTS][MAX_BRANCHES];		/* Memory Technlogy Reg */
+	u16 mtr[MAX_SLOTS][MAX_BRANCHES];	/* Memory Technlogy Reg */
 	u16 ambpresent[MAX_CHANNELS];		/* AMB present regs */
 
 	/* DIMM information matrix, allocating architecture maximums */
@@ -162,7 +162,7 @@ static struct edac_pci_ctl_info *i7300_pci;
 #define AMBPRESENT_0	0x64
 #define AMBPRESENT_1	0x66
 
-const static u16 mtr_regs [MAX_SLOTS] = {
+const static u16 mtr_regs[MAX_SLOTS] = {
 	0x80, 0x84, 0x88, 0x8c,
 	0x82, 0x86, 0x8a, 0x8e
 };
@@ -726,7 +726,7 @@ static void print_dimm_size(struct i7300_pvt *pvt)
 	p = pvt->tmp_prt_buffer;
 	space = PAGE_SIZE;
 	n = snprintf(p, space, "-------------------------------"
-		               "------------------------------");
+			       "------------------------------");
 	p += n;
 	space -= n;
 	debugf2("%s\n", pvt->tmp_prt_buffer);
@@ -751,7 +751,7 @@ static void print_dimm_size(struct i7300_pvt *pvt)
 	}
 
 	n = snprintf(p, space, "-------------------------------"
-		               "------------------------------");
+			       "------------------------------");
 	p += n;
 	space -= n;
 	debugf2("%s\n", pvt->tmp_prt_buffer);
@@ -783,13 +783,15 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	for (branch = 0; branch < MAX_BRANCHES; branch++) {
 		/* Read and dump branch 0's MTRs */
 		channel = to_channel(0, branch);
-		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch], AMBPRESENT_0,
+		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
+				     AMBPRESENT_0,
 				&pvt->ambpresent[channel]);
 		debugf2("\t\tAMB-present CH%d = 0x%x:\n",
 			channel, pvt->ambpresent[channel]);
 
 		channel = to_channel(1, branch);
-		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch], AMBPRESENT_1,
+		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
+				     AMBPRESENT_1,
 				&pvt->ambpresent[channel]);
 		debugf2("\t\tAMB-present CH%d = 0x%x:\n",
 			channel, pvt->ambpresent[channel]);
@@ -837,11 +839,12 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 static void decode_mir(int mir_no, u16 mir[MAX_MIR])
 {
 	if (mir[mir_no] & 3)
-		debugf2("MIR%d: limit= 0x%x Branch(es) that participate: %s %s\n",
+		debugf2("MIR%d: limit= 0x%x Branch(es) that participate:"
+			" %s %s\n",
 			mir_no,
 			(mir[mir_no] >> 4) & 0xfff,
 			(mir[mir_no] & 1) ? "B0" : "",
-			(mir[mir_no] & 2) ? "B1": "");
+			(mir[mir_no] & 2) ? "B1" : "");
 }
 
 /**
@@ -891,9 +894,12 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 		IS_RETRY_ENABLED(pvt->mc_settings) ? "enabled" : "disabled");
 
 	/* Get Memory Interleave Range registers */
-	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR0, &pvt->mir[0]);
-	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR1, &pvt->mir[1]);
-	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR2, &pvt->mir[2]);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR0,
+			     &pvt->mir[0]);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR1,
+			     &pvt->mir[1]);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR2,
+			     &pvt->mir[2]);
 
 	/* Decode the MIR regs */
 	for (i = 0; i < MAX_MIR; i++)
@@ -952,7 +958,8 @@ static int __devinit i7300_get_devices(struct mem_ctl_info *mci)
 
 	/* Attempt to 'get' the MCH register we want */
 	pdev = NULL;
-	while (!pvt->pci_dev_16_1_fsb_addr_map || !pvt->pci_dev_16_2_fsb_err_regs) {
+	while (!pvt->pci_dev_16_1_fsb_addr_map ||
+	       !pvt->pci_dev_16_2_fsb_err_regs) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_I7300_MCH_ERR, pdev);
 		if (!pdev) {
@@ -980,16 +987,19 @@ static int __devinit i7300_get_devices(struct mem_ctl_info *mci)
 
 	debugf1("System Address, processor bus- PCI Bus ID: %s  %x:%x\n",
 		pci_name(pvt->pci_dev_16_0_fsb_ctlr),
-		pvt->pci_dev_16_0_fsb_ctlr->vendor, pvt->pci_dev_16_0_fsb_ctlr->device);
+		pvt->pci_dev_16_0_fsb_ctlr->vendor,
+		pvt->pci_dev_16_0_fsb_ctlr->device);
 	debugf1("Branchmap, control and errors - PCI Bus ID: %s  %x:%x\n",
 		pci_name(pvt->pci_dev_16_1_fsb_addr_map),
-		pvt->pci_dev_16_1_fsb_addr_map->vendor, pvt->pci_dev_16_1_fsb_addr_map->device);
+		pvt->pci_dev_16_1_fsb_addr_map->vendor,
+		pvt->pci_dev_16_1_fsb_addr_map->device);
 	debugf1("FSB Error Regs - PCI Bus ID: %s  %x:%x\n",
 		pci_name(pvt->pci_dev_16_2_fsb_err_regs),
-		pvt->pci_dev_16_2_fsb_err_regs->vendor, pvt->pci_dev_16_2_fsb_err_regs->device);
+		pvt->pci_dev_16_2_fsb_err_regs->vendor,
+		pvt->pci_dev_16_2_fsb_err_regs->device);
 
 	pvt->pci_dev_2x_0_fbd_branch[0] = pci_get_device(PCI_VENDOR_ID_INTEL,
-				            PCI_DEVICE_ID_INTEL_I7300_MCH_FB0,
+					    PCI_DEVICE_ID_INTEL_I7300_MCH_FB0,
 					    NULL);
 	if (!pvt->pci_dev_2x_0_fbd_branch[0]) {
 		i7300_printk(KERN_ERR,
