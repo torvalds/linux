@@ -704,54 +704,28 @@ static unsigned int intel_gtt_stolen_entries(void)
 			stolen_size = MB(32);
 			break;
 		case I915_GMCH_GMS_STOLEN_48M:
-			/* Check it's really I915G */
-			if (IS_I915 || IS_I965 || IS_G33 || IS_G4X)
-				stolen_size = MB(48);
-			else
-				stolen_size = 0;
+			stolen_size = MB(48);
 			break;
 		case I915_GMCH_GMS_STOLEN_64M:
-			/* Check it's really I915G */
-			if (IS_I915 || IS_I965 || IS_G33 || IS_G4X)
-				stolen_size = MB(64);
-			else
-				stolen_size = 0;
+			stolen_size = MB(64);
 			break;
 		case G33_GMCH_GMS_STOLEN_128M:
-			if (IS_G33 || IS_I965 || IS_G4X)
-				stolen_size = MB(128);
-			else
-				stolen_size = 0;
+			stolen_size = MB(128);
 			break;
 		case G33_GMCH_GMS_STOLEN_256M:
-			if (IS_G33 || IS_I965 || IS_G4X)
-				stolen_size = MB(256);
-			else
-				stolen_size = 0;
+			stolen_size = MB(256);
 			break;
 		case INTEL_GMCH_GMS_STOLEN_96M:
-			if (IS_I965 || IS_G4X)
-				stolen_size = MB(96);
-			else
-				stolen_size = 0;
+			stolen_size = MB(96);
 			break;
 		case INTEL_GMCH_GMS_STOLEN_160M:
-			if (IS_I965 || IS_G4X)
-				stolen_size = MB(160);
-			else
-				stolen_size = 0;
+			stolen_size = MB(160);
 			break;
 		case INTEL_GMCH_GMS_STOLEN_224M:
-			if (IS_I965 || IS_G4X)
-				stolen_size = MB(224);
-			else
-				stolen_size = 0;
+			stolen_size = MB(224);
 			break;
 		case INTEL_GMCH_GMS_STOLEN_352M:
-			if (IS_I965 || IS_G4X)
-				stolen_size = MB(352);
-			else
-				stolen_size = 0;
+			stolen_size = MB(352);
 			break;
 		default:
 			stolen_size = 0;
