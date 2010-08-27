@@ -1308,7 +1308,7 @@ void ieee80211_recalc_smps(struct ieee80211_local *local,
 	 */
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			goto set;

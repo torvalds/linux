@@ -339,9 +339,6 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	struct ieee80211_if_managed *ifmgd;
 	int c = 0;
 
-	if (!netif_running(ndev))
-		return NOTIFY_DONE;
-
 	/* Make sure it's our interface that got changed */
 	if (!wdev)
 		return NOTIFY_DONE;
@@ -351,6 +348,9 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
 	bss_conf = &sdata->vif.bss_conf;
+
+	if (!ieee80211_sdata_running(sdata))
+		return NOTIFY_DONE;
 
 	/* ARP filtering is only supported in managed mode */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)

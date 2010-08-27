@@ -81,15 +81,13 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			     u8 key_idx, const u8 *mac_addr,
 			     struct key_params *params)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta = NULL;
 	struct ieee80211_key *key;
 	int err;
 
-	if (!netif_running(dev))
+	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	/* reject WEP and TKIP keys if WEP failed to initialize */
 	switch (params->cipher) {
