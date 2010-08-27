@@ -81,52 +81,55 @@
 /* DAC Digital control registers */
 #define LDAC_VOL			43
 #define RDAC_VOL			44
-/* High Power Output control registers */
+/* Left High Power Output control registers */
 #define LINE2L_2_HPLOUT_VOL		45
-#define LINE2R_2_HPROUT_VOL		62
 #define PGAL_2_HPLOUT_VOL		46
-#define PGAL_2_HPROUT_VOL		60
-#define PGAR_2_HPLOUT_VOL		49
-#define PGAR_2_HPROUT_VOL		63
 #define DACL1_2_HPLOUT_VOL		47
-#define DACR1_2_HPROUT_VOL		64
+#define PGAR_2_HPLOUT_VOL		49
 #define HPLOUT_CTRL			51
-#define HPROUT_CTRL			65
-/* High Power COM control registers */
+/* Left High Power COM control registers */
 #define LINE2L_2_HPLCOM_VOL		52
-#define LINE2R_2_HPRCOM_VOL		69
 #define PGAL_2_HPLCOM_VOL		53
-#define PGAR_2_HPLCOM_VOL		56
-#define PGAL_2_HPRCOM_VOL		67
-#define PGAR_2_HPRCOM_VOL		70
 #define DACL1_2_HPLCOM_VOL		54
-#define DACR1_2_HPRCOM_VOL		71
+#define PGAR_2_HPLCOM_VOL		56
 #define HPLCOM_CTRL			58
+/* Right High Power Output control registers */
+#define PGAL_2_HPROUT_VOL		60
+#define LINE2R_2_HPROUT_VOL		62
+#define PGAR_2_HPROUT_VOL		63
+#define DACR1_2_HPROUT_VOL		64
+#define HPROUT_CTRL			65
+/* Right High Power COM control registers */
+#define PGAL_2_HPRCOM_VOL		67
+#define LINE2R_2_HPRCOM_VOL		69
+#define PGAR_2_HPRCOM_VOL		70
+#define DACR1_2_HPRCOM_VOL		71
 #define HPRCOM_CTRL			72
 /* Mono Line Output Plus/Minus control registers */
 #define LINE2L_2_MONOLOPM_VOL		73
-#define LINE2R_2_MONOLOPM_VOL		76
 #define PGAL_2_MONOLOPM_VOL		74
-#define PGAR_2_MONOLOPM_VOL		77
 #define DACL1_2_MONOLOPM_VOL		75
+#define LINE2R_2_MONOLOPM_VOL		76
+#define PGAR_2_MONOLOPM_VOL		77
 #define DACR1_2_MONOLOPM_VOL		78
 #define MONOLOPM_CTRL			79
 /* Class-D speaker driver on tlv320aic3007 */
 #define CLASSD_CTRL			73
-/* Line Output Plus/Minus control registers */
+/* Left Line Output Plus/Minus control registers */
 #define LINE2L_2_LLOPM_VOL		80
-#define LINE2L_2_RLOPM_VOL		87
-#define LINE2R_2_LLOPM_VOL		83
-#define LINE2R_2_RLOPM_VOL		90
 #define PGAL_2_LLOPM_VOL		81
-#define PGAL_2_RLOPM_VOL		88
-#define PGAR_2_LLOPM_VOL		84
-#define PGAR_2_RLOPM_VOL		91
 #define DACL1_2_LLOPM_VOL		82
-#define DACL1_2_RLOPM_VOL		89
-#define DACR1_2_RLOPM_VOL		92
+#define LINE2R_2_LLOPM_VOL		83
+#define PGAR_2_LLOPM_VOL		84
 #define DACR1_2_LLOPM_VOL		85
 #define LLOPM_CTRL			86
+/* Right Line Output Plus/Minus control registers */
+#define LINE2L_2_RLOPM_VOL		87
+#define PGAL_2_RLOPM_VOL		88
+#define DACL1_2_RLOPM_VOL		89
+#define LINE2R_2_RLOPM_VOL		90
+#define PGAR_2_RLOPM_VOL		91
+#define DACR1_2_RLOPM_VOL		92
 #define RLOPM_CTRL			93
 /* GPIO/IRQ registers */
 #define AIC3X_STICKY_IRQ_FLAGS_REG	96
