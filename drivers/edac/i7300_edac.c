@@ -398,10 +398,10 @@ struct i7300_dimm_info {
 
 /* driver private data structure */
 struct i7300_pvt {
-	struct pci_dev *system_address;		/* 16.0 */
-	struct pci_dev *branchmap_werrors;	/* 16.1 */
-	struct pci_dev *fsb_error_regs;		/* 16.2 */
-	struct pci_dev *branch_pci[MAX_BRANCHES];	/* 21.0  and 22.0 */
+	struct pci_dev *pci_dev_16_0_fsb_ctlr;		/* 16.0 */
+	struct pci_dev *pci_dev_16_1_fsb_addr_map;	/* 16.1 */
+	struct pci_dev *pci_dev_16_2_fsb_err_regs;	/* 16.2 */
+	struct pci_dev *pci_dev_2x_0_fbd_branch[MAX_BRANCHES];	/* 21.0  and 22.0 */
 
 	u16 tolm;				/* top of low memory */
 	u64 ambase;				/* AMB BAR */
@@ -509,7 +509,7 @@ static void i7300_get_error_info(struct mem_ctl_info *mci,
 	pvt = mci->pvt_info;
 
 	/* read in the 1st FATAL error register */
-	pci_read_config_dword(pvt->branchmap_werrors, FERR_FAT_FBD, &value);
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, FERR_FAT_FBD, &value);
 
 	/* Mask only the bits that the doc says are valid
 	 */
@@ -522,15 +522,15 @@ static void i7300_get_error_info(struct mem_ctl_info *mci,
 		info->ferr_fat_fbd = value;
 
 		/* harvest the various error data we need */
-		pci_read_config_dword(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				NERR_FAT_FBD, &info->nerr_fat_fbd);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
 				NRECMEMA, &info->nrecmema);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
 				NRECMEMB, &info->nrecmemb);
 
 		/* Clear the error bits, by writing them back */
-		pci_write_config_dword(pvt->branchmap_werrors,
+		pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				FERR_FAT_FBD, value);
 	} else {
 		info->ferr_fat_fbd = 0;
@@ -540,7 +540,7 @@ static void i7300_get_error_info(struct mem_ctl_info *mci,
 	}
 
 	/* read in the 1st NON-FATAL error register */
-	pci_read_config_dword(pvt->branchmap_werrors, FERR_NF_FBD, &value);
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, FERR_NF_FBD, &value);
 
 	/* If there is an error, then read in the 1st NON-FATAL error
 	 * register as well */
@@ -548,17 +548,17 @@ static void i7300_get_error_info(struct mem_ctl_info *mci,
 		info->ferr_nf_fbd = value;
 
 		/* harvest the various error data we need */
-		pci_read_config_dword(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				NERR_NF_FBD, &info->nerr_nf_fbd);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
 				RECMEMA, &info->recmema);
-		pci_read_config_dword(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				RECMEMB, &info->recmemb);
-		pci_read_config_dword(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				REDMEMB, &info->redmemb);
 
 		/* Clear the error bits, by writing them back */
-		pci_write_config_dword(pvt->branchmap_werrors,
+		pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				FERR_NF_FBD, value);
 	} else {
 		info->ferr_nf_fbd = 0;
@@ -769,13 +769,13 @@ static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 	pvt = mci->pvt_info;
 
 	/* Read the FBD Error Mask Register */
-	pci_read_config_dword(pvt->branchmap_werrors, EMASK_FBD,
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, EMASK_FBD,
 			&fbd_error_mask);
 
 	/* Enable with a '0' */
 	fbd_error_mask &= ~(ENABLE_EMASK_ALL);
 
-	pci_write_config_dword(pvt->branchmap_werrors, EMASK_FBD,
+	pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map, EMASK_FBD,
 			fbd_error_mask);
 }
 #endif
@@ -957,13 +957,13 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	for (branch = 0; branch < MAX_BRANCHES; branch++) {
 		/* Read and dump branch 0's MTRs */
 		channel = to_channel(0, branch);
-		pci_read_config_word(pvt->branch_pci[branch], AMBPRESENT_0,
+		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch], AMBPRESENT_0,
 				&pvt->ambpresent[channel]);
 		debugf2("\t\tAMB-present CH%d = 0x%x:\n",
 			channel, pvt->ambpresent[channel]);
 
 		channel = to_channel(1, branch);
-		pci_read_config_word(pvt->branch_pci[branch], AMBPRESENT_1,
+		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch], AMBPRESENT_1,
 				&pvt->ambpresent[channel]);
 		debugf2("\t\tAMB-present CH%d = 0x%x:\n",
 			channel, pvt->ambpresent[channel]);
@@ -973,7 +973,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	for (slot = 0; slot < MAX_SLOTS; slot++) {
 		int where = mtr_regs[slot];
 		for (branch = 0; branch < MAX_BRANCHES; branch++) {
-			pci_read_config_word(pvt->branch_pci[branch],
+			pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
 					where,
 					&pvt->mtr[slot][branch]);
 			for (ch = 0; ch < MAX_BRANCHES; ch++) {
@@ -1027,13 +1027,13 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 
 	pvt = mci->pvt_info;
 
-	pci_read_config_dword(pvt->system_address, AMBASE,
+	pci_read_config_dword(pvt->pci_dev_16_0_fsb_ctlr, AMBASE,
 			(u32 *) &pvt->ambase);
 
 	debugf2("AMBASE= 0x%lx\n", (long unsigned int)pvt->ambase);
 
 	/* Get the Branch Map regs */
-	pci_read_config_word(pvt->branchmap_werrors, TOLM, &pvt->tolm);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, TOLM, &pvt->tolm);
 	pvt->tolm >>= 12;
 	debugf2("TOLM (number of 256M regions) =%u (0x%x)\n", pvt->tolm,
 		pvt->tolm);
@@ -1043,7 +1043,7 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 		actual_tolm/1000, actual_tolm % 1000, pvt->tolm << 28);
 
 	/* Get memory controller settings */
-	pci_read_config_dword(pvt->branchmap_werrors, MC_SETTINGS,
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, MC_SETTINGS,
 			     &pvt->mc_settings);
 	debugf0("Memory controller operating on %s mode\n",
 		pvt->mc_settings & (1 << 16)? "mirrored" : "non-mirrored");
@@ -1051,9 +1051,9 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 		pvt->mc_settings & (1 << 5)? "enabled" : "disabled");
 
 	/* Get Memory Interleave Range registers */
-	pci_read_config_word(pvt->branchmap_werrors, MIR0, &pvt->mir[0]);
-	pci_read_config_word(pvt->branchmap_werrors, MIR1, &pvt->mir[1]);
-	pci_read_config_word(pvt->branchmap_werrors, MIR2, &pvt->mir[2]);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR0, &pvt->mir[0]);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR1, &pvt->mir[1]);
+	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR2, &pvt->mir[2]);
 
 	/* Decode the MIR regs */
 	for (i = 0; i < MAX_MIR; i++)
@@ -1083,9 +1083,9 @@ static void i7300_put_devices(struct mem_ctl_info *mci)
 
 	/* Decrement usage count for devices */
 	for (branch = 0; branch < MAX_CH_PER_BRANCH; branch++)
-		pci_dev_put(pvt->branch_pci[branch]);
-	pci_dev_put(pvt->fsb_error_regs);
-	pci_dev_put(pvt->branchmap_werrors);
+		pci_dev_put(pvt->pci_dev_2x_0_fbd_branch[branch]);
+	pci_dev_put(pvt->pci_dev_16_2_fsb_err_regs);
+	pci_dev_put(pvt->pci_dev_16_1_fsb_addr_map);
 }
 
 /*
@@ -1103,7 +1103,7 @@ static int i7300_get_devices(struct mem_ctl_info *mci, int dev_idx)
 
 	/* Attempt to 'get' the MCH register we want */
 	pdev = NULL;
-	while (!pvt->branchmap_werrors || !pvt->fsb_error_regs) {
+	while (!pvt->pci_dev_16_1_fsb_addr_map || !pvt->pci_dev_16_2_fsb_err_regs) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_I7300_MCH_ERR, pdev);
 		if (!pdev) {
@@ -1121,28 +1121,28 @@ static int i7300_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		/* Store device 16 funcs 1 and 2 */
 		switch (PCI_FUNC(pdev->devfn)) {
 		case 1:
-			pvt->branchmap_werrors = pdev;
+			pvt->pci_dev_16_1_fsb_addr_map = pdev;
 			break;
 		case 2:
-			pvt->fsb_error_regs = pdev;
+			pvt->pci_dev_16_2_fsb_err_regs = pdev;
 			break;
 		}
 	}
 
 	debugf1("System Address, processor bus- PCI Bus ID: %s  %x:%x\n",
-		pci_name(pvt->system_address),
-		pvt->system_address->vendor, pvt->system_address->device);
+		pci_name(pvt->pci_dev_16_0_fsb_ctlr),
+		pvt->pci_dev_16_0_fsb_ctlr->vendor, pvt->pci_dev_16_0_fsb_ctlr->device);
 	debugf1("Branchmap, control and errors - PCI Bus ID: %s  %x:%x\n",
-		pci_name(pvt->branchmap_werrors),
-		pvt->branchmap_werrors->vendor, pvt->branchmap_werrors->device);
+		pci_name(pvt->pci_dev_16_1_fsb_addr_map),
+		pvt->pci_dev_16_1_fsb_addr_map->vendor, pvt->pci_dev_16_1_fsb_addr_map->device);
 	debugf1("FSB Error Regs - PCI Bus ID: %s  %x:%x\n",
-		pci_name(pvt->fsb_error_regs),
-		pvt->fsb_error_regs->vendor, pvt->fsb_error_regs->device);
+		pci_name(pvt->pci_dev_16_2_fsb_err_regs),
+		pvt->pci_dev_16_2_fsb_err_regs->vendor, pvt->pci_dev_16_2_fsb_err_regs->device);
 
-	pvt->branch_pci[0] = pci_get_device(PCI_VENDOR_ID_INTEL,
+	pvt->pci_dev_2x_0_fbd_branch[0] = pci_get_device(PCI_VENDOR_ID_INTEL,
 				            PCI_DEVICE_ID_INTEL_I7300_MCH_FB0,
 					    NULL);
-	if (!pvt->branch_pci[0]) {
+	if (!pvt->pci_dev_2x_0_fbd_branch[0]) {
 		i7300_printk(KERN_ERR,
 			"MC: 'BRANCH 0' device not found:"
 			"vendor 0x%x device 0x%x Func 0 (broken BIOS?)\n",
@@ -1150,10 +1150,10 @@ static int i7300_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		goto error;
 	}
 
-	pvt->branch_pci[1] = pci_get_device(PCI_VENDOR_ID_INTEL,
+	pvt->pci_dev_2x_0_fbd_branch[1] = pci_get_device(PCI_VENDOR_ID_INTEL,
 					    PCI_DEVICE_ID_INTEL_I7300_MCH_FB1,
 					    NULL);
-	if (!pvt->branch_pci[1]) {
+	if (!pvt->pci_dev_2x_0_fbd_branch[1]) {
 		i7300_printk(KERN_ERR,
 			"MC: 'BRANCH 1' device not found:"
 			"vendor 0x%x device 0x%x Func 0 "
@@ -1222,7 +1222,7 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->dev = &pdev->dev;	/* record ptr  to the generic device */
 
 	pvt = mci->pvt_info;
-	pvt->system_address = pdev;	/* Record this device in our private */
+	pvt->pci_dev_16_0_fsb_ctlr = pdev;	/* Record this device in our private */
 
 	/* 'get' the pci devices we want to reserve for our use */
 	if (i7300_get_devices(mci, dev_idx))
