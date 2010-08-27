@@ -2092,8 +2092,7 @@ void ieee80211_tx_pending(unsigned long data)
 
 		if (skb_queue_empty(&local->pending[i]))
 			list_for_each_entry_rcu(sdata, &local->interfaces, list)
-				netif_tx_wake_queue(
-					netdev_get_tx_queue(sdata->dev, i));
+				netif_wake_subqueue(sdata->dev, i);
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
