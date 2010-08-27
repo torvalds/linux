@@ -365,6 +365,7 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev);
  */
 struct radeon_scratch {
 	unsigned		num_reg;
+	uint32_t                reg_base;
 	bool			free[32];
 	uint32_t		reg[32];
 };
@@ -593,7 +594,12 @@ struct radeon_wb {
 	struct radeon_bo	*wb_obj;
 	volatile uint32_t	*wb;
 	uint64_t		gpu_addr;
+	bool                    enabled;
 };
+
+#define RADEON_WB_SCRATCH_OFFSET 0
+#define RADEON_WB_CP_RPTR_OFFSET 1024
+#define R600_WB_IH_WPTR_OFFSET   2048
 
 /**
  * struct radeon_pm - power management datas
@@ -1340,6 +1346,9 @@ extern void radeon_update_bandwidth_info(struct radeon_device *rdev);
 extern void radeon_update_display_priority(struct radeon_device *rdev);
 extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
+extern void radeon_wb_fini(struct radeon_device *rdev);
+extern int radeon_wb_init(struct radeon_device *rdev);
+extern void radeon_wb_disable(struct radeon_device *rdev);
 extern void radeon_surface_init(struct radeon_device *rdev);
 extern int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data);
 extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable);
@@ -1424,9 +1433,6 @@ extern int r600_pcie_gart_init(struct radeon_device *rdev);
 extern void r600_pcie_gart_tlb_flush(struct radeon_device *rdev);
 extern int r600_ib_test(struct radeon_device *rdev);
 extern int r600_ring_test(struct radeon_device *rdev);
-extern void r600_wb_fini(struct radeon_device *rdev);
-extern int r600_wb_enable(struct radeon_device *rdev);
-extern void r600_wb_disable(struct radeon_device *rdev);
 extern void r600_scratch_init(struct radeon_device *rdev);
 extern int r600_blit_init(struct radeon_device *rdev);
 extern void r600_blit_fini(struct radeon_device *rdev);

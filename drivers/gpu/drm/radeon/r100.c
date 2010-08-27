@@ -675,67 +675,6 @@ void r100_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, RADEON_SW_INT_FIRE);
 }
 
-int r100_wb_init(struct radeon_device *rdev)
-{
-	int r;
-
-	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
-					RADEON_GEM_DOMAIN_GTT,
-					&rdev->wb.wb_obj);
-		if (r) {
-			dev_err(rdev->dev, "(%d) create WB buffer failed\n", r);
-			return r;
-		}
-		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
-					&rdev->wb.gpu_addr);
-		if (r) {
-			dev_err(rdev->dev, "(%d) pin WB buffer failed\n", r);
-			radeon_bo_unreserve(rdev->wb.wb_obj);
-			return r;
-		}
-		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
-		radeon_bo_unreserve(rdev->wb.wb_obj);
-		if (r) {
-			dev_err(rdev->dev, "(%d) map WB buffer failed\n", r);
-			return r;
-		}
-	}
-	WREG32(R_000774_SCRATCH_ADDR, rdev->wb.gpu_addr);
-	WREG32(R_00070C_CP_RB_RPTR_ADDR,
-		S_00070C_RB_RPTR_ADDR((rdev->wb.gpu_addr + 1024) >> 2));
-	WREG32(R_000770_SCRATCH_UMSK, 0xff);
-	return 0;
-}
-
-void r100_wb_disable(struct radeon_device *rdev)
-{
-	WREG32(R_000770_SCRATCH_UMSK, 0);
-}
-
-void r100_wb_fini(struct radeon_device *rdev)
-{
-	int r;
-
-	r100_wb_disable(rdev);
-	if (rdev->wb.wb_obj) {
-		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-		if (unlikely(r != 0)) {
-			dev_err(rdev->dev, "(%d) can't finish WB\n", r);
-			return;
-		}
-		radeon_bo_kunmap(rdev->wb.wb_obj);
-		radeon_bo_unpin(rdev->wb.wb_obj);
-		radeon_bo_unreserve(rdev->wb.wb_obj);
-		radeon_bo_unref(&rdev->wb.wb_obj);
-		rdev->wb.wb = NULL;
-		rdev->wb.wb_obj = NULL;
-	}
-}
-
 int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
@@ -996,20 +935,32 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	WREG32(0x718, pre_write_timer | (pre_write_limit << 28));
 	tmp = (REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
 	       REG_SET(RADEON_RB_BLKSZ, rb_blksz) |
-	       REG_SET(RADEON_MAX_FETCH, max_fetch) |
-	       RADEON_RB_NO_UPDATE);
+	       REG_SET(RADEON_MAX_FETCH, max_fetch));
 #ifdef __BIG_ENDIAN
 	tmp |= RADEON_BUF_SWAP_32BIT;
 #endif
-	WREG32(RADEON_CP_RB_CNTL, tmp);
+	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_NO_UPDATE);
 
 	/* Set ring address */
 	DRM_INFO("radeon: ring at 0x%016lX\n", (unsigned long)rdev->cp.gpu_addr);
 	WREG32(RADEON_CP_RB_BASE, rdev->cp.gpu_addr);
 	/* Force read & write ptr to 0 */
-	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA);
+	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA | RADEON_RB_NO_UPDATE);
 	WREG32(RADEON_CP_RB_RPTR_WR, 0);
 	WREG32(RADEON_CP_RB_WPTR, 0);
+
+	/* set the wb address whether it's enabled or not */
+	WREG32(R_00070C_CP_RB_RPTR_ADDR,
+		S_00070C_RB_RPTR_ADDR((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) >> 2));
+	WREG32(R_000774_SCRATCH_ADDR, rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET);
+
+	if (rdev->wb.enabled)
+		WREG32(R_000770_SCRATCH_UMSK, 0xff);
+	else {
+		tmp |= RADEON_RB_NO_UPDATE;
+		WREG32(R_000770_SCRATCH_UMSK, 0);
+	}
+
 	WREG32(RADEON_CP_RB_CNTL, tmp);
 	udelay(10);
 	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
@@ -1050,6 +1001,7 @@ void r100_cp_disable(struct radeon_device *rdev)
 	rdev->cp.ready = false;
 	WREG32(RADEON_CP_CSQ_MODE, 0);
 	WREG32(RADEON_CP_CSQ_CNTL, 0);
+	WREG32(R_000770_SCRATCH_UMSK, 0);
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "programming pipes. Bad things might happen.\n");
@@ -3734,6 +3686,12 @@ static int r100_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r100_irq_set(rdev);
 	rdev->config.r100.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
@@ -3743,9 +3701,6 @@ static int r100_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_wb_init(rdev);
-	if (r)
-		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
 	r = r100_ib_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
@@ -3779,7 +3734,7 @@ int r100_resume(struct radeon_device *rdev)
 int r100_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
-	r100_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_disable(rdev);
@@ -3789,7 +3744,7 @@ int r100_suspend(struct radeon_device *rdev)
 void r100_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
-	r100_wb_fini(rdev);
+	radeon_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
@@ -3902,7 +3857,7 @@ int r100_init(struct radeon_device *rdev)
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
-		r100_wb_fini(rdev);
+		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCI)

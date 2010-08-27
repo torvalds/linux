@@ -72,7 +72,11 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 	bool wake = false;
 	unsigned long cjiffies;
 
-	seq = RREG32(rdev->fence_drv.scratch_reg);
+	if (rdev->wb.enabled) {
+		u32 scratch_index = RADEON_WB_SCRATCH_OFFSET + rdev->fence_drv.scratch_reg - rdev->scratch.reg_base;
+		seq = rdev->wb.wb[scratch_index/4];
+	} else
+		seq = RREG32(rdev->fence_drv.scratch_reg);
 	if (seq != rdev->fence_drv.last_seq) {
 		rdev->fence_drv.last_seq = seq;
 		rdev->fence_drv.last_jiffies = jiffies;
