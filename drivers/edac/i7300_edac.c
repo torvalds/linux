@@ -268,6 +268,16 @@ static const char *ferr_global_lo_name[] = {
 };
 #define ferr_global_lo_is_fatal(errno)	((errno < 16) ? 0 : 1)
 
+#define NRECMEMA	0xbe
+  #define NRECMEMA_BANK(v)	(((v) >> 12) & 7)
+  #define NRECMEMA_RANK(v)	(((v) >> 8) & 15)
+
+#define NRECMEMB	0xc0
+  #define NRECMEMB_IS_WR(v)	((v) & (1 << 31))
+  #define NRECMEMB_CAS(v)	(((v) >> 16) & 0x1fff)
+  #define NRECMEMB_RAS(v)	((v) & 0xffff)
+
+
 /* Device name and register DID (Device ID) */
 struct i7300_dev_info {
 	const char *ctl_name;	/* name for this device */
@@ -392,10 +402,11 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	u32 errnum, value;
-	int branch;
+	u16 val16;
+	int branch, bank, rank, cas, ras;
 	unsigned long errors;
 	const char *specific;
-	bool is_fatal;
+	bool is_fatal, is_wr;
 
 	pvt = mci->pvt_info;
 
@@ -410,8 +421,31 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		is_fatal = 1;
 
 		branch = (GET_FBD_FAT_IDX(value) == 2) ? 1 : 0;
+		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
+				     NRECMEMA, &val16);
+		bank = NRECMEMA_BANK(val16);
+		rank = NRECMEMA_RANK(val16);
 
-		goto error_fbd;
+		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+				NRECMEMB, &value);
+
+		is_wr = NRECMEMB_IS_WR(value);
+		cas = NRECMEMB_CAS(value);
+		ras = NRECMEMB_RAS(value);
+
+		snprintf(pvt->tmp_prt_buffer, PAGE_SIZE,
+			"FATAL (Branch=%d DRAM-Bank=%d %s "
+			"RAS=%d CAS=%d Err=0x%lx (%s))",
+			branch >> 1, bank,
+			is_wr ? "RDWR" : "RD",
+			ras, cas,
+			errors, specific);
+
+		/* Call the helper to output message */
+		edac_mc_handle_fbd_ue(mci, rank, branch << 1,
+				      (branch << 1) + 1,
+				      pvt->tmp_prt_buffer);
+		return;
 	}
 
 	/* read in the 1st NON-FATAL error register */
@@ -433,6 +467,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 	return;
 
 error_fbd:
+
 	i7300_mc_printk(mci, KERN_EMERG, "%s FBD error on branch %d: %s\n",
 			is_fatal ? "Fatal" : "NOT fatal", branch, specific);
 }
