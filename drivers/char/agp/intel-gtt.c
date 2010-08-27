@@ -292,7 +292,7 @@ static void intel_i810_cleanup(void)
 	iounmap(intel_private.registers);
 }
 
-static void intel_i810_agp_enable(struct agp_bridge_data *bridge, u32 mode)
+static void intel_fake_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 {
 	return;
 }
@@ -522,7 +522,7 @@ static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
 	return addr | bridge->driver->masks[type].mask;
 }
 
-static struct aper_size_info_fixed intel_i830_sizes[] =
+static struct aper_size_info_fixed intel_fake_agp_sizes[] =
 {
 	{128, 32768, 5},
 	/* The 64M mode still requires a 128k gatt */
@@ -812,14 +812,14 @@ static int intel_fake_agp_fetch_size(void)
 {
 	unsigned int aper_size;
 	int i;
-	int num_sizes = ARRAY_SIZE(intel_i830_sizes);
+	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);
 
 	aper_size = (intel_private.base.gtt_mappable_entries << PAGE_SHIFT)
 		    / MB(1);
 
 	for (i = 0; i < num_sizes; i++) {
-		if (aper_size == intel_i830_sizes[i].size) {
-			agp_bridge->current_size = intel_i830_sizes + i;
+		if (aper_size == intel_fake_agp_sizes[i].size) {
+			agp_bridge->current_size = intel_fake_agp_sizes + i;
 			return aper_size;
 		}
 	}
@@ -913,7 +913,7 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 /* Return the gatt table to a sane state. Use the top of stolen
  * memory for the GTT.
  */
-static int intel_i830_free_gatt_table(struct agp_bridge_data *bridge)
+static int intel_fake_agp_free_gatt_table(struct agp_bridge_data *bridge)
 {
 	return 0;
 }
@@ -1034,7 +1034,8 @@ static int intel_i830_remove_entries(struct agp_memory *mem, off_t pg_start,
 	return 0;
 }
 
-static struct agp_memory *intel_i830_alloc_by_type(size_t pg_count, int type)
+static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
+						       int type)
 {
 	if (type == AGP_PHYS_MEMORY)
 		return alloc_agpphysmem_i8xx(pg_count, type);
@@ -1484,7 +1485,7 @@ static const struct agp_bridge_driver intel_810_driver = {
 	.cleanup		= intel_i810_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
-	.agp_enable		= intel_i810_agp_enable,
+	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= agp_generic_create_gatt_table,
 	.free_gatt_table	= agp_generic_free_gatt_table,
@@ -1501,7 +1502,7 @@ static const struct agp_bridge_driver intel_810_driver = {
 
 static const struct agp_bridge_driver intel_830_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_i830_sizes,
+	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
@@ -1510,13 +1511,13 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.cleanup		= intel_i830_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
-	.agp_enable		= intel_i810_agp_enable,
+	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_i830_create_gatt_table,
-	.free_gatt_table	= intel_i830_free_gatt_table,
+	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i830_insert_entries,
 	.remove_memory		= intel_i830_remove_entries,
-	.alloc_by_type		= intel_i830_alloc_by_type,
+	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
@@ -1528,7 +1529,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 
 static const struct agp_bridge_driver intel_915_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_i830_sizes,
+	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
@@ -1537,13 +1538,13 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
-	.agp_enable		= intel_i810_agp_enable,
+	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_i915_create_gatt_table,
-	.free_gatt_table	= intel_i830_free_gatt_table,
+	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
-	.alloc_by_type		= intel_i830_alloc_by_type,
+	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
@@ -1561,7 +1562,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 
 static const struct agp_bridge_driver intel_i965_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_i830_sizes,
+	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
@@ -1570,13 +1571,13 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
-	.agp_enable		= intel_i810_agp_enable,
+	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_i965_create_gatt_table,
-	.free_gatt_table	= intel_i830_free_gatt_table,
+	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
-	.alloc_by_type		= intel_i830_alloc_by_type,
+	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
@@ -1594,7 +1595,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 
 static const struct agp_bridge_driver intel_gen6_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_i830_sizes,
+	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
@@ -1603,13 +1604,13 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_gen6_mask_memory,
 	.masks			= intel_gen6_masks,
-	.agp_enable		= intel_i810_agp_enable,
+	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_i965_create_gatt_table,
-	.free_gatt_table	= intel_i830_free_gatt_table,
+	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
-	.alloc_by_type		= intel_i830_alloc_by_type,
+	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
@@ -1627,7 +1628,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 
 static const struct agp_bridge_driver intel_g33_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_i830_sizes,
+	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
@@ -1636,13 +1637,13 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
-	.agp_enable		= intel_i810_agp_enable,
+	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_i915_create_gatt_table,
-	.free_gatt_table	= intel_i830_free_gatt_table,
+	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
-	.alloc_by_type		= intel_i830_alloc_by_type,
+	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
