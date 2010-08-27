@@ -763,6 +763,10 @@ const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
  *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
  *	required to assume that the port is unauthorized until authorized by
  *	user space. Otherwise, port is marked authorized by default.
+ * @control_port_ethertype: the control port protocol that should be
+ *	allowed through even on unauthorized ports
+ * @control_port_no_encrypt: TRUE to prevent encryption of control port
+ *	protocol frames.
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
@@ -772,6 +776,8 @@ struct cfg80211_crypto_settings {
 	int n_akm_suites;
 	u32 akm_suites[NL80211_MAX_NR_AKM_SUITES];
 	bool control_port;
+	__be16 control_port_ethertype;
+	bool control_port_no_encrypt;
 };
 
 /**
@@ -1293,15 +1299,19 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_4ADDR_AP: supports 4addr mode even on AP (with a single station
  *	on a VLAN interface)
  * @WIPHY_FLAG_4ADDR_STATION: supports 4addr mode even as a station
+ * @WIPHY_FLAG_CONTROL_PORT_PROTOCOL: This device supports setting the
+ *	control port protocol ethertype. The device also honours the
+ *	control_port_no_encrypt flag.
  */
 enum wiphy_flags {
-	WIPHY_FLAG_CUSTOM_REGULATORY	= BIT(0),
-	WIPHY_FLAG_STRICT_REGULATORY	= BIT(1),
-	WIPHY_FLAG_DISABLE_BEACON_HINTS	= BIT(2),
-	WIPHY_FLAG_NETNS_OK		= BIT(3),
-	WIPHY_FLAG_PS_ON_BY_DEFAULT	= BIT(4),
-	WIPHY_FLAG_4ADDR_AP		= BIT(5),
-	WIPHY_FLAG_4ADDR_STATION	= BIT(6),
+	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
+	WIPHY_FLAG_STRICT_REGULATORY		= BIT(1),
+	WIPHY_FLAG_DISABLE_BEACON_HINTS		= BIT(2),
+	WIPHY_FLAG_NETNS_OK			= BIT(3),
+	WIPHY_FLAG_PS_ON_BY_DEFAULT		= BIT(4),
+	WIPHY_FLAG_4ADDR_AP			= BIT(5),
+	WIPHY_FLAG_4ADDR_STATION		= BIT(6),
+	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
 };
 
 struct mac_address {

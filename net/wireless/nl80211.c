@@ -136,6 +136,8 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 		.len = sizeof(struct nl80211_sta_flag_update),
 	},
 	[NL80211_ATTR_CONTROL_PORT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_CONTROL_PORT_ETHERTYPE] = { .type = NLA_U16 },
+	[NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PRIVACY] = { .type = NLA_FLAG },
 	[NL80211_ATTR_CIPHER_SUITE_GROUP] = { .type = NLA_U32 },
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
@@ -473,6 +475,9 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_PMKIDS,
 		   dev->wiphy.max_num_pmkids);
+
+	if (dev->wiphy.flags & WIPHY_FLAG_CONTROL_PORT_PROTOCOL)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_CONTROL_PORT_ETHERTYPE);
 
 	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
 	if (!nl_modes)
@@ -3691,13 +3696,27 @@ unlock_rtnl:
 	return err;
 }
 
-static int nl80211_crypto_settings(struct genl_info *info,
+static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
+				   struct genl_info *info,
 				   struct cfg80211_crypto_settings *settings,
 				   int cipher_limit)
 {
 	memset(settings, 0, sizeof(*settings));
 
 	settings->control_port = info->attrs[NL80211_ATTR_CONTROL_PORT];
+
+	if (info->attrs[NL80211_ATTR_CONTROL_PORT_ETHERTYPE]) {
+		u16 proto;
+		proto = nla_get_u16(
+			info->attrs[NL80211_ATTR_CONTROL_PORT_ETHERTYPE]);
+		settings->control_port_ethertype = cpu_to_be16(proto);
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_CONTROL_PORT_PROTOCOL) &&
+		    proto != ETH_P_PAE)
+			return -EINVAL;
+		if (info->attrs[NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT])
+			settings->control_port_no_encrypt = true;
+	} else
+		settings->control_port_ethertype = cpu_to_be16(ETH_P_PAE);
 
 	if (info->attrs[NL80211_ATTR_CIPHER_SUITES_PAIRWISE]) {
 		void *data;
@@ -3826,7 +3845,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_PREV_BSSID])
 		prev_bssid = nla_data(info->attrs[NL80211_ATTR_PREV_BSSID]);
 
-	err = nl80211_crypto_settings(info, &crypto, 1);
+	err = nl80211_crypto_settings(rdev, info, &crypto, 1);
 	if (!err)
 		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
 					  ssid, ssid_len, ie, ie_len, use_mfp,
@@ -4303,7 +4322,7 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	connect.privacy = info->attrs[NL80211_ATTR_PRIVACY];
 
-	err = nl80211_crypto_settings(info, &connect.crypto,
+	err = nl80211_crypto_settings(rdev, info, &connect.crypto,
 				      NL80211_MAX_NR_CIPHER_SUITES);
 	if (err)
 		return err;
