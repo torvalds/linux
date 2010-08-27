@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
+#include <linux/intel-gtt.h>
 
 static uint32_t i915_gem_get_gtt_alignment(struct drm_gem_object *obj);
 static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
