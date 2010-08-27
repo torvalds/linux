@@ -997,15 +997,18 @@ static int create_trace_probe(int argc, char **argv)
 
 		/* Parse argument name */
 		arg = strchr(argv[i], '=');
-		if (arg)
+		if (arg) {
 			*arg++ = '\0';
-		else
+			tp->args[i].name = kstrdup(argv[i], GFP_KERNEL);
+		} else {
 			arg = argv[i];
+			/* If argument name is omitted, set "argN" */
+			snprintf(buf, MAX_EVENT_NAME_LEN, "arg%d", i + 1);
+			tp->args[i].name = kstrdup(buf, GFP_KERNEL);
+		}
 
-		tp->args[i].name = kstrdup(argv[i], GFP_KERNEL);
 		if (!tp->args[i].name) {
-			pr_info("Failed to allocate argument%d name '%s'.\n",
-				i, argv[i]);
+			pr_info("Failed to allocate argument[%d] name.\n", i);
 			ret = -ENOMEM;
 			goto error;
 		}
@@ -1014,7 +1017,7 @@ static int create_trace_probe(int argc, char **argv)
 			*tmp = '_';	/* convert : to _ */
 
 		if (conflict_field_name(tp->args[i].name, tp->args, i)) {
-			pr_info("Argument%d name '%s' conflicts with "
+			pr_info("Argument[%d] name '%s' conflicts with "
 				"another field.\n", i, argv[i]);
 			ret = -EINVAL;
 			goto error;
@@ -1023,7 +1026,7 @@ static int create_trace_probe(int argc, char **argv)
 		/* Parse fetch argument */
 		ret = parse_probe_arg(arg, tp, &tp->args[i], is_return);
 		if (ret) {
-			pr_info("Parse error at argument%d. (%d)\n", i, ret);
+			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
 		}
 	}
