@@ -224,7 +224,7 @@ void xen_setup_mfn_list_list(void)
 
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
 		virt_to_mfn(p2m_top_mfn_list);
-	HYPERVISOR_shared_info->arch.max_pfn = max_p2m_mfn;
+	HYPERVISOR_shared_info->arch.max_pfn = max_p2m_pfn;
 }
 
 /* Set up p2m_top to point to the domain-builder provided p2m pages */
