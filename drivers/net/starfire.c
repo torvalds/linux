@@ -302,7 +302,7 @@ enum chipset {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(starfire_pci_tbl) = {
-	{ 0x9004, 0x6915, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_6915 },
+	{ PCI_VDEVICE(ADAPTEC, 0x6915), CH_6915 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
