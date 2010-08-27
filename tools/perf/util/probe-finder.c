@@ -783,6 +783,16 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 		/* This function has no name. */
 		tev->point.offset = (unsigned long)pf->addr;
 
+	/* Return probe must be on the head of a subprogram */
+	if (pf->pev->point.retprobe) {
+		if (tev->point.offset != 0) {
+			pr_warning("Return probe must be on the head of"
+				   " a real function\n");
+			return -EINVAL;
+		}
+		tev->point.retprobe = true;
+	}
+
 	pr_debug("Probe point found: %s+%lu\n", tev->point.symbol,
 		 tev->point.offset);
 
