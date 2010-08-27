@@ -1377,22 +1377,7 @@ int setup_ioapic_entry(int apic_id, int irq,
 		if (index < 0)
 			panic("Failed to allocate IRTE for ioapic %d\n", apic_id);
 
-		memset(&irte, 0, sizeof(irte));
-
-		irte.present = 1;
-		irte.dst_mode = apic->irq_dest_mode;
-		/*
-		 * Trigger mode in the IRTE will always be edge, and the
-		 * actual level or edge trigger will be setup in the IO-APIC
-		 * RTE. This will help simplify level triggered irq migration.
-		 * For more details, see the comments above explainig IO-APIC
-		 * irq migration in the presence of interrupt-remapping.
-		 */
-		irte.trigger_mode = 0;
-		irte.dlvry_mode = apic->irq_delivery_mode;
-		irte.vector = vector;
-		irte.dest_id = IRTE_DEST(destination);
-		irte.redir_hint = 1;
+		prepare_irte(&irte, vector, destination);
 
 		/* Set source-id of interrupt request */
 		set_ioapic_sid(&irte, apic_id);
@@ -3336,15 +3321,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 		ir_index = map_irq_to_irte_handle(irq, &sub_handle);
 		BUG_ON(ir_index == -1);
 
-		memset (&irte, 0, sizeof(irte));
-
-		irte.present = 1;
-		irte.dst_mode = apic->irq_dest_mode;
-		irte.trigger_mode = 0; /* edge */
-		irte.dlvry_mode = apic->irq_delivery_mode;
-		irte.vector = cfg->vector;
-		irte.dest_id = IRTE_DEST(dest);
-		irte.redir_hint = 1;
+		prepare_irte(&irte, cfg->vector, dest);
 
 		/* Set source-id of interrupt request */
 		if (pdev)
