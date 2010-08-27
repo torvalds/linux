@@ -816,17 +816,17 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	/* Software copy if the card isn't up and running yet. */
-	if (!dev_priv->channel) {
-		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
-		goto out;
-	}
-
 	/* Fake bo copy. */
 	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
 		BUG_ON(bo->mem.mm_node != NULL);
 		bo->mem = *new_mem;
 		new_mem->mm_node = NULL;
+		goto out;
+	}
+
+	/* Software copy if the card isn't up and running yet. */
+	if (!dev_priv->channel) {
+		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 		goto out;
 	}
 
