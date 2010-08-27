@@ -299,6 +299,11 @@ static void i7300_process_error_global(struct mem_ctl_info *mci,
 					ARRAY_SIZE(ferr_global_hi_name));
 		specific = GET_ERR_FROM_TABLE(ferr_global_hi_name, errnum);
 		is_fatal = ferr_global_hi_is_fatal(errnum);
+
+		/* Clear the error bit */
+		pci_write_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+				       FERR_GLOBAL_HI, value);
+
 		goto error_global;
 	}
 
@@ -310,6 +315,11 @@ static void i7300_process_error_global(struct mem_ctl_info *mci,
 					ARRAY_SIZE(ferr_global_lo_name));
 		specific = GET_ERR_FROM_TABLE(ferr_global_lo_name, errnum);
 		is_fatal = ferr_global_lo_is_fatal(errnum);
+
+		/* Clear the error bit */
+		pci_write_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+				       FERR_GLOBAL_LO, value);
+
 		goto error_global;
 	}
 	return;
