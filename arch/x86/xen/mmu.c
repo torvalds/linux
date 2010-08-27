@@ -374,9 +374,6 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 		p2m_top[topidx][mididx] = &mfn_list[pfn];
 	}
-
-	/* Allocate and initialize top and mid mfn levels */
-	xen_build_mfn_list_list();
 }
 
 unsigned long get_phys_to_machine(unsigned long pfn)
