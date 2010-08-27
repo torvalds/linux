@@ -85,22 +85,30 @@
 #define LINE2L_2_HPLOUT_VOL		45
 #define PGAL_2_HPLOUT_VOL		46
 #define DACL1_2_HPLOUT_VOL		47
+#define LINE2R_2_HPLOUT_VOL		48
 #define PGAR_2_HPLOUT_VOL		49
+#define DACR1_2_HPLOUT_VOL		50
 #define HPLOUT_CTRL			51
 /* Left High Power COM control registers */
 #define LINE2L_2_HPLCOM_VOL		52
 #define PGAL_2_HPLCOM_VOL		53
 #define DACL1_2_HPLCOM_VOL		54
+#define LINE2R_2_HPLCOM_VOL		55
 #define PGAR_2_HPLCOM_VOL		56
+#define DACR1_2_HPLCOM_VOL		57
 #define HPLCOM_CTRL			58
 /* Right High Power Output control registers */
+#define LINE2L_2_HPROUT_VOL		59
 #define PGAL_2_HPROUT_VOL		60
+#define DACL1_2_HPROUT_VOL		61
 #define LINE2R_2_HPROUT_VOL		62
 #define PGAR_2_HPROUT_VOL		63
 #define DACR1_2_HPROUT_VOL		64
 #define HPROUT_CTRL			65
 /* Right High Power COM control registers */
+#define LINE2L_2_HPRCOM_VOL		66
 #define PGAL_2_HPRCOM_VOL		67
+#define DACL1_2_HPRCOM_VOL		68
 #define LINE2R_2_HPRCOM_VOL		69
 #define PGAR_2_HPRCOM_VOL		70
 #define DACR1_2_HPRCOM_VOL		71
