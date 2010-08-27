@@ -41,6 +41,10 @@
 #define i7300_mc_printk(mci, level, fmt, arg...) \
 	edac_mc_chipset_printk(mci, level, "i7300", fmt, ##arg)
 
+/***********************************************
+ * i7300 Limit constants Structs and static vars
+ ***********************************************/
+
 /*
  * Memory topology is organized as:
  *	Branch 0 - 2 channels: channels 0 and 1 (FDB0 PCI dev 21.0)
@@ -67,17 +71,63 @@
 #define to_csrow(slot, ch, branch)					\
 		(to_channel(ch, branch) | ((slot) << 2))
 
-/*
- * I7300 devices
- * All 3 functions of Device 16 (0,1,2) share the SAME DID and
- * uses PCI_DEVICE_ID_INTEL_I7300_MCH_ERR for device 16 (0,1,2),
- * PCI_DEVICE_ID_INTEL_I7300_MCH_FB0 and PCI_DEVICE_ID_INTEL_I7300_MCH_FB1
- * for device 21 (0,1).
- */
+/* Device name and register DID (Device ID) */
+struct i7300_dev_info {
+	const char *ctl_name;	/* name for this device */
+	u16 fsb_mapping_errors;	/* DID for the branchmap,control */
+};
 
-/****************************************************
- * i7300 Register definitions for memory enumberation
- ****************************************************/
+/* Table of devices attributes supported by this driver */
+static const struct i7300_dev_info i7300_devs[] = {
+	{
+		.ctl_name = "I7300",
+		.fsb_mapping_errors = PCI_DEVICE_ID_INTEL_I7300_MCH_ERR,
+	},
+};
+
+struct i7300_dimm_info {
+	int megabytes;		/* size, 0 means not present  */
+};
+
+/* driver private data structure */
+struct i7300_pvt {
+	struct pci_dev *pci_dev_16_0_fsb_ctlr;		/* 16.0 */
+	struct pci_dev *pci_dev_16_1_fsb_addr_map;	/* 16.1 */
+	struct pci_dev *pci_dev_16_2_fsb_err_regs;	/* 16.2 */
+	struct pci_dev *pci_dev_2x_0_fbd_branch[MAX_BRANCHES];	/* 21.0  and 22.0 */
+
+	u16 tolm;				/* top of low memory */
+	u64 ambase;				/* AMB BAR */
+
+	u32 mc_settings;			/* Report several settings */
+	u32 mc_settings_a;
+
+	u16 mir[MAX_MIR];			/* Memory Interleave Reg*/
+
+	u16 mtr[MAX_SLOTS][MAX_BRANCHES];		/* Memory Technlogy Reg */
+	u16 ambpresent[MAX_CHANNELS];		/* AMB present regs */
+
+	/* DIMM information matrix, allocating architecture maximums */
+	struct i7300_dimm_info dimm_info[MAX_SLOTS][MAX_CHANNELS];
+
+	/* Temporary buffer for use when preparing error messages */
+	char *tmp_prt_buffer;
+};
+
+/* FIXME: Why do we need to have this static? */
+static struct edac_pci_ctl_info *i7300_pci;
+
+/***************************************************
+ * i7300 Register definitions for memory enumeration
+ ***************************************************/
+
+/*
+ * I7300 devices:
+ * All 3 functions of Device 16 (0,1,2) share the SAME DID and
+ * uses PCI_DEVICE_ID_INTEL_I7300_MCH_ERR for device 16 (0,1,2).
+ * PCI_DEVICE_ID_INTEL_I7300_MCH_FB0 is used for device 21 (0,1)
+ * and PCI_DEVICE_ID_INTEL_I7300_MCH_FB1 is used for device 21 (0,1).
+ */
 
 /*
  * Device 16,
@@ -125,7 +175,8 @@ const static u16 mtr_regs [MAX_SLOTS] = {
 	0x82, 0x86, 0x8a, 0x8e
 };
 
-/* Defines to extract the vaious fields from the
+/*
+ * Defines to extract the vaious fields from the
  *	MTRx - Memory Technology Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (1 << 8))
@@ -289,53 +340,6 @@ static const char *ferr_global_lo_name[] = {
   #define RECMEMB_IS_WR(v)	((v) & (1 << 31))
   #define RECMEMB_CAS(v)	(((v) >> 16) & 0x1fff)
   #define RECMEMB_RAS(v)	((v) & 0xffff)
-
-
-/* Device name and register DID (Device ID) */
-struct i7300_dev_info {
-	const char *ctl_name;	/* name for this device */
-	u16 fsb_mapping_errors;	/* DID for the branchmap,control */
-};
-
-/* Table of devices attributes supported by this driver */
-static const struct i7300_dev_info i7300_devs[] = {
-	{
-		.ctl_name = "I7300",
-		.fsb_mapping_errors = PCI_DEVICE_ID_INTEL_I7300_MCH_ERR,
-	},
-};
-
-struct i7300_dimm_info {
-	int megabytes;		/* size, 0 means not present  */
-};
-
-/* driver private data structure */
-struct i7300_pvt {
-	struct pci_dev *pci_dev_16_0_fsb_ctlr;		/* 16.0 */
-	struct pci_dev *pci_dev_16_1_fsb_addr_map;	/* 16.1 */
-	struct pci_dev *pci_dev_16_2_fsb_err_regs;	/* 16.2 */
-	struct pci_dev *pci_dev_2x_0_fbd_branch[MAX_BRANCHES];	/* 21.0  and 22.0 */
-
-	u16 tolm;				/* top of low memory */
-	u64 ambase;				/* AMB BAR */
-
-	u32 mc_settings;			/* Report several settings */
-	u32 mc_settings_a;
-
-	u16 mir[MAX_MIR];			/* Memory Interleave Reg*/
-
-	u16 mtr[MAX_SLOTS][MAX_BRANCHES];		/* Memory Technlogy Reg */
-	u16 ambpresent[MAX_CHANNELS];		/* AMB present regs */
-
-	/* DIMM information matrix, allocating architecture maximums */
-	struct i7300_dimm_info dimm_info[MAX_SLOTS][MAX_CHANNELS];
-
-	/* Temporary buffer for use when preparing error messages */
-	char *tmp_prt_buffer;
-};
-
-/* FIXME: Why do we need to have this static? */
-static struct edac_pci_ctl_info *i7300_pci;
 
 /********************************************
  * i7300 Functions related to error detection
