@@ -1,6 +1,8 @@
 /*
  * Common Intel AGPGART and GTT definitions.
  */
+#ifndef _INTEL_AGP_H
+#define _INTEL_AGP_H
 
 /* Intel registers */
 #define INTEL_APSIZE	0xb4
@@ -244,3 +246,5 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
 		IS_SNB)
+
+#endif
