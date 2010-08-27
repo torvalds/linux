@@ -841,6 +841,15 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	p_csrow->grain = 8;
 	p_csrow->nr_pages = dinfo->megabytes << 8;
 	p_csrow->mtype = MEM_FB_DDR2;
+
+	/*
+	 * FIXME: the type of error detection actually depends of the
+	 * mode of operation. When it is just one single memory chip, at
+	 * socket 0, channel 0, it uses  8-byte-over-32-byte SECDED+ code.
+	 * In normal or mirrored mode, it uses Single Device Data correction,
+	 * with the possibility of using an extended algorithm for x8 memories
+	 * See datasheet Sections 7.3.6 to 7.3.8
+	 */
 	p_csrow->edac_mode = EDAC_S8ECD8ED;
 
 	/* ask what device type on this row */
