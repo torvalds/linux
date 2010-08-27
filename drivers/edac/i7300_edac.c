@@ -450,14 +450,24 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	p_csrow->mtype = MEM_FB_DDR2;
 
 	/*
-	 * FIXME: the type of error detection actually depends of the
+	 * The type of error detection actually depends of the
 	 * mode of operation. When it is just one single memory chip, at
-	 * socket 0, channel 0, it uses  8-byte-over-32-byte SECDED+ code.
-	 * In normal or mirrored mode, it uses Single Device Data correction,
+	 * socket 0, channel 0, it uses 8-byte-over-32-byte SECDED+ code.
+	 * In normal or mirrored mode, it uses Lockstep mode,
 	 * with the possibility of using an extended algorithm for x8 memories
 	 * See datasheet Sections 7.3.6 to 7.3.8
 	 */
-	p_csrow->edac_mode = EDAC_S8ECD8ED;
+
+	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
+		p_csrow->edac_mode = EDAC_SECDED;
+		debugf0("ECC code is 8-byte-over-32-byte SECDED+ code\n");
+	} else {
+		debugf0("ECC code is on Lockstep mode\n");
+		if (MTR_DRAM_WIDTH(mtr))
+			p_csrow->edac_mode = EDAC_S8ECD8ED;
+		else
+			p_csrow->edac_mode = EDAC_S4ECD4ED;
+	}
 
 	/* ask what device type on this row */
 	if (MTR_DRAM_WIDTH(mtr)) {
