@@ -45,6 +45,7 @@ config ARCH_MSM8X60
 	select MSM_V2_TLMM
 	select MSM_GPIOMUX
 	select IOMMU_API
+	select MSM_SCM if SMP
 
 endchoice
 
@@ -171,5 +172,8 @@ config MSM_V2_TLMM
 	bool
 
 config IOMMU_API
+	bool
+
+config MSM_SCM
 	bool
 endif
