@@ -338,7 +338,9 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 
 	nv50_cursor_fini(nv_crtc);
 
+	nouveau_bo_unmap(nv_crtc->lut.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	kfree(nv_crtc->mode);
 	kfree(nv_crtc);

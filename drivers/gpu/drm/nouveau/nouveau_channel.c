@@ -310,6 +310,7 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	/* Release the channel's resources */
 	nouveau_gpuobj_ref_del(dev, &chan->pushbuf);
 	if (chan->pushbuf_bo) {
+		nouveau_bo_unmap(chan->pushbuf_bo);
 		nouveau_bo_unpin(chan->pushbuf_bo);
 		nouveau_bo_ref(NULL, &chan->pushbuf_bo);
 	}

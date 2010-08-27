@@ -42,6 +42,7 @@ nv50_evo_channel_del(struct nouveau_channel **pchan)
 	*pchan = NULL;
 
 	nouveau_gpuobj_channel_takedown(chan);
+	nouveau_bo_unmap(chan->pushbuf_bo);
 	nouveau_bo_ref(NULL, &chan->pushbuf_bo);
 
 	if (chan->user)

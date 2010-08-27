@@ -58,8 +58,6 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	ttm_bo_kunmap(&nvbo->kmap);
-
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
@@ -305,7 +303,8 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 void
 nouveau_bo_unmap(struct nouveau_bo *nvbo)
 {
-	ttm_bo_kunmap(&nvbo->kmap);
+	if (nvbo)
+		ttm_bo_kunmap(&nvbo->kmap);
 }
 
 u16
