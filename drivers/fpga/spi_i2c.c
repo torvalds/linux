@@ -39,6 +39,7 @@
 #define I2C_COUNT       20
 #define DRV_NAME    "spi_i2c"
 #define SPI_I2C_TEST 0
+
 #if SPI_I2C_TEST
 struct i2c_adapter *adap;
 #endif
@@ -56,13 +57,24 @@ int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel)
 	ret = spi_in(port,reg,SEL_I2C);
 	DBG("Enter::%s,LINE=%d ret = [%d]\n",__FUNCTION__,__LINE__,ret);
 	if(INT_I2C_READ_ACK == (ret & 0x07))
-		port->i2c.interrupt = INT_I2C_READ_ACK;		
+	{
+
+		port->i2c.interrupt = INT_I2C_READ_ACK;	
+	#if SPI_FPGA_I2C_EVENT
+		wake_up(&port->i2c.wait_r);
+	#endif
+	}
 	else if(INT_I2C_READ_NACK ==(ret & 0x07))
 	{
 		printk("Error::read no ack!!check the I2C slave device ret=%d \n",ret);
 	}
 	else if(INT_I2C_WRITE_ACK == (ret & 0x07))
+	{
 		port->i2c.interrupt = INT_I2C_WRITE_ACK;
+		#if SPI_FPGA_I2C_EVENT
+		wake_up(&port->i2c.wait_w);
+		#endif
+	}
 	else if(INT_I2C_WRITE_NACK == (ret & 0x07))
 	{
 		printk("Error::write no ack!!check the I2C slave device ret=%d \n",ret);
@@ -139,7 +151,20 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	//len;
 	reg = channel |ICE_SEL_I2C_FIFO |ICE_SEL_I2C_STOP;
 	spi_out(port,reg,len,SEL_I2C);
-	
+
+#if SPI_FPGA_I2C_EVENT
+	wait_event_timeout(port->i2c.wait_r, port->i2c.interrupt == INT_I2C_READ_ACK, msecs_to_jiffies(30));	
+	for(i = 0;i<len;i++)
+	{
+		result = spi_in(port,channel,SEL_I2C);
+		pmsg->buf[i] = 0;
+		pmsg->buf[i] = result & 0xff ;
+	}
+	spin_lock(&port->i2c.i2c_lock);
+	port->i2c.interrupt &= INT_I2C_READ_MASK;
+	spin_unlock(&port->i2c.i2c_lock);
+	ret = pmsg->len;
+#else
 	j = I2C_COUNT;
 	while(j--)
 
@@ -162,6 +187,8 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		else
 			msleep(2);
 	}
+	
+#endif
 	//for(i = 0;i<len;i++)
 		//printk("pmsg->buf[%d] = 0x%x \n",i,pmsg->buf[i]);	
 	return ret>0 ? ret:-1;
@@ -210,7 +237,13 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		{
 		reg = channel|ICE_SEL_I2C_STOP;
 		spi_out(port,reg,pmsg->buf[i],SEL_I2C);
-	
+	#if SPI_FPGA_I2C_EVENT
+		wait_event_timeout(port->i2c.wait_w, port->i2c.interrupt == INT_I2C_WRITE_ACK, msecs_to_jiffies(30));
+		spin_lock(&port->i2c.i2c_lock);
+		port->i2c.interrupt &= INT_I2C_WRITE_MASK;
+		spin_unlock(&port->i2c.i2c_lock);
+		ret =  pmsg->len;
+	#else
 		j = I2C_COUNT;	
 		while(j--)
 		{		
@@ -226,7 +259,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 			else
 				msleep(2);
 		}
-	
+	#endif
 		}
 		else if(i==len-1 &&  pmsg->read_type == I2C_NO_STOP)
 		{					
@@ -507,6 +540,11 @@ int spi_i2c_register(struct spi_fpga_port *port,int num)
 	add_timer(&port->i2c.i2c_timer);
 	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);	
 	
+#endif
+
+#if SPI_FPGA_I2C_EVENT
+	init_waitqueue_head(&port->i2c.wait_w);
+	init_waitqueue_head(&port->i2c.wait_r);
 #endif
 
 	return 0;	
