@@ -589,7 +589,8 @@ EXPORT_SYMBOL(idr_for_each);
  * @nextidp:  pointer to lookup key
  *
  * Returns pointer to registered object with id, which is next number to
- * given id.
+ * given id. After being looked up, *@nextidp will be updated for the next
+ * iteration.
  */
 
 void *idr_get_next(struct idr *idp, int *nextidp)
