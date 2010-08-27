@@ -759,7 +759,6 @@ static void s3c_onenand_setup(struct mtd_info *mtd)
 		onenand->cmd_map = s5pc1xx_cmd_map;
 	} else if (onenand->type == TYPE_S5PC110) {
 		/* Use generic onenand functions */
-		onenand->cmd_map = s5pc1xx_cmd_map;
 		this->read_bufferram = s5pc110_read_bufferram;
 		this->chip_probe = s5pc110_chip_probe;
 		return;
