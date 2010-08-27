@@ -621,7 +621,11 @@ int efi_partition(struct parsed_partitions *state)
 		if (!is_pte_valid(&ptes[i], last_lba(state->bdev)))
 			continue;
 
-		put_partition(state, i+1, start * ssz, size * ssz);
+		put_named_partition(state, i+1, start * ssz, size * ssz,
+				   (const char *) ptes[i].partition_name,
+				    strnlen((const char *)
+					    ptes[i].partition_name,
+					    sizeof(ptes[i].partition_name)));
 
 		/* If this is a RAID volume, tell md */
 		if (!efi_guidcmp(ptes[i].partition_type_guid,
