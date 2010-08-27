@@ -583,14 +583,14 @@ static int decode_mtr(struct i7300_pvt *pvt,
 		debugf2("\t\tECC code is 8-byte-over-32-byte SECDED+ code\n");
 	} else {
 		debugf2("\t\tECC code is on Lockstep mode\n");
-		if (MTR_DRAM_WIDTH(mtr))
+		if (MTR_DRAM_WIDTH(mtr) == 8)
 			p_csrow->edac_mode = EDAC_S8ECD8ED;
 		else
 			p_csrow->edac_mode = EDAC_S4ECD4ED;
 	}
 
 	/* ask what device type on this row */
-	if (MTR_DRAM_WIDTH(mtr)) {
+	if (MTR_DRAM_WIDTH(mtr) == 8) {
 		debugf2("\t\tScrub algorithm for x8 is on %s mode\n",
 			IS_SCRBALGO_ENHANCED(pvt->mc_settings) ?
 					    "enhanced" : "normal");
