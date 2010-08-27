@@ -458,3 +458,24 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	unsigned long range_end = mm->brk + 0x02000000;
 	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }
+
+/*
+ * The vectors page is always readable from user space for the
+ * atomic helpers and the signal restart code.  Let's declare a mapping
+ * for it so it is visible through ptrace and /proc/<pid>/mem.
+ */
+
+int vectors_user_mapping(void)
+{
+	struct mm_struct *mm = current->mm;
+	return install_special_mapping(mm, 0xffff0000, PAGE_SIZE,
+				       VM_READ | VM_EXEC |
+				       VM_MAYREAD | VM_MAYEXEC |
+				       VM_ALWAYSDUMP | VM_RESERVED,
+				       NULL);
+}
+
+const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	return (vma->vm_start == 0xffff0000) ? "[vectors]" : NULL;
+}
