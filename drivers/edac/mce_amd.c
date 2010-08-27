@@ -339,19 +339,27 @@ wrong_bu_mce:
 
 static void amd_decode_ls_mce(struct mce *m)
 {
-	u32 ec  = m->status & 0xffff;
-	u32 xec = (m->status >> 16) & 0xf;
+	u16 ec = m->status & 0xffff;
+	u8 xec = (m->status >> 16) & 0xf;
+
+	if (boot_cpu_data.x86 == 0x14) {
+		pr_emerg("You shouldn't be seeing an LS MCE on this cpu family,"
+			 " please report on LKML.\n");
+		return;
+	}
 
 	pr_emerg(HW_ERR "Load Store Error");
 
 	if (xec == 0x0) {
-		u8 rrrr = (ec >> 4) & 0xf;
+		u8 r4 = (ec >> 4) & 0xf;
 
-		if (!BUS_ERROR(ec) || (rrrr != 0x3 && rrrr != 0x4))
+		if (!BUS_ERROR(ec) || (r4 != R4_DRD && r4 != R4_DWR))
 			goto wrong_ls_mce;
 
 		pr_cont(" during %s.\n", RRRR_MSG(ec));
-	}
+	} else
+		goto wrong_ls_mce;
+
 	return;
 
 wrong_ls_mce:
