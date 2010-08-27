@@ -513,3 +513,29 @@ struct platform_device pmu_device = {
 	.num_resources	= ARRAY_SIZE(pmu_resources),
 	.resource	= pmu_resources,
 };
+
+#define CLK_RESET_RST_SOURCE	0x0
+static struct resource tegra_wdt_resources[] = {
+	[0] = {
+		.start	= TEGRA_CLK_RESET_BASE + CLK_RESET_RST_SOURCE,
+		.end	= TEGRA_CLK_RESET_BASE + CLK_RESET_RST_SOURCE + 4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= TEGRA_TMR1_BASE,
+		.end	= TEGRA_TMR1_BASE + TEGRA_TMR1_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= INT_TMR1,
+		.end	= INT_TMR1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device tegra_wdt_device = {
+	.name		= "tegra_wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(tegra_wdt_resources),
+	.resource	= tegra_wdt_resources,
+};
