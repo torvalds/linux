@@ -91,11 +91,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	/* Map M2MF notifier object - fbcon. */
-	ret = nouveau_bo_map(chan->notifier_bo);
-	if (ret)
-		return ret;
-
 	/* Insert NOPS for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
 	if (ret)
