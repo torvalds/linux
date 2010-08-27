@@ -135,11 +135,10 @@ static int op_perf_start(void)
 		for (event = 0; event < perf_num_counters; ++event) {
 			ret = op_create_counter(cpu, event);
 			if (ret)
-				goto out;
+				return ret;
 		}
 	}
 
-out:
 	return ret;
 }
 
@@ -263,7 +262,7 @@ static int __init init_driverfs(void)
 
 	ret = platform_driver_register(&oprofile_driver);
 	if (ret)
-		goto out;
+		return ret;
 
 	oprofile_pdev =	platform_device_register_simple(
 				oprofile_driver.driver.name, 0, NULL, 0);
@@ -272,7 +271,6 @@ static int __init init_driverfs(void)
 		platform_driver_unregister(&oprofile_driver);
 	}
 
-out:
 	return ret;
 }
 
