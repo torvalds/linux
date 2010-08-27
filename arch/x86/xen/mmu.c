@@ -282,7 +282,7 @@ static void p2m_init(unsigned long *p2m)
  */
 void xen_build_mfn_list_list(void)
 {
-	unsigned pfn, i;
+	unsigned pfn;
 
 	/* Pre-initialize p2m_top_mfn to be completely missing */
 	if (p2m_top_mfn == NULL) {
@@ -496,19 +496,22 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	return true;
 }
 
-void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
 		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
-		return;
+		return true;
 	}
 
 	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
-		WARN(!alloc_p2m(pfn), "Can't allocate p2m for %lx, %lx", pfn, mfn);
+		if (!alloc_p2m(pfn))
+			return false;
 
 		if (!__set_phys_to_machine(pfn, mfn))
-			BUG();
+			return false;
 	}
+
+	return true;
 }
 
 unsigned long arbitrary_virt_to_mfn(void *vaddr)
