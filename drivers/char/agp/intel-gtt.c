@@ -534,11 +534,12 @@ static struct aper_size_info_fixed intel_i830_sizes[] =
 static unsigned int intel_gtt_stolen_entries(void)
 {
 	u16 gmch_ctrl;
-	unsigned int gtt_entries = 0;
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
 	int size; /* reserved space (in kb) at the top of stolen memory */
+	unsigned int overhead_entries, stolen_entries;
+	unsigned int stolen_size = 0;
 
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
@@ -605,26 +606,28 @@ static unsigned int intel_gtt_stolen_entries(void)
 		size = agp_bridge->driver->fetch_size() + 4;
 	}
 
+	overhead_entries = size/4;
+
 	if (intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82830_HB ||
 	    intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82845G_HB) {
 		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
 		case I830_GMCH_GMS_STOLEN_512:
-			gtt_entries = KB(512) - KB(size);
+			stolen_size = KB(512);
 			break;
 		case I830_GMCH_GMS_STOLEN_1024:
-			gtt_entries = MB(1) - KB(size);
+			stolen_size = MB(1);
 			break;
 		case I830_GMCH_GMS_STOLEN_8192:
-			gtt_entries = MB(8) - KB(size);
+			stolen_size = MB(8);
 			break;
 		case I830_GMCH_GMS_LOCAL:
 			rdct = readb(intel_private.registers+I830_RDRAM_CHANNEL_TYPE);
-			gtt_entries = (I830_RDRAM_ND(rdct) + 1) *
+			stolen_size = (I830_RDRAM_ND(rdct) + 1) *
 					MB(ddt[I830_RDRAM_DDT(rdct)]);
 			local = 1;
 			break;
 		default:
-			gtt_entries = 0;
+			stolen_size = 0;
 			break;
 		}
 	} else if (IS_SNB) {
@@ -635,143 +638,144 @@ static unsigned int intel_gtt_stolen_entries(void)
 		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 		switch (snb_gmch_ctl & SNB_GMCH_GMS_STOLEN_MASK) {
 		case SNB_GMCH_GMS_STOLEN_32M:
-			gtt_entries = MB(32) - KB(size);
+			stolen_size = MB(32);
 			break;
 		case SNB_GMCH_GMS_STOLEN_64M:
-			gtt_entries = MB(64) - KB(size);
+			stolen_size = MB(64);
 			break;
 		case SNB_GMCH_GMS_STOLEN_96M:
-			gtt_entries = MB(96) - KB(size);
+			stolen_size = MB(96);
 			break;
 		case SNB_GMCH_GMS_STOLEN_128M:
-			gtt_entries = MB(128) - KB(size);
+			stolen_size = MB(128);
 			break;
 		case SNB_GMCH_GMS_STOLEN_160M:
-			gtt_entries = MB(160) - KB(size);
+			stolen_size = MB(160);
 			break;
 		case SNB_GMCH_GMS_STOLEN_192M:
-			gtt_entries = MB(192) - KB(size);
+			stolen_size = MB(192);
 			break;
 		case SNB_GMCH_GMS_STOLEN_224M:
-			gtt_entries = MB(224) - KB(size);
+			stolen_size = MB(224);
 			break;
 		case SNB_GMCH_GMS_STOLEN_256M:
-			gtt_entries = MB(256) - KB(size);
+			stolen_size = MB(256);
 			break;
 		case SNB_GMCH_GMS_STOLEN_288M:
-			gtt_entries = MB(288) - KB(size);
+			stolen_size = MB(288);
 			break;
 		case SNB_GMCH_GMS_STOLEN_320M:
-			gtt_entries = MB(320) - KB(size);
+			stolen_size = MB(320);
 			break;
 		case SNB_GMCH_GMS_STOLEN_352M:
-			gtt_entries = MB(352) - KB(size);
+			stolen_size = MB(352);
 			break;
 		case SNB_GMCH_GMS_STOLEN_384M:
-			gtt_entries = MB(384) - KB(size);
+			stolen_size = MB(384);
 			break;
 		case SNB_GMCH_GMS_STOLEN_416M:
-			gtt_entries = MB(416) - KB(size);
+			stolen_size = MB(416);
 			break;
 		case SNB_GMCH_GMS_STOLEN_448M:
-			gtt_entries = MB(448) - KB(size);
+			stolen_size = MB(448);
 			break;
 		case SNB_GMCH_GMS_STOLEN_480M:
-			gtt_entries = MB(480) - KB(size);
+			stolen_size = MB(480);
 			break;
 		case SNB_GMCH_GMS_STOLEN_512M:
-			gtt_entries = MB(512) - KB(size);
+			stolen_size = MB(512);
 			break;
 		}
 	} else {
 		switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
 		case I855_GMCH_GMS_STOLEN_1M:
-			gtt_entries = MB(1) - KB(size);
+			stolen_size = MB(1);
 			break;
 		case I855_GMCH_GMS_STOLEN_4M:
-			gtt_entries = MB(4) - KB(size);
+			stolen_size = MB(4);
 			break;
 		case I855_GMCH_GMS_STOLEN_8M:
-			gtt_entries = MB(8) - KB(size);
+			stolen_size = MB(8);
 			break;
 		case I855_GMCH_GMS_STOLEN_16M:
-			gtt_entries = MB(16) - KB(size);
+			stolen_size = MB(16);
 			break;
 		case I855_GMCH_GMS_STOLEN_32M:
-			gtt_entries = MB(32) - KB(size);
+			stolen_size = MB(32);
 			break;
 		case I915_GMCH_GMS_STOLEN_48M:
 			/* Check it's really I915G */
 			if (IS_I915 || IS_I965 || IS_G33 || IS_G4X)
-				gtt_entries = MB(48) - KB(size);
+				stolen_size = MB(48);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case I915_GMCH_GMS_STOLEN_64M:
 			/* Check it's really I915G */
 			if (IS_I915 || IS_I965 || IS_G33 || IS_G4X)
-				gtt_entries = MB(64) - KB(size);
+				stolen_size = MB(64);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case G33_GMCH_GMS_STOLEN_128M:
 			if (IS_G33 || IS_I965 || IS_G4X)
-				gtt_entries = MB(128) - KB(size);
+				stolen_size = MB(128);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case G33_GMCH_GMS_STOLEN_256M:
 			if (IS_G33 || IS_I965 || IS_G4X)
-				gtt_entries = MB(256) - KB(size);
+				stolen_size = MB(256);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case INTEL_GMCH_GMS_STOLEN_96M:
 			if (IS_I965 || IS_G4X)
-				gtt_entries = MB(96) - KB(size);
+				stolen_size = MB(96);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case INTEL_GMCH_GMS_STOLEN_160M:
 			if (IS_I965 || IS_G4X)
-				gtt_entries = MB(160) - KB(size);
+				stolen_size = MB(160);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case INTEL_GMCH_GMS_STOLEN_224M:
 			if (IS_I965 || IS_G4X)
-				gtt_entries = MB(224) - KB(size);
+				stolen_size = MB(224);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		case INTEL_GMCH_GMS_STOLEN_352M:
 			if (IS_I965 || IS_G4X)
-				gtt_entries = MB(352) - KB(size);
+				stolen_size = MB(352);
 			else
-				gtt_entries = 0;
+				stolen_size = 0;
 			break;
 		default:
-			gtt_entries = 0;
+			stolen_size = 0;
 			break;
 		}
 	}
 
-	if (!local && gtt_entries > intel_max_stolen) {
+	if (!local && stolen_size > intel_max_stolen) {
 		dev_info(&intel_private.bridge_dev->dev,
 			 "detected %dK stolen memory, trimming to %dK\n",
-			 gtt_entries / KB(1), intel_max_stolen / KB(1));
-		gtt_entries = intel_max_stolen / KB(4);
-	} else if (gtt_entries > 0) {
+			 stolen_size / KB(1), intel_max_stolen / KB(1));
+		stolen_size = intel_max_stolen;
+	} else if (stolen_size > 0) {
 		dev_info(&intel_private.bridge_dev->dev, "detected %dK %s memory\n",
-		       gtt_entries / KB(1), local ? "local" : "stolen");
-		gtt_entries /= KB(4);
+		       stolen_size / KB(1), local ? "local" : "stolen");
 	} else {
 		dev_info(&intel_private.bridge_dev->dev,
 		       "no pre-allocated video memory detected\n");
-		gtt_entries = 0;
+		stolen_size = 0;
 	}
 
-	return gtt_entries;
+	stolen_entries = stolen_size/KB(4) - overhead_entries;
+
+	return stolen_entries;
 }
 
 static unsigned int intel_gtt_mappable_entries(void)
