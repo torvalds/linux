@@ -3488,7 +3488,7 @@ LGUEST
 M:	Rusty Russell <rusty@rustcorp.com.au>
 L:	lguest@lists.ozlabs.org
 W:	http://lguest.ozlabs.org/
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/lguest/
 F:	arch/x86/lguest/
 F:	drivers/lguest/
