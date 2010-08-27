@@ -662,13 +662,40 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (local->hw.wiphy->max_scan_ie_len)
 		local->hw.wiphy->max_scan_ie_len -= local->scan_ies_len;
 
-	local->hw.wiphy->cipher_suites = cipher_suites;
-	local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
-	if (!(local->hw.flags & IEEE80211_HW_MFP_CAPABLE))
-		local->hw.wiphy->n_cipher_suites--;
+	/* Set up cipher suites unless driver already did */
+	if (!local->hw.wiphy->cipher_suites) {
+		local->hw.wiphy->cipher_suites = cipher_suites;
+		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+		if (!(local->hw.flags & IEEE80211_HW_MFP_CAPABLE))
+			local->hw.wiphy->n_cipher_suites--;
+	}
 	if (IS_ERR(local->wep_tx_tfm) || IS_ERR(local->wep_rx_tfm)) {
-		local->hw.wiphy->cipher_suites += 2;
-		local->hw.wiphy->n_cipher_suites -= 2;
+		if (local->hw.wiphy->cipher_suites == cipher_suites) {
+			local->hw.wiphy->cipher_suites += 2;
+			local->hw.wiphy->n_cipher_suites -= 2;
+		} else {
+			u32 *suites;
+			int r, w = 0;
+
+			/* Filter out WEP */
+
+			suites = kmemdup(
+				local->hw.wiphy->cipher_suites,
+				sizeof(u32) * local->hw.wiphy->n_cipher_suites,
+				GFP_KERNEL);
+			if (!suites)
+				return -ENOMEM;
+			for (r = 0; r < local->hw.wiphy->n_cipher_suites; r++) {
+				u32 suite = local->hw.wiphy->cipher_suites[r];
+				if (suite == WLAN_CIPHER_SUITE_WEP40 ||
+				    suite == WLAN_CIPHER_SUITE_WEP104)
+					continue;
+				suites[w++] = suite;
+			}
+			local->hw.wiphy->cipher_suites = suites;
+			local->hw.wiphy->n_cipher_suites = w;
+			local->wiphy_ciphers_allocated = true;
+		}
 	}
 
 	result = wiphy_register(local->hw.wiphy);
@@ -783,6 +810,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
  fail_wiphy_register:
+	if (local->wiphy_ciphers_allocated)
+		kfree(local->hw.wiphy->cipher_suites);
 	kfree(local->int_scan_req);
 	return result;
 }
@@ -839,6 +868,9 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 
 	mutex_destroy(&local->iflist_mtx);
 	mutex_destroy(&local->mtx);
+
+	if (local->wiphy_ciphers_allocated)
+		kfree(local->hw.wiphy->cipher_suites);
 
 	wiphy_free(local->hw.wiphy);
 }

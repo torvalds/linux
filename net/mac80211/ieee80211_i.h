@@ -662,6 +662,8 @@ struct ieee80211_local {
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll;
 	unsigned int filter_flags; /* FIF_* */
 
+	bool wiphy_ciphers_allocated;
+
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
 
