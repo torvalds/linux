@@ -33,12 +33,7 @@
  */
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	int ret;
-
-	ret = pit_has_pending_timer(vcpu);
-	ret |= apic_has_pending_timer(vcpu);
-
-	return ret;
+	return apic_has_pending_timer(vcpu);
 }
 EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
 
