@@ -122,14 +122,6 @@ static struct edac_pci_ctl_info *i7300_pci;
  ***************************************************/
 
 /*
- * I7300 devices:
- * All 3 functions of Device 16 (0,1,2) share the SAME DID and
- * uses PCI_DEVICE_ID_INTEL_I7300_MCH_ERR for device 16 (0,1,2).
- * PCI_DEVICE_ID_INTEL_I7300_MCH_FB0 is used for device 21 (0,1)
- * and PCI_DEVICE_ID_INTEL_I7300_MCH_FB1 is used for device 21 (0,1).
- */
-
-/*
  * Device 16,
  * Function 0: System Address (not documented)
  * Function 1: Memory Branch Map, Control, Errors Register
@@ -345,9 +337,24 @@ static const char *ferr_global_lo_name[] = {
  * i7300 Functions related to error detection
  ********************************************/
 
-const char *get_err_from_table(const char *table[], int size, int pos)
+/**
+ * get_err_from_table() - Gets the error message from a table
+ * @table:	table name (array of char *)
+ * @size:	number of elements at the table
+ * @pos:	position of the element to be returned
+ *
+ * This is a small routine that gets the pos-th element of a table. If the
+ * element doesn't exist (or it is empty), it returns "reserved".
+ * Instead of calling it directly, the better is to call via the macro
+ * GET_ERR_FROM_TABLE(), that automatically checks the table size via
+ * ARRAY_SIZE() macro
+ */
+static const char *get_err_from_table(const char *table[], int size, int pos)
 {
-	if (pos >= size)
+	if (unlikely(pos >= size))
+		return "Reserved";
+
+	if (unlikely(!table[pos]))
 		return "Reserved";
 
 	return table[pos];
@@ -356,10 +363,11 @@ const char *get_err_from_table(const char *table[], int size, int pos)
 #define GET_ERR_FROM_TABLE(table, pos)				\
 	get_err_from_table(table, ARRAY_SIZE(table), pos)
 
-/*
- *	i7300_process_error_global Retrieve the hardware error information from
- *				the hardware and cache it in the 'info'
- *				structure
+/**
+ * i7300_process_error_global() - Retrieve the hardware error information from
+ *				  the hardware global error registers and
+ *				  sends it to dmesg
+ * @mci: struct mem_ctl_info pointer
  */
 static void i7300_process_error_global(struct mem_ctl_info *mci)
 {
@@ -410,10 +418,11 @@ error_global:
 			is_fatal ? "Fatal" : "NOT fatal", specific);
 }
 
-/*
- *	i7300_process_fbd_error Retrieve the hardware error information from
- *				the hardware and cache it in the 'info'
- *				structure
+/**
+ * i7300_process_fbd_error() - Retrieve the hardware error information from
+ *			       the FBD error registers and sends it via
+ *			       EDAC error API calls
+ * @mci: struct mem_ctl_info pointer
  */
 static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 {
@@ -524,10 +533,9 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 	return;
 }
 
-/*
- *	i7300_check_error Retrieve the hardware error information from
- *				the hardware and cache it in the 'info'
- *				structure
+/**
+ * i7300_check_error() - Calls the error checking subroutines
+ * @mci: struct mem_ctl_info pointer
  */
 static void i7300_check_error(struct mem_ctl_info *mci)
 {
@@ -535,11 +543,9 @@ static void i7300_check_error(struct mem_ctl_info *mci)
 	i7300_process_fbd_error(mci);
 };
 
-/*
- *	i7300_clear_error	Retrieve any error from the hardware
- *				but do NOT process that error.
- *				Used for 'clearing' out of previous errors
- *				Called by the Core module.
+/**
+ * i7300_clear_error() - Clears the error registers
+ * @mci: struct mem_ctl_info pointer
  */
 static void i7300_clear_error(struct mem_ctl_info *mci)
 {
@@ -573,9 +579,10 @@ static void i7300_clear_error(struct mem_ctl_info *mci)
 			      FERR_NF_FBD, value);
 }
 
-/*
- *	i7300_enable_error_reporting
- *			Turn on the memory reporting features of the hardware
+/**
+ * i7300_enable_error_reporting() - Enable the memory reporting logic at the
+ *				    hardware
+ * @mci: struct mem_ctl_info pointer
  */
 static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 {
@@ -597,10 +604,14 @@ static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
  * i7300 Functions related to memory enumberation
  ************************************************/
 
-/*
- * determine_mtr(pvt, csrow, channel)
- *
- * return the proper MTR register as determine by the csrow and desired channel
+/**
+ * decode_mtr() - Decodes the MTR descriptor, filling the edac structs
+ * @pvt: pointer to the private data struct used by i7300 driver
+ * @slot: DIMM slot (0 to 7)
+ * @ch: Channel number within the branch (0 or 1)
+ * @branch: Branch number (0 or 1)
+ * @dinfo: Pointer to DIMM info where dimm size is stored
+ * @p_csrow: Pointer to the struct csrow_info that corresponds to that element
  */
 static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
@@ -619,14 +630,8 @@ static int decode_mtr(struct i7300_pvt *pvt,
 		ans ? "Present" : "NOT Present");
 
 	/* Determine if there is a DIMM present in this DIMM slot */
-
-#if 0
-	if (!amb_present || !ans)
-		return 0;
-#else
 	if (!ans)
 		return 0;
-#endif
 
 	/* Start with the number of bits for a Bank
 	* on the DRAM */
@@ -692,14 +697,15 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	return mtr;
 }
 
-/*
- *	print_dimm_size
+/**
+ * print_dimm_size() - Prints dump of the memory organization
+ * @pvt: pointer to the private data struct used by i7300 driver
  *
- *	also will output a DIMM matrix map, if debug is enabled, for viewing
- *	how the DIMMs are populated
+ * Useful for debug. If debug is disabled, this routine do nothing
  */
 static void print_dimm_size(struct i7300_pvt *pvt)
 {
+#ifdef CONFIG_EDAC_DEBUG
 	struct i7300_dimm_info *dinfo;
 	char *p;
 	int space, n;
@@ -751,29 +757,25 @@ static void print_dimm_size(struct i7300_pvt *pvt)
 	debugf2("%s\n", pvt->tmp_prt_buffer);
 	p = pvt->tmp_prt_buffer;
 	space = PAGE_SIZE;
+#endif
 }
 
-/*
- *	i7300_init_csrows	Initialize the 'csrows' table within
- *				the mci control	structure with the
- *				addressing of memory.
- *
- *	return:
- *		0	success
- *		1	no actual memory found on this MC
+/**
+ * i7300_init_csrows() - Initialize the 'csrows' table within
+ *			 the mci control structure with the
+ *			 addressing of memory.
+ * @mci: struct mem_ctl_info pointer
  */
 static int i7300_init_csrows(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	struct i7300_dimm_info *dinfo;
 	struct csrow_info *p_csrow;
-	int empty;
+	int rc = -ENODEV;
 	int mtr;
 	int ch, branch, slot, channel;
 
 	pvt = mci->pvt_info;
-
-	empty = 1;		/* Assume NO memory */
 
 	debugf2("Memory Technology Registers:\n");
 
@@ -819,14 +821,19 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				p_csrow->last_page = 9 + slot * 20;
 				p_csrow->page_mask = 0xfff;
 
-				empty = 0;
+				rc = 0;
 			}
 		}
 	}
 
-	return empty;
+	return rc;
 }
 
+/**
+ * decode_mir() - Decodes Memory Interleave Register (MIR) info
+ * @int mir_no: number of the MIR register to decode
+ * @mir: array with the MIR data cached on the driver
+ */
 static void decode_mir(int mir_no, u16 mir[MAX_MIR])
 {
 	if (mir[mir_no] & 3)
@@ -837,11 +844,11 @@ static void decode_mir(int mir_no, u16 mir[MAX_MIR])
 			(mir[mir_no] & 2) ? "B1": "");
 }
 
-/*
- *	i7300_get_mc_regs	read in the necessary registers and
- *				cache locally
+/**
+ * i7300_get_mc_regs() - Get the contents of the MC enumeration registers
+ * @mci: struct mem_ctl_info pointer
  *
- *			Fills in the private data members
+ * Data read is cached internally for its usage when needed
  */
 static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 {
@@ -907,9 +914,9 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
  * i7300 Functions related to device probe/release
  *************************************************/
 
-/*
- *	i7300_put_devices	'put' all the devices that we have
- *				reserved via 'get'
+/**
+ * i7300_put_devices() - Release the PCI devices
+ * @mci: struct mem_ctl_info pointer
  */
 static void i7300_put_devices(struct mem_ctl_info *mci)
 {
@@ -925,13 +932,18 @@ static void i7300_put_devices(struct mem_ctl_info *mci)
 	pci_dev_put(pvt->pci_dev_16_1_fsb_addr_map);
 }
 
-/*
- *	i7300_get_devices	Find and perform 'get' operation on the MCH's
- *			device/functions we want to reference for this driver
+/**
+ * i7300_get_devices() - Find and perform 'get' operation on the MCH's
+ *			 device/functions we want to reference for this driver
+ * @mci: struct mem_ctl_info pointer
  *
- *			Need to 'get' device 16 func 1 and func 2
+ * Access and prepare the several devices for usage:
+ * I7300 devices used by this driver:
+ *    Device 16, functions 0,1 and 2:	PCI_DEVICE_ID_INTEL_I7300_MCH_ERR
+ *    Device 21 function 0:		PCI_DEVICE_ID_INTEL_I7300_MCH_FB0
+ *    Device 22 function 0:		PCI_DEVICE_ID_INTEL_I7300_MCH_FB1
  */
-static int i7300_get_devices(struct mem_ctl_info *mci, int dev_idx)
+static int __devinit i7300_get_devices(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	struct pci_dev *pdev;
@@ -1007,23 +1019,25 @@ error:
 	return -ENODEV;
 }
 
-/*
- *	i7300_probe1	Probe for ONE instance of device to see if it is
- *			present.
- *	return:
- *		0 for FOUND a device
- *		< 0 for error code
+/**
+ * i7300_init_one() - Probe for one instance of the device
+ * @pdev: struct pci_dev pointer
+ * @id: struct pci_device_id pointer - currently unused
  */
-static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
+static int __devinit i7300_init_one(struct pci_dev *pdev,
+				    const struct pci_device_id *id)
 {
 	struct mem_ctl_info *mci;
 	struct i7300_pvt *pvt;
 	int num_channels;
 	int num_dimms_per_channel;
 	int num_csrows;
+	int rc;
 
-	if (dev_idx >= ARRAY_SIZE(i7300_devs))
-		return -EINVAL;
+	/* wake up device */
+	rc = pci_enable_device(pdev);
+	if (rc == -EIO)
+		return rc;
 
 	debugf0("MC: " __FILE__ ": %s(), pdev bus %u dev=0x%x fn=0x%x\n",
 		__func__,
@@ -1068,7 +1082,7 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* 'get' the pci devices we want to reserve for our use */
-	if (i7300_get_devices(mci, dev_idx))
+	if (i7300_get_devices(mci))
 		goto fail0;
 
 	mci->mc_idx = 0;
@@ -1077,7 +1091,7 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7300_edac.c";
 	mci->mod_ver = I7300_REVISION;
-	mci->ctl_name = i7300_devs[dev_idx].ctl_name;
+	mci->ctl_name = i7300_devs[0].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
@@ -1132,32 +1146,9 @@ fail0:
 	return -ENODEV;
 }
 
-/*
- *	i7300_init_one	constructor for one instance of device
- *
- * 	returns:
- *		negative on error
- *		count (>= 0)
- */
-static int __devinit i7300_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *id)
-{
-	int rc;
-
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
-
-	/* wake up device */
-	rc = pci_enable_device(pdev);
-	if (rc == -EIO)
-		return rc;
-
-	/* now probe and enable the device */
-	return i7300_probe1(pdev, id->driver_data);
-}
-
-/*
- *	i7300_remove_one	destructor for one instance of device
- *
+/**
+ * i7300_remove_one() - Remove the driver
+ * @pdev: struct pci_dev pointer
  */
 static void __devexit i7300_remove_one(struct pci_dev *pdev)
 {
@@ -1183,9 +1174,9 @@ static void __devexit i7300_remove_one(struct pci_dev *pdev)
 }
 
 /*
- *	pci_device_id	table for which devices we are looking for
+ * pci_device_id: table for which devices we are looking for
  *
- *	The "E500P" device is the first device supported.
+ * Has only 8086:360c PCI ID
  */
 static const struct pci_device_id i7300_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_I7300_MCH_ERR)},
@@ -1195,8 +1186,7 @@ static const struct pci_device_id i7300_pci_tbl[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, i7300_pci_tbl);
 
 /*
- *	i7300_driver	pci_driver structure for this module
- *
+ * i7300_driver: pci_driver structure for this module
  */
 static struct pci_driver i7300_driver = {
 	.name = "i7300_edac",
@@ -1205,9 +1195,8 @@ static struct pci_driver i7300_driver = {
 	.id_table = i7300_pci_tbl,
 };
 
-/*
- *	i7300_init		Module entry function
- *			Try to initialize this module for its devices
+/**
+ * i7300_init() - Registers the driver
  */
 static int __init i7300_init(void)
 {
@@ -1223,9 +1212,8 @@ static int __init i7300_init(void)
 	return (pci_rc < 0) ? pci_rc : 0;
 }
 
-/*
- *	i7300_exit()	Module exit function
- *			Unregister the driver
+/**
+ * i7300_init() - Unregisters the driver
  */
 static void __exit i7300_exit(void)
 {
