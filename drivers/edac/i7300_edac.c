@@ -580,9 +580,9 @@ static int decode_mtr(struct i7300_pvt *pvt,
 
 	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
 		p_csrow->edac_mode = EDAC_SECDED;
-		debugf0("ECC code is 8-byte-over-32-byte SECDED+ code\n");
+		debugf2("\t\tECC code is 8-byte-over-32-byte SECDED+ code\n");
 	} else {
-		debugf0("ECC code is on Lockstep mode\n");
+		debugf2("\t\tECC code is on Lockstep mode\n");
 		if (MTR_DRAM_WIDTH(mtr))
 			p_csrow->edac_mode = EDAC_S8ECD8ED;
 		else
@@ -591,7 +591,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 
 	/* ask what device type on this row */
 	if (MTR_DRAM_WIDTH(mtr)) {
-		debugf0("Scrub algorithm for x8 is on %s mode\n",
+		debugf2("\t\tScrub algorithm for x8 is on %s mode\n",
 			IS_SCRBALGO_ENHANCED(pvt->mc_settings) ?
 					    "enhanced" : "normal");
 
