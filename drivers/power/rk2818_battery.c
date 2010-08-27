@@ -376,21 +376,7 @@ static void rk2818_battery_timer_work(struct work_struct *work)
 		gBatLastStatus = gBatStatus;
 		gBatLastPresent = gBatPresent;
 		gBatLastCapacity = gBatCapacity;
-		
-		if(!( strstr(saved_command_line,"nfsroot=") ) )
-		{
-			power_supply_changed(&gBatteryData->battery);
-		}
-		else
-		{
-			DBG("voltage has changed\n");
-			DBG("gBatStatus=%d,gBatHealth=%d,gBatPresent=%d\n",gBatStatus,gBatHealth,gBatPresent);
-			if(gBatVoltageValue[1] == 0)
-			DBG("gBatVoltage=%d\n",gBatVoltage);
-			else
-			DBG("gBatVoltage=%d\n",gBatVoltageValue[1]);
-			DBG("gBatCapacity=%d%%\n",gBatCapacity);
-		}
+		power_supply_changed(&gBatteryData->battery);
 
 	}
 	
@@ -541,8 +527,8 @@ static int rk2818_battery_resume(struct platform_device *dev)
 	return 0;
 }
 #else
-#define tosa_bat_suspend NULL
-#define tosa_bat_resume NULL
+#define rk2818_battery_suspend NULL
+#define rk2818_battery_resume NULL
 #endif
 
 
