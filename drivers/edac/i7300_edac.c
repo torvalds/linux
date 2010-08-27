@@ -158,8 +158,17 @@ static const char *numcol_toString[] = {
  * Device 16.2: Global Error Registers
  */
 
+#define FERR_GLOBAL_HI	0x48
+static const char *ferr_global_hi_name[] = {
+	[3] = "FSB 3 Fatal Error",
+	[2] = "FSB 2 Fatal Error",
+	[1] = "FSB 1 Fatal Error",
+	[0] = "FSB 0 Fatal Error",
+};
+#define ferr_global_hi_is_fatal(errno)	1
+
 #define FERR_GLOBAL_LO	0x40
-static const char *ferr_global_name[] = {
+static const char *ferr_global_lo_name[] = {
 	[31] = "Internal MCH Fatal Error",
 	[30] = "Intel QuickData Technology Device Fatal Error",
 	[29] = "FSB1 Fatal Error",
@@ -193,190 +202,7 @@ static const char *ferr_global_name[] = {
 	[1]  = "PCI Express Device 1 Non-Fatal Error",
 	[0]  = "ESI Non-Fatal Error",
 };
-
-#define NERR_GLOBAL	0x44
-static const char *nerr_global_name[] = {
-	[31] = "Internal MCH Fatal Error",
-	[30] = "Intel QuickData Technology Device Fatal Error",
-	[29] = "FSB1 Fatal Error",
-	[28] = "FSB0 Fatal Error",
-	[27] = "FSB2 Fatal Error",
-	[26] = "FSB3 Fatal Error",
-	[25] = "Reserved",
-	[24] = "FBD Channel 0,1,2 or 3 Fatal Error",
-	[23] = "PCI Express Device 7 Fatal Error",
-	[22] = "PCI Express Device 6 Fatal Error",
-	[21] = "PCI Express Device 5 Fatal Error",
-	[20] = "PCI Express Device 4 Fatal Error",
-	[19] = "PCI Express Device 3 Fatal Error",
-	[18] = "PCI Express Device 2 Fatal Error",
-	[17] = "PCI Express Device 1 Fatal Error",
-	[16] = "ESI Fatal Error",
-	[15] = "Internal MCH Non-Fatal Error",
-	[14] = "Intel QuickData Technology Device Non Fatal Error",
-	[13] = "FSB1 Non-Fatal Error",
-	[12] = "FSB0 Non-Fatal Error",
-	[11] = "FSB2 Non-Fatal Error",
-	[10] = "FSB3 Non-Fatal Error",
-	[9] = "Reserved",
-	[8] = "FBD Channel 0,1, 2 or 3 Non-Fatal Error",
-	[7] = "PCI Express Device 7 Non-Fatal Error",
-	[6] = "PCI Express Device 6 Non-Fatal Error",
-	[5] = "PCI Express Device 5 Non-Fatal Error",
-	[4] = "PCI Express Device 4 Non-Fatal Error",
-	[3] = "PCI Express Device 3 Non-Fatal Error",
-	[2] = "PCI Express Device 2 Non-Fatal Error",
-	[1] = "PCI Express Device 1 Non-Fatal Error",
-	[0] = "ESI Non-Fatal Error",
-};
-
-#if 0
-
-/*
- * Error indicator bits and masks
- * Error masks are according with Table 5-17 of i7300 datasheet
- */
-
-enum error_mask {
-	EMASK_M1  = 1<<0,  /* Memory Write error on non-redundant retry */
-	EMASK_M2  = 1<<1,  /* Memory or FB-DIMM configuration CRC read error */
-	EMASK_M3  = 1<<2,  /* Reserved */
-	EMASK_M4  = 1<<3,  /* Uncorrectable Data ECC on Replay */
-	EMASK_M5  = 1<<4,  /* Aliased Uncorrectable Non-Mirrored Demand Data ECC */
-	EMASK_M6  = 1<<5,  /* Unsupported on i7300 */
-	EMASK_M7  = 1<<6,  /* Aliased Uncorrectable Resilver- or Spare-Copy Data ECC */
-	EMASK_M8  = 1<<7,  /* Aliased Uncorrectable Patrol Data ECC */
-	EMASK_M9  = 1<<8,  /* Non-Aliased Uncorrectable Non-Mirrored Demand Data ECC */
-	EMASK_M10 = 1<<9,  /* Unsupported on i7300 */
-	EMASK_M11 = 1<<10, /* Non-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC  */
-	EMASK_M12 = 1<<11, /* Non-Aliased Uncorrectable Patrol Data ECC */
-	EMASK_M13 = 1<<12, /* Memory Write error on first attempt */
-	EMASK_M14 = 1<<13, /* FB-DIMM Configuration Write error on first attempt */
-	EMASK_M15 = 1<<14, /* Memory or FB-DIMM configuration CRC read error */
-	EMASK_M16 = 1<<15, /* Channel Failed-Over Occurred */
-	EMASK_M17 = 1<<16, /* Correctable Non-Mirrored Demand Data ECC */
-	EMASK_M18 = 1<<17, /* Unsupported on i7300 */
-	EMASK_M19 = 1<<18, /* Correctable Resilver- or Spare-Copy Data ECC */
-	EMASK_M20 = 1<<19, /* Correctable Patrol Data ECC */
-	EMASK_M21 = 1<<20, /* FB-DIMM Northbound parity error on FB-DIMM Sync Status */
-	EMASK_M22 = 1<<21, /* SPD protocol Error */
-	EMASK_M23 = 1<<22, /* Non-Redundant Fast Reset Timeout */
-	EMASK_M24 = 1<<23, /* Refresh error */
-	EMASK_M25 = 1<<24, /* Memory Write error on redundant retry */
-	EMASK_M26 = 1<<25, /* Redundant Fast Reset Timeout */
-	EMASK_M27 = 1<<26, /* Correctable Counter Threshold Exceeded */
-	EMASK_M28 = 1<<27, /* DIMM-Spare Copy Completed */
-	EMASK_M29 = 1<<28, /* DIMM-Isolation Completed */
-};
-
-/*
- * Names to translate bit error into something useful
- */
-static const char *error_name[] = {
-	[0]  = "Memory Write error on non-redundant retry",
-	[1]  = "Memory or FB-DIMM configuration CRC read error",
-	/* Reserved */
-	[3]  = "Uncorrectable Data ECC on Replay",
-	[4]  = "Aliased Uncorrectable Non-Mirrored Demand Data ECC",
-	/* M6 Unsupported on i7300 */
-	[6]  = "Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
-	[7]  = "Aliased Uncorrectable Patrol Data ECC",
-	[8]  = "Non-Aliased Uncorrectable Non-Mirrored Demand Data ECC",
-	/* M10 Unsupported on i7300 */
-	[10] = "Non-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
-	[11] = "Non-Aliased Uncorrectable Patrol Data ECC",
-	[12] = "Memory Write error on first attempt",
-	[13] = "FB-DIMM Configuration Write error on first attempt",
-	[14] = "Memory or FB-DIMM configuration CRC read error",
-	[15] = "Channel Failed-Over Occurred",
-	[16] = "Correctable Non-Mirrored Demand Data ECC",
-	/* M18 Unsupported on i7300 */
-	[18] = "Correctable Resilver- or Spare-Copy Data ECC",
-	[19] = "Correctable Patrol Data ECC",
-	[20] = "FB-DIMM Northbound parity error on FB-DIMM Sync Status",
-	[21] = "SPD protocol Error",
-	[22] = "Non-Redundant Fast Reset Timeout",
-	[23] = "Refresh error",
-	[24] = "Memory Write error on redundant retry",
-	[25] = "Redundant Fast Reset Timeout",
-	[26] = "Correctable Counter Threshold Exceeded",
-	[27] = "DIMM-Spare Copy Completed",
-	[28] = "DIMM-Isolation Completed",
-};
-
-/* Fatal errors */
-#define ERROR_FAT_MASK		(EMASK_M1 | \
-				 EMASK_M2 | \
-				 EMASK_M23)
-
-/* Correctable errors */
-#define ERROR_NF_CORRECTABLE	(EMASK_M27 | \
-				 EMASK_M20 | \
-				 EMASK_M19 | \
-				 EMASK_M18 | \
-				 EMASK_M17 | \
-				 EMASK_M16)
-#define ERROR_NF_DIMM_SPARE	(EMASK_M29 | \
-				 EMASK_M28)
-#define ERROR_NF_SPD_PROTOCOL	(EMASK_M22)
-#define ERROR_NF_NORTH_CRC	(EMASK_M21)
-
-/* Recoverable errors */
-#define ERROR_NF_RECOVERABLE	(EMASK_M26 | \
-				 EMASK_M25 | \
-				 EMASK_M24 | \
-				 EMASK_M15 | \
-				 EMASK_M14 | \
-				 EMASK_M13 | \
-				 EMASK_M12 | \
-				 EMASK_M11 | \
-				 EMASK_M9  | \
-				 EMASK_M8  | \
-				 EMASK_M7  | \
-				 EMASK_M5)
-
-/* uncorrectable errors */
-#define ERROR_NF_UNCORRECTABLE	(EMASK_M4)
-
-/* mask to all non-fatal errors */
-#define ERROR_NF_MASK		(ERROR_NF_CORRECTABLE   | \
-				 ERROR_NF_UNCORRECTABLE | \
-				 ERROR_NF_RECOVERABLE   | \
-				 ERROR_NF_DIMM_SPARE    | \
-				 ERROR_NF_SPD_PROTOCOL  | \
-				 ERROR_NF_NORTH_CRC)
-
-/*
- * Define error masks for the several registers
- */
-
-/* Enable all fatal and non fatal errors */
-#define ENABLE_EMASK_ALL	(ERROR_FAT_MASK | ERROR_NF_MASK)
-
-/* mask for fatal error registers */
-#define FERR_FAT_MASK ERROR_FAT_MASK
-
-/* masks for non-fatal error register */
-static inline int to_nf_mask(unsigned int mask)
-{
-	return (mask & EMASK_M29) | (mask >> 3);
-};
-
-static inline int from_nf_ferr(unsigned int mask)
-{
-	return (mask & EMASK_M29) |		/* Bit 28 */
-	       (mask & ((1 << 28) - 1) << 3);	/* Bits 0 to 27 */
-};
-
-#define FERR_NF_MASK		to_nf_mask(ERROR_NF_MASK)
-#define FERR_NF_CORRECTABLE	to_nf_mask(ERROR_NF_CORRECTABLE)
-#define FERR_NF_DIMM_SPARE	to_nf_mask(ERROR_NF_DIMM_SPARE)
-#define FERR_NF_SPD_PROTOCOL	to_nf_mask(ERROR_NF_SPD_PROTOCOL)
-#define FERR_NF_NORTH_CRC	to_nf_mask(ERROR_NF_NORTH_CRC)
-#define FERR_NF_RECOVERABLE	to_nf_mask(ERROR_NF_RECOVERABLE)
-#define FERR_NF_UNCORRECTABLE	to_nf_mask(ERROR_NF_UNCORRECTABLE)
-
-#endif
+#define ferr_global_lo_is_fatal(errno)	((errno < 16) ? 0 : 1)
 
 /* Device name and register DID (Device ID) */
 struct i7300_dev_info {
@@ -416,84 +242,27 @@ struct i7300_pvt {
 	struct i7300_dimm_info dimm_info[MAX_SLOTS][MAX_CHANNELS];
 };
 
-#if 0
-/* I7300 MCH error information retrieved from Hardware */
-struct i7300_error_info {
-	/* These registers are always read from the MC */
-	u32 ferr_fat_fbd;	/* First Errors Fatal */
-	u32 nerr_fat_fbd;	/* Next Errors Fatal */
-	u32 ferr_nf_fbd;	/* First Errors Non-Fatal */
-	u32 nerr_nf_fbd;	/* Next Errors Non-Fatal */
-
-	/* These registers are input ONLY if there was a Recoverable Error */
-	u32 redmemb;		/* Recoverable Mem Data Error log B */
-	u16 recmema;		/* Recoverable Mem Error log A */
-	u32 recmemb;		/* Recoverable Mem Error log B */
-
-	/* These registers are input ONLY if there was a Non-Rec Error */
-	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u16 nrecmemb;		/* Non-Recoverable Mem log B */
-
-};
-#endif
-
 /* FIXME: Why do we need to have this static? */
 static struct edac_pci_ctl_info *i7300_pci;
 
+/********************************************
+ * i7300 Functions related to error detection
+ ********************************************/
 
-#if 0
-/* note that nrec_rdwr changed from NRECMEMA to NRECMEMB between the 5000 and
-   5400 better to use an inline function than a macro in this case */
-static inline int nrec_bank(struct i7300_error_info *info)
+struct i7300_error_info {
+	int dummy;	/* FIXME */
+};
+
+const char *get_err_from_table(const char *table[], int size, int pos)
 {
-	return ((info->nrecmema) >> 12) & 0x7;
+	if (pos >= size)
+		return "Reserved";
+
+	return table[pos];
 }
-static inline int nrec_rank(struct i7300_error_info *info)
-{
-	return ((info->nrecmema) >> 8) & 0xf;
-}
-static inline int nrec_buf_id(struct i7300_error_info *info)
-{
-	return ((info->nrecmema)) & 0xff;
-}
-static inline int nrec_rdwr(struct i7300_error_info *info)
-{
-	return (info->nrecmemb) >> 31;
-}
-/* This applies to both NREC and REC string so it can be used with nrec_rdwr
-   and rec_rdwr */
-static inline const char *rdwr_str(int rdwr)
-{
-	return rdwr ? "Write" : "Read";
-}
-static inline int nrec_cas(struct i7300_error_info *info)
-{
-	return ((info->nrecmemb) >> 16) & 0x1fff;
-}
-static inline int nrec_ras(struct i7300_error_info *info)
-{
-	return (info->nrecmemb) & 0xffff;
-}
-static inline int rec_bank(struct i7300_error_info *info)
-{
-	return ((info->recmema) >> 12) & 0x7;
-}
-static inline int rec_rank(struct i7300_error_info *info)
-{
-	return ((info->recmema) >> 8) & 0xf;
-}
-static inline int rec_rdwr(struct i7300_error_info *info)
-{
-	return (info->recmemb) >> 31;
-}
-static inline int rec_cas(struct i7300_error_info *info)
-{
-	return ((info->recmemb) >> 16) & 0x1fff;
-}
-static inline int rec_ras(struct i7300_error_info *info)
-{
-	return (info->recmemb) & 0xffff;
-}
+
+#define GET_ERR_FROM_TABLE(table, pos)				\
+	get_err_from_table(table, ARRAY_SIZE(table), pos)
 
 /*
  *	i7300_get_error_info	Retrieve the hardware error information from
@@ -503,234 +272,63 @@ static inline int rec_ras(struct i7300_error_info *info)
 static void i7300_get_error_info(struct mem_ctl_info *mci,
 				 struct i7300_error_info *info)
 {
+}
+
+/*
+ *	i7300_process_error_global Retrieve the hardware error information from
+ *				the hardware and cache it in the 'info'
+ *				structure
+ */
+static void i7300_process_error_global(struct mem_ctl_info *mci,
+				 struct i7300_error_info *info)
+{
 	struct i7300_pvt *pvt;
-	u32 value;
+	u32 errnum, value;
+	unsigned long errors;
+	const char *specific;
+	bool is_fatal;
 
 	pvt = mci->pvt_info;
 
 	/* read in the 1st FATAL error register */
-	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, FERR_FAT_FBD, &value);
-
-	/* Mask only the bits that the doc says are valid
-	 */
-	value &= (FERR_FAT_FBDCHAN | FERR_FAT_MASK);
-
-	/* If there is an error, then read in the
-	   NEXT FATAL error register and the Memory Error Log Register A
-	 */
-	if (value & FERR_FAT_MASK) {
-		info->ferr_fat_fbd = value;
-
-		/* harvest the various error data we need */
-		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
-				NERR_FAT_FBD, &info->nerr_fat_fbd);
-		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
-				NRECMEMA, &info->nrecmema);
-		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
-				NRECMEMB, &info->nrecmemb);
-
-		/* Clear the error bits, by writing them back */
-		pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
-				FERR_FAT_FBD, value);
-	} else {
-		info->ferr_fat_fbd = 0;
-		info->nerr_fat_fbd = 0;
-		info->nrecmema = 0;
-		info->nrecmemb = 0;
+	pci_read_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+			      FERR_GLOBAL_HI, &value);
+	if (unlikely(value)) {
+		errors = value;
+		errnum = find_first_bit(&errors,
+					ARRAY_SIZE(ferr_global_hi_name));
+		specific = GET_ERR_FROM_TABLE(ferr_global_hi_name, errnum);
+		is_fatal = ferr_global_hi_is_fatal(errnum);
+		goto error_global;
 	}
 
-	/* read in the 1st NON-FATAL error register */
-	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, FERR_NF_FBD, &value);
-
-	/* If there is an error, then read in the 1st NON-FATAL error
-	 * register as well */
-	if (value & FERR_NF_MASK) {
-		info->ferr_nf_fbd = value;
-
-		/* harvest the various error data we need */
-		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
-				NERR_NF_FBD, &info->nerr_nf_fbd);
-		pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map,
-				RECMEMA, &info->recmema);
-		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
-				RECMEMB, &info->recmemb);
-		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
-				REDMEMB, &info->redmemb);
-
-		/* Clear the error bits, by writing them back */
-		pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
-				FERR_NF_FBD, value);
-	} else {
-		info->ferr_nf_fbd = 0;
-		info->nerr_nf_fbd = 0;
-		info->recmema = 0;
-		info->recmemb = 0;
-		info->redmemb = 0;
+	pci_read_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+			      FERR_GLOBAL_LO, &value);
+	if (unlikely(value)) {
+		errors = value;
+		errnum = find_first_bit(&errors,
+					ARRAY_SIZE(ferr_global_lo_name));
+		specific = GET_ERR_FROM_TABLE(ferr_global_lo_name, errnum);
+		is_fatal = ferr_global_lo_is_fatal(errnum);
+		goto error_global;
 	}
+	return;
+
+error_global:
+	i7300_mc_printk(mci, KERN_EMERG, "%s misc error: %s\n",
+			is_fatal ? "Fatal" : "NOT fatal", specific);
 }
 
 /*
- * i7300_proccess_non_recoverable_info(struct mem_ctl_info *mci,
- * 					struct i7300_error_info *info,
- * 					int handle_errors);
- *
- *	handle the Intel FATAL and unrecoverable errors, if any
- */
-static void i7300_proccess_non_recoverable_info(struct mem_ctl_info *mci,
-				    struct i7300_error_info *info,
-				    unsigned long allErrors)
-{
-	char msg[EDAC_MC_LABEL_LEN + 1 + 90 + 80];
-	int branch;
-	int channel;
-	int bank;
-	int buf_id;
-	int rank;
-	int rdwr;
-	int ras, cas;
-	int errnum;
-	char *type = NULL;
-
-	if (!allErrors)
-		return;		/* if no error, return now */
-
-	if (allErrors &  ERROR_FAT_MASK)
-		type = "FATAL";
-	else if (allErrors & FERR_NF_UNCORRECTABLE)
-		type = "NON-FATAL uncorrected";
-	else
-		type = "NON-FATAL recoverable";
-
-	/* ONLY ONE of the possible error bits will be set, as per the docs */
-
-	branch = extract_fbdchan_indx(info->ferr_fat_fbd);
-	channel = branch;
-
-	/* Use the NON-Recoverable macros to extract data */
-	bank = nrec_bank(info);
-	rank = nrec_rank(info);
-	buf_id = nrec_buf_id(info);
-	rdwr = nrec_rdwr(info);
-	ras = nrec_ras(info);
-	cas = nrec_cas(info);
-
-	debugf0("\t\tCSROW= %d  Channels= %d,%d  (Branch= %d "
-		"DRAM Bank= %d Buffer ID = %d rdwr= %s ras= %d cas= %d)\n",
-		rank, channel, channel + 1, branch >> 1, bank,
-		buf_id, rdwr_str(rdwr), ras, cas);
-
-	/* Only 1 bit will be on */
-	errnum = find_first_bit(&allErrors, ARRAY_SIZE(error_name));
-
-	/* Form out message */
-	snprintf(msg, sizeof(msg),
-		 "%s (Branch=%d DRAM-Bank=%d Buffer ID = %d RDWR=%s "
-		 "RAS=%d CAS=%d %s Err=0x%lx (%s))",
-		 type, branch >> 1, bank, buf_id, rdwr_str(rdwr), ras, cas,
-		 type, allErrors, error_name[errnum]);
-
-	/* Call the helper to output message */
-	edac_mc_handle_fbd_ue(mci, rank, channel, channel + 1, msg);
-}
-
-/*
- * i7300_process_fatal_error_info(struct mem_ctl_info *mci,
- * 				struct i7300_error_info *info,
- * 				int handle_errors);
- *
- *	handle the Intel NON-FATAL errors, if any
- */
-static void i7300_process_nonfatal_error_info(struct mem_ctl_info *mci,
-					struct i7300_error_info *info)
-{
-	char msg[EDAC_MC_LABEL_LEN + 1 + 90 + 80];
-	unsigned long allErrors;
-	int branch;
-	int channel;
-	int bank;
-	int rank;
-	int rdwr;
-	int ras, cas;
-	int errnum;
-
-	/* mask off the Error bits that are possible */
-	allErrors = from_nf_ferr(info->ferr_nf_fbd & FERR_NF_MASK);
-	if (!allErrors)
-		return;		/* if no error, return now */
-
-	/* ONLY ONE of the possible error bits will be set, as per the docs */
-
-	if (allErrors & (ERROR_NF_UNCORRECTABLE | ERROR_NF_RECOVERABLE)) {
-		i7300_proccess_non_recoverable_info(mci, info, allErrors);
-		return;
-	}
-
-	/* Correctable errors */
-	if (allErrors & ERROR_NF_CORRECTABLE) {
-		debugf0("\tCorrected bits= 0x%lx\n", allErrors);
-
-		branch = extract_fbdchan_indx(info->ferr_nf_fbd);
-
-		channel = 0;
-		if (REC_ECC_LOCATOR_ODD(info->redmemb))
-			channel = 1;
-
-		/* Convert channel to be based from zero, instead of
-		 * from branch base of 0 */
-		channel += branch;
-
-		bank = rec_bank(info);
-		rank = rec_rank(info);
-		rdwr = rec_rdwr(info);
-		ras = rec_ras(info);
-		cas = rec_cas(info);
-
-		/* Only 1 bit will be on */
-		errnum = find_first_bit(&allErrors, ARRAY_SIZE(error_name));
-
-		debugf0("\t\tCSROW= %d Channel= %d  (Branch %d "
-			"DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
-			rank, channel, branch >> 1, bank,
-			rdwr_str(rdwr), ras, cas);
-
-		/* Form out message */
-		snprintf(msg, sizeof(msg),
-			 "Corrected error (Branch=%d DRAM-Bank=%d RDWR=%s "
-			 "RAS=%d CAS=%d, CE Err=0x%lx (%s))",
-			 branch >> 1, bank, rdwr_str(rdwr), ras, cas,
-			 allErrors, error_name[errnum]);
-
-		/* Call the helper to output message */
-		edac_mc_handle_fbd_ce(mci, rank, channel, msg);
-
-		return;
-	}
-
-	/* Miscelaneous errors */
-	errnum = find_first_bit(&allErrors, ARRAY_SIZE(error_name));
-
-	branch = extract_fbdchan_indx(info->ferr_nf_fbd);
-
-	i7300_mc_printk(mci, KERN_EMERG,
-			"Non-Fatal misc error (Branch=%d Err=%#lx (%s))",
-			branch >> 1, allErrors, error_name[errnum]);
-}
-
-/*
- *	i7300_process_error_info	Process the error info that is
- *	in the 'info' structure, previously retrieved from hardware
+ *	i7300_process_error_info Retrieve the hardware error information from
+ *				the hardware and cache it in the 'info'
+ *				structure
  */
 static void i7300_process_error_info(struct mem_ctl_info *mci,
-				struct i7300_error_info *info)
-{	u32 allErrors;
-
-	/* First handle any fatal errors that occurred */
-	allErrors = (info->ferr_fat_fbd & FERR_FAT_MASK);
-	i7300_proccess_non_recoverable_info(mci, info, allErrors);
-
-	/* now handle any non-fatal errors that occurred */
-	i7300_process_nonfatal_error_info(mci, info);
-}
+				 struct i7300_error_info *info)
+{
+	i7300_process_error_global(mci, info);
+};
 
 /*
  *	i7300_clear_error	Retrieve any error from the hardware
@@ -753,6 +351,7 @@ static void i7300_check_error(struct mem_ctl_info *mci)
 {
 	struct i7300_error_info info;
 	debugf4("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+
 	i7300_get_error_info(mci, &info);
 	i7300_process_error_info(mci, &info);
 }
@@ -763,22 +362,11 @@ static void i7300_check_error(struct mem_ctl_info *mci)
  */
 static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 {
-	struct i7300_pvt *pvt;
-	u32 fbd_error_mask;
-
-	pvt = mci->pvt_info;
-
-	/* Read the FBD Error Mask Register */
-	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, EMASK_FBD,
-			&fbd_error_mask);
-
-	/* Enable with a '0' */
-	fbd_error_mask &= ~(ENABLE_EMASK_ALL);
-
-	pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map, EMASK_FBD,
-			fbd_error_mask);
 }
-#endif
+
+/************************************************
+ * i7300 Functions related to memory enumberation
+ ************************************************/
 
 /*
  * determine_mtr(pvt, csrow, channel)
@@ -1070,6 +658,10 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 	return 0;
 }
 
+/*************************************************
+ * i7300 Functions related to device probe/release
+ *************************************************/
+
 /*
  *	i7300_put_devices	'put' all the devices that we have
  *				reserved via 'get'
@@ -1238,10 +830,8 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
-#if 0
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = i7300_check_error;
-#endif
 
 	/* initialize the MC control structure 'csrows' table
 	 * with the mapping and control information */
@@ -1251,10 +841,8 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 			"value\n");
 		mci->edac_cap = EDAC_FLAG_NONE;	/* no csrows found */
 	} else {
-#if 0
 		debugf1("MC: Enable error reporting now\n");
 		i7300_enable_error_reporting(mci);
-#endif
 	}
 
 	/* add this new MC control structure to EDAC's list of MCs */
@@ -1267,9 +855,7 @@ static int i7300_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail1;
 	}
 
-#if 0
 	i7300_clear_error(mci);
-#endif
 
 	/* allocating generic PCI control info */
 	i7300_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
