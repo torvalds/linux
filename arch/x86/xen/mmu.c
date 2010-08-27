@@ -275,8 +275,8 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(get_phys_to_machine);
 
-/* install a  new p2m_top page */
-bool install_p2mtop_page(unsigned long pfn, unsigned long *p)
+/* install a new p2m_top page */
+static bool install_p2mtop_page(unsigned long pfn, unsigned long *p)
 {
 	unsigned topidx = p2m_top_index(pfn);
 	unsigned long **pfnp, *mfnp;
