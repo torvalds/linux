@@ -2916,7 +2916,7 @@ int snd_soc_register_dais(struct device *dev,
 	struct snd_soc_dai *dai;
 	int i, ret = 0;
 
-	dev_dbg(dev, "dai register %s #%d\n", dev_name(dev), count);
+	dev_dbg(dev, "dai register %s #%Zu\n", dev_name(dev), count);
 
 	for (i = 0; i < count; i++) {
 
@@ -3122,10 +3122,12 @@ int snd_soc_register_codec(struct device *dev,
 		fixup_codec_formats(&dai_drv[i].capture);
 	}
 
-	/* register DAIs */
-	ret = snd_soc_register_dais(dev, dai_drv, num_dai);
-	if (ret < 0)
+	/* register any DAIs */
+	if (num_dai) {
+		ret = snd_soc_register_dais(dev, dai_drv, num_dai);
+		if (ret < 0)
 			goto error;
+	}
 
 	mutex_lock(&client_mutex);
 	list_add(&codec->list, &codec_list);
@@ -3164,8 +3166,9 @@ void snd_soc_unregister_codec(struct device *dev)
 	return;
 
 found:
-	for (i = 0; i < codec->num_dai; i++)
-		snd_soc_unregister_dai(dev);
+	if (codec->num_dai)
+		for (i = 0; i < codec->num_dai; i++)
+			snd_soc_unregister_dai(dev);
 
 	mutex_lock(&client_mutex);
 	list_del(&codec->list);

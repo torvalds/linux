@@ -318,7 +318,7 @@ EXPORT_SYMBOL_GPL(v253_ops);
  */
 
 static struct snd_soc_dai_driver cx20442_dai = {
-	.name = "cx20442-hifi",
+	.name = "cx20442-voice",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,

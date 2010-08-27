@@ -758,6 +758,7 @@ static int pxa_ssp_remove(struct snd_soc_dai *dai)
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(dai);
 
 	pxa_ssp_free(priv->ssp);
+	kfree(priv);
 	return 0;
 }
 

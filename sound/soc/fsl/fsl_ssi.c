@@ -93,6 +93,7 @@ struct fsl_ssi_private {
 	unsigned int playback;
 	unsigned int capture;
 	int asynchronous;
+	unsigned int fifo_depth;
 	struct snd_soc_dai_driver cpu_dai_drv;
 	struct device_attribute dev_attr;
 	struct platform_device *pdev;
@@ -337,11 +338,20 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 
 		/*
 		 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We
-		 * don't use FIFO 1.  Since the SSI only supports stereo, the
-		 * watermark should never be an odd number.
+		 * don't use FIFO 1.  We program the transmit water to signal a
+		 * DMA transfer if there are only two (or fewer) elements left
+		 * in the FIFO.  Two elements equals one frame (left channel,
+		 * right channel).  This value, however, depends on the depth of
+		 * the transmit buffer.
+		 *
+		 * We program the receive FIFO to notify us if at least two
+		 * elements (one frame) have been written to the FIFO.  We could
+		 * make this value larger (and maybe we should), but this way
+		 * data will be written to memory as soon as it's available.
 		 */
 		out_be32(&ssi->sfcsr,
-			 CCSR_SSI_SFCSR_TFWM0(6) | CCSR_SSI_SFCSR_RFWM0(2));
+			CCSR_SSI_SFCSR_TFWM0(ssi_private->fifo_depth - 2) |
+			CCSR_SSI_SFCSR_RFWM0(ssi_private->fifo_depth - 2));
 
 		/*
 		 * We keep the SSI disabled because if we enable it, then the
@@ -614,14 +624,15 @@ static void make_lowercase(char *s)
 	}
 }
 
-static int __devinit fsl_ssi_probe(struct of_device *of_dev,
+static int __devinit fsl_ssi_probe(struct platform_device *pdev,
 				   const struct of_device_id *match)
 {
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
 	struct device_attribute *dev_attr = NULL;
-	struct device_node *np = of_dev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node;
 	const char *p, *sprop;
+	const uint32_t *iprop;
 	struct resource res;
 	char name[64];
 
@@ -634,14 +645,14 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 
 	/* Check for a codec-handle property. */
 	if (!of_get_property(np, "codec-handle", NULL)) {
-		dev_err(&of_dev->dev, "missing codec-handle property\n");
+		dev_err(&pdev->dev, "missing codec-handle property\n");
 		return -ENODEV;
 	}
 
 	/* We only support the SSI in "I2S Slave" mode */
 	sprop = of_get_property(np, "fsl,mode", NULL);
 	if (!sprop || strcmp(sprop, "i2s-slave")) {
-		dev_notice(&of_dev->dev, "mode %s is unsupported\n", sprop);
+		dev_notice(&pdev->dev, "mode %s is unsupported\n", sprop);
 		return -ENODEV;
 	}
 
@@ -650,7 +661,7 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	ssi_private = kzalloc(sizeof(struct fsl_ssi_private) + strlen(p),
 			      GFP_KERNEL);
 	if (!ssi_private) {
-		dev_err(&of_dev->dev, "could not allocate DAI object\n");
+		dev_err(&pdev->dev, "could not allocate DAI object\n");
 		return -ENOMEM;
 	}
 
@@ -664,7 +675,7 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	/* Get the addresses and IRQ */
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		dev_err(&of_dev->dev, "could not determine device resources\n");
+		dev_err(&pdev->dev, "could not determine device resources\n");
 		kfree(ssi_private);
 		return ret;
 	}
@@ -678,25 +689,33 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	else
 		ssi_private->cpu_dai_drv.symmetric_rates = 1;
 
+	/* Determine the FIFO depth. */
+	iprop = of_get_property(np, "fsl,fifo-depth", NULL);
+	if (iprop)
+		ssi_private->fifo_depth = *iprop;
+	else
+                /* Older 8610 DTs didn't have the fifo-depth property */
+		ssi_private->fifo_depth = 8;
+
 	/* Initialize the the device_attribute structure */
 	dev_attr = &ssi_private->dev_attr;
 	dev_attr->attr.name = "statistics";
 	dev_attr->attr.mode = S_IRUGO;
 	dev_attr->show = fsl_sysfs_ssi_show;
 
-	ret = device_create_file(&of_dev->dev, dev_attr);
+	ret = device_create_file(&pdev->dev, dev_attr);
 	if (ret) {
-		dev_err(&of_dev->dev, "could not create sysfs %s file\n",
+		dev_err(&pdev->dev, "could not create sysfs %s file\n",
 			ssi_private->dev_attr.attr.name);
 		goto error;
 	}
 
 	/* Register with ASoC */
-	dev_set_drvdata(&of_dev->dev, ssi_private);
+	dev_set_drvdata(&pdev->dev, ssi_private);
 
-	ret = snd_soc_register_dai(&of_dev->dev, &ssi_private->cpu_dai_drv);
+	ret = snd_soc_register_dai(&pdev->dev, &ssi_private->cpu_dai_drv);
 	if (ret) {
-		dev_err(&of_dev->dev, "failed to register DAI: %d\n", ret);
+		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
 		goto error;
 	}
 
@@ -714,20 +733,20 @@ static int __devinit fsl_ssi_probe(struct of_device *of_dev,
 	make_lowercase(name);
 
 	ssi_private->pdev =
-		platform_device_register_data(&of_dev->dev, name, 0, NULL, 0);
+		platform_device_register_data(&pdev->dev, name, 0, NULL, 0);
 	if (IS_ERR(ssi_private->pdev)) {
 		ret = PTR_ERR(ssi_private->pdev);
-		dev_err(&of_dev->dev, "failed to register platform: %d\n", ret);
+		dev_err(&pdev->dev, "failed to register platform: %d\n", ret);
 		goto error;
 	}
 
 	return 0;
 
 error:
-	snd_soc_unregister_dai(&of_dev->dev);
-	dev_set_drvdata(&of_dev->dev, NULL);
+	snd_soc_unregister_dai(&pdev->dev);
+	dev_set_drvdata(&pdev->dev, NULL);
 	if (dev_attr)
-		device_remove_file(&of_dev->dev, dev_attr);
+		device_remove_file(&pdev->dev, dev_attr);
 	irq_dispose_mapping(ssi_private->irq);
 	iounmap(ssi_private->ssi);
 	kfree(ssi_private);
@@ -735,16 +754,16 @@ error:
 	return ret;
 }
 
-static int fsl_ssi_remove(struct of_device *of_dev)
+static int fsl_ssi_remove(struct platform_device *pdev)
 {
-	struct fsl_ssi_private *ssi_private = dev_get_drvdata(&of_dev->dev);
+	struct fsl_ssi_private *ssi_private = dev_get_drvdata(&pdev->dev);
 
 	platform_device_unregister(ssi_private->pdev);
-	snd_soc_unregister_dai(&of_dev->dev);
-	device_remove_file(&of_dev->dev, &ssi_private->dev_attr);
+	snd_soc_unregister_dai(&pdev->dev);
+	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 
 	kfree(ssi_private);
-	dev_set_drvdata(&of_dev->dev, NULL);
+	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }

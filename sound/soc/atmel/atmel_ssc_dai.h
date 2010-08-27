@@ -117,4 +117,6 @@ struct atmel_ssc_info {
 	struct atmel_ssc_state ssc_state;
 };
 
+int atmel_ssc_set_audio(int ssc);
+
 #endif /* _AT91_SSC_DAI_H */

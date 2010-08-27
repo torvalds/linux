@@ -311,7 +311,7 @@ static struct snd_soc_dai_ops wm8741_dai_ops = {
 };
 
 static struct snd_soc_dai_driver wm8741_dai = {
-	.name = "WM8741",
+	.name = "wm8741",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,  /* Mono modes not yet supported */
