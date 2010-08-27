@@ -815,6 +815,25 @@ static int intel_gtt_init(void)
 	return 0;
 }
 
+static int intel_fake_agp_fetch_size(void)
+{
+	unsigned int aper_size;
+	int i;
+	int num_sizes = ARRAY_SIZE(intel_i830_sizes);
+
+	aper_size = (intel_private.base.gtt_mappable_entries << PAGE_SHIFT)
+		    / MB(1);
+
+	for (i = 0; i < num_sizes; i++) {
+		if (aper_size == intel_i830_sizes[i].size) {
+			agp_bridge->current_size = intel_i830_sizes + i;
+			return aper_size;
+		}
+	}
+
+	return 0;
+}
+
 static void intel_i830_fini_flush(void)
 {
 	kunmap(intel_private.i8xx_page);
@@ -903,36 +922,6 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
  */
 static int intel_i830_free_gatt_table(struct agp_bridge_data *bridge)
 {
-	return 0;
-}
-
-static int intel_i830_fetch_size(void)
-{
-	u16 gmch_ctrl;
-	struct aper_size_info_fixed *values;
-
-	values = A_SIZE_FIX(agp_bridge->driver->aperture_sizes);
-
-	if (intel_private.bridge_dev->device != PCI_DEVICE_ID_INTEL_82830_HB &&
-	    intel_private.bridge_dev->device != PCI_DEVICE_ID_INTEL_82845G_HB) {
-		/* 855GM/852GM/865G has 128MB aperture size */
-		agp_bridge->current_size = (void *) values;
-		agp_bridge->aperture_size_idx = 0;
-		return values[0].size;
-	}
-
-	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
-
-	if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
-		agp_bridge->current_size = (void *) values;
-		agp_bridge->aperture_size_idx = 0;
-		return values[0].size;
-	} else {
-		agp_bridge->current_size = (void *) (values + 1);
-		agp_bridge->aperture_size_idx = 1;
-		return values[1].size;
-	}
-
 	return 0;
 }
 
@@ -1283,24 +1272,6 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
  * described in the spec of the MSAC registers is just changing of the
  * resource size.
  */
-static int intel_i9xx_fetch_size(void)
-{
-	int num_sizes = ARRAY_SIZE(intel_i830_sizes);
-	int aper_size; /* size in megabytes */
-	int i;
-
-	aper_size = pci_resource_len(intel_private.pcidev, 2) / MB(1);
-
-	for (i = 0; i < num_sizes; i++) {
-		if (aper_size == intel_i830_sizes[i].size) {
-			agp_bridge->current_size = intel_i830_sizes + i;
-			return aper_size;
-		}
-	}
-
-	return 0;
-}
-
 static int intel_i915_get_gtt_size(void)
 {
 	int size;
@@ -1542,7 +1513,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
 	.configure		= intel_i830_configure,
-	.fetch_size		= intel_i830_fetch_size,
+	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_i830_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
@@ -1569,7 +1540,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
-	.fetch_size		= intel_i9xx_fetch_size,
+	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
@@ -1602,7 +1573,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
-	.fetch_size		= intel_i9xx_fetch_size,
+	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
@@ -1635,7 +1606,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
-	.fetch_size		= intel_i9xx_fetch_size,
+	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_gen6_mask_memory,
 	.masks			= intel_gen6_masks,
@@ -1668,7 +1639,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
-	.fetch_size		= intel_i9xx_fetch_size,
+	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
