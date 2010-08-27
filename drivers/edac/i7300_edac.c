@@ -93,6 +93,12 @@
 	/* OFFSETS for Function 1 */
 #define MC_SETTINGS		0x40
 
+#define IS_MIRRORED(mc)			((mc) & (1 << 16))
+#define IS_ECC_ENABLED(mc)		((mc) & (1 << 5))
+#define IS_RETRY_ENABLED(mc)		((mc) & (1 << 31))
+#define IS_SCRBALGO_ENHANCED(mc)	((mc) & (1 << 8))
+
+
 #define TOLM			0x6C
 #define REDMEMB			0x7C
 
@@ -451,9 +457,13 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	p_csrow->edac_mode = EDAC_S8ECD8ED;
 
 	/* ask what device type on this row */
-	if (MTR_DRAM_WIDTH(mtr))
+	if (MTR_DRAM_WIDTH(mtr)) {
+		debugf0("Scrub algorithm for x8 is on %s mode\n",
+			IS_SCRBALGO_ENHANCED(pvt->mc_settings) ?
+					    "enhanced" : "normal");
+
 		p_csrow->dtype = DEV_X8;
-	else
+	} else
 		p_csrow->dtype = DEV_X4;
 
 	return mtr;
@@ -643,10 +653,13 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 	/* Get memory controller settings */
 	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, MC_SETTINGS,
 			     &pvt->mc_settings);
+
 	debugf0("Memory controller operating on %s mode\n",
-		pvt->mc_settings & (1 << 16)? "mirrored" : "non-mirrored");
+		IS_MIRRORED(pvt->mc_settings) ? "mirrored" : "non-mirrored");
 	debugf0("Error detection is %s\n",
-		pvt->mc_settings & (1 << 5)? "enabled" : "disabled");
+		IS_ECC_ENABLED(pvt->mc_settings) ? "enabled" : "disabled");
+	debugf0("Retry is %s\n",
+		IS_RETRY_ENABLED(pvt->mc_settings) ? "enabled" : "disabled");
 
 	/* Get Memory Interleave Range registers */
 	pci_read_config_word(pvt->pci_dev_16_1_fsb_addr_map, MIR0, &pvt->mir[0]);
