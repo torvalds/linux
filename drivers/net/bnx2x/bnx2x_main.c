@@ -781,7 +781,7 @@ static bool bnx2x_trylock_hw_lock(struct bnx2x *bp, u32 resource)
 		DP(NETIF_MSG_HW,
 		   "resource(0x%x) > HW_LOCK_MAX_RESOURCE_VALUE(0x%x)\n",
 		   resource, HW_LOCK_MAX_RESOURCE_VALUE);
-		return -EINVAL;
+		return false;
 	}
 
 	if (func <= 5)
