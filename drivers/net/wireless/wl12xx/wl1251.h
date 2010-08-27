@@ -272,6 +272,8 @@ struct wl1251 {
 	int irq;
 	bool use_eeprom;
 
+	spinlock_t wl_lock;
+
 	enum wl1251_state state;
 	struct mutex mutex;
 
@@ -399,7 +401,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 
 #define WL1251_DEFAULT_POWER_LEVEL 20
 
-#define WL1251_TX_QUEUE_MAX_LENGTH 20
+#define WL1251_TX_QUEUE_LOW_WATERMARK  10
+#define WL1251_TX_QUEUE_HIGH_WATERMARK 25
 
 #define WL1251_DEFAULT_BEACON_INT 100
 #define WL1251_DEFAULT_DTIM_PERIOD 1

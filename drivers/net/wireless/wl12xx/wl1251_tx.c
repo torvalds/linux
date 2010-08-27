@@ -320,11 +320,6 @@ void wl1251_tx_work(struct work_struct *work)
 
 		ret = wl1251_tx_frame(wl, skb);
 		if (ret == -EBUSY) {
-			/* firmware buffer is full, stop queues */
-			wl1251_debug(DEBUG_TX, "tx_work: fw buffer full, "
-				     "stop queues");
-			ieee80211_stop_queues(wl->hw);
-			wl->tx_queue_stopped = true;
 			skb_queue_head(&wl->tx_queue, skb);
 			goto out;
 		} else if (ret < 0) {
@@ -447,6 +442,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 {
 	int i, result_index, num_complete = 0;
 	struct tx_result result[FW_TX_CMPLT_BLOCK_SIZE], *result_ptr;
+	unsigned long flags;
 
 	if (unlikely(wl->state != WL1251_STATE_ON))
 		return;
@@ -473,6 +469,20 @@ void wl1251_tx_complete(struct wl1251 *wl)
 		} else {
 			break;
 		}
+	}
+
+	if (wl->tx_queue_stopped
+	    &&
+	    skb_queue_len(&wl->tx_queue) <= WL1251_TX_QUEUE_LOW_WATERMARK){
+
+		/* firmware buffer has space, restart queues */
+		wl1251_debug(DEBUG_TX, "tx_complete: waking queues");
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		ieee80211_wake_queues(wl->hw);
+		wl->tx_queue_stopped = false;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
+
 	}
 
 	/* Every completed frame needs to be acknowledged */
