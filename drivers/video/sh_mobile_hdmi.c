@@ -519,100 +519,6 @@ static void sh_hdmi_audio_infoframe_setup(struct sh_hdmi *hdmi)
 }
 
 /**
- * sh_hdmi_gamut_metadata_setup() - Gamut Metadata Packet of CONTROL PACKET
- */
-static void sh_hdmi_gamut_metadata_setup(struct sh_hdmi *hdmi)
-{
-	int i;
-
-	/* Gamut Metadata Packet */
-	hdmi_write(hdmi, 0x04, HDMI_CTRL_PKT_BUF_INDEX);
-
-	/* Packet Type = 0x0A */
-	hdmi_write(hdmi, 0x0A, HDMI_CTRL_PKT_BUF_ACCESS_HB0);
-	/* Gamut Packet is not used, so default value */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB1);
-	/* Gamut Packet is not used, so default value */
-	hdmi_write(hdmi, 0x10, HDMI_CTRL_PKT_BUF_ACCESS_HB2);
-
-	/* GBD bytes 0 through 27 */
-	for (i = 0; i <= 27; i++)
-		/* HDMI_CTRL_PKT_BUF_ACCESS_PB0_63H - PB27_7EH */
-		hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_PB0 + i);
-}
-
-/**
- * sh_hdmi_acp_setup() - Audio Content Protection Packet (ACP)
- */
-static void sh_hdmi_acp_setup(struct sh_hdmi *hdmi)
-{
-	int i;
-
-	/* Audio Content Protection Packet (ACP) */
-	hdmi_write(hdmi, 0x01, HDMI_CTRL_PKT_BUF_INDEX);
-
-	/* Packet Type = 0x04 */
-	hdmi_write(hdmi, 0x04, HDMI_CTRL_PKT_BUF_ACCESS_HB0);
-	/* ACP_Type */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB1);
-	/* Reserved (0) */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB2);
-
-	/* GBD bytes 0 through 27 */
-	for (i = 0; i <= 27; i++)
-		/* HDMI_CTRL_PKT_BUF_ACCESS_PB0 - PB27 */
-		hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_PB0 + i);
-}
-
-/**
- * sh_hdmi_isrc1_setup() - ISRC1 Packet
- */
-static void sh_hdmi_isrc1_setup(struct sh_hdmi *hdmi)
-{
-	int i;
-
-	/* ISRC1 Packet */
-	hdmi_write(hdmi, 0x02, HDMI_CTRL_PKT_BUF_INDEX);
-
-	/* Packet Type = 0x05 */
-	hdmi_write(hdmi, 0x05, HDMI_CTRL_PKT_BUF_ACCESS_HB0);
-	/* ISRC_Cont, ISRC_Valid, Reserved (0), ISRC_Status */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB1);
-	/* Reserved (0) */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB2);
-
-	/* PB0 UPC_EAN_ISRC_0-15 */
-	/* Bytes PB16-PB27 shall be set to a value of 0. */
-	for (i = 0; i <= 27; i++)
-		/* HDMI_CTRL_PKT_BUF_ACCESS_PB0 - PB27 */
-		hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_PB0 + i);
-}
-
-/**
- * sh_hdmi_isrc2_setup() - ISRC2 Packet
- */
-static void sh_hdmi_isrc2_setup(struct sh_hdmi *hdmi)
-{
-	int i;
-
-	/* ISRC2 Packet */
-	hdmi_write(hdmi, 0x03, HDMI_CTRL_PKT_BUF_INDEX);
-
-	/* HB0 Packet Type = 0x06 */
-	hdmi_write(hdmi, 0x06, HDMI_CTRL_PKT_BUF_ACCESS_HB0);
-	/* Reserved (0) */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB1);
-	/* Reserved (0) */
-	hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_HB2);
-
-	/* PB0 UPC_EAN_ISRC_16-31 */
-	/* Bytes PB16-PB27 shall be set to a value of 0. */
-	for (i = 0; i <= 27; i++)
-		/* HDMI_CTRL_PKT_BUF_ACCESS_PB0 - PB27 */
-		hdmi_write(hdmi, 0x00, HDMI_CTRL_PKT_BUF_ACCESS_PB0 + i);
-}
-
-/**
  * sh_hdmi_configure() - Initialise HDMI for output
  */
 static void sh_hdmi_configure(struct sh_hdmi *hdmi)
@@ -631,18 +537,6 @@ static void sh_hdmi_configure(struct sh_hdmi *hdmi)
 
 	/* Audio InfoFrame */
 	sh_hdmi_audio_infoframe_setup(hdmi);
-
-	/* Gamut Metadata packet */
-	sh_hdmi_gamut_metadata_setup(hdmi);
-
-	/* Audio Content Protection (ACP) Packet */
-	sh_hdmi_acp_setup(hdmi);
-
-	/* ISRC1 Packet */
-	sh_hdmi_isrc1_setup(hdmi);
-
-	/* ISRC2 Packet */
-	sh_hdmi_isrc2_setup(hdmi);
 
 	/*
 	 * Control packet auto send with VSYNC control: auto send
