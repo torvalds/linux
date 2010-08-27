@@ -1527,7 +1527,7 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * Allow EAPOL frames to us/the PAE group address regardless
 	 * of whether the frame was encrypted or not.
 	 */
-	if (ehdr->h_proto == htons(ETH_P_PAE) &&
+	if (ehdr->h_proto == rx->sdata->control_port_protocol &&
 	    (compare_ether_addr(ehdr->h_dest, rx->sdata->vif.addr) == 0 ||
 	     compare_ether_addr(ehdr->h_dest, pae_group_addr) == 0))
 		return true;

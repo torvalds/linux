@@ -2262,6 +2262,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	else
 		ifmgd->flags &= ~IEEE80211_STA_CONTROL_PORT;
 
+	sdata->control_port_protocol = req->crypto.control_port_ethertype;
+	sdata->control_port_no_encrypt = req->crypto.control_port_no_encrypt;
+
 	ieee80211_add_work(wk);
 	return 0;
 }

@@ -627,6 +627,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	local->hw.wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MESH_POINT);
 #endif
 
+	/* mac80211 supports control port protocol changing */
+	local->hw.wiphy->flags |= WIPHY_FLAG_CONTROL_PORT_PROTOCOL;
+
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)

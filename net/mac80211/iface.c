@@ -855,6 +855,9 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->dev->netdev_ops = &ieee80211_dataif_ops;
 	sdata->wdev.iftype = type;
 
+	sdata->control_port_protocol = cpu_to_be16(ETH_P_PAE);
+	sdata->control_port_no_encrypt = false;
+
 	/* only monitor differs */
 	sdata->dev->type = ARPHRD_ETHER;
 
