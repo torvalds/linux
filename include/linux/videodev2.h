@@ -397,6 +397,14 @@ struct v4l2_frmsize_discrete {
 	__u32			height;		/* Frame height [pixel] */
 };
 
+struct v4l2_discrete_probe {
+	const struct v4l2_frmsize_discrete	*sizes;
+	int					num_sizes;
+};
+
+struct v4l2_frmsize_discrete *v4l2_find_nearest_format(struct v4l2_discrete_probe *probe,
+						       s32 width, s32 height);
+
 struct v4l2_frmsize_stepwise {
 	__u32			min_width;	/* Minimum frame width [pixel] */
 	__u32			max_width;	/* Maximum frame width [pixel] */

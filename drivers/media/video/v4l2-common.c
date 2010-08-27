@@ -676,3 +676,27 @@ int v4l_fill_dv_preset_info(u32 preset, struct v4l2_dv_enum_preset *info)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l_fill_dv_preset_info);
+
+struct v4l2_frmsize_discrete *v4l2_find_nearest_format(struct v4l2_discrete_probe *probe,
+						       s32 width, s32 height)
+{
+	int i;
+	u32 error, min_error = UINT_MAX;
+	struct v4l2_frmsize_discrete *size, *best = NULL;
+
+	if (!probe)
+		return best;
+
+	for (i = 0, size = probe->sizes; i < probe->num_sizes; i++, size++) {
+		error = abs(size->width - width) + abs(size->height - height);
+		if (error < min_error) {
+			min_error = error;
+			best = size;
+		}
+		if (!error)
+			break;
+	}
+
+	return best;
+}
+EXPORT_SYMBOL_GPL(v4l2_find_nearest_format);
