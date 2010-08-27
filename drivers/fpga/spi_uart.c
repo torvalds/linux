@@ -2,6 +2,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/seq_file.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
 #include <linux/gfp.h>
@@ -45,7 +46,7 @@ static struct tty_driver *spi_uart_tty_driver;
 
 #define UART_NR		1	/* Number of UARTs this driver can handle */
 
-#define UART_XMIT_SIZE	(PAGE_SIZE<<1)
+#define UART_XMIT_SIZE	PAGE_SIZE
 #define WAKEUP_CHARS	1024
 
 #define circ_empty(circ)	((circ)->head == (circ)->tail)
@@ -70,17 +71,17 @@ static int spi_uart_write_buf(struct spi_uart *uart, unsigned char *buf, int len
 	int index = port->uart.index;
 	int reg = 0, stat = 0;
 	int i;
-
-	for(i=len+2;i>1;i--)
-	buf[i] = buf[i-2];
+	unsigned char tx_buf[SPI_UART_FIFO_LEN+2];
+	
+	memcpy(tx_buf + 2, buf, len);
 	reg = ((((reg) | ICE_SEL_UART) & ICE_SEL_WRITE) | ICE_SEL_UART_CH(index));
-	buf[0] = reg & 0xff;
-	buf[1] = 0;
+	tx_buf[0] = reg & 0xff;
+	tx_buf[1] = 0;
 
-	stat = spi_write(port->spi, buf, len+2);
+	stat = spi_write(port->spi, tx_buf, len+2);
 	if(stat)
 	printk("%s:spi_write err!!!\n\n\n",__FUNCTION__);			
-	DBG("%s:reg=0x%x,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)buf,len);
+	DBG("%s:reg=0x%x,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)tx_buf,len);
 	return 0;
 }
 
@@ -183,11 +184,11 @@ static void spi_uart_port_remove(struct spi_uart *uart)
 	 * Beware: the lock ordering is critical.
 	 */
 	mutex_lock(&uart->open_lock);
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	spi = port->spi;
 
 	port->spi = NULL;
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 	if (uart->opened)
 		tty_hangup(uart->tty);
 	mutex_unlock(&uart->open_lock);
@@ -432,13 +433,16 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 		while (count-- >0 )
 		{
 			flag = TTY_NORMAL;
+			uart->icount.rx++;
 			ch = buf[num++];
 			tty_insert_flip_char(tty, ch, flag);
 			//printk("%c,",ch);
 		}
 		//printk("\n");
-		tty_flip_buffer_push(tty); 
 	}
+
+	tty_flip_buffer_push(tty); 
+	
 #else	
 	//printk("rx:");
 	while (--max_count >0 )
@@ -775,7 +779,7 @@ static int spi_uart_startup(struct spi_uart *uart)
 	uart->xmit.buf = (unsigned char *)page;
 	circ_clear(&uart->xmit);
 
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 
 	/*
 	 * Clear the FIFO buffers and disable them.
@@ -816,7 +820,7 @@ static int spi_uart_startup(struct spi_uart *uart)
 	DBG("%s:LINE=%d,uart->ier=0x%x\n",__FUNCTION__,__LINE__,uart->ier);
 	/* Kick the IRQ handler once while we're still holding the host lock */
 	//spi_uart_handle_irq(port->spi);
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 	return 0;
 
 //err1:
@@ -829,7 +833,7 @@ static void spi_uart_shutdown(struct spi_uart *uart)
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 #if 1
 	spi_uart_stop_rx(uart);
 
@@ -854,7 +858,7 @@ static void spi_uart_shutdown(struct spi_uart *uart)
 				 UART_FCR_CLEAR_XMIT, SEL_UART);
 	spi_out(port, UART_FCR, 0, SEL_UART);
 #endif
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 
 //skip:
 	/* Free the transmit buffer page. */
@@ -973,13 +977,13 @@ static int spi_uart_write(struct tty_struct * tty, const unsigned char *buf,
 	
 #if 1
 	if ( !(uart->ier & UART_IER_THRI)) {
-		//mutex_lock(&port->spi_lock);
+		mutex_lock(&port->spi_lock);
 			DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 			/*Note:ICE65L08 output a 'Transmitter holding register interrupt' after 1us*/
 			printk("s,");
 			spi_uart_start_tx(uart);
-		//	spi_uart_handle_irq(port->spi);
-		//mutex_unlock(&port->spi_lock);	
+			//spi_uart_handle_irq(port->spi);
+		mutex_unlock(&port->spi_lock);	
 	}	
 #endif	
 
@@ -1008,11 +1012,11 @@ static void spi_uart_send_xchar(struct tty_struct *tty, char ch)
 	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	uart->x_char = ch;
 	if (ch && !(uart->ier & UART_IER_THRI)) {
-		//mutex_lock(&port->spi_lock);
+		mutex_lock(&port->spi_lock);
 		spi_uart_start_tx(uart);
 		printk("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 		spi_uart_handle_irq(port->spi);
-		//mutex_unlock(&port->spi_lock);		
+		mutex_unlock(&port->spi_lock);		
 	}
 }
 
@@ -1024,7 +1028,7 @@ static void spi_uart_throttle(struct tty_struct *tty)
 	if (!I_IXOFF(tty) && !(tty->termios->c_cflag & CRTSCTS))
 		return;
 	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	if (I_IXOFF(tty)) {
 		uart->x_char = STOP_CHAR(tty);
 		spi_uart_start_tx(uart);
@@ -1035,7 +1039,7 @@ static void spi_uart_throttle(struct tty_struct *tty)
 		spi_uart_clear_mctrl(uart, TIOCM_RTS);
 
 	spi_uart_handle_irq(port->spi);
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 }
 
 static void spi_uart_unthrottle(struct tty_struct *tty)
@@ -1045,7 +1049,7 @@ static void spi_uart_unthrottle(struct tty_struct *tty)
 	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	if (!I_IXOFF(tty) && !(tty->termios->c_cflag & CRTSCTS))
 		return;
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	if (I_IXOFF(tty)) {
 		if (uart->x_char) {
 			uart->x_char = 0;
@@ -1060,13 +1064,13 @@ static void spi_uart_unthrottle(struct tty_struct *tty)
 		spi_uart_set_mctrl(uart, TIOCM_RTS);
 
 	spi_uart_handle_irq(port->spi);
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 }
 
 static void spi_uart_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct spi_uart *uart = tty->driver_data;
-	//struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
+	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	unsigned int cflag = tty->termios->c_cflag;
 	unsigned int mask = TIOCM_DTR;
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
@@ -1077,7 +1081,7 @@ static void spi_uart_set_termios(struct tty_struct *tty, struct ktermios *old_te
 	    RELEVANT_IFLAG(tty->termios->c_iflag ^ old_termios->c_iflag) == 0)
 		return;
 
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	spi_uart_change_speed(uart, tty->termios, old_termios);
 
 	/* Handle transition to B0 status */
@@ -1111,7 +1115,7 @@ static void spi_uart_set_termios(struct tty_struct *tty, struct ktermios *old_te
 			spi_uart_stop_tx(uart);
 		}
 	}
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 
 }
 
@@ -1120,25 +1124,25 @@ static int spi_uart_break_ctl(struct tty_struct *tty, int break_state)
 	struct spi_uart *uart = tty->driver_data;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart); 
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	if (break_state == -1)
 		uart->lcr |= UART_LCR_SBC;
 	else
 		uart->lcr &= ~UART_LCR_SBC;
 	spi_out(port, UART_LCR, uart->lcr, SEL_UART);
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 	return 0;
 }
 
 static int spi_uart_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct spi_uart *uart = tty->driver_data;
-	//struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
+	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	int result;
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	result = uart->mctrl | spi_uart_get_mctrl(uart);
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 	return result;
 }
 
@@ -1146,77 +1150,72 @@ static int spi_uart_tiocmset(struct tty_struct *tty, struct file *file,
 			      unsigned int set, unsigned int clear)
 {
 	struct spi_uart *uart = tty->driver_data;
-	//struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
+	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
-	//mutex_lock(&port->spi_lock);
+	mutex_lock(&port->spi_lock);
 	spi_uart_update_mctrl(uart, set, clear);
-	//mutex_unlock(&port->spi_lock);
+	mutex_unlock(&port->spi_lock);
 
 	return 0;
 }
 
-#if 0
-static int spi_uart_read_proc(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+static int spi_uart_proc_show(struct seq_file *m, void *v)
 {
-	int i, len = 0;
-	off_t begin = 0;
-	DBG("%s:LINE=%d************************\n",__FUNCTION__,__LINE__);
-	len += sprintf(page, "serinfo:1.0 driver%s%s revision:%s\n",
-		       "", "", "");
-	for (i = 0; i < UART_NR && len < PAGE_SIZE - 96; i++) {
-		struct spi_uart *uart = spi_uart_port_get(i);
-		if (uart) {
-			len += sprintf(page+len, "%d: uart:SPI", i);
-			if(capable(CAP_SYS_ADMIN)) {
-				len += sprintf(page + len, " tx:%d rx:%d",
-					       uart->icount.tx, uart->icount.rx);
-				if (uart->icount.frame)
-					len += sprintf(page + len, " fe:%d",
-						       uart->icount.frame);
-				if (uart->icount.parity)
-					len += sprintf(page + len, " pe:%d",
-						       uart->icount.parity);
-				if (uart->icount.brk)
-					len += sprintf(page + len, " brk:%d",
-						       uart->icount.brk);
-				if (uart->icount.overrun)
-					len += sprintf(page + len, " oe:%d",
-						       uart->icount.overrun);
-				if (uart->icount.cts)
-					len += sprintf(page + len, " cts:%d",
-						       uart->icount.cts);
-				if (uart->icount.dsr)
-					len += sprintf(page + len, " dsr:%d",
-						       uart->icount.dsr);
-				if (uart->icount.rng)
-					len += sprintf(page + len, " rng:%d",
-						       uart->icount.rng);
-				if (uart->icount.dcd)
-					len += sprintf(page + len, " dcd:%d",
-						       uart->icount.dcd);
-			}
-			strcat(page, "\n");
-			len++;
-			spi_uart_port_put(uart);
-		}
+	int i;
 
-		if (len + begin > off + count)
-			goto done;
-		if (len + begin < off) {
-			begin += len;
-			len = 0;
+	seq_printf(m, "serinfo:1.0 driver%s%s revision:%s\n",
+		       "", "", "");
+	for (i = 0; i < UART_NR; i++) {
+		struct spi_uart *port = spi_uart_port_get(i);
+		if (port) {
+			seq_printf(m, "%d: uart:SPI", i);
+			if(capable(CAP_SYS_ADMIN)) {
+				seq_printf(m, " tx:%d rx:%d",
+					       port->icount.tx, port->icount.rx);
+				if (port->icount.frame)
+					seq_printf(m, " fe:%d",
+						       port->icount.frame);
+				if (port->icount.parity)
+					seq_printf(m, " pe:%d",
+						       port->icount.parity);
+				if (port->icount.brk)
+					seq_printf(m, " brk:%d",
+						       port->icount.brk);
+				if (port->icount.overrun)
+					seq_printf(m, " oe:%d",
+						       port->icount.overrun);
+				if (port->icount.cts)
+					seq_printf(m, " cts:%d",
+						       port->icount.cts);
+				if (port->icount.dsr)
+					seq_printf(m, " dsr:%d",
+						       port->icount.dsr);
+				if (port->icount.rng)
+					seq_printf(m, " rng:%d",
+						       port->icount.rng);
+				if (port->icount.dcd)
+					seq_printf(m, " dcd:%d",
+						       port->icount.dcd);
+			}
+			spi_uart_port_put(port);
+			seq_putc(m, '\n');
 		}
 	}
-	*eof = 1;
-
-done:
-	if (off >= len + begin)
-		return 0;
-	*start = page + (off - begin);
-	return (count < begin + len - off) ? count : (begin + len - off);
+	return 0;
 }
-#endif
+
+static int spi_uart_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spi_uart_proc_show, NULL);
+}
+
+static const struct file_operations spi_uart_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= spi_uart_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static const struct tty_operations spi_uart_ops = {
 	.open			= spi_uart_open,
@@ -1231,7 +1230,7 @@ static const struct tty_operations spi_uart_ops = {
 	.break_ctl		= spi_uart_break_ctl,
 	.tiocmget		= spi_uart_tiocmget,
 	.tiocmset		= spi_uart_tiocmset,
-	//.read_proc		= spi_uart_read_proc,
+	.proc_fops		= &spi_uart_proc_fops,
 };
 
 

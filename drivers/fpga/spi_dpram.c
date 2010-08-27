@@ -85,9 +85,8 @@
 #define PIN_BPSEND_ACK	RK2818_PIN_PE0
 #define PIN_APSEND_ACK	RK2818_PIN_PF7
 
-#define MAX_SPI_LEN	768		//the bytes of spi write or read one time
-#define TRUE 		1
-#define FALSE 		0
+#define MAX_SPI_LEN	512		//the bytes of spi write or read one time
+
 
 static int spi_dpram_write_buf(struct spi_dpram *dpram, unsigned short int addr, unsigned char *buf, unsigned int len)
 {	
@@ -292,10 +291,10 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 		container_of(work, struct spi_fpga_port, dpram.spi_dpram_irq_work);
 	
 	unsigned short int mbox = port->dpram.read_irq(&port->dpram);
-	unsigned int ptr;
-	unsigned int len;
-	//int i,ret;
-
+	unsigned int ptr,len;
+	int i;
+	char temp,*p;
+	printk("Enter::%s,mbox=%d\n",__FUNCTION__,mbox);
 	//gNumRecInt = mbox & 0x1fff;
 	//if(gNumRecInt - gNumLastRecInt !=1)
 	//if(++gNumLastRecInt > (1<<12))
@@ -306,17 +305,36 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 	{		
 		//RAM0
 		ptr = port->dpram.read_ptr(&port->dpram,SPI_DPRAM_PTR0_BPWRITE_APREAD);
-		len = ptr;
+		if(ptr%2)
+		len = ptr+1;
+		else
+		len = ptr;		
 		port->dpram.read_dpram(&port->dpram, SPI_DPRAM_BPWRITE_START, port->dpram.prx, len);
-		port->dpram.rec_len += len;	
-		printk("%s:ram0:len=%d\n",__FUNCTION__,len);		
+		port->dpram.rec_len += ptr;	
+		printk("%s:ram0:ptr=%d,len=%d\n",__FUNCTION__,ptr,len);	
 		//send ack
 		//if(++gNumSendAck > (1<<12))
 		//gNumSendAck = 0;
 		//port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM0 | gNumSendAck));
 
+		p = port->dpram.prx;
+		for(i=0;i<(len>>1);i++)
+		{
+			temp = *(p+(i<<1));
+			*(p+(i<<1))= *(p+(i<<1)+1);
+			*(p+(i<<1)+1) = temp;
+		}
+
+		for(i=0;i<ptr;i++)
+			printk("%s:prx[%d]=0x%x\n",__FUNCTION__,i,*p++); 
+		
 		//wake up ap to read data
 		wake_up_interruptible(&port->dpram.recq);
+
+		mutex_lock(&port->dpram.rec_lock);
+
+		//allow bp write ram0 again
+		port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM0));
 		
 		//printk("%s:r_irq=0x%x,s_ack=0x%x\n",__FUNCTION__,mbox, (MAILBOX_APSEND_ACK | MAILBOX_RAM0 | gNumSendAck));
 	}
@@ -324,21 +342,35 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 	{
 		//RAM2
 		ptr = port->dpram.read_ptr(&port->dpram,SPI_DPRAM_PTR2_BPWRITE_APREAD);
-		len = ptr;
+		if(ptr%2)
+		len = ptr+1;
+		else
+		len = ptr;	
 		port->dpram.read_dpram(&port->dpram, SPI_DPRAM_LOG_BPWRITE_START, port->dpram.prx, len);
-		port->dpram.rec_len += len;	
-		printk("%s:ram2:len=%d\n",__FUNCTION__,len);	
+		port->dpram.rec_len += ptr;	
+		printk("%s:ram2:ptr=%d,len=%d\n",__FUNCTION__,ptr,len);	
 		//if(++gNumSendAck > (1<<12))
 		//gNumSendAck = 0;
 		//port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM2 | gNumSendAck));
+
+		p = port->dpram.prx;
+		for(i=0;i<(len>>1);i++)
+		{
+			temp = *(p+(i<<1));
+			*(p+(i<<1))= *(p+(i<<1)+1);
+			*(p+(i<<1)+1) = temp;
+		}
 		
 		//wake up ap to read data
 		wake_up_interruptible(&port->dpram.recq);
+
+		mutex_lock(&port->dpram.rec_lock);
+
+		//allow bp write ram0 again
+		port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM2));
 		
 		//printk("%s:r_irq=0x%x,s_ack=0x%x\n",__FUNCTION__, mbox, (MAILBOX_APSEND_ACK | MAILBOX_RAM2 | gNumSendAck));
 	}
-
-
 	
 }
 
@@ -465,7 +497,7 @@ static void spi_testdpram_timer(unsigned long data)
 int spi_dpram_handle_ack(struct spi_device *spi)
 {
 	struct spi_fpga_port *port = spi_get_drvdata(spi);
-	
+	printk("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	//clear ack interrupt
 	port->dpram.read_ack(&port->dpram);
 	
@@ -507,13 +539,17 @@ static int dpr_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-
+int gRecCount = 0;
 static ssize_t dpr_read (struct file *filp, char __user *buffer, size_t count, loff_t *ppos)
 {
-	//int ret;
+	int ret=0; 
 	struct spi_fpga_port *port = filp->private_data;
-	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+
+	down_interruptible(&port->dpram.rec_sem);
 	
+	printk("%s, port=0x%x , count=%d, port->dpram.rec_len=%d \n",__FUNCTION__, (int)port, count, port->dpram.rec_len); 
+		
+	//printk("%s:CURRENT_TASK=0x%x\n",__FUNCTION__,current);	
 	while(port->dpram.rec_len == 0)
 	{
 		if( filp->f_flags&O_NONBLOCK )
@@ -524,22 +560,50 @@ static ssize_t dpr_read (struct file *filp, char __user *buffer, size_t count, l
 			printk("%s:NO data in dpram!\n",__FUNCTION__);
 			return -ERESTARTSYS;   
 		}
+
+		gRecCount = port->dpram.rec_len;
 	}
 
 	/*read data from buffer*/
-	if(copy_to_user((char*)buffer, (char *)port->dpram.prx, port->dpram.rec_len))
-    {
-        printk("%s:copy_to_user err!\n",__FUNCTION__);
-        return -EFAULT;
-    }
+	if(port->dpram.rec_len >=count){ 
+		if(copy_to_user((char*)buffer, (char *)(port->dpram.prx + gRecCount - port->dpram.rec_len), count))
+    	{
+ 			printk("%s:copy_to_user err!\n",__FUNCTION__);
+			return -EFAULT;
+    	}
+		ret = count; 
+	}else{ 
+		if(copy_to_user((char*)buffer, (char *)(port->dpram.prx + gRecCount - port->dpram.rec_len), port->dpram.rec_len))
+    	{
+ 			printk("%s:copy_to_user err!\n",__FUNCTION__);
+			return -EFAULT;
+    	}
+		ret = port->dpram.rec_len; 
+	}
+	
+	#if 1
+	int i;
+	char *p = buffer;
+	for(i=0;i<ret;i++)
+	{
+		printk("dpr_read, prx[%d]=0x%x\n", i, *p++); 
+	}
+	#endif
+	
+	if(port->dpram.rec_len >= count){ 
+		port->dpram.rec_len -= count; 
+	}else{ 
+		port->dpram.rec_len = 0; 
+	}
+	
+	if(port->dpram.rec_len == 0){ 
+		printk("port->dpram.rec_len to 0 \n"); 
+		mutex_unlock(&port->dpram.rec_lock); 
+	} 
+	
+	up(&port->dpram.rec_sem);
 
-	count = port->dpram.rec_len;
-	port->dpram.rec_len = 0;
-	
-	//allow bp write ram0 again
-	port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM0));
-	
-	return count;
+	return ret;
 }
 
 
@@ -585,7 +649,6 @@ static ssize_t dpr_write (struct file *filp, const char __user *buffer, size_t c
 		temp = *(p+(i<<1));
 		*(p+(i<<1))= *(p+(i<<1)+1);
 		*(p+(i<<1)+1) = temp;
-		p=p+2;
 	}
 	
 #if 1
@@ -604,7 +667,7 @@ static ssize_t dpr_write (struct file *filp, const char __user *buffer, size_t c
 	gNumSendInt = 0;
 
 	//send irq to bp after ap write data to dpram
-	port->dpram.write_irq(&port->dpram, MAILBOX_APSEND_IRQ);	
+	port->dpram.write_irq(&port->dpram, MAILBOX_APSEND_IRQ | MAILBOX_RAM1);	
 
 	return count;
     
@@ -617,6 +680,23 @@ unsigned int dpr_poll(struct file *filp, struct poll_table_struct * wait)
 	struct spi_fpga_port *port;
 	port = filp->private_data;
 	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+
+#if 1
+	poll_wait(filp, &port->dpram.recq, wait);
+	poll_wait(filp, &port->dpram.sendq, wait);
+
+	if(port->dpram.rec_len >0)
+	{
+	    mask |= POLLIN|POLLRDNORM;
+	    DBG("%s:exsram_poll_____1\n",__FUNCTION__);
+	}
+	
+	if(port->dpram.apwrite_en == TRUE)
+	{
+	    mask |= POLLOUT|POLLWRNORM;
+		DBG("%s:exsram_poll_____2\n",__FUNCTION__);
+	}
+#endif
 
 	return mask;
 }
@@ -677,6 +757,12 @@ int spi_dpram_register(struct spi_fpga_port *port)
 	//init the struct spi_dpram
 	init_waitqueue_head(&port->dpram.recq);
 	init_waitqueue_head(&port->dpram.sendq);
+	mutex_init(&port->dpram.rec_lock);
+	mutex_init(&port->dpram.send_lock);
+	init_MUTEX(&port->dpram.rec_sem);
+	init_MUTEX(&port->dpram.send_sem);
+	spin_lock_init(&port->dpram.spin_rec_lock);
+	spin_lock_init(&port->dpram.spin_send_lock);
 	port->dpram.rec_len = 0;
 	port->dpram.send_len = 0;
 	port->dpram.apwrite_en = TRUE;

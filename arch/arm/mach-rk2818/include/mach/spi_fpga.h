@@ -13,11 +13,16 @@ defines of FPGA chip ICE65L08's register
 #define SPI_FPGA_STANDBY_PIN RK2818_PIN_PH7
 #define SPI_FPGA_RST_PIN RK2818_PIN_PF4
 
+#define SPI_FPGA_POLL_WAIT	1
+#define SPI_FPGA_TRANS_WORK	0
 #define SPI_FPGA_TEST_DEBUG	0
 #if SPI_FPGA_TEST_DEBUG
 #define SPI_FPGA_TEST_DEBUG_PIN RK2818_PIN_PE0
 extern int spi_test_wrong_handle(void);
 #endif
+
+#define TRUE 		1
+#define FALSE 		0
 
 struct uart_icount {
 	__u32	cts;
@@ -108,6 +113,8 @@ struct spi_dpram
 	unsigned short int  dpram_addr;
 	struct semaphore 	rec_sem;  
 	struct semaphore 	send_sem; 
+	struct mutex		rec_lock,send_lock;
+	spinlock_t			spin_rec_lock,spin_send_lock;
 	wait_queue_head_t 	recq, sendq;
 	struct miscdevice 	miscdev;
 
@@ -130,6 +137,19 @@ struct spi_fpga_port {
 	struct workqueue_struct 	*fpga_irq_workqueue;
 	struct work_struct 	fpga_irq_work;	
 	struct timer_list 	fpga_timer;
+#if SPI_FPGA_TRANS_WORK
+	struct workqueue_struct 	*fpga_trans_workqueue;
+	struct work_struct 	fpga_trans_work;	
+	int write_en;
+	int read_en;
+	wait_queue_head_t 	wait_wq, wait_rq;
+	struct list_head	trans_queue;
+#endif
+
+#if SPI_FPGA_POLL_WAIT
+	wait_queue_head_t spi_wait_q;
+#endif
+
 	/*spi2uart*/
 #ifdef CONFIG_SPI_FPGA_UART
 	struct spi_uart uart;
@@ -490,6 +510,9 @@ typedef enum eSpiGpioPinIntIsr
 }eSpiGpioPinIntIsr_t;
 
 extern struct spi_fpga_port *pFpgaPort;
+#if SPI_FPGA_TRANS_WORK
+extern int spi_write_work(struct spi_device *spi, const u8 *buf, size_t len);
+#endif
 extern unsigned int spi_in(struct spi_fpga_port *port, int reg, int type);
 extern void spi_out(struct spi_fpga_port *port, int reg, int value, int type);
 
