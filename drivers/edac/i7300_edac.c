@@ -161,6 +161,63 @@ static const char *numcol_toString[] = {
 /************************************************
  * i7300 Register definitions for error detection
  ************************************************/
+
+/*
+ * Device 16.1: FBD Error Registers
+ */
+#define FERR_FAT_FBD	0x98
+static const char *ferr_fat_fbd_name[] = {
+	[22] = "Non-Redundant Fast Reset Timeout",
+	[2]  = ">Tmid Thermal event with intelligent throttling disabled",
+	[1]  = "Memory or FBD configuration CRC read error",
+	[0]  = "Memory Write error on non-redundant retry or "
+	       "FBD configuration Write error on retry",
+};
+#define GET_FBD_FAT_IDX(fbderr)	(fbderr & (3 << 28))
+#define FERR_FAT_FBD_ERR_MASK ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3))
+
+#define FERR_NF_FBD	0xa0
+static const char *ferr_nf_fbd_name[] = {
+	[24] = "DIMM-Spare Copy Completed",
+	[23] = "DIMM-Spare Copy Initiated",
+	[22] = "Redundant Fast Reset Timeout",
+	[21] = "Memory Write error on redundant retry",
+	[18] = "SPD protocol Error",
+	[17] = "FBD Northbound parity error on FBD Sync Status",
+	[16] = "Correctable Patrol Data ECC",
+	[15] = "Correctable Resilver- or Spare-Copy Data ECC",
+	[14] = "Correctable Mirrored Demand Data ECC",
+	[13] = "Correctable Non-Mirrored Demand Data ECC",
+	[11] = "Memory or FBD configuration CRC read error",
+	[10] = "FBD Configuration Write error on first attempt",
+	[9]  = "Memory Write error on first attempt",
+	[8]  = "Non-Aliased Uncorrectable Patrol Data ECC",
+	[7]  = "Non-Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
+	[6]  = "Non-Aliased Uncorrectable Mirrored Demand Data ECC",
+	[5]  = "Non-Aliased Uncorrectable Non-Mirrored Demand Data ECC",
+	[4]  = "Aliased Uncorrectable Patrol Data ECC",
+	[3]  = "Aliased Uncorrectable Resilver- or Spare-Copy Data ECC",
+	[2]  = "Aliased Uncorrectable Mirrored Demand Data ECC",
+	[1]  = "Aliased Uncorrectable Non-Mirrored Demand Data ECC",
+	[0]  = "Uncorrectable Data ECC on Replay",
+};
+#define GET_FBD_NF_IDX(fbderr)	(fbderr & (3 << 28))
+#define FERR_NF_FBD_ERR_MASK ((1 << 24) | (1 << 23) | (1 << 22) | (1 << 21) |\
+			      (1 << 18) | (1 << 17) | (1 << 16) | (1 << 15) |\
+			      (1 << 14) | (1 << 13) | (1 << 11) | (1 << 10) |\
+			      (1 << 9)  | (1 << 8)  | (1 << 7)  | (1 << 6)  |\
+			      (1 << 5)  | (1 << 4)  | (1 << 3)  | (1 << 2)  |\
+			      (1 << 1)  | (1 << 0))
+
+#define EMASK_FBD	0xa8
+#define EMASK_FBD_ERR_MASK ((1 << 27) | (1 << 26) | (1 << 25) | (1 << 24) |\
+			    (1 << 22) | (1 << 21) | (1 << 20) | (1 << 19) |\
+			    (1 << 18) | (1 << 17) | (1 << 16) | (1 << 14) |\
+			    (1 << 13) | (1 << 12) | (1 << 11) | (1 << 10) |\
+			    (1 << 9)  | (1 << 8)  | (1 << 7)  | (1 << 6)  |\
+			    (1 << 5)  | (1 << 4)  | (1 << 3)  | (1 << 2)  |\
+			    (1 << 1)  | (1 << 0))
+
 /*
  * Device 16.2: Global Error Registers
  */
@@ -339,6 +396,61 @@ error_global:
 }
 
 /*
+ *	i7300_process_fbd_error Retrieve the hardware error information from
+ *				the hardware and cache it in the 'info'
+ *				structure
+ */
+static void i7300_process_fbd_error(struct mem_ctl_info *mci,
+				    struct i7300_error_info *info)
+{
+	struct i7300_pvt *pvt;
+	u32 errnum, value;
+	int branch;
+	unsigned long errors;
+	const char *specific;
+	bool is_fatal;
+
+	pvt = mci->pvt_info;
+
+	/* read in the 1st FATAL error register */
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      FERR_FAT_FBD, &value);
+	if (unlikely(value & FERR_FAT_FBD_ERR_MASK)) {
+		errors = value & FERR_FAT_FBD_ERR_MASK ;
+		errnum = find_first_bit(&errors,
+					ARRAY_SIZE(ferr_fat_fbd_name));
+		specific = GET_ERR_FROM_TABLE(ferr_fat_fbd_name, errnum);
+		is_fatal = 1;
+
+		branch = (GET_FBD_FAT_IDX(value) == 2) ? 1 : 0;
+
+		goto error_fbd;
+	}
+
+	/* read in the 1st NON-FATAL error register */
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      FERR_NF_FBD, &value);
+	if (unlikely(value & FERR_NF_FBD_ERR_MASK)) {
+		errors = value & FERR_NF_FBD_ERR_MASK;
+		errnum = find_first_bit(&errors,
+					ARRAY_SIZE(ferr_nf_fbd_name));
+		specific = GET_ERR_FROM_TABLE(ferr_nf_fbd_name, errnum);
+		is_fatal = 0;
+
+		/* Clear the error bit */
+		pci_write_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+				       FERR_GLOBAL_LO, value);
+
+		goto error_fbd;
+	}
+	return;
+
+error_fbd:
+	i7300_mc_printk(mci, KERN_EMERG, "%s FBD error on branch %d: %s\n",
+			is_fatal ? "Fatal" : "NOT fatal", branch, specific);
+}
+
+/*
  *	i7300_process_error_info Retrieve the hardware error information from
  *				the hardware and cache it in the 'info'
  *				structure
@@ -347,6 +459,7 @@ static void i7300_process_error_info(struct mem_ctl_info *mci,
 				 struct i7300_error_info *info)
 {
 	i7300_process_error_global(mci, info);
+	i7300_process_fbd_error(mci, info);
 };
 
 /*
@@ -381,6 +494,18 @@ static void i7300_check_error(struct mem_ctl_info *mci)
  */
 static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 {
+	struct i7300_pvt *pvt = mci->pvt_info;
+	u32 fbd_error_mask;
+
+	/* Read the FBD Error Mask Register */
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      EMASK_FBD, &fbd_error_mask);
+
+	/* Enable with a '0' */
+	fbd_error_mask &= ~(EMASK_FBD_ERR_MASK);
+
+	pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			       EMASK_FBD, fbd_error_mask);
 }
 
 /************************************************
