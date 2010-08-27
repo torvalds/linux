@@ -1301,7 +1301,7 @@ static struct rk2818_freq_info rk2818_freqs[] = {
 //X	OP(768, 350, 768, 24, 1, 16,  41,  41),
 //	OP(720, 350, 720, 24, 1, 15,  41,  21),
 //	OP(672, 350, 672, 24, 1, 14,  41,  21),
-#if defined(CONFIG_MACH_INFO)
+#if defined(CONFIG_MACH_RK2818INFO)
 	OP(624, 350, 624, 24, 1, 13,  31,  21),
 #else
 	OP(600, 350, 600, 24, 1, 12,  41,  21),
