@@ -57,6 +57,7 @@ static inline void callchain_init(struct callchain_root *root)
 
 	root->node.parent = NULL;
 	root->node.hit = 0;
+	root->node.children_hit = 0;
 	root->max_depth = 0;
 }
 
