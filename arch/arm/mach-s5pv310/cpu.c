@@ -46,11 +46,16 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
+		.virtual	= (unsigned long)S5P_VA_SYSRAM,
+		.pfn		= __phys_to_pfn(S5PV310_PA_SYSRAM),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= (unsigned long)S5P_VA_CMU,
 		.pfn		= __phys_to_pfn(S5PV310_PA_CMU),
 		.length		= SZ_128K,
 		.type		= MT_DEVICE,
-	}
+	},
 };
 
 static void s5pv310_idle(void)
