@@ -554,13 +554,12 @@ static int s5pc110_dma_ops(void *dst, void *src, size_t count, int direction)
 
 	do {
 		status = readl(base + S5PC110_DMA_TRANS_STATUS);
+		if (status & S5PC110_DMA_TRANS_STATUS_TE) {
+			writel(S5PC110_DMA_TRANS_CMD_TEC,
+					base + S5PC110_DMA_TRANS_CMD);
+			return -EIO;
+		}
 	} while (!(status & S5PC110_DMA_TRANS_STATUS_TD));
-
-	if (status & S5PC110_DMA_TRANS_STATUS_TE) {
-		writel(S5PC110_DMA_TRANS_CMD_TEC, base + S5PC110_DMA_TRANS_CMD);
-		writel(S5PC110_DMA_TRANS_CMD_TDC, base + S5PC110_DMA_TRANS_CMD);
-		return -EIO;
-	}
 
 	writel(S5PC110_DMA_TRANS_CMD_TDC, base + S5PC110_DMA_TRANS_CMD);
 
