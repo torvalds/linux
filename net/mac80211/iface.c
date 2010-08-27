@@ -94,20 +94,14 @@ static inline int identical_mac_addr_allowed(int type1, int type2)
 			 type2 == NL80211_IFTYPE_AP_VLAN));
 }
 
-static int ieee80211_open(struct net_device *dev)
+static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
+					    enum nl80211_iftype iftype)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_sub_if_data *nsdata;
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	u32 changed = 0;
-	int res;
-	u32 hw_reconf_flags = 0;
+	struct ieee80211_sub_if_data *nsdata;
+	struct net_device *dev = sdata->dev;
 
-	/* fail early if user set an invalid address */
-	if (!is_zero_ether_addr(dev->dev_addr) &&
-	    !is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
+	ASSERT_RTNL();
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(nsdata, &local->interfaces, list) {
@@ -124,7 +118,7 @@ static int ieee80211_open(struct net_device *dev)
 			 * belonging to the same hardware. Then, however, we're
 			 * faced with having to adopt two different TSF timers...
 			 */
-			if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+			if (iftype == NL80211_IFTYPE_ADHOC &&
 			    nsdata->vif.type == NL80211_IFTYPE_ADHOC)
 				return -EBUSY;
 
@@ -138,18 +132,39 @@ static int ieee80211_open(struct net_device *dev)
 			/*
 			 * check whether it may have the same address
 			 */
-			if (!identical_mac_addr_allowed(sdata->vif.type,
+			if (!identical_mac_addr_allowed(iftype,
 							nsdata->vif.type))
 				return -ENOTUNIQ;
 
 			/*
 			 * can only add VLANs to enabled APs
 			 */
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+			if (iftype == NL80211_IFTYPE_AP_VLAN &&
 			    nsdata->vif.type == NL80211_IFTYPE_AP)
 				sdata->bss = &nsdata->u.ap;
 		}
 	}
+
+	return 0;
+}
+
+static int ieee80211_open(struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+	u32 changed = 0;
+	int res;
+	u32 hw_reconf_flags = 0;
+
+	/* fail early if user set an invalid address */
+	if (!is_zero_ether_addr(dev->dev_addr) &&
+	    !is_valid_ether_addr(dev->dev_addr))
+		return -EADDRNOTAVAIL;
+
+	res = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
+	if (res)
+		return res;
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_WDS:
