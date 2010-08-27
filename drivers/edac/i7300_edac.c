@@ -92,12 +92,13 @@
 
 	/* OFFSETS for Function 1 */
 #define MC_SETTINGS		0x40
+  #define IS_MIRRORED(mc)		((mc) & (1 << 16))
+  #define IS_ECC_ENABLED(mc)		((mc) & (1 << 5))
+  #define IS_RETRY_ENABLED(mc)		((mc) & (1 << 31))
+  #define IS_SCRBALGO_ENHANCED(mc)	((mc) & (1 << 8))
 
-#define IS_MIRRORED(mc)			((mc) & (1 << 16))
-#define IS_ECC_ENABLED(mc)		((mc) & (1 << 5))
-#define IS_RETRY_ENABLED(mc)		((mc) & (1 << 31))
-#define IS_SCRBALGO_ENHANCED(mc)	((mc) & (1 << 8))
-
+#define MC_SETTINGS_A		0x58
+  #define IS_SINGLE_MODE(mca)		((mca) & (1 << 14))
 
 #define TOLM			0x6C
 #define REDMEMB			0x7C
@@ -237,9 +238,11 @@ struct i7300_pvt {
 
 	u16 tolm;				/* top of low memory */
 	u64 ambase;				/* AMB BAR */
-	u32 mc_settings;
 
-	u16 mir[MAX_MIR];
+	u32 mc_settings;			/* Report several settings */
+	u32 mc_settings_a;
+
+	u16 mir[MAX_MIR];			/* Memory Interleave Reg*/
 
 	u16 mtr[MAX_SLOTS][MAX_BRANCHES];		/* Memory Technlogy Reg */
 	u16 ambpresent[MAX_CHANNELS];		/* AMB present regs */
@@ -653,9 +656,15 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 	/* Get memory controller settings */
 	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, MC_SETTINGS,
 			     &pvt->mc_settings);
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map, MC_SETTINGS_A,
+			     &pvt->mc_settings_a);
 
-	debugf0("Memory controller operating on %s mode\n",
+	if (IS_SINGLE_MODE(pvt->mc_settings_a))
+		debugf0("Memory controller operating on single mode\n");
+	else
+		debugf0("Memory controller operating on %s mode\n",
 		IS_MIRRORED(pvt->mc_settings) ? "mirrored" : "non-mirrored");
+
 	debugf0("Error detection is %s\n",
 		IS_ECC_ENABLED(pvt->mc_settings) ? "enabled" : "disabled");
 	debugf0("Retry is %s\n",
