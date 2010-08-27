@@ -277,12 +277,13 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 {
 	void *startwrite, *startread;
 	int  offset;
-	int bytesperline = dev->vbi_width;
+	int bytesperline;
 
 	if (dev == NULL) {
 		em28xx_isocdbg("dev is null\n");
 		return;
 	}
+	bytesperline = dev->vbi_width;
 
 	if (dma_q == NULL) {
 		em28xx_isocdbg("dma_q is null\n");
