@@ -317,7 +317,7 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW2]      = 0x0800,
 	[CPCAP_SW4]      = 0x0800,
-	[CPCAP_SW5]      = 0x0022,
+	[CPCAP_SW5]      = 0x0000,
 	[CPCAP_VCAM]     = 0x0003,
 	[CPCAP_VCSI]     = 0x0003,
 	[CPCAP_VDAC]     = 0x0003,
@@ -443,7 +443,7 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 5050000,
 			.max_uV			= 5050000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
-			.apply_uV		= 1,
+			.boot_on		= 1,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw5_consumers),
 		.consumer_supplies	= cpcap_sw5_consumers,
@@ -722,7 +722,7 @@ int __init stingray_power_init(void)
 	writel(pmc_cntrl_0, IO_ADDRESS(TEGRA_PMC_BASE));
 
 	if (stingray_revision() <= STINGRAY_REVISION_M1) {
-		cpcap_regulator[CPCAP_SW5].constraints.boot_on = 1;
+		cpcap_regulator_mode_values[CPCAP_SW5] = 0x0022;
 
 		stingray_display_led.led_regulator = "sw5";
 		stingray_display_led.cpcap_register = CPCAP_REG_KLC,
