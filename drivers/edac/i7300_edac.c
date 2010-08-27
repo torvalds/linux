@@ -470,9 +470,34 @@ static void i7300_process_error_info(struct mem_ctl_info *mci,
  */
 static void i7300_clear_error(struct mem_ctl_info *mci)
 {
-	struct i7300_error_info info;
+	struct i7300_pvt *pvt = mci->pvt_info;
+	u32 value;
+	/*
+	 * All error values are RWC - we need to read and write 1 to the
+	 * bit that we want to cleanup
+	 */
 
-	i7300_get_error_info(mci, &info);
+	/* Clear global error registers */
+	pci_read_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+			      FERR_GLOBAL_HI, &value);
+	pci_write_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+			      FERR_GLOBAL_HI, value);
+
+	pci_read_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+			      FERR_GLOBAL_LO, &value);
+	pci_write_config_dword(pvt->pci_dev_16_2_fsb_err_regs,
+			      FERR_GLOBAL_LO, value);
+
+	/* Clear FBD error registers */
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      FERR_FAT_FBD, &value);
+	pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      FERR_FAT_FBD, value);
+
+	pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      FERR_NF_FBD, &value);
+	pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
+			      FERR_NF_FBD, value);
 }
 
 /*
