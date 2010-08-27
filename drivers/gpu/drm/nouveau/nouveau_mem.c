@@ -37,6 +37,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 #include "nouveau_mm.h"
+#include "nouveau_vm.h"
 
 /*
  * NV10-NV40 tiling helpers
@@ -201,7 +202,7 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 	dev_priv->engine.instmem.flush(dev);
 	dev_priv->engine.fifo.tlb_flush(dev);
 	dev_priv->engine.graph.tlb_flush(dev);
-	nv50_vm_flush(dev, 6);
+	nv50_vm_flush_engine(dev, 6);
 	return 0;
 }
 
@@ -234,7 +235,7 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 	dev_priv->engine.instmem.flush(dev);
 	dev_priv->engine.fifo.tlb_flush(dev);
 	dev_priv->engine.graph.tlb_flush(dev);
-	nv50_vm_flush(dev, 6);
+	nv50_vm_flush_engine(dev, 6);
 }
 
 /*

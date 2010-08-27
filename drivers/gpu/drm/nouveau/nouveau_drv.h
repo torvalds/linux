@@ -153,6 +153,7 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_DISPLAY	0xcafe0001
 #define NVOBJ_ENGINE_INT	0xdeadbeef
 
+#define NVOBJ_FLAG_DONT_MAP             (1 << 0)
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
 
@@ -1213,7 +1214,6 @@ extern int  nv50_instmem_map(struct nouveau_gpuobj *);
 extern void nv50_instmem_unmap(struct nouveau_gpuobj *);
 extern void nv50_instmem_flush(struct drm_device *);
 extern void nv84_instmem_flush(struct drm_device *);
-extern void nv50_vm_flush(struct drm_device *, int engine);
 
 /* nvc0_instmem.c */
 extern int  nvc0_instmem_init(struct drm_device *);
@@ -1564,10 +1564,11 @@ nv_match_device(struct drm_device *dev, unsigned device,
 }
 
 /* memory type/access flags, do not match hardware values */
-#define NV_MEM_ACCESS_RO 1
-#define NV_MEM_ACCESS_WO 2
+#define NV_MEM_ACCESS_RO  1
+#define NV_MEM_ACCESS_WO  2
 #define NV_MEM_ACCESS_RW (NV_MEM_ACCESS_RO | NV_MEM_ACCESS_WO)
-#define NV_MEM_ACCESS_VM 4
+#define NV_MEM_ACCESS_SYS 4
+#define NV_MEM_ACCESS_VM  8
 
 #define NV_MEM_TARGET_VRAM        0
 #define NV_MEM_TARGET_PCI         1

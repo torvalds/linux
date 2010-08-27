@@ -213,7 +213,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 		}
 
 		ret = -ENOSYS;
-		if (dev_priv->ramin_available)
+		if (!(flags & NVOBJ_FLAG_DONT_MAP))
 			ret = instmem->map(gpuobj);
 		if (ret)
 			gpuobj->pinst = ~0;

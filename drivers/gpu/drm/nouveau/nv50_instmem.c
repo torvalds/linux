@@ -27,7 +27,9 @@
 
 #include "drmP.h"
 #include "drm.h"
+
 #include "nouveau_drv.h"
+#include "nouveau_vm.h"
 
 struct nv50_instmem_priv {
 	uint32_t save1700[5]; /* 0x1700->0x1710 */
@@ -404,7 +406,7 @@ nv50_instmem_map(struct nouveau_gpuobj *gpuobj)
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	nv50_vm_flush(dev, 6);
+	nv50_vm_flush_engine(dev, 6);
 
 	node->ramin   = ramin;
 	gpuobj->pinst = ramin->start;
@@ -452,13 +454,5 @@ nv84_instmem_flush(struct drm_device *dev)
 	nv_wr32(dev, 0x070000, 0x00000001);
 	if (!nv_wait(dev, 0x070000, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
-}
-
-void
-nv50_vm_flush(struct drm_device *dev, int engine)
-{
-	nv_wr32(dev, 0x100c80, (engine << 16) | 1);
-	if (!nv_wait(dev, 0x100c80, 0x00000001, 0x00000000))
-		NV_ERROR(dev, "vm flush timeout: engine %d\n", engine);
 }
 

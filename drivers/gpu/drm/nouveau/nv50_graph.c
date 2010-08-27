@@ -30,6 +30,7 @@
 #include "nouveau_ramht.h"
 #include "nouveau_grctx.h"
 #include "nouveau_dma.h"
+#include "nouveau_vm.h"
 #include "nv50_evo.h"
 
 static int  nv50_graph_register(struct drm_device *);
@@ -468,7 +469,7 @@ nv50_graph_register(struct drm_device *dev)
 void
 nv50_graph_tlb_flush(struct drm_device *dev)
 {
-	nv50_vm_flush(dev, 0);
+	nv50_vm_flush_engine(dev, 0);
 }
 
 void
@@ -511,7 +512,7 @@ nv86_graph_tlb_flush(struct drm_device *dev)
 			 nv_rd32(dev, 0x400384), nv_rd32(dev, 0x400388));
 	}
 
-	nv50_vm_flush(dev, 0);
+	nv50_vm_flush_engine(dev, 0);
 
 	nv_mask(dev, 0x400500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);

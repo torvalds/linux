@@ -9,8 +9,9 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
              nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
              nouveau_display.o nouveau_connector.o nouveau_fbcon.o \
-             nouveau_dp.o nouveau_ramht.o nouveau_mm.o \
+             nouveau_dp.o nouveau_ramht.o \
 	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
+	     nouveau_mm.o nouveau_vm.o \
              nv04_timer.o \
              nv04_mc.o nv40_mc.o nv50_mc.o \
              nv04_fb.o nv10_fb.o nv30_fb.o nv40_fb.o nv50_fb.o nvc0_fb.o \
@@ -27,7 +28,7 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv10_gpio.o nv50_gpio.o \
 	     nv50_calc.o \
 	     nv04_pm.o nv50_pm.o nva3_pm.o \
-	     nv50_vram.o
+	     nv50_vram.o nv50_vm.o
 
 nouveau-$(CONFIG_DRM_NOUVEAU_DEBUG) += nouveau_debugfs.o
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

@@ -28,6 +28,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
+#include "nouveau_vm.h"
 
 static void
 nv50_fifo_playlist_update(struct drm_device *dev)
@@ -498,5 +499,5 @@ nv50_fifo_unload_context(struct drm_device *dev)
 void
 nv50_fifo_tlb_flush(struct drm_device *dev)
 {
-	nv50_vm_flush(dev, 5);
+	nv50_vm_flush_engine(dev, 5);
 }

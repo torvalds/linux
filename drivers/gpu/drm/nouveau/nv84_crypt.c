@@ -25,6 +25,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
+#include "nouveau_vm.h"
 
 static void nv84_crypt_isr(struct drm_device *);
 
@@ -84,7 +85,7 @@ nv84_crypt_destroy_context(struct nouveau_channel *chan)
 void
 nv84_crypt_tlb_flush(struct drm_device *dev)
 {
-	nv50_vm_flush(dev, 0x0a);
+	nv50_vm_flush_engine(dev, 0x0a);
 }
 
 int
