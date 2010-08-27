@@ -315,10 +315,6 @@ static struct edac_pci_ctl_info *i7300_pci;
  * i7300 Functions related to error detection
  ********************************************/
 
-struct i7300_error_info {
-	int dummy;	/* FIXME */
-};
-
 const char *get_err_from_table(const char *table[], int size, int pos)
 {
 	if (pos >= size)
@@ -331,22 +327,11 @@ const char *get_err_from_table(const char *table[], int size, int pos)
 	get_err_from_table(table, ARRAY_SIZE(table), pos)
 
 /*
- *	i7300_get_error_info	Retrieve the hardware error information from
- *				the hardware and cache it in the 'info'
- *				structure
- */
-static void i7300_get_error_info(struct mem_ctl_info *mci,
-				 struct i7300_error_info *info)
-{
-}
-
-/*
  *	i7300_process_error_global Retrieve the hardware error information from
  *				the hardware and cache it in the 'info'
  *				structure
  */
-static void i7300_process_error_global(struct mem_ctl_info *mci,
-				 struct i7300_error_info *info)
+static void i7300_process_error_global(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	u32 errnum, value;
@@ -400,8 +385,7 @@ error_global:
  *				the hardware and cache it in the 'info'
  *				structure
  */
-static void i7300_process_fbd_error(struct mem_ctl_info *mci,
-				    struct i7300_error_info *info)
+static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	u32 errnum, value;
@@ -451,15 +435,14 @@ error_fbd:
 }
 
 /*
- *	i7300_process_error_info Retrieve the hardware error information from
+ *	i7300_check_error Retrieve the hardware error information from
  *				the hardware and cache it in the 'info'
  *				structure
  */
-static void i7300_process_error_info(struct mem_ctl_info *mci,
-				 struct i7300_error_info *info)
+static void i7300_check_error(struct mem_ctl_info *mci)
 {
-	i7300_process_error_global(mci, info);
-	i7300_process_fbd_error(mci, info);
+	i7300_process_error_global(mci);
+	i7300_process_fbd_error(mci);
 };
 
 /*
@@ -498,19 +481,6 @@ static void i7300_clear_error(struct mem_ctl_info *mci)
 			      FERR_NF_FBD, &value);
 	pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 			      FERR_NF_FBD, value);
-}
-
-/*
- *	i7300_check_error	Retrieve and process errors reported by the
- *				hardware. Called by the Core module.
- */
-static void i7300_check_error(struct mem_ctl_info *mci)
-{
-	struct i7300_error_info info;
-	debugf4("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
-
-	i7300_get_error_info(mci, &info);
-	i7300_process_error_info(mci, &info);
 }
 
 /*
