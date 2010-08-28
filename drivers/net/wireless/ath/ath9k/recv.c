@@ -870,15 +870,18 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
 			*decrypt_error = true;
 		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
-			if (ieee80211_is_ctl(fc))
-				/*
-				 * Sometimes, we get invalid
-				 * MIC failures on valid control frames.
-				 * Remove these mic errors.
-				 */
-				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
-			else
+			/*
+			 * The MIC error bit is only valid if the frame
+			 * is not a control frame or fragment, and it was
+			 * decrypted using a valid TKIP key.
+			 */
+			if (!ieee80211_is_ctl(fc) &&
+			    !ieee80211_has_morefrags(fc) &&
+			    !(le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG) &&
+			    test_bit(rx_stats->rs_keyix, common->tkip_keymap))
 				rxs->flag |= RX_FLAG_MMIC_ERROR;
+			else
+				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
 		}
 		/*
 		 * Reject error frames with the exception of
