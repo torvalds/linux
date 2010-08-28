@@ -16,4 +16,13 @@
  */
 #include "gpiomux.h"
 
-struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {};
+struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {
+	[86] = { /* UART3 RX */
+		.suspended = GPIOMUX_DRV_2MA | GPIOMUX_PULL_DOWN |
+			     GPIOMUX_FUNC_1 | GPIOMUX_VALID,
+	},
+	[87] = { /* UART3 TX */
+		.suspended = GPIOMUX_DRV_2MA | GPIOMUX_PULL_DOWN |
+			     GPIOMUX_FUNC_1 | GPIOMUX_VALID,
+	},
+};
