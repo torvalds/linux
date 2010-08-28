@@ -883,6 +883,7 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	int page_order, ret;
 	struct aper_size_info_fixed *size;
 	int num_entries;
+	int gtt_map_size;
 	u32 temp;
 
 	size = agp_bridge->current_size;
@@ -893,9 +894,18 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &temp);
 	temp &= 0xfff80000;
 
-	intel_private.registers = ioremap(temp, 128 * 4096);
+	intel_private.registers = ioremap(temp, KB(64));
 	if (!intel_private.registers)
 		return -ENOMEM;
+
+	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
+	gtt_map_size = intel_private.base.gtt_total_entries * 4;
+
+	intel_private.gtt = ioremap(temp + I810_PTE_BASE, gtt_map_size);
+	if (!intel_private.gtt) {
+		iounmap(intel_private.registers);
+		return -ENOMEM;
+	}
 
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();	/* FIXME: ?? */
@@ -940,20 +950,15 @@ static int intel_i830_configure(void)
 
 	if (agp_bridge->driver->needs_scratch_page) {
 		for (i = intel_private.base.gtt_stolen_entries; i < current_size->num_entries; i++) {
-			writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
+			writel(agp_bridge->scratch_page, intel_private.gtt+i);
 		}
-		readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));	/* PCI Posting. */
+		readl(intel_private.gtt+i-1);	/* PCI Posting. */
 	}
 
 	global_cache_flush();
 
 	intel_i830_setup_flush();
 	return 0;
-}
-
-static void intel_i830_cleanup(void)
-{
-	iounmap(intel_private.registers);
 }
 
 static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
@@ -1002,9 +1007,9 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
 				page_to_phys(mem->pages[i]), mask_type),
-		       intel_private.registers+I810_PTE_BASE+(j*4));
+		       intel_private.gtt+j);
 	}
-	readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
+	readl(intel_private.gtt+j-1);
 
 out:
 	ret = 0;
@@ -1028,9 +1033,9 @@ static int intel_i830_remove_entries(struct agp_memory *mem, off_t pg_start,
 	}
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
-		writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
+		writel(agp_bridge->scratch_page, intel_private.gtt+i);
 	}
-	readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));
+	readl(intel_private.gtt+i-1);
 
 	return 0;
 }
@@ -1171,7 +1176,7 @@ static int intel_i9xx_configure(void)
 	return 0;
 }
 
-static void intel_i915_cleanup(void)
+static void intel_gtt_cleanup(void)
 {
 	if (intel_private.i9xx_flush_page)
 		iounmap(intel_private.i9xx_flush_page);
@@ -1444,7 +1449,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.needs_scratch_page	= true,
 	.configure		= intel_i830_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
-	.cleanup		= intel_i830_cleanup,
+	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
@@ -1471,7 +1476,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
-	.cleanup		= intel_i915_cleanup,
+	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
@@ -1504,7 +1509,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
-	.cleanup		= intel_i915_cleanup,
+	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
@@ -1537,7 +1542,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
-	.cleanup		= intel_i915_cleanup,
+	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_gen6_mask_memory,
 	.masks			= intel_gen6_masks,
 	.agp_enable		= intel_fake_agp_enable,
@@ -1570,7 +1575,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
-	.cleanup		= intel_i915_cleanup,
+	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
