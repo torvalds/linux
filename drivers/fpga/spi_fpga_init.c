@@ -43,7 +43,7 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <mach/rk2818_iomap.h>
-
+#include <linux/poll.h>
 #include <mach/spi_fpga.h>
 
 #if defined(CONFIG_SPI_FPGA_INIT_DEBUG)
@@ -53,6 +53,178 @@
 #endif
 
 struct spi_fpga_port *pFpgaPort;
+
+#if SPI_FPGA_TRANS_WORK
+#define ID_SPI_FPGA_WRITE 1
+#define ID_SPI_FPGA_READ 2
+struct spi_fpga_transfer
+{
+	const u8 *txbuf;
+	unsigned n_tx;
+	u8 *rxbuf;
+	unsigned n_rx;
+	int id;
+	struct list_head	queue;
+};
+
+static void spi_fpga_trans_work_handler(struct work_struct *work)
+{
+	struct spi_fpga_port *port =
+		container_of(work, struct spi_fpga_port, fpga_trans_work);
+
+	while (!list_empty(&port->trans_queue)) 
+	{
+		struct spi_fpga_transfer	*t = NULL;
+		list_for_each_entry(t, &port->trans_queue, queue)
+		{
+
+			if (t->id == 0) 
+				break;	
+			DBG("%s:id=%d,txbuf=0x%x\n",__FUNCTION__,t->id,(int)t->txbuf);
+			switch(t->id)
+			{
+				case ID_SPI_FPGA_WRITE:
+					spi_write(port->spi, t->txbuf, t->n_tx);
+					break;
+				default:
+					break;
+					
+			}
+			kfree(t);
+			kfree(t->txbuf);
+		}
+		list_del_init(&port->trans_queue);
+	}
+
+}
+
+int spi_write_work(struct spi_device *spi, const u8 *buf, size_t len)
+{
+	struct spi_fpga_port *port = spi_get_drvdata(spi);
+	struct spi_fpga_transfer *t;
+	unsigned long flags;
+
+	t = kzalloc(sizeof(struct spi_fpga_transfer), GFP_KERNEL);
+	if (!t)
+	{
+		printk("err:%s:ENOMEM\n",__FUNCTION__);
+		return ;
+	}
+
+	t->txbuf = (char *)kmalloc(32, GFP_KERNEL);
+	if(t->txbuf == NULL)
+	{
+	    printk("%s:t->txbuf kzalloc err!!!\n",__FUNCTION__);
+	    return -ENOMEM;
+	}
+
+	memcpy(t->txbuf, buf, len);
+	t->n_tx = len;
+	t->id = ID_SPI_FPGA_WRITE;
+
+	spin_lock_irqsave(&port->work_lock, flags);
+	list_add_tail(&t->queue, &port->trans_queue);
+	queue_work(port->fpga_trans_workqueue, &port->fpga_trans_work);
+	spin_unlock_irqrestore(&port->work_lock, flags);
+
+	return 0;
+
+}
+
+#endif
+
+
+#if SPI_FPGA_POLL_WAIT
+
+#define SPI_BUFSIZE 1028
+static void spi_fpga_complete(void *arg)
+{
+	struct spi_fpga_port *port = pFpgaPort;
+	msleep(5);
+	wake_up_interruptible(&port->spi_wait_q);
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+}
+
+int spi_fpga_write(struct spi_device *spi, const u8 *buf, size_t len)
+{
+	struct spi_transfer	t = {
+			.tx_buf		= buf,
+			.len		= len,
+		};
+	struct spi_message	m;
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	spi_message_init(&m);
+	spi_message_add_tail(&t, &m);
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	return spi_async(spi, &m);
+}
+
+struct poll_table_struct wait;
+struct file filp;
+int spi_fpga_write_then_read(struct spi_device *spi,
+		const u8 *txbuf, unsigned n_tx,
+		u8 *rxbuf, unsigned n_rx)
+{
+	struct spi_fpga_port *port = spi_get_drvdata(spi);
+	int			status;
+	struct spi_message	message;
+	struct spi_transfer	x[2];
+	u8			*local_buf;
+	printk("%s:line=%d,n_tx+n_rx=%d\n",__FUNCTION__,__LINE__,(n_tx + n_rx));
+	/* Use preallocated DMA-safe buffer.  We can't avoid copying here,
+	 * (as a pure convenience thing), but we can keep heap costs
+	 * out of the hot path ...
+	 */
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+
+	if ((n_tx + n_rx) > SPI_BUFSIZE)
+		return -EINVAL;
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+
+	spi_message_init(&message);
+	memset(x, 0, sizeof x);
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	if (n_tx) {
+		x[0].len = n_tx;
+		spi_message_add_tail(&x[0], &message);
+	}
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+
+	if (n_rx) {
+		x[1].len = n_rx;
+		spi_message_add_tail(&x[1], &message);
+	}
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	/* ... unless someone else is using the pre-allocated buffer */
+
+	local_buf = kmalloc(SPI_BUFSIZE, GFP_KERNEL);
+	if (!local_buf)
+		return -ENOMEM;
+
+	memcpy(local_buf, txbuf, n_tx);
+	x[0].tx_buf = local_buf;
+	x[1].rx_buf = local_buf + n_tx;
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	message.complete = spi_fpga_complete;
+
+	/* do the i/o */
+	status = spi_async(spi, &message);
+#if 1
+	//poll_wait(&filp, &port->spi_wait_q, &wait);
+
+	//if (status == 0)
+	memcpy(rxbuf, x[1].rx_buf, n_rx);
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	kfree(local_buf);
+	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+#endif
+	return status;
+}
+
+#define spi_write spi_fpga_write
+#define spi_write_then_read spi_fpga_write_then_read 
+
+#endif
 
 /*------------------------spi读写的基本函数-----------------------*/
 unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
@@ -138,7 +310,7 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 {
 	unsigned char index = 0;
 	unsigned char tx_buf[3];
-	//printk("index2=%d,",index);
+	int reg_temp = reg;
 	switch(type)
 	{
 #if defined(CONFIG_SPI_FPGA_UART)
@@ -148,6 +320,9 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 			tx_buf[0] = reg & 0xff;
 			tx_buf[1] = (value>>8) & 0xff;
 			tx_buf[2] = value & 0xff;
+			if(reg_temp == UART_IER)
+			spi_write_work(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf));
+			else
 			spi_write(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf));
 			DBG("%s,SEL_UART reg=0x%x,value=0x%x\n",__FUNCTION__,reg&0xff,value&0xffff);
 			break;
@@ -347,11 +522,26 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	if (!port)
 		return -ENOMEM;
 	DBG("port=0x%x\n",(int)port);
-
-	spin_lock_init(&port->work_lock);
+	
 	mutex_init(&port->spi_lock);
-
+	spin_lock_init(&port->work_lock);
+	
 	spi_open_sysclk(GPIO_HIGH);
+
+#if SPI_FPGA_TRANS_WORK
+	init_waitqueue_head(&port->wait_wq);
+	init_waitqueue_head(&port->wait_rq);
+	port->write_en = TRUE;
+	port->read_en = TRUE;
+	sprintf(b, "fpga_trans_workqueue");
+	port->fpga_trans_workqueue = create_freezeable_workqueue(b);
+	if (!port->fpga_trans_workqueue) {
+		printk("cannot create workqueue\n");
+		return -EBUSY;
+	}
+	INIT_WORK(&port->fpga_trans_work, spi_fpga_trans_work_handler);
+	INIT_LIST_HEAD(&port->trans_queue);
+#endif
 
 	spi_fpga_rst();
 	sprintf(b, "fpga_irq_workqueue");

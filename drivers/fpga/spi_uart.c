@@ -37,7 +37,7 @@
 #endif
 
 #define SPI_UART_TEST 0
-
+int gBaud = 0;
 #define SPI_UART_FIFO_LEN	32
 #define SPI_UART_TXRX_BUF	1		//send or recieve several bytes one time
 
@@ -309,6 +309,7 @@ static void spi_uart_change_speed(struct spi_uart *uart,
 	}
 	//quot = (2 * uart->uartclk + baud) / (2 * baud);
 	quot = (uart->uartclk / baud);
+	//gBaud = baud;
 	printk("baud=%d,quot=0x%x\n",baud,quot);
 	if (baud < 2400)
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_1;
@@ -348,19 +349,17 @@ static void spi_uart_change_speed(struct spi_uart *uart,
 	 */
 	uart->ier &= ~UART_IER_MSI;
 	if ((termios->c_cflag & CRTSCTS) || !(termios->c_cflag & CLOCAL))
-	{
-		//uart->ier |= UART_IER_MSI;
-		//uart->mcr = UART_MCR_RTS;//mcr = UART_MCR_RTS while start RTSCTS
-	}
+		uart->ier |= UART_IER_MSI;
 
 	uart->lcr = cval;
-
-	spi_out(port, UART_IER, uart->ier, SEL_UART);
+	
 	spi_out(port, UART_LCR, cval | UART_LCR_DLAB, SEL_UART);
 	spi_out(port, UART_DLL, quot & 0xff, SEL_UART);
 	spi_out(port, UART_DLM, quot >> 8, SEL_UART);
 	spi_out(port, UART_LCR, cval, SEL_UART);
 	spi_out(port, UART_FCR, fcr, SEL_UART);
+	spi_out(port, UART_IER, uart->ier, SEL_UART);//slow
+
 	DBG("%s:LINE=%d,baud=%d,uart->ier=0x%x,cval=0x%x,fcr=0x%x,quot=0x%x\n",
 		__FUNCTION__,__LINE__,baud,uart->ier,cval,fcr,quot);
 	spi_uart_write_mctrl(uart, uart->mctrl);
@@ -369,30 +368,22 @@ static void spi_uart_change_speed(struct spi_uart *uart,
 static void spi_uart_start_tx(struct spi_uart *uart)
 {
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-#if 1
-	//unsigned long flags;
 	if (!(uart->ier & UART_IER_THRI)) {
-		//spin_lock_irqsave(&uart->write_lock, flags);
 		uart->ier |= UART_IER_THRI;
 		spi_out(port, UART_IER, uart->ier, SEL_UART);
-		//spin_unlock_irqrestore(&uart->write_lock, flags);	
 		printk("t,");
 	}	
 	
 	DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
-#endif
+
 }
 
 static void spi_uart_stop_tx(struct spi_uart *uart)
 {
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	//unsigned long flags;
 	if (uart->ier & UART_IER_THRI) {
-		//spin_lock_irqsave(&uart->write_lock, flags);
 		uart->ier &= ~UART_IER_THRI;
 		spi_out(port, UART_IER, uart->ier, SEL_UART);
-		//spin_unlock_irqrestore(&uart->write_lock, flags);	
-		//printk("p");
 	}
 	DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
 }
@@ -411,12 +402,18 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	unsigned int ch, flag;
 	int max_count = 1024;
-
+	//printk("rx:");
 #if SPI_UART_TXRX_BUF
 	int ret,count,stat = 0,num = 0;
+	int i;
 	unsigned char buf[SPI_UART_FIFO_LEN];
 	while (max_count >0 )
 	{
+		stat = spi_in(port, UART_LSR, SEL_UART);
+		if((((stat >> 8) & 0x3f) != 0) && (!(stat & UART_LSR_DR)))
+		printk("%s:warning:no receive data but count =%d \n",__FUNCTION__,((stat >> 8) & 0x3f));
+		if(!(stat & UART_LSR_DR))
+			break;
 		ret = spi_in(port, UART_RX, SEL_UART);
 		count = (ret >> 8) & 0x3f;	
 		DBG("%s:count=%d\n",__FUNCTION__,count);
@@ -430,21 +427,23 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 			printk("err:%s:stat=%d,fail to read uart data because of spi bus error!\n",__FUNCTION__,stat);	
 		}
 		max_count -= count;
-		while (count-- >0 )
+		for(i=0;i<count;i++)
 		{
 			flag = TTY_NORMAL;
 			uart->icount.rx++;
 			ch = buf[num++];
 			tty_insert_flip_char(tty, ch, flag);
-			//printk("%c,",ch);
+			//if(gBaud == 1500000)
+			//printk("0x%x,",ch);
 		}
 		//printk("\n");
-	}
+	}	
 
 	tty_flip_buffer_push(tty); 
+	//if(gBaud == 1500000)
+	//printk("\n");
 	
 #else	
-	//printk("rx:");
 	while (--max_count >0 )
 	{
 		ch = spi_in(port, UART_RX, SEL_UART);//
@@ -533,10 +532,15 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		if (circ_empty(xmit))
 		break;
 		buf[SPI_UART_FIFO_LEN - count] = xmit->buf[xmit->tail];
+		//if(gBaud == 1500000)
+		//printk("0x%x,",buf[SPI_UART_FIFO_LEN - count]&0xff);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		uart->icount.tx++;
 		--count;
+
 	}
+	//if(gBaud == 1500000)
+	//printk("\n");
 	if(SPI_UART_FIFO_LEN - count > 0)
 	spi_uart_write_buf(uart,buf,SPI_UART_FIFO_LEN - count);
 #else
@@ -573,7 +577,7 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 	DBG("uart->tty->hw_stopped = %d\n",uart->tty->hw_stopped);
 }
 
-#if 0
+#if 1
 static void spi_uart_check_modem_status(struct spi_uart *uart)
 {
 	int status;
@@ -744,7 +748,7 @@ void spi_uart_handle_irq(struct spi_device *spi)
 		spi_uart_receive_chars(uart, &lsr);	
 	}
 
-	//spi_uart_check_modem_status(uart);
+	spi_uart_check_modem_status(uart);
 	
 	
 	if (lsr & UART_LSR_THRE)
