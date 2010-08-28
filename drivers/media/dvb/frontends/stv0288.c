@@ -486,7 +486,7 @@ static int stv0288_set_frontend(struct dvb_frontend *fe,
 	tda[2] = 0x0; /* CFRL */
 	for (tm = -6; tm < 7;) {
 		/* Viterbi status */
-		if (stv0288_readreg(state, 0x24) & 0x80)
+		if (stv0288_readreg(state, 0x24) & 0x8)
 			break;
 
 		tda[2] += 40;
