@@ -46,7 +46,7 @@ int ceph_init_dentry(struct dentry *dentry)
 	else
 		dentry->d_op = &ceph_snap_dentry_ops;
 
-	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_NOFS);
+	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_NOFS | __GFP_ZERO);
 	if (!di)
 		return -ENOMEM;          /* oh well */
 

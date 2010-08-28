@@ -1082,6 +1082,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	gid_t gid;
 	struct ceph_mds_session *session;
 	u64 xattr_version = 0;
+	struct ceph_buffer *xattr_blob = NULL;
 	int delayed = 0;
 	u64 flush_tid = 0;
 	int i;
@@ -1142,6 +1143,10 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		for (i = 0; i < CEPH_CAP_BITS; i++)
 			if (flushing & (1 << i))
 				ci->i_cap_flush_tid[i] = flush_tid;
+
+		follows = ci->i_head_snapc->seq;
+	} else {
+		follows = 0;
 	}
 
 	keep = cap->implemented;
@@ -1155,14 +1160,14 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	mtime = inode->i_mtime;
 	atime = inode->i_atime;
 	time_warp_seq = ci->i_time_warp_seq;
-	follows = ci->i_snap_realm->cached_context->seq;
 	uid = inode->i_uid;
 	gid = inode->i_gid;
 	mode = inode->i_mode;
 
-	if (dropping & CEPH_CAP_XATTR_EXCL) {
+	if (flushing & CEPH_CAP_XATTR_EXCL) {
 		__ceph_build_xattrs_blob(ci);
-		xattr_version = ci->i_xattrs.version + 1;
+		xattr_blob = ci->i_xattrs.blob;
+		xattr_version = ci->i_xattrs.version;
 	}
 
 	spin_unlock(&inode->i_lock);
@@ -1170,9 +1175,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	ret = send_cap_msg(session, ceph_vino(inode).ino, cap_id,
 		op, keep, want, flushing, seq, flush_tid, issue_seq, mseq,
 		size, max_size, &mtime, &atime, time_warp_seq,
-		uid, gid, mode,
-		xattr_version,
-		(flushing & CEPH_CAP_XATTR_EXCL) ? ci->i_xattrs.blob : NULL,
+		uid, gid, mode, xattr_version, xattr_blob,
 		follows);
 	if (ret < 0) {
 		dout("error sending cap msg, must requeue %p\n", inode);
@@ -1282,7 +1285,7 @@ retry:
 			     &capsnap->mtime, &capsnap->atime,
 			     capsnap->time_warp_seq,
 			     capsnap->uid, capsnap->gid, capsnap->mode,
-			     0, NULL,
+			     capsnap->xattr_version, capsnap->xattr_blob,
 			     capsnap->follows);
 
 		next_follows = capsnap->follows + 1;
@@ -1332,7 +1335,11 @@ void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 	     ceph_cap_string(was | mask));
 	ci->i_dirty_caps |= mask;
 	if (was == 0) {
-		dout(" inode %p now dirty\n", &ci->vfs_inode);
+		if (!ci->i_head_snapc)
+			ci->i_head_snapc = ceph_get_snap_context(
+				ci->i_snap_realm->cached_context);
+		dout(" inode %p now dirty snapc %p\n", &ci->vfs_inode,
+			ci->i_head_snapc);
 		BUG_ON(!list_empty(&ci->i_dirty_item));
 		spin_lock(&mdsc->cap_dirty_lock);
 		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
@@ -2190,7 +2197,9 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 
 	if (ci->i_head_snapc == snapc) {
 		ci->i_wrbuffer_ref_head -= nr;
-		if (!ci->i_wrbuffer_ref_head) {
+		if (ci->i_wrbuffer_ref_head == 0 &&
+		    ci->i_dirty_caps == 0 && ci->i_flushing_caps == 0) {
+			BUG_ON(!ci->i_head_snapc);
 			ceph_put_snap_context(ci->i_head_snapc);
 			ci->i_head_snapc = NULL;
 		}
@@ -2483,6 +2492,11 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 			dout(" inode %p now clean\n", inode);
 			BUG_ON(!list_empty(&ci->i_dirty_item));
 			drop = 1;
+			if (ci->i_wrbuffer_ref_head == 0) {
+				BUG_ON(!ci->i_head_snapc);
+				ceph_put_snap_context(ci->i_head_snapc);
+				ci->i_head_snapc = NULL;
+			}
 		} else {
 			BUG_ON(list_empty(&ci->i_dirty_item));
 		}

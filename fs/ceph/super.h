@@ -216,8 +216,7 @@ struct ceph_cap_snap {
 	uid_t uid;
 	gid_t gid;
 
-	void *xattr_blob;
-	int xattr_len;
+	struct ceph_buffer *xattr_blob;
 	u64 xattr_version;
 
 	u64 size;
@@ -229,8 +228,11 @@ struct ceph_cap_snap {
 
 static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 {
-	if (atomic_dec_and_test(&capsnap->nref))
+	if (atomic_dec_and_test(&capsnap->nref)) {
+		if (capsnap->xattr_blob)
+			ceph_buffer_put(capsnap->xattr_blob);
 		kfree(capsnap);
+	}
 }
 
 /*
@@ -342,7 +344,8 @@ struct ceph_inode_info {
 	unsigned i_cap_exporting_issued;
 	struct ceph_cap_reservation i_cap_migration_resv;
 	struct list_head i_cap_snaps;   /* snapped state pending flush to mds */
-	struct ceph_snap_context *i_head_snapc;  /* set if wr_buffer_head > 0 */
+	struct ceph_snap_context *i_head_snapc;  /* set if wr_buffer_head > 0 or
+						    dirty|flushing caps */
 	unsigned i_snap_caps;           /* cap bits for snapped files */
 
 	int i_nr_by_mode[CEPH_FILE_MODE_NUM];  /* open file counts */
