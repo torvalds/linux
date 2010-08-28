@@ -3606,43 +3606,6 @@ static void audit_mappings(struct kvm_vcpu *vcpu)
 						    2);
 }
 
-static int count_rmaps(struct kvm_vcpu *vcpu)
-{
-	struct kvm *kvm = vcpu->kvm;
-	struct kvm_memslots *slots;
-	int nmaps = 0;
-	int i, j, k, idx;
-
-	idx = srcu_read_lock(&kvm->srcu);
-	slots = kvm_memslots(kvm);
-	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
-		struct kvm_memory_slot *m = &slots->memslots[i];
-		struct kvm_rmap_desc *d;
-
-		for (j = 0; j < m->npages; ++j) {
-			unsigned long *rmapp = &m->rmap[j];
-
-			if (!*rmapp)
-				continue;
-			if (!(*rmapp & 1)) {
-				++nmaps;
-				continue;
-			}
-			d = (struct kvm_rmap_desc *)(*rmapp & ~1ul);
-			while (d) {
-				for (k = 0; k < RMAP_EXT; ++k)
-					if (d->sptes[k])
-						++nmaps;
-					else
-						break;
-				d = d->more;
-			}
-		}
-	}
-	srcu_read_unlock(&kvm->srcu, idx);
-	return nmaps;
-}
-
 void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 {
 	unsigned long *rmapp;
@@ -3704,7 +3667,6 @@ static void check_mappings_rmap(struct kvm_vcpu *vcpu)
 static void audit_rmap(struct kvm_vcpu *vcpu)
 {
 	check_mappings_rmap(vcpu);
-	count_rmaps(vcpu);
 }
 
 static void audit_write_protection(struct kvm_vcpu *vcpu)
