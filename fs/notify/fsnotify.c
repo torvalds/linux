@@ -261,27 +261,26 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 
 	while (inode_node || vfsmount_node) {
 		used_inode = used_vfsmount = false;
+		inode_group = vfsmount_group = NULL;
 
 		if (inode_node) {
 			inode_mark = hlist_entry(srcu_dereference(inode_node, &fsnotify_mark_srcu),
 						 struct fsnotify_mark, i.i_list);
 			inode_group = inode_mark->group;
-		} else
-			inode_group = (void *)-1;
+		}
 
 		if (vfsmount_node) {
 			vfsmount_mark = hlist_entry(srcu_dereference(vfsmount_node, &fsnotify_mark_srcu),
 							struct fsnotify_mark, m.m_list);
 			vfsmount_group = vfsmount_mark->group;
-		} else
-			vfsmount_group = (void *)-1;
+		}
 
-		if (inode_group < vfsmount_group) {
+		if (inode_group > vfsmount_group) {
 			/* handle inode */
 			send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
 				      data_is, cookie, file_name, &event);
 			used_inode = true;
-		} else if (vfsmount_group < inode_group) {
+		} else if (vfsmount_group > inode_group) {
 			send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
 				      data_is, cookie, file_name, &event);
 			used_vfsmount = true;
