@@ -17,6 +17,7 @@
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/bios_ebda.h>
+#include <asm/tlbflush.h>
 
 static void __init i386_default_early_setup(void)
 {
