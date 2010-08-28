@@ -39,22 +39,6 @@
 
 extern struct sys_timer msm_timer;
 
-#ifdef CONFIG_SERIAL_MSM_CONSOLE
-static struct msm_gpio uart2_config_data[] = {
-	{ GPIO_CFG(49, 2, GPIO_OUTPUT,  GPIO_PULL_DOWN, GPIO_2MA), "UART2_RFR"},
-	{ GPIO_CFG(50, 2, GPIO_INPUT,   GPIO_PULL_DOWN, GPIO_2MA), "UART2_CTS"},
-	{ GPIO_CFG(51, 2, GPIO_INPUT,   GPIO_PULL_DOWN, GPIO_2MA), "UART2_Rx"},
-	{ GPIO_CFG(52, 2, GPIO_OUTPUT,  GPIO_PULL_DOWN, GPIO_2MA), "UART2_Tx"},
-};
-
-static void msm7x30_init_uart2(void)
-{
-	msm_gpios_request_enable(uart2_config_data,
-			ARRAY_SIZE(uart2_config_data));
-
-}
-#endif
-
 static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
         &msm_device_uart2,
@@ -70,10 +54,6 @@ static void __init msm7x30_init_irq(void)
 static void __init msm7x30_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-#ifdef CONFIG_SERIAL_MSM_CONSOLE
-	msm7x30_init_uart2();
-#endif
-
 }
 
 static void __init msm7x30_map_io(void)
