@@ -3708,16 +3708,17 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
 	u64 *spte;
-	gfn_t gfn;
 
 	list_for_each_entry(sp, &vcpu->kvm->arch.active_mmu_pages, link) {
 		if (sp->role.direct)
 			continue;
 		if (sp->unsync)
 			continue;
+		if (sp->role.invalid)
+			continue;
 
 		slot = gfn_to_memslot(vcpu->kvm, sp->gfn);
-		rmapp = &slot->rmap[gfn - slot->base_gfn];
+		rmapp = &slot->rmap[sp->gfn - slot->base_gfn];
 
 		spte = rmap_next(vcpu->kvm, rmapp, NULL);
 		while (spte) {
