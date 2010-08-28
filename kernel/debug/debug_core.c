@@ -741,7 +741,7 @@ static struct console kgdbcons = {
 };
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handle_dbg(int key, struct tty_struct *tty)
+static void sysrq_handle_dbg(int key)
 {
 	if (!dbg_io_ops) {
 		printk(KERN_CRIT "ERROR: No KGDB I/O module available\n");
