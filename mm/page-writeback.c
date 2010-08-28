@@ -250,50 +250,6 @@ static void bdi_writeout_fraction(struct backing_dev_info *bdi,
 				numerator, denominator);
 }
 
-static inline void task_dirties_fraction(struct task_struct *tsk,
-		long *numerator, long *denominator)
-{
-	prop_fraction_single(&vm_dirties, &tsk->dirties,
-				numerator, denominator);
-}
-
-/*
- * task_dirty_limit - scale down dirty throttling threshold for one task
- *
- * task specific dirty limit:
- *
- *   dirty -= (dirty/8) * p_{t}
- *
- * To protect light/slow dirtying tasks from heavier/fast ones, we start
- * throttling individual tasks before reaching the bdi dirty limit.
- * Relatively low thresholds will be allocated to heavy dirtiers. So when
- * dirty pages grow large, heavy dirtiers will be throttled first, which will
- * effectively curb the growth of dirty pages. Light dirtiers with high enough
- * dirty threshold may never get throttled.
- */
-#define TASK_LIMIT_FRACTION 8
-static unsigned long task_dirty_limit(struct task_struct *tsk,
-				       unsigned long bdi_dirty)
-{
-	long numerator, denominator;
-	unsigned long dirty = bdi_dirty;
-	u64 inv = dirty / TASK_LIMIT_FRACTION;
-
-	task_dirties_fraction(tsk, &numerator, &denominator);
-	inv *= numerator;
-	do_div(inv, denominator);
-
-	dirty -= inv;
-
-	return max(dirty, bdi_dirty/2);
-}
-
-/* Minimum limit for any task */
-static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
-{
-	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-}
-
 /*
  *
  */
@@ -986,30 +942,36 @@ static unsigned long dirty_poll_interval(unsigned long dirty,
 /*
  * balance_dirty_pages() must be called by processes which are generating dirty
  * data.  It looks at the number of dirty pages in the machine and will force
- * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+ * the caller to wait once crossing the (background_thresh + dirty_thresh) / 2.
  * If we're over `background_thresh' then the writeback threads are woken to
  * perform some writeout.
  */
 static void balance_dirty_pages(struct address_space *mapping,
-				unsigned long write_chunk)
+				unsigned long pages_dirtied)
 {
-	unsigned long nr_reclaimable, bdi_nr_reclaimable;
+	unsigned long nr_reclaimable;	/* = file_dirty + unstable_nfs */
+	unsigned long bdi_reclaimable;
 	unsigned long nr_dirty;  /* = file_dirty + writeback + unstable_nfs */
 	unsigned long bdi_dirty;
 	unsigned long freerun;
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
 	unsigned long bdi_thresh;
-	unsigned long task_bdi_thresh;
-	unsigned long min_task_bdi_thresh;
-	unsigned long pages_written = 0;
-	unsigned long pause = 1;
+	long pause = 0;
 	bool dirty_exceeded = false;
-	bool clear_dirty_exceeded = true;
+	unsigned long task_ratelimit;
+	unsigned long dirty_ratelimit;
+	unsigned long pos_ratio;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	unsigned long start_time = jiffies;
 
 	for (;;) {
+		/*
+		 * Unstable writes are a feature of certain networked
+		 * filesystems (i.e. NFS) in which data may have been
+		 * written to the server's write cache, but has not yet
+		 * been flushed to permanent storage.
+		 */
 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
 					global_page_state(NR_UNSTABLE_NFS);
 		nr_dirty = nr_reclaimable + global_page_state(NR_WRITEBACK);
@@ -1026,9 +988,23 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (nr_dirty <= freerun)
 			break;
 
+		if (unlikely(!writeback_in_progress(bdi)))
+			bdi_start_background_writeback(bdi);
+
+		/*
+		 * bdi_thresh is not treated as some limiting factor as
+		 * dirty_thresh, due to reasons
+		 * - in JBOD setup, bdi_thresh can fluctuate a lot
+		 * - in a system with HDD and USB key, the USB key may somehow
+		 *   go into state (bdi_dirty >> bdi_thresh) either because
+		 *   bdi_dirty starts high, or because bdi_thresh drops low.
+		 *   In this case we don't want to hard throttle the USB key
+		 *   dirtiers for 100 seconds until bdi_dirty drops under
+		 *   bdi_thresh. Instead the auxiliary bdi control line in
+		 *   bdi_position_ratio() will let the dirtier task progress
+		 *   at some rate <= (write_bw / 2) for bringing down bdi_dirty.
+		 */
 		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-		min_task_bdi_thresh = task_min_dirty_limit(bdi_thresh);
-		task_bdi_thresh = task_dirty_limit(current, bdi_thresh);
 
 		/*
 		 * In order to avoid the stacked BDI deadlock we need
@@ -1040,57 +1016,41 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * actually dirty; with m+n sitting in the percpu
 		 * deltas.
 		 */
-		if (task_bdi_thresh < 2 * bdi_stat_error(bdi)) {
-			bdi_nr_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
-			bdi_dirty = bdi_nr_reclaimable +
+		if (bdi_thresh < 2 * bdi_stat_error(bdi)) {
+			bdi_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
+			bdi_dirty = bdi_reclaimable +
 				    bdi_stat_sum(bdi, BDI_WRITEBACK);
 		} else {
-			bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
-			bdi_dirty = bdi_nr_reclaimable +
+			bdi_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+			bdi_dirty = bdi_reclaimable +
 				    bdi_stat(bdi, BDI_WRITEBACK);
 		}
 
-		/*
-		 * The bdi thresh is somehow "soft" limit derived from the
-		 * global "hard" limit. The former helps to prevent heavy IO
-		 * bdi or process from holding back light ones; The latter is
-		 * the last resort safeguard.
-		 */
-		dirty_exceeded = (bdi_dirty > task_bdi_thresh) ||
+		dirty_exceeded = (bdi_dirty > bdi_thresh) ||
 				  (nr_dirty > dirty_thresh);
-		clear_dirty_exceeded = (bdi_dirty <= min_task_bdi_thresh) &&
-					(nr_dirty <= dirty_thresh);
-
-		if (!dirty_exceeded)
-			break;
-
-		if (!bdi->dirty_exceeded)
+		if (dirty_exceeded && !bdi->dirty_exceeded)
 			bdi->dirty_exceeded = 1;
 
 		bdi_update_bandwidth(bdi, dirty_thresh, background_thresh,
 				     nr_dirty, bdi_thresh, bdi_dirty,
 				     start_time);
 
-		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
-		 * Unstable writes are a feature of certain networked
-		 * filesystems (i.e. NFS) in which data may have been
-		 * written to the server's write cache, but has not yet
-		 * been flushed to permanent storage.
-		 * Only move pages to writeback if this bdi is over its
-		 * threshold otherwise wait until the disk writes catch
-		 * up.
-		 */
-		trace_balance_dirty_start(bdi);
-		if (bdi_nr_reclaimable > task_bdi_thresh) {
-			pages_written += writeback_inodes_wb(&bdi->wb,
-							     write_chunk);
-			trace_balance_dirty_written(bdi, pages_written);
-			if (pages_written >= write_chunk)
-				break;		/* We've done our duty */
+		dirty_ratelimit = bdi->dirty_ratelimit;
+		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
+					       background_thresh, nr_dirty,
+					       bdi_thresh, bdi_dirty);
+		if (unlikely(pos_ratio == 0)) {
+			pause = MAX_PAUSE;
+			goto pause;
 		}
+		task_ratelimit = (u64)dirty_ratelimit *
+					pos_ratio >> RATELIMIT_CALC_SHIFT;
+		pause = (HZ * pages_dirtied) / (task_ratelimit | 1);
+		pause = min_t(long, pause, MAX_PAUSE);
+
+pause:
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		io_schedule_timeout(pause);
-		trace_balance_dirty_wait(bdi);
 
 		dirty_thresh = hard_dirty_limit(dirty_thresh);
 		/*
@@ -1099,22 +1059,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * 200ms is typically more than enough to curb heavy dirtiers;
 		 * (b) the pause time limit makes the dirtiers more responsive.
 		 */
-		if (nr_dirty < dirty_thresh &&
-		    bdi_dirty < (task_bdi_thresh + bdi_thresh) / 2 &&
-		    time_after(jiffies, start_time + MAX_PAUSE))
+		if (nr_dirty < dirty_thresh)
 			break;
-
-		/*
-		 * Increase the delay for each loop, up to our previous
-		 * default of taking a 100ms nap.
-		 */
-		pause <<= 1;
-		if (pause > HZ / 10)
-			pause = HZ / 10;
 	}
 
-	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-	if (clear_dirty_exceeded && bdi->dirty_exceeded)
+	if (!dirty_exceeded && bdi->dirty_exceeded)
 		bdi->dirty_exceeded = 0;
 
 	current->nr_dirtied = 0;
@@ -1131,8 +1080,10 @@ static void balance_dirty_pages(struct address_space *mapping,
 	 * In normal mode, we start background writeout at the lower
 	 * background_thresh, to keep the amount of dirty memory low.
 	 */
-	if ((laptop_mode && pages_written) ||
-	    (!laptop_mode && (nr_reclaimable > background_thresh)))
+	if (laptop_mode)
+		return;
+
+	if (nr_reclaimable > background_thresh)
 		bdi_start_background_writeback(bdi);
 }
 

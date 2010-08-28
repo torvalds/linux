@@ -104,30 +104,6 @@ DEFINE_WRITEBACK_EVENT(writeback_bdi_register);
 DEFINE_WRITEBACK_EVENT(writeback_bdi_unregister);
 DEFINE_WRITEBACK_EVENT(writeback_thread_start);
 DEFINE_WRITEBACK_EVENT(writeback_thread_stop);
-DEFINE_WRITEBACK_EVENT(balance_dirty_start);
-DEFINE_WRITEBACK_EVENT(balance_dirty_wait);
-
-TRACE_EVENT(balance_dirty_written,
-
-	TP_PROTO(struct backing_dev_info *bdi, int written),
-
-	TP_ARGS(bdi, written),
-
-	TP_STRUCT__entry(
-		__array(char,	name, 32)
-		__field(int,	written)
-	),
-
-	TP_fast_assign(
-		strncpy(__entry->name, dev_name(bdi->dev), 32);
-		__entry->written = written;
-	),
-
-	TP_printk("bdi %s written %d",
-		  __entry->name,
-		  __entry->written
-	)
-);
 
 DECLARE_EVENT_CLASS(wbc_class,
 	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
