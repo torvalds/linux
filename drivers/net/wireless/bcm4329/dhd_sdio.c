@@ -4218,6 +4218,11 @@ dhdsdio_dpc(dhd_bus_t *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
+
+#if defined(OOB_INTR_ONLY)
+	bcmsdh_oob_intr_set(1);
+#endif
+
 	/* Re-enable interrupts to detect new device events (mailbox, rx frame)
 	 * or clock availability.  (Allows tx loop to check ipend if desired.)
 	 * (Unless register access seems hosed, as we may not be able to ACK...)

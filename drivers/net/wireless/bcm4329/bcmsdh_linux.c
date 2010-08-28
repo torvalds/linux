@@ -77,6 +77,9 @@ struct bcmsdh_hc {
 	unsigned int oob_irq;
 	unsigned long oob_flags; /* OOB Host specifiction as edge and etc */
 	bool oob_irq_registered;
+#if defined(OOB_INTR_ONLY)
+	spinlock_t irq_lock;
+#endif
 };
 static bcmsdh_hc_t *sdhcinfo = NULL;
 
@@ -227,6 +230,9 @@ int bcmsdh_probe(struct device *dev)
 	sdhc->oob_irq = irq;
 	sdhc->oob_flags = irq_flags;
 	sdhc->oob_irq_registered = FALSE;	/* to make sure.. */
+#if defined(OOB_INTR_ONLY)
+	spin_lock_init(&sdhc->irq_lock);
+#endif
 
 	/* chain SDIO Host Controller info together */
 	sdhc->next = sdhcinfo;
@@ -569,15 +575,34 @@ bcmsdh_unregister(void)
 #endif /* BCMPLATFORM_BUS */
 }
 
+
+
 #if defined(OOB_INTR_ONLY)
+void bcmsdh_oob_intr_set(bool enable)
+{
+	static bool curstate = 1;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sdhcinfo->irq_lock, flags);
+	if (curstate != enable) {
+		if (enable)
+			enable_irq(sdhcinfo->oob_irq);
+		else
+			disable_irq_nosync(sdhcinfo->oob_irq);
+		curstate = enable;
+	}
+	spin_unlock_irqrestore(&sdhcinfo->irq_lock, flags);
+}
+
 static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 {
 	dhd_pub_t *dhdp;
 
 	dhdp = (dhd_pub_t *)dev_get_drvdata(sdhcinfo->dev);
 
+	bcmsdh_oob_intr_set(0);
+
 	if (dhdp == NULL) {
-		disable_irq(sdhcinfo->oob_irq);
 		SDLX_MSG(("Out of band GPIO interrupt fired way too early\n"));
 		return IRQ_HANDLED;
 	}
@@ -617,14 +642,6 @@ void bcmsdh_unregister_oob_intr(void)
 	disable_irq(sdhcinfo->oob_irq);	/* just in case.. */
 	free_irq(sdhcinfo->oob_irq, NULL);
 	sdhcinfo->oob_irq_registered = FALSE;
-}
-
-void bcmsdh_oob_intr_set(bool enable)
-{
-	if (enable)
-		enable_irq(sdhcinfo->oob_irq);
-	else
-		disable_irq(sdhcinfo->oob_irq);
 }
 #endif /* defined(OOB_INTR_ONLY) */
 /* Module parameters specific to each host-controller driver */
