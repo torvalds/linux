@@ -3,7 +3,6 @@ obj-y += io.o idle.o timer.o dma.o
 obj-y += vreg.o
 obj-y += acpuclock-arm11.o
 obj-y += clock.o clock-pcom.o
-obj-y += gpio.o
 
 ifdef CONFIG_MSM_VIC
 obj-y += irq-vic.o
