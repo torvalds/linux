@@ -378,7 +378,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		irq = find_unbound_irq();
 
 		set_irq_chip_and_handler_name(irq, &xen_dynamic_chip,
-					      handle_edge_irq, "event");
+					      handle_fasteoi_irq, "event");
 
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_evtchn_info(evtchn);
@@ -664,6 +664,9 @@ static void __xen_evtchn_do_upcall(void)
 				int irq = evtchn_to_irq[port];
 				struct irq_desc *desc;
 
+				mask_evtchn(port);
+				clear_evtchn(port);
+
 				if (irq != -1) {
 					desc = irq_to_desc(irq);
 					if (desc)
@@ -801,10 +804,10 @@ static void ack_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
-	move_native_irq(irq);
+	move_masked_irq(irq);
 
 	if (VALID_EVTCHN(evtchn))
-		clear_evtchn(evtchn);
+		unmask_evtchn(evtchn);
 }
 
 static int retrigger_dynirq(unsigned int irq)
@@ -960,7 +963,7 @@ static struct irq_chip xen_dynamic_chip __read_mostly = {
 	.mask		= disable_dynirq,
 	.unmask		= enable_dynirq,
 
-	.ack		= ack_dynirq,
+	.eoi		= ack_dynirq,
 	.set_affinity	= set_affinity_irq,
 	.retrigger	= retrigger_dynirq,
 };
