@@ -710,7 +710,7 @@ static int bf5xx_nand_scan(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
-	ret = nand_scan_ident(mtd, 1);
+	ret = nand_scan_ident(mtd, 1, NULL);
 	if (ret)
 		return ret;
 
