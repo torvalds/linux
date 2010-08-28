@@ -404,8 +404,8 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 	int max_count = 1024;
 	//printk("rx:");
 #if SPI_UART_TXRX_BUF
-	int ret,count,stat = 0,num = 0;
-	int i;
+	int ret,count,stat = 0;
+	int i = 0;
 	unsigned char buf[SPI_UART_FIFO_LEN];
 	while (max_count >0 )
 	{
@@ -431,7 +431,7 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 		{
 			flag = TTY_NORMAL;
 			uart->icount.rx++;
-			ch = buf[num++];
+			ch = buf[i];
 			tty_insert_flip_char(tty, ch, flag);
 			//if(gBaud == 1500000)
 			//printk("0x%x,",ch);
