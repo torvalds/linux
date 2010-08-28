@@ -895,7 +895,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     const u8 *ie, size_t ie_len,
-			     enum ieee80211_band band, u32 rate_mask)
+			     enum ieee80211_band band, u32 rate_mask,
+			     u8 channel)
 {
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
@@ -945,6 +946,12 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		*pos++ = ext_rates_len;
 		memcpy(pos, rates + supp_rates_len, ext_rates_len);
 		pos += ext_rates_len;
+	}
+
+	if (channel && sband->band == IEEE80211_BAND_2GHZ) {
+		*pos++ = WLAN_EID_DS_PARAMS;
+		*pos++ = 1;
+		*pos++ = channel;
 	}
 
 	/* insert custom IEs that go before HT */
@@ -1013,6 +1020,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	struct ieee80211_mgmt *mgmt;
 	size_t buf_len;
 	u8 *buf;
+	u8 chan;
 
 	/* FIXME: come up with a proper value */
 	buf = kmalloc(200 + ie_len, GFP_KERNEL);
@@ -1022,10 +1030,14 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		return;
 	}
 
+	chan = ieee80211_frequency_to_channel(
+		local->hw.conf.channel->center_freq);
+
 	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
 					   local->hw.conf.channel->band,
 					   sdata->rc_rateidx_mask
-					   [local->hw.conf.channel->band]);
+					   [local->hw.conf.channel->band],
+					   chan);
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,
