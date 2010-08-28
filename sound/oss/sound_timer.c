@@ -26,7 +26,7 @@ static unsigned long prev_event_time;
 static volatile unsigned long usecs_per_tmr;	/* Length of the current interval */
 
 static struct sound_lowlev_timer *tmr;
-static spinlock_t lock;
+static DEFINE_SPINLOCK(lock);
 
 static unsigned long tmr2ticks(int tmr_value)
 {
