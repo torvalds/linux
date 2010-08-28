@@ -999,7 +999,7 @@ pfn_t hva_to_pfn_atomic(struct kvm *kvm, unsigned long addr)
 }
 EXPORT_SYMBOL_GPL(hva_to_pfn_atomic);
 
-pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic)
 {
 	unsigned long addr;
 
@@ -1009,7 +1009,18 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 		return page_to_pfn(bad_page);
 	}
 
-	return hva_to_pfn(kvm, addr, false);
+	return hva_to_pfn(kvm, addr, atomic);
+}
+
+pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
+{
+	return __gfn_to_pfn(kvm, gfn, true);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
+
+pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+{
+	return __gfn_to_pfn(kvm, gfn, false);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
 
