@@ -225,7 +225,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	struct fsnotify_event *event = NULL;
 	struct vfsmount *mnt;
 	int idx, ret = 0;
-	bool used_inode, used_vfsmount;
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
@@ -260,7 +259,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	}
 
 	while (inode_node || vfsmount_node) {
-		used_inode = used_vfsmount = false;
 		inode_group = vfsmount_group = NULL;
 
 		if (inode_node) {
@@ -279,23 +277,22 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 			/* handle inode */
 			send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
 				      data_is, cookie, file_name, &event);
-			used_inode = true;
+			/* we didn't use the vfsmount_mark */
+			vfsmount_group = NULL;
 		} else if (vfsmount_group > inode_group) {
 			send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
 				      data_is, cookie, file_name, &event);
-			used_vfsmount = true;
+			inode_group = NULL;
 		} else {
 			send_to_group(to_tell, mnt, inode_mark, vfsmount_mark,
 				      mask, data, data_is, cookie, file_name,
 				      &event);
-			used_vfsmount = true;
-			used_inode = true;
 		}
 
-		if (used_inode)
+		if (inode_group)
 			inode_node = srcu_dereference(inode_node->next,
 						      &fsnotify_mark_srcu);
-		if (used_vfsmount)
+		if (vfsmount_group)
 			vfsmount_node = srcu_dereference(vfsmount_node->next,
 							 &fsnotify_mark_srcu);
 	}
