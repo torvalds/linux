@@ -106,4 +106,6 @@ config MSM_SMD_PKG3
 config MSM_SMD
 	bool
 
+config MSM_V2_TLMM
+	bool
 endif
