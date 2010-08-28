@@ -353,7 +353,7 @@ try_again:
 		}
 
 		if (read(fd[nr_cpu][counter][thread_index], &read_data, sizeof(read_data)) == -1) {
-			perror("Unable to read perf file descriptor\n");
+			perror("Unable to read perf file descriptor");
 			exit(-1);
 		}
 
@@ -626,7 +626,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	nr_cpus = read_cpu_map(cpu_list);
 	if (nr_cpus < 1) {
-		perror("failed to collect number of CPUs\n");
+		perror("failed to collect number of CPUs");
 		return -1;
 	}
 
