@@ -712,7 +712,7 @@ static unsigned int intel_gtt_total_entries(void)
 {
 	int size;
 
-	if (IS_G33 || INTEL_GTT_GEN >= 4) {
+	if (IS_G33 || INTEL_GTT_GEN == 4 || INTEL_GTT_GEN == 5) {
 		u32 pgetbl_ctl;
 		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
 
@@ -741,6 +741,24 @@ static unsigned int intel_gtt_total_entries(void)
 			size = KB(512);
 		}
 
+		return size/4;
+	} else if (INTEL_GTT_GEN == 6) {
+		u16 snb_gmch_ctl;
+
+		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+		switch (snb_gmch_ctl & SNB_GTT_SIZE_MASK) {
+		default:
+		case SNB_GTT_SIZE_0M:
+			printk(KERN_ERR "Bad GTT size mask: 0x%04x.\n", snb_gmch_ctl);
+			size = MB(0);
+			break;
+		case SNB_GTT_SIZE_1M:
+			size = MB(1);
+			break;
+		case SNB_GTT_SIZE_2M:
+			size = MB(2);
+			break;
+		}
 		return size/4;
 	} else {
 		/* On previous hardware, the GTT size was just what was
@@ -1327,44 +1345,18 @@ static unsigned long intel_gen6_mask_memory(struct agp_bridge_data *bridge,
 
 static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
-	u16 snb_gmch_ctl;
-
-	switch (intel_private.bridge_dev->device) {
-	case PCI_DEVICE_ID_INTEL_GM45_HB:
-	case PCI_DEVICE_ID_INTEL_EAGLELAKE_HB:
-	case PCI_DEVICE_ID_INTEL_Q45_HB:
-	case PCI_DEVICE_ID_INTEL_G45_HB:
-	case PCI_DEVICE_ID_INTEL_G41_HB:
-	case PCI_DEVICE_ID_INTEL_B43_HB:
-	case PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB:
-	case PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB:
-	case PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB:
-	case PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB:
-		*gtt_offset = *gtt_size = MB(2);
-		break;
-	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB:
-	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB:
-	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB:
+	switch (INTEL_GTT_GEN) {
+	case 5:
+	case 6:
 		*gtt_offset = MB(2);
-
-		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-		switch (snb_gmch_ctl & SNB_GTT_SIZE_MASK) {
-		default:
-		case SNB_GTT_SIZE_0M:
-			printk(KERN_ERR "Bad GTT size mask: 0x%04x.\n", snb_gmch_ctl);
-			*gtt_size = MB(0);
-			break;
-		case SNB_GTT_SIZE_1M:
-			*gtt_size = MB(1);
-			break;
-		case SNB_GTT_SIZE_2M:
-			*gtt_size = MB(2);
-			break;
-		}
 		break;
+	case 4:
 	default:
-		*gtt_offset = *gtt_size = KB(512);
+		*gtt_offset =  KB(512);
+		break;
 	}
+
+	*gtt_size = intel_private.base.gtt_total_entries * 4;
 }
 
 /* The intel i965 automatically initializes the agp aperture during POST.
@@ -1387,17 +1379,17 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 
 	temp &= 0xfff00000;
 
+	intel_private.registers = ioremap(temp, 128 * 4096);
+	if (!intel_private.registers) 
+		return -ENOMEM;
+
+	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
+
 	intel_i965_get_gtt_range(&gtt_offset, &gtt_size);
 
 	intel_private.gtt = ioremap((temp + gtt_offset) , gtt_size);
 
-	if (!intel_private.gtt)
-		return -ENOMEM;
-
-	intel_private.base.gtt_total_entries = gtt_size / 4;
-
-	intel_private.registers = ioremap(temp, 128 * 4096);
-	if (!intel_private.registers) {
+	if (!intel_private.gtt) {
 		iounmap(intel_private.gtt);
 		return -ENOMEM;
 	}
