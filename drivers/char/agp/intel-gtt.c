@@ -534,7 +534,7 @@ static void intel_i830_init_gtt_entries(void)
 
 	pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
 
-	if (IS_I965) {
+	if (IS_G33 || IS_I965) {
 		u32 pgetbl_ctl;
 		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
 
@@ -567,22 +567,6 @@ static void intel_i830_init_gtt_entries(void)
 			size = 512;
 		}
 		size += 4; /* add in BIOS popup space */
-	} else if (IS_G33 && !IS_PINEVIEW) {
-	/* G33's GTT size defined in gmch_ctrl */
-		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
-		case G33_PGETBL_SIZE_1M:
-			size = 1024;
-			break;
-		case G33_PGETBL_SIZE_2M:
-			size = 2048;
-			break;
-		default:
-			dev_info(&agp_bridge->dev->dev,
-				 "unknown page table size 0x%x, assuming 512KB\n",
-				(gmch_ctrl & G33_PGETBL_SIZE_MASK));
-			size = 512;
-		}
-		size += 4;
 	} else if (IS_G4X || IS_PINEVIEW) {
 		/* On 4 series hardware, GTT stolen is separate from graphics
 		 * stolen, ignore it in stolen gtt entries counting.  However,
@@ -1257,24 +1241,31 @@ static int intel_i915_get_gtt_size(void)
 	int size;
 
 	if (IS_G33) {
-		u16 gmch_ctrl;
+		u32 pgetbl_ctl;
+		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
 
-		/* G33's GTT size defined in gmch_ctrl */
-		pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
-		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
-		case I830_GMCH_GMS_STOLEN_512:
+		switch (pgetbl_ctl & I965_PGETBL_SIZE_MASK) {
+		case I965_PGETBL_SIZE_128KB:
+			size = 128;
+			break;
+		case I965_PGETBL_SIZE_256KB:
+			size = 256;
+			break;
+		case I965_PGETBL_SIZE_512KB:
 			size = 512;
 			break;
-		case I830_GMCH_GMS_STOLEN_1024:
+		case I965_PGETBL_SIZE_1MB:
 			size = 1024;
 			break;
-		case I830_GMCH_GMS_STOLEN_8192:
-			size = 8*1024;
+		case I965_PGETBL_SIZE_2MB:
+			size = 2048;
+			break;
+		case I965_PGETBL_SIZE_1_5MB:
+			size = 1024 + 512;
 			break;
 		default:
-			dev_info(&agp_bridge->dev->dev,
-				 "unknown page table size 0x%x, assuming 512KB\n",
-				(gmch_ctrl & I830_GMCH_GMS_MASK));
+			dev_info(&intel_private.pcidev->dev,
+				 "unknown page table size, assuming 512KB\n");
 			size = 512;
 		}
 	} else {
@@ -1306,14 +1297,6 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
 	pci_read_config_dword(intel_private.pcidev, I915_PTEADDR, &temp2);
 
-	gtt_map_size = intel_i915_get_gtt_size();
-
-	intel_private.gtt = ioremap(temp2, gtt_map_size);
-	if (!intel_private.gtt)
-		return -ENOMEM;
-
-	intel_private.gtt_total_size = gtt_map_size / 4;
-
 	temp &= 0xfff80000;
 
 	intel_private.registers = ioremap(temp, 128 * 4096);
@@ -1321,6 +1304,14 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 		iounmap(intel_private.gtt);
 		return -ENOMEM;
 	}
+
+	gtt_map_size = intel_i915_get_gtt_size();
+
+	intel_private.gtt = ioremap(temp2, gtt_map_size);
+	if (!intel_private.gtt)
+		return -ENOMEM;
+
+	intel_private.gtt_total_size = gtt_map_size / 4;
 
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();	/* FIXME: ? */
