@@ -3644,40 +3644,38 @@ void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	struct kvm_mmu_page *rev_sp;
 	gfn_t gfn;
 
-	if (is_writable_pte(*sptep)) {
-		rev_sp = page_header(__pa(sptep));
-		gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
 
-		if (!gfn_to_memslot(kvm, gfn)) {
-			if (!printk_ratelimit())
-				return;
-			printk(KERN_ERR "%s: no memslot for gfn %llx\n",
-					 audit_msg, gfn);
-			printk(KERN_ERR "%s: index %ld of sp (gfn=%llx)\n",
-			       audit_msg, (long int)(sptep - rev_sp->spt),
-					rev_sp->gfn);
-			dump_stack();
+	rev_sp = page_header(__pa(sptep));
+	gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
+
+	if (!gfn_to_memslot(kvm, gfn)) {
+		if (!printk_ratelimit())
 			return;
-		}
-
-		rmapp = gfn_to_rmap(kvm, gfn, rev_sp->role.level);
-		if (!*rmapp) {
-			if (!printk_ratelimit())
-				return;
-			printk(KERN_ERR "%s: no rmap for writable spte %llx\n",
-					 audit_msg, *sptep);
-			dump_stack();
-		}
+		printk(KERN_ERR "%s: no memslot for gfn %llx\n",
+				 audit_msg, gfn);
+		printk(KERN_ERR "%s: index %ld of sp (gfn=%llx)\n",
+		       audit_msg, (long int)(sptep - rev_sp->spt),
+				rev_sp->gfn);
+		dump_stack();
+		return;
 	}
 
+	rmapp = gfn_to_rmap(kvm, gfn, rev_sp->role.level);
+	if (!*rmapp) {
+		if (!printk_ratelimit())
+			return;
+		printk(KERN_ERR "%s: no rmap for writable spte %llx\n",
+				 audit_msg, *sptep);
+		dump_stack();
+	}
 }
 
-void audit_writable_sptes_have_rmaps(struct kvm_vcpu *vcpu)
+void audit_sptes_have_rmaps(struct kvm_vcpu *vcpu)
 {
 	mmu_spte_walk(vcpu, inspect_spte_has_rmap);
 }
 
-static void check_writable_mappings_rmap(struct kvm_vcpu *vcpu)
+static void check_mappings_rmap(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
 	int i;
@@ -3689,12 +3687,9 @@ static void check_writable_mappings_rmap(struct kvm_vcpu *vcpu)
 			continue;
 
 		for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-			u64 ent = pt[i];
+			if (!is_rmap_spte(pt[i]))
+				continue;
 
-			if (!(ent & PT_PRESENT_MASK))
-				continue;
-			if (!is_writable_pte(ent))
-				continue;
 			inspect_spte_has_rmap(vcpu->kvm, &pt[i]);
 		}
 	}
@@ -3703,7 +3698,7 @@ static void check_writable_mappings_rmap(struct kvm_vcpu *vcpu)
 
 static void audit_rmap(struct kvm_vcpu *vcpu)
 {
-	check_writable_mappings_rmap(vcpu);
+	check_mappings_rmap(vcpu);
 	count_rmaps(vcpu);
 }
 
@@ -3746,7 +3741,7 @@ static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg)
 	audit_write_protection(vcpu);
 	if (strcmp("pre pte write", audit_msg) != 0)
 		audit_mappings(vcpu);
-	audit_writable_sptes_have_rmaps(vcpu);
+	audit_sptes_have_rmaps(vcpu);
 	dbg = olddbg;
 }
 
