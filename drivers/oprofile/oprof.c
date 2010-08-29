@@ -257,16 +257,9 @@ static int __init oprofile_init(void)
 		printk(KERN_INFO "oprofile: using timer interrupt.\n");
 		err = oprofile_timer_init(&oprofile_ops);
 		if (err)
-			goto out_arch;
+			return err;
 	}
-	err = oprofilefs_register();
-	if (err)
-		goto out_arch;
-	return 0;
-
-out_arch:
-	oprofile_arch_exit();
-	return err;
+	return oprofilefs_register();
 }
 
 
