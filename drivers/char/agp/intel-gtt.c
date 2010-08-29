@@ -903,7 +903,13 @@ static void intel_enable_gtt(void)
 
 	ptetbl_addr = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 
-	pci_read_config_dword(intel_private.pcidev, I810_GMADDR, &gma_addr);
+	if (INTEL_GTT_GEN == 2)
+		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
+				      &gma_addr);
+	else
+		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
+				      &gma_addr);
+
 	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
@@ -1165,23 +1171,11 @@ static void intel_i9xx_setup_flush(void)
 
 static int intel_i9xx_configure(void)
 {
-	struct aper_size_info_fixed *current_size;
-	u32 temp;
-	u16 gmch_ctrl;
 	int i;
 
-	current_size = A_SIZE_FIX(agp_bridge->current_size);
+	intel_enable_gtt();
 
-	pci_read_config_dword(intel_private.pcidev, I915_GMADDR, &temp);
-
-	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
-
-	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
-	gmch_ctrl |= I830_GMCH_ENABLED;
-	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
-
-	writel(agp_bridge->gatt_bus_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
-	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
+	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
 
 	if (agp_bridge->driver->needs_scratch_page) {
 		for (i = intel_private.base.gtt_stolen_entries; i <
@@ -1192,8 +1186,6 @@ static int intel_i9xx_configure(void)
 	}
 
 	global_cache_flush();
-
-	intel_i9xx_setup_flush();
 
 	return 0;
 }
@@ -1291,40 +1283,62 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
 	return 0;
 }
 
+static int i9xx_setup(void)
+{
+	u32 reg_addr;
+
+	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &reg_addr);
+
+	reg_addr &= 0xfff80000;
+
+	intel_private.registers = ioremap(reg_addr, 128 * 4096);
+	if (!intel_private.registers)
+		return -ENOMEM;
+
+	if (INTEL_GTT_GEN == 3) {
+		u32 gtt_addr;
+		pci_read_config_dword(intel_private.pcidev,
+				      I915_PTEADDR, &gtt_addr);
+		intel_private.gtt_bus_addr = gtt_addr;
+	} else {
+		u32 gtt_offset;
+
+		switch (INTEL_GTT_GEN) {
+		case 5:
+		case 6:
+			gtt_offset = MB(2);
+			break;
+		case 4:
+		default:
+			gtt_offset =  KB(512);
+			break;
+		}
+		intel_private.gtt_bus_addr = reg_addr + gtt_offset;
+	}
+
+	intel_i9xx_setup_flush();
+
+	return 0;
+}
+
 /* The intel i915 automatically initializes the agp aperture during POST.
  * Use the memory already set aside for in the GTT.
  */
 static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 {
-	int page_order, ret;
-	struct aper_size_info_fixed *size;
-	int num_entries;
-	u32 temp, temp2;
+	int ret;
 
-	size = agp_bridge->current_size;
-	page_order = size->page_order;
-	num_entries = size->num_entries;
-	agp_bridge->gatt_table_real = NULL;
-
-	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
-	pci_read_config_dword(intel_private.pcidev, I915_PTEADDR, &temp2);
-
-	temp &= 0xfff80000;
-
-	intel_private.registers = ioremap(temp, 128 * 4096);
-	if (!intel_private.registers)
-		return -ENOMEM;
-
-	intel_private.gtt_bus_addr = temp2;
-	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
+	ret = intel_private.driver->setup();
+	if (ret != 0)
+		return ret;
 
 	ret = intel_gtt_init();
 	if (ret != 0)
 		return ret;
 
+	agp_bridge->gatt_table_real = NULL;
 	agp_bridge->gatt_table = NULL;
-
-	agp_bridge->gatt_bus_addr = temp;
+	agp_bridge->gatt_bus_addr = 0;
 
 	return 0;
 }
@@ -1356,59 +1370,6 @@ static unsigned long intel_gen6_mask_memory(struct agp_bridge_data *bridge,
 
 	/* Type checking must be done elsewhere */
 	return addr | bridge->driver->masks[type].mask;
-}
-
-static void intel_i965_get_gtt_range(int *gtt_offset)
-{
-	switch (INTEL_GTT_GEN) {
-	case 5:
-	case 6:
-		*gtt_offset = MB(2);
-		break;
-	case 4:
-	default:
-		*gtt_offset =  KB(512);
-		break;
-	}
-}
-
-/* The intel i965 automatically initializes the agp aperture during POST.
- * Use the memory already set aside for in the GTT.
- */
-static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
-{
-	int page_order, ret;
-	struct aper_size_info_fixed *size;
-	int num_entries;
-	u32 temp;
-	int gtt_offset;
-
-	size = agp_bridge->current_size;
-	page_order = size->page_order;
-	num_entries = size->num_entries;
-	agp_bridge->gatt_table_real = NULL;
-
-	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
-
-	temp &= 0xfff00000;
-
-	intel_private.registers = ioremap(temp, 128 * 4096);
-	if (!intel_private.registers) 
-		return -ENOMEM;
-
-	intel_i965_get_gtt_range(&gtt_offset);
-	intel_private.gtt_bus_addr = temp + gtt_offset;
-	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
-
-	ret = intel_gtt_init();
-	if (ret != 0)
-		return ret;
-
-	agp_bridge->gatt_table = NULL;
-
-	agp_bridge->gatt_bus_addr = temp;
-
-	return 0;
 }
 
 static const struct agp_bridge_driver intel_810_driver = {
@@ -1510,7 +1471,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i965_create_gatt_table,
+	.create_gatt_table	= intel_i915_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
@@ -1543,7 +1504,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.masks			= intel_gen6_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i965_create_gatt_table,
+	.create_gatt_table	= intel_i915_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
@@ -1602,27 +1563,34 @@ static const struct intel_gtt_driver i8xx_gtt_driver = {
 };
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
+	.setup = i9xx_setup,
 };
 static const struct intel_gtt_driver g33_gtt_driver = {
 	.gen = 3,
 	.is_g33 = 1,
+	.setup = i9xx_setup,
 };
 static const struct intel_gtt_driver pineview_gtt_driver = {
 	.gen = 3,
 	.is_pineview = 1, .is_g33 = 1,
+	.setup = i9xx_setup,
 };
 static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
+	.setup = i9xx_setup,
 };
 static const struct intel_gtt_driver g4x_gtt_driver = {
 	.gen = 5,
+	.setup = i9xx_setup,
 };
 static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.gen = 5,
 	.is_ironlake = 1,
+	.setup = i9xx_setup,
 };
 static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
+	.setup = i9xx_setup,
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
