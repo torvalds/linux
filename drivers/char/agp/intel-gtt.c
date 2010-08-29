@@ -804,6 +804,13 @@ static unsigned int intel_gtt_mappable_entries(void)
 static int intel_gtt_init(void)
 {
 	u32 gtt_map_size;
+	int ret;
+
+	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
+
+	ret = intel_private.driver->setup();
+	if (ret != 0)
+		return ret;
 
 	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
 	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
@@ -938,21 +945,8 @@ static int i830_setup(void)
 	return 0;
 }
 
-/* The intel i830 automatically initializes the agp aperture during POST.
- * Use the memory already set aside for in the GTT.
- */
-static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
+static int intel_fake_agp_create_gatt_table(struct agp_bridge_data *bridge)
 {
-	int ret;
-
-	ret = intel_private.driver->setup();
-	if (ret != 0)
-		return ret;
-
-	ret = intel_gtt_init();
-	if (ret != 0)
-		return ret;
-
 	agp_bridge->gatt_table_real = NULL;
 	agp_bridge->gatt_table = NULL;
 	agp_bridge->gatt_bus_addr = 0;
@@ -960,9 +954,6 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	return 0;
 }
 
-/* Return the gatt table to a sane state. Use the top of stolen
- * memory for the GTT.
- */
 static int intel_fake_agp_free_gatt_table(struct agp_bridge_data *bridge)
 {
 	return 0;
@@ -1321,28 +1312,6 @@ static int i9xx_setup(void)
 	return 0;
 }
 
-/* The intel i915 automatically initializes the agp aperture during POST.
- * Use the memory already set aside for in the GTT.
- */
-static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
-{
-	int ret;
-
-	ret = intel_private.driver->setup();
-	if (ret != 0)
-		return ret;
-
-	ret = intel_gtt_init();
-	if (ret != 0)
-		return ret;
-
-	agp_bridge->gatt_table_real = NULL;
-	agp_bridge->gatt_table = NULL;
-	agp_bridge->gatt_bus_addr = 0;
-
-	return 0;
-}
-
 /*
  * The i965 supports 36-bit physical addresses, but to keep
  * the format of the GTT the same, the bits that don't fit
@@ -1411,7 +1380,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i830_create_gatt_table,
+	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i830_insert_entries,
 	.remove_memory		= intel_i830_remove_entries,
@@ -1438,7 +1407,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i915_create_gatt_table,
+	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
@@ -1471,7 +1440,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i915_create_gatt_table,
+	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
@@ -1504,7 +1473,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.masks			= intel_gen6_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i915_create_gatt_table,
+	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
@@ -1537,7 +1506,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_i915_create_gatt_table,
+	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i915_insert_entries,
 	.remove_memory		= intel_i915_remove_entries,
@@ -1744,7 +1713,8 @@ int intel_gmch_probe(struct pci_dev *pdev,
 	if (bridge->driver == &intel_810_driver)
 		return 1;
 
-	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
+	if (intel_gtt_init() != 0)
+		return 0;
 
 	return 1;
 }
