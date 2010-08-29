@@ -395,7 +395,6 @@ xdr_shrink_pagelen(struct xdr_buf *buf, size_t len)
 {
 	struct kvec *tail;
 	size_t copy;
-	char *p;
 	unsigned int pglen = buf->page_len;
 
 	tail = buf->tail;
@@ -403,8 +402,8 @@ xdr_shrink_pagelen(struct xdr_buf *buf, size_t len)
 
 	/* Shift the tail first */
 	if (tail->iov_len != 0) {
-		p = (char *)tail->iov_base + len;
 		if (tail->iov_len > len) {
+			char *p = (char *)tail->iov_base + len;
 			copy = tail->iov_len - len;
 			memmove(p, tail->iov_base, copy);
 		}
