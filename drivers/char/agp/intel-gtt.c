@@ -94,6 +94,7 @@ static struct _intel_private {
 	struct pci_dev *pcidev;	/* device one */
 	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
+	phys_addr_t gtt_bus_addr;
 	u32 __iomem *gtt;		/* I915G */
 	int num_dcache_entries;
 	union {
@@ -799,10 +800,27 @@ static unsigned int intel_gtt_mappable_entries(void)
 
 static int intel_gtt_init(void)
 {
+	u32 gtt_map_size;
+
+	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
+	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
+
+	gtt_map_size = intel_private.base.gtt_total_entries * 4;
+
+	intel_private.gtt = ioremap(intel_private.gtt_bus_addr,
+				    gtt_map_size);
+	if (!intel_private.gtt) {
+		iounmap(intel_private.registers);
+		return -ENOMEM;
+	}
+
+	global_cache_flush();   /* FIXME: ? */
+
 	/* we have to call this as early as possible after the MMIO base address is known */
 	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
 	if (intel_private.base.gtt_stolen_entries == 0) {
 		iounmap(intel_private.registers);
+		iounmap(intel_private.gtt);
 		return -ENOMEM;
 	}
 
@@ -883,7 +901,6 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	int page_order, ret;
 	struct aper_size_info_fixed *size;
 	int num_entries;
-	int gtt_map_size;
 	u32 temp;
 
 	size = agp_bridge->current_size;
@@ -898,17 +915,8 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	if (!intel_private.registers)
 		return -ENOMEM;
 
-	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
-	gtt_map_size = intel_private.base.gtt_total_entries * 4;
-
-	intel_private.gtt = ioremap(temp + I810_PTE_BASE, gtt_map_size);
-	if (!intel_private.gtt) {
-		iounmap(intel_private.registers);
-		return -ENOMEM;
-	}
-
+	intel_private.gtt_bus_addr = temp + I810_PTE_BASE;
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
-	global_cache_flush();	/* FIXME: ?? */
 
 	ret = intel_gtt_init();
 	if (ret != 0)
@@ -1278,7 +1286,6 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp, temp2;
-	int gtt_map_size;
 
 	size = agp_bridge->current_size;
 	page_order = size->page_order;
@@ -1294,23 +1301,12 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	if (!intel_private.registers)
 		return -ENOMEM;
 
-	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
-	gtt_map_size = intel_private.base.gtt_total_entries * 4;
-
-	intel_private.gtt = ioremap(temp2, gtt_map_size);
-	if (!intel_private.gtt) {
-		iounmap(intel_private.registers);
-		return -ENOMEM;
-	}
-
+	intel_private.gtt_bus_addr = temp2;
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
-	global_cache_flush();	/* FIXME: ? */
 
 	ret = intel_gtt_init();
-	if (ret != 0) {
-		iounmap(intel_private.gtt);
+	if (ret != 0)
 		return ret;
-	}
 
 	agp_bridge->gatt_table = NULL;
 
@@ -1348,7 +1344,7 @@ static unsigned long intel_gen6_mask_memory(struct agp_bridge_data *bridge,
 	return addr | bridge->driver->masks[type].mask;
 }
 
-static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
+static void intel_i965_get_gtt_range(int *gtt_offset)
 {
 	switch (INTEL_GTT_GEN) {
 	case 5:
@@ -1360,8 +1356,6 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 		*gtt_offset =  KB(512);
 		break;
 	}
-
-	*gtt_size = intel_private.base.gtt_total_entries * 4;
 }
 
 /* The intel i965 automatically initializes the agp aperture during POST.
@@ -1373,7 +1367,7 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp;
-	int gtt_offset, gtt_size;
+	int gtt_offset;
 
 	size = agp_bridge->current_size;
 	page_order = size->page_order;
@@ -1388,25 +1382,13 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 	if (!intel_private.registers) 
 		return -ENOMEM;
 
-	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
-
-	intel_i965_get_gtt_range(&gtt_offset, &gtt_size);
-
-	intel_private.gtt = ioremap((temp + gtt_offset) , gtt_size);
-
-	if (!intel_private.gtt) {
-		iounmap(intel_private.gtt);
-		return -ENOMEM;
-	}
-
+	intel_i965_get_gtt_range(&gtt_offset);
+	intel_private.gtt_bus_addr = temp + gtt_offset;
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
-	global_cache_flush();   /* FIXME: ? */
 
 	ret = intel_gtt_init();
-	if (ret != 0) {
-		iounmap(intel_private.gtt);
+	if (ret != 0)
 		return ret;
-	}
 
 	agp_bridge->gatt_table = NULL;
 
