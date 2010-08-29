@@ -407,8 +407,7 @@ xdr_shrink_pagelen(struct xdr_buf *buf, size_t len)
 		if (tail->iov_len > len) {
 			copy = tail->iov_len - len;
 			memmove(p, tail->iov_base, copy);
-		} else
-			buf->buflen -= len;
+		}
 		/* Copy from the inlined pages into the tail */
 		copy = len;
 		if (copy > tail->iov_len)
