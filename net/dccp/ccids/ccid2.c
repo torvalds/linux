@@ -111,8 +111,6 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 	dp->dccps_l_ack_ratio = val;
 }
 
-static void ccid2_start_rto_timer(struct sock *sk);
-
 static void ccid2_hc_tx_rto_expire(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
@@ -131,7 +129,7 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	if (hc->tx_rto > DCCP_RTO_MAX)
 		hc->tx_rto = DCCP_RTO_MAX;
 
-	ccid2_start_rto_timer(sk);
+	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 
 	/* adjust pipe, cwnd etc */
 	hc->tx_ssthresh = hc->tx_cwnd / 2;
@@ -151,16 +149,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
-}
-
-static void ccid2_start_rto_timer(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	ccid2_pr_debug("setting RTO timeout=%u\n", hc->tx_rto);
-
-	BUG_ON(timer_pending(&hc->tx_rtotimer));
-	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 }
 
 static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
@@ -239,9 +227,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	}
 #endif
 
-	/* setup RTO timer */
-	if (!timer_pending(&hc->tx_rtotimer))
-		ccid2_start_rto_timer(sk);
+	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 	do {
@@ -318,14 +304,6 @@ static int ccid2_ackvector(struct sock *sk, struct sk_buff *skb, int offset,
 out_invalid_option:
 	DCCP_BUG("Invalid option - this should not happen (previous parsing)!");
 	return -1;
-}
-
-static void ccid2_hc_tx_kill_rto_timer(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	sk_stop_timer(sk, &hc->tx_rtotimer);
-	ccid2_pr_debug("deleted RTO timer\n");
 }
 
 /**
@@ -692,7 +670,7 @@ static void ccid2_hc_tx_exit(struct sock *sk)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	int i;
 
-	ccid2_hc_tx_kill_rto_timer(sk);
+	sk_stop_timer(sk, &hc->tx_rtotimer);
 
 	for (i = 0; i < hc->tx_seqbufc; i++)
 		kfree(hc->tx_seqbuf[i]);
