@@ -73,6 +73,11 @@ struct backing_dev_info {
 
 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
 
+	unsigned long bw_time_stamp;	/* last time write bw is updated */
+	unsigned long written_stamp;	/* pages written at bw_time_stamp */
+	unsigned long write_bandwidth;	/* the estimated write bandwidth */
+	unsigned long avg_write_bandwidth; /* further smoothed write bw */
+
 	struct prop_local_percpu completions;
 	int dirty_exceeded;
 

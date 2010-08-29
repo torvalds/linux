@@ -37,6 +37,11 @@
 #include <trace/events/writeback.h>
 
 /*
+ * Estimate write bandwidth at 200ms intervals.
+ */
+#define BANDWIDTH_INTERVAL	max(HZ/5, 1)
+
+/*
  * After a CPU has dirtied this many pages, balance_dirty_pages_ratelimited
  * will look to see if it needs to force writeback or throttling.
  */
@@ -471,6 +476,85 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
 	return bdi_dirty;
 }
 
+static void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
+				       unsigned long elapsed,
+				       unsigned long written)
+{
+	const unsigned long period = roundup_pow_of_two(3 * HZ);
+	unsigned long avg = bdi->avg_write_bandwidth;
+	unsigned long old = bdi->write_bandwidth;
+	u64 bw;
+
+	/*
+	 * bw = written * HZ / elapsed
+	 *
+	 *                   bw * elapsed + write_bandwidth * (period - elapsed)
+	 * write_bandwidth = ---------------------------------------------------
+	 *                                          period
+	 */
+	bw = written - bdi->written_stamp;
+	bw *= HZ;
+	if (unlikely(elapsed > period)) {
+		do_div(bw, elapsed);
+		avg = bw;
+		goto out;
+	}
+	bw += (u64)bdi->write_bandwidth * (period - elapsed);
+	bw >>= ilog2(period);
+
+	/*
+	 * one more level of smoothing, for filtering out sudden spikes
+	 */
+	if (avg > old && old >= (unsigned long)bw)
+		avg -= (avg - old) >> 3;
+
+	if (avg < old && old <= (unsigned long)bw)
+		avg += (old - avg) >> 3;
+
+out:
+	bdi->write_bandwidth = bw;
+	bdi->avg_write_bandwidth = avg;
+}
+
+void __bdi_update_bandwidth(struct backing_dev_info *bdi,
+			    unsigned long start_time)
+{
+	unsigned long now = jiffies;
+	unsigned long elapsed = now - bdi->bw_time_stamp;
+	unsigned long written;
+
+	/*
+	 * rate-limit, only update once every 200ms.
+	 */
+	if (elapsed < BANDWIDTH_INTERVAL)
+		return;
+
+	written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]);
+
+	/*
+	 * Skip quiet periods when disk bandwidth is under-utilized.
+	 * (at least 1s idle time between two flusher runs)
+	 */
+	if (elapsed > HZ && time_before(bdi->bw_time_stamp, start_time))
+		goto snapshot;
+
+	bdi_update_write_bandwidth(bdi, elapsed, written);
+
+snapshot:
+	bdi->written_stamp = written;
+	bdi->bw_time_stamp = now;
+}
+
+static void bdi_update_bandwidth(struct backing_dev_info *bdi,
+				 unsigned long start_time)
+{
+	if (time_is_after_eq_jiffies(bdi->bw_time_stamp + BANDWIDTH_INTERVAL))
+		return;
+	spin_lock(&bdi->wb.list_lock);
+	__bdi_update_bandwidth(bdi, start_time);
+	spin_unlock(&bdi->wb.list_lock);
+}
+
 /*
  * balance_dirty_pages() must be called by processes which are generating dirty
  * data.  It looks at the number of dirty pages in the machine and will force
@@ -490,6 +574,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long pause = 1;
 	bool dirty_exceeded = false;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
+	unsigned long start_time = jiffies;
 
 	for (;;) {
 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
@@ -543,6 +628,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 
 		if (!bdi->dirty_exceeded)
 			bdi->dirty_exceeded = 1;
+
+		bdi_update_bandwidth(bdi, start_time);
 
 		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
 		 * Unstable writes are a feature of certain networked
