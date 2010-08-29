@@ -275,7 +275,7 @@ out:
 	return ret;
 }
 
-static void  exit_driverfs(void)
+static void __exit exit_driverfs(void)
 {
 	platform_device_unregister(oprofile_pdev);
 	platform_driver_unregister(&oprofile_driver);
@@ -359,14 +359,13 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	if (!counter_config) {
 		pr_info("oprofile: failed to allocate %d "
 				"counters\n", perf_num_counters);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	ret = init_driverfs();
-	if (ret) {
-		kfree(counter_config);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
 	for_each_possible_cpu(cpu) {
 		perf_events[cpu] = kcalloc(perf_num_counters,
@@ -374,9 +373,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		if (!perf_events[cpu]) {
 			pr_info("oprofile: failed to allocate %d perf events "
 					"for cpu %d\n", perf_num_counters, cpu);
-			while (--cpu >= 0)
-				kfree(perf_events[cpu]);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
@@ -393,28 +391,33 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	else
 		pr_info("oprofile: using %s\n", ops->cpu_type);
 
+out:
+	if (ret) {
+		for_each_possible_cpu(cpu)
+			kfree(perf_events[cpu]);
+		kfree(counter_config);
+	}
+
 	return ret;
 }
 
-void oprofile_arch_exit(void)
+void __exit oprofile_arch_exit(void)
 {
 	int cpu, id;
 	struct perf_event *event;
 
-	if (*perf_events) {
-		exit_driverfs();
-		for_each_possible_cpu(cpu) {
-			for (id = 0; id < perf_num_counters; ++id) {
-				event = perf_events[cpu][id];
-				if (event != NULL)
-					perf_event_release_kernel(event);
-			}
-			kfree(perf_events[cpu]);
+	for_each_possible_cpu(cpu) {
+		for (id = 0; id < perf_num_counters; ++id) {
+			event = perf_events[cpu][id];
+			if (event)
+				perf_event_release_kernel(event);
 		}
+
+		kfree(perf_events[cpu]);
 	}
 
-	if (counter_config)
-		kfree(counter_config);
+	kfree(counter_config);
+	exit_driverfs();
 }
 #else
 int __init oprofile_arch_init(struct oprofile_operations *ops)
@@ -422,5 +425,5 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	pr_info("oprofile: hardware counters not available\n");
 	return -ENODEV;
 }
-void oprofile_arch_exit(void) {}
+void __exit oprofile_arch_exit(void) {}
 #endif /* CONFIG_HW_PERF_EVENTS */
