@@ -86,6 +86,8 @@ struct intel_gtt_driver {
 	unsigned int is_g33 : 1;
 	unsigned int is_pineview : 1;
 	unsigned int is_ironlake : 1;
+	/* Chipset specific GTT setup */
+	int (*setup)(void);
 };
 
 static struct _intel_private {
@@ -95,6 +97,7 @@ static struct _intel_private {
 	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
 	phys_addr_t gtt_bus_addr;
+	phys_addr_t gma_bus_addr;
 	u32 __iomem *gtt;		/* I915G */
 	int num_dcache_entries;
 	union {
@@ -893,38 +896,60 @@ static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 		printk(KERN_ERR "Timed out waiting for cache flush.\n");
 }
 
+static void intel_enable_gtt(void)
+{
+	u32 ptetbl_addr, gma_addr;
+	u16 gmch_ctrl;
+
+	ptetbl_addr = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
+
+	pci_read_config_dword(intel_private.pcidev, I810_GMADDR, &gma_addr);
+	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
+
+	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
+	gmch_ctrl |= I830_GMCH_ENABLED;
+	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
+
+	writel(ptetbl_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
+	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
+}
+
+static int i830_setup(void)
+{
+	u32 reg_addr;
+
+	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &reg_addr);
+	reg_addr &= 0xfff80000;
+
+	intel_private.registers = ioremap(reg_addr, KB(64));
+	if (!intel_private.registers)
+		return -ENOMEM;
+
+	intel_private.gtt_bus_addr = reg_addr + I810_PTE_BASE;
+
+	intel_i830_setup_flush();
+
+	return 0;
+}
+
 /* The intel i830 automatically initializes the agp aperture during POST.
  * Use the memory already set aside for in the GTT.
  */
 static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 {
-	int page_order, ret;
-	struct aper_size_info_fixed *size;
-	int num_entries;
-	u32 temp;
+	int ret;
 
-	size = agp_bridge->current_size;
-	page_order = size->page_order;
-	num_entries = size->num_entries;
-	agp_bridge->gatt_table_real = NULL;
-
-	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &temp);
-	temp &= 0xfff80000;
-
-	intel_private.registers = ioremap(temp, KB(64));
-	if (!intel_private.registers)
-		return -ENOMEM;
-
-	intel_private.gtt_bus_addr = temp + I810_PTE_BASE;
-	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
+	ret = intel_private.driver->setup();
+	if (ret != 0)
+		return ret;
 
 	ret = intel_gtt_init();
 	if (ret != 0)
 		return ret;
 
+	agp_bridge->gatt_table_real = NULL;
 	agp_bridge->gatt_table = NULL;
-
-	agp_bridge->gatt_bus_addr = temp;
+	agp_bridge->gatt_bus_addr = 0;
 
 	return 0;
 }
@@ -939,25 +964,15 @@ static int intel_fake_agp_free_gatt_table(struct agp_bridge_data *bridge)
 
 static int intel_i830_configure(void)
 {
-	struct aper_size_info_fixed *current_size;
-	u32 temp;
-	u16 gmch_ctrl;
 	int i;
 
-	current_size = A_SIZE_FIX(agp_bridge->current_size);
+	intel_enable_gtt();
 
-	pci_read_config_dword(intel_private.pcidev, I810_GMADDR, &temp);
-	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
-
-	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
-	gmch_ctrl |= I830_GMCH_ENABLED;
-	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
-
-	writel(agp_bridge->gatt_bus_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
-	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
+	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
 
 	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = intel_private.base.gtt_stolen_entries; i < current_size->num_entries; i++) {
+		for (i = intel_private.base.gtt_stolen_entries;
+				i < intel_private.base.gtt_total_entries; i++) {
 			writel(agp_bridge->scratch_page, intel_private.gtt+i);
 		}
 		readl(intel_private.gtt+i-1);	/* PCI Posting. */
@@ -965,7 +980,6 @@ static int intel_i830_configure(void)
 
 	global_cache_flush();
 
-	intel_i830_setup_flush();
 	return 0;
 }
 
@@ -1584,6 +1598,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
+	.setup = i830_setup,
 };
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
