@@ -173,9 +173,8 @@ static int __devinit hydra_init(struct zorro_dev *z)
 
     zorro_set_drvdata(z, dev);
 
-    printk(KERN_INFO "%s: Hydra at 0x%08llx, address "
-	   "%pM (hydra.c " HYDRA_VERSION ")\n",
-	   dev->name, (unsigned long long)z->resource.start, dev->dev_addr);
+    pr_info("%s: Hydra at %pR, address %pM (hydra.c " HYDRA_VERSION ")\n",
+	    dev->name, &z->resource, dev->dev_addr);
 
     return 0;
 }
