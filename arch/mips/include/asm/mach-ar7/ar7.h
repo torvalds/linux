@@ -161,4 +161,6 @@ static inline void ar7_device_off(u32 bit)
 	msleep(20);
 }
 
+int __init ar7_gpio_init(void);
+
 #endif /* __AR7_H__ */

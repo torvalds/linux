@@ -107,7 +107,7 @@ int ar7_gpio_disable(unsigned gpio)
 }
 EXPORT_SYMBOL(ar7_gpio_disable);
 
-static int __init ar7_gpio_init(void)
+int __init ar7_gpio_init(void)
 {
 	int ret;
 
@@ -128,4 +128,3 @@ static int __init ar7_gpio_init(void)
 				ar7_gpio_chip.chip.ngpio);
 	return ret;
 }
-arch_initcall(ar7_gpio_init);
