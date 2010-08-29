@@ -8,6 +8,10 @@
 #include <linux/fs.h>
 
 /*
+ * The 1/4 region under the global dirty thresh is for smooth dirty throttling:
+ *
+ *	(thresh - thresh/DIRTY_FULL_SCOPE, thresh)
+ *
  * The 1/16 region above the global dirty limit will be put to maximum pauses:
  *
  *	(limit, limit + limit/DIRTY_MAXPAUSE_AREA)
@@ -25,8 +29,15 @@
  * knocks down the global dirty threshold quickly, in which case the global
  * dirty limit will follow down slowly to prevent livelocking all dirtier tasks.
  */
+#define DIRTY_SCOPE		8
+#define DIRTY_FULL_SCOPE	(DIRTY_SCOPE / 2)
 #define DIRTY_MAXPAUSE_AREA		16
 #define DIRTY_PASSGOOD_AREA		8
+
+/*
+ * 4MB minimal write chunk size
+ */
+#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
 
 struct backing_dev_info;
 

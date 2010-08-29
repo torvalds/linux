@@ -30,15 +30,6 @@
 #include "internal.h"
 
 /*
- * The maximum number of pages to writeout in a single bdi flush/kupdate
- * operation.  We do this so we don't hold I_SYNC against an inode for
- * enormous amounts of time, which would block a userspace task which has
- * been forced to throttle against that inode.  Also, the code reevaluates
- * the dirty each time it has written this many pages.
- */
-#define MAX_WRITEBACK_PAGES     1024L
-
-/*
  * Passed into wb_writeback(), essentially a subset of writeback_control
  */
 struct wb_writeback_work {
@@ -515,7 +506,8 @@ static bool pin_sb_for_writeback(struct super_block *sb)
 	return false;
 }
 
-static long writeback_chunk_size(struct wb_writeback_work *work)
+static long writeback_chunk_size(struct backing_dev_info *bdi,
+				 struct wb_writeback_work *work)
 {
 	long pages;
 
@@ -534,8 +526,13 @@ static long writeback_chunk_size(struct wb_writeback_work *work)
 	 */
 	if (work->sync_mode == WB_SYNC_ALL || work->tagged_writepages)
 		pages = LONG_MAX;
-	else
-		pages = min(MAX_WRITEBACK_PAGES, work->nr_pages);
+	else {
+		pages = min(bdi->avg_write_bandwidth / 2,
+			    global_dirty_limit / DIRTY_SCOPE);
+		pages = min(pages, work->nr_pages);
+		pages = round_down(pages + MIN_WRITEBACK_PAGES,
+				   MIN_WRITEBACK_PAGES);
+	}
 
 	return pages;
 }
@@ -600,7 +597,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 			continue;
 		}
 		__iget(inode);
-		write_chunk = writeback_chunk_size(work);
+		write_chunk = writeback_chunk_size(wb->bdi, work);
 		wbc.nr_to_write = write_chunk;
 		wbc.pages_skipped = 0;
 
