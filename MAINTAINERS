@@ -2296,6 +2296,12 @@ S:	Maintained
 F:	Documentation/hwmon/f71805f
 F:	drivers/hwmon/f71805f.c
 
+FANOTIFY
+M:	Eric Paris <eparis@redhat.com>
+S:	Maintained
+F:	fs/notify/fanotify/
+F:	include/linux/fanotify.h
+
 FARSYNC SYNCHRONOUS DRIVER
 M:	Kevin Curtis <kevin.curtis@farsite.co.uk>
 W:	http://www.farsite.co.uk/
@@ -3488,7 +3494,7 @@ LGUEST
 M:	Rusty Russell <rusty@rustcorp.com.au>
 L:	lguest@lists.ozlabs.org
 W:	http://lguest.ozlabs.org/
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/lguest/
 F:	arch/x86/lguest/
 F:	drivers/lguest/

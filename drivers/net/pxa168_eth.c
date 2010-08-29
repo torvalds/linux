@@ -654,15 +654,15 @@ static void eth_port_start(struct net_device *dev)
 	/* Assignment of Tx CTRP of given queue */
 	tx_curr_desc = pep->tx_curr_desc_q;
 	wrl(pep, ETH_C_TX_DESC_1,
-	    (u32) ((struct tx_desc *)pep->tx_desc_dma + tx_curr_desc));
+	    (u32) (pep->tx_desc_dma + tx_curr_desc * sizeof(struct tx_desc)));
 
 	/* Assignment of Rx CRDP of given queue */
 	rx_curr_desc = pep->rx_curr_desc_q;
 	wrl(pep, ETH_C_RX_DESC_0,
-	    (u32) ((struct rx_desc *)pep->rx_desc_dma + rx_curr_desc));
+	    (u32) (pep->rx_desc_dma + rx_curr_desc * sizeof(struct rx_desc)));
 
 	wrl(pep, ETH_F_RX_DESC_0,
-	    (u32) ((struct rx_desc *)pep->rx_desc_dma + rx_curr_desc));
+	    (u32) (pep->rx_desc_dma + rx_curr_desc * sizeof(struct rx_desc)));
 
 	/* Clear all interrupts */
 	wrl(pep, INT_CAUSE, 0);
@@ -1350,7 +1350,7 @@ static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	if (pep->phy != NULL)
-		return phy_mii_ioctl(pep->phy, if_mii(ifr), cmd);
+		return phy_mii_ioctl(pep->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -1414,10 +1414,8 @@ static int ethernet_phy_setup(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	if (pep->pd != NULL) {
-		if (pep->pd->init)
-			pep->pd->init();
-	}
+	if (pep->pd->init)
+		pep->pd->init();
 	pep->phy = phy_scan(pep, pep->pd->phy_addr & 0x1f);
 	if (pep->phy != NULL)
 		phy_init(pep, pep->pd->speed, pep->pd->duplex);
@@ -1499,7 +1497,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	dev = alloc_etherdev(sizeof(struct pxa168_eth_private));
 	if (!dev) {
 		err = -ENOMEM;
-		goto out;
+		goto err_clk;
 	}
 
 	platform_set_drvdata(pdev, dev);
@@ -1509,12 +1507,12 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		err = -ENODEV;
-		goto out;
+		goto err_netdev;
 	}
 	pep->base = ioremap(res->start, res->end - res->start + 1);
 	if (pep->base == NULL) {
 		err = -ENOMEM;
-		goto out;
+		goto err_netdev;
 	}
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	BUG_ON(!res);
@@ -1551,7 +1549,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	pep->smi_bus = mdiobus_alloc();
 	if (pep->smi_bus == NULL) {
 		err = -ENOMEM;
-		goto out;
+		goto err_base;
 	}
 	pep->smi_bus->priv = pep;
 	pep->smi_bus->name = "pxa168_eth smi";
@@ -1560,31 +1558,31 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	snprintf(pep->smi_bus->id, MII_BUS_ID_SIZE, "%d", pdev->id);
 	pep->smi_bus->parent = &pdev->dev;
 	pep->smi_bus->phy_mask = 0xffffffff;
-	if (mdiobus_register(pep->smi_bus) < 0) {
-		err = -ENOMEM;
-		goto out;
-	}
+	err = mdiobus_register(pep->smi_bus);
+	if (err)
+		goto err_free_mdio;
+
 	pxa168_init_hw(pep);
 	err = ethernet_phy_setup(dev);
 	if (err)
-		goto out;
+		goto err_mdiobus;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	err = register_netdev(dev);
 	if (err)
-		goto out;
+		goto err_mdiobus;
 	return 0;
-out:
-	if (pep->clk) {
-		clk_disable(pep->clk);
-		clk_put(pep->clk);
-		pep->clk = NULL;
-	}
-	if (pep->base) {
-		iounmap(pep->base);
-		pep->base = NULL;
-	}
-	if (dev)
-		free_netdev(dev);
+
+err_mdiobus:
+	mdiobus_unregister(pep->smi_bus);
+err_free_mdio:
+	mdiobus_free(pep->smi_bus);
+err_base:
+	iounmap(pep->base);
+err_netdev:
+	free_netdev(dev);
+err_clk:
+	clk_disable(clk);
+	clk_put(clk);
 	return err;
 }
 

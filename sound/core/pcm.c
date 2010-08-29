@@ -203,10 +203,16 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(S18_3BE),
 	FORMAT(U18_3LE),
 	FORMAT(U18_3BE),
+	FORMAT(G723_24),
+	FORMAT(G723_24_1B),
+	FORMAT(G723_40),
+	FORMAT(G723_40_1B),
 };
 
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
+	if (format >= ARRAY_SIZE(snd_pcm_format_names))
+		return "Unknown";
 	return snd_pcm_format_names[format];
 }
 EXPORT_SYMBOL_GPL(snd_pcm_format_name);

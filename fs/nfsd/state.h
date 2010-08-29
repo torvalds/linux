@@ -363,23 +363,23 @@ struct nfs4_file {
  * at all? */
 static inline struct file *find_writeable_file(struct nfs4_file *f)
 {
-	if (f->fi_fds[O_RDWR])
-		return f->fi_fds[O_RDWR];
-	return f->fi_fds[O_WRONLY];
+	if (f->fi_fds[O_WRONLY])
+		return f->fi_fds[O_WRONLY];
+	return f->fi_fds[O_RDWR];
 }
 
 static inline struct file *find_readable_file(struct nfs4_file *f)
 {
-	if (f->fi_fds[O_RDWR])
-		return f->fi_fds[O_RDWR];
-	return f->fi_fds[O_RDONLY];
+	if (f->fi_fds[O_RDONLY])
+		return f->fi_fds[O_RDONLY];
+	return f->fi_fds[O_RDWR];
 }
 
 static inline struct file *find_any_file(struct nfs4_file *f)
 {
 	if (f->fi_fds[O_RDWR])
 		return f->fi_fds[O_RDWR];
-	else if (f->fi_fds[O_RDWR])
+	else if (f->fi_fds[O_WRONLY])
 		return f->fi_fds[O_WRONLY];
 	else
 		return f->fi_fds[O_RDONLY];
