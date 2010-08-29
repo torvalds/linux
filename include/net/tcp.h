@@ -781,17 +781,11 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 
 /*
  * Convert RFC 3390 larger initial window into an equivalent number of packets.
- *
- * John Heffner states:
- *
- *	The RFC specifies a window of no more than 4380 bytes
- *	unless 2*MSS > 4380.  Reading the pseudocode in the RFC
- *	is a bit misleading because they use a clamp at 4380 bytes
- *	rather than a multiplier in the relevant range.
+ * This is based on the numbers specified in RFC 5681, 3.1.
  */
 static inline u32 rfc3390_bytes_to_packets(const u32 smss)
 {
-	return smss <= 1095 ? 4 : (smss > 1460 ? 2 : 3);
+	return smss <= 1095 ? 4 : (smss > 2190 ? 2 : 3);
 }
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
