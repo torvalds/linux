@@ -500,6 +500,7 @@ static int __init mpc512x_psc_fifoc_init(void)
 	psc_fifoc = of_iomap(np, 0);
 	if (!psc_fifoc) {
 		pr_err("%s: Can't map FIFOC\n", __func__);
+		of_node_put(np);
 		return -ENODEV;
 	}
 
