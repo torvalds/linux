@@ -36,6 +36,7 @@
 struct nilfs_dat_info {
 	struct nilfs_mdt_info mi;
 	struct nilfs_palloc_cache palloc_cache;
+	struct nilfs_shadow_map shadow;
 };
 
 static inline struct nilfs_dat_info *NILFS_DAT_I(struct inode *dat)
@@ -327,6 +328,23 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 	ret = nilfs_palloc_get_entry_block(dat, vblocknr, 0, &entry_bh);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * The given disk block number (blocknr) is not yet written to
+	 * the device at this point.
+	 *
+	 * To prevent nilfs_dat_translate() from returning the
+	 * uncommited block number, this makes a copy of the entry
+	 * buffer and redirects nilfs_dat_translate() to the copy.
+	 */
+	if (!buffer_nilfs_redirected(entry_bh)) {
+		ret = nilfs_mdt_freeze_buffer(dat, entry_bh);
+		if (ret) {
+			brelse(entry_bh);
+			return ret;
+		}
+	}
+
 	kaddr = kmap_atomic(entry_bh->b_page, KM_USER0);
 	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
 	if (unlikely(entry->de_blocknr == cpu_to_le64(0))) {
@@ -371,7 +389,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
  */
 int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 {
-	struct buffer_head *entry_bh;
+	struct buffer_head *entry_bh, *bh;
 	struct nilfs_dat_entry *entry;
 	sector_t blocknr;
 	void *kaddr;
@@ -380,6 +398,15 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 	ret = nilfs_palloc_get_entry_block(dat, vblocknr, 0, &entry_bh);
 	if (ret < 0)
 		return ret;
+
+	if (!nilfs_doing_gc() && buffer_nilfs_redirected(entry_bh)) {
+		bh = nilfs_mdt_get_frozen_buffer(dat, entry_bh);
+		if (bh) {
+			WARN_ON(!buffer_uptodate(bh));
+			brelse(entry_bh);
+			entry_bh = bh;
+		}
+	}
 
 	kaddr = kmap_atomic(entry_bh->b_page, KM_USER0);
 	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
@@ -468,6 +495,7 @@ struct inode *nilfs_dat_new(struct the_nilfs *nilfs, size_t entry_size)
 		di = NILFS_DAT_I(dat);
 		lockdep_set_class(&di->mi.mi_sem, &dat_lock_key);
 		nilfs_palloc_setup_cache(dat, &di->palloc_cache);
+		nilfs_mdt_setup_shadow_map(dat, &di->shadow);
 	}
 	return dat;
 }

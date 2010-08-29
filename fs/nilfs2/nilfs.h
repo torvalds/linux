@@ -101,7 +101,6 @@ enum {
 	NILFS_I_INODE_DIRTY,		/* write_inode is requested */
 	NILFS_I_BMAP,			/* has bmap and btnode_cache */
 	NILFS_I_GCINODE,		/* inode for GC, on memory only */
-	NILFS_I_GCDAT,			/* shadow DAT, on memory only */
 };
 
 /*
@@ -193,7 +192,7 @@ static inline int nilfs_doing_construction(void)
 
 static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
 {
-	return nilfs_doing_gc() ? nilfs->ns_gc_dat : nilfs->ns_dat;
+	return nilfs->ns_dat;
 }
 
 /*
@@ -293,11 +292,6 @@ int nilfs_gccache_submit_read_node(struct inode *, sector_t, __u64,
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *);
 int nilfs_init_gcinode(struct inode *inode);
 void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs);
-
-/* gcdat.c */
-int nilfs_init_gcdat_inode(struct the_nilfs *);
-void nilfs_commit_gcdat_inode(struct the_nilfs *);
-void nilfs_clear_gcdat_inode(struct the_nilfs *);
 
 /*
  * Inodes and files operations

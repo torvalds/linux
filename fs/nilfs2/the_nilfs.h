@@ -74,7 +74,6 @@ enum {
  * @ns_dat: DAT file inode
  * @ns_cpfile: checkpoint file inode
  * @ns_sufile: segusage file inode
- * @ns_gc_dat: shadow inode of the DAT file inode for GC
  * @ns_cptree: rb-tree of all mounted checkpoints (nilfs_root)
  * @ns_cptree_lock: lock protecting @ns_cptree
  * @ns_gc_inodes: dummy inodes to keep live blocks
@@ -149,7 +148,6 @@ struct the_nilfs {
 	struct inode	       *ns_dat;
 	struct inode	       *ns_cpfile;
 	struct inode	       *ns_sufile;
-	struct inode	       *ns_gc_dat;
 
 	/* Checkpoint tree */
 	struct rb_root		ns_cptree;

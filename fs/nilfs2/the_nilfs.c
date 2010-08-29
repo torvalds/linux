@@ -96,7 +96,6 @@ void destroy_nilfs(struct the_nilfs *nilfs)
 		nilfs_mdt_destroy(nilfs->ns_sufile);
 		nilfs_mdt_destroy(nilfs->ns_cpfile);
 		nilfs_mdt_destroy(nilfs->ns_dat);
-		nilfs_mdt_destroy(nilfs->ns_gc_dat);
 	}
 	if (nilfs_init(nilfs)) {
 		brelse(nilfs->ns_sbh[0]);
@@ -131,19 +130,13 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
 	if (unlikely(!nilfs->ns_dat))
 		goto failed;
 
-	nilfs->ns_gc_dat = nilfs_dat_new(nilfs, dat_entry_size);
-	if (unlikely(!nilfs->ns_gc_dat))
-		goto failed_dat;
-
 	nilfs->ns_cpfile = nilfs_cpfile_new(nilfs, checkpoint_size);
 	if (unlikely(!nilfs->ns_cpfile))
-		goto failed_gc_dat;
+		goto failed_dat;
 
 	nilfs->ns_sufile = nilfs_sufile_new(nilfs, segment_usage_size);
 	if (unlikely(!nilfs->ns_sufile))
 		goto failed_cpfile;
-
-	nilfs_mdt_set_shadow(nilfs->ns_dat, nilfs->ns_gc_dat);
 
 	err = nilfs_dat_read(nilfs->ns_dat, (void *)bh_sr->b_data +
 			     NILFS_SR_DAT_OFFSET(inode_size));
@@ -172,9 +165,6 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
 
  failed_cpfile:
 	nilfs_mdt_destroy(nilfs->ns_cpfile);
-
- failed_gc_dat:
-	nilfs_mdt_destroy(nilfs->ns_gc_dat);
 
  failed_dat:
 	nilfs_mdt_destroy(nilfs->ns_dat);
@@ -371,7 +361,6 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	nilfs_mdt_destroy(nilfs->ns_cpfile);
 	nilfs_mdt_destroy(nilfs->ns_sufile);
 	nilfs_mdt_destroy(nilfs->ns_dat);
-	nilfs_mdt_destroy(nilfs->ns_gc_dat);
 
  failed:
 	nilfs_clear_recovery_info(&ri);

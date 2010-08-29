@@ -1945,11 +1945,9 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 
 	nilfs_drop_collected_inodes(&sci->sc_dirty_files);
 
-	if (nilfs_doing_gc()) {
+	if (nilfs_doing_gc())
 		nilfs_drop_collected_inodes(&sci->sc_gc_inodes);
-		if (update_sr)
-			nilfs_commit_gcdat_inode(nilfs);
-	} else
+	else
 		nilfs->ns_nongc_ctime = sci->sc_seg_ctime;
 
 	sci->sc_nblk_inc += sci->sc_nblk_this_inc;
@@ -2472,13 +2470,15 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 
 	nilfs_transaction_lock(sbi, &ti, 1);
 
-	err = nilfs_init_gcdat_inode(nilfs);
+	err = nilfs_mdt_save_to_shadow_map(nilfs->ns_dat);
 	if (unlikely(err))
 		goto out_unlock;
 
 	err = nilfs_ioctl_prepare_clean_segments(nilfs, argv, kbufs);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		nilfs_mdt_restore_from_shadow_map(nilfs->ns_dat);
 		goto out_unlock;
+	}
 
 	sci->sc_freesegs = kbufs[4];
 	sci->sc_nfreesegs = argv[4].v_nmembs;
@@ -2510,7 +2510,7 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
  out_unlock:
 	sci->sc_freesegs = NULL;
 	sci->sc_nfreesegs = 0;
-	nilfs_clear_gcdat_inode(nilfs);
+	nilfs_mdt_clear_shadow_map(nilfs->ns_dat);
 	nilfs_transaction_unlock(sbi);
 	return err;
 }

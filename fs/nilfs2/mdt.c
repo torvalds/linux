@@ -414,8 +414,6 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 	sb = inode->i_sb;
 	nilfs = NILFS_MDT(inode)->mi_nilfs;
 
-	if (page->mapping->assoc_mapping)
-		return 0; /* Do not request flush for shadow page cache */
 	if (!sb) {
 		down_read(&nilfs->ns_writer_sem);
 		writer = nilfs->ns_writer;
@@ -564,13 +562,6 @@ void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
 	mi->mi_entry_size = entry_size;
 	mi->mi_entries_per_block = (1 << inode->i_blkbits) / entry_size;
 	mi->mi_first_entry_offset = DIV_ROUND_UP(header_size, entry_size);
-}
-
-void nilfs_mdt_set_shadow(struct inode *orig, struct inode *shadow)
-{
-	shadow->i_mapping->assoc_mapping = orig->i_mapping;
-	NILFS_I(shadow)->i_btnode_cache.assoc_mapping =
-		&NILFS_I(orig)->i_btnode_cache;
 }
 
 static const struct address_space_operations shadow_map_aops = {

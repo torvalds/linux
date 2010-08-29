@@ -159,8 +159,6 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *, __u64, int, __u64 *);
 int nilfs_bmap_mark(struct nilfs_bmap *, __u64, int);
 
 void nilfs_bmap_init_gc(struct nilfs_bmap *);
-void nilfs_bmap_init_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
-void nilfs_bmap_commit_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 
 void nilfs_bmap_save(const struct nilfs_bmap *, struct nilfs_bmap_store *);
 void nilfs_bmap_restore(struct nilfs_bmap *, const struct nilfs_bmap_store *);

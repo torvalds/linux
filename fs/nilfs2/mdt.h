@@ -93,7 +93,6 @@ struct inode *nilfs_mdt_new_common(struct the_nilfs *, struct super_block *,
 				   ino_t);
 void nilfs_mdt_destroy(struct inode *);
 void nilfs_mdt_set_entry_size(struct inode *, unsigned, unsigned);
-void nilfs_mdt_set_shadow(struct inode *, struct inode *);
 
 int nilfs_mdt_setup_shadow_map(struct inode *inode,
 			       struct nilfs_shadow_map *shadow);
