@@ -460,13 +460,12 @@ done_computing_x:
 	sk->sk_write_space(sk);
 
 	/*
-	 * Update timeout interval for the nofeedback timer.
-	 * We use a configuration option to increase the lower bound.
-	 * This can help avoid triggering the nofeedback timer too
-	 * often ('spinning') on LANs with small RTTs.
+	 * Update timeout interval for the nofeedback timer. In order to control
+	 * rate halving on networks with very low RTTs (<= 1 ms), use per-route
+	 * tunable RTAX_RTO_MIN value as the lower bound.
 	 */
-	hc->tx_t_rto = max_t(u32, 4 * hc->tx_rtt, (CONFIG_IP_DCCP_CCID3_RTO *
-						       (USEC_PER_SEC / 1000)));
+	hc->tx_t_rto = max_t(u32, 4 * hc->tx_rtt,
+				  USEC_PER_SEC/HZ * tcp_rto_min(sk));
 	/*
 	 * Schedule no feedback timer to expire in
 	 * max(t_RTO, 2 * s/X)  =  max(t_RTO, 2 * t_ipi)

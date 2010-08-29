@@ -42,7 +42,7 @@
 #include "lib/tfrc.h"
 #include "../ccid.h"
 
-/* Two seconds as per RFC 3448 4.2 */
+/* Two seconds as per RFC 5348, 4.2 */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
 /* In usecs - half the scheduling granularity as per RFC3448 4.6 */

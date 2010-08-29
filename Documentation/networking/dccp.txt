@@ -174,6 +174,9 @@ Per-route rto_min support
 		> ip route change 10.0.0.0/24   rto_min 250j dev wlan0
 		> ip route add    10.0.0.254/32 rto_min 800j dev wlan0
 		> ip route show dev wlan0
+	CCID-3 also supports the rto_min setting: it is used to define the lower
+	bound for the expiry of the nofeedback timer. This can be useful on LANs
+	with very low RTTs (e.g., loopback, Gbit ethernet).
 
 
 Notes
