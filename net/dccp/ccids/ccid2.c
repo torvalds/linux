@@ -325,8 +325,9 @@ static void ccid2_rtt_estimator(struct sock *sk, const long mrtt)
 		hc->tx_srtt = m << 3;
 		hc->tx_mdev = m << 1;
 
-		hc->tx_mdev_max = max(TCP_RTO_MIN, hc->tx_mdev);
+		hc->tx_mdev_max = max(hc->tx_mdev, tcp_rto_min(sk));
 		hc->tx_rttvar   = hc->tx_mdev_max;
+
 		hc->tx_rtt_seq  = dccp_sk(sk)->dccps_gss;
 	} else {
 		/* Update scaled SRTT as SRTT += 1/8 * (m - SRTT) */
@@ -367,7 +368,7 @@ static void ccid2_rtt_estimator(struct sock *sk, const long mrtt)
 				hc->tx_rttvar -= (hc->tx_rttvar -
 						  hc->tx_mdev_max) >> 2;
 			hc->tx_rtt_seq  = dccp_sk(sk)->dccps_gss;
-			hc->tx_mdev_max = TCP_RTO_MIN;
+			hc->tx_mdev_max = tcp_rto_min(sk);
 		}
 	}
 
