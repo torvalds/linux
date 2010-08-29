@@ -2,6 +2,7 @@
  * Wacom W8001 penabled serial touchscreen driver
  *
  * Copyright (c) 2008 Jaya Kumar
+ * Copyright (c) 2010 Red Hat, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file COPYING in the main directory of this archive for
@@ -30,11 +31,22 @@ MODULE_LICENSE("GPL");
 #define W8001_LEAD_BYTE		0x80
 #define W8001_TAB_MASK		0x40
 #define W8001_TAB_BYTE		0x40
+/* set in first byte of touch data packets */
+#define W8001_TOUCH_MASK	(0x10 | W8001_LEAD_MASK)
+#define W8001_TOUCH_BYTE	(0x10 | W8001_LEAD_BYTE)
 
 #define W8001_QUERY_PACKET	0x20
 
 #define W8001_CMD_START		'1'
 #define W8001_CMD_QUERY		'*'
+#define W8001_CMD_TOUCHQUERY	'%'
+
+/* length of data packets in bytes, depends on device. */
+#define W8001_PKTLEN_TOUCH93	5
+#define W8001_PKTLEN_TOUCH9A	7
+#define W8001_PKTLEN_TPCPEN	9
+#define W8001_PKTLEN_TPCCTL	11	/* control packet */
+#define W8001_PKTLEN_TOUCH2FG	13
 
 struct w8001_coord {
 	u8 rdy;
@@ -46,6 +58,15 @@ struct w8001_coord {
 	u16 pen_pressure;
 	u8 tilt_x;
 	u8 tilt_y;
+};
+
+/* touch query reply packet */
+struct w8001_touch_query {
+	u8 panel_res;
+	u8 capacity_res;
+	u8 sensor_id;
+	u16 x;
+	u16 y;
 };
 
 /*
@@ -63,6 +84,7 @@ struct w8001 {
 	unsigned char data[W8001_MAX_LENGTH];
 	char phys[32];
 	int type;
+	unsigned int pktlen;
 };
 
 static void parse_data(u8 *data, struct w8001_coord *coord)
@@ -87,6 +109,23 @@ static void parse_data(u8 *data, struct w8001_coord *coord)
 
 	coord->tilt_x = data[7] & 0x7F;
 	coord->tilt_y = data[8] & 0x7F;
+}
+
+static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
+{
+	memset(query, 0, sizeof(*query));
+
+	query->panel_res = data[1];
+	query->sensor_id = data[2] & 0x7;
+	query->capacity_res = data[7];
+
+	query->x = data[3] << 9;
+	query->x |= data[4] << 2;
+	query->x |= (data[2] >> 5) & 0x3;
+
+	query->y = data[5] << 9;
+	query->y |= data[6] << 2;
+	query->y |= (data[2] >> 3) & 0x3;
 }
 
 static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
@@ -147,9 +186,21 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		}
 		break;
 
-	case 8:
+	case W8001_PKTLEN_TOUCH93 - 1:
+	case W8001_PKTLEN_TOUCH9A - 1:
+		/* ignore one-finger touch packet. */
+		if (w8001->pktlen == w8001->idx)
+			w8001->idx = 0;
+		break;
+
+	/* Pen coordinates packet */
+	case W8001_PKTLEN_TPCPEN - 1:
 		tmp = w8001->data[0] & W8001_TAB_MASK;
 		if (unlikely(tmp == W8001_TAB_BYTE))
+			break;
+
+		tmp = (w8001->data[0] & W8001_TOUCH_BYTE);
+		if (tmp == W8001_TOUCH_BYTE)
 			break;
 
 		w8001->idx = 0;
@@ -157,11 +208,22 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		report_pen_events(w8001, &coord);
 		break;
 
-	case 10:
+	/* control packet */
+	case W8001_PKTLEN_TPCCTL - 1:
+		tmp = (w8001->data[0] & W8001_TOUCH_MASK);
+		if (tmp == W8001_TOUCH_BYTE)
+			break;
+
 		w8001->idx = 0;
 		memcpy(w8001->response, w8001->data, W8001_MAX_LENGTH);
 		w8001->response_type = W8001_QUERY_PACKET;
 		complete(&w8001->cmd_done);
+		break;
+
+	case W8001_PKTLEN_TOUCH2FG - 1:
+		/* ignore two-finger touch packet. */
+		if (w8001->pktlen == w8001->idx)
+			w8001->idx = 0;
 		break;
 	}
 
@@ -204,6 +266,28 @@ static int w8001_setup(struct w8001 *w8001)
 	input_set_abs_params(dev, ABS_PRESSURE, 0, coord.pen_pressure, 0, 0);
 	input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
 	input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
+
+	error = w8001_command(w8001, W8001_CMD_TOUCHQUERY, true);
+	if (!error) {
+		struct w8001_touch_query touch;
+
+		parse_touchquery(w8001->response, &touch);
+
+		switch (touch.sensor_id) {
+		case 0:
+		case 2:
+			w8001->pktlen = W8001_PKTLEN_TOUCH93;
+			break;
+		case 1:
+		case 3:
+		case 4:
+			w8001->pktlen = W8001_PKTLEN_TOUCH9A;
+			break;
+		case 5:
+			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
+			break;
+		}
+	}
 
 	return w8001_command(w8001, W8001_CMD_START, false);
 }
