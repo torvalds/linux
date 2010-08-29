@@ -18,18 +18,23 @@
 #ifndef _DCCP_CCID2_H_
 #define _DCCP_CCID2_H_
 
-#include <linux/dccp.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include "../ccid.h"
+#include "../dccp.h"
+
+/*
+ * CCID-2 timestamping faces the same issues as TCP timestamping.
+ * Hence we reuse/share as much of the code as possible.
+ */
+#define ccid2_time_stamp	tcp_time_stamp
+
 /* NUMDUPACK parameter from RFC 4341, p. 6 */
 #define NUMDUPACK	3
 
-struct sock;
-
 struct ccid2_seq {
 	u64			ccid2s_seq;
-	unsigned long		ccid2s_sent;
+	u32			ccid2s_sent;
 	int			ccid2s_acked;
 	struct ccid2_seq	*ccid2s_prev;
 	struct ccid2_seq	*ccid2s_next;
@@ -72,7 +77,7 @@ struct ccid2_hc_tx_sock {
 
 	u64			tx_rpseq;
 	int			tx_rpdupack;
-	unsigned long		tx_last_cong;
+	u32			tx_last_cong;
 	u64			tx_high_ack;
 };
 

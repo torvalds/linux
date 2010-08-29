@@ -25,8 +25,6 @@
  */
 #include <linux/slab.h>
 #include "../feat.h"
-#include "../ccid.h"
-#include "../dccp.h"
 #include "ccid2.h"
 
 
@@ -175,7 +173,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 
 	hc->tx_seqh->ccid2s_seq   = dp->dccps_gss;
 	hc->tx_seqh->ccid2s_acked = 0;
-	hc->tx_seqh->ccid2s_sent  = jiffies;
+	hc->tx_seqh->ccid2s_sent  = ccid2_time_stamp;
 
 	next = hc->tx_seqh->ccid2s_next;
 	/* check if we need to alloc more space */
@@ -250,7 +248,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 		struct ccid2_seq *seqp = hc->tx_seqt;
 
 		while (seqp != hc->tx_seqh) {
-			ccid2_pr_debug("out seq=%llu acked=%d time=%lu\n",
+			ccid2_pr_debug("out seq=%llu acked=%d time=%u\n",
 				       (unsigned long long)seqp->ccid2s_seq,
 				       seqp->ccid2s_acked, seqp->ccid2s_sent);
 			seqp = seqp->ccid2s_next;
@@ -431,19 +429,19 @@ static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
 	 * The cleanest solution is to not use the ccid2s_sent field at all
 	 * and instead use DCCP timestamps: requires changes in other places.
 	 */
-	ccid2_rtt_estimator(sk, jiffies - seqp->ccid2s_sent);
+	ccid2_rtt_estimator(sk, ccid2_time_stamp - seqp->ccid2s_sent);
 }
 
 static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
 {
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 
-	if (time_before(seqp->ccid2s_sent, hc->tx_last_cong)) {
+	if ((s32)(seqp->ccid2s_sent - hc->tx_last_cong) < 0) {
 		ccid2_pr_debug("Multiple losses in an RTT---treating as one\n");
 		return;
 	}
 
-	hc->tx_last_cong = jiffies;
+	hc->tx_last_cong = ccid2_time_stamp;
 
 	hc->tx_cwnd      = hc->tx_cwnd / 2 ? : 1U;
 	hc->tx_ssthresh  = max(hc->tx_cwnd, 2U);
@@ -683,7 +681,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	hc->tx_rto	 = DCCP_TIMEOUT_INIT;
 	hc->tx_rpdupack  = -1;
-	hc->tx_last_cong = jiffies;
+	hc->tx_last_cong = ccid2_time_stamp;
 	setup_timer(&hc->tx_rtotimer, ccid2_hc_tx_rto_expire,
 			(unsigned long)sk);
 	return 0;
