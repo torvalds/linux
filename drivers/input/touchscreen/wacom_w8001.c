@@ -62,6 +62,7 @@ struct w8001 {
 	unsigned char response[W8001_MAX_LENGTH];
 	unsigned char data[W8001_MAX_LENGTH];
 	char phys[32];
+	int type;
 };
 
 static void parse_data(u8 *data, struct w8001_coord *coord)
@@ -88,11 +89,52 @@ static void parse_data(u8 *data, struct w8001_coord *coord)
 	coord->tilt_y = data[8] & 0x7F;
 }
 
+static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
+{
+	struct input_dev *dev = w8001->dev;
+
+	/*
+	 * We have 1 bit for proximity (rdy) and 3 bits for tip, side,
+	 * side2/eraser. If rdy && f2 are set, this can be either pen + side2,
+	 * or eraser. assume
+	 * - if dev is already in proximity and f2 is toggled → pen + side2
+	 * - if dev comes into proximity with f2 set → eraser
+	 * If f2 disappears after assuming eraser, fake proximity out for
+	 * eraser and in for pen.
+	 */
+
+	if (!w8001->type) {
+		w8001->type = coord->f2 ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+	} else if (w8001->type == BTN_TOOL_RUBBER) {
+		if (!coord->f2) {
+			input_report_abs(dev, ABS_PRESSURE, 0);
+			input_report_key(dev, BTN_TOUCH, 0);
+			input_report_key(dev, BTN_STYLUS, 0);
+			input_report_key(dev, BTN_STYLUS2, 0);
+			input_report_key(dev, BTN_TOOL_RUBBER, 0);
+			input_sync(dev);
+			w8001->type = BTN_TOOL_PEN;
+		}
+	} else {
+		input_report_key(dev, BTN_STYLUS2, coord->f2);
+	}
+
+	input_report_abs(dev, ABS_X, coord->x);
+	input_report_abs(dev, ABS_Y, coord->y);
+	input_report_abs(dev, ABS_PRESSURE, coord->pen_pressure);
+	input_report_key(dev, BTN_TOUCH, coord->tsw);
+	input_report_key(dev, BTN_STYLUS, coord->f1);
+	input_report_key(dev, w8001->type, coord->rdy);
+	input_sync(dev);
+
+	if (!coord->rdy)
+		w8001->type = 0;
+}
+
 static irqreturn_t w8001_interrupt(struct serio *serio,
 				   unsigned char data, unsigned int flags)
 {
 	struct w8001 *w8001 = serio_get_drvdata(serio);
-	struct input_dev *dev = w8001->dev;
 	struct w8001_coord coord;
 	unsigned char tmp;
 
@@ -112,11 +154,7 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 
 		w8001->idx = 0;
 		parse_data(w8001->data, &coord);
-		input_report_abs(dev, ABS_X, coord.x);
-		input_report_abs(dev, ABS_Y, coord.y);
-		input_report_abs(dev, ABS_PRESSURE, coord.pen_pressure);
-		input_report_key(dev, BTN_TOUCH, coord.tsw);
-		input_sync(dev);
+		report_pen_events(w8001, &coord);
 		break;
 
 	case 10:
@@ -221,6 +259,10 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	input_dev->keybit[BIT_WORD(BTN_TOOL_PEN)] |= BIT_MASK(BTN_TOOL_PEN);
+	input_dev->keybit[BIT_WORD(BTN_TOOL_RUBBER)] |= BIT_MASK(BTN_TOOL_RUBBER);
+	input_dev->keybit[BIT_WORD(BTN_STYLUS)] |= BIT_MASK(BTN_STYLUS);
+	input_dev->keybit[BIT_WORD(BTN_STYLUS2)] |= BIT_MASK(BTN_STYLUS2);
 
 	serio_set_drvdata(serio, w8001);
 	err = serio_open(serio, drv);
