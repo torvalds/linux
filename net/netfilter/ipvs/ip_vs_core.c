@@ -40,6 +40,7 @@
 #include <net/udp.h>
 #include <net/icmp.h>                   /* for icmp_send */
 #include <net/route.h>
+#include <net/ip6_checksum.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
