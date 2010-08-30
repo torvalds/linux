@@ -232,7 +232,7 @@ source "net/batman-adv/Kconfig"
 source "net/openvswitch/Kconfig"
 
 config RPS
-	boolean
+	boolean "RPS"
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
