@@ -213,6 +213,11 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 		return;
 
 	/*
+	 * Report the frame as DMA done
+	 */
+	rt2x00lib_dmadone(entry);
+
+	/*
 	 * Check if the frame was correctly uploaded
 	 */
 	if (urb->status)
@@ -283,13 +288,14 @@ void rt2x00usb_kill_tx_queue(struct data_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
 
-static void rt2x00usb_watchdog_reset_tx(struct data_queue *queue)
+static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 {
 	struct queue_entry *entry;
 	struct queue_entry_priv_usb *entry_priv;
 	unsigned short threshold = queue->threshold;
 
-	WARNING(queue->rt2x00dev, "TX queue %d timed out, invoke reset", queue->qid);
+	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
+		" invoke forced forced reset", queue->qid);
 
 	/*
 	 * Temporarily disable the TX queue, this will force mac80211
@@ -331,13 +337,23 @@ static void rt2x00usb_watchdog_reset_tx(struct data_queue *queue)
 	ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
 }
 
+static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
+{
+	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
+		" invoke forced tx handler", queue->qid);
+
+	ieee80211_queue_work(queue->rt2x00dev->hw, &queue->rt2x00dev->txdone_work);
+}
+
 void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 
 	tx_queue_for_each(rt2x00dev, queue) {
+		if (rt2x00queue_dma_timeout(queue))
+			rt2x00usb_watchdog_tx_dma(queue);
 		if (rt2x00queue_timeout(queue))
-			rt2x00usb_watchdog_reset_tx(queue);
+			rt2x00usb_watchdog_tx_status(queue);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
@@ -381,6 +397,11 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
+
+	/*
+	 * Report the frame as DMA done
+	 */
+	rt2x00lib_dmadone(entry);
 
 	/*
 	 * Check if the received data is simply too small

@@ -731,13 +731,13 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 	if (queue->index[index] >= queue->limit)
 		queue->index[index] = 0;
 
+	queue->last_action[index] = jiffies;
+
 	if (index == Q_INDEX) {
 		queue->length++;
-		queue->last_index = jiffies;
 	} else if (index == Q_INDEX_DONE) {
 		queue->length--;
 		queue->count++;
-		queue->last_index_done = jiffies;
 	}
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
@@ -746,14 +746,17 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 static void rt2x00queue_reset(struct data_queue *queue)
 {
 	unsigned long irqflags;
+	unsigned int i;
 
 	spin_lock_irqsave(&queue->lock, irqflags);
 
 	queue->count = 0;
 	queue->length = 0;
-	queue->last_index = jiffies;
-	queue->last_index_done = jiffies;
-	memset(queue->index, 0, sizeof(queue->index));
+
+	for (i = 0; i < Q_INDEX_MAX; i++) {
+		queue->index[i] = 0;
+		queue->last_action[i] = jiffies;
+	}
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
 }

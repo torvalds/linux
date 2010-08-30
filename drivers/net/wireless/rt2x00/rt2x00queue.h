@@ -401,6 +401,8 @@ struct queue_entry {
  *
  * @Q_INDEX: Index pointer to the current entry in the queue, if this entry is
  *	owned by the hardware then the queue is considered to be full.
+ * @Q_INDEX_DMA_DONE: Index pointer for the next entry which will have been
+ *	transfered to the hardware.
  * @Q_INDEX_DONE: Index pointer to the next entry which will be completed by
  *	the hardware and for which we need to run the txdone handler. If this
  *	entry is not owned by the hardware the queue is considered to be empty.
@@ -409,6 +411,7 @@ struct queue_entry {
  */
 enum queue_index {
 	Q_INDEX,
+	Q_INDEX_DMA_DONE,
 	Q_INDEX_DONE,
 	Q_INDEX_MAX,
 };
@@ -445,13 +448,12 @@ struct data_queue {
 	enum data_queue_qid qid;
 
 	spinlock_t lock;
-	unsigned long last_index;
-	unsigned long last_index_done;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
+	unsigned long last_action[Q_INDEX_MAX];
 
 	unsigned short txop;
 	unsigned short aifs;
@@ -616,12 +618,23 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 }
 
 /**
- * rt2x00queue_timeout - Check if a timeout occured for this queue
+ * rt2x00queue_timeout - Check if a timeout occured for STATUS reorts
  * @queue: Queue to check.
  */
 static inline int rt2x00queue_timeout(struct data_queue *queue)
 {
-	return time_after(queue->last_index, queue->last_index_done + (HZ / 10));
+	return time_after(queue->last_action[Q_INDEX_DMA_DONE],
+			  queue->last_action[Q_INDEX_DONE] + (HZ / 10));
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for DMA transfers
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_dma_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_action[Q_INDEX],
+			  queue->last_action[Q_INDEX_DMA_DONE] + (HZ / 10));
 }
 
 /**
