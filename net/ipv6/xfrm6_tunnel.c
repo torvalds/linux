@@ -317,13 +317,13 @@ static const struct xfrm_type xfrm6_tunnel_type = {
 	.output		= xfrm6_tunnel_output,
 };
 
-static struct xfrm6_tunnel xfrm6_tunnel_handler = {
+static struct xfrm6_tunnel xfrm6_tunnel_handler __read_mostly = {
 	.handler	= xfrm6_tunnel_rcv,
 	.err_handler	= xfrm6_tunnel_err,
 	.priority	= 2,
 };
 
-static struct xfrm6_tunnel xfrm46_tunnel_handler = {
+static struct xfrm6_tunnel xfrm46_tunnel_handler __read_mostly = {
 	.handler	= xfrm6_tunnel_rcv,
 	.err_handler	= xfrm6_tunnel_err,
 	.priority	= 2,

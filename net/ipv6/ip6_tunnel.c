@@ -1372,13 +1372,13 @@ static void __net_init ip6_fb_tnl_dev_init(struct net_device *dev)
 	ip6n->tnls_wc[0] = t;
 }
 
-static struct xfrm6_tunnel ip4ip6_handler = {
+static struct xfrm6_tunnel ip4ip6_handler __read_mostly = {
 	.handler	= ip4ip6_rcv,
 	.err_handler	= ip4ip6_err,
 	.priority	=	1,
 };
 
-static struct xfrm6_tunnel ip6ip6_handler = {
+static struct xfrm6_tunnel ip6ip6_handler __read_mostly = {
 	.handler	= ip6ip6_rcv,
 	.err_handler	= ip6ip6_err,
 	.priority	=	1,

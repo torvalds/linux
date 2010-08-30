@@ -30,8 +30,8 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm6_tunnel *tunnel6_handlers;
-static struct xfrm6_tunnel *tunnel46_handlers;
+static struct xfrm6_tunnel *tunnel6_handlers __read_mostly;
+static struct xfrm6_tunnel *tunnel46_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel6_mutex);
 
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family)
