@@ -234,7 +234,7 @@ source "net/vmw_vsock/Kconfig"
 source "net/netlink/Kconfig"
 
 config RPS
-	boolean
+	boolean "RPS"
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
