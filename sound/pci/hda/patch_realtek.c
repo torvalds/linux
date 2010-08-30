@@ -6799,14 +6799,12 @@ enum {
 	PINFIX_HP_DC5750,
 };
 
-static struct alc_pincfg alc260_hp_dc5750_pinfix[] = {
-	{ 0x11, 0x90130110 }, /* speaker */
-	{ }
-};
-
 static const struct alc_fixup alc260_fixups[] = {
 	[PINFIX_HP_DC5750] = {
-		.pins = alc260_hp_dc5750_pinfix
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x11, 0x90130110 }, /* speaker */
+			{ }
+		}
 	},
 };
 
@@ -10452,24 +10450,20 @@ enum {
 	PINFIX_PB_M5210,
 };
 
-static struct alc_pincfg alc882_abit_aw9d_pinfix[] = {
-	{ 0x15, 0x01080104 }, /* side */
-	{ 0x16, 0x01011012 }, /* rear */
-	{ 0x17, 0x01016011 }, /* clfe */
-	{ }
-};
-
-static const struct hda_verb pb_m5210_verbs[] = {
-	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
-	{}
-};
-
 static const struct alc_fixup alc882_fixups[] = {
 	[PINFIX_ABIT_AW9D_MAX] = {
-		.pins = alc882_abit_aw9d_pinfix
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x15, 0x01080104 }, /* side */
+			{ 0x16, 0x01011012 }, /* rear */
+			{ 0x17, 0x01016011 }, /* clfe */
+			{ }
+		}
 	},
 	[PINFIX_PB_M5210] = {
-		.verbs = pb_m5210_verbs
+		.verbs = (const struct hda_verb[]) {
+			{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{}
+		}
 	},
 };
 
@@ -14454,14 +14448,12 @@ enum {
 	ALC269_FIXUP_SONY_VAIO,
 };
 
-static const struct hda_verb alc269_sony_vaio_fixup_verbs[] = {
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
-	{}
-};
-
 static const struct alc_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_SONY_VAIO] = {
-		.verbs = alc269_sony_vaio_fixup_verbs
+		.verbs = (const struct hda_verb[]) {
+			{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
+			{}
+		}
 	},
 };
 
@@ -15819,15 +15811,13 @@ enum {
 	PINFIX_FSC_AMILO_PI1505,
 };
 
-static struct alc_pincfg alc861_fsc_amilo_pi1505_pinfix[] = {
-	{ 0x0b, 0x0221101f }, /* HP */
-	{ 0x0f, 0x90170310 }, /* speaker */
-	{ }
-};
-
 static const struct alc_fixup alc861_fixups[] = {
 	[PINFIX_FSC_AMILO_PI1505] = {
-		.pins = alc861_fsc_amilo_pi1505_pinfix
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x0b, 0x0221101f }, /* HP */
+			{ 0x0f, 0x90170310 }, /* speaker */
+			{ }
+		}
 	},
 };
 
@@ -16794,16 +16784,14 @@ enum {
 };
 
 /* reset GPIO1 */
-static const struct hda_verb alc660vd_fix_asus_gpio1_verbs[] = {
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
-	{ }
-};
-
 static const struct alc_fixup alc861vd_fixups[] = {
 	[ALC660VD_FIX_ASUS_GPIO1] = {
-		.verbs = alc660vd_fix_asus_gpio1_verbs,
+		.verbs = (const struct hda_verb[]) {
+			{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
+			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
+			{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
+			{ }
+		}
 	},
 };
 
