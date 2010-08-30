@@ -31,8 +31,13 @@ static struct snd_soc_dai_link fsi_dai_link = {
 	.stream_name	= "AK4642",
 	.cpu_dai_name	= "fsia-dai", /* fsi A */
 	.codec_dai_name	= "ak4642-hifi",
-	.platform_name	= "fsi-pcm-audio",
+#ifdef CONFIG_MACH_AP4EVB
+	.platform_name	= "sh_fsi2.0",
+	.codec_name	= "ak4642-codec.0-0013",
+#else
+	.platform_name	= "sh_fsi.0",
 	.codec_name	= "ak4642-codec.0-0012",
+#endif
 	.init		= fsi_ak4642_dai_init,
 	.ops		= NULL,
 };

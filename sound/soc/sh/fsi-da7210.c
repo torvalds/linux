@@ -27,7 +27,7 @@ static struct snd_soc_dai_link fsi_da7210_dai = {
 	.stream_name	= "DA7210",
 	.cpu_dai_name	= "fsib-dai", /* FSI B */
 	.codec_dai_name	= "da7210-hifi",
-	.platform_name	= "fsi-pcm-audio",
+	.platform_name	= "sh_fsi.0",
 	.codec_name	= "da7210-codec.0-001a",
 	.init		= fsi_da7210_init,
 };
