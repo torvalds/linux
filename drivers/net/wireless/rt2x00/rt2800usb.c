@@ -122,22 +122,12 @@ static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
-	int i;
 
 	/*
 	 * Wait until BBP and RF are ready.
 	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
+	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
-	}
 
 	rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);

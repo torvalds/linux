@@ -255,6 +255,23 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_mcu_request);
 
+int rt2800_wait_csr_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i = 0;
+	u32 reg;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
+		if (reg && reg != ~0)
+			return 0;
+		msleep(1);
+	}
+
+	ERROR(rt2x00dev, "Unstable hardware.\n");
+	return -EBUSY;
+}
+EXPORT_SYMBOL_GPL(rt2800_wait_csr_ready);
+
 int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
@@ -370,17 +387,8 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Wait for stable hardware.
 	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
+	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
-	}
 
 	if (rt2x00_is_pci(rt2x00dev))
 		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
