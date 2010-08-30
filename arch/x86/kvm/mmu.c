@@ -49,15 +49,21 @@
  */
 bool tdp_enabled = false;
 
+enum {
+	AUDIT_PRE_PAGE_FAULT,
+	AUDIT_POST_PAGE_FAULT,
+	AUDIT_PRE_PTE_WRITE,
+	AUDIT_POST_PTE_WRITE
+};
+
+char *audit_point_name[] = {
+	"pre page fault",
+	"post page fault",
+	"pre pte write",
+	"post pte write"
+};
+
 #undef MMU_DEBUG
-
-#undef AUDIT
-
-#ifdef AUDIT
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg);
-#else
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg) {}
-#endif
 
 #ifdef MMU_DEBUG
 
@@ -71,7 +77,7 @@ static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg) {}
 
 #endif
 
-#if defined(MMU_DEBUG) || defined(AUDIT)
+#ifdef MMU_DEBUG
 static int dbg = 0;
 module_param(dbg, bool, 0644);
 #endif
@@ -2964,7 +2970,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	kvm_mmu_access_page(vcpu, gfn);
 	kvm_mmu_free_some_pages(vcpu);
 	++vcpu->kvm->stat.mmu_pte_write;
-	kvm_mmu_audit(vcpu, "pre pte write");
+	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 	if (guest_initiated) {
 		if (gfn == vcpu->arch.last_pt_write_gfn
 		    && !last_updated_pte_accessed(vcpu)) {
@@ -3037,7 +3043,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	}
 	mmu_pte_write_flush_tlb(vcpu, zap_page, remote_flush, local_flush);
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
-	kvm_mmu_audit(vcpu, "post pte write");
+	trace_kvm_mmu_audit(vcpu, AUDIT_POST_PTE_WRITE);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 	if (!is_error_pfn(vcpu->arch.update_pte.pfn)) {
 		kvm_release_pfn_clean(vcpu->arch.update_pte.pfn);
@@ -3483,8 +3489,7 @@ int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4])
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_get_spte_hierarchy);
 
-#ifdef AUDIT
-
+#ifdef CONFIG_KVM_MMU_AUDIT
 static const char *audit_msg;
 
 typedef void (*inspect_spte_fn) (struct kvm *kvm, u64 *sptep);
@@ -3699,18 +3704,68 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg)
+static void kvm_mmu_audit(void *ignore, struct kvm_vcpu *vcpu, int audit_point)
 {
-	int olddbg = dbg;
-
-	dbg = 0;
-	audit_msg = msg;
+	audit_msg = audit_point_name[audit_point];
 	audit_rmap(vcpu);
 	audit_write_protection(vcpu);
 	if (strcmp("pre pte write", audit_msg) != 0)
 		audit_mappings(vcpu);
 	audit_sptes_have_rmaps(vcpu);
-	dbg = olddbg;
 }
 
+static bool mmu_audit;
+
+static void mmu_audit_enable(void)
+{
+	int ret;
+
+	if (mmu_audit)
+		return;
+
+	ret = register_trace_kvm_mmu_audit(kvm_mmu_audit, NULL);
+	WARN_ON(ret);
+
+	mmu_audit = true;
+}
+
+static void mmu_audit_disable(void)
+{
+	if (!mmu_audit)
+		return;
+
+	unregister_trace_kvm_mmu_audit(kvm_mmu_audit, NULL);
+	tracepoint_synchronize_unregister();
+	mmu_audit = false;
+}
+
+static int mmu_audit_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	unsigned long enable;
+
+	ret = strict_strtoul(val, 10, &enable);
+	if (ret < 0)
+		return -EINVAL;
+
+	switch (enable) {
+	case 0:
+		mmu_audit_disable();
+		break;
+	case 1:
+		mmu_audit_enable();
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct kernel_param_ops audit_param_ops = {
+	.set = mmu_audit_set,
+	.get = param_get_bool,
+};
+
+module_param_cb(mmu_audit, &audit_param_ops, &mmu_audit, 0644);
 #endif
