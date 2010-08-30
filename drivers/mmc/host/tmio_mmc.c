@@ -658,14 +658,21 @@ static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
 {
+	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
+
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
 
-	/* Hardware cannot perform 1 and 2 byte requests in 4 bit mode */
-	if (data->blksz < 4 && host->mmc->ios.bus_width == MMC_BUS_WIDTH_4) {
-		pr_err("%s: %d byte block unsupported in 4 bit mode\n",
-		       mmc_hostname(host->mmc), data->blksz);
-		return -EINVAL;
+	/* Some hardware cannot perform 2 byte requests in 4 bit mode */
+	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4) {
+		int blksz_2bytes = pdata->flags & TMIO_MMC_BLKSZ_2BYTES;
+
+		if (data->blksz < 2 || (data->blksz < 4 && !blksz_2bytes)) {
+			pr_err("%s: %d byte block unsupported in 4 bit mode\n",
+			       mmc_hostname(host->mmc), data->blksz);
+			return -EINVAL;
+		}
 	}
 
 	tmio_mmc_init_sg(host, data);

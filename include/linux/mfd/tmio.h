@@ -52,6 +52,11 @@
 
 /* tmio MMC platform flags */
 #define TMIO_MMC_WRPROTECT_DISABLE	(1 << 0)
+/*
+ * Some controllers can support a 2-byte block size when the bus width
+ * is configured in 4-bit mode.
+ */
+#define TMIO_MMC_BLKSZ_2BYTES		(1 << 1)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
