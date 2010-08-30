@@ -194,16 +194,23 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 	if (err)
 		goto done;
 
+	err = -EAGAIN;
 	/* wait for the syncpoint, or timeout, or signal */
 	while (timeout) {
 		u32 check = min_t(u32, SYNCPT_CHECK_PERIOD, timeout);
-		err = wait_event_interruptible_timeout(wq,
+		int remain = wait_event_interruptible_timeout(wq,
 						nvhost_syncpt_min_cmp(sp, id, thresh),
 						check);
-		if (err != 0)
+		if (remain > 0 || nvhost_syncpt_min_cmp(sp, id, thresh)) {
+			err = 0;
 			break;
+		}
+		if (remain < 0) {
+			err = remain;
+			break;
+		}
 		if (timeout != NVHOST_NO_TIMEOUT)
-			timeout -= SYNCPT_CHECK_PERIOD;
+			timeout -= check;
 		if (timeout) {
 			dev_warn(&syncpt_to_dev(sp)->pdev->dev,
 				"syncpoint id %d (%s) stuck waiting %d\n",
@@ -211,10 +218,6 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 			nvhost_syncpt_debug(sp);
 		}
 	};
-	if (err > 0)
-		err = 0;
-	else if (err == 0)
-		err = -EAGAIN;
 	nvhost_intr_put_ref(&(syncpt_to_dev(sp)->intr), ref);
 
 done:
