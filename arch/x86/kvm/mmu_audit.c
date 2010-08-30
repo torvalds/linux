@@ -17,6 +17,8 @@
  *
  */
 
+#include <linux/ratelimit.h>
+
 static const char *audit_msg;
 
 typedef void (*inspect_spte_fn) (struct kvm_vcpu *vcpu, u64 *sptep, int level);
@@ -228,6 +230,11 @@ static void audit_vcpu_spte(struct kvm_vcpu *vcpu)
 
 static void kvm_mmu_audit(void *ignore, struct kvm_vcpu *vcpu, int audit_point)
 {
+	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
+
+	if (!__ratelimit(&ratelimit_state))
+		return;
+
 	audit_msg = audit_point_name[audit_point];
 	audit_all_active_sps(vcpu->kvm);
 	audit_vcpu_spte(vcpu);
