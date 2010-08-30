@@ -57,7 +57,7 @@ static void __init rcu_bootup_announce_oddness(void)
 	printk(KERN_INFO
 	       "\tRCU-based detection of stalled CPUs is disabled.\n");
 #endif
-#ifndef CONFIG_RCU_CPU_STALL_VERBOSE
+#if defined(CONFIG_TREE_PREEMPT_RCU) && !defined(CONFIG_RCU_CPU_STALL_VERBOSE)
 	printk(KERN_INFO "\tVerbose stalled-CPUs detection is disabled.\n");
 #endif
 #if NUM_RCU_LVL_4 != 0
