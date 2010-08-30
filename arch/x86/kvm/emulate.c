@@ -3098,8 +3098,6 @@ special_insn:
 		break;
 	case 0x07:		/* pop es */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_ES);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x08 ... 0x0d:
 	      or:		/* or */
@@ -3117,8 +3115,6 @@ special_insn:
 		break;
 	case 0x17:		/* pop ss */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_SS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x18 ... 0x1d:
 	      sbb:		/* sbb */
@@ -3129,8 +3125,6 @@ special_insn:
 		break;
 	case 0x1f:		/* pop ds */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_DS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x20 ... 0x25:
 	      and:		/* and */
@@ -3157,18 +3151,12 @@ special_insn:
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
 		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x60:	/* pusha */
 		rc = emulate_pusha(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x61:	/* popa */
 		rc = emulate_popa(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
@@ -3255,8 +3243,6 @@ special_insn:
 	}
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		rc = emulate_grp1a(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
@@ -3278,8 +3264,6 @@ special_insn:
 		c->dst.addr.reg = &ctxt->eflags;
 		c->dst.bytes = c->op_bytes;
 		rc = emulate_popf(ctxt, ops, &c->dst.val, c->op_bytes);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xa6 ... 0xa7:	/* cmps */
 		c->dst.type = OP_NONE; /* Disable writeback. */
@@ -3299,18 +3283,12 @@ special_insn:
 		goto pop_instruction;
 	case 0xc4:		/* les */
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_ES);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xc5:		/* lds */
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_DS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xcb:		/* ret far */
 		rc = emulate_ret_far(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xcc:		/* int3 */
 		irq = 3;
@@ -3319,8 +3297,6 @@ special_insn:
 		irq = c->src.val;
 	do_interrupt:
 		rc = emulate_int(ctxt, ops, irq);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xce:		/* into */
 		if (ctxt->eflags & EFLG_OF) {
@@ -3330,9 +3306,6 @@ special_insn:
 		break;
 	case 0xcf:		/* iret */
 		rc = emulate_iret(ctxt, ops);
-
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		emulate_grp2(ctxt);
@@ -3419,8 +3392,6 @@ special_insn:
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
 		rc = emulate_grp3(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
@@ -3453,8 +3424,6 @@ special_insn:
 	case 0xfe: /* Grp4 */
 	grp45:
 		rc = emulate_grp45(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xff: /* Grp5 */
 		if (c->modrm_reg == 5)
@@ -3463,6 +3432,9 @@ special_insn:
 	default:
 		goto cannot_emulate;
 	}
+
+	if (rc != X86EMUL_CONTINUE)
+		goto done;
 
 writeback:
 	rc = writeback(ctxt, ops);
@@ -3545,8 +3517,6 @@ twobyte_insn:
 				switch (c->modrm_rm) {
 				case 1:
 					rc = kvm_fix_hypercall(ctxt->vcpu);
-					if (rc != X86EMUL_CONTINUE)
-						goto done;
 					break;
 				default:
 					goto cannot_emulate;
@@ -3585,10 +3555,6 @@ twobyte_insn:
 		break;
 	case 0x05: 		/* syscall */
 		rc = emulate_syscall(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-		else
-			goto writeback;
 		break;
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
@@ -3665,17 +3631,9 @@ twobyte_insn:
 		break;
 	case 0x34:		/* sysenter */
 		rc = emulate_sysenter(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-		else
-			goto writeback;
 		break;
 	case 0x35:		/* sysexit */
 		rc = emulate_sysexit(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-		else
-			goto writeback;
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		c->dst.val = c->dst.orig_val = c->src.val;
@@ -3694,8 +3652,6 @@ twobyte_insn:
 		break;
 	case 0xa1:	 /* pop fs */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_FS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xa3:
 	      bt:		/* bt */
@@ -3713,8 +3669,6 @@ twobyte_insn:
 		break;
 	case 0xa9:	/* pop gs */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_GS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xab:
 	      bts:		/* bts */
@@ -3745,8 +3699,6 @@ twobyte_insn:
 		break;
 	case 0xb2:		/* lss */
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_SS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xb3:
 	      btr:		/* btr */
@@ -3754,13 +3706,9 @@ twobyte_insn:
 		break;
 	case 0xb4:		/* lfs */
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_FS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xb5:		/* lgs */
 		rc = emulate_load_segment(ctxt, ops, VCPU_SREG_GS);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		c->dst.bytes = c->op_bytes;
@@ -3825,12 +3773,14 @@ twobyte_insn:
 		break;
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
 		rc = emulate_grp9(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
 		break;
 	default:
 		goto cannot_emulate;
 	}
+
+	if (rc != X86EMUL_CONTINUE)
+		goto done;
+
 	goto writeback;
 
 cannot_emulate:
