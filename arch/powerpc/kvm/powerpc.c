@@ -192,6 +192,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_UNSET_IRQ:
+	case KVM_CAP_PPC_IRQ_LEVEL:
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_PPC_OSI:
 	case KVM_CAP_PPC_GET_PVINFO:

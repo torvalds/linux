@@ -539,6 +539,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_XCRS 56
 #endif
 #define KVM_CAP_PPC_GET_PVINFO 57
+#define KVM_CAP_PPC_IRQ_LEVEL 58
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
