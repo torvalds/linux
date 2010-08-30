@@ -329,7 +329,7 @@ static int is_ext_mic(struct hda_codec *codec, unsigned int idx)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t pin = cfg->input_pins[idx];
+	hda_nid_t pin = cfg->inputs[idx].pin;
 	unsigned int val = snd_hda_query_pin_caps(codec, pin);
 	if (!(val & AC_PINCAP_PRES_DETECT))
 		return 0;
@@ -424,10 +424,8 @@ static int parse_input(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t pin = cfg->input_pins[i];
-		if (!pin)
-			continue;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t pin = cfg->inputs[i].pin;
 		spec->input_idx[spec->num_inputs] = i;
 		spec->capsrc_idx[i] = spec->num_inputs++;
 		spec->cur_input = i;
@@ -438,16 +436,17 @@ static int parse_input(struct hda_codec *codec)
 
 	/* check whether the automatic mic switch is available */
 	if (spec->num_inputs == 2 &&
-	    spec->adc_nid[AUTO_PIN_MIC] && spec->adc_nid[AUTO_PIN_FRONT_MIC]) {
-		if (is_ext_mic(codec, cfg->input_pins[AUTO_PIN_FRONT_MIC])) {
-			if (!is_ext_mic(codec, cfg->input_pins[AUTO_PIN_MIC])) {
+	    cfg->inputs[0].type <= AUTO_PIN_FRONT_MIC &&
+	    cfg->inputs[1].type == AUTO_PIN_FRONT_MIC) {
+		if (is_ext_mic(codec, cfg->inputs[0].pin)) {
+			if (!is_ext_mic(codec, cfg->inputs[1].pin)) {
 				spec->mic_detect = 1;
-				spec->automic_idx = AUTO_PIN_FRONT_MIC;
+				spec->automic_idx = 0;
 			}
 		} else {
-			if (is_ext_mic(codec, cfg->input_pins[AUTO_PIN_MIC])) {
+			if (is_ext_mic(codec, cfg->inputs[1].pin)) {
 				spec->mic_detect = 1;
-				spec->automic_idx = AUTO_PIN_MIC;
+				spec->automic_idx = 1;
 			}
 		}
 	}
@@ -853,15 +852,12 @@ static void cs_automic(struct hda_codec *codec)
 	hda_nid_t nid;
 	unsigned int present;
 	
-	nid = cfg->input_pins[spec->automic_idx];
+	nid = cfg->inputs[spec->automic_idx].pin;
 	present = snd_hda_jack_detect(codec, nid);
 	if (present)
 		change_cur_input(codec, spec->automic_idx, 0);
-	else {
-		unsigned int imic = (spec->automic_idx == AUTO_PIN_MIC) ?
-			AUTO_PIN_FRONT_MIC : AUTO_PIN_MIC;
-		change_cur_input(codec, imic, 0);
-	}
+	else
+		change_cur_input(codec, !spec->automic_idx, 0);
 }
 
 /*
@@ -918,14 +914,14 @@ static void init_input(struct hda_codec *codec)
 	unsigned int coef;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
+	for (i = 0; i < cfg->num_inputs; i++) {
 		unsigned int ctl;
-		hda_nid_t pin = cfg->input_pins[i];
-		if (!pin || !spec->adc_nid[i])
+		hda_nid_t pin = cfg->inputs[i].pin;
+		if (!spec->adc_nid[i])
 			continue;
 		/* set appropriate pin control and mute first */
 		ctl = PIN_IN;
-		if (i <= AUTO_PIN_FRONT_MIC) {
+		if (cfg->inputs[i].type <= AUTO_PIN_FRONT_MIC) {
 			unsigned int caps = snd_hda_query_pin_caps(codec, pin);
 			caps >>= AC_PINCAP_VREF_SHIFT;
 			if (caps & AC_PINCAP_VREF_80)
