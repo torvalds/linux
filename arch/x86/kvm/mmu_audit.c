@@ -19,23 +19,24 @@
 
 static const char *audit_msg;
 
-typedef void (*inspect_spte_fn) (struct kvm *kvm, u64 *sptep);
+typedef void (*inspect_spte_fn) (struct kvm_vcpu *vcpu, u64 *sptep, int level);
 
-static void __mmu_spte_walk(struct kvm *kvm, struct kvm_mmu_page *sp,
-			    inspect_spte_fn fn)
+static void __mmu_spte_walk(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+			    inspect_spte_fn fn, int level)
 {
 	int i;
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-		u64 ent = sp->spt[i];
+		u64 *ent = sp->spt;
 
-		if (is_shadow_present_pte(ent)) {
-			if (!is_last_spte(ent, sp->role.level)) {
-				struct kvm_mmu_page *child;
-				child = page_header(ent & PT64_BASE_ADDR_MASK);
-				__mmu_spte_walk(kvm, child, fn);
-			} else
-				fn(kvm, &sp->spt[i]);
+		fn(vcpu, ent + i, level);
+
+		if (is_shadow_present_pte(ent[i]) &&
+		      !is_last_spte(ent[i], level)) {
+			struct kvm_mmu_page *child;
+
+			child = page_header(ent[i] & PT64_BASE_ADDR_MASK);
+			__mmu_spte_walk(vcpu, child, fn, level - 1);
 		}
 	}
 }
@@ -47,21 +48,25 @@ static void mmu_spte_walk(struct kvm_vcpu *vcpu, inspect_spte_fn fn)
 
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
+
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
+
 		sp = page_header(root);
-		__mmu_spte_walk(vcpu->kvm, sp, fn);
+		__mmu_spte_walk(vcpu, sp, fn, PT64_ROOT_LEVEL);
 		return;
 	}
+
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
 		if (root && VALID_PAGE(root)) {
 			root &= PT64_BASE_ADDR_MASK;
 			sp = page_header(root);
-			__mmu_spte_walk(vcpu->kvm, sp, fn);
+			__mmu_spte_walk(vcpu, sp, fn, 2);
 		}
 	}
+
 	return;
 }
 
@@ -75,80 +80,55 @@ static void walk_all_active_sps(struct kvm *kvm, sp_handler fn)
 		fn(kvm, sp);
 }
 
-static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
-				gva_t va, int level)
+static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 {
-	u64 *pt = __va(page_pte & PT64_BASE_ADDR_MASK);
-	int i;
-	gva_t va_delta = 1ul << (PAGE_SHIFT + 9 * (level - 1));
+	struct kvm_mmu_page *sp;
+	gfn_t gfn;
+	pfn_t pfn;
+	hpa_t hpa;
 
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i, va += va_delta) {
-		u64 *sptep = pt + i;
-		struct kvm_mmu_page *sp;
-		gfn_t gfn;
-		pfn_t pfn;
-		hpa_t hpa;
+	sp = page_header(__pa(sptep));
 
-		sp = page_header(__pa(sptep));
-
-		if (sp->unsync) {
-			if (level != PT_PAGE_TABLE_LEVEL) {
-				printk(KERN_ERR "audit: (%s) error: unsync sp: %p level = %d\n",
-						audit_msg, sp, level);
-				return;
-			}
-
-			if (*sptep == shadow_notrap_nonpresent_pte) {
-				printk(KERN_ERR "audit: (%s) error: notrap spte in unsync sp: %p\n",
-						audit_msg, sp);
-				return;
-			}
-		}
-
-		if (sp->role.direct && *sptep == shadow_notrap_nonpresent_pte) {
-			printk(KERN_ERR "audit: (%s) error: notrap spte in direct sp: %p\n",
-					audit_msg, sp);
+	if (sp->unsync) {
+		if (level != PT_PAGE_TABLE_LEVEL) {
+			printk(KERN_ERR "audit: (%s) error: unsync sp: %p level = %d\n",
+				audit_msg, sp, level);
 			return;
 		}
 
-		if (!is_shadow_present_pte(*sptep) ||
-		      !is_last_spte(*sptep, level))
-			return;
-
-		gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
-		pfn = gfn_to_pfn_atomic(vcpu->kvm, gfn);
-
-		if (is_error_pfn(pfn)) {
-			kvm_release_pfn_clean(pfn);
+		if (*sptep == shadow_notrap_nonpresent_pte) {
+			printk(KERN_ERR "audit: (%s) error: notrap spte in unsync sp: %p\n",
+				audit_msg, sp);
 			return;
 		}
-
-		hpa =  pfn << PAGE_SHIFT;
-
-		if ((*sptep & PT64_BASE_ADDR_MASK) != hpa)
-			printk(KERN_ERR "xx audit error: (%s) levels %d"
-					   " gva %lx pfn %llx hpa %llx ent %llxn",
-					   audit_msg, vcpu->arch.mmu.root_level,
-					   va, pfn, hpa, *sptep);
 	}
+
+	if (sp->role.direct && *sptep == shadow_notrap_nonpresent_pte) {
+		printk(KERN_ERR "audit: (%s) error: notrap spte in direct sp: %p\n",
+			audit_msg, sp);
+		return;
+	}
+
+	if (!is_shadow_present_pte(*sptep) || !is_last_spte(*sptep, level))
+		return;
+
+	gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
+	pfn = gfn_to_pfn_atomic(vcpu->kvm, gfn);
+
+	if (is_error_pfn(pfn)) {
+		kvm_release_pfn_clean(pfn);
+		return;
+	}
+
+	hpa =  pfn << PAGE_SHIFT;
+	if ((*sptep & PT64_BASE_ADDR_MASK) != hpa)
+		printk(KERN_ERR "xx audit error: (%s) levels %d"
+				   "pfn %llx hpa %llx ent %llxn",
+				   audit_msg, vcpu->arch.mmu.root_level,
+				   pfn, hpa, *sptep);
 }
 
-static void audit_mappings(struct kvm_vcpu *vcpu)
-{
-	unsigned i;
-
-	if (vcpu->arch.mmu.root_level == 4)
-		audit_mappings_page(vcpu, vcpu->arch.mmu.root_hpa, 0, 4);
-	else
-		for (i = 0; i < 4; ++i)
-			if (vcpu->arch.mmu.pae_root[i] & PT_PRESENT_MASK)
-				audit_mappings_page(vcpu,
-						    vcpu->arch.mmu.pae_root[i],
-						    i << 30,
-						    2);
-}
-
-void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
+static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 {
 	unsigned long *rmapp;
 	struct kvm_mmu_page *rev_sp;
@@ -180,9 +160,10 @@ void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	}
 }
 
-void audit_sptes_have_rmaps(struct kvm_vcpu *vcpu)
+static void audit_sptes_have_rmaps(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 {
-	mmu_spte_walk(vcpu, inspect_spte_has_rmap);
+	if (is_shadow_present_pte(*sptep) && is_last_spte(*sptep, level))
+		inspect_spte_has_rmap(vcpu->kvm, sptep);
 }
 
 static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
@@ -234,13 +215,22 @@ static void audit_all_active_sps(struct kvm *kvm)
 	walk_all_active_sps(kvm, audit_sp);
 }
 
+static void audit_spte(struct kvm_vcpu *vcpu, u64 *sptep, int level)
+{
+	audit_sptes_have_rmaps(vcpu, sptep, level);
+	audit_mappings(vcpu, sptep, level);
+}
+
+static void audit_vcpu_spte(struct kvm_vcpu *vcpu)
+{
+	mmu_spte_walk(vcpu, audit_spte);
+}
+
 static void kvm_mmu_audit(void *ignore, struct kvm_vcpu *vcpu, int audit_point)
 {
 	audit_msg = audit_point_name[audit_point];
 	audit_all_active_sps(vcpu->kvm);
-	if (strcmp("pre pte write", audit_msg) != 0)
-		audit_mappings(vcpu);
-	audit_sptes_have_rmaps(vcpu);
+	audit_vcpu_spte(vcpu);
 }
 
 static bool mmu_audit;
