@@ -186,6 +186,7 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	case 0x400: prio = BOOK3S_IRQPRIO_INST_STORAGE;		break;
 	case 0x480: prio = BOOK3S_IRQPRIO_INST_SEGMENT;		break;
 	case 0x500: prio = BOOK3S_IRQPRIO_EXTERNAL;		break;
+	case 0x501: prio = BOOK3S_IRQPRIO_EXTERNAL_LEVEL;	break;
 	case 0x600: prio = BOOK3S_IRQPRIO_ALIGNMENT;		break;
 	case 0x700: prio = BOOK3S_IRQPRIO_PROGRAM;		break;
 	case 0x800: prio = BOOK3S_IRQPRIO_FP_UNAVAIL;		break;
@@ -246,13 +247,19 @@ void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu)
 void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                 struct kvm_interrupt *irq)
 {
-	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
+	unsigned int vec = BOOK3S_INTERRUPT_EXTERNAL;
+
+	if (irq->irq == KVM_INTERRUPT_SET_LEVEL)
+		vec = BOOK3S_INTERRUPT_EXTERNAL_LEVEL;
+
+	kvmppc_book3s_queue_irqprio(vcpu, vec);
 }
 
 void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
                                   struct kvm_interrupt *irq)
 {
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
+	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
 }
 
 int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
@@ -281,6 +288,7 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 		vec = BOOK3S_INTERRUPT_DECREMENTER;
 		break;
 	case BOOK3S_IRQPRIO_EXTERNAL:
+	case BOOK3S_IRQPRIO_EXTERNAL_LEVEL:
 		deliver = (vcpu->arch.shared->msr & MSR_EE) && !crit;
 		vec = BOOK3S_INTERRUPT_EXTERNAL;
 		break;
@@ -343,6 +351,23 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 	return deliver;
 }
 
+/*
+ * This function determines if an irqprio should be cleared once issued.
+ */
+static bool clear_irqprio(struct kvm_vcpu *vcpu, unsigned int priority)
+{
+	switch (priority) {
+		case BOOK3S_IRQPRIO_DECREMENTER:
+			/* DEC interrupts get cleared by mtdec */
+			return false;
+		case BOOK3S_IRQPRIO_EXTERNAL_LEVEL:
+			/* External interrupts get cleared by userspace */
+			return false;
+	}
+
+	return true;
+}
+
 void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
@@ -356,8 +381,7 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 	priority = __ffs(*pending);
 	while (priority < BOOK3S_IRQPRIO_MAX) {
 		if (kvmppc_book3s_irqprio_deliver(vcpu, priority) &&
-		    (priority != BOOK3S_IRQPRIO_DECREMENTER)) {
-			/* DEC interrupts get cleared by mtdec */
+		    clear_irqprio(vcpu, priority)) {
 			clear_bit(priority, &vcpu->arch.pending_exceptions);
 			break;
 		}
