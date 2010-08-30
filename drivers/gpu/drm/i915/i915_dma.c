@@ -2082,6 +2082,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+	/* overlay on gen2 is broken and can't address above 1G */
+	if (IS_GEN2(dev))
+		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
+
 	dev_priv->regs = ioremap(base, size);
 	if (!dev_priv->regs) {
 		DRM_ERROR("failed to map registers\n");
