@@ -331,6 +331,11 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 		slot1 = max_t(int, 1, ctx_pan->vif->bss_conf.dtim_period) *
 					ctx_pan->vif->bss_conf.beacon_int;
 		slot1 = max_t(int, 100, slot1);
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+			slot0 = slot1 * 3 - 20;
+			slot1 = 20;
+		}
 	}
 
 	cmd.slots[0].width = cpu_to_le16(slot0);
