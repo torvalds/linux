@@ -1,4 +1,0 @@
-mktables
-raid6altivec*.c
-raid6int*.c
-raid6tables.c
