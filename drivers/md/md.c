@@ -2168,8 +2168,7 @@ repeat:
 
 	}	
 	if (!mddev->persistent) {
-		if (!mddev->external)
-			clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
+		clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
 		clear_bit(MD_CHANGE_DEVS, &mddev->flags);
 		wake_up(&mddev->sb_wait);
 		return;
@@ -2179,7 +2178,6 @@ repeat:
 
 	mddev->utime = get_seconds();
 
-	set_bit(MD_CHANGE_PENDING, &mddev->flags);
 	if (test_and_clear_bit(MD_CHANGE_DEVS, &mddev->flags))
 		force_change = 1;
 	if (test_and_clear_bit(MD_CHANGE_CLEAN, &mddev->flags))
@@ -3372,7 +3370,7 @@ array_state_show(mddev_t *mddev, char *page)
 		case 0:
 			if (mddev->in_sync)
 				st = clean;
-			else if (test_bit(MD_CHANGE_CLEAN, &mddev->flags))
+			else if (test_bit(MD_CHANGE_PENDING, &mddev->flags))
 				st = write_pending;
 			else if (mddev->safemode)
 				st = active_idle;
@@ -3453,9 +3451,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 					mddev->in_sync = 1;
 					if (mddev->safemode == 1)
 						mddev->safemode = 0;
-					if (mddev->persistent)
-						set_bit(MD_CHANGE_CLEAN,
-							&mddev->flags);
+					set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 				}
 				err = 0;
 			} else
@@ -3467,8 +3463,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 	case active:
 		if (mddev->pers) {
 			restart_array(mddev);
-			if (mddev->external)
-				clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
 			wake_up(&mddev->sb_wait);
 			err = 0;
 		} else {
@@ -6573,6 +6568,7 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 		if (mddev->in_sync) {
 			mddev->in_sync = 0;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			set_bit(MD_CHANGE_PENDING, &mddev->flags);
 			md_wakeup_thread(mddev->thread);
 			did_change = 1;
 		}
@@ -6581,7 +6577,6 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 	if (did_change)
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 	wait_event(mddev->sb_wait,
-		   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
 		   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
 }
 
@@ -6617,6 +6612,7 @@ int md_allow_write(mddev_t *mddev)
 	if (mddev->in_sync) {
 		mddev->in_sync = 0;
 		set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+		set_bit(MD_CHANGE_PENDING, &mddev->flags);
 		if (mddev->safemode_delay &&
 		    mddev->safemode == 0)
 			mddev->safemode = 1;
@@ -6626,7 +6622,7 @@ int md_allow_write(mddev_t *mddev)
 	} else
 		spin_unlock_irq(&mddev->write_lock);
 
-	if (test_bit(MD_CHANGE_CLEAN, &mddev->flags))
+	if (test_bit(MD_CHANGE_PENDING, &mddev->flags))
 		return -EAGAIN;
 	else
 		return 0;
@@ -6824,8 +6820,7 @@ void md_do_sync(mddev_t *mddev)
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed =
 				mddev->curr_resync;
-			if (mddev->persistent)
-				set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
 
@@ -7104,8 +7099,7 @@ void md_check_recovery(mddev_t *mddev)
 			    mddev->recovery_cp == MaxSector) {
 				mddev->in_sync = 1;
 				did_change = 1;
-				if (mddev->persistent)
-					set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+				set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			}
 			if (mddev->safemode == 1)
 				mddev->safemode = 0;
