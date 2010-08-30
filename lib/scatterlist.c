@@ -248,8 +248,18 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 		left -= sg_size;
 
 		sg = alloc_fn(alloc_size, gfp_mask);
-		if (unlikely(!sg))
-			return -ENOMEM;
+		if (unlikely(!sg)) {
+			/*
+			 * Adjust entry count to reflect that the last
+			 * entry of the previous table won't be used for
+			 * linkage.  Without this, sg_kfree() may get
+			 * confused.
+			 */
+			if (prv)
+				table->nents = ++table->orig_nents;
+
+ 			return -ENOMEM;
+		}
 
 		sg_init_table(sg, alloc_size);
 		table->nents = table->orig_nents += sg_size;
