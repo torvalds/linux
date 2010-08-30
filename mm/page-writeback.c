@@ -1103,12 +1103,34 @@ static void balance_dirty_pages(struct address_space *mapping,
 					pos_ratio >> RATELIMIT_CALC_SHIFT;
 		pause = (HZ * pages_dirtied) / (task_ratelimit | 1);
 		if (unlikely(pause <= 0)) {
+			trace_balance_dirty_pages(bdi,
+						  dirty_thresh,
+						  background_thresh,
+						  nr_dirty,
+						  bdi_thresh,
+						  bdi_dirty,
+						  dirty_ratelimit,
+						  task_ratelimit,
+						  pages_dirtied,
+						  pause,
+						  start_time);
 			pause = 1; /* avoid resetting nr_dirtied_pause below */
 			break;
 		}
 		pause = min(pause, max_pause);
 
 pause:
+		trace_balance_dirty_pages(bdi,
+					  dirty_thresh,
+					  background_thresh,
+					  nr_dirty,
+					  bdi_thresh,
+					  bdi_dirty,
+					  dirty_ratelimit,
+					  task_ratelimit,
+					  pages_dirtied,
+					  pause,
+					  start_time);
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		io_schedule_timeout(pause);
 
