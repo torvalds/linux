@@ -29,8 +29,7 @@
 #define ITCM_OFFSET	0xff400000
 #define ITCM_END	0xff401fff
 #define DTCM_OFFSET	0xff404000
-#define DTCM_END	0xff404fff	// use sram for dtcm,sram length = 4K.
-/* #define DTCM_END	0xff407fff */
+#define DTCM_END	0xff407fff
 
 #endif
 

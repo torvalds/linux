@@ -17,9 +17,6 @@
 #include <asm/cputype.h>
 #include <asm/mach/map.h>
 #include <mach/memory.h>
-#ifdef CONFIG_ARCH_RK2818
-#include <mach/rk2818_iomap.h>
-#endif
 #include "tcm.h"
 
 /* Scream and warn about misuse */
@@ -54,11 +51,7 @@ static struct resource itcm_res = {
 static struct map_desc dtcm_iomap[] __initdata = {
 	{
 		.virtual	= DTCM_OFFSET,
-#ifdef CONFIG_ARCH_RK2818
-		.pfn		= __phys_to_pfn(RK2818_SRAM_PHYS),
-#else
 		.pfn		= __phys_to_pfn(DTCM_OFFSET),
-#endif
 		.length		= (DTCM_END - DTCM_OFFSET + 1),
 		.type		= MT_UNCACHED
 	}
