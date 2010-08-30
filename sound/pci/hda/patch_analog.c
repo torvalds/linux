@@ -2880,7 +2880,7 @@ static int ad1988_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 
 /* create input playback/capture controls for the given pin */
 static int new_analog_input(struct ad198x_spec *spec, hda_nid_t pin,
-			    const char *ctlname, int boost)
+			    const char *ctlname, int ctlidx, int boost)
 {
 	char name[32];
 	int err, idx;
@@ -2913,16 +2913,23 @@ static int ad1988_auto_create_analog_input_ctls(struct ad198x_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
 	struct hda_input_mux *imux = &spec->private_imux;
-	int i, err;
+	int i, err, type, type_idx = 0;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		err = new_analog_input(spec, cfg->input_pins[i],
-				       auto_pin_cfg_labels[i],
-				       i <= AUTO_PIN_FRONT_MIC);
+	for (i = 0; i < cfg->num_inputs; i++) {
+		type = cfg->inputs[i].type;
+		if (i > 0 && type != cfg->inputs[i - 1].type)
+			type_idx++;
+		else
+			type_idx = 0;
+		err = new_analog_input(spec, cfg->inputs[i].pin,
+				       auto_pin_cfg_labels[type], type_idx,
+				       type <= AUTO_PIN_FRONT_MIC);
 		if (err < 0)
 			return err;
-		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
-		imux->items[imux->num_items].index = ad1988_pin_to_adc_idx(cfg->input_pins[i]);
+		imux->items[imux->num_items].label =
+			snd_hda_get_input_pin_label(cfg, i);
+		imux->items[imux->num_items].index =
+			ad1988_pin_to_adc_idx(cfg->inputs[i].pin);
 		imux->num_items++;
 	}
 	imux->items[imux->num_items].label = "Mix";
@@ -2994,12 +3001,11 @@ static void ad1988_auto_init_extra_out(struct hda_codec *codec)
 static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, idx;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (! nid)
-			continue;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		switch (nid) {
 		case 0x15: /* port-C */
 			snd_hda_codec_write(codec, 0x33, 0, AC_VERB_SET_CONNECT_SEL, 0x0);
