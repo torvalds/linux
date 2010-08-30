@@ -1601,13 +1601,12 @@ static void clk_enable_init_clocks(void)
 	}
 }
 
-static unsigned int __initdata armclk;
+static unsigned int __initdata armclk = 576000000;
 
 /*
- * By default we use the rate set by the bootloader.
- * You can override this with armclk= cmdline option.
+ * You can override arm_clk rate with armclk= cmdline option.
  */
-static int __init clk_setup(char *str)
+static int __init armclk_setup(char *str)
 {
 	get_option(&str, &armclk);
 
@@ -1619,7 +1618,9 @@ static int __init clk_setup(char *str)
 
 	return 1;
 }
-__setup("armclk=", clk_setup);
+__setup("armclk=", armclk_setup);
+
+extern void rk2818_timer_update_mult(void);
 
 /*
  * Switch the arm_clk rate if specified on cmdline.
@@ -1638,6 +1639,8 @@ static int __init rk2818_clk_arch_init(void)
 	       arm_pll_clk.rate / 1000000, arm_clk.rate / 1000000,
 	       arm_hclk.rate / 1000000, arm_pclk.rate / 1000000);
 
+	/* cpufreq is not active now, so change timer_mult and loops_per_jiffy manually */
+	rk2818_timer_update_mult();
 	calibrate_delay();
 	printk(KERN_INFO "%lu.%02lu BogoMIPS (lpj=%lu)\n", loops_per_jiffy/(500000/HZ), (loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
 

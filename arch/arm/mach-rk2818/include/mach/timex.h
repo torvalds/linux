@@ -16,6 +16,6 @@
 #ifndef __ASM_ARCH_RK2818_TIMEX_H
 #define __ASM_ARCH_RK2818_TIMEX_H
 
-#define CLOCK_TICK_RATE		50000000 
+#define CLOCK_TICK_RATE		1000000
 
 #endif

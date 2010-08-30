@@ -58,6 +58,12 @@
 static struct clk *timer_clk;
 static volatile unsigned long timer_mult; /* timer count = cycle * timer_mult */
 
+void rk2818_timer_update_mult(void)
+{
+	if (timer_clk)
+		timer_mult = clk_get_rate(timer_clk) / 1000000;
+}
+
 static int rk2818_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
@@ -113,7 +119,7 @@ static struct irqaction rk2818_timer_clockevent_irq = {
 static int rk2818_timer_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
 {
 	if (val == CPUFREQ_POSTCHANGE) {
-		timer_mult = clk_get_rate(timer_clk) / 1000000;
+		rk2818_timer_update_mult();
 	}
 
 	return 0;
@@ -137,7 +143,7 @@ static __init int rk2818_timer_init_clockevent(void)
 	struct clock_event_device *ce = &rk2818_timer_clockevent;
 
 	timer_clk = clk_get(NULL, "timer");
-	timer_mult = clk_get_rate(timer_clk) / 1000000;
+	rk2818_timer_update_mult();
 
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
 
