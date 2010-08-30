@@ -1797,9 +1797,8 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
 	}
 
-	if (changes & BSS_CHANGED_BEACON_INT) {
-		/* TODO: in AP mode, do something to make this take effect */
-	}
+	if (changes & BSS_CHANGED_BEACON_INT && vif->type == NL80211_IFTYPE_AP)
+		iwl_send_rxon_timing(priv, ctx);
 
 	if (changes & BSS_CHANGED_BSSID) {
 		IWL_DEBUG_MAC80211(priv, "BSSID %pM\n", bss_conf->bssid);
