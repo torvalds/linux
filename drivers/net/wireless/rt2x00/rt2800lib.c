@@ -385,6 +385,12 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	/*
+	 * If driver doesn't wake up firmware here,
+	 * rt2800_load_firmware will hang forever when interface is up again.
+	 */
+	rt2800_register_write(rt2x00dev, AUTOWAKEUP_CFG, 0x00000000);
+
+	/*
 	 * Wait for stable hardware.
 	 */
 	if (rt2800_wait_csr_ready(rt2x00dev))

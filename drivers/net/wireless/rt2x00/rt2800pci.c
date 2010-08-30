@@ -196,8 +196,6 @@ static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	rt2800_register_write(rt2x00dev, AUTOWAKEUP_CFG, 0x00000000);
-
 	/*
 	 * enable Host program ram write selection
 	 */
