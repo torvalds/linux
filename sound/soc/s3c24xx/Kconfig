@@ -118,6 +118,14 @@ config SND_S3C24XX_SOC_SIMTEC_HERMES
 	select SND_SOC_TLV320AIC3X
 	select SND_S3C24XX_SOC_SIMTEC
 
+config SND_S3C24XX_SOC_RX1950_UDA1380
+	tristate "Audio support for the HP iPAQ RX1950"
+	depends on SND_S3C24XX_SOC && MACH_RX1950
+	select SND_S3C24XX_SOC_I2S
+	select SND_SOC_UDA1380
+	help
+	  This driver provides audio support for HP iPAQ RX1950 PDA.
+
 config SND_SOC_SMDK_WM9713
 	tristate "SoC AC97 Audio support for SMDK with WM9713"
 	depends on SND_S3C24XX_SOC && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110)
