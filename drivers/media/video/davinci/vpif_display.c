@@ -1611,7 +1611,7 @@ static int vpif_remove(struct platform_device *device)
 	return 0;
 }
 
-static struct platform_driver vpif_driver = {
+static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 			.name	= "vpif_display",
 			.owner	= THIS_MODULE,

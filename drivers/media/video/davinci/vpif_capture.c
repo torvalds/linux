@@ -2114,7 +2114,7 @@ static const struct dev_pm_ops vpif_dev_pm_ops = {
 	.resume = vpif_resume,
 };
 
-static struct platform_driver vpif_driver = {
+static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 		.name	= "vpif_capture",
 		.owner	= THIS_MODULE,
