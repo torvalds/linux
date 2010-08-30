@@ -1371,6 +1371,8 @@ static int r8711_wx_get_rate(struct net_device *dev,
 					    135) : ((short_GI) ? 72 : 65);
 			max_rate *= 2; /* Mbps/2 */
 			wrqu->bitrate.value = max_rate * 500000;
+		} else {
+			wrqu->bitrate.value = max_rate * 500000;
 		}
 	} else
 		return -1;
