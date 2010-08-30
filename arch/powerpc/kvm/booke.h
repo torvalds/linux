@@ -46,7 +46,9 @@
 #define BOOKE_IRQPRIO_FIT 17
 #define BOOKE_IRQPRIO_DECREMENTER 18
 #define BOOKE_IRQPRIO_PERFORMANCE_MONITOR 19
-#define BOOKE_IRQPRIO_MAX 19
+/* Internal pseudo-irqprio for level triggered externals */
+#define BOOKE_IRQPRIO_EXTERNAL_LEVEL 20
+#define BOOKE_IRQPRIO_MAX 20
 
 extern unsigned long kvmppc_booke_handlers;
 

@@ -131,13 +131,19 @@ void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu)
 void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                 struct kvm_interrupt *irq)
 {
-	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_EXTERNAL);
+	unsigned int prio = BOOKE_IRQPRIO_EXTERNAL;
+
+	if (irq->irq == KVM_INTERRUPT_SET_LEVEL)
+		prio = BOOKE_IRQPRIO_EXTERNAL_LEVEL;
+
+	kvmppc_booke_queue_irqprio(vcpu, prio);
 }
 
 void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
                                   struct kvm_interrupt *irq)
 {
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
+	clear_bit(BOOKE_IRQPRIO_EXTERNAL_LEVEL, &vcpu->arch.pending_exceptions);
 }
 
 /* Deliver the interrupt of the corresponding priority, if possible. */
@@ -150,6 +156,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	ulong crit_raw = vcpu->arch.shared->critical;
 	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
 	bool crit;
+	bool keep_irq = false;
 
 	/* Truncate crit indicators in 32 bit mode */
 	if (!(vcpu->arch.shared->msr & MSR_SF)) {
@@ -161,6 +168,11 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	crit = (crit_raw == crit_r1);
 	/* ... and we're in supervisor mode */
 	crit = crit && !(vcpu->arch.shared->msr & MSR_PR);
+
+	if (priority == BOOKE_IRQPRIO_EXTERNAL_LEVEL) {
+		priority = BOOKE_IRQPRIO_EXTERNAL;
+		keep_irq = true;
+	}
 
 	switch (priority) {
 	case BOOKE_IRQPRIO_DTLB_MISS:
@@ -214,7 +226,8 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			vcpu->arch.shared->dar = vcpu->arch.queued_dear;
 		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
 
-		clear_bit(priority, &vcpu->arch.pending_exceptions);
+		if (!keep_irq)
+			clear_bit(priority, &vcpu->arch.pending_exceptions);
 	}
 
 	return allowed;
