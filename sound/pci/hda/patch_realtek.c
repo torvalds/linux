@@ -1265,16 +1265,14 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 	int i;
 
 	/* there must be only two mic inputs exclusively */
-	for (i = AUTO_PIN_LINE; i < AUTO_PIN_LAST; i++)
-		if (cfg->input_pins[i])
+	for (i = 0; i < cfg->num_inputs; i++)
+		if (cfg->inputs[i].type >= AUTO_PIN_LINE)
 			return;
 
 	fixed = ext = 0;
-	for (i = AUTO_PIN_MIC; i <= AUTO_PIN_FRONT_MIC; i++) {
-		hda_nid_t nid = cfg->input_pins[i];
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		unsigned int defcfg;
-		if (!nid)
-			return;
 		defcfg = snd_hda_codec_get_pincfg(codec, nid);
 		switch (get_defcfg_connect(defcfg)) {
 		case AC_JACK_PORT_FIXED:
@@ -4719,7 +4717,7 @@ static struct snd_kcontrol_new alc880_control_templates[] = {
 
 /* add dynamic controls */
 static int add_control(struct alc_spec *spec, int type, const char *name,
-		       unsigned long val)
+		       int cidx, unsigned long val)
 {
 	struct snd_kcontrol_new *knew;
 
@@ -4731,6 +4729,7 @@ static int add_control(struct alc_spec *spec, int type, const char *name,
 	knew->name = kstrdup(name, GFP_KERNEL);
 	if (!knew->name)
 		return -ENOMEM;
+	knew->index = cidx;
 	if (get_amp_nid_(val))
 		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
@@ -4739,17 +4738,21 @@ static int add_control(struct alc_spec *spec, int type, const char *name,
 
 static int add_control_with_pfx(struct alc_spec *spec, int type,
 				const char *pfx, const char *dir,
-				const char *sfx, unsigned long val)
+				const char *sfx, int cidx, unsigned long val)
 {
 	char name[32];
 	snprintf(name, sizeof(name), "%s %s %s", pfx, dir, sfx);
-	return add_control(spec, type, name, val);
+	return add_control(spec, type, name, cidx, val);
 }
 
-#define add_pb_vol_ctrl(spec, type, pfx, val) \
-	add_control_with_pfx(spec, type, pfx, "Playback", "Volume", val)
-#define add_pb_sw_ctrl(spec, type, pfx, val) \
-	add_control_with_pfx(spec, type, pfx, "Playback", "Switch", val)
+#define add_pb_vol_ctrl(spec, type, pfx, val)			\
+	add_control_with_pfx(spec, type, pfx, "Playback", "Volume", 0, val)
+#define add_pb_sw_ctrl(spec, type, pfx, val)			\
+	add_control_with_pfx(spec, type, pfx, "Playback", "Switch", 0, val)
+#define __add_pb_vol_ctrl(spec, type, pfx, cidx, val)			\
+	add_control_with_pfx(spec, type, pfx, "Playback", "Volume", cidx, val)
+#define __add_pb_sw_ctrl(spec, type, pfx, cidx, val)			\
+	add_control_with_pfx(spec, type, pfx, "Playback", "Switch", cidx, val)
 
 #define alc880_is_fixed_pin(nid)	((nid) >= 0x14 && (nid) <= 0x17)
 #define alc880_fixed_pin_idx(nid)	((nid) - 0x14)
@@ -4902,16 +4905,16 @@ static int alc880_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 
 /* create input playback/capture controls for the given pin */
 static int new_analog_input(struct alc_spec *spec, hda_nid_t pin,
-			    const char *ctlname,
+			    const char *ctlname, int ctlidx,
 			    int idx, hda_nid_t mix_nid)
 {
 	int err;
 
-	err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname,
+	err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname, ctlidx,
 			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
 	if (err < 0)
 		return err;
-	err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname,
+	err = __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname, ctlidx,
 			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
 	if (err < 0)
 		return err;
@@ -4932,21 +4935,26 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx;
+	int i, err, idx, type, type_idx = 0;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
+	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t pin;
 
-		pin = cfg->input_pins[i];
+		pin = cfg->inputs[i].pin;
 		if (!alc_is_input_pin(codec, pin))
 			continue;
 
+		type = cfg->inputs[i].type;
+		if (i > 0 && type == cfg->inputs[i - 1].type)
+			type_idx++;
+		else
+			type_idx = 0;
 		if (mixer) {
 			idx = get_connection_index(codec, mixer, pin);
 			if (idx >= 0) {
 				err = new_analog_input(spec, pin,
-						       auto_pin_cfg_labels[i],
-						       idx, mixer);
+						       auto_pin_cfg_labels[type],
+						       type_idx, idx, mixer);
 				if (err < 0)
 					return err;
 			}
@@ -4959,7 +4967,7 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec,
 			idx = get_connection_index(codec, cap2, pin);
 		if (idx >= 0) {
 			imux->items[imux->num_items].label =
-				auto_pin_cfg_labels[i];
+				snd_hda_get_input_pin_label(cfg, i);
 			imux->items[imux->num_items].index = idx;
 			imux->num_items++;
 		}
@@ -5034,10 +5042,11 @@ static void alc880_auto_init_extra_out(struct hda_codec *codec)
 static void alc880_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		if (alc_is_input_pin(codec, nid)) {
 			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC880_PIN_CD_NID &&
@@ -5204,19 +5213,13 @@ static int init_capsrc_for_pin(struct hda_codec *codec, hda_nid_t pin)
 static void fixup_single_adc(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin = 0;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
 	/* search for the input pin; there must be only one */
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (spec->autocfg.input_pins[i]) {
-			pin = spec->autocfg.input_pins[i];
-			break;
-		}
-	}
-	if (!pin)
+	if (cfg->num_inputs != 1)
 		return;
-	i = init_capsrc_for_pin(codec, pin);
+	i = init_capsrc_for_pin(codec, cfg->inputs[0].pin);
 	if (i >= 0) {
 		/* use only this ADC */
 		if (spec->capsrc_nids)
@@ -5269,6 +5272,7 @@ static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
 				 int num_nids)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int n;
 	hda_nid_t fallback_adc = 0, fallback_cap = 0;
 
@@ -5294,10 +5298,8 @@ static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
 			fallback_adc = adc;
 			fallback_cap = cap;
 		}
-		for (i = 0; i < AUTO_PIN_LAST; i++) {
-			hda_nid_t nid = spec->autocfg.input_pins[i];
-			if (!nid)
-				continue;
+		for (i = 0; i < cfg->num_inputs; i++) {
+			hda_nid_t nid = cfg->inputs[i].pin;
 			for (j = 0; j < nconns; j++) {
 				if (conn[j] == nid)
 					break;
@@ -5305,7 +5307,7 @@ static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
 			if (j >= nconns)
 				break;
 		}
-		if (i >= AUTO_PIN_LAST) {
+		if (i >= cfg->num_inputs) {
 			int num_adcs = spec->num_adc_nids;
 			spec->private_adc_nids[num_adcs] = adc;
 			spec->private_capsrc_nids[num_adcs] = cap;
@@ -6672,10 +6674,11 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 static void alc260_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		if (nid >= 0x12) {
 			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC260_PIN_CD_NID &&
@@ -10538,12 +10541,11 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 static void alc882_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (!nid)
-			continue;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		alc_set_input_pin(codec, nid, i);
 		if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
 			snd_hda_codec_write(codec, nid, 0,
@@ -10606,24 +10608,23 @@ static void alc882_auto_init_input_src(struct hda_codec *codec)
 static int alc_auto_add_mic_boost(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int err;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i, err;
 	hda_nid_t nid;
 
-	nid = spec->autocfg.input_pins[AUTO_PIN_MIC];
-	if (nid && (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)) {
-		err = add_control(spec, ALC_CTL_WIDGET_VOL,
-				  "Mic Boost",
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (cfg->inputs[i].type > AUTO_PIN_FRONT_MIC)
+			break;
+		nid = cfg->inputs[i].pin;
+		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
+			char label[32];
+			snprintf(label, sizeof(label), "%s Boost",
+				 snd_hda_get_input_pin_label(cfg, i));
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, label, 0,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
-		if (err < 0)
-			return err;
-	}
-	nid = spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC];
-	if (nid && (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)) {
-		err = add_control(spec, ALC_CTL_WIDGET_VOL,
-				  "Front Mic Boost",
-				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
-		if (err < 0)
-			return err;
+			if (err < 0)
+				return err;
+		}
 	}
 	return 0;
 }
@@ -15577,10 +15578,11 @@ static void alc861_auto_init_hp_out(struct hda_codec *codec)
 static void alc861_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		if (nid >= 0x0c && nid <= 0x11)
 			alc_set_input_pin(codec, nid, i);
 	}
@@ -16569,10 +16571,11 @@ static void alc861vd_auto_init_hp_out(struct hda_codec *codec)
 static void alc861vd_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		if (alc_is_input_pin(codec, nid)) {
 			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC861VD_PIN_CD_NID &&
@@ -18805,10 +18808,11 @@ static void alc662_auto_init_hp_out(struct hda_codec *codec)
 static void alc662_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		if (alc_is_input_pin(codec, nid)) {
 			alc_set_input_pin(codec, nid, i);
 			if (nid != ALC662_PIN_CD_NID &&
@@ -19037,6 +19041,39 @@ static hda_nid_t alc680_adc_nids[3] = {
 /*
  * Analog capture ADC cgange
  */
+static void alc680_rec_autoswitch(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int pin_found = 0;
+	int type_found = AUTO_PIN_LAST;
+	hda_nid_t nid;
+	int i;
+
+	for (i = 0; i < cfg->num_inputs; i++) {
+		nid = cfg->inputs[i].pin;
+		if (!(snd_hda_query_pin_caps(codec, nid) &
+		      AC_PINCAP_PRES_DETECT))
+			continue;
+		if (snd_hda_jack_detect(codec, nid)) {
+			if (cfg->inputs[i].type < type_found) {
+				type_found = cfg->inputs[i].type;
+				pin_found = nid;
+			}
+		}
+	}
+
+	nid = 0x07;
+	if (pin_found)
+		snd_hda_get_connections(codec, pin_found, &nid, 1);
+
+	if (nid != spec->cur_adc)
+		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
+	spec->cur_adc = nid;
+	snd_hda_codec_setup_stream(codec, nid, spec->cur_adc_stream_tag, 0,
+				   spec->cur_adc_format);
+}
+
 static int alc680_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      unsigned int stream_tag,
@@ -19044,24 +19081,12 @@ static int alc680_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int pre_mic, pre_line;
 
-	pre_mic  = snd_hda_jack_detect(codec, cfg->input_pins[AUTO_PIN_MIC]);
-	pre_line = snd_hda_jack_detect(codec, cfg->input_pins[AUTO_PIN_LINE]);
-
+	spec->cur_adc = 0x07;
 	spec->cur_adc_stream_tag = stream_tag;
 	spec->cur_adc_format = format;
 
-	if (pre_mic || pre_line) {
-		if (pre_mic)
-			snd_hda_codec_setup_stream(codec, 0x08, stream_tag, 0,
-									format);
-		else
-			snd_hda_codec_setup_stream(codec, 0x09, stream_tag, 0,
-									format);
-	} else
-		snd_hda_codec_setup_stream(codec, 0x07, stream_tag, 0, format);
+	alc680_rec_autoswitch(codec);
 	return 0;
 }
 
@@ -19147,6 +19172,7 @@ static struct hda_verb alc680_init_verbs[] = {
 
 	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT   | AC_USRSP_EN},
 	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_MIC_EVENT  | AC_USRSP_EN},
+	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_MIC_EVENT  | AC_USRSP_EN},
 
 	{ }
 };
@@ -19159,25 +19185,11 @@ static void alc680_base_setup(struct hda_codec *codec)
 	spec->autocfg.hp_pins[0] = 0x16;
 	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->autocfg.speaker_pins[1] = 0x15;
-	spec->autocfg.input_pins[AUTO_PIN_MIC] = 0x18;
-	spec->autocfg.input_pins[AUTO_PIN_LINE] = 0x19;
-}
-
-static void alc680_rec_autoswitch(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int present;
-	hda_nid_t new_adc;
-
-	present = snd_hda_jack_detect(codec, cfg->input_pins[AUTO_PIN_MIC]);
-
-	new_adc = present ? 0x8 : 0x7;
-	__snd_hda_codec_cleanup_stream(codec, !present ? 0x8 : 0x7, 1);
-	snd_hda_codec_setup_stream(codec, new_adc,
-				   spec->cur_adc_stream_tag, 0,
-				   spec->cur_adc_format);
-
+	spec->autocfg.num_inputs = 2;
+	spec->autocfg.inputs[0].pin = 0x18;
+	spec->autocfg.inputs[0].type = AUTO_PIN_MIC;
+	spec->autocfg.inputs[1].pin = 0x19;
+	spec->autocfg.inputs[1].type = AUTO_PIN_LINE;
 }
 
 static void alc680_unsol_event(struct hda_codec *codec,
