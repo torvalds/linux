@@ -231,7 +231,7 @@ source "net/dns_resolver/Kconfig"
 source "net/batman-adv/Kconfig"
 
 config RPS
-	boolean
+	boolean "RPS"
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
