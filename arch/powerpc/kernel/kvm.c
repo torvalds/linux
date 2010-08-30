@@ -25,7 +25,6 @@
 #include <linux/of.h>
 
 #include <asm/reg.h>
-#include <asm/kvm_ppc.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/disassemble.h>

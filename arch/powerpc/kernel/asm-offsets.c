@@ -48,11 +48,11 @@
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/alpaca.h>
 #endif
-#ifdef CONFIG_KVM
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_GUEST)
 #include <linux/kvm_host.h>
-#ifndef CONFIG_BOOKE
-#include <asm/kvm_book3s.h>
 #endif
+#if defined(CONFIG_KVM) && defined(CONFIG_PPC_BOOK3S)
+#include <asm/kvm_book3s.h>
 #endif
 
 #ifdef CONFIG_PPC32
