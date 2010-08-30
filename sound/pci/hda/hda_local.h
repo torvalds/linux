@@ -391,6 +391,8 @@ struct auto_pin_cfg_item {
 };
 
 struct auto_pin_cfg;
+const char *snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
+					int input);
 
 struct auto_pin_cfg {
 	int line_outs;

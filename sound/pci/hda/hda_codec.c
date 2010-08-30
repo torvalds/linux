@@ -4654,11 +4654,34 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_parse_pin_def_config);
 
-/* labels for input pins */
+/* labels for input pins - for obsoleted config stuff */
 const char *auto_pin_cfg_labels[AUTO_PIN_LAST] = {
 	"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
 };
 EXPORT_SYMBOL_HDA(auto_pin_cfg_labels);
+
+static const char *input_labels[AUTO_PIN_LAST][4] = {
+	{ "Mic", "Mic 2", "Mic 3", "Mic 4" },
+	{ "Front Mic", "Front Mic 2", "Front Mic 3", "Front Mic 4" },
+	{ "Line", "Line 2", "Line 3", "Line 4" },
+	{ "Front Line", "Front Line 2", "Front Line 3", "Front Line 4" },
+	{ "CD", "CD 2", "CD 3", "CD 4" },
+	{ "Aux", "Aux 2", "Aux 3", "Aux 4" },
+};
+
+const char *snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
+					int input)
+{
+	int type = cfg->inputs[input].type;
+	int idx;
+
+	for  (idx = 0; idx < 3 && --input >= 0; idx++) {
+		if (type != cfg->inputs[input].type)
+			break;
+	}
+	return input_labels[type][idx];
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_input_pin_label);
 
 
 #ifdef CONFIG_PM
