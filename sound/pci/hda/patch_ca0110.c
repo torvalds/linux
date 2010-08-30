@@ -468,13 +468,14 @@ static void parse_input(struct hda_codec *codec)
 			spec->dig_in = nid;
 			continue;
 		}
-		for (j = 0; j < AUTO_PIN_LAST; j++)
-			if (cfg->input_pins[j] == pin)
+		for (j = 0; j < cfg->num_inputs; j++)
+			if (cfg->inputs[j].pin == pin)
 				break;
-		if (j >= AUTO_PIN_LAST)
+		if (j >= cfg->num_inputs)
 			continue;
 		spec->input_pins[n] = pin;
-		spec->input_labels[n] = auto_pin_cfg_labels[j];
+		spec->input_labels[n] =
+			auto_pin_cfg_labels[cfg->inputs[j].type];
 		spec->adcs[n] = nid;
 		n++;
 	}
