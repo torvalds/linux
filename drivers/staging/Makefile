@@ -20,7 +20,6 @@ obj-$(CONFIG_COMEDI)		+= comedi/
 obj-$(CONFIG_ASUS_OLED)		+= asus_oled/
 obj-$(CONFIG_PANEL)		+= panel/
 obj-$(CONFIG_R8187SE)		+= rtl8187se/
-obj-$(CONFIG_RTL8192SU)		+= rtl8192su/
 obj-$(CONFIG_RTL8192U)		+= rtl8192u/
 obj-$(CONFIG_RTL8192E)		+= rtl8192e/
 obj-$(CONFIG_R8712U)		+= rtl8712/
