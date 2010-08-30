@@ -793,7 +793,7 @@ static int vpif_open(struct file *filep)
 	}
 
 	/* Allocate memory for the file handle object */
-	fh = kmalloc(sizeof(struct vpif_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(struct vpif_fh), GFP_KERNEL);
 	if (NULL == fh) {
 		vpif_err("unable to allocate memory for file handle object\n");
 		ret = -ENOMEM;
@@ -1995,7 +1995,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	config = pdev->dev.platform_data;
 
 	subdev_count = config->subdev_count;
-	vpif_obj.sd = kmalloc(sizeof(struct v4l2_subdev *) * subdev_count,
+	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 				GFP_KERNEL);
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");

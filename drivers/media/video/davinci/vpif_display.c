@@ -600,7 +600,7 @@ static int vpif_open(struct file *filep)
 
 	ch = video_get_drvdata(vdev);
 	/* Allocate memory for the file handle object */
-	fh = kmalloc(sizeof(struct vpif_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(struct vpif_fh), GFP_KERNEL);
 	if (fh == NULL) {
 		vpif_err("unable to allocate memory for file handle object\n");
 		return -ENOMEM;
@@ -1396,7 +1396,7 @@ static int initialize_vpif(void)
 	/* Allocate memory for six channel objects */
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
 		vpif_obj.dev[i] =
-		    kmalloc(sizeof(struct channel_obj), GFP_KERNEL);
+		    kzalloc(sizeof(struct channel_obj), GFP_KERNEL);
 		/* If memory allocation fails, return error */
 		if (!vpif_obj.dev[i]) {
 			free_channel_objects_index = i;
@@ -1542,7 +1542,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	config = pdev->dev.platform_data;
 	subdev_count = config->subdev_count;
 	subdevdata = config->subdevinfo;
-	vpif_obj.sd = kmalloc(sizeof(struct v4l2_subdev *) * subdev_count,
+	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 								GFP_KERNEL);
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
