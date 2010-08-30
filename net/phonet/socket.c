@@ -281,7 +281,9 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
 		return POLLHUP;
 
-	if (sk->sk_state == TCP_ESTABLISHED && atomic_read(&pn->tx_credits))
+	if (sk->sk_state == TCP_ESTABLISHED &&
+		atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
+		atomic_read(&pn->tx_credits))
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 
 	return mask;
