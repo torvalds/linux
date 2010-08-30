@@ -904,7 +904,7 @@ static struct platform_device kirkwood_i2s_device = {
 };
 
 static struct platform_device kirkwood_pcm_device = {
-	.name		= "kirkwood-pcm",
+	.name		= "kirkwood-pcm-audio",
 	.id		= -1,
 };
 

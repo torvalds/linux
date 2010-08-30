@@ -66,7 +66,7 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 	.stream_name = "CS42L51 HiFi",
 	.cpu_dai_name = "kirkwood-i2s",
 	.platform_name = "kirkwood-pcm-audio",
-	.codec_dai_name = "cs42l51_hifi",
+	.codec_dai_name = "cs42l51-hifi",
 	.codec_name = "cs42l51-codec.0-004a",
 	.ops = &openrd_client_ops,
 },
