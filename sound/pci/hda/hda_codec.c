@@ -4372,6 +4372,17 @@ static void sort_pins_by_sequence(hda_nid_t *pins, short *sequences,
 }
 
 
+/* add the found input-pin to the cfg->inputs[] table */
+static void add_auto_cfg_input_pin(struct auto_pin_cfg *cfg, hda_nid_t nid,
+				   int type)
+{
+	if (cfg->num_inputs < AUTO_CFG_MAX_INS) {
+		cfg->inputs[cfg->num_inputs].pin = nid;
+		cfg->inputs[cfg->num_inputs].type = type;
+		cfg->num_inputs++;
+	}
+}
+
 /*
  * Parse all pin widgets and store the useful pin nids to cfg
  *
@@ -4398,6 +4409,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	short sequences_line_out[ARRAY_SIZE(cfg->line_out_pins)];
 	short sequences_speaker[ARRAY_SIZE(cfg->speaker_pins)];
 	short sequences_hp[ARRAY_SIZE(cfg->hp_pins)];
+	int i;
 
 	memset(cfg, 0, sizeof(*cfg));
 
@@ -4482,19 +4494,26 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 				cfg->input_pins[preferred] = nid;
 			else if (!cfg->input_pins[alt])
 				cfg->input_pins[alt] = nid;
+			add_auto_cfg_input_pin(cfg, nid, preferred);
 			break;
 		}
-		case AC_JACK_LINE_IN:
+		case AC_JACK_LINE_IN: {
+			int type;
 			if (loc == AC_JACK_LOC_FRONT)
-				cfg->input_pins[AUTO_PIN_FRONT_LINE] = nid;
+				type = AUTO_PIN_FRONT_LINE;
 			else
-				cfg->input_pins[AUTO_PIN_LINE] = nid;
+				type = AUTO_PIN_LINE;
+			cfg->input_pins[type] = nid;
+			add_auto_cfg_input_pin(cfg, nid, type);
 			break;
+		}
 		case AC_JACK_CD:
 			cfg->input_pins[AUTO_PIN_CD] = nid;
+			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_CD);
 			break;
 		case AC_JACK_AUX:
 			cfg->input_pins[AUTO_PIN_AUX] = nid;
+			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_AUX);
 			break;
 		case AC_JACK_SPDIF_OUT:
 		case AC_JACK_DIG_OTHER_OUT:
@@ -4621,14 +4640,13 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	if (cfg->dig_outs)
 		snd_printd("   dig-out=0x%x/0x%x\n",
 			   cfg->dig_out_pins[0], cfg->dig_out_pins[1]);
-	snd_printd("   inputs: mic=0x%x, fmic=0x%x, line=0x%x, fline=0x%x,"
-		   " cd=0x%x, aux=0x%x\n",
-		   cfg->input_pins[AUTO_PIN_MIC],
-		   cfg->input_pins[AUTO_PIN_FRONT_MIC],
-		   cfg->input_pins[AUTO_PIN_LINE],
-		   cfg->input_pins[AUTO_PIN_FRONT_LINE],
-		   cfg->input_pins[AUTO_PIN_CD],
-		   cfg->input_pins[AUTO_PIN_AUX]);
+	snd_printd("   inputs:");
+	for (i = 0; i < cfg->num_inputs; i++) {
+		snd_printdd(" %s=0x%x",
+			    auto_pin_cfg_labels[cfg->inputs[i].type],
+			    cfg->inputs[i].pin);
+	}
+	snd_printd("\n");
 	if (cfg->dig_in_pin)
 		snd_printd("   dig-in=0x%x\n", cfg->dig_in_pin);
 

@@ -383,6 +383,14 @@ enum {
 extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
 
 #define AUTO_CFG_MAX_OUTS	5
+#define AUTO_CFG_MAX_INS	8
+
+struct auto_pin_cfg_item {
+	hda_nid_t pin;
+	int type;
+};
+
+struct auto_pin_cfg;
 
 struct auto_pin_cfg {
 	int line_outs;
@@ -393,7 +401,9 @@ struct auto_pin_cfg {
 	int hp_outs;
 	int line_out_type;	/* AUTO_PIN_XXX_OUT */
 	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
-	hda_nid_t input_pins[AUTO_PIN_LAST];
+	hda_nid_t input_pins[AUTO_PIN_LAST]; /* old config; to be deprecated */
+	int num_inputs;
+	struct auto_pin_cfg_item inputs[AUTO_CFG_MAX_INS];
 	int dig_outs;
 	hda_nid_t dig_out_pins[2];
 	hda_nid_t dig_in_pin;
