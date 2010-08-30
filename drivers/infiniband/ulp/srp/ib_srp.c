@@ -1151,7 +1151,7 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 	ib_dma_sync_single_for_cpu(dev, iu->dma, srp_max_iu_len,
 				   DMA_TO_DEVICE);
 
-	req = list_entry(target->free_reqs.next, struct srp_request, list);
+	req = list_first_entry(&target->free_reqs, struct srp_request, list);
 
 	scmnd->scsi_done     = done;
 	scmnd->result        = 0;
