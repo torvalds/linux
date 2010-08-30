@@ -30,7 +30,7 @@
  * action is required.
  */
  
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
