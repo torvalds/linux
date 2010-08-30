@@ -744,7 +744,7 @@ static void __net_init ipip_fb_tunnel_init(struct net_device *dev)
 	ipn->tunnels_wc[0]	= tunnel;
 }
 
-static struct xfrm_tunnel ipip_handler = {
+static struct xfrm_tunnel ipip_handler __read_mostly = {
 	.handler	=	ipip_rcv,
 	.err_handler	=	ipip_err,
 	.priority	=	1,

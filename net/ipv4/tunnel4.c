@@ -14,8 +14,8 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm_tunnel *tunnel4_handlers;
-static struct xfrm_tunnel *tunnel64_handlers;
+static struct xfrm_tunnel *tunnel4_handlers __read_mostly;
+static struct xfrm_tunnel *tunnel64_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel4_mutex);
 
 static inline struct xfrm_tunnel **fam_handlers(unsigned short family)

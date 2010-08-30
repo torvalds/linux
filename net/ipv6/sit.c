@@ -1132,7 +1132,7 @@ static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	sitn->tunnels_wc[0]	= tunnel;
 }
 
-static struct xfrm_tunnel sit_handler = {
+static struct xfrm_tunnel sit_handler __read_mostly = {
 	.handler	=	ipip6_rcv,
 	.err_handler	=	ipip6_err,
 	.priority	=	1,
