@@ -208,8 +208,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -227,7 +226,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Schedule the delayed work for reading the TX status
 	 * from the device.
 	 */
-	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 }
 
 static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
@@ -279,6 +280,14 @@ static void rt2x00usb_kill_tx_entry(struct queue_entry *entry)
 	if ((entry->queue->qid == QID_BEACON) &&
 	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
 		usb_kill_urb(bcn_priv->guardian_urb);
+
+	/*
+	 * We need a short delay here to wait for
+	 * the URB to be canceled
+	 */
+	do {
+		udelay(100);
+	} while (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags));
 }
 
 void rt2x00usb_kill_tx_queue(struct data_queue *queue)
@@ -290,8 +299,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
 
 static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 {
-	struct queue_entry *entry;
-	struct queue_entry_priv_usb *entry_priv;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	unsigned short threshold = queue->threshold;
 
 	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
@@ -305,28 +313,33 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	 * queue from being enabled during the txdone handler.
 	 */
 	queue->threshold = queue->limit;
-	ieee80211_stop_queue(queue->rt2x00dev->hw, queue->qid);
+	ieee80211_stop_queue(rt2x00dev->hw, queue->qid);
 
 	/*
-	 * Reset all currently uploaded TX frames.
+	 * Kill all entries in the queue, afterwards we need to
+	 * wait a bit for all URBs to be cancelled.
 	 */
-	while (!rt2x00queue_empty(queue)) {
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		entry_priv = entry->priv_data;
-		usb_kill_urb(entry_priv->urb);
+	rt2x00usb_kill_tx_queue(queue);
 
-		/*
-		 * We need a short delay here to wait for
-		 * the URB to be canceled
-		 */
-		do {
-			udelay(100);
-		} while (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags));
+	/*
+	 * In case that a driver has overriden the txdone_work
+	 * function, we invoke the TX done through there.
+	 */
+	rt2x00dev->txdone_work.func(&rt2x00dev->txdone_work);
 
-		/*
-		 * Invoke the TX done handler
-		 */
-		rt2x00usb_work_txdone_entry(entry);
+	/*
+	 * Security measure: if the driver did override the
+	 * txdone_work function, and the hardware did arrive
+	 * in a state which causes it to malfunction, it is
+	 * possible that the driver couldn't handle the txdone
+	 * event correctly. So after giving the driver the
+	 * chance to cleanup, we now force a cleanup of any
+	 * leftovers.
+	 */
+	if (!rt2x00queue_empty(queue)) {
+		WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
+			" status handling failed, invoke hard reset", queue->qid);
+		rt2x00usb_work_txdone(&rt2x00dev->txdone_work);
 	}
 
 	/*
@@ -334,7 +347,7 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	 * queue again.
 	 */
 	queue->threshold = threshold;
-	ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
+	ieee80211_wake_queue(rt2x00dev->hw, queue->qid);
 }
 
 static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
@@ -394,8 +407,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -415,7 +427,9 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Schedule the delayed work for reading the RX status
 	 * from the device.
 	 */
-	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
 }
 
 /*
