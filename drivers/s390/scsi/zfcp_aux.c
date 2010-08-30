@@ -73,13 +73,14 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	if (!port)
 		goto out_port;
 
+	flush_work(&port->rport_work);
 	unit = zfcp_unit_enqueue(port, lun);
 	if (IS_ERR(unit))
 		goto out_unit;
 
 	zfcp_erp_unit_reopen(unit, 0, "auidc_1", NULL);
 	zfcp_erp_wait(adapter);
-	flush_work(&unit->scsi_work);
+	zfcp_scsi_scan(unit);
 
 out_unit:
 	put_device(&port->dev);
