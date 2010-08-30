@@ -876,7 +876,7 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 	skb = sock_alloc_send_skb(sk, MAX_PNPIPE_HEADER + len,
 					flags & MSG_DONTWAIT, &err);
 	if (!skb)
-		return -ENOBUFS;
+		return err;
 
 	skb_reserve(skb, MAX_PHONET_HEADER + 3);
 	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
