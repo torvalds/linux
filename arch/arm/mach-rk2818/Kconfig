@@ -50,4 +50,8 @@ config RK28_USB_WAKE
 	  Select this option if you want to have your system wake up
 	  from USB.
 
+config WIFI_CONTROL_FUNC
+        bool "Enable WiFi control function abstraction"
+        help
+          Enables Power/Reset/Carddetect function abstraction
 endif

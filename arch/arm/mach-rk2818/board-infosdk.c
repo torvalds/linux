@@ -160,6 +160,7 @@ static struct map_desc rk2818_io_desc[] __initdata = {
  * SDMMC devices
  *author: kfx
 *****************************************************************************************/
+
 static int rk2818_sdmmc0_io_init(void)
 {
 	rk2818_mux_api_set(GPIOF3_APWM1_MMC0DETN_NAME, IOMUXA_SDMMC1_DETECT_N);
@@ -191,6 +192,9 @@ struct rk2818_sdmmc_platform_data default_sdmmc0_data = {
 	.use_dma = 0,
 #endif
 };
+
+static int info_wifi_status(struct device *dev);
+static int info_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
 struct rk2818_sdmmc_platform_data default_sdmmc1_data = {
 	.host_ocr_avail = (MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
 					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
@@ -205,7 +209,73 @@ struct rk2818_sdmmc_platform_data default_sdmmc1_data = {
 #else
 	.use_dma = 0,
 #endif
+	.status = info_wifi_status,
+        .register_status_notify = info_wifi_status_register,
 };
+
+static int info_wifi_cd;   /* wifi virtual 'card detect' status */
+static void (*wifi_status_cb)(int card_present, void *dev_id);
+static void *wifi_status_cb_devid;
+
+static int info_wifi_status(struct device *dev)
+{
+	return info_wifi_cd;
+}
+
+static int info_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id) 
+{
+	if(wifi_status_cb)
+ 		return -EAGAIN;
+        wifi_status_cb = callback;
+        wifi_status_cb_devid = dev_id;
+ 	return 0;
+}
+
+static int info_wifi_power_state;
+static int info_wifi_power(int on)
+{
+	pr_info("%s: %d\n", __func__, on);
+	gpio_set_value(TCA6424_P25, on);
+	mdelay(100);
+	info_wifi_power_state = on;
+        return 0;
+}
+
+static int info_wifi_reset_state;
+static int info_wifi_reset(int on)
+{
+	pr_info("%s: %d\n", __func__, on);
+	gpio_set_value(TCA6424_P27, on);
+	mdelay(100);
+	info_wifi_reset_state = on;
+	return 0;
+}
+
+static int info_wifi_set_carddetect(int val)
+{
+	pr_info("%s:%d\n", __func__, val);	
+	info_wifi_cd = val;
+	if (wifi_status_cb){
+		wifi_status_cb(val, wifi_status_cb_devid); 
+	}else {
+		pr_warning("%s, nobody to notify\n", __func__);	
+	}
+	return 0;
+}
+
+static struct wifi_platform_data info_wifi_control = {
+	.set_power = info_wifi_power,
+        .set_reset = info_wifi_reset,
+        .set_carddetect = info_wifi_set_carddetect,
+};
+static struct platform_device info_wifi_device = {
+	.name = "bcm4329_wlan",
+        .id = 1,
+	.dev = {
+		.platform_data = &info_wifi_control,
+         },
+};
+
 
 /*****************************************************************************************
  * extern gpio devices
@@ -317,23 +387,13 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
          {
                 .gpio_num               = TCA6424_P25,  //wifi reg on
                 .pin_type               = GPIO_OUT,
-                .pin_value              = GPIO_HIGH,
+                .pin_value              = GPIO_LOW,
 	},
 	{
                 .gpio_num               = TCA6424_P27,  //wifi reset
                 .pin_type               = GPIO_OUT,
-                .pin_value              = GPIO_HIGH,
+                .pin_value              = GPIO_LOW,
 	},
-{
-                .gpio_num               = TCA6424_P25,  //wifi reg on
-                .pin_type               = GPIO_OUT,
-                .pin_value              = GPIO_HIGH,
-        },
-        {
-                .gpio_num               = TCA6424_P27,  //wifi reset
-                .pin_type               = GPIO_OUT,
-                .pin_value              = GPIO_HIGH,
-        },
 };
 
 void tca6424_reset_itr(void)
@@ -1341,6 +1401,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_SDMMC1_RK2818
 	&rk2818_device_sdmmc1,
+	&info_wifi_device,
 #endif
 	&rk2818_device_spim,
 	&rk2818_device_i2s,

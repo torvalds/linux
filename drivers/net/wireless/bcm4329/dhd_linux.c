@@ -25,6 +25,7 @@
  * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.89 2010/07/21 18:07:11 Exp $
  */
 
+
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #include <linux/platform_device.h>
 #endif
@@ -58,17 +59,16 @@
 #include <dhd_proto.h>
 #include <dhd_dbg.h>
 
-
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
-#include <linux/wifi_tiwlan.h>
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
+#include <mach/board.h>
 
 struct semaphore wifi_control_sem;
 
 struct dhd_bus *g_bus;
 
 static struct wifi_platform_data *wifi_control_data = NULL;
-static struct resource *wifi_irqres = NULL;
-
+//static struct resource *wifi_irqres = NULL;
+#if 0
 int wifi_get_irq_number(unsigned long *irq_flags_ptr)
 {
 	if (wifi_irqres) {
@@ -81,6 +81,7 @@ int wifi_get_irq_number(unsigned long *irq_flags_ptr)
 	return -1;
 #endif
 }
+#endif
 
 int wifi_set_carddetect(int on)
 {
@@ -118,10 +119,11 @@ static int wifi_probe(struct platform_device *pdev)
 		(struct wifi_platform_data *)(pdev->dev.platform_data);
 
 	printk("## %s\n", __FUNCTION__);
-	wifi_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcm4329_wlan_irq");
+//	wifi_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcm4329_wlan_irq");
 	wifi_control_data = wifi_ctrl;
 
 	wifi_set_power(1, 0);	/* Power On */
+        wifi_set_reset(1, 0); 
 	wifi_set_carddetect(1);	/* CardDetect (0->1) */
 
 	up(&wifi_control_sem);
@@ -135,9 +137,10 @@ static int wifi_remove(struct platform_device *pdev)
 
 	printk("## %s\n", __FUNCTION__);
 	wifi_control_data = wifi_ctrl;
-
+	
+	wifi_set_power(0, 0);
+        wifi_set_reset(0, 0);
 	wifi_set_carddetect(0);	/* CardDetect (1->0) */
-	wifi_set_power(0, 0);	/* Power Off */
 
 	up(&wifi_control_sem);
 	return 0;
@@ -174,7 +177,7 @@ void wifi_del_dev(void)
 	DHD_TRACE(("## Unregister platform_driver_register\n"));
 	platform_driver_unregister(&wifi_device);
 }
-#endif /* defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC) */
+#endif /* defined(CONFIG_WIFI_CONTROL_FUNC) */
 
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
@@ -2012,7 +2015,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	 */
 	memcpy(netdev_priv(net), &dhd, sizeof(dhd));
 
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 	g_bus = bus;
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) && 1
@@ -2390,7 +2393,7 @@ dhd_module_cleanup(void)
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	dhd_bus_unregister();
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 	wifi_del_dev();
 #endif
 	/* Call customer gpio to turn off power with WL_REG_ON signal */
@@ -2421,7 +2424,7 @@ dhd_module_init(void)
 	/* Call customer gpio to turn on power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_ON);
 
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 	sema_init(&wifi_control_sem, 0);
 
 	error = wifi_add_dev();

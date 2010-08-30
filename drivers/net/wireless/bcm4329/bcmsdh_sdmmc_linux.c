@@ -52,17 +52,8 @@
 
 #include <dhd_dbg.h>
 
-#include "wifi_power.h"
-
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
-
-extern struct mmc_host *wifi_mmc_host;
-extern void mmc_detect_change(struct mmc_host *host, unsigned long delay);
-extern int wifi_turn_on_card(void);
-extern int wifi_turn_off_card(void);
-extern int wifi_power_up_wifi(void);
-extern int wifi_power_down_wifi(void);
 
 int sdio_function_init(void);
 void sdio_function_cleanup(void);
@@ -241,7 +232,7 @@ MODULE_AUTHOR(AUTHOR);
 */
 int sdio_function_init(void)
 {
-	int error = 0, timeout;
+	int error = 0;
 	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
 
 	gInstance = kzalloc(sizeof(BCMSDH_SDMMC_INSTANCE), GFP_KERNEL);
@@ -250,33 +241,6 @@ int sdio_function_init(void)
 
 	bzero(&sdmmc_dev, sizeof(sdmmc_dev));
 	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
-
-#ifdef WIFI_GPIO_POWER_CONTROL
-        
-       if (wifi_mmc_host->bus_ops != NULL)
-	{
-           printk(KERN_INFO "SDIO card maybe be attached already\n"); 
-           return 0;
-	}
-        
-        wifi_turn_on_card();
-        wifi_power_up_wifi();
-
-        mmc_detect_change(wifi_mmc_host, 5);
-
-        timeout = 100;
-
-        do{
-                if (gInstance->func[0] != NULL)
-                        break;
-                msleep(20);
-                }while(--timeout);
-
-         if (timeout <= 0){
-                printk(KERN_INFO "no wifi card is found\n");
-                error = 0;
-                }
-#endif
 
 	return error;
 }

@@ -19,7 +19,7 @@ shared-objs := aiutils.o bcmutils.o bcmwifi.o hndpmu.o \
 
 wl-objs := wl_iw.o
 
-bcm4329-objs := $(bcmsdio-objs) $(dhd-objs) $(shared-objs) $(wl-objs) wifi_power.o 
+bcm4329-objs := $(bcmsdio-objs) $(dhd-objs) $(shared-objs) $(wl-objs) 
 
 obj-$(CONFIG_BCM4329) += bcm4329.o
 

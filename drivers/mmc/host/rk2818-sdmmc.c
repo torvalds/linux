@@ -119,6 +119,7 @@ struct rk2818_sdmmc_host {
 	struct mmc_command stop_mannual;
 
 	struct timer_list	detect_timer;
+	unsigned int oldstatus;     /* save old status */
 };
 
 #define MMC_DEBUG 0
@@ -1717,6 +1718,40 @@ static int rk28_sdmmc0_add_attr( struct platform_device *pdev )
         return result;
 }
 
+static void rk2818_sdmmc_check_status(unsigned long data)
+{
+	struct rk2818_sdmmc_host *host = (struct rk2818_sdmmc_host *)data;
+        struct rk2818_sdmmc_platform_data *pdata = host->pdev->dev.platform_data;
+	unsigned int status;
+
+ 	if (!pdata->status)
+	{
+		mmc_detect_change(host->mmc, 0);	
+		return;
+	}
+	
+	status = pdata->status(mmc_dev(host->mmc));
+
+	if (status ^ host->oldstatus)
+	{
+		pr_info("%s: slot status change detected(%d-%d)\n",mmc_hostname(host->mmc), host->oldstatus, status);
+		if (status)
+			mmc_detect_change(host->mmc,  100);
+		else
+			mmc_detect_change(host->mmc, 0);
+	}
+	
+	host->oldstatus = status;
+	
+}	
+
+static void rk2818_sdmmc_status_notify_cb(int card_present, void *dev_id)
+{
+	struct rk2818_sdmmc_host *host = dev_id;
+        printk(KERN_INFO "%s, card_present %d\n", mmc_hostname(host->mmc), card_present);
+	rk2818_sdmmc_check_status((unsigned long)host);
+}
+
 /*-------------------end of add communication interface with applications ---------------------------------*/
 
 static int rk2818_sdmmc_probe(struct platform_device *pdev)
@@ -1782,6 +1817,11 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 		goto err_free_map;
 	}
 
+	/* setup wifi card detect change */	
+	if (pdata->register_status_notify)
+	{
+		pdata->register_status_notify(rk2818_sdmmc_status_notify_cb, host);
+	}
 
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);

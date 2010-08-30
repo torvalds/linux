@@ -41,6 +41,24 @@ struct rk2818_sdmmc_platform_data {
 	char dma_name[8];
 	int (*io_init)(void);
 	int (*io_deinit)(void);
+	int (*status)(struct device *);
+	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
+};
+
+struct wifi_platform_data {
+        int (*set_power)(int val);
+        int (*set_reset)(int val);
+        int (*set_carddetect)(int val);
+        void *(*mem_prealloc)(int section, unsigned long size);
+};
+
+struct wifi_power_gpio_control_data {
+        unsigned int use_gpio;                    /* If uses GPIO to control wifi power supply. 0 - no, 1 - yes. */
+        unsigned int gpio_iomux;                  /* If the GPIO is iomux. 0 - no, 1 - yes. */
+        char *iomux_name;                         /* IOMUX name */
+        unsigned int   iomux_value;               /* IOMUX value - which function is choosen. */
+        unsigned int   gpio_id;                   /* GPIO number */
+        unsigned int   sensi_level;               /* GPIO sensitive level. */
 };
 
 struct rk2818_i2c_spi_data {
