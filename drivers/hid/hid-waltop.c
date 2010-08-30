@@ -221,9 +221,10 @@ static __u8 slim_tablet_5_8_inch_rdesc_fixed[] = {
  * wheels' function button in the newer version.
  *
  * The wheel functions are:
- * scroll   - the wheels act as scroll wheels, the center buttons do nothing.
- * zoom     - the wheels zoom in/out, the buttons supposedly reset to 100%.
- * volume   - the wheels control the sound volume, the buttons mute.
+ * scroll   - the wheels act as scroll wheels, the center buttons switch
+ *            between vertical and horizontal scrolling;
+ * zoom     - the wheels zoom in/out, the buttons supposedly reset to 100%;
+ * volume   - the wheels control the sound volume, the buttons mute;
  * brush    - the wheels are supposed to control brush width in a graphics
  *            editor, the buttons do nothing.
  *
@@ -460,16 +461,17 @@ static __u8 media_tablet_10_6_inch_rdesc_fixed[] = {
 	0x85, 0x01,         /*      Report ID (1),                  */
 	0x09, 0x01,         /*      Usage (Pointer),                */
 	0xA0,               /*      Collection (Physical),          */
-	0x95, 0x01,         /*          Report Count (1),           */
-	0x75, 0x18,         /*          Report Size (24),           */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x03,         /*          Report Count (3),           */
 	0x81, 0x03,         /*          Input (Constant, Variable), */
-	0x05, 0x01,         /*          Usage Page (Desktop),       */
-	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x95, 0x02,         /*          Report Count (2),           */
 	0x15, 0xFF,         /*          Logical Minimum (-1),       */
 	0x25, 0x01,         /*          Logical Maximum (1),        */
-	0x75, 0x08,         /*          Report Size (8),            */
+	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x0B, 0x38, 0x02,   /*          Usage (Consumer AC Pan),    */
+		0x0C, 0x00,
 	0x81, 0x06,         /*          Input (Variable, Relative), */
-	0x75, 0x18,         /*          Report Size (24),           */
+	0x95, 0x02,         /*          Report Count (2),           */
 	0x81, 0x03,         /*          Input (Constant, Variable), */
 	0xC0,               /*      End Collection,                 */
 	0xC0,               /*  End Collection,                     */
