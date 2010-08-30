@@ -87,7 +87,7 @@ static struct resource stingray_wifi_resources[] = {
 		.name		= "bcm4329_wlan_irq",
 		.start		= TEGRA_GPIO_TO_IRQ(STINGRAY_WLAN_IRQ),
 		.end		= TEGRA_GPIO_TO_IRQ(STINGRAY_WLAN_IRQ),
-		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
 	},
 };
 
