@@ -375,6 +375,14 @@ config SENSORS_MAX9635
 	 Say yes here if you wish to include the Maxim
 	 MAX9635 ambient light sensor driver.
 
+config SENSORS_MOTO_BMP085
+	tristate "BMP085 Barometer (moto driver)"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Bosch
+	 BMP085 barometer driver.
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
