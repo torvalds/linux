@@ -351,6 +351,8 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	int cpu, ret = 0;
 
+	memset(&perf_events, 0, sizeof(perf_events));
+
 	perf_num_counters = armpmu_get_max_events();
 
 	counter_config = kcalloc(perf_num_counters,
