@@ -444,8 +444,8 @@ static hda_nid_t vt1812_adc_nids[2] = {
 
 
 /* add dynamic controls */
-static int via_add_control(struct via_spec *spec, int type, const char *name,
-			   unsigned long val)
+static int __via_add_control(struct via_spec *spec, int type, const char *name,
+			     int idx, unsigned long val)
 {
 	struct snd_kcontrol_new *knew;
 
@@ -462,6 +462,9 @@ static int via_add_control(struct via_spec *spec, int type, const char *name,
 	knew->private_value = val;
 	return 0;
 }
+
+#define via_add_control(spec, type, name, val) \
+	__via_add_control(spec, type, name, 0, val)
 
 static struct snd_kcontrol_new *via_clone_control(struct via_spec *spec,
 						struct snd_kcontrol_new *tmpl)
@@ -494,18 +497,18 @@ static void via_free_kctls(struct hda_codec *codec)
 
 /* create input playback/capture controls for the given pin */
 static int via_new_analog_input(struct via_spec *spec, const char *ctlname,
-				int idx, int mix_nid)
+				int type_idx, int idx, int mix_nid)
 {
 	char name[32];
 	int err;
 
 	sprintf(name, "%s Playback Volume", ctlname);
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+	err = __via_add_control(spec, VIA_CTL_WIDGET_VOL, name, type_idx,
 			      HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
 	if (err < 0)
 		return err;
 	sprintf(name, "%s Playback Switch", ctlname);
-	err = via_add_control(spec, VIA_CTL_WIDGET_ANALOG_MUTE, name,
+	err = __via_add_control(spec, VIA_CTL_WIDGET_ANALOG_MUTE, name, type_idx,
 			      HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
 	if (err < 0)
 		return err;
@@ -557,14 +560,12 @@ static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin);
 static void via_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	unsigned int ctl;
 	int i;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (!nid)
-			continue;
-
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(spec, nid))
 			ctl = PIN_OUT;
 		else if (i <= AUTO_PIN_FRONT_MIC)
@@ -1322,15 +1323,14 @@ static void mute_aa_path(struct hda_codec *codec, int mute)
 }
 static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin)
 {
-	int res = 0;
-	int index;
-	for (index = AUTO_PIN_MIC; index < AUTO_PIN_FRONT_LINE; index++) {
-		if (pin == spec->autocfg.input_pins[index]) {
-			res = 1;
-			break;
-		}
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (pin == cfg->inputs[i].pin)
+			return cfg->inputs[i].type < AUTO_PIN_FRONT_LINE;
 	}
-	return res;
+	return 0;
 }
 
 static int via_smart51_info(struct snd_kcontrol *kcontrol,
@@ -1348,25 +1348,21 @@ static int via_smart51_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
-	int index[] = { AUTO_PIN_MIC, AUTO_PIN_FRONT_MIC, AUTO_PIN_LINE };
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int on = 1;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(index); i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[index[i]];
-		if (nid) {
-			int ctl =
-			    snd_hda_codec_read(codec, nid, 0,
-					       AC_VERB_GET_PIN_WIDGET_CONTROL,
-					       0);
-			if (i == AUTO_PIN_FRONT_MIC
-			    && spec->hp_independent_mode
-			    && spec->codec_type != VT1718S)
-				continue; /* ignore FMic for independent HP */
-			if (ctl & AC_PINCTL_IN_EN
-			    && !(ctl & AC_PINCTL_OUT_EN))
-				on = 0;
-		}
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
+		int ctl = snd_hda_codec_read(codec, nid, 0,
+					     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		if (cfg->inputs[i].type >= AUTO_PIN_FRONT_LINE)
+			continue;
+		if (cfg->inputs[i].type == AUTO_PIN_FRONT_MIC &&
+		    spec->hp_independent_mode && spec->codec_type != VT1718S)
+			continue; /* ignore FMic for independent HP */
+		if ((ctl & AC_PINCTL_IN_EN) && !(ctl & AC_PINCTL_OUT_EN))
+			on = 0;
 	}
 	*ucontrol->value.integer.value = on;
 	return 0;
@@ -1377,36 +1373,38 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int out_in = *ucontrol->value.integer.value
 		? AC_PINCTL_OUT_EN : AC_PINCTL_IN_EN;
-	int index[] = { AUTO_PIN_MIC, AUTO_PIN_FRONT_MIC, AUTO_PIN_LINE };
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(index); i++) {
-		hda_nid_t nid = spec->autocfg.input_pins[index[i]];
-		if (i == AUTO_PIN_FRONT_MIC
-		    && spec->hp_independent_mode
-		    && spec->codec_type != VT1718S)
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
+		unsigned int parm;
+
+		if (cfg->inputs[i].type >= AUTO_PIN_FRONT_LINE)
+			continue;
+		if (cfg->inputs[i].type == AUTO_PIN_FRONT_MIC &&
+		    spec->hp_independent_mode && spec->codec_type != VT1718S)
 			continue; /* don't retask FMic for independent HP */
-		if (nid) {
-			unsigned int parm = snd_hda_codec_read(
-				codec, nid, 0,
-				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-			parm &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
-			parm |= out_in;
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    parm);
-			if (out_in == AC_PINCTL_OUT_EN) {
-				mute_aa_path(codec, 1);
-				notify_aa_path_ctls(codec);
-			}
-			if (spec->codec_type == VT1718S)
-				snd_hda_codec_amp_stereo(
+
+		parm = snd_hda_codec_read(codec, nid, 0,
+					  AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		parm &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
+		parm |= out_in;
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    parm);
+		if (out_in == AC_PINCTL_OUT_EN) {
+			mute_aa_path(codec, 1);
+			notify_aa_path_ctls(codec);
+		}
+		if (spec->codec_type == VT1718S) {
+			snd_hda_codec_amp_stereo(
 					codec, nid, HDA_OUTPUT, 0, HDA_AMP_MUTE,
 					HDA_AMP_UNMUTE);
 		}
-		if (i == AUTO_PIN_FRONT_MIC) {
+		if (cfg->inputs[i].type == AUTO_PIN_FRONT_MIC) {
 			if (spec->codec_type == VT1708S
 			    || spec->codec_type == VT1716S) {
 				/* input = index 1 (AOW3) */
@@ -1442,7 +1440,7 @@ static struct snd_kcontrol_new via_smart51_mixer[2] = {
 static int via_smart51_build(struct via_spec *spec)
 {
 	struct snd_kcontrol_new *knew;
-	int index[] = { AUTO_PIN_MIC, AUTO_PIN_FRONT_MIC, AUTO_PIN_LINE };
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid;
 	int i;
 
@@ -1450,13 +1448,14 @@ static int via_smart51_build(struct via_spec *spec)
 	if (knew == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(index); i++) {
-		nid = spec->autocfg.input_pins[index[i]];
-		if (nid) {
+	for (i = 0; i < cfg->num_inputs; i++) {
+		nid = cfg->inputs[i].pin;
+		if (cfg->inputs[i].type < AUTO_PIN_FRONT_LINE) {
 			knew = via_clone_control(spec, &via_smart51_mixer[1]);
 			if (knew == NULL)
 				return -ENOMEM;
 			knew->subdevice = nid;
+			break;
 		}
 	}
 
@@ -2419,7 +2418,7 @@ static int vt_auto_create_analog_input_ctls(struct via_spec *spec,
 					    hda_nid_t pin_idxs[], int num_idxs)
 {
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx;
+	int i, err, idx, type, type_idx = 0;
 
 	/* for internal loopback recording select */
 	for (idx = 0; idx < num_idxs; idx++) {
@@ -2431,20 +2430,23 @@ static int vt_auto_create_analog_input_ctls(struct via_spec *spec,
 		}
 	}
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
+	for (i = 0; i < cfg->num_inputs; i++) {
+		type = cfg->inputs[i].type;
 		for (idx = 0; idx < num_idxs; idx++)
-			if (pin_idxs[idx] == cfg->input_pins[i])
+			if (pin_idxs[idx] == cfg->inputs[i].pin)
 				break;
 		if (idx >= num_idxs)
 			continue;
-		err = via_new_analog_input(spec, auto_pin_cfg_labels[i],
-					   idx, cap_nid);
+		if (i > 0 && type == cfg->inputs[i - 1].type)
+			type_idx++;
+		else
+			type_idx = 0;
+		err = via_new_analog_input(spec, auto_pin_cfg_labels[type],
+					   type_idx, idx, cap_nid);
 		if (err < 0)
 			return err;
-		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
+		imux->items[imux->num_items].label =
+			snd_hda_get_input_pin_label(cfg, i);
 		imux->items[imux->num_items].index = idx;
 		imux->num_items++;
 	}
@@ -5513,7 +5515,7 @@ static int vt2002P_auto_create_analog_input_ctls(struct via_spec *spec,
 	if (err < 0)
 		return err;
 	/* build volume/mute control of loopback */
-	err = via_new_analog_input(spec, "Stereo Mixer", 3, 0x21);
+	err = via_new_analog_input(spec, "Stereo Mixer", 0, 3, 0x21);
 	if (err < 0)
 		return err;
 
@@ -5836,7 +5838,7 @@ static int vt1812_auto_create_analog_input_ctls(struct via_spec *spec,
 		return err;
 
 	/* build volume/mute control of loopback */
-	err = via_new_analog_input(spec, "Stereo Mixer", 5, 0x21);
+	err = via_new_analog_input(spec, "Stereo Mixer", 0, 5, 0x21);
 	if (err < 0)
 		return err;
 
