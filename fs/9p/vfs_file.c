@@ -221,7 +221,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 {
 	ssize_t retval;
 	size_t total = 0;
-	int n, rsize;
+	int n;
 	struct p9_fid *fid;
 	struct p9_client *clnt;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -233,8 +233,6 @@ v9fs_file_write(struct file *filp, const char __user * data,
 
 	fid = filp->private_data;
 	clnt = fid->clnt;
-
-	rsize = fid->iounit ? fid->iounit : clnt->msize - P9_IOHDRSZ;
 
 	retval = generic_write_checks(filp, &origin, &count, 0);
 	if (retval)
@@ -248,11 +246,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		goto out;
 
 	do {
-		if (count < rsize)
-			rsize = count;
-
-		n = p9_client_write(fid, NULL, data+total, origin+total,
-									rsize);
+		n = p9_client_write(fid, NULL, data+total, origin+total, count);
 		if (n <= 0)
 			break;
 		count -= n;
