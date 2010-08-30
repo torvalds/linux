@@ -39,6 +39,10 @@ static int rk28_usb_check_connectid_change(void) { return 0; }
 #define ddr_readl(offset)	readl(RK2818_SDRAMC_BASE + offset)
 #define ddr_writel(v, offset)	writel(v, RK2818_SDRAMC_BASE + offset)
 
+#define irq_readl(offset)	readl(RK2818_INTC_BASE + offset)
+#define gpio0_readl(offset)	readl(RK2818_GPIO0_BASE + offset)
+#define gpio1_readl(offset)	readl(RK2818_GPIO1_BASE + offset)
+
 #define PLL_PD		(0x01u<<22)
 
 /* CPU_APB_REG0 */
@@ -53,17 +57,6 @@ static int rk28_usb_check_connectid_change(void) { return 0; }
 static inline u32 sdram_get_mem_type(void)
 {
 	return (regfile_readl(CPU_APB_REG0) & MEMTYPEMASK) >> MEMTYPESHIFT;
-}
-
-#define ASM_LOOP_INSTRUCTION_NUM     4
-
-static noinline void __tcmlocalfunc tcm_udelay(unsigned long usecs, u32 arm_freq_mhz)
-{
-	volatile unsigned int cycle;
-
-	cycle = usecs * arm_freq_mhz / ASM_LOOP_INSTRUCTION_NUM;
-
-	while (cycle--) {}
 }
 
 #define CLK_GATE_SDRAM_MASK		((1 << (CLK_GATE_SDRAM_COMMON & 31)) | (1 << (CLK_GATE_SDRAM_CONTROLLER & 31)))
@@ -162,42 +155,16 @@ void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
 	tcm_udelay(100, 24); //DRVDelayUs(100); 延时一下比较安全，保证退出后稳定
 }
 
-static int __tcmfunc rk2818_tcm_idle(void)
+static void __tcmfunc rk2818_tcm_idle(void)
 {
-	volatile u32 unit;
 	u32 ctrl_reg_62;
-
-	u32 scu_mode = scu_readl(SCU_MODE_CON);
-	u32 scu_apll = scu_readl(SCU_APLL_CON);
-	u32 scu_clksel0 = scu_readl(SCU_CLKSEL0_CON);
 
 	asm("b 1f; .align 5; 1:");
 	asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
 
-	scu_writel(scu_mode & ~(3 << 2), SCU_MODE_CON); // slow
-	scu_writel(scu_apll | PLL_PD, SCU_APLL_CON); // powerdown
-
 	ctrl_reg_62 = sdram_enter_self_refresh();
 	asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
 	sdram_exit_self_refresh(ctrl_reg_62);
-
-	scu_writel(scu_apll, SCU_APLL_CON); // powerup
-
-	scu_writel(scu_clksel0 & (~3), SCU_CLKSEL0_CON);
-
-	unit = 7200;  /* 24m,0.3ms , 24*300*/
-	while (unit-- > 0) {
-		if (regfile_readl(CPU_APB_REG0) & 0x80)
-			break;
-	}
-
-	tcm_udelay(5 << 8, 24);
-	scu_writel(scu_clksel0, SCU_CLKSEL0_CON);
-	tcm_udelay(5, 24);
-
-	scu_writel(scu_mode, SCU_MODE_CON); // normal
-
-	return unit;
 }
 
 static void rk2818_idle(void)
@@ -211,11 +178,42 @@ static void rk2818_idle(void)
 	asm volatile ("mov sp, %0" :: "r" (old_sp));
 }
 
+static void dump_register(void)
+{
+#ifdef CONFIG_PM_DEBUG
+	printk(KERN_DEBUG "SCU_APLL_CON       : 0x%08x\n", scu_readl(SCU_APLL_CON));
+	printk(KERN_DEBUG "SCU_DPLL_CON       : 0x%08x\n", scu_readl(SCU_DPLL_CON));
+	printk(KERN_DEBUG "SCU_CPLL_CON       : 0x%08x\n", scu_readl(SCU_CPLL_CON));
+	printk(KERN_DEBUG "SCU_MODE_CON       : 0x%08x\n", scu_readl(SCU_MODE_CON));
+	printk(KERN_DEBUG "SCU_PMU_CON        : 0x%08x\n", scu_readl(SCU_PMU_CON));
+	printk(KERN_DEBUG "SCU_CLKSEL_CON     : 0x%08x 0x%08x 0x%08x\n", scu_readl(SCU_CLKSEL0_CON), scu_readl(SCU_CLKSEL1_CON), scu_readl(SCU_CLKSEL2_CON));
+	printk(KERN_DEBUG "SCU_CLKGATE_CON    : 0x%08x 0x%08x 0x%08x\n", scu_readl(SCU_CLKGATE0_CON), scu_readl(SCU_CLKGATE1_CON), scu_readl(SCU_CLKGATE2_CON));
+	printk(KERN_DEBUG "IRQ_INTEN          : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_INTEN_L), irq_readl(IRQ_REG_INTEN_H));
+	printk(KERN_DEBUG "IRQ_INTMASK        : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_INTMASK_L), irq_readl(IRQ_REG_INTMASK_H));
+	printk(KERN_DEBUG "IRQ_INTFORCE       : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_INTFORCE_L), irq_readl(IRQ_REG_INTFORCE_H));
+	printk(KERN_DEBUG "IRQ_RAWSTATUS      : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_RAWSTATUS_L), irq_readl(IRQ_REG_RAWSTATUS_H));
+	printk(KERN_DEBUG "IRQ_STATUS         : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_STATUS_L), irq_readl(IRQ_REG_STATUS_H));
+	printk(KERN_DEBUG "IRQ_MASKSTATUS     : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_MASKSTATUS_L), irq_readl(IRQ_REG_MASKSTATUS_H));
+	printk(KERN_DEBUG "IRQ_FINALSTATUS    : 0x%08x 0x%02x\n", irq_readl(IRQ_REG_FINALSTATUS_L), irq_readl(IRQ_REG_FINALSTATUS_H));
+	printk(KERN_DEBUG "GPIO_INTEN         : 0x%08x 0x%08x\n", gpio0_readl(GPIO_INTEN), gpio1_readl(GPIO_INTEN));
+	printk(KERN_DEBUG "GPIO_INTMASK       : 0x%08x 0x%08x\n", gpio0_readl(GPIO_INTMASK), gpio1_readl(GPIO_INTMASK));
+	printk(KERN_DEBUG "GPIO_INTTYPE_LEVEL : 0x%08x 0x%08x\n", gpio0_readl(GPIO_INTTYPE_LEVEL), gpio1_readl(GPIO_INTTYPE_LEVEL));
+	printk(KERN_DEBUG "GPIO_INT_POLARITY  : 0x%08x 0x%08x\n", gpio0_readl(GPIO_INT_POLARITY), gpio1_readl(GPIO_INT_POLARITY));
+	printk(KERN_DEBUG "GPIO_INT_STATUS    : 0x%08x 0x%08x\n", gpio0_readl(GPIO_INT_STATUS), gpio1_readl(GPIO_INT_STATUS));
+	printk(KERN_DEBUG "GPIO_INT_RAWSTATUS : 0x%08x 0x%08x\n", gpio0_readl(GPIO_INT_RAWSTATUS), gpio1_readl(GPIO_INT_RAWSTATUS));
+#endif
+}
+
 static int rk2818_pm_enter(suspend_state_t state)
 {
 	int irq_val = 0;
+	struct clk *arm_clk = clk_get(NULL, "arm");
+	unsigned long arm_rate = clk_get_rate(arm_clk);
 
 	printk(KERN_DEBUG "before core halt\n");
+
+	clk_set_rate(arm_clk, 24000000);
+	dump_register();
 
 #ifdef CONFIG_RK28_USB_WAKE
 	rockchip_timer_clocksource_suspend_resume(1);
@@ -228,7 +226,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_RK28_USB_WAKE
 		rk28_usb_suspend(1);
-		__udelay(400);
+		udelay(400);
 
 		irq_val = rockchip_timer_clocksource_irq_checkandclear();
 		irq_val |= rk28_usb_check_vbus_change();
@@ -237,6 +235,9 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	rockchip_timer_clocksource_suspend_resume(0);
 #endif
+
+	dump_register();
+	clk_set_rate(arm_clk, arm_rate);
 
 	printk(KERN_DEBUG "quit arm halt,irq_val=0x%x\n", irq_val);
 	return 0;
