@@ -335,6 +335,14 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 	}
 }
 
+static void rt2800usb_kill_tx_queue(struct data_queue *queue)
+{
+	if (queue->qid == QID_BEACON)
+		rt2x00usb_register_write(queue->rt2x00dev, BCN_TIME_CFG, 0);
+
+	rt2x00usb_kill_tx_queue(queue);
+}
+
 /*
  * RX control handlers
  */
@@ -533,7 +541,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
-	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
+	.kill_tx_queue		= rt2800usb_kill_tx_queue,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,
