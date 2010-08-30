@@ -36,6 +36,8 @@
 #define STINGRAY_TOUCH_INT_N_GPIO	TEGRA_GPIO_PV2
 #define STINGRAY_TOUCH_WAKE_N_GPIO	TEGRA_GPIO_PJ2
 
+#define STINGRAY_TOUCH_INT_N_GPIO_P2	TEGRA_GPIO_PZ2
+
 static int stingray_touch_reset(void)
 {
 	gpio_set_value(STINGRAY_TOUCH_RESET_N_GPIO, 0);
@@ -588,15 +590,21 @@ struct qtouch_ts_platform_data stingray_touch_data_p1p2 = {
 static struct i2c_board_info __initdata stingray_i2c_bus1_touch_info[] = {
 	{
 		I2C_BOARD_INFO(QTOUCH_TS_NAME, 0x5B),
-		.irq = TEGRA_GPIO_TO_IRQ(STINGRAY_TOUCH_INT_N_GPIO),
 	},
 };
 
 int __init stingray_touch_init(void)
 {
-	tegra_gpio_enable(STINGRAY_TOUCH_INT_N_GPIO);
-	gpio_request(STINGRAY_TOUCH_INT_N_GPIO, "touch_irq");
-	gpio_direction_input(STINGRAY_TOUCH_INT_N_GPIO);
+	unsigned touch_int_gpio;
+
+	if (stingray_revision() == STINGRAY_REVISION_P2)
+		touch_int_gpio = STINGRAY_TOUCH_INT_N_GPIO_P2;
+	else
+		touch_int_gpio = STINGRAY_TOUCH_INT_N_GPIO;
+
+	tegra_gpio_enable(touch_int_gpio);
+	gpio_request(touch_int_gpio, "touch_irq");
+	gpio_direction_input(touch_int_gpio);
 
 	tegra_gpio_enable(STINGRAY_TOUCH_WAKE_N_GPIO);
 	gpio_request(STINGRAY_TOUCH_WAKE_N_GPIO, "touch_wake");
@@ -605,6 +613,9 @@ int __init stingray_touch_init(void)
 	tegra_gpio_enable(STINGRAY_TOUCH_RESET_N_GPIO);
 	gpio_request(STINGRAY_TOUCH_RESET_N_GPIO, "touch_reset");
 	gpio_direction_output(STINGRAY_TOUCH_RESET_N_GPIO, 1);
+
+	stingray_i2c_bus1_touch_info[0].irq =
+		 TEGRA_GPIO_TO_IRQ(touch_int_gpio);
 
 	if ((stingray_revision() == STINGRAY_REVISION_P1) ||
 		(stingray_revision() == STINGRAY_REVISION_P2))
