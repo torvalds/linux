@@ -64,6 +64,6 @@ struct err_regs {
 void amd_report_gart_errors(bool);
 void amd_register_ecc_decoder(void (*f)(int, struct err_regs *));
 void amd_unregister_ecc_decoder(void (*f)(int, struct err_regs *));
-void amd_decode_nb_mce(int, struct err_regs *, int);
+void amd_decode_nb_mce(int, struct err_regs *);
 
 #endif /* _EDAC_MCE_AMD_H */

@@ -291,12 +291,9 @@ wrong_ls_mce:
 	pr_emerg(HW_ERR "Corrupted LS MCE info?\n");
 }
 
-void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
+void amd_decode_nb_mce(int node_id, struct err_regs *regs)
 {
 	u32 ec  = ERROR_CODE(regs->nbsl);
-
-	if (!handle_errors)
-		return;
 
 	/*
 	 * GART TLB error reporting is disabled by default. Bail out early.
@@ -402,7 +399,7 @@ static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
 		regs.nbeah = (u32)(m->addr >> 32);
 		node       = amd_get_nb_id(m->extcpu);
 
-		amd_decode_nb_mce(node, &regs, 1);
+		amd_decode_nb_mce(node, &regs);
 		break;
 
 	case 5:

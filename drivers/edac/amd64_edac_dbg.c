@@ -24,7 +24,7 @@ static ssize_t amd64_nbea_store(struct mem_ctl_info *mci, const char *data,
 
 		/* Process the Mapping request */
 		/* TODO: Add race prevention */
-		amd_decode_nb_mce(pvt->mc_node_id, &pvt->ctl_error_info, 1);
+		amd_decode_nb_mce(pvt->mc_node_id, &pvt->ctl_error_info);
 
 		return count;
 	}
