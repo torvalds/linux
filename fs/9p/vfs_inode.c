@@ -730,7 +730,10 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int mode,
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
-	dentry->d_op = &v9fs_cached_dentry_operations;
+	if (v9ses->cache)
+		dentry->d_op = &v9fs_cached_dentry_operations;
+	else
+		dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(dentry, inode);
 	err = v9fs_fid_add(dentry, fid);
 	if (err < 0)
