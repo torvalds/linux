@@ -408,15 +408,10 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 
 	}
 
-	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
-	 * at LCD__INDEX which we don't alter
-	 */
-	if (!(*cr_lcd & 0x44)) {
-		if (tv_norm->kind == CTV_ENC_MODE)
-			*cr_lcd = 0x1 | (head ? 0x0 : 0x8);
-		else
-			*cr_lcd = 0;
-	}
+	if (tv_norm->kind == CTV_ENC_MODE)
+		*cr_lcd = 0x1 | (head ? 0x0 : 0x8);
+	else
+		*cr_lcd = 0;
 
 	/* Set the DACCLK register */
 	dacclk = (NVReadRAMDAC(dev, 0, dacclk_off) & ~0x30) | 0x1;
