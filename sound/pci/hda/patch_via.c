@@ -2413,49 +2413,51 @@ static int vt1708_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1708_auto_create_analog_input_ctls(struct via_spec *spec,
-						const struct auto_pin_cfg *cfg)
+static int vt_auto_create_analog_input_ctls(struct via_spec *spec,
+					    const struct auto_pin_cfg *cfg,
+					    hda_nid_t cap_nid,
+					    hda_nid_t pin_idxs[], int num_idxs)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
+	int i, err, idx;
 
 	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = idx;
-	imux->num_items++;
+	for (idx = 0; idx < num_idxs; idx++) {
+		if (pin_idxs[idx] == 0xff) {
+			imux->items[imux->num_items].label = "Stereo Mixer";
+			imux->items[imux->num_items].index = idx;
+			imux->num_items++;
+			break;
+		}
+	}
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		if (!cfg->input_pins[i])
 			continue;
 
-		switch (cfg->input_pins[i]) {
-		case 0x1d: /* Mic */
-			idx = 2;
-			break;
-
-		case 0x1e: /* Line In */
-			idx = 3;
-			break;
-
-		case 0x21: /* Front Mic */
-			idx = 4;
-			break;
-
-		case 0x24: /* CD */
-			idx = 1;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x17);
+		for (idx = 0; idx < num_idxs; idx++)
+			if (pin_idxs[idx] == cfg->input_pins[i])
+				break;
+		if (idx >= num_idxs)
+			continue;
+		err = via_new_analog_input(spec, auto_pin_cfg_labels[i],
+					   idx, cap_nid);
 		if (err < 0)
 			return err;
-		imux->items[imux->num_items].label = labels[i];
+		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 		imux->items[imux->num_items].index = idx;
 		imux->num_items++;
 	}
 	return 0;
+}
+
+/* create playback/capture controls for input pins */
+static int vt1708_auto_create_analog_input_ctls(struct via_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	static hda_nid_t pin_idxs[] = { 0xff, 0x24, 0x1d, 0x1e, 0x21 };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x17, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -3024,46 +3026,9 @@ static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1709_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = idx;
-	imux->num_items++;
-
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x1d: /* Mic */
-			idx = 2;
-			break;
-
-		case 0x1e: /* Line In */
-			idx = 3;
-			break;
-
-		case 0x21: /* Front Mic */
-			idx = 4;
-			break;
-
-		case 0x23: /* CD */
-			idx = 1;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x18);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx;
-		imux->num_items++;
-	}
-	return 0;
+	static hda_nid_t pin_idxs[] = { 0xff, 0x23, 0x1d, 0x1e, 0x21 };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x18, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 static int vt1709_parse_auto_config(struct hda_codec *codec)
@@ -3591,46 +3556,9 @@ static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1708B_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = idx;
-	imux->num_items++;
-
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x1a: /* Mic */
-			idx = 2;
-			break;
-
-		case 0x1b: /* Line In */
-			idx = 3;
-			break;
-
-		case 0x1e: /* Front Mic */
-			idx = 4;
-			break;
-
-		case 0x1f: /* CD */
-			idx = 1;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x16);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx;
-		imux->num_items++;
-	}
-	return 0;
+	static hda_nid_t pin_idxs[] = { 0xff, 0x1f, 0x1a, 0x1b, 0x1e };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x16, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 static int vt1708B_parse_auto_config(struct hda_codec *codec)
@@ -4064,46 +3992,9 @@ static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1708S_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = 5;
-	imux->num_items++;
-
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x1a: /* Mic */
-			idx = 2;
-			break;
-
-		case 0x1b: /* Line In */
-			idx = 3;
-			break;
-
-		case 0x1e: /* Front Mic */
-			idx = 4;
-			break;
-
-		case 0x1f: /* CD */
-			idx = 1;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x16);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx-1;
-		imux->num_items++;
-	}
-	return 0;
+	static hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x16, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 /* fill out digital output widgets; one for master and one for slave outputs */
@@ -4457,42 +4348,9 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1702_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = 3;
-	imux->num_items++;
-
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x14: /* Mic */
-			idx = 1;
-			break;
-
-		case 0x15: /* Line In */
-			idx = 2;
-			break;
-
-		case 0x18: /* Front Mic */
-			idx = 3;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x1A);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx-1;
-		imux->num_items++;
-	}
-	return 0;
+	static hda_nid_t pin_idxs[] = { 0x14, 0x15, 0x18, 0xff };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x1a, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 static int vt1702_parse_auto_config(struct hda_codec *codec)
@@ -4875,46 +4733,9 @@ static int vt1718S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1718S_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = 5;
-	imux->num_items++;
-
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x2b: /* Mic */
-			idx = 1;
-			break;
-
-		case 0x2a: /* Line In */
-			idx = 2;
-			break;
-
-		case 0x29: /* Front Mic */
-			idx = 3;
-			break;
-
-		case 0x2c: /* CD */
-			idx = 0;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x21);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx;
-		imux->num_items++;
-	}
-	return 0;
+	static hda_nid_t pin_idxs[] = { 0x2c, 0x2b, 0x2a, 0x29, 0, 0xff };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x21, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 static int vt1718S_parse_auto_config(struct hda_codec *codec)
@@ -5374,46 +5195,9 @@ static int vt1716S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1716S_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = 5;
-	imux->num_items++;
-
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x1a: /* Mic */
-			idx = 2;
-			break;
-
-		case 0x1b: /* Line In */
-			idx = 3;
-			break;
-
-		case 0x1e: /* Front Mic */
-			idx = 4;
-			break;
-
-		case 0x1f: /* CD */
-			idx = 1;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x16);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx-1;
-		imux->num_items++;
-	}
-	return 0;
+	static hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
+	return vt_auto_create_analog_input_ctls(spec, cfg, 0x16, pin_idxs,
+						ARRAY_SIZE(pin_idxs));
 }
 
 static int vt1716S_parse_auto_config(struct hda_codec *codec)
@@ -5720,46 +5504,18 @@ static int vt2002P_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt2002P_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
+	static hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0xff };
+	int err;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
-
-		switch (cfg->input_pins[i]) {
-		case 0x2b: /* Mic */
-			idx = 0;
-			break;
-
-		case 0x2a: /* Line In */
-			idx = 1;
-			break;
-
-		case 0x29: /* Front Mic */
-			idx = 2;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x21);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx;
-		imux->num_items++;
-	}
-
+	err = vt_auto_create_analog_input_ctls(spec, cfg, 0x21, pin_idxs,
+					       ARRAY_SIZE(pin_idxs));
+	if (err < 0)
+		return err;
 	/* build volume/mute control of loopback */
 	err = via_new_analog_input(spec, "Stereo Mixer", 3, 0x21);
 	if (err < 0)
 		return err;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = 3;
-	imux->num_items++;
 
 	/* for digital mic select */
 	imux->items[imux->num_items].label = "Digital Mic";
@@ -6070,45 +5826,19 @@ static int vt1812_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1812_auto_create_analog_input_ctls(struct via_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux", NULL
-	};
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx = 0;
+	static hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0, 0, 0xff };
+	int err;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (!cfg->input_pins[i])
-			continue;
+	err = vt_auto_create_analog_input_ctls(spec, cfg, 0x21, pin_idxs,
+					       ARRAY_SIZE(pin_idxs));
+	if (err < 0)
+		return err;
 
-		switch (cfg->input_pins[i]) {
-		case 0x2b: /* Mic */
-			idx = 0;
-			break;
-
-		case 0x2a: /* Line In */
-			idx = 1;
-			break;
-
-		case 0x29: /* Front Mic */
-			idx = 2;
-			break;
-		}
-		err = via_new_analog_input(spec, labels[i], idx, 0x21);
-		if (err < 0)
-			return err;
-		imux->items[imux->num_items].label = labels[i];
-		imux->items[imux->num_items].index = idx;
-		imux->num_items++;
-	}
 	/* build volume/mute control of loopback */
 	err = via_new_analog_input(spec, "Stereo Mixer", 5, 0x21);
 	if (err < 0)
 		return err;
-
-	/* for internal loopback recording select */
-	imux->items[imux->num_items].label = "Stereo Mixer";
-	imux->items[imux->num_items].index = 5;
-	imux->num_items++;
 
 	/* for digital mic select */
 	imux->items[imux->num_items].label = "Digital Mic";
