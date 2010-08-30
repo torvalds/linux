@@ -3743,7 +3743,7 @@ static int emulator_pio_in_emulated(int size, unsigned short port, void *val,
 	if (vcpu->arch.pio.count)
 		goto data_avail;
 
-	trace_kvm_pio(1, port, size, 1);
+	trace_kvm_pio(0, port, size, 1);
 
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = 1;
@@ -3771,7 +3771,7 @@ static int emulator_pio_out_emulated(int size, unsigned short port,
 			      const void *val, unsigned int count,
 			      struct kvm_vcpu *vcpu)
 {
-	trace_kvm_pio(0, port, size, 1);
+	trace_kvm_pio(1, port, size, 1);
 
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = 0;
