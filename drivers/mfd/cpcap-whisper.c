@@ -552,6 +552,14 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
 		value = (cmd & CPCAP_WHISPER_MODE_PU) ? CPCAP_BIT_ID100KPU : 0;
 		retval |= cpcap_regacc_write(cpcap, CPCAP_REG_USBC1,
 					     value, CPCAP_BIT_ID100KPU);
+		if (value) {
+			retval |= cpcap_regacc_write(cpcap, CPCAP_REG_USBC2,
+						     (CPCAP_BIT_EMUMODE2 |
+						      CPCAP_BIT_EMUMODE0),
+						     (CPCAP_BIT_EMUMODE2 |
+						      CPCAP_BIT_EMUMODE1 |
+						      CPCAP_BIT_EMUMODE0));
+		}
 
 		/* Report dock type to system. */
 		dock = (cmd & CPCAP_WHISPER_ACCY_MASK) >>
