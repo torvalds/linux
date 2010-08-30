@@ -133,7 +133,7 @@ Lreturn:
  */
 inthandler1:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -144,7 +144,7 @@ inthandler1:
 
 inthandler2:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -155,7 +155,7 @@ inthandler2:
 
 inthandler3:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -166,7 +166,7 @@ inthandler3:
 
 inthandler4:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -177,7 +177,7 @@ inthandler4:
 
 inthandler5:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -188,7 +188,7 @@ inthandler5:
 
 inthandler6:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -199,7 +199,7 @@ inthandler6:
 
 inthandler7:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
@@ -210,7 +210,7 @@ inthandler7:
 
 inthandler:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-

@@ -57,7 +57,7 @@ int main(void)
 	DEFINE(PT_OFF_FORMATVEC, offsetof(struct pt_regs, sr) - 2);
 #else
 	/* bitfields are a bit difficult */
-	DEFINE(PT_OFF_VECTOR, offsetof(struct pt_regs, pc) + 4);
+	DEFINE(PT_OFF_FORMATVEC, offsetof(struct pt_regs, pc) + 4);
 #endif
 
 	/* signal defines */

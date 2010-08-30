@@ -129,7 +129,7 @@ Lreturn:
  */
 inthandler:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and.l	#0x3ff, %d0
 	lsr.l   #0x02,  %d0
 
