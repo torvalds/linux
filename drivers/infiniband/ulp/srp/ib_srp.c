@@ -1339,8 +1339,13 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 			target->max_ti_iu_len = be32_to_cpu(rsp->max_ti_iu_len);
 			target->req_lim       = be32_to_cpu(rsp->req_lim_delta);
 
-			target->scsi_host->can_queue = min(target->req_lim,
-							   target->scsi_host->can_queue);
+			/*
+			 * Reserve credits for task management so we don't
+			 * bounce requests back to the SCSI mid-layer.
+			 */
+			target->scsi_host->can_queue
+				= min(target->req_lim - SRP_TSK_MGMT_SQ_SIZE,
+				      target->scsi_host->can_queue);
 		} else {
 			shost_printk(KERN_WARNING, target->scsi_host,
 				    PFX "Unhandled RSP opcode %#x\n", opcode);
