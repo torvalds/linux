@@ -1871,6 +1871,10 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("pwm", "tegra_pwm.2", NULL),
 	CLK_DUPLICATE("pwm", "tegra_pwm.3", NULL),
 	CLK_DUPLICATE("usbd", "cpcap-otg", NULL),
+	CLK_DUPLICATE("host1x", "tegra_grhost", "host1x"),
+	CLK_DUPLICATE("2d", "tegra_grhost", "gr2d"),
+	CLK_DUPLICATE("3d", "tegra_grhost", "gr3d"),
+	CLK_DUPLICATE("epp", "tegra_grhost", "epp"),
 };
 
 #define CLK(dev, con, ck)	\

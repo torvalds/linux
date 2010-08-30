@@ -3321,10 +3321,6 @@ static u32 nvmap_get_physaddr(struct nvmap_handle *h)
 {
 	u32 addr;
 
-	if (unlikely(!atomic_add_return(0, &h->pin))) {
-		WARN_ON(1);
-		return ~0ul;
-	}
 	if (h->heap_pgalloc && h->pgalloc.contig) {
 		addr = page_to_phys(h->pgalloc.pages[0]);
 	} else if (h->heap_pgalloc) {
@@ -3418,10 +3414,12 @@ u32 nvmap_pin_single(struct nvmap_handle *h)
 	return nvmap_get_physaddr(h);
 }
 
-int nvmap_pin_array(struct nvmap_pinarray_elem *arr, int num_elems,
+int nvmap_pin_array(struct file *filp,
+		struct nvmap_pinarray_elem *arr, int num_elems,
 		struct nvmap_handle **unique_arr, int *num_unique, bool wait)
 {
 	struct nvmap_pinarray_elem *elem;
+	struct nvmap_file_priv *priv = filp->private_data;
 	int i, unique_idx = 0;
 	unsigned long pfn = 0;
 	void *pteaddr = NULL;
@@ -3432,11 +3430,28 @@ int nvmap_pin_array(struct nvmap_pinarray_elem *arr, int num_elems,
 	/* find unique handles, pin them and collect into unpin array */
 	for (elem = arr, i = num_elems; i && !ret; i--, elem++) {
 		struct nvmap_handle *to_pin = elem->pin_mem;
-		if (!(to_pin->flags & NVMEM_HANDLE_VISITED)) {
-			if (wait)
+		if (to_pin->poison != NVDA_POISON) {
+			pr_err("%s: handle is poisoned\n", __func__);
+			ret = -EFAULT;
+		}
+		else if (!(to_pin->flags & NVMEM_HANDLE_VISITED)) {
+			if (!priv->su && !to_pin->global) {
+				struct nvmap_handle_ref *r;
+				spin_lock(&priv->ref_lock);
+				r = _nvmap_ref_lookup_locked(priv,
+							(unsigned long)to_pin);
+				spin_unlock(&priv->ref_lock);
+				if (!r) {
+					pr_err("%s: handle access failure\n", __func__);
+					ret = -EPERM;
+					break;
+				}
+			}
+			if (wait) {
 				ret = wait_event_interruptible(
 					nvmap_pin_wait,
 					!_nvmap_handle_pin_locked(to_pin));
+			}
 			else
 				ret = _nvmap_handle_pin_locked(to_pin);
 			if (!ret) {
@@ -3445,6 +3460,7 @@ int nvmap_pin_array(struct nvmap_pinarray_elem *arr, int num_elems,
 			}
 		}
 	}
+
 	/* clear visited flags before releasing mutex */
 	i = unique_idx;
 	while (i--)
@@ -3462,7 +3478,7 @@ int nvmap_pin_array(struct nvmap_pinarray_elem *arr, int num_elems,
 			do_wake |= _nvmap_handle_unpin(unique_arr[i]);
 		if (do_wake)
 			wake_up(&nvmap_pin_wait);
-		return -EINTR;
+		return ret;
 	}
 
 	for (elem = arr, i = num_elems; i; i--, elem++) {
@@ -3518,4 +3534,9 @@ void nvmap_unpin(struct nvmap_handle **h, int num_handles)
 	}
 
 	if (do_wake) wake_up(&nvmap_pin_wait);
+}
+
+int nvmap_validate_file(struct file *f)
+{
+	return (f->f_op==&knvmap_fops || f->f_op==&nvmap_fops) ? 0 : -EFAULT;
 }

@@ -23,13 +23,20 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/file.h>
 #include <linux/nvhost.h>
+#include <linux/nvmap.h>
 
 #include <asm/atomic.h>
 
+#include <video/tegrafb.h>
+
 #include <mach/dc.h>
 #include <mach/fb.h>
+
+#include "host/dev.h"
 
 struct tegra_fb_info {
 	struct tegra_dc_win	*win;
@@ -43,6 +50,7 @@ struct tegra_fb_info {
 	int			yres;
 
 	atomic_t		in_use;
+	struct file		*nvmap_file;
 };
 
 /* palette array used by the fbcon */
@@ -55,12 +63,17 @@ static int tegra_fb_open(struct fb_info *info, int user)
 	if (atomic_xchg(&tegra_fb->in_use, 1))
 		return -EBUSY;
 
+	tegra_fb->nvmap_file = NULL;
+
 	return 0;
 }
 
 static int tegra_fb_release(struct fb_info *info, int user)
 {
 	struct tegra_fb_info *tegra_fb = info->par;
+
+	if (tegra_fb->nvmap_file)
+		fput(tegra_fb->nvmap_file);
 
 	WARN_ON(!atomic_xchg(&tegra_fb->in_use, 0));
 
@@ -212,10 +225,6 @@ static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
 	tegra_dc_update_windows(&tegra_fb->win, 1);
 	tegra_dc_sync_windows(&tegra_fb->win, 1);
 
-	if (tegra_fb->win->cur_handle)
-		nvmap_unpin((struct nvmap_handle **) &tegra_fb->win->cur_handle, 1);
-	tegra_fb->win->cur_handle = args->buff_id;
-
 	return 0;
 }
 
@@ -237,6 +246,106 @@ static void tegra_fb_imageblit(struct fb_info *info,
 	cfb_imageblit(info, image);
 }
 
+/* TODO: implement ALLOC, FREE, BLANK ioctls */
+
+static int tegra_fb_set_nvmap_fd(struct tegra_fb_info *tegra_fb, int fd)
+{
+	struct file *nvmap_file = NULL;
+	int err;
+
+	if (fd < 0)
+		return -EINVAL;
+
+	if (fd > 0) {
+		nvmap_file = fget(fd);
+		if (!nvmap_file)
+			return -EINVAL;
+
+		err = nvmap_validate_file(nvmap_file);
+		if (err)
+			goto err;
+	}
+
+	if (tegra_fb->nvmap_file)
+		fput(tegra_fb->nvmap_file);
+
+	tegra_fb->nvmap_file = nvmap_file;
+
+	return 0;
+
+err:
+	fput(nvmap_file);
+	return err;
+}
+
+static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
+			 struct tegra_fb_flip_args *args)
+{
+	int err = 0;
+
+	if (WARN_ON(!tegra_fb->nvmap_file))
+		return -EFAULT;
+
+	if (WARN_ON(!tegra_fb->ndev))
+		return -EFAULT;
+
+	// XXX need to check perms on handle
+	tegra_fb->win->phys_addr = nvmap_pin_single((struct nvmap_handle *) args->buff_id);
+
+	if ((s32)args->pre_syncpt_id >= 0) {
+		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt, args->pre_syncpt_id,
+				   args->pre_syncpt_val, msecs_to_jiffies(500));
+	}
+
+	err = tegra_dc_update_windows(&tegra_fb->win, 1);
+	if (err < 0)
+		return err;
+
+	if (tegra_fb->win->cur_handle)
+		nvmap_unpin((struct nvmap_handle **) &tegra_fb->win->cur_handle, 1);
+	tegra_fb->win->cur_handle = args->buff_id;
+
+	args->post_syncpt_val = err;
+	args->post_syncpt_id = tegra_dc_get_syncpt_id(tegra_fb->win->dc);
+
+	return 0;
+}
+
+
+/* TODO: implement private window ioctls to set overlay x,y */
+
+static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+{
+	struct tegra_fb_info *tegra_fb = info->par;
+	struct tegra_fb_flip_args flip_args;
+	int fd;
+	int ret;
+
+	switch (cmd) {
+	case FBIO_TEGRA_SET_NVMAP_FD:
+		if (copy_from_user(&fd, (void __user *)arg, sizeof(fd)))
+			return -EFAULT;
+
+		return tegra_fb_set_nvmap_fd(tegra_fb, fd);
+
+	case FBIO_TEGRA_FLIP:
+		if (copy_from_user(&flip_args, (void __user *)arg, sizeof(flip_args)))
+			return -EFAULT;
+
+		ret = tegra_fb_flip(tegra_fb, &flip_args);
+
+		if (copy_to_user((void __user *)arg, &flip_args, sizeof(flip_args)))
+			return -EFAULT;
+
+		return ret;
+
+	default:
+		return -ENOTTY;
+	}
+
+	return 0;
+}
+
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = tegra_fb_open,
@@ -249,6 +358,7 @@ static struct fb_ops tegra_fb_ops = {
 	.fb_fillrect = tegra_fb_fillrect,
 	.fb_copyarea = tegra_fb_copyarea,
 	.fb_imageblit = tegra_fb_imageblit,
+	.fb_ioctl = tegra_fb_ioctl,
 };
 
 void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,

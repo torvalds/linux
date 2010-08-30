@@ -21,6 +21,7 @@
  */
 
 #include <linux/ioctl.h>
+#include <linux/file.h>
 
 #if !defined(__KERNEL__)
 #define __user
@@ -163,12 +164,14 @@ struct nvmap_pinarray_elem {
 	u32 pin_offset;
 };
 
+int nvmap_validate_file(struct file *filep);
 struct nvmap_handle *nvmap_alloc(
 	size_t size, size_t align,
 	unsigned int flags, void **map);
 void nvmap_free(struct nvmap_handle *h, void *map);
 u32 nvmap_pin_single(struct nvmap_handle *h);
-int nvmap_pin_array(struct nvmap_pinarray_elem *arr, int num_elems,
+int nvmap_pin_array(struct file *filp,
+		struct nvmap_pinarray_elem *arr, int num_elems,
 		struct nvmap_handle **unique_arr, int *num_unique, bool wait);
 void nvmap_unpin(struct nvmap_handle **h, int num_handles);
 

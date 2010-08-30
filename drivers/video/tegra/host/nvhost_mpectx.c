@@ -1,7 +1,7 @@
 /*
- * drivers/video/tegra/host/dev.h
+ * drivers/video/tegra/host/nvhost_mpectx.c
  *
- * Tegra Graphics Host Driver Entrypoint
+ * Tegra Graphics Host MPE HW Context
  *
  * Copyright (c) 2010, NVIDIA Corporation.
  *
@@ -20,30 +20,4 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __NVHOST_DEV_H
-#define __NVHOST_DEV_H
-#include "nvhost_acm.h"
-#include "nvhost_syncpt.h"
-#include "nvhost_intr.h"
-#include "nvhost_cpuaccess.h"
-#include "nvhost_channel.h"
-#include "nvhost_hardware.h"
-
-#define NVHOST_MAJOR 0 /* dynamic */
-
-struct nvhost_master {
-	void __iomem *aperture;
-	void __iomem *sync_aperture;
-	struct resource *reg_mem;
-	struct platform_device *pdev;
-	struct class *nvhost_class;
-	struct cdev cdev;
-	struct device *ctrl;
-	struct nvhost_syncpt syncpt;
-	struct nvhost_cpuaccess cpuaccess;
-	struct nvhost_intr intr;
-	struct nvhost_module mod;
-	struct nvhost_channel channels[NVHOST_NUMCHANNELS];
-};
-
-#endif
+/* Placeholder */
