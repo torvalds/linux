@@ -18,7 +18,11 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
-static struct cpufreq_frequency_table *freq_table;
+static struct cpufreq_frequency_table freq_table[] = {
+	{ .frequency = 192000 },
+	{ .frequency = 576000 },
+	{ .frequency = CPUFREQ_TABLE_END },
+};
 static struct clk *arm_clk;
 
 static int rk2818_cpufreq_verify(struct cpufreq_policy *policy)
@@ -63,10 +67,6 @@ static int __init rk2818_cpufreq_init(struct cpufreq_policy *policy)
 		return PTR_ERR(arm_clk);
 
 	if (policy->cpu != 0)
-		return -EINVAL;
-
-	clk_init_cpufreq_table(&freq_table);
-	if (!freq_table)
 		return -EINVAL;
 
 	BUG_ON(cpufreq_frequency_table_cpuinfo(policy, freq_table));

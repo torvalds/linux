@@ -86,6 +86,7 @@ enum scu_clk_gate
 	CLK_GATE_MAX,
 };
 
+/* Register definitions */
 #define SCU_APLL_CON		0x00
 #define SCU_DPLL_CON		0x04
 #define SCU_CPLL_CON		0x08
@@ -100,5 +101,28 @@ enum scu_clk_gate
 #define SCU_CHIPCFG_CON		0x2c
 #define SCU_CPUPD		0x30
 #define SCU_CLKSEL2_CON		0x34
+
+#include <asm/tcm.h>
+
+#define DDR_SAVE_SP		do { save_sp = ddr_save_sp((DTCM_END&(~7))); } while (0)
+#define DDR_RESTORE_SP		do { ddr_save_sp(save_sp); } while (0)
+unsigned long ddr_save_sp( unsigned long new_sp );
+extern unsigned long save_sp;
+extern int __tcmdata ddr_disabled;
+
+/*
+ * delay at itcm. one loops == 6 arm instruction 
+ * at 600M,about 6,000,0 for 1ms delay.
+ */
+extern void __tcmfunc ddr_pll_delay( int loops ) ;
+
+/**
+ * tcm_udelay - delay usecs microseconds in tcm
+ * @usecs: in microseconds
+ * @arm_freq_mhz: arm frequency in MHz
+ *
+ * for example when arm run at slow mode, call tcm_udelay(usecs, 24)
+ */
+extern void __tcmfunc tcm_udelay(unsigned long usecs, unsigned long arm_freq_mhz);
 
 #endif

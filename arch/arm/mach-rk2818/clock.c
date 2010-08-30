@@ -13,6 +13,10 @@
  *
  */
 
+//#define DEBUG
+//#define DEBUG_TCM
+#define pr_fmt(fmt) "clock: %s: " fmt, __func__
+
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -24,25 +28,10 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <asm/clkdev.h>
+#include <asm/tcm.h>
 #include <mach/rk2818_iomap.h>
 #include <mach/scu.h>
 #include <mach/iomux.h>	// CPU_APB_REG0
-
-static struct rockchip_scu_reg_hw
-{
-	u32 scu_pll_config[3];	/* 0:arm 1:dsp 2:codec */
-	u32 scu_mode_config;
-	u32 scu_pmu_config;
-	u32 scu_clksel0_config;
-	u32 scu_clksel1_config;
-	u32 scu_clkgate0_config;
-	u32 scu_clkgate1_config;
-	u32 scu_clkgate2_config;
-	u32 scu_softreset_config;
-	u32 scu_chipcfg_config;
-	u32 scu_cuppd;		/* arm power down */
-	u32 scu_clksel2_config;
-} *scu_register_base = (struct rockchip_scu_reg_hw *)(RK2818_SCU_BASE);
 
 #define CLKSEL0_REG	(u32 __iomem *)(RK2818_SCU_BASE + SCU_CLKSEL0_CON)
 #define CLKSEL1_REG	(u32 __iomem *)(RK2818_SCU_BASE + SCU_CLKSEL1_CON)
@@ -128,6 +117,33 @@ static struct rockchip_scu_reg_hw
 #define CONFIG_PARTICIPANT	(1 << 10)	/* Fundamental clock */
 #define ENABLE_ON_INIT		(1 << 11)	/* Enable upon framework init */
 
+#define regfile_readl(offset)	readl(RK2818_REGFILE_BASE + offset)
+
+#define scu_readl(offset)	readl(RK2818_SCU_BASE + offset)
+#define scu_writel(v, offset)	writel(v, RK2818_SCU_BASE + offset)
+#define scu_writel_force(v, offset)	do { u32 _v = v; u32 _count = 5; do { scu_writel(_v, offset); } while (scu_readl(offset) != _v && _count--); } while (0)	/* huangtao: when write SCU_xPLL_CON, first time may failed, so try again. unknown why. */
+
+#define CLK_GATE_INVALID	-1
+
+#define SCU_CLK_MHZ		(1000*1000)
+
+#define ARM_PLL_DELAY		800	// loop.ARM run at 24M,
+// 20100719,HSL@RK , from (200*200) to 300*200 for change ddr failed.
+#define OTHER_PLL_DELAY		(300*200)	// loop .ARM run at normal.
+
+#define MAYCHG_VDD		0
+
+struct rockchip_pll_set {
+	u32	clk_hz;
+	u32	pll_con;
+
+	u8	clk48m_div : 4;
+	u8	ahb_div : 2;
+	u8	apb_div : 2;
+
+	u32	flags;
+};
+
 struct clk {
 	struct list_head	node;
 	const char		*name;
@@ -151,6 +167,8 @@ struct clk {
 	u8			clksel_maxdiv;
 };
 
+int __tcmdata ddr_disabled = 0;
+
 static void __clk_disable(struct clk *clk);
 static void clk_reparent(struct clk *child, struct clk *parent);
 static void propagate_rate(struct clk *tclk);
@@ -165,7 +183,7 @@ static unsigned long clksel_recalc(struct clk *clk)
 {
 	u32 div = ((readl(clk->clksel_reg) & clk->clksel_mask) >> clk->clksel_shift) + 1;
 	unsigned long rate = clk->parent->rate / div;
-	pr_debug("clock: %s new clock rate is %ld (div %d)\n", clk->name, rate, div);
+	pr_debug("%s new clock rate is %ld (div %d)\n", clk->name, rate, div);
 	return rate;
 }
 
@@ -173,7 +191,7 @@ static unsigned long clksel_recalc_shift(struct clk *clk)
 {
 	u32 shift = (readl(clk->clksel_reg) & clk->clksel_mask) >> clk->clksel_shift;
 	unsigned long rate = clk->parent->rate >> shift;
-	pr_debug("clock: %s new clock rate is %ld (shift %d)\n", clk->name, rate, shift);
+	pr_debug("%s new clock rate is %ld (shift %d)\n", clk->name, rate, shift);
 	return rate;
 }
 
@@ -190,7 +208,7 @@ static int clksel_set_rate(struct clk *clk, unsigned long rate)
 			v |= (div - 1) << clk->clksel_shift;
 			writel(v, reg);
 			clk->rate = new_rate;
-			pr_debug("clock: clksel_set_rate for clock %s to rate %ld (div %d)\n", clk->name, rate, div);
+			pr_debug("clksel_set_rate for clock %s to rate %ld (div %d)\n", clk->name, rate, div);
 			return 0;
 		}
 	}
@@ -211,7 +229,7 @@ static int clksel_set_rate_shift(struct clk *clk, unsigned long rate)
 			v |= shift << clk->clksel_shift;
 			writel(v, reg);
 			clk->rate = new_rate;
-			pr_debug("clock: clksel_set_rate for clock %s to rate %ld (shift %d)\n", clk->name, rate, shift);
+			pr_debug("clksel_set_rate for clock %s to rate %ld (shift %d)\n", clk->name, rate, shift);
 			return 0;
 		}
 	}
@@ -223,7 +241,7 @@ static struct clk xin24m = {
 	.name		= "xin24m",
 	.rate		= 24000000,
 	.flags		= RATE_FIXED,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 };
 
 static struct clk clk12m = {
@@ -231,149 +249,299 @@ static struct clk clk12m = {
 	.rate		= 12000000,
 	.parent		= &xin24m,
 	.flags		= RATE_FIXED,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 };
 
 static struct clk extclk = {
 	.name		= "extclk",
 	.rate		= 27000000,
 	.flags		= RATE_FIXED,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 };
 
-static unsigned long pll_clk_recalc(struct clk *clk);
-static int pll_clk_set_rate(struct clk *clk, unsigned long rate);
-
-#define PLL_CLK(NAME,IDX) \
-static struct clk NAME##_pll_clk = { \
-	.name		= #NAME"_pll", \
-	.parent		= &xin24m, \
-	.pll_idx	= IDX, \
-	.recalc		= pll_clk_recalc, \
-	.set_rate	= pll_clk_set_rate, \
-	.gate_idx	= -1, \
-}
-
-PLL_CLK(arm, 0);
-PLL_CLK(dsp, 1);
-PLL_CLK(codec, 2);
-
-static unsigned long pll_clk_recalc(struct clk *clk)
+static unsigned long arm_pll_clk_recalc(struct clk *clk)
 {
-	u32 mask, normal, *reg;
 	unsigned long rate;
 
-	if (clk == &arm_pll_clk) {
-		mask = SCU_CPUMODE_MASK;
-		normal = SCU_CPUMODE_NORMAL;
-		reg = &scu_register_base->scu_mode_config;
-	} else if (clk == &dsp_pll_clk) {
-		mask = SCU_DSPMODE_MASK;
-		normal = SCU_DSPMODE_NORMAL;
-		reg = &scu_register_base->scu_mode_config;
-	} else if (clk == &codec_pll_clk) {
-		mask = CLK_CPLL_MASK;
-		normal = CLK_CPLL_NORMAL;
-		reg = &scu_register_base->scu_clksel1_config;
-	} else {
-		return 0;
-	}
-
-	if ((readl(reg) & mask) == normal) {
-		u32 v = readl(&scu_register_base->scu_pll_config[clk->pll_idx]);
+	if ((scu_readl(SCU_MODE_CON) & SCU_CPUMODE_MASK) == SCU_CPUMODE_NORMAL) {
+		u32 v = scu_readl(SCU_APLL_CON);
 		u32 OD = ((v >> 1) & 0x7) + 1;
 		u32 NF = ((v >> 4) & 0xfff) + 1;
 		u32 NR = ((v >> 16) & 0x3f) + 1;
 		rate = clk->parent->rate / NR * NF / OD;
-		pr_debug("clock: %s new clock rate is %ld NR %d NF %d OD %d\n", clk->name, rate, NR, NF, OD);
+		pr_debug("%s new clock rate is %ld NR %d NF %d OD %d\n", clk->name, rate, NR, NF, OD);
 	} else {
 		rate = clk->parent->rate;
-		pr_debug("clock: %s new clock rate is %ld (slow mode)\n", clk->name, rate);
+		pr_debug("%s new clock rate is %ld (slow mode)\n", clk->name, rate);
 	}
 
 	return rate;
 }
 
-static void pll_clk_slow_mode(struct clk *clk, int enter)
+static struct clk arm_pll_clk = {
+	.name		= "arm_pll",
+	.parent		= &xin24m,
+	.recalc		= arm_pll_clk_recalc,
+	.gate_idx	= CLK_GATE_INVALID,
+};
+
+#define ASM_LOOP_INSTRUCTION_NUM    8
+
+void __tcmfunc tcm_udelay(unsigned long usecs, unsigned long arm_freq_mhz)
 {
-	u32 mask, value, *reg;
+	unsigned int cycle;
 
-	pr_debug("clock: %s %s slow mode\n", clk->name, enter ? "enter" : "exit");
-	if (clk == &arm_pll_clk) {
-		mask = SCU_CPUMODE_MASK;
-		value = enter ? SCU_CPUMODE_SLOW : SCU_CPUMODE_NORMAL;
-		reg = &scu_register_base->scu_mode_config;
-	} else if (clk == &dsp_pll_clk) {
-		mask = SCU_DSPMODE_MASK;
-		value = enter ? SCU_DSPMODE_SLOW : SCU_DSPMODE_NORMAL;
-		reg = &scu_register_base->scu_mode_config;
-	} else if (clk == &codec_pll_clk) {
-		mask = CLK_CPLL_MASK;
-		value = enter ? CLK_CPLL_SLOW : CLK_CPLL_NORMAL;
-		reg = &scu_register_base->scu_clksel1_config;
-	} else {
-		return;
+	cycle = usecs * arm_freq_mhz / ASM_LOOP_INSTRUCTION_NUM;
+
+	while (cycle--) {
+		nop();
+		nop();
+		nop();
+		barrier();
 	}
-
-	writel((readl(reg) & ~mask) | value, reg);
 }
 
-static int pll_clk_set_rate(struct clk *clk, unsigned long rate)
+#ifdef DEBUG_TCM
+static void __tcmlocalfunc noinline tcm_printch(char byte)
 {
-	u32 *reg = &scu_register_base->scu_pll_config[clk->pll_idx];
-	u32 v = readl(reg);
+	unsigned int timeout;
 
-	if (rate <= 24000000 ) {
-		pll_clk_slow_mode(clk, 1);
-		v |= PLL_PD;    /* pll power down */
-		writel(v, reg);
-		pr_debug("clock: %s power down", clk->name);
+	timeout = 0xffffffff;
+	while (!(readl(RK2818_UART1_BASE + 0x7c) & (1<<1))) {
+		if (!timeout--) 
+			return;
+	}
+	writel(byte, RK2818_UART1_BASE);
+	if (byte == '\n')
+		tcm_printch('\r');
+}
+
+static void __tcmlocalfunc noinline tcm_printascii(const char *s)
+{
+	while (*s) {
+		tcm_printch(*s);
+		s++;
+	}
+}
+
+static void __tcmlocalfunc noinline tcm_printhex(unsigned int hex)
+{
+	int i = 8;
+	tcm_printch('0');
+	tcm_printch('x');
+	while (i--) {
+		unsigned char c = (hex & 0xF0000000) >> 28;
+		tcm_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		hex <<= 4;
+	}
+}
+#else
+#define tcm_printch(...)
+#define tcm_printascii(...)
+#define tcm_printhex(...)
+#endif
+
+#define ARM_PLL_IDX	0
+#define DSP_PLL_IDX	1
+
+static void __tcmlocalfunc scu_hw_pll_wait_lock(int pll_idx, int delay)
+{
+	u32 bit = 0x80u << pll_idx;
+	while (delay > 0) {
+		if (regfile_readl(CPU_APB_REG0) & bit)
+			break;
+		delay--;
+	}
+	if (delay == 0 && !ddr_disabled) {
+		tcm_printascii("wait pll bit "); tcm_printhex(bit); tcm_printascii(" time out!\n");
+	}
+}
+
+static void __tcmlocalfunc arm_pll_clk_slow_mode(int enter)
+{
+	scu_writel((scu_readl(SCU_MODE_CON) & ~SCU_CPUMODE_MASK) | (enter ? SCU_CPUMODE_SLOW : SCU_CPUMODE_NORMAL), SCU_MODE_CON);
+}
+
+#define CLK_HCLK_PCLK_11	0
+#define CLK_HCLK_PCLK_21	1
+#define CLK_HCLK_PCLK_41	2
+
+#define CLK_ARM_HCLK_11		0
+#define CLK_ARM_HCLK_21		1
+#define CLK_ARM_HCLK_31		2
+#define CLK_ARM_HCLK_41		3
+
+static void __tcmlocalfunc scu_hw_set_ahb_apb_div(int ahb_div, int apb_div)
+{
+	u32 reg_val;
+	reg_val = scu_readl(SCU_CLKSEL0_CON) & ~0xF;
+	reg_val |= ((apb_div & 0x3) << 2) | ahb_div;
+//	pr_debug("set ahb = %s, apb = %s, clksel0 0x%x\n", ahb_div == 0 ? "1:1" : ahb_div == 1 ? "2:1" : ahb_div == 2 ? "3:1" : "4:1", apb_div == 0 ? "1:1" : apb_div == 1 ? "2:1" : apb_div == 2 ? "4:1" : "bad", reg_val);
+	scu_writel(reg_val, SCU_CLKSEL0_CON);
+	tcm_udelay(1, 24);	/* huangtao: unknown why, but if no delay, system will unstable. */
+}
+
+static void __tcmlocalfunc scu_hw_set_clk48m_div(int clk48m_div)
+{
+	u32 reg_val = scu_readl(SCU_CLKSEL2_CON) & ~(0xF << 4);
+	reg_val |= ((clk48m_div & 0xF) << 4);
+	scu_writel(reg_val, SCU_CLKSEL2_CON);
+}
+
+static int __tcmfunc __rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_set *_ps)
+{
+	const struct rockchip_pll_set pll_set = *_ps;
+	const struct rockchip_pll_set *ps = &pll_set;
+	const int delay = ARM_PLL_DELAY;
+
+	if (ps->clk_hz == 24 * SCU_CLK_MHZ) {
+		arm_pll_clk_slow_mode(1);
+		/* 20100615,HSL@RK,when power down,set pll out=300 M. */
+		scu_writel_force(ps->pll_con, SCU_APLL_CON);
+		tcm_printascii("set 24M clk, arm power down\n");
+		__udelay(delay);
+		scu_writel_force(scu_readl(SCU_APLL_CON) | PLL_PD, SCU_APLL_CON);
+		scu_hw_set_ahb_apb_div(ps->ahb_div, ps->apb_div);
 	} else {
-		int clkf, clkod, unit;
+		u32 reg_val;
+		unsigned long flags;
 
-		unit = rate / 1000000;
-		clkf = unit;
-		clkod = 1;
-		while (clkf < 200) { /* 160 <= Fref/NR * NF <= 800 , 200 set to the midia point */
-			clkf += unit;
-			clkod += 1;
-		} 
-		if (clkod > 8) { /* clkod max 8 , 8*24=192 > 160 , safe */
-			clkod = 9;
-			clkf = clkod * unit;
+		local_irq_save(flags);
+		/*20100726,HSL@RK,close irq for change ahb = ahb =1. */
+		arm_pll_clk_slow_mode(1);
+		/* if change arm pll,we change vdd core and ahb,apb div. */
+		scu_hw_set_ahb_apb_div(CLK_ARM_HCLK_11, CLK_HCLK_PCLK_11);
+		local_irq_restore(flags);
+
+		local_irq_save(flags);
+		reg_val = scu_readl(SCU_APLL_CON);
+		if (reg_val & PLL_PD) {
+			scu_writel_force(reg_val & ~PLL_PD, SCU_APLL_CON);
+			tcm_printascii("arm pll power on, set to "); tcm_printhex(ps->clk_hz); tcm_printascii(", delay = "); tcm_printhex(delay); tcm_printch('\n');
+			scu_hw_pll_wait_lock(ARM_PLL_IDX, delay * 2);
 		}
-		pll_clk_slow_mode(clk, 1);
-		v &= ~PLL_PD;
-		writel(v, reg);
+		local_irq_restore(flags);
 
-		/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf*/
-		v = PLL_SAT|PLL_FAST|(PLL_CLKR(24-1))|(PLL_CLKF(clkf-1))|(PLL_CLKOD(clkod - 1));
-		writel(v, reg);
+		/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf */
+		/* 可能屏幕会倒动,如果不修改 clkr和clkf则不用进入slow mode . */
+		local_irq_save(flags);
+		scu_writel_force(ps->pll_con, SCU_APLL_CON);
+		scu_hw_pll_wait_lock(ARM_PLL_IDX, delay);
 
-		/* arm run at 24m */ //FIXME
-		unit = 7200;  /* 24m,0.3ms , 24*300*/
-		while (unit-- > 0) {
-			v = readl(RK2818_REGFILE_BASE + CPU_APB_REG0);
-			if (v & (0x80u << clk->pll_idx) )
-				break;
-		}
-		pll_clk_slow_mode(clk, 0);
-		pr_debug("clock: set %s to %ld MHZ, clkf=%d, clkod=%d, delay count=%d\n", clk->name, rate/1000000, clkf, clkod, unit);
+		scu_hw_set_ahb_apb_div(ps->ahb_div, ps->apb_div);
+		scu_hw_set_clk48m_div(ps->clk48m_div);
+
+		arm_pll_clk_slow_mode(0);
+		local_irq_restore(flags);
 	}
 
 	return 0;
 }
 
-static int arm_clk_set_rate(struct clk *clk, unsigned long rate);
+static int noinline rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_set *ps)
+{
+	int ret;
+	unsigned long old_sp, tcm_sp = DTCM_END & ~7;
+
+	asm volatile ("mov %0, sp" : "=r" (old_sp));
+	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
+	ret = __rockchip_scu_set_arm_pllclk_hw(ps);
+	asm volatile ("mov sp, %0" :: "r" (old_sp));
+
+	return ret;
+}
+
+#define ARM_PLL(_clk_hz, nr, nf, od, _clk48m_div, _ahb_div, _apb_div, _flags) \
+{							\
+	.clk_hz		= _clk_hz,			\
+	.pll_con	= PLL_SAT | PLL_FAST | PLL_CLKR(nr-1) | PLL_CLKF(nf-1) | PLL_CLKOD(od-1), \
+	.clk48m_div	= _clk48m_div - 1,		\
+	.ahb_div	= CLK_ARM_HCLK_##_ahb_div,	\
+	.apb_div	= CLK_HCLK_PCLK_##_apb_div,	\
+	.flags		= _flags,			\
+}
+
+struct rockchip_pll_set arm_pll[] = {
+// clk_hz = 24*clkf/(clkr*clkod) clkr clkf clkod hdiv pdiv flags (pdiv=1,2,4,no 3!!)
+	ARM_PLL(576 * SCU_CLK_MHZ, 4, 96, 1, 12, 31, 41, 1),
+	ARM_PLL(384 * SCU_CLK_MHZ, 3, 96, 2,  8, 21, 41, 1),
+	ARM_PLL(192 * SCU_CLK_MHZ, 4, 96, 3,  4, 21, 21, 1),
+	// last item, pll power down. set real clk == SCU_ARM_MID_CLK
+	ARM_PLL( 24 * SCU_CLK_MHZ, 4, 48, 1,  6, 31, 21, 0),	// POWER down
+};
+
+static int arm_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	const struct rockchip_pll_set *ps, *pt;
+
+	/* found the rockchip_pll_set we want. */
+	ps = pt = &arm_pll[0];
+	while (1) {
+		if (pt->clk_hz == rate) {
+			ps = pt;
+			break;
+		}
+		// special clk ,exact match.
+		if (pt->flags & 1) {
+			pt++;
+			continue;
+		}
+		// we are sorted,and ps->clk_hz > pt->clk_hz.
+		if ((pt->clk_hz > rate || (rate - pt->clk_hz < ps->clk_hz - rate)))
+			ps = pt;
+		if (pt->clk_hz < rate || pt->clk_hz == 24 * SCU_CLK_MHZ)
+			break;
+		pt++;
+	}
+
+	if (ps->clk_hz == clk->rate)
+		return 0;
+
+	pr_debug("set arm to %d Hz, cur clk = %ld Hz\n", ps->clk_hz, clk->rate);
+
+	if (ps->clk_hz > clk->rate) {
+		// increase freq.
+		int i;
+		for (i = ARRAY_SIZE(arm_pll) - 2; i >= 0; i--) {
+			if (ps->clk_hz > arm_pll[i].clk_hz && arm_pll[i].clk_hz > clk->rate) {
+				rockchip_scu_set_arm_pllclk_hw(&arm_pll[i]);
+			}
+		}
+	} else {
+		// decrease freq.
+		int i;
+		for (i = 1; i < ARRAY_SIZE(arm_pll); i++) {
+			if (ps->clk_hz < arm_pll[i].clk_hz && arm_pll[i].clk_hz < clk->rate) {
+				rockchip_scu_set_arm_pllclk_hw(&arm_pll[i]);
+			}
+		}
+	}
+
+	rockchip_scu_set_arm_pllclk_hw(ps);
+
+	/* adjust arm_pll_clk and arm_pll_clk other children's rate */
+	arm_pll_clk.rate = arm_pll_clk.recalc(&arm_pll_clk);
+	{
+		struct clk *clkp;
+
+		list_for_each_entry(clkp, &arm_pll_clk.children, sibling) {
+			if (clkp == clk)
+				continue;
+			if (clkp->recalc)
+				clkp->rate = clkp->recalc(clkp);
+			propagate_rate(clkp);
+		}
+	}
+
+	return 0;
+}
 
 static struct clk arm_clk = {
 	.name		= "arm",
 	.parent		= &arm_pll_clk,
 	.recalc		= clksel_recalc,
-#ifdef CONFIG_CPU_FREQ
 	.set_rate	= arm_clk_set_rate,
-#endif
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 0xF,
 	.clksel_maxdiv	= 16,
@@ -383,7 +551,7 @@ static struct clk arm_hclk = {
 	.name		= "arm_hclk",
 	.parent		= &arm_clk,
 	.recalc		= clksel_recalc,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3,
 	.clksel_maxdiv	= 4,
@@ -394,7 +562,7 @@ static struct clk clk48m = {
 	.parent		= &arm_clk,
 	.flags		= RATE_FIXED,
 	.recalc		= clksel_recalc,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 0xF << 4,
 	.clksel_shift	= 4,
@@ -406,11 +574,179 @@ static struct clk arm_pclk = {
 	.flags		= ENABLE_ON_INIT,
 	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3 << 2,
 	.clksel_shift	= 2,
 	.clksel_maxdiv	= 4,
+};
+
+static unsigned long dsp_pll_clk_recalc(struct clk *clk)
+{
+	unsigned long rate;
+
+	if ((scu_readl(SCU_MODE_CON) & SCU_DSPMODE_MASK) == SCU_DSPMODE_NORMAL) {
+		u32 v = scu_readl(SCU_DPLL_CON);
+		u32 OD = ((v >> 1) & 0x7) + 1;
+		u32 NF = ((v >> 4) & 0xfff) + 1;
+		u32 NR = ((v >> 16) & 0x3f) + 1;
+		rate = clk->parent->rate / NR * NF / OD;
+		pr_debug("%s new clock rate is %ld NR %d NF %d OD %d\n", clk->name, rate, NR, NF, OD);
+	} else {
+		rate = clk->parent->rate;
+		pr_debug("%s new clock rate is %ld (slow mode)\n", clk->name, rate);
+	}
+
+	return rate;
+}
+
+static void __tcmlocalfunc dsp_pll_clk_slow_mode(int enter)
+{
+	scu_writel((scu_readl(SCU_MODE_CON) & ~SCU_DSPMODE_MASK) | (enter ? SCU_DSPMODE_SLOW : SCU_DSPMODE_NORMAL), SCU_MODE_CON);
+}
+
+static int __tcmfunc __rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *_ps)
+{
+	const struct rockchip_pll_set pll_set = *_ps;
+	const struct rockchip_pll_set *ps = &pll_set;
+	const int delay = OTHER_PLL_DELAY;
+
+	if (ps->clk_hz == 24 * SCU_CLK_MHZ) {
+		unsigned long arm_freq_mhz = arm_clk.rate / SCU_CLK_MHZ;
+		dsp_pll_clk_slow_mode(1);
+		/* 20100615,HSL@RK,when power down,set pll out=300 M. */
+		scu_writel_force(ps->pll_con, SCU_DPLL_CON);
+		tcm_printascii("set 24M clk, dsp power down\n");
+		tcm_udelay(delay, arm_freq_mhz);
+		scu_writel_force(scu_readl(SCU_DPLL_CON) | PLL_PD, SCU_DPLL_CON);
+	} else {
+		u32 reg_val;
+
+		dsp_pll_clk_slow_mode(1);
+
+		reg_val = scu_readl(SCU_DPLL_CON);
+		if (reg_val & PLL_PD) {
+			scu_writel_force(reg_val & ~PLL_PD, SCU_DPLL_CON);
+			tcm_printascii("dsp pll power on, set to "); tcm_printhex(ps->clk_hz); tcm_printascii(", delay = "); tcm_printhex(delay); tcm_printch('\n');
+			scu_hw_pll_wait_lock(DSP_PLL_IDX, delay * 2);
+		}
+
+		/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf */
+		/* 可能屏幕会倒动,如果不修改 clkr和clkf则不用进入slow mode . */
+		scu_writel_force(ps->pll_con, SCU_DPLL_CON);
+		scu_hw_pll_wait_lock(DSP_PLL_IDX, delay);
+
+		dsp_pll_clk_slow_mode(0);
+	}
+
+	return 0;
+}
+
+static int rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *ps)
+{
+	int ret;
+	unsigned long old_sp, tcm_sp = DTCM_END & ~7;
+
+	asm volatile ("mov %0, sp" : "=r" (old_sp));
+	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
+	ret = __rockchip_scu_set_dsp_pllclk_hw(ps);
+	asm volatile ("mov sp, %0" :: "r" (old_sp));
+
+	return ret;
+}
+
+#define DSP_PLL(_clk_hz, nr, nf, od) \
+{							\
+	.clk_hz		= _clk_hz,			\
+	.pll_con	= PLL_SAT | PLL_FAST | PLL_CLKR(nr-1) | PLL_CLKF(nf-1) | PLL_CLKOD(od-1), \
+}
+
+struct rockchip_pll_set dsp_pll[] = {
+// clk_hz = 24*clkf/(clkr*clkod) clkr clkf clkod
+	DSP_PLL(600 * SCU_CLK_MHZ, 6, 150, 1),
+	DSP_PLL(560 * SCU_CLK_MHZ, 6, 140, 1),
+	DSP_PLL(500 * SCU_CLK_MHZ, 6, 125, 1),
+	DSP_PLL(450 * SCU_CLK_MHZ, 4,  75, 1),
+	DSP_PLL(400 * SCU_CLK_MHZ, 6, 100, 1),
+#if MAYCHG_VDD
+	DSP_PLL(364 * SCU_CLK_MHZ, 6,  91, 1),	// VDD_110 for ddr 364M will crash.
+#endif
+	// pll power down.
+	DSP_PLL( 24 * SCU_CLK_MHZ, 4,  50, 1),	// POWER down,by the real clk = 300M
+};
+
+static int dsp_pll_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	const struct rockchip_pll_set *ps, *pt;
+	static const struct rockchip_pll_set mid_pll = DSP_PLL(300 * SCU_CLK_MHZ, 4, 50, 1);
+
+	/* found the rockchip_pll_set we want. */
+	ps = pt = &dsp_pll[0];
+	while (1) {
+		if (pt->clk_hz == rate) {
+			ps = pt;
+			break;
+		}
+		// we are sorted,and ps->clk_hz > pt->clk_hz.
+		if (pt->clk_hz > rate || (rate - pt->clk_hz < ps->clk_hz - rate))
+			ps = pt;
+		if (pt->clk_hz < rate || pt->clk_hz == 24 * SCU_CLK_MHZ)
+			break;
+		pt++;
+	}
+
+	if (ps->clk_hz == clk->rate)
+		return 0;
+
+	pr_debug("set dsp to %d Hz, cur clk = %ld Hz\n", ps->clk_hz, clk->rate);
+
+	if ((rate > mid_pll.clk_hz && mid_pll.clk_hz > clk->rate) ||
+	    (rate < mid_pll.clk_hz && mid_pll.clk_hz < clk->rate))
+		rockchip_scu_set_dsp_pllclk_hw(&mid_pll);
+	rockchip_scu_set_dsp_pllclk_hw(ps);
+
+	return 0;
+}
+
+static struct clk dsp_pll_clk = {
+	.name		= "dsp_pll",
+	.parent		= &xin24m,
+	.recalc		= dsp_pll_clk_recalc,
+	.set_rate	= dsp_pll_clk_set_rate,
+	.gate_idx	= CLK_GATE_INVALID,
+};
+
+static unsigned long codec_pll_clk_recalc(struct clk *clk)
+{
+	unsigned long rate;
+
+	if ((scu_readl(SCU_CLKSEL1_CON) & CLK_CPLL_MASK) == CLK_CPLL_NORMAL) {
+		u32 v = scu_readl(SCU_CPLL_CON);
+		u32 OD = ((v >> 1) & 0x7) + 1;
+		u32 NF = ((v >> 4) & 0xfff) + 1;
+		u32 NR = ((v >> 16) & 0x3f) + 1;
+		rate = clk->parent->rate / NR * NF / OD;
+		pr_debug("%s new clock rate is %ld NR %d NF %d OD %d\n", clk->name, rate, NR, NF, OD);
+	} else {
+		rate = clk->parent->rate;
+		pr_debug("%s new clock rate is %ld (slow mode)\n", clk->name, rate);
+	}
+
+	return rate;
+}
+
+#if 0
+static void __tcmlocalfunc codec_pll_clk_slow_mode(int enter) 
+{
+	scu_writel((scu_readl(SCU_CLKSEL1_CON) & ~CLK_CPLL_MASK) | (enter ? CLK_CPLL_SLOW : CLK_CPLL_NORMAL), SCU_CLKSEL1_CON);
+}
+#endif
+
+static struct clk codec_pll_clk = {
+	.name		= "codec_pll",
+	.parent		= &xin24m,
+	.recalc		= codec_pll_clk_recalc,
+	.gate_idx	= CLK_GATE_INVALID,
 };
 
 static struct clk* demod_divider_clk_get_parent(struct clk *clk)
@@ -444,7 +780,7 @@ static struct clk demod_divider_clk = {
 	.set_rate	= clksel_set_rate,
 	.get_parent	= demod_divider_clk_get_parent,
 	.set_parent	= demod_divider_clk_set_parent,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0xFF << 16,
 	.clksel_shift	= 16,
@@ -479,7 +815,7 @@ static struct clk demod_clk = {
 	.recalc		= followparent_recalc,
 	.get_parent	= demod_clk_get_parent,
 	.set_parent	= demod_clk_set_parent,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 };
 
 static struct clk codec_clk = {
@@ -487,7 +823,7 @@ static struct clk codec_clk = {
 	.parent		= &codec_pll_clk,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0x1F << 3,
 	.clksel_shift	= 3,
@@ -525,7 +861,7 @@ static struct clk lcdc_divider_clk = {
 	.set_rate	= clksel_set_rate,
 	.get_parent	= lcdc_divider_clk_get_parent,
 	.set_parent	= lcdc_divider_clk_set_parent,
-	.gate_idx	= -1,
+	.gate_idx	= CLK_GATE_INVALID,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0xFF << 8,
 	.clksel_shift	= 8,
@@ -650,24 +986,24 @@ static int i2s_clk_set_parent(struct clk *clk, struct clk *parent)
 
 static int gate_mode(struct clk *clk, int on)
 {
-	u32 *reg;
+	u32 reg;
 	int idx = clk->gate_idx;
 	u32 v;
 
 	if (idx >= CLK_GATE_MAX)
 		return -EINVAL;
 
-	reg = &scu_register_base->scu_clkgate0_config;
-	reg += (idx >> 5);
+	reg = SCU_CLKGATE0_CON;
+	reg += (idx >> 5) << 2;
 	idx &= 0x1F;
 
-	v = readl(reg);
+	v = scu_readl(reg);
 	if (on) {
 		v &= ~(1 << idx);	// clear bit 
 	} else {
 		v |= (1 << idx);	// set bit
 	}
-	writel(v, reg);
+	scu_writel(v, reg);
 
 	return 0;
 }
@@ -983,7 +1319,7 @@ static int __clk_enable(struct clk *clk)
 				return ret;
 			}
 		}
-		pr_debug("clock: %s enabled\n", clk->name);
+		pr_debug("%s enabled\n", clk->name);
 	}
 	clk->usecount++;
 
@@ -1011,7 +1347,7 @@ static void __clk_disable(struct clk *clk)
 	if (--clk->usecount == 0) {
 		if (clk->mode)
 			clk->mode(clk, 0);
-		pr_debug("clock: %s disabled\n", clk->name);
+		pr_debug("%s disabled\n", clk->name);
 		if (clk->parent)
 			__clk_disable(clk->parent);
 	}
@@ -1091,7 +1427,7 @@ static int __clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int ret = -EINVAL;
 
-	pr_debug("clock: set_rate for clock %s to rate %ld\n", clk->name, rate);
+	pr_debug("set_rate for clock %s to rate %ld\n", clk->name, rate);
 
 	if (clk->flags & CONFIG_PARTICIPANT)
 		return -EINVAL;
@@ -1111,12 +1447,17 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		return ret;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
+	if (rate == clk->rate) {
+		ret = 0;
+		goto out;
+	}
 	ret = __clk_set_rate(clk, rate);
 	if (ret == 0) {
 		if (clk->recalc)
 			clk->rate = clk->recalc(clk);
 		propagate_rate(clk);
 	}
+out:
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
@@ -1161,7 +1502,7 @@ static void clk_reparent(struct clk *child, struct clk *parent)
 {
 	if (child->parent == parent)
 		return;
-	pr_debug("clock: %s reparent to %s (was %s)\n", child->name, parent->name, ((child->parent) ? child->parent->name : "NULL"));
+	pr_debug("%s reparent to %s (was %s)\n", child->name, parent->name, ((child->parent) ? child->parent->name : "NULL"));
 
 	list_del_init(&child->sibling);
 	if (parent)
@@ -1260,163 +1601,6 @@ static void clk_enable_init_clocks(void)
 	}
 }
 
-#ifdef CONFIG_CPU_FREQ
-#include <linux/cpufreq.h>
-
-struct rk2818_freq_info {
-	u16	arm_mhz;
-	u16	ddr_mhz;
-	u32	apll_con;
-	u8	clk48m : 4;
-	u8	hclk : 2;
-	u8	pclk : 2;
-};
-
-#define CLK_HCLK_PCLK_11	0
-#define CLK_HCLK_PCLK_21	1
-#define CLK_HCLK_PCLK_41	2
-
-#define CLK_ARM_HCLK_11		0
-#define CLK_ARM_HCLK_21		1
-#define CLK_ARM_HCLK_31		2
-#define CLK_ARM_HCLK_41		3
-
-#define OP(_arm_mhz, _ddr_mhz, nf, nr, od, _clk48m, _hclk, _pclk) \
-{							\
-	.arm_mhz	= _arm_mhz,			\
-	.ddr_mhz	= _ddr_mhz,			\
-	.apll_con	= PLL_SAT | PLL_FAST | PLL_CLKR(nr-1) | PLL_CLKF(nf-1) | PLL_CLKOD(od-1), \
-	.clk48m		= _clk48m - 1,			\
-	.hclk		= CLK_ARM_HCLK_##_hclk,		\
-	.pclk		= CLK_HCLK_PCLK_##_pclk,	\
-}
-
-/*
- * F = 24MHz * NF / NR / OD
- * 97.7KHz < 24MHz / NR < 800MHz
- * 160MHz < 24MHz / NR * NF < 800MHz
- */
-static struct rk2818_freq_info rk2818_freqs[] = {
-	/* ARM  DDR   NF  NR OD 48M HCLK PCLK */
-//X	OP(768, 350, 768, 24, 1, 16,  41,  41),
-//	OP(720, 350, 720, 24, 1, 15,  41,  21),
-//	OP(672, 350, 672, 24, 1, 14,  41,  21),
-#if defined(CONFIG_MACH_RK2818INFO)
-	OP(624, 350, 624, 24, 1, 13,  31,  21),
-#else
-	OP(600, 350, 600, 24, 1, 12,  41,  21),
-#endif
-//	OP(576, 350, 576, 24, 1, 12,  41,  21),
-//	OP(528, 350, 528, 24, 1, 11,  41,  21),
-//	OP(480, 350, 480, 24, 1, 10,  41,  21),
-//	OP(450, 350, 432, 24, 1,  9,  31,  21),
-//	OP(432, 350, 432, 24, 1,  9,  31,  21),
-//	OP(384, 350, 384, 24, 1,  8,  31,  21),
-//	OP(336, 350, 336, 24, 1,  7,  31,  21),
-//	OP(288, 350, 288, 24, 1,  6,  41,  21),
-};
-
-/* CPU_APB_REG5 */
-#define MEMTYPEMASK   (0x3 << 11) 
-#define SDRAM         (0x0 << 11)
-#define Mobile_SDRAM  (0x1 << 11)
-#define DDRII         (0x2 << 11)
-#define Mobile_DDR    (0x3 << 11)
-
-static int arm_clk_set_rate(struct clk *clk, unsigned long rate)
-{
-	int i;
-	struct rk2818_freq_info *freq;
-	unsigned int arm_mhz = rate / 1000000;
-	u32 *reg = &scu_register_base->scu_pll_config[arm_pll_clk.pll_idx];
-	u32 v = readl(reg);
-	u32 mem_type;
-	u32 unit;
-
-	for (i = 0; i < ARRAY_SIZE(rk2818_freqs); i++) {
-		if (rk2818_freqs[i].arm_mhz == arm_mhz) {
-			break;
-		}
-	}
-
-	if (i == ARRAY_SIZE(rk2818_freqs))
-		return -EINVAL;
-
-	freq = &rk2818_freqs[i];
-
-	mem_type = readl(RK2818_REGFILE_BASE + CPU_APB_REG0) & MEMTYPEMASK;
-	if ((mem_type == DDRII || mem_type == Mobile_DDR) && (ddr_clk.parent == &arm_pll_clk)) {
-		pr_debug("clock: no set arm clk rate when ddr parent is arm_pll\n");
-		return -EINVAL;
-	}
-
-	pll_clk_slow_mode(&arm_pll_clk, 1);
-	v &= ~PLL_PD;
-	writel(v, reg);
-
-	/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf*/
-	writel(freq->apll_con, reg);
-
-	v = readl(arm_hclk.clksel_reg) & ~arm_hclk.clksel_mask;
-	v |= freq->hclk << arm_hclk.clksel_shift;
-	writel(v, arm_hclk.clksel_reg);
-
-	v = readl(arm_pclk.clksel_reg) & ~arm_pclk.clksel_mask;
-	v |= freq->pclk << arm_pclk.clksel_shift;
-	writel(v, arm_pclk.clksel_reg);
-
-	v = readl(clk48m.clksel_reg) & ~clk48m.clksel_mask;
-	v |= freq->clk48m << clk48m.clksel_shift;
-	writel(v, clk48m.clksel_reg);
-
-	/* arm run at 24m */
-	unit = 7200;  /* 24m,0.3ms , 24*300*/
-	while (unit-- > 0) {
-		v = readl(RK2818_REGFILE_BASE + CPU_APB_REG0);
-		if (v & 0x80u)
-			break;
-	}
-	pll_clk_slow_mode(&arm_pll_clk, 0);
-	mdelay(5);
-	pr_debug("clock: set %s to %ld MHz, delay count=%d\n", clk->name, rate/1000000, unit);
-
-	arm_pll_clk.rate = arm_pll_clk.recalc(&arm_pll_clk);
-	{
-		struct clk *clkp;
-
-		list_for_each_entry(clkp, &arm_pll_clk.children, sibling) {
-			if (clkp == &arm_clk)
-				continue;
-			if (clkp->recalc)
-				clkp->rate = clkp->recalc(clkp);
-			propagate_rate(clkp);
-		}
-	}
-
-	//FIXME: change sdram freq
-
-	return 0;
-}
-
-static struct cpufreq_frequency_table freq_table[ARRAY_SIZE(rk2818_freqs) + 1];
-
-void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(rk2818_freqs); i++) {
-		freq_table[i].index = i;
-		freq_table[i].frequency = rk2818_freqs[i].arm_mhz * 1000; /* kHz */
-	}
-
-	freq_table[i].index = i;
-	freq_table[i].frequency = CPUFREQ_TABLE_END;
-
-	*table = freq_table;
-}
-EXPORT_SYMBOL(clk_init_cpufreq_table);
-#endif /* CONFIG_CPU_FREQ */
-
 static unsigned int __initdata armclk;
 
 /*
@@ -1447,9 +1631,7 @@ static int __init rk2818_clk_arch_init(void)
 		return -EINVAL;
 
 	if (clk_set_rate(&arm_clk, armclk))
-		printk(KERN_ERR "*** Unable to set arm_clk rate\n");
-
-	recalculate_root_clocks();
+		pr_err("*** Unable to set arm_clk rate\n");
 
 	printk(KERN_INFO "Switched to new clocking rate (pll/arm/hclk/pclk): "
 	       "%ld/%ld/%ld/%ld MHz\n",
@@ -1457,6 +1639,7 @@ static int __init rk2818_clk_arch_init(void)
 	       arm_hclk.rate / 1000000, arm_pclk.rate / 1000000);
 
 	calibrate_delay();
+	printk(KERN_INFO "%lu.%02lu BogoMIPS (lpj=%lu)\n", loops_per_jiffy/(500000/HZ), (loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
 
 	return 0;
 }
@@ -1504,15 +1687,15 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 	seq_printf(s, "%-9s ", clk->name);
 
 	if (clk->gate_idx < CLK_GATE_MAX) {
-		u32 *reg;
+		u32 reg;
 		int idx = clk->gate_idx;
 		u32 v;
 
-		reg = &scu_register_base->scu_clkgate0_config;
-		reg += (idx >> 5);
+		reg = SCU_CLKGATE0_CON;
+		reg += (idx >> 5) << 2;
 		idx &= 0x1F;
 
-		v = readl(reg) & (1 << idx);
+		v = scu_readl(reg) & (1 << idx);
 		
 		seq_printf(s, "%s ", v ? "off" : "on ");
 	} else
@@ -1554,17 +1737,17 @@ static int proc_clk_show(struct seq_file *s, void *v)
 	mutex_unlock(&clocks_mutex);
 
 	seq_printf(s, "\nRegisters:\n");
-	seq_printf(s, "SCU_APLL_CON     : 0x%08x\n", readl(&scu_register_base->scu_pll_config[0]));
-	seq_printf(s, "SCU_DPLL_CON     : 0x%08x\n", readl(&scu_register_base->scu_pll_config[1]));
-	seq_printf(s, "SCU_CPLL_CON     : 0x%08x\n", readl(&scu_register_base->scu_pll_config[2]));
-	seq_printf(s, "SCU_MODE_CON     : 0x%08x\n", readl(&scu_register_base->scu_mode_config));
-	seq_printf(s, "SCU_PMU_CON      : 0x%08x\n", readl(&scu_register_base->scu_pmu_config));
-	seq_printf(s, "SCU_CLKSEL0_CON  : 0x%08x\n", readl(&scu_register_base->scu_clksel0_config));
-	seq_printf(s, "SCU_CLKSEL1_CON  : 0x%08x\n", readl(&scu_register_base->scu_clksel1_config));
-	seq_printf(s, "SCU_CLKGATE0_CON : 0x%08x\n", readl(&scu_register_base->scu_clkgate0_config));
-	seq_printf(s, "SCU_CLKGATE1_CON : 0x%08x\n", readl(&scu_register_base->scu_clkgate1_config));
-	seq_printf(s, "SCU_CLKGATE2_CON : 0x%08x\n", readl(&scu_register_base->scu_clkgate2_config));
-	seq_printf(s, "SCU_CLKSEL2_CON  : 0x%08x\n", readl(&scu_register_base->scu_clksel2_config));
+	seq_printf(s, "SCU_APLL_CON     : 0x%08x\n", scu_readl(SCU_APLL_CON));
+	seq_printf(s, "SCU_DPLL_CON     : 0x%08x\n", scu_readl(SCU_DPLL_CON));
+	seq_printf(s, "SCU_CPLL_CON     : 0x%08x\n", scu_readl(SCU_CPLL_CON));
+	seq_printf(s, "SCU_MODE_CON     : 0x%08x\n", scu_readl(SCU_MODE_CON));
+	seq_printf(s, "SCU_PMU_CON      : 0x%08x\n", scu_readl(SCU_PMU_CON));
+	seq_printf(s, "SCU_CLKSEL0_CON  : 0x%08x\n", scu_readl(SCU_CLKSEL0_CON));
+	seq_printf(s, "SCU_CLKSEL1_CON  : 0x%08x\n", scu_readl(SCU_CLKSEL1_CON));
+	seq_printf(s, "SCU_CLKGATE0_CON : 0x%08x\n", scu_readl(SCU_CLKGATE0_CON));
+	seq_printf(s, "SCU_CLKGATE1_CON : 0x%08x\n", scu_readl(SCU_CLKGATE1_CON));
+	seq_printf(s, "SCU_CLKGATE2_CON : 0x%08x\n", scu_readl(SCU_CLKGATE2_CON));
+	seq_printf(s, "SCU_CLKSEL2_CON  : 0x%08x\n", scu_readl(SCU_CLKSEL2_CON));
 
 	return 0;
 }
