@@ -581,6 +581,49 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
+static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
+{
+	__le32 *txwi;
+	u32 word;
+	int wcid, ack, pid;
+	int tx_wcid, tx_ack, tx_pid;
+
+	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+
+	/*
+	 * This frames has returned with an IO error,
+	 * so the status report is not intended for this
+	 * frame.
+	 */
+	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags)) {
+		rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+		return false;
+	}
+
+	/*
+	 * Validate if this TX status report is intended for
+	 * this entry by comparing the WCID/ACK/PID fields.
+	 */
+	txwi = rt2800_drv_get_txwi(entry);
+
+	rt2x00_desc_read(txwi, 1, &word);
+	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
+	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
+
+	if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid)) {
+		WARNING(entry->queue->rt2x00dev,
+			"TX status report missed for queue %d entry %d\n",
+		entry->queue->qid, entry->entry_idx);
+		rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
+		return false;
+	}
+
+	return true;
+}
+
 void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
@@ -589,8 +632,8 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u32 reg;
-	int wcid, ack, pid, tx_wcid, tx_ack, tx_pid;
 	u16 mcs, real_mcs;
+	u8 pid;
 	int i;
 
 	/*
@@ -607,18 +650,15 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00_get_field32(reg, TX_STA_FIFO_VALID))
 			break;
 
-		wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
-		ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
-		pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
-
 		/*
 		 * Skip this entry when it contains an invalid
 		 * queue identication number.
 		 */
-		if (pid <= 0 || pid > QID_RX)
+		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE) - 1;
+		if (pid >= QID_RX)
 			continue;
 
-		queue = rt2x00queue_get_queue(rt2x00dev, pid - 1);
+		queue = rt2x00queue_get_queue(rt2x00dev, pid);
 		if (unlikely(!queue))
 			continue;
 
@@ -627,35 +667,22 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		 * order. We first check that the queue is not empty.
 		 */
 		entry = NULL;
+		txwi = NULL;
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-			if (!test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+			if (rt2800_txdone_entry_check(entry, reg))
 				break;
-
-			rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 		}
 
 		if (!entry || rt2x00queue_empty(queue))
 			break;
 
-		/*
-		 * Check if we got a match by looking at WCID/ACK/PID
-		 * fields
-		 */
-		txwi = rt2800_drv_get_txwi(entry);
-
-		rt2x00_desc_read(txwi, 1, &word);
-		tx_wcid	= rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
-		tx_ack	= rt2x00_get_field32(word, TXWI_W1_ACK);
-		tx_pid	= rt2x00_get_field32(word, TXWI_W1_PACKETID);
-
-		if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid))
-			WARNING(rt2x00dev, "invalid TX_STA_FIFO content");
 
 		/*
 		 * Obtain the status about this packet.
 		 */
 		txdesc.flags = 0;
+		txwi = rt2800_drv_get_txwi(entry);
 		rt2x00_desc_read(txwi, 0, &word);
 		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
 		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
