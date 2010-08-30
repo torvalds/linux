@@ -1659,7 +1659,19 @@ static int cit_start_model0(struct gspca_dev *gspca_dev)
 static int cit_start_model1(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i, clock_div = 0;
+	int clock_div = 7; /* 0=30 1=25 2=20 3=15 4=12 5=7.5 6=6 7=3fps ?? */
+	int fps[8] = { 30, 25, 20, 15, 12, 8, 6, 3 };
+	int i, packet_size;
+
+	packet_size = cit_get_packet_size(gspca_dev);
+	if (packet_size < 0)
+		return packet_size;
+
+	while (clock_div > 3 &&
+			1000 * packet_size >
+			gspca_dev->width * gspca_dev->height *
+			fps[clock_div - 1] * 3 / 2)
+		clock_div--;
 
 	cit_read_reg(gspca_dev, 0x0128);
 	cit_read_reg(gspca_dev, 0x0100);
@@ -1767,7 +1779,6 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x0b, 0x011d);
 		cit_write_reg(gspca_dev, 0x00, 0x011e);	/* Same everywhere */
 		cit_write_reg(gspca_dev, 0x00, 0x0129);
-		clock_div = 3;
 		break;
 	case 176: /* 176x144 */
 		cit_write_reg(gspca_dev, 0xb0, 0x0103);
@@ -1777,7 +1788,6 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x0d, 0x011d);
 		cit_write_reg(gspca_dev, 0x00, 0x011e);	/* Same everywhere */
 		cit_write_reg(gspca_dev, 0x03, 0x0129);
-		clock_div = 3;
 		break;
 	case 352: /* 352x288 */
 		cit_write_reg(gspca_dev, 0xb0, 0x0103);
@@ -1787,7 +1797,6 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x05, 0x011d);
 		cit_write_reg(gspca_dev, 0x00, 0x011e);	/* Same everywhere */
 		cit_write_reg(gspca_dev, 0x00, 0x0129);
-		clock_div = 5;
 		break;
 	}
 
@@ -1852,6 +1861,7 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 
 	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
 	cit_write_reg(gspca_dev, clock_div, 0x0111);
+	PDEBUG(D_PROBE, "Using clockdiv: %d", clock_div);
 
 	return 0;
 }
