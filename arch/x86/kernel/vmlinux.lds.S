@@ -285,10 +285,9 @@ SECTIONS
 	.iommu_table : AT(ADDR(.iommu_table) - LOAD_OFFSET) {
 		__iommu_table = .;
 		*(.iommu_table)
-		. = ALIGN(8);
 		__iommu_table_end = .;
 	}
-
+	. = ALIGN(8);
 	/*
 	 * .exit.text is discard at runtime, not link time, to deal with
 	 *  references from .altinstructions and .eh_frame
