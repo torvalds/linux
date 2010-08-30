@@ -230,7 +230,7 @@ source "net/dcb/Kconfig"
 source "net/dns_resolver/Kconfig"
 
 config RPS
-	boolean
+	boolean "RPS"
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
