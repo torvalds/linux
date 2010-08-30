@@ -291,7 +291,7 @@ static void srp_free_target_ib(struct srp_target_port *target)
 
 	for (i = 0; i < SRP_RQ_SIZE; ++i)
 		srp_free_iu(target->srp_host, target->rx_ring[i]);
-	for (i = 0; i < SRP_SQ_SIZE + 1; ++i)
+	for (i = 0; i < SRP_SQ_SIZE; ++i)
 		srp_free_iu(target->srp_host, target->tx_ring[i]);
 }
 
@@ -822,7 +822,7 @@ static int srp_post_recv(struct srp_target_port *target)
 
 	spin_lock_irqsave(target->scsi_host->host_lock, flags);
 
-	next	 = target->rx_head & (SRP_RQ_SIZE - 1);
+	next	 = target->rx_head & SRP_RQ_MASK;
 	wr.wr_id = next;
 	iu	 = target->rx_ring[next];
 
@@ -989,19 +989,19 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target,
 					enum srp_request_type req_type)
 {
-	s32 min = (req_type == SRP_REQ_TASK_MGMT) ? 1 : 2;
+	s32 rsv = (req_type == SRP_REQ_TASK_MGMT) ? 0 : SRP_TSK_MGMT_SQ_SIZE;
 
 	srp_send_completion(target->send_cq, target);
 
 	if (target->tx_head - target->tx_tail >= SRP_SQ_SIZE)
 		return NULL;
 
-	if (target->req_lim < min) {
+	if (target->req_lim <= rsv) {
 		++target->zero_req_lim;
 		return NULL;
 	}
 
-	return target->tx_ring[target->tx_head & SRP_SQ_SIZE];
+	return target->tx_ring[target->tx_head & SRP_SQ_MASK];
 }
 
 /*
@@ -1020,7 +1020,7 @@ static int __srp_post_send(struct srp_target_port *target,
 	list.lkey   = target->srp_host->srp_dev->mr->lkey;
 
 	wr.next       = NULL;
-	wr.wr_id      = target->tx_head & SRP_SQ_SIZE;
+	wr.wr_id      = target->tx_head & SRP_SQ_MASK;
 	wr.sg_list    = &list;
 	wr.num_sge    = 1;
 	wr.opcode     = IB_WR_SEND;
@@ -1121,7 +1121,7 @@ static int srp_alloc_iu_bufs(struct srp_target_port *target)
 			goto err;
 	}
 
-	for (i = 0; i < SRP_SQ_SIZE + 1; ++i) {
+	for (i = 0; i < SRP_SQ_SIZE; ++i) {
 		target->tx_ring[i] = srp_alloc_iu(target->srp_host,
 						  srp_max_iu_len,
 						  GFP_KERNEL, DMA_TO_DEVICE);
@@ -1137,7 +1137,7 @@ err:
 		target->rx_ring[i] = NULL;
 	}
 
-	for (i = 0; i < SRP_SQ_SIZE + 1; ++i) {
+	for (i = 0; i < SRP_SQ_SIZE; ++i) {
 		srp_free_iu(target->srp_host, target->tx_ring[i]);
 		target->tx_ring[i] = NULL;
 	}
@@ -1626,9 +1626,9 @@ static struct scsi_host_template srp_template = {
 	.eh_abort_handler		= srp_abort,
 	.eh_device_reset_handler	= srp_reset_device,
 	.eh_host_reset_handler		= srp_reset_host,
-	.can_queue			= SRP_SQ_SIZE,
+	.can_queue			= SRP_CMD_SQ_SIZE,
 	.this_id			= -1,
-	.cmd_per_lun			= SRP_SQ_SIZE,
+	.cmd_per_lun			= SRP_CMD_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= srp_host_attrs
 };
@@ -1813,7 +1813,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				printk(KERN_WARNING PFX "bad max cmd_per_lun parameter '%s'\n", p);
 				goto out;
 			}
-			target->scsi_host->cmd_per_lun = min(token, SRP_SQ_SIZE);
+			target->scsi_host->cmd_per_lun = min(token, SRP_CMD_SQ_SIZE);
 			break;
 
 		case SRP_OPT_IO_CLASS:
@@ -1891,7 +1891,7 @@ static ssize_t srp_create_target(struct device *dev,
 
 	INIT_LIST_HEAD(&target->free_reqs);
 	INIT_LIST_HEAD(&target->req_queue);
-	for (i = 0; i < SRP_SQ_SIZE; ++i) {
+	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		target->req_ring[i].index = i;
 		list_add_tail(&target->req_ring[i].list, &target->free_reqs);
 	}
@@ -2158,6 +2158,9 @@ static struct srp_function_template ib_srp_transport_functions = {
 static int __init srp_init_module(void)
 {
 	int ret;
+
+	BUILD_BUG_ON_NOT_POWER_OF_2(SRP_SQ_SIZE);
+	BUILD_BUG_ON_NOT_POWER_OF_2(SRP_RQ_SIZE);
 
 	if (srp_sg_tablesize > 255) {
 		printk(KERN_WARNING PFX "Clamping srp_sg_tablesize to 255\n");
