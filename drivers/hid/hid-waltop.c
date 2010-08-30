@@ -18,12 +18,37 @@
 #include "hid-ids.h"
 
 /*
+ * There exists an official driver on the manufacturer's website, which
+ * wasn't submitted to the kernel, for some reason. The official driver
+ * doesn't seem to support extra features of some tablets, like wheels.
+ *
+ * It shows that the feature report ID 2 could be used to control any waltop
+ * tablet input mode, switching it between "default", "tablet" and "ink".
+ *
+ * This driver only uses "default" mode for all the supported tablets. This
+ * mode tries to be HID-compatible (not very successfully), but cripples the
+ * resolution of some tablets.
+ *
+ * The "tablet" mode uses some proprietary, yet decipherable protocol, which
+ * represents the correct resolution, but is possibly HID-incompatible (i.e.
+ * indescribable by a report descriptor).
+ *
+ * The purpose of the "ink" mode is unknown.
+ *
+ * The feature reports needed for switching to each mode are these:
+ *
+ * 02 16 00     default
+ * 02 16 01     tablet
+ * 02 16 02     ink
+ */
+
+/*
  * Original Slim Tablet 5.8 inch report descriptor.
  *
  * All the reports except the report with ID 16 (the stylus) are unused,
  * possibly because the tablet is not configured to, or because they were
- * just copied from a more capable model. The purpose of features described
- * for report ID 2 is unknown.
+ * just copied from a more capable model. The full purpose of features
+ * described for report ID 2 is unknown.
  *
  * The stylus buttons are described as three bit fields, whereas actually
  * it's an "array", i.e. they're reported as button numbers (1, 2 and 3).
