@@ -1463,7 +1463,7 @@ static void rt73usb_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 0, word);
 
 	rt2x00_desc_read(txd, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->queue);
+	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->qid);
 	rt2x00_set_field32(&word, TXD_W1_AIFSN, txdesc->aifs);
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);

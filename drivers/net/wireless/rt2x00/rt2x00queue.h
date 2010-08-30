@@ -296,7 +296,7 @@ enum txentry_desc_flags {
  * Summary of information for the frame descriptor before sending a TX frame.
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
- * @queue: Queue identification (See &enum data_queue_qid).
+ * @qid: Queue identification (See &enum data_queue_qid).
  * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
  * @length_high: PLCP length high word.
@@ -322,7 +322,7 @@ enum txentry_desc_flags {
 struct txentry_desc {
 	unsigned long flags;
 
-	enum data_queue_qid queue;
+	enum data_queue_qid qid;
 
 	u16 length;
 	u16 header_length;

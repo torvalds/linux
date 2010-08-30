@@ -312,7 +312,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Initialize information from queue
 	 */
-	txdesc->queue = entry->queue->qid;
+	txdesc->qid = entry->queue->qid;
 	txdesc->cw_min = entry->queue->cw_min;
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;

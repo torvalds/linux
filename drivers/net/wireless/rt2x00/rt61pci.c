@@ -1778,7 +1778,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	 * Start writing the descriptor words.
 	 */
 	rt2x00_desc_read(txd, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->queue);
+	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->qid);
 	rt2x00_set_field32(&word, TXD_W1_AIFSN, txdesc->aifs);
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
@@ -1809,7 +1809,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
 	rt2x00_desc_write(txd, 5, word);
 
-	if (txdesc->queue != QID_BEACON) {
+	if (txdesc->qid != QID_BEACON) {
 		rt2x00_desc_read(txd, 6, &word);
 		rt2x00_set_field32(&word, TXD_W6_BUFFER_PHYSICAL_ADDRESS,
 				   skbdesc->skb_dma);
@@ -1856,7 +1856,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	 */
 	skbdesc->desc = txd;
 	skbdesc->desc_len =
-		(txdesc->queue == QID_BEACON) ?  TXINFO_SIZE : TXD_DESC_SIZE;
+		(txdesc->qid == QID_BEACON) ?  TXINFO_SIZE : TXD_DESC_SIZE;
 }
 
 /*
