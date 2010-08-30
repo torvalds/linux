@@ -487,10 +487,19 @@ static __u8 media_tablet_10_6_inch_rdesc_fixed[] = {
 	0x0A, 0x2D, 0x02,   /*      Usage (AC Zoom In),             */
 	0x09, 0xB6,         /*      Usage (Scan Previous Track),    */
 	0x09, 0xB5,         /*      Usage (Scan Next Track),        */
-	0x15, 0x2C,         /*      Logical Minimum (44),           */
-	0x25, 0x30,         /*      Logical Maximum (48),           */
-	0x75, 0x08,         /*      Report Size (8),                */
+	0x08,               /*      Usage (00h),                    */
+	0x08,               /*      Usage (00h),                    */
+	0x08,               /*      Usage (00h),                    */
+	0x08,               /*      Usage (00h),                    */
+	0x08,               /*      Usage (00h),                    */
+	0x0A, 0x2E, 0x02,   /*      Usage (AC Zoom Out),            */
+	0x0A, 0x2D, 0x02,   /*      Usage (AC Zoom In),             */
+	0x15, 0x0C,         /*      Logical Minimum (12),           */
+	0x25, 0x17,         /*      Logical Maximum (23),           */
+	0x75, 0x05,         /*      Report Size (5),                */
 	0x80,               /*      Input,                          */
+	0x75, 0x03,         /*      Report Size (3),                */
+	0x81, 0x03,         /*      Input (Constant, Variable),     */
 	0x75, 0x20,         /*      Report Size (32),               */
 	0x81, 0x03,         /*      Input (Constant, Variable),     */
 	0xC0,               /*  End Collection,                     */
