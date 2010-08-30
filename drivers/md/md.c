@@ -2167,9 +2167,10 @@ repeat:
 				rdev->recovery_offset = mddev->curr_resync_completed;
 
 	}	
-	if (mddev->external || !mddev->persistent) {
+	if (!mddev->persistent) {
+		if (!mddev->external)
+			clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
 		clear_bit(MD_CHANGE_DEVS, &mddev->flags);
-		clear_bit(MD_CHANGE_CLEAN, &mddev->flags);
 		wake_up(&mddev->sb_wait);
 		return;
 	}
