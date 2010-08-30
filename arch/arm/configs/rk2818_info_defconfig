@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Thu Aug 26 13:15:43 2010
+# Mon Aug 30 19:37:31 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -206,6 +206,7 @@ CONFIG_MACH_RK2818INFO=y
 CONFIG_RK28_GPIO_IRQ=16
 CONFIG_RK28_ADC=y
 CONFIG_RK28_USB_WAKE=y
+CONFIG_WIFI_CONTROL_FUNC=y
 
 #
 # Processor Type
