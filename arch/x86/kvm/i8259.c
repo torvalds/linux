@@ -308,13 +308,17 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	addr &= 1;
 	if (addr == 0) {
 		if (val & 0x10) {
-			kvm_pic_reset(s);	/* init */
-			/*
-			 * deassert a pending interrupt
-			 */
-			pic_irq_request(s->pics_state->kvm, 0);
-			s->init_state = 1;
 			s->init4 = val & 1;
+			s->last_irr = 0;
+			s->imr = 0;
+			s->priority_add = 0;
+			s->special_mask = 0;
+			s->read_reg_select = 0;
+			if (!s->init4) {
+				s->special_fully_nested_mode = 0;
+				s->auto_eoi = 0;
+			}
+			s->init_state = 1;
 			if (val & 0x02)
 				printk(KERN_ERR "single mode not supported");
 			if (val & 0x08)
