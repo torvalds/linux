@@ -637,8 +637,8 @@ static int ov5650_test_pattern(struct ov5650_info *info,
 				  NULL, 0);
 }
 
-static int ov5650_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
+static long ov5650_ioctl(struct file *file,
+			 unsigned int cmd, unsigned long arg)
 {
 	int err;
 	struct ov5650_info *info = file->private_data;
@@ -723,7 +723,7 @@ int ov5650_release(struct inode *inode, struct file *file)
 static const struct file_operations ov5650_fileops = {
 	.owner = THIS_MODULE,
 	.open = ov5650_open,
-	.ioctl = ov5650_ioctl,
+	.unlocked_ioctl = ov5650_ioctl,
 	.release = ov5650_release,
 };
 
