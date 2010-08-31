@@ -215,11 +215,6 @@ static struct resource cpcap_otg_resources[] = {
 		.end    = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
 		.flags  = IORESOURCE_MEM,
 	},
-	[1] = {
-		.start  = INT_USB,
-		.end    = INT_USB,
-		.flags  = IORESOURCE_IRQ,
-	},
 };
 
 static struct platform_device cpcap_otg = {
@@ -227,6 +222,9 @@ static struct platform_device cpcap_otg = {
 	.id   = -1,
 	.resource = cpcap_otg_resources,
 	.num_resources = ARRAY_SIZE(cpcap_otg_resources),
+	.dev = {
+		.platform_data = &tegra_ehci1_device,
+	},
 };
 
 static struct cpcap_audio_state stingray_cpcap_audio_state = {
@@ -741,11 +739,9 @@ static void stingray_usb_init(void)
 	struct android_usb_platform_data *platform_data;
 
 	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
-	tegra_ehci1_device.dev.platform_data = &host_phy_config[0];
 	tegra_ehci3_device.dev.platform_data = &host_phy_config[2];
 
 	platform_device_register(&tegra_udc_device);
-	platform_device_register(&tegra_ehci1_device);
 	platform_device_register(&tegra_ehci3_device);
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	src = usb_serial_num;
@@ -992,6 +988,8 @@ static void __init tegra_stingray_init(void)
 	init_das();
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
 	cpcap_device_register(&cpcap_audio_device);
+
+	tegra_ehci1_device.dev.platform_data = &host_phy_config[0];
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
