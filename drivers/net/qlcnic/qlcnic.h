@@ -1259,7 +1259,6 @@ int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_tx_ring *tx_ring);
-int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u8 *mac);
 void qlcnic_clear_ilb_mode(struct qlcnic_adapter *adapter);
 int qlcnic_set_ilb_mode(struct qlcnic_adapter *adapter);
 void qlcnic_fetch_mac(struct qlcnic_adapter *, u32, u32, u8, u8 *);
@@ -1346,7 +1345,6 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 extern const struct ethtool_ops qlcnic_ethtool_ops;
 
 struct qlcnic_nic_template {
-	int (*get_mac_addr) (struct qlcnic_adapter *, u8*);
 	int (*config_bridged_mode) (struct qlcnic_adapter *, u32);
 	int (*config_led) (struct qlcnic_adapter *, u32, u32);
 	int (*start_firmware) (struct qlcnic_adapter *);

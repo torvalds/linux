@@ -715,19 +715,6 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	return rc;
 }
 
-int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u8 *mac)
-{
-	u32 crbaddr;
-	int pci_func = adapter->ahw.pci_func;
-
-	crbaddr = CRB_MAC_BLOCK_START +
-		(4 * ((pci_func/2) * 3)) + (4 * (pci_func & 1));
-
-	qlcnic_fetch_mac(adapter, crbaddr, crbaddr+4, pci_func & 1, mac);
-
-	return 0;
-}
-
 /*
  * Changes the CRB window to the specified window.
  */

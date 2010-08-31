@@ -322,7 +322,7 @@ qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 
-	if (adapter->nic_ops->get_mac_addr(adapter, mac_addr) != 0)
+	if (qlcnic_get_mac_address(adapter, mac_addr) != 0)
 		return -EIO;
 
 	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
@@ -378,14 +378,12 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 };
 
 static struct qlcnic_nic_template qlcnic_ops = {
-	.get_mac_addr = qlcnic_get_mac_address,
 	.config_bridged_mode = qlcnic_config_bridged_mode,
 	.config_led = qlcnic_config_led,
 	.start_firmware = qlcnic_start_firmware
 };
 
 static struct qlcnic_nic_template qlcnic_vf_ops = {
-	.get_mac_addr = qlcnic_get_mac_address,
 	.config_bridged_mode = qlcnicvf_config_bridged_mode,
 	.config_led = qlcnicvf_config_led,
 	.start_firmware = qlcnicvf_start_firmware
@@ -668,7 +666,6 @@ static void
 qlcnic_check_options(struct qlcnic_adapter *adapter)
 {
 	u32 fw_major, fw_minor, fw_build;
-	char brd_name[QLCNIC_MAX_BOARD_NAME_LEN];
 	struct pci_dev *pdev = adapter->pdev;
 	struct qlcnic_info nic_info;
 
@@ -677,17 +674,6 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 	fw_build = QLCRD32(adapter, QLCNIC_FW_VERSION_SUB);
 
 	adapter->fw_version = QLCNIC_VERSION_CODE(fw_major, fw_minor, fw_build);
-
-	if (!(adapter->flags & QLCNIC_ADAPTER_INITIALIZED))
-		if (qlcnic_read_mac_addr(adapter))
-			dev_warn(&pdev->dev, "failed to read mac addr\n");
-	if (adapter->portnum == 0) {
-		get_brd_name(adapter, brd_name);
-
-		pr_info("%s: %s Board Chip rev 0x%x\n",
-				module_name(THIS_MODULE),
-				brd_name, adapter->ahw.revision_id);
-	}
 
 	dev_info(&pdev->dev, "firmware v%d.%d.%d\n",
 			fw_major, fw_minor, fw_build);
@@ -1468,6 +1454,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 	uint8_t revision_id;
 	uint8_t pci_using_dac;
+	char brd_name[QLCNIC_MAX_BOARD_NAME_LEN];
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1533,6 +1520,17 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n");
 		goto err_out_decr_ref;
+	}
+
+	if (qlcnic_read_mac_addr(adapter))
+		dev_warn(&pdev->dev, "failed to read mac addr\n");
+
+	if (adapter->portnum == 0) {
+		get_brd_name(adapter, brd_name);
+
+		pr_info("%s: %s Board Chip rev 0x%x\n",
+				module_name(THIS_MODULE),
+				brd_name, adapter->ahw.revision_id);
 	}
 
 	qlcnic_clear_stats(adapter);
