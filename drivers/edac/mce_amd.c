@@ -487,11 +487,17 @@ EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
 
 static void amd_decode_fr_mce(struct mce *m)
 {
+	if (boot_cpu_data.x86 == 0xf)
+		goto wrong_fr_mce;
+
 	/* we have only one error signature so match all fields at once. */
-	if ((m->status & 0xffff) == 0x0f0f)
-		pr_emerg(HW_ERR " FR Error: CPU Watchdog timer expire.\n");
-	else
-		pr_emerg(HW_ERR "Corrupted FR MCE info?\n");
+	if ((m->status & 0xffff) == 0x0f0f) {
+		pr_emerg(HW_ERR "FR Error: CPU Watchdog timer expire.\n");
+		return;
+	}
+
+wrong_fr_mce:
+	pr_emerg(HW_ERR "Corrupted FR MCE info?\n");
 }
 
 static inline void amd_decode_err_code(u16 ec)
