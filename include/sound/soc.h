@@ -214,10 +214,10 @@
  * @OFF:     Power Off. No restrictions on transition times.
  */
 enum snd_soc_bias_level {
-	SND_SOC_BIAS_ON,
-	SND_SOC_BIAS_PREPARE,
-	SND_SOC_BIAS_STANDBY,
 	SND_SOC_BIAS_OFF,
+	SND_SOC_BIAS_STANDBY,
+	SND_SOC_BIAS_PREPARE,
+	SND_SOC_BIAS_ON,
 };
 
 struct snd_jack;
