@@ -1631,7 +1631,6 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	st->indio_dev->attrs = st->chip_info->dev_attrs;
 
 	/* Todo: this shouldn't be here. */
-	st->indio_dev->scan_el_attrs = st->chip_info->scan_attrs;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;

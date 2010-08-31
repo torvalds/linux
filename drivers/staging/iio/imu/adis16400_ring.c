@@ -143,11 +143,11 @@ static void adis16400_trigger_bh_to_ring(struct work_struct *work_s)
 	struct adis16400_state *st
 		= container_of(work_s, struct adis16400_state,
 			       work_trigger_to_ring);
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 
 	int i = 0;
 	s16 *data;
-	size_t datasize = st->indio_dev
-		->ring->access.get_bytes_per_datum(st->indio_dev->ring);
+	size_t datasize = ring->access.get_bytes_per_datum(ring);
 
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {
@@ -155,19 +155,19 @@ static void adis16400_trigger_bh_to_ring(struct work_struct *work_s)
 		return;
 	}
 
-	if (st->indio_dev->scan_count)
+	if (ring->scan_count)
 		if (adis16400_spi_read_burst(&st->indio_dev->dev, st->rx) >= 0)
-			for (; i < st->indio_dev->scan_count; i++)
+			for (; i < ring->scan_count; i++)
 				data[i]	= be16_to_cpup(
 					(__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (st->indio_dev->scan_timestamp)
+	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = st->last_timestamp;
 
-	st->indio_dev->ring->access.store_to(st->indio_dev->ring,
-					    (u8 *)data,
-					    st->last_timestamp);
+	ring->access.store_to(ring,
+			(u8 *) data,
+			st->last_timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);
 	kfree(data);
@@ -187,23 +187,6 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	struct adis16400_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring;
 	INIT_WORK(&st->work_trigger_to_ring, adis16400_trigger_bh_to_ring);
-	/* Set default scan mode */
-
-	iio_scan_mask_set(indio_dev, iio_scan_el_supply.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_gyro_x.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_gyro_y.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_gyro_z.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_x.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_y.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_z.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_magn_x.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_magn_y.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_magn_z.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_temp.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_adc_0.number);
-	indio_dev->scan_timestamp = true;
-
-	indio_dev->scan_el_attrs = &adis16400_scan_el_group;
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
@@ -214,10 +197,26 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
 	ring->bpe = 2;
+	ring->scan_el_attrs = &adis16400_scan_el_group;
+	ring->scan_timestamp = true;
 	ring->preenable = &iio_sw_ring_preenable;
 	ring->postenable = &iio_triggered_ring_postenable;
 	ring->predisable = &iio_triggered_ring_predisable;
 	ring->owner = THIS_MODULE;
+
+	/* Set default scan mode */
+	iio_scan_mask_set(ring, iio_scan_el_supply.number);
+	iio_scan_mask_set(ring, iio_scan_el_gyro_x.number);
+	iio_scan_mask_set(ring, iio_scan_el_gyro_y.number);
+	iio_scan_mask_set(ring, iio_scan_el_gyro_z.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_z.number);
+	iio_scan_mask_set(ring, iio_scan_el_magn_x.number);
+	iio_scan_mask_set(ring, iio_scan_el_magn_y.number);
+	iio_scan_mask_set(ring, iio_scan_el_magn_z.number);
+	iio_scan_mask_set(ring, iio_scan_el_temp.number);
+	iio_scan_mask_set(ring, iio_scan_el_adc_0.number);
 
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &adis16400_poll_func_th);
 	if (ret)

@@ -507,24 +507,12 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 		goto error_ret;
 	}
 
-	if (dev_info->scan_el_attrs) {
-		ret = sysfs_create_group(&dev_info->dev.kobj,
-					 dev_info->scan_el_attrs);
-		if (ret)
-			dev_err(&dev_info->dev,
-				"Failed to add sysfs scan els\n");
-	}
-
 error_ret:
 	return ret;
 }
 
 static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 {
-	if (dev_info->scan_el_attrs)
-		sysfs_remove_group(&dev_info->dev.kobj,
-				   dev_info->scan_el_attrs);
-
 	sysfs_remove_group(&dev_info->dev.kobj, dev_info->attrs);
 }
 

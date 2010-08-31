@@ -102,6 +102,11 @@ struct iio_ring_access_funcs {
  * @bytes_per_datum	[DEVICE] size of individual datum including timestamp
  * @bpe:		[DEVICE] size of individual channel value
  * @loopcount:		[INTERN] number of times the ring has looped
+ * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
+ *			control method is used
+ * @scan_count:	[INTERN] the number of elements in the current scan mode
+ * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
+ * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @access_handler:	[INTERN] chrdev access handling
  * @ev_int:		[INTERN] chrdev interface for the event chrdev
  * @shared_ev_pointer:	[INTERN] the shared event pointer to allow escalation of
@@ -124,6 +129,10 @@ struct iio_ring_buffer {
 	int				bytes_per_datum;
 	int				bpe;
 	int				loopcount;
+	struct attribute_group		*scan_el_attrs;
+	int				scan_count;
+	u32				scan_mask;
+	bool				scan_timestamp;
 	struct iio_handler		access_handler;
 	struct iio_event_interface	ev_int;
 	struct iio_shared_ev_pointer	shared_ev_pointer;
@@ -257,6 +266,97 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 				   iio_scan_el_ts_show,		\
 				   iio_scan_el_ts_store),	\
 	}
+
+/*
+ * These are mainly provided to allow for a change of implementation if a device
+ * has a large number of scan elements
+ */
+#define IIO_MAX_SCAN_LENGTH 31
+
+/* note 0 used as error indicator as it doesn't make sense. */
+static inline u32 iio_scan_mask_match(u32 *av_masks, u32 mask)
+{
+	while (*av_masks) {
+		if (!(~*av_masks & mask))
+			return *av_masks;
+		av_masks++;
+	}
+	return 0;
+}
+
+static inline int iio_scan_mask_query(struct iio_ring_buffer *ring, int bit)
+{
+	struct iio_dev *dev_info = ring->indio_dev;
+	u32 mask;
+
+	if (bit > IIO_MAX_SCAN_LENGTH)
+		return -EINVAL;
+
+	if (!ring->scan_mask)
+		return 0;
+
+	if (dev_info->available_scan_masks)
+		mask = iio_scan_mask_match(dev_info->available_scan_masks,
+					ring->scan_mask);
+	else
+		mask = ring->scan_mask;
+
+	if (!mask)
+		return -EINVAL;
+
+	return !!(mask & (1 << bit));
+};
+
+static inline int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit)
+{
+	struct iio_dev *dev_info = ring->indio_dev;
+	u32 mask;
+	u32 trialmask = ring->scan_mask | (1 << bit);
+
+	if (bit > IIO_MAX_SCAN_LENGTH)
+		return -EINVAL;
+	if (dev_info->available_scan_masks) {
+		mask = iio_scan_mask_match(dev_info->available_scan_masks,
+					trialmask);
+		if (!mask)
+			return -EINVAL;
+	}
+	ring->scan_mask = trialmask;
+	ring->scan_count++;
+
+	return 0;
+};
+
+static inline int iio_scan_mask_clear(struct iio_ring_buffer *ring, int bit)
+{
+	if (bit > IIO_MAX_SCAN_LENGTH)
+		return -EINVAL;
+	ring->scan_mask &= ~(1 << bit);
+	ring->scan_count--;
+	return 0;
+};
+
+/**
+ * iio_scan_mask_count_to_right() - how many scan elements occur before here
+ * @dev_info: the iio_device whose scan mode we are querying
+ * @bit: which number scan element is this
+ **/
+static inline int iio_scan_mask_count_to_right(struct iio_ring_buffer *ring,
+						int bit)
+{
+	int count = 0;
+	int mask = (1 << bit);
+	if (bit > IIO_MAX_SCAN_LENGTH)
+		return -EINVAL;
+	while (mask) {
+		mask >>= 1;
+		if (mask & ring->scan_mask)
+			count++;
+	}
+
+	return count;
+}
+
 
 static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
 {

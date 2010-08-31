@@ -435,23 +435,24 @@ EXPORT_SYMBOL(iio_sw_rb_free);
 
 int iio_sw_ring_preenable(struct iio_dev *indio_dev)
 {
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t size;
 	dev_dbg(&indio_dev->dev, "%s\n", __func__);
 	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
+	if (!(ring->scan_count || ring->scan_timestamp))
 		return -EINVAL;
-	if (indio_dev->scan_timestamp)
-		if (indio_dev->scan_count)
+	if (ring->scan_timestamp)
+		if (ring->scan_count)
 			/* Timestamp (aligned to s64) and data */
-			size = (((indio_dev->scan_count * indio_dev->ring->bpe)
+			size = (((ring->scan_count * ring->bpe)
 					+ sizeof(s64) - 1)
 				& ~(sizeof(s64) - 1))
 				+ sizeof(s64);
 		else /* Timestamp only  */
 			size = sizeof(s64);
 	else /* Data only */
-		size = indio_dev->scan_count * indio_dev->ring->bpe;
-	indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring, size);
+		size = ring->scan_count * ring->bpe;
+	ring->access.set_bytes_per_datum(ring, size);
 
 	return 0;
 }
@@ -462,9 +463,9 @@ void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
 	struct iio_sw_ring_helper_state *st
 		= container_of(work_s, struct iio_sw_ring_helper_state,
 			work_trigger_to_ring);
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int len = 0;
-	size_t datasize = st->indio_dev
-		->ring->access.get_bytes_per_datum(st->indio_dev->ring);
+	size_t datasize = ring->access.get_bytes_per_datum(ring);
 	char *data = kmalloc(datasize, GFP_KERNEL);
 
 	if (data == NULL) {
@@ -473,16 +474,16 @@ void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
 		return;
 	}
 
-	if (st->indio_dev->scan_count)
+	if (ring->scan_count)
 		len = st->get_ring_element(st, data);
 
 	  /* Guaranteed to be aligned with 8 byte boundary */
-	if (st->indio_dev->scan_timestamp)
+	if (ring->scan_timestamp)
 		*(s64 *)(((phys_addr_t)data + len
 				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
 			= st->last_timestamp;
-	  st->indio_dev->ring->access.store_to(st->indio_dev->ring,
-					(u8 *)data,
+	ring->access.store_to(ring,
+			(u8 *)data,
 			st->last_timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);

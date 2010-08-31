@@ -264,12 +264,12 @@ static inline void sca3000_rb_free(struct iio_ring_buffer *r)
 
 int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
-	indio_dev->scan_el_attrs = &sca3000_scan_el_group;
 	indio_dev->ring = sca3000_rb_allocate(indio_dev);
 	if (indio_dev->ring == NULL)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_RING_HARDWARE_BUFFER;
 
+	indio_dev->ring->scan_el_attrs = &sca3000_scan_el_group;
 	indio_dev->ring->access.rip_lots = &sca3000_rip_hw_rb;
 	indio_dev->ring->access.get_length = &sca3000_ring_get_length;
 	indio_dev->ring->access.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum;
