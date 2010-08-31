@@ -410,13 +410,13 @@ static IIO_DEV_ATTR_ACCEL_Y_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16209_read_14bit_signed,
 		adis16209_write_16bit,
 		ADIS16209_YACCL_NULL);
-static IIO_CONST_ATTR(accel_scale, "0.24414");
+static IIO_CONST_ATTR_ACCEL_SCALE("0.002394195531");
 
 static IIO_DEV_ATTR_INCLI_X(adis16209_read_14bit_signed,
 		ADIS16209_XINCL_OUT);
 static IIO_DEV_ATTR_INCLI_Y(adis16209_read_14bit_signed,
 		ADIS16209_YINCL_OUT);
-static IIO_CONST_ATTR(incli_scale, "0.025");
+static IIO_CONST_ATTR(incli_scale, "0.00043633231");
 
 static IIO_DEVICE_ATTR(rot_raw, S_IRUGO, adis16209_read_14bit_signed,
 		       NULL, ADIS16209_ROT_OUT);

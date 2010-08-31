@@ -515,7 +515,7 @@ static IIO_DEV_ATTR_GYRO_Y(adis16350_read_14bit_signed,
 		ADIS16350_YGYRO_OUT);
 static IIO_DEV_ATTR_GYRO_Z(adis16350_read_14bit_signed,
 		ADIS16350_ZGYRO_OUT);
-static IIO_CONST_ATTR_GYRO_SCALE("0.05");
+static IIO_CONST_ATTR_GYRO_SCALE("0.00127862821");
 
 static IIO_DEV_ATTR_ACCEL_X(adis16350_read_14bit_signed,
 		ADIS16350_XACCL_OUT);
@@ -523,7 +523,7 @@ static IIO_DEV_ATTR_ACCEL_Y(adis16350_read_14bit_signed,
 		ADIS16350_YACCL_OUT);
 static IIO_DEV_ATTR_ACCEL_Z(adis16350_read_14bit_signed,
 		ADIS16350_ZACCL_OUT);
-static IIO_CONST_ATTR_ACCEL_SCALE("0.00333");
+static IIO_CONST_ATTR_ACCEL_SCALE("0.0247323713");
 
 static IIO_DEVICE_ATTR(temp_x_raw, S_IRUGO, adis16350_read_12bit_signed,
 		NULL, ADIS16350_XTEMP_OUT);
@@ -531,7 +531,8 @@ static IIO_DEVICE_ATTR(temp_y_raw, S_IRUGO, adis16350_read_12bit_signed,
 		NULL, ADIS16350_YTEMP_OUT);
 static IIO_DEVICE_ATTR(temp_z_raw, S_IRUGO, adis16350_read_12bit_signed,
 		NULL, ADIS16350_ZTEMP_OUT);
-static IIO_CONST_ATTR_TEMP_SCALE("0.0005");
+static IIO_CONST_ATTR_TEMP_SCALE("0.14534");
+static IIO_CONST_ATTR_TEMP_OFFSET("198.16");
 
 static IIO_DEV_ATTR_IN_RAW(0, adis16350_read_12bit_unsigned,
 		ADIS16350_AUX_ADC);

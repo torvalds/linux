@@ -449,6 +449,7 @@ static IIO_CONST_ATTR_IN_NAMED_SCALE(supply, "0.0018315");
 
 static IIO_DEV_ATTR_GYRO(adis16260_read_14bit_signed,
 		ADIS16260_GYRO_OUT);
+static IIO_CONST_ATTR_GYRO_SCALE("0.00127862821");
 static IIO_DEV_ATTR_GYRO_CALIBSCALE(S_IWUSR | S_IRUGO,
 		adis16260_read_14bit_signed,
 		adis16260_write_16bit,
@@ -490,6 +491,7 @@ static struct attribute *adis16260_attributes[] = {
 	&iio_dev_attr_in_supply_raw.dev_attr.attr,
 	&iio_const_attr_in_supply_scale.dev_attr.attr,
 	&iio_dev_attr_gyro_raw.dev_attr.attr,
+	&iio_const_attr_gyro_scale.dev_attr.attr,
 	&iio_dev_attr_gyro_calibscale.dev_attr.attr,
 	&iio_dev_attr_gyro_calibbias.dev_attr.attr,
 	&iio_dev_attr_angl_raw.dev_attr.attr,
