@@ -54,7 +54,7 @@ static void do_sysrq(struct kdbg_ctxt *ctxt, char rq)
 	int ret;
 	int idx = 0;
 	do_syslog(5 /* clear */, NULL, 0);
-	handle_sysrq(rq, NULL);
+	handle_sysrq(rq);
 	while (1) {
 		ret = log_buf_copy(buf, idx, sizeof(buf) - 1);
 		if (ret <= 0)
