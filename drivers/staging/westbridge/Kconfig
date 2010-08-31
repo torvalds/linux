@@ -4,7 +4,7 @@
 
 menuconfig WESTBRIDGE
 	tristate "West Bridge support"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && BROKEN
 	help
 	  This selects West Bridge Peripheral controller support.
 
