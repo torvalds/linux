@@ -318,6 +318,9 @@ static void sh_hdmi_video_config(struct sh_hdmi *hdmi)
  */
 static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 {
+	u8 data;
+	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+
 	/*
 	 * [7:4] L/R data swap control
 	 * [3:0] appropriate N[19:16]
@@ -335,7 +338,23 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 	 * [6:5] set required down sampling rate if required
 	 * [4:3] set required audio source
 	 */
-	hdmi_write(hdmi, 0x00, HDMI_AUDIO_SETTING_1);
+	switch (pdata->flags & HDMI_SRC_MASK) {
+	default:
+		/* FALL THROUGH */
+	case HDMI_SRC_I2S:
+		data = (0x0 << 3);
+		break;
+	case HDMI_SRC_SPDIF:
+		data = (0x1 << 3);
+		break;
+	case HDMI_SRC_DSD:
+		data = (0x2 << 3);
+		break;
+	case HDMI_SRC_HBR:
+		data = (0x3 << 3);
+		break;
+	}
+	hdmi_write(hdmi, data, HDMI_AUDIO_SETTING_1);
 
 	/* [3:0] set sending channel number for channel status */
 	hdmi_write(hdmi, 0x40, HDMI_AUDIO_SETTING_2);
