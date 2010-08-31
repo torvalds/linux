@@ -119,7 +119,7 @@ static void scrub_page(struct page *page)
 }
 
 /* balloon_append: add the given page to the balloon. */
-static void balloon_append(struct page *page)
+static void __balloon_append(struct page *page)
 {
 	/* Lowmem is re-populated first, so highmem pages go at list tail. */
 	if (PageHighMem(page)) {
@@ -130,7 +130,11 @@ static void balloon_append(struct page *page)
 		list_add(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_low++;
 	}
+}
 
+static void balloon_append(struct page *page)
+{
+	__balloon_append(page);
 	totalram_pages--;
 }
 
@@ -416,10 +420,13 @@ static int __init balloon_init(void)
 	register_balloon(&balloon_sysdev);
 
 	/* Initialise the balloon with excess memory space. */
-	for (pfn = xen_start_info->nr_pages; pfn < max_pfn; pfn++) {
+	for (pfn = PFN_UP(xen_extra_mem_start);
+	     pfn < PFN_DOWN(xen_extra_mem_start + xen_extra_mem_size);
+	     pfn++) {
 		page = pfn_to_page(pfn);
-		if (!PageReserved(page))
-			balloon_append(page);
+		/* totalram_pages doesn't include the boot-time
+		   balloon extension, so don't subtract from it. */
+		__balloon_append(page);
 	}
 
 	target_watch.callback = watch_target;
