@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-s5p6440/cpu.c
  *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -40,6 +40,32 @@
 #include <plat/s5p6440.h>
 #include <plat/adc-core.h>
 
+/* Initial IO mappings */
+
+static struct map_desc s5p6440_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_GPIO,
+		.pfn		= __phys_to_pfn(S5P6440_PA_GPIO),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC0,
+		.pfn		= __phys_to_pfn(S5P6440_PA_VIC0),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC1,
+		.pfn		= __phys_to_pfn(S5P6440_PA_VIC1),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(S3C_PA_UART),
+		.length		= SZ_512K,
+		.type		= MT_DEVICE,
+	}
+};
+
 static void s5p6440_idle(void)
 {
 	unsigned long val;
@@ -55,15 +81,18 @@ static void s5p6440_idle(void)
 	local_irq_enable();
 }
 
-/* s5p6440_map_io
+/*
+ * s5p6440_map_io
  *
  * register the standard cpu IO areas
-*/
+ */
 
 void __init s5p6440_map_io(void)
 {
 	/* initialize any device information early */
 	s3c_adc_setname("s3c64xx-adc");
+
+	iotable_init(s5p6440_iodesc, ARRAY_SIZE(s5p6440_iodesc));
 }
 
 void __init s5p6440_init_clocks(int xtal)
