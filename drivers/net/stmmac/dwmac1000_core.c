@@ -53,7 +53,7 @@ static void dwmac1000_core_init(void __iomem *ioaddr)
 static void dwmac1000_dump_regs(void __iomem *ioaddr)
 {
 	int i;
-	pr_info("\tDWMAC1000 regs (base addr = 0x%8x)\n", (unsigned int)ioaddr);
+	pr_info("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
 
 	for (i = 0; i < 55; i++) {
 		int offset = i * 4;
