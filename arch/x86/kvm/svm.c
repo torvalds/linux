@@ -816,7 +816,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
-	save->efer = EFER_SVME;
+	svm_set_efer(&svm->vcpu, 0);
 	save->dr6 = 0xffff0ff0;
 	save->dr7 = 0x400;
 	save->rflags = 2;
