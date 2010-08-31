@@ -235,40 +235,50 @@ $(obj)/.tmp_qtcheck: $(src)/Makefile
 # QT needs some extra effort...
 $(obj)/.tmp_qtcheck:
 	@set -e; echo "  CHECK   qt"; dir=""; pkg=""; \
-	pkg-config --exists qt 2> /dev/null && pkg=qt; \
-	pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
-	if [ -n "$$pkg" ]; then \
-	  cflags="\$$(shell pkg-config $$pkg --cflags)"; \
-	  libs="\$$(shell pkg-config $$pkg --libs)"; \
-	  moc="\$$(shell pkg-config $$pkg --variable=prefix)/bin/moc"; \
-	  dir="$$(pkg-config $$pkg --variable=prefix)"; \
+	if ! pkg-config --exists QtCore 2> /dev/null; then \
+	    echo "* Unable to find the QT4 tool qmake. Trying to use QT3"; \
+	    pkg-config --exists qt 2> /dev/null && pkg=qt; \
+	    pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
+	    if [ -n "$$pkg" ]; then \
+	      cflags="\$$(shell pkg-config $$pkg --cflags)"; \
+	      libs="\$$(shell pkg-config $$pkg --libs)"; \
+	      moc="\$$(shell pkg-config $$pkg --variable=prefix)/bin/moc"; \
+	      dir="$$(pkg-config $$pkg --variable=prefix)"; \
+	    else \
+	      for d in $$QTDIR /usr/share/qt* /usr/lib/qt*; do \
+	        if [ -f $$d/include/qconfig.h ]; then dir=$$d; break; fi; \
+	      done; \
+	      if [ -z "$$dir" ]; then \
+	        echo "*"; \
+	        echo "* Unable to find any QT installation. Please make sure that"; \
+	        echo "* the QT4 or QT3 development package is correctly installed and"; \
+	        echo "* either qmake can be found or install pkg-config or set"; \
+	        echo "* the QTDIR environment variable to the correct location."; \
+	        echo "*"; \
+	        false; \
+	      fi; \
+	      libpath=$$dir/lib; lib=qt; osdir=""; \
+	      $(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
+	        osdir=x$$($(HOSTCXX) -print-multi-os-directory); \
+	      test -d $$libpath/$$osdir && libpath=$$libpath/$$osdir; \
+	      test -f $$libpath/libqt-mt.so && lib=qt-mt; \
+	      cflags="-I$$dir/include"; \
+	      libs="-L$$libpath -Wl,-rpath,$$libpath -l$$lib"; \
+	      moc="$$dir/bin/moc"; \
+	    fi; \
+	    if [ ! -x $$dir/bin/moc -a -x /usr/bin/moc ]; then \
+	      echo "*"; \
+	      echo "* Unable to find $$dir/bin/moc, using /usr/bin/moc instead."; \
+	      echo "*"; \
+	      moc="/usr/bin/moc"; \
+	    fi; \
 	else \
-	  for d in $$QTDIR /usr/share/qt* /usr/lib/qt*; do \
-	    if [ -f $$d/include/qconfig.h ]; then dir=$$d; break; fi; \
-	  done; \
-	  if [ -z "$$dir" ]; then \
-	    echo "*"; \
-	    echo "* Unable to find the QT3 installation. Please make sure that"; \
-	    echo "* the QT3 development package is correctly installed and"; \
-	    echo "* either install pkg-config or set the QTDIR environment"; \
-	    echo "* variable to the correct location."; \
-	    echo "*"; \
-	    false; \
-	  fi; \
-	  libpath=$$dir/lib; lib=qt; osdir=""; \
-	  $(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
-	    osdir=x$$($(HOSTCXX) -print-multi-os-directory); \
-	  test -d $$libpath/$$osdir && libpath=$$libpath/$$osdir; \
-	  test -f $$libpath/libqt-mt.so && lib=qt-mt; \
-	  cflags="-I$$dir/include"; \
-	  libs="-L$$libpath -Wl,-rpath,$$libpath -l$$lib"; \
-	  moc="$$dir/bin/moc"; \
-	fi; \
-	if [ ! -x $$dir/bin/moc -a -x /usr/bin/moc ]; then \
-	  echo "*"; \
-	  echo "* Unable to find $$dir/bin/moc, using /usr/bin/moc instead."; \
-	  echo "*"; \
-	  moc="/usr/bin/moc"; \
+	  headerpath="\$$(shell qmake -query QT_INSTALL_HEADERS)"; \
+	  libpath="\$$(shell qmake -query QT_INSTALL_LIBS)"; \
+	  binpath="\$$(shell qmake -query QT_INSTALL_BINS)"; \
+	  cflags="-I$$headerpath -I$$headerpath/QtCore -I$$headerpath/QtGui -I$$headerpath/Qt3Support -DQT3_SUPPORT"; \
+	  libs="-L$$libpath -Wl,-rpath,$$libpath -lQtCore -lQtGui -lQt3Support"; \
+	  moc="$$binpath/moc"; \
 	fi; \
 	echo "KC_QT_CFLAGS=$$cflags" > $@; \
 	echo "KC_QT_LIBS=$$libs" >> $@; \
