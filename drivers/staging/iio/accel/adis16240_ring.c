@@ -111,7 +111,7 @@ static void adis16240_trigger_bh_to_ring(struct work_struct *work_s)
 	int i = 0;
 	s16 *data;
 	size_t datasize = st->indio_dev
-		->ring->access.get_bpd(st->indio_dev->ring);
+		->ring->access.get_bytes_per_datum(st->indio_dev->ring);
 
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {

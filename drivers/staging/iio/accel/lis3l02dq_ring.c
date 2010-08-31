@@ -169,7 +169,7 @@ ssize_t lis3l02dq_read_accel_from_ring(struct device *dev,
 	if (ret < 0)
 		goto error_ret;
 	if (ret) {
-		data = kmalloc(dev_info->ring->access.get_bpd(dev_info->ring),
+		data = kmalloc(dev_info->ring->access.get_bytes_per_datum(dev_info->ring),
 			       GFP_KERNEL);
 		if (data == NULL)
 			return -ENOMEM;

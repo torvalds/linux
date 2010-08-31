@@ -92,14 +92,14 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 	max1363_set_scan_mode(st);
 
 	numvals = hweight_long(st->current_mode->modemask);
-	if (indio_dev->ring->access.set_bpd) {
+	if (indio_dev->ring->access.set_bytes_per_datum) {
 		if (st->chip_info->bits != 8)
 			d_size = numvals*2 + sizeof(s64);
 		else
 			d_size = numvals + sizeof(s64);
 		if (d_size % 8)
 			d_size += 8 - (d_size % 8);
-		indio_dev->ring->access.set_bpd(indio_dev->ring, d_size);
+		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring, d_size);
 	}
 
 	return 0;

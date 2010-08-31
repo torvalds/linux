@@ -52,8 +52,8 @@ int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
  *			change.
  * @request_update:	if a parameter change has been marked, update underlying
  *			storage.
- * @get_bpd:		get current bytes per datum
- * @set_bpd:		set number of bytes per datum
+ * @get_bytes_per_datum:		get current bytes per datum
+ * @set_bytes_per_datum:		set number of bytes per datum
  * @get_length:		get number of datums in ring
  * @set_length:		set number of datums in ring
  * @is_enabled:		query if ring is currently being used
@@ -81,8 +81,8 @@ struct iio_ring_access_funcs {
 	int (*mark_param_change)(struct iio_ring_buffer *ring);
 	int (*request_update)(struct iio_ring_buffer *ring);
 
-	int (*get_bpd)(struct iio_ring_buffer *ring);
-	int (*set_bpd)(struct iio_ring_buffer *ring, size_t bpd);
+	int (*get_bytes_per_datum)(struct iio_ring_buffer *ring);
+	int (*set_bytes_per_datum)(struct iio_ring_buffer *ring, size_t bpd);
 	int (*get_length)(struct iio_ring_buffer *ring);
 	int (*set_length)(struct iio_ring_buffer *ring, int length);
 
@@ -99,7 +99,7 @@ struct iio_ring_access_funcs {
  * @id:			unique id number
  * @access_id:		device id number
  * @length:		[DEVICE] number of datums in ring
- * @bpd:		[DEVICE] size of individual datum including timestamp
+ * @bytes_per_datum	[DEVICE] size of individual datum including timestamp
  * @bpe:		[DEVICE] size of individual channel value
  * @loopcount:		[INTERN] number of times the ring has looped
  * @access_handler:	[INTERN] chrdev access handling
@@ -121,7 +121,7 @@ struct iio_ring_buffer {
 	int				id;
 	int				access_id;
 	int				length;
-	int				bpd;
+	int				bytes_per_datum;
 	int				bpe;
 	int				loopcount;
 	struct iio_handler		access_handler;
@@ -146,7 +146,7 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
 					    int bytes_per_datum, int length)
 {
-	ring->bpd = bytes_per_datum;
+	ring->bytes_per_datum = bytes_per_datum;
 	ring->length = length;
 	ring->loopcount = 0;
 }
@@ -277,7 +277,7 @@ ssize_t iio_write_ring_length(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf,
 			      size_t len);
-ssize_t iio_read_ring_bps(struct device *dev,
+ssize_t iio_read_ring_bytes_per_datum(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf);
 ssize_t iio_store_ring_enable(struct device *dev,
@@ -290,9 +290,9 @@ ssize_t iio_show_ring_enable(struct device *dev,
 #define IIO_RING_LENGTH_ATTR DEVICE_ATTR(length, S_IRUGO | S_IWUSR,	\
 					 iio_read_ring_length,		\
 					 iio_write_ring_length)
-#define IIO_RING_BPS_ATTR DEVICE_ATTR(bps, S_IRUGO | S_IWUSR,	\
-				      iio_read_ring_bps, NULL)
-#define IIO_RING_ENABLE_ATTR DEVICE_ATTR(ring_enable, S_IRUGO | S_IWUSR, \
+#define IIO_RING_BYTES_PER_DATUM_ATTR DEVICE_ATTR(bytes_per_datum, S_IRUGO | S_IWUSR,	\
+				      iio_read_ring_bytes_per_datum, NULL)
+#define IIO_RING_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, \
 					 iio_show_ring_enable,		\
 					 iio_store_ring_enable)
 #else /* CONFIG_IIO_RING_BUFFER */

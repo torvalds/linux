@@ -100,7 +100,7 @@ static int sca3000_ring_get_length(struct iio_ring_buffer *r)
 }
 
 /* only valid if resolution is kept at 11bits */
-static int sca3000_ring_get_bpd(struct iio_ring_buffer *r)
+static int sca3000_ring_get_bytes_per_datum(struct iio_ring_buffer *r)
 {
 	return 6;
 }
@@ -111,7 +111,7 @@ static void sca3000_ring_release(struct device *dev)
 }
 
 static IIO_RING_ENABLE_ATTR;
-static IIO_RING_BPS_ATTR;
+static IIO_RING_BYTES_PER_DATUM_ATTR;
 static IIO_RING_LENGTH_ATTR;
 
 /**
@@ -218,8 +218,8 @@ static struct attribute_group sca3000_scan_el_group = {
  */
 static struct attribute *sca3000_ring_attributes[] = {
 	&dev_attr_length.attr,
-	&dev_attr_bps.attr,
-	&dev_attr_ring_enable.attr,
+	&dev_attr_bytes_per_datum.attr,
+	&dev_attr_enable.attr,
 	NULL,
 };
 
@@ -272,7 +272,7 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 
 	indio_dev->ring->access.rip_lots = &sca3000_rip_hw_rb;
 	indio_dev->ring->access.get_length = &sca3000_ring_get_length;
-	indio_dev->ring->access.get_bpd = &sca3000_ring_get_bpd;
+	indio_dev->ring->access.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum;
 
 	return 0;
 }

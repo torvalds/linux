@@ -338,20 +338,20 @@ EXPORT_SYMBOL(iio_read_ring_length);
 }
 EXPORT_SYMBOL(iio_write_ring_length);
 
-ssize_t iio_read_ring_bps(struct device *dev,
+ssize_t iio_read_ring_bytes_per_datum(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf)
 {
 	int len = 0;
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 
-	if (ring->access.get_bpd)
+	if (ring->access.get_bytes_per_datum)
 		len = sprintf(buf, "%d\n",
-			      ring->access.get_bpd(ring));
+			      ring->access.get_bytes_per_datum(ring));
 
 	return len;
 }
-EXPORT_SYMBOL(iio_read_ring_bps);
+EXPORT_SYMBOL(iio_read_ring_bytes_per_datum);
 
 ssize_t iio_store_ring_enable(struct device *dev,
 			      struct device_attribute *attr,
