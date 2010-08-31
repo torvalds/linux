@@ -983,7 +983,7 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 
 	err = qlcnic_need_fw_reset(adapter);
 	if (err == 0)
-		goto set_dev_ready;
+		goto check_fw_status;
 
 	err = qlcnic_pinit_from_rom(adapter);
 	if (err)
@@ -1002,7 +1002,6 @@ check_fw_status:
 	if (err)
 		goto err_out;
 
-set_dev_ready:
 	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
 	qlcnic_idc_debug_info(adapter, 1);
 
@@ -2795,7 +2794,7 @@ done:
 static int
 qlcnic_check_health(struct qlcnic_adapter *adapter)
 {
-	u32 state = 0, heartbit;
+	u32 state = 0, heartbeat;
 	struct net_device *netdev = adapter->netdev;
 
 	if (qlcnic_check_temp(adapter))
@@ -2811,9 +2810,9 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		adapter->need_fw_reset = 1;
 	}
 
-	heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
-	if (heartbit != adapter->heartbit) {
-		adapter->heartbit = heartbit;
+	heartbeat = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+	if (heartbeat != adapter->heartbeat) {
+		adapter->heartbeat = heartbeat;
 		adapter->fw_fail_cnt = 0;
 		if (adapter->need_fw_reset)
 			goto detach;

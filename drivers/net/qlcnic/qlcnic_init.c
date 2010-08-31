@@ -46,6 +46,9 @@ static void
 qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_rds_ring *rds_ring);
 
+static int
+qlcnic_check_fw_hearbeat(struct qlcnic_adapter *adapter);
+
 static void crb_addr_transform_setup(void)
 {
 	crb_addr_transform(XDMA);
@@ -544,31 +547,77 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
+{
+	u32 val;
+	int retries = QLCNIC_CMDPEG_CHECK_RETRY_COUNT;
+
+	do {
+		val = QLCRD32(adapter, CRB_CMDPEG_STATE);
+
+		switch (val) {
+		case PHAN_INITIALIZE_COMPLETE:
+		case PHAN_INITIALIZE_ACK:
+			return 0;
+		case PHAN_INITIALIZE_FAILED:
+			goto out_err;
+		default:
+			break;
+		}
+
+		msleep(QLCNIC_CMDPEG_CHECK_DELAY);
+
+	} while (--retries);
+
+	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
+
+out_err:
+	dev_err(&adapter->pdev->dev, "Command Peg initialization not "
+		      "complete, state: 0x%x.\n", val);
+	return -EIO;
+}
+
+static int
+qlcnic_receive_peg_ready(struct qlcnic_adapter *adapter)
+{
+	u32 val;
+	int retries = QLCNIC_RCVPEG_CHECK_RETRY_COUNT;
+
+	do {
+		val = QLCRD32(adapter, CRB_RCVPEG_STATE);
+
+		if (val == PHAN_PEG_RCV_INITIALIZED)
+			return 0;
+
+		msleep(QLCNIC_RCVPEG_CHECK_DELAY);
+
+	} while (--retries);
+
+	if (!retries) {
+		dev_err(&adapter->pdev->dev, "Receive Peg initialization not "
+			      "complete, state: 0x%x.\n", val);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int
 qlcnic_check_fw_status(struct qlcnic_adapter *adapter)
 {
-	u32 heartbit, cmdpeg_state, ret = -EIO;
-	int retries = QLCNIC_HEARTBEAT_RETRY_COUNT;
+	int err;
 
-	adapter->heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
-	do {
-		msleep(QLCNIC_HEARTBEAT_PERIOD_MSECS);
-		heartbit = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
-		if (heartbit != adapter->heartbit) {
-			cmdpeg_state = QLCRD32(adapter, CRB_CMDPEG_STATE);
-			/* Ensure peg states are initialized */
-			if (cmdpeg_state == PHAN_INITIALIZE_COMPLETE ||
-				cmdpeg_state == PHAN_INITIALIZE_ACK) {
-				/* Complete firmware handshake */
-				QLCWR32(adapter, CRB_CMDPEG_STATE,
-					PHAN_INITIALIZE_ACK);
-				ret = QLCNIC_RCODE_SUCCESS;
-				break;
-			}
-		}
-	} while (--retries);
+	err = qlcnic_cmd_peg_ready(adapter);
+	if (err)
+		return err;
 
-	return ret;
+	err = qlcnic_receive_peg_ready(adapter);
+	if (err)
+		return err;
+
+	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
+
+	return err;
 }
 
 int
@@ -943,12 +992,32 @@ static void qlcnic_rom_lock_recovery(struct qlcnic_adapter *adapter)
 	qlcnic_pcie_sem_unlock(adapter, 2);
 }
 
+static int
+qlcnic_check_fw_hearbeat(struct qlcnic_adapter *adapter)
+{
+	u32 heartbeat, ret = -EIO;
+	int retries = QLCNIC_HEARTBEAT_CHECK_RETRY_COUNT;
+
+	adapter->heartbeat = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+
+	do {
+		msleep(QLCNIC_HEARTBEAT_PERIOD_MSECS);
+		heartbeat = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+		if (heartbeat != adapter->heartbeat) {
+			ret = QLCNIC_RCODE_SUCCESS;
+			break;
+		}
+	} while (--retries);
+
+	return ret;
+}
+
 int
 qlcnic_need_fw_reset(struct qlcnic_adapter *adapter)
 {
 	u32 val, version, major, minor, build;
 
-	if (qlcnic_check_fw_status(adapter)) {
+	if (qlcnic_check_fw_hearbeat(adapter)) {
 		qlcnic_rom_lock_recovery(adapter);
 		return 1;
 	}

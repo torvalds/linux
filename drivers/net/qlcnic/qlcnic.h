@@ -978,7 +978,7 @@ struct qlcnic_adapter {
 	u32 temp;
 
 	u32 int_vec_bit;
-	u32 heartbit;
+	u32 heartbeat;
 
 	u8 max_mac_filters;
 	u8 dev_state;
