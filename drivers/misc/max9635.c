@@ -346,8 +346,8 @@ static int max9635_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int max9635_misc_ioctl(struct inode *inode, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static long max9635_misc_ioctl(struct file *file,
+			       unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	u8 enable;
@@ -384,7 +384,7 @@ static int max9635_misc_ioctl(struct inode *inode, struct file *file,
 static const struct file_operations max9635_misc_fops = {
 	.owner = THIS_MODULE,
 	.open = max9635_misc_open,
-	.ioctl = max9635_misc_ioctl,
+	.unlocked_ioctl = max9635_misc_ioctl,
 };
 
 static struct miscdevice max9635_misc_device = {
