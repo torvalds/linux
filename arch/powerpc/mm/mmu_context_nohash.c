@@ -334,7 +334,7 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 	/* We don't touch CPU 0 map, it's allocated at aboot and kept
 	 * around forever
 	 */
-	if (cpu == 0)
+	if (cpu == boot_cpuid)
 		return NOTIFY_OK;
 
 	switch (action) {
@@ -420,9 +420,11 @@ void __init mmu_context_init(void)
 	 */
 	context_map = alloc_bootmem(CTX_MAP_SIZE);
 	context_mm = alloc_bootmem(sizeof(void *) * (last_context + 1));
+#ifndef CONFIG_SMP
 	stale_map[0] = alloc_bootmem(CTX_MAP_SIZE);
+#else
+	stale_map[boot_cpuid] = alloc_bootmem(CTX_MAP_SIZE);
 
-#ifdef CONFIG_SMP
 	register_cpu_notifier(&mmu_context_cpu_nb);
 #endif
 
