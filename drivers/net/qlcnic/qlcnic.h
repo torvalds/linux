@@ -722,6 +722,8 @@ struct qlcnic_cardrsp_tx_ctx {
 #define QLCNIC_MAC_NOOP	0
 #define QLCNIC_MAC_ADD	1
 #define QLCNIC_MAC_DEL	2
+#define QLCNIC_MAC_VLAN_ADD	3
+#define QLCNIC_MAC_VLAN_DEL	4
 
 struct qlcnic_mac_list_s {
 	struct list_head list;
@@ -932,6 +934,7 @@ struct qlcnic_mac_req {
 struct qlcnic_filter {
 	struct hlist_node fnode;
 	u8 faddr[ETH_ALEN];
+	u16 vlan_id;
 	unsigned long ftime;
 };
 

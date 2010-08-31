@@ -1826,7 +1826,7 @@ static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter)
 }
 
 static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
-		u64 uaddr, struct qlcnic_host_tx_ring *tx_ring)
+		u64 uaddr, u16 vlan_id, struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct cmd_desc_type0 *hwdesc;
 	struct qlcnic_nic_req *req;
@@ -1845,8 +1845,10 @@ static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
 	req->req_hdr = cpu_to_le64(word);
 
 	mac_req = (struct qlcnic_mac_req *)&(req->words[0]);
-	mac_req->op = QLCNIC_MAC_ADD;
+	mac_req->op = vlan_id ? QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_ADD;
 	memcpy(mac_req->mac_addr, &uaddr, ETH_ALEN);
+
+	req->words[1] = cpu_to_le64(vlan_id);
 
 	tx_ring->producer = get_next_index(producer, tx_ring->num_desc);
 }
@@ -1865,6 +1867,7 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
 	u64 src_addr = 0;
+	u16 vlan_id = 0;
 	u8 hindex;
 
 	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
@@ -1873,12 +1876,16 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	if (adapter->fhash.fnum >= adapter->fhash.fmax)
 		return;
 
+	/* Only NPAR capable devices support vlan based learning*/
+	if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
+		vlan_id = first_desc->vlan_TCI;
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
 	hindex = QLCNIC_MAC_HASH(src_addr) & (QLCNIC_LB_MAX_FILTERS - 1);
 	head = &(adapter->fhash.fhead[hindex]);
 
 	hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
-		if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN)) {
+		if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
+			    tmp_fil->vlan_id == vlan_id) {
 			tmp_fil->ftime = jiffies;
 			return;
 		}
@@ -1888,9 +1895,10 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	if (!fil)
 		return;
 
-	qlcnic_change_filter(adapter, src_addr, tx_ring);
+	qlcnic_change_filter(adapter, src_addr, vlan_id, tx_ring);
 
 	fil->ftime = jiffies;
+	fil->vlan_id = vlan_id;
 	memcpy(fil->faddr, &src_addr, ETH_ALEN);
 	spin_lock(&adapter->mac_learn_lock);
 	hlist_add_head(&(fil->fnode), head);
