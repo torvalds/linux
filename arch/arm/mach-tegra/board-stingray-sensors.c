@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/bmp085.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -26,6 +25,7 @@
 #include <linux/l3g4200d.h>
 #include <linux/led-lm3559.h>
 #include <linux/max9635.h>
+#include <linux/moto_bmp085.h>
 #include <media/ov5650.h>
 #include <media/soc2030.h>
 #include <linux/platform_device.h>
