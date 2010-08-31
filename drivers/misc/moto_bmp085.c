@@ -31,7 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
-#include <linux/bmp085.h>
+#include <linux/moto_bmp085.h>
 
 #define DEBUG
 
@@ -287,8 +287,8 @@ static int bmp085_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bmp085_misc_ioctl(struct inode *inode, struct file *file,
-			     unsigned int cmd, unsigned long arg)
+static long bmp085_misc_ioctl(struct file *file,
+			      unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	u8 buf[4];
@@ -352,7 +352,7 @@ static int bmp085_misc_ioctl(struct inode *inode, struct file *file,
 static const struct file_operations bmp085_misc_fops = {
 	.owner = THIS_MODULE,
 	.open = bmp085_misc_open,
-	.ioctl = bmp085_misc_ioctl,
+	.unlocked_ioctl = bmp085_misc_ioctl,
 };
 
 static struct miscdevice bmp085_misc_device = {
@@ -540,7 +540,6 @@ static void bmp085_input_work_func(struct work_struct *work)
 	struct bmp085_data *barom = container_of((struct delayed_work *)work,
 						 struct bmp085_data,
 						 input_work);
-	int i = 0;
 	int err;
 	u8 buf[2];
 
