@@ -102,6 +102,8 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 	int i;
 	char buff[256];
 
+	tegra_dc_io_start(dc);
+
 	DUMP_REG(DC_CMD_DISPLAY_COMMAND_OPTION0);
 	DUMP_REG(DC_CMD_DISPLAY_COMMAND);
 	DUMP_REG(DC_CMD_SIGNAL_RAISE);
@@ -225,6 +227,8 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 		DUMP_REG(DC_WINBUF_ADDR_H_OFFSET);
 		DUMP_REG(DC_WINBUF_ADDR_V_OFFSET);
 	}
+
+	tegra_dc_io_end(dc);
 }
 
 #undef DUMP_REG
@@ -285,7 +289,6 @@ static void tegra_dc_dbg_add(struct tegra_dc *dc)
 
 	snprintf(name, sizeof(name), "tegra_dc%d_regs", dc->ndev->id);
 	(void) debugfs_create_file(name, S_IRUGO, NULL, dc, &dbg_fops);
-
 }
 #else
 static void tegra_dc_dbg_add(struct tegra_dc *dc) {}
@@ -533,12 +536,39 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	}
 
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
-
 	mutex_unlock(&dc->lock);
 
 	return 0;
 }
 EXPORT_SYMBOL(tegra_dc_update_windows);
+
+u32 tegra_dc_get_syncpt_id(const struct tegra_dc *dc)
+{
+	return dc->syncpt_id;
+}
+EXPORT_SYMBOL(tegra_dc_get_syncpt_id);
+
+u32 tegra_dc_incr_syncpt_max(struct tegra_dc *dc)
+{
+	u32 max;
+
+	mutex_lock(&dc->lock);
+	max = nvhost_syncpt_incr_max(&dc->ndev->host->syncpt, dc->syncpt_id, 1);
+	dc->syncpt_max = max;
+	mutex_unlock(&dc->lock);
+
+	return max;
+}
+
+void tegra_dc_incr_syncpt_min(struct tegra_dc *dc, u32 val)
+{
+	mutex_lock(&dc->lock);
+	while (dc->syncpt_min < val) {
+		dc->syncpt_min++;
+		nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt, dc->syncpt_id);
+	}
+	mutex_unlock(&dc->lock);
+}
 
 static bool tegra_dc_windows_are_clean(struct tegra_dc_win *windows[],
 					     int n)
@@ -769,11 +799,18 @@ static void tegra_dc_set_color_control(struct tegra_dc *dc)
 
 static void tegra_dc_init(struct tegra_dc *dc)
 {
+	u32 disp_syncpt;
+	u32 vblank_syncpt;
+
 	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	if (dc->ndev->id == 0)
-		tegra_dc_writel(dc, 0x0000011a, DC_CMD_CONT_SYNCPT_VSYNC);
-	else
-		tegra_dc_writel(dc, 0x0000011b, DC_CMD_CONT_SYNCPT_VSYNC);
+	if (dc->ndev->id == 0) {
+		disp_syncpt = NVSYNCPT_DISP0;
+		vblank_syncpt = NVSYNCPT_VBLANK0;
+	} else if (dc->ndev->id == 1) {
+		disp_syncpt = NVSYNCPT_DISP1;
+		vblank_syncpt = NVSYNCPT_VBLANK1;
+	}
+	tegra_dc_writel(dc, 0x00000100 | vblank_syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
 	tegra_dc_writel(dc, 0x00004700, DC_CMD_INT_TYPE);
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_POLARITY);
 	tegra_dc_writel(dc, 0x00000020, DC_DISP_MEM_HIGH_PRIORITY);
@@ -786,18 +823,24 @@ static void tegra_dc_init(struct tegra_dc *dc)
 
 	tegra_dc_set_color_control(dc);
 
+	dc->syncpt_id = disp_syncpt;
+
+	dc->syncpt_min = dc->syncpt_max =
+		nvhost_syncpt_read(&dc->ndev->host->syncpt, disp_syncpt);
+
 	if (dc->mode.pclk)
 		tegra_dc_program_mode(dc, &dc->mode);
 }
 
 static void _tegra_dc_enable(struct tegra_dc *dc)
 {
+	tegra_dc_io_start(dc);
+
 	if (dc->out && dc->out->enable)
 		dc->out->enable();
 
 	tegra_dc_setup_clk(dc, dc->clk);
 
-	clk_enable(dc->host1x_clk);
 	clk_enable(dc->clk);
 	tegra_periph_reset_deassert(dc->clk);
 	enable_irq(dc->irq);
@@ -831,10 +874,17 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 	disable_irq(dc->irq);
 	tegra_periph_reset_assert(dc->clk);
 	clk_disable(dc->clk);
-	clk_disable(dc->host1x_clk);
 
 	if (dc->out && dc->out->disable)
 		dc->out->disable();
+
+	/* flush any pending syncpt waits */
+	while (dc->syncpt_min < dc->syncpt_max) {
+		dc->syncpt_min++;
+		nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt, dc->syncpt_id);
+	}
+
+	tegra_dc_io_end(dc);
 }
 
 
@@ -854,7 +904,6 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 {
 	struct tegra_dc *dc;
 	struct clk *clk;
-	struct clk *host1x_clk;
 	struct resource	*res;
 	struct resource *base_res;
 	struct resource *fb_mem = NULL;
@@ -904,23 +953,14 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 	fb_mem = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "fbmem");
 
-	host1x_clk = clk_get(&ndev->dev, "host1x");
-	if (IS_ERR_OR_NULL(host1x_clk)) {
-		dev_err(&ndev->dev, "can't get host1x clock\n");
-		ret = -ENOENT;
-		goto err_iounmap_reg;
-	}
-
 	clk = clk_get(&ndev->dev, NULL);
 	if (IS_ERR_OR_NULL(clk)) {
 		dev_err(&ndev->dev, "can't get clock\n");
 		ret = -ENOENT;
-
-		goto err_put_host1x_clk;
+		goto err_iounmap_reg;
 	}
 
 	dc->clk = clk;
-	dc->host1x_clk = host1x_clk;
 	dc->base_res = base_res;
 	dc->base = base;
 	dc->irq = irq;
@@ -984,8 +1024,6 @@ err_free_irq:
 	free_irq(irq, dc);
 err_put_clk:
 	clk_put(clk);
-err_put_host1x_clk:
-	clk_put(host1x_clk);
 err_iounmap_reg:
 	iounmap(base);
 	if (fb_mem)
@@ -1014,7 +1052,6 @@ static int tegra_dc_remove(struct nvhost_device *ndev)
 
 	free_irq(dc->irq, dc);
 	clk_put(dc->clk);
-	clk_put(dc->host1x_clk);
 	iounmap(dc->base);
 	if (dc->fb_mem)
 		release_resource(dc->base_res);

@@ -86,6 +86,7 @@ struct tegra_dc_out {
 #define TEGRA_DC_ORDER_BLUE_RED		1
 
 struct tegra_dc;
+struct nvmap_handle_ref;
 
 struct tegra_dc_win {
 	u8			idx;
@@ -108,6 +109,8 @@ struct tegra_dc_win {
 
 	int			dirty;
 	struct tegra_dc		*dc;
+
+	struct nvmap_handle_ref	*surface;
 };
 
 #define TEGRA_WIN_FLAG_ENABLED		(1 << 0)
@@ -164,6 +167,10 @@ struct tegra_dc_win *tegra_dc_get_window(struct tegra_dc *dc, unsigned win);
 
 void tegra_dc_enable(struct tegra_dc *dc);
 void tegra_dc_disable(struct tegra_dc *dc);
+
+u32 tegra_dc_get_syncpt_id(const struct tegra_dc *dc);
+u32 tegra_dc_incr_syncpt_max(struct tegra_dc *dc);
+void tegra_dc_incr_syncpt_min(struct tegra_dc *dc, u32 val);
 
 /* tegra_dc_update_windows and tegra_dc_sync_windows do not support windows
  * with differenct dcs in one call
