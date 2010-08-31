@@ -1100,10 +1100,11 @@ __qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
 		*arg1 = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
 		*arg2 = QLCRD32(adapter, QLCNIC_ARG2_CRB_OFFSET);
 		dev_info(&adapter->pdev->dev,
-			"eSwitch port config for pci func%d\n",	pci_func);
+			"eSwitch port config for pci func %d\n", pci_func);
 	} else {
 		dev_err(&adapter->pdev->dev,
-			"Failed to get eswitch port config%d\n", pci_func);
+			"Failed to get eswitch port config for pci func %d\n",
+								pci_func);
 	}
 	return err;
 }
@@ -1142,7 +1143,7 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 			arg1 &= ~BIT_4;
 		if (!(esw_cfg->promisc_mode))
 			arg1 &= ~BIT_6;
-		if (!(esw_cfg->mac_learning))
+		if (!(esw_cfg->mac_override))
 			arg1 &= ~BIT_7;
 		if (!(esw_cfg->mac_anti_spoof))
 			arg2 &= ~BIT_0;
@@ -1175,10 +1176,10 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 
 	if (err != QLCNIC_RCODE_SUCCESS) {
 		dev_err(&adapter->pdev->dev,
-			"Failed to configure eswitch port%d\n", pci_func);
+			"Failed to configure eswitch pci func %d\n", pci_func);
 	} else {
 		dev_info(&adapter->pdev->dev,
-			"Configured eSwitch for port %d\n", pci_func);
+			"Configured eSwitch for pci func %d\n", pci_func);
 	}
 
 	return err;
@@ -1202,7 +1203,7 @@ qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
 	esw_cfg->discard_tagged = !!(arg1 & BIT_4);
 	esw_cfg->host_vlan_tag = !!(arg1 & BIT_5);
 	esw_cfg->promisc_mode = !!(arg1 & BIT_6);
-	esw_cfg->mac_learning = !!(arg1 & BIT_7);
+	esw_cfg->mac_override = !!(arg1 & BIT_7);
 	esw_cfg->vlan_id = LSW(arg1 >> 16);
 	esw_cfg->mac_anti_spoof = (arg2 & 0x1);
 	esw_cfg->offload_flags = ((arg2 >> 1) & 0x7);

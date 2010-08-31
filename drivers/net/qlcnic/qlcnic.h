@@ -905,6 +905,7 @@ struct qlcnic_mac_req {
 #define QLCNIC_ADAPTER_INITIALIZED	0x80
 #define QLCNIC_TAGGING_ENABLED		0x100
 #define QLCNIC_MACSPOOF			0x200
+#define QLCNIC_MAC_OVERRIDE_DISABLED	0x400
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
@@ -1060,7 +1061,7 @@ struct qlcnic_npar_info {
 	u8	enable_pm;
 	u8	dest_npar;
 	u8	discard_tagged;
-	u8	mac_learning;
+	u8	mac_override;
 	u8	mac_anti_spoof;
 	u8	promisc_mode;
 	u8	offload_flags;
@@ -1134,7 +1135,7 @@ struct qlcnic_esw_func_cfg {
 	u8	host_vlan_tag;
 	u8	promisc_mode;
 	u8	discard_tagged;
-	u8	mac_learning;
+	u8	mac_override;
 	u8	mac_anti_spoof;
 	u8	offload_flags;
 	u8	reserved[5];

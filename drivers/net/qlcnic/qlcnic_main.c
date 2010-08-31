@@ -343,6 +343,9 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 
+	if ((adapter->flags & QLCNIC_MAC_OVERRIDE_DISABLED))
+		return -EOPNOTSUPP;
+
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EINVAL;
 
@@ -741,9 +744,13 @@ qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
 	adapter->flags &= ~QLCNIC_MACSPOOF;
+	adapter->flags &= ~QLCNIC_MAC_OVERRIDE_DISABLED;
 
 	if (esw_cfg->mac_anti_spoof)
 		adapter->flags |= QLCNIC_MACSPOOF;
+
+	if (!esw_cfg->mac_override)
+		adapter->flags |= QLCNIC_MAC_OVERRIDE_DISABLED;
 
 	qlcnic_set_netdev_features(adapter, esw_cfg);
 }
@@ -862,14 +869,14 @@ qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
 		memset(&esw_cfg, 0, sizeof(struct qlcnic_esw_func_cfg));
 		esw_cfg.pci_func = i;
 		esw_cfg.offload_flags = BIT_0;
-		esw_cfg.mac_learning = BIT_0;
+		esw_cfg.mac_override = BIT_0;
 		if (adapter->capabilities  & QLCNIC_FW_CAPABILITY_TSO)
 			esw_cfg.offload_flags |= (BIT_1 | BIT_2);
 		if (qlcnic_config_switch_port(adapter, &esw_cfg))
 			return -EIO;
 		npar = &adapter->npars[i];
 		npar->pvid = esw_cfg.vlan_id;
-		npar->mac_learning = esw_cfg.offload_flags;
+		npar->mac_override = esw_cfg.mac_override;
 		npar->mac_anti_spoof = esw_cfg.mac_anti_spoof;
 		npar->discard_tagged = esw_cfg.discard_tagged;
 		npar->promisc_mode = esw_cfg.promisc_mode;
@@ -887,7 +894,7 @@ qlcnic_reset_eswitch_config(struct qlcnic_adapter *adapter,
 	esw_cfg.op_mode = QLCNIC_PORT_DEFAULTS;
 	esw_cfg.pci_func = pci_func;
 	esw_cfg.vlan_id = npar->pvid;
-	esw_cfg.mac_learning = npar->mac_learning;
+	esw_cfg.mac_override = npar->mac_override;
 	esw_cfg.discard_tagged = npar->discard_tagged;
 	esw_cfg.mac_anti_spoof = npar->mac_anti_spoof;
 	esw_cfg.offload_flags = npar->offload_flags;
@@ -3042,6 +3049,10 @@ qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
 
 	qlcnic_check_options(adapter);
 
+	err = qlcnic_set_eswitch_port_config(adapter);
+	if (err)
+		return err;
+
 	adapter->need_fw_reset = 0;
 
 	return err;
@@ -3397,8 +3408,10 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
 			if (QLC_DEV_GET_DRV(op_mode, pci_func) !=
-						QLCNIC_NON_PRIV_FUNC)
+						QLCNIC_NON_PRIV_FUNC) {
 				esw_cfg[i].mac_anti_spoof = 0;
+				esw_cfg[i].mac_override = 1;
+			}
 			break;
 		case QLCNIC_ADD_VLAN:
 			if (!IS_VALID_VLAN(esw_cfg[i].vlan_id))
@@ -3474,7 +3487,7 @@ qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
 			npar->promisc_mode = esw_cfg[i].promisc_mode;
-			npar->mac_learning = esw_cfg[i].mac_learning;
+			npar->mac_override = esw_cfg[i].mac_override;
 			npar->offload_flags = esw_cfg[i].offload_flags;
 			npar->mac_anti_spoof = esw_cfg[i].mac_anti_spoof;
 			npar->discard_tagged = esw_cfg[i].discard_tagged;
