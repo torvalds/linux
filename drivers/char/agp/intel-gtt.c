@@ -782,20 +782,14 @@ static unsigned int intel_gtt_mappable_entries(void)
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
 
-	switch (intel_private.pcidev->device) {
-	case PCI_DEVICE_ID_INTEL_82830_CGC:
-	case PCI_DEVICE_ID_INTEL_82845G_IG:
-	case PCI_DEVICE_ID_INTEL_82855GM_IG:
-	case PCI_DEVICE_ID_INTEL_82865_IG:
+	if (INTEL_GTT_GEN == 2) {
 		if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_64M)
 			aperture_size *= 64;
 		else
 			aperture_size *= 128;
-		break;
-	default:
+	} else {
 		/* 9xx supports large sizes, just look at the length */
 		aperture_size = pci_resource_len(intel_private.pcidev, 2);
-		break;
 	}
 
 	return aperture_size >> PAGE_SHIFT;
