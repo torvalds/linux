@@ -335,7 +335,7 @@ static int l3g4200d_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int l3g4200d_misc_ioctl(struct inode *inode, struct file *file,
+static long l3g4200d_misc_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -388,7 +388,7 @@ static int l3g4200d_misc_ioctl(struct inode *inode, struct file *file,
 static const struct file_operations l3g4200d_misc_fops = {
 	.owner = THIS_MODULE,
 	.open = l3g4200d_misc_open,
-	.ioctl = l3g4200d_misc_ioctl,
+	.unlocked_ioctl = l3g4200d_misc_ioctl,
 };
 
 static struct miscdevice l3g4200d_misc_device = {
