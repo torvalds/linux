@@ -62,6 +62,13 @@ config SND_FSI_DA7210
 	  This option enables generic sound support for the
 	  FSI - DA7210 unit
 
+config SND_FSI_HDMI
+	bool "FSI-HDMI sound support"
+	depends on SND_SOC_SH4_FSI && FB_SH_MOBILE_HDMI
+	help
+	  This option enables generic sound support for the
+	  FSI - HDMI unit
+
 config SND_SIU_MIGOR
 	tristate "SIU sound support on Migo-R"
 	depends on SH_MIGOR
