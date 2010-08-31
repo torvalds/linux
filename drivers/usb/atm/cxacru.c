@@ -564,7 +564,7 @@ static void cxacru_timeout_kill(unsigned long data)
 }
 
 static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
-				 int* actual_length)
+				 int *actual_length)
 {
 	struct timer_list timer;
 
@@ -866,50 +866,50 @@ static void cxacru_poll_status(struct work_struct *work)
 	instance->line_status = buf[CXINF_LINE_STATUS];
 	switch (instance->line_status) {
 	case 0:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: down\n");
 		break;
 
 	case 1:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: attempting to activate\n");
 		break;
 
 	case 2:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: training\n");
 		break;
 
 	case 3:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: channel analysis\n");
 		break;
 
 	case 4:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: exchange\n");
 		break;
 
 	case 5:
 		atm_dev->link_rate = buf[CXINF_DOWNSTREAM_RATE] * 1000 / 424;
-		atm_dev->signal = ATM_PHY_SIG_FOUND;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_FOUND);
 
 		atm_info(usbatm, "ADSL line: up (%d kb/s down | %d kb/s up)\n",
 		     buf[CXINF_DOWNSTREAM_RATE], buf[CXINF_UPSTREAM_RATE]);
 		break;
 
 	case 6:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: waiting\n");
 		break;
 
 	case 7:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: initializing\n");
 		break;
 
 	default:
-		atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
 		atm_info(usbatm, "Unknown line state %02x\n", instance->line_status);
 		break;
 	}
@@ -952,7 +952,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 		put_unaligned(cpu_to_le32(addr), (__le32 *)(buf + offb));
 		offb += 4;
 		addr += l;
-		if(l)
+		if (l)
 			memcpy(buf + offb, data + offd, l);
 		if (l < stride)
 			memset(buf + offb + l, 0, stride - l);
@@ -967,7 +967,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 			}
 			offb = 0;
 		}
-	} while(offd < size);
+	} while (offd < size);
 	dbg("sent fw %#x", fw);
 
 	ret = 0;
@@ -1043,8 +1043,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	if (instance->modem_type->boot_rom_patch) {
 		val = cpu_to_le32(BR_ADDR);
 		ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, BR_STACK_ADDR, (u8 *) &val, 4);
-	}
-	else {
+	} else {
 		ret = cxacru_fw(usb_dev, FW_GOTO_MEM, 0x0, 0x0, FW_ADDR, NULL, 0);
 	}
 	if (ret) {
@@ -1068,7 +1067,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 }
 
 static int cxacru_find_firmware(struct cxacru_data *instance,
-				char* phase, const struct firmware **fw_p)
+				char *phase, const struct firmware **fw_p)
 {
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct device *dev = &usbatm->usb_intf->dev;

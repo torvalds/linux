@@ -392,7 +392,7 @@ static void __init omap_sx1_init(void)
 	omap_board_config_size = ARRAY_SIZE(sx1_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
-	omap_usb_init(&sx1_usb_config);
+	omap1_usb_init(&sx1_usb_config);
 	sx1_mmc_init();
 
 	/* turn on USB power */

@@ -17,43 +17,50 @@
 #include "hw.h"
 #include "ar9002_phy.h"
 
-static int ath9k_hw_AR9287_get_eeprom_ver(struct ath_hw *ah)
+#define NUM_EEP_WORDS (sizeof(struct ar9287_eeprom) / sizeof(u16))
+
+static int ath9k_hw_ar9287_get_eeprom_ver(struct ath_hw *ah)
 {
 	return (ah->eeprom.map9287.baseEepHeader.version >> 12) & 0xF;
 }
 
-static int ath9k_hw_AR9287_get_eeprom_rev(struct ath_hw *ah)
+static int ath9k_hw_ar9287_get_eeprom_rev(struct ath_hw *ah)
 {
 	return (ah->eeprom.map9287.baseEepHeader.version) & 0xFFF;
 }
 
-static bool ath9k_hw_AR9287_fill_eeprom(struct ath_hw *ah)
+static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data;
-	int addr, eep_start_loc = AR9287_EEP_START_LOC;
+	int addr, eep_start_loc;
 	eep_data = (u16 *)eep;
+
+	if (ah->hw_version.devid == 0x7015)
+		eep_start_loc = AR9287_HTC_EEP_START_LOC;
+	else
+		eep_start_loc = AR9287_EEP_START_LOC;
 
 	if (!ath9k_hw_use_flash(ah)) {
 		ath_print(common, ATH_DBG_EEPROM,
 			  "Reading from EEPROM, not flash\n");
 	}
 
-	for (addr = 0; addr < sizeof(struct ar9287_eeprom) / sizeof(u16);
-			addr++)	{
-		if (!ath9k_hw_nvram_read(common,
-					 addr + eep_start_loc, eep_data)) {
+	for (addr = 0; addr < NUM_EEP_WORDS; addr++) {
+		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc,
+					 eep_data)) {
 			ath_print(common, ATH_DBG_EEPROM,
 				  "Unable to read eeprom region\n");
 			return false;
 		}
 		eep_data++;
 	}
+
 	return true;
 }
 
-static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
+static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 {
 	u32 sum = 0, el, integer;
 	u16 temp, word, magic, magic2, *eepdata;
@@ -63,8 +70,8 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		if (!ath9k_hw_nvram_read(common,
-					 AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+		if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET,
+					 &magic)) {
 			ath_print(common, ATH_DBG_FATAL,
 				  "Reading Magic # failed\n");
 			return false;
@@ -72,6 +79,7 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 
 		ath_print(common, ATH_DBG_EEPROM,
 			  "Read Magic = 0x%04X\n", magic);
+
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
 
@@ -79,9 +87,7 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 				need_swap = true;
 				eepdata = (u16 *)(&ah->eeprom);
 
-				for (addr = 0;
-				     addr < sizeof(struct ar9287_eeprom) / sizeof(u16);
-				     addr++) {
+				for (addr = 0; addr < NUM_EEP_WORDS; addr++) {
 					temp = swab16(*eepdata);
 					*eepdata = temp;
 					eepdata++;
@@ -89,13 +95,14 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 			} else {
 				ath_print(common, ATH_DBG_FATAL,
 					  "Invalid EEPROM Magic. "
-					  "endianness mismatch.\n");
+					  "Endianness mismatch.\n");
 				return -EINVAL;
 			}
 		}
 	}
-	ath_print(common, ATH_DBG_EEPROM, "need_swap = %s.\n", need_swap ?
-		  "True" : "False");
+
+	ath_print(common, ATH_DBG_EEPROM, "need_swap = %s.\n",
+		  need_swap ? "True" : "False");
 
 	if (need_swap)
 		el = swab16(ah->eeprom.map9287.baseEepHeader.length);
@@ -108,6 +115,7 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 		el = el / sizeof(u16);
 
 	eepdata = (u16 *)(&ah->eeprom);
+
 	for (i = 0; i < el; i++)
 		sum ^= *eepdata++;
 
@@ -161,7 +169,7 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 	return 0;
 }
 
-static u32 ath9k_hw_AR9287_get_eeprom(struct ath_hw *ah,
+static u32 ath9k_hw_ar9287_get_eeprom(struct ath_hw *ah,
 				      enum eeprom_param param)
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
@@ -170,6 +178,7 @@ static u32 ath9k_hw_AR9287_get_eeprom(struct ath_hw *ah,
 	u16 ver_minor;
 
 	ver_minor = pBase->version & AR9287_EEP_VER_MINOR_MASK;
+
 	switch (param) {
 	case EEP_NFTHRESH_2:
 		return pModal->noiseFloorThreshCh[0];
@@ -214,29 +223,29 @@ static u32 ath9k_hw_AR9287_get_eeprom(struct ath_hw *ah,
 	}
 }
 
-
-static void ath9k_hw_get_AR9287_gain_boundaries_pdadcs(struct ath_hw *ah,
-				   struct ath9k_channel *chan,
-				   struct cal_data_per_freq_ar9287 *pRawDataSet,
-				   u8 *bChans,  u16 availPiers,
-				   u16 tPdGainOverlap, int16_t *pMinCalPower,
-				   u16 *pPdGainBoundaries, u8 *pPDADCValues,
-				   u16 numXpdGains)
+static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
+			       struct ath9k_channel *chan,
+			       struct cal_data_per_freq_ar9287 *pRawDataSet,
+			       u8 *bChans, u16 availPiers,
+			       u16 tPdGainOverlap,
+			       u16 *pPdGainBoundaries,
+			       u8 *pPDADCValues,
+			       u16 numXpdGains)
 {
-#define TMP_VAL_VPD_TABLE \
+#define TMP_VAL_VPD_TABLE						\
 	((vpdTableI[i][sizeCurrVpdTable - 1] + (ss - maxIndex + 1) * vpdStep));
 
-	int       i, j, k;
-	int16_t   ss;
-	u16  idxL = 0, idxR = 0, numPiers;
-	u8   *pVpdL, *pVpdR, *pPwrL, *pPwrR;
-	u8   minPwrT4[AR9287_NUM_PD_GAINS];
-	u8   maxPwrT4[AR9287_NUM_PD_GAINS];
-	int16_t   vpdStep;
-	int16_t   tmpVal;
-	u16  sizeCurrVpdTable, maxIndex, tgtIndex;
-	bool    match;
-	int16_t  minDelta = 0;
+	int i, j, k;
+	int16_t ss;
+	u16 idxL = 0, idxR = 0, numPiers;
+	u8 *pVpdL, *pVpdR, *pPwrL, *pPwrR;
+	u8 minPwrT4[AR9287_NUM_PD_GAINS];
+	u8 maxPwrT4[AR9287_NUM_PD_GAINS];
+	int16_t vpdStep;
+	int16_t tmpVal;
+	u16 sizeCurrVpdTable, maxIndex, tgtIndex;
+	bool match;
+	int16_t minDelta = 0;
 	struct chan_centers centers;
 	static u8 vpdTableL[AR5416_EEP4K_NUM_PD_GAINS]
 		[AR5416_MAX_PWR_RANGE_IN_HALF_DB];
@@ -245,6 +254,7 @@ static void ath9k_hw_get_AR9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 	static u8 vpdTableI[AR5416_EEP4K_NUM_PD_GAINS]
 		[AR5416_MAX_PWR_RANGE_IN_HALF_DB];
 
+	memset(&minPwrT4, 0, AR9287_NUM_PD_GAINS);
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	for (numPiers = 0; numPiers < availPiers; numPiers++) {
@@ -253,18 +263,18 @@ static void ath9k_hw_get_AR9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 	}
 
 	match = ath9k_hw_get_lower_upper_index(
-				   (u8)FREQ2FBIN(centers.synth_center,
-				    IS_CHAN_2GHZ(chan)), bChans, numPiers,
-				    &idxL, &idxR);
+		(u8)FREQ2FBIN(centers.synth_center, IS_CHAN_2GHZ(chan)),
+		bChans, numPiers, &idxL, &idxR);
 
 	if (match) {
 		for (i = 0; i < numXpdGains; i++) {
 			minPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][0];
 			maxPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][4];
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
-					pRawDataSet[idxL].pwrPdg[i],
-					pRawDataSet[idxL].vpdPdg[i],
-					AR9287_PD_GAIN_ICEPTS, vpdTableI[i]);
+						pRawDataSet[idxL].pwrPdg[i],
+						pRawDataSet[idxL].vpdPdg[i],
+						AR9287_PD_GAIN_ICEPTS,
+						vpdTableI[i]);
 		}
 	} else {
 		for (i = 0; i < numXpdGains; i++) {
@@ -275,61 +285,58 @@ static void ath9k_hw_get_AR9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 
 			minPwrT4[i] = max(pPwrL[0], pPwrR[0]);
 
-			maxPwrT4[i] =
-				min(pPwrL[AR9287_PD_GAIN_ICEPTS - 1],
-				    pPwrR[AR9287_PD_GAIN_ICEPTS - 1]);
+			maxPwrT4[i] = min(pPwrL[AR9287_PD_GAIN_ICEPTS - 1],
+					  pPwrR[AR9287_PD_GAIN_ICEPTS - 1]);
 
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
-					pPwrL, pVpdL,
-					AR9287_PD_GAIN_ICEPTS,
-					vpdTableL[i]);
+						pPwrL, pVpdL,
+						AR9287_PD_GAIN_ICEPTS,
+						vpdTableL[i]);
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
-					pPwrR, pVpdR,
-					AR9287_PD_GAIN_ICEPTS,
-					vpdTableR[i]);
+						pPwrR, pVpdR,
+						AR9287_PD_GAIN_ICEPTS,
+						vpdTableR[i]);
 
 			for (j = 0; j <= (maxPwrT4[i] - minPwrT4[i]) / 2; j++) {
-				vpdTableI[i][j] =
-					(u8)(ath9k_hw_interpolate((u16)
-					FREQ2FBIN(centers. synth_center,
-					IS_CHAN_2GHZ(chan)),
-					bChans[idxL], bChans[idxR],
-					vpdTableL[i][j], vpdTableR[i][j]));
+				vpdTableI[i][j] = (u8)(ath9k_hw_interpolate(
+				       (u16)FREQ2FBIN(centers. synth_center,
+						      IS_CHAN_2GHZ(chan)),
+				       bChans[idxL], bChans[idxR],
+				       vpdTableL[i][j], vpdTableR[i][j]));
 			}
 		}
 	}
-	*pMinCalPower = (int16_t)(minPwrT4[0] / 2);
 
 	k = 0;
+
 	for (i = 0; i < numXpdGains; i++) {
 		if (i == (numXpdGains - 1))
-			pPdGainBoundaries[i] = (u16)(maxPwrT4[i] / 2);
+			pPdGainBoundaries[i] =
+				(u16)(maxPwrT4[i] / 2);
 		else
-			pPdGainBoundaries[i] = (u16)((maxPwrT4[i] +
-						      minPwrT4[i+1]) / 4);
+			pPdGainBoundaries[i] =
+				(u16)((maxPwrT4[i] + minPwrT4[i+1]) / 4);
 
 		pPdGainBoundaries[i] = min((u16)AR5416_MAX_RATE_POWER,
-					    pPdGainBoundaries[i]);
+					   pPdGainBoundaries[i]);
 
 
-		if ((i == 0) && !AR_SREV_5416_20_OR_LATER(ah)) {
-			minDelta = pPdGainBoundaries[0] - 23;
-			pPdGainBoundaries[0] = 23;
-		} else
-			minDelta = 0;
+		minDelta = 0;
 
 		if (i == 0) {
 			if (AR_SREV_9280_10_OR_LATER(ah))
 				ss = (int16_t)(0 - (minPwrT4[i] / 2));
 			else
 				ss = 0;
-		} else
+		} else {
 			ss = (int16_t)((pPdGainBoundaries[i-1] -
-				       (minPwrT4[i] / 2)) -
+					(minPwrT4[i] / 2)) -
 				       tPdGainOverlap + 1 + minDelta);
+		}
 
 		vpdStep = (int16_t)(vpdTableI[i][1] - vpdTableI[i][0]);
 		vpdStep = (int16_t)((vpdStep < 1) ? 1 : vpdStep);
+
 		while ((ss < 0) && (k < (AR9287_NUM_PDADC_VALUES - 1)))	{
 			tmpVal = (int16_t)(vpdTableI[i][0] + ss * vpdStep);
 			pPDADCValues[k++] = (u8)((tmpVal < 0) ? 0 : tmpVal);
@@ -348,12 +355,13 @@ static void ath9k_hw_get_AR9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 		vpdStep = (int16_t)(vpdTableI[i][sizeCurrVpdTable - 1] -
 				    vpdTableI[i][sizeCurrVpdTable - 2]);
 		vpdStep = (int16_t)((vpdStep < 1) ? 1 : vpdStep);
+
 		if (tgtIndex > maxIndex) {
 			while ((ss <= tgtIndex) &&
 				(k < (AR9287_NUM_PDADC_VALUES - 1))) {
 				tmpVal = (int16_t) TMP_VAL_VPD_TABLE;
-				pPDADCValues[k++] = (u8)((tmpVal > 255) ?
-							  255 : tmpVal);
+				pPDADCValues[k++] =
+					(u8)((tmpVal > 255) ? 255 : tmpVal);
 				ss++;
 			}
 		}
@@ -375,10 +383,9 @@ static void ath9k_hw_get_AR9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 static void ar9287_eeprom_get_tx_gain_index(struct ath_hw *ah,
 			    struct ath9k_channel *chan,
 			    struct cal_data_op_loop_ar9287 *pRawDatasetOpLoop,
-			    u8 *pCalChans,  u16 availPiers,
-			    int8_t *pPwr)
+			    u8 *pCalChans,  u16 availPiers, int8_t *pPwr)
 {
-	u16  idxL = 0, idxR = 0, numPiers;
+	u16 idxL = 0, idxR = 0, numPiers;
 	bool match;
 	struct chan_centers centers;
 
@@ -390,15 +397,14 @@ static void ar9287_eeprom_get_tx_gain_index(struct ath_hw *ah,
 	}
 
 	match = ath9k_hw_get_lower_upper_index(
-			(u8)FREQ2FBIN(centers.synth_center, IS_CHAN_2GHZ(chan)),
-			pCalChans, numPiers,
-			&idxL, &idxR);
+		(u8)FREQ2FBIN(centers.synth_center, IS_CHAN_2GHZ(chan)),
+		pCalChans, numPiers, &idxL, &idxR);
 
 	if (match) {
 		*pPwr = (int8_t) pRawDatasetOpLoop[idxL].pwrPdg[0][0];
 	} else {
 		*pPwr = ((int8_t) pRawDatasetOpLoop[idxL].pwrPdg[0][0] +
-			    (int8_t) pRawDatasetOpLoop[idxR].pwrPdg[0][0])/2;
+			 (int8_t) pRawDatasetOpLoop[idxR].pwrPdg[0][0])/2;
 	}
 
 }
@@ -409,15 +415,21 @@ static void ar9287_eeprom_olpc_set_pdadcs(struct ath_hw *ah,
 	u32 tmpVal;
 	u32 a;
 
+	/* Enable OLPC for chain 0 */
+
 	tmpVal = REG_READ(ah, 0xa270);
 	tmpVal = tmpVal & 0xFCFFFFFF;
 	tmpVal = tmpVal | (0x3 << 24);
 	REG_WRITE(ah, 0xa270, tmpVal);
 
+	/* Enable OLPC for chain 1 */
+
 	tmpVal = REG_READ(ah, 0xb270);
 	tmpVal = tmpVal & 0xFCFFFFFF;
 	tmpVal = tmpVal | (0x3 << 24);
 	REG_WRITE(ah, 0xb270, tmpVal);
+
+	/* Write the OLPC ref power for chain 0 */
 
 	if (chain == 0) {
 		tmpVal = REG_READ(ah, 0xa398);
@@ -426,6 +438,8 @@ static void ar9287_eeprom_olpc_set_pdadcs(struct ath_hw *ah,
 		tmpVal = tmpVal | (a << 16);
 		REG_WRITE(ah, 0xa398, tmpVal);
 	}
+
+	/* Write the OLPC ref power for chain 1 */
 
 	if (chain == 1) {
 		tmpVal = REG_READ(ah, 0xb398);
@@ -436,28 +450,28 @@ static void ar9287_eeprom_olpc_set_pdadcs(struct ath_hw *ah,
 	}
 }
 
-static void ath9k_hw_set_AR9287_power_cal_table(struct ath_hw *ah,
+static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 						struct ath9k_channel *chan,
 						int16_t *pTxPowerIndexOffset)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct cal_data_per_freq_ar9287 *pRawDataset;
 	struct cal_data_op_loop_ar9287 *pRawDatasetOpenLoop;
-	u8  *pCalBChans = NULL;
+	u8 *pCalBChans = NULL;
 	u16 pdGainOverlap_t2;
-	u8  pdadcValues[AR9287_NUM_PDADC_VALUES];
+	u8 pdadcValues[AR9287_NUM_PDADC_VALUES];
 	u16 gainBoundaries[AR9287_PD_GAINS_IN_MASK];
 	u16 numPiers = 0, i, j;
-	int16_t  tMinCalPower;
 	u16 numXpdGain, xpdMask;
 	u16 xpdGainValues[AR9287_NUM_PD_GAINS] = {0, 0, 0, 0};
-	u32 reg32, regOffset, regChainOffset;
-	int16_t   modalIdx, diff = 0;
+	u32 reg32, regOffset, regChainOffset, regval;
+	int16_t modalIdx, diff = 0;
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
+
 	modalIdx = IS_CHAN_2GHZ(chan) ? 1 : 0;
 	xpdMask = pEepData->modalHeader.xpdGain;
+
 	if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) >=
-			AR9287_EEP_MINOR_VER_2)
+	    AR9287_EEP_MINOR_VER_2)
 		pdGainOverlap_t2 = pEepData->modalHeader.pdGainOverlap;
 	else
 		pdGainOverlap_t2 = (u16)(MS(REG_READ(ah, AR_PHY_TPCRG5),
@@ -466,15 +480,16 @@ static void ath9k_hw_set_AR9287_power_cal_table(struct ath_hw *ah,
 	if (IS_CHAN_2GHZ(chan)) {
 		pCalBChans = pEepData->calFreqPier2G;
 		numPiers = AR9287_NUM_2G_CAL_PIERS;
-		if (ath9k_hw_AR9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
+		if (ath9k_hw_ar9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
 			pRawDatasetOpenLoop =
-				(struct cal_data_op_loop_ar9287 *)
-				pEepData->calPierData2G[0];
+			(struct cal_data_op_loop_ar9287 *)pEepData->calPierData2G[0];
 			ah->initPDADC = pRawDatasetOpenLoop->vpdPdg[0][0];
 		}
 	}
 
 	numXpdGain = 0;
+
+	/* Calculate the value of xpdgains from the xpdGain Mask */
 	for (i = 1; i <= AR9287_PD_GAINS_IN_MASK; i++) {
 		if ((xpdMask >> (AR9287_PD_GAINS_IN_MASK - i)) & 1) {
 			if (numXpdGain >= AR9287_NUM_PD_GAINS)
@@ -496,99 +511,79 @@ static void ath9k_hw_set_AR9287_power_cal_table(struct ath_hw *ah,
 
 	for (i = 0; i < AR9287_MAX_CHAINS; i++)	{
 		regChainOffset = i * 0x1000;
+
 		if (pEepData->baseEepHeader.txMask & (1 << i)) {
-			pRawDatasetOpenLoop = (struct cal_data_op_loop_ar9287 *)
-					       pEepData->calPierData2G[i];
-			if (ath9k_hw_AR9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
+			pRawDatasetOpenLoop =
+			(struct cal_data_op_loop_ar9287 *)pEepData->calPierData2G[i];
+
+			if (ath9k_hw_ar9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
 				int8_t txPower;
 				ar9287_eeprom_get_tx_gain_index(ah, chan,
-							  pRawDatasetOpenLoop,
-							  pCalBChans, numPiers,
-							  &txPower);
+							pRawDatasetOpenLoop,
+							pCalBChans, numPiers,
+							&txPower);
 				ar9287_eeprom_olpc_set_pdadcs(ah, txPower, i);
 			} else {
 				pRawDataset =
 					(struct cal_data_per_freq_ar9287 *)
 					pEepData->calPierData2G[i];
-				ath9k_hw_get_AR9287_gain_boundaries_pdadcs(
-						  ah, chan, pRawDataset,
-						  pCalBChans, numPiers,
-						  pdGainOverlap_t2,
-						  &tMinCalPower, gainBoundaries,
-						  pdadcValues, numXpdGain);
+
+				ath9k_hw_get_ar9287_gain_boundaries_pdadcs(ah, chan,
+							   pRawDataset,
+							   pCalBChans, numPiers,
+							   pdGainOverlap_t2,
+							   gainBoundaries,
+							   pdadcValues,
+							   numXpdGain);
 			}
 
 			if (i == 0) {
-				if (!ath9k_hw_AR9287_get_eeprom(
-					    ah, EEP_OL_PWRCTRL)) {
-					REG_WRITE(ah, AR_PHY_TPCRG5 +
-					  regChainOffset,
-					  SM(pdGainOverlap_t2,
-					     AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
-					  SM(gainBoundaries[0],
-					     AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)
-					  | SM(gainBoundaries[1],
-					       AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)
-					  | SM(gainBoundaries[2],
-					       AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)
-					  | SM(gainBoundaries[3],
-					       AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4));
+				if (!ath9k_hw_ar9287_get_eeprom(ah,
+							EEP_OL_PWRCTRL)) {
+
+					regval = SM(pdGainOverlap_t2,
+						    AR_PHY_TPCRG5_PD_GAIN_OVERLAP)
+						| SM(gainBoundaries[0],
+						     AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)
+						| SM(gainBoundaries[1],
+						     AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)
+						| SM(gainBoundaries[2],
+						     AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)
+						| SM(gainBoundaries[3],
+						     AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4);
+
+					REG_WRITE(ah,
+						  AR_PHY_TPCRG5 + regChainOffset,
+						  regval);
 				}
 			}
 
 			if ((int32_t)AR9287_PWR_TABLE_OFFSET_DB !=
-				     pEepData->baseEepHeader.pwrTableOffset) {
-				diff = (u16)
-				       (pEepData->baseEepHeader.pwrTableOffset
-					- (int32_t)AR9287_PWR_TABLE_OFFSET_DB);
+			    pEepData->baseEepHeader.pwrTableOffset) {
+				diff = (u16)(pEepData->baseEepHeader.pwrTableOffset -
+					     (int32_t)AR9287_PWR_TABLE_OFFSET_DB);
 				diff *= 2;
 
-				for (j = 0;
-				     j < ((u16)AR9287_NUM_PDADC_VALUES-diff);
-				     j++)
+				for (j = 0; j < ((u16)AR9287_NUM_PDADC_VALUES-diff); j++)
 					pdadcValues[j] = pdadcValues[j+diff];
 
 				for (j = (u16)(AR9287_NUM_PDADC_VALUES-diff);
 				     j < AR9287_NUM_PDADC_VALUES; j++)
 					pdadcValues[j] =
-					  pdadcValues[
-					  AR9287_NUM_PDADC_VALUES-diff];
+					  pdadcValues[AR9287_NUM_PDADC_VALUES-diff];
 			}
 
-			if (!ath9k_hw_AR9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
-				regOffset = AR_PHY_BASE + (672 << 2) +
-							   regChainOffset;
+			if (!ath9k_hw_ar9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
+				regOffset = AR_PHY_BASE +
+					(672 << 2) + regChainOffset;
+
 				for (j = 0; j < 32; j++) {
-					reg32 = ((pdadcValues[4*j + 0]
-						  & 0xFF) << 0)  |
-						((pdadcValues[4*j + 1]
-						  & 0xFF) << 8)  |
-						((pdadcValues[4*j + 2]
-						  & 0xFF) << 16) |
-						((pdadcValues[4*j + 3]
-						  & 0xFF) << 24) ;
+					reg32 = ((pdadcValues[4*j + 0] & 0xFF) << 0)
+						| ((pdadcValues[4*j + 1] & 0xFF) << 8)
+						| ((pdadcValues[4*j + 2] & 0xFF) << 16)
+						| ((pdadcValues[4*j + 3] & 0xFF) << 24);
+
 					REG_WRITE(ah, regOffset, reg32);
-
-					ath_print(common, ATH_DBG_EEPROM,
-						  "PDADC (%d,%4x): %4.4x "
-						  "%8.8x\n",
-						  i, regChainOffset, regOffset,
-						  reg32);
-
-					ath_print(common, ATH_DBG_EEPROM,
-						  "PDADC: Chain %d | "
-						  "PDADC %3d Value %3d | "
-						  "PDADC %3d Value %3d | "
-						  "PDADC %3d Value %3d | "
-						  "PDADC %3d Value %3d |\n",
-						  i, 4 * j, pdadcValues[4 * j],
-						  4 * j + 1,
-						  pdadcValues[4 * j + 1],
-						  4 * j + 2,
-						  pdadcValues[4 * j + 2],
-						  4 * j + 3,
-						  pdadcValues[4 * j + 3]);
-
 					regOffset += 4;
 				}
 			}
@@ -598,30 +593,45 @@ static void ath9k_hw_set_AR9287_power_cal_table(struct ath_hw *ah,
 	*pTxPowerIndexOffset = 0;
 }
 
-static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
-		struct ath9k_channel *chan, int16_t *ratesArray, u16 cfgCtl,
-		u16 AntennaReduction, u16 twiceMaxRegulatoryPower,
-		u16 powerLimit)
+static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
+						     struct ath9k_channel *chan,
+						     int16_t *ratesArray,
+						     u16 cfgCtl,
+						     u16 AntennaReduction,
+						     u16 twiceMaxRegulatoryPower,
+						     u16 powerLimit)
 {
+#define CMP_CTL \
+	(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == \
+	 pEepData->ctlIndex[i])
+
+#define CMP_NO_CTL \
+	(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == \
+	 ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))
+
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
 #define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
+
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	u16 twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
 	static const u16 tpScaleReductionTable[5] =
 		{ 0, 3, 6, 9, AR5416_MAX_RATE_POWER };
 	int i;
-	int16_t  twiceLargestAntenna;
+	int16_t twiceLargestAntenna;
 	struct cal_ctl_data_ar9287 *rep;
 	struct cal_target_power_leg targetPowerOfdm = {0, {0, 0, 0, 0} },
 				    targetPowerCck = {0, {0, 0, 0, 0} };
 	struct cal_target_power_leg targetPowerOfdmExt = {0, {0, 0, 0, 0} },
 				    targetPowerCckExt = {0, {0, 0, 0, 0} };
-	struct cal_target_power_ht  targetPowerHt20,
+	struct cal_target_power_ht targetPowerHt20,
 				    targetPowerHt40 = {0, {0, 0, 0, 0} };
 	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
-	u16 ctlModesFor11g[] =
-		{CTL_11B, CTL_11G, CTL_2GHT20,
-		 CTL_11B_EXT, CTL_11G_EXT, CTL_2GHT40};
+	u16 ctlModesFor11g[] = {CTL_11B,
+				CTL_11G,
+				CTL_2GHT20,
+				CTL_11B_EXT,
+				CTL_11G_EXT,
+				CTL_2GHT40};
 	u16 numCtlModes = 0, *pCtlMode = NULL, ctlMode, freq;
 	struct chan_centers centers;
 	int tx_chainmask;
@@ -631,19 +641,28 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
+	/* Compute TxPower reduction due to Antenna Gain */
 	twiceLargestAntenna = max(pEepData->modalHeader.antennaGainCh[0],
 				  pEepData->modalHeader.antennaGainCh[1]);
+	twiceLargestAntenna = (int16_t)min((AntennaReduction) -
+					   twiceLargestAntenna, 0);
 
-	twiceLargestAntenna =  (int16_t)min((AntennaReduction) -
-					    twiceLargestAntenna, 0);
-
+	/*
+	 * scaledPower is the minimum of the user input power level
+	 * and the regulatory allowed power level.
+	 */
 	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
+
 	if (regulatory->tp_scale != ATH9K_TP_SCALE_MAX)
 		maxRegAllowedPower -=
 			(tpScaleReductionTable[(regulatory->tp_scale)] * 2);
 
 	scaledPower = min(powerLimit, maxRegAllowedPower);
 
+	/*
+	 * Reduce scaled Power by number of chains active
+	 * to get the per chain tx power level.
+	 */
 	switch (ar5416_get_ntxchains(tx_chainmask)) {
 	case 1:
 		break;
@@ -656,9 +675,14 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 	}
 	scaledPower = max((u16)0, scaledPower);
 
+	/*
+	 * Get TX power from EEPROM.
+	 */
 	if (IS_CHAN_2GHZ(chan))	{
+		/* CTL_11B, CTL_11G, CTL_2GHT20 */
 		numCtlModes =
 			ARRAY_SIZE(ctlModesFor11g) - SUB_NUM_CTL_MODES_AT_2G_40;
+
 		pCtlMode = ctlModesFor11g;
 
 		ath9k_hw_get_legacy_target_powers(ah, chan,
@@ -675,6 +699,7 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 					   &targetPowerHt20, 8, false);
 
 		if (IS_CHAN_HT40(chan))	{
+			/* All 2G CTLs */
 			numCtlModes = ARRAY_SIZE(ctlModesFor11g);
 			ath9k_hw_get_target_powers(ah, chan,
 						   pEepData->calTargetPower2GHT40,
@@ -692,8 +717,9 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 	}
 
 	for (ctlMode = 0; ctlMode < numCtlModes; ctlMode++) {
-		bool isHt40CtlMode = (pCtlMode[ctlMode] == CTL_5GHT40) ||
-				     (pCtlMode[ctlMode] == CTL_2GHT40);
+		bool isHt40CtlMode =
+			(pCtlMode[ctlMode] == CTL_2GHT40) ? true : false;
+
 		if (isHt40CtlMode)
 			freq = centers.synth_center;
 		else if (pCtlMode[ctlMode] & EXT_ADDITIVE)
@@ -701,31 +727,28 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 		else
 			freq = centers.ctl_center;
 
-		if (ah->eep_ops->get_eeprom_ver(ah) == 14 &&
-		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
-			twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
-
+		/* Walk through the CTL indices stored in EEPROM */
 		for (i = 0; (i < AR9287_NUM_CTLS) && pEepData->ctlIndex[i]; i++) {
-			if ((((cfgCtl & ~CTL_MODE_M) |
-			      (pCtlMode[ctlMode] & CTL_MODE_M)) ==
-			     pEepData->ctlIndex[i]) ||
-			    (((cfgCtl & ~CTL_MODE_M) |
-			      (pCtlMode[ctlMode] & CTL_MODE_M)) ==
-			     ((pEepData->ctlIndex[i] &
-			       CTL_MODE_M) | SD_NO_CTL))) {
+			struct cal_ctl_edges *pRdEdgesPower;
 
+			/*
+			 * Compare test group from regulatory channel list
+			 * with test mode from pCtlMode list
+			 */
+			if (CMP_CTL || CMP_NO_CTL) {
 				rep = &(pEepData->ctlData[i]);
-				twiceMinEdgePower = ath9k_hw_get_max_edge_power(
-				    freq,
-				    rep->ctlEdges[ar5416_get_ntxchains(
-				    tx_chainmask) - 1],
-				    IS_CHAN_2GHZ(chan), AR5416_NUM_BAND_EDGES);
+				pRdEdgesPower =
+				rep->ctlEdges[ar5416_get_ntxchains(tx_chainmask) - 1];
 
-				if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL)
-					twiceMaxEdgePower = min(
-							    twiceMaxEdgePower,
-							    twiceMinEdgePower);
-				else {
+				twiceMinEdgePower = ath9k_hw_get_max_edge_power(freq,
+								pRdEdgesPower,
+								IS_CHAN_2GHZ(chan),
+								AR5416_NUM_BAND_EDGES);
+
+				if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL) {
+					twiceMaxEdgePower = min(twiceMaxEdgePower,
+								twiceMinEdgePower);
+				} else {
 					twiceMaxEdgePower = twiceMinEdgePower;
 					break;
 				}
@@ -734,55 +757,48 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 
 		minCtlPower = (u8)min(twiceMaxEdgePower, scaledPower);
 
+		/* Apply ctl mode to correct target power set */
 		switch (pCtlMode[ctlMode]) {
 		case CTL_11B:
-			for (i = 0;
-			     i < ARRAY_SIZE(targetPowerCck.tPow2x);
-			     i++) {
-				targetPowerCck.tPow2x[i] = (u8)min(
-					(u16)targetPowerCck.tPow2x[i],
-					minCtlPower);
+			for (i = 0; i < ARRAY_SIZE(targetPowerCck.tPow2x); i++) {
+				targetPowerCck.tPow2x[i] =
+					(u8)min((u16)targetPowerCck.tPow2x[i],
+						minCtlPower);
 			}
 			break;
 		case CTL_11A:
 		case CTL_11G:
-			for (i = 0;
-			     i < ARRAY_SIZE(targetPowerOfdm.tPow2x);
-			     i++) {
-				targetPowerOfdm.tPow2x[i] = (u8)min(
-					(u16)targetPowerOfdm.tPow2x[i],
-					minCtlPower);
+			for (i = 0; i < ARRAY_SIZE(targetPowerOfdm.tPow2x); i++) {
+				targetPowerOfdm.tPow2x[i] =
+					(u8)min((u16)targetPowerOfdm.tPow2x[i],
+						minCtlPower);
 			}
 			break;
 		case CTL_5GHT20:
 		case CTL_2GHT20:
-			for (i = 0;
-			     i < ARRAY_SIZE(targetPowerHt20.tPow2x);
-			     i++) {
-				targetPowerHt20.tPow2x[i] = (u8)min(
-					(u16)targetPowerHt20.tPow2x[i],
-					minCtlPower);
+			for (i = 0; i < ARRAY_SIZE(targetPowerHt20.tPow2x); i++) {
+				targetPowerHt20.tPow2x[i] =
+					(u8)min((u16)targetPowerHt20.tPow2x[i],
+						minCtlPower);
 			}
 			break;
 		case CTL_11B_EXT:
-			targetPowerCckExt.tPow2x[0] = (u8)min(
-				    (u16)targetPowerCckExt.tPow2x[0],
-				    minCtlPower);
+			targetPowerCckExt.tPow2x[0] =
+				(u8)min((u16)targetPowerCckExt.tPow2x[0],
+					minCtlPower);
 			break;
 		case CTL_11A_EXT:
 		case CTL_11G_EXT:
-			targetPowerOfdmExt.tPow2x[0] = (u8)min(
-				    (u16)targetPowerOfdmExt.tPow2x[0],
-				    minCtlPower);
+			targetPowerOfdmExt.tPow2x[0] =
+				(u8)min((u16)targetPowerOfdmExt.tPow2x[0],
+					minCtlPower);
 			break;
 		case CTL_5GHT40:
 		case CTL_2GHT40:
-			for (i = 0;
-			     i < ARRAY_SIZE(targetPowerHt40.tPow2x);
-			     i++) {
-				targetPowerHt40.tPow2x[i] = (u8)min(
-					(u16)targetPowerHt40.tPow2x[i],
-					minCtlPower);
+			for (i = 0; i < ARRAY_SIZE(targetPowerHt40.tPow2x); i++) {
+				targetPowerHt40.tPow2x[i] =
+					(u8)min((u16)targetPowerHt40.tPow2x[i],
+						minCtlPower);
 			}
 			break;
 		default:
@@ -790,12 +806,13 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 		}
 	}
 
+	/* Now set the rates array */
+
 	ratesArray[rate6mb] =
 	ratesArray[rate9mb] =
 	ratesArray[rate12mb] =
 	ratesArray[rate18mb] =
-	ratesArray[rate24mb] =
-	targetPowerOfdm.tPow2x[0];
+	ratesArray[rate24mb] = targetPowerOfdm.tPow2x[0];
 
 	ratesArray[rate36mb] = targetPowerOfdm.tPow2x[1];
 	ratesArray[rate48mb] = targetPowerOfdm.tPow2x[2];
@@ -807,12 +824,12 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 
 	if (IS_CHAN_2GHZ(chan))	{
 		ratesArray[rate1l] = targetPowerCck.tPow2x[0];
-		ratesArray[rate2s] = ratesArray[rate2l] =
-			targetPowerCck.tPow2x[1];
-		ratesArray[rate5_5s] = ratesArray[rate5_5l] =
-			targetPowerCck.tPow2x[2];
-		ratesArray[rate11s] = ratesArray[rate11l] =
-			targetPowerCck.tPow2x[3];
+		ratesArray[rate2s] =
+		ratesArray[rate2l] = targetPowerCck.tPow2x[1];
+		ratesArray[rate5_5s] =
+		ratesArray[rate5_5l] = targetPowerCck.tPow2x[2];
+		ratesArray[rate11s] =
+		ratesArray[rate11l] = targetPowerCck.tPow2x[3];
 	}
 	if (IS_CHAN_HT40(chan))	{
 		for (i = 0; i < ARRAY_SIZE(targetPowerHt40.tPow2x); i++)
@@ -821,28 +838,28 @@ static void ath9k_hw_set_AR9287_power_per_rate_table(struct ath_hw *ah,
 		ratesArray[rateDupOfdm] = targetPowerHt40.tPow2x[0];
 		ratesArray[rateDupCck]  = targetPowerHt40.tPow2x[0];
 		ratesArray[rateExtOfdm] = targetPowerOfdmExt.tPow2x[0];
+
 		if (IS_CHAN_2GHZ(chan))
 			ratesArray[rateExtCck] = targetPowerCckExt.tPow2x[0];
 	}
 
+#undef CMP_CTL
+#undef CMP_NO_CTL
 #undef REDUCE_SCALED_POWER_BY_TWO_CHAIN
 #undef REDUCE_SCALED_POWER_BY_THREE_CHAIN
 }
 
-static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
+static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
 					u8 twiceMaxRegulatoryPower,
 					u8 powerLimit)
 {
-#define INCREASE_MAXPOW_BY_TWO_CHAIN     6
-#define INCREASE_MAXPOW_BY_THREE_CHAIN   10
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &pEepData->modalHeader;
 	int16_t ratesArray[Ar5416RateSize];
-	int16_t  txPowerIndexOffset = 0;
+	int16_t txPowerIndexOffset = 0;
 	u8 ht40PowerIncForPdadc = 2;
 	int i;
 
@@ -852,13 +869,13 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 	    AR9287_EEP_MINOR_VER_2)
 		ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
 
-	ath9k_hw_set_AR9287_power_per_rate_table(ah, chan,
+	ath9k_hw_set_ar9287_power_per_rate_table(ah, chan,
 						 &ratesArray[0], cfgCtl,
 						 twiceAntennaReduction,
 						 twiceMaxRegulatoryPower,
 						 powerLimit);
 
-	ath9k_hw_set_AR9287_power_cal_table(ah, chan, &txPowerIndexOffset);
+	ath9k_hw_set_ar9287_power_cal_table(ah, chan, &txPowerIndexOffset);
 
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
@@ -871,6 +888,7 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 			ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
 	}
 
+	/* OFDM power per rate */
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		  ATH9K_POW_SM(ratesArray[rate18mb], 24)
 		  | ATH9K_POW_SM(ratesArray[rate12mb], 16)
@@ -883,6 +901,7 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 		  | ATH9K_POW_SM(ratesArray[rate36mb], 8)
 		  | ATH9K_POW_SM(ratesArray[rate24mb], 0));
 
+	/* CCK power per rate */
 	if (IS_CHAN_2GHZ(chan))	{
 		REG_WRITE(ah, AR_PHY_POWER_TX_RATE3,
 			  ATH9K_POW_SM(ratesArray[rate2s], 24)
@@ -896,6 +915,7 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rate5_5l], 0));
 	}
 
+	/* HT20 power per rate */
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE5,
 		  ATH9K_POW_SM(ratesArray[rateHt20_3], 24)
 		  | ATH9K_POW_SM(ratesArray[rateHt20_2], 16)
@@ -908,8 +928,9 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 		  | ATH9K_POW_SM(ratesArray[rateHt20_5], 8)
 		  | ATH9K_POW_SM(ratesArray[rateHt20_4], 0));
 
+	/* HT40 power per rate */
 	if (IS_CHAN_HT40(chan))	{
-		if (ath9k_hw_AR9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
+		if (ath9k_hw_ar9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
 			REG_WRITE(ah, AR_PHY_POWER_TX_RATE7,
 				  ATH9K_POW_SM(ratesArray[rateHt40_3], 24)
 				  | ATH9K_POW_SM(ratesArray[rateHt40_2], 16)
@@ -943,6 +964,7 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 						 ht40PowerIncForPdadc, 0));
 		}
 
+		/* Dup/Ext power per rate */
 		REG_WRITE(ah, AR_PHY_POWER_TX_RATE9,
 			  ATH9K_POW_SM(ratesArray[rateExtOfdm], 24)
 			  | ATH9K_POW_SM(ratesArray[rateExtCck], 16)
@@ -960,37 +982,20 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 			ratesArray[i] + AR9287_PWR_TABLE_OFFSET_DB * 2;
 	else
 		regulatory->max_power_level = ratesArray[i];
-
-	switch (ar5416_get_ntxchains(ah->txchainmask)) {
-	case 1:
-		break;
-	case 2:
-		regulatory->max_power_level +=
-			INCREASE_MAXPOW_BY_TWO_CHAIN;
-		break;
-	case 3:
-		regulatory->max_power_level +=
-			INCREASE_MAXPOW_BY_THREE_CHAIN;
-		break;
-	default:
-		ath_print(common, ATH_DBG_EEPROM,
-			  "Invalid chainmask configuration\n");
-		break;
-	}
 }
 
-static void ath9k_hw_AR9287_set_addac(struct ath_hw *ah,
+static void ath9k_hw_ar9287_set_addac(struct ath_hw *ah,
 				      struct ath9k_channel *chan)
 {
 }
 
-static void ath9k_hw_AR9287_set_board_values(struct ath_hw *ah,
+static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
 	u16 antWrites[AR9287_ANT_16S];
-	u32 regChainOffset;
+	u32 regChainOffset, regval;
 	u8 txRxAttenLocal;
 	int i, j, offset_num;
 
@@ -1077,42 +1082,37 @@ static void ath9k_hw_AR9287_set_board_values(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0,
 		      AR_PHY_EXT_CCA0_THRESH62, pModal->thresh62);
 
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0, AR9287_AN_RF2G3_DB1,
-				  AR9287_AN_RF2G3_DB1_S, pModal->db1);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0, AR9287_AN_RF2G3_DB2,
-				  AR9287_AN_RF2G3_DB2_S, pModal->db2);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_CCK,
-				  AR9287_AN_RF2G3_OB_CCK_S, pModal->ob_cck);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_PSK,
-				  AR9287_AN_RF2G3_OB_PSK_S, pModal->ob_psk);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_QAM,
-				  AR9287_AN_RF2G3_OB_QAM_S, pModal->ob_qam);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_PAL_OFF,
-				  AR9287_AN_RF2G3_OB_PAL_OFF_S,
-				  pModal->ob_pal_off);
+	regval = REG_READ(ah, AR9287_AN_RF2G3_CH0);
+	regval &= ~(AR9287_AN_RF2G3_DB1 |
+		    AR9287_AN_RF2G3_DB2 |
+		    AR9287_AN_RF2G3_OB_CCK |
+		    AR9287_AN_RF2G3_OB_PSK |
+		    AR9287_AN_RF2G3_OB_QAM |
+		    AR9287_AN_RF2G3_OB_PAL_OFF);
+	regval |= (SM(pModal->db1, AR9287_AN_RF2G3_DB1) |
+		   SM(pModal->db2, AR9287_AN_RF2G3_DB2) |
+		   SM(pModal->ob_cck, AR9287_AN_RF2G3_OB_CCK) |
+		   SM(pModal->ob_psk, AR9287_AN_RF2G3_OB_PSK) |
+		   SM(pModal->ob_qam, AR9287_AN_RF2G3_OB_QAM) |
+		   SM(pModal->ob_pal_off, AR9287_AN_RF2G3_OB_PAL_OFF));
 
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_DB1, AR9287_AN_RF2G3_DB1_S,
-				  pModal->db1);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1, AR9287_AN_RF2G3_DB2,
-				  AR9287_AN_RF2G3_DB2_S, pModal->db2);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_CCK,
-				  AR9287_AN_RF2G3_OB_CCK_S, pModal->ob_cck);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_PSK,
-				  AR9287_AN_RF2G3_OB_PSK_S, pModal->ob_psk);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_QAM,
-				  AR9287_AN_RF2G3_OB_QAM_S, pModal->ob_qam);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_PAL_OFF,
-				  AR9287_AN_RF2G3_OB_PAL_OFF_S,
-				  pModal->ob_pal_off);
+	ath9k_hw_analog_shift_regwrite(ah, AR9287_AN_RF2G3_CH0, regval);
+
+	regval = REG_READ(ah, AR9287_AN_RF2G3_CH1);
+	regval &= ~(AR9287_AN_RF2G3_DB1 |
+		    AR9287_AN_RF2G3_DB2 |
+		    AR9287_AN_RF2G3_OB_CCK |
+		    AR9287_AN_RF2G3_OB_PSK |
+		    AR9287_AN_RF2G3_OB_QAM |
+		    AR9287_AN_RF2G3_OB_PAL_OFF);
+	regval |= (SM(pModal->db1, AR9287_AN_RF2G3_DB1) |
+		   SM(pModal->db2, AR9287_AN_RF2G3_DB2) |
+		   SM(pModal->ob_cck, AR9287_AN_RF2G3_OB_CCK) |
+		   SM(pModal->ob_psk, AR9287_AN_RF2G3_OB_PSK) |
+		   SM(pModal->ob_qam, AR9287_AN_RF2G3_OB_QAM) |
+		   SM(pModal->ob_pal_off, AR9287_AN_RF2G3_OB_PAL_OFF));
+
+	ath9k_hw_analog_shift_regwrite(ah, AR9287_AN_RF2G3_CH1, regval);
 
 	REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,
 		      AR_PHY_TX_END_DATA_START, pModal->txFrameToDataStart);
@@ -1125,26 +1125,27 @@ static void ath9k_hw_AR9287_set_board_values(struct ath_hw *ah,
 				  pModal->xpaBiasLvl);
 }
 
-static u8 ath9k_hw_AR9287_get_num_ant_config(struct ath_hw *ah,
+static u8 ath9k_hw_ar9287_get_num_ant_config(struct ath_hw *ah,
 					     enum ieee80211_band freq_band)
 {
 	return 1;
 }
 
-static u16 ath9k_hw_AR9287_get_eeprom_antenna_cfg(struct ath_hw *ah,
+static u32 ath9k_hw_ar9287_get_eeprom_antenna_cfg(struct ath_hw *ah,
 						  struct ath9k_channel *chan)
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
 
-	return pModal->antCtrlCommon & 0xFFFF;
+	return pModal->antCtrlCommon;
 }
 
-static u16 ath9k_hw_AR9287_get_spur_channel(struct ath_hw *ah,
+static u16 ath9k_hw_ar9287_get_spur_channel(struct ath_hw *ah,
 					    u16 i, bool is2GHz)
 {
 #define EEP_MAP9287_SPURCHAN \
 	(ah->eeprom.map9287.modalHeader.spurChans[i].spurChan)
+
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 spur_val = AR_NO_SPUR;
 
@@ -1171,15 +1172,15 @@ static u16 ath9k_hw_AR9287_get_spur_channel(struct ath_hw *ah,
 }
 
 const struct eeprom_ops eep_ar9287_ops = {
-	.check_eeprom		= ath9k_hw_AR9287_check_eeprom,
-	.get_eeprom		= ath9k_hw_AR9287_get_eeprom,
-	.fill_eeprom		= ath9k_hw_AR9287_fill_eeprom,
-	.get_eeprom_ver		= ath9k_hw_AR9287_get_eeprom_ver,
-	.get_eeprom_rev		= ath9k_hw_AR9287_get_eeprom_rev,
-	.get_num_ant_config	= ath9k_hw_AR9287_get_num_ant_config,
-	.get_eeprom_antenna_cfg	= ath9k_hw_AR9287_get_eeprom_antenna_cfg,
-	.set_board_values	= ath9k_hw_AR9287_set_board_values,
-	.set_addac		= ath9k_hw_AR9287_set_addac,
-	.set_txpower		= ath9k_hw_AR9287_set_txpower,
-	.get_spur_channel	= ath9k_hw_AR9287_get_spur_channel
+	.check_eeprom		= ath9k_hw_ar9287_check_eeprom,
+	.get_eeprom		= ath9k_hw_ar9287_get_eeprom,
+	.fill_eeprom		= ath9k_hw_ar9287_fill_eeprom,
+	.get_eeprom_ver		= ath9k_hw_ar9287_get_eeprom_ver,
+	.get_eeprom_rev		= ath9k_hw_ar9287_get_eeprom_rev,
+	.get_num_ant_config	= ath9k_hw_ar9287_get_num_ant_config,
+	.get_eeprom_antenna_cfg	= ath9k_hw_ar9287_get_eeprom_antenna_cfg,
+	.set_board_values	= ath9k_hw_ar9287_set_board_values,
+	.set_addac		= ath9k_hw_ar9287_set_addac,
+	.set_txpower		= ath9k_hw_ar9287_set_txpower,
+	.get_spur_channel	= ath9k_hw_ar9287_get_spur_channel
 };

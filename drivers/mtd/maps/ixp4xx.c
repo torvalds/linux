@@ -118,7 +118,7 @@ static void ixp4xx_copy_from(struct map_info *map, void *to,
 		*dest++ = BYTE1(data);
 		src += 2;
 		len -= 2;
-        }
+	}
 
 	if (len > 0)
 		*dest++ = BYTE0(flash_read16(src));
@@ -185,6 +185,8 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 {
 	struct flash_platform_data *plat = dev->dev.platform_data;
 	struct ixp4xx_flash_info *info;
+	const char *part_type = NULL;
+	int nr_parts = 0;
 	int err = -1;
 
 	if (!plat)
@@ -218,9 +220,9 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	 */
 	info->map.bankwidth = 2;
 	info->map.name = dev_name(&dev->dev);
-	info->map.read = ixp4xx_read16,
-	info->map.write = ixp4xx_probe_write16,
-	info->map.copy_from = ixp4xx_copy_from,
+	info->map.read = ixp4xx_read16;
+	info->map.write = ixp4xx_probe_write16;
+	info->map.copy_from = ixp4xx_copy_from;
 
 	info->res = request_mem_region(dev->resource->start,
 			resource_size(dev->resource),
@@ -248,11 +250,28 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	info->mtd->owner = THIS_MODULE;
 
 	/* Use the fast version */
-	info->map.write = ixp4xx_write16,
+	info->map.write = ixp4xx_write16;
 
-	err = parse_mtd_partitions(info->mtd, probes, &info->partitions, dev->resource->start);
-	if (err > 0) {
-		err = add_mtd_partitions(info->mtd, info->partitions, err);
+#ifdef CONFIG_MTD_PARTITIONS
+	nr_parts = parse_mtd_partitions(info->mtd, probes, &info->partitions,
+					dev->resource->start);
+#endif
+	if (nr_parts > 0) {
+		part_type = "dynamic";
+	} else {
+		info->partitions = plat->parts;
+		nr_parts = plat->nr_parts;
+		part_type = "static";
+	}
+	if (nr_parts == 0) {
+		printk(KERN_NOTICE "IXP4xx flash: no partition info "
+			"available, registering whole flash\n");
+		err = add_mtd_device(info->mtd);
+	} else {
+		printk(KERN_NOTICE "IXP4xx flash: using %s partition "
+			"definition\n", part_type);
+		err = add_mtd_partitions(info->mtd, info->partitions, nr_parts);
+
 		if(err)
 			printk(KERN_ERR "Could not parse partitions\n");
 	}

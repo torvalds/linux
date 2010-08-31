@@ -597,3 +597,52 @@ void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
 EXPORT_SYMBOL_HDA(snd_hda_eld_proc_free);
 
 #endif /* CONFIG_PROC_FS */
+
+/* update PCM info based on ELD */
+void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
+			      struct hda_pcm_stream *codec_pars)
+{
+	int i;
+
+	pcm->rates = 0;
+	pcm->formats = 0;
+	pcm->maxbps = 0;
+	pcm->channels_min = -1;
+	pcm->channels_max = 0;
+	for (i = 0; i < eld->sad_count; i++) {
+		struct cea_sad *a = &eld->sad[i];
+		pcm->rates |= a->rates;
+		if (a->channels < pcm->channels_min)
+			pcm->channels_min = a->channels;
+		if (a->channels > pcm->channels_max)
+			pcm->channels_max = a->channels;
+		if (a->format == AUDIO_CODING_TYPE_LPCM) {
+			if (a->sample_bits & AC_SUPPCM_BITS_16) {
+				pcm->formats |= SNDRV_PCM_FMTBIT_S16_LE;
+				if (pcm->maxbps < 16)
+					pcm->maxbps = 16;
+			}
+			if (a->sample_bits & AC_SUPPCM_BITS_20) {
+				pcm->formats |= SNDRV_PCM_FMTBIT_S32_LE;
+				if (pcm->maxbps < 20)
+					pcm->maxbps = 20;
+			}
+			if (a->sample_bits & AC_SUPPCM_BITS_24) {
+				pcm->formats |= SNDRV_PCM_FMTBIT_S32_LE;
+				if (pcm->maxbps < 24)
+					pcm->maxbps = 24;
+			}
+		}
+	}
+
+	if (!codec_pars)
+		return;
+
+	/* restrict the parameters by the values the codec provides */
+	pcm->rates &= codec_pars->rates;
+	pcm->formats &= codec_pars->formats;
+	pcm->channels_min = max(pcm->channels_min, codec_pars->channels_min);
+	pcm->channels_max = min(pcm->channels_max, codec_pars->channels_max);
+	pcm->maxbps = min(pcm->maxbps, codec_pars->maxbps);
+}
+EXPORT_SYMBOL_HDA(hdmi_eld_update_pcm_info);

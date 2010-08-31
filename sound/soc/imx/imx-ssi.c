@@ -23,7 +23,7 @@
  * between pcm data and GPIO status data changes. Our FIQ handler is not
  * able to handle this, hence this driver only works with 48000Hz sampling
  * rate.
- * Reading and writing AC97 registers is another challange. The core
+ * Reading and writing AC97 registers is another challenge. The core
  * provides us status bits when the read register is updated with *another*
  * value. When we read the same register two times (and the register still
  * contains the same value) these status bits are not set. We work
@@ -83,8 +83,6 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 /*
  * SSI DAI format configuration.
  * Should only be called when port is inactive (i.e. SSIEN = 0).
- * Note: We don't use the I2S modes but instead manually configure the
- * SSI for I2S because the I2S mode is only a register preset.
  */
 static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
@@ -99,6 +97,10 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		/* data on rising edge of bclk, frame low 1clk before data */
 		strcr |= SSI_STCR_TFSI | SSI_STCR_TEFS | SSI_STCR_TXBIT0;
 		scr |= SSI_SCR_NET;
+		if (ssi->flags & IMX_SSI_USE_I2S_SLAVE) {
+			scr &= ~SSI_I2S_MODE_MASK;
+			scr |= SSI_SCR_I2S_MODE_SLAVE;
+		}
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		/* data on rising edge of bclk, frame high with data */
@@ -142,6 +144,11 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	}
 
 	strcr |= SSI_STCR_TFEN0;
+
+	if (ssi->flags & IMX_SSI_NET)
+		scr |= SSI_SCR_NET;
+	if (ssi->flags & IMX_SSI_SYN)
+		scr |= SSI_SCR_SYN;
 
 	writel(strcr, ssi->base + SSI_STCR);
 	writel(strcr, ssi->base + SSI_SRCR);
@@ -246,6 +253,9 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 		reg = SSI_SRCCR;
 		dma_data = &ssi->dma_params_rx;
 	}
+
+	if (ssi->flags & IMX_SSI_SYN)
+		reg = SSI_STCCR;
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 

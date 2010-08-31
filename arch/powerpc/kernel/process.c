@@ -37,6 +37,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/personality.h>
 #include <linux/random.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -462,13 +463,41 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	switch_booke_debug_regs(&new->thread);
 #else
+/*
+ * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would
+ * schedule DABR
+ */
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
+
+#if defined(CONFIG_PPC_BOOK3E_64)
+	/* XXX Current Book3E code doesn't deal with kernel side DBCR0,
+	 * we always hold the user values, so we set it now.
+	 *
+	 * However, we ensure the kernel MSR:DE is appropriately cleared too
+	 * to avoid spurrious single step exceptions in the kernel.
+	 *
+	 * This will have to change to merge with the ppc32 code at some point,
+	 * but I don't like much what ppc32 is doing today so there's some
+	 * thinking needed there
+	 */
+	if ((new_thread->dbcr0 | old_thread->dbcr0) & DBCR0_IDM) {
+		u32 dbcr0;
+
+		mtmsr(mfmsr() & ~MSR_DE);
+		isync();
+		dbcr0 = mfspr(SPRN_DBCR0);
+		dbcr0 = (dbcr0 & DBCR0_EDM) | new_thread->dbcr0;
+		mtspr(SPRN_DBCR0, dbcr0);
+	}
+#endif /* CONFIG_PPC64_BOOK3E */
 
 #ifdef CONFIG_PPC64
 	/*
@@ -642,7 +671,11 @@ void flush_thread(void)
 {
 	discard_lazy_cpu_state();
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINTS
+	flush_ptrace_hw_breakpoint(current);
+#else /* CONFIG_HAVE_HW_BREAKPOINTS */
 	set_debug_reg_defaults(&current->thread);
+#endif /* CONFIG_HAVE_HW_BREAKPOINTS */
 }
 
 void
@@ -660,6 +693,9 @@ void prepare_to_copy(struct task_struct *tsk)
 	flush_altivec_to_thread(current);
 	flush_vsx_to_thread(current);
 	flush_spe_to_thread(current);
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	flush_ptrace_hw_breakpoint(tsk);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 }
 
 /*
@@ -692,7 +728,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.regs = childregs;
 		if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_PPC64
-			if (!test_thread_flag(TIF_32BIT))
+			if (!is_32bit_task())
 				childregs->gpr[13] = childregs->gpr[6];
 			else
 #endif
@@ -787,7 +823,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->nip = start;
 	regs->msr = MSR_USER;
 #else
-	if (!test_thread_flag(TIF_32BIT)) {
+	if (!is_32bit_task()) {
 		unsigned long entry, toc;
 
 		/* start is a relocated pointer to the function descriptor for
@@ -959,7 +995,7 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
 	if (usp == 0)
 		usp = regs->gpr[1];	/* stack pointer for child */
 #ifdef CONFIG_PPC64
-	if (test_thread_flag(TIF_32BIT)) {
+	if (is_32bit_task()) {
 		parent_tidp = TRUNC_PTR(parent_tidp);
 		child_tidp = TRUNC_PTR(child_tidp);
 	}
@@ -991,15 +1027,16 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	int error;
 	char *filename;
 
-	filename = getname((char __user *) a0);
+	filename = getname((const char __user *) a0);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
 	flush_spe_to_thread(current);
-	error = do_execve(filename, (char __user * __user *) a1,
-			  (char __user * __user *) a2, regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) a1,
+			  (const char __user *const __user *) a2, regs);
 	putname(filename);
 out:
 	return error;
@@ -1162,19 +1199,17 @@ void ppc64_runlatch_on(void)
 	}
 }
 
-void ppc64_runlatch_off(void)
+void __ppc64_runlatch_off(void)
 {
 	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL) && test_thread_flag(TIF_RUNLATCH)) {
-		HMT_medium();
+	HMT_medium();
 
-		clear_thread_flag(TIF_RUNLATCH);
+	clear_thread_flag(TIF_RUNLATCH);
 
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl &= ~CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-	}
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl &= ~CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
 }
 #endif
 
@@ -1263,3 +1298,14 @@ unsigned long randomize_et_dyn(unsigned long base)
 
 	return ret;
 }
+
+#ifdef CONFIG_SMP
+int arch_sd_sibling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
+}
+#endif

@@ -133,7 +133,7 @@ static void amd_decode_dc_mce(u64 mc0_status)
 	u32 ec  = mc0_status & 0xffff;
 	u32 xec = (mc0_status >> 16) & 0xf;
 
-	pr_emerg(" Data Cache Error");
+	pr_emerg("Data Cache Error");
 
 	if (xec == 1 && TLB_ERROR(ec))
 		pr_cont(": %s TLB multimatch.\n", LL_MSG(ec));
@@ -176,7 +176,7 @@ static void amd_decode_ic_mce(u64 mc1_status)
 	u32 ec  = mc1_status & 0xffff;
 	u32 xec = (mc1_status >> 16) & 0xf;
 
-	pr_emerg(" Instruction Cache Error");
+	pr_emerg("Instruction Cache Error");
 
 	if (xec == 1 && TLB_ERROR(ec))
 		pr_cont(": %s TLB multimatch.\n", LL_MSG(ec));
@@ -233,7 +233,7 @@ static void amd_decode_bu_mce(u64 mc2_status)
 	u32 ec = mc2_status & 0xffff;
 	u32 xec = (mc2_status >> 16) & 0xf;
 
-	pr_emerg(" Bus Unit Error");
+	pr_emerg("Bus Unit Error");
 
 	if (xec == 0x1)
 		pr_cont(" in the write data buffers.\n");
@@ -275,7 +275,7 @@ static void amd_decode_ls_mce(u64 mc3_status)
 	u32 ec  = mc3_status & 0xffff;
 	u32 xec = (mc3_status >> 16) & 0xf;
 
-	pr_emerg(" Load Store Error");
+	pr_emerg("Load Store Error");
 
 	if (xec == 0x0) {
 		u8 rrrr = (ec >> 4) & 0xf;
@@ -304,7 +304,7 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	if (TLB_ERROR(ec) && !report_gart_errors)
 		return;
 
-	pr_emerg(" Northbridge Error, node %d", node_id);
+	pr_emerg("Northbridge Error, node %d", node_id);
 
 	/*
 	 * F10h, revD can disable ErrCpu[3:0] so check that first and also the
@@ -342,13 +342,13 @@ static void amd_decode_fr_mce(u64 mc5_status)
 static inline void amd_decode_err_code(unsigned int ec)
 {
 	if (TLB_ERROR(ec)) {
-		pr_emerg(" Transaction: %s, Cache Level %s\n",
+		pr_emerg("Transaction: %s, Cache Level %s\n",
 			 TT_MSG(ec), LL_MSG(ec));
 	} else if (MEM_ERROR(ec)) {
-		pr_emerg(" Transaction: %s, Type: %s, Cache Level: %s",
+		pr_emerg("Transaction: %s, Type: %s, Cache Level: %s",
 			 RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
 	} else if (BUS_ERROR(ec)) {
-		pr_emerg(" Transaction type: %s(%s), %s, Cache Level: %s, "
+		pr_emerg("Transaction type: %s(%s), %s, Cache Level: %s, "
 			 "Participating Processor: %s\n",
 			  RRRR_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec),
 			  PP_MSG(ec));
@@ -365,11 +365,10 @@ static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
 
 	pr_emerg("MC%d_STATUS: ", m->bank);
 
-	pr_cont("%sorrected error, report: %s, MiscV: %svalid, "
+	pr_cont("%sorrected error, other errors lost: %s, "
 		 "CPU context corrupt: %s",
 		 ((m->status & MCI_STATUS_UC) ? "Unc"  : "C"),
-		 ((m->status & MCI_STATUS_EN) ? "yes"  : "no"),
-		 ((m->status & MCI_STATUS_MISCV) ? ""  : "in"),
+		 ((m->status & MCI_STATUS_OVER) ? "yes"  : "no"),
 		 ((m->status & MCI_STATUS_PCC) ? "yes" : "no"));
 
 	/* do the two bits[14:13] together */
@@ -426,11 +425,15 @@ static struct notifier_block amd_mce_dec_nb = {
 static int __init mce_amd_init(void)
 {
 	/*
-	 * We can decode MCEs for Opteron and later CPUs:
+	 * We can decode MCEs for K8, F10h and F11h CPUs:
 	 */
-	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) &&
-	    (boot_cpu_data.x86 >= 0xf))
-		atomic_notifier_chain_register(&x86_mce_decoder_chain, &amd_mce_dec_nb);
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return 0;
+
+	if (boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11)
+		return 0;
+
+	atomic_notifier_chain_register(&x86_mce_decoder_chain, &amd_mce_dec_nb);
 
 	return 0;
 }

@@ -31,6 +31,12 @@
 #define CEPH_BLOCK         (1 << CEPH_BLOCK_SHIFT)
 
 /*
+ * Supported features
+ */
+#define CEPH_FEATURE_SUPPORTED CEPH_FEATURE_NOSRCADDR | CEPH_FEATURE_FLOCK
+#define CEPH_FEATURE_REQUIRED  CEPH_FEATURE_NOSRCADDR
+
+/*
  * mount options
  */
 #define CEPH_OPT_FSID             (1<<0)
@@ -210,8 +216,7 @@ struct ceph_cap_snap {
 	uid_t uid;
 	gid_t gid;
 
-	void *xattr_blob;
-	int xattr_len;
+	struct ceph_buffer *xattr_blob;
 	u64 xattr_version;
 
 	u64 size;
@@ -223,8 +228,11 @@ struct ceph_cap_snap {
 
 static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 {
-	if (atomic_dec_and_test(&capsnap->nref))
+	if (atomic_dec_and_test(&capsnap->nref)) {
+		if (capsnap->xattr_blob)
+			ceph_buffer_put(capsnap->xattr_blob);
 		kfree(capsnap);
+	}
 }
 
 /*
@@ -336,7 +344,8 @@ struct ceph_inode_info {
 	unsigned i_cap_exporting_issued;
 	struct ceph_cap_reservation i_cap_migration_resv;
 	struct list_head i_cap_snaps;   /* snapped state pending flush to mds */
-	struct ceph_snap_context *i_head_snapc;  /* set if wr_buffer_head > 0 */
+	struct ceph_snap_context *i_head_snapc;  /* set if wr_buffer_head > 0 or
+						    dirty|flushing caps */
 	unsigned i_snap_caps;           /* cap bits for snapped files */
 
 	int i_nr_by_mode[CEPH_FILE_MODE_NUM];  /* open file counts */
@@ -560,11 +569,13 @@ static inline int __ceph_caps_wanted(struct ceph_inode_info *ci)
 /* what the mds thinks we want */
 extern int __ceph_caps_mds_wanted(struct ceph_inode_info *ci);
 
-extern void ceph_caps_init(void);
-extern void ceph_caps_finalize(void);
-extern void ceph_adjust_min_caps(int delta);
-extern int ceph_reserve_caps(struct ceph_cap_reservation *ctx, int need);
-extern int ceph_unreserve_caps(struct ceph_cap_reservation *ctx);
+extern void ceph_caps_init(struct ceph_mds_client *mdsc);
+extern void ceph_caps_finalize(struct ceph_mds_client *mdsc);
+extern void ceph_adjust_min_caps(struct ceph_mds_client *mdsc, int delta);
+extern int ceph_reserve_caps(struct ceph_mds_client *mdsc,
+			     struct ceph_cap_reservation *ctx, int need);
+extern int ceph_unreserve_caps(struct ceph_mds_client *mdsc,
+			       struct ceph_cap_reservation *ctx);
 extern void ceph_reservation_status(struct ceph_client *client,
 				    int *total, int *avail, int *used,
 				    int *reserved, int *min);
@@ -738,13 +749,6 @@ extern struct kmem_cache *ceph_file_cachep;
 extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
 
-#define FSID_FORMAT "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-" \
-	"%02x%02x%02x%02x%02x%02x"
-#define PR_FSID(f) (f)->fsid[0], (f)->fsid[1], (f)->fsid[2], (f)->fsid[3], \
-		(f)->fsid[4], (f)->fsid[5], (f)->fsid[6], (f)->fsid[7],    \
-		(f)->fsid[8], (f)->fsid[9], (f)->fsid[10], (f)->fsid[11],  \
-		(f)->fsid[12], (f)->fsid[13], (f)->fsid[14], (f)->fsid[15]
-
 /* inode.c */
 extern const struct inode_operations ceph_file_iops;
 
@@ -806,13 +810,16 @@ static inline void ceph_remove_cap(struct ceph_cap *cap)
 	__ceph_remove_cap(cap);
 	spin_unlock(&inode->i_lock);
 }
-extern void ceph_put_cap(struct ceph_cap *cap);
+extern void ceph_put_cap(struct ceph_mds_client *mdsc,
+			 struct ceph_cap *cap);
 
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
 extern int ceph_fsync(struct file *file, int datasync);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
+extern struct ceph_cap *ceph_get_cap_for_mds(struct ceph_inode_info *ci,
+					     int mds);
 extern int ceph_get_cap_mds(struct inode *inode);
 extern void ceph_get_cap_refs(struct ceph_inode_info *ci, int caps);
 extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
@@ -857,7 +864,7 @@ extern void ceph_release_page_vector(struct page **pages, int num_pages);
 /* dir.c */
 extern const struct file_operations ceph_dir_fops;
 extern const struct inode_operations ceph_dir_iops;
-extern struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
+extern const struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
 	ceph_snapdir_dentry_ops;
 
 extern int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry);
@@ -887,6 +894,14 @@ extern int ceph_debugfs_init(void);
 extern void ceph_debugfs_cleanup(void);
 extern int ceph_debugfs_client_init(struct ceph_client *client);
 extern void ceph_debugfs_client_cleanup(struct ceph_client *client);
+
+/* locks.c */
+extern int ceph_lock(struct file *file, int cmd, struct file_lock *fl);
+extern int ceph_flock(struct file *file, int cmd, struct file_lock *fl);
+extern void ceph_count_locks(struct inode *inode, int *p_num, int *f_num);
+extern int ceph_encode_locks(struct inode *i, struct ceph_pagelist *p,
+			     int p_locks, int f_locks);
+extern int lock_to_ceph_filelock(struct file_lock *fl, struct ceph_filelock *c);
 
 static inline struct inode *get_dentry_parent_inode(struct dentry *dentry)
 {

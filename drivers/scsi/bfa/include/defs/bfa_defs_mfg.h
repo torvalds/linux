@@ -45,26 +45,6 @@
 #define BFA_MFG_CHKSUM_SIZE			16
 
 /**
- * Manufacturing block encrypted version
- */
-#define BFA_MFG_ENC_VER				2
-
-/**
- * Manufacturing block version 1 length
- */
-#define BFA_MFG_VER1_LEN			128
-
-/**
- * Manufacturing block header length
- */
-#define BFA_MFG_HDR_LEN				4
-
-/**
- * Checksum size
- */
-#define BFA_MFG_CHKSUM_SIZE			16
-
-/**
  * Manufacturing block format
  */
 #define BFA_MFG_SERIALNUM_SIZE			11
@@ -86,6 +66,9 @@ enum {
 	BFA_MFG_TYPE_FC4P1   = 415,      /*  4G 1port FC card		*/
 	BFA_MFG_TYPE_CNA10P2 = 1020,     /*  10G 2port CNA card	*/
 	BFA_MFG_TYPE_CNA10P1 = 1010,     /*  10G 1port CNA card	*/
+	BFA_MFG_TYPE_JAYHAWK = 804,      /*  Jayhawk mezz card */
+	BFA_MFG_TYPE_WANCHESE = 1007,    /*  Wanchese mezz card */
+	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type */
 };
 
 #pragma pack(1)
@@ -95,6 +78,24 @@ enum {
  */
 #define bfa_mfg_type2port_num(card_type) (((card_type) / 10) % 10)
 
+/**
+ * Check if Mezz card
+ */
+#define bfa_mfg_is_mezz(type) (( \
+	(type) == BFA_MFG_TYPE_JAYHAWK || \
+	(type) == BFA_MFG_TYPE_WANCHESE))
+
+/**
+ * Check if card type valid
+ */
+#define bfa_mfg_is_card_type_valid(type) (( \
+	(type) == BFA_MFG_TYPE_FC8P2 || \
+	(type) == BFA_MFG_TYPE_FC8P1 || \
+	(type) == BFA_MFG_TYPE_FC4P2 || \
+	(type) == BFA_MFG_TYPE_FC4P1 || \
+	(type) == BFA_MFG_TYPE_CNA10P2 || \
+	(type) == BFA_MFG_TYPE_CNA10P1 || \
+	bfa_mfg_is_mezz(type)))
 
 /**
  * All numerical fields are in big-endian format.

@@ -272,7 +272,7 @@ static uint8_t radeon_compute_pll_gain(uint16_t ref_freq, uint16_t ref_div,
 	if (!ref_div)
 		return 1;
 
-	vcoFreq = ((unsigned)ref_freq & fb_div) / ref_div;
+	vcoFreq = ((unsigned)ref_freq * fb_div) / ref_div;
 
 	/*
 	 * This is horribly crude: the VCO frequency range is divided into
@@ -362,10 +362,10 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint32_t gen_cntl_reg, gen_cntl_val;
 	int r;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -528,7 +528,7 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 	uint32_t crtc_v_sync_strt_wid;
 	bool is_tv = false;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -757,7 +757,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		}
 	}
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	if (!use_bios_divs) {
 		radeon_compute_pll(pll, mode->clock,
@@ -772,7 +772,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		if (!post_div->divider)
 			post_div = &post_divs[0];
 
-		DRM_DEBUG("dc=%u, fd=%d, rd=%d, pd=%d\n",
+		DRM_DEBUG_KMS("dc=%u, fd=%d, rd=%d, pd=%d\n",
 			  (unsigned)freq,
 			  feedback_div,
 			  reference_div,
@@ -841,12 +841,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			       | RADEON_P2PLL_SLEEP
 			       | RADEON_P2PLL_ATOMIC_UPDATE_EN));
 
-		DRM_DEBUG("Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		DRM_DEBUG_KMS("Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 			  (unsigned)pll_ref_div,
 			  (unsigned)pll_fb_post_div,
 			  (unsigned)htotal_cntl,
 			  RREG32_PLL(RADEON_P2PLL_CNTL));
-		DRM_DEBUG("Wrote2: rd=%u, fd=%u, pd=%u\n",
+		DRM_DEBUG_KMS("Wrote2: rd=%u, fd=%u, pd=%u\n",
 			  (unsigned)pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
 			  (unsigned)pll_fb_post_div & RADEON_P2PLL_FB0_DIV_MASK,
 			  (unsigned)((pll_fb_post_div &
@@ -947,12 +947,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			       | RADEON_PPLL_ATOMIC_UPDATE_EN
 			       | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
 
-		DRM_DEBUG("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		DRM_DEBUG_KMS("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 			  pll_ref_div,
 			  pll_fb_post_div,
 			  (unsigned)htotal_cntl,
 			  RREG32_PLL(RADEON_PPLL_CNTL));
-		DRM_DEBUG("Wrote: rd=%d, fd=%d, pd=%d\n",
+		DRM_DEBUG_KMS("Wrote: rd=%d, fd=%d, pd=%d\n",
 			  pll_ref_div & RADEON_PPLL_REF_DIV_MASK,
 			  pll_fb_post_div & RADEON_PPLL_FB3_DIV_MASK,
 			  (pll_fb_post_div & RADEON_PPLL_POST3_DIV_MASK) >> 16);

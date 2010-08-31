@@ -536,7 +536,7 @@ restart:
  */
 static void prune_dcache(int count)
 {
-	struct super_block *sb, *n;
+	struct super_block *sb, *p = NULL;
 	int w_count;
 	int unused = dentry_stat.nr_unused;
 	int prune_ratio;
@@ -550,7 +550,7 @@ static void prune_dcache(int count)
 	else
 		prune_ratio = unused / count;
 	spin_lock(&sb_lock);
-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
 		if (sb->s_nr_dentry_unused == 0)
@@ -590,14 +590,16 @@ static void prune_dcache(int count)
 			up_read(&sb->s_umount);
 		}
 		spin_lock(&sb_lock);
-		/* lock was dropped, must reset next */
-		list_safe_reset_next(sb, n, s_list);
+		if (p)
+			__put_super(p);
 		count -= pruned;
-		__put_super(sb);
+		p = sb;
 		/* more work left to do? */
 		if (count <= 0)
 			break;
 	}
+	if (p)
+		__put_super(p);
 	spin_unlock(&sb_lock);
 	spin_unlock(&dcache_lock);
 }
@@ -1330,31 +1332,13 @@ EXPORT_SYMBOL(d_add_ci);
  * d_lookup - search for a dentry
  * @parent: parent dentry
  * @name: qstr of name we wish to find
+ * Returns: dentry, or NULL
  *
- * Searches the children of the parent dentry for the name in question. If
- * the dentry is found its reference count is incremented and the dentry
- * is returned. The caller must use dput to free the entry when it has
- * finished using it. %NULL is returned on failure.
- *
- * __d_lookup is dcache_lock free. The hash list is protected using RCU.
- * Memory barriers are used while updating and doing lockless traversal. 
- * To avoid races with d_move while rename is happening, d_lock is used.
- *
- * Overflows in memcmp(), while d_move, are avoided by keeping the length
- * and name pointer in one structure pointed by d_qstr.
- *
- * rcu_read_lock() and rcu_read_unlock() are used to disable preemption while
- * lookup is going on.
- *
- * The dentry unused LRU is not updated even if lookup finds the required dentry
- * in there. It is updated in places such as prune_dcache, shrink_dcache_sb,
- * select_parent and __dget_locked. This laziness saves lookup from dcache_lock
- * acquisition.
- *
- * d_lookup() is protected against the concurrent renames in some unrelated
- * directory using the seqlockt_t rename_lock.
+ * d_lookup searches the children of the parent dentry for the name in
+ * question. If the dentry is found its reference count is incremented and the
+ * dentry is returned. The caller must use dput to free the entry when it has
+ * finished using it. %NULL is returned if the dentry does not exist.
  */
-
 struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 {
 	struct dentry * dentry = NULL;
@@ -1370,6 +1354,21 @@ struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 }
 EXPORT_SYMBOL(d_lookup);
 
+/*
+ * __d_lookup - search for a dentry (racy)
+ * @parent: parent dentry
+ * @name: qstr of name we wish to find
+ * Returns: dentry, or NULL
+ *
+ * __d_lookup is like d_lookup, however it may (rarely) return a
+ * false-negative result due to unrelated rename activity.
+ *
+ * __d_lookup is slightly faster by avoiding rename_lock read seqlock,
+ * however it must be used carefully, eg. with a following d_lookup in
+ * the case of failure.
+ *
+ * __d_lookup callers must be commented.
+ */
 struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 {
 	unsigned int len = name->len;
@@ -1380,6 +1379,19 @@ struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 	struct hlist_node *node;
 	struct dentry *dentry;
 
+	/*
+	 * The hash list is protected using RCU.
+	 *
+	 * Take d_lock when comparing a candidate dentry, to avoid races
+	 * with d_move().
+	 *
+	 * It is possible that concurrent renames can mess up our list
+	 * walk here and result in missing our dentry, resulting in the
+	 * false-negative result. d_lookup() protects against concurrent
+	 * renames using rename_lock seqlock.
+	 *
+	 * See Documentation/vfs/dcache-locking.txt for more details.
+	 */
 	rcu_read_lock();
 	
 	hlist_for_each_entry_rcu(dentry, node, head, d_hash) {
@@ -1394,8 +1406,8 @@ struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 
 		/*
 		 * Recheck the dentry after taking the lock - d_move may have
-		 * changed things.  Don't bother checking the hash because we're
-		 * about to compare the whole name anyway.
+		 * changed things. Don't bother checking the hash because
+		 * we're about to compare the whole name anyway.
 		 */
 		if (dentry->d_parent != parent)
 			goto next;
@@ -1903,48 +1915,30 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
 }
 
 /**
- * __d_path - return the path of a dentry
+ * Prepend path string to a buffer
+ *
  * @path: the dentry/vfsmount to report
  * @root: root vfsmnt/dentry (may be modified by this function)
- * @buffer: buffer to return value in
- * @buflen: buffer length
+ * @buffer: pointer to the end of the buffer
+ * @buflen: pointer to buffer length
  *
- * Convert a dentry into an ASCII path name. If the entry has been deleted
- * the string " (deleted)" is appended. Note that this is ambiguous.
- *
- * Returns a pointer into the buffer or an error code if the
- * path was too long.
- *
- * "buflen" should be positive. Caller holds the dcache_lock.
+ * Caller holds the dcache_lock.
  *
  * If path is not reachable from the supplied root, then the value of
  * root is changed (without modifying refcounts).
  */
-char *__d_path(const struct path *path, struct path *root,
-	       char *buffer, int buflen)
+static int prepend_path(const struct path *path, struct path *root,
+			char **buffer, int *buflen)
 {
 	struct dentry *dentry = path->dentry;
 	struct vfsmount *vfsmnt = path->mnt;
-	char *end = buffer + buflen;
-	char *retval;
+	bool slash = false;
+	int error = 0;
 
-	spin_lock(&vfsmount_lock);
-	prepend(&end, &buflen, "\0", 1);
-	if (d_unlinked(dentry) &&
-		(prepend(&end, &buflen, " (deleted)", 10) != 0))
-			goto Elong;
-
-	if (buflen < 1)
-		goto Elong;
-	/* Get '/' right */
-	retval = end-1;
-	*retval = '/';
-
-	for (;;) {
+	br_read_lock(vfsmount_lock);
+	while (dentry != root->dentry || vfsmnt != root->mnt) {
 		struct dentry * parent;
 
-		if (dentry == root->dentry && vfsmnt == root->mnt)
-			break;
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
 			/* Global root? */
 			if (vfsmnt->mnt_parent == vfsmnt) {
@@ -1956,28 +1950,88 @@ char *__d_path(const struct path *path, struct path *root,
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
-		if ((prepend_name(&end, &buflen, &dentry->d_name) != 0) ||
-		    (prepend(&end, &buflen, "/", 1) != 0))
-			goto Elong;
-		retval = end;
+		error = prepend_name(buffer, buflen, &dentry->d_name);
+		if (!error)
+			error = prepend(buffer, buflen, "/", 1);
+		if (error)
+			break;
+
+		slash = true;
 		dentry = parent;
 	}
 
 out:
-	spin_unlock(&vfsmount_lock);
-	return retval;
+	if (!error && !slash)
+		error = prepend(buffer, buflen, "/", 1);
+
+	br_read_unlock(vfsmount_lock);
+	return error;
 
 global_root:
-	retval += 1;	/* hit the slash */
-	if (prepend_name(&retval, &buflen, &dentry->d_name) != 0)
-		goto Elong;
+	/*
+	 * Filesystems needing to implement special "root names"
+	 * should do so with ->d_dname()
+	 */
+	if (IS_ROOT(dentry) &&
+	    (dentry->d_name.len != 1 || dentry->d_name.name[0] != '/')) {
+		WARN(1, "Root dentry has weird name <%.*s>\n",
+		     (int) dentry->d_name.len, dentry->d_name.name);
+	}
 	root->mnt = vfsmnt;
 	root->dentry = dentry;
 	goto out;
+}
 
-Elong:
-	retval = ERR_PTR(-ENAMETOOLONG);
-	goto out;
+/**
+ * __d_path - return the path of a dentry
+ * @path: the dentry/vfsmount to report
+ * @root: root vfsmnt/dentry (may be modified by this function)
+ * @buf: buffer to return value in
+ * @buflen: buffer length
+ *
+ * Convert a dentry into an ASCII path name.
+ *
+ * Returns a pointer into the buffer or an error code if the
+ * path was too long.
+ *
+ * "buflen" should be positive. Caller holds the dcache_lock.
+ *
+ * If path is not reachable from the supplied root, then the value of
+ * root is changed (without modifying refcounts).
+ */
+char *__d_path(const struct path *path, struct path *root,
+	       char *buf, int buflen)
+{
+	char *res = buf + buflen;
+	int error;
+
+	prepend(&res, &buflen, "\0", 1);
+	error = prepend_path(path, root, &res, &buflen);
+	if (error)
+		return ERR_PTR(error);
+
+	return res;
+}
+
+/*
+ * same as __d_path but appends "(deleted)" for unlinked files.
+ */
+static int path_with_deleted(const struct path *path, struct path *root,
+				 char **buf, int *buflen)
+{
+	prepend(buf, buflen, "\0", 1);
+	if (d_unlinked(path->dentry)) {
+		int error = prepend(buf, buflen, " (deleted)", 10);
+		if (error)
+			return error;
+	}
+
+	return prepend_path(path, root, buf, buflen);
+}
+
+static int prepend_unreachable(char **buffer, int *buflen)
+{
+	return prepend(buffer, buflen, "(unreachable)", 13);
 }
 
 /**
@@ -1998,9 +2052,10 @@ Elong:
  */
 char *d_path(const struct path *path, char *buf, int buflen)
 {
-	char *res;
+	char *res = buf + buflen;
 	struct path root;
 	struct path tmp;
+	int error;
 
 	/*
 	 * We have various synthetic filesystems that never get mounted.  On
@@ -2012,18 +2067,50 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	if (path->dentry->d_op && path->dentry->d_op->d_dname)
 		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
 
-	read_lock(&current->fs->lock);
-	root = current->fs->root;
-	path_get(&root);
-	read_unlock(&current->fs->lock);
+	get_fs_root(current->fs, &root);
 	spin_lock(&dcache_lock);
 	tmp = root;
-	res = __d_path(path, &tmp, buf, buflen);
+	error = path_with_deleted(path, &tmp, &res, &buflen);
+	if (error)
+		res = ERR_PTR(error);
 	spin_unlock(&dcache_lock);
 	path_put(&root);
 	return res;
 }
 EXPORT_SYMBOL(d_path);
+
+/**
+ * d_path_with_unreachable - return the path of a dentry
+ * @path: path to report
+ * @buf: buffer to return value in
+ * @buflen: buffer length
+ *
+ * The difference from d_path() is that this prepends "(unreachable)"
+ * to paths which are unreachable from the current process' root.
+ */
+char *d_path_with_unreachable(const struct path *path, char *buf, int buflen)
+{
+	char *res = buf + buflen;
+	struct path root;
+	struct path tmp;
+	int error;
+
+	if (path->dentry->d_op && path->dentry->d_op->d_dname)
+		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
+
+	get_fs_root(current->fs, &root);
+	spin_lock(&dcache_lock);
+	tmp = root;
+	error = path_with_deleted(path, &tmp, &res, &buflen);
+	if (!error && !path_equal(&tmp, &root))
+		error = prepend_unreachable(&res, &buflen);
+	spin_unlock(&dcache_lock);
+	path_put(&root);
+	if (error)
+		res =  ERR_PTR(error);
+
+	return res;
+}
 
 /*
  * Helper function for dentry_operations.d_dname() members
@@ -2049,16 +2136,12 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 /*
  * Write full pathname from the root of the filesystem into the buffer.
  */
-char *dentry_path(struct dentry *dentry, char *buf, int buflen)
+char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
 {
 	char *end = buf + buflen;
 	char *retval;
 
-	spin_lock(&dcache_lock);
 	prepend(&end, &buflen, "\0", 1);
-	if (d_unlinked(dentry) &&
-		(prepend(&end, &buflen, "//deleted", 9) != 0))
-			goto Elong;
 	if (buflen < 1)
 		goto Elong;
 	/* Get '/' right */
@@ -2076,7 +2159,28 @@ char *dentry_path(struct dentry *dentry, char *buf, int buflen)
 		retval = end;
 		dentry = parent;
 	}
+	return retval;
+Elong:
+	return ERR_PTR(-ENAMETOOLONG);
+}
+EXPORT_SYMBOL(__dentry_path);
+
+char *dentry_path(struct dentry *dentry, char *buf, int buflen)
+{
+	char *p = NULL;
+	char *retval;
+
+	spin_lock(&dcache_lock);
+	if (d_unlinked(dentry)) {
+		p = buf + buflen;
+		if (prepend(&p, &buflen, "//deleted", 10) != 0)
+			goto Elong;
+		buflen++;
+	}
+	retval = __dentry_path(dentry, buf, buflen);
 	spin_unlock(&dcache_lock);
+	if (!IS_ERR(retval) && p)
+		*p = '/';	/* restore '/' overriden with '\0' */
 	return retval;
 Elong:
 	spin_unlock(&dcache_lock);
@@ -2110,26 +2214,29 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	if (!page)
 		return -ENOMEM;
 
-	read_lock(&current->fs->lock);
-	pwd = current->fs->pwd;
-	path_get(&pwd);
-	root = current->fs->root;
-	path_get(&root);
-	read_unlock(&current->fs->lock);
+	get_fs_root_and_pwd(current->fs, &root, &pwd);
 
 	error = -ENOENT;
 	spin_lock(&dcache_lock);
 	if (!d_unlinked(pwd.dentry)) {
 		unsigned long len;
 		struct path tmp = root;
-		char * cwd;
+		char *cwd = page + PAGE_SIZE;
+		int buflen = PAGE_SIZE;
 
-		cwd = __d_path(&pwd, &tmp, page, PAGE_SIZE);
+		prepend(&cwd, &buflen, "\0", 1);
+		error = prepend_path(&pwd, &tmp, &cwd, &buflen);
 		spin_unlock(&dcache_lock);
 
-		error = PTR_ERR(cwd);
-		if (IS_ERR(cwd))
+		if (error)
 			goto out;
+
+		/* Unreachable from current root */
+		if (!path_equal(&tmp, &root)) {
+			error = prepend_unreachable(&cwd, &buflen);
+			if (error)
+				goto out;
+		}
 
 		error = -ERANGE;
 		len = PAGE_SIZE + page - cwd;
@@ -2195,11 +2302,12 @@ int path_is_under(struct path *path1, struct path *path2)
 	struct vfsmount *mnt = path1->mnt;
 	struct dentry *dentry = path1->dentry;
 	int res;
-	spin_lock(&vfsmount_lock);
+
+	br_read_lock(vfsmount_lock);
 	if (mnt != path2->mnt) {
 		for (;;) {
 			if (mnt->mnt_parent == mnt) {
-				spin_unlock(&vfsmount_lock);
+				br_read_unlock(vfsmount_lock);
 				return 0;
 			}
 			if (mnt->mnt_parent == path2->mnt)
@@ -2209,7 +2317,7 @@ int path_is_under(struct path *path1, struct path *path2)
 		dentry = mnt->mnt_mountpoint;
 	}
 	res = is_subdir(dentry, path2->dentry);
-	spin_unlock(&vfsmount_lock);
+	br_read_unlock(vfsmount_lock);
 	return res;
 }
 EXPORT_SYMBOL(path_is_under);

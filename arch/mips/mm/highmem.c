@@ -64,7 +64,7 @@ void *__kmap_atomic(struct page *page, enum km_type type)
 }
 EXPORT_SYMBOL(__kmap_atomic);
 
-void __kunmap_atomic(void *kvaddr, enum km_type type)
+void __kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
 {
 #ifdef CONFIG_DEBUG_HIGHMEM
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
@@ -87,7 +87,7 @@ void __kunmap_atomic(void *kvaddr, enum km_type type)
 
 	pagefault_enable();
 }
-EXPORT_SYMBOL(__kunmap_atomic);
+EXPORT_SYMBOL(__kunmap_atomic_notypecheck);
 
 /*
  * This is the same as kmap_atomic() but can map memory that doesn't

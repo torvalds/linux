@@ -36,11 +36,6 @@
 #include <asm/mmu_context.h>
 #include "internal.h"
 
-static inline __attribute__((format(printf, 1, 2)))
-void no_printk(const char *fmt, ...)
-{
-}
-
 #if 0
 #define kenter(FMT, ...) \
 	printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
@@ -609,7 +604,7 @@ static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
  */
 static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	struct vm_area_struct *pvma, **pp;
+	struct vm_area_struct *pvma, **pp, *next;
 	struct address_space *mapping;
 	struct rb_node **p, *parent;
 
@@ -669,8 +664,11 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 			break;
 	}
 
-	vma->vm_next = *pp;
+	next = *pp;
 	*pp = vma;
+	vma->vm_next = next;
+	if (next)
+		next->vm_prev = vma;
 }
 
 /*

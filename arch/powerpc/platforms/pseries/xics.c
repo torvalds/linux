@@ -549,8 +549,6 @@ static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
 
-	WARN_ON(cpu_is_offline(cpu));
-
 	mb();	/* order mmio clearing qirr */
 	while (*tgt) {
 		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt)) {
@@ -930,8 +928,10 @@ void xics_migrate_irqs_away(void)
 		if (xics_status[0] != hw_cpu)
 			goto unlock;
 
-		printk(KERN_WARNING "IRQ %u affinity broken off cpu %u\n",
-		       virq, cpu);
+		/* This is expected during cpu offline. */
+		if (cpu_online(cpu))
+			printk(KERN_WARNING "IRQ %u affinity broken off cpu %u\n",
+			       virq, cpu);
 
 		/* Reset affinity to all cpus */
 		cpumask_setall(irq_to_desc(virq)->affinity);

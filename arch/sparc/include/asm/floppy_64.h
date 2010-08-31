@@ -43,7 +43,7 @@ struct sun_flpy_controller {
 /* You'll only ever find one controller on an Ultra anyways. */
 static struct sun_flpy_controller *sun_fdc = (struct sun_flpy_controller *)-1;
 unsigned long fdc_status;
-static struct of_device *floppy_op = NULL;
+static struct platform_device *floppy_op = NULL;
 
 struct sun_floppy_ops {
 	unsigned char	(*fd_inb) (unsigned long port);
@@ -548,7 +548,7 @@ static unsigned long __init sun_floppy_init(void)
 {
 	static int initialized = 0;
 	struct device_node *dp;
-	struct of_device *op;
+	struct platform_device *op;
 	const char *prop;
 	char state[128];
 
@@ -567,7 +567,7 @@ static unsigned long __init sun_floppy_init(void)
 	}
 	if (op) {
 		floppy_op = op;
-		FLOPPY_IRQ = op->irqs[0];
+		FLOPPY_IRQ = op->archdata.irqs[0];
 	} else {
 		struct device_node *ebus_dp;
 		void __iomem *auxio_reg;
@@ -593,7 +593,7 @@ static unsigned long __init sun_floppy_init(void)
 		if (state_prop && !strncmp(state_prop, "disabled", 8))
 			return 0;
 
-		FLOPPY_IRQ = op->irqs[0];
+		FLOPPY_IRQ = op->archdata.irqs[0];
 
 		/* Make sure the high density bit is set, some systems
 		 * (most notably Ultra5/Ultra10) come up with it clear.
@@ -661,7 +661,7 @@ static unsigned long __init sun_floppy_init(void)
 		config = 0;
 		for (dp = ebus_dp->child; dp; dp = dp->sibling) {
 			if (!strcmp(dp->name, "ecpp")) {
-				struct of_device *ecpp_op;
+				struct platform_device *ecpp_op;
 
 				ecpp_op = of_find_device_by_node(dp);
 				if (ecpp_op)

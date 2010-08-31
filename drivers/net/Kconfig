@@ -484,7 +484,7 @@ config XTENSA_XT2000_SONIC
 
 config MIPS_AU1X00_ENET
 	tristate "MIPS AU1000 Ethernet support"
-	depends on SOC_AU1X00
+	depends on MIPS_ALCHEMY
 	select PHYLIB
 	select CRC32
 	help
@@ -530,14 +530,15 @@ config SH_ETH
 	depends on SUPERH && \
 		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || \
 		 CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7619 || \
-		 CPU_SUBTYPE_SH7724)
+		 CPU_SUBTYPE_SH7724 || CPU_SUBTYPE_SH7757)
 	select CRC32
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
 	help
 	  Renesas SuperH Ethernet device driver.
-	  This driver support SH7710, SH7712, SH7763, SH7619, and SH7724.
+	  This driver supporting CPUs are:
+		- SH7710, SH7712, SH7763, SH7619, SH7724, and SH7757.
 
 config SUNLANCE
 	tristate "Sun LANCE support"
@@ -913,7 +914,7 @@ config SMC91X
 	tristate "SMC 91C9x/91C1xxx support"
 	select CRC32
 	select MII
-	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || \
+	depends on ARM || M32R || SUPERH || \
 		MIPS || BLACKFIN || MN10300 || COLDFIRE
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
@@ -926,6 +927,16 @@ config SMC91X
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called smc91x.  If you want to compile it as a
 	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+
+config PXA168_ETH
+	tristate "Marvell pxa168 ethernet support"
+	depends on CPU_PXA168
+	select PHYLIB
+	help
+	  This driver supports the pxa168 Ethernet ports.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called pxa168_eth.
 
 config NET_NETX
 	tristate "NetX Ethernet support"
@@ -1463,7 +1474,7 @@ config FORCEDETH
 config CS89x0
 	tristate "CS89x0 support"
 	depends on NET_ETHERNET && (ISA || EISA || MACH_IXDP2351 \
-		|| ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS)
+		|| ARCH_IXDP2X01 || MACH_MX31ADS)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1477,7 +1488,7 @@ config CS89x0
 config CS89x0_NONISA_IRQ
 	def_bool y
 	depends on CS89x0 != n
-	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS
+	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || MACH_MX31ADS
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
@@ -1659,6 +1670,7 @@ config R6040
 	depends on NET_PCI && PCI
 	select CRC32
 	select MII
+	select PHYLIB
 	help
 	  This is a driver for the R6040 Fast Ethernet MACs found in the
 	  the RDC R-321x System-on-chips.
@@ -1748,11 +1760,12 @@ config TLAN
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
 config KS8842
-	tristate "Micrel KSZ8842"
-	depends on HAS_IOMEM
+	tristate "Micrel KSZ8841/42 with generic bus interface"
+	depends on HAS_IOMEM && DMA_ENGINE
 	help
-	  This platform driver is for Micrel KSZ8842 / KS8842
-	  2-port ethernet switch chip (managed, VLAN, QoS).
+	 This platform driver is for KSZ8841(1-port) / KS8842(2-port)
+	 ethernet switch chip (managed, VLAN, QoS) from Micrel or
+	 Timberdale(FPGA).
 
 config KS8851
        tristate "Micrel KS8851 SPI"
@@ -2601,6 +2614,29 @@ config CHELSIO_T4
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4.
 
+config CHELSIO_T4VF_DEPENDS
+	tristate
+	depends on PCI && INET
+	default y
+
+config CHELSIO_T4VF
+	tristate "Chelsio Communications T4 Virtual Function Ethernet support"
+	depends on CHELSIO_T4VF_DEPENDS
+	help
+	  This driver supports Chelsio T4-based gigabit and 10Gb Ethernet
+	  adapters with PCI-E SR-IOV Virtual Functions.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.htm>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module choose M here; the module
+	  will be called cxgb4vf.
+
 config EHEA
 	tristate "eHEA Ethernet support"
 	depends on IBMEBUS && INET && SPARSEMEM
@@ -2614,7 +2650,6 @@ config EHEA
 config ENIC
 	tristate "Cisco VIC Ethernet NIC Support"
 	depends on PCI && INET
-	select INET_LRO
 	help
 	  This enables the support for the Cisco VIC Ethernet card.
 

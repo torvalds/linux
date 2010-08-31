@@ -41,7 +41,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL
+bool
 device_receive_frame (
     PSDevice pDevice,
     PSRxDesc pCurrRD

@@ -589,7 +589,7 @@ static int dmfe_open(struct DEVICE *dev)
 		db->dm910x_chk_mode = 1;	/* Enter the check mode */
 	}
 
-	/* Initilize DM910X board */
+	/* Initialize DM910X board */
 	dmfe_init_dm910x(dev);
 
 	/* Active System Interface */
@@ -606,9 +606,9 @@ static int dmfe_open(struct DEVICE *dev)
 }
 
 
-/*	Initilize DM910X board
+/*	Initialize DM910X board
  *	Reset DM910X board
- *	Initilize TX/Rx descriptor chain structure
+ *	Initialize TX/Rx descriptor chain structure
  *	Send the set-up frame
  *	Enable Tx/Rx machine
  */
@@ -649,7 +649,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 	if ( !(db->media_mode & DMFE_AUTO) )
 		db->op_mode = db->media_mode; 	/* Force Mode */
 
-	/* Initiliaze Transmit/Receive decriptor and CR3/4 */
+	/* Initialize Transmit/Receive decriptor and CR3/4 */
 	dmfe_descriptor_init(db, ioaddr);
 
 	/* Init CR6 to program DM910x operation */
@@ -1288,7 +1288,7 @@ static void dmfe_timer(unsigned long data)
  *	Stop DM910X board
  *	Free Tx/Rx allocated memory
  *	Reset DM910X board
- *	Re-initilize DM910X board
+ *	Re-initialize DM910X board
  */
 
 static void dmfe_dynamic_reset(struct DEVICE *dev)
@@ -1316,7 +1316,7 @@ static void dmfe_dynamic_reset(struct DEVICE *dev)
 	netif_carrier_off(dev);
 	db->wait_reset = 0;
 
-	/* Re-initilize DM910X board */
+	/* Re-initialize DM910X board */
 	dmfe_init_dm910x(dev);
 
 	/* Restart upper layer interface */
@@ -1447,7 +1447,7 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
 
 /*
  *	Send a setup frame for DM9132
- *	This setup frame initilize DM910X address filter mode
+ *	This setup frame initialize DM910X address filter mode
 */
 
 static void dm9132_id_table(struct DEVICE *dev)
@@ -1489,7 +1489,7 @@ static void dm9132_id_table(struct DEVICE *dev)
 
 /*
  *	Send a setup frame for DM9102/DM9102A
- *	This setup frame initilize DM910X address filter mode
+ *	This setup frame initialize DM910X address filter mode
  */
 
 static void send_filter_frame(struct DEVICE *dev)
@@ -2142,7 +2142,7 @@ static int dmfe_resume(struct pci_dev *pci_dev)
 	pci_set_power_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
 
-	/* Re-initilize DM910X board */
+	/* Re-initialize DM910X board */
 	dmfe_init_dm910x(dev);
 
 	/* Disable WOL */
@@ -2196,7 +2196,7 @@ MODULE_PARM_DESC(SF_mode, "Davicom DM9xxx special function "
 
 /*	Description:
  *	when user used insmod to add module, system invoked init_module()
- *	to initilize and register.
+ *	to initialize and register.
  */
 
 static int __init dmfe_init_module(void)

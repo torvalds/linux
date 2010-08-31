@@ -163,7 +163,7 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 	if (entry->chan)
 		return -EEXIST;
 
-	if (dev_priv->card_type == NV_50 && entry->read >= NV50_I2C_PORTS) {
+	if (dev_priv->card_type >= NV_50 && entry->read >= NV50_I2C_PORTS) {
 		NV_ERROR(dev, "unknown i2c port %d\n", entry->read);
 		return -EINVAL;
 	}
@@ -174,26 +174,26 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 
 	switch (entry->port_type) {
 	case 0:
-		i2c->algo.bit.setsda = nv04_i2c_setsda;
-		i2c->algo.bit.setscl = nv04_i2c_setscl;
-		i2c->algo.bit.getsda = nv04_i2c_getsda;
-		i2c->algo.bit.getscl = nv04_i2c_getscl;
+		i2c->bit.setsda = nv04_i2c_setsda;
+		i2c->bit.setscl = nv04_i2c_setscl;
+		i2c->bit.getsda = nv04_i2c_getsda;
+		i2c->bit.getscl = nv04_i2c_getscl;
 		i2c->rd = entry->read;
 		i2c->wr = entry->write;
 		break;
 	case 4:
-		i2c->algo.bit.setsda = nv4e_i2c_setsda;
-		i2c->algo.bit.setscl = nv4e_i2c_setscl;
-		i2c->algo.bit.getsda = nv4e_i2c_getsda;
-		i2c->algo.bit.getscl = nv4e_i2c_getscl;
+		i2c->bit.setsda = nv4e_i2c_setsda;
+		i2c->bit.setscl = nv4e_i2c_setscl;
+		i2c->bit.getsda = nv4e_i2c_getsda;
+		i2c->bit.getscl = nv4e_i2c_getscl;
 		i2c->rd = 0x600800 + entry->read;
 		i2c->wr = 0x600800 + entry->write;
 		break;
 	case 5:
-		i2c->algo.bit.setsda = nv50_i2c_setsda;
-		i2c->algo.bit.setscl = nv50_i2c_setscl;
-		i2c->algo.bit.getsda = nv50_i2c_getsda;
-		i2c->algo.bit.getscl = nv50_i2c_getscl;
+		i2c->bit.setsda = nv50_i2c_setsda;
+		i2c->bit.setscl = nv50_i2c_setscl;
+		i2c->bit.getsda = nv50_i2c_getsda;
+		i2c->bit.getscl = nv50_i2c_getscl;
 		i2c->rd = nv50_i2c_port[entry->read];
 		i2c->wr = i2c->rd;
 		break;
@@ -216,17 +216,14 @@ nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
 	i2c_set_adapdata(&i2c->adapter, i2c);
 
 	if (entry->port_type < 6) {
-		i2c->adapter.algo_data = &i2c->algo.bit;
-		i2c->algo.bit.udelay = 40;
-		i2c->algo.bit.timeout = usecs_to_jiffies(5000);
-		i2c->algo.bit.data = i2c;
+		i2c->adapter.algo_data = &i2c->bit;
+		i2c->bit.udelay = 40;
+		i2c->bit.timeout = usecs_to_jiffies(5000);
+		i2c->bit.data = i2c;
 		ret = i2c_bit_add_bus(&i2c->adapter);
 	} else {
-		i2c->adapter.algo_data = &i2c->algo.dp;
-		i2c->algo.dp.running = false;
-		i2c->algo.dp.address = 0;
-		i2c->algo.dp.aux_ch = nouveau_dp_i2c_aux_ch;
-		ret = i2c_dp_aux_add_bus(&i2c->adapter);
+		i2c->adapter.algo = &nouveau_dp_i2c_algo;
+		ret = i2c_add_adapter(&i2c->adapter);
 	}
 
 	if (ret) {
@@ -278,3 +275,45 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 	return i2c->chan;
 }
 
+bool
+nouveau_probe_i2c_addr(struct nouveau_i2c_chan *i2c, int addr)
+{
+	uint8_t buf[] = { 0 };
+	struct i2c_msg msgs[] = {
+		{
+			.addr = addr,
+			.flags = 0,
+			.len = 1,
+			.buf = buf,
+		},
+		{
+			.addr = addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = buf,
+		}
+	};
+
+	return i2c_transfer(&i2c->adapter, msgs, 2) == 2;
+}
+
+int
+nouveau_i2c_identify(struct drm_device *dev, const char *what,
+		     struct i2c_board_info *info, int index)
+{
+	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, index);
+	int i;
+
+	NV_DEBUG(dev, "Probing %ss on I2C bus: %d\n", what, index);
+
+	for (i = 0; info[i].addr; i++) {
+		if (nouveau_probe_i2c_addr(i2c, info[i].addr)) {
+			NV_INFO(dev, "Detected %s: %s\n", what, info[i].type);
+			return i;
+		}
+	}
+
+	NV_DEBUG(dev, "No devices found.\n");
+
+	return -ENODEV;
+}

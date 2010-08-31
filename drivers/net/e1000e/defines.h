@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -359,6 +359,7 @@
 #define E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE       0x00000001
 #define E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE       0x00000008
 #define E1000_EXTCNF_CTRL_SWFLAG                 0x00000020
+#define E1000_EXTCNF_CTRL_GATE_PHY_CFG           0x00000080
 #define E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH_MASK   0x00FF0000
 #define E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH_SHIFT          16
 #define E1000_EXTCNF_CTRL_EXT_CNF_POINTER_MASK   0x0FFF0000
@@ -620,6 +621,7 @@
 #define E1000_FLASH_UPDATES  2000
 
 /* NVM Word Offsets */
+#define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
@@ -641,6 +643,9 @@
 
 /* Mask bits for fields in Word 0x1a of the NVM */
 #define NVM_WORD1A_ASPM_MASK  0x000C
+
+/* Mask bits for fields in Word 0x03 of the EEPROM */
+#define NVM_COMPAT_LOM    0x0800
 
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM                    0xBABA
@@ -714,6 +719,7 @@
 #define BME1000_E_PHY_ID_R2  0x01410CB1
 #define I82577_E_PHY_ID      0x01540050
 #define I82578_E_PHY_ID      0x004DD040
+#define I82579_E_PHY_ID      0x01540090
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */

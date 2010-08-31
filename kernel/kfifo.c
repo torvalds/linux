@@ -1,8 +1,7 @@
 /*
- * A generic kernel FIFO implementation.
+ * A generic kernel FIFO implementation
  *
- * Copyright (C) 2009 Stefani Seibold <stefani@seibold.net>
- * Copyright (C) 2004 Stelian Pop <stelian@popies.net>
+ * Copyright (C) 2009/2010 Stefani Seibold <stefani@seibold.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,7 +10,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -24,422 +23,588 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/kfifo.h>
 #include <linux/log2.h>
 #include <linux/uaccess.h>
+#include <linux/kfifo.h>
 
-static void _kfifo_init(struct kfifo *fifo, void *buffer,
-		unsigned int size)
+/*
+ * internal helper to calculate the unused elements in a fifo
+ */
+static inline unsigned int kfifo_unused(struct __kfifo *fifo)
 {
-	fifo->buffer = buffer;
-	fifo->size = size;
-
-	kfifo_reset(fifo);
+	return (fifo->mask + 1) - (fifo->in - fifo->out);
 }
 
-/**
- * kfifo_init - initialize a FIFO using a preallocated buffer
- * @fifo: the fifo to assign the buffer
- * @buffer: the preallocated buffer to be used.
- * @size: the size of the internal buffer, this has to be a power of 2.
- *
- */
-void kfifo_init(struct kfifo *fifo, void *buffer, unsigned int size)
+int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
+		size_t esize, gfp_t gfp_mask)
 {
-	/* size must be a power of 2 */
-	BUG_ON(!is_power_of_2(size));
-
-	_kfifo_init(fifo, buffer, size);
-}
-EXPORT_SYMBOL(kfifo_init);
-
-/**
- * kfifo_alloc - allocates a new FIFO internal buffer
- * @fifo: the fifo to assign then new buffer
- * @size: the size of the buffer to be allocated, this have to be a power of 2.
- * @gfp_mask: get_free_pages mask, passed to kmalloc()
- *
- * This function dynamically allocates a new fifo internal buffer
- *
- * The size will be rounded-up to a power of 2.
- * The buffer will be release with kfifo_free().
- * Return 0 if no error, otherwise the an error code
- */
-int kfifo_alloc(struct kfifo *fifo, unsigned int size, gfp_t gfp_mask)
-{
-	unsigned char *buffer;
-
 	/*
-	 * round up to the next power of 2, since our 'let the indices
+	 * round down to the next power of 2, since our 'let the indices
 	 * wrap' technique works only in this case.
 	 */
-	if (!is_power_of_2(size)) {
-		BUG_ON(size > 0x80000000);
-		size = roundup_pow_of_two(size);
+	if (!is_power_of_2(size))
+		size = rounddown_pow_of_two(size);
+
+	fifo->in = 0;
+	fifo->out = 0;
+	fifo->esize = esize;
+
+	if (size < 2) {
+		fifo->data = NULL;
+		fifo->mask = 0;
+		return -EINVAL;
 	}
 
-	buffer = kmalloc(size, gfp_mask);
-	if (!buffer) {
-		_kfifo_init(fifo, NULL, 0);
+	fifo->data = kmalloc(size * esize, gfp_mask);
+
+	if (!fifo->data) {
+		fifo->mask = 0;
 		return -ENOMEM;
 	}
-
-	_kfifo_init(fifo, buffer, size);
+	fifo->mask = size - 1;
 
 	return 0;
 }
-EXPORT_SYMBOL(kfifo_alloc);
+EXPORT_SYMBOL(__kfifo_alloc);
 
-/**
- * kfifo_free - frees the FIFO internal buffer
- * @fifo: the fifo to be freed.
- */
-void kfifo_free(struct kfifo *fifo)
+void __kfifo_free(struct __kfifo *fifo)
 {
-	kfree(fifo->buffer);
-	_kfifo_init(fifo, NULL, 0);
+	kfree(fifo->data);
+	fifo->in = 0;
+	fifo->out = 0;
+	fifo->esize = 0;
+	fifo->data = NULL;
+	fifo->mask = 0;
 }
-EXPORT_SYMBOL(kfifo_free);
+EXPORT_SYMBOL(__kfifo_free);
 
-/**
- * kfifo_skip - skip output data
- * @fifo: the fifo to be used.
- * @len: number of bytes to skip
- */
-void kfifo_skip(struct kfifo *fifo, unsigned int len)
+int __kfifo_init(struct __kfifo *fifo, void *buffer,
+		unsigned int size, size_t esize)
 {
-	if (len < kfifo_len(fifo)) {
-		__kfifo_add_out(fifo, len);
-		return;
+	size /= esize;
+
+	if (!is_power_of_2(size))
+		size = rounddown_pow_of_two(size);
+
+	fifo->in = 0;
+	fifo->out = 0;
+	fifo->esize = esize;
+	fifo->data = buffer;
+
+	if (size < 2) {
+		fifo->mask = 0;
+		return -EINVAL;
 	}
-	kfifo_reset_out(fifo);
-}
-EXPORT_SYMBOL(kfifo_skip);
+	fifo->mask = size - 1;
 
-static inline void __kfifo_in_data(struct kfifo *fifo,
-		const void *from, unsigned int len, unsigned int off)
-{
-	unsigned int l;
-
-	/*
-	 * Ensure that we sample the fifo->out index -before- we
-	 * start putting bytes into the kfifo.
-	 */
-
-	smp_mb();
-
-	off = __kfifo_off(fifo, fifo->in + off);
-
-	/* first put the data starting from fifo->in to buffer end */
-	l = min(len, fifo->size - off);
-	memcpy(fifo->buffer + off, from, l);
-
-	/* then put the rest (if any) at the beginning of the buffer */
-	memcpy(fifo->buffer, from + l, len - l);
-}
-
-static inline void __kfifo_out_data(struct kfifo *fifo,
-		void *to, unsigned int len, unsigned int off)
-{
-	unsigned int l;
-
-	/*
-	 * Ensure that we sample the fifo->in index -before- we
-	 * start removing bytes from the kfifo.
-	 */
-
-	smp_rmb();
-
-	off = __kfifo_off(fifo, fifo->out + off);
-
-	/* first get the data from fifo->out until the end of the buffer */
-	l = min(len, fifo->size - off);
-	memcpy(to, fifo->buffer + off, l);
-
-	/* then get the rest (if any) from the beginning of the buffer */
-	memcpy(to + l, fifo->buffer, len - l);
-}
-
-static inline int __kfifo_from_user_data(struct kfifo *fifo,
-	 const void __user *from, unsigned int len, unsigned int off,
-	 unsigned *lenout)
-{
-	unsigned int l;
-	int ret;
-
-	/*
-	 * Ensure that we sample the fifo->out index -before- we
-	 * start putting bytes into the kfifo.
-	 */
-
-	smp_mb();
-
-	off = __kfifo_off(fifo, fifo->in + off);
-
-	/* first put the data starting from fifo->in to buffer end */
-	l = min(len, fifo->size - off);
-	ret = copy_from_user(fifo->buffer + off, from, l);
-	if (unlikely(ret)) {
-		*lenout = ret;
-		return -EFAULT;
-	}
-	*lenout = l;
-
-	/* then put the rest (if any) at the beginning of the buffer */
-	ret = copy_from_user(fifo->buffer, from + l, len - l);
-	*lenout += ret ? ret : len - l;
-	return ret ? -EFAULT : 0;
-}
-
-static inline int __kfifo_to_user_data(struct kfifo *fifo,
-		void __user *to, unsigned int len, unsigned int off, unsigned *lenout)
-{
-	unsigned int l;
-	int ret;
-
-	/*
-	 * Ensure that we sample the fifo->in index -before- we
-	 * start removing bytes from the kfifo.
-	 */
-
-	smp_rmb();
-
-	off = __kfifo_off(fifo, fifo->out + off);
-
-	/* first get the data from fifo->out until the end of the buffer */
-	l = min(len, fifo->size - off);
-	ret = copy_to_user(to, fifo->buffer + off, l);
-	*lenout = l;
-	if (unlikely(ret)) {
-		*lenout -= ret;
-		return -EFAULT;
-	}
-
-	/* then get the rest (if any) from the beginning of the buffer */
-	len -= l;
-	ret = copy_to_user(to + l, fifo->buffer, len);
-	if (unlikely(ret)) {
-		*lenout += len - ret;
-		return -EFAULT;
-	}
-	*lenout += len;
 	return 0;
 }
+EXPORT_SYMBOL(__kfifo_init);
 
-unsigned int __kfifo_in_n(struct kfifo *fifo,
-	const void *from, unsigned int len, unsigned int recsize)
+static void kfifo_copy_in(struct __kfifo *fifo, const void *src,
+		unsigned int len, unsigned int off)
 {
-	if (kfifo_avail(fifo) < len + recsize)
-		return len + 1;
+	unsigned int size = fifo->mask + 1;
+	unsigned int esize = fifo->esize;
+	unsigned int l;
 
-	__kfifo_in_data(fifo, from, len, recsize);
-	return 0;
+	off &= fifo->mask;
+	if (esize != 1) {
+		off *= esize;
+		size *= esize;
+		len *= esize;
+	}
+	l = min(len, size - off);
+
+	memcpy(fifo->data + off, src, l);
+	memcpy(fifo->data, src + l, len - l);
+	/*
+	 * make sure that the data in the fifo is up to date before
+	 * incrementing the fifo->in index counter
+	 */
+	smp_wmb();
 }
-EXPORT_SYMBOL(__kfifo_in_n);
 
-/**
- * kfifo_in - puts some data into the FIFO
- * @fifo: the fifo to be used.
- * @from: the data to be added.
- * @len: the length of the data to be added.
- *
- * This function copies at most @len bytes from the @from buffer into
- * the FIFO depending on the free space, and returns the number of
- * bytes copied.
- *
- * Note that with only one concurrent reader and one concurrent
- * writer, you don't need extra locking to use these functions.
- */
-unsigned int kfifo_in(struct kfifo *fifo, const void *from,
-				unsigned int len)
+unsigned int __kfifo_in(struct __kfifo *fifo,
+		const void *buf, unsigned int len)
 {
-	len = min(kfifo_avail(fifo), len);
+	unsigned int l;
 
-	__kfifo_in_data(fifo, from, len, 0);
-	__kfifo_add_in(fifo, len);
+	l = kfifo_unused(fifo);
+	if (len > l)
+		len = l;
+
+	kfifo_copy_in(fifo, buf, len, fifo->in);
+	fifo->in += len;
 	return len;
 }
-EXPORT_SYMBOL(kfifo_in);
+EXPORT_SYMBOL(__kfifo_in);
 
-unsigned int __kfifo_in_generic(struct kfifo *fifo,
-	const void *from, unsigned int len, unsigned int recsize)
+static void kfifo_copy_out(struct __kfifo *fifo, void *dst,
+		unsigned int len, unsigned int off)
 {
-	return __kfifo_in_rec(fifo, from, len, recsize);
+	unsigned int size = fifo->mask + 1;
+	unsigned int esize = fifo->esize;
+	unsigned int l;
+
+	off &= fifo->mask;
+	if (esize != 1) {
+		off *= esize;
+		size *= esize;
+		len *= esize;
+	}
+	l = min(len, size - off);
+
+	memcpy(dst, fifo->data + off, l);
+	memcpy(dst + l, fifo->data, len - l);
+	/*
+	 * make sure that the data is copied before
+	 * incrementing the fifo->out index counter
+	 */
+	smp_wmb();
 }
-EXPORT_SYMBOL(__kfifo_in_generic);
 
-unsigned int __kfifo_out_n(struct kfifo *fifo,
-	void *to, unsigned int len, unsigned int recsize)
+unsigned int __kfifo_out_peek(struct __kfifo *fifo,
+		void *buf, unsigned int len)
 {
-	if (kfifo_len(fifo) < len + recsize)
-		return len;
+	unsigned int l;
 
-	__kfifo_out_data(fifo, to, len, recsize);
-	__kfifo_add_out(fifo, len + recsize);
-	return 0;
-}
-EXPORT_SYMBOL(__kfifo_out_n);
+	l = fifo->in - fifo->out;
+	if (len > l)
+		len = l;
 
-/**
- * kfifo_out - gets some data from the FIFO
- * @fifo: the fifo to be used.
- * @to: where the data must be copied.
- * @len: the size of the destination buffer.
- *
- * This function copies at most @len bytes from the FIFO into the
- * @to buffer and returns the number of copied bytes.
- *
- * Note that with only one concurrent reader and one concurrent
- * writer, you don't need extra locking to use these functions.
- */
-unsigned int kfifo_out(struct kfifo *fifo, void *to, unsigned int len)
-{
-	len = min(kfifo_len(fifo), len);
-
-	__kfifo_out_data(fifo, to, len, 0);
-	__kfifo_add_out(fifo, len);
-
+	kfifo_copy_out(fifo, buf, len, fifo->out);
 	return len;
 }
-EXPORT_SYMBOL(kfifo_out);
+EXPORT_SYMBOL(__kfifo_out_peek);
 
-/**
- * kfifo_out_peek - copy some data from the FIFO, but do not remove it
- * @fifo: the fifo to be used.
- * @to: where the data must be copied.
- * @len: the size of the destination buffer.
- * @offset: offset into the fifo
- *
- * This function copies at most @len bytes at @offset from the FIFO
- * into the @to buffer and returns the number of copied bytes.
- * The data is not removed from the FIFO.
- */
-unsigned int kfifo_out_peek(struct kfifo *fifo, void *to, unsigned int len,
-			    unsigned offset)
+unsigned int __kfifo_out(struct __kfifo *fifo,
+		void *buf, unsigned int len)
 {
-	len = min(kfifo_len(fifo), len + offset);
-
-	__kfifo_out_data(fifo, to, len, offset);
+	len = __kfifo_out_peek(fifo, buf, len);
+	fifo->out += len;
 	return len;
 }
-EXPORT_SYMBOL(kfifo_out_peek);
+EXPORT_SYMBOL(__kfifo_out);
 
-unsigned int __kfifo_out_generic(struct kfifo *fifo,
-	void *to, unsigned int len, unsigned int recsize,
-	unsigned int *total)
+static unsigned long kfifo_copy_from_user(struct __kfifo *fifo,
+	const void __user *from, unsigned int len, unsigned int off,
+	unsigned int *copied)
 {
-	return __kfifo_out_rec(fifo, to, len, recsize, total);
-}
-EXPORT_SYMBOL(__kfifo_out_generic);
+	unsigned int size = fifo->mask + 1;
+	unsigned int esize = fifo->esize;
+	unsigned int l;
+	unsigned long ret;
 
-unsigned int __kfifo_from_user_n(struct kfifo *fifo,
-	const void __user *from, unsigned int len, unsigned int recsize)
-{
-	unsigned total;
+	off &= fifo->mask;
+	if (esize != 1) {
+		off *= esize;
+		size *= esize;
+		len *= esize;
+	}
+	l = min(len, size - off);
 
-	if (kfifo_avail(fifo) < len + recsize)
-		return len + 1;
-
-	__kfifo_from_user_data(fifo, from, len, recsize, &total);
-	return total;
-}
-EXPORT_SYMBOL(__kfifo_from_user_n);
-
-/**
- * kfifo_from_user - puts some data from user space into the FIFO
- * @fifo: the fifo to be used.
- * @from: pointer to the data to be added.
- * @len: the length of the data to be added.
- * @total: the actual returned data length.
- *
- * This function copies at most @len bytes from the @from into the
- * FIFO depending and returns -EFAULT/0.
- *
- * Note that with only one concurrent reader and one concurrent
- * writer, you don't need extra locking to use these functions.
- */
-int kfifo_from_user(struct kfifo *fifo,
-        const void __user *from, unsigned int len, unsigned *total)
-{
-	int ret;
-	len = min(kfifo_avail(fifo), len);
-	ret = __kfifo_from_user_data(fifo, from, len, 0, total);
-	if (ret)
-		return ret;
-	__kfifo_add_in(fifo, len);
-	return 0;
-}
-EXPORT_SYMBOL(kfifo_from_user);
-
-unsigned int __kfifo_from_user_generic(struct kfifo *fifo,
-	const void __user *from, unsigned int len, unsigned int recsize)
-{
-	return __kfifo_from_user_rec(fifo, from, len, recsize);
-}
-EXPORT_SYMBOL(__kfifo_from_user_generic);
-
-unsigned int __kfifo_to_user_n(struct kfifo *fifo,
-	void __user *to, unsigned int len, unsigned int reclen,
-	unsigned int recsize)
-{
-	unsigned int ret, total;
-
-	if (kfifo_len(fifo) < reclen + recsize)
-		return len;
-
-	ret = __kfifo_to_user_data(fifo, to, reclen, recsize, &total);
-
-	if (likely(ret == 0))
-		__kfifo_add_out(fifo, reclen + recsize);
-
-	return total;
-}
-EXPORT_SYMBOL(__kfifo_to_user_n);
-
-/**
- * kfifo_to_user - gets data from the FIFO and write it to user space
- * @fifo: the fifo to be used.
- * @to: where the data must be copied.
- * @len: the size of the destination buffer.
- * @lenout: pointer to output variable with copied data
- *
- * This function copies at most @len bytes from the FIFO into the
- * @to buffer and 0 or -EFAULT.
- *
- * Note that with only one concurrent reader and one concurrent
- * writer, you don't need extra locking to use these functions.
- */
-int kfifo_to_user(struct kfifo *fifo,
-	void __user *to, unsigned int len, unsigned *lenout)
-{
-	int ret;
-	len = min(kfifo_len(fifo), len);
-	ret = __kfifo_to_user_data(fifo, to, len, 0, lenout);
-	__kfifo_add_out(fifo, *lenout);
+	ret = copy_from_user(fifo->data + off, from, l);
+	if (unlikely(ret))
+		ret = DIV_ROUND_UP(ret + len - l, esize);
+	else {
+		ret = copy_from_user(fifo->data, from + l, len - l);
+		if (unlikely(ret))
+			ret = DIV_ROUND_UP(ret, esize);
+	}
+	/*
+	 * make sure that the data in the fifo is up to date before
+	 * incrementing the fifo->in index counter
+	 */
+	smp_wmb();
+	*copied = len - ret;
+	/* return the number of elements which are not copied */
 	return ret;
 }
-EXPORT_SYMBOL(kfifo_to_user);
 
-unsigned int __kfifo_to_user_generic(struct kfifo *fifo,
-	void __user *to, unsigned int len, unsigned int recsize,
-	unsigned int *total)
+int __kfifo_from_user(struct __kfifo *fifo, const void __user *from,
+		unsigned long len, unsigned int *copied)
 {
-	return __kfifo_to_user_rec(fifo, to, len, recsize, total);
+	unsigned int l;
+	unsigned long ret;
+	unsigned int esize = fifo->esize;
+	int err;
+
+	if (esize != 1)
+		len /= esize;
+
+	l = kfifo_unused(fifo);
+	if (len > l)
+		len = l;
+
+	ret = kfifo_copy_from_user(fifo, from, len, fifo->in, copied);
+	if (unlikely(ret)) {
+		len -= ret;
+		err = -EFAULT;
+	} else
+		err = 0;
+	fifo->in += len;
+	return err;
 }
-EXPORT_SYMBOL(__kfifo_to_user_generic);
+EXPORT_SYMBOL(__kfifo_from_user);
 
-unsigned int __kfifo_peek_generic(struct kfifo *fifo, unsigned int recsize)
+static unsigned long kfifo_copy_to_user(struct __kfifo *fifo, void __user *to,
+		unsigned int len, unsigned int off, unsigned int *copied)
 {
-	if (recsize == 0)
-		return kfifo_avail(fifo);
+	unsigned int l;
+	unsigned long ret;
+	unsigned int size = fifo->mask + 1;
+	unsigned int esize = fifo->esize;
 
+	off &= fifo->mask;
+	if (esize != 1) {
+		off *= esize;
+		size *= esize;
+		len *= esize;
+	}
+	l = min(len, size - off);
+
+	ret = copy_to_user(to, fifo->data + off, l);
+	if (unlikely(ret))
+		ret = DIV_ROUND_UP(ret + len - l, esize);
+	else {
+		ret = copy_to_user(to + l, fifo->data, len - l);
+		if (unlikely(ret))
+			ret = DIV_ROUND_UP(ret, esize);
+	}
+	/*
+	 * make sure that the data is copied before
+	 * incrementing the fifo->out index counter
+	 */
+	smp_wmb();
+	*copied = len - ret;
+	/* return the number of elements which are not copied */
+	return ret;
+}
+
+int __kfifo_to_user(struct __kfifo *fifo, void __user *to,
+		unsigned long len, unsigned int *copied)
+{
+	unsigned int l;
+	unsigned long ret;
+	unsigned int esize = fifo->esize;
+	int err;
+
+	if (esize != 1)
+		len /= esize;
+
+	l = fifo->in - fifo->out;
+	if (len > l)
+		len = l;
+	ret = kfifo_copy_to_user(fifo, to, len, fifo->out, copied);
+	if (unlikely(ret)) {
+		len -= ret;
+		err = -EFAULT;
+	} else
+		err = 0;
+	fifo->out += len;
+	return err;
+}
+EXPORT_SYMBOL(__kfifo_to_user);
+
+static int setup_sgl_buf(struct scatterlist *sgl, void *buf,
+		int nents, unsigned int len)
+{
+	int n;
+	unsigned int l;
+	unsigned int off;
+	struct page *page;
+
+	if (!nents)
+		return 0;
+
+	if (!len)
+		return 0;
+
+	n = 0;
+	page = virt_to_page(buf);
+	off = offset_in_page(buf);
+	l = 0;
+
+	while (len >= l + PAGE_SIZE - off) {
+		struct page *npage;
+
+		l += PAGE_SIZE;
+		buf += PAGE_SIZE;
+		npage = virt_to_page(buf);
+		if (page_to_phys(page) != page_to_phys(npage) - l) {
+			sg_set_page(sgl, page, l - off, off);
+			sgl = sg_next(sgl);
+			if (++n == nents || sgl == NULL)
+				return n;
+			page = npage;
+			len -= l - off;
+			l = off = 0;
+		}
+	}
+	sg_set_page(sgl, page, len, off);
+	return n + 1;
+}
+
+static unsigned int setup_sgl(struct __kfifo *fifo, struct scatterlist *sgl,
+		int nents, unsigned int len, unsigned int off)
+{
+	unsigned int size = fifo->mask + 1;
+	unsigned int esize = fifo->esize;
+	unsigned int l;
+	unsigned int n;
+
+	off &= fifo->mask;
+	if (esize != 1) {
+		off *= esize;
+		size *= esize;
+		len *= esize;
+	}
+	l = min(len, size - off);
+
+	n = setup_sgl_buf(sgl, fifo->data + off, nents, l);
+	n += setup_sgl_buf(sgl + n, fifo->data, nents - n, len - l);
+
+	if (n)
+		sg_mark_end(sgl + n - 1);
+	return n;
+}
+
+unsigned int __kfifo_dma_in_prepare(struct __kfifo *fifo,
+		struct scatterlist *sgl, int nents, unsigned int len)
+{
+	unsigned int l;
+
+	l = kfifo_unused(fifo);
+	if (len > l)
+		len = l;
+
+	return setup_sgl(fifo, sgl, nents, len, fifo->in);
+}
+EXPORT_SYMBOL(__kfifo_dma_in_prepare);
+
+unsigned int __kfifo_dma_out_prepare(struct __kfifo *fifo,
+		struct scatterlist *sgl, int nents, unsigned int len)
+{
+	unsigned int l;
+
+	l = fifo->in - fifo->out;
+	if (len > l)
+		len = l;
+
+	return setup_sgl(fifo, sgl, nents, len, fifo->out);
+}
+EXPORT_SYMBOL(__kfifo_dma_out_prepare);
+
+unsigned int __kfifo_max_r(unsigned int len, size_t recsize)
+{
+	unsigned int max = (1 << (recsize << 3)) - 1;
+
+	if (len > max)
+		return max;
+	return len;
+}
+
+#define	__KFIFO_PEEK(data, out, mask) \
+	((data)[(out) & (mask)])
+/*
+ * __kfifo_peek_n internal helper function for determinate the length of
+ * the next record in the fifo
+ */
+static unsigned int __kfifo_peek_n(struct __kfifo *fifo, size_t recsize)
+{
+	unsigned int l;
+	unsigned int mask = fifo->mask;
+	unsigned char *data = fifo->data;
+
+	l = __KFIFO_PEEK(data, fifo->out, mask);
+
+	if (--recsize)
+		l |= __KFIFO_PEEK(data, fifo->out + 1, mask) << 8;
+
+	return l;
+}
+
+#define	__KFIFO_POKE(data, in, mask, val) \
+	( \
+	(data)[(in) & (mask)] = (unsigned char)(val) \
+	)
+
+/*
+ * __kfifo_poke_n internal helper function for storeing the length of
+ * the record into the fifo
+ */
+static void __kfifo_poke_n(struct __kfifo *fifo, unsigned int n, size_t recsize)
+{
+	unsigned int mask = fifo->mask;
+	unsigned char *data = fifo->data;
+
+	__KFIFO_POKE(data, fifo->in, mask, n);
+
+	if (recsize > 1)
+		__KFIFO_POKE(data, fifo->in + 1, mask, n >> 8);
+}
+
+unsigned int __kfifo_len_r(struct __kfifo *fifo, size_t recsize)
+{
 	return __kfifo_peek_n(fifo, recsize);
 }
-EXPORT_SYMBOL(__kfifo_peek_generic);
+EXPORT_SYMBOL(__kfifo_len_r);
 
-void __kfifo_skip_generic(struct kfifo *fifo, unsigned int recsize)
+unsigned int __kfifo_in_r(struct __kfifo *fifo, const void *buf,
+		unsigned int len, size_t recsize)
 {
-	__kfifo_skip_rec(fifo, recsize);
-}
-EXPORT_SYMBOL(__kfifo_skip_generic);
+	if (len + recsize > kfifo_unused(fifo))
+		return 0;
 
+	__kfifo_poke_n(fifo, len, recsize);
+
+	kfifo_copy_in(fifo, buf, len, fifo->in + recsize);
+	fifo->in += len + recsize;
+	return len;
+}
+EXPORT_SYMBOL(__kfifo_in_r);
+
+static unsigned int kfifo_out_copy_r(struct __kfifo *fifo,
+	void *buf, unsigned int len, size_t recsize, unsigned int *n)
+{
+	*n = __kfifo_peek_n(fifo, recsize);
+
+	if (len > *n)
+		len = *n;
+
+	kfifo_copy_out(fifo, buf, len, fifo->out + recsize);
+	return len;
+}
+
+unsigned int __kfifo_out_peek_r(struct __kfifo *fifo, void *buf,
+		unsigned int len, size_t recsize)
+{
+	unsigned int n;
+
+	if (fifo->in == fifo->out)
+		return 0;
+
+	return kfifo_out_copy_r(fifo, buf, len, recsize, &n);
+}
+EXPORT_SYMBOL(__kfifo_out_peek_r);
+
+unsigned int __kfifo_out_r(struct __kfifo *fifo, void *buf,
+		unsigned int len, size_t recsize)
+{
+	unsigned int n;
+
+	if (fifo->in == fifo->out)
+		return 0;
+
+	len = kfifo_out_copy_r(fifo, buf, len, recsize, &n);
+	fifo->out += n + recsize;
+	return len;
+}
+EXPORT_SYMBOL(__kfifo_out_r);
+
+void __kfifo_skip_r(struct __kfifo *fifo, size_t recsize)
+{
+	unsigned int n;
+
+	n = __kfifo_peek_n(fifo, recsize);
+	fifo->out += n + recsize;
+}
+EXPORT_SYMBOL(__kfifo_skip_r);
+
+int __kfifo_from_user_r(struct __kfifo *fifo, const void __user *from,
+	unsigned long len, unsigned int *copied, size_t recsize)
+{
+	unsigned long ret;
+
+	len = __kfifo_max_r(len, recsize);
+
+	if (len + recsize > kfifo_unused(fifo)) {
+		*copied = 0;
+		return 0;
+	}
+
+	__kfifo_poke_n(fifo, len, recsize);
+
+	ret = kfifo_copy_from_user(fifo, from, len, fifo->in + recsize, copied);
+	if (unlikely(ret)) {
+		*copied = 0;
+		return -EFAULT;
+	}
+	fifo->in += len + recsize;
+	return 0;
+}
+EXPORT_SYMBOL(__kfifo_from_user_r);
+
+int __kfifo_to_user_r(struct __kfifo *fifo, void __user *to,
+	unsigned long len, unsigned int *copied, size_t recsize)
+{
+	unsigned long ret;
+	unsigned int n;
+
+	if (fifo->in == fifo->out) {
+		*copied = 0;
+		return 0;
+	}
+
+	n = __kfifo_peek_n(fifo, recsize);
+	if (len > n)
+		len = n;
+
+	ret = kfifo_copy_to_user(fifo, to, len, fifo->out + recsize, copied);
+	if (unlikely(ret)) {
+		*copied = 0;
+		return -EFAULT;
+	}
+	fifo->out += n + recsize;
+	return 0;
+}
+EXPORT_SYMBOL(__kfifo_to_user_r);
+
+unsigned int __kfifo_dma_in_prepare_r(struct __kfifo *fifo,
+	struct scatterlist *sgl, int nents, unsigned int len, size_t recsize)
+{
+	if (!nents)
+		BUG();
+
+	len = __kfifo_max_r(len, recsize);
+
+	if (len + recsize > kfifo_unused(fifo))
+		return 0;
+
+	return setup_sgl(fifo, sgl, nents, len, fifo->in + recsize);
+}
+EXPORT_SYMBOL(__kfifo_dma_in_prepare_r);
+
+void __kfifo_dma_in_finish_r(struct __kfifo *fifo,
+	unsigned int len, size_t recsize)
+{
+	len = __kfifo_max_r(len, recsize);
+	__kfifo_poke_n(fifo, len, recsize);
+	fifo->in += len + recsize;
+}
+EXPORT_SYMBOL(__kfifo_dma_in_finish_r);
+
+unsigned int __kfifo_dma_out_prepare_r(struct __kfifo *fifo,
+	struct scatterlist *sgl, int nents, unsigned int len, size_t recsize)
+{
+	if (!nents)
+		BUG();
+
+	len = __kfifo_max_r(len, recsize);
+
+	if (len + recsize > fifo->in - fifo->out)
+		return 0;
+
+	return setup_sgl(fifo, sgl, nents, len, fifo->out + recsize);
+}
+EXPORT_SYMBOL(__kfifo_dma_out_prepare_r);
+
+void __kfifo_dma_out_finish_r(struct __kfifo *fifo, size_t recsize)
+{
+	unsigned int len;
+
+	len = __kfifo_peek_n(fifo, recsize);
+	fifo->out += len + recsize;
+}
+EXPORT_SYMBOL(__kfifo_dma_out_finish_r);

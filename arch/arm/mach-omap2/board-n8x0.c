@@ -33,6 +33,8 @@
 #include <plat/mmc.h>
 #include <plat/serial.h>
 
+#include "mux.h"
+
 static int slot1_cover_open;
 static int slot2_cover_open;
 static struct device *mmc_device;
@@ -649,8 +651,17 @@ static void __init n8x0_init_irq(void)
 	omap_gpio_init();
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init n8x0_init_machine(void)
 {
+	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 	/* FIXME: add n810 spi devices */
 	spi_register_board_info(n800_spi_board_info,
 				ARRAY_SIZE(n800_spi_board_info));

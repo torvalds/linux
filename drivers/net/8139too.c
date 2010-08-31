@@ -662,7 +662,7 @@ static const struct ethtool_ops rtl8139_ethtool_ops;
 /* read MMIO register */
 #define RTL_R8(reg)		ioread8 (ioaddr + (reg))
 #define RTL_R16(reg)		ioread16 (ioaddr + (reg))
-#define RTL_R32(reg)		((unsigned long) ioread32 (ioaddr + (reg)))
+#define RTL_R32(reg)		ioread32 (ioaddr + (reg))
 
 
 static const u16 rtl8139_intr_mask =
@@ -862,7 +862,7 @@ retry:
 	/* if unknown chip, assume array element #0, original RTL-8139 in this case */
 	i = 0;
 	dev_dbg(&pdev->dev, "unknown chip version, assuming RTL-8139\n");
-	dev_dbg(&pdev->dev, "TxConfig = 0x%lx\n", RTL_R32 (TxConfig));
+	dev_dbg(&pdev->dev, "TxConfig = 0x%x\n", RTL_R32 (TxConfig));
 	tp->chipset = 0;
 
 match:
@@ -1643,7 +1643,7 @@ static void rtl8139_tx_timeout_task (struct work_struct *work)
 	netdev_dbg(dev, "Tx queue start entry %ld  dirty entry %ld\n",
 		   tp->cur_tx, tp->dirty_tx);
 	for (i = 0; i < NUM_TX_DESC; i++)
-		netdev_dbg(dev, "Tx descriptor %d is %08lx%s\n",
+		netdev_dbg(dev, "Tx descriptor %d is %08x%s\n",
 			   i, RTL_R32(TxStatus0 + (i * 4)),
 			   i == tp->dirty_tx % NUM_TX_DESC ?
 			   " (queue head)" : "");
@@ -2487,7 +2487,7 @@ static void __set_rx_mode (struct net_device *dev)
 	int rx_mode;
 	u32 tmp;
 
-	netdev_dbg(dev, "rtl8139_set_rx_mode(%04x) done -- Rx config %08lx\n",
+	netdev_dbg(dev, "rtl8139_set_rx_mode(%04x) done -- Rx config %08x\n",
 		   dev->flags, RTL_R32(RxConfig));
 
 	/* Note: do not reorder, GCC is clever about common statements. */

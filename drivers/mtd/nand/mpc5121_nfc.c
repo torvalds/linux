@@ -647,7 +647,7 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 		iounmap(prv->csreg);
 }
 
-static int __devinit mpc5121_nfc_probe(struct of_device *op,
+static int __devinit mpc5121_nfc_probe(struct platform_device *op,
 					const struct of_device_id *match)
 {
 	struct device_node *rootnode, *dn = op->dev.of_node;
@@ -869,7 +869,7 @@ error:
 	return retval;
 }
 
-static int __devexit mpc5121_nfc_remove(struct of_device *op)
+static int __devexit mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);

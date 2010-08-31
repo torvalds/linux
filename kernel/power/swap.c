@@ -4,7 +4,7 @@
  * This file provides functions for reading the suspend image from
  * and writing it to a swap partition.
  *
- * Copyright (C) 1998,2001-2005 Pavel Machek <pavel@suse.cz>
+ * Copyright (C) 1998,2001-2005 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  *
  * This file is released under the GPLv2.
@@ -32,7 +32,7 @@
 /*
  *	The swap map is a data structure used for keeping track of each page
  *	written to a swap partition.  It consists of many swap_map_page
- *	structures that contain each an array of MAP_PAGE_SIZE swap entries.
+ *	structures that contain each an array of MAP_PAGE_ENTRIES swap entries.
  *	These structures are stored on the swap and linked together with the
  *	help of the .next_swap member.
  *
@@ -136,10 +136,10 @@ sector_t alloc_swapdev_block(int swap)
 {
 	unsigned long offset;
 
-	offset = swp_offset(get_swap_page_of_type(swap));
+	offset = swp_offset(get_swap_for_hibernation(swap));
 	if (offset) {
 		if (swsusp_extents_insert(offset))
-			swap_free(swp_entry(swap, offset));
+			swap_free_for_hibernation(swp_entry(swap, offset));
 		else
 			return swapdev_block(swap, offset);
 	}
@@ -148,7 +148,7 @@ sector_t alloc_swapdev_block(int swap)
 
 /**
  *	free_all_swap_pages - free swap pages allocated for saving image data.
- *	It also frees the extents used to register which swap entres had been
+ *	It also frees the extents used to register which swap entries had been
  *	allocated.
  */
 
@@ -163,7 +163,7 @@ void free_all_swap_pages(int swap)
 		ext = container_of(node, struct swsusp_extent, node);
 		rb_erase(node, &swsusp_extents);
 		for (offset = ext->start; offset <= ext->end; offset++)
-			swap_free(swp_entry(swap, offset));
+			swap_free_for_hibernation(swp_entry(swap, offset));
 
 		kfree(ext);
 	}

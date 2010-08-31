@@ -2001,27 +2001,26 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	if (++adapter->tx_timeo_cnt >= NX_MAX_TX_TIMEOUTS)
 		goto request_reset;
 
+	rtnl_lock();
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		/* try to scrub interrupt */
 		netxen_napi_disable(adapter);
-
-		adapter->netdev->trans_start = jiffies;
 
 		netxen_napi_enable(adapter);
 
 		netif_wake_queue(adapter->netdev);
 
 		clear_bit(__NX_RESETTING, &adapter->state);
-		return;
 	} else {
 		clear_bit(__NX_RESETTING, &adapter->state);
-		if (!netxen_nic_reset_context(adapter)) {
-			adapter->netdev->trans_start = jiffies;
-			return;
+		if (netxen_nic_reset_context(adapter)) {
+			rtnl_unlock();
+			goto request_reset;
 		}
-
-		/* context reset failed, fall through for fw reset */
 	}
+	adapter->netdev->trans_start = jiffies;
+	rtnl_unlock();
+	return;
 
 request_reset:
 	adapter->need_fw_reset = 1;
@@ -2032,8 +2031,6 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;
-
-	memset(stats, 0, sizeof(*stats));
 
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;
@@ -2134,9 +2131,16 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev)
 {
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
 	struct netxen_adapter *adapter = netdev_priv(netdev);
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
 	disable_irq(adapter->irq);
-	netxen_intr(adapter->irq, adapter);
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netxen_intr(adapter->irq, sds_ring);
+	}
 	enable_irq(adapter->irq);
 }
 #endif

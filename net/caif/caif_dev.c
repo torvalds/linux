@@ -255,7 +255,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 			pref = CFPHYPREF_HIGH_BW;
 			break;
 		}
-
+		dev_hold(dev);
 		cfcnfg_add_phy_layer(get_caif_conf(),
 				     phy_type,
 				     dev,
@@ -285,6 +285,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd->layer.up->ctrlcmd(caifd->layer.up,
 					 _CAIF_CTRLCMD_PHYIF_DOWN_IND,
 					 caifd->layer.id);
+		might_sleep();
 		res = wait_event_interruptible_timeout(caifd->event,
 					atomic_read(&caifd->in_use) == 0,
 					TIMEOUT);
@@ -300,6 +301,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 				   "Unregistering an active CAIF device: %s\n",
 				   __func__, dev->name);
 		cfcnfg_del_phy_layer(get_caif_conf(), &caifd->layer);
+		dev_put(dev);
 		atomic_set(&caifd->state, what);
 		break;
 
@@ -326,7 +328,8 @@ struct cfcnfg *get_caif_conf(void)
 EXPORT_SYMBOL(get_caif_conf);
 
 int caif_connect_client(struct caif_connect_request *conn_req,
-			   struct cflayer *client_layer)
+			struct cflayer *client_layer, int *ifindex,
+			int *headroom, int *tailroom)
 {
 	struct cfctrl_link_param param;
 	int ret;
@@ -334,8 +337,9 @@ int caif_connect_client(struct caif_connect_request *conn_req,
 	if (ret)
 		return ret;
 	/* Hook up the adaptation layer. */
-	return cfcnfg_add_adaptation_layer(get_caif_conf(),
-						&param, client_layer);
+	return cfcnfg_add_adaptation_layer(get_caif_conf(), &param,
+					client_layer, ifindex,
+					headroom, tailroom);
 }
 EXPORT_SYMBOL(caif_connect_client);
 

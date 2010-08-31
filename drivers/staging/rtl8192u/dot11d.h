@@ -2,7 +2,7 @@
 #define __INC_DOT11D_H
 
 #ifdef ENABLE_DOT11D
-#include "ieee80211.h"
+#include "ieee80211/ieee80211.h"
 
 
 typedef struct _CHNL_TXPOWER_TRIPLE {

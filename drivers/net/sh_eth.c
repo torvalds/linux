@@ -88,6 +88,55 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.rpadir		= 1,
 	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
 };
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
+#define SH_ETH_RESET_DEFAULT	1
+static void sh_eth_set_duplex(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ioaddr = ndev->base_addr;
+
+	if (mdp->duplex) /* Full */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) | ECMR_DM, ioaddr + ECMR);
+	else		/* Half */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) & ~ECMR_DM, ioaddr + ECMR);
+}
+
+static void sh_eth_set_rate(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ioaddr = ndev->base_addr;
+
+	switch (mdp->speed) {
+	case 10: /* 10BASE */
+		ctrl_outl(0, ioaddr + RTRATE);
+		break;
+	case 100:/* 100BASE */
+		ctrl_outl(1, ioaddr + RTRATE);
+		break;
+	default:
+		break;
+	}
+}
+
+/* SH7757 */
+static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+	.set_duplex		= sh_eth_set_duplex,
+	.set_rate		= sh_eth_set_rate,
+
+	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
+	.rmcr_value	= 0x00000001,
+
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RDE |
+			  EESR_RFRMER | EESR_TFE | EESR_TDE | EESR_ECI,
+	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.hw_swap	= 1,
+	.no_ade		= 1,
+};
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 #define SH_ETH_HAS_TSU	1
@@ -1023,7 +1072,9 @@ static int sh_eth_open(struct net_device *ndev)
 	pm_runtime_get_sync(&mdp->pdev->dev);
 
 	ret = request_irq(ndev->irq, sh_eth_interrupt,
-#if defined(CONFIG_CPU_SUBTYPE_SH7763) || defined(CONFIG_CPU_SUBTYPE_SH7764)
+#if defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7764) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7757)
 				IRQF_SHARED,
 #else
 				0,
@@ -1233,7 +1284,7 @@ static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq,
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
 #if defined(SH_ETH_HAS_TSU)
@@ -1325,7 +1376,7 @@ static int sh_mdio_init(struct net_device *ndev, int id)
 	bitbang->mdc_msk = 0x01;
 	bitbang->ctrl.ops = &bb_ops;
 
-	/* MII contorller setting */
+	/* MII controller setting */
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus) {
 		ret = -ENOMEM;
@@ -1386,7 +1437,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 
 static int sh_eth_drv_probe(struct platform_device *pdev)
 {
-	int ret, i, devno = 0;
+	int ret, devno = 0;
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp;

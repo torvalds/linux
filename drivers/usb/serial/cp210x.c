@@ -126,6 +126,10 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1843, 0x0200) }, /* Vaisala USB Instrument Cable */
 	{ USB_DEVICE(0x18EF, 0xE00F) }, /* ELV USB-I2C-Interface */
 	{ USB_DEVICE(0x413C, 0x9500) }, /* DW700 GPS USB interface */
+	{ USB_DEVICE(0x16DC, 0x0010) }, /* W-IE-NE-R Plein & Baus GmbH PL512 Power Supply */
+	{ USB_DEVICE(0x16DC, 0x0011) }, /* W-IE-NE-R Plein & Baus GmbH RCM Remote Control for MARATON Power Supply */
+	{ USB_DEVICE(0x16DC, 0x0012) }, /* W-IE-NE-R Plein & Baus GmbH MPOD Multi Channel Power Supply */
+	{ USB_DEVICE(0x16DC, 0x0015) }, /* W-IE-NE-R Plein & Baus GmbH CML Control, Monitoring and Data Logger */
 	{ } /* Terminating Entry */
 };
 
@@ -218,8 +222,8 @@ static struct usb_serial_driver cp210x_device = {
 #define BITS_STOP_2		0x0002
 
 /* CP210X_SET_BREAK */
-#define BREAK_ON		0x0000
-#define BREAK_OFF		0x0001
+#define BREAK_ON		0x0001
+#define BREAK_OFF		0x0000
 
 /* CP210X_(SET_MHS|GET_MDMSTS) */
 #define CONTROL_DTR		0x0001

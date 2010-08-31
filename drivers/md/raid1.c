@@ -787,8 +787,8 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
-	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
-	bool do_barriers;
+	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
+	unsigned long do_barriers;
 	mdk_rdev_t *blocked_rdev;
 
 	/*
@@ -822,7 +822,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		finish_wait(&conf->wait_barrier, &w);
 	}
 	if (unlikely(!mddev->barriers_work &&
-		     bio_rw_flagged(bio, BIO_RW_BARRIER))) {
+		     (bio->bi_rw & REQ_HARDBARRIER))) {
 		if (rw == WRITE)
 			md_write_end(mddev);
 		bio_endio(bio, -EOPNOTSUPP);
@@ -877,7 +877,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		read_bio->bi_sector = r1_bio->sector + mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid1_end_read_request;
-		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
+		read_bio->bi_rw = READ | do_sync;
 		read_bio->bi_private = r1_bio;
 
 		generic_make_request(read_bio);
@@ -959,7 +959,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	atomic_set(&r1_bio->remaining, 0);
 	atomic_set(&r1_bio->behind_remaining, 0);
 
-	do_barriers = bio_rw_flagged(bio, BIO_RW_BARRIER);
+	do_barriers = bio->bi_rw & REQ_HARDBARRIER;
 	if (do_barriers)
 		set_bit(R1BIO_Barrier, &r1_bio->state);
 
@@ -975,8 +975,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		mbio->bi_sector	= r1_bio->sector + conf->mirrors[i].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_rw = WRITE | (do_barriers << BIO_RW_BARRIER) |
-			(do_sync << BIO_RW_SYNCIO);
+		mbio->bi_rw = WRITE | do_barriers | do_sync;
 		mbio->bi_private = r1_bio;
 
 		if (behind_pages) {
@@ -1121,6 +1120,8 @@ static int raid1_spare_active(mddev_t *mddev)
 {
 	int i;
 	conf_t *conf = mddev->private;
+	int count = 0;
+	unsigned long flags;
 
 	/*
 	 * Find all failed disks within the RAID1 configuration 
@@ -1132,15 +1133,16 @@ static int raid1_spare_active(mddev_t *mddev)
 		if (rdev
 		    && !test_bit(Faulty, &rdev->flags)
 		    && !test_and_set_bit(In_sync, &rdev->flags)) {
-			unsigned long flags;
-			spin_lock_irqsave(&conf->device_lock, flags);
-			mddev->degraded--;
-			spin_unlock_irqrestore(&conf->device_lock, flags);
+			count++;
+			sysfs_notify_dirent(rdev->sysfs_state);
 		}
 	}
+	spin_lock_irqsave(&conf->device_lock, flags);
+	mddev->degraded -= count;
+	spin_unlock_irqrestore(&conf->device_lock, flags);
 
 	print_conf(conf);
-	return 0;
+	return count;
 }
 
 
@@ -1633,7 +1635,7 @@ static void raid1d(mddev_t *mddev)
 			sync_request_write(mddev, r1_bio);
 			unplug = 1;
 		} else if (test_bit(R1BIO_BarrierRetry, &r1_bio->state)) {
-			/* some requests in the r1bio were BIO_RW_BARRIER
+			/* some requests in the r1bio were REQ_HARDBARRIER
 			 * requests which failed with -EOPNOTSUPP.  Hohumm..
 			 * Better resubmit without the barrier.
 			 * We know which devices to resubmit for, because
@@ -1641,7 +1643,7 @@ static void raid1d(mddev_t *mddev)
 			 * We already have a nr_pending reference on these rdevs.
 			 */
 			int i;
-			const bool do_sync = bio_rw_flagged(r1_bio->master_bio, BIO_RW_SYNCIO);
+			const unsigned long do_sync = (r1_bio->master_bio->bi_rw & REQ_SYNC);
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
 			clear_bit(R1BIO_Barrier, &r1_bio->state);
 			for (i=0; i < conf->raid_disks; i++)
@@ -1662,8 +1664,7 @@ static void raid1d(mddev_t *mddev)
 						conf->mirrors[i].rdev->data_offset;
 					bio->bi_bdev = conf->mirrors[i].rdev->bdev;
 					bio->bi_end_io = raid1_end_write_request;
-					bio->bi_rw = WRITE |
-						(do_sync << BIO_RW_SYNCIO);
+					bio->bi_rw = WRITE | do_sync;
 					bio->bi_private = r1_bio;
 					r1_bio->bios[i] = bio;
 					generic_make_request(bio);
@@ -1698,7 +1699,7 @@ static void raid1d(mddev_t *mddev)
 				       (unsigned long long)r1_bio->sector);
 				raid_end_bio_io(r1_bio);
 			} else {
-				const bool do_sync = bio_rw_flagged(r1_bio->master_bio, BIO_RW_SYNCIO);
+				const unsigned long do_sync = r1_bio->master_bio->bi_rw & REQ_SYNC;
 				r1_bio->bios[r1_bio->read_disk] =
 					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;
@@ -1715,7 +1716,7 @@ static void raid1d(mddev_t *mddev)
 				bio->bi_sector = r1_bio->sector + rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
 				bio->bi_end_io = raid1_end_read_request;
-				bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
+				bio->bi_rw = READ | do_sync;
 				bio->bi_private = r1_bio;
 				unplug = 1;
 				generic_make_request(bio);

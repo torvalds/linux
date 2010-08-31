@@ -62,7 +62,9 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 		if (tty->driver == ptm_driver)
 			devpts_pty_kill(tty->link);
 #endif
+		tty_unlock();
 		tty_vhangup(tty->link);
+		tty_lock();
 	}
 }
 
@@ -168,6 +170,23 @@ static int pty_set_lock(struct tty_struct *tty, int __user *arg)
 		set_bit(TTY_PTY_LOCK, &tty->flags);
 	else
 		clear_bit(TTY_PTY_LOCK, &tty->flags);
+	return 0;
+}
+
+/* Send a signal to the slave */
+static int pty_signal(struct tty_struct *tty, int sig)
+{
+	unsigned long flags;
+	struct pid *pgrp;
+
+	if (tty->link) {
+		spin_lock_irqsave(&tty->link->ctrl_lock, flags);
+		pgrp = get_pid(tty->link->pgrp);
+		spin_unlock_irqrestore(&tty->link->ctrl_lock, flags);
+
+		kill_pgrp(pgrp, sig, 1);
+		put_pid(pgrp);
+	}
 	return 0;
 }
 
@@ -321,6 +340,8 @@ static int pty_bsd_ioctl(struct tty_struct *tty, struct file *file,
 	switch (cmd) {
 	case TIOCSPTLCK: /* Set PT Lock (disallow slave open) */
 		return pty_set_lock(tty, (int __user *) arg);
+	case TIOCSIG:    /* Send signal to other side of pty */
+		return pty_signal(tty, (int) arg);
 	}
 	return -ENOIOCTLCMD;
 }
@@ -476,6 +497,8 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 		return pty_set_lock(tty, (int __user *)arg);
 	case TIOCGPTN: /* Get PT Number */
 		return put_user(tty->index, (unsigned int __user *)arg);
+	case TIOCSIG:    /* Send signal to other side of pty */
+		return pty_signal(tty, (int) arg);
 	}
 
 	return -ENOIOCTLCMD;
@@ -626,7 +649,7 @@ static const struct tty_operations pty_unix98_ops = {
  *		allocated_ptys_lock handles the list of free pty numbers
  */
 
-static int __ptmx_open(struct inode *inode, struct file *filp)
+static int ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
 	int retval;
@@ -635,11 +658,14 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 	nonseekable_open(inode, filp);
 
 	/* find a device that is not in use. */
+	tty_lock();
 	index = devpts_new_index(inode);
+	tty_unlock();
 	if (index < 0)
 		return index;
 
 	mutex_lock(&tty_mutex);
+	tty_lock();
 	tty = tty_init_dev(ptm_driver, index, 1);
 	mutex_unlock(&tty_mutex);
 
@@ -649,32 +675,27 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 	}
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
-	filp->private_data = tty;
-	file_move(filp, &tty->tty_files);
+
+	tty_add_file(tty, filp);
 
 	retval = devpts_pty_new(inode, tty->link);
 	if (retval)
 		goto out1;
 
 	retval = ptm_driver->ops->open(tty, filp);
-	if (!retval)
-		return 0;
+	if (retval)
+		goto out2;
 out1:
+	tty_unlock();
+	return retval;
+out2:
+	tty_unlock();
 	tty_release(inode, filp);
 	return retval;
 out:
 	devpts_kill_index(inode, index);
+	tty_unlock();
 	return retval;
-}
-
-static int ptmx_open(struct inode *inode, struct file *filp)
-{
-	int ret;
-
-	lock_kernel();
-	ret = __ptmx_open(inode, filp);
-	unlock_kernel();
-	return ret;
 }
 
 static struct file_operations ptmx_fops;

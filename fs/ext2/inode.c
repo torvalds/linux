@@ -69,26 +69,42 @@ static void ext2_write_failed(struct address_space *mapping, loff_t to)
 /*
  * Called at the last iput() if i_nlink is zero.
  */
-void ext2_delete_inode (struct inode * inode)
+void ext2_evict_inode(struct inode * inode)
 {
-	if (!is_bad_inode(inode))
+	struct ext2_block_alloc_info *rsv;
+	int want_delete = 0;
+
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
+		want_delete = 1;
 		dquot_initialize(inode);
+	} else {
+		dquot_drop(inode);
+	}
+
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (is_bad_inode(inode))
-		goto no_delete;
-	EXT2_I(inode)->i_dtime	= get_seconds();
-	mark_inode_dirty(inode);
-	__ext2_write_inode(inode, inode_needs_sync(inode));
+	if (want_delete) {
+		/* set dtime */
+		EXT2_I(inode)->i_dtime	= get_seconds();
+		mark_inode_dirty(inode);
+		__ext2_write_inode(inode, inode_needs_sync(inode));
+		/* truncate to 0 */
+		inode->i_size = 0;
+		if (inode->i_blocks)
+			ext2_truncate_blocks(inode, 0);
+	}
 
-	inode->i_size = 0;
-	if (inode->i_blocks)
-		ext2_truncate_blocks(inode, 0);
-	ext2_free_inode (inode);
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
 
-	return;
-no_delete:
-	clear_inode(inode);	/* We must guarantee clearing of inode... */
+	ext2_discard_reservation(inode);
+	rsv = EXT2_I(inode)->i_block_alloc_info;
+	EXT2_I(inode)->i_block_alloc_info = NULL;
+	if (unlikely(rsv))
+		kfree(rsv);
+
+	if (want_delete)
+		ext2_free_inode(inode);
 }
 
 typedef struct {
@@ -423,6 +439,8 @@ static int ext2_alloc_blocks(struct inode *inode,
 failed_out:
 	for (i = 0; i <index; i++)
 		ext2_free_blocks(inode, new_blocks[i], 1);
+	if (index)
+		mark_inode_dirty(inode);
 	return ret;
 }
 
@@ -765,14 +783,6 @@ ext2_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, ext2_get_block);
 }
 
-int __ext2_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags,
-		struct page **pagep, void **fsdata)
-{
-	return block_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, ext2_get_block);
-}
-
 static int
 ext2_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
@@ -780,8 +790,8 @@ ext2_write_begin(struct file *file, struct address_space *mapping,
 {
 	int ret;
 
-	*pagep = NULL;
-	ret = __ext2_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+	ret = block_write_begin(mapping, pos, len, flags, pagep,
+				ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
 	return ret;
@@ -806,13 +816,8 @@ ext2_nobh_write_begin(struct file *file, struct address_space *mapping,
 {
 	int ret;
 
-	/*
-	 * Dir-in-pagecache still uses ext2_write_begin. Would have to rework
-	 * directory handling code to pass around offsets rather than struct
-	 * pages in order to make this work easily.
-	 */
-	ret = nobh_write_begin_newtrunc(file, mapping, pos, len, flags, pagep,
-						fsdata, ext2_get_block);
+	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
+			       ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
 	return ret;
@@ -838,7 +843,7 @@ ext2_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct inode *inode = mapping->host;
 	ssize_t ret;
 
-	ret = blockdev_direct_IO_newtrunc(rw, iocb, inode, inode->i_sb->s_bdev,
+	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
 				iov, offset, nr_segs, ext2_get_block, NULL);
 	if (ret < 0 && (rw & WRITE))
 		ext2_write_failed(mapping, offset + iov_length(iov, nr_segs));
@@ -1006,8 +1011,8 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 			else if (block_to_free == nr - count)
 				count++;
 			else {
-				mark_inode_dirty(inode);
 				ext2_free_blocks (inode, block_to_free, count);
+				mark_inode_dirty(inode);
 			free_this:
 				block_to_free = nr;
 				count = 1;
@@ -1015,8 +1020,8 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 		}
 	}
 	if (count > 0) {
-		mark_inode_dirty(inode);
 		ext2_free_blocks (inode, block_to_free, count);
+		mark_inode_dirty(inode);
 	}
 }
 
@@ -1169,14 +1174,9 @@ static void ext2_truncate_blocks(struct inode *inode, loff_t offset)
 	__ext2_truncate_blocks(inode, offset);
 }
 
-int ext2_setsize(struct inode *inode, loff_t newsize)
+static int ext2_setsize(struct inode *inode, loff_t newsize)
 {
-	loff_t oldsize;
 	int error;
-
-	error = inode_newsize_ok(inode, newsize);
-	if (error)
-		return error;
 
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	    S_ISLNK(inode->i_mode)))
@@ -1197,10 +1197,7 @@ int ext2_setsize(struct inode *inode, loff_t newsize)
 	if (error)
 		return error;
 
-	oldsize = inode->i_size;
-	i_size_write(inode, newsize);
-	truncate_pagecache(inode, oldsize, newsize);
-
+	truncate_setsize(inode, newsize);
 	__ext2_truncate_blocks(inode, newsize);
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
@@ -1557,7 +1554,7 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 		if (error)
 			return error;
 	}
-	generic_setattr(inode, iattr);
+	setattr_copy(inode, iattr);
 	if (iattr->ia_valid & ATTR_MODE)
 		error = ext2_acl_chmod(inode);
 	mark_inode_dirty(inode);

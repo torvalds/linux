@@ -224,6 +224,27 @@ enum {
 /* Input converter SDI select */
 #define AC_SDI_SELECT			(0xf<<0)
 
+/* stream format id */
+#define AC_FMT_CHAN_SHIFT		0
+#define AC_FMT_CHAN_MASK		(0x0f << 0)
+#define AC_FMT_BITS_SHIFT		4
+#define AC_FMT_BITS_MASK		(7 << 4)
+#define AC_FMT_BITS_8			(0 << 4)
+#define AC_FMT_BITS_16			(1 << 4)
+#define AC_FMT_BITS_20			(2 << 4)
+#define AC_FMT_BITS_24			(3 << 4)
+#define AC_FMT_BITS_32			(4 << 4)
+#define AC_FMT_DIV_SHIFT		8
+#define AC_FMT_DIV_MASK			(7 << 8)
+#define AC_FMT_MULT_SHIFT		11
+#define AC_FMT_MULT_MASK		(7 << 11)
+#define AC_FMT_BASE_SHIFT		14
+#define AC_FMT_BASE_48K			(0 << 14)
+#define AC_FMT_BASE_44K			(1 << 14)
+#define AC_FMT_TYPE_SHIFT		15
+#define AC_FMT_TYPE_PCM			(0 << 15)
+#define AC_FMT_TYPE_NON_PCM		(1 << 15)
+
 /* Unsolicited response control */
 #define AC_UNSOL_TAG			(0x3f<<0)
 #define AC_UNSOL_ENABLED		(1<<7)
@@ -364,6 +385,9 @@ enum {
 #define AC_DIG2_CC			(0x7f<<0)
 
 /* Pin widget control - 8bit */
+#define AC_PINCTL_EPT			(0x3<<0)
+#define AC_PINCTL_EPT_NATIVE		0
+#define AC_PINCTL_EPT_HBR		3
 #define AC_PINCTL_VREFEN		(0x7<<0)
 #define AC_PINCTL_VREF_HIZ		0	/* Hi-Z */
 #define AC_PINCTL_VREF_50		1	/* 50% */
@@ -624,6 +648,7 @@ struct hda_bus {
 	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1];
 
 	struct mutex cmd_mutex;
+	struct mutex prepare_mutex;
 
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited *unsol;
@@ -760,7 +785,10 @@ struct hda_codec {
 	hda_nid_t mfg;	/* MFG node id */
 
 	/* ids */
-	u32 function_id;
+	u8 afg_function_id;
+	u8 mfg_function_id;
+	u8 afg_unsol;
+	u8 mfg_unsol;
 	u32 vendor_id;
 	u32 subsystem_id;
 	u32 revision_id;
@@ -805,6 +833,7 @@ struct hda_codec {
 	hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
 	struct snd_array init_pins;	/* initial (BIOS) pin configurations */
 	struct snd_array driver_pins;	/* pin configs set by codec parser */
+	struct snd_array cvt_setups;	/* audio convert setups */
 
 #ifdef CONFIG_SND_HDA_HWDEP
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
@@ -921,14 +950,28 @@ int snd_hda_codec_build_controls(struct hda_codec *codec);
  */
 int snd_hda_build_pcms(struct hda_bus *bus);
 int snd_hda_codec_build_pcms(struct hda_codec *codec);
+
+int snd_hda_codec_prepare(struct hda_codec *codec,
+			  struct hda_pcm_stream *hinfo,
+			  unsigned int stream,
+			  unsigned int format,
+			  struct snd_pcm_substream *substream);
+void snd_hda_codec_cleanup(struct hda_codec *codec,
+			   struct hda_pcm_stream *hinfo,
+			   struct snd_pcm_substream *substream);
+
 void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format);
-void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid);
+void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
+				    int do_now);
+#define snd_hda_codec_cleanup_stream(codec, nid) \
+	__snd_hda_codec_cleanup_stream(codec, nid, 0)
 unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned int channels,
 					unsigned int format,
-					unsigned int maxbps);
+					unsigned int maxbps,
+					unsigned short spdif_ctls);
 int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int format);
 

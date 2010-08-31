@@ -34,6 +34,8 @@
 #include "nouveau_hw.h"
 #include "nvreg.h"
 
+#include "i2c/sil164.h"
+
 #define FP_TG_CONTROL_ON  (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |	\
 			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS |		\
 			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_POS)
@@ -142,6 +144,36 @@ void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
 			}
 		}
 	}
+}
+
+static struct drm_encoder *get_tmds_slave(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct drm_encoder *slave;
+
+	if (dcb->type != OUTPUT_TMDS || dcb->location == DCB_LOC_ON_CHIP)
+		return NULL;
+
+	/* Some BIOSes (e.g. the one in a Quadro FX1000) report several
+	 * TMDS transmitters at the same I2C address, in the same I2C
+	 * bus. This can still work because in that case one of them is
+	 * always hard-wired to a reasonable configuration using straps,
+	 * and the other one needs to be programmed.
+	 *
+	 * I don't think there's a way to know which is which, even the
+	 * blob programs the one exposed via I2C for *both* heads, so
+	 * let's do the same.
+	 */
+	list_for_each_entry(slave, &dev->mode_config.encoder_list, head) {
+		struct dcb_entry *slave_dcb = nouveau_encoder(slave)->dcb;
+
+		if (slave_dcb->type == OUTPUT_TMDS && get_slave_funcs(slave) &&
+		    slave_dcb->tmdsconf.slave_addr == dcb->tmdsconf.slave_addr)
+			return slave;
+	}
+
+	return NULL;
 }
 
 static bool nv04_dfp_mode_fixup(struct drm_encoder *encoder,
@@ -412,10 +444,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct dcb_entry *dcbe = nv_encoder->dcb;
 	int head = nouveau_crtc(encoder->crtc)->index;
-
-	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
-		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
-		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+	struct drm_encoder *slave_encoder;
 
 	if (dcbe->type == OUTPUT_TMDS)
 		run_tmds_table(dev, dcbe, head, nv_encoder->mode.clock);
@@ -433,11 +462,38 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	else
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
 
+	/* Init external transmitters */
+	slave_encoder = get_tmds_slave(encoder);
+	if (slave_encoder)
+		get_slave_funcs(slave_encoder)->mode_set(
+			slave_encoder, &nv_encoder->mode, &nv_encoder->mode);
+
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
 		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+}
+
+static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = encoder->dev;
+
+	/* BIOS scripts usually take care of the backlight, thanks
+	 * Apple for your consistency.
+	 */
+	if (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	    dev->pci_device == 0x0329) {
+		if (mode == DRM_MODE_DPMS_ON) {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 0, 1 << 31);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 1);
+		} else {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 0);
+		}
+	}
+#endif
 }
 
 static inline bool is_powersaving_dpms(int mode)
@@ -487,6 +543,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 					 LVDS_PANEL_OFF, 0);
 	}
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 
 	if (mode == DRM_MODE_DPMS_ON)
@@ -510,6 +567,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 	NV_INFO(dev, "Setting dpms mode %d on tmds encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 }
 
@@ -554,8 +612,40 @@ static void nv04_dfp_destroy(struct drm_encoder *encoder)
 
 	NV_DEBUG_KMS(encoder->dev, "\n");
 
+	if (get_slave_funcs(encoder))
+		get_slave_funcs(encoder)->destroy(encoder);
+
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);
+}
+
+static void nv04_tmds_slave_init(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, 2);
+	struct i2c_board_info info[] = {
+		{
+			.type = "sil164",
+			.addr = (dcb->tmdsconf.slave_addr == 0x7 ? 0x3a : 0x38),
+			.platform_data = &(struct sil164_encoder_params) {
+				SIL164_INPUT_EDGE_RISING
+			}
+		},
+		{ }
+	};
+	int type;
+
+	if (!nv_gf4_disp_arch(dev) || !i2c ||
+	    get_tmds_slave(encoder))
+		return;
+
+	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, 2);
+	if (type < 0)
+		return;
+
+	drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
+			     &i2c->adapter, &info[type]);
 }
 
 static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {
@@ -584,11 +674,12 @@ static const struct drm_encoder_funcs nv04_dfp_funcs = {
 	.destroy = nv04_dfp_destroy,
 };
 
-int nv04_dfp_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv04_dfp_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder = NULL;
+	struct drm_encoder *encoder;
 	int type;
 
 	switch (entry->type) {
@@ -613,11 +704,16 @@ int nv04_dfp_create(struct drm_device *dev, struct dcb_entry *entry)
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
 
-	drm_encoder_init(dev, encoder, &nv04_dfp_funcs, type);
+	drm_encoder_init(connector->dev, encoder, &nv04_dfp_funcs, type);
 	drm_encoder_helper_add(encoder, helper);
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
+	if (entry->type == OUTPUT_TMDS &&
+	    entry->location != DCB_LOC_ON_CHIP)
+		nv04_tmds_slave_init(encoder);
+
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }

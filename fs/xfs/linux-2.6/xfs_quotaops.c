@@ -68,15 +68,15 @@ xfs_fs_set_xstate(
 	if (op != Q_XQUOTARM && !XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
 
-	if (uflags & XFS_QUOTA_UDQ_ACCT)
+	if (uflags & FS_QUOTA_UDQ_ACCT)
 		flags |= XFS_UQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_PDQ_ACCT)
+	if (uflags & FS_QUOTA_PDQ_ACCT)
 		flags |= XFS_PQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_GDQ_ACCT)
+	if (uflags & FS_QUOTA_GDQ_ACCT)
 		flags |= XFS_GQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_UDQ_ENFD)
+	if (uflags & FS_QUOTA_UDQ_ENFD)
 		flags |= XFS_UQUOTA_ENFD;
-	if (uflags & (XFS_QUOTA_PDQ_ENFD|XFS_QUOTA_GDQ_ENFD))
+	if (uflags & (FS_QUOTA_PDQ_ENFD|FS_QUOTA_GDQ_ENFD))
 		flags |= XFS_OQUOTA_ENFD;
 
 	switch (op) {

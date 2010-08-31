@@ -33,12 +33,13 @@
 #define AR_TxDescId_S	16
 #define AR_TxPtrChkSum	0x0000ffff
 
-#define AR_TxTid	0xf0000000
-#define AR_TxTid_S	28
-
 #define AR_LowRxChain	0x00004000
 
 #define AR_Not_Sounding	0x20000000
+
+/* ctl 12 */
+#define AR_PAPRDChainMask	0x00000e00
+#define AR_PAPRDChainMask_S	9
 
 #define MAP_ISR_S2_CST          6
 #define MAP_ISR_S2_GTT          6
@@ -47,6 +48,7 @@
 #define MAP_ISR_S2_DTIMSYNC     7
 #define MAP_ISR_S2_DTIM         7
 #define MAP_ISR_S2_TSFOOR       4
+#define MAP_ISR_S2_BB_WATCHDOG  6
 
 #define AR9003TXC_CONST(_ds) ((const struct ar9003_txc *) _ds)
 

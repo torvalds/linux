@@ -597,13 +597,13 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 				if (compare_oid(oid, oidlen, MSKRB5_OID,
 						MSKRB5_OID_LEN))
 					server->sec_mskerberos = true;
-				else if (compare_oid(oid, oidlen, KRB5U2U_OID,
+				if (compare_oid(oid, oidlen, KRB5U2U_OID,
 						     KRB5U2U_OID_LEN))
 					server->sec_kerberosu2u = true;
-				else if (compare_oid(oid, oidlen, KRB5_OID,
+				if (compare_oid(oid, oidlen, KRB5_OID,
 						     KRB5_OID_LEN))
 					server->sec_kerberos = true;
-				else if (compare_oid(oid, oidlen, NTLMSSP_OID,
+				if (compare_oid(oid, oidlen, NTLMSSP_OID,
 						     NTLMSSP_OID_LEN))
 					server->sec_ntlmssp = true;
 

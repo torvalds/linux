@@ -40,6 +40,7 @@
 
 static unsigned int		mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
+EXPORT_SYMBOL_GPL(xstate_size);
 unsigned int sig_xstate_ia32_size = sizeof(struct _fpstate_ia32);
 static struct i387_fxsave_struct fx_scratch __cpuinitdata;
 
@@ -59,15 +60,15 @@ void __cpuinit mxcsr_feature_mask_init(void)
 	stts();
 }
 
-void __cpuinit init_thread_xstate(void)
+static void __cpuinit init_thread_xstate(void)
 {
+	/*
+	 * Note that xstate_size might be overwriten later during
+	 * xsave_init().
+	 */
+
 	if (!HAVE_HWFP) {
 		xstate_size = sizeof(struct i387_soft_struct);
-		return;
-	}
-
-	if (cpu_has_xsave) {
-		xsave_cntxt_init();
 		return;
 	}
 
@@ -84,6 +85,7 @@ void __cpuinit init_thread_xstate(void)
  * Called at bootup to set up the initial FPU state that is later cloned
  * into all processes.
  */
+
 void __cpuinit fpu_init(void)
 {
 	unsigned long oldcr0 = read_cr0();
@@ -93,21 +95,26 @@ void __cpuinit fpu_init(void)
 
 	write_cr0(oldcr0 & ~(X86_CR0_TS|X86_CR0_EM)); /* clear TS and EM */
 
-	/*
-	 * Boot processor to setup the FP and extended state context info.
-	 */
 	if (!smp_processor_id())
 		init_thread_xstate();
-	xsave_init();
 
 	mxcsr_feature_mask_init();
 	/* clean state in init */
 	current_thread_info()->status = 0;
 	clear_used_math();
 }
-#endif	/* CONFIG_X86_64 */
 
-static void fpu_finit(struct fpu *fpu)
+#else	/* CONFIG_X86_64 */
+
+void __cpuinit fpu_init(void)
+{
+	if (!smp_processor_id())
+		init_thread_xstate();
+}
+
+#endif	/* CONFIG_X86_32 */
+
+void fpu_finit(struct fpu *fpu)
 {
 #ifdef CONFIG_X86_32
 	if (!HAVE_HWFP) {
@@ -132,6 +139,7 @@ static void fpu_finit(struct fpu *fpu)
 		fp->fos = 0xffff0000u;
 	}
 }
+EXPORT_SYMBOL_GPL(fpu_finit);
 
 /*
  * The _current_ task is using the FPU for the first time
@@ -190,6 +198,8 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
+	sanitize_i387_state(target);
+
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.fpu.state->fxsave, 0, -1);
 }
@@ -206,6 +216,8 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	sanitize_i387_state(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &target->thread.fpu.state->fxsave, 0, -1);
@@ -446,6 +458,8 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 					   -1);
 	}
 
+	sanitize_i387_state(target);
+
 	if (kbuf && pos == 0 && count == sizeof(env)) {
 		convert_from_fxsr(kbuf, target);
 		return 0;
@@ -466,6 +480,8 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	sanitize_i387_state(target);
 
 	if (!HAVE_HWFP)
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
@@ -532,6 +548,9 @@ static int save_i387_xsave(void __user *buf)
 	struct task_struct *tsk = current;
 	struct _fpstate_ia32 __user *fx = buf;
 	int err = 0;
+
+
+	sanitize_i387_state(tsk);
 
 	/*
 	 * For legacy compatible, we always set FP/SSE bits in the bit

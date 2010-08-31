@@ -874,6 +874,13 @@ struct conf_conn_settings {
 	u8 ps_poll_threshold;
 
 	/*
+	 * PS Poll failure recovery ACTIVE period length
+	 *
+	 * Range: u32 (ms)
+	 */
+	u32 ps_poll_recovery_period;
+
+	/*
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;
@@ -948,14 +955,6 @@ struct conf_radio_parms {
 	u8 fem;
 };
 
-struct conf_init_settings {
-	/*
-	 * Configure radio parameters.
-	 */
-	struct conf_radio_parms radioparam;
-
-};
-
 struct conf_itrim_settings {
 	/* enable dco itrim */
 	u8 enable;
@@ -1022,7 +1021,6 @@ struct conf_drv_settings {
 	struct conf_rx_settings rx;
 	struct conf_tx_settings tx;
 	struct conf_conn_settings conn;
-	struct conf_init_settings init;
 	struct conf_itrim_settings itrim;
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;

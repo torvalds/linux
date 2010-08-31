@@ -29,6 +29,10 @@
 #include "vis.h"
 #include "aggregation.h"
 
+#include <linux/netfilter_bridge.h>
+
+static void send_outstanding_bcast_packet(struct work_struct *work);
+
 /* apply hop penalty for a normal link */
 static uint8_t hop_penalty(const uint8_t tq)
 {
@@ -38,15 +42,15 @@ static uint8_t hop_penalty(const uint8_t tq)
 /* when do we schedule our own packet to be sent */
 static unsigned long own_send_time(struct bat_priv *bat_priv)
 {
-	return jiffies +
-		(((atomic_read(&bat_priv->orig_interval) - JITTER +
-		   (random32() % 2*JITTER)) * HZ) / 1000);
+	return jiffies + msecs_to_jiffies(
+		   atomic_read(&bat_priv->orig_interval) -
+		   JITTER + (random32() % 2*JITTER));
 }
 
 /* when do we schedule a forwarded packet to be sent */
 static unsigned long forward_send_time(struct bat_priv *bat_priv)
 {
-	return jiffies + (((random32() % (JITTER/2)) * HZ) / 1000);
+	return jiffies + msecs_to_jiffies(random32() % (JITTER/2));
 }
 
 /* send out an already prepared packet to the given address via the
@@ -64,10 +68,8 @@ int send_skb_packet(struct sk_buff *skb,
 		goto send_skb_err;
 
 	if (!(batman_if->net_dev->flags & IFF_UP)) {
-		printk(KERN_WARNING
-		       "batman-adv:Interface %s "
-		       "is not up - can't send packet via that interface!\n",
-		       batman_if->dev);
+		pr_warning("Interface %s is not up - can't send packet via "
+			   "that interface!\n", batman_if->dev);
 		goto send_skb_err;
 	}
 
@@ -90,9 +92,12 @@ int send_skb_packet(struct sk_buff *skb,
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
-	 * (which is > 0). This will not be treated as an error. */
+	 * (which is > 0). This will not be treated as an error.
+	 * Also, if netfilter/ebtables wants to block outgoing batman
+	 * packets then giving them a chance to do so here */
 
-	return dev_queue_xmit(skb);
+	return NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
+		       dev_queue_xmit);
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
@@ -119,6 +124,8 @@ void send_raw_packet(unsigned char *pack_buff, int pack_buff_len,
 static void send_packet_to_if(struct forw_packet *forw_packet,
 			      struct batman_if *batman_if)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	char *fwd_str;
 	uint8_t packet_num;
 	int16_t buff_pos;
@@ -148,11 +155,11 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
 							    "Sending own" :
 							    "Forwarding"));
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d,"
 			" IDF %s) on interface %s [%s]\n",
 			fwd_str, (packet_num > 0 ? "aggregated " : ""),
-			batman_packet->orig, ntohs(batman_packet->seqno),
+			batman_packet->orig, ntohl(batman_packet->seqno),
 			batman_packet->tq, batman_packet->ttl,
 			(batman_packet->flags & DIRECTLINK ?
 			 "on" : "off"),
@@ -167,20 +174,22 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 
 	send_raw_packet(forw_packet->packet_buff,
 			forw_packet->packet_len,
-			batman_if, broadcastAddr);
+			batman_if, broadcast_addr);
 }
 
 /* send a batman packet */
 static void send_packet(struct forw_packet *forw_packet)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->packet_buff);
 	unsigned char directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
 
 	if (!forw_packet->if_incoming) {
-		printk(KERN_ERR "batman-adv: Error - can't forward packet: "
-		       "incoming iface not specified\n");
+		pr_err("Error - can't forward packet: incoming iface not "
+		       "specified\n");
 		return;
 	}
 
@@ -193,18 +202,18 @@ static void send_packet(struct forw_packet *forw_packet)
 	    (forw_packet->own && (forw_packet->if_incoming->if_num > 0))) {
 
 		/* FIXME: what about aggregated packets ? */
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"%s packet (originator %pM, seqno %d, TTL %d) "
 			"on interface %s [%s]\n",
 			(forw_packet->own ? "Sending own" : "Forwarding"),
-			batman_packet->orig, ntohs(batman_packet->seqno),
+			batman_packet->orig, ntohl(batman_packet->seqno),
 			batman_packet->ttl, forw_packet->if_incoming->dev,
 			forw_packet->if_incoming->addr_str);
 
 		send_raw_packet(forw_packet->packet_buff,
 				forw_packet->packet_len,
 				forw_packet->if_incoming,
-				broadcastAddr);
+				broadcast_addr);
 		return;
 	}
 
@@ -276,14 +285,14 @@ void schedule_own_packet(struct batman_if *batman_if)
 	batman_packet = (struct batman_packet *)batman_if->packet_buff;
 
 	/* change sequence number to network order */
-	batman_packet->seqno = htons((uint16_t)atomic_read(&batman_if->seqno));
+	batman_packet->seqno =
+		htonl((uint32_t)atomic_read(&batman_if->seqno));
 
 	if (vis_server == VIS_TYPE_SERVER_SYNC)
-		batman_packet->flags = VIS_SERVER;
+		batman_packet->flags |= VIS_SERVER;
 	else
 		batman_packet->flags &= ~VIS_SERVER;
 
-	/* could be read by receive_bat_packet() */
 	atomic_inc(&batman_if->seqno);
 
 	slide_own_bcast_window(batman_if);
@@ -306,7 +315,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	unsigned long send_time;
 
 	if (batman_packet->ttl <= 1) {
-		bat_dbg(DBG_BATMAN, "ttl exceeded\n");
+		bat_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
 		return;
 	}
 
@@ -335,13 +344,16 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	/* apply hop penalty */
 	batman_packet->tq = hop_penalty(batman_packet->tq);
 
-	bat_dbg(DBG_BATMAN, "Forwarding packet: tq_orig: %i, tq_avg: %i, "
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Forwarding packet: tq_orig: %i, tq_avg: %i, "
 		"tq_forw: %i, ttl_orig: %i, ttl_forw: %i\n",
 		in_tq, tq_avg, batman_packet->tq, in_ttl - 1,
 		batman_packet->ttl);
 
-	batman_packet->seqno = htons(batman_packet->seqno);
+	batman_packet->seqno = htonl(batman_packet->seqno);
 
+	/* switch of primaries first hop flag when forwarding */
+	batman_packet->flags &= ~PRIMARIES_FIRST_HOP;
 	if (directlink)
 		batman_packet->flags |= DIRECTLINK;
 	else
@@ -392,9 +404,12 @@ static void _add_bcast_packet_to_list(struct forw_packet *forw_packet,
 int add_bcast_packet_to_list(struct sk_buff *skb)
 {
 	struct forw_packet *forw_packet;
+	struct bcast_packet *bcast_packet;
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	if (!atomic_dec_not_zero(&bcast_queue_left)) {
-		bat_dbg(DBG_BATMAN, "bcast packet queue full\n");
+		bat_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
 		goto out;
 	}
 
@@ -406,6 +421,10 @@ int add_bcast_packet_to_list(struct sk_buff *skb)
 	skb = skb_copy(skb, GFP_ATOMIC);
 	if (!skb)
 		goto packet_free;
+
+	/* as we have a copy now, it is safe to decrease the TTL */
+	bcast_packet = (struct bcast_packet *)skb->data;
+	bcast_packet->ttl--;
 
 	skb_reset_mac_header(skb);
 
@@ -426,7 +445,7 @@ out:
 	return NETDEV_TX_BUSY;
 }
 
-void send_outstanding_bcast_packet(struct work_struct *work)
+static void send_outstanding_bcast_packet(struct work_struct *work)
 {
 	struct batman_if *batman_if;
 	struct delayed_work *delayed_work =
@@ -450,7 +469,7 @@ void send_outstanding_bcast_packet(struct work_struct *work)
 		skb1 = skb_copy(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
 			send_skb_packet(skb1,
-				batman_if, broadcastAddr);
+				batman_if, broadcast_addr);
 	}
 	rcu_read_unlock();
 
@@ -502,15 +521,19 @@ out:
 
 void purge_outstanding_packets(struct batman_if *batman_if)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
 	unsigned long flags;
 
 	if (batman_if)
-		bat_dbg(DBG_BATMAN, "purge_outstanding_packets(): %s\n",
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"purge_outstanding_packets(): %s\n",
 			batman_if->dev);
 	else
-		bat_dbg(DBG_BATMAN, "purge_outstanding_packets()\n");
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"purge_outstanding_packets()\n");
 
 	/* free bcast list */
 	spin_lock_irqsave(&forw_bcast_list_lock, flags);

@@ -480,7 +480,7 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	int err;
 
 	/* ignore our fake conntrack entry */
-	if (ct == &nf_conntrack_untracked)
+	if (nf_ct_is_untracked(ct))
 		return 0;
 
 	if (events & (1 << IPCT_DESTROY)) {

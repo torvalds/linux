@@ -53,7 +53,7 @@ void *kmap_atomic(struct page *page, enum km_type type)
 	return kmap_atomic_prot(page, type, kmap_prot);
 }
 
-void kunmap_atomic(void *kvaddr, enum km_type type)
+void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
 {
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
 	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
@@ -102,7 +102,7 @@ struct page *kmap_atomic_to_page(void *ptr)
 EXPORT_SYMBOL(kmap);
 EXPORT_SYMBOL(kunmap);
 EXPORT_SYMBOL(kmap_atomic);
-EXPORT_SYMBOL(kunmap_atomic);
+EXPORT_SYMBOL(kunmap_atomic_notypecheck);
 EXPORT_SYMBOL(kmap_atomic_prot);
 EXPORT_SYMBOL(kmap_atomic_to_page);
 

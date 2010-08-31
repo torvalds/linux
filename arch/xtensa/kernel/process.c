@@ -318,8 +318,9 @@ long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
  */
 
 asmlinkage
-long xtensa_execve(char __user *name, char __user * __user *argv,
-                   char __user * __user *envp,
+long xtensa_execve(const char __user *name,
+		   const char __user *const __user *argv,
+                   const char __user *const __user *envp,
                    long a3, long a4, long a5,
                    struct pt_regs *regs)
 {

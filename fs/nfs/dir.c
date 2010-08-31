@@ -140,6 +140,13 @@ nfs_opendir(struct inode *inode, struct file *filp)
 
 	/* Call generic open code in order to cache credentials */
 	res = nfs_open(inode, filp);
+	if (filp->f_path.dentry == filp->f_path.mnt->mnt_root) {
+		/* This is a mountpoint, so d_revalidate will never
+		 * have been called, so we need to refresh the
+		 * inode (for close-open consistency) ourselves.
+		 */
+		__nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	}
 	return res;
 }
 
@@ -1103,7 +1110,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
 		goto no_open_dput;
 	/* We can't create new files, or truncate existing ones here */
-	openflags &= ~(O_CREAT|O_TRUNC);
+	openflags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
 	/*
 	 * Note: we're not holding inode->i_mutex and so may be racing with
@@ -1652,16 +1659,7 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 
-	/*
-	 * ... prune child dentries and writebacks if needed.
-	 */
-	if (atomic_read(&old_dentry->d_count) > 1) {
-		if (S_ISREG(old_inode->i_mode))
-			nfs_wb_all(old_inode);
-		shrink_dcache_parent(old_dentry);
-	}
 	nfs_inode_return_delegation(old_inode);
-
 	if (new_inode != NULL)
 		nfs_inode_return_delegation(new_inode);
 
@@ -1953,7 +1951,7 @@ int nfs_permission(struct inode *inode, int mask)
 	if ((mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
 		goto out;
 	/* Is this sys_access() ? */
-	if (mask & MAY_ACCESS)
+	if (mask & (MAY_ACCESS | MAY_CHDIR))
 		goto force_lookup;
 
 	switch (inode->i_mode & S_IFMT) {

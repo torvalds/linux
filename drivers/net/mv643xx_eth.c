@@ -1640,6 +1640,11 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static int mv643xx_eth_set_flags(struct net_device *dev, u32 data)
+{
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO);
+}
+
 static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 {
 	if (sset == ETH_SS_STATS)
@@ -1665,7 +1670,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
 	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= ethtool_op_set_flags,
+	.set_flags		= mv643xx_eth_set_flags,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
 };
 
@@ -2456,7 +2461,7 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	if (mp->phy != NULL)
-		return phy_mii_ioctl(mp->phy, if_mii(ifr), cmd);
+		return phy_mii_ioctl(mp->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -2670,7 +2675,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	 * Detect hardware parameters.
 	 */
 	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
-	msp->tx_csum_limit = pd->tx_csum_limit ? pd->tx_csum_limit : 9 * 1024;
+	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
+					pd->tx_csum_limit : 9 * 1024;
 	infer_hw_params(msp);
 
 	platform_set_drvdata(pdev, msp);

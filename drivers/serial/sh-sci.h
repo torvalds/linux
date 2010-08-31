@@ -322,7 +322,7 @@
 #define CPU_SCIx_FNS(name, sci_offset, sci_size, scif_offset, scif_size)\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
-    if (port->type == PORT_SCIF) {					\
+    if (port->type == PORT_SCIF || port->type == PORT_SCIFB) {		\
       SCI_IN(scif_size, scif_offset)					\
     } else {	/* PORT_SCI or PORT_SCIFA */				\
       SCI_IN(sci_size, sci_offset);					\
@@ -330,7 +330,7 @@
   }									\
   static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
   {									\
-    if (port->type == PORT_SCIF) {					\
+    if (port->type == PORT_SCIF || port->type == PORT_SCIFB) {		\
       SCI_OUT(scif_size, scif_offset, value)				\
     } else {	/* PORT_SCI or PORT_SCIFA */				\
       SCI_OUT(sci_size, sci_offset, value);				\
@@ -384,8 +384,12 @@
       defined(CONFIG_CPU_SUBTYPE_SH7720) || \
       defined(CONFIG_CPU_SUBTYPE_SH7721) || \
       defined(CONFIG_ARCH_SH7367) || \
-      defined(CONFIG_ARCH_SH7377) || \
-      defined(CONFIG_ARCH_SH7372)
+      defined(CONFIG_ARCH_SH7377)
+#define SCIF_FNS(name, scif_offset, scif_size) \
+  CPU_SCIF_FNS(name, scif_offset, scif_size)
+#elif defined(CONFIG_ARCH_SH7372)
+#define SCIx_FNS(name, sh4_scifa_offset, sh4_scifa_size, sh4_scifb_offset, sh4_scifb_size) \
+  CPU_SCIx_FNS(name, sh4_scifa_offset, sh4_scifa_size, sh4_scifb_offset, sh4_scifb_size)
 #define SCIF_FNS(name, scif_offset, scif_size) \
   CPU_SCIF_FNS(name, scif_offset, scif_size)
 #else
@@ -422,8 +426,7 @@
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
     defined(CONFIG_CPU_SUBTYPE_SH7721) || \
     defined(CONFIG_ARCH_SH7367) || \
-    defined(CONFIG_ARCH_SH7377) || \
-    defined(CONFIG_ARCH_SH7372)
+    defined(CONFIG_ARCH_SH7377)
 
 SCIF_FNS(SCSMR,  0x00, 16)
 SCIF_FNS(SCBRR,  0x04,  8)
@@ -435,6 +438,20 @@ SCIF_FNS(SCFCR,  0x18, 16)
 SCIF_FNS(SCFDR,  0x1c, 16)
 SCIF_FNS(SCxTDR, 0x20,  8)
 SCIF_FNS(SCxRDR, 0x24,  8)
+SCIF_FNS(SCLSR,  0x00,  0)
+#elif defined(CONFIG_ARCH_SH7372)
+SCIF_FNS(SCSMR,  0x00, 16)
+SCIF_FNS(SCBRR,  0x04,  8)
+SCIF_FNS(SCSCR,  0x08, 16)
+SCIF_FNS(SCTDSR, 0x0c, 16)
+SCIF_FNS(SCFER,  0x10, 16)
+SCIF_FNS(SCxSR,  0x14, 16)
+SCIF_FNS(SCFCR,  0x18, 16)
+SCIF_FNS(SCFDR,  0x1c, 16)
+SCIF_FNS(SCTFDR, 0x38, 16)
+SCIF_FNS(SCRFDR, 0x3c, 16)
+SCIx_FNS(SCxTDR, 0x20,  8, 0x40,  8)
+SCIx_FNS(SCxRDR, 0x24,  8, 0x60,  8)
 SCIF_FNS(SCLSR,  0x00,  0)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723) ||\
       defined(CONFIG_CPU_SUBTYPE_SH7724)

@@ -10,7 +10,7 @@
 
 OUTPUT_FORMAT("elf32-microblaze", "elf32-microblaze", "elf32-microblaze")
 OUTPUT_ARCH(microblaze)
-ENTRY(_start)
+ENTRY(microblaze_start)
 
 #include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
@@ -20,7 +20,7 @@ jiffies = jiffies_64 + 4;
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;
-	_start = CONFIG_KERNEL_BASE_ADDR;
+	microblaze_start = CONFIG_KERNEL_BASE_ADDR;
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = . ;
 		_stext = . ;
@@ -55,7 +55,7 @@ SECTIONS {
 	 */
 	.sdata2 : AT(ADDR(.sdata2) - LOAD_OFFSET) {
 		_ssrw = .;
-		. = ALIGN(4096); /* page aligned when MMU used - origin 0x8 */
+		. = ALIGN(PAGE_SIZE); /* page aligned when MMU used */
 		*(.sdata2)
 	. = ALIGN(8);
 	_essrw = .;
@@ -70,7 +70,7 @@ SECTIONS {
 	/* Reserve some low RAM for r0 based memory references */
 	. = ALIGN(0x4) ;
 	r0_ram = . ;
-	. = . +  4096;	/* a page should be enough */
+	. = . +  PAGE_SIZE;	/* a page should be enough */
 
 	/* Under the microblaze ABI, .sdata and .sbss must be contiguous */
 	. = ALIGN(8);
@@ -120,7 +120,7 @@ SECTIONS {
 
 	__init_end_before_initramfs = .;
 
-	.init.ramfs ALIGN(4096) : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
+	.init.ramfs ALIGN(PAGE_SIZE) : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
@@ -132,11 +132,11 @@ SECTIONS {
  * so that __init_end == __bss_start. This will make image.elf
  * consistent with the image.bin
  */
-		/* . = ALIGN(4096); */
+		/* . = ALIGN(PAGE_SIZE); */
 	}
 	__init_end = .;
 
-	.bss ALIGN (4096) : AT(ADDR(.bss) - LOAD_OFFSET) {
+	.bss ALIGN (PAGE_SIZE) : AT(ADDR(.bss) - LOAD_OFFSET) {
 		/* page aligned when MMU used */
 		__bss_start = . ;
 			*(.bss*)
@@ -145,7 +145,7 @@ SECTIONS {
 		__bss_stop = . ;
 		_ebss = . ;
 	}
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	_end = .;
 
 	DISCARDS

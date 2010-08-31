@@ -115,56 +115,59 @@ typedef struct drm_i810_private {
 } drm_i810_private_t;
 
 				/* i810_dma.c */
-extern int i810_driver_dma_quiescent(struct drm_device * dev);
-extern void i810_driver_reclaim_buffers_locked(struct drm_device * dev,
+extern int i810_driver_dma_quiescent(struct drm_device *dev);
+extern void i810_driver_reclaim_buffers_locked(struct drm_device *dev,
 					       struct drm_file *file_priv);
 extern int i810_driver_load(struct drm_device *, unsigned long flags);
-extern void i810_driver_lastclose(struct drm_device * dev);
-extern void i810_driver_preclose(struct drm_device * dev,
+extern void i810_driver_lastclose(struct drm_device *dev);
+extern void i810_driver_preclose(struct drm_device *dev,
 				 struct drm_file *file_priv);
-extern void i810_driver_reclaim_buffers_locked(struct drm_device * dev,
+extern void i810_driver_reclaim_buffers_locked(struct drm_device *dev,
 					       struct drm_file *file_priv);
-extern int i810_driver_device_is_agp(struct drm_device * dev);
+extern int i810_driver_device_is_agp(struct drm_device *dev);
 
+extern long i810_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern struct drm_ioctl_desc i810_ioctls[];
 extern int i810_max_ioctl;
 
 #define I810_BASE(reg)		((unsigned long) \
 				dev_priv->mmio_map->handle)
 #define I810_ADDR(reg)		(I810_BASE(reg) + reg)
-#define I810_DEREF(reg)		*(__volatile__ int *)I810_ADDR(reg)
+#define I810_DEREF(reg)		(*(__volatile__ int *)I810_ADDR(reg))
 #define I810_READ(reg)		I810_DEREF(reg)
-#define I810_WRITE(reg,val)	do { I810_DEREF(reg) = val; } while (0)
-#define I810_DEREF16(reg)	*(__volatile__ u16 *)I810_ADDR(reg)
+#define I810_WRITE(reg, val)	do { I810_DEREF(reg) = val; } while (0)
+#define I810_DEREF16(reg)	(*(__volatile__ u16 *)I810_ADDR(reg))
 #define I810_READ16(reg)	I810_DEREF16(reg)
-#define I810_WRITE16(reg,val)	do { I810_DEREF16(reg) = val; } while (0)
+#define I810_WRITE16(reg, val)	do { I810_DEREF16(reg) = val; } while (0)
 
 #define I810_VERBOSE 0
 #define RING_LOCALS	unsigned int outring, ringmask; \
-                        volatile char *virt;
+			volatile char *virt;
 
-#define BEGIN_LP_RING(n) do {						\
-	if (I810_VERBOSE)                                               \
-		DRM_DEBUG("BEGIN_LP_RING(%d)\n", n);			\
-	if (dev_priv->ring.space < n*4)					\
-		i810_wait_ring(dev, n*4);				\
-	dev_priv->ring.space -= n*4;					\
-	outring = dev_priv->ring.tail;					\
-	ringmask = dev_priv->ring.tail_mask;				\
-	virt = dev_priv->ring.virtual_start;				\
+#define BEGIN_LP_RING(n) do {					\
+	if (I810_VERBOSE)					\
+		DRM_DEBUG("BEGIN_LP_RING(%d)\n", n);		\
+	if (dev_priv->ring.space < n*4)				\
+		i810_wait_ring(dev, n*4);			\
+	dev_priv->ring.space -= n*4;				\
+	outring = dev_priv->ring.tail;				\
+	ringmask = dev_priv->ring.tail_mask;			\
+	virt = dev_priv->ring.virtual_start;			\
 } while (0)
 
-#define ADVANCE_LP_RING() do {				        \
-	if (I810_VERBOSE) DRM_DEBUG("ADVANCE_LP_RING\n");	\
+#define ADVANCE_LP_RING() do {					\
+	if (I810_VERBOSE)					\
+		DRM_DEBUG("ADVANCE_LP_RING\n");			\
 	dev_priv->ring.tail = outring;				\
-	I810_WRITE(LP_RING + RING_TAIL, outring);	        \
-} while(0)
+	I810_WRITE(LP_RING + RING_TAIL, outring);		\
+} while (0)
 
-#define OUT_RING(n) do {				                \
-	if (I810_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
-	*(volatile unsigned int *)(virt + outring) = n;	                \
-	outring += 4;					                \
-	outring &= ringmask;			                        \
+#define OUT_RING(n) do {					\
+	if (I810_VERBOSE)					\
+		DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
+	*(volatile unsigned int *)(virt + outring) = n;		\
+	outring += 4;						\
+	outring &= ringmask;					\
 } while (0)
 
 #define GFX_OP_USER_INTERRUPT		((0<<29)|(2<<23))

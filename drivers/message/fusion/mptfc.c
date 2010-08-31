@@ -1472,9 +1472,12 @@ mptfc_init(void)
 	if (!mptfc_transport_template)
 		return -ENODEV;
 
-	mptfcDoneCtx = mpt_register(mptscsih_io_done, MPTFC_DRIVER);
-	mptfcTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTFC_DRIVER);
-	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER);
+	mptfcDoneCtx = mpt_register(mptscsih_io_done, MPTFC_DRIVER,
+	    "mptscsih_scandv_complete");
+	mptfcTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTFC_DRIVER,
+	    "mptscsih_scandv_complete");
+	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER,
+	    "mptscsih_scandv_complete");
 
 	mpt_event_register(mptfcDoneCtx, mptfc_event_process);
 	mpt_reset_register(mptfcDoneCtx, mptfc_ioc_reset);

@@ -16,6 +16,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -345,8 +347,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	spi_message_add_tail(&t[1], &m);
 
 	/* Byte count starts at zero. */
-	if (retlen)
-		*retlen = 0;
+	*retlen = 0;
 
 	mutex_lock(&flash->lock);
 
@@ -392,8 +393,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 			dev_name(&flash->spi->dev), __func__, "to",
 			(u32)to, len);
 
-	if (retlen)
-		*retlen = 0;
+	*retlen = 0;
 
 	/* sanity checks */
 	if (!len)
@@ -464,8 +464,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 			spi_sync(flash->spi, &m);
 
-			if (retlen)
-				*retlen += m.actual_length - m25p_cmdsz(flash);
+			*retlen += m.actual_length - m25p_cmdsz(flash);
 		}
 	}
 
@@ -483,8 +482,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t actual;
 	int cmd_sz, ret;
 
-	if (retlen)
-		*retlen = 0;
+	*retlen = 0;
 
 	/* sanity checks */
 	if (!len)
@@ -639,8 +637,18 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "at26df161a", INFO(0x1f4601, 0, 64 * 1024, 32, SECT_4K) },
 	{ "at26df321",  INFO(0x1f4701, 0, 64 * 1024, 64, SECT_4K) },
 
+	/* EON -- en25pxx */
+	{ "en25p32", INFO(0x1c2016, 0, 64 * 1024,  64, 0) },
+	{ "en25p64", INFO(0x1c2017, 0, 64 * 1024, 128, 0) },
+
+	/* Intel/Numonyx -- xxxs33b */
+	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
+	{ "320s33b",  INFO(0x898912, 0, 64 * 1024,  64, 0) },
+	{ "640s33b",  INFO(0x898913, 0, 64 * 1024, 128, 0) },
+
 	/* Macronix */
 	{ "mx25l4005a",  INFO(0xc22013, 0, 64 * 1024,   8, SECT_4K) },
+	{ "mx25l8005",   INFO(0xc22014, 0, 64 * 1024,  16, 0) },
 	{ "mx25l3205d",  INFO(0xc22016, 0, 64 * 1024,  64, 0) },
 	{ "mx25l6405d",  INFO(0xc22017, 0, 64 * 1024, 128, 0) },
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
@@ -680,6 +688,16 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "m25p64",  INFO(0x202017,  0,  64 * 1024, 128, 0) },
 	{ "m25p128", INFO(0x202018,  0, 256 * 1024,  64, 0) },
 
+	{ "m25p05-nonjedec",  INFO(0, 0,  32 * 1024,   2, 0) },
+	{ "m25p10-nonjedec",  INFO(0, 0,  32 * 1024,   4, 0) },
+	{ "m25p20-nonjedec",  INFO(0, 0,  64 * 1024,   4, 0) },
+	{ "m25p40-nonjedec",  INFO(0, 0,  64 * 1024,   8, 0) },
+	{ "m25p80-nonjedec",  INFO(0, 0,  64 * 1024,  16, 0) },
+	{ "m25p16-nonjedec",  INFO(0, 0,  64 * 1024,  32, 0) },
+	{ "m25p32-nonjedec",  INFO(0, 0,  64 * 1024,  64, 0) },
+	{ "m25p64-nonjedec",  INFO(0, 0,  64 * 1024, 128, 0) },
+	{ "m25p128-nonjedec", INFO(0, 0, 256 * 1024,  64, 0) },
+
 	{ "m45pe10", INFO(0x204011,  0, 64 * 1024,    2, 0) },
 	{ "m45pe80", INFO(0x204014,  0, 64 * 1024,   16, 0) },
 	{ "m45pe16", INFO(0x204015,  0, 64 * 1024,   32, 0) },
@@ -694,6 +712,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "w25x80", INFO(0xef3014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25x16", INFO(0xef3015, 0, 64 * 1024,  32, SECT_4K) },
 	{ "w25x32", INFO(0xef3016, 0, 64 * 1024,  64, SECT_4K) },
+	{ "w25q32", INFO(0xef4016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
 
 	/* Catalyst / On Semiconductor -- non-JEDEC */
@@ -723,21 +742,13 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 	if (tmp < 0) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
 			dev_name(&spi->dev), tmp);
-		return NULL;
+		return ERR_PTR(tmp);
 	}
 	jedec = id[0];
 	jedec = jedec << 8;
 	jedec |= id[1];
 	jedec = jedec << 8;
 	jedec |= id[2];
-
-	/*
-	 * Some chips (like Numonyx M25P80) have JEDEC and non-JEDEC variants,
-	 * which depend on technology process. Officially RDID command doesn't
-	 * exist for non-JEDEC chips, but for compatibility they return ID 0.
-	 */
-	if (jedec == 0)
-		return NULL;
 
 	ext_jedec = id[3] << 8 | id[4];
 
@@ -749,7 +760,7 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 			return &m25p_ids[tmp];
 		}
 	}
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 
@@ -782,7 +793,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			break;
 		}
 
-		if (plat_id)
+		if (i < ARRAY_SIZE(m25p_ids) - 1)
 			id = plat_id;
 		else
 			dev_warn(&spi->dev, "unrecognized id %s\n", data->type);
@@ -794,9 +805,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		const struct spi_device_id *jid;
 
 		jid = jedec_probe(spi);
-		if (!jid) {
-			dev_info(&spi->dev, "non-JEDEC variant of %s\n",
-				 id->name);
+		if (IS_ERR(jid)) {
+			return PTR_ERR(jid);
 		} else if (jid != id) {
 			/*
 			 * JEDEC knows better, so overwrite platform ID. We
@@ -826,11 +836,12 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, flash);
 
 	/*
-	 * Atmel and SST serial flash tend to power
+	 * Atmel, SST and Intel/Numonyx serial flash tend to power
 	 * up with the software protection bits set
 	 */
 
 	if (info->jedec_id >> 16 == 0x1f ||
+	    info->jedec_id >> 16 == 0x89 ||
 	    info->jedec_id >> 16 == 0xbf) {
 		write_enable(flash);
 		write_sr(flash, 0);

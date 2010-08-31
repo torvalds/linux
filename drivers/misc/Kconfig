@@ -72,7 +72,7 @@ config ATMEL_TCLIB
 
 config ATMEL_TCB_CLKSRC
 	bool "TC Block Clocksource"
-	depends on ATMEL_TCLIB && GENERIC_TIME
+	depends on ATMEL_TCLIB
 	default y
 	help
 	  Select this to get a high precision clocksource based on a
@@ -240,7 +240,7 @@ config CS5535_MFGPT_DEFAULT_IRQ
 
 config CS5535_CLOCK_EVENT_SRC
 	tristate "CS5535/CS5536 high-res timer (MFGPT) events"
-	depends on GENERIC_TIME && GENERIC_CLOCKEVENTS && CS5535_MFGPT
+	depends on GENERIC_CLOCKEVENTS && CS5535_MFGPT
 	help
 	  This driver provides a clock event source based on the MFGPT
 	  timer(s) in the CS5535 and CS5536 companion chips.
@@ -304,6 +304,23 @@ config SENSORS_TSL2550
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
 
+config SENSORS_BH1780
+	tristate "ROHM BH1780GLI ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the ROHM BH1780GLI
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called bh1780gli.
+
+config HMC6352
+	tristate "Honeywell HMC6352 compass"
+	depends on I2C
+	help
+	  This driver provides support for the Honeywell HMC6352 compass,
+	  providing configuration and heading data via sysfs.
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -362,6 +379,16 @@ config ARM_CHARLCD
 	  very much more than display the text "ARM Linux" on the first
 	  line and the Linux version on the second line, but that's
 	  still useful.
+
+config BMP085
+	tristate "BMP085 digital pressure sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Bosch Sensortec
+	  BMP086 digital pressure sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bmp085.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

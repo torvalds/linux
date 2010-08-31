@@ -134,7 +134,7 @@ static struct mxc_usbh_platform_data otg_host_pdata = {
 static int __init smartbot_otg_host_init(void)
 {
 	otg_host_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	return mxc_register_device(&mxc_otg_host, &otg_host_pdata);
 }

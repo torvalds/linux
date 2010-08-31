@@ -67,6 +67,7 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
 
 #include <asm/unaligned.h>
 
@@ -574,6 +575,13 @@ MODULE_PARM_DESC(annex,
 		if (sc->usbatm->atm_dev) \
 			sc->usbatm->atm_dev->type = val; \
 	} while (0)
+
+#define UPDATE_ATM_SIGNAL(val) \
+	do { \
+		if (sc->usbatm->atm_dev) \
+			atm_dev_signal_change(sc->usbatm->atm_dev, val); \
+	} while (0)
+
 
 /* Firmware loading */
 #define LOAD_INTERNAL     0xA0
@@ -1359,7 +1367,7 @@ static int uea_stat_e1(struct uea_softc *sc)
 	/* always update it as atm layer could not be init when we switch to
 	 * operational state
 	 */
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_FOUND);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
 
 	/* wake up processes waiting for synchronization */
 	wake_up(&sc->sync_q);
@@ -1498,7 +1506,7 @@ static int uea_stat_e4(struct uea_softc *sc)
 	/* always update it as atm layer could not be init when we switch to
 	 * operational state
 	 */
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_FOUND);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
 
 	/* wake up processes waiting for synchronization */
 	wake_up(&sc->sync_q);
@@ -1569,6 +1577,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	char file_arr[] = "CMVxy.bin";
 	char *file;
 
+	kparam_block_sysfs_write(cmv_file);
 	/* set proper name corresponding modem version and line type */
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
@@ -1587,6 +1596,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	strlcat(cmv_name, file, UEA_FW_NAME_MAX);
 	if (ver == 2)
 		strlcat(cmv_name, ".v2", UEA_FW_NAME_MAX);
+	kparam_unblock_sysfs_write(cmv_file);
 }
 
 static int request_cmvs_old(struct uea_softc *sc,
@@ -1825,7 +1835,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	 * So we will failed to wait Ready CMV.
 	 */
 	sc->cmv_ack = 0;
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_LOST);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_LOST);
 
 	/* reset statistics */
 	memset(&sc->stats, 0, sizeof(struct uea_stats));
@@ -2429,7 +2439,6 @@ UEA_ATTR(firmid, 0);
 
 /* Retrieve the device End System Identifier (MAC) */
 
-#define htoi(x) (isdigit(x) ? x-'0' : toupper(x)-'A'+10)
 static int uea_getesi(struct uea_softc *sc, u_char * esi)
 {
 	unsigned char mac_str[2 * ETH_ALEN + 1];
@@ -2440,7 +2449,8 @@ static int uea_getesi(struct uea_softc *sc, u_char * esi)
 		return 1;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		esi[i] = htoi(mac_str[2 * i]) * 16 + htoi(mac_str[2 * i + 1]);
+		esi[i] = hex_to_bin(mac_str[2 * i]) * 16 +
+			 hex_to_bin(mac_str[2 * i + 1]);
 
 	return 0;
 }

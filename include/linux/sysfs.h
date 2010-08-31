@@ -16,20 +16,15 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
+#include <linux/kobject_ns.h>
 #include <asm/atomic.h>
 
 struct kobject;
 struct module;
 enum kobj_ns_type;
 
-/* FIXME
- * The *owner field is no longer used.
- * x86 tree has been cleaned up. The owner
- * attribute is still left for other arches.
- */
 struct attribute {
 	const char		*name;
-	struct module		*owner;
 	mode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	*key;
@@ -136,8 +131,8 @@ int __must_check sysfs_create_file(struct kobject *kobj,
 				   const struct attribute *attr);
 int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute **attr);
-int __must_check sysfs_chmod_file(struct kobject *kobj, struct attribute *attr,
-				  mode_t mode);
+int __must_check sysfs_chmod_file(struct kobject *kobj,
+				  const struct attribute *attr, mode_t mode);
 void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
 
@@ -225,7 +220,7 @@ static inline int sysfs_create_files(struct kobject *kobj,
 }
 
 static inline int sysfs_chmod_file(struct kobject *kobj,
-				   struct attribute *attr, mode_t mode)
+				   const struct attribute *attr, mode_t mode)
 {
 	return 0;
 }

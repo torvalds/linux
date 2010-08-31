@@ -10,7 +10,7 @@
  * Description:
  *   DMA engine driver for Freescale MPC8540 DMA controller, which is
  *   also fit for MPC8560, MPC8555, MPC8548, MPC8641, and etc.
- *   The support for MPC8349 DMA contorller is also added.
+ *   The support for MPC8349 DMA controller is also added.
  *
  * This driver instructs the DMA controller to issue the PCI Read Multiple
  * command for PCI read operations, instead of using the default PCI Read Line
@@ -1297,7 +1297,7 @@ static void fsl_dma_chan_remove(struct fsldma_chan *chan)
 	kfree(chan);
 }
 
-static int __devinit fsldma_of_probe(struct of_device *op,
+static int __devinit fsldma_of_probe(struct platform_device *op,
 			const struct of_device_id *match)
 {
 	struct fsldma_device *fdev;
@@ -1382,7 +1382,7 @@ out_return:
 	return err;
 }
 
-static int fsldma_of_remove(struct of_device *op)
+static int fsldma_of_remove(struct platform_device *op)
 {
 	struct fsldma_device *fdev;
 	unsigned int i;

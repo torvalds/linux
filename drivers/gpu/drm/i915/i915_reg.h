@@ -170,6 +170,7 @@
 #define   MI_NO_WRITE_FLUSH	(1 << 2)
 #define   MI_SCENE_COUNT	(1 << 3) /* just increment scene count */
 #define   MI_END_SCENE		(1 << 4) /* flush binner and incr scene count */
+#define   MI_INVALIDATE_ISP	(1 << 5) /* invalidate indirect state pointers */
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
 #define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11,0)
@@ -180,6 +181,12 @@
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+#define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
+#define   MI_MM_SPACE_GTT		(1<<8)
+#define   MI_MM_SPACE_PHYSICAL		(0<<8)
+#define   MI_SAVE_EXT_STATE_EN		(1<<3)
+#define   MI_RESTORE_EXT_STATE_EN	(1<<2)
+#define   MI_RESTORE_INHIBIT		(1<<0)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
@@ -442,7 +449,7 @@
 #define GEN6_RENDER_IMR		0x20a8
 #define   GEN6_RENDER_CONTEXT_SWITCH_INTERRUPT		(1 << 8)
 #define   GEN6_RENDER_PPGTT_PAGE_FAULT			(1 << 7)
-#define   GEN6_RENDER TIMEOUT_COUNTER_EXPIRED		(1 << 6)
+#define   GEN6_RENDER_TIMEOUT_COUNTER_EXPIRED		(1 << 6)
 #define   GEN6_RENDER_L3_PARITY_ERROR			(1 << 5)
 #define   GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT	(1 << 4)
 #define   GEN6_RENDER_COMMAND_PARSER_MASTER_ERROR	(1 << 3)
@@ -530,6 +537,21 @@
 #define DPFC_CHICKEN		0x3224
 #define   DPFC_HT_MODIFY	(1<<31)
 
+/* Framebuffer compression for Ironlake */
+#define ILK_DPFC_CB_BASE	0x43200
+#define ILK_DPFC_CONTROL	0x43208
+/* The bit 28-8 is reserved */
+#define   DPFC_RESERVED		(0x1FFFFF00)
+#define ILK_DPFC_RECOMP_CTL	0x4320c
+#define ILK_DPFC_STATUS		0x43210
+#define ILK_DPFC_FENCE_YOFF	0x43218
+#define ILK_DPFC_CHICKEN	0x43224
+#define ILK_FBC_RT_BASE		0x2128
+#define   ILK_FBC_RT_VALID	(1<<0)
+
+#define ILK_DISPLAY_CHICKEN1	0x42000
+#define   ILK_FBCQ_DIS		(1<<22)
+
 /*
  * GPIO regs
  */
@@ -594,32 +616,6 @@
 #define   DPLL_P2_CLOCK_DIV_MASK	0x03000000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW	0x00ff8000 /* Pineview */
-
-#define I915_FIFO_UNDERRUN_STATUS		(1UL<<31)
-#define I915_CRC_ERROR_ENABLE			(1UL<<29)
-#define I915_CRC_DONE_ENABLE			(1UL<<28)
-#define I915_GMBUS_EVENT_ENABLE			(1UL<<27)
-#define I915_VSYNC_INTERRUPT_ENABLE		(1UL<<25)
-#define I915_DISPLAY_LINE_COMPARE_ENABLE	(1UL<<24)
-#define I915_DPST_EVENT_ENABLE			(1UL<<23)
-#define I915_LEGACY_BLC_EVENT_ENABLE		(1UL<<22)
-#define I915_ODD_FIELD_INTERRUPT_ENABLE		(1UL<<21)
-#define I915_EVEN_FIELD_INTERRUPT_ENABLE	(1UL<<20)
-#define I915_START_VBLANK_INTERRUPT_ENABLE	(1UL<<18)	/* 965 or later */
-#define I915_VBLANK_INTERRUPT_ENABLE		(1UL<<17)
-#define I915_OVERLAY_UPDATED_ENABLE		(1UL<<16)
-#define I915_CRC_ERROR_INTERRUPT_STATUS		(1UL<<13)
-#define I915_CRC_DONE_INTERRUPT_STATUS		(1UL<<12)
-#define I915_GMBUS_INTERRUPT_STATUS		(1UL<<11)
-#define I915_VSYNC_INTERRUPT_STATUS		(1UL<<9)
-#define I915_DISPLAY_LINE_COMPARE_STATUS	(1UL<<8)
-#define I915_DPST_EVENT_STATUS			(1UL<<7)
-#define I915_LEGACY_BLC_EVENT_STATUS		(1UL<<6)
-#define I915_ODD_FIELD_INTERRUPT_STATUS		(1UL<<5)
-#define I915_EVEN_FIELD_INTERRUPT_STATUS	(1UL<<4)
-#define I915_START_VBLANK_INTERRUPT_STATUS	(1UL<<2)	/* 965 or later */
-#define I915_VBLANK_INTERRUPT_STATUS		(1UL<<1)
-#define I915_OVERLAY_UPDATED_STATUS		(1UL<<0)
 
 #define SRX_INDEX		0x3c4
 #define SRX_DATA		0x3c5
@@ -1110,6 +1106,11 @@
 #define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
+/*
+ * Logical Context regs
+ */
+#define CCID			0x2180
+#define   CCID_EN		(1<<0)
 /*
  * Overlay regs
  */
@@ -2080,6 +2081,7 @@
 #define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
+#define   DSL_LINEMASK	       	0x00000fff
 #define PIPEACONF		0x70008
 #define   PIPEACONF_ENABLE	(1<<31)
 #define   PIPEACONF_DISABLE	0
@@ -2166,7 +2168,8 @@
 #define I830_FIFO_LINE_SIZE	32
 
 #define G4X_FIFO_SIZE		127
-#define I945_FIFO_SIZE		127 /* 945 & 965 */
+#define I965_FIFO_SIZE		512
+#define I945_FIFO_SIZE		127
 #define I915_FIFO_SIZE		95
 #define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95
@@ -2185,6 +2188,9 @@
 #define PINEVIEW_CURSOR_DFT_WM	0
 #define PINEVIEW_CURSOR_GUARD_WM	5
 
+#define I965_CURSOR_FIFO	64
+#define I965_CURSOR_MAX_WM	32
+#define I965_CURSOR_DFT_WM	8
 
 /* define the Watermark register on Ironlake */
 #define WM0_PIPEA_ILK		0x45100
@@ -2212,6 +2218,9 @@
 #define ILK_DISPLAY_FIFO	128
 #define ILK_DISPLAY_MAXWM	64
 #define ILK_DISPLAY_DFTWM	8
+#define ILK_CURSOR_FIFO		32
+#define ILK_CURSOR_MAXWM	16
+#define ILK_CURSOR_DFTWM	8
 
 #define ILK_DISPLAY_SR_FIFO	512
 #define ILK_DISPLAY_MAX_SRWM	0x1ff
@@ -2510,6 +2519,10 @@
 #define  ILK_VSDPFD_FULL	(1<<21)
 #define ILK_DSPCLK_GATE		0x42020
 #define  ILK_DPARB_CLK_GATE	(1<<5)
+/* According to spec this bit 7/8/9 of 0x42020 should be set to enable FBC */
+#define   ILK_CLK_FBC		(1<<7)
+#define   ILK_DPFC_DIS1		(1<<8)
+#define   ILK_DPFC_DIS2		(1<<9)
 
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
@@ -2928,6 +2941,7 @@
 #define  TRANS_DP_VSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)
 #define  TRANS_DP_HSYNC_ACTIVE_LOW	0
+#define  TRANS_DP_SYNC_MASK	(3<<3)
 
 /* SNB eDP training params */
 /* SNB A-stepping */

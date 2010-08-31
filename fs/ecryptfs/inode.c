@@ -264,7 +264,7 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 		printk(KERN_ERR "%s: Out of memory whilst attempting "
 		       "to allocate ecryptfs_dentry_info struct\n",
 			__func__);
-		goto out_dput;
+		goto out_put;
 	}
 	ecryptfs_set_dentry_lower(ecryptfs_dentry, lower_dentry);
 	ecryptfs_set_dentry_lower_mnt(ecryptfs_dentry, lower_mnt);
@@ -339,11 +339,81 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 out_free_kmem:
 	kmem_cache_free(ecryptfs_header_cache_2, page_virt);
 	goto out;
-out_dput:
+out_put:
 	dput(lower_dentry);
+	mntput(lower_mnt);
 	d_drop(ecryptfs_dentry);
 out:
 	return rc;
+}
+
+/**
+ * ecryptfs_new_lower_dentry
+ * @name: The name of the new dentry.
+ * @lower_dir_dentry: Parent directory of the new dentry.
+ * @nd: nameidata from last lookup.
+ *
+ * Create a new dentry or get it from lower parent dir.
+ */
+static struct dentry *
+ecryptfs_new_lower_dentry(struct qstr *name, struct dentry *lower_dir_dentry,
+			  struct nameidata *nd)
+{
+	struct dentry *new_dentry;
+	struct dentry *tmp;
+	struct inode *lower_dir_inode;
+
+	lower_dir_inode = lower_dir_dentry->d_inode;
+
+	tmp = d_alloc(lower_dir_dentry, name);
+	if (!tmp)
+		return ERR_PTR(-ENOMEM);
+
+	mutex_lock(&lower_dir_inode->i_mutex);
+	new_dentry = lower_dir_inode->i_op->lookup(lower_dir_inode, tmp, nd);
+	mutex_unlock(&lower_dir_inode->i_mutex);
+
+	if (!new_dentry)
+		new_dentry = tmp;
+	else
+		dput(tmp);
+
+	return new_dentry;
+}
+
+
+/**
+ * ecryptfs_lookup_one_lower
+ * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
+ * @lower_dir_dentry: lower parent directory
+ * @name: lower file name
+ *
+ * Get the lower dentry from vfs. If lower dentry does not exist yet,
+ * create it.
+ */
+static struct dentry *
+ecryptfs_lookup_one_lower(struct dentry *ecryptfs_dentry,
+			  struct dentry *lower_dir_dentry, struct qstr *name)
+{
+	struct nameidata nd;
+	struct vfsmount *lower_mnt;
+	int err;
+
+	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(
+				    ecryptfs_dentry->d_parent));
+	err = vfs_path_lookup(lower_dir_dentry, lower_mnt, name->name , 0, &nd);
+	mntput(lower_mnt);
+
+	if (!err) {
+		/* we dont need the mount */
+		mntput(nd.path.mnt);
+		return nd.path.dentry;
+	}
+	if (err != -ENOENT)
+		return ERR_PTR(err);
+
+	/* create a new lower dentry */
+	return ecryptfs_new_lower_dentry(name, lower_dir_dentry, &nd);
 }
 
 /**
@@ -363,6 +433,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	size_t encrypted_and_encoded_name_size;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
 	struct dentry *lower_dir_dentry, *lower_dentry;
+	struct qstr lower_name;
 	int rc = 0;
 
 	ecryptfs_dentry->d_op = &ecryptfs_dops;
@@ -373,14 +444,20 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		goto out_d_drop;
 	}
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
-	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
-	lower_dentry = lookup_one_len(ecryptfs_dentry->d_name.name,
-				      lower_dir_dentry,
-				      ecryptfs_dentry->d_name.len);
-	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
+	lower_name.name = ecryptfs_dentry->d_name.name;
+	lower_name.len = ecryptfs_dentry->d_name.len;
+	lower_name.hash = ecryptfs_dentry->d_name.hash;
+	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
+		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
+						    &lower_name);
+		if (rc < 0)
+			goto out_d_drop;
+	}
+	lower_dentry = ecryptfs_lookup_one_lower(ecryptfs_dentry,
+						 lower_dir_dentry, &lower_name);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_lower() returned "
 				"[%d] on lower_dentry = [%s]\n", __func__, rc,
 				encrypted_and_encoded_name);
 		goto out_d_drop;
@@ -402,14 +479,20 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		       "filename; rc = [%d]\n", __func__, rc);
 		goto out_d_drop;
 	}
-	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
-	lower_dentry = lookup_one_len(encrypted_and_encoded_name,
-				      lower_dir_dentry,
-				      encrypted_and_encoded_name_size - 1);
-	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
+	lower_name.name = encrypted_and_encoded_name;
+	lower_name.len = encrypted_and_encoded_name_size;
+	lower_name.hash = full_name_hash(lower_name.name, lower_name.len);
+	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
+		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
+						    &lower_name);
+		if (rc < 0)
+			goto out_d_drop;
+	}
+	lower_dentry = ecryptfs_lookup_one_lower(ecryptfs_dentry,
+						 lower_dir_dentry, &lower_name);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_lower() returned "
 				"[%d] on lower_dentry = [%s]\n", __func__, rc,
 				encrypted_and_encoded_name);
 		goto out_d_drop;
@@ -804,10 +887,20 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		size_t num_zeros = (PAGE_CACHE_SIZE
 				    - (ia->ia_size & ~PAGE_CACHE_MASK));
 
+
+		/*
+		 * XXX(truncate) this should really happen at the begginning
+		 * of ->setattr.  But the code is too messy to that as part
+		 * of a larger patch.  ecryptfs is also totally missing out
+		 * on the inode_change_ok check at the beginning of
+		 * ->setattr while would include this.
+		 */
+		rc = inode_newsize_ok(inode, ia->ia_size);
+		if (rc)
+			goto out;
+
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-			rc = simple_setsize(inode, ia->ia_size);
-			if (rc)
-				goto out;
+			truncate_setsize(inode, ia->ia_size);
 			lower_ia->ia_size = ia->ia_size;
 			lower_ia->ia_valid |= ATTR_SIZE;
 			goto out;
@@ -830,7 +923,7 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 				goto out;
 			}
 		}
-		simple_setsize(inode, ia->ia_size);
+		truncate_setsize(inode, ia->ia_size);
 		rc = ecryptfs_write_inode_size_to_metadata(inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "

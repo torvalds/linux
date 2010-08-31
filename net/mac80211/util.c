@@ -803,8 +803,12 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 	/* after reinitialize QoS TX queues setting to default,
 	 * disable QoS at all */
-	local->hw.conf.flags &=	~IEEE80211_CONF_QOS;
-	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
+
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
+		sdata->vif.bss_conf.qos =
+			sdata->vif.type != NL80211_IFTYPE_STATION;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+	}
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -1138,18 +1142,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	/* Clear Suspend state so that ADDBA requests can be processed */
-
-	rcu_read_lock();
-
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
-		}
-	}
-
-	rcu_read_unlock();
-
 	/* setup RTS threshold */
 	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
 
@@ -1173,7 +1165,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_BASIC_RATES |
 			  BSS_CHANGED_BEACON_INT |
 			  BSS_CHANGED_BSSID |
-			  BSS_CHANGED_CQM;
+			  BSS_CHANGED_CQM |
+			  BSS_CHANGED_QOS;
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
@@ -1202,13 +1195,26 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	rcu_read_lock();
+	/*
+	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
+	 * sessions can be established after a resume.
+	 *
+	 * Also tear down aggregation sessions since reconfiguring
+	 * them in a hardware restart scenario is not easily done
+	 * right now, and the hardware will have lost information
+	 * about the sessions, but we and the AP still think they
+	 * are active. This is really a workaround though.
+	 */
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		mutex_lock(&local->sta_mtx);
+
+		list_for_each_entry(sta, &local->sta_list, list) {
 			ieee80211_sta_tear_down_BA_sessions(sta);
+			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		}
+
+		mutex_unlock(&local->sta_mtx);
 	}
-	rcu_read_unlock();
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)

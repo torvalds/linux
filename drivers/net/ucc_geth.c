@@ -594,7 +594,7 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 {
 	int i;
 
-	ugeth_info("UCC%d Geth registers:", ugeth->ug_info->uf_info.ucc_num);
+	ugeth_info("UCC%d Geth registers:", ugeth->ug_info->uf_info.ucc_num + 1);
 	ugeth_info("Base address: 0x%08x", (u32) ugeth->ug_regs);
 
 	ugeth_info("maccfg1    : addr - 0x%08x, val - 0x%08x",
@@ -3601,7 +3601,7 @@ static void ucc_geth_timeout(struct net_device *dev)
 
 #ifdef CONFIG_PM
 
-static int ucc_geth_suspend(struct of_device *ofdev, pm_message_t state)
+static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
@@ -3629,7 +3629,7 @@ static int ucc_geth_suspend(struct of_device *ofdev, pm_message_t state)
 	return 0;
 }
 
-static int ucc_geth_resume(struct of_device *ofdev)
+static int ucc_geth_resume(struct platform_device *ofdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
@@ -3704,6 +3704,19 @@ static phy_interface_t to_phy_interface(const char *phy_connection_type)
 	return PHY_INTERFACE_MODE_MII;
 }
 
+static int ucc_geth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(dev);
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	if (!ugeth->phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(ugeth->phydev, rq, cmd);
+}
+
 static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_open		= ucc_geth_open,
 	.ndo_stop		= ucc_geth_close,
@@ -3713,12 +3726,13 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_multicast_list	= ucc_geth_set_multi,
 	.ndo_tx_timeout		= ucc_geth_timeout,
+	.ndo_do_ioctl		= ucc_geth_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ucc_netpoll,
 #endif
 };
 
-static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
+static int ucc_geth_probe(struct platform_device* ofdev, const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -3940,7 +3954,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	return 0;
 }
 
-static int ucc_geth_remove(struct of_device* ofdev)
+static int ucc_geth_remove(struct platform_device* ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct net_device *dev = dev_get_drvdata(device);

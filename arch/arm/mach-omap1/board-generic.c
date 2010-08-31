@@ -72,12 +72,12 @@ static void __init omap_generic_init(void)
 		omap_cfg_reg(UART3_TX);
 		omap_cfg_reg(UART3_RX);
 
-		omap_usb_init(&generic1510_usb_config);
+		omap1_usb_init(&generic1510_usb_config);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
 	if (!cpu_is_omap1510()) {
-		omap_usb_init(&generic1610_usb_config);
+		omap1_usb_init(&generic1610_usb_config);
 	}
 #endif
 

@@ -124,6 +124,9 @@ static ssize_t xenbus_file_read(struct file *filp,
 	mutex_lock(&u->reply_mutex);
 	while (list_empty(&u->read_buffers)) {
 		mutex_unlock(&u->reply_mutex);
+		if (filp->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
 		ret = wait_event_interruptible(u->read_waitq,
 					       !list_empty(&u->read_buffers));
 		if (ret)

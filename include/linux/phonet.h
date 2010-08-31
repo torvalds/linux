@@ -98,7 +98,7 @@ struct sockaddr_pn {
 	__u8 spn_dev;
 	__u8 spn_resource;
 	__u8 spn_zero[sizeof(struct sockaddr) - sizeof(sa_family_t) - 3];
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 /* Well known address */
 #define PN_DEV_PC	0x10

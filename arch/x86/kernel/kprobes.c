@@ -126,16 +126,22 @@ static void __kprobes synthesize_reljump(void *from, void *to)
 }
 
 /*
- * Check for the REX prefix which can only exist on X86_64
- * X86_32 always returns 0
+ * Skip the prefixes of the instruction.
  */
-static int __kprobes is_REX_prefix(kprobe_opcode_t *insn)
+static kprobe_opcode_t *__kprobes skip_prefixes(kprobe_opcode_t *insn)
 {
+	insn_attr_t attr;
+
+	attr = inat_get_opcode_attribute((insn_byte_t)*insn);
+	while (inat_is_legacy_prefix(attr)) {
+		insn++;
+		attr = inat_get_opcode_attribute((insn_byte_t)*insn);
+	}
 #ifdef CONFIG_X86_64
-	if ((*insn & 0xf0) == 0x40)
-		return 1;
+	if (inat_is_rex_prefix(attr))
+		insn++;
 #endif
-	return 0;
+	return insn;
 }
 
 /*
@@ -272,6 +278,9 @@ static int __kprobes can_probe(unsigned long paddr)
  */
 static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 {
+	/* Skip prefixes */
+	insn = skip_prefixes(insn);
+
 	switch (*insn) {
 	case 0xfa:		/* cli */
 	case 0xfb:		/* sti */
@@ -279,13 +288,6 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 	case 0x9d:		/* popf/popfd */
 		return 1;
 	}
-
-	/*
-	 * on X86_64, 0x40-0x4f are REX prefixes so we need to look
-	 * at the next byte instead.. but of course not recurse infinitely
-	 */
-	if (is_REX_prefix(insn))
-		return is_IF_modifier(++insn);
 
 	return 0;
 }
@@ -707,6 +709,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
+	kprobe_opcode_t *correct_ret_addr = NULL;
 
 	INIT_HLIST_HEAD(&empty_rp);
 	kretprobe_hash_lock(current, &head, &flags);
@@ -738,15 +741,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 			/* another task is sharing our hash bucket */
 			continue;
 
-		if (ri->rp && ri->rp->handler) {
-			__get_cpu_var(current_kprobe) = &ri->rp->kp;
-			get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
-			ri->rp->handler(ri, regs);
-			__get_cpu_var(current_kprobe) = NULL;
-		}
-
 		orig_ret_address = (unsigned long)ri->ret_addr;
-		recycle_rp_inst(ri, &empty_rp);
 
 		if (orig_ret_address != trampoline_address)
 			/*
@@ -758,6 +753,32 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	}
 
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
+	correct_ret_addr = ri->ret_addr;
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+		if (ri->task != current)
+			/* another task is sharing our hash bucket */
+			continue;
+
+		orig_ret_address = (unsigned long)ri->ret_addr;
+		if (ri->rp && ri->rp->handler) {
+			__get_cpu_var(current_kprobe) = &ri->rp->kp;
+			get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
+			ri->ret_addr = correct_ret_addr;
+			ri->rp->handler(ri, regs);
+			__get_cpu_var(current_kprobe) = NULL;
+		}
+
+		recycle_rp_inst(ri, &empty_rp);
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
 
 	kretprobe_hash_unlock(current, &flags);
 
@@ -803,9 +824,8 @@ static void __kprobes resume_execution(struct kprobe *p,
 	unsigned long orig_ip = (unsigned long)p->addr;
 	kprobe_opcode_t *insn = p->ainsn.insn;
 
-	/*skip the REX prefix*/
-	if (is_REX_prefix(insn))
-		insn++;
+	/* Skip prefixes */
+	insn = skip_prefixes(insn);
 
 	regs->flags &= ~X86_EFLAGS_TF;
 	switch (*insn) {

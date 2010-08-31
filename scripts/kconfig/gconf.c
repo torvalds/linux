@@ -1114,7 +1114,7 @@ static gchar **fill_row(struct menu *menu)
 
 	row[COL_OPTION] =
 	    g_strdup_printf("%s %s", _(menu_get_prompt(menu)),
-			    sym && sym_has_value(sym) ? "(NEW)" : "");
+			    sym && !sym_has_value(sym) ? "(NEW)" : "");
 
 	if (opt_mode == OPT_ALL && !menu_is_visible(menu))
 		row[COL_COLOR] = g_strdup("DarkGray");
@@ -1343,7 +1343,8 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 #endif
 
 		if ((opt_mode == OPT_NORMAL && !menu_is_visible(child1)) ||
-		    (opt_mode == OPT_PROMPT && !menu_has_prompt(child1))) {
+		    (opt_mode == OPT_PROMPT && !menu_has_prompt(child1)) ||
+		    (opt_mode == OPT_ALL    && !menu_get_prompt(child1))) {
 
 			/* remove node */
 			if (gtktree_iter_find_node(dst, menu1) != NULL) {
@@ -1425,7 +1426,7 @@ static void display_tree(struct menu *menu)
 
 		if ((opt_mode == OPT_NORMAL && menu_is_visible(child)) ||
 		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
-		    (opt_mode == OPT_ALL))
+		    (opt_mode == OPT_ALL    && menu_get_prompt(child)))
 			place_node(child, fill_row(child));
 #ifdef DEBUG
 		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));

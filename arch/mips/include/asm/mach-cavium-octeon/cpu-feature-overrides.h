@@ -61,21 +61,18 @@
 
 #define kernel_uses_smartmips_rixi (cpu_data[0].cputype == CPU_CAVIUM_OCTEON_PLUS)
 
-#define ARCH_HAS_READ_CURRENT_TIMER 1
 #define ARCH_HAS_IRQ_PER_CPU	1
 #define ARCH_HAS_SPINLOCK_PREFETCH 1
 #define spin_lock_prefetch(x) prefetch(x)
 #define PREFETCH_STRIDE 128
 
-static inline int read_current_timer(unsigned long *result)
-{
-	asm volatile ("rdhwr %0,$31\n"
-#ifndef CONFIG_64BIT
-		      "\tsll %0, 0"
+#ifdef __OCTEON__
+/*
+ * All gcc versions that have OCTEON support define __OCTEON__ and have the
+ *  __builtin_popcount support.
+ */
+#define ARCH_HAS_USABLE_BUILTIN_POPCOUNT 1
 #endif
-		      : "=r" (*result));
-	return 0;
-}
 
 static inline int octeon_has_saa(void)
 {

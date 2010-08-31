@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -936,12 +936,14 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
 
-	/* Install any alternate MAC address into RAR0 */
-	ret_val = e1000_check_alt_mac_addr_generic(hw);
-	if (ret_val)
-		return ret_val;
+	if (hw->mac.type == e1000_82571) {
+		/* Install any alternate MAC address into RAR0 */
+		ret_val = e1000_check_alt_mac_addr_generic(hw);
+		if (ret_val)
+			return ret_val;
 
-	e1000e_set_laa_state_82571(hw, true);
+		e1000e_set_laa_state_82571(hw, true);
+	}
 
 	/* Reinitialize the 82571 serdes link state machine */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes)
@@ -1618,14 +1620,16 @@ static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 
-	/*
-	 * If there's an alternate MAC address place it in RAR0
-	 * so that it will override the Si installed default perm
-	 * address.
-	 */
-	ret_val = e1000_check_alt_mac_addr_generic(hw);
-	if (ret_val)
-		goto out;
+	if (hw->mac.type == e1000_82571) {
+		/*
+		 * If there's an alternate MAC address place it in RAR0
+		 * so that it will override the Si installed default perm
+		 * address.
+		 */
+		ret_val = e1000_check_alt_mac_addr_generic(hw);
+		if (ret_val)
+			goto out;
+	}
 
 	ret_val = e1000_read_mac_addr_generic(hw);
 
@@ -1833,6 +1837,7 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_SWSM_ON_LOAD,
+	.flags2			= FLAG2_DISABLE_ASPM_L1,
 	.pba			= 20,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,

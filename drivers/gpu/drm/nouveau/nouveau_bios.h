@@ -81,6 +81,7 @@ struct dcb_connector_table_entry {
 	enum dcb_connector_type type;
 	uint8_t index2;
 	uint8_t gpio_tag;
+	void *drm;
 };
 
 struct dcb_connector_table {
@@ -94,6 +95,7 @@ enum dcb_type {
 	OUTPUT_TMDS = 2,
 	OUTPUT_LVDS = 3,
 	OUTPUT_DP = 6,
+	OUTPUT_EOL = 14, /* DCB 4.0+, appears to be end-of-list */
 	OUTPUT_ANY = -1
 };
 
@@ -117,6 +119,7 @@ struct dcb_entry {
 		struct {
 			struct sor_conf sor;
 			bool use_straps_for_mode;
+			bool use_acpi_for_edid;
 			bool use_power_scripts;
 		} lvdsconf;
 		struct {
@@ -129,6 +132,7 @@ struct dcb_entry {
 		} dpconf;
 		struct {
 			struct sor_conf sor;
+			int slave_addr;
 		} tmdsconf;
 	};
 	bool i2c_upper_default;
@@ -249,8 +253,6 @@ struct nvbios {
 
 	struct {
 		int crtchead;
-		/* these need remembering across suspend */
-		uint32_t saved_nv_pfb_cfg0;
 	} state;
 
 	struct {

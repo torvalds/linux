@@ -58,6 +58,7 @@
 #define USB_PRODUCT_IPHONE      0x1290
 #define USB_PRODUCT_IPHONE_3G   0x1292
 #define USB_PRODUCT_IPHONE_3GS  0x1294
+#define USB_PRODUCT_IPHONE_4	0x1297
 
 #define IPHETH_USBINTF_CLASS    255
 #define IPHETH_USBINTF_SUBCLASS 253
@@ -90,6 +91,10 @@ static struct usb_device_id ipheth_table[] = {
 		IPHETH_USBINTF_PROTO) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(
 		USB_VENDOR_APPLE, USB_PRODUCT_IPHONE_3GS,
+		IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
+		IPHETH_USBINTF_PROTO) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(
+		USB_VENDOR_APPLE, USB_PRODUCT_IPHONE_4,
 		IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 		IPHETH_USBINTF_PROTO) },
 	{ }
@@ -193,7 +198,7 @@ static void ipheth_rcvbulk_callback(struct urb *urb)
 	case 0:
 		break;
 	default:
-		err("%s: urb status: %d", __func__, urb->status);
+		err("%s: urb status: %d", __func__, status);
 		return;
 	}
 
@@ -222,16 +227,17 @@ static void ipheth_rcvbulk_callback(struct urb *urb)
 static void ipheth_sndbulk_callback(struct urb *urb)
 {
 	struct ipheth_device *dev;
+	int status = urb->status;
 
 	dev = urb->context;
 	if (dev == NULL)
 		return;
 
-	if (urb->status != 0 &&
-	    urb->status != -ENOENT &&
-	    urb->status != -ECONNRESET &&
-	    urb->status != -ESHUTDOWN)
-		err("%s: urb status: %d", __func__, urb->status);
+	if (status != 0 &&
+	    status != -ENOENT &&
+	    status != -ECONNRESET &&
+	    status != -ESHUTDOWN)
+		err("%s: urb status: %d", __func__, status);
 
 	dev_kfree_skb_irq(dev->tx_skb);
 	netif_wake_queue(dev->net);

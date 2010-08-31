@@ -434,22 +434,22 @@
 
 /* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
 #define TWI0_REGBASE			0xFFC01400
-#define TWI_CLKDIV			0xFFC01400	/* Serial Clock Divider Register                        */
-#define TWI_CONTROL			0xFFC01404	/* TWI Control Register                                         */
-#define TWI_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register                          */
-#define TWI_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register                           */
-#define TWI_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register                          */
-#define TWI_MASTER_CTL		0xFFC01414	/* Master Mode Control Register                         */
-#define TWI_MASTER_STAT		0xFFC01418	/* Master Mode Status Register                          */
-#define TWI_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register                         */
-#define TWI_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register                        */
-#define TWI_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register           */
-#define TWI_FIFO_CTL		0xFFC01428	/* FIFO Control Register                                        */
-#define TWI_FIFO_STAT		0xFFC0142C	/* FIFO Status Register                                         */
-#define TWI_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register      */
-#define TWI_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register      */
-#define TWI_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register       */
-#define TWI_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register       */
+#define TWI0_CLKDIV			0xFFC01400	/* Serial Clock Divider Register                        */
+#define TWI0_CONTROL			0xFFC01404	/* TWI Control Register                                         */
+#define TWI0_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register                          */
+#define TWI0_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register                           */
+#define TWI0_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register                          */
+#define TWI0_MASTER_CTL		0xFFC01414	/* Master Mode Control Register                         */
+#define TWI0_MASTER_STAT		0xFFC01418	/* Master Mode Status Register                          */
+#define TWI0_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register                         */
+#define TWI0_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register                        */
+#define TWI0_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register           */
+#define TWI0_FIFO_CTL		0xFFC01428	/* FIFO Control Register                                        */
+#define TWI0_FIFO_STAT		0xFFC0142C	/* FIFO Status Register                                         */
+#define TWI0_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register      */
+#define TWI0_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register      */
+#define TWI0_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register       */
+#define TWI0_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register       */
 
 /* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)												*/
 #define PORTGIO					0xFFC01500	/* Port G I/O Pin State Specify Register                                */
@@ -1241,86 +1241,6 @@
 #define PH14	0x4000
 #define PH15	0x8000
 
-/* *******************  SERIAL PORT MASKS  **************************************/
-/* SPORTx_TCR1 Masks															*/
-#define TSPEN		0x0001	/* Transmit Enable                                                              */
-#define ITCLK		0x0002	/* Internal Transmit Clock Select                               */
-#define DTYPE_NORM	0x0004	/* Data Format Normal                                                   */
-#define DTYPE_ULAW	0x0008	/* Compand Using u-Law                                                  */
-#define DTYPE_ALAW	0x000C	/* Compand Using A-Law                                                  */
-#define TLSBIT		0x0010	/* Transmit Bit Order                                                   */
-#define ITFS		0x0200	/* Internal Transmit Frame Sync Select                  */
-#define TFSR		0x0400	/* Transmit Frame Sync Required Select                  */
-#define DITFS		0x0800	/* Data-Independent Transmit Frame Sync Select  */
-#define LTFS		0x1000	/* Low Transmit Frame Sync Select                               */
-#define LATFS		0x2000	/* Late Transmit Frame Sync Select                              */
-#define TCKFE		0x4000	/* Clock Falling Edge Select                                    */
-
-/* SPORTx_TCR2 Masks and Macro													*/
-#define SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length (2 - 31)                                */
-#define TXSE		0x0100	/* TX Secondary Enable                                                  */
-#define TSFSE		0x0200	/* Transmit Stereo Frame Sync Enable                    */
-#define TRFST		0x0400	/* Left/Right Order (1 = Right Channel 1st)             */
-
-/* SPORTx_RCR1 Masks															*/
-#define RSPEN		0x0001	/* Receive Enable                                                               */
-#define IRCLK		0x0002	/* Internal Receive Clock Select                                */
-#define DTYPE_NORM	0x0004	/* Data Format Normal                                                   */
-#define DTYPE_ULAW	0x0008	/* Compand Using u-Law                                                  */
-#define DTYPE_ALAW	0x000C	/* Compand Using A-Law                                                  */
-#define RLSBIT		0x0010	/* Receive Bit Order                                                    */
-#define IRFS		0x0200	/* Internal Receive Frame Sync Select                   */
-#define RFSR		0x0400	/* Receive Frame Sync Required Select                   */
-#define LRFS		0x1000	/* Low Receive Frame Sync Select                                */
-#define LARFS		0x2000	/* Late Receive Frame Sync Select                               */
-#define RCKFE		0x4000	/* Clock Falling Edge Select                                    */
-
-/* SPORTx_RCR2 Masks															*/
-#define SLEN(x)		((x)&0x1F)	/* SPORT RX Word Length (2 - 31)                                */
-#define RXSE		0x0100	/* RX Secondary Enable                                                  */
-#define RSFSE		0x0200	/* RX Stereo Frame Sync Enable                                  */
-#define RRFST		0x0400	/* Right-First Data Order                                               */
-
-/* SPORTx_STAT Masks															*/
-#define RXNE		0x0001	/* Receive FIFO Not Empty Status                                */
-#define RUVF		0x0002	/* Sticky Receive Underflow Status                              */
-#define ROVF		0x0004	/* Sticky Receive Overflow Status                               */
-#define TXF			0x0008	/* Transmit FIFO Full Status                                    */
-#define TUVF		0x0010	/* Sticky Transmit Underflow Status                             */
-#define TOVF		0x0020	/* Sticky Transmit Overflow Status                              */
-#define TXHRE		0x0040	/* Transmit Hold Register Empty                                 */
-
-/* SPORTx_MCMC1 Macros															*/
-#define SP_WOFF(x)		((x) & 0x3FF)	/* Multichannel Window Offset Field                     */
-
-/* Only use WSIZE Macro With Logic OR While Setting Lower Order Bits						*/
-#define SP_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel Window Size = (x/8)-1   */
-
-/* SPORTx_MCMC2 Masks															*/
-#define REC_BYPASS	0x0000	/* Bypass Mode (No Clock Recovery)                              */
-#define REC_2FROM4	0x0002	/* Recover 2 MHz Clock from 4 MHz Clock                 */
-#define REC_8FROM16	0x0003	/* Recover 8 MHz Clock from 16 MHz Clock                */
-#define MCDTXPE		0x0004	/* Multichannel DMA Transmit Packing                    */
-#define MCDRXPE		0x0008	/* Multichannel DMA Receive Packing                             */
-#define MCMEN		0x0010	/* Multichannel Frame Mode Enable                               */
-#define FSDR		0x0080	/* Multichannel Frame Sync to Data Relationship */
-#define MFD_0		0x0000	/* Multichannel Frame Delay = 0                                 */
-#define MFD_1		0x1000	/* Multichannel Frame Delay = 1                                 */
-#define MFD_2		0x2000	/* Multichannel Frame Delay = 2                                 */
-#define MFD_3		0x3000	/* Multichannel Frame Delay = 3                                 */
-#define MFD_4		0x4000	/* Multichannel Frame Delay = 4                                 */
-#define MFD_5		0x5000	/* Multichannel Frame Delay = 5                                 */
-#define MFD_6		0x6000	/* Multichannel Frame Delay = 6                                 */
-#define MFD_7		0x7000	/* Multichannel Frame Delay = 7                                 */
-#define MFD_8		0x8000	/* Multichannel Frame Delay = 8                                 */
-#define MFD_9		0x9000	/* Multichannel Frame Delay = 9                                 */
-#define MFD_10		0xA000	/* Multichannel Frame Delay = 10                                */
-#define MFD_11		0xB000	/* Multichannel Frame Delay = 11                                */
-#define MFD_12		0xC000	/* Multichannel Frame Delay = 12                                */
-#define MFD_13		0xD000	/* Multichannel Frame Delay = 13                                */
-#define MFD_14		0xE000	/* Multichannel Frame Delay = 14                                */
-#define MFD_15		0xF000	/* Multichannel Frame Delay = 15                                */
-
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  *************************/
 /* EBIU_AMGCTL Masks																	*/
 #define AMCKEN			0x0001	/* Enable CLKOUT                                                                        */
@@ -1642,7 +1562,7 @@
 #define	TWI_ENA		0x0080	/* TWI Enable                                                                   */
 #define	SCCB		0x0200	/* SCCB Compatibility Enable                                    */
 
-/* TWI_SLAVE_CTRL Masks															*/
+/* TWI_SLAVE_CTL Masks															*/
 #define	SEN			0x0001	/* Slave Enable                                                                 */
 #define	SADD_LEN	0x0002	/* Slave Address Length                                                 */
 #define	STDVAL		0x0004	/* Slave Transmit Data Valid                                    */
@@ -1653,7 +1573,7 @@
 #define	SDIR		0x0001	/* Slave Transfer Direction (Transmit/Receive*) */
 #define GCALL		0x0002	/* General Call Indicator                                               */
 
-/* TWI_MASTER_CTRL Masks													*/
+/* TWI_MASTER_CTL Masks													*/
 #define	MEN			0x0001	/* Master Mode Enable                                           */
 #define	MADD_LEN	0x0002	/* Master Address Length                                        */
 #define	MDIR		0x0004	/* Master Transmit Direction (RX/TX*)           */

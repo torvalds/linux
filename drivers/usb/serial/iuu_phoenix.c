@@ -1,6 +1,8 @@
 /*
  * Infinity Unlimited USB Phoenix driver
  *
+ * Copyright (C) 2010 James Courtier-Dutton (James@superbug.co.uk)
+
  * Copyright (C) 2007 Alain Degreffe (eczema@ecze.com)
  *
  * Original code taken from iuutool (Copyright (C) 2006 Juan Carlos BorrÃ¡s)
@@ -40,7 +42,7 @@ static int debug;
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.11"
+#define DRIVER_VERSION "v0.12"
 #define DRIVER_DESC "Infinity USB Unlimited Phoenix driver"
 
 static const struct usb_device_id id_table[] = {
@@ -81,6 +83,9 @@ struct iuu_private {
 	u8 *dbgbuf;		/* debug buffer */
 	u8 len;
 	int vcc;		/* vcc (either 3 or 5 V) */
+	u32 baud;
+	u32 boost;
+	u32 clk;
 };
 
 
@@ -157,13 +162,14 @@ static int iuu_tiocmset(struct tty_struct *tty, struct file *file,
 	    port->number, set, clear);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (set & TIOCM_RTS)
-		priv->tiostatus = TIOCM_RTS;
 
-	if (!(set & TIOCM_RTS) && priv->tiostatus == TIOCM_RTS) {
+	if ((set & TIOCM_RTS) && !(priv->tiostatus == TIOCM_RTS)) {
 		dbg("%s TIOCMSET RESET called !!!", __func__);
 		priv->reset = 1;
 	}
+	if (set & TIOCM_RTS)
+		priv->tiostatus = TIOCM_RTS;
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
@@ -851,20 +857,24 @@ static int iuu_uart_off(struct usb_serial_port *port)
 	return status;
 }
 
-static int iuu_uart_baud(struct usb_serial_port *port, u32 baud,
+static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 			 u32 *actual, u8 parity)
 {
 	int status;
+	u32 baud;
 	u8 *dataout;
 	u8 DataCount = 0;
 	u8 T1Frekvens = 0;
 	u8 T1reload = 0;
 	unsigned int T1FrekvensHZ = 0;
 
+	dbg("%s - enter baud_base=%d", __func__, baud_base);
 	dataout = kmalloc(sizeof(u8) * 5, GFP_KERNEL);
 
 	if (!dataout)
 		return -ENOMEM;
+	/*baud = (((priv->clk / 35) * baud_base) / 100000); */
+	baud = baud_base;
 
 	if (baud < 1200 || baud > 230400) {
 		kfree(dataout);
@@ -948,14 +958,19 @@ static void iuu_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	const u32 supported_mask = CMSPAR|PARENB|PARODD;
-
+	struct iuu_private *priv = usb_get_serial_port_data(port);
 	unsigned int cflag = tty->termios->c_cflag;
 	int status;
 	u32 actual;
 	u32 parity;
 	int csize = CS7;
-	int baud = 9600;	/* Fixed for the moment */
+	int baud;
 	u32 newval = cflag & supported_mask;
+
+	/* Just use the ospeed. ispeed should be the same. */
+	baud = tty->termios->c_ospeed;
+
+	dbg("%s - enter c_ospeed or baud=%d", __func__, baud);
 
 	/* compute the parity parameter */
 	parity = 0;
@@ -976,15 +991,15 @@ static void iuu_set_termios(struct tty_struct *tty,
 
 	/* set it */
 	status = iuu_uart_baud(port,
-			(clockmode == 2) ? 16457 : 9600 * boost / 100,
+			baud * priv->boost / 100,
 			&actual, parity);
 
 	/* set the termios value to the real one, so the user now what has
 	 * changed. We support few fields so its easies to copy the old hw
 	 * settings back over and then adjust them
 	 */
- 	if (old_termios)
- 		tty_termios_copy_hw(tty->termios, old_termios);
+	if (old_termios)
+		tty_termios_copy_hw(tty->termios, old_termios);
 	if (status != 0)	/* Set failed - return old bits */
 		return;
 	/* Re-encode speed, parity and csize */
@@ -1018,6 +1033,7 @@ static void iuu_close(struct usb_serial_port *port)
 
 static void iuu_init_termios(struct tty_struct *tty)
 {
+	dbg("%s - enter", __func__);
 	*(tty->termios) = tty_std_termios;
 	tty->termios->c_cflag = CLOCAL | CREAD | CS8 | B9600
 				| TIOCM_CTS | CSTOPB | PARENB;
@@ -1033,10 +1049,16 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	u8 *buf;
 	int result;
+	int baud;
 	u32 actual;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
-	dbg("%s -  port %d", __func__, port->number);
+	baud = tty->termios->c_ospeed;
+	tty->termios->c_ispeed = baud;
+	/* Re-encode speed */
+	tty_encode_baud_rate(tty, baud, baud);
+
+	dbg("%s -  port %d, baud %d", __func__, port->number, baud);
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
 
@@ -1071,23 +1093,29 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	iuu_uart_on(port);
 	if (boost < 100)
 		boost = 100;
+	priv->boost = boost;
+	priv->baud = baud;
 	switch (clockmode) {
 	case 2:		/*  3.680 Mhz */
+		priv->clk = IUU_CLK_3680000;
 		iuu_clk(port, IUU_CLK_3680000 * boost / 100);
 		result =
-		    iuu_uart_baud(port, 9600 * boost / 100, &actual,
+		    iuu_uart_baud(port, baud * boost / 100, &actual,
 				  IUU_PARITY_EVEN);
 		break;
 	case 3:		/*  6.00 Mhz */
 		iuu_clk(port, IUU_CLK_6000000 * boost / 100);
+		priv->clk = IUU_CLK_6000000;
+		/* Ratio of 6000000 to 3500000 for baud 9600 */
 		result =
 		    iuu_uart_baud(port, 16457 * boost / 100, &actual,
 				  IUU_PARITY_EVEN);
 		break;
 	default:		/*  3.579 Mhz */
 		iuu_clk(port, IUU_CLK_3579000 * boost / 100);
+		priv->clk = IUU_CLK_3579000;
 		result =
-		    iuu_uart_baud(port, 9600 * boost / 100, &actual,
+		    iuu_uart_baud(port, baud * boost / 100, &actual,
 				  IUU_PARITY_EVEN);
 	}
 

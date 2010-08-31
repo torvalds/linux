@@ -25,8 +25,10 @@ DECLARE_EVENT_CLASS(block_rq_with_error,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
-		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
+		__entry->sector    = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+					0 : blk_rq_pos(rq);
+		__entry->nr_sector = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+					0 : blk_rq_sectors(rq);
 		__entry->errors    = rq->errors;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);
@@ -109,9 +111,12 @@ DECLARE_EVENT_CLASS(block_rq,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
-		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
-		__entry->bytes     = blk_pc_request(rq) ? blk_rq_bytes(rq) : 0;
+		__entry->sector    = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+					0 : blk_rq_pos(rq);
+		__entry->nr_sector = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+					0 : blk_rq_sectors(rq);
+		__entry->bytes     = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+					blk_rq_bytes(rq) : 0;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);
 		blk_dump_cmd(__get_str(cmd), rq);

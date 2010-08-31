@@ -99,47 +99,47 @@
  */
 
 #define VMW_IOCTL_DEF(ioctl, func, flags) \
-	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {ioctl, flags, func}
+  [DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {DRM_##ioctl, flags, func, DRM_IOCTL_##ioctl}
 
 /**
  * Ioctl definitions.
  */
 
 static struct drm_ioctl_desc vmw_ioctls[] = {
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_GET_PARAM, vmw_getparam_ioctl,
+	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
+	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_DMABUF, vmw_dmabuf_unref_ioctl,
+	VMW_IOCTL_DEF(VMW_UNREF_DMABUF, vmw_dmabuf_unref_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CURSOR_BYPASS,
+	VMW_IOCTL_DEF(VMW_CURSOR_BYPASS,
 		      vmw_kms_cursor_bypass_ioctl,
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CONTROL_STREAM, vmw_overlay_ioctl,
+	VMW_IOCTL_DEF(VMW_CONTROL_STREAM, vmw_overlay_ioctl,
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CLAIM_STREAM, vmw_stream_claim_ioctl,
+	VMW_IOCTL_DEF(VMW_CLAIM_STREAM, vmw_stream_claim_ioctl,
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_STREAM, vmw_stream_unref_ioctl,
+	VMW_IOCTL_DEF(VMW_UNREF_STREAM, vmw_stream_unref_ioctl,
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CREATE_CONTEXT, vmw_context_define_ioctl,
+	VMW_IOCTL_DEF(VMW_CREATE_CONTEXT, vmw_context_define_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_CONTEXT, vmw_context_destroy_ioctl,
+	VMW_IOCTL_DEF(VMW_UNREF_CONTEXT, vmw_context_destroy_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CREATE_SURFACE, vmw_surface_define_ioctl,
+	VMW_IOCTL_DEF(VMW_CREATE_SURFACE, vmw_surface_define_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_SURFACE, vmw_surface_destroy_ioctl,
+	VMW_IOCTL_DEF(VMW_UNREF_SURFACE, vmw_surface_destroy_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_REF_SURFACE, vmw_surface_reference_ioctl,
+	VMW_IOCTL_DEF(VMW_REF_SURFACE, vmw_surface_reference_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_EXECBUF, vmw_execbuf_ioctl,
+	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_FIFO_DEBUG, vmw_fifo_debug_ioctl,
+	VMW_IOCTL_DEF(VMW_FIFO_DEBUG, vmw_fifo_debug_ioctl,
 		      DRM_AUTH | DRM_ROOT_ONLY | DRM_MASTER | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_FENCE_WAIT, vmw_fence_wait_ioctl,
+	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_wait_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UPDATE_LAYOUT, vmw_kms_update_layout_ioctl,
+	VMW_IOCTL_DEF(VMW_UPDATE_LAYOUT, vmw_kms_update_layout_ioctl,
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED)
 };
 
@@ -764,7 +764,7 @@ static struct drm_driver driver = {
 
 static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_dev(pdev, ent, &driver);
+	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
 static int __init vmwgfx_init(void)

@@ -44,4 +44,14 @@ config SAMPLE_HW_BREAKPOINT
 	help
 	  This builds kernel hardware breakpoint example modules.
 
+config SAMPLE_KFIFO
+	tristate "Build kfifo examples -- loadable modules only"
+	depends on m
+	help
+	  This config option will allow you to build a number of
+	  different kfifo sample modules showing how to use the
+	  generic kfifo API.
+
+	  If in doubt, say "N" here.
+
 endif # SAMPLES

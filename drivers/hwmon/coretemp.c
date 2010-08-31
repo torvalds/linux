@@ -480,7 +480,6 @@ exit:
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void coretemp_device_remove(unsigned int cpu)
 {
 	struct pdev_entry *p, *n;
@@ -515,12 +514,10 @@ static int __cpuinit coretemp_cpu_callback(struct notifier_block *nfb,
 static struct notifier_block coretemp_cpu_notifier __refdata = {
 	.notifier_call = coretemp_cpu_callback,
 };
-#endif				/* !CONFIG_HOTPLUG_CPU */
 
 static int __init coretemp_init(void)
 {
 	int i, err = -ENODEV;
-	struct pdev_entry *p, *n;
 
 	/* quick check if we run Intel */
 	if (cpu_data(0).x86_vendor != X86_VENDOR_INTEL)
@@ -537,12 +534,9 @@ static int __init coretemp_init(void)
 		 * sensors. We check this bit only, all the early CPUs
 		 * without thermal sensors will be filtered out.
 		 */
-		if (c->cpuid_level >= 6 && (cpuid_eax(0x06) & 0x01)) {
-			err = coretemp_device_add(i);
-			if (err)
-				goto exit_devices_unreg;
-
-		} else {
+		if (c->cpuid_level >= 6 && (cpuid_eax(0x06) & 0x01))
+			coretemp_device_add(i);
+		else {
 			printk(KERN_INFO DRVNAME ": CPU (model=0x%x)"
 				" has no thermal sensor.\n", c->x86_model);
 		}
@@ -552,21 +546,13 @@ static int __init coretemp_init(void)
 		goto exit_driver_unreg;
 	}
 
-#ifdef CONFIG_HOTPLUG_CPU
 	register_hotcpu_notifier(&coretemp_cpu_notifier);
-#endif
 	return 0;
 
-exit_devices_unreg:
-	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		platform_device_unregister(p->pdev);
-		list_del(&p->list);
-		kfree(p);
-	}
-	mutex_unlock(&pdev_list_mutex);
 exit_driver_unreg:
+#ifndef CONFIG_HOTPLUG_CPU
 	platform_driver_unregister(&coretemp_driver);
+#endif
 exit:
 	return err;
 }

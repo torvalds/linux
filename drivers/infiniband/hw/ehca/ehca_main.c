@@ -360,7 +360,8 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 	 * a firmware property, so it's valid across all adapters
 	 */
 	if (ehca_lock_hcalls == -1)
-		ehca_lock_hcalls = !(shca->hca_cap & HCA_CAP_H_ALLOC_RES_SYNC);
+		ehca_lock_hcalls = !EHCA_BMASK_GET(HCA_CAP_H_ALLOC_RES_SYNC,
+					shca->hca_cap);
 
 	/* translate supported MR page sizes; always support 4K */
 	shca->hca_cap_mr_pgsize = EHCA_PAGESIZE;
@@ -712,7 +713,7 @@ static struct attribute_group ehca_dev_attr_grp = {
 	.attrs = ehca_dev_attrs
 };
 
-static int __devinit ehca_probe(struct of_device *dev,
+static int __devinit ehca_probe(struct platform_device *dev,
 				const struct of_device_id *id)
 {
 	struct ehca_shca *shca;
@@ -878,7 +879,7 @@ probe1:
 	return -EINVAL;
 }
 
-static int __devexit ehca_remove(struct of_device *dev)
+static int __devexit ehca_remove(struct platform_device *dev)
 {
 	struct ehca_shca *shca = dev_get_drvdata(&dev->dev);
 	unsigned long flags;

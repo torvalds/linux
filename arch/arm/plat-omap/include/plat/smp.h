@@ -19,17 +19,11 @@
 
 #include <asm/hardware/gic.h>
 
-/*
- * set_event() is used to wake up secondary core from wfe using sev. ROM
- * code puts the second core into wfe(standby).
- *
- */
-#define set_event()	__asm__ __volatile__ ("sev" : : : "memory")
-
 /* Needed for secondary core boot */
 extern void omap_secondary_startup(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
+extern u32 omap_read_auxcoreboot0(void);
 
 /*
  * We use Soft IRQ1 as the IPI

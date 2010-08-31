@@ -141,13 +141,14 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 }
 EXPORT_SYMBOL(iwl_hwrate_to_plcp_idx);
 
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant)
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant, u8 valid)
 {
 	int i;
 	u8 ind = ant;
+
 	for (i = 0; i < RATE_ANT_NUM - 1; i++) {
 		ind = (ind + 1) < RATE_ANT_NUM ?  ind + 1 : 0;
-		if (priv->hw_params.valid_tx_ant & BIT(ind))
+		if (valid & BIT(ind))
 			return ind;
 	}
 	return ant;
@@ -169,7 +170,7 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 	struct ieee80211_hw *hw =
 		ieee80211_alloc_hw(sizeof(struct iwl_priv), hw_ops);
 	if (hw == NULL) {
-		printk(KERN_ERR "%s: Can not allocate network device\n",
+		pr_err("%s: Can not allocate network device\n",
 		       cfg->name);
 		goto out;
 	}
@@ -400,21 +401,38 @@ void iwlcore_free_geos(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwlcore_free_geos);
 
 /*
- *  iwlcore_rts_tx_cmd_flag: Set rts/cts. 3945 and 4965 only share this
+ *  iwlcore_tx_cmd_protection: Set rts/cts. 3945 and 4965 only share this
  *  function.
  */
-void iwlcore_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
-				__le32 *tx_flags)
+void iwlcore_tx_cmd_protection(struct iwl_priv *priv,
+			       struct ieee80211_tx_info *info,
+			       __le16 fc, __le32 *tx_flags)
 {
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		*tx_flags |= TX_CMD_FLG_RTS_MSK;
 		*tx_flags &= ~TX_CMD_FLG_CTS_MSK;
+		*tx_flags |= TX_CMD_FLG_FULL_TXOP_PROT_MSK;
+
+		if (!ieee80211_is_mgmt(fc))
+			return;
+
+		switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
+		case cpu_to_le16(IEEE80211_STYPE_AUTH):
+		case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
+		case cpu_to_le16(IEEE80211_STYPE_ASSOC_REQ):
+		case cpu_to_le16(IEEE80211_STYPE_REASSOC_REQ):
+			*tx_flags &= ~TX_CMD_FLG_RTS_MSK;
+			*tx_flags |= TX_CMD_FLG_CTS_MSK;
+			break;
+		}
 	} else if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		*tx_flags &= ~TX_CMD_FLG_RTS_MSK;
 		*tx_flags |= TX_CMD_FLG_CTS_MSK;
+		*tx_flags |= TX_CMD_FLG_FULL_TXOP_PROT_MSK;
 	}
 }
-EXPORT_SYMBOL(iwlcore_rts_tx_cmd_flag);
+EXPORT_SYMBOL(iwlcore_tx_cmd_protection);
+
 
 static bool is_single_rx_stream(struct iwl_priv *priv)
 {
@@ -457,7 +475,7 @@ u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 		if (!sta_ht_inf->ht_supported)
 			return 0;
 	}
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (priv->disable_ht40)
 		return 0;
 #endif
@@ -506,11 +524,11 @@ void iwl_setup_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	}
 
 	beacon_int = iwl_adjust_beacon_interval(beacon_int,
-				priv->hw_params.max_beacon_itrvl * 1024);
+				priv->hw_params.max_beacon_itrvl * TIME_UNIT);
 	priv->rxon_timing.beacon_interval = cpu_to_le16(beacon_int);
 
 	tsf = priv->timestamp; /* tsf is modifed by do_div: copy it */
-	interval_tm = beacon_int * 1024;
+	interval_tm = beacon_int * TIME_UNIT;
 	rem = do_div(tsf, interval_tm);
 	priv->rxon_timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
 
@@ -932,9 +950,9 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch)
 }
 EXPORT_SYMBOL(iwl_set_rxon_channel);
 
-static void iwl_set_flags_for_band(struct iwl_priv *priv,
-				   enum ieee80211_band band,
-				   struct ieee80211_vif *vif)
+void iwl_set_flags_for_band(struct iwl_priv *priv,
+			    enum ieee80211_band band,
+			    struct ieee80211_vif *vif)
 {
 	if (band == IEEE80211_BAND_5GHZ) {
 		priv->staging_rxon.flags &=
@@ -943,12 +961,9 @@ static void iwl_set_flags_for_band(struct iwl_priv *priv,
 		priv->staging_rxon.flags |= RXON_FLG_SHORT_SLOT_MSK;
 	} else {
 		/* Copied from iwl_post_associate() */
-		if (vif && vif->bss_conf.assoc_capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
+		if (vif && vif->bss_conf.use_short_slot)
 			priv->staging_rxon.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
-			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
-
-		if (vif && vif->type == NL80211_IFTYPE_ADHOC)
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
 		priv->staging_rxon.flags |= RXON_FLG_BAND_24G_MSK;
@@ -956,6 +971,7 @@ static void iwl_set_flags_for_band(struct iwl_priv *priv,
 		priv->staging_rxon.flags &= ~RXON_FLG_CCK_MSK;
 	}
 }
+EXPORT_SYMBOL(iwl_set_flags_for_band);
 
 /*
  * initialize rxon structure with default values from eeprom
@@ -1021,15 +1037,17 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	/* clear both MIX and PURE40 mode flag */
 	priv->staging_rxon.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
 					RXON_FLG_CHANNEL_MODE_PURE_40);
-	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
-	memcpy(priv->staging_rxon.wlap_bssid_addr, priv->mac_addr, ETH_ALEN);
+
+	if (vif)
+		memcpy(priv->staging_rxon.node_addr, vif->addr, ETH_ALEN);
+
 	priv->staging_rxon.ofdm_ht_single_stream_basic_rates = 0xff;
 	priv->staging_rxon.ofdm_ht_dual_stream_basic_rates = 0xff;
 	priv->staging_rxon.ofdm_ht_triple_stream_basic_rates = 0xff;
 }
 EXPORT_SYMBOL(iwl_connection_init_rx_config);
 
-static void iwl_set_rate(struct iwl_priv *priv)
+void iwl_set_rate(struct iwl_priv *priv)
 {
 	const struct ieee80211_supported_band *hw = NULL;
 	struct ieee80211_rate *rate;
@@ -1057,6 +1075,21 @@ static void iwl_set_rate(struct iwl_priv *priv)
 	priv->staging_rxon.ofdm_basic_rates =
 	   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
+EXPORT_SYMBOL(iwl_set_rate);
+
+void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	if (priv->switch_rxon.switch_in_progress) {
+		ieee80211_chswitch_done(priv->vif, is_success);
+		mutex_lock(&priv->mutex);
+		priv->switch_rxon.switch_in_progress = false;
+		mutex_unlock(&priv->mutex);
+	}
+}
+EXPORT_SYMBOL(iwl_chswitch_done);
 
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
@@ -1071,11 +1104,12 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			priv->staging_rxon.channel = csa->channel;
 			IWL_DEBUG_11H(priv, "CSA notif: channel %d\n",
 			      le16_to_cpu(csa->channel));
-		} else
+			iwl_chswitch_done(priv, true);
+		} else {
 			IWL_ERR(priv, "CSA notif (fail) : channel %d\n",
 			      le16_to_cpu(csa->channel));
-
-		priv->switch_rxon.switch_in_progress = false;
+			iwl_chswitch_done(priv, false);
+		}
 	}
 }
 EXPORT_SYMBOL(iwl_rx_csa);
@@ -1294,51 +1328,6 @@ out:
 EXPORT_SYMBOL(iwl_apm_init);
 
 
-
-void iwl_configure_filter(struct ieee80211_hw *hw,
-			  unsigned int changed_flags,
-			  unsigned int *total_flags,
-			  u64 multicast)
-{
-	struct iwl_priv *priv = hw->priv;
-	__le32 filter_or = 0, filter_nand = 0;
-
-#define CHK(test, flag)	do { \
-	if (*total_flags & (test))		\
-		filter_or |= (flag);		\
-	else					\
-		filter_nand |= (flag);		\
-	} while (0)
-
-	IWL_DEBUG_MAC80211(priv, "Enter: changed: 0x%x, total: 0x%x\n",
-			changed_flags, *total_flags);
-
-	CHK(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS, RXON_FILTER_PROMISC_MSK);
-	CHK(FIF_CONTROL, RXON_FILTER_CTL2HOST_MSK);
-	CHK(FIF_BCN_PRBRESP_PROMISC, RXON_FILTER_BCON_AWARE_MSK);
-
-#undef CHK
-
-	mutex_lock(&priv->mutex);
-
-	priv->staging_rxon.filter_flags &= ~filter_nand;
-	priv->staging_rxon.filter_flags |= filter_or;
-
-	iwlcore_commit_rxon(priv);
-
-	mutex_unlock(&priv->mutex);
-
-	/*
-	 * Receiving all multicast frames is always enabled by the
-	 * default flags setup in iwl_connection_init_rx_config()
-	 * since we currently do not support programming multicast
-	 * filters into the device.
-	 */
-	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI | FIF_PROMISC_IN_BSS |
-			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
-}
-EXPORT_SYMBOL(iwl_configure_filter);
-
 int iwl_set_hw_params(struct iwl_priv *priv)
 {
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
@@ -1506,130 +1495,6 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					&statistics_cmd);
 }
 EXPORT_SYMBOL(iwl_send_statistics_request);
-
-/**
- * iwl_verify_inst_sparse - verify runtime uCode image in card vs. host,
- *   using sample data 100 bytes apart.  If these sample points are good,
- *   it's a pretty good bet that everything between them is good, too.
- */
-static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
-{
-	u32 val;
-	int ret = 0;
-	u32 errcnt = 0;
-	u32 i;
-
-	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
-
-	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
-		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
-		 * if IWL_DL_IO is set */
-		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
-			i + IWL49_RTC_INST_LOWER_BOUND);
-		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		if (val != le32_to_cpu(*image)) {
-			ret = -EIO;
-			errcnt++;
-			if (errcnt >= 3)
-				break;
-		}
-	}
-
-	return ret;
-}
-
-/**
- * iwlcore_verify_inst_full - verify runtime uCode image in card vs. host,
- *     looking at all data.
- */
-static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
-				 u32 len)
-{
-	u32 val;
-	u32 save_len = len;
-	int ret = 0;
-	u32 errcnt;
-
-	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
-
-	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
-			   IWL49_RTC_INST_LOWER_BOUND);
-
-	errcnt = 0;
-	for (; len > 0; len -= sizeof(u32), image++) {
-		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
-		 * if IWL_DL_IO is set */
-		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		if (val != le32_to_cpu(*image)) {
-			IWL_ERR(priv, "uCode INST section is invalid at "
-				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
-				  save_len - len, val, le32_to_cpu(*image));
-			ret = -EIO;
-			errcnt++;
-			if (errcnt >= 20)
-				break;
-		}
-	}
-
-	if (!errcnt)
-		IWL_DEBUG_INFO(priv,
-		    "ucode image in INSTRUCTION memory is good\n");
-
-	return ret;
-}
-
-/**
- * iwl_verify_ucode - determine which instruction image is in SRAM,
- *    and verify its contents
- */
-int iwl_verify_ucode(struct iwl_priv *priv)
-{
-	__le32 *image;
-	u32 len;
-	int ret;
-
-	/* Try bootstrap */
-	image = (__le32 *)priv->ucode_boot.v_addr;
-	len = priv->ucode_boot.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Bootstrap uCode is good in inst SRAM\n");
-		return 0;
-	}
-
-	/* Try initialize */
-	image = (__le32 *)priv->ucode_init.v_addr;
-	len = priv->ucode_init.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Initialize uCode is good in inst SRAM\n");
-		return 0;
-	}
-
-	/* Try runtime/protocol */
-	image = (__le32 *)priv->ucode_code.v_addr;
-	len = priv->ucode_code.len;
-	ret = iwlcore_verify_inst_sparse(priv, image, len);
-	if (!ret) {
-		IWL_DEBUG_INFO(priv, "Runtime uCode is good in inst SRAM\n");
-		return 0;
-	}
-
-	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
-
-	/* Since nothing seems to match, show first several data entries in
-	 * instruction SRAM, so maybe visual inspection will give a clue.
-	 * Selection of bootstrap image (vs. other images) is arbitrary. */
-	image = (__le32 *)priv->ucode_boot.v_addr;
-	len = priv->ucode_boot.len;
-	ret = iwl_verify_inst_full(priv, image, len);
-
-	return ret;
-}
-EXPORT_SYMBOL(iwl_verify_ucode);
-
 
 void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 {
@@ -1855,6 +1720,37 @@ static inline void iwl_set_no_assoc(struct iwl_priv *priv)
 	iwlcore_commit_rxon(priv);
 }
 
+static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct iwl_priv *priv = hw->priv;
+	unsigned long flags;
+	__le64 timestamp;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		return -EIO;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	if (priv->ibss_beacon)
+		dev_kfree_skb(priv->ibss_beacon);
+
+	priv->ibss_beacon = skb;
+
+	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
+	priv->timestamp = le64_to_cpu(timestamp);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	priv->cfg->ops->lib->post_associate(priv, priv->vif);
+
+	return 0;
+}
+
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *bss_conf,
@@ -1869,6 +1765,15 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		return;
 
 	mutex_lock(&priv->mutex);
+
+	if (changes & BSS_CHANGED_QOS) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&priv->lock, flags);
+		priv->qos_data.qos_active = bss_conf->qos;
+		iwl_update_qos(priv);
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_AP) {
 		dev_kfree_skb(priv->ibss_beacon);
@@ -1936,6 +1841,10 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
+		if (bss_conf->use_cts_prot)
+			priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
+		else
+			priv->staging_rxon.flags &= ~RXON_FLG_SELF_CTS_EN;
 	}
 
 	if (changes & BSS_CHANGED_BASIC_RATES) {
@@ -2012,46 +1921,12 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(iwl_bss_info_changed);
 
-int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct iwl_priv *priv = hw->priv;
-	unsigned long flags;
-	__le64 timestamp;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
-		return -EIO;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
-
-	priv->ibss_beacon = skb;
-
-	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
-	priv->timestamp = le64_to_cpu(timestamp);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	priv->cfg->ops->lib->post_associate(priv, priv->vif);
-
-	return 0;
-}
-EXPORT_SYMBOL(iwl_mac_beacon_update);
-
 static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	iwl_connection_init_rx_config(priv, vif);
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv);
-
-	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
 	return iwlcore_commit_rxon(priv);
 }
@@ -2061,7 +1936,8 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct iwl_priv *priv = hw->priv;
 	int err = 0;
 
-	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", vif->type);
+	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
+			   vif->type, vif->addr);
 
 	mutex_lock(&priv->mutex);
 
@@ -2078,9 +1954,6 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	priv->vif = vif;
 	priv->iw_mode = vif->type;
-
-	IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
-	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 
 	err = iwl_set_mode(priv, vif);
 	if (err)
@@ -2103,6 +1976,7 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
+	bool scan_completed = false;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -2115,9 +1989,17 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	}
 	if (priv->vif == vif) {
 		priv->vif = NULL;
+		if (priv->scan_vif == vif) {
+			scan_completed = true;
+			priv->scan_vif = NULL;
+			priv->scan_request = NULL;
+		}
 		memset(priv->bssid, 0, ETH_ALEN);
 	}
 	mutex_unlock(&priv->mutex);
+
+	if (scan_completed)
+		ieee80211_scan_completed(priv->hw, true);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -2215,22 +2097,10 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		iwl_set_flags_for_band(priv, conf->channel->band, priv->vif);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		if (iwl_is_associated(priv) &&
-		    (le16_to_cpu(priv->active_rxon.channel) != ch) &&
-		    priv->cfg->ops->lib->set_channel_switch) {
-			iwl_set_rate(priv);
-			/*
-			 * at this point, staging_rxon has the
-			 * configuration for channel switch
-			 */
-			ret = priv->cfg->ops->lib->set_channel_switch(priv,
-				ch);
-			if (!ret) {
-				iwl_print_rx_config_cmd(priv);
-				goto out;
-			}
-			priv->switch_rxon.switch_in_progress = false;
-		}
+
+		if (priv->cfg->ops->lib->update_bcast_station)
+			ret = priv->cfg->ops->lib->update_bcast_station(priv);
+
  set_ch_out:
 		/* The list of supported rates and rate mask can be different
 		 * for each band; since the band may have changed, reset
@@ -2250,15 +2120,6 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 			priv->tx_power_user_lmt, conf->power_level);
 
 		iwl_set_tx_power(priv, conf->power_level, false);
-	}
-
-	if (changed & IEEE80211_CONF_CHANGE_QOS) {
-		bool qos_active = !!(conf->flags & IEEE80211_CONF_QOS);
-
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->qos_data.qos_active = qos_active;
-		iwl_update_qos(priv);
-		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	if (!iwl_is_ready(priv)) {
@@ -2588,7 +2449,7 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 EXPORT_SYMBOL(iwl_update_stats);
 #endif
 
-const static char *get_csr_string(int cmd)
+static const char *get_csr_string(int cmd)
 {
 	switch (cmd) {
 		IWL_CMD(CSR_HW_IF_CONFIG_REG);
@@ -2659,7 +2520,7 @@ void iwl_dump_csr(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_dump_csr);
 
-const static char *get_fh_string(int cmd)
+static const char *get_fh_string(int cmd)
 {
 	switch (cmd) {
 		IWL_CMD(FH_RSCSR_CHNL0_STTS_WPTR_REG);
@@ -2745,7 +2606,7 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 }
 
 
-int iwl_force_reset(struct iwl_priv *priv, int mode)
+int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 {
 	struct iwl_force_reset *force_reset;
 
@@ -2758,12 +2619,14 @@ int iwl_force_reset(struct iwl_priv *priv, int mode)
 	}
 	force_reset = &priv->force_reset[mode];
 	force_reset->reset_request_count++;
-	if (force_reset->last_force_reset_jiffies &&
-	    time_after(force_reset->last_force_reset_jiffies +
-	    force_reset->reset_duration, jiffies)) {
-		IWL_DEBUG_INFO(priv, "force reset rejected\n");
-		force_reset->reset_reject_count++;
-		return -EAGAIN;
+	if (!external) {
+		if (force_reset->last_force_reset_jiffies &&
+		    time_after(force_reset->last_force_reset_jiffies +
+		    force_reset->reset_duration, jiffies)) {
+			IWL_DEBUG_INFO(priv, "force reset rejected\n");
+			force_reset->reset_reject_count++;
+			return -EAGAIN;
+		}
 	}
 	force_reset->reset_success_count++;
 	force_reset->last_force_reset_jiffies = jiffies;
@@ -2773,6 +2636,19 @@ int iwl_force_reset(struct iwl_priv *priv, int mode)
 		iwl_force_rf_reset(priv);
 		break;
 	case IWL_FW_RESET:
+		/*
+		 * if the request is from external(ex: debugfs),
+		 * then always perform the request in regardless the module
+		 * parameter setting
+		 * if the request is from internal (uCode error or driver
+		 * detect failure), then fw_restart module parameter
+		 * need to be check before performing firmware reload
+		 */
+		if (!external && !priv->cfg->mod_params->restart_fw) {
+			IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
+				       "module parameter setting\n");
+			break;
+		}
 		IWL_ERR(priv, "On demand firmware reload\n");
 		/* Set the FW error flag -- cleared on iwl_down */
 		set_bit(STATUS_FW_ERROR, &priv->status);
@@ -2831,7 +2707,7 @@ static int iwl_check_stuck_queue(struct iwl_priv *priv, int cnt)
 					"queue %d stuck %d time. Fw reload.\n",
 					q->id, q->repeat_same_read_ptr);
 				q->repeat_same_read_ptr = 0;
-				iwl_force_reset(priv, IWL_FW_RESET);
+				iwl_force_reset(priv, IWL_FW_RESET, false);
 			} else {
 				q->repeat_same_read_ptr++;
 				IWL_DEBUG_RADIO(priv,
@@ -2881,6 +2757,61 @@ void iwl_bg_monitor_recover(unsigned long data)
 }
 EXPORT_SYMBOL(iwl_bg_monitor_recover);
 
+
+/*
+ * extended beacon time format
+ * time in usec will be changed into a 32-bit value in extended:internal format
+ * the extended part is the beacon counts
+ * the internal part is the time in usec within one beacon interval
+ */
+u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval)
+{
+	u32 quot;
+	u32 rem;
+	u32 interval = beacon_interval * TIME_UNIT;
+
+	if (!interval || !usec)
+		return 0;
+
+	quot = (usec / interval) &
+		(iwl_beacon_time_mask_high(priv,
+		priv->hw_params.beacon_time_tsf_bits) >>
+		priv->hw_params.beacon_time_tsf_bits);
+	rem = (usec % interval) & iwl_beacon_time_mask_low(priv,
+				   priv->hw_params.beacon_time_tsf_bits);
+
+	return (quot << priv->hw_params.beacon_time_tsf_bits) + rem;
+}
+EXPORT_SYMBOL(iwl_usecs_to_beacons);
+
+/* base is usually what we get from ucode with each received frame,
+ * the same as HW timer counter counting down
+ */
+__le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
+			   u32 addon, u32 beacon_interval)
+{
+	u32 base_low = base & iwl_beacon_time_mask_low(priv,
+					priv->hw_params.beacon_time_tsf_bits);
+	u32 addon_low = addon & iwl_beacon_time_mask_low(priv,
+					priv->hw_params.beacon_time_tsf_bits);
+	u32 interval = beacon_interval * TIME_UNIT;
+	u32 res = (base & iwl_beacon_time_mask_high(priv,
+				priv->hw_params.beacon_time_tsf_bits)) +
+				(addon & iwl_beacon_time_mask_high(priv,
+				priv->hw_params.beacon_time_tsf_bits));
+
+	if (base_low > addon_low)
+		res += base_low - addon_low;
+	else if (base_low < addon_low) {
+		res += interval + base_low - addon_low;
+		res += (1 << priv->hw_params.beacon_time_tsf_bits);
+	} else
+		res += (1 << priv->hw_params.beacon_time_tsf_bits);
+
+	return cpu_to_le32(res);
+}
+EXPORT_SYMBOL(iwl_add_beacon_time);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -2908,6 +2839,7 @@ int iwl_pci_resume(struct pci_dev *pdev)
 {
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
 	int ret;
+	bool hw_rfkill = false;
 
 	/*
 	 * We disable the RETRY_TIMEOUT register (0x41) to keep
@@ -2921,6 +2853,17 @@ int iwl_pci_resume(struct pci_dev *pdev)
 		return ret;
 	pci_restore_state(pdev);
 	iwl_enable_interrupts(priv);
+
+	if (!(iwl_read32(priv, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
+		hw_rfkill = true;
+
+	if (hw_rfkill)
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+	else
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy, hw_rfkill);
 
 	return 0;
 }

@@ -343,7 +343,7 @@ static struct snd_platform_data da850_evm_snd_data = {
 	.num_serializer	= ARRAY_SIZE(da850_iis_serializer_direction),
 	.tdm_slots	= 2,
 	.serial_dir	= da850_iis_serializer_direction,
-	.eventq_no	= EVENTQ_1,
+	.asp_chan_q	= EVENTQ_1,
 	.version	= MCASP_VERSION_2,
 	.txnumevt	= 1,
 	.rxnumevt	= 1,
@@ -637,6 +637,56 @@ static int __init da850_evm_config_emac(void)
 }
 device_initcall(da850_evm_config_emac);
 
+/*
+ * The following EDMA channels/slots are not being used by drivers (for
+ * example: Timer, GPIO, UART events etc) on da850/omap-l138 EVM, hence
+ * they are being reserved for codecs on the DSP side.
+ */
+static const s16 da850_dma0_rsv_chans[][2] = {
+	/* (offset, number) */
+	{ 8,  6},
+	{24,  4},
+	{30,  2},
+	{-1, -1}
+};
+
+static const s16 da850_dma0_rsv_slots[][2] = {
+	/* (offset, number) */
+	{ 8,  6},
+	{24,  4},
+	{30, 50},
+	{-1, -1}
+};
+
+static const s16 da850_dma1_rsv_chans[][2] = {
+	/* (offset, number) */
+	{ 0, 28},
+	{30,  2},
+	{-1, -1}
+};
+
+static const s16 da850_dma1_rsv_slots[][2] = {
+	/* (offset, number) */
+	{ 0, 28},
+	{30, 90},
+	{-1, -1}
+};
+
+static struct edma_rsv_info da850_edma_cc0_rsv = {
+	.rsv_chans	= da850_dma0_rsv_chans,
+	.rsv_slots	= da850_dma0_rsv_slots,
+};
+
+static struct edma_rsv_info da850_edma_cc1_rsv = {
+	.rsv_chans	= da850_dma1_rsv_chans,
+	.rsv_slots	= da850_dma1_rsv_slots,
+};
+
+static struct edma_rsv_info *da850_edma_rsv[2] = {
+	&da850_edma_cc0_rsv,
+	&da850_edma_cc1_rsv,
+};
+
 static __init void da850_evm_init(void)
 {
 	int ret;
@@ -646,7 +696,7 @@ static __init void da850_evm_init(void)
 		pr_warning("da850_evm_init: TPS65070 PMIC init failed: %d\n",
 				ret);
 
-	ret = da8xx_register_edma();
+	ret = da850_register_edma(da850_edma_rsv);
 	if (ret)
 		pr_warning("da850_evm_init: edma registration failed: %d\n",
 				ret);
