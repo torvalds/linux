@@ -953,7 +953,14 @@ struct net_device {
 /*
  * Cache line mostly used on receive path (including eth_type_trans())
  */
-	unsigned long		last_rx;	/* Time of last Rx	*/
+	unsigned long		last_rx;	/* Time of last Rx
+						 * This should not be set in
+						 * drivers, unless really needed,
+						 * because network stack (bonding)
+						 * use it if/when necessary, to
+						 * avoid dirtying this cache line.
+						 */
+
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;	/* hw address, (before bcast
 						   because most packets are
