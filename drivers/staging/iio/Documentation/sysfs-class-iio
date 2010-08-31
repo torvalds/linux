@@ -158,7 +158,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Magnetic field along axis x, y or z (may be arbitrarily assigned)
 		channel m (not present if only one magnetometer at this orientation).
-		Data converted by application of offset then scale to Gauss
+		Data converted by application of offset then scale to Gauss.
 		Has all the equivalent modifiers as per in[m].
 
 What:		/sys/.../device[n]/device[n]:event[m]
@@ -212,39 +212,6 @@ Description:
 		The actual value of the threshold in raw device units obtained by
 		 reverse application of scale and offfset to the acceleration in m/s^2.
 
-What:		/sys/.../device[n]/scan_elements
-KernelVersion:	2.6.35
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Directory containing interfaces for elements that will be captured
-		for a single triggered sample set in the buffer.
-
-What:		/sys/.../device[n]/scan_elements/[m]_accel_x0_en
-KernelVersion:	2.6.35
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Scan element control for triggered data capture. m implies the
-		ordering within the buffer. Next the type is specified with
-		modifier and channel number as per the sysfs single channel
-		access above.
-
-What:		/sys/.../device[n]/scan_elements/accel[_x0]_precision
-KernelVersion:	2.6.35
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Scan element precision within the buffer. Note that the
-		data alignment must restrictions must be read from within
-		buffer to work out full data alignment for data read
-		via buffer_access chrdev. _x0 dropped if shared across all
-		acceleration channels.
-
-What:		/sys/.../device[n]/scan_elements/accel[_x0]_shift
-KernelVersion:	2.6.35
-Contact:	linux-iio@vger.kernel.org
-Description:
-		A bit shift (to right) that must be applied prior to
-		extracting the bits specified by accel[_x0]_precision.
-
 What:		/sys/.../device[n]/device[n]:buffer:event/dev
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
@@ -270,8 +237,8 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of scans contained by the buffer.
 
-What:		/sys/.../device[n]:buffer/bps
-KernelVersion:	2.6.35
+What:		/sys/.../device[n]:buffer/bytes_per_datum
+KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Bytes per scan.  Due to alignment fun, the scan may be larger
@@ -291,4 +258,37 @@ Description:
 		Minimum data alignment.  Scan elements larger than this are aligned
 		to the nearest power of 2 times this.  (may not be true in weird
 		hardware buffers that pack data well)
+
+What:		/sys/.../device[n]/buffer/scan_elements
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Directory containing interfaces for elements that will be captured
+		for a single triggered sample set in the buffer.
+
+What:		/sys/.../device[n]/buffer/scan_elements/[m]_accel_x0_en
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scan element control for triggered data capture. m implies the
+		ordering within the buffer. Next the type is specified with
+		modifier and channel number as per the sysfs single channel
+		access above.
+
+What:		/sys/.../device[n]/buffer/scan_elements/accel[_x0]_precision
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scan element precision within the buffer. Note that the
+		data alignment must restrictions must be read from within
+		buffer to work out full data alignment for data read
+		via buffer_access chrdev. _x0 dropped if shared across all
+		acceleration channels.
+
+What:		/sys/.../device[n]/buffer/scan_elements/accel[_x0]_shift
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A bit shift (to right) that must be applied prior to
+		extracting the bits specified by accel[_x0]_precision.
 

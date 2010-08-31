@@ -7,17 +7,14 @@ Typical sysfs entries (pruned for clarity)
 /sys/class/iio
   device0 - iio_dev related elements
     name - driver specific identifier (here lis3l02dq)
-    accel_x - polled (or from ring) raw readout of acceleration
-    accel_x_gain - hardware gain (calibration)
-    accel_x_offset - hardware offset (calibration)
-    available_sampling_frequency
+    accel_x_raw - polled (or from ring) raw readout of acceleration
+    accel_x_offset - offset to be applied to the raw reading
+    accel_x_scale - scale to be applied to the raw reading and offset
+    accel_x_calibbias - hardware offset (calibration)
+    accel_x_calibscale - hardware gain (calibration)
 
-    available_sampling_frequency - what options are there
+    sampling_frequency_available - what options are there
     sampling_frequency - control of internal sampling frequency
-    scan_elements - controls which channels will be stored in the ring buffer
-      scan_en_accel_x
-      scan_en_accel_y
-      scan_en_timestamp
     device - link to underlying hardware device
     uevent - udev related element
 
@@ -30,23 +27,28 @@ Typical sysfs entries (pruned for clarity)
       dev - major:minor for the chrdev (note major allocation dynamic)
     trigger - consumer attachement
       current_trigger - name based association with a trigger
-    ring_buffer0 - ring buffer interface
-      bps - byptes per sample (read only), dependant on scan element selection
+    device0:buffer0 - ring buffer interface
+      bytes_per_datum - byptes per complete datum (read only),
+                        dependant on scan element selection
       length - (rw) specificy length fo software ring buffer (typically ro in hw case)
-      ring_enable - turn the ring on. If its the first to be enabled attached to this
-                    trigger will also enable the trigger.
-      ring_access0
+      enable - turn the ring on. If its the first to be enabled attached to this
+               trigger will also enable the trigger.
+      device0:buffer0:access0
         dev - major:minor for ring buffer access chrdev
-      ring_event_line0
+      device0:buffer0:event0
         dev - major:minor for ring buffer event chrdev
+      scan_elements - controls which channels will be stored in the ring buffer
+        accel_x_en
+        accel_y_en
+        timestamp_en
 
   trigger0 - data ready trigger elements
     name - unqiue name of trigger
 
 Udev will create the following entries under /dev by default:
 
-ring_access0 - ring access chrdev
-ring_event0 - ring event chrdev
+device0:buffer0:access0 - ring access chrdev
+device0:buffer0:event0 - ring event chrdev
 event_line0 - general event chrdev.
 
 For the example code we assume the following rules have been used to ensure
