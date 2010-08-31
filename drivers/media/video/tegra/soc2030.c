@@ -949,8 +949,8 @@ static int soc2030_get_status(struct soc2030_info *info, u16 *status)
 }
 
 
-static int soc2030_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long soc2030_ioctl(struct file *file,
+			  unsigned int cmd, unsigned long arg)
 {
 	struct soc2030_info *info = file->private_data;
 
@@ -1054,7 +1054,7 @@ int soc2030_release(struct inode *inode, struct file *file)
 static const struct file_operations soc2030_fileops = {
 	.owner = THIS_MODULE,
 	.open = soc2030_open,
-	.ioctl = soc2030_ioctl,
+	.unlocked_ioctl = soc2030_ioctl,
 	.release = soc2030_release,
 };
 
