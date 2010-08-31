@@ -3907,8 +3907,6 @@ static void __exit pg_cleanup(void)
 {
 	struct pktgen_thread *t;
 	struct list_head *q, *n;
-	wait_queue_head_t queue;
-	init_waitqueue_head(&queue);
 
 	/* Stop all interfaces & threads */
 
