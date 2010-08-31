@@ -29,12 +29,21 @@ static void __iomem *l2x0_base;
 static DEFINE_SPINLOCK(l2x0_lock);
 static uint32_t l2x0_way_mask;	/* Bitmask of active ways */
 
-static inline void cache_wait(void __iomem *reg, unsigned long mask)
+static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 {
-	/* wait for the operation to complete */
+	/* wait for cache operation by line or way to complete */
 	while (readl_relaxed(reg) & mask)
 		;
 }
+
+#ifdef CONFIG_CACHE_PL310
+static inline void cache_wait(void __iomem *reg, unsigned long mask)
+{
+	/* cache operations by line are atomic on PL310 */
+}
+#else
+#define cache_wait	cache_wait_way
+#endif
 
 static inline void cache_sync(void)
 {
@@ -110,7 +119,7 @@ static inline void l2x0_inv_all(void)
 	/* invalidate all ways */
 	spin_lock_irqsave(&l2x0_lock, flags);
 	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
-	cache_wait(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
+	cache_wait_way(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
