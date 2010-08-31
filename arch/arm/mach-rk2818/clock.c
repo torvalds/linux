@@ -14,7 +14,6 @@
  */
 
 //#define DEBUG
-//#define DEBUG_TCM
 #define pr_fmt(fmt) "clock: %s: " fmt, __func__
 
 #include <linux/clk.h>
@@ -301,50 +300,10 @@ void __tcmfunc tcm_udelay(unsigned long usecs, unsigned long arm_freq_mhz)
 	}
 }
 
-#ifdef DEBUG_TCM
-static void __tcmlocalfunc noinline tcm_printch(char byte)
-{
-	unsigned int timeout;
-
-	timeout = 0xffffffff;
-	while (!(readl(RK2818_UART1_BASE + 0x7c) & (1<<1))) {
-		if (!timeout--) 
-			return;
-	}
-	writel(byte, RK2818_UART1_BASE);
-	if (byte == '\n')
-		tcm_printch('\r');
-}
-
-static void __tcmlocalfunc noinline tcm_printascii(const char *s)
-{
-	while (*s) {
-		tcm_printch(*s);
-		s++;
-	}
-}
-
-static void __tcmlocalfunc noinline tcm_printhex(unsigned int hex)
-{
-	int i = 8;
-	tcm_printch('0');
-	tcm_printch('x');
-	while (i--) {
-		unsigned char c = (hex & 0xF0000000) >> 28;
-		tcm_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
-		hex <<= 4;
-	}
-}
-#else
-#define tcm_printch(...)
-#define tcm_printascii(...)
-#define tcm_printhex(...)
-#endif
-
 #define ARM_PLL_IDX	0
 #define DSP_PLL_IDX	1
 
-static void __tcmlocalfunc scu_hw_pll_wait_lock(int pll_idx, int delay)
+static void scu_hw_pll_wait_lock(int pll_idx, int delay)
 {
 	u32 bit = 0x80u << pll_idx;
 	while (delay > 0) {
@@ -353,11 +312,11 @@ static void __tcmlocalfunc scu_hw_pll_wait_lock(int pll_idx, int delay)
 		delay--;
 	}
 	if (delay == 0 && !ddr_disabled) {
-		tcm_printascii("wait pll bit "); tcm_printhex(bit); tcm_printascii(" time out!\n");
+		pr_warning("wait pll bit 0x%x time out!\n", bit);
 	}
 }
 
-static void __tcmlocalfunc arm_pll_clk_slow_mode(int enter)
+static void arm_pll_clk_slow_mode(int enter)
 {
 	scu_writel((scu_readl(SCU_MODE_CON) & ~SCU_CPUMODE_MASK) | (enter ? SCU_CPUMODE_SLOW : SCU_CPUMODE_NORMAL), SCU_MODE_CON);
 }
@@ -371,7 +330,7 @@ static void __tcmlocalfunc arm_pll_clk_slow_mode(int enter)
 #define CLK_ARM_HCLK_31		2
 #define CLK_ARM_HCLK_41		3
 
-static void __tcmlocalfunc scu_hw_set_ahb_apb_div(int ahb_div, int apb_div)
+static void scu_hw_set_ahb_apb_div(int ahb_div, int apb_div)
 {
 	u32 reg_val;
 	reg_val = scu_readl(SCU_CLKSEL0_CON) & ~0xF;
@@ -381,24 +340,22 @@ static void __tcmlocalfunc scu_hw_set_ahb_apb_div(int ahb_div, int apb_div)
 	tcm_udelay(1, 24);	/* huangtao: unknown why, but if no delay, system will unstable. */
 }
 
-static void __tcmlocalfunc scu_hw_set_clk48m_div(int clk48m_div)
+static void scu_hw_set_clk48m_div(int clk48m_div)
 {
 	u32 reg_val = scu_readl(SCU_CLKSEL2_CON) & ~(0xF << 4);
 	reg_val |= ((clk48m_div & 0xF) << 4);
 	scu_writel(reg_val, SCU_CLKSEL2_CON);
 }
 
-static int __tcmfunc __rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_set *_ps)
+static int rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_set *ps)
 {
-	const struct rockchip_pll_set pll_set = *_ps;
-	const struct rockchip_pll_set *ps = &pll_set;
 	const int delay = ARM_PLL_DELAY;
 
 	if (ps->clk_hz == 24 * SCU_CLK_MHZ) {
 		arm_pll_clk_slow_mode(1);
 		/* 20100615,HSL@RK,when power down,set pll out=300 M. */
 		scu_writel_force(ps->pll_con, SCU_APLL_CON);
-		tcm_printascii("set 24M clk, arm power down\n");
+		pr_debug("set 24M clk, arm power down\n");
 		__udelay(delay);
 		scu_writel_force(scu_readl(SCU_APLL_CON) | PLL_PD, SCU_APLL_CON);
 		scu_hw_set_ahb_apb_div(ps->ahb_div, ps->apb_div);
@@ -417,7 +374,7 @@ static int __tcmfunc __rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_
 		reg_val = scu_readl(SCU_APLL_CON);
 		if (reg_val & PLL_PD) {
 			scu_writel_force(reg_val & ~PLL_PD, SCU_APLL_CON);
-			tcm_printascii("arm pll power on, set to "); tcm_printhex(ps->clk_hz); tcm_printascii(", delay = "); tcm_printhex(delay); tcm_printch('\n');
+			pr_debug("arm pll power on, set to %d, delay = %d\n", ps->clk_hz, delay);
 			scu_hw_pll_wait_lock(ARM_PLL_IDX, delay * 2);
 		}
 		local_irq_restore(flags);
@@ -436,19 +393,6 @@ static int __tcmfunc __rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_
 	}
 
 	return 0;
-}
-
-static int noinline rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_set *ps)
-{
-	int ret;
-	unsigned long old_sp, tcm_sp = DTCM_END & ~7;
-
-	asm volatile ("mov %0, sp" : "=r" (old_sp));
-	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
-	ret = __rockchip_scu_set_arm_pllclk_hw(ps);
-	asm volatile ("mov sp, %0" :: "r" (old_sp));
-
-	return ret;
 }
 
 #define ARM_PLL(_clk_hz, nr, nf, od, _clk48m_div, _ahb_div, _apb_div, _flags) \
@@ -600,15 +544,13 @@ static unsigned long dsp_pll_clk_recalc(struct clk *clk)
 	return rate;
 }
 
-static void __tcmlocalfunc dsp_pll_clk_slow_mode(int enter)
+static void dsp_pll_clk_slow_mode(int enter)
 {
 	scu_writel((scu_readl(SCU_MODE_CON) & ~SCU_DSPMODE_MASK) | (enter ? SCU_DSPMODE_SLOW : SCU_DSPMODE_NORMAL), SCU_MODE_CON);
 }
 
-static int __tcmfunc __rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *_ps)
+static int rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *ps)
 {
-	const struct rockchip_pll_set pll_set = *_ps;
-	const struct rockchip_pll_set *ps = &pll_set;
 	const int delay = OTHER_PLL_DELAY;
 
 	if (ps->clk_hz == 24 * SCU_CLK_MHZ) {
@@ -616,7 +558,7 @@ static int __tcmfunc __rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_
 		dsp_pll_clk_slow_mode(1);
 		/* 20100615,HSL@RK,when power down,set pll out=300 M. */
 		scu_writel_force(ps->pll_con, SCU_DPLL_CON);
-		tcm_printascii("set 24M clk, dsp power down\n");
+		pr_debug("set 24M clk, dsp power down\n");
 		tcm_udelay(delay, arm_freq_mhz);
 		scu_writel_force(scu_readl(SCU_DPLL_CON) | PLL_PD, SCU_DPLL_CON);
 	} else {
@@ -627,7 +569,7 @@ static int __tcmfunc __rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_
 		reg_val = scu_readl(SCU_DPLL_CON);
 		if (reg_val & PLL_PD) {
 			scu_writel_force(reg_val & ~PLL_PD, SCU_DPLL_CON);
-			tcm_printascii("dsp pll power on, set to "); tcm_printhex(ps->clk_hz); tcm_printascii(", delay = "); tcm_printhex(delay); tcm_printch('\n');
+			pr_debug("dsp pll power on, set to %d, delay = %d\n", ps->clk_hz, delay);
 			scu_hw_pll_wait_lock(DSP_PLL_IDX, delay * 2);
 		}
 
@@ -640,19 +582,6 @@ static int __tcmfunc __rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_
 	}
 
 	return 0;
-}
-
-static int rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *ps)
-{
-	int ret;
-	unsigned long old_sp, tcm_sp = DTCM_END & ~7;
-
-	asm volatile ("mov %0, sp" : "=r" (old_sp));
-	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
-	ret = __rockchip_scu_set_dsp_pllclk_hw(ps);
-	asm volatile ("mov sp, %0" :: "r" (old_sp));
-
-	return ret;
 }
 
 #define DSP_PLL(_clk_hz, nr, nf, od) \
@@ -736,7 +665,7 @@ static unsigned long codec_pll_clk_recalc(struct clk *clk)
 }
 
 #if 0
-static void __tcmlocalfunc codec_pll_clk_slow_mode(int enter) 
+static void codec_pll_clk_slow_mode(int enter) 
 {
 	scu_writel((scu_readl(SCU_CLKSEL1_CON) & ~CLK_CPLL_MASK) | (enter ? CLK_CPLL_SLOW : CLK_CPLL_NORMAL), SCU_CLKSEL1_CON);
 }
