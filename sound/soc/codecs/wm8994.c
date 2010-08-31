@@ -3519,7 +3519,7 @@ static int wm8994_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 #define WM8994_RATES SNDRV_PCM_RATE_8000_96000
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
-			SNDRV_PCM_FMTBIT_S24_LE)
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
