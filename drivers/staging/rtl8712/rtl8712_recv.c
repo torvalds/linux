@@ -139,20 +139,6 @@ int r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 	return res;
 }
 
-void init_recvframe(union recv_frame *precvframe, struct recv_priv *precvpriv)
-{
-	struct recv_buf *precvbuf = precvframe->u.hdr.precvbuf;
-
-	/* Perry: This can be removed */
-	_init_listhead(&precvframe->u.hdr.list);
-	precvframe->u.hdr.len = 0;
-	if (precvbuf) {
-		if (precvbuf->pskb)
-			precvframe->u.hdr.pkt = skb_clone(precvbuf->pskb,
-						GFP_ATOMIC);
-	}
-}
-
 int r8712_free_recvframe(union recv_frame *precvframe,
 		   struct  __queue *pfree_recv_queue)
 {
@@ -217,7 +203,7 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 }
 
 /*perform defrag*/
-union recv_frame *recvframe_defrag(struct _adapter *adapter,
+static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 				   struct  __queue *defrag_q)
 {
 	struct list_head *plist, *phead;
@@ -351,7 +337,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 	return prtnframe;
 }
 
-int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
+static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 {
 	int	a_len, padding_len;
 	u16	eth_type, nSubframe_Length;

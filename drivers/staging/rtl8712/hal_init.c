@@ -32,6 +32,7 @@
 #include "drv_types.h"
 #include "rtl871x_byteorder.h"
 #include "farray.h"
+#include "usb_osintf.h"
 
 #define FWBUFF_ALIGN_SZ 512
 #define MAX_DUMP_FWSZ	49152 /*default = 49152 (48k)*/

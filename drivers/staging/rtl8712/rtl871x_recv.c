@@ -126,28 +126,6 @@ union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
 	return precvframe;
 }
 
-union recv_frame *dequeue_recvframe(struct  __queue *queue)
-{
-	return r8712_alloc_recvframe(queue);
-}
-
-sint enqueue_recvframe(union recv_frame *precvframe, struct  __queue *queue)
-{
-	unsigned long irqL;
-	struct _adapter *padapter = precvframe->u.hdr.adapter;
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-
-	 spin_lock_irqsave(&queue->lock, irqL);
-	list_delete(&(precvframe->u.hdr.list));
-	list_insert_tail(&(precvframe->u.hdr.list), get_list_head(queue));
-	if (padapter != NULL) {
-		if (queue == &precvpriv->free_recv_queue)
-			precvpriv->free_recvframe_cnt++;
-	}
-	 spin_unlock_irqrestore(&queue->lock, irqL);
-	return _SUCCESS;
-}
-
 /*
 caller : defrag; recvframe_chk_defrag in recv_thread  (passive)
 pframequeue: defrag_queue : will be accessed in recv_thread  (passive)
@@ -314,7 +292,7 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 	return prtnframe;
 }
 
-sint recv_decache(union recv_frame *precv_frame, u8 bretry,
+static sint recv_decache(union recv_frame *precv_frame, u8 bretry,
 		  struct stainfo_rxcache *prxcache)
 {
 	sint tid = precv_frame->u.hdr.attrib.priority;
@@ -329,7 +307,7 @@ sint recv_decache(union recv_frame *precv_frame, u8 bretry,
 	return _SUCCESS;
 }
 
-sint sta2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
+static sint sta2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
 			struct sta_info **psta
 )
 {
@@ -395,7 +373,7 @@ sint sta2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
 	return ret;
 }
 
-sint ap2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
+static sint ap2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
 		       struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
@@ -453,7 +431,7 @@ sint ap2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
 	return _SUCCESS;
 }
 
-sint sta2ap_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
+static sint sta2ap_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
 		       struct sta_info **psta)
 {
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
@@ -474,20 +452,20 @@ sint sta2ap_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
 	return _SUCCESS;
 }
 
-sint validate_recv_ctrl_frame(struct _adapter *adapter,
+static sint validate_recv_ctrl_frame(struct _adapter *adapter,
 			      union recv_frame *precv_frame)
 {
 	return _FAIL;
 }
 
-sint validate_recv_mgnt_frame(struct _adapter *adapter,
+static sint validate_recv_mgnt_frame(struct _adapter *adapter,
 			      union recv_frame *precv_frame)
 {
 	return _FAIL;
 }
 
 
-sint validate_recv_data_frame(struct _adapter *adapter,
+static sint validate_recv_data_frame(struct _adapter *adapter,
 			      union recv_frame *precv_frame)
 {
 	int res;
