@@ -346,8 +346,10 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	}
 
 	mdata = kzalloc(sizeof(struct machine_data), GFP_KERNEL);
-	if (!mdata)
-		return -ENOMEM;
+	if (!mdata) {
+		ret = -ENOMEM;
+		goto error_put;
+	}
 
 	mdata->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
 	mdata->dai[0].ops = &p1022_ds_ops;
@@ -502,13 +504,12 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	of_node_put(codec_np);
-
 	if (sound_device)
 		platform_device_unregister(sound_device);
 
 	kfree(mdata);
-
+error_put:
+	of_node_put(codec_np);
 	return ret;
 }
 
