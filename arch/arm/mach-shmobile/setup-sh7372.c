@@ -419,14 +419,14 @@ static struct resource sh7372_dmae0_resources[] = {
 	},
 	{
 		/* DMA error IRQ */
-		.start	= 246,
-		.end	= 246,
+		.start	= evt2irq(0x20c0),
+		.end	= evt2irq(0x20c0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= 240,
-		.end	= 245,
+		.start	= evt2irq(0x2000),
+		.end	= evt2irq(0x20a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -447,14 +447,14 @@ static struct resource sh7372_dmae1_resources[] = {
 	},
 	{
 		/* DMA error IRQ */
-		.start	= 254,
-		.end	= 254,
+		.start	= evt2irq(0x21c0),
+		.end	= evt2irq(0x21c0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= 248,
-		.end	= 253,
+		.start	= evt2irq(0x2100),
+		.end	= evt2irq(0x21a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -475,14 +475,14 @@ static struct resource sh7372_dmae2_resources[] = {
 	},
 	{
 		/* DMA error IRQ */
-		.start	= 262,
-		.end	= 262,
+		.start	= evt2irq(0x22c0),
+		.end	= evt2irq(0x22c0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= 256,
-		.end	= 261,
+		.start	= evt2irq(0x2200),
+		.end	= evt2irq(0x22a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
