@@ -19,6 +19,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps6586x.h>
 #include <linux/gpio.h>
+#include <mach/suspend.h>
+
 #include "power.h"
 #include "wakeups-t2.h"
 #include "board.h"
@@ -137,8 +139,7 @@ static struct i2c_board_info __initdata ventana_regulators[] = {
 static struct tegra_suspend_platform_data ventana_suspend_data = {
 	.cpu_timer	= 2000,
 	.cpu_off_timer	= 0,
-	.dram_suspend	= true,
-	.core_off	= false,
+	.suspend_mode	= TEGRA_SUSPEND_LP1,
 	.core_timer	= 0x7e7e,
 	.core_off_timer = 0,
 	.separate_req	= true,
