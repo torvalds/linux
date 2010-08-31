@@ -312,6 +312,35 @@ static struct ov5650_reg *mode_table[] = {
 	[OV5650_MODE_1920x1088] = mode_1920x1088,
 };
 
+/* 2 regs to program frame length */
+static inline void ov5650_get_frame_length_regs(struct ov5650_reg *regs,
+						u32 frame_length)
+{
+	regs->addr = 0x380e;
+	regs->val = (frame_length >> 8) & 0xff;
+	(regs + 1)->addr = 0x380f;
+	(regs + 1)->val = (frame_length) & 0xff;
+}
+
+/* 3 regs to program coarse time */
+static inline void ov5650_get_coarse_time_regs(struct ov5650_reg *regs,
+                                               u32 coarse_time)
+{
+	regs->addr = 0x3500;
+	regs->val = (coarse_time >> 12) & 0xff;
+	(regs + 1)->addr = 0x3501;
+	(regs + 1)->val = (coarse_time >> 4) & 0xff;
+	(regs + 2)->addr = 0x3502;
+	(regs + 2)->val = (coarse_time & 0xf) << 4;
+}
+
+/* 1 reg to program gain */
+static inline void ov5650_get_gain_reg(struct ov5650_reg *regs, u16 gain)
+{
+	regs->addr = 0x350b;
+	regs->val = gain;
+}
+
 static int ov5650_read_reg(struct i2c_client *client, u16 addr, u8 *val)
 {
 	int err;
@@ -377,10 +406,14 @@ static int ov5650_write_reg(struct i2c_client *client, u16 addr, u8 val)
 }
 
 static int ov5650_write_table(struct i2c_client *client,
-			      const struct ov5650_reg table[])
+			      const struct ov5650_reg table[],
+			      const struct ov5650_reg override_list[],
+			      int num_override_regs)
 {
 	int err;
 	const struct ov5650_reg *next;
+	int i;
+	u16 val;
 
 	for (next = table; next->addr != OV5650_TABLE_END; next++) {
 		if (next->addr == OV5650_TABLE_WAIT_MS) {
@@ -388,7 +421,20 @@ static int ov5650_write_table(struct i2c_client *client,
 			continue;
 		}
 
-		err = ov5650_write_reg(client, next->addr, next->val);
+		val = next->val;
+
+		/* When an override list is passed in, replace the reg */
+		/* value to write if the reg is in the list            */
+		if (override_list) {
+			for (i = 0; i < num_override_regs; i++) {
+				if (next->addr == override_list[i].addr) {
+					val = override_list[i].val;
+					break;
+				}
+			}
+		}
+
+		err = ov5650_write_reg(client, next->addr, val);
 		if (err)
 			return err;
 	}
@@ -399,8 +445,11 @@ static int ov5650_set_mode(struct ov5650_info *info, struct ov5650_mode *mode)
 {
 	int sensor_mode;
 	int err;
+	struct ov5650_reg reg_list[6];
 
-	pr_info("%s: xres %u yres %u\n", __func__, mode->xres, mode->yres);
+	pr_info("%s: xres %u yres %u framelength %u coarsetime %u gain %u\n",
+		__func__, mode->xres, mode->yres, mode->frame_length,
+		mode->coarse_time, mode->gain);
 	if (mode->xres == 2592 && mode->yres == 1944)
 		sensor_mode = OV5650_MODE_2592x1944;
 	else if (mode->xres == 1296 && mode->yres == 972)
@@ -413,16 +462,24 @@ static int ov5650_set_mode(struct ov5650_info *info, struct ov5650_mode *mode)
 		return -EINVAL;
 	}
 
-	err = ov5650_write_table(info->i2c_client, reset_seq);
+	/* get a list of override regs for the asking frame length, */
+	/* coarse integration time, and gain.                       */
+	ov5650_get_frame_length_regs(reg_list, mode->frame_length);
+	ov5650_get_coarse_time_regs(reg_list + 2, mode->coarse_time);
+	ov5650_get_gain_reg(reg_list + 5, mode->gain);
+
+	err = ov5650_write_table(info->i2c_client, reset_seq, NULL, 0);
 	if (err)
 		return err;
-	err = ov5650_write_table(info->i2c_client, mode_start);
+	err = ov5650_write_table(info->i2c_client, mode_start, NULL, 0);
+
 	if (err)
 		return err;
-	err = ov5650_write_table(info->i2c_client, mode_table[sensor_mode]);
+	err = ov5650_write_table(info->i2c_client, mode_table[sensor_mode],
+		reg_list, 6);
 	if (err)
 		return err;
-	err = ov5650_write_table(info->i2c_client, mode_end);
+	err = ov5650_write_table(info->i2c_client, mode_end, NULL, 0);
 	if (err)
 		return err;
 	info->mode = sensor_mode;
@@ -431,15 +488,18 @@ static int ov5650_set_mode(struct ov5650_info *info, struct ov5650_mode *mode)
 
 static int ov5650_set_frame_length(struct ov5650_info *info, u32 frame_length)
 {
+	struct ov5650_reg reg_list[2];
+	int i = 0;
 	int ret;
 
-	ret = ov5650_write_reg(info->i2c_client, 0x380e,
-			       (frame_length >> 8) & 0xff);
-	if (ret)
-		return ret;
-	ret = ov5650_write_reg(info->i2c_client, 0x380f, frame_length & 0xff);
-	if (ret)
-		return ret;
+	ov5650_get_frame_length_regs(reg_list, frame_length);
+
+	for (i = 0; i < 2; i++)	{
+		ret = ov5650_write_reg(info->i2c_client, reg_list[i].addr,
+			reg_list[i].val);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -448,24 +508,26 @@ static int ov5650_set_coarse_time(struct ov5650_info *info, u32 coarse_time)
 {
 	int ret;
 
+	struct ov5650_reg reg_list[3];
+	int i = 0;
+
+	ov5650_get_coarse_time_regs(reg_list, coarse_time);
+
 	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0x01);
 	if (ret)
 		return ret;
-	ret = ov5650_write_reg(info->i2c_client, 0x3500,
-			       (coarse_time >> 12) & 0xff);
-	if (ret)
-		return ret;
-	ret = ov5650_write_reg(info->i2c_client, 0x3501,
-			 (coarse_time >> 4) & 0xff);
-	if (ret)
-		return ret;
-	ret = ov5650_write_reg(info->i2c_client, 0x3502,
-			 (coarse_time & 0xf) << 4);
-	if (ret)
-		return ret;
+
+	for (i = 0; i < 3; i++)	{
+		ret = ov5650_write_reg(info->i2c_client, reg_list[i].addr,
+			reg_list[i].val);
+		if (ret)
+			return ret;
+	}
+
 	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0x11);
 	if (ret)
 		return ret;
+
 	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0xa1);
 	if (ret)
 		return ret;
@@ -476,8 +538,11 @@ static int ov5650_set_coarse_time(struct ov5650_info *info, u32 coarse_time)
 static int ov5650_set_gain(struct ov5650_info *info, u16 gain)
 {
 	int ret;
+	struct ov5650_reg reg_list;
 
-	ret = ov5650_write_reg(info->i2c_client, 0x350b, gain);
+	ov5650_get_gain_reg(&reg_list, gain);
+
+	ret = ov5650_write_reg(info->i2c_client, reg_list.addr, reg_list.val);
 
 	return ret;
 }
@@ -507,7 +572,7 @@ static int ov5650_get_otp(struct ov5650_info *info, void __user *ubuffer)
 	if (info->otp_valid)
 		goto end;
 
-	err = ov5650_write_table(info->i2c_client, reset_seq);
+	err = ov5650_write_table(info->i2c_client, reset_seq, NULL, 0);
 	if (err)
 		return err;
 
@@ -567,7 +632,8 @@ static int ov5650_test_pattern(struct ov5650_info *info,
 		return -EINVAL;
 
 	return ov5650_write_table(info->i2c_client,
-				  test_pattern_modes[pattern]);
+				  test_pattern_modes[pattern],
+				  NULL, 0);
 }
 
 static int ov5650_ioctl(struct inode *inode, struct file *file,
