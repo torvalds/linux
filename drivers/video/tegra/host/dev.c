@@ -38,7 +38,7 @@
 #define DRIVER_NAME "tegra_grhost"
 #define IFACE_NAME "nvhost"
 
-static int __init nvhost_probe(struct platform_device *pdev)
+static int __devinit nvhost_probe(struct platform_device *pdev)
 {
 	struct nvhost_master *host;
 
