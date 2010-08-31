@@ -515,7 +515,7 @@ static ssize_t rx_queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	return attribute->store(queue, attribute, buf, count);
 }
 
-static struct sysfs_ops rx_queue_sysfs_ops = {
+static const struct sysfs_ops rx_queue_sysfs_ops = {
 	.show = rx_queue_attr_show,
 	.store = rx_queue_attr_store,
 };
