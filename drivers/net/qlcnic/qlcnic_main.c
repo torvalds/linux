@@ -1991,6 +1991,7 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct qlcnic_skb_frag *buffrag;
 	struct cmd_desc_type0 *hwdesc, *first_desc;
 	struct pci_dev *pdev;
+	struct ethhdr *phdr;
 	int i, k;
 
 	u32 producer;
@@ -2003,7 +2004,8 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (adapter->flags & QLCNIC_MACSPOOF) {
-		if (compare_ether_addr(eth_hdr(skb)->h_source,
+		phdr = (struct ethhdr *)skb->data;
+		if (compare_ether_addr(phdr->h_source,
 					adapter->mac_addr))
 			goto drop_packet;
 	}
