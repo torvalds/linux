@@ -416,18 +416,26 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 	/* stop ct_kill_waiting_tm timer */
 	del_timer_sync(&priv->thermal_throttle.ct_kill_waiting_tm);
 	if (changed) {
-		struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
-
 		if (tt->state >= IWL_TI_1) {
 			/* force PI = IWL_POWER_INDEX_5 in the case of TI > 0 */
 			tt->tt_power_mode = IWL_POWER_INDEX_5;
-			if (!iwl_ht_enabled(priv))
-				/* disable HT */
-				rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
-					RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
-					RXON_FLG_HT40_PROT_MSK |
-					RXON_FLG_HT_PROT_MSK);
-			else {
+
+			if (!iwl_ht_enabled(priv)) {
+				struct iwl_rxon_context *ctx;
+
+				for_each_context(priv, ctx) {
+					struct iwl_rxon_cmd *rxon;
+
+					rxon = &ctx->staging;
+
+					/* disable HT */
+					rxon->flags &= ~(
+						RXON_FLG_CHANNEL_MODE_MSK |
+						RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
+						RXON_FLG_HT40_PROT_MSK |
+						RXON_FLG_HT_PROT_MSK);
+				}
+			} else {
 				/* check HT capability and set
 				 * according to the system HT capability
 				 * in case get disabled before */

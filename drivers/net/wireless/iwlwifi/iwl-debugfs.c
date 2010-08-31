@@ -643,19 +643,25 @@ static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
+	struct iwl_rxon_context *ctx;
 	int pos = 0, i;
-	char buf[256];
+	char buf[256 * NUM_IWL_RXON_CTX];
 	const size_t bufsz = sizeof(buf);
 
-	for (i = 0; i < AC_NUM; i++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-			"\tcw_min\tcw_max\taifsn\ttxop\n");
-		pos += scnprintf(buf + pos, bufsz - pos,
+	for_each_context(priv, ctx) {
+		pos += scnprintf(buf + pos, bufsz - pos, "context %d:\n",
+				 ctx->ctxid);
+		for (i = 0; i < AC_NUM; i++) {
+			pos += scnprintf(buf + pos, bufsz - pos,
+				"\tcw_min\tcw_max\taifsn\ttxop\n");
+			pos += scnprintf(buf + pos, bufsz - pos,
 				"AC[%d]\t%u\t%u\t%u\t%u\n", i,
-				priv->qos_data.def_qos_parm.ac[i].cw_min,
-				priv->qos_data.def_qos_parm.ac[i].cw_max,
-				priv->qos_data.def_qos_parm.ac[i].aifsn,
-				priv->qos_data.def_qos_parm.ac[i].edca_txop);
+				ctx->qos_data.def_qos_parm.ac[i].cw_min,
+				ctx->qos_data.def_qos_parm.ac[i].cw_max,
+				ctx->qos_data.def_qos_parm.ac[i].aifsn,
+				ctx->qos_data.def_qos_parm.ac[i].edca_txop);
+		}
+		pos += scnprintf(buf + pos, bufsz - pos, "\n");
 	}
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -730,7 +736,7 @@ static ssize_t iwl_dbgfs_disable_ht40_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%d", &ht40) != 1)
 		return -EFAULT;
-	if (!iwl_is_associated(priv))
+	if (!iwl_is_any_associated(priv))
 		priv->disable_ht40 = ht40 ? true : false;
 	else {
 		IWL_ERR(priv, "Sta associated with AP - "
@@ -1319,7 +1325,8 @@ static ssize_t iwl_dbgfs_rxon_flags_read(struct file *file,
 	int len = 0;
 	char buf[20];
 
-	len = sprintf(buf, "0x%04X\n", le32_to_cpu(priv->active_rxon.flags));
+	len = sprintf(buf, "0x%04X\n",
+		le32_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1332,7 +1339,7 @@ static ssize_t iwl_dbgfs_rxon_filter_flags_read(struct file *file,
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-		      le32_to_cpu(priv->active_rxon.filter_flags));
+		le32_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.filter_flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 

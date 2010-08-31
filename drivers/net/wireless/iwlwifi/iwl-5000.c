@@ -180,7 +180,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWLAGN_BROADCAST_ID;
+	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
@@ -227,7 +227,7 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWLAGN_BROADCAST_ID;
+	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
@@ -275,14 +275,19 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 				     struct ieee80211_channel_switch *ch_switch)
 {
+	/*
+	 * MULTI-FIXME
+	 * See iwl_mac_channel_switch.
+	 */
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl5000_channel_switch_cmd cmd;
 	const struct iwl_channel_info *ch_info;
 	u32 switch_time_in_usec, ucode_switch_time;
 	u16 ch;
 	u32 tsf_low;
 	u8 switch_count;
-	u16 beacon_interval = le16_to_cpu(priv->rxon_timing.beacon_interval);
-	struct ieee80211_vif *vif = priv->vif;
+	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
+	struct ieee80211_vif *vif = ctx->vif;
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = sizeof(cmd),
@@ -293,10 +298,10 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
 	ch = ch_switch->channel->hw_value;
 	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
-		priv->active_rxon.channel, ch);
+		      ctx->active.channel, ch);
 	cmd.channel = cpu_to_le16(ch);
-	cmd.rxon_flags = priv->staging_rxon.flags;
-	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
+	cmd.rxon_flags = ctx->staging.flags;
+	cmd.rxon_filter_flags = ctx->staging.filter_flags;
 	switch_count = ch_switch->count;
 	tsf_low = ch_switch->timestamp & 0x0ffffffff;
 	/*
@@ -331,7 +336,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 		cmd.expect_beacon = is_channel_radar(ch_info);
 	else {
 		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			priv->active_rxon.channel, ch);
+			ctx->active.channel, ch);
 		return -EFAULT;
 	}
 	priv->switch_rxon.channel = cmd.channel;
@@ -393,7 +398,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_station = iwl_update_bcast_station,
+	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -464,7 +469,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_station = iwl_update_bcast_station,
+	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,

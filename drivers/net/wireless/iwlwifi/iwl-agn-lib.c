@@ -1163,6 +1163,7 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	};
 	struct iwl_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u32 rate_flags = 0;
 	u16 cmd_len;
 	u16 rx_chain = 0;
@@ -1174,6 +1175,9 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	int  chan_mod;
 	u8 active_chains;
 	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
+
+	if (vif)
+		ctx = iwl_rxon_ctx_from_vif(vif);
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -1232,7 +1236,7 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
-	if (iwl_is_associated(priv)) {
+	if (iwl_is_any_associated(priv)) {
 		u16 interval = 0;
 		u32 extra;
 		u32 suspend_time = 100;
@@ -1283,13 +1287,15 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		IWL_DEBUG_SCAN(priv, "Start passive scan.\n");
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = priv->hw_params.bcast_sta_id;
+	scan->tx_cmd.sta_id = ctx->bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	switch (priv->scan_band) {
 	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
-		chan_mod = le32_to_cpu(priv->active_rxon.flags & RXON_FLG_CHANNEL_MODE_MSK)
+		chan_mod = le32_to_cpu(
+			priv->contexts[IWL_RXON_CTX_BSS].active.flags &
+						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
 		if (chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = IWL_RATE_6M_PLCP;
@@ -1418,6 +1424,11 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->len = cpu_to_le16(cmd.len);
 
 	set_bit(STATUS_SCAN_HW, &priv->status);
+
+	if (priv->cfg->ops->hcmd->set_pan_params &&
+	    priv->cfg->ops->hcmd->set_pan_params(priv))
+		goto done;
+
 	if (iwl_send_cmd_sync(priv, &cmd))
 		goto done;
 
@@ -1444,7 +1455,8 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 
 	if (add)
-		return iwl_add_bssid_station(priv, vif->bss_conf.bssid, true,
+		return iwl_add_bssid_station(priv, vif_priv->ctx,
+					     vif->bss_conf.bssid, true,
 					     &vif_priv->ibss_bssid_sta_id);
 	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
 				  vif->bss_conf.bssid);
@@ -1477,7 +1489,7 @@ int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv)
 
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
-		if (cnt == IWL_CMD_QUEUE_NUM)
+		if (cnt == priv->cmd_queue)
 			continue;
 		txq = &priv->txq[cnt];
 		q = &txq->q;
@@ -1713,6 +1725,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, bt_traffic_change_work);
+	struct iwl_rxon_context *ctx;
 	int smps_request = -1;
 
 	IWL_DEBUG_INFO(priv, "BT traffic load changes: %d\n",
@@ -1740,9 +1753,12 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	if (priv->cfg->ops->lib->update_chain_flags)
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
-	if (smps_request != -1 &&
-	    priv->vif && priv->vif->type == NL80211_IFTYPE_STATION)
-		ieee80211_request_smps(priv->vif, smps_request);
+	if (smps_request != -1) {
+		for_each_context(priv, ctx) {
+			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION)
+				ieee80211_request_smps(ctx->vif, smps_request);
+		}
+	}
 
 	mutex_unlock(&priv->mutex);
 }

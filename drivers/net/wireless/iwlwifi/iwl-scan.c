@@ -286,18 +286,28 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 			       enum ieee80211_band band,
 			       struct ieee80211_vif *vif)
 {
+	struct iwl_rxon_context *ctx;
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
 
-	if (iwl_is_associated(priv)) {
-		/* If we're associated, we clamp the maximum passive
-		 * dwell time to be 98% of the beacon interval (minus
-		 * 2 * channel tune time) */
-		passive = vif ? vif->bss_conf.beacon_int : 0;
-		if ((passive > IWL_PASSIVE_DWELL_BASE) || !passive)
-			passive = IWL_PASSIVE_DWELL_BASE;
-		passive = (passive * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+	if (iwl_is_any_associated(priv)) {
+		/*
+		 * If we're associated, we clamp the maximum passive
+		 * dwell time to be 98% of the smallest beacon interval
+		 * (minus 2 * channel tune time)
+		 */
+		for_each_context(priv, ctx) {
+			u16 value;
+
+			if (!iwl_is_associated_ctx(ctx))
+				continue;
+			value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
+			if ((value > IWL_PASSIVE_DWELL_BASE) || !value)
+				value = IWL_PASSIVE_DWELL_BASE;
+			value = (value * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+			passive = min(value, passive);
+		}
 	}
 
 	return passive;
@@ -527,6 +537,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	    container_of(work, struct iwl_priv, scan_completed);
 	bool internal = false;
 	bool scan_completed = false;
+	struct iwl_rxon_context *ctx;
 
 	IWL_DEBUG_SCAN(priv, "SCAN complete scan\n");
 
@@ -557,11 +568,13 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
-	if (memcmp(&priv->active_rxon,
-		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
-		iwlcore_commit_rxon(priv);
+	for_each_context(priv, ctx)
+		iwlcore_commit_rxon(priv, ctx);
 
  out:
+	if (priv->cfg->ops->hcmd->set_pan_params)
+		priv->cfg->ops->hcmd->set_pan_params(priv);
+
 	mutex_unlock(&priv->mutex);
 
 	/*
