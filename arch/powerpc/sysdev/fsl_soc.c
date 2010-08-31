@@ -378,17 +378,23 @@ static __be32 __iomem *rstcr;
 static int __init setup_rstcr(void)
 {
 	struct device_node *np;
-	np = of_find_node_by_name(NULL, "global-utilities");
-	if ((np && of_get_property(np, "fsl,has-rstcr", NULL))) {
-		rstcr = of_iomap(np, 0) + 0xb0;
-		if (!rstcr)
-			printk (KERN_EMERG "Error: reset control register "
-					"not mapped!\n");
-	} else if (ppc_md.restart == fsl_rstcr_restart)
+
+	for_each_node_by_name(np, "global-utilities") {
+		if ((of_get_property(np, "fsl,has-rstcr", NULL))) {
+			rstcr = of_iomap(np, 0) + 0xb0;
+			if (!rstcr)
+				printk (KERN_ERR "Error: reset control "
+						"register not mapped!\n");
+			break;
+		}
+	}
+
+	if (!rstcr && ppc_md.restart == fsl_rstcr_restart)
 		printk(KERN_ERR "No RSTCR register, warm reboot won't work\n");
 
 	if (np)
 		of_node_put(np);
+
 	return 0;
 }
 
