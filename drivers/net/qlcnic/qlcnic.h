@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 8
-#define QLCNIC_LINUX_VERSIONID  "5.0.8"
+#define _QLCNIC_LINUX_SUBVERSION 9
+#define QLCNIC_LINUX_VERSIONID  "5.0.9"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -224,7 +224,8 @@ struct rcv_desc {
 #define QLCNIC_LRO_DESC  	0x12
 
 /* for status field in status_desc */
-#define STATUS_CKSUM_OK		(2)
+#define STATUS_CKSUM_LOOP	0
+#define STATUS_CKSUM_OK		2
 
 /* owner bits of status_desc */
 #define STATUS_OWNER_HOST	(0x1ULL << 56)
