@@ -745,7 +745,20 @@ static pteval_t pte_pfn_to_mfn(pteval_t val)
 	if (val & _PAGE_PRESENT) {
 		unsigned long pfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
 		pteval_t flags = val & PTE_FLAGS_MASK;
-		val = ((pteval_t)pfn_to_mfn(pfn) << PAGE_SHIFT) | flags;
+		unsigned long mfn = pfn_to_mfn(pfn);
+
+		/*
+		 * If there's no mfn for the pfn, then just create an
+		 * empty non-present pte.  Unfortunately this loses
+		 * information about the original pfn, so
+		 * pte_mfn_to_pfn is asymmetric.
+		 */
+		if (unlikely(mfn == INVALID_P2M_ENTRY)) {
+			mfn = 0;
+			flags = 0;
+		}
+
+		val = ((pteval_t)mfn << PAGE_SHIFT) | flags;
 	}
 
 	return val;

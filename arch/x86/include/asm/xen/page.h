@@ -41,10 +41,17 @@ extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
+	unsigned long mfn;
+
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	return get_phys_to_machine(pfn) & ~FOREIGN_FRAME_BIT;
+	mfn = get_phys_to_machine(pfn);
+
+	if (mfn != INVALID_P2M_ENTRY)
+		mfn &= ~FOREIGN_FRAME_BIT;
+
+	return mfn;
 }
 
 static inline int phys_to_machine_mapping_valid(unsigned long pfn)
