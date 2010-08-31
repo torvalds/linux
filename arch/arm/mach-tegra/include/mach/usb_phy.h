@@ -52,6 +52,7 @@ enum tegra_usb_phy_mode {
 
 struct tegra_usb_phy {
 	int instance;
+	int freq_sel;
 	void __iomem *regs;
 	void __iomem *pad_regs;
 	struct clk *pll_u;
@@ -66,10 +67,6 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 					 enum tegra_usb_phy_mode phy_mode);
 
 int tegra_usb_phy_power_on(struct tegra_usb_phy *phy);
-
-int tegra_usb_phy_suspend(struct tegra_usb_phy *phy);
-
-int tegra_usb_phy_resume(struct tegra_usb_phy *phy);
 
 int tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy);
 
