@@ -474,17 +474,25 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 			pqospriv->qos_option = 0; /* no WMM IE in beacon */
 	}
 	if (pregistrypriv->ht_enable) {
-		/* r8712_restructure_ht_ie */
-		r8712_restructure_ht_ie(padapter, &pnetwork->network.IEs[0],
-				  &psecnetwork->IEs[0],
-				  pnetwork->network.IELength,
-				  &psecnetwork->IELength);
-		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)
-			r8712_add_ht_addt_info(padapter,
-					 &pnetwork->network.IEs[0],
-					 &psecnetwork->IEs[0],
-					 pnetwork->network.IELength,
-					 &psecnetwork->IELength);
+		/* For WEP mode, we will use the bg mode to do the connection
+		 * to avoid some IOT issues, especially for Realtek 8192u
+		 * SoftAP.
+		 */
+		if ((padapter->securitypriv.PrivacyAlgrthm != _WEP40_ ) &&
+		    (padapter->securitypriv.PrivacyAlgrthm != _WEP104_ )) {
+			/* restructure_ht_ie */
+			r8712_restructure_ht_ie(padapter,
+						&pnetwork->network.IEs[0],
+						&psecnetwork->IEs[0],
+						pnetwork->network.IELength,
+						&psecnetwork->IELength);
+			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE))
+				r8712_add_ht_addt_info(padapter,
+						&pnetwork->network.IEs[0],
+						&psecnetwork->IEs[0],
+						pnetwork->network.IELength,
+						&psecnetwork->IELength);
+		}
 	}
 	psecuritypriv->supplicant_ie[0] = (u8)psecnetwork->IELength;
 	if (psecnetwork->IELength < 255)
