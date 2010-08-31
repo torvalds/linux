@@ -37,7 +37,7 @@
 #include "usb_ops.h"
 #include "usb_osintf.h"
 
-#define DRVER  "v2.6.0007.20100607"
+#define DRVER  "v7_0.20100831"
 
 static struct usb_interface *pintf;
 
