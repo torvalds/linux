@@ -352,6 +352,7 @@ static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	free_part_stats(p);
+	free_part_info(p);
 	kfree(p);
 }
 
@@ -401,7 +402,8 @@ static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
 struct hd_struct *add_partition(struct gendisk *disk, int partno,
-				sector_t start, sector_t len, int flags)
+				sector_t start, sector_t len, int flags,
+				struct partition_meta_info *info)
 {
 	struct hd_struct *p;
 	dev_t devt = MKDEV(0, 0);
@@ -438,6 +440,14 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	p->partno = partno;
 	p->policy = get_disk_ro(disk);
 
+	if (info) {
+		struct partition_meta_info *pinfo = alloc_part_info(disk);
+		if (!pinfo)
+			goto out_free_stats;
+		memcpy(pinfo, info, sizeof(*info));
+		p->info = pinfo;
+	}
+
 	dname = dev_name(ddev);
 	if (isdigit(dname[strlen(dname) - 1]))
 		dev_set_name(pdev, "%sp%d", dname, partno);
@@ -451,7 +461,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 
 	err = blk_alloc_devt(p, &devt);
 	if (err)
-		goto out_free_stats;
+		goto out_free_info;
 	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
@@ -481,6 +491,8 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 
 	return p;
 
+out_free_info:
+	free_part_info(p);
 out_free_stats:
 	free_part_stats(p);
 out_free:
@@ -642,6 +654,7 @@ rescan:
 	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
 		sector_t size, from;
+		struct partition_meta_info *info = NULL;
 
 		size = state->parts[p].size;
 		if (!size)
@@ -675,8 +688,12 @@ rescan:
 				size = get_capacity(disk) - from;
 			}
 		}
+
+		if (state->parts[p].has_info)
+			info = &state->parts[p].info;
 		part = add_partition(disk, p, from, size,
-				     state->parts[p].flags);
+				     state->parts[p].flags,
+				     &state->parts[p].info);
 		if (IS_ERR(part)) {
 			printk(KERN_ERR " %s: p%d could not be added: %ld\n",
 			       disk->disk_name, p, -PTR_ERR(part));
