@@ -30,8 +30,8 @@
 
 struct gps_gpio_brcm4750_platform_data *gps_gpio_data;
 
-static int gps_brcm4750_ioctl(struct inode *inode,
-		struct file *filp, unsigned int cmd, unsigned long arg)
+static long gps_brcm4750_ioctl(struct file *filp,
+			       unsigned int cmd, unsigned long arg)
 {
 	unsigned int gpio_val;
 
@@ -68,7 +68,7 @@ static int gps_brcm4750_ioctl(struct inode *inode,
 
 static const struct file_operations gps_brcm4750_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= gps_brcm4750_ioctl,
+	.unlocked_ioctl		= gps_brcm4750_ioctl,
 };
 
 static struct miscdevice gps_gpio_miscdev = {
