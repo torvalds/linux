@@ -178,8 +178,8 @@ static int tegra_camera_reset(uint id)
 	return 0;
 }
 
-static int tegra_camera_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static long tegra_camera_ioctl(struct file *file,
+			       unsigned int cmd, unsigned long arg)
 {
 	uint id;
 
@@ -263,7 +263,7 @@ static int tegra_camera_release(struct inode *inode, struct file *file)
 
 static const struct file_operations tegra_camera_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = tegra_camera_ioctl,
+	.unlocked_ioctl = tegra_camera_ioctl,
 	.release = tegra_camera_release,
 };
 
