@@ -203,7 +203,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
 			seq_printf(seq,
-			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c\n"
+			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
 			   "lo:%d pe:%d ua:%d ap:%d ep:%d wo:%c",
 			   i, sn,
@@ -218,6 +218,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   mdev->state.peer_isp ? 'p' : '-',
 			   mdev->state.user_isp ? 'u' : '-',
 			   mdev->congestion_reason ?: '-',
+			   test_bit(AL_SUSPENDED, &mdev->flags) ? 's' : '-',
 			   mdev->send_cnt/2,
 			   mdev->recv_cnt/2,
 			   mdev->writ_cnt/2,

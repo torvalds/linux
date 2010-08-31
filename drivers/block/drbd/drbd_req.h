@@ -189,6 +189,9 @@ enum drbd_req_state_bits {
 
 	/* Set when this is a write, clear for a read */
 	__RQ_WRITE,
+
+	/* Should call drbd_al_complete_io() for this request... */
+	__RQ_IN_ACT_LOG,
 };
 
 #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
@@ -208,6 +211,7 @@ enum drbd_req_state_bits {
 #define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
 
 #define RQ_WRITE           (1UL << __RQ_WRITE)
+#define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
 
 /* For waking up the frozen transfer log mod_req() has to return if the request
    should be counted in the epoch object*/

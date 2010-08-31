@@ -863,6 +863,7 @@ enum {
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
+	AL_SUSPENDED,		/* Activity logging is currently suspended. */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */
@@ -1425,6 +1426,7 @@ extern unsigned long drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_
 /* bm_find_next variants for use while you hold drbd_bm_lock() */
 extern unsigned long _drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo);
 extern unsigned long _drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo);
+extern unsigned long _drbd_bm_total_weight(struct drbd_conf *mdev);
 extern unsigned long drbd_bm_total_weight(struct drbd_conf *mdev);
 extern int drbd_bm_rs_done(struct drbd_conf *mdev);
 /* for receive_bitmap */

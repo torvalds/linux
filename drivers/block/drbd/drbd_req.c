@@ -94,7 +94,8 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		 */
 		if (s & RQ_LOCAL_MASK) {
 			if (get_ldev_if_state(mdev, D_FAILED)) {
-				drbd_al_complete_io(mdev, req->sector);
+				if (s & RQ_IN_ACT_LOG)
+					drbd_al_complete_io(mdev, req->sector);
 				put_ldev(mdev);
 			} else if (__ratelimit(&drbd_ratelimit_state)) {
 				dev_warn(DEV, "Should have called drbd_al_complete_io(, %llu), "
@@ -802,8 +803,10 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 	 * resync extent to finish, and, if necessary, pulls in the target
 	 * extent into the activity log, which involves further disk io because
 	 * of transactional on-disk meta data updates. */
-	if (rw == WRITE && local)
+	if (rw == WRITE && local && !test_bit(AL_SUSPENDED, &mdev->flags)) {
+		req->rq_state |= RQ_IN_ACT_LOG;
 		drbd_al_begin_io(mdev, sector);
+	}
 
 	remote = remote && (mdev->state.pdsk == D_UP_TO_DATE ||
 			    (mdev->state.pdsk == D_INCONSISTENT &&

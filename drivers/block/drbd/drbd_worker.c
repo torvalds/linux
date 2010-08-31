@@ -1273,7 +1273,7 @@ int w_restart_disk_io(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
 
-	if (bio_data_dir(req->master_bio) == WRITE)
+	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
 		drbd_al_begin_io(mdev, req->sector);
 	/* Calling drbd_al_begin_io() out of the worker might deadlocks
 	   theoretically. Practically it can not deadlock, since this is

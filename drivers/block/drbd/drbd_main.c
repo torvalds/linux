@@ -963,6 +963,12 @@ static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
 	}
 }
 
+static void drbd_resume_al(struct drbd_conf *mdev)
+{
+	if (test_and_clear_bit(AL_SUSPENDED, &mdev->flags))
+		dev_info(DEV, "Resumed AL updates\n");
+}
+
 /**
  * __drbd_set_state() - Set a new DRBD state
  * @mdev:	DRBD device.
@@ -1159,6 +1165,10 @@ int __drbd_set_state(struct drbd_conf *mdev,
 	if (os.conn > C_TEAR_DOWN &&
 	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
 		drbd_thread_restart_nowait(&mdev->receiver);
+
+	/* Resume AL writing if we get a connection */
+	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
+		drbd_resume_al(mdev);
 
 	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
 	if (ascw) {
@@ -2851,6 +2861,7 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	}
 
 	drbd_free_resources(mdev);
+	clear_bit(AL_SUSPENDED, &mdev->flags);
 
 	/*
 	 * currently we drbd_init_ee only on module load, so
@@ -3652,6 +3663,7 @@ int drbd_bmio_clear_n_write(struct drbd_conf *mdev)
 {
 	int rv = -EIO;
 
+	drbd_resume_al(mdev);
 	if (get_ldev_if_state(mdev, D_ATTACHING)) {
 		drbd_bm_clear_all(mdev);
 		rv = drbd_bm_write(mdev);

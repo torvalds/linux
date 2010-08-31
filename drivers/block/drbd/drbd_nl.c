@@ -777,6 +777,29 @@ static void drbd_reconfig_done(struct drbd_conf *mdev)
 	wake_up(&mdev->state_wait);
 }
 
+/* Make sure IO is suspended before calling this function(). */
+static void drbd_suspend_al(struct drbd_conf *mdev)
+{
+	int s = 0;
+
+	if (lc_try_lock(mdev->act_log)) {
+		drbd_al_shrink(mdev);
+		lc_unlock(mdev->act_log);
+	} else {
+		dev_warn(DEV, "Failed to lock al in drbd_suspend_al()\n");
+		return;
+	}
+
+	spin_lock_irq(&mdev->req_lock);
+	if (mdev->state.conn < C_CONNECTED)
+		s = !test_and_set_bit(AL_SUSPENDED, &mdev->flags);
+
+	spin_unlock_irq(&mdev->req_lock);
+
+	if (s)
+		dev_info(DEV, "Suspended AL updates\n");
+}
+
 /* does always return 0;
  * interesting return code is in reply->ret_code */
 static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
@@ -1112,6 +1135,9 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		drbd_al_apply_to_bm(mdev);
 		drbd_al_to_on_disk_bm(mdev);
 	}
+
+	if (_drbd_bm_total_weight(mdev) == drbd_bm_bits(mdev))
+		drbd_suspend_al(mdev); /* IO is still suspended here... */
 
 	spin_lock_irq(&mdev->req_lock);
 	os = mdev->state;
@@ -1792,12 +1818,38 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	return 0;
 }
 
+static int drbd_bmio_set_susp_al(struct drbd_conf *mdev)
+{
+	int rv;
+
+	rv = drbd_bmio_set_n_write(mdev);
+	drbd_suspend_al(mdev);
+	return rv;
+}
+
 static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 				   struct drbd_nl_cfg_reply *reply)
 {
+	int retcode;
 
-	reply->ret_code = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
+	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
 
+	if (retcode < SS_SUCCESS) {
+		if (retcode == SS_NEED_CONNECTION && mdev->state.role == R_PRIMARY) {
+			/* The peer will get a resync upon connect anyways. Just make that
+			   into a full resync. */
+			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
+			if (retcode >= SS_SUCCESS) {
+				/* open coded drbd_bitmap_io() */
+				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
+						   "set_n_write from invalidate_peer"))
+					retcode = ERR_IO_MD_DISK;
+			}
+		} else
+			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
+	}
+
+	reply->ret_code = retcode;
 	return 0;
 }
 
