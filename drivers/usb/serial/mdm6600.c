@@ -20,7 +20,6 @@
 
 /*
  * TODO check if we need to implement throttling
- * TODO handle suspend/resume/LP0/LP1
  */
 
 #include <linux/gfp.h>
@@ -630,6 +629,16 @@ static int mdm6600_resume(struct usb_interface *intf)
 	return mdm6600_submit_urbs(modem);
 }
 
+static int mdm6600_reset_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	struct mdm6600_port *modem = usb_get_serial_data(serial);
+
+	dbg("%s", __func__);
+
+	return mdm6600_submit_urbs(modem);
+}
+
 static struct usb_driver mdm6600_usb_driver = {
 	.name =		"mdm6600",
 	.probe =	usb_serial_probe,
@@ -639,6 +648,7 @@ static struct usb_driver mdm6600_usb_driver = {
 	.supports_autosuspend = 1,
 	.suspend =	mdm6600_suspend,
 	.resume =	mdm6600_resume,
+	.reset_resume =	mdm6600_reset_resume,
 };
 
 static struct usb_serial_driver mdm6600_usb_serial_driver = {
