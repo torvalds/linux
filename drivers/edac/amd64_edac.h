@@ -482,7 +482,6 @@ extern const char *rrrr_msgs[16];
 extern const char *to_msgs[2];
 extern const char *pp_msgs[4];
 extern const char *ii_msgs[4];
-extern const char *ext_msgs[32];
 extern const char *htlink_msgs[8];
 
 #ifdef CONFIG_EDAC_DEBUG

@@ -7,7 +7,6 @@
 
 #define ERROR_CODE(x)			((x) & 0xffff)
 #define EXT_ERROR_CODE(x)		(((x) >> 16) & 0x1f)
-#define EXT_ERR_MSG(x)			ext_msgs[EXT_ERROR_CODE(x)]
 
 #define LOW_SYNDROME(x)			(((x) >> 15) & 0xff)
 #define HIGH_SYNDROME(x)		(((x) >> 24) & 0xff)
@@ -83,7 +82,6 @@ extern const char *rrrr_msgs[];
 extern const char *pp_msgs[];
 extern const char *to_msgs[];
 extern const char *ii_msgs[];
-extern const char *ext_msgs[];
 
 /*
  * relevant NB regs
@@ -102,6 +100,7 @@ struct err_regs {
 struct amd_decoder_ops {
 	bool (*dc_mce)(u16);
 	bool (*ic_mce)(u16);
+	bool (*nb_mce)(u16, u8);
 };
 
 void amd_report_gart_errors(bool);
