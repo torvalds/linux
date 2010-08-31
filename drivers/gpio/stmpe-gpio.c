@@ -291,8 +291,6 @@ static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 	int irq;
 
 	pdata = stmpe->pdata->gpio;
-	if (!pdata)
-		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
