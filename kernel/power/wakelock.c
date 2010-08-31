@@ -71,7 +71,7 @@ int get_expired_time(struct wake_lock *lock, ktime_t *expire_time)
 		if (timeout > 0)
 			return 0;
 		kt = current_kernel_time();
-		tomono = wall_to_monotonic;
+		tomono = __get_wall_to_monotonic();
 	} while (read_seqretry(&xtime_lock, seq));
 	jiffies_to_timespec(-timeout, &delta);
 	set_normalized_timespec(&ts, kt.tv_sec + tomono.tv_sec - delta.tv_sec,
