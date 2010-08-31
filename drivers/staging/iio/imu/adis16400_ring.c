@@ -17,7 +17,7 @@
 #include "../trigger.h"
 #include "adis16400.h"
 
-static IIO_SCAN_EL_C(supply, ADIS16400_SCAN_SUPPLY, IIO_SIGNED(14),
+static IIO_SCAN_EL_C(in_supply, ADIS16400_SCAN_SUPPLY, IIO_SIGNED(14),
 		     ADIS16400_SUPPLY_OUT, NULL);
 
 static IIO_SCAN_EL_C(gyro_x, ADIS16400_SCAN_GYRO_X, IIO_SIGNED(14),
@@ -43,13 +43,13 @@ static IIO_SCAN_EL_C(magn_z, ADIS16400_SCAN_MAGN_Z, IIO_SIGNED(14),
 
 static IIO_SCAN_EL_C(temp, ADIS16400_SCAN_TEMP, IIO_SIGNED(12),
 		     ADIS16400_TEMP_OUT, NULL);
-static IIO_SCAN_EL_C(adc_0, ADIS16400_SCAN_ADC_0, IIO_SIGNED(12),
+static IIO_SCAN_EL_C(in0, ADIS16400_SCAN_ADC_0, IIO_SIGNED(12),
 		     ADIS16400_AUX_ADC, NULL);
 
 static IIO_SCAN_EL_TIMESTAMP(12);
 
 static struct attribute *adis16400_scan_el_attrs[] = {
-	&iio_scan_el_supply.dev_attr.attr,
+	&iio_scan_el_in_supply.dev_attr.attr,
 	&iio_scan_el_gyro_x.dev_attr.attr,
 	&iio_scan_el_gyro_y.dev_attr.attr,
 	&iio_scan_el_gyro_z.dev_attr.attr,
@@ -60,7 +60,7 @@ static struct attribute *adis16400_scan_el_attrs[] = {
 	&iio_scan_el_magn_y.dev_attr.attr,
 	&iio_scan_el_magn_z.dev_attr.attr,
 	&iio_scan_el_temp.dev_attr.attr,
-	&iio_scan_el_adc_0.dev_attr.attr,
+	&iio_scan_el_in0.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
 	NULL,
 };
@@ -205,7 +205,7 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_supply.number);
+	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
 	iio_scan_mask_set(ring, iio_scan_el_gyro_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_gyro_y.number);
 	iio_scan_mask_set(ring, iio_scan_el_gyro_z.number);
@@ -216,7 +216,7 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	iio_scan_mask_set(ring, iio_scan_el_magn_y.number);
 	iio_scan_mask_set(ring, iio_scan_el_magn_z.number);
 	iio_scan_mask_set(ring, iio_scan_el_temp.number);
-	iio_scan_mask_set(ring, iio_scan_el_adc_0.number);
+	iio_scan_mask_set(ring, iio_scan_el_in0.number);
 
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &adis16400_poll_func_th);
 	if (ret)

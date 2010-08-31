@@ -17,11 +17,11 @@
 #include "../trigger.h"
 #include "adis16260.h"
 
-static IIO_SCAN_EL_C(supply, ADIS16260_SCAN_SUPPLY, IIO_UNSIGNED(12),
+static IIO_SCAN_EL_C(in_supply, ADIS16260_SCAN_SUPPLY, IIO_UNSIGNED(12),
 		ADIS16260_SUPPLY_OUT, NULL);
 static IIO_SCAN_EL_C(gyro, ADIS16260_SCAN_GYRO, IIO_SIGNED(14),
 		ADIS16260_GYRO_OUT, NULL);
-static IIO_SCAN_EL_C(aux_adc, ADIS16260_SCAN_AUX_ADC, IIO_SIGNED(14),
+static IIO_SCAN_EL_C(in0, ADIS16260_SCAN_AUX_ADC, IIO_SIGNED(14),
 		ADIS16260_AUX_ADC, NULL);
 static IIO_SCAN_EL_C(temp, ADIS16260_SCAN_TEMP, IIO_UNSIGNED(12),
 		ADIS16260_TEMP_OUT, NULL);
@@ -31,9 +31,9 @@ static IIO_SCAN_EL_C(angl, ADIS16260_SCAN_ANGL, IIO_UNSIGNED(12),
 static IIO_SCAN_EL_TIMESTAMP(5);
 
 static struct attribute *adis16260_scan_el_attrs[] = {
-	&iio_scan_el_supply.dev_attr.attr,
+	&iio_scan_el_in_supply.dev_attr.attr,
 	&iio_scan_el_gyro.dev_attr.attr,
-	&iio_scan_el_aux_adc.dev_attr.attr,
+	&iio_scan_el_in0.dev_attr.attr,
 	&iio_scan_el_temp.dev_attr.attr,
 	&iio_scan_el_angl.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
@@ -172,9 +172,9 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_supply.number);
+	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
 	iio_scan_mask_set(ring, iio_scan_el_gyro.number);
-	iio_scan_mask_set(ring, iio_scan_el_aux_adc.number);
+	iio_scan_mask_set(ring, iio_scan_el_in0.number);
 	iio_scan_mask_set(ring, iio_scan_el_temp.number);
 	iio_scan_mask_set(ring, iio_scan_el_angl.number);
 

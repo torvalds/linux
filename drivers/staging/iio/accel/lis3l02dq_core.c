@@ -731,7 +731,7 @@ static struct attribute_group lis3l02dq_event_attribute_group = {
 	.attrs = lis3l02dq_event_attributes,
 };
 
-static IIO_CONST_ATTR(name, "lis3l02dq");
+static IIO_CONST_ATTR_NAME("lis3l02dq");
 static IIO_CONST_ATTR(accel_scale, "0.00958");
 
 static struct attribute *lis3l02dq_attributes[] = {

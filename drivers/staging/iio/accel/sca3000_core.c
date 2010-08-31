@@ -721,8 +721,8 @@ error_ret:
 }
 static IIO_DEV_ATTR_TEMP_RAW(sca3000_read_temp);
 
-static IIO_CONST_ATTR(temp_scale, "0.555556");
-static IIO_CONST_ATTR(temp_offset, "-214.6");
+static IIO_CONST_ATTR_TEMP_SCALE("0.555556");
+static IIO_CONST_ATTR_TEMP_OFFSET("-214.6");
 
 /**
  * sca3000_show_thresh() sysfs query of a threshold

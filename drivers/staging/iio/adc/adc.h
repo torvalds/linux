@@ -27,5 +27,12 @@
 			      NULL,					\
 			      _addr)
 
+
+#define IIO_CONST_ATTR_IN_NAMED_OFFSET(_name, _string)			\
+	IIO_CONST_ATTR(in_##_name##_offset, _string)
+
+#define IIO_CONST_ATTR_IN_NAMED_SCALE(_name, _string)			\
+	IIO_CONST_ATTR(in_##_name##_scale, _string)
+
 #define IIO_EVENT_CODE_IN_HIGH_THRESH(a) (IIO_EVENT_CODE_ADC_BASE  + a)
 #define IIO_EVENT_CODE_IN_LOW_THRESH(a) (IIO_EVENT_CODE_ADC_BASE  + a + 32)

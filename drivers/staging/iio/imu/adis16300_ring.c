@@ -17,7 +17,7 @@
 #include "../trigger.h"
 #include "adis16300.h"
 
-static IIO_SCAN_EL_C(supply, ADIS16300_SCAN_SUPPLY, IIO_UNSIGNED(14),
+static IIO_SCAN_EL_C(in_supply, ADIS16300_SCAN_SUPPLY, IIO_UNSIGNED(14),
 		     ADIS16300_SUPPLY_OUT, NULL);
 
 static IIO_SCAN_EL_C(gyro_x, ADIS16300_SCAN_GYRO_X, IIO_SIGNED(14),
@@ -32,7 +32,7 @@ static IIO_SCAN_EL_C(accel_z, ADIS16300_SCAN_ACC_Z, IIO_SIGNED(14),
 
 static IIO_SCAN_EL_C(temp, ADIS16300_SCAN_TEMP, IIO_UNSIGNED(12),
 		     ADIS16300_TEMP_OUT, NULL);
-static IIO_SCAN_EL_C(adc_0, ADIS16300_SCAN_ADC_0, IIO_UNSIGNED(12),
+static IIO_SCAN_EL_C(in0, ADIS16300_SCAN_ADC_0, IIO_UNSIGNED(12),
 		     ADIS16300_AUX_ADC, NULL);
 
 static IIO_SCAN_EL_C(incli_x, ADIS16300_SCAN_INCLI_X, IIO_SIGNED(12),
@@ -43,7 +43,7 @@ static IIO_SCAN_EL_C(incli_y, ADIS16300_SCAN_INCLI_Y, IIO_SIGNED(12),
 static IIO_SCAN_EL_TIMESTAMP(9);
 
 static struct attribute *adis16300_scan_el_attrs[] = {
-	&iio_scan_el_supply.dev_attr.attr,
+	&iio_scan_el_in_supply.dev_attr.attr,
 	&iio_scan_el_gyro_x.dev_attr.attr,
 	&iio_scan_el_temp.dev_attr.attr,
 	&iio_scan_el_accel_x.dev_attr.attr,
@@ -51,7 +51,7 @@ static struct attribute *adis16300_scan_el_attrs[] = {
 	&iio_scan_el_accel_z.dev_attr.attr,
 	&iio_scan_el_incli_x.dev_attr.attr,
 	&iio_scan_el_incli_y.dev_attr.attr,
-	&iio_scan_el_adc_0.dev_attr.attr,
+	&iio_scan_el_in0.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
 	NULL,
 };
@@ -196,13 +196,13 @@ int adis16300_configure_ring(struct iio_dev *indio_dev)
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_supply.number);
+	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
 	iio_scan_mask_set(ring, iio_scan_el_gyro_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
 	iio_scan_mask_set(ring, iio_scan_el_accel_z.number);
 	iio_scan_mask_set(ring, iio_scan_el_temp.number);
-	iio_scan_mask_set(ring, iio_scan_el_adc_0.number);
+	iio_scan_mask_set(ring, iio_scan_el_in0.number);
 	iio_scan_mask_set(ring, iio_scan_el_incli_x.number);
 	iio_scan_mask_set(ring, iio_scan_el_incli_y.number);
 
