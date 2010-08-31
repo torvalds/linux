@@ -50,6 +50,10 @@ static int port_mode = QLCNIC_PORT_MODE_AUTO_NEG;
 /* Default to restricted 1G auto-neg mode */
 static int wol_port_mode = 5;
 
+static int qlcnic_mac_learn;
+module_param(qlcnic_mac_learn, int, 0644);
+MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
+
 static int use_msi = 1;
 module_param(use_msi, int, 0644);
 MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled");
@@ -106,6 +110,8 @@ static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev);
 static void qlcnic_config_indev_addr(struct net_device *dev, unsigned long);
 static int qlcnic_start_firmware(struct qlcnic_adapter *);
 
+static void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
+static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter);
 static void qlcnic_dev_set_npar_ready(struct qlcnic_adapter *);
 static int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
 static int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
@@ -1201,6 +1207,9 @@ __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 	qlcnic_free_mac_list(adapter);
 
+	if (adapter->fhash.fnum)
+		qlcnic_delete_lb_filters(adapter);
+
 	qlcnic_nic_set_promisc(adapter, QLCNIC_NIU_NON_PROMISC_MODE);
 
 	qlcnic_napi_disable(adapter);
@@ -1596,6 +1605,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
+	qlcnic_alloc_lb_filters_mem(adapter);
 	qlcnic_create_diag_entries(adapter);
 
 	return 0;
@@ -1646,6 +1656,8 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_clr_all_drv_state(adapter, 0);
 
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+
+	qlcnic_free_lb_filters_mem(adapter);
 
 	qlcnic_teardown_intr(adapter);
 
@@ -1779,6 +1791,111 @@ static int qlcnic_close(struct net_device *netdev)
 
 	__qlcnic_down(adapter, netdev);
 	return 0;
+}
+
+static void
+qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
+{
+	void *head;
+	int i;
+
+	if (!qlcnic_mac_learn)
+		return;
+
+	spin_lock_init(&adapter->mac_learn_lock);
+
+	head = kcalloc(QLCNIC_LB_MAX_FILTERS, sizeof(struct hlist_head),
+								GFP_KERNEL);
+	if (!head)
+		return;
+
+	adapter->fhash.fmax = QLCNIC_LB_MAX_FILTERS;
+	adapter->fhash.fhead = (struct hlist_head *)head;
+
+	for (i = 0; i < adapter->fhash.fmax; i++)
+		INIT_HLIST_HEAD(&adapter->fhash.fhead[i]);
+}
+
+static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter)
+{
+	if (adapter->fhash.fmax && adapter->fhash.fhead)
+		kfree(adapter->fhash.fhead);
+
+	adapter->fhash.fhead = NULL;
+	adapter->fhash.fmax = 0;
+}
+
+static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
+		u64 uaddr, struct qlcnic_host_tx_ring *tx_ring)
+{
+	struct cmd_desc_type0 *hwdesc;
+	struct qlcnic_nic_req *req;
+	struct qlcnic_mac_req *mac_req;
+	u32 producer;
+	u64 word;
+
+	producer = tx_ring->producer;
+	hwdesc = &tx_ring->desc_head[tx_ring->producer];
+
+	req = (struct qlcnic_nic_req *)hwdesc;
+	memset(req, 0, sizeof(struct qlcnic_nic_req));
+	req->qhdr = cpu_to_le64(QLCNIC_REQUEST << 23);
+
+	word = QLCNIC_MAC_EVENT | ((u64)(adapter->portnum) << 16);
+	req->req_hdr = cpu_to_le64(word);
+
+	mac_req = (struct qlcnic_mac_req *)&(req->words[0]);
+	mac_req->op = QLCNIC_MAC_ADD;
+	memcpy(mac_req->mac_addr, &uaddr, ETH_ALEN);
+
+	tx_ring->producer = get_next_index(producer, tx_ring->num_desc);
+}
+
+#define QLCNIC_MAC_HASH(MAC)\
+	((((MAC) & 0x70000) >> 0x10) | (((MAC) & 0x70000000000ULL) >> 0x25))
+
+static void
+qlcnic_send_filter(struct qlcnic_adapter *adapter,
+		struct qlcnic_host_tx_ring *tx_ring,
+		struct cmd_desc_type0 *first_desc,
+		struct sk_buff *skb)
+{
+	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
+	struct qlcnic_filter *fil, *tmp_fil;
+	struct hlist_node *tmp_hnode, *n;
+	struct hlist_head *head;
+	u64 src_addr = 0;
+	u8 hindex;
+
+	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
+		return;
+
+	if (adapter->fhash.fnum >= adapter->fhash.fmax)
+		return;
+
+	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
+	hindex = QLCNIC_MAC_HASH(src_addr) & (QLCNIC_LB_MAX_FILTERS - 1);
+	head = &(adapter->fhash.fhead[hindex]);
+
+	hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+		if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN)) {
+			tmp_fil->ftime = jiffies;
+			return;
+		}
+	}
+
+	fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
+	if (!fil)
+		return;
+
+	qlcnic_change_filter(adapter, src_addr, tx_ring);
+
+	fil->ftime = jiffies;
+	memcpy(fil->faddr, &src_addr, ETH_ALEN);
+	spin_lock(&adapter->mac_learn_lock);
+	hlist_add_head(&(fil->fnode), head);
+	adapter->fhash.fnum++;
+	spin_unlock(&adapter->mac_learn_lock);
 }
 
 static void
@@ -2089,6 +2206,9 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tx_ring->producer = get_next_index(producer, num_txd);
 
 	qlcnic_tso_check(netdev, tx_ring, first_desc, skb);
+
+	if (qlcnic_mac_learn)
+		qlcnic_send_filter(adapter, tx_ring, first_desc, skb);
 
 	qlcnic_update_cmd_producer(adapter, tx_ring);
 
@@ -2899,6 +3019,9 @@ qlcnic_fw_poll_work(struct work_struct *work)
 
 	if (qlcnic_check_health(adapter))
 		return;
+
+	if (adapter->fhash.fnum)
+		qlcnic_prune_lb_filters(adapter);
 
 reschedule:
 	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);

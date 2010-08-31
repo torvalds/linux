@@ -926,6 +926,21 @@ struct qlcnic_mac_req {
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
 
+#define QLCNIC_FILTER_AGE	80
+#define QLCNIC_LB_MAX_FILTERS	64
+
+struct qlcnic_filter {
+	struct hlist_node fnode;
+	u8 faddr[ETH_ALEN];
+	unsigned long ftime;
+};
+
+struct qlcnic_filter_hash {
+	struct hlist_head *fhead;
+	u8 fnum;
+	u8 fmax;
+};
+
 struct qlcnic_adapter {
 	struct qlcnic_hardware_context ahw;
 
@@ -934,6 +949,7 @@ struct qlcnic_adapter {
 	struct list_head mac_list;
 
 	spinlock_t tx_clean_lock;
+	spinlock_t mac_learn_lock;
 
 	u16 num_txd;
 	u16 num_rxd;
@@ -1012,6 +1028,8 @@ struct qlcnic_adapter {
 	struct delayed_work fw_work;
 
 	struct qlcnic_nic_intr_coalesce coal;
+
+	struct qlcnic_filter_hash fhash;
 
 	unsigned long state;
 	__le32 file_prd_off;	/*File fw product offset*/
@@ -1211,6 +1229,8 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 int qlcnic_get_board_info(struct qlcnic_adapter *adapter);
 int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
 int qlcnic_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate);
+void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter);
+void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 
 /* Functions from qlcnic_init.c */
 int qlcnic_load_firmware(struct qlcnic_adapter *adapter);
