@@ -115,9 +115,13 @@ static const u32 diag_registers[] = {
 	-1
 };
 
+#define QLCNIC_MGMT_API_VERSION	2
+#define QLCNIC_DEV_INFO_SIZE	1
+#define QLCNIC_ETHTOOL_REGS_VER	2
 static int qlcnic_get_regs_len(struct net_device *dev)
 {
-	return sizeof(diag_registers) + QLCNIC_RING_REGS_LEN;
+	return sizeof(diag_registers) + QLCNIC_RING_REGS_LEN +
+				QLCNIC_DEV_INFO_SIZE + 1;
 }
 
 static int qlcnic_get_eeprom_len(struct net_device *dev)
@@ -342,10 +346,13 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	int ring, i = 0;
 
 	memset(p, 0, qlcnic_get_regs_len(dev));
-	regs->version = (1 << 24) | (adapter->ahw.revision_id << 16) |
-	    (adapter->pdev)->device;
+	regs->version = (QLCNIC_ETHTOOL_REGS_VER << 24) |
+		(adapter->ahw.revision_id << 16) | (adapter->pdev)->device;
 
-	for (i = 0; diag_registers[i] != -1; i++)
+	regs_buff[0] = (0xcafe0000 | (QLCNIC_DEV_INFO_SIZE & 0xffff));
+	regs_buff[1] = QLCNIC_MGMT_API_VERSION;
+
+	for (i = QLCNIC_DEV_INFO_SIZE + 1; diag_registers[i] != -1; i++)
 		regs_buff[i] = QLCRD32(adapter, diag_registers[i]);
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
