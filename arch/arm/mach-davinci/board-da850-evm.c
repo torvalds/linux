@@ -859,6 +859,9 @@ static __init void da850_evm_init(void)
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init da850_evm_console_init(void)
 {
+	if (!machine_is_davinci_da850_evm())
+		return 0;
+
 	return add_preferred_console("ttyS", 2, "115200");
 }
 console_initcall(da850_evm_console_init);
