@@ -930,8 +930,10 @@ static void __init ap4evb_init(void)
 				ARRAY_SIZE(i2c1_devices));
 
 #ifdef CONFIG_AP4EVB_QHD
+
 	/*
-	 * QHD
+	 * For QHD Panel (MIPI-DSI, CONFIG_AP4EVB_QHD=y) and
+	 * IRQ28 for Touch Panel, set dip switches S3, S43 as OFF, ON.
 	 */
 
 	/* enable KEYSC */
@@ -976,8 +978,10 @@ static void __init ap4evb_init(void)
 
 #else
 	/*
-	 * WVGA
+	 * For WVGA Panel (18-bit RGB, CONFIG_AP4EVB_WVGA=y) and
+	 * IRQ7 for Touch Panel, set dip switches S3, S43 to ON, OFF.
 	 */
+
 	gpio_request(GPIO_FN_LCDD17,   NULL);
 	gpio_request(GPIO_FN_LCDD16,   NULL);
 	gpio_request(GPIO_FN_LCDD15,   NULL);
