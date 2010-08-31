@@ -34,8 +34,7 @@ struct cpcap_driver_info {
 	struct platform_device *pdev;
 };
 
-static int ioctl(struct inode *inode,
-		 struct file *file, unsigned int cmd, unsigned long arg);
+static long ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int __devinit cpcap_probe(struct spi_device *spi);
 static int __devexit cpcap_remove(struct spi_device *spi);
 
@@ -46,7 +45,7 @@ static int cpcap_resume(struct spi_device *spi);
 
 const static struct file_operations cpcap_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = ioctl,
+	.unlocked_ioctl = ioctl,
 };
 
 static struct miscdevice cpcap_dev = {
@@ -358,7 +357,7 @@ static int __devexit cpcap_remove(struct spi_device *spi)
 }
 
 
-static int test_ioctl(unsigned int cmd, unsigned long arg)
+static long test_ioctl(unsigned int cmd, unsigned long arg)
 {
 	int retval = -EINVAL;
 	struct cpcap_regacc read_data;
@@ -396,7 +395,7 @@ static int test_ioctl(unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-static int adc_ioctl(unsigned int cmd, unsigned long arg)
+static long adc_ioctl(unsigned int cmd, unsigned long arg)
 {
 	int retval = -EINVAL;
 	struct cpcap_adc_phase phase;
@@ -419,7 +418,7 @@ static int adc_ioctl(unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-static int accy_ioctl(unsigned int cmd, unsigned long arg)
+static long accy_ioctl(unsigned int cmd, unsigned long arg)
 {
 	int retval = -EINVAL;
 	struct cpcap_whisper_request read_data;
@@ -442,8 +441,7 @@ static int accy_ioctl(unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-static int ioctl(struct inode *inode,
-		 struct file *file, unsigned int cmd, unsigned long arg)
+static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int retval = -ENOTTY;
 	unsigned int cmd_num;
