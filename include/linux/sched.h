@@ -875,6 +875,7 @@ enum sched_domain_level {
 	SD_LV_NONE = 0,
 	SD_LV_SIBLING,
 	SD_LV_MC,
+	SD_LV_BOOK,
 	SD_LV_CPU,
 	SD_LV_NODE,
 	SD_LV_ALLNODES,
