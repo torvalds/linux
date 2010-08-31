@@ -22,6 +22,12 @@
 
 #include <linux/fb.h>
 
+struct nvhost_device;
+struct tegra_dc;
+struct tegra_fb_data;
+struct tegra_fb_info;
+struct resource;
+
 #ifdef CONFIG_FB_TEGRA
 struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 					struct tegra_dc *dc,
