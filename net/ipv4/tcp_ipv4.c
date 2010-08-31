@@ -2571,7 +2571,6 @@ struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	return tcp_gro_receive(head, skb);
 }
-EXPORT_SYMBOL(tcp4_gro_receive);
 
 int tcp4_gro_complete(struct sk_buff *skb)
 {
@@ -2584,7 +2583,6 @@ int tcp4_gro_complete(struct sk_buff *skb)
 
 	return tcp_gro_complete(skb);
 }
-EXPORT_SYMBOL(tcp4_gro_complete);
 
 struct proto tcp_prot = {
 	.name			= "TCP",
