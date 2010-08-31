@@ -102,6 +102,20 @@ struct kvm_vcpu_arch_shared {
 Additions to the page must only occur at the end. Struct fields are always 32
 or 64 bit aligned, depending on them being 32 or 64 bit wide respectively.
 
+Magic page features
+===================
+
+When mapping the magic page using the KVM hypercall KVM_HC_PPC_MAP_MAGIC_PAGE,
+a second return value is passed to the guest. This second return value contains
+a bitmap of available features inside the magic page.
+
+The following enhancements to the magic page are currently available:
+
+  KVM_MAGIC_FEAT_SR		Maps SR registers r/w in the magic page
+
+For enhanced features in the magic page, please check for the existence of the
+feature before using them!
+
 MSR bits
 ========
 
