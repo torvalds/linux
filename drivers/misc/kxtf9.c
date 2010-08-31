@@ -695,8 +695,8 @@ static int kxtf9_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int kxtf9_misc_ioctl(struct inode *inode, struct file *file,
-				unsigned int cmd, unsigned long arg)
+static long kxtf9_misc_ioctl(struct file *file,
+			     unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	u8 buf[4];
@@ -903,7 +903,7 @@ static int kxtf9_misc_ioctl(struct inode *inode, struct file *file,
 static const struct file_operations kxtf9_misc_fops = {
 	.owner = THIS_MODULE,
 	.open = kxtf9_misc_open,
-	.ioctl = kxtf9_misc_ioctl,
+	.unlocked_ioctl = kxtf9_misc_ioctl,
 };
 
 static struct miscdevice kxtf9_misc_device = {
