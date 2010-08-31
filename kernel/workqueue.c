@@ -196,7 +196,7 @@ typedef cpumask_var_t mayday_mask_t;
 	cpumask_test_and_set_cpu((cpu), (mask))
 #define mayday_clear_cpu(cpu, mask)		cpumask_clear_cpu((cpu), (mask))
 #define for_each_mayday_cpu(cpu, mask)		for_each_cpu((cpu), (mask))
-#define alloc_mayday_mask(maskp, gfp)		alloc_cpumask_var((maskp), (gfp))
+#define alloc_mayday_mask(maskp, gfp)		zalloc_cpumask_var((maskp), (gfp))
 #define free_mayday_mask(mask)			free_cpumask_var((mask))
 #else
 typedef unsigned long mayday_mask_t;
