@@ -900,6 +900,7 @@ static int ehci_hub_control (
 
 		/* whoever resets must GetPortStatus to complete it!! */
 		if ((temp & PORT_RESET)
+				&& !ehci->port_reset_no_wait
 				&& time_after_eq(jiffies,
 					ehci->reset_done[wIndex])) {
 			status |= USB_PORT_STAT_C_RESET << 16;
