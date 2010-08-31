@@ -741,9 +741,9 @@ qlcnic_set_eswitch_port_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
 	adapter->flags &= ~QLCNIC_MACSPOOF;
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
-		if (esw_cfg->mac_anti_spoof)
-			adapter->flags |= QLCNIC_MACSPOOF;
+
+	if (esw_cfg->mac_anti_spoof)
+		adapter->flags |= QLCNIC_MACSPOOF;
 
 	qlcnic_set_netdev_features(adapter, esw_cfg);
 }
@@ -3377,8 +3377,12 @@ static int
 validate_esw_config(struct qlcnic_adapter *adapter,
 	struct qlcnic_esw_func_cfg *esw_cfg, int count)
 {
+	u32 op_mode;
 	u8 pci_func;
 	int i;
+
+	op_mode = readl(adapter->ahw.pci_base0 + QLCNIC_DRV_OP_MODE);
+
 	for (i = 0; i < count; i++) {
 		pci_func = esw_cfg[i].pci_func;
 		if (pci_func >= QLCNIC_MAX_PCI_FUNC)
@@ -3390,6 +3394,9 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
+			if (QLC_DEV_GET_DRV(op_mode, pci_func) !=
+						QLCNIC_NON_PRIV_FUNC)
+				esw_cfg[i].mac_anti_spoof = 0;
 			break;
 		case QLCNIC_ADD_VLAN:
 			if (!IS_VALID_VLAN(esw_cfg[i].vlan_id))
