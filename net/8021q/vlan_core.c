@@ -40,7 +40,7 @@ void vlan_hwaccel_do_receive(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct vlan_rx_stats     *rx_stats;
 
-	skb->dev = vlan_dev_info(dev)->real_dev;
+	skb->dev = vlan_dev_real_dev(dev);
 	netif_nit_deliver(skb);
 
 	skb->dev = dev;
