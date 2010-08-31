@@ -100,6 +100,9 @@ int nilfs_mdt_setup_shadow_map(struct inode *inode,
 int nilfs_mdt_save_to_shadow_map(struct inode *inode);
 void nilfs_mdt_restore_from_shadow_map(struct inode *inode);
 void nilfs_mdt_clear_shadow_map(struct inode *inode);
+int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh);
+struct buffer_head *nilfs_mdt_get_frozen_buffer(struct inode *inode,
+						struct buffer_head *bh);
 
 #define nilfs_mdt_mark_buffer_dirty(bh)	nilfs_mark_buffer_dirty(bh)
 

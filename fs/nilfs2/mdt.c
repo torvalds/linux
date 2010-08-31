@@ -622,6 +622,72 @@ int nilfs_mdt_save_to_shadow_map(struct inode *inode)
 	return ret;
 }
 
+int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh)
+{
+	struct nilfs_shadow_map *shadow = NILFS_MDT(inode)->mi_shadow;
+	struct buffer_head *bh_frozen;
+	struct page *page;
+	int blkbits = inode->i_blkbits;
+	int ret = -ENOMEM;
+
+	page = grab_cache_page(&shadow->frozen_data, bh->b_page->index);
+	if (!page)
+		return ret;
+
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, 1 << blkbits, 0);
+
+	bh_frozen = nilfs_page_get_nth_block(page, bh_offset(bh) >> blkbits);
+	if (bh_frozen) {
+		if (!buffer_uptodate(bh_frozen))
+			nilfs_copy_buffer(bh_frozen, bh);
+		if (list_empty(&bh_frozen->b_assoc_buffers)) {
+			list_add_tail(&bh_frozen->b_assoc_buffers,
+				      &shadow->frozen_buffers);
+			set_buffer_nilfs_redirected(bh);
+		} else {
+			brelse(bh_frozen); /* already frozen */
+		}
+		ret = 0;
+	}
+	unlock_page(page);
+	page_cache_release(page);
+	return ret;
+}
+
+struct buffer_head *
+nilfs_mdt_get_frozen_buffer(struct inode *inode, struct buffer_head *bh)
+{
+	struct nilfs_shadow_map *shadow = NILFS_MDT(inode)->mi_shadow;
+	struct buffer_head *bh_frozen = NULL;
+	struct page *page;
+	int n;
+
+	page = find_lock_page(&shadow->frozen_data, bh->b_page->index);
+	if (page) {
+		if (page_has_buffers(page)) {
+			n = bh_offset(bh) >> inode->i_blkbits;
+			bh_frozen = nilfs_page_get_nth_block(page, n);
+		}
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	return bh_frozen;
+}
+
+static void nilfs_release_frozen_buffers(struct nilfs_shadow_map *shadow)
+{
+	struct list_head *head = &shadow->frozen_buffers;
+	struct buffer_head *bh;
+
+	while (!list_empty(head)) {
+		bh = list_first_entry(head, struct buffer_head,
+				      b_assoc_buffers);
+		list_del_init(&bh->b_assoc_buffers);
+		brelse(bh); /* drop ref-count to make it releasable */
+	}
+}
+
 /**
  * nilfs_mdt_restore_from_shadow_map - restore dirty pages and bmap state
  * @inode: inode of the metadata file
@@ -658,6 +724,7 @@ void nilfs_mdt_clear_shadow_map(struct inode *inode)
 	struct nilfs_shadow_map *shadow = mi->mi_shadow;
 
 	down_write(&mi->mi_sem);
+	nilfs_release_frozen_buffers(shadow);
 	truncate_inode_pages(&shadow->frozen_data, 0);
 	truncate_inode_pages(&shadow->frozen_btnodes, 0);
 	up_write(&mi->mi_sem);

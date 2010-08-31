@@ -131,6 +131,7 @@ void nilfs_forget_buffer(struct buffer_head *bh)
 	lock_buffer(bh);
 	clear_buffer_nilfs_volatile(bh);
 	clear_buffer_nilfs_checked(bh);
+	clear_buffer_nilfs_redirected(bh);
 	clear_buffer_dirty(bh);
 	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
@@ -483,6 +484,7 @@ void nilfs_clear_dirty_pages(struct address_space *mapping)
 				clear_buffer_dirty(bh);
 				clear_buffer_nilfs_volatile(bh);
 				clear_buffer_nilfs_checked(bh);
+				clear_buffer_nilfs_redirected(bh);
 				clear_buffer_uptodate(bh);
 				clear_buffer_mapped(bh);
 				unlock_buffer(bh);
