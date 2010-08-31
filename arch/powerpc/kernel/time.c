@@ -183,6 +183,8 @@ DEFINE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 cputime_t cputime_one_jiffy;
 
+void (*dtl_consumer)(struct dtl_entry *, u64);
+
 static void calc_cputime_factors(void)
 {
 	struct div_result res;
@@ -218,7 +220,7 @@ static u64 read_spurr(u64 tb)
  */
 static u64 scan_dispatch_log(u64 stop_tb)
 {
-	unsigned long i = local_paca->dtl_ridx;
+	u64 i = local_paca->dtl_ridx;
 	struct dtl_entry *dtl = local_paca->dtl_curr;
 	struct dtl_entry *dtl_end = local_paca->dispatch_log_end;
 	struct lppaca *vpa = local_paca->lppaca_ptr;
@@ -229,6 +231,8 @@ static u64 scan_dispatch_log(u64 stop_tb)
 	if (i == vpa->dtl_idx)
 		return 0;
 	while (i < vpa->dtl_idx) {
+		if (dtl_consumer)
+			dtl_consumer(dtl, i);
 		dtb = dtl->timebase;
 		tb_delta = dtl->enqueue_to_dispatch_time +
 			dtl->ready_to_enqueue_time;
