@@ -92,8 +92,13 @@ static int low_power;
 /* mac address to use instead of the one stored in Efuse */
 char *r8712_initmac;
 static char *initmac;
+/* if wifi_test = 1, driver will disable the turbo mode and pass it to
+ * firmware private.
+ */
+static int wifi_test = 0;
 
 module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
+module_param(wifi_test, int, 0644);
 module_param(initmac, charp, 0644);
 module_param(video_mode, int, 0644);
 module_param(chip_version, int, 0644);
@@ -165,6 +170,7 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->ampdu_enable = (u8)ampdu_enable;
 	registry_par->rf_config = (u8)rf_config;
 	registry_par->low_power = (u8)low_power;
+	registry_par->wifi_test = (u8) wifi_test;
 	r8712_initmac = initmac;
 	return status;
 }

@@ -96,8 +96,9 @@ struct registry_priv {
 	u8 ht_enable;
 	u8 cbw40_enable;
 	u8 ampdu_enable;/*for tx*/
-	u8 rf_config ;
-	u8 low_power ;
+	u8 rf_config;
+	u8 low_power;
+	u8 wifi_test;
 };
 
 /* For registry parameters */

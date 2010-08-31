@@ -71,7 +71,8 @@ static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 	pfwpriv->mp_mode = (pregpriv->mp_mode == 1) ? 1 : 0;
 	pfwpriv->vcsType = pregpriv->vrtl_carrier_sense; /* 0:off 1:on 2:auto */
 	pfwpriv->vcsMode = pregpriv->vcs_type; /* 1:RTS/CTS 2:CTS to self */
-	pfwpriv->turboMode = 1; /* default enable it */
+	/* default enable turboMode */
+	pfwpriv->turboMode = ((pregpriv->wifi_test == 1) ? 0 : 1);
 	pfwpriv->lowPowerMode = pregpriv->low_power;
 }
 
