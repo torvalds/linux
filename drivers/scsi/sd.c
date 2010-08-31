@@ -2625,15 +2625,15 @@ module_exit(exit_sd);
 static void sd_print_sense_hdr(struct scsi_disk *sdkp,
 			       struct scsi_sense_hdr *sshdr)
 {
-	sd_printk(KERN_INFO, sdkp, "");
+	sd_printk(KERN_INFO, sdkp, " ");
 	scsi_show_sense_hdr(sshdr);
-	sd_printk(KERN_INFO, sdkp, "");
+	sd_printk(KERN_INFO, sdkp, " ");
 	scsi_show_extd_sense(sshdr->asc, sshdr->ascq);
 }
 
 static void sd_print_result(struct scsi_disk *sdkp, int result)
 {
-	sd_printk(KERN_INFO, sdkp, "");
+	sd_printk(KERN_INFO, sdkp, " ");
 	scsi_show_result(result);
 }
 
