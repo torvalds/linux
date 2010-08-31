@@ -258,7 +258,7 @@ static struct cpcap_audio_platform_data cpcap_audio_pdata = {
 	.regulator = "vaudio",
 	.state = &stingray_cpcap_audio_state,
 	.speaker_gpio = TEGRA_GPIO_PR3,
-	.headset_gpio = TEGRA_GPIO_PS7,
+	.headset_gpio = -1,
 };
 
 static struct platform_device cpcap_audio_device = {
@@ -942,10 +942,17 @@ static void __init tegra_stingray_init(void)
 		gpio_direction_input(TEGRA_GPIO_PD1);
 		gpio_export(TEGRA_GPIO_PD1, false);
 
-		tegra_gpio_enable(TEGRA_GPIO_PI4);
-		gpio_request(TEGRA_GPIO_PI4, "chg_disable");
-		gpio_direction_output(TEGRA_GPIO_PI4, 0);
-		gpio_export(TEGRA_GPIO_PI4, false);
+		if (stingray_revision() >= STINGRAY_REVISION_P2) {
+			tegra_gpio_enable(TEGRA_GPIO_PS7);
+			gpio_request(TEGRA_GPIO_PS7, "chg_disable");
+			gpio_direction_output(TEGRA_GPIO_PS7, 0);
+			gpio_export(TEGRA_GPIO_PS7, false);
+		} else {
+			tegra_gpio_enable(TEGRA_GPIO_PI4);
+			gpio_request(TEGRA_GPIO_PI4, "chg_disable");
+			gpio_direction_output(TEGRA_GPIO_PI4, 0);
+			gpio_export(TEGRA_GPIO_PI4, false);
+		}
 	}
 
 	/* Enable charge LEDs */
