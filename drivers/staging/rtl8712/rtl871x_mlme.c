@@ -1036,21 +1036,19 @@ void r8712_got_addbareq_event_callback(struct _adapter *adapter, u8 *pbuf)
 	struct	sta_info *psta;
 	struct	sta_priv *pstapriv = &adapter->stapriv;
 	struct	recv_reorder_ctrl *precvreorder_ctrl = NULL;
-	struct  __queue *ppending_recvframe_queue = NULL;
-	unsigned long irql;
 
 	printk(KERN_INFO "r8712u: [%s] mac = %pM, seq = %d, tid = %d\n",
 	     __func__, pAddbareq_pram->MacAddress,
 	    pAddbareq_pram->StartSeqNum, pAddbareq_pram->tid);
 	psta = r8712_get_stainfo(pstapriv, pAddbareq_pram->MacAddress);
-	precvreorder_ctrl = &psta->recvreorder_ctrl[pAddbareq_pram->tid];
-	ppending_recvframe_queue = &precvreorder_ctrl->pending_recvframe_queue;
-	spin_lock_irqsave(&ppending_recvframe_queue->lock, irql);
-	r8712_recv_indicatepkts_in_order(adapter, precvreorder_ctrl, true);
-	spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
-	/* set the indicate_seq to 0xffff so that the rx reorder can store
-	 *  any following data packet.*/
-	precvreorder_ctrl->indicate_seq = 0xffff;
+	if (psta) {
+		precvreorder_ctrl =
+			 &psta->recvreorder_ctrl[pAddbareq_pram->tid];
+		/* set the indicate_seq to 0xffff so that the rx reorder
+		 * can store any following data packet.
+		 */
+		precvreorder_ctrl->indicate_seq = 0xffff;
+	}
 }
 
 void r8712_wpspbc_event_callback(struct _adapter *adapter, u8 *pbuf)
