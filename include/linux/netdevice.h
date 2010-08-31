@@ -1702,6 +1702,7 @@ extern gro_result_t	dev_gro_receive(struct napi_struct *napi,
 extern gro_result_t	napi_skb_finish(gro_result_t ret, struct sk_buff *skb);
 extern gro_result_t	napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
+extern void		napi_gro_flush(struct napi_struct *napi);
 extern void		napi_reuse_skb(struct napi_struct *napi,
 				       struct sk_buff *skb);
 extern struct sk_buff *	napi_get_frags(struct napi_struct *napi);
