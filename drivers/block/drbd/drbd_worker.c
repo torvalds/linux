@@ -395,24 +395,21 @@ defer:
 
 void resync_timer_fn(unsigned long data)
 {
-	unsigned long flags;
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 	int queue;
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
-
-	if (likely(!test_and_clear_bit(STOP_SYNC_TIMER, &mdev->flags))) {
-		queue = 1;
-		if (mdev->state.conn == C_VERIFY_S)
-			mdev->resync_work.cb = w_make_ov_request;
-		else
-			mdev->resync_work.cb = w_make_resync_request;
-	} else {
+	queue = 1;
+	switch (mdev->state.conn) {
+	case C_VERIFY_S:
+		mdev->resync_work.cb = w_make_ov_request;
+		break;
+	case C_SYNC_TARGET:
+		mdev->resync_work.cb = w_make_resync_request;
+		break;
+	default:
 		queue = 0;
 		mdev->resync_work.cb = w_resync_inactive;
 	}
-
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	/* harmless race: list_empty outside data.work.q_lock */
 	if (list_empty(&mdev->resync_work.list) && queue)

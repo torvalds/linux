@@ -3803,7 +3803,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	/* make sure syncer is stopped and w_resume_next_sg queued */
 	del_timer_sync(&mdev->resync_timer);
-	set_bit(STOP_SYNC_TIMER, &mdev->flags);
 	resync_timer_fn((unsigned long)mdev);
 
 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,

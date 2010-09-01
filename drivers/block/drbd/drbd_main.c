@@ -1052,12 +1052,6 @@ int __drbd_set_state(struct drbd_conf *mdev,
 	wake_up(&mdev->misc_wait);
 	wake_up(&mdev->state_wait);
 
-	/*   post-state-change actions   */
-	if (os.conn >= C_SYNC_SOURCE   && ns.conn <= C_CONNECTED) {
-		set_bit(STOP_SYNC_TIMER, &mdev->flags);
-		mod_timer(&mdev->resync_timer, jiffies);
-	}
-
 	/* aborted verify run. log the last position */
 	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&
 	    ns.conn < C_CONNECTED) {
@@ -1072,22 +1066,14 @@ int __drbd_set_state(struct drbd_conf *mdev,
 		dev_info(DEV, "Syncer continues.\n");
 		mdev->rs_paused += (long)jiffies
 				  -(long)mdev->rs_mark_time[mdev->rs_last_mark];
-		if (ns.conn == C_SYNC_TARGET) {
-			if (!test_and_clear_bit(STOP_SYNC_TIMER, &mdev->flags))
-				mod_timer(&mdev->resync_timer, jiffies);
-			/* This if (!test_bit) is only needed for the case
-			   that a device that has ceased to used its timer,
-			   i.e. it is already in drbd_resync_finished() gets
-			   paused and resumed. */
-		}
+		if (ns.conn == C_SYNC_TARGET)
+			mod_timer(&mdev->resync_timer, jiffies);
 	}
 
 	if ((os.conn == C_SYNC_TARGET  || os.conn == C_SYNC_SOURCE) &&
 	    (ns.conn == C_PAUSED_SYNC_T || ns.conn == C_PAUSED_SYNC_S)) {
 		dev_info(DEV, "Resync suspended\n");
 		mdev->rs_mark_time[mdev->rs_last_mark] = jiffies;
-		if (ns.conn == C_PAUSED_SYNC_T)
-			set_bit(STOP_SYNC_TIMER, &mdev->flags);
 	}
 
 	if (os.conn == C_CONNECTED &&
