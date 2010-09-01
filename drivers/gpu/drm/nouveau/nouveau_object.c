@@ -207,15 +207,10 @@ nouveau_gpuobj_takedown(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	NV_DEBUG(dev, "\n");
-}
-
-void
-nouveau_gpuobj_late_takedown(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	BUG_ON(!list_empty(&dev_priv->gpuobj_list));
 }
+
 
 static void
 nouveau_gpuobj_del(struct kref *ref)

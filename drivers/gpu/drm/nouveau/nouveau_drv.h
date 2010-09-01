@@ -741,7 +741,6 @@ extern void nouveau_channel_free(struct nouveau_channel *);
 extern int  nouveau_gpuobj_early_init(struct drm_device *);
 extern int  nouveau_gpuobj_init(struct drm_device *);
 extern void nouveau_gpuobj_takedown(struct drm_device *);
-extern void nouveau_gpuobj_late_takedown(struct drm_device *);
 extern int  nouveau_gpuobj_suspend(struct drm_device *dev);
 extern void nouveau_gpuobj_suspend_cleanup(struct drm_device *dev);
 extern void nouveau_gpuobj_resume(struct drm_device *dev);
