@@ -10,11 +10,14 @@ static ssize_t amd64_nbea_store(struct mem_ctl_info *mci, const char *data,
 				size_t count)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	unsigned long long value;
+	u64 value;
 	int ret = 0;
+	struct mce m;
 
 	ret = strict_strtoull(data, 16, &value);
 	if (ret != -EINVAL) {
+		struct err_regs *regs = &pvt->ctl_error_info;
+
 		debugf0("received NBEA= 0x%llx\n", value);
 
 		/* place the value into the virtual error packet */
@@ -22,9 +25,12 @@ static ssize_t amd64_nbea_store(struct mem_ctl_info *mci, const char *data,
 		value >>= 32;
 		pvt->ctl_error_info.nbeah = (u32) value;
 
+		m.addr   = value;
+		m.status = regs->nbsl | ((u64)regs->nbsh << 32);
+
 		/* Process the Mapping request */
 		/* TODO: Add race prevention */
-		amd_decode_nb_mce(pvt->mc_node_id, &pvt->ctl_error_info);
+		amd_decode_nb_mce(pvt->mc_node_id, &m, regs->nbcfg);
 
 		return count;
 	}
