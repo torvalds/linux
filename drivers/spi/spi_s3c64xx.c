@@ -447,8 +447,8 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	writel(val, regs + S3C64XX_SPI_CLK_CFG);
 }
 
-void s3c64xx_spi_dma_rxcb(struct s3c2410_dma_chan *chan, void *buf_id,
-				int size, enum s3c2410_dma_buffresult res)
+static void s3c64xx_spi_dma_rxcb(struct s3c2410_dma_chan *chan, void *buf_id,
+				 int size, enum s3c2410_dma_buffresult res)
 {
 	struct s3c64xx_spi_driver_data *sdd = buf_id;
 	unsigned long flags;
@@ -467,8 +467,8 @@ void s3c64xx_spi_dma_rxcb(struct s3c2410_dma_chan *chan, void *buf_id,
 	spin_unlock_irqrestore(&sdd->lock, flags);
 }
 
-void s3c64xx_spi_dma_txcb(struct s3c2410_dma_chan *chan, void *buf_id,
-				int size, enum s3c2410_dma_buffresult res)
+static void s3c64xx_spi_dma_txcb(struct s3c2410_dma_chan *chan, void *buf_id,
+				 int size, enum s3c2410_dma_buffresult res)
 {
 	struct s3c64xx_spi_driver_data *sdd = buf_id;
 	unsigned long flags;
