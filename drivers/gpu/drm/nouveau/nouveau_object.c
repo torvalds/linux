@@ -93,7 +93,9 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	kref_init(&gpuobj->refcount);
 	gpuobj->size = size;
 
+	spin_lock(&dev_priv->ramin_lock);
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
 
 	if (chan) {
 		NV_DEBUG(dev, "channel heap\n");
@@ -117,9 +119,22 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 		}
 
 		/* try and get aperture space */
-		ramin = drm_mm_search_free(&dev_priv->ramin_heap, size, align, 0);
-		if (ramin)
-			ramin = drm_mm_get_block(ramin, size, align);
+		do {
+			if (drm_mm_pre_get(&dev_priv->ramin_heap))
+				return -ENOMEM;
+
+			spin_lock(&dev_priv->ramin_lock);
+			ramin = drm_mm_search_free(&dev_priv->ramin_heap, size,
+						   align, 0);
+			if (ramin == NULL) {
+				spin_unlock(&dev_priv->ramin_lock);
+				nouveau_gpuobj_ref(NULL, &gpuobj);
+				return ret;
+			}
+
+			ramin = drm_mm_get_block_atomic(ramin, size, align);
+			spin_unlock(&dev_priv->ramin_lock);
+		} while (ramin == NULL);
 
 		/* on nv50 it's ok to fail, we have a fallback path */
 		if (!ramin && dev_priv->card_type < NV_50) {
@@ -226,10 +241,11 @@ nouveau_gpuobj_del(struct kref *ref)
 	if (gpuobj->im_backing)
 		engine->instmem.clear(dev, gpuobj);
 
+	spin_lock(&dev_priv->ramin_lock);
 	if (gpuobj->im_pramin)
 		drm_mm_put_block(gpuobj->im_pramin);
-
 	list_del(&gpuobj->list);
+	spin_unlock(&dev_priv->ramin_lock);
 
 	kfree(gpuobj);
 }
@@ -276,7 +292,9 @@ nouveau_gpuobj_new_fake(struct drm_device *dev, u32 pinst, u64 vinst,
 		dev_priv->engine.instmem.flush(dev);
 	}
 
+	spin_lock(&dev_priv->ramin_lock);
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
 	*pgpuobj = gpuobj;
 	return 0;
 }
@@ -553,7 +571,9 @@ nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
 	kref_init(&gpuobj->refcount);
 	gpuobj->cinst = 0x40;
 
+	spin_lock(&dev_priv->ramin_lock);
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
 	*gpuobj_ret = gpuobj;
 	return 0;
 }

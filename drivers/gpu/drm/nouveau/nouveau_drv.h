@@ -514,11 +514,13 @@ struct drm_nouveau_private {
 
 	void __iomem *mmio;
 
+	spinlock_t ramin_lock;
 	void __iomem *ramin;
 	u32 ramin_size;
 	u32 ramin_base;
 	bool ramin_available;
-	spinlock_t ramin_lock;
+	struct drm_mm ramin_heap;
+	struct list_head gpuobj_list;
 
 	struct nouveau_bo *vga_ram;
 
@@ -591,10 +593,6 @@ struct drm_nouveau_private {
 	uint64_t vm_end;
 	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 	int vm_vram_pt_nr;
-
-	struct drm_mm ramin_heap;
-
-	struct list_head gpuobj_list;
 
 	struct nvbios vbios;
 
