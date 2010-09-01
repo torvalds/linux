@@ -90,7 +90,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
 	gpuobj->dev = dev;
 	gpuobj->flags = flags;
-	gpuobj->refcount = 1;
+	kref_init(&gpuobj->refcount);
 	gpuobj->size = size;
 
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
@@ -198,25 +198,15 @@ void
 nouveau_gpuobj_late_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gpuobj = NULL;
-	struct list_head *entry, *tmp;
 
-	NV_DEBUG(dev, "\n");
-
-	list_for_each_safe(entry, tmp, &dev_priv->gpuobj_list) {
-		gpuobj = list_entry(entry, struct nouveau_gpuobj, list);
-
-		NV_ERROR(dev, "gpuobj %p still exists at takedown, refs=%d\n",
-			 gpuobj, gpuobj->refcount);
-
-		gpuobj->refcount = 1;
-		nouveau_gpuobj_ref(NULL, &gpuobj);
-	}
+	BUG_ON(!list_empty(&dev_priv->gpuobj_list));
 }
 
-static int
-nouveau_gpuobj_del(struct nouveau_gpuobj *gpuobj)
+static void
+nouveau_gpuobj_del(struct kref *ref)
 {
+	struct nouveau_gpuobj *gpuobj =
+		container_of(ref, struct nouveau_gpuobj, refcount);
 	struct drm_device *dev = gpuobj->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
@@ -242,17 +232,16 @@ nouveau_gpuobj_del(struct nouveau_gpuobj *gpuobj)
 	list_del(&gpuobj->list);
 
 	kfree(gpuobj);
-	return 0;
 }
 
 void
 nouveau_gpuobj_ref(struct nouveau_gpuobj *ref, struct nouveau_gpuobj **ptr)
 {
 	if (ref)
-		ref->refcount++;
+		kref_get(&ref->refcount);
 
-	if (*ptr && --(*ptr)->refcount == 0)
-		nouveau_gpuobj_del(*ptr);
+	if (*ptr)
+		kref_put(&(*ptr)->refcount, nouveau_gpuobj_del);
 
 	*ptr = ref;
 }
@@ -275,7 +264,7 @@ nouveau_gpuobj_new_fake(struct drm_device *dev, u32 pinst, u64 vinst,
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
 	gpuobj->dev = dev;
 	gpuobj->flags = flags;
-	gpuobj->refcount = 1;
+	kref_init(&gpuobj->refcount);
 	gpuobj->size  = size;
 	gpuobj->pinst = pinst;
 	gpuobj->cinst = 0xdeadbeef;
@@ -561,7 +550,7 @@ nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
 	gpuobj->dev = chan->dev;
 	gpuobj->engine = NVOBJ_ENGINE_SW;
 	gpuobj->class = class;
-	gpuobj->refcount = 1;
+	kref_init(&gpuobj->refcount);
 	gpuobj->cinst = 0x40;
 
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);

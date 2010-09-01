@@ -137,6 +137,7 @@ enum nouveau_flags {
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
 struct nouveau_gpuobj {
 	struct drm_device *dev;
+	struct kref refcount;
 	struct list_head list;
 
 	struct drm_mm_node *im_pramin;
@@ -145,7 +146,6 @@ struct nouveau_gpuobj {
 	int im_bound;
 
 	uint32_t flags;
-	int refcount;
 
 	u32 size;
 	u32 pinst;
