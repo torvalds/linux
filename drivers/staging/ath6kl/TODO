@@ -1,0 +1,8 @@
+- The driver is a stop-gap measure until a proper mac80211 driver is available.
+- The driver does not conform to the Linux coding style.
+- The driver has been tested on a wide variety of embedded platforms running different versions of the Linux kernel but may still have bringup/performance issues with a new platform.
+- Pls use the following link to get information about the driver's architecture, exposed APIs, supported features, limitations, testing, hardware availability and other details.
+	http://wireless.kernel.org/en/users/Drivers/ath6kl
+- Pls send any patches to
+	- Greg Kroah-Hartman <greg@kroah.com>
+	- Vipin Mehta <vmehta@atheros.com>
