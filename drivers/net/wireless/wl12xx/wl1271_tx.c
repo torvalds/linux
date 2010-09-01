@@ -110,9 +110,9 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	/* configure the tx attributes */
 	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
 
-	/* queue */
+	/* queue (we use same identifiers for tid's and ac's */
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
-	desc->tid = wl1271_tx_ac_to_tid(ac);
+	desc->tid = ac;
 
 	desc->aid = TX_HW_DEFAULT_AID;
 	desc->reserved = 0;
