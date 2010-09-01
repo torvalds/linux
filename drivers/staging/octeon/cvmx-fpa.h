@@ -264,7 +264,7 @@ static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
  * @name:       Constant character string to name this pool.
  *                   String is not copied.
  * @buffer:     Pointer to the block of memory to use. This must be
- *                   accessable by all processors and external hardware.
+ *                   accessible by all processors and external hardware.
  * @block_size: Size for each block controlled by the FPA
  * @num_blocks: Number of blocks
  *

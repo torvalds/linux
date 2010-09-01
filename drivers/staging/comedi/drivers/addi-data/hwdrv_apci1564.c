@@ -34,7 +34,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-------------------------------+---------------------------------------+
   | Project manager: Eric Stolz   | Date       :  02/12/2002              |
   +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Acces For APCI-1564                    |
+  | Description :   Hardware Layer Access For APCI-1564                   |
   +-----------------------------------------------------------------------+
   |                             UPDATES                                   |
   +----------+-----------+------------------------------------------------+
