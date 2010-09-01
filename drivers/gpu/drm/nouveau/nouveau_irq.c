@@ -35,6 +35,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
+#include "nouveau_ramht.h"
 #include <linux/ratelimit.h>
 
 /* needed for hotplug irq */
@@ -106,15 +107,16 @@ nouveau_fifo_swmthd(struct nouveau_channel *chan, uint32_t addr, uint32_t data)
 	const int mthd = addr & 0x1ffc;
 
 	if (mthd == 0x0000) {
-		struct nouveau_gpuobj_ref *ref = NULL;
+		struct nouveau_gpuobj *gpuobj;
 
-		if (nouveau_gpuobj_ref_find(chan, data, &ref))
+		gpuobj = nouveau_ramht_find(chan, data);
+		if (!gpuobj)
 			return false;
 
-		if (ref->gpuobj->engine != NVOBJ_ENGINE_SW)
+		if (gpuobj->engine != NVOBJ_ENGINE_SW)
 			return false;
 
-		chan->sw_subchannel[subc] = ref->gpuobj->class;
+		chan->sw_subchannel[subc] = gpuobj->class;
 		nv_wr32(dev, NV04_PFIFO_CACHE1_ENGINE, nv_rd32(dev,
 			NV04_PFIFO_CACHE1_ENGINE) & ~(0xf << subc * 4));
 		return true;
@@ -357,7 +359,7 @@ nouveau_graph_chid_from_grctx(struct drm_device *dev)
 			if (!chan || !chan->ramin_grctx)
 				continue;
 
-			if (inst == chan->ramin_grctx->instance)
+			if (inst == chan->ramin_grctx->pinst)
 				break;
 		}
 	} else {
@@ -369,7 +371,7 @@ nouveau_graph_chid_from_grctx(struct drm_device *dev)
 			if (!chan || !chan->ramin)
 				continue;
 
-			if (inst == chan->ramin->instance)
+			if (inst == chan->ramin->vinst)
 				break;
 		}
 	}
@@ -625,7 +627,7 @@ nv50_pfb_vm_trap(struct drm_device *dev, int display, const char *name)
 				if (!chan || !chan->ramin)
 					continue;
 
-				if (trap[1] == chan->ramin->instance >> 12)
+				if (trap[1] == chan->ramin->vinst >> 12)
 					break;
 			}
 			NV_INFO(dev, "%s - VM: Trapped %s at %02x%04x%04x status %08x %08x channel %d\n",

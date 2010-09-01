@@ -70,14 +70,8 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
 	}
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, 0, pushbuf, &chan->pushbuf);
-	if (ret) {
-		NV_ERROR(dev, "Error referencing pushbuf ctxdma: %d\n", ret);
-		if (pushbuf != dev_priv->gart_info.sg_ctxdma)
-			nouveau_gpuobj_del(dev, &pushbuf);
-		return ret;
-	}
-
+	nouveau_gpuobj_ref(pushbuf, &chan->pushbuf);
+	nouveau_gpuobj_ref(NULL, &pushbuf);
 	return 0;
 }
 
@@ -308,7 +302,7 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Release the channel's resources */
-	nouveau_gpuobj_ref_del(dev, &chan->pushbuf);
+	nouveau_gpuobj_ref(NULL, &chan->pushbuf);
 	if (chan->pushbuf_bo) {
 		nouveau_bo_unmap(chan->pushbuf_bo);
 		nouveau_bo_unpin(chan->pushbuf_bo);

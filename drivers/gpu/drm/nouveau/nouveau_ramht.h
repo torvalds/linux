@@ -25,7 +25,29 @@
 #ifndef __NOUVEAU_RAMHT_H__
 #define __NOUVEAU_RAMHT_H__
 
-extern int nouveau_ramht_insert(struct drm_device *, struct nouveau_gpuobj_ref *);
-extern void nouveau_ramht_remove(struct drm_device *, struct nouveau_gpuobj_ref *);
+struct nouveau_ramht_entry {
+	struct list_head head;
+	struct nouveau_channel *channel;
+	struct nouveau_gpuobj *gpuobj;
+	u32 handle;
+};
+
+struct nouveau_ramht {
+	struct drm_device *dev;
+	int refcount;
+	struct nouveau_gpuobj *gpuobj;
+	struct list_head entries;
+};
+
+extern int  nouveau_ramht_new(struct drm_device *, struct nouveau_gpuobj *,
+			      struct nouveau_ramht **);
+extern void nouveau_ramht_ref(struct nouveau_ramht *, struct nouveau_ramht **,
+			      struct nouveau_channel *unref_channel);
+
+extern int  nouveau_ramht_insert(struct nouveau_channel *, u32 handle,
+				 struct nouveau_gpuobj *);
+extern void nouveau_ramht_remove(struct nouveau_channel *, u32 handle);
+extern struct nouveau_gpuobj *
+nouveau_ramht_find(struct nouveau_channel *chan, u32 handle);
 
 #endif

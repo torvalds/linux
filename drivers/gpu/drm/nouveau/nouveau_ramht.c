@@ -62,48 +62,56 @@ nouveau_ramht_entry_valid(struct drm_device *dev, struct nouveau_gpuobj *ramht,
 }
 
 int
-nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
+nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
+		     struct nouveau_gpuobj *gpuobj)
 {
+	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
-	struct nouveau_channel *chan = ref->channel;
-	struct nouveau_gpuobj *ramht = chan->ramht ? chan->ramht->gpuobj : NULL;
+	struct nouveau_ramht_entry *entry;
+	struct nouveau_gpuobj *ramht = chan->ramht->gpuobj;
 	uint32_t ctx, co, ho;
 
-	if (!ramht) {
-		NV_ERROR(dev, "No hash table!\n");
-		return -EINVAL;
-	}
+	if (nouveau_ramht_find(chan, handle))
+		return -EEXIST;
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+	entry->channel = chan;
+	entry->gpuobj = NULL;
+	entry->handle = handle;
+	list_add(&entry->head, &chan->ramht->entries);
+	nouveau_gpuobj_ref(gpuobj, &entry->gpuobj);
 
 	if (dev_priv->card_type < NV_40) {
-		ctx = NV_RAMHT_CONTEXT_VALID | (ref->instance >> 4) |
+		ctx = NV_RAMHT_CONTEXT_VALID | (gpuobj->cinst >> 4) |
 		      (chan->id << NV_RAMHT_CONTEXT_CHANNEL_SHIFT) |
-		      (ref->gpuobj->engine << NV_RAMHT_CONTEXT_ENGINE_SHIFT);
+		      (gpuobj->engine << NV_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else
 	if (dev_priv->card_type < NV_50) {
-		ctx = (ref->instance >> 4) |
+		ctx = (gpuobj->cinst >> 4) |
 		      (chan->id << NV40_RAMHT_CONTEXT_CHANNEL_SHIFT) |
-		      (ref->gpuobj->engine << NV40_RAMHT_CONTEXT_ENGINE_SHIFT);
+		      (gpuobj->engine << NV40_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else {
-		if (ref->gpuobj->engine == NVOBJ_ENGINE_DISPLAY) {
-			ctx = (ref->instance << 10) | 2;
+		if (gpuobj->engine == NVOBJ_ENGINE_DISPLAY) {
+			ctx = (gpuobj->cinst << 10) | 2;
 		} else {
-			ctx = (ref->instance >> 4) |
-			      ((ref->gpuobj->engine <<
+			ctx = (gpuobj->cinst >> 4) |
+			      ((gpuobj->engine <<
 				NV40_RAMHT_CONTEXT_ENGINE_SHIFT));
 		}
 	}
 
-	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
+	co = ho = nouveau_ramht_hash_handle(dev, chan->id, handle);
 	do {
 		if (!nouveau_ramht_entry_valid(dev, ramht, co)) {
 			NV_DEBUG(dev,
 				 "insert ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
-				 chan->id, co, ref->handle, ctx);
-			nv_wo32(ramht, co + 0, ref->handle);
+				 chan->id, co, handle, ctx);
+			nv_wo32(ramht, co + 0, handle);
 			nv_wo32(ramht, co + 4, ctx);
 
-			list_add_tail(&ref->list, &chan->ramht_refs);
 			instmem->flush(dev);
 			return 0;
 		}
@@ -116,35 +124,40 @@ nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 	} while (co != ho);
 
 	NV_ERROR(dev, "RAMHT space exhausted. ch=%d\n", chan->id);
+	list_del(&entry->head);
+	kfree(entry);
 	return -ENOMEM;
 }
 
 void
-nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
+nouveau_ramht_remove(struct nouveau_channel *chan, u32 handle)
 {
+	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
-	struct nouveau_channel *chan = ref->channel;
-	struct nouveau_gpuobj *ramht = chan->ramht ? chan->ramht->gpuobj : NULL;
-	uint32_t co, ho;
+	struct nouveau_gpuobj *ramht = chan->ramht->gpuobj;
+	struct nouveau_ramht_entry *entry, *tmp;
+	u32 co, ho;
 
-	if (!ramht) {
-		NV_ERROR(dev, "No hash table!\n");
-		return;
+	list_for_each_entry_safe(entry, tmp, &chan->ramht->entries, head) {
+		if (entry->channel != chan || entry->handle != handle)
+			continue;
+
+		nouveau_gpuobj_ref(NULL, &entry->gpuobj);
+		list_del(&entry->head);
+		kfree(entry);
+		break;
 	}
 
-	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
+	co = ho = nouveau_ramht_hash_handle(dev, chan->id, handle);
 	do {
 		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
-		    (ref->handle == nv_ro32(ramht, co))) {
+		    (handle == nv_ro32(ramht, co))) {
 			NV_DEBUG(dev,
 				 "remove ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
-				 chan->id, co, ref->handle,
-				 nv_ro32(ramht, co + 4));
+				 chan->id, co, handle, nv_ro32(ramht, co + 4));
 			nv_wo32(ramht, co + 0, 0x00000000);
 			nv_wo32(ramht, co + 4, 0x00000000);
-
-			list_del(&ref->list);
 			instmem->flush(dev);
 			return;
 		}
@@ -153,8 +166,64 @@ nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 		if (co >= dev_priv->ramht_size)
 			co = 0;
 	} while (co != ho);
-	list_del(&ref->list);
 
 	NV_ERROR(dev, "RAMHT entry not found. ch=%d, handle=0x%08x\n",
-		 chan->id, ref->handle);
+		 chan->id, handle);
+}
+
+struct nouveau_gpuobj *
+nouveau_ramht_find(struct nouveau_channel *chan, u32 handle)
+{
+	struct nouveau_ramht_entry *entry;
+
+	list_for_each_entry(entry, &chan->ramht->entries, head) {
+		if (entry->channel == chan && entry->handle == handle)
+			return entry->gpuobj;
+	}
+
+	return NULL;
+}
+
+int
+nouveau_ramht_new(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
+		  struct nouveau_ramht **pramht)
+{
+	struct nouveau_ramht *ramht;
+
+	ramht = kzalloc(sizeof(*ramht), GFP_KERNEL);
+	if (!ramht)
+		return -ENOMEM;
+
+	ramht->dev = dev;
+	ramht->refcount = 1;
+	INIT_LIST_HEAD(&ramht->entries);
+	nouveau_gpuobj_ref(gpuobj, &ramht->gpuobj);
+
+	*pramht = ramht;
+	return 0;
+}
+
+void
+nouveau_ramht_ref(struct nouveau_ramht *ref, struct nouveau_ramht **ptr,
+		  struct nouveau_channel *chan)
+{
+	struct nouveau_ramht_entry *entry, *tmp;
+	struct nouveau_ramht *ramht;
+
+	if (ref)
+		ref->refcount++;
+
+	ramht = *ptr;
+	if (ramht) {
+		list_for_each_entry_safe(entry, tmp, &ramht->entries, head) {
+			if (entry->channel == chan)
+				nouveau_ramht_remove(chan, entry->handle);
+		}
+
+		if (--ramht->refcount == 0) {
+			nouveau_gpuobj_ref(NULL, &ramht->gpuobj);
+			kfree(ramht);
+		}
+	}
+	*ptr = ref;
 }

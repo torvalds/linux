@@ -30,6 +30,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_ramht.h"
 #include "drm_crtc_helper.h"
 
 static void
@@ -66,12 +67,6 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, uint32_t class, uint32_t name,
 		return ret;
 	obj->engine = NVOBJ_ENGINE_DISPLAY;
 
-	ret = nouveau_gpuobj_ref_add(dev, evo, name, obj, NULL);
-	if (ret) {
-		nouveau_gpuobj_del(dev, &obj);
-		return ret;
-	}
-
 	nv_wo32(obj,  0, (tile_flags << 22) | (magic_flags << 16) | class);
 	nv_wo32(obj,  4, limit);
 	nv_wo32(obj,  8, offset);
@@ -83,6 +78,12 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, uint32_t class, uint32_t name,
 		nv_wo32(obj, 20, 0x00020000);
 	dev_priv->engine.instmem.flush(dev);
 
+	ret = nouveau_ramht_insert(evo, name, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	if (ret) {
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -90,6 +91,7 @@ static int
 nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *ramht = NULL;
 	struct nouveau_channel *chan;
 	int ret;
 
@@ -103,10 +105,8 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
 	chan->user_get = 4;
 	chan->user_put = 0;
 
-	INIT_LIST_HEAD(&chan->ramht_refs);
-
-	ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, 32768, 0x1000,
-				     NVOBJ_FLAG_ZERO_ALLOC, &chan->ramin);
+	ret = nouveau_gpuobj_new(dev, NULL, 32768, 0x1000,
+				 NVOBJ_FLAG_ZERO_ALLOC, &chan->ramin);
 	if (ret) {
 		NV_ERROR(dev, "Error allocating EVO channel memory: %d\n", ret);
 		nv50_evo_channel_del(pchan);
@@ -120,10 +120,16 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
 		return ret;
 	}
 
-	ret = nouveau_gpuobj_new_ref(dev, chan, chan, 0, 4096, 16,
-				     0, &chan->ramht);
+	ret = nouveau_gpuobj_new(dev, chan, 4096, 16, 0, &ramht);
 	if (ret) {
 		NV_ERROR(dev, "Unable to allocate EVO RAMHT: %d\n", ret);
+		nv50_evo_channel_del(pchan);
+		return ret;
+	}
+
+	ret = nouveau_ramht_new(dev, ramht, &chan->ramht);
+	nouveau_gpuobj_ref(NULL, &ramht);
+	if (ret) {
 		nv50_evo_channel_del(pchan);
 		return ret;
 	}
@@ -321,7 +327,7 @@ nv50_display_init(struct drm_device *dev)
 		}
 	}
 
-	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->instance >> 8) | 9);
+	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 
 	/* initialise fifo */
 	nv_wr32(dev, NV50_PDISPLAY_CHANNEL_DMA_CB(0),

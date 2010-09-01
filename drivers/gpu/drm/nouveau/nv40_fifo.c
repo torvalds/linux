@@ -42,7 +42,7 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 
 	ret = nouveau_gpuobj_new_fake(dev, NV40_RAMFC(chan->id), ~0,
 				      NV40_RAMFC__SIZE, NVOBJ_FLAG_ZERO_ALLOC |
-				      NVOBJ_FLAG_ZERO_FREE, NULL, &chan->ramfc);
+				      NVOBJ_FLAG_ZERO_FREE, &chan->ramfc);
 	if (ret)
 		return ret;
 
@@ -50,7 +50,7 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
 	nv_wi32(dev, fc +  4, chan->pushbuf_base);
-	nv_wi32(dev, fc + 12, chan->pushbuf->instance >> 4);
+	nv_wi32(dev, fc + 12, chan->pushbuf->pinst >> 4);
 	nv_wi32(dev, fc + 24, NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			      NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			      NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
@@ -58,7 +58,7 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 			      NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			      0x30000000 /* no idea.. */);
-	nv_wi32(dev, fc + 56, chan->ramin_grctx->instance >> 4);
+	nv_wi32(dev, fc + 56, chan->ramin_grctx->pinst >> 4);
 	nv_wi32(dev, fc + 60, 0x0001FFFF);
 
 	/* enable the fifo dma operation */
@@ -77,8 +77,7 @@ nv40_fifo_destroy_context(struct nouveau_channel *chan)
 	nv_wr32(dev, NV04_PFIFO_MODE,
 		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
 
-	if (chan->ramfc)
-		nouveau_gpuobj_ref_del(dev, &chan->ramfc);
+	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 
 static void

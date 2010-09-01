@@ -35,6 +35,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_ramht.h"
 #include "nv50_display.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
@@ -437,16 +438,14 @@ static int
 nouveau_card_init_channel(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gpuobj;
+	struct nouveau_gpuobj *gpuobj = NULL;
 	int ret;
 
 	ret = nouveau_channel_alloc(dev, &dev_priv->channel,
-				    (struct drm_file *)-2,
-				    NvDmaFB, NvDmaTT);
+				    (struct drm_file *)-2, NvDmaFB, NvDmaTT);
 	if (ret)
 		return ret;
 
-	gpuobj = NULL;
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
 				     0, dev_priv->vram_size,
 				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
@@ -454,26 +453,25 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		goto out_err;
 
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, NvDmaVRAM,
-				     gpuobj, NULL);
+	ret = nouveau_ramht_insert(dev_priv->channel, NvDmaVRAM, gpuobj);
+	nouveau_gpuobj_ref(NULL, &gpuobj);
 	if (ret)
 		goto out_err;
 
-	gpuobj = NULL;
 	ret = nouveau_gpuobj_gart_dma_new(dev_priv->channel, 0,
 					  dev_priv->gart_info.aper_size,
 					  NV_DMA_ACCESS_RW, &gpuobj, NULL);
 	if (ret)
 		goto out_err;
 
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, NvDmaGART,
-				     gpuobj, NULL);
+	ret = nouveau_ramht_insert(dev_priv->channel, NvDmaGART, gpuobj);
+	nouveau_gpuobj_ref(NULL, &gpuobj);
 	if (ret)
 		goto out_err;
 
 	return 0;
+
 out_err:
-	nouveau_gpuobj_del(dev, &gpuobj);
 	nouveau_channel_free(dev_priv->channel);
 	dev_priv->channel = NULL;
 	return ret;

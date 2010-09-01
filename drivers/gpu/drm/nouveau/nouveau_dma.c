@@ -28,6 +28,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 
 void
 nouveau_dma_pre_init(struct nouveau_channel *chan)
@@ -58,26 +59,27 @@ nouveau_dma_init(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *m2mf = NULL;
-	struct nouveau_gpuobj *nvsw = NULL;
+	struct nouveau_gpuobj *obj = NULL;
 	int ret, i;
 
 	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
 	ret = nouveau_gpuobj_gr_new(chan, dev_priv->card_type < NV_50 ?
-				    0x0039 : 0x5039, &m2mf);
+				    0x0039 : 0x5039, &obj);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, NvM2MF, m2mf, NULL);
+	ret = nouveau_ramht_insert(chan, NvM2MF, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
 	if (ret)
 		return ret;
 
 	/* Create an NV_SW object for various sync purposes */
-	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &nvsw);
+	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &obj);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, NvSw, nvsw, NULL);
+	ret = nouveau_ramht_insert(chan, NvSw, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
 	if (ret)
 		return ret;
 

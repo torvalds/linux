@@ -38,10 +38,8 @@
 #define NV04_RAMFC_ENGINE                                        0x14
 #define NV04_RAMFC_PULL1_ENGINE                                  0x18
 
-#define RAMFC_WR(offset, val) nv_wo32(chan->ramfc->gpuobj, \
-				      NV04_RAMFC_##offset, (val))
-#define RAMFC_RD(offset)      nv_ro32(chan->ramfc->gpuobj, \
-				      NV04_RAMFC_##offset)
+#define RAMFC_WR(offset, val) nv_wo32(chan->ramfc, NV04_RAMFC_##offset, (val))
+#define RAMFC_RD(offset)      nv_ro32(chan->ramfc, NV04_RAMFC_##offset)
 
 void
 nv04_fifo_disable(struct drm_device *dev)
@@ -130,7 +128,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 						NV04_RAMFC__SIZE,
 						NVOBJ_FLAG_ZERO_ALLOC |
 						NVOBJ_FLAG_ZERO_FREE,
-						NULL, &chan->ramfc);
+						&chan->ramfc);
 	if (ret)
 		return ret;
 
@@ -139,7 +137,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	/* Setup initial state */
 	RAMFC_WR(DMA_PUT, chan->pushbuf_base);
 	RAMFC_WR(DMA_GET, chan->pushbuf_base);
-	RAMFC_WR(DMA_INSTANCE, chan->pushbuf->instance >> 4);
+	RAMFC_WR(DMA_INSTANCE, chan->pushbuf->pinst >> 4);
 	RAMFC_WR(DMA_FETCH, (NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
@@ -161,7 +159,7 @@ nv04_fifo_destroy_context(struct nouveau_channel *chan)
 	nv_wr32(dev, NV04_PFIFO_MODE,
 		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
 
-	nouveau_gpuobj_ref_del(dev, &chan->ramfc);
+	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 
 static void

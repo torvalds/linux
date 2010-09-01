@@ -133,7 +133,6 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_DISPLAY	2
 #define NVOBJ_ENGINE_INT	0xdeadbeef
 
-#define NVOBJ_FLAG_ALLOW_NO_REFS	(1 << 0)
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
 #define NVOBJ_FLAG_FAKE			(1 << 3)
@@ -141,7 +140,6 @@ struct nouveau_gpuobj {
 	struct drm_device *dev;
 	struct list_head list;
 
-	struct nouveau_channel *im_channel;
 	struct drm_mm_node *im_pramin;
 	struct nouveau_bo *im_backing;
 	uint32_t im_backing_start;
@@ -160,16 +158,6 @@ struct nouveau_gpuobj {
 
 	void (*dtor)(struct drm_device *, struct nouveau_gpuobj *);
 	void *priv;
-};
-
-struct nouveau_gpuobj_ref {
-	struct list_head list;
-
-	struct nouveau_gpuobj *gpuobj;
-	uint32_t instance;
-
-	struct nouveau_channel *channel;
-	int handle;
 };
 
 struct nouveau_channel {
@@ -197,33 +185,32 @@ struct nouveau_channel {
 	} fence;
 
 	/* DMA push buffer */
-	struct nouveau_gpuobj_ref *pushbuf;
-	struct nouveau_bo         *pushbuf_bo;
-	uint32_t                   pushbuf_base;
+	struct nouveau_gpuobj *pushbuf;
+	struct nouveau_bo     *pushbuf_bo;
+	uint32_t               pushbuf_base;
 
 	/* Notifier memory */
 	struct nouveau_bo *notifier_bo;
 	struct drm_mm notifier_heap;
 
 	/* PFIFO context */
-	struct nouveau_gpuobj_ref *ramfc;
-	struct nouveau_gpuobj_ref *cache;
+	struct nouveau_gpuobj *ramfc;
+	struct nouveau_gpuobj *cache;
 
 	/* PGRAPH context */
 	/* XXX may be merge 2 pointers as private data ??? */
-	struct nouveau_gpuobj_ref *ramin_grctx;
+	struct nouveau_gpuobj *ramin_grctx;
 	void *pgraph_ctx;
 
 	/* NV50 VM */
-	struct nouveau_gpuobj     *vm_pd;
-	struct nouveau_gpuobj_ref *vm_gart_pt;
-	struct nouveau_gpuobj_ref *vm_vram_pt[NV50_VM_VRAM_NR];
+	struct nouveau_gpuobj *vm_pd;
+	struct nouveau_gpuobj *vm_gart_pt;
+	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 
 	/* Objects */
-	struct nouveau_gpuobj_ref *ramin; /* Private instmem */
-	struct drm_mm              ramin_heap; /* Private PRAMIN heap */
-	struct nouveau_gpuobj_ref *ramht; /* Hash table */
-	struct list_head           ramht_refs; /* Objects referenced by RAMHT */
+	struct nouveau_gpuobj *ramin; /* Private instmem */
+	struct drm_mm          ramin_heap; /* Private PRAMIN heap */
+	struct nouveau_ramht  *ramht; /* Hash table */
 
 	/* GPU object info for stuff used in-kernel (mm_enabled) */
 	uint32_t m2mf_ntfy;
@@ -301,7 +288,7 @@ struct nouveau_fb_engine {
 struct nouveau_fifo_engine {
 	int  channels;
 
-	struct nouveau_gpuobj_ref *playlist[2];
+	struct nouveau_gpuobj *playlist[2];
 	int cur_playlist;
 
 	int  (*init)(struct drm_device *);
@@ -339,7 +326,7 @@ struct nouveau_pgraph_engine {
 	int grctx_size;
 
 	/* NV2x/NV3x context table (0x400780) */
-	struct nouveau_gpuobj_ref *ctx_table;
+	struct nouveau_gpuobj *ctx_table;
 
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *);
@@ -555,7 +542,7 @@ struct drm_nouveau_private {
 	spinlock_t context_switch_lock;
 
 	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
-	struct nouveau_gpuobj *ramht;
+	struct nouveau_ramht *ramht;
 	uint32_t ramin_rsvd_vram;
 	uint32_t ramht_offset;
 	uint32_t ramht_size;
@@ -764,24 +751,12 @@ extern void nouveau_gpuobj_channel_takedown(struct nouveau_channel *);
 extern int nouveau_gpuobj_new(struct drm_device *, struct nouveau_channel *,
 			      uint32_t size, int align, uint32_t flags,
 			      struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_del(struct drm_device *, struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_ref_add(struct drm_device *, struct nouveau_channel *,
-				  uint32_t handle, struct nouveau_gpuobj *,
-				  struct nouveau_gpuobj_ref **);
-extern int nouveau_gpuobj_ref_del(struct drm_device *,
-				  struct nouveau_gpuobj_ref **);
-extern int nouveau_gpuobj_ref_find(struct nouveau_channel *, uint32_t handle,
-				   struct nouveau_gpuobj_ref **ref_ret);
-extern int nouveau_gpuobj_new_ref(struct drm_device *,
-				  struct nouveau_channel *alloc_chan,
-				  struct nouveau_channel *ref_chan,
-				  uint32_t handle, uint32_t size, int align,
-				  uint32_t flags, struct nouveau_gpuobj_ref **);
+extern void nouveau_gpuobj_ref(struct nouveau_gpuobj *,
+			       struct nouveau_gpuobj **);
 extern int nouveau_gpuobj_new_fake(struct drm_device *,
 				   uint32_t p_offset, uint32_t b_offset,
 				   uint32_t size, uint32_t flags,
-				   struct nouveau_gpuobj **,
-				   struct nouveau_gpuobj_ref**);
+				   struct nouveau_gpuobj **);
 extern int nouveau_gpuobj_dma_new(struct nouveau_channel *, int class,
 				  uint64_t offset, uint64_t size, int access,
 				  int target, struct nouveau_gpuobj **);

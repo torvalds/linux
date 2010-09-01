@@ -234,7 +234,6 @@ nouveau_sgdma_init(struct drm_device *dev)
 	}
 
 	ret = nouveau_gpuobj_new(dev, NULL, obj_size, 16,
-				      NVOBJ_FLAG_ALLOW_NO_REFS |
 				      NVOBJ_FLAG_ZERO_ALLOC |
 				      NVOBJ_FLAG_ZERO_FREE, &gpuobj);
 	if (ret) {
@@ -245,7 +244,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 	dev_priv->gart_info.sg_dummy_page =
 		alloc_page(GFP_KERNEL|__GFP_DMA32);
 	if (!dev_priv->gart_info.sg_dummy_page) {
-		nouveau_gpuobj_del(dev, &gpuobj);
+		nouveau_gpuobj_ref(NULL, &gpuobj);
 		return -ENOMEM;
 	}
 
@@ -254,11 +253,17 @@ nouveau_sgdma_init(struct drm_device *dev)
 		pci_map_page(pdev, dev_priv->gart_info.sg_dummy_page, 0,
 			     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	if (pci_dma_mapping_error(pdev, dev_priv->gart_info.sg_dummy_bus)) {
-		nouveau_gpuobj_del(dev, &gpuobj);
+		nouveau_gpuobj_ref(NULL, &gpuobj);
 		return -EFAULT;
 	}
 
 	if (dev_priv->card_type < NV_50) {
+		/* special case, allocated from global instmem heap so
+		 * cinst is invalid, we use it on all channels though so
+		 * cinst needs to be valid, set it the same as pinst
+		 */
+		gpuobj->cinst = gpuobj->pinst;
+
 		/* Maybe use NV_DMA_TARGET_AGP for PCIE? NVIDIA do this, and
 		 * confirmed to work on c51.  Perhaps means NV_DMA_TARGET_PCIE
 		 * on those cards? */
@@ -302,7 +307,7 @@ nouveau_sgdma_takedown(struct drm_device *dev)
 		dev_priv->gart_info.sg_dummy_bus = 0;
 	}
 
-	nouveau_gpuobj_del(dev, &dev_priv->gart_info.sg_ctxdma);
+	nouveau_gpuobj_ref(NULL, &dev_priv->gart_info.sg_ctxdma);
 }
 
 int
