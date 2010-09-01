@@ -613,10 +613,10 @@ static int setup_dma(struct audio_driver_state *ads)
 	BUG_ON(!ads->out.buf_phys);
 	setup_dma_tx_request(&ads->out.dma_req, &ads->out);
 	ads->out.dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
-	if (IS_ERR(ads->out.dma_chan)) {
+	if (!ads->out.dma_chan) {
 		pr_err("%s: could not allocate output I2S DMA channel: %ld\n",
 			__func__, PTR_ERR(ads->out.dma_chan));
-		rc = PTR_ERR(ads->out.dma_chan);
+		rc = -ENODEV;
 		goto fail_tx;
 	}
 
@@ -627,10 +627,10 @@ static int setup_dma(struct audio_driver_state *ads)
 	BUG_ON(!ads->in.buf_phys);
 	setup_dma_rx_request(&ads->in.dma_req, &ads->in);
 	ads->in.dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
-	if (IS_ERR(ads->in.dma_chan)) {
+	if (!ads->in.dma_chan) {
 		pr_err("%s: could not allocate input I2S DMA channel: %ld\n",
 			__func__, PTR_ERR(ads->in.dma_chan));
-		rc = PTR_ERR(ads->in.dma_chan);
+		rc = -ENODEV;
 		goto fail_rx;
 	}
 
