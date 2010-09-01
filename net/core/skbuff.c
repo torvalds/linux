@@ -685,16 +685,10 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 
 struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 {
-	int headerlen = skb->data - skb->head;
-	/*
-	 *	Allocate the copy buffer
-	 */
-	struct sk_buff *n;
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	n = alloc_skb(skb->end + skb->data_len, gfp_mask);
-#else
-	n = alloc_skb(skb->end - skb->head + skb->data_len, gfp_mask);
-#endif
+	int headerlen = skb_headroom(skb);
+	unsigned int size = (skb_end_pointer(skb) - skb->head) + skb->data_len;
+	struct sk_buff *n = alloc_skb(size, gfp_mask);
+
 	if (!n)
 		return NULL;
 
@@ -726,20 +720,14 @@ EXPORT_SYMBOL(skb_copy);
 
 struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 {
-	/*
-	 *	Allocate the copy buffer
-	 */
-	struct sk_buff *n;
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	n = alloc_skb(skb->end, gfp_mask);
-#else
-	n = alloc_skb(skb->end - skb->head, gfp_mask);
-#endif
+	unsigned int size = skb_end_pointer(skb) - skb->head;
+	struct sk_buff *n = alloc_skb(size, gfp_mask);
+
 	if (!n)
 		goto out;
 
 	/* Set the data pointer */
-	skb_reserve(n, skb->data - skb->head);
+	skb_reserve(n, skb_headroom(skb));
 	/* Set the tail pointer and length */
 	skb_put(n, skb_headlen(skb));
 	/* Copy the bytes */
@@ -791,11 +779,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 {
 	int i;
 	u8 *data;
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	int size = nhead + skb->end + ntail;
-#else
-	int size = nhead + (skb->end - skb->head) + ntail;
-#endif
+	int size = nhead + (skb_end_pointer(skb) - skb->head) + ntail;
 	long off;
 
 	BUG_ON(nhead < 0);
@@ -810,13 +794,12 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		goto nodata;
 
 	/* Copy only real data... and, alas, header. This should be
-	 * optimized for the cases when header is void. */
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	memcpy(data + nhead, skb->head, skb->tail);
-#else
-	memcpy(data + nhead, skb->head, skb->tail - skb->head);
-#endif
-	memcpy(data + size, skb_end_pointer(skb),
+	 * optimized for the cases when header is void.
+	 */
+	memcpy(data + nhead, skb->head, skb_tail_pointer(skb) - skb->head);
+
+	memcpy((struct skb_shared_info *)(data + size),
+	       skb_shinfo(skb),
 	       offsetof(struct skb_shared_info, frags[skb_shinfo(skb)->nr_frags]));
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
