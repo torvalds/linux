@@ -1501,7 +1501,7 @@ static void release(struct dynamic_loader_initialize *this)
 #ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /**
  *  find_symbol_context - Basic symbol context structure
- * @address:		Symbol Adress
+ * @address:		Symbol Address
  * @offset_range:		Offset range where the search for the DSP symbol
  *			started.
  * @cur_best_offset:	Best offset to start looking for the DSP symbol
