@@ -4239,8 +4239,10 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 			} else if ((params->req_line_speed ==
 				    SPEED_AUTO_NEG) &&
 				   ((params->speed_cap_mask &
-				     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G))) {
-
+				     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) &&
+				   ((params->speed_cap_mask &
+				     PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) !=
+				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) {
 				DP(NETIF_MSG_LINK, "Setting 1G clause37\n");
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
 					       ext_phy_addr, MDIO_AN_DEVAD,
@@ -4253,17 +4255,18 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				need to set the 10G registers although it is
 				default */
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
-					       ext_phy_addr, MDIO_AN_DEVAD,
-					       MDIO_AN_REG_CTRL, 0x0020);
+					      ext_phy_addr, MDIO_AN_DEVAD,
+					      MDIO_AN_REG_8727_MISC_CTRL,
+					      0x0020);
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
-					       ext_phy_addr, MDIO_AN_DEVAD,
-					       0x7, 0x0100);
+					      ext_phy_addr, MDIO_AN_DEVAD,
+					      MDIO_AN_REG_CL37_AN, 0x0100);
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
-					       ext_phy_addr, MDIO_PMA_DEVAD,
-					       MDIO_PMA_REG_CTRL, 0x2040);
+					      ext_phy_addr, MDIO_PMA_DEVAD,
+					      MDIO_PMA_REG_CTRL, 0x2040);
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
-					       ext_phy_addr, MDIO_PMA_DEVAD,
-					       MDIO_PMA_REG_10G_CTRL2, 0x0008);
+					      ext_phy_addr, MDIO_PMA_DEVAD,
+					      MDIO_PMA_REG_10G_CTRL2, 0x0008);
 			}
 
 			/* Set 2-wire transfer rate of SFP+ module EEPROM

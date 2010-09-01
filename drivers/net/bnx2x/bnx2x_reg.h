@@ -5211,6 +5211,8 @@ Theotherbitsarereservedandshouldbezero*/
 
 #define MDIO_AN_REG_8073_2_5G		0x8329
 
+#define MDIO_AN_REG_8727_MISC_CTRL	0x8309
+
 #define MDIO_AN_REG_8481_LEGACY_MII_CTRL	0xffe0
 #define MDIO_AN_REG_8481_LEGACY_AN_ADV		0xffe4
 #define MDIO_AN_REG_8481_1000T_CTRL		0xffe9
