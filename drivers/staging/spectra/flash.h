@@ -104,7 +104,7 @@ struct flash_cache_tag {
 };
 
 /*
- *Data structure for each list node of the managment table
+ *Data structure for each list node of the management table
  * used for the Level 2 Cache. Each node maps one logical NAND block.
  */
 struct spectra_l2_cache_list {
