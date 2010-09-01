@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5p6440/setup-i2c1.c
+/* linux/arch/arm/mach-s5p64xx/setup-i2c1.c
  *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * I2C1 GPIO configuration.
  *
@@ -21,10 +21,22 @@ struct platform_device; /* don't need the contents */
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
 
-void s3c_i2c1_cfg_gpio(struct platform_device *dev)
+#include <mach/i2c.h>
+
+void s5p6440_i2c1_cfg_gpio(struct platform_device *dev)
 {
 	s3c_gpio_cfgpin(S5P6440_GPR(9), S3C_GPIO_SFN(6));
 	s3c_gpio_setpull(S5P6440_GPR(9), S3C_GPIO_PULL_UP);
 	s3c_gpio_cfgpin(S5P6440_GPR(10), S3C_GPIO_SFN(6));
 	s3c_gpio_setpull(S5P6440_GPR(10), S3C_GPIO_PULL_UP);
 }
+
+void s5p6450_i2c1_cfg_gpio(struct platform_device *dev)
+{
+	s3c_gpio_cfgpin(S5P6450_GPR(9), S3C_GPIO_SFN(6));
+	s3c_gpio_setpull(S5P6450_GPR(9), S3C_GPIO_PULL_UP);
+	s3c_gpio_cfgpin(S5P6450_GPR(10), S3C_GPIO_SFN(6));
+	s3c_gpio_setpull(S5P6450_GPR(10), S3C_GPIO_PULL_UP);
+}
+
+void s3c_i2c1_cfg_gpio(struct platform_device *dev) { }
