@@ -45,9 +45,9 @@ static void dwmac100_core_init(void __iomem *ioaddr)
 static void dwmac100_dump_mac_regs(void __iomem *ioaddr)
 {
 	pr_info("\t----------------------------------------------\n"
-		"\t  DWMAC 100 CSR (base addr = 0x%8x)\n"
+		"\t  DWMAC 100 CSR (base addr = 0x%p)\n"
 		"\t----------------------------------------------\n",
-		(unsigned int) ioaddr);
+		ioaddr);
 	pr_info("\tcontrol reg (offset 0x%x): 0x%08x\n", MAC_CONTROL,
 		readl(ioaddr + MAC_CONTROL));
 	pr_info("\taddr HI (offset 0x%x): 0x%08x\n ", MAC_ADDR_HIGH,
