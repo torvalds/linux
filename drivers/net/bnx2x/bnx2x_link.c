@@ -4200,7 +4200,6 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				       val);
 
 			bnx2x_8727_power_module(bp, params, ext_phy_addr, 1);
-			bnx2x_bcm8073_set_xaui_low_power_mode(params);
 
 			bnx2x_cl45_read(bp, params->port,
 				      ext_phy_type,
