@@ -919,6 +919,13 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	sci = pdev->dev.platform_data;
+	if (!sci->src_clk_name) {
+		dev_err(&pdev->dev,
+			"Board init must call s3c64xx_spi_set_info()\n");
+		return -EINVAL;
+	}
+
 	/* Check for availability of necessary resource */
 
 	dmatx_res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -945,8 +952,6 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to allocate SPI Master\n");
 		return -ENOMEM;
 	}
-
-	sci = pdev->dev.platform_data;
 
 	platform_set_drvdata(pdev, master);
 
