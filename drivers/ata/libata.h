@@ -176,6 +176,8 @@ extern int ata_ering_map(struct ata_ering *ering,
 #ifdef CONFIG_SATA_PMP
 extern int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *val);
 extern int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val);
+extern int sata_pmp_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+			    unsigned hints);
 extern int sata_pmp_attach(struct ata_device *dev);
 #else /* CONFIG_SATA_PMP */
 static inline int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *val)
@@ -184,6 +186,12 @@ static inline int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *val)
 }
 
 static inline int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
+{
+	return -EINVAL;
+}
+
+static inline int sata_pmp_set_lpm(struct ata_link *link,
+				   enum ata_lpm_policy policy, unsigned hints)
 {
 	return -EINVAL;
 }

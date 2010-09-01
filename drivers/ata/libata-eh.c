@@ -3232,7 +3232,7 @@ static int ata_eh_maybe_retry_flush(struct ata_device *dev)
 static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			  struct ata_device **r_failed_dev)
 {
-	struct ata_port *ap = link->ap;
+	struct ata_port *ap = ata_is_host_link(link) ? link->ap : NULL;
 	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev, *link_dev = NULL, *lpm_dev = NULL;
 	unsigned int hints = ATA_LPM_EMPTY | ATA_LPM_HIPM;
@@ -3278,9 +3278,12 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		}
 	}
 
-	rc = ap->ops->set_lpm(link, policy, hints);
-	if (!rc && ap->slave_link)
-		rc = ap->ops->set_lpm(ap->slave_link, policy, hints);
+	if (ap) {
+		rc = ap->ops->set_lpm(link, policy, hints);
+		if (!rc && ap->slave_link)
+			rc = ap->ops->set_lpm(ap->slave_link, policy, hints);
+	} else
+		rc = sata_pmp_set_lpm(link, policy, hints);
 
 	/*
 	 * Attribute link config failure to the first (LPM) enabled
@@ -3412,8 +3415,14 @@ static int ata_eh_schedule_probe(struct ata_device *dev)
 	ehc->saved_ncq_enabled &= ~(1 << dev->devno);
 
 	/* the link maybe in a deep sleep, wake it up */
-	if (link->lpm_policy > ATA_LPM_MAX_POWER)
-		link->ap->ops->set_lpm(link, ATA_LPM_MAX_POWER, ATA_LPM_EMPTY);
+	if (link->lpm_policy > ATA_LPM_MAX_POWER) {
+		if (ata_is_host_link(link))
+			link->ap->ops->set_lpm(link, ATA_LPM_MAX_POWER,
+					       ATA_LPM_EMPTY);
+		else
+			sata_pmp_set_lpm(link, ATA_LPM_MAX_POWER,
+					 ATA_LPM_EMPTY);
+	}
 
 	/* Record and count probe trials on the ering.  The specific
 	 * error mask used is irrelevant.  Because a successful device
