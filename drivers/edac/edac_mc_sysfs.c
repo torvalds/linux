@@ -1011,7 +1011,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
  */
 int edac_sysfs_setup_mc_kset(void)
 {
-	int err = 0;
+	int err = -EINVAL;
 	struct sysdev_class *edac_class;
 
 	debugf1("%s()\n", __func__);
