@@ -1186,6 +1186,12 @@ int __ieee80211_suspend(struct ieee80211_hw *hw);
 
 static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 {
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+		"%s: resume with hardware scan still in progress\n",
+		wiphy_name(hw->wiphy));
+
 	return ieee80211_reconfig(hw_to_local(hw));
 }
 #else

@@ -12,7 +12,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
-	ieee80211_scan_cancel(local);
+	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning)))
+		ieee80211_scan_cancel(local);
 
 	ieee80211_stop_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
