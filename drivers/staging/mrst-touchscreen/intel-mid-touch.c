@@ -684,7 +684,7 @@ static irqreturn_t pendet_intr_handler(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-/* Intializes input device and registers with input subsystem */
+/* Initializes input device and registers with input subsystem */
 static int ts_input_dev_init(struct mrstouch_dev *tsdev, struct spi_device *spi)
 {
 	int err = 0;

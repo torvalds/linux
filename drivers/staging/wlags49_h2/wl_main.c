@@ -450,7 +450,7 @@ int wl_insert( struct net_device *dev )
 	/* Initialize the adapter parameters. */
 	spin_lock_init( &( lp->slock ));
 
-	/* Intialize states */
+	/* Initialize states */
 	//lp->lockcount = 0; //PE1DNN
         lp->is_handling_int = WL_NOT_HANDLING_INT;
 	lp->firmware_present = WL_FRIMWARE_NOT_PRESENT;

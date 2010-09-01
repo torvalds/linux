@@ -1534,7 +1534,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 				 * 1. check whether there's tx irq available, for it's a completion return
 				 *    function, it should contain enough tx irq;
 				 * 2. check pakcet type;
-				 * 3. intialize sendlist, check whether the to-be send packet no greater than 1
+				 * 3. initialize sendlist, check whether the to-be send packet no greater than 1
 				 * 4. aggregation the packets, and fill firmware info and tx desc to it, etc.
 				 * 5. check whehter the packet could be sent, otherwise just insert to wait head
 				 * */
