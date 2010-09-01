@@ -18,6 +18,7 @@
 #define __ARCH_ARM_MACH_MSM_GPIOMUX_H
 
 #include <linux/bitops.h>
+#include <linux/errno.h>
 
 #if defined(CONFIG_MSM_V2_TLMM)
 #include "gpiomux-v2.h"
@@ -60,6 +61,8 @@ enum {
 	GPIOMUX_CTL_MASK = GPIOMUX_VALID,
 };
 
+#ifdef CONFIG_MSM_GPIOMUX
+
 /* Each architecture must provide its own instance of this table.
  * To avoid having gpiomux manage any given gpio, one or both of
  * the entries can avoid setting GPIOMUX_VALID - the absence
@@ -90,5 +93,22 @@ int msm_gpiomux_write(unsigned gpio,
  * should use msm_gpiomux_write.
  */
 void __msm_gpiomux_write(unsigned gpio, gpiomux_config_t val);
+#else
+static inline int __must_check msm_gpiomux_get(unsigned gpio)
+{
+	return -ENOSYS;
+}
 
+static inline int msm_gpiomux_put(unsigned gpio)
+{
+	return -ENOSYS;
+}
+
+static inline int msm_gpiomux_write(unsigned gpio,
+				    gpiomux_config_t active,
+				    gpiomux_config_t suspended)
+{
+	return -ENOSYS;
+}
+#endif
 #endif
