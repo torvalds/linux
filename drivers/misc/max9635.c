@@ -190,63 +190,66 @@ static irqreturn_t max9635_irq_handler(int irq, void *dev)
 	disable_irq_nosync(als_data->client->irq);
 	schedule_delayed_work(&als_data->working_queue, 0);
 
-
 	return IRQ_HANDLED;
 }
 
 static int max9635_read_adj_als(struct max9635_data *als_data)
 {
 	int ret;
-	int i;
 	int lux = 0;
 	u8 buf[2] = { MAX9635_ALS_DATA_H, 0 };
+	u8 low_buf = MAX9635_ALS_DATA_L;
+	u8 high_buf = MAX9635_ALS_DATA_H;
 	u8 exponent;
 	u16 mantissa;
 
-	ret = max9635_read_reg(als_data, buf, 2);
+	ret = max9635_read_reg(als_data, &high_buf, 1);
 	if (ret != 0) {
-		pr_err("%s:Unable to read interrupt register: %d\n",
+		pr_err("%s: Unable to read lux high byte register: %d\n",
+		       __func__, ret);
+		return -1;
+	}
+	ret = max9635_read_reg(als_data, &low_buf, 1);
+	if (ret != 0) {
+		pr_err("%s: Unable to read lux low byte register: %d\n",
 		       __func__, ret);
 		return -1;
 	}
 
-	exponent = (buf[0] & 0xf0) >> 4;
-	mantissa = ((buf[0] & 0x0f) << 8) + buf[1];
-	/* lux = 2^exponent * mantissa / 32 */
-	lux = (mantissa << exponent) >> 5;
-	/* TO DO: Need to include lens loss coeffcient to achieve closer to
-	   absolute lux value
-	   if (als_data->als_pdata->lens_percent_t)
-	   lux = ((10000 / als_data->als_pdata->lens_percent_t)*
-	   (als_read_data)) / 100; */
+	exponent = (high_buf & 0xf0) >> 4;
+	mantissa = ((high_buf & 0x0f) << 4) | (low_buf & 0x0f);
 
-	for (i = 0; i < als_data->als_pdata->num_of_zones; i++) {
-		if ((lux <= als_data->max9635_zone_info[i].upper_threshold)
-			&& (lux >= als_data->max9635_zone_info[i].lower_threshold)) {
-			if (max9635_debug & 1)
-				pr_info("%s:Setting next window to %i\n",
-					__func__, i);
+	lux = ((0001 << exponent) * mantissa) / 20;
+	if (max9635_debug & 1)
+		pr_info("exp = 0x%X, mant = 0x%X, lux = %d\n",
+			exponent, mantissa, lux);
 
-			buf[0] = (AUTO_INCREMENT | MAX9635_ALS_THRESH_L);
-			buf[1] =
-			    als_data->als_pdata->als_lux_table[i].als_lower_threshold;
-			ret = max9635_write_reg(als_data, buf, 1);
-			if (ret != 0) {
-				pr_err("%s:Unable to write reg: %d\n",
-				       __func__, buf[0]);
-				return -1;
-			}
-			buf[0] = (AUTO_INCREMENT | MAX9635_ALS_THRESH_H);
-			buf[1] =
-			    als_data->als_pdata->als_lux_table[i].als_higher_threshold;
-			ret = max9635_write_reg(als_data, buf, 1);
-			if (ret != 0) {
-				pr_err("%s:Unable to write reg: %d\n",
-				       __func__, buf[0]);
-				return -1;
-			}
-		}
+	/* lux can be in the range of 0 to 208896, per maxim */
+	if (lux == 0)
+		lux += 1;
+	if (lux == 208896)
+		lux -= 1;
+
+	buf[0] = (AUTO_INCREMENT | MAX9635_ALS_THRESH_L);
+	buf[1] = lux - 1;
+	ret = max9635_write_reg(als_data, buf, 1);
+	if (ret != 0) {
+		pr_err("%s:Unable to write reg: %d\n", __func__, buf[0]);
+		return -1;
 	}
+	if (max9635_debug & 1)
+		pr_err("lower threshold = %d\n", buf[1]);
+
+	buf[0] = (AUTO_INCREMENT | MAX9635_ALS_THRESH_H);
+	buf[1] = lux + 1;
+	ret = max9635_write_reg(als_data, buf, 1);
+	if (ret != 0) {
+		pr_err("%s:Unable to write reg: %d\n", __func__, buf[0]);
+		return -1;
+	}
+	if (max9635_debug & 1)
+		pr_err("upper threshold = %d\n", buf[1]);
+
 	if (max9635_debug & 1)
 		pr_info("%s:Reporting LUX %d\n", __func__, lux);
 	return lux;
@@ -448,44 +451,11 @@ static DEVICE_ATTR(registers, 0644, max9635_registers_show,
 
 static void max9635_work_queue(struct work_struct *work)
 {
-	struct max9635_data *als_data = container_of((struct delayed_work *)work,
-		struct max9635_data, working_queue);
+	struct max9635_data *als_data =
+		container_of((struct delayed_work *)work, struct max9635_data,
+			     working_queue);
 
 	max9635_report_input(als_data);
-}
-
-static void max9635_convert_zones(struct max9635_data *als_data)
-{
-	int i = 0;
-	int lux = 0;
-	u8 exponent;
-	u8 mantissa;
-
-	/* Convert the byte to a lux value based
-	on the equation in the data sheet */
-	for (i = 0; i < als_data->als_pdata->num_of_zones; i++) {
-		exponent =
-		    (als_data->als_pdata->als_lux_table[i].als_lower_threshold & 0xf0) >> 4;
-		mantissa =
-		    ((als_data->als_pdata->als_lux_table[i].als_lower_threshold & 0x0f) << 4);
-		/* lux = 2^exponent * mantissa / 32 */
-		lux = (mantissa << exponent) >> 5;
-		als_data->max9635_zone_info[i].lower_threshold = lux;
-
-		exponent =
-		    (als_data->als_pdata->als_lux_table[i].
-		     als_higher_threshold & 0xf0) >> 4;
-		mantissa =
-		    ((als_data->als_pdata->als_lux_table[i].als_higher_threshold & 0x0f) << 4) | 0x0f;
-		/* lux = 2^exponent * mantissa / 32 */
-		lux = (mantissa << exponent) >> 5;
-		als_data->max9635_zone_info[i].upper_threshold = lux;
-
-		pr_info("%s:Element %i Upper %d Lower %d\n", __func__, i,
-		       als_data->max9635_zone_info[i].upper_threshold,
-		       als_data->max9635_zone_info[i].lower_threshold);
-	}
-	return;
 }
 
 static int max9635_probe(struct i2c_client *client,
@@ -527,8 +497,6 @@ static int max9635_probe(struct i2c_client *client,
 	als_data->idev->name = "max9635_als";
 	input_set_capability(als_data->idev, EV_MSC, MSC_RAW);
 	input_set_capability(als_data->idev, EV_LED, LED_MISC);
-
-	max9635_convert_zones(als_data);
 
 	error = misc_register(&max9635_misc_device);
 	if (error < 0) {

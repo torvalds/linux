@@ -23,19 +23,13 @@
 
 #ifdef __KERNEL__
 
-struct max9635_als_zone_data {
-	int  als_lower_threshold;
-	int  als_higher_threshold;
-};
-
 struct max9635_platform_data {
-	u8	configure;
-	u8	threshold_timer;
-	u8	def_low_threshold;
-	u8	def_high_threshold;
-	u32 lens_percent_t;
-	struct max9635_als_zone_data *als_lux_table;
-	u8  num_of_zones;
+	u8 configure;
+	u8 threshold_timer;
+	u8 def_low_threshold;
+	u8 def_high_threshold;
+	int (*power_on)(void);
+	int (*power_off)(void);
 };
 
 #endif	/* __KERNEL__ */
