@@ -1383,8 +1383,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	if (af == AF_INET && (ip_vs_sync_state & IP_VS_STATE_MASTER) &&
 	    cp->protocol == IPPROTO_SCTP) {
 		if ((cp->state == IP_VS_SCTP_S_ESTABLISHED &&
-			(atomic_read(&cp->in_pkts) %
-			 sysctl_ip_vs_sync_threshold[1]
+			(pkts % sysctl_ip_vs_sync_threshold[1]
 			 == sysctl_ip_vs_sync_threshold[0])) ||
 				(cp->old_state != cp->state &&
 				 ((cp->state == IP_VS_SCTP_S_CLOSED) ||
@@ -1395,7 +1394,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 		}
 	}
 
-	if (af == AF_INET &&
+	/* Keep this block last: TCP and others with pp->num_states <= 1 */
+	else if (af == AF_INET &&
 	    (ip_vs_sync_state & IP_VS_STATE_MASTER) &&
 	    (((cp->protocol != IPPROTO_TCP ||
 	       cp->state == IP_VS_TCP_S_ESTABLISHED) &&
