@@ -666,7 +666,7 @@ static int tegra_uart_init_rx_dma(struct tegra_uart_port *t)
 	void *rx_dma_virt;
 
 	t->rx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_CONTINOUS);
-	if (IS_ERR_OR_NULL(t->rx_dma))
+	if (!t->rx_dma)
 		return -ENODEV;
 
 	memset(&t->rx_dma_req, 0, sizeof(t->rx_dma_req));
@@ -710,7 +710,7 @@ static int tegra_startup(struct uart_port *u)
 	t->use_tx_dma = false;
 	if (!TX_FORCE_PIO) {
 		t->tx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
-		if (!IS_ERR_OR_NULL(t->tx_dma))
+		if (t->tx_dma)
 			t->use_tx_dma = true;
 	}
 	if (t->use_tx_dma) {
