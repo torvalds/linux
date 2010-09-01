@@ -165,7 +165,7 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 	mutex_init(&pmic->mtx);
 
 	for (i = 0; i < 3; i++) {
-		pmic->rdev[i] = regulator_register(&isl_rd[0], &i2c->dev,
+		pmic->rdev[i] = regulator_register(&isl_rd[i], &i2c->dev,
 						init_data, pmic);
 		if (IS_ERR(pmic->rdev[i])) {
 			dev_err(&i2c->dev, "failed to register %s\n", id->name);
