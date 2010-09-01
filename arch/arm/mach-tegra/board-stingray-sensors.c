@@ -214,22 +214,11 @@ static void stingray_kxtf9_init(void)
 	gpio_direction_input(KXTF9_IRQ_GPIO);
 }
 
-struct max9635_als_zone_data stingray_zone_data[] = {
-	{ 0x00, 0x57},
-	{ 0x58, 0x95},
-	{ 0xa3, 0xa4},
-	{ 0xa5, 0xab},
-	{ 0xac, 0xef},
-};
-
 struct max9635_platform_data stingray_max9635_pdata = {
-	.configure = 0x4c,
-	.threshold_timer = 0x00,
-	.def_low_threshold = 0x58,
-	.def_high_threshold = 0x95,
-	.lens_percent_t = 100,
-	.als_lux_table = stingray_zone_data,
-	.num_of_zones = ARRAY_SIZE(stingray_zone_data),
+	.configure = 0x80,
+	.threshold_timer = 0x14,
+	.def_low_threshold = 0x00,
+	.def_high_threshold = 0x01,
 };
 
 static int stingray_max9635_init(void)
