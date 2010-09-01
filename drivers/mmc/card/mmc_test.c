@@ -17,6 +17,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/swap.h>		/* For nr_free_buffer_pages() */
+#include <linux/list.h>
 
 #define RESULT_OK		0
 #define RESULT_FAIL		1
@@ -77,12 +78,45 @@ struct mmc_test_area {
 };
 
 /**
+ * struct mmc_test_transfer_result - transfer results for performance tests.
+ * @link: double-linked list
+ * @count: amount of group of sectors to check
+ * @sectors: amount of sectors to check in one group
+ * @ts: time values of transfer
+ * @rate: calculated transfer rate
+ */
+struct mmc_test_transfer_result {
+	struct list_head link;
+	unsigned int count;
+	unsigned int sectors;
+	struct timespec ts;
+	unsigned int rate;
+};
+
+/**
+ * struct mmc_test_general_result - results for tests.
+ * @link: double-linked list
+ * @card: card under test
+ * @testcase: number of test case
+ * @result: result of test run
+ * @tr_lst: transfer measurements if any as mmc_test_transfer_result
+ */
+struct mmc_test_general_result {
+	struct list_head link;
+	struct mmc_card *card;
+	int testcase;
+	int result;
+	struct list_head tr_lst;
+};
+
+/**
  * struct mmc_test_card - test information.
  * @card: card under test
  * @scratch: transfer buffer
  * @buffer: transfer buffer
  * @highmem: buffer for highmem tests
  * @area: information for performance tests
+ * @gr: pointer to results of current testcase
  */
 struct mmc_test_card {
 	struct mmc_card	*card;
@@ -92,7 +126,8 @@ struct mmc_test_card {
 #ifdef CONFIG_HIGHMEM
 	struct page	*highmem;
 #endif
-	struct mmc_test_area area;
+	struct mmc_test_area		area;
+	struct mmc_test_general_result	*gr;
 };
 
 /*******************************************************************/
@@ -449,6 +484,30 @@ static unsigned int mmc_test_rate(uint64_t bytes, struct timespec *ts)
 }
 
 /*
+ * Save transfer results for future usage
+ */
+static void mmc_test_save_transfer_result(struct mmc_test_card *test,
+	unsigned int count, unsigned int sectors, struct timespec ts,
+	unsigned int rate)
+{
+	struct mmc_test_transfer_result *tr;
+
+	if (!test->gr)
+		return;
+
+	tr = kmalloc(sizeof(struct mmc_test_transfer_result), GFP_KERNEL);
+	if (!tr)
+		return;
+
+	tr->count = count;
+	tr->sectors = sectors;
+	tr->ts = ts;
+	tr->rate = rate;
+
+	list_add_tail(&tr->link, &test->gr->tr_lst);
+}
+
+/*
  * Print the transfer rate.
  */
 static void mmc_test_print_rate(struct mmc_test_card *test, uint64_t bytes,
@@ -466,6 +525,8 @@ static void mmc_test_print_rate(struct mmc_test_card *test, uint64_t bytes,
 			 mmc_hostname(test->card->host), sectors, sectors >> 1,
 			 (sectors == 1 ? ".5" : ""), (unsigned long)ts.tv_sec,
 			 (unsigned long)ts.tv_nsec, rate / 1000, rate / 1024);
+
+	mmc_test_save_transfer_result(test, 1, sectors, ts, rate);
 }
 
 /*
@@ -489,6 +550,8 @@ static void mmc_test_print_avg_rate(struct mmc_test_card *test, uint64_t bytes,
 			 sectors >> 1, (sectors == 1 ? ".5" : ""),
 			 (unsigned long)ts.tv_sec, (unsigned long)ts.tv_nsec,
 			 rate / 1000, rate / 1024);
+
+	mmc_test_save_transfer_result(test, count, sectors, ts, rate);
 }
 
 /*
@@ -1940,6 +2003,8 @@ static const struct mmc_test_case mmc_test_cases[] = {
 
 static DEFINE_MUTEX(mmc_test_lock);
 
+static LIST_HEAD(mmc_test_result);
+
 static void mmc_test_run(struct mmc_test_card *test, int testcase)
 {
 	int i, ret;
@@ -1950,6 +2015,8 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 	mmc_claim_host(test->card->host);
 
 	for (i = 0;i < ARRAY_SIZE(mmc_test_cases);i++) {
+		struct mmc_test_general_result *gr;
+
 		if (testcase && ((i + 1) != testcase))
 			continue;
 
@@ -1966,6 +2033,25 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 					ret);
 				continue;
 			}
+		}
+
+		gr = kzalloc(sizeof(struct mmc_test_general_result),
+			GFP_KERNEL);
+		if (gr) {
+			INIT_LIST_HEAD(&gr->tr_lst);
+
+			/* Assign data what we know already */
+			gr->card = test->card;
+			gr->testcase = i;
+
+			/* Append container to global one */
+			list_add_tail(&gr->link, &mmc_test_result);
+
+			/*
+			 * Save the pointer to created container in our private
+			 * structure.
+			 */
+			test->gr = gr;
 		}
 
 		ret = mmc_test_cases[i].run(test);
@@ -1993,6 +2079,10 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 				mmc_hostname(test->card->host), ret);
 		}
 
+		/* Save the result */
+		if (gr)
+			gr->result = ret;
+
 		if (mmc_test_cases[i].cleanup) {
 			ret = mmc_test_cases[i].cleanup(test);
 			if (ret) {
@@ -2010,13 +2100,80 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 		mmc_hostname(test->card->host));
 }
 
+static void mmc_test_free_result(struct mmc_card *card)
+{
+	struct mmc_test_general_result *gr, *grs;
+
+	mutex_lock(&mmc_test_lock);
+
+	list_for_each_entry_safe(gr, grs, &mmc_test_result, link) {
+		struct mmc_test_transfer_result *tr, *trs;
+
+		if (card && gr->card != card)
+			continue;
+
+		list_for_each_entry_safe(tr, trs, &gr->tr_lst, link) {
+			list_del(&tr->link);
+			kfree(tr);
+		}
+
+		list_del(&gr->link);
+		kfree(gr);
+	}
+
+	mutex_unlock(&mmc_test_lock);
+}
+
 static ssize_t mmc_test_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
+	struct mmc_card *card = mmc_dev_to_card(dev);
+	struct mmc_test_general_result *gr;
+	char *p = buf;
+	size_t len = PAGE_SIZE;
+	int ret;
+
 	mutex_lock(&mmc_test_lock);
+
+	list_for_each_entry(gr, &mmc_test_result, link) {
+		struct mmc_test_transfer_result *tr;
+
+		if (gr->card != card)
+			continue;
+
+		ret = snprintf(p, len, "Test %d: %d\n", gr->testcase + 1,
+			gr->result);
+		if (ret < 0)
+			goto err;
+		if (ret >= len) {
+			ret = -ENOBUFS;
+			goto err;
+		}
+		p += ret;
+		len -= ret;
+
+		list_for_each_entry(tr, &gr->tr_lst, link) {
+			ret = snprintf(p, len, "%u %d %lu.%09lu %u\n",
+				tr->count, tr->sectors,
+				(unsigned long)tr->ts.tv_sec,
+				(unsigned long)tr->ts.tv_nsec,
+				tr->rate);
+			if (ret < 0)
+				goto err;
+			if (ret >= len) {
+				ret = -ENOBUFS;
+				goto err;
+			}
+			p += ret;
+			len -= ret;
+		}
+	}
+
+	ret = PAGE_SIZE - len;
+err:
 	mutex_unlock(&mmc_test_lock);
 
-	return 0;
+	return ret;
 }
 
 static ssize_t mmc_test_store(struct device *dev,
@@ -2032,6 +2189,12 @@ static ssize_t mmc_test_store(struct device *dev,
 	test = kzalloc(sizeof(struct mmc_test_card), GFP_KERNEL);
 	if (!test)
 		return -ENOMEM;
+
+	/*
+	 * Remove all test cases associated with given card. Thus we have only
+	 * actual data of the last run.
+	 */
+	mmc_test_free_result(card);
 
 	test->card = card;
 
@@ -2079,6 +2242,7 @@ static int mmc_test_probe(struct mmc_card *card)
 
 static void mmc_test_remove(struct mmc_card *card)
 {
+	mmc_test_free_result(card);
 	device_remove_file(&card->dev, &dev_attr_test);
 }
 
@@ -2097,6 +2261,9 @@ static int __init mmc_test_init(void)
 
 static void __exit mmc_test_exit(void)
 {
+	/* Clear stalled data if card is still plugged */
+	mmc_test_free_result(NULL);
+
 	mmc_unregister_driver(&mmc_driver);
 }
 
