@@ -338,6 +338,20 @@ void dsp_set_clk(int clkrate)
 #endif
 }
 
+#ifdef CONFIG_CHIP_RK2818
+#include <asm/tcm.h>
+static void __tcmfunc dsp_subsys_power_on(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	/* dsp subsys power on 0x21*/
+	tcm_udelay(1, 600);	//开之前也得加,避免总线还在访问
+	__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) & (~0x21)) , SCU_BASE_ADDR_VA+0x10);
+	tcm_udelay(1, 600);	//关中断时间不能太长 (大概为1us)
+	local_irq_restore(flags);
+}
+#endif
 
 void dsp_powerctl(int ctl, int arg)
 {
@@ -348,15 +362,9 @@ void dsp_powerctl(int ctl, int arg)
     {
     case DPC_NORMAL:
         {
-#if 0 //def CONFIG_CHIP_RK2818	//core电压不稳时,dsp上电会导致AHB取指错误,所以dsp上电后到稳定期间不操作AHB
-			unsigned long flags;
-			local_irq_save(flags);
-            /* dsp subsys power on 0x21*/
-			ddr_pll_delay(6000);	//开之前也得加,避免总线还在访问
-            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) & (~0x21)) , SCU_BASE_ADDR_VA+0x10);
-			ddr_pll_delay(6000);	//关中断时间不能太长 (6000大概为1us)
-			local_irq_restore(flags);
-			mdelay(10);
+#ifdef CONFIG_CHIP_RK2818	//core电压不稳时,dsp上电会导致AHB取指错误,所以dsp上电后到稳定期间不操作AHB
+            dsp_subsys_power_on();
+            mdelay(10);
 #else
             /* dsp subsys power on 0x21*/
             __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) & (~0x21)) , SCU_BASE_ADDR_VA+0x10);
