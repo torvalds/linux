@@ -750,14 +750,16 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 /* serialize deconfig (worker exiting, doing cleanup)
  * and reconfig (drbdsetup disk, drbdsetup net)
  *
- * wait for a potentially exiting worker, then restart it,
- * or start a new one.
+ * Wait for a potentially exiting worker, then restart it,
+ * or start a new one.  Flush any pending work, there may still be an
+ * after_state_change queued.
  */
 static void drbd_reconfig_start(struct drbd_conf *mdev)
 {
 	wait_event(mdev->state_wait, !test_and_set_bit(CONFIG_PENDING, &mdev->flags));
 	wait_event(mdev->state_wait, !test_bit(DEVICE_DYING, &mdev->flags));
 	drbd_thread_start(&mdev->worker);
+	drbd_flush_workqueue(mdev);
 }
 
 /* if still unconfigured, stops worker again.
