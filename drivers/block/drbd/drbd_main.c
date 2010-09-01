@@ -3446,12 +3446,9 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	D_ASSERT(drbd_md_ss__(mdev, mdev->ldev) == mdev->ldev->md.md_offset);
 	sector = mdev->ldev->md.md_offset;
 
-	if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
-		clear_bit(MD_DIRTY, &mdev->flags);
-	} else {
+	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
 		/* this was a try anyways ... */
 		dev_err(DEV, "meta data update failed!\n");
-
 		drbd_chk_io_error(mdev, 1, TRUE);
 	}
 
