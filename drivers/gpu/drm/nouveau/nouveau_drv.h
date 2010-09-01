@@ -700,8 +700,10 @@ extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
 
 /* nouveau_mem.c */
-extern int  nouveau_mem_detect(struct drm_device *dev);
-extern int  nouveau_mem_init(struct drm_device *);
+extern int  nouveau_mem_vram_init(struct drm_device *);
+extern void nouveau_mem_vram_fini(struct drm_device *);
+extern int  nouveau_mem_gart_init(struct drm_device *);
+extern void nouveau_mem_gart_fini(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);

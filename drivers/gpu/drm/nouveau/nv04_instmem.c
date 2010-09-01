@@ -1,6 +1,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_ramht.h"
 
 /* returns the size of fifo context */
 static int
@@ -15,42 +16,6 @@ nouveau_fifo_ctx_size(struct drm_device *dev)
 		return 64;
 
 	return 32;
-}
-
-static void
-nv04_instmem_determine_amount(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int i;
-
-	/* Figure out how much instance memory we need */
-	if (dev_priv->card_type >= NV_40) {
-		/* We'll want more instance memory than this on some NV4x cards.
-		 * There's a 16MB aperture to play with that maps onto the end
-		 * of vram.  For now, only reserve a small piece until we know
-		 * more about what each chipset requires.
-		 */
-		switch (dev_priv->chipset) {
-		case 0x40:
-		case 0x47:
-		case 0x49:
-		case 0x4b:
-			dev_priv->ramin_rsvd_vram = (2 * 1024 * 1024);
-			break;
-		default:
-			dev_priv->ramin_rsvd_vram = (1 * 1024 * 1024);
-			break;
-		}
-	} else {
-		/*XXX: what *are* the limits on <NV40 cards?
-		 */
-		dev_priv->ramin_rsvd_vram = (512 * 1024);
-	}
-	NV_DEBUG(dev, "RAMIN size: %dKiB\n", dev_priv->ramin_rsvd_vram >> 10);
-
-	/* Clear all of it, except the BIOS image that's in the first 64KiB */
-	for (i = 64 * 1024; i < dev_priv->ramin_rsvd_vram; i += 4)
-		nv_wi32(dev, i, 0x00000000);
 }
 
 static void
@@ -103,11 +68,23 @@ nv04_instmem_configure_fixed_tables(struct drm_device *dev)
 int nv04_instmem_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *ramht = NULL;
 	uint32_t offset;
 	int ret;
 
-	nv04_instmem_determine_amount(dev);
 	nv04_instmem_configure_fixed_tables(dev);
+
+	/* Setup shared RAMHT */
+	ret = nouveau_gpuobj_new_fake(dev, dev_priv->ramht_offset, ~0,
+				      dev_priv->ramht_size,
+				      NVOBJ_FLAG_ZERO_ALLOC, &ramht);
+	if (ret)
+		return ret;
+
+	ret = nouveau_ramht_new(dev, ramht, &dev_priv->ramht);
+	nouveau_gpuobj_ref(NULL, &ramht);
+	if (ret)
+		return ret;
 
 	/* Create a heap to manage RAMIN allocations, we don't allocate
 	 * the space that was reserved for RAMHT/FC/RO.

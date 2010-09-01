@@ -532,35 +532,26 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_display_early;
 
-	ret = nouveau_mem_detect(dev);
+	ret = nouveau_mem_vram_init(dev);
 	if (ret)
 		goto out_bios;
-
-	ret = nouveau_gpuobj_early_init(dev);
-	if (ret)
-		goto out_bios;
-
-	/* Initialise instance memory, must happen before mem_init so we
-	 * know exactly how much VRAM we're able to use for "normal"
-	 * purposes.
-	 */
-	ret = engine->instmem.init(dev);
-	if (ret)
-		goto out_gpuobj_early;
-
-	/* Setup the memory manager */
-	ret = nouveau_mem_init(dev);
-	if (ret)
-		goto out_instmem;
 
 	ret = nouveau_gpuobj_init(dev);
 	if (ret)
-		goto out_mem;
+		goto out_vram;
+
+	ret = engine->instmem.init(dev);
+	if (ret)
+		goto out_gpuobj;
+
+	ret = nouveau_mem_gart_init(dev);
+	if (ret)
+		goto out_instmem;
 
 	/* PMC */
 	ret = engine->mc.init(dev);
 	if (ret)
-		goto out_gpuobj;
+		goto out_gart;
 
 	/* PGPIO */
 	ret = engine->gpio.init(dev);
@@ -640,15 +631,14 @@ out_gpio:
 	engine->gpio.takedown(dev);
 out_mc:
 	engine->mc.takedown(dev);
-out_gpuobj:
-	nouveau_gpuobj_takedown(dev);
-out_mem:
-	nouveau_sgdma_takedown(dev);
-	nouveau_mem_close(dev);
+out_gart:
+	nouveau_mem_gart_fini(dev);
 out_instmem:
 	engine->instmem.takedown(dev);
-out_gpuobj_early:
-	nouveau_gpuobj_late_takedown(dev);
+out_gpuobj:
+	nouveau_gpuobj_takedown(dev);
+out_vram:
+	nouveau_mem_vram_fini(dev);
 out_bios:
 	nouveau_bios_takedown(dev);
 out_display_early:
@@ -684,15 +674,14 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_TT);
 	mutex_unlock(&dev->struct_mutex);
-	nouveau_sgdma_takedown(dev);
+	nouveau_mem_gart_fini(dev);
 
-	nouveau_gpuobj_takedown(dev);
-	nouveau_mem_close(dev);
 	engine->instmem.takedown(dev);
+	nouveau_gpuobj_takedown(dev);
+	nouveau_mem_vram_fini(dev);
 
 	drm_irq_uninstall(dev);
 
-	nouveau_gpuobj_late_takedown(dev);
 	nouveau_bios_takedown(dev);
 
 	vga_client_register(dev->pdev, NULL, NULL, NULL);

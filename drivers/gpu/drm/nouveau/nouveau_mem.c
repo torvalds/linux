@@ -221,7 +221,7 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
  * Cleanup everything
  */
 void
-nouveau_mem_close(struct drm_device *dev)
+nouveau_mem_vram_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
@@ -231,6 +231,19 @@ nouveau_mem_close(struct drm_device *dev)
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
 	nouveau_ttm_global_release(dev_priv);
+
+	if (dev_priv->fb_mtrr >= 0) {
+		drm_mtrr_del(dev_priv->fb_mtrr,
+			     pci_resource_start(dev->pdev, 1),
+			     pci_resource_len(dev->pdev, 1), DRM_MTRR_WC);
+		dev_priv->fb_mtrr = -1;
+	}
+}
+
+void
+nouveau_mem_gart_fini(struct drm_device *dev)
+{
+	nouveau_sgdma_takedown(dev);
 
 	if (drm_core_has_AGP(dev) && dev->agp) {
 		struct drm_agp_mem *entry, *tempe;
@@ -250,13 +263,6 @@ nouveau_mem_close(struct drm_device *dev)
 
 		dev->agp->acquired = 0;
 		dev->agp->enabled = 0;
-	}
-
-	if (dev_priv->fb_mtrr) {
-		drm_mtrr_del(dev_priv->fb_mtrr,
-			     pci_resource_start(dev->pdev, 1),
-			     pci_resource_len(dev->pdev, 1), DRM_MTRR_WC);
-		dev_priv->fb_mtrr = -1;
 	}
 }
 
@@ -363,7 +369,7 @@ nvaa_vram_preinit(struct drm_device *dev)
 	dev_priv->vram_rblock_size = 1;
 }
 
-int
+static int
 nouveau_mem_detect(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -500,24 +506,27 @@ nouveau_mem_init_agp(struct drm_device *dev)
 }
 
 int
-nouveau_mem_init(struct drm_device *dev)
+nouveau_mem_vram_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
-	int ret, dma_bits = 32;
-
-	dev_priv->fb_phys = pci_resource_start(dev->pdev, 1);
-	dev_priv->gart_info.type = NOUVEAU_GART_NONE;
+	int ret, dma_bits;
 
 	if (dev_priv->card_type >= NV_50 &&
 	    pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
 		dma_bits = 40;
+	else
+		dma_bits = 32;
 
 	ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(dma_bits));
-	if (ret) {
-		NV_ERROR(dev, "Error setting DMA mask: %d\n", ret);
+	if (ret)
 		return ret;
-	}
+
+	ret = nouveau_mem_detect(dev);
+	if (ret)
+		return ret;
+
+	dev_priv->fb_phys = pci_resource_start(dev->pdev, 1);
 
 	ret = nouveau_ttm_global_init(dev_priv);
 	if (ret)
@@ -541,7 +550,16 @@ nouveau_mem_init(struct drm_device *dev)
 			pci_resource_len(dev->pdev, 1);
 	dev_priv->fb_mappable_pages >>= PAGE_SHIFT;
 
-	/* remove reserved space at end of vram from available amount */
+	/* reserve space at end of VRAM for PRAMIN */
+	if (dev_priv->chipset == 0x40 || dev_priv->chipset == 0x47 ||
+	    dev_priv->chipset == 0x49 || dev_priv->chipset == 0x4b)
+		dev_priv->ramin_rsvd_vram = (2 * 1024 * 1024);
+	else
+	if (dev_priv->card_type >= NV_40)
+		dev_priv->ramin_rsvd_vram = (1 * 1024 * 1024);
+	else
+		dev_priv->ramin_rsvd_vram = (512 * 1024);
+
 	dev_priv->fb_available_size -= dev_priv->ramin_rsvd_vram;
 	dev_priv->fb_aper_free = dev_priv->fb_available_size;
 
@@ -562,7 +580,21 @@ nouveau_mem_init(struct drm_device *dev)
 		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 	}
 
-	/* GART */
+	dev_priv->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 1),
+					 pci_resource_len(dev->pdev, 1),
+					 DRM_MTRR_WC);
+	return 0;
+}
+
+int
+nouveau_mem_gart_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
+	int ret;
+
+	dev_priv->gart_info.type = NOUVEAU_GART_NONE;
+
 #if !defined(__powerpc__) && !defined(__ia64__)
 	if (drm_device_is_agp(dev) && dev->agp && !nouveau_noagp) {
 		ret = nouveau_mem_init_agp(dev);
@@ -590,11 +622,6 @@ nouveau_mem_init(struct drm_device *dev)
 		return ret;
 	}
 
-	dev_priv->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 1),
-					 pci_resource_len(dev->pdev, 1),
-					 DRM_MTRR_WC);
-
 	return 0;
 }
-
 

@@ -130,7 +130,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 
 	/* if we got a chunk of the aperture, map pages into it */
 	gpuobj->im_pramin = ramin;
-	if (!chan && gpuobj->im_pramin) {
+	if (!chan && gpuobj->im_pramin && dev_priv->ramin_available) {
 		ret = engine->instmem.bind(dev, gpuobj);
 		if (ret) {
 			nouveau_gpuobj_ref(NULL, &gpuobj);
@@ -173,7 +173,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 }
 
 int
-nouveau_gpuobj_early_init(struct drm_device *dev)
+nouveau_gpuobj_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
@@ -184,29 +184,6 @@ nouveau_gpuobj_early_init(struct drm_device *dev)
 	dev_priv->ramin_base = ~0;
 
 	return 0;
-}
-
-int
-nouveau_gpuobj_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *ramht = NULL;
-	int ret;
-
-	NV_DEBUG(dev, "\n");
-
-	if (dev_priv->card_type >= NV_50)
-		return 0;
-
-	ret = nouveau_gpuobj_new_fake(dev, dev_priv->ramht_offset, ~0,
-				      dev_priv->ramht_size,
-				      NVOBJ_FLAG_ZERO_ALLOC, &ramht);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ramht_new(dev, ramht, &dev_priv->ramht);
-	nouveau_gpuobj_ref(NULL, &ramht);
-	return ret;
 }
 
 void

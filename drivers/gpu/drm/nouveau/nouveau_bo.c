@@ -403,7 +403,10 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-		man->gpu_offset = dev_priv->vm_vram_base;
+		if (dev_priv->card_type == NV_50)
+			man->gpu_offset = 0x40000000;
+		else
+			man->gpu_offset = 0;
 		break;
 	case TTM_PL_TT:
 		switch (dev_priv->gart_info.type) {
