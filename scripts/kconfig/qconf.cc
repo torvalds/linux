@@ -1274,8 +1274,14 @@ ConfigMainWindow::ConfigMainWindow(void)
 	char title[256];
 
 	QDesktopWidget *d = configApp->desktop();
-	snprintf(title, sizeof(title), _("Linux Kernel v%s Configuration"),
-		getenv("KERNELVERSION"));
+	snprintf(title, sizeof(title), _("Linux Kernel v%s Configuration%s"),
+		getenv("KERNELVERSION"),
+#if QT_VERSION < 0x040000
+		" (Qt3)"
+#else
+		""
+#endif
+		);
 	setCaption(title);
 
 	width = configSettings->readNumEntry("/window width", d->width() - 64);
