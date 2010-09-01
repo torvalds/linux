@@ -2171,6 +2171,12 @@ L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/ehca/
 
+EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
+M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ehea/
+
 EMBEDDED LINUX
 M:	Paul Gortmaker <paul.gortmaker@windriver.com>
 M:	Matt Mackall <mpm@selenic.com>
