@@ -172,6 +172,7 @@ enum {
 	ATA_LFLAG_NO_RETRY	= (1 << 5), /* don't retry this link */
 	ATA_LFLAG_DISABLED	= (1 << 6), /* link is disabled */
 	ATA_LFLAG_SW_ACTIVITY	= (1 << 7), /* keep activity stats */
+	ATA_LFLAG_NO_LPM	= (1 << 8), /* disable LPM on this link */
 
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
@@ -324,12 +325,11 @@ enum {
 	ATA_EH_HARDRESET	= (1 << 2), /* meaningful only in ->prereset */
 	ATA_EH_RESET		= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
 	ATA_EH_ENABLE_LINK	= (1 << 3),
-	ATA_EH_LPM		= (1 << 4),  /* link power management action */
 	ATA_EH_PARK		= (1 << 5), /* unload heads and stop I/O */
 
 	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE | ATA_EH_PARK,
 	ATA_EH_ALL_ACTIONS	= ATA_EH_REVALIDATE | ATA_EH_RESET |
-				  ATA_EH_ENABLE_LINK | ATA_EH_LPM,
+				  ATA_EH_ENABLE_LINK,
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
@@ -377,7 +377,6 @@ enum {
 	ATA_HORKAGE_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
 	ATA_HORKAGE_DISABLE	= (1 << 5),	/* Disable it */
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
-	ATA_HORKAGE_LPM		= (1 << 7),	/* Link PM problems */
 	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
 	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
 	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
@@ -473,6 +472,11 @@ enum ata_lpm_policy {
 	ATA_LPM_MAX_POWER,
 	ATA_LPM_MED_POWER,
 	ATA_LPM_MIN_POWER,
+};
+
+enum ata_lpm_hints {
+	ATA_LPM_EMPTY		= (1 << 0), /* port empty/probing */
+	ATA_LPM_HIPM		= (1 << 1), /* may use HIPM */
 };
 
 /* forward declarations */
@@ -702,6 +706,7 @@ struct ata_link {
 	unsigned int		hw_sata_spd_limit;
 	unsigned int		sata_spd_limit;
 	unsigned int		sata_spd;	/* current SATA PHY speed */
+	enum ata_lpm_policy	lpm_policy;
 
 	/* record runtime error info, protected by host_set lock */
 	struct ata_eh_info	eh_info;
@@ -773,7 +778,7 @@ struct ata_port {
 
 	pm_message_t		pm_mesg;
 	int			*pm_result;
-	enum ata_lpm_policy	lpm_policy;
+	enum ata_lpm_policy	target_lpm_policy;
 
 	struct timer_list	fastdrain_timer;
 	unsigned long		fastdrain_cnt;
@@ -839,8 +844,8 @@ struct ata_port_operations {
 	int  (*scr_write)(struct ata_link *link, unsigned int sc_reg, u32 val);
 	void (*pmp_attach)(struct ata_port *ap);
 	void (*pmp_detach)(struct ata_port *ap);
-	int  (*enable_pm)(struct ata_port *ap, enum ata_lpm_policy policy);
-	void (*disable_pm)(struct ata_port *ap);
+	int  (*set_lpm)(struct ata_link *link, enum ata_lpm_policy policy,
+			unsigned hints);
 
 	/*
 	 * Start, stop, suspend and resume

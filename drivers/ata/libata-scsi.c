@@ -117,6 +117,7 @@ static ssize_t ata_scsi_lpm_store(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
 	enum ata_lpm_policy policy;
+	unsigned long flags;
 
 	/* UNKNOWN is internal state, iterate from MAX_POWER */
 	for (policy = ATA_LPM_MAX_POWER;
@@ -129,7 +130,11 @@ static ssize_t ata_scsi_lpm_store(struct device *dev,
 	if (policy == ARRAY_SIZE(ata_lpm_policy_names))
 		return -EINVAL;
 
-	ata_lpm_schedule(ap, policy);
+	spin_lock_irqsave(ap->lock, flags);
+	ap->target_lpm_policy = policy;
+	ata_port_schedule_eh(ap);
+	spin_unlock_irqrestore(ap->lock, flags);
+
 	return count;
 }
 
@@ -139,11 +144,11 @@ static ssize_t ata_scsi_lpm_show(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
 
-	if (ap->lpm_policy >= ARRAY_SIZE(ata_lpm_policy_names))
+	if (ap->target_lpm_policy >= ARRAY_SIZE(ata_lpm_policy_names))
 		return -EINVAL;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			ata_lpm_policy_names[ap->lpm_policy]);
+			ata_lpm_policy_names[ap->target_lpm_policy]);
 }
 DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
 	    ata_scsi_lpm_show, ata_scsi_lpm_store);

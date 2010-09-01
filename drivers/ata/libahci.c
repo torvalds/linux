@@ -56,8 +56,8 @@ MODULE_PARM_DESC(skip_host_reset, "skip global host reset (0=don't skip, 1=skip)
 module_param_named(ignore_sss, ahci_ignore_sss, int, 0444);
 MODULE_PARM_DESC(ignore_sss, "Ignore staggered spinup flag (0=don't ignore, 1=ignore)");
 
-static int ahci_enable_alpm(struct ata_port *ap, enum ata_lpm_policy policy);
-static void ahci_disable_alpm(struct ata_port *ap);
+static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+			unsigned hints);
 static ssize_t ahci_led_show(struct ata_port *ap, char *buf);
 static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 			      size_t size);
@@ -163,8 +163,7 @@ struct ata_port_operations ahci_ops = {
 	.pmp_attach		= ahci_pmp_attach,
 	.pmp_detach		= ahci_pmp_detach,
 
-	.enable_pm		= ahci_enable_alpm,
-	.disable_pm		= ahci_disable_alpm,
+	.set_lpm		= ahci_set_lpm,
 	.em_show		= ahci_led_show,
 	.em_store		= ahci_led_store,
 	.sw_activity_show	= ahci_activity_show,
@@ -641,126 +640,56 @@ static void ahci_power_up(struct ata_port *ap)
 	writel(cmd | PORT_CMD_ICC_ACTIVE, port_mmio + PORT_CMD);
 }
 
-static void ahci_disable_alpm(struct ata_port *ap)
+static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+			unsigned int hints)
 {
+	struct ata_port *ap = link->ap;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
-	void __iomem *port_mmio = ahci_port_base(ap);
-	u32 cmd;
 	struct ahci_port_priv *pp = ap->private_data;
-
-	/* LPM bits should be disabled by libata-core */
-	/* get the existing command bits */
-	cmd = readl(port_mmio + PORT_CMD);
-
-	/* disable ALPM and ASP */
-	cmd &= ~PORT_CMD_ASP;
-	cmd &= ~PORT_CMD_ALPE;
-
-	/* force the interface back to active */
-	cmd |= PORT_CMD_ICC_ACTIVE;
-
-	/* write out new cmd value */
-	writel(cmd, port_mmio + PORT_CMD);
-	cmd = readl(port_mmio + PORT_CMD);
-
-	/* wait 10ms to be sure we've come out of any low power state */
-	msleep(10);
-
-	/* clear out any PhyRdy stuff from interrupt status */
-	writel(PORT_IRQ_PHYRDY, port_mmio + PORT_IRQ_STAT);
-
-	/* go ahead and clean out PhyRdy Change from Serror too */
-	ahci_scr_write(&ap->link, SCR_ERROR, ((1 << 16) | (1 << 18)));
-
-	/*
-	 * Clear flag to indicate that we should ignore all PhyRdy
-	 * state changes
-	 */
-	hpriv->flags &= ~AHCI_HFLAG_NO_HOTPLUG;
-
-	/*
-	 * Enable interrupts on Phy Ready.
-	 */
-	pp->intr_mask |= PORT_IRQ_PHYRDY;
-	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
-
-	/*
-	 * don't change the link pm policy - we can be called
-	 * just to turn of link pm temporarily
-	 */
-}
-
-static int ahci_enable_alpm(struct ata_port *ap, enum ata_lpm_policy policy)
-{
-	struct ahci_host_priv *hpriv = ap->host->private_data;
 	void __iomem *port_mmio = ahci_port_base(ap);
-	u32 cmd;
-	struct ahci_port_priv *pp = ap->private_data;
-	u32 asp;
 
-	/* Make sure the host is capable of link power management */
-	if (!(hpriv->cap & HOST_CAP_ALPM))
-		return -EINVAL;
-
-	switch (policy) {
-	case ATA_LPM_MAX_POWER:
-	case ATA_LPM_UNKNOWN:
+	if (policy != ATA_LPM_MAX_POWER) {
 		/*
-		 * if we came here with ATA_LPM_UNKNOWN,
-		 * it just means this is the first time we
-		 * have tried to enable - default to max performance,
-		 * and let the user go to lower power modes on request.
+		 * Disable interrupts on Phy Ready. This keeps us from
+		 * getting woken up due to spurious phy ready
+		 * interrupts.
 		 */
-		ahci_disable_alpm(ap);
-		return 0;
-	case ATA_LPM_MIN_POWER:
-		/* configure HBA to enter SLUMBER */
-		asp = PORT_CMD_ASP;
-		break;
-	case ATA_LPM_MED_POWER:
-		/* configure HBA to enter PARTIAL */
-		asp = 0;
-		break;
-	default:
-		return -EINVAL;
+		pp->intr_mask &= ~PORT_IRQ_PHYRDY;
+		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+
+		sata_link_scr_lpm(link, policy, false);
 	}
 
-	/*
-	 * Disable interrupts on Phy Ready. This keeps us from
-	 * getting woken up due to spurious phy ready interrupts
-	 * TBD - Hot plug should be done via polling now, is
-	 * that even supported?
-	 */
-	pp->intr_mask &= ~PORT_IRQ_PHYRDY;
-	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+	if (hpriv->cap & HOST_CAP_ALPM) {
+		u32 cmd = readl(port_mmio + PORT_CMD);
 
-	/*
-	 * Set a flag to indicate that we should ignore all PhyRdy
-	 * state changes since these can happen now whenever we
-	 * change link state
-	 */
-	hpriv->flags |= AHCI_HFLAG_NO_HOTPLUG;
+		if (policy == ATA_LPM_MAX_POWER || !(hints & ATA_LPM_HIPM)) {
+			cmd &= ~(PORT_CMD_ASP | PORT_CMD_ALPE);
+			cmd |= PORT_CMD_ICC_ACTIVE;
 
-	/* get the existing command bits */
-	cmd = readl(port_mmio + PORT_CMD);
+			writel(cmd, port_mmio + PORT_CMD);
+			readl(port_mmio + PORT_CMD);
 
-	/*
-	 * Set ASP based on Policy
-	 */
-	cmd |= asp;
+			/* wait 10ms to be sure we've come out of LPM state */
+			msleep(10);
+		} else {
+			cmd |= PORT_CMD_ALPE;
+			if (policy == ATA_LPM_MIN_POWER)
+				cmd |= PORT_CMD_ASP;
 
-	/*
-	 * Setting this bit will instruct the HBA to aggressively
-	 * enter a lower power link state when it's appropriate and
-	 * based on the value set above for ASP
-	 */
-	cmd |= PORT_CMD_ALPE;
+			/* write out new cmd value */
+			writel(cmd, port_mmio + PORT_CMD);
+		}
+	}
 
-	/* write out new cmd value */
-	writel(cmd, port_mmio + PORT_CMD);
-	cmd = readl(port_mmio + PORT_CMD);
+	if (policy == ATA_LPM_MAX_POWER) {
+		sata_link_scr_lpm(link, policy, false);
 
-	/* LPM bits should be set by libata-core */
+		/* turn PHYRDY IRQ back on */
+		pp->intr_mask |= PORT_IRQ_PHYRDY;
+		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+	}
+
 	return 0;
 }
 
@@ -1658,15 +1587,10 @@ static void ahci_port_intr(struct ata_port *ap)
 	if (unlikely(resetting))
 		status &= ~PORT_IRQ_BAD_PMP;
 
-	/* If we are getting PhyRdy, this is
-	 * just a power state change, we should
-	 * clear out this, plus the PhyRdy/Comm
-	 * Wake bits from Serror
-	 */
-	if ((hpriv->flags & AHCI_HFLAG_NO_HOTPLUG) &&
-		(status & PORT_IRQ_PHYRDY)) {
+	/* if LPM is enabled, PHYRDY doesn't mean anything */
+	if (ap->link.lpm_policy > ATA_LPM_MAX_POWER) {
 		status &= ~PORT_IRQ_PHYRDY;
-		ahci_scr_write(&ap->link, SCR_ERROR, ((1 << 16) | (1 << 18)));
+		ahci_scr_write(&ap->link, SCR_ERROR, SERR_PHYRDY_CHG);
 	}
 
 	if (unlikely(status & PORT_IRQ_ERROR)) {
