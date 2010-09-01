@@ -28,21 +28,23 @@
 #include "nouveau_ramht.h"
 
 static uint32_t
-nouveau_ramht_hash_handle(struct drm_device *dev, int channel, uint32_t handle)
+nouveau_ramht_hash_handle(struct nouveau_channel *chan, uint32_t handle)
 {
+	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_ramht *ramht = chan->ramht;
 	uint32_t hash = 0;
 	int i;
 
-	NV_DEBUG(dev, "ch%d handle=0x%08x\n", channel, handle);
+	NV_DEBUG(dev, "ch%d handle=0x%08x\n", chan->id, handle);
 
-	for (i = 32; i > 0; i -= dev_priv->ramht_bits) {
-		hash ^= (handle & ((1 << dev_priv->ramht_bits) - 1));
-		handle >>= dev_priv->ramht_bits;
+	for (i = 32; i > 0; i -= ramht->bits) {
+		hash ^= (handle & ((1 << ramht->bits) - 1));
+		handle >>= ramht->bits;
 	}
 
 	if (dev_priv->card_type < NV_50)
-		hash ^= channel << (dev_priv->ramht_bits - 4);
+		hash ^= chan->id << (ramht->bits - 4);
 	hash <<= 3;
 
 	NV_DEBUG(dev, "hash=0x%08x\n", hash);
@@ -103,7 +105,7 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 		}
 	}
 
-	co = ho = nouveau_ramht_hash_handle(dev, chan->id, handle);
+	co = ho = nouveau_ramht_hash_handle(chan, handle);
 	do {
 		if (!nouveau_ramht_entry_valid(dev, ramht, co)) {
 			NV_DEBUG(dev,
@@ -119,7 +121,7 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 			 chan->id, co, nv_ro32(ramht, co));
 
 		co += 8;
-		if (co >= dev_priv->ramht_size)
+		if (co >= ramht->size)
 			co = 0;
 	} while (co != ho);
 
@@ -149,7 +151,7 @@ nouveau_ramht_remove(struct nouveau_channel *chan, u32 handle)
 		break;
 	}
 
-	co = ho = nouveau_ramht_hash_handle(dev, chan->id, handle);
+	co = ho = nouveau_ramht_hash_handle(chan, handle);
 	do {
 		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
 		    (handle == nv_ro32(ramht, co))) {
@@ -163,7 +165,7 @@ nouveau_ramht_remove(struct nouveau_channel *chan, u32 handle)
 		}
 
 		co += 8;
-		if (co >= dev_priv->ramht_size)
+		if (co >= ramht->size)
 			co = 0;
 	} while (co != ho);
 
@@ -196,6 +198,7 @@ nouveau_ramht_new(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
 
 	ramht->dev = dev;
 	ramht->refcount = 1;
+	ramht->bits = drm_order(gpuobj->size / 8);
 	INIT_LIST_HEAD(&ramht->entries);
 	nouveau_gpuobj_ref(gpuobj, &ramht->gpuobj);
 

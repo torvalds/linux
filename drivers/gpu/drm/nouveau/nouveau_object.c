@@ -192,8 +192,6 @@ nouveau_gpuobj_takedown(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	NV_DEBUG(dev, "\n");
-
-	nouveau_ramht_ref(NULL, &dev_priv->ramht, NULL);
 }
 
 void

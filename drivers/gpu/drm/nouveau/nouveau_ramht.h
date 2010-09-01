@@ -37,6 +37,7 @@ struct nouveau_ramht {
 	int refcount;
 	struct nouveau_gpuobj *gpuobj;
 	struct list_head entries;
+	int bits;
 };
 
 extern int  nouveau_ramht_new(struct drm_device *, struct nouveau_gpuobj *,

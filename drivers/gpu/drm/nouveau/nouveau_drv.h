@@ -545,15 +545,11 @@ struct drm_nouveau_private {
 	spinlock_t context_switch_lock;
 
 	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
-	struct nouveau_ramht *ramht;
+	struct nouveau_ramht  *ramht;
+	struct nouveau_gpuobj *ramfc;
+	struct nouveau_gpuobj *ramro;
+
 	uint32_t ramin_rsvd_vram;
-	uint32_t ramht_offset;
-	uint32_t ramht_size;
-	uint32_t ramht_bits;
-	uint32_t ramfc_offset;
-	uint32_t ramfc_size;
-	uint32_t ramro_offset;
-	uint32_t ramro_size;
 
 	struct {
 		enum {

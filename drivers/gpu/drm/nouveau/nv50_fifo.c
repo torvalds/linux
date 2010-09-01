@@ -259,7 +259,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	nv_wo32(ramfc, 0x48, chan->pushbuf->cinst >> 4);
-	nv_wo32(ramfc, 0x80, (0 << 27) /* 4KiB */ |
+	nv_wo32(ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 			     (4 << 24) /* SEARCH_FULL */ |
 			     (chan->ramht->gpuobj->cinst >> 4));
 	nv_wo32(ramfc, 0x44, 0x2101ffff);

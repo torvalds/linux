@@ -27,8 +27,9 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_ramht.h"
 
-#define NV40_RAMFC(c) (dev_priv->ramfc_offset + ((c) * NV40_RAMFC__SIZE))
+#define NV40_RAMFC(c) (dev_priv->ramfc->pinst + ((c) * NV40_RAMFC__SIZE))
 #define NV40_RAMFC__SIZE 128
 
 int
@@ -240,9 +241,9 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	nv_wr32(dev, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
-				       ((dev_priv->ramht_bits - 9) << 16) |
-				       (dev_priv->ramht_offset >> 8));
-	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro_offset>>8);
+				       ((dev_priv->ramht->bits - 9) << 16) |
+				       (dev_priv->ramht->gpuobj->pinst >> 8));
+	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro->pinst >> 8);
 
 	switch (dev_priv->chipset) {
 	case 0x47:
@@ -270,7 +271,7 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 		nv_wr32(dev, 0x2230, 0);
 		nv_wr32(dev, NV40_PFIFO_RAMFC,
 			((dev_priv->vram_size - 512 * 1024 +
-			  dev_priv->ramfc_offset) >> 16) | (3 << 16));
+			  dev_priv->ramfc->pinst) >> 16) | (3 << 16));
 		break;
 	}
 }
