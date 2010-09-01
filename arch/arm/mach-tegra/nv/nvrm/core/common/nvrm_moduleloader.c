@@ -516,6 +516,7 @@ static void NvRmPrivResetAvp(NvRmDeviceHandle hRm, unsigned long reset_va)
     u32 *stub_va = &_tegra_avp_launcher_stub_data[AVP_LAUNCHER_START_VA];
     unsigned long stub_addr = virt_to_phys(_tegra_avp_launcher_stub);
     unsigned int tmp;
+    unsigned long timeout;
 
     *stub_va = reset_va;
     __cpuc_flush_dcache_area(stub_va, sizeof(*stub_va));
@@ -526,8 +527,18 @@ static void NvRmPrivResetAvp(NvRmDeviceHandle hRm, unsigned long reset_va)
     barrier();
     NvRmModuleReset(hRm, NvRmModuleID_Avp);
     writel(0, IO_ADDRESS(TEGRA_FLOW_CTRL_BASE) + FLOW_CTRL_HALT_COP);
+
     barrier();
-    writel(tmp, _TEGRA_AVP_RESET_VECTOR_ADDR);
+    timeout = jiffies + HZ;
+    /* the AVP firmware will reprogram its reset vector as the kernel
+     * starts, so a dead kernel can be detected by polling this value */
+    while (time_before(jiffies, timeout)) {
+        if (readl(_TEGRA_AVP_RESET_VECTOR_ADDR) != stub_addr)
+            break;
+        cpu_relax();
+    }
+
+    WARN_ON(readl(_TEGRA_AVP_RESET_VECTOR_ADDR) == stub_addr);
 }
 
 void NvRmPrivXpcSendMsgAddress(void);
