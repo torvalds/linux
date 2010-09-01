@@ -6226,7 +6226,8 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (BCM8481)\n",
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (BCM848xx)\n",
 				       ext_phy_type);
 
 			bp->port.supported |= (SUPPORTED_10baseT_Half |
