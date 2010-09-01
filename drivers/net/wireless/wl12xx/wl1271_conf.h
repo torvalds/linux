@@ -595,7 +595,7 @@ struct conf_tx_ac_category {
 	u16 tx_op_limit;
 };
 
-#define CONF_TX_MAX_TID_COUNT 7
+#define CONF_TX_MAX_TID_COUNT 8
 
 enum {
 	CONF_CHANNEL_TYPE_DCF = 0,   /* DC/LEGACY*/

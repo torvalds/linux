@@ -290,8 +290,16 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Default TID configuration */
+	/* Default TID/AC configuration */
+	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+
 		conf_tid = &wl->conf.tx.tid_conf[i];
 		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
 					 conf_tid->channel_type,
@@ -300,16 +308,6 @@ int wl1271_hw_init(struct wl1271 *wl)
 					 conf_tid->ack_policy,
 					 conf_tid->apsd_conf[0],
 					 conf_tid->apsd_conf[1]);
-		if (ret < 0)
-			goto out_free_memmap;
-	}
-
-	/* Default AC configuration */
-	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
-		conf_ac = &wl->conf.tx.ac_conf[i];
-		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
-					conf_ac->cw_max, conf_ac->aifsn,
-					conf_ac->tx_op_limit);
 		if (ret < 0)
 			goto out_free_memmap;
 	}

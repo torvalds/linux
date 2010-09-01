@@ -124,28 +124,28 @@ static struct conf_drv_settings default_conf = {
 		},
 		.ac_conf_count               = 4,
 		.ac_conf                     = {
-			[0] = {
+			[CONF_TX_AC_BE] = {
 				.ac          = CONF_TX_AC_BE,
 				.cw_min      = 15,
 				.cw_max      = 63,
 				.aifsn       = 3,
 				.tx_op_limit = 0,
 			},
-			[1] = {
+			[CONF_TX_AC_BK] = {
 				.ac          = CONF_TX_AC_BK,
 				.cw_min      = 15,
 				.cw_max      = 63,
 				.aifsn       = 7,
 				.tx_op_limit = 0,
 			},
-			[2] = {
+			[CONF_TX_AC_VI] = {
 				.ac          = CONF_TX_AC_VI,
 				.cw_min      = 15,
 				.cw_max      = 63,
 				.aifsn       = CONF_TX_AIFS_PIFS,
 				.tx_op_limit = 3008,
 			},
-			[3] = {
+			[CONF_TX_AC_VO] = {
 				.ac          = CONF_TX_AC_VO,
 				.cw_min      = 15,
 				.cw_max      = 63,
@@ -153,64 +153,40 @@ static struct conf_drv_settings default_conf = {
 				.tx_op_limit = 1504,
 			},
 		},
-		.tid_conf_count = 7,
+		.tid_conf_count = 4,
 		.tid_conf = {
-			[0] = {
-				.queue_id    = 0,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
+			[CONF_TX_AC_BE] = {
+				.queue_id    = CONF_TX_AC_BE,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
 				.tsid        = CONF_TX_AC_BE,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[1] = {
-				.queue_id    = 1,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
+			[CONF_TX_AC_BK] = {
+				.queue_id    = CONF_TX_AC_BK,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
+				.tsid        = CONF_TX_AC_BK,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[2] = {
-				.queue_id    = 2,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
+			[CONF_TX_AC_VI] = {
+				.queue_id    = CONF_TX_AC_VI,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
+				.tsid        = CONF_TX_AC_VI,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[3] = {
-				.queue_id    = 3,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
+			[CONF_TX_AC_VO] = {
+				.queue_id    = CONF_TX_AC_VO,
+				.channel_type = CONF_CHANNEL_TYPE_EDCF,
+				.tsid        = CONF_TX_AC_VO,
 				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
 				.ack_policy  = CONF_ACK_POLICY_LEGACY,
 				.apsd_conf   = {0, 0},
 			},
-			[4] = {
-				.queue_id    = 4,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
-				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
-				.ack_policy  = CONF_ACK_POLICY_LEGACY,
-				.apsd_conf   = {0, 0},
-			},
-			[5] = {
-				.queue_id    = 5,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
-				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
-				.ack_policy  = CONF_ACK_POLICY_LEGACY,
-				.apsd_conf   = {0, 0},
-			},
-			[6] = {
-				.queue_id    = 6,
-				.channel_type = CONF_CHANNEL_TYPE_DCF,
-				.tsid        = CONF_TX_AC_BE,
-				.ps_scheme   = CONF_PS_SCHEME_LEGACY,
-				.ack_policy  = CONF_ACK_POLICY_LEGACY,
-				.apsd_conf   = {0, 0},
-			}
 		},
 		.frag_threshold              = IEEE80211_MAX_FRAG_THRESHOLD,
 		.tx_compl_timeout            = 700,
@@ -406,8 +382,16 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Default TID configuration */
+	/* Default TID/AC configuration */
+	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+
 		conf_tid = &wl->conf.tx.tid_conf[i];
 		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
 					 conf_tid->channel_type,
@@ -416,16 +400,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 					 conf_tid->ack_policy,
 					 conf_tid->apsd_conf[0],
 					 conf_tid->apsd_conf[1]);
-		if (ret < 0)
-			goto out_free_memmap;
-	}
-
-	/* Default AC configuration */
-	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
-		conf_ac = &wl->conf.tx.ac_conf[i];
-		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
-					conf_ac->cw_max, conf_ac->aifsn,
-					conf_ac->tx_op_limit);
 		if (ret < 0)
 			goto out_free_memmap;
 	}
