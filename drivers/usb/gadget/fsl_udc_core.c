@@ -83,6 +83,7 @@ fsl_ep0_desc = {
 };
 
 static void fsl_ep_fifo_flush(struct usb_ep *_ep);
+static int reset_queues(struct fsl_udc *udc);
 
 #ifdef CONFIG_PPC32
 #define fsl_readl(addr)		in_le32(addr)
@@ -316,6 +317,8 @@ static void dr_controller_run(struct fsl_udc *udc)
 		fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
 	}
 #endif
+	/* Clear stopped bit */
+	udc->stopped = 0;
 
 	/* Enable DR irq reg */
 	temp = USB_INTR_INT_EN | USB_INTR_ERR_INT_EN
@@ -323,9 +326,6 @@ static void dr_controller_run(struct fsl_udc *udc)
 		| USB_INTR_DEVICE_SUSPEND | USB_INTR_SYS_ERR_EN;
 
 	fsl_writel(temp, &dr_regs->usbintr);
-
-	/* Clear stopped bit */
-	udc->stopped = 0;
 
 	/* Set the controller as device mode */
 	temp = fsl_readl(&dr_regs->usbmode);
@@ -1151,7 +1151,37 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 
 	udc = container_of(gadget, struct fsl_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
+
 	VDBG("VBUS %s", is_active ? "on" : "off");
+
+	if (udc->transceiver) {
+		if (udc->vbus_active && !is_active) {
+			/* reset all internal Queues and inform client driver */
+			reset_queues(udc);
+			/* stop the controller and turn off the clocks */
+			dr_controller_stop(udc);
+			dr_controller_reset(udc);
+			fsl_udc_clk_suspend();
+			udc->vbus_active = 0;
+			udc->usb_state = USB_STATE_DEFAULT;
+		} else if (!udc->vbus_active && is_active) {
+			fsl_udc_clk_resume();
+			/* setup the controller in the device mode */
+			dr_controller_setup(udc);
+			/* setup EP0 for setup packet */
+			ep0_setup(udc);
+			/* start the controller */
+			dr_controller_run(udc);
+			/* initialize the USB and EP states */
+			udc->usb_state = USB_STATE_ATTACHED;
+			udc->ep0_state = WAIT_FOR_SETUP;
+			udc->ep0_dir = 0;
+			udc->vbus_active = 1;
+		}
+		spin_unlock_irqrestore(&udc->lock, flags);
+		return 0;
+	}
+
 	udc->vbus_active = (is_active != 0);
 	if (can_pullup(udc))
 		fsl_writel((fsl_readl(&dr_regs->usbcmd) | USB_CMD_RUN_STOP),
@@ -1795,45 +1825,6 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-#ifdef CONFIG_ARCH_TEGRA
-	if (udc->transceiver) {
-		if (udc->transceiver->state == OTG_STATE_B_PERIPHERAL) {
-			if (!udc->vbus_active) {
-				/* set vbus active  and enable the usb clocks */
-				udc->vbus_active = 1;
-				fsl_udc_clk_resume();
-				/* setup the controller in the device mode */
-				dr_controller_setup(udc);
-				/* setup EP0 for setup packet */
-				ep0_setup(udc);
-				/* start the controller */
-				dr_controller_run(udc);
-				/* initialize the USB and EP states */
-				udc->usb_state = USB_STATE_ATTACHED;
-				udc->ep0_state = WAIT_FOR_SETUP;
-				udc->ep0_dir = 0;
-			}
-		} else if (udc->transceiver->state == OTG_STATE_A_SUSPEND) {
-			if (udc->vbus_active) {
-				/* Reset all internal Queues and inform client driver */
-				reset_queues(udc);
-				/* stop the controller and turn off the clocks */
-				dr_controller_stop(udc);
-				dr_controller_reset(udc);
-				fsl_udc_clk_suspend();
-				udc->vbus_active = 0;
-				udc->usb_state = USB_STATE_DEFAULT;
-			} else {
-				spin_unlock_irqrestore(&udc->lock, flags);
-				return IRQ_NONE;
-			}
-		} else {
-			spin_unlock_irqrestore(&udc->lock, flags);
-			return IRQ_NONE;
-		}
-	}
-#endif
-
 	/* Disable ISR for OTG host mode */
 	if (udc->stopped) {
 		spin_unlock_irqrestore(&udc->lock, flags);
@@ -1845,33 +1836,6 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 	fsl_writel(irq_src, &dr_regs->usbsts);
 
 	/* VDBG("irq_src [0x%8x]", irq_src); */
-
-#ifdef CONFIG_ARCH_TEGRA
-	if (!udc->transceiver) {
-		/* VBUS A session detection interrupts. When the interrupt is received,
-		 * the mark the vbus active shadow.
-		 */
-		temp = fsl_readl(&usb_sys_regs->vbus_wakeup);
-		if (temp & USB_SYS_VBUS_WAKEUP_INT_STATUS) {
-			if (temp & USB_SYS_VBUS_STATUS) {
-				udc->vbus_active = 1;
-			} else {
-				reset_queues(udc);
-				udc->vbus_active = 0;
-				udc->usb_state = USB_STATE_DEFAULT;
-			}
-			/* write back the register to clear the interrupt */
-			fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
-
-			if (udc->vbus_active)
-				fsl_udc_clk_resume();
-			else
-				fsl_udc_clk_suspend();
-
-			status = IRQ_HANDLED;
-		}
-	}
-#endif
 
 	/* Need to resume? */
 	if (udc->usb_state == USB_STATE_SUSPENDED)
