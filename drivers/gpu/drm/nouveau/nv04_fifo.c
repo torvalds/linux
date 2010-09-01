@@ -38,10 +38,10 @@
 #define NV04_RAMFC_ENGINE                                        0x14
 #define NV04_RAMFC_PULL1_ENGINE                                  0x18
 
-#define RAMFC_WR(offset, val) nv_wo32(dev, chan->ramfc->gpuobj, \
-					 NV04_RAMFC_##offset/4, (val))
-#define RAMFC_RD(offset)      nv_ro32(dev, chan->ramfc->gpuobj, \
-					 NV04_RAMFC_##offset/4)
+#define RAMFC_WR(offset, val) nv_wo32(chan->ramfc->gpuobj, \
+				      NV04_RAMFC_##offset, (val))
+#define RAMFC_RD(offset)      nv_ro32(chan->ramfc->gpuobj, \
+				      NV04_RAMFC_##offset)
 
 void
 nv04_fifo_disable(struct drm_device *dev)

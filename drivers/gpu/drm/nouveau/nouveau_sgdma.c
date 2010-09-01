@@ -105,11 +105,13 @@ nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 		uint32_t offset_h = upper_32_bits(dma_offset);
 
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++) {
-			if (dev_priv->card_type < NV_50)
-				nv_wo32(dev, gpuobj, pte++, offset_l | 3);
-			else {
-				nv_wo32(dev, gpuobj, pte++, offset_l | 0x21);
-				nv_wo32(dev, gpuobj, pte++, offset_h & 0xff);
+			if (dev_priv->card_type < NV_50) {
+				nv_wo32(gpuobj, (pte * 4) + 0, offset_l | 3);
+				pte += 1;
+			} else {
+				nv_wo32(gpuobj, (pte * 4) + 0, offset_l | 0x21);
+				nv_wo32(gpuobj, (pte * 4) + 4, offset_h & 0xff);
+				pte += 2;
 			}
 
 			dma_offset += NV_CTXDMA_PAGE_SIZE;
@@ -145,11 +147,13 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 		dma_addr_t dma_offset = dev_priv->gart_info.sg_dummy_bus;
 
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++) {
-			if (dev_priv->card_type < NV_50)
-				nv_wo32(dev, gpuobj, pte++, dma_offset | 3);
-			else {
-				nv_wo32(dev, gpuobj, pte++, dma_offset | 0x21);
-				nv_wo32(dev, gpuobj, pte++, 0x00000000);
+			if (dev_priv->card_type < NV_50) {
+				nv_wo32(gpuobj, (pte * 4) + 0, dma_offset | 3);
+				pte += 1;
+			} else {
+				nv_wo32(gpuobj, (pte * 4), dma_offset | 0x21);
+				nv_wo32(gpuobj, (pte * 4) + 4, 0x00000000);
+				pte += 2;
 			}
 
 			dma_offset += NV_CTXDMA_PAGE_SIZE;
@@ -258,21 +262,21 @@ nouveau_sgdma_init(struct drm_device *dev)
 		/* Maybe use NV_DMA_TARGET_AGP for PCIE? NVIDIA do this, and
 		 * confirmed to work on c51.  Perhaps means NV_DMA_TARGET_PCIE
 		 * on those cards? */
-		nv_wo32(dev, gpuobj, 0, NV_CLASS_DMA_IN_MEMORY |
-				       (1 << 12) /* PT present */ |
-				       (0 << 13) /* PT *not* linear */ |
-				       (NV_DMA_ACCESS_RW  << 14) |
-				       (NV_DMA_TARGET_PCI << 16));
-		nv_wo32(dev, gpuobj, 1, aper_size - 1);
+		nv_wo32(gpuobj, 0, NV_CLASS_DMA_IN_MEMORY |
+				   (1 << 12) /* PT present */ |
+				   (0 << 13) /* PT *not* linear */ |
+				   (NV_DMA_ACCESS_RW  << 14) |
+				   (NV_DMA_TARGET_PCI << 16));
+		nv_wo32(gpuobj, 4, aper_size - 1);
 		for (i = 2; i < 2 + (aper_size >> 12); i++) {
-			nv_wo32(dev, gpuobj, i,
-				    dev_priv->gart_info.sg_dummy_bus | 3);
+			nv_wo32(gpuobj, i * 4,
+				dev_priv->gart_info.sg_dummy_bus | 3);
 		}
 	} else {
 		for (i = 0; i < obj_size; i += 8) {
-			nv_wo32(dev, gpuobj, (i+0)/4,
-				    dev_priv->gart_info.sg_dummy_bus | 0x21);
-			nv_wo32(dev, gpuobj, (i+4)/4, 0);
+			nv_wo32(gpuobj, i + 0,
+				dev_priv->gart_info.sg_dummy_bus | 0x21);
+			nv_wo32(gpuobj, i + 4, 0);
 		}
 	}
 	dev_priv->engine.instmem.flush(dev);
@@ -308,9 +312,9 @@ nouveau_sgdma_get_page(struct drm_device *dev, uint32_t offset, uint32_t *page)
 	struct nouveau_gpuobj *gpuobj = dev_priv->gart_info.sg_ctxdma;
 	int pte;
 
-	pte = (offset >> NV_CTXDMA_PAGE_SHIFT);
+	pte = (offset >> NV_CTXDMA_PAGE_SHIFT) << 2;
 	if (dev_priv->card_type < NV_50) {
-		*page = nv_ro32(dev, gpuobj, (pte + 2)) & ~NV_CTXDMA_PAGE_MASK;
+		*page = nv_ro32(gpuobj, (pte + 8)) & ~NV_CTXDMA_PAGE_MASK;
 		return 0;
 	}
 

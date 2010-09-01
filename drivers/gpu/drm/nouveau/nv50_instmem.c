@@ -449,9 +449,10 @@ nv50_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 	}
 
 	while (pte < pte_end) {
-		nv_wo32(dev, pramin_pt, pte++, lower_32_bits(vram));
-		nv_wo32(dev, pramin_pt, pte++, upper_32_bits(vram));
+		nv_wo32(pramin_pt, (pte * 4) + 0, lower_32_bits(vram));
+		nv_wo32(pramin_pt, (pte * 4) + 4, upper_32_bits(vram));
 		vram += NV50_INSTMEM_PAGE_SIZE;
+		pte += 2;
 	}
 	dev_priv->engine.instmem.flush(dev);
 
@@ -476,8 +477,9 @@ nv50_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 	pte_end = ((gpuobj->im_pramin->size >> 12) << 1) + pte;
 
 	while (pte < pte_end) {
-		nv_wo32(dev, priv->pramin_pt->gpuobj, pte++, 0x00000000);
-		nv_wo32(dev, priv->pramin_pt->gpuobj, pte++, 0x00000000);
+		nv_wo32(priv->pramin_pt->gpuobj, (pte * 4) + 0, 0x00000000);
+		nv_wo32(priv->pramin_pt->gpuobj, (pte * 4) + 4, 0x00000000);
+		pte += 2;
 	}
 	dev_priv->engine.instmem.flush(dev);
 

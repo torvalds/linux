@@ -138,6 +138,7 @@ enum nouveau_flags {
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
 #define NVOBJ_FLAG_FAKE			(1 << 3)
 struct nouveau_gpuobj {
+	struct drm_device *dev;
 	struct list_head list;
 
 	struct nouveau_channel *im_channel;
@@ -1291,17 +1292,8 @@ static inline void nv_wi32(struct drm_device *dev, unsigned offset, u32 val)
 }
 
 /* object access */
-static inline u32 nv_ro32(struct drm_device *dev, struct nouveau_gpuobj *obj,
-				unsigned index)
-{
-	return nv_ri32(dev, obj->im_pramin->start + index * 4);
-}
-
-static inline void nv_wo32(struct drm_device *dev, struct nouveau_gpuobj *obj,
-				unsigned index, u32 val)
-{
-	nv_wi32(dev, obj->im_pramin->start + index * 4, val);
-}
+extern u32 nv_ro32(struct nouveau_gpuobj *, u32 offset);
+extern void nv_wo32(struct nouveau_gpuobj *, u32 offset, u32 val);
 
 /*
  * Logging

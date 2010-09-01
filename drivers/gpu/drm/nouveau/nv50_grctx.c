@@ -995,7 +995,7 @@ xf_emit(struct nouveau_grctx *ctx, int num, uint32_t val) {
 	int i;
 	if (val && ctx->mode == NOUVEAU_GRCTX_VALS)
 		for (i = 0; i < num; i++)
-			nv_wo32(ctx->dev, ctx->data, ctx->ctxvals_pos + (i << 3), val);
+			nv_wo32(ctx->data, (ctx->ctxvals_pos + (i << 3))*4, val);
 	ctx->ctxvals_pos += num << 3;
 }
 

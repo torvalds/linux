@@ -126,7 +126,7 @@ gr_def(struct nouveau_grctx *ctx, uint32_t reg, uint32_t val)
 	reg = (reg - 0x00400000) / 4;
 	reg = (reg - ctx->ctxprog_reg) + ctx->ctxvals_base;
 
-	nv_wo32(ctx->dev, ctx->data, reg, val);
+	nv_wo32(ctx->data, reg * 4, val);
 }
 #endif
 

@@ -73,8 +73,8 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	ctx.data = chan->ramin_grctx->gpuobj;
 	nv40_grctx_init(&ctx);
 
-	nv_wo32(dev, chan->ramin_grctx->gpuobj, 0,
-		     chan->ramin_grctx->gpuobj->im_pramin->start);
+	nv_wo32(chan->ramin_grctx->gpuobj, 0,
+		chan->ramin_grctx->gpuobj->im_pramin->start);
 	return 0;
 }
 

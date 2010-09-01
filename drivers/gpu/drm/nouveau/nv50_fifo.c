@@ -43,8 +43,10 @@ nv50_fifo_playlist_update(struct drm_device *dev)
 
 	/* We never schedule channel 0 or 127 */
 	for (i = 1, nr = 0; i < 127; i++) {
-		if (dev_priv->fifos[i] && dev_priv->fifos[i]->ramfc)
-			nv_wo32(dev, cur->gpuobj, nr++, i);
+		if (dev_priv->fifos[i] && dev_priv->fifos[i]->ramfc) {
+			nv_wo32(cur->gpuobj, (nr * 4), i);
+			nr++;
+		}
 	}
 	dev_priv->engine.instmem.flush(dev);
 
@@ -258,27 +260,25 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
-	nv_wo32(dev, ramfc, 0x48/4, chan->pushbuf->instance >> 4);
-	nv_wo32(dev, ramfc, 0x80/4, (0 << 27) /* 4KiB */ |
-				    (4 << 24) /* SEARCH_FULL */ |
-				    (chan->ramht->instance >> 4));
-	nv_wo32(dev, ramfc, 0x44/4, 0x2101ffff);
-	nv_wo32(dev, ramfc, 0x60/4, 0x7fffffff);
-	nv_wo32(dev, ramfc, 0x40/4, 0x00000000);
-	nv_wo32(dev, ramfc, 0x7c/4, 0x30000001);
-	nv_wo32(dev, ramfc, 0x78/4, 0x00000000);
-	nv_wo32(dev, ramfc, 0x3c/4, 0x403f6078);
-	nv_wo32(dev, ramfc, 0x50/4, chan->pushbuf_base +
-				    chan->dma.ib_base * 4);
-	nv_wo32(dev, ramfc, 0x54/4, drm_order(chan->dma.ib_max + 1) << 16);
+	nv_wo32(ramfc, 0x48, chan->pushbuf->instance >> 4);
+	nv_wo32(ramfc, 0x80, (0 << 27) /* 4KiB */ |
+			     (4 << 24) /* SEARCH_FULL */ |
+			     (chan->ramht->instance >> 4));
+	nv_wo32(ramfc, 0x44, 0x2101ffff);
+	nv_wo32(ramfc, 0x60, 0x7fffffff);
+	nv_wo32(ramfc, 0x40, 0x00000000);
+	nv_wo32(ramfc, 0x7c, 0x30000001);
+	nv_wo32(ramfc, 0x78, 0x00000000);
+	nv_wo32(ramfc, 0x3c, 0x403f6078);
+	nv_wo32(ramfc, 0x50, chan->pushbuf_base + chan->dma.ib_base * 4);
+	nv_wo32(ramfc, 0x54, drm_order(chan->dma.ib_max + 1) << 16);
 
 	if (dev_priv->chipset != 0x50) {
-		nv_wo32(dev, chan->ramin->gpuobj, 0, chan->id);
-		nv_wo32(dev, chan->ramin->gpuobj, 1,
-						chan->ramfc->instance >> 8);
+		nv_wo32(chan->ramin->gpuobj, 0, chan->id);
+		nv_wo32(chan->ramin->gpuobj, 4, chan->ramfc->instance >> 8);
 
-		nv_wo32(dev, ramfc, 0x88/4, chan->cache->instance >> 10);
-		nv_wo32(dev, ramfc, 0x98/4, chan->ramin->instance >> 12);
+		nv_wo32(ramfc, 0x88, chan->cache->instance >> 10);
+		nv_wo32(ramfc, 0x98, chan->ramin->instance >> 12);
 	}
 
 	dev_priv->engine.instmem.flush(dev);
@@ -321,57 +321,57 @@ nv50_fifo_load_context(struct nouveau_channel *chan)
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	nv_wr32(dev, 0x3330, nv_ro32(dev, ramfc, 0x00/4));
-	nv_wr32(dev, 0x3334, nv_ro32(dev, ramfc, 0x04/4));
-	nv_wr32(dev, 0x3240, nv_ro32(dev, ramfc, 0x08/4));
-	nv_wr32(dev, 0x3320, nv_ro32(dev, ramfc, 0x0c/4));
-	nv_wr32(dev, 0x3244, nv_ro32(dev, ramfc, 0x10/4));
-	nv_wr32(dev, 0x3328, nv_ro32(dev, ramfc, 0x14/4));
-	nv_wr32(dev, 0x3368, nv_ro32(dev, ramfc, 0x18/4));
-	nv_wr32(dev, 0x336c, nv_ro32(dev, ramfc, 0x1c/4));
-	nv_wr32(dev, 0x3370, nv_ro32(dev, ramfc, 0x20/4));
-	nv_wr32(dev, 0x3374, nv_ro32(dev, ramfc, 0x24/4));
-	nv_wr32(dev, 0x3378, nv_ro32(dev, ramfc, 0x28/4));
-	nv_wr32(dev, 0x337c, nv_ro32(dev, ramfc, 0x2c/4));
-	nv_wr32(dev, 0x3228, nv_ro32(dev, ramfc, 0x30/4));
-	nv_wr32(dev, 0x3364, nv_ro32(dev, ramfc, 0x34/4));
-	nv_wr32(dev, 0x32a0, nv_ro32(dev, ramfc, 0x38/4));
-	nv_wr32(dev, 0x3224, nv_ro32(dev, ramfc, 0x3c/4));
-	nv_wr32(dev, 0x324c, nv_ro32(dev, ramfc, 0x40/4));
-	nv_wr32(dev, 0x2044, nv_ro32(dev, ramfc, 0x44/4));
-	nv_wr32(dev, 0x322c, nv_ro32(dev, ramfc, 0x48/4));
-	nv_wr32(dev, 0x3234, nv_ro32(dev, ramfc, 0x4c/4));
-	nv_wr32(dev, 0x3340, nv_ro32(dev, ramfc, 0x50/4));
-	nv_wr32(dev, 0x3344, nv_ro32(dev, ramfc, 0x54/4));
-	nv_wr32(dev, 0x3280, nv_ro32(dev, ramfc, 0x58/4));
-	nv_wr32(dev, 0x3254, nv_ro32(dev, ramfc, 0x5c/4));
-	nv_wr32(dev, 0x3260, nv_ro32(dev, ramfc, 0x60/4));
-	nv_wr32(dev, 0x3264, nv_ro32(dev, ramfc, 0x64/4));
-	nv_wr32(dev, 0x3268, nv_ro32(dev, ramfc, 0x68/4));
-	nv_wr32(dev, 0x326c, nv_ro32(dev, ramfc, 0x6c/4));
-	nv_wr32(dev, 0x32e4, nv_ro32(dev, ramfc, 0x70/4));
-	nv_wr32(dev, 0x3248, nv_ro32(dev, ramfc, 0x74/4));
-	nv_wr32(dev, 0x2088, nv_ro32(dev, ramfc, 0x78/4));
-	nv_wr32(dev, 0x2058, nv_ro32(dev, ramfc, 0x7c/4));
-	nv_wr32(dev, 0x2210, nv_ro32(dev, ramfc, 0x80/4));
+	nv_wr32(dev, 0x3330, nv_ro32(ramfc, 0x00));
+	nv_wr32(dev, 0x3334, nv_ro32(ramfc, 0x04));
+	nv_wr32(dev, 0x3240, nv_ro32(ramfc, 0x08));
+	nv_wr32(dev, 0x3320, nv_ro32(ramfc, 0x0c));
+	nv_wr32(dev, 0x3244, nv_ro32(ramfc, 0x10));
+	nv_wr32(dev, 0x3328, nv_ro32(ramfc, 0x14));
+	nv_wr32(dev, 0x3368, nv_ro32(ramfc, 0x18));
+	nv_wr32(dev, 0x336c, nv_ro32(ramfc, 0x1c));
+	nv_wr32(dev, 0x3370, nv_ro32(ramfc, 0x20));
+	nv_wr32(dev, 0x3374, nv_ro32(ramfc, 0x24));
+	nv_wr32(dev, 0x3378, nv_ro32(ramfc, 0x28));
+	nv_wr32(dev, 0x337c, nv_ro32(ramfc, 0x2c));
+	nv_wr32(dev, 0x3228, nv_ro32(ramfc, 0x30));
+	nv_wr32(dev, 0x3364, nv_ro32(ramfc, 0x34));
+	nv_wr32(dev, 0x32a0, nv_ro32(ramfc, 0x38));
+	nv_wr32(dev, 0x3224, nv_ro32(ramfc, 0x3c));
+	nv_wr32(dev, 0x324c, nv_ro32(ramfc, 0x40));
+	nv_wr32(dev, 0x2044, nv_ro32(ramfc, 0x44));
+	nv_wr32(dev, 0x322c, nv_ro32(ramfc, 0x48));
+	nv_wr32(dev, 0x3234, nv_ro32(ramfc, 0x4c));
+	nv_wr32(dev, 0x3340, nv_ro32(ramfc, 0x50));
+	nv_wr32(dev, 0x3344, nv_ro32(ramfc, 0x54));
+	nv_wr32(dev, 0x3280, nv_ro32(ramfc, 0x58));
+	nv_wr32(dev, 0x3254, nv_ro32(ramfc, 0x5c));
+	nv_wr32(dev, 0x3260, nv_ro32(ramfc, 0x60));
+	nv_wr32(dev, 0x3264, nv_ro32(ramfc, 0x64));
+	nv_wr32(dev, 0x3268, nv_ro32(ramfc, 0x68));
+	nv_wr32(dev, 0x326c, nv_ro32(ramfc, 0x6c));
+	nv_wr32(dev, 0x32e4, nv_ro32(ramfc, 0x70));
+	nv_wr32(dev, 0x3248, nv_ro32(ramfc, 0x74));
+	nv_wr32(dev, 0x2088, nv_ro32(ramfc, 0x78));
+	nv_wr32(dev, 0x2058, nv_ro32(ramfc, 0x7c));
+	nv_wr32(dev, 0x2210, nv_ro32(ramfc, 0x80));
 
-	cnt = nv_ro32(dev, ramfc, 0x84/4);
+	cnt = nv_ro32(ramfc, 0x84);
 	for (ptr = 0; ptr < cnt; ptr++) {
 		nv_wr32(dev, NV40_PFIFO_CACHE1_METHOD(ptr),
-			nv_ro32(dev, cache, (ptr * 2) + 0));
+			nv_ro32(cache, (ptr * 8) + 0));
 		nv_wr32(dev, NV40_PFIFO_CACHE1_DATA(ptr),
-			nv_ro32(dev, cache, (ptr * 2) + 1));
+			nv_ro32(cache, (ptr * 8) + 4));
 	}
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, cnt << 2);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 
 	/* guessing that all the 0x34xx regs aren't on NV50 */
 	if (dev_priv->chipset != 0x50) {
-		nv_wr32(dev, 0x340c, nv_ro32(dev, ramfc, 0x88/4));
-		nv_wr32(dev, 0x3400, nv_ro32(dev, ramfc, 0x8c/4));
-		nv_wr32(dev, 0x3404, nv_ro32(dev, ramfc, 0x90/4));
-		nv_wr32(dev, 0x3408, nv_ro32(dev, ramfc, 0x94/4));
-		nv_wr32(dev, 0x3410, nv_ro32(dev, ramfc, 0x98/4));
+		nv_wr32(dev, 0x340c, nv_ro32(ramfc, 0x88));
+		nv_wr32(dev, 0x3400, nv_ro32(ramfc, 0x8c));
+		nv_wr32(dev, 0x3404, nv_ro32(ramfc, 0x90));
+		nv_wr32(dev, 0x3408, nv_ro32(ramfc, 0x94));
+		nv_wr32(dev, 0x3410, nv_ro32(ramfc, 0x98));
 	}
 
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, chan->id | (1<<16));
@@ -402,59 +402,60 @@ nv50_fifo_unload_context(struct drm_device *dev)
 	ramfc = chan->ramfc->gpuobj;
 	cache = chan->cache->gpuobj;
 
-	nv_wo32(dev, ramfc, 0x00/4, nv_rd32(dev, 0x3330));
-	nv_wo32(dev, ramfc, 0x04/4, nv_rd32(dev, 0x3334));
-	nv_wo32(dev, ramfc, 0x08/4, nv_rd32(dev, 0x3240));
-	nv_wo32(dev, ramfc, 0x0c/4, nv_rd32(dev, 0x3320));
-	nv_wo32(dev, ramfc, 0x10/4, nv_rd32(dev, 0x3244));
-	nv_wo32(dev, ramfc, 0x14/4, nv_rd32(dev, 0x3328));
-	nv_wo32(dev, ramfc, 0x18/4, nv_rd32(dev, 0x3368));
-	nv_wo32(dev, ramfc, 0x1c/4, nv_rd32(dev, 0x336c));
-	nv_wo32(dev, ramfc, 0x20/4, nv_rd32(dev, 0x3370));
-	nv_wo32(dev, ramfc, 0x24/4, nv_rd32(dev, 0x3374));
-	nv_wo32(dev, ramfc, 0x28/4, nv_rd32(dev, 0x3378));
-	nv_wo32(dev, ramfc, 0x2c/4, nv_rd32(dev, 0x337c));
-	nv_wo32(dev, ramfc, 0x30/4, nv_rd32(dev, 0x3228));
-	nv_wo32(dev, ramfc, 0x34/4, nv_rd32(dev, 0x3364));
-	nv_wo32(dev, ramfc, 0x38/4, nv_rd32(dev, 0x32a0));
-	nv_wo32(dev, ramfc, 0x3c/4, nv_rd32(dev, 0x3224));
-	nv_wo32(dev, ramfc, 0x40/4, nv_rd32(dev, 0x324c));
-	nv_wo32(dev, ramfc, 0x44/4, nv_rd32(dev, 0x2044));
-	nv_wo32(dev, ramfc, 0x48/4, nv_rd32(dev, 0x322c));
-	nv_wo32(dev, ramfc, 0x4c/4, nv_rd32(dev, 0x3234));
-	nv_wo32(dev, ramfc, 0x50/4, nv_rd32(dev, 0x3340));
-	nv_wo32(dev, ramfc, 0x54/4, nv_rd32(dev, 0x3344));
-	nv_wo32(dev, ramfc, 0x58/4, nv_rd32(dev, 0x3280));
-	nv_wo32(dev, ramfc, 0x5c/4, nv_rd32(dev, 0x3254));
-	nv_wo32(dev, ramfc, 0x60/4, nv_rd32(dev, 0x3260));
-	nv_wo32(dev, ramfc, 0x64/4, nv_rd32(dev, 0x3264));
-	nv_wo32(dev, ramfc, 0x68/4, nv_rd32(dev, 0x3268));
-	nv_wo32(dev, ramfc, 0x6c/4, nv_rd32(dev, 0x326c));
-	nv_wo32(dev, ramfc, 0x70/4, nv_rd32(dev, 0x32e4));
-	nv_wo32(dev, ramfc, 0x74/4, nv_rd32(dev, 0x3248));
-	nv_wo32(dev, ramfc, 0x78/4, nv_rd32(dev, 0x2088));
-	nv_wo32(dev, ramfc, 0x7c/4, nv_rd32(dev, 0x2058));
-	nv_wo32(dev, ramfc, 0x80/4, nv_rd32(dev, 0x2210));
+	nv_wo32(ramfc, 0x00, nv_rd32(dev, 0x3330));
+	nv_wo32(ramfc, 0x04, nv_rd32(dev, 0x3334));
+	nv_wo32(ramfc, 0x08, nv_rd32(dev, 0x3240));
+	nv_wo32(ramfc, 0x0c, nv_rd32(dev, 0x3320));
+	nv_wo32(ramfc, 0x10, nv_rd32(dev, 0x3244));
+	nv_wo32(ramfc, 0x14, nv_rd32(dev, 0x3328));
+	nv_wo32(ramfc, 0x18, nv_rd32(dev, 0x3368));
+	nv_wo32(ramfc, 0x1c, nv_rd32(dev, 0x336c));
+	nv_wo32(ramfc, 0x20, nv_rd32(dev, 0x3370));
+	nv_wo32(ramfc, 0x24, nv_rd32(dev, 0x3374));
+	nv_wo32(ramfc, 0x28, nv_rd32(dev, 0x3378));
+	nv_wo32(ramfc, 0x2c, nv_rd32(dev, 0x337c));
+	nv_wo32(ramfc, 0x30, nv_rd32(dev, 0x3228));
+	nv_wo32(ramfc, 0x34, nv_rd32(dev, 0x3364));
+	nv_wo32(ramfc, 0x38, nv_rd32(dev, 0x32a0));
+	nv_wo32(ramfc, 0x3c, nv_rd32(dev, 0x3224));
+	nv_wo32(ramfc, 0x40, nv_rd32(dev, 0x324c));
+	nv_wo32(ramfc, 0x44, nv_rd32(dev, 0x2044));
+	nv_wo32(ramfc, 0x48, nv_rd32(dev, 0x322c));
+	nv_wo32(ramfc, 0x4c, nv_rd32(dev, 0x3234));
+	nv_wo32(ramfc, 0x50, nv_rd32(dev, 0x3340));
+	nv_wo32(ramfc, 0x54, nv_rd32(dev, 0x3344));
+	nv_wo32(ramfc, 0x58, nv_rd32(dev, 0x3280));
+	nv_wo32(ramfc, 0x5c, nv_rd32(dev, 0x3254));
+	nv_wo32(ramfc, 0x60, nv_rd32(dev, 0x3260));
+	nv_wo32(ramfc, 0x64, nv_rd32(dev, 0x3264));
+	nv_wo32(ramfc, 0x68, nv_rd32(dev, 0x3268));
+	nv_wo32(ramfc, 0x6c, nv_rd32(dev, 0x326c));
+	nv_wo32(ramfc, 0x70, nv_rd32(dev, 0x32e4));
+	nv_wo32(ramfc, 0x74, nv_rd32(dev, 0x3248));
+	nv_wo32(ramfc, 0x78, nv_rd32(dev, 0x2088));
+	nv_wo32(ramfc, 0x7c, nv_rd32(dev, 0x2058));
+	nv_wo32(ramfc, 0x80, nv_rd32(dev, 0x2210));
 
 	put = (nv_rd32(dev, NV03_PFIFO_CACHE1_PUT) & 0x7ff) >> 2;
 	get = (nv_rd32(dev, NV03_PFIFO_CACHE1_GET) & 0x7ff) >> 2;
 	ptr = 0;
 	while (put != get) {
-		nv_wo32(dev, cache, ptr++,
-			    nv_rd32(dev, NV40_PFIFO_CACHE1_METHOD(get)));
-		nv_wo32(dev, cache, ptr++,
-			    nv_rd32(dev, NV40_PFIFO_CACHE1_DATA(get)));
+		nv_wo32(cache, ptr + 0,
+			nv_rd32(dev, NV40_PFIFO_CACHE1_METHOD(get)));
+		nv_wo32(cache, ptr + 4,
+			nv_rd32(dev, NV40_PFIFO_CACHE1_DATA(get)));
 		get = (get + 1) & 0x1ff;
+		ptr += 8;
 	}
 
 	/* guessing that all the 0x34xx regs aren't on NV50 */
 	if (dev_priv->chipset != 0x50) {
-		nv_wo32(dev, ramfc, 0x84/4, ptr >> 1);
-		nv_wo32(dev, ramfc, 0x88/4, nv_rd32(dev, 0x340c));
-		nv_wo32(dev, ramfc, 0x8c/4, nv_rd32(dev, 0x3400));
-		nv_wo32(dev, ramfc, 0x90/4, nv_rd32(dev, 0x3404));
-		nv_wo32(dev, ramfc, 0x94/4, nv_rd32(dev, 0x3408));
-		nv_wo32(dev, ramfc, 0x98/4, nv_rd32(dev, 0x3410));
+		nv_wo32(ramfc, 0x84, ptr >> 3);
+		nv_wo32(ramfc, 0x88, nv_rd32(dev, 0x340c));
+		nv_wo32(ramfc, 0x8c, nv_rd32(dev, 0x3400));
+		nv_wo32(ramfc, 0x90, nv_rd32(dev, 0x3404));
+		nv_wo32(ramfc, 0x94, nv_rd32(dev, 0x3408));
+		nv_wo32(ramfc, 0x98, nv_rd32(dev, 0x3410));
 	}
 
 	dev_priv->engine.instmem.flush(dev);

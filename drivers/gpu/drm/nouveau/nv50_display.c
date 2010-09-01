@@ -72,15 +72,15 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, uint32_t class, uint32_t name,
 		return ret;
 	}
 
-	nv_wo32(dev, obj, 0, (tile_flags << 22) | (magic_flags << 16) | class);
-	nv_wo32(dev, obj, 1, limit);
-	nv_wo32(dev, obj, 2, offset);
-	nv_wo32(dev, obj, 3, 0x00000000);
-	nv_wo32(dev, obj, 4, 0x00000000);
+	nv_wo32(obj,  0, (tile_flags << 22) | (magic_flags << 16) | class);
+	nv_wo32(obj,  4, limit);
+	nv_wo32(obj,  8, offset);
+	nv_wo32(obj, 12, 0x00000000);
+	nv_wo32(obj, 16, 0x00000000);
 	if (dev_priv->card_type < NV_C0)
-		nv_wo32(dev, obj, 5, 0x00010000);
+		nv_wo32(obj, 20, 0x00010000);
 	else
-		nv_wo32(dev, obj, 5, 0x00020000);
+		nv_wo32(obj, 20, 0x00020000);
 	dev_priv->engine.instmem.flush(dev);
 
 	return 0;

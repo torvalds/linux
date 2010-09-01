@@ -54,7 +54,7 @@ nouveau_ramht_entry_valid(struct drm_device *dev, struct nouveau_gpuobj *ramht,
 			  uint32_t offset)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t ctx = nv_ro32(dev, ramht, (offset + 4)/4);
+	uint32_t ctx = nv_ro32(ramht, offset + 4);
 
 	if (dev_priv->card_type < NV_40)
 		return ((ctx & NV_RAMHT_CONTEXT_VALID) != 0);
@@ -100,15 +100,15 @@ nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 			NV_DEBUG(dev,
 				 "insert ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
 				 chan->id, co, ref->handle, ctx);
-			nv_wo32(dev, ramht, (co + 0)/4, ref->handle);
-			nv_wo32(dev, ramht, (co + 4)/4, ctx);
+			nv_wo32(ramht, co + 0, ref->handle);
+			nv_wo32(ramht, co + 4, ctx);
 
 			list_add_tail(&ref->list, &chan->ramht_refs);
 			instmem->flush(dev);
 			return 0;
 		}
 		NV_DEBUG(dev, "collision ch%d 0x%08x: h=0x%08x\n",
-			 chan->id, co, nv_ro32(dev, ramht, co/4));
+			 chan->id, co, nv_ro32(ramht, co));
 
 		co += 8;
 		if (co >= dev_priv->ramht_size)
@@ -136,13 +136,13 @@ nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
 	do {
 		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
-		    (ref->handle == nv_ro32(dev, ramht, (co/4)))) {
+		    (ref->handle == nv_ro32(ramht, co))) {
 			NV_DEBUG(dev,
 				 "remove ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
 				 chan->id, co, ref->handle,
-				 nv_ro32(dev, ramht, (co + 4)));
-			nv_wo32(dev, ramht, (co + 0)/4, 0x00000000);
-			nv_wo32(dev, ramht, (co + 4)/4, 0x00000000);
+				 nv_ro32(ramht, co + 4));
+			nv_wo32(ramht, co + 0, 0x00000000);
+			nv_wo32(ramht, co + 4, 0x00000000);
 
 			list_del(&ref->list);
 			instmem->flush(dev);

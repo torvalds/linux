@@ -169,8 +169,9 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			virt  += (end - pte);
 
 			while (pte < end) {
-				nv_wo32(dev, pgt, pte++, offset_l);
-				nv_wo32(dev, pgt, pte++, offset_h);
+				nv_wo32(pgt, (pte * 4) + 0, offset_l);
+				nv_wo32(pgt, (pte * 4) + 4, offset_h);
+				pte += 2;
 			}
 		}
 	}
@@ -203,8 +204,10 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 		pages -= (end - pte);
 		virt  += (end - pte) << 15;
 
-		while (pte < end)
-			nv_wo32(dev, pgt, pte++, 0);
+		while (pte < end) {
+			nv_wo32(pgt, (pte * 4), 0);
+			pte++;
+		}
 	}
 	dev_priv->engine.instmem.flush(dev);
 
