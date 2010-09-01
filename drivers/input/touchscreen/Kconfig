@@ -237,6 +237,18 @@ config TOUCHSCREEN_INEXIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called inexio.
 
+config TOUCHSCREEN_INTEL_MID
+	tristate "Intel MID platform resistive touchscreen"
+	depends on INTEL_SCU_IPC
+	help
+	  Say Y here if you have a Intel MID based touchscreen in
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel_mid_touch.
+
 config TOUCHSCREEN_MK712
 	tristate "ICS MicroClock MK712 touchscreen"
 	help

@@ -1,4 +1,0 @@
-- Move the driver to not think it is SPI (requires fixing some of the SFI
-  and firmware side)
-- Fix mutex in IRQ stuff - threaded IRQ ?
-
