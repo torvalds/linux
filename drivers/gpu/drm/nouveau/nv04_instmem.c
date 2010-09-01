@@ -134,6 +134,7 @@ int nv04_instmem_init(struct drm_device *dev)
 		return ret;
 	}
 
+	dev_priv->ramin_available = true;
 	return 0;
 }
 

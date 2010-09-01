@@ -72,7 +72,7 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	ctx.data = chan->ramin_grctx;
 	nv40_grctx_init(&ctx);
 
-	nv_wo32(chan->ramin_grctx, 0, chan->ramin_grctx->im_pramin->start);
+	nv_wo32(chan->ramin_grctx, 0, chan->ramin_grctx->pinst);
 	return 0;
 }
 

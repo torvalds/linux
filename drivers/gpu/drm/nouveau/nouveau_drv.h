@@ -513,8 +513,12 @@ struct drm_nouveau_private {
 	int flags;
 
 	void __iomem *mmio;
+
 	void __iomem *ramin;
-	uint32_t ramin_size;
+	u32 ramin_size;
+	u32 ramin_base;
+	bool ramin_available;
+	spinlock_t ramin_lock;
 
 	struct nouveau_bo *vga_ram;
 

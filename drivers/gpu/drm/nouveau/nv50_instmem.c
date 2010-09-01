@@ -249,6 +249,8 @@ nv50_instmem_init(struct drm_device *dev)
 	for (i = 0; i < 8; i++)
 		nv_wr32(dev, 0x1900 + (i*4), 0);
 
+	dev_priv->ramin_available = true;
+
 	/* Assume that praying isn't enough, check that we can re-read the
 	 * entire fake channel back from the PRAMIN BAR */
 	for (i = 0; i < c_size; i += 4) {
