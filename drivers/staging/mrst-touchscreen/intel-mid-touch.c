@@ -113,17 +113,7 @@ struct mrstouch_dev {
 
 static int mrstouch_nec_adc_read_prepare(struct mrstouch_dev *tsdev)
 {
-	u16 reg;
-	int err;
-
-	err = intel_scu_ipc_ioread16(PMIC_REG_MADCINT, &reg);
-	if (err)
-		return err;
-
-	reg &= 0xDFFF; /* Disable pendet */
-
-	/* Set MADCINT and update ADCCNTL1 (next reg byte) */
-	return intel_scu_ipc_iowrite16(PMIC_REG_MADCINT, reg);
+	return intel_scu_ipc_update_register(PMIC_REG_MADCINT, 0, 0x20);
 }
 
 /*
@@ -131,53 +121,13 @@ static int mrstouch_nec_adc_read_prepare(struct mrstouch_dev *tsdev)
  */
 static int mrstouch_nec_adc_read_finish(struct mrstouch_dev *tsdev)
 {
-	u16 reg;
-	u8 r;
-	u8 pendet_enabled;
-	int retry = 0;
 	int err;
 
-	err = intel_scu_ipc_ioread16(PMIC_REG_MADCINT, &reg);
-	if (err)
-		return err;
+	err = intel_scu_ipc_update_register(PMIC_REG_MADCINT, 0x20, 0x20);
+	if (!err)
+		err = intel_scu_ipc_update_register(PMIC_REG_ADCCNTL1, 0, 0x05);
 
-	reg &= ~0x0005;
-	reg |= 0x2000; /* Enable pendet */
-
-	/* Set MADCINT and update ADCCNTL1 (next reg byte) */
-	err = intel_scu_ipc_iowrite16(PMIC_REG_MADCINT, reg);
-	if (err)
-		return err;
-
-	/*
-	 * Sometimes even after the register write succeeds
-	 * the PMIC register value is not updated. Retry few iterations
-	 * to enable pendet.
-	 */
-	do {
-		err = intel_scu_ipc_ioread8(PMIC_REG_ADCCNTL1, &r);
-		if (err)
-			return err;
-
-		pendet_enabled = (r >> 5) & 0x01;
-
-		if (!pendet_enabled) {
-			if (++retry >= 10) {
-				dev_err(tsdev->dev,
-					"Touch screen disabled.\n");
-				return -EIO;
-			}
-
-			msleep(10);
-
-			err = intel_scu_ipc_iowrite8(PMIC_REG_ADCCNTL1,
-						     reg >> 8);
-			if (err)
-				return err;
-		}
-	} while (!pendet_enabled);
-
-	return 0;
+	return err;
 }
 
 /*
