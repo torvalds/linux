@@ -34,7 +34,8 @@ struct nouveau_ramht_entry {
 
 struct nouveau_ramht {
 	struct drm_device *dev;
-	int refcount;
+	struct kref refcount;
+	spinlock_t lock;
 	struct nouveau_gpuobj *gpuobj;
 	struct list_head entries;
 	int bits;
