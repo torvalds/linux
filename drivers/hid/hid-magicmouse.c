@@ -367,8 +367,7 @@ static void magicmouse_setup_input(struct input_dev *input, struct hid_device *h
 static int magicmouse_probe(struct hid_device *hdev,
 	const struct hid_device_id *id)
 {
-	__u8 feature_1[] = { 0xd7, 0x01 };
-	__u8 feature_2[] = { 0xf8, 0x01, 0x32 };
+	__u8 feature[] = { 0xd7, 0x01 };
 	struct input_dev *input;
 	struct magicmouse_sc *msc;
 	struct hid_report *report;
@@ -408,17 +407,10 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 	report->size = 6;
 
-	ret = hdev->hid_output_raw_report(hdev, feature_1, sizeof(feature_1),
+	ret = hdev->hid_output_raw_report(hdev, feature, sizeof(feature),
 			HID_FEATURE_REPORT);
-	if (ret != sizeof(feature_1)) {
-		dev_err(&hdev->dev, "unable to request touch data (1:%d)\n",
-				ret);
-		goto err_stop_hw;
-	}
-	ret = hdev->hid_output_raw_report(hdev, feature_2,
-			sizeof(feature_2), HID_FEATURE_REPORT);
-	if (ret != sizeof(feature_2)) {
-		dev_err(&hdev->dev, "unable to request touch data (2:%d)\n",
+	if (ret != sizeof(feature)) {
+		dev_err(&hdev->dev, "unable to request touch data (%d)\n",
 				ret);
 		goto err_stop_hw;
 	}
