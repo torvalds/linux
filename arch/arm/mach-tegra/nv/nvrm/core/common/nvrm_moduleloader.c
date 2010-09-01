@@ -282,14 +282,12 @@ static NvError PrivateOsFopen(
     if (hFile == NULL)
         return NvError_InsufficientMemory;
 
-    NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, filename);
-    NvOsDebugPrintf("%s <kernel impl>: calling request_firmware()\n", __func__);
+    pr_debug("%s <kernel impl>: file=%s\n", __func__, filename);
     if (request_firmware(&s_FwEntry, filename, nvfw_dev.this_device) != 0)
     {
         pr_err("%s: Cannot read firmware '%s'\n", __func__, filename);
         return NvError_FileReadFailed;
     }
-    NvOsDebugPrintf("%s <kernel impl>: back from request_firmware()\n", __func__);
     hFile->pstart = s_FwEntry->data;
     hFile->pread = s_FwEntry->data;
     hFile->pend = s_FwEntry->data + s_FwEntry->size;
@@ -316,7 +314,6 @@ NvError NvRmLoadLibrary(
     NvError Error = NvSuccess;
     NV_ASSERT(sizeOfArgs <= MAX_ARGS_SIZE);
 
-    NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
     Error = NvRmLoadLibraryEx(hDevice, pLibName, pArgs, sizeOfArgs, NV_FALSE,
                               hLibHandle);
     return Error;
@@ -340,8 +337,6 @@ NvError NvRmLoadLibraryEx(
     NvU32 physAddr;
 
     NV_ASSERT(sizeOfArgs <= MAX_ARGS_SIZE);
-
-    NvOsDebugPrintf("%s <kernel impl>: file=%s\n", __func__, pLibName);
 
     NV_CHECK_ERROR_CLEANUP(NvRmPrivInitAvp(hDevice));
 
@@ -535,6 +530,8 @@ static void NvRmPrivResetAvp(NvRmDeviceHandle hRm, unsigned long reset_va)
     writel(tmp, _TEGRA_AVP_RESET_VECTOR_ADDR);
 }
 
+void NvRmPrivXpcSendMsgAddress(void);
+
 static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
 {
     u32 *stub_phys = &_tegra_avp_launcher_stub_data[AVP_LAUNCHER_MMU_PHYSICAL];
@@ -573,6 +570,9 @@ static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
     NvRmPrivResetAvp(hRm, 0x00100000ul);
 
     NV_CHECK_ERROR_CLEANUP(NvRmPrivInitService(hRm));
+
+    NvRmPrivXpcSendMsgAddress();
+
     e = NvRmPrivInitModuleLoaderRPC(hRm);
     if (e != NvSuccess)
     {

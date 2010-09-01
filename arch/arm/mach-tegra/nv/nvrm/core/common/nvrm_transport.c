@@ -611,6 +611,13 @@ RegisterTransportInterrupt(NvRmDeviceHandle hDevice)
     return NvSuccess;
 }
 
+void NvRmPrivXpcSendMsgAddress(void)
+{
+    BUG_ON(!s_TransportInfo.MessageMemPhysAddr);
+    NvRmPrivXpcSendMessage(s_TransportInfo.hXpc,
+                           s_TransportInfo.MessageMemPhysAddr);
+}
+
 // allocate buffers to be used for sending/receiving messages.
 static void
 NvRmPrivTransportAllocBuffers(NvRmDeviceHandle hRmDevice)
@@ -657,7 +664,6 @@ NvRmPrivTransportAllocBuffers(NvRmDeviceHandle hRmDevice)
     NvRmMemWr32(hNewMemHandle, 0, 0xdeadf00d); // set this non-zero to throttle messages to the avp till avp is ready.
     NvRmMemWr32(hNewMemHandle,  MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE, 0);
 
-    NvRmPrivXpcSendMessage(s_TransportInfo.hXpc, s_TransportInfo.MessageMemPhysAddr);
     return;
 
 
