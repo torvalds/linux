@@ -1,16 +1,14 @@
-/* linux/arch/arm/mach-s5p6440/include/mach/pwm-clock.h
+/* linux/arch/arm/mach-s5p64x0/include/mach/pwm-clock.h
  *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
  *      Ben Dooks <ben@simtec.co.uk>
  *      http://armlinux.simtec.co.uk/
  *
- * Based on arch/arm/mach-s3c64xx/include/mach/pwm-clock.h
- *
- * S5P6440 - pwm clock and timer support
+ * S5P64X0 - pwm clock and timer support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
