@@ -413,6 +413,39 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	return r;
 }
 
+static struct drbd_conf *ensure_mdev(int minor, int create)
+{
+	struct drbd_conf *mdev;
+
+	if (minor >= minor_count)
+		return NULL;
+
+	mdev = minor_to_mdev(minor);
+
+	if (!mdev && create) {
+		struct gendisk *disk = NULL;
+		mdev = drbd_new_device(minor);
+
+		spin_lock_irq(&drbd_pp_lock);
+		if (minor_table[minor] == NULL) {
+			minor_table[minor] = mdev;
+			disk = mdev->vdisk;
+			mdev = NULL;
+		} /* else: we lost the race */
+		spin_unlock_irq(&drbd_pp_lock);
+
+		if (disk) /* we won the race above */
+			/* in case we ever add a drbd_delete_device(),
+			 * don't forget the del_gendisk! */
+			add_disk(disk);
+		else /* we lost the race above */
+			drbd_free_mdev(mdev);
+
+		mdev = minor_to_mdev(minor);
+	}
+
+	return mdev;
+}
 
 static int drbd_nl_primary(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			   struct drbd_nl_cfg_reply *reply)
@@ -1713,6 +1746,12 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	}
 #undef AL_MAX
 
+	/* to avoid spurious errors when configuring minors before configuring
+	 * the minors they depend on: if necessary, first create the minor we
+	 * depend on */
+	if (sc.after >= 0)
+		ensure_mdev(sc.after, 1);
+
 	/* most sanity checks done, try to assign the new sync-after
 	 * dependency.  need to hold the global lock in there,
 	 * to avoid a race in the dependency loop check. */
@@ -2080,40 +2119,6 @@ out:
 	return 0;
 }
 
-static struct drbd_conf *ensure_mdev(struct drbd_nl_cfg_req *nlp)
-{
-	struct drbd_conf *mdev;
-
-	if (nlp->drbd_minor >= minor_count)
-		return NULL;
-
-	mdev = minor_to_mdev(nlp->drbd_minor);
-
-	if (!mdev && (nlp->flags & DRBD_NL_CREATE_DEVICE)) {
-		struct gendisk *disk = NULL;
-		mdev = drbd_new_device(nlp->drbd_minor);
-
-		spin_lock_irq(&drbd_pp_lock);
-		if (minor_table[nlp->drbd_minor] == NULL) {
-			minor_table[nlp->drbd_minor] = mdev;
-			disk = mdev->vdisk;
-			mdev = NULL;
-		} /* else: we lost the race */
-		spin_unlock_irq(&drbd_pp_lock);
-
-		if (disk) /* we won the race above */
-			/* in case we ever add a drbd_delete_device(),
-			 * don't forget the del_gendisk! */
-			add_disk(disk);
-		else /* we lost the race above */
-			drbd_free_mdev(mdev);
-
-		mdev = minor_to_mdev(nlp->drbd_minor);
-	}
-
-	return mdev;
-}
-
 struct cn_handler_struct {
 	int (*function)(struct drbd_conf *,
 			 struct drbd_nl_cfg_req *,
@@ -2174,7 +2179,8 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
 		goto fail;
 	}
 
-	mdev = ensure_mdev(nlp);
+	mdev = ensure_mdev(nlp->drbd_minor,
+			(nlp->flags & DRBD_NL_CREATE_DEVICE));
 	if (!mdev) {
 		retcode = ERR_MINOR_INVALID;
 		goto fail;
