@@ -271,6 +271,7 @@ static int nes_netdev_stop(struct net_device *netdev)
 
 	if (netif_msg_ifdown(nesvnic))
 		printk(KERN_INFO PFX "%s: disabling interface\n", netdev->name);
+	netif_carrier_off(netdev);
 
 	/* Disable network packets */
 	napi_disable(&nesvnic->napi);
