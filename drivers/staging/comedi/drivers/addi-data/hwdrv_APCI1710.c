@@ -1,4 +1,4 @@
-//**
+/**
 @verbatim
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
