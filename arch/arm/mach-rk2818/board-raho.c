@@ -1486,7 +1486,9 @@ struct platform_device rk2818_device_dm9k = {
 
 #ifdef CONFIG_HEADSET_DET
 struct rk2818_headset_data rk2818_headset_info = {
-    .irq = FPGA_PIO0_00,
+	.irq		= FPGA_PIO0_00,
+	.irq_type	= IRQF_TRIGGER_FALLING,
+	.headset_in_type= HEADSET_IN_HIGH,
 };
 
 struct platform_device rk28_device_headset = {

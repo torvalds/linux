@@ -50,22 +50,16 @@
 //#define THINKWILL_M800_MODE
 #endif //PCM_BB
 
-/* Define mic VCC */
-#ifdef rk28SDK
-	#define wm8994_mic_VCC 0x0010
-#else
-	#define wm8994_mic_VCC 0x0000
-#endif
-
 #if 1
 #define DBG(x...) printk(KERN_INFO x)
 #else
 #define DBG(x...) do { } while (0)
 #endif
-
+#define wm8994_mic_VCC 0x0010
 #define WM8994_DELAY 50
 
 struct i2c_client *wm8994_client;
+//struct wm8994_board wm8994_codec_board_data;
 int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate);
 int reg_recv_data(struct i2c_client *client, unsigned short *reg, unsigned short *buf, u32 scl_rate);
 
@@ -73,7 +67,6 @@ enum wm8994_codec_mode
 {
   wm8994_AP_to_headset,
   wm8994_AP_to_speakers,
-  wm8994_recorder,
   wm8994_recorder_and_AP_to_headset,
   wm8994_recorder_and_AP_to_speakers,
   wm8994_FM_to_headset,
@@ -93,7 +86,7 @@ enum wm8994_codec_mode
 };
 
 /* wm8994_current_mode:save current wm8994 mode */
-unsigned char wm8994_current_mode=null;
+unsigned char wm8994_current_mode=null;//,wm8994_mic_VCC=0x0000;
 
 void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned char max_volume);
 
@@ -122,10 +115,15 @@ enum VoiceDeviceSwitch
 	BLUETOOTH_A2DP_NORMAL,
 	
 	MIC_CAPTURE,
+
+	EARPIECE_RINGTONE,
+	SPEAKER_RINGTONE,
+	HEADSET_RINGTONE,
 	
 	ALL_OPEN,
 	ALL_CLOSED
 };
+
 
 #define call_maxvol 5
 
@@ -167,9 +165,10 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 {
 	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values;
 
-	if (reg_recv_data(wm8994_client,&regs,&values,400000) >= 0)
+	if (reg_recv_data(wm8994_client,&regs,&values,400000) > 0)
 	{
 		*value=((values>>8)& 0x00FF)|((values<<8)&0xFF00);
+		printk("wm8994_read reg = 0x%x value = 0x%x \n",reg,*value);
 		return 0;
 	}
 
@@ -183,7 +182,7 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 {
 	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values=((value>>8)&0x00FF)|((value<<8)&0xFF00);
 
-	if (reg_send_data(wm8994_client,&regs,&values,400000)>=0)
+	if (reg_send_data(wm8994_client,&regs,&values,400000) > 0)
 		return 0;
 
 	printk("%s---line->%d:Codec write error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,value);
@@ -192,11 +191,11 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 }
 
 #define wm8994_reset()	wm8994_write(WM8994_RESET, 0)
-
 void AP_to_headset(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_AP_to_headset)return;
 	wm8994_current_mode=wm8994_AP_to_headset;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -217,13 +216,18 @@ void AP_to_headset(void)
 	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
 	wm8994_write(0x300, 0x4010);  // i2s 16 bits
   
-	wm8994_write(0x01,  0x0303);
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1//cjq
+	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1/ q
 	wm8994_write(0x05,  0x0303);   
 	wm8994_write(0x2D,  0x0100);
 	wm8994_write(0x2E,  0x0100);
+	
 	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
+	mdelay(5);
+	wm8994_write(0x01,  0x0303);
+	mdelay(50);
+	wm8994_write(0x60,  0x0022);
+	wm8994_write(0x60,  0x00FF);
+	
 	wm8994_write(0x208, 0x000A);
 	wm8994_write(0x420, 0x0000);
 	wm8994_write(0x601, 0x0001);
@@ -238,24 +242,22 @@ void AP_to_headset(void)
 	wm8994_write(0x1C,  0x017F);  //HPOUT1L Volume
 	wm8994_write(0x1D,  0x017F);  //HPOUT1R Volume
 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
+#ifdef  CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
 	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
 	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
 #endif
-
-	mdelay(WM8994_DELAY);
 }
 
 void AP_to_speakers(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_AP_to_speakers)return;
 	wm8994_current_mode=wm8994_AP_to_speakers;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
-
 
 	wm8994_write(0x01,  0x0003);
 	mdelay(WM8994_DELAY);
@@ -274,7 +276,7 @@ void AP_to_speakers(void)
 	wm8994_write(0x300, 0xC010);  // i2s 16 bits
   
 	wm8994_write(0x01,  0x3003); 
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1//cjq
+	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
 	wm8994_write(0x05,  0x0303);   
 	wm8994_write(0x2D,  0x0100);
 	wm8994_write(0x2E,  0x0100);
@@ -305,54 +307,16 @@ void AP_to_speakers(void)
 	mdelay(WM8994_DELAY);
 }
 
-void recorder(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	wm8994_current_mode=wm8994_recorder;
-	wm8994_reset();
-	mdelay(WM8994_DELAY);
-
-	wm8994_write(0x01,   0x0003|wm8994_mic_VCC);
-	mdelay(WM8994_DELAY);
-	wm8994_write(0x221,  0x0D00);
-	wm8994_write(0x222,  0x3300);
-	wm8994_write(0x223,  0x00E0);
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302,  0x4000);  //master = 0x4000  slave= 0x0000
-	wm8994_write(0x303,  0x0090);  //master  0x0090 lrck1 8kHz bclk1 515KHz
-	wm8994_write(0x305,  0x00F0);  //master  0x00F0 lrck1 8kHz bclk1 515KHz
-#endif
-
-	wm8994_write(0x220,  0x0004);
-	mdelay(WM8994_DELAY);
-	wm8994_write(0x220,  0x0005);
-
-	wm8994_write(0x02,   0x6110);
-	wm8994_write(0x04,   0x0303);
-	wm8994_write(0x1A,   0x015F);  //volume
-  
-	wm8994_write(0x28,   0x0003);
-	wm8994_write(0x2A,   0x0020);
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x208,  0x000A);
-	wm8994_write(0x300,  0xC050);
-	wm8994_write(0x606,  0x0002);
-	wm8994_write(0x607,  0x0002);
-	wm8994_write(0x620,  0x0000);
-
-}
-
 void recorder_and_AP_to_headset(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_recorder_and_AP_to_headset)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_headset;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);
+	wm8994_write(0x01,  0x0003);
 	mdelay(WM8994_DELAY);
 
 //MCLK=12MHz
@@ -374,19 +338,22 @@ void recorder_and_AP_to_headset(void)
 	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
 	wm8994_write(0x03,  0x3030);
 	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x1A,  0x014B); // IN1_VU=1, IN1R_ZC=1, IN1R_VOL=0_1011
+	wm8994_write(0x1A,  0x015F); // IN1_VU=1, IN1R_ZC=1, IN1R_VOL=1_1011
 	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
-	wm8994_write(0x2A,  0x0020); // IN1R_TO_MIXINR=1
+	wm8994_write(0x2A,  0x0030); // IN1R_TO_MIXINR=1
 	wm8994_write(0x200, 0x0011); // AIF1CLK_ENA=1
 	wm8994_write(0x208, 0x000A); // DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x300, 0xC010); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
+	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
 	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
 	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
 	wm8994_write(0x620, 0x0000); 
 
 	wm8994_write(0x700, 0xA101); 
 
-	wm8994_write(0x01,  0x0303|wm8994_mic_VCC);   
+	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
+	wm8994_write(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]
+
+	wm8994_write(0x01,  0x0303|wm8994_mic_VCC);
 	wm8994_write(0x05,  0x0303); // AIF1DAC1L_ENA=1, AIF1DAC1R_ENA=1, DAC1L_ENA=1, DAC1R_ENA=1
 	wm8994_write(0x2D,  0x0100); // DAC1L_TO_HPOUT1L=1
 	wm8994_write(0x2E,  0x0100); // DAC1R_TO_HPOUT1R=1
@@ -412,11 +379,12 @@ void recorder_and_AP_to_speakers(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_speakers;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);
+	wm8994_write(0x01,  0x0003);
 	mdelay(WM8994_DELAY);
 
 //MCLK=12MHz
@@ -436,15 +404,18 @@ void recorder_and_AP_to_speakers(void)
 
 	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
 	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x1A,  0x014B); // IN1_VU=1, IN1R_ZC=1, IN1R_VOL=0_1011
+	wm8994_write(0x1A,  0x015F); // IN1_VU=1, IN1R_ZC=1, IN1R_VOL=1_1011
 	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
-	wm8994_write(0x2A,  0x0020); // IN1R_TO_MIXINR=1
+	wm8994_write(0x2A,  0x0030); // IN1R_TO_MIXINR=1
 	wm8994_write(0x200, 0x0011); // AIF1CLK_ENA=1
 	wm8994_write(0x208, 0x000A); // DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x300, 0xC010); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
+	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
 	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
 	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
 	wm8994_write(0x620, 0x0000); 
+
+	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
+	wm8994_write(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]
 
 	wm8994_write(0x700, 0xA101); 
 
@@ -456,6 +427,8 @@ void recorder_and_AP_to_speakers(void)
 
 	wm8994_write(0x2D,  0x0001); // DAC1L_TO_MIXOUTL=1
 	wm8994_write(0x2E,  0x0001); // DAC1R_TO_MIXOUTR=1
+	wm8994_write(0x4C,  0x9F25);
+	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x36,  0x000C); // MIXOUTL_TO_SPKMIXL=1, MIXOUTR_TO_SPKMIXR=1
 	wm8994_write(0x601, 0x0001); // AIF1DAC1L_TO_DAC1L=1
 	wm8994_write(0x602, 0x0001); // AIF1DAC1R_TO_DAC1R=1
@@ -477,6 +450,7 @@ void FM_to_headset(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_FM_to_headset)return;
 	wm8994_current_mode=wm8994_FM_to_headset;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -497,7 +471,7 @@ void FM_to_headset(void)
 	wm8994_write(0x220, 0x0003);
 	wm8994_write(0x221, 0x0700);
 	wm8994_write(0x224, 0x0CC0);
-	wm8994_write(0x200, 0x0011);	
+	wm8994_write(0x200, 0x0011);
 	wm8994_write(0x1C,  0x01F9);  //LEFT OUTPUT VOLUME	
 	wm8994_write(0x1D,  0x01F9);  //RIGHT OUTPUT VOLUME
 }
@@ -506,6 +480,7 @@ void FM_to_headset_and_record(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_FM_to_headset_and_record)return;
 	wm8994_current_mode=wm8994_FM_to_headset_and_record;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -551,6 +526,7 @@ void FM_to_speakers(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_FM_to_speakers)return;
 	wm8994_current_mode=wm8994_FM_to_speakers;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -584,6 +560,7 @@ void FM_to_speakers_and_record(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_FM_to_speakers_and_record)return;
 	wm8994_current_mode=wm8994_FM_to_speakers_and_record;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -634,38 +611,77 @@ void handsetMIC_to_baseband_to_headset(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset)return;
 	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x01,  0x0303|wm8994_mic_VCC); 
-	wm8994_write(0x02,  0x6040); 
-	wm8994_write(0x03,  0x3030); 
-	wm8994_write(0x18,  0x014B);  //mic volume
+	wm8994_write(0x01,  0x0003);
+	mdelay(50);
+
+	wm8994_write(0x200, 0x0001);
+	wm8994_write(0x220, 0x0000);
+	wm8994_write(0x221, 0x0700);
+	wm8994_write(0x222, 0x3126);
+	wm8994_write(0x223, 0x0100);
+
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x220, 0x0004);  
+	mdelay(WM8994_DELAY);
+	wm8994_write(0x220, 0x0005);
+	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
+	wm8994_write(0x300, 0xC010);  // i2s 16 bits
+
+	wm8994_write(0x02,  0x6040);
+	wm8994_write(0x03,  0x3030);
+	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
+	wm8994_write(0x05,  0x0303);
+	wm8994_write(0x18,  0x015B); //mic volume
 	wm8994_write(0x1E,  0x0006); 
-	wm8994_write(0x28,  0x0030); 
-	wm8994_write(0x2D,  0x0002);  //bit 1 IN2LP_TO_MIXOUTL
-	wm8994_write(0x2E,  0x0002);  //bit 1 IN2RP_TO_MIXOUTR
-	wm8994_write(0x34,  0x0002); 
-	wm8994_write(0x4C,  0x9F25); 
-	wm8994_write(0x60,  0x00EE); 
-	wm8994_write(0x220, 0x0003); 
-	wm8994_write(0x221, 0x0700); 
-	wm8994_write(0x224, 0x0CC0); 
+	wm8994_write(0x22,  0x0000);
+	wm8994_write(0x23,  0x0100);
+	wm8994_write(0x28,  0x0030);  //IN1LN_TO_IN1L IN1LP_TO_IN1L
 
-//Note: free-running start first, then open AIF1 clock setting
-	wm8994_write(0x200, 0x0011);
-//Note: 0x1C/0x1D=0x01FF-->bypass volume no gain/attenuation
-	wm8994_write(0x1C,  0x01FF);  //LEFT OUTPUT VOLUME
-	wm8994_write(0x1D,  0x01F9);  //RIGHT OUTPUT VOLUME
+	wm8994_write(0x02,  0x6240);
+	wm8994_write(0x29,  0x0030);
+	wm8994_write(0x2B,  0x0005);  //VRX_MIXINL_VOL
+	wm8994_write(0x2D,  0x0041);  //bit 1 IN2LP_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
+	wm8994_write(0x2E,  0x0081);  //bit 1 IN2RP_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
 
+	wm8994_write(0x34,  0x0002);  //IN1L_TO_LINEOUT1P
+	wm8994_write(0x36,  0x0003);
+
+	wm8994_write(0x4C,  0x9F25);
+	mdelay(5);
+	wm8994_write(0x01,  0x0303|wm8994_mic_VCC);
+	mdelay(50);
+	wm8994_write(0x60,  0x0022);
+	wm8994_write(0x60,  0x00EE);
+
+	wm8994_write(0x208, 0x000A);
+	wm8994_write(0x224, 0x0CC0);
+	wm8994_write(0x420, 0x0000);
+	wm8994_write(0x601, 0x0001);
+	wm8994_write(0x602, 0x0001);
+
+	wm8994_write(0x610, 0x01A0);  //DAC1 Left Volume bit0~7  		
+	wm8994_write(0x611, 0x01A0);  //DAC1 Right Volume bit0~7
+	wm8994_write(0x1C,  0x01FF);  //HPOUT1L Volume
+	wm8994_write(0x1D,  0x01FF);  //HPOUT1R Volume
 	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
+#ifdef CONFIG_SND_ROCKCHIP_SOC_SLAVE
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+#endif
 }
 
 void handsetMIC_to_baseband_to_headset_and_record(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset_and_record)return;
 	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset_and_record;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -709,29 +725,135 @@ void mainMIC_to_baseband_to_earpiece(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x01, 0x0803|wm8994_mic_VCC);
-	wm8994_write(0x02, 0x6210);
-	wm8994_write(0x03, 0x30A0);
-	wm8994_write(0x1A, 0x015F);  //main mic volume
-	wm8994_write(0x1E, 0x0006);
-	wm8994_write(0x1F, 0x0000);
-	wm8994_write(0x28, 0x0003);
-	wm8994_write(0x2B, 0x0005);  //VRX_MIXINL_VOL
-	wm8994_write(0x2D, 0x0040);
-	wm8994_write(0x33, 0x0010);
-	wm8994_write(0x34, 0x0004);
+	wm8994_write(0x01,  0x0003);
+	mdelay(WM8994_DELAY);
+
+	wm8994_write(0x200, 0x0001);
+	wm8994_write(0x220, 0x0000);
+	wm8994_write(0x221, 0x0700);
+	wm8994_write(0x222, 0x3126);
+	wm8994_write(0x223, 0x0100);
+
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x220, 0x0004);
+	mdelay(WM8994_DELAY);
+	wm8994_write(0x220, 0x0005);
+	wm8994_write(0x200, 0x0011); // sysclk = fll (bit4 =1)   0x0011
+	wm8994_write(0x300, 0x4010); // i2s 16 bits
+
+	wm8994_write(0x01,  0x0803|wm8994_mic_VCC); //HPOUT2_ENA=1, VMID_SEL=01, BIAS_ENA=1
+	wm8994_write(0x02,  0x6210); //bit4 IN1R_ENV bit6 IN1L_ENV 
+	wm8994_write(0x03,  0x30F0);
+	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
+	//wm8994_write(0x18,  0x015B); //IN1_VU=1, IN1L_MUTE=0, IN1L_ZC=1, IN1L_VOL=0_1011
+	wm8994_write(0x05,  0x0303);
+	wm8994_write(0x1A,  0x015F); //in1r main mic volume
+	wm8994_write(0x1E,  0x0006);
+	wm8994_write(0x1F,  0x0000);
+	wm8994_write(0x28,  0x0003); //0x0030
+	wm8994_write(0x2B,  0x0005); //VRX_MIXINL_VOL
+	wm8994_write(0x2D,  0x0041); //DAC1L_TO_MIXOUTL=1
+	wm8994_write(0x2E,  0x0001); //DAC1R_TO_MIXOUTR=1
+	wm8994_write(0x33,  0x0010);
+	wm8994_write(0x34,  0x0004); //MIXOUTR_TO_SPKMIXR =1 un-mute 0x0002
+
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x601, 0x0001); //AIF1DAC1L_TO_DAC1L=1
+	wm8994_write(0x602, 0x0001); //AIF1DAC1R_TO_DAC1R=1
+	wm8994_write(0x610, 0x01C0); //DAC1_VU=1, DAC1L_VOL=1100_0000
+	wm8994_write(0x611, 0x01C0); //DAC1_VU=1, DAC1R_VOL=1100_0000
+
+	wm8994_write(0x420, 0x0000);
+	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
+#ifdef CONFIG_SND_CODEC_SOC_MASTER
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+#endif
+}
+
+void mainMIC_to_baseband_to_earpiece_I2S(void)
+{
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
+	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece;
+	wm8994_reset();
+	mdelay(WM8994_DELAY);
+
+	wm8994_write(0x01,  0x0003);
+	mdelay(WM8994_DELAY);
+
+	wm8994_write(0x200, 0x0001);
+	wm8994_write(0x220, 0x0000);
+	wm8994_write(0x221, 0x0700);
+	wm8994_write(0x222, 0x3126);
+	wm8994_write(0x223, 0x0100);
+
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x220, 0x0004);
+	mdelay(WM8994_DELAY);
+	wm8994_write(0x220, 0x0005);
+	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
+
+	wm8994_write(0x02,  0x6240);
+	wm8994_write(0x04,  0x0303);  // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
+	wm8994_write(0x18,  0x015B);  //IN1_VU=1, IN1L_MUTE=0, IN1L_ZC=1, IN1L_VOL=0_1011
+	wm8994_write(0x1E,  0x0006);
+	wm8994_write(0x1F,  0x0000);
+	wm8994_write(0x28,  0x0030);
+	wm8994_write(0x29,  0x0020); //IN1L_TO_MIXINL=1, IN1L_MIXINL_VOL=0, MIXOUTL_MIXINL_VOL=000
+
+	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011 //cjq
+
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x300, 0x0050); //AIF1ADCL_SRC=1, AIF1ADCR_SRC=1
+	wm8994_write(0x606, 0x0002); //ADC1L_TO_AIF1ADC1L=1
+	wm8994_write(0x607, 0x0002); //ADC1R_TO_AIF1ADC1R=1
+
+	wm8994_write(0x620, 0x0000); //cjq
+	wm8994_write(0x700, 0xA101); //cjq
+
+	wm8994_write(0x01,  0x0833); //HPOUT2_ENA=1, VMID_SEL=01, BIAS_ENA=1
+	wm8994_write(0x03,  0x30F0);
+	wm8994_write(0x05,  0x0303);
+	wm8994_write(0x2D,  0x0021); //DAC1L_TO_MIXOUTL=1
+	wm8994_write(0x2E,  0x0001); //DAC1R_TO_MIXOUTR=1
+
+	wm8994_write(0x4C,  0x9F25); //cjq
+	wm8994_write(0x60,  0x00EE); //cjq
+
+	wm8994_write(0x33,  0x0010);
+	wm8994_write(0x34,  0x0002);
+
+	wm8994_write(0x601, 0x0001); //AIF1DAC1L_TO_DAC1L=1
+	wm8994_write(0x602, 0x0001); //AIF1DAC1R_TO_DAC1R=1
+	wm8994_write(0x610, 0x01FF); //DAC1_VU=1, DAC1L_VOL=1100_0000
+	wm8994_write(0x611, 0x01FF); //DAC1_VU=1, DAC1R_VOL=1100_0000
+
+	wm8994_write(0x420, 0x0000);
 
 	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
+
+#ifdef CONFIG_SND_CODEC_SOC_MASTER
+	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
+	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
+	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
+#endif
 }
 
 void mainMIC_to_baseband_to_earpiece_and_record(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece_and_record)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece_and_record;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -770,37 +892,12 @@ void mainMIC_to_baseband_to_speakers(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x01 ,0x3003|wm8994_mic_VCC);
-	wm8994_write(0x02 ,0x6210);
-	wm8994_write(0x03 ,0x3330);
-	wm8994_write(0x1A ,0x015F);
-	wm8994_write(0x1E ,0x0006);
-	wm8994_write(0x22 ,0x0000);
-	wm8994_write(0x23 ,0x0100);
-	wm8994_write(0x26 ,0x017F);  //Speaker Volume Left bit 0~5
-	wm8994_write(0x27 ,0x017F);  //Speaker Volume Right bit 0~5
-	wm8994_write(0x28 ,0x0003);
-	wm8994_write(0x2D ,0x0002);  //bit 1 IN2LP_TO_MIXOUTL
-	wm8994_write(0x2E ,0x0002);  //bit 1 IN2RP_TO_MIXOUTR
-	wm8994_write(0x34 ,0x0004);
-	wm8994_write(0x36 ,0x000C);
-
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void mainMIC_to_baseband_with_AP_to_speakers(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_with_AP_to_speakers;
-	wm8994_reset();
-	mdelay(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x3003|wm8994_mic_VCC);
+	wm8994_write(0x01,  0x0003);
 	mdelay(WM8994_DELAY);
 
 	wm8994_write(0x200, 0x0001);
@@ -815,10 +912,10 @@ void mainMIC_to_baseband_with_AP_to_speakers(void)
 	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
   	wm8994_write(0x300, 0xC010);  // i2s 16 bits
 	
-	wm8994_write(0x01,  0x3003|wm8994_mic_VCC); 
+	wm8994_write(0x01,  0x3013); 
 	wm8994_write(0x02,  0x6210);
-	wm8994_write(0x03,  0x3330);
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1//cjq
+	wm8994_write(0x03,  0x33F0);
+	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
 	wm8994_write(0x05,  0x0303); 
 	wm8994_write(0x1A,  0x015F);
 	wm8994_write(0x1E,  0x0006);
@@ -826,13 +923,14 @@ void mainMIC_to_baseband_with_AP_to_speakers(void)
 	wm8994_write(0x23,  0x0100);
 	wm8994_write(0x26,  0x017F);  //Speaker Volume Left bit 0~5
 	wm8994_write(0x27,  0x017F);  //Speaker Volume Right bit 0~5
-	wm8994_write(0x28,  0x0003);
-	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL
-	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR
+	wm8994_write(0x28,  0x0003);  //IN1RP_TO_IN1R  IN1RN_TO_IN1R
+	wm8994_write(0x2B,  0x0005);  //VRX_MIXINL_VOL
+	wm8994_write(0x2D,  0x0041);  //bit 1 IN2LP_TO_MIXOUTL //0x0003 for info
+	wm8994_write(0x2E,  0x0081);  //bit 1 IN2RP_TO_MIXOUTR //0x0003 for info
 	wm8994_write(0x4C,  0x9F25);
 	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x34,  0x0004);   
-	wm8994_write(0x36,  0x000C);
+	wm8994_write(0x34,  0x0004);
+	wm8994_write(0x36,  0x000C);  //MIXOUTL_TO_SPKMIXL  MIXOUTR_TO_SPKMIXR
 
 	wm8994_write(0x208, 0x000A);
 	wm8994_write(0x420, 0x0000); 
@@ -843,20 +941,20 @@ void mainMIC_to_baseband_with_AP_to_speakers(void)
 	wm8994_write(0x610, 0x01c0);  //DAC1 Left Volume bit0~7	
 	wm8994_write(0x611, 0x01c0);  //DAC1 Right Volume bit0~7
 
+	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
 	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
 	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
 #endif
-
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
 }
 
 void mainMIC_to_baseband_to_speakers_and_record(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers_and_record)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers_and_record;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -896,74 +994,90 @@ void BT_baseband(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_BT_baseband)return;
 	wm8994_current_mode=wm8994_BT_baseband;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
 
-	wm8994_write(0x01,  0x0003);  
-	mdelay(WM8994_DELAY);
-	wm8994_write(0x221, 0x0700);  
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	mdelay(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
+	wm8994_write(0x01, 0x0003);
+	wm8994_write(0x02, 0x63A0);
+	wm8994_write(0x03, 0x30A0);
+	wm8994_write(0x04, 0x3303);
+	wm8994_write(0x05, 0x3002);
+	wm8994_write(0x06, 0x000A);
+	wm8994_write(0x19, 0x014B);
+	wm8994_write(0x1B, 0x014B);
+	wm8994_write(0x1E, 0x0006);
+	wm8994_write(0x28, 0x00CC);
+	wm8994_write(0x29, 0x0100);
+	wm8994_write(0x2A, 0x0100);
+	wm8994_write(0x2D, 0x0001);
+	wm8994_write(0x34, 0x0001);
+	wm8994_write(0x200, 0x0001);
 
-	wm8994_write(0x01,  0x0003);
-	wm8994_write(0x03,  0x30F0);
-	wm8994_write(0x05,  0x3003);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-
-	wm8994_write(0x200, 0x0001); 
-	wm8994_write(0x204, 0x0001);
-	wm8994_write(0x208, 0x0007);
-	wm8994_write(0x520, 0x0000);
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x602, 0x0004);
-	wm8994_write(0x610, 0x01C0);
-	wm8994_write(0x611, 0x01C0);
-	wm8994_write(0x613, 0x01C0);
-   
-	wm8994_write(0x702, 0xC100); 
-	wm8994_write(0x703, 0xC100);
-	wm8994_write(0x704, 0xC100);
-	wm8994_write(0x706, 0x4100);
-	
-	wm8994_write(0x204, 0x0011);  // AIF2 MCLK=FLL                            //MASTER
-	wm8994_write(0x211, 0x0039);  //LRCK=8KHZ,Rate=MCLK/1536	                 //MASTER
+	//roger_chen@20100524
+	//8KHz, BCLK=8KHz*128=1024KHz, Fout=2.048MHz
+	wm8994_write(0x204, 0x0001);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=00, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
+	wm8994_write(0x208, 0x000F);
+	wm8994_write(0x220, 0x0000);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=0, FLL1_OSC_ENA=0, FLL1_ENA=0
+	wm8994_write(0x221, 0x2F00);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (2)(221H):  0700  FLL1_OUTDIV=2Fh, FLL1_CTRL_RATE=000, FLL1_FRATIO=000
+	wm8994_write(0x222, 0x3126);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (3)(222H):  8FD5  FLL1_K=3126h
+	wm8994_write(0x223, 0x0100);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (4)(223H):  00E0  FLL1_N=8h, FLL1_GAIN=0000
 	wm8994_write(0x310, 0xC118);  //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
+	wm8994_write(0x312, 0x4000);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Master/Slave(312H): 7000  AIF2_TRI=0, AIF2_MSTR=1, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
+	wm8994_write(0x210, 0x0003);    // SMbus_16inx_16dat     Write  0x34      * SR=8KHz
+	wm8994_write(0x220, 0x0004);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=1, FLL1_OSC_ENA=0, FLL1_ENA=0
+	mdelay(50);
+	wm8994_write(0x220, 0x0005);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=1, FLL1_OSC_ENA=0, FLL1_ENA=1
+	wm8994_write(0x204, 0x0011);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
 
-	wm8994_write(0x313, 0x00F0);
-	wm8994_write(0x314, 0x0020);    
-	wm8994_write(0x315, 0x0020);		
-	wm8994_write(0x2B,  0x0005);    
-	wm8994_write(0x2C,  0x0005);
-	wm8994_write(0x02,  0x6300);
-	wm8994_write(0x04,  0x3003);
-
-	wm8994_write(0x1E,  0x0006);  //LINEOUT1N_MUTE(001Eh);
-	wm8994_write(0x34,  0x0001);  //LINEOUT1_MODE=1;LINEOUT_VMID_BUF_ENA=1;
-
-	wm8994_write(0x603, 0x018C);	 
+	wm8994_write(0x440, 0x0018);
+	wm8994_write(0x450, 0x0018);
+	wm8994_write(0x480, 0x0000);
+	wm8994_write(0x481, 0x0000);
+	wm8994_write(0x4A0, 0x0000);
+	wm8994_write(0x4A1, 0x0000);
+	wm8994_write(0x520, 0x0000);
+	wm8994_write(0x540, 0x0018);
+	wm8994_write(0x580, 0x0000);
+	wm8994_write(0x581, 0x0000);
+	wm8994_write(0x601, 0x0004);
+	wm8994_write(0x603, 0x000C);
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x621, 0x0001);
-	wm8994_write(0x317, 0x0003);
+	wm8994_write(0x606, 0x0003);
+	wm8994_write(0x607, 0x0003);
+	wm8994_write(0x610, 0x01C0);
+	wm8994_write(0x612, 0x01C0);
+	wm8994_write(0x613, 0x01C0);
+	wm8994_write(0x620, 0x0000);
 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x312, 0x4000);  //set 0x312 PCM2 as Master
-	wm8994_write(0x313, 0x0090);  //master   0x0090 lrck2 8kHz bclk2 1MH
-	wm8994_write(0x315, 0x007D);  //master   0x007D lrck2 8kHz bclk2 1MH
-#endif
+	//roger_chen@20100519
+	//enable AIF2 BCLK,LRCK
+	//Rev.B and Rev.D is different
+	wm8994_write(0x702, 0xA100);    
+	wm8994_write(0x703, 0xA100);
 
+	wm8994_write(0x704, 0xA100);
+	wm8994_write(0x707, 0xA100);
+	wm8994_write(0x708, 0x2100);
+	wm8994_write(0x709, 0x2100);
+	wm8994_write(0x70A, 0x2100);
 	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
+#ifdef CONFIG_SND_CODEC_SOC_MASTER
+	wm8994_write(0x302, 0x4000);
+	wm8994_write(0x303, 0x0090);
+	wm8994_write(0x313, 0x0020);    // SMbus_16inx_16dat     Write  0x34      * AIF2 BCLK DIV--------AIF1CLK/2
+	wm8994_write(0x314, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 ADCLRCK DIV-----BCLK/128
+	wm8994_write(0x315, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 DACLRCK DIV-----BCLK/128
+#endif
 }
 
 void BT_baseband_and_record(void)
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_BT_baseband_and_record)return;
 	wm8994_current_mode=wm8994_BT_baseband_and_record;
 	wm8994_reset();
 	mdelay(WM8994_DELAY);
@@ -1049,6 +1163,7 @@ void handsetMIC_to_baseband_to_headset(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset)return;
 	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset;
 	wm8994_reset();
 	mdelay(50);
@@ -1131,6 +1246,7 @@ void handsetMIC_to_baseband_to_headset_and_record(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset_and_record)return;
 	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset_and_record;
 	wm8994_reset();
 	mdelay(50);
@@ -1216,6 +1332,7 @@ void mainMIC_to_baseband_to_earpiece(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece;
 	wm8994_reset();
 	mdelay(50);
@@ -1305,6 +1422,7 @@ void mainMIC_to_baseband_to_earpiece_and_record(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece_and_record)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece_and_record;
 	wm8994_reset();
 	mdelay(50);
@@ -1392,95 +1510,8 @@ void mainMIC_to_baseband_to_speakers(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers;
-	wm8994_reset();
-	mdelay(50);
-
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  //0x0013);  
-	mdelay(50);
-	wm8994_write(0x221, 0x0700);  //MCLK=12MHz   //FLL1 CONTRLO(2)
-	wm8994_write(0x222, 0x3127);  //FLL1 CONTRLO(3)	
-	wm8994_write(0x223, 0x0100);  //FLL1 CONTRLO(4)	
-	wm8994_write(0x220, 0x0004);  //FLL1 CONTRLO(1)
-	mdelay(50);
-	wm8994_write(0x220, 0x0005);  //FLL1 CONTRLO(1)
-
-	wm8994_write(0x01,  0x3003|wm8994_mic_VCC);	 
-	wm8994_write(0x02,  0x0110);
-	wm8994_write(0x03,  0x0030);  ///0x0330);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003); 
-	wm8994_write(0x1A,  0x011F);
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);  ///0x0000);
-	wm8994_write(0x25,  0x0152);
-	wm8994_write(0x28,  0x0003);
-	wm8994_write(0x2A,  0x0020);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-	wm8994_write(0x36,  0x000C);  //MIXOUTL_TO_SPKMIXL  MIXOUTR_TO_SPKMIXR
-	//wm8994_write(0x4C,  0x9F25);
-	//wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x200, 0x0001);  //AIF1 CLOCKING(1)
-	wm8994_write(0x204, 0x0001);  //AIF2 CLOCKING(1)
-	wm8994_write(0x208, 0x0007);  //CLOCKING(1)
-	wm8994_write(0x520, 0x0000);  //AIF2 DAC FILTERS(1)
-	wm8994_write(0x601, 0x0004);  //AIF2DACL_DAC1L
-	wm8994_write(0x602, 0x0004);  //AIF2DACR_DAC1R
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x702, 0xC100);  //GPIO3
-	wm8994_write(0x703, 0xC100);  //GPIO4
-	wm8994_write(0x704, 0xC100);  //GPIO5
-	wm8994_write(0x706, 0x4100);  //GPIO7
-	wm8994_write(0x204, 0x0011);  //AIF2 MCLK=FLL1
-	wm8994_write(0x211, 0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	#ifdef TD688_MODE
-	wm8994_write(0x310, 0xc108); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef CHONGY_MODE
-	wm8994_write(0x310, 0xc018); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef MU301_MODE
-	wm8994_write(0x310, 0xc118); ///0x4118);  ///interface dsp mode 16bit
-	wm8994_write(0x241, 0x2f04);
-	wm8994_write(0x242, 0x0000);
-	wm8994_write(0x243, 0x0300);
-	wm8994_write(0x240, 0x0004);
-	mdelay(40);
-	wm8994_write(0x240, 0x0005);
-	wm8994_write(0x204, 0x0019);
-	wm8994_write(0x211, 0x0003);
-	wm8994_write(0x244, 0x0c83);
-	wm8994_write(0x620, 0x0000);
-	#endif
-	#ifdef THINKWILL_M800_MODE
-	wm8994_write(0x310, 0xc118); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	//wm8994_write(0x310, 0xc008);  //0xC018);//  //4118);  //DSP/PCM 16bits
-	wm8994_write(0x313, 0x00F0);  //AIF2BCLK
-	wm8994_write(0x314, 0x0020);  //AIF2ADCLRCK
-	wm8994_write(0x315, 0x0020);  //AIF2DACLRCLK
-
-	wm8994_write(0x603, 0x018C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0020);  ///0x0010);  //ADC2_TO_DAC2L
-	wm8994_write(0x605, 0x0020);  //0x0010);  //ADC2_TO_DAC2R
-	wm8994_write(0x621, 0x0000);  ///0x0001);
-	wm8994_write(0x317, 0x0003);
-	wm8994_write(0x312, 0x0000);  //AIF2 SET AS MASTER
-
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void mainMIC_to_baseband_with_AP_to_speakers(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_with_AP_to_speakers;
 	wm8994_reset();
 	mdelay(50);
 
@@ -1568,6 +1599,7 @@ void mainMIC_to_baseband_to_speakers_and_record(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers_and_record)return;
 	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers_and_record;
 	wm8994_reset();
 	mdelay(50);
@@ -1656,6 +1688,7 @@ void BT_baseband(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_BT_baseband)return;
 	wm8994_current_mode=wm8994_BT_baseband;
 	wm8994_reset();
 	mdelay(50);
@@ -1743,6 +1776,7 @@ void BT_baseband_and_record(void) //pcmbaseband
 {
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
+	if(wm8994_current_mode==wm8994_BT_baseband_and_record)return;
 	wm8994_current_mode=wm8994_BT_baseband_and_record;
 	wm8994_reset();
 	mdelay(50);
@@ -1833,7 +1867,6 @@ typedef void (wm8994_codec_fnc_t) (void);
 wm8994_codec_fnc_t *wm8994_codec_sequence[] = {
 	AP_to_headset,
 	AP_to_speakers,
-	recorder,
 	recorder_and_AP_to_headset,
 	recorder_and_AP_to_speakers,
 	FM_to_headset,
@@ -1945,63 +1978,88 @@ int snd_soc_get_route(struct snd_kcontrol *kcontrol,
 int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 	int route = kcontrol->private_value & 0xff;
 
 	switch(route)
 	{
 		/* Speaker*/
 		case SPEAKER_NORMAL: //AP-> 8994Codec -> Speaker
-		    AP_to_speakers();
-		    break;
+			AP_to_speakers();
+			break;
 		case SPEAKER_INCALL: //BB-> 8994Codec -> Speaker
-		    mainMIC_to_baseband_with_AP_to_speakers();
-		    break;		
+			mainMIC_to_baseband_to_speakers();
+			break;		
 			
 		/* Headset */	
 		case HEADSET_NORMAL:	//AP-> 8994Codec -> Headset
-		    AP_to_headset();
-		    break;
+			AP_to_headset();
+			break;
 		case HEADSET_INCALL:	//AP-> 8994Codec -> Headset
-		    handsetMIC_to_baseband_to_headset();
-		    break;		    
+			handsetMIC_to_baseband_to_headset();
+			break;		    
 
 		/* Earpiece*/			    
 		case EARPIECE_INCALL:	//:BB-> 8994Codec -> EARPIECE
-		    mainMIC_to_baseband_to_earpiece();
-		    break;		
+			mainMIC_to_baseband_to_earpiece();
+			break;
+
+		case EARPIECE_NORMAL:	//:BB-> 8994Codec -> EARPIECE
+			if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset)
+				AP_to_headset();
+			else if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers||
+				wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)
+				AP_to_speakers();
+			else if(wm8994_current_mode==wm8994_AP_to_speakers||
+				wm8994_current_mode==wm8994_AP_to_headset)
+				break;
+			else{
+				AP_to_speakers();
+				printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
+			}	
+			break;
+
 
 		/* BLUETOOTH_SCO*/		    	
 		case BLUETOOTH_SCO_INCALL:	//BB-> 8994Codec -> BLUETOOTH_SCO  
-		    BT_baseband();
-		    break;
+			BT_baseband();
+			break;
 
 		/* BLUETOOTH_A2DP*/			    
 		case BLUETOOTH_A2DP_NORMAL:	//AP-> 8994Codec -> BLUETOOTH_A2DP
-		    break;
+			break;
 		    
 		case MIC_CAPTURE:
-		    if(wm8994_current_mode==wm8994_AP_to_headset||
-			wm8994_current_mode==wm8994_recorder_and_AP_to_headset)
-			recorder_and_AP_to_headset();
-		    else if(wm8994_current_mode==wm8994_AP_to_speakers||
-			wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)
-			recorder_and_AP_to_speakers();
-		    else{
-			recorder_and_AP_to_speakers();
-			printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
-		    }	
+			if(wm8994_current_mode==wm8994_AP_to_headset)
+				recorder_and_AP_to_headset();
+			else if(wm8994_current_mode==wm8994_AP_to_speakers)
+				recorder_and_AP_to_speakers();
+			else if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers||
+				wm8994_current_mode==wm8994_recorder_and_AP_to_headset)
+				break;
+			else{
+				recorder_and_AP_to_speakers();
+				printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
+			}
+			break;
 
-		    break;
+		case EARPIECE_RINGTONE:
+			AP_to_speakers();
+			break;
+
+		case HEADSET_RINGTONE:
+			AP_to_headset();
+			break;
+
+		case SPEAKER_RINGTONE:
+			AP_to_speakers();
+			break;
 
 		default:
-		    //codec_daout_route();
-		    break;
+			//codec_daout_route();
+			break;
 	}
 	return 0;
 }
-
 /*
  * WM8994 Controls
  */
@@ -2056,10 +2114,10 @@ static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
 
 static const struct snd_kcontrol_new wm8994_snd_controls[] = {
 
-/* 鍠囧�?*/
+/* 鍠囧彮 */
 SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker incall Switch", SPEAKER_INCALL),	
 SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker normal Switch", SPEAKER_NORMAL),
-/* 鍚�?*/
+/* 鍚瓛 */
 SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece incall Switch", EARPIECE_INCALL),	
 SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece normal Switch", EARPIECE_NORMAL),
 /* 鑰虫満 */
@@ -2071,8 +2129,14 @@ SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth normal Switch", BLUETOOTH_SCO_NORMAL),
 /* 钃濈墮A2DP */
 SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth-A2DP incall Switch", BLUETOOTH_A2DP_INCALL),	
 SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth-A2DP normal Switch", BLUETOOTH_A2DP_NORMAL),
-/* 鑰抽�?*/
+/* 鑰抽害 */
 SOC_DOUBLE_SWITCH_WM8994CODEC("Capture Switch", MIC_CAPTURE),
+
+SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece ringtone Switch",EARPIECE_RINGTONE),
+
+SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker ringtone Switch",SPEAKER_RINGTONE),
+
+SOC_DOUBLE_SWITCH_WM8994CODEC("Headset ringtone Switch",HEADSET_RINGTONE),
 
 };
 
@@ -2670,11 +2734,6 @@ static int wm8994_register(struct wm8994_priv *wm8994,
 		dev_err(codec->dev, "Failed to issue reset\n");
 		goto err;
 	}
-		/*disable speaker */
-		gpio_request(RK2818_PIN_PF7, "WM8994");	
-		rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
-		gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);
-
 
 	wm8994_set_bias_level(&wm8994->codec, SND_SOC_BIAS_STANDBY);
 
@@ -2718,9 +2777,8 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 {
 	struct wm8994_priv *wm8994;
 	struct snd_soc_codec *codec;
-	struct wm8994_platform_data *wm8994_data = i2c->dev.platform_data;
 	wm8994_client=i2c;
-		
+
 	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
@@ -2731,12 +2789,6 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 
 	codec->dev = &i2c->dev;
-	
-	if (!wm8994_data) {
-		dev_err(codec->dev, "empty wm8994 platform_data\n");
-		kfree(wm8994);
-		return -EFAULT;
-	}
 
 	return wm8994_register(wm8994, SND_SOC_I2C);
 }

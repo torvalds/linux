@@ -38,7 +38,7 @@
 #include "rk2818_headset.h"
 
 /* Debug */
-#if 0
+#if 1
 #define DBG	printk
 #else
 #define DBG
@@ -58,22 +58,44 @@ struct rk2818_headset_dev{
 static struct rk2818_headset_dev Headset_dev;
 static struct work_struct g_headsetobserve_work;
 static struct rk2818_headset_data *prk2818_headset_info;
+static irqreturn_t headset_interrupt(int irq, void *dev_id);
+unsigned int headset_irq_type;
 
 static void headsetobserve_work(void)
 {
-    if(gpio_get_value(prk2818_headset_info->irq))
-        Headset_dev.cur_headset_status = BIT_HEADSET;
-    else
-        Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
+	if(gpio_get_value(prk2818_headset_info->irq)){
+		if(prk2818_headset_info->headset_in_type)
+			Headset_dev.cur_headset_status = BIT_HEADSET;
+		else
+			Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
 
-    if(Headset_dev.cur_headset_status != Headset_dev.pre_headset_status)
-    {
-        Headset_dev.pre_headset_status = Headset_dev.cur_headset_status;
-        mutex_lock(&Headset_dev.mutex_lock);
+		if(headset_irq_type != (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING))
+			headset_irq_type = IRQF_TRIGGER_FALLING;
+	}
+	else{
+		if(prk2818_headset_info->headset_in_type)
+			Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
+		else
+			Headset_dev.cur_headset_status = BIT_HEADSET;
+
+		if(headset_irq_type != (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING))
+			headset_irq_type = IRQF_TRIGGER_RISING;	
+	}
+
+	if(Headset_dev.cur_headset_status != Headset_dev.pre_headset_status)
+	{
+		Headset_dev.pre_headset_status = Headset_dev.cur_headset_status;
+		mutex_lock(&Headset_dev.mutex_lock);
 		switch_set_state(&Headset_dev.sdev, Headset_dev.cur_headset_status);
 		mutex_unlock(&Headset_dev.mutex_lock);
 		DBG("---------------cur_headset_status = [0x%x]\n", Headset_dev.cur_headset_status);
-    }
+	}
+
+	if(headset_irq_type == (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING))return;
+
+	free_irq(prk2818_headset_info->irq,NULL);
+	if (request_irq(prk2818_headset_info->irq, headset_interrupt, headset_irq_type, NULL, NULL))
+		DBG("headsetobserve: request irq failed\n");
 }
 
 static irqreturn_t headset_interrupt(int irq, void *dev_id)
@@ -97,7 +119,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	prk2818_headset_info = pdev->dev.platform_data;
 	
 	Headset_dev.cur_headset_status = 0;
-	Headset_dev.pre_headset_status = 0;	
+	Headset_dev.pre_headset_status = 0;
 	Headset_dev.sdev.name = "h2w";
 	Headset_dev.sdev.print_name = h2w_print_name;
 	mutex_init(&Headset_dev.mutex_lock);
@@ -106,23 +128,27 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return 0;
 
-    INIT_WORK(&g_headsetobserve_work, headsetobserve_work);
+	INIT_WORK(&g_headsetobserve_work, headsetobserve_work);
     
-    ret = gpio_request(prk2818_headset_info->irq, "headset_det");
+	ret = gpio_request(prk2818_headset_info->irq, "headset_det");
 	if (ret) {
 		DBG( "headsetobserve: failed to request FPGA_PIO0_00\n");
 		return ret;
 	}
 
-    gpio_direction_input(prk2818_headset_info->irq);
+	gpio_direction_input(prk2818_headset_info->irq);
 
-    headsetobserve_work();//初始化第一次检测一次
-    
 	prk2818_headset_info->irq = gpio_to_irq(prk2818_headset_info->irq);
-	ret = request_irq(prk2818_headset_info->irq, headset_interrupt, IRQF_TRIGGER_FALLING, NULL, NULL);
-	if (ret ) {
-		DBG("headsetobserve: request irq failed\n");
-        return ret;
+	headset_irq_type = prk2818_headset_info->irq_type;
+	headsetobserve_work();
+
+	if(headset_irq_type == (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING)){
+		free_irq(prk2818_headset_info->irq,NULL);
+		ret = request_irq(prk2818_headset_info->irq, headset_interrupt, headset_irq_type, NULL, NULL);
+		if (ret ) {
+			DBG("headsetobserve: request irq failed\n");
+        	return ret;
+		}
 	}
 
 	return 0;	

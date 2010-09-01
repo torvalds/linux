@@ -49,6 +49,7 @@
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
 #include "../../../drivers/staging/android/timed_gpio.h"
 #include "../../../sound/soc/codecs/wm8994.h"
+#include "../../../drivers/headset_observe/rk2818_headset.h"
 
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
@@ -1337,6 +1338,21 @@ struct platform_device rk2818_device_dm9k = {
 };
 #endif
 
+#ifdef CONFIG_HEADSET_DET
+struct rk2818_headset_data rk2818_headset_info = {
+	.irq		= TCA6424_P23,
+	.irq_type	= IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING,
+	.headset_in_type= HEADSET_IN_HIGH,
+};
+
+struct platform_device rk28_device_headset = {
+		.name	= "rk2818_headsetdet",
+		.id 	= 0,
+		.dev    = {
+		.platform_data = &rk2818_headset_info,
+		}
+};
+#endif
 
 /*****************************************************************************************
  * nand flash devices
@@ -1425,7 +1441,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_DM9000
 	&rk2818_device_dm9k,
 #endif
-
+#ifdef CONFIG_HEADSET_DET
+    &rk28_device_headset,
+#endif
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
 #endif
