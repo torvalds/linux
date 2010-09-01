@@ -38,7 +38,7 @@
 #include "rk2818_headset.h"
 
 /* Debug */
-#if 1
+#if 0
 #define DBG	printk
 #else
 #define DBG
@@ -140,16 +140,12 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 
 	prk2818_headset_info->irq = gpio_to_irq(prk2818_headset_info->irq);
 	headset_irq_type = prk2818_headset_info->irq_type;
-	headsetobserve_work();
-
-	if(headset_irq_type == (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING)){
-		free_irq(prk2818_headset_info->irq,NULL);
-		ret = request_irq(prk2818_headset_info->irq, headset_interrupt, headset_irq_type, NULL, NULL);
-		if (ret ) {
-			DBG("headsetobserve: request irq failed\n");
+	ret = request_irq(prk2818_headset_info->irq, headset_interrupt, headset_irq_type, NULL, NULL);
+	if (ret ) {
+		DBG("headsetobserve: request irq failed\n");
         	return ret;
-		}
 	}
+	headsetobserve_work();
 
 	return 0;	
 }

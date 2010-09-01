@@ -359,6 +359,11 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.pin_value			= GPIO_LOW,
 	 }, 
 	 {
+		.gpio_num    		= TCA6424_P11,
+		.pin_type           = GPIO_OUT,
+		.pin_value			= GPIO_HIGH,
+	 }, 
+	 {
 		.gpio_num    		= TCA6424_P12,
 		.pin_type           = GPIO_IN,
 		//.pin_value			=GPIO_HIGH,
