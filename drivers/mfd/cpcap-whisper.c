@@ -76,6 +76,7 @@ enum cpcap_det_state {
 	IDENTIFY,
 	IDENTIFY_WHISPER,
 	USB,
+	USB_POWER,
 	WHISPER,
 	WHISPER_SMART,
 };
@@ -241,7 +242,6 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 	case CPCAP_ACCY_USB_HOST:
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
 					     CPCAP_BIT_VBUSPD);
-		gpio_set_value(data->pdata->pwr_gpio, 1);
 		gpio_set_value(data->pdata->data_gpio, 1);
 		if (data->otg)
 			blocking_notifier_call_chain(&data->otg->notifier,
@@ -419,6 +419,9 @@ static void whisper_det_work(struct work_struct *work)
 			whisper_notify(data, CPCAP_ACCY_USB_HOST);
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
+			data->state = USB_POWER;
+			schedule_delayed_work(&data->work,
+					      msecs_to_jiffies(200));
 		} else if ((data->sense == SENSE_WHISPER_SPD) ||
 			   (data->sense == SENSE_WHISPER_PPD)) {
 			gpio_set_value(data->pdata->pwr_gpio, 1);
@@ -488,6 +491,11 @@ static void whisper_det_work(struct work_struct *work)
 			schedule_delayed_work(&data->work, 0);
 		}
 
+		break;
+
+	case USB_POWER:
+		gpio_set_value(data->pdata->pwr_gpio, 1);
+		data->state = CONFIG;
 		break;
 
 	case WHISPER:
