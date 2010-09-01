@@ -498,8 +498,8 @@ static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
  */
 static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 {
-	int err, i, j, found;
-	u32 r32;
+	int err, i, found;
+	u8 r8;
 
 	found = -1;
 
@@ -507,15 +507,13 @@ static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 		if (found >= 0)
 			break;
 
-		err = intel_scu_ipc_ioread32(PMICADDR0, &r32);
+		err = intel_scu_ipc_ioread8(PMICADDR0 + i, &r8);
 		if (err)
 			return err;
 
-		for (j = 0; j < 32; j+= 8) {
-			if (((r32 >> j) & 0xFF) == END_OF_CHANNEL) {
-				found = i;
-				break;
-			}
+		if (r8 == END_OF_CHANNEL) {
+			found = i;
+			break;
 		}
 	}
 	if (found < 0)
@@ -537,20 +535,17 @@ static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
  */
 static int __devinit mrstouch_ts_chan_set(uint offset)
 {
-	int count;
 	u16 chan;
-	u16 reg[5];
-	u8 data[5];
+
+	int ret, count;
 
 	chan = PMICADDR0 + offset;
 	for (count = 0; count <= 3; count++) {
-		reg[count] = chan++;
-		data[count] = MRST_TS_CHAN10 + count;
+		ret = intel_scu_ipc_iowrite8(chan++, MRST_TS_CHAN10 + count);
+		if (ret)
+			return ret;
 	}
-	reg[count] = chan;
-	data[count] = END_OF_CHANNEL;
-
-	return intel_scu_ipc_writev(reg, data, 5);
+	return intel_scu_ipc_iowrite8(chan++, END_OF_CHANNEL);
 }
 
 /* Initialize ADC */
