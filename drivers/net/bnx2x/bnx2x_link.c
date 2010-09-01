@@ -2549,8 +2549,8 @@ static void bnx2x_bcm8073_bcm8727_external_rom_boot(struct bnx2x *bp, u8 port,
 		       MDIO_PMA_REG_GEN_CTRL,
 		       MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP);
 
-	/* wait for 100ms for code download via SPI port */
-	msleep(100);
+	/* wait for 120ms for code download via SPI port */
+	msleep(120);
 
 	/* Clear ser_boot_ctl bit */
 	bnx2x_cl45_write(bp, port,
