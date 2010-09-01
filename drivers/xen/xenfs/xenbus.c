@@ -486,21 +486,6 @@ static ssize_t xenbus_file_write(struct file *filp,
 	msg_type = u->u.msg.type;
 
 	switch (msg_type) {
-	case XS_TRANSACTION_START:
-	case XS_TRANSACTION_END:
-	case XS_DIRECTORY:
-	case XS_READ:
-	case XS_GET_PERMS:
-	case XS_RELEASE:
-	case XS_GET_DOMAIN_PATH:
-	case XS_WRITE:
-	case XS_MKDIR:
-	case XS_RM:
-	case XS_SET_PERMS:
-		/* Send out a transaction */
-		ret = xenbus_write_transaction(msg_type, u);
-		break;
-
 	case XS_WATCH:
 	case XS_UNWATCH:
 		/* (Un)Ask for some path to be watched for changes */
@@ -508,7 +493,8 @@ static ssize_t xenbus_file_write(struct file *filp,
 		break;
 
 	default:
-		ret = -EINVAL;
+		/* Send out a transaction */
+		ret = xenbus_write_transaction(msg_type, u);
 		break;
 	}
 	if (ret != 0)
