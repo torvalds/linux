@@ -23,7 +23,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * TODO:
- *	kill off mrstouch_debug eventually
  *	review conversion of r/m/w sequences
  *	Replace interrupt mutex abuse
  *	Kill of mrstouchdevp pointer
@@ -42,16 +41,6 @@
 #include <linux/kthread.h>
 #include <asm/intel_scu_ipc.h>
 
-
-#if defined(MRSTOUCH_DEBUG)
-#define mrstouch_debug(fmt, args...)\
-	do { \
-		printk(KERN_DEBUG "\n[MRSTOUCH(%d)] - ", __LINE__); \
-		printk(KERN_DEBUG fmt, ##args); \
-	} while (0);
-#else
-#define mrstouch_debug(fmt, args...)
-#endif
 
 /* PMIC Interrupt registers */
 #define PMIC_REG_ID1   0x00 /*PMIC ID1 register */
@@ -100,6 +89,9 @@
 #define MAX_X		1024
 #define MIN_Y		10
 #define MAX_Y		1024
+#define MIN_P		0
+#define MAX_P		TOUCH_PRESSURE_FS
+
 #define WAIT_ADC_COMPLETION 10
 
 /* PMIC ADC round robin delays */
@@ -124,8 +116,6 @@ struct mrstouch_dev {
 	int             irq;    /* Touch screen IRQ # */
 	uint		vendor;  /* PMIC vendor */
 	uint		rev;  /* PMIC revision */
-	bool		suspended; /* Device suspended status */
-	bool		disabled;  /* Device disabled status */
 	u16		x;  /* X coordinate */
 	u16		y;  /* Y coordinate */
 	bool		pendown;  /* PEN position */
@@ -320,8 +310,6 @@ static int mrstouch_adc_init(struct mrstouch_dev *tsdev)
 
 	tsdev->asr = start;
 
-	mrstouch_debug("Channel offset(%d): 0x%X\n", tsdev->asr, tsdev->vendor);
-
 	/* ADC power on, start, enable PENDET and set loop delay
 	 * ADC loop delay is set to 4.5 ms approximately
 	 * Loop delay more than this results in jitter in adc readings
@@ -355,7 +343,6 @@ static void mrstouch_report_xy(struct mrstouch_dev *tsdev, u16 x, u16 y, u16 z)
 
 	if (tsdev->pendown && z <= TOUCH_PRESSURE) {
 		/* Pen removed, report button release */
-		mrstouch_debug("BTN REL(%d)", z);
 		input_report_key(tsdev->input, BTN_TOUCH, 0);
 		tsdev->pendown = false;
 	}
@@ -371,7 +358,6 @@ static void mrstouch_report_xy(struct mrstouch_dev *tsdev, u16 x, u16 y, u16 z)
 	if (x < MIN_X || x > MAX_X || y < MIN_Y || y > MAX_Y) {
 		/* Spurious values, release button if touched and return */
 		if (tsdev->pendown) {
-			mrstouch_debug("BTN REL(%d)", z);
 			input_report_key(tsdev->input, BTN_TOUCH, 0);
 			tsdev->pendown = false;
 		}
@@ -382,13 +368,13 @@ static void mrstouch_report_xy(struct mrstouch_dev *tsdev, u16 x, u16 y, u16 z)
 
 		input_report_abs(tsdev->input, ABS_X, x);
 		input_report_abs(tsdev->input, ABS_Y, y);
+		input_report_abs(tsdev->input, ABS_PRESSURE, z);
 		input_sync(tsdev->input);
 	}
 
 
 	if (!tsdev->pendown && z > TOUCH_PRESSURE) {
 		/* Pen touched, report button touch */
-		mrstouch_debug("BTN TCH(%d, %d, %d)", x, y, z);
 		input_report_key(tsdev->input, BTN_TOUCH, 1);
 		tsdev->pendown = true;
 	}
@@ -446,18 +432,7 @@ static int mrstouch_pmic_fs_adc_read(struct mrstouch_dev *tsdev)
 	z |= data[1] & 0x7; /* Lower 3 bits */
 	z &= 0x3FF;
 
-#if defined(MRSTOUCH_PRINT_XYZP)
-	mrstouch_debug("X: %d, Y: %d, Z: %d", x, y, z);
-#endif
-
-	if (z >= TOUCH_PRESSURE_FS) {
-		mrstouch_report_xy(tsdev, x, y, TOUCH_PRESSURE - 1); /* Pen Removed */
-		return TOUCH_PRESSURE - 1;
-	} else {
-		mrstouch_report_xy(tsdev, x, y, TOUCH_PRESSURE + 1); /* Pen Touched */
-		return TOUCH_PRESSURE + 1;
-	}
-
+	mrstouch_report_xy(tsdev, x, y, z);
 	return 0;
 
 ipc_error:
@@ -615,14 +590,6 @@ static int mrstouch_adc_read(struct mrstouch_dev *tsdev)
 	if (err)
 		goto ipc_error;
 
-#if defined(MRSTOUCH_PRINT_XYZP)
-	printk(KERN_INFO "X+: %d, Y+: %d, Z+: %d\n", xp, yp, zp);
-#endif
-
-#if defined(MRSTOUCH_PRINT_XYZM)
-	printk(KERN_INFO "X-: %d, Y-: %d, Z-: %d\n", xm, ym, zm);
-#endif
-
 	mrstouch_report_xy(tsdev, xp, yp, zp); /* report x and y to eventX */
 
 	return zp;
@@ -694,12 +661,10 @@ static int ts_input_dev_init(struct mrstouch_dev *tsdev, struct spi_device *spi)
 {
 	int err = 0;
 
-	mrstouch_debug("%s", __func__);
-
 	tsdev->input = input_allocate_device();
 	if (!tsdev->input) {
 		dev_err(&tsdev->spi->dev, "Unable to allocate input device.\n");
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	tsdev->input->name = "mrst_touchscreen";
@@ -714,8 +679,9 @@ static int ts_input_dev_init(struct mrstouch_dev *tsdev, struct spi_device *spi)
 	tsdev->input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	tsdev->input->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
-	input_set_abs_params(tsdev->input, ABS_X, MIN_X, MIN_Y, 0, 0);
-	input_set_abs_params(tsdev->input, ABS_Y, MIN_X, MIN_Y, 0, 0);
+	input_set_abs_params(tsdev->input, ABS_X, MIN_X, MAX_X, 0, 0);
+	input_set_abs_params(tsdev->input, ABS_Y, MIN_Y, MAX_Y, 0, 0);
+	input_set_abs_params(tsdev->input, ABS_PRESSURE, MIN_P, MAX_P, 0, 0);
 
 	err = input_register_device(tsdev->input);
 	if (err) {
@@ -723,9 +689,6 @@ static int ts_input_dev_init(struct mrstouch_dev *tsdev, struct spi_device *spi)
 		input_free_device(tsdev->input);
 		return err;
 	}
-
-	mrstouch_debug("%s", "mrstouch initialized");
-
 	return 0;
 
 }
@@ -736,8 +699,6 @@ static int __devinit mrstouch_probe(struct spi_device *mrstouch_spi)
 	int err;
 	unsigned int myirq;
 	struct mrstouch_dev *tsdev;
-
-	mrstouch_debug("%s(%p)", __func__, mrstouch_spi);
 
 	mrstouchdevp = NULL;
 	myirq = mrstouch_spi->irq;
@@ -768,18 +729,17 @@ static int __devinit mrstouch_probe(struct spi_device *mrstouch_spi)
 	err = ts_input_dev_init(tsdev, mrstouch_spi);
 	if (err) {
 		dev_err(&tsdev->spi->dev, "ts_input_dev_init failed");
-		goto mrstouch_err_free_mem;
+		goto mrstouch_err_free_dev;
 	}
 
 	mutex_init(&tsdev->lock);
-	mutex_lock(&tsdev->lock)
+	mutex_lock(&tsdev->lock);
 
-	mrstouch_debug("Requesting IRQ-%d", myirq);
 	err = request_irq(myirq, pendet_intr_handler,
 				0, "mrstouch", tsdev);
 	if (err) {
 		dev_err(&tsdev->spi->dev, "unable to allocate irq\n");
-		goto mrstouch_err_free_mem;
+		goto mrstouch_err_free_dev;
 	}
 
 	tsdev->pendet_thrd = kthread_run(mrstouch_pendet,
@@ -787,38 +747,24 @@ static int __devinit mrstouch_probe(struct spi_device *mrstouch_spi)
 	if (IS_ERR(tsdev->pendet_thrd)) {
 		dev_err(&tsdev->spi->dev, "kthread_run failed\n");
 		err = PTR_ERR(tsdev->pendet_thrd);
-		goto mrstouch_err_free_mem;
+		goto mrstouch_err_free_irq;
 	}
-	mrstouch_debug("%s", "Driver initialized");
 	return 0;
-
+mrstouch_err_free_irq:
+	free_irq(myirq, tsdev);
+mrstouch_err_free_dev:
+	input_unregister_device(tsdev->input);
 mrstouch_err_free_mem:
 	kfree(tsdev);
 	return err;
 }
 
-static int mrstouch_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	mrstouch_debug("%s", __func__);
-	mrstouchdevp->suspended = 1;
-	return 0;
-}
-
-static int mrstouch_resume(struct spi_device *spi)
-{
-	mrstouch_debug("%s", __func__);
-	mrstouchdevp->suspended = 0;
-	return 0;
-}
-
 static int mrstouch_remove(struct spi_device *spi)
 {
-	mrstouch_debug("%s", __func__);
 	free_irq(mrstouchdevp->irq, mrstouchdevp);
-	input_unregister_device(mrstouchdevp->input);
-	input_free_device(mrstouchdevp->input);
 	if (mrstouchdevp->pendet_thrd)
 		kthread_stop(mrstouchdevp->pendet_thrd);
+	input_unregister_device(mrstouchdevp->input);
 	kfree(mrstouchdevp);
 	return 0;
 }
@@ -830,8 +776,6 @@ static struct spi_driver mrstouch_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe          = mrstouch_probe,
-	.suspend        = mrstouch_suspend,
-	.resume         = mrstouch_resume,
 	.remove         = mrstouch_remove,
 };
 
@@ -839,11 +783,10 @@ static int __init mrstouch_module_init(void)
 {
 	int err;
 
-	mrstouch_debug("%s", __func__);
 	err = spi_register_driver(&mrstouch_driver);
 	if (err) {
-		mrstouch_debug("%s(%d)", "SPI PENDET failed", err);
-		return -1;
+		printk(KERN_ERR "%s(%d)", "SPI PENDET failed", err);
+		return err;;
 	}
 
 	return 0;
@@ -851,7 +794,6 @@ static int __init mrstouch_module_init(void)
 
 static void __exit mrstouch_module_exit(void)
 {
-	mrstouch_debug("%s", __func__);
 	spi_unregister_driver(&mrstouch_driver);
 	return;
 }
