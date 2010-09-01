@@ -3570,7 +3570,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		/* configure link power saving */
 		if (ehc->i.action & ATA_EH_LPM)
 			ata_for_each_dev(dev, link, ALL)
-				ata_dev_enable_pm(dev, ap->pm_policy);
+				ata_dev_enable_pm(dev, ap->lpm_policy);
 
 		/* this link is okay now */
 		ehc->i.flags = 0;

@@ -1209,7 +1209,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				   0x100 + ap->port_no * 0x80, "port");
 
 		/* set initial link pm policy */
-		ap->pm_policy = NOT_AVAILABLE;
+		ap->lpm_policy = ATA_LPM_UNKNOWN;
 
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)

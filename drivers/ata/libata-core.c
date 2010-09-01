@@ -1030,7 +1030,7 @@ const char *sata_spd_string(unsigned int spd)
 	return spd_str[spd - 1];
 }
 
-static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
+static int ata_dev_set_dipm(struct ata_device *dev, enum ata_lpm_policy policy)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1040,14 +1040,14 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 
 	/*
 	 * disallow DIPM for drivers which haven't set
-	 * ATA_FLAG_IPM.  This is because when DIPM is enabled,
+	 * ATA_FLAG_LPM.  This is because when DIPM is enabled,
 	 * phy ready will be set in the interrupt status on
 	 * state changes, which will cause some drivers to
 	 * think there are errors - additionally drivers will
 	 * need to disable hot plug.
 	 */
-	if (!(ap->flags & ATA_FLAG_IPM) || !ata_dev_enabled(dev)) {
-		ap->pm_policy = NOT_AVAILABLE;
+	if (!(ap->flags & ATA_FLAG_LPM) || !ata_dev_enabled(dev)) {
+		ap->lpm_policy = ATA_LPM_UNKNOWN;
 		return -EINVAL;
 	}
 
@@ -1066,8 +1066,8 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 		return rc;
 
 	switch (policy) {
-	case MIN_POWER:
-		/* no restrictions on IPM transitions */
+	case ATA_LPM_MIN_POWER:
+		/* no restrictions on LPM transitions */
 		scontrol &= ~(0x3 << 8);
 		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
 		if (rc)
@@ -1078,8 +1078,8 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 			err_mask = ata_dev_set_feature(dev,
 					SETFEATURES_SATA_ENABLE, SATA_DIPM);
 		break;
-	case MEDIUM_POWER:
-		/* allow IPM to PARTIAL */
+	case ATA_LPM_MED_POWER:
+		/* allow LPM to PARTIAL */
 		scontrol &= ~(0x1 << 8);
 		scontrol |= (0x2 << 8);
 		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
@@ -1087,21 +1087,21 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 			return rc;
 
 		/*
-		 * we don't have to disable DIPM since IPM flags
+		 * we don't have to disable DIPM since LPM flags
 		 * disallow transitions to SLUMBER, which effectively
 		 * disable DIPM if it does not support PARTIAL
 		 */
 		break;
-	case NOT_AVAILABLE:
-	case MAX_PERFORMANCE:
-		/* disable all IPM transitions */
+	case ATA_LPM_UNKNOWN:
+	case ATA_LPM_MAX_POWER:
+		/* disable all LPM transitions */
 		scontrol |= (0x3 << 8);
 		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
 		if (rc)
 			return rc;
 
 		/*
-		 * we don't have to disable DIPM since IPM flags
+		 * we don't have to disable DIPM since LPM flags
 		 * disallow all transitions which effectively
 		 * disable DIPM anyway.
 		 */
@@ -1125,9 +1125,9 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
  *	enabling Host Initiated Power management.
  *
  *	Locking: Caller.
- *	Returns: -EINVAL if IPM is not supported, 0 otherwise.
+ *	Returns: -EINVAL if LPM is not supported, 0 otherwise.
  */
-void ata_dev_enable_pm(struct ata_device *dev, enum link_pm policy)
+void ata_dev_enable_pm(struct ata_device *dev, enum ata_lpm_policy policy)
 {
 	int rc = 0;
 	struct ata_port *ap = dev->link->ap;
@@ -1141,9 +1141,9 @@ void ata_dev_enable_pm(struct ata_device *dev, enum link_pm policy)
 
 enable_pm_out:
 	if (rc)
-		ap->pm_policy = MAX_PERFORMANCE;
+		ap->lpm_policy = ATA_LPM_MAX_POWER;
 	else
-		ap->pm_policy = policy;
+		ap->lpm_policy = policy;
 	return /* rc */;	/* hopefully we can use 'rc' eventually */
 }
 
@@ -1164,15 +1164,15 @@ static void ata_dev_disable_pm(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 
-	ata_dev_set_dipm(dev, MAX_PERFORMANCE);
+	ata_dev_set_dipm(dev, ATA_LPM_MAX_POWER);
 	if (ap->ops->disable_pm)
 		ap->ops->disable_pm(ap);
 }
 #endif	/* CONFIG_PM */
 
-void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
+void ata_lpm_schedule(struct ata_port *ap, enum ata_lpm_policy policy)
 {
-	ap->pm_policy = policy;
+	ap->lpm_policy = policy;
 	ap->link.eh_info.action |= ATA_EH_LPM;
 	ap->link.eh_info.flags |= ATA_EHI_NO_AUTOPSY;
 	ata_port_schedule_eh(ap);
@@ -1201,7 +1201,7 @@ static void ata_lpm_disable(struct ata_host *host)
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		ata_lpm_schedule(ap, ap->pm_policy);
+		ata_lpm_schedule(ap, ap->lpm_policy);
 	}
 }
 #endif	/* CONFIG_PM */
@@ -2564,7 +2564,7 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_LBA48)
 		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
 
-	if (!(dev->horkage & ATA_HORKAGE_IPM)) {
+	if (!(dev->horkage & ATA_HORKAGE_LPM)) {
 		if (ata_id_has_hipm(dev->id))
 			dev->flags |= ATA_DFLAG_HIPM;
 		if (ata_id_has_dipm(dev->id))
@@ -2591,11 +2591,11 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
 					 dev->max_sectors);
 
-	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_IPM) {
-		dev->horkage |= ATA_HORKAGE_IPM;
+	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_LPM) {
+		dev->horkage |= ATA_HORKAGE_LPM;
 
 		/* reset link pm_policy for this port to no pm */
-		ap->pm_policy = MAX_PERFORMANCE;
+		ap->lpm_policy = ATA_LPM_MAX_POWER;
 	}
 
 	if (ap->ops->dev_config)

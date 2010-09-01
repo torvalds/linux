@@ -196,7 +196,7 @@ enum {
 	ATA_FLAG_ACPI_SATA	= (1 << 17), /* need native SATA ACPI layout */
 	ATA_FLAG_AN		= (1 << 18), /* controller supports AN */
 	ATA_FLAG_PMP		= (1 << 19), /* controller supports PMP */
-	ATA_FLAG_IPM		= (1 << 20), /* driver can handle IPM */
+	ATA_FLAG_LPM		= (1 << 20), /* driver can handle LPM */
 	ATA_FLAG_EM		= (1 << 21), /* driver supports enclosure
 					      * management */
 	ATA_FLAG_SW_ACTIVITY	= (1 << 22), /* driver supports sw activity
@@ -377,7 +377,7 @@ enum {
 	ATA_HORKAGE_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
 	ATA_HORKAGE_DISABLE	= (1 << 5),	/* Disable it */
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
-	ATA_HORKAGE_IPM		= (1 << 7),	/* Link PM problems */
+	ATA_HORKAGE_LPM		= (1 << 7),	/* Link PM problems */
 	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
 	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
 	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
@@ -464,6 +464,17 @@ enum ata_completion_errors {
 	AC_ERR_NCQ		= (1 << 10), /* marker for offending NCQ qc */
 };
 
+/*
+ * Link power management policy: If you alter this, you also need to
+ * alter libata-scsi.c (for the ascii descriptions)
+ */
+enum ata_lpm_policy {
+	ATA_LPM_UNKNOWN,
+	ATA_LPM_MAX_POWER,
+	ATA_LPM_MED_POWER,
+	ATA_LPM_MIN_POWER,
+};
+
 /* forward declarations */
 struct scsi_device;
 struct ata_port_operations;
@@ -478,16 +489,6 @@ typedef int (*ata_reset_fn_t)(struct ata_link *link, unsigned int *classes,
 			      unsigned long deadline);
 typedef void (*ata_postreset_fn_t)(struct ata_link *link, unsigned int *classes);
 
-/*
- * host pm policy: If you alter this, you also need to alter libata-scsi.c
- * (for the ascii descriptions)
- */
-enum link_pm {
-	NOT_AVAILABLE,
-	MIN_POWER,
-	MAX_PERFORMANCE,
-	MEDIUM_POWER,
-};
 extern struct device_attribute dev_attr_link_power_management_policy;
 extern struct device_attribute dev_attr_unload_heads;
 extern struct device_attribute dev_attr_em_message_type;
@@ -772,7 +773,7 @@ struct ata_port {
 
 	pm_message_t		pm_mesg;
 	int			*pm_result;
-	enum link_pm		pm_policy;
+	enum ata_lpm_policy	lpm_policy;
 
 	struct timer_list	fastdrain_timer;
 	unsigned long		fastdrain_cnt;
@@ -838,7 +839,7 @@ struct ata_port_operations {
 	int  (*scr_write)(struct ata_link *link, unsigned int sc_reg, u32 val);
 	void (*pmp_attach)(struct ata_port *ap);
 	void (*pmp_detach)(struct ata_port *ap);
-	int  (*enable_pm)(struct ata_port *ap, enum link_pm policy);
+	int  (*enable_pm)(struct ata_port *ap, enum ata_lpm_policy policy);
 	void (*disable_pm)(struct ata_port *ap);
 
 	/*

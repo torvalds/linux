@@ -103,72 +103,50 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 	0, 30	/* extended self test time, see 05-359r1 */
 };
 
-static const struct {
-	enum link_pm	value;
-	const char	*name;
-} link_pm_policy[] = {
-	{ NOT_AVAILABLE, "max_performance" },
-	{ MIN_POWER, "min_power" },
-	{ MAX_PERFORMANCE, "max_performance" },
-	{ MEDIUM_POWER, "medium_power" },
+static const char *ata_lpm_policy_names[] = {
+	[ATA_LPM_UNKNOWN]	= "max_performance",
+	[ATA_LPM_MAX_POWER]	= "max_performance",
+	[ATA_LPM_MED_POWER]	= "medium_power",
+	[ATA_LPM_MIN_POWER]	= "min_power",
 };
 
-static const char *ata_scsi_lpm_get(enum link_pm policy)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(link_pm_policy); i++)
-		if (link_pm_policy[i].value == policy)
-			return link_pm_policy[i].name;
-
-	return NULL;
-}
-
-static ssize_t ata_scsi_lpm_put(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t ata_scsi_lpm_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
-	enum link_pm policy = 0;
-	int i;
+	enum ata_lpm_policy policy;
 
-	/*
-	 * we are skipping array location 0 on purpose - this
-	 * is because a value of NOT_AVAILABLE is displayed
-	 * to the user as max_performance, but when the user
-	 * writes "max_performance", they actually want the
-	 * value to match MAX_PERFORMANCE.
-	 */
-	for (i = 1; i < ARRAY_SIZE(link_pm_policy); i++) {
-		const int len = strlen(link_pm_policy[i].name);
-		if (strncmp(link_pm_policy[i].name, buf, len) == 0) {
-			policy = link_pm_policy[i].value;
+	/* UNKNOWN is internal state, iterate from MAX_POWER */
+	for (policy = ATA_LPM_MAX_POWER;
+	     policy < ARRAY_SIZE(ata_lpm_policy_names); policy++) {
+		const char *name = ata_lpm_policy_names[policy];
+
+		if (strncmp(name, buf, strlen(name)) == 0)
 			break;
-		}
 	}
-	if (!policy)
+	if (policy == ARRAY_SIZE(ata_lpm_policy_names))
 		return -EINVAL;
 
 	ata_lpm_schedule(ap, policy);
 	return count;
 }
 
-static ssize_t
-ata_scsi_lpm_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t ata_scsi_lpm_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
-	const char *policy =
-		ata_scsi_lpm_get(ap->pm_policy);
 
-	if (!policy)
+	if (ap->lpm_policy >= ARRAY_SIZE(ata_lpm_policy_names))
 		return -EINVAL;
 
-	return snprintf(buf, 23, "%s\n", policy);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			ata_lpm_policy_names[ap->lpm_policy]);
 }
 DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
-		ata_scsi_lpm_show, ata_scsi_lpm_put);
+	    ata_scsi_lpm_show, ata_scsi_lpm_store);
 EXPORT_SYMBOL_GPL(dev_attr_link_power_management_policy);
 
 static ssize_t ata_scsi_park_show(struct device *device,

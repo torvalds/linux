@@ -56,8 +56,7 @@ MODULE_PARM_DESC(skip_host_reset, "skip global host reset (0=don't skip, 1=skip)
 module_param_named(ignore_sss, ahci_ignore_sss, int, 0444);
 MODULE_PARM_DESC(ignore_sss, "Ignore staggered spinup flag (0=don't ignore, 1=ignore)");
 
-static int ahci_enable_alpm(struct ata_port *ap,
-		enum link_pm policy);
+static int ahci_enable_alpm(struct ata_port *ap, enum ata_lpm_policy policy);
 static void ahci_disable_alpm(struct ata_port *ap);
 static ssize_t ahci_led_show(struct ata_port *ap, char *buf);
 static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
@@ -649,7 +648,7 @@ static void ahci_disable_alpm(struct ata_port *ap)
 	u32 cmd;
 	struct ahci_port_priv *pp = ap->private_data;
 
-	/* IPM bits should be disabled by libata-core */
+	/* LPM bits should be disabled by libata-core */
 	/* get the existing command bits */
 	cmd = readl(port_mmio + PORT_CMD);
 
@@ -691,8 +690,7 @@ static void ahci_disable_alpm(struct ata_port *ap)
 	 */
 }
 
-static int ahci_enable_alpm(struct ata_port *ap,
-	enum link_pm policy)
+static int ahci_enable_alpm(struct ata_port *ap, enum ata_lpm_policy policy)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	void __iomem *port_mmio = ahci_port_base(ap);
@@ -705,21 +703,21 @@ static int ahci_enable_alpm(struct ata_port *ap,
 		return -EINVAL;
 
 	switch (policy) {
-	case MAX_PERFORMANCE:
-	case NOT_AVAILABLE:
+	case ATA_LPM_MAX_POWER:
+	case ATA_LPM_UNKNOWN:
 		/*
-		 * if we came here with NOT_AVAILABLE,
+		 * if we came here with ATA_LPM_UNKNOWN,
 		 * it just means this is the first time we
 		 * have tried to enable - default to max performance,
 		 * and let the user go to lower power modes on request.
 		 */
 		ahci_disable_alpm(ap);
 		return 0;
-	case MIN_POWER:
+	case ATA_LPM_MIN_POWER:
 		/* configure HBA to enter SLUMBER */
 		asp = PORT_CMD_ASP;
 		break;
-	case MEDIUM_POWER:
+	case ATA_LPM_MED_POWER:
 		/* configure HBA to enter PARTIAL */
 		asp = 0;
 		break;
@@ -762,7 +760,7 @@ static int ahci_enable_alpm(struct ata_port *ap,
 	writel(cmd, port_mmio + PORT_CMD);
 	cmd = readl(port_mmio + PORT_CMD);
 
-	/* IPM bits should be set by libata-core */
+	/* LPM bits should be set by libata-core */
 	return 0;
 }
 
