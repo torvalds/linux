@@ -25,8 +25,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <mach/usb_phy.h>
-#include <mach/legacy_irq.h>
 
 #define TEGRA_USB_PHY_WAKEUP_REG_OFFSET		0x408
 #define   TEGRA_VBUS_WAKEUP_SW_VALUE		(1 << 12)
@@ -39,7 +37,8 @@ struct cpcap_otg_data {
 	struct notifier_block nb;
 	void __iomem *regs;
 	struct clk *clk;
-	int irq;
+	struct platform_device *host;
+	struct platform_device *pdev;
 };
 
 static const char *cpcap_state_name(enum usb_otg_state state)
@@ -53,13 +52,41 @@ static const char *cpcap_state_name(enum usb_otg_state state)
 	return "INVALID";
 }
 
-static irqreturn_t cpcap_otg_irq(int irq, void *data)
+void cpcap_start_host(struct cpcap_otg_data *cpcap)
 {
-	if (tegra_legacy_force_irq_status(irq)) {
-		tegra_legacy_force_irq_clr(irq);
-		return IRQ_HANDLED;
+	int retval;
+
+	cpcap->pdev = platform_device_alloc(cpcap->host->name, cpcap->host->id);
+	if (!cpcap->pdev)
+		return;
+
+	if (cpcap->host->resource) {
+		retval = platform_device_add_resources(cpcap->pdev,
+						cpcap->host->resource,
+						cpcap->host->num_resources);
+		if (retval)
+			goto error;
 	}
-	return IRQ_NONE;
+
+	cpcap->pdev->dev.dma_mask = cpcap->host->dev.dma_mask;
+	cpcap->pdev->dev.coherent_dma_mask = cpcap->host->dev.coherent_dma_mask;
+
+	retval = platform_device_add(cpcap->pdev);
+	if (retval)
+		goto error;
+
+	return;
+error:
+	pr_err("%s: failed to add the host contoller device\n", __func__);
+	platform_device_put(cpcap->pdev);
+}
+
+void cpcap_stop_host(struct cpcap_otg_data *cpcap)
+{
+	if (cpcap->pdev) {
+		platform_device_unregister(cpcap->pdev);
+		cpcap->pdev = NULL;
+	}
 }
 
 static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
@@ -90,33 +117,34 @@ static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
 	dev_info(cpcap->otg.dev, "%s --> %s", cpcap_state_name(from),
 					      cpcap_state_name(to));
 
-	if ((to == OTG_STATE_A_HOST) && (from == OTG_STATE_A_SUSPEND)
-			&& otg->host) {
-		hcd = (struct usb_hcd *)otg->host;
+	clk_enable(cpcap->clk);
 
-		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-		clk_enable(cpcap->clk);
+	if ((to == OTG_STATE_A_HOST) && (from == OTG_STATE_A_SUSPEND)
+			&& cpcap->host) {
+		hcd = (struct usb_hcd *)otg->host;
 
 		val = readl(cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 		val &= ~TEGRA_ID_SW_VALUE;
 		writel(val, cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 
+		cpcap_start_host(cpcap);
+
 	} else if ((to == OTG_STATE_A_SUSPEND) && (from == OTG_STATE_A_HOST)
-			&& otg->host) {
+			&& cpcap->host) {
 		val = readl(cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 		val |= TEGRA_ID_SW_VALUE;
 		writel(val, cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 
-		clk_disable(cpcap->clk);
+		cpcap_stop_host(cpcap);
 
 	} else if ((to == OTG_STATE_B_PERIPHERAL)
 			&& (from == OTG_STATE_A_SUSPEND)
 			&& otg->gadget) {
-		clk_enable(cpcap->clk);
-
 		val = readl(cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 		val |= TEGRA_VBUS_WAKEUP_SW_VALUE;
 		writel(val, cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
+
+		usb_gadget_vbus_connect(otg->gadget);
 
 	} else if ((to == OTG_STATE_A_SUSPEND)
 			&& (from == OTG_STATE_B_PERIPHERAL)
@@ -125,11 +153,11 @@ static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
 		val &= ~TEGRA_VBUS_WAKEUP_SW_VALUE;
 		writel(val, cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 
-		clk_disable(cpcap->clk);
-	} else
-		return 0;
+		usb_gadget_vbus_disconnect(otg->gadget);
+	}
 
-	tegra_legacy_force_irq_set(cpcap->irq);
+	clk_disable(cpcap->clk);
+
 	return 0;
 }
 
@@ -175,6 +203,7 @@ static int cpcap_otg_probe(struct platform_device *pdev)
 	cpcap->otg.set_peripheral = cpcap_otg_set_peripheral;
 	cpcap->otg.set_suspend = cpcap_otg_set_suspend;
 	cpcap->otg.set_power = cpcap_otg_set_power;
+	cpcap->host = pdev->dev.platform_data;
 
 	platform_set_drvdata(pdev, cpcap);
 
@@ -201,21 +230,6 @@ static int cpcap_otg_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	cpcap->irq = platform_get_irq(pdev, 0);
-	if (cpcap->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ\n");
-		err = -ENXIO;
-		goto err_irq;
-	}
-
-	err = request_irq(cpcap->irq, cpcap_otg_irq, IRQF_SHARED,
-			"cpcap-otg", cpcap);
-	if (err) {
-		dev_err(&pdev->dev, "cannot request irq %d err %d\n",
-				cpcap->irq, err);
-		goto err_irq;
-	}
-
 	val = readl(cpcap->regs + TEGRA_USB_PHY_WAKEUP_REG_OFFSET);
 	val |= TEGRA_VBUS_WAKEUP_SW_ENABLE | TEGRA_ID_SW_ENABLE;
 	val |= TEGRA_ID_SW_VALUE;
@@ -238,8 +252,6 @@ static int cpcap_otg_probe(struct platform_device *pdev)
 	return 0;
 
 err_otg:
-	free_irq(cpcap->irq, cpcap);
-err_irq:
 	iounmap(cpcap->regs);
 err_io:
 	clk_disable(cpcap->clk);
@@ -256,7 +268,6 @@ static int __exit cpcap_otg_remove(struct platform_device *pdev)
 	struct cpcap_otg_data *cpcap = platform_get_drvdata(pdev);
 
 	otg_set_transceiver(NULL);
-	free_irq(cpcap->irq, cpcap);
 	iounmap(cpcap->regs);
 	clk_disable(cpcap->clk);
 	clk_put(cpcap->clk);
