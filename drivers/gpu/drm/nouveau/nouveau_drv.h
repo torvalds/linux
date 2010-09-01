@@ -135,20 +135,19 @@ enum nouveau_flags {
 
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
-#define NVOBJ_FLAG_FAKE			(1 << 3)
 struct nouveau_gpuobj {
 	struct drm_device *dev;
 	struct list_head list;
 
 	struct drm_mm_node *im_pramin;
 	struct nouveau_bo *im_backing;
-	uint32_t im_backing_start;
 	uint32_t *im_backing_suspend;
 	int im_bound;
 
 	uint32_t flags;
 	int refcount;
 
+	u32 size;
 	u32 pinst;
 	u32 cinst;
 	u64 vinst;
@@ -753,9 +752,8 @@ extern int nouveau_gpuobj_new(struct drm_device *, struct nouveau_channel *,
 			      struct nouveau_gpuobj **);
 extern void nouveau_gpuobj_ref(struct nouveau_gpuobj *,
 			       struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_new_fake(struct drm_device *,
-				   uint32_t p_offset, uint32_t b_offset,
-				   uint32_t size, uint32_t flags,
+extern int nouveau_gpuobj_new_fake(struct drm_device *, u32 pinst, u64 vinst,
+				   u32 size, u32 flags,
 				   struct nouveau_gpuobj **);
 extern int nouveau_gpuobj_dma_new(struct nouveau_channel *, int class,
 				  uint64_t offset, uint64_t size, int access,

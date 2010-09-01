@@ -91,6 +91,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	gpuobj->dev = dev;
 	gpuobj->flags = flags;
 	gpuobj->refcount = 1;
+	gpuobj->size = size;
 
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
 
@@ -133,25 +134,23 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 
 	/* calculate the various different addresses for the object */
 	if (chan) {
-		gpuobj->pinst = gpuobj->im_pramin->start +
-				chan->ramin->im_pramin->start;
+		gpuobj->pinst = gpuobj->im_pramin->start + chan->ramin->pinst;
 		if (dev_priv->card_type < NV_50) {
 			gpuobj->cinst = gpuobj->pinst;
 		} else {
 			gpuobj->cinst = gpuobj->im_pramin->start;
 			gpuobj->vinst = gpuobj->im_pramin->start +
-					chan->ramin->im_backing_start;
+					chan->ramin->vinst;
 		}
 	} else {
 		gpuobj->pinst = gpuobj->im_pramin->start;
 		gpuobj->cinst = 0xdeadbeef;
-		gpuobj->vinst = gpuobj->im_backing_start;
 	}
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
 		int i;
 
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
+		for (i = 0; i < gpuobj->size; i += 4)
 			nv_wo32(gpuobj, i, 0);
 		engine->instmem.flush(dev);
 	}
@@ -237,7 +236,7 @@ nouveau_gpuobj_del(struct nouveau_gpuobj *gpuobj)
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
 
 	if (gpuobj->im_pramin && (gpuobj->flags & NVOBJ_FLAG_ZERO_FREE)) {
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
+		for (i = 0; i < gpuobj->size; i += 4)
 			nv_wo32(gpuobj, i, 0);
 		engine->instmem.flush(dev);
 	}
@@ -245,15 +244,11 @@ nouveau_gpuobj_del(struct nouveau_gpuobj *gpuobj)
 	if (gpuobj->dtor)
 		gpuobj->dtor(dev, gpuobj);
 
-	if (gpuobj->im_backing && !(gpuobj->flags & NVOBJ_FLAG_FAKE))
+	if (gpuobj->im_backing)
 		engine->instmem.clear(dev, gpuobj);
 
-	if (gpuobj->im_pramin) {
-		if (gpuobj->flags & NVOBJ_FLAG_FAKE)
-			kfree(gpuobj->im_pramin);
-		else
-			drm_mm_put_block(gpuobj->im_pramin);
-	}
+	if (gpuobj->im_pramin)
+		drm_mm_put_block(gpuobj->im_pramin);
 
 	list_del(&gpuobj->list);
 
@@ -274,56 +269,37 @@ nouveau_gpuobj_ref(struct nouveau_gpuobj *ref, struct nouveau_gpuobj **ptr)
 }
 
 int
-nouveau_gpuobj_new_fake(struct drm_device *dev, uint32_t p_offset,
-			uint32_t b_offset, uint32_t size,
-			uint32_t flags, struct nouveau_gpuobj **pgpuobj)
+nouveau_gpuobj_new_fake(struct drm_device *dev, u32 pinst, u64 vinst,
+			u32 size, u32 flags, struct nouveau_gpuobj **pgpuobj)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *gpuobj = NULL;
 	int i;
 
 	NV_DEBUG(dev,
-		 "p_offset=0x%08x b_offset=0x%08x size=0x%08x flags=0x%08x\n",
-		 p_offset, b_offset, size, flags);
+		 "pinst=0x%08x vinst=0x%010llx size=0x%08x flags=0x%08x\n",
+		 pinst, vinst, size, flags);
 
 	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
 	if (!gpuobj)
 		return -ENOMEM;
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
 	gpuobj->dev = dev;
-	gpuobj->flags      = flags | NVOBJ_FLAG_FAKE;
+	gpuobj->flags = flags;
 	gpuobj->refcount = 1;
-
-	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
-
-	if (p_offset != ~0) {
-		gpuobj->im_pramin = kzalloc(sizeof(struct drm_mm_node),
-					    GFP_KERNEL);
-		if (!gpuobj->im_pramin) {
-			nouveau_gpuobj_ref(NULL, &gpuobj);
-			return -ENOMEM;
-		}
-		gpuobj->im_pramin->start = p_offset;
-		gpuobj->im_pramin->size  = size;
-	}
-
-	if (b_offset != ~0) {
-		gpuobj->im_backing = (struct nouveau_bo *)-1;
-		gpuobj->im_backing_start = b_offset;
-	}
-
-	gpuobj->pinst = gpuobj->im_pramin->start;
+	gpuobj->size  = size;
+	gpuobj->pinst = pinst;
 	gpuobj->cinst = 0xdeadbeef;
-	gpuobj->vinst = gpuobj->im_backing_start;
+	gpuobj->vinst = vinst;
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
+		for (i = 0; i < gpuobj->size; i += 4)
 			nv_wo32(gpuobj, i, 0);
 		dev_priv->engine.instmem.flush(dev);
 	}
 
-	if (pgpuobj)
-		*pgpuobj = gpuobj;
+	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	*pgpuobj = gpuobj;
 	return 0;
 }
 
@@ -830,16 +806,16 @@ nouveau_gpuobj_suspend(struct drm_device *dev)
 	}
 
 	list_for_each_entry(gpuobj, &dev_priv->gpuobj_list, list) {
-		if (!gpuobj->im_backing || (gpuobj->flags & NVOBJ_FLAG_FAKE))
+		if (!gpuobj->im_backing)
 			continue;
 
-		gpuobj->im_backing_suspend = vmalloc(gpuobj->im_pramin->size);
+		gpuobj->im_backing_suspend = vmalloc(gpuobj->size);
 		if (!gpuobj->im_backing_suspend) {
 			nouveau_gpuobj_resume(dev);
 			return -ENOMEM;
 		}
 
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
+		for (i = 0; i < gpuobj->size; i += 4)
 			gpuobj->im_backing_suspend[i/4] = nv_ro32(gpuobj, i);
 	}
 
@@ -885,7 +861,7 @@ nouveau_gpuobj_resume(struct drm_device *dev)
 		if (!gpuobj->im_backing_suspend)
 			continue;
 
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
+		for (i = 0; i < gpuobj->size; i += 4)
 			nv_wo32(gpuobj, i, gpuobj->im_backing_suspend[i/4]);
 		dev_priv->engine.instmem.flush(dev);
 	}

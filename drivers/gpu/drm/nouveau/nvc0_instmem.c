@@ -50,8 +50,7 @@ nvc0_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
 		return ret;
 	}
 
-	gpuobj->im_backing_start = gpuobj->im_backing->bo.mem.mm_node->start;
-	gpuobj->im_backing_start <<= PAGE_SHIFT;
+	gpuobj->vinst = gpuobj->im_backing->bo.mem.mm_node->start << PAGE_SHIFT;
 	return 0;
 }
 
@@ -84,11 +83,11 @@ nvc0_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 
 	pte     = gpuobj->im_pramin->start >> 12;
 	pte_end = (gpuobj->im_pramin->size >> 12) + pte;
-	vram    = gpuobj->im_backing_start;
+	vram    = gpuobj->vinst;
 
 	NV_DEBUG(dev, "pramin=0x%lx, pte=%d, pte_end=%d\n",
 		 gpuobj->im_pramin->start, pte, pte_end);
-	NV_DEBUG(dev, "first vram page: 0x%08x\n", gpuobj->im_backing_start);
+	NV_DEBUG(dev, "first vram page: 0x%010llx\n", gpuobj->vinst);
 
 	while (pte < pte_end) {
 		nv_wr32(dev, 0x702000 + (pte * 8), (vram >> 8) | 1);

@@ -205,8 +205,7 @@ nv50_instmem_init(struct drm_device *dev)
 		/*XXX: double-check this is ok */
 		dev_priv->vm_vram_pt[i] = chan->vm_vram_pt[i];
 
-		for (v = 0; v < dev_priv->vm_vram_pt[i]->im_pramin->size;
-								v += 4)
+		for (v = 0; v < dev_priv->vm_vram_pt[i]->size; v += 4)
 			BAR0_WI32(dev_priv->vm_vram_pt[i], v, 0);
 
 		BAR0_WI32(chan->vm_pd, 0x10 + (i*8),
@@ -322,11 +321,11 @@ nv50_instmem_suspend(struct drm_device *dev)
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	int i;
 
-	ramin->im_backing_suspend = vmalloc(ramin->im_pramin->size);
+	ramin->im_backing_suspend = vmalloc(ramin->size);
 	if (!ramin->im_backing_suspend)
 		return -ENOMEM;
 
-	for (i = 0; i < ramin->im_pramin->size; i += 4)
+	for (i = 0; i < ramin->size; i += 4)
 		ramin->im_backing_suspend[i/4] = nv_ri32(dev, i);
 	return 0;
 }
@@ -340,8 +339,8 @@ nv50_instmem_resume(struct drm_device *dev)
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	int i;
 
-	nv_wr32(dev, NV50_PUNK_BAR0_PRAMIN, (ramin->im_backing_start >> 16));
-	for (i = 0; i < ramin->im_pramin->size; i += 4)
+	nv_wr32(dev, NV50_PUNK_BAR0_PRAMIN, (ramin->vinst >> 16));
+	for (i = 0; i < ramin->size; i += 4)
 		BAR0_WI32(ramin, i, ramin->im_backing_suspend[i/4]);
 	vfree(ramin->im_backing_suspend);
 	ramin->im_backing_suspend = NULL;
@@ -387,9 +386,7 @@ nv50_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
 		return ret;
 	}
 
-	gpuobj->im_backing_start = gpuobj->im_backing->bo.mem.mm_node->start;
-	gpuobj->im_backing_start <<= PAGE_SHIFT;
-
+	gpuobj->vinst = gpuobj->im_backing->bo.mem.mm_node->start << PAGE_SHIFT;
 	return 0;
 }
 
@@ -424,11 +421,11 @@ nv50_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 
 	pte     = (gpuobj->im_pramin->start >> 12) << 1;
 	pte_end = ((gpuobj->im_pramin->size >> 12) << 1) + pte;
-	vram    = gpuobj->im_backing_start;
+	vram    = gpuobj->vinst;
 
 	NV_DEBUG(dev, "pramin=0x%lx, pte=%d, pte_end=%d\n",
 		 gpuobj->im_pramin->start, pte, pte_end);
-	NV_DEBUG(dev, "first vram page: 0x%08x\n", gpuobj->im_backing_start);
+	NV_DEBUG(dev, "first vram page: 0x%010llx\n", gpuobj->vinst);
 
 	vram |= 1;
 	if (dev_priv->vram_sys_base) {

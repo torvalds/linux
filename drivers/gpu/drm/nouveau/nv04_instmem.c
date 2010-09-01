@@ -143,43 +143,26 @@ nv04_instmem_takedown(struct drm_device *dev)
 }
 
 int
-nv04_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj, uint32_t *sz)
+nv04_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
+		      uint32_t *sz)
 {
-	if (gpuobj->im_backing)
-		return -EINVAL;
-
 	return 0;
 }
 
 void
 nv04_instmem_clear(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (gpuobj && gpuobj->im_backing) {
-		if (gpuobj->im_bound)
-			dev_priv->engine.instmem.unbind(dev, gpuobj);
-		gpuobj->im_backing = NULL;
-	}
 }
 
 int
 nv04_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 {
-	if (!gpuobj->im_pramin || gpuobj->im_bound)
-		return -EINVAL;
-
-	gpuobj->im_bound = 1;
 	return 0;
 }
 
 int
 nv04_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 {
-	if (gpuobj->im_bound == 0)
-		return -EINVAL;
-
-	gpuobj->im_bound = 0;
 	return 0;
 }
 
