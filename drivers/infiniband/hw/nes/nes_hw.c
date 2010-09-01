@@ -3469,7 +3469,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 
 			if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
 				if ((tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) &&
-					(nesqp->ibqp_state == IB_QPS_RTS)) {
+					(nesqp->ibqp_state == IB_QPS_RTS) &&
+					((nesadapter->eeprom_version >> 16) != NES_A0)) {
 					spin_lock_irqsave(&nesqp->lock, flags);
 					nesqp->hw_iwarp_state = iwarp_state;
 					nesqp->hw_tcp_state = tcp_state;
