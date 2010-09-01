@@ -1070,11 +1070,11 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (rdev->family >= CHIP_RV770) {
 		if (radeon_crtc->crtc_id) {
-			WREG32(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
-			WREG32(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+			WREG32(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
+			WREG32(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
 		} else {
-			WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0);
-			WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0);
+			WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
+			WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, upper_32_bits(fb_location));
 		}
 	}
 	WREG32(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
