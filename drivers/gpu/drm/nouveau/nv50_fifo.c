@@ -228,19 +228,19 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
 	if (dev_priv->chipset == 0x50) {
-		uint32_t ramin_poffset = chan->ramin->gpuobj->im_pramin->start;
-		uint32_t ramin_voffset = chan->ramin->gpuobj->im_backing_start;
-
-		ret = nouveau_gpuobj_new_fake(dev, ramin_poffset, ramin_voffset,
-					      0x100, NVOBJ_FLAG_ZERO_ALLOC |
+		ret = nouveau_gpuobj_new_fake(dev, chan->ramin->gpuobj->pinst,
+					      chan->ramin->gpuobj->vinst, 0x100,
+					      NVOBJ_FLAG_ZERO_ALLOC |
 					      NVOBJ_FLAG_ZERO_FREE, &ramfc,
 					      &chan->ramfc);
 		if (ret)
 			return ret;
 
-		ret = nouveau_gpuobj_new_fake(dev, ramin_poffset + 0x0400,
-					      ramin_voffset + 0x0400, 4096,
-					      0, NULL, &chan->cache);
+		ret = nouveau_gpuobj_new_fake(dev, chan->ramin->gpuobj->pinst +
+					      0x0400,
+					      chan->ramin->gpuobj->vinst +
+					      0x0400, 4096, 0, NULL,
+					      &chan->cache);
 		if (ret)
 			return ret;
 	} else {

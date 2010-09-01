@@ -151,6 +151,10 @@ struct nouveau_gpuobj {
 	uint32_t flags;
 	int refcount;
 
+	u32 pinst;
+	u32 cinst;
+	u64 vinst;
+
 	uint32_t engine;
 	uint32_t class;
 
