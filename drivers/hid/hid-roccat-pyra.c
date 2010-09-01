@@ -902,7 +902,11 @@ static void pyra_report_to_chrdev(struct pyra_device const *pyra,
 		if (button_event->data2 == PYRA_MOUSE_EVENT_BUTTON_PRESS) {
 			roccat_report.type = button_event->type;
 			roccat_report.key = button_event->data1;
-			roccat_report.value = pyra->actual_profile;
+			/*
+			 * pyra reports profile numbers with range 1-5.
+			 * Keeping this behaviour.
+			 */
+			roccat_report.value = pyra->actual_profile + 1;
 			roccat_report_event(pyra->chrdev_minor,
 					(uint8_t const *)&roccat_report,
 					sizeof(struct pyra_roccat_report));
