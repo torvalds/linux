@@ -390,6 +390,18 @@ config BMP085
 	  To compile this driver as a module, choose M here: the
 	  module will be called bmp085.
 
+config PCH_PHUB
+	tristate "PCH Packet Hub of Intel Topcliff"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
+	  Intel Topcliff which is an IOH(Input/Output Hub) for x86 embedded
+	  processor. The Topcliff has MAC address and Option ROM data in SROM.
+	  This driver can access MAC address and Option ROM data in SROM.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pch_phub.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
