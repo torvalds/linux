@@ -187,6 +187,9 @@ struct port {
 	struct cdev *cdev;
 	struct device *dev;
 
+	/* Reference-counting to handle port hot-unplugs and file operations */
+	struct kref kref;
+
 	/* A waitqueue for poll() or blocking read operations */
 	wait_queue_head_t waitqueue;
 
@@ -725,6 +728,8 @@ static unsigned int port_fops_poll(struct file *filp, poll_table *wait)
 	return ret;
 }
 
+static void remove_port(struct kref *kref);
+
 static int port_fops_release(struct inode *inode, struct file *filp)
 {
 	struct port *port;
@@ -745,6 +750,16 @@ static int port_fops_release(struct inode *inode, struct file *filp)
 	reclaim_consumed_buffers(port);
 	spin_unlock_irq(&port->outvq_lock);
 
+	/*
+	 * Locks aren't necessary here as a port can't be opened after
+	 * unplug, and if a port isn't unplugged, a kref would already
+	 * exist for the port.  Plus, taking ports_lock here would
+	 * create a dependency on other locks taken by functions
+	 * inside remove_port if we're the last holder of the port,
+	 * creating many problems.
+	 */
+	kref_put(&port->kref, remove_port);
+
 	return 0;
 }
 
@@ -756,6 +771,11 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 
 	port = find_port_by_devt(cdev->dev);
 	filp->private_data = port;
+
+	/* Prevent against a port getting hot-unplugged at the same time */
+	spin_lock_irq(&port->portdev->ports_lock);
+	kref_get(&port->kref);
+	spin_unlock_irq(&port->portdev->ports_lock);
 
 	/*
 	 * Don't allow opening of console port devices -- that's done
@@ -791,6 +811,7 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 
 	return 0;
 out:
+	kref_put(&port->kref, remove_port);
 	return ret;
 }
 
@@ -1079,6 +1100,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 		err = -ENOMEM;
 		goto fail;
 	}
+	kref_init(&port->kref);
 
 	port->portdev = portdev;
 	port->id = id;
@@ -1183,21 +1205,42 @@ fail:
 	return err;
 }
 
-/* Remove all port-specific data. */
-static void remove_port(struct port *port)
+/* No users remain, remove all port-specific data. */
+static void remove_port(struct kref *kref)
+{
+	struct port *port;
+
+	port = container_of(kref, struct port, kref);
+
+	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
+	device_destroy(pdrvdata.class, port->dev->devt);
+	cdev_del(port->cdev);
+
+	kfree(port->name);
+
+	debugfs_remove(port->debugfs_file);
+
+	kfree(port);
+}
+
+/*
+ * Port got unplugged.  Remove port from portdev's list and drop the
+ * kref reference.  If no userspace has this port opened, it will
+ * result in immediate removal the port.
+ */
+static void unplug_port(struct port *port)
 {
 	struct port_buffer *buf;
+
+	spin_lock_irq(&port->portdev->ports_lock);
+	list_del(&port->list);
+	spin_unlock_irq(&port->portdev->ports_lock);
 
 	if (port->guest_connected) {
 		port->guest_connected = false;
 		port->host_connected = false;
 		wake_up_interruptible(&port->waitqueue);
-		send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
 	}
-
-	spin_lock_irq(&port->portdev->ports_lock);
-	list_del(&port->list);
-	spin_unlock_irq(&port->portdev->ports_lock);
 
 	if (is_console_port(port)) {
 		spin_lock_irq(&pdrvdata_lock);
@@ -1216,9 +1259,6 @@ static void remove_port(struct port *port)
 		hvc_remove(port->cons.hvc);
 #endif
 	}
-	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
-	device_destroy(pdrvdata.class, port->dev->devt);
-	cdev_del(port->cdev);
 
 	/* Remove unused data this port might have received. */
 	discard_port_data(port);
@@ -1229,11 +1269,19 @@ static void remove_port(struct port *port)
 	while ((buf = virtqueue_detach_unused_buf(port->in_vq)))
 		free_buf(buf);
 
-	kfree(port->name);
+	/*
+	 * We should just assume the device itself has gone off --
+	 * else a close on an open port later will try to send out a
+	 * control message.
+	 */
+	port->portdev = NULL;
 
-	debugfs_remove(port->debugfs_file);
-
-	kfree(port);
+	/*
+	 * Locks around here are not necessary - a port can't be
+	 * opened after we removed the port struct from ports_list
+	 * above.
+	 */
+	kref_put(&port->kref, remove_port);
 }
 
 /* Any private messages that the Host and Guest want to share */
@@ -1272,7 +1320,7 @@ static void handle_control_message(struct ports_device *portdev,
 		add_port(portdev, cpkt->id);
 		break;
 	case VIRTIO_CONSOLE_PORT_REMOVE:
-		remove_port(port);
+		unplug_port(port);
 		break;
 	case VIRTIO_CONSOLE_CONSOLE_PORT:
 		if (!cpkt->value)
@@ -1686,7 +1734,7 @@ static void virtcons_remove(struct virtio_device *vdev)
 	cancel_work_sync(&portdev->control_work);
 
 	list_for_each_entry_safe(port, port2, &portdev->ports, list)
-		remove_port(port);
+		unplug_port(port);
 
 	unregister_chrdev(portdev->chr_major, "virtio-portsdev");
 
