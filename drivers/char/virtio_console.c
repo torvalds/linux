@@ -626,6 +626,9 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 		if (ret < 0)
 			return ret;
 	}
+	/* Port got hot-unplugged. */
+	if (!port->guest_connected)
+		return -ENODEV;
 
 	count = min((size_t)(32 * 1024), count);
 
