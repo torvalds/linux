@@ -254,7 +254,6 @@ static void ep0_reset(struct langwell_udc *dev)
 	}
 
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
@@ -1502,7 +1501,6 @@ static void langwell_udc_start(struct langwell_udc *dev)
 	writel(usbcmd, &dev->op_regs->usbcmd);
 
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
@@ -1525,7 +1523,6 @@ static void langwell_udc_stop(struct langwell_udc *dev)
 	writel(usbcmd, &dev->op_regs->usbcmd);
 
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
@@ -2417,7 +2414,6 @@ delegate:
 	}
 end:
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
@@ -2633,7 +2629,6 @@ static void handle_trans_complete(struct langwell_udc *dev)
 	}
 done:
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-	return;
 }
 
 
