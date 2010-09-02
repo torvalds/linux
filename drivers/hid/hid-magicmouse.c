@@ -98,7 +98,6 @@ struct magicmouse_sc {
 		short scroll_x;
 		short scroll_y;
 		u8 size;
-		u8 down;
 	} touches[16];
 	int tracking_ids[16];
 };
@@ -226,8 +225,6 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 	if (report_touches && down) {
 		int orientation = (misc >> 10) - 32;
 
-		msc->touches[id].down = 1;
-
 		input_report_abs(input, ABS_MT_TRACKING_ID, id);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, tdata[3]);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, tdata[4]);
@@ -240,6 +237,9 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 
 		input_mt_sync(input);
 	}
+
+	if (down)
+		msc->ntouches++;
 }
 
 static int magicmouse_raw_event(struct hid_device *hdev,
@@ -247,7 +247,7 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 {
 	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
 	struct input_dev *input = msc->input;
-	int x, y, ts, ii, clicks, last_up;
+	int x, y, ts, ii, clicks, npoints;
 
 	switch (data[0]) {
 	case 0x10:
@@ -264,22 +264,13 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		ts = data[3] >> 6 | data[4] << 2 | data[5] << 10;
 		msc->delta_time = (ts - msc->last_timestamp) & 0x3ffff;
 		msc->last_timestamp = ts;
-		msc->ntouches = (size - 6) / 8;
-		for (ii = 0; ii < msc->ntouches; ii++)
+		npoints = (size - 6) / 8;
+		msc->ntouches = 0;
+		for (ii = 0; ii < npoints; ii++)
 			magicmouse_emit_touch(msc, ii, data + ii * 8 + 6);
 
-		if (report_touches) {
-			last_up = 1;
-			for (ii = 0; ii < ARRAY_SIZE(msc->touches); ii++) {
-				if (msc->touches[ii].down) {
-					last_up = 0;
-					msc->touches[ii].down = 0;
-				}
-			}
-			if (last_up) {
-				input_mt_sync(input);
-			}
-		}
+		if (report_touches && msc->ntouches == 0)
+			input_mt_sync(input);
 
 		/* When emulating three-button mode, it is important
 		 * to have the current touch information before
