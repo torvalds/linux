@@ -312,6 +312,9 @@ static inline void buffer_filled(struct au0828_dev *dev,
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
+
+	/* Reset the timer for "no video condition" */
+	mod_timer(&dev->vid_timeout, jiffies + (HZ / 10));
 }
 
 static inline void vbi_buffer_filled(struct au0828_dev *dev,
@@ -329,6 +332,9 @@ static inline void vbi_buffer_filled(struct au0828_dev *dev,
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
+
+	/* Reset the timer for "no video condition" */
+	mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
 }
 
 /*
@@ -907,6 +913,50 @@ static int get_ressource(struct au0828_fh *fh)
 	}
 }
 
+/* This function ensures that video frames continue to be delivered even if
+   the ITU-656 input isn't receiving any data (thereby preventing applications
+   such as tvtime from hanging) */
+void au0828_vid_buffer_timeout(unsigned long data)
+{
+	struct au0828_dev *dev = (struct au0828_dev *) data;
+	struct au0828_dmaqueue *dma_q = &dev->vidq;
+	struct au0828_buffer *buf;
+	unsigned char *vid_data;
+
+	spin_lock(&dev->slock);
+
+	buf = dev->isoc_ctl.buf;
+	if (buf != NULL) {
+		vid_data = videobuf_to_vmalloc(&buf->vb);
+		memset(vid_data, 0x00, buf->vb.size); /* Blank green frame */
+		buffer_filled(dev, dma_q, buf);
+		get_next_buf(dma_q, &buf);
+	}
+
+	spin_unlock(&dev->slock);
+}
+
+void au0828_vbi_buffer_timeout(unsigned long data)
+{
+	struct au0828_dev *dev = (struct au0828_dev *) data;
+	struct au0828_dmaqueue *dma_q = &dev->vbiq;
+	struct au0828_buffer *buf;
+	unsigned char *vbi_data;
+
+	spin_lock(&dev->slock);
+
+	buf = dev->isoc_ctl.vbi_buf;
+	if (buf != NULL) {
+		vbi_data = videobuf_to_vmalloc(&buf->vb);
+		memset(vbi_data, 0x00, buf->vb.size);
+		vbi_buffer_filled(dev, dma_q, buf);
+		vbi_get_next_buf(dma_q, &buf);
+	}
+
+	spin_unlock(&dev->slock);
+}
+
+
 static int au0828_v4l2_open(struct file *filp)
 {
 	int ret = 0;
@@ -976,6 +1026,15 @@ static int au0828_v4l2_open(struct file *filp)
 				    V4L2_FIELD_SEQ_TB,
 				    sizeof(struct au0828_buffer), fh, NULL);
 
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		dev->vid_timeout.function = au0828_vid_buffer_timeout;
+		dev->vid_timeout.data = (unsigned long) dev;
+		init_timer(&dev->vid_timeout);
+	} else {
+		dev->vbi_timeout.function = au0828_vbi_buffer_timeout;
+		dev->vbi_timeout.data = (unsigned long) dev;
+		init_timer(&dev->vbi_timeout);
+	}
 
 	return ret;
 }
@@ -987,11 +1046,13 @@ static int au0828_v4l2_close(struct file *filp)
 	struct au0828_dev *dev = fh->dev;
 
 	if (res_check(fh, AU0828_RESOURCE_VIDEO)) {
+		del_timer(&dev->vid_timeout);
 		videobuf_stop(&fh->vb_vidq);
 		res_free(fh, AU0828_RESOURCE_VIDEO);
 	}
 
 	if (res_check(fh, AU0828_RESOURCE_VBI)) {
+		del_timer(&dev->vbi_timeout);
 		videobuf_stop(&fh->vb_vbiq);
 		res_free(fh, AU0828_RESOURCE_VBI);
 	}

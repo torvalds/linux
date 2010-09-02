@@ -204,6 +204,8 @@ struct au0828_dev {
 	unsigned int resources;	/* resources in use */
 	struct video_device *vdev;
 	struct video_device *vbi_dev;
+	struct timer_list vid_timeout;
+	struct timer_list vbi_timeout;
 	int width;
 	int height;
 	int vbi_width;
