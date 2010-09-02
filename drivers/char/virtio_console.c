@@ -528,6 +528,10 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 /* The condition that must be true for polling to end */
 static bool will_read_block(struct port *port)
 {
+	if (!port->guest_connected) {
+		/* Port got hot-unplugged. Let's exit. */
+		return false;
+	}
 	return !port_has_data(port) && port->host_connected;
 }
 
