@@ -750,14 +750,18 @@ ptregs_##name: \
 #define PTREGSCALL3(name) \
 	ALIGN; \
 ptregs_##name: \
+	CFI_STARTPROC; \
 	leal 4(%esp),%eax; \
-	pushl %eax; \
+	pushl_cfi %eax; \
 	movl PT_EDX(%eax),%ecx; \
 	movl PT_ECX(%eax),%edx; \
 	movl PT_EBX(%eax),%eax; \
 	call sys_##name; \
 	addl $4,%esp; \
-	ret
+	CFI_ADJUST_CFA_OFFSET -4; \
+	ret; \
+	CFI_ENDPROC; \
+ENDPROC(ptregs_##name)
 
 PTREGSCALL1(iopl)
 PTREGSCALL0(fork)
@@ -772,15 +776,19 @@ PTREGSCALL1(vm86old)
 /* Clone is an oddball.  The 4th arg is in %edi */
 	ALIGN;
 ptregs_clone:
+	CFI_STARTPROC
 	leal 4(%esp),%eax
-	pushl %eax
-	pushl PT_EDI(%eax)
+	pushl_cfi %eax
+	pushl_cfi PT_EDI(%eax)
 	movl PT_EDX(%eax),%ecx
 	movl PT_ECX(%eax),%edx
 	movl PT_EBX(%eax),%eax
 	call sys_clone
 	addl $8,%esp
+	CFI_ADJUST_CFA_OFFSET -8
 	ret
+	CFI_ENDPROC
+ENDPROC(ptregs_clone)
 
 .macro FIXUP_ESPFIX_STACK
 /*
