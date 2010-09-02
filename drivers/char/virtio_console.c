@@ -663,6 +663,10 @@ static unsigned int port_fops_poll(struct file *filp, poll_table *wait)
 	port = filp->private_data;
 	poll_wait(filp, &port->waitqueue, wait);
 
+	if (!port->guest_connected) {
+		/* Port got unplugged */
+		return POLLHUP;
+	}
 	ret = 0;
 	if (!will_read_block(port))
 		ret |= POLLIN | POLLRDNORM;
