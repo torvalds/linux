@@ -766,7 +766,7 @@ irqreturn_t z8530_interrupt(int irq, void *dev_id)
 
 EXPORT_SYMBOL(z8530_interrupt);
 
-static char reg_init[16]=
+static const u8 reg_init[16]=
 {
 	0,0,0,0,
 	0,0,0,0,
@@ -1206,7 +1206,7 @@ EXPORT_SYMBOL(z8530_sync_txdma_close);
  *	it exists...
  */
  
-static char *z8530_type_name[]={
+static const char *z8530_type_name[]={
 	"Z8530",
 	"Z85C30",
 	"Z85230"
