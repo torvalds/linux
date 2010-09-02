@@ -34,7 +34,7 @@
 #define BNAD_NUM_TXQ_COUNTERS 5
 
 #define BNAD_ETHTOOL_STATS_NUM						\
-	(sizeof(struct net_device_stats) / sizeof(unsigned long) +	\
+	(sizeof(struct rtnl_link_stats64) / sizeof(u64) +	\
 	sizeof(struct bnad_drv_stats) / sizeof(u64) +		\
 	offsetof(struct bfi_ll_stats, rxf_stats[0]) / sizeof(u64))
 
@@ -1159,7 +1159,8 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	int i, j, bi;
-	unsigned long *net_stats, flags;
+	unsigned long flags;
+	struct rtnl_link_stats64 *net_stats64;
 	u64 *stats64;
 	u64 bmap;
 
@@ -1176,16 +1177,12 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bi = 0;
 	memset(buf, 0, stats->n_stats * sizeof(u64));
-	memset(&bnad->net_stats, 0, sizeof(struct net_device_stats));
 
-	bnad_netdev_qstats_fill(bnad);
-	bnad_netdev_hwstats_fill(bnad);
+	net_stats64 = (struct rtnl_link_stats64 *)buf;
+	bnad_netdev_qstats_fill(bnad, net_stats64);
+	bnad_netdev_hwstats_fill(bnad, net_stats64);
 
-	/* Fill net_stats into ethtool buffers */
-	net_stats = (unsigned long *)&bnad->net_stats;
-	for (i = 0; i < sizeof(struct net_device_stats) / sizeof(unsigned long);
-	     i++)
-		buf[bi++] = net_stats[i];
+	bi = sizeof(*net_stats64) / sizeof(u64);
 
 	/* Fill driver stats into ethtool buffers */
 	stats64 = (u64 *)&bnad->stats.drv_stats;

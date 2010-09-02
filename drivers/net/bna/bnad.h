@@ -273,7 +273,6 @@ struct bnad {
 
 	/* Statistics */
 	struct bnad_stats stats;
-	struct net_device_stats net_stats;
 
 	struct bnad_diag *diag;
 
@@ -308,8 +307,8 @@ extern void bnad_cleanup_rx(struct bnad *bnad, uint rx_id);
 extern void bnad_dim_timer_start(struct bnad *bnad);
 
 /* Statistics */
-extern void bnad_netdev_qstats_fill(struct bnad *bnad);
-extern void bnad_netdev_hwstats_fill(struct bnad *bnad);
+extern void bnad_netdev_qstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats);
+extern void bnad_netdev_hwstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats);
 
 /**
  * MACROS

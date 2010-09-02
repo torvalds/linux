@@ -1964,25 +1964,24 @@ bnad_enable_default_bcast(struct bnad *bnad)
 
 /* Statistics utilities */
 void
-bnad_netdev_qstats_fill(struct bnad *bnad)
+bnad_netdev_qstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats)
 {
-	struct net_device_stats *net_stats = &bnad->net_stats;
 	int i, j;
 
 	for (i = 0; i < bnad->num_rx; i++) {
 		for (j = 0; j < bnad->num_rxp_per_rx; j++) {
 			if (bnad->rx_info[i].rx_ctrl[j].ccb) {
-				net_stats->rx_packets += bnad->rx_info[i].
+				stats->rx_packets += bnad->rx_info[i].
 				rx_ctrl[j].ccb->rcb[0]->rxq->rx_packets;
-				net_stats->rx_bytes += bnad->rx_info[i].
+				stats->rx_bytes += bnad->rx_info[i].
 					rx_ctrl[j].ccb->rcb[0]->rxq->rx_bytes;
 				if (bnad->rx_info[i].rx_ctrl[j].ccb->rcb[1] &&
 					bnad->rx_info[i].rx_ctrl[j].ccb->
 					rcb[1]->rxq) {
-					net_stats->rx_packets +=
+					stats->rx_packets +=
 						bnad->rx_info[i].rx_ctrl[j].
 						ccb->rcb[1]->rxq->rx_packets;
-					net_stats->rx_bytes +=
+					stats->rx_bytes +=
 						bnad->rx_info[i].rx_ctrl[j].
 						ccb->rcb[1]->rxq->rx_bytes;
 				}
@@ -1992,9 +1991,9 @@ bnad_netdev_qstats_fill(struct bnad *bnad)
 	for (i = 0; i < bnad->num_tx; i++) {
 		for (j = 0; j < bnad->num_txq_per_tx; j++) {
 			if (bnad->tx_info[i].tcb[j]) {
-				net_stats->tx_packets +=
+				stats->tx_packets +=
 				bnad->tx_info[i].tcb[j]->txq->tx_packets;
-				net_stats->tx_bytes +=
+				stats->tx_bytes +=
 					bnad->tx_info[i].tcb[j]->txq->tx_bytes;
 			}
 		}
@@ -2005,37 +2004,36 @@ bnad_netdev_qstats_fill(struct bnad *bnad)
  * Must be called with the bna_lock held.
  */
 void
-bnad_netdev_hwstats_fill(struct bnad *bnad)
+bnad_netdev_hwstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats)
 {
 	struct bfi_ll_stats_mac *mac_stats;
-	struct net_device_stats *net_stats = &bnad->net_stats;
 	u64 bmap;
 	int i;
 
 	mac_stats = &bnad->stats.bna_stats->hw_stats->mac_stats;
-	net_stats->rx_errors =
+	stats->rx_errors =
 		mac_stats->rx_fcs_error + mac_stats->rx_alignment_error +
 		mac_stats->rx_frame_length_error + mac_stats->rx_code_error +
 		mac_stats->rx_undersize;
-	net_stats->tx_errors = mac_stats->tx_fcs_error +
+	stats->tx_errors = mac_stats->tx_fcs_error +
 					mac_stats->tx_undersize;
-	net_stats->rx_dropped = mac_stats->rx_drop;
-	net_stats->tx_dropped = mac_stats->tx_drop;
-	net_stats->multicast = mac_stats->rx_multicast;
-	net_stats->collisions = mac_stats->tx_total_collision;
+	stats->rx_dropped = mac_stats->rx_drop;
+	stats->tx_dropped = mac_stats->tx_drop;
+	stats->multicast = mac_stats->rx_multicast;
+	stats->collisions = mac_stats->tx_total_collision;
 
-	net_stats->rx_length_errors = mac_stats->rx_frame_length_error;
+	stats->rx_length_errors = mac_stats->rx_frame_length_error;
 
 	/* receive ring buffer overflow  ?? */
 
-	net_stats->rx_crc_errors = mac_stats->rx_fcs_error;
-	net_stats->rx_frame_errors = mac_stats->rx_alignment_error;
+	stats->rx_crc_errors = mac_stats->rx_fcs_error;
+	stats->rx_frame_errors = mac_stats->rx_alignment_error;
 	/* recv'r fifo overrun */
 	bmap = (u64)bnad->stats.bna_stats->rxf_bmap[0] |
 		((u64)bnad->stats.bna_stats->rxf_bmap[1] << 32);
 	for (i = 0; bmap && (i < BFI_LL_RXF_ID_MAX); i++) {
 		if (bmap & 1) {
-			net_stats->rx_fifo_errors =
+			stats->rx_fifo_errors +=
 				bnad->stats.bna_stats->
 					hw_stats->rxf_stats[i].frame_drops;
 			break;
@@ -2638,22 +2636,20 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
  * Used spin_lock to synchronize reading of stats structures, which
  * is written by BNA under the same lock.
  */
-static struct net_device_stats *
-bnad_get_netdev_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *
+bnad_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 
-	memset(&bnad->net_stats, 0, sizeof(struct net_device_stats));
-
-	bnad_netdev_qstats_fill(bnad);
-	bnad_netdev_hwstats_fill(bnad);
+	bnad_netdev_qstats_fill(bnad, stats);
+	bnad_netdev_hwstats_fill(bnad, stats);
 
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
-	return &bnad->net_stats;
+	return stats;
 }
 
 static void
@@ -2858,7 +2854,7 @@ static const struct net_device_ops bnad_netdev_ops = {
 	.ndo_open		= bnad_open,
 	.ndo_stop		= bnad_stop,
 	.ndo_start_xmit		= bnad_start_xmit,
-	.ndo_get_stats		= bnad_get_netdev_stats,
+	.ndo_get_stats64		= bnad_get_stats64,
 	.ndo_set_rx_mode	= bnad_set_rx_mode,
 	.ndo_set_multicast_list = bnad_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
