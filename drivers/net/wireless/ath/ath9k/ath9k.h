@@ -481,6 +481,60 @@ struct ath_led {
 void ath_init_leds(struct ath_softc *sc);
 void ath_deinit_leds(struct ath_softc *sc);
 
+/* Antenna diversity/combining */
+#define ATH_ANT_RX_CURRENT_SHIFT 4
+#define ATH_ANT_RX_MAIN_SHIFT 2
+#define ATH_ANT_RX_MASK 0x3
+
+#define ATH_ANT_DIV_COMB_SHORT_SCAN_INTR 50
+#define ATH_ANT_DIV_COMB_SHORT_SCAN_PKTCOUNT 0x100
+#define ATH_ANT_DIV_COMB_MAX_PKTCOUNT 0x200
+#define ATH_ANT_DIV_COMB_INIT_COUNT 95
+#define ATH_ANT_DIV_COMB_MAX_COUNT 100
+#define ATH_ANT_DIV_COMB_ALT_ANT_RATIO 30
+#define ATH_ANT_DIV_COMB_ALT_ANT_RATIO2 20
+
+#define ATH_ANT_DIV_COMB_LNA1_LNA2_DELTA -3
+#define ATH_ANT_DIV_COMB_LNA1_LNA2_SWITCH_DELTA -1
+#define ATH_ANT_DIV_COMB_LNA1_DELTA_HI -4
+#define ATH_ANT_DIV_COMB_LNA1_DELTA_MID -2
+#define ATH_ANT_DIV_COMB_LNA1_DELTA_LOW 2
+
+enum ath9k_ant_div_comb_lna_conf {
+	ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2,
+	ATH_ANT_DIV_COMB_LNA2,
+	ATH_ANT_DIV_COMB_LNA1,
+	ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2,
+};
+
+struct ath_ant_comb {
+	u16 count;
+	u16 total_pkt_count;
+	bool scan;
+	bool scan_not_start;
+	int main_total_rssi;
+	int alt_total_rssi;
+	int alt_recv_cnt;
+	int main_recv_cnt;
+	int rssi_lna1;
+	int rssi_lna2;
+	int rssi_add;
+	int rssi_sub;
+	int rssi_first;
+	int rssi_second;
+	int rssi_third;
+	bool alt_good;
+	int quick_scan_cnt;
+	int main_conf;
+	enum ath9k_ant_div_comb_lna_conf first_quick_scan_conf;
+	enum ath9k_ant_div_comb_lna_conf second_quick_scan_conf;
+	int first_bias;
+	int second_bias;
+	bool first_ratio;
+	bool second_ratio;
+	unsigned long scan_start_time;
+};
+
 /********************/
 /* Main driver core */
 /********************/
@@ -597,6 +651,8 @@ struct ath_softc {
 	struct ath_btcoex btcoex;
 
 	struct ath_descdma txsdma;
+
+	struct ath_ant_comb ant_comb;
 };
 
 struct ath_wiphy {
