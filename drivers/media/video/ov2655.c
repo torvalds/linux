@@ -731,6 +731,46 @@ static  struct reginfo ov2655_qvga[] =
 
     {0x0, 0x0},
 };
+
+/* 176X144 QCIF*/
+static struct reginfo ov2655_qcif[] =
+{
+	{0x300E, 0x34},
+    {0x3011, 0x01},
+    {0x3012, 0x10},
+    {0x302a, 0x02},
+    {0x302b, 0xE6},
+    {0x306f, 0x14},
+    {0x3362, 0x90},
+    {0x3070, 0x5d},
+    {0x3072, 0x5d},
+    {0x301c, 0x07},
+    {0x301d, 0x07},
+    {0x3020, 0x01},
+    {0x3021, 0x18},
+    {0x3022, 0x00},
+    {0x3023, 0x06},
+    {0x3024, 0x06},
+    {0x3025, 0x58},
+    {0x3026, 0x02},
+    {0x3027, 0x61},
+    {0x3088, 0x00},
+    {0x3089, 0xb8},
+    {0x308a, 0x00},
+    {0x308b, 0x90},
+    {0x3316, 0x64},
+    {0x3317, 0x25},
+    {0x3318, 0x80},
+    {0x3319, 0x08},
+    {0x331a, 0x16},
+    {0x331b, 0x12},
+    {0x331c, 0x08},
+    {0x331d, 0x38},
+    {0x3100, 0x00},
+    {0x3302, 0x11},
+
+    {0x0, 0x0},
+};
 #if 0
 /* 160X120 QQVGA*/
 static struct reginfo ov2655_qqvga[] =
@@ -819,17 +859,22 @@ static  struct reginfo ov2655_Sharpness5[] =
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
 
-#define OV2655_MIN_WIDTH    320
-#define OV2655_MIN_HEIGHT   240
+#define OV2655_MIN_WIDTH    176
+#define OV2655_MIN_HEIGHT   144
 #define OV2655_MAX_WIDTH    1600
 #define OV2655_MAX_HEIGHT   1200
 
 #define CONFIG_OV2655_TR      1
-
+#define CONFIG_OV2655_DEBUG	  0
 #if (CONFIG_OV2655_TR)
-#define OV2655_TR(format, ...)      printk(format, ## __VA_ARGS__)
+	#define OV2655_TR(format, ...)      printk(format, ## __VA_ARGS__)
+	#if (CONFIG_OV2655_DEBUG)
+	#define OV2655_DG(format, ...)      printk(format, ## __VA_ARGS__)
+	#else
+	#define OV2655_DG(format, ...)
+	#endif
 #else
-#define OV2655_TR(format, ...)
+	#define OV2655_TR(format, ...)
 #endif
 
 #define COL_FMT(_name, _depth, _fourcc, _colorspace) \
@@ -1104,7 +1149,7 @@ static int ov2655_init(struct v4l2_subdev *sd, u32 val)
     struct ov2655 *ov2655 = to_ov2655(client);
     int ret;
 
-    OV2655_TR("\n%s..%d..  *** ddl ***\n",__FUNCTION__,__LINE__);
+    OV2655_DG("\n%s..%d..  *** ddl ***\n",__FUNCTION__,__LINE__);
 
     /* soft reset */
     ret = ov2655_write(client, 0x3012, 0x80);
@@ -1146,7 +1191,7 @@ static int ov2655_init(struct v4l2_subdev *sd, u32 val)
     ov2655->info_priv.flash = ov2655_controls[13].default_value;
 
     
-    OV2655_TR("\n%s..%d..  *** ddl *** icd->width = %d.. icd->height %d\n",__FUNCTION__,__LINE__,icd->user_width,icd->user_height);
+    OV2655_DG("\n%s..%d..  *** ddl *** icd->width = %d.. icd->height %d\n",__FUNCTION__,__LINE__,icd->user_width,icd->user_height);
     
     return 0;
 OV2655_INIT_ERR:
@@ -1170,7 +1215,7 @@ static int ov2655_suspend(struct soc_camera_device *icd, pm_message_t pm_msg)
 
     if (pm_msg.event == PM_EVENT_SUSPEND)
     {
-        OV2655_TR("\n ov2655 Enter Suspend. %x   ******** ddl *********\n", __LINE__);
+        OV2655_DG("\n ov2655 Enter Suspend. %x   ******** ddl *********\n", __LINE__);
         ret = ov2655_write_array(client, ov2655_power_down_sequence) ;
         if (ret != 0)
         {
@@ -1254,7 +1299,13 @@ static int ov2655_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     set_w = pix->width;            
     set_h = pix->height;
     
-    if ((set_w <= 320) && (set_h <= 240))
+	if ((set_w <= 176) && (set_h <= 144))
+	{
+		winseqe_set_addr = ov2655_qcif;
+        set_w = 176;
+        set_h = 144;
+	}
+	else if ((set_w <= 320) && (set_h <= 240))
     {
         winseqe_set_addr = ov2655_qvga;
         set_w = 320;
@@ -1309,7 +1360,7 @@ static int ov2655_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         ov2655->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
         mdelay(250);
 
-        OV2655_TR("\n%s..%d *** ddl *** icd->width = %d.. icd->height %d\n",__FUNCTION__,__LINE__,set_w,set_h);
+        OV2655_DG("\n%s..%d *** ddl *** icd->width = %d.. icd->height %d\n",__FUNCTION__,__LINE__,set_w,set_h);
     }
     else
     {
@@ -1882,7 +1933,7 @@ static int ov2655_set_brightness(struct soc_camera_device *icd, const struct v4l
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Brightness - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Brightness - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -1901,7 +1952,7 @@ static int ov2655_set_effect(struct soc_camera_device *icd, const struct v4l2_qu
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set effect - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set effect - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -1920,7 +1971,7 @@ static int ov2655_set_exposure(struct soc_camera_device *icd, const struct v4l2_
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Exposurce - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Exposurce - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -1940,7 +1991,7 @@ static int ov2655_set_saturation(struct soc_camera_device *icd, const struct v4l
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Saturation - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Saturation - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -1961,7 +2012,7 @@ static int ov2655_set_contrast(struct soc_camera_device *icd, const struct v4l2_
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Contrast - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Contrast - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -1982,7 +2033,7 @@ static int ov2655_set_mirror(struct soc_camera_device *icd, const struct v4l2_qu
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Mirror - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Mirror - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -2004,7 +2055,7 @@ static int ov2655_set_flip(struct soc_camera_device *icd, const struct v4l2_quer
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Flip - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Flip - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -2025,7 +2076,7 @@ static int ov2655_set_scene(struct soc_camera_device *icd, const struct v4l2_que
                 OV2655_TR("\n OV2655 WriteReg Fail.. %x   ******** ddl *********\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("\n OV2655 Set Scene - %x   ******** ddl *********\n", value);
+            OV2655_DG("\n OV2655 Set Scene - %x   ******** ddl *********\n", value);
             return 0;
         }
     }
@@ -2046,7 +2097,7 @@ static int ov2655_set_whiteBalance(struct soc_camera_device *icd, const struct v
                 OV2655_TR("OV2655 WriteReg Fail.. %x\n", __LINE__);
                 return -EINVAL;
             }
-            OV2655_TR("ov2655_set_whiteBalance - %x\n", value);
+            OV2655_DG("ov2655_set_whiteBalance - %x\n", value);
             return 0;
         }
     }
@@ -2093,7 +2144,7 @@ static int ov2655_set_digitalzoom(struct soc_camera_device *icd, const struct v4
             OV2655_TR("OV2655 WriteReg Fail.. %x\n", __LINE__);
             return -EINVAL;
         }
-        OV2655_TR("ov2655_set_digitalzoom - %x\n", *value);
+        OV2655_DG("ov2655_set_digitalzoom - %x\n", *value);
         return 0;
     }
     
@@ -2367,7 +2418,7 @@ static int ov2655_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
                         return -EINVAL;
                     ov2655->info_priv.digitalzoom += val_offset;
 
-                    OV2655_TR("ov2655 digitalzoom is %x\n", ov2655->info_priv.digitalzoom);
+                    OV2655_DG("ov2655 digitalzoom is %x\n", ov2655->info_priv.digitalzoom);
                 } 
 
                 break;
@@ -2380,7 +2431,7 @@ static int ov2655_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
                         return -EINVAL;
                     ov2655->info_priv.digitalzoom += ext_ctrl->value;
 
-                    OV2655_TR("ov2655 digitalzoom is %x\n", ov2655->info_priv.digitalzoom);
+                    OV2655_DG("ov2655 digitalzoom is %x\n", ov2655->info_priv.digitalzoom);
                 }
                 break;
             }
@@ -2405,7 +2456,7 @@ static int ov2655_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
                 {                    
                     ov2655->info_priv.focus += ext_ctrl->value;
 
-                    OV2655_TR("ov2655 focus is %x\n", ov2655->info_priv.focus);
+                    OV2655_DG("ov2655 focus is %x\n", ov2655->info_priv.focus);
                 }
                 break;
             }
@@ -2414,7 +2465,7 @@ static int ov2655_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
             {
                 ov2655->info_priv.flash = ext_ctrl->value;
 
-                OV2655_TR("ov2655 flash is %x\n", ov2655->info_priv.flash);
+                OV2655_DG("ov2655 flash is %x\n", ov2655->info_priv.flash);
                 break;
             }        
         default:
@@ -2516,7 +2567,7 @@ static int ov2655_video_probe(struct soc_camera_device *icd,
     }
     
     pid |= (value & 0xff);
-    OV2655_TR("\n OV2655   pid = 0x%x\n", pid);
+    OV2655_DG("\n OV2655   pid = 0x%x\n", pid);
     if (pid == 0x2656) {
         ov2655->model = V4L2_IDENT_OV2655;
     } else {
@@ -2564,7 +2615,7 @@ static int ov2655_probe(struct i2c_client *client,
     struct soc_camera_link *icl;
     int ret;
 
-    OV2655_TR("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
+    OV2655_DG("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
     if (!icd) {
         dev_err(&client->dev, "ov2655: missing soc-camera data!\n");
         return -EINVAL;
@@ -2598,7 +2649,7 @@ static int ov2655_probe(struct i2c_client *client,
         i2c_set_clientdata(client, NULL);
         kfree(ov2655);
     }
-    OV2655_TR("\n%s..%s..%d  ret = %x  ^^^^^^^^ ddl^^^^^^^^\n",__FUNCTION__,__FILE__,__LINE__,ret);    
+    OV2655_DG("\n%s..%s..%d  ret = %x  ^^^^^^^^ ddl^^^^^^^^\n",__FUNCTION__,__FILE__,__LINE__,ret);
     return ret;
 }
 
@@ -2632,7 +2683,7 @@ static struct i2c_driver ov2655_i2c_driver = {
 
 static int __init ov2655_mod_init(void)
 {
-    OV2655_TR("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
+    OV2655_DG("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
     return i2c_add_driver(&ov2655_i2c_driver);
 }
 
