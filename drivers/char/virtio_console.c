@@ -1259,6 +1259,9 @@ static void unplug_port(struct port *port)
 		port->guest_connected = false;
 		port->host_connected = false;
 		wake_up_interruptible(&port->waitqueue);
+
+		/* Let the app know the port is going down. */
+		send_sigio_to_port(port);
 	}
 
 	if (is_console_port(port)) {
