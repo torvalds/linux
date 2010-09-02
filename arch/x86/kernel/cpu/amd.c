@@ -540,7 +540,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 #endif
 
 	if (c->extended_cpuid_level >= 0x80000006) {
-		if ((c->x86 >= 0x0f) && (cpuid_edx(0x80000006) & 0xf000))
+		if (cpuid_edx(0x80000006) & 0xf000)
 			num_cache_leaves = 4;
 		else
 			num_cache_leaves = 3;
