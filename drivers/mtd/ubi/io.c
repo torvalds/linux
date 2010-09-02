@@ -517,7 +517,7 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * In this case we probably anyway have garbage in this PEB.
 	 */
 	err1 = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
-	if (err1 == UBI_IO_BAD_HDR_READ || err1 == UBI_IO_BAD_HDR)
+	if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR)
 		/*
 		 * The VID header is corrupted, so we can safely erase this
 		 * PEB and not afraid that it will be treated as a valid PEB in
@@ -712,6 +712,8 @@ bad:
  *   and corrected by the flash driver; this is harmless but may indicate that
  *   this eraseblock may become bad soon (but may be not);
  * o %UBI_IO_BAD_HDR if the erase counter header is corrupted (a CRC error);
+ * o %UBI_IO_BAD_HDR_EBADMSG is the same as %UBI_IO_BAD_HDR, but there also was
+ *   a data integrity error (uncorrectable ECC error in case of NAND);
  * o %UBI_IO_PEB_EMPTY if the physical eraseblock is empty;
  * o a negative error code in case of failure.
  */
@@ -731,15 +733,15 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 
 		/*
 		 * We read all the data, but either a correctable bit-flip
-		 * occurred, or MTD reported about some data integrity error,
-		 * like an ECC error in case of NAND. The former is harmless,
-		 * the later may mean that the read data is corrupted. But we
-		 * have a CRC check-sum and we will detect this. If the EC
-		 * header is still OK, we just report this as there was a
-		 * bit-flip.
+		 * occurred, or MTD reported a data integrity error
+		 * (uncorrectable ECC error in case of NAND). The former is
+		 * harmless, the later may mean that the read data is
+		 * corrupted. But we have a CRC check-sum and we will detect
+		 * this. If the EC header is still OK, we just report this as
+		 * there was a bit-flip, to force scrubbing.
 		 */
 		if (err == -EBADMSG)
-			read_err = UBI_IO_BAD_HDR_READ;
+			read_err = UBI_IO_BAD_HDR_EBADMSG;
 	}
 
 	magic = be32_to_cpu(ec_hdr->magic);
@@ -983,6 +985,8 @@ bad:
  *   this eraseblock may become bad soon;
  * o %UBI_IO_BAD_HDR if the volume identifier header is corrupted (a CRC
  *   error detected);
+ * o %UBI_IO_BAD_HDR_EBADMSG is the same as %UBI_IO_BAD_HDR, but there also was
+ *   a data integrity error (uncorrectable ECC error in case of NAND);
  * o %UBI_IO_PEB_FREE if the physical eraseblock is free (i.e., there is no VID
  *   header there);
  * o a negative error code in case of failure.
@@ -1006,14 +1010,15 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 
 		/*
 		 * We read all the data, but either a correctable bit-flip
-		 * occurred, or MTD reported about some data integrity error,
-		 * like an ECC error in case of NAND. The former is harmless,
-		 * the later may mean the read data is corrupted. But we have a
-		 * CRC check-sum and we will identify this. If the VID header is
-		 * still OK, we just report this as there was a bit-flip.
+		 * occurred, or MTD reported a data integrity error
+		 * (uncorrectable ECC error in case of NAND). The former is
+		 * harmless, the later may mean that the read data is
+		 * corrupted. But we have a CRC check-sum and we will detect
+		 * this. If the VID header is still OK, we just report this as
+		 * there was a bit-flip, to force scrubbing.
 		 */
 		if (err == -EBADMSG)
-			read_err = UBI_IO_BAD_HDR_READ;
+			read_err = UBI_IO_BAD_HDR_EBADMSG;
 	}
 
 	magic = be32_to_cpu(vid_hdr->magic);

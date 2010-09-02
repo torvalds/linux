@@ -90,15 +90,16 @@
  * UBI_IO_PEB_FREE: the physical eraseblock is free, i.e. it contains only a
  *                  valid erase counter header, and the rest are %0xFF bytes
  * UBI_IO_BAD_HDR: the EC or VID header is corrupted (bad magic or CRC)
- * UBI_IO_BAD_HDR_READ: the same as %UBI_IO_BAD_HDR, but also there was a read
- * 			error reported by the flash driver
+ * UBI_IO_BAD_HDR_EBADMSG: the same as %UBI_IO_BAD_HDR, but also there was a
+ *                         data integrity error reported by the MTD driver
+ *                         (uncorrectable ECC error in case of NAND)
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
  */
 enum {
 	UBI_IO_PEB_EMPTY = 1,
 	UBI_IO_PEB_FREE,
 	UBI_IO_BAD_HDR,
-	UBI_IO_BAD_HDR_READ,
+	UBI_IO_BAD_HDR_EBADMSG,
 	UBI_IO_BITFLIPS
 };
 

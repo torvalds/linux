@@ -418,7 +418,7 @@ retry:
 				 * may try to recover data. FIXME: but this is
 				 * not implemented.
 				 */
-				if (err == UBI_IO_BAD_HDR_READ ||
+				if (err == UBI_IO_BAD_HDR_EBADMSG ||
 				    err == UBI_IO_BAD_HDR) {
 					ubi_warn("corrupted VID header at PEB "
 						 "%d, LEB %d:%d", pnum, vol_id,
@@ -963,7 +963,7 @@ write_error:
 static int is_error_sane(int err)
 {
 	if (err == -EIO || err == -ENOMEM || err == UBI_IO_BAD_HDR ||
-	    err == UBI_IO_BAD_HDR_READ || err == -ETIMEDOUT)
+	    err == UBI_IO_BAD_HDR_EBADMSG || err == -ETIMEDOUT)
 		return 0;
 	return 1;
 }

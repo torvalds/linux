@@ -93,7 +93,7 @@ struct ubi_scan_volume {
  *         those belonging to "preserve"-compatible internal volumes)
  * @used_peb_count: count of used PEBs
  * @corr_peb_count: count of PEBs in the @corr list
- * @read_err_count: count of PEBs read with error (%UBI_IO_BAD_HDR_READ was
+ * @read_err_count: count of PEBs read with error (%UBI_IO_BAD_HDR_EBADMSG was
  *                  returned)
  * @free_peb_count: count of PEBs in the @free list
  * @erase_peb_count: count of PEBs in the @erase list
