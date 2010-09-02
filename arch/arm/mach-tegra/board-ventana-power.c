@@ -23,10 +23,18 @@
 #include <linux/mfd/tps6586x.h>
 #include <linux/gpio.h>
 #include <mach/suspend.h>
+#include <linux/io.h>
+
+#include <mach/iomap.h>
+#include <mach/irqs.h>
+
 #include "gpio-names.h"
 #include "power.h"
 #include "wakeups-t2.h"
 #include "board.h"
+
+#define PMC_CTRL		0x0
+ #define PMC_CTRL_INTR_LOW	(1 << 17)
 
 static int ac_ok		= TEGRA_GPIO_PV3;
 static int charge_disable	= TEGRA_GPIO_PR6;
@@ -185,6 +193,10 @@ static struct regulator_init_data ldo7_data = REGULATOR_INIT(ldo7, 1250, 3300);
 static struct regulator_init_data ldo8_data = REGULATOR_INIT(ldo8, 1250, 3300);
 static struct regulator_init_data ldo9_data = REGULATOR_INIT(ldo9, 1250, 3300);
 
+static struct tps6586x_rtc_platform_data rtc_data = {
+	.irq = TEGRA_NR_IRQS + TPS6586X_INT_RTC_ALM1,
+};
+
 #define TPS_REG(_id, _data)			\
 	{					\
 		.id = TPS6586X_ID_##_id,	\
@@ -209,11 +221,12 @@ static struct tps6586x_subdev_info tps_devs[] = {
 	{
 		.id	= 0,
 		.name	= "tps6586x-rtc",
-		.platform_data = NULL,
+		.platform_data = &rtc_data,
 	},
 };
 
 static struct tps6586x_platform_data tps_platform = {
+	.irq_base = TEGRA_NR_IRQS,
 	.num_subdevs = ARRAY_SIZE(tps_devs),
 	.subdevs = tps_devs,
 	.gpio_base = TEGRA_NR_GPIOS,
@@ -222,7 +235,8 @@ static struct tps6586x_platform_data tps_platform = {
 static struct i2c_board_info __initdata ventana_regulators[] = {
 	{
 		I2C_BOARD_INFO("tps6586x", 0x34),
-		.platform_data = &tps_platform,
+		.irq		= INT_EXTERNAL_PMU,
+		.platform_data	= &tps_platform,
 	},
 };
 
@@ -243,6 +257,13 @@ static struct tegra_suspend_platform_data ventana_suspend_data = {
 
 int __init ventana_regulator_init(void)
 {
+	void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
+	u32 pmc_ctrl;
+
+	/* configure the power management controller to trigger PMU
+	 * interrupts when low */
+	pmc_ctrl = readl(pmc + PMC_CTRL);
+	writel(pmc_ctrl | PMC_CTRL_INTR_LOW, pmc + PMC_CTRL);
 	platform_device_register(&ventana_pda_power_device);
 	i2c_register_board_info(4, ventana_regulators, 1);
 	tegra_init_suspend(&ventana_suspend_data);
