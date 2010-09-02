@@ -1408,6 +1408,7 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 			fatal++;
 			CH_ALERT(adapter, "%s (0x%x)\n",
 				 acts->msg, status & acts->mask);
+			status &= ~acts->mask;
 		} else if (acts->msg)
 			CH_WARN(adapter, "%s (0x%x)\n",
 				acts->msg, status & acts->mask);
@@ -1843,11 +1844,10 @@ static int mac_intr_handler(struct adapter *adap, unsigned int idx)
 		t3_os_link_fault_handler(adap, idx);
 	}
 
-	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
-
 	if (cause & XGM_INTR_FATAL)
 		t3_fatal_err(adap);
 
+	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
 	return cause != 0;
 }
 
