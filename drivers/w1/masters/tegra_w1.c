@@ -463,8 +463,8 @@ static int tegra_w1_resume(struct platform_device *pdev)
 	struct tegra_device *dev = platform_get_drvdata(pdev);
 
 	/* TODO: Is this necessary? I would assume yes. */
-	w1_setup(dev);
 	mutex_lock(&dev->mutex);
+	w1_setup(dev);
 	dev->ready = true;
 	mutex_unlock(&dev->mutex);
 	return 0;
