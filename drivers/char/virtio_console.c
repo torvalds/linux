@@ -1738,6 +1738,14 @@ static void virtcons_remove(struct virtio_device *vdev)
 
 	unregister_chrdev(portdev->chr_major, "virtio-portsdev");
 
+	/*
+	 * When yanking out a device, we immediately lose the
+	 * (device-side) queues.  So there's no point in keeping the
+	 * guest side around till we drop our final reference.  This
+	 * also means that any ports which are in an open state will
+	 * have to just stop using the port, as the vqs are going
+	 * away.
+	 */
 	if (use_multiport(portdev)) {
 		struct port_buffer *buf;
 		unsigned int len;
