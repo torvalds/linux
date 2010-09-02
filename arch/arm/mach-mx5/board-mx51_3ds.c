@@ -24,9 +24,11 @@
 #include <mach/imx-uart.h>
 #include <mach/3ds_debugboard.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
 #define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 6)
+#define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
 
 static struct pad_desc mx51_3ds_pads[] = {
 	/* UART1 */
@@ -61,6 +63,12 @@ static struct pad_desc mx51_3ds_pads[] = {
 	MX51_PAD_KEY_COL3__KEY_COL3,
 	MX51_PAD_KEY_COL4__KEY_COL4,
 	MX51_PAD_KEY_COL5__KEY_COL5,
+
+	/* eCSPI2 */
+	MX51_PAD_NANDF_RB2__ECSPI2_SCLK,
+	MX51_PAD_NANDF_RB3__ECSPI2_MISO,
+	MX51_PAD_NANDF_D15__ECSPI2_MOSI,
+	MX51_PAD_NANDF_D12__GPIO_3_28,
 };
 
 /* Serial ports */
@@ -127,6 +135,16 @@ static inline void mxc_init_keypad(void)
 }
 #endif
 
+static int mx51_3ds_spi2_cs[] = {
+	MXC_SPI_CS(0),
+	MX51_3DS_ECSPI2_CS,
+};
+
+static const struct spi_imx_master mx51_3ds_ecspi2_pdata __initconst = {
+	.chipselect	= mx51_3ds_spi2_cs,
+	.num_chipselect	= ARRAY_SIZE(mx51_3ds_spi2_cs),
+};
+
 /*
  * Board specific initialization.
  */
@@ -135,6 +153,8 @@ static void __init mxc_board_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mx51_3ds_pads,
 					ARRAY_SIZE(mx51_3ds_pads));
 	mxc_init_imx_uart();
+
+	imx51_add_ecspi(1, &mx51_3ds_ecspi2_pdata);
 
 	if (mxc_expio_init(MX51_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		printk(KERN_WARNING "Init of the debugboard failed, all "
