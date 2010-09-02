@@ -319,8 +319,8 @@ validate_event(struct cpu_hw_events *cpuc,
 {
 	struct hw_perf_event fake_event = event->hw;
 
-	if (event->pmu && event->pmu != &pmu)
-		return 0;
+	if (event->pmu != &pmu || event->state <= PERF_EVENT_STATE_OFF)
+		return 1;
 
 	return armpmu->get_event_idx(cpuc, &fake_event) >= 0;
 }
