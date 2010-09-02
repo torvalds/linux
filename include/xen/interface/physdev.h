@@ -151,6 +151,16 @@ struct physdev_op {
 	} u;
 };
 
+#define PHYSDEVOP_setup_gsi    21
+struct physdev_setup_gsi {
+    int gsi;
+    /* IN */
+    uint8_t triggering;
+    /* IN */
+    uint8_t polarity;
+    /* IN */
+};
+
 #define PHYSDEVOP_get_nr_pirqs    22
 struct physdev_nr_pirqs {
     /* OUT */

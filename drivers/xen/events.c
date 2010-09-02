@@ -681,6 +681,8 @@ out:
 int xen_destroy_irq(int irq)
 {
 	struct irq_desc *desc;
+	struct physdev_unmap_pirq unmap_irq;
+	struct irq_info *info = info_for_irq(irq);
 	int rc = -ENOENT;
 
 	spin_lock(&irq_mapping_update_lock);
@@ -689,6 +691,15 @@ int xen_destroy_irq(int irq)
 	if (!desc)
 		goto out;
 
+	if (xen_initial_domain()) {
+		unmap_irq.pirq = info->u.pirq.gsi;
+		unmap_irq.domid = DOMID_SELF;
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
+		if (rc) {
+			printk(KERN_WARNING "unmap irq failed %d\n", rc);
+			goto out;
+		}
+	}
 	irq_info[irq] = mk_unbound_info();
 
 	irq_free_desc(irq);
@@ -1425,5 +1436,7 @@ void __init xen_init_IRQ(void)
 		pci_xen_hvm_init();
 	} else {
 		irq_ctx_init(smp_processor_id());
+		if (xen_initial_domain())
+			xen_setup_pirqs();
 	}
 }

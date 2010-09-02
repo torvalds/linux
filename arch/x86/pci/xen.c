@@ -257,3 +257,138 @@ int __init pci_xen_hvm_init(void)
 #endif
 	return 0;
 }
+
+#ifdef CONFIG_XEN_DOM0
+static int xen_register_pirq(u32 gsi, int triggering)
+{
+	int rc, irq;
+	struct physdev_map_pirq map_irq;
+	int shareable = 0;
+	char *name;
+
+	if (!xen_pv_domain())
+		return -1;
+
+	if (triggering == ACPI_EDGE_SENSITIVE) {
+		shareable = 0;
+		name = "ioapic-edge";
+	} else {
+		shareable = 1;
+		name = "ioapic-level";
+	}
+
+	irq = xen_allocate_pirq(gsi, shareable, name);
+
+	printk(KERN_DEBUG "xen: --> irq=%d\n", irq);
+
+	if (irq < 0)
+		goto out;
+
+	map_irq.domid = DOMID_SELF;
+	map_irq.type = MAP_PIRQ_TYPE_GSI;
+	map_irq.index = gsi;
+	map_irq.pirq = irq;
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+	if (rc) {
+		printk(KERN_WARNING "xen map irq failed %d\n", rc);
+		return -1;
+	}
+
+out:
+	return irq;
+}
+
+static int xen_register_gsi(u32 gsi, int triggering, int polarity)
+{
+	int rc, irq;
+	struct physdev_setup_gsi setup_gsi;
+
+	if (!xen_pv_domain())
+		return -1;
+
+	printk(KERN_DEBUG "xen: registering gsi %u triggering %d polarity %d\n",
+			gsi, triggering, polarity);
+
+	irq = xen_register_pirq(gsi, triggering);
+
+	setup_gsi.gsi = gsi;
+	setup_gsi.triggering = (triggering == ACPI_EDGE_SENSITIVE ? 0 : 1);
+	setup_gsi.polarity = (polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_setup_gsi, &setup_gsi);
+	if (rc == -EEXIST)
+		printk(KERN_INFO "Already setup the GSI :%d\n", gsi);
+	else if (rc) {
+		printk(KERN_ERR "Failed to setup GSI :%d, err_code:%d\n",
+				gsi, rc);
+	}
+
+	return irq;
+}
+
+static __init void xen_setup_acpi_sci(void)
+{
+	int rc;
+	int trigger, polarity;
+	int gsi = acpi_sci_override_gsi;
+
+	if (!gsi)
+		return;
+
+	rc = acpi_get_override_irq(gsi, &trigger, &polarity);
+	if (rc) {
+		printk(KERN_WARNING "xen: acpi_get_override_irq failed for acpi"
+				" sci, rc=%d\n", rc);
+		return;
+	}
+	trigger = trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE;
+	polarity = polarity ? ACPI_ACTIVE_LOW : ACPI_ACTIVE_HIGH;
+	
+	printk(KERN_INFO "xen: sci override: global_irq=%d trigger=%d "
+			"polarity=%d\n", gsi, trigger, polarity);
+
+	gsi = xen_register_gsi(gsi, trigger, polarity);
+	printk(KERN_INFO "xen: acpi sci %d\n", gsi);
+
+	return;
+}
+
+static int acpi_register_gsi_xen(struct device *dev, u32 gsi,
+				 int trigger, int polarity)
+{
+	return xen_register_gsi(gsi, trigger, polarity);
+}
+
+static int __init pci_xen_initial_domain(void)
+{
+	xen_setup_acpi_sci();
+	__acpi_register_gsi = acpi_register_gsi_xen;
+
+	return 0;
+}
+
+void __init xen_setup_pirqs(void)
+{
+	int irq;
+
+	pci_xen_initial_domain();
+
+	if (0 == nr_ioapics) {
+		for (irq = 0; irq < NR_IRQS_LEGACY; irq++)
+			xen_allocate_pirq(irq, 0, "xt-pic");
+		return;
+	}
+
+	/* Pre-allocate legacy irqs */
+	for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
+		int trigger, polarity;
+
+		if (acpi_get_override_irq(irq, &trigger, &polarity) == -1)
+			continue;
+
+		xen_register_pirq(irq,
+			trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE);
+	}
+}
+#endif

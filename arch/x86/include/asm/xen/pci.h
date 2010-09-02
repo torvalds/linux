@@ -13,6 +13,13 @@ static inline int pci_xen_hvm_init(void)
 	return -1;
 }
 #endif
+#if defined(CONFIG_XEN_DOM0)
+void __init xen_setup_pirqs(void);
+#else
+static inline void __init xen_setup_pirqs(void)
+{
+}
+#endif
 
 #if defined(CONFIG_PCI_MSI)
 #if defined(CONFIG_PCI_XEN)
