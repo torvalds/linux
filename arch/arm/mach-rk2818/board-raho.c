@@ -731,8 +731,9 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/ 
+#ifdef CONFIG_VIDEO_RK2818
 #define RK2818_CAM_POWER_PIN    FPGA_PIO1_05//SPI_GPIO_P1_05
-#define RK2818_CAM_RESET_PIN    FPGA_PIO1_14//SPI_GPIO_P1_14    
+#define RK2818_CAM_RESET_PIN    FPGA_PIO1_14//SPI_GPIO_P1_14
 
 static int rk28_sensor_io_init(void);
 static int rk28_sensor_io_deinit(void);
@@ -744,6 +745,7 @@ struct rk28camera_platform_data rk28_camera_platform_data = {
         {
             .gpio_reset = RK2818_CAM_RESET_PIN,
             .gpio_power = RK2818_CAM_POWER_PIN,
+            .gpio_flag = (RK28_CAM_POWERACTIVE_L|RK28_CAM_RESETACTIVE_L),
             .dev_name = "ov2655"
         }, {
             .gpio_reset = INVALID_GPIO,
@@ -757,36 +759,42 @@ static int rk28_sensor_io_init(void)
 {
     int ret = 0, i;
     unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+	unsigned int camera_ioflag;
 
-    printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
-    
-    for (i=0; i<2; i++) { 
+    //printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
+
+    for (i=0; i<2; i++) {
         camera_reset = rk28_camera_platform_data.gpio_res[i].gpio_reset;
-        camera_power = rk28_camera_platform_data.gpio_res[i].gpio_power; 
-        
-        if (camera_power != INVALID_GPIO) {            
+        camera_power = rk28_camera_platform_data.gpio_res[i].gpio_power;
+		camera_ioflag = rk28_camera_platform_data.gpio_res[i].gpio_flag;
+
+        if (camera_power != INVALID_GPIO) {
             ret = gpio_request(camera_power, "camera power");
             if (ret)
                 continue;
-                
-            gpio_set_value(camera_reset, 1);
-            gpio_direction_output(camera_power, 0);   
+
+            gpio_set_value(camera_reset, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+            gpio_direction_output(camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+
+			//printk("\n%s....%d  %x   ******** ddl *********\n",__FUNCTION__,__LINE__,(((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
         }
-        
+
         if (camera_reset != INVALID_GPIO) {
             ret = gpio_request(camera_reset, "camera reset");
             if (ret) {
-                if (camera_power != INVALID_GPIO) 
-                    gpio_free(camera_power);    
+                if (camera_power != INVALID_GPIO)
+                    gpio_free(camera_power);
 
                 continue;
             }
 
-            gpio_set_value(camera_reset, 0);
-            gpio_direction_output(camera_reset, 0);            
+            gpio_set_value(camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+            gpio_direction_output(camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+
+			//printk("\n%s....%d  %x   ******** ddl *********\n",__FUNCTION__,__LINE__,((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
         }
     }
-    
+
     return 0;
 }
 
@@ -795,20 +803,20 @@ static int rk28_sensor_io_deinit(void)
     unsigned int i;
     unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
 
-    printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__); 
-   
-    for (i=0; i<2; i++) { 
+    //printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
+
+    for (i=0; i<2; i++) {
         camera_reset = rk28_camera_platform_data.gpio_res[i].gpio_reset;
-        camera_power = rk28_camera_platform_data.gpio_res[i].gpio_power; 
-        
+        camera_power = rk28_camera_platform_data.gpio_res[i].gpio_power;
+
         if (camera_power != INVALID_GPIO){
             gpio_direction_input(camera_power);
-            gpio_free(camera_power);    
+            gpio_free(camera_power);
         }
-        
+
         if (camera_reset != INVALID_GPIO)  {
             gpio_direction_input(camera_reset);
-            gpio_free(camera_reset);    
+            gpio_free(camera_reset);
         }
     }
 
@@ -819,28 +827,37 @@ static int rk28_sensor_io_deinit(void)
 static int rk28_sensor_power(struct device *dev, int on)
 {
     unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
-    
+	unsigned int camera_ioflag;
+
     if(rk28_camera_platform_data.gpio_res[0].dev_name &&  (strcmp(rk28_camera_platform_data.gpio_res[0].dev_name, dev_name(dev)) == 0)) {
         camera_reset = rk28_camera_platform_data.gpio_res[0].gpio_reset;
         camera_power = rk28_camera_platform_data.gpio_res[0].gpio_power;
+		camera_ioflag = rk28_camera_platform_data.gpio_res[0].gpio_flag;
     } else if (rk28_camera_platform_data.gpio_res[1].dev_name && (strcmp(rk28_camera_platform_data.gpio_res[1].dev_name, dev_name(dev)) == 0)) {
         camera_reset = rk28_camera_platform_data.gpio_res[1].gpio_reset;
         camera_power = rk28_camera_platform_data.gpio_res[1].gpio_power;
+		camera_ioflag = rk28_camera_platform_data.gpio_res[1].gpio_flag;
     }
 
     if (camera_reset != INVALID_GPIO) {
-        gpio_set_value(camera_reset, !on);
-        //printk("\n%s..%s..ResetPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev),camera_reset, on);
+        gpio_set_value(camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+        //printk("\n%s..%s..ResetPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev),camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
     }
-    if (camera_power != INVALID_GPIO)  {       
-        gpio_set_value(camera_power, !on);
-        printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_power, !on);
+    if (camera_power != INVALID_GPIO)  {
+		if (on) {
+        	gpio_set_value(camera_power, ((camera_ioflag&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_power, ((camera_ioflag&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+		} else {
+			gpio_set_value(camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+		}
+
     }
     if (camera_reset != INVALID_GPIO) {
         msleep(3);          /* delay 3 ms */
-        gpio_set_value(camera_reset,on);
-        printk("\n%s..%s..ResetPin= %d..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_reset, on);
-    }      
+        gpio_set_value(camera_reset,(((~camera_ioflag)&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+        //printk("\n%s..%s..ResetPin= %d..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_reset, (((~camera_ioflag)&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+    }
     return 0;
 }
 
@@ -863,6 +880,7 @@ struct soc_camera_link rk2818_iclink = {
 	.module_name	= "ov2655",
 #endif	
 };
+#endif
 
 /*****************************************************************************************
  * battery  devices
