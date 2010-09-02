@@ -546,7 +546,7 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 	int retval;
 
 	int ret;
-	unsigned int rom_size;
+	ssize_t rom_size;
 	struct pch_phub_reg *chip;
 
 	chip = kzalloc(sizeof(struct pch_phub_reg), GFP_KERNEL);
@@ -580,8 +580,8 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 		goto err_pci_iomap;
 	}
 	dev_dbg(&pdev->dev, "%s : pci_iomap SUCCESS and value "
-		"in pch_phub_base_address variable is 0x%08x\n", __func__,
-		(unsigned int)chip->pch_phub_base_address);
+		"in pch_phub_base_address variable is %p\n", __func__,
+		chip->pch_phub_base_address);
 	chip->pch_phub_extrom_base_address = pci_map_rom(pdev, &rom_size);
 
 	if (chip->pch_phub_extrom_base_address == 0) {
@@ -591,8 +591,8 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 	}
 	dev_dbg(&pdev->dev, "%s : "
 		"pci_map_rom SUCCESS and value in "
-		"pch_phub_extrom_base_address variable is 0x%08x\n", __func__,
-		(unsigned int)chip->pch_phub_extrom_base_address);
+		"pch_phub_extrom_base_address variable is %p\n", __func__,
+		chip->pch_phub_extrom_base_address);
 
 	pci_set_drvdata(pdev, chip);
 
