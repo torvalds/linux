@@ -1042,11 +1042,11 @@ vmxnet3_rx_csum(struct vmxnet3_adapter *adapter,
 				skb->csum = htons(gdesc->rcd.csum);
 				skb->ip_summed = CHECKSUM_PARTIAL;
 			} else {
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 			}
 		}
 	} else {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 	}
 }
 

@@ -623,7 +623,7 @@ reuse_rx:
 			/* Set Toeplitz hash for a none-LRO skb */
 			bnx2x_set_skb_rxhash(bp, cqe, skb);
 
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 			if (bp->rx_csum) {
 				if (likely(BNX2X_RX_CSUM_OK(cqe)))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;

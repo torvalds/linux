@@ -7603,10 +7603,10 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 * Packet with erroneous checksum, let the
 			 * upper layers deal with it.
 			 */
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 		}
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	swstats->mem_freed += skb->truesize;
 send_up:

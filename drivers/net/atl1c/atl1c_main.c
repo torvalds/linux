@@ -1719,7 +1719,7 @@ static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 	 * cannot figure out if the packet is fragmented or not,
 	 * so we tell the KERNEL CHECKSUM_NONE
 	 */
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 }
 
 static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid)

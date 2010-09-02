@@ -936,7 +936,7 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 		if (jme_rxsum_ok(jme, le16_to_cpu(rxdesc->descwb.flags)))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 
 		if (rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_TAGON)) {
 			if (jme->vlgrp) {

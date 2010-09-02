@@ -980,7 +980,7 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 {
 	u32 status_err = le32_to_cpu(rx_desc->wb.upper.status_error);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* Rx csum disabled */
 	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))

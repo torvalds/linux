@@ -641,7 +641,7 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	skb_put(skb, len);	/* Tell the skb how much data we got */
 
 	skb->protocol = eth_type_trans(skb, dev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;

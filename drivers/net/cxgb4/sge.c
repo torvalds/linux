@@ -1605,7 +1605,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	if (unlikely(pkt->vlan_ex)) {
 		struct vlan_group *grp = pi->vlan_grp;

@@ -391,7 +391,7 @@ static struct sk_buff *cpmac_rx_one(struct cpmac_priv *priv,
 	if (likely(skb)) {
 		skb_put(desc->skb, desc->datalen);
 		desc->skb->protocol = eth_type_trans(desc->skb, priv->dev);
-		desc->skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(desc->skb);
 		priv->dev->stats.rx_packets++;
 		priv->dev->stats.rx_bytes += desc->datalen;
 		result = desc->skb;

@@ -3484,7 +3484,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 				     RCR_ENTRY_ERROR)))
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			else
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 		} else if (!(val & RCR_ENTRY_MULTI))
 			append_size = len - skb->len;
 

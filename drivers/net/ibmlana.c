@@ -602,7 +602,7 @@ static void irqrx_handler(struct net_device *dev)
 				/* set up skb fields */
 
 				skb->protocol = eth_type_trans(skb, dev);
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 
 				/* bookkeeping */
 				dev->stats.rx_packets++;

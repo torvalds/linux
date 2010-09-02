@@ -510,7 +510,7 @@ bnad_poll_cq(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		      (flags & BNA_CQ_EF_L4_CKSUM_OK)))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 
 		rcb->rxq->rx_packets++;
 		rcb->rxq->rx_bytes += skb->len;

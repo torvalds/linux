@@ -1170,7 +1170,7 @@ again:
 						sb->ip_summed = CHECKSUM_UNNECESSARY;
 						/* don't need to set sb->csum */
 					} else {
-						sb->ip_summed = CHECKSUM_NONE;
+						skb_checksum_none_assert(sb);
 					}
 				}
 				prefetch(sb->data);

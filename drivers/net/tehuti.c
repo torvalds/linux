@@ -1297,12 +1297,13 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		ndev->stats.rx_bytes += len;
 
 		skb_put(skb, len);
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, ndev);
 
 		/* Non-IP packets aren't checksum-offloaded */
 		if (GET_RXD_PKT_ID(rxd_val1) == 0)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
+		else
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		NETIF_RX_MUX(priv, rxd_val1, rxd_vlan, skb);
 

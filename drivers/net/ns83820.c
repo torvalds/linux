@@ -923,7 +923,7 @@ static void rx_irq(struct net_device *ndev)
 			if ((extsts & 0x002a0000) && !(extsts & 0x00540000)) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 			}
 			skb->protocol = eth_type_trans(skb, ndev);
 #ifdef NS83820_VLAN_ACCEL_SUPPORT

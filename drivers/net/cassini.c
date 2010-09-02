@@ -2149,7 +2149,7 @@ end_copy_pkt:
 		skb->csum = csum_unfold(~csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 	return len;
 }
 

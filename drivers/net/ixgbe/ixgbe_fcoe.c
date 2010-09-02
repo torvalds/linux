@@ -304,12 +304,13 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if (!ixgbe_rx_is_fcoe(rx_desc))
 		goto ddp_out;
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	sterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	fcerr = (sterr & IXGBE_RXDADV_ERR_FCERR);
 	fceofe = (sterr & IXGBE_RXDADV_ERR_FCEOFE);
 	if (fcerr == IXGBE_FCERR_BADCRC)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
+	else
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (eth_hdr(skb)->h_proto == htons(ETH_P_8021Q))
 		fh = (struct fc_frame_header *)(skb->data +

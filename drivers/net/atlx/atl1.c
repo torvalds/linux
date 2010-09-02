@@ -1805,7 +1805,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	 * the higher layers and let it be sorted out there.
 	 */
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	if (unlikely(rrd->pkt_flg & PACKET_FLAG_ERR)) {
 		if (rrd->err_flg & (ERR_FLAG_CRC | ERR_FLAG_TRUNC |
