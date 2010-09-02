@@ -184,7 +184,7 @@ struct port {
 	struct console cons;
 
 	/* Each port associates with a separate char device */
-	struct cdev cdev;
+	struct cdev *cdev;
 	struct device *dev;
 
 	/* A waitqueue for poll() or blocking read operations */
@@ -235,7 +235,7 @@ static struct port *find_port_by_devt_in_portdev(struct ports_device *portdev,
 
 	spin_lock_irqsave(&portdev->ports_lock, flags);
 	list_for_each_entry(port, &portdev->ports, list)
-		if (port->cdev.dev == dev)
+		if (port->cdev->dev == dev)
 			goto out;
 	port = NULL;
 out:
@@ -1096,14 +1096,20 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->in_vq = portdev->in_vqs[port->id];
 	port->out_vq = portdev->out_vqs[port->id];
 
-	cdev_init(&port->cdev, &port_fops);
+	port->cdev = cdev_alloc();
+	if (!port->cdev) {
+		dev_err(&port->portdev->vdev->dev, "Error allocating cdev\n");
+		err = -ENOMEM;
+		goto free_port;
+	}
+	port->cdev->ops = &port_fops;
 
 	devt = MKDEV(portdev->chr_major, id);
-	err = cdev_add(&port->cdev, devt, 1);
+	err = cdev_add(port->cdev, devt, 1);
 	if (err < 0) {
 		dev_err(&port->portdev->vdev->dev,
 			"Error %d adding cdev for port %u\n", err, id);
-		goto free_port;
+		goto free_cdev;
 	}
 	port->dev = device_create(pdrvdata.class, &port->portdev->vdev->dev,
 				  devt, port, "vport%up%u",
@@ -1168,7 +1174,7 @@ free_inbufs:
 free_device:
 	device_destroy(pdrvdata.class, port->dev->devt);
 free_cdev:
-	cdev_del(&port->cdev);
+	cdev_del(port->cdev);
 free_port:
 	kfree(port);
 fail:
@@ -1212,7 +1218,7 @@ static void remove_port(struct port *port)
 	}
 	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
 	device_destroy(pdrvdata.class, port->dev->devt);
-	cdev_del(&port->cdev);
+	cdev_del(port->cdev);
 
 	/* Remove unused data this port might have received. */
 	discard_port_data(port);
