@@ -116,7 +116,7 @@ struct mii_bus {
 	/* list of all PHYs on bus */
 	struct phy_device *phy_map[PHY_MAX_ADDR];
 
-	/* Phy addresses to be ignored when probing */
+	/* PHY addresses to be ignored when probing */
 	u32 phy_mask;
 
 	/*
@@ -283,7 +283,7 @@ struct phy_device {
 
 	phy_interface_t interface;
 
-	/* Bus address of the PHY (0-32) */
+	/* Bus address of the PHY (0-31) */
 	int addr;
 
 	/*
