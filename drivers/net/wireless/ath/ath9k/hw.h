@@ -496,6 +496,12 @@ struct ath_gen_timer_table {
 	} timer_mask;
 };
 
+struct ath_hw_antcomb_conf {
+	u8 main_lna_conf;
+	u8 alt_lna_conf;
+	u8 fast_div_bias;
+};
+
 /**
  * struct ath_hw_private_ops - callbacks used internally by hardware code
  *
@@ -889,6 +895,10 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
+void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf);
+void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
