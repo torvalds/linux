@@ -97,11 +97,16 @@
 #define  VIPREGPAL                    0x00000400
 //--------------------------
 #define CONFIG_RK28CAMERA_TR      1
-
+#define CONFIG_RK28CAMERA_DEBUG	  0
 #if (CONFIG_RK28CAMERA_TR)
-#define RK28CAMERA_TR(format, ...)      printk(format, ## __VA_ARGS__)
+	#define RK28CAMERA_TR(format, ...)      printk(format, ## __VA_ARGS__)
+	#if (CONFIG_RK28CAMERA_DEBUG)
+	#define RK28CAMERA_DG(format, ...)      printk(format, ## __VA_ARGS__)
+	#else
+	#define RK28CAMERA_DG(format, ...)
+	#endif
 #else
-#define RK28CAMERA_TR(format, ...)
+	#define RK28CAMERA_TR(format, ...)
 #endif
 
 #define MIN(x,y)   ((x<y) ? x: y)
@@ -180,7 +185,7 @@ struct rk28_camera_dev
     spinlock_t		lock;
 
     struct videobuf_buffer	*active;
-
+	struct videobuf_queue *vb_vidq_ptr;
 };
 
 static const char *rk28_cam_driver_description = "RK28_Camera";
@@ -199,7 +204,7 @@ static int rk28_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
     /* planar capture requires Y, U and V buffers to be page aligned */
     *size = PAGE_ALIGN( icd->user_width * icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
 
-    RK28CAMERA_TR("\n%s..%d.. size = %d   ******** ddl *********\n",__FUNCTION__,__LINE__, *size);
+    RK28CAMERA_DG("\n%s..%d.. size = %d   ******** ddl *********\n",__FUNCTION__,__LINE__, *size);
     
     return 0;
 }
@@ -209,6 +214,10 @@ static void rk28_videobuf_free(struct videobuf_queue *vq, struct rk28_buffer *bu
 
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
             &buf->vb, buf->vb.baddr, buf->vb.bsize);
+
+	/* ddl@rock-chips.com: buf_release called soc_camera_streamoff and soc_camera_close*/
+	if (buf->vb.state == VIDEOBUF_NEEDS_INIT)
+		return;
 
     if (in_interrupt())
         BUG();
@@ -398,13 +407,14 @@ static void rk28_camera_init_videobuf(struct videobuf_queue *q,
                                    V4L2_FIELD_NONE,
                                    sizeof(struct rk28_buffer),
                                    icd);
+	pcdev->vb_vidq_ptr = q;		/* ddl@rock-chips.com */
 }
 static int rk28_camera_activate(struct rk28_camera_dev *pcdev, struct soc_camera_device *icd)
 {
     unsigned long sensor_bus_flags = SOCAM_MCLK_24MHZ;
     struct clk *parent;
     
-    RK28CAMERA_TR("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
     if (!pcdev->clk || IS_ERR(pcdev->clk)) 
         RK28CAMERA_TR(KERN_ERR "failed to get vip_clk source\n");
         
@@ -434,7 +444,7 @@ static int rk28_camera_activate(struct rk28_camera_dev *pcdev, struct soc_camera
     write_vip_reg(RK28_VIP_RESET, 0x76543210);  /* ddl@rock-chips.com : vip software reset */
     udelay(10);
 
-    write_vip_reg(RK28_VIP_AHBR_CTRL, 0x05);                 //only 8 or 4 will be the actual length.
+    write_vip_reg(RK28_VIP_AHBR_CTRL, 0x07);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_vip_reg(RK28_VIP_INT_MASK, 0x01);                    //capture complete interrupt enable
     write_vip_reg(RK28_VIP_CRM,  0x00000000);               //Y/CB/CR color modification
 
@@ -507,6 +517,13 @@ static void rk28_camera_remove_device(struct soc_camera_device *icd)
     dev_info(&icd->dev, "RK28 Camera driver detached from camera %d\n",
              icd->devnum);
 
+	/* ddl@rock-chips.com: Call videobuf_mmap_free here for free the struct video_buffer which malloc in videobuf_alloc */
+	if (pcdev->vb_vidq_ptr) {
+		videobuf_mmap_free(pcdev->vb_vidq_ptr);
+		pcdev->vb_vidq_ptr = NULL;
+	}
+
+
     rk28_camera_deactivate(pcdev);
 
     pcdev->icd = NULL;
@@ -518,7 +535,7 @@ static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     unsigned int vip_ctrl_val = 0;
     int ret = 0;
 
-    RK28CAMERA_TR("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
 
     bus_flags = RK28_CAM_BUS_PARAM;
 
@@ -546,11 +563,12 @@ static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     vip_ctrl_val |= ENABLE_CAPTURE;
     
     write_vip_reg(RK28_VIP_CTRL, vip_ctrl_val);
-    RK28CAMERA_TR("\n%s..CtrReg=%x    ******** ddl *********\n",__FUNCTION__,read_vip_reg(RK28_VIP_CTRL));
-    
+    RK28CAMERA_DG("\n%s..CtrReg=%x    ******** ddl *********\n",__FUNCTION__,read_vip_reg(RK28_VIP_CTRL));
+
 RK28_CAMERA_SET_BUS_PARAM_END:
-    RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
-    return ret; 
+	if (ret)
+    	RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
+    return ret;
 }
 
 static int rk28_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
@@ -630,7 +648,7 @@ static void rk28_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
 
     write_vip_reg(RK28_VIP_FB_SR,  0x00000003);   
     
-    RK28CAMERA_TR("\n%s.. crop:%x .. fs : %x *** ddl ***\n",__FUNCTION__,vip_crop,vip_fs);
+    RK28CAMERA_DG("\n%s.. crop:%x .. fs : %x *** ddl ***\n",__FUNCTION__,vip_crop,vip_fs);
 }
 
 static int rk28_camera_get_formats(struct soc_camera_device *icd, int idx,
@@ -729,7 +747,7 @@ static int rk28_camera_set_fmt(struct soc_camera_device *icd,
     struct v4l2_rect rect;
     int ret;
 
-    RK28CAMERA_TR("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
     if (!xlate) {
@@ -753,7 +771,7 @@ static int rk28_camera_set_fmt(struct soc_camera_device *icd,
         rect.width = pix->width;
         rect.height = pix->height;
 
-        RK28CAMERA_TR("\n%s..%s..%s  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name);
+        RK28CAMERA_DG("\n%s..%s..%s  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name);
         rk28_camera_setup_format(icd, pix->pixelformat, cam_fmt->fourcc, &rect);
         
         icd->buswidth = xlate->buswidth;
@@ -761,8 +779,9 @@ static int rk28_camera_set_fmt(struct soc_camera_device *icd,
     }
 
 RK28_CAMERA_SET_FMT_END:
-    RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
-    return ret; 
+	if (ret)
+    	RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
+    return ret;
 }
 
 static int rk28_camera_try_fmt(struct soc_camera_device *icd,
@@ -776,7 +795,7 @@ static int rk28_camera_try_fmt(struct soc_camera_device *icd,
     enum v4l2_field field;
     int ret,i;
 
-    RK28CAMERA_TR("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
     if (!xlate) {       
@@ -810,7 +829,8 @@ static int rk28_camera_try_fmt(struct soc_camera_device *icd,
     }
 
 RK28_CAMERA_TRY_FMT_END:
-    RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
+	if (ret)
+    	RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
     return ret;   
 }
 
@@ -912,7 +932,7 @@ static int rk28_camera_probe(struct platform_device *pdev)
     int irq;
     int err = 0;
 
-    RK28CAMERA_TR("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
+    RK28CAMERA_DG("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
     irq = platform_get_irq(pdev, 0);
     if (!res || irq < 0) {
@@ -985,7 +1005,7 @@ static int rk28_camera_probe(struct platform_device *pdev)
     if (err)
         goto exit_free_irq;
 
-    RK28CAMERA_TR("\n%s..%s..%d    ^^^^^^^^ ddl^^^^^^^^\n",__FUNCTION__,__FILE__,__LINE__);    
+    RK28CAMERA_DG("\n%s..%s..%d    ^^^^^^^^ ddl^^^^^^^^\n",__FUNCTION__,__FILE__,__LINE__);
     return 0;
 
 exit_free_irq:     
@@ -1039,7 +1059,7 @@ static struct platform_driver rk28_camera_driver =
 
 static int __devinit rk28_camera_init(void)
 {
-    RK28CAMERA_TR("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
+    RK28CAMERA_DG("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
     return platform_driver_register(&rk28_camera_driver);
 }
 

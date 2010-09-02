@@ -292,8 +292,7 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 
 	dev_dbg(&icd->dev, "S_FMT(%c%c%c%c, %ux%u)\n",
 		pixfmtstr(pix->pixelformat), pix->width, pix->height);
-		
-	printk("%s..%d.. ********ddl*******\n",__FUNCTION__, __LINE__);
+
 	/* We always call try_fmt() before set_fmt() or set_crop() */
 	ret = ici->ops->try_fmt(icd, f);
 	if (ret < 0)
@@ -443,8 +442,6 @@ static int soc_camera_close(struct file *file)
 	mutex_unlock(&icd->video_lock);
 
 	module_put(ici->ops->owner);
-
-	printk("icf->vb_vidq.bufs[0] = 0x%x\n",(int)(icf->vb_vidq.bufs[0]));
 
 	vfree(icf);
 
