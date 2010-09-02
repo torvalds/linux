@@ -48,6 +48,9 @@ struct ports_driver_data {
 	/* Used for exporting per-port information to debugfs */
 	struct dentry *debugfs_dir;
 
+	/* List of all the devices we're handling */
+	struct list_head portdevs;
+
 	/* Number of devices this driver is handling */
 	unsigned int index;
 
@@ -108,6 +111,9 @@ struct port_buffer {
  * ports for that device (vdev->priv).
  */
 struct ports_device {
+	/* Next portdev in the list, head is in the pdrvdata struct */
+	struct list_head list;
+
 	/*
 	 * Workqueue handlers where we process deferred work after
 	 * notification
@@ -1599,6 +1605,10 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 		add_port(portdev, 0);
 	}
 
+	spin_lock_irq(&pdrvdata_lock);
+	list_add_tail(&portdev->list, &pdrvdata.portdevs);
+	spin_unlock_irq(&pdrvdata_lock);
+
 	__send_control_msg(portdev, VIRTIO_CONSOLE_BAD_ID,
 			   VIRTIO_CONSOLE_DEVICE_READY, 1);
 	return 0;
@@ -1624,6 +1634,10 @@ static void virtcons_remove(struct virtio_device *vdev)
 	struct port *port, *port2;
 
 	portdev = vdev->priv;
+
+	spin_lock_irq(&pdrvdata_lock);
+	list_del(&portdev->list);
+	spin_unlock_irq(&pdrvdata_lock);
 
 	/* Disable interrupts for vqs */
 	vdev->config->reset(vdev);
@@ -1691,6 +1705,7 @@ static int __init init(void)
 			   PTR_ERR(pdrvdata.debugfs_dir));
 	}
 	INIT_LIST_HEAD(&pdrvdata.consoles);
+	INIT_LIST_HEAD(&pdrvdata.portdevs);
 
 	return register_virtio_driver(&virtio_console);
 }
