@@ -2567,7 +2567,8 @@ out:
  * suballoc_bit.
  */
 static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
-				       u16 *suballoc_slot, u16 *suballoc_bit)
+				       u16 *suballoc_slot, u64 *group_blkno,
+				       u16 *suballoc_bit)
 {
 	int status;
 	struct buffer_head *inode_bh = NULL;
@@ -2604,6 +2605,8 @@ static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
 		*suballoc_slot = le16_to_cpu(inode_fe->i_suballoc_slot);
 	if (suballoc_bit)
 		*suballoc_bit = le16_to_cpu(inode_fe->i_suballoc_bit);
+	if (group_blkno)
+		*group_blkno = le64_to_cpu(inode_fe->i_suballoc_loc);
 
 bail:
 	brelse(inode_bh);
@@ -2621,7 +2624,8 @@ bail:
  */
 static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 				   struct inode *suballoc,
-				   struct buffer_head *alloc_bh, u64 blkno,
+				   struct buffer_head *alloc_bh,
+				   u64 group_blkno, u64 blkno,
 				   u16 bit, int *res)
 {
 	struct ocfs2_dinode *alloc_di;
@@ -2642,10 +2646,8 @@ static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	if (alloc_di->i_suballoc_loc)
-		bg_blkno = le64_to_cpu(alloc_di->i_suballoc_loc);
-	else
-		bg_blkno = ocfs2_which_suballoc_group(blkno, bit);
+	bg_blkno = group_blkno ? group_blkno :
+		   ocfs2_which_suballoc_group(blkno, bit);
 	status = ocfs2_read_group_descriptor(suballoc, alloc_di, bg_blkno,
 					     &group_bh);
 	if (status < 0) {
@@ -2680,6 +2682,7 @@ bail:
 int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 {
 	int status;
+	u64 group_blkno = 0;
 	u16 suballoc_bit = 0, suballoc_slot = 0;
 	struct inode *inode_alloc_inode;
 	struct buffer_head *alloc_bh = NULL;
@@ -2687,7 +2690,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 	mlog_entry("blkno: %llu", (unsigned long long)blkno);
 
 	status = ocfs2_get_suballoc_slot_bit(osb, blkno, &suballoc_slot,
-					     &suballoc_bit);
+					     &group_blkno, &suballoc_bit);
 	if (status < 0) {
 		mlog(ML_ERROR, "get alloc slot and bit failed %d\n", status);
 		goto bail;
@@ -2715,7 +2718,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 	}
 
 	status = ocfs2_test_suballoc_bit(osb, inode_alloc_inode, alloc_bh,
-					 blkno, suballoc_bit, res);
+					 group_blkno, blkno, suballoc_bit, res);
 	if (status < 0)
 		mlog(ML_ERROR, "test suballoc bit failed %d\n", status);
 
