@@ -298,6 +298,7 @@ static long vhost_dev_set_owner(struct vhost_dev *dev)
 	return 0;
 err_cgroup:
 	kthread_stop(worker);
+	dev->worker = NULL;
 err_worker:
 	if (dev->mm)
 		mmput(dev->mm);
