@@ -335,6 +335,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 		dev_err(tsc->dev, "schedule failed");
 		goto err2;
 	 }
+	platform_set_drvdata(pdev, tps6507x_dev);
 
 	return 0;
 
