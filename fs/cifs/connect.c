@@ -105,6 +105,7 @@ struct smb_vol {
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
 	char *prepath;
+	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
 };
 
@@ -1046,6 +1047,22 @@ cifs_parse_mount_options(char *options, const char *devname,
 						    "long\n");
 				return 1;
 			}
+		} else if (strnicmp(data, "srcaddr", 7) == 0) {
+			vol->srcaddr.ss_family = AF_UNSPEC;
+
+			if (!value || !*value) {
+				printk(KERN_WARNING "CIFS: srcaddr value"
+				       " not specified.\n");
+				return 1;	/* needs_arg; */
+			}
+			i = cifs_convert_address((struct sockaddr *)&vol->srcaddr,
+						 value, strlen(value));
+			if (i < 0) {
+				printk(KERN_WARNING "CIFS:  Could not parse"
+				       " srcaddr: %s\n",
+				       value);
+				return 1;
+			}
 		} else if (strnicmp(data, "prefixpath", 10) == 0) {
 			if (!value || !*value) {
 				printk(KERN_WARNING
@@ -1374,8 +1391,36 @@ cifs_parse_mount_options(char *options, const char *devname,
 	return 0;
 }
 
+/** Returns true if srcaddr isn't specified and rhs isn't
+ * specified, or if srcaddr is specified and
+ * matches the IP address of the rhs argument.
+ */
 static bool
-match_address(struct TCP_Server_Info *server, struct sockaddr *addr)
+srcip_matches(struct sockaddr *srcaddr, struct sockaddr *rhs)
+{
+	switch (srcaddr->sa_family) {
+	case AF_UNSPEC:
+		return (rhs->sa_family == AF_UNSPEC);
+	case AF_INET: {
+		struct sockaddr_in *saddr4 = (struct sockaddr_in *)srcaddr;
+		struct sockaddr_in *vaddr4 = (struct sockaddr_in *)rhs;
+		return (saddr4->sin_addr.s_addr == vaddr4->sin_addr.s_addr);
+	}
+	case AF_INET6: {
+		struct sockaddr_in6 *saddr6 = (struct sockaddr_in6 *)srcaddr;
+		struct sockaddr_in6 *vaddr6 = (struct sockaddr_in6 *)&rhs;
+		return ipv6_addr_equal(&saddr6->sin6_addr, &vaddr6->sin6_addr);
+	}
+	default:
+		WARN_ON(1);
+		return false; /* don't expect to be here */
+	}
+}
+
+
+static bool
+match_address(struct TCP_Server_Info *server, struct sockaddr *addr,
+	      struct sockaddr *srcaddr)
 {
 	struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
@@ -1401,6 +1446,9 @@ match_address(struct TCP_Server_Info *server, struct sockaddr *addr)
 			return false;
 		break;
 	}
+
+	if (!srcip_matches(srcaddr, (struct sockaddr *)&server->srcaddr))
+		return false;
 
 	return true;
 }
@@ -1469,7 +1517,8 @@ cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 		if (server->tcpStatus == CifsNew)
 			continue;
 
-		if (!match_address(server, addr))
+		if (!match_address(server, addr,
+				   (struct sockaddr *)&vol->srcaddr))
 			continue;
 
 		if (!match_security(server, vol))
@@ -1584,6 +1633,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	 * no need to spinlock this init of tcpStatus or srv_count
 	 */
 	tcp_ses->tcpStatus = CifsNew;
+	memcpy(&tcp_ses->srcaddr, &volume_info->srcaddr,
+	       sizeof(tcp_ses->srcaddr));
 	++tcp_ses->srv_count;
 
 	if (addr.ss_family == AF_INET6) {
@@ -1999,6 +2050,33 @@ static void rfc1002mangle(char *target, char *source, unsigned int length)
 
 }
 
+static int
+bind_socket(struct TCP_Server_Info *server)
+{
+	int rc = 0;
+	if (server->srcaddr.ss_family != AF_UNSPEC) {
+		/* Bind to the specified local IP address */
+		struct socket *socket = server->ssocket;
+		rc = socket->ops->bind(socket,
+				       (struct sockaddr *) &server->srcaddr,
+				       sizeof(server->srcaddr));
+		if (rc < 0) {
+			struct sockaddr_in *saddr4;
+			struct sockaddr_in6 *saddr6;
+			saddr4 = (struct sockaddr_in *)&server->srcaddr;
+			saddr6 = (struct sockaddr_in6 *)&server->srcaddr;
+			if (saddr6->sin6_family == AF_INET6)
+				cERROR(1, "cifs: "
+				       "Failed to bind to: %pI6c, error: %d\n",
+				       &saddr6->sin6_addr, rc);
+			else
+				cERROR(1, "cifs: "
+				       "Failed to bind to: %pI4, error: %d\n",
+				       &saddr4->sin_addr.s_addr, rc);
+		}
+	}
+	return rc;
+}
 
 static int
 ipv4_connect(struct TCP_Server_Info *server)
@@ -2023,6 +2101,10 @@ ipv4_connect(struct TCP_Server_Info *server)
 		socket->sk->sk_allocation = GFP_NOFS;
 		cifs_reclassify_socket4(socket);
 	}
+
+	rc = bind_socket(server);
+	if (rc < 0)
+		return rc;
 
 	/* user overrode default port */
 	if (server->addr.sockAddr.sin_port) {
@@ -2185,6 +2267,10 @@ ipv6_connect(struct TCP_Server_Info *server)
 		socket->sk->sk_allocation = GFP_NOFS;
 		cifs_reclassify_socket6(socket);
 	}
+
+	rc = bind_socket(server);
+	if (rc < 0)
+		return rc;
 
 	/* user overrode default port */
 	if (server->addr.sockAddr6.sin6_port) {
