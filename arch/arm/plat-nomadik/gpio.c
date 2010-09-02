@@ -102,6 +102,22 @@ static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
 	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRC);
 }
 
+static void __nmk_gpio_set_output(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset, int val)
+{
+	if (val)
+		writel(1 << offset, nmk_chip->addr + NMK_GPIO_DATS);
+	else
+		writel(1 << offset, nmk_chip->addr + NMK_GPIO_DATC);
+}
+
+static void __nmk_gpio_make_output(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset, int val)
+{
+	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
+	__nmk_gpio_set_output(nmk_chip, offset, val);
+}
+
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 			     pin_cfg_t cfg)
 {
@@ -126,12 +142,21 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 	int pull = PIN_PULL(cfg);
 	int af = PIN_ALT(cfg);
 	int slpm = PIN_SLPM(cfg);
+	int output = PIN_DIR(cfg);
+	int val = PIN_VAL(cfg);
 
-	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s\n",
-		pin, afnames[af], pullnames[pull], slpmnames[slpm]);
+	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s (%s%s)\n",
+		pin, afnames[af], pullnames[pull], slpmnames[slpm],
+		output ? "output " : "input",
+		output ? (val ? "high" : "low") : "");
 
-	__nmk_gpio_make_input(nmk_chip, offset);
-	__nmk_gpio_set_pull(nmk_chip, offset, pull);
+	if (output)
+		__nmk_gpio_make_output(nmk_chip, offset, val);
+	else {
+		__nmk_gpio_make_input(nmk_chip, offset);
+		__nmk_gpio_set_pull(nmk_chip, offset, pull);
+	}
+
 	__nmk_gpio_set_slpm(nmk_chip, offset, slpm);
 	__nmk_gpio_set_mode(nmk_chip, offset, af);
 }
@@ -519,12 +544,8 @@ static void nmk_gpio_set_output(struct gpio_chip *chip, unsigned offset,
 {
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
-	u32 bit = 1 << offset;
 
-	if (val)
-		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
-	else
-		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
+	__nmk_gpio_set_output(nmk_chip, offset, val);
 }
 
 static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
@@ -533,8 +554,7 @@ static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
 
-	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
-	nmk_gpio_set_output(chip, offset, val);
+	__nmk_gpio_make_output(nmk_chip, offset, val);
 
 	return 0;
 }
