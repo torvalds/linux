@@ -1483,6 +1483,9 @@ static void in_intr(struct virtqueue *vq)
 
 	wake_up_interruptible(&port->waitqueue);
 
+	/* Send a SIGIO indicating new data in case the process asked for it */
+	send_sigio_to_port(port);
+
 	if (is_console_port(port) && hvc_poll(port->cons.hvc))
 		hvc_kick();
 }
