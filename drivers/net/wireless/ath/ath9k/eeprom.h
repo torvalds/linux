@@ -266,6 +266,8 @@ enum eeprom_param {
 	EEP_INTERNAL_REGULATOR,
 	EEP_SWREG,
 	EEP_PAPRD,
+	EEP_MODAL_VER,
+	EEP_ANT_DIV_CTL1,
 };
 
 enum ar5416_rates {

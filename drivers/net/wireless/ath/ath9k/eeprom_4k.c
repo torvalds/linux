@@ -213,6 +213,10 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return 0;
 	case EEP_PWR_TABLE_OFFSET:
 		return AR5416_PWR_TABLE_OFFSET_DB;
+	case EEP_MODAL_VER:
+		return pModal->version;
+	case EEP_ANT_DIV_CTL1:
+		return pModal->antdiv_ctl1;
 	default:
 		return 0;
 	}

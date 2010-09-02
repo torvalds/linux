@@ -204,6 +204,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
 	ATH9K_HW_CAP_SGI_20			= BIT(21),
 	ATH9K_HW_CAP_PAPRD			= BIT(22),
+	ATH9K_HW_CAP_ANT_DIV_COMB		= BIT(23),
 };
 
 struct ath9k_hw_capabilities {
