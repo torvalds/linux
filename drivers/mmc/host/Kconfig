@@ -451,3 +451,17 @@ config MMC_JZ4740
 	  SoCs.
 	  If you have a board based on such a SoC and with a SD/MMC slot,
 	  say Y or M here.
+
+config MMC_USHC
+	tristate "USB SD Host Controller (USHC) support"
+	depends on USB
+	help
+	  This selects support for USB SD Host Controllers based on
+	  the Cypress Astoria chip with firmware compliant with CSR's
+	  USB SD Host Controller specification (CS-118793-SP).
+
+	  CSR boards with this device include: USB<>SDIO (M1985v2),
+	  and Ultrasira.
+
+	  Note: These controllers only support SDIO cards and do not
+	  support MMC or SD memory cards.
