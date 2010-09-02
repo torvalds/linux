@@ -1605,6 +1605,9 @@ static void virtcons_remove(struct virtio_device *vdev)
 
 	portdev = vdev->priv;
 
+	/* Disable interrupts for vqs */
+	vdev->config->reset(vdev);
+	/* Finish up work that's lined up */
 	cancel_work_sync(&portdev->control_work);
 
 	list_for_each_entry_safe(port, port2, &portdev->ports, list)
