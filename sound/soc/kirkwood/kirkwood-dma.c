@@ -400,4 +400,4 @@ module_exit(kirkwood_pcm_exit);
 MODULE_AUTHOR("Arnaud Patard <apatard@mandriva.com>");
 MODULE_DESCRIPTION("Marvell Kirkwood Audio DMA module");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:kirkwood-pcm-audio");
