@@ -1893,6 +1893,13 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	writel(SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK2818_MCI_ERROR_FLAGS | SDMMC_INT_CD,
 			host->regs + SDMMC_INTMASK);
 
+	if((strncmp(host->dma_name, "sdio", strlen("sdio")) == 0) &&
+		(readl(host->regs + SDMMC_STATUS) & SDMMC_STAUTS_DATA_BUSY))
+	{
+		dev_err(host->dev, "sdio is busy, fail to init sdio.please check if wifi_d0's level is high?\n");
+		ret = -EINVAL;
+		return ret;
+	}
 #if 0	
 	/* Assume card is present initially */
 	if(rk2818_sdmmc_get_cd(host->mmc) == 0 &&strncmp(host->dma_name, "sdio", strlen("sdio")) == 0)
@@ -1938,7 +1945,7 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 #endif
 	writel(SDMMC_CTRL_INT_ENABLE, host->regs + SDMMC_CTRL); // enable mci interrupt
 
-	dev_dbg(&pdev->dev, "RK2818 MMC controller used as %s, at irq %d\n", 
+	dev_info(&pdev->dev, "RK2818 MMC controller used as %s, at irq %d\n", 
 				host->dma_name, host->irq);
 	return 0;
 err_remove_host:
