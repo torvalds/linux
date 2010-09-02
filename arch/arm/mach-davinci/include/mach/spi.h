@@ -30,6 +30,7 @@ struct davinci_spi_platform_data {
 	u8	version;
 	u8	num_chipselect;
 	u8	clk_internal;
+	u8	intr_line;
 	u8	use_dma;
 	u8	*chip_sel;
 };
@@ -38,6 +39,9 @@ struct davinci_spi_config {
 	u8	wdelay;
 	u8	odd_parity;
 	u8	parity_enable;
+#define SPI_IO_TYPE_INTR	0
+#define SPI_IO_TYPE_POLL	1
+	u8	io_type;
 	u8	timer_disable;
 	u8	c2tdelay;
 	u8	t2cdelay;
