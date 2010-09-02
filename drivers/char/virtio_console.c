@@ -582,6 +582,9 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 		if (ret < 0)
 			return ret;
 	}
+	/* Port got hot-unplugged. */
+	if (!port->guest_connected)
+		return -ENODEV;
 	/*
 	 * We could've received a disconnection message while we were
 	 * waiting for more data.
