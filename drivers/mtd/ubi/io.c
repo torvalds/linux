@@ -714,7 +714,7 @@ bad:
  * o %UBI_IO_BAD_HDR if the erase counter header is corrupted (a CRC error);
  * o %UBI_IO_BAD_HDR_EBADMSG is the same as %UBI_IO_BAD_HDR, but there also was
  *   a data integrity error (uncorrectable ECC error in case of NAND);
- * o %UBI_IO_PEB_EMPTY if the physical eraseblock is empty;
+ * o %UBI_IO_FF if only 0xFF bytes were read (the PEB is supposedly empty)
  * o a negative error code in case of failure.
  */
 int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
@@ -762,7 +762,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			else if (UBI_IO_DEBUG)
 				dbg_msg("no EC header found at PEB %d, "
 					"only 0xFF bytes", pnum);
-			return UBI_IO_PEB_EMPTY;
+			return UBI_IO_FF;
 		}
 
 		/*
@@ -977,19 +977,11 @@ bad:
  *
  * This function reads the volume identifier header from physical eraseblock
  * @pnum and stores it in @vid_hdr. It also checks CRC checksum of the read
- * volume identifier header. The following codes may be returned:
+ * volume identifier header. The error codes are the same as in
+ * 'ubi_io_read_ec_hdr()'.
  *
- * o %0 if the CRC checksum is correct and the header was successfully read;
- * o %UBI_IO_BITFLIPS if the CRC is correct, but bit-flips were detected
- *   and corrected by the flash driver; this is harmless but may indicate that
- *   this eraseblock may become bad soon;
- * o %UBI_IO_BAD_HDR if the volume identifier header is corrupted (a CRC
- *   error detected);
- * o %UBI_IO_BAD_HDR_EBADMSG is the same as %UBI_IO_BAD_HDR, but there also was
- *   a data integrity error (uncorrectable ECC error in case of NAND);
- * o %UBI_IO_PEB_FREE if the physical eraseblock is free (i.e., there is no VID
- *   header there);
- * o a negative error code in case of failure.
+ * Note, the implementation of this function is also very similar to
+ * 'ubi_io_read_ec_hdr()', so refer commentaries in 'ubi_io_read_ec_hdr()'.
  */
 int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_vid_hdr *vid_hdr, int verbose)
@@ -1008,15 +1000,6 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		if (err != UBI_IO_BITFLIPS && err != -EBADMSG)
 			return err;
 
-		/*
-		 * We read all the data, but either a correctable bit-flip
-		 * occurred, or MTD reported a data integrity error
-		 * (uncorrectable ECC error in case of NAND). The former is
-		 * harmless, the later may mean that the read data is
-		 * corrupted. But we have a CRC check-sum and we will detect
-		 * this. If the VID header is still OK, we just report this as
-		 * there was a bit-flip, to force scrubbing.
-		 */
 		if (err == -EBADMSG)
 			read_err = UBI_IO_BAD_HDR_EBADMSG;
 	}
@@ -1026,25 +1009,16 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		if (read_err)
 			return read_err;
 
-		/*
-		 * If we have read all 0xFF bytes, the VID header probably does
-		 * not exist and the physical eraseblock is assumed to be free.
-		 */
 		if (check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
-			/* The physical eraseblock is supposedly free */
 			if (verbose)
 				ubi_warn("no VID header found at PEB %d, "
 					 "only 0xFF bytes", pnum);
 			else if (UBI_IO_DEBUG)
 				dbg_msg("no VID header found at PEB %d, "
 					"only 0xFF bytes", pnum);
-			return UBI_IO_PEB_FREE;
+			return UBI_IO_FF;
 		}
 
-		/*
-		 * This is not a valid VID header, and these are not 0xFF
-		 * bytes. Report that the header is corrupted.
-		 */
 		if (verbose) {
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_VID_HDR_MAGIC);
@@ -1069,17 +1043,12 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		return read_err ?: UBI_IO_BAD_HDR;
 	}
 
-	/* Validate the VID header that we have just read */
 	err = validate_vid_hdr(ubi, vid_hdr);
 	if (err) {
 		ubi_err("validation failed for PEB %d", pnum);
 		return -EINVAL;
 	}
 
-	/*
-	 * If there was a read error (%-EBADMSG), but the header CRC is still
-	 * OK, report about a bit-flip to force scrubbing on this PEB.
-	 */
 	return read_err ? UBI_IO_BITFLIPS : 0;
 }
 

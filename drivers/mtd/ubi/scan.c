@@ -748,7 +748,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		return err;
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
-	else if (err == UBI_IO_PEB_EMPTY)
+	else if (err == UBI_IO_FF)
 		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, &si->erase);
 	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR) {
 		/*
@@ -817,7 +817,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
 	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR ||
-		 (err == UBI_IO_PEB_FREE && ec_corr)) {
+		 (err == UBI_IO_FF && ec_corr)) {
 		/* VID header is corrupted */
 		if (err == UBI_IO_BAD_HDR_EBADMSG ||
 		    ec_corr == UBI_IO_BAD_HDR_EBADMSG)
@@ -826,7 +826,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		if (err)
 			return err;
 		goto adjust_mean_ec;
-	} else if (err == UBI_IO_PEB_FREE) {
+	} else if (err == UBI_IO_FF) {
 		/* No VID header - the physical eraseblock is free */
 		err = add_to_list(si, pnum, ec, &si->free);
 		if (err)
