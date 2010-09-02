@@ -48,15 +48,8 @@ static int tegra_sdhci_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
-static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
-{
-	struct tegra_sdhci_host *tegra_host = sdhci_priv(host);
-	host->max_clk = clk_get_rate(tegra_host->clk);
-}
-
 static struct sdhci_ops tegra_sdhci_ops = {
 	.enable_dma = tegra_sdhci_enable_dma,
-	.set_clock  = tegra_sdhci_set_clock,
 };
 
 static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
