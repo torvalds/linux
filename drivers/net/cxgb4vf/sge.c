@@ -1520,7 +1520,6 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	__skb_pull(skb, PKTSHIFT);
 	skb->protocol = eth_type_trans(skb, rspq->netdev);
 	skb_record_rx_queue(skb, rspq->idx);
-	skb->dev->last_rx = jiffies;                  /* XXX removed 2.6.29 */
 	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 

@@ -848,7 +848,6 @@ static int rxq_process(struct net_device *dev, int budget)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_receive_skb(skb);
 		}
-		dev->last_rx = jiffies;
 	}
 	/* Fill RX ring with skb's */
 	rxq_refill(dev);
