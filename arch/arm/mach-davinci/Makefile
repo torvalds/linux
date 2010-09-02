@@ -33,6 +33,7 @@ obj-$(CONFIG_MACH_DAVINCI_DM365_EVM)	+= board-dm365-evm.o
 obj-$(CONFIG_MACH_DAVINCI_DA830_EVM)	+= board-da830-evm.o
 obj-$(CONFIG_MACH_DAVINCI_DA850_EVM)	+= board-da850-evm.o
 obj-$(CONFIG_MACH_TNETV107X)		+= board-tnetv107x-evm.o
+obj-$(CONFIG_MACH_MITYOMAPL138)		+= board-mityomapl138.o
 
 # Power Management
 obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o

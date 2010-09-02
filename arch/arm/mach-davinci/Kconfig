@@ -185,6 +185,14 @@ config MACH_TNETV107X
 	help
 	  Say Y here to select the TI TNETV107X Evaluation Module.
 
+config MACH_MITYOMAPL138
+	bool "Critical Link MityDSP-L138/MityARM-1808 SoM"
+	depends on ARCH_DAVINCI_DA850
+	help
+	  Say Y here to select the Critical Link MityDSP-L138/MityARM-1808
+	  System on Module.  Information on this SoM may be found at
+	  http://www.mitydsp.com
+
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"
 	depends on ARCH_DAVINCI
