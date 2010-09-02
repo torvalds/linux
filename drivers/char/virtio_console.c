@@ -196,6 +196,9 @@ struct port {
 	/* The 'name' of the port that we expose via sysfs properties */
 	char *name;
 
+	/* We can notify apps of host connect / disconnect events via SIGIO */
+	struct fasync_struct *async_queue;
+
 	/* The 'id' to identify the port with the Host */
 	u32 id;
 
@@ -815,6 +818,14 @@ out:
 	return ret;
 }
 
+static int port_fops_fasync(int fd, struct file *filp, int mode)
+{
+	struct port *port;
+
+	port = filp->private_data;
+	return fasync_helper(fd, filp, mode, &port->async_queue);
+}
+
 /*
  * The file operations that we support: programs in the guest can open
  * a console device, read from it, write to it, poll for data and
@@ -828,6 +839,7 @@ static const struct file_operations port_fops = {
 	.write = port_fops_write,
 	.poll  = port_fops_poll,
 	.release = port_fops_release,
+	.fasync = port_fops_fasync,
 };
 
 /*
@@ -1086,6 +1098,12 @@ static unsigned int fill_queue(struct virtqueue *vq, spinlock_t *lock)
 	return nr_added_bufs;
 }
 
+static void send_sigio_to_port(struct port *port)
+{
+	if (port->async_queue && port->guest_connected)
+		kill_fasync(&port->async_queue, SIGIO, POLL_OUT);
+}
+
 static int add_port(struct ports_device *portdev, u32 id)
 {
 	char debugfs_name[16];
@@ -1108,6 +1126,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->name = NULL;
 	port->inbuf = NULL;
 	port->cons.hvc = NULL;
+	port->async_queue = NULL;
 
 	port->cons.ws.ws_row = port->cons.ws.ws_col = 0;
 
@@ -1362,6 +1381,12 @@ static void handle_control_message(struct ports_device *portdev,
 		spin_lock_irq(&port->outvq_lock);
 		reclaim_consumed_buffers(port);
 		spin_unlock_irq(&port->outvq_lock);
+
+		/*
+		 * If the guest is connected, it'll be interested in
+		 * knowing the host connection state changed.
+		 */
+		send_sigio_to_port(port);
 		break;
 	case VIRTIO_CONSOLE_PORT_NAME:
 		/*
