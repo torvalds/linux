@@ -183,7 +183,14 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 		break;
 	default:
-		return -EINVAL;
+		/*
+		 * We don't know anything about this algorithm,
+		 * allow using it -- but the driver must check
+		 * all parameters! We still check below whether
+		 * or not the driver supports this algorithm,
+		 * of course.
+		 */
+		break;
 	}
 
 	if (params->seq) {

@@ -427,8 +427,8 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Adding new IBSS station %pM (dev=%s)\n",
-	       wiphy_name(local->hw.wiphy), addr, sdata->name);
+	wiphy_debug(local->hw.wiphy, "Adding new IBSS station %pM (dev=%s)\n",
+		    addr, sdata->name);
 #endif
 
 	sta = sta_info_alloc(sdata, addr, gfp);

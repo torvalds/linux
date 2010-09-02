@@ -112,8 +112,10 @@ void ieee80211_offchannel_stop_beaconing(struct ieee80211_local *local)
 		 * used from user space controlled off-channel operations.
 		 */
 		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-		    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		    sdata->vif.type != NL80211_IFTYPE_MONITOR) {
+			set_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
 			netif_tx_stop_all_queues(sdata->dev);
+		}
 	}
 	mutex_unlock(&local->iflist_mtx);
 }
@@ -131,6 +133,7 @@ void ieee80211_offchannel_stop_station(struct ieee80211_local *local)
 			continue;
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			set_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
 			netif_tx_stop_all_queues(sdata->dev);
 			if (sdata->u.mgd.associated)
 				ieee80211_offchannel_ps_enable(sdata);
@@ -155,8 +158,20 @@ void ieee80211_offchannel_return(struct ieee80211_local *local,
 				ieee80211_offchannel_ps_disable(sdata);
 		}
 
-		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
+			clear_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
+			/*
+			 * This may wake up queues even though the driver
+			 * currently has them stopped. This is not very
+			 * likely, since the driver won't have gotten any
+			 * (or hardly any) new packets while we weren't
+			 * on the right channel, and even if it happens
+			 * it will at most lead to queueing up one more
+			 * packet per queue in mac80211 rather than on
+			 * the interface qdisc.
+			 */
 			netif_tx_wake_all_queues(sdata->dev);
+		}
 
 		/* re-enable beaconing */
 		if (enable_beaconing &&

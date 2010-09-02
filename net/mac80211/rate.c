@@ -368,8 +368,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 
 	ref = rate_control_alloc(name, local);
 	if (!ref) {
-		printk(KERN_WARNING "%s: Failed to select rate control "
-		       "algorithm\n", wiphy_name(local->hw.wiphy));
+		wiphy_warn(local->hw.wiphy,
+			   "Failed to select rate control algorithm\n");
 		return -ENOENT;
 	}
 
@@ -380,9 +380,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 		sta_info_flush(local, NULL);
 	}
 
-	printk(KERN_DEBUG "%s: Selected rate control "
-	       "algorithm '%s'\n", wiphy_name(local->hw.wiphy),
-	       ref->ops->name);
+	wiphy_debug(local->hw.wiphy, "Selected rate control algorithm '%s'\n",
+		    ref->ops->name);
 
 	return 0;
 }

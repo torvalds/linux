@@ -625,7 +625,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 
 	data = &(priv->sensitivity_data);
 
-	if (!iwl_is_associated(priv)) {
+	if (!iwl_is_any_associated(priv)) {
 		IWL_DEBUG_CALIB(priv, "<< - not associated\n");
 		return;
 	}
@@ -763,6 +763,12 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info;
 	u8 first_chain;
+	/*
+	 * MULTI-FIXME:
+	 * When we support multiple interfaces on different channels,
+	 * this must be modified/fixed.
+	 */
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
 	if (priv->disable_chain_noise_cal)
 		return;
@@ -793,8 +799,8 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 		return;
 	}
 
-	rxon_band24 = !!(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK);
-	rxon_chnum = le16_to_cpu(priv->staging_rxon.channel);
+	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
+	rxon_chnum = le16_to_cpu(ctx->staging.channel);
 	if (priv->cfg->bt_statistics) {
 		stat_band24 = !!(((struct iwl_bt_notif_statistics *)
 				 stat_resp)->flag &
@@ -914,7 +920,11 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	 * To be safe, simply mask out any chains that we know
 	 * are not on the device.
 	 */
-	active_chains &= priv->hw_params.valid_rx_ant;
+	if (priv->cfg->advanced_bt_coexist && priv->bt_full_concurrent) {
+		/* operated as 1x1 in full concurrency mode */
+		active_chains &= first_antenna(priv->hw_params.valid_rx_ant);
+	} else
+		active_chains &= priv->hw_params.valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {

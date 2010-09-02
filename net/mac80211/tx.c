@@ -351,8 +351,8 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 
 	local->total_ps_buffered = total;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
-	       wiphy_name(local->hw.wiphy), purged);
+	wiphy_debug(local->hw.wiphy, "PS buffers full - purged %d frames\n",
+		    purged);
 #endif
 }
 
@@ -509,6 +509,18 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result debug_noinline
+ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
+
+	if (unlikely(tx->sdata->control_port_protocol == tx->skb->protocol &&
+		     tx->sdata->control_port_no_encrypt))
+		info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_key *key = NULL;
@@ -527,7 +539,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if ((key = rcu_dereference(tx->sdata->default_key)))
 		tx->key = key;
 	else if (tx->sdata->drop_unencrypted &&
-		 (tx->skb->protocol != cpu_to_be16(ETH_P_PAE)) &&
+		 (tx->skb->protocol != tx->sdata->control_port_protocol) &&
 		 !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 		 (!ieee80211_is_robust_mgmt_frame(hdr) ||
 		  (ieee80211_is_action(hdr->frame_control) &&
@@ -947,6 +959,8 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
+
 	if (!tx->key)
 		return TX_CONTINUE;
 
@@ -960,10 +974,16 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 		return ieee80211_crypto_ccmp_encrypt(tx);
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		return ieee80211_crypto_aes_cmac_encrypt(tx);
+	default:
+		/* handle hw-only algorithm */
+		if (info->control.hw_key) {
+			ieee80211_tx_set_protected(tx);
+			return TX_CONTINUE;
+		}
+		break;
+
 	}
 
-	/* not reached */
-	WARN_ON(1);
 	return TX_DROP;
 }
 
@@ -1341,6 +1361,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_dynamic_ps);
 	CALL_TXH(ieee80211_tx_h_check_assoc);
 	CALL_TXH(ieee80211_tx_h_ps_buf);
+	CALL_TXH(ieee80211_tx_h_check_control_port_protocol);
 	CALL_TXH(ieee80211_tx_h_select_key);
 	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
@@ -1513,8 +1534,8 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 		I802_DEBUG_INC(local->tx_expand_skb_head);
 
 	if (pskb_expand_head(skb, head_need, tail_need, GFP_ATOMIC)) {
-		printk(KERN_DEBUG "%s: failed to reallocate TX buffer\n",
-		       wiphy_name(local->hw.wiphy));
+		wiphy_debug(local->hw.wiphy,
+			    "failed to reallocate TX buffer\n");
 		return -ENOMEM;
 	}
 
@@ -1701,7 +1722,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	u16 ethertype, hdrlen,  meshhdrlen = 0;
 	__le16 fc;
 	struct ieee80211_hdr hdr;
-	struct ieee80211s_hdr mesh_hdr;
+	struct ieee80211s_hdr mesh_hdr __maybe_unused;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1818,7 +1839,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 #endif
 	case NL80211_IFTYPE_STATION:
 		memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
-		if (sdata->u.mgd.use_4addr && ethertype != ETH_P_PAE) {
+		if (sdata->u.mgd.use_4addr &&
+		    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
 			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
@@ -1871,7 +1893,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
 		unlikely(!is_multicast_ether_addr(hdr.addr1) &&
 		      !(sta_flags & WLAN_STA_AUTHORIZED) &&
-		      !(ethertype == ETH_P_PAE &&
+		      !(cpu_to_be16(ethertype) == sdata->control_port_protocol &&
 		       compare_ether_addr(sdata->vif.addr,
 					  skb->data + ETH_ALEN) == 0))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -2070,8 +2092,7 @@ void ieee80211_tx_pending(unsigned long data)
 
 		if (skb_queue_empty(&local->pending[i]))
 			list_for_each_entry_rcu(sdata, &local->interfaces, list)
-				netif_tx_wake_queue(
-					netdev_get_tx_queue(sdata->dev, i));
+				netif_wake_subqueue(sdata->dev, i);
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 

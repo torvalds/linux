@@ -206,7 +206,6 @@ static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
 
@@ -214,7 +213,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		       scan_notif->scanned_channels,
 		       scan_notif->tsf_low,
 		       scan_notif->tsf_high, scan_notif->status);
-#endif
 
 	/* The HW is no longer scanning */
 	clear_bit(STATUS_SCAN_HW, &priv->status);
@@ -236,6 +234,26 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 
 	clear_bit(STATUS_SCANNING, &priv->status);
 
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
+	    priv->cfg->advanced_bt_coexist && priv->bt_status !=
+	    scan_notif->bt_status) {
+		if (scan_notif->bt_status) {
+			/* BT on */
+			if (!priv->bt_ch_announce)
+				priv->bt_traffic_load =
+					IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
+			/*
+			 * otherwise, no traffic load information provided
+			 * no changes made
+			 */
+		} else {
+			/* BT off */
+			priv->bt_traffic_load =
+				IWL_BT_COEX_TRAFFIC_LOAD_NONE;
+		}
+		priv->bt_status = scan_notif->bt_status;
+		queue_work(priv->workqueue, &priv->bt_traffic_change_work);
+	}
 	queue_work(priv->workqueue, &priv->scan_completed);
 }
 
@@ -268,18 +286,28 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 			       enum ieee80211_band band,
 			       struct ieee80211_vif *vif)
 {
+	struct iwl_rxon_context *ctx;
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
 
-	if (iwl_is_associated(priv)) {
-		/* If we're associated, we clamp the maximum passive
-		 * dwell time to be 98% of the beacon interval (minus
-		 * 2 * channel tune time) */
-		passive = vif ? vif->bss_conf.beacon_int : 0;
-		if ((passive > IWL_PASSIVE_DWELL_BASE) || !passive)
-			passive = IWL_PASSIVE_DWELL_BASE;
-		passive = (passive * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+	if (iwl_is_any_associated(priv)) {
+		/*
+		 * If we're associated, we clamp the maximum passive
+		 * dwell time to be 98% of the smallest beacon interval
+		 * (minus 2 * channel tune time)
+		 */
+		for_each_context(priv, ctx) {
+			u16 value;
+
+			if (!iwl_is_associated_ctx(ctx))
+				continue;
+			value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
+			if ((value > IWL_PASSIVE_DWELL_BASE) || !value)
+				value = IWL_PASSIVE_DWELL_BASE;
+			value = (value * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+			passive = min(value, passive);
+		}
 	}
 
 	return passive;
@@ -509,6 +537,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	    container_of(work, struct iwl_priv, scan_completed);
 	bool internal = false;
 	bool scan_completed = false;
+	struct iwl_rxon_context *ctx;
 
 	IWL_DEBUG_SCAN(priv, "SCAN complete scan\n");
 
@@ -539,11 +568,13 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
-	if (memcmp(&priv->active_rxon,
-		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
-		iwlcore_commit_rxon(priv);
+	for_each_context(priv, ctx)
+		iwlcore_commit_rxon(priv, ctx);
 
  out:
+	if (priv->cfg->ops->hcmd->set_pan_params)
+		priv->cfg->ops->hcmd->set_pan_params(priv);
+
 	mutex_unlock(&priv->mutex);
 
 	/*

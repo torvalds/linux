@@ -19,33 +19,6 @@
 #include "rate.h"
 #include "mesh.h"
 
-static bool nl80211_type_check(enum nl80211_iftype type)
-{
-	switch (type) {
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_MONITOR:
-#ifdef CONFIG_MAC80211_MESH
-	case NL80211_IFTYPE_MESH_POINT:
-#endif
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_WDS:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static bool nl80211_params_check(enum nl80211_iftype type,
-				 struct vif_params *params)
-{
-	if (!nl80211_type_check(type))
-		return false;
-
-	return true;
-}
-
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 			       enum nl80211_iftype type, u32 *flags,
 			       struct vif_params *params)
@@ -54,9 +27,6 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	struct net_device *dev;
 	struct ieee80211_sub_if_data *sdata;
 	int err;
-
-	if (!nl80211_params_check(type, params))
-		return -EINVAL;
 
 	err = ieee80211_if_add(local, name, &dev, type, params);
 	if (err || type != NL80211_IFTYPE_MONITOR || !flags)
@@ -81,12 +51,6 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret;
-
-	if (ieee80211_sdata_running(sdata))
-		return -EBUSY;
-
-	if (!nl80211_params_check(type, params))
-		return -EINVAL;
 
 	ret = ieee80211_if_change_type(sdata, type);
 	if (ret)
@@ -114,15 +78,13 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			     u8 key_idx, const u8 *mac_addr,
 			     struct key_params *params)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta = NULL;
 	struct ieee80211_key *key;
 	int err;
 
-	if (!netif_running(dev))
+	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	/* reject WEP and TKIP keys if WEP failed to initialize */
 	switch (params->cipher) {
@@ -152,9 +114,10 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		}
 	}
 
-	ieee80211_key_link(key, sdata, sta);
+	err = ieee80211_key_link(key, sdata, sta);
+	if (err)
+		ieee80211_key_free(sdata->local, key);
 
-	err = 0;
  out_unlock:
 	mutex_unlock(&sdata->local->sta_mtx);
 
@@ -1123,9 +1086,9 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	p.uapsd = false;
 
 	if (drv_conf_tx(local, params->queue, &p)) {
-		printk(KERN_DEBUG "%s: failed to set TX queue "
-		       "parameters for queue %d\n",
-		       wiphy_name(local->hw.wiphy), params->queue);
+		wiphy_debug(local->hw.wiphy,
+			    "failed to set TX queue parameters for queue %d\n",
+			    params->queue);
 		return -EINVAL;
 	}
 

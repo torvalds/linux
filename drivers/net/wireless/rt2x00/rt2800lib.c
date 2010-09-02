@@ -255,6 +255,23 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_mcu_request);
 
+int rt2800_wait_csr_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i = 0;
+	u32 reg;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
+		if (reg && reg != ~0)
+			return 0;
+		msleep(1);
+	}
+
+	ERROR(rt2x00dev, "Unstable hardware.\n");
+	return -EBUSY;
+}
+EXPORT_SYMBOL_GPL(rt2800_wait_csr_ready);
+
 int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
@@ -368,19 +385,16 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	/*
+	 * If driver doesn't wake up firmware here,
+	 * rt2800_load_firmware will hang forever when interface is up again.
+	 */
+	rt2800_register_write(rt2x00dev, AUTOWAKEUP_CFG, 0x00000000);
+
+	/*
 	 * Wait for stable hardware.
 	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
+	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
-	}
 
 	if (rt2x00_is_pci(rt2x00dev))
 		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
@@ -469,7 +483,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 			   txdesc->key_idx : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
 			   txdesc->length);
-	rt2x00_set_field32(&word, TXWI_W1_PACKETID, txdesc->queue + 1);
+	rt2x00_set_field32(&word, TXWI_W1_PACKETID, txdesc->qid + 1);
 	rt2x00_desc_write(txwi, 1, word);
 
 	/*
@@ -573,6 +587,49 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
+static bool rt2800_txdone_entry_check(struct queue_entry *entry, u32 reg)
+{
+	__le32 *txwi;
+	u32 word;
+	int wcid, ack, pid;
+	int tx_wcid, tx_ack, tx_pid;
+
+	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+
+	/*
+	 * This frames has returned with an IO error,
+	 * so the status report is not intended for this
+	 * frame.
+	 */
+	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags)) {
+		rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+		return false;
+	}
+
+	/*
+	 * Validate if this TX status report is intended for
+	 * this entry by comparing the WCID/ACK/PID fields.
+	 */
+	txwi = rt2800_drv_get_txwi(entry);
+
+	rt2x00_desc_read(txwi, 1, &word);
+	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
+	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
+
+	if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid)) {
+		WARNING(entry->queue->rt2x00dev,
+			"TX status report missed for queue %d entry %d\n",
+		entry->queue->qid, entry->entry_idx);
+		rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
+		return false;
+	}
+
+	return true;
+}
+
 void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
@@ -581,8 +638,8 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u32 reg;
-	int wcid, ack, pid, tx_wcid, tx_ack, tx_pid;
 	u16 mcs, real_mcs;
+	u8 pid;
 	int i;
 
 	/*
@@ -599,18 +656,15 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00_get_field32(reg, TX_STA_FIFO_VALID))
 			break;
 
-		wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
-		ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
-		pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
-
 		/*
 		 * Skip this entry when it contains an invalid
 		 * queue identication number.
 		 */
-		if (pid <= 0 || pid > QID_RX)
+		pid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE) - 1;
+		if (pid >= QID_RX)
 			continue;
 
-		queue = rt2x00queue_get_queue(rt2x00dev, pid - 1);
+		queue = rt2x00queue_get_queue(rt2x00dev, pid);
 		if (unlikely(!queue))
 			continue;
 
@@ -619,38 +673,24 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 		 * order. We first check that the queue is not empty.
 		 */
 		entry = NULL;
+		txwi = NULL;
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-			if (!test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+			if (rt2800_txdone_entry_check(entry, reg))
 				break;
-
-			rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 		}
 
 		if (!entry || rt2x00queue_empty(queue))
 			break;
 
-		/*
-		 * Check if we got a match by looking at WCID/ACK/PID
-		 * fields
-		 */
-		txwi = rt2800_drv_get_txwi(entry);
-
-		rt2x00_desc_read(txwi, 1, &word);
-		tx_wcid	= rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
-		tx_ack	= rt2x00_get_field32(word, TXWI_W1_ACK);
-		tx_pid	= rt2x00_get_field32(word, TXWI_W1_PACKETID);
-
-		if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid))
-			WARNING(rt2x00dev, "invalid TX_STA_FIFO content");
 
 		/*
 		 * Obtain the status about this packet.
 		 */
 		txdesc.flags = 0;
+		txwi = rt2800_drv_get_txwi(entry);
 		rt2x00_desc_read(txwi, 0, &word);
 		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
-		mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
 		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
 
 		/*
@@ -1095,19 +1135,23 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 	}
 
 	if (flags & CONFIG_UPDATE_MAC) {
-		reg = le32_to_cpu(conf->mac[1]);
-		rt2x00_set_field32(&reg, MAC_ADDR_DW1_UNICAST_TO_ME_MASK, 0xff);
-		conf->mac[1] = cpu_to_le32(reg);
+		if (!is_zero_ether_addr((const u8 *)conf->mac)) {
+			reg = le32_to_cpu(conf->mac[1]);
+			rt2x00_set_field32(&reg, MAC_ADDR_DW1_UNICAST_TO_ME_MASK, 0xff);
+			conf->mac[1] = cpu_to_le32(reg);
+		}
 
 		rt2800_register_multiwrite(rt2x00dev, MAC_ADDR_DW0,
 					      conf->mac, sizeof(conf->mac));
 	}
 
 	if (flags & CONFIG_UPDATE_BSSID) {
-		reg = le32_to_cpu(conf->bssid[1]);
-		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 3);
-		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 7);
-		conf->bssid[1] = cpu_to_le32(reg);
+		if (!is_zero_ether_addr((const u8 *)conf->bssid)) {
+			reg = le32_to_cpu(conf->bssid[1]);
+			rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 3);
+			rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 7);
+			conf->bssid[1] = cpu_to_le32(reg);
+		}
 
 		rt2800_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
 					      conf->bssid, sizeof(conf->bssid));
@@ -1240,27 +1284,23 @@ static void rt2800_config_channel_rf2xxx(struct rt2x00_dev *rt2x00dev,
 		 * double meaning, and we should set a 7DBm boost flag.
 		 */
 		rt2x00_set_field32(&rf->rf3, RF3_TXPOWER_A_7DBM_BOOST,
-				   (info->tx_power1 >= 0));
+				   (info->default_power1 >= 0));
 
-		if (info->tx_power1 < 0)
-			info->tx_power1 += 7;
+		if (info->default_power1 < 0)
+			info->default_power1 += 7;
 
-		rt2x00_set_field32(&rf->rf3, RF3_TXPOWER_A,
-				   TXPOWER_A_TO_DEV(info->tx_power1));
+		rt2x00_set_field32(&rf->rf3, RF3_TXPOWER_A, info->default_power1);
 
 		rt2x00_set_field32(&rf->rf4, RF4_TXPOWER_A_7DBM_BOOST,
-				   (info->tx_power2 >= 0));
+				   (info->default_power2 >= 0));
 
-		if (info->tx_power2 < 0)
-			info->tx_power2 += 7;
+		if (info->default_power2 < 0)
+			info->default_power2 += 7;
 
-		rt2x00_set_field32(&rf->rf4, RF4_TXPOWER_A,
-				   TXPOWER_A_TO_DEV(info->tx_power2));
+		rt2x00_set_field32(&rf->rf4, RF4_TXPOWER_A, info->default_power2);
 	} else {
-		rt2x00_set_field32(&rf->rf3, RF3_TXPOWER_G,
-				   TXPOWER_G_TO_DEV(info->tx_power1));
-		rt2x00_set_field32(&rf->rf4, RF4_TXPOWER_G,
-				   TXPOWER_G_TO_DEV(info->tx_power2));
+		rt2x00_set_field32(&rf->rf3, RF3_TXPOWER_G, info->default_power1);
+		rt2x00_set_field32(&rf->rf4, RF4_TXPOWER_G, info->default_power2);
 	}
 
 	rt2x00_set_field32(&rf->rf4, RF4_HT40, conf_is_ht40(conf));
@@ -1300,13 +1340,11 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 	rt2800_rfcsr_write(rt2x00dev, 6, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 12, &rfcsr);
-	rt2x00_set_field8(&rfcsr, RFCSR12_TX_POWER,
-			  TXPOWER_G_TO_DEV(info->tx_power1));
+	rt2x00_set_field8(&rfcsr, RFCSR12_TX_POWER, info->default_power1);
 	rt2800_rfcsr_write(rt2x00dev, 12, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 13, &rfcsr);
-	rt2x00_set_field8(&rfcsr, RFCSR13_TX_POWER,
-			  TXPOWER_G_TO_DEV(info->tx_power2));
+	rt2x00_set_field8(&rfcsr, RFCSR13_TX_POWER, info->default_power2);
 	rt2800_rfcsr_write(rt2x00dev, 13, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 23, &rfcsr);
@@ -1330,10 +1368,19 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	unsigned int tx_pin;
 	u8 bbp;
 
+	if (rf->channel <= 14) {
+		info->default_power1 = TXPOWER_G_TO_DEV(info->default_power1);
+		info->default_power2 = TXPOWER_G_TO_DEV(info->default_power2);
+	} else {
+		info->default_power1 = TXPOWER_A_TO_DEV(info->default_power1);
+		info->default_power2 = TXPOWER_A_TO_DEV(info->default_power2);
+	}
+
 	if (rt2x00_rf(rt2x00dev, RF2020) ||
 	    rt2x00_rf(rt2x00dev, RF3020) ||
 	    rt2x00_rf(rt2x00dev, RF3021) ||
-	    rt2x00_rf(rt2x00dev, RF3022))
+	    rt2x00_rf(rt2x00dev, RF3022) ||
+	    rt2x00_rf(rt2x00dev, RF3052))
 		rt2800_config_channel_rf3xxx(rt2x00dev, conf, rf, info);
 	else
 		rt2800_config_channel_rf2xxx(rt2x00dev, conf, rf, info);
@@ -1656,7 +1703,7 @@ EXPORT_SYMBOL_GPL(rt2800_link_tuner);
 /*
  * Initialization functions.
  */
-int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
+static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 	u16 eeprom;
@@ -2026,7 +2073,6 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt2800_init_registers);
 
 static int rt2800_wait_bbp_rf_ready(struct rt2x00_dev *rt2x00dev)
 {
@@ -2069,7 +2115,7 @@ static int rt2800_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 	return -EACCES;
 }
 
-int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
+static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
 	u16 eeprom;
@@ -2164,7 +2210,6 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt2800_init_bbp);
 
 static u8 rt2800_init_rx_filter(struct rt2x00_dev *rt2x00dev,
 				bool bw40, u8 rfcsr24, u8 filter_target)
@@ -2226,7 +2271,7 @@ static u8 rt2800_init_rx_filter(struct rt2x00_dev *rt2x00dev,
 	return rfcsr24;
 }
 
-int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
+static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 {
 	u8 rfcsr;
 	u8 bbp;
@@ -2480,7 +2525,100 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt2800_init_rfcsr);
+
+int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+	u16 word;
+
+	/*
+	 * Initialize all registers.
+	 */
+	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
+		     rt2800_init_registers(rt2x00dev) ||
+		     rt2800_init_bbp(rt2x00dev) ||
+		     rt2800_init_rfcsr(rt2x00dev)))
+		return -EIO;
+
+	/*
+	 * Send signal to firmware during boot time.
+	 */
+	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
+
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    (rt2x00_rt(rt2x00dev, RT3070) ||
+	     rt2x00_rt(rt2x00dev, RT3071) ||
+	     rt2x00_rt(rt2x00dev, RT3572))) {
+		udelay(200);
+		rt2800_mcu_request(rt2x00dev, MCU_CURRENT, 0, 0, 0);
+		udelay(10);
+	}
+
+	/*
+	 * Enable RX.
+	 */
+	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+
+	udelay(50);
+
+	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 1);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 1);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_WP_DMA_BURST_SIZE, 2);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
+	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+
+	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+
+	/*
+	 * Initialize LED control
+	 */
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED1, &word);
+	rt2800_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
+			   word & 0xff, (word >> 8) & 0xff);
+
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED2, &word);
+	rt2800_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
+			   word & 0xff, (word >> 8) & 0xff);
+
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED3, &word);
+	rt2800_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
+			   word & 0xff, (word >> 8) & 0xff);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2800_enable_radio);
+
+void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
+	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+
+	/* Wait for DMA, ignore error */
+	rt2800_wait_wpdma_ready(rt2x00dev);
+
+	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 0);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+
+	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0);
+	rt2800_register_write(rt2x00dev, TX_PIN_CFG, 0);
+}
+EXPORT_SYMBOL_GPL(rt2800_disable_radio);
 
 int rt2800_efuse_detect(struct rt2x00_dev *rt2x00dev)
 {
@@ -2635,6 +2773,13 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_RSSI_A2_LNA_A2,
 				   default_lna_gain);
 	rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_A2, word);
+
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_MAX_TX_POWER, &word);
+	if (rt2x00_get_field16(word, EEPROM_MAX_TX_POWER_24GHZ) == 0xff)
+		rt2x00_set_field16(&word, EEPROM_MAX_TX_POWER_24GHZ, MAX_G_TXPOWER);
+	if (rt2x00_get_field16(word, EEPROM_MAX_TX_POWER_5GHZ) == 0xff)
+		rt2x00_set_field16(&word, EEPROM_MAX_TX_POWER_5GHZ, MAX_A_TXPOWER);
+	rt2x00_eeprom_write(rt2x00dev, EEPROM_MAX_TX_POWER, word);
 
 	return 0;
 }
@@ -2875,9 +3020,10 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
 	struct channel_info *info;
-	char *tx_power1;
-	char *tx_power2;
+	char *default_power1;
+	char *default_power2;
 	unsigned int i;
+	unsigned short max_power;
 	u16 eeprom;
 
 	/*
@@ -2991,21 +3137,26 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	spec->channels_info = info;
 
-	tx_power1 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG1);
-	tx_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG2);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_MAX_TX_POWER, &eeprom);
+	max_power = rt2x00_get_field16(eeprom, EEPROM_MAX_TX_POWER_24GHZ);
+	default_power1 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG1);
+	default_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG2);
 
 	for (i = 0; i < 14; i++) {
-		info[i].tx_power1 = TXPOWER_G_FROM_DEV(tx_power1[i]);
-		info[i].tx_power2 = TXPOWER_G_FROM_DEV(tx_power2[i]);
+		info[i].max_power = max_power;
+		info[i].default_power1 = TXPOWER_G_FROM_DEV(default_power1[i]);
+		info[i].default_power2 = TXPOWER_G_FROM_DEV(default_power2[i]);
 	}
 
 	if (spec->num_channels > 14) {
-		tx_power1 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A1);
-		tx_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A2);
+		max_power = rt2x00_get_field16(eeprom, EEPROM_MAX_TX_POWER_5GHZ);
+		default_power1 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A1);
+		default_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A2);
 
 		for (i = 14; i < spec->num_channels; i++) {
-			info[i].tx_power1 = TXPOWER_A_FROM_DEV(tx_power1[i]);
-			info[i].tx_power2 = TXPOWER_A_FROM_DEV(tx_power2[i]);
+			info[i].max_power = max_power;
+			info[i].default_power1 = TXPOWER_A_FROM_DEV(default_power1[i]);
+			info[i].default_power2 = TXPOWER_A_FROM_DEV(default_power2[i]);
 		}
 	}
 

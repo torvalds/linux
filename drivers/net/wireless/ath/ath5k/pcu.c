@@ -137,11 +137,11 @@ void ath5k_hw_update_mib_counters(struct ath5k_hw *ah)
  * ath5k_hw_set_ack_bitrate - set bitrate for ACKs
  *
  * @ah: The &struct ath5k_hw
- * @high: Flag to determine if we want to use high transmition rate
+ * @high: Flag to determine if we want to use high transmission rate
  * for ACKs or not
  *
  * If high flag is set, we tell hw to use a set of control rates based on
- * the current transmition rate (check out control_rates array inside reset.c).
+ * the current transmission rate (check out control_rates array inside reset.c).
  * If not hw just uses the lowest rate available for the current modulation
  * scheme being used (1Mbit for CCK and 6Mbits for OFDM).
  */

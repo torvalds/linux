@@ -196,8 +196,6 @@ static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	rt2800_register_write(rt2x00dev, AUTOWAKEUP_CFG, 0x00000000);
-
 	/*
 	 * enable Host program ram write selection
 	 */
@@ -399,78 +397,18 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-	u16 word;
-
-	/*
-	 * Initialize all registers.
-	 */
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800pci_init_queues(rt2x00dev) ||
-		     rt2800_init_registers(rt2x00dev) ||
-		     rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800_init_bbp(rt2x00dev) ||
-		     rt2800_init_rfcsr(rt2x00dev)))
+		     rt2800pci_init_queues(rt2x00dev)))
 		return -EIO;
 
-	/*
-	 * Send signal to firmware during boot time.
-	 */
-	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
-
-	/*
-	 * Enable RX.
-	 */
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 1);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 1);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_WP_DMA_BURST_SIZE, 2);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	/*
-	 * Initialize LED control
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED1, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED2, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED3, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	return 0;
+	return rt2800_enable_radio(rt2x00dev);
 }
 
 static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
-
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0);
-	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0);
-	rt2800_register_write(rt2x00dev, TX_PIN_CFG, 0);
+	rt2800_disable_radio(rt2x00dev);
 
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00001280);
 
@@ -486,9 +424,6 @@ static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
-
-	/* Wait for DMA, ignore error */
-	rt2800_wait_wpdma_ready(rt2x00dev);
 }
 
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
@@ -571,12 +506,11 @@ static __le32 *rt2800pci_get_txwi(struct queue_entry *entry)
 	return (__le32 *) entry->skb->data;
 }
 
-static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *txd = entry_priv->desc;
 	u32 word;
 
@@ -596,7 +530,7 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 0, word);
 
 	rt2x00_desc_read(txd, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_SD_LEN1, skb->len);
+	rt2x00_set_field32(&word, TXD_W1_SD_LEN1, entry->skb->len);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC1,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_BURST,
@@ -627,41 +561,35 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 /*
  * TX data initialization
  */
-static void rt2800pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid queue_idx)
+static void rt2800pci_kick_tx_queue(struct data_queue *queue)
 {
-	struct data_queue *queue;
-	unsigned int idx, qidx = 0;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
+	unsigned int qidx = 0;
 
-	if (queue_idx > QID_HCCA && queue_idx != QID_MGMT)
-		return;
-
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
-	idx = queue->index[Q_INDEX];
-
-	if (queue_idx == QID_MGMT)
+	if (queue->qid == QID_MGMT)
 		qidx = 5;
 	else
-		qidx = queue_idx;
+		qidx = queue->qid;
 
-	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), idx);
+	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), entry->entry_idx);
 }
 
-static void rt2800pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid qid)
+static void rt2800pci_kill_tx_queue(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	u32 reg;
 
-	if (qid == QID_BEACON) {
+	if (queue->qid == QID_BEACON) {
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, 0);
 		return;
 	}
 
 	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, (qid == QID_AC_BE));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, (qid == QID_AC_BK));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, (qid == QID_AC_VI));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, (qid == QID_AC_VO));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, (queue->qid == QID_AC_BE));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, (queue->qid == QID_AC_BK));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, (queue->qid == QID_AC_VI));
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, (queue->qid == QID_AC_VO));
 	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
 }
 

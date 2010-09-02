@@ -1242,8 +1242,8 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * %IEEE80211_CONF_PS flag enabled means that the powersave mode defined in
  * IEEE 802.11-2007 section 11.2 is enabled. This is not to be confused
  * with hardware wakeup and sleep states. Driver is responsible for waking
- * up the hardware before issueing commands to the hardware and putting it
- * back to sleep at approriate times.
+ * up the hardware before issuing commands to the hardware and putting it
+ * back to sleep at appropriate times.
  *
  * When PS is enabled, hardware needs to wakeup for beacons and receive the
  * buffered multicast/broadcast frames after the beacon. Also it must be
@@ -1264,7 +1264,7 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * there's data traffic and still saving significantly power in idle
  * periods.
  *
- * Dynamic powersave is supported by simply mac80211 enabling and disabling
+ * Dynamic powersave is simply supported by mac80211 enabling and disabling
  * PS based on traffic. Driver needs to only set %IEEE80211_HW_SUPPORTS_PS
  * flag and mac80211 will handle everything automatically. Additionally,
  * hardware having support for the dynamic PS feature may set the
@@ -1537,6 +1537,12 @@ enum ieee80211_ampdu_mlme_action {
  *	negative error code (which will be seen in userspace.)
  *	Must be implemented and can sleep.
  *
+ * @change_interface: Called when a netdevice changes type. This callback
+ *	is optional, but only if it is supported can interface types be
+ *	switched while the interface is UP. The callback may sleep.
+ *	Note that while an interface is being switched, it will not be
+ *	found by the interface iteration callbacks.
+ *
  * @remove_interface: Notifies a driver that an interface is going down.
  *	The @stop callback is called after this if it is the last interface
  *	and no monitor interfaces are present.
@@ -1693,6 +1699,9 @@ struct ieee80211_ops {
 	void (*stop)(struct ieee80211_hw *hw);
 	int (*add_interface)(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
+	int (*change_interface)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				enum nl80211_iftype new_type);
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif);
 	int (*config)(struct ieee80211_hw *hw, u32 changed);
@@ -2268,7 +2277,8 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  *
  * When hardware scan offload is used (i.e. the hw_scan() callback is
  * assigned) this function needs to be called by the driver to notify
- * mac80211 that the scan finished.
+ * mac80211 that the scan finished. This function can be called from
+ * any context, including hardirq context.
  *
  * @hw: the hardware that finished the scan
  * @aborted: set to true if scan was aborted
@@ -2458,7 +2468,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING and
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTER and
  * %IEEE80211_CONF_PS is set, the driver needs to inform whenever the
  * hardware is not receiving beacons with this function.
  */
@@ -2469,7 +2479,7 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING, and
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTER, and
  * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
  * needs to inform if the connection to the AP has been lost.
  *

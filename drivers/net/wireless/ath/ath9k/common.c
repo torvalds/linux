@@ -372,9 +372,13 @@ int ath9k_cmn_key_config(struct ath_common *common,
 	set_bit(idx, common->keymap);
 	if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		set_bit(idx + 64, common->keymap);
+		set_bit(idx, common->tkip_keymap);
+		set_bit(idx + 64, common->tkip_keymap);
 		if (common->splitmic) {
 			set_bit(idx + 32, common->keymap);
 			set_bit(idx + 64 + 32, common->keymap);
+			set_bit(idx + 32, common->tkip_keymap);
+			set_bit(idx + 64 + 32, common->tkip_keymap);
 		}
 	}
 
@@ -399,10 +403,17 @@ void ath9k_cmn_key_delete(struct ath_common *common,
 		return;
 
 	clear_bit(key->hw_key_idx + 64, common->keymap);
+
+	clear_bit(key->hw_key_idx, common->tkip_keymap);
+	clear_bit(key->hw_key_idx + 64, common->tkip_keymap);
+
 	if (common->splitmic) {
 		ath9k_hw_keyreset(ah, key->hw_key_idx + 32);
 		clear_bit(key->hw_key_idx + 32, common->keymap);
 		clear_bit(key->hw_key_idx + 64 + 32, common->keymap);
+
+		clear_bit(key->hw_key_idx + 32, common->tkip_keymap);
+		clear_bit(key->hw_key_idx + 64 + 32, common->tkip_keymap);
 	}
 }
 EXPORT_SYMBOL(ath9k_cmn_key_delete);

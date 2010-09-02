@@ -4,8 +4,6 @@
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
@@ -36,9 +34,7 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 		     mbox->scheduled_scan_channels);
 
 	if (wl->scanning) {
-		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, false);
-		mutex_lock(&wl->mutex);
 		wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan completed");
 		wl->scanning = false;
 	}

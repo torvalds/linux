@@ -326,7 +326,7 @@ commit:
  * register). After this MAC and Baseband are
  * disabled and a full reset is needed to come
  * back. This way we save as much power as possible
- * without puting the card on full sleep.
+ * without putting the card on full sleep.
  */
 int ath5k_hw_on_hold(struct ath5k_hw *ah)
 {
@@ -344,7 +344,7 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 	/*
 	 * Put chipset on warm reset...
 	 *
-	 * Note: puting PCI core on warm reset on PCI-E cards
+	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
 	 * we ingore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
@@ -400,7 +400,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	/*
 	 * Put chipset on warm reset...
 	 *
-	 * Note: puting PCI core on warm reset on PCI-E cards
+	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
 	 * we ingore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.

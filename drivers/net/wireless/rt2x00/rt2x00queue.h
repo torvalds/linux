@@ -296,7 +296,7 @@ enum txentry_desc_flags {
  * Summary of information for the frame descriptor before sending a TX frame.
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
- * @queue: Queue identification (See &enum data_queue_qid).
+ * @qid: Queue identification (See &enum data_queue_qid).
  * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
  * @length_high: PLCP length high word.
@@ -322,7 +322,7 @@ enum txentry_desc_flags {
 struct txentry_desc {
 	unsigned long flags;
 
-	enum data_queue_qid queue;
+	enum data_queue_qid qid;
 
 	u16 length;
 	u16 header_length;
@@ -360,9 +360,6 @@ struct txentry_desc {
  * @ENTRY_OWNER_DEVICE_DATA: This entry is owned by the device for data
  *	transfer (either TX or RX depending on the queue). The entry should
  *	only be touched after the device has signaled it is done with it.
- * @ENTRY_OWNER_DEVICE_CRYPTO: This entry is owned by the device for data
- *	encryption or decryption. The entry should only be touched after
- *	the device has signaled it is done with it.
  * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
  *	for the signal to start sending.
  * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occured
@@ -372,7 +369,6 @@ struct txentry_desc {
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
-	ENTRY_OWNER_DEVICE_CRYPTO,
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED
 };
@@ -405,18 +401,18 @@ struct queue_entry {
  *
  * @Q_INDEX: Index pointer to the current entry in the queue, if this entry is
  *	owned by the hardware then the queue is considered to be full.
+ * @Q_INDEX_DMA_DONE: Index pointer for the next entry which will have been
+ *	transfered to the hardware.
  * @Q_INDEX_DONE: Index pointer to the next entry which will be completed by
  *	the hardware and for which we need to run the txdone handler. If this
  *	entry is not owned by the hardware the queue is considered to be empty.
- * @Q_INDEX_CRYPTO: Index pointer to the next entry which encryption/decription
- *	will be completed by the hardware next.
  * @Q_INDEX_MAX: Keep last, used in &struct data_queue to determine the size
  *	of the index array.
  */
 enum queue_index {
 	Q_INDEX,
+	Q_INDEX_DMA_DONE,
 	Q_INDEX_DONE,
-	Q_INDEX_CRYPTO,
 	Q_INDEX_MAX,
 };
 
@@ -452,13 +448,12 @@ struct data_queue {
 	enum data_queue_qid qid;
 
 	spinlock_t lock;
-	unsigned long last_index;
-	unsigned long last_index_done;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
+	unsigned long last_action[Q_INDEX_MAX];
 
 	unsigned short txop;
 	unsigned short aifs;
@@ -571,6 +566,22 @@ struct data_queue_desc {
 	queue_loop(__entry, (__dev)->tx, queue_end(__dev))
 
 /**
+ * rt2x00queue_for_each_entry - Loop through all entries in the queue
+ * @queue: Pointer to @data_queue
+ * @start: &enum queue_index Pointer to start index
+ * @end: &enum queue_index Pointer to end index
+ * @fn: The function to call for each &struct queue_entry
+ *
+ * This will walk through all entries in the queue, in chronological
+ * order. This means it will start at the current @start pointer
+ * and will walk through the queue until it reaches the @end pointer.
+ */
+void rt2x00queue_for_each_entry(struct data_queue *queue,
+				enum queue_index start,
+				enum queue_index end,
+				void (*fn)(struct queue_entry *entry));
+
+/**
  * rt2x00queue_empty - Check if the queue is empty.
  * @queue: Queue to check if empty.
  */
@@ -607,12 +618,23 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 }
 
 /**
- * rt2x00queue_timeout - Check if a timeout occured for this queue
+ * rt2x00queue_timeout - Check if a timeout occured for STATUS reorts
  * @queue: Queue to check.
  */
 static inline int rt2x00queue_timeout(struct data_queue *queue)
 {
-	return time_after(queue->last_index, queue->last_index_done + (HZ / 10));
+	return time_after(queue->last_action[Q_INDEX_DMA_DONE],
+			  queue->last_action[Q_INDEX_DONE] + (HZ / 10));
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for DMA transfers
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_dma_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_action[Q_INDEX],
+			  queue->last_action[Q_INDEX_DMA_DONE] + (HZ / 10));
 }
 
 /**

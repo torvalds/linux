@@ -4,8 +4,6 @@
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
@@ -274,6 +272,8 @@ struct wl1251 {
 	int irq;
 	bool use_eeprom;
 
+	spinlock_t wl_lock;
+
 	enum wl1251_state state;
 	struct mutex mutex;
 
@@ -401,7 +401,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 
 #define WL1251_DEFAULT_POWER_LEVEL 20
 
-#define WL1251_TX_QUEUE_MAX_LENGTH 20
+#define WL1251_TX_QUEUE_LOW_WATERMARK  10
+#define WL1251_TX_QUEUE_HIGH_WATERMARK 25
 
 #define WL1251_DEFAULT_BEACON_INT 100
 #define WL1251_DEFAULT_DTIM_PERIOD 1
