@@ -295,7 +295,9 @@
  *	auth and assoc steps. For this, you need to specify the SSID in a
  *	%NL80211_ATTR_SSID attribute, and can optionally specify the association
  *	IEs in %NL80211_ATTR_IE, %NL80211_ATTR_AUTH_TYPE, %NL80211_ATTR_MAC,
- *	%NL80211_ATTR_WIPHY_FREQ and %NL80211_ATTR_CONTROL_PORT.
+ *	%NL80211_ATTR_WIPHY_FREQ, %NL80211_ATTR_CONTROL_PORT,
+ *	%NL80211_ATTR_CONTROL_PORT_ETHERTYPE and
+ *	%NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT.
  *	It is also sent as an event, with the BSSID and response IEs when the
  *	connection is established or failed to be established. This can be
  *	determined by the STATUS_CODE attribute.
@@ -686,6 +688,15 @@ enum nl80211_commands {
  *	request, the driver will assume that the port is unauthorized until
  *	authorized by user space. Otherwise, port is marked authorized by
  *	default in station mode.
+ * @NL80211_ATTR_CONTROL_PORT_ETHERTYPE: A 16-bit value indicating the
+ *	ethertype that will be used for key negotiation. It can be
+ *	specified with the associate and connect commands. If it is not
+ *	specified, the value defaults to 0x888E (PAE, 802.1X). This
+ *	attribute is also used as a flag in the wiphy information to
+ *	indicate that protocols other than PAE are supported.
+ * @NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT: When included along with
+ *	%NL80211_ATTR_CONTROL_PORT_ETHERTYPE, indicates that the custom
+ *	ethertype frames used for key negotiation must not be encrypted.
  *
  * @NL80211_ATTR_TESTDATA: Testmode data blob, passed through to the driver.
  *	We recommend using nested, driver-specific attributes within this.
@@ -950,6 +961,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_TX_FRAME_TYPES,
 	NL80211_ATTR_RX_FRAME_TYPES,
 	NL80211_ATTR_FRAME_TYPE,
+
+	NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
+	NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT,
 
 	/* add attributes here, update the policy in nl80211.c */
 

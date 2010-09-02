@@ -312,7 +312,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Initialize information from queue
 	 */
-	txdesc->queue = entry->queue->qid;
+	txdesc->qid = entry->queue->qid;
 	txdesc->cw_min = entry->queue->cw_min;
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;
@@ -449,15 +449,14 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 					    struct txentry_desc *txdesc)
 {
 	struct data_queue *queue = entry->queue;
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 
-	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, entry->skb, txdesc);
+	queue->rt2x00dev->ops->lib->write_tx_desc(entry, txdesc);
 
 	/*
 	 * All processing on the frame has been completed, this means
 	 * it is now ready to be dumped to userspace through debugfs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
+	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry->skb);
 }
 
 static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
@@ -477,7 +476,7 @@ static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
 	 */
 	if (rt2x00queue_threshold(queue) ||
 	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
-		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, queue->qid);
+		rt2x00dev->ops->lib->kick_tx_queue(queue);
 }
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
@@ -591,7 +590,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	intf->beacon->skb = NULL;
 
 	if (!enable_beacon) {
-		rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, QID_BEACON);
+		rt2x00dev->ops->lib->kill_tx_queue(intf->beacon->queue);
 		mutex_unlock(&intf->beacon_skb_mutex);
 		return 0;
 	}
@@ -625,6 +624,51 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 
 	return 0;
 }
+
+void rt2x00queue_for_each_entry(struct data_queue *queue,
+				enum queue_index start,
+				enum queue_index end,
+				void (*fn)(struct queue_entry *entry))
+{
+	unsigned long irqflags;
+	unsigned int index_start;
+	unsigned int index_end;
+	unsigned int i;
+
+	if (unlikely(start >= Q_INDEX_MAX || end >= Q_INDEX_MAX)) {
+		ERROR(queue->rt2x00dev,
+		      "Entry requested from invalid index range (%d - %d)\n",
+		      start, end);
+		return;
+	}
+
+	/*
+	 * Only protect the range we are going to loop over,
+	 * if during our loop a extra entry is set to pending
+	 * it should not be kicked during this run, since it
+	 * is part of another TX operation.
+	 */
+	spin_lock_irqsave(&queue->lock, irqflags);
+	index_start = queue->index[start];
+	index_end = queue->index[end];
+	spin_unlock_irqrestore(&queue->lock, irqflags);
+
+	/*
+	 * Start from the TX done pointer, this guarentees that we will
+	 * send out all frames in the correct order.
+	 */
+	if (index_start < index_end) {
+		for (i = index_start; i < index_end; i++)
+			fn(&queue->entries[i]);
+	} else {
+		for (i = index_start; i < queue->limit; i++)
+			fn(&queue->entries[i]);
+
+		for (i = 0; i < index_end; i++)
+			fn(&queue->entries[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_for_each_entry);
 
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
@@ -687,13 +731,13 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 	if (queue->index[index] >= queue->limit)
 		queue->index[index] = 0;
 
+	queue->last_action[index] = jiffies;
+
 	if (index == Q_INDEX) {
 		queue->length++;
-		queue->last_index = jiffies;
 	} else if (index == Q_INDEX_DONE) {
 		queue->length--;
 		queue->count++;
-		queue->last_index_done = jiffies;
 	}
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
@@ -702,14 +746,17 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 static void rt2x00queue_reset(struct data_queue *queue)
 {
 	unsigned long irqflags;
+	unsigned int i;
 
 	spin_lock_irqsave(&queue->lock, irqflags);
 
 	queue->count = 0;
 	queue->length = 0;
-	queue->last_index = jiffies;
-	queue->last_index_done = jiffies;
-	memset(queue->index, 0, sizeof(queue->index));
+
+	for (i = 0; i < Q_INDEX_MAX; i++) {
+		queue->index[i] = 0;
+		queue->last_action[i] = jiffies;
+	}
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
 }
@@ -719,7 +766,7 @@ void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 
 	txall_queue_for_each(rt2x00dev, queue)
-		rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, queue->qid);
+		rt2x00dev->ops->lib->kill_tx_queue(queue);
 }
 
 void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)

@@ -275,15 +275,15 @@ static int p54_rssi_to_dbm(struct p54_common *priv, int rssi)
 {
 	int band = priv->hw->conf.channel->band;
 
-	if (priv->rxhw != 5)
+	if (priv->rxhw != 5) {
 		return ((rssi * priv->rssical_db[band].mul) / 64 +
 			 priv->rssical_db[band].add) / 4;
-	else
+	} else {
 		/*
 		 * TODO: find the correct formula
 		 */
-		return ((rssi * priv->rssical_db[band].mul) / 64 +
-			 priv->rssical_db[band].add) / 4;
+		return rssi / 2 - 110;
+	}
 }
 
 /*

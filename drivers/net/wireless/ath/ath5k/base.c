@@ -700,10 +700,10 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	return 0;
 err_ah:
 	ath5k_hw_detach(sc->ah);
-err_irq:
-	free_irq(pdev->irq, sc);
 err_free_ah:
 	kfree(sc->ah);
+err_irq:
+	free_irq(pdev->irq, sc);
 err_free:
 	ieee80211_free_hw(hw);
 err_map:

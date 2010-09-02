@@ -251,6 +251,12 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
+void rt2x00lib_dmadone(struct queue_entry *entry)
+{
+	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_dmadone);
+
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
@@ -711,7 +717,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	for (i = 0; i < spec->num_channels; i++) {
 		rt2x00lib_channel(&channels[i],
 				  spec->channels[i].channel,
-				  spec->channels_info[i].tx_power1, i);
+				  spec->channels_info[i].max_power, i);
 	}
 
 	/*

@@ -589,8 +589,15 @@ static int orinoco_ioctl_getrate(struct net_device *dev,
 
 	/* If the interface is running we try to find more about the
 	   current mode */
-	if (netif_running(dev))
-		err = orinoco_hw_get_act_bitrate(priv, &bitrate);
+	if (netif_running(dev)) {
+		int act_bitrate;
+		int lerr;
+
+		/* Ignore errors if we can't get the actual bitrate */
+		lerr = orinoco_hw_get_act_bitrate(priv, &act_bitrate);
+		if (!lerr)
+			bitrate = act_bitrate;
+	}
 
 	orinoco_unlock(priv, &flags);
 

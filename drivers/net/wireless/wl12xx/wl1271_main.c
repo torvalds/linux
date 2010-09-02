@@ -948,9 +948,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		ieee80211_enable_dyn_ps(wl->vif);
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
-		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, true);
-		mutex_lock(&wl->mutex);
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
 		kfree(wl->scan.scanned_ch);
 		wl->scan.scanned_ch = NULL;

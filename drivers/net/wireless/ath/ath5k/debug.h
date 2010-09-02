@@ -95,6 +95,7 @@ struct ath5k_dbg_info {
  * @ATH5K_DEBUG_DUMP_TX: print transmit skb content
  * @ATH5K_DEBUG_DUMPBANDS: dump bands
  * @ATH5K_DEBUG_TRACE: trace function calls
+ * @ATH5K_DEBUG_DESC: descriptor setup
  * @ATH5K_DEBUG_ANY: show at any debug level
  *
  * The debug level is used to control the amount and type of debugging output
@@ -117,6 +118,7 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_DUMP_TX	= 0x00000200,
 	ATH5K_DEBUG_DUMPBANDS	= 0x00000400,
 	ATH5K_DEBUG_ANI		= 0x00002000,
+	ATH5K_DEBUG_DESC	= 0x00004000,
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 

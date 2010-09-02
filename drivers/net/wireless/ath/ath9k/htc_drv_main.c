@@ -1239,7 +1239,6 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	/* Cancel all the running timers/work .. */
 	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_ani_work);
 	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
 	ath9k_led_stop_brightness(priv);
 
@@ -1787,7 +1786,8 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 	priv->op_flags |= OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
 	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_ani_work);
+	if (priv->op_flags & OP_ASSOCIATED)
+		cancel_delayed_work_sync(&priv->ath9k_ani_work);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -1801,9 +1801,10 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 	priv->op_flags &= ~OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
 	priv->op_flags |= OP_FULL_RESET;
-	if (priv->op_flags & OP_ASSOCIATED)
+	if (priv->op_flags & OP_ASSOCIATED) {
 		ath9k_htc_beacon_config(priv, priv->vif);
-	ath_start_ani(priv);
+		ath_start_ani(priv);
+	}
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 }

@@ -1859,6 +1859,13 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
 
 /*
+ * EEPROM Maximum TX power values
+ */
+#define EEPROM_MAX_TX_POWER		0x0027
+#define EEPROM_MAX_TX_POWER_24GHZ	FIELD16(0x00ff)
+#define EEPROM_MAX_TX_POWER_5GHZ	FIELD16(0xff00)
+
+/*
  * EEPROM TXpower delta: 20MHZ AND 40 MHZ use different power.
  *	This is delta in 40MHZ.
  * VALUE: Tx Power dalta value (MAX=4)
@@ -1946,6 +1953,8 @@ struct mac_iveiv_entry {
  * TX_OP: 0:HT TXOP rule , 1:PIFS TX ,2:Backoff, 3:sifs
  * BW: Channel bandwidth 20MHz or 40 MHz
  * STBC: 1: STBC support MCS =0-7, 2,3 : RESERVED
+ * AMPDU: 1: this frame is eligible for AMPDU aggregation, the hw will
+ *        aggregate consecutive frames with the same RA and QoS TID.
  */
 #define TXWI_W0_FRAG			FIELD32(0x00000001)
 #define TXWI_W0_MIMO_PS			FIELD32(0x00000002)
@@ -1969,7 +1978,9 @@ struct mac_iveiv_entry {
  * WIRELESS_CLI_ID: Client ID for WCID table access
  * MPDU_TOTAL_BYTE_COUNT: Length of 802.11 frame
  * PACKETID: Will be latched into the TX_STA_FIFO register once the according
- *           frame was processed. 0: Don't report tx status for this frame.
+ *           frame was processed. If multiple frames are aggregated together
+ *           (AMPDU==1) the reported tx status will always contain the packet
+ *           id of the first frame. 0: Don't report tx status for this frame.
  */
 #define TXWI_W1_ACK			FIELD32(0x00000001)
 #define TXWI_W1_NSEQ			FIELD32(0x00000002)

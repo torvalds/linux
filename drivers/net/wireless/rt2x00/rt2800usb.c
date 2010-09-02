@@ -101,19 +101,6 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	msleep(10);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
 
-	/*
-	 * Send signal to firmware during boot time.
-	 */
-	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
-
-	if (rt2x00_rt(rt2x00dev, RT3070) ||
-	    rt2x00_rt(rt2x00dev, RT3071) ||
-	    rt2x00_rt(rt2x00dev, RT3572)) {
-		udelay(200);
-		rt2800_mcu_request(rt2x00dev, MCU_CURRENT, 0, 0, 0);
-		udelay(10);
-	}
-
 	return 0;
 }
 
@@ -135,25 +122,17 @@ static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
-	int i;
 
 	/*
 	 * Wait until BBP and RF are ready.
 	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
+	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
-	}
 
 	rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
+
+	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
@@ -173,29 +152,9 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
-	u16 word;
 
-	/*
-	 * Initialize all registers.
-	 */
-	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800_init_registers(rt2x00dev) ||
-		     rt2800_init_bbp(rt2x00dev) ||
-		     rt2800_init_rfcsr(rt2x00dev)))
+	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev)))
 		return -EIO;
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	udelay(50);
-
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 1);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
-
 
 	rt2800_register_read(rt2x00dev, USB_DMA_CFG, &reg);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_PHY_CLEAR, 0);
@@ -211,45 +170,12 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, USB_DMA_CFG_TX_BULK_EN, 1);
 	rt2800_register_write(rt2x00dev, USB_DMA_CFG, reg);
 
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	/*
-	 * Initialize LED control
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED1, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED2, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED3, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
-			      word & 0xff, (word >> 8) & 0xff);
-
-	return 0;
+	return rt2800_enable_radio(rt2x00dev);
 }
 
 static void rt2800usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
-
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0);
-	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0);
-	rt2800_register_write(rt2x00dev, TX_PIN_CFG, 0);
-
-	/* Wait for DMA, ignore error */
-	rt2800_wait_wpdma_ready(rt2x00dev);
-
+	rt2800_disable_radio(rt2x00dev);
 	rt2x00usb_disable_radio(rt2x00dev);
 }
 
@@ -329,12 +255,11 @@ static __le32 *rt2800usb_get_txwi(struct queue_entry *entry)
 		return (__le32 *) (entry->skb->data + TXINFO_DESC_SIZE);
 }
 
-static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txi = (__le32 *) skb->data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	__le32 *txi = (__le32 *) entry->skb->data;
 	u32 word;
 
 	/*
@@ -342,7 +267,7 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00_desc_read(txi, 0, &word);
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
-			   skb->len - TXINFO_DESC_SIZE);
+			   entry->skb->len - TXINFO_DESC_SIZE);
 	rt2x00_set_field32(&word, TXINFO_W0_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXINFO_W0_QSEL, 2);
@@ -408,6 +333,14 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 			rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 		}
 	}
+}
+
+static void rt2800usb_kill_tx_queue(struct data_queue *queue)
+{
+	if (queue->qid == QID_BEACON)
+		rt2x00usb_register_write(queue->rt2x00dev, BCN_TIME_CFG, 0);
+
+	rt2x00usb_kill_tx_queue(queue);
 }
 
 /*
@@ -608,7 +541,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
-	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
+	.kill_tx_queue		= rt2800usb_kill_tx_queue,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,

@@ -54,6 +54,12 @@
  */
 #define IEEE80211_SIGNAL_AVE_WEIGHT	3
 
+/*
+ * How many Beacon frames need to have been used in average signal strength
+ * before starting to indicate signal change events.
+ */
+#define IEEE80211_SIGNAL_AVE_MIN_COUNT	4
+
 #define TMR_RUNNING_TIMER	0
 #define TMR_RUNNING_CHANSW	1
 
@@ -778,16 +784,17 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		params.uapsd = uapsd;
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		printk(KERN_DEBUG "%s: WMM queue=%d aci=%d acm=%d aifs=%d "
-		       "cWmin=%d cWmax=%d txop=%d uapsd=%d\n",
-		       wiphy_name(local->hw.wiphy), queue, aci, acm,
-		       params.aifs, params.cw_min, params.cw_max, params.txop,
-		       params.uapsd);
+		wiphy_debug(local->hw.wiphy,
+			    "WMM queue=%d aci=%d acm=%d aifs=%d "
+			    "cWmin=%d cWmax=%d txop=%d uapsd=%d\n",
+			    queue, aci, acm,
+			    params.aifs, params.cw_min, params.cw_max,
+			    params.txop, params.uapsd);
 #endif
 		if (drv_conf_tx(local, queue, &params))
-			printk(KERN_DEBUG "%s: failed to set TX queue "
-			       "parameters for queue %d\n",
-			       wiphy_name(local->hw.wiphy), queue);
+			wiphy_debug(local->hw.wiphy,
+				    "failed to set TX queue parameters for queue %d\n",
+				    queue);
 	}
 
 	/* enable WMM or activate new settings */
@@ -990,6 +997,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	if (remove_sta)
 		sta_info_destroy_addr(sdata, bssid);
+
+	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
+	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
+	del_timer_sync(&sdata->u.mgd.timer);
+	del_timer_sync(&sdata->u.mgd.chswitch_timer);
 }
 
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
@@ -1547,15 +1559,18 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ifmgd->last_beacon_signal = rx_status->signal;
 	if (ifmgd->flags & IEEE80211_STA_RESET_SIGNAL_AVE) {
 		ifmgd->flags &= ~IEEE80211_STA_RESET_SIGNAL_AVE;
-		ifmgd->ave_beacon_signal = rx_status->signal;
+		ifmgd->ave_beacon_signal = rx_status->signal * 16;
 		ifmgd->last_cqm_event_signal = 0;
+		ifmgd->count_beacon_signal = 1;
 	} else {
 		ifmgd->ave_beacon_signal =
 			(IEEE80211_SIGNAL_AVE_WEIGHT * rx_status->signal * 16 +
 			 (16 - IEEE80211_SIGNAL_AVE_WEIGHT) *
 			 ifmgd->ave_beacon_signal) / 16;
+		ifmgd->count_beacon_signal++;
 	}
 	if (bss_conf->cqm_rssi_thold &&
+	    ifmgd->count_beacon_signal >= IEEE80211_SIGNAL_AVE_MIN_COUNT &&
 	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
 		int sig = ifmgd->ave_beacon_signal / 16;
 		int last_event = ifmgd->last_cqm_event_signal;
@@ -2260,6 +2275,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_CONTROL_PORT;
 	else
 		ifmgd->flags &= ~IEEE80211_STA_CONTROL_PORT;
+
+	sdata->control_port_protocol = req->crypto.control_port_ethertype;
+	sdata->control_port_no_encrypt = req->crypto.control_port_no_encrypt;
 
 	ieee80211_add_work(wk);
 	return 0;

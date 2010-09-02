@@ -144,6 +144,7 @@ struct iwl_queue {
 /* One for each TFD */
 struct iwl_tx_info {
 	struct sk_buff *skb;
+	struct iwl_rxon_context *ctx;
 };
 
 /**
@@ -253,10 +254,14 @@ struct iwl_channel_info {
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
-#define IWL_TX_FIFO_BK		0
+#define IWL_TX_FIFO_BK		0	/* shared */
 #define IWL_TX_FIFO_BE		1
-#define IWL_TX_FIFO_VI		2
+#define IWL_TX_FIFO_VI		2	/* shared */
 #define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
+#define IWL_TX_FIFO_BE_IPAN	4
+#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
+#define IWL_TX_FIFO_VO_IPAN	5
 #define IWL_TX_FIFO_UNUSED	-1
 
 /* Minimum number of queues. MAX_NUM is defined in hw specific files.
@@ -265,11 +270,17 @@ struct iwl_channel_info {
 #define IWL_MIN_NUM_QUEUES	10
 
 /*
- * Queue #4 is the command queue for 3945/4965/5x00/1000/6x00,
- * the driver maps it into the appropriate device FIFO for the
- * uCode.
+ * Command queue depends on iPAN support.
  */
-#define IWL_CMD_QUEUE_NUM	4
+#define IWL_DEFAULT_CMD_QUEUE_NUM	4
+#define IWL_IPAN_CMD_QUEUE_NUM		9
+
+/*
+ * This queue number is required for proper operation
+ * because the ucode will stop/start the scheduler as
+ * required.
+ */
+#define IWL_IPAN_MCAST_QUEUE		8
 
 /* Power management (not Tx power) structures */
 
@@ -459,15 +470,8 @@ union iwl_ht_rate_supp {
 #define CFG_HT_MPDU_DENSITY_MIN     (0x1)
 
 struct iwl_ht_config {
-	/* self configuration data */
-	bool is_ht;
-	bool is_40mhz;
 	bool single_chain_sufficient;
 	enum ieee80211_smps_mode smps; /* current smps mode */
-	/* BSS related data */
-	u8 extension_chan_offset;
-	u8 ht_protection;
-	u8 non_GF_STA_present;
 };
 
 /* QoS structures */
@@ -485,12 +489,13 @@ struct iwl_qos_info {
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
-	u8 used;
+	u8 used, ctxid;
 	struct iwl_hw_key keyinfo;
 	struct iwl_link_quality_cmd *lq;
 };
 
 struct iwl_station_priv_common {
+	struct iwl_rxon_context *ctx;
 	u8 sta_id;
 };
 
@@ -519,6 +524,7 @@ struct iwl_station_priv {
  * space for us to put data into.
  */
 struct iwl_vif_priv {
+	struct iwl_rxon_context *ctx;
 	u8 ibss_bssid_sta_id;
 };
 
@@ -576,6 +582,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_DATA		= 4,
 	IWL_UCODE_TLV_BOOT		= 5,
 	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
+	IWL_UCODE_TLV_PAN		= 7,
 	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
 	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
 	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
@@ -670,7 +677,6 @@ struct iwl_sensitivity_ranges {
  * @rx_page_order: Rx buffer page order
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
- * @bcast_sta_id:
  * @ht40_channel: is 40MHz width possible in band 2.4
  * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
  * @sw_crypto: 0 for hw, 1 for sw
@@ -694,7 +700,6 @@ struct iwl_hw_params {
 	u32 rx_page_order;
 	u32 rx_wrt_ptr_reg;
 	u8  max_stations;
-	u8  bcast_sta_id;
 	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
@@ -1064,6 +1069,10 @@ struct iwl_event_log {
 #define IWL_DEF_MONITORING_PERIOD	(1000)
 #define IWL_LONG_MONITORING_PERIOD	(5000)
 #define IWL_ONE_HUNDRED_MSECS   (100)
+#define IWL_MAX_MONITORING_PERIOD	(60000)
+
+/* BT Antenna Coupling Threshold (dB) */
+#define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
 
 enum iwl_reset {
 	IWL_RF_RESET = 0,
@@ -1092,6 +1101,57 @@ struct iwl_force_reset {
  * bits 21:0  - interval
  */
 #define IWLAGN_EXT_BEACON_TIME_POS	22
+
+enum iwl_rxon_context_id {
+	IWL_RXON_CTX_BSS,
+	IWL_RXON_CTX_PAN,
+
+	NUM_IWL_RXON_CTX
+};
+
+struct iwl_rxon_context {
+	struct ieee80211_vif *vif;
+
+	const u8 *ac_to_fifo;
+	const u8 *ac_to_queue;
+	u8 mcast_queue;
+
+	enum iwl_rxon_context_id ctxid;
+
+	u32 interface_modes, exclusive_interface_modes;
+	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
+
+	/*
+	 * We declare this const so it can only be
+	 * changed via explicit cast within the
+	 * routines that actually update the physical
+	 * hardware.
+	 */
+	const struct iwl_rxon_cmd active;
+	struct iwl_rxon_cmd staging;
+
+	struct iwl_rxon_time_cmd timing;
+
+	struct iwl_qos_info qos_data;
+
+	u8 bcast_sta_id, ap_sta_id;
+
+	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
+	u8 qos_cmd;
+	u8 wep_key_cmd;
+
+	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
+	u8 key_mapping_keys;
+
+	__le32 station_flags;
+
+	struct {
+		bool non_gf_sta_present;
+		u8 protection;
+		bool enabled, is_40mhz;
+		u8 extension_chan_offset;
+	} ht;
+};
 
 struct iwl_priv {
 
@@ -1169,6 +1229,15 @@ struct iwl_priv {
 	u32  hw_wa_rev;
 	u8   rev_id;
 
+	/* microcode/device supports multiple contexts */
+	u8 valid_contexts;
+
+	/* command queue number */
+	u8 cmd_queue;
+
+	/* max number of station keys */
+	u8 sta_key_max_num;
+
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 
@@ -1186,15 +1255,7 @@ struct iwl_priv {
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
-
-	struct iwl_rxon_time_cmd rxon_timing;
-
-	/* We declare this const so it can only be
-	 * changed via explicit cast within the
-	 * routines that actually update the physical
-	 * hardware */
-	const struct iwl_rxon_cmd active_rxon;
-	struct iwl_rxon_cmd staging_rxon;
+	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	struct iwl_switch_rxon switch_rxon;
 
@@ -1256,8 +1317,6 @@ struct iwl_priv {
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWL_STATION_COUNT];
-	struct iwl_wep_key wep_keys[WEP_KEYS_MAX]; /* protected by mutex */
-	u8 key_mapping_key;
 	unsigned long ucode_key_table;
 
 	/* queue refcounts */
@@ -1282,7 +1341,6 @@ struct iwl_priv {
 
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
-	struct ieee80211_vif *vif;
 
 	union {
 #if defined(CONFIG_IWL3945) || defined(CONFIG_IWL3945_MODULE)
@@ -1362,11 +1420,26 @@ struct iwl_priv {
 #endif
 	};
 
+	/* bt coex */
+	u8 bt_status;
+	u8 bt_traffic_load, notif_bt_traffic_load;
+	bool bt_ch_announce;
+	bool bt_sco_active;
+	bool bt_full_concurrent;
+	bool bt_ant_couple_ok;
+	__le32 kill_ack_mask;
+	__le32 kill_cts_mask;
+	__le16 bt_valid;
+	u16 bt_on_thresh;
+	u16 bt_duration;
+	u16 dynamic_frag_thresh;
+	u16 dynamic_agg_thresh;
+	u8 bt_ci_compliance;
+	struct work_struct bt_traffic_change_work;
+
 	struct iwl_hw_params hw_params;
 
 	u32 inta_mask;
-
-	struct iwl_qos_info qos_data;
 
 	struct workqueue_struct *workqueue;
 
@@ -1375,11 +1448,15 @@ struct iwl_priv {
 	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
 	struct work_struct beacon_update;
+	struct iwl_rxon_context *beacon_ctx;
+
 	struct work_struct tt_work;
 	struct work_struct ct_enter;
 	struct work_struct ct_exit;
 	struct work_struct start_internal_scan;
 	struct work_struct tx_flush;
+	struct work_struct bt_full_concurrency;
+	struct work_struct bt_runtime_config;
 
 	struct tasklet_struct irq_tasklet;
 
@@ -1467,10 +1544,34 @@ static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
 	return NULL;
 }
 
-
-static inline int iwl_is_associated(struct iwl_priv *priv)
+static inline struct iwl_rxon_context *
+iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 {
-	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+
+	return vif_priv->ctx;
+}
+
+#define for_each_context(priv, ctx)				\
+	for (ctx = &priv->contexts[IWL_RXON_CTX_BSS];		\
+	     ctx < &priv->contexts[NUM_IWL_RXON_CTX]; ctx++)	\
+		if (priv->valid_contexts & BIT(ctx->ctxid))
+
+static inline int iwl_is_associated(struct iwl_priv *priv,
+				    enum iwl_rxon_context_id ctxid)
+{
+	return (priv->contexts[ctxid].active.filter_flags &
+			RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+}
+
+static inline int iwl_is_any_associated(struct iwl_priv *priv)
+{
+	return iwl_is_associated(priv, IWL_RXON_CTX_BSS);
+}
+
+static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
+{
+	return (ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int is_channel_valid(const struct iwl_channel_info *ch_info)

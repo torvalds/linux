@@ -174,8 +174,7 @@ static void __sta_info_free(struct ieee80211_local *local,
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Destroyed STA %pM\n",
-	       wiphy_name(local->hw.wiphy), sta->sta.addr);
+	wiphy_debug(local->hw.wiphy, "Destroyed STA %pM\n", sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	kfree(sta);
@@ -262,8 +261,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Allocated STA %pM\n",
-	       wiphy_name(local->hw.wiphy), sta->sta.addr);
+	wiphy_debug(local->hw.wiphy, "Allocated STA %pM\n", sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_MESH
@@ -300,8 +298,9 @@ static int sta_info_finish_insert(struct sta_info *sta, bool async)
 		sta->uploaded = true;
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (async)
-			printk(KERN_DEBUG "%s: Finished adding IBSS STA %pM\n",
-			       wiphy_name(local->hw.wiphy), sta->sta.addr);
+			wiphy_debug(local->hw.wiphy,
+				    "Finished adding IBSS STA %pM\n",
+				    sta->sta.addr);
 #endif
 	}
 
@@ -411,8 +410,8 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		printk(KERN_DEBUG "%s: Added IBSS STA %pM\n",
-		       wiphy_name(local->hw.wiphy), sta->sta.addr);
+		wiphy_debug(local->hw.wiphy, "Added IBSS STA %pM\n",
+			    sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 		ieee80211_queue_work(&local->hw, &local->sta_finish_work);
@@ -459,8 +458,7 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Inserted STA %pM\n",
-	       wiphy_name(local->hw.wiphy), sta->sta.addr);
+	wiphy_debug(local->hw.wiphy, "Inserted STA %pM\n", sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	/* move reference to rcu-protected */
@@ -690,8 +688,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 #endif
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Removed STA %pM\n",
-	       wiphy_name(local->hw.wiphy), sta->sta.addr);
+	wiphy_debug(local->hw.wiphy, "Removed STA %pM\n", sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 	cancel_work_sync(&sta->drv_unblock_wk);
 

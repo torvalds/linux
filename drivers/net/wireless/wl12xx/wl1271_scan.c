@@ -215,9 +215,7 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_DONE:
-		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, false);
-		mutex_lock(&wl->mutex);
 
 		kfree(wl->scan.scanned_ch);
 		wl->scan.scanned_ch = NULL;

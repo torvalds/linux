@@ -95,6 +95,7 @@ extern struct iwl_cfg iwl1000_bg_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
+extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
 int iwl_reset_ict(struct iwl_priv *priv);
@@ -223,7 +224,16 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
 
 /* hcmd */
-int iwlagn_send_rxon_assoc(struct iwl_priv *priv);
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
+			   struct iwl_rxon_context *ctx);
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
+
+/* bt coex */
+void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
+void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+				  struct iwl_rx_mem_buffer *rxb);
+void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv);
+void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
+void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
 
 #endif /* __iwl_agn_h__ */

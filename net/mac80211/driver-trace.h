@@ -136,6 +136,31 @@ TRACE_EVENT(drv_add_interface,
 	)
 );
 
+TRACE_EVENT(drv_change_interface,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 enum nl80211_iftype type),
+
+	TP_ARGS(local, sdata, type),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u32, new_type)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->new_type = type;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " new type:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->new_type
+	)
+);
+
 TRACE_EVENT(drv_remove_interface,
 	TP_PROTO(struct ieee80211_local *local, struct ieee80211_sub_if_data *sdata),
 

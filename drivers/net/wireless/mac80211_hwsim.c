@@ -601,6 +601,18 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 }
 
 
+static int mac80211_hwsim_change_interface(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   enum nl80211_iftype newtype)
+{
+	wiphy_debug(hw->wiphy,
+		    "%s (old type=%d, new type=%d, mac_addr=%pM)\n",
+		    __func__, vif->type, newtype, vif->addr);
+	hwsim_check_magic(vif);
+
+	return 0;
+}
+
 static void mac80211_hwsim_remove_interface(
 	struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
@@ -1027,6 +1039,7 @@ static struct ieee80211_ops mac80211_hwsim_ops =
 	.start = mac80211_hwsim_start,
 	.stop = mac80211_hwsim_stop,
 	.add_interface = mac80211_hwsim_add_interface,
+	.change_interface = mac80211_hwsim_change_interface,
 	.remove_interface = mac80211_hwsim_remove_interface,
 	.config = mac80211_hwsim_config,
 	.configure_filter = mac80211_hwsim_configure_filter,

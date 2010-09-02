@@ -432,6 +432,8 @@ struct iwl_lq_sta {
 	u32 last_rate_n_flags;
 	/* packets destined for this STA are aggregated */
 	u8 is_agg;
+	/* BT traffic this sta was last updated in */
+	u8 last_bt_traffic;
 };
 
 static inline u8 num_of_ant(u8 mask)

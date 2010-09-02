@@ -3092,6 +3092,8 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 	struct b43_phy_n *nphy = phy->n;
 	u16 buf[16];
 
+	nphy->phyrxchain = mask;
+
 	if (0 /* FIXME clk */)
 		return;
 
@@ -3103,7 +3105,7 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_RXEN,
 			(mask & 0x3) << B43_NPHY_RFSEQCA_RXEN_SHIFT);
 
-	if (mask & 0x3 != 0x3) {
+	if ((mask & 0x3) != 0x3) {
 		b43_phy_write(dev, B43_NPHY_HPANT_SWTHRES, 1);
 		if (dev->phy.rev >= 3) {
 			/* TODO */

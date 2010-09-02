@@ -85,13 +85,15 @@ static ssize_t tsf_write(struct file *file,
 	if (strncmp(buf, "reset", 5) == 0) {
 		if (local->ops->reset_tsf) {
 			drv_reset_tsf(local);
-			printk(KERN_INFO "%s: debugfs reset TSF\n", wiphy_name(local->hw.wiphy));
+			wiphy_info(local->hw.wiphy, "debugfs reset TSF\n");
 		}
 	} else {
 		tsf = simple_strtoul(buf, NULL, 0);
 		if (local->ops->set_tsf) {
 			drv_set_tsf(local, tsf);
-			printk(KERN_INFO "%s: debugfs set TSF to %#018llx\n", wiphy_name(local->hw.wiphy), tsf);
+			wiphy_info(local->hw.wiphy,
+				   "debugfs set TSF to %#018llx\n", tsf);
+
 		}
 	}
 

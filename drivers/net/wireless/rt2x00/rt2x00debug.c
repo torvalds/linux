@@ -338,7 +338,7 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 		return -ENOMEM;
 
 	temp = data +
-	    sprintf(data, "qid\tcount\tlimit\tlength\tindex\tdone\tcrypto\n");
+	    sprintf(data, "qid\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
 
 	queue_for_each(intf->rt2x00dev, queue) {
 		spin_lock_irqsave(&queue->lock, irqflags);
@@ -346,8 +346,8 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 		temp += sprintf(temp, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", queue->qid,
 				queue->count, queue->limit, queue->length,
 				queue->index[Q_INDEX],
-				queue->index[Q_INDEX_DONE],
-				queue->index[Q_INDEX_CRYPTO]);
+				queue->index[Q_INDEX_DMA_DONE],
+				queue->index[Q_INDEX_DONE]);
 
 		spin_unlock_irqrestore(&queue->lock, irqflags);
 	}
@@ -479,6 +479,9 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 		return 0;					\
 								\
 	if (index >= debug->__name.word_count)			\
+		return -EINVAL;					\
+								\
+	if (length > sizeof(line))				\
 		return -EINVAL;					\
 								\
 	if (copy_from_user(line, buf, length))			\
