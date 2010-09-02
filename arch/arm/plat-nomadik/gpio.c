@@ -118,8 +118,8 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 		[3] /* illegal */	= "??"
 	};
 	static const char *slpmnames[] = {
-		[NMK_GPIO_SLPM_INPUT]		= "input",
-		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change",
+		[NMK_GPIO_SLPM_INPUT]		= "input/wakeup",
+		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change/no-wakeup",
 	};
 
 	int pin = PIN_NUM(cfg);
@@ -200,6 +200,10 @@ EXPORT_SYMBOL(nmk_config_pins);
  * changed to an input (with pullup/down enabled) in sleep and deep sleep.  If
  * @mode is NMK_GPIO_SLPM_NOCHANGE, the pin remains in the state it was
  * configured even when in sleep and deep sleep.
+ *
+ * On DB8500v2 onwards, this setting loses the previous meaning and instead
+ * indicates if wakeup detection is enabled on the pin.  Note that
+ * enable_irq_wake() will automatically enable wakeup detection.
  */
 int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode)
 {
@@ -367,7 +371,27 @@ static void nmk_gpio_irq_unmask(unsigned int irq)
 
 static int nmk_gpio_irq_set_wake(unsigned int irq, unsigned int on)
 {
-	return nmk_gpio_irq_modify(irq, WAKE, on);
+	struct nmk_gpio_chip *nmk_chip;
+	unsigned long flags;
+	int gpio;
+
+	gpio = NOMADIK_IRQ_TO_GPIO(irq);
+	nmk_chip = get_irq_chip_data(irq);
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+#ifdef CONFIG_ARCH_U8500
+	if (cpu_is_u8500v2()) {
+		__nmk_gpio_set_slpm(nmk_chip, gpio,
+				    on ? NMK_GPIO_SLPM_WAKEUP_ENABLE
+				       : NMK_GPIO_SLPM_WAKEUP_DISABLE);
+	}
+#endif
+	__nmk_gpio_irq_modify(nmk_chip, gpio, WAKE, on);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
 }
 
 static int nmk_gpio_irq_set_type(unsigned int irq, unsigned int type)

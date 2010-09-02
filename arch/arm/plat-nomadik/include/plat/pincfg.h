@@ -24,7 +24,7 @@
  *
  * PIN_CFG_DEFAULT - default config (0):
  *		     pull up/down = disabled
- *		     sleep mode = input
+ *		     sleep mode = input/wakeup
  *
  * PIN_CFG	   - default config with alternate function
  * PIN_CFG_PULL	   - default config with alternate function and pull up/down
@@ -55,6 +55,9 @@ typedef unsigned long pin_cfg_t;
 #define PIN_SLPM(x)		(((x) & PIN_SLPM_MASK) >> PIN_SLPM_SHIFT)
 #define PIN_SLPM_INPUT		(NMK_GPIO_SLPM_INPUT << PIN_SLPM_SHIFT)
 #define PIN_SLPM_NOCHANGE	(NMK_GPIO_SLPM_NOCHANGE << PIN_SLPM_SHIFT)
+/* These two replace the above in DB8500v2+ */
+#define PIN_SLPM_WAKEUP_ENABLE	(NMK_GPIO_SLPM_WAKEUP_ENABLE << PIN_SLPM_SHIFT)
+#define PIN_SLPM_WAKEUP_DISABLE	(NMK_GPIO_SLPM_WAKEUP_DISABLE << PIN_SLPM_SHIFT)
 
 #define PIN_CFG_DEFAULT		(PIN_PULL_NONE | PIN_SLPM_INPUT)
 
