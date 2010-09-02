@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -145,6 +146,16 @@ static const struct spi_imx_master mx51_3ds_ecspi2_pdata __initconst = {
 	.num_chipselect	= ARRAY_SIZE(mx51_3ds_spi2_cs),
 };
 
+static struct spi_board_info mx51_3ds_spi_nor_device[] = {
+	{
+	 .modalias = "m25p80",
+	 .max_speed_hz = 25000000,	/* max spi clock (SCK) speed in HZ */
+	 .bus_num = 1,
+	 .chip_select = 1,
+	 .mode = SPI_MODE_0,
+	 .platform_data = NULL,},
+};
+
 /*
  * Board specific initialization.
  */
@@ -155,6 +166,8 @@ static void __init mxc_board_init(void)
 	mxc_init_imx_uart();
 
 	imx51_add_ecspi(1, &mx51_3ds_ecspi2_pdata);
+	spi_register_board_info(mx51_3ds_spi_nor_device,
+				ARRAY_SIZE(mx51_3ds_spi_nor_device));
 
 	if (mxc_expio_init(MX51_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		printk(KERN_WARNING "Init of the debugboard failed, all "
