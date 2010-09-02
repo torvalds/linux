@@ -1131,7 +1131,7 @@ fail:
 }
 
 /* Remove all port-specific data. */
-static int remove_port(struct port *port)
+static void remove_port(struct port *port)
 {
 	struct port_buffer *buf;
 
@@ -1181,7 +1181,6 @@ static int remove_port(struct port *port)
 	debugfs_remove(port->debugfs_file);
 
 	kfree(port);
-	return 0;
 }
 
 /* Any private messages that the Host and Guest want to share */
