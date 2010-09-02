@@ -779,6 +779,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	u8 *data;
 	int size = nhead + (skb_end_pointer(skb) - skb->head) + ntail;
 	long off;
+	bool fastpath;
 
 	BUG_ON(nhead < 0);
 
@@ -800,14 +801,28 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	       skb_shinfo(skb),
 	       offsetof(struct skb_shared_info, frags[skb_shinfo(skb)->nr_frags]));
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-		get_page(skb_shinfo(skb)->frags[i].page);
+	/* Check if we can avoid taking references on fragments if we own
+	 * the last reference on skb->head. (see skb_release_data())
+	 */
+	if (!skb->cloned)
+		fastpath = true;
+	else {
+		int delta = skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1;
 
-	if (skb_has_frag_list(skb))
-		skb_clone_fraglist(skb);
+		fastpath = atomic_read(&skb_shinfo(skb)->dataref) == delta;
+	}
 
-	skb_release_data(skb);
+	if (fastpath) {
+		kfree(skb->head);
+	} else {
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+			get_page(skb_shinfo(skb)->frags[i].page);
 
+		if (skb_has_frag_list(skb))
+			skb_clone_fraglist(skb);
+
+		skb_release_data(skb);
+	}
 	off = (data + nhead) - skb->head;
 
 	skb->head     = data;
