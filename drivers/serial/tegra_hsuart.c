@@ -979,7 +979,7 @@ static void tegra_set_termios(struct uart_port *u, struct ktermios *termios,
 		}
 	}
 
-	lcr &= UART_LCR_WLEN8;
+	lcr &= ~UART_LCR_WLEN8;
 	switch (c_cflag & CSIZE) {
 	case CS5:
 		lcr |= UART_LCR_WLEN5;
