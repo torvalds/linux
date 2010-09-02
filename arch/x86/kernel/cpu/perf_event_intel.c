@@ -712,7 +712,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	struct perf_sample_data data;
 	struct cpu_hw_events *cpuc;
 	int bit, loops;
-	u64 ack, status;
+	u64 status;
 
 	perf_sample_data_init(&data, 0);
 
@@ -728,6 +728,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 
 	loops = 0;
 again:
+	intel_pmu_ack_status(status);
 	if (++loops > 100) {
 		WARN_ONCE(1, "perfevents: irq loop stuck!\n");
 		perf_event_print_debug();
@@ -736,7 +737,6 @@ again:
 	}
 
 	inc_irq_stat(apic_perf_irqs);
-	ack = status;
 
 	intel_pmu_lbr_read();
 
@@ -760,8 +760,6 @@ again:
 		if (perf_event_overflow(event, 1, &data, regs))
 			x86_pmu_stop(event);
 	}
-
-	intel_pmu_ack_status(ack);
 
 	/*
 	 * Repeat if there is more work to be done:
