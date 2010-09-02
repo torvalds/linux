@@ -96,7 +96,7 @@ static int rockchip_dma_buffer_set_enqueue(struct rockchip_runtime_data *prtd, d
 	struct rockchip_dma_buf_set *sg_buf;
 	
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	sg_buf = kzalloc(sizeof(struct rockchip_dma_buf_set), GFP_KERNEL);
+	sg_buf = kzalloc(sizeof(struct rockchip_dma_buf_set), GFP_ATOMIC);/* ddl@rock-chips.com:GFP_KERNEL->GFP_ATOMIC */
 	
 	if (sg_buf == NULL) {
 		DBG("scatter sg buffer allocate failed,no memory!\n");
