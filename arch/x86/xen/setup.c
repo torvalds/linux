@@ -149,6 +149,7 @@ char * __init xen_memory_setup(void)
 	unsigned long extra_pages = 0;
 	unsigned long extra_limit;
 	int i;
+	int op;
 
 	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
 	mem_end = PFN_PHYS(max_pfn);
@@ -156,7 +157,10 @@ char * __init xen_memory_setup(void)
 	memmap.nr_entries = E820MAX;
 	set_xen_guest_handle(memmap.buffer, map);
 
-	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	op = xen_initial_domain() ?
+		XENMEM_machine_memory_map :
+		XENMEM_memory_map;
+	rc = HYPERVISOR_memory_op(op, &memmap);
 	if (rc == -ENOSYS) {
 		memmap.nr_entries = 1;
 		map[0].addr = 0ULL;
@@ -235,7 +239,8 @@ char * __init xen_memory_setup(void)
 	else
 		extra_pages = 0;
 
-	xen_add_extra_mem(extra_pages);
+	if (!xen_initial_domain())
+		xen_add_extra_mem(extra_pages);
 
 	return "Xen";
 }
