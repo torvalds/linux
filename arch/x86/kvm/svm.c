@@ -88,6 +88,14 @@ struct nested_state {
 	/* A VMEXIT is required but not yet emulated */
 	bool exit_required;
 
+	/*
+	 * If we vmexit during an instruction emulation we need this to restore
+	 * the l1 guest rip after the emulation
+	 */
+	unsigned long vmexit_rip;
+	unsigned long vmexit_rsp;
+	unsigned long vmexit_rax;
+
 	/* cache for intercepts of the guest */
 	u16 intercept_cr_read;
 	u16 intercept_cr_write;
@@ -1213,8 +1221,12 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		if (old == new) {
 			/* cr0 write with ts and mp unchanged */
 			svm->vmcb->control.exit_code = SVM_EXIT_CR0_SEL_WRITE;
-			if (nested_svm_exit_handled(svm) == NESTED_EXIT_DONE)
+			if (nested_svm_exit_handled(svm) == NESTED_EXIT_DONE) {
+				svm->nested.vmexit_rip = kvm_rip_read(vcpu);
+				svm->nested.vmexit_rsp = kvm_register_read(vcpu, VCPU_REGS_RSP);
+				svm->nested.vmexit_rax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 				return;
+			}
 		}
 	}
 
@@ -2430,6 +2442,23 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
 }
 
+static int cr0_write_interception(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	int r;
+
+	r = emulate_instruction(&svm->vcpu, 0, 0, 0);
+
+	if (svm->nested.vmexit_rip) {
+		kvm_register_write(vcpu, VCPU_REGS_RIP, svm->nested.vmexit_rip);
+		kvm_register_write(vcpu, VCPU_REGS_RSP, svm->nested.vmexit_rsp);
+		kvm_register_write(vcpu, VCPU_REGS_RAX, svm->nested.vmexit_rax);
+		svm->nested.vmexit_rip = 0;
+	}
+
+	return r == EMULATE_DONE;
+}
+
 static int cr8_write_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
@@ -2692,7 +2721,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_CR4]			= emulate_on_interception,
 	[SVM_EXIT_READ_CR8]			= emulate_on_interception,
 	[SVM_EXIT_CR0_SEL_WRITE]		= emulate_on_interception,
-	[SVM_EXIT_WRITE_CR0]			= emulate_on_interception,
+	[SVM_EXIT_WRITE_CR0]			= cr0_write_interception,
 	[SVM_EXIT_WRITE_CR3]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_CR4]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_CR8]			= cr8_write_interception,
