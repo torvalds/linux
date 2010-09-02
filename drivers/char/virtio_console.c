@@ -410,7 +410,10 @@ static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
 static ssize_t send_control_msg(struct port *port, unsigned int event,
 				unsigned int value)
 {
-	return __send_control_msg(port->portdev, port->id, event, value);
+	/* Did the port get unplugged before userspace closed it? */
+	if (port->portdev)
+		return __send_control_msg(port->portdev, port->id, event, value);
+	return 0;
 }
 
 /* Callers must take the port->outvq_lock */
