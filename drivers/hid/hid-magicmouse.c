@@ -71,11 +71,6 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
  * struct magicmouse_sc - Tracks Magic Mouse-specific data.
  * @input: Input device through which we report events.
  * @quirks: Currently unused.
- * @last_timestamp: Timestamp from most recent (18-bit) touch report
- *     (units of milliseconds over short windows, but seems to
- *     increase faster when there are no touches).
- * @delta_time: 18-bit difference between the two most recent touch
- *     reports from the mouse.
  * @ntouches: Number of touches in most recent touch report.
  * @scroll_accel: Number of consecutive scroll motions.
  * @scroll_jiffies: Time of last scroll motion.
@@ -86,8 +81,6 @@ struct magicmouse_sc {
 	struct input_dev *input;
 	unsigned long quirks;
 
-	int last_timestamp;
-	int delta_time;
 	int ntouches;
 	int scroll_accel;
 	unsigned long scroll_jiffies;
@@ -247,7 +240,7 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 {
 	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
 	struct input_dev *input = msc->input;
-	int x, y, ts, ii, clicks, npoints;
+	int x, y, ii, clicks, npoints;
 
 	switch (data[0]) {
 	case 0x10:
@@ -261,9 +254,6 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		/* Expect six bytes of prefix, and N*8 bytes of touch data. */
 		if (size < 6 || ((size - 6) % 8) != 0)
 			return 0;
-		ts = data[3] >> 6 | data[4] << 2 | data[5] << 10;
-		msc->delta_time = (ts - msc->last_timestamp) & 0x3ffff;
-		msc->last_timestamp = ts;
 		npoints = (size - 6) / 8;
 		msc->ntouches = 0;
 		for (ii = 0; ii < npoints; ii++)
@@ -279,6 +269,12 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		x = (int)(((data[3] & 0x0c) << 28) | (data[1] << 22)) >> 22;
 		y = (int)(((data[3] & 0x30) << 26) | (data[2] << 22)) >> 22;
 		clicks = data[3];
+
+		/* The following bits provide a device specific timestamp. They
+		 * are unused here.
+		 *
+		 * ts = data[3] >> 6 | data[4] << 2 | data[5] << 10;
+		 */
 		break;
 	case 0x20: /* Theoretically battery status (0-100), but I have
 		    * never seen it -- maybe it is only upon request.
