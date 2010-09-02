@@ -232,12 +232,31 @@ static int info_wifi_status_register(void (*callback)(int card_present, void *de
  	return 0;
 }
 
-static int info_wifi_power_state;
+#define INFO_WIFI_GPIO_POWER_N  TCA6424_P25
+#define INFO_WIFI_GPIO_RESET_N  TCA6424_P27 
+
+int info_wifi_power_state = 0;
+int info_bt_power_state = 0;
+
 static int info_wifi_power(int on)
 {
 	pr_info("%s: %d\n", __func__, on);
-	gpio_set_value(TCA6424_P25, on);
-	mdelay(100);
+	if (on){
+		gpio_set_value(INFO_WIFI_GPIO_POWER_N, on);
+		mdelay(100);
+		pr_info("wifi turn on power\n");
+	}else{
+		if (!info_bt_power_state){
+			gpio_set_value(INFO_WIFI_GPIO_POWER_N, on);	
+			mdelay(100);
+			pr_info("wifi shut off power\n");
+		}else
+		{
+			pr_info("wifi shouldn't shut off power, bt is using it!\n"); 
+		}
+
+	}
+
 	info_wifi_power_state = on;
         return 0;
 }
@@ -246,7 +265,7 @@ static int info_wifi_reset_state;
 static int info_wifi_reset(int on)
 {
 	pr_info("%s: %d\n", __func__, on);
-	gpio_set_value(TCA6424_P27, on);
+	gpio_set_value(INFO_WIFI_GPIO_RESET_N, on);
 	mdelay(100);
 	info_wifi_reset_state = on;
 	return 0;
@@ -277,7 +296,12 @@ static struct platform_device info_wifi_device = {
          },
 };
 
-
+/* bluetooth rfkill device */
+static struct platform_device info_rfkill = {
+	.name = "info_rfkill",
+	.id = -1,
+};
+ 
 /*****************************************************************************************
  * extern gpio devices
  *author: xxx
@@ -1420,6 +1444,7 @@ struct rk2818_nand_platform_data rk2818_nand_data = {
 /*****************************************/
 
 static struct platform_device *devices[] __initdata = {
+	&rk2818_device_uart0,
 	&rk2818_device_uart1,
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
@@ -1434,6 +1459,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_sdmmc1,
 	&info_wifi_device,
 #endif
+	&info_rfkill,
 	&rk2818_device_spim,
 	&rk2818_device_i2s,
 #if defined(CONFIG_ANDROID_PMEM)
