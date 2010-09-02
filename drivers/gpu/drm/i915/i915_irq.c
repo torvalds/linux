@@ -351,12 +351,12 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
-		intel_finish_page_flip(dev, 0);
+		intel_finish_page_flip_plane(dev, 0);
 	}
 
 	if (de_iir & DE_PLANEB_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 1);
-		intel_finish_page_flip(dev, 1);
+		intel_finish_page_flip_plane(dev, 1);
 	}
 
 	if (de_iir & DE_PIPEA_VBLANK)
