@@ -465,7 +465,13 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 			goto __error;
 	}
 
-	chip->ctrl_intf = alts;
+	/*
+	 * For devices with more than one control interface, we assume the
+	 * first contains the audio controls. We might need a more specific
+	 * check here in the future.
+	 */
+	if (!chip->ctrl_intf)
+		chip->ctrl_intf = alts;
 
 	if (err > 0) {
 		/* create normal USB audio interfaces */
