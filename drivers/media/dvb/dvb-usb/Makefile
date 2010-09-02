@@ -88,6 +88,9 @@ obj-$(CONFIG_DVB_USB_EC168) += dvb-usb-ec168.o
 dvb-usb-az6027-objs = az6027.o
 obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 
+dvb-usb-lmedm04-objs = lmedm04.o
+obj-$(CONFIG_DVB_USB_LME2510) += dvb-usb-lmedm04.o
+
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 # due to tuner-xc3028
 EXTRA_CFLAGS += -Idrivers/media/common/tuners
