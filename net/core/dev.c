@@ -371,6 +371,14 @@ static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
  *							--ANK (980803)
  */
 
+static inline struct list_head *ptype_head(const struct packet_type *pt)
+{
+	if (pt->type == htons(ETH_P_ALL))
+		return &ptype_all;
+	else
+		return &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+}
+
 /**
  *	dev_add_pack - add packet handler
  *	@pt: packet type declaration
@@ -386,16 +394,11 @@ static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
 
 void dev_add_pack(struct packet_type *pt)
 {
-	int hash;
+	struct list_head *head = ptype_head(pt);
 
-	spin_lock_bh(&ptype_lock);
-	if (pt->type == htons(ETH_P_ALL))
-		list_add_rcu(&pt->list, &ptype_all);
-	else {
-		hash = ntohs(pt->type) & PTYPE_HASH_MASK;
-		list_add_rcu(&pt->list, &ptype_base[hash]);
-	}
-	spin_unlock_bh(&ptype_lock);
+	spin_lock(&ptype_lock);
+	list_add_rcu(&pt->list, head);
+	spin_unlock(&ptype_lock);
 }
 EXPORT_SYMBOL(dev_add_pack);
 
@@ -414,15 +417,10 @@ EXPORT_SYMBOL(dev_add_pack);
  */
 void __dev_remove_pack(struct packet_type *pt)
 {
-	struct list_head *head;
+	struct list_head *head = ptype_head(pt);
 	struct packet_type *pt1;
 
-	spin_lock_bh(&ptype_lock);
-
-	if (pt->type == htons(ETH_P_ALL))
-		head = &ptype_all;
-	else
-		head = &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+	spin_lock(&ptype_lock);
 
 	list_for_each_entry(pt1, head, list) {
 		if (pt == pt1) {
@@ -433,7 +431,7 @@ void __dev_remove_pack(struct packet_type *pt)
 
 	printk(KERN_WARNING "dev_remove_pack: %p not found.\n", pt);
 out:
-	spin_unlock_bh(&ptype_lock);
+	spin_unlock(&ptype_lock);
 }
 EXPORT_SYMBOL(__dev_remove_pack);
 
