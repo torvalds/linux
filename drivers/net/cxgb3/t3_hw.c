@@ -3569,6 +3569,7 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
+	t3_set_reg_field(adapter, A_PL_RST, 0, F_FATALPERREN);
 
 	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW, calc_gpio_intr(adapter));
 
