@@ -1600,8 +1600,6 @@ static void virtcons_remove(struct virtio_device *vdev)
 {
 	struct ports_device *portdev;
 	struct port *port, *port2;
-	struct port_buffer *buf;
-	unsigned int len;
 
 	portdev = vdev->priv;
 
@@ -1615,11 +1613,16 @@ static void virtcons_remove(struct virtio_device *vdev)
 
 	unregister_chrdev(portdev->chr_major, "virtio-portsdev");
 
-	while ((buf = virtqueue_get_buf(portdev->c_ivq, &len)))
-		free_buf(buf);
+	if (use_multiport(portdev)) {
+		struct port_buffer *buf;
+		unsigned int len;
 
-	while ((buf = virtqueue_detach_unused_buf(portdev->c_ivq)))
-		free_buf(buf);
+		while ((buf = virtqueue_get_buf(portdev->c_ivq, &len)))
+			free_buf(buf);
+
+		while ((buf = virtqueue_detach_unused_buf(portdev->c_ivq)))
+			free_buf(buf);
+	}
 
 	vdev->config->del_vqs(vdev);
 	kfree(portdev->in_vqs);
