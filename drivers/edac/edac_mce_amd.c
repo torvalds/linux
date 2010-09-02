@@ -324,8 +324,7 @@ static inline void amd_decode_err_code(u16 ec)
 		pr_emerg(HW_ERR "Huh? Unknown MCE error 0x%x\n", ec);
 }
 
-static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
-			   void *data)
+int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
 	int node, ecc;
@@ -379,6 +378,7 @@ static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
 
 	return NOTIFY_STOP;
 }
+EXPORT_SYMBOL_GPL(amd_decode_mce);
 
 static struct notifier_block amd_mce_dec_nb = {
 	.notifier_call	= amd_decode_mce,

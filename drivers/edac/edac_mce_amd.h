@@ -1,6 +1,8 @@
 #ifndef _EDAC_MCE_AMD_H
 #define _EDAC_MCE_AMD_H
 
+#include <linux/notifier.h>
+
 #include <asm/mce.h>
 
 #define ERROR_CODE(x)			((x) & 0xffff)
@@ -61,10 +63,10 @@ struct err_regs {
 	u32 nbeal;
 };
 
-
 void amd_report_gart_errors(bool);
 void amd_register_ecc_decoder(void (*f)(int, struct mce *, u32));
 void amd_unregister_ecc_decoder(void (*f)(int, struct mce *, u32));
 void amd_decode_nb_mce(int, struct mce *, u32);
+int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data);
 
 #endif /* _EDAC_MCE_AMD_H */

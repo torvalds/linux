@@ -486,7 +486,7 @@ extern const char *ext_msgs[32];
 extern const char *htlink_msgs[8];
 
 #ifdef CONFIG_EDAC_DEBUG
-#define NUM_DBG_ATTRS 9
+#define NUM_DBG_ATTRS 5
 #else
 #define NUM_DBG_ATTRS 0
 #endif
