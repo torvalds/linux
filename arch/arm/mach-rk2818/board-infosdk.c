@@ -598,13 +598,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 #endif
 	{},
 };
-
-static struct i2c_board_info __initdata board_i2c2_devices[] = {
-
-};
-static struct i2c_board_info __initdata board_i2c3_devices[] = {
-
-};	
+	
 
 /*****************************************************************************************
  * camera  devices
@@ -1510,7 +1504,7 @@ static void rk2818_power_off(void)
 
 //	adc	 ---> key	
 #define PLAY_ON_PIN RK2818_PIN_PE1
-#define PLAY_ON_LEVEL 1
+#define PLAY_ON_LEVEL 0
 static  ADC_keyst gAdcValueTab[] = 
 {
 	{95,  AD2KEY1},///VOLUME_DOWN
@@ -1566,12 +1560,6 @@ static void __init machine_rk2818_board_init(void)
 #ifdef CONFIG_I2C1_RK2818
 	i2c_register_board_info(default_i2c1_data.bus_num, board_i2c1_devices,
 			ARRAY_SIZE(board_i2c1_devices));
-#endif
-#ifdef CONFIG_SPI_FPGA_I2C
-	i2c_register_board_info(default_i2c2_data.bus_num, board_i2c2_devices,
-			ARRAY_SIZE(board_i2c2_devices));
-	i2c_register_board_info(default_i2c3_data.bus_num, board_i2c3_devices,
-			ARRAY_SIZE(board_i2c3_devices));
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
