@@ -572,6 +572,7 @@ struct pmu {
 
 	int * __percpu			pmu_disable_count;
 	struct perf_cpu_context * __percpu pmu_cpu_context;
+	int				task_ctx_nr;
 
 	/*
 	 * Fully disable/enable this PMU, can be used to protect from the PMI
