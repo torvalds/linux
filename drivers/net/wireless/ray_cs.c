@@ -198,7 +198,7 @@ module_param(bc, int, 0);
 module_param(phy_addr, charp, 0);
 module_param(ray_mem_speed, int, 0);
 
-static UCHAR b5_default_startup_parms[] = {
+static const UCHAR b5_default_startup_parms[] = {
 	0, 0,			/* Adhoc station */
 	'L', 'I', 'N', 'U', 'X', 0, 0, 0,	/* 32 char ESSID */
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -233,7 +233,7 @@ static UCHAR b5_default_startup_parms[] = {
 	2, 0, 0, 0, 0, 0, 0, 0	/* basic rate set */
 };
 
-static UCHAR b4_default_startup_parms[] = {
+static const UCHAR b4_default_startup_parms[] = {
 	0, 0,			/* Adhoc station */
 	'L', 'I', 'N', 'U', 'X', 0, 0, 0,	/* 32 char ESSID */
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -265,9 +265,9 @@ static UCHAR b4_default_startup_parms[] = {
 };
 
 /*===========================================================================*/
-static unsigned char eth2_llc[] = { 0xaa, 0xaa, 3, 0, 0, 0 };
+static const u8 eth2_llc[] = { 0xaa, 0xaa, 3, 0, 0, 0 };
 
-static char hop_pattern_length[] = { 1,
+static const char hop_pattern_length[] = { 1,
 	USA_HOP_MOD, EUROPE_HOP_MOD,
 	JAPAN_HOP_MOD, KOREA_HOP_MOD,
 	SPAIN_HOP_MOD, FRANCE_HOP_MOD,
@@ -275,7 +275,7 @@ static char hop_pattern_length[] = { 1,
 	JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] =
+static const char rcsid[] =
     "Raylink/WebGear wireless LAN - Corey <Thomas corey@world.std.com>";
 
 static const struct net_device_ops ray_netdev_ops = {
@@ -2608,7 +2608,7 @@ static void clear_interrupt(ray_dev_t *local)
 #ifdef CONFIG_PROC_FS
 #define MAXDATA (PAGE_SIZE - 80)
 
-static char *card_status[] = {
+static const char *card_status[] = {
 	"Card inserted - uninitialized",	/* 0 */
 	"Card not downloaded",			/* 1 */
 	"Waiting for download parameters",	/* 2 */
@@ -2625,8 +2625,8 @@ static char *card_status[] = {
 	"Association failed"			/* 16 */
 };
 
-static char *nettype[] = { "Adhoc", "Infra " };
-static char *framing[] = { "Encapsulation", "Translation" }
+static const char *nettype[] = { "Adhoc", "Infra " };
+static const char *framing[] = { "Encapsulation", "Translation" }
 
 ;
 /*===========================================================================*/
