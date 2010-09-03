@@ -111,6 +111,13 @@ static struct request *queue_next_fseq(struct request_queue *q)
 		break;
 	case QUEUE_FSEQ_DATA:
 		init_request_from_bio(rq, orig_rq->bio);
+		/*
+		 * orig_rq->rq_disk may be different from
+		 * bio->bi_bdev->bd_disk if orig_rq got here through
+		 * remapping drivers.  Make sure rq->rq_disk points
+		 * to the same one as orig_rq.
+		 */
+		rq->rq_disk = orig_rq->rq_disk;
 		rq->cmd_flags &= ~(REQ_FLUSH | REQ_FUA);
 		rq->cmd_flags |= orig_rq->cmd_flags & (REQ_FLUSH | REQ_FUA);
 		rq->end_io = flush_data_end_io;
