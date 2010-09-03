@@ -732,6 +732,7 @@ static void hdmi_display_on(void *arg, struct fb_info *info)
 	 */
 	struct sh_hdmi *hdmi = arg;
 	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+	struct sh_mobile_lcdc_chan *ch = info->par;
 
 	pr_debug("%s(%p): state %x\n", __func__, pdata->lcd_dev, info->state);
 
@@ -747,7 +748,7 @@ static void hdmi_display_on(void *arg, struct fb_info *info)
 	case HDMI_HOTPLUG_DISCONNECTED:
 		info->state = FBINFO_STATE_SUSPENDED;
 	default:
-		hdmi->var = info->var;
+		hdmi->var = ch->display_var;
 	}
 }
 
@@ -767,6 +768,7 @@ static void edid_work_fn(struct work_struct *work)
 {
 	struct sh_hdmi *hdmi = container_of(work, struct sh_hdmi, edid_work.work);
 	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+	struct sh_mobile_lcdc_chan *ch;
 
 	pr_debug("%s(%p): begin, hotplug status %d\n", __func__,
 		 pdata->lcd_dev, hdmi->hp_state);
@@ -788,10 +790,12 @@ static void edid_work_fn(struct work_struct *work)
 		if (!hdmi->info)
 			goto out;
 
+		ch = hdmi->info->par;
+
 		acquire_console_sem();
 
 		/* HDMI plug in */
-		hdmi->info->var = hdmi->var;
+		ch->display_var = hdmi->var;
 		if (hdmi->info->state != FBINFO_STATE_RUNNING) {
 			fb_set_suspend(hdmi->info, 0);
 		} else {

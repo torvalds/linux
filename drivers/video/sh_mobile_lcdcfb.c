@@ -384,8 +384,8 @@ static void sh_mobile_lcdc_start_stop(struct sh_mobile_lcdc_priv *priv,
 
 static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 {
-	struct fb_var_screeninfo *var = &ch->info->var;
-	unsigned long h_total, hsync_pos;
+	struct fb_var_screeninfo *var = &ch->info->var, *display_var = &ch->display_var;
+	unsigned long h_total, hsync_pos, display_h_total;
 	u32 tmp;
 
 	tmp = ch->ldmt1r_value;
@@ -403,31 +403,33 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	lcdc_write_chan(ch, LDMT3R, ch->cfg.sys_bus_cfg.ldmt3r);
 
 	/* horizontal configuration */
-	h_total = var->xres + var->hsync_len +
-		var->left_margin + var->right_margin;
+	h_total = display_var->xres + display_var->hsync_len +
+		display_var->left_margin + display_var->right_margin;
 	tmp = h_total / 8; /* HTCN */
-	tmp |= (var->xres / 8) << 16; /* HDCN */
+	tmp |= (min(display_var->xres, var->xres) / 8) << 16; /* HDCN */
 	lcdc_write_chan(ch, LDHCNR, tmp);
 
-	hsync_pos = var->xres + var->right_margin;
+	hsync_pos = display_var->xres + display_var->right_margin;
 	tmp = hsync_pos / 8; /* HSYNP */
-	tmp |= (var->hsync_len / 8) << 16; /* HSYNW */
+	tmp |= (display_var->hsync_len / 8) << 16; /* HSYNW */
 	lcdc_write_chan(ch, LDHSYNR, tmp);
 
 	/* vertical configuration */
-	tmp = var->yres + var->vsync_len +
-		var->upper_margin + var->lower_margin; /* VTLN */
-	tmp |= var->yres << 16; /* VDLN */
+	tmp = display_var->yres + display_var->vsync_len +
+		display_var->upper_margin + display_var->lower_margin; /* VTLN */
+	tmp |= min(display_var->yres, var->yres) << 16; /* VDLN */
 	lcdc_write_chan(ch, LDVLNR, tmp);
 
-	tmp = var->yres + var->lower_margin; /* VSYNP */
-	tmp |= var->vsync_len << 16; /* VSYNW */
+	tmp = display_var->yres + display_var->lower_margin; /* VSYNP */
+	tmp |= display_var->vsync_len << 16; /* VSYNW */
 	lcdc_write_chan(ch, LDVSYNR, tmp);
 
 	/* Adjust horizontal synchronisation for HDMI */
-	tmp = ((var->xres & 7) << 24) |
-		((h_total & 7) << 16) |
-		((var->hsync_len & 7) << 8) |
+	display_h_total = display_var->xres + display_var->hsync_len +
+		display_var->left_margin + display_var->right_margin;
+	tmp = ((display_var->xres & 7) << 24) |
+		((display_h_total & 7) << 16) |
+		((display_var->hsync_len & 7) << 8) |
 		hsync_pos;
 	lcdc_write_chan(ch, LDHAJR, tmp);
 }
@@ -477,7 +479,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			m = 1 << 6;
 		tmp |= m << (lcdc_chan_is_sublcd(ch) ? 8 : 0);
 
-		lcdc_write_chan(ch, LDDCKPAT1R, 0x00000000);
+		lcdc_write_chan(ch, LDDCKPAT1R, 0);
 		lcdc_write_chan(ch, LDDCKPAT2R, (1 << (m/2)) - 1);
 	}
 
@@ -520,7 +522,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		/* set bpp format in PKF[4:0] */
 		tmp = lcdc_read_chan(ch, LDDFR);
-		tmp &= ~(0x0001001f);
+		tmp &= ~0x0001001f;
 		tmp |= (ch->info->var.bits_per_pixel == 16) ? 3 : 0;
 		lcdc_write_chan(ch, LDDFR, tmp);
 
@@ -1153,6 +1155,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		info->screen_base = buf;
 		info->device = &pdev->dev;
 		info->par = ch;
+		ch->display_var = *var;
 	}
 
 	if (error)

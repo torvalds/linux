@@ -32,6 +32,7 @@ struct sh_mobile_lcdc_chan {
 	unsigned long pan_offset;
 	wait_queue_head_t frame_end_wait;
 	struct completion vsync_completion;
+	struct fb_var_screeninfo display_var;
 };
 
 #endif
