@@ -72,17 +72,26 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 {
 	struct sk_buff *clone;
 	struct net_device *dev;
+	int delta;
 
 	clone = skb_clone(buf, GFP_ATOMIC);
-	if (clone) {
-		skb_reset_network_header(clone);
-		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
-		clone->dev = dev;
-		dev_hard_header(clone, dev, ETH_P_TIPC,
-				 &dest->dev_addr.eth_addr,
-				 dev->dev_addr, clone->len);
-		dev_queue_xmit(clone);
+	if (!clone)
+		return 0;
+
+	dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
+	delta = dev->hard_header_len - skb_headroom(buf);
+
+	if ((delta > 0) &&
+	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
+		kfree_skb(clone);
+		return 0;
 	}
+
+	skb_reset_network_header(clone);
+	clone->dev = dev;
+	dev_hard_header(clone, dev, ETH_P_TIPC, &dest->dev_addr.eth_addr,
+			dev->dev_addr, clone->len);
+	dev_queue_xmit(clone);
 	return 0;
 }
 
