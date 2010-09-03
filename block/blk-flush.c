@@ -191,13 +191,10 @@ struct request *blk_do_flush(struct request_queue *q, struct request *rq)
 	return blk_flush_complete_seq(q, skip, 0);
 }
 
-static void bio_end_empty_barrier(struct bio *bio, int err)
+static void bio_end_flush(struct bio *bio, int err)
 {
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
+	if (err)
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	}
 	if (bio->bi_private)
 		complete(bio->bi_private);
 	bio_put(bio);
@@ -235,19 +232,19 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 	 * some block devices may not have their queue correctly set up here
 	 * (e.g. loop device without a backing file) and so issuing a flush
 	 * here will panic. Ensure there is a request function before issuing
-	 * the barrier.
+	 * the flush.
 	 */
 	if (!q->make_request_fn)
 		return -ENXIO;
 
 	bio = bio_alloc(gfp_mask, 0);
-	bio->bi_end_io = bio_end_empty_barrier;
+	bio->bi_end_io = bio_end_flush;
 	bio->bi_bdev = bdev;
 	if (test_bit(BLKDEV_WAIT, &flags))
 		bio->bi_private = &wait;
 
 	bio_get(bio);
-	submit_bio(WRITE_BARRIER, bio);
+	submit_bio(WRITE_FLUSH, bio);
 	if (test_bit(BLKDEV_WAIT, &flags)) {
 		wait_for_completion(&wait);
 		/*
@@ -259,9 +256,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 			*error_sector = bio->bi_sector;
 	}
 
-	if (bio_flagged(bio, BIO_EOPNOTSUPP))
-		ret = -EOPNOTSUPP;
-	else if (!bio_flagged(bio, BIO_UPTODATE))
+	if (!bio_flagged(bio, BIO_UPTODATE))
 		ret = -EIO;
 
 	bio_put(bio);
