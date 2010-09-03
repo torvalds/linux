@@ -47,8 +47,6 @@
 #define SOC2030_RESETN_GPIO	TEGRA_GPIO_PD5
 #define SOC2030_PWRDN_GPIO	TEGRA_GPIO_PBB5
 
-struct regulator *stingray_ov5650_regulator_vcam;
-
 static int stingray_ov5650_init(void)
 {
 	tegra_gpio_enable(OV5650_RESETN_GPIO);
@@ -68,16 +66,6 @@ static int stingray_ov5650_init(void)
 
 static int stingray_ov5650_power_on(void)
 {
-	pr_info("power on the ov5650 sensor\n");
-	if (!stingray_ov5650_regulator_vcam) {
-		stingray_ov5650_regulator_vcam = regulator_get(NULL, "vcam");
-		if (IS_ERR(stingray_ov5650_regulator_vcam)) {
-			pr_err("ov5650_power_on: couldn't get regulator vcam\n");
-			return PTR_ERR(stingray_ov5650_regulator_vcam);
-		}
-	}
-
-	regulator_enable(stingray_ov5650_regulator_vcam);
 	msleep(20);
 
 	gpio_direction_output(OV5650_PWRDN_GPIO, 0);
@@ -97,7 +85,6 @@ static int stingray_ov5650_power_off(void)
 {
 	gpio_direction_output(OV5650_PWRDN_GPIO, 1);
 	gpio_direction_output(OV5650_RESETN_GPIO, 0);
-	regulator_disable(stingray_ov5650_regulator_vcam);
 
 	return 0;
 }
@@ -123,7 +110,6 @@ static int stingray_soc2030_init(void)
 
 	return 0;
 }
-
 
 static int stingray_soc2030_power_on(void)
 {
@@ -368,16 +354,19 @@ static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
 		.platform_data = &stingray_lm3559_data,
 	 },
 
-	{
-		I2C_BOARD_INFO("ov5650", 0x36),
-		.platform_data = &stingray_ov5650_data,
-	},
+	 {
+		 I2C_BOARD_INFO("ov5650", 0x36),
+		 .platform_data = &stingray_ov5650_data,
+	 },
 
-	{
-		I2C_BOARD_INFO("soc2030", 0x3c),
-		.platform_data = &stingray_soc2030_data,
-	},
+	 {
+		 I2C_BOARD_INFO("dw9714l", 0x0C),
+	 },
 
+	 {
+		 I2C_BOARD_INFO("soc2030", 0x3c),
+		 .platform_data = &stingray_soc2030_data,
+	 },
 };
 
 int __init stingray_sensors_init(void)
