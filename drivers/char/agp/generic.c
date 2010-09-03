@@ -984,7 +984,9 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 
 	bridge->driver->cache_flush();
 #ifdef CONFIG_X86
-	set_memory_uc((unsigned long)table, 1 << page_order);
+	if (set_memory_uc((unsigned long)table, 1 << page_order))
+		printk(KERN_WARNING "Could not set GATT table memory to UC!");
+
 	bridge->gatt_table = (void *)table;
 #else
 	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),
