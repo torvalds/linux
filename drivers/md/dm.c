@@ -144,15 +144,16 @@ struct mapped_device {
 	spinlock_t deferred_lock;
 
 	/*
-	 * An error from the barrier request currently being processed.
+	 * An error from the flush request currently being processed.
 	 */
-	int barrier_error;
+	int flush_error;
 
 	/*
 	 * Protect barrier_error from concurrent endio processing
 	 * in request-based dm.
 	 */
 	spinlock_t barrier_error_lock;
+	int barrier_error;
 
 	/*
 	 * Processing queue (flush/barriers)
@@ -200,8 +201,8 @@ struct mapped_device {
 	/* sysfs handle */
 	struct kobject kobj;
 
-	/* zero-length barrier that will be cloned and submitted to targets */
-	struct bio barrier_bio;
+	/* zero-length flush that will be cloned and submitted to targets */
+	struct bio flush_bio;
 };
 
 /*
@@ -512,7 +513,7 @@ static void end_io_acct(struct dm_io *io)
 
 	/*
 	 * After this is decremented the bio must not be touched if it is
-	 * a barrier.
+	 * a flush.
 	 */
 	dm_disk(md)->part0.in_flight[rw] = pending =
 		atomic_dec_return(&md->pending[rw]);
@@ -626,7 +627,7 @@ static void dec_pending(struct dm_io *io, int error)
 			 */
 			spin_lock_irqsave(&md->deferred_lock, flags);
 			if (__noflush_suspending(md)) {
-				if (!(io->bio->bi_rw & REQ_HARDBARRIER))
+				if (!(io->bio->bi_rw & REQ_FLUSH))
 					bio_list_add_head(&md->deferred,
 							  io->bio);
 			} else
@@ -638,20 +639,14 @@ static void dec_pending(struct dm_io *io, int error)
 		io_error = io->error;
 		bio = io->bio;
 
-		if (bio->bi_rw & REQ_HARDBARRIER) {
+		if (bio->bi_rw & REQ_FLUSH) {
 			/*
-			 * There can be just one barrier request so we use
+			 * There can be just one flush request so we use
 			 * a per-device variable for error reporting.
 			 * Note that you can't touch the bio after end_io_acct
-			 *
-			 * We ignore -EOPNOTSUPP for empty flush reported by
-			 * underlying devices. We assume that if the device
-			 * doesn't support empty barriers, it doesn't need
-			 * cache flushing commands.
 			 */
-			if (!md->barrier_error &&
-			    !(bio_empty_barrier(bio) && io_error == -EOPNOTSUPP))
-				md->barrier_error = io_error;
+			if (!md->flush_error)
+				md->flush_error = io_error;
 			end_io_acct(io);
 			free_io(md, io);
 		} else {
@@ -1119,7 +1114,7 @@ static void dm_bio_destructor(struct bio *bio)
 }
 
 /*
- * Creates a little bio that is just does part of a bvec.
+ * Creates a little bio that just does part of a bvec.
  */
 static struct bio *split_bvec(struct bio *bio, sector_t sector,
 			      unsigned short idx, unsigned int offset,
@@ -1134,7 +1129,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 
 	clone->bi_sector = sector;
 	clone->bi_bdev = bio->bi_bdev;
-	clone->bi_rw = bio->bi_rw & ~REQ_HARDBARRIER;
+	clone->bi_rw = bio->bi_rw;
 	clone->bi_vcnt = 1;
 	clone->bi_size = to_bytes(len);
 	clone->bi_io_vec->bv_offset = offset;
@@ -1161,7 +1156,6 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
 
 	clone = bio_alloc_bioset(GFP_NOIO, bio->bi_max_vecs, bs);
 	__bio_clone(clone, bio);
-	clone->bi_rw &= ~REQ_HARDBARRIER;
 	clone->bi_destructor = dm_bio_destructor;
 	clone->bi_sector = sector;
 	clone->bi_idx = idx;
@@ -1225,7 +1219,7 @@ static void __issue_target_requests(struct clone_info *ci, struct dm_target *ti,
 		__issue_target_request(ci, ti, request_nr, len);
 }
 
-static int __clone_and_map_empty_barrier(struct clone_info *ci)
+static int __clone_and_map_flush(struct clone_info *ci)
 {
 	unsigned target_nr = 0;
 	struct dm_target *ti;
@@ -1288,9 +1282,6 @@ static int __clone_and_map(struct clone_info *ci)
 	struct dm_target *ti;
 	sector_t len = 0, max;
 	struct dm_target_io *tio;
-
-	if (unlikely(bio_empty_barrier(bio)))
-		return __clone_and_map_empty_barrier(ci);
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD))
 		return __clone_and_map_discard(ci);
@@ -1383,11 +1374,11 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 
 	ci.map = dm_get_live_table(md);
 	if (unlikely(!ci.map)) {
-		if (!(bio->bi_rw & REQ_HARDBARRIER))
+		if (!(bio->bi_rw & REQ_FLUSH))
 			bio_io_error(bio);
 		else
-			if (!md->barrier_error)
-				md->barrier_error = -EIO;
+			if (!md->flush_error)
+				md->flush_error = -EIO;
 		return;
 	}
 
@@ -1400,14 +1391,22 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	ci.io->md = md;
 	spin_lock_init(&ci.io->endio_lock);
 	ci.sector = bio->bi_sector;
-	ci.sector_count = bio_sectors(bio);
-	if (unlikely(bio_empty_barrier(bio)))
+	if (!(bio->bi_rw & REQ_FLUSH))
+		ci.sector_count = bio_sectors(bio);
+	else {
+		/* all FLUSH bio's reaching here should be empty */
+		WARN_ON_ONCE(bio_has_data(bio));
 		ci.sector_count = 1;
+	}
 	ci.idx = bio->bi_idx;
 
 	start_io_acct(ci.io);
-	while (ci.sector_count && !error)
-		error = __clone_and_map(&ci);
+	while (ci.sector_count && !error) {
+		if (!(bio->bi_rw & REQ_FLUSH))
+			error = __clone_and_map(&ci);
+		else
+			error = __clone_and_map_flush(&ci);
+	}
 
 	/* drop the extra reference count */
 	dec_pending(ci.io, error);
@@ -1492,11 +1491,11 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 	part_stat_unlock();
 
 	/*
-	 * If we're suspended or the thread is processing barriers
+	 * If we're suspended or the thread is processing flushes
 	 * we have to queue this io for later.
 	 */
 	if (unlikely(test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) ||
-	    unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
+	    (bio->bi_rw & REQ_FLUSH)) {
 		up_read(&md->io_lock);
 
 		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
@@ -1940,6 +1939,7 @@ static void dm_init_md_queue(struct mapped_device *md)
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
+	blk_queue_flush(md->queue, REQ_FLUSH | REQ_FUA);
 }
 
 /*
@@ -2245,7 +2245,8 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 	blk_queue_prep_rq(md->queue, dm_prep_fn);
 	blk_queue_lld_busy(md->queue, dm_lld_busy);
-	blk_queue_flush(md->queue, REQ_FLUSH);
+	/* no flush support for request based dm yet */
+	blk_queue_flush(md->queue, 0);
 
 	elv_register_queue(md->queue);
 
@@ -2406,41 +2407,35 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 	return r;
 }
 
-static void dm_flush(struct mapped_device *md)
+static void process_flush(struct mapped_device *md, struct bio *bio)
 {
+	md->flush_error = 0;
+
+	/* handle REQ_FLUSH */
 	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
 
-	bio_init(&md->barrier_bio);
-	md->barrier_bio.bi_bdev = md->bdev;
-	md->barrier_bio.bi_rw = WRITE_BARRIER;
-	__split_and_process_bio(md, &md->barrier_bio);
+	bio_init(&md->flush_bio);
+	md->flush_bio.bi_bdev = md->bdev;
+	md->flush_bio.bi_rw = WRITE_FLUSH;
+	__split_and_process_bio(md, &md->flush_bio);
 
 	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
-}
 
-static void process_barrier(struct mapped_device *md, struct bio *bio)
-{
-	md->barrier_error = 0;
-
-	dm_flush(md);
-
-	if (!bio_empty_barrier(bio)) {
-		__split_and_process_bio(md, bio);
-		/*
-		 * If the request isn't supported, don't waste time with
-		 * the second flush.
-		 */
-		if (md->barrier_error != -EOPNOTSUPP)
-			dm_flush(md);
+	/* if it's an empty flush or the preflush failed, we're done */
+	if (!bio_has_data(bio) || md->flush_error) {
+		if (md->flush_error != DM_ENDIO_REQUEUE)
+			bio_endio(bio, md->flush_error);
+		else {
+			spin_lock_irq(&md->deferred_lock);
+			bio_list_add_head(&md->deferred, bio);
+			spin_unlock_irq(&md->deferred_lock);
+		}
+		return;
 	}
 
-	if (md->barrier_error != DM_ENDIO_REQUEUE)
-		bio_endio(bio, md->barrier_error);
-	else {
-		spin_lock_irq(&md->deferred_lock);
-		bio_list_add_head(&md->deferred, bio);
-		spin_unlock_irq(&md->deferred_lock);
-	}
+	/* issue data + REQ_FUA */
+	bio->bi_rw &= ~REQ_FLUSH;
+	__split_and_process_bio(md, bio);
 }
 
 /*
@@ -2469,8 +2464,8 @@ static void dm_wq_work(struct work_struct *work)
 		if (dm_request_based(md))
 			generic_make_request(c);
 		else {
-			if (c->bi_rw & REQ_HARDBARRIER)
-				process_barrier(md, c);
+			if (c->bi_rw & REQ_FLUSH)
+				process_flush(md, c);
 			else
 				__split_and_process_bio(md, c);
 		}
