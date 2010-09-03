@@ -178,7 +178,7 @@ static void ibmveth_init_buffer_pool(struct ibmveth_buff_pool *pool, u32 pool_in
 	pool->size = pool_size;
 	pool->index = pool_index;
 	pool->buff_size = buff_size;
-	pool->threshold = pool_size / 2;
+	pool->threshold = pool_size * 7 / 8;
 	pool->active = pool_active;
 }
 
@@ -315,10 +315,13 @@ static void ibmveth_replenish_task(struct ibmveth_adapter *adapter)
 
 	adapter->replenish_task_cycles++;
 
-	for (i = (IbmVethNumBufferPools - 1); i >= 0; i--)
-		if(adapter->rx_buff_pool[i].active)
-			ibmveth_replenish_buffer_pool(adapter,
-						     &adapter->rx_buff_pool[i]);
+	for (i = (IbmVethNumBufferPools - 1); i >= 0; i--) {
+		struct ibmveth_buff_pool *pool = &adapter->rx_buff_pool[i];
+
+		if (pool->active &&
+		    (atomic_read(&pool->available) < pool->threshold))
+			ibmveth_replenish_buffer_pool(adapter, pool);
+	}
 
 	adapter->rx_no_buffer = *(u64*)(((char*)adapter->buffer_list_addr) + 4096 - 8);
 }

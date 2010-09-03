@@ -102,7 +102,7 @@ static inline long h_illan_attributes(unsigned long unit_address,
 #define IBMVETH_MAX_BUF_SIZE (1024 * 128)
 
 static int pool_size[] = { 512, 1024 * 2, 1024 * 16, 1024 * 32, 1024 * 64 };
-static int pool_count[] = { 256, 768, 256, 256, 256 };
+static int pool_count[] = { 256, 512, 256, 256, 256 };
 static int pool_active[] = { 1, 1, 0, 0, 0};
 
 #define IBM_VETH_INVALID_MAP ((u16)0xffff)
