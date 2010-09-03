@@ -123,8 +123,8 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec, int to_head,
  * @ec: erase counter of the physical eraseblock
  *
  * This function adds corrupted physical eraseblock @pnum to the 'corr' list.
- * Returns zero in case of success and a negative error code in case of
- * failure.
+ * The corruption was presumably not caused by a power cut. Returns zero in
+ * case of success and a negative error code in case of failure.
  */
 static int add_corrupted(struct ubi_scan_info *si, int pnum, int ec)
 {
@@ -751,6 +751,53 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 }
 
 /**
+ * check_data_ff - make sure PEB contains only 0xFF data.
+ * @ubi: UBI device description object
+ * @vid_hrd: the (corrupted) VID header of this PEB
+ * @pnum: the physical eraseblock number to check
+ *
+ * This is a helper function which is used to distinguish between VID header
+ * corruptions caused by power cuts and other reasons. If the PEB contains only
+ * 0xFF bytes at the data area, the VID header is most probably corrupted
+ * because of a power cut (%0 is returned in this case). Otherwise, it was
+ * corrupted for some other reasons (%1 is returned in this case). A negative
+ * error code is returned if a read error occurred.
+ *
+ * If the corruption reason was a power cut, UBI can safely erase this PEB.
+ * Otherwise, it should preserve it to avoid possibly destroying important
+ * information.
+ */
+static int check_data_ff(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
+			 int pnum)
+{
+	int err;
+
+	mutex_lock(&ubi->buf_mutex);
+	memset(ubi->peb_buf1, 0x00, ubi->leb_size);
+
+	err = ubi_io_read(ubi, ubi->peb_buf1, pnum, ubi->leb_start,
+			  ubi->leb_size);
+	if (err && err != UBI_IO_BITFLIPS && err != -EBADMSG)
+		return err;
+
+	if (ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->leb_size)) {
+		mutex_unlock(&ubi->buf_mutex);
+		return 0;
+	}
+
+	ubi_err("PEB %d contains corrupted VID header, and the data does not "
+		"contain all 0xFF, this may be a non-UBI PEB or a severe VID "
+		"header corruption which requires manual inspection", pnum);
+	ubi_dbg_dump_vid_hdr(vid_hdr);
+	dbg_msg("hexdump of PEB %d offset %d, length %d",
+		pnum, ubi->leb_start, ubi->leb_size);
+	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+			       ubi->peb_buf1, ubi->leb_size, 1);
+	mutex_unlock(&ubi->buf_mutex);
+	return -EINVAL;
+}
+
+/**
  * process_eb - read, check UBI headers, and add them to scanning information.
  * @ubi: UBI device description object
  * @si: scanning information
@@ -883,6 +930,31 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 */
 			si->maybe_bad_peb_count += 1;
 	case UBI_IO_BAD_HDR:
+		if (ec_err)
+			/*
+			 * Both headers are corrupted. There is a possibility
+			 * that this a valid UBI PEB which has corresponding
+			 * LEB, but the headers are corrupted. However, it is
+			 * impossible to distinguish it from a PEB which just
+			 * contains garbage because a power cut during erase
+			 * operation. So we just schedule this PEB for erasure.
+			 */
+			err = 0;
+		else
+			/*
+			 * The EC was OK, but the VID header is corrupted. We
+			 * have to check what is in the data area.
+			 */
+			err = check_data_ff(ubi, vidh, pnum);
+		if (!err)
+			/* This corruption is caused by a power cut */
+			err = add_to_list(si, pnum, ec, 1, &si->erase);
+		else
+			/* This is an unexpected corruption */
+			err = add_corrupted(si, pnum, ec);
+		if (err)
+			return err;
+		goto adjust_mean_ec;
 	case UBI_IO_FF_BITFLIPS:
 		err = add_to_list(si, pnum, ec, 1, &si->erase);
 		if (err)
