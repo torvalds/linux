@@ -601,7 +601,7 @@ static void gart_fixup_northbridges(struct sys_device *dev)
 		 * Don't enable translations just yet.  That is the next
 		 * step.  Restore the pre-suspend aperture settings.
 		 */
-		pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, aperture_order << 1);
+		gart_set_size_and_enable(dev, aperture_order);
 		pci_write_config_dword(dev, AMD64_GARTAPERTUREBASE, aperture_alloc >> 25);
 	}
 }
