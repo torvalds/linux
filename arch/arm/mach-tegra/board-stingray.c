@@ -229,88 +229,38 @@ static struct platform_device cpcap_otg = {
 	.num_resources = ARRAY_SIZE(cpcap_otg_resources),
 };
 
-#define CPCAP_REG(r, v, m) { .reg = (r), .val = (v), .mask = (m) }
-#define CPCAP_REG_SLAVE(r, v, m, s) { .reg = (r), .val = (v), \
-					.mask = (m), .slave_or = (s) }
-
-static const struct cpcap_audio_config_table speaker_config_table[] = {
-	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0007, 0x77),		/* 512 */
-	CPCAP_REG(CPCAP_REG_CC, 0x8E93, 0xFEDF),		/* 513 */
-	CPCAP_REG(CPCAP_REG_CDI, 0x1E42, 0xBFFF),		/* 514 */
-	CPCAP_REG(CPCAP_REG_SDAC, 0x0079, 0xFFF),		/* 515 */
-	CPCAP_REG_SLAVE(CPCAP_REG_SDACDI, 0x003E, 0x3FFF, 1),	/* 516 */
-	CPCAP_REG(CPCAP_REG_RXOA, 0x0218, 0x07FF),		/* 519 */
-	CPCAP_REG(CPCAP_REG_RXVC, 0x0028, 0x003C),		/* 520 */
-	CPCAP_REG(CPCAP_REG_RXCOA, 0x0618, 0x07FF),		/* 521 */
-	CPCAP_REG(CPCAP_REG_RXSDOA, 0x1818, 0x1FFF),		/* 522 */
-};
-
-static const struct cpcap_audio_config_table headset_config_table[] = {
-	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0007, 0x0077),		/* 512 */
-	CPCAP_REG(CPCAP_REG_CC, 0x8000, 0xFEDF),		/* 513 */
-	CPCAP_REG(CPCAP_REG_CDI, 0x8607, 0xBFFF),		/* 514 */
-	CPCAP_REG(CPCAP_REG_SDAC, 0x0079, 0xFFF),		/* 515 */
-	CPCAP_REG_SLAVE(CPCAP_REG_SDACDI, 0x003E, 0x3FFF, 1),	/* 516 */
-	CPCAP_REG(CPCAP_REG_RXOA, 0x0262, 0x07FF),		/* 519 */
-	CPCAP_REG(CPCAP_REG_RXVC, 0x0030, 0x003C),		/* 520 */
-	CPCAP_REG(CPCAP_REG_RXCOA, 0x0000, 0x07FF),		/* 521 */
-	CPCAP_REG(CPCAP_REG_RXSDOA, 0x1862, 0x1FFF),		/* 522 */
-};
-
-static const struct cpcap_audio_config_table mic1_config_table[] = {
-	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0035, 0x77),		/* 512 */
-	CPCAP_REG(CPCAP_REG_CC, 0x8F11, 0xFE11),		/* 513 */
-	CPCAP_REG(CPCAP_REG_CDI, 0x9E42, 0xBFFF),		/* 514 */
-	CPCAP_REG_SLAVE(CPCAP_REG_SDACDI, 0x003E, 0x3FFF, 1),	/* 516 */
-	CPCAP_REG(CPCAP_REG_TXI, 0x1CC6, 0xFFFF),		/* 517 */
-};
-
-static const struct cpcap_audio_config_table mic2_config_table[] = {
-	CPCAP_REG(CPCAP_REG_VAUDIOC, 0x0007, 0x77),
-	CPCAP_REG(CPCAP_REG_CC, 0x8FB3, 0xFEDF),
-	CPCAP_REG(CPCAP_REG_CDI, 0x1E40, 0xBFFF),
-	CPCAP_REG_SLAVE(CPCAP_REG_SDACDI, 0x007E, 0x3FFF, 1),
-	CPCAP_REG(CPCAP_REG_TXI, 0x0CC6, 0xFFFF),
-};
-
-#undef CPCAP_REG
-#undef CPCAP_REG_SLAVE
-
-static struct cpcap_audio_path speaker = {
-	.name = "speaker",
-	.gpio = TEGRA_GPIO_PR3,
-	.table = speaker_config_table,
-	.table_len = ARRAY_SIZE(speaker_config_table)
-};
-
-static const struct cpcap_audio_path headset = {
-	.name = "headset",
-	.gpio = TEGRA_GPIO_PS7,
-	.table = headset_config_table,
-	.table_len = ARRAY_SIZE(headset_config_table)
-};
-
-static const struct cpcap_audio_path mic1 = {
-	.name = "mic1",
-	.gpio = -1,
-	.table = mic1_config_table,
-	.table_len = ARRAY_SIZE(mic1_config_table),
-};
-
-static const struct cpcap_audio_path mic2 = {
-	.name = "mic2",
-	.gpio = -1,
-	.table = mic2_config_table,
-	.table_len = ARRAY_SIZE(mic2_config_table),
+static struct cpcap_audio_state stingray_cpcap_audio_state = {
+	NULL,
+	CPCAP_AUDIO_MODE_NORMAL,
+	CPCAP_AUDIO_CODEC_OFF,
+	CPCAP_AUDIO_CODEC_RATE_8000_HZ,
+	CPCAP_AUDIO_CODEC_MUTE,
+	CPCAP_AUDIO_STDAC_OFF,
+	CPCAP_AUDIO_STDAC_RATE_44100_HZ,
+	CPCAP_AUDIO_STDAC_MUTE,
+	CPCAP_AUDIO_ANALOG_SOURCE_OFF,
+	CPCAP_AUDIO_OUT_NONE,
+	CPCAP_AUDIO_OUT_NONE,
+	CPCAP_AUDIO_OUT_LINEOUT,
+	CPCAP_AUDIO_OUT_LINEOUT,
+	CPCAP_AUDIO_OUT_NONE,
+	CPCAP_AUDIO_OUT_NONE,
+	CPCAP_AUDIO_BALANCE_NEUTRAL,
+	CPCAP_AUDIO_BALANCE_NEUTRAL,
+	CPCAP_AUDIO_BALANCE_NEUTRAL,
+	7,                      /*default output gain */
+	CPCAP_AUDIO_IN_NONE,
+	31,                     /*default input_gain */
+	CPCAP_AUDIO_RAT_NONE
 };
 
 /* CPCAP is i2s master; tegra_audio_pdata.master == false */
 static struct cpcap_audio_platform_data cpcap_audio_pdata = {
 	.master = true,
-	.speaker = &speaker,
-	.headset = &headset,
-	.mic1 = &mic1,
-	.mic2 = &mic2,
+	.regulator = "vaudio",
+	.state = &stingray_cpcap_audio_state,
+	.speaker_gpio = TEGRA_GPIO_PR3,
+	.headset_gpio = TEGRA_GPIO_PS7,
 };
 
 static struct platform_device cpcap_audio_device = {

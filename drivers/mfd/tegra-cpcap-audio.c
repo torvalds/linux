@@ -40,58 +40,6 @@ static unsigned current_input  = -1U; /* none */
 static unsigned current_volume = CPCAP_AUDIO_OUT_VOL_MAX;
 static unsigned current_in_volume = CPCAP_AUDIO_IN_VOL_MAX;
 
-static int cpcap_audio_set(const struct cpcap_audio_path *path, bool on)
-{
-	int len, rc;
-	const struct cpcap_audio_config_table *entry;
-
-	pr_info("%s: %s %s\n", __func__, path->name, on ? "on" : "off");
-
-	if (!path) {
-		pr_info("%s: no path\n", __func__);
-		return -ENOSYS;
-	}
-
-	if (path->gpio >= 0) {
-		pr_info("%s: %s: enable gpio %d\n", __func__,
-			path->name, path->gpio);
-		rc = gpio_direction_output(path->gpio, on);
-		if (rc)
-			pr_err("%s: could not set gpio %d to %d\n", __func__,
-				path->gpio, on);
-	}
-
-	if (!on)
-		return 0;
-	if (!path->table) {
-		pr_info("%s: no config table for path %s\n", __func__,
-				path->name);
-		return -ENOSYS;
-	}
-
-	entry = path->table;
-	len = path->table_len;
-	while (len--) {
-		u16 val = entry->val | (pdata->master ? 0 : entry->slave_or);
-		int rc = cpcap_regacc_write(cpcap,
-				entry->reg,
-				val,
-				entry->mask);
-		if (rc) {
-			pr_err("%s: cpcap_regacc_write %d %x/%x %x failed: %d\n",
-				__func__,
-				entry->reg,
-				entry->val,
-				entry->slave_or,
-				entry->mask, rc);
-			rc = -EIO;
-		}
-		entry++;
-	}
-
-	return 0;
-}
-
 static int cpcap_set_volume(struct cpcap_device *cpcap, unsigned volume)
 {
 	pr_info("%s\n", __func__);
@@ -126,7 +74,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
 	int rc = 0;
-	struct cpcap_audio_output out;
+	struct cpcap_audio_stream in, out;
 
 	mutex_lock(&cpcap_lock);
 
@@ -145,16 +93,62 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		}
 		switch (out.id) {
 		case CPCAP_AUDIO_OUT_SPEAKER:
-			pr_info("%s: setting output path to %s\n", __func__,
-					pdata->speaker->name);
-			cpcap_audio_set(pdata->headset, 0);
-			cpcap_audio_set(pdata->speaker, out.on);
+			pr_info("%s: setting output path to speaker\n",
+					__func__);
+			pdata->state->stdac_primary_speaker =
+					CPCAP_AUDIO_OUT_NONE;
+			cpcap_audio_set_audio_state(pdata->state);
+			if (!out.on) {
+				if (pdata->speaker_gpio >= 0)
+					gpio_direction_output(
+						pdata->speaker_gpio, 0);
+				break;
+			}
+
+			pr_info("%s: enable speaker\n", __func__);
+
+			pdata->state->stdac_primary_speaker =
+					CPCAP_AUDIO_OUT_LOUDSPEAKER;
+			gpio_direction_output(pdata->headset_gpio, 0);
+			gpio_direction_output(pdata->speaker_gpio, 1);
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET:
-			pr_info("%s: setting output path to %s\n", __func__,
-					pdata->headset->name);
-			cpcap_audio_set(pdata->speaker, 0);
-			cpcap_audio_set(pdata->headset, out.on);
+			pr_info("%s: setting output path to headset\n",
+					__func__);
+			pdata->state->stdac_primary_speaker =
+					CPCAP_AUDIO_OUT_NONE;
+			cpcap_audio_set_audio_state(pdata->state);
+			if (!out.on) {
+				if (pdata->headset_gpio >= 0)
+					gpio_direction_output(
+						pdata->headset_gpio, 0);
+				break;
+			}
+			pdata->state->stdac_primary_speaker =
+					CPCAP_AUDIO_OUT_STEREO_HEADSET;
+			cpcap_audio_set_audio_state(pdata->state);
+			gpio_direction_output(pdata->speaker_gpio, 0);
+			gpio_direction_output(pdata->headset_gpio, 1);
+			break;
+		case CPCAP_AUDIO_OUT_HEADSET_AND_SPEAKER:
+			pr_info("%s: setting output path to "
+					"headset + speaker\n", __func__);
+			pdata->state->stdac_primary_speaker =
+					CPCAP_AUDIO_OUT_NONE;
+			cpcap_audio_set_audio_state(pdata->state);
+			if (!out.on) {
+				if (pdata->headset_gpio >= 0)
+					gpio_direction_output(
+						pdata->headset_gpio, 0);
+					gpio_direction_output(
+						pdata->speaker_gpio, 0);
+				break;
+			}
+			pdata->state->stdac_primary_speaker =
+					CPCAP_AUDIO_OUT_STEREO_HEADSET;
+			cpcap_audio_set_audio_state(pdata->state);
+			gpio_direction_output(pdata->speaker_gpio, 1);
+			gpio_direction_output(pdata->headset_gpio, 1);
 			break;
 		}
 		current_output = out.id;
@@ -165,29 +159,50 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 		break;
 	case CPCAP_AUDIO_IN_SET_INPUT:
-		if (arg > CPCAP_AUDIO_IN_MAX && arg != -1UL) {
-			pr_err("%s: invalid audio input selector %ld\n",
-				__func__, arg);
+		if (copy_from_user(&in, (const void __user *)arg,
+				sizeof(in))) {
+			rc = -EFAULT;
+			goto done;
+		}
+
+		if (in.id > CPCAP_AUDIO_IN_MAX) {
+			pr_err("%s: invalid audio input selector %d\n",
+				__func__, in.id);
 			rc = -EINVAL;
 			goto done;
 		}
-		switch (arg) {
-		case -1UL:
-			pr_info("%s: turning off input path\n", __func__);
-			cpcap_audio_set(pdata->mic1, 0);
-			cpcap_audio_set(pdata->mic2, 0);
+
+		pr_info("%s: muting current input before switch\n", __func__);
+
+		pdata->state->microphone = CPCAP_AUDIO_IN_NONE;
+		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
+		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
+		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
+		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
+		cpcap_audio_set_audio_state(pdata->state);
+
+		if (!in.on)
 			break;
+
+		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_UNMUTE;
+		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_UNMUTE;
+		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
+		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+
+		switch (in.id) {
 		case CPCAP_AUDIO_IN_MIC1:
-			pr_info("%s: setting input path to %s\n", __func__,
-					pdata->mic1->name);
-			cpcap_audio_set(pdata->mic2, 0);
-			cpcap_audio_set(pdata->mic1, 1);
+			pr_info("%s: setting input path to on-board mic\n",
+					__func__);
+			pdata->state->microphone = CPCAP_AUDIO_IN_HANDSET;
+			cpcap_audio_set_audio_state(pdata->state);
+			cpcap_audio_register_dump(pdata->state);
 			break;
 		case CPCAP_AUDIO_IN_MIC2:
-			pr_info("%s: setting input path to %s\n", __func__,
-					pdata->mic2->name);
-			cpcap_audio_set(pdata->mic1, 0);
-			cpcap_audio_set(pdata->mic2, 1);
+			pr_info("%s: setting input path to headset mic\n",
+					__func__);
+			pdata->state->microphone = CPCAP_AUDIO_IN_HEADSET;
+			cpcap_audio_set_audio_state(pdata->state);
+			cpcap_audio_register_dump(pdata->state);
 			break;
 		}
 		current_input = arg;
@@ -263,7 +278,6 @@ static struct miscdevice cpcap_audio_ctl = {
 static int cpcap_audio_probe(struct platform_device *pdev)
 {
 	int rc;
-	struct regulator *audio_reg;
 
 	pr_info("%s\n", __func__);
 
@@ -273,44 +287,34 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	BUG_ON(!pdata);
 
-	audio_reg = regulator_get(NULL, "vaudio");
-	if (IS_ERR(audio_reg)) {
-		rc = PTR_ERR(audio_reg);
-		pr_err("%s: could not get vaudio regulator: %d\n", __func__,
-			rc);
-		return rc;
-	}
-
-	rc = regulator_enable(audio_reg);
-	if (rc) {
-		pr_err("%s: failed to enable vaudio regulator: %d\n", __func__,
-			rc);
-		goto fail;
-	}
-
-	if (pdata->speaker->gpio >= 0) {
-		tegra_gpio_enable(pdata->speaker->gpio);
-		rc = gpio_request(pdata->speaker->gpio, pdata->speaker->name);
+	if (pdata->speaker_gpio >= 0) {
+		tegra_gpio_enable(pdata->speaker_gpio);
+		rc = gpio_request(pdata->speaker_gpio, "speaker");
 		if (rc) {
 			pr_err("%s: could not get speaker GPIO %d: %d\n",
-				__func__, pdata->speaker->gpio, rc);
+				__func__, pdata->speaker_gpio, rc);
 			goto fail1;
 		}
 	}
 
-	if (pdata->headset->gpio >= 0) {
-		tegra_gpio_enable(pdata->headset->gpio);
-		rc = gpio_request(pdata->headset->gpio, pdata->headset->name);
+	if (pdata->headset_gpio >= 0) {
+		tegra_gpio_enable(pdata->headset_gpio);
+		rc = gpio_request(pdata->headset_gpio, "headset");
 		if (rc) {
 			pr_err("%s: could not get headset GPIO %d: %d\n",
-				__func__, pdata->headset->gpio, rc);
+				__func__, pdata->headset_gpio, rc);
 			goto fail2;
 		}
 	}
 
-	cpcap_audio_set(pdata->speaker, 1);
-	cpcap_set_volume(cpcap, current_volume);
-	cpcap_set_mic_volume(cpcap, current_in_volume);
+	pdata->state->cpcap = cpcap;
+	if (cpcap_audio_init(pdata->state, pdata->regulator))
+		goto fail3;
+	cpcap_audio_register_dump(pdata->state);
+
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+	cpcap_audio_set_audio_state(pdata->state);
+	cpcap_audio_register_dump(pdata->state);
 
 	rc = misc_register(&cpcap_audio_ctl);
 	if (rc < 0) {
@@ -322,15 +326,16 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 	return rc;
 
 fail3:
-	if (pdata->headset->gpio >= 0)
-		gpio_free(pdata->headset->gpio);
+	if (pdata->headset_gpio >= 0)
+		gpio_free(pdata->headset_gpio);
 fail2:
-	if (pdata->speaker->gpio >= 0)
-		gpio_free(pdata->speaker->gpio);
+	if (pdata->headset_gpio >= 0)
+		tegra_gpio_disable(pdata->headset_gpio);
+	if (pdata->speaker_gpio >= 0)
+		gpio_free(pdata->speaker_gpio);
 fail1:
-	regulator_disable(audio_reg);
-fail:
-	regulator_put(audio_reg);
+	if (pdata->speaker_gpio >= 0)
+		tegra_gpio_disable(pdata->speaker_gpio);
 	return rc;
 }
 
@@ -342,10 +347,10 @@ static struct platform_driver cpcap_audio_driver = {
 	},
 };
 
-static int __init cpcap_audio_init(void)
+static int __init tegra_cpcap_audio_init(void)
 {
 	return cpcap_driver_register(&cpcap_audio_driver);
 }
 
-module_init(cpcap_audio_init);
+module_init(tegra_cpcap_audio_init);
 MODULE_LICENSE("GPL");
