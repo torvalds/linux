@@ -406,6 +406,11 @@ static struct tegra_utmip_config host_phy_config[] = {
 	},
 };
 
+static struct tegra_ulpi_config ulpi_phy_config = {
+	.reset_gpio = TEGRA_GPIO_PG2,
+	.clk = "clk_dev2",
+};
+
 /* bq24617 charger */
 static struct resource bq24617_resources[] = {
 	[0] = {
@@ -739,9 +744,11 @@ static void stingray_usb_init(void)
 	struct android_usb_platform_data *platform_data;
 
 	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
+	tegra_ehci2_device.dev.platform_data = &ulpi_phy_config;
 	tegra_ehci3_device.dev.platform_data = &host_phy_config[2];
 
 	platform_device_register(&tegra_udc_device);
+	platform_device_register(&tegra_ehci2_device);
 	platform_device_register(&tegra_ehci3_device);
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	src = usb_serial_num;
@@ -899,15 +906,6 @@ static void __init tegra_stingray_init(void)
 	tegra_gpio_enable(TEGRA_GPIO_PV4);
 	gpio_request(TEGRA_GPIO_PV4, "usb_data_en");
 	gpio_direction_output(TEGRA_GPIO_PV4, 1);
-
-	/* ULPI_PHY_RESET_B (TEGRA_GPIO_PG2) can be initialized as
-	   output low when the kernel boots.
-	   FIXME: This will need to be evaluated for datacard scenarios
-	   separately. */
-	tegra_gpio_enable(TEGRA_GPIO_PG2);
-	gpio_request(TEGRA_GPIO_PG2, "ulpi_phy_reset_b");
-	gpio_direction_output(TEGRA_GPIO_PG2, 0);
-	gpio_export(TEGRA_GPIO_PG2, false);
 
 	/* USB_FORCEON_N (TEGRA_GPIO_PC5) should be forced high at boot
 	   and will be pulled low by the hardware on attach */
