@@ -76,6 +76,7 @@
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
 
+#ifdef CONFIG_SMP
 /* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
 #ifndef __addr_to_pcpu_ptr
 #define __addr_to_pcpu_ptr(addr)					\
@@ -89,6 +90,11 @@
 			 (unsigned long)pcpu_base_addr -		\
 			 (unsigned long)__per_cpu_start)
 #endif
+#else	/* CONFIG_SMP */
+/* on UP, it's always identity mapped */
+#define __addr_to_pcpu_ptr(addr)	(void __percpu *)(addr)
+#define __pcpu_ptr_to_addr(ptr)		(void __force *)(ptr)
+#endif	/* CONFIG_SMP */
 
 struct pcpu_chunk {
 	struct list_head	list;		/* linked to pcpu_slot lists */
@@ -949,6 +955,7 @@ EXPORT_SYMBOL_GPL(free_percpu);
  */
 bool is_kernel_percpu_address(unsigned long addr)
 {
+#ifdef CONFIG_SMP
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
 	unsigned int cpu;
@@ -959,6 +966,8 @@ bool is_kernel_percpu_address(unsigned long addr)
 		if ((void *)addr >= start && (void *)addr < start + static_size)
 			return true;
         }
+#endif
+	/* on UP, can't distinguish from other static vars, always false */
 	return false;
 }
 
@@ -1066,6 +1075,8 @@ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
 	free_bootmem(__pa(ai), ai->__ai_size);
 }
 
+#if defined(CONFIG_SMP) && (defined(CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK) || \
+			    defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK))
 /**
  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
  * @reserved_size: the size of reserved percpu area in bytes
@@ -1220,6 +1231,8 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 
 	return ai;
 }
+#endif	/* CONFIG_SMP && (CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK ||
+			  CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK) */
 
 /**
  * pcpu_dump_alloc_info - print out information about pcpu_alloc_info
@@ -1363,7 +1376,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* sanity checks */
 	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
+#ifdef CONFIG_SMP
 	PCPU_SETUP_BUG_ON(!ai->static_size);
+#endif
 	PCPU_SETUP_BUG_ON(!base_addr);
 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
 	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
@@ -1487,6 +1502,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_base_addr = base_addr;
 	return 0;
 }
+
+#ifdef CONFIG_SMP
 
 const char *pcpu_fc_names[PCPU_FC_NR] __initdata = {
 	[PCPU_FC_AUTO]	= "auto",
@@ -1758,8 +1775,9 @@ out_free_ar:
 }
 #endif /* CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK */
 
+#ifndef	CONFIG_HAVE_SETUP_PER_CPU_AREA
 /*
- * Generic percpu area setup.
+ * Generic SMP percpu area setup.
  *
  * The embedding helper is used because its behavior closely resembles
  * the original non-dynamic generic percpu area setup.  This is
@@ -1770,7 +1788,6 @@ out_free_ar:
  * on the physical linear memory mapping which uses large page
  * mappings on applicable archs.
  */
-#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
 
@@ -1799,13 +1816,48 @@ void __init setup_per_cpu_areas(void)
 				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE, NULL,
 				    pcpu_dfl_fc_alloc, pcpu_dfl_fc_free);
 	if (rc < 0)
-		panic("Failed to initialized percpu areas.");
+		panic("Failed to initialize percpu areas.");
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu)
 		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
-#endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
+#endif	/* CONFIG_HAVE_SETUP_PER_CPU_AREA */
+
+#else	/* CONFIG_SMP */
+
+/*
+ * UP percpu area setup.
+ *
+ * UP always uses km-based percpu allocator with identity mapping.
+ * Static percpu variables are indistinguishable from the usual static
+ * variables and don't require any special preparation.
+ */
+void __init setup_per_cpu_areas(void)
+{
+	const size_t unit_size =
+		roundup_pow_of_two(max_t(size_t, PCPU_MIN_UNIT_SIZE,
+					 PERCPU_DYNAMIC_RESERVE));
+	struct pcpu_alloc_info *ai;
+	void *fc;
+
+	ai = pcpu_alloc_alloc_info(1, 1);
+	fc = __alloc_bootmem(unit_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+	if (!ai || !fc)
+		panic("Failed to allocate memory for percpu areas.");
+
+	ai->dyn_size = unit_size;
+	ai->unit_size = unit_size;
+	ai->atom_size = unit_size;
+	ai->alloc_size = unit_size;
+	ai->groups[0].nr_units = 1;
+	ai->groups[0].cpu_map[0] = 0;
+
+	if (pcpu_setup_first_chunk(ai, fc) < 0)
+		panic("Failed to initialize percpu areas.");
+}
+
+#endif	/* CONFIG_SMP */
 
 /*
  * First and reserved chunks are initialized with temporary allocation

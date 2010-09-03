@@ -39,8 +39,6 @@
 	preempt_enable();				\
 } while (0)
 
-#ifdef CONFIG_SMP
-
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
 
@@ -137,36 +135,19 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
  * dynamically allocated. Non-atomic access to the current CPU's
  * version should probably be combined with get_cpu()/put_cpu().
  */
+#ifdef CONFIG_SMP
 #define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+#else
+#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
+#endif
 
 extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
 extern bool is_kernel_percpu_address(unsigned long addr);
 
-#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+#if !defined(CONFIG_SMP) || !defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
 extern void __init setup_per_cpu_areas(void);
 #endif
 extern void __init percpu_init_late(void);
-
-#else /* CONFIG_SMP */
-
-#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
-
-/* can't distinguish from other static vars, always false */
-static inline bool is_kernel_percpu_address(unsigned long addr)
-{
-	return false;
-}
-
-static inline void __init setup_per_cpu_areas(void) { }
-
-static inline void __init percpu_init_late(void) { }
-
-static inline void *pcpu_lpage_remapped(void *kaddr)
-{
-	return NULL;
-}
-
-#endif /* CONFIG_SMP */
 
 extern void __percpu *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void __percpu *__pdata);
