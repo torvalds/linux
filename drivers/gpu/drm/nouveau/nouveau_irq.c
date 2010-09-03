@@ -228,6 +228,14 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 			nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
 		}
 
+		if (dev_priv->card_type == NV_50) {
+			if (status & 0x00000010) {
+				nv50_fb_vm_trap(dev, 1, "PFIFO_BAR_FAULT");
+				status &= ~0x00000010;
+				nv_wr32(dev, 0x002100, 0x00000010);
+			}
+		}
+
 		if (status) {
 			NV_INFO(dev, "PFIFO_INTR 0x%08x - Ch %d\n",
 				status, chid);
