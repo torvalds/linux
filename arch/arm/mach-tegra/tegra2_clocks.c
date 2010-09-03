@@ -412,6 +412,32 @@ static struct clk_ops tegra_cpu_ops = {
 	.set_rate = tegra2_cpu_clk_set_rate,
 };
 
+/* virtual cop clock functions. Used to acquire the fake 'cop' clock to
+ * reset the COP block (i.e. AVP) */
+static void tegra2_cop_clk_init(struct clk *c)
+{
+	c->state = c->parent->state;
+}
+
+static int tegra2_cop_clk_enable(struct clk *c)
+{
+	return 0;
+}
+
+static void tegra2_cop_clk_reset(struct clk *c, bool assert)
+{
+	unsigned long reg = assert ? RST_DEVICES_SET : RST_DEVICES_CLR;
+
+	pr_debug("%s %s\n", __func__, assert ? "assert" : "deassert");
+	clk_writel(1 << 1, reg);
+}
+
+static struct clk_ops tegra_cop_ops = {
+	.init     = tegra2_cop_clk_init,
+	.enable   = tegra2_cop_clk_enable,
+	.reset    = tegra2_cop_clk_reset,
+};
+
 /* bus clock functions */
 static void tegra2_bus_clk_init(struct clk *c)
 {
@@ -1619,6 +1645,13 @@ static struct clk tegra_clk_virtual_cpu = {
 	.dvfs      = &tegra_dvfs_virtual_cpu_dvfs,
 };
 
+static struct clk tegra_clk_cop = {
+	.name      = "cop",
+	.parent    = &tegra_clk_sclk,
+	.ops       = &tegra_cop_ops,
+	.max_rate  = 240000000,
+};
+
 static struct clk tegra_clk_hclk = {
 	.name		= "hclk",
 	.flags		= DIV_BUS,
@@ -1873,6 +1906,7 @@ struct clk_lookup tegra_clk_lookups[] = {
 	CLK(NULL,	"clk_dev2",	&tegra_dev2_clk),
 	CLK(NULL,	"cpu",		&tegra_clk_virtual_cpu),
 	CLK(NULL,	"blink",	&tegra_clk_blink),
+	CLK("tegra-avp", "cop",		&tegra_clk_cop),
 };
 
 void __init tegra2_init_clocks(void)
