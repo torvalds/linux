@@ -1270,13 +1270,21 @@ static int ns83820_get_settings(struct net_device *ndev,
 
 	cmd->supported = SUPPORTED_Autoneg;
 
-	/* we have optical interface */
 	if (dev->CFG_cache & CFG_TBI_EN) {
+		/* we have optical interface */
 		cmd->supported |= SUPPORTED_1000baseT_Half |
 					SUPPORTED_1000baseT_Full |
 					SUPPORTED_FIBRE;
 		cmd->port       = PORT_FIBRE;
-	} /* TODO: else copper related  support */
+	} else {
+		/* we have copper */
+		cmd->supported |= SUPPORTED_10baseT_Half |
+			SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Half |
+			SUPPORTED_100baseT_Full | SUPPORTED_1000baseT_Half |
+			SUPPORTED_1000baseT_Full |
+			SUPPORTED_MII;
+		cmd->port = PORT_MII;
+	}
 
 	cmd->duplex = fullduplex ? DUPLEX_FULL : DUPLEX_HALF;
 	switch (cfg / CFG_SPDSTS0 & 3) {
