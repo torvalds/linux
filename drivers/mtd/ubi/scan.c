@@ -706,8 +706,8 @@ out_free:
 struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si)
 {
-	int err = 0, i;
-	struct ubi_scan_leb *seb;
+	int err = 0;
+	struct ubi_scan_leb *seb, *tmp_seb;
 
 	if (!list_empty(&si->free)) {
 		seb = list_entry(si->free.next, struct ubi_scan_leb, u.list);
@@ -716,37 +716,27 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 		return seb;
 	}
 
-	for (i = 0; i < 2; i++) {
-		struct list_head *head;
-		struct ubi_scan_leb *tmp_seb;
+	/*
+	 * We try to erase the first physical eraseblock from the erase list
+	 * and pick it if we succeed, or try to erase the next one if not. And
+	 * so forth. We don't want to take care about bad eraseblocks here -
+	 * they'll be handled later.
+	 */
+	list_for_each_entry_safe(seb, tmp_seb, &si->erase, u.list) {
+		if (seb->ec == UBI_SCAN_UNKNOWN_EC)
+			seb->ec = si->mean_ec;
 
-		if (i == 0)
-			head = &si->erase;
-		else
-			head = &si->corr;
+		err = ubi_scan_erase_peb(ubi, si, seb->pnum, seb->ec+1);
+		if (err)
+			continue;
 
-		/*
-		 * We try to erase the first physical eraseblock from the @head
-		 * list and pick it if we succeed, or try to erase the
-		 * next one if not. And so forth. We don't want to take care
-		 * about bad eraseblocks here - they'll be handled later.
-		 */
-		list_for_each_entry_safe(seb, tmp_seb, head, u.list) {
-			if (seb->ec == UBI_SCAN_UNKNOWN_EC)
-				seb->ec = si->mean_ec;
-
-			err = ubi_scan_erase_peb(ubi, si, seb->pnum, seb->ec+1);
-			if (err)
-				continue;
-
-			seb->ec += 1;
-			list_del(&seb->u.list);
-			dbg_bld("return PEB %d, EC %d", seb->pnum, seb->ec);
-			return seb;
-		}
+		seb->ec += 1;
+		list_del(&seb->u.list);
+		dbg_bld("return PEB %d, EC %d", seb->pnum, seb->ec);
+		return seb;
 	}
 
-	ubi_err("no eraseblocks found");
+	ubi_err("no free eraseblocks");
 	return ERR_PTR(-ENOSPC);
 }
 

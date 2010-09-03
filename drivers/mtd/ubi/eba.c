@@ -1201,6 +1201,9 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 
 	ubi_warn("cannot reserve enough PEBs for bad PEB handling, reserved %d,"
 		 " need %d", ubi->beb_rsvd_pebs, ubi->beb_rsvd_level);
+	if (ubi->corr_peb_count)
+		ubi_warn("%d PEBs are corrupted and not used",
+			ubi->corr_peb_count);
 }
 
 /**
@@ -1263,6 +1266,9 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	if (ubi->avail_pebs < EBA_RESERVED_PEBS) {
 		ubi_err("no enough physical eraseblocks (%d, need %d)",
 			ubi->avail_pebs, EBA_RESERVED_PEBS);
+		if (ubi->corr_peb_count)
+			ubi_err("%d PEBs are corrupted and not used",
+				ubi->corr_peb_count);
 		err = -ENOSPC;
 		goto out_free;
 	}
