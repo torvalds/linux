@@ -2785,6 +2785,9 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!IS_IIDMA_CAPABLE(ha))
 		return;
 
+	if (atomic_read(&fcport->state) != FCS_ONLINE)
+		return;
+
 	if (fcport->fp_speed == PORT_SPEED_UNKNOWN ||
 	    fcport->fp_speed > ha->link_data_rate)
 		return;
