@@ -400,7 +400,9 @@ incomplete_rcv:
 			cFYI(1, "call to reconnect done");
 			csocket = server->ssocket;
 			continue;
-		} else if ((length == -ERESTARTSYS) || (length == -EAGAIN)) {
+		} else if (length == -ERESTARTSYS ||
+			   length == -EAGAIN ||
+			   length == -EINTR) {
 			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
@@ -420,10 +422,6 @@ incomplete_rcv:
 				   returning an SMB negprot error, in which
 				   case reconnecting here is not going to help,
 				   and so simply return error to mount */
-				break;
-			}
-			if (!try_to_freeze() && (length == -EINTR)) {
-				cFYI(1, "cifsd thread killed");
 				break;
 			}
 			cFYI(1, "Reconnect after unexpected peek error %d",
@@ -522,8 +520,7 @@ incomplete_rcv:
 		     total_read += length) {
 			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
 						pdu_length - total_read, 0);
-			if ((server->tcpStatus == CifsExiting) ||
-			    (length == -EINTR)) {
+			if (server->tcpStatus == CifsExiting) {
 				/* then will exit */
 				reconnect = 2;
 				break;
@@ -534,8 +531,9 @@ incomplete_rcv:
 				/* Now we will reread sock */
 				reconnect = 1;
 				break;
-			} else if ((length == -ERESTARTSYS) ||
-				   (length == -EAGAIN)) {
+			} else if (length == -ERESTARTSYS ||
+				   length == -EAGAIN ||
+				   length == -EINTR) {
 				msleep(1); /* minimum sleep to prevent looping,
 					      allowing socket to clear and app
 					      threads to set tcpStatus
