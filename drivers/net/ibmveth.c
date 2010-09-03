@@ -903,7 +903,6 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
 	unsigned long correlator;
-	unsigned long flags;
 	unsigned int retry_count;
 	unsigned int tx_dropped = 0;
 	unsigned int tx_bytes = 0;
@@ -965,20 +964,18 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 	} else {
 		tx_packets++;
 		tx_bytes += skb->len;
-		netdev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 	}
 
 	if (!used_bounce)
 		dma_unmap_single(&adapter->vdev->dev, data_dma_addr,
 				 skb->len, DMA_TO_DEVICE);
 
-out:	spin_lock_irqsave(&adapter->stats_lock, flags);
+out:
 	netdev->stats.tx_dropped += tx_dropped;
 	netdev->stats.tx_bytes += tx_bytes;
 	netdev->stats.tx_packets += tx_packets;
 	adapter->tx_send_failed += tx_send_failed;
 	adapter->tx_map_failed += tx_map_failed;
-	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -1290,8 +1287,6 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	netdev->netdev_ops = &ibmveth_netdev_ops;
 	netdev->ethtool_ops = &netdev_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &dev->dev);
- 	netdev->features |= NETIF_F_LLTX;
-	spin_lock_init(&adapter->stats_lock);
 
 	memcpy(netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
 
