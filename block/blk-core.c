@@ -1509,6 +1509,19 @@ static inline void __generic_make_request(struct bio *bio)
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
 
+		/*
+		 * Filter flush bio's early so that make_request based
+		 * drivers without flush support don't have to worry
+		 * about them.
+		 */
+		if ((bio->bi_rw & (REQ_FLUSH | REQ_FUA)) && !q->flush_flags) {
+			bio->bi_rw &= ~(REQ_FLUSH | REQ_FUA);
+			if (!nr_sectors) {
+				err = 0;
+				goto end_io;
+			}
+		}
+
 		if ((bio->bi_rw & REQ_DISCARD) &&
 		    (!blk_queue_discard(q) ||
 		     ((bio->bi_rw & REQ_SECURE) &&
