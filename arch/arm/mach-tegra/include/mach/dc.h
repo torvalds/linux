@@ -60,6 +60,10 @@ struct tegra_dc_out {
 	int			type;
 	unsigned		flags;
 
+	/* size in mm */
+	unsigned		h_size;
+	unsigned		v_size;
+
 	int			dcc_bus;
 	int			hotplug_gpio;
 

@@ -365,6 +365,12 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 		return false;
 	}
 
+	/* monitors like to lie about these but they are still useful for
+	 * detecting aspect ratios
+	 */
+	dc->out->h_size = specs.max_x * 1000;
+	dc->out->v_size = specs.max_y * 1000;
+
 	tegra_fb_update_monspecs(dc->fb, &specs, tegra_dc_hdmi_mode_filter);
 	dev_info(&dc->ndev->dev, "display detected\n");
 	return true;
