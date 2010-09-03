@@ -40,7 +40,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <mach/gpio.h>
 #include "smscoreapi.h"
 
-
+#include <mach/iomux.h>
 
 
 #define SSP_PORT 1
@@ -305,7 +305,7 @@ static irqreturn_t spibus_interrupt(int irq, void *context)
 	u_irq_count ++;
     
 //	PDEBUG("INT counter = %d\n", u_irq_count);
-	printk("cmmb siano 1186 int\n");
+	//printk("cmmb siano 1186 int\n");
         sms_info("spibus_interrupt %d\n", u_irq_count);
     
 	if (spiphy_dev->interruptHandler)
@@ -356,7 +356,7 @@ void smsspibus_xfer(void *context, unsigned char *txbuf,
 
     if(txbuf)
     {
-       sms_debug("tx_buf:%x,%x,%x,%x,%x,%x", txbuf[0], txbuf[1], txbuf[2], txbuf[3], txbuf[4],txbuf[5]);
+    //   sms_debug("tx_buf:%x,%x,%x,%x,%x,%x", txbuf[0], txbuf[1], txbuf[2], txbuf[3], txbuf[4],txbuf[5]);
 
        ret = spi_write(spiphy_dev->Smsdevice, txbuf, len);
 
@@ -370,7 +370,7 @@ void smsspibus_xfer(void *context, unsigned char *txbuf,
     if ((rxbuf)&&(len != 16))
         ret = spi_read(spiphy_dev->Smsdevice, rxbuf, len);
     
-      sms_debug("rxbuf 4, 5,6,7,8,9=%x,%x,%x,%x,%x,%x\n",rxbuf[4],rxbuf[5],rxbuf[6],rxbuf[7],rxbuf[8],rxbuf[9]);
+   //   sms_debug("rxbuf 4, 5,6,7,8,9=%x,%x,%x,%x,%x,%x\n",rxbuf[4],rxbuf[5],rxbuf[6],rxbuf[7],rxbuf[8],rxbuf[9]);
       //sms_debug("sms spi read buf=0x%x\n",rxbuf[5]);
 
 }
@@ -398,7 +398,8 @@ void smsspibus_ssp_suspend(void* context )
     //ssp_disable(&(spiphy_dev->sspdev));
     //ssp_exit(&spiphy_dev->sspdev);
     free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), spiphy_dev);
-
+//zyc
+	gpio_direction_output(CMMB_1186_SPIIRQ,0);
     /*  release DMA resources */
     //if (spiphy_dev->rx_dma_channel >= 0)
  	//pxa_free_dma(spiphy_dev->rx_dma_channel);
@@ -429,7 +430,8 @@ static void chip_poweron()
 #endif
 
 //1186 cmmb power on
-
+//set the SPI CS mode , zyc
+	//rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,1);
 
 	gpio_direction_output(CMMB_1186_POWER_RESET,0);
 	gpio_direction_output(CMMB_1186_POWER_DOWN,0);
@@ -471,6 +473,10 @@ static void chip_powerdown()
 //1186 cmmb power down
 #if 1
 	gpio_direction_output(CMMB_1186_POWER_ENABLE,0);
+//set the CS0 as gpio mode 
+
+//	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,0);
+//	gpio_direction_output(GPIOB4_SPI0CS0_MMC0D4_NAME,0);
 
 	printk("cmmb chip_powerdown !!!!\n");
 
@@ -494,7 +500,10 @@ int smsspibus_ssp_resume(void* context)
     chip_poweron();
     free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), spiphy_dev);
     //printk("siano 1186 request irq\n");
-    gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullDown);
+// spiirqgpio low , PULLUP , zyc
+	gpio_direction_output(CMMB_1186_SPIIRQ,0);
+   gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
+
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
     request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,NULL,spiphy_dev);
     if(ret<0){
@@ -534,6 +543,8 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler)(void *),void
         spiphy_dev->Smsdevice = (struct spi_device*)context;
     
     //gpio_pull_updown(CMMB_1186_SPIIRQ, IRQT_FALLING);
+//set IRO GPIO as gpio mode ,zyc 
+	//rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME,0);
    	error = gpio_request(CMMB_1186_SPIIRQ,"cmmb irq");
 	if (error) {
 		//dev_err(&pdev->dev, "failed to request play key gpio\n");
@@ -551,7 +562,11 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler)(void *),void
 #endif
 
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, spibus_interrupt, GPIOEdgelRising, spiphy_dev);//
+
+//zyc
+    gpio_direction_output(CMMB_1186_SPIIRQ,0);
     gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
+
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
     request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,NULL,spiphy_dev);
 

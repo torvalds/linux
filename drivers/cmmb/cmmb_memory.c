@@ -398,7 +398,7 @@ static long cmmbmemo_ioctl(struct file *file, unsigned int cmd, unsigned long ar
         break;
         
         case CMMB_GET_AUDIO_TYPE:{
-            return cmmbmemo->videotype;
+            return cmmbmemo->audiotype;
         }
         break;
         

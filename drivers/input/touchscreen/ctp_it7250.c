@@ -37,6 +37,8 @@ struct Ctp_it7250_data {
 };
 static struct i2c_client *Ctp_it7250_client;
 
+#define Ctp_it7250_GPIO_INT     RK2818_PIN_PE1
+
 #if 0
 #define rk28printk(x...) printk(x)
 #else
@@ -71,21 +73,21 @@ static struct KeyInfo panel_key_info[]={
 static u8 gpucPointBuffer[14];
 static u32 gpdwSampleX[3],gpdwSampleY[3],gpdwPressure[1];
 
-static int Ctp_it7250_rx_data( u8 reg,u8* rxData, int length)
+static int Ctp_it7250_rx_data(struct i2c_client *client, u8 reg,u8* rxData, int length)
 {
 #if 0
    
   int ret;
     struct i2c_adapter *adap;int i;
     struct i2c_msg msgs[2];
-    if(!Ctp_it7250_client)
+    if(!client)
 		return ret;    
-    adap = Ctp_it7250_client->adapter;
+    adap = client->adapter;
 	
     //发送寄存器地址
-    msgs[0].addr = Ctp_it7250_client->addr;
+    msgs[0].addr = client->addr;
     msgs[0].buf = &reg;
-    msgs[0].flags = Ctp_it7250_client->flags;
+    msgs[0].flags = client->flags;
     msgs[0].len =1;
     msgs[0].scl_rate = 400*1000;
     //接收数据
@@ -94,8 +96,8 @@ static int Ctp_it7250_rx_data( u8 reg,u8* rxData, int length)
  //   rk28printk("msgs[0].buf = 0x%x rxData=0x%x\n",*(msgs[0].buf),*rxData);
 	
 	msgs[1].buf = rxData;
-    msgs[1].addr = Ctp_it7250_client->addr;
-    msgs[1].flags = Ctp_it7250_client->flags | I2C_M_RD;
+    msgs[1].addr = client->addr;
+    msgs[1].flags = client->flags | I2C_M_RD;
     msgs[1].len = length;
     msgs[1].scl_rate = 400*1000;
 
@@ -109,18 +111,18 @@ static int Ctp_it7250_rx_data( u8 reg,u8* rxData, int length)
 
 #else
 //int i;
-return  i2c_master_reg8_recv(Ctp_it7250_client, reg, rxData, length, 400 * 1000);
+return  i2c_master_reg8_recv(client, reg, rxData, length, 400 * 1000);
 //for (i=0;i<length;i++)
 //	rk28printk("rxData[%d]=%d \r\n",i,rxData[i]);
 #endif
 	
 }
 
-static int Ctp_it7250_tx_data(u8 reg,char *txData, int length)
+static int Ctp_it7250_tx_data(struct i2c_client *client, u8 reg,char *txData, int length)
 {
 #if 0
     int ret,i;
-	struct i2c_adapter *adap = Ctp_it7250_client->adapter;
+	struct i2c_adapter *adap = client->adapter;
 	struct i2c_msg msg;
 	
 	u8 buf[128];//128
@@ -133,17 +135,17 @@ static int Ctp_it7250_tx_data(u8 reg,char *txData, int length)
 		}
 	rk28printk("\r\n");
 //	rk28printk("buf[0]=0x%x buf[1]=0x%x",buf[0],buf[1]);
-	msg.addr = Ctp_it7250_client->addr;
+	msg.addr = client->addr;
 //rk28printk("i2c addr=0x%x",msg.addr);
 	msg.buf =&buf[0];
 	msg.len = length+1;//+1 means add the reg length;by roberts
-	msg.flags = Ctp_it7250_client->flags;
+	msg.flags = client->flags;
 	msg.scl_rate = 400*1000;
     
 	ret = i2c_transfer(adap, &msg, 1);
 return ret;
 #else
- return i2c_master_reg8_send(Ctp_it7250_client, reg, txData, length, 400 * 1000);
+ return i2c_master_reg8_send(client, reg, txData, length, 400 * 1000);
 #endif
 
 
@@ -153,35 +155,35 @@ return ret;
 
 
 
-bool  ReadQueryBuffer(u8* pucData)
+bool  ReadQueryBuffer(struct i2c_client *client, u8* pucData)
 {
-	return Ctp_it7250_rx_data( QUERY_BUFFER_INDEX, pucData, 1);
+	return Ctp_it7250_rx_data(client, QUERY_BUFFER_INDEX, pucData, 1);
 }
 
-bool ReadCommandResponseBuffer(u8* pucData, unsigned int unDataLength)
+bool ReadCommandResponseBuffer(struct i2c_client *client, u8* pucData, unsigned int unDataLength)
 {
-	return Ctp_it7250_rx_data( COMMAND_RESPONSE_BUFFER_INDEX, pucData, unDataLength);
+	return Ctp_it7250_rx_data(client, COMMAND_RESPONSE_BUFFER_INDEX, pucData, unDataLength);
 }
 
-bool ReadPointBuffer(u8* pucData)
+bool ReadPointBuffer(struct i2c_client *client, u8* pucData)
 {
-	return Ctp_it7250_rx_data( POINT_BUFFER_INDEX, pucData, 14);
+	return Ctp_it7250_rx_data(client, POINT_BUFFER_INDEX, pucData, 14);
 }
 
-bool WriteCommandBuffer(u8* pucData, unsigned int unDataLength)
+bool WriteCommandBuffer(struct i2c_client *client, u8* pucData, unsigned int unDataLength)
 {
-	return Ctp_it7250_tx_data(COMMAND_BUFFER_INDEX, pucData, unDataLength);
+	return Ctp_it7250_tx_data(client, COMMAND_BUFFER_INDEX, pucData, unDataLength);
 }
 
 static int Ctp_it7250_touch_open(struct input_dev *idev)
 {
 	
-struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(Ctp_it7250_client);
+//struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(client);
 
 
 //BTN_TOUCH =0 means no touch ;by robert
-	input_report_key(Ctp_it7250->input_dev,BTN_TOUCH, 0);
-	input_sync(Ctp_it7250->input_dev);
+	input_report_key(idev,BTN_TOUCH, 0);
+	input_sync(idev);
 
 	return 0;
 }
@@ -282,7 +284,7 @@ static int Ctp_it7250_init_irq(struct i2c_client *client)
 	}
 	ret = gpio_request(client->irq, "Ctp_it7250_int");
 	if (ret) {
-		rk28printk( "failed to request Ctp_it7250_init_irq GPIO%d\n",gpio_to_irq(client->irq));
+		rk28printk( "failed to request Ctp_it7250_init_irq GPIO%d\n",client->irq);
 		return ret;
 	}
 #if 1
@@ -293,13 +295,10 @@ ret = gpio_direction_input(client->irq);
 	}
 	gpio_pull_updown(client->irq,GPIOPullUp);
 #endif
-
-	rk28printk("%s gpio_to_irq(%d) is %d\n",__FUNCTION__,client->irq,gpio_to_irq(client->irq));
 		
-	client->irq = gpio_to_irq(client->irq);
+	Ctp_it7250->irq = gpio_to_irq(client->irq);
 	#endif
-	ret = request_irq(client->irq, Ctp_it7250_touch_irq, IRQF_TRIGGER_LOW, client->dev.driver->name, Ctp_it7250);
-	Ctp_it7250->irq=client->irq;
+	ret = request_irq(Ctp_it7250->irq, Ctp_it7250_touch_irq, IRQF_TRIGGER_LOW, client->dev.driver->name, Ctp_it7250);
 	rk28printk("%s request irq is %d,irq1 is %d,ret is  0x%x\n",__FUNCTION__,client->irq,Ctp_it7250->irq,ret);
 	if (ret ) {
 		rk28printk(KERN_ERR "Ctp_it7250_init_irq: request irq failed,ret is %d\n",ret);
@@ -315,7 +314,7 @@ ret = gpio_direction_input(client->irq);
 // Input --- NULL
 //Output --- return true if the command execute successfully, otherwuse return false.
 // ================================================================================
-bool GetFirmwareInformation()
+bool GetFirmwareInformation(struct i2c_client *client)
 {
 	u8 ucWriteLength, ucReadLength;
 	u8 pucData[128];
@@ -329,14 +328,14 @@ int i;
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
 	}while(ucQuery & QUERY_BUSY);
 
 	// Write Command
-	if(!WriteCommandBuffer(pucData, ucWriteLength))
+	if(!WriteCommandBuffer(client, pucData, ucWriteLength))
 	{
 		return false;
 	}
@@ -344,7 +343,7 @@ int i;
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
@@ -354,7 +353,7 @@ int i;
 	 pucData[7] == 0 ;
 	 pucData[8] == 0;
 	// Read Command Response
-	if(!ReadCommandResponseBuffer(pucData, ucReadLength))
+	if(!ReadCommandResponseBuffer(client, pucData, ucReadLength))
 	{
 		return false;
 	}
@@ -384,7 +383,7 @@ for (i =0;i<ucReadLength;i++)
 //	ucType- the interrupt type
 //Output --- return true if the command execute successfully, otherwuse return false.
 // ================================================================================
-bool SetInterruptNotification(u8 ucStatus, u8 ucType)
+bool SetInterruptNotification(struct i2c_client *client, u8 ucStatus, u8 ucType)
 {
 	u8 ucWriteLength, ucReadLength;
 	u8 pucData[128];
@@ -400,14 +399,14 @@ int i;
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
 	}while(ucQuery & QUERY_BUSY);
 
 	// Write Command
-	if(!WriteCommandBuffer(pucData, ucWriteLength))
+	if(!WriteCommandBuffer(client, pucData, ucWriteLength))
 	{
 		return false;
 	}
@@ -415,14 +414,14 @@ int i;
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
 	}while(ucQuery & QUERY_BUSY);
 
 	// Read Command Response
-	if(!ReadCommandResponseBuffer(pucData, ucReadLength))
+	if(!ReadCommandResponseBuffer(client, pucData, ucReadLength))
 	{
 		return false;
 	}
@@ -443,7 +442,7 @@ for (i =0;i<ucReadLength;i++)
 // Input --- NULL
 //Output --- return true if the command execute successfully, otherwuse return false.
 // ================================================================================
-bool IdentifyCapSensor()
+bool IdentifyCapSensor(struct i2c_client *client)
 {
 	u8 ucWriteLength, ucReadLength;
 	u8 pucData[128];
@@ -456,19 +455,25 @@ rk28printk("%s\r\n",__FUNCTION__);
 	// Query
 	do
 	{//printk("first wait 111\r\n");
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
+		
 			rk28printk("first wait \r\n");
+			//means we use resister touchscreen
+			goto error_out;
 			ucQuery = QUERY_BUSY;
 		}
-		rk28printk("%s ucQuery=0x%x \r\n",__FUNCTION__,ucQuery);
+		rk28printk("%s ucQuery!!!!=0x%x \r\n",__FUNCTION__,ucQuery);
+		if (0xff == ucQuery)
+			goto error_out;
 		mdelay(500);
 	}while(ucQuery & QUERY_BUSY);
+
 
 	// Write Command
 	//rk28printk("%s11\r\n",__FUNCTION__);
 	pucData[0] = 0x00;ucWriteLength = 1;
-	if(!WriteCommandBuffer(pucData, ucWriteLength))
+	if(!WriteCommandBuffer(client, pucData, ucWriteLength))
 	{
 		rk28printk("WriteCommandBuffer false \r\n");
 	//	return false;
@@ -477,7 +482,7 @@ rk28printk("%s\r\n",__FUNCTION__);
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			rk28printk("second wait \r\n");
 			ucQuery = QUERY_BUSY;
@@ -489,7 +494,7 @@ rk28printk("%s\r\n",__FUNCTION__);
 		{pucData[i]=0x0;
 		rk28printk("pucData[%d]=%d \r\n",i,pucData[i]);
 		}
-	if(!ReadCommandResponseBuffer(pucData, ucReadLength))
+	if(!ReadCommandResponseBuffer(client, pucData, ucReadLength))
 	{
 		rk28printk("ReadCommandResponseBuffer false \r\n");
 	//	return false;
@@ -500,6 +505,10 @@ for (i=0;i<ucReadLength;i++)
 	rk28printk("pucData=%c %c %c %c %c %c %c \r\n",pucData[1],pucData[2],pucData[3],pucData[4],pucData[5],pucData[6],pucData[7]);
 
 	return true;
+
+
+error_out:
+	return false;
 }
 
 // ================================================================================
@@ -511,7 +520,7 @@ for (i=0;i<ucReadLength;i++)
 //	pucStep - the step
 //Output --- return true if the command execute successfully, otherwuse return false.
 // ================================================================================
-bool Get2DResolutions(u32 *pwXResolution, u32*pwYResolution, u8 *pucStep)
+bool Get2DResolutions(struct i2c_client *client, u32 *pwXResolution, u32*pwYResolution, u8 *pucStep)
 {
 	u8 ucWriteLength, ucReadLength;
 	u8 pucData[128];
@@ -527,7 +536,7 @@ int i;
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
@@ -535,7 +544,7 @@ int i;
 
 	// Write Command
 	rk28printk("%s WriteCommandBuffer\r\n",__FUNCTION__);
-	if(!WriteCommandBuffer(pucData, ucWriteLength))
+	if(!WriteCommandBuffer(client, pucData, ucWriteLength))
 	{
 		return false;
 	}
@@ -543,14 +552,14 @@ int i;
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
 	}while(ucQuery & QUERY_BUSY);
 rk28printk("%s ReadCommandResponseBuffer\r\n",__FUNCTION__);
 	// Read Command Response
-	if(!ReadCommandResponseBuffer(pucData, ucReadLength))
+	if(!ReadCommandResponseBuffer(client, pucData, ucReadLength))
 	{
 		return false;
 	}
@@ -584,14 +593,14 @@ rk28printk("%s ReadCommandResponseBuffer EDN\r\n",__FUNCTION__);
 // Return value: 
 //   return zero if success, otherwise return non zero value
 // *******************************************************************************************
-int CaptouchMode(u8 dwMode)
+int CaptouchMode(struct i2c_client *client, u8 dwMode)
 {
 	u8 ucQueryResponse;
 	u8 pucCommandBuffer[128];
 
 	do
 	{
-		ReadQueryBuffer(&ucQueryResponse);
+		ReadQueryBuffer(client, &ucQueryResponse);
 	}
 	while(ucQueryResponse & QUERY_BUSY);
 
@@ -612,7 +621,7 @@ int CaptouchMode(u8 dwMode)
 			return -1;
 	}
 
-	if(!WriteCommandBuffer( pucCommandBuffer,3))
+	if(!WriteCommandBuffer(client, pucCommandBuffer,3))
 	{
 		return -1;
 	}
@@ -628,19 +637,19 @@ int CaptouchMode(u8 dwMode)
 // Return value: 
 //   return TRUE if success, otherwise return FALSE
 // *******************************************************************************************
-int CaptouchReset()
+int CaptouchReset(struct i2c_client *client)
 {
 	u8 ucQueryResponse;
 	u8 pucCommandBuffer[128];
 
 	do
 	{
-		ReadQueryBuffer(&ucQueryResponse);
+		ReadQueryBuffer(client, &ucQueryResponse);
 	}
 	while(ucQueryResponse & QUERY_BUSY);
 
 	pucCommandBuffer[0] = 0x6F;
-	if(!WriteCommandBuffer(pucCommandBuffer,1))
+	if(!WriteCommandBuffer(client, pucCommandBuffer,1))
 	{
 		return -1;
 	}
@@ -649,12 +658,12 @@ int CaptouchReset()
 
 	do
 	{
-		ReadQueryBuffer(&ucQueryResponse);
+		ReadQueryBuffer(client, &ucQueryResponse);
 	}
 	while(ucQueryResponse & QUERY_BUSY);
 
 
-	if(!ReadCommandResponseBuffer(pucCommandBuffer,2))
+	if(!ReadCommandResponseBuffer(client, pucCommandBuffer,2))
 	{
 		return -1;
 	}
@@ -677,23 +686,24 @@ int CaptouchReset()
 // Return value: 
 //   return zero if success, otherwise return non zero value
 // *******************************************************************************************
-int CaptouchHWInitial()
+int CaptouchHWInitial(struct i2c_client *client)
 {
 	u32 wXResolution=0,wYResolution=0;
 	u8 ucStep=0;
-	if (!IdentifyCapSensor())
+	if (!IdentifyCapSensor(client))
 	{
 		rk28printk("%s IdentifyCapSensor error \r\n",__FUNCTION__);
-	//	goto resetagin;
+		return false;
+		//goto resetagin;
 }
 	#if 1
-if (!GetFirmwareInformation ())
+if (!GetFirmwareInformation (client))
 	{
 	rk28printk("%s GetFirmwareInformation error \r\n",__FUNCTION__);
 	//	goto resetagin;
 }
 
-	if (!Get2DResolutions(&wXResolution, &wYResolution, &ucStep))
+	if (!Get2DResolutions(client, &wXResolution, &wYResolution, &ucStep))
 	{
 	rk28printk("%s Get2DResolutions error \r\n",__FUNCTION__);
 	//	goto resetagin;
@@ -701,7 +711,7 @@ if (!GetFirmwareInformation ())
 
 //no need to set interrupt mode because firmware has done that;note by robert
 	#if 0
-	if (!SetInterruptNotification(0x01, 0x00))
+	if (!SetInterruptNotification(client, 0x01, 0x00))
 	{
 	rk28printk("%s SetInterruptNotification error \r\n",__FUNCTION__);
 	goto resetagin;
@@ -709,13 +719,13 @@ if (!GetFirmwareInformation ())
 	#endif
 	//note end
 #endif
-	return 0;
+	return true;
 
 resetagin:
-	if (!CaptouchReset())
+	if (!CaptouchReset(client))
 		rk28printk("CaptouchReset success \r\n");
 	mdelay(100);
-//	if (!CaptouchMode(0x00))
+//	if (!CaptouchMode(client, 0x00))
 	//	rk28printk("CaptouchMode success \r\n");
 }
 
@@ -798,18 +808,22 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
 	
 	u8 ucQueryResponse;
 	u32 dwTouchEvent;
-	struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdata(Ctp_it7250_client);
+	struct delayed_work *delaywork = container_of(work, struct delayed_work, work);
+	struct Ctp_it7250_data *Ctp_it7250 = container_of(delaywork, struct Ctp_it7250_data, delaywork);	
+	struct i2c_client *client = Ctp_it7250->client;
+	
 	int PE1status = 0;
 
 //	rk28printk("%s++++ %d \r\n",__FUNCTION__,__LINE__);
 
 
-	PE1status =  gpio_get_value(Ctp_it7250->client->irq);
+	//PE1status =  gpio_get_value(Ctp_it7250_GPIO_INT);
+	PE1status =  gpio_get_value(client->irq);
 	//  PE1status 为低，表示低电平中断有效 
 	if (!PE1status)
 		{
 	//	rk28printk("%s PE1status low!!  \r\n",__FUNCTION__);
-	if(!ReadQueryBuffer(&ucQueryResponse))
+	if(!ReadQueryBuffer(client, &ucQueryResponse))
 	{rk28printk("%s++++ %d  ucQueryResponse=0x%x \r\n",__FUNCTION__,__LINE__,ucQueryResponse);
 		return false;
 	}
@@ -817,7 +831,7 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
 	// Touch Event
 	if(ucQueryResponse & QUERY_POINT)
 	{//rk28printk("%s++++ %d  \r\n",__FUNCTION__,__LINE__);
-		if(!ReadPointBuffer(gpucPointBuffer))
+		if(!ReadPointBuffer(client, gpucPointBuffer))
 		{rk28printk("%s++++ %d  \r\n",__FUNCTION__,__LINE__);
 			return false;
 		}
@@ -825,8 +839,7 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
 		switch(gpucPointBuffer[0] & 0xF0)
 		{
 			case 0x00:
-				dwTouchEvent = CaptouchGetSampleValue(gpdwSampleX, gpdwSampleY, 
-gpdwPressure);
+				dwTouchEvent = CaptouchGetSampleValue(gpdwSampleX, gpdwSampleY, gpdwPressure);
 				if(dwTouchEvent == 0)
 				{
 					//SynchroSystemEvent(SYSTEM_TOUCH_EVENT_FINGER_RELEASE);
@@ -841,7 +854,8 @@ gpdwPressure);
 					input_report_abs(Ctp_it7250->input_dev, ABS_X, gpdwSampleX[0]);// & 0xfff
 					input_report_abs(Ctp_it7250->input_dev, ABS_Y, gpdwSampleY[0]); //& 0xfff
 					input_report_key(Ctp_it7250->input_dev,BTN_TOUCH, 1);
-					input_sync(Ctp_it7250->input_dev);rk28printk("x=%d  y=%d \r\n",gpdwSampleX[0],gpdwSampleY[0]);
+					input_sync(Ctp_it7250->input_dev);
+					rk28printk("x=%d  y=%d \r\n",gpdwSampleX[0],gpdwSampleY[0]);
 				}
 				else
 				{
@@ -910,10 +924,10 @@ gpdwPressure);
 	}
 	else if (ucQueryResponse & QUERY_ERROR)
 		{
-		if (!CaptouchReset())
+		if (!CaptouchReset(client))
 		rk28printk("!! CaptouchReset success \r\n");
 		mdelay(100);
-	//if (!CaptouchMode(0x00))
+	//if (!CaptouchMode(client, 0x00))
 		//rk28printk("!! CaptouchMode success \r\n");
 		}
 	}
@@ -948,7 +962,9 @@ gpdwPressure);
 	i2c_set_clientdata(client, Ctp_it7250);
 
 	
-	
+if (!CaptouchHWInitial(client))
+	goto  err_free_mem;
+Ctp_it7250_init_irq(client);	
 	ts_input_init(client);
 //	CTS_configure_pin(client);
 
@@ -964,8 +980,7 @@ mdelay(5);
 #endif
 
 }
-CaptouchHWInitial();
-Ctp_it7250_init_irq(client);
+
 	
 	
 //不是查询模式，不需要轮询
@@ -974,6 +989,9 @@ Ctp_it7250_init_irq(client);
 
 	rk28printk("+++++++     %s+++++++\n", __FUNCTION__);
 	return 0;
+err_free_mem:
+ kfree(Ctp_it7250);
+ return false;
 
 }
 
@@ -1006,7 +1024,7 @@ struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdat
 	// Query
 	do
 	{
-		if(!ReadQueryBuffer(&ucQuery))
+		if(!ReadQueryBuffer(client, &ucQuery))
 		{
 			ucQuery = QUERY_BUSY;
 		}
@@ -1014,7 +1032,7 @@ struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdat
 
 	// Write Command
 	rk28printk("%s WriteCommandBuffer\r\n",__FUNCTION__);
-	if(!WriteCommandBuffer(pucData, ucWriteLength))
+	if(!WriteCommandBuffer(client, pucData, ucWriteLength))
 	{
 		return false;
 	}
@@ -1032,7 +1050,7 @@ struct Ctp_it7250_data *Ctp_it7250 = (struct Ctp_it7250_data *)i2c_get_clientdat
 //read command to wakeup ctp
 #if 1
 u8 ucQuery;
-ReadQueryBuffer(&ucQuery);
+ReadQueryBuffer(client, &ucQuery);
 #endif
 //wakeup end
 	enable_irq(Ctp_it7250->irq);

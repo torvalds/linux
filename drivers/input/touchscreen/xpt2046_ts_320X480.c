@@ -1010,7 +1010,7 @@ static int __init xpt2046_init(void)
 {
 	return spi_register_driver(&xpt2046_driver);
 }
-module_init(xpt2046_init);
+late_initcall_sync(xpt2046_init);
 
 static void __exit xpt2046_exit(void)
 {

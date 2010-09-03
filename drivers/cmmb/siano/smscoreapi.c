@@ -50,8 +50,8 @@
 #endif
 
 // to enable log
-int sms_debug =7;
-//int sms_debug =0;   //hzb 0526
+//int sms_debug =7;
+int sms_debug =0;   //hzb 0526
 // for loopback
 char g_LbResBuf[256]={0};
 //
@@ -1173,8 +1173,8 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		//sms_debug("client=0x %x\n", client);
 		rc = client->onresponse_handler(client->context, cb);
 	}	
-	sms_debug("onresponse_handler ret = 0x%x\n", rc);
-        sms_debug("phdr->msgType %d\n", phdr->msgType);
+	//sms_debug("onresponse_handler ret = 0x%x\n", rc);
+      //  sms_debug("phdr->msgType %d\n", phdr->msgType);
 
 
 

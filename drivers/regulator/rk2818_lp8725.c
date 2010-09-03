@@ -31,6 +31,15 @@ REVISION 0.01
 #include <linux/kernel.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/rk2818_lp8725.h>
+#include <mach/gpio.h>
+#include <linux/delay.h>
+
+//add by robert for reboot notifier
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+
+//end add
+
 
 
 #if 0
@@ -670,6 +679,90 @@ static int lp8725_set_bits(struct lp8725 *lp8725, u8 reg, u16 mask, u16 val)
 }
 
 
+//add by robert for power on bp
+#define AP_TD_UNDEFINED_GBIN5 FPGA_PIO2_02
+#define AP_RESET_TD FPGA_PIO2_04
+#define AP_SHUTDOWN_TD_PMU FPGA_PIO2_05
+#define AP_PW_EN_TD FPGA_PIO2_03
+
+static int bp_power_on(void)
+{
+	int ret=0;
+	
+	ret = gpio_request(AP_TD_UNDEFINED_GBIN5, NULL);
+	if (ret) {
+		printk("%s:failed to request fpga s %d\n",__FUNCTION__,__LINE__);
+		goto err;
+	}
+	ret = gpio_request(AP_RESET_TD, NULL);
+	if (ret) {
+		printk("%s:failed to request fpga s %d\n",__FUNCTION__,__LINE__);
+		goto err0;
+	}
+	
+
+	ret = gpio_request(AP_SHUTDOWN_TD_PMU, NULL);
+	if (ret) {
+		printk("%s:failed to request fpga %d\n",__FUNCTION__,__LINE__);
+		goto err1;
+	}
+
+	ret = gpio_request(AP_PW_EN_TD, NULL);
+	if (ret) {
+		printk("%s:failed to request fpga  %d\n",__FUNCTION__,__LINE__);
+		goto err2;
+	}
+
+	gpio_set_value(AP_TD_UNDEFINED_GBIN5, 1);
+       gpio_direction_output(AP_TD_UNDEFINED_GBIN5, 1);   
+	gpio_direction_input(AP_RESET_TD);
+
+	 gpio_set_value(AP_SHUTDOWN_TD_PMU, 0);
+        gpio_direction_output(AP_SHUTDOWN_TD_PMU, 0);  
+
+	gpio_set_value(AP_PW_EN_TD, 0);
+	gpio_direction_output(AP_PW_EN_TD, 0);  
+	mdelay(1);
+	gpio_set_value(AP_PW_EN_TD, 1);
+	mdelay(1200);
+	gpio_set_value(AP_PW_EN_TD, 0);
+
+	return true;
+err2:
+	gpio_free(AP_SHUTDOWN_TD_PMU);
+err1:
+	gpio_free(AP_RESET_TD);
+err0:
+	gpio_free(AP_TD_UNDEFINED_GBIN5);
+err:	
+	return false;
+}
+
+
+
+static int bp_power_off(struct notifier_block *this,
+					unsigned long code, void *unused)
+{
+	printk("+++--++++++%s_________%d \r\n",__FUNCTION__,code);
+
+	 gpio_set_value(AP_TD_UNDEFINED_GBIN5, 0);
+	
+	gpio_set_value(AP_PW_EN_TD, 0);
+	//gpio_direction_output(AP_PW_EN_TD, 0);  
+	mdelay(1);
+	gpio_set_value(AP_PW_EN_TD, 1);
+	mdelay(1200);
+	gpio_set_value(AP_PW_EN_TD, 0);
+
+	mdelay(5000);
+	 gpio_set_value(AP_SHUTDOWN_TD_PMU, 1);
+	mdelay(1200);
+	// gpio_free(AP_PW_EN_TD);
+printk("++++--+++++%s   ok_________\r\n",__FUNCTION__);
+	 return NOTIFY_DONE;
+}
+//add end
+
 static int lp8725_set_init(void)
 {
 	int tmp = 0;
@@ -749,6 +842,11 @@ static int lp8725_set_init(void)
 	tmp = regulator_get_voltage(buck2);
 	DBG_INFO("***regulator_set_init: buck2 vcc =%d\n",tmp);
 
+	
+//add by robert for power on bp
+	bp_power_on();
+//end add
+
 	return(0);
 }
 
@@ -822,6 +920,7 @@ static int __devexit lp8725_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp8725 *lp8725 = i2c_get_clientdata(i2c);
 	int i;
+
 	for (i = 0; i < lp8725->num_regulators; i++)
 		if (lp8725->rdev[i])
 			regulator_unregister(lp8725->rdev[i]);
@@ -849,6 +948,15 @@ static struct i2c_driver lp8725_i2c_driver = {
 	.id_table = lp8725_i2c_id,
 };
 
+
+//add by robert for bp powerdown register
+static struct notifier_block BP_powerdown_notifier = {
+	.notifier_call =	bp_power_off,
+};
+//end add
+
+
+
 static int __init lp8725_module_init(void)
 {
 	int ret;
@@ -857,12 +965,25 @@ static int __init lp8725_module_init(void)
 	if (ret != 0)
 		pr_err("Failed to register I2C driver: %d\n", ret);
 
+	//add by robert for bp powerdown register
+	ret = register_reboot_notifier(&BP_powerdown_notifier);
+	if (ret != 0) 
+		{
+		printk("cannot register reboot notifier (err=%d), %s\n", ret,__FUNCTION__);
+		}
+	//end add
+
+
 	return ret;
 }
 module_init(lp8725_module_init);
 
 static void __exit lp8725_module_exit(void)
 {
+//add by robert for bp power down
+	unregister_reboot_notifier(&BP_powerdown_notifier);
+//end add
+
 	i2c_del_driver(&lp8725_i2c_driver);
 }
 module_exit(lp8725_module_exit);

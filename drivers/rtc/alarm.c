@@ -234,6 +234,23 @@ int alarm_cancel(struct alarm *alarm)
 		cpu_relax();
 	}
 }
+int rtc_change_time(struct timespec new_time)
+{
+	int i;
+	int ret;
+	unsigned long flags;
+	struct rtc_time rtc_new_rtc_time;
+	struct timespec tmp_time;
+
+	rtc_time_to_tm(new_time.tv_sec, &rtc_new_rtc_time);
+
+	printk("set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
+		new_time.tv_sec, new_time.tv_nsec,
+		rtc_new_rtc_time.tm_hour, rtc_new_rtc_time.tm_min,
+		rtc_new_rtc_time.tm_sec, rtc_new_rtc_time.tm_mon + 1,
+		rtc_new_rtc_time.tm_mday,
+		rtc_new_rtc_time.tm_year + 1900);
+}
 
 /**
  * alarm_set_rtc - set the kernel and rtc walltime
@@ -249,7 +266,7 @@ int alarm_set_rtc(struct timespec new_time)
 
 	rtc_time_to_tm(new_time.tv_sec, &rtc_new_rtc_time);
 
-	pr_alarm(TSET, "set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
+	printk("set rtc %ld %ld - rtc %02d:%02d:%02d %02d/%02d/%04d\n",
 		new_time.tv_sec, new_time.tv_nsec,
 		rtc_new_rtc_time.tm_hour, rtc_new_rtc_time.tm_min,
 		rtc_new_rtc_time.tm_sec, rtc_new_rtc_time.tm_mon + 1,
@@ -320,20 +337,20 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 	struct alarm *alarm;
 	unsigned long flags;
 	ktime_t now;
-
+	printk("alarm_timer_triggered\n");
 	spin_lock_irqsave(&alarm_slock, flags);
 
 	base = container_of(timer, struct alarm_queue, timer);
 	now = base->stopped ? base->stopped_time : hrtimer_cb_get_time(timer);
 	now = ktime_sub(now, base->delta);
 
-	pr_alarm(INT, "alarm_timer_triggered type %d at %lld\n",
+	printk( "alarm_timer_triggered type %d at %lld\n",
 		base - alarms, ktime_to_ns(now));
 
 	while (base->first) {
 		alarm = container_of(base->first, struct alarm, node);
 		if (alarm->softexpires.tv64 > now.tv64) {
-			pr_alarm(FLOW, "don't call alarm, %pF, %lld (s %lld)\n",
+			printk( "don't call alarm, %pF, %lld (s %lld)\n",
 				alarm->function, ktime_to_ns(alarm->expires),
 				ktime_to_ns(alarm->softexpires));
 			break;
@@ -341,7 +358,7 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 		base->first = rb_next(&alarm->node);
 		rb_erase(&alarm->node, &base->alarms);
 		RB_CLEAR_NODE(&alarm->node);
-		pr_alarm(CALL, "call alarm, type %d, func %pF, %lld (s %lld)\n",
+		printk("call alarm, type %d, func %pF, %lld (s %lld)\n",
 			alarm->type, alarm->function,
 			ktime_to_ns(alarm->expires),
 			ktime_to_ns(alarm->softexpires));
@@ -350,9 +367,10 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 		spin_lock_irqsave(&alarm_slock, flags);
 	}
 	if (!base->first)
-		pr_alarm(FLOW, "no more alarms of type %d\n", base - alarms);
+		printk( "no more alarms of type %d\n", base - alarms);
 	update_timer_locked(base, true);
 	spin_unlock_irqrestore(&alarm_slock, flags);
+	printk("---alarm_timer_triggered---\n");
 	return HRTIMER_NORESTART;
 }
 
@@ -378,7 +396,80 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 	struct alarm_queue *wakeup_queue = NULL;
 	struct alarm_queue *tmp_queue = NULL;
 
-	pr_alarm(SUSPEND, "alarm_suspend(%p, %d)\n", pdev, state.event);
+	printk( "alarm_suspend(%p, %d)\n", pdev, state.event);
+
+	spin_lock_irqsave(&alarm_slock, flags);
+	suspended = true;
+	spin_unlock_irqrestore(&alarm_slock, flags);
+
+	hrtimer_cancel(&alarms[ANDROID_ALARM_RTC_WAKEUP].timer);
+	hrtimer_cancel(&alarms[
+			ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP_MASK].timer);
+
+	tmp_queue = &alarms[ANDROID_ALARM_RTC_WAKEUP];
+	if (tmp_queue->first)
+		wakeup_queue = tmp_queue;
+	tmp_queue = &alarms[ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP];
+	if (tmp_queue->first && (!wakeup_queue ||
+				hrtimer_get_expires(&tmp_queue->timer).tv64 <
+				hrtimer_get_expires(&wakeup_queue->timer).tv64))
+		wakeup_queue = tmp_queue;
+	if (wakeup_queue) {
+		rtc_read_time(alarm_rtc_dev, &rtc_current_rtc_time);
+		rtc_current_timespec.tv_nsec = 0;
+		rtc_tm_to_time(&rtc_current_rtc_time,
+			       &rtc_current_timespec.tv_sec);
+		save_time_delta(&rtc_delta, &rtc_current_timespec);
+
+		rtc_alarm_time = timespec_sub(ktime_to_timespec(
+			hrtimer_get_expires(&wakeup_queue->timer)),
+			rtc_delta).tv_sec;
+
+		rtc_time_to_tm(rtc_alarm_time, &rtc_alarm.time);
+		rtc_alarm.enabled = 1;
+		//rtc_alarm.time.tm_min +=4;
+		rtc_set_alarm(alarm_rtc_dev, &rtc_alarm);
+		rtc_read_time(alarm_rtc_dev, &rtc_current_rtc_time);
+		rtc_tm_to_time(&rtc_current_rtc_time, &rtc_current_time);
+		printk(
+			"rtc alarm set at %ld, now %ld, rtc delta %ld.%09ld\n",
+			rtc_alarm_time, rtc_current_time,
+			rtc_delta.tv_sec, rtc_delta.tv_nsec);
+		if (rtc_current_time + 1 >= rtc_alarm_time) {
+			pr_alarm(SUSPEND, "alarm about to go off\n");
+			memset(&rtc_alarm, 0, sizeof(rtc_alarm));
+			rtc_alarm.enabled = 0;
+			rtc_set_alarm(alarm_rtc_dev, &rtc_alarm);
+
+			spin_lock_irqsave(&alarm_slock, flags);
+			suspended = false;
+			wake_lock_timeout(&alarm_rtc_wake_lock, 2 * HZ);
+			update_timer_locked(&alarms[ANDROID_ALARM_RTC_WAKEUP],
+									false);
+			update_timer_locked(&alarms[
+				ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP], false);
+			err = -EBUSY;
+			spin_unlock_irqrestore(&alarm_slock, flags);
+		}
+	}
+	printk( "alarm_suspend over\n");
+	return err;
+}
+
+static int alarm_shutdown(struct platform_device *pdev, pm_message_t state)
+{
+	int                 err = 0;
+	unsigned long       flags;
+	struct rtc_wkalrm   rtc_alarm;
+	struct rtc_time     rtc_current_rtc_time;
+	unsigned long       rtc_current_time;
+	unsigned long       rtc_alarm_time;
+	struct timespec     rtc_current_timespec;
+	struct timespec     rtc_delta;
+	struct alarm_queue *wakeup_queue = NULL;
+	struct alarm_queue *tmp_queue = NULL;
+
+	printk( "alarm_suspend(%p, %d)\n", pdev, state.event);
 
 	spin_lock_irqsave(&alarm_slock, flags);
 	suspended = true;
@@ -412,7 +503,7 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 		rtc_set_alarm(alarm_rtc_dev, &rtc_alarm);
 		rtc_read_time(alarm_rtc_dev, &rtc_current_rtc_time);
 		rtc_tm_to_time(&rtc_current_rtc_time, &rtc_current_time);
-		pr_alarm(SUSPEND,
+		printk(
 			"rtc alarm set at %ld, now %ld, rtc delta %ld.%09ld\n",
 			rtc_alarm_time, rtc_current_time,
 			rtc_delta.tv_sec, rtc_delta.tv_nsec);
@@ -433,15 +524,15 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 			spin_unlock_irqrestore(&alarm_slock, flags);
 		}
 	}
+	printk( "alarm_suspend over\n");
 	return err;
 }
-
 static int alarm_resume(struct platform_device *pdev)
 {
 	struct rtc_wkalrm alarm;
 	unsigned long       flags;
 
-	pr_alarm(SUSPEND, "alarm_resume(%p)\n", pdev);
+	printk( "alarm_resume(%p)\n", pdev);
 
 	memset(&alarm, 0, sizeof(alarm));
 	alarm.enabled = 0;
@@ -516,6 +607,7 @@ static struct class_interface rtc_alarm_interface = {
 static struct platform_driver alarm_driver = {
 	.suspend = alarm_suspend,
 	.resume = alarm_resume,
+	.shutdown = alarm_shutdown,
 	.driver = {
 		.name = "alarm"
 	}
@@ -525,7 +617,7 @@ static int __init alarm_late_init(void)
 {
 	unsigned long   flags;
 	struct timespec tmp_time, system_time;
-
+	printk("alarm_late_init\n");
 	/* this needs to run after the rtc is read at boot */
 	spin_lock_irqsave(&alarm_slock, flags);
 	/* We read the current rtc and system time so we can later calulate
@@ -539,6 +631,7 @@ static int __init alarm_late_init(void)
 			timespec_to_ktime(timespec_sub(tmp_time, system_time));
 
 	spin_unlock_irqrestore(&alarm_slock, flags);
+	printk("---alarm_late_init----\n");
 	return 0;
 }
 
@@ -546,7 +639,7 @@ static int __init alarm_driver_init(void)
 {
 	int err;
 	int i;
-
+	printk("alarm_driver_init\n");
 	for (i = 0; i < ANDROID_ALARM_SYSTEMTIME; i++) {
 		hrtimer_init(&alarms[i].timer,
 				CLOCK_REALTIME, HRTIMER_MODE_ABS);
@@ -563,7 +656,7 @@ static int __init alarm_driver_init(void)
 	err = class_interface_register(&rtc_alarm_interface);
 	if (err < 0)
 		goto err2;
-
+	printk("---alarm_driver_init---\n");
 	return 0;
 
 err2:

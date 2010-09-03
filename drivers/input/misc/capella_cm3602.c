@@ -29,7 +29,11 @@
 #include <linux/interrupt.h>
 #include <mach/spi_fpga.h>
 
+#if 0
 #define D(x...) printk(x)
+#else
+#define D(x...)
+#endif
 
 static struct capella_cm3602_data {
 	struct input_dev *input_dev;
@@ -42,7 +46,7 @@ static struct capella_cm3602_data {
 
 static int misc_opened;
 
-static bool time_enable = true;
+static bool time_enable = false;
 
 static int capella_cm3602_report(struct capella_cm3602_data *data)
 {
@@ -63,11 +67,12 @@ static int capella_cm3602_report(struct capella_cm3602_data *data)
 static irqreturn_t capella_cm3602_irq_handler(int irq, void *data)
 {
 	struct capella_cm3602_data *ip = data;
-	printk("------------------capella_cm3602_irq_handler------------\n");
+	printk("---capella_cm3602_irq_handler----\n");
 	//int val = capella_cm3602_report(ip);
 	input_report_abs(ip->input_dev, ABS_DISTANCE, 0);
 	input_sync(ip->input_dev);
-	add_timer(&ip->cm3602_timer);
+	//printk("input_report_abs=0\n");
+	//add_timer(&ip->cm3602_timer);
 	time_enable = true;
 	return IRQ_HANDLED;
 }
@@ -76,13 +81,16 @@ static int capella_cm3602_enable(struct capella_cm3602_data *data)
 {
 	int rc;
 	D("%s\n", __func__);
-	time_enable = true;
+	//time_enable = true;
 	if (data->enabled) {
 		D("%s: already enabled\n", __func__);
 		return 0;
 	}
-	gpio_set_value(data->pdata->pwd_out_pin, SPI_GPIO_LOW);		//CM3605_PWD output
-	gpio_set_value(data->pdata->ps_shutdown_pin, SPI_GPIO_LOW);		//CM3605_PS_SHUTDOWN
+/*	gpio_direction_output(pdata->pwd_out_pin, SPI_GPIO_OUT);
+	gpio_set_value(pdata->pwd_out_pin, SPI_GPIO_LOW);		//CM3605_PWD output
+	gpio_direction_output(pdata->ps_shutdown_pin, SPI_GPIO_OUT);
+	gpio_set_value(pdata->ps_shutdown_pin, SPI_GPIO_LOW);		//CM3605_PS_SHUTDOWN
+*/
 	data->pdata->power(1);
 	data->enabled = !rc;
 	if (!rc)
@@ -99,8 +107,8 @@ static int capella_cm3602_disable(struct capella_cm3602_data *data)
 		D("%s: already disabled\n", __func__);
 		return 0;
 	}
-	gpio_set_value(data->pdata->pwd_out_pin, GPIO_HIGH);		//CM3605_PWD output
-	gpio_set_value(data->pdata->ps_shutdown_pin, GPIO_HIGH);		//CM3605_PS_SHUTDOWN
+//	gpio_set_value(data->pdata->pwd_out_pin, GPIO_HIGH);		//CM3605_PWD output
+//	gpio_set_value(data->pdata->ps_shutdown_pin, GPIO_HIGH);		//CM3605_PS_SHUTDOWN
 	data->pdata->power(0);
 	data->enabled = 0;
 	return rc;
@@ -117,6 +125,7 @@ void cm3602_work_handler(struct work_struct *work)
 		time_enable = false;
 		input_report_abs(pdata->input_dev, ABS_DISTANCE, val);
 		input_sync(pdata->input_dev);
+		printk("input_report_abs=%d\n",val);
 	}
 	
 }
@@ -124,12 +133,12 @@ void cm3602_work_handler(struct work_struct *work)
 static void cm3602_timer(unsigned long data)
 {
 	struct capella_cm3602_data *ip = data;
-	printk("------------------cm3602_timer,%d------------\n",time_enable);
-	
+	//printk("------------------cm3602_timer,%d------------\n",time_enable);
+	ip->cm3602_timer.expires = jiffies + HZ;
+	add_timer(&ip->cm3602_timer);
 	if(time_enable)
 	{
-		ip->cm3602_timer.expires = jiffies + HZ;
-		add_timer(&ip->cm3602_timer);
+		printk("------------------cm3602_timer,%d------------\n",time_enable);
 		queue_work(ip->cm3602_workqueue, &ip->cm3602_work);
 	}
 
@@ -141,23 +150,8 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 	struct capella_cm3602_platform_data *pdata = ip->pdata;
 	//int irq = gpio_to_irq(pdata->p_out);
 	char b[20];
-	
-	D("%s\n", __func__);
-/*
-	rc = gpio_request(pdata->p_out, "gpio_proximity_out");
-	if (rc < 0) {
-		pr_err("%s: gpio %d request failed (%d)\n",
-			__func__, pdata->p_out, rc);
-		goto done;
-	}
 
-	rc = gpio_direction_input(pdata->p_out);
-	if (rc < 0) {
-		pr_err("%s: failed to set gpio %d as input (%d)\n",
-			__func__, pdata->p_out, rc);
-		goto fail_free_p_out;
-	}
-*/
+	D("%s\n", __func__);
 
 	rc = gpio_request(pdata->pwd_out_pin, "cm3602 out");
 	if (rc) {
@@ -177,8 +171,8 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 		pr_err("%s: request gpio %d failed \n",	__func__, pdata->irq_pin);
 		return rc;
 	}
-	rc = gpio_direction_input(pdata->irq_pin);
-	rc = request_irq(gpio_to_irq(pdata->irq_pin),capella_cm3602_irq_handler,SPI_GPIO_EDGE_FALLING,NULL, NULL);
+	//rc = gpio_direction_input(pdata->irq_pin);
+	rc = request_irq(gpio_to_irq(pdata->irq_pin),capella_cm3602_irq_handler,SPI_GPIO_EDGE_FALLING,NULL, ip);
 	if (rc < 0) {
 		pr_err("%s: request_irq failed for gpio %d (%d)\n",
 			__func__, 
@@ -186,9 +180,6 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 		goto fail_free_p_out;
 	}
 
-	//spi_gpio_set_pindirection(SPI_GPIO_P6_04, SPI_GPIO_IN);
-	//spi_gpio_get_pinlevel(SPI_GPIO_P6_04);
-	
 	sprintf(b,"cm3602_workqueue");
 	ip->cm3602_workqueue = create_freezeable_workqueue(b);
 	if(!ip->cm3602_workqueue)
@@ -199,7 +190,7 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 	INIT_WORK(&ip->cm3602_work, cm3602_work_handler);
 	setup_timer(&ip->cm3602_timer,cm3602_timer,(unsigned long)ip);
 	ip->cm3602_timer.expires = jiffies + HZ;
-	//add_timer(&ip->cm3602_timer);
+	add_timer(&ip->cm3602_timer);
 /*
 	rc = set_irq_wake(irq, 1);
 	if (rc < 0) {
@@ -278,7 +269,7 @@ static int capella_cm3602_probe(struct platform_device *pdev)
 	struct capella_cm3602_platform_data *pdata;
 
 	D("%s: probe\n", __func__);
-	printk("%s: probe]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n", __func__);
+	//printk("%s: probe]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n", __func__);
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
 		pr_err("%s: missing pdata!\n", __func__);
