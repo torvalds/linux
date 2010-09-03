@@ -117,6 +117,11 @@ MODULE_DESCRIPTION("IBM i/pSeries Virtual Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ibmveth_driver_version);
 
+static unsigned int tx_copybreak __read_mostly = 128;
+module_param(tx_copybreak, uint, 0644);
+MODULE_PARM_DESC(tx_copybreak,
+	"Maximum size of packet that is copied to a new buffer on transmit");
+
 struct ibmveth_stat {
 	char name[ETH_GSTRING_LEN];
 	int offset;
@@ -931,17 +936,24 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 		buf[1] = 0;
 	}
 
-	data_dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
-				       skb->len, DMA_TO_DEVICE);
-	if (dma_mapping_error(&adapter->vdev->dev, data_dma_addr)) {
-		if (!firmware_has_feature(FW_FEATURE_CMO))
-			ibmveth_error_printk("tx: unable to map xmit buffer\n");
+	if (skb->len < tx_copybreak) {
+		used_bounce = 1;
+	} else {
+		data_dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
+					       skb->len, DMA_TO_DEVICE);
+		if (dma_mapping_error(&adapter->vdev->dev, data_dma_addr)) {
+			if (!firmware_has_feature(FW_FEATURE_CMO))
+				ibmveth_error_printk("tx: unable to map "
+						     "xmit buffer\n");
+			tx_map_failed++;
+			used_bounce = 1;
+		}
+	}
+
+	if (used_bounce) {
 		skb_copy_from_linear_data(skb, adapter->bounce_buffer,
 					  skb->len);
 		desc.fields.address = adapter->bounce_buffer_dma;
-		tx_map_failed++;
-		used_bounce = 1;
-		wmb();
 	} else
 		desc.fields.address = data_dma_addr;
 
