@@ -57,6 +57,15 @@
 			     CPCAP_BIT_VBUSVLD_S   | \
 			     CPCAP_BIT_SESSVLD_S)
 
+#define SENSE_CHARGER_FLOAT (CPCAP_BIT_ID_FLOAT_S  | \
+			     CPCAP_BIT_VBUSVLD_S   | \
+			     CPCAP_BIT_SESSVLD_S   | \
+			     CPCAP_BIT_SE1_S)
+
+#define SENSE_CHARGER       (CPCAP_BIT_VBUSVLD_S   | \
+			     CPCAP_BIT_SESSVLD_S   | \
+			     CPCAP_BIT_SE1_S)
+
 /* TODO: Update with appropriate value. */
 #define ADC_AUDIO_THRES     0x12C
 
@@ -76,6 +85,7 @@ enum cpcap_accy {
 	CPCAP_ACCY_USB_HOST,
 	CPCAP_ACCY_WHISPER,
 	CPCAP_ACCY_WHISPER_SMART,
+	CPCAP_ACCY_CHARGER,
 	CPCAP_ACCY_NONE,
 
 	/* Used while debouncing the accessory. */
@@ -100,9 +110,10 @@ struct cpcap_whisper_data {
 	struct regulator *regulator;
 	struct wake_lock wake_lock;
 	unsigned char is_vusb_enabled;
-	struct switch_dev wsdev;
-	struct switch_dev dsdev;
-	struct switch_dev asdev;
+	struct switch_dev wsdev; /* Whisper switch */
+	struct switch_dev dsdev; /* Dock switch */
+	struct switch_dev asdev; /* Audio switch */
+	struct switch_dev csdev; /* Invalid charger switch */
 	char dock_id[CPCAP_WHISPER_ID_SIZE];
 	struct otg_transceiver *otg;
 };
@@ -263,6 +274,12 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 					      CPCAP_BIT_EMUMODE0));
 		break;
 
+	case CPCAP_ACCY_CHARGER:
+		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1,
+					     CPCAP_BIT_VBUSPD,
+					     CPCAP_BIT_VBUSPD);
+		break;
+
 	case CPCAP_ACCY_NONE:
 	default:
 		gpio_set_value(data->pdata->pwr_gpio, 0);
@@ -284,8 +301,8 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 	return retval;
 }
 
-static const char *accy_names[5] = {"USB", "USB host", "whisper",
-				    "whisper_smart", "none"};
+static const char *accy_names[6] = {"USB", "USB host", "whisper",
+				    "whisper_smart", "charger", "none"};
 
 static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 {
@@ -295,10 +312,13 @@ static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 
 	if (accy == CPCAP_ACCY_WHISPER)
 		switch_set_state(&di->wsdev, 1);
+	else if (accy == CPCAP_ACCY_CHARGER)
+		switch_set_state(&di->csdev, 1);
 	else {
 		switch_set_state(&di->wsdev, 0);
 		switch_set_state(&di->dsdev, NO_DOCK);
 		switch_set_state(&di->asdev, 0);
+		switch_set_state(&di->csdev, 0);
 		memset(di->dock_id, 0, CPCAP_WHISPER_ID_SIZE);
 	}
 }
@@ -372,19 +392,10 @@ static void whisper_det_work(struct work_struct *work)
 		if (data->prev_sense != data->sense) {
 			/* Stay in this state */
 			data->state = SAMPLE_2;
-			schedule_delayed_work(&data->work,
-					      msecs_to_jiffies(100));
-		} else if (!(data->sense & CPCAP_BIT_SE1_S) &&
-			   (data->sense & CPCAP_BIT_ID_FLOAT_S) &&
-			   !(data->sense & CPCAP_BIT_ID_GROUND_S) &&
-			   !(data->sense & CPCAP_BIT_SESSVLD_S)) {
+		} else
 			data->state = IDENTIFY;
-			schedule_delayed_work(&data->work,
-					      msecs_to_jiffies(100));
-		} else {
-			data->state = IDENTIFY;
-			schedule_delayed_work(&data->work, 0);
-		}
+
+		schedule_delayed_work(&data->work, msecs_to_jiffies(100));
 		break;
 
 	case IDENTIFY:
@@ -424,6 +435,11 @@ static void whisper_det_work(struct work_struct *work)
 
 			/* Special handling of Whisper Smart accessories. */
 			data->state = WHISPER_SMART;
+		} else if ((data->sense == SENSE_CHARGER_FLOAT) ||
+			   (data->sense == SENSE_CHARGER)) {
+			whisper_notify(data, CPCAP_ACCY_CHARGER);
+
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_CHRG_DET);
 		} else {
 			whisper_notify(data, CPCAP_ACCY_NONE);
 
@@ -608,6 +624,9 @@ static int cpcap_whisper_probe(struct platform_device *pdev)
 	data->asdev.name = "usb_audio";
 	switch_dev_register(&data->asdev);
 
+	data->csdev.name = "invalid_charger";
+	switch_dev_register(&data->csdev);
+
 	data->dsdev.name = "dock";
 	data->dsdev.print_name = print_name;
 	switch_dev_register(&data->dsdev);
@@ -672,6 +691,7 @@ free_mem:
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
 	switch_dev_unregister(&data->asdev);
+	switch_dev_unregister(&data->csdev);
 	wake_lock_destroy(&data->wake_lock);
 	kfree(data);
 
@@ -693,6 +713,7 @@ static int __exit cpcap_whisper_remove(struct platform_device *pdev)
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
 	switch_dev_unregister(&data->asdev);
+	switch_dev_unregister(&data->csdev);
 
 	gpio_set_value(data->pdata->data_gpio, 1);
 
