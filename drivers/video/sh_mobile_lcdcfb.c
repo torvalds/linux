@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
-#include <linux/fb.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
@@ -24,7 +23,8 @@
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
-#define PALETTE_NR 16
+#include "sh_mobile_lcdcfb.h"
+
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000
 
@@ -52,12 +52,6 @@ static int lcdc_shared_regs[] = {
 	_LDCNT2R,
 };
 #define NR_SHARED_REGS ARRAY_SIZE(lcdc_shared_regs)
-
-/* per-channel registers */
-enum { LDDCKPAT1R, LDDCKPAT2R, LDMT1R, LDMT2R, LDMT3R, LDDFR, LDSM1R,
-       LDSM2R, LDSA1R, LDMLSR, LDHCNR, LDHSYNR, LDVLNR, LDVSYNR, LDPMR,
-       LDHAJR,
-       NR_CH_REGS };
 
 static unsigned long lcdc_offs_mainlcd[NR_CH_REGS] = {
 	[LDDCKPAT1R] = 0x400,
@@ -111,25 +105,6 @@ static unsigned long lcdc_offs_sublcd[NR_CH_REGS] = {
 #define LDRCNTR_MRS	0x00000002
 #define LDRCNTR_MRC	0x00000001
 #define LDSR_MRS	0x00000100
-
-struct sh_mobile_lcdc_priv;
-struct sh_mobile_lcdc_chan {
-	struct sh_mobile_lcdc_priv *lcdc;
-	unsigned long *reg_offs;
-	unsigned long ldmt1r_value;
-	unsigned long enabled; /* ME and SE in LDCNT2R */
-	struct sh_mobile_lcdc_chan_cfg cfg;
-	u32 pseudo_palette[PALETTE_NR];
-	unsigned long saved_ch_regs[NR_CH_REGS];
-	struct fb_info *info;
-	dma_addr_t dma_handle;
-	struct fb_deferred_io defio;
-	struct scatterlist *sglist;
-	unsigned long frame_end;
-	unsigned long pan_offset;
-	wait_queue_head_t frame_end_wait;
-	struct completion vsync_completion;
-};
 
 struct sh_mobile_lcdc_priv {
 	void __iomem *base;
@@ -589,8 +564,10 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->display_on)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
 			board_cfg->display_on(board_cfg->board_data, ch->info);
+			module_put(board_cfg->owner);
+		}
 	}
 
 	return 0;
@@ -622,8 +599,10 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->display_off)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
 			board_cfg->display_off(board_cfg->board_data);
+			module_put(board_cfg->owner);
+		}
 	}
 
 	/* stop the lcdc */
@@ -954,6 +933,7 @@ static const struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
 	.runtime_resume = sh_mobile_lcdc_runtime_resume,
 };
 
+/* locking: called with info->lock held */
 static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 				 unsigned long action, void *data)
 {
@@ -971,16 +951,20 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 
 	switch(action) {
 	case FB_EVENT_SUSPEND:
-		if (board_cfg->display_off)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
 			board_cfg->display_off(board_cfg->board_data);
+			module_put(board_cfg->owner);
+		}
 		pm_runtime_put(info->device);
 		break;
 	case FB_EVENT_RESUME:
 		var = &info->var;
 
 		/* HDMI must be enabled before LCDC configuration */
-		if (board_cfg->display_on)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
 			board_cfg->display_on(board_cfg->board_data, ch->info);
+			module_put(board_cfg->owner);
+		}
 
 		/* Check if the new display is not in our modelist */
 		if (ch->info->modelist.next &&
