@@ -2,6 +2,11 @@
 #define _ARM_HW_BREAKPOINT_H
 
 #ifdef __KERNEL__
+
+struct task_struct;
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+
 struct arch_hw_breakpoint_ctrl {
 		u32 __reserved	: 9,
 		mismatch	: 1,
@@ -102,7 +107,6 @@ static inline void decode_ctrl_reg(u32 reg,
 struct notifier_block;
 struct perf_event;
 struct pmu;
-struct task_struct;
 
 extern struct pmu perf_ops_bp;
 extern int arch_bp_generic_fields(struct arch_hw_breakpoint_ctrl ctrl,
@@ -111,13 +115,19 @@ extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
 extern int arch_validate_hwbkpt_settings(struct perf_event *bp);
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 					   unsigned long val, void *data);
+
 extern u8 arch_get_debug_arch(void);
 extern u8 arch_get_max_wp_len(void);
+extern void clear_ptrace_hw_breakpoint(struct task_struct *tsk);
 
 int arch_install_hw_breakpoint(struct perf_event *bp);
 void arch_uninstall_hw_breakpoint(struct perf_event *bp);
 void hw_breakpoint_pmu_read(struct perf_event *bp);
 int hw_breakpoint_slots(int type);
 
+#else
+static inline void clear_ptrace_hw_breakpoint(struct task_struct *tsk) {}
+
+#endif	/* CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* __KERNEL__ */
 #endif	/* _ARM_HW_BREAKPOINT_H */
