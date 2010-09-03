@@ -33,7 +33,13 @@
 #include "dc_reg.h"
 #include "dc_priv.h"
 #include "hdmi_reg.h"
+#include "hdmi.h"
 #include "edid.h"
+
+/* datasheet claims this will always be 216MHz */
+#define HDMI_AUDIOCLK_FREQ		216000000
+
+#define HDMI_REKEY_DEFAULT		56
 
 struct tegra_dc_hdmi_data {
 	struct tegra_dc			*dc;
@@ -121,6 +127,71 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
+
+struct tegra_hdmi_audio_config {
+	unsigned pix_clock;
+	unsigned n;
+	unsigned cts;
+};
+
+const struct tegra_hdmi_audio_config tegra_hdmi_audio_32k[] = {
+	{25200000,	4096,	25250},
+	{27000000,	4096,	27000},
+	{54000000,	4096,	54000},
+	{74250000,	4096,	74250},
+	{148500000,	4096,	148500},
+	{0,		0,	0},
+};
+
+const struct tegra_hdmi_audio_config tegra_hdmi_audio_44_1k[] = {
+	{25200000,	14112,	63125},
+	{27000000,	6272,	30000},
+	{54000000,	6272,	60000},
+	{74250000,	6272,	82500},
+	{148500000,	6272,	165000},
+	{0,		0,	0},
+};
+
+const struct tegra_hdmi_audio_config tegra_hdmi_audio_48k[] = {
+	{25200000,	6144,	25250},
+	{27000000,	6144,	27000},
+	{54000000,	6144,	54000},
+	{74250000,	6144,	74250},
+	{148500000,	6144,	148500},
+	{0,		0,	0},
+};
+
+static const struct tegra_hdmi_audio_config
+*tegra_hdmi_get_audio_config(unsigned audio_freq, unsigned pix_clock)
+{
+	const struct tegra_hdmi_audio_config *table;
+
+	switch (audio_freq) {
+	case 32000:
+		table = tegra_hdmi_audio_32k;
+		break;
+
+	case 44100:
+		table = tegra_hdmi_audio_44_1k;
+		break;
+
+	case 48000:
+		table = tegra_hdmi_audio_48k;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	while (table->pix_clock) {
+		if (table->pix_clock == pix_clock)
+			return table;
+		table++;
+	}
+
+	return NULL;
+}
+
 
 static inline unsigned long tegra_hdmi_readl(struct tegra_dc_hdmi_data *hdmi,
 					     unsigned long reg)
@@ -279,13 +350,13 @@ static void hdmi_dumpregs(struct tegra_dc_hdmi_data *hdmi)
 	DUMP_REG(HDMI_NV_PDISP_AUDIO_DEBUG0);
 	DUMP_REG(HDMI_NV_PDISP_AUDIO_DEBUG1);
 	DUMP_REG(HDMI_NV_PDISP_AUDIO_DEBUG2);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS1);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS2);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS3);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS4);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS5);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS6);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS7);
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(0));
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(1));
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(2));
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(3));
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(4));
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(5));
+	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(6));
 	DUMP_REG(HDMI_NV_PDISP_AUDIO_PULSE_WIDTH);
 	DUMP_REG(HDMI_NV_PDISP_AUDIO_THRESHOLD);
 	DUMP_REG(HDMI_NV_PDISP_AUDIO_CNTRL0);
@@ -495,6 +566,217 @@ static void tegra_dc_hdmi_destroy(struct tegra_dc *dc)
 
 }
 
+static void tegra_dc_hdmi_setup_audio_fs_tables(struct tegra_dc *dc)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	int i;
+	unsigned freqs[] = {
+		32000,
+		44100,
+		48000,
+		88200,
+		96000,
+		176400,
+		192000,
+        };
+
+	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
+		unsigned f = freqs[i];
+		unsigned eight_half;
+		unsigned delta;;
+
+		if (f > 96000)
+			delta = 2;
+		else if (f > 48000)
+			delta = 6;
+		else
+			delta = 9;
+
+		eight_half = (8 * HDMI_AUDIOCLK_FREQ) / (f * 128);
+		tegra_hdmi_writel(hdmi, AUDIO_FS_LOW(eight_half - delta) |
+				  AUDIO_FS_HIGH(eight_half + delta),
+				  HDMI_NV_PDISP_AUDIO_FS(i));
+	}
+}
+
+static int tegra_dc_hdmi_setup_audio(struct tegra_dc *dc)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	const struct tegra_hdmi_audio_config *config;
+	unsigned long audio_n;
+	unsigned audio_freq = 44100; /* TODO: find some way of configuring this */
+
+	tegra_hdmi_writel(hdmi,
+			  AUDIO_CNTRL0_ERROR_TOLERANCE(9) |
+			  AUDIO_CNTRL0_FRAMES_PER_BLOCK(0xc0) |
+			  AUDIO_CNTRL0_SOURCE_SELECT_AUTO,
+			  HDMI_NV_PDISP_AUDIO_CNTRL0);
+
+	config = tegra_hdmi_get_audio_config(audio_freq, dc->mode.pclk);
+	if (!config) {
+		dev_err(&dc->ndev->dev,
+			"hdmi: can't set audio to %d at %d pix_clock",
+			audio_freq, dc->mode.pclk);
+		return -EINVAL;
+	}
+
+	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_HDMI_ACR_CTRL);
+
+	audio_n = AUDIO_N_RESETF | AUDIO_N_GENERATE_ALTERNALTE |
+		AUDIO_N_VALUE(config->n);
+	tegra_hdmi_writel(hdmi, audio_n, HDMI_NV_PDISP_AUDIO_N);
+
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_N(config->n) | ACR_ENABLE,
+			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW);
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config->n),
+			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH);
+
+	tegra_hdmi_writel(hdmi, SPARE_HW_CTS | SPARE_FORCE_SW_CTS |
+			  SPARE_CTS_RESET_VAL(1),
+			  HDMI_NV_PDISP_HDMI_SPARE);
+
+	audio_n &= ~AUDIO_N_RESETF;
+	tegra_hdmi_writel(hdmi, audio_n, HDMI_NV_PDISP_AUDIO_N);
+
+	tegra_dc_hdmi_setup_audio_fs_tables(dc);
+
+	return 0;
+}
+
+static void tegra_dc_hdmi_write_infopack(struct tegra_dc *dc, int header_reg,
+					 u8 type, u8 version, void *data, int len)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	u32 subpack[2];  /* extra byte for zero padding of subpack */
+	int i;
+	u8 csum;
+
+	/* first byte of data is the checksum */
+	csum = type + version + len - 1;
+	for (i = 1; i < len; i++)
+		csum +=((u8 *)data)[i];
+	((u8 *)data)[0] = 0x100 - csum;
+
+	tegra_hdmi_writel(hdmi, INFOFRAME_HEADER_TYPE(type) |
+			  INFOFRAME_HEADER_VERSION(version) |
+			  INFOFRAME_HEADER_LEN(len - 1),
+			  header_reg);
+
+	/* The audio inforame only has one set of subpack registers.  The hdmi
+	 * block pads the rest of the data as per the spec so we have to fixup
+	 * the length before filling in the subpacks.
+	 */
+	if (header_reg == HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER)
+		len = 6;
+
+	/* each subpack 7 bytes devided into:
+	 *   subpack_low - bytes 0 - 3
+	 *   subpack_high - bytes 4 - 6 (with byte 7 padded to 0x00)
+	 */
+	for (i = 0; i < len; i++) {
+		int subpack_idx = i % 7;
+
+		if (subpack_idx == 0)
+			memset(subpack, 0x0, sizeof(subpack));
+
+		((u8 *)subpack)[subpack_idx] = ((u8 *)data)[i];
+
+		if (subpack_idx == 6 || (i + 1 == len)) {
+			int reg = header_reg + 1 + (i / 7) * 2;
+
+			tegra_hdmi_writel(hdmi, subpack[0], reg);
+			tegra_hdmi_writel(hdmi, subpack[1], reg + 1);
+		}
+	}
+}
+
+static void tegra_dc_hdmi_setup_avi_infoframe(struct tegra_dc *dc, bool dvi)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	struct hdmi_avi_infoframe avi;
+
+	if (dvi) {
+		tegra_hdmi_writel(hdmi, 0x0,
+				  HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
+		return;
+	}
+
+	memset(&avi, 0x0, sizeof(avi));
+
+	avi.r = HDMI_AVI_R_SAME;
+
+	if (dc->mode.v_active == 480) {
+		if (dc->mode.h_active == 640) {
+			avi.m = HDMI_AVI_M_4_3;
+			avi.vic = 1;
+		} else {
+			avi.m = HDMI_AVI_M_16_9;
+			avi.vic = 3;
+		}
+	} else if (dc->mode.v_active == 576) {
+		/* CEC modes 17 and 18 differ only by the pysical size of the
+		 * screen so we have to calculation the physical aspect
+		 * ratio.  4 * 10 / 3  is 13
+		 */
+		if ((dc->out->h_size * 10) / dc->out->v_size > 14) {
+			avi.m = HDMI_AVI_M_16_9;
+			avi.vic = 18;
+		} else {
+			avi.m = HDMI_AVI_M_16_9;
+			avi.vic = 17;
+		}
+	} else if (dc->mode.v_active == 720) {
+		avi.m = HDMI_AVI_M_16_9;
+		if (dc->mode.h_front_porch == 110)
+			avi.vic = 4; /* 60 Hz */
+		else
+			avi.vic = 19; /* 50 Hz */
+	} else if (dc->mode.v_active == 720) {
+		avi.m = HDMI_AVI_M_16_9;
+		if (dc->mode.h_front_porch == 88)
+			avi.vic = 16; /* 60 Hz */
+		else if (dc->mode.h_front_porch == 528)
+			avi.vic = 31; /* 50 Hz */
+		else
+			avi.vic = 32; /* 24 Hz */
+	} else {
+		avi.m = HDMI_AVI_M_16_9;
+		avi.vic = 0;
+	}
+
+
+	tegra_dc_hdmi_write_infopack(dc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_HEADER,
+				     HDMI_INFOFRAME_TYPE_AVI,
+				     HDMI_AVI_VERSION,
+				     &avi, sizeof(avi));
+
+	tegra_hdmi_writel(hdmi, INFOFRAME_CTRL_ENABLE,
+			  HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
+}
+
+static void tegra_dc_hdmi_setup_audio_infoframe(struct tegra_dc *dc, bool dvi)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	struct hdmi_audio_infoframe audio;
+
+	if (dvi) {
+		tegra_hdmi_writel(hdmi, 0x0,
+				  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
+		return;
+	}
+
+	memset(&audio, 0x0, sizeof(audio));
+
+	audio.cc = HDMI_AUDIO_CC_2;
+	tegra_dc_hdmi_write_infopack(dc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER,
+				     HDMI_INFOFRAME_TYPE_AUDIO,
+				     HDMI_AUDIO_VERSION,
+				     &audio, sizeof(audio));
+
+	tegra_hdmi_writel(hdmi, INFOFRAME_CTRL_ENABLE,
+			  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
+}
+
 static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 {
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
@@ -504,7 +786,10 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	int pll1;
 	int ds;
 	int retries;
+	int rekey;
+	int err;
 	unsigned long val;
+	bool dvi = false;
 
 	/* enbale power, clocks, resets, etc. */
 	tegra_dc_setup_clk(dc, hdmi->clk);
@@ -544,8 +829,6 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 			  VSYNC_WINDOW_ENABLE,
 			  HDMI_NV_PDISP_HDMI_VSYNC_WINDOW);
 
-	/* TODO: scale output to 16-235 */
-
 	tegra_hdmi_writel(hdmi,
 			  (dc->ndev->id ? HDMI_SRC_DISPLAYB : HDMI_SRC_DISPLAYA) |
 			  ARM_VIDEO_RANGE_LIMITED,
@@ -559,30 +842,30 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 
 	/* TODO: setup audio */
 
-	/* values from harmony board.  Will be replaced when
-	 * audio and avi are supported */
-	tegra_hdmi_writel(hdmi, 0x00000001, 0x1e);
-	tegra_hdmi_writel(hdmi, 0x00000000, 0x20);
-	tegra_hdmi_writel(hdmi, 0x000000aa, 0x21);
-	tegra_hdmi_writel(hdmi, 0x00000001, 0x23);
-	tegra_hdmi_writel(hdmi, 0x00000001, 0x24);
-	tegra_hdmi_writel(hdmi, 0x00000000, 0x25);
-	tegra_hdmi_writel(hdmi, 0x000445eb, 0x26);
-	tegra_hdmi_writel(hdmi, 0x00000004, 0x27);
-	tegra_hdmi_writel(hdmi, 0x00002710, 0x2a);
-	tegra_hdmi_writel(hdmi, 0x00000000, 0x35);
-	tegra_hdmi_writel(hdmi, 0x0015bc10, 0x38);
-	tegra_hdmi_writel(hdmi, 0x04c4bb58, 0x39);
-	tegra_hdmi_writel(hdmi, 0x0263b9b6, 0x44);
-	tegra_hdmi_writel(hdmi, 0x00002713, 0x4f);
-	tegra_hdmi_writel(hdmi, 0x01e85426, 0x57);
-	tegra_hdmi_writel(hdmi, 0x001136c2, 0x89);
-	tegra_hdmi_writel(hdmi, 0x00000730, 0x8a);
-	tegra_hdmi_writel(hdmi, 0x0001875b, 0x8c);
-	tegra_hdmi_writel(hdmi, 0x00000000, 0x9d);
+	err = tegra_dc_hdmi_setup_audio(dc);
+	if (err < 0)
+		dvi = true;
 
-	tegra_hdmi_writel(hdmi, 0x40090038, HDMI_NV_PDISP_HDMI_CTRL);
-	tegra_hdmi_writel(hdmi, 0x0, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+	rekey = HDMI_REKEY_DEFAULT;
+	val = HDMI_CTRL_REKEY(rekey);
+	val |= HDMI_CTRL_MAX_AC_PACKET((dc->mode.h_sync_width +
+					dc->mode.h_back_porch +
+					dc->mode.h_front_porch -
+					rekey - 18) / 32);
+	if (!dvi)
+		val |= HDMI_CTRL_ENABLE;
+	tegra_hdmi_writel(hdmi, val, HDMI_NV_PDISP_HDMI_CTRL);
+
+	if (dvi)
+		tegra_hdmi_writel(hdmi, 0x0,
+				  HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+	else
+		tegra_hdmi_writel(hdmi, GENERIC_CTRL_AUDIO,
+				  HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+
+
+	tegra_dc_hdmi_setup_avi_infoframe(dc, dvi);
+	tegra_dc_hdmi_setup_audio_infoframe(dc, dvi);
 
 	/* TMDS CONFIG */
 	pll0 = 0x200033f;

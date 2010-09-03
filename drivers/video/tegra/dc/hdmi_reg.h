@@ -88,7 +88,21 @@
 #define HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_HIGH		0x27
 #define HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_LOW		0x28
 #define HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_HIGH		0x29
+#define  INFOFRAME_CTRL_ENABLE			(1 << 0)
+#define  INFOFRAME_CTRL_OTHER			(1 << 4)
+#define  INFOFRAME_CTRL_SINGLE			(1 << 8)
+
+#define INFOFRAME_HEADER_TYPE(x)		((x) & 0xff)
+#define INFOFRAME_HEADER_VERSION(x)		(((x) & 0xff) << 8)
+#define INFOFRAME_HEADER_LEN(x)			(((x) & 0xf) << 16)
+
 #define HDMI_NV_PDISP_HDMI_GENERIC_CTRL				0x2a
+#define  GENERIC_CTRL_ENABLE			(1 << 0)
+#define  GENERIC_CTRL_OTHER			(1 << 4)
+#define  GENERIC_CTRL_SINGLE			(1 << 8)
+#define  GENERIC_CTRL_HBLANK			(1 << 12)
+#define  GENERIC_CTRL_AUDIO			(1 << 16)
+
 #define HDMI_NV_PDISP_HDMI_GENERIC_STATUS			0x2b
 #define HDMI_NV_PDISP_HDMI_GENERIC_HEADER			0x2c
 #define HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK0_LOW			0x2d
@@ -114,6 +128,17 @@
 #define HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_HIGH		0x41
 #define HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_LOW			0x42
 #define HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_HIGH		0x43
+#define  ACR_SB3(x)				(((x) & 0xff) << 8)
+#define  ACR_SB2(x)				(((x) & 0xff) << 16)
+#define  ACR_SB1(x)				(((x) & 0xff) << 24)
+#define  ACR_SUBPACK_CTS(x)			(((x) & 0xffffff) << 8)
+
+#define  ACR_SB6(x)				(((x) & 0xff) << 0)
+#define  ACR_SB5(x)				(((x) & 0xff) << 8)
+#define  ACR_SB4(x)				(((x) & 0xff) << 16)
+#define  ACR_ENABLE				(1 << 31)
+#define  ACR_SUBPACK_N(x)			((x) & 0xffffff)
+
 #define HDMI_NV_PDISP_HDMI_CTRL					0x44
 #define  HDMI_CTRL_REKEY(x)			(((x) & 0x7f) << 0)
 #define  HDMI_CTRL_AUDIO_LAYOUT			(1 << 8)
@@ -136,6 +161,12 @@
 #define HDMI_NV_PDISP_HDMI_EMU1					0x4d
 #define HDMI_NV_PDISP_HDMI_EMU1_RDATA				0x4e
 #define HDMI_NV_PDISP_HDMI_SPARE				0x4f
+#define  SPARE_HW_CTS				(1 << 0)
+#define  SPARE_FORCE_SW_CTS			(1 << 1)
+#define  SPARE_CTS_RESET_VAL(x)			(((x) & 0x7) << 16)
+#define  SPARE_ACR_PRIORITY_HIGH		(0 << 31)
+#define  SPARE_ACR_PRIORITY_LOW			(1 << 31)
+
 #define HDMI_NV_PDISP_HDMI_SPDIF_CHN_STATUS1			0x50
 #define HDMI_NV_PDISP_HDMI_SPDIF_CHN_STATUS2			0x51
 #define HDMI_NV_PDISP_HDCPRIF_ROM_CTRL				0x53
@@ -334,17 +365,38 @@
 #define HDMI_NV_PDISP_AUDIO_DEBUG0				0x7f
 #define HDMI_NV_PDISP_AUDIO_DEBUG1				0x80
 #define HDMI_NV_PDISP_AUDIO_DEBUG2				0x81
-#define HDMI_NV_PDISP_AUDIO_FS1					0x82
-#define HDMI_NV_PDISP_AUDIO_FS2					0x83
-#define HDMI_NV_PDISP_AUDIO_FS3					0x84
-#define HDMI_NV_PDISP_AUDIO_FS4					0x85
-#define HDMI_NV_PDISP_AUDIO_FS5					0x86
-#define HDMI_NV_PDISP_AUDIO_FS6					0x87
-#define HDMI_NV_PDISP_AUDIO_FS7					0x88
+/* note: datasheet defines FS1..FS7.  we have FS(0)..FS(6) */
+#define HDMI_NV_PDISP_AUDIO_FS(x)				(0x82 + (x))
+#define  AUDIO_FS_LOW(x)			(((x) & 0xfff) << 0)
+#define  AUDIO_FS_HIGH(x)			(((x) & 0xfff) << 16)
+
+
 #define HDMI_NV_PDISP_AUDIO_PULSE_WIDTH				0x89
 #define HDMI_NV_PDISP_AUDIO_THRESHOLD				0x8a
 #define HDMI_NV_PDISP_AUDIO_CNTRL0				0x8b
+#define  AUDIO_CNTRL0_ERROR_TOLERANCE(x)	(((x) & 0xff) << 0)
+#define  AUDIO_CNTRL0_SOFT_RESET		(1 << 8)
+#define  AUDIO_CNTRL0_SOFT_RESET_ALL		(1 << 12)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_UNKNOWN	(1 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_32K		(2 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_44_1K	(0 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_48K		(2 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_88_2K	(8 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_96K		(10 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_176_4K	(12 << 16)
+#define  AUDIO_CNTRL0_SAMPLING_FREQ_192K	(14 << 16)
+#define  AUDIO_CNTRL0_SOURCE_SELECT_AUTO	(0 << 20)
+#define  AUDIO_CNTRL0_SOURCE_SELECT_SPDIF	(1 << 20)
+#define  AUDIO_CNTRL0_SOURCE_SELECT_HDAL	(2 << 20)
+#define  AUDIO_CNTRL0_FRAMES_PER_BLOCK(x)	(((x) & 0xff) << 24)
+
 #define HDMI_NV_PDISP_AUDIO_N					0x8c
+#define  AUDIO_N_VALUE(x)			(((x) & 0xfffff) << 0)
+#define  AUDIO_N_RESETF				(1 << 20)
+#define  AUDIO_N_GENERATE_NORMAL		(0 << 24)
+#define  AUDIO_N_GENERATE_ALTERNALTE		(1 << 24)
+#define  AUDIO_N_LOOKUP_ENABLE			(1 << 28)
+
 #define HDMI_NV_PDISP_HDCPRIF_ROM_TIMING			0x94
 #define HDMI_NV_PDISP_SOR_REFCLK				0x95
 #define  SOR_REFCLK_DIV_INT(x)			(((x) & 0xff) << 8)
