@@ -171,7 +171,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 	if (code == ABS_MT_SLOT) {
 		/*
 		 * "Stage" the event; we'll flush it later, when we
-		 * get actiual touch data.
+		 * get actual touch data.
 		 */
 		if (*pval >= 0 && *pval < dev->mtsize)
 			dev->slot = *pval;
@@ -188,7 +188,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 		pold = &mtslot->abs[code - ABS_MT_FIRST];
 	} else {
 		/*
-		 * Bypass filtering for multitouch events when
+		 * Bypass filtering for multi-touch events when
 		 * not employing slots.
 		 */
 		pold = NULL;
@@ -1601,7 +1601,7 @@ EXPORT_SYMBOL(input_free_device);
  *
  * This function allocates all necessary memory for MT slot handling in the
  * input device, and adds ABS_MT_SLOT to the device capabilities. All slots
- * are initially marked as unused iby setting ABS_MT_TRACKING_ID to -1.
+ * are initially marked as unused by setting ABS_MT_TRACKING_ID to -1.
  */
 int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
 {
