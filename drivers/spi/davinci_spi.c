@@ -482,12 +482,32 @@ static int davinci_spi_setup(struct spi_device *spi)
 	int retval;
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
+	struct davinci_spi_platform_data *pdata;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
+	pdata = davinci_spi->pdata;
 
 	/* if bits per word length is zero then set it default 8 */
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
+
+	if (!(spi->mode & SPI_NO_CS)) {
+		if ((pdata->chip_sel == NULL) ||
+		    (pdata->chip_sel[spi->chip_select] == SPI_INTERN_CS))
+			set_io_bits(davinci_spi->base + SPIPC0,
+					1 << spi->chip_select);
+
+	}
+
+	if (spi->mode & SPI_READY)
+		set_io_bits(davinci_spi->base + SPIPC0, SPIPC0_SPIENA_MASK);
+
+	if (spi->mode & SPI_LOOP)
+		set_io_bits(davinci_spi->base + SPIGCR1,
+				SPIGCR1_LOOPBACK_MASK);
+	else
+		clear_io_bits(davinci_spi->base + SPIGCR1,
+				SPIGCR1_LOOPBACK_MASK);
 
 	if (use_dma && davinci_spi->dma_channels) {
 		davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
@@ -521,40 +541,6 @@ static void davinci_spi_cleanup(struct spi_device *spi)
 			edma_free_channel(davinci_spi_dma->dma_rx_channel);
 		}
 	}
-}
-
-static int davinci_spi_bufs_prep(struct spi_device *spi,
-				 struct davinci_spi *davinci_spi)
-{
-	struct davinci_spi_platform_data *pdata;
-	int op_mode = 0;
-
-	/*
-	 * REVISIT  unless devices disagree about SPI_LOOP or
-	 * SPI_READY (SPI_NO_CS only allows one device!), this
-	 * should not need to be done before each message...
-	 * optimize for both flags staying cleared.
-	 */
-
-	if (!(spi->mode & SPI_NO_CS)) {
-		pdata = davinci_spi->pdata;
-		if (!pdata->chip_sel ||
-		     pdata->chip_sel[spi->chip_select] == SPI_INTERN_CS)
-			op_mode |= 1 << spi->chip_select;
-	}
-	if (spi->mode & SPI_READY)
-		op_mode |= SPIPC0_SPIENA_MASK;
-
-	iowrite32(op_mode, davinci_spi->base + SPIPC0);
-
-	if (spi->mode & SPI_LOOP)
-		set_io_bits(davinci_spi->base + SPIGCR1,
-				SPIGCR1_LOOPBACK_MASK);
-	else
-		clear_io_bits(davinci_spi->base + SPIGCR1,
-				SPIGCR1_LOOPBACK_MASK);
-
-	return 0;
 }
 
 static int davinci_spi_check_error(struct davinci_spi *davinci_spi,
@@ -664,10 +650,6 @@ static int davinci_spi_bufs_pio(struct spi_device *spi, struct spi_transfer *t)
 				davinci_spi->bytes_per_word[spi->chip_select];
 	davinci_spi->rcount = davinci_spi->wcount;
 
-	ret = davinci_spi_bufs_prep(spi, davinci_spi);
-	if (ret)
-		return ret;
-
 	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
 	/* Enable SPI */
@@ -768,10 +750,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 
 	init_completion(&davinci_spi_dma->dma_rx_completion);
 	init_completion(&davinci_spi_dma->dma_tx_completion);
-
-	ret = davinci_spi_bufs_prep(spi, davinci_spi);
-	if (ret)
-		return ret;
 
 	count = t->len / data_type;	/* the number of elements */
 
@@ -1026,7 +1004,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	udelay(100);
 	iowrite32(1, davinci_spi->base + SPIGCR0);
 
-	/* Set up SPIPC0.  CS and ENA init is done in davinci_spi_bufs_prep */
+	/* Set up SPIPC0.  CS and ENA init is done in davinci_spi_setup */
 	spipc0 = SPIPC0_DIFUN_MASK | SPIPC0_DOFUN_MASK | SPIPC0_CLKFUN_MASK;
 	iowrite32(spipc0, davinci_spi->base + SPIPC0);
 
