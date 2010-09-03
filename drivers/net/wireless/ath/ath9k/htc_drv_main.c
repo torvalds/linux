@@ -137,8 +137,6 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	if (priv->op_flags & OP_FULL_RESET)
 		fastcc = false;
 
-	/* Fiddle around with fastcc later on, for now just use full reset */
-	fastcc = false;
 	ath9k_htc_ps_wakeup(priv);
 	htc_stop(priv->htc);
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -146,9 +144,10 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 
 	ath_print(common, ATH_DBG_CONFIG,
-		  "(%u MHz) -> (%u MHz), HT: %d, HT40: %d\n",
+		  "(%u MHz) -> (%u MHz), HT: %d, HT40: %d fastcc: %d\n",
 		  priv->ah->curchan->channel,
-		  channel->center_freq, conf_is_ht(conf), conf_is_ht40(conf));
+		  channel->center_freq, conf_is_ht(conf), conf_is_ht40(conf),
+		  fastcc);
 
 	caldata = &priv->caldata[channel->hw_value];
 	ret = ath9k_hw_reset(ah, hchan, caldata, fastcc);
