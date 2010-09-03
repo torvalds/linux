@@ -338,7 +338,7 @@ config KEYBOARD_OPENCORES
 
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
-	depends on PXA27x || PXA3xx
+	depends on PXA27x || PXA3xx || ARCH_MMP
 	help
 	  Enable support for PXA27x/PXA3xx keypad controller.
 
