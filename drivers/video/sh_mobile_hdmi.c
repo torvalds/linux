@@ -557,10 +557,9 @@ static void sh_hdmi_configure(struct sh_hdmi *hdmi)
 
 static void sh_hdmi_read_edid(struct sh_hdmi *hdmi)
 {
-	struct fb_var_screeninfo *var = &hdmi->var;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
-	struct fb_videomode *lcd_cfg = &pdata->lcd_chan->lcd_cfg;
-	unsigned long height = var->height, width = var->width;
+	struct fb_var_screeninfo tmpvar;
+	/* TODO: When we are ready to use EDID, use this to fill &hdmi->var */
+	struct fb_var_screeninfo *var = &tmpvar;
 	int i;
 	u8 edid[128];
 
@@ -585,22 +584,6 @@ static void sh_hdmi_read_edid(struct sh_hdmi *hdmi)
 		 var->left_margin, var->xres, var->right_margin, var->hsync_len,
 		 var->upper_margin, var->yres, var->lower_margin, var->vsync_len,
 		 PICOS2KHZ(var->pixclock));
-
-	/* FIXME: Use user-provided configuration instead of EDID */
-	var->width		= width;
-	var->xres		= lcd_cfg->xres;
-	var->xres_virtual	= lcd_cfg->xres;
-	var->left_margin	= lcd_cfg->left_margin;
-	var->right_margin	= lcd_cfg->right_margin;
-	var->hsync_len		= lcd_cfg->hsync_len;
-	var->height		= height;
-	var->yres		= lcd_cfg->yres;
-	var->yres_virtual	= lcd_cfg->yres * 2;
-	var->upper_margin	= lcd_cfg->upper_margin;
-	var->lower_margin	= lcd_cfg->lower_margin;
-	var->vsync_len		= lcd_cfg->vsync_len;
-	var->sync		= lcd_cfg->sync;
-	var->pixclock		= lcd_cfg->pixclock;
 
 	hdmi_external_video_param(hdmi);
 }
