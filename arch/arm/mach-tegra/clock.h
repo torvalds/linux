@@ -86,6 +86,7 @@ struct clk_ops {
 	int		(*set_parent)(struct clk *, struct clk *);
 	int		(*set_rate)(struct clk *, unsigned long);
 	long		(*round_rate)(struct clk *, unsigned long);
+	void		(*reset)(struct clk *, bool);
 };
 
 enum clk_state {
