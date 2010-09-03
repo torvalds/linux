@@ -70,7 +70,8 @@ struct sh_mobile_lcdc_chan_cfg {
 	int interface_type; /* selects RGBn or SYSn I/F, see above */
 	int clock_divider;
 	unsigned long flags; /* LCDC_FLAGS_... */
-	struct fb_videomode lcd_cfg;
+	const struct fb_videomode *lcd_cfg;
+	int num_cfg;
 	struct sh_mobile_lcdc_lcd_size_cfg lcd_size_cfg;
 	struct sh_mobile_lcdc_board_cfg board_cfg;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */

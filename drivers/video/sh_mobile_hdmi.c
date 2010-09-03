@@ -777,7 +777,8 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto egetclk;
 	}
 
-	rate = PICOS2KHZ(pdata->lcd_chan->lcd_cfg.pixclock) * 1000;
+	/* TODO: reconfigure the clock on monitor plug in */
+	rate = PICOS2KHZ(pdata->lcd_chan->lcd_cfg[0].pixclock) * 1000;
 
 	rate = clk_round_rate(hdmi->hdmi_clk, rate);
 	if (rate < 0) {

@@ -989,8 +989,8 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			int ret;
 
 			/* Can we handle this display? */
-			if (var->xres > ch->cfg.lcd_cfg.xres ||
-			    var->yres > ch->cfg.lcd_cfg.yres)
+			if (var->xres > ch->cfg.lcd_cfg[0].xres ||
+			    var->yres > ch->cfg.lcd_cfg[0].yres)
 				return -ENOMEM;
 
 			/* Add to the modelist */
@@ -1115,7 +1115,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 		info = ch->info;
 		var = &info->var;
-		lcd_cfg = &cfg->lcd_cfg;
+		lcd_cfg = &cfg->lcd_cfg[0];
 		info->fbops = &sh_mobile_lcdc_ops;
 		fb_videomode_to_var(var, lcd_cfg);
 		/* Default Y virtual resolution is 2x panel size */
@@ -1187,8 +1187,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			 pdev->name,
 			 (ch->cfg.chan == LCDC_CHAN_MAINLCD) ?
 			 "mainlcd" : "sublcd",
-			 (int) ch->cfg.lcd_cfg.xres,
-			 (int) ch->cfg.lcd_cfg.yres,
+			 (int) ch->cfg.lcd_cfg[0].xres,
+			 (int) ch->cfg.lcd_cfg[0].yres,
 			 ch->cfg.bpp);
 
 		/* deferred io mode: disable clock to save power */

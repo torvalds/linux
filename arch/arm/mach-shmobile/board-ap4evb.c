@@ -375,10 +375,40 @@ static struct platform_device usb1_host_device = {
 	.resource	= usb1_host_resources,
 };
 
+const static struct fb_videomode ap4evb_lcdc_modes[] = {
+	{
+#ifdef CONFIG_AP4EVB_QHD
+		.name		= "R63302(QHD)",
+		.xres		= 544,
+		.yres		= 961,
+		.left_margin	= 72,
+		.right_margin	= 600,
+		.hsync_len	= 16,
+		.upper_margin	= 8,
+		.lower_margin	= 8,
+		.vsync_len	= 2,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+#else
+		.name		= "WVGA Panel",
+		.xres		= 800,
+		.yres		= 480,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 70,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+		.sync		= 0,
+#endif
+	},
+};
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
 		.bpp = 16,
+		.lcd_cfg = ap4evb_lcdc_modes,
+		.num_cfg = ARRAY_SIZE(ap4evb_lcdc_modes),
 	}
 };
 
@@ -569,6 +599,31 @@ static struct platform_device fsi_device = {
 	},
 };
 
+const static struct fb_videomode ap4evb_hdmi_modes[] = {
+	{
+		.name = "HDMI 720p",
+		.xres = 1280,
+		.yres = 720,
+
+		/*
+		 * If left and right margins are not multiples of 8,
+		 * LDHAJR will be adjusted accordingly by the LCDC
+		 * driver. Until we start using EDID, these values
+		 * might have to be adjusted for different monitors.
+		 */
+		.left_margin = 200,
+		.right_margin = 88,
+		.hsync_len = 48,
+
+		.upper_margin = 20,
+		.lower_margin = 5,
+		.vsync_len = 5,
+
+		.pixclock = 13468,
+		.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+	},
+};
+
 static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
@@ -577,26 +632,8 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info = {
 		.interface_type = RGB24,
 		.clock_divider = 1,
 		.flags = LCDC_FLAGS_DWPOL,
-		.lcd_cfg = {
-			.name = "HDMI",
-			/* So far only 720p is supported */
-			.xres = 1280,
-			.yres = 720,
-			/*
-			 * If left and right margins are not multiples of 8,
-			 * LDHAJR will be adjusted accordingly by the LCDC
-			 * driver. Until we start using EDID, these values
-			 * might have to be adjusted for different monitors.
-			 */
-			.left_margin = 200,
-			.right_margin = 88,
-			.hsync_len = 48,
-			.upper_margin = 20,
-			.lower_margin = 5,
-			.vsync_len = 5,
-			.pixclock = 13468,
-			.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
-		},
+		.lcd_cfg = ap4evb_hdmi_modes,
+		.num_cfg = ARRAY_SIZE(ap4evb_hdmi_modes),
 	}
 };
 
@@ -960,17 +997,6 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].interface_type		= RGB24;
 	lcdc_info.ch[0].clock_divider		= 1;
 	lcdc_info.ch[0].flags			= LCDC_FLAGS_DWPOL;
-	lcdc_info.ch[0].lcd_cfg.name		= "R63302(QHD)";
-	lcdc_info.ch[0].lcd_cfg.xres		= 544;
-	lcdc_info.ch[0].lcd_cfg.yres		= 961;
-	lcdc_info.ch[0].lcd_cfg.left_margin	= 72;
-	lcdc_info.ch[0].lcd_cfg.right_margin	= 600;
-	lcdc_info.ch[0].lcd_cfg.hsync_len	= 16;
-	lcdc_info.ch[0].lcd_cfg.upper_margin	= 8;
-	lcdc_info.ch[0].lcd_cfg.lower_margin	= 8;
-	lcdc_info.ch[0].lcd_cfg.vsync_len	= 2;
-	lcdc_info.ch[0].lcd_cfg.sync		= FB_SYNC_VERT_HIGH_ACT |
-						  FB_SYNC_HOR_HIGH_ACT;
 	lcdc_info.ch[0].lcd_size_cfg.width	= 44;
 	lcdc_info.ch[0].lcd_size_cfg.height	= 79;
 
@@ -1013,16 +1039,6 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].interface_type		= RGB18;
 	lcdc_info.ch[0].clock_divider		= 2;
 	lcdc_info.ch[0].flags			= 0;
-	lcdc_info.ch[0].lcd_cfg.name		= "WVGA Panel";
-	lcdc_info.ch[0].lcd_cfg.xres		= 800;
-	lcdc_info.ch[0].lcd_cfg.yres		= 480;
-	lcdc_info.ch[0].lcd_cfg.left_margin	= 220;
-	lcdc_info.ch[0].lcd_cfg.right_margin	= 110;
-	lcdc_info.ch[0].lcd_cfg.hsync_len	= 70;
-	lcdc_info.ch[0].lcd_cfg.upper_margin	= 20;
-	lcdc_info.ch[0].lcd_cfg.lower_margin	= 5;
-	lcdc_info.ch[0].lcd_cfg.vsync_len	= 5;
-	lcdc_info.ch[0].lcd_cfg.sync		= 0;
 	lcdc_info.ch[0].lcd_size_cfg.width	= 152;
 	lcdc_info.ch[0].lcd_size_cfg.height	= 91;
 
