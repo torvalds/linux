@@ -613,8 +613,7 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 }
 
 /*
- * tipc_nametbl_translate(): Translate tipc_name -> tipc_portid.
- *                      Very time-critical.
+ * tipc_nametbl_translate - translate name to port id
  *
  * Note: on entry 'destnode' is the search domain used during translation;
  *       on exit it passes back the node address of the matching port (if any)
@@ -685,7 +684,6 @@ found:
 	}
 	spin_unlock_bh(&seq->lock);
 not_found:
-	*destnode = 0;
 	read_unlock_bh(&tipc_nametbl_lock);
 	return 0;
 }

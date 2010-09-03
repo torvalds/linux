@@ -1464,7 +1464,7 @@ int tipc_forward2name(u32 ref,
 	msg_set_destnode(msg, destnode);
 	msg_set_destport(msg, destport);
 
-	if (likely(destport || destnode)) {
+	if (likely(destport)) {
 		p_ptr->sent++;
 		if (likely(destnode == tipc_own_addr))
 			return tipc_port_recv_sections(p_ptr, num_sect, msg_sect);
@@ -1542,7 +1542,7 @@ int tipc_forward_buf2name(u32 ref,
 	skb_push(buf, LONG_H_SIZE);
 	skb_copy_to_linear_data(buf, msg, LONG_H_SIZE);
 	msg_dbg(buf_msg(buf),"PREP:");
-	if (likely(destport || destnode)) {
+	if (likely(destport)) {
 		p_ptr->sent++;
 		if (destnode == tipc_own_addr)
 			return tipc_port_recv_msg(buf);
