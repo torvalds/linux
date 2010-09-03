@@ -173,13 +173,12 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 
 	switch (altsd->bInterfaceProtocol) {
 	case UAC_VERSION_1:
+	default:
 		return init_pitch_v1(chip, iface, alts, fmt);
 
 	case UAC_VERSION_2:
 		return init_pitch_v2(chip, iface, alts, fmt);
 	}
-
-	return -EINVAL;
 }
 
 /*

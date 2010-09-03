@@ -275,6 +275,12 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 
 		/* get audio formats */
 		switch (protocol) {
+		default:
+			snd_printdd(KERN_WARNING "%d:%u:%d: unknown interface protocol %#02x, assuming v1\n",
+				    dev->devnum, iface_no, altno, protocol);
+			protocol = UAC_VERSION_1;
+			/* fall through */
+
 		case UAC_VERSION_1: {
 			struct uac1_as_header_descriptor *as =
 				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
@@ -336,11 +342,6 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 				   dev->devnum, iface_no, altno, as->bTerminalLink);
 			continue;
 		}
-
-		default:
-			snd_printk(KERN_ERR "%d:%u:%d : unknown interface protocol %04x\n",
-				   dev->devnum, iface_no, altno, protocol);
-			continue;
 		}
 
 		/* get format type */

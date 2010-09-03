@@ -216,6 +216,11 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 	}
 
 	switch (protocol) {
+	default:
+		snd_printdd(KERN_WARNING "unknown interface protocol %#02x, assuming v1\n",
+			    protocol);
+		/* fall through */
+
 	case UAC_VERSION_1: {
 		struct uac1_ac_header_descriptor *h1 = control_header;
 
@@ -253,10 +258,6 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 
 		break;
 	}
-
-	default:
-		snd_printk(KERN_ERR "unknown protocol version 0x%02x\n", protocol);
-		return -EINVAL;
 	}
 
 	return 0;
