@@ -3307,13 +3307,15 @@ qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			}
 			qla2xxx_wake_dpc(vha);
+			ha->flags.fw_hung = 1;
 			if (ha->flags.mbox_busy) {
-				ha->flags.fw_hung = 1;
 				ha->flags.mbox_int = 1;
 				DEBUG2(qla_printk(KERN_ERR, ha,
-				    "Due to fw hung, doing premature "
-				    "completion of mbx command\n"));
-				complete(&ha->mbx_intr_comp);
+					"Due to fw hung, doing premature "
+					"completion of mbx command\n"));
+				if (test_bit(MBX_INTR_WAIT,
+					&ha->mbx_cmd_flags))
+					complete(&ha->mbx_intr_comp);
 			}
 		}
 	} else
@@ -3419,13 +3421,15 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 				"%s(): Adapter reset needed!\n", __func__);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
+			ha->flags.fw_hung = 1;
 			if (ha->flags.mbox_busy) {
-				ha->flags.fw_hung = 1;
 				ha->flags.mbox_int = 1;
 				DEBUG2(qla_printk(KERN_ERR, ha,
-				    "Need reset, doing premature "
-				    "completion of mbx command\n"));
-				complete(&ha->mbx_intr_comp);
+					"Need reset, doing premature "
+					"completion of mbx command\n"));
+				if (test_bit(MBX_INTR_WAIT,
+					&ha->mbx_cmd_flags))
+					complete(&ha->mbx_intr_comp);
 			}
 		} else {
 			qla82xx_check_fw_alive(vha);
