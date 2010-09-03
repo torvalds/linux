@@ -720,6 +720,16 @@ static int __init parse_tag_powerup_reason(const struct tag *tag)
 }
 __tagtable(ATAG_POWERUP_REASON, parse_tag_powerup_reason);
 
+#define BOOT_MODE_MAX_LEN 30
+static char boot_mode[BOOT_MODE_MAX_LEN + 1];
+int __init board_boot_mode_init(char *s)
+{
+	strncpy(boot_mode, s, BOOT_MODE_MAX_LEN);
+	boot_mode[BOOT_MODE_MAX_LEN] = '\0';
+	printk(KERN_INFO "boot_mode=%s\n", boot_mode);
+}
+__setup("androidboot.mode=", board_boot_mode_init);
+
 #define SERIAL_NUMBER_LENGTH 16
 static char usb_serial_num[SERIAL_NUMBER_LENGTH + 1];
 static int __init mot_usb_serial_num_setup(char *options)
@@ -759,7 +769,7 @@ static void stingray_usb_init(void)
 	platform_device_register(&rndis_device);
 #endif
 
-	if (powerup_reason & PU_REASON_FACTORY_CABLE)
+	if (!strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN))
 	{
 		platform_data = &andusb_plat_factory;
 		platform_device_register(&usbnet_device);
