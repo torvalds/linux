@@ -1246,7 +1246,6 @@ static int ns83820_get_settings(struct net_device *ndev,
 {
 	struct ns83820 *dev = PRIV(ndev);
 	u32 cfg, tanar, tbicr;
-	int have_optical = 0;
 	int fullduplex   = 0;
 
 	/*
@@ -1267,15 +1266,7 @@ static int ns83820_get_settings(struct net_device *ndev,
 	tanar = readl(dev->base + TANAR);
 	tbicr = readl(dev->base + TBICR);
 
-	if (dev->CFG_cache & CFG_TBI_EN) {
-		/* we have an optical interface */
-		have_optical = 1;
-		fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
-
-	} else {
-		/* We have copper */
-		fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
-        }
+	fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
 
 	cmd->supported = SUPPORTED_Autoneg;
 
