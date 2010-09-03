@@ -441,19 +441,6 @@ void do_ide_request(struct request_queue *q)
 	struct request	*rq = NULL;
 	ide_startstop_t	startstop;
 
-	/*
-	 * drive is doing pre-flush, ordered write, post-flush sequence. even
-	 * though that is 3 requests, it must be seen as a single transaction.
-	 * we must not preempt this drive until that is complete
-	 */
-	if (blk_queue_flushing(q))
-		/*
-		 * small race where queue could get replugged during
-		 * the 3-request flush cycle, just yank the plug since
-		 * we want it to finish asap
-		 */
-		blk_remove_plug(q);
-
 	spin_unlock_irq(q->queue_lock);
 
 	/* HLD do_request() callback might sleep, make sure it's okay */
