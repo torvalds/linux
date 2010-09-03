@@ -1750,26 +1750,7 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	return 1;
 }
 
-static inline bool be_detect_ue(struct be_adapter *adapter)
-{
-	u32 online0 = 0, online1 = 0;
-
-	pci_read_config_dword(adapter->pdev, PCICFG_ONLINE0, &online0);
-
-	pci_read_config_dword(adapter->pdev, PCICFG_ONLINE1, &online1);
-
-	if (!online0 || !online1) {
-		adapter->ue_detected = true;
-		dev_err(&adapter->pdev->dev,
-			"UE Detected!! online0=%d online1=%d\n",
-			online0, online1);
-		return true;
-	}
-
-	return false;
-}
-
-void be_dump_ue(struct be_adapter *adapter)
+void be_detect_dump_ue(struct be_adapter *adapter)
 {
 	u32 ue_status_lo, ue_status_hi, ue_status_lo_mask, ue_status_hi_mask;
 	u32 i;
@@ -1785,6 +1766,11 @@ void be_dump_ue(struct be_adapter *adapter)
 
 	ue_status_lo = (ue_status_lo & (~ue_status_lo_mask));
 	ue_status_hi = (ue_status_hi & (~ue_status_hi_mask));
+
+	if (ue_status_lo || ue_status_hi) {
+		adapter->ue_detected = true;
+		dev_err(&adapter->pdev->dev, "UE Detected!!\n");
+	}
 
 	if (ue_status_lo) {
 		for (i = 0; ue_status_lo; ue_status_lo >>= 1, i++) {
@@ -1821,10 +1807,8 @@ static void be_worker(struct work_struct *work)
 		adapter->rx_post_starved = false;
 		be_post_rx_frags(adapter);
 	}
-	if (!adapter->ue_detected) {
-		if (be_detect_ue(adapter))
-			be_dump_ue(adapter);
-	}
+	if (!adapter->ue_detected)
+		be_detect_dump_ue(adapter);
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
