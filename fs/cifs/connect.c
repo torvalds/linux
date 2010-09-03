@@ -463,7 +463,8 @@ incomplete_rcv:
 			 * is since we do not begin with RFC1001 session
 			 * initialize frame)
 			 */
-			server->addr.sockAddr.sin_port = htons(CIFS_PORT);
+			cifs_set_port((struct sockaddr *)
+					&server->addr.sockAddr, CIFS_PORT);
 			cifs_reconnect(server);
 			csocket = server->ssocket;
 			wake_up(&server->response_q);

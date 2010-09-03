@@ -206,24 +206,28 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 }
 
 int
+cifs_set_port(struct sockaddr *addr, const unsigned short int port)
+{
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)addr)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)addr)->sin6_port = htons(port);
+		break;
+	default:
+		return 0;
+	}
+	return 1;
+}
+
+int
 cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
 		   const unsigned short int port)
 {
 	if (!cifs_convert_address(dst, src, len))
 		return 0;
-
-	switch (dst->sa_family) {
-	case AF_INET:
-		((struct sockaddr_in *)dst)->sin_port = htons(port);
-		break;
-	case AF_INET6:
-		((struct sockaddr_in6 *)dst)->sin6_port = htons(port);
-		break;
-	default:
-		return 0;
-	}
-
-	return 1;
+	return cifs_set_port(dst, port);
 }
 
 /*****************************************************************************
