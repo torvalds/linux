@@ -725,7 +725,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum)
 {
 	long long uninitialized_var(ec);
-	int err, bitflips = 0, vol_id, ec_corr = 0;
+	int err, bitflips = 0, vol_id, ec_err = 0;
 
 	dbg_bld("scan PEB %d", pnum);
 
@@ -756,12 +756,12 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		 * corrupted. Set %bitflips flag in order to make this PEB be
 		 * moved and EC be re-created.
 		 */
-		ec_corr = err;
+		ec_err = err;
 		ec = UBI_SCAN_UNKNOWN_EC;
 		bitflips = 1;
 	}
 
-	if (!ec_corr) {
+	if (!ec_err) {
 		int image_seq;
 
 		/* Make sure UBI version is OK */
@@ -817,10 +817,10 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
 	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR ||
-		 (err == UBI_IO_FF && ec_corr) || err == UBI_IO_FF_BITFLIPS) {
+		 (err == UBI_IO_FF && ec_err) || err == UBI_IO_FF_BITFLIPS) {
 		/* VID header is corrupted */
 		if (err == UBI_IO_BAD_HDR_EBADMSG ||
-		    ec_corr == UBI_IO_BAD_HDR_EBADMSG)
+		    ec_err == UBI_IO_BAD_HDR_EBADMSG)
 			si->read_err_count += 1;
 		err = add_to_list(si, pnum, ec, &si->corr);
 		if (err)
@@ -870,7 +870,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		}
 	}
 
-	if (ec_corr)
+	if (ec_err)
 		ubi_warn("valid VID header but corrupted EC header at PEB %d",
 			 pnum);
 	err = ubi_scan_add_used(ubi, si, pnum, ec, vidh, bitflips);
@@ -878,7 +878,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		return err;
 
 adjust_mean_ec:
-	if (!ec_corr) {
+	if (!ec_err) {
 		si->ec_sum += ec;
 		si->ec_count += 1;
 		if (ec > si->max_ec)
