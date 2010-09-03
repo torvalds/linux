@@ -379,7 +379,7 @@ struct regulator_consumer_supply cpcap_sw5_consumers[] = {
 };
 
 struct regulator_consumer_supply cpcap_vcam_consumers[] = {
-	REGULATOR_CONSUMER("vcam", NULL /* cpcap_cam_device */),
+	REGULATOR_CONSUMER("vcc", "2-000c" /* focuser */),
 };
 
 struct regulator_consumer_supply cpcap_vhvio_consumers[] = {
