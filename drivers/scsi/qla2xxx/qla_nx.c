@@ -3316,7 +3316,8 @@ qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 				complete(&ha->mbx_intr_comp);
 			}
 		}
-	}
+	} else
+		vha->seconds_since_last_heartbeat = 0;
 	vha->fw_heartbeat_counter = fw_heartbeat_counter;
 }
 
