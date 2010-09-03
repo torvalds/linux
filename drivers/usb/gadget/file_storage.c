@@ -89,6 +89,7 @@
  *				Required if "removable" is not set, names of
  *					the files or block devices used for
  *					backing storage
+ *	serial=HHHH...		Required serial number (string of hex chars)
  *	ro=b[,b...]		Default false, booleans for read-only access
  *	removable		Default false, boolean for removable media
  *	luns=N			Default N = number of filenames, number of
@@ -108,12 +109,11 @@
  *	vendor=0xVVVV		Default 0x0525 (NetChip), USB Vendor ID
  *	product=0xPPPP		Default 0xa4a5 (FSG), USB Product ID
  *	release=0xRRRR		Override the USB release number (bcdDevice)
- *	serial=HHHH...		Override serial number (string of hex chars)
  *	buflen=N		Default N=16384, buffer size used (will be
  *					rounded down to a multiple of
  *					PAGE_CACHE_SIZE)
  *
- * If CONFIG_USB_FILE_STORAGE_TEST is not set, only the "file", "ro",
+ * If CONFIG_USB_FILE_STORAGE_TEST is not set, only the "file", "serial", "ro",
  * "removable", "luns", "nofua", "stall", and "cdrom" options are available;
  * default values are used for everything else.
  *
@@ -273,13 +273,10 @@
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
 #define DRIVER_NAME		"g_file_storage"
-/* DRIVER_VERSION must be at least 6 characters long, as it is used
- * to generate a fallback serial number. */
-#define DRIVER_VERSION		"20 November 2008"
+#define DRIVER_VERSION		"1 September 2010"
 
 static       char fsg_string_manufacturer[64];
 static const char fsg_string_product[] = DRIVER_DESC;
-static       char fsg_string_serial[13];
 static const char fsg_string_config[] = "Self-powered";
 static const char fsg_string_interface[] = "Mass Storage";
 
@@ -305,6 +302,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static struct {
 	char		*file[FSG_MAX_LUNS];
+	char		*serial;
 	int		ro[FSG_MAX_LUNS];
 	int		nofua[FSG_MAX_LUNS];
 	unsigned int	num_filenames;
@@ -321,7 +319,6 @@ static struct {
 	unsigned short	vendor;
 	unsigned short	product;
 	unsigned short	release;
-	char		*serial;
 	unsigned int	buflen;
 
 	int		transport_type;
@@ -346,6 +343,9 @@ module_param_array_named(file, mod_data.file, charp, &mod_data.num_filenames,
 		S_IRUGO);
 MODULE_PARM_DESC(file, "names of backing files or devices");
 
+module_param_named(serial, mod_data.serial, charp, S_IRUGO);
+MODULE_PARM_DESC(serial, "USB serial number");
+
 module_param_array_named(ro, mod_data.ro, bool, &mod_data.num_ros, S_IRUGO);
 MODULE_PARM_DESC(ro, "true to force read-only");
 
@@ -364,9 +364,6 @@ MODULE_PARM_DESC(stall, "false to prevent bulk stalls");
 
 module_param_named(cdrom, mod_data.cdrom, bool, S_IRUGO);
 MODULE_PARM_DESC(cdrom, "true to emulate cdrom instead of disk");
-
-module_param_named(serial, mod_data.serial, charp, S_IRUGO);
-MODULE_PARM_DESC(serial, "USB serial number");
 
 /* In the non-TEST version, only the module parameters listed above
  * are available. */
@@ -3214,7 +3211,6 @@ static int __init check_parameters(struct fsg_dev *fsg)
 {
 	int	prot;
 	int	gcnum;
-	int	i;
 
 	/* Store the default values */
 	mod_data.transport_type = USB_PR_BULK;
@@ -3310,38 +3306,22 @@ static int __init check_parameters(struct fsg_dev *fsg)
 			if ((*ch < '0' || *ch > '9') &&
 			    (*ch < 'A' || *ch > 'F')) { /* not uppercase hex */
 				WARNING(fsg,
-					"Invalid serial string character: %c; "
-					"Failing back to default\n",
+					"Invalid serial string character: %c\n",
 					*ch);
-				goto fill_serial;
+				goto no_serial;
 			}
 		}
 		if (len > 126 ||
 		    (mod_data.transport_type == USB_PR_BULK && len < 12) ||
 		    (mod_data.transport_type != USB_PR_BULK && len > 12)) {
-			WARNING(fsg,
-				"Invalid serial string length; "
-				"Failing back to default\n");
-			goto fill_serial;
+			WARNING(fsg, "Invalid serial string length!\n");
+			goto no_serial;
 		}
 		fsg_strings[FSG_STRING_SERIAL - 1].s = mod_data.serial;
 	} else {
-		WARNING(fsg,
-			"Userspace failed to provide serial number; "
-			"Failing back to default\n");
-fill_serial:
-		/* Serial number not specified or invalid, make our own.
-		 * We just encode it from the driver version string,
-		 * 12 characters to comply with both CB[I] and BBB spec.
-		 * Warning : Two devices running the same kernel will have
-		 * the same fallback serial number. */
-		for (i = 0; i < 12; i += 2) {
-			unsigned char	c = DRIVER_VERSION[i / 2];
-
-			if (!c)
-				break;
-			sprintf(&fsg_string_serial[i], "%02X", c);
-		}
+		WARNING(fsg, "No serial-number string provided!\n");
+ no_serial:
+		device_desc.iSerialNumber = 0;
 	}
 
 	return 0;
