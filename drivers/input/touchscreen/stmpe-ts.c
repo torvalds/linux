@@ -361,7 +361,6 @@ static int __devexit stmpe_ts_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	input_unregister_device(ts->idev);
-	input_free_device(ts->idev);
 
 	kfree(ts);
 
