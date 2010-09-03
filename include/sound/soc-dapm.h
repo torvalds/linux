@@ -172,9 +172,19 @@
 #define SND_SOC_DAPM_AIF_IN(wname, stname, wslot, wreg, wshift, winvert) \
 {	.id = snd_soc_dapm_aif_in, .name = wname, .sname = stname, \
 	.reg = wreg, .shift = wshift, .invert = winvert }
+#define SND_SOC_DAPM_AIF_IN_E(wname, stname, wslot, wreg, wshift, winvert, \
+			      wevent, wflags)				\
+{	.id = snd_soc_dapm_aif_in, .name = wname, .sname = stname, \
+	.reg = wreg, .shift = wshift, .invert = winvert, \
+	.event = wevent, .event_flags = wflags }
 #define SND_SOC_DAPM_AIF_OUT(wname, stname, wslot, wreg, wshift, winvert) \
 {	.id = snd_soc_dapm_aif_out, .name = wname, .sname = stname, \
 	.reg = wreg, .shift = wshift, .invert = winvert }
+#define SND_SOC_DAPM_AIF_OUT_E(wname, stname, wslot, wreg, wshift, winvert, \
+			     wevent, wflags)				\
+{	.id = snd_soc_dapm_aif_out, .name = wname, .sname = stname, \
+	.reg = wreg, .shift = wshift, .invert = winvert, \
+	.event = wevent, .event_flags = wflags }
 #define SND_SOC_DAPM_DAC(wname, stname, wreg, wshift, winvert) \
 {	.id = snd_soc_dapm_dac, .name = wname, .sname = stname, .reg = wreg, \
 	.shift = wshift, .invert = winvert}
