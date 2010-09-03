@@ -1184,7 +1184,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_clk;
 
-	dev_info(&pdev->dev, "Controller at 0x%p \n", davinci_spi->base);
+	dev_info(&pdev->dev, "Controller at 0x%p\n", davinci_spi->base);
 
 	if (!pdata->poll_mode)
 		dev_info(&pdev->dev, "Operating in interrupt mode"
