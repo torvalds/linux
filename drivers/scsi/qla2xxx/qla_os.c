@@ -2136,8 +2136,16 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		base_vha->mgmt_svr_loop_id = MANAGEMENT_SERVER +
 						base_vha->vp_idx;
-	if (IS_QLA2100(ha))
-		host->sg_tablesize = 32;
+
+	/* Set the SG table size based on ISP type */
+	if (!IS_FWI2_CAPABLE(ha)) {
+		if (IS_QLA2100(ha))
+			host->sg_tablesize = 32;
+	} else {
+		if (!IS_QLA82XX(ha))
+			host->sg_tablesize = QLA_SG_ALL;
+	}
+
 	host->max_id = max_id;
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
