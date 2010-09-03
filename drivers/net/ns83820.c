@@ -1298,7 +1298,8 @@ static int ns83820_get_settings(struct net_device *ndev,
 		cmd->speed = SPEED_10;
 		break;
 	}
-	cmd->autoneg = (tbicr & TBICR_MR_AN_ENABLE) ? 1: 0;
+	cmd->autoneg = (tbicr & TBICR_MR_AN_ENABLE)
+		? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	return 0;
 }
 
