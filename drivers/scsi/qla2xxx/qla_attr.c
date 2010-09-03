@@ -1685,14 +1685,14 @@ static void
 qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
-	u64 node_name;
+	uint8_t node_name[WWN_SIZE] = { 0xFF, 0xFF, 0xFF, 0xFF, \
+		0xFF, 0xFF, 0xFF, 0xFF};
+	u64 fabric_name = wwn_to_u64(node_name);
 
 	if (vha->device_flags & SWITCH_FOUND)
-		node_name = wwn_to_u64(vha->fabric_node_name);
-	else
-		node_name = wwn_to_u64(vha->node_name);
+		fabric_name = wwn_to_u64(vha->fabric_node_name);
 
-	fc_host_fabric_name(shost) = node_name;
+	fc_host_fabric_name(shost) = fabric_name;
 }
 
 static void
