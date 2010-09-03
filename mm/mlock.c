@@ -135,6 +135,19 @@ void munlock_vma_page(struct page *page)
 	}
 }
 
+/* Is the vma a continuation of the stack vma above it? */
+static inline int vma_stack_continue(struct vm_area_struct *vma, unsigned long addr)
+{
+	return vma && (vma->vm_end == addr) && (vma->vm_flags & VM_GROWSDOWN);
+}
+
+static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
+{
+	return (vma->vm_flags & VM_GROWSDOWN) &&
+		(vma->vm_start == addr) &&
+		!vma_stack_continue(vma->vm_prev, addr);
+}
+
 /**
  * __mlock_vma_pages_range() -  mlock a range of pages in the vma.
  * @vma:   target vma
@@ -168,11 +181,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		gup_flags |= FOLL_WRITE;
 
 	/* We don't try to access the guard page of a stack vma */
-	if (vma->vm_flags & VM_GROWSDOWN) {
-		if (start == vma->vm_start) {
-			start += PAGE_SIZE;
-			nr_pages--;
-		}
+	if (stack_guard_page(vma, start)) {
+		addr += PAGE_SIZE;
+		nr_pages--;
 	}
 
 	while (nr_pages > 0) {

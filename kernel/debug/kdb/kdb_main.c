@@ -1929,7 +1929,7 @@ static int kdb_sr(int argc, const char **argv)
 	if (argc != 1)
 		return KDB_ARGCOUNT;
 	kdb_trap_printk++;
-	__handle_sysrq(*argv[1], NULL, 0);
+	__handle_sysrq(*argv[1], false);
 	kdb_trap_printk--;
 
 	return 0;

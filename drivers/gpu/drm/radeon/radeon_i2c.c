@@ -99,6 +99,13 @@ static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 		}
 	}
 
+	/* switch the pads to ddc mode */
+	if (ASIC_IS_DCE3(rdev) && rec->hw_capable) {
+		temp = RREG32(rec->mask_clk_reg);
+		temp &= ~(1 << 16);
+		WREG32(rec->mask_clk_reg, temp);
+	}
+
 	/* clear the output pin values */
 	temp = RREG32(rec->a_clk_reg) & ~rec->a_clk_mask;
 	WREG32(rec->a_clk_reg, temp);

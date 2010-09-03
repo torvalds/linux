@@ -467,6 +467,9 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		}
 	}
 
+	if (error->overlay)
+		intel_overlay_print_error_state(m, error->overlay);
+
 out:
 	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
 

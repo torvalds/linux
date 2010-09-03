@@ -35,6 +35,9 @@
 #include <linux/lockdep.h>
 #include <linux/idr.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/workqueue.h>
+
 #include "workqueue_sched.h"
 
 enum {
@@ -1790,7 +1793,13 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	work_clear_pending(work);
 	lock_map_acquire(&cwq->wq->lockdep_map);
 	lock_map_acquire(&lockdep_map);
+	trace_workqueue_execute_start(work);
 	f(work);
+	/*
+	 * While we must be careful to not use "work" after this, the trace
+	 * point will only record its address.
+	 */
+	trace_workqueue_execute_end(work);
 	lock_map_release(&lockdep_map);
 	lock_map_release(&cwq->wq->lockdep_map);
 

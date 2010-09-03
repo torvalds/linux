@@ -2629,8 +2629,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			aux-ide-disks -- unplug non-primary-master IDE devices
 			nics -- unplug network devices
 			all -- unplug all emulated devices (NICs and IDE disks)
-			ignore -- continue loading the Xen platform PCI driver even
-				if the version check failed
+			unnecessary -- unplugging emulated devices is
+				unnecessary even if the host did not respond to
+				the unplug protocol
+			never -- do not unplug even if version check succeeds
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:

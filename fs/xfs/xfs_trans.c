@@ -1167,7 +1167,7 @@ xfs_trans_del_item(
  * Unlock all of the items of a transaction and free all the descriptors
  * of that transaction.
  */
-STATIC void
+void
 xfs_trans_free_items(
 	struct xfs_trans	*tp,
 	xfs_lsn_t		commit_lsn,
@@ -1653,9 +1653,6 @@ xfs_trans_commit_cil(
 		return error;
 
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
-
-	/* xfs_trans_free_items() unlocks them first */
-	xfs_trans_free_items(tp, *commit_lsn, 0);
 	xfs_trans_free(tp);
 	return 0;
 }

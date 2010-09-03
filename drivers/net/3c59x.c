@@ -633,7 +633,8 @@ struct vortex_private {
 		open:1,
 		medialock:1,
 		must_free_region:1,				/* Flag: if zero, Cardbus owns the I/O region */
-		large_frames:1;			/* accept large frames */
+		large_frames:1,			/* accept large frames */
+		handling_irq:1;			/* private in_irq indicator */
 	int drv_flags;
 	u16 status_enable;
 	u16 intr_enable;
@@ -2133,6 +2134,15 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			   dev->name, vp->cur_tx);
 	}
 
+	/*
+	 * We can't allow a recursion from our interrupt handler back into the
+	 * tx routine, as they take the same spin lock, and that causes
+	 * deadlock.  Just return NETDEV_TX_BUSY and let the stack try again in
+	 * a bit
+	 */
+	if (vp->handling_irq)
+		return NETDEV_TX_BUSY;
+
 	if (vp->cur_tx - vp->dirty_tx >= TX_RING_SIZE) {
 		if (vortex_debug > 0)
 			pr_warning("%s: BUG! Tx Ring full, refusing to send buffer.\n",
@@ -2335,11 +2345,13 @@ boomerang_interrupt(int irq, void *dev_id)
 
 	ioaddr = vp->ioaddr;
 
+
 	/*
 	 * It seems dopey to put the spinlock this early, but we could race against vortex_tx_timeout
 	 * and boomerang_start_xmit
 	 */
 	spin_lock(&vp->lock);
+	vp->handling_irq = 1;
 
 	status = ioread16(ioaddr + EL3_STATUS);
 
@@ -2447,6 +2459,7 @@ boomerang_interrupt(int irq, void *dev_id)
 		pr_debug("%s: exiting interrupt, status %4.4x.\n",
 			   dev->name, status);
 handler_exit:
+	vp->handling_irq = 0;
 	spin_unlock(&vp->lock);
 	return IRQ_HANDLED;
 }

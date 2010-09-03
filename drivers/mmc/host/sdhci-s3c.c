@@ -242,7 +242,7 @@ static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
 {
 	struct sdhci_host *host = platform_get_drvdata(dev);
 	if (host) {
-		mutex_lock(&host->lock);
+		spin_lock(&host->lock);
 		if (state) {
 			dev_dbg(&dev->dev, "card inserted.\n");
 			host->flags &= ~SDHCI_DEVICE_DEAD;
@@ -252,8 +252,8 @@ static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
 			host->flags |= SDHCI_DEVICE_DEAD;
 			host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 		}
-		sdhci_card_detect(host);
-		mutex_unlock(&host->lock);
+		tasklet_schedule(&host->card_tasklet);
+		spin_unlock(&host->lock);
 	}
 }
 

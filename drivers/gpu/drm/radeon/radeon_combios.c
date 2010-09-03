@@ -39,8 +39,8 @@
 
 /* from radeon_encoder.c */
 extern uint32_t
-radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device,
-		      uint8_t dac);
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
+			uint8_t dac);
 extern void radeon_link_encoder_connector(struct drm_device *dev);
 
 /* from radeon_connector.c */
@@ -55,7 +55,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 
 /* from radeon_legacy_encoder.c */
 extern void
-radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id,
+radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			  uint32_t supported_device);
 
 /* old legacy ATI BIOS routines */
@@ -1505,7 +1505,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 			hpd.hpd = RADEON_HPD_NONE;
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_CRT1_SUPPORT,
 									1),
 						  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1520,7 +1520,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			ddc_i2c = combios_setup_i2c_bus(rdev, DDC_NONE_DETECTED, 0, 0);
 			hpd.hpd = RADEON_HPD_NONE;
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_LCD1_SUPPORT,
 									0),
 						  ATOM_DEVICE_LCD1_SUPPORT);
@@ -1535,7 +1535,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 			hpd.hpd = RADEON_HPD_NONE;
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_CRT1_SUPPORT,
 									1),
 						  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1550,12 +1550,12 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 			hpd.hpd = RADEON_HPD_1;
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_DFP1_SUPPORT,
 									0),
 						  ATOM_DEVICE_DFP1_SUPPORT);
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_CRT2_SUPPORT,
 									2),
 						  ATOM_DEVICE_CRT2_SUPPORT);
@@ -1571,7 +1571,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 			hpd.hpd = RADEON_HPD_NONE;
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_CRT1_SUPPORT,
 									1),
 						  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1588,7 +1588,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			ddc_i2c.valid = false;
 			hpd.hpd = RADEON_HPD_NONE;
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_TV1_SUPPORT,
 									2),
 						  ATOM_DEVICE_TV1_SUPPORT);
@@ -1607,7 +1607,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_LCD1_SUPPORT,
 								0),
 					  ATOM_DEVICE_LCD1_SUPPORT);
@@ -1619,7 +1619,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT2_SUPPORT,
 								2),
 					  ATOM_DEVICE_CRT2_SUPPORT);
@@ -1631,7 +1631,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1648,7 +1648,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_LCD1_SUPPORT,
 								0),
 					  ATOM_DEVICE_LCD1_SUPPORT);
@@ -1660,12 +1660,12 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 		hpd.hpd = RADEON_HPD_2; /* ??? */
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_DFP2_SUPPORT,
 								0),
 					  ATOM_DEVICE_DFP2_SUPPORT);
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT1_SUPPORT,
 								1),
 					  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1680,7 +1680,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1697,7 +1697,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_LCD1_SUPPORT,
 								0),
 					  ATOM_DEVICE_LCD1_SUPPORT);
@@ -1709,12 +1709,12 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 		hpd.hpd = RADEON_HPD_1; /* ??? */
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_DFP1_SUPPORT,
 								0),
 					  ATOM_DEVICE_DFP1_SUPPORT);
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT1_SUPPORT,
 								1),
 					  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1728,7 +1728,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1745,7 +1745,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_LCD1_SUPPORT,
 								0),
 					  ATOM_DEVICE_LCD1_SUPPORT);
@@ -1757,7 +1757,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT1_SUPPORT,
 								1),
 					  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1769,7 +1769,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1786,12 +1786,12 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		hpd.hpd = RADEON_HPD_2; /* ??? */
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_DFP2_SUPPORT,
 								0),
 					  ATOM_DEVICE_DFP2_SUPPORT);
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT2_SUPPORT,
 								2),
 					  ATOM_DEVICE_CRT2_SUPPORT);
@@ -1806,7 +1806,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1823,12 +1823,12 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		hpd.hpd = RADEON_HPD_1; /* ??? */
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_DFP1_SUPPORT,
 								0),
 					  ATOM_DEVICE_DFP1_SUPPORT);
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT2_SUPPORT,
 								2),
 					  ATOM_DEVICE_CRT2_SUPPORT);
@@ -1842,7 +1842,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1859,7 +1859,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 		hpd.hpd = RADEON_HPD_1; /* ??? */
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_DFP1_SUPPORT,
 								0),
 					  ATOM_DEVICE_DFP1_SUPPORT);
@@ -1871,7 +1871,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT2_SUPPORT,
 								2),
 					  ATOM_DEVICE_CRT2_SUPPORT);
@@ -1883,7 +1883,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1900,7 +1900,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT1_SUPPORT,
 								1),
 					  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1912,7 +1912,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT2_SUPPORT,
 								2),
 					  ATOM_DEVICE_CRT2_SUPPORT);
@@ -1924,7 +1924,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c.valid = false;
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_TV1_SUPPORT,
 								2),
 					  ATOM_DEVICE_TV1_SUPPORT);
@@ -1941,7 +1941,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT1_SUPPORT,
 								1),
 					  ATOM_DEVICE_CRT1_SUPPORT);
@@ -1952,7 +1952,7 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 		ddc_i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		hpd.hpd = RADEON_HPD_NONE;
 		radeon_add_legacy_encoder(dev,
-					  radeon_get_encoder_id(dev,
+					  radeon_get_encoder_enum(dev,
 								ATOM_DEVICE_CRT2_SUPPORT,
 								2),
 					  ATOM_DEVICE_CRT2_SUPPORT);
@@ -2109,7 +2109,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				else
 					devices = ATOM_DEVICE_DFP1_SUPPORT;
 				radeon_add_legacy_encoder(dev,
-							  radeon_get_encoder_id
+							  radeon_get_encoder_enum
 							  (dev, devices, 0),
 							  devices);
 				radeon_add_legacy_connector(dev, i, devices,
@@ -2123,7 +2123,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				if (tmp & 0x1) {
 					devices = ATOM_DEVICE_CRT2_SUPPORT;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_CRT2_SUPPORT,
 								   2),
@@ -2131,7 +2131,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				} else {
 					devices = ATOM_DEVICE_CRT1_SUPPORT;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_CRT1_SUPPORT,
 								   1),
@@ -2151,7 +2151,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				if (tmp & 0x1) {
 					devices |= ATOM_DEVICE_CRT2_SUPPORT;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_CRT2_SUPPORT,
 								   2),
@@ -2159,7 +2159,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				} else {
 					devices |= ATOM_DEVICE_CRT1_SUPPORT;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_CRT1_SUPPORT,
 								   1),
@@ -2168,7 +2168,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				if ((tmp >> 4) & 0x1) {
 					devices |= ATOM_DEVICE_DFP2_SUPPORT;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_DFP2_SUPPORT,
 								   0),
@@ -2177,7 +2177,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				} else {
 					devices |= ATOM_DEVICE_DFP1_SUPPORT;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_DFP1_SUPPORT,
 								   0),
@@ -2202,7 +2202,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					connector_object_id = CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I;
 				}
 				radeon_add_legacy_encoder(dev,
-							  radeon_get_encoder_id
+							  radeon_get_encoder_enum
 							  (dev, devices, 0),
 							  devices);
 				radeon_add_legacy_connector(dev, i, devices,
@@ -2215,7 +2215,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 			case CONNECTOR_CTV_LEGACY:
 			case CONNECTOR_STV_LEGACY:
 				radeon_add_legacy_encoder(dev,
-							  radeon_get_encoder_id
+							  radeon_get_encoder_enum
 							  (dev,
 							   ATOM_DEVICE_TV1_SUPPORT,
 							   2),
@@ -2242,12 +2242,12 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 			DRM_DEBUG_KMS("Found DFP table, assuming DVI connector\n");
 
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_CRT1_SUPPORT,
 									1),
 						  ATOM_DEVICE_CRT1_SUPPORT);
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_DFP1_SUPPORT,
 									0),
 						  ATOM_DEVICE_DFP1_SUPPORT);
@@ -2268,7 +2268,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 			DRM_DEBUG_KMS("Found CRT table, assuming VGA connector\n");
 			if (crt_info) {
 				radeon_add_legacy_encoder(dev,
-							  radeon_get_encoder_id(dev,
+							  radeon_get_encoder_enum(dev,
 										ATOM_DEVICE_CRT1_SUPPORT,
 										1),
 							  ATOM_DEVICE_CRT1_SUPPORT);
@@ -2297,7 +2297,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 						     COMBIOS_LCD_DDC_INFO_TABLE);
 
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									ATOM_DEVICE_LCD1_SUPPORT,
 									0),
 						  ATOM_DEVICE_LCD1_SUPPORT);
@@ -2351,7 +2351,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					hpd.hpd = RADEON_HPD_NONE;
 					ddc_i2c.valid = false;
 					radeon_add_legacy_encoder(dev,
-								  radeon_get_encoder_id
+								  radeon_get_encoder_enum
 								  (dev,
 								   ATOM_DEVICE_TV1_SUPPORT,
 								   2),

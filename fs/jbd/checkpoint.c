@@ -254,7 +254,9 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
 {
 	int i;
 
-	ll_rw_block(SWRITE, *batch_count, bhs);
+	for (i = 0; i < *batch_count; i++)
+		write_dirty_buffer(bhs[i], WRITE);
+
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = bhs[i];
 		clear_buffer_jwrite(bh);

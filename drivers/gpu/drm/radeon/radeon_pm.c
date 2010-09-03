@@ -226,6 +226,11 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 {
 	int i;
 
+	/* no need to take locks, etc. if nothing's going to change */
+	if ((rdev->pm.requested_clock_mode_index == rdev->pm.current_clock_mode_index) &&
+	    (rdev->pm.requested_power_state_index == rdev->pm.current_power_state_index))
+		return;
+
 	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->vram_mutex);
 	mutex_lock(&rdev->cp.mutex);
@@ -632,8 +637,6 @@ void radeon_pm_fini(struct radeon_device *rdev)
 	}
 
 	radeon_hwmon_fini(rdev);
-	if (rdev->pm.i2c_bus)
-		radeon_i2c_destroy(rdev->pm.i2c_bus);
 }
 
 void radeon_pm_compute_clocks(struct radeon_device *rdev)

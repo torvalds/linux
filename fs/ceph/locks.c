@@ -82,7 +82,8 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 		length = fl->fl_end - fl->fl_start + 1;
 
 	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
-				(u64)fl->fl_pid, (u64)fl->fl_nspid,
+				(u64)fl->fl_pid,
+				(u64)(unsigned long)fl->fl_nspid,
 				lock_cmd, fl->fl_start,
 				length, wait);
 	if (!err) {
@@ -92,7 +93,8 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 			/* undo! This should only happen if the kernel detects
 			 * local deadlock. */
 			ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
-					  (u64)fl->fl_pid, (u64)fl->fl_nspid,
+					  (u64)fl->fl_pid,
+					  (u64)(unsigned long)fl->fl_nspid,
 					  CEPH_LOCK_UNLOCK, fl->fl_start,
 					  length, 0);
 			dout("got %d on posix_lock_file, undid lock", err);
@@ -132,7 +134,8 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 		length = fl->fl_end - fl->fl_start + 1;
 
 	err = ceph_lock_message(CEPH_LOCK_FLOCK, CEPH_MDS_OP_SETFILELOCK,
-				file, (u64)fl->fl_pid, (u64)fl->fl_nspid,
+				file, (u64)fl->fl_pid,
+				(u64)(unsigned long)fl->fl_nspid,
 				lock_cmd, fl->fl_start,
 				length, wait);
 	if (!err) {
@@ -141,7 +144,7 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 			ceph_lock_message(CEPH_LOCK_FLOCK,
 					  CEPH_MDS_OP_SETFILELOCK,
 					  file, (u64)fl->fl_pid,
-					  (u64)fl->fl_nspid,
+					  (u64)(unsigned long)fl->fl_nspid,
 					  CEPH_LOCK_UNLOCK, fl->fl_start,
 					  length, 0);
 			dout("got %d on flock_lock_file_wait, undid lock", err);
@@ -235,7 +238,8 @@ int lock_to_ceph_filelock(struct file_lock *lock,
 	cephlock->length = cpu_to_le64(lock->fl_end - lock->fl_start + 1);
 	cephlock->client = cpu_to_le64(0);
 	cephlock->pid = cpu_to_le64(lock->fl_pid);
-	cephlock->pid_namespace = cpu_to_le64((u64)lock->fl_nspid);
+	cephlock->pid_namespace =
+	        cpu_to_le64((u64)(unsigned long)lock->fl_nspid);
 
 	switch (lock->fl_type) {
 	case F_RDLCK:

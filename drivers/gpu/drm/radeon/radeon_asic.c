@@ -733,6 +733,7 @@ static struct radeon_asic evergreen_asic = {
 	.set_engine_clock = &radeon_atom_set_engine_clock,
 	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
+	.get_pcie_lanes = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,

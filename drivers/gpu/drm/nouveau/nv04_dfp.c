@@ -444,6 +444,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct dcb_entry *dcbe = nv_encoder->dcb;
 	int head = nouveau_crtc(encoder->crtc)->index;
+	struct drm_encoder *slave_encoder;
 
 	if (dcbe->type == OUTPUT_TMDS)
 		run_tmds_table(dev, dcbe, head, nv_encoder->mode.clock);
@@ -462,15 +463,37 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
 
 	/* Init external transmitters */
-	if (get_tmds_slave(encoder))
-		get_slave_funcs(get_tmds_slave(encoder))->mode_set(
-			encoder, &nv_encoder->mode, &nv_encoder->mode);
+	slave_encoder = get_tmds_slave(encoder);
+	if (slave_encoder)
+		get_slave_funcs(slave_encoder)->mode_set(
+			slave_encoder, &nv_encoder->mode, &nv_encoder->mode);
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
 		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+}
+
+static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = encoder->dev;
+
+	/* BIOS scripts usually take care of the backlight, thanks
+	 * Apple for your consistency.
+	 */
+	if (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	    dev->pci_device == 0x0329) {
+		if (mode == DRM_MODE_DPMS_ON) {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 0, 1 << 31);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 1);
+		} else {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 0);
+		}
+	}
+#endif
 }
 
 static inline bool is_powersaving_dpms(int mode)
@@ -520,6 +543,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 					 LVDS_PANEL_OFF, 0);
 	}
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 
 	if (mode == DRM_MODE_DPMS_ON)
@@ -543,6 +567,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 	NV_INFO(dev, "Setting dpms mode %d on tmds encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 }
 

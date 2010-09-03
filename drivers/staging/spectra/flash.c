@@ -61,7 +61,6 @@ static void FTL_Cache_Read_Page(u8 *pData, u64 dwPageAddr,
 static void FTL_Cache_Write_Page(u8 *pData, u64 dwPageAddr,
 				 u8 cache_blk, u16 flag);
 static int FTL_Cache_Write(void);
-static int FTL_Cache_Write_Back(u8 *pData, u64 blk_addr);
 static void FTL_Calculate_LRU(void);
 static u32 FTL_Get_Block_Index(u32 wBlockNum);
 
@@ -85,8 +84,6 @@ static u32 FTL_Replace_LWBlock(u32 wBlockNum,
 static u32 FTL_Replace_MWBlock(void);
 static int FTL_Replace_Block(u64 blk_addr);
 static int FTL_Adjust_Relative_Erase_Count(u32 Index_of_MAX);
-
-static int FTL_Flash_Error_Handle(u8 *pData, u64 old_page_addr, u64 blk_addr);
 
 struct device_info_tag DeviceInfo;
 struct flash_cache_tag Cache;
@@ -775,7 +772,7 @@ static void dump_cache_l2_table(void)
 {
 	struct list_head *p;
 	struct spectra_l2_cache_list *pnd;
-	int n, i;
+	int n;
 
 	n = 0;
 	list_for_each(p, &cache_l2.table.list) {
@@ -1538,79 +1535,6 @@ static int FTL_Cache_Write_All(u8 *pData, u64 blk_addr)
 }
 
 /*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-* Function:     FTL_Cache_Update_Block
-* Inputs:       pointer to buffer,page address,block address
-* Outputs:      PASS=0 / FAIL=1
-* Description:  It updates the cache
-*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
-static int FTL_Cache_Update_Block(u8 *pData,
-			u64 old_page_addr, u64 blk_addr)
-{
-	int i, j;
-	u8 *buf = pData;
-	int wResult = PASS;
-	int wFoundInCache;
-	u64 page_addr;
-	u64 addr;
-	u64 old_blk_addr;
-	u16 page_offset;
-
-	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
-				__FILE__, __LINE__, __func__);
-
-	old_blk_addr = (u64)(old_page_addr >>
-		DeviceInfo.nBitsInBlockDataSize) * DeviceInfo.wBlockDataSize;
-	page_offset = (u16)(GLOB_u64_Remainder(old_page_addr, 2) >>
-		DeviceInfo.nBitsInPageDataSize);
-
-	for (i = 0; i < DeviceInfo.wPagesPerBlock; i += Cache.pages_per_item) {
-		page_addr = old_blk_addr + i * DeviceInfo.wPageDataSize;
-		if (i != page_offset) {
-			wFoundInCache = FAIL;
-			for (j = 0; j < CACHE_ITEM_NUM; j++) {
-				addr = Cache.array[j].address;
-				addr = FTL_Get_Physical_Block_Addr(addr) +
-					GLOB_u64_Remainder(addr, 2);
-				if ((addr >= page_addr) && addr <
-					(page_addr + Cache.cache_item_size)) {
-					wFoundInCache = PASS;
-					buf = Cache.array[j].buf;
-					Cache.array[j].changed = SET;
-#if CMD_DMA
-#if RESTORE_CACHE_ON_CDMA_CHAIN_FAILURE
-					int_cache[ftl_cmd_cnt].item = j;
-					int_cache[ftl_cmd_cnt].cache.address =
-						Cache.array[j].address;
-					int_cache[ftl_cmd_cnt].cache.changed =
-						Cache.array[j].changed;
-#endif
-#endif
-					break;
-				}
-			}
-			if (FAIL == wFoundInCache) {
-				if (ERR == FTL_Cache_Read_All(g_pTempBuf,
-					page_addr)) {
-					wResult = FAIL;
-					break;
-				}
-				buf = g_pTempBuf;
-			}
-		} else {
-			buf = pData;
-		}
-
-		if (FAIL == FTL_Cache_Write_All(buf,
-			blk_addr + (page_addr - old_blk_addr))) {
-			wResult = FAIL;
-			break;
-		}
-	}
-
-	return wResult;
-}
-
-/*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 * Function:     FTL_Copy_Block
 * Inputs:       source block address
 *               Destination block address
@@ -1698,7 +1622,7 @@ static int get_l2_cache_blks(void)
 static int erase_l2_cache_blocks(void)
 {
 	int i, ret = PASS;
-	u32 pblk, lblk;
+	u32 pblk, lblk = BAD_BLOCK;
 	u64 addr;
 	u32 *pbt = (u32 *)g_pBlockTable;
 
@@ -2004,87 +1928,6 @@ static int search_l2_cache(u8 *buf, u64 logical_addr)
 	return ret;
 }
 
-/*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-* Function:     FTL_Cache_Write_Back
-* Inputs:       pointer to data cached in sys memory
-*               address of free block in flash
-* Outputs:      PASS=0 / FAIL=1
-* Description:  writes all the pages of Cache Block to flash
-*
-*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
-static int FTL_Cache_Write_Back(u8 *pData, u64 blk_addr)
-{
-	int i, j, iErase;
-	u64 old_page_addr, addr, phy_addr;
-	u32 *pbt = (u32 *)g_pBlockTable;
-	u32 lba;
-	
-	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
-			       __FILE__, __LINE__, __func__);
-
-	old_page_addr = FTL_Get_Physical_Block_Addr(blk_addr) +
-		GLOB_u64_Remainder(blk_addr, 2);
-
-	iErase = (FAIL == FTL_Replace_Block(blk_addr)) ? PASS : FAIL;
-
-	pbt[BLK_FROM_ADDR(blk_addr)] &= (~SPARE_BLOCK);
-
-#if CMD_DMA
-	p_BTableChangesDelta = (struct BTableChangesDelta *)g_pBTDelta_Free;
-	g_pBTDelta_Free += sizeof(struct BTableChangesDelta);
-
-	p_BTableChangesDelta->ftl_cmd_cnt = ftl_cmd_cnt;
-	p_BTableChangesDelta->BT_Index = (u32)(blk_addr >>
-		DeviceInfo.nBitsInBlockDataSize);
-	p_BTableChangesDelta->BT_Entry_Value =
-		pbt[(u32)(blk_addr >> DeviceInfo.nBitsInBlockDataSize)];
-	p_BTableChangesDelta->ValidFields = 0x0C;
-#endif
-
-	if (IN_PROGRESS_BLOCK_TABLE != g_cBlockTableStatus) {
-		g_cBlockTableStatus = IN_PROGRESS_BLOCK_TABLE;
-		FTL_Write_IN_Progress_Block_Table_Page();
-	}
-
-	for (i = 0; i < RETRY_TIMES; i++) {
-		if (PASS == iErase) {
-			phy_addr = FTL_Get_Physical_Block_Addr(blk_addr);
-			if (FAIL == GLOB_FTL_Block_Erase(phy_addr)) {
-				lba = BLK_FROM_ADDR(blk_addr);
-				MARK_BLOCK_AS_BAD(pbt[lba]);
-				i = RETRY_TIMES;
-				break;
-			}
-		}
-
-		for (j = 0; j < CACHE_ITEM_NUM; j++) {
-			addr = Cache.array[j].address;
-			if ((addr <= blk_addr) &&
-				((addr + Cache.cache_item_size) > blk_addr))
-				cache_block_to_write = j;
-		}
-
-		phy_addr = FTL_Get_Physical_Block_Addr(blk_addr);
-		if (PASS == FTL_Cache_Update_Block(pData,
-					old_page_addr, phy_addr)) {
-			cache_block_to_write = UNHIT_CACHE_ITEM;
-			break;
-		} else {
-			iErase = PASS;
-		}
-	}
-
-	if (i >= RETRY_TIMES) {
-		if (ERR == FTL_Flash_Error_Handle(pData,
-					old_page_addr, blk_addr))
-			return ERR;
-		else
-			return FAIL;
-	}
-
-	return PASS;
-}
-
 /*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 * Function:     FTL_Cache_Write_Page
 * Inputs:       Pointer to buffer, page address, cache block number
@@ -2368,159 +2211,6 @@ static int FTL_Write_Block_Table(int wForce)
 	g_cBlockTableStatus = CURRENT_BLOCK_TABLE;
 
 	return 1;
-}
-
-/******************************************************************
-* Function:     GLOB_FTL_Flash_Format
-* Inputs:       none
-* Outputs:      PASS
-* Description:  The block table stores bad block info, including MDF+
-*               blocks gone bad over the ages. Therefore, if we have a
-*               block table in place, then use it to scan for bad blocks
-*               If not, then scan for MDF.
-*               Now, a block table will only be found if spectra was already
-*               being used. For a fresh flash, we'll go thru scanning for
-*               MDF. If spectra was being used, then there is a chance that
-*               the MDF has been corrupted. Spectra avoids writing to the
-*               first 2 bytes of the spare area to all pages in a block. This
-*               covers all known flash devices. However, since flash
-*               manufacturers have no standard of where the MDF is stored,
-*               this cannot guarantee that the MDF is protected for future
-*               devices too. The initial scanning for the block table assures
-*               this. It is ok even if the block table is outdated, as all
-*               we're looking for are bad block markers.
-*               Use this when mounting a file system or starting a
-*               new flash.
-*
-*********************************************************************/
-static int  FTL_Format_Flash(u8 valid_block_table)
-{
-	u32 i, j;
-	u32 *pbt = (u32 *)g_pBlockTable;
-	u32 tempNode;
-	int ret;
-
-#if CMD_DMA
-	u32 *pbtStartingCopy = (u32 *)g_pBTStartingCopy;
-	if (ftl_cmd_cnt)
-		return FAIL;
-#endif
-
-	if (FAIL == FTL_Check_Block_Table(FAIL))
-		valid_block_table = 0;
-
-	if (valid_block_table) {
-		u8 switched = 1;
-		u32 block, k;
-
-		k = DeviceInfo.wSpectraStartBlock;
-		while (switched && (k < DeviceInfo.wSpectraEndBlock)) {
-			switched = 0;
-			k++;
-			for (j = DeviceInfo.wSpectraStartBlock, i = 0;
-			j <= DeviceInfo.wSpectraEndBlock;
-			j++, i++) {
-				block = (pbt[i] & ~BAD_BLOCK) -
-					DeviceInfo.wSpectraStartBlock;
-				if (block != i) {
-					switched = 1;
-					tempNode = pbt[i];
-					pbt[i] = pbt[block];
-					pbt[block] = tempNode;
-				}
-			}
-		}
-		if ((k == DeviceInfo.wSpectraEndBlock) && switched)
-			valid_block_table = 0;
-	}
-
-	if (!valid_block_table) {
-		memset(g_pBlockTable, 0,
-			DeviceInfo.wDataBlockNum * sizeof(u32));
-		memset(g_pWearCounter, 0,
-			DeviceInfo.wDataBlockNum * sizeof(u8));
-		if (DeviceInfo.MLCDevice)
-			memset(g_pReadCounter, 0,
-				DeviceInfo.wDataBlockNum * sizeof(u16));
-#if CMD_DMA
-		memset(g_pBTStartingCopy, 0,
-			DeviceInfo.wDataBlockNum * sizeof(u32));
-		memset(g_pWearCounterCopy, 0,
-				DeviceInfo.wDataBlockNum * sizeof(u8));
-		if (DeviceInfo.MLCDevice)
-			memset(g_pReadCounterCopy, 0,
-				DeviceInfo.wDataBlockNum * sizeof(u16));
-#endif
-		for (j = DeviceInfo.wSpectraStartBlock, i = 0;
-			j <= DeviceInfo.wSpectraEndBlock;
-			j++, i++) {
-			if (GLOB_LLD_Get_Bad_Block((u32)j))
-				pbt[i] = (u32)(BAD_BLOCK | j);
-		}
-	}
-
-	nand_dbg_print(NAND_DBG_WARN, "Erasing all blocks in the NAND\n");
-
-	for (j = DeviceInfo.wSpectraStartBlock, i = 0;
-		j <= DeviceInfo.wSpectraEndBlock;
-		j++, i++) {
-		if ((pbt[i] & BAD_BLOCK) != BAD_BLOCK) {
-			ret = GLOB_LLD_Erase_Block(j);
-			if (FAIL == ret) {
-				pbt[i] = (u32)(j);
-				MARK_BLOCK_AS_BAD(pbt[i]);
-				nand_dbg_print(NAND_DBG_WARN,
-			       "NAND Program fail in %s, Line %d, "
-			       "Function: %s, new Bad Block %d generated!\n",
-			       __FILE__, __LINE__, __func__, (int)j);
-			} else {
-				pbt[i] = (u32)(SPARE_BLOCK | j);
-			}
-		}
-#if CMD_DMA
-		pbtStartingCopy[i] = pbt[i];
-#endif
-	}
-
-	g_wBlockTableOffset = 0;
-	for (i = 0; (i <= (DeviceInfo.wSpectraEndBlock -
-			DeviceInfo.wSpectraStartBlock))
-			&& ((pbt[i] & BAD_BLOCK) == BAD_BLOCK); i++)
-		;
-	if (i > (DeviceInfo.wSpectraEndBlock - DeviceInfo.wSpectraStartBlock)) {
-		printk(KERN_ERR "All blocks bad!\n");
-		return FAIL;
-	} else {
-		g_wBlockTableIndex = pbt[i] & ~BAD_BLOCK;
-		if (i != BLOCK_TABLE_INDEX) {
-			tempNode = pbt[i];
-			pbt[i] = pbt[BLOCK_TABLE_INDEX];
-			pbt[BLOCK_TABLE_INDEX] = tempNode;
-		}
-	}
-	pbt[BLOCK_TABLE_INDEX] &= (~SPARE_BLOCK);
-
-#if CMD_DMA
-	pbtStartingCopy[BLOCK_TABLE_INDEX] &= (~SPARE_BLOCK);
-#endif
-
-	g_cBlockTableStatus = IN_PROGRESS_BLOCK_TABLE;
-	memset(g_pBTBlocks, 0xFF,
-			(1 + LAST_BT_ID - FIRST_BT_ID) * sizeof(u32));
-	g_pBTBlocks[FIRST_BT_ID-FIRST_BT_ID] = g_wBlockTableIndex;
-	FTL_Write_Block_Table(FAIL);
-
-	for (i = 0; i < CACHE_ITEM_NUM; i++) {
-		Cache.array[i].address = NAND_CACHE_INIT_ADDR;
-		Cache.array[i].use_cnt = 0;
-		Cache.array[i].changed  = CLEAR;
-	}
-
-#if (RESTORE_CACHE_ON_CDMA_CHAIN_FAILURE && CMD_DMA)
-	memcpy((void *)&cache_start_copy, (void *)&Cache,
-			sizeof(struct flash_cache_tag));
-#endif
-	return PASS;
 }
 
 static int  force_format_nand(void)
@@ -3027,112 +2717,6 @@ static int FTL_Read_Block_Table(void)
 		wResult = FTL_Format_Flash(0);
 	}
 #endif
-
-	return wResult;
-}
-
-
-/*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-* Function:     FTL_Flash_Error_Handle
-* Inputs:       Pointer to data
-*               Page address
-*               Block address
-* Outputs:      PASS=0 / FAIL=1
-* Description:  It handles any error occured during Spectra operation
-*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
-static int FTL_Flash_Error_Handle(u8 *pData, u64 old_page_addr,
-				u64 blk_addr)
-{
-	u32 i;
-	int j;
-	u32 tmp_node, blk_node = BLK_FROM_ADDR(blk_addr);
-	u64 phy_addr;
-	int wErase = FAIL;
-	int wResult = FAIL;
-	u32 *pbt = (u32 *)g_pBlockTable;
-
-	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
-		       __FILE__, __LINE__, __func__);
-
-	if (ERR == GLOB_FTL_Garbage_Collection())
-		return ERR;
-
-	do {
-		for (i = DeviceInfo.wSpectraEndBlock -
-			DeviceInfo.wSpectraStartBlock;
-					i > 0; i--) {
-			if (IS_SPARE_BLOCK(i)) {
-				tmp_node = (u32)(BAD_BLOCK |
-					pbt[blk_node]);
-				pbt[blk_node] = (u32)(pbt[i] &
-					(~SPARE_BLOCK));
-				pbt[i] = tmp_node;
-#if CMD_DMA
-				p_BTableChangesDelta =
-				    (struct BTableChangesDelta *)
-				    g_pBTDelta_Free;
-				g_pBTDelta_Free +=
-				    sizeof(struct BTableChangesDelta);
-
-				p_BTableChangesDelta->ftl_cmd_cnt =
-				    ftl_cmd_cnt;
-				p_BTableChangesDelta->BT_Index =
-				    blk_node;
-				p_BTableChangesDelta->BT_Entry_Value =
-				    pbt[blk_node];
-				p_BTableChangesDelta->ValidFields = 0x0C;
-
-				p_BTableChangesDelta =
-				    (struct BTableChangesDelta *)
-				    g_pBTDelta_Free;
-				g_pBTDelta_Free +=
-				    sizeof(struct BTableChangesDelta);
-
-				p_BTableChangesDelta->ftl_cmd_cnt =
-				    ftl_cmd_cnt;
-				p_BTableChangesDelta->BT_Index = i;
-				p_BTableChangesDelta->BT_Entry_Value = pbt[i];
-				p_BTableChangesDelta->ValidFields = 0x0C;
-#endif
-				wResult = PASS;
-				break;
-			}
-		}
-
-		if (FAIL == wResult) {
-			if (FAIL == GLOB_FTL_Garbage_Collection())
-				break;
-			else
-				continue;
-		}
-
-		if (IN_PROGRESS_BLOCK_TABLE != g_cBlockTableStatus) {
-			g_cBlockTableStatus = IN_PROGRESS_BLOCK_TABLE;
-			FTL_Write_IN_Progress_Block_Table_Page();
-		}
-
-		phy_addr = FTL_Get_Physical_Block_Addr(blk_addr);
-
-		for (j = 0; j < RETRY_TIMES; j++) {
-			if (PASS == wErase) {
-				if (FAIL == GLOB_FTL_Block_Erase(phy_addr)) {
-					MARK_BLOCK_AS_BAD(pbt[blk_node]);
-					break;
-				}
-			}
-			if (PASS == FTL_Cache_Update_Block(pData,
-							   old_page_addr,
-							   phy_addr)) {
-				wResult = PASS;
-				break;
-			} else {
-				wResult = FAIL;
-				wErase = PASS;
-			}
-		}
-	} while (FAIL == wResult);
-
-	FTL_Write_Block_Table(FAIL);
 
 	return wResult;
 }

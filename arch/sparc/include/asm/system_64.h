@@ -106,6 +106,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
  */
 #define write_pic(__p)  					\
 	__asm__ __volatile__("ba,pt	%%xcc, 99f\n\t"		\
+			     " nop\n\t"				\
 			     ".align	64\n"			\
 			  "99:wr	%0, 0x0, %%pic\n\t"	\
 			     "rd	%%pic, %%g0" : : "r" (__p))

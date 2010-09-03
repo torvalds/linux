@@ -67,6 +67,7 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&socket_client->queue_list);
 	socket_client->queue_len = 0;
 	socket_client->index = i;
+	socket_client->bat_priv = inode->i_private;
 	spin_lock_init(&socket_client->lock);
 	init_waitqueue_head(&socket_client->queue_wait);
 
@@ -151,9 +152,8 @@ static ssize_t bat_socket_read(struct file *file, char __user *buf,
 static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 				size_t len, loff_t *off)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct socket_client *socket_client = file->private_data;
+	struct bat_priv *bat_priv = socket_client->bat_priv;
 	struct icmp_packet_rr icmp_packet;
 	struct orig_node *orig_node;
 	struct batman_if *batman_if;
@@ -167,6 +167,9 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 			"invalid packet size\n");
 		return -EINVAL;
 	}
+
+	if (!bat_priv->primary_if)
+		return -EFAULT;
 
 	if (len >= sizeof(struct icmp_packet_rr))
 		packet_len = sizeof(struct icmp_packet_rr);
@@ -223,7 +226,8 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (batman_if->if_status != IF_ACTIVE)
 		goto dst_unreach;
 
-	memcpy(icmp_packet.orig, batman_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(icmp_packet.orig,
+	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
 
 	if (packet_len == sizeof(struct icmp_packet_rr))
 		memcpy(icmp_packet.rr, batman_if->net_dev->dev_addr, ETH_ALEN);
@@ -271,7 +275,7 @@ int bat_socket_setup(struct bat_priv *bat_priv)
 		goto err;
 
 	d = debugfs_create_file(ICMP_SOCKET, S_IFREG | S_IWUSR | S_IRUSR,
-				bat_priv->debug_dir, NULL, &fops);
+				bat_priv->debug_dir, bat_priv, &fops);
 	if (d)
 		goto err;
 

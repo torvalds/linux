@@ -62,19 +62,14 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 	int deleted, connected;
 	int error = 0;
 
-	/* Get the root we want to resolve too */
+	/* Get the root we want to resolve too, released below */
 	if (flags & PATH_CHROOT_REL) {
 		/* resolve paths relative to chroot */
-		read_lock(&current->fs->lock);
-		root = current->fs->root;
-		/* released below */
-		path_get(&root);
-		read_unlock(&current->fs->lock);
+		get_fs_root(current->fs, &root);
 	} else {
 		/* resolve paths relative to namespace */
 		root.mnt = current->nsproxy->mnt_ns->root;
 		root.dentry = root.mnt->mnt_root;
-		/* released below */
 		path_get(&root);
 	}
 

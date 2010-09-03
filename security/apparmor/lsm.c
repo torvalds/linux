@@ -607,8 +607,8 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 	return error;
 }
 
-static int apparmor_task_setrlimit(unsigned int resource,
-				   struct rlimit *new_rlim)
+static int apparmor_task_setrlimit(struct task_struct *task,
+		unsigned int resource, struct rlimit *new_rlim)
 {
 	struct aa_profile *profile = aa_current_profile();
 	int error = 0;

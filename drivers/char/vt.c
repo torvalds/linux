@@ -194,10 +194,11 @@ static DECLARE_WORK(console_work, console_callback);
 int fg_console;
 int last_console;
 int want_console = -1;
-int saved_fg_console;
-int saved_last_console;
-int saved_want_console;
-int saved_vc_mode;
+static int saved_fg_console;
+static int saved_last_console;
+static int saved_want_console;
+static int saved_vc_mode;
+static int saved_console_blanked;
 
 /*
  * For each existing display, we have a pointer to console currently visible
@@ -3449,6 +3450,7 @@ int con_debug_enter(struct vc_data *vc)
 	saved_last_console = last_console;
 	saved_want_console = want_console;
 	saved_vc_mode = vc->vc_mode;
+	saved_console_blanked = console_blanked;
 	vc->vc_mode = KD_TEXT;
 	console_blanked = 0;
 	if (vc->vc_sw->con_debug_enter)
@@ -3492,6 +3494,7 @@ int con_debug_leave(void)
 	fg_console = saved_fg_console;
 	last_console = saved_last_console;
 	want_console = saved_want_console;
+	console_blanked = saved_console_blanked;
 	vc_cons[fg_console].d->vc_mode = saved_vc_mode;
 
 	vc = vc_cons[fg_console].d;
