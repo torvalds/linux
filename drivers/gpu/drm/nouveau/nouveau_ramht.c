@@ -197,6 +197,9 @@ nouveau_ramht_find(struct nouveau_channel *chan, u32 handle)
 	struct nouveau_gpuobj *gpuobj = NULL;
 	unsigned long flags;
 
+	if (unlikely(!chan->ramht))
+		return NULL;
+
 	spin_lock_irqsave(&ramht->lock, flags);
 	list_for_each_entry(entry, &chan->ramht->entries, head) {
 		if (entry->channel == chan && entry->handle == handle) {
