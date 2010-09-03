@@ -167,7 +167,8 @@ char * __init xen_memory_setup(void)
 
 				extra_pages += PFN_DOWN(end - mem_end);
 			}
-		}
+		} else if (map[i].type != E820_RAM)
+			xen_extra_mem_start = end;
 		if (map[i].size > 0)
 			e820_add_region(map[i].addr, map[i].size, map[i].type);
 	}
