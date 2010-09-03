@@ -401,7 +401,7 @@ static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 		 * [6]		DRV_TEST_EN
 		 * [7]		DRV_TEST_IN
 		 */
-		hdmi_write(hdmi, 0x19, HDMI_SLIPHDMIT_PARAM_SETTINGS_1);
+		hdmi_write(hdmi, 0x0f, HDMI_SLIPHDMIT_PARAM_SETTINGS_1);
 		/* PLLB_CONFIG[17], PLLA_CONFIG[17] - not in PHY datasheet */
 		hdmi_write(hdmi, 0x00, HDMI_SLIPHDMIT_PARAM_SETTINGS_2);
 		/*
@@ -422,7 +422,7 @@ static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 		 * PLLB_CONFIG[15:8]: regulator voltage[0], CP current,
 		 * LPF capacitance, LPF resistance[1]
 		 */
-		hdmi_write(hdmi, 0x0E, HDMI_SLIPHDMIT_PARAM_SETTINGS_8);
+		hdmi_write(hdmi, 0x00, HDMI_SLIPHDMIT_PARAM_SETTINGS_8);
 		/* DRV_CONFIG, PE_CONFIG */
 		hdmi_write(hdmi, 0x25, HDMI_SLIPHDMIT_PARAM_SETTINGS_9);
 		/*
