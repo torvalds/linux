@@ -92,10 +92,10 @@ static inline long h_illan_attributes(unsigned long unit_address,
 #define h_change_logical_lan_mac(ua, mac) \
   plpar_hcall_norets(H_CHANGE_LOGICAL_LAN_MAC, ua, mac)
 
-#define IbmVethNumBufferPools 5
+#define IBMVETH_NUM_BUFF_POOLS 5
 #define IBMVETH_IO_ENTITLEMENT_DEFAULT 4243456 /* MTU of 1500 needs 4.2Mb */
 #define IBMVETH_BUFF_OH 22 /* Overhead: 14 ethernet header + 8 opaque handle */
-#define IBMVETH_MAX_MTU 68
+#define IBMVETH_MIN_MTU 68
 #define IBMVETH_MAX_POOL_COUNT 4096
 #define IBMVETH_BUFF_LIST_SIZE 4096
 #define IBMVETH_FILT_LIST_SIZE 4096
@@ -142,7 +142,7 @@ struct ibmveth_adapter {
     void * filter_list_addr;
     dma_addr_t buffer_list_dma;
     dma_addr_t filter_list_dma;
-    struct ibmveth_buff_pool rx_buff_pool[IbmVethNumBufferPools];
+    struct ibmveth_buff_pool rx_buff_pool[IBMVETH_NUM_BUFF_POOLS];
     struct ibmveth_rx_q rx_queue;
     int pool_config;
     int rx_csum;

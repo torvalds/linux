@@ -312,7 +312,7 @@ static void ibmveth_replenish_task(struct ibmveth_adapter *adapter)
 
 	adapter->replenish_task_cycles++;
 
-	for (i = (IbmVethNumBufferPools - 1); i >= 0; i--) {
+	for (i = (IBMVETH_NUM_BUFF_POOLS - 1); i >= 0; i--) {
 		struct ibmveth_buff_pool *pool = &adapter->rx_buff_pool[i];
 
 		if (pool->active &&
@@ -364,7 +364,7 @@ static void ibmveth_remove_buffer_from_pool(struct ibmveth_adapter *adapter, u64
 	unsigned int free_index;
 	struct sk_buff *skb;
 
-	ibmveth_assert(pool < IbmVethNumBufferPools);
+	ibmveth_assert(pool < IBMVETH_NUM_BUFF_POOLS);
 	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
 
 	skb = adapter->rx_buff_pool[pool].skbuff[index];
@@ -397,7 +397,7 @@ static inline struct sk_buff *ibmveth_rxq_get_buffer(struct ibmveth_adapter *ada
 	unsigned int pool = correlator >> 32;
 	unsigned int index = correlator & 0xffffffffUL;
 
-	ibmveth_assert(pool < IbmVethNumBufferPools);
+	ibmveth_assert(pool < IBMVETH_NUM_BUFF_POOLS);
 	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
 
 	return adapter->rx_buff_pool[pool].skbuff[index];
@@ -413,7 +413,7 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
 
-	ibmveth_assert(pool < IbmVethNumBufferPools);
+	ibmveth_assert(pool < IBMVETH_NUM_BUFF_POOLS);
 	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
 
 	if(!adapter->rx_buff_pool[pool].active) {
@@ -487,7 +487,7 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 		adapter->rx_queue.queue_addr = NULL;
 	}
 
-	for(i = 0; i<IbmVethNumBufferPools; i++)
+	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		if (adapter->rx_buff_pool[i].active)
 			ibmveth_free_buffer_pool(adapter,
 						 &adapter->rx_buff_pool[i]);
@@ -545,7 +545,7 @@ static int ibmveth_open(struct net_device *netdev)
 
 	napi_enable(&adapter->napi);
 
-	for(i = 0; i<IbmVethNumBufferPools; i++)
+	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		rxq_entries += adapter->rx_buff_pool[i].size;
 
 	adapter->buffer_list_addr = (void*) get_zeroed_page(GFP_KERNEL);
@@ -621,7 +621,7 @@ static int ibmveth_open(struct net_device *netdev)
 		return -ENONET;
 	}
 
-	for(i = 0; i<IbmVethNumBufferPools; i++) {
+	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		if(!adapter->rx_buff_pool[i].active)
 			continue;
 		if (ibmveth_alloc_buffer_pool(&adapter->rx_buff_pool[i])) {
@@ -1248,14 +1248,14 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 	int i, rc;
 	int need_restart = 0;
 
-	if (new_mtu < IBMVETH_MAX_MTU)
+	if (new_mtu < IBMVETH_MIN_MTU)
 		return -EINVAL;
 
-	for (i = 0; i < IbmVethNumBufferPools; i++)
+	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		if (new_mtu_oh < adapter->rx_buff_pool[i].buff_size)
 			break;
 
-	if (i == IbmVethNumBufferPools)
+	if (i == IBMVETH_NUM_BUFF_POOLS)
 		return -EINVAL;
 
 	/* Deactivate all the buffer pools so that the next loop can activate
@@ -1268,7 +1268,7 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 	}
 
 	/* Look for an active buffer pool that can hold the new MTU */
-	for(i = 0; i<IbmVethNumBufferPools; i++) {
+	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		adapter->rx_buff_pool[i].active = 1;
 
 		if (new_mtu_oh < adapter->rx_buff_pool[i].buff_size) {
@@ -1322,7 +1322,7 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 	ret = IBMVETH_BUFF_LIST_SIZE + IBMVETH_FILT_LIST_SIZE;
 	ret += IOMMU_PAGE_ALIGN(netdev->mtu);
 
-	for (i = 0; i < IbmVethNumBufferPools; i++) {
+	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		/* add the size of the active receive buffers */
 		if (adapter->rx_buff_pool[i].active)
 			ret +=
@@ -1416,7 +1416,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	memcpy(netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
 
-	for(i = 0; i<IbmVethNumBufferPools; i++) {
+	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		struct kobject *kobj = &adapter->rx_buff_pool[i].kobj;
 		int error;
 
@@ -1458,7 +1458,7 @@ static int __devexit ibmveth_remove(struct vio_dev *dev)
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	int i;
 
-	for(i = 0; i<IbmVethNumBufferPools; i++)
+	for(i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		kobject_put(&adapter->rx_buff_pool[i].kobj);
 
 	unregister_netdev(netdev);
@@ -1522,7 +1522,7 @@ const char * buf, size_t count)
 			int i;
 			/* Make sure there is a buffer pool with buffers that
 			   can hold a packet of the size of the MTU */
-			for (i = 0; i < IbmVethNumBufferPools; i++) {
+			for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 				if (pool == &adapter->rx_buff_pool[i])
 					continue;
 				if (!adapter->rx_buff_pool[i].active)
@@ -1531,7 +1531,7 @@ const char * buf, size_t count)
 					break;
 			}
 
-			if (i == IbmVethNumBufferPools) {
+			if (i == IBMVETH_NUM_BUFF_POOLS) {
 				netdev_err(netdev, "no active pool >= MTU\n");
 				return -EPERM;
 			}
