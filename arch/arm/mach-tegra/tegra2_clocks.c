@@ -262,6 +262,18 @@ static struct clk_ops tegra_clk_m_ops = {
 	.disable	= tegra2_clk_m_disable,
 };
 
+void tegra2_periph_reset_assert(struct clk *c)
+{
+	BUG_ON(!c->ops->reset);
+	c->ops->reset(c, true);
+}
+
+void tegra2_periph_reset_deassert(struct clk *c)
+{
+	BUG_ON(!c->ops->reset);
+	c->ops->reset(c, false);
+}
+
 /* super clock functions */
 /* "super clocks" on tegra have two-stage muxes and a clock skipping
  * super divider.  We will ignore the clock skipping divider, since we
@@ -869,22 +881,16 @@ static void tegra2_periph_clk_disable(struct clk *c)
 		CLK_OUT_ENB_CLR + PERIPH_CLK_TO_ENB_SET_REG(c));
 }
 
-void tegra2_periph_reset_deassert(struct clk *c)
+static void tegra2_periph_clk_reset(struct clk *c, bool assert)
 {
-	pr_debug("%s on clock %s\n", __func__, c->name);
+	unsigned long base = assert ? RST_DEVICES_SET : RST_DEVICES_CLR;
+
+	pr_debug("%s %s on clock %s\n", __func__,
+		 assert ? "assert" : "deassert", c->name);
 	if (!(c->flags & PERIPH_NO_RESET))
 		clk_writel(PERIPH_CLK_TO_ENB_BIT(c),
-			RST_DEVICES_CLR + PERIPH_CLK_TO_ENB_SET_REG(c));
+			   base + PERIPH_CLK_TO_ENB_SET_REG(c));
 }
-
-void tegra2_periph_reset_assert(struct clk *c)
-{
-	pr_debug("%s on clock %s\n", __func__, c->name);
-	if (!(c->flags & PERIPH_NO_RESET))
-		clk_writel(PERIPH_CLK_TO_ENB_BIT(c),
-			RST_DEVICES_SET + PERIPH_CLK_TO_ENB_SET_REG(c));
-}
-
 
 static int tegra2_periph_clk_set_parent(struct clk *c, struct clk *p)
 {
@@ -976,6 +982,7 @@ static struct clk_ops tegra_periph_clk_ops = {
 	.set_parent		= &tegra2_periph_clk_set_parent,
 	.set_rate		= &tegra2_periph_clk_set_rate,
 	.round_rate		= &tegra2_periph_clk_round_rate,
+	.reset			= &tegra2_periph_clk_reset,
 };
 
 /* Clock doubler ops */
