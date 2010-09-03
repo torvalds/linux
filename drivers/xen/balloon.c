@@ -195,7 +195,7 @@ static unsigned long current_target(void)
 
 static int increase_reservation(unsigned long nr_pages)
 {
-	unsigned long  pfn, i, flags;
+	unsigned long  pfn, i;
 	struct page   *page;
 	long           rc;
 	struct xen_memory_reservation reservation = {
@@ -206,8 +206,6 @@ static int increase_reservation(unsigned long nr_pages)
 
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
-
-	spin_lock_irqsave(&xen_reservation_lock, flags);
 
 	page = balloon_first_page();
 	for (i = 0; i < nr_pages; i++) {
@@ -251,14 +249,12 @@ static int increase_reservation(unsigned long nr_pages)
 	balloon_stats.current_pages += rc;
 
  out:
-	spin_unlock_irqrestore(&xen_reservation_lock, flags);
-
 	return rc < 0 ? rc : rc != nr_pages;
 }
 
 static int decrease_reservation(unsigned long nr_pages)
 {
-	unsigned long  pfn, i, flags;
+	unsigned long  pfn, i;
 	struct page   *page;
 	int            need_sleep = 0;
 	int ret;
@@ -296,8 +292,6 @@ static int decrease_reservation(unsigned long nr_pages)
 	kmap_flush_unused();
 	flush_tlb_all();
 
-	spin_lock_irqsave(&xen_reservation_lock, flags);
-
 	/* No more mappings: invalidate P2M and add to balloon. */
 	for (i = 0; i < nr_pages; i++) {
 		pfn = mfn_to_pfn(frame_list[i]);
@@ -311,8 +305,6 @@ static int decrease_reservation(unsigned long nr_pages)
 	BUG_ON(ret != nr_pages);
 
 	balloon_stats.current_pages -= nr_pages;
-
-	spin_unlock_irqrestore(&xen_reservation_lock, flags);
 
 	return need_sleep;
 }
