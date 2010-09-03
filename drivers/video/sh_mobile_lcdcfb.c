@@ -944,6 +944,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
 	struct fb_var_screeninfo *var;
+	int ret;
 
 	if (&ch->lcdc->notifier != nb)
 		return NOTIFY_DONE;
@@ -958,6 +959,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			module_put(board_cfg->owner);
 		}
 		pm_runtime_put(info->device);
+		sh_mobile_lcdc_stop(ch->lcdc);
 		break;
 	case FB_EVENT_RESUME:
 		var = &info->var;
@@ -968,31 +970,9 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			module_put(board_cfg->owner);
 		}
 
-		/* Check if the new display is not in our modelist */
-		if (ch->info->modelist.next &&
-		    !fb_match_mode(var, &ch->info->modelist)) {
-			struct fb_videomode mode;
-			int ret;
-
-			/* Can we handle this display? */
-			if (var->xres > ch->cfg.lcd_cfg[0].xres ||
-			    var->yres > ch->cfg.lcd_cfg[0].yres)
-				/*
-				 * LCDC resume failed, no need to continue with
-				 * the notifier chain
-				 */
-				return notifier_from_errno(-ENOMEM);
-
-			/* Add to the modelist */
-			fb_var_to_videomode(&mode, var);
-			ret = fb_add_videomode(&mode, &ch->info->modelist);
-			if (ret < 0)
-				return notifier_from_errno(ret);
-		}
-
-		pm_runtime_get_sync(info->device);
-
-		sh_mobile_lcdc_geometry(ch);
+		ret = sh_mobile_lcdc_start(ch->lcdc);
+		if (!ret)
+			pm_runtime_get_sync(info->device);
 	}
 
 	return NOTIFY_OK;
@@ -1181,6 +1161,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			}
 		}
 
+		fb_videomode_to_modelist(ch->cfg.lcd_cfg, ch->cfg.num_cfg, &info->modelist);
 		error = register_framebuffer(info);
 		if (error < 0)
 			goto err1;
