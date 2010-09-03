@@ -580,3 +580,53 @@ void ar9002_hw_attach_ops(struct ath_hw *ah)
 	else
 		ath9k_hw_attach_ani_ops_old(ah);
 }
+
+void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	u32 modesIndex;
+	int i;
+
+	switch (chan->chanmode) {
+	case CHANNEL_A:
+	case CHANNEL_A_HT20:
+		modesIndex = 1;
+		break;
+	case CHANNEL_A_HT40PLUS:
+	case CHANNEL_A_HT40MINUS:
+		modesIndex = 2;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_G_HT20:
+	case CHANNEL_B:
+		modesIndex = 4;
+		break;
+	case CHANNEL_G_HT40PLUS:
+	case CHANNEL_G_HT40MINUS:
+		modesIndex = 3;
+		break;
+
+	default:
+		return;
+	}
+
+	ENABLE_REGWRITE_BUFFER(ah);
+
+	for (i = 0; i < ah->iniModes_9271_ANI_reg.ia_rows; i++) {
+		u32 reg = INI_RA(&ah->iniModes_9271_ANI_reg, i, 0);
+		u32 val = INI_RA(&ah->iniModes_9271_ANI_reg, i, modesIndex);
+		u32 val_orig;
+
+		if (reg == AR_PHY_CCK_DETECT) {
+			val_orig = REG_READ(ah, reg);
+			val &= AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK;
+			val_orig &= ~AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK;
+
+			REG_WRITE(ah, reg, val|val_orig);
+		} else
+			REG_WRITE(ah, reg, val);
+	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+
+}
