@@ -725,7 +725,7 @@ static void tulip_clean_tx_ring(struct tulip_private *tp)
 		int status = le32_to_cpu(tp->tx_ring[entry].status);
 
 		if (status < 0) {
-			tp->stats.tx_errors++;	/* It wasn't Txed */
+			tp->dev->stats.tx_errors++;	/* It wasn't Txed */
 			tp->tx_ring[entry].status = 0;
 		}
 
@@ -781,8 +781,8 @@ static void tulip_down (struct net_device *dev)
 	/* release any unconsumed transmit buffers */
 	tulip_clean_tx_ring(tp);
 
-	if (ioread32 (ioaddr + CSR6) != 0xffffffff)
-		tp->stats.rx_missed_errors += ioread32 (ioaddr + CSR8) & 0xffff;
+	if (ioread32(ioaddr + CSR6) != 0xffffffff)
+		dev->stats.rx_missed_errors += ioread32(ioaddr + CSR8) & 0xffff;
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
@@ -864,12 +864,12 @@ static struct net_device_stats *tulip_get_stats(struct net_device *dev)
 
 		spin_lock_irqsave (&tp->lock, flags);
 
-		tp->stats.rx_missed_errors += ioread32(ioaddr + CSR8) & 0xffff;
+		dev->stats.rx_missed_errors += ioread32(ioaddr + CSR8) & 0xffff;
 
 		spin_unlock_irqrestore(&tp->lock, flags);
 	}
 
-	return &tp->stats;
+	return &dev->stats;
 }
 
 
