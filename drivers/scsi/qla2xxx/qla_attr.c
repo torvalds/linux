@@ -1547,6 +1547,15 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	/*
+	 * Transport has effectively 'deleted' the rport, clear
+	 * all local references.
+	 */
+	spin_lock_irq(host->host_lock);
+	fcport->rport = fcport->drport = NULL;
+	*((fc_port_t **)rport->dd_data) = NULL;
+	spin_unlock_irq(host->host_lock);
+
 	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;
 
@@ -1554,15 +1563,6 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
 		return;
 	}
-
-	/*
-	 * Transport has effectively 'deleted' the rport, clear
-	 * all local references.
-	 */
-	spin_lock_irq(host->host_lock);
-	fcport->rport = NULL;
-	*((fc_port_t **)rport->dd_data) = NULL;
-	spin_unlock_irq(host->host_lock);
 }
 
 static void
