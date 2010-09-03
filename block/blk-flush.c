@@ -74,16 +74,11 @@ static void post_flush_end_io(struct request *rq, int error)
 	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_POSTFLUSH, error);
 }
 
-static void queue_flush(struct request_queue *q, struct request *rq,
-			rq_end_io_fn *end_io)
+static void init_flush_request(struct request *rq, struct gendisk *disk)
 {
-	blk_rq_init(q, rq);
 	rq->cmd_type = REQ_TYPE_FS;
 	rq->cmd_flags = REQ_FLUSH;
-	rq->rq_disk = q->orig_flush_rq->rq_disk;
-	rq->end_io = end_io;
-
-	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+	rq->rq_disk = disk;
 }
 
 static struct request *queue_next_fseq(struct request_queue *q)
@@ -91,29 +86,28 @@ static struct request *queue_next_fseq(struct request_queue *q)
 	struct request *orig_rq = q->orig_flush_rq;
 	struct request *rq = &q->flush_rq;
 
+	blk_rq_init(q, rq);
+
 	switch (blk_flush_cur_seq(q)) {
 	case QUEUE_FSEQ_PREFLUSH:
-		queue_flush(q, rq, pre_flush_end_io);
+		init_flush_request(rq, orig_rq->rq_disk);
+		rq->end_io = pre_flush_end_io;
 		break;
-
 	case QUEUE_FSEQ_DATA:
-		/* initialize proxy request, inherit FLUSH/FUA and queue it */
-		blk_rq_init(q, rq);
 		init_request_from_bio(rq, orig_rq->bio);
 		rq->cmd_flags &= ~(REQ_FLUSH | REQ_FUA);
 		rq->cmd_flags |= orig_rq->cmd_flags & (REQ_FLUSH | REQ_FUA);
 		rq->end_io = flush_data_end_io;
-
-		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 		break;
-
 	case QUEUE_FSEQ_POSTFLUSH:
-		queue_flush(q, rq, post_flush_end_io);
+		init_flush_request(rq, orig_rq->rq_disk);
+		rq->end_io = post_flush_end_io;
 		break;
-
 	default:
 		BUG();
 	}
+
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 	return rq;
 }
 
