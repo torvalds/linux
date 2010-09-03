@@ -2856,6 +2856,12 @@ M:	Brian King <brking@us.ibm.com>
 S:	Supported
 F:	drivers/scsi/ipr.*
 
+IBM Power Virtual Ethernet Device Driver
+M:	Santiago Leon <santil@linux.vnet.ibm.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ibmveth.*
+
 IBM ServeRAID RAID DRIVER
 P:	Jack Hammer
 M:	Dave Jeffery <ipslinux@adaptec.com>

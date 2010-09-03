@@ -1,28 +1,27 @@
 /*
- * IBM eServer i/pSeries Virtual Ethernet Device Driver
- * Copyright (C) 2003 IBM Corp.
- *  Originally written by Dave Larson (larson1@us.ibm.com)
- *  Maintained by Santiago Leon (santil@us.ibm.com)
+ * IBM Power Virtual Ethernet Device Driver
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * This module contains the implementation of a virtual ethernet device
- * for use with IBM i/pSeries LPAR Linux.  It utilizes the logical LAN
- * option of the RS/6000 Platform Architechture to interface with virtual
- * ethernet NICs that are presented to the partition by the hypervisor.
+ * Copyright (C) IBM Corporation, 2003, 2010
+ *
+ * Authors: Dave Larson <larson1@us.ibm.com>
+ *	    Santiago Leon <santil@linux.vnet.ibm.com>
+ *	    Brian King <brking@linux.vnet.ibm.com>
+ *	    Robert Jennings <rcj@linux.vnet.ibm.com>
+ *	    Anton Blanchard <anton@au.ibm.com>
  */
 
 #include <linux/module.h>
@@ -58,12 +57,11 @@ static struct kobj_type ktype_veth_pool;
 
 
 static const char ibmveth_driver_name[] = "ibmveth";
-static const char ibmveth_driver_string[] = "IBM i/pSeries Virtual Ethernet "
-					    "Driver";
-#define ibmveth_driver_version "1.03"
+static const char ibmveth_driver_string[] = "IBM Power Virtual Ethernet Driver";
+#define ibmveth_driver_version "1.04"
 
-MODULE_AUTHOR("Santiago Leon <santil@us.ibm.com>");
-MODULE_DESCRIPTION("IBM i/pSeries Virtual Ethernet Driver");
+MODULE_AUTHOR("Santiago Leon <santil@linux.vnet.ibm.com>");
+MODULE_DESCRIPTION("IBM Power Virtual Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ibmveth_driver_version);
 
