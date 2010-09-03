@@ -23,13 +23,12 @@ comment "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on CRYPTO_ANSI_CPRNG
+	depends on CRYPTO_ANSI_CPRNG && !CRYPTO_MANAGER_DISABLE_TESTS
 	help
 	  This options enables the fips boot option which is
 	  required if you want to system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
-	  this is. Note that CRYPTO_ANSI_CPRNG is required if this
-	  option is selected
+	  this is.
 
 config CRYPTO_ALGAPI
 	tristate
