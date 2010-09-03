@@ -79,16 +79,10 @@
 #define ibmveth_assert(expr)
 #endif
 
-static int ibmveth_open(struct net_device *dev);
-static int ibmveth_close(struct net_device *dev);
-static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static int ibmveth_poll(struct napi_struct *napi, int budget);
-static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static void ibmveth_set_multicast_list(struct net_device *dev);
-static int ibmveth_change_mtu(struct net_device *dev, int new_mtu);
 static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance);
 static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev);
+
 static struct kobj_type ktype_veth_pool;
 
 
