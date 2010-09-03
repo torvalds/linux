@@ -196,6 +196,9 @@ static void iwl_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
+	if (!ctx->is_active)
+		return;
+
 	ctx->qos_data.def_qos_parm.qos_flags = 0;
 
 	if (ctx->qos_data.qos_active)
@@ -2008,9 +2011,14 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	 */
 	priv->iw_mode = vif->type;
 
+	ctx->is_active = true;
+
 	err = iwl_set_mode(priv, vif);
-	if (err)
+	if (err) {
+		if (!ctx->always_active)
+			ctx->is_active = false;
 		goto out_err;
+	}
 
 	if (priv->cfg->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
@@ -2051,6 +2059,9 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_scan_cancel_timeout(priv, 100);
 	iwl_set_mode(priv, vif);
+
+	if (!ctx->always_active)
+		ctx->is_active = false;
 
 	if (priv->scan_vif == vif) {
 		scan_completed = true;

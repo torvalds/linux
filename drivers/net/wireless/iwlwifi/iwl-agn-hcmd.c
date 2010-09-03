@@ -287,6 +287,15 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
 	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
 
+	/*
+	 * If the PAN context is inactive, then we don't need
+	 * to update the PAN parameters, the last thing we'll
+	 * have done before it goes inactive is making the PAN
+	 * parameters be WLAN-only.
+	 */
+	if (!ctx_pan->is_active)
+		return 0;
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* only 2 slots are currently allowed */

@@ -1116,6 +1116,13 @@ struct iwl_rxon_context {
 	const u8 *ac_to_queue;
 	u8 mcast_queue;
 
+	/*
+	 * We could use the vif to indicate active, but we
+	 * also need it to be active during disabling when
+	 * we already removed the vif for type setting.
+	 */
+	bool always_active, is_active;
+
 	enum iwl_rxon_context_id ctxid;
 
 	u32 interface_modes, exclusive_interface_modes;
