@@ -675,6 +675,43 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 	return 0;
 }
 
+static int evergreen_cp_start(struct radeon_device *rdev)
+{
+	int r;
+	uint32_t cp_me;
+
+	r = radeon_ring_lock(rdev, 7);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
+	radeon_ring_write(rdev, 0x1);
+	radeon_ring_write(rdev, 0x0);
+	radeon_ring_write(rdev, rdev->config.evergreen.max_hw_contexts - 1);
+	radeon_ring_write(rdev, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
+	radeon_ring_write(rdev, 0);
+	radeon_ring_write(rdev, 0);
+	radeon_ring_unlock_commit(rdev);
+
+	cp_me = 0xff;
+	WREG32(CP_ME_CNTL, cp_me);
+
+	r = radeon_ring_lock(rdev, 4);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+	/* init some VGT regs */
+	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
+	radeon_ring_write(rdev, (VGT_VERTEX_REUSE_BLOCK_CNTL - PACKET3_SET_CONTEXT_REG_START) >> 2);
+	radeon_ring_write(rdev, 0xe);
+	radeon_ring_write(rdev, 0x10);
+	radeon_ring_unlock_commit(rdev);
+
+	return 0;
+}
+
 int evergreen_cp_resume(struct radeon_device *rdev)
 {
 	u32 tmp;
@@ -719,7 +756,7 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	rdev->cp.rptr = RREG32(CP_RB_RPTR);
 	rdev->cp.wptr = RREG32(CP_RB_WPTR);
 
-	r600_cp_start(rdev);
+	evergreen_cp_start(rdev);
 	rdev->cp.ready = true;
 	r = radeon_ring_test(rdev);
 	if (r) {

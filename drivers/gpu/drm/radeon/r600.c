@@ -2119,10 +2119,7 @@ int r600_cp_start(struct radeon_device *rdev)
 	}
 	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
 	radeon_ring_write(rdev, 0x1);
-	if (rdev->family >= CHIP_CEDAR) {
-		radeon_ring_write(rdev, 0x0);
-		radeon_ring_write(rdev, rdev->config.evergreen.max_hw_contexts - 1);
-	} else if (rdev->family >= CHIP_RV770) {
+	if (rdev->family >= CHIP_RV770) {
 		radeon_ring_write(rdev, 0x0);
 		radeon_ring_write(rdev, rdev->config.rv770.max_hw_contexts - 1);
 	} else {
