@@ -144,10 +144,7 @@ static int tegra_camera_clk_set_rate(struct tegra_camera_clk_info *info)
 		void __iomem *car = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
 		void __iomem *apb_misc = IO_ADDRESS(TEGRA_APB_MISC_BASE);
 
-		val = readl(car + offset);
-		val &= ~(TEGRA_CAMERA_VI_CLK_SEL_EXTERNAL |
-			 TEGRA_CAMERA_PD2VI_CLK_SEL_VI_SENSOR_CLK);
-		writel(val, car + offset);
+		writel(0x2, car + offset);
 
 		val = readl(apb_misc + 0x42c);
 		writel(val | 0x1, apb_misc + 0x42c);
