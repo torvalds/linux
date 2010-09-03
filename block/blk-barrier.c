@@ -9,6 +9,8 @@
 
 #include "blk.h"
 
+static struct request *queue_next_ordseq(struct request_queue *q);
+
 /*
  * Cache flushing for ordered writes handling
  */
@@ -19,38 +21,10 @@ unsigned blk_ordered_cur_seq(struct request_queue *q)
 	return 1 << ffz(q->ordseq);
 }
 
-unsigned blk_ordered_req_seq(struct request *rq)
+static struct request *blk_ordered_complete_seq(struct request_queue *q,
+						unsigned seq, int error)
 {
-	struct request_queue *q = rq->q;
-
-	BUG_ON(q->ordseq == 0);
-
-	if (rq == &q->pre_flush_rq)
-		return QUEUE_ORDSEQ_PREFLUSH;
-	if (rq == &q->bar_rq)
-		return QUEUE_ORDSEQ_BAR;
-	if (rq == &q->post_flush_rq)
-		return QUEUE_ORDSEQ_POSTFLUSH;
-
-	/*
-	 * !fs requests don't need to follow barrier ordering.  Always
-	 * put them at the front.  This fixes the following deadlock.
-	 *
-	 * http://thread.gmane.org/gmane.linux.kernel/537473
-	 */
-	if (rq->cmd_type != REQ_TYPE_FS)
-		return QUEUE_ORDSEQ_DRAIN;
-
-	if ((rq->cmd_flags & REQ_ORDERED_COLOR) ==
-	    (q->orig_bar_rq->cmd_flags & REQ_ORDERED_COLOR))
-		return QUEUE_ORDSEQ_DRAIN;
-	else
-		return QUEUE_ORDSEQ_DONE;
-}
-
-bool blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
-{
-	struct request *rq;
+	struct request *next_rq = NULL;
 
 	if (error && !q->orderr)
 		q->orderr = error;
@@ -58,16 +32,22 @@ bool blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	BUG_ON(q->ordseq & seq);
 	q->ordseq |= seq;
 
-	if (blk_ordered_cur_seq(q) != QUEUE_ORDSEQ_DONE)
-		return false;
+	if (blk_ordered_cur_seq(q) != QUEUE_ORDSEQ_DONE) {
+		/* not complete yet, queue the next ordered sequence */
+		next_rq = queue_next_ordseq(q);
+	} else {
+		/* complete this barrier request */
+		__blk_end_request_all(q->orig_bar_rq, q->orderr);
+		q->orig_bar_rq = NULL;
+		q->ordseq = 0;
 
-	/*
-	 * Okay, sequence complete.
-	 */
-	q->ordseq = 0;
-	rq = q->orig_bar_rq;
-	__blk_end_request_all(rq, q->orderr);
-	return true;
+		/* dispatch the next barrier if there's one */
+		if (!list_empty(&q->pending_barriers)) {
+			next_rq = list_entry_rq(q->pending_barriers.next);
+			list_move(&next_rq->queuelist, &q->queue_head);
+		}
+	}
+	return next_rq;
 }
 
 static void pre_flush_end_io(struct request *rq, int error)
@@ -88,33 +68,78 @@ static void post_flush_end_io(struct request *rq, int error)
 	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_POSTFLUSH, error);
 }
 
-static void queue_flush(struct request_queue *q, unsigned which)
+static void queue_flush(struct request_queue *q, struct request *rq,
+			rq_end_io_fn *end_io)
 {
-	struct request *rq;
-	rq_end_io_fn *end_io;
-
-	if (which == QUEUE_ORDERED_DO_PREFLUSH) {
-		rq = &q->pre_flush_rq;
-		end_io = pre_flush_end_io;
-	} else {
-		rq = &q->post_flush_rq;
-		end_io = post_flush_end_io;
-	}
-
 	blk_rq_init(q, rq);
 	rq->cmd_type = REQ_TYPE_FS;
-	rq->cmd_flags = REQ_HARDBARRIER | REQ_FLUSH;
+	rq->cmd_flags = REQ_FLUSH;
 	rq->rq_disk = q->orig_bar_rq->rq_disk;
 	rq->end_io = end_io;
 
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
-static inline struct request *start_ordered(struct request_queue *q,
-					    struct request *rq)
+static struct request *queue_next_ordseq(struct request_queue *q)
+{
+	struct request *rq = &q->bar_rq;
+
+	switch (blk_ordered_cur_seq(q)) {
+	case QUEUE_ORDSEQ_PREFLUSH:
+		queue_flush(q, rq, pre_flush_end_io);
+		break;
+
+	case QUEUE_ORDSEQ_BAR:
+		/* initialize proxy request and queue it */
+		blk_rq_init(q, rq);
+		init_request_from_bio(rq, q->orig_bar_rq->bio);
+		rq->cmd_flags &= ~REQ_HARDBARRIER;
+		if (q->ordered & QUEUE_ORDERED_DO_FUA)
+			rq->cmd_flags |= REQ_FUA;
+		rq->end_io = bar_end_io;
+
+		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+		break;
+
+	case QUEUE_ORDSEQ_POSTFLUSH:
+		queue_flush(q, rq, post_flush_end_io);
+		break;
+
+	default:
+		BUG();
+	}
+	return rq;
+}
+
+struct request *blk_do_ordered(struct request_queue *q, struct request *rq)
 {
 	unsigned skip = 0;
 
+	if (!(rq->cmd_flags & REQ_HARDBARRIER))
+		return rq;
+
+	if (q->ordseq) {
+		/*
+		 * Barrier is already in progress and they can't be
+		 * processed in parallel.  Queue for later processing.
+		 */
+		list_move_tail(&rq->queuelist, &q->pending_barriers);
+		return NULL;
+	}
+
+	if (unlikely(q->next_ordered == QUEUE_ORDERED_NONE)) {
+		/*
+		 * Queue ordering not supported.  Terminate
+		 * with prejudice.
+		 */
+		blk_dequeue_request(rq);
+		__blk_end_request_all(rq, -EOPNOTSUPP);
+		return NULL;
+	}
+
+	/*
+	 * Start a new ordered sequence
+	 */
 	q->orderr = 0;
 	q->ordered = q->next_ordered;
 	q->ordseq |= QUEUE_ORDSEQ_STARTED;
@@ -130,91 +155,18 @@ static inline struct request *start_ordered(struct request_queue *q,
 	/* stash away the original request */
 	blk_dequeue_request(rq);
 	q->orig_bar_rq = rq;
-	rq = NULL;
 
-	/*
-	 * Queue ordered sequence.  As we stack them at the head, we
-	 * need to queue in reverse order.  Note that we rely on that
-	 * no fs request uses ELEVATOR_INSERT_FRONT and thus no fs
-	 * request gets inbetween ordered sequence.
-	 */
-	if (q->ordered & QUEUE_ORDERED_DO_POSTFLUSH) {
-		queue_flush(q, QUEUE_ORDERED_DO_POSTFLUSH);
-		rq = &q->post_flush_rq;
-	} else
-		skip |= QUEUE_ORDSEQ_POSTFLUSH;
-
-	if (q->ordered & QUEUE_ORDERED_DO_BAR) {
-		rq = &q->bar_rq;
-
-		/* initialize proxy request and queue it */
-		blk_rq_init(q, rq);
-		init_request_from_bio(rq, q->orig_bar_rq->bio);
-		if (q->ordered & QUEUE_ORDERED_DO_FUA)
-			rq->cmd_flags |= REQ_FUA;
-		rq->end_io = bar_end_io;
-
-		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
-	} else
-		skip |= QUEUE_ORDSEQ_BAR;
-
-	if (q->ordered & QUEUE_ORDERED_DO_PREFLUSH) {
-		queue_flush(q, QUEUE_ORDERED_DO_PREFLUSH);
-		rq = &q->pre_flush_rq;
-	} else
+	if (!(q->ordered & QUEUE_ORDERED_DO_PREFLUSH))
 		skip |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if (queue_in_flight(q))
-		rq = NULL;
-	else
-		skip |= QUEUE_ORDSEQ_DRAIN;
+	if (!(q->ordered & QUEUE_ORDERED_DO_BAR))
+		skip |= QUEUE_ORDSEQ_BAR;
 
-	/*
-	 * Complete skipped sequences.  If whole sequence is complete,
-	 * return %NULL to tell elevator that this request is gone.
-	 */
-	if (blk_ordered_complete_seq(q, skip, 0))
-		rq = NULL;
-	return rq;
-}
+	if (!(q->ordered & QUEUE_ORDERED_DO_POSTFLUSH))
+		skip |= QUEUE_ORDSEQ_POSTFLUSH;
 
-struct request *blk_do_ordered(struct request_queue *q, struct request *rq)
-{
-	const int is_barrier = rq->cmd_type == REQ_TYPE_FS &&
-				(rq->cmd_flags & REQ_HARDBARRIER);
-
-	if (!q->ordseq) {
-		if (!is_barrier)
-			return rq;
-
-		if (q->next_ordered != QUEUE_ORDERED_NONE)
-			return start_ordered(q, rq);
-		else {
-			/*
-			 * Queue ordering not supported.  Terminate
-			 * with prejudice.
-			 */
-			blk_dequeue_request(rq);
-			__blk_end_request_all(rq, -EOPNOTSUPP);
-			return NULL;
-		}
-	}
-
-	/*
-	 * Ordered sequence in progress
-	 */
-
-	/* Special requests are not subject to ordering rules. */
-	if (rq->cmd_type != REQ_TYPE_FS &&
-	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
-		return rq;
-
-	/* Ordered by draining.  Wait for turn. */
-	WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
-	if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
-		rq = ERR_PTR(-EAGAIN);
-
-	return rq;
+	/* complete skipped sequences and return the first sequence */
+	return blk_ordered_complete_seq(q, skip, 0);
 }
 
 static void bio_end_empty_barrier(struct bio *bio, int err)

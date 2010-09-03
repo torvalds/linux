@@ -360,9 +360,10 @@ struct request_queue
 	unsigned int		flush_flags;
 
 	unsigned int		ordered, next_ordered, ordseq;
-	int			orderr, ordcolor;
-	struct request		pre_flush_rq, bar_rq, post_flush_rq;
+	int			orderr;
+	struct request		bar_rq;
 	struct request		*orig_bar_rq;
+	struct list_head	pending_barriers;
 
 	struct mutex		sysfs_lock;
 
@@ -491,12 +492,11 @@ enum {
 	/*
 	 * Ordered operation sequence
 	 */
-	QUEUE_ORDSEQ_STARTED	= 0x01,	/* flushing in progress */
-	QUEUE_ORDSEQ_DRAIN	= 0x02,	/* waiting for the queue to be drained */
-	QUEUE_ORDSEQ_PREFLUSH	= 0x04,	/* pre-flushing in progress */
-	QUEUE_ORDSEQ_BAR	= 0x08,	/* original barrier req in progress */
-	QUEUE_ORDSEQ_POSTFLUSH	= 0x10,	/* post-flushing in progress */
-	QUEUE_ORDSEQ_DONE	= 0x20,
+	QUEUE_ORDSEQ_STARTED	= (1 << 0), /* flushing in progress */
+	QUEUE_ORDSEQ_PREFLUSH	= (1 << 1), /* pre-flushing in progress */
+	QUEUE_ORDSEQ_BAR	= (1 << 2), /* barrier write in progress */
+	QUEUE_ORDSEQ_POSTFLUSH	= (1 << 3), /* post-flushing in progress */
+	QUEUE_ORDSEQ_DONE	= (1 << 4),
 };
 
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
@@ -869,9 +869,6 @@ extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush(struct request_queue *q, unsigned int flush);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
-extern unsigned blk_ordered_cur_seq(struct request_queue *);
-extern unsigned blk_ordered_req_seq(struct request *);
-extern bool blk_ordered_complete_seq(struct request_queue *, unsigned, int);
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);
