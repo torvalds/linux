@@ -24,6 +24,8 @@
 #include <mach/pxa168.h>
 #include <mach/gpio.h>
 #include <video/pxa168fb.h>
+#include <linux/input.h>
+#include <plat/pxa27x_keypad.h>
 
 #include "common.h"
 
@@ -97,6 +99,13 @@ static unsigned long common_pin_config[] __initdata = {
 	GPIO81_LCD_DD21,
 	GPIO82_LCD_DD22,
 	GPIO83_LCD_DD23,
+
+	/* Keypad */
+	GPIO109_KP_MKIN1,
+	GPIO110_KP_MKIN0,
+	GPIO111_KP_MKOUT7,
+	GPIO112_KP_MKOUT6,
+	GPIO121_KP_MKIN4,
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -193,6 +202,23 @@ struct pxa168fb_mach_info aspenite_lcd_info = {
 	.invert_pixclock	= 0,
 };
 
+static unsigned int aspenite_matrix_key_map[] = {
+	KEY(0, 6, KEY_UP),	/* SW 4 */
+	KEY(0, 7, KEY_DOWN),	/* SW 5 */
+	KEY(1, 6, KEY_LEFT),	/* SW 6 */
+	KEY(1, 7, KEY_RIGHT),	/* SW 7 */
+	KEY(4, 6, KEY_ENTER),	/* SW 8 */
+	KEY(4, 7, KEY_ESC),	/* SW 9 */
+};
+
+static struct pxa27x_keypad_platform_data aspenite_keypad_info __initdata = {
+	.matrix_key_rows	= 5,
+	.matrix_key_cols	= 8,
+	.matrix_key_map		= aspenite_matrix_key_map,
+	.matrix_key_map_size	= ARRAY_SIZE(aspenite_matrix_key_map),
+	.debounce_interval	= 30,
+};
+
 static void __init common_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(common_pin_config));
@@ -203,6 +229,7 @@ static void __init common_init(void)
 	pxa168_add_ssp(1);
 	pxa168_add_nand(&aspenite_nand_info);
 	pxa168_add_fb(&aspenite_lcd_info);
+	pxa168_add_keypad(&aspenite_keypad_info);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);
