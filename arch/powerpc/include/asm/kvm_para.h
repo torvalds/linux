@@ -21,7 +21,6 @@
 #define __POWERPC_KVM_PARA_H__
 
 #include <linux/types.h>
-#include <linux/of.h>
 
 struct kvm_vcpu_arch_shared {
 	__u64 scratch1;
@@ -53,6 +52,8 @@ struct kvm_vcpu_arch_shared {
 #ifdef __KERNEL__
 
 #ifdef CONFIG_KVM_GUEST
+
+#include <linux/of.h>
 
 static inline int kvm_para_available(void)
 {
