@@ -136,7 +136,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 {
 	struct request_queue *q = rq->q;
 
-	if (&q->bar_rq != rq) {
+	if (&q->flush_rq != rq) {
 		if (error)
 			clear_bit(BIO_UPTODATE, &bio->bi_flags);
 		else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
@@ -160,13 +160,12 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 		if (bio->bi_size == 0)
 			bio_endio(bio, error);
 	} else {
-
 		/*
-		 * Okay, this is the barrier request in progress, just
-		 * record the error;
+		 * Okay, this is the sequenced flush request in
+		 * progress, just record the error;
 		 */
-		if (error && !q->orderr)
-			q->orderr = error;
+		if (error && !q->flush_err)
+			q->flush_err = error;
 	}
 }
 
@@ -520,7 +519,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	init_timer(&q->unplug_timer);
 	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
 	INIT_LIST_HEAD(&q->timeout_list);
-	INIT_LIST_HEAD(&q->pending_barriers);
+	INIT_LIST_HEAD(&q->pending_flushes);
 	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	kobject_init(&q->kobj, &blk_queue_ktype);
@@ -1764,11 +1763,11 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 static void blk_account_io_done(struct request *req)
 {
 	/*
-	 * Account IO completion.  bar_rq isn't accounted as a normal
-	 * IO on queueing nor completion.  Accounting the containing
-	 * request is enough.
+	 * Account IO completion.  flush_rq isn't accounted as a
+	 * normal IO on queueing nor completion.  Accounting the
+	 * containing request is enough.
 	 */
-	if (blk_do_io_stat(req) && req != &req->q->bar_rq) {
+	if (blk_do_io_stat(req) && req != &req->q->flush_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
 		struct hd_struct *part;

@@ -357,13 +357,13 @@ struct request_queue
 	/*
 	 * for flush operations
 	 */
+	unsigned int		ordered, next_ordered;
 	unsigned int		flush_flags;
-
-	unsigned int		ordered, next_ordered, ordseq;
-	int			orderr;
-	struct request		bar_rq;
-	struct request		*orig_bar_rq;
-	struct list_head	pending_barriers;
+	unsigned int		flush_seq;
+	int			flush_err;
+	struct request		flush_rq;
+	struct request		*orig_flush_rq;
+	struct list_head	pending_flushes;
 
 	struct mutex		sysfs_lock;
 
@@ -490,13 +490,13 @@ enum {
 					  QUEUE_ORDERED_DO_FUA,
 
 	/*
-	 * Ordered operation sequence
+	 * FLUSH/FUA sequences.
 	 */
-	QUEUE_ORDSEQ_STARTED	= (1 << 0), /* flushing in progress */
-	QUEUE_ORDSEQ_PREFLUSH	= (1 << 1), /* pre-flushing in progress */
-	QUEUE_ORDSEQ_BAR	= (1 << 2), /* barrier write in progress */
-	QUEUE_ORDSEQ_POSTFLUSH	= (1 << 3), /* post-flushing in progress */
-	QUEUE_ORDSEQ_DONE	= (1 << 4),
+	QUEUE_FSEQ_STARTED	= (1 << 0), /* flushing in progress */
+	QUEUE_FSEQ_PREFLUSH	= (1 << 1), /* pre-flushing in progress */
+	QUEUE_FSEQ_DATA		= (1 << 2), /* data write in progress */
+	QUEUE_FSEQ_POSTFLUSH	= (1 << 3), /* post-flushing in progress */
+	QUEUE_FSEQ_DONE		= (1 << 4),
 };
 
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)

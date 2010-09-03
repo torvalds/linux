@@ -9,41 +9,38 @@
 
 #include "blk.h"
 
-static struct request *queue_next_ordseq(struct request_queue *q);
+static struct request *queue_next_fseq(struct request_queue *q);
 
-/*
- * Cache flushing for ordered writes handling
- */
-unsigned blk_ordered_cur_seq(struct request_queue *q)
+unsigned blk_flush_cur_seq(struct request_queue *q)
 {
-	if (!q->ordseq)
+	if (!q->flush_seq)
 		return 0;
-	return 1 << ffz(q->ordseq);
+	return 1 << ffz(q->flush_seq);
 }
 
-static struct request *blk_ordered_complete_seq(struct request_queue *q,
-						unsigned seq, int error)
+static struct request *blk_flush_complete_seq(struct request_queue *q,
+					      unsigned seq, int error)
 {
 	struct request *next_rq = NULL;
 
-	if (error && !q->orderr)
-		q->orderr = error;
+	if (error && !q->flush_err)
+		q->flush_err = error;
 
-	BUG_ON(q->ordseq & seq);
-	q->ordseq |= seq;
+	BUG_ON(q->flush_seq & seq);
+	q->flush_seq |= seq;
 
-	if (blk_ordered_cur_seq(q) != QUEUE_ORDSEQ_DONE) {
-		/* not complete yet, queue the next ordered sequence */
-		next_rq = queue_next_ordseq(q);
+	if (blk_flush_cur_seq(q) != QUEUE_FSEQ_DONE) {
+		/* not complete yet, queue the next flush sequence */
+		next_rq = queue_next_fseq(q);
 	} else {
-		/* complete this barrier request */
-		__blk_end_request_all(q->orig_bar_rq, q->orderr);
-		q->orig_bar_rq = NULL;
-		q->ordseq = 0;
+		/* complete this flush request */
+		__blk_end_request_all(q->orig_flush_rq, q->flush_err);
+		q->orig_flush_rq = NULL;
+		q->flush_seq = 0;
 
-		/* dispatch the next barrier if there's one */
-		if (!list_empty(&q->pending_barriers)) {
-			next_rq = list_entry_rq(q->pending_barriers.next);
+		/* dispatch the next flush if there's one */
+		if (!list_empty(&q->pending_flushes)) {
+			next_rq = list_entry_rq(q->pending_flushes.next);
 			list_move(&next_rq->queuelist, &q->queue_head);
 		}
 	}
@@ -53,19 +50,19 @@ static struct request *blk_ordered_complete_seq(struct request_queue *q,
 static void pre_flush_end_io(struct request *rq, int error)
 {
 	elv_completed_request(rq->q, rq);
-	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_PREFLUSH, error);
+	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_PREFLUSH, error);
 }
 
-static void bar_end_io(struct request *rq, int error)
+static void flush_data_end_io(struct request *rq, int error)
 {
 	elv_completed_request(rq->q, rq);
-	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_BAR, error);
+	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_DATA, error);
 }
 
 static void post_flush_end_io(struct request *rq, int error)
 {
 	elv_completed_request(rq->q, rq);
-	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_POSTFLUSH, error);
+	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_POSTFLUSH, error);
 }
 
 static void queue_flush(struct request_queue *q, struct request *rq,
@@ -74,34 +71,34 @@ static void queue_flush(struct request_queue *q, struct request *rq,
 	blk_rq_init(q, rq);
 	rq->cmd_type = REQ_TYPE_FS;
 	rq->cmd_flags = REQ_FLUSH;
-	rq->rq_disk = q->orig_bar_rq->rq_disk;
+	rq->rq_disk = q->orig_flush_rq->rq_disk;
 	rq->end_io = end_io;
 
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
-static struct request *queue_next_ordseq(struct request_queue *q)
+static struct request *queue_next_fseq(struct request_queue *q)
 {
-	struct request *rq = &q->bar_rq;
+	struct request *rq = &q->flush_rq;
 
-	switch (blk_ordered_cur_seq(q)) {
-	case QUEUE_ORDSEQ_PREFLUSH:
+	switch (blk_flush_cur_seq(q)) {
+	case QUEUE_FSEQ_PREFLUSH:
 		queue_flush(q, rq, pre_flush_end_io);
 		break;
 
-	case QUEUE_ORDSEQ_BAR:
+	case QUEUE_FSEQ_DATA:
 		/* initialize proxy request and queue it */
 		blk_rq_init(q, rq);
-		init_request_from_bio(rq, q->orig_bar_rq->bio);
+		init_request_from_bio(rq, q->orig_flush_rq->bio);
 		rq->cmd_flags &= ~REQ_HARDBARRIER;
 		if (q->ordered & QUEUE_ORDERED_DO_FUA)
 			rq->cmd_flags |= REQ_FUA;
-		rq->end_io = bar_end_io;
+		rq->end_io = flush_data_end_io;
 
 		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 		break;
 
-	case QUEUE_ORDSEQ_POSTFLUSH:
+	case QUEUE_FSEQ_POSTFLUSH:
 		queue_flush(q, rq, post_flush_end_io);
 		break;
 
@@ -111,19 +108,20 @@ static struct request *queue_next_ordseq(struct request_queue *q)
 	return rq;
 }
 
-struct request *blk_do_ordered(struct request_queue *q, struct request *rq)
+struct request *blk_do_flush(struct request_queue *q, struct request *rq)
 {
 	unsigned skip = 0;
 
 	if (!(rq->cmd_flags & REQ_HARDBARRIER))
 		return rq;
 
-	if (q->ordseq) {
+	if (q->flush_seq) {
 		/*
-		 * Barrier is already in progress and they can't be
-		 * processed in parallel.  Queue for later processing.
+		 * Sequenced flush is already in progress and they
+		 * can't be processed in parallel.  Queue for later
+		 * processing.
 		 */
-		list_move_tail(&rq->queuelist, &q->pending_barriers);
+		list_move_tail(&rq->queuelist, &q->pending_flushes);
 		return NULL;
 	}
 
@@ -138,11 +136,11 @@ struct request *blk_do_ordered(struct request_queue *q, struct request *rq)
 	}
 
 	/*
-	 * Start a new ordered sequence
+	 * Start a new flush sequence
 	 */
-	q->orderr = 0;
+	q->flush_err = 0;
 	q->ordered = q->next_ordered;
-	q->ordseq |= QUEUE_ORDSEQ_STARTED;
+	q->flush_seq |= QUEUE_FSEQ_STARTED;
 
 	/*
 	 * For an empty barrier, there's no actual BAR request, which
@@ -154,19 +152,19 @@ struct request *blk_do_ordered(struct request_queue *q, struct request *rq)
 
 	/* stash away the original request */
 	blk_dequeue_request(rq);
-	q->orig_bar_rq = rq;
+	q->orig_flush_rq = rq;
 
 	if (!(q->ordered & QUEUE_ORDERED_DO_PREFLUSH))
-		skip |= QUEUE_ORDSEQ_PREFLUSH;
+		skip |= QUEUE_FSEQ_PREFLUSH;
 
 	if (!(q->ordered & QUEUE_ORDERED_DO_BAR))
-		skip |= QUEUE_ORDSEQ_BAR;
+		skip |= QUEUE_FSEQ_DATA;
 
 	if (!(q->ordered & QUEUE_ORDERED_DO_POSTFLUSH))
-		skip |= QUEUE_ORDSEQ_POSTFLUSH;
+		skip |= QUEUE_FSEQ_POSTFLUSH;
 
 	/* complete skipped sequences and return the first sequence */
-	return blk_ordered_complete_seq(q, skip, 0);
+	return blk_flush_complete_seq(q, skip, 0);
 }
 
 static void bio_end_empty_barrier(struct bio *bio, int err)
