@@ -42,7 +42,7 @@
 #ifdef CONFIG_SMP
 
 /* minimum unit size, also is the maximum supported allocation size */
-#define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
+#define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
 
 /*
  * Percpu allocator can serve percpu allocations before slab is
