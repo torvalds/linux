@@ -614,7 +614,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		 * flush frame, and wait for frame end interrupt
 		 * clean up deferred io and enable clock
 		 */
-		if (ch->info->fbdefio) {
+		if (ch->info && ch->info->fbdefio) {
 			ch->frame_end = 0;
 			schedule_delayed_work(&ch->info->deferred_work, 0);
 			wait_event(ch->frame_end_wait, ch->frame_end);
@@ -704,7 +704,6 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 			return PTR_ERR(priv->dot_clk);
 		}
 	}
-	atomic_set(&priv->hw_usecnt, -1);
 
 	/* Runtime PM support involves two step for this driver:
 	 * 1) Enable Runtime PM
@@ -1055,6 +1054,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 	priv->irq = i;
 	pdata = pdev->dev.platform_data;
+	atomic_set(&priv->hw_usecnt, -1);
 
 	j = 0;
 	for (i = 0; i < ARRAY_SIZE(pdata->ch); i++) {
