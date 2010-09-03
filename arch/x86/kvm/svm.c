@@ -2069,7 +2069,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 		return false;
 	}
 
-	trace_kvm_nested_vmrun(svm->vmcb->save.rip - 3, vmcb_gpa,
+	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb_gpa,
 			       nested_vmcb->save.rip,
 			       nested_vmcb->control.int_ctl,
 			       nested_vmcb->control.event_inj,
@@ -2098,7 +2098,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
 	hsave->save.cr4    = svm->vcpu.arch.cr4;
 	hsave->save.rflags = vmcb->save.rflags;
-	hsave->save.rip    = svm->next_rip;
+	hsave->save.rip    = kvm_rip_read(&svm->vcpu);
 	hsave->save.rsp    = vmcb->save.rsp;
 	hsave->save.rax    = vmcb->save.rax;
 	if (npt_enabled)
@@ -2270,8 +2270,8 @@ static int vmrun_interception(struct vcpu_svm *svm)
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
-	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	skip_emulated_instruction(&svm->vcpu);
+	/* Save rip after vmrun instruction */
+	kvm_rip_write(&svm->vcpu, kvm_rip_read(&svm->vcpu) + 3);
 
 	if (!nested_svm_vmrun(svm))
 		return 1;
