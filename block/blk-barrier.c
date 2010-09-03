@@ -9,35 +9,6 @@
 
 #include "blk.h"
 
-/**
- * blk_queue_ordered - does this queue support ordered writes
- * @q:        the request queue
- * @ordered:  one of QUEUE_ORDERED_*
- *
- * Description:
- *   For journalled file systems, doing ordered writes on a commit
- *   block instead of explicitly doing wait_on_buffer (which is bad
- *   for performance) can be a big win. Block drivers supporting this
- *   feature should call this function and indicate so.
- *
- **/
-int blk_queue_ordered(struct request_queue *q, unsigned ordered)
-{
-	if (ordered != QUEUE_ORDERED_NONE &&
-	    ordered != QUEUE_ORDERED_DRAIN &&
-	    ordered != QUEUE_ORDERED_DRAIN_FLUSH &&
-	    ordered != QUEUE_ORDERED_DRAIN_FUA) {
-		printk(KERN_ERR "blk_queue_ordered: bad value %d\n", ordered);
-		return -EINVAL;
-	}
-
-	q->ordered = ordered;
-	q->next_ordered = ordered;
-
-	return 0;
-}
-EXPORT_SYMBOL(blk_queue_ordered);
-
 /*
  * Cache flushing for ordered writes handling
  */

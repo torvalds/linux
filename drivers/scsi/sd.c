@@ -2109,7 +2109,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
 	unsigned char *buffer;
-	unsigned ordered;
+	unsigned flush = 0;
 
 	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp,
 				      "sd_revalidate_disk\n"));
@@ -2151,15 +2151,15 @@ static int sd_revalidate_disk(struct gendisk *disk)
 
 	/*
 	 * We now have all cache related info, determine how we deal
-	 * with ordered requests.
+	 * with flush requests.
 	 */
-	if (sdkp->WCE)
-		ordered = sdkp->DPOFUA
-			? QUEUE_ORDERED_DRAIN_FUA : QUEUE_ORDERED_DRAIN_FLUSH;
-	else
-		ordered = QUEUE_ORDERED_DRAIN;
+	if (sdkp->WCE) {
+		flush |= REQ_FLUSH;
+		if (sdkp->DPOFUA)
+			flush |= REQ_FUA;
+	}
 
-	blk_queue_ordered(sdkp->disk->queue, ordered);
+	blk_queue_flush(sdkp->disk->queue, flush);
 
 	set_capacity(disk, sdkp->capacity);
 	kfree(buffer);

@@ -388,22 +388,15 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->driverfs_dev = &vdev->dev;
 	index++;
 
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH)) {
-		/*
-		 * If the FLUSH feature is supported we do have support for
-		 * flushing a volatile write cache on the host.  Use that
-		 * to implement write barrier support.
-		 */
-		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH);
-	} else {
-		/*
-		 * If the FLUSH feature is not supported we must assume that
-		 * the host does not perform any kind of volatile write
-		 * caching. We still need to drain the queue to provider
-		 * proper barrier semantics.
-		 */
-		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN);
-	}
+	/*
+	 * If the FLUSH feature is supported we do have support for
+	 * flushing a volatile write cache on the host.  Use that to
+	 * implement write barrier support; otherwise, we must assume
+	 * that the host does not perform any kind of volatile write
+	 * caching.
+	 */
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
+		blk_queue_flush(q, REQ_FLUSH);
 
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
