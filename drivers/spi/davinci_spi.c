@@ -299,12 +299,10 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 {
 
 	struct davinci_spi *davinci_spi;
-	struct davinci_spi_platform_data *pdata;
 	u8 bits_per_word = 0;
 	u32 hz = 0, prescale = 0, clkspeed;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
-	pdata = davinci_spi->pdata;
 
 	if (t) {
 		bits_per_word = t->bits_per_word;
@@ -357,11 +355,9 @@ static void davinci_spi_dma_rx_callback(unsigned lch, u16 ch_status, void *data)
 	struct spi_device *spi = (struct spi_device *)data;
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
-	struct davinci_spi_platform_data *pdata;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	davinci_spi_dma = &(davinci_spi->dma_channels[spi->chip_select]);
-	pdata = davinci_spi->pdata;
 
 	if (ch_status == DMA_COMPLETE)
 		edma_stop(davinci_spi_dma->dma_rx_channel);
@@ -378,11 +374,9 @@ static void davinci_spi_dma_tx_callback(unsigned lch, u16 ch_status, void *data)
 	struct spi_device *spi = (struct spi_device *)data;
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
-	struct davinci_spi_platform_data *pdata;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	davinci_spi_dma = &(davinci_spi->dma_channels[spi->chip_select]);
-	pdata = davinci_spi->pdata;
 
 	if (ch_status == DMA_COMPLETE)
 		edma_stop(davinci_spi_dma->dma_tx_channel);
@@ -398,13 +392,11 @@ static int davinci_spi_request_dma(struct spi_device *spi)
 {
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
-	struct davinci_spi_platform_data *pdata;
 	struct device *sdev;
 	int r;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
-	pdata = davinci_spi->pdata;
 	sdev = davinci_spi->bitbang.master->dev.parent;
 
 	r = edma_alloc_channel(davinci_spi_dma->dma_rx_sync_dev,
