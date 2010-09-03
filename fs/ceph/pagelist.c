@@ -5,10 +5,18 @@
 
 #include "pagelist.h"
 
+static void ceph_pagelist_unmap_tail(struct ceph_pagelist *pl)
+{
+	struct page *page = list_entry(pl->head.prev, struct page,
+				       lru);
+	kunmap(page);
+}
+
 int ceph_pagelist_release(struct ceph_pagelist *pl)
 {
 	if (pl->mapped_tail)
-		kunmap(pl->mapped_tail);
+		ceph_pagelist_unmap_tail(pl);
+
 	while (!list_empty(&pl->head)) {
 		struct page *page = list_first_entry(&pl->head, struct page,
 						     lru);
@@ -26,7 +34,7 @@ static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
 	pl->room += PAGE_SIZE;
 	list_add_tail(&page->lru, &pl->head);
 	if (pl->mapped_tail)
-		kunmap(pl->mapped_tail);
+		ceph_pagelist_unmap_tail(pl);
 	pl->mapped_tail = kmap(page);
 	return 0;
 }
