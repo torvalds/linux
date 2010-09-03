@@ -56,22 +56,38 @@ static struct request *blk_flush_complete_seq(struct request_queue *q,
 	return next_rq;
 }
 
+static void blk_flush_complete_seq_end_io(struct request_queue *q,
+					  unsigned seq, int error)
+{
+	bool was_empty = elv_queue_empty(q);
+	struct request *next_rq;
+
+	next_rq = blk_flush_complete_seq(q, seq, error);
+
+	/*
+	 * Moving a request silently to empty queue_head may stall the
+	 * queue.  Kick the queue in those cases.
+	 */
+	if (was_empty && next_rq)
+		__blk_run_queue(q);
+}
+
 static void pre_flush_end_io(struct request *rq, int error)
 {
 	elv_completed_request(rq->q, rq);
-	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_PREFLUSH, error);
+	blk_flush_complete_seq_end_io(rq->q, QUEUE_FSEQ_PREFLUSH, error);
 }
 
 static void flush_data_end_io(struct request *rq, int error)
 {
 	elv_completed_request(rq->q, rq);
-	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_DATA, error);
+	blk_flush_complete_seq_end_io(rq->q, QUEUE_FSEQ_DATA, error);
 }
 
 static void post_flush_end_io(struct request *rq, int error)
 {
 	elv_completed_request(rq->q, rq);
-	blk_flush_complete_seq(rq->q, QUEUE_FSEQ_POSTFLUSH, error);
+	blk_flush_complete_seq_end_io(rq->q, QUEUE_FSEQ_POSTFLUSH, error);
 }
 
 static void init_flush_request(struct request *rq, struct gendisk *disk)
