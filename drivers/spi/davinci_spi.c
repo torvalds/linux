@@ -175,7 +175,7 @@ struct davinci_spi {
 	u8			*tmp_buf;
 	int			count;
 	struct davinci_spi_dma	*dma_channels;
-	struct			davinci_spi_platform_data *pdata;
+	struct davinci_spi_platform_data *pdata;
 
 	void			(*get_rx)(u32 rx_data, struct davinci_spi *);
 	u32			(*get_tx)(struct davinci_spi *);
@@ -435,7 +435,6 @@ static int davinci_spi_request_dma(struct spi_device *spi)
  *
  * This functions sets the default transfer method.
  */
-
 static int davinci_spi_setup(struct spi_device *spi)
 {
 	int retval;
@@ -1096,7 +1095,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	}
 	clk_enable(davinci_spi->clk);
 
-
 	master->bus_num = pdev->id;
 	master->num_chipselect = pdata->num_chipselect;
 	master->setup = davinci_spi_setup;
@@ -1113,15 +1111,15 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		davinci_spi->bitbang.flags |= SPI_READY;
 
 	if (use_dma) {
-			r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-			if (r)
-				dma_rx_chan = r->start;
-			r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-			if (r)
-				dma_tx_chan = r->start;
-			r = platform_get_resource(pdev, IORESOURCE_DMA, 2);
-			if (r)
-				dma_eventq = r->start;
+		r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+		if (r)
+			dma_rx_chan = r->start;
+		r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+		if (r)
+			dma_tx_chan = r->start;
+		r = platform_get_resource(pdev, IORESOURCE_DMA, 2);
+		if (r)
+			dma_eventq = r->start;
 	}
 
 	if (!use_dma ||
