@@ -60,6 +60,9 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 	while (1) {
 		while (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
+			if (!(rq->cmd_flags & (REQ_FLUSH | REQ_FUA)) ||
+			    rq == &q->flush_rq)
+				return rq;
 			rq = blk_do_flush(q, rq);
 			if (rq)
 				return rq;

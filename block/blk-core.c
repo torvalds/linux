@@ -1204,7 +1204,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	if (bio->bi_rw & REQ_HARDBARRIER) {
+	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
 		where = ELEVATOR_INSERT_FRONT;
 		goto get_rq;
 	}

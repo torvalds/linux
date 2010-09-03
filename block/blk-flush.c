@@ -1,5 +1,5 @@
 /*
- * Functions related to barrier IO handling
+ * Functions to sequence FLUSH and FUA writes.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -8,6 +8,15 @@
 #include <linux/gfp.h>
 
 #include "blk.h"
+
+/* FLUSH/FUA sequences */
+enum {
+	QUEUE_FSEQ_STARTED	= (1 << 0), /* flushing in progress */
+	QUEUE_FSEQ_PREFLUSH	= (1 << 1), /* pre-flushing in progress */
+	QUEUE_FSEQ_DATA		= (1 << 2), /* data write in progress */
+	QUEUE_FSEQ_POSTFLUSH	= (1 << 3), /* post-flushing in progress */
+	QUEUE_FSEQ_DONE		= (1 << 4),
+};
 
 static struct request *queue_next_fseq(struct request_queue *q);
 
@@ -79,6 +88,7 @@ static void queue_flush(struct request_queue *q, struct request *rq,
 
 static struct request *queue_next_fseq(struct request_queue *q)
 {
+	struct request *orig_rq = q->orig_flush_rq;
 	struct request *rq = &q->flush_rq;
 
 	switch (blk_flush_cur_seq(q)) {
@@ -87,12 +97,11 @@ static struct request *queue_next_fseq(struct request_queue *q)
 		break;
 
 	case QUEUE_FSEQ_DATA:
-		/* initialize proxy request and queue it */
+		/* initialize proxy request, inherit FLUSH/FUA and queue it */
 		blk_rq_init(q, rq);
-		init_request_from_bio(rq, q->orig_flush_rq->bio);
-		rq->cmd_flags &= ~REQ_HARDBARRIER;
-		if (q->ordered & QUEUE_ORDERED_DO_FUA)
-			rq->cmd_flags |= REQ_FUA;
+		init_request_from_bio(rq, orig_rq->bio);
+		rq->cmd_flags &= ~(REQ_FLUSH | REQ_FUA);
+		rq->cmd_flags |= orig_rq->cmd_flags & (REQ_FLUSH | REQ_FUA);
 		rq->end_io = flush_data_end_io;
 
 		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
@@ -110,28 +119,35 @@ static struct request *queue_next_fseq(struct request_queue *q)
 
 struct request *blk_do_flush(struct request_queue *q, struct request *rq)
 {
+	unsigned int fflags = q->flush_flags; /* may change, cache it */
+	bool has_flush = fflags & REQ_FLUSH, has_fua = fflags & REQ_FUA;
+	bool do_preflush = has_flush && (rq->cmd_flags & REQ_FLUSH);
+	bool do_postflush = has_flush && !has_fua && (rq->cmd_flags & REQ_FUA);
 	unsigned skip = 0;
 
-	if (!(rq->cmd_flags & REQ_HARDBARRIER))
+	/*
+	 * Special case.  If there's data but flush is not necessary,
+	 * the request can be issued directly.
+	 *
+	 * Flush w/o data should be able to be issued directly too but
+	 * currently some drivers assume that rq->bio contains
+	 * non-zero data if it isn't NULL and empty FLUSH requests
+	 * getting here usually have bio's without data.
+	 */
+	if (blk_rq_sectors(rq) && !do_preflush && !do_postflush) {
+		rq->cmd_flags &= ~REQ_FLUSH;
+		if (!has_fua)
+			rq->cmd_flags &= ~REQ_FUA;
 		return rq;
-
-	if (q->flush_seq) {
-		/*
-		 * Sequenced flush is already in progress and they
-		 * can't be processed in parallel.  Queue for later
-		 * processing.
-		 */
-		list_move_tail(&rq->queuelist, &q->pending_flushes);
-		return NULL;
 	}
 
-	if (unlikely(q->next_ordered == QUEUE_ORDERED_NONE)) {
-		/*
-		 * Queue ordering not supported.  Terminate
-		 * with prejudice.
-		 */
-		blk_dequeue_request(rq);
-		__blk_end_request_all(rq, -EOPNOTSUPP);
+	/*
+	 * Sequenced flushes can't be processed in parallel.  If
+	 * another one is already in progress, queue for later
+	 * processing.
+	 */
+	if (q->flush_seq) {
+		list_move_tail(&rq->queuelist, &q->pending_flushes);
 		return NULL;
 	}
 
@@ -139,31 +155,22 @@ struct request *blk_do_flush(struct request_queue *q, struct request *rq)
 	 * Start a new flush sequence
 	 */
 	q->flush_err = 0;
-	q->ordered = q->next_ordered;
 	q->flush_seq |= QUEUE_FSEQ_STARTED;
 
-	/*
-	 * For an empty barrier, there's no actual BAR request, which
-	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
-	 */
-	if (!blk_rq_sectors(rq))
-		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
-				QUEUE_ORDERED_DO_POSTFLUSH);
-
-	/* stash away the original request */
+	/* adjust FLUSH/FUA of the original request and stash it away */
+	rq->cmd_flags &= ~REQ_FLUSH;
+	if (!has_fua)
+		rq->cmd_flags &= ~REQ_FUA;
 	blk_dequeue_request(rq);
 	q->orig_flush_rq = rq;
 
-	if (!(q->ordered & QUEUE_ORDERED_DO_PREFLUSH))
+	/* skip unneded sequences and return the first one */
+	if (!do_preflush)
 		skip |= QUEUE_FSEQ_PREFLUSH;
-
-	if (!(q->ordered & QUEUE_ORDERED_DO_BAR))
+	if (!blk_rq_sectors(rq))
 		skip |= QUEUE_FSEQ_DATA;
-
-	if (!(q->ordered & QUEUE_ORDERED_DO_POSTFLUSH))
+	if (!do_postflush)
 		skip |= QUEUE_FSEQ_POSTFLUSH;
-
-	/* complete skipped sequences and return the first sequence */
 	return blk_flush_complete_seq(q, skip, 0);
 }
 
