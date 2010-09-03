@@ -964,7 +964,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 	struct fb_var_screeninfo *var;
 
 	if (&ch->lcdc->notifier != nb)
-		return 0;
+		return NOTIFY_DONE;
 
 	dev_dbg(info->dev, "%s(): action = %lu, data = %p\n",
 		__func__, action, event->data);
@@ -991,23 +991,25 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			/* Can we handle this display? */
 			if (var->xres > ch->cfg.lcd_cfg[0].xres ||
 			    var->yres > ch->cfg.lcd_cfg[0].yres)
-				return -ENOMEM;
+				/*
+				 * LCDC resume failed, no need to continue with
+				 * the notifier chain
+				 */
+				return notifier_from_errno(-ENOMEM);
 
 			/* Add to the modelist */
 			fb_var_to_videomode(&mode, var);
 			ret = fb_add_videomode(&mode, &ch->info->modelist);
 			if (ret < 0)
-				return ret;
+				return notifier_from_errno(ret);
 		}
 
 		pm_runtime_get_sync(info->device);
 
 		sh_mobile_lcdc_geometry(ch);
-
-		break;
 	}
 
-	return 0;
+	return NOTIFY_OK;
 }
 
 static int sh_mobile_lcdc_remove(struct platform_device *pdev);
