@@ -251,7 +251,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 	for(i = 0; i < count; ++i) {
 		union ibmveth_buf_desc desc;
 
-		skb = alloc_skb(pool->buff_size, GFP_ATOMIC);
+		skb = netdev_alloc_skb(adapter->netdev, pool->buff_size);
 
 		if(!skb) {
 			ibmveth_debug_printk("replenish: unable to allocate skb\n");
