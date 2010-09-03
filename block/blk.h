@@ -51,6 +51,8 @@ static inline void blk_clear_rq_complete(struct request *rq)
  */
 #define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
 
+struct request *blk_do_ordered(struct request_queue *q, struct request *rq);
+
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
@@ -58,8 +60,9 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 	while (1) {
 		while (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
-			if (blk_do_ordered(q, &rq))
-				return rq;
+			rq = blk_do_ordered(q, rq);
+			if (rq)
+				return !IS_ERR(rq) ? rq : NULL;
 		}
 
 		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))

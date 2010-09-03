@@ -110,9 +110,9 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
-static inline bool start_ordered(struct request_queue *q, struct request **rqp)
+static inline struct request *start_ordered(struct request_queue *q,
+					    struct request *rq)
 {
-	struct request *rq = *rqp;
 	unsigned skip = 0;
 
 	q->orderr = 0;
@@ -149,11 +149,9 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 
 		/* initialize proxy request and queue it */
 		blk_rq_init(q, rq);
-		if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
-			rq->cmd_flags |= REQ_WRITE;
+		init_request_from_bio(rq, q->orig_bar_rq->bio);
 		if (q->ordered & QUEUE_ORDERED_DO_FUA)
 			rq->cmd_flags |= REQ_FUA;
-		init_request_from_bio(rq, q->orig_bar_rq->bio);
 		rq->end_io = bar_end_io;
 
 		elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
@@ -171,27 +169,26 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	else
 		skip |= QUEUE_ORDSEQ_DRAIN;
 
-	*rqp = rq;
-
 	/*
 	 * Complete skipped sequences.  If whole sequence is complete,
-	 * return false to tell elevator that this request is gone.
+	 * return %NULL to tell elevator that this request is gone.
 	 */
-	return !blk_ordered_complete_seq(q, skip, 0);
+	if (blk_ordered_complete_seq(q, skip, 0))
+		rq = NULL;
+	return rq;
 }
 
-bool blk_do_ordered(struct request_queue *q, struct request **rqp)
+struct request *blk_do_ordered(struct request_queue *q, struct request *rq)
 {
-	struct request *rq = *rqp;
 	const int is_barrier = rq->cmd_type == REQ_TYPE_FS &&
 				(rq->cmd_flags & REQ_HARDBARRIER);
 
 	if (!q->ordseq) {
 		if (!is_barrier)
-			return true;
+			return rq;
 
 		if (q->next_ordered != QUEUE_ORDERED_NONE)
-			return start_ordered(q, rqp);
+			return start_ordered(q, rq);
 		else {
 			/*
 			 * Queue ordering not supported.  Terminate
@@ -199,8 +196,7 @@ bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 			 */
 			blk_dequeue_request(rq);
 			__blk_end_request_all(rq, -EOPNOTSUPP);
-			*rqp = NULL;
-			return false;
+			return NULL;
 		}
 	}
 
@@ -211,14 +207,14 @@ bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 	/* Special requests are not subject to ordering rules. */
 	if (rq->cmd_type != REQ_TYPE_FS &&
 	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
-		return true;
+		return rq;
 
 	/* Ordered by draining.  Wait for turn. */
 	WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
 	if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
-		*rqp = NULL;
+		rq = ERR_PTR(-EAGAIN);
 
-	return true;
+	return rq;
 }
 
 static void bio_end_empty_barrier(struct bio *bio, int err)
