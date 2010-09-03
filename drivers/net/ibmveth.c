@@ -127,6 +127,10 @@ module_param(rx_copybreak, uint, 0644);
 MODULE_PARM_DESC(rx_copybreak,
 	"Maximum size of packet that is copied to a new buffer on receive");
 
+static unsigned int rx_flush __read_mostly = 0;
+module_param(rx_flush, uint, 0644);
+MODULE_PARM_DESC(rx_flush, "Flush receive buffers before use");
+
 struct ibmveth_stat {
 	char name[ETH_GSTRING_LEN];
 	int offset;
@@ -234,6 +238,14 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 	return 0;
 }
 
+static inline void ibmveth_flush_buffer(void *addr, unsigned long length)
+{
+	unsigned long offset;
+
+	for (offset = 0; offset < length; offset += SMP_CACHE_BYTES)
+		asm("dcbfl %0,%1" :: "b" (addr), "r" (offset));
+}
+
 /* replenish the buffers for a pool.  note that we don't need to
  * skb_reserve these since they are used for incoming...
  */
@@ -286,6 +298,12 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 		desc.fields.flags_len = IBMVETH_BUF_VALID | pool->buff_size;
 		desc.fields.address = dma_addr;
 
+		if (rx_flush) {
+			unsigned int len = min(pool->buff_size,
+						adapter->netdev->mtu +
+						IBMVETH_BUFF_OH);
+			ibmveth_flush_buffer(skb->data, len);
+		}
 		lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
 
 		if (lpar_rc != H_SUCCESS)
@@ -1095,6 +1113,9 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 				skb_copy_to_linear_data(new_skb,
 							skb->data + offset,
 							length);
+				if (rx_flush)
+					ibmveth_flush_buffer(skb->data,
+						length + offset);
 				skb = new_skb;
 				ibmveth_rxq_recycle_buffer(adapter);
 			} else {
