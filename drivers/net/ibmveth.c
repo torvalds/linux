@@ -1338,10 +1338,8 @@ static const struct net_device_ops ibmveth_netdev_ops = {
 static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
-	long ret;
 	struct net_device *netdev;
 	struct ibmveth_adapter *adapter;
-	unsigned long set_attr, ret_attr;
 
 	unsigned char *mac_addr_p;
 	unsigned int *mcastFilterSize_p;
@@ -1425,21 +1423,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	ibmveth_debug_printk("registering netdev...\n");
 
-	ret = h_illan_attributes(dev->unit_address, 0, 0, &ret_attr);
-
-	if (ret == H_SUCCESS && !(ret_attr & IBMVETH_ILLAN_ACTIVE_TRUNK) &&
-	    !(ret_attr & IBMVETH_ILLAN_TRUNK_PRI_MASK) &&
-	    (ret_attr & IBMVETH_ILLAN_PADDED_PKT_CSUM)) {
-		set_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
-
-		ret = h_illan_attributes(dev->unit_address, 0, set_attr, &ret_attr);
-
-		if (ret == H_SUCCESS) {
-			adapter->rx_csum = 1;
-			netdev->features |= NETIF_F_IP_CSUM;
-		} else
-			ret = h_illan_attributes(dev->unit_address, set_attr, 0, &ret_attr);
-	}
+	ibmveth_set_csum_offload(netdev, 1, ibmveth_set_tx_csum_flags);
 
 	rc = register_netdev(netdev);
 
