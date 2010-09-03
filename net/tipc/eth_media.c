@@ -142,6 +142,16 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
+	int pending_dev = 0;
+
+	/* Find unused Ethernet bearer structure */
+
+	while (eb_ptr->dev) {
+		if (!eb_ptr->bearer)
+			pending_dev++;
+		if (++eb_ptr == stop)
+			return pending_dev ? -EAGAIN : -EDQUOT;
+	}
 
 	/* Find device with specified name */
 
