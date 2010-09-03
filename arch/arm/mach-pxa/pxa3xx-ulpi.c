@@ -252,6 +252,10 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 {
 	int err = 0;
 
+	/* In case the PXA3xx ULPI isn't used, do nothing. */
+	if (!u2d)
+		return 0;
+
 	clk_enable(u2d->clk);
 
 	if (cpu_is_pxa310()) {
@@ -264,6 +268,10 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 
 void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 {
+	/* In case the PXA3xx ULPI isn't used, do nothing. */
+	if (!u2d)
+		return;
+
 	if (cpu_is_pxa310())
 		pxa310_stop_otg_hc();
 
