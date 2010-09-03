@@ -313,7 +313,7 @@ static int nand_davinci_correct_4bit(struct mtd_info *mtd,
 	u32 syndrome[4];
 	u32 ecc_state;
 	unsigned num_errors, corrected;
-	unsigned long timeo = jiffies + msecs_to_jiffies(100);
+	unsigned long timeo;
 
 	/* All bytes 0xff?  It's an erased page; ignore its ECC. */
 	for (i = 0; i < 10; i++) {
@@ -373,6 +373,7 @@ compare:
 	 * long as ECC_STATE reads less than 4. After that, ECC HW has entered
 	 * correction state.
 	 */
+	timeo = jiffies + usecs_to_jiffies(100);
 	do {
 		ecc_state = (davinci_nand_readl(info,
 				NANDFSR_OFFSET) >> 8) & 0x0f;
