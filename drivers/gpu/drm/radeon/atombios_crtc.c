@@ -332,6 +332,11 @@ static void atombios_crtc_set_timing(struct drm_crtc *crtc,
 	args.usV_SyncWidth =
 		cpu_to_le16(mode->crtc_vsync_end - mode->crtc_vsync_start);
 
+	args.ucOverscanRight = radeon_crtc->h_border;
+	args.ucOverscanLeft = radeon_crtc->h_border;
+	args.ucOverscanBottom = radeon_crtc->v_border;
+	args.ucOverscanTop = radeon_crtc->v_border;
+
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		misc |= ATOM_VSYNC_POLARITY;
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
@@ -1211,8 +1216,18 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	struct drm_encoder *encoder;
+	bool is_tvcv = false;
 
-	/* TODO color tiling */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		/* find tv std */
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			if (radeon_encoder->active_device &
+			    (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+				is_tvcv = true;
+		}
+	}
 
 	atombios_disable_ss(crtc);
 	/* always set DCPLL */
@@ -1221,9 +1236,14 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 	atombios_enable_ss(crtc);
 
-	if (ASIC_IS_AVIVO(rdev))
+	if (ASIC_IS_DCE4(rdev))
 		atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
-	else {
+	else if (ASIC_IS_AVIVO(rdev)) {
+		if (is_tvcv)
+			atombios_crtc_set_timing(crtc, adjusted_mode);
+		else
+			atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
+	} else {
 		atombios_crtc_set_timing(crtc, adjusted_mode);
 		if (radeon_crtc->crtc_id == 0)
 			atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
