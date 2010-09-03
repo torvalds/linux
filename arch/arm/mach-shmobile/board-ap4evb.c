@@ -599,18 +599,18 @@ static struct platform_device fsi_device = {
 	},
 };
 
+/*
+ * If left and right margins are not multiples of 8,
+ * LDHAJR will be adjusted accordingly by the LCDC
+ * driver. Until we start using EDID, these values
+ * might have to be adjusted for different monitors.
+ */
 const static struct fb_videomode ap4evb_hdmi_modes[] = {
 	{
 		.name = "HDMI 720p",
 		.xres = 1280,
 		.yres = 720,
 
-		/*
-		 * If left and right margins are not multiples of 8,
-		 * LDHAJR will be adjusted accordingly by the LCDC
-		 * driver. Until we start using EDID, these values
-		 * might have to be adjusted for different monitors.
-		 */
 		.left_margin = 200,
 		.right_margin = 88,
 		.hsync_len = 48,
@@ -620,6 +620,35 @@ const static struct fb_videomode ap4evb_hdmi_modes[] = {
 		.vsync_len = 5,
 
 		.pixclock = 13468,
+		.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+	}, {
+		.name = "1280x1024",
+		.xres = 1280,
+		.yres = 1024,
+
+		.left_margin = 144,
+		.right_margin = 48,
+		.hsync_len = 64,
+
+		.upper_margin = 35,
+		.lower_margin = 5,
+		.vsync_len = 3,
+
+		.pixclock = 9800,
+		.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+	}, {
+		.name = "HDMI 480p",
+		.xres = 720,
+		.yres = 480,
+
+		.left_margin = 36,
+		.right_margin = 18,
+		.hsync_len = 68,
+
+		.upper_margin = 36,
+		.lower_margin = 3,
+		.vsync_len = 6,
+		.pixclock = 37037,
 		.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
 	},
 };
