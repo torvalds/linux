@@ -29,14 +29,12 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/ioport.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/pm.h>
 #include <linux/ethtool.h>
@@ -48,7 +46,6 @@
 #include <asm/atomic.h>
 #include <asm/vio.h>
 #include <asm/iommu.h>
-#include <asm/uaccess.h>
 #include <asm/firmware.h>
 
 #include "ibmveth.h"
