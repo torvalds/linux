@@ -1,4 +1,4 @@
-	/*
+/*
  * arch/arm/mach-tegra/devices.c
  *
  * Copyright (C) 2010 Google, Inc.
@@ -538,4 +538,56 @@ struct platform_device tegra_wdt_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(tegra_wdt_resources),
 	.resource	= tegra_wdt_resources,
+};
+
+static struct resource tegra_pwfm0_resource = {
+	.start	= TEGRA_PWFM0_BASE,
+	.end	= TEGRA_PWFM0_BASE + TEGRA_PWFM0_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct resource tegra_pwfm1_resource = {
+	.start	= TEGRA_PWFM1_BASE,
+	.end	= TEGRA_PWFM1_BASE + TEGRA_PWFM1_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct resource tegra_pwfm2_resource = {
+	.start	= TEGRA_PWFM2_BASE,
+	.end	= TEGRA_PWFM2_BASE + TEGRA_PWFM2_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct resource tegra_pwfm3_resource = {
+	.start	= TEGRA_PWFM3_BASE,
+	.end	= TEGRA_PWFM3_BASE + TEGRA_PWFM3_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+struct platform_device tegra_pwfm0_device = {
+	.name		= "tegra_pwm",
+	.id		= 0,
+	.num_resources	= 1,
+	.resource	= &tegra_pwfm0_resource,
+};
+
+struct platform_device tegra_pwfm1_device = {
+	.name		= "tegra_pwm",
+	.id		= 1,
+	.num_resources	= 1,
+	.resource	= &tegra_pwfm1_resource,
+};
+
+struct platform_device tegra_pwfm2_device = {
+	.name		= "tegra_pwm",
+	.id		= 2,
+	.num_resources	= 1,
+	.resource	= &tegra_pwfm2_resource,
+};
+
+struct platform_device tegra_pwfm3_device = {
+	.name		= "tegra_pwm",
+	.id		= 3,
+	.num_resources	= 1,
+	.resource	= &tegra_pwfm3_resource,
 };
