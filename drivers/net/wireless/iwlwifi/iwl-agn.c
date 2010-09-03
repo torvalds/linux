@@ -226,9 +226,8 @@ int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			return ret;
 		}
 	}
-
-	priv->start_calib = 0;
 	if (new_assoc) {
+		priv->start_calib = 0;
 		/* Apply the new configuration
 		 * RXON assoc doesn't clear the station table in uCode,
 		 */
