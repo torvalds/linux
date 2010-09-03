@@ -5,6 +5,7 @@
  *
  * Contributors:
  *      Rebecca Schultz Zavin <rebecca@android.com>
+ *      Andrei Warkentin <andreiw@motorola.com>
  *
  * Leverage OV9640.c
  *
@@ -20,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <media/ov5650.h>
+#include <linux/crc16.h>
 
 struct ov5650_reg {
 	u16 addr;
@@ -30,17 +32,48 @@ struct ov5650_info {
 	int mode;
 	struct i2c_client *i2c_client;
 	struct ov5650_platform_data *pdata;
+	struct ov5650_otp_data otp_data;
+	bool otp_valid;
 };
 
 #define OV5650_TABLE_WAIT_MS 0
 #define OV5650_TABLE_END 1
 #define OV5650_MAX_RETRIES 3
 
-static struct ov5650_reg mode_start[] = {
+static struct ov5650_reg tp_none_seq[] = {
+	{0x5046, 0x00}, /* isp_off */
+	{OV5650_TABLE_END, 0}
+};
+
+static struct ov5650_reg tp_cbars_seq[] = {
+	{0x503D, 0xC0},
+	{0x503E, 0x00},
+	{0x5046, 0x01}, /* isp_on */
+	{OV5650_TABLE_END, 0}
+};
+
+static struct ov5650_reg tp_checker_seq[] = {
+	{0x503D, 0xC0},
+	{0x503E, 0x0A},
+	{0x5046, 0x01}, /* isp_on */
+	{OV5650_TABLE_END, 0}
+};
+
+static struct ov5650_reg reset_seq[] = {
 	{0x3008, 0x82}, /* reset registers pg 72 */
 	{OV5650_TABLE_WAIT_MS, 5},
 	{0x3008, 0x42}, /* register power down pg 72 */
 	{OV5650_TABLE_WAIT_MS, 5},
+	{OV5650_TABLE_END, 0x0},
+};
+
+static struct ov5650_reg *test_pattern_modes[] = {
+	tp_none_seq,
+	tp_cbars_seq,
+	tp_checker_seq,
+};
+
+static struct ov5650_reg mode_start[] = {
 	{0x3103, 0x93}, /* power up system clock from PLL page 77 */
 	{0x3017, 0xff}, /* PAD output enable page 100 */
 	{0x3018, 0xfc}, /* PAD output enable page 100 */
@@ -94,8 +127,6 @@ static struct ov5650_reg mode_start[] = {
 	{0x3613, 0x44}, /* analog pg 108 */
 	{OV5650_TABLE_END, 0x0},
 };
-
-static const int mode_start_len = ARRAY_SIZE(mode_start);
 
 static struct ov5650_reg mode_2592x1944[] = {
 	{0x3621, 0x2f}, /* analog horizontal binning/sampling not enabled.
@@ -382,6 +413,9 @@ static int ov5650_set_mode(struct ov5650_info *info, struct ov5650_mode *mode)
 		return -EINVAL;
 	}
 
+	err = ov5650_write_table(info->i2c_client, reset_seq);
+	if (err)
+		return err;
 	err = ov5650_write_table(info->i2c_client, mode_start);
 	if (err)
 		return err;
@@ -397,32 +431,55 @@ static int ov5650_set_mode(struct ov5650_info *info, struct ov5650_mode *mode)
 
 static int ov5650_set_frame_length(struct ov5650_info *info, u32 frame_length)
 {
-	ov5650_write_reg(info->i2c_client, 0x380e, (frame_length >> 8) & 0xff);
-	ov5650_write_reg(info->i2c_client, 0x380f, frame_length & 0xff);
+	int ret;
+
+	ret = ov5650_write_reg(info->i2c_client, 0x380e,
+			       (frame_length >> 8) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov5650_write_reg(info->i2c_client, 0x380f, frame_length & 0xff);
+	if (ret)
+		return ret;
 
 	return 0;
 }
 
 static int ov5650_set_coarse_time(struct ov5650_info *info, u32 coarse_time)
 {
-	ov5650_write_reg(info->i2c_client, 0x3212, 0x01);
-	ov5650_write_reg(info->i2c_client, 0x3500,
-			 (coarse_time >> 12) & 0xff);
-	ov5650_write_reg(info->i2c_client, 0x3501,
+	int ret;
+
+	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0x01);
+	if (ret)
+		return ret;
+	ret = ov5650_write_reg(info->i2c_client, 0x3500,
+			       (coarse_time >> 12) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov5650_write_reg(info->i2c_client, 0x3501,
 			 (coarse_time >> 4) & 0xff);
-	ov5650_write_reg(info->i2c_client, 0x3502,
+	if (ret)
+		return ret;
+	ret = ov5650_write_reg(info->i2c_client, 0x3502,
 			 (coarse_time & 0xf) << 4);
-	ov5650_write_reg(info->i2c_client, 0x3212, 0x11);
-	ov5650_write_reg(info->i2c_client, 0x3212, 0xa1);
+	if (ret)
+		return ret;
+	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0x11);
+	if (ret)
+		return ret;
+	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0xa1);
+	if (ret)
+		return ret;
 
 	return 0;
 }
 
 static int ov5650_set_gain(struct ov5650_info *info, u16 gain)
 {
-	ov5650_write_reg(info->i2c_client, 0x350b, gain);
+	int ret;
 
-	return 0;
+	ret = ov5650_write_reg(info->i2c_client, 0x350b, gain);
+
+	return ret;
 }
 
 static int ov5650_get_status(struct ov5650_info *info, u8 *status)
@@ -435,10 +492,88 @@ static int ov5650_get_status(struct ov5650_info *info, u8 *status)
 	return err;
 }
 
+static int ov5650_get_otp(struct ov5650_info *info, void __user *ubuffer)
+{
+	int err;
+	uint8_t i;
+	uint8_t *otpp;
+	uint16_t computed_crc = 0;
+
+	BUILD_BUG_ON(sizeof(struct ov5650_otp_data) != 256);
+
+	otpp = (uint8_t *)&info->otp_data;
+
+	/* Either we never read the OTP or CRC failure. */
+	if (info->otp_valid)
+		goto end;
+
+	err = ov5650_write_table(info->i2c_client, reset_seq);
+	if (err)
+		return err;
+
+	/* Read OTP byte by byte. */
+	i = (uint8_t) offsetof(struct ov5650_otp_data, part_num);
+	err = ov5650_write_reg(info->i2c_client, 0x3D00, i);
+	if (err)
+		return err;
+
+	while (i < offsetof(struct ov5650_otp_data, reserved2)) {
+		err = ov5650_read_reg(info->i2c_client, 0x3D04, otpp + i);
+		if (err)
+			return err;
+
+		computed_crc = crc16_byte(computed_crc, *(otpp + i));
+		i++;
+	}
+
+	/* Serial number is BE. */
+	info->otp_data.serial_num = __be32_to_cpu(info->otp_data.serial_num);
+
+	/* Read the CRC and compared to computed. */
+	i = offsetof(struct ov5650_otp_data, crc);
+	err = ov5650_write_reg(info->i2c_client, 0x3D00, i);
+	if (err)
+		return err;
+
+	while (i < offsetof(struct ov5650_otp_data, reserved3)) {
+		err = ov5650_read_reg(info->i2c_client, 0x3D04, otpp + i);
+		if (err)
+			return err;
+		i++;
+	}
+
+	/* CRC is BE, so convert... */
+	info->otp_data.crc = __be16_to_cpu(info->otp_data.crc);
+	if (info->otp_data.crc != computed_crc) {
+		pr_info("CRC mismatch - OTP 0x%x Calc 0x%x\n",
+			info->otp_data.crc, computed_crc);
+		return -EIO;
+	}
+	info->otp_valid = true;
+
+end:
+	if (copy_to_user(ubuffer, &info->otp_data, sizeof(info->otp_data))) {
+		pr_info("%s %d\n", __func__, __LINE__);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int ov5650_test_pattern(struct ov5650_info *info,
+			       enum ov5650_test_pattern pattern)
+{
+	if (pattern >= ARRAY_SIZE(test_pattern_modes))
+		return -EINVAL;
+
+	return ov5650_write_table(info->i2c_client,
+				  test_pattern_modes[pattern]);
+}
 
 static int ov5650_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
+	int err;
 	struct ov5650_info *info = file->private_data;
 
 	switch (cmd) {
@@ -462,7 +597,6 @@ static int ov5650_ioctl(struct inode *inode, struct file *file,
 		return ov5650_set_gain(info, (u16)arg);
 	case OV5650_IOCTL_GET_STATUS:
 	{
-		int err;
 		u8 status;
 
 		err = ov5650_get_status(info, &status);
@@ -475,8 +609,22 @@ static int ov5650_ioctl(struct inode *inode, struct file *file,
 		}
 		return 0;
 	}
+	case OV5650_IOCTL_GET_OTP:
+	{
+		err = ov5650_get_otp(info, (void __user *) arg);
+		if (err)
+			pr_err("%s %d %d\n", __func__, __LINE__, err);
+		return err;
+	}
+	case OV5650_IOCTL_TEST_PATTERN:
+	{
+		err = ov5650_test_pattern(info, (enum ov5650_test_pattern) arg);
+		if (err)
+			pr_err("%s %d %d\n", __func__, __LINE__, err);
+		return err;
+	}
 	default:
-			return -EINVAL;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -540,6 +688,7 @@ static int ov5650_probe(struct i2c_client *client,
 
 	info->pdata = client->dev.platform_data;
 	info->i2c_client = client;
+	info->otp_valid = false;
 
 	i2c_set_clientdata(client, info);
 	return 0;
