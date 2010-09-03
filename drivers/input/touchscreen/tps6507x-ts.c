@@ -359,7 +359,7 @@ static int __devexit tps6507x_ts_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&tsc->work);
 	destroy_workqueue(tsc->wq);
 
-	input_free_device(input_dev);
+	input_unregister_device(input_dev);
 
 	tps6507x_dev->ts = NULL;
 	kfree(tsc);
