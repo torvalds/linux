@@ -149,6 +149,8 @@ struct ibmveth_adapter {
     void *bounce_buffer;
     dma_addr_t bounce_buffer_dma;
 
+    u64 fw_ipv6_csum_support;
+    u64 fw_ipv4_csum_support;
     /* adapter specific stats */
     u64 replenish_task_cycles;
     u64 replenish_no_mem;

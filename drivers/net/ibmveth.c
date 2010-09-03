@@ -50,6 +50,7 @@
 #include <linux/proc_fs.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <asm/hvcall.h>
@@ -148,6 +149,8 @@ struct ibmveth_stat ibmveth_stats[] = {
 	{ "rx_no_buffer", IBMVETH_STAT_OFF(rx_no_buffer) },
 	{ "tx_map_failed", IBMVETH_STAT_OFF(tx_map_failed) },
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
+	{ "fw_enabled_ipv4_csum", IBMVETH_STAT_OFF(fw_ipv4_csum_support) },
+	{ "fw_enabled_ipv6_csum", IBMVETH_STAT_OFF(fw_ipv6_csum_support) },
 };
 
 /* simple methods of getting data from the current rxq entry */
@@ -773,6 +776,7 @@ static void ibmveth_set_rx_csum_flags(struct net_device *dev, u32 data)
 		 */
 		adapter->rx_csum = 0;
 		dev->features &= ~NETIF_F_IP_CSUM;
+		dev->features &= ~NETIF_F_IPV6_CSUM;
 	}
 }
 
@@ -781,10 +785,15 @@ static void ibmveth_set_tx_csum_flags(struct net_device *dev, u32 data)
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
 
 	if (data) {
-		dev->features |= NETIF_F_IP_CSUM;
+		if (adapter->fw_ipv4_csum_support)
+			dev->features |= NETIF_F_IP_CSUM;
+		if (adapter->fw_ipv6_csum_support)
+			dev->features |= NETIF_F_IPV6_CSUM;
 		adapter->rx_csum = 1;
-	} else
+	} else {
 		dev->features &= ~NETIF_F_IP_CSUM;
+		dev->features &= ~NETIF_F_IPV6_CSUM;
+	}
 }
 
 static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
@@ -792,7 +801,8 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
 {
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
 	unsigned long set_attr, clr_attr, ret_attr;
-	long ret;
+	unsigned long set_attr6, clr_attr6;
+	long ret, ret6;
 	int rc1 = 0, rc2 = 0;
 	int restart = 0;
 
@@ -806,10 +816,13 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
 	set_attr = 0;
 	clr_attr = 0;
 
-	if (data)
+	if (data) {
 		set_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
-	else
+		set_attr6 = IBMVETH_ILLAN_IPV6_TCP_CSUM;
+	} else {
 		clr_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
+		clr_attr6 = IBMVETH_ILLAN_IPV6_TCP_CSUM;
+	}
 
 	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr);
 
@@ -820,14 +833,33 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
 					 set_attr, &ret_attr);
 
 		if (ret != H_SUCCESS) {
-			rc1 = -EIO;
-			ibmveth_error_printk("unable to change checksum offload settings."
-					     " %d rc=%ld\n", data, ret);
+			ibmveth_error_printk("unable to change IPv4 checksum "
+					     "offload settings. %d rc=%ld\n",
+					     data, ret);
 
 			ret = h_illan_attributes(adapter->vdev->unit_address,
 						 set_attr, clr_attr, &ret_attr);
 		} else
+			adapter->fw_ipv4_csum_support = data;
+
+		ret6 = h_illan_attributes(adapter->vdev->unit_address,
+					 clr_attr6, set_attr6, &ret_attr);
+
+		if (ret6 != H_SUCCESS) {
+			ibmveth_error_printk("unable to change IPv6 checksum "
+					     "offload settings. %d rc=%ld\n",
+					     data, ret);
+
+			ret = h_illan_attributes(adapter->vdev->unit_address,
+						 set_attr6, clr_attr6,
+						 &ret_attr);
+		} else
+			adapter->fw_ipv6_csum_support = data;
+
+		if (ret == H_SUCCESS || ret6 == H_SUCCESS)
 			done(dev, data);
+		else
+			rc1 = -EIO;
 	} else {
 		rc1 = -EIO;
 		ibmveth_error_printk("unable to change checksum offload settings."
@@ -855,9 +887,9 @@ static int ibmveth_set_tx_csum(struct net_device *dev, u32 data)
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
 	int rc = 0;
 
-	if (data && (dev->features & NETIF_F_IP_CSUM))
+	if (data && (dev->features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
 		return 0;
-	if (!data && !(dev->features & NETIF_F_IP_CSUM))
+	if (!data && !(dev->features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
 		return 0;
 
 	if (data && !adapter->rx_csum)
@@ -975,7 +1007,12 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 
 	/* veth can't checksum offload UDP */
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
-	    ip_hdr(skb)->protocol != IPPROTO_TCP && skb_checksum_help(skb)) {
+	    ((skb->protocol == htons(ETH_P_IP) &&
+	      ip_hdr(skb)->protocol != IPPROTO_TCP) ||
+	     (skb->protocol == htons(ETH_P_IPV6) &&
+	      ipv6_hdr(skb)->nexthdr != IPPROTO_TCP)) &&
+	    skb_checksum_help(skb)) {
+
 		ibmveth_error_printk("tx: failed to checksum packet\n");
 		netdev->stats.tx_dropped++;
 		goto out;
