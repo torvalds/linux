@@ -416,14 +416,6 @@ incomplete_rcv:
 			} else
 				continue;
 		} else if (length <= 0) {
-			if (server->tcpStatus == CifsNew) {
-				cFYI(1, "tcp session abend after SMBnegprot");
-				/* some servers kill the TCP session rather than
-				   returning an SMB negprot error, in which
-				   case reconnecting here is not going to help,
-				   and so simply return error to mount */
-				break;
-			}
 			cFYI(1, "Reconnect after unexpected peek error %d",
 				length);
 			cifs_reconnect(server);
@@ -464,27 +456,18 @@ incomplete_rcv:
 			   an error on SMB negprot response */
 			cFYI(1, "Negative RFC1002 Session Response Error 0x%x)",
 				pdu_length);
-			if (server->tcpStatus == CifsNew) {
-				/* if nack on negprot (rather than
-				ret of smb negprot error) reconnecting
-				not going to help, ret error to mount */
-				break;
-			} else {
-				/* give server a second to
-				clean up before reconnect attempt */
-				msleep(1000);
-				/* always try 445 first on reconnect
-				since we get NACK on some if we ever
-				connected to port 139 (the NACK is
-				since we do not begin with RFC1001
-				session initialize frame) */
-				server->addr.sockAddr.sin_port =
-					htons(CIFS_PORT);
-				cifs_reconnect(server);
-				csocket = server->ssocket;
-				wake_up(&server->response_q);
-				continue;
-			}
+			/* give server a second to clean up  */
+			msleep(1000);
+			/* always try 445 first on reconnect since we get NACK
+			 * on some if we ever connected to port 139 (the NACK
+			 * is since we do not begin with RFC1001 session
+			 * initialize frame)
+			 */
+			server->addr.sockAddr.sin_port = htons(CIFS_PORT);
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			wake_up(&server->response_q);
+			continue;
 		} else if (temp != (char) 0) {
 			cERROR(1, "Unknown RFC 1002 frame");
 			cifs_dump_mem(" Received Data: ", (char *)smb_buffer,
