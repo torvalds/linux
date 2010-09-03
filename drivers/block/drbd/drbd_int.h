@@ -975,6 +975,12 @@ struct drbd_conf {
 			  md_sync_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
+#ifdef DRBD_DEBUG_MD_SYNC
+	struct {
+		unsigned int line;
+		const char* func;
+	} last_md_mark_dirty;
+#endif
 
 	/* Used after attach while negotiating new disk state. */
 	union drbd_state new_state_tmp;
@@ -1253,7 +1259,13 @@ extern void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local)
 extern void drbd_md_set_flag(struct drbd_conf *mdev, int flags) __must_hold(local);
 extern void drbd_md_clear_flag(struct drbd_conf *mdev, int flags)__must_hold(local);
 extern int drbd_md_test_flag(struct drbd_backing_dev *, int);
+#ifndef DRBD_DEBUG_MD_SYNC
 extern void drbd_md_mark_dirty(struct drbd_conf *mdev);
+#else
+#define drbd_md_mark_dirty(m)	drbd_md_mark_dirty_(m, __LINE__ , __func__ )
+extern void drbd_md_mark_dirty_(struct drbd_conf *mdev,
+		unsigned int line, const char *func);
+#endif
 extern void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 				 int (*io_fn)(struct drbd_conf *),
 				 void (*done)(struct drbd_conf *, int),

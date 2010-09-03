@@ -3402,9 +3402,10 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	sector_t sector;
 	int i;
 
+	del_timer(&mdev->md_sync_timer);
+	/* timer may be rearmed by drbd_md_mark_dirty() now. */
 	if (!test_and_clear_bit(MD_DIRTY, &mdev->flags))
 		return;
-	del_timer(&mdev->md_sync_timer);
 
 	/* We use here D_FAILED and not D_ATTACHING because we try to write
 	 * metadata even if we detach due to a disk failure! */
@@ -3529,12 +3530,22 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
  * the meta-data super block. This function sets MD_DIRTY, and starts a
  * timer that ensures that within five seconds you have to call drbd_md_sync().
  */
+#ifdef DRBD_DEBUG_MD_SYNC
+void drbd_md_mark_dirty_(struct drbd_conf *mdev, unsigned int line, const char *func)
+{
+	if (!test_and_set_bit(MD_DIRTY, &mdev->flags)) {
+		mod_timer(&mdev->md_sync_timer, jiffies + HZ);
+		mdev->last_md_mark_dirty.line = line;
+		mdev->last_md_mark_dirty.func = func;
+	}
+}
+#else
 void drbd_md_mark_dirty(struct drbd_conf *mdev)
 {
-	set_bit(MD_DIRTY, &mdev->flags);
-	mod_timer(&mdev->md_sync_timer, jiffies + 5*HZ);
+	if (!test_and_set_bit(MD_DIRTY, &mdev->flags))
+		mod_timer(&mdev->md_sync_timer, jiffies + HZ);
 }
-
+#endif
 
 static void drbd_uuid_move_history(struct drbd_conf *mdev) __must_hold(local)
 {
@@ -3775,8 +3786,11 @@ static void md_sync_timer_fn(unsigned long data)
 static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 {
 	dev_warn(DEV, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
+#ifdef DEBUG
+	dev_warn(DEV, "last md_mark_dirty: %s:%u\n",
+		mdev->last_md_mark_dirty.func, mdev->last_md_mark_dirty.line);
+#endif
 	drbd_md_sync(mdev);
-
 	return 1;
 }
 
