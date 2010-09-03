@@ -412,8 +412,14 @@ skip_rio:
 				    "Unrecoverable Hardware Error: adapter "
 				    "marked OFFLINE!\n");
 				vha->flags.online = 0;
-			} else
+			} else {
+				/* Check to see if MPI timeout occured */
+				if ((mbx & MBX_3) && (ha->flags.port0))
+					set_bit(MPI_RESET_NEEDED,
+					    &vha->dpc_flags);
+
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			}
 		} else if (mb[1] == 0) {
 			qla_printk(KERN_INFO, ha,
 			    "Unrecoverable Hardware Error: adapter marked "
