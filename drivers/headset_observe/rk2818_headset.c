@@ -65,7 +65,7 @@ static void headsetobserve_work(void)
 {
 	if(gpio_get_value(prk2818_headset_info->irq)){
 		if(prk2818_headset_info->headset_in_type)
-			Headset_dev.cur_headset_status = BIT_HEADSET;
+			{DBG("headset in-----cjq------/n");Headset_dev.cur_headset_status = BIT_HEADSET;}
 		else
 			Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
 
@@ -74,7 +74,7 @@ static void headsetobserve_work(void)
 	}
 	else{
 		if(prk2818_headset_info->headset_in_type)
-			Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
+			{DBG("headset out-----cjq------/n");Headset_dev.cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);}
 		else
 			Headset_dev.cur_headset_status = BIT_HEADSET;
 
