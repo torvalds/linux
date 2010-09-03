@@ -2151,9 +2151,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 
 	/*
 	 * We now have all cache related info, determine how we deal
-	 * with ordered requests.  Note that as the current SCSI
-	 * dispatch function can alter request order, we cannot use
-	 * QUEUE_ORDERED_TAG_* even when ordered tag is supported.
+	 * with ordered requests.
 	 */
 	if (sdkp->WCE)
 		ordered = sdkp->DPOFUA

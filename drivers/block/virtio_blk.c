@@ -395,15 +395,6 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 		 * to implement write barrier support.
 		 */
 		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH);
-	} else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER)) {
-		/*
-		 * If the BARRIER feature is supported the host expects us
-		 * to order request by tags.  This implies there is not
-		 * volatile write cache on the host, and that the host
-		 * never re-orders outstanding I/O.  This feature is not
-		 * useful for real life scenarious and deprecated.
-		 */
-		blk_queue_ordered(q, QUEUE_ORDERED_TAG);
 	} else {
 		/*
 		 * If the FLUSH feature is not supported we must assume that

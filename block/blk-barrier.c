@@ -26,10 +26,7 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered)
 	if (ordered != QUEUE_ORDERED_NONE &&
 	    ordered != QUEUE_ORDERED_DRAIN &&
 	    ordered != QUEUE_ORDERED_DRAIN_FLUSH &&
-	    ordered != QUEUE_ORDERED_DRAIN_FUA &&
-	    ordered != QUEUE_ORDERED_TAG &&
-	    ordered != QUEUE_ORDERED_TAG_FLUSH &&
-	    ordered != QUEUE_ORDERED_TAG_FUA) {
+	    ordered != QUEUE_ORDERED_DRAIN_FUA) {
 		printk(KERN_ERR "blk_queue_ordered: bad value %d\n", ordered);
 		return -EINVAL;
 	}
@@ -155,21 +152,9 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	 * For an empty barrier, there's no actual BAR request, which
 	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
 	 */
-	if (!blk_rq_sectors(rq)) {
+	if (!blk_rq_sectors(rq))
 		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
 				QUEUE_ORDERED_DO_POSTFLUSH);
-		/*
-		 * Empty barrier on a write-through device w/ ordered
-		 * tag has no command to issue and without any command
-		 * to issue, ordering by tag can't be used.  Drain
-		 * instead.
-		 */
-		if ((q->ordered & QUEUE_ORDERED_BY_TAG) &&
-		    !(q->ordered & QUEUE_ORDERED_DO_PREFLUSH)) {
-			q->ordered &= ~QUEUE_ORDERED_BY_TAG;
-			q->ordered |= QUEUE_ORDERED_BY_DRAIN;
-		}
-	}
 
 	/* stash away the original request */
 	blk_dequeue_request(rq);
@@ -210,7 +195,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	} else
 		skip |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && queue_in_flight(q))
+	if (queue_in_flight(q))
 		rq = NULL;
 	else
 		skip |= QUEUE_ORDSEQ_DRAIN;
@@ -257,16 +242,10 @@ bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
 		return true;
 
-	if (q->ordered & QUEUE_ORDERED_BY_TAG) {
-		/* Ordered by tag.  Blocking the next barrier is enough. */
-		if (is_barrier && rq != &q->bar_rq)
-			*rqp = NULL;
-	} else {
-		/* Ordered by draining.  Wait for turn. */
-		WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
-		if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
-			*rqp = NULL;
-	}
+	/* Ordered by draining.  Wait for turn. */
+	WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
+	if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
+		*rqp = NULL;
 
 	return true;
 }
