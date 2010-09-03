@@ -684,8 +684,7 @@ static int wm97xx_probe(struct device *dev)
  touch_reg_err:
 	platform_device_put(wm->touch_dev);
  touch_err:
-	platform_device_unregister(wm->battery_dev);
-	wm->battery_dev = NULL;
+	platform_device_del(wm->battery_dev);
  batt_reg_err:
 	platform_device_put(wm->battery_dev);
  batt_err:
