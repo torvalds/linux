@@ -12,3 +12,9 @@ config VIDEO_SOC2030
           This is a driver for the SOC2030 2MP camera sensor
 	  for use with the tegra isp.
 
+config VIDEO_DW9714L
+        tristate "DW9714L focuser support"
+        depends on I2C && ARCH_TEGRA
+        ---help---
+          This is a driver for the the dw9714l focuser.
+
