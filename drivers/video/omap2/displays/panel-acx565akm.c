@@ -587,6 +587,9 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
 
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		return 0;
+
 	mutex_lock(&md->mutex);
 
 	r = omapdss_sdi_display_enable(dssdev);
@@ -643,6 +646,9 @@ static void acx_panel_power_off(struct omap_dss_device *dssdev)
 	struct acx565akm_device *md = &acx_dev;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
+		return;
 
 	mutex_lock(&md->mutex);
 
