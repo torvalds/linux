@@ -748,7 +748,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		return err;
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
-	else if (err == UBI_IO_FF)
+	else if (err == UBI_IO_FF || err == UBI_IO_FF_BITFLIPS)
 		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, &si->erase);
 	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR) {
 		/*
@@ -817,7 +817,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	else if (err == UBI_IO_BITFLIPS)
 		bitflips = 1;
 	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR ||
-		 (err == UBI_IO_FF && ec_corr)) {
+		 (err == UBI_IO_FF && ec_corr) || err == UBI_IO_FF_BITFLIPS) {
 		/* VID header is corrupted */
 		if (err == UBI_IO_BAD_HDR_EBADMSG ||
 		    ec_corr == UBI_IO_BAD_HDR_EBADMSG)

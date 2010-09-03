@@ -720,16 +720,16 @@ bad:
 int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		       struct ubi_ec_hdr *ec_hdr, int verbose)
 {
-	int err, read_err = 0;
+	int err, read_err;
 	uint32_t crc, magic, hdr_crc;
 
 	dbg_io("read EC header from PEB %d", pnum);
 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
 
-	err = ubi_io_read(ubi, ec_hdr, pnum, 0, UBI_EC_HDR_SIZE);
-	if (err) {
-		if (err != UBI_IO_BITFLIPS && err != -EBADMSG)
-			return err;
+	read_err = ubi_io_read(ubi, ec_hdr, pnum, 0, UBI_EC_HDR_SIZE);
+	if (read_err) {
+		if (read_err != UBI_IO_BITFLIPS && read_err != -EBADMSG)
+			return read_err;
 
 		/*
 		 * We read all the data, but either a correctable bit-flip
@@ -740,14 +740,12 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		 * this. If the EC header is still OK, we just report this as
 		 * there was a bit-flip, to force scrubbing.
 		 */
-		if (err == -EBADMSG)
-			read_err = UBI_IO_BAD_HDR_EBADMSG;
 	}
 
 	magic = be32_to_cpu(ec_hdr->magic);
 	if (magic != UBI_EC_HDR_MAGIC) {
-		if (read_err)
-			return read_err;
+		if (read_err == -EBADMSG)
+			return UBI_IO_BAD_HDR_EBADMSG;
 
 		/*
 		 * The magic field is wrong. Let's check if we have read all
@@ -762,7 +760,10 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			else if (UBI_IO_DEBUG)
 				dbg_msg("no EC header found at PEB %d, "
 					"only 0xFF bytes", pnum);
-			return UBI_IO_FF;
+			if (!read_err)
+				return UBI_IO_FF;
+			else
+				return UBI_IO_FF_BITFLIPS;
 		}
 
 		/*
@@ -790,7 +791,11 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		} else if (UBI_IO_DEBUG)
 			dbg_msg("bad EC header CRC at PEB %d, calculated "
 				"%#08x, read %#08x", pnum, crc, hdr_crc);
-		return read_err ?: UBI_IO_BAD_HDR;
+
+		if (!read_err)
+			return UBI_IO_BAD_HDR;
+		else
+			return UBI_IO_BAD_HDR_EBADMSG;
 	}
 
 	/* And of course validate what has just been read from the media */
@@ -986,7 +991,7 @@ bad:
 int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_vid_hdr *vid_hdr, int verbose)
 {
-	int err, read_err = 0;
+	int err, read_err;
 	uint32_t crc, magic, hdr_crc;
 	void *p;
 
@@ -994,20 +999,15 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 	ubi_assert(pnum >= 0 &&  pnum < ubi->peb_count);
 
 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
-	err = ubi_io_read(ubi, p, pnum, ubi->vid_hdr_aloffset,
+	read_err = ubi_io_read(ubi, p, pnum, ubi->vid_hdr_aloffset,
 			  ubi->vid_hdr_alsize);
-	if (err) {
-		if (err != UBI_IO_BITFLIPS && err != -EBADMSG)
-			return err;
-
-		if (err == -EBADMSG)
-			read_err = UBI_IO_BAD_HDR_EBADMSG;
-	}
+	if (read_err && read_err != UBI_IO_BITFLIPS && read_err != -EBADMSG)
+		return read_err;
 
 	magic = be32_to_cpu(vid_hdr->magic);
 	if (magic != UBI_VID_HDR_MAGIC) {
-		if (read_err)
-			return read_err;
+		if (read_err == -EBADMSG)
+			return UBI_IO_BAD_HDR_EBADMSG;
 
 		if (check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
 			if (verbose)
@@ -1016,7 +1016,10 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			else if (UBI_IO_DEBUG)
 				dbg_msg("no VID header found at PEB %d, "
 					"only 0xFF bytes", pnum);
-			return UBI_IO_FF;
+			if (!read_err)
+				return UBI_IO_FF;
+			else
+				return UBI_IO_FF_BITFLIPS;
 		}
 
 		if (verbose) {
@@ -1040,7 +1043,10 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 		} else if (UBI_IO_DEBUG)
 			dbg_msg("bad CRC at PEB %d, calculated %#08x, "
 				"read %#08x", pnum, crc, hdr_crc);
-		return read_err ?: UBI_IO_BAD_HDR;
+		if (!read_err)
+			return UBI_IO_BAD_HDR;
+		else
+			return UBI_IO_BAD_HDR_EBADMSG;
 	}
 
 	err = validate_vid_hdr(ubi, vid_hdr);

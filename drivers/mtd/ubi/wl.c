@@ -759,6 +759,16 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			dbg_wl("PEB %d has no VID header", e1->pnum);
 			protect = 1;
 			goto out_not_moved;
+		} else if (err == UBI_IO_FF_BITFLIPS) {
+			/*
+			 * The same situation as %UBI_IO_FF, but bit-flips were
+			 * detected. It is better to schedule this PEB for
+			 * scrubbing.
+			 */
+			dbg_wl("PEB %d has no VID header but has bit-flips",
+			       e1->pnum);
+			scrubbing = 1;
+			goto out_not_moved;
 		}
 
 		ubi_err("error %d while reading VID header from PEB %d",

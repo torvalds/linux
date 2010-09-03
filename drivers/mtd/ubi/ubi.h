@@ -86,17 +86,25 @@
  * Error codes returned by the I/O sub-system.
  *
  * UBI_IO_FF: the read region of flash contains only 0xFFs
+ * UBI_IO_FF_BITFLIPS: the same as %UBI_IO_FF, but also also there was a data
+ *                     integrity error reported by the MTD driver
+ *                     (uncorrectable ECC error in case of NAND)
  * UBI_IO_BAD_HDR: the EC or VID header is corrupted (bad magic or CRC)
  * UBI_IO_BAD_HDR_EBADMSG: the same as %UBI_IO_BAD_HDR, but also there was a
  *                         data integrity error reported by the MTD driver
  *                         (uncorrectable ECC error in case of NAND)
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
+ *
+ * Note, it is probably better to have bit-flip and ebadmsg as flags which can
+ * be or'ed with other error code. But this is a big change because there are
+ * may callers, so it does not worth the risk of introducing a bug
  */
 enum {
 	UBI_IO_FF = 1,
+	UBI_IO_FF_BITFLIPS,
 	UBI_IO_BAD_HDR,
 	UBI_IO_BAD_HDR_EBADMSG,
-	UBI_IO_BITFLIPS
+	UBI_IO_BITFLIPS,
 };
 
 /*
