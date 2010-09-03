@@ -32,6 +32,7 @@
 #include <media/v4l2-chip-ident.h>
 
 #include <media/cx25840.h>
+#include "dvb-usb-ids.h"
 #include "xc5000.h"
 
 #include "cx231xx.h"
@@ -175,6 +176,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
 	{USB_DEVICE(0x0572, 0x58A1),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
+	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000,0x4fff),
+	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{},
 };
 
