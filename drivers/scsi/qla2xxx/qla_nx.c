@@ -2257,7 +2257,7 @@ void qla82xx_init_flags(struct qla_hw_data *ha)
 	ha->nx_legacy_intr.pci_int_reg = nx_legacy_intr->pci_int_reg;
 }
 
-static inline void
+inline void
 qla82xx_set_drv_active(scsi_qla_host_t *vha)
 {
 	uint32_t drv_active;
@@ -2411,7 +2411,7 @@ fw_load_failed:
 	return QLA_FUNCTION_FAILED;
 }
 
-static int
+int
 qla82xx_start_firmware(scsi_qla_host_t *vha)
 {
 	int           pcie_cap;
@@ -3291,6 +3291,9 @@ qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	fw_heartbeat_counter = qla82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
+	/* all 0xff, assume AER/EEH in progress, ignore */
+	if (fw_heartbeat_counter == 0xffffffff)
+		return;
 	if (vha->fw_heartbeat_counter == fw_heartbeat_counter) {
 		vha->seconds_since_last_heartbeat++;
 		/* FW not alive after 2 seconds */
