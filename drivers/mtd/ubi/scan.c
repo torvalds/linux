@@ -64,9 +64,9 @@ static struct ubi_vid_hdr *vidh;
  * @ec: erase counter of the physical eraseblock
  * @list: the list to add to
  *
- * This function adds physical eraseblock @pnum to free, erase, corrupted or
- * alien lists. Returns zero in case of success and a negative error code in
- * case of failure.
+ * This function adds physical eraseblock @pnum to free, erase, or alien lists.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
  */
 static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 		       struct list_head *list)
@@ -79,9 +79,6 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 	} else if (list == &si->erase) {
 		dbg_bld("add to erase: PEB %d, EC %d", pnum, ec);
 		si->erase_peb_count += 1;
-	} else if (list == &si->corr) {
-		dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
-		si->corr_peb_count += 1;
 	} else if (list == &si->alien) {
 		dbg_bld("add to alien: PEB %d, EC %d", pnum, ec);
 		si->alien_peb_count += 1;
@@ -95,6 +92,33 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 	seb->pnum = pnum;
 	seb->ec = ec;
 	list_add_tail(&seb->u.list, list);
+	return 0;
+}
+
+/**
+ * add_corrupted - add a corrupted physical eraseblock.
+ * @si: scanning information
+ * @pnum: physical eraseblock number to add
+ * @ec: erase counter of the physical eraseblock
+ *
+ * This function adds corrupted physical eraseblock @pnum to the 'corr' list.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
+ */
+static int add_corrupted(struct ubi_scan_info *si, int pnum, int ec)
+{
+	struct ubi_scan_leb *seb;
+
+	dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
+
+	seb = kmalloc(sizeof(struct ubi_scan_leb), GFP_KERNEL);
+	if (!seb)
+		return -ENOMEM;
+
+	si->corr_peb_count += 1;
+	seb->pnum = pnum;
+	seb->ec = ec;
+	list_add(&seb->u.list, &si->corr);
 	return 0;
 }
 
@@ -464,8 +488,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 				return err;
 
 			if (cmp_res & 4)
-				err = add_to_list(si, seb->pnum, seb->ec,
-						  &si->corr);
+				err = add_corrupted(si, seb->pnum, seb->ec);
 			else
 				err = add_to_list(si, seb->pnum, seb->ec,
 						  &si->erase);
@@ -488,7 +511,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * previously.
 			 */
 			if (cmp_res & 4)
-				return add_to_list(si, pnum, ec, &si->corr);
+				return add_corrupted(si, pnum, ec);
 			else
 				return add_to_list(si, pnum, ec, &si->erase);
 		}
@@ -835,13 +858,13 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		si->read_err_count += 1;
 	case UBI_IO_BAD_HDR:
 	case UBI_IO_FF_BITFLIPS:
-		err = add_to_list(si, pnum, ec, &si->corr);
+		err = add_corrupted(si, pnum, ec);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF:
 		if (ec_err)
-			err = add_to_list(si, pnum, ec, &si->corr);
+			err = add_corrupted(si, pnum, ec);
 		else
 			err = add_to_list(si, pnum, ec, &si->free);
 		if (err)
