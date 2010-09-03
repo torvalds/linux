@@ -1392,7 +1392,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev,
 							NULL);
 	if (!mac_addr_p) {
 		dev_err(&dev->dev, "Can't find VETH_MAC_ADDR attribute\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	mcastFilterSize_p = (unsigned int *)vio_get_attribute(dev,
@@ -1400,7 +1400,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev,
 	if (!mcastFilterSize_p) {
 		dev_err(&dev->dev, "Can't find VETH_MCAST_FILTER_SIZE "
 			"attribute\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	netdev = alloc_etherdev(sizeof(struct ibmveth_adapter));
