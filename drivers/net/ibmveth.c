@@ -53,18 +53,6 @@
 
 #include "ibmveth.h"
 
-#undef DEBUG
-
-#ifdef DEBUG
-#define ibmveth_assert(expr) \
-  if (!(expr)) {                                   \
-    printk(KERN_DEBUG "assertion failed (%s:%3.3d ua:%x): %s\n", __FILE__, __LINE__, adapter->vdev->unit_address, #expr); \
-    BUG(); \
-  }
-#else
-#define ibmveth_assert(expr)
-#endif
-
 static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance);
 static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev);
@@ -251,8 +239,8 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
 			pool->consumer_index = 0;
 		index = pool->free_map[free_index];
 
-		ibmveth_assert(index != IBM_VETH_INVALID_MAP);
-		ibmveth_assert(pool->skbuff[index] == NULL);
+		BUG_ON(index == IBM_VETH_INVALID_MAP);
+		BUG_ON(pool->skbuff[index] != NULL);
 
 		dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
 				pool->buff_size, DMA_FROM_DEVICE);
@@ -371,12 +359,12 @@ static void ibmveth_remove_buffer_from_pool(struct ibmveth_adapter *adapter,
 	unsigned int free_index;
 	struct sk_buff *skb;
 
-	ibmveth_assert(pool < IBMVETH_NUM_BUFF_POOLS);
-	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
+	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
+	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
 
 	skb = adapter->rx_buff_pool[pool].skbuff[index];
 
-	ibmveth_assert(skb != NULL);
+	BUG_ON(skb == NULL);
 
 	adapter->rx_buff_pool[pool].skbuff[index] = NULL;
 
@@ -404,8 +392,8 @@ static inline struct sk_buff *ibmveth_rxq_get_buffer(struct ibmveth_adapter *ada
 	unsigned int pool = correlator >> 32;
 	unsigned int index = correlator & 0xffffffffUL;
 
-	ibmveth_assert(pool < IBMVETH_NUM_BUFF_POOLS);
-	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
+	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
+	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
 
 	return adapter->rx_buff_pool[pool].skbuff[index];
 }
@@ -420,8 +408,8 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
 
-	ibmveth_assert(pool < IBMVETH_NUM_BUFF_POOLS);
-	ibmveth_assert(index < adapter->rx_buff_pool[pool].size);
+	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
+	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
 
 	if (!adapter->rx_buff_pool[pool].active) {
 		ibmveth_rxq_harvest_buffer(adapter);
@@ -1181,7 +1169,7 @@ restart_poll:
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
 				       VIO_IRQ_ENABLE);
 
-		ibmveth_assert(lpar_rc == H_SUCCESS);
+		BUG_ON(lpar_rc != H_SUCCESS);
 
 		napi_complete(napi);
 
@@ -1205,7 +1193,7 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
 	if (napi_schedule_prep(&adapter->napi)) {
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
 				       VIO_IRQ_DISABLE);
-		ibmveth_assert(lpar_rc == H_SUCCESS);
+		BUG_ON(lpar_rc != H_SUCCESS);
 		__napi_schedule(&adapter->napi);
 	}
 	return IRQ_HANDLED;
