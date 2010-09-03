@@ -536,9 +536,6 @@ static int davinci_spi_bufs_prep(struct spi_device *spi,
 	 * optimize for both flags staying cleared.
 	 */
 
-	op_mode = SPIPC0_DIFUN_MASK
-		| SPIPC0_DOFUN_MASK
-		| SPIPC0_CLKFUN_MASK;
 	if (!(spi->mode & SPI_NO_CS)) {
 		pdata = davinci_spi->pdata;
 		if (!pdata->chip_sel ||
@@ -886,6 +883,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	resource_size_t	dma_tx_chan = SPI_NO_RESOURCE;
 	resource_size_t	dma_eventq = SPI_NO_RESOURCE;
 	int i = 0, ret = 0;
+	u32 spipc0;
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
@@ -1027,6 +1025,10 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	iowrite32(0, davinci_spi->base + SPIGCR0);
 	udelay(100);
 	iowrite32(1, davinci_spi->base + SPIGCR0);
+
+	/* Set up SPIPC0.  CS and ENA init is done in davinci_spi_bufs_prep */
+	spipc0 = SPIPC0_DIFUN_MASK | SPIPC0_DOFUN_MASK | SPIPC0_CLKFUN_MASK;
+	iowrite32(spipc0, davinci_spi->base + SPIPC0);
 
 	/* initialize chip selects */
 	if (pdata->chip_sel) {
