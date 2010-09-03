@@ -284,10 +284,10 @@ void AP_to_speakers(void)
 	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x208, 0x000A);
 	wm8994_write(0x420, 0x0000); 
-	
+
 	wm8994_write(0x601, 0x0001);
 	wm8994_write(0x602, 0x0001);
-    
+
 	wm8994_write(0x610, 0x01c0);  //DAC1 Left Volume bit0~7	
 	wm8994_write(0x611, 0x01c0);  //DAC1 Right Volume bit0~7	
 	wm8994_write(0x03,  0x0330);
@@ -303,8 +303,6 @@ void AP_to_speakers(void)
 	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
 #endif
-
-	mdelay(WM8994_DELAY);
 }
 
 void recorder_and_AP_to_headset(void)
@@ -1045,8 +1043,8 @@ void BT_baseband(void)
 	wm8994_write(0x603, 0x000C);
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x606, 0x0003);
-	wm8994_write(0x607, 0x0003);
+	//wm8994_write(0x606, 0x0003);
+	//wm8994_write(0x607, 0x0003);
 	wm8994_write(0x610, 0x01C0);
 	wm8994_write(0x612, 0x01C0);
 	wm8994_write(0x613, 0x01C0);
@@ -2597,33 +2595,23 @@ static int wm8994_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	int i;
-	u8 data[2];
-	u16 *cache = codec->reg_cache;
 	wm8994_codec_fnc_t **wm8994_fnc_ptr=wm8994_codec_sequence;
-
-	/* Sync reg_cache with the hardware */
-	for (i = 0; i < WM8994_NUM_REG; i++) {
-		if (i == WM8994_RESET)
-			continue;
-		data[0] = (i << 1) | ((cache[i] >> 8) & 0x0001);
-		data[1] = cache[i] & 0x00ff;
-		codec->hw_write(codec->control_data, data, 2);
-	}
+	unsigned char wm8994_resume_mode=wm8994_current_mode;
+	wm8994_current_mode=null;
 
 	wm8994_set_bias_level(codec,SND_SOC_BIAS_STANDBY);
-	if(wm8994_current_mode<=wm8994_AP_to_speakers)
+	if(wm8994_resume_mode<=wm8994_AP_to_speakers)
 	{
-		wm8994_fnc_ptr+=wm8994_current_mode;
+		wm8994_fnc_ptr+=wm8994_resume_mode;
 		(*wm8994_fnc_ptr)() ;
 	}
-	else if(wm8994_current_mode>wm8994_BT_baseband_and_record)
+	else if(wm8994_resume_mode>wm8994_BT_baseband_and_record)
 	{
 		printk("%s--%d--: Wm8994 resume with null mode\n",__FUNCTION__,__LINE__);
 	}
 	else
 	{
-		wm8994_fnc_ptr+=wm8994_current_mode;
+		wm8994_fnc_ptr+=wm8994_resume_mode;
 		(*wm8994_fnc_ptr)();
 		printk("%s--%d--: Wm8994 resume with error mode\n",__FUNCTION__,__LINE__);
 	}
@@ -2848,7 +2836,6 @@ int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short
 	msg.flags = client->flags;
 	msg.scl_rate = scl_rate;
 	msg.read_type = I2C_NORMAL;
-    
 	ret = i2c_transfer(adap, &msg, 1);
 
 	return ret;
