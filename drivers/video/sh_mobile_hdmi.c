@@ -205,6 +205,7 @@ enum hotplug_state {
 struct sh_hdmi {
 	void __iomem *base;
 	enum hotplug_state hp_state;
+	bool preprogrammed_mode;	/* use a pre-programmed VIC or the external mode */
 	struct clk *hdmi_clk;
 	struct device *dev;
 	struct fb_info *info;
@@ -282,7 +283,10 @@ static void hdmi_external_video_param(struct sh_hdmi *hdmi)
 
 	hdmi_write(hdmi, var->vsync_len, HDMI_EXTERNAL_V_DURATION);
 
-	/* Set bit 0 of HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS here for manual mode */
+	/* Set bit 0 of HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS here for external mode */
+	if (!hdmi->preprogrammed_mode)
+		hdmi_write(hdmi, sync | 1 | (voffset << 4),
+			   HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS);
 }
 
 /**
@@ -632,6 +636,13 @@ static void sh_hdmi_read_edid(struct sh_hdmi *hdmi)
 		 var->left_margin, var->xres, var->right_margin, var->hsync_len,
 		 var->upper_margin, var->yres, var->lower_margin, var->vsync_len,
 		 PICOS2KHZ(var->pixclock));
+
+	if ((hdmi->var.xres == 720 && hdmi->var.yres == 480) ||
+	    (hdmi->var.xres == 1280 && hdmi->var.yres == 720) ||
+	    (hdmi->var.xres == 1920 && hdmi->var.yres == 1080))
+		hdmi->preprogrammed_mode = true;
+	else
+		hdmi->preprogrammed_mode = false;
 
 	hdmi_external_video_param(hdmi);
 }
