@@ -746,11 +746,18 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	err = ubi_io_read_ec_hdr(ubi, pnum, ech, 0);
 	if (err < 0)
 		return err;
-	else if (err == UBI_IO_BITFLIPS)
+	switch (err) {
+	case 0:
+		break;
+	case UBI_IO_BITFLIPS:
 		bitflips = 1;
-	else if (err == UBI_IO_FF || err == UBI_IO_FF_BITFLIPS)
+		break;
+	case UBI_IO_FF:
+	case UBI_IO_FF_BITFLIPS:
 		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, &si->erase);
-	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR) {
+	case UBI_IO_BAD_HDR_EBADMSG:
+		si->read_err_count += 1;
+	case UBI_IO_BAD_HDR:
 		/*
 		 * We have to also look at the VID header, possibly it is not
 		 * corrupted. Set %bitflips flag in order to make this PEB be
@@ -759,6 +766,10 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		ec_err = err;
 		ec = UBI_SCAN_UNKNOWN_EC;
 		bitflips = 1;
+		break;
+	default:
+		ubi_err("'ubi_io_read_ec_hdr()' returned unknown code %d", err);
+		return -EINVAL;
 	}
 
 	if (!ec_err) {
@@ -814,24 +825,32 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	err = ubi_io_read_vid_hdr(ubi, pnum, vidh, 0);
 	if (err < 0)
 		return err;
-	else if (err == UBI_IO_BITFLIPS)
+	switch (err) {
+	case 0:
+		break;
+	case UBI_IO_BITFLIPS:
 		bitflips = 1;
-	else if (err == UBI_IO_BAD_HDR_EBADMSG || err == UBI_IO_BAD_HDR ||
-		 (err == UBI_IO_FF && ec_err) || err == UBI_IO_FF_BITFLIPS) {
-		/* VID header is corrupted */
-		if (err == UBI_IO_BAD_HDR_EBADMSG ||
-		    ec_err == UBI_IO_BAD_HDR_EBADMSG)
-			si->read_err_count += 1;
+		break;
+	case UBI_IO_BAD_HDR_EBADMSG:
+		si->read_err_count += 1;
+	case UBI_IO_BAD_HDR:
+	case UBI_IO_FF_BITFLIPS:
 		err = add_to_list(si, pnum, ec, &si->corr);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
-	} else if (err == UBI_IO_FF) {
-		/* No VID header - the physical eraseblock is free */
-		err = add_to_list(si, pnum, ec, &si->free);
+	case UBI_IO_FF:
+		if (ec_err)
+			err = add_to_list(si, pnum, ec, &si->corr);
+		else
+			err = add_to_list(si, pnum, ec, &si->free);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
+	default:
+		ubi_err("'ubi_io_read_vid_hdr()' returned unknown code %d",
+			err);
+		return -EINVAL;
 	}
 
 	vol_id = be32_to_cpu(vidh->vol_id);
