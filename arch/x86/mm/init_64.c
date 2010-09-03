@@ -570,6 +570,7 @@ kernel_physical_mapping_init(unsigned long start,
 
 	start = (unsigned long)__va(start);
 	end = (unsigned long)__va(end);
+	addr = start;
 
 	for (; start < end; start = next) {
 		pgd_t *pgd = pgd_offset_k(start);
