@@ -30,7 +30,7 @@
 #include <mach/zylonite.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "devices.h"

@@ -37,7 +37,7 @@
 #include <mach/z2.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/pxa2xx_spi.h>
 
 #include <plat/i2c.h>

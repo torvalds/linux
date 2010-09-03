@@ -25,7 +25,7 @@
 
 #include <mach/pxa930.h>
 #include <mach/pxafb.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 
 #include "devices.h"
 #include "generic.h"
