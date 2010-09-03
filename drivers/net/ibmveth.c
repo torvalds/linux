@@ -252,7 +252,9 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 		}
 
 		free_index = pool->consumer_index;
-		pool->consumer_index = (pool->consumer_index + 1) % pool->size;
+		pool->consumer_index++;
+		if (pool->consumer_index >= pool->size)
+			pool->consumer_index = 0;
 		index = pool->free_map[free_index];
 
 		ibmveth_assert(index != IBM_VETH_INVALID_MAP);
@@ -377,9 +379,10 @@ static void ibmveth_remove_buffer_from_pool(struct ibmveth_adapter *adapter, u64
 			 DMA_FROM_DEVICE);
 
 	free_index = adapter->rx_buff_pool[pool].producer_index;
-	adapter->rx_buff_pool[pool].producer_index
-		= (adapter->rx_buff_pool[pool].producer_index + 1)
-		% adapter->rx_buff_pool[pool].size;
+	adapter->rx_buff_pool[pool].producer_index++;
+	if (adapter->rx_buff_pool[pool].producer_index >=
+	    adapter->rx_buff_pool[pool].size)
+		adapter->rx_buff_pool[pool].producer_index = 0;
 	adapter->rx_buff_pool[pool].free_map[free_index] = index;
 
 	mb();
