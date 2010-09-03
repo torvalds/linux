@@ -607,40 +607,6 @@ nouveau_pgraph_irq_handler(struct drm_device *dev)
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);
 }
 
-static void
-nv50_pfb_vm_trap(struct drm_device *dev, int display, const char *name)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t trap[6];
-	int i, ch;
-	uint32_t idx = nv_rd32(dev, 0x100c90);
-	if (idx & 0x80000000) {
-		idx &= 0xffffff;
-		if (display) {
-			for (i = 0; i < 6; i++) {
-				nv_wr32(dev, 0x100c90, idx | i << 24);
-				trap[i] = nv_rd32(dev, 0x100c94);
-			}
-			for (ch = 0; ch < dev_priv->engine.fifo.channels; ch++) {
-				struct nouveau_channel *chan = dev_priv->fifos[ch];
-
-				if (!chan || !chan->ramin)
-					continue;
-
-				if (trap[1] == chan->ramin->vinst >> 12)
-					break;
-			}
-			NV_INFO(dev, "%s - VM: Trapped %s at %02x%04x%04x status %08x %08x channel %d\n",
-					name, (trap[5]&0x100?"read":"write"),
-					trap[5]&0xff, trap[4]&0xffff,
-					trap[3]&0xffff, trap[0], trap[2], ch);
-		}
-		nv_wr32(dev, 0x100c90, idx | 0x80000000);
-	} else if (display) {
-		NV_INFO(dev, "%s - no VM fault?\n", name);
-	}
-}
-
 static struct nouveau_enum_names nv50_mp_exec_error_names[] =
 {
 	{ 3, "STACK_UNDERFLOW" },
@@ -713,7 +679,7 @@ nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
 		tps++;
 		switch (type) {
 		case 6: /* texture error... unknown for now */
-			nv50_pfb_vm_trap(dev, display, name);
+			nv50_fb_vm_trap(dev, display, name);
 			if (display) {
 				NV_ERROR(dev, "magic set %d:\n", i);
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
@@ -736,7 +702,7 @@ nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
 			uint32_t e1c = nv_rd32(dev, ustatus_addr + 0x14);
 			uint32_t e20 = nv_rd32(dev, ustatus_addr + 0x18);
 			uint32_t e24 = nv_rd32(dev, ustatus_addr + 0x1c);
-			nv50_pfb_vm_trap(dev, display, name);
+			nv50_fb_vm_trap(dev, display, name);
 			/* 2d engine destination */
 			if (ustatus & 0x00000010) {
 				if (display) {
@@ -819,7 +785,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 
 		/* Known to be triggered by screwed up NOTIFY and COND... */
 		if (ustatus & 0x00000001) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_DISPATCH_FAULT");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_DISPATCH_FAULT");
 			nv_wr32(dev, 0x400500, 0);
 			if (nv_rd32(dev, 0x400808) & 0x80000000) {
 				if (display) {
@@ -844,7 +810,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 			ustatus &= ~0x00000001;
 		}
 		if (ustatus & 0x00000002) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_DISPATCH_QUERY");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_DISPATCH_QUERY");
 			nv_wr32(dev, 0x400500, 0);
 			if (nv_rd32(dev, 0x40084c) & 0x80000000) {
 				if (display) {
@@ -886,15 +852,15 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 			NV_INFO(dev, "PGRAPH_TRAP_M2MF - no ustatus?\n");
 		}
 		if (ustatus & 0x00000001) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_NOTIFY");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_NOTIFY");
 			ustatus &= ~0x00000001;
 		}
 		if (ustatus & 0x00000002) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_IN");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_IN");
 			ustatus &= ~0x00000002;
 		}
 		if (ustatus & 0x00000004) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_OUT");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_OUT");
 			ustatus &= ~0x00000004;
 		}
 		NV_INFO (dev, "PGRAPH_TRAP_M2MF - %08x %08x %08x %08x\n",
@@ -919,7 +885,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 			NV_INFO(dev, "PGRAPH_TRAP_VFETCH - no ustatus?\n");
 		}
 		if (ustatus & 0x00000001) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_VFETCH_FAULT");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_VFETCH_FAULT");
 			NV_INFO (dev, "PGRAPH_TRAP_VFETCH_FAULT - %08x %08x %08x %08x\n",
 					nv_rd32(dev, 0x400c00),
 					nv_rd32(dev, 0x400c08),
@@ -941,7 +907,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 			NV_INFO(dev, "PGRAPH_TRAP_STRMOUT - no ustatus?\n");
 		}
 		if (ustatus & 0x00000001) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_STRMOUT_FAULT");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_STRMOUT_FAULT");
 			NV_INFO (dev, "PGRAPH_TRAP_STRMOUT_FAULT - %08x %08x %08x %08x\n",
 					nv_rd32(dev, 0x401804),
 					nv_rd32(dev, 0x401808),
@@ -966,7 +932,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 			NV_INFO(dev, "PGRAPH_TRAP_CCACHE - no ustatus?\n");
 		}
 		if (ustatus & 0x00000001) {
-			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_CCACHE_FAULT");
+			nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_CCACHE_FAULT");
 			NV_INFO (dev, "PGRAPH_TRAP_CCACHE_FAULT - %08x %08x %08x %08x %08x %08x %08x\n",
 					nv_rd32(dev, 0x405800),
 					nv_rd32(dev, 0x405804),
@@ -988,7 +954,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 	 * remaining, so try to handle it anyway. Perhaps related to that
 	 * unknown DMA slot on tesla? */
 	if (status & 0x20) {
-		nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_UNKC04");
+		nv50_fb_vm_trap(dev, display, "PGRAPH_TRAP_UNKC04");
 		ustatus = nv_rd32(dev, 0x402000) & 0x7fffffff;
 		if (display)
 			NV_INFO(dev, "PGRAPH_TRAP_UNKC04 - Unhandled ustatus 0x%08x\n", ustatus);
