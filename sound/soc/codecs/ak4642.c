@@ -424,6 +424,8 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 	codec->hw_write		= (hw_write_t)i2c_master_send;
 	codec->control_data = ak4642->control_data;
 
+	snd_soc_add_controls(codec, ak4642_snd_controls,
+			     ARRAY_SIZE(ak4642_snd_controls));
 
 	return 0;
 }
