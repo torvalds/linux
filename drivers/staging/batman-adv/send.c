@@ -99,23 +99,6 @@ send_skb_err:
 	return NET_XMIT_DROP;
 }
 
-/* sends a raw packet. */
-void send_raw_packet(unsigned char *pack_buff, int pack_buff_len,
-		     struct batman_if *batman_if, uint8_t *dst_addr)
-{
-	struct sk_buff *skb;
-	char *data;
-
-	skb = dev_alloc_skb(pack_buff_len + sizeof(struct ethhdr));
-	if (!skb)
-		return;
-	data = skb_put(skb, pack_buff_len + sizeof(struct ethhdr));
-	memcpy(data + sizeof(struct ethhdr), pack_buff, pack_buff_len);
-	/* pull back to the batman "network header" */
-	skb_pull(skb, sizeof(struct ethhdr));
-	send_skb_packet(skb, batman_if, dst_addr);
-}
-
 /* Send a packet to a given interface */
 static void send_packet_to_if(struct forw_packet *forw_packet,
 			      struct batman_if *batman_if)

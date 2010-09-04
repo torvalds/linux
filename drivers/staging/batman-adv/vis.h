@@ -32,7 +32,7 @@ struct vis_info {
 	struct list_head send_list;
 	struct kref refcount;
 	/* this packet might be part of the vis send queue. */
-	struct vis_packet packet;
+	struct sk_buff *skb_packet;
 	/* vis_info may follow here*/
 } __attribute__((packed));
 
