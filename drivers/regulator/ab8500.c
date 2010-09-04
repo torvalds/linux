@@ -157,7 +157,7 @@ static int ab8500_list_voltage(struct regulator_dev *rdev, unsigned selector)
 	if (info->fixed_uV)
 		return info->fixed_uV;
 
-	if (selector > info->voltages_len)
+	if (selector >= info->voltages_len)
 		return -EINVAL;
 
 	return info->supported_voltages[selector];
