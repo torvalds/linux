@@ -99,7 +99,7 @@ static int spi_dpram_write_buf(struct spi_dpram *dpram, unsigned short int addr,
 	unsigned char *p = buf;
 	for(i=0;i<len;i++)
 	{
-		printk("%s:buf[%d]=0x%x\n",__FUNCTION__,i,*p);
+		DBG("%s:buf[%d]=0x%x\n",__FUNCTION__,i,*p);
 		p++;
 	}
 #endif
@@ -132,7 +132,7 @@ static int spi_dpram_write_buf(struct spi_dpram *dpram, unsigned short int addr,
 		ret = spi_write(port->spi, tx_buf, count+3);
 		if(ret)
 		{
-			printk("%s:spi_write err! i=%d\n",__FUNCTION__,i);
+			DBG("%s:spi_write err! i=%d\n",__FUNCTION__,i);
 			return ret;
 		}
 	}
@@ -176,7 +176,7 @@ static int spi_dpram_read_buf(struct spi_dpram *dpram, unsigned short int addr, 
 		stat = spi_write_then_read(port->spi, tx_buf, sizeof(tx_buf), buf + i*MAX_SPI_LEN, count);	
 		if(stat)
 		{
-			printk("%s:spi_write_then_read is error!,err=%d\n\n",__FUNCTION__,stat);
+			DBG("%s:spi_write_then_read is error!,err=%d\n\n",__FUNCTION__,stat);
 			return -1;
 		}
 
@@ -209,7 +209,7 @@ int spi_dpram_write_word(struct spi_dpram *dpram, unsigned short int addr, unsig
 	ret = spi_write(port->spi, tx_buf, sizeof(tx_buf));
 	if(ret)
 	{
-		printk("%s:spi_write err!\n",__FUNCTION__);
+		DBG("%s:spi_write err!\n",__FUNCTION__);
 		return -1;
 	}
 	
@@ -233,7 +233,7 @@ int spi_dpram_read_word(struct spi_dpram *dpram, unsigned short int addr)
 	ret = spi_write_then_read(port->spi, tx_buf, sizeof(tx_buf), rx_buf, sizeof(rx_buf));
 	if(ret)
 	{
-		printk("%s:spi_write_then_read err!\n",__FUNCTION__);
+		DBG("%s:spi_write_then_read err!\n",__FUNCTION__);
 		return -1;
 	}
 	
@@ -283,6 +283,7 @@ int gNumRecInt=0,gNumLastRecInt = 0;
 int gNumCount = 0;
 unsigned char buf_dpram[SPI_DPRAM_BPWRITE_SIZE<<1];
 
+int gRecCount = 0; 
 
 //really is spi_dpram_irq_work_handler after dpram's pin is exchanged 
 static void spi_dpram_irq_work_handler(struct work_struct *work)
@@ -294,7 +295,7 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 	unsigned int ptr,len;
 	int i;
 	char temp,*p;
-	printk("Enter::%s,mbox=%d\n",__FUNCTION__,mbox);
+	DBG("Enter::%s,mbox=%d\n",__FUNCTION__,mbox);
 	//gNumRecInt = mbox & 0x1fff;
 	//if(gNumRecInt - gNumLastRecInt !=1)
 	//if(++gNumLastRecInt > (1<<12))
@@ -311,7 +312,8 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 		len = ptr;		
 		port->dpram.read_dpram(&port->dpram, SPI_DPRAM_BPWRITE_START, port->dpram.prx, len);
 		port->dpram.rec_len += ptr;	
-		printk("%s:ram0:ptr=%d,len=%d\n",__FUNCTION__,ptr,len);	
+		gRecCount = port->dpram.rec_len; 
+		DBG("%s:ram0:ptr=%d,len=%d\n",__FUNCTION__,ptr,len);	
 		//send ack
 		//if(++gNumSendAck > (1<<12))
 		//gNumSendAck = 0;
@@ -324,9 +326,10 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 			*(p+(i<<1))= *(p+(i<<1)+1);
 			*(p+(i<<1)+1) = temp;
 		}
-
-		for(i=0;i<ptr;i++)
-			printk("%s:prx[%d]=0x%x\n",__FUNCTION__,i,*p++); 
+		
+	p = port->dpram.prx;
+	for(i=0;i<ptr;i++)
+		printk("%s:prx[%d]=0x%x\n",__FUNCTION__,i,*p++);
 		
 		//wake up ap to read data
 		wake_up_interruptible(&port->dpram.recq);
@@ -336,7 +339,7 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 		//allow bp write ram0 again
 		port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM0));
 		
-		//printk("%s:r_irq=0x%x,s_ack=0x%x\n",__FUNCTION__,mbox, (MAILBOX_APSEND_ACK | MAILBOX_RAM0 | gNumSendAck));
+		//DBG("%s:r_irq=0x%x,s_ack=0x%x\n",__FUNCTION__,mbox, (MAILBOX_APSEND_ACK | MAILBOX_RAM0 | gNumSendAck));
 	}
 	else if((mbox&MAILBOX_RAM3) == MAILBOX_RAM2)
 	{
@@ -348,7 +351,7 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 		len = ptr;	
 		port->dpram.read_dpram(&port->dpram, SPI_DPRAM_LOG_BPWRITE_START, port->dpram.prx, len);
 		port->dpram.rec_len += ptr;	
-		printk("%s:ram2:ptr=%d,len=%d\n",__FUNCTION__,ptr,len);	
+		DBG("%s:ram2:ptr=%d,len=%d\n",__FUNCTION__,ptr,len);	
 		//if(++gNumSendAck > (1<<12))
 		//gNumSendAck = 0;
 		//port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM2 | gNumSendAck));
@@ -369,8 +372,8 @@ static void spi_dpram_irq_work_handler(struct work_struct *work)
 		//allow bp write ram0 again
 		port->dpram.write_ack(&port->dpram, (MAILBOX_APSEND_ACK | MAILBOX_RAM2));
 		
-		//printk("%s:r_irq=0x%x,s_ack=0x%x\n",__FUNCTION__, mbox, (MAILBOX_APSEND_ACK | MAILBOX_RAM2 | gNumSendAck));
-	}
+		//DBG("%s:r_irq=0x%x,s_ack=0x%x\n",__FUNCTION__, mbox, (MAILBOX_APSEND_ACK | MAILBOX_RAM2 | gNumSendAck));
+	} 
 	
 }
 
@@ -406,7 +409,7 @@ void spi_dpram_work_handler(struct work_struct *work)
 	int i;
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, dpram.spi_dpram_work);
-	printk("*************test spi_dpram now***************\n");
+	DBG("*************test spi_dpram now***************\n");
 
 	for(i=0;i<SPI_DPRAM_BPWRITE_SIZE;i++)
 	{
@@ -421,7 +424,7 @@ void spi_dpram_work_handler(struct work_struct *work)
 	{
 		ret = (*(port->dpram.prx+2*i)<<8) | (*(port->dpram.prx+2*i+1));
 		if(ret != 0xa000+i)
-		printk("prx[%d]=0x%x ram[%d]=0x%x\n",i,ret&0xffff,i,0xa000+i);
+		DBG("prx[%d]=0x%x ram[%d]=0x%x\n",i,ret&0xffff,i,0xa000+i);
 	}
 	
 #elif(SEL_RAM == SEL_RAM1)	
@@ -437,7 +440,7 @@ void spi_dpram_work_handler(struct work_struct *work)
 	{
 		ret = (*(port->dpram.prx+2*i)<<8) | (*(port->dpram.prx+2*i+1));
 		if(ret != 0xc000+i)
-		printk("prx[%d]=0x%x ram[%d]=0x%x\n",i,ret&0xffff,i,0xc000+i);
+		DBG("prx[%d]=0x%x ram[%d]=0x%x\n",i,ret&0xffff,i,0xc000+i);
 	}
 
 #elif(SEL_RAM == SEL_RAM3)	
@@ -521,7 +524,7 @@ static int dpr_open(struct inode *inode, struct file *filp)
 {
     struct spi_fpga_port *port = pFpgaPort;
 
-	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	filp->private_data = port;
 	port->dpram.rec_len = 0;
 	port->dpram.send_len = 0;
@@ -534,20 +537,19 @@ static int dpr_open(struct inode *inode, struct file *filp)
 static int dpr_close(struct inode *inode, struct file *filp)
 {
 	//struct spi_fpga_port *port = pFpgaPort;
-	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	DBG("%s:line=%d\n",__FUNCTION__,__LINE__);
 	filp->private_data = NULL;
 	return 0;
 }
-
-int gRecCount = 0;
+	
 static ssize_t dpr_read (struct file *filp, char __user *buffer, size_t count, loff_t *ppos)
 {
-	int ret=0; 
+	int ret;
 	struct spi_fpga_port *port = filp->private_data;
 
-	down_interruptible(&port->dpram.rec_sem);
-	
-	printk("%s, port=0x%x , count=%d, port->dpram.rec_len=%d \n",__FUNCTION__, (int)port, count, port->dpram.rec_len); 
+	ret = down_interruptible(&port->dpram.rec_sem);
+	//DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port); 
+	DBG("%s, port=0x%x , count=%d, port->dpram.rec_len=%d \n",__FUNCTION__, (int)port, count, port->dpram.rec_len); 
 		
 	//printk("%s:CURRENT_TASK=0x%x\n",__FUNCTION__,current);	
 	while(port->dpram.rec_len == 0)
@@ -557,53 +559,40 @@ static ssize_t dpr_read (struct file *filp, char __user *buffer, size_t count, l
 
 		if(wait_event_interruptible(port->dpram.recq, (port->dpram.rec_len != 0)))
 		{       
-			printk("%s:NO data in dpram!\n",__FUNCTION__);
+			DBG("%s:NO data in dpram!\n",__FUNCTION__);
 			return -ERESTARTSYS;   
 		}
 
-		gRecCount = port->dpram.rec_len;
+		//gRecCount = port->dpram.rec_len;
 	}
 
 	/*read data from buffer*/
-	if(port->dpram.rec_len >=count){ 
-		if(copy_to_user((char*)buffer, (char *)(port->dpram.prx + gRecCount - port->dpram.rec_len), count))
-    	{
- 			printk("%s:copy_to_user err!\n",__FUNCTION__);
-			return -EFAULT;
-    	}
-		ret = count; 
-	}else{ 
-		if(copy_to_user((char*)buffer, (char *)(port->dpram.prx + gRecCount - port->dpram.rec_len), port->dpram.rec_len))
-    	{
- 			printk("%s:copy_to_user err!\n",__FUNCTION__);
-			return -EFAULT;
-    	}
-		ret = port->dpram.rec_len; 
-	}
+	if(copy_to_user((char*)buffer, (char *)(port->dpram.prx + gRecCount - port->dpram.rec_len), count))
+    {
+        DBG("%s:copy_to_user err!\n",__FUNCTION__);
+        return -EFAULT;
+    }
 	
-	#if 1
-	int i;
+	#if 1 
+	int i,len;
 	char *p = buffer;
-	for(i=0;i<ret;i++)
-	{
-		printk("dpr_read, prx[%d]=0x%x\n", i, *p++); 
+	len = port->dpram.rec_len;
+	//for(i=0;i<len;i++)
+	//{
+	if(count==1){
+		DBG("%s:prx[%d]=0x%x, src = %x \n",__FUNCTION__,i,*p, *((char *)(port->dpram.prx + gRecCount - port->dpram.rec_len)));
+	}else{
+		printk("count = %d, $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n", count); 
 	}
 	#endif
 	
-	if(port->dpram.rec_len >= count){ 
-		port->dpram.rec_len -= count; 
-	}else{ 
-		port->dpram.rec_len = 0; 
-	}
-	
-	if(port->dpram.rec_len == 0){ 
-		printk("port->dpram.rec_len to 0 \n"); 
-		mutex_unlock(&port->dpram.rec_lock); 
-	} 
-	
+	port->dpram.rec_len -= count;
+	if(port->dpram.rec_len == 0)
+	mutex_unlock(&port->dpram.rec_lock);	
+
 	up(&port->dpram.rec_sem);
 
-	return ret;
+	return count;
 }
 
 
@@ -612,14 +601,18 @@ static ssize_t dpr_write (struct file *filp, const char __user *buffer, size_t c
 	struct spi_fpga_port *port = filp->private_data;
 	int mod,num;
 	char i,*p,temp;
-	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port); 
+	printk("%s:line=%d,port=0x%x, count=%d \n",__FUNCTION__,__LINE__,(int)port, count); 
 	
 	while(port->dpram.apwrite_en == FALSE)
 	{
-		if(filp->f_flags & O_NONBLOCK)
-            return -EAGAIN;
-        if(wait_event_interruptible(port->dpram.sendq, (port->dpram.apwrite_en == TRUE)))
-            return -ERESTARTSYS;
+		
+		//if(filp->f_flags & O_NONBLOCK)
+    //        return -EAGAIN;
+        if(wait_event_interruptible(port->dpram.sendq, (port->dpram.apwrite_en == TRUE))){ 
+        		printk("port->dpram.apwrite_en == FALSE"); 
+            return -ERESTARTSYS; 
+        }
+		printk("%s, wake up \n", __FUNCTION__); 
 	}
 
 	if(count > port->dpram.max_send_len)
@@ -655,7 +648,7 @@ static ssize_t dpr_write (struct file *filp, const char __user *buffer, size_t c
 	p=port->dpram.ptx;
 	for(i=0;i<num;i++)
 	{
-		printk("%s:ptx[%d]=0x%x\n",__FUNCTION__,i,*p);
+		/*DBG*/printk("%s:ptx[%d]=0x%x\n",__FUNCTION__,i,*p);
 		p++;
 	}
 #endif
@@ -666,8 +659,21 @@ static ssize_t dpr_write (struct file *filp, const char __user *buffer, size_t c
 	if(++gNumSendInt > (1<<12))
 	gNumSendInt = 0;
 
+	if(gpio_get_value(PIN_BPSEND_ACK)==0){ 
+		printk("BP_READY is LOW, wake up BP \n"); 
+		gpio_direction_output(PIN_APSEND_ACK,GPIO_LOW);
+		msleep(50); 
+		gpio_direction_output(PIN_APSEND_ACK,GPIO_HIGH);
+		msleep(50); 
+	} 
+	
+	while(gpio_get_value(PIN_BPSEND_ACK)==0){ 
+		printk("BP_READY is LOW, wait 100ms !!!!!!!!!!!!\n"); 
+		msleep(100); 
+	} 
+
 	//send irq to bp after ap write data to dpram
-	port->dpram.write_irq(&port->dpram, MAILBOX_APSEND_IRQ | MAILBOX_RAM1);	
+	port->dpram.write_irq(&port->dpram, MAILBOX_APSEND_IRQ | MAILBOX_RAM1 | gNumSendInt);	
 
 	return count;
     
@@ -679,7 +685,7 @@ unsigned int dpr_poll(struct file *filp, struct poll_table_struct * wait)
 	unsigned int mask = 0;
 	struct spi_fpga_port *port;
 	port = filp->private_data;
-	printk("%s:line=%d\n",__FUNCTION__,__LINE__);
+	DBG("%s:line=%d\n",__FUNCTION__,__LINE__);
 
 #if 1
 	poll_wait(filp, &port->dpram.recq, wait);
@@ -719,21 +725,21 @@ int spi_dpram_register(struct spi_fpga_port *port)
 	port->dpram.prx = (char *)kzalloc(sizeof(char)*((SPI_DPRAM_BPWRITE_SIZE<<1)+6), GFP_KERNEL);
 	if(port->dpram.prx == NULL)
 	{
-	    printk("port->dpram.prx kzalloc err!!!\n");
+	    DBG("port->dpram.prx kzalloc err!!!\n");
 	    return -ENOMEM;
 	}
 
 	port->dpram.ptx = (char *)kzalloc(sizeof(char)*((SPI_DPRAM_APWRITE_SIZE<<1)+6), GFP_KERNEL);
 	if(port->dpram.ptx == NULL)
 	{
-	    printk("port->dpram.ptx kzalloc err!!!\n");
+	    DBG("port->dpram.ptx kzalloc err!!!\n");
 	    return -ENOMEM;
 	}
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	sprintf(b, "spi_dpram_irq_workqueue");
 	port->dpram.spi_dpram_irq_workqueue = create_freezeable_workqueue(b);
 	if (!port->dpram.spi_dpram_irq_workqueue) {
-		printk("cannot create workqueue\n");
+		DBG("cannot create workqueue\n");
 		return -EBUSY;
 	}	
 	INIT_WORK(&port->dpram.spi_dpram_irq_work, spi_dpram_irq_work_handler);
@@ -742,7 +748,7 @@ int spi_dpram_register(struct spi_fpga_port *port)
 	sprintf(b, "spi_dpram_workqueue");
 	port->dpram.spi_dpram_workqueue = create_freezeable_workqueue(b);
 	if (!port->dpram.spi_dpram_workqueue) {
-		printk("cannot create workqueue\n");
+		DBG("cannot create workqueue\n");
 		return -EBUSY;
 	}
 	INIT_WORK(&port->dpram.spi_dpram_work, spi_dpram_work_handler);
@@ -775,7 +781,7 @@ int spi_dpram_register(struct spi_fpga_port *port)
 	ret = misc_register(&port->dpram.miscdev);
 	if(ret)
 	{
-	    printk("%s:misc_register err!!!\n",__FUNCTION__);
+	    DBG("%s:misc_register err!!!\n",__FUNCTION__);
 	    goto err0;
 	}
 
@@ -792,7 +798,7 @@ int spi_dpram_register(struct spi_fpga_port *port)
 
 	ret = gpio_request(SPI_DPRAM_INT_PIN, NULL);
 	if (ret) {
-		printk("%s:failed to request dpram irq gpio\n",__FUNCTION__);
+		DBG("%s:failed to request dpram irq gpio\n",__FUNCTION__);
 		goto err1;
 	}
 
@@ -801,10 +807,19 @@ int spi_dpram_register(struct spi_fpga_port *port)
 	ret = request_irq(gpio_to_irq(SPI_DPRAM_INT_PIN),spi_dpram_irq,IRQF_TRIGGER_FALLING,NULL,port);
 	if(ret)
 	{
-		printk("%s:unable to request dpram irq_gpio irq\n",__FUNCTION__);
+		DBG("%s:unable to request dpram irq_gpio irq\n",__FUNCTION__);
 		goto err2;
 	}	
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+
+	
+	/*disable speaker */
+	gpio_request(RK2818_PIN_PF7, "DPRAM"); 
+	rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
+	gpio_direction_output(RK2818_PIN_PF7,GPIO_LOW);
+	msleep(100); 
+	gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);
+	msleep(100); 
 	
 	return 0;
 	
