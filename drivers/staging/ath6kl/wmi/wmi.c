@@ -1496,7 +1496,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
          * The average value of RSSI give end-user better feeling for instance value of scan result
          * It also sync up RSSI info in GUI between scan result and RSSI signal icon
          */
-        if (bss && IEEE80211_ADDR_EQ(wmip->wmi_bssid, bih->bssid)) {
+        if (IEEE80211_ADDR_EQ(wmip->wmi_bssid, bih->bssid)) {
             bih->rssi = bss->ni_rssi;
             bih->snr  = bss->ni_snr;
         }
