@@ -465,7 +465,4 @@ extern void fpu_finit(struct fpu *fpu);
 
 #endif /* __ASSEMBLY__ */
 
-#define PSHUFB_XMM5_XMM0 .byte 0x66, 0x0f, 0x38, 0x00, 0xc5
-#define PSHUFB_XMM5_XMM6 .byte 0x66, 0x0f, 0x38, 0x00, 0xf5
-
 #endif /* _ASM_X86_I387_H */
