@@ -464,7 +464,7 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
 		/* send a copy of the saved skb */
-		skb1 = skb_copy(forw_packet->skb, GFP_ATOMIC);
+		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
 			send_skb_packet(skb1,
 				batman_if, broadcast_addr);
