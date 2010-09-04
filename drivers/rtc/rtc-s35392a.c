@@ -786,7 +786,7 @@ static int s35392a_probe(struct i2c_client *client,
 
 	s35392a->client = client;
 	i2c_set_clientdata(client, s35392a);
-	mdelay(500);
+	//mdelay(500);
 	//s35392a_init(s35392a);
 	err = s35392a_reset(s35392a);	
 	if (err < 0) {
