@@ -469,6 +469,10 @@ static int hard_if_event(struct notifier_block *this,
 	case NETDEV_UNREGISTER:
 		hardif_remove_interface(batman_if);
 		break;
+	case NETDEV_CHANGEMTU:
+		if (batman_if->soft_iface)
+			update_min_mtu(batman_if->soft_iface);
+		break;
 	case NETDEV_CHANGEADDR:
 		if (batman_if->if_status == IF_NOT_IN_USE)
 			goto out;
