@@ -41,9 +41,6 @@
 	NETIF_MSG_TX_ERR | \
 	NETIF_MSG_HW)
 
-#define jeprintk(pdev, fmt, args...) \
-	printk(KERN_ERR PFX fmt, ## args)
-
 #ifdef TX_DEBUG
 #define tx_dbg(priv, fmt, args...)					\
 	printk(KERN_DEBUG "%s: " fmt, (priv)->dev->name, ##args)
