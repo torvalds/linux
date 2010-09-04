@@ -873,7 +873,7 @@ static int imon_probe(struct usb_interface *interface,
 	if (lirc_minor < 0) {
 		err("%s: lirc_register_driver failed", __func__);
 		alloc_status = 7;
-		goto alloc_status_switch;
+		goto unlock;
 	} else
 		dev_info(dev, "Registered iMON driver "
 			 "(lirc minor: %d)\n", lirc_minor);
@@ -929,8 +929,9 @@ static int imon_probe(struct usb_interface *interface,
 		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
 		 usbdev->bus->busnum, usbdev->devnum);
 
-alloc_status_switch:
+unlock:
 	mutex_unlock(&context->ctx_lock);
+alloc_status_switch:
 
 	switch (alloc_status) {
 	case 7:
