@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see the Configure script.
-#
-
-mainmenu "Linux/CRIS Kernel Configuration"
-
 config MMU
 	bool
 	default y

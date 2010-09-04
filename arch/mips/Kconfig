@@ -12,8 +12,6 @@ config MIPS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select RTC_LIB if !MACH_LOONGSON
 
-mainmenu "Linux/MIPS Kernel Configuration"
-
 menu "Machine selection"
 
 config ZONE_DMA
