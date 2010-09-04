@@ -161,8 +161,4 @@ struct iio_trigger *iio_allocate_trigger(void);
 
 void iio_free_trigger(struct iio_trigger *trig);
 
-
-struct iio_simple_trigger {
-	struct iio_trigger trig;
-};
 #endif /* _IIO_TRIGGER_H_ */
