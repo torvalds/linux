@@ -7,16 +7,9 @@
 #define ASM_ARCH_SMP_H __FILE__
 
 #include <asm/hardware/gic.h>
+#include <asm/smp_mpidr.h>
 
 extern void __iomem *gic_cpu_base_addr;
-
-#define hard_smp_processor_id()			\
-	({						\
-		unsigned int cpunum;			\
-		__asm__("mrc p15, 0, %0, c0, c0, 5"	\
-			: "=r" (cpunum));		\
-		cpunum &= 0x03;				\
-	})
 
 /*
  * We use IRQ1 as the IPI
