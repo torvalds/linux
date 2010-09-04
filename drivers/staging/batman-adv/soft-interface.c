@@ -259,7 +259,7 @@ void interface_rx(struct sk_buff *skb, int hdr_size)
 	 * PACKET_OTHERHOST or PACKET_HOST */
 
 	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += skb->len;
+	priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
 
 	dev->last_rx = jiffies;
 
