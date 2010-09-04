@@ -587,8 +587,10 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			 * this will be fixed once slab is made available early
 			 * instead of the current cruft
 			 */
-			if (mem_init_done)
+			if (mem_init_done) {
+				of_node_put(host->of_node);
 				kfree(host);
+			}
 			return NULL;
 		}
 		irq_map[0].host = host;
