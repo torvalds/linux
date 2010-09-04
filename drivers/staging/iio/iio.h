@@ -135,7 +135,7 @@ void iio_device_unregister(struct iio_dev *dev_info);
  *			physical interrupt lines
  * @dev_info:		the iio device for which the is an interrupt line
  * @line_number:	associated line number
- * @id:			idr allocated unique id number
+ * @id:			ida allocated unique id number
  * @irq:		associate interrupt number
  * @ev_list:		event handler list for associated events
  * @ev_list_lock:	ensure only one access to list at a time
@@ -302,8 +302,8 @@ static inline bool iio_ring_enabled(struct iio_dev *dev_info)
 		   | INDIO_RING_HARDWARE_BUFFER);
 };
 
-struct idr;
+struct ida;
 
-int iio_get_new_idr_val(struct idr *this_idr);
-void iio_free_idr_val(struct idr *this_idr, int id);
+int iio_get_new_ida_val(struct ida *this_ida);
+void iio_free_ida_val(struct ida *this_ida, int id);
 #endif /* _INDUSTRIAL_IO_H_ */
