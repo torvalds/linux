@@ -2702,7 +2702,7 @@ bnad_set_rx_mode(struct net_device *netdev)
 			kzalloc((mc_count + 1) * ETH_ALEN,
 				GFP_ATOMIC);
 		if (!mcaddr_list)
-			return;
+			goto unlock;
 
 		memcpy(&mcaddr_list[0], &bnad_bcast_addr[0], ETH_ALEN);
 
@@ -2715,6 +2715,7 @@ bnad_set_rx_mode(struct net_device *netdev)
 		/* Should we enable BNAD_CF_ALLMULTI for err != 0 ? */
 		kfree(mcaddr_list);
 	}
+unlock:
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
