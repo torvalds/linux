@@ -71,11 +71,12 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 {
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, fpga_trans_work);
-
+	unsigned long flags;
+	spin_lock_irqsave(&port->work_lock, flags);
 	while (!list_empty(&port->trans_queue)) 
 	{
-		struct spi_fpga_transfer	*t = NULL;
-		list_for_each_entry(t, &port->trans_queue, queue)
+		struct spi_fpga_transfer	*t = NULL, *tmp;
+		list_for_each_entry_safe(t, tmp, &port->trans_queue, queue)
 		{
 
 			if (t->id == 0) 
@@ -90,11 +91,12 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 					break;
 					
 			}
-			kfree(t);
 			kfree(t->txbuf);
+			kfree(t);
 		}
 		list_del_init(&port->trans_queue);
 	}
+	spin_unlock_irqrestore(&port->work_lock, flags);
 
 }
 
@@ -468,7 +470,7 @@ static irqreturn_t spi_fpga_irq(int irq, void *dev_id)
 }
 
 
-static int spi_open_sysclk(int set)
+static int spi_set_sysclk(int set)
 {
 	int ret;
 	ret = gpio_request(SPI_FPGA_STANDBY_PIN, NULL);
@@ -526,7 +528,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	mutex_init(&port->spi_lock);
 	spin_lock_init(&port->work_lock);
 	
-	spi_open_sysclk(GPIO_HIGH);
+	spi_set_sysclk(GPIO_HIGH);
 
 #if SPI_FPGA_TRANS_WORK
 	init_waitqueue_head(&port->wait_wq);
@@ -534,7 +536,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	port->write_en = TRUE;
 	port->read_en = TRUE;
 	sprintf(b, "fpga_trans_workqueue");
-	port->fpga_trans_workqueue = create_freezeable_workqueue(b);
+	port->fpga_trans_workqueue = create_rt_workqueue(b);
 	if (!port->fpga_trans_workqueue) {
 		printk("cannot create workqueue\n");
 		return -EBUSY;
@@ -545,7 +547,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 
 	//spi_fpga_rst();
 	sprintf(b, "fpga_irq_workqueue");
-	port->fpga_irq_workqueue = create_freezeable_workqueue(b);
+	port->fpga_irq_workqueue = create_rt_workqueue(b);
 	if (!port->fpga_irq_workqueue) {
 		printk("cannot create workqueue\n");
 		return -EBUSY;

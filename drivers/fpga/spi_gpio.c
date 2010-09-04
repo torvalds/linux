@@ -877,10 +877,10 @@ static int _spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	}
 	switch(type)
 	{
-		case GPIOEdgelFalling:
+		case IRQF_TRIGGER_FALLING:
 			int_type = SPI_GPIO_EDGE_FALLING;
 			break;
-		case GPIOEdgelRising:
+		case IRQF_TRIGGER_RISING:
 			int_type = SPI_GPIO_EDGE_RISING;
 			break;
 		default:
