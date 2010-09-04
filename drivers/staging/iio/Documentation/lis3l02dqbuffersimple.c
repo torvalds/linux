@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 		goto error_free_buf_dir_name;
 
 	/* Enable the buffer */
-	ret = write_sysfs_int("ring_enable", buf_dir_name, 1);
+	ret = write_sysfs_int("enable", buf_dir_name, 1);
 	if (ret < 0)
 		goto error_free_buf_dir_name;
 
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Stop the ring buffer */
-	ret = write_sysfs_int("ring_enable", buf_dir_name, 0);
+	ret = write_sysfs_int("enable", buf_dir_name, 0);
 	if (ret < 0)
 		goto error_close_buffer_event;
 
