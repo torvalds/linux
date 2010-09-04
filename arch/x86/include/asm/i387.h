@@ -387,19 +387,6 @@ static inline void irq_ts_restore(int TS_state)
 		stts();
 }
 
-#ifdef CONFIG_X86_64
-
-static inline void save_init_fpu(struct task_struct *tsk)
-{
-	__save_init_fpu(tsk);
-	stts();
-}
-
-#define unlazy_fpu	__unlazy_fpu
-#define clear_fpu	__clear_fpu
-
-#else  /* CONFIG_X86_32 */
-
 /*
  * These disable preemption on their own and are safe
  */
@@ -424,8 +411,6 @@ static inline void clear_fpu(struct task_struct *tsk)
 	__clear_fpu(tsk);
 	preempt_enable();
 }
-
-#endif	/* CONFIG_X86_64 */
 
 /*
  * i387 state interaction
