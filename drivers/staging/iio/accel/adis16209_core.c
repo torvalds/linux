@@ -421,7 +421,7 @@ static IIO_CONST_ATTR(incli_scale, "0.00043633231");
 static IIO_DEVICE_ATTR(rot_raw, S_IRUGO, adis16209_read_14bit_signed,
 		       NULL, ADIS16209_ROT_OUT);
 
-static IIO_DEV_ATTR_TEMP(adis16209_read_temp);
+static IIO_DEV_ATTR_TEMP_RAW(adis16209_read_temp);
 static IIO_CONST_ATTR_TEMP_OFFSET("25");
 static IIO_CONST_ATTR_TEMP_SCALE("-0.47");
 
@@ -440,7 +440,7 @@ static struct attribute_group adis16209_event_attribute_group = {
 static struct attribute *adis16209_attributes[] = {
 	&iio_dev_attr_in_supply_raw.dev_attr.attr,
 	&iio_const_attr_in_supply_scale.dev_attr.attr,
-	&iio_dev_attr_temp.dev_attr.attr,
+	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,

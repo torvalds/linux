@@ -161,13 +161,6 @@ struct iio_const_attr {
 #define IIO_DEV_ATTR_HW_RING_ENABLE(_show, _store)			\
 	IIO_DEVICE_ATTR(hw_ring_enable, S_IRUGO | S_IWUSR, _show, _store, 0)
 
-/**
- * IIO_DEV_ATTR_TEMP - many sensors have auxiliary temperature sensors
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_TEMP(_show)			\
-	IIO_DEVICE_ATTR(temp, S_IRUGO, _show, NULL, 0)
-
 #define IIO_DEV_ATTR_TEMP_RAW(_show)			\
 	IIO_DEVICE_ATTR(temp_raw, S_IRUGO, _show, NULL, 0)
 
