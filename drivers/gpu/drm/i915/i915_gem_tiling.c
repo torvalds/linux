@@ -399,16 +399,14 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
  * bit 17 of its physical address and therefore being interpreted differently
  * by the GPU.
  */
-static int
+static void
 i915_gem_swizzle_page(struct page *page)
 {
+	char temp[64];
 	char *vaddr;
 	int i;
-	char temp[64];
 
 	vaddr = kmap(page);
-	if (vaddr == NULL)
-		return -ENOMEM;
 
 	for (i = 0; i < PAGE_SIZE; i += 128) {
 		memcpy(temp, &vaddr[i], 64);
@@ -417,8 +415,6 @@ i915_gem_swizzle_page(struct page *page)
 	}
 
 	kunmap(page);
-
-	return 0;
 }
 
 void
@@ -440,11 +436,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj)
 		char new_bit_17 = page_to_phys(obj_priv->pages[i]) >> 17;
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj_priv->bit_17) != 0)) {
-			int ret = i915_gem_swizzle_page(obj_priv->pages[i]);
-			if (ret != 0) {
-				DRM_ERROR("Failed to swizzle page\n");
-				return;
-			}
+			i915_gem_swizzle_page(obj_priv->pages[i]);
 			set_page_dirty(obj_priv->pages[i]);
 		}
 	}
