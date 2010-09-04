@@ -32,6 +32,7 @@
 #include "ring_buffer.h"
 #include "vis.h"
 #include "aggregation.h"
+#include "unicast.h"
 
 static DECLARE_WAIT_QUEUE_HEAD(thread_wait);
 
@@ -1105,43 +1106,43 @@ struct neigh_node *find_router(struct orig_node *orig_node,
 	return router;
 }
 
-int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
+static int check_unicast_packet(struct sk_buff *skb, int hdr_size)
 {
-	struct unicast_packet *unicast_packet;
-	struct orig_node *orig_node;
-	struct neigh_node *router;
 	struct ethhdr *ethhdr;
-	struct batman_if *batman_if;
-	struct sk_buff *skb_old;
-	uint8_t dstaddr[ETH_ALEN];
-	int hdr_size = sizeof(struct unicast_packet);
-	unsigned long flags;
 
 	/* drop packet if it has not necessary minimum size */
 	if (skb_headlen(skb) < hdr_size)
-		return NET_RX_DROP;
+		return -1;
 
 	ethhdr = (struct ethhdr *) skb_mac_header(skb);
 
 	/* packet with unicast indication but broadcast recipient */
 	if (is_bcast(ethhdr->h_dest))
-		return NET_RX_DROP;
+		return -1;
 
 	/* packet with broadcast sender address */
 	if (is_bcast(ethhdr->h_source))
-		return NET_RX_DROP;
+		return -1;
 
 	/* not for me */
 	if (!is_my_mac(ethhdr->h_dest))
-		return NET_RX_DROP;
+		return -1;
 
-	unicast_packet = (struct unicast_packet *) skb->data;
+	return 0;
+}
 
-	/* packet for me */
-	if (is_my_mac(unicast_packet->dest)) {
-		interface_rx(skb, hdr_size);
-		return NET_RX_SUCCESS;
-	}
+static int route_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if,
+		int hdr_size)
+{
+	struct orig_node *orig_node;
+	struct neigh_node *router;
+	struct batman_if *batman_if;
+	struct sk_buff *skb_old;
+	uint8_t dstaddr[ETH_ALEN];
+	unsigned long flags;
+	struct unicast_packet *unicast_packet =
+		(struct unicast_packet *) skb->data;
+	struct ethhdr *ethhdr = (struct ethhdr *) skb_mac_header(skb);
 
 	/* TTL exceeded */
 	if (unicast_packet->ttl < 2) {
@@ -1172,7 +1173,7 @@ int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	/* create a copy of the skb, if needed, to modify it. */
-	if (!skb_clone_writable(skb, sizeof(struct unicast_packet))) {
+	if (!skb_clone_writable(skb, hdr_size)) {
 		skb_old = skb;
 		skb = skb_copy(skb, GFP_ATOMIC);
 		if (!skb)
@@ -1189,6 +1190,80 @@ int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	send_skb_packet(skb, batman_if, dstaddr);
 
 	return NET_RX_SUCCESS;
+}
+
+int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
+{
+	struct unicast_packet *unicast_packet;
+	int hdr_size = sizeof(struct unicast_packet);
+
+	if (check_unicast_packet(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	unicast_packet = (struct unicast_packet *) skb->data;
+
+	/* packet for me */
+	if (is_my_mac(unicast_packet->dest)) {
+		interface_rx(skb, hdr_size);
+		return NET_RX_SUCCESS;
+	}
+
+	return route_unicast_packet(skb, recv_if, hdr_size);
+}
+
+int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
+{
+	struct unicast_frag_packet *unicast_packet;
+	struct orig_node *orig_node;
+	struct frag_packet_list_entry *tmp_frag_entry;
+	int hdr_size = sizeof(struct unicast_frag_packet);
+	unsigned long flags;
+
+	if (check_unicast_packet(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	unicast_packet = (struct unicast_frag_packet *) skb->data;
+
+	/* packet for me */
+	if (is_my_mac(unicast_packet->dest)) {
+
+		spin_lock_irqsave(&orig_hash_lock, flags);
+		orig_node = ((struct orig_node *)
+			hash_find(orig_hash, unicast_packet->orig));
+
+		if (!orig_node) {
+			pr_warning("couldn't find orig node for "
+				"fragmentation\n");
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
+			return NET_RX_DROP;
+		}
+
+		orig_node->last_frag_packet = jiffies;
+
+		if (list_empty(&orig_node->frag_list))
+			create_frag_buffer(&orig_node->frag_list);
+
+		tmp_frag_entry =
+			search_frag_packet(&orig_node->frag_list,
+			unicast_packet);
+
+		if (!tmp_frag_entry) {
+			create_frag_entry(&orig_node->frag_list, skb);
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
+			return NET_RX_SUCCESS;
+		}
+
+		skb = merge_frag_packet(&orig_node->frag_list,
+			tmp_frag_entry, skb);
+		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		if (!skb)
+			return NET_RX_DROP;
+
+		interface_rx(skb, hdr_size);
+		return NET_RX_SUCCESS;
+	}
+
+	return route_unicast_packet(skb, recv_if, hdr_size);
 }
 
 int recv_bcast_packet(struct sk_buff *skb)

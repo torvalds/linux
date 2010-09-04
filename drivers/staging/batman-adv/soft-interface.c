@@ -249,7 +249,9 @@ void interface_setup(struct net_device *dev)
 #endif
 	dev->destructor = free_netdev;
 
-	dev->mtu = hardif_min_mtu();
+	dev->mtu = ETH_DATA_LEN;	/* can't call min_mtu, because the
+					 * needed variables have not been
+					 * initialized yet */
 	dev->hard_header_len = BAT_HEADER_LEN; /* reserve more space in the
 						* skbuff for our header */
 

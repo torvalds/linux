@@ -166,6 +166,11 @@ int hardif_min_mtu(void)
 	/* allow big frames if all devices are capable to do so
 	 * (have MTU > 1500 + BAT_HEADER_LEN) */
 	int min_mtu = ETH_DATA_LEN;
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
+
+	if (atomic_read(&bat_priv->frag_enabled))
+		goto out;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
@@ -175,7 +180,7 @@ int hardif_min_mtu(void)
 				      min_mtu);
 	}
 	rcu_read_unlock();
-
+out:
 	return min_mtu;
 }
 
@@ -261,7 +266,29 @@ int hardif_enable_interface(struct batman_if *batman_if)
 	orig_hash_add_if(batman_if, bat_priv->num_ifaces);
 
 	atomic_set(&batman_if->seqno, 1);
+	atomic_set(&batman_if->frag_seqno, 1);
 	bat_info(soft_device, "Adding interface: %s\n", batman_if->dev);
+
+	if (atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
+		ETH_DATA_LEN + BAT_HEADER_LEN)
+		bat_info(soft_device,
+			"The MTU of interface %s is too small (%i) to handle "
+			"the transport of batman-adv packets. Packets going "
+			"over this interface will be fragmented on layer2 "
+			"which could impact the performance. Setting the MTU "
+			"to %zi would solve the problem.\n",
+			batman_if->dev, batman_if->net_dev->mtu,
+			ETH_DATA_LEN + BAT_HEADER_LEN);
+
+	if (!atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
+		ETH_DATA_LEN + BAT_HEADER_LEN)
+		bat_info(soft_device,
+			"The MTU of interface %s is too small (%i) to handle "
+			"the transport of batman-adv packets. If you experience"
+			" problems getting traffic through try increasing the "
+			"MTU to %zi.\n",
+			batman_if->dev, batman_if->net_dev->mtu,
+			ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (hardif_is_iface_up(batman_if))
 		hardif_activate_interface(soft_device, bat_priv, batman_if);
@@ -493,6 +520,11 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		/* unicast packet */
 	case BAT_UNICAST:
 		ret = recv_unicast_packet(skb, batman_if);
+		break;
+
+		/* fragmented unicast packet */
+	case BAT_UNICAST_FRAG:
+		ret = recv_ucast_frag_packet(skb, batman_if);
 		break;
 
 		/* broadcast packet */

@@ -41,6 +41,7 @@ struct batman_if {
 	char addr_str[ETH_STR_LEN];
 	struct net_device *net_dev;
 	atomic_t seqno;
+	atomic_t frag_seqno;
 	unsigned char *packet_buff;
 	int packet_len;
 	struct kobject *hardif_obj;
@@ -81,6 +82,8 @@ struct orig_node {
 	TYPE_OF_WORD bcast_bits[NUM_WORDS];
 	uint32_t last_bcast_seqno;
 	struct list_head neigh_list;
+	struct list_head frag_list;
+	unsigned long last_frag_packet;
 	struct {
 		uint8_t candidates;
 		struct neigh_node *selected;
@@ -110,6 +113,7 @@ struct bat_priv {
 	struct net_device_stats stats;
 	atomic_t aggregation_enabled;
 	atomic_t bonding_enabled;
+	atomic_t frag_enabled;
 	atomic_t vis_mode;
 	atomic_t orig_interval;
 	atomic_t log_level;
@@ -181,6 +185,12 @@ struct debug_log {
 	unsigned long log_end;
 	spinlock_t lock;
 	wait_queue_head_t queue_wait;
+};
+
+struct frag_packet_list_entry {
+	struct list_head list;
+	uint16_t seqno;
+	struct sk_buff *skb;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */
