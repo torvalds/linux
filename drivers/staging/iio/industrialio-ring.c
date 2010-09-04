@@ -15,10 +15,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/module.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
 
@@ -53,7 +51,7 @@ int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
 EXPORT_SYMBOL(iio_push_or_escallate_ring_event);
 
 /**
- * iio_ring_open() chrdev file open for ring buffer access
+ * iio_ring_open() - chrdev file open for ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
@@ -72,7 +70,7 @@ static int iio_ring_open(struct inode *inode, struct file *filp)
 }
 
 /**
- * iio_ring_release() -chrdev file close ring buffer access
+ * iio_ring_release() - chrdev file close ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
@@ -91,7 +89,7 @@ static int iio_ring_release(struct inode *inode, struct file *filp)
 }
 
 /**
- * iio_ring_rip_outer() chrdev read for ring buffer access
+ * iio_ring_rip_outer() - chrdev read for ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring _bufer as their first element.
@@ -136,8 +134,9 @@ static const struct file_operations iio_ring_fileops = {
 };
 
 /**
- * __iio_request_ring_buffer_event_chrdev() allocate ring event chrdev
+ * __iio_request_ring_buffer_event_chrdev() - allocate ring event chrdev
  * @buf:	ring buffer whose event chrdev we are allocating
+ * @id:		id of this ring buffer (typically 0)
  * @owner:	the module who owns the ring buffer (for ref counting)
  * @dev:	device with which the chrdev is associated
  **/
