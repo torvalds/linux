@@ -128,9 +128,6 @@ static bool hardif_is_iface_up(struct batman_if *batman_if)
 
 static void update_mac_addresses(struct batman_if *batman_if)
 {
-	if (!batman_if || !batman_if->packet_buff)
-		return;
-
 	addr_to_string(batman_if->addr_str, batman_if->net_dev->dev_addr);
 
 	memcpy(((struct batman_packet *)(batman_if->packet_buff))->orig,
@@ -160,24 +157,28 @@ static void check_known_mac_addr(uint8_t *addr)
 	rcu_read_unlock();
 }
 
-int hardif_min_mtu(void)
+int hardif_min_mtu(struct net_device *soft_iface)
 {
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct batman_if *batman_if;
 	/* allow big frames if all devices are capable to do so
 	 * (have MTU > 1500 + BAT_HEADER_LEN) */
 	int min_mtu = ETH_DATA_LEN;
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	if (atomic_read(&bat_priv->frag_enabled))
 		goto out;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if ((batman_if->if_status == IF_ACTIVE) ||
-		    (batman_if->if_status == IF_TO_BE_ACTIVATED))
-			min_mtu = MIN(batman_if->net_dev->mtu - BAT_HEADER_LEN,
-				      min_mtu);
+		if ((batman_if->if_status != IF_ACTIVE) &&
+		    (batman_if->if_status != IF_TO_BE_ACTIVATED))
+			continue;
+
+		if (batman_if->soft_iface != soft_iface)
+			continue;
+
+		min_mtu = MIN(batman_if->net_dev->mtu - BAT_HEADER_LEN,
+			      min_mtu);
 	}
 	rcu_read_unlock();
 out:
@@ -185,21 +186,23 @@ out:
 }
 
 /* adjusts the MTU if a new interface with a smaller MTU appeared. */
-void update_min_mtu(void)
+void update_min_mtu(struct net_device *soft_iface)
 {
 	int min_mtu;
 
-	min_mtu = hardif_min_mtu();
-	if (soft_device->mtu != min_mtu)
-		soft_device->mtu = min_mtu;
+	min_mtu = hardif_min_mtu(soft_iface);
+	if (soft_iface->mtu != min_mtu)
+		soft_iface->mtu = min_mtu;
 }
 
-static void hardif_activate_interface(struct net_device *net_dev,
-				      struct bat_priv *bat_priv,
-				      struct batman_if *batman_if)
+static void hardif_activate_interface(struct batman_if *batman_if)
 {
+	struct bat_priv *bat_priv;
+
 	if (batman_if->if_status != IF_INACTIVE)
 		return;
+
+	bat_priv = netdev_priv(batman_if->soft_iface);
 
 	update_mac_addresses(batman_if);
 	batman_if->if_status = IF_TO_BE_ACTIVATED;
@@ -211,17 +214,17 @@ static void hardif_activate_interface(struct net_device *net_dev,
 	if (!bat_priv->primary_if)
 		set_primary_if(bat_priv, batman_if);
 
-	bat_info(net_dev, "Interface activated: %s\n", batman_if->dev);
+	bat_info(batman_if->soft_iface, "Interface activated: %s\n",
+		 batman_if->dev);
 
 	if (atomic_read(&module_state) == MODULE_INACTIVE)
 		activate_module();
 
-	update_min_mtu();
+	update_min_mtu(batman_if->soft_iface);
 	return;
 }
 
-static void hardif_deactivate_interface(struct net_device *net_dev,
-					struct batman_if *batman_if)
+static void hardif_deactivate_interface(struct batman_if *batman_if)
 {
 	if ((batman_if->if_status != IF_ACTIVE) &&
 	   (batman_if->if_status != IF_TO_BE_ACTIVATED))
@@ -229,26 +232,39 @@ static void hardif_deactivate_interface(struct net_device *net_dev,
 
 	batman_if->if_status = IF_INACTIVE;
 
-	bat_info(net_dev, "Interface deactivated: %s\n", batman_if->dev);
+	bat_info(batman_if->soft_iface, "Interface deactivated: %s\n",
+		 batman_if->dev);
 
-	update_min_mtu();
+	update_min_mtu(batman_if->soft_iface);
 }
 
-int hardif_enable_interface(struct batman_if *batman_if)
+int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;
 
 	if (batman_if->if_status != IF_NOT_IN_USE)
 		goto out;
 
+	batman_if->soft_iface = dev_get_by_name(&init_net, iface_name);
+
+	if (!batman_if->soft_iface) {
+		batman_if->soft_iface = softif_create(iface_name);
+
+		if (!batman_if->soft_iface)
+			goto err;
+
+		/* dev_get_by_name() increases the reference counter for us */
+		dev_hold(batman_if->soft_iface);
+	}
+
+	bat_priv = netdev_priv(batman_if->soft_iface);
 	batman_if->packet_len = BAT_PACKET_LEN;
 	batman_if->packet_buff = kmalloc(batman_if->packet_len, GFP_ATOMIC);
 
 	if (!batman_if->packet_buff) {
-		bat_err(soft_device, "Can't add interface packet (%s): "
-			"out of memory\n", batman_if->dev);
+		bat_err(batman_if->soft_iface, "Can't add interface packet "
+			"(%s): out of memory\n", batman_if->dev);
 		goto err;
 	}
 
@@ -272,11 +288,12 @@ int hardif_enable_interface(struct batman_if *batman_if)
 
 	atomic_set(&batman_if->seqno, 1);
 	atomic_set(&batman_if->frag_seqno, 1);
-	bat_info(soft_device, "Adding interface: %s\n", batman_if->dev);
+	bat_info(batman_if->soft_iface, "Adding interface: %s\n",
+		 batman_if->dev);
 
 	if (atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
-		bat_info(soft_device,
+		bat_info(batman_if->soft_iface,
 			"The MTU of interface %s is too small (%i) to handle "
 			"the transport of batman-adv packets. Packets going "
 			"over this interface will be fragmented on layer2 "
@@ -287,7 +304,7 @@ int hardif_enable_interface(struct batman_if *batman_if)
 
 	if (!atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
-		bat_info(soft_device,
+		bat_info(batman_if->soft_iface,
 			"The MTU of interface %s is too small (%i) to handle "
 			"the transport of batman-adv packets. If you experience"
 			" problems getting traffic through try increasing the "
@@ -296,9 +313,9 @@ int hardif_enable_interface(struct batman_if *batman_if)
 			ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (hardif_is_iface_up(batman_if))
-		hardif_activate_interface(soft_device, bat_priv, batman_if);
+		hardif_activate_interface(batman_if);
 	else
-		bat_err(soft_device, "Not using interface %s "
+		bat_err(batman_if->soft_iface, "Not using interface %s "
 			"(retrying later): interface not active\n",
 			batman_if->dev);
 
@@ -314,16 +331,16 @@ err:
 
 void hardif_disable_interface(struct batman_if *batman_if)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 
 	if (batman_if->if_status == IF_ACTIVE)
-		hardif_deactivate_interface(soft_device, batman_if);
+		hardif_deactivate_interface(batman_if);
 
 	if (batman_if->if_status != IF_INACTIVE)
 		return;
 
-	bat_info(soft_device, "Removing interface: %s\n", batman_if->dev);
+	bat_info(batman_if->soft_iface, "Removing interface: %s\n",
+		 batman_if->dev);
 	dev_remove_pack(&batman_if->batman_adv_ptype);
 
 	bat_priv->num_ifaces--;
@@ -335,10 +352,17 @@ void hardif_disable_interface(struct batman_if *batman_if)
 	kfree(batman_if->packet_buff);
 	batman_if->packet_buff = NULL;
 	batman_if->if_status = IF_NOT_IN_USE;
+	dev_put(batman_if->soft_iface);
 
-	if ((atomic_read(&module_state) == MODULE_ACTIVE) &&
+	/* nobody uses this interface anymore */
+	if (!bat_priv->num_ifaces)
+		softif_destroy(batman_if->soft_iface);
+
+	batman_if->soft_iface = NULL;
+
+	/*if ((atomic_read(&module_state) == MODULE_ACTIVE) &&
 	    (bat_priv->num_ifaces == 0))
-		deactivate_module();
+		deactivate_module();*/
 }
 
 static struct batman_if *hardif_add_interface(struct net_device *net_dev)
@@ -369,8 +393,8 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 
 	batman_if->if_num = -1;
 	batman_if->net_dev = net_dev;
+	batman_if->soft_iface = NULL;
 	batman_if->if_status = IF_NOT_IN_USE;
-	batman_if->packet_buff = NULL;
 	INIT_LIST_HEAD(&batman_if->list);
 
 	check_known_mac_addr(batman_if->net_dev->dev_addr);
@@ -419,8 +443,11 @@ void hardif_remove_interfaces(void)
 {
 	struct batman_if *batman_if, *batman_if_tmp;
 
-	list_for_each_entry_safe(batman_if, batman_if_tmp, &if_list, list)
+	list_for_each_entry_safe(batman_if, batman_if_tmp, &if_list, list) {
+		rtnl_lock();
 		hardif_remove_interface(batman_if);
+		rtnl_unlock();
+	}
 }
 
 static int hard_if_event(struct notifier_block *this,
@@ -428,8 +455,7 @@ static int hard_if_event(struct notifier_block *this,
 {
 	struct net_device *net_dev = (struct net_device *)ptr;
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv;
 
 	if (!batman_if && event == NETDEV_REGISTER)
 			batman_if = hardif_add_interface(net_dev);
@@ -439,11 +465,11 @@ static int hard_if_event(struct notifier_block *this,
 
 	switch (event) {
 	case NETDEV_UP:
-		hardif_activate_interface(soft_device, bat_priv, batman_if);
+		hardif_activate_interface(batman_if);
 		break;
 	case NETDEV_GOING_DOWN:
 	case NETDEV_DOWN:
-		hardif_deactivate_interface(soft_device, batman_if);
+		hardif_deactivate_interface(batman_if);
 		break;
 	case NETDEV_UNREGISTER:
 		hardif_remove_interface(batman_if);
@@ -451,8 +477,13 @@ static int hard_if_event(struct notifier_block *this,
 	case NETDEV_CHANGENAME:
 		break;
 	case NETDEV_CHANGEADDR:
+		if (batman_if->if_status == IF_NOT_IN_USE)
+			goto out;
+
 		check_known_mac_addr(batman_if->net_dev->dev_addr);
 		update_mac_addresses(batman_if);
+
+		bat_priv = netdev_priv(batman_if->soft_iface);
 		if (batman_if == bat_priv->primary_if)
 			set_primary_if(bat_priv, batman_if);
 		break;
@@ -469,8 +500,7 @@ out:
 int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *ptype, struct net_device *orig_dev)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;
 	struct batman_if *batman_if;
 	int ret;
@@ -499,6 +529,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 
 	batman_packet = (struct batman_packet *)skb->data;
+	bat_priv = netdev_priv(batman_if->soft_iface);
 
 	if (batman_packet->version != COMPAT_VERSION) {
 		bat_dbg(DBG_BATMAN, bat_priv,
@@ -518,7 +549,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 		/* batman icmp packet */
 	case BAT_ICMP:
-		ret = recv_icmp_packet(skb);
+		ret = recv_icmp_packet(skb, batman_if);
 		break;
 
 		/* unicast packet */
@@ -533,12 +564,12 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 		/* broadcast packet */
 	case BAT_BCAST:
-		ret = recv_bcast_packet(skb);
+		ret = recv_bcast_packet(skb, batman_if);
 		break;
 
 		/* vis packet */
 	case BAT_VIS:
-		ret = recv_vis_packet(skb);
+		ret = recv_vis_packet(skb, batman_if);
 		break;
 	default:
 		ret = NET_RX_DROP;

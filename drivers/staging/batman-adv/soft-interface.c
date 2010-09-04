@@ -22,8 +22,14 @@
 #include "main.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
-#include "translation-table.h"
+#include "routing.h"
 #include "send.h"
+#include "bat_debugfs.h"
+#include "translation-table.h"
+#include "types.h"
+#include "hash.h"
+#include "send.h"
+#include "bat_sysfs.h"
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
@@ -92,12 +98,13 @@ static int interface_release(struct net_device *dev)
 
 static struct net_device_stats *interface_stats(struct net_device *dev)
 {
-	struct bat_priv *priv = netdev_priv(dev);
-	return &priv->stats;
+	struct bat_priv *bat_priv = netdev_priv(dev);
+	return &bat_priv->stats;
 }
 
 static int interface_set_mac_addr(struct net_device *dev, void *p)
 {
+	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -105,8 +112,9 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 
 	/* only modify hna-table if it has been initialised before */
 	if (atomic_read(&module_state) == MODULE_ACTIVE) {
-		hna_local_remove(dev->dev_addr, "mac address changed");
-		hna_local_add(addr->sa_data);
+		hna_local_remove(bat_priv, dev->dev_addr,
+				 "mac address changed");
+		hna_local_add(dev, addr->sa_data);
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -117,7 +125,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 static int interface_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* check ranges */
-	if ((new_mtu < 68) || (new_mtu > hardif_min_mtu()))
+	if ((new_mtu < 68) || (new_mtu > hardif_min_mtu(dev)))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
@@ -125,19 +133,20 @@ static int interface_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-int interface_tx(struct sk_buff *skb, struct net_device *dev)
+int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct bcast_packet *bcast_packet;
 	int data_len = skb->len, ret;
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto dropped;
 
-	dev->trans_start = jiffies;
+	soft_iface->trans_start = jiffies;
+
 	/* TODO: check this for locks */
-	hna_local_add(ethhdr->h_source);
+	hna_local_add(soft_iface, ethhdr->h_source);
 
 	/* ethernet packet should be broadcasted */
 	if (is_bcast(ethhdr->h_dest) || is_mcast(ethhdr->h_dest)) {
@@ -160,7 +169,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 		bcast_packet->seqno = htonl(bcast_seqno);
 
 		/* broadcast packet. on success, increase seqno. */
-		if (add_bcast_packet_to_list(skb) == NETDEV_TX_OK)
+		if (add_bcast_packet_to_list(bat_priv, skb) == NETDEV_TX_OK)
 			bcast_seqno++;
 
 		/* a copy is stored in the bcast list, therefore removing
@@ -187,10 +196,10 @@ end:
 	return NETDEV_TX_OK;
 }
 
-void interface_rx(struct sk_buff *skb, int hdr_size)
+void interface_rx(struct net_device *soft_iface,
+		  struct sk_buff *skb, int hdr_size)
 {
-	struct net_device *dev = soft_device;
-	struct bat_priv *priv = netdev_priv(dev);
+	struct bat_priv *priv = netdev_priv(soft_iface);
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size)) {
@@ -200,8 +209,8 @@ void interface_rx(struct sk_buff *skb, int hdr_size)
 	skb_pull_rcsum(skb, hdr_size);
 /*	skb_set_mac_header(skb, -sizeof(struct ethhdr));*/
 
-	skb->dev = dev;
-	skb->protocol = eth_type_trans(skb, dev);
+	skb->dev = soft_iface;
+	skb->protocol = eth_type_trans(skb, soft_iface);
 
 	/* should not be neccesary anymore as we use skb_pull_rcsum()
 	 * TODO: please verify this and remove this TODO
@@ -215,7 +224,7 @@ void interface_rx(struct sk_buff *skb, int hdr_size)
 	priv->stats.rx_packets++;
 	priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
 
-	dev->last_rx = jiffies;
+	soft_iface->last_rx = jiffies;
 
 	netif_rx(skb);
 }
@@ -232,7 +241,7 @@ static const struct net_device_ops bat_netdev_ops = {
 };
 #endif
 
-void interface_setup(struct net_device *dev)
+static void interface_setup(struct net_device *dev)
 {
 	struct bat_priv *priv = netdev_priv(dev);
 	char dev_addr[ETH_ALEN];
@@ -251,9 +260,11 @@ void interface_setup(struct net_device *dev)
 #endif
 	dev->destructor = free_netdev;
 
-	dev->mtu = ETH_DATA_LEN;	/* can't call min_mtu, because the
-					 * needed variables have not been
-					 * initialized yet */
+	/**
+	 * can't call min_mtu, because the needed variables
+	 * have not been initialized yet
+	 */
+	dev->mtu = ETH_DATA_LEN;
 	dev->hard_header_len = BAT_HEADER_LEN; /* reserve more space in the
 						* skbuff for our header */
 
@@ -264,6 +275,73 @@ void interface_setup(struct net_device *dev)
 	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
 
 	memset(priv, 0, sizeof(struct bat_priv));
+}
+
+struct net_device *softif_create(char *name)
+{
+	struct net_device *soft_iface;
+	struct bat_priv *bat_priv;
+	int ret;
+
+	soft_iface = alloc_netdev(sizeof(struct bat_priv) , name,
+				   interface_setup);
+
+	if (!soft_iface) {
+		pr_err("Unable to allocate the batman interface: %s\n", name);
+		goto out;
+	}
+
+	ret = register_netdev(soft_iface);
+
+	if (ret < 0) {
+		pr_err("Unable to register the batman interface '%s': %i\n",
+		       name, ret);
+		goto free_soft_iface;
+	}
+
+	bat_priv = netdev_priv(soft_iface);
+
+	atomic_set(&bat_priv->aggregation_enabled, 1);
+	atomic_set(&bat_priv->bonding_enabled, 0);
+	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
+	atomic_set(&bat_priv->orig_interval, 1000);
+	atomic_set(&bat_priv->log_level, 0);
+	atomic_set(&bat_priv->frag_enabled, 1);
+	atomic_set(&bat_priv->bcast_queue_left, BCAST_QUEUE_LEN);
+	atomic_set(&bat_priv->batman_queue_left, BATMAN_QUEUE_LEN);
+
+	bat_priv->primary_if = NULL;
+	bat_priv->num_ifaces = 0;
+
+	ret = sysfs_add_meshif(soft_iface);
+
+	if (ret < 0)
+		goto unreg_soft_iface;
+
+	ret = debugfs_add_meshif(soft_iface);
+
+	if (ret < 0)
+		goto unreg_sysfs;
+
+	return soft_iface;
+
+unreg_sysfs:
+	sysfs_del_meshif(soft_iface);
+unreg_soft_iface:
+	unregister_netdev(soft_iface);
+	return NULL;
+
+free_soft_iface:
+	free_netdev(soft_iface);
+out:
+	return NULL;
+}
+
+void softif_destroy(struct net_device *soft_iface)
+{
+	debugfs_del_meshif(soft_iface);
+	sysfs_del_meshif(soft_iface);
+	unregister_netdevice(soft_iface);
 }
 
 /* ethtool */

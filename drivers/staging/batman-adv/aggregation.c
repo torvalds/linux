@@ -97,18 +97,15 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 
 #define atomic_dec_not_zero(v)          atomic_add_unless((v), -1, 0)
 /* create a new aggregated packet and add this packet to it */
-static void new_aggregated_packet(unsigned char *packet_buff,
-			   int packet_len,
-			   unsigned long send_time,
-			   bool direct_link,
-			   struct batman_if *if_incoming,
-			   int own_packet)
+static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
+				  unsigned long send_time, bool direct_link,
+				  struct batman_if *if_incoming,
+				  int own_packet)
 {
 	struct forw_packet *forw_packet_aggr;
 	unsigned long flags;
 	unsigned char *skb_buff;
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 
 	/* own packet should always be scheduled */
 	if (!own_packet) {

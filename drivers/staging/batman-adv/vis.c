@@ -745,17 +745,16 @@ static void send_vis_packets(struct work_struct *work)
 {
 	struct vis_info *info, *temp;
 	unsigned long flags;
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	/* struct bat_priv *bat_priv = netdev_priv(soft_device); */
 
 	spin_lock_irqsave(&vis_hash_lock, flags);
 
 	purge_vis_packets();
 
-	if (generate_vis_packet(bat_priv) == 0) {
+	/* if (generate_vis_packet(bat_priv) == 0) {*/
 		/* schedule if generation was successful */
-		send_list_add(my_vis_info);
-	}
+		/*send_list_add(my_vis_info);
+	} */
 
 	list_for_each_entry_safe(info, temp, &send_list, send_list) {
 
@@ -842,7 +841,7 @@ err:
 }
 
 /* Decrease the reference count on a hash item info */
-static void free_info_ref(void *data)
+static void free_info_ref(void *data, void *arg)
 {
 	struct vis_info *info = data;
 
@@ -861,7 +860,7 @@ void vis_quit(void)
 
 	spin_lock_irqsave(&vis_hash_lock, flags);
 	/* properly remove, kill timers ... */
-	hash_delete(vis_hash, free_info_ref);
+	hash_delete(vis_hash, free_info_ref, NULL);
 	vis_hash = NULL;
 	my_vis_info = NULL;
 	spin_unlock_irqrestore(&vis_hash_lock, flags);

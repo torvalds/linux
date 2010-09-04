@@ -61,8 +61,7 @@ struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 		uint8_t *neigh, struct batman_if *if_incoming)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node;
 
 	bat_dbg(DBG_BATMAN, bat_priv,
@@ -82,11 +81,12 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 	return neigh_node;
 }
 
-static void free_orig_node(void *data)
+static void free_orig_node(void *data, void *arg)
 {
 	struct list_head *list_pos, *list_pos_tmp;
 	struct neigh_node *neigh_node;
 	struct orig_node *orig_node = (struct orig_node *)data;
+	struct bat_priv *bat_priv = (struct bat_priv *)arg;
 
 	/* for all neighbors towards this originator ... */
 	list_for_each_safe(list_pos, list_pos_tmp, &orig_node->neigh_list) {
@@ -97,7 +97,7 @@ static void free_orig_node(void *data)
 	}
 
 	frag_list_free(&orig_node->frag_list);
-	hna_global_del_orig(orig_node, "originator timed out");
+	hna_global_del_orig(bat_priv, orig_node, "originator timed out");
 
 	kfree(orig_node->bcast_own);
 	kfree(orig_node->bcast_own_sum);
@@ -114,17 +114,15 @@ void originator_free(void)
 	cancel_delayed_work_sync(&purge_orig_wq);
 
 	spin_lock_irqsave(&orig_hash_lock, flags);
-	hash_delete(orig_hash, free_orig_node);
+	/*hash_delete(orig_hash, free_orig_node, bat_priv);*/
 	orig_hash = NULL;
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 /* this function finds or creates an originator entry for the given
  * address if it does not exits */
-struct orig_node *get_orig_node(uint8_t *addr)
+struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct orig_node *orig_node;
 	struct hashtable_t *swaphash;
 	int size;
@@ -173,7 +171,7 @@ struct orig_node *get_orig_node(uint8_t *addr)
 		swaphash = hash_resize(orig_hash, orig_hash->size * 2);
 
 		if (swaphash == NULL)
-			bat_err(soft_device,
+			bat_dbg(DBG_BATMAN, bat_priv,
 				"Couldn't resize orig hash table\n");
 		else
 			orig_hash = swaphash;
@@ -189,11 +187,10 @@ free_orig_node:
 	return NULL;
 }
 
-static bool purge_orig_neighbors(struct orig_node *orig_node,
+static bool purge_orig_neighbors(struct bat_priv *bat_priv,
+				 struct orig_node *orig_node,
 				 struct neigh_node **best_neigh_node)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct list_head *list_pos, *list_pos_tmp;
 	struct neigh_node *neigh_node;
 	bool neigh_purged = false;
@@ -235,10 +232,9 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 	return neigh_purged;
 }
 
-static bool purge_orig_node(struct orig_node *orig_node)
+static bool purge_orig_node(struct bat_priv *bat_priv,
+			    struct orig_node *orig_node)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct neigh_node *best_neigh_node;
 
 	if (time_after(jiffies,
@@ -249,8 +245,10 @@ static bool purge_orig_node(struct orig_node *orig_node)
 			orig_node->orig, (orig_node->last_valid / HZ));
 		return true;
 	} else {
-		if (purge_orig_neighbors(orig_node, &best_neigh_node)) {
-			update_routes(orig_node, best_neigh_node,
+		if (purge_orig_neighbors(bat_priv, orig_node,
+							&best_neigh_node)) {
+			update_routes(bat_priv, orig_node,
+				      best_neigh_node,
 				      orig_node->hna_buff,
 				      orig_node->hna_buff_len);
 			/* update bonding candidates, we could have lost
@@ -273,13 +271,14 @@ void purge_orig(struct work_struct *work)
 	/* for all origins... */
 	while (hash_iterate(orig_hash, &hashit)) {
 		orig_node = hashit.bucket->data;
-		if (purge_orig_node(orig_node)) {
+
+		/*if (purge_orig_node(bat_priv, orig_node)) {
 			hash_remove_bucket(orig_hash, &hashit);
 			free_orig_node(orig_node);
-		}
+		}*/
 
 		if (time_after(jiffies, (orig_node->last_frag_packet +
-			msecs_to_jiffies(FRAG_TIMEOUT))))
+					msecs_to_jiffies(FRAG_TIMEOUT))))
 			frag_list_free(&orig_node->frag_list);
 	}
 

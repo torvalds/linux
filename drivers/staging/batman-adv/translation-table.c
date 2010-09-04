@@ -34,7 +34,8 @@ static DEFINE_SPINLOCK(hna_global_hash_lock);
 
 static void hna_local_purge(struct work_struct *work);
 static DECLARE_DELAYED_WORK(hna_local_purge_wq, hna_local_purge);
-static void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
+static void _hna_global_del_orig(struct bat_priv *bat_priv,
+				 struct hna_global_entry *hna_global_entry,
 				 char *message);
 
 static void hna_local_start_timer(void)
@@ -58,10 +59,9 @@ int hna_local_init(void)
 	return 1;
 }
 
-void hna_local_add(uint8_t *addr)
+void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct hna_local_entry *hna_local_entry;
 	struct hna_global_entry *hna_global_entry;
 	struct hashtable_t *swaphash;
@@ -100,7 +100,7 @@ void hna_local_add(uint8_t *addr)
 	hna_local_entry->last_seen = jiffies;
 
 	/* the batman interface mac address should never be purged */
-	if (compare_orig(addr, soft_device->dev_addr))
+	if (compare_orig(addr, soft_iface->dev_addr))
 		hna_local_entry->never_purge = 1;
 	else
 		hna_local_entry->never_purge = 0;
@@ -130,7 +130,8 @@ void hna_local_add(uint8_t *addr)
 		((struct hna_global_entry *)hash_find(hna_global_hash, addr));
 
 	if (hna_global_entry != NULL)
-		_hna_global_del_orig(hna_global_entry, "local hna received");
+		_hna_global_del_orig(bat_priv, hna_global_entry,
+				     "local hna received");
 
 	spin_unlock_irqrestore(&hna_global_hash_lock, flags);
 }
@@ -214,26 +215,26 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static void _hna_local_del(void *data)
+static void _hna_local_del(void *data, void *arg)
 {
 	kfree(data);
 	num_hna--;
 	atomic_set(&hna_local_changed, 1);
 }
 
-static void hna_local_del(struct hna_local_entry *hna_local_entry,
+static void hna_local_del(struct bat_priv *bat_priv,
+			  struct hna_local_entry *hna_local_entry,
 			  char *message)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	bat_dbg(DBG_ROUTES, bat_priv, "Deleting local hna entry (%pM): %s\n",
 		hna_local_entry->addr, message);
 
 	hash_remove(hna_local_hash, hna_local_entry->addr);
-	_hna_local_del(hna_local_entry);
+	_hna_local_del(hna_local_entry, bat_priv);
 }
 
-void hna_local_remove(uint8_t *addr, char *message)
+void hna_local_remove(struct bat_priv *bat_priv,
+		      uint8_t *addr, char *message)
 {
 	struct hna_local_entry *hna_local_entry;
 	unsigned long flags;
@@ -243,7 +244,7 @@ void hna_local_remove(uint8_t *addr, char *message)
 	hna_local_entry = (struct hna_local_entry *)
 		hash_find(hna_local_hash, addr);
 	if (hna_local_entry)
-		hna_local_del(hna_local_entry, message);
+		hna_local_del(bat_priv, hna_local_entry, message);
 
 	spin_unlock_irqrestore(&hna_local_hash_lock, flags);
 }
@@ -261,9 +262,10 @@ static void hna_local_purge(struct work_struct *work)
 		hna_local_entry = hashit.bucket->data;
 
 		timeout = hna_local_entry->last_seen + LOCAL_HNA_TIMEOUT * HZ;
-		if ((!hna_local_entry->never_purge) &&
+		/* if ((!hna_local_entry->never_purge) &&
 		    time_after(jiffies, timeout))
-			hna_local_del(hna_local_entry, "address timed out");
+			hna_local_del(bat_priv, hna_local_entry,
+				      "address timed out");*/
 	}
 
 	spin_unlock_irqrestore(&hna_local_hash_lock, flags);
@@ -276,7 +278,7 @@ void hna_local_free(void)
 		return;
 
 	cancel_delayed_work_sync(&hna_local_purge_wq);
-	hash_delete(hna_local_hash, _hna_local_del);
+	hash_delete(hna_local_hash, _hna_local_del, NULL);
 	hna_local_hash = NULL;
 }
 
@@ -293,11 +295,10 @@ int hna_global_init(void)
 	return 1;
 }
 
-void hna_global_add_orig(struct orig_node *orig_node,
+void hna_global_add_orig(struct bat_priv *bat_priv,
+			 struct orig_node *orig_node,
 			 unsigned char *hna_buff, int hna_buff_len)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct hna_global_entry *hna_global_entry;
 	struct hna_local_entry *hna_local_entry;
 	struct hashtable_t *swaphash;
@@ -345,7 +346,8 @@ void hna_global_add_orig(struct orig_node *orig_node,
 			hash_find(hna_local_hash, hna_ptr);
 
 		if (hna_local_entry != NULL)
-			hna_local_del(hna_local_entry, "global hna received");
+			hna_local_del(bat_priv, hna_local_entry,
+				      "global hna received");
 
 		spin_unlock_irqrestore(&hna_local_hash_lock, flags);
 
@@ -429,11 +431,10 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
+static void _hna_global_del_orig(struct bat_priv *bat_priv,
+				 struct hna_global_entry *hna_global_entry,
 				 char *message)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	bat_dbg(DBG_ROUTES, bat_priv,
 		"Deleting global hna entry %pM (via %pM): %s\n",
 		hna_global_entry->addr, hna_global_entry->orig_node->orig,
@@ -443,7 +444,8 @@ static void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
 	kfree(hna_global_entry);
 }
 
-void hna_global_del_orig(struct orig_node *orig_node, char *message)
+void hna_global_del_orig(struct bat_priv *bat_priv,
+			 struct orig_node *orig_node, char *message)
 {
 	struct hna_global_entry *hna_global_entry;
 	int hna_buff_count = 0;
@@ -462,7 +464,8 @@ void hna_global_del_orig(struct orig_node *orig_node, char *message)
 
 		if ((hna_global_entry != NULL) &&
 		    (hna_global_entry->orig_node == orig_node))
-			_hna_global_del_orig(hna_global_entry, message);
+			_hna_global_del_orig(bat_priv, hna_global_entry,
+					     message);
 
 		hna_buff_count++;
 	}
@@ -474,7 +477,7 @@ void hna_global_del_orig(struct orig_node *orig_node, char *message)
 	orig_node->hna_buff = NULL;
 }
 
-static void hna_global_del(void *data)
+static void hna_global_del(void *data, void *arg)
 {
 	kfree(data);
 }
@@ -484,7 +487,7 @@ void hna_global_free(void)
 	if (!hna_global_hash)
 		return;
 
-	hash_delete(hna_global_hash, hna_global_del);
+	hash_delete(hna_global_hash, hna_global_del, NULL);
 	hna_global_hash = NULL;
 }
 

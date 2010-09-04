@@ -156,6 +156,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	struct bat_priv *bat_priv = socket_client->bat_priv;
 	struct sk_buff *skb;
 	struct icmp_packet_rr *icmp_packet;
+
 	struct orig_node *orig_node;
 	struct batman_if *batman_if;
 	size_t packet_len = sizeof(struct icmp_packet);

@@ -47,6 +47,7 @@ struct batman_if {
 	struct kobject *hardif_obj;
 	struct rcu_head rcu;
 	struct packet_type batman_adv_ptype;
+	struct net_device *soft_iface;
 };
 
 /**

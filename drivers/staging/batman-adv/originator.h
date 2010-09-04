@@ -25,7 +25,7 @@
 int originator_init(void);
 void originator_free(void);
 void purge_orig(struct work_struct *work);
-struct orig_node *get_orig_node(uint8_t *addr);
+struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr);
 struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 		uint8_t *neigh, struct batman_if *if_incoming);

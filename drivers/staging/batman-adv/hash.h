@@ -30,7 +30,7 @@
 
 typedef int (*hashdata_compare_cb)(void *, void *);
 typedef int (*hashdata_choose_cb)(void *, int);
-typedef void (*hashdata_free_cb)(void *);
+typedef void (*hashdata_free_cb)(void *, void *);
 
 struct element_t {
 	void *data;		/* pointer to the data */
@@ -70,7 +70,7 @@ void *hash_remove_bucket(struct hashtable_t *hash, struct hash_it_t *hash_it_t);
 /* remove the hash structure. if hashdata_free_cb != NULL, this function will be
  * called to remove the elements inside of the hash.  if you don't remove the
  * elements, memory might be leaked. */
-void hash_delete(struct hashtable_t *hash, hashdata_free_cb free_cb);
+void hash_delete(struct hashtable_t *hash, hashdata_free_cb free_cb, void *arg);
 
 /* free only the hashtable and the hash itself. */
 void hash_destroy(struct hashtable_t *hash);

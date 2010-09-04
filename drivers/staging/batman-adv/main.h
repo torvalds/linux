@@ -138,8 +138,6 @@ extern spinlock_t forw_bcast_list_lock;
 
 extern int16_t num_hna;
 
-extern struct net_device *soft_device;
-
 extern unsigned char broadcast_addr[];
 extern atomic_t module_state;
 extern struct workqueue_struct *bat_event_workqueue;

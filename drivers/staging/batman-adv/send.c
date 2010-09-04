@@ -103,8 +103,7 @@ send_skb_err:
 static void send_packet_to_if(struct forw_packet *forw_packet,
 			      struct batman_if *batman_if)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	char *fwd_str;
 	uint8_t packet_num;
 	int16_t buff_pos;
@@ -160,9 +159,9 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 /* send a batman packet */
 static void send_packet(struct forw_packet *forw_packet)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_if *batman_if;
+	struct bat_priv *bat_priv =
+		netdev_priv(forw_packet->if_incoming->soft_iface);
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->skb->data);
 	unsigned char directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
@@ -232,8 +231,7 @@ static void rebuild_batman_packet(struct batman_if *batman_if)
 
 void schedule_own_packet(struct batman_if *batman_if)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	unsigned long send_time;
 	struct batman_packet *batman_packet;
 	int vis_server;
@@ -290,8 +288,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 			     uint8_t directlink, int hna_buff_len,
 			     struct batman_if *if_incoming)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	unsigned char in_tq, in_ttl, tq_avg = 0;
 	unsigned long send_time;
 
@@ -381,12 +378,10 @@ static void _add_bcast_packet_to_list(struct forw_packet *forw_packet,
  *
  * The skb is not consumed, so the caller should make sure that the
  * skb is freed. */
-int add_bcast_packet_to_list(struct sk_buff *skb)
+int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 {
 	struct forw_packet *forw_packet;
 	struct bcast_packet *bcast_packet;
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	if (!atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
 		bat_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
@@ -409,6 +404,7 @@ int add_bcast_packet_to_list(struct sk_buff *skb)
 	skb_reset_mac_header(skb);
 
 	forw_packet->skb = skb;
+	forw_packet->if_incoming = bat_priv->primary_if;
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
@@ -433,8 +429,7 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 		container_of(delayed_work, struct forw_packet, delayed_work);
 	unsigned long flags;
 	struct sk_buff *skb1;
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv;
 
 	spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	hlist_del(&forw_packet->list);
@@ -463,6 +458,7 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 	}
 
 out:
+	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
 	forw_packet_free(forw_packet);
 	atomic_inc(&bat_priv->bcast_queue_left);
 }
@@ -474,8 +470,7 @@ void send_outstanding_bat_packet(struct work_struct *work)
 	struct forw_packet *forw_packet =
 		container_of(delayed_work, struct forw_packet, delayed_work);
 	unsigned long flags;
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv;
 
 	spin_lock_irqsave(&forw_bat_list_lock, flags);
 	hlist_del(&forw_packet->list);
@@ -495,6 +490,8 @@ void send_outstanding_bat_packet(struct work_struct *work)
 		schedule_own_packet(forw_packet->if_incoming);
 
 out:
+	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
+
 	/* don't count own packet */
 	if (!forw_packet->own)
 		atomic_inc(&bat_priv->batman_queue_left);
@@ -504,19 +501,22 @@ out:
 
 void purge_outstanding_packets(struct batman_if *batman_if)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv;
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
 	unsigned long flags;
 
-	if (batman_if)
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"purge_outstanding_packets(): %s\n",
-			batman_if->dev);
-	else
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"purge_outstanding_packets()\n");
+	if (batman_if->soft_iface) {
+		bat_priv = netdev_priv(batman_if->soft_iface);
+
+		if (batman_if)
+			bat_dbg(DBG_BATMAN, bat_priv,
+				"purge_outstanding_packets(): %s\n",
+				batman_if->dev);
+		else
+			bat_dbg(DBG_BATMAN, bat_priv,
+				"purge_outstanding_packets()\n");
+	}
 
 	/* free bcast list */
 	spin_lock_irqsave(&forw_bcast_list_lock, flags);

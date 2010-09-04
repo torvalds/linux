@@ -44,8 +44,6 @@ DEFINE_SPINLOCK(forw_bcast_list_lock);
 
 int16_t num_hna;
 
-struct net_device *soft_device;
-
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 atomic_t module_state;
 
@@ -53,8 +51,6 @@ struct workqueue_struct *bat_event_workqueue;
 
 static int __init batman_init(void)
 {
-	int retval;
-
 	INIT_LIST_HEAD(&if_list);
 	INIT_HLIST_HEAD(&forw_bat_list);
 	INIT_HLIST_HEAD(&forw_bcast_list);
@@ -71,32 +67,6 @@ static int __init batman_init(void)
 	bat_socket_init();
 	debugfs_init();
 
-	/* initialize layer 2 interface */
-	soft_device = alloc_netdev(sizeof(struct bat_priv) , "bat%d",
-				   interface_setup);
-
-	if (!soft_device) {
-		pr_err("Unable to allocate the batman interface\n");
-		goto end;
-	}
-
-	retval = register_netdev(soft_device);
-
-	if (retval < 0) {
-		pr_err("Unable to register the batman interface: %i\n", retval);
-		goto free_soft_device;
-	}
-
-	retval = sysfs_add_meshif(soft_device);
-
-	if (retval < 0)
-		goto unreg_soft_device;
-
-	retval = debugfs_add_meshif(soft_device);
-
-	if (retval < 0)
-		goto unreg_sysfs;
-
 	register_netdevice_notifier(&hard_if_notifier);
 
 	pr_info("B.A.T.M.A.N. advanced %s%s (compatibility version %i) "
@@ -104,19 +74,6 @@ static int __init batman_init(void)
 		COMPAT_VERSION);
 
 	return 0;
-
-unreg_sysfs:
-	sysfs_del_meshif(soft_device);
-unreg_soft_device:
-	unregister_netdev(soft_device);
-	soft_device = NULL;
-	return -ENOMEM;
-
-free_soft_device:
-	free_netdev(soft_device);
-	soft_device = NULL;
-end:
-	return -ENOMEM;
 }
 
 static void __exit batman_exit(void)
@@ -126,13 +83,6 @@ static void __exit batman_exit(void)
 	debugfs_destroy();
 	unregister_netdevice_notifier(&hard_if_notifier);
 	hardif_remove_interfaces();
-
-	if (soft_device) {
-		debugfs_del_meshif(soft_device);
-		sysfs_del_meshif(soft_device);
-		unregister_netdev(soft_device);
-		soft_device = NULL;
-	}
 
 	destroy_workqueue(bat_event_workqueue);
 	bat_event_workqueue = NULL;
@@ -150,12 +100,12 @@ void activate_module(void)
 	if (hna_global_init() < 1)
 		goto err;
 
-	hna_local_add(soft_device->dev_addr);
+	/*hna_local_add(soft_device->dev_addr);*/
 
 	if (vis_init() < 1)
 		goto err;
 
-	update_min_mtu();
+	/*update_min_mtu();*/
 	atomic_set(&module_state, MODULE_ACTIVE);
 	goto end;
 

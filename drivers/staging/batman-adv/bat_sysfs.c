@@ -180,9 +180,7 @@ static ssize_t store_frag(struct kobject *kobj, struct attribute *attr,
 		 frag_enabled_tmp == 1 ? "enabled" : "disabled");
 
 	atomic_set(&bat_priv->frag_enabled, (unsigned)frag_enabled_tmp);
-
-	update_min_mtu();
-
+	update_min_mtu(net_dev);
 	return count;
 }
 
@@ -358,20 +356,6 @@ int sysfs_add_meshif(struct net_device *dev)
 	struct bat_attribute **bat_attr;
 	int err;
 
-	/* FIXME: should be done in the general mesh setup
-		  routine as soon as we have it */
-	atomic_set(&bat_priv->aggregation_enabled, 1);
-	atomic_set(&bat_priv->bonding_enabled, 0);
-	atomic_set(&bat_priv->frag_enabled, 1);
-	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
-	atomic_set(&bat_priv->orig_interval, 1000);
-	atomic_set(&bat_priv->log_level, 0);
-	atomic_set(&bat_priv->bcast_queue_left, BCAST_QUEUE_LEN);
-	atomic_set(&bat_priv->batman_queue_left, BATMAN_QUEUE_LEN);
-
-	bat_priv->primary_if = NULL;
-	bat_priv->num_ifaces = 0;
-
 	bat_priv->mesh_obj = kobject_create_and_add(SYSFS_IF_MESH_SUBDIR,
 						    batif_kobject);
 	if (!bat_priv->mesh_obj) {
@@ -441,32 +425,39 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (!batman_if)
 		return count;
 
-	if (strncmp(buff, "none", 4) == 0)
-		status_tmp = IF_NOT_IN_USE;
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
 
-	if (strncmp(buff, "bat0", 4) == 0)
-		status_tmp = IF_I_WANT_YOU;
-
-	if (status_tmp < 0) {
-		if (buff[count - 1] == '\n')
-			buff[count - 1] = '\0';
-
+	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
-		       "%s\n", buff);
+		       "interface name too long '%s'\n", buff);
 		return -EINVAL;
 	}
 
-	if ((batman_if->if_status == status_tmp) ||
-	    ((status_tmp == IF_I_WANT_YOU) &&
-	     (batman_if->if_status != IF_NOT_IN_USE)))
+	if (strncmp(buff, "none", 4) == 0)
+		status_tmp = IF_NOT_IN_USE;
+	else
+		status_tmp = IF_I_WANT_YOU;
+
+	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
+	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0)))
 		return count;
 
-	if (status_tmp == IF_I_WANT_YOU)
-		status_tmp = hardif_enable_interface(batman_if);
-	else
+	if (status_tmp == IF_NOT_IN_USE) {
+		rtnl_lock();
 		hardif_disable_interface(batman_if);
+		rtnl_unlock();
+		return count;
+	}
 
-	return (status_tmp < 0 ? status_tmp : count);
+	/* if the interface already is in use */
+	if (batman_if->if_status != IF_NOT_IN_USE) {
+		rtnl_lock();
+		hardif_disable_interface(batman_if);
+		rtnl_unlock();
+	}
+
+	return hardif_enable_interface(batman_if, buff);
 }
 
 static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
