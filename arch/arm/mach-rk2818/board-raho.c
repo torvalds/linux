@@ -38,6 +38,10 @@
 #include <mach/gpio.h>
 #include <mach/spi_fpga.h>
 #include <mach/rk2818_camera.h>                          /* ddl@rock-chips.com : camera support */
+#include <linux/pda_power.h>
+#include <linux/regulator/charge-regulator.h>
+#include <linux/regulator/machine.h>
+#include <linux/usb/gpio_vbus.h>
 #include <mach/rk2818_nand.h>
 
 #include <linux/mtd/nand.h>
@@ -820,6 +824,125 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 	},
 #endif
 };	
+
+/*
+ * External power
+ */
+
+static int power_supply_init(struct device *dev)
+{
+	return gpio_request(FPGA_PIO2_08, "AC charger detect");
+}
+
+static int rk2818_is_ac_online(void)
+{
+	return !gpio_get_value(FPGA_PIO2_08);
+}
+
+static void power_supply_exit(struct device *dev)
+{
+	gpio_free(FPGA_PIO2_08);
+}
+
+static char *rk2818_supplicant[] = {
+	"rk2818-battery"
+};
+
+static struct pda_power_pdata power_supply_info = {
+	.init            = power_supply_init,
+	.is_ac_online    = rk2818_is_ac_online,
+	.exit            = power_supply_exit,
+	.supplied_to     = rk2818_supplicant,
+	.num_supplicants = ARRAY_SIZE(rk2818_supplicant),
+};
+
+static struct resource power_supply_resources[] = {
+	[0] = {
+		.name  = "ac",
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		         IORESOURCE_IRQ_LOWEDGE,
+	},
+	[1] = {
+		.name  = "usb",
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		         IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+static struct platform_device power_supply = {
+	.name = "pda-power",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &power_supply_info,
+	},
+	.resource      = power_supply_resources,
+	.num_resources = ARRAY_SIZE(power_supply_resources),
+};
+
+/*
+ * USB "Transceiver"
+ */
+
+static struct resource gpio_vbus_resource = {
+	.flags = IORESOURCE_IRQ,
+	.start =  IRQ_NR_OTG,
+	.end   = IRQ_NR_OTG,
+};
+
+static struct gpio_vbus_mach_info gpio_vbus_info = {
+	.gpio_vbus   = FPGA_PIO4_06,
+};
+
+static struct platform_device gpio_vbus = {
+	.name          = "gpio-vbus",
+	.id            = -1,
+	.num_resources = 1,
+	.resource      = &gpio_vbus_resource,
+	.dev = {
+		.platform_data = &gpio_vbus_info,
+	},
+};
+
+/*
+ * Battery charger
+ */
+
+static struct regulator_consumer_supply rk2818_consumers[] = {
+	{
+		.dev=&rk2818_device_battery.dev,
+		.supply = "battery",
+	},
+	{
+		.dev = &gpio_vbus.dev,
+		.supply = "vbus_draw",
+	},
+	{
+		.dev = &power_supply.dev,
+		.supply = "ac_draw",
+	},
+};
+
+static struct regulator_init_data charge_init_data = {
+	.constraints = {
+		.max_uA         = 1200000,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(rk2818_consumers),
+	.consumer_supplies      = rk2818_consumers,
+};
+
+static struct charge_platform_data charge_current_info = {
+	.gpio_charge = FPGA_PIO2_08,
+	.init_data  = &charge_init_data,
+};
+
+static struct platform_device charge_current = {
+	.name = "charge-regulator",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &charge_current_info,
+	},
+};
 
 /*****************************************************************************************
  * camera  devices
@@ -1708,6 +1831,10 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&rk2818_device_adc,
 	&rk2818_device_adckey,
+#if defined(CONFIG_RK2818_REGULATOR_CHARGE)
+	&power_supply,
+	&charge_current,
+#endif
 	&rk2818_device_battery,
     &rk2818_device_fb,    
     &rk2818_device_backlight,

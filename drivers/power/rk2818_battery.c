@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/regulator/consumer.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -98,7 +99,7 @@ int gBatSlopeLevel = SLOPE_LOW_LEVEL;
 int gBatVoltageLevel = VOLTAGE_MID_LEVEL;
 int gBatUseStatus = BAT_LOADER_STATUS;	
 
-
+static struct regulator *pChargeregulator;
 
 extern int dwc_vbus_status(void);
 extern int get_msc_connect_flag(void);
@@ -146,11 +147,19 @@ static int rk2818_get_charge_status(void)
 {
 	//DBG("gAdcValue[CHN_USB_ADC]=%d\n",gAdcValue[CHN_USB_ADC]);
 	if(gAdcValue[CHN_USB_ADC] > 250)	//about 0.5V
-	return 1;		
+		{
+		return 1;
+		}
 	else if((1 == dwc_vbus_status())&& (0 == get_msc_connect_flag()))
-	return 1;
+		{
+		  regulator_set_current_limit(pChargeregulator,0,1200000);
+		return 1;
+		}
 	else
-	return 0;
+		{
+		regulator_set_current_limit(pChargeregulator,0,475000);
+		return 0;
+		}
 }
 
 static void rk2818_get_bat_status(struct rk2818_battery_data *bat)
@@ -612,6 +621,13 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 		goto err_battery_failed;
 	}
 	platform_set_drvdata(pdev, data);
+	
+
+	pChargeregulator = regulator_get(&pdev->dev, "battery");
+	if(IS_ERR(pChargeregulator))
+		printk(KERN_ERR"fail to get regulator battery\n");
+       else
+		regulator_set_current_limit(pChargeregulator,0,475000);
 
 	INIT_WORK(&data->timer_work, rk2818_battery_timer_work);
 	gBatteryData = data;
