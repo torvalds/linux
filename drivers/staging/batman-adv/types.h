@@ -113,6 +113,8 @@ struct bat_priv {
 	atomic_t vis_mode;
 	atomic_t orig_interval;
 	atomic_t log_level;
+	atomic_t bcast_queue_left;
+	atomic_t batman_queue_left;
 	char num_ifaces;
 	struct debug_log *debug_log;
 	struct batman_if *primary_if;

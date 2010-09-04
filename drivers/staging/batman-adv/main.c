@@ -42,9 +42,6 @@ DEFINE_SPINLOCK(orig_hash_lock);
 DEFINE_SPINLOCK(forw_bat_list_lock);
 DEFINE_SPINLOCK(forw_bcast_list_lock);
 
-atomic_t bcast_queue_left;
-atomic_t batman_queue_left;
-
 int16_t num_hna;
 
 struct net_device *soft_device;
@@ -68,9 +65,6 @@ static int __init batman_init(void)
 	INIT_HLIST_HEAD(&forw_bcast_list);
 
 	atomic_set(&module_state, MODULE_INACTIVE);
-
-	atomic_set(&bcast_queue_left, BCAST_QUEUE_LEN);
-	atomic_set(&batman_queue_left, BATMAN_QUEUE_LEN);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */

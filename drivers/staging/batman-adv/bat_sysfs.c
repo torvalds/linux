@@ -311,6 +311,8 @@ int sysfs_add_meshif(struct net_device *dev)
 	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->orig_interval, 1000);
 	atomic_set(&bat_priv->log_level, 0);
+	atomic_set(&bat_priv->bcast_queue_left, BCAST_QUEUE_LEN);
+	atomic_set(&bat_priv->batman_queue_left, BATMAN_QUEUE_LEN);
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
