@@ -859,9 +859,9 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		pr_warning("Warning - can't forward icmp packet from %pM to "
-			   "%pM: ttl exceeded\n", icmp_packet->orig,
-			   icmp_packet->dst);
+		pr_debug("Warning - can't forward icmp packet from %pM to "
+			 "%pM: ttl exceeded\n", icmp_packet->orig,
+			 icmp_packet->dst);
 		return NET_RX_DROP;
 	}
 
@@ -1141,9 +1141,9 @@ static int route_unicast_packet(struct sk_buff *skb,
 
 	/* TTL exceeded */
 	if (unicast_packet->ttl < 2) {
-		pr_warning("Warning - can't forward unicast packet from %pM to "
-			   "%pM: ttl exceeded\n", ethhdr->h_source,
-			   unicast_packet->dest);
+		pr_debug("Warning - can't forward unicast packet from %pM to "
+			 "%pM: ttl exceeded\n", ethhdr->h_source,
+			 unicast_packet->dest);
 		return NET_RX_DROP;
 	}
 
@@ -1224,8 +1224,7 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 			hash_find(bat_priv->orig_hash, unicast_packet->orig));
 
 		if (!orig_node) {
-			pr_warning("couldn't find orig node for "
-				"fragmentation\n");
+			pr_debug("couldn't find orig node for fragmentation\n");
 			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
 					       flags);
 			return NET_RX_DROP;

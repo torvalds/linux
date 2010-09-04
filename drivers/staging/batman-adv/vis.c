@@ -745,7 +745,7 @@ static void send_vis_packet(struct bat_priv *bat_priv, struct vis_info *info)
 
 	packet = (struct vis_packet *)info->skb_packet->data;
 	if (packet->ttl < 2) {
-		pr_warning("Error - can't send vis packet: ttl exceeded\n");
+		pr_debug("Error - can't send vis packet: ttl exceeded\n");
 		return;
 	}
 
