@@ -78,7 +78,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 						     struct buffer_head *,
 						     void *))
 {
-	struct the_nilfs *nilfs = NILFS_MDT(inode)->mi_nilfs;
+	struct the_nilfs *nilfs = NILFS_I_NILFS(inode);
 	struct super_block *sb = inode->i_sb;
 	struct nilfs_transaction_info ti;
 	struct buffer_head *bh;
@@ -167,9 +167,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 		unlock_buffer(bh);
 		goto failed_bh;
 	}
-	bh->b_bdev = NILFS_MDT(inode)->mi_nilfs->ns_bdev;
-	bh->b_blocknr = (sector_t)blknum;
-	set_buffer_mapped(bh);
+	map_bh(bh, inode->i_sb, (sector_t)blknum);
 
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
@@ -412,7 +410,7 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 		return 0;
 
 	sb = inode->i_sb;
-	nilfs = NILFS_MDT(inode)->mi_nilfs;
+	nilfs = NILFS_SB(sb)->s_nilfs;
 
 	if (!sb) {
 		down_read(&nilfs->ns_writer_sem);
@@ -452,7 +450,6 @@ int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 	if (!mi)
 		return -ENOMEM;
 
-	mi->mi_nilfs = NILFS_I_NILFS(inode);
 	init_rwsem(&mi->mi_sem);
 	inode->i_private = mi;
 

@@ -505,7 +505,7 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
 {
 	struct buffer_head *header_bh;
 	struct nilfs_sufile_header *header;
-	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
+	struct the_nilfs *nilfs = NILFS_I_NILFS(sufile);
 	void *kaddr;
 	int ret;
 
@@ -583,7 +583,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 	struct nilfs_segment_usage *su;
 	struct nilfs_suinfo *si = buf;
 	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
-	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
+	struct the_nilfs *nilfs = NILFS_I_NILFS(sufile);
 	void *kaddr;
 	unsigned long nsegs, segusages_per_block;
 	ssize_t n;
