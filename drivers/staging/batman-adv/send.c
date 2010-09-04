@@ -68,7 +68,7 @@ int send_skb_packet(struct sk_buff *skb,
 
 	if (!(batman_if->net_dev->flags & IFF_UP)) {
 		pr_warning("Interface %s is not up - can't send packet via "
-			   "that interface!\n", batman_if->dev);
+			   "that interface!\n", batman_if->net_dev->name);
 		goto send_skb_err;
 	}
 
@@ -141,7 +141,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 			batman_packet->tq, batman_packet->ttl,
 			(batman_packet->flags & DIRECTLINK ?
 			 "on" : "off"),
-			batman_if->dev, batman_if->addr_str);
+			batman_if->net_dev->name, batman_if->addr_str);
 
 		buff_pos += sizeof(struct batman_packet) +
 			(batman_packet->num_hna * ETH_ALEN);
@@ -186,7 +186,8 @@ static void send_packet(struct forw_packet *forw_packet)
 			"on interface %s [%s]\n",
 			(forw_packet->own ? "Sending own" : "Forwarding"),
 			batman_packet->orig, ntohl(batman_packet->seqno),
-			batman_packet->ttl, forw_packet->if_incoming->dev,
+			batman_packet->ttl,
+			forw_packet->if_incoming->net_dev->name,
 			forw_packet->if_incoming->addr_str);
 
 		/* skb is only used once and than forw_packet is free'd */
@@ -521,7 +522,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 	if (batman_if)
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"purge_outstanding_packets(): %s\n",
-			batman_if->dev);
+			batman_if->net_dev->name);
 	else
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"purge_outstanding_packets()\n");

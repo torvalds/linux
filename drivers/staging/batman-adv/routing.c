@@ -557,10 +557,11 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		"Received BATMAN packet via NB: %pM, IF: %s [%s] "
 		"(from OG: %pM, via prev OG: %pM, seqno %d, tq %d, "
 		"TTL %d, V %d, IDF %d)\n",
-		ethhdr->h_source, if_incoming->dev, if_incoming->addr_str,
-		batman_packet->orig, batman_packet->prev_sender,
-		batman_packet->seqno, batman_packet->tq, batman_packet->ttl,
-		batman_packet->version, has_directlink_flag);
+		ethhdr->h_source, if_incoming->net_dev->name,
+		if_incoming->addr_str, batman_packet->orig,
+		batman_packet->prev_sender, batman_packet->seqno,
+		batman_packet->tq, batman_packet->ttl, batman_packet->version,
+		has_directlink_flag);
 
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
 		if (batman_if->if_status != IF_ACTIVE)

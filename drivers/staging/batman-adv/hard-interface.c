@@ -158,7 +158,7 @@ static void check_known_mac_addr(uint8_t *addr)
 			continue;
 
 		pr_warning("The newly added mac address (%pM) already exists "
-			   "on: %s\n", addr, batman_if->dev);
+			   "on: %s\n", addr, batman_if->net_dev->name);
 		pr_warning("It is strongly recommended to keep mac addresses "
 			   "unique to avoid problems!\n");
 	}
@@ -223,7 +223,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 		set_primary_if(bat_priv, batman_if);
 
 	bat_info(batman_if->soft_iface, "Interface activated: %s\n",
-		 batman_if->dev);
+		 batman_if->net_dev->name);
 
 	update_min_mtu(batman_if->soft_iface);
 	return;
@@ -238,7 +238,7 @@ static void hardif_deactivate_interface(struct batman_if *batman_if)
 	batman_if->if_status = IF_INACTIVE;
 
 	bat_info(batman_if->soft_iface, "Interface deactivated: %s\n",
-		 batman_if->dev);
+		 batman_if->net_dev->name);
 
 	update_min_mtu(batman_if->soft_iface);
 }
@@ -269,7 +269,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 
 	if (!batman_if->packet_buff) {
 		bat_err(batman_if->soft_iface, "Can't add interface packet "
-			"(%s): out of memory\n", batman_if->dev);
+			"(%s): out of memory\n", batman_if->net_dev->name);
 		goto err;
 	}
 
@@ -294,7 +294,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 	atomic_set(&batman_if->seqno, 1);
 	atomic_set(&batman_if->frag_seqno, 1);
 	bat_info(batman_if->soft_iface, "Adding interface: %s\n",
-		 batman_if->dev);
+		 batman_if->net_dev->name);
 
 	if (atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
@@ -304,7 +304,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 			"over this interface will be fragmented on layer2 "
 			"which could impact the performance. Setting the MTU "
 			"to %zi would solve the problem.\n",
-			batman_if->dev, batman_if->net_dev->mtu,
+			batman_if->net_dev->name, batman_if->net_dev->mtu,
 			ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (!atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
@@ -314,7 +314,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 			"the transport of batman-adv packets. If you experience"
 			" problems getting traffic through try increasing the "
 			"MTU to %zi.\n",
-			batman_if->dev, batman_if->net_dev->mtu,
+			batman_if->net_dev->name, batman_if->net_dev->mtu,
 			ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (hardif_is_iface_up(batman_if))
@@ -322,7 +322,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 	else
 		bat_err(batman_if->soft_iface, "Not using interface %s "
 			"(retrying later): interface not active\n",
-			batman_if->dev);
+			batman_if->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */
 	schedule_own_packet(batman_if);
@@ -345,7 +345,7 @@ void hardif_disable_interface(struct batman_if *batman_if)
 		return;
 
 	bat_info(batman_if->soft_iface, "Removing interface: %s\n",
-		 batman_if->dev);
+		 batman_if->net_dev->name);
 	dev_remove_pack(&batman_if->batman_adv_ptype);
 
 	bat_priv->num_ifaces--;
@@ -389,13 +389,9 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 		goto release_dev;
 	}
 
-	batman_if->dev = kstrdup(net_dev->name, GFP_ATOMIC);
-	if (!batman_if->dev)
-		goto free_if;
-
 	ret = sysfs_add_hardif(&batman_if->hardif_obj, net_dev);
 	if (ret)
-		goto free_dev;
+		goto free_if;
 
 	batman_if->if_num = -1;
 	batman_if->net_dev = net_dev;
@@ -407,8 +403,6 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	list_add_tail_rcu(&batman_if->list, &if_list);
 	return batman_if;
 
-free_dev:
-	kfree(batman_if->dev);
 free_if:
 	kfree(batman_if);
 release_dev:
@@ -421,7 +415,6 @@ static void hardif_free_interface(struct rcu_head *rcu)
 {
 	struct batman_if *batman_if = container_of(rcu, struct batman_if, rcu);
 
-	kfree(batman_if->dev);
 	kfree(batman_if);
 }
 
@@ -475,8 +468,6 @@ static int hard_if_event(struct notifier_block *this,
 		break;
 	case NETDEV_UNREGISTER:
 		hardif_remove_interface(batman_if);
-		break;
-	case NETDEV_CHANGENAME:
 		break;
 	case NETDEV_CHANGEADDR:
 		if (batman_if->if_status == IF_NOT_IN_USE)

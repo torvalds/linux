@@ -214,7 +214,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 					"neighbor purge: originator %pM, "
 					"neighbor: %pM, iface: %s\n",
 					orig_node->orig, neigh_node->addr,
-					neigh_node->if_incoming->dev);
+					neigh_node->if_incoming->net_dev->name);
 			else
 				bat_dbg(DBG_BATMAN, bat_priv,
 					"neighbor timeout: originator %pM, "
@@ -332,8 +332,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	rcu_read_lock();
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)]\n",
 		   SOURCE_VERSION, REVISION_VERSION_STR,
-		   bat_priv->primary_if->dev, bat_priv->primary_if->addr_str,
-		   net_dev->name);
+		   bat_priv->primary_if->net_dev->name,
+		   bat_priv->primary_if->addr_str, net_dev->name);
 	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
 		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", "Potential nexthops");
@@ -361,7 +361,7 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 		seq_printf(seq, "%-17s %4i.%03is   (%3i) %17s [%10s]:",
 			   orig_str, last_seen_secs, last_seen_msecs,
 			   orig_node->router->tq_avg, router_str,
-			   orig_node->router->if_incoming->dev);
+			   orig_node->router->if_incoming->net_dev->name);
 
 		list_for_each_entry(neigh_node, &orig_node->neigh_list, list) {
 			addr_to_string(orig_str, neigh_node->addr);
