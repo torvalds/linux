@@ -73,7 +73,7 @@ int send_skb_packet(struct sk_buff *skb,
 	}
 
 	/* push to the ethernet header. */
-	if (my_skb_push(skb, sizeof(struct ethhdr)) < 0)
+	if (my_skb_head_push(skb, sizeof(struct ethhdr)) < 0)
 		goto send_skb_err;
 
 	skb_reset_mac_header(skb);

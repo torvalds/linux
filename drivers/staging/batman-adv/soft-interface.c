@@ -31,8 +31,6 @@
 
 static uint32_t bcast_seqno = 1; /* give own bcast messages seq numbers to avoid
 				  * broadcast storms */
-static int32_t skb_packets;
-static int32_t skb_bad_packets;
 
 unsigned char main_if_addr[ETH_ALEN];
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
@@ -59,18 +57,22 @@ void set_main_if_addr(uint8_t *addr)
 	memcpy(main_if_addr, addr, ETH_ALEN);
 }
 
-int my_skb_push(struct sk_buff *skb, unsigned int len)
+int my_skb_head_push(struct sk_buff *skb, unsigned int len)
 {
-	int result = 0;
+	int result;
 
-	skb_packets++;
-	if (skb_headroom(skb) < len) {
-		skb_bad_packets++;
-		result = pskb_expand_head(skb, len, 0, GFP_ATOMIC);
+	/**
+	 * TODO: We must check if we can release all references to non-payload
+	 * data using skb_header_release in our skbs to allow skb_cow_header to
+	 * work optimally. This means that those skbs are not allowed to read
+	 * or write any data which is before the current position of skb->data
+	 * after that call and thus allow other skbs with the same data buffer
+	 * to write freely in that area.
+	 */
+	result = skb_cow_head(skb, len);
 
-		if (result < 0)
-			return result;
-	}
+	if (result < 0)
+		return result;
 
 	skb_push(skb, len);
 	return 0;
@@ -140,7 +142,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 	/* ethernet packet should be broadcasted */
 	if (is_bcast(ethhdr->h_dest) || is_mcast(ethhdr->h_dest)) {
 
-		if (my_skb_push(skb, sizeof(struct bcast_packet)) < 0)
+		if (my_skb_head_push(skb, sizeof(struct bcast_packet)) < 0)
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;

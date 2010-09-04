@@ -163,8 +163,8 @@ static int unicast_send_frag_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag_skb = dev_alloc_skb(data_len - (data_len / 2) + hdr_len);
 	skb_split(skb, frag_skb, data_len / 2);
 
-	if (my_skb_push(frag_skb, hdr_len) < 0 ||
-	    my_skb_push(skb, hdr_len) < 0)
+	if (my_skb_head_push(frag_skb, hdr_len) < 0 ||
+	    my_skb_head_push(skb, hdr_len) < 0)
 		goto drop_frag;
 
 	ucast_frag1 = (struct unicast_frag_packet *)skb->data;
@@ -240,7 +240,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 		return unicast_send_frag_skb(skb, bat_priv, batman_if,
 					     dstaddr, orig_node);
 
-	if (my_skb_push(skb, sizeof(struct unicast_packet)) < 0)
+	if (my_skb_head_push(skb, sizeof(struct unicast_packet)) < 0)
 		goto dropped;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
