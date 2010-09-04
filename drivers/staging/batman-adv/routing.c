@@ -34,8 +34,6 @@
 #include "aggregation.h"
 #include "unicast.h"
 
-static DECLARE_WAIT_QUEUE_HEAD(thread_wait);
-
 void slide_own_bcast_window(struct batman_if *batman_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
@@ -44,9 +42,9 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 	TYPE_OF_WORD *word;
 	unsigned long flags;
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 
-	while (hash_iterate(orig_hash, &hashit)) {
+	while (hash_iterate(bat_priv->orig_hash, &hashit)) {
 		orig_node = hashit.bucket->data;
 		word = &(orig_node->bcast_own[batman_if->if_num * NUM_WORDS]);
 
@@ -55,7 +53,7 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 			bit_packet_count(word);
 	}
 
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 }
 
 static void update_HNA(struct bat_priv *bat_priv, struct orig_node *orig_node,
@@ -568,6 +566,9 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		if (batman_if->if_status != IF_ACTIVE)
 			continue;
 
+		if (batman_if->soft_iface != if_incoming->soft_iface)
+			continue;
+
 		if (compare_orig(ethhdr->h_source,
 				 batman_if->net_dev->dev_addr))
 			is_my_addr = 1;
@@ -739,9 +740,9 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				0, hna_buff_len, if_incoming);
 }
 
-int recv_bat_packet(struct sk_buff *skb,
-				struct batman_if *batman_if)
+int recv_bat_packet(struct sk_buff *skb, struct batman_if *batman_if)
 {
+	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	struct ethhdr *ethhdr;
 	unsigned long flags;
 
@@ -769,22 +770,20 @@ int recv_bat_packet(struct sk_buff *skb,
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	receive_aggr_bat_packet(ethhdr,
 				skb->data,
 				skb_headlen(skb),
 				batman_if);
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	kfree_skb(skb);
 	return NET_RX_SUCCESS;
 }
 
-static int recv_my_icmp_packet(struct sk_buff *skb,
-			       struct batman_if *recv_if, size_t icmp_len)
+static int recv_my_icmp_packet(struct bat_priv *bat_priv,
+			       struct sk_buff *skb, size_t icmp_len)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node;
 	struct icmp_packet_rr *icmp_packet;
 	struct ethhdr *ethhdr;
@@ -807,8 +806,8 @@ static int recv_my_icmp_packet(struct sk_buff *skb,
 
 	/* answer echo request (ping) */
 	/* get routing information */
-	spin_lock_irqsave(&orig_hash_lock, flags);
-	orig_node = ((struct orig_node *)hash_find(orig_hash,
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
+	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
 						   icmp_packet->orig));
 	ret = NET_RX_DROP;
 
@@ -819,7 +818,7 @@ static int recv_my_icmp_packet(struct sk_buff *skb,
 		 * copy the required data before sending */
 		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 		/* create a copy of the skb, if needed, to modify it. */
 		if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
@@ -838,16 +837,14 @@ static int recv_my_icmp_packet(struct sk_buff *skb,
 		ret = NET_RX_SUCCESS;
 
 	} else
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	return ret;
 }
 
-static int recv_icmp_ttl_exceeded(struct sk_buff *skb,
-			       struct batman_if *recv_if, size_t icmp_len)
+static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
+				  struct sk_buff *skb, size_t icmp_len)
 {
-	/* FIXME: each batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node;
 	struct icmp_packet *icmp_packet;
 	struct ethhdr *ethhdr;
@@ -871,9 +868,9 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb,
 		return NET_RX_DROP;
 
 	/* get routing information */
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
-		     hash_find(orig_hash, icmp_packet->orig));
+		     hash_find(bat_priv->orig_hash, icmp_packet->orig));
 	ret = NET_RX_DROP;
 
 	if ((orig_node != NULL) &&
@@ -883,7 +880,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb,
 		 * copy the required data before sending */
 		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 		/* create a copy of the skb, if needed, to modify it. */
 		if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
@@ -902,7 +899,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb,
 		ret = NET_RX_SUCCESS;
 
 	} else
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	return ret;
 }
@@ -910,6 +907,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb,
 
 int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 {
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct icmp_packet_rr *icmp_packet;
 	struct ethhdr *ethhdr;
 	struct orig_node *orig_node;
@@ -955,18 +953,18 @@ int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 
 	/* packet for me */
 	if (is_my_mac(icmp_packet->dst))
-		return recv_my_icmp_packet(skb, recv_if, hdr_size);
+		return recv_my_icmp_packet(bat_priv, skb, hdr_size);
 
 	/* TTL exceeded */
 	if (icmp_packet->ttl < 2)
-		return recv_icmp_ttl_exceeded(skb, recv_if, hdr_size);
+		return recv_icmp_ttl_exceeded(bat_priv, skb, hdr_size);
 
 	ret = NET_RX_DROP;
 
 	/* get routing information */
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
-		     hash_find(orig_hash, icmp_packet->dst));
+		     hash_find(bat_priv->orig_hash, icmp_packet->dst));
 
 	if ((orig_node != NULL) &&
 	    (orig_node->router != NULL)) {
@@ -975,7 +973,7 @@ int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 		 * copy the required data before sending */
 		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 		/* create a copy of the skb, if needed, to modify it. */
 		if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
@@ -992,7 +990,7 @@ int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 		ret = NET_RX_SUCCESS;
 
 	} else
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	return ret;
 }
@@ -1041,8 +1039,9 @@ struct neigh_node *find_router(struct orig_node *orig_node,
 				router_orig->orig, ETH_ALEN) == 0) {
 		primary_orig_node = router_orig;
 	} else {
-		primary_orig_node = hash_find(orig_hash,
+		primary_orig_node = hash_find(bat_priv->orig_hash,
 						router_orig->primary_addr);
+
 		if (!primary_orig_node)
 			return orig_node->router;
 	}
@@ -1122,6 +1121,7 @@ static int check_unicast_packet(struct sk_buff *skb, int hdr_size)
 static int route_unicast_packet(struct sk_buff *skb,
 				struct batman_if *recv_if, int hdr_size)
 {
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node;
 	struct neigh_node *router;
 	struct batman_if *batman_if;
@@ -1147,14 +1147,14 @@ static int route_unicast_packet(struct sk_buff *skb,
 	}
 
 	/* get routing information */
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
-		     hash_find(orig_hash, unicast_packet->dest));
+		     hash_find(bat_priv->orig_hash, unicast_packet->dest));
 
 	router = find_router(orig_node, recv_if);
 
 	if (!router) {
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 		return NET_RX_DROP;
 	}
 
@@ -1164,13 +1164,13 @@ static int route_unicast_packet(struct sk_buff *skb,
 	batman_if = router->if_incoming;
 	memcpy(dstaddr, router->addr, ETH_ALEN);
 
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	/* create a copy of the skb, if needed, to modify it. */
 	if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
 		return NET_RX_DROP;
 
-	unicast_packet = (struct unicast_packet *) skb->data;
+	unicast_packet = (struct unicast_packet *)skb->data;
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* decrement ttl */
@@ -1203,6 +1203,7 @@ int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 
 int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 {
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_frag_packet *unicast_packet;
 	struct orig_node *orig_node;
 	struct frag_packet_list_entry *tmp_frag_entry;
@@ -1212,19 +1213,20 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	if (check_unicast_packet(skb, hdr_size) < 0)
 		return NET_RX_DROP;
 
-	unicast_packet = (struct unicast_frag_packet *) skb->data;
+	unicast_packet = (struct unicast_frag_packet *)skb->data;
 
 	/* packet for me */
 	if (is_my_mac(unicast_packet->dest)) {
 
-		spin_lock_irqsave(&orig_hash_lock, flags);
+		spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 		orig_node = ((struct orig_node *)
-			hash_find(orig_hash, unicast_packet->orig));
+			hash_find(bat_priv->orig_hash, unicast_packet->orig));
 
 		if (!orig_node) {
 			pr_warning("couldn't find orig node for "
 				"fragmentation\n");
-			spin_unlock_irqrestore(&orig_hash_lock, flags);
+			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
+					       flags);
 			return NET_RX_DROP;
 		}
 
@@ -1235,17 +1237,18 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 
 		tmp_frag_entry =
 			search_frag_packet(&orig_node->frag_list,
-			unicast_packet);
+					   unicast_packet);
 
 		if (!tmp_frag_entry) {
 			create_frag_entry(&orig_node->frag_list, skb);
-			spin_unlock_irqrestore(&orig_hash_lock, flags);
+			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
+					       flags);
 			return NET_RX_SUCCESS;
 		}
 
 		skb = merge_frag_packet(&orig_node->frag_list,
-			tmp_frag_entry, skb);
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+					tmp_frag_entry, skb);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 		if (!skb)
 			return NET_RX_DROP;
 
@@ -1257,12 +1260,12 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 }
 
 
-int recv_bcast_packet(struct sk_buff *skb, struct batman_if *batman_if)
+int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 {
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node;
 	struct bcast_packet *bcast_packet;
 	struct ethhdr *ethhdr;
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	int hdr_size = sizeof(struct bcast_packet);
 	int32_t seq_diff;
 	unsigned long flags;
@@ -1294,12 +1297,12 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *batman_if)
 	if (bcast_packet->ttl < 2)
 		return NET_RX_DROP;
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
-		     hash_find(orig_hash, bcast_packet->orig));
+		     hash_find(bat_priv->orig_hash, bcast_packet->orig));
 
 	if (orig_node == NULL) {
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 		return NET_RX_DROP;
 	}
 
@@ -1307,7 +1310,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *batman_if)
 	if (get_bit_status(orig_node->bcast_bits,
 			   orig_node->last_bcast_seqno,
 			   ntohl(bcast_packet->seqno))) {
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 		return NET_RX_DROP;
 	}
 
@@ -1316,7 +1319,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *batman_if)
 	/* check whether the packet is old and the host just restarted. */
 	if (window_protected(bat_priv, seq_diff,
 			     &orig_node->bcast_seqno_reset)) {
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 		return NET_RX_DROP;
 	}
 
@@ -1325,21 +1328,21 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *batman_if)
 	if (bit_get_packet(bat_priv, orig_node->bcast_bits, seq_diff, 1))
 		orig_node->last_bcast_seqno = ntohl(bcast_packet->seqno);
 
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 	/* rebroadcast packet */
 	add_bcast_packet_to_list(bat_priv, skb);
 
 	/* broadcast for me */
-	interface_rx(batman_if->soft_iface, skb, hdr_size);
+	interface_rx(recv_if->soft_iface, skb, hdr_size);
 
 	return NET_RX_SUCCESS;
 }
 
-int recv_vis_packet(struct sk_buff *skb, struct batman_if *batman_if)
+int recv_vis_packet(struct sk_buff *skb, struct batman_if *recv_if)
 {
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	int hdr_size = sizeof(struct vis_packet);
 
 	/* keep skb linear */

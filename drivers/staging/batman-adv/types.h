@@ -51,18 +51,18 @@ struct batman_if {
 };
 
 /**
-  *	orig_node - structure for orig_list maintaining nodes of mesh
-  *	@primary_addr: hosts primary interface address
-  *	@last_valid: when last packet from this node was received
-  *	@bcast_seqno_reset: time when the broadcast seqno window was reset
-  *	@batman_seqno_reset: time when the batman seqno window was reset
-  *	@flags: for now only VIS_SERVER flag
-  *	@last_real_seqno: last and best known squence number
-  *	@last_ttl: ttl of last received packet
-  *	@last_bcast_seqno: last broadcast sequence number received by this host
-  *
-  *	@candidates: how many candidates are available
-  *	@selected: next bonding candidate
+ *	orig_node - structure for orig_list maintaining nodes of mesh
+ *	@primary_addr: hosts primary interface address
+ *	@last_valid: when last packet from this node was received
+ *	@bcast_seqno_reset: time when the broadcast seqno window was reset
+ *	@batman_seqno_reset: time when the batman seqno window was reset
+ *	@flags: for now only VIS_SERVER flag
+ *	@last_real_seqno: last and best known squence number
+ *	@last_ttl: ttl of last received packet
+ *	@last_bcast_seqno: last broadcast sequence number received by this host
+ *
+ *	@candidates: how many candidates are available
+ *	@selected: next bonding candidate
  */
 struct orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -92,8 +92,8 @@ struct orig_node {
 };
 
 /**
-  *	neigh_node
-  *	@last_valid: when last packet via this neighbor was received
+ *	neigh_node
+ *	@last_valid: when last packet via this neighbor was received
  */
 struct neigh_node {
 	struct list_head list;
@@ -111,6 +111,7 @@ struct neigh_node {
 };
 
 struct bat_priv {
+	atomic_t mesh_state;
 	struct net_device_stats stats;
 	atomic_t aggregation_enabled;
 	atomic_t bonding_enabled;
@@ -118,6 +119,7 @@ struct bat_priv {
 	atomic_t vis_mode;
 	atomic_t orig_interval;
 	atomic_t log_level;
+	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
 	char num_ifaces;
@@ -125,6 +127,29 @@ struct bat_priv {
 	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
+	struct hlist_head forw_bat_list;
+	struct hlist_head forw_bcast_list;
+	struct hlist_head gw_list;
+	struct list_head vis_send_list;
+	struct hashtable_t *orig_hash;
+	struct hashtable_t *hna_local_hash;
+	struct hashtable_t *hna_global_hash;
+	struct hashtable_t *vis_hash;
+	spinlock_t orig_hash_lock;
+	spinlock_t forw_bat_list_lock;
+	spinlock_t forw_bcast_list_lock;
+	spinlock_t hna_lhash_lock;
+	spinlock_t hna_ghash_lock;
+	spinlock_t gw_list_lock;
+	spinlock_t vis_hash_lock;
+	spinlock_t vis_list_lock;
+	int16_t num_local_hna;
+	atomic_t hna_local_changed;
+	struct delayed_work hna_work;
+	struct delayed_work orig_work;
+	struct delayed_work vis_work;
+	struct gw_node *curr_gw;
+	struct vis_info *my_vis_info;
 };
 
 struct socket_client {
@@ -154,8 +179,8 @@ struct hna_global_entry {
 };
 
 /**
-  *	forw_packet - structure for forw_list maintaining packets to be
-  *	              send/forwarded
+ *	forw_packet - structure for forw_list maintaining packets to be
+ *	              send/forwarded
  */
 struct forw_packet {
 	struct hlist_node list;
@@ -191,6 +216,30 @@ struct frag_packet_list_entry {
 	struct list_head list;
 	uint16_t seqno;
 	struct sk_buff *skb;
+};
+
+struct vis_info {
+	unsigned long       first_seen;
+	struct list_head    recv_list;
+			    /* list of server-neighbors we received a vis-packet
+			     * from.  we should not reply to them. */
+	struct list_head send_list;
+	struct kref refcount;
+	struct bat_priv *bat_priv;
+	/* this packet might be part of the vis send queue. */
+	struct sk_buff *skb_packet;
+	/* vis_info may follow here*/
+} __attribute__((packed));
+
+struct vis_info_entry {
+	uint8_t  src[ETH_ALEN];
+	uint8_t  dest[ETH_ALEN];
+	uint8_t  quality;	/* quality = 0 means HNA */
+} __attribute__((packed));
+
+struct recvlist_node {
+	struct list_head list;
+	uint8_t mac[ETH_ALEN];
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

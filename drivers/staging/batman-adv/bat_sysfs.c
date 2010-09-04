@@ -411,7 +411,7 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 
 	return sprintf(buff, "%s\n",
 		       batman_if->if_status == IF_NOT_IN_USE ?
-							"none" : "bat0");
+					"none" : batman_if->soft_iface->name);
 }
 
 static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,

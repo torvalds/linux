@@ -160,8 +160,8 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 static void send_packet(struct forw_packet *forw_packet)
 {
 	struct batman_if *batman_if;
-	struct bat_priv *bat_priv =
-		netdev_priv(forw_packet->if_incoming->soft_iface);
+	struct net_device *soft_iface = forw_packet->if_incoming->soft_iface;
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->skb->data);
 	unsigned char directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
@@ -199,18 +199,24 @@ static void send_packet(struct forw_packet *forw_packet)
 
 	/* broadcast on every interface */
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list)
+	list_for_each_entry_rcu(batman_if, &if_list, list) {
+		if (batman_if->soft_iface != soft_iface)
+			continue;
+
 		send_packet_to_if(forw_packet, batman_if);
+	}
 	rcu_read_unlock();
 }
 
-static void rebuild_batman_packet(struct batman_if *batman_if)
+static void rebuild_batman_packet(struct bat_priv *bat_priv,
+				  struct batman_if *batman_if)
 {
 	int new_len;
 	unsigned char *new_buff;
 	struct batman_packet *batman_packet;
 
-	new_len = sizeof(struct batman_packet) + (num_hna * ETH_ALEN);
+	new_len = sizeof(struct batman_packet) +
+			(bat_priv->num_local_hna * ETH_ALEN);
 	new_buff = kmalloc(new_len, GFP_ATOMIC);
 
 	/* keep old buffer if kmalloc should fail */
@@ -219,9 +225,9 @@ static void rebuild_batman_packet(struct batman_if *batman_if)
 		       sizeof(struct batman_packet));
 		batman_packet = (struct batman_packet *)new_buff;
 
-		batman_packet->num_hna = hna_local_fill_buffer(
-			new_buff + sizeof(struct batman_packet),
-			new_len - sizeof(struct batman_packet));
+		batman_packet->num_hna = hna_local_fill_buffer(bat_priv,
+				new_buff + sizeof(struct batman_packet),
+				new_len - sizeof(struct batman_packet));
 
 		kfree(batman_if->packet_buff);
 		batman_if->packet_buff = new_buff;
@@ -253,9 +259,9 @@ void schedule_own_packet(struct batman_if *batman_if)
 		batman_if->if_status = IF_ACTIVE;
 
 	/* if local hna has changed and interface is a primary interface */
-	if ((atomic_read(&hna_local_changed)) &&
+	if ((atomic_read(&bat_priv->hna_local_changed)) &&
 	    (batman_if == bat_priv->primary_if))
-		rebuild_batman_packet(batman_if);
+		rebuild_batman_packet(bat_priv, batman_if);
 
 	/**
 	 * NOTE: packet_buff might just have been re-allocated in
@@ -351,16 +357,17 @@ static void forw_packet_free(struct forw_packet *forw_packet)
 	kfree(forw_packet);
 }
 
-static void _add_bcast_packet_to_list(struct forw_packet *forw_packet,
+static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
+				      struct forw_packet *forw_packet,
 				      unsigned long send_time)
 {
 	unsigned long flags;
 	INIT_HLIST_NODE(&forw_packet->list);
 
 	/* add new packet to packet list */
-	spin_lock_irqsave(&forw_bcast_list_lock, flags);
-	hlist_add_head(&forw_packet->list, &forw_bcast_list);
-	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
+	spin_lock_irqsave(&bat_priv->forw_bcast_list_lock, flags);
+	hlist_add_head(&forw_packet->list, &bat_priv->forw_bcast_list);
+	spin_unlock_irqrestore(&bat_priv->forw_bcast_list_lock, flags);
 
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
@@ -388,6 +395,9 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 		goto out;
 	}
 
+	if (!bat_priv->primary_if)
+		goto out;
+
 	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
 
 	if (!forw_packet)
@@ -409,7 +419,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
 
-	_add_bcast_packet_to_list(forw_packet, 1);
+	_add_bcast_packet_to_list(bat_priv, forw_packet, 1);
 	return NETDEV_TX_OK;
 
 packet_free:
@@ -429,23 +439,26 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 		container_of(delayed_work, struct forw_packet, delayed_work);
 	unsigned long flags;
 	struct sk_buff *skb1;
-	struct bat_priv *bat_priv;
+	struct net_device *soft_iface = forw_packet->if_incoming->soft_iface;
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 
-	spin_lock_irqsave(&forw_bcast_list_lock, flags);
+	spin_lock_irqsave(&bat_priv->forw_bcast_list_lock, flags);
 	hlist_del(&forw_packet->list);
-	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->forw_bcast_list_lock, flags);
 
-	if (atomic_read(&module_state) == MODULE_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == MESH_DEACTIVATING)
 		goto out;
 
 	/* rebroadcast packet */
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
+		if (batman_if->soft_iface != soft_iface)
+			continue;
+
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
-			send_skb_packet(skb1,
-				batman_if, broadcast_addr);
+			send_skb_packet(skb1, batman_if, broadcast_addr);
 	}
 	rcu_read_unlock();
 
@@ -453,12 +466,12 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 
 	/* if we still have some more bcasts to send */
 	if (forw_packet->num_packets < 3) {
-		_add_bcast_packet_to_list(forw_packet, ((5 * HZ) / 1000));
+		_add_bcast_packet_to_list(bat_priv, forw_packet,
+					  ((5 * HZ) / 1000));
 		return;
 	}
 
 out:
-	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
 	forw_packet_free(forw_packet);
 	atomic_inc(&bat_priv->bcast_queue_left);
 }
@@ -472,11 +485,12 @@ void send_outstanding_bat_packet(struct work_struct *work)
 	unsigned long flags;
 	struct bat_priv *bat_priv;
 
-	spin_lock_irqsave(&forw_bat_list_lock, flags);
+	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
+	spin_lock_irqsave(&bat_priv->forw_bat_list_lock, flags);
 	hlist_del(&forw_packet->list);
-	spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->forw_bat_list_lock, flags);
 
-	if (atomic_read(&module_state) == MODULE_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == MESH_DEACTIVATING)
 		goto out;
 
 	send_packet(forw_packet);
@@ -490,8 +504,6 @@ void send_outstanding_bat_packet(struct work_struct *work)
 		schedule_own_packet(forw_packet->if_incoming);
 
 out:
-	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
-
 	/* don't count own packet */
 	if (!forw_packet->own)
 		atomic_inc(&bat_priv->batman_queue_left);
@@ -499,29 +511,25 @@ out:
 	forw_packet_free(forw_packet);
 }
 
-void purge_outstanding_packets(struct batman_if *batman_if)
+void purge_outstanding_packets(struct bat_priv *bat_priv,
+			       struct batman_if *batman_if)
 {
-	struct bat_priv *bat_priv;
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
 	unsigned long flags;
 
-	if (batman_if->soft_iface) {
-		bat_priv = netdev_priv(batman_if->soft_iface);
-
-		if (batman_if)
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"purge_outstanding_packets(): %s\n",
-				batman_if->dev);
-		else
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"purge_outstanding_packets()\n");
-	}
+	if (batman_if)
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"purge_outstanding_packets(): %s\n",
+			batman_if->dev);
+	else
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"purge_outstanding_packets()\n");
 
 	/* free bcast list */
-	spin_lock_irqsave(&forw_bcast_list_lock, flags);
+	spin_lock_irqsave(&bat_priv->forw_bcast_list_lock, flags);
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
-				  &forw_bcast_list, list) {
+				  &bat_priv->forw_bcast_list, list) {
 
 		/**
 		 * if purge_outstanding_packets() was called with an argmument
@@ -531,21 +539,21 @@ void purge_outstanding_packets(struct batman_if *batman_if)
 		    (forw_packet->if_incoming != batman_if))
 			continue;
 
-		spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->forw_bcast_list_lock, flags);
 
 		/**
 		 * send_outstanding_bcast_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		cancel_delayed_work_sync(&forw_packet->delayed_work);
-		spin_lock_irqsave(&forw_bcast_list_lock, flags);
+		spin_lock_irqsave(&bat_priv->forw_bcast_list_lock, flags);
 	}
-	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->forw_bcast_list_lock, flags);
 
 	/* free batman packet list */
-	spin_lock_irqsave(&forw_bat_list_lock, flags);
+	spin_lock_irqsave(&bat_priv->forw_bat_list_lock, flags);
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
-				  &forw_bat_list, list) {
+				  &bat_priv->forw_bat_list, list) {
 
 		/**
 		 * if purge_outstanding_packets() was called with an argmument
@@ -555,14 +563,14 @@ void purge_outstanding_packets(struct batman_if *batman_if)
 		    (forw_packet->if_incoming != batman_if))
 			continue;
 
-		spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->forw_bat_list_lock, flags);
 
 		/**
 		 * send_outstanding_bat_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		cancel_delayed_work_sync(&forw_packet->delayed_work);
-		spin_lock_irqsave(&forw_bat_list_lock, flags);
+		spin_lock_irqsave(&bat_priv->forw_bat_list_lock, flags);
 	}
-	spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->forw_bat_list_lock, flags);
 }

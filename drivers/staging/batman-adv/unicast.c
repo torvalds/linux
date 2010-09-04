@@ -34,7 +34,7 @@ struct sk_buff *merge_frag_packet(struct list_head *head,
 				  struct sk_buff *skb)
 {
 	struct unicast_frag_packet *up =
-		(struct unicast_frag_packet *) skb->data;
+		(struct unicast_frag_packet *)skb->data;
 	struct sk_buff *tmp_skb;
 
 	/* set skb to the first part and tmp_skb to the second part */
@@ -66,7 +66,7 @@ void create_frag_entry(struct list_head *head, struct sk_buff *skb)
 {
 	struct frag_packet_list_entry *tfp;
 	struct unicast_frag_packet *up =
-		(struct unicast_frag_packet *) skb->data;
+		(struct unicast_frag_packet *)skb->data;
 
 	/* free and oldest packets stand at the end */
 	tfp = list_entry((head)->prev, typeof(*tfp), list);
@@ -115,7 +115,7 @@ struct frag_packet_list_entry *search_frag_packet(struct list_head *head,
 		if (tfp->seqno == ntohs(up->seqno))
 			goto mov_tail;
 
-		tmp_up = (struct unicast_frag_packet *) tfp->skb->data;
+		tmp_up = (struct unicast_frag_packet *)tfp->skb->data;
 
 		if (tfp->seqno == search_seqno) {
 
@@ -210,14 +210,15 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	uint8_t dstaddr[6];
 	unsigned long flags;
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 
 	/* get routing information */
-	orig_node = ((struct orig_node *)hash_find(orig_hash, ethhdr->h_dest));
+	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
+						   ethhdr->h_dest));
 
 	/* check for hna host */
 	if (!orig_node)
-		orig_node = transtable_search(ethhdr->h_dest);
+		orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
 	router = find_router(orig_node, NULL);
 
@@ -230,7 +231,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	batman_if = router->if_incoming;
 	memcpy(dstaddr, router->addr, ETH_ALEN);
 
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	if (batman_if->if_status != IF_ACTIVE)
 		goto dropped;
@@ -257,7 +258,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	return 0;
 
 unlock:
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 dropped:
 	kfree_skb(skb);
 	return 1;

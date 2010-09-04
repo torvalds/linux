@@ -77,13 +77,15 @@ static int is_valid_iface(struct net_device *net_dev)
 	return 1;
 }
 
-static struct batman_if *get_active_batman_if(void)
+static struct batman_if *get_active_batman_if(struct net_device *soft_iface)
 {
 	struct batman_if *batman_if;
 
-	/* TODO: should check interfaces belonging to bat_priv */
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
+		if (batman_if->soft_iface != soft_iface)
+			continue;
+
 		if (batman_if->if_status == IF_ACTIVE)
 			goto out;
 	}
@@ -99,23 +101,29 @@ static void set_primary_if(struct bat_priv *bat_priv,
 			   struct batman_if *batman_if)
 {
 	struct batman_packet *batman_packet;
+	struct vis_packet *vis_packet;
 
 	bat_priv->primary_if = batman_if;
 
 	if (!bat_priv->primary_if)
 		return;
 
-	set_main_if_addr(batman_if->net_dev->dev_addr);
-
 	batman_packet = (struct batman_packet *)(batman_if->packet_buff);
 	batman_packet->flags = PRIMARIES_FIRST_HOP;
 	batman_packet->ttl = TTL;
+
+	vis_packet = (struct vis_packet *)
+				bat_priv->my_vis_info->skb_packet->data;
+	memcpy(vis_packet->vis_orig,
+	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(vis_packet->sender_orig,
+	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
 
 	/***
 	 * hacky trick to make sure that we send the HNA information via
 	 * our new primary interface
 	 */
-	atomic_set(&hna_local_changed, 1);
+	atomic_set(&bat_priv->hna_local_changed, 1);
 }
 
 static bool hardif_is_iface_up(struct batman_if *batman_if)
@@ -216,9 +224,6 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 
 	bat_info(batman_if->soft_iface, "Interface activated: %s\n",
 		 batman_if->dev);
-
-	if (atomic_read(&module_state) == MODULE_INACTIVE)
-		activate_module();
 
 	update_min_mtu(batman_if->soft_iface);
 	return;
@@ -347,11 +352,16 @@ void hardif_disable_interface(struct batman_if *batman_if)
 	orig_hash_del_if(batman_if, bat_priv->num_ifaces);
 
 	if (batman_if == bat_priv->primary_if)
-		set_primary_if(bat_priv, get_active_batman_if());
+		set_primary_if(bat_priv,
+			       get_active_batman_if(batman_if->soft_iface));
 
 	kfree(batman_if->packet_buff);
 	batman_if->packet_buff = NULL;
 	batman_if->if_status = IF_NOT_IN_USE;
+
+	/* delete all references to this batman_if */
+	purge_orig_ref(bat_priv);
+	purge_outstanding_packets(bat_priv, batman_if);
 	dev_put(batman_if->soft_iface);
 
 	/* nobody uses this interface anymore */
@@ -359,10 +369,6 @@ void hardif_disable_interface(struct batman_if *batman_if)
 		softif_destroy(batman_if->soft_iface);
 
 	batman_if->soft_iface = NULL;
-
-	/*if ((atomic_read(&module_state) == MODULE_ACTIVE) &&
-	    (bat_priv->num_ifaces == 0))
-		deactivate_module();*/
 }
 
 static struct batman_if *hardif_add_interface(struct net_device *net_dev)
@@ -414,10 +420,6 @@ out:
 static void hardif_free_interface(struct rcu_head *rcu)
 {
 	struct batman_if *batman_if = container_of(rcu, struct batman_if, rcu);
-
-	/* delete all references to this batman_if */
-	purge_orig(NULL);
-	purge_outstanding_packets(batman_if);
 
 	kfree(batman_if->dev);
 	kfree(batman_if);
@@ -512,9 +514,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		goto err_out;
 
-	if (atomic_read(&module_state) != MODULE_ACTIVE)
-		goto err_free;
-
 	/* packet should hold at least type and version */
 	if (unlikely(!pskb_may_pull(skb, 2)))
 		goto err_free;
@@ -524,12 +523,19 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 				|| !skb_mac_header(skb)))
 		goto err_free;
 
+	if (!batman_if->soft_iface)
+		goto err_free;
+
+	bat_priv = netdev_priv(batman_if->soft_iface);
+
+	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
+		goto err_free;
+
 	/* discard frames on not active interfaces */
 	if (batman_if->if_status != IF_ACTIVE)
 		goto err_free;
 
 	batman_packet = (struct batman_packet *)skb->data;
-	bat_priv = netdev_priv(batman_if->soft_iface);
 
 	if (batman_packet->version != COMPAT_VERSION) {
 		bat_dbg(DBG_BATMAN, bat_priv,

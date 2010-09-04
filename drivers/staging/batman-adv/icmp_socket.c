@@ -218,11 +218,12 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 		goto free_skb;
 	}
 
-	if (atomic_read(&module_state) != MODULE_ACTIVE)
+	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dst_unreach;
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
-	orig_node = (struct orig_node *)hash_find(orig_hash, icmp_packet->dst);
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
+	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
+						   icmp_packet->dst));
 
 	if (!orig_node)
 		goto unlock;
@@ -233,7 +234,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	batman_if = orig_node->router->if_incoming;
 	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 
 	if (!batman_if)
 		goto dst_unreach;
@@ -253,7 +254,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	goto out;
 
 unlock:
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 dst_unreach:
 	icmp_packet->msg_type = DESTINATION_UNREACHABLE;
 	bat_socket_add_packet(socket_client, icmp_packet, packet_len);

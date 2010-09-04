@@ -34,28 +34,14 @@
 #include "hash.h"
 
 struct list_head if_list;
-struct hlist_head forw_bat_list;
-struct hlist_head forw_bcast_list;
-struct hashtable_t *orig_hash;
-
-DEFINE_SPINLOCK(orig_hash_lock);
-DEFINE_SPINLOCK(forw_bat_list_lock);
-DEFINE_SPINLOCK(forw_bcast_list_lock);
-
-int16_t num_hna;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-atomic_t module_state;
 
 struct workqueue_struct *bat_event_workqueue;
 
 static int __init batman_init(void)
 {
 	INIT_LIST_HEAD(&if_list);
-	INIT_HLIST_HEAD(&forw_bat_list);
-	INIT_HLIST_HEAD(&forw_bcast_list);
-
-	atomic_set(&module_state, MODULE_INACTIVE);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
@@ -78,64 +64,78 @@ static int __init batman_init(void)
 
 static void __exit batman_exit(void)
 {
-	deactivate_module();
-
 	debugfs_destroy();
 	unregister_netdevice_notifier(&hard_if_notifier);
 	hardif_remove_interfaces();
 
+	flush_workqueue(bat_event_workqueue);
 	destroy_workqueue(bat_event_workqueue);
 	bat_event_workqueue = NULL;
 }
 
-/* activates the module, starts timer ... */
-void activate_module(void)
+int mesh_init(struct net_device *soft_iface)
 {
-	if (originator_init() < 1)
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+
+	spin_lock_init(&bat_priv->orig_hash_lock);
+	spin_lock_init(&bat_priv->forw_bat_list_lock);
+	spin_lock_init(&bat_priv->forw_bcast_list_lock);
+	spin_lock_init(&bat_priv->hna_lhash_lock);
+	spin_lock_init(&bat_priv->hna_ghash_lock);
+	spin_lock_init(&bat_priv->gw_list_lock);
+	spin_lock_init(&bat_priv->vis_hash_lock);
+	spin_lock_init(&bat_priv->vis_list_lock);
+
+	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
+	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
+	INIT_HLIST_HEAD(&bat_priv->gw_list);
+
+	if (originator_init(bat_priv) < 1)
 		goto err;
 
-	if (hna_local_init() < 1)
+	if (hna_local_init(bat_priv) < 1)
 		goto err;
 
-	if (hna_global_init() < 1)
+	if (hna_global_init(bat_priv) < 1)
 		goto err;
 
-	/*hna_local_add(soft_device->dev_addr);*/
+	hna_local_add(soft_iface, soft_iface->dev_addr);
 
-	if (vis_init() < 1)
+	if (vis_init(bat_priv) < 1)
 		goto err;
 
-	/*update_min_mtu();*/
-	atomic_set(&module_state, MODULE_ACTIVE);
+	atomic_set(&bat_priv->mesh_state, MESH_ACTIVE);
 	goto end;
 
 err:
 	pr_err("Unable to allocate memory for mesh information structures: "
 	       "out of mem ?\n");
-	deactivate_module();
+	mesh_free(soft_iface);
+	return -1;
+
 end:
-	return;
+	return 0;
 }
 
-/* shuts down the whole module.*/
-void deactivate_module(void)
+void mesh_free(struct net_device *soft_iface)
 {
-	atomic_set(&module_state, MODULE_DEACTIVATING);
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 
-	purge_outstanding_packets(NULL);
-	flush_workqueue(bat_event_workqueue);
+	atomic_set(&bat_priv->mesh_state, MESH_DEACTIVATING);
 
-	vis_quit();
+	purge_outstanding_packets(bat_priv, NULL);
 
-	originator_free();
+	vis_quit(bat_priv);
 
-	hna_local_free();
-	hna_global_free();
+	originator_free(bat_priv);
+
+	hna_local_free(bat_priv);
+	hna_global_free(bat_priv);
 
 	synchronize_net();
 
 	synchronize_rcu();
-	atomic_set(&module_state, MODULE_INACTIVE);
+	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 }
 
 void inc_module_count(void)

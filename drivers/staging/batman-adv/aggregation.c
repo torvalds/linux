@@ -102,10 +102,10 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 				  struct batman_if *if_incoming,
 				  int own_packet)
 {
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct forw_packet *forw_packet_aggr;
 	unsigned long flags;
 	unsigned char *skb_buff;
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 
 	/* own packet should always be scheduled */
 	if (!own_packet) {
@@ -150,9 +150,9 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 		forw_packet_aggr->direct_link_flags |= 1;
 
 	/* add new packet to packet list */
-	spin_lock_irqsave(&forw_bat_list_lock, flags);
-	hlist_add_head(&forw_packet_aggr->list, &forw_bat_list);
-	spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+	spin_lock_irqsave(&bat_priv->forw_bat_list_lock, flags);
+	hlist_add_head(&forw_packet_aggr->list, &bat_priv->forw_bat_list);
+	spin_unlock_irqrestore(&bat_priv->forw_bat_list_lock, flags);
 
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet_aggr->delayed_work,
@@ -198,11 +198,11 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 	unsigned long flags;
 
 	/* find position for the packet in the forward queue */
-	spin_lock_irqsave(&forw_bat_list_lock, flags);
+	spin_lock_irqsave(&bat_priv->forw_bat_list_lock, flags);
 	/* own packets are not to be aggregated */
 	if ((atomic_read(&bat_priv->aggregation_enabled)) && (!own_packet)) {
-		hlist_for_each_entry(forw_packet_pos, tmp_node, &forw_bat_list,
-				     list) {
+		hlist_for_each_entry(forw_packet_pos, tmp_node,
+				     &bat_priv->forw_bat_list, list) {
 			if (can_aggregate_with(batman_packet,
 					       packet_len,
 					       send_time,
@@ -219,7 +219,7 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 	 * suitable aggregation packet found */
 	if (forw_packet_aggr == NULL) {
 		/* the following section can run without the lock */
-		spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->forw_bat_list_lock, flags);
 
 		/**
 		 * if we could not aggregate this packet with one of the others
@@ -237,7 +237,7 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 		aggregate(forw_packet_aggr,
 			  packet_buff, packet_len,
 			  direct_link);
-		spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+		spin_unlock_irqrestore(&bat_priv->forw_bat_list_lock, flags);
 	}
 }
 
