@@ -22,7 +22,8 @@
 #ifndef _NET_BATMAN_ADV_BITARRAY_H_
 #define _NET_BATMAN_ADV_BITARRAY_H_
 
-/* you should choose something big, if you don't want to waste cpu */
+/* you should choose something big, if you don't want to waste cpu
+ * and keep the type in sync with bit_packet_count */
 #define TYPE_OF_WORD unsigned long
 #define WORD_BIT_SIZE (sizeof(TYPE_OF_WORD) * 8)
 
