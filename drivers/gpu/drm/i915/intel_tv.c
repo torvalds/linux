@@ -1234,9 +1234,7 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	unsigned long irqflags;
 	u32 tv_ctl, save_tv_ctl;
 	u32 tv_dac, save_tv_dac;
-	int type = DRM_MODE_CONNECTOR_Unknown;
-
-	tv_dac = I915_READ(TV_DAC);
+	int type;
 
 	/* Disable TV interrupts around load detect or we'll recurse */
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
@@ -1244,19 +1242,14 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 			      PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 
-	/*
-	 * Detect TV by polling)
-	 */
-	save_tv_dac = tv_dac;
-	tv_ctl = I915_READ(TV_CTL);
-	save_tv_ctl = tv_ctl;
-	tv_ctl &= ~TV_ENC_ENABLE;
-	tv_ctl &= ~TV_TEST_MODE_MASK;
+	save_tv_dac = tv_dac = I915_READ(TV_DAC);
+	save_tv_ctl = tv_ctl = I915_READ(TV_CTL);
+
+	/* Poll for TV detection */
+	tv_ctl &= ~(TV_ENC_ENABLE | TV_TEST_MODE_MASK);
 	tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
-	tv_dac &= ~TVDAC_SENSE_MASK;
-	tv_dac &= ~DAC_A_MASK;
-	tv_dac &= ~DAC_B_MASK;
-	tv_dac &= ~DAC_C_MASK;
+
+	tv_dac &= ~(TVDAC_SENSE_MASK | DAC_A_MASK | DAC_B_MASK | DAC_C_MASK);
 	tv_dac |= (TVDAC_STATE_CHG_EN |
 		   TVDAC_A_SENSE_CTL |
 		   TVDAC_B_SENSE_CTL |
@@ -1265,36 +1258,36 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 		   DAC_A_0_7_V |
 		   DAC_B_0_7_V |
 		   DAC_C_0_7_V);
+
 	I915_WRITE(TV_CTL, tv_ctl);
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
-	msleep(20);
 
-	tv_dac = I915_READ(TV_DAC);
-	I915_WRITE(TV_DAC, save_tv_dac);
-	I915_WRITE(TV_CTL, save_tv_ctl);
-	POSTING_READ(TV_CTL);
-	msleep(20);
-
-	/*
-	 *  A B C
-	 *  0 1 1 Composite
-	 *  1 0 X svideo
-	 *  0 0 0 Component
-	 */
-	if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
-		DRM_DEBUG_KMS("Detected Composite TV connection\n");
-		type = DRM_MODE_CONNECTOR_Composite;
-	} else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
-		DRM_DEBUG_KMS("Detected S-Video TV connection\n");
-		type = DRM_MODE_CONNECTOR_SVIDEO;
-	} else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
-		DRM_DEBUG_KMS("Detected Component TV connection\n");
-		type = DRM_MODE_CONNECTOR_Component;
-	} else {
-		DRM_DEBUG_KMS("No TV connection detected\n");
-		type = -1;
+	type = -1;
+	if (wait_for((tv_dac = I915_READ(TV_DAC)) & TVDAC_STATE_CHG, 20) == 0) {
+		/*
+		 *  A B C
+		 *  0 1 1 Composite
+		 *  1 0 X svideo
+		 *  0 0 0 Component
+		 */
+		if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
+			DRM_DEBUG_KMS("Detected Composite TV connection\n");
+			type = DRM_MODE_CONNECTOR_Composite;
+		} else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
+			DRM_DEBUG_KMS("Detected S-Video TV connection\n");
+			type = DRM_MODE_CONNECTOR_SVIDEO;
+		} else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
+			DRM_DEBUG_KMS("Detected Component TV connection\n");
+			type = DRM_MODE_CONNECTOR_Component;
+		} else {
+			DRM_DEBUG_KMS("Unrecognised TV connection: %x\n",
+				      tv_dac);
+		}
 	}
+
+	I915_WRITE(TV_DAC, save_tv_dac & ~TVDAC_STATE_CHG_EN);
+	I915_WRITE(TV_CTL, save_tv_ctl);
 
 	/* Restore interrupt config */
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
