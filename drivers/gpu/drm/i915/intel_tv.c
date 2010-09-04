@@ -48,7 +48,7 @@ struct intel_tv {
 	struct intel_encoder base;
 
 	int type;
-	char *tv_format;
+	const char *tv_format;
 	int margin[4];
 	u32 save_TV_H_CTL_1;
 	u32 save_TV_H_CTL_2;
@@ -350,7 +350,7 @@ static const struct video_levels component_levels = {
 
 
 struct tv_mode {
-	char *name;
+	const char *name;
 	int clock;
 	int refresh; /* in millihertz (for precision) */
 	u32 oversample;
@@ -922,7 +922,7 @@ intel_tv_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static const struct tv_mode *
-intel_tv_mode_lookup (char *tv_format)
+intel_tv_mode_lookup(const char *tv_format)
 {
 	int i;
 
@@ -936,13 +936,14 @@ intel_tv_mode_lookup (char *tv_format)
 }
 
 static const struct tv_mode *
-intel_tv_mode_find (struct intel_tv *intel_tv)
+intel_tv_mode_find(struct intel_tv *intel_tv)
 {
 	return intel_tv_mode_lookup(intel_tv->tv_format);
 }
 
 static enum drm_mode_status
-intel_tv_mode_valid(struct drm_connector *connector, struct drm_display_mode *mode)
+intel_tv_mode_valid(struct drm_connector *connector,
+		    struct drm_display_mode *mode)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
@@ -952,6 +953,7 @@ intel_tv_mode_valid(struct drm_connector *connector, struct drm_display_mode *mo
 	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
 				< 1000)
 		return MODE_OK;
+
 	return MODE_CLOCK_RANGE;
 }
 
@@ -1369,11 +1371,10 @@ intel_tv_detect(struct drm_connector *connector)
 	return connector_status_connected;
 }
 
-static struct input_res {
-	char *name;
+static const struct input_res {
+	const char *name;
 	int w, h;
-} input_res_table[] =
-{
+} input_res_table[] = {
 	{"640x480", 640, 480},
 	{"800x600", 800, 600},
 	{"1024x768", 1024, 768},
@@ -1424,7 +1425,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 
 	for (j = 0; j < ARRAY_SIZE(input_res_table);
 	     j++) {
-		struct input_res *input = &input_res_table[j];
+		const struct input_res *input = &input_res_table[j];
 		unsigned int hactive_s = input->w;
 		unsigned int vactive_s = input->h;
 
@@ -1601,7 +1602,7 @@ intel_tv_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
-	char **tv_format_names;
+	char *tv_format_names[ARRAY_SIZE(tv_modes)];
 	int i, initial_mode = 0;
 
 	if ((I915_READ(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
@@ -1672,7 +1673,7 @@ intel_tv_init(struct drm_device *dev)
 	intel_tv->margin[TV_MARGIN_RIGHT] = 46;
 	intel_tv->margin[TV_MARGIN_BOTTOM] = 37;
 
-	intel_tv->tv_format = kstrdup(tv_modes[initial_mode].name, GFP_KERNEL);
+	intel_tv->tv_format = tv_modes[initial_mode].name;
 
 	drm_encoder_helper_add(&intel_encoder->enc, &intel_tv_helper_funcs);
 	drm_connector_helper_add(connector, &intel_tv_connector_helper_funcs);
@@ -1680,13 +1681,11 @@ intel_tv_init(struct drm_device *dev)
 	connector->doublescan_allowed = false;
 
 	/* Create TV properties then attach current values */
-	tv_format_names = kmalloc(sizeof(char *) * ARRAY_SIZE(tv_modes),
-				  GFP_KERNEL);
-	if (!tv_format_names)
-		goto out;
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
-		tv_format_names[i] = tv_modes[i].name;
-	drm_mode_create_tv_properties(dev, ARRAY_SIZE(tv_modes), tv_format_names);
+		tv_format_names[i] = (char *)tv_modes[i].name;
+	drm_mode_create_tv_properties(dev,
+				      ARRAY_SIZE(tv_modes),
+				      tv_format_names);
 
 	drm_connector_attach_property(connector, dev->mode_config.tv_mode_property,
 				   initial_mode);
@@ -1702,6 +1701,5 @@ intel_tv_init(struct drm_device *dev)
 	drm_connector_attach_property(connector,
 				   dev->mode_config.tv_bottom_margin_property,
 				   intel_tv->margin[TV_MARGIN_BOTTOM]);
-out:
 	drm_sysfs_connector_add(connector);
 }
