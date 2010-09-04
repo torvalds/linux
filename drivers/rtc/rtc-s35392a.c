@@ -22,7 +22,6 @@
 #include <mach/gpio.h>
 #include "rtc-s35392a.h"
 
-#define RTC_S35392A_INT	RK2818_PIN_PE2	//
 #define RTC_RATE	100 * 1000
 #define S35392_TEST 0
 
@@ -578,12 +577,17 @@ static int s35392a_reset(struct s35392a *s35392a)
 	
 	if (s35392a_get_reg(s35392a, S35392A_CMD_STATUS1, buf, sizeof(buf)) < 0)
 		return -EIO;	
-	if (!(buf[0] & (S35392A_FLAG_POC | S35392A_FLAG_BLD)))
+	if (!(buf[0] & (S35392A_FLAG_POC | S35392A_FLAG_BLD))) {
+        buf[0] = 0x00;
+        s35392a_set_reg(s35392a, S35392A_CMD_STATUS2, buf, 1);   
+        s35392a_set_reg(s35392a, S35392A_CMD_INT2, buf, 1);
 		return 0;
+	}
 
 	buf[0] |= (S35392A_FLAG_RESET | S35392A_FLAG_24H);
 	buf[0] &= 0xf0;
 	s35392a_set_reg(s35392a, S35392A_CMD_STATUS1, buf, sizeof(buf));
+	
 	//s35392a_set_init_time( s35392a);	
 	return 0;		
 }
@@ -823,16 +827,18 @@ static int s35392a_probe(struct i2c_client *client,
 		goto exit_dummy;
 	}
 	
-	if(err = gpio_request(RTC_S35392A_INT, "rtc gpio"))
+	if(err = gpio_request(client->irq, "rtc gpio"))
 	{
 		dev_err(&client->dev, "gpio request fail\n");
-		gpio_free(RTC_S35392A_INT);
+		gpio_free(client->irq);
 		goto exit_dummy;
 	}
 
-	gpio_pull_updown(RTC_S35392A_INT,GPIOPullDown);
+	gpio_pull_updown(client->irq,GPIOPullDown);
+
+	client->irq = gpio_to_irq(client->irq);
 	
-	if(err = request_irq(gpio_to_irq(RTC_S35392A_INT),s35392a_wakeup_irq,IRQF_TRIGGER_HIGH,NULL,s35392a) <0)	
+	if(err = request_irq(client->irq, s35392a_wakeup_irq,IRQF_TRIGGER_HIGH,NULL,s35392a) <0)	
 	{
 		printk("unable to request rtc irq\n");
 		goto exit_dummy;

@@ -67,7 +67,7 @@ static int capella_cm3602_report(struct capella_cm3602_data *data)
 static irqreturn_t capella_cm3602_irq_handler(int irq, void *data)
 {
 	struct capella_cm3602_data *ip = data;
-	printk("---capella_cm3602_irq_handler----\n");
+	//printk("---capella_cm3602_irq_handler----\n");
 	//int val = capella_cm3602_report(ip);
 	input_report_abs(ip->input_dev, ABS_DISTANCE, 0);
 	input_sync(ip->input_dev);
@@ -119,13 +119,13 @@ void cm3602_work_handler(struct work_struct *work)
 
 	struct capella_cm3602_data *pdata = container_of(work, struct capella_cm3602_data, cm3602_work);
 	int val = gpio_get_value(pdata->pdata->irq_pin);
-	printk("-------------------cm3602_work_handler,pinlevel:%d----------------\n",val);
+	//printk("-------------------cm3602_work_handler,pinlevel:%d----------------\n",val);
 	if (val == 1)
 	{
 		time_enable = false;
 		input_report_abs(pdata->input_dev, ABS_DISTANCE, val);
 		input_sync(pdata->input_dev);
-		printk("input_report_abs=%d\n",val);
+		//printk("input_report_abs=%d\n",val);
 	}
 	
 }
@@ -138,7 +138,7 @@ static void cm3602_timer(unsigned long data)
 	add_timer(&ip->cm3602_timer);
 	if(time_enable)
 	{
-		printk("------------------cm3602_timer,%d------------\n",time_enable);
+		//printk("------------------cm3602_timer,%d------------\n",time_enable);
 		queue_work(ip->cm3602_workqueue, &ip->cm3602_work);
 	}
 

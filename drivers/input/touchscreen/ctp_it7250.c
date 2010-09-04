@@ -34,6 +34,8 @@ struct Ctp_it7250_data {
 	struct i2c_client *client;
 	struct delayed_work delaywork;
 	int irq;  /* Our chip IRQ */
+	u32 temp_x;
+	u32 temp_y;
 };
 static struct i2c_client *Ctp_it7250_client;
 
@@ -190,7 +192,7 @@ static int Ctp_it7250_touch_open(struct input_dev *idev)
 
 static void Ctp_it7250_touch_close(struct input_dev *idev)
 {
-return 0;
+return ;
 }
 
 static irqreturn_t Ctp_it7250_touch_irq(int irq, void *dev_id)
@@ -200,7 +202,7 @@ static irqreturn_t Ctp_it7250_touch_irq(int irq, void *dev_id)
 	//rk28printk("%s++++ %d \r\n",__FUNCTION__,__LINE__);
 	disable_irq_nosync(irq);
 	//rk28printk("%s++++ %d irq=%d\r\n",__FUNCTION__,__LINE__,irq);
-	schedule_delayed_work(&Ctp_it7250->delaywork,usecs_to_jiffies(5));	
+	schedule_delayed_work(&Ctp_it7250->delaywork,msecs_to_jiffies(10));	
 	
 	return IRQ_HANDLED; 
 		
@@ -223,7 +225,7 @@ static int ts_input_init(struct i2c_client *client)
 rk28printk("+++++++     %s+++++++\n", __FUNCTION__);
 	Ctp_it7250->input_dev->name = "CTS_Ctp_it7250";
 	Ctp_it7250->input_dev->phys = "CTS_Ctp_it7250/input1";
-	
+	Ctp_it7250->input_dev->dev.parent = &client->dev;
      //no need to open & close it,it will do it automaticlly;noted by robert
 	Ctp_it7250->input_dev->open = Ctp_it7250_touch_open;
 	Ctp_it7250->input_dev->close = Ctp_it7250_touch_close;
@@ -257,6 +259,7 @@ for (i = 0; i < ARRAY_SIZE(panel_key_info); i++)
 
 }
 
+#if 0
 static void CTS_configure_pin(struct i2c_client *client)
 {
 	//add  reset pin;but we not used it ;robert
@@ -270,6 +273,8 @@ static void CTS_configure_pin(struct i2c_client *client)
 	spi_gpio_set_pinlevel(SPI_GPIO_P2_15, SPI_GPIO_HIGH);
 	mdelay(5);
 }
+#endif
+
 
 static int Ctp_it7250_init_irq(struct i2c_client *client)
 {
@@ -284,7 +289,7 @@ static int Ctp_it7250_init_irq(struct i2c_client *client)
 	}
 	ret = gpio_request(client->irq, "Ctp_it7250_int");
 	if (ret) {
-		rk28printk( "failed to request Ctp_it7250_init_irq GPIO%d\n",client->irq);
+		rk28printk( "failed to request Ctp_it7250_init_irq GPIO%d\n",gpio_to_irq(client->irq));
 		return ret;
 	}
 #if 1
@@ -295,6 +300,7 @@ ret = gpio_direction_input(client->irq);
 	}
 	gpio_pull_updown(client->irq,GPIOPullUp);
 #endif
+	rk28printk("%s gpio_to_irq(%d) is %d\n",__FUNCTION__,client->irq,gpio_to_irq(client->irq));
 		
 	Ctp_it7250->irq = gpio_to_irq(client->irq);
 	#endif
@@ -304,7 +310,7 @@ ret = gpio_direction_input(client->irq);
 		rk28printk(KERN_ERR "Ctp_it7250_init_irq: request irq failed,ret is %d\n",ret);
         return ret;
 	}
-	
+	return true;	
 }
 
 
@@ -348,10 +354,10 @@ int i;
 			ucQuery = QUERY_BUSY;
 		}
 	}while(ucQuery & QUERY_BUSY);
-	pucData[5]== 0 ;
-	 pucData[6] == 0 ;
-	 pucData[7] == 0 ;
-	 pucData[8] == 0;
+	pucData[5]= 0 ;
+	 pucData[6]= 0 ;
+	 pucData[7]= 0 ;
+	 pucData[8]= 0;
 	// Read Command Response
 	if(!ReadCommandResponseBuffer(client, pucData, ucReadLength))
 	{
@@ -580,7 +586,7 @@ rk28printk("%s ReadCommandResponseBuffer EDN\r\n",__FUNCTION__);
 	{
 		* pucStep = pucData[6];
 	}
-	rk28printk("%s x res=%d y res=%d \r\n",__FUNCTION__,*pwXResolution,* pwYResolution);
+	rk28printk("%s x res=%d y res=%d !\r\n",__FUNCTION__,*pwXResolution,* pwYResolution);
 	return true;
 }
 
@@ -721,10 +727,12 @@ if (!GetFirmwareInformation (client))
 #endif
 	return true;
 
+#if 0
 resetagin:
 	if (!CaptouchReset(client))
 		rk28printk("CaptouchReset success \r\n");
 	mdelay(100);
+	#endif
 //	if (!CaptouchMode(client, 0x00))
 	//	rk28printk("CaptouchMode success \r\n");
 }
@@ -798,7 +806,7 @@ gpucPointBuffer[i * 4 + 4];
 // Return value: 
 //   return gesture ID
 // *******************************************************************************************
-int CaptouchGetGesture()
+int CaptouchGetGesture(void)
 {
 	return (int)gpucPointBuffer[1];
 }
@@ -850,12 +858,18 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
 				else if(dwTouchEvent <=MAX_FINGER_NUM) //CTP_MAX_FINGER_NUMBER)
 				{
 					//SynchroSystemEvent(SYSTEM_TOUCH_EVENT_FINGER_ASSERT);
-					
+			if ((abs(Ctp_it7250->temp_x -gpdwSampleX[0])>10)  ||( abs(Ctp_it7250->temp_y-gpdwSampleY[0])>10))
+					{
 					input_report_abs(Ctp_it7250->input_dev, ABS_X, gpdwSampleX[0]);// & 0xfff
 					input_report_abs(Ctp_it7250->input_dev, ABS_Y, gpdwSampleY[0]); //& 0xfff
 					input_report_key(Ctp_it7250->input_dev,BTN_TOUCH, 1);
 					input_sync(Ctp_it7250->input_dev);
 					rk28printk("x=%d  y=%d \r\n",gpdwSampleX[0],gpdwSampleY[0]);
+					Ctp_it7250->temp_x=gpdwSampleX[0];
+					Ctp_it7250->temp_y=gpdwSampleY[0];
+					}
+				else
+					rk28printk("the same \r\n");
 				}
 				else
 				{
@@ -942,8 +956,8 @@ static void  Ctp_it7250_delaywork_func(struct work_struct  *work)
  static int  Ctp_it7250_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct Ctp_it7250_data *Ctp_it7250;
-	u16 TempReg=0x0;
-	u16 val=0x0;
+//	u16 TempReg=0x0;
+//	u16 val=0x0;
 	
 	Ctp_it7250_client = client;
 	rk28printk("+++++++     %s+++++++\n", __FUNCTION__);
