@@ -85,7 +85,6 @@ static void __cpuinit init_thread_xstate(void)
 #endif
 }
 
-#ifdef CONFIG_X86_64
 /*
  * Called at bootup to set up the initial FPU state that is later cloned
  * into all processes.
@@ -93,12 +92,21 @@ static void __cpuinit init_thread_xstate(void)
 
 void __cpuinit fpu_init(void)
 {
-	unsigned long oldcr0 = read_cr0();
+	unsigned long cr0;
+	unsigned long cr4_mask = 0;
 
-	set_in_cr4(X86_CR4_OSFXSR);
-	set_in_cr4(X86_CR4_OSXMMEXCPT);
+	if (cpu_has_fxsr)
+		cr4_mask |= X86_CR4_OSFXSR;
+	if (cpu_has_xmm)
+		cr4_mask |= X86_CR4_OSXMMEXCPT;
+	if (cr4_mask)
+		set_in_cr4(cr4_mask);
 
-	write_cr0(oldcr0 & ~(X86_CR0_TS|X86_CR0_EM)); /* clear TS and EM */
+	cr0 = read_cr0();
+	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
+	if (!HAVE_HWFP)
+		cr0 |= X86_CR0_EM;
+	write_cr0(cr0);
 
 	if (!smp_processor_id())
 		init_thread_xstate();
@@ -108,16 +116,6 @@ void __cpuinit fpu_init(void)
 	current_thread_info()->status = 0;
 	clear_used_math();
 }
-
-#else	/* CONFIG_X86_64 */
-
-void __cpuinit fpu_init(void)
-{
-	if (!smp_processor_id())
-		init_thread_xstate();
-}
-
-#endif	/* CONFIG_X86_32 */
 
 void fpu_finit(struct fpu *fpu)
 {
