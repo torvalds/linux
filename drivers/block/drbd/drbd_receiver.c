@@ -4241,10 +4241,13 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
-	drbd_rs_complete_io(mdev, sector);
-	drbd_set_in_sync(mdev, sector, blksize);
-	/* rs_same_csums is supposed to count in units of BM_BLOCK_SIZE */
-	mdev->rs_same_csum += (blksize >> BM_BLOCK_SHIFT);
+	if (get_ldev(mdev)) {
+		drbd_rs_complete_io(mdev, sector);
+		drbd_set_in_sync(mdev, sector, blksize);
+		/* rs_same_csums is supposed to count in units of BM_BLOCK_SIZE */
+		mdev->rs_same_csum += (blksize >> BM_BLOCK_SHIFT);
+		put_ldev(mdev);
+	}
 	dec_rs_pending(mdev);
 	atomic_add(blksize >> 9, &mdev->rs_sect_in);
 
@@ -4423,6 +4426,9 @@ static int got_OVResult(struct drbd_conf *mdev, struct p_header80 *h)
 	else
 		ov_oos_print(mdev);
 
+	if (!get_ldev(mdev))
+		return TRUE;
+
 	drbd_rs_complete_io(mdev, sector);
 	dec_rs_pending(mdev);
 
@@ -4437,6 +4443,7 @@ static int got_OVResult(struct drbd_conf *mdev, struct p_header80 *h)
 			drbd_resync_finished(mdev);
 		}
 	}
+	put_ldev(mdev);
 	return TRUE;
 }
 
