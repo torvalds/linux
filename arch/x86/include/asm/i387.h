@@ -105,36 +105,6 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 	return err;
 }
 
-/* AMD CPUs don't save/restore FDP/FIP/FOP unless an exception
-   is pending. Clear the x87 state here by setting it to fixed
-   values. The kernel data segment can be sometimes 0 and sometimes
-   new user value. Both should be ok.
-   Use the PDA as safe address because it should be already in L1. */
-static inline void fpu_clear(struct fpu *fpu)
-{
-	struct xsave_struct *xstate = &fpu->state->xsave;
-	struct i387_fxsave_struct *fx = &fpu->state->fxsave;
-
-	/*
-	 * xsave header may indicate the init state of the FP.
-	 */
-	if (use_xsave() &&
-	    !(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
-		return;
-
-	if (unlikely(fx->swd & X87_FSW_ES))
-		asm volatile("fnclex");
-	alternative_input(ASM_NOP8 ASM_NOP2,
-			  "    emms\n"		/* clear stack tags */
-			  "    fildl %%gs:0",	/* load to clear state */
-			  X86_FEATURE_FXSAVE_LEAK);
-}
-
-static inline void clear_fpu_state(struct task_struct *tsk)
-{
-	fpu_clear(&tsk->thread.fpu);
-}
-
 static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 {
 	int err;
@@ -188,16 +158,6 @@ static inline void fpu_fxsave(struct fpu *fpu)
 		     : [fx] "R" (&fpu->state->fxsave));
 }
 
-static inline void fpu_save_init(struct fpu *fpu)
-{
-	if (use_xsave())
-		fpu_xsave(fpu);
-	else
-		fpu_fxsave(fpu);
-
-	fpu_clear(fpu);
-}
-
 #else  /* CONFIG_X86_32 */
 
 /* perform fxrstor iff the processor has extended states, otherwise frstor */
@@ -221,6 +181,8 @@ static inline void fpu_fxsave(struct fpu *fpu)
 	asm volatile("fxsave %[fx]"
 		     : [fx] "=m" (fpu->state->fxsave));
 }
+
+#endif	/* CONFIG_X86_64 */
 
 /* We need a safe address that is cheap to find and that is already
    in L1 during context switch. The best choices are unfortunately
@@ -259,14 +221,12 @@ static inline void fpu_save_init(struct fpu *fpu)
 	   is pending.  Clear the x87 state here by setting it to fixed
 	   values. safe_address is a random variable that should be in L1 */
 	alternative_input(
-		GENERIC_NOP8 GENERIC_NOP2,
+		ASM_NOP8 ASM_NOP2,
 		"emms\n\t"	  	/* clear stack tags */
-		"fildl %[addr]", 	/* set F?P to defined value */
+		"fildl %P[addr]",	/* set F?P to defined value */
 		X86_FEATURE_FXSAVE_LEAK,
 		[addr] "m" (safe_address));
 }
-
-#endif	/* CONFIG_X86_64 */
 
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
