@@ -197,12 +197,6 @@ static inline void fpu_save_init(struct fpu *fpu)
 	fpu_clear(fpu);
 }
 
-static inline void __save_init_fpu(struct task_struct *tsk)
-{
-	fpu_save_init(&tsk->thread.fpu);
-	task_thread_info(tsk)->status &= ~TS_USEDFPU;
-}
-
 #else  /* CONFIG_X86_32 */
 
 #ifdef CONFIG_MATH_EMULATION
@@ -285,14 +279,13 @@ end:
 	;
 }
 
+#endif	/* CONFIG_X86_64 */
+
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
 	fpu_save_init(&tsk->thread.fpu);
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
-
-
-#endif	/* CONFIG_X86_64 */
 
 static inline int fpu_fxrstor_checking(struct fpu *fpu)
 {
