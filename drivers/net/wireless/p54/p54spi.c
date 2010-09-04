@@ -202,6 +202,8 @@ static int p54spi_request_eeprom(struct ieee80211_hw *dev)
 		dev_info(&priv->spi->dev, "loading default eeprom...\n");
 		ret = p54_parse_eeprom(dev, (void *) p54spi_eeprom,
 				       sizeof(p54spi_eeprom));
+#else
+		dev_err(&priv->spi->dev, "Failed to request user eeprom\n");
 #endif /* CONFIG_P54_SPI_DEFAULT_EEPROM */
 	} else {
 		dev_info(&priv->spi->dev, "loading user eeprom...\n");
