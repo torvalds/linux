@@ -1600,9 +1600,6 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	wm8753_add_widgets(codec);
 
 	return 0;
-
-	run_delayed_work(&codec->delayed_work);
-	return ret;
 }
 
 /* power down chip */
