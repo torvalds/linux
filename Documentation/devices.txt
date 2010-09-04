@@ -1495,9 +1495,6 @@ Your cooperation is appreciated.
 		 64 = /dev/radio0	Radio device
 		    ...
 		127 = /dev/radio63	Radio device
-		192 = /dev/vtx0		Teletext device
-		    ...
-		223 = /dev/vtx31	Teletext device
 		224 = /dev/vbi0		Vertical blank interrupt
 		    ...
 		255 = /dev/vbi31	Vertical blank interrupt
