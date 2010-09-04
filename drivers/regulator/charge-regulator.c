@@ -74,11 +74,10 @@ static int charge_get_current(struct regulator_dev *dev)
 static int charge_set_current(struct regulator_dev *dev,
 				  int min_uA, int max_uA)
 {
-       printk("enter charge_set_current , max_uA = %d\n",max_uA);
+       DBG("enter charge_set_current , max_uA = %d\n",max_uA);
 	struct charge_platform_data *pdata = rdev_get_drvdata(dev);
        const int *current_map = charge_current_map;
        int max_mA = max_uA / 1000;
-	printk("charge_set_current:pdata->gpio_charge=%d\n",pdata->gpio_charge);
 	if ( max_mA == current_map[0] )
 	     gpio_direction_output(pdata->gpio_charge, GPIO_HIGH);
 	else 
@@ -110,14 +109,9 @@ static int __devinit charge_regulator_probe(struct platform_device *pdev)
 	struct charge_platform_data *pdata = pdev->dev.platform_data;
 	struct regulator_dev *rdev;
 	int ret ;
-printk(KERN_INFO "enter charge regulator\n");
-#if 0
-	rdev = regulator_register(&chargeregulator, &pdev->dev,
-				pdev->dev.platform_data, pdata);
-#else
+
 	rdev = regulator_register(&chargeregulator, &pdev->dev,
 				pdata->init_data, pdata);
-#endif
 	if (IS_ERR(rdev)) {
 		dev_dbg(&pdev->dev, "couldn't register regulator\n");
 		return PTR_ERR(rdev);

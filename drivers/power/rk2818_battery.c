@@ -100,6 +100,7 @@ int gBatVoltageLevel = VOLTAGE_MID_LEVEL;
 int gBatUseStatus = BAT_LOADER_STATUS;	
 
 static struct regulator *pChargeregulator;
+int gVbuscharge = 0;
 
 extern int dwc_vbus_status(void);
 extern int get_msc_connect_flag(void);
@@ -145,6 +146,7 @@ typedef enum {
 
 static int rk2818_get_charge_status(void)
 {
+ struct regulator * rdev = pChargeregulator;
 	//DBG("gAdcValue[CHN_USB_ADC]=%d\n",gAdcValue[CHN_USB_ADC]);
 	if(gAdcValue[CHN_USB_ADC] > 250)	//about 0.5V
 		{
@@ -152,12 +154,23 @@ static int rk2818_get_charge_status(void)
 		}
 	else if((1 == dwc_vbus_status())&& (0 == get_msc_connect_flag()))
 		{
-		  regulator_set_current_limit(pChargeregulator,0,1200000);
+		  if(gVbuscharge !=1)
+{
+     if(rdev== pChargeregulator )
+		        regulator_set_current_limit(rdev,0,1200000);
+}
+		   gVbuscharge = 1;
 		return 1;
 		}
 	else
 		{
-		regulator_set_current_limit(pChargeregulator,0,475000);
+		if(gVbuscharge !=0 )
+{
+     if(rdev== pChargeregulator )
+			regulator_set_current_limit(rdev,0,475000);		
+}
+		 gVbuscharge = 0;
+		
 		return 0;
 		}
 }
