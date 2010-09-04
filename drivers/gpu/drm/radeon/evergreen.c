@@ -1594,6 +1594,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.sw_int) {
 		DRM_DEBUG("evergreen_irq_set: sw int\n");
 		cp_int_cntl |= RB_INT_ENABLE;
+		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
 	if (rdev->irq.crtc_vblank_int[0]) {
 		DRM_DEBUG("evergreen_irq_set: vblank 0\n");
@@ -2012,6 +2013,7 @@ restart_ih:
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
+			radeon_fence_process(rdev);
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: CP EOP\n");

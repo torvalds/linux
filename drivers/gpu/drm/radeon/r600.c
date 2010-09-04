@@ -2279,21 +2279,31 @@ int r600_ring_test(struct radeon_device *rdev)
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
-	/* Also consider EVENT_WRITE_EOP.  it handles the interrupts + timestamps + events */
-
-	radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
-	radeon_ring_write(rdev, CACHE_FLUSH_AND_INV_EVENT);
-	/* wait for 3D idle clean */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-	radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
-	/* Emit fence sequence & fire IRQ */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
-	radeon_ring_write(rdev, fence->seq);
-	/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
-	radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
-	radeon_ring_write(rdev, RB_INT_STAT);
+	if (rdev->wb.use_event) {
+		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
+			(u64)(rdev->fence_drv.scratch_reg - rdev->scratch.reg_base);
+		/* EVENT_WRITE_EOP - flush caches, send int */
+		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
+		radeon_ring_write(rdev, addr & 0xffffffff);
+		radeon_ring_write(rdev, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
+		radeon_ring_write(rdev, fence->seq);
+		radeon_ring_write(rdev, 0);
+	} else {
+		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
+		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT) | EVENT_INDEX(0));
+		/* wait for 3D idle clean */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+		radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
+		/* Emit fence sequence & fire IRQ */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
+		radeon_ring_write(rdev, fence->seq);
+		/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
+		radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
+		radeon_ring_write(rdev, RB_INT_STAT);
+	}
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
@@ -3012,6 +3022,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.sw_int) {
 		DRM_DEBUG("r600_irq_set: sw int\n");
 		cp_int_cntl |= RB_INT_ENABLE;
+		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
 	if (rdev->irq.crtc_vblank_int[0]) {
 		DRM_DEBUG("r600_irq_set: vblank 0\n");
@@ -3377,6 +3388,7 @@ restart_ih:
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
+			radeon_fence_process(rdev);
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: CP EOP\n");

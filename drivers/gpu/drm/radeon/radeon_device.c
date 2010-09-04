@@ -208,6 +208,8 @@ int radeon_wb_init(struct radeon_device *rdev)
 		return r;
 	}
 
+	/* disable event_write fences */
+	rdev->wb.use_event = false;
 	/* disabled via module param */
 	if (radeon_no_wb == 1)
 		rdev->wb.enabled = false;
@@ -215,8 +217,12 @@ int radeon_wb_init(struct radeon_device *rdev)
 		/* often unreliable on AGP */
 		if (rdev->flags & RADEON_IS_AGP) {
 			rdev->wb.enabled = false;
-		} else
+		} else {
 			rdev->wb.enabled = true;
+			/* event_write fences are only available on r600+ */
+			if (rdev->family >= CHIP_R600)
+				rdev->wb.use_event = true;
+		}
 	}
 
 	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");

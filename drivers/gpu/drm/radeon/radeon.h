@@ -595,11 +595,13 @@ struct radeon_wb {
 	volatile uint32_t	*wb;
 	uint64_t		gpu_addr;
 	bool                    enabled;
+	bool                    use_event;
 };
 
 #define RADEON_WB_SCRATCH_OFFSET 0
 #define RADEON_WB_CP_RPTR_OFFSET 1024
 #define R600_WB_IH_WPTR_OFFSET   2048
+#define R600_WB_EVENT_OFFSET     3072
 
 /**
  * struct radeon_pm - power management datas

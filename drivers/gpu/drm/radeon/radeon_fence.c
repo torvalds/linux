@@ -73,7 +73,11 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 	unsigned long cjiffies;
 
 	if (rdev->wb.enabled) {
-		u32 scratch_index = RADEON_WB_SCRATCH_OFFSET + rdev->fence_drv.scratch_reg - rdev->scratch.reg_base;
+		u32 scratch_index;
+		if (rdev->wb.use_event)
+			scratch_index = R600_WB_EVENT_OFFSET + rdev->fence_drv.scratch_reg - rdev->scratch.reg_base;
+		else
+			scratch_index = RADEON_WB_SCRATCH_OFFSET + rdev->fence_drv.scratch_reg - rdev->scratch.reg_base;
 		seq = rdev->wb.wb[scratch_index/4];
 	} else
 		seq = RREG32(rdev->fence_drv.scratch_reg);
