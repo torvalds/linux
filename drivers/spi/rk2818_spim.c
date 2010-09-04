@@ -44,6 +44,12 @@
 #define MRST_SPI_ASSERT		1  ///CS0
 #define MRST_SPI_ASSERT1	2  ///CS1
 
+#if 0
+#define DBG(x...)   printk(x)
+#else
+#define DBG(x...)
+#endif
+
 /* Slave spi_dev related */
 struct chip_data {
 	u16 cr0;
@@ -317,16 +323,17 @@ static void giveback(struct rk2818_spi *dws)
 	struct spi_transfer *last_transfer;
 	unsigned long flags;
 	struct spi_message *msg;
-
-	spin_lock_irqsave(&dws->lock, flags);
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
+	//spin_lock_irqsave(&dws->lock, flags);
 	msg = dws->cur_msg;
 	dws->cur_msg = NULL;
 	dws->cur_transfer = NULL;
 	dws->prev_chip = dws->cur_chip;
 	dws->cur_chip = NULL;
 	dws->dma_mapped = 0;
-	queue_work(dws->workqueue, &dws->pump_messages);
-	spin_unlock_irqrestore(&dws->lock, flags);
+	//queue_work(dws->workqueue, &dws->pump_messages);
+	//spin_unlock_irqrestore(&dws->lock, flags);
+	dws->busy = 0;
 
 	last_transfer = list_entry(msg->transfers.prev,
 					struct spi_transfer,
@@ -351,8 +358,12 @@ static void int_error_stop(struct rk2818_spi *dws, const char *msg)
 	tasklet_schedule(&dws->pump_transfers);
 }
 
+static int pump_transfers(unsigned long data);
+
 static void transfer_complete(struct rk2818_spi *dws)
 {
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
+
 	/* Update total byte transfered return count actual bytes read */
 	dws->cur_msg->actual_length += dws->len;
 
@@ -364,7 +375,8 @@ static void transfer_complete(struct rk2818_spi *dws)
 		dws->cur_msg->status = 0;
 		giveback(dws);
 	} else
-		tasklet_schedule(&dws->pump_transfers);
+		//tasklet_schedule(&dws->pump_transfers);
+		pump_transfers((unsigned long)dws);
 }
 
 static irqreturn_t interrupt_transfer(struct rk2818_spi *dws)
@@ -372,7 +384,8 @@ static irqreturn_t interrupt_transfer(struct rk2818_spi *dws)
 	u16 irq_status, irq_mask = 0x3f;
 	u32 int_level = dws->fifo_len / 2;
 	u32 left;
-	
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
+
 	irq_status = rk2818_readw(dws, SPIM_ISR) & irq_mask;
 	/* Error handling */
 	if (irq_status & (SPI_INT_TXOI | SPI_INT_RXOI | SPI_INT_RXUI)) {
@@ -383,11 +396,12 @@ static irqreturn_t interrupt_transfer(struct rk2818_spi *dws)
 		return IRQ_HANDLED;
 	}
 
-	if (irq_status & SPI_INT_TXEI) {
-		spi_mask_intr(dws, SPI_INT_TXEI);
+		spi_mask_intr(dws, 0xff);
 
 		left = (dws->tx_end - dws->tx) / dws->n_bytes;
 		left = (left > int_level) ? int_level : left;
+
+		//DBG("+++++++++++++++left = %d++++++++++++++++++\n", left);
 
 		while (left--)
 			dws->write(dws);
@@ -395,10 +409,9 @@ static irqreturn_t interrupt_transfer(struct rk2818_spi *dws)
 
 		/* Re-enable the IRQ if there is still data left to tx */
 		if (dws->tx_end > dws->tx)
-			spi_umask_intr(dws, SPI_INT_TXEI);
+			spi_umask_intr(dws, 0xff);
 		else
 			transfer_complete(dws);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -408,7 +421,7 @@ static irqreturn_t rk2818_spi_irq(int irq, void *dev_id)
 	struct rk2818_spi *dws = dev_id;
 
 	if (!dws->cur_msg) {
-		spi_mask_intr(dws, SPI_INT_TXEI);
+		spi_mask_intr(dws, 0xff);
 		/* Never fail */
 		return IRQ_HANDLED;
 	}
@@ -417,12 +430,59 @@ static irqreturn_t rk2818_spi_irq(int irq, void *dev_id)
 }
 
 /* Must be called inside pump_transfers() */
-static void poll_transfer(struct rk2818_spi *dws)
+static int poll_transfer(struct rk2818_spi *dws)
 {
-	while (dws->write(dws))
+#if 0
+	int level = dws->fifo_len;
+	int left = (dws->tx_end - dws->tx)/dws->n_bytes;
+	int length = left > level ? level : left;
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
+
+	while (left>0) {		
+		left -= length;
+		while (length--)
+			dws->write(dws);
+		while(!(rk2818_readw(dws, SPIM_SR)& SR_TF_EMPT));
+			cpu_relax();
+		//while(rk2818_readw(dws, SPIM_SR) & SR_BUSY);
+			//cpu_relax();
 		dws->read(dws);
 
+		length = left > level ? level : left;
+	}
+
 	transfer_complete(dws);
+#else
+	if ((dws->read(dws))) {
+		goto comple;
+	}
+	
+	while (dws->tx<dws->tx_end){
+		dws->write(dws);
+		dws->read(dws);
+	}
+	
+	if (dws->rx < dws->rx_end) {
+		dws->read(dws);
+	}
+
+comple:
+	
+	dws->cur_msg->actual_length += dws->len;
+	
+	/* Move to next transfer */
+	dws->cur_msg->state = next_transfer(dws);
+					
+	if (dws->cur_msg->state == DONE_STATE) {
+		dws->cur_msg->status = 0;
+		giveback(dws);
+		return 0;
+	}
+	else {
+		return -1;
+	}
+	
+#endif
 }
 
 static void dma_transfer(struct rk2818_spi *dws, struct spi_transfer *xfer) //int cs_change)
@@ -442,7 +502,7 @@ static void spi_chip_sel(struct rk2818_spi *dws, u16 cs)
 	rk2818_writel(dws, SPIM_SER, 1 << 0);
 }
 
-static void pump_transfers(unsigned long data)
+static int pump_transfers(unsigned long data)
 {
 	struct rk2818_spi *dws = (struct rk2818_spi *)data;
 	struct spi_message *message = NULL;
@@ -457,12 +517,15 @@ static void pump_transfers(unsigned long data)
 	u16 clk_div = 0;
 	u32 speed = 0;
 	u32 cr0 = 0;
+	
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
 
 	/* Get current state information */
 	message = dws->cur_msg;
 	transfer = dws->cur_transfer;
 	chip = dws->cur_chip;
 	spi = message->spi;	
+
 	if (unlikely(!chip->clk_div))
 		chip->clk_div = clk_get_rate(dws->clock_spim) / chip->speed_hz;	
 	if (message->state == ERROR_STATE) {
@@ -581,6 +644,7 @@ static void pump_transfers(unsigned long data)
 	 * Interrupt mode
 	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
 	 */
+	chip->poll_mode = 1;
 	if (!dws->dma_mapped && !chip->poll_mode) {
 		int templen = dws->len / dws->n_bytes;
 		txint_level = dws->fifo_len / 2;
@@ -605,8 +669,8 @@ static void pump_transfers(unsigned long data)
 		spi_chip_sel(dws, spi->chip_select);
 		/* Set the interrupt mask, for poll mode just diable all int */
 		spi_mask_intr(dws, 0xff);
-		if (imask)
-			spi_umask_intr(dws, imask);
+		//if (imask)
+			//spi_umask_intr(dws, 0xff);
 		if (txint_level)
 			rk2818_writew(dws, SPIM_TXFTLR, txint_level);
 
@@ -618,14 +682,15 @@ static void pump_transfers(unsigned long data)
 	if (dws->dma_mapped)
 		dma_transfer(dws, transfer); ///cs_change);
 
-	if (chip->poll_mode)
-		poll_transfer(dws);
-
-	return;
+	if (chip->poll_mode) {
+		return poll_transfer(dws);
+	}
+	
+	return 0;
 
 early_exit:
 	giveback(dws);
-	return;
+	return 0;
 }
 
 static void pump_messages(struct work_struct *work)
@@ -633,18 +698,19 @@ static void pump_messages(struct work_struct *work)
 	struct rk2818_spi *dws =
 		container_of(work, struct rk2818_spi, pump_messages);
 	unsigned long flags;
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
 
 	/* Lock queue and check for queue work */
-	spin_lock_irqsave(&dws->lock, flags);
+	//spin_lock_irqsave(&dws->lock, flags);
 	if (list_empty(&dws->queue) || dws->run == QUEUE_STOPPED) {
 		dws->busy = 0;
-		spin_unlock_irqrestore(&dws->lock, flags);
+		//spin_unlock_irqrestore(&dws->lock, flags);
 		return;
 	}
 
 	/* Make sure we are not already running a message */
 	if (dws->cur_msg) {
-		spin_unlock_irqrestore(&dws->lock, flags);
+		//spin_unlock_irqrestore(&dws->lock, flags);
 		return;
 	}
 
@@ -661,10 +727,18 @@ static void pump_messages(struct work_struct *work)
     dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
     
 	/* Mark as busy and launch transfers */
+	#if 0
 	tasklet_schedule(&dws->pump_transfers);
 
 	dws->busy = 1;
-	spin_unlock_irqrestore(&dws->lock, flags);
+	//spin_unlock_irqrestore(&dws->lock, flags);
+
+	#else
+	dws->busy = 1;
+	//spin_unlock_irqrestore(&dws->lock, flags);
+
+	while (pump_transfers((unsigned long)dws)) ;
+	#endif
 }
 
 /* spi_device use this to queue in their spi_msg */
@@ -672,7 +746,7 @@ static int rk2818_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 {
 	struct rk2818_spi *dws = spi_master_get_devdata(spi->master);
 	unsigned long flags;
-
+	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
 	spin_lock_irqsave(&dws->lock, flags);
 
 	if (dws->run == QUEUE_STOPPED) {
@@ -688,6 +762,9 @@ static int rk2818_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 
 	if (dws->run == QUEUE_RUNNING && !dws->busy) {
 
+		//DBG("+++++++++++++++add message++++++++++++++++++\n");
+
+		#if 0
 		if (dws->cur_transfer || dws->cur_msg)
 			queue_work(dws->workqueue,
 					&dws->pump_messages);
@@ -697,10 +774,17 @@ static int rk2818_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 			pump_messages(&dws->pump_messages);
 			return 0;
 		}
+		#else
+		//spin_unlock_irqrestore(&dws->lock, flags);		
+		//mutex_lock(&dws->mutex_lock);
+		pump_messages(&dws->pump_messages);
+		//mutex_unlock(&dws->mutex_lock);
+		//return 0;
+		#endif
 	}
 
 	spin_unlock_irqrestore(&dws->lock, flags);
-	
+	DBG("+++++++++++++++quit %s++++++++++++++++++\n", __func__);
 	return 0;
 }
 
@@ -822,7 +906,7 @@ static int start_queue(struct rk2818_spi *dws)
 	dws->prev_chip = NULL;
 	spin_unlock_irqrestore(&dws->lock, flags);
 
-	queue_work(dws->workqueue, &dws->pump_messages);
+	//queue_work(dws->workqueue, &dws->pump_messages);
 
 	return 0;
 }
@@ -926,7 +1010,7 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	struct rk2818_spi   *dws;
 	struct spi_master   *master;
 	int			irq; 
-	int         ret,i,j;
+	int         ret;
 	struct rk2818_spi_platform_data *pdata = pdev->dev.platform_data;
 
 	if (pdata && pdata->io_init) {
