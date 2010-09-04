@@ -49,11 +49,6 @@ struct net_device *soft_device;
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 atomic_t module_state;
 
-static struct packet_type batman_adv_packet_type __read_mostly = {
-	.type = __constant_htons(ETH_P_BATMAN),
-	.func = batman_skb_recv,
-};
-
 struct workqueue_struct *bat_event_workqueue;
 
 static int __init batman_init(void)
@@ -103,7 +98,6 @@ static int __init batman_init(void)
 		goto unreg_sysfs;
 
 	register_netdevice_notifier(&hard_if_notifier);
-	dev_add_pack(&batman_adv_packet_type);
 
 	pr_info("B.A.T.M.A.N. advanced %s%s (compatibility version %i) "
 		"loaded\n", SOURCE_VERSION, REVISION_VERSION_STR,
@@ -139,8 +133,6 @@ static void __exit batman_exit(void)
 		unregister_netdev(soft_device);
 		soft_device = NULL;
 	}
-
-	dev_remove_pack(&batman_adv_packet_type);
 
 	destroy_workqueue(bat_event_workqueue);
 	bat_event_workqueue = NULL;
@@ -184,8 +176,6 @@ void deactivate_module(void)
 	flush_workqueue(bat_event_workqueue);
 
 	vis_quit();
-
-	/* TODO: unregister BATMAN pack */
 
 	originator_free();
 

@@ -265,6 +265,11 @@ int hardif_enable_interface(struct batman_if *batman_if)
 	batman_if->if_status = IF_INACTIVE;
 	orig_hash_add_if(batman_if, bat_priv->num_ifaces);
 
+	batman_if->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
+	batman_if->batman_adv_ptype.func = batman_skb_recv;
+	batman_if->batman_adv_ptype.dev = batman_if->net_dev;
+	dev_add_pack(&batman_if->batman_adv_ptype);
+
 	atomic_set(&batman_if->seqno, 1);
 	atomic_set(&batman_if->frag_seqno, 1);
 	bat_info(soft_device, "Adding interface: %s\n", batman_if->dev);
@@ -319,6 +324,8 @@ void hardif_disable_interface(struct batman_if *batman_if)
 		return;
 
 	bat_info(soft_device, "Removing interface: %s\n", batman_if->dev);
+	dev_remove_pack(&batman_if->batman_adv_ptype);
+
 	bat_priv->num_ifaces--;
 	orig_hash_del_if(batman_if, bat_priv->num_ifaces);
 
@@ -468,6 +475,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct batman_if *batman_if;
 	int ret;
 
+	batman_if = container_of(ptype, struct batman_if, batman_adv_ptype);
 	skb = skb_share_check(skb, GFP_ATOMIC);
 
 	/* skb was released by skb_share_check() */
@@ -484,10 +492,6 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/* expect a valid ethernet header here. */
 	if (unlikely(skb->mac_len != sizeof(struct ethhdr)
 				|| !skb_mac_header(skb)))
-		goto err_free;
-
-	batman_if = get_batman_if_by_netdev(skb->dev);
-	if (!batman_if)
 		goto err_free;
 
 	/* discard frames on not active interfaces */

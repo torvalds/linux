@@ -46,7 +46,7 @@ struct batman_if {
 	int packet_len;
 	struct kobject *hardif_obj;
 	struct rcu_head rcu;
-
+	struct packet_type batman_adv_ptype;
 };
 
 /**
