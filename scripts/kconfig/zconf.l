@@ -353,7 +353,7 @@ int zconf_lineno(void)
 	return current_pos.lineno;
 }
 
-char *zconf_curname(void)
+const char *zconf_curname(void)
 {
 	return current_pos.file ? current_pos.file->name : "<none>";
 }
