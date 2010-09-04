@@ -39,7 +39,7 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 			       struct forw_packet *forw_packet)
 {
 	struct batman_packet *batman_packet =
-		(struct batman_packet *)forw_packet->packet_buff;
+		(struct batman_packet *)forw_packet->skb->data;
 	int aggregated_bytes = forw_packet->packet_len + packet_len;
 
 	/**
@@ -106,6 +106,7 @@ static void new_aggregated_packet(unsigned char *packet_buff,
 {
 	struct forw_packet *forw_packet_aggr;
 	unsigned long flags;
+	unsigned char *skb_buff;
 	/* FIXME: each batman_if will be attached to a softif */
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
@@ -125,23 +126,22 @@ static void new_aggregated_packet(unsigned char *packet_buff,
 		return;
 	}
 
-	forw_packet_aggr->packet_buff = kmalloc(MAX_AGGREGATION_BYTES,
-						GFP_ATOMIC);
-	if (!forw_packet_aggr->packet_buff) {
+	forw_packet_aggr->skb = dev_alloc_skb(MAX_AGGREGATION_BYTES +
+					      sizeof(struct ethhdr));
+	if (!forw_packet_aggr->skb) {
 		if (!own_packet)
 			atomic_inc(&bat_priv->batman_queue_left);
 		kfree(forw_packet_aggr);
 		return;
 	}
+	skb_reserve(forw_packet_aggr->skb, sizeof(struct ethhdr));
 
 	INIT_HLIST_NODE(&forw_packet_aggr->list);
 
+	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
 	forw_packet_aggr->packet_len = packet_len;
-	memcpy(forw_packet_aggr->packet_buff,
-	       packet_buff,
-	       forw_packet_aggr->packet_len);
+	memcpy(skb_buff, packet_buff, packet_len);
 
-	forw_packet_aggr->skb = NULL;
 	forw_packet_aggr->own = own_packet;
 	forw_packet_aggr->if_incoming = if_incoming;
 	forw_packet_aggr->num_packets = 0;
@@ -171,8 +171,10 @@ static void aggregate(struct forw_packet *forw_packet_aggr,
 		      int packet_len,
 		      bool direct_link)
 {
-	memcpy((forw_packet_aggr->packet_buff + forw_packet_aggr->packet_len),
-	       packet_buff, packet_len);
+	unsigned char *skb_buff;
+
+	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
+	memcpy(skb_buff, packet_buff, packet_len);
 	forw_packet_aggr->packet_len += packet_len;
 	forw_packet_aggr->num_packets++;
 

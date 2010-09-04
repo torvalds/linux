@@ -126,14 +126,14 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 	uint8_t packet_num;
 	int16_t buff_pos;
 	struct batman_packet *batman_packet;
+	struct sk_buff *skb;
 
 	if (batman_if->if_status != IF_ACTIVE)
 		return;
 
 	packet_num = 0;
 	buff_pos = 0;
-	batman_packet = (struct batman_packet *)
-		(forw_packet->packet_buff);
+	batman_packet = (struct batman_packet *)forw_packet->skb->data;
 
 	/* adjust all flags and log packets */
 	while (aggregated_packet(buff_pos,
@@ -165,12 +165,13 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 			(batman_packet->num_hna * ETH_ALEN);
 		packet_num++;
 		batman_packet = (struct batman_packet *)
-			(forw_packet->packet_buff + buff_pos);
+			(forw_packet->skb->data + buff_pos);
 	}
 
-	send_raw_packet(forw_packet->packet_buff,
-			forw_packet->packet_len,
-			batman_if, broadcast_addr);
+	/* create clone because function is called more than once */
+	skb = skb_clone(forw_packet->skb, GFP_ATOMIC);
+	if (skb)
+		send_skb_packet(skb, batman_if, broadcast_addr);
 }
 
 /* send a batman packet */
@@ -180,7 +181,7 @@ static void send_packet(struct forw_packet *forw_packet)
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet =
-		(struct batman_packet *)(forw_packet->packet_buff);
+		(struct batman_packet *)(forw_packet->skb->data);
 	unsigned char directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
 
 	if (!forw_packet->if_incoming) {
@@ -206,10 +207,11 @@ static void send_packet(struct forw_packet *forw_packet)
 			batman_packet->ttl, forw_packet->if_incoming->dev,
 			forw_packet->if_incoming->addr_str);
 
-		send_raw_packet(forw_packet->packet_buff,
-				forw_packet->packet_len,
-				forw_packet->if_incoming,
+		/* skb is only used once and than forw_packet is free'd */
+		send_skb_packet(forw_packet->skb, forw_packet->if_incoming,
 				broadcast_addr);
+		forw_packet->skb = NULL;
+
 		return;
 	}
 
@@ -366,7 +368,6 @@ static void forw_packet_free(struct forw_packet *forw_packet)
 {
 	if (forw_packet->skb)
 		kfree_skb(forw_packet->skb);
-	kfree(forw_packet->packet_buff);
 	kfree(forw_packet);
 }
 
@@ -425,7 +426,6 @@ int add_bcast_packet_to_list(struct sk_buff *skb)
 	skb_reset_mac_header(skb);
 
 	forw_packet->skb = skb;
-	forw_packet->packet_buff = NULL;
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;

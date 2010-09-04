@@ -161,7 +161,6 @@ struct forw_packet {
 	unsigned long send_time;
 	uint8_t own;
 	struct sk_buff *skb;
-	unsigned char *packet_buff;
 	uint16_t packet_len;
 	uint32_t direct_link_flags;
 	uint8_t num_packets;
