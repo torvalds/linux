@@ -486,7 +486,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 
 	/* packet should hold at least type and version */
-	if (unlikely(skb_headlen(skb) < 2))
+	if (unlikely(!pskb_may_pull(skb, 2)))
 		goto err_free;
 
 	/* expect a valid ethernet header here. */
