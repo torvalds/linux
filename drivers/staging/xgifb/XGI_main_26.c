@@ -3485,7 +3485,6 @@ module_init(xgifb_init);
 static char         *mode = NULL;
 static int          vesa = 0;
 static unsigned int rate = 0;
-static unsigned int crt1off = 1;
 static unsigned int mem = 0;
 static char         *forcecrt2type = NULL;
 static int          forcecrt1 = -1;
