@@ -70,6 +70,10 @@
 #undef _TLB
 #undef MULTI_TLB
 
+#ifdef CONFIG_SMP_ON_UP
+#define MULTI_TLB 1
+#endif
+
 #define v3_tlb_flags	(TLB_V3_FULL | TLB_V3_PAGE)
 
 #ifdef CONFIG_CPU_TLB_V3
@@ -185,17 +189,23 @@
 # define v6wbi_always_flags	(-1UL)
 #endif
 
-#ifdef CONFIG_SMP
-#define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_V7_IS_BTB | \
+#define v7wbi_tlb_flags_smp	(TLB_WB | TLB_DCLEAN | TLB_V7_IS_BTB | \
 			 TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | TLB_V7_UIS_ASID)
-#else
-#define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | \
+#define v7wbi_tlb_flags_up	(TLB_WB | TLB_DCLEAN | TLB_BTB | \
 			 TLB_V6_U_FULL | TLB_V6_U_PAGE | TLB_V6_U_ASID)
-#endif
 
 #ifdef CONFIG_CPU_TLB_V7
-# define v7wbi_possible_flags	v7wbi_tlb_flags
-# define v7wbi_always_flags	v7wbi_tlb_flags
+
+# ifdef CONFIG_SMP_ON_UP
+#  define v7wbi_possible_flags	(v7wbi_tlb_flags_smp | v7wbi_tlb_flags_up)
+#  define v7wbi_always_flags	(v7wbi_tlb_flags_smp & v7wbi_tlb_flags_up)
+# elif defined(CONFIG_SMP)
+#  define v7wbi_possible_flags	v7wbi_tlb_flags_smp
+#  define v7wbi_always_flags	v7wbi_tlb_flags_smp
+# else
+#  define v7wbi_possible_flags	v7wbi_tlb_flags_up
+#  define v7wbi_always_flags	v7wbi_tlb_flags_up
+# endif
 # ifdef _TLB
 #  define MULTI_TLB 1
 # else

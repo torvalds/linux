@@ -1191,6 +1191,19 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config SMP_ON_UP
+	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on SMP && !XIP && !THUMB2_KERNEL
+	default y
+	help
+	  SMP kernels contain instructions which fail on non-SMP processors.
+	  Enabling this option allows the kernel to modify itself to make
+	  these instructions safe.  Disabling it allows about 1K of space
+	  savings.
+
+	  If you don't know what to do here, say Y.
+
 config HAVE_ARM_SCU
 	bool
 	depends on SMP
