@@ -1481,6 +1481,7 @@
 # define TV_TEST_MODE_MASK		(7 << 0)
 
 #define TV_DAC			0x68004
+# define TV_DAC_SAVE		0x00ffff00
 /**
  * Reports that DAC state change logic has reported change (RO).
  *

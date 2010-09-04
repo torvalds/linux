@@ -1196,7 +1196,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		I915_WRITE(TV_V_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
 		I915_WRITE(TV_V_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
-	I915_WRITE(TV_DAC, 0);
+	I915_WRITE(TV_DAC, I915_READ(TV_DAC) & TV_DAC_SAVE);
 	I915_WRITE(TV_CTL, tv_ctl);
 }
 
