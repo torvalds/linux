@@ -125,19 +125,10 @@ static irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
 	}
 
 	time_ns = iio_get_time_ns();
-	/* detect single element list*/
-	if (list_is_singular(&int_info->ev_list)) {
+	list_for_each_entry(p, &int_info->ev_list, list) {
 		disable_irq_nosync(irq);
-		p = list_first_entry(&int_info->ev_list,
-				     struct iio_event_handler_list,
-				     list);
-		/* single event handler - maybe shared */
 		p->handler(dev_info, 1, time_ns, !(p->refcount > 1));
-	} else
-		list_for_each_entry(p, &int_info->ev_list, list) {
-			disable_irq_nosync(irq);
-			p->handler(dev_info, 1, time_ns, 0);
-		}
+	}
 	spin_unlock_irqrestore(&int_info->ev_list_lock, flags);
 
 	return IRQ_HANDLED;
