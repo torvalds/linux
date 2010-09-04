@@ -3515,7 +3515,7 @@ isdn_tty_parse_at(modem_info * info)
 {
 	atemu *m = &info->emu;
 	char *p;
-	char ds[40];
+	char ds[ISDN_MSNLEN];
 
 #ifdef ISDN_DEBUG_AT
 	printk(KERN_DEBUG "AT: '%s'\n", m->mdmcmd);
@@ -3594,7 +3594,7 @@ isdn_tty_parse_at(modem_info * info)
 						break;
 					case '3':
                                                 p++;
-                                                sprintf(ds, "\r\n%d", info->emu.charge);
+                                                snprintf(ds, sizeof(ds), "\r\n%d", info->emu.charge);
                                                 isdn_tty_at_cout(ds, info);
                                                 break;
 					default:;
