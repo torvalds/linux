@@ -440,22 +440,6 @@ static void device_remove_attrs(struct bus_type *bus, struct device *dev)
 	}
 }
 
-#ifdef CONFIG_SYSFS_DEPRECATED
-static int make_deprecated_bus_links(struct device *dev)
-{
-	return sysfs_create_link(&dev->kobj,
-				 &dev->bus->p->subsys.kobj, "bus");
-}
-
-static void remove_deprecated_bus_links(struct device *dev)
-{
-	sysfs_remove_link(&dev->kobj, "bus");
-}
-#else
-static inline int make_deprecated_bus_links(struct device *dev) { return 0; }
-static inline void remove_deprecated_bus_links(struct device *dev) { }
-#endif
-
 /**
  * bus_add_device - add device to bus
  * @dev: device being added
@@ -482,15 +466,10 @@ int bus_add_device(struct device *dev)
 				&dev->bus->p->subsys.kobj, "subsystem");
 		if (error)
 			goto out_subsys;
-		error = make_deprecated_bus_links(dev);
-		if (error)
-			goto out_deprecated;
 		klist_add_tail(&dev->p->knode_bus, &bus->p->klist_devices);
 	}
 	return 0;
 
-out_deprecated:
-	sysfs_remove_link(&dev->kobj, "subsystem");
 out_subsys:
 	sysfs_remove_link(&bus->p->devices_kset->kobj, dev_name(dev));
 out_id:
@@ -530,7 +509,6 @@ void bus_remove_device(struct device *dev)
 {
 	if (dev->bus) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
-		remove_deprecated_bus_links(dev);
 		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 				  dev_name(dev));
 		device_remove_attrs(dev->bus, dev);
