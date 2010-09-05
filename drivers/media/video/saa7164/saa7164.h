@@ -452,6 +452,7 @@ struct saa7164_dev {
 
 	/* firmware status */
 	struct saa7164_fw_status	fw_status;
+	u32				firmwareloaded;
 
 	tmComResHWDescr_t		hwdesc;
 	tmComResInterfaceDescr_t	intfdesc;

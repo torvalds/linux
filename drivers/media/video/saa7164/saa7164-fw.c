@@ -604,6 +604,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		}
 	}
 
+	dev->firmwareloaded = 1;
 	ret = 0;
 
 out:

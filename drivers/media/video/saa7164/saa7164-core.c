@@ -1423,7 +1423,8 @@ static void __devexit saa7164_finidev(struct pci_dev *pci_dev)
 			kthread_stop(dev->kthread);
 			dev->kthread = NULL;
 		}
-		saa7164_api_set_debug(dev, 0x00);
+		if (dev->firmwareloaded)
+			saa7164_api_set_debug(dev, 0x00);
 	}
 
 	saa7164_histogram_print(&dev->ports[ SAA7164_PORT_ENC1 ],
