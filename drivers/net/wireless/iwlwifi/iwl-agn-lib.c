@@ -123,6 +123,53 @@ static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 	}
 }
 
+static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
+{
+	status &= AGG_TX_STATUS_MSK;
+
+	switch (status) {
+	case AGG_TX_STATE_UNDERRUN_MSK:
+		priv->_agn.reply_agg_tx_stats.underrun++;
+		break;
+	case AGG_TX_STATE_BT_PRIO_MSK:
+		priv->_agn.reply_agg_tx_stats.bt_prio++;
+		break;
+	case AGG_TX_STATE_FEW_BYTES_MSK:
+		priv->_agn.reply_agg_tx_stats.few_bytes++;
+		break;
+	case AGG_TX_STATE_ABORT_MSK:
+		priv->_agn.reply_agg_tx_stats.abort++;
+		break;
+	case AGG_TX_STATE_LAST_SENT_TTL_MSK:
+		priv->_agn.reply_agg_tx_stats.last_sent_ttl++;
+		break;
+	case AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK:
+		priv->_agn.reply_agg_tx_stats.last_sent_try++;
+		break;
+	case AGG_TX_STATE_LAST_SENT_BT_KILL_MSK:
+		priv->_agn.reply_agg_tx_stats.last_sent_bt_kill++;
+		break;
+	case AGG_TX_STATE_SCD_QUERY_MSK:
+		priv->_agn.reply_agg_tx_stats.scd_query++;
+		break;
+	case AGG_TX_STATE_TEST_BAD_CRC32_MSK:
+		priv->_agn.reply_agg_tx_stats.bad_crc32++;
+		break;
+	case AGG_TX_STATE_RESPONSE_MSK:
+		priv->_agn.reply_agg_tx_stats.response++;
+		break;
+	case AGG_TX_STATE_DUMP_TX_MSK:
+		priv->_agn.reply_agg_tx_stats.dump_tx++;
+		break;
+	case AGG_TX_STATE_DELAY_TX_MSK:
+		priv->_agn.reply_agg_tx_stats.delay_tx++;
+		break;
+	default:
+		priv->_agn.reply_agg_tx_stats.unknown++;
+		break;
+	}
+}
+
 static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				 struct ieee80211_tx_info *info,
 				 struct iwl5000_tx_resp *tx_resp,
@@ -223,6 +270,9 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 			seq  = le16_to_cpu(frame_status[i].sequence);
 			idx = SEQ_TO_INDEX(seq);
 			txq_id = SEQ_TO_QUEUE(seq);
+
+			if (status & AGG_TX_STATUS_MSK)
+				iwlagn_count_agg_tx_err_status(priv, status);
 
 			if (status & (AGG_TX_STATE_FEW_BYTES_MSK |
 				      AGG_TX_STATE_ABORT_MSK))
