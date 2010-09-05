@@ -143,6 +143,8 @@ static int saa7164_dvb_pause_port(struct saa7164_port *port)
 static int saa7164_dvb_stop_streaming(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
+	struct saa7164_buffer *buf;
+	struct list_head *p, *q;
 	int ret;
 
 	dprintk(DBGLVL_DVB, "%s(port=%d)\n", __func__, port->nr);
@@ -150,6 +152,14 @@ static int saa7164_dvb_stop_streaming(struct saa7164_port *port)
 	ret = saa7164_dvb_pause_port(port);
 	ret = saa7164_dvb_acquire_port(port);
 	ret = saa7164_dvb_stop_port(port);
+
+	/* Mark the hardware buffers as free */
+	mutex_lock(&port->dmaqueue_lock);
+	list_for_each_safe(p, q, &port->dmaqueue.list) {
+		buf = list_entry(p, struct saa7164_buffer, list);
+		buf->flags = SAA7164_BUFFER_FREE;
+	}
+	mutex_unlock(&port->dmaqueue_lock);
 
 	return ret;
 }
