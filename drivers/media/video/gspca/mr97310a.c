@@ -9,14 +9,14 @@
  * is Copyright (C) 2009 Theodore Kilgore <kilgota@auburn.edu>
  *
  * Support for the control settings for the CIF cameras is
- * Copyright (C) 2009 Hans de Goede <hdgoede@redhat.com> and
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com> and
  * Thomas Kaiser <thomas@kaiser-linux.li>
  *
  * Support for the control settings for the VGA cameras is
  * Copyright (C) 2009 Theodore Kilgore <kilgota@auburn.edu>
  *
  * Several previously unsupported cameras are owned and have been tested by
- * Hans de Goede <hdgoede@redhat.com> and
+ * Hans de Goede <hdegoede@redhat.com> and
  * Thomas Kaiser <thomas@kaiser-linux.li> and
  * Theodore Kilgore <kilgota@auburn.edu> and
  * Edmond Rodriguez <erodrig_97@yahoo.com> and

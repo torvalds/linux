@@ -4,7 +4,7 @@
  * Supports Xirlink C-It Video Camera, IBM PC Camera,
  * IBM NetCamera and Veo Stingray.
  *
- * Copyright (C) 2010 Hans de Goede <hdgoede@redhat.com>
+ * Copyright (C) 2010 Hans de Goede <hdegoede@redhat.com>
  *
  * This driver is based on earlier work of:
  *
@@ -31,7 +31,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Xirlink C-IT");
 MODULE_LICENSE("GPL");
 

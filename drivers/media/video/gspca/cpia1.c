@@ -1,7 +1,7 @@
 /*
  * cpia CPiA (1) gspca driver
  *
- * Copyright (C) 2010 Hans de Goede <hdgoede@redhat.com>
+ * Copyright (C) 2010 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 cpia driver which is :
  *
@@ -30,7 +30,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Vision CPiA");
 MODULE_LICENSE("GPL");
 

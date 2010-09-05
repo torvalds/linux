@@ -1,7 +1,7 @@
 /*
  * STV0680 USB Camera Driver
  *
- * Copyright (C) 2009 Hans de Goede <hdgoede@redhat.com>
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 stv680 driver:
  *
@@ -31,7 +31,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("STV0680 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
