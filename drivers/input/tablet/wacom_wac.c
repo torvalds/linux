@@ -951,9 +951,12 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 
-	input_set_abs_params(input_dev, ABS_X, 0, features->x_max, 4, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max, 4, 0);
-	input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, features->x_max,
+			     features->x_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max,
+			     features->y_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max,
+			     features->pressure_fuzz, 0);
 
 	__set_bit(ABS_MISC, input_dev->absbit);
 

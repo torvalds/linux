@@ -73,6 +73,10 @@ struct wacom_features {
 	int y_phy;
 	unsigned char unit;
 	unsigned char unitExpo;
+	int x_fuzz;
+	int y_fuzz;
+	int pressure_fuzz;
+	int distance_fuzz;
 };
 
 struct wacom_shared {
