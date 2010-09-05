@@ -216,7 +216,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 	switch (what) {
 	case NETDEV_REGISTER:
-		pr_info("register %s\n", dev->name);
+		netdev_info(dev, "register\n");
 		caifd = caif_device_alloc(dev);
 		if (caifd == NULL)
 			break;
@@ -227,13 +227,13 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		break;
 
 	case NETDEV_UP:
-		pr_info("up %s\n", dev->name);
+		netdev_info(dev, "up\n");
 		caifd = caif_get(dev);
 		if (caifd == NULL)
 			break;
 		caifdev = netdev_priv(dev);
 		if (atomic_read(&caifd->state) == NETDEV_UP) {
-			pr_info("%s already up\n", dev->name);
+			netdev_info(dev, "already up\n");
 			break;
 		}
 		atomic_set(&caifd->state, what);
@@ -274,7 +274,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd = caif_get(dev);
 		if (caifd == NULL)
 			break;
-		pr_info("going down %s\n", dev->name);
+		netdev_info(dev, "going down\n");
 
 		if (atomic_read(&caifd->state) == NETDEV_GOING_DOWN ||
 			atomic_read(&caifd->state) == NETDEV_DOWN)
@@ -296,10 +296,10 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd = caif_get(dev);
 		if (caifd == NULL)
 			break;
-		pr_info("down %s\n", dev->name);
+		netdev_info(dev, "down\n");
 		if (atomic_read(&caifd->in_use))
-			pr_warn("Unregistering an active CAIF device: %s\n",
-				dev->name);
+			netdev_warn(dev,
+				    "Unregistering an active CAIF device\n");
 		cfcnfg_del_phy_layer(get_caif_conf(), &caifd->layer);
 		dev_put(dev);
 		atomic_set(&caifd->state, what);
@@ -307,7 +307,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 	case NETDEV_UNREGISTER:
 		caifd = caif_get(dev);
-		pr_info("unregister %s\n", dev->name);
+		netdev_info(dev, "unregister\n");
 		atomic_set(&caifd->state, what);
 		caif_device_destroy(dev);
 		break;
