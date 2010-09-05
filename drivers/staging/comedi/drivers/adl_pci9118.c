@@ -634,7 +634,7 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 /*
 ==============================================================================
 */
-static unsigned int move_block_from_dma(struct comedi_device *dev,
+static int move_block_from_dma(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					short *dma_buffer,
 					unsigned int num_samples)

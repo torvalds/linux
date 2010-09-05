@@ -250,7 +250,7 @@ static unsigned int labpc_serial_in(struct comedi_device *dev);
 static unsigned int labpc_eeprom_read(struct comedi_device *dev,
 				      unsigned int address);
 static unsigned int labpc_eeprom_read_status(struct comedi_device *dev);
-static unsigned int labpc_eeprom_write(struct comedi_device *dev,
+static int labpc_eeprom_write(struct comedi_device *dev,
 				       unsigned int address,
 				       unsigned int value);
 static void write_caldac(struct comedi_device *dev, unsigned int channel,
@@ -1986,8 +1986,8 @@ static unsigned int labpc_eeprom_read(struct comedi_device *dev,
 	return value;
 }
 
-static unsigned int labpc_eeprom_write(struct comedi_device *dev,
-				       unsigned int address, unsigned int value)
+static int labpc_eeprom_write(struct comedi_device *dev,
+				unsigned int address, unsigned int value)
 {
 	const int write_enable_instruction = 0x6;
 	const int write_instruction = 0x2;
