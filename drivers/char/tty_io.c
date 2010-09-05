@@ -3004,6 +3004,7 @@ int tty_register_driver(struct tty_driver *driver)
 	int i;
 	dev_t dev;
 	void **p = NULL;
+	struct device *d;
 
 	if (!(driver->flags & TTY_DRIVER_DEVPTS_MEM) && driver->num) {
 		p = kzalloc(driver->num * 2 * sizeof(void *), GFP_KERNEL);
@@ -3051,12 +3052,31 @@ int tty_register_driver(struct tty_driver *driver)
 	mutex_unlock(&tty_mutex);
 
 	if (!(driver->flags & TTY_DRIVER_DYNAMIC_DEV)) {
-		for (i = 0; i < driver->num; i++)
-		    tty_register_device(driver, i, NULL);
+		for (i = 0; i < driver->num; i++) {
+			d = tty_register_device(driver, i, NULL);
+			if (IS_ERR(d)) {
+				error = PTR_ERR(d);
+				goto err;
+			}
+		}
 	}
 	proc_tty_register_driver(driver);
 	driver->flags |= TTY_DRIVER_INSTALLED;
 	return 0;
+
+err:
+	for (i--; i >= 0; i--)
+		tty_unregister_device(driver, i);
+
+	mutex_lock(&tty_mutex);
+	list_del(&driver->tty_drivers);
+	mutex_unlock(&tty_mutex);
+
+	unregister_chrdev_region(dev, driver->num);
+	driver->ttys = NULL;
+	driver->termios = NULL;
+	kfree(p);
+	return error;
 }
 
 EXPORT_SYMBOL(tty_register_driver);
