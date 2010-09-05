@@ -1102,6 +1102,13 @@ W:	http://wireless.kernel.org/en/users/Drivers/ar9170
 S:	Maintained
 F:	drivers/net/wireless/ath/ar9170/
 
+CARL9170 LINUX COMMUNITY WIRELESS DRIVER
+M:	Christian Lamparter <chunkeey@googlemail.com>
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/carl9170
+S:	Maintained
+F:	drivers/net/wireless/ath/carl9170/
+
 ATK0110 HWMON DRIVER
 M:	Luca Tettamanti <kronos.it@gmail.com>
 L:	lm-sensors@lm-sensors.org
