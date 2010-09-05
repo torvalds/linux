@@ -1260,7 +1260,6 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	}
 err:
 	if (!ret && !ubuf) {
-		printk(KERN_ERR "%s() EAGAIN\n", __func__);
 		ret = -EAGAIN;
 	}
 
