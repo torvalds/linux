@@ -222,7 +222,7 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 	}
 }
 
-static unsigned int
+static int
 p9_fd_poll(struct p9_client *client, struct poll_table_struct *pt)
 {
 	int ret, n;
