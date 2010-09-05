@@ -33,6 +33,7 @@ obj-$(CONFIG_USB_GSPCA_STV0680)  += gspca_stv0680.o
 obj-$(CONFIG_USB_GSPCA_T613)     += gspca_t613.o
 obj-$(CONFIG_USB_GSPCA_TV8532)   += gspca_tv8532.o
 obj-$(CONFIG_USB_GSPCA_VC032X)   += gspca_vc032x.o
+obj-$(CONFIG_USB_GSPCA_XIRLINK_CIT) += gspca_xirlink_cit.o
 obj-$(CONFIG_USB_GSPCA_ZC3XX)    += gspca_zc3xx.o
 
 gspca_main-objs     := gspca.o
@@ -70,6 +71,7 @@ gspca_sunplus-objs  := sunplus.o
 gspca_t613-objs     := t613.o
 gspca_tv8532-objs   := tv8532.o
 gspca_vc032x-objs   := vc032x.o
+gspca_xirlink_cit-objs := xirlink_cit.o
 gspca_zc3xx-objs    := zc3xx.o
 
 obj-$(CONFIG_USB_M5602)   += m5602/
