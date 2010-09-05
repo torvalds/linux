@@ -1306,6 +1306,29 @@ static ssize_t edid_show(
 	return count;
 }
 
+static ssize_t edid_store(
+			struct file *filp,
+			struct kobject *kobj, struct bin_attribute *a,
+			char *src, loff_t src_off, size_t src_size) {
+	struct device *fbdev = container_of(kobj, struct device, kobj);
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+
+	/* We only support write of entire EDID at once, no offset*/
+	if ((src_size < MIN_EDID_SIZE) ||
+	    (src_size > MAX_EDID_SIZE) ||
+	    (src_off != 0))
+		return 0;
+
+	dlfb_setup_modes(dev, fb_info, src, src_size);
+
+	if (dev->edid && (memcmp(src, dev->edid, src_size) == 0)) {
+		dl_info("sysfs written EDID is new default\n");
+		dlfb_ops_set_par(fb_info);
+		return src_size;
+	} else
+		return 0;
+}
 
 static ssize_t metrics_reset_store(struct device *fbdev,
 			   struct device_attribute *attr,
@@ -1348,9 +1371,10 @@ static ssize_t use_defio_store(struct device *fbdev,
 
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
-	.attr.mode = 0444,
-	.size = 128,
+	.attr.mode = 0666,
+	.size = MAX_EDID_SIZE,
 	.read = edid_show,
+	.write = edid_store
 };
 
 static struct device_attribute fb_device_attrs[] = {
