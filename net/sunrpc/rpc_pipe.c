@@ -204,7 +204,7 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 	mutex_lock(&inode->i_mutex);
 	if (rpci->ops == NULL)
 		goto out;
-	msg = (struct rpc_pipe_msg *)filp->private_data;
+	msg = filp->private_data;
 	if (msg != NULL) {
 		spin_lock(&inode->i_lock);
 		msg->errno = -EAGAIN;
@@ -322,7 +322,7 @@ rpc_pipe_ioctl_unlocked(struct file *filp, unsigned int cmd, unsigned long arg)
 		len = rpci->pipelen;
 		if (filp->private_data) {
 			struct rpc_pipe_msg *msg;
-			msg = (struct rpc_pipe_msg *)filp->private_data;
+			msg = filp->private_data;
 			len += msg->len - msg->copied;
 		}
 		return put_user(len, (int __user *)arg);
