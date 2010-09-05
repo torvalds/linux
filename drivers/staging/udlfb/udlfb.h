@@ -54,12 +54,6 @@ struct dlfb_data {
 	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
-	/* interface usage metrics. Clients can call driver via several */
-	atomic_t blit_count;
-	atomic_t copy_count;
-	atomic_t fill_count;
-	atomic_t damage_count;
-	atomic_t defio_fault_count;
 };
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02

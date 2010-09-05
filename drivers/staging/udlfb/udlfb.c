@@ -661,7 +661,6 @@ static void dlfb_ops_copyarea(struct fb_info *info,
 	dlfb_handle_damage(dev, area->dx, area->dy,
 			area->width, area->height, info->screen_base);
 #endif
-	atomic_inc(&dev->copy_count);
 
 }
 
@@ -679,7 +678,6 @@ static void dlfb_ops_imageblit(struct fb_info *info,
 
 #endif
 
-	atomic_inc(&dev->blit_count);
 }
 
 static void dlfb_ops_fillrect(struct fb_info *info,
@@ -694,8 +692,6 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 	dlfb_handle_damage(dev, rect->dx, rect->dy, rect->width,
 			      rect->height, info->screen_base);
 #endif
-
-	atomic_inc(&dev->fill_count);
 
 }
 
@@ -754,7 +750,6 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 
 		dlfb_handle_damage(dev, area->x, area->y, area->w, area->h,
 			   info->screen_base);
-		atomic_inc(&dev->damage_count);
 	}
 
 	return 0;
@@ -1088,29 +1083,6 @@ static ssize_t metrics_cpu_kcycles_used_show(struct device *fbdev,
 			atomic_read(&dev->cpu_kcycles_used));
 }
 
-static ssize_t metrics_misc_show(struct device *fbdev,
-				   struct device_attribute *a, char *buf) {
-	struct fb_info *fb_info = dev_get_drvdata(fbdev);
-	struct dlfb_data *dev = fb_info->par;
-	return snprintf(buf, PAGE_SIZE,
-			"Calls to\ndamage: %u\nblit: %u\n"
-			"defio faults: %u\ncopy: %u\n"
-			"fill: %u\n\n"
-			"active framebuffer clients: %d\n"
-			"urbs available %d(%d)\n"
-			"Shadow framebuffer in use? %s\n"
-			"Any lost pixels? %s\n",
-			atomic_read(&dev->damage_count),
-			atomic_read(&dev->blit_count),
-			atomic_read(&dev->defio_fault_count),
-			atomic_read(&dev->copy_count),
-			atomic_read(&dev->fill_count),
-			dev->fb_count,
-			dev->urbs.available, dev->urbs.limit_sem.count,
-			(dev->backing_buffer) ? "yes" : "no",
-			atomic_read(&dev->lost_pixels) ? "yes" : "no");
-}
-
 static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *a,
 			 char *buf, loff_t off, size_t count) {
@@ -1145,11 +1117,6 @@ static ssize_t metrics_reset_store(struct device *fbdev,
 	atomic_set(&dev->bytes_identical, 0);
 	atomic_set(&dev->bytes_sent, 0);
 	atomic_set(&dev->cpu_kcycles_used, 0);
-	atomic_set(&dev->blit_count, 0);
-	atomic_set(&dev->copy_count, 0);
-	atomic_set(&dev->fill_count, 0);
-	atomic_set(&dev->defio_fault_count, 0);
-	atomic_set(&dev->damage_count, 0);
 
 	return count;
 }
@@ -1190,7 +1157,6 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR_RO(metrics_bytes_identical),
 	__ATTR_RO(metrics_bytes_sent),
 	__ATTR_RO(metrics_cpu_kcycles_used),
-	__ATTR_RO(metrics_misc),
 	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
 	__ATTR_RW(use_defio),
 };
@@ -1208,7 +1174,6 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	int bytes_sent = 0;
 	int bytes_identical = 0;
 	int bytes_rendered = 0;
-	int fault_count = 0;
 
 	if (!atomic_read(&dev->use_defio))
 		return;
@@ -1229,7 +1194,6 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 				  &cmd, cur->index << PAGE_SHIFT,
 				  PAGE_SIZE, &bytes_identical, &bytes_sent);
 		bytes_rendered += PAGE_SIZE;
-		fault_count++;
 	}
 
 	if (cmd > (char *) urb->transfer_buffer) {
@@ -1240,7 +1204,6 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	} else
 		dlfb_urb_completion(urb);
 
-	atomic_add(fault_count, &dev->defio_fault_count);
 	atomic_add(bytes_sent, &dev->bytes_sent);
 	atomic_add(bytes_identical, &dev->bytes_identical);
 	atomic_add(bytes_rendered, &dev->bytes_rendered);
