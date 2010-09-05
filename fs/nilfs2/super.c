@@ -146,7 +146,7 @@ void nilfs_warning(struct super_block *sb, const char *function,
 }
 
 
-struct inode *nilfs_alloc_inode_common(struct the_nilfs *nilfs)
+struct inode *nilfs_alloc_inode(struct super_block *sb)
 {
 	struct nilfs_inode_info *ii;
 
@@ -157,13 +157,8 @@ struct inode *nilfs_alloc_inode_common(struct the_nilfs *nilfs)
 	ii->i_state = 0;
 	ii->i_cno = 0;
 	ii->vfs_inode.i_version = 1;
-	nilfs_btnode_cache_init(&ii->i_btnode_cache, nilfs->ns_bdi);
+	nilfs_btnode_cache_init(&ii->i_btnode_cache, sb->s_bdi);
 	return &ii->vfs_inode;
-}
-
-struct inode *nilfs_alloc_inode(struct super_block *sb)
-{
-	return nilfs_alloc_inode_common(NILFS_SB(sb)->s_nilfs);
 }
 
 void nilfs_destroy_inode(struct inode *inode)

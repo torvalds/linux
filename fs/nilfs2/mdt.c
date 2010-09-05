@@ -36,7 +36,6 @@
 
 #define NILFS_MDT_MAX_RA_BLOCKS		(16 - 1)
 
-#define INIT_UNUSED_INODE_FIELDS
 
 static int
 nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
@@ -435,93 +434,6 @@ int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 	return 0;
 }
 
-/*
- * NILFS2 uses pseudo inodes for meta data files such as DAT, cpfile, sufile,
- * ifile, or gcinodes.  This allows the B-tree code and segment constructor
- * to treat them like regular files, and this helps to simplify the
- * implementation.
- *   On the other hand, some of the pseudo inodes have an irregular point:
- * They don't have valid inode->i_sb pointer because their lifetimes are
- * longer than those of the super block structs; they may continue for
- * several consecutive mounts/umounts.  This would need discussions.
- */
-/**
- * nilfs_mdt_new_common - allocate a pseudo inode for metadata file
- * @nilfs: nilfs object
- * @sb: super block instance the metadata file belongs to
- * @ino: inode number
- */
-struct inode *
-nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
-		     ino_t ino)
-{
-	struct inode *inode = nilfs_alloc_inode_common(nilfs);
-
-	if (!inode)
-		return NULL;
-	else {
-		struct address_space * const mapping = &inode->i_data;
-
-		inode->i_sb = sb; /* sb may be NULL for some meta data files */
-		inode->i_blkbits = nilfs->ns_blocksize_bits;
-		inode->i_flags = 0;
-		atomic_set(&inode->i_count, 1);
-		inode->i_nlink = 1;
-		inode->i_ino = ino;
-
-#ifdef INIT_UNUSED_INODE_FIELDS
-		atomic_set(&inode->i_writecount, 0);
-		inode->i_size = 0;
-		inode->i_blocks = 0;
-		inode->i_bytes = 0;
-		inode->i_generation = 0;
-#ifdef CONFIG_QUOTA
-		memset(&inode->i_dquot, 0, sizeof(inode->i_dquot));
-#endif
-		inode->i_pipe = NULL;
-		inode->i_bdev = NULL;
-		inode->i_cdev = NULL;
-		inode->i_rdev = 0;
-#ifdef CONFIG_SECURITY
-		inode->i_security = NULL;
-#endif
-		inode->dirtied_when = 0;
-
-		INIT_LIST_HEAD(&inode->i_list);
-		INIT_LIST_HEAD(&inode->i_sb_list);
-		inode->i_state = 0;
-#endif
-
-		spin_lock_init(&inode->i_lock);
-		mutex_init(&inode->i_mutex);
-		init_rwsem(&inode->i_alloc_sem);
-
-		mapping->host = NULL;  /* instead of inode */
-		mapping->flags = 0;
-		mapping->assoc_mapping = NULL;
-
-		inode->i_mapping = mapping;
-	}
-
-	return inode;
-}
-
-struct inode *nilfs_mdt_new(struct the_nilfs *nilfs, struct super_block *sb,
-			    ino_t ino, size_t objsz)
-{
-	struct inode *inode;
-
-	inode = nilfs_mdt_new_common(nilfs, sb, ino);
-	if (!inode)
-		return NULL;
-
-	if (nilfs_mdt_init(inode, NILFS_MDT_GFP, objsz) < 0) {
-		nilfs_destroy_inode(inode);
-		return NULL;
-	}
-	return inode;
-}
-
 void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
 			      unsigned header_size)
 {
@@ -687,27 +599,4 @@ void nilfs_mdt_clear_shadow_map(struct inode *inode)
 	truncate_inode_pages(&shadow->frozen_data, 0);
 	truncate_inode_pages(&shadow->frozen_btnodes, 0);
 	up_write(&mi->mi_sem);
-}
-
-static void nilfs_mdt_clear(struct inode *inode)
-{
-	struct nilfs_inode_info *ii = NILFS_I(inode);
-
-	invalidate_mapping_pages(inode->i_mapping, 0, -1);
-	truncate_inode_pages(inode->i_mapping, 0);
-
-	if (test_bit(NILFS_I_BMAP, &ii->i_state))
-		nilfs_bmap_clear(ii->i_bmap);
-	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
-}
-
-void nilfs_mdt_destroy(struct inode *inode)
-{
-	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
-
-	if (mdi->mi_palloc_cache)
-		nilfs_palloc_destroy_cache(inode);
-	nilfs_mdt_clear(inode);
-
-	nilfs_destroy_inode(inode);
 }
