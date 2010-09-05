@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -157,8 +159,8 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
 		(unsigned)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
-		trace_printk("CAIF: %s():"
-			" sending flow OFF (queue len = %d %d)\n",
+		trace_printk("CAIF: %s(): "
+			"sending flow OFF (queue len = %d %d)\n",
 			__func__,
 			atomic_read(&cf_sk->sk.sk_rmem_alloc),
 			sk_rcvbuf_lowwater(cf_sk));
@@ -172,8 +174,8 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		return err;
 	if (!sk_rmem_schedule(sk, skb->truesize) && rx_flow_is_on(cf_sk)) {
 		set_rx_flow_off(cf_sk);
-		trace_printk("CAIF: %s():"
-			" sending flow OFF due to rmem_schedule\n",
+		trace_printk("CAIF: %s(): "
+			"sending flow OFF due to rmem_schedule\n",
 			__func__);
 		dbfs_atomic_inc(&cnt.num_rx_flow_off);
 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
@@ -275,8 +277,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	default:
-		pr_debug("CAIF: %s(): Unexpected flow command %d\n",
-				__func__, flow);
+		pr_debug("Unexpected flow command %d\n", flow);
 	}
 }
 
@@ -536,8 +537,7 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 
 		/* Slight paranoia, probably not needed. */
 		if (unlikely(loopcnt++ > 1000)) {
-			pr_warning("CAIF: %s(): transmit retries failed,"
-				" error = %d\n", __func__, ret);
+			pr_warn("transmit retries failed, error = %d\n", ret);
 			break;
 		}
 
@@ -902,8 +902,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	cf_sk->maxframe = dev->mtu - (headroom + tailroom);
 	dev_put(dev);
 	if (cf_sk->maxframe < 1) {
-		pr_warning("CAIF: %s(): CAIF Interface MTU too small (%d)\n",
-			__func__, dev->mtu);
+		pr_warn("CAIF Interface MTU too small (%d)\n", dev->mtu);
 		err = -ENODEV;
 		goto out;
 	}

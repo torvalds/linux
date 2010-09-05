@@ -9,6 +9,8 @@
  *  and Sakari Ailus <sakari.ailus@nokia.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -214,7 +216,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 	switch (what) {
 	case NETDEV_REGISTER:
-		pr_info("CAIF: %s():register %s\n", __func__, dev->name);
+		pr_info("register %s\n", dev->name);
 		caifd = caif_device_alloc(dev);
 		if (caifd == NULL)
 			break;
@@ -225,14 +227,13 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		break;
 
 	case NETDEV_UP:
-		pr_info("CAIF: %s(): up %s\n", __func__, dev->name);
+		pr_info("up %s\n", dev->name);
 		caifd = caif_get(dev);
 		if (caifd == NULL)
 			break;
 		caifdev = netdev_priv(dev);
 		if (atomic_read(&caifd->state) == NETDEV_UP) {
-			pr_info("CAIF: %s():%s already up\n",
-				__func__, dev->name);
+			pr_info("%s already up\n", dev->name);
 			break;
 		}
 		atomic_set(&caifd->state, what);
@@ -273,7 +274,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd = caif_get(dev);
 		if (caifd == NULL)
 			break;
-		pr_info("CAIF: %s():going down %s\n", __func__, dev->name);
+		pr_info("going down %s\n", dev->name);
 
 		if (atomic_read(&caifd->state) == NETDEV_GOING_DOWN ||
 			atomic_read(&caifd->state) == NETDEV_DOWN)
@@ -295,11 +296,10 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd = caif_get(dev);
 		if (caifd == NULL)
 			break;
-		pr_info("CAIF: %s(): down %s\n", __func__, dev->name);
+		pr_info("down %s\n", dev->name);
 		if (atomic_read(&caifd->in_use))
-			pr_warning("CAIF: %s(): "
-				   "Unregistering an active CAIF device: %s\n",
-				   __func__, dev->name);
+			pr_warn("Unregistering an active CAIF device: %s\n",
+				dev->name);
 		cfcnfg_del_phy_layer(get_caif_conf(), &caifd->layer);
 		dev_put(dev);
 		atomic_set(&caifd->state, what);
@@ -307,7 +307,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 	case NETDEV_UNREGISTER:
 		caifd = caif_get(dev);
-		pr_info("CAIF: %s(): unregister %s\n", __func__, dev->name);
+		pr_info("unregister %s\n", dev->name);
 		atomic_set(&caifd->state, what);
 		caif_device_destroy(dev);
 		break;
@@ -391,7 +391,7 @@ static int __init caif_device_init(void)
 	int result;
 	cfg = cfcnfg_create();
 	if (!cfg) {
-		pr_warning("CAIF: %s(): can't create cfcnfg.\n", __func__);
+		pr_warn("can't create cfcnfg\n");
 		goto err_cfcnfg_create_failed;
 	}
 	result = register_pernet_device(&caif_net_ops);
