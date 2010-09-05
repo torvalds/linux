@@ -43,7 +43,6 @@ struct dlfb_data {
 	struct delayed_work free_framebuffer_work;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
-	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
 	char *edid; /* null until we read edid from hw or get from sysfs */
 	size_t edid_size;
 	int sku_pixel_limit;

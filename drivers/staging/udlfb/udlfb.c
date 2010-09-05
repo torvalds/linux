@@ -59,19 +59,9 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-#ifndef CONFIG_FB_DEFERRED_IO
-#warning Please set CONFIG_FB_DEFFERRED_IO option to support generic fbdev apps
-#endif
-
-#ifndef CONFIG_FB_SYS_IMAGEBLIT
-#ifndef CONFIG_FB_SYS_IMAGEBLIT_MODULE
-#warning Please set CONFIG_FB_SYS_IMAGEBLIT option to support fb console
-#endif
-#endif
-
-#ifndef CONFIG_FB_MODE_HELPERS
-#warning CONFIG_FB_MODE_HELPERS required. Expect build break
-#endif
+/* module options */
+static int console;   /* Optionally allow fbcon to consume first framebuffer */
+static int fb_defio;  /* Optionally enable experimental fb_defio mmap support */
 
 /* dlfb keeps a list of urbs for efficient bulk transfers */
 static void dlfb_urb_completion(struct urb *urb);
@@ -695,6 +685,68 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 
 }
 
+#ifdef CONFIG_FB_DEFERRED_IO
+/*
+ * NOTE: fb_defio.c is holding info->fbdefio.mutex
+ *   Touching ANY framebuffer memory that triggers a page fault
+ *   in fb_defio will cause a deadlock, when it also tries to
+ *   grab the same mutex.
+ */
+static void dlfb_dpy_deferred_io(struct fb_info *info,
+				struct list_head *pagelist)
+{
+	struct page *cur;
+	struct fb_deferred_io *fbdefio = info->fbdefio;
+	struct dlfb_data *dev = info->par;
+	struct urb *urb;
+	char *cmd;
+	cycles_t start_cycles, end_cycles;
+	int bytes_sent = 0;
+	int bytes_identical = 0;
+	int bytes_rendered = 0;
+
+	if (!fb_defio)
+		return;
+
+	if (!atomic_read(&dev->usb_active))
+		return;
+
+	start_cycles = get_cycles();
+
+	urb = dlfb_get_urb(dev);
+	if (!urb)
+		return;
+
+	cmd = urb->transfer_buffer;
+
+	/* walk the written page list and render each to device */
+	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+
+		dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
+				  &cmd, cur->index << PAGE_SHIFT,
+				  PAGE_SIZE, &bytes_identical, &bytes_sent);
+		bytes_rendered += PAGE_SIZE;
+	}
+
+	if (cmd > (char *) urb->transfer_buffer) {
+		/* Send partial buffer remaining before exiting */
+		int len = cmd - (char *) urb->transfer_buffer;
+		dlfb_submit_urb(dev, urb, len);
+		bytes_sent += len;
+	} else
+		dlfb_urb_completion(urb);
+
+	atomic_add(bytes_sent, &dev->bytes_sent);
+	atomic_add(bytes_identical, &dev->bytes_identical);
+	atomic_add(bytes_rendered, &dev->bytes_rendered);
+	end_cycles = get_cycles();
+	atomic_add(((unsigned int) ((end_cycles - start_cycles)
+		    >> 10)), /* Kcycles */
+		   &dev->cpu_kcycles_used);
+}
+
+#endif
+
 static int dlfb_get_edid(struct dlfb_data *dev, char *edid, int len)
 {
 	int i;
@@ -758,8 +810,6 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		if (area->y > info->var.yres)
 			area->y = info->var.yres;
 
-		atomic_set(&dev->use_defio, 0);
-
 		dlfb_handle_damage(dev, area->x, area->y, area->w, area->h,
 			   info->screen_base);
 	}
@@ -803,9 +853,13 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 {
 	struct dlfb_data *dev = info->par;
 
-/*	if (user == 0)
- *		We could special case kernel mode clients (fbcon) here
- */
+	/*
+	 * fbcon aggressively connects to first framebuffer it finds,
+	 * preventing other clients (X) from working properly. Usually
+	 * not what the user wants. Fail by default with option to enable.
+	 */
+	if ((user == 0) & (!console))
+		return -EBUSY;
 
 	/* If the USB device is gone, we don't accept new opens */
 	if (dev->virtualized)
@@ -816,7 +870,7 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	kref_get(&dev->kref);
 
 #ifdef CONFIG_FB_DEFERRED_IO
-	if ((atomic_read(&dev->use_defio)) && (info->fbdefio == NULL)) {
+	if (fb_defio && (info->fbdefio == NULL)) {
 		/* enable defio */
 		info->fbdefio = &dlfb_defio;
 		fb_deferred_io_init(info);
@@ -1345,30 +1399,6 @@ static ssize_t metrics_reset_store(struct device *fbdev,
 	return count;
 }
 
-static ssize_t use_defio_show(struct device *fbdev,
-				   struct device_attribute *a, char *buf) {
-	struct fb_info *fb_info = dev_get_drvdata(fbdev);
-	struct dlfb_data *dev = fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			atomic_read(&dev->use_defio));
-}
-
-static ssize_t use_defio_store(struct device *fbdev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(fbdev);
-	struct dlfb_data *dev = fb_info->par;
-
-	if (count > 0) {
-		if (buf[0] == '0')
-			atomic_set(&dev->use_defio, 0);
-		if (buf[0] == '1')
-			atomic_set(&dev->use_defio, 1);
-	}
-	return count;
-}
-
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0666,
@@ -1383,60 +1413,9 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR_RO(metrics_bytes_sent),
 	__ATTR_RO(metrics_cpu_kcycles_used),
 	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
-	__ATTR_RW(use_defio),
 };
 
 #ifdef CONFIG_FB_DEFERRED_IO
-static void dlfb_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
-{
-	struct page *cur;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
-	struct dlfb_data *dev = info->par;
-	struct urb *urb;
-	char *cmd;
-	cycles_t start_cycles, end_cycles;
-	int bytes_sent = 0;
-	int bytes_identical = 0;
-	int bytes_rendered = 0;
-
-	if (!atomic_read(&dev->use_defio))
-		return;
-
-	if (!atomic_read(&dev->usb_active))
-		return;
-
-	start_cycles = get_cycles();
-
-	urb = dlfb_get_urb(dev);
-	if (!urb)
-		return;
-	cmd = urb->transfer_buffer;
-
-	/* walk the written page list and render each to device */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-		dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent);
-		bytes_rendered += PAGE_SIZE;
-	}
-
-	if (cmd > (char *) urb->transfer_buffer) {
-		/* Send partial buffer remaining before exiting */
-		int len = cmd - (char *) urb->transfer_buffer;
-		dlfb_submit_urb(dev, urb, len);
-		bytes_sent += len;
-	} else
-		dlfb_urb_completion(urb);
-
-	atomic_add(bytes_sent, &dev->bytes_sent);
-	atomic_add(bytes_identical, &dev->bytes_identical);
-	atomic_add(bytes_rendered, &dev->bytes_rendered);
-	end_cycles = get_cycles();
-	atomic_add(((unsigned int) ((end_cycles - start_cycles)
-		    >> 10)), /* Kcycles */
-		   &dev->cpu_kcycles_used);
-}
 
 static struct fb_deferred_io dlfb_defio = {
 	.delay          = 5,
@@ -1563,6 +1542,8 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	dl_info("vid_%04x&pid_%04x&rev_%04x driver's dlfb_data struct at %p\n",
 		usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
 		usbdev->descriptor.bcdDevice, dev);
+	dl_info("console enable=%d\n", console);
+	dl_info("fb_defio enable=%d\n", fb_defio);
 
 	dev->sku_pixel_limit = 2048 * 1152; /* default to maximum */
 
@@ -1611,9 +1592,6 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 
 	/* ready to begin using device */
 
-#ifdef CONFIG_FB_DEFERRED_IO
-	atomic_set(&dev->use_defio, 1);
-#endif
 	atomic_set(&dev->usb_active, 1);
 	dlfb_select_std_channel(dev);
 
@@ -1892,6 +1870,12 @@ static int dlfb_submit_urb(struct dlfb_data *dev, struct urb *urb, size_t len)
 	}
 	return ret;
 }
+
+module_param(console, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(console, "Allow fbcon to consume first framebuffer found");
+
+module_param(fb_defio, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(fb_defio, "Enable fb_defio mmap support. *Experimental*");
 
 MODULE_AUTHOR("Roberto De Ioris <roberto@unbit.it>, "
 	      "Jaya Kumar <jayakumar.lkml@gmail.com>, "
