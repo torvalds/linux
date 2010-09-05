@@ -414,15 +414,14 @@ static void dlfb_compress_hline(
 		uint8_t *cmd_pixels_count_byte = 0;
 		const uint16_t *raw_pixel_start = 0;
 		const uint16_t *cmd_pixel_start, *cmd_pixel_end = 0;
-		const uint32_t be_dev_addr = cpu_to_be32(dev_addr);
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 
 		*cmd++ = 0xAF;
 		*cmd++ = 0x6B;
-		*cmd++ = (uint8_t) ((be_dev_addr >> 8) & 0xFF);
-		*cmd++ = (uint8_t) ((be_dev_addr >> 16) & 0xFF);
-		*cmd++ = (uint8_t) ((be_dev_addr >> 24) & 0xFF);
+		*cmd++ = (uint8_t) ((dev_addr >> 16) & 0xFF);
+		*cmd++ = (uint8_t) ((dev_addr >> 8) & 0xFF);
+		*cmd++ = (uint8_t) ((dev_addr) & 0xFF);
 
 		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
 		cmd_pixel_start = pixel;
