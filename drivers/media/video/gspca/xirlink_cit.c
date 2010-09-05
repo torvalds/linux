@@ -51,11 +51,12 @@ MODULE_PARM_DESC(rca_input,
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 	u8 model;
-#define CIT_MODEL1 0 /* The model 1 - 4 nomenclature comes from the old */
-#define CIT_MODEL2 1 /* ibmcam driver */
-#define CIT_MODEL3 2
-#define CIT_MODEL4 3
-#define CIT_IBM_NETCAM_PRO 4
+#define CIT_MODEL0 0 /* bcd version 0.01 cams ie the xvp-500 */
+#define CIT_MODEL1 1 /* The model 1 - 4 nomenclature comes from the old */
+#define CIT_MODEL2 2 /* ibmcam driver */
+#define CIT_MODEL3 3
+#define CIT_MODEL4 4
+#define CIT_IBM_NETCAM_PRO 5
 	u8 input_index;
 	u8 stop_on_control_change;
 	u8 sof_read;
@@ -65,6 +66,7 @@ struct sd {
 	u8 hue;
 	u8 sharpness;
 	u8 lighting;
+	u8 hflip;
 };
 
 /* V4L2 controls supported by the driver */
@@ -78,6 +80,8 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setlighting(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getlighting(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
 static void sd_stop0(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[] = {
@@ -161,12 +165,27 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setlighting,
 	    .get = sd_getlighting,
 	},
+#define SD_HFLIP 5
+	{
+	    {
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Mirror",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define HFLIP_DEFAULT 0
+		.default_value = HFLIP_DEFAULT,
+	    },
+	    .set = sd_sethflip,
+	    .get = sd_gethflip,
+	},
 };
 
 static const struct v4l2_pix_format cif_yuv_mode[] = {
 	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 160 * 144 * 3 / 2,
+		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{352, 288, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 352,
@@ -186,6 +205,21 @@ static const struct v4l2_pix_format vga_yuv_mode[] = {
 	{640, 480, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+};
+
+static const struct v4l2_pix_format model0_mode[] = {
+	{160, 120, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{320, 240, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
@@ -957,29 +991,43 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	switch (sd->model) {
+	case CIT_MODEL0:
+		cam->cam_mode = model0_mode;
+		cam->nmodes = ARRAY_SIZE(model0_mode);
+		cam->reverse_alts = 1;
+		gspca_dev->ctrl_dis = ~((1 << SD_CONTRAST) | (1 << SD_HFLIP));
+		sd->sof_len = 4;
+		break;
 	case CIT_MODEL1:
 		cam->cam_mode = cif_yuv_mode;
 		cam->nmodes = ARRAY_SIZE(cif_yuv_mode);
-		gspca_dev->ctrl_dis = (1 << SD_HUE);
+		cam->reverse_alts = 1;
+		gspca_dev->ctrl_dis = (1 << SD_HUE) | (1 << SD_HFLIP);
+		sd->sof_len = 4;
 		break;
 	case CIT_MODEL2:
 		cam->cam_mode = model2_mode + 1; /* no 160x120 */
 		cam->nmodes = 3;
 		gspca_dev->ctrl_dis = (1 << SD_CONTRAST) |
-				      (1 << SD_SHARPNESS);
+				      (1 << SD_SHARPNESS) |
+				      (1 << SD_HFLIP);
 		break;
 	case CIT_MODEL3:
 		cam->cam_mode = vga_yuv_mode;
 		cam->nmodes = ARRAY_SIZE(vga_yuv_mode);
-		gspca_dev->ctrl_dis = (1 << SD_HUE) | (1 << SD_LIGHTING);
+		gspca_dev->ctrl_dis = (1 << SD_HUE) |
+				      (1 << SD_LIGHTING) |
+				      (1 << SD_HFLIP);
 		sd->stop_on_control_change = 1;
+		sd->sof_len = 4;
 		break;
 	case CIT_MODEL4:
 		cam->cam_mode = model2_mode;
 		cam->nmodes = ARRAY_SIZE(model2_mode);
 		gspca_dev->ctrl_dis = (1 << SD_CONTRAST) |
 				      (1 << SD_SHARPNESS) |
-				      (1 << SD_LIGHTING);
+				      (1 << SD_LIGHTING) |
+				      (1 << SD_HFLIP);
 		break;
 	case CIT_IBM_NETCAM_PRO:
 		cam->cam_mode = vga_yuv_mode;
@@ -987,6 +1035,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->input_flags = V4L2_IN_ST_VFLIP;
 		gspca_dev->ctrl_dis = ~(1 << SD_CONTRAST);
 		sd->stop_on_control_change = 1;
+		sd->sof_len = 4;
 		break;
 	}
 
@@ -995,6 +1044,31 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->hue = HUE_DEFAULT;
 	sd->sharpness = SHARPNESS_DEFAULT;
 	sd->lighting = LIGHTING_DEFAULT;
+	sd->hflip = HFLIP_DEFAULT;
+
+	return 0;
+}
+
+static int cit_init_model0(struct gspca_dev *gspca_dev)
+{
+	cit_write_reg(gspca_dev, 0x0000, 0x0100); /* turn on led */
+	cit_write_reg(gspca_dev, 0x0001, 0x0112); /* turn on autogain ? */
+	cit_write_reg(gspca_dev, 0x0000, 0x0400);
+	cit_write_reg(gspca_dev, 0x0001, 0x0400);
+	cit_write_reg(gspca_dev, 0x0000, 0x0420);
+	cit_write_reg(gspca_dev, 0x0001, 0x0420);
+	cit_write_reg(gspca_dev, 0x000d, 0x0409);
+	cit_write_reg(gspca_dev, 0x0002, 0x040a);
+	cit_write_reg(gspca_dev, 0x0018, 0x0405);
+	cit_write_reg(gspca_dev, 0x0008, 0x0435);
+	cit_write_reg(gspca_dev, 0x0026, 0x040b);
+	cit_write_reg(gspca_dev, 0x0007, 0x0437);
+	cit_write_reg(gspca_dev, 0x0015, 0x042f);
+	cit_write_reg(gspca_dev, 0x002b, 0x0439);
+	cit_write_reg(gspca_dev, 0x0026, 0x043a);
+	cit_write_reg(gspca_dev, 0x0008, 0x0438);
+	cit_write_reg(gspca_dev, 0x001e, 0x042b);
+	cit_write_reg(gspca_dev, 0x0041, 0x042c);
 
 	return 0;
 }
@@ -1197,6 +1271,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
+		cit_init_model0(gspca_dev);
+		sd_stop0(gspca_dev);
+		break;
 	case CIT_MODEL1:
 	case CIT_MODEL2:
 	case CIT_MODEL3:
@@ -1216,6 +1294,10 @@ static int cit_set_brightness(struct gspca_dev *gspca_dev)
 	int i;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
+	case CIT_IBM_NETCAM_PRO:
+		/* No (known) brightness control for these */
+		break;
 	case CIT_MODEL1:
 		/* Model 1: Brightness range 0 - 63 */
 		cit_Packet_Format1(gspca_dev, 0x0031, sd->brightness);
@@ -1241,9 +1323,6 @@ static int cit_set_brightness(struct gspca_dev *gspca_dev)
 		i = 0x04 + sd->brightness * 2794 / 1000;
 		cit_model4_BrightnessPacket(gspca_dev, i);
 		break;
-	case CIT_IBM_NETCAM_PRO:
-		/* No (known) brightness control for ibm netcam pro */
-		break;
 	}
 
 	return 0;
@@ -1254,6 +1333,26 @@ static int cit_set_contrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL0: {
+		int i;
+		/* gain 0-15, 0-20 -> 0-15 */
+		i = sd->contrast * 1000 / 1333;
+		cit_write_reg(gspca_dev, i, 0x0422);
+		/* gain 0-31, may not be lower then 0x0422, 0-20 -> 0-31 */
+		i = sd->contrast * 2000 / 1333;
+		cit_write_reg(gspca_dev, i, 0x0423);
+		/* gain 0-127, may not be lower then 0x0423, 0-20 -> 0-63  */
+		i = sd->contrast * 4000 / 1333;
+		cit_write_reg(gspca_dev, i, 0x0424);
+		/* gain 0-127, may not be lower then 0x0424, , 0-20 -> 0-127 */
+		i = sd->contrast * 8000 / 1333;
+		cit_write_reg(gspca_dev, i, 0x0425);
+		break;
+	}
+	case CIT_MODEL2:
+	case CIT_MODEL4:
+		/* These models do not have this control. */
+		break;
 	case CIT_MODEL1:
 	{
 		/* Scale 0 - 20 to 15 - 0 */
@@ -1264,10 +1363,6 @@ static int cit_set_contrast(struct gspca_dev *gspca_dev)
 		}
 		break;
 	}
-	case CIT_MODEL2:
-	case CIT_MODEL4:
-		/* Models 2, 4 do not have this control. */
-		break;
 	case CIT_MODEL3:
 	{	/* Preset hardware values */
 		static const struct {
@@ -1301,8 +1396,10 @@ static int cit_set_hue(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
 	case CIT_MODEL1:
-		/* No hue control for model1 */
+	case CIT_IBM_NETCAM_PRO:
+		/* No hue control for these models */
 		break;
 	case CIT_MODEL2:
 		cit_model2_Packet1(gspca_dev, 0x0024, sd->hue);
@@ -1342,9 +1439,6 @@ static int cit_set_hue(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, sd->hue, 0x012d); /* Hue */
 		cit_write_reg(gspca_dev, 0xf545, 0x0124);
 		break;
-	case CIT_IBM_NETCAM_PRO:
-		/* No hue control for ibm netcam pro */
-		break;
 	}
 	return 0;
 }
@@ -1354,6 +1448,12 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
+	case CIT_MODEL2:
+	case CIT_MODEL4:
+	case CIT_IBM_NETCAM_PRO:
+		/* These models do not have this control */
+		break;
 	case CIT_MODEL1: {
 		int i;
 		const unsigned short sa[] = {
@@ -1363,10 +1463,6 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev)
 			cit_PacketFormat2(gspca_dev, 0x0013, sa[sd->sharpness]);
 		break;
 	}
-	case CIT_MODEL2:
-	case CIT_MODEL4:
-		/* Models 2, 4 do not have this control */
-		break;
 	case CIT_MODEL3:
 	{	/*
 		 * "Use a table of magic numbers.
@@ -1393,9 +1489,6 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev)
 		cit_model3_Packet1(gspca_dev, 0x0063, sv[sd->sharpness].sv4);
 		break;
 	}
-	case CIT_IBM_NETCAM_PRO:
-		/* No sharpness setting on ibm netcamera pro */
-		break;
 	}
 	return 0;
 }
@@ -1423,12 +1516,33 @@ static void cit_set_lighting(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
+	case CIT_MODEL2:
+	case CIT_MODEL3:
+	case CIT_MODEL4:
+	case CIT_IBM_NETCAM_PRO:
+		break;
 	case CIT_MODEL1: {
 		int i;
 		for (i = 0; i < cit_model1_ntries; i++)
 			cit_Packet_Format1(gspca_dev, 0x0027, sd->lighting);
 		break;
 	}
+	}
+}
+
+static void cit_set_hflip(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->model) {
+	case CIT_MODEL0:
+		if (sd->hflip)
+			cit_write_reg(gspca_dev, 0x0020, 0x0115);
+		else
+			cit_write_reg(gspca_dev, 0x0040, 0x0115);
+		break;
+	case CIT_MODEL1:
 	case CIT_MODEL2:
 	case CIT_MODEL3:
 	case CIT_MODEL4:
@@ -1442,6 +1556,7 @@ static int cit_restart_stream(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
 	case CIT_MODEL1:
 	case CIT_MODEL3:
 	case CIT_IBM_NETCAM_PRO:
@@ -1459,6 +1574,84 @@ static int cit_restart_stream(struct gspca_dev *gspca_dev)
 	}
 
 	sd->sof_read = 0;
+
+	return 0;
+}
+
+static int cit_get_packet_size(struct gspca_dev *gspca_dev)
+{
+	struct usb_host_interface *alt;
+	struct usb_interface *intf;
+
+	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
+	alt = usb_altnum_to_altsetting(intf, gspca_dev->alt);
+	if (!alt) {
+		PDEBUG(D_ERR, "Couldn't get altsetting");
+		return -EIO;
+	}
+
+	return le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+}
+
+static int cit_start_model0(struct gspca_dev *gspca_dev)
+{
+	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
+	int clock_div = 7; /* 0=30 1=25 2=20 3=15 4=12 5=7.5 6=6 7=3fps ?? */
+	int fps[8] = { 30, 25, 20, 15, 12, 8, 6, 3 };
+	int packet_size;
+
+	packet_size = cit_get_packet_size(gspca_dev);
+	if (packet_size < 0)
+		return packet_size;
+
+	while (clock_div > 3 &&
+			1000 * packet_size >
+			gspca_dev->width * gspca_dev->height *
+			fps[clock_div - 1] * 3 / 2)
+		clock_div--;
+
+	cit_write_reg(gspca_dev, 0x0000, 0x0100); /* turn on led */
+	cit_write_reg(gspca_dev, 0x0003, 0x0438);
+	cit_write_reg(gspca_dev, 0x001e, 0x042b);
+	cit_write_reg(gspca_dev, 0x0041, 0x042c);
+	cit_write_reg(gspca_dev, 0x0008, 0x0436);
+	cit_write_reg(gspca_dev, 0x0024, 0x0403);
+	cit_write_reg(gspca_dev, 0x002c, 0x0404);
+	cit_write_reg(gspca_dev, 0x0002, 0x0426);
+	cit_write_reg(gspca_dev, 0x0014, 0x0427);
+
+	switch (gspca_dev->width) {
+	case 160: /* 160x120 */
+		cit_write_reg(gspca_dev, 0x0004, 0x010b);
+		cit_write_reg(gspca_dev, 0x0001, 0x010a);
+		cit_write_reg(gspca_dev, 0x0010, 0x0102);
+		cit_write_reg(gspca_dev, 0x00a0, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x0078, 0x0105);
+		break;
+
+	case 176: /* 176x144 */
+		cit_write_reg(gspca_dev, 0x0006, 0x010b);
+		cit_write_reg(gspca_dev, 0x0000, 0x010a);
+		cit_write_reg(gspca_dev, 0x0005, 0x0102);
+		cit_write_reg(gspca_dev, 0x00b0, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x0090, 0x0105);
+		break;
+
+	case 320: /* 320x240 */
+		cit_write_reg(gspca_dev, 0x0008, 0x010b);
+		cit_write_reg(gspca_dev, 0x0004, 0x010a);
+		cit_write_reg(gspca_dev, 0x0005, 0x0102);
+		cit_write_reg(gspca_dev, 0x00a0, 0x0103);
+		cit_write_reg(gspca_dev, 0x0010, 0x0104);
+		cit_write_reg(gspca_dev, 0x0078, 0x0105);
+		break;
+	}
+
+	cit_write_reg(gspca_dev, compression, 0x0109);
+	cit_write_reg(gspca_dev, clock_div, 0x0111);
+	PDEBUG(D_PROBE, "Using clockdiv: %d", clock_div);
 
 	return 0;
 }
@@ -1660,8 +1853,6 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
 	cit_write_reg(gspca_dev, clock_div, 0x0111);
 
-	sd->sof_len = 4;
-
 	return 0;
 }
 
@@ -1858,7 +2049,6 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 
 static int cit_start_model3(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
 	int i, clock_div = 0;
 
@@ -2090,8 +2280,6 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 					      rca_initdata[i][2]);
 		}
 	}
-
-	sd->sof_len = 4;
 
 	return 0;
 }
@@ -2423,7 +2611,6 @@ static int cit_start_model4(struct gspca_dev *gspca_dev)
 
 static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
 	int i, clock_div = 0;
 
@@ -2454,7 +2641,7 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 	cit_write_reg(gspca_dev, 0x0022, 0x012a); /* Same */
 
 	switch (gspca_dev->width) {
-	case 160:
+	case 160: /* 160x120 */
 		cit_write_reg(gspca_dev, 0x0024, 0x010b);
 		cit_write_reg(gspca_dev, 0x0089, 0x0119);
 		cit_write_reg(gspca_dev, 0x000a, 0x011b);
@@ -2466,7 +2653,7 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x0000, 0x0132);
 		clock_div = 3;
 		break;
-	case 320:
+	case 320: /* 320x240 */
 		cit_write_reg(gspca_dev, 0x0028, 0x010b);
 		cit_write_reg(gspca_dev, 0x00d9, 0x0119);
 		cit_write_reg(gspca_dev, 0x0006, 0x011b);
@@ -2511,8 +2698,6 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 		}
 	}
 
-	sd->sof_len = 4;
-
 	return 0;
 }
 
@@ -2520,11 +2705,16 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_host_interface *alt;
-	struct usb_interface *intf;
 	int packet_size;
 
+	packet_size = cit_get_packet_size(gspca_dev);
+	if (packet_size < 0)
+		return packet_size;
+
 	switch (sd->model) {
+	case CIT_MODEL0:
+		cit_start_model0(gspca_dev);
+		break;
 	case CIT_MODEL1:
 		cit_start_model1(gspca_dev);
 		break;
@@ -2547,18 +2737,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	cit_set_hue(gspca_dev);
 	cit_set_sharpness(gspca_dev);
 	cit_set_lighting(gspca_dev);
+	cit_set_hflip(gspca_dev);
 
-	/* Program max isoc packet size, one day we should use this to
-	   allow us to work together with other isoc devices on the same
-	   root hub. */
-	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
-	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
-	if (!alt) {
-		PDEBUG(D_ERR, "Couldn't get altsetting");
-		return -EIO;
-	}
-
-	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	/* Program max isoc packet size */
 	cit_write_reg(gspca_dev, packet_size >> 8, 0x0106);
 	cit_write_reg(gspca_dev, packet_size & 0xff, 0x0107);
 
@@ -2582,6 +2763,13 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		return;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
+		/* HDG windows does this, but it causes the cams autogain to
+		   restart from a gain of 0, which does not look good when
+		   changing resolutions. */
+		/* cit_write_reg(gspca_dev, 0x0000, 0x0112); */
+		cit_write_reg(gspca_dev, 0x00c0, 0x0100); /* LED Off */
+		break;
 	case CIT_MODEL1:
 		cit_send_FF_04_02(gspca_dev);
 		cit_read_reg(gspca_dev, 0x0100);
@@ -2635,21 +2823,47 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 byte3;
+	u8 byte3 = 0, byte4 = 0;
 	int i;
 
 	switch (sd->model) {
+	case CIT_MODEL0:
 	case CIT_MODEL1:
 	case CIT_MODEL3:
 	case CIT_IBM_NETCAM_PRO:
-		if (sd->model == CIT_MODEL1)
-			byte3 = 0x00;
-		else if (gspca_dev->width == 640)
-			byte3 = 0x03;
-		else
+		switch (gspca_dev->width) {
+		case 160: /* 160x120 */
 			byte3 = 0x02;
+			byte4 = 0x0a;
+			break;
+		case 176: /* 176x144 */
+			byte3 = 0x02;
+			byte4 = 0x0e;
+			break;
+		case 320: /* 320x240 */
+			byte3 = 0x02;
+			byte4 = 0x08;
+			break;
+		case 352: /* 352x288 */
+			byte3 = 0x02;
+			byte4 = 0x00;
+			break;
+		case 640:
+			byte3 = 0x03;
+			byte4 = 0x08;
+			break;
+		}
+
+		/* These have a different byte3 */
+		if (sd->model <= CIT_MODEL1)
+			byte3 = 0x00;
 
 		for (i = 0; i < len; i++) {
+			/* For this model the SOF always starts at offset 0
+			   so no need to search the entire frame */
+			if (sd->model == CIT_MODEL0 && sd->sof_read != i)
+				break;
+
 			switch (sd->sof_read) {
 			case 0:
 				if (data[i] == 0x00)
@@ -2658,22 +2872,30 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 			case 1:
 				if (data[i] == 0xff)
 					sd->sof_read++;
+				else if (data[i] == 0x00)
+					sd->sof_read = 1;
 				else
 					sd->sof_read = 0;
 				break;
 			case 2:
-				sd->sof_read = 0;
-				if (data[i] == byte3) {
-					if (i >= 4)
-						PDEBUG(D_FRAM,
-						       "header found at offset: %d: %02x %02x 00 ff %02x %02x\n",
-						       i - 2,
-						       data[i - 4],
-						       data[i - 3],
-						       data[i],
-						       data[i + 1]);
-					return data + i + (sd->sof_len - 2);
+				if (data[i] == byte3)
+					sd->sof_read++;
+				else if (data[i] == 0x00)
+					sd->sof_read = 1;
+				else
+					sd->sof_read = 0;
+				break;
+			case 3:
+				if (data[i] == byte4) {
+					sd->sof_read = 0;
+					return data + i + (sd->sof_len - 3);
 				}
+				if (byte3 == 0x00 && data[i] == 0xff)
+					sd->sof_read = 2;
+				else if (data[i] == 0x00)
+					sd->sof_read = 1;
+				else
+					sd->sof_read = 0;
 				break;
 			}
 		}
@@ -2693,13 +2915,21 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 				if (data[i] == 0xff) {
 					if (i >= 4)
 						PDEBUG(D_FRAM,
-						       "header found at offset: %d: %02x %02x 00 ff %02x %02x\n",
-						       i - 2,
+						       "header found at offset: %d: %02x %02x 00 %02x %02x %02x\n",
+						       i - 1,
 						       data[i - 4],
 						       data[i - 3],
 						       data[i],
-						       data[i + 1]);
-					return data + i + (sd->sof_len - 2);
+						       data[i + 1],
+						       data[i + 2]);
+					else
+						PDEBUG(D_FRAM,
+						       "header found at offset: %d: 00 %02x %02x %02x\n",
+						       i - 1,
+						       data[i],
+						       data[i + 1],
+						       data[i + 2]);
+					return data + i + (sd->sof_len - 1);
 				}
 				break;
 			}
@@ -2857,6 +3087,30 @@ static int sd_getlighting(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->hflip = val;
+	if (gspca_dev->streaming) {
+		if (sd->stop_on_control_change)
+			sd_stopN(gspca_dev);
+		cit_set_hflip(gspca_dev);
+		if (sd->stop_on_control_change)
+			cit_restart_stream(gspca_dev);
+	}
+	return 0;
+}
+
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->hflip;
+
+	return 0;
+}
+
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
@@ -2873,6 +3127,7 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
+	{ USB_DEVICE_VER(0x0545, 0x8080, 0x0001, 0x0001), .driver_info = CIT_MODEL0 },
 	{ USB_DEVICE_VER(0x0545, 0x8080, 0x0002, 0x0002), .driver_info = CIT_MODEL1 },
 	{ USB_DEVICE_VER(0x0545, 0x8080, 0x030a, 0x030a), .driver_info = CIT_MODEL2 },
 	{ USB_DEVICE_VER(0x0545, 0x8080, 0x0301, 0x0301), .driver_info = CIT_MODEL3 },
@@ -2887,6 +3142,21 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
+	switch (id->driver_info) {
+	case CIT_MODEL0:
+	case CIT_MODEL1:
+		if (intf->cur_altsetting->desc.bInterfaceNumber != 2)
+			return -ENODEV;
+		break;
+	case CIT_MODEL2:
+	case CIT_MODEL3:
+	case CIT_MODEL4:
+	case CIT_IBM_NETCAM_PRO:
+		if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
+			return -ENODEV;
+		break;
+	}
+
 	return gspca_dev_probe2(intf, id, &sd_desc, sizeof(struct sd),
 				THIS_MODULE);
 }
