@@ -941,6 +941,22 @@ static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
 }
 
+
+void wacom_setup_device_quirks(struct wacom_features *features)
+{
+
+	/* touch device found but size is not defined. use default */
+	if (features->device_type == BTN_TOOL_DOUBLETAP && !features->x_max) {
+		features->x_max = 1023;
+		features->y_max = 1023;
+	}
+
+	/* these device have multiple inputs */
+	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
+	    features->type == BAMBOO_PT)
+		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
+}
+
 void wacom_setup_input_capabilities(struct input_dev *input_dev,
 				    struct wacom_wac *wacom_wac)
 {

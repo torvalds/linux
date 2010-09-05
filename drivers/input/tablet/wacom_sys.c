@@ -381,12 +381,6 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	if (error)
 		goto out;
 
-	/* touch device found but size is not defined. use default */
-	if (features->device_type == BTN_TOOL_DOUBLETAP && !features->x_max) {
-		features->x_max = 1023;
-		features->y_max = 1023;
-	}
-
  out:
 	return error;
 }
@@ -522,10 +516,11 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail2;
 
+	wacom_setup_device_quirks(features);
+
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
-	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-	    features->type == BAMBOO_PT) {
+	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
 		/* Append the device type to the name */
 		strlcat(wacom_wac->name,
 			features->device_type == BTN_TOOL_PEN ?

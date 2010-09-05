@@ -38,6 +38,9 @@
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
 
+/* device quirks */
+#define WACOM_QUIRK_MULTI_INPUT		0x0001
+
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -79,6 +82,7 @@ struct wacom_features {
 	int y_fuzz;
 	int pressure_fuzz;
 	int distance_fuzz;
+	unsigned quirks;
 };
 
 struct wacom_shared {
