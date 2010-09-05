@@ -147,6 +147,33 @@ static void iwlagn_set_tx_status(struct iwl_priv *priv,
 			   tx_resp->failure_frame);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUG
+#define AGG_TX_STATE_FAIL(x) case AGG_TX_STATE_ ## x: return #x
+
+const char *iwl_get_agg_tx_fail_reason(u16 status)
+{
+	status &= AGG_TX_STATUS_MSK;
+	switch (status) {
+	case AGG_TX_STATE_TRANSMITTED:
+		return "SUCCESS";
+		AGG_TX_STATE_FAIL(UNDERRUN_MSK);
+		AGG_TX_STATE_FAIL(BT_PRIO_MSK);
+		AGG_TX_STATE_FAIL(FEW_BYTES_MSK);
+		AGG_TX_STATE_FAIL(ABORT_MSK);
+		AGG_TX_STATE_FAIL(LAST_SENT_TTL_MSK);
+		AGG_TX_STATE_FAIL(LAST_SENT_TRY_CNT_MSK);
+		AGG_TX_STATE_FAIL(LAST_SENT_BT_KILL_MSK);
+		AGG_TX_STATE_FAIL(SCD_QUERY_MSK);
+		AGG_TX_STATE_FAIL(TEST_BAD_CRC32_MSK);
+		AGG_TX_STATE_FAIL(RESPONSE_MSK);
+		AGG_TX_STATE_FAIL(DUMP_TX_MSK);
+		AGG_TX_STATE_FAIL(DELAY_TX_MSK);
+	}
+
+	return "UNKNOWN";
+}
+#endif /* CONFIG_IWLWIFI_DEBUG */
+
 static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 				      struct iwl_ht_agg *agg,
 				      struct iwl5000_tx_resp *tx_resp,
@@ -203,6 +230,11 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 
 			IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
+			IWL_DEBUG_TX_REPLY(priv, "status %s (0x%08x), "
+					   "try-count (0x%08x)\n",
+					   iwl_get_agg_tx_fail_reason(status),
+					   status & AGG_TX_STATUS_MSK,
+					   status & AGG_TX_TRY_MSK);
 
 			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
 			if (!hdr) {
