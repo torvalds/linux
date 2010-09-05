@@ -591,6 +591,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				 * - not an IP fragment */
 				if (dev->features & NETIF_F_GRO) {
 					struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
+					if (!gro_skb)
+						goto next;
 
 					nr = mlx4_en_complete_rx_desc(
 						priv, rx_desc,
