@@ -30,10 +30,13 @@ config USB_IBMCAM
 	  <file:Documentation/video4linux/ibmcam.txt> to learn more.
 
 config USB_KONICAWC
-	tristate "USB Konica Webcam support"
+	tristate "USB Konica Webcam support (DEPRECATED)"
 	depends on VIDEO_V4L1
 	select VIDEO_USBVIDEO
 	---help---
+	  This driver is DEPRECATED (and known to crash) please use the
+	  gspca konica module instead.
+
 	  Say Y here if you want support for webcams based on a Konica
 	  chipset. This is known to work with the Intel YC76 webcam.
 
