@@ -108,13 +108,16 @@ static char *dlfb_vidreg_unlock(char *buf)
 
 /*
  * On/Off for driving the DisplayLink framebuffer to the display
+ *  0x00 H and V sync on
+ *  0x01 H and V sync off (screen blank but powered)
+ *  0x07 DPMS powerdown (requires modeset to come back)
  */
 static char *dlfb_enable_hvsync(char *buf, bool enable)
 {
 	if (enable)
 		return dlfb_set_register(buf, 0x1F, 0x00);
 	else
-		return dlfb_set_register(buf, 0x1F, 0x01);
+		return dlfb_set_register(buf, 0x1F, 0x07);
 }
 
 static char *dlfb_set_color_depth(char *buf, u8 selection)
@@ -936,30 +939,31 @@ static int dlfb_ops_set_par(struct fb_info *info)
 	return dlfb_set_video_mode(dev, &info->var);
 }
 
+/*
+ * In order to come back from full DPMS off, we need to set the mode again
+ */
 static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev = info->par;
-	char *bufptr;
-	struct urb *urb;
 
-	urb = dlfb_get_urb(dev);
-	if (!urb)
-		return 0;
-	bufptr = (char *) urb->transfer_buffer;
-
-	/* overloading usb_active.  UNBLANK can conflict with teardown */
-
-	bufptr = dlfb_vidreg_lock(bufptr);
 	if (blank_mode != FB_BLANK_UNBLANK) {
-		atomic_set(&dev->usb_active, 0);
-		bufptr = dlfb_enable_hvsync(bufptr, false);
-	} else {
-		atomic_set(&dev->usb_active, 1);
-		bufptr = dlfb_enable_hvsync(bufptr, true);
-	}
-	bufptr = dlfb_vidreg_unlock(bufptr);
+		char *bufptr;
+		struct urb *urb;
 
-	dlfb_submit_urb(dev, urb, bufptr - (char *) urb->transfer_buffer);
+		urb = dlfb_get_urb(dev);
+		if (!urb)
+			return 0;
+
+		bufptr = (char *) urb->transfer_buffer;
+		bufptr = dlfb_vidreg_lock(bufptr);
+		bufptr = dlfb_enable_hvsync(bufptr, false);
+		bufptr = dlfb_vidreg_unlock(bufptr);
+
+		dlfb_submit_urb(dev, urb, bufptr -
+				(char *) urb->transfer_buffer);
+	} else {
+		dlfb_set_video_mode(dev, &info->var);
+	}
 
 	return 0;
 }
