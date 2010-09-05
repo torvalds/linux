@@ -5793,10 +5793,12 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv= NULL;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	int ret;
 	RT_TRACE(COMP_INIT, "Oops: i'm coming\n");
 
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
-
+	if (dev == NULL)
+		return -ENOMEM;
 
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(dev, &intf->dev);
@@ -5826,12 +5828,16 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
 	if(rtl8192_init(dev)!=0){
 		RT_TRACE(COMP_ERR, "Initialization failed");
+		ret = -ENODEV;
 		goto fail;
 	}
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	ret = register_netdev(dev);
+	if (ret)
+		goto fail2;
+
 	RT_TRACE(COMP_INIT, "dev name=======> %s\n",dev->name);
 	rtl8192_proc_init_one(dev);
 
@@ -5839,13 +5845,20 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
 
-
+fail2:
+	rtl8192_down(dev);
+	if (priv->pFirmware) {
+		kfree(priv->pFirmware);
+		priv->pFirmware = NULL;
+	}
+	rtl8192_usb_deleteendpoints(dev);
+	destroy_workqueue(priv->priv_wq);
+	mdelay(10);
 fail:
 	free_ieee80211(dev);
 
 	RT_TRACE(COMP_ERR, "wlan driver load failed\n");
-	return -ENODEV;
-
+	return ret;
 }
 
 //detach all the work and timer structure declared or inititialize in r8192U_init function.
