@@ -872,7 +872,11 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 		/* number of elements in the envp array including NULL */
 		count = 0;
 		do {
-			get_user(temp, args->args_proc_load.user_envp + count);
+			if (get_user(temp,
+				     args->args_proc_load.user_envp + count)) {
+				status = -EFAULT;
+				goto func_cont;
+			}
 			count++;
 		} while (temp);
 		envp = kmalloc(count * sizeof(u8 *), GFP_KERNEL);
