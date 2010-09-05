@@ -1360,7 +1360,6 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
 	struct aic3x_pdata *pdata = i2c->dev.platform_data;
-	struct aic3x_setup_data *setup = pdata->setup;
 	struct aic3x_priv *aic3x;
 	int ret, i;
 	const struct i2c_device_id *tbl;
@@ -1372,15 +1371,18 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	}
 
 	aic3x->control_data = i2c;
-	aic3x->setup = setup;
 	i2c_set_clientdata(i2c, aic3x);
+	if (pdata) {
+		aic3x->gpio_reset = pdata->gpio_reset;
+		aic3x->setup = pdata->setup;
+	} else {
+		aic3x->gpio_reset = -1;
+	}
 
-	aic3x->gpio_reset = -1;
-	if (pdata && pdata->gpio_reset >= 0) {
-		ret = gpio_request(pdata->gpio_reset, "tlv320aic3x reset");
+	if (aic3x->gpio_reset >= 0) {
+		ret = gpio_request(aic3x->gpio_reset, "tlv320aic3x reset");
 		if (ret != 0)
 			goto err_gpio;
-		aic3x->gpio_reset = pdata->gpio_reset;
 		gpio_direction_output(aic3x->gpio_reset, 0);
 	}
 
