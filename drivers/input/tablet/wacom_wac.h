@@ -41,6 +41,9 @@
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
 
+/* largest reported tracking id */
+#define MAX_TRACKING_ID			0xfff
+
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -96,6 +99,7 @@ struct wacom_wac {
 	int id[3];
 	__u32 serial[2];
 	int last_finger;
+	int trk_id;
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;
