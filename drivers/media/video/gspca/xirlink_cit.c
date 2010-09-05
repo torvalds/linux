@@ -2758,6 +2758,25 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+static int sd_isoc_nego(struct gspca_dev *gspca_dev)
+{
+	int ret, packet_size;
+	struct usb_host_interface *alt;
+
+	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	packet_size -= 100;
+	if (packet_size < 300)
+		return -EIO;
+	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(packet_size);
+
+	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
+	if (ret < 0)
+		PDEBUG(D_ERR|D_STREAM, "set alt 1 err %d", ret);
+
+	return ret;
+}
+
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	cit_write_reg(gspca_dev, 0x0000, 0x010c);
@@ -2766,11 +2785,14 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	struct usb_host_interface *alt;
 
 	/* We cannot use gspca_dev->present here as that is not set when
 	   sd_init gets called and we get called from sd_init */
 	if (!gspca_dev->dev)
 		return;
+
+	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
 
 	switch (sd->model) {
 	case CIT_MODEL0:
@@ -2826,6 +2848,10 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		   restarting the stream after this */
 		/* cit_write_reg(gspca_dev, 0x0000, 0x0112); */
 		cit_write_reg(gspca_dev, 0x00c0, 0x0100);
+
+		/* Start isoc bandwidth "negotiation" at max isoc bandwith
+		   next stream start */
+		alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(1022);
 		break;
 	}
 }
@@ -3135,6 +3161,19 @@ static const struct sd_desc sd_desc = {
 	.pkt_scan = sd_pkt_scan,
 };
 
+static const struct sd_desc sd_desc_isoc_nego = {
+	.name = MODULE_NAME,
+	.ctrls = sd_ctrls,
+	.nctrls = ARRAY_SIZE(sd_ctrls),
+	.config = sd_config,
+	.init = sd_init,
+	.start = sd_start,
+	.isoc_nego = sd_isoc_nego,
+	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
+	.pkt_scan = sd_pkt_scan,
+};
+
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
 	{ USB_DEVICE_VER(0x0545, 0x8080, 0x0001, 0x0001), .driver_info = CIT_MODEL0 },
@@ -3152,6 +3191,8 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
+	const struct sd_desc *desc = &sd_desc;
+
 	switch (id->driver_info) {
 	case CIT_MODEL0:
 	case CIT_MODEL1:
@@ -3159,16 +3200,21 @@ static int sd_probe(struct usb_interface *intf,
 			return -ENODEV;
 		break;
 	case CIT_MODEL2:
-	case CIT_MODEL3:
 	case CIT_MODEL4:
-	case CIT_IBM_NETCAM_PRO:
 		if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 			return -ENODEV;
 		break;
+	case CIT_MODEL3:
+		if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
+			return -ENODEV;
+		/* FIXME this likely applies to all model3 cams and probably
+		   to other models too. */
+		if (ibm_netcam_pro)
+			desc = &sd_desc_isoc_nego;
+		break;
 	}
 
-	return gspca_dev_probe2(intf, id, &sd_desc, sizeof(struct sd),
-				THIS_MODULE);
+	return gspca_dev_probe2(intf, id, desc, sizeof(struct sd), THIS_MODULE);
 }
 
 static struct usb_driver sd_driver = {
