@@ -38,9 +38,9 @@ struct dlfb_data {
 	struct urb_list urbs;
 	struct kref kref;
 	char *backing_buffer;
-	struct delayed_work deferred_work;
-	struct mutex fb_open_lock;
 	int fb_count;
+	bool virtualized; /* true when physical usb device not present */
+	struct delayed_work free_framebuffer_work;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
@@ -89,12 +89,20 @@ struct dlfb_data {
 /* remove once this gets added to sysfs.h */
 #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
 
+/*
+ * udlfb is both a usb device, and a framebuffer device.
+ * They may exist at the same time, but during various stages
+ * inactivity, teardown, or "virtual" operation, only one or the
+ * other will exist (one will outlive the other).  So we can't
+ * call the dev_*() macros, because we don't have a stable dev object.
+ */
 #define dl_err(format, arg...) \
-	dev_err(dev->gdev, "dlfb: " format, ## arg)
+	pr_err("udlfb: " format, ## arg)
 #define dl_warn(format, arg...) \
-	dev_warn(dev->gdev, "dlfb: " format, ## arg)
+	pr_warning("udlfb: " format, ## arg)
 #define dl_notice(format, arg...) \
-	dev_notice(dev->gdev, "dlfb: " format, ## arg)
+	pr_notice("udlfb: " format, ## arg)
 #define dl_info(format, arg...) \
-	dev_info(dev->gdev, "dlfb: " format, ## arg)
+	pr_info("udlfb: " format, ## arg)
+
 #endif

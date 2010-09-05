@@ -25,6 +25,8 @@
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
+
 
 #include "udlfb.h"
 
@@ -300,7 +302,6 @@ static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long size = vma->vm_end - vma->vm_start;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
-	struct dlfb_data *dev = info->par;
 
 	dl_notice("MMAP: %lu %u\n", offset + size, info->fix.smem_len);
 
@@ -785,6 +786,7 @@ dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 /*
  * It's common for several clients to have framebuffer open simultaneously.
  * e.g. both fbcon and X. Makes things interesting.
+ * Assumes caller is holding info->lock (for open and release at least)
  */
 static int dlfb_ops_open(struct fb_info *info, int user)
 {
@@ -794,9 +796,13 @@ static int dlfb_ops_open(struct fb_info *info, int user)
  *		We could special case kernel mode clients (fbcon) here
  */
 
-	mutex_lock(&dev->fb_open_lock);
+	/* If the USB device is gone, we don't accept new opens */
+	if (dev->virtualized)
+		return -ENODEV;
 
 	dev->fb_count++;
+
+	kref_get(&dev->kref);
 
 #ifdef CONFIG_FB_DEFERRED_IO
 	if ((atomic_read(&dev->use_defio)) && (info->fbdefio == NULL)) {
@@ -809,32 +815,6 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	dl_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 	    info->node, user, info, dev->fb_count);
 
-	mutex_unlock(&dev->fb_open_lock);
-
-	return 0;
-}
-
-static int dlfb_ops_release(struct fb_info *info, int user)
-{
-	struct dlfb_data *dev = info->par;
-
-	mutex_lock(&dev->fb_open_lock);
-
-	dev->fb_count--;
-
-#ifdef CONFIG_FB_DEFERRED_IO
-	if ((dev->fb_count == 0) && (info->fbdefio)) {
-		fb_deferred_io_cleanup(info);
-		info->fbdefio = NULL;
-		info->fbops->fb_mmap = dlfb_ops_mmap;
-	}
-#endif
-
-	dl_notice("release /dev/fb%d user=%d count=%d\n",
-		  info->node, user, dev->fb_count);
-
-	mutex_unlock(&dev->fb_open_lock);
-
 	return 0;
 }
 
@@ -843,25 +823,33 @@ static int dlfb_ops_release(struct fb_info *info, int user)
  * and all references to our device instance (dlfb_data) are released.
  * Every transaction must have a reference, so we know are fully spun down
  */
-static void dlfb_delete(struct kref *kref)
+static void dlfb_free(struct kref *kref)
 {
 	struct dlfb_data *dev = container_of(kref, struct dlfb_data, kref);
+
+	/* this function will wait for all in-flight urbs to complete */
+	if (dev->urbs.count > 0)
+		dlfb_free_urb_list(dev);
 
 	if (dev->backing_buffer)
 		vfree(dev->backing_buffer);
 
-	mutex_destroy(&dev->fb_open_lock);
+	kfree(dev->edid);
+
+	dl_warn("freeing dlfb_data %p\n", dev);
 
 	kfree(dev);
 }
 
-/*
- * Called by fbdev as last part of unregister_framebuffer() process
- * No new clients can open connections. Deallocate everything fb_info.
- */
-static void dlfb_ops_destroy(struct fb_info *info)
+
+static void dlfb_free_framebuffer_work(struct work_struct *work)
 {
-	struct dlfb_data *dev = info->par;
+	struct dlfb_data *dev = container_of(work, struct dlfb_data,
+					     free_framebuffer_work.work);
+	struct fb_info *info = dev->info;
+	int node = info->node;
+
+	unregister_framebuffer(info);
 
 	if (info->cmap.len != 0)
 		fb_dealloc_cmap(&info->cmap);
@@ -872,10 +860,45 @@ static void dlfb_ops_destroy(struct fb_info *info)
 
 	fb_destroy_modelist(&info->modelist);
 
+	dev->info = 0;
+
+	/* Assume info structure is freed after this point */
 	framebuffer_release(info);
 
-	/* ref taken before register_framebuffer() for dlfb_data clients */
-	kref_put(&dev->kref, dlfb_delete);
+	dl_warn("fb_info for /dev/fb%d has been freed\n", node);
+
+	/* ref taken in probe() as part of registering framebfufer */
+	kref_put(&dev->kref, dlfb_free);
+}
+
+/*
+ * Assumes caller is holding info->lock mutex (for open and release at least)
+ */
+static int dlfb_ops_release(struct fb_info *info, int user)
+{
+	struct dlfb_data *dev = info->par;
+
+	dev->fb_count--;
+
+	/* We can't free fb_info here - fbmem will touch it when we return */
+	if (dev->virtualized && (dev->fb_count == 0))
+		schedule_delayed_work(&dev->free_framebuffer_work, HZ);
+
+#ifdef CONFIG_FB_DEFERRED_IO
+	if ((dev->fb_count == 0) && (info->fbdefio)) {
+		fb_deferred_io_cleanup(info);
+		kfree(info->fbdefio);
+		info->fbdefio = NULL;
+		info->fbops->fb_mmap = dlfb_ops_mmap;
+	}
+#endif
+
+	dl_warn("released /dev/fb%d user=%d count=%d\n",
+		  info->node, user, dev->fb_count);
+
+	kref_put(&dev->kref, dlfb_free);
+
+	return 0;
 }
 
 /*
@@ -1244,13 +1267,12 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *usbdev;
 	struct dlfb_data *dev;
-	struct fb_info *info;
+	struct fb_info *info = 0;
 	int videomemorysize;
 	int i;
 	unsigned char *videomemory;
 	int retval = -ENOMEM;
 	struct fb_var_screeninfo *var;
-	int registered = 0;
 	u16 *pix_framebuffer;
 
 	/* usb initialization */
@@ -1277,8 +1299,6 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	mutex_init(&dev->fb_open_lock);
-
 	/* We don't register a new USB class. Our client interface is fbdev */
 
 	/* allocates framebuffer driver structure, not framebuffer memory */
@@ -1288,6 +1308,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		dl_err("framebuffer_alloc failed\n");
 		goto error;
 	}
+
 	dev->info = info;
 	info->par = dev;
 	info->pseudo_palette = dev->pseudo_palette;
@@ -1343,6 +1364,9 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		goto error;
 	}
 
+	INIT_DELAYED_WORK(&dev->free_framebuffer_work,
+			  dlfb_free_framebuffer_work);
+
 	/* ready to begin using device */
 
 #ifdef CONFIG_FB_DEFERRED_IO
@@ -1367,7 +1391,6 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		dl_err("register_framebuffer failed %d\n", retval);
 		goto error;
 	}
-	registered = 1;
 
 	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
 		device_create_file(info->dev, &fb_device_attrs[i]);
@@ -1383,15 +1406,25 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 
 error:
 	if (dev) {
-		if (registered) {
-			unregister_framebuffer(info);
-			dlfb_ops_destroy(info);
-		} else
-			kref_put(&dev->kref, dlfb_delete);
 
-		if (dev->urbs.count > 0)
-			dlfb_free_urb_list(dev);
-		kref_put(&dev->kref, dlfb_delete); /* last ref from kref_init */
+		if (info) {
+			if (info->cmap.len != 0)
+				fb_dealloc_cmap(&info->cmap);
+			if (info->monspecs.modedb)
+				fb_destroy_modedb(info->monspecs.modedb);
+			if (info->screen_base)
+				vfree(info->screen_base);
+
+			fb_destroy_modelist(&info->modelist);
+
+			framebuffer_release(info);
+		}
+
+		if (dev->backing_buffer)
+			vfree(dev->backing_buffer);
+
+		kref_put(&dev->kref, dlfb_free); /* ref for framebuffer */
+		kref_put(&dev->kref, dlfb_free); /* last ref from kref_init */
 
 		/* dev has been deallocated. Do not dereference */
 	}
@@ -1408,27 +1441,27 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 	dev = usb_get_intfdata(interface);
 	info = dev->info;
 
-	/* when non-active we'll update virtual framebuffer, but no new urbs */
+	dl_info("USB disconnect starting\n");
+
+	/* we virtualize until all fb clients release. Then we free */
+	dev->virtualized = true;
+
+	/* When non-active we'll update virtual framebuffer, but no new urbs */
 	atomic_set(&dev->usb_active, 0);
+
+	/* remove udlfb's sysfs interfaces */
+	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
+		device_remove_file(info->dev, &fb_device_attrs[i]);
+	device_remove_bin_file(info->dev, &edid_attr);
 
 	usb_set_intfdata(interface, NULL);
 
-	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
-		device_remove_file(info->dev, &fb_device_attrs[i]);
-
-	device_remove_bin_file(info->dev, &edid_attr);
-
-	/* this function will wait for all in-flight urbs to complete */
-	dlfb_free_urb_list(dev);
-
-	if (info) {
-		dl_notice("Detaching /dev/fb%d\n", info->node);
-		unregister_framebuffer(info);
-		dlfb_ops_destroy(info);
-	}
+	/* if clients still have us open, will be freed on last close */
+	if (dev->fb_count == 0)
+		schedule_delayed_work(&dev->free_framebuffer_work, 0);
 
 	/* release reference taken by kref_init in probe() */
-	kref_put(&dev->kref, dlfb_delete);
+	kref_put(&dev->kref, dlfb_free);
 
 	/* consider dlfb_data freed */
 
@@ -1449,8 +1482,6 @@ static int __init dlfb_module_init(void)
 	res = usb_register(&dlfb_driver);
 	if (res)
 		err("usb_register failed. Error number %d", res);
-
-	printk(KERN_INFO "VMODES initialized\n");
 
 	return res;
 }
@@ -1503,12 +1534,12 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
-		/* Timeout means a memory leak and/or fault */
-		ret = down_timeout(&dev->urbs.limit_sem, FREE_URB_TIMEOUT);
-		if (ret) {
-			BUG_ON(ret);
+
+		/* Getting interrupted means a leak, but ok at shutdown*/
+		ret = down_interruptible(&dev->urbs.limit_sem);
+		if (ret)
 			break;
-		}
+
 		spin_lock_irqsave(&dev->urbs.lock, flags);
 
 		node = dev->urbs.list.next; /* have reserved one with sem */
@@ -1525,8 +1556,6 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 		usb_free_urb(urb);
 		kfree(node);
 	}
-
-	kref_put(&dev->kref, dlfb_delete);
 
 }
 
@@ -1576,8 +1605,6 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 	sema_init(&dev->urbs.limit_sem, i);
 	dev->urbs.count = i;
 	dev->urbs.available = i;
-
-	kref_get(&dev->kref); /* released in free_render_urbs() */
 
 	dl_notice("allocated %d %d byte urbs\n", i, (int) size);
 
