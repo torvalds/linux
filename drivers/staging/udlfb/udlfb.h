@@ -44,7 +44,8 @@ struct dlfb_data {
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
-	char edid[128];
+	char *edid; /* null until we read edid from hw or get from sysfs */
+	size_t edid_size;
 	int sku_pixel_limit;
 	int base16;
 	int base8;
@@ -63,6 +64,11 @@ struct dlfb_data {
 #define BULK_SIZE 512
 #define MAX_TRANSFER (PAGE_SIZE*16 - BULK_SIZE)
 #define WRITES_IN_FLIGHT (4)
+
+#define MIN_EDID_SIZE 128
+#define MAX_EDID_SIZE 128
+
+#define MAX_VENDOR_DESCRIPTOR_SIZE 256
 
 #define GET_URB_TIMEOUT	HZ
 #define FREE_URB_TIMEOUT (HZ*2)
