@@ -238,4 +238,9 @@ void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv);
 void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
 
+#ifdef CONFIG_IWLWIFI_DEBUG
+const char *iwl_get_agg_tx_fail_reason(u16 status);
+#else
+static inline const char *iwl_get_agg_tx_fail_reason(u16 status) { return ""; }
+#endif
 #endif /* __iwl_agn_h__ */
