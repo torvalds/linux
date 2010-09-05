@@ -1,2 +1,0 @@
-- Move the driver to not think it is SPI (requires fixing some of the SFI
-  and firmware side)
