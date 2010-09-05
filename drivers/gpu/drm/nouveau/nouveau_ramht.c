@@ -63,6 +63,23 @@ nouveau_ramht_entry_valid(struct drm_device *dev, struct nouveau_gpuobj *ramht,
 	return (ctx != 0);
 }
 
+static int
+nouveau_ramht_entry_same_channel(struct nouveau_channel *chan,
+				 struct nouveau_gpuobj *ramht, u32 offset)
+{
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	u32 ctx = nv_ro32(ramht, offset + 4);
+
+	if (dev_priv->card_type >= NV_50)
+		return true;
+	else if (dev_priv->card_type >= NV_40)
+		return chan->id ==
+			((ctx >> NV40_RAMHT_CONTEXT_CHANNEL_SHIFT) & 0x1f);
+	else
+		return chan->id ==
+			((ctx >> NV_RAMHT_CONTEXT_CHANNEL_SHIFT) & 0x1f);
+}
+
 int
 nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 		     struct nouveau_gpuobj *gpuobj)
@@ -159,6 +176,7 @@ nouveau_ramht_remove_locked(struct nouveau_channel *chan, u32 handle)
 	co = ho = nouveau_ramht_hash_handle(chan, handle);
 	do {
 		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
+		    nouveau_ramht_entry_same_channel(chan, ramht, co) &&
 		    (handle == nv_ro32(ramht, co))) {
 			NV_DEBUG(dev,
 				 "remove ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
