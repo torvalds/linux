@@ -277,7 +277,7 @@ static int display_close(struct inode *inode, struct file *file)
 	struct imon_context *context = NULL;
 	int retval = 0;
 
-	context = (struct imon_context *)file->private_data;
+	context = file->private_data;
 
 	if (!context) {
 		err("%s: no context for device", __func__);
@@ -380,7 +380,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 	int *data_buf;
 
-	context = (struct imon_context *)file->private_data;
+	context = file->private_data;
 	if (!context) {
 		err("%s: no context for device", __func__);
 		return -ENODEV;
