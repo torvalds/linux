@@ -168,7 +168,7 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 		}
 		nilfs_btnode_mark_dirty(bh);
 	} else {
-		nilfs_mdt_mark_buffer_dirty(bh);
+		nilfs_mark_buffer_dirty(bh);
 	}
 	return 0;
 }
@@ -177,24 +177,24 @@ int nilfs_init_gcinode(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
-	int ret;
 
-	ret = nilfs_mdt_init(inode, nilfs, GFP_NOFS, 0);
-	if (!ret) {
-		inode->i_mapping->a_ops = &def_gcinode_aops;
+	inode->i_mode = S_IFREG;
+	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+	inode->i_mapping->a_ops = &def_gcinode_aops;
+	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
-		ii->i_flags = 0;
-		nilfs_bmap_init_gc(ii->i_bmap);
+	ii->i_flags = 0;
+	nilfs_bmap_init_gc(ii->i_bmap);
 
-		/*
-		 * Add the inode to GC inode list. Garbage Collection
-		 * is serialized and no two processes manipulate the
-		 * list simultaneously.
-		 */
-		igrab(inode);
-		list_add(&NILFS_I(inode)->i_dirty, &nilfs->ns_gc_inodes);
-	}
-	return ret;
+	/*
+	 * Add the inode to GC inode list. Garbage Collection
+	 * is serialized and no two processes manipulate the
+	 * list simultaneously.
+	 */
+	igrab(inode);
+	list_add(&NILFS_I(inode)->i_dirty, &nilfs->ns_gc_inodes);
+
+	return 0;
 }
 
 /**
