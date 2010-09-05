@@ -1865,9 +1865,6 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
 	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
 	int transconf_reg = (pipe == 0) ? TRANSACONF : TRANSBCONF;
-	int pf_ctl_reg = (pipe == 0) ? PFA_CTL_1 : PFB_CTL_1;
-	int pf_win_size = (pipe == 0) ? PFA_WIN_SZ : PFB_WIN_SZ;
-	int pf_win_pos = (pipe == 0) ? PFA_WIN_POS : PFB_WIN_POS;
 	int cpu_htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
 	int cpu_hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
 	int cpu_hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
@@ -1936,15 +1933,19 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		/* Enable panel fitting for LVDS */
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
-		    || HAS_eDP || intel_pch_has_edp(crtc)) {
-			if (dev_priv->pch_pf_size) {
-				temp = I915_READ(pf_ctl_reg);
-				I915_WRITE(pf_ctl_reg, temp | PF_ENABLE | PF_FILTER_MED_3x3);
-				I915_WRITE(pf_win_pos, dev_priv->pch_pf_pos);
-				I915_WRITE(pf_win_size, dev_priv->pch_pf_size);
-			} else
-				I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
+		if (dev_priv->pch_pf_size &&
+		    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
+		    || HAS_eDP || intel_pch_has_edp(crtc))) {
+			/* Force use of hard-coded filter coefficients
+			 * as some pre-programmed values are broken,
+			 * e.g. x201.
+			 */
+			I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1,
+				   PF_ENABLE | PF_FILTER_MED_3x3);
+			I915_WRITE(pipe ? PFB_WIN_POS : PFA_WIN_POS,
+				   dev_priv->pch_pf_pos);
+			I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ,
+				   dev_priv->pch_pf_size);
 		}
 
 		/* Enable CPU pipe */
@@ -2109,14 +2110,8 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		udelay(100);
 
 		/* Disable PF */
-		temp = I915_READ(pf_ctl_reg);
-		if ((temp & PF_ENABLE) != 0) {
-			I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
-			I915_READ(pf_ctl_reg);
-		}
-		I915_WRITE(pf_win_size, 0);
-		POSTING_READ(pf_win_size);
-
+		I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1, 0);
+		I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ, 0);
 
 		/* disable CPU FDI tx and PCH FDI rx */
 		temp = I915_READ(fdi_tx_reg);
