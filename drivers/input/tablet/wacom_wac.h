@@ -40,6 +40,7 @@
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
+#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
 
 /* largest reported tracking id */
 #define MAX_TRACKING_ID			0xfff

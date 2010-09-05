@@ -857,6 +857,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 {
+	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int sp = 0, sx = 0, sy = 0, count = 0;
@@ -871,6 +872,10 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 		if (p) {
 			int x = get_unaligned_be16(&data[9 * i + 3]) & 0x7ff;
 			int y = get_unaligned_be16(&data[9 * i + 5]) & 0x7ff;
+			if (features->quirks & WACOM_QUIRK_BBTOUCH_LOWRES) {
+				x <<= 5;
+				y <<= 5;
+			}
 			input_report_abs(input, ABS_MT_PRESSURE, p);
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
@@ -1010,8 +1015,13 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 	/* quirks for bamboo touch */
 	if (features->type == BAMBOO_PT &&
 	    features->device_type == BTN_TOOL_TRIPLETAP) {
+		features->x_max <<= 5;
+		features->y_max <<= 5;
+		features->x_fuzz <<= 5;
+		features->y_fuzz <<= 5;
 		features->pressure_max = 256;
 		features->pressure_fuzz = 16;
+		features->quirks |= WACOM_QUIRK_BBTOUCH_LOWRES;
 	}
 }
 
