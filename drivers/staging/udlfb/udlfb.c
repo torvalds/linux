@@ -602,6 +602,48 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 	return 0;
 }
 
+static ssize_t dlfb_ops_read(struct fb_info *info, char __user *buf,
+			 size_t count, loff_t *ppos)
+{
+	ssize_t result = -ENOSYS;
+
+#if defined CONFIG_FB_SYS_FOPS || defined CONFIG_FB_SYS_FOPS_MODULE
+	result = fb_sys_read(info, buf, count, ppos);
+#endif
+
+	return result;
+}
+
+/*
+ * Path triggered by usermode clients who write to filesystem
+ * e.g. cat filename > /dev/fb1
+ * Not used by X Windows or text-mode console. But useful for testing.
+ * Slow because of extra copy and we must assume all pixels dirty.
+ */
+static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
+			  size_t count, loff_t *ppos)
+{
+	ssize_t result = -ENOSYS;
+	struct dlfb_data *dev = info->par;
+	u32 offset = (u32) *ppos;
+
+#if defined CONFIG_FB_SYS_FOPS || defined CONFIG_FB_SYS_FOPS_MODULE
+
+	result = fb_sys_write(info, buf, count, ppos);
+
+	if (result > 0) {
+		int start = max((int)(offset / info->fix.line_length) - 1, 0);
+		int lines = min((u32)((result / info->fix.line_length) + 1),
+				(u32)info->var.yres);
+
+		dlfb_handle_damage(dev, 0, start, info->var.xres,
+			lines, info->screen_base);
+	}
+#endif
+
+	return result;
+}
+
 /* hardware has native COPY command (see libdlo), but not worth it for fbcon */
 static void dlfb_ops_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
@@ -924,6 +966,8 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 
 static struct fb_ops dlfb_ops = {
 	.owner = THIS_MODULE,
+	.fb_read = dlfb_ops_read,
+	.fb_write = dlfb_ops_write,
 	.fb_setcolreg = dlfb_ops_setcolreg,
 	.fb_fillrect = dlfb_ops_fillrect,
 	.fb_copyarea = dlfb_ops_copyarea,
