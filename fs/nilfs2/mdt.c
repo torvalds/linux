@@ -78,24 +78,10 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 						     struct buffer_head *,
 						     void *))
 {
-	struct the_nilfs *nilfs = NILFS_I_NILFS(inode);
 	struct super_block *sb = inode->i_sb;
 	struct nilfs_transaction_info ti;
 	struct buffer_head *bh;
 	int err;
-
-	if (!sb) {
-		/*
-		 * Make sure this function is not called from any
-		 * read-only context.
-		 */
-		if (!nilfs->ns_writer) {
-			WARN_ON(1);
-			err = -EROFS;
-			goto out;
-		}
-		sb = nilfs->ns_writer->s_super;
-	}
 
 	nilfs_transaction_begin(sb, &ti, 0);
 
@@ -112,7 +98,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 	if (buffer_uptodate(bh))
 		goto failed_bh;
 
-	bh->b_bdev = nilfs->ns_bdev;
+	bh->b_bdev = sb->s_bdev;
 	err = nilfs_mdt_insert_new_block(inode, block, bh, init_block);
 	if (likely(!err)) {
 		get_bh(bh);
@@ -129,7 +115,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 		err = nilfs_transaction_commit(sb);
 	else
 		nilfs_transaction_abort(sb);
- out:
+
 	return err;
 }
 
@@ -398,8 +384,6 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode;
 	struct super_block *sb;
-	struct the_nilfs *nilfs;
-	struct nilfs_sb_info *writer = NULL;
 	int err = 0;
 
 	redirty_page_for_writepage(wbc, page);
@@ -410,25 +394,12 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 		return 0;
 
 	sb = inode->i_sb;
-	nilfs = NILFS_SB(sb)->s_nilfs;
-
-	if (!sb) {
-		down_read(&nilfs->ns_writer_sem);
-		writer = nilfs->ns_writer;
-		if (!writer) {
-			up_read(&nilfs->ns_writer_sem);
-			return -EROFS;
-		}
-		sb = writer->s_super;
-	}
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		err = nilfs_construct_segment(sb);
 	else if (wbc->for_reclaim)
 		nilfs_flush_segment(sb, inode->i_ino);
 
-	if (writer)
-		up_read(&nilfs->ns_writer_sem);
 	return err;
 }
 

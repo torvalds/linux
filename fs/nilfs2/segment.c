@@ -2799,7 +2799,6 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
 				     struct nilfs_root *root)
 {
-	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int err;
 
 	if (NILFS_SC(sbi)) {
@@ -2815,10 +2814,8 @@ int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
 	if (!sbi->s_sc_info)
 		return -ENOMEM;
 
-	nilfs_attach_writer(nilfs, sbi);
 	err = nilfs_segctor_start_thread(NILFS_SC(sbi));
 	if (err) {
-		nilfs_detach_writer(nilfs, sbi);
 		kfree(sbi->s_sc_info);
 		sbi->s_sc_info = NULL;
 	}
@@ -2855,5 +2852,4 @@ void nilfs_detach_segment_constructor(struct nilfs_sb_info *sbi)
 	up_write(&nilfs->ns_segctor_sem);
 
 	nilfs_dispose_list(sbi, &garbage_list, 1);
-	nilfs_detach_writer(nilfs, sbi);
 }

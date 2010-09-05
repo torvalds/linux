@@ -48,9 +48,7 @@ enum {
  * @ns_flags: flags
  * @ns_bdev: block device
  * @ns_bdi: backing dev info
- * @ns_writer: back pointer to writable nilfs_sb_info
  * @ns_sem: semaphore for shared states
- * @ns_writer_sem: semaphore protecting ns_writer attach/detach
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
  * @ns_sbwtime: previous write time of super block
@@ -93,9 +91,7 @@ struct the_nilfs {
 
 	struct block_device    *ns_bdev;
 	struct backing_dev_info *ns_bdi;
-	struct nilfs_sb_info   *ns_writer;
 	struct rw_semaphore	ns_sem;
-	struct rw_semaphore	ns_writer_sem;
 
 	/*
 	 * used for
@@ -250,23 +246,6 @@ void nilfs_swap_super_block(struct the_nilfs *);
 static inline void nilfs_get_root(struct nilfs_root *root)
 {
 	atomic_inc(&root->count);
-}
-
-static inline void
-nilfs_attach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
-{
-	down_write(&nilfs->ns_writer_sem);
-	nilfs->ns_writer = sbi;
-	up_write(&nilfs->ns_writer_sem);
-}
-
-static inline void
-nilfs_detach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
-{
-	down_write(&nilfs->ns_writer_sem);
-	if (sbi == nilfs->ns_writer)
-		nilfs->ns_writer = NULL;
-	up_write(&nilfs->ns_writer_sem);
 }
 
 static inline int nilfs_valid_fs(struct the_nilfs *nilfs)

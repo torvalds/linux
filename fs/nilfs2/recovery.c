@@ -440,7 +440,6 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	segnum[2] = ri->ri_segnum;
 	segnum[3] = ri->ri_nextnum;
 
-	nilfs_attach_writer(nilfs, sbi);
 	/*
 	 * Releasing the next segment of the latest super root.
 	 * The next segment is invalidated by this recovery.
@@ -480,7 +479,6 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 
  failed:
 	/* No need to recover sufile because it will be destroyed on error */
-	nilfs_detach_writer(nilfs, sbi);
 	return err;
 }
 
@@ -599,7 +597,6 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 	};
 	int state = RF_INIT_ST;
 
-	nilfs_attach_writer(nilfs, sbi);
 	pseg_start = ri->ri_lsegs_start;
 	seg_seq = ri->ri_lsegs_start_seq;
 	segnum = nilfs_get_segnum_of_block(nilfs, pseg_start);
@@ -690,7 +687,6 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
  out:
 	brelse(bh_sum);
 	dispose_recovery_list(&dsync_blocks);
-	nilfs_detach_writer(nilfs, sbi);
 	return err;
 
  confused:
