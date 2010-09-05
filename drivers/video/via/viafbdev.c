@@ -1431,38 +1431,169 @@ static const struct file_operations viafb_vt1636_proc_fops = {
 	.write		= viafb_vt1636_proc_write,
 };
 
-static void viafb_init_proc(struct proc_dir_entry **viafb_entry)
-{
-	*viafb_entry = proc_mkdir("viafb", NULL);
-	if (*viafb_entry) {
-		proc_create("dvp0", 0, *viafb_entry, &viafb_dvp0_proc_fops);
-		proc_create("dvp1", 0, *viafb_entry, &viafb_dvp1_proc_fops);
-		proc_create("dfph", 0, *viafb_entry, &viafb_dfph_proc_fops);
-		proc_create("dfpl", 0, *viafb_entry, &viafb_dfpl_proc_fops);
-		if (VT1636_LVDS == viaparinfo->chip_info->lvds_chip_info.
-			lvds_chip_name || VT1636_LVDS ==
-		    viaparinfo->chip_info->lvds_chip_info2.lvds_chip_name) {
-			proc_create("vt1636", 0, *viafb_entry, &viafb_vt1636_proc_fops);
-		}
+#endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
+static ssize_t odev_update(const char __user *buffer, size_t count, u32 *odev)
+{
+	char buf[64], *ptr = buf;
+	u32 devices;
+	bool add, sub;
+
+	if (count < 1 || count > 63)
+		return -EINVAL;
+	if (copy_from_user(&buf[0], buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+	add = buf[0] == '+';
+	sub = buf[0] == '-';
+	if (add || sub)
+		ptr++;
+	devices = via_parse_odev(ptr, &ptr);
+	if (*ptr == '\n')
+		ptr++;
+	if (*ptr != 0)
+		return -EINVAL;
+	if (add)
+		*odev |= devices;
+	else if (sub)
+		*odev &= ~devices;
+	else
+		*odev = devices;
+	return count;
+}
+
+static int viafb_iga1_odev_proc_show(struct seq_file *m, void *v)
+{
+	via_odev_to_seq(m, viaparinfo->shared->iga1_devices);
+	return 0;
+}
+
+static int viafb_iga1_odev_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, viafb_iga1_odev_proc_show, NULL);
+}
+
+static ssize_t viafb_iga1_odev_proc_write(struct file *file,
+	const char __user *buffer, size_t count, loff_t *pos)
+{
+	u32 dev_on, dev_off, dev_old, dev_new;
+	ssize_t res;
+
+	dev_old = dev_new = viaparinfo->shared->iga1_devices;
+	res = odev_update(buffer, count, &dev_new);
+	if (res != count)
+		return res;
+	dev_off = dev_old & ~dev_new;
+	dev_on = dev_new & ~dev_old;
+	viaparinfo->shared->iga1_devices = dev_new;
+	viaparinfo->shared->iga2_devices &= ~dev_new;
+	via_set_source(dev_new, IGA1);
+	return res;
+}
+
+static const struct file_operations viafb_iga1_odev_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= viafb_iga1_odev_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= viafb_iga1_odev_proc_write,
+};
+
+static int viafb_iga2_odev_proc_show(struct seq_file *m, void *v)
+{
+	via_odev_to_seq(m, viaparinfo->shared->iga2_devices);
+	return 0;
+}
+
+static int viafb_iga2_odev_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, viafb_iga2_odev_proc_show, NULL);
+}
+
+static ssize_t viafb_iga2_odev_proc_write(struct file *file,
+	const char __user *buffer, size_t count, loff_t *pos)
+{
+	u32 dev_on, dev_off, dev_old, dev_new;
+	ssize_t res;
+
+	dev_old = dev_new = viaparinfo->shared->iga2_devices;
+	res = odev_update(buffer, count, &dev_new);
+	if (res != count)
+		return res;
+	dev_off = dev_old & ~dev_new;
+	dev_on = dev_new & ~dev_old;
+	viaparinfo->shared->iga2_devices = dev_new;
+	viaparinfo->shared->iga1_devices &= ~dev_new;
+	via_set_source(dev_new, IGA2);
+	return res;
+}
+
+static const struct file_operations viafb_iga2_odev_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= viafb_iga2_odev_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= viafb_iga2_odev_proc_write,
+};
+
+#define IS_VT1636(lvds_chip)	((lvds_chip).lvds_chip_name == VT1636_LVDS)
+static void viafb_init_proc(struct viafb_shared *shared)
+{
+	struct proc_dir_entry *iga1_entry, *iga2_entry,
+		*viafb_entry = proc_mkdir("viafb", NULL);
+
+	shared->proc_entry = viafb_entry;
+	if (viafb_entry) {
+#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
+		proc_create("dvp0", 0, viafb_entry, &viafb_dvp0_proc_fops);
+		proc_create("dvp1", 0, viafb_entry, &viafb_dvp1_proc_fops);
+		proc_create("dfph", 0, viafb_entry, &viafb_dfph_proc_fops);
+		proc_create("dfpl", 0, viafb_entry, &viafb_dfpl_proc_fops);
+		if (IS_VT1636(shared->chip_info.lvds_chip_info)
+			|| IS_VT1636(shared->chip_info.lvds_chip_info2))
+			proc_create("vt1636", 0, viafb_entry,
+				&viafb_vt1636_proc_fops);
+#endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
+
+		iga1_entry = proc_mkdir("iga1", viafb_entry);
+		shared->iga1_proc_entry = iga1_entry;
+		proc_create("output_devices", 0, iga1_entry,
+			&viafb_iga1_odev_proc_fops);
+		iga2_entry = proc_mkdir("iga2", viafb_entry);
+		shared->iga2_proc_entry = iga2_entry;
+		proc_create("output_devices", 0, iga2_entry,
+			&viafb_iga2_odev_proc_fops);
 	}
 }
-static void viafb_remove_proc(struct proc_dir_entry *viafb_entry)
+static void viafb_remove_proc(struct viafb_shared *shared)
 {
-	struct chip_information *chip_info = &viaparinfo->shared->chip_info;
+	struct proc_dir_entry *viafb_entry = shared->proc_entry,
+		*iga1_entry = shared->iga1_proc_entry,
+		*iga2_entry = shared->iga2_proc_entry;
 
+	if (!viafb_entry)
+		return;
+
+	remove_proc_entry("output_devices", iga2_entry);
+	remove_proc_entry("iga2", viafb_entry);
+	remove_proc_entry("output_devices", iga1_entry);
+	remove_proc_entry("iga1", viafb_entry);
+
+#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
 	remove_proc_entry("dvp0", viafb_entry);/* parent dir */
 	remove_proc_entry("dvp1", viafb_entry);
 	remove_proc_entry("dfph", viafb_entry);
 	remove_proc_entry("dfpl", viafb_entry);
-	if (chip_info->lvds_chip_info.lvds_chip_name == VT1636_LVDS
-		|| chip_info->lvds_chip_info2.lvds_chip_name == VT1636_LVDS)
+	if (IS_VT1636(shared->chip_info.lvds_chip_info)
+		|| IS_VT1636(shared->chip_info.lvds_chip_info2))
 		remove_proc_entry("vt1636", viafb_entry);
+#endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
 	remove_proc_entry("viafb", NULL);
 }
-
-#endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
+#undef IS_VT1636
 
 static int parse_mode(const char *str, u32 *xres, u32 *yres)
 {
@@ -1671,9 +1802,7 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		  viafbinfo->node, viafbinfo->fix.id, default_var.xres,
 		  default_var.yres, default_var.bits_per_pixel);
 
-#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
-	viafb_init_proc(&viaparinfo->shared->proc_entry);
-#endif
+	viafb_init_proc(viaparinfo->shared);
 	viafb_init_dac(IGA2);
 	return 0;
 
@@ -1700,9 +1829,7 @@ void __devexit via_fb_pci_remove(struct pci_dev *pdev)
 	unregister_framebuffer(viafbinfo);
 	if (viafb_dual_fb)
 		unregister_framebuffer(viafbinfo1);
-#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
-	viafb_remove_proc(viaparinfo->shared->proc_entry);
-#endif
+	viafb_remove_proc(viaparinfo->shared);
 	framebuffer_release(viafbinfo);
 	if (viafb_dual_fb)
 		framebuffer_release(viafbinfo1);

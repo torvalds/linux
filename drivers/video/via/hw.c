@@ -718,6 +718,16 @@ static struct rgbLUT palLUT_table[] = {
 								     0x00}
 };
 
+static struct via_device_mapping device_mapping[] = {
+	{VIA_6C, "6C"},
+	{VIA_93, "93"},
+	{VIA_96, "96"},
+	{VIA_CRT, "CRT"},
+	{VIA_DVP1, "DVP1"},
+	{VIA_LVDS1, "LVDS1"},
+	{VIA_LVDS2, "LVDS2"}
+};
+
 static void load_fix_bit_crtc_reg(void);
 static void __devinit init_gfx_chip_info(int chip_type);
 static void __devinit init_tmds_chip_info(void);
@@ -1024,6 +1034,49 @@ void via_set_source(u32 devices, u8 iga)
 		set_lvds1_source(iga);
 	if (devices & VIA_LVDS2)
 		set_lvds2_source(iga);
+}
+
+u32 via_parse_odev(char *input, char **end)
+{
+	char *ptr = input;
+	u32 odev = 0;
+	bool next = true;
+	int i, len;
+
+	while (next) {
+		next = false;
+		for (i = 0; i < ARRAY_SIZE(device_mapping); i++) {
+			len = strlen(device_mapping[i].name);
+			if (!strncmp(ptr, device_mapping[i].name, len)) {
+				odev |= device_mapping[i].device;
+				ptr += len;
+				if (*ptr == ',') {
+					ptr++;
+					next = true;
+				}
+			}
+		}
+	}
+
+	*end = ptr;
+	return odev;
+}
+
+void via_odev_to_seq(struct seq_file *m, u32 odev)
+{
+	int i, count = 0;
+
+	for (i = 0; i < ARRAY_SIZE(device_mapping); i++) {
+		if (odev & device_mapping[i].device) {
+			if (count > 0)
+				seq_putc(m, ',');
+
+			seq_puts(m, device_mapping[i].name);
+			count++;
+		}
+	}
+
+	seq_putc(m, '\n');
 }
 
 static void load_fix_bit_crtc_reg(void)

@@ -22,6 +22,8 @@
 #ifndef __HW_H__
 #define __HW_H__
 
+#include <linux/seq_file.h>
+
 #include "viamode.h"
 #include "global.h"
 #include "via_modesetting.h"
@@ -882,6 +884,11 @@ struct pci_device_id_info {
 	u32 chip_index;
 };
 
+struct via_device_mapping {
+	u32 device;
+	const char *name;
+};
+
 extern unsigned int viafb_second_virtual_xres;
 extern int viafb_SAMM_ON;
 extern int viafb_dual_fb;
@@ -899,6 +906,9 @@ void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 	      int io_type);
 void viafb_crt_disable(void);
 void viafb_crt_enable(void);
+void via_set_source(u32 devices, u8 iga);
+u32 via_parse_odev(char *input, char **end);
+void via_odev_to_seq(struct seq_file *m, u32 odev);
 void init_ad9389(void);
 /* Access I/O Function */
 void viafb_lock_crt(void);
