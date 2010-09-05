@@ -130,6 +130,8 @@ struct iwl_debugfs_ops {
 				      size_t count, loff_t *ppos);
 	ssize_t (*bt_stats_read)(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos);
+	ssize_t (*reply_tx_error)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
 };
 
 struct iwl_temp_ops {

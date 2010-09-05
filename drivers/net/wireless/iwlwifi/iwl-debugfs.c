@@ -1642,6 +1642,18 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+
+	if (priv->cfg->ops->lib->debugfs_ops.reply_tx_error)
+		return priv->cfg->ops->lib->debugfs_ops.reply_tx_error(
+			file, user_buf, count, ppos);
+	else
+		return -ENODATA;
+}
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -1668,6 +1680,7 @@ DEBUGFS_READ_FILE_OPS(ucode_bt_stats);
 DEBUGFS_WRITE_FILE_OPS(monitor_period);
 DEBUGFS_READ_FILE_OPS(bt_traffic);
 DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
+DEBUGFS_READ_FILE_OPS(reply_tx_error);
 
 /*
  * Create the debugfs files and directories
@@ -1738,6 +1751,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
 	if (priv->cfg->bt_statistics)
 		DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(monitor_period, dir_debug, S_IWUSR);
