@@ -17,8 +17,20 @@
 #include <linux/slab.h>
 #include <linux/regulator/max8649.h>
 
+
+/* Voltage ranges for three variants of the max8649 */
+#define MAX8649_CHIP_ID2_VAL	0x0E
 #define MAX8649_DCDC_VMIN	750000		/* uV */
 #define MAX8649_DCDC_VMAX	1380000		/* uV */
+
+#define MAX8649S_CHIP_ID2_VAL	0x0A
+#define MAX8649S_DCDC_VMIN	770000		/* uV */
+#define MAX8649S_DCDC_VMAX	1400000		/* uV */
+
+#define MAX8952_CHIP_ID2_VAL	0x1A
+#define MAX8952_DCDC_VMIN	770000		/* uV */
+#define MAX8952_DCDC_VMAX	1400000		/* uV */
+
 #define MAX8649_DCDC_STEP	10000		/* uV */
 #define MAX8649_VOL_MASK	0x3f
 
@@ -52,6 +64,8 @@ struct max8649_regulator_info {
 	struct i2c_client	*i2c;
 	struct device		*dev;
 	struct mutex		io_lock;
+	unsigned		dcdc_vmin;	/* uV */
+	unsigned		dcdc_vmax;	/* uV */
 
 	int		vol_reg;
 	unsigned	mode:2;	/* bit[1:0] = VID1, VID0 */
@@ -128,9 +142,10 @@ out:
 	return ret;
 }
 
-static inline int check_range(int min_uV, int max_uV)
+static inline int check_range(struct max8649_regulator_info *info,
+			      int min_uV, int max_uV)
 {
-	if ((min_uV < MAX8649_DCDC_VMIN) || (max_uV > MAX8649_DCDC_VMAX)
+	if ((min_uV < info->dcdc_vmin) || (max_uV > info->dcdc_vmax)
 		|| (min_uV > max_uV))
 		return -EINVAL;
 	return 0;
@@ -138,7 +153,8 @@ static inline int check_range(int min_uV, int max_uV)
 
 static int max8649_list_voltage(struct regulator_dev *rdev, unsigned index)
 {
-	return (MAX8649_DCDC_VMIN + index * MAX8649_DCDC_STEP);
+	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
+	return info->dcdc_vmin + index * MAX8649_DCDC_STEP;
 }
 
 static int max8649_get_voltage(struct regulator_dev *rdev)
@@ -160,12 +176,12 @@ static int max8649_set_voltage(struct regulator_dev *rdev,
 	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned char data, mask;
 
-	if (check_range(min_uV, max_uV)) {
+	if (check_range(info, min_uV, max_uV)) {
 		dev_err(info->dev, "invalid voltage range (%d, %d) uV\n",
 			min_uV, max_uV);
 		return -EINVAL;
 	}
-	data = (min_uV - MAX8649_DCDC_VMIN + MAX8649_DCDC_STEP - 1)
+	data = (min_uV - info->dcdc_vmin + MAX8649_DCDC_STEP - 1)
 		/ MAX8649_DCDC_STEP;
 	mask = MAX8649_VOL_MASK;
 
@@ -220,7 +236,7 @@ static int max8649_enable_time(struct regulator_dev *rdev)
 	ret = (ret & MAX8649_RAMP_MASK) >> 5;
 	rate = (32 * 1000) >> ret;	/* uV/uS */
 
-	return (voltage / rate);
+	return voltage / rate;
 }
 
 static int max8649_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -290,6 +306,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 	struct max8649_platform_data *pdata = client->dev.platform_data;
 	struct max8649_regulator_info *info = NULL;
 	unsigned char data;
+	int id1, id2;
 	int ret;
 
 	info = kzalloc(sizeof(struct max8649_regulator_info), GFP_KERNEL);
@@ -321,13 +338,47 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 		break;
 	}
 
-	ret = max8649_reg_read(info->i2c, MAX8649_CHIP_ID1);
-	if (ret < 0) {
-		dev_err(info->dev, "Failed to detect ID of MAX8649:%d\n",
-			ret);
+	id1 = max8649_reg_read(info->i2c, MAX8649_CHIP_ID1);
+	if (id1 < 0) {
+		dev_err(info->dev, "Failed to detect ID1 of MAX8649:%d\n", id1);
+		ret = id1;
 		goto out;
 	}
-	dev_info(info->dev, "Detected MAX8649 (ID:%x)\n", ret);
+
+	id2 = max8649_reg_read(info->i2c, MAX8649_CHIP_ID2);
+	if (id2 < 0) {
+		dev_err(info->dev, "Failed to detect ID2 of MAX8649:%d\n", id2);
+		ret = id2;
+		goto out;
+	}
+
+	switch (id2) {
+	case MAX8649S_CHIP_ID2_VAL:
+		dev_info(info->dev, "Detected MAX8649S (ID: 0x%02x%02x)\n",
+			 id1, id2);
+		info->dcdc_vmin = MAX8649S_DCDC_VMIN;
+		info->dcdc_vmax = MAX8649S_DCDC_VMAX;
+		break;
+	case MAX8952_CHIP_ID2_VAL:
+		dev_info(info->dev, "Detected MAX8952 (ID: 0x%02x%02x)\n",
+			 id1, id2);
+		info->dcdc_vmin = MAX8952_DCDC_VMIN;
+		info->dcdc_vmax = MAX8952_DCDC_VMAX;
+		break;
+	case MAX8649_CHIP_ID2_VAL:
+		dev_info(info->dev, "Detected MAX8649 (ID: 0x%02x%02x)\n",
+			 id1, id2);
+		info->dcdc_vmin = MAX8649_DCDC_VMIN;
+		info->dcdc_vmax = MAX8649_DCDC_VMAX;
+		break;
+	default:
+		dev_info(info->dev, "Detected Unknown (ID: 0x%02x%02x)"
+				" - defaulting to max8649 settings\n",
+			 id1, id2);
+		info->dcdc_vmin = MAX8649_DCDC_VMIN;
+		info->dcdc_vmax = MAX8649_DCDC_VMAX;
+		break;
+	}
 
 	/* enable VID0 & VID1 */
 	max8649_set_bits(info->i2c, MAX8649_CONTROL, MAX8649_VID_MASK, 0);
