@@ -506,16 +506,23 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 	return 0;
 }
 
-struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
-			 unsigned long ino)
+struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
+				unsigned long ino)
 {
 	struct nilfs_iget_args args = {
 		.ino = ino, .root = root, .cno = 0, .for_gc = 0
 	};
+
+	return iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
+}
+
+struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long ino)
+{
 	struct inode *inode;
 	int err;
 
-	inode = iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
+	inode = nilfs_iget_locked(sb, root, ino);
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))

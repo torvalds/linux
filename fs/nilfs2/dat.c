@@ -463,39 +463,48 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned visz,
 }
 
 /**
- * nilfs_dat_read - read dat inode
- * @dat: dat inode
- * @raw_inode: on-disk dat inode
- */
-int nilfs_dat_read(struct inode *dat, struct nilfs_inode *raw_inode)
-{
-	return nilfs_read_inode_common(dat, raw_inode);
-}
-
-/**
- * nilfs_dat_new - create dat file
- * @nilfs: nilfs object
+ * nilfs_dat_read - read or get dat inode
+ * @sb: super block instance
  * @entry_size: size of a dat entry
+ * @raw_inode: on-disk dat inode
+ * @inodep: buffer to store the inode
  */
-struct inode *nilfs_dat_new(struct the_nilfs *nilfs, size_t entry_size)
+int nilfs_dat_read(struct super_block *sb, size_t entry_size,
+		   struct nilfs_inode *raw_inode, struct inode **inodep)
 {
 	static struct lock_class_key dat_lock_key;
 	struct inode *dat;
 	struct nilfs_dat_info *di;
 	int err;
 
-	dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO, sizeof(*di));
-	if (dat) {
-		err = nilfs_palloc_init_blockgroup(dat, entry_size);
-		if (unlikely(err)) {
-			nilfs_mdt_destroy(dat);
-			return NULL;
-		}
+	dat = nilfs_iget_locked(sb, NULL, NILFS_DAT_INO);
+	if (unlikely(!dat))
+		return -ENOMEM;
+	if (!(dat->i_state & I_NEW))
+		goto out;
 
-		di = NILFS_DAT_I(dat);
-		lockdep_set_class(&di->mi.mi_sem, &dat_lock_key);
-		nilfs_palloc_setup_cache(dat, &di->palloc_cache);
-		nilfs_mdt_setup_shadow_map(dat, &di->shadow);
-	}
-	return dat;
+	err = nilfs_mdt_init(dat, NILFS_MDT_GFP, sizeof(*di));
+	if (err)
+		goto failed;
+
+	err = nilfs_palloc_init_blockgroup(dat, entry_size);
+	if (err)
+		goto failed;
+
+	di = NILFS_DAT_I(dat);
+	lockdep_set_class(&di->mi.mi_sem, &dat_lock_key);
+	nilfs_palloc_setup_cache(dat, &di->palloc_cache);
+	nilfs_mdt_setup_shadow_map(dat, &di->shadow);
+
+	err = nilfs_read_inode_common(dat, raw_inode);
+	if (err)
+		goto failed;
+
+	unlock_new_inode(dat);
+ out:
+	*inodep = dat;
+	return 0;
+ failed:
+	iget_failed(dat);
+	return err;
 }

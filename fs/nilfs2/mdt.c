@@ -444,8 +444,7 @@ static const struct inode_operations def_mdt_iops;
 static const struct file_operations def_mdt_fops;
 
 
-int nilfs_mdt_init(struct inode *inode, struct the_nilfs *nilfs,
-		   gfp_t gfp_mask, size_t objsz)
+int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 {
 	struct nilfs_mdt_info *mi;
 
@@ -453,13 +452,17 @@ int nilfs_mdt_init(struct inode *inode, struct the_nilfs *nilfs,
 	if (!mi)
 		return -ENOMEM;
 
-	mi->mi_nilfs = nilfs;
+	mi->mi_nilfs = NILFS_I_NILFS(inode);
 	init_rwsem(&mi->mi_sem);
 	inode->i_private = mi;
 
 	inode->i_mode = S_IFREG;
 	mapping_set_gfp_mask(inode->i_mapping, gfp_mask);
-	inode->i_mapping->backing_dev_info = nilfs->ns_bdi;
+	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
+
+	inode->i_op = &def_mdt_iops;
+	inode->i_fop = &def_mdt_fops;
+	inode->i_mapping->a_ops = &def_mdt_aops;
 
 	return 0;
 }
@@ -544,13 +547,10 @@ struct inode *nilfs_mdt_new(struct the_nilfs *nilfs, struct super_block *sb,
 	if (!inode)
 		return NULL;
 
-	if (nilfs_mdt_init(inode, nilfs, NILFS_MDT_GFP, objsz) < 0) {
+	if (nilfs_mdt_init(inode, NILFS_MDT_GFP, objsz) < 0) {
 		nilfs_destroy_inode(inode);
 		return NULL;
 	}
-	inode->i_op = &def_mdt_iops;
-	inode->i_fop = &def_mdt_fops;
-	inode->i_mapping->a_ops = &def_mdt_aops;
 	return inode;
 }
 

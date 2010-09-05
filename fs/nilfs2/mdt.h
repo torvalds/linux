@@ -85,8 +85,7 @@ int nilfs_mdt_forget_block(struct inode *, unsigned long);
 int nilfs_mdt_mark_block_dirty(struct inode *, unsigned long);
 int nilfs_mdt_fetch_dirty(struct inode *);
 
-int nilfs_mdt_init(struct inode *inode, struct the_nilfs *nilfs,
-		   gfp_t gfp_mask, size_t objsz);
+int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz);
 struct inode *nilfs_mdt_new(struct the_nilfs *, struct super_block *, ino_t,
 			    size_t);
 struct inode *nilfs_mdt_new_common(struct the_nilfs *, struct super_block *,

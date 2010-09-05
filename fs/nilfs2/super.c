@@ -356,6 +356,10 @@ static void nilfs_put_super(struct super_block *sb)
 		up_write(&nilfs->ns_sem);
 	}
 
+	iput(nilfs->ns_sufile);
+	iput(nilfs->ns_cpfile);
+	iput(nilfs->ns_dat);
+
 	destroy_nilfs(nilfs);
 	sbi->s_super = NULL;
 	sb->s_fs_info = NULL;
@@ -403,10 +407,6 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 	if (root->ifile)
 		goto reuse; /* already attached checkpoint */
 
-	root->ifile = nilfs_ifile_new(sbi, nilfs->ns_inode_size);
-	if (!root->ifile)
-		goto failed;
-
 	down_read(&nilfs->ns_segctor_sem);
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
 					  &bh_cp);
@@ -421,8 +421,10 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 		}
 		goto failed;
 	}
-	err = nilfs_read_inode_common(root->ifile, &raw_cp->cp_ifile_inode);
-	if (unlikely(err))
+
+	err = nilfs_ifile_read(sbi->s_super, root, nilfs->ns_inode_size,
+			       &raw_cp->cp_ifile_inode, &root->ifile);
+	if (err)
 		goto failed_bh;
 
 	atomic_set(&root->inodes_count, le64_to_cpu(raw_cp->cp_inodes_count));
@@ -895,7 +897,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err) {
 		printk(KERN_ERR "NILFS: error loading last checkpoint "
 		       "(checkpoint number=%llu).\n", (unsigned long long)cno);
-		goto failed_nilfs;
+		goto failed_unload;
 	}
 
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -923,6 +925,11 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 
  failed_checkpoint:
 	nilfs_put_root(fsroot);
+
+ failed_unload:
+	iput(nilfs->ns_sufile);
+	iput(nilfs->ns_cpfile);
+	iput(nilfs->ns_dat);
 
  failed_nilfs:
 	destroy_nilfs(nilfs);

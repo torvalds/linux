@@ -92,11 +92,6 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 void destroy_nilfs(struct the_nilfs *nilfs)
 {
 	might_sleep();
-	if (nilfs_loaded(nilfs)) {
-		nilfs_mdt_destroy(nilfs->ns_sufile);
-		nilfs_mdt_destroy(nilfs->ns_cpfile);
-		nilfs_mdt_destroy(nilfs->ns_dat);
-	}
 	if (nilfs_init(nilfs)) {
 		brelse(nilfs->ns_sbh[0]);
 		brelse(nilfs->ns_sbh[1]);
@@ -104,11 +99,13 @@ void destroy_nilfs(struct the_nilfs *nilfs)
 	kfree(nilfs);
 }
 
-static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
+static int nilfs_load_super_root(struct the_nilfs *nilfs,
+				 struct super_block *sb, sector_t sr_block)
 {
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+	struct nilfs_inode *rawi;
 	unsigned dat_entry_size, segment_usage_size, checkpoint_size;
 	unsigned inode_size;
 	int err;
@@ -125,33 +122,21 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
 
 	inode_size = nilfs->ns_inode_size;
 
-	err = -ENOMEM;
-	nilfs->ns_dat = nilfs_dat_new(nilfs, dat_entry_size);
-	if (unlikely(!nilfs->ns_dat))
+	rawi = (void *)bh_sr->b_data + NILFS_SR_DAT_OFFSET(inode_size);
+	err = nilfs_dat_read(sb, dat_entry_size, rawi, &nilfs->ns_dat);
+	if (err)
 		goto failed;
 
-	nilfs->ns_cpfile = nilfs_cpfile_new(nilfs, checkpoint_size);
-	if (unlikely(!nilfs->ns_cpfile))
+	rawi = (void *)bh_sr->b_data + NILFS_SR_CPFILE_OFFSET(inode_size);
+	err = nilfs_cpfile_read(sb, checkpoint_size, rawi, &nilfs->ns_cpfile);
+	if (err)
 		goto failed_dat;
 
-	nilfs->ns_sufile = nilfs_sufile_new(nilfs, segment_usage_size);
-	if (unlikely(!nilfs->ns_sufile))
+	rawi = (void *)bh_sr->b_data + NILFS_SR_SUFILE_OFFSET(inode_size);
+	err = nilfs_sufile_read(sb, segment_usage_size, rawi,
+				&nilfs->ns_sufile);
+	if (err)
 		goto failed_cpfile;
-
-	err = nilfs_dat_read(nilfs->ns_dat, (void *)bh_sr->b_data +
-			     NILFS_SR_DAT_OFFSET(inode_size));
-	if (unlikely(err))
-		goto failed_sufile;
-
-	err = nilfs_cpfile_read(nilfs->ns_cpfile, (void *)bh_sr->b_data +
-				NILFS_SR_CPFILE_OFFSET(inode_size));
-	if (unlikely(err))
-		goto failed_sufile;
-
-	err = nilfs_sufile_read(nilfs->ns_sufile, (void *)bh_sr->b_data +
-				NILFS_SR_SUFILE_OFFSET(inode_size));
-	if (unlikely(err))
-		goto failed_sufile;
 
 	raw_sr = (struct nilfs_super_root *)bh_sr->b_data;
 	nilfs->ns_nongc_ctime = le64_to_cpu(raw_sr->sr_nongc_ctime);
@@ -160,14 +145,11 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
 	brelse(bh_sr);
 	return err;
 
- failed_sufile:
-	nilfs_mdt_destroy(nilfs->ns_sufile);
-
  failed_cpfile:
-	nilfs_mdt_destroy(nilfs->ns_cpfile);
+	iput(nilfs->ns_cpfile);
 
  failed_dat:
-	nilfs_mdt_destroy(nilfs->ns_dat);
+	iput(nilfs->ns_dat);
 	goto failed;
 }
 
@@ -290,7 +272,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 			goto scan_error;
 	}
 
-	err = nilfs_load_super_root(nilfs, ri.ri_super_root);
+	err = nilfs_load_super_root(nilfs, sbi->s_super, ri.ri_super_root);
 	if (unlikely(err)) {
 		printk(KERN_ERR "NILFS: error loading super root.\n");
 		goto failed;
@@ -358,9 +340,9 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	goto failed;
 
  failed_unload:
-	nilfs_mdt_destroy(nilfs->ns_cpfile);
-	nilfs_mdt_destroy(nilfs->ns_sufile);
-	nilfs_mdt_destroy(nilfs->ns_dat);
+	iput(nilfs->ns_cpfile);
+	iput(nilfs->ns_sufile);
+	iput(nilfs->ns_dat);
 
  failed:
 	nilfs_clear_recovery_info(&ri);
@@ -782,7 +764,7 @@ void nilfs_put_root(struct nilfs_root *root)
 		rb_erase(&root->rb_node, &nilfs->ns_cptree);
 		spin_unlock(&nilfs->ns_cptree_lock);
 		if (root->ifile)
-			nilfs_mdt_destroy(root->ifile);
+			iput(root->ifile);
 
 		kfree(root);
 	}

@@ -933,27 +933,40 @@ int nilfs_cpfile_get_stat(struct inode *cpfile, struct nilfs_cpstat *cpstat)
 }
 
 /**
- * nilfs_cpfile_read - read cpfile inode
- * @cpfile: cpfile inode
- * @raw_inode: on-disk cpfile inode
- */
-int nilfs_cpfile_read(struct inode *cpfile, struct nilfs_inode *raw_inode)
-{
-	return nilfs_read_inode_common(cpfile, raw_inode);
-}
-
-/**
- * nilfs_cpfile_new - create cpfile
- * @nilfs: nilfs object
+ * nilfs_cpfile_read - read or get cpfile inode
+ * @sb: super block instance
  * @cpsize: size of a checkpoint entry
+ * @raw_inode: on-disk cpfile inode
+ * @inodep: buffer to store the inode
  */
-struct inode *nilfs_cpfile_new(struct the_nilfs *nilfs, size_t cpsize)
+int nilfs_cpfile_read(struct super_block *sb, size_t cpsize,
+		      struct nilfs_inode *raw_inode, struct inode **inodep)
 {
 	struct inode *cpfile;
+	int err;
 
-	cpfile = nilfs_mdt_new(nilfs, NULL, NILFS_CPFILE_INO, 0);
-	if (cpfile)
-		nilfs_mdt_set_entry_size(cpfile, cpsize,
-					 sizeof(struct nilfs_cpfile_header));
-	return cpfile;
+	cpfile = nilfs_iget_locked(sb, NULL, NILFS_CPFILE_INO);
+	if (unlikely(!cpfile))
+		return -ENOMEM;
+	if (!(cpfile->i_state & I_NEW))
+		goto out;
+
+	err = nilfs_mdt_init(cpfile, NILFS_MDT_GFP, 0);
+	if (err)
+		goto failed;
+
+	nilfs_mdt_set_entry_size(cpfile, cpsize,
+				 sizeof(struct nilfs_cpfile_header));
+
+	err = nilfs_read_inode_common(cpfile, raw_inode);
+	if (err)
+		goto failed;
+
+	unlock_new_inode(cpfile);
+ out:
+	*inodep = cpfile;
+	return 0;
+ failed:
+	iget_failed(cpfile);
+	return err;
 }
