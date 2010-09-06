@@ -78,6 +78,25 @@ void perf_pmu_enable(struct pmu *pmu)
 		pmu->pmu_enable(pmu);
 }
 
+static void perf_pmu_rotate_start(void)
+{
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
+
+	if (hrtimer_active(&cpuctx->timer))
+		return;
+
+	__hrtimer_start_range_ns(&cpuctx->timer,
+			ns_to_ktime(cpuctx->timer_interval), 0,
+			HRTIMER_MODE_REL_PINNED, 0);
+}
+
+static void perf_pmu_rotate_stop(void)
+{
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
+
+	hrtimer_cancel(&cpuctx->timer);
+}
+
 static void get_ctx(struct perf_event_context *ctx)
 {
 	WARN_ON(!atomic_inc_not_zero(&ctx->refcount));
@@ -281,6 +300,8 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 	}
 
 	list_add_rcu(&event->event_entry, &ctx->event_list);
+	if (!ctx->nr_events)
+		perf_pmu_rotate_start();
 	ctx->nr_events++;
 	if (event->attr.inherit_stat)
 		ctx->nr_stat++;
@@ -1383,6 +1404,12 @@ void perf_event_task_sched_in(struct task_struct *task)
 	ctx_sched_in(ctx, cpuctx, EVENT_FLEXIBLE);
 
 	cpuctx->task_ctx = ctx;
+
+	/*
+	 * Since these rotations are per-cpu, we need to ensure the
+	 * cpu-context we got scheduled on is actually rotating.
+	 */
+	perf_pmu_rotate_start();
 }
 
 #define MAX_INTERRUPTS (~0ULL)
@@ -1487,7 +1514,7 @@ static void perf_adjust_period(struct perf_event *event, u64 nsec, u64 count)
 	}
 }
 
-static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
+static void perf_ctx_adjust_freq(struct perf_event_context *ctx, u64 period)
 {
 	struct perf_event *event;
 	struct hw_perf_event *hwc;
@@ -1524,7 +1551,7 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 		hwc->freq_count_stamp = now;
 
 		if (delta > 0)
-			perf_adjust_period(event, TICK_NSEC, delta);
+			perf_adjust_period(event, period, delta);
 	}
 	raw_spin_unlock(&ctx->lock);
 }
@@ -1542,30 +1569,39 @@ static void rotate_ctx(struct perf_event_context *ctx)
 	raw_spin_unlock(&ctx->lock);
 }
 
-void perf_event_task_tick(struct task_struct *curr)
+/*
+ * Cannot race with ->pmu_rotate_start() because this is ran from hardirq
+ * context, and ->pmu_rotate_start() is called with irqs disabled (both are
+ * cpu affine, so there are no SMP races).
+ */
+static enum hrtimer_restart perf_event_context_tick(struct hrtimer *timer)
 {
+	enum hrtimer_restart restart = HRTIMER_NORESTART;
 	struct perf_cpu_context *cpuctx;
 	struct perf_event_context *ctx;
 	int rotate = 0;
 
-	if (!atomic_read(&nr_events))
-		return;
+	cpuctx = container_of(timer, struct perf_cpu_context, timer);
 
-	cpuctx = &__get_cpu_var(perf_cpu_context);
-	if (cpuctx->ctx.nr_events &&
-	    cpuctx->ctx.nr_events != cpuctx->ctx.nr_active)
-		rotate = 1;
+	if (cpuctx->ctx.nr_events) {
+		restart = HRTIMER_RESTART;
+		if (cpuctx->ctx.nr_events != cpuctx->ctx.nr_active)
+			rotate = 1;
+	}
 
-	ctx = curr->perf_event_ctxp;
-	if (ctx && ctx->nr_events && ctx->nr_events != ctx->nr_active)
-		rotate = 1;
+	ctx = current->perf_event_ctxp;
+	if (ctx && ctx->nr_events) {
+		restart = HRTIMER_RESTART;
+		if (ctx->nr_events != ctx->nr_active)
+			rotate = 1;
+	}
 
-	perf_ctx_adjust_freq(&cpuctx->ctx);
+	perf_ctx_adjust_freq(&cpuctx->ctx, cpuctx->timer_interval);
 	if (ctx)
-		perf_ctx_adjust_freq(ctx);
+		perf_ctx_adjust_freq(ctx, cpuctx->timer_interval);
 
 	if (!rotate)
-		return;
+		goto done;
 
 	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
@@ -1577,7 +1613,12 @@ void perf_event_task_tick(struct task_struct *curr)
 
 	cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
-		task_ctx_sched_in(curr, EVENT_FLEXIBLE);
+		task_ctx_sched_in(current, EVENT_FLEXIBLE);
+
+done:
+	hrtimer_forward_now(timer, ns_to_ktime(cpuctx->timer_interval));
+
+	return restart;
 }
 
 static int event_enable_on_exec(struct perf_event *event,
@@ -4786,7 +4827,7 @@ static void perf_swevent_start_hrtimer(struct perf_event *event)
 		}
 		__hrtimer_start_range_ns(&hwc->hrtimer,
 				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL, 0);
+				HRTIMER_MODE_REL_PINNED, 0);
 	}
 }
 
@@ -5904,6 +5945,9 @@ static void __init perf_event_init_all_cpus(void)
 
 		cpuctx = &per_cpu(perf_cpu_context, cpu);
 		__perf_event_init_context(&cpuctx->ctx, NULL);
+		cpuctx->timer_interval = TICK_NSEC;
+		hrtimer_init(&cpuctx->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		cpuctx->timer.function = perf_event_context_tick;
 	}
 }
 
@@ -5933,6 +5977,8 @@ static void __perf_event_exit_cpu(void *info)
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_event_context *ctx = &cpuctx->ctx;
 	struct perf_event *event, *tmp;
+
+	perf_pmu_rotate_stop();
 
 	list_for_each_entry_safe(event, tmp, &ctx->pinned_groups, group_entry)
 		__perf_event_remove_from_context(event);
