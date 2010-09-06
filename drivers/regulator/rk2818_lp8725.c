@@ -456,7 +456,7 @@ static int lp8725_dcdc_set_voltage(struct regulator_dev *dev,
 	return ret;
 }
 
-static int lp8725_dcdc_get_mode(struct regulator_dev *dev)
+static unsigned int lp8725_dcdc_get_mode(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
 	u16 mask = 1 << 1;
@@ -851,22 +851,25 @@ static int lp8725_set_init(void)
 }
 
 
-static int setup_regulators(struct lp8725 *lp8725, struct lp8725_platform_data *pdata)
+static int __devinit setup_regulators(struct lp8725 *lp8725, struct lp8725_platform_data *pdata)
 {	
 	int i, err;
-	int num_regulators = pdata->num_regulators;
-	lp8725->num_regulators = num_regulators;
-	lp8725->rdev = kzalloc(sizeof(struct regulator_dev *) * num_regulators,
-		GFP_KERNEL);
+
+	lp8725->num_regulators = pdata->num_regulators;
+	lp8725->rdev = kcalloc(pdata->num_regulators,
+			       sizeof(struct regulator_dev *), GFP_KERNEL);
+	if (!lp8725->rdev) {
+		return -ENOMEM;
+	}
 
 	/* Instantiate the regulators */
-	for (i = 0; i < num_regulators; i++) {
+	for (i = 0; i < pdata->num_regulators; i++) {
 		int id = pdata->regulators[i].id;
 		lp8725->rdev[i] = regulator_register(&regulators[id],
 			lp8725->dev, pdata->regulators[i].initdata, lp8725);
 
-		err = IS_ERR(lp8725->rdev[i]);
-		if (err) {
+		if (IS_ERR(lp8725->rdev[i])) {
+			err = PTR_ERR(lp8725->rdev[i]);
 			dev_err(lp8725->dev, "regulator init failed: %d\n",
 				err);
 			goto error;
@@ -875,9 +878,8 @@ static int setup_regulators(struct lp8725 *lp8725, struct lp8725_platform_data *
 
 	return 0;
 error:
-	for (i = 0; i < num_regulators; i++)
-		if (lp8725->rdev[i])
-			regulator_unregister(lp8725->rdev[i]);
+	while (--i >= 0)
+		regulator_unregister(lp8725->rdev[i]);
 	kfree(lp8725->rdev);
 	lp8725->rdev = NULL;
 	return err;
