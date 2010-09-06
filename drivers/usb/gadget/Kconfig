@@ -716,8 +716,8 @@ config USB_FUNCTIONFS
 	depends on EXPERIMENTAL
 	select USB_FUNCTIONFS_GENERIC if !(USB_FUNCTIONFS_ETH || USB_FUNCTIONFS_RNDIS)
 	help
-	  The Function Filesystem (FunctioFS) lets one create USB
-	  composite functions in user space in the same way as GadgetFS
+	  The Function Filesystem (FunctionFS) lets one create USB
+	  composite functions in user space in the same way GadgetFS
 	  lets one create USB gadgets in user space.  This allows creation
 	  of composite gadgets such that some of the functions are
 	  implemented in kernel space (for instance Ethernet, serial or
@@ -733,14 +733,14 @@ config USB_FUNCTIONFS_ETH
 	bool "Include configuration with CDC ECM (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	help
-	  Include a configuration with CDC ECM funcion (Ethernet) and the
-	  Funcion Filesystem.
+	  Include a configuration with CDC ECM function (Ethernet) and the
+	  Function Filesystem.
 
 config USB_FUNCTIONFS_RNDIS
 	bool "Include configuration with RNDIS (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	help
-	  Include a configuration with RNDIS funcion (Ethernet) and the Filesystem.
+	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
 config USB_FUNCTIONFS_GENERIC
 	bool "Include 'pure' configuration"
