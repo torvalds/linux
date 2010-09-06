@@ -614,7 +614,7 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	int error = 0;
 
 	if (!unconfined(profile))
-		error = aa_task_setrlimit(profile, resource, new_rlim);
+		error = aa_task_setrlimit(profile, task, resource, new_rlim);
 
 	return error;
 }
