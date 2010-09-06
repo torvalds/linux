@@ -2085,7 +2085,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 			    "no local data.\n");
 		drbd_send_ack_rp(mdev, cmd == P_DATA_REQUEST ? P_NEG_DREPLY :
 				 P_NEG_RS_DREPLY , p);
-		return TRUE;
+		/* drain possibly payload */
+		return drbd_drain_block(mdev, digest_size);
 	}
 
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
