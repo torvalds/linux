@@ -25,39 +25,23 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/i2c/panjit_ts.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-/* touch controller registers */
-#define CSR				0x00 /* Control and Status register */
-#define C_FLAG				0x01 /* Interrupt Clear flag */
-#define X1_H				0x03 /* High Byte of X1 Position */
-#define X1_L				0x04 /* Low Byte of X1 Position */
-#define Y1_H				0x05 /* High Byte of Y1 Position */
-#define Y1_L				0x06 /* Low Byte of Y1 Position */
-#define X2_H				0x07 /* High Byte of X2 Position */
-#define X2_L				0x08 /* Low Byte of X2 Position */
-#define Y2_H				0x09 /* High Byte of Y2 Position */
-#define Y2_L				0x0A /* Low Byte of Y2 Position */
-#define FINGERS				0x0B /* Detected finger number */
-#define GESTURE				0x0C /* Interpreted gesture */
+#define CSR		0x00
+ #define CSR_SCAN_EN	(1 << 3)
+ #define CSR_SLEEP_EN	(1 << 7)
+#define C_FLAG		0x01
+#define X1_H		0x03
 
-/* Control Status Register bit masks */
-#define CSR_SLEEP_EN			(1 << 7)
-#define CSR_SCAN_EN			(1 << 3)
-#define SLEEP_ENABLE			1
-
-/* Interrupt Clear register bit masks */
-#define C_FLAG_CLEAR			0x08
-#define INT_ASSERTED			(1 << C_FLAG_CLEAR)
-
-#define DRIVER_NAME			"panjit_touch"
+#define DRIVER_NAME	"panjit_touch"
 
 struct pj_data {
 	struct input_dev	*input_dev;
 	struct i2c_client	*client;
-	int			chipid;
+	int			gpio_reset;
 };
 
 struct pj_event {
@@ -74,6 +58,17 @@ union pj_buff {
 	unsigned char	buff[sizeof(struct pj_data)];
 };
 
+static void pj_reset(struct pj_data *touch)
+{
+	if (touch->gpio_reset < 0)
+		return;
+
+	gpio_set_value(touch->gpio_reset, 1);
+	msleep(50);
+	gpio_set_value(touch->gpio_reset, 0);
+	msleep(50);
+}
+
 static irqreturn_t pj_irq(int irq, void *dev_id)
 {
 	struct pj_data *touch = dev_id;
@@ -87,12 +82,12 @@ static irqreturn_t pj_irq(int irq, void *dev_id)
 					    sizeof(event.buff), event.buff);
 	if (WARN_ON(ret < 0)) {
 		dev_err(&client->dev, "error %d reading event data\n", ret);
-		return IRQ_HANDLED;
+		return IRQ_NONE;
 	}
 	ret = i2c_smbus_write_byte_data(client, C_FLAG, 0);
 	if (WARN_ON(ret < 0)) {
 		dev_err(&client->dev, "error %d clearing interrupt\n", ret);
-		return IRQ_HANDLED;
+		return IRQ_NONE;
 	}
 
 	input_report_key(touch->input_dev, BTN_TOUCH,
@@ -128,6 +123,7 @@ out:
 static int pj_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
+	struct panjit_i2c_ts_platform_data *pdata = client->dev.platform_data;
 	struct pj_data *touch = NULL;
 	struct input_dev *input_dev = NULL;
 	int ret = 0;
@@ -136,6 +132,22 @@ static int pj_probe(struct i2c_client *client,
 	if (!touch) {
 		dev_err(&client->dev, "%s: no memory\n", __func__);
 		return -ENOMEM;
+	}
+
+	touch->gpio_reset = -EINVAL;
+
+	if (pdata) {
+		ret = gpio_request(pdata->gpio_reset, "panjit_reset");
+		if (!ret) {
+			ret = gpio_direction_output(pdata->gpio_reset, 1);
+			if (ret < 0)
+				gpio_free(pdata->gpio_reset);
+		}
+
+		if (!ret)
+			touch->gpio_reset = pdata->gpio_reset;
+		else
+			dev_warn(&client->dev, "unable to configure GPIO\n");
 	}
 
 	input_dev = input_allocate_device();
@@ -147,6 +159,8 @@ static int pj_probe(struct i2c_client *client,
 
 	touch->client = client;
 	i2c_set_clientdata(client, touch);
+
+	pj_reset(touch);
 
 	/* clear interrupt */
 	ret = i2c_smbus_write_byte_data(touch->client, C_FLAG, 0);
@@ -199,7 +213,8 @@ static int pj_probe(struct i2c_client *client,
 
 	/* get the irq */
 	ret = request_threaded_irq(touch->client->irq, NULL, pj_irq,
-				   IRQF_ONESHOT, DRIVER_NAME, touch);
+				   IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				   DRIVER_NAME, touch);
 	if (ret) {
 		dev_err(&client->dev, "%s: request_irq(%d) failed\n",
 			__func__, touch->client->irq);
@@ -213,6 +228,9 @@ fail_irq:
 	input_unregister_device(touch->input_dev);
 
 fail_i2c_or_register:
+	if (touch->gpio_reset >= 0)
+		gpio_free(touch->gpio_reset);
+
 	input_free_device(input_dev);
 	kfree(touch);
 	return ret;
@@ -223,12 +241,10 @@ static int pj_suspend(struct i2c_client *client, pm_message_t state)
 	struct pj_data *touch = i2c_get_clientdata(client);
 	int ret;
 
-	if (!touch) {
-		WARN_ON(1);
+	if (WARN_ON(!touch))
 		return -EINVAL;
-	}
 
-	disable_irq(touch->client->irq);
+	disable_irq(client->irq);
 
 	/* disable scanning and enable deep sleep */
 	ret = i2c_smbus_write_byte_data(client, CSR, CSR_SLEEP_EN);
@@ -236,6 +252,7 @@ static int pj_suspend(struct i2c_client *client, pm_message_t state)
 		dev_err(&client->dev, "%s: sleep enable fail\n", __func__);
 		return ret;
 	}
+
 	return 0;
 }
 
@@ -244,18 +261,22 @@ static int pj_resume(struct i2c_client *client)
 	struct pj_data *touch = i2c_get_clientdata(client);
 	int ret = 0;
 
-	if (!touch) {
-		WARN_ON(1);
+	if (WARN_ON(!touch))
 		return -EINVAL;
-	}
+
+	pj_reset(touch);
+
 	/* enable scanning and disable deep sleep */
-	ret = i2c_smbus_write_byte_data(client, CSR, CSR_SCAN_EN);
+	ret = i2c_smbus_write_byte_data(client, C_FLAG, 0);
+	if (ret >= 0)
+		ret = i2c_smbus_write_byte_data(client, CSR, CSR_SCAN_EN);
 	if (ret < 0) {
-		dev_err(&client->dev, "%s: interrupt enable fail\n", __func__);
+		dev_err(&client->dev, "%s: scan enable fail\n", __func__);
 		return ret;
 	}
 
-	enable_irq(touch->client->irq);
+	enable_irq(client->irq);
+
 	return 0;
 }
 
@@ -267,6 +288,8 @@ static int pj_remove(struct i2c_client *client)
 		return -EINVAL;
 
 	free_irq(touch->client->irq, touch);
+	if (touch->gpio_reset >= 0)
+		gpio_free(touch->gpio_reset);
 	input_unregister_device(touch->input_dev);
 	input_free_device(touch->input_dev);
 	kfree(touch);
