@@ -1593,9 +1593,9 @@ static int cit_get_packet_size(struct gspca_dev *gspca_dev)
 	return le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 }
 
-static int cit_start_model0(struct gspca_dev *gspca_dev)
+/* Calculate the clockdiv giving us max fps given the available bandwidth */
+static int cit_get_clock_div(struct gspca_dev *gspca_dev)
 {
-	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
 	int clock_div = 7; /* 0=30 1=25 2=20 3=15 4=12 5=7.5 6=6 7=3fps ?? */
 	int fps[8] = { 30, 25, 20, 15, 12, 8, 6, 3 };
 	int packet_size;
@@ -1609,6 +1609,23 @@ static int cit_start_model0(struct gspca_dev *gspca_dev)
 			gspca_dev->width * gspca_dev->height *
 			fps[clock_div - 1] * 3 / 2)
 		clock_div--;
+
+	PDEBUG(D_PROBE,
+	       "PacketSize: %d, res: %dx%d -> using clockdiv: %d (%d fps)",
+	       packet_size, gspca_dev->width, gspca_dev->height, clock_div,
+	       fps[clock_div]);
+
+	return clock_div;
+}
+
+static int cit_start_model0(struct gspca_dev *gspca_dev)
+{
+	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
+	int clock_div;
+
+	clock_div = cit_get_clock_div(gspca_dev);
+	if (clock_div < 0)
+		return clock_div;
 
 	cit_write_reg(gspca_dev, 0x0000, 0x0100); /* turn on led */
 	cit_write_reg(gspca_dev, 0x0003, 0x0438);
@@ -1651,7 +1668,6 @@ static int cit_start_model0(struct gspca_dev *gspca_dev)
 
 	cit_write_reg(gspca_dev, compression, 0x0109);
 	cit_write_reg(gspca_dev, clock_div, 0x0111);
-	PDEBUG(D_PROBE, "Using clockdiv: %d", clock_div);
 
 	return 0;
 }
@@ -1659,19 +1675,11 @@ static int cit_start_model0(struct gspca_dev *gspca_dev)
 static int cit_start_model1(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int clock_div = 7; /* 0=30 1=25 2=20 3=15 4=12 5=7.5 6=6 7=3fps ?? */
-	int fps[8] = { 30, 25, 20, 15, 12, 8, 6, 3 };
-	int i, packet_size;
+	int i, clock_div;
 
-	packet_size = cit_get_packet_size(gspca_dev);
-	if (packet_size < 0)
-		return packet_size;
-
-	while (clock_div > 3 &&
-			1000 * packet_size >
-			gspca_dev->width * gspca_dev->height *
-			fps[clock_div - 1] * 3 / 2)
-		clock_div--;
+	clock_div = cit_get_clock_div(gspca_dev);
+	if (clock_div < 0)
+		return clock_div;
 
 	cit_read_reg(gspca_dev, 0x0128);
 	cit_read_reg(gspca_dev, 0x0100);
@@ -1861,7 +1869,6 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 
 	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
 	cit_write_reg(gspca_dev, clock_div, 0x0111);
-	PDEBUG(D_PROBE, "Using clockdiv: %d", clock_div);
 
 	return 0;
 }
@@ -2255,6 +2262,9 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 	cit_model3_Packet1(gspca_dev, 0x0097, 0x0096);	/* Blue sharpness */
 	cit_model3_Packet1(gspca_dev, 0x0098, 0x000b);
 
+	/* FIXME we should probably use cit_get_clock_div() here (in
+	   combination with isoc negotiation using the programmable isoc size)
+	   like with the IBM netcam pro). */
 	cit_write_reg(gspca_dev, clock_div, 0x0111); /* Clock Divider */
 
 	switch (gspca_dev->width) {
@@ -2622,7 +2632,11 @@ static int cit_start_model4(struct gspca_dev *gspca_dev)
 static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 {
 	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
-	int i, clock_div = 0;
+	int i, clock_div;
+
+	clock_div = cit_get_clock_div(gspca_dev);
+	if (clock_div < 0)
+		return clock_div;
 
 	cit_write_reg(gspca_dev, 0x0003, 0x0133);
 	cit_write_reg(gspca_dev, 0x0000, 0x0117);
@@ -2661,7 +2675,6 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x008b, 0x011c);
 		cit_write_reg(gspca_dev, 0x0008, 0x0118);
 		cit_write_reg(gspca_dev, 0x0000, 0x0132);
-		clock_div = 3;
 		break;
 	case 320: /* 320x240 */
 		cit_write_reg(gspca_dev, 0x0028, 0x010b);
@@ -2673,7 +2686,6 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x003f, 0x011c);
 		cit_write_reg(gspca_dev, 0x000c, 0x0118);
 		cit_write_reg(gspca_dev, 0x0000, 0x0132);
-		clock_div = 5;
 		break;
 	}
 
