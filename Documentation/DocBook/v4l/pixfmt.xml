@@ -787,6 +787,20 @@ http://www.thedirks.org/winnov/</ulink></para></entry>
 	    <entry>'TM60'</entry>
 	    <entry><para>Used by Trident tm6000</para></entry>
 	  </row>
+	  <row id="V4L2_PIX_FMT_CIT_YYVYUY">
+	    <entry><constant>V4L2_PIX_FMT_CIT_YYVYUY</constant></entry>
+	    <entry>'CITV'</entry>
+	    <entry><para>Used by xirlink CIT, found at IBM webcams.</para>
+	           <para>Uses one line of Y then 1 line of VYUY</para>
+	    </entry>
+	  </row>
+	  <row id="V4L2_PIX_FMT_KONICA420">
+	    <entry><constant>V4L2_PIX_FMT_KONICA420</constant></entry>
+	    <entry>'KONI'</entry>
+	    <entry><para>Used by Konica webcams.</para>
+	           <para>YUV420 planar in blocks of 256 pixels.</para>
+	    </entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-YYUV">
 	    <entry><constant>V4L2_PIX_FMT_YYUV</constant></entry>
 	    <entry>'YYUV'</entry>

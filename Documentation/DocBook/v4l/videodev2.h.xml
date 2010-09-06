@@ -364,6 +364,8 @@ struct <link linkend="v4l2-pix-format">v4l2_pix_format</link> {
 #define <link linkend="V4L2-PIX-FMT-OV518">V4L2_PIX_FMT_OV518</link>    v4l2_fourcc('O', '5', '1', '8') /* ov518 JPEG */
 #define <link linkend="V4L2-PIX-FMT-TM6000">V4L2_PIX_FMT_TM6000</link>   v4l2_fourcc('T', 'M', '6', '0') /* tm5600/tm60x0 */
 #define <link linkend="V4L2-PIX-FMT-STV0680">V4L2_PIX_FMT_STV0680</link>  v4l2_fourcc('S', '6', '8', '0') /* stv0680 bayer */
+#define <link linkend="V4L2-PIX-FMT-CIT-YYVYUY">V4L2_PIX_FMT_CIT_YYVYUY</link> v4l2_fourcc('C', 'I', 'T', 'V') /* one line of Y then 1 line of VYUY */
+#define <link linkend="V4L2-PIX-FMT-KONICA420">V4L2_PIX_FMT_KONICA420</link>  v4l2_fourcc('K', 'O', 'N', 'I') /* YUV420 planar in blocks of 256 pixels */
 
 /*
  *      F O R M A T   E N U M E R A T I O N
