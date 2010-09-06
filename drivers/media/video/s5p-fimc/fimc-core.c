@@ -393,6 +393,37 @@ static void fimc_set_yuv_order(struct fimc_ctx *ctx)
 	dbg("ctx->out_order_1p= %d", ctx->out_order_1p);
 }
 
+static void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
+{
+	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
+
+	f->dma_offset.y_h = f->offs_h;
+	if (!variant->pix_hoff)
+		f->dma_offset.y_h *= (f->fmt->depth >> 3);
+
+	f->dma_offset.y_v = f->offs_v;
+
+	f->dma_offset.cb_h = f->offs_h;
+	f->dma_offset.cb_v = f->offs_v;
+
+	f->dma_offset.cr_h = f->offs_h;
+	f->dma_offset.cr_v = f->offs_v;
+
+	if (!variant->pix_hoff) {
+		if (f->fmt->planes_cnt == 3) {
+			f->dma_offset.cb_h >>= 1;
+			f->dma_offset.cr_h >>= 1;
+		}
+		if (f->fmt->color == S5P_FIMC_YCBCR420) {
+			f->dma_offset.cb_v >>= 1;
+			f->dma_offset.cr_v >>= 1;
+		}
+	}
+
+	dbg("in_offset: color= %d, y_h= %d, y_v= %d",
+	    f->fmt->color, f->dma_offset.y_h, f->dma_offset.y_v);
+}
+
 /**
  * fimc_prepare_config - check dimensions, operation and color mode
  *			 and pre-calculate offset and the scaling coefficients.
@@ -406,7 +437,6 @@ static int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags)
 {
 	struct fimc_frame *s_frame, *d_frame;
 	struct fimc_vid_buffer *buf = NULL;
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	int ret = 0;
 
 	s_frame = &ctx->s_frame;
@@ -419,61 +449,16 @@ static int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags)
 			swap(d_frame->width, d_frame->height);
 		}
 
-		/* Prepare the output offset ratios for scaler. */
-		d_frame->dma_offset.y_h = d_frame->offs_h;
-		if (!variant->pix_hoff)
-			d_frame->dma_offset.y_h *= (d_frame->fmt->depth >> 3);
+		/* Prepare the DMA offset ratios for scaler. */
+		fimc_prepare_dma_offset(ctx, &ctx->s_frame);
+		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 
-		d_frame->dma_offset.y_v = d_frame->offs_v;
-
-		d_frame->dma_offset.cb_h = d_frame->offs_h;
-		d_frame->dma_offset.cb_v = d_frame->offs_v;
-
-		d_frame->dma_offset.cr_h = d_frame->offs_h;
-		d_frame->dma_offset.cr_v = d_frame->offs_v;
-
-		if (!variant->pix_hoff && d_frame->fmt->planes_cnt == 3) {
-			d_frame->dma_offset.cb_h >>= 1;
-			d_frame->dma_offset.cb_v >>= 1;
-			d_frame->dma_offset.cr_h >>= 1;
-			d_frame->dma_offset.cr_v >>= 1;
-		}
-
-		dbg("out offset: color= %d, y_h= %d, y_v= %d",
-			d_frame->fmt->color,
-			d_frame->dma_offset.y_h, d_frame->dma_offset.y_v);
-
-		/* Prepare the input offset ratios for scaler. */
-		s_frame->dma_offset.y_h = s_frame->offs_h;
-		if (!variant->pix_hoff)
-			s_frame->dma_offset.y_h *= (s_frame->fmt->depth >> 3);
-		s_frame->dma_offset.y_v = s_frame->offs_v;
-
-		s_frame->dma_offset.cb_h = s_frame->offs_h;
-		s_frame->dma_offset.cb_v = s_frame->offs_v;
-
-		s_frame->dma_offset.cr_h = s_frame->offs_h;
-		s_frame->dma_offset.cr_v = s_frame->offs_v;
-
-		if (!variant->pix_hoff && s_frame->fmt->planes_cnt == 3) {
-			s_frame->dma_offset.cb_h >>= 1;
-			s_frame->dma_offset.cb_v >>= 1;
-			s_frame->dma_offset.cr_h >>= 1;
-			s_frame->dma_offset.cr_v >>= 1;
-		}
-
-		dbg("in offset: color= %d, y_h= %d, y_v= %d",
-			s_frame->fmt->color, s_frame->dma_offset.y_h,
-			s_frame->dma_offset.y_v);
-
-		fimc_set_yuv_order(ctx);
-
-		/* Check against the scaler ratio. */
 		if (s_frame->height > (SCALER_MAX_VRATIO * d_frame->height) ||
 		    s_frame->width > (SCALER_MAX_HRATIO * d_frame->width)) {
 			err("out of scaler range");
 			return -EINVAL;
 		}
+		fimc_set_yuv_order(ctx);
 	}
 
 	/* Input DMA mode is not allowed when the scaler is disabled. */
@@ -1495,6 +1480,7 @@ static struct samsung_fimc_variant fimc2_variant_s5p = {
 };
 
 static struct samsung_fimc_variant fimc01_variant_s5pv210 = {
+	.pix_hoff	= 1,
 	.has_inp_rot	= 1,
 	.has_out_rot	= 1,
 	.min_inp_pixsize = 16,
@@ -1509,6 +1495,7 @@ static struct samsung_fimc_variant fimc01_variant_s5pv210 = {
 };
 
 static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
+	.pix_hoff	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 32,
 
