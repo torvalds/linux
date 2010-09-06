@@ -1983,7 +1983,7 @@ static int __init pl022_init(void)
 	return amba_driver_register(&pl022_driver);
 }
 
-module_init(pl022_init);
+subsys_initcall(pl022_init);
 
 static void __exit pl022_exit(void)
 {
