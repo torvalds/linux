@@ -545,7 +545,7 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	INIT_LIST_HEAD(&port->trans_queue);
 #endif
 
-	//spi_fpga_rst();
+	spi_fpga_rst();
 	sprintf(b, "fpga_irq_workqueue");
 	port->fpga_irq_workqueue = create_rt_workqueue(b);
 	if (!port->fpga_irq_workqueue) {
