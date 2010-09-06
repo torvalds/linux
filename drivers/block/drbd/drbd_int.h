@@ -1077,7 +1077,8 @@ struct drbd_conf {
 	int next_barrier_nr;
 	struct hlist_head *app_reads_hash; /* is proteced by req_lock */
 	struct list_head resync_reads;
-	atomic_t pp_in_use;
+	atomic_t pp_in_use;		/* allocated from page pool */
+	atomic_t pp_in_use_by_net;	/* sendpage()d, still referenced by tcp */
 	wait_queue_head_t ee_wait;
 	struct page *md_io_page;	/* one page buffer for md_io */
 	struct page *md_io_tmpp;	/* for logical_block_size != 512 */
@@ -1555,7 +1556,10 @@ extern struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 					    sector_t sector,
 					    unsigned int data_size,
 					    gfp_t gfp_mask) __must_hold(local);
-extern void drbd_free_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e);
+extern void drbd_free_some_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
+		int is_net);
+#define drbd_free_ee(m,e)	drbd_free_some_ee(m, e, 0)
+#define drbd_free_net_ee(m,e)	drbd_free_some_ee(m, e, 1)
 extern void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
 		struct list_head *head);
 extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,

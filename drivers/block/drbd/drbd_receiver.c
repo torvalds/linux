@@ -241,7 +241,7 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
 	spin_unlock_irq(&mdev->req_lock);
 
 	list_for_each_entry_safe(e, t, &reclaimed, w.list)
-		drbd_free_ee(mdev, e);
+		drbd_free_net_ee(mdev, e);
 }
 
 /**
@@ -298,9 +298,11 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool 
  * Is also used from inside an other spin_lock_irq(&mdev->req_lock);
  * Either links the page chain back to the global pool,
  * or returns all pages to the system. */
-static void drbd_pp_free(struct drbd_conf *mdev, struct page *page)
+static void drbd_pp_free(struct drbd_conf *mdev, struct page *page, int is_net)
 {
+	atomic_t *a = is_net ? &mdev->pp_in_use_by_net : &mdev->pp_in_use;
 	int i;
+
 	if (drbd_pp_vacant > (DRBD_MAX_SEGMENT_SIZE/PAGE_SIZE)*minor_count)
 		i = page_chain_free(page);
 	else {
@@ -311,10 +313,10 @@ static void drbd_pp_free(struct drbd_conf *mdev, struct page *page)
 		drbd_pp_vacant += i;
 		spin_unlock(&drbd_pp_lock);
 	}
-	atomic_sub(i, &mdev->pp_in_use);
-	i = atomic_read(&mdev->pp_in_use);
+	i = atomic_sub_return(i, a);
 	if (i < 0)
-		dev_warn(DEV, "ASSERTION FAILED: pp_in_use: %d < 0\n", i);
+		dev_warn(DEV, "ASSERTION FAILED: %s: %d < 0\n",
+			is_net ? "pp_in_use_by_net" : "pp_in_use", i);
 	wake_up(&drbd_pp_wait);
 }
 
@@ -374,11 +376,11 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 	return NULL;
 }
 
-void drbd_free_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
+void drbd_free_some_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e, int is_net)
 {
 	if (e->flags & EE_HAS_DIGEST)
 		kfree(e->digest);
-	drbd_pp_free(mdev, e->pages);
+	drbd_pp_free(mdev, e->pages, is_net);
 	D_ASSERT(atomic_read(&e->pending_bios) == 0);
 	D_ASSERT(hlist_unhashed(&e->colision));
 	mempool_free(e, drbd_ee_mempool);
@@ -389,13 +391,14 @@ int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
 	LIST_HEAD(work_list);
 	struct drbd_epoch_entry *e, *t;
 	int count = 0;
+	int is_net = list == &mdev->net_ee;
 
 	spin_lock_irq(&mdev->req_lock);
 	list_splice_init(list, &work_list);
 	spin_unlock_irq(&mdev->req_lock);
 
 	list_for_each_entry_safe(e, t, &work_list, w.list) {
-		drbd_free_ee(mdev, e);
+		drbd_free_some_ee(mdev, e, is_net);
 		count++;
 	}
 	return count;
@@ -424,7 +427,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	spin_unlock_irq(&mdev->req_lock);
 
 	list_for_each_entry_safe(e, t, &reclaimed, w.list)
-		drbd_free_ee(mdev, e);
+		drbd_free_net_ee(mdev, e);
 
 	/* possible callbacks here:
 	 * e_end_block, and e_end_resync_block, e_send_discard_ack.
@@ -1460,7 +1463,7 @@ static int drbd_drain_block(struct drbd_conf *mdev, int data_size)
 		data_size -= rr;
 	}
 	kunmap(page);
-	drbd_pp_free(mdev, page);
+	drbd_pp_free(mdev, page, 0);
 	return rv;
 }
 
@@ -3879,6 +3882,9 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	i = drbd_release_ee(mdev, &mdev->net_ee);
 	if (i)
 		dev_info(DEV, "net_ee not empty, killed %u entries\n", i);
+	i = atomic_read(&mdev->pp_in_use_by_net);
+	if (i)
+		dev_info(DEV, "pp_in_use_by_net = %d, expected 0\n", i);
 	i = atomic_read(&mdev->pp_in_use);
 	if (i)
 		dev_info(DEV, "pp_in_use = %d, expected 0\n", i);
