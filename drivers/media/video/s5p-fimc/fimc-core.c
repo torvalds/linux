@@ -1415,8 +1415,10 @@ static int fimc_probe(struct platform_device *pdev)
 	}
 
 	fimc->work_queue = create_workqueue(dev_name(&fimc->pdev->dev));
-	if (!fimc->work_queue)
+	if (!fimc->work_queue) {
+		ret = -ENOMEM;
 		goto err_irq;
+	}
 
 	ret = fimc_register_m2m_device(fimc);
 	if (ret)
