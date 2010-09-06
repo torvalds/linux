@@ -17,6 +17,7 @@
 #define _IR_RAW_EVENT
 
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <media/ir-core.h>
 
 struct ir_raw_handler {
@@ -33,6 +34,7 @@ struct ir_raw_handler {
 struct ir_raw_event_ctrl {
 	struct list_head		list;		/* to keep track of raw clients */
 	struct task_struct		*thread;
+	spinlock_t			lock;
 	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */

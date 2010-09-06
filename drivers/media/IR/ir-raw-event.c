@@ -39,22 +39,34 @@ static int ir_raw_event_thread(void *data)
 	struct ir_raw_event ev;
 	struct ir_raw_handler *handler;
 	struct ir_raw_event_ctrl *raw = (struct ir_raw_event_ctrl *)data;
+	int retval;
 
 	while (!kthread_should_stop()) {
-		try_to_freeze();
 
-		mutex_lock(&ir_raw_handler_lock);
+		spin_lock_irq(&raw->lock);
+		retval = kfifo_out(&raw->kfifo, &ev, sizeof(ev));
 
-		while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev)) {
-			list_for_each_entry(handler, &ir_raw_handler_list, list)
-				handler->decode(raw->input_dev, ev);
-			raw->prev_ev = ev;
+		if (!retval) {
+			set_current_state(TASK_INTERRUPTIBLE);
+
+			if (kthread_should_stop())
+				set_current_state(TASK_RUNNING);
+
+			spin_unlock_irq(&raw->lock);
+			schedule();
+			continue;
 		}
 
-		mutex_unlock(&ir_raw_handler_lock);
+		spin_unlock_irq(&raw->lock);
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
+
+		BUG_ON(retval != sizeof(ev));
+
+		mutex_lock(&ir_raw_handler_lock);
+		list_for_each_entry(handler, &ir_raw_handler_list, list)
+			handler->decode(raw->input_dev, ev);
+		raw->prev_ev = ev;
+		mutex_unlock(&ir_raw_handler_lock);
 	}
 
 	return 0;
@@ -232,11 +244,14 @@ EXPORT_SYMBOL_GPL(ir_raw_event_set_idle);
 void ir_raw_event_handle(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	unsigned long flags;
 
 	if (!ir->raw)
 		return;
 
+	spin_lock_irqsave(&ir->raw->lock, flags);
 	wake_up_process(ir->raw->thread);
+	spin_unlock_irqrestore(&ir->raw->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
@@ -275,6 +290,7 @@ int ir_raw_event_register(struct input_dev *input_dev)
 		return rc;
 	}
 
+	spin_lock_init(&ir->raw->lock);
 	ir->raw->thread = kthread_run(ir_raw_event_thread, ir->raw,
 			"rc%u",  (unsigned int)ir->devno);
 
