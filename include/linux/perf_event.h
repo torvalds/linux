@@ -570,7 +570,8 @@ struct perf_event;
 struct pmu {
 	struct list_head		entry;
 
-	int				*pmu_disable_count;
+	int * __percpu			pmu_disable_count;
+	struct perf_cpu_context * __percpu pmu_cpu_context;
 
 	/*
 	 * Fully disable/enable this PMU, can be used to protect from the PMI
@@ -808,6 +809,7 @@ struct perf_event {
  * Used as a container for task events and CPU events as well:
  */
 struct perf_event_context {
+	struct pmu			*pmu;
 	/*
 	 * Protect the states of the events in the list,
 	 * nr_active, and the list:
