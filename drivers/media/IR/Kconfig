@@ -102,15 +102,15 @@ config IR_LIRC_CODEC
 	   the LIRC interface.
 
 config IR_ENE
-	tristate "ENE eHome Receiver/Transciever (pnp id: ENE0100/ENE02xxx)"
+	tristate "ENE eHome Receiver/Transceiver (pnp id: ENE0100/ENE02xxx)"
 	depends on PNP
 	depends on IR_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
-	   /transciever made by ENE.
+	   /transceiver made by ENE.
 
 	   You can see if you have it by looking at lspnp output.
-	   Output should include ENE0100 ENE0200 or something similiar.
+	   Output should include ENE0100 ENE0200 or something similar.
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called ene_ir.
