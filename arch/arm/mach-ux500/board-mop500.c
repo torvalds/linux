@@ -28,6 +28,7 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+#include <mach/irqs.h>
 
 #include "pins-db8500.h"
 #include "board-mop500.h"
@@ -76,9 +77,27 @@ static struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 };
 
-static struct spi_board_info u8500_spi_devices[] = {
+static struct resource ab8500_resources[] = {
+	[0] = {
+		.start = IRQ_AB8500,
+		.end = IRQ_AB8500,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+struct platform_device ab8500_device = {
+	.name = "ab8500-i2c",
+	.id = 0,
+	.dev = {
+		.platform_data = &ab8500_platdata,
+	},
+	.num_resources = 1,
+	.resource = ab8500_resources,
+};
+
+static struct spi_board_info ab8500_spi_devices[] = {
 	{
-		.modalias = "ab8500",
+		.modalias = "ab8500-spi",
 		.controller_data = &ab4500_chip_info,
 		.platform_data = &ab8500_platdata,
 		.max_speed_hz = 12000000,
@@ -166,8 +185,12 @@ static void __init u8500_init_machine(void)
 
 	mop500_sdi_init();
 
-	spi_register_board_info(u8500_spi_devices,
-			ARRAY_SIZE(u8500_spi_devices));
+	/* If HW is early drop (ED) or V1.0 then use SPI to access AB8500 */
+	if (cpu_is_u8500ed() || cpu_is_u8500v10())
+		spi_register_board_info(ab8500_spi_devices,
+			ARRAY_SIZE(ab8500_spi_devices));
+	else /* If HW is v.1.1 or later use I2C to access AB8500 */
+		platform_device_register(&ab8500_device);
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
