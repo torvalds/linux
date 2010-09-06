@@ -419,11 +419,13 @@ static void raid1_end_write_request(struct bio *bio, int error)
 static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 {
 	const sector_t this_sector = r1_bio->sector;
-	int new_disk = conf->last_used, disk = new_disk;
-	int wonly_disk = -1;
 	const int sectors = r1_bio->sectors;
+	int new_disk = -1;
+	int start_disk;
+	int i;
 	sector_t new_distance, current_distance;
 	mdk_rdev_t *rdev;
+	int choose_first;
 
 	rcu_read_lock();
 	/*
@@ -434,53 +436,32 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
  retry:
 	if (conf->mddev->recovery_cp < MaxSector &&
 	    (this_sector + sectors >= conf->next_resync)) {
-		/* Choose the first operational device, for consistancy */
-		new_disk = 0;
-
-		for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
-		     r1_bio->bios[new_disk] == IO_BLOCKED ||
-		     !rdev || !test_bit(In_sync, &rdev->flags)
-			     || test_bit(WriteMostly, &rdev->flags);
-		     rdev = rcu_dereference(conf->mirrors[++new_disk].rdev)) {
-
-			if (rdev && test_bit(In_sync, &rdev->flags) &&
-				r1_bio->bios[new_disk] != IO_BLOCKED)
-				wonly_disk = new_disk;
-
-			if (new_disk == conf->raid_disks - 1) {
-				new_disk = wonly_disk;
-				break;
-			}
-		}
-		goto rb_out;
+		choose_first = 1;
+		start_disk = 0;
+	} else {
+		choose_first = 0;
+		start_disk = conf->last_used;
 	}
-
 
 	/* make sure the disk is operational */
-	for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
-	     r1_bio->bios[new_disk] == IO_BLOCKED ||
-	     !rdev || !test_bit(In_sync, &rdev->flags) ||
-		     test_bit(WriteMostly, &rdev->flags);
-	     rdev = rcu_dereference(conf->mirrors[new_disk].rdev)) {
+	for (i = 0 ; i < conf->raid_disks ; i++) {
+		int disk = start_disk + i;
+		if (disk >= conf->raid_disks)
+			disk -= conf->raid_disks;
 
-		if (rdev && test_bit(In_sync, &rdev->flags) &&
-		    r1_bio->bios[new_disk] != IO_BLOCKED)
-			wonly_disk = new_disk;
+		rdev = rcu_dereference(conf->mirrors[disk].rdev);
+		if (r1_bio->bios[disk] == IO_BLOCKED
+		    || rdev == NULL
+		    || !test_bit(In_sync, &rdev->flags))
+			continue;
 
-		if (new_disk <= 0)
-			new_disk = conf->raid_disks;
-		new_disk--;
-		if (new_disk == disk) {
-			new_disk = wonly_disk;
+		new_disk = disk;
+		if (!test_bit(WriteMostly, &rdev->flags))
 			break;
-		}
 	}
 
-	if (new_disk < 0)
+	if (new_disk < 0 || choose_first)
 		goto rb_out;
-
-	disk = new_disk;
-	/* now disk == new_disk == starting point for search */
 
 	/*
 	 * Don't change to another disk for sequential reads:
@@ -490,20 +471,21 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 	if (this_sector == conf->mirrors[new_disk].head_position)
 		goto rb_out;
 
-	current_distance = abs(this_sector - conf->mirrors[disk].head_position);
+	current_distance = abs(this_sector 
+			       - conf->mirrors[new_disk].head_position);
 
-	/* Find the disk whose head is closest */
-
-	do {
-		if (disk <= 0)
-			disk = conf->raid_disks;
-		disk--;
+	/* look for a better disk - i.e. head is closer */
+	start_disk = new_disk;
+	for (i = 1; i < conf->raid_disks; i++) {
+		int disk = start_disk + 1;
+		if (disk >= conf->raid_disks)
+			disk -= conf->raid_disks;
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
-
-		if (!rdev || r1_bio->bios[disk] == IO_BLOCKED ||
-		    !test_bit(In_sync, &rdev->flags) ||
-		    test_bit(WriteMostly, &rdev->flags))
+		if (r1_bio->bios[disk] == IO_BLOCKED
+		    || rdev == NULL
+		    || !test_bit(In_sync, &rdev->flags)
+		    || test_bit(WriteMostly, &rdev->flags))
 			continue;
 
 		if (!atomic_read(&rdev->nr_pending)) {
@@ -515,11 +497,9 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 			current_distance = new_distance;
 			new_disk = disk;
 		}
-	} while (disk != conf->last_used);
+	}
 
  rb_out:
-
-
 	if (new_disk >= 0) {
 		rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
 		if (!rdev)
