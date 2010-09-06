@@ -194,6 +194,17 @@ static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
 	return -ETIMEDOUT;
 }
 
+/* check TDI/ARC silicon is in host mode */
+static int tdi_in_host_mode (struct ehci_hcd *ehci)
+{
+	u32 __iomem	*reg_ptr;
+	u32		tmp;
+
+	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
+	tmp = ehci_readl(ehci, reg_ptr);
+	return (tmp & 3) == USBMODE_CM_HC;
+}
+
 /* force HC to halt state from unknown (EHCI spec section 2.3) */
 static int ehci_halt (struct ehci_hcd *ehci)
 {
@@ -201,6 +212,10 @@ static int ehci_halt (struct ehci_hcd *ehci)
 
 	/* disable any irqs left enabled by previous code */
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+
+	if (ehci_is_TDI(ehci) && tdi_in_host_mode(ehci) == 0) {
+		return 0;
+	}
 
 	if ((temp & STS_HALT) != 0)
 		return 0;

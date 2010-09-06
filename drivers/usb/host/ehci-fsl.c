@@ -233,8 +233,6 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 			mpc83xx_setup_phy(ehci, pdata->phy_mode, 1);
 	}
 
-	/* put controller in host mode. */
-	ehci_writel(ehci, 0x00000003, non_ehci + FSL_SOC_USB_USBMODE);
 #ifdef CONFIG_PPC_85xx
 	out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
 	out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
@@ -270,6 +268,8 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
+	hcd->has_tt = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -278,8 +278,6 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
-
-	hcd->has_tt = 1;
 
 	ehci->sbrn = 0x20;
 
