@@ -404,10 +404,21 @@ static struct mfd_cell ab8500_devs[] = {
 		.num_resources = ARRAY_SIZE(ab8500_rtc_resources),
 		.resources = ab8500_rtc_resources,
 	},
+	{
+		.name = "ab8500-pwm",
+		.id = 1,
+	},
+	{
+		.name = "ab8500-pwm",
+		.id = 2,
+	},
+	{
+		.name = "ab8500-pwm",
+		.id = 3,
+	},
 	{ .name = "ab8500-charger", },
 	{ .name = "ab8500-audio", },
 	{ .name = "ab8500-usb", },
-	{ .name = "ab8500-pwm", },
 	{ .name = "ab8500-regulator", },
 	{
 		.name = "ab8500-poweron-key",
