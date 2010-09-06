@@ -1076,7 +1076,12 @@ static int rtl8169_rx_vlan_skb(struct rtl8169_private *tp, struct RxDesc *desc,
 	int ret;
 
 	if (vlgrp && (opts2 & RxVlanTag)) {
-		__vlan_hwaccel_rx(skb, vlgrp, swab16(opts2 & 0xffff), polling);
+		u16 vtag = swab16(opts2 & 0xffff);
+
+		if (likely(polling))
+			vlan_gro_receive(&tp->napi, vlgrp, vtag, skb);
+		else
+			__vlan_hwaccel_rx(skb, vlgrp, vtag, polling);
 		ret = 0;
 	} else
 		ret = -1;
@@ -3186,6 +3191,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_R8169_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
+	dev->features |= NETIF_F_GRO;
 
 	tp->intr_mask = 0xffff;
 	tp->align = cfg->align;
@@ -4561,7 +4567,7 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 
 			if (rtl8169_rx_vlan_skb(tp, desc, skb, polling) < 0) {
 				if (likely(polling))
-					netif_receive_skb(skb);
+					napi_gro_receive(&tp->napi, skb);
 				else
 					netif_rx(skb);
 			}
