@@ -1313,9 +1313,8 @@ int RtmpOSNetDevAttach(struct net_device *pNetDev,
 		/* OS specific flags, here we used to indicate if we are virtual interface */
 		pNetDev->priv_flags = pDevOpHook->priv_flags;
 
-		if (pAd->OpMode == OPMODE_STA) {
+		if (pAd->OpMode == OPMODE_STA)
 			pNetDev->wireless_handlers = &rt28xx_iw_handler_def;
-		}
 
 		/* copy the net device mac address to the net_device structure. */
 		NdisMoveMemory(pNetDev->dev_addr, &pDevOpHook->devAddr[0],
