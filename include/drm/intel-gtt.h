@@ -14,5 +14,7 @@ struct intel_gtt {
 	unsigned int gtt_mappable_entries;
 };
 
+struct intel_gtt *intel_gtt_get(void);
+
 #endif
 

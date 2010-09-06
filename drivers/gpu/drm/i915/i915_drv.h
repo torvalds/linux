@@ -305,8 +305,6 @@ typedef struct drm_i915_private {
 	uint32_t last_instdone;
 	uint32_t last_instdone1;
 
-	struct drm_mm vram;
-
 	unsigned long cfb_size;
 	unsigned long cfb_pitch;
 	int cfb_fence;
@@ -511,6 +509,11 @@ typedef struct drm_i915_private {
 	u32 saveMCHBAR_RENDER_STANDBY;
 
 	struct {
+		/** Bridge to intel-gtt-ko */
+		struct intel_gtt *gtt;
+		/** Memory allocator for GTT stolen memory */
+		struct drm_mm vram;
+		/** Memory allocator for GTT */
 		struct drm_mm gtt_space;
 
 		struct io_mapping *gtt_mapping;

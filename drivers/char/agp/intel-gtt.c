@@ -1714,6 +1714,12 @@ int intel_gmch_probe(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL(intel_gmch_probe);
 
+struct intel_gtt *intel_gtt_get(void)
+{
+	return &intel_private.base;
+}
+EXPORT_SYMBOL(intel_gtt_get);
+
 void intel_gmch_remove(struct pci_dev *pdev)
 {
 	if (intel_private.pcidev)

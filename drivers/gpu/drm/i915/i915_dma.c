@@ -989,172 +989,6 @@ intel_teardown_mchbar(struct drm_device *dev)
 		release_resource(&dev_priv->mch_res);
 }
 
-/**
- * i915_probe_agp - get AGP bootup configuration
- * @pdev: PCI device
- * @aperture_size: returns AGP aperture configured size
- * @preallocated_size: returns size of BIOS preallocated AGP space
- *
- * Since Intel integrated graphics are UMA, the BIOS has to set aside
- * some RAM for the framebuffer at early boot.  This code figures out
- * how much was set aside so we can use it for our own purposes.
- */
-static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
-			  uint32_t *preallocated_size)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u16 tmp = 0;
-	unsigned long overhead;
-	unsigned long stolen;
-
-	/* Get the fb aperture size and "stolen" memory amount. */
-	pci_read_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, &tmp);
-
-	*aperture_size = 1024 * 1024;
-	*preallocated_size = 1024 * 1024;
-
-	switch (dev->pdev->device) {
-	case PCI_DEVICE_ID_INTEL_82830_CGC:
-	case PCI_DEVICE_ID_INTEL_82845G_IG:
-	case PCI_DEVICE_ID_INTEL_82855GM_IG:
-	case PCI_DEVICE_ID_INTEL_82865_IG:
-		if ((tmp & INTEL_GMCH_MEM_MASK) == INTEL_GMCH_MEM_64M)
-			*aperture_size *= 64;
-		else
-			*aperture_size *= 128;
-		break;
-	default:
-		/* 9xx supports large sizes, just look at the length */
-		*aperture_size = pci_resource_len(dev->pdev, 2);
-		break;
-	}
-
-	/*
-	 * Some of the preallocated space is taken by the GTT
-	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
-	 */
-	if (IS_G4X(dev) || IS_PINEVIEW(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev))
-		overhead = 4096;
-	else
-		overhead = (*aperture_size / 1024) + 4096;
-
-	if (IS_GEN6(dev)) {
-		/* SNB has memory control reg at 0x50.w */
-		pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &tmp);
-
-		switch (tmp & SNB_GMCH_GMS_STOLEN_MASK) {
-		case INTEL_855_GMCH_GMS_DISABLED:
-			DRM_ERROR("video memory is disabled\n");
-			return -1;
-		case SNB_GMCH_GMS_STOLEN_32M:
-			stolen = 32 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_64M:
-			stolen = 64 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_96M:
-			stolen = 96 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_128M:
-			stolen = 128 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_160M:
-			stolen = 160 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_192M:
-			stolen = 192 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_224M:
-			stolen = 224 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_256M:
-			stolen = 256 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_288M:
-			stolen = 288 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_320M:
-			stolen = 320 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_352M:
-			stolen = 352 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_384M:
-			stolen = 384 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_416M:
-			stolen = 416 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_448M:
-			stolen = 448 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_480M:
-			stolen = 480 * 1024 * 1024;
-			break;
-		case SNB_GMCH_GMS_STOLEN_512M:
-			stolen = 512 * 1024 * 1024;
-			break;
-		default:
-			DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
-				  tmp & SNB_GMCH_GMS_STOLEN_MASK);
-			return -1;
-		}
-	} else {
-		switch (tmp & INTEL_GMCH_GMS_MASK) {
-		case INTEL_855_GMCH_GMS_DISABLED:
-			DRM_ERROR("video memory is disabled\n");
-			return -1;
-		case INTEL_855_GMCH_GMS_STOLEN_1M:
-			stolen = 1 * 1024 * 1024;
-			break;
-		case INTEL_855_GMCH_GMS_STOLEN_4M:
-			stolen = 4 * 1024 * 1024;
-			break;
-		case INTEL_855_GMCH_GMS_STOLEN_8M:
-			stolen = 8 * 1024 * 1024;
-			break;
-		case INTEL_855_GMCH_GMS_STOLEN_16M:
-			stolen = 16 * 1024 * 1024;
-			break;
-		case INTEL_855_GMCH_GMS_STOLEN_32M:
-			stolen = 32 * 1024 * 1024;
-			break;
-		case INTEL_915G_GMCH_GMS_STOLEN_48M:
-			stolen = 48 * 1024 * 1024;
-			break;
-		case INTEL_915G_GMCH_GMS_STOLEN_64M:
-			stolen = 64 * 1024 * 1024;
-			break;
-		case INTEL_GMCH_GMS_STOLEN_128M:
-			stolen = 128 * 1024 * 1024;
-			break;
-		case INTEL_GMCH_GMS_STOLEN_256M:
-			stolen = 256 * 1024 * 1024;
-			break;
-		case INTEL_GMCH_GMS_STOLEN_96M:
-			stolen = 96 * 1024 * 1024;
-			break;
-		case INTEL_GMCH_GMS_STOLEN_160M:
-			stolen = 160 * 1024 * 1024;
-			break;
-		case INTEL_GMCH_GMS_STOLEN_224M:
-			stolen = 224 * 1024 * 1024;
-			break;
-		case INTEL_GMCH_GMS_STOLEN_352M:
-			stolen = 352 * 1024 * 1024;
-			break;
-		default:
-			DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
-				  tmp & INTEL_GMCH_GMS_MASK);
-			return -1;
-		}
-	}
-
-	*preallocated_size = stolen - overhead;
-
-	return 0;
-}
-
 #define PTE_ADDRESS_MASK		0xfffff000
 #define PTE_ADDRESS_MASK_HIGH		0x000000f0 /* i915+ */
 #define PTE_MAPPING_TYPE_UNCACHED	(0 << 1)
@@ -1249,7 +1083,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	unsigned long ll_base = 0;
 
 	/* Leave 1M for line length buffer & misc. */
-	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
+	compressed_fb = drm_mm_search_free(&dev_priv->mm.vram, size, 4096, 0);
 	if (!compressed_fb) {
 		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		i915_warn_stolen(dev);
@@ -1270,7 +1104,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	}
 
 	if (!(IS_GM45(dev) || IS_IRONLAKE_M(dev))) {
-		compressed_llb = drm_mm_search_free(&dev_priv->vram, 4096,
+		compressed_llb = drm_mm_search_free(&dev_priv->mm.vram, 4096,
 						    4096, 0);
 		if (!compressed_llb) {
 			i915_warn_stolen(dev);
@@ -1366,8 +1200,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	/* Basic memrange allocator for stolen space (aka vram) */
-	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
+	/* Basic memrange allocator for stolen space (aka mm.vram) */
+	drm_mm_init(&dev_priv->mm.vram, 0, prealloc_size);
 	DRM_INFO("set up %ldM of stolen space\n", prealloc_size / (1024*1024));
 
 	/* We're off and running w/KMS */
@@ -2107,15 +1941,15 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
-	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
-	if (ret)
+	dev_priv->mm.gtt = intel_gtt_get();
+	if (!dev_priv->mm.gtt) {
+		DRM_ERROR("Failed to initialize GTT\n");
+		ret = -ENODEV;
 		goto out_iomapfree;
-
-	if (prealloc_size > intel_max_stolen) {
-		DRM_INFO("detected %dM stolen memory, trimming to %dM\n",
-			 prealloc_size >> 20, intel_max_stolen >> 20);
-		prealloc_size = intel_max_stolen;
 	}
+
+	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
+	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
 	dev_priv->wq = create_singlethread_workqueue("i915");
 	if (dev_priv->wq == NULL) {
@@ -2301,7 +2135,7 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		if (I915_HAS_FBC(dev) && i915_powersave)
 			i915_cleanup_compression(dev);
-		drm_mm_takedown(&dev_priv->vram);
+		drm_mm_takedown(&dev_priv->mm.vram);
 
 		intel_cleanup_overlay(dev);
 	}
