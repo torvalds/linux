@@ -37,6 +37,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/acpi.h>
 #include <linux/cdrom.h>
+#include <linux/sched.h>
 
 /*
  * Define if arch has non-standard setup.  This is a _PCI_ standard
@@ -535,6 +536,10 @@ struct ata_host {
 	void			*private_data;
 	struct ata_port_operations *ops;
 	unsigned long		flags;
+
+	struct mutex		eh_mutex;
+	struct task_struct	*eh_owner;
+
 #ifdef CONFIG_ATA_ACPI
 	acpi_handle		acpi_handle;
 #endif

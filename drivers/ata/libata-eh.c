@@ -463,6 +463,41 @@ static void ata_eh_clear_action(struct ata_link *link, struct ata_device *dev,
 }
 
 /**
+ *	ata_eh_acquire - acquire EH ownership
+ *	@ap: ATA port to acquire EH ownership for
+ *
+ *	Acquire EH ownership for @ap.  This is the basic exclusion
+ *	mechanism for ports sharing a host.  Only one port hanging off
+ *	the same host can claim the ownership of EH.
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+void ata_eh_acquire(struct ata_port *ap)
+{
+	mutex_lock(&ap->host->eh_mutex);
+	WARN_ON_ONCE(ap->host->eh_owner);
+	ap->host->eh_owner = current;
+}
+
+/**
+ *	ata_eh_release - release EH ownership
+ *	@ap: ATA port to release EH ownership for
+ *
+ *	Release EH ownership for @ap if the caller.  The caller must
+ *	have acquired EH ownership using ata_eh_acquire() previously.
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+void ata_eh_release(struct ata_port *ap)
+{
+	WARN_ON_ONCE(ap->host->eh_owner != current);
+	ap->host->eh_owner = NULL;
+	mutex_unlock(&ap->host->eh_mutex);
+}
+
+/**
  *	ata_scsi_timed_out - SCSI layer time out callback
  *	@cmd: timed out SCSI command
  *
@@ -639,11 +674,13 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* If we timed raced normal completion and there is nothing to
 	   recover nr_timedout == 0 why exactly are we doing error recovery ? */
 
- repeat:
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
 
+		/* acquire EH ownership */
+		ata_eh_acquire(ap);
+ repeat:
 		/* kill fast drain timer */
 		del_timer_sync(&ap->fastdrain_timer);
 
@@ -718,6 +755,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		host->host_eh_scheduled = 0;
 
 		spin_unlock_irqrestore(ap->lock, flags);
+		ata_eh_release(ap);
 	} else {
 		WARN_ON(ata_qc_from_tag(ap, ap->link.active_tag) == NULL);
 		ap->ops->eng_timeout(ap);
@@ -2818,8 +2856,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			"reset failed (errno=%d), retrying in %u secs\n",
 			rc, DIV_ROUND_UP(jiffies_to_msecs(delta), 1000));
 
+		ata_eh_release(ap);
 		while (delta)
 			delta = schedule_timeout_uninterruptible(delta);
+		ata_eh_acquire(ap);
 	}
 
 	if (try == max_tries - 1) {
@@ -3635,8 +3675,10 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (time_before_eq(deadline, now))
 			break;
 
+		ata_eh_release(ap);
 		deadline = wait_for_completion_timeout(&ap->park_req_pending,
 						       deadline - now);
+		ata_eh_acquire(ap);
 	} while (deadline);
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, link, ALL) {

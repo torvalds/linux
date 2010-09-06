@@ -1628,7 +1628,13 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		}
 	}
 
+	if (ap->ops->error_handler)
+		ata_eh_release(ap);
+
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+
+	if (ap->ops->error_handler)
+		ata_eh_acquire(ap);
 
 	ata_sff_flush_pio_task(ap);
 
@@ -5570,6 +5576,7 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	dev_set_drvdata(dev, host);
 
 	spin_lock_init(&host->lock);
+	mutex_init(&host->eh_mutex);
 	host->dev = dev;
 	host->n_ports = max_ports;
 
@@ -5867,6 +5874,7 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 		   unsigned long flags, struct ata_port_operations *ops)
 {
 	spin_lock_init(&host->lock);
+	mutex_init(&host->eh_mutex);
 	host->dev = dev;
 	host->flags = flags;
 	host->ops = ops;
@@ -6483,9 +6491,31 @@ int ata_ratelimit(void)
 	return __ratelimit(&ratelimit);
 }
 
+/**
+ *	ata_msleep - ATA EH owner aware msleep
+ *	@ap: ATA port to attribute the sleep to
+ *	@msecs: duration to sleep in milliseconds
+ *
+ *	Sleeps @msecs.  If the current task is owner of @ap's EH, the
+ *	ownership is released before going to sleep and reacquired
+ *	after the sleep is complete.  IOW, other ports sharing the
+ *	@ap->host will be allowed to own the EH while this task is
+ *	sleeping.
+ *
+ *	LOCKING:
+ *	Might sleep.
+ */
 void ata_msleep(struct ata_port *ap, unsigned int msecs)
 {
+	bool owns_eh = ap && ap->host->eh_owner == current;
+
+	if (owns_eh)
+		ata_eh_release(ap);
+
 	msleep(msecs);
+
+	if (owns_eh)
+		ata_eh_acquire(ap);
 }
 
 /**
