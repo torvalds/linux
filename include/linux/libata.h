@@ -1004,8 +1004,9 @@ extern int ata_host_suspend(struct ata_host *host, pm_message_t mesg);
 extern void ata_host_resume(struct ata_host *host);
 #endif
 extern int ata_ratelimit(void);
-extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
-			     unsigned long interval, unsigned long timeout);
+extern void ata_msleep(struct ata_port *ap, unsigned int msecs);
+extern u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask,
+			u32 val, unsigned long interval, unsigned long timeout);
 extern int atapi_cmd_type(u8 opcode);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);

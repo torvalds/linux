@@ -567,7 +567,7 @@ int ahci_stop_engine(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_CMD);
 
 	/* wait for engine to stop. This could be as long as 500 msec */
-	tmp = ata_wait_register(port_mmio + PORT_CMD,
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD,
 				PORT_CMD_LIST_ON, PORT_CMD_LIST_ON, 1, 500);
 	if (tmp & PORT_CMD_LIST_ON)
 		return -EIO;
@@ -614,7 +614,7 @@ static int ahci_stop_fis_rx(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_CMD);
 
 	/* wait for completion, spec says 500ms, give it 1000 */
-	tmp = ata_wait_register(port_mmio + PORT_CMD, PORT_CMD_FIS_ON,
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD, PORT_CMD_FIS_ON,
 				PORT_CMD_FIS_ON, 10, 1000);
 	if (tmp & PORT_CMD_FIS_ON)
 		return -EBUSY;
@@ -671,7 +671,7 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			readl(port_mmio + PORT_CMD);
 
 			/* wait 10ms to be sure we've come out of LPM state */
-			msleep(10);
+			ata_msleep(ap, 10);
 		} else {
 			cmd |= PORT_CMD_ALPE;
 			if (policy == ATA_LPM_MIN_POWER)
@@ -740,7 +740,7 @@ static void ahci_start_port(struct ata_port *ap)
 							       emp->led_state,
 							       4);
 				if (rc == -EBUSY)
-					msleep(1);
+					ata_msleep(ap, 1);
 				else
 					break;
 			}
@@ -799,7 +799,7 @@ int ahci_reset_controller(struct ata_host *host)
 		 * reset must complete within 1 second, or
 		 * the hardware should be considered fried.
 		 */
-		tmp = ata_wait_register(mmio + HOST_CTL, HOST_RESET,
+		tmp = ata_wait_register(NULL, mmio + HOST_CTL, HOST_RESET,
 					HOST_RESET, 10, 1000);
 
 		if (tmp & HOST_RESET) {
@@ -1179,7 +1179,7 @@ int ahci_kick_engine(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_CMD);
 
 	rc = 0;
-	tmp = ata_wait_register(port_mmio + PORT_CMD,
+	tmp = ata_wait_register(ap, port_mmio + PORT_CMD,
 				PORT_CMD_CLO, PORT_CMD_CLO, 1, 500);
 	if (tmp & PORT_CMD_CLO)
 		rc = -EIO;
@@ -1209,8 +1209,8 @@ static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
 	writel(1, port_mmio + PORT_CMD_ISSUE);
 
 	if (timeout_msec) {
-		tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1,
-					1, timeout_msec);
+		tmp = ata_wait_register(ap, port_mmio + PORT_CMD_ISSUE,
+					0x1, 0x1, 1, timeout_msec);
 		if (tmp & 0x1) {
 			ahci_kick_engine(ap);
 			return -EBUSY;
@@ -1257,7 +1257,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	}
 
 	/* spec says at least 5us, but be generous and sleep for 1ms */
-	msleep(1);
+	ata_msleep(ap, 1);
 
 	/* issue the second D2H Register FIS */
 	tf.ctl &= ~ATA_SRST;

@@ -779,7 +779,7 @@ void ata_port_wait_eh(struct ata_port *ap)
 
 	/* make sure SCSI EH is complete */
 	if (scsi_host_in_recovery(ap->scsi_host)) {
-		msleep(10);
+		ata_msleep(ap, 10);
 		goto retry;
 	}
 }
