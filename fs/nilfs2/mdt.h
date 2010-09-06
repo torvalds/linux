@@ -28,6 +28,13 @@
 #include "nilfs.h"
 #include "page.h"
 
+struct nilfs_shadow_map {
+	struct nilfs_bmap_store bmap_store;
+	struct address_space frozen_data;
+	struct address_space frozen_btnodes;
+	struct list_head frozen_buffers;
+};
+
 /**
  * struct nilfs_mdt_info - on-memory private data of meta data files
  * @mi_nilfs: back pointer to the_nilfs struct
@@ -37,6 +44,7 @@
  * @mi_first_entry_offset: offset to the first entry
  * @mi_entries_per_block: number of entries in a block
  * @mi_palloc_cache: persistent object allocator cache
+ * @mi_shadow: shadow of bmap and page caches
  * @mi_blocks_per_group: number of blocks in a group
  * @mi_blocks_per_desc_block: number of blocks per descriptor block
  */
@@ -48,6 +56,7 @@ struct nilfs_mdt_info {
 	unsigned		mi_first_entry_offset;
 	unsigned long		mi_entries_per_block;
 	struct nilfs_palloc_cache *mi_palloc_cache;
+	struct nilfs_shadow_map *mi_shadow;
 	unsigned long		mi_blocks_per_group;
 	unsigned long		mi_blocks_per_desc_block;
 };
@@ -86,6 +95,11 @@ void nilfs_mdt_destroy(struct inode *);
 void nilfs_mdt_set_entry_size(struct inode *, unsigned, unsigned);
 void nilfs_mdt_set_shadow(struct inode *, struct inode *);
 
+int nilfs_mdt_setup_shadow_map(struct inode *inode,
+			       struct nilfs_shadow_map *shadow);
+int nilfs_mdt_save_to_shadow_map(struct inode *inode);
+void nilfs_mdt_restore_from_shadow_map(struct inode *inode);
+void nilfs_mdt_clear_shadow_map(struct inode *inode);
 
 #define nilfs_mdt_mark_buffer_dirty(bh)	nilfs_mark_buffer_dirty(bh)
 

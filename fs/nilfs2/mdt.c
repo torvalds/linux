@@ -398,15 +398,21 @@ int nilfs_mdt_fetch_dirty(struct inode *inode)
 static int
 nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 {
-	struct inode *inode = container_of(page->mapping,
-					   struct inode, i_data);
-	struct super_block *sb = inode->i_sb;
-	struct the_nilfs *nilfs = NILFS_MDT(inode)->mi_nilfs;
+	struct inode *inode;
+	struct super_block *sb;
+	struct the_nilfs *nilfs;
 	struct nilfs_sb_info *writer = NULL;
 	int err = 0;
 
 	redirty_page_for_writepage(wbc, page);
 	unlock_page(page);
+
+	inode = page->mapping->host;
+	if (!inode)
+		return 0;
+
+	sb = inode->i_sb;
+	nilfs = NILFS_MDT(inode)->mi_nilfs;
 
 	if (page->mapping->assoc_mapping)
 		return 0; /* Do not request flush for shadow page cache */
@@ -565,6 +571,96 @@ void nilfs_mdt_set_shadow(struct inode *orig, struct inode *shadow)
 	shadow->i_mapping->assoc_mapping = orig->i_mapping;
 	NILFS_I(shadow)->i_btnode_cache.assoc_mapping =
 		&NILFS_I(orig)->i_btnode_cache;
+}
+
+static const struct address_space_operations shadow_map_aops = {
+	.sync_page		= block_sync_page,
+};
+
+/**
+ * nilfs_mdt_setup_shadow_map - setup shadow map and bind it to metadata file
+ * @inode: inode of the metadata file
+ * @shadow: shadow mapping
+ */
+int nilfs_mdt_setup_shadow_map(struct inode *inode,
+			       struct nilfs_shadow_map *shadow)
+{
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct backing_dev_info *bdi = NILFS_I_NILFS(inode)->ns_bdi;
+
+	INIT_LIST_HEAD(&shadow->frozen_buffers);
+	nilfs_mapping_init_once(&shadow->frozen_data);
+	nilfs_mapping_init(&shadow->frozen_data, bdi, &shadow_map_aops);
+	nilfs_mapping_init_once(&shadow->frozen_btnodes);
+	nilfs_mapping_init(&shadow->frozen_btnodes, bdi, &shadow_map_aops);
+	mi->mi_shadow = shadow;
+	return 0;
+}
+
+/**
+ * nilfs_mdt_save_to_shadow_map - copy bmap and dirty pages to shadow map
+ * @inode: inode of the metadata file
+ */
+int nilfs_mdt_save_to_shadow_map(struct inode *inode)
+{
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_shadow_map *shadow = mi->mi_shadow;
+	int ret;
+
+	ret = nilfs_copy_dirty_pages(&shadow->frozen_data, inode->i_mapping);
+	if (ret)
+		goto out;
+
+	ret = nilfs_copy_dirty_pages(&shadow->frozen_btnodes,
+				     &ii->i_btnode_cache);
+	if (ret)
+		goto out;
+
+	nilfs_bmap_save(ii->i_bmap, &shadow->bmap_store);
+ out:
+	return ret;
+}
+
+/**
+ * nilfs_mdt_restore_from_shadow_map - restore dirty pages and bmap state
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_restore_from_shadow_map(struct inode *inode)
+{
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_shadow_map *shadow = mi->mi_shadow;
+
+	down_write(&mi->mi_sem);
+
+	if (mi->mi_palloc_cache)
+		nilfs_palloc_clear_cache(inode);
+
+	nilfs_clear_dirty_pages(inode->i_mapping);
+	nilfs_copy_back_pages(inode->i_mapping, &shadow->frozen_data);
+
+	nilfs_clear_dirty_pages(&ii->i_btnode_cache);
+	nilfs_copy_back_pages(&ii->i_btnode_cache, &shadow->frozen_btnodes);
+
+	nilfs_bmap_restore(ii->i_bmap, &shadow->bmap_store);
+
+	up_write(&mi->mi_sem);
+}
+
+/**
+ * nilfs_mdt_clear_shadow_map - truncate pages in shadow map caches
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_clear_shadow_map(struct inode *inode)
+{
+	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct nilfs_shadow_map *shadow = mi->mi_shadow;
+
+	down_write(&mi->mi_sem);
+	truncate_inode_pages(&shadow->frozen_data, 0);
+	truncate_inode_pages(&shadow->frozen_btnodes, 0);
+	up_write(&mi->mi_sem);
 }
 
 static void nilfs_mdt_clear(struct inode *inode)
