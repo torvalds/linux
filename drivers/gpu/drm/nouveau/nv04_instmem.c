@@ -25,6 +25,9 @@ int nv04_instmem_init(struct drm_device *dev)
 	u32 offset, length;
 	int ret;
 
+	/* RAMIN always available */
+	dev_priv->ramin_available = true;
+
 	/* Setup shared RAMHT */
 	ret = nouveau_gpuobj_new_fake(dev, 0x10000, ~0, 4096,
 				      NVOBJ_FLAG_ZERO_ALLOC, &ramht);
@@ -81,7 +84,6 @@ int nv04_instmem_init(struct drm_device *dev)
 		return ret;
 	}
 
-	dev_priv->ramin_available = true;
 	return 0;
 }
 
