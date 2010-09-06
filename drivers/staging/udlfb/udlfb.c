@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-
 #include "udlfb.h"
 
 static struct fb_fix_screeninfo dlfb_fix = {
@@ -256,6 +255,7 @@ static int dlfb_set_video_mode(struct dlfb_data *dev,
 	urb = dlfb_get_urb(dev);
 	if (!urb)
 		return -ENOMEM;
+
 	buf = (char *) urb->transfer_buffer;
 
 	/*
@@ -288,12 +288,13 @@ static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
 
-	dl_notice("MMAP: %lu %u\n", offset + size, info->fix.smem_len);
-
 	if (offset + size > info->fix.smem_len)
 		return -EINVAL;
 
 	pos = (unsigned long)info->fix.smem_start + offset;
+
+	dl_notice("mmap() framebuffer addr:%lu size:%lu\n",
+		  pos, size);
 
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
@@ -310,7 +311,6 @@ static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
 	return 0;
-
 }
 
 /*
@@ -372,13 +372,13 @@ static int dlfb_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
  * A single command can transmit a maximum of 256 pixels,
  * regardless of the compression ratio (protocol design limit).
  * To the hardware, 0 for a size byte means 256
- * 
+ *
  * Rather than 256 pixel commands which are either rl or raw encoded,
  * the rlx command simply assumes alternating raw and rl spans within one cmd.
  * This has a slightly larger header overhead, but produces more even results.
  * It also processes all data (read and write) in a single pass.
  * Performance benchmarks of common cases show it having just slightly better
- * compression than 256 pixel raw -or- rle commands, with similar CPU consumpion.
+ * compression than 256 pixel raw or rle commands, with similar CPU consumpion.
  * But for very rl friendly data, will compress not quite as well.
  */
 static void dlfb_compress_hline(
@@ -570,7 +570,7 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 
 		if (dlfb_render_hline(dev, &urb,
 				      (char *) dev->info->fix.smem_start,
-				  &cmd, byte_offset, width * BPP,
+				      &cmd, byte_offset, width * BPP,
 				      &bytes_identical, &bytes_sent))
 			goto error;
 	}
@@ -1536,8 +1536,8 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	struct usb_device *usbdev;
 	struct dlfb_data *dev = 0;
 	struct fb_info *info = 0;
-	int i;
 	int retval = -ENOMEM;
+	int i;
 
 	/* usb initialization */
 
