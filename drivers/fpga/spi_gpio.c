@@ -659,9 +659,9 @@ int spi_gpio_init_first(void)
 	spi_gpio_set_pindirection(SPI_GPIO_P2_10, SPI_GPIO_IN);		//X-XL input
 	spi_gpio_set_pindirection(SPI_GPIO_P2_11, SPI_GPIO_IN);		//X+XR input
 	
-	spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_HIGH);		//LCD_RESET output//
+	spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_LOW);		//LCD_RESET output//
 	spi_gpio_set_pindirection(SPI_GPIO_P2_12, SPI_GPIO_OUT);
-	//spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_HIGH);
+	spi_gpio_set_pinlevel(SPI_GPIO_P2_12, SPI_GPIO_HIGH);
 	spi_gpio_set_pinlevel(SPI_GPIO_P2_13, SPI_GPIO_HIGH);		//USB_PWR_EN output
 	spi_gpio_set_pindirection(SPI_GPIO_P2_13, SPI_GPIO_OUT);
 	spi_gpio_set_pinlevel(SPI_GPIO_P2_14, SPI_GPIO_LOW);		//WL_HOST_WAKE_B output

@@ -84,7 +84,7 @@ int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
 int gBatLastCapacity = 0;
 int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
 
-int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE];
+int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE+2]; //add 2 to handle one bug
 int gBatSlopeValue = 0;
 int gBatVoltageValue[2]={0,0};
 int *pSamples = &gBatVoltageSamples[0];		//采样点指针
