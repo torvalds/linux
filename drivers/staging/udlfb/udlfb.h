@@ -19,6 +19,7 @@ struct dloarea {
 struct urb_node {
 	struct list_head entry;
 	struct dlfb_data *dev;
+	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
 
@@ -86,6 +87,9 @@ struct dlfb_data {
 #define RAW_HEADER_BYTES	6
 #define MIN_RAW_PIX_BYTES	2
 #define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
+
+#define DL_DEFIO_WRITE_DELAY    5 /* fb_deferred_io.delay in jiffies */
+#define DL_DEFIO_WRITE_DISABLE  (HZ*60) /* "disable" with long delay */
 
 /* remove these once align.h patch is taken into kernel */
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)

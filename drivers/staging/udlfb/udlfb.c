@@ -70,11 +70,6 @@ static int dlfb_submit_urb(struct dlfb_data *dev, struct urb * urb, size_t len);
 static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size);
 static void dlfb_free_urb_list(struct dlfb_data *dev);
 
-/* other symbols with dependents */
-#ifdef CONFIG_FB_DEFERRED_IO
-static struct fb_deferred_io dlfb_defio;
-#endif
-
 /*
  * All DisplayLink bulk operations start with 0xAF, followed by specific code
  * All operations are written to buffers which then later get sent to device
@@ -481,7 +476,7 @@ static void dlfb_compress_hline(
  * (that we can only write to, slowly, and can never read), and (optionally)
  * our shadow copy that tracks what's been sent to that hardware buffer.
  */
-static void dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
+static int dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 			      const char *front, char **urb_buf_ptr,
 			      u32 byte_offset, u32 byte_width,
 			      int *ident_ptr, int *sent_ptr)
@@ -523,11 +518,11 @@ static void dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 		if (cmd >= cmd_end) {
 			int len = cmd - (u8 *) urb->transfer_buffer;
 			if (dlfb_submit_urb(dev, urb, len))
-				return; /* lost pixels is set */
+				return 1; /* lost pixels is set */
 			*sent_ptr += len;
 			urb = dlfb_get_urb(dev);
 			if (!urb)
-				return; /* lost_pixels is set */
+				return 1; /* lost_pixels is set */
 			*urb_ptr = urb;
 			cmd = urb->transfer_buffer;
 			cmd_end = &cmd[urb->transfer_buffer_length];
@@ -535,6 +530,8 @@ static void dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 	}
 
 	*urb_buf_ptr = cmd;
+
+	return 0;
 }
 
 int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
@@ -571,9 +568,11 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 		const int line_offset = dev->info->fix.line_length * i;
 		const int byte_offset = line_offset + (x * BPP);
 
-		dlfb_render_hline(dev, &urb, (char *) dev->info->fix.smem_start,
+		if (dlfb_render_hline(dev, &urb,
+				      (char *) dev->info->fix.smem_start,
 				  &cmd, byte_offset, width * BPP,
-				  &bytes_identical, &bytes_sent);
+				      &bytes_identical, &bytes_sent))
+			goto error;
 	}
 
 	if (cmd > (char *) urb->transfer_buffer) {
@@ -584,6 +583,7 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 	} else
 		dlfb_urb_completion(urb);
 
+error:
 	atomic_add(bytes_sent, &dev->bytes_sent);
 	atomic_add(bytes_identical, &dev->bytes_identical);
 	atomic_add(width*height*2, &dev->bytes_rendered);
@@ -722,9 +722,10 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	/* walk the written page list and render each to device */
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 
-		dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
+		if (dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
 				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent);
+				  PAGE_SIZE, &bytes_identical, &bytes_sent))
+			goto error;
 		bytes_rendered += PAGE_SIZE;
 	}
 
@@ -736,6 +737,7 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	} else
 		dlfb_urb_completion(urb);
 
+error:
 	atomic_add(bytes_sent, &dev->bytes_sent);
 	atomic_add(bytes_identical, &dev->bytes_identical);
 	atomic_add(bytes_rendered, &dev->bytes_rendered);
@@ -795,6 +797,16 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 
 	/* TODO: Help propose a standard fb.h ioctl to report mmap damage */
 	if (cmd == DLFB_IOCTL_REPORT_DAMAGE) {
+
+		/*
+		 * If we have a damage-aware client, turn fb_defio "off"
+		 * To avoid perf imact of unecessary page fault handling.
+		 * Done by resetting the delay for this fb_info to a very
+		 * long period. Pages will become writable and stay that way.
+		 * Reset to normal value when all clients have closed this fb.
+		 */
+		if (info->fbdefio)
+			info->fbdefio->delay = DL_DEFIO_WRITE_DISABLE;
 
 		area = (struct dloarea *)arg;
 
@@ -871,8 +883,18 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 #ifdef CONFIG_FB_DEFERRED_IO
 	if (fb_defio && (info->fbdefio == NULL)) {
-		/* enable defio */
-		info->fbdefio = &dlfb_defio;
+		/* enable defio at last moment if not disabled by client */
+
+		struct fb_deferred_io *fbdefio;
+
+		fbdefio = kmalloc(GFP_KERNEL, sizeof(struct fb_deferred_io));
+
+		if (fbdefio) {
+			fbdefio->delay = DL_DEFIO_WRITE_DELAY;
+			fbdefio->deferred_io = dlfb_dpy_deferred_io;
+		}
+
+		info->fbdefio = fbdefio;
 		fb_deferred_io_init(info);
 	}
 #endif
@@ -906,6 +928,13 @@ static void dlfb_free(struct kref *kref)
 	kfree(dev);
 }
 
+static void dlfb_release_urb_work(struct work_struct *work)
+{
+	struct urb_node *unode = container_of(work, struct urb_node,
+					      release_urb_work.work);
+
+	up(&unode->dev->urbs.limit_sem);
+}
 
 static void dlfb_free_framebuffer_work(struct work_struct *work)
 {
@@ -1415,15 +1444,6 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
 };
 
-#ifdef CONFIG_FB_DEFERRED_IO
-
-static struct fb_deferred_io dlfb_defio = {
-	.delay          = 5,
-	.deferred_io    = dlfb_dpy_deferred_io,
-};
-
-#endif
-
 /*
  * This is necessary before we can communicate with the display controller.
  */
@@ -1730,7 +1750,14 @@ static void dlfb_urb_completion(struct urb *urb)
 	dev->urbs.available++;
 	spin_unlock_irqrestore(&dev->urbs.lock, flags);
 
-	up(&dev->urbs.limit_sem);
+	/*
+	 * When using fb_defio, we deadlock if up() is called
+	 * while another is waiting. So queue to another process.
+	 */
+	if (fb_defio)
+		schedule_delayed_work(&unode->release_urb_work, 0);
+	else
+		up(&dev->urbs.limit_sem);
 }
 
 static void dlfb_free_urb_list(struct dlfb_data *dev)
@@ -1789,6 +1816,9 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 			break;
 		unode->dev = dev;
 
+		INIT_DELAYED_WORK(&unode->release_urb_work,
+			  dlfb_release_urb_work);
+
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			kfree(unode);
@@ -1835,7 +1865,8 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dev)
 	ret = down_timeout(&dev->urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {
 		atomic_set(&dev->lost_pixels, 1);
-		dl_err("wait for urb interrupted: %x\n", ret);
+		dl_warn("wait for urb interrupted: %x available: %d\n",
+		       ret, dev->urbs.available);
 		goto error;
 	}
 
