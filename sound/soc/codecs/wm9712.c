@@ -524,7 +524,7 @@ static struct snd_soc_dai_ops wm9712_dai_ops_aux = {
 	.prepare	= ac97_aux_prepare,
 };
 
-struct snd_soc_dai_driver wm9712_dai[] = {
+static struct snd_soc_dai_driver wm9712_dai[] = {
 {
 	.name = "wm9712-hifi",
 	.ac97_control = 1,
