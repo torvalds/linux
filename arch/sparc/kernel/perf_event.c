@@ -897,7 +897,7 @@ static int sparc_check_constraints(struct perf_event **evts,
 	if (!n_ev)
 		return 0;
 
-	if (n_ev > perf_max_events)
+	if (n_ev > MAX_HWEVENTS)
 		return -1;
 
 	msk0 = perf_event_get_msk(events[0]);
@@ -1014,7 +1014,7 @@ static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 	perf_pmu_disable(event->pmu);
 
 	n0 = cpuc->n_events;
-	if (n0 >= perf_max_events)
+	if (n0 >= MAX_HWEVENTS)
 		goto out;
 
 	cpuc->event[n0] = event;
@@ -1097,7 +1097,7 @@ static int sparc_pmu_event_init(struct perf_event *event)
 	n = 0;
 	if (event->group_leader != event) {
 		n = collect_events(event->group_leader,
-				   perf_max_events - 1,
+				   MAX_HWEVENTS - 1,
 				   evts, events, current_idx_dmy);
 		if (n < 0)
 			return -EINVAL;
@@ -1308,9 +1308,6 @@ void __init init_hw_perf_events(void)
 	}
 
 	pr_cont("Supported PMU type is '%s'\n", sparc_pmu_type);
-
-	/* All sparc64 PMUs currently have 2 events.  */
-	perf_max_events = 2;
 
 	perf_pmu_register(&pmu);
 	register_die_notifier(&perf_event_nmi_notifier);

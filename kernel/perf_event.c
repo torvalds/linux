@@ -39,10 +39,6 @@
  */
 static DEFINE_PER_CPU(struct perf_cpu_context, perf_cpu_context);
 
-int perf_max_events __read_mostly = 1;
-static int perf_reserved_percpu __read_mostly;
-static int perf_overcommit __read_mostly = 1;
-
 static atomic_t nr_events __read_mostly;
 static atomic_t nr_mmap_events __read_mostly;
 static atomic_t nr_comm_events __read_mostly;
@@ -65,11 +61,6 @@ int sysctl_perf_event_mlock __read_mostly = 512; /* 'free' kb per user */
 int sysctl_perf_event_sample_rate __read_mostly = 100000;
 
 static atomic64_t perf_event_id;
-
-/*
- * Lock for (sysadmin-configurable) event reservations:
- */
-static DEFINE_SPINLOCK(perf_resource_lock);
 
 void __weak perf_event_print_debug(void)	{ }
 
@@ -480,16 +471,6 @@ static void __perf_event_remove_from_context(void *info)
 
 	list_del_event(event, ctx);
 
-	if (!ctx->task) {
-		/*
-		 * Allow more per task events with respect to the
-		 * reservation:
-		 */
-		cpuctx->max_pertask =
-			min(perf_max_events - ctx->nr_events,
-			    perf_max_events - perf_reserved_percpu);
-	}
-
 	raw_spin_unlock(&ctx->lock);
 }
 
@@ -822,9 +803,6 @@ static void __perf_install_in_context(void *info)
 			leader->state = PERF_EVENT_STATE_ERROR;
 		}
 	}
-
-	if (!err && !ctx->task && cpuctx->max_pertask)
-		cpuctx->max_pertask--;
 
 unlock:
 	raw_spin_unlock(&ctx->lock);
@@ -5930,10 +5908,6 @@ static void __cpuinit perf_event_init_cpu(int cpu)
 
 	cpuctx = &per_cpu(perf_cpu_context, cpu);
 
-	spin_lock(&perf_resource_lock);
-	cpuctx->max_pertask = perf_max_events - perf_reserved_percpu;
-	spin_unlock(&perf_resource_lock);
-
 	mutex_lock(&cpuctx->hlist_mutex);
 	if (cpuctx->hlist_refcount > 0) {
 		struct swevent_hlist *hlist;
@@ -6008,101 +5982,3 @@ void __init perf_event_init(void)
 	perf_tp_register();
 	perf_cpu_notifier(perf_cpu_notify);
 }
-
-static ssize_t perf_show_reserve_percpu(struct sysdev_class *class,
-					struct sysdev_class_attribute *attr,
-					char *buf)
-{
-	return sprintf(buf, "%d\n", perf_reserved_percpu);
-}
-
-static ssize_t
-perf_set_reserve_percpu(struct sysdev_class *class,
-			struct sysdev_class_attribute *attr,
-			const char *buf,
-			size_t count)
-{
-	struct perf_cpu_context *cpuctx;
-	unsigned long val;
-	int err, cpu, mpt;
-
-	err = strict_strtoul(buf, 10, &val);
-	if (err)
-		return err;
-	if (val > perf_max_events)
-		return -EINVAL;
-
-	spin_lock(&perf_resource_lock);
-	perf_reserved_percpu = val;
-	for_each_online_cpu(cpu) {
-		cpuctx = &per_cpu(perf_cpu_context, cpu);
-		raw_spin_lock_irq(&cpuctx->ctx.lock);
-		mpt = min(perf_max_events - cpuctx->ctx.nr_events,
-			  perf_max_events - perf_reserved_percpu);
-		cpuctx->max_pertask = mpt;
-		raw_spin_unlock_irq(&cpuctx->ctx.lock);
-	}
-	spin_unlock(&perf_resource_lock);
-
-	return count;
-}
-
-static ssize_t perf_show_overcommit(struct sysdev_class *class,
-				    struct sysdev_class_attribute *attr,
-				    char *buf)
-{
-	return sprintf(buf, "%d\n", perf_overcommit);
-}
-
-static ssize_t
-perf_set_overcommit(struct sysdev_class *class,
-		    struct sysdev_class_attribute *attr,
-		    const char *buf, size_t count)
-{
-	unsigned long val;
-	int err;
-
-	err = strict_strtoul(buf, 10, &val);
-	if (err)
-		return err;
-	if (val > 1)
-		return -EINVAL;
-
-	spin_lock(&perf_resource_lock);
-	perf_overcommit = val;
-	spin_unlock(&perf_resource_lock);
-
-	return count;
-}
-
-static SYSDEV_CLASS_ATTR(
-				reserve_percpu,
-				0644,
-				perf_show_reserve_percpu,
-				perf_set_reserve_percpu
-			);
-
-static SYSDEV_CLASS_ATTR(
-				overcommit,
-				0644,
-				perf_show_overcommit,
-				perf_set_overcommit
-			);
-
-static struct attribute *perfclass_attrs[] = {
-	&attr_reserve_percpu.attr,
-	&attr_overcommit.attr,
-	NULL
-};
-
-static struct attribute_group perfclass_attr_group = {
-	.attrs			= perfclass_attrs,
-	.name			= "perf_events",
-};
-
-static int __init perf_event_sysfs_init(void)
-{
-	return sysfs_create_group(&cpu_sysdev_class.kset.kobj,
-				  &perfclass_attr_group);
-}
-device_initcall(perf_event_sysfs_init);

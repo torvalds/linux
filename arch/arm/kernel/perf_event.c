@@ -534,7 +534,7 @@ static int armpmu_event_init(struct perf_event *event)
 	event->destroy = hw_perf_event_destroy;
 
 	if (!atomic_inc_not_zero(&active_events)) {
-		if (atomic_read(&active_events) > perf_max_events) {
+		if (atomic_read(&active_events) > armpmu.num_events) {
 			atomic_dec(&active_events);
 			return -ENOSPC;
 		}
@@ -2974,14 +2974,12 @@ init_hw_perf_events(void)
 			armpmu = &armv6pmu;
 			memcpy(armpmu_perf_cache_map, armv6_perf_cache_map,
 					sizeof(armv6_perf_cache_map));
-			perf_max_events	= armv6pmu.num_events;
 			break;
 		case 0xB020:	/* ARM11mpcore */
 			armpmu = &armv6mpcore_pmu;
 			memcpy(armpmu_perf_cache_map,
 			       armv6mpcore_perf_cache_map,
 			       sizeof(armv6mpcore_perf_cache_map));
-			perf_max_events = armv6mpcore_pmu.num_events;
 			break;
 		case 0xC080:	/* Cortex-A8 */
 			armv7pmu.id = ARM_PERF_PMU_ID_CA8;
@@ -2993,7 +2991,6 @@ init_hw_perf_events(void)
 			/* Reset PMNC and read the nb of CNTx counters
 			    supported */
 			armv7pmu.num_events = armv7_reset_read_pmnc();
-			perf_max_events = armv7pmu.num_events;
 			break;
 		case 0xC090:	/* Cortex-A9 */
 			armv7pmu.id = ARM_PERF_PMU_ID_CA9;
@@ -3005,7 +3002,6 @@ init_hw_perf_events(void)
 			/* Reset PMNC and read the nb of CNTx counters
 			    supported */
 			armv7pmu.num_events = armv7_reset_read_pmnc();
-			perf_max_events = armv7pmu.num_events;
 			break;
 		}
 	/* Intel CPUs [xscale]. */
@@ -3016,13 +3012,11 @@ init_hw_perf_events(void)
 			armpmu = &xscale1pmu;
 			memcpy(armpmu_perf_cache_map, xscale_perf_cache_map,
 					sizeof(xscale_perf_cache_map));
-			perf_max_events	= xscale1pmu.num_events;
 			break;
 		case 2:
 			armpmu = &xscale2pmu;
 			memcpy(armpmu_perf_cache_map, xscale_perf_cache_map,
 					sizeof(xscale_perf_cache_map));
-			perf_max_events	= xscale2pmu.num_events;
 			break;
 		}
 	}
@@ -3032,7 +3026,6 @@ init_hw_perf_events(void)
 				arm_pmu_names[armpmu->id], armpmu->num_events);
 	} else {
 		pr_info("no hardware support available\n");
-		perf_max_events = -1;
 	}
 
 	perf_pmu_register(&pmu);

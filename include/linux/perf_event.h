@@ -860,7 +860,6 @@ struct perf_cpu_context {
 	struct perf_event_context	ctx;
 	struct perf_event_context	*task_ctx;
 	int				active_oncpu;
-	int				max_pertask;
 	int				exclusive;
 	struct swevent_hlist		*swevent_hlist;
 	struct mutex			hlist_mutex;
@@ -882,11 +881,6 @@ struct perf_output_handle {
 };
 
 #ifdef CONFIG_PERF_EVENTS
-
-/*
- * Set by architecture code:
- */
-extern int perf_max_events;
 
 extern int perf_pmu_register(struct pmu *pmu);
 extern void perf_pmu_unregister(struct pmu *pmu);

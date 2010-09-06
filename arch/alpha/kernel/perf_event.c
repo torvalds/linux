@@ -808,7 +808,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 	wrperfmon(PERFMON_CMD_DISABLE, cpuc->idx_mask);
 
 	/* la_ptr is the counter that overflowed. */
-	if (unlikely(la_ptr >= perf_max_events)) {
+	if (unlikely(la_ptr >= alpha_pmu->num_pmcs)) {
 		/* This should never occur! */
 		irq_err_count++;
 		pr_warning("PMI: silly index %ld\n", la_ptr);
@@ -879,7 +879,6 @@ void __init init_hw_perf_events(void)
 
 	/* And set up PMU specification */
 	alpha_pmu = &ev67_pmu;
-	perf_max_events = alpha_pmu->num_pmcs;
 
 	perf_pmu_register(&pmu);
 }
