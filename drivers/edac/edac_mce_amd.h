@@ -20,12 +20,13 @@
 #define II_MSG(x)			ii_msgs[II(x)]
 #define LL(x)				(((x) >> 0) & 0x3)
 #define LL_MSG(x)			ll_msgs[LL(x)]
-#define RRRR(x)				(((x) >> 4) & 0xf)
-#define RRRR_MSG(x)			rrrr_msgs[RRRR(x)]
 #define TO(x)				(((x) >> 8) & 0x1)
 #define TO_MSG(x)			to_msgs[TO(x)]
 #define PP(x)				(((x) >> 9) & 0x3)
 #define PP_MSG(x)			pp_msgs[PP(x)]
+
+#define RRRR(x)				(((x) >> 4) & 0xf)
+#define RRRR_MSG(x)			((RRRR(x) < 9) ?  rrrr_msgs[RRRR(x)] : "Wrong R4!")
 
 #define K8_NBSH				0x4C
 
