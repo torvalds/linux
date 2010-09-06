@@ -123,6 +123,7 @@ struct mmc_host {
 	const struct mmc_host_ops *ops;
 	unsigned int		f_min;
 	unsigned int		f_max;
+	unsigned int		f_init;
 	u32			ocr_avail;
 	struct notifier_block	pm_notify;
 
