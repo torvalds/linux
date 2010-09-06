@@ -598,13 +598,12 @@ static struct notifier_block amd_mce_dec_nb = {
 
 static int __init mce_amd_init(void)
 {
-	/*
-	 * We can decode MCEs for K8, F10h and F11h CPUs:
-	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return 0;
 
-	if (boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11)
+	if (boot_cpu_data.x86 != 0xf &&
+	    boot_cpu_data.x86 != 0x10 &&
+	    (boot_cpu_data.x86 != 0x14 || boot_cpu_data.x86_model > 0xf))
 		return 0;
 
 	fam_ops = kzalloc(sizeof(struct amd_decoder_ops), GFP_KERNEL);
@@ -637,6 +636,8 @@ static int __init mce_amd_init(void)
 		kfree(fam_ops);
 		return -EINVAL;
 	}
+
+	pr_info("MCE: In-kernel MCE decoding enabled.\n");
 
 	atomic_notifier_chain_register(&x86_mce_decoder_chain, &amd_mce_dec_nb);
 
