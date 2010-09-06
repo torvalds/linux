@@ -319,7 +319,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
-		urb->transfer_buffer = usb_buffer_alloc(gspca_dev->dev,
+		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						packet_size * SD_NPKT,
 						GFP_KERNEL,
 						&urb->transfer_dma);
