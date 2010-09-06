@@ -122,6 +122,7 @@ static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration)
  * Routines from ir-sysfs.c - Meant to be called only internally inside
  * ir-core
  */
+int ir_register_input(struct input_dev *input_dev);
 
 int ir_register_class(struct input_dev *input_dev);
 void ir_unregister_class(struct input_dev *input_dev);
