@@ -104,7 +104,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 			connector->funcs->force(connector);
 	} else {
 		connector->status = connector->funcs->detect(connector);
-		drm_helper_hpd_irq_event(dev);
+		drm_kms_helper_poll_enable(dev);
 	}
 
 	if (connector->status == connector_status_disconnected) {
