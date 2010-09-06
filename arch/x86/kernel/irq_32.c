@@ -60,8 +60,8 @@ union irq_ctx {
 static DEFINE_PER_CPU(union irq_ctx *, hardirq_ctx);
 static DEFINE_PER_CPU(union irq_ctx *, softirq_ctx);
 
-static DEFINE_PER_CPU_PAGE_ALIGNED(union irq_ctx, hardirq_stack);
-static DEFINE_PER_CPU_PAGE_ALIGNED(union irq_ctx, softirq_stack);
+static DEFINE_PER_CPU_MULTIPAGE_ALIGNED(union irq_ctx, hardirq_stack, THREAD_SIZE);
+static DEFINE_PER_CPU_MULTIPAGE_ALIGNED(union irq_ctx, softirq_stack, THREAD_SIZE);
 
 static void call_on_stack(void *func, void *stack)
 {

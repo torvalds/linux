@@ -273,7 +273,7 @@ SECTIONS
 	}
 
 #if !defined(CONFIG_X86_64) || !defined(CONFIG_SMP)
-	PERCPU(PAGE_SIZE)
+	PERCPU(THREAD_SIZE)
 #endif
 
 	. = ALIGN(PAGE_SIZE);
