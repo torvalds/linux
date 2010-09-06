@@ -33,6 +33,19 @@
 #include "nouveau_ramht.h"
 #include "drm_crtc_helper.h"
 
+static inline int
+nv50_sor_nr(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->chipset  < 0x90 ||
+	    dev_priv->chipset == 0x92 ||
+	    dev_priv->chipset == 0xa0)
+		return 2;
+
+	return 4;
+}
+
 static void
 nv50_evo_channel_del(struct nouveau_channel **pchan)
 {
@@ -233,11 +246,11 @@ nv50_display_init(struct drm_device *dev)
 		nv_wr32(dev, 0x006101d0 + (i * 0x04), val);
 	}
 	/* SOR */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < nv50_sor_nr(dev); i++) {
 		val = nv_rd32(dev, 0x0061c000 + (i * 0x800));
 		nv_wr32(dev, 0x006101e0 + (i * 0x04), val);
 	}
-	/* Something not yet in use, tv-out maybe. */
+	/* EXT */
 	for (i = 0; i < 3; i++) {
 		val = nv_rd32(dev, 0x0061e000 + (i * 0x800));
 		nv_wr32(dev, 0x006101f0 + (i * 0x04), val);
@@ -716,7 +729,7 @@ nv50_display_unk10_handler(struct drm_device *dev)
 		or = i;
 	}
 
-	for (i = 0; type == OUTPUT_ANY && i < 4; i++) {
+	for (i = 0; type == OUTPUT_ANY && i < nv50_sor_nr(dev); i++) {
 		if (dev_priv->chipset  < 0x90 ||
 		    dev_priv->chipset == 0x92 ||
 		    dev_priv->chipset == 0xa0)
@@ -847,7 +860,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 		or = i;
 	}
 
-	for (i = 0; type == OUTPUT_ANY && i < 4; i++) {
+	for (i = 0; type == OUTPUT_ANY && i < nv50_sor_nr(dev); i++) {
 		if (dev_priv->chipset  < 0x90 ||
 		    dev_priv->chipset == 0x92 ||
 		    dev_priv->chipset == 0xa0)
