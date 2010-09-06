@@ -670,8 +670,9 @@ int spi_gpio_init_first(void)
 	spi_gpio_set_pindirection(SPI_GPIO_P2_15, SPI_GPIO_OUT);
 
 	//spi_gpio_set_pindirection(SPI_GPIO_P4_06, SPI_GPIO_IN);		//CHARGER_INT_END input
-	spi_gpio_set_pindirection(SPI_GPIO_P4_06, SPI_GPIO_OUT);		//CHARGER_INT_END output
 	spi_gpio_set_pinlevel(SPI_GPIO_P4_06, SPI_GPIO_LOW);		//CM3605_PWD low
+	spi_gpio_set_pindirection(SPI_GPIO_P4_06, SPI_GPIO_OUT);		//CHARGER_INT_END output
+	
 
 	spi_gpio_set_pinlevel(SPI_GPIO_P4_07, SPI_GPIO_LOW);		//CM3605_PWD output
 	spi_gpio_set_pindirection(SPI_GPIO_P4_07, SPI_GPIO_OUT);
@@ -880,10 +881,10 @@ static int _spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	}
 	switch(type)
 	{
-		case GPIOEdgelFalling:
+		case IRQF_TRIGGER_FALLING:
 			int_type = SPI_GPIO_EDGE_FALLING;
 			break;
-		case GPIOEdgelRising:
+		case IRQF_TRIGGER_RISING:
 			int_type = SPI_GPIO_EDGE_RISING;
 			break;
 		default:
