@@ -292,64 +292,102 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("PCM Playback Volume",
 			 LDAC_VOL, RDAC_VOL, 0, 0x7f, 1, dac_tlv),
 
+	/*
+	 * Output controls that map to output mixer switches. Note these are
+	 * only for swapped L-to-R and R-to-L routes. See below stereo controls
+	 * for direct L-to-L and R-to-R routes.
+	 */
+	SOC_SINGLE_TLV("Left Line Mixer Line2R Bypass Volume",
+		       LINE2R_2_LLOPM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Left Line Mixer PGAR Bypass Volume",
+		       PGAR_2_LLOPM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Left Line Mixer DACR1 Playback Volume",
+		       DACR1_2_LLOPM_VOL, 0, 118, 1, output_stage_tlv),
+
+	SOC_SINGLE_TLV("Right Line Mixer Line2L Bypass Volume",
+		       LINE2L_2_RLOPM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Right Line Mixer PGAL Bypass Volume",
+		       PGAL_2_RLOPM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Right Line Mixer DACL1 Playback Volume",
+		       DACL1_2_RLOPM_VOL, 0, 118, 1, output_stage_tlv),
+
+	SOC_SINGLE_TLV("Left HP Mixer Line2R Bypass Volume",
+		       LINE2R_2_HPLOUT_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Left HP Mixer PGAR Bypass Volume",
+		       PGAR_2_HPLOUT_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Left HP Mixer DACR1 Playback Volume",
+		       DACR1_2_HPLOUT_VOL, 0, 118, 1, output_stage_tlv),
+
+	SOC_SINGLE_TLV("Right HP Mixer Line2L Bypass Volume",
+		       LINE2L_2_HPROUT_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Right HP Mixer PGAL Bypass Volume",
+		       PGAL_2_HPROUT_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Right HP Mixer DACL1 Playback Volume",
+		       DACL1_2_HPROUT_VOL, 0, 118, 1, output_stage_tlv),
+
+	SOC_SINGLE_TLV("Left HPCOM Mixer Line2R Bypass Volume",
+		       LINE2R_2_HPLCOM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Left HPCOM Mixer PGAR Bypass Volume",
+		       PGAR_2_HPLCOM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Left HPCOM Mixer DACR1 Playback Volume",
+		       DACR1_2_HPLCOM_VOL, 0, 118, 1, output_stage_tlv),
+
+	SOC_SINGLE_TLV("Right HPCOM Mixer Line2L Bypass Volume",
+		       LINE2L_2_HPRCOM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Right HPCOM Mixer PGAL Bypass Volume",
+		       PGAL_2_HPRCOM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("Right HPCOM Mixer DACL1 Playback Volume",
+		       DACL1_2_HPRCOM_VOL, 0, 118, 1, output_stage_tlv),
+
+	/* Stereo output controls for direct L-to-L and R-to-R routes */
+	SOC_DOUBLE_R_TLV("Line Line2 Bypass Volume",
+			 LINE2L_2_LLOPM_VOL, LINE2R_2_RLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("Line PGA Bypass Volume",
+			 PGAL_2_LLOPM_VOL, PGAR_2_RLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_DOUBLE_R_TLV("Line DAC Playback Volume",
 			 DACL1_2_LLOPM_VOL, DACR1_2_RLOPM_VOL,
 			 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE("LineL Playback Switch", LLOPM_CTRL, 3, 0x01, 0),
-	SOC_SINGLE("LineR Playback Switch", RLOPM_CTRL, 3, 0x01, 0),
-	SOC_DOUBLE_R_TLV("LineL DAC Playback Volume",
-			 DACL1_2_LLOPM_VOL, DACR1_2_LLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE_TLV("LineL Left PGA Bypass Playback Volume",
-		       PGAL_2_LLOPM_VOL, 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE_TLV("LineR Right PGA Bypass Playback Volume",
-		       PGAR_2_RLOPM_VOL, 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("LineL Line2 Bypass Playback Volume",
-			 LINE2L_2_LLOPM_VOL, LINE2R_2_LLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("LineR Line2 Bypass Playback Volume",
-			 LINE2L_2_RLOPM_VOL, LINE2R_2_RLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
 
+	SOC_DOUBLE_R_TLV("Mono Line2 Bypass Volume",
+			 LINE2L_2_MONOLOPM_VOL, LINE2R_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("Mono PGA Bypass Volume",
+			 PGAL_2_MONOLOPM_VOL, PGAR_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_DOUBLE_R_TLV("Mono DAC Playback Volume",
 			 DACL1_2_MONOLOPM_VOL, DACR1_2_MONOLOPM_VOL,
 			 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE("Mono DAC Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
-	SOC_DOUBLE_R_TLV("Mono PGA Bypass Playback Volume",
-			 PGAL_2_MONOLOPM_VOL, PGAR_2_MONOLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("Mono Line2 Bypass Playback Volume",
-			 LINE2L_2_MONOLOPM_VOL, LINE2R_2_MONOLOPM_VOL,
-			 0, 118, 1, output_stage_tlv),
 
+	SOC_DOUBLE_R_TLV("HP Line2 Bypass Volume",
+			 LINE2L_2_HPLOUT_VOL, LINE2R_2_HPROUT_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("HP PGA Bypass Volume",
+			 PGAL_2_HPLOUT_VOL, PGAR_2_HPROUT_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_DOUBLE_R_TLV("HP DAC Playback Volume",
 			 DACL1_2_HPLOUT_VOL, DACR1_2_HPROUT_VOL,
 			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R("HP DAC Playback Switch", HPLOUT_CTRL, HPROUT_CTRL, 3,
-		     0x01, 0),
-	SOC_DOUBLE_R_TLV("HP Right PGA Bypass Playback Volume",
-			 PGAR_2_HPLOUT_VOL, PGAR_2_HPROUT_VOL,
-			 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE_TLV("HPL PGA Bypass Playback Volume",
-		       PGAL_2_HPLOUT_VOL, 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE_TLV("HPR PGA Bypass Playback Volume",
-		       PGAL_2_HPROUT_VOL, 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("HP Line2 Bypass Playback Volume",
-			 LINE2L_2_HPLOUT_VOL, LINE2R_2_HPROUT_VOL,
-			 0, 118, 1, output_stage_tlv),
 
+	SOC_DOUBLE_R_TLV("HPCOM Line2 Bypass Volume",
+			 LINE2L_2_HPLCOM_VOL, LINE2R_2_HPRCOM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("HPCOM PGA Bypass Volume",
+			 PGAL_2_HPLCOM_VOL, PGAR_2_HPRCOM_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_DOUBLE_R_TLV("HPCOM DAC Playback Volume",
 			 DACL1_2_HPLCOM_VOL, DACR1_2_HPRCOM_VOL,
 			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R("HPCOM DAC Playback Switch", HPLCOM_CTRL, HPRCOM_CTRL, 3,
+
+	/* Output pin mute controls */
+	SOC_DOUBLE_R("Line Playback Switch", LLOPM_CTRL, RLOPM_CTRL, 3,
 		     0x01, 0),
-	SOC_SINGLE_TLV("HPLCOM PGA Bypass Playback Volume",
-		       PGAL_2_HPLCOM_VOL, 0, 118, 1, output_stage_tlv),
-	SOC_SINGLE_TLV("HPRCOM PGA Bypass Playback Volume",
-		       PGAL_2_HPRCOM_VOL, 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("HPCOM Line2 Bypass Playback Volume",
-			 LINE2L_2_HPLCOM_VOL, LINE2R_2_HPRCOM_VOL,
-			 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE("Mono Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
+	SOC_DOUBLE_R("HP Playback Switch", HPLOUT_CTRL, HPROUT_CTRL, 3,
+		     0x01, 0),
+	SOC_DOUBLE_R("HPCOM Playback Switch", HPLCOM_CTRL, HPRCOM_CTRL, 3,
+		     0x01, 0),
 
 	/*
 	 * Note: enable Automatic input Gain Controller with care. It can
@@ -389,22 +427,74 @@ SOC_DAPM_ENUM("Route", aic3x_enum[LHPCOM_ENUM]);
 static const struct snd_kcontrol_new aic3x_right_hpcom_mux_controls =
 SOC_DAPM_ENUM("Route", aic3x_enum[RHPCOM_ENUM]);
 
-/* Left DAC_L1 Mixer */
-static const struct snd_kcontrol_new aic3x_left_dac_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LineL Switch", DACL1_2_LLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("LineR Switch", DACL1_2_RLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("Mono Switch", DACL1_2_MONOLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HP Switch", DACL1_2_HPLOUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPCOM Switch", DACL1_2_HPLCOM_VOL, 7, 1, 0),
+/* Left Line Mixer */
+static const struct snd_kcontrol_new aic3x_left_line_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_LLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_LLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_LLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_LLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_LLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_LLOPM_VOL, 7, 1, 0),
 };
 
-/* Right DAC_R1 Mixer */
-static const struct snd_kcontrol_new aic3x_right_dac_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LineL Switch", DACR1_2_LLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("LineR Switch", DACR1_2_RLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("Mono Switch", DACR1_2_MONOLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HP Switch", DACR1_2_HPROUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPCOM Switch", DACR1_2_HPRCOM_VOL, 7, 1, 0),
+/* Right Line Mixer */
+static const struct snd_kcontrol_new aic3x_right_line_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_RLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_RLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_RLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_RLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_RLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_RLOPM_VOL, 7, 1, 0),
+};
+
+/* Mono Mixer */
+static const struct snd_kcontrol_new aic3x_mono_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_MONOLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_MONOLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_MONOLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_MONOLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_MONOLOPM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_MONOLOPM_VOL, 7, 1, 0),
+};
+
+/* Left HP Mixer */
+static const struct snd_kcontrol_new aic3x_left_hp_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_HPLOUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_HPLOUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_HPLOUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_HPLOUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_HPLOUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_HPLOUT_VOL, 7, 1, 0),
+};
+
+/* Right HP Mixer */
+static const struct snd_kcontrol_new aic3x_right_hp_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_HPROUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_HPROUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_HPROUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_HPROUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_HPROUT_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_HPROUT_VOL, 7, 1, 0),
+};
+
+/* Left HPCOM Mixer */
+static const struct snd_kcontrol_new aic3x_left_hpcom_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_HPLCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_HPLCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_HPLCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_HPLCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_HPLCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_HPLCOM_VOL, 7, 1, 0),
+};
+
+/* Right HPCOM Mixer */
+static const struct snd_kcontrol_new aic3x_right_hpcom_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_HPRCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_HPRCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_HPRCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_HPRCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("PGAR Bypass Switch", PGAR_2_HPRCOM_VOL, 7, 1, 0),
+	SOC_DAPM_SINGLE("DACR1 Switch", DACR1_2_HPRCOM_VOL, 7, 1, 0),
 };
 
 /* Left PGA Mixer */
@@ -441,54 +531,11 @@ SOC_DAPM_ENUM("Route", aic3x_enum[LINE2L_ENUM]);
 static const struct snd_kcontrol_new aic3x_right_line2_mux_controls =
 SOC_DAPM_ENUM("Route", aic3x_enum[LINE2R_ENUM]);
 
-/* Left PGA Bypass Mixer */
-static const struct snd_kcontrol_new aic3x_left_pga_bp_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LineL Switch", PGAL_2_LLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("LineR Switch", PGAL_2_RLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("Mono Switch", PGAL_2_MONOLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPL Switch", PGAL_2_HPLOUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPR Switch", PGAL_2_HPROUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPLCOM Switch", PGAL_2_HPLCOM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPRCOM Switch", PGAL_2_HPRCOM_VOL, 7, 1, 0),
-};
-
-/* Right PGA Bypass Mixer */
-static const struct snd_kcontrol_new aic3x_right_pga_bp_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LineL Switch", PGAR_2_LLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("LineR Switch", PGAR_2_RLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("Mono Switch", PGAR_2_MONOLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPL Switch", PGAR_2_HPLOUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPR Switch", PGAR_2_HPROUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPLCOM Switch", PGAR_2_HPLCOM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPRCOM Switch", PGAR_2_HPRCOM_VOL, 7, 1, 0),
-};
-
-/* Left Line2 Bypass Mixer */
-static const struct snd_kcontrol_new aic3x_left_line2_bp_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LineL Switch", LINE2L_2_LLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("LineR Switch", LINE2L_2_RLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("Mono Switch", LINE2L_2_MONOLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HP Switch", LINE2L_2_HPLOUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPLCOM Switch", LINE2L_2_HPLCOM_VOL, 7, 1, 0),
-};
-
-/* Right Line2 Bypass Mixer */
-static const struct snd_kcontrol_new aic3x_right_line2_bp_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LineL Switch", LINE2R_2_LLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("LineR Switch", LINE2R_2_RLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("Mono Switch", LINE2R_2_MONOLOPM_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HP Switch", LINE2R_2_HPROUT_VOL, 7, 1, 0),
-	SOC_DAPM_SINGLE("HPRCOM Switch", LINE2R_2_HPRCOM_VOL, 7, 1, 0),
-};
-
 static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	/* Left DAC to Left Outputs */
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", DAC_PWR, 7, 0),
 	SND_SOC_DAPM_MUX("Left DAC Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_left_dac_mux_controls),
-	SND_SOC_DAPM_MIXER("Left DAC_L1 Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_left_dac_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_left_dac_mixer_controls)),
 	SND_SOC_DAPM_MUX("Left HPCOM Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_left_hpcom_mux_controls),
 	SND_SOC_DAPM_PGA("Left Line Out", LLOPM_CTRL, 0, 0, NULL, 0),
@@ -499,9 +546,6 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", DAC_PWR, 6, 0),
 	SND_SOC_DAPM_MUX("Right DAC Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_right_dac_mux_controls),
-	SND_SOC_DAPM_MIXER("Right DAC_R1 Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_right_dac_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_right_dac_mixer_controls)),
 	SND_SOC_DAPM_MUX("Right HPCOM Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_right_hpcom_mux_controls),
 	SND_SOC_DAPM_PGA("Right Line Out", RLOPM_CTRL, 0, 0, NULL, 0),
@@ -565,25 +609,28 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias AVDD",
 			 MICBIAS_CTRL, 6, 3, 3, 0),
 
-	/* Left PGA to Left Output bypass */
-	SND_SOC_DAPM_MIXER("Left PGA Bypass Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_left_pga_bp_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_left_pga_bp_mixer_controls)),
-
-	/* Right PGA to Right Output bypass */
-	SND_SOC_DAPM_MIXER("Right PGA Bypass Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_right_pga_bp_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_right_pga_bp_mixer_controls)),
-
-	/* Left Line2 to Left Output bypass */
-	SND_SOC_DAPM_MIXER("Left Line2 Bypass Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_left_line2_bp_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_left_line2_bp_mixer_controls)),
-
-	/* Right Line2 to Right Output bypass */
-	SND_SOC_DAPM_MIXER("Right Line2 Bypass Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_right_line2_bp_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_right_line2_bp_mixer_controls)),
+	/* Output mixers */
+	SND_SOC_DAPM_MIXER("Left Line Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_left_line_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_left_line_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right Line Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_right_line_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_right_line_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Mono Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_mono_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_mono_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Left HP Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_left_hp_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_left_hp_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right HP Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_right_hp_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_right_hp_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Left HPCOM Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_left_hpcom_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_left_hpcom_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right HPCOM Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_right_hpcom_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_right_hpcom_mixer_controls)),
 
 	SND_SOC_DAPM_OUTPUT("LLOUT"),
 	SND_SOC_DAPM_OUTPUT("RLOUT"),
@@ -611,66 +658,6 @@ static const struct snd_soc_dapm_widget aic3007_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
-	/* Left Output */
-	{"Left DAC Mux", "DAC_L1", "Left DAC"},
-	{"Left DAC Mux", "DAC_L2", "Left DAC"},
-	{"Left DAC Mux", "DAC_L3", "Left DAC"},
-
-	{"Left DAC_L1 Mixer", "LineL Switch", "Left DAC Mux"},
-	{"Left DAC_L1 Mixer", "LineR Switch", "Left DAC Mux"},
-	{"Left DAC_L1 Mixer", "Mono Switch", "Left DAC Mux"},
-	{"Left DAC_L1 Mixer", "HP Switch", "Left DAC Mux"},
-	{"Left DAC_L1 Mixer", "HPCOM Switch", "Left DAC Mux"},
-	{"Left Line Out", NULL, "Left DAC Mux"},
-	{"Left HP Out", NULL, "Left DAC Mux"},
-
-	{"Left HPCOM Mux", "differential of HPLOUT", "Left DAC_L1 Mixer"},
-	{"Left HPCOM Mux", "constant VCM", "Left DAC_L1 Mixer"},
-	{"Left HPCOM Mux", "single-ended", "Left DAC_L1 Mixer"},
-
-	{"Left Line Out", NULL, "Left DAC_L1 Mixer"},
-	{"Mono Out", NULL, "Left DAC_L1 Mixer"},
-	{"Left HP Out", NULL, "Left DAC_L1 Mixer"},
-	{"Left HP Com", NULL, "Left HPCOM Mux"},
-
-	{"LLOUT", NULL, "Left Line Out"},
-	{"LLOUT", NULL, "Left Line Out"},
-	{"HPLOUT", NULL, "Left HP Out"},
-	{"HPLCOM", NULL, "Left HP Com"},
-
-	/* Right Output */
-	{"Right DAC Mux", "DAC_R1", "Right DAC"},
-	{"Right DAC Mux", "DAC_R2", "Right DAC"},
-	{"Right DAC Mux", "DAC_R3", "Right DAC"},
-
-	{"Right DAC_R1 Mixer", "LineL Switch", "Right DAC Mux"},
-	{"Right DAC_R1 Mixer", "LineR Switch", "Right DAC Mux"},
-	{"Right DAC_R1 Mixer", "Mono Switch", "Right DAC Mux"},
-	{"Right DAC_R1 Mixer", "HP Switch", "Right DAC Mux"},
-	{"Right DAC_R1 Mixer", "HPCOM Switch", "Right DAC Mux"},
-	{"Right Line Out", NULL, "Right DAC Mux"},
-	{"Right HP Out", NULL, "Right DAC Mux"},
-
-	{"Right HPCOM Mux", "differential of HPROUT", "Right DAC_R1 Mixer"},
-	{"Right HPCOM Mux", "constant VCM", "Right DAC_R1 Mixer"},
-	{"Right HPCOM Mux", "single-ended", "Right DAC_R1 Mixer"},
-	{"Right HPCOM Mux", "differential of HPLCOM", "Right DAC_R1 Mixer"},
-	{"Right HPCOM Mux", "external feedback", "Right DAC_R1 Mixer"},
-
-	{"Right Line Out", NULL, "Right DAC_R1 Mixer"},
-	{"Mono Out", NULL, "Right DAC_R1 Mixer"},
-	{"Right HP Out", NULL, "Right DAC_R1 Mixer"},
-	{"Right HP Com", NULL, "Right HPCOM Mux"},
-
-	{"RLOUT", NULL, "Right Line Out"},
-	{"RLOUT", NULL, "Right Line Out"},
-	{"HPROUT", NULL, "Right HP Out"},
-	{"HPRCOM", NULL, "Right HP Com"},
-
-	/* Mono Output */
-	{"MONO_LOUT", NULL, "Mono Out"},
-	{"MONO_LOUT", NULL, "Mono Out"},
-
 	/* Left Input */
 	{"Left Line1L Mux", "single-ended", "LINE1L"},
 	{"Left Line1L Mux", "differential", "LINE1L"},
@@ -703,74 +690,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Right ADC", NULL, "Right PGA Mixer"},
 	{"Right ADC", NULL, "GPIO1 dmic modclk"},
 
-	/* Left PGA Bypass */
-	{"Left PGA Bypass Mixer", "LineL Switch", "Left PGA Mixer"},
-	{"Left PGA Bypass Mixer", "LineR Switch", "Left PGA Mixer"},
-	{"Left PGA Bypass Mixer", "Mono Switch", "Left PGA Mixer"},
-	{"Left PGA Bypass Mixer", "HPL Switch", "Left PGA Mixer"},
-	{"Left PGA Bypass Mixer", "HPR Switch", "Left PGA Mixer"},
-	{"Left PGA Bypass Mixer", "HPLCOM Switch", "Left PGA Mixer"},
-	{"Left PGA Bypass Mixer", "HPRCOM Switch", "Left PGA Mixer"},
-
-	{"Left HPCOM Mux", "differential of HPLOUT", "Left PGA Bypass Mixer"},
-	{"Left HPCOM Mux", "constant VCM", "Left PGA Bypass Mixer"},
-	{"Left HPCOM Mux", "single-ended", "Left PGA Bypass Mixer"},
-
-	{"Left Line Out", NULL, "Left PGA Bypass Mixer"},
-	{"Mono Out", NULL, "Left PGA Bypass Mixer"},
-	{"Left HP Out", NULL, "Left PGA Bypass Mixer"},
-
-	/* Right PGA Bypass */
-	{"Right PGA Bypass Mixer", "LineL Switch", "Right PGA Mixer"},
-	{"Right PGA Bypass Mixer", "LineR Switch", "Right PGA Mixer"},
-	{"Right PGA Bypass Mixer", "Mono Switch", "Right PGA Mixer"},
-	{"Right PGA Bypass Mixer", "HPL Switch", "Right PGA Mixer"},
-	{"Right PGA Bypass Mixer", "HPR Switch", "Right PGA Mixer"},
-	{"Right PGA Bypass Mixer", "HPLCOM Switch", "Right PGA Mixer"},
-	{"Right PGA Bypass Mixer", "HPRCOM Switch", "Right PGA Mixer"},
-
-	{"Right HPCOM Mux", "differential of HPROUT", "Right PGA Bypass Mixer"},
-	{"Right HPCOM Mux", "constant VCM", "Right PGA Bypass Mixer"},
-	{"Right HPCOM Mux", "single-ended", "Right PGA Bypass Mixer"},
-	{"Right HPCOM Mux", "differential of HPLCOM", "Right PGA Bypass Mixer"},
-	{"Right HPCOM Mux", "external feedback", "Right PGA Bypass Mixer"},
-
-	{"Right Line Out", NULL, "Right PGA Bypass Mixer"},
-	{"Mono Out", NULL, "Right PGA Bypass Mixer"},
-	{"Right HP Out", NULL, "Right PGA Bypass Mixer"},
-
-	/* Left Line2 Bypass */
-	{"Left Line2 Bypass Mixer", "LineL Switch", "Left Line2L Mux"},
-	{"Left Line2 Bypass Mixer", "LineR Switch", "Left Line2L Mux"},
-	{"Left Line2 Bypass Mixer", "Mono Switch", "Left Line2L Mux"},
-	{"Left Line2 Bypass Mixer", "HP Switch", "Left Line2L Mux"},
-	{"Left Line2 Bypass Mixer", "HPLCOM Switch", "Left Line2L Mux"},
-
-	{"Left HPCOM Mux", "differential of HPLOUT", "Left Line2 Bypass Mixer"},
-	{"Left HPCOM Mux", "constant VCM", "Left Line2 Bypass Mixer"},
-	{"Left HPCOM Mux", "single-ended", "Left Line2 Bypass Mixer"},
-
-	{"Left Line Out", NULL, "Left Line2 Bypass Mixer"},
-	{"Mono Out", NULL, "Left Line2 Bypass Mixer"},
-	{"Left HP Out", NULL, "Left Line2 Bypass Mixer"},
-
-	/* Right Line2 Bypass */
-	{"Right Line2 Bypass Mixer", "LineL Switch", "Right Line2R Mux"},
-	{"Right Line2 Bypass Mixer", "LineR Switch", "Right Line2R Mux"},
-	{"Right Line2 Bypass Mixer", "Mono Switch", "Right Line2R Mux"},
-	{"Right Line2 Bypass Mixer", "HP Switch", "Right Line2R Mux"},
-	{"Right Line2 Bypass Mixer", "HPRCOM Switch", "Right Line2R Mux"},
-
-	{"Right HPCOM Mux", "differential of HPROUT", "Right Line2 Bypass Mixer"},
-	{"Right HPCOM Mux", "constant VCM", "Right Line2 Bypass Mixer"},
-	{"Right HPCOM Mux", "single-ended", "Right Line2 Bypass Mixer"},
-	{"Right HPCOM Mux", "differential of HPLCOM", "Right Line2 Bypass Mixer"},
-	{"Right HPCOM Mux", "external feedback", "Right Line2 Bypass Mixer"},
-
-	{"Right Line Out", NULL, "Right Line2 Bypass Mixer"},
-	{"Mono Out", NULL, "Right Line2 Bypass Mixer"},
-	{"Right HP Out", NULL, "Right Line2 Bypass Mixer"},
-
 	/*
 	 * Logical path between digital mic enable and GPIO1 modulator clock
 	 * output function
@@ -778,6 +697,105 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"GPIO1 dmic modclk", NULL, "DMic Rate 128"},
 	{"GPIO1 dmic modclk", NULL, "DMic Rate 64"},
 	{"GPIO1 dmic modclk", NULL, "DMic Rate 32"},
+
+	/* Left DAC Output */
+	{"Left DAC Mux", "DAC_L1", "Left DAC"},
+	{"Left DAC Mux", "DAC_L2", "Left DAC"},
+	{"Left DAC Mux", "DAC_L3", "Left DAC"},
+
+	/* Right DAC Output */
+	{"Right DAC Mux", "DAC_R1", "Right DAC"},
+	{"Right DAC Mux", "DAC_R2", "Right DAC"},
+	{"Right DAC Mux", "DAC_R3", "Right DAC"},
+
+	/* Left Line Output */
+	{"Left Line Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Left Line Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Left Line Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Left Line Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Left Line Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Left Line Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Left Line Out", NULL, "Left Line Mixer"},
+	{"Left Line Out", NULL, "Left DAC Mux"},
+	{"LLOUT", NULL, "Left Line Out"},
+
+	/* Right Line Output */
+	{"Right Line Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Right Line Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Right Line Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Right Line Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Right Line Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Right Line Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Right Line Out", NULL, "Right Line Mixer"},
+	{"Right Line Out", NULL, "Right DAC Mux"},
+	{"RLOUT", NULL, "Right Line Out"},
+
+	/* Mono Output */
+	{"Mono Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Mono Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Mono Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Mono Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Mono Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Mono Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Mono Out", NULL, "Mono Mixer"},
+	{"MONO_LOUT", NULL, "Mono Out"},
+
+	/* Left HP Output */
+	{"Left HP Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Left HP Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Left HP Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Left HP Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Left HP Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Left HP Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Left HP Out", NULL, "Left HP Mixer"},
+	{"Left HP Out", NULL, "Left DAC Mux"},
+	{"HPLOUT", NULL, "Left HP Out"},
+
+	/* Right HP Output */
+	{"Right HP Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Right HP Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Right HP Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Right HP Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Right HP Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Right HP Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Right HP Out", NULL, "Right HP Mixer"},
+	{"Right HP Out", NULL, "Right DAC Mux"},
+	{"HPROUT", NULL, "Right HP Out"},
+
+	/* Left HPCOM Output */
+	{"Left HPCOM Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Left HPCOM Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Left HPCOM Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Left HPCOM Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Left HPCOM Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Left HPCOM Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Left HPCOM Mux", "differential of HPLOUT", "Left HP Mixer"},
+	{"Left HPCOM Mux", "constant VCM", "Left HPCOM Mixer"},
+	{"Left HPCOM Mux", "single-ended", "Left HPCOM Mixer"},
+	{"Left HP Com", NULL, "Left HPCOM Mux"},
+	{"HPLCOM", NULL, "Left HP Com"},
+
+	/* Right HPCOM Output */
+	{"Right HPCOM Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Right HPCOM Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Right HPCOM Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Right HPCOM Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Right HPCOM Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Right HPCOM Mixer", "DACR1 Switch", "Right DAC Mux"},
+
+	{"Right HPCOM Mux", "differential of HPROUT", "Right HP Mixer"},
+	{"Right HPCOM Mux", "constant VCM", "Right HPCOM Mixer"},
+	{"Right HPCOM Mux", "single-ended", "Right HPCOM Mixer"},
+	{"Right HPCOM Mux", "differential of HPLCOM", "Left HPCOM Mixer"},
+	{"Right HPCOM Mux", "external feedback", "Right HPCOM Mixer"},
+	{"Right HP Com", NULL, "Right HPCOM Mux"},
+	{"HPRCOM", NULL, "Right HP Com"},
 };
 
 static const struct snd_soc_dapm_route intercon_3007[] = {
@@ -1281,6 +1299,8 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	codec->hw_write = (hw_write_t) i2c_master_send;
 	codec->control_data = aic3x->control_data;
 
+	aic3x_init(codec);
+
 	if (aic3x->setup) {
 		/* setup GPIO functions */
 		aic3x_write(codec, AIC3X_GPIO1_REG,
@@ -1288,8 +1308,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		aic3x_write(codec, AIC3X_GPIO2_REG,
 			    (aic3x->setup->gpio_func[1] & 0xf) << 4);
 	}
-
-	aic3x_init(codec);
 
 	snd_soc_add_controls(codec, aic3x_snd_controls,
 			     ARRAY_SIZE(aic3x_snd_controls));
@@ -1342,7 +1360,6 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
 	struct aic3x_pdata *pdata = i2c->dev.platform_data;
-	struct aic3x_setup_data *setup = pdata->setup;
 	struct aic3x_priv *aic3x;
 	int ret, i;
 	const struct i2c_device_id *tbl;
@@ -1354,15 +1371,18 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	}
 
 	aic3x->control_data = i2c;
-	aic3x->setup = setup;
 	i2c_set_clientdata(i2c, aic3x);
+	if (pdata) {
+		aic3x->gpio_reset = pdata->gpio_reset;
+		aic3x->setup = pdata->setup;
+	} else {
+		aic3x->gpio_reset = -1;
+	}
 
-	aic3x->gpio_reset = -1;
-	if (pdata && pdata->gpio_reset >= 0) {
-		ret = gpio_request(pdata->gpio_reset, "tlv320aic3x reset");
+	if (aic3x->gpio_reset >= 0) {
+		ret = gpio_request(aic3x->gpio_reset, "tlv320aic3x reset");
 		if (ret != 0)
 			goto err_gpio;
-		aic3x->gpio_reset = pdata->gpio_reset;
 		gpio_direction_output(aic3x->gpio_reset, 0);
 	}
 
