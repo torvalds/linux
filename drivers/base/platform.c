@@ -192,6 +192,9 @@ int platform_device_add_resources(struct platform_device *pdev,
 {
 	struct resource *r;
 
+	if (!res)
+		return 0;
+
 	r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
 	if (r) {
 		pdev->resource = r;
@@ -215,8 +218,12 @@ EXPORT_SYMBOL_GPL(platform_device_add_resources);
 int platform_device_add_data(struct platform_device *pdev, const void *data,
 			     size_t size)
 {
-	void *d = kmemdup(data, size, GFP_KERNEL);
+	void *d;
 
+	if (!data)
+		return 0;
+
+	d = kmemdup(data, size, GFP_KERNEL);
 	if (d) {
 		pdev->dev.platform_data = d;
 		return 0;
