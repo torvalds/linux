@@ -1004,6 +1004,7 @@ static void rcu_send_cbs_to_orphanage(struct rcu_state *rsp)
 	for (i = 0; i < RCU_NEXT_SIZE; i++)
 		rdp->nxttail[i] = &rdp->nxtlist;
 	rsp->orphan_qlen += rdp->qlen;
+	rdp->n_cbs_orphaned += rdp->qlen;
 	rdp->qlen = 0;
 	raw_spin_unlock(&rsp->onofflock);  /* irqs remain disabled. */
 }
@@ -1025,6 +1026,7 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp)
 	*rdp->nxttail[RCU_NEXT_TAIL] = rsp->orphan_cbs_list;
 	rdp->nxttail[RCU_NEXT_TAIL] = rsp->orphan_cbs_tail;
 	rdp->qlen += rsp->orphan_qlen;
+	rdp->n_cbs_adopted += rsp->orphan_qlen;
 	rsp->orphan_cbs_list = NULL;
 	rsp->orphan_cbs_tail = &rsp->orphan_cbs_list;
 	rsp->orphan_qlen = 0;
@@ -1156,6 +1158,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Update count, and requeue any remaining callbacks. */
 	rdp->qlen -= count;
+	rdp->n_cbs_invoked += count;
 	if (list != NULL) {
 		*tail = rdp->nxtlist;
 		rdp->nxtlist = list;
