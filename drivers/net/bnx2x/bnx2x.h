@@ -20,8 +20,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.52.53-5"
-#define DRV_MODULE_RELDATE      "2010/01/09"
+#define DRV_MODULE_VERSION      "1.52.53-6"
+#define DRV_MODULE_RELDATE      "2010/09/07"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
