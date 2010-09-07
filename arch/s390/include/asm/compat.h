@@ -180,7 +180,7 @@ static inline int is_compat_task(void)
 
 #endif
 
-static inline void __user *compat_alloc_user_space(long len)
+static inline void __user *arch_compat_alloc_user_space(long len)
 {
 	unsigned long stack;
 
