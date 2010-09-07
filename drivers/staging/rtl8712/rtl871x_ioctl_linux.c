@@ -62,17 +62,6 @@ static const char * const iw_operation_mode[] = {
 	 "Monitor"
 };
 
-static int hex2num_i(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-	if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-	return -1;
-}
-
 /**
  * hwaddr_aton - Convert ASCII string to MAC address
  * @txt: MAC address as a string (e.g., "00:11:22:33:44:55")
@@ -86,10 +75,10 @@ static int hwaddr_aton_i(const char *txt, u8 *addr)
 	for (i = 0; i < 6; i++) {
 		int a, b;
 
-		a = hex2num_i(*txt++);
+		a = hex_to_bin(*txt++);
 		if (a < 0)
 			return -1;
-		b = hex2num_i(*txt++);
+		b = hex_to_bin(*txt++);
 		if (b < 0)
 			return -1;
 		*addr++ = (a << 4) | b;
