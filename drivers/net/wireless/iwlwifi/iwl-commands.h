@@ -1820,13 +1820,8 @@ enum {
 	TX_STATUS_FAIL_TID_DISABLE = 0x8d,
 	TX_STATUS_FAIL_FIFO_FLUSHED = 0x8e,
 	TX_STATUS_FAIL_INSUFFICIENT_CF_POLL = 0x8f,
-	/* uCode drop due to FW drop request */
-	TX_STATUS_FAIL_FW_DROP = 0x90,
-	/*
-	 * uCode drop due to station color mismatch
-	 * between tx command and station table
-	 */
-	TX_STATUS_FAIL_STA_COLOR_MISMATCH_DROP = 0x91,
+	TX_STATUS_FAIL_PASSIVE_NO_RX = 0x90,
+	TX_STATUS_FAIL_NO_BEACON_ON_RADAR = 0x91,
 };
 
 #define	TX_PACKET_MODE_REGULAR		0x0000

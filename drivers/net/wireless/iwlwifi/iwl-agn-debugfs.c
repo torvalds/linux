@@ -1009,11 +1009,11 @@ ssize_t iwl_reply_tx_error_read(struct file *file,
 				TX_STATUS_FAIL_INSUFFICIENT_CF_POLL),
 			 priv->_agn.reply_tx_stats.insuff_cf_poll);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
-			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_FW_DROP),
+			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_PASSIVE_NO_RX),
 			 priv->_agn.reply_tx_stats.fail_hw_drop);
-	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t%u\n",
+	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_tx_fail_reason(
-				TX_STATUS_FAIL_STA_COLOR_MISMATCH_DROP),
+				TX_STATUS_FAIL_NO_BEACON_ON_RADAR),
 			 priv->_agn.reply_tx_stats.sta_color_mismatch);
 	pos += scnprintf(buf + pos, bufsz - pos, "UNKNOWN:\t\t\t%u\n",
 			 priv->_agn.reply_tx_stats.unknown);

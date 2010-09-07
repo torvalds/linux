@@ -111,10 +111,10 @@ static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 	case TX_STATUS_FAIL_INSUFFICIENT_CF_POLL:
 		priv->_agn.reply_tx_stats.insuff_cf_poll++;
 		break;
-	case TX_STATUS_FAIL_FW_DROP:
+	case TX_STATUS_FAIL_PASSIVE_NO_RX:
 		priv->_agn.reply_tx_stats.fail_hw_drop++;
 		break;
-	case TX_STATUS_FAIL_STA_COLOR_MISMATCH_DROP:
+	case TX_STATUS_FAIL_NO_BEACON_ON_RADAR:
 		priv->_agn.reply_tx_stats.sta_color_mismatch++;
 		break;
 	default:
