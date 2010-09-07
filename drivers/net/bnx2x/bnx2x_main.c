@@ -4348,7 +4348,6 @@ static int bnx2x_init_port(struct bnx2x *bp)
 		REG_WR(bp, reg_addr, val);
 		}
 		break;
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 		bp->port.need_hw_lock = 1;
 		break;
