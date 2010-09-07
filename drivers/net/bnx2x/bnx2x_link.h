@@ -1,4 +1,4 @@
-/* Copyright 2008-2009 Broadcom Corporation
+/* Copyright 2008-2010 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -46,9 +46,35 @@
 #define SFP_EEPROM_PART_NO_ADDR 		0x28
 #define SFP_EEPROM_PART_NO_SIZE		16
 #define PWR_FLT_ERR_MSG_LEN			250
+/* Single Media Direct board is the plain 577xx board with CX4/RJ45 jacks */
+#define SINGLE_MEDIA_DIRECT(params)	(params->num_phys == 1)
+/* Single Media board contains single external phy */
+#define SINGLE_MEDIA(params)		(params->num_phys == 2)
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
+#define INT_PHY		0
+#define EXT_PHY1	1
+
+#define MAX_PHYS	2
+
+/***********************************************************/
+/*                      bnx2x_phy struct                     */
+/*  Defines the required arguments and function per phy    */
+/***********************************************************/
+struct link_vars;
+struct link_params;
+struct bnx2x_phy;
+
+struct bnx2x_phy {
+	u32 type;
+
+	/* Loaded during init */
+	u8 addr;
+
+	u32 mdio_ctrl;
+};
+
 /* Inputs parameters to the CLC */
 struct link_params {
 
@@ -106,6 +132,11 @@ struct link_params {
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
 #define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
 #define FEATURE_CONFIG_BCM8727_NOC			(1<<3)
+	/* Will be populated during common init */
+	struct bnx2x_phy phy[MAX_PHYS];
+
+	/* Will be populated during common init */
+	u8 num_phys;
 
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
@@ -155,17 +186,20 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 /* bnx2x_link_update should be called upon link interrupt */
 u8 bnx2x_link_update(struct link_params *input, struct link_vars *output);
 
-/* use the following cl45 functions to read/write from external_phy
+/* use the following phy functions to read/write from external_phy
   In order to use it to read/write internal phy registers, use
   DEFAULT_PHY_DEV_ADDR as devad, and (_bank + (_addr & 0xf)) as
-  Use ext_phy_type of 0 in case of cl22 over cl45
   the register */
-u8 bnx2x_cl45_read(struct bnx2x *bp, u8 port, u32 ext_phy_type,
-		 u8 phy_addr, u8 devad, u16 reg, u16 *ret_val);
+u8 bnx2x_phy_read(struct link_params *params, u8 phy_addr,
+		  u8 devad, u16 reg, u16 *ret_val);
 
-u8 bnx2x_cl45_write(struct bnx2x *bp, u8 port, u32 ext_phy_type,
-		  u8 phy_addr, u8 devad, u16 reg, u16 val);
+u8 bnx2x_phy_write(struct link_params *params, u8 phy_addr,
+		   u8 devad, u16 reg, u16 val);
+u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
+		   u8 devad, u16 reg, u16 *ret_val);
 
+u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
+		    u8 devad, u16 reg, u16 val);
 /* Reads the link_status from the shmem,
    and update the link vars accordingly */
 void bnx2x_link_status_update(struct link_params *input,
@@ -198,9 +232,14 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
 /* Reset the external PHY using GPIO */
 void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
 
-void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, u8 port, u8 phy_addr);
+/* Reset the external of SFX7101 */
+void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 
-u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
+u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+				struct link_params *params, u16 addr,
 			      u8 byte_cnt, u8 *o_buf);
-
+/* Returns the aggregative supported attributes of the phys on board */
+u32 bnx2x_supported_attr(struct link_params *params, u8 phy_idx);
+/* Probe the phys on board, and populate them in "params" */
+u8 bnx2x_phy_probe(struct link_params *params);
 #endif /* BNX2X_LINK_H */

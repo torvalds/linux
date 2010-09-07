@@ -4351,7 +4351,6 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	default:
 		break;
 	}
-
 	bnx2x__link_reset(bp);
 
 	return 0;
@@ -6984,23 +6983,15 @@ static int bnx2x_mdio_read(struct net_device *netdev, int prtad,
 	struct bnx2x *bp = netdev_priv(netdev);
 	u16 value;
 	int rc;
-	u32 phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
 
 	DP(NETIF_MSG_LINK, "mdio_read: prtad 0x%x, devad 0x%x, addr 0x%x\n",
 	   prtad, devad, addr);
-
-	if (prtad != bp->mdio.prtad) {
-		DP(NETIF_MSG_LINK, "prtad missmatch (cmd:0x%x != bp:0x%x)\n",
-		   prtad, bp->mdio.prtad);
-		return -EINVAL;
-	}
 
 	/* The HW expects different devad if CL22 is used */
 	devad = (devad == MDIO_DEVAD_NONE) ? DEFAULT_PHY_DEV_ADDR : devad;
 
 	bnx2x_acquire_phy_lock(bp);
-	rc = bnx2x_cl45_read(bp, BP_PORT(bp), phy_type, prtad,
-			     devad, addr, &value);
+	rc = bnx2x_phy_read(&bp->link_params, prtad, devad, addr, &value);
 	bnx2x_release_phy_lock(bp);
 	DP(NETIF_MSG_LINK, "mdio_read_val 0x%x rc = 0x%x\n", value, rc);
 
@@ -7014,24 +7005,16 @@ static int bnx2x_mdio_write(struct net_device *netdev, int prtad, int devad,
 			    u16 addr, u16 value)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
 	int rc;
 
 	DP(NETIF_MSG_LINK, "mdio_write: prtad 0x%x, devad 0x%x, addr 0x%x,"
 			   " value 0x%x\n", prtad, devad, addr, value);
 
-	if (prtad != bp->mdio.prtad) {
-		DP(NETIF_MSG_LINK, "prtad missmatch (cmd:0x%x != bp:0x%x)\n",
-		   prtad, bp->mdio.prtad);
-		return -EINVAL;
-	}
-
 	/* The HW expects different devad if CL22 is used */
 	devad = (devad == MDIO_DEVAD_NONE) ? DEFAULT_PHY_DEV_ADDR : devad;
 
 	bnx2x_acquire_phy_lock(bp);
-	rc = bnx2x_cl45_write(bp, BP_PORT(bp), ext_phy_type, prtad,
-			      devad, addr, value);
+	rc = bnx2x_phy_write(&bp->link_params, prtad, devad, addr, value);
 	bnx2x_release_phy_lock(bp);
 	return rc;
 }
