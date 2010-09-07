@@ -193,6 +193,7 @@ static void xonar_ds_init(struct oxygen *chip)
 static void xonar_ds_cleanup(struct oxygen *chip)
 {
 	xonar_disable_output(chip);
+	wm8776_write(chip, WM8776_RESET, 0);
 }
 
 static void xonar_ds_suspend(struct oxygen *chip)
