@@ -3909,11 +3909,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		udelay(150);
 	}
 
-	if (HAS_PCH_SPLIT(dev)) {
-		pipeconf &= ~PIPECONF_DITHER_EN;
-		pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
-	}
-
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
 	 * things on.
@@ -3951,23 +3946,27 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * appropriately here, but we need to look more thoroughly into how
 		 * panels behave in the two modes.
 		 */
-		/* set the dithering flag */
-		if (IS_I965G(dev)) {
-			if (dev_priv->lvds_dither) {
-				if (HAS_PCH_SPLIT(dev)) {
-					pipeconf |= PIPECONF_DITHER_EN;
-					pipeconf |= PIPECONF_DITHER_TYPE_ST1;
-				} else
-					lvds |= LVDS_ENABLE_DITHER;
-			} else {
-				if (!HAS_PCH_SPLIT(dev)) {
-					lvds &= ~LVDS_ENABLE_DITHER;
-				}
-			}
+		/* set the dithering flag on non-PCH LVDS as needed */
+		if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
+			if (dev_priv->lvds_dither)
+				lvds |= LVDS_ENABLE_DITHER;
+			else
+				lvds &= ~LVDS_ENABLE_DITHER;
 		}
 		I915_WRITE(lvds_reg, lvds);
 		I915_READ(lvds_reg);
 	}
+
+	/* set the dithering flag and clear for anything other than a panel. */
+	if (HAS_PCH_SPLIT(dev)) {
+		pipeconf &= ~PIPECONF_DITHER_EN;
+		pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
+		if (dev_priv->lvds_dither && (is_lvds || has_edp_encoder)) {
+			pipeconf |= PIPECONF_DITHER_EN;
+			pipeconf |= PIPECONF_DITHER_TYPE_ST1;
+		}
+	}
+
 	if (is_dp)
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	else if (HAS_PCH_SPLIT(dev)) {
