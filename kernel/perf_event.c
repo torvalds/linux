@@ -4709,6 +4709,8 @@ static int perf_swevent_init(struct perf_event *event)
 }
 
 static struct pmu perf_swevent = {
+	.task_ctx_nr	= perf_sw_context,
+
 	.event_init	= perf_swevent_init,
 	.add		= perf_swevent_add,
 	.del		= perf_swevent_del,
@@ -4800,6 +4802,8 @@ static int perf_tp_event_init(struct perf_event *event)
 }
 
 static struct pmu perf_tracepoint = {
+	.task_ctx_nr	= perf_sw_context,
+
 	.event_init	= perf_tp_event_init,
 	.add		= perf_trace_add,
 	.del		= perf_trace_del,
@@ -4988,6 +4992,8 @@ static int cpu_clock_event_init(struct perf_event *event)
 }
 
 static struct pmu perf_cpu_clock = {
+	.task_ctx_nr	= perf_sw_context,
+
 	.event_init	= cpu_clock_event_init,
 	.add		= cpu_clock_event_add,
 	.del		= cpu_clock_event_del,
@@ -5063,6 +5069,8 @@ static int task_clock_event_init(struct perf_event *event)
 }
 
 static struct pmu perf_task_clock = {
+	.task_ctx_nr	= perf_sw_context,
+
 	.event_init	= task_clock_event_init,
 	.add		= task_clock_event_add,
 	.del		= task_clock_event_del,
@@ -5490,6 +5498,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	struct perf_event_context *ctx;
 	struct file *event_file = NULL;
 	struct file *group_file = NULL;
+	struct pmu *pmu;
 	int event_fd;
 	int fput_needed = 0;
 	int err;
@@ -5522,26 +5531,34 @@ SYSCALL_DEFINE5(perf_event_open,
 		goto err_fd;
 	}
 
-	/*
-	 * Get the target context (task or percpu):
-	 */
-	ctx = find_get_context(event->pmu, pid, cpu);
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto err_alloc;
-	}
-
 	if (group_fd != -1) {
 		group_leader = perf_fget_light(group_fd, &fput_needed);
 		if (IS_ERR(group_leader)) {
 			err = PTR_ERR(group_leader);
-			goto err_context;
+			goto err_alloc;
 		}
 		group_file = group_leader->filp;
 		if (flags & PERF_FLAG_FD_OUTPUT)
 			output_event = group_leader;
 		if (flags & PERF_FLAG_FD_NO_GROUP)
 			group_leader = NULL;
+	}
+
+	/*
+	 * Special case software events and allow them to be part of
+	 * any hardware group.
+	 */
+	pmu = event->pmu;
+	if ((pmu->task_ctx_nr == perf_sw_context) && group_leader)
+		pmu = group_leader->pmu;
+
+	/*
+	 * Get the target context (task or percpu):
+	 */
+	ctx = find_get_context(pmu, pid, cpu);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto err_group_fd;
 	}
 
 	/*
@@ -5605,8 +5622,9 @@ SYSCALL_DEFINE5(perf_event_open,
 	return event_fd;
 
 err_context:
-	fput_light(group_file, fput_needed);
 	put_ctx(ctx);
+err_group_fd:
+	fput_light(group_file, fput_needed);
 err_alloc:
 	free_event(event);
 err_fd:

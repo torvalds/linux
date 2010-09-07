@@ -952,14 +952,7 @@ extern int perf_event_overflow(struct perf_event *event, int nmi,
  */
 static inline int is_software_event(struct perf_event *event)
 {
-	switch (event->attr.type) {
-	case PERF_TYPE_SOFTWARE:
-	case PERF_TYPE_TRACEPOINT:
-	/* for now the breakpoint stuff also works as software event */
-	case PERF_TYPE_BREAKPOINT:
-		return 1;
-	}
-	return 0;
+	return event->pmu->task_ctx_nr == perf_sw_context;
 }
 
 extern atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
