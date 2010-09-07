@@ -33,8 +33,10 @@ struct dib7000p_config {
 	int (*agc_control) (struct dvb_frontend *, u8 before);
 
 	u8 output_mode;
+	u8 disable_sample_and_hold : 1;
 
 	u8 enable_current_mirror : 1;
+	u8 diversity_delay;
 
 };
 

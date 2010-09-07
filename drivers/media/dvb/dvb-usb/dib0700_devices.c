@@ -956,6 +956,7 @@ static struct dib7000p_config dib7770p_dib7000p_config = {
 
 	.hostbus_diversity = 1,
 	.enable_current_mirror = 1,
+	.disable_sample_and_hold = 0,
 };
 
 static int stk7770p_frontend_attach(struct dvb_usb_adapter *adap)

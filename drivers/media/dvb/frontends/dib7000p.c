@@ -260,6 +260,7 @@ static void dib7000p_set_adc_state(struct dib7000p_state *state, enum dibx000_ad
 
 //	dprintk( "908: %x, 909: %x\n", reg_908, reg_909);
 
+	reg_909 |= (state->cfg.disable_sample_and_hold & 1) << 4;
 	reg_908 |= (state->cfg.enable_current_mirror & 1) << 7;
 
 	dib7000p_write_word(state, 908, reg_908);
@@ -780,7 +781,10 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 		default:
 		case GUARD_INTERVAL_1_32: value *= 1; break;
 	}
-	state->div_sync_wait = (value * 3) / 2 + 32; // add 50% SFN margin + compensate for one DVSY-fifo TODO
+	if (state->cfg.diversity_delay == 0)
+		state->div_sync_wait = (value * 3) / 2 + 48; // add 50% SFN margin + compensate for one DVSY-fifo
+	else
+		state->div_sync_wait = (value * 3) / 2 + state->cfg.diversity_delay; // add 50% SFN margin + compensate for one DVSY-fifo
 
 	/* deactive the possibility of diversity reception if extended interleaver */
 	state->div_force_off = !1 && ch->u.ofdm.transmission_mode != TRANSMISSION_MODE_8K;
