@@ -105,6 +105,7 @@ struct cpcap_whisper_data {
 	struct cpcap_device *cpcap;
 	struct cpcap_whisper_pdata *pdata;
 	struct delayed_work work;
+	struct workqueue_struct *wq;
 	unsigned short sense;
 	unsigned short prev_sense;
 	enum cpcap_det_state state;
@@ -339,7 +340,7 @@ static void whisper_audio_check(struct cpcap_whisper_data *di)
 	cpcap_regacc_write(di->cpcap, CPCAP_REG_USBC1, CPCAP_BIT_IDPUCNTRL,
 			   (CPCAP_BIT_ID100KPU | CPCAP_BIT_IDPUCNTRL));
 
-	mdelay(1);
+	msleep(200);
 
 	req.format = CPCAP_ADC_FORMAT_RAW;
 	req.timing = CPCAP_ADC_TIMING_IMM;
@@ -376,13 +377,13 @@ static void whisper_det_work(struct work_struct *work)
 		configure_hardware(data, CPCAP_ACCY_UNKNOWN);
 
 		data->state = SAMPLE_1;
-		schedule_delayed_work(&data->work, msecs_to_jiffies(11));
+		queue_delayed_work(data->wq, &data->work, msecs_to_jiffies(11));
 		break;
 
 	case SAMPLE_1:
 		get_sense(data);
 		data->state = SAMPLE_2;
-		schedule_delayed_work(&data->work, msecs_to_jiffies(100));
+		queue_delayed_work(data->wq, &data->work, msecs_to_jiffies(100));
 		break;
 
 	case SAMPLE_2:
@@ -395,7 +396,7 @@ static void whisper_det_work(struct work_struct *work)
 		} else
 			data->state = IDENTIFY;
 
-		schedule_delayed_work(&data->work, msecs_to_jiffies(100));
+		queue_delayed_work(data->wq, &data->work, msecs_to_jiffies(100));
 		break;
 
 	case IDENTIFY:
@@ -419,16 +420,16 @@ static void whisper_det_work(struct work_struct *work)
 			whisper_notify(data, CPCAP_ACCY_USB_HOST);
 
 			data->state = USB_POWER;
-			schedule_delayed_work(&data->work,
-					      msecs_to_jiffies(200));
+			queue_delayed_work(data->wq, &data->work,
+					   msecs_to_jiffies(200));
 		} else if ((data->sense == SENSE_WHISPER_SPD) ||
 			   (data->sense == SENSE_WHISPER_PPD)) {
 			gpio_set_value(data->pdata->pwr_gpio, 1);
 
 			/* Extra identification step for Whisper. */
 			data->state = IDENTIFY_WHISPER;
-			schedule_delayed_work(&data->work,
-					      msecs_to_jiffies(47));
+			queue_delayed_work(data->wq, &data->work,
+					   msecs_to_jiffies(47));
 		} else if (data->sense == SENSE_WHISPER_SMART) {
 			whisper_notify(data, CPCAP_ACCY_WHISPER_SMART);
 
@@ -487,7 +488,7 @@ static void whisper_det_work(struct work_struct *work)
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDGND);
 		} else {
 			data->state = CONFIG;
-			schedule_delayed_work(&data->work, 0);
+			queue_delayed_work(data->wq, &data->work, 0);
 		}
 
 		break;
@@ -506,7 +507,7 @@ static void whisper_det_work(struct work_struct *work)
 		 */
 		if (data->sense & CPCAP_BIT_ID_FLOAT_S) {
 			data->state = CONFIG;
-			schedule_delayed_work(&data->work, 0);
+			queue_delayed_work(data->wq, &data->work, 0);
 		} else {
 			if (!(data->sense & CPCAP_BIT_ID_GROUND_S))
 				whisper_audio_check(data);
@@ -524,7 +525,7 @@ static void whisper_det_work(struct work_struct *work)
 		 */
 		if (!(data->sense & CPCAP_BIT_VBUSVLD_S)) {
 			data->state = CONFIG;
-			schedule_delayed_work(&data->work, 0);
+			queue_delayed_work(data->wq, &data->work, 0);
 		} else {
 			if (!(data->sense & CPCAP_BIT_ID_GROUND_S))
 				pr_info("%s: ID no longer ground\n", __func__);
@@ -537,7 +538,7 @@ static void whisper_det_work(struct work_struct *work)
 		/* This shouldn't happen.  Need to reset state machine. */
 		vusb_disable(data);
 		data->state = CONFIG;
-		schedule_delayed_work(&data->work, 0);
+		queue_delayed_work(data->wq, &data->work, 0);
 		break;
 	}
 }
@@ -549,7 +550,7 @@ static void whisper_int_handler(enum cpcap_irqs int_event, void *data)
 	if (whisper_debug)
 		pr_info("%s: irq=%d\n", __func__, int_event);
 
-	schedule_delayed_work(&(di->work), 0);
+	queue_delayed_work(di->wq, &(di->work), 0);
 }
 
 int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
@@ -623,6 +624,7 @@ static int cpcap_whisper_probe(struct platform_device *pdev)
 	data->pdata = pdev->dev.platform_data;
 	data->cpcap = platform_get_drvdata(pdev);
 	data->state = CONFIG;
+	data->wq = create_singlethread_workqueue("cpcap_whisper");
 	INIT_DELAYED_WORK(&data->work, whisper_det_work);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "whisper");
 
@@ -716,6 +718,7 @@ static int __exit cpcap_whisper_remove(struct platform_device *pdev)
 
 	configure_hardware(data, CPCAP_ACCY_NONE);
 	cancel_delayed_work_sync(&data->work);
+	destroy_workqueue(data->wq);
 
 	device_remove_file(data->dsdev.dev, &dev_attr_dock_addr);
 	switch_dev_unregister(&data->wsdev);
