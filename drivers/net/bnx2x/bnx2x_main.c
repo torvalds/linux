@@ -1981,7 +1981,7 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 {
 	int port = BP_PORT(bp);
 	int reg_offset;
-	u32 val, swap_val, swap_override;
+	u32 val;
 
 	reg_offset = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
 			     MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
@@ -1995,30 +1995,7 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		BNX2X_ERR("SPIO5 hw attention\n");
 
 		/* Fan failure attention */
-		switch (bp->link_params.phy[EXT_PHY1].type) {
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
-			/* Low power mode is controlled by GPIO 2 */
-			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
-				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
-			/* The PHY reset is controlled by GPIO 1 */
-			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
-				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
-			/* The PHY reset is controlled by GPIO 1 */
-			/* fake the port number to cancel the swap done in
-			   set_gpio() */
-			swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
-			swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
-			port = (swap_val && swap_override) ^ 1;
-			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
-				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
-			break;
-
-		default:
-			break;
-		}
+		bnx2x_hw_reset_phy(&bp->link_params);
 		bnx2x_fan_failure(bp);
 	}
 
@@ -3867,17 +3844,11 @@ static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
 	 */
 	else if (val == SHARED_HW_CFG_FAN_FAILURE_PHY_TYPE)
 		for (port = PORT_0; port < PORT_MAX; port++) {
-			u32 phy_type =
-				SHMEM_RD(bp, dev_info.port_hw_config[port].
-					 external_phy_config) &
-				PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
 			is_required |=
-				((phy_type ==
-				  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101) ||
-				 (phy_type ==
-				  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727) ||
-				 (phy_type ==
-				  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481));
+				bnx2x_fan_failure_det_req(
+					bp,
+					bp->common.shmem_base,
+					port);
 		}
 
 	DP(NETIF_MSG_HW, "fan detection setting: %d\n", is_required);
@@ -4144,17 +4115,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		return -EBUSY;
 	}
 
-	switch (bp->link_params.phy[EXT_PHY1].type) {
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
-		bp->port.need_hw_lock = 1;
-		break;
-
-	default:
-		break;
-	}
+	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
+						       bp->common.shmem_base);
 
 	bnx2x_setup_fan_failure_detection(bp);
 
@@ -4302,57 +4264,16 @@ static int bnx2x_init_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, MCP_BLOCK, init_stage);
 	bnx2x_init_block(bp, DMAE_BLOCK, init_stage);
+	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
+						       bp->common.shmem_base);
 
-	switch (bp->link_params.phy[EXT_PHY1].type) {
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
-		{
-		u32 swap_val, swap_override, aeu_gpio_mask, offset;
-
-		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
-			       MISC_REGISTERS_GPIO_INPUT_HI_Z, port);
-
-		/* The GPIO should be swapped if the swap register is
-		   set and active */
-		swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
-		swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
-
-		/* Select function upon port-swap configuration */
-		if (port == 0) {
-			offset = MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0;
-			aeu_gpio_mask = (swap_val && swap_override) ?
-				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1 :
-				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0;
-		} else {
-			offset = MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0;
-			aeu_gpio_mask = (swap_val && swap_override) ?
-				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 :
-				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1;
-		}
-		val = REG_RD(bp, offset);
-		/* add GPIO3 to group */
-		val |= aeu_gpio_mask;
-		REG_WR(bp, offset, val);
-		}
-		bp->port.need_hw_lock = 1;
-		break;
-
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
-		bp->port.need_hw_lock = 1;
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
-		/* add SPIO 5 to group 0 */
-		{
+	if (bnx2x_fan_failure_det_req(bp, bp->common.shmem_base,
+				      port)) {
 		u32 reg_addr = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
 				       MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
 		val = REG_RD(bp, reg_addr);
 		val |= AEU_INPUTS_ATTN_BITS_SPIO5;
 		REG_WR(bp, reg_addr, val);
-		}
-		break;
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-		bp->port.need_hw_lock = 1;
-		break;
-	default:
-		break;
 	}
 	bnx2x__link_reset(bp);
 

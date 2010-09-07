@@ -2079,7 +2079,7 @@ static u8 bnx2x_init_xgxs(struct bnx2x_phy *phy,
 	return rc;
 }
 /*****************************************************************************/
-/*      		     External Phy section       		     */
+/*			    External Phy section			     */
 /*****************************************************************************/
 void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port)
 {
@@ -3271,6 +3271,8 @@ static u8 bnx2x_8726_config_init(struct bnx2x_phy *phy,
 				 struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
+	u32 val;
+	u32 swap_val, swap_override, aeu_gpio_mask, offset;
 	DP(NETIF_MSG_LINK, "Initializing BCM8726\n");
 	/* Restore normal power mode*/
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
@@ -3351,6 +3353,31 @@ static u8 bnx2x_8726_config_init(struct bnx2x_phy *phy,
 				 MDIO_PMA_REG_8726_TX_CTRL2,
 				 phy->tx_preemphasis[1]);
 	}
+
+	/* Set GPIO3 to trigger SFP+ module insertion/removal */
+	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
+			    MISC_REGISTERS_GPIO_INPUT_HI_Z, params->port);
+
+	/* The GPIO should be swapped if the swap register is set and active */
+	swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
+	swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
+
+	/* Select function upon port-swap configuration */
+	if (params->port == 0) {
+		offset = MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0;
+		aeu_gpio_mask = (swap_val && swap_override) ?
+			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1 :
+			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0;
+	} else {
+		offset = MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0;
+		aeu_gpio_mask = (swap_val && swap_override) ?
+			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 :
+			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1;
+	}
+	val = REG_RD(bp, offset);
+	/* add GPIO3 to group */
+	val |= aeu_gpio_mask;
+	REG_WR(bp, offset, val);
 	return 0;
 
 }
@@ -4888,10 +4915,9 @@ u8 bnx2x_test_link(struct link_params *params, struct link_vars *vars)
 }
 
 static u8 bnx2x_link_initialize(struct link_params *params,
-			      struct link_vars *vars)
+				struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port;
 	u8 rc = 0;
 	u8 phy_index, non_ext_phy;
 	struct bnx2x_phy *ext_phy = &params->phy[EXT_PHY1];
@@ -4964,10 +4990,13 @@ static u8 bnx2x_link_initialize(struct link_params *params,
 				params, vars);
 		}
 
-	bnx2x_bits_dis(bp, NIG_REG_STATUS_INTERRUPT_PORT0 + port*4,
-		     (NIG_STATUS_XGXS0_LINK10G |
-		      NIG_STATUS_XGXS0_LINK_STATUS |
-		      NIG_STATUS_SERDES0_LINK_STATUS));
+	/* Reset the interrupt indication after phy was initialized */
+	bnx2x_bits_dis(bp, NIG_REG_STATUS_INTERRUPT_PORT0 +
+		       params->port*4,
+		       (NIG_STATUS_XGXS0_LINK10G |
+			NIG_STATUS_XGXS0_LINK_STATUS |
+			NIG_STATUS_SERDES0_LINK_STATUS |
+			NIG_MASK_MI_INT));
 
 	return rc;
 }
@@ -6513,5 +6542,57 @@ void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy)
 
 		if ((val & (1<<15)) == 0)
 			break;
+	}
+}
+
+u8 bnx2x_hw_lock_required(struct bnx2x *bp, u32 shmem_base)
+{
+	u8 phy_index;
+	struct bnx2x_phy phy;
+	for (phy_index = INT_PHY; phy_index < MAX_PHYS;
+	      phy_index++) {
+		if (bnx2x_populate_phy(bp, phy_index, shmem_base,
+				       0, &phy) != 0) {
+			DP(NETIF_MSG_LINK, "populate phy failed\n");
+			return 0;
+		}
+
+		if (phy.flags & FLAGS_HW_LOCK_REQUIRED)
+			return 1;
+	}
+	return 0;
+}
+
+u8 bnx2x_fan_failure_det_req(struct bnx2x *bp,
+			     u32 shmem_base,
+			     u8 port)
+{
+	u8 phy_index, fan_failure_det_req = 0;
+	struct bnx2x_phy phy;
+	for (phy_index = EXT_PHY1; phy_index < MAX_PHYS;
+	      phy_index++) {
+		if (bnx2x_populate_phy(bp, phy_index, shmem_base,
+				       port, &phy)
+		    != 0) {
+			DP(NETIF_MSG_LINK, "populate phy failed\n");
+			return 0;
+		}
+		fan_failure_det_req |= (phy.flags &
+					FLAGS_FAN_FAILURE_DET_REQ);
+	}
+	return fan_failure_det_req;
+}
+
+void bnx2x_hw_reset_phy(struct link_params *params)
+{
+	u8 phy_index;
+	for (phy_index = EXT_PHY1; phy_index < MAX_PHYS;
+	      phy_index++) {
+		if (params->phy[phy_index].hw_reset) {
+			params->phy[phy_index].hw_reset(
+				&params->phy[phy_index],
+				params);
+			params->phy[phy_index] = phy_null;
+		}
 	}
 }

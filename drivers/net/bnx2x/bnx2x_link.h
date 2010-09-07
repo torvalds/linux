@@ -311,8 +311,16 @@ void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 				struct link_params *params, u16 addr,
 			      u8 byte_cnt, u8 *o_buf);
+
+void bnx2x_hw_reset_phy(struct link_params *params);
+
+/* Checks if HW lock is required for this phy/board type */
+u8 bnx2x_hw_lock_required(struct bnx2x *bp, u32 shmem_base);
 /* Returns the aggregative supported attributes of the phys on board */
 u32 bnx2x_supported_attr(struct link_params *params, u8 phy_idx);
 /* Probe the phys on board, and populate them in "params" */
 u8 bnx2x_phy_probe(struct link_params *params);
+/* Checks if fan failure detection is required on one of the phys on board */
+u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base, u8 port);
+
 #endif /* BNX2X_LINK_H */
