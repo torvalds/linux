@@ -34,6 +34,11 @@ struct thread_info {
 }
 
 /* THREAD_SIZE should be 8k, so handle differently for 4k and 8k machines */
+#if PAGE_SHIFT < 13
+#define THREAD_SIZE (8192)
+#else
+#define THREAD_SIZE PAGE_SIZE
+#endif
 #define THREAD_SIZE_ORDER (13 - PAGE_SHIFT)
 
 #define init_thread_info	(init_task.thread.info)
