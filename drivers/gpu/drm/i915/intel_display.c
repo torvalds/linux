@@ -3910,8 +3910,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (HAS_PCH_SPLIT(dev)) {
-		pipeconf &= ~PIPE_ENABLE_DITHER;
-		pipeconf &= ~PIPE_DITHER_TYPE_MASK;
+		pipeconf &= ~PIPECONF_DITHER_EN;
+		pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
 	}
 
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
@@ -3955,8 +3955,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		if (IS_I965G(dev)) {
 			if (dev_priv->lvds_dither) {
 				if (HAS_PCH_SPLIT(dev)) {
-					pipeconf |= PIPE_ENABLE_DITHER;
-					pipeconf |= PIPE_DITHER_TYPE_ST01;
+					pipeconf |= PIPECONF_DITHER_EN;
+					pipeconf |= PIPECONF_DITHER_TYPE_ST1;
 				} else
 					lvds |= LVDS_ENABLE_DITHER;
 			} else {

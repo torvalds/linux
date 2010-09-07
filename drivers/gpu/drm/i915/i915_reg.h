@@ -2078,11 +2078,6 @@
 
 /* Display & cursor control */
 
-/* dithering flag on Ironlake */
-#define PIPE_ENABLE_DITHER		(1 << 4)
-#define PIPE_DITHER_TYPE_MASK		(3 << 2)
-#define PIPE_DITHER_TYPE_SPATIAL	(0 << 2)
-#define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
 #define   DSL_LINEMASK	       	0x00000fff
@@ -2101,6 +2096,17 @@
 #define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
 #define   PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
 #define   PIPECONF_CXSR_DOWNCLOCK	(1<<16)
+#define   PIPECONF_BPP_MASK	(0x000000e0)
+#define   PIPECONF_BPP_8	(0<<5)
+#define   PIPECONF_BPP_10	(1<<5)
+#define   PIPECONF_BPP_6	(2<<5)
+#define   PIPECONF_BPP_12	(3<<5)
+#define   PIPECONF_DITHER_EN	(1<<4)
+#define   PIPECONF_DITHER_TYPE_MASK (0x0000000c)
+#define   PIPECONF_DITHER_TYPE_SP (0<<2)
+#define   PIPECONF_DITHER_TYPE_ST1 (1<<2)
+#define   PIPECONF_DITHER_TYPE_ST2 (2<<2)
+#define   PIPECONF_DITHER_TYPE_TEMP (3<<2)
 #define PIPEASTAT		0x70024
 #define   PIPE_FIFO_UNDERRUN_STATUS		(1UL<<31)
 #define   PIPE_CRC_ERROR_ENABLE			(1UL<<29)
