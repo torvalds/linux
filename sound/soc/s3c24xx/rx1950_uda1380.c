@@ -171,9 +171,9 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 	case 16000:
 	case 48000:
 		clk_source = S3C24XX_CLKSRC_PCLK;
-		fs_mode = S3C2410_IISMOD_384FS;
-		div = s3c24xx_i2s_get_clockrate() / (384 * rate);
-		if (s3c24xx_i2s_get_clockrate() % (384 * rate) > (182 * rate))
+		fs_mode = S3C2410_IISMOD_256FS;
+		div = s3c24xx_i2s_get_clockrate() / (256 * rate);
+		if (s3c24xx_i2s_get_clockrate() % (256 * rate) > (128 * rate))
 			div++;
 		break;
 	case 44100:
