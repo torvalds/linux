@@ -1269,7 +1269,7 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		bnx2x_acquire_phy_lock(bp);
 
 		if (load_mode == LOAD_DIAG)
-			bp->link_params.loopback_mode = LOOPBACK_XGXS_10;
+			bp->link_params.loopback_mode = LOOPBACK_XGXS;
 
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 

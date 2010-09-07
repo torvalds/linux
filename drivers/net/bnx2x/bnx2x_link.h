@@ -173,7 +173,7 @@ struct link_params {
 #define LOOPBACK_NONE	0
 #define LOOPBACK_EMAC	1
 #define LOOPBACK_BMAC	2
-#define LOOPBACK_XGXS_10	3
+#define LOOPBACK_XGXS		3
 #define LOOPBACK_EXT_PHY	4
 #define LOOPBACK_EXT 	5
 

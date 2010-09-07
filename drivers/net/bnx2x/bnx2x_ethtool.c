@@ -1282,7 +1282,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	/* check the loopback mode */
 	switch (loopback_mode) {
 	case BNX2X_PHY_LOOPBACK:
-		if (bp->link_params.loopback_mode != LOOPBACK_XGXS_10)
+		if (bp->link_params.loopback_mode != LOOPBACK_XGXS)
 			return -EINVAL;
 		break;
 	case BNX2X_MAC_LOOPBACK:
