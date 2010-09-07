@@ -396,6 +396,11 @@ static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct dw_spi *dws = dev_id;
+	u16 irq_status, irq_mask = 0x3f;
+
+	irq_status = dw_readw(dws, isr) & irq_mask;
+	if (!irq_status)
+		return IRQ_NONE;
 
 	if (!dws->cur_msg) {
 		spi_mask_intr(dws, SPI_INT_TXEI);
@@ -883,7 +888,7 @@ int __devinit dw_spi_add_host(struct dw_spi *dws)
 	dws->dma_inited = 0;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + 0x60);
 
-	ret = request_irq(dws->irq, dw_spi_irq, 0,
+	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED,
 			"dw_spi", dws);
 	if (ret < 0) {
 		dev_err(&master->dev, "can not get IRQ\n");
