@@ -26,7 +26,7 @@
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
 #include <linux/i2c.h>
-#include <linux/pda_power.h>
+#include <linux/i2c/panjit_ts.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/i2c-tegra.h>
@@ -183,14 +183,6 @@ static struct platform_device *ventana_devices[] __initdata = {
 	&ventana_keys_device,
 };
 
-static void ventana_touch_reset(void)
-{
-	gpio_set_value(TEGRA_GPIO_PQ7, 1);
-	msleep(50);
-	gpio_set_value(TEGRA_GPIO_PQ7, 0);
-	msleep(50);
-}
-
 static void ventana_keys_init(void)
 {
 	int i;
@@ -199,10 +191,15 @@ static void ventana_keys_init(void)
 		tegra_gpio_enable(ventana_keys[i].gpio);
 }
 
+static struct panjit_i2c_ts_platform_data panjit_data = {
+	.gpio_reset = TEGRA_GPIO_PQ7,
+};
+
 static const struct i2c_board_info ventana_i2c_bus1_touch_info[] = {
 	{
 		I2C_BOARD_INFO("panjit_touch", 0x3),
-		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
+		.irq		= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
+		.platform_data	= &panjit_data,
 	},
 };
 
@@ -211,10 +208,6 @@ static int __init ventana_touch_init(void)
 	tegra_gpio_enable(TEGRA_GPIO_PV6);
 
 	tegra_gpio_enable(TEGRA_GPIO_PQ7);
-	gpio_request(TEGRA_GPIO_PQ7, "touch_reset");
-	gpio_direction_output(TEGRA_GPIO_PQ7, 1);
-
-	ventana_touch_reset();
 	i2c_register_board_info(0, ventana_i2c_bus1_touch_info, 1);
 
 	return 0;
