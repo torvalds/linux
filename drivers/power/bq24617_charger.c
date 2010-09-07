@@ -32,7 +32,8 @@ struct bq24617_data {
 	int ac_online;
 };
 
-static int bq24617_stat2_value;
+static int bq24617_stat1_value = 1; /* 0 = charging in progress */
+static int bq24617_stat2_value = 1; /* 0 = charge complete */
 
 static char *bq24617_supply_list[] = {
 	"battery",
@@ -41,6 +42,11 @@ static char *bq24617_supply_list[] = {
 static enum power_supply_property bq24617_power_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
+
+int is_ac_charging(void)
+{
+	return (!bq24617_stat1_value || !bq24617_stat2_value);
+}
 
 int is_ac_charge_complete(void)
 {
@@ -75,23 +81,23 @@ static void bq24617_work(struct work_struct *work)
 {
 	struct bq24617_data *bq_data =
 		container_of(work, struct bq24617_data, work);
-	int stat1;
 	int detect = 0;
 
 	/* STAT1 indicates charging, STAT2 indicates charge complete */
-	stat1 = gpio_get_value(irq_to_gpio(bq_data->stat1_irq));
+	bq24617_stat1_value = gpio_get_value(irq_to_gpio(bq_data->stat1_irq));
 	bq24617_stat2_value = gpio_get_value(irq_to_gpio(bq_data->stat2_irq));
 
 	if (bq_data->detect_irq >= 0)
 		detect = gpio_get_value(irq_to_gpio(bq_data->detect_irq));
 
-	if (!stat1 || !bq24617_stat2_value || detect)
+	if (!bq24617_stat1_value || !bq24617_stat2_value || detect)
 		bq_data->ac_online = 1;
 	else
 		bq_data->ac_online = 0;
 
 	pr_info("%s: ac_online=%d (stat1=%d, stat2=%d, detect=%d)\n", __func__,
-		bq_data->ac_online, stat1, bq24617_stat2_value, detect);
+		bq_data->ac_online, bq24617_stat1_value, bq24617_stat2_value,
+		detect);
 
 	power_supply_changed(&bq_data->ac);
 	wake_unlock(&bq_data->wake_lock);
