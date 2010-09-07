@@ -41,6 +41,12 @@
 #define VIA_LVDS1	0x00000040
 #define VIA_LVDS2	0x00000080
 
+/* VIA output device power states */
+#define VIA_STATE_ON		0
+#define VIA_STATE_STANDBY	1
+#define VIA_STATE_SUSPEND	2
+#define VIA_STATE_OFF		3
+
 /***************************************************
 * Definition IGA1 Design Method of CRTC Registers *
 ****************************************************/
@@ -904,9 +910,8 @@ void viafb_set_vclock(u32 CLK, int set_iga);
 void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 	struct io_register *reg,
 	      int io_type);
-void viafb_crt_disable(void);
-void viafb_crt_enable(void);
 void via_set_source(u32 devices, u8 iga);
+void via_set_state(u32 devices, u8 state);
 u32 via_parse_odev(char *input, char **end);
 void via_odev_to_seq(struct seq_file *m, u32 odev);
 void init_ad9389(void);

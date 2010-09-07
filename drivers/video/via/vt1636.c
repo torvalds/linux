@@ -92,34 +92,6 @@ void viafb_enable_lvds_vt1636(struct lvds_setting_information
 
 	viafb_gpio_i2c_write_mask_lvds(plvds_setting_info, plvds_chip_info,
 				 VDD_ON_TBL_VT1636[0]);
-
-	/* Pad on: */
-	switch (plvds_chip_info->output_interface) {
-	case INTERFACE_DVP0:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0xC0, 0xC0);
-			break;
-		}
-
-	case INTERFACE_DVP1:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0x30, 0x30);
-			break;
-		}
-
-	case INTERFACE_DFP_LOW:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x03, 0x03);
-			break;
-		}
-
-	case INTERFACE_DFP_HIGH:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x03, 0x0C);
-			break;
-		}
-
-	}
 }
 
 void viafb_disable_lvds_vt1636(struct lvds_setting_information
@@ -129,34 +101,6 @@ void viafb_disable_lvds_vt1636(struct lvds_setting_information
 
 	viafb_gpio_i2c_write_mask_lvds(plvds_setting_info, plvds_chip_info,
 				 VDD_OFF_TBL_VT1636[0]);
-
-	/* Pad off: */
-	switch (plvds_chip_info->output_interface) {
-	case INTERFACE_DVP0:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0x00, 0xC0);
-			break;
-		}
-
-	case INTERFACE_DVP1:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0x00, 0x30);
-			break;
-		}
-
-	case INTERFACE_DFP_LOW:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x00, 0x03);
-			break;
-		}
-
-	case INTERFACE_DFP_HIGH:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x00, 0x0C);
-			break;
-		}
-
-	}
 }
 
 bool viafb_lvds_identify_vt1636(u8 i2c_adapter)

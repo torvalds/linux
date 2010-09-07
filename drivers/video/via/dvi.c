@@ -470,26 +470,6 @@ static void __devinit dvi_get_panel_size_from_DDCv2(
 void viafb_dvi_disable(void)
 {
 	if (viaparinfo->chip_info->
-		tmds_chip_info.output_interface == INTERFACE_DVP0)
-		viafb_write_reg(SR1E, VIASR,
-		viafb_read_reg(VIASR, SR1E) & (~0xC0));
-
-	if (viaparinfo->chip_info->
-		tmds_chip_info.output_interface == INTERFACE_DVP1)
-		viafb_write_reg(SR1E, VIASR,
-		viafb_read_reg(VIASR, SR1E) & (~0x30));
-
-	if (viaparinfo->chip_info->
-		tmds_chip_info.output_interface == INTERFACE_DFP_HIGH)
-		viafb_write_reg(SR2A, VIASR,
-		viafb_read_reg(VIASR, SR2A) & (~0x0C));
-
-	if (viaparinfo->chip_info->
-		tmds_chip_info.output_interface == INTERFACE_DFP_LOW)
-		viafb_write_reg(SR2A, VIASR,
-		viafb_read_reg(VIASR, SR2A) & (~0x03));
-
-	if (viaparinfo->chip_info->
 		tmds_chip_info.output_interface == INTERFACE_TMDS)
 		/* Turn off TMDS power. */
 		viafb_write_reg(CRD2, VIACR,
@@ -571,7 +551,6 @@ void viafb_dvi_enable(void)
 	case INTERFACE_DVP0:
 		viafb_write_reg_mask(CR6B, VIACR, 0x01, BIT0);
 		viafb_write_reg_mask(CR6C, VIACR, 0x21, BIT0 + BIT5);
-		viafb_write_reg_mask(SR1E, VIASR, 0xC0, BIT7 + BIT6);
 		dvi_patch_skew_dvp0();
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			tmds_register_write(0x88, 0x3b);
@@ -585,7 +564,6 @@ void viafb_dvi_enable(void)
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			viafb_write_reg_mask(CR93, VIACR, 0x21, BIT0 + BIT5);
 
-		viafb_write_reg_mask(SR1E, VIASR, 0x30, BIT4 + BIT5);
 		/*fix dvi cann't be enabled with MB VT5718C4 - Al Zhang */
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			tmds_register_write(0x88, 0x3b);
@@ -616,14 +594,13 @@ void viafb_dvi_enable(void)
 		if (viaparinfo->chip_info->gfx_chip_name != UNICHROME_CLE266)
 			via_write_reg_mask(VIACR, CR97, 0x03, 0x03);
 
-		viafb_write_reg_mask(SR2A, VIASR, 0x0C, BIT2 + BIT3);
 		via_write_reg_mask(VIACR, 0x91, 0x00, 0x20);
 		break;
 
 	case INTERFACE_DFP_LOW:
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			break;
-		viafb_write_reg_mask(SR2A, VIASR, 0x03, BIT0 + BIT1);
+
 		dvi_patch_skew_dvp_low();
 		via_write_reg_mask(VIACR, 0x91, 0x00, 0x20);
 		break;

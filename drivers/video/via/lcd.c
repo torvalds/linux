@@ -703,9 +703,6 @@ static void integrated_lvds_disable(struct lvds_setting_information
 		viafb_write_reg_mask(CR91, VIACR, 0xC0, BIT6 + BIT7);
 	}
 
-	/* Turn DFP High/Low Pad off. */
-	viafb_write_reg_mask(SR2A, VIASR, 0, BIT0 + BIT1 + BIT2 + BIT3);
-
 	/* Power off LVDS channel. */
 	switch (plvds_chip_info->output_interface) {
 	case INTERFACE_LVDS0:
@@ -761,9 +758,6 @@ static void integrated_lvds_enable(struct lvds_setting_information
 		break;
 	}
 
-	/* Turn DFP High/Low pad on. */
-	viafb_write_reg_mask(SR2A, VIASR, 0x0F, BIT0 + BIT1 + BIT2 + BIT3);
-
 	/* Power on LVDS channel. */
 	switch (plvds_chip_info->output_interface) {
 	case INTERFACE_LVDS0:
@@ -812,8 +806,6 @@ void viafb_lcd_disable(void)
 		viafb_disable_lvds_vt1636(viaparinfo->lvds_setting_info,
 				    &viaparinfo->chip_info->lvds_chip_info);
 	} else {
-		/* DFP-HL pad off          */
-		viafb_write_reg_mask(SR2A, VIASR, 0x00, 0x0F);
 		/* Backlight off           */
 		viafb_write_reg_mask(SR3D, VIASR, 0x00, 0x20);
 		/* 24 bit DI data paht off */
@@ -879,8 +871,6 @@ void viafb_lcd_enable(void)
 		viafb_enable_lvds_vt1636(viaparinfo->lvds_setting_info,
 				   &viaparinfo->chip_info->lvds_chip_info);
 	} else {
-		/* DFP-HL pad on           */
-		viafb_write_reg_mask(SR2A, VIASR, 0x0F, 0x0F);
 		/* Backlight on            */
 		viafb_write_reg_mask(SR3D, VIASR, 0x20, 0x20);
 		/* 24 bit DI data paht on  */

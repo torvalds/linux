@@ -332,22 +332,22 @@ static int viafb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_UNBLANK:
 		/* Screen: On, HSync: On, VSync: On */
 		/* control CRT monitor power management */
-		viafb_write_reg_mask(CR36, VIACR, 0x00, BIT4 + BIT5);
+		via_set_state(VIA_CRT, VIA_STATE_ON);
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		/* Screen: Off, HSync: Off, VSync: On */
 		/* control CRT monitor power management */
-		viafb_write_reg_mask(CR36, VIACR, 0x10, BIT4 + BIT5);
+		via_set_state(VIA_CRT, VIA_STATE_STANDBY);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		/* Screen: Off, HSync: On, VSync: Off */
 		/* control CRT monitor power management */
-		viafb_write_reg_mask(CR36, VIACR, 0x20, BIT4 + BIT5);
+		via_set_state(VIA_CRT, VIA_STATE_SUSPEND);
 		break;
 	case FB_BLANK_POWERDOWN:
 		/* Screen: Off, HSync: Off, VSync: Off */
 		/* control CRT monitor power management */
-		viafb_write_reg_mask(CR36, VIACR, 0x30, BIT4 + BIT5);
+		via_set_state(VIA_CRT, VIA_STATE_OFF);
 		break;
 	}
 
@@ -457,7 +457,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		if (copy_from_user(&gpu32, argp, sizeof(gpu32)))
 			return -EFAULT;
 		if (gpu32 & CRT_Device)
-			viafb_crt_enable();
+			via_set_state(VIA_CRT, VIA_STATE_ON);
 		if (gpu32 & DVI_Device)
 			viafb_dvi_enable();
 		if (gpu32 & LCD_Device)
@@ -467,7 +467,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		if (copy_from_user(&gpu32, argp, sizeof(gpu32)))
 			return -EFAULT;
 		if (gpu32 & CRT_Device)
-			viafb_crt_disable();
+			via_set_state(VIA_CRT, VIA_STATE_OFF);
 		if (gpu32 & DVI_Device)
 			viafb_dvi_disable();
 		if (gpu32 & LCD_Device)
@@ -1487,7 +1487,9 @@ static ssize_t viafb_iga1_odev_proc_write(struct file *file,
 	dev_on = dev_new & ~dev_old;
 	viaparinfo->shared->iga1_devices = dev_new;
 	viaparinfo->shared->iga2_devices &= ~dev_new;
+	via_set_state(dev_off, VIA_STATE_OFF);
 	via_set_source(dev_new, IGA1);
+	via_set_state(dev_on, VIA_STATE_ON);
 	return res;
 }
 
@@ -1525,7 +1527,9 @@ static ssize_t viafb_iga2_odev_proc_write(struct file *file,
 	dev_on = dev_new & ~dev_old;
 	viaparinfo->shared->iga2_devices = dev_new;
 	viaparinfo->shared->iga1_devices &= ~dev_new;
+	via_set_state(dev_off, VIA_STATE_OFF);
 	via_set_source(dev_new, IGA2);
+	via_set_state(dev_on, VIA_STATE_ON);
 	return res;
 }
 

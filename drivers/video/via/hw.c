@@ -1036,6 +1036,121 @@ void via_set_source(u32 devices, u8 iga)
 		set_lvds2_source(iga);
 }
 
+static void set_crt_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x00;
+		break;
+	case VIA_STATE_STANDBY:
+		value = 0x10;
+		break;
+	case VIA_STATE_SUSPEND:
+		value = 0x20;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x30;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIACR, 0x36, value, 0x30);
+}
+
+static void set_96_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0xC0;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x1E, value, 0xC0);
+}
+
+static void set_dvp1_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x30;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x1E, value, 0x30);
+}
+
+static void set_lvds1_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x03;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x2A, value, 0x03);
+}
+
+static void set_lvds2_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x0C;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x2A, value, 0x0C);
+}
+
+void via_set_state(u32 devices, u8 state)
+{
+	/*
+	TODO: Can we enable/disable these devices? How?
+	if (devices & VIA_6C)
+	if (devices & VIA_93)
+	*/
+	if (devices & VIA_96)
+		set_96_state(state);
+	if (devices & VIA_CRT)
+		set_crt_state(state);
+	if (devices & VIA_DVP1)
+		set_dvp1_state(state);
+	if (devices & VIA_LVDS1)
+		set_lvds1_state(state);
+	if (devices & VIA_LVDS2)
+		set_lvds2_state(state);
+}
+
 u32 via_parse_odev(char *input, char **end)
 {
 	char *ptr = input;
@@ -2224,6 +2339,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 {
 	int i, j;
 	int port;
+	u32 devices = viaparinfo->shared->iga1_devices
+		| viaparinfo->shared->iga2_devices;
 	u8 value, index, mask;
 	struct crt_mode_table *crt_timing;
 	struct crt_mode_table *crt_timing1 = NULL;
@@ -2271,6 +2388,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	}
 
 	device_off();
+	via_set_state(devices, VIA_STATE_OFF);
 
 	/* Fill VPIT Parameters */
 	/* Write Misc Register */
@@ -2430,6 +2548,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 			viafb_DeviceStatus = CRT_Device;
 	}
 	device_on();
+	via_set_state(devices, VIA_STATE_ON);
 	device_screen_on();
 	return 1;
 }
@@ -2470,29 +2589,16 @@ int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 
 static void device_off(void)
 {
-	viafb_crt_disable();
 	viafb_dvi_disable();
 	viafb_lcd_disable();
 }
 
 static void device_on(void)
 {
-	if (viafb_CRT_ON == 1)
-		viafb_crt_enable();
 	if (viafb_DVI_ON == 1)
 		viafb_dvi_enable();
 	if (viafb_LCD_ON == 1)
 		viafb_lcd_enable();
-}
-
-void viafb_crt_disable(void)
-{
-	viafb_write_reg_mask(CR36, VIACR, BIT5 + BIT4, BIT5 + BIT4);
-}
-
-void viafb_crt_enable(void)
-{
-	viafb_write_reg_mask(CR36, VIACR, 0x0, BIT5 + BIT4);
 }
 
 static void enable_second_display_channel(void)
