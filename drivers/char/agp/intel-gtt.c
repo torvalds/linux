@@ -35,6 +35,8 @@
  */
 #ifdef CONFIG_DMAR
 #define USE_PCI_DMA_API 1
+#else
+#define USE_PCI_DMA_API 0
 #endif
 
 /* Max amount of stolen space, anything above will be returned to Linux */
@@ -108,6 +110,8 @@ static struct _intel_private {
 	struct page *i8xx_page;
 	struct resource ifp_resource;
 	int resource_valid;
+	struct page *scratch_page;
+	dma_addr_t scratch_page_dma;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -115,7 +119,7 @@ static struct _intel_private {
 #define IS_PINEVIEW	intel_private.driver->is_pineview
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
 
-#ifdef USE_PCI_DMA_API
+#if USE_PCI_DMA_API
 static int intel_agp_map_page(struct page *page, dma_addr_t *ret)
 {
 	*ret = pci_map_page(intel_private.pcidev, page, 0,
@@ -540,6 +544,32 @@ static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
 	return addr | bridge->driver->masks[type].mask;
 }
 
+static int intel_gtt_setup_scratch_page(void)
+{
+	struct page *page;
+	dma_addr_t dma_addr;
+
+	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
+	if (page == NULL)
+		return -ENOMEM;
+	get_page(page);
+	set_pages_uc(page, 1);
+
+	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2) {
+		dma_addr = pci_map_page(intel_private.pcidev, page, 0,
+				    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(intel_private.pcidev, dma_addr))
+			return -EINVAL;
+
+		intel_private.scratch_page_dma = dma_addr;
+	} else
+		intel_private.scratch_page_dma = page_to_phys(page);
+
+	intel_private.scratch_page = page;
+
+	return 0;
+}
+
 static const struct aper_size_info_fixed const intel_fake_agp_sizes[] = {
 	{128, 32768, 5},
 	/* The 64M mode still requires a 128k gatt */
@@ -794,6 +824,29 @@ static unsigned int intel_gtt_mappable_entries(void)
 	return aperture_size >> PAGE_SHIFT;
 }
 
+static void intel_gtt_teardown_scratch_page(void)
+{
+	set_pages_wb(intel_private.scratch_page, 1);
+	pci_unmap_page(intel_private.pcidev, intel_private.scratch_page_dma,
+		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	put_page(intel_private.scratch_page);
+	__free_page(intel_private.scratch_page);
+}
+
+static void intel_gtt_cleanup(void)
+{
+	if (intel_private.i9xx_flush_page)
+		iounmap(intel_private.i9xx_flush_page);
+	if (intel_private.resource_valid)
+		release_resource(&intel_private.ifp_resource);
+	intel_private.ifp_resource.start = 0;
+	intel_private.resource_valid = 0;
+	iounmap(intel_private.gtt);
+	iounmap(intel_private.registers);
+	
+	intel_gtt_teardown_scratch_page();
+}
+
 static int intel_gtt_init(void)
 {
 	u32 gtt_map_size;
@@ -823,6 +876,12 @@ static int intel_gtt_init(void)
 		iounmap(intel_private.registers);
 		iounmap(intel_private.gtt);
 		return -ENOMEM;
+	}
+
+	ret = intel_gtt_setup_scratch_page();
+	if (ret != 0) {
+		intel_gtt_cleanup();
+		return ret;
 	}
 
 	return 0;
@@ -1174,18 +1233,6 @@ static int intel_i9xx_configure(void)
 	return 0;
 }
 
-static void intel_gtt_cleanup(void)
-{
-	if (intel_private.i9xx_flush_page)
-		iounmap(intel_private.i9xx_flush_page);
-	if (intel_private.resource_valid)
-		release_resource(&intel_private.ifp_resource);
-	intel_private.ifp_resource.start = 0;
-	intel_private.resource_valid = 0;
-	iounmap(intel_private.gtt);
-	iounmap(intel_private.registers);
-}
-
 static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
 {
 	if (intel_private.i9xx_flush_page)
@@ -1416,7 +1463,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#ifdef USE_PCI_DMA_API
+#if USE_PCI_DMA_API
 	.agp_map_page		= intel_agp_map_page,
 	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
@@ -1449,7 +1496,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#ifdef USE_PCI_DMA_API
+#if USE_PCI_DMA_API
 	.agp_map_page		= intel_agp_map_page,
 	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
@@ -1482,7 +1529,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_gen6_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#ifdef USE_PCI_DMA_API
+#if USE_PCI_DMA_API
 	.agp_map_page		= intel_agp_map_page,
 	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
@@ -1515,7 +1562,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#ifdef USE_PCI_DMA_API
+#if USE_PCI_DMA_API
 	.agp_map_page		= intel_agp_map_page,
 	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
