@@ -418,7 +418,6 @@ static void whisper_det_work(struct work_struct *work)
 		} else if ((data->sense & SENSE_USB_HOST_MASK) == SENSE_USB_HOST) {
 			whisper_notify(data, CPCAP_ACCY_USB_HOST);
 
-			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
 			data->state = USB_POWER;
 			schedule_delayed_work(&data->work,
 					      msecs_to_jiffies(200));
@@ -496,6 +495,7 @@ static void whisper_det_work(struct work_struct *work)
 	case USB_POWER:
 		gpio_set_value(data->pdata->pwr_gpio, 1);
 		data->state = CONFIG;
+		cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
 		break;
 
 	case WHISPER:
