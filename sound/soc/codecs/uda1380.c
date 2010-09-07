@@ -616,6 +616,7 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			if (gpio_is_valid(pdata->gpio_power)) {
 				gpio_set_value(pdata->gpio_power, 1);
+				mdelay(1);
 				uda1380_reset(codec);
 			}
 
