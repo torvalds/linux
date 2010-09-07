@@ -4201,8 +4201,9 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 		goto out;
 	}
 
-	mutex_lock(&new_inode->i_mutex);
-	ret = ocfs2_inode_lock(new_inode, &new_bh, 1);
+	mutex_lock_nested(&new_inode->i_mutex, I_MUTEX_CHILD);
+	ret = ocfs2_inode_lock_nested(new_inode, &new_bh, 1,
+				      OI_LS_REFLINK_TARGET);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_unlock;
