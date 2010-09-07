@@ -3004,7 +3004,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 
 	/* Program registers for the distribution of queues */
 	ixgbe_setup_mrqc(adapter);
-	ixgbe_configure_virtualization(adapter);
 
 	ixgbe_set_uta(adapter);
 
@@ -3391,6 +3390,7 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 	} else if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) {
 		ixgbe_init_fdir_perfect_82599(hw, adapter->fdir_pballoc);
 	}
+	ixgbe_configure_virtualization(adapter);
 
 	ixgbe_configure_tx(adapter);
 	ixgbe_configure_rx(adapter);
