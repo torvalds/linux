@@ -268,6 +268,7 @@ u8 bnx2x_phy_read(struct link_params *params, u8 phy_addr,
 
 u8 bnx2x_phy_write(struct link_params *params, u8 phy_addr,
 		   u8 devad, u16 reg, u16 val);
+
 u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
 		   u8 devad, u16 reg, u16 *ret_val);
 
