@@ -204,6 +204,16 @@ static int phy_init(struct pci_channel *chan)
 	return -ETIMEDOUT;
 }
 
+static void pcie_reset(struct sh7786_pcie_port *port)
+{
+	struct pci_channel *chan = port->hose;
+
+	pci_write_reg(chan, 1, SH4A_PCIESRSTR);
+	pci_write_reg(chan, 0, SH4A_PCIETCTLR);
+	pci_write_reg(chan, 0, SH4A_PCIESRSTR);
+	pci_write_reg(chan, 0, SH4A_PCIETXVC0SR);
+}
+
 static int pcie_init(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
@@ -213,7 +223,7 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	int ret, i;
 
 	/* Begin initialization */
-	pci_write_reg(chan, 0, SH4A_PCIETCTLR);
+	pcie_reset(port);
 
 	/* Initialize as type1. */
 	data = pci_read_reg(chan, SH4A_PCIEPCICONF3);
