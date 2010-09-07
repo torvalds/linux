@@ -189,7 +189,7 @@ _xfs_buf_initialize(
 	init_completion(&bp->b_iowait);
 	INIT_LIST_HEAD(&bp->b_list);
 	RB_CLEAR_NODE(&bp->b_rbnode);
-	init_MUTEX_LOCKED(&bp->b_sema); /* held, no waiters */
+	sema_init(&bp->b_sema, 0); /* held, no waiters */
 	XB_SET_OWNER(bp);
 	bp->b_target = target;
 	bp->b_file_offset = range_base;
