@@ -55,7 +55,7 @@ EXPORT_SYMBOL(acpi_root_dir);
 static int set_power_nocheck(const struct dmi_system_id *id)
 {
 	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disable power check in power transistion\n", id->ident);
+		"disable power check in power transition\n", id->ident);
 	acpi_power_nocheck = 1;
 	return 0;
 }
@@ -1027,7 +1027,7 @@ static int __init acpi_init(void)
 
 	/*
 	 * If the laptop falls into the DMI check table, the power state check
-	 * will be disabled in the course of device power transistion.
+	 * will be disabled in the course of device power transition.
 	 */
 	dmi_check_system(power_nocheck_dmi_table);
 

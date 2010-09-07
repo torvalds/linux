@@ -2,7 +2,7 @@
  * APEI Error Record Serialization Table support
  *
  * ERST is a way provided by APEI to save and retrieve hardware error
- * infomation to and from a persistent store.
+ * information to and from a persistent store.
  *
  * For more information about ERST, please refer to ACPI Specification
  * version 4.0, section 17.4.
