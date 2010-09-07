@@ -583,7 +583,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		 * quietly refuse to do anything to a changed disc until 
 		 * the changed bit has been reset
 		 */
-		/* printk("SCSI disk has been changed. Prohibiting further I/O.\n"); */
+		/* printk("SCSI disk has been changed or is not present. Prohibiting further I/O.\n"); */
 		goto out;
 	}
 
@@ -1023,7 +1023,6 @@ static int sd_media_changed(struct gendisk *disk)
 	 */
 	if (!scsi_device_online(sdp)) {
 		set_media_not_present(sdkp);
-		retval = 1;
 		goto out;
 	}
 
@@ -1054,7 +1053,6 @@ static int sd_media_changed(struct gendisk *disk)
 		       /* 0x3a is medium not present */
 		       sshdr->asc == 0x3a)) {
 		set_media_not_present(sdkp);
-		retval = 1;
 		goto out;
 	}
 
@@ -1065,12 +1063,27 @@ static int sd_media_changed(struct gendisk *disk)
 	 */
 	sdkp->media_present = 1;
 
-	retval = sdp->changed;
-	sdp->changed = 0;
 out:
-	if (retval != sdkp->previous_state)
+	/*
+	 * Report a media change under the following conditions:
+	 *
+	 *	Medium is present now and wasn't present before.
+	 *	Medium wasn't present before and is present now.
+	 *	Medium was present at all times, but it changed while
+	 *		we weren't looking (sdp->changed is set).
+	 *
+	 * If there was no medium before and there is no medium now then
+	 * don't report a change, even if a medium was inserted and removed
+	 * while we weren't looking.
+	 */
+	retval = (sdkp->media_present != sdkp->previous_state ||
+			(sdkp->media_present && sdp->changed));
+	if (retval)
 		sdev_evt_send_simple(sdp, SDEV_EVT_MEDIA_CHANGE, GFP_KERNEL);
-	sdkp->previous_state = retval;
+	sdkp->previous_state = sdkp->media_present;
+
+	/* sdp->changed indicates medium was changed or is not present */
+	sdp->changed = !sdkp->media_present;
 	kfree(sshdr);
 	return retval;
 }
