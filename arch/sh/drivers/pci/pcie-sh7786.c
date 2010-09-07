@@ -82,6 +82,7 @@ static struct resource sh7786_pci2_resources[] = {
 		.name	= "PCIe2 IO",
 		.start	= 0xfc800000,
 		.end	= 0xfc800000 + SZ_4M - 1,
+		.flags	= IORESOURCE_IO,
 	}, {
 		.name	= "PCIe2 MEM 0",
 		.start	= 0x80000000,
