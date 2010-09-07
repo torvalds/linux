@@ -731,7 +731,6 @@ static int vpif_mmap(struct file *filep, struct vm_area_struct *vma)
  */
 static unsigned int vpif_poll(struct file *filep, poll_table * wait)
 {
-	int err = 0;
 	struct vpif_fh *fh = filep->private_data;
 	struct channel_obj *channel = fh->channel;
 	struct common_obj *common = &(channel->common[VPIF_VIDEO_INDEX]);
@@ -739,8 +738,7 @@ static unsigned int vpif_poll(struct file *filep, poll_table * wait)
 	vpif_dbg(2, debug, "vpif_poll\n");
 
 	if (common->started)
-		err = videobuf_poll_stream(filep, &common->buffer_queue, wait);
-
+		return videobuf_poll_stream(filep, &common->buffer_queue, wait);
 	return 0;
 }
 
