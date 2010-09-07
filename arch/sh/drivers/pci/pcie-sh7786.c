@@ -220,7 +220,7 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	unsigned int data;
 	phys_addr_t memphys;
 	size_t memsize;
-	int ret, i;
+	int ret, i, win;
 
 	/* Begin initialization */
 	pcie_reset(port);
@@ -337,13 +337,19 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	printk(KERN_NOTICE "PCI: PCIe#%d link width %d\n",
 	       port->index, (data >> 20) & 0x3f);
 
-
-	for (i = 0; i < chan->nr_resources; i++) {
+	for (i = win = 0; i < chan->nr_resources; i++) {
 		struct resource *res = chan->resources + i;
 		resource_size_t size;
 		u32 enable_mask;
 
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(i));
+		/*
+		 * We can't use the 32-bit mode windows in legacy 29-bit
+		 * mode, so just skip them entirely.
+		 */
+		if ((res->flags & IORESOURCE_MEM_32BIT) && __in_29bit_mode())
+			continue;
+
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(win));
 
 		size = resource_size(res);
 
@@ -352,16 +358,18 @@ static int pcie_init(struct sh7786_pcie_port *port)
 		 * keeps things pretty simple.
 		 */
 		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
-			     chan->reg_base + SH4A_PCIEPAMR(i));
+			     chan->reg_base + SH4A_PCIEPAMR(win));
 
-		pci_write_reg(chan, res->start, SH4A_PCIEPARL(i));
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(i));
+		pci_write_reg(chan, res->start, SH4A_PCIEPARL(win));
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(win));
 
 		enable_mask = MASK_PARE;
 		if (res->flags & IORESOURCE_IO)
 			enable_mask |= MASK_SPC;
 
-		pci_write_reg(chan, enable_mask, SH4A_PCIEPTCTLR(i));
+		pci_write_reg(chan, enable_mask, SH4A_PCIEPTCTLR(win));
+
+		win++;
 	}
 
 	return 0;
