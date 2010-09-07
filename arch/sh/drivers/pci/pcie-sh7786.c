@@ -51,6 +51,7 @@ static struct resource sh7786_pci0_resources[] = {
 		.name	= "PCIe0 MEM 2",
 		.start	= 0xfe100000,
 		.end	= 0xfe100000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
@@ -74,6 +75,7 @@ static struct resource sh7786_pci1_resources[] = {
 		.name	= "PCIe1 MEM 2",
 		.start	= 0xfe300000,
 		.end	= 0xfe300000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
@@ -82,6 +84,7 @@ static struct resource sh7786_pci2_resources[] = {
 		.name	= "PCIe2 IO",
 		.start	= 0xfc800000,
 		.end	= 0xfc800000 + SZ_4M - 1,
+		.flags	= IORESOURCE_IO,
 	}, {
 		.name	= "PCIe2 MEM 0",
 		.start	= 0x80000000,
@@ -96,6 +99,7 @@ static struct resource sh7786_pci2_resources[] = {
 		.name	= "PCIe2 MEM 2",
 		.start	= 0xfcd00000,
 		.end	= 0xfcd00000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
@@ -204,16 +208,26 @@ static int phy_init(struct pci_channel *chan)
 	return -ETIMEDOUT;
 }
 
+static void pcie_reset(struct sh7786_pcie_port *port)
+{
+	struct pci_channel *chan = port->hose;
+
+	pci_write_reg(chan, 1, SH4A_PCIESRSTR);
+	pci_write_reg(chan, 0, SH4A_PCIETCTLR);
+	pci_write_reg(chan, 0, SH4A_PCIESRSTR);
+	pci_write_reg(chan, 0, SH4A_PCIETXVC0SR);
+}
+
 static int pcie_init(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
 	unsigned int data;
 	phys_addr_t memphys;
 	size_t memsize;
-	int ret, i;
+	int ret, i, win;
 
 	/* Begin initialization */
-	pci_write_reg(chan, 0, SH4A_PCIETCTLR);
+	pcie_reset(port);
 
 	/* Initialize as type1. */
 	data = pci_read_reg(chan, SH4A_PCIEPCICONF3);
@@ -327,13 +341,19 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	printk(KERN_NOTICE "PCI: PCIe#%d link width %d\n",
 	       port->index, (data >> 20) & 0x3f);
 
-
-	for (i = 0; i < chan->nr_resources; i++) {
+	for (i = win = 0; i < chan->nr_resources; i++) {
 		struct resource *res = chan->resources + i;
 		resource_size_t size;
 		u32 enable_mask;
 
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(i));
+		/*
+		 * We can't use the 32-bit mode windows in legacy 29-bit
+		 * mode, so just skip them entirely.
+		 */
+		if ((res->flags & IORESOURCE_MEM_32BIT) && __in_29bit_mode())
+			continue;
+
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(win));
 
 		size = resource_size(res);
 
@@ -342,16 +362,18 @@ static int pcie_init(struct sh7786_pcie_port *port)
 		 * keeps things pretty simple.
 		 */
 		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
-			     chan->reg_base + SH4A_PCIEPAMR(i));
+			     chan->reg_base + SH4A_PCIEPAMR(win));
 
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(i));
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARL(i));
+		pci_write_reg(chan, res->start, SH4A_PCIEPARL(win));
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(win));
 
 		enable_mask = MASK_PARE;
 		if (res->flags & IORESOURCE_IO)
 			enable_mask |= MASK_SPC;
 
-		pci_write_reg(chan, enable_mask, SH4A_PCIEPTCTLR(i));
+		pci_write_reg(chan, enable_mask, SH4A_PCIEPTCTLR(win));
+
+		win++;
 	}
 
 	return 0;
