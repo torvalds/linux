@@ -20,6 +20,7 @@
 #include <linux/resource.h>
 
 #define AMBA_NR_IRQS	2
+#define AMBA_CID	0xb105f00d
 
 struct clk;
 
@@ -70,9 +71,15 @@ void amba_release_regions(struct amba_device *);
 #define amba_pclk_disable(d)	\
 	do { if (!IS_ERR((d)->pclk)) clk_disable((d)->pclk); } while (0)
 
-#define amba_config(d)	(((d)->periphid >> 24) & 0xff)
-#define amba_rev(d)	(((d)->periphid >> 20) & 0x0f)
-#define amba_manf(d)	(((d)->periphid >> 12) & 0xff)
-#define amba_part(d)	((d)->periphid & 0xfff)
+/* Some drivers don't use the struct amba_device */
+#define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)
+#define AMBA_REV_BITS(a) (((a) >> 20) & 0x0f)
+#define AMBA_MANF_BITS(a) (((a) >> 12) & 0xff)
+#define AMBA_PART_BITS(a) ((a) & 0xfff)
+
+#define amba_config(d)	AMBA_CONFIG_BITS((d)->periphid)
+#define amba_rev(d)	AMBA_REV_BITS((d)->periphid)
+#define amba_manf(d)	AMBA_MANF_BITS((d)->periphid)
+#define amba_part(d)	AMBA_PART_BITS((d)->periphid)
 
 #endif
