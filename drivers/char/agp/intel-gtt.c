@@ -90,6 +90,10 @@ struct intel_gtt_driver {
 	unsigned int is_ironlake : 1;
 	/* Chipset specific GTT setup */
 	int (*setup)(void);
+	void (*write_entry)(dma_addr_t addr, unsigned int entry, unsigned int flags);
+	/* Flags is a more or less chipset specific opaque value.
+	 * For chipsets that need to support old ums (non-gem) code, this
+	 * needs to be identical to the various supported agp memory types! */
 };
 
 static struct _intel_private {
@@ -954,6 +958,23 @@ static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 		printk(KERN_ERR "Timed out waiting for cache flush.\n");
 }
 
+static void i830_write_entry(dma_addr_t addr, unsigned int entry,
+			     unsigned int flags)
+{
+	u32 pte_flags = I810_PTE_VALID;
+	
+	switch (flags) {
+	case AGP_DCACHE_MEMORY:
+		pte_flags |= I810_PTE_LOCAL;
+		break;
+	case AGP_USER_CACHED_MEMORY:
+		pte_flags |= I830_PTE_SYSTEM_CACHED;
+		break;
+	}
+
+	writel(addr | pte_flags, intel_private.gtt + entry);
+}
+
 static void intel_enable_gtt(void)
 {
 	u32 gma_addr;
@@ -1011,7 +1032,7 @@ static int intel_fake_agp_free_gatt_table(struct agp_bridge_data *bridge)
 	return 0;
 }
 
-static int intel_i830_configure(void)
+static int intel_fake_agp_configure(void)
 {
 	int i;
 
@@ -1019,13 +1040,12 @@ static int intel_i830_configure(void)
 
 	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
 
-	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = intel_private.base.gtt_stolen_entries;
-				i < intel_private.base.gtt_total_entries; i++) {
-			writel(agp_bridge->scratch_page, intel_private.gtt+i);
-		}
-		readl(intel_private.gtt+i-1);	/* PCI Posting. */
+	for (i = intel_private.base.gtt_stolen_entries;
+			i < intel_private.base.gtt_total_entries; i++) {
+		intel_private.driver->write_entry(intel_private.scratch_page_dma,
+						  i, 0);
 	}
+	readl(intel_private.gtt+i-1);	/* PCI Posting. */
 
 	global_cache_flush();
 
@@ -1417,7 +1437,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
-	.configure		= intel_i830_configure,
+	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
@@ -1444,7 +1464,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
-	.configure		= intel_i9xx_configure,
+	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
@@ -1573,10 +1593,13 @@ static const struct agp_bridge_driver intel_g33_driver = {
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
 	.setup = i830_setup,
+	.write_entry = i830_write_entry,
 };
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
 	.setup = i9xx_setup,
+	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
+	.write_entry = i830_write_entry, 
 };
 static const struct intel_gtt_driver g33_gtt_driver = {
 	.gen = 3,
