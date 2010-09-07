@@ -1286,13 +1286,11 @@ int ocfs2_xattr_get_nolock(struct inode *inode,
 	xis.inode_bh = xbs.inode_bh = di_bh;
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 
-	down_read(&oi->ip_xattr_sem);
 	ret = ocfs2_xattr_ibody_get(inode, name_index, name, buffer,
 				    buffer_size, &xis);
 	if (ret == -ENODATA && di->i_xattr_loc)
 		ret = ocfs2_xattr_block_get(inode, name_index, name, buffer,
 					    buffer_size, &xbs);
-	up_read(&oi->ip_xattr_sem);
 
 	return ret;
 }
@@ -1316,8 +1314,10 @@ static int ocfs2_xattr_get(struct inode *inode,
 		mlog_errno(ret);
 		return ret;
 	}
+	down_read(&OCFS2_I(inode)->ip_xattr_sem);
 	ret = ocfs2_xattr_get_nolock(inode, di_bh, name_index,
 				     name, buffer, buffer_size);
+	up_read(&OCFS2_I(inode)->ip_xattr_sem);
 
 	ocfs2_inode_unlock(inode, 0);
 
