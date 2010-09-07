@@ -405,6 +405,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 
 		mutex_lock(&u->reply_mutex);
 		rc = queue_reply(&u->read_buffers, &reply, sizeof(reply));
+		wake_up(&u->read_waitq);
 		mutex_unlock(&u->reply_mutex);
 	}
 
