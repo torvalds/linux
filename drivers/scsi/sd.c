@@ -870,7 +870,7 @@ static int sd_release(struct gendisk *disk, fmode_t mode)
 
 	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp, "sd_release\n"));
 
-	if (atomic_dec_return(&sdkp->openers) && sdev->removable) {
+	if (atomic_dec_return(&sdkp->openers) == 0 && sdev->removable) {
 		if (scsi_block_when_processing_errors(sdev))
 			scsi_set_medium_removal(sdev, SCSI_REMOVAL_ALLOW);
 	}
