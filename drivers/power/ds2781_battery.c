@@ -37,6 +37,7 @@
 #include "../w1/w1.h"
 #include "../w1/slaves/w1_ds2781.h"
 
+extern int is_ac_charging(void);
 extern int is_ac_charge_complete(void);
 
 struct battery_status {
@@ -248,7 +249,7 @@ static int battery_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (di->status.charge_source) {
+		if (is_ac_charging()) {
 			if ((di->status.battery_full) ||
 			    (di->status.percentage >= 100))
 				val->intval = POWER_SUPPLY_STATUS_FULL;
