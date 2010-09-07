@@ -52,39 +52,14 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->duplex = -1;
 	}
 
-	if (bp->link_params.switch_cfg == SWITCH_CFG_10G) {
-		u32 ext_phy_type =
-			XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-
-		switch (ext_phy_type) {
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+	if (bp->link_params.num_phys > 0) {
+		if (bp->link_params.phy[bp->link_params.num_phys - 1].
+		    supported &	SUPPORTED_FIBRE)
 			cmd->port = PORT_FIBRE;
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+		else
 			cmd->port = PORT_TP;
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
-			BNX2X_ERR("XGXS PHY Failure detected 0x%x\n",
-				  bp->link_params.ext_phy_config);
-			break;
-
-		default:
-			DP(NETIF_MSG_LINK, "BAD XGXS ext_phy_config 0x%x\n",
-			   bp->link_params.ext_phy_config);
-			break;
-		}
 	} else
-		cmd->port = PORT_TP;
-
+		DP(NETIF_MSG_LINK, "No media found\n");
 	cmd->phy_address = bp->mdio.prtad;
 	cmd->transceiver = XCVR_INTERNAL;
 

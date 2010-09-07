@@ -1960,12 +1960,16 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 static inline void bnx2x_fan_failure(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
-
+	u32 ext_phy_config;
 	/* mark the failure */
-	bp->link_params.ext_phy_config &= ~PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
-	bp->link_params.ext_phy_config |= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE;
+	ext_phy_config =
+		SHMEM_RD(bp,
+			 dev_info.port_hw_config[port].external_phy_config);
+
+	ext_phy_config &= ~PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
+	ext_phy_config |= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE;
 	SHMEM_WR(bp, dev_info.port_hw_config[port].external_phy_config,
-		 bp->link_params.ext_phy_config);
+		 ext_phy_config);
 
 	/* log the failure */
 	netdev_err(bp->dev, "Fan Failure on Network Controller has caused"
@@ -1991,7 +1995,7 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		BNX2X_ERR("SPIO5 hw attention\n");
 
 		/* Fan failure attention */
-		switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+		switch (bp->link_params.phy[EXT_PHY1].type) {
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 			/* Low power mode is controlled by GPIO 2 */
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
@@ -4140,7 +4144,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		return -EBUSY;
 	}
 
-	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	switch (bp->link_params.phy[EXT_PHY1].type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
@@ -4299,7 +4303,7 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	bnx2x_init_block(bp, MCP_BLOCK, init_stage);
 	bnx2x_init_block(bp, DMAE_BLOCK, init_stage);
 
-	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	switch (bp->link_params.phy[EXT_PHY1].type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 		{
 		u32 swap_val, swap_override, aeu_gpio_mask, offset;
@@ -4480,7 +4484,7 @@ static int bnx2x_init_func(struct bnx2x *bp)
 	/* Reset PCIE errors for debug */
 	REG_WR(bp, 0x2114, 0xffffffff);
 	REG_WR(bp, 0x2120, 0xffffffff);
-
+	bnx2x_phy_probe(&bp->link_params);
 	return 0;
 }
 
@@ -6065,194 +6069,32 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 						    u32 switch_cfg)
 {
 	int port = BP_PORT(bp);
-	u32 ext_phy_type;
-
-	switch (switch_cfg) {
-	case SWITCH_CFG_1G:
-		BNX2X_DEV_INFO("switch_cfg 0x%x (1G)\n", switch_cfg);
-
-		ext_phy_type =
-			SERDES_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-		switch (ext_phy_type) {
-		case PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (Direct)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10baseT_Half |
-					       SUPPORTED_10baseT_Full |
-					       SUPPORTED_100baseT_Half |
-					       SUPPORTED_100baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_2500baseX_Full |
-					       SUPPORTED_TP |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
+	bp->port.supported = 0;
+	switch (bp->link_params.num_phys) {
+	case 1:
+		bp->port.supported = bp->link_params.phy[INT_PHY].supported;
 			break;
-
-		case PORT_HW_CFG_SERDES_EXT_PHY_TYPE_BCM5482:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (5482)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10baseT_Half |
-					       SUPPORTED_10baseT_Full |
-					       SUPPORTED_100baseT_Half |
-					       SUPPORTED_100baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_TP |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
+	case 2:
+		bp->port.supported = bp->link_params.phy[EXT_PHY1].supported;
 			break;
+	}
 
-		default:
-			BNX2X_ERR("NVRAM config error. "
-				  "BAD SerDes ext_phy_config 0x%x\n",
-				  bp->link_params.ext_phy_config);
+	if (!(bp->port.supported)) {
+		BNX2X_ERR("NVRAM config error. BAD phy config."
+			  "PHY1 config 0x%x\n",
+			   SHMEM_RD(bp,
+			   dev_info.port_hw_config[port].external_phy_config));
 			return;
 		}
 
+	switch (switch_cfg) {
+	case SWITCH_CFG_1G:
 		bp->port.phy_addr = REG_RD(bp, NIG_REG_SERDES0_CTRL_PHY_ADDR +
 					   port*0x10);
 		BNX2X_DEV_INFO("phy_addr 0x%x\n", bp->port.phy_addr);
 		break;
 
 	case SWITCH_CFG_10G:
-		BNX2X_DEV_INFO("switch_cfg 0x%x (10G)\n", switch_cfg);
-
-		ext_phy_type =
-			XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-		switch (ext_phy_type) {
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (Direct)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10baseT_Half |
-					       SUPPORTED_10baseT_Full |
-					       SUPPORTED_100baseT_Half |
-					       SUPPORTED_100baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_2500baseX_Full |
-					       SUPPORTED_10000baseT_Full |
-					       SUPPORTED_TP |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8072)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8073)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_2500baseX_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8705)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8706)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8726)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8727)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (SFX7101)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_TP |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (BCM848xx)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10baseT_Half |
-					       SUPPORTED_10baseT_Full |
-					       SUPPORTED_100baseT_Half |
-					       SUPPORTED_100baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_10000baseT_Full |
-					       SUPPORTED_TP |
-					       SUPPORTED_Autoneg |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
-			BNX2X_ERR("XGXS PHY Failure detected 0x%x\n",
-				  bp->link_params.ext_phy_config);
-			break;
-
-		default:
-			BNX2X_ERR("NVRAM config error. "
-				  "BAD XGXS ext_phy_config 0x%x\n",
-				  bp->link_params.ext_phy_config);
-			return;
-		}
-
 		bp->port.phy_addr = REG_RD(bp, NIG_REG_XGXS0_CTRL_PHY_ADDR +
 					   port*0x18);
 		BNX2X_DEV_INFO("phy_addr 0x%x\n", bp->port.phy_addr);
@@ -6264,8 +6106,6 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 			  bp->port.link_config);
 		return;
 	}
-	bp->link_params.phy_addr = bp->port.phy_addr;
-
 	/* mask what we support according to speed_cap_mask */
 	if (!(bp->link_params.speed_cap_mask &
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF))
@@ -6309,25 +6149,10 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 			bp->link_params.req_line_speed = SPEED_AUTO_NEG;
 			bp->port.advertising = bp->port.supported;
 		} else {
-			u32 ext_phy_type =
-			    XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-
-			if ((ext_phy_type ==
-			     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705) ||
-			    (ext_phy_type ==
-			     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706)) {
 				/* force 10G, no AN */
 				bp->link_params.req_line_speed = SPEED_10000;
-				bp->port.advertising =
-						(ADVERTISED_10000baseT_Full |
+			bp->port.advertising =	(ADVERTISED_10000baseT_Full |
 						 ADVERTISED_FIBRE);
-				break;
-			}
-			BNX2X_ERR("NVRAM config error. "
-				  "Invalid link_config 0x%x"
-				  "  Autoneg not supported\n",
-				  bp->port.link_config);
-			return;
 		}
 		break;
 
@@ -6475,27 +6300,13 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	u32 val, val2;
 	u32 config;
-	u16 i;
-	u32 ext_phy_type;
+	u32 ext_phy_type, ext_phy_config;;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
 
 	bp->link_params.lane_config =
 		SHMEM_RD(bp, dev_info.port_hw_config[port].lane_config);
-	bp->link_params.ext_phy_config =
-		SHMEM_RD(bp,
-			 dev_info.port_hw_config[port].external_phy_config);
-	/* BCM8727_NOC => BCM8727 no over current */
-	if (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config) ==
-	    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC) {
-		bp->link_params.ext_phy_config &=
-			~PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
-		bp->link_params.ext_phy_config |=
-			PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727;
-		bp->link_params.feature_config_flags |=
-			FEATURE_CONFIG_BCM8727_NOC;
-	}
 
 	bp->link_params.speed_cap_mask =
 		SHMEM_RD(bp,
@@ -6504,18 +6315,6 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	bp->port.link_config =
 		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config);
 
-	/* Get the 4 lanes xgxs config rx and tx */
-	for (i = 0; i < 2; i++) {
-		val = SHMEM_RD(bp,
-			   dev_info.port_hw_config[port].xgxs_config_rx[i<<1]);
-		bp->link_params.xgxs_config_rx[i << 1] = ((val>>16) & 0xffff);
-		bp->link_params.xgxs_config_rx[(i << 1) + 1] = (val & 0xffff);
-
-		val = SHMEM_RD(bp,
-			   dev_info.port_hw_config[port].xgxs_config_tx[i<<1]);
-		bp->link_params.xgxs_config_tx[i << 1] = ((val>>16) & 0xffff);
-		bp->link_params.xgxs_config_tx[(i << 1) + 1] = (val & 0xffff);
-	}
 
 	/* If the device is capable of WoL, set the default state according
 	 * to the HW
@@ -6524,14 +6323,14 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	bp->wol = (!(bp->flags & NO_WOL_FLAG) &&
 		   (config & PORT_FEATURE_WOL_ENABLED));
 
-	BNX2X_DEV_INFO("lane_config 0x%08x  ext_phy_config 0x%08x"
+	BNX2X_DEV_INFO("lane_config 0x%08x"
 		       "  speed_cap_mask 0x%08x  link_config 0x%08x\n",
 		       bp->link_params.lane_config,
-		       bp->link_params.ext_phy_config,
 		       bp->link_params.speed_cap_mask, bp->port.link_config);
 
 	bp->link_params.switch_cfg |= (bp->port.link_config &
 				       PORT_FEATURE_CONNECTED_SWITCH_MASK);
+	bnx2x_phy_probe(&bp->link_params);
 	bnx2x_link_settings_supported(bp, bp->link_params.switch_cfg);
 
 	bnx2x_link_settings_requested(bp);
@@ -6540,14 +6339,17 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	 * If connected directly, work with the internal PHY, otherwise, work
 	 * with the external PHY
 	 */
-	ext_phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
+	ext_phy_config =
+		SHMEM_RD(bp,
+			 dev_info.port_hw_config[port].external_phy_config);
+	ext_phy_type = XGXS_EXT_PHY_TYPE(ext_phy_config);
 	if (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
-		bp->mdio.prtad = bp->link_params.phy_addr;
+		bp->mdio.prtad = bp->port.phy_addr;
 
 	else if ((ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE) &&
 		 (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN))
 		bp->mdio.prtad =
-			XGXS_EXT_PHY_ADDR(bp->link_params.ext_phy_config);
+			XGXS_EXT_PHY_ADDR(ext_phy_config);
 
 	val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_upper);
 	val = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_lower);

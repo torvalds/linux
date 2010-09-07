@@ -46,6 +46,15 @@
 #define SFP_EEPROM_PART_NO_ADDR 		0x28
 #define SFP_EEPROM_PART_NO_SIZE		16
 #define PWR_FLT_ERR_MSG_LEN			250
+
+#define XGXS_EXT_PHY_TYPE(ext_phy_config) \
+		((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
+#define XGXS_EXT_PHY_ADDR(ext_phy_config) \
+		(((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >> \
+		 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT)
+#define SERDES_EXT_PHY_TYPE(ext_phy_config) \
+		((ext_phy_config) & PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
+
 /* Single Media Direct board is the plain 577xx board with CX4/RJ45 jacks */
 #define SINGLE_MEDIA_DIRECT(params)	(params->num_phys == 1)
 /* Single Media board contains single external phy */
@@ -58,6 +67,10 @@
 
 #define MAX_PHYS	2
 
+/* Same configuration is shared between the XGXS and the first external phy */
+#define LINK_CONFIG_SIZE (MAX_PHYS - 1)
+#define LINK_CONFIG_IDX(_phy_idx) ((_phy_idx == INT_PHY) ? \
+					 0 : (_phy_idx - 1))
 /***********************************************************/
 /*                      bnx2x_phy struct                     */
 /*  Defines the required arguments and function per phy    */
@@ -66,13 +79,88 @@ struct link_vars;
 struct link_params;
 struct bnx2x_phy;
 
+typedef u8 (*config_init_t)(struct bnx2x_phy *phy, struct link_params *params,
+			    struct link_vars *vars);
+typedef u8 (*read_status_t)(struct bnx2x_phy *phy, struct link_params *params,
+			    struct link_vars *vars);
+typedef void (*link_reset_t)(struct bnx2x_phy *phy,
+			     struct link_params *params);
+typedef void (*config_loopback_t)(struct bnx2x_phy *phy,
+				  struct link_params *params);
+typedef u8 (*format_fw_ver_t)(u32 raw, u8 *str, u16 *len);
+typedef void (*hw_reset_t)(struct bnx2x_phy *phy, struct link_params *params);
+typedef void (*set_link_led_t)(struct bnx2x_phy *phy,
+			       struct link_params *params, u8 mode);
+
 struct bnx2x_phy {
 	u32 type;
 
 	/* Loaded during init */
 	u8 addr;
 
+	u8 flags;
+	/* Require HW lock */
+#define FLAGS_HW_LOCK_REQUIRED		(1<<0)
+	/* No Over-Current detection */
+#define FLAGS_NOC			(1<<1)
+	/* Fan failure detection required */
+#define FLAGS_FAN_FAILURE_DET_REQ	(1<<2)
+	/* Initialize first the XGXS and only then the phy itself */
+#define FLAGS_INIT_XGXS_FIRST	(1<<3)
+
+	u8 def_md_devad;
+	u8 reserved;
+	/* preemphasis values for the rx side */
+	u16 rx_preemphasis[4];
+
+	/* preemphasis values for the tx side */
+	u16 tx_preemphasis[4];
+
+	/* EMAC address for access MDIO */
 	u32 mdio_ctrl;
+
+	u32 supported;
+
+	u32 media_type;
+#define	ETH_PHY_UNSPECIFIED 0x0
+#define	ETH_PHY_SFP_FIBER   0x1
+#define	ETH_PHY_XFP_FIBER   0x2
+#define	ETH_PHY_DA_TWINAX   0x3
+#define	ETH_PHY_BASE_T      0x4
+#define	ETH_PHY_NOT_PRESENT 0xff
+
+	/* The address in which version is located*/
+	u32 ver_addr;
+
+	u16 req_flow_ctrl;
+
+	u16 req_line_speed;
+
+	u32 speed_cap_mask;
+
+	u16 req_duplex;
+	u16 rsrv;
+	/* Called per phy/port init, and it configures LASI, speed, autoneg,
+	 duplex, flow control negotiation, etc. */
+	config_init_t config_init;
+
+	/* Called due to interrupt. It determines the link, speed */
+	read_status_t read_status;
+
+	/* Called when driver is unloading. Should reset the phy */
+	link_reset_t link_reset;
+
+	/* Set the loopback configuration for the phy */
+	config_loopback_t config_loopback;
+
+	/* Format the given raw number into str up to len */
+	format_fw_ver_t format_fw_ver;
+
+	/* Reset the phy (both ports) */
+	hw_reset_t hw_reset;
+
+	/* Set link led mode (on/off/oper)*/
+	set_link_led_t set_link_led;
 };
 
 /* Inputs parameters to the CLC */
@@ -106,37 +194,22 @@ struct link_params {
 #define SWITCH_CFG_10G		PORT_FEATURE_CON_SWITCH_10G_SWITCH
 #define SWITCH_CFG_AUTO_DETECT	PORT_FEATURE_CON_SWITCH_AUTO_DETECT
 
-	u16 hw_led_mode; /* part of the hw_config read from the shmem */
-
-	/* phy_addr populated by the phy_init function */
-	u8 phy_addr;
-	/*u8 reserved1;*/
-
 	u32 lane_config;
-	u32 ext_phy_config;
-#define XGXS_EXT_PHY_TYPE(ext_phy_config) \
-		((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
-#define XGXS_EXT_PHY_ADDR(ext_phy_config) \
-		(((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >> \
-		 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT)
-#define SERDES_EXT_PHY_TYPE(ext_phy_config) \
-		((ext_phy_config) & PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
 
 	/* Phy register parameter */
 	u32 chip_id;
 
-	u16 xgxs_config_rx[4]; /* preemphasis values for the rx side */
-	u16 xgxs_config_tx[4]; /* preemphasis values for the tx side */
-
 	u32 feature_config_flags;
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
 #define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
-#define FEATURE_CONFIG_BCM8727_NOC			(1<<3)
 	/* Will be populated during common init */
 	struct bnx2x_phy phy[MAX_PHYS];
 
 	/* Will be populated during common init */
 	u8 num_phys;
+
+	u8 rsrv;
+	u16 hw_led_mode; /* part of the hw_config read from the shmem */
 
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
