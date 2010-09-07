@@ -238,7 +238,88 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 
 	u16 xgxs_config_tx[4];				    /* 0x1A0 */
 
-	u32 Reserved1[64];				    /* 0x1A8 */
+	u32 Reserved1[57];				    /* 0x1A8 */
+	u32 speed_capability_mask2;			    /* 0x28C */
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_MASK		      0x0000FFFF
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_SHIFT		      0
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_10M_FULL	      0x00000001
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3__		      0x00000002
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3___		      0x00000004
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_100M_FULL	      0x00000008
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_1G		      0x00000010
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_2_DOT_5G	      0x00000020
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_10G		      0x00000040
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_12G		      0x00000080
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_12_DOT_5G	      0x00000100
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_13G		      0x00000200
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_15G		      0x00000400
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D3_16G		      0x00000800
+
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_MASK		      0xFFFF0000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_SHIFT		      16
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_10M_FULL	      0x00010000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0__		      0x00020000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0___		      0x00040000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_100M_FULL	      0x00080000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_1G		      0x00100000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_2_DOT_5G	      0x00200000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_10G		      0x00400000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_12G		      0x00800000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_12_DOT_5G	      0x01000000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_13G		      0x02000000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_15G		      0x04000000
+#define PORT_HW_CFG_SPEED_CAPABILITY2_D0_16G		      0x08000000
+
+	/* In the case where two media types (e.g. copper and fiber) are
+	  present and electrically active at the same time, PHY Selection
+	  will determine which of the two PHYs will be designated as the
+	  Active PHY and used for a connection to the network.	*/
+	u32 multi_phy_config;				/* 0x290 */
+#define PORT_HW_CFG_PHY_SELECTION_MASK		     0x00000007
+#define PORT_HW_CFG_PHY_SELECTION_SHIFT		     0
+#define PORT_HW_CFG_PHY_SELECTION_HARDWARE_DEFAULT   0x00000000
+#define PORT_HW_CFG_PHY_SELECTION_FIRST_PHY	     0x00000001
+#define PORT_HW_CFG_PHY_SELECTION_SECOND_PHY	     0x00000002
+#define PORT_HW_CFG_PHY_SELECTION_FIRST_PHY_PRIORITY 0x00000003
+#define PORT_HW_CFG_PHY_SELECTION_SECOND_PHY_PRIORITY 0x00000004
+
+	/* When enabled, all second phy nvram parameters will be swapped
+	  with the first phy parameters */
+#define PORT_HW_CFG_PHY_SWAPPED_MASK		     0x00000008
+#define PORT_HW_CFG_PHY_SWAPPED_SHIFT		     3
+#define PORT_HW_CFG_PHY_SWAPPED_DISABLED	     0x00000000
+#define PORT_HW_CFG_PHY_SWAPPED_ENABLED		     0x00000008
+
+
+	/* Address of the second external phy */
+	u32 external_phy_config2;				/* 0x294 */
+#define PORT_HW_CFG_XGXS_EXT_PHY2_ADDR_MASK	    0x000000FF
+#define PORT_HW_CFG_XGXS_EXT_PHY2_ADDR_SHIFT	    0
+
+	/* The second XGXS external PHY type */
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_MASK	    0x0000FF00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_SHIFT	    8
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_DIRECT	    0x00000000
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8071	    0x00000100
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8072	    0x00000200
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8073	    0x00000300
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8705	    0x00000400
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8706	    0x00000500
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8726	    0x00000600
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8481	    0x00000700
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_SFX7101	    0x00000800
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8727	    0x00000900
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8727_NOC  0x00000a00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84823     0x00000b00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM54640     0x00000c00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84833     0x00000d00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_FAILURE	    0x0000fd00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_NOT_CONN     0x0000ff00
+
+	/* 4 times 16 bits for all 4 lanes. For some external PHYs (such as
+	  8706, 8726 and 8727) not all 4 values are needed. */
+	u16 xgxs_config2_rx[4];				/* 0x296 */
+	u16 xgxs_config2_tx[4];				/* 0x2A0 */
 
 	u32 lane_config;
 #define PORT_HW_CFG_LANE_SWAP_CFG_MASK		    0x0000ffff
@@ -532,10 +613,17 @@ struct port_feat_cfg {			    /* port 0: 0x454  port 1: 0x4c8 */
 #define PORT_FEATURE_FLOW_CONTROL_NONE		    0x00000400
 
 	/* The default for MCP link configuration,
-	   uses the same defines as link_config */
+	uses the same defines as link_config */
 	u32 mfw_wol_link_cfg;
+	/* The default for the driver of the second external phy,
+	uses the same defines as link_config */
+	u32 link_config2;					/* 0x47C */
 
-	u32 reserved[19];
+	/* The default for MCP of the second external phy,
+	uses the same defines as link_config */
+	u32 mfw_wol_link_cfg2;				/* 0x480 */
+
+	u32 Reserved2[17];					/* 0x484 */
 
 };
 
@@ -703,8 +791,14 @@ struct drv_func_mb {
 	 * The optic module verification commands require bootcode
 	 * v5.0.6 or later
 	 */
-#define DRV_MSG_CODE_VRFY_OPT_MDL			0xa0000000
-#define REQ_BC_VER_4_VRFY_OPT_MDL			0x00050006
+#define DRV_MSG_CODE_VRFY_FIRST_PHY_OPT_MDL	0xa0000000
+#define REQ_BC_VER_4_VRFY_FIRST_PHY_OPT_MDL	0x00050006
+	/*
+	 * The specific optic module verification command requires bootcode
+	 * v5.2.12 or later
+	 */
+#define DRV_MSG_CODE_VRFY_SPECIFIC_PHY_OPT_MDL	    0xa1000000
+#define REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL	    0x00050234
 
 #define BIOS_MSG_CODE_LIC_CHALLENGE			0xff010000
 #define BIOS_MSG_CODE_LIC_RESPONSE			0xff020000
@@ -939,7 +1033,12 @@ struct shmem2_region {
 #define SHMEM_DCC_SUPPORT_SET_PROTOCOL_TLV	    0x00000040
 #define SHMEM_DCC_SUPPORT_SET_PRIORITY_TLV	    0x00000080
 #define SHMEM_DCC_SUPPORT_DEFAULT		    SHMEM_DCC_SUPPORT_NONE
-
+	u32 ext_phy_fw_version2[PORT_MAX];
+	/*
+	 * For backwards compatibility, if the mf_cfg_addr does not exist
+	 * (the size filed is smaller than 0xc) the mf_cfg resides at the
+	 * end of struct shmem_region
+	 */
 };
 
 

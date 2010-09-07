@@ -29,9 +29,12 @@
 static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-
-	cmd->supported = bp->port.supported;
-	cmd->advertising = bp->port.advertising;
+	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	/* Dual Media boards present all available port types */
+	cmd->supported = bp->port.supported[cfg_idx] |
+		(bp->port.supported[cfg_idx ^ 1] &
+		 (SUPPORTED_TP | SUPPORTED_FIBRE));
+	cmd->advertising = bp->port.advertising[cfg_idx];
 
 	if ((bp->state == BNX2X_STATE_OPEN) &&
 	    !(bp->flags & MF_FUNC_DIS) &&
@@ -48,22 +51,21 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				cmd->speed = vn_max_rate;
 		}
 	} else {
-		cmd->speed = -1;
-		cmd->duplex = -1;
+		cmd->speed = bp->link_params.req_line_speed[cfg_idx];
+		cmd->duplex = bp->link_params.req_duplex[cfg_idx];
 	}
 
-	if (bp->link_params.num_phys > 0) {
-		if (bp->link_params.phy[bp->link_params.num_phys - 1].
-		    supported &	SUPPORTED_FIBRE)
-			cmd->port = PORT_FIBRE;
-		else
-			cmd->port = PORT_TP;
-	} else
-		DP(NETIF_MSG_LINK, "No media found\n");
+	if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
+		cmd->port = PORT_TP;
+	else if (bp->port.supported[cfg_idx] & SUPPORTED_FIBRE)
+		cmd->port = PORT_FIBRE;
+	else
+		BNX2X_ERR("XGXS PHY Failure detected\n");
+
 	cmd->phy_address = bp->mdio.prtad;
 	cmd->transceiver = XCVR_INTERNAL;
 
-	if (bp->link_params.req_line_speed == SPEED_AUTO_NEG)
+	if (bp->link_params.req_line_speed[cfg_idx] == SPEED_AUTO_NEG)
 		cmd->autoneg = AUTONEG_ENABLE;
 	else
 		cmd->autoneg = AUTONEG_DISABLE;
@@ -85,7 +87,7 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u32 advertising;
+	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
 
 	if (IS_E1HMF(bp))
 		return 0;
@@ -98,26 +100,81 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
 
+	cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	old_multi_phy_config = bp->link_params.multi_phy_config;
+	switch (cmd->port) {
+	case PORT_TP:
+		if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
+			break; /* no port change */
+
+		if (!(bp->port.supported[0] & SUPPORTED_TP ||
+		      bp->port.supported[1] & SUPPORTED_TP)) {
+			DP(NETIF_MSG_LINK, "Unsupported port type\n");
+			return -EINVAL;
+		}
+		bp->link_params.multi_phy_config &=
+			~PORT_HW_CFG_PHY_SELECTION_MASK;
+		if (bp->link_params.multi_phy_config &
+		    PORT_HW_CFG_PHY_SWAPPED_ENABLED)
+			bp->link_params.multi_phy_config |=
+			PORT_HW_CFG_PHY_SELECTION_SECOND_PHY;
+		else
+			bp->link_params.multi_phy_config |=
+			PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
+		break;
+	case PORT_FIBRE:
+		if (bp->port.supported[cfg_idx] & SUPPORTED_FIBRE)
+			break; /* no port change */
+
+		if (!(bp->port.supported[0] & SUPPORTED_FIBRE ||
+		      bp->port.supported[1] & SUPPORTED_FIBRE)) {
+			DP(NETIF_MSG_LINK, "Unsupported port type\n");
+			return -EINVAL;
+		}
+		bp->link_params.multi_phy_config &=
+			~PORT_HW_CFG_PHY_SELECTION_MASK;
+		if (bp->link_params.multi_phy_config &
+		    PORT_HW_CFG_PHY_SWAPPED_ENABLED)
+			bp->link_params.multi_phy_config |=
+			PORT_HW_CFG_PHY_SELECTION_FIRST_PHY;
+		else
+			bp->link_params.multi_phy_config |=
+			PORT_HW_CFG_PHY_SELECTION_SECOND_PHY;
+		break;
+	default:
+		DP(NETIF_MSG_LINK, "Unsupported port type\n");
+		return -EINVAL;
+	}
+	/* Save new config in case command complete successuly */
+	new_multi_phy_config = bp->link_params.multi_phy_config;
+	/* Get the new cfg_idx */
+	cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	/* Restore old config in case command failed */
+	bp->link_params.multi_phy_config = old_multi_phy_config;
+	DP(NETIF_MSG_LINK, "cfg_idx = %x\n", cfg_idx);
+
 	if (cmd->autoneg == AUTONEG_ENABLE) {
-		if (!(bp->port.supported & SUPPORTED_Autoneg)) {
+		if (!(bp->port.supported[cfg_idx] & SUPPORTED_Autoneg)) {
 			DP(NETIF_MSG_LINK, "Autoneg not supported\n");
 			return -EINVAL;
 		}
 
 		/* advertise the requested speed and duplex if supported */
-		cmd->advertising &= bp->port.supported;
+		cmd->advertising &= bp->port.supported[cfg_idx];
 
-		bp->link_params.req_line_speed = SPEED_AUTO_NEG;
-		bp->link_params.req_duplex = DUPLEX_FULL;
-		bp->port.advertising |= (ADVERTISED_Autoneg |
+		bp->link_params.req_line_speed[cfg_idx] = SPEED_AUTO_NEG;
+		bp->link_params.req_duplex[cfg_idx] = DUPLEX_FULL;
+		bp->port.advertising[cfg_idx] |= (ADVERTISED_Autoneg |
 					 cmd->advertising);
 
 	} else { /* forced speed */
 		/* advertise the requested speed and duplex if supported */
-		switch (cmd->speed) {
+		u32 speed = cmd->speed;
+		speed |= (cmd->speed_hi << 16);
+		switch (speed) {
 		case SPEED_10:
 			if (cmd->duplex == DUPLEX_FULL) {
-				if (!(bp->port.supported &
+				if (!(bp->port.supported[cfg_idx] &
 				      SUPPORTED_10baseT_Full)) {
 					DP(NETIF_MSG_LINK,
 					   "10M full not supported\n");
@@ -127,7 +184,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				advertising = (ADVERTISED_10baseT_Full |
 					       ADVERTISED_TP);
 			} else {
-				if (!(bp->port.supported &
+				if (!(bp->port.supported[cfg_idx] &
 				      SUPPORTED_10baseT_Half)) {
 					DP(NETIF_MSG_LINK,
 					   "10M half not supported\n");
@@ -141,7 +198,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 		case SPEED_100:
 			if (cmd->duplex == DUPLEX_FULL) {
-				if (!(bp->port.supported &
+				if (!(bp->port.supported[cfg_idx] &
 						SUPPORTED_100baseT_Full)) {
 					DP(NETIF_MSG_LINK,
 					   "100M full not supported\n");
@@ -151,7 +208,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				advertising = (ADVERTISED_100baseT_Full |
 					       ADVERTISED_TP);
 			} else {
-				if (!(bp->port.supported &
+				if (!(bp->port.supported[cfg_idx] &
 						SUPPORTED_100baseT_Half)) {
 					DP(NETIF_MSG_LINK,
 					   "100M half not supported\n");
@@ -169,7 +226,8 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 
-			if (!(bp->port.supported & SUPPORTED_1000baseT_Full)) {
+			if (!(bp->port.supported[cfg_idx] &
+			      SUPPORTED_1000baseT_Full)) {
 				DP(NETIF_MSG_LINK, "1G full not supported\n");
 				return -EINVAL;
 			}
@@ -185,7 +243,8 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 
-			if (!(bp->port.supported & SUPPORTED_2500baseX_Full)) {
+			if (!(bp->port.supported[cfg_idx]
+			      & SUPPORTED_2500baseX_Full)) {
 				DP(NETIF_MSG_LINK,
 				   "2.5G full not supported\n");
 				return -EINVAL;
@@ -201,7 +260,8 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				return -EINVAL;
 			}
 
-			if (!(bp->port.supported & SUPPORTED_10000baseT_Full)) {
+			if (!(bp->port.supported[cfg_idx]
+			      & SUPPORTED_10000baseT_Full)) {
 				DP(NETIF_MSG_LINK, "10G full not supported\n");
 				return -EINVAL;
 			}
@@ -211,20 +271,23 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		default:
-			DP(NETIF_MSG_LINK, "Unsupported speed\n");
+			DP(NETIF_MSG_LINK, "Unsupported speed %d\n", speed);
 			return -EINVAL;
 		}
 
-		bp->link_params.req_line_speed = cmd->speed;
-		bp->link_params.req_duplex = cmd->duplex;
-		bp->port.advertising = advertising;
+		bp->link_params.req_line_speed[cfg_idx] = speed;
+		bp->link_params.req_duplex[cfg_idx] = cmd->duplex;
+		bp->port.advertising[cfg_idx] = advertising;
 	}
 
 	DP(NETIF_MSG_LINK, "req_line_speed %d\n"
 	   DP_LEVEL "  req_duplex %d  advertising 0x%x\n",
-	   bp->link_params.req_line_speed, bp->link_params.req_duplex,
-	   bp->port.advertising);
+	   bp->link_params.req_line_speed[cfg_idx],
+	   bp->link_params.req_duplex[cfg_idx],
+	   bp->port.advertising[cfg_idx]);
 
+	/* Set new config */
+	bp->link_params.multi_phy_config = new_multi_phy_config;
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 		bnx2x_link_set(bp);
@@ -937,10 +1000,9 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 				 struct ethtool_pauseparam *epause)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-
-	epause->autoneg = (bp->link_params.req_flow_ctrl ==
-			   BNX2X_FLOW_CTRL_AUTO) &&
-			  (bp->link_params.req_line_speed == SPEED_AUTO_NEG);
+	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	epause->autoneg = (bp->link_params.req_flow_ctrl[cfg_idx] ==
+			   BNX2X_FLOW_CTRL_AUTO);
 
 	epause->rx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) ==
 			    BNX2X_FLOW_CTRL_RX);
@@ -956,7 +1018,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 				struct ethtool_pauseparam *epause)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-
+	u32 cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	if (IS_E1HMF(bp))
 		return 0;
 
@@ -964,29 +1026,31 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	   DP_LEVEL "  autoneg %d  rx_pause %d  tx_pause %d\n",
 	   epause->cmd, epause->autoneg, epause->rx_pause, epause->tx_pause);
 
-	bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_AUTO;
+	bp->link_params.req_flow_ctrl[cfg_idx] = BNX2X_FLOW_CTRL_AUTO;
 
 	if (epause->rx_pause)
-		bp->link_params.req_flow_ctrl |= BNX2X_FLOW_CTRL_RX;
+		bp->link_params.req_flow_ctrl[cfg_idx] |= BNX2X_FLOW_CTRL_RX;
 
 	if (epause->tx_pause)
-		bp->link_params.req_flow_ctrl |= BNX2X_FLOW_CTRL_TX;
+		bp->link_params.req_flow_ctrl[cfg_idx] |= BNX2X_FLOW_CTRL_TX;
 
-	if (bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO)
-		bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_NONE;
+	if (bp->link_params.req_flow_ctrl[cfg_idx] == BNX2X_FLOW_CTRL_AUTO)
+		bp->link_params.req_flow_ctrl[cfg_idx] = BNX2X_FLOW_CTRL_NONE;
 
 	if (epause->autoneg) {
-		if (!(bp->port.supported & SUPPORTED_Autoneg)) {
+		if (!(bp->port.supported[cfg_idx] & SUPPORTED_Autoneg)) {
 			DP(NETIF_MSG_LINK, "autoneg not supported\n");
 			return -EINVAL;
 		}
 
-		if (bp->link_params.req_line_speed == SPEED_AUTO_NEG)
-			bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_AUTO;
+		if (bp->link_params.req_line_speed[cfg_idx] == SPEED_AUTO_NEG) {
+			bp->link_params.req_flow_ctrl[cfg_idx] =
+				BNX2X_FLOW_CTRL_AUTO;
+		}
 	}
 
 	DP(NETIF_MSG_LINK,
-	   "req_flow_ctrl 0x%x\n", bp->link_params.req_flow_ctrl);
+	   "req_flow_ctrl 0x%x\n", bp->link_params.req_flow_ctrl[cfg_idx]);
 
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
@@ -1250,12 +1314,12 @@ test_mem_exit:
 	return rc;
 }
 
-static void bnx2x_wait_for_link(struct bnx2x *bp, u8 link_up)
+static void bnx2x_wait_for_link(struct bnx2x *bp, u8 link_up, u8 is_serdes)
 {
 	int cnt = 1000;
 
 	if (link_up)
-		while (bnx2x_link_test(bp) && cnt--)
+		while (bnx2x_link_test(bp, is_serdes) && cnt--)
 			msleep(10);
 }
 
@@ -1527,7 +1591,7 @@ static void bnx2x_self_test(struct net_device *dev,
 			    struct ethtool_test *etest, u64 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-
+	u8 is_serdes;
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
 		etest->flags |= ETH_TEST_FL_FAILED;
@@ -1542,6 +1606,7 @@ static void bnx2x_self_test(struct net_device *dev,
 	/* offline tests are not supported in MF mode */
 	if (IS_E1HMF(bp))
 		etest->flags &= ~ETH_TEST_FL_OFFLINE;
+	is_serdes = (bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
 
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
 		int port = BP_PORT(bp);
@@ -1553,11 +1618,12 @@ static void bnx2x_self_test(struct net_device *dev,
 		/* disable input for TX port IF */
 		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, 0);
 
-		link_up = (bnx2x_link_test(bp) == 0);
+		link_up = bp->link_vars.link_up;
+
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 		bnx2x_nic_load(bp, LOAD_DIAG);
 		/* wait until link state is restored */
-		bnx2x_wait_for_link(bp, link_up);
+		bnx2x_wait_for_link(bp, link_up, is_serdes);
 
 		if (bnx2x_test_registers(bp) != 0) {
 			buf[0] = 1;
@@ -1578,7 +1644,7 @@ static void bnx2x_self_test(struct net_device *dev,
 
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 		/* wait until link state is restored */
-		bnx2x_wait_for_link(bp, link_up);
+		bnx2x_wait_for_link(bp, link_up, is_serdes);
 	}
 	if (bnx2x_test_nvram(bp) != 0) {
 		buf[3] = 1;
@@ -1589,7 +1655,7 @@ static void bnx2x_self_test(struct net_device *dev,
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 	if (bp->port.pmf)
-		if (bnx2x_link_test(bp) != 0) {
+		if (bnx2x_link_test(bp, is_serdes) != 0) {
 			buf[5] = 1;
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}

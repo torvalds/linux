@@ -1227,26 +1227,66 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio_num, u32 mode)
 	return 0;
 }
 
+int bnx2x_get_link_cfg_idx(struct bnx2x *bp)
+{
+	u32 sel_phy_idx = 0;
+	if (bp->link_vars.link_up) {
+		sel_phy_idx = EXT_PHY1;
+		/* In case link is SERDES, check if the EXT_PHY2 is the one */
+		if ((bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) &&
+		    (bp->link_params.phy[EXT_PHY2].supported & SUPPORTED_FIBRE))
+			sel_phy_idx = EXT_PHY2;
+	} else {
+
+		switch (bnx2x_phy_selection(&bp->link_params)) {
+		case PORT_HW_CFG_PHY_SELECTION_HARDWARE_DEFAULT:
+		case PORT_HW_CFG_PHY_SELECTION_FIRST_PHY:
+		case PORT_HW_CFG_PHY_SELECTION_FIRST_PHY_PRIORITY:
+		       sel_phy_idx = EXT_PHY1;
+		       break;
+		case PORT_HW_CFG_PHY_SELECTION_SECOND_PHY:
+		case PORT_HW_CFG_PHY_SELECTION_SECOND_PHY_PRIORITY:
+		       sel_phy_idx = EXT_PHY2;
+		       break;
+		}
+	}
+	/*
+	* The selected actived PHY is always after swapping (in case PHY
+	* swapping is enabled). So when swapping is enabled, we need to reverse
+	* the configuration
+	*/
+
+	if (bp->link_params.multi_phy_config &
+	    PORT_HW_CFG_PHY_SWAPPED_ENABLED) {
+		if (sel_phy_idx == EXT_PHY1)
+			sel_phy_idx = EXT_PHY2;
+		else if (sel_phy_idx == EXT_PHY2)
+			sel_phy_idx = EXT_PHY1;
+	}
+	return LINK_CONFIG_IDX(sel_phy_idx);
+}
+
 void bnx2x_calc_fc_adv(struct bnx2x *bp)
 {
+	u8 cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	switch (bp->link_vars.ieee_fc &
 		MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK) {
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE:
-		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
+		bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
 		break;
 
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH:
-		bp->port.advertising |= (ADVERTISED_Asym_Pause |
+		bp->port.advertising[cfg_idx] |= (ADVERTISED_Asym_Pause |
 					 ADVERTISED_Pause);
 		break;
 
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC:
-		bp->port.advertising |= ADVERTISED_Asym_Pause;
+		bp->port.advertising[cfg_idx] |= ADVERTISED_Asym_Pause;
 		break;
 
 	default:
-		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
+		bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
 		break;
 	}
@@ -1257,7 +1297,8 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 {
 	if (!BP_NOMCP(bp)) {
 		u8 rc;
-
+		int cfx_idx = bnx2x_get_link_cfg_idx(bp);
+		u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
 		/* Initialize link parameters structure variables */
 		/* It is recommended to turn off RX FC for jumbo frames
 		   for better performance */
@@ -1268,8 +1309,10 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 
 		bnx2x_acquire_phy_lock(bp);
 
-		if (load_mode == LOAD_DIAG)
+		if (load_mode == LOAD_DIAG) {
 			bp->link_params.loopback_mode = LOOPBACK_XGXS;
+			bp->link_params.req_line_speed[cfx_idx] = SPEED_10000;
+		}
 
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 
@@ -1281,7 +1324,7 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 			bnx2x_link_report(bp);
 		}
-
+		bp->link_params.req_line_speed[cfx_idx] = req_line_speed;
 		return rc;
 	}
 	BNX2X_ERR("Bootcode is missing - can not initialize link\n");
@@ -1311,13 +1354,14 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 		BNX2X_ERR("Bootcode is missing - can not reset link\n");
 }
 
-u8 bnx2x_link_test(struct bnx2x *bp)
+u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
 {
 	u8 rc = 0;
 
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		rc = bnx2x_test_link(&bp->link_params, &bp->link_vars);
+		rc = bnx2x_test_link(&bp->link_params, &bp->link_vars,
+				     is_serdes);
 		bnx2x_release_phy_lock(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing - can not test link\n");
@@ -1586,7 +1630,7 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
  */
 
 /* send the MCP a request, block until there is a reply */
-u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
+u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 {
 	int func = BP_FUNC(bp);
 	u32 seq = ++bp->fw_seq;
@@ -1595,6 +1639,7 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
 	u8 delay = CHIP_REV_IS_SLOW(bp) ? 100 : 10;
 
 	mutex_lock(&bp->fw_mb_mutex);
+	SHMEM_WR(bp, func_mb[func].drv_mb_param, param);
 	SHMEM_WR(bp, func_mb[func].drv_mb_header, (command | seq));
 	DP(BNX2X_MSG_MCP, "wrote command (%x) to FW MB\n", (command | seq));
 
@@ -1716,9 +1761,9 @@ static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
 
 	/* Report results to MCP */
 	if (dcc_event)
-		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_FAILURE);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_FAILURE, 0);
 	else
-		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_OK);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_OK, 0);
 }
 
 /* must be called under the spq lock */
@@ -3848,6 +3893,7 @@ static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
 				bnx2x_fan_failure_det_req(
 					bp,
 					bp->common.shmem_base,
+					bp->common.shmem2_base,
 					port);
 		}
 
@@ -4116,7 +4162,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	}
 
 	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-						       bp->common.shmem_base);
+						       bp->common.shmem_base,
+						       bp->common.shmem2_base);
 
 	bnx2x_setup_fan_failure_detection(bp);
 
@@ -4129,7 +4176,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_common_init_phy(bp, bp->common.shmem_base);
+		bnx2x_common_init_phy(bp, bp->common.shmem_base,
+				      bp->common.shmem2_base);
 		bnx2x_release_phy_lock(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing - can not initialize link\n");
@@ -4265,10 +4313,10 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	bnx2x_init_block(bp, MCP_BLOCK, init_stage);
 	bnx2x_init_block(bp, DMAE_BLOCK, init_stage);
 	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-						       bp->common.shmem_base);
-
+						       bp->common.shmem_base,
+						       bp->common.shmem2_base);
 	if (bnx2x_fan_failure_det_req(bp, bp->common.shmem_base,
-				      port)) {
+				      bp->common.shmem2_base, port)) {
 		u32 reg_addr = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
 				       MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
 		val = REG_RD(bp, reg_addr);
@@ -5226,7 +5274,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 
 unload_error:
 	if (!BP_NOMCP(bp))
-		reset_code = bnx2x_fw_command(bp, reset_code);
+		reset_code = bnx2x_fw_command(bp, reset_code, 0);
 	else {
 		DP(NETIF_MSG_IFDOWN, "NO MCP - load counts      %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
@@ -5251,7 +5299,7 @@ unload_error:
 
 	/* Report UNLOAD_DONE to MCP */
 	if (!BP_NOMCP(bp))
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
 
 }
 
@@ -5816,13 +5864,14 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			bp->fw_seq =
 			       (SHMEM_RD(bp, func_mb[bp->func].drv_mb_header) &
 				DRV_MSG_SEQ_NUMBER_MASK);
-			reset_code = bnx2x_fw_command(bp, reset_code);
+			reset_code = bnx2x_fw_command(bp, reset_code, 0);
 
 			/* if UNDI is loaded on the other port */
 			if (reset_code != FW_MSG_CODE_DRV_UNLOAD_COMMON) {
 
 				/* send "DONE" for previous unload */
-				bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+				bnx2x_fw_command(bp,
+						 DRV_MSG_CODE_UNLOAD_DONE, 0);
 
 				/* unload UNDI on port 1 */
 				bp->func = 1;
@@ -5831,7 +5880,7 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 					DRV_MSG_SEQ_NUMBER_MASK);
 				reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
 
-				bnx2x_fw_command(bp, reset_code);
+				bnx2x_fw_command(bp, reset_code, 0);
 			}
 
 			/* now it's safe to release the lock */
@@ -5873,7 +5922,7 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			REG_WR(bp, NIG_REG_STRAP_OVERRIDE, swap_en);
 
 			/* send unload done to the MCP */
-			bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+			bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
 
 			/* restore our func and fw_seq */
 			bp->func = func;
@@ -5921,6 +5970,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	bp->common.shmem_base = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
 	bp->common.shmem2_base = REG_RD(bp, MISC_REG_GENERIC_CR_0);
 	bp->link_params.shmem_base = bp->common.shmem_base;
+	bp->link_params.shmem2_base = bp->common.shmem2_base;
 	BNX2X_DEV_INFO("shmem offset 0x%x  shmem2 offset 0x%x\n",
 		       bp->common.shmem_base, bp->common.shmem2_base);
 
@@ -5963,8 +6013,11 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 			    "please upgrade BC\n", BNX2X_BC_VER, val);
 	}
 	bp->link_params.feature_config_flags |=
-		(val >= REQ_BC_VER_4_VRFY_OPT_MDL) ?
+				(val >= REQ_BC_VER_4_VRFY_FIRST_PHY_OPT_MDL) ?
 		FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY : 0;
+	bp->link_params.feature_config_flags |=
+		(val >= REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL) ?
+		FEATURE_CONFIG_BC_SUPPORTS_DUAL_PHY_OPT_MDL_VRFY : 0;
 
 	if (BP_E1HVN(bp) == 0) {
 		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
@@ -5988,22 +6041,44 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 						    u32 switch_cfg)
 {
-	int port = BP_PORT(bp);
-	bp->port.supported = 0;
+	int cfg_size = 0, idx, port = BP_PORT(bp);
+
+	/* Aggregation of supported attributes of all external phys */
+	bp->port.supported[0] = 0;
+	bp->port.supported[1] = 0;
 	switch (bp->link_params.num_phys) {
 	case 1:
-		bp->port.supported = bp->link_params.phy[INT_PHY].supported;
-			break;
+		bp->port.supported[0] = bp->link_params.phy[INT_PHY].supported;
+		cfg_size = 1;
+		break;
 	case 2:
-		bp->port.supported = bp->link_params.phy[EXT_PHY1].supported;
-			break;
+		bp->port.supported[0] = bp->link_params.phy[EXT_PHY1].supported;
+		cfg_size = 1;
+		break;
+	case 3:
+		if (bp->link_params.multi_phy_config &
+		    PORT_HW_CFG_PHY_SWAPPED_ENABLED) {
+			bp->port.supported[1] =
+				bp->link_params.phy[EXT_PHY1].supported;
+			bp->port.supported[0] =
+				bp->link_params.phy[EXT_PHY2].supported;
+		} else {
+			bp->port.supported[0] =
+				bp->link_params.phy[EXT_PHY1].supported;
+			bp->port.supported[1] =
+				bp->link_params.phy[EXT_PHY2].supported;
+		}
+		cfg_size = 2;
+		break;
 	}
 
-	if (!(bp->port.supported)) {
+	if (!(bp->port.supported[0] || bp->port.supported[1])) {
 		BNX2X_ERR("NVRAM config error. BAD phy config."
-			  "PHY1 config 0x%x\n",
+			  "PHY1 config 0x%x, PHY2 config 0x%x\n",
 			   SHMEM_RD(bp,
-			   dev_info.port_hw_config[port].external_phy_config));
+			   dev_info.port_hw_config[port].external_phy_config),
+			   SHMEM_RD(bp,
+			   dev_info.port_hw_config[port].external_phy_config2));
 			return;
 		}
 
@@ -6023,147 +6098,183 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 
 	default:
 		BNX2X_ERR("BAD switch_cfg link_config 0x%x\n",
-			  bp->port.link_config);
+			  bp->port.link_config[0]);
 		return;
 	}
-	/* mask what we support according to speed_cap_mask */
-	if (!(bp->link_params.speed_cap_mask &
+	/* mask what we support according to speed_cap_mask per configuration */
+	for (idx = 0; idx < cfg_size; idx++) {
+		if (!(bp->link_params.speed_cap_mask[idx] &
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF))
-		bp->port.supported &= ~SUPPORTED_10baseT_Half;
+			bp->port.supported[idx] &= ~SUPPORTED_10baseT_Half;
 
-	if (!(bp->link_params.speed_cap_mask &
+		if (!(bp->link_params.speed_cap_mask[idx] &
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL))
-		bp->port.supported &= ~SUPPORTED_10baseT_Full;
+			bp->port.supported[idx] &= ~SUPPORTED_10baseT_Full;
 
-	if (!(bp->link_params.speed_cap_mask &
+		if (!(bp->link_params.speed_cap_mask[idx] &
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF))
-		bp->port.supported &= ~SUPPORTED_100baseT_Half;
+			bp->port.supported[idx] &= ~SUPPORTED_100baseT_Half;
 
-	if (!(bp->link_params.speed_cap_mask &
+		if (!(bp->link_params.speed_cap_mask[idx] &
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL))
-		bp->port.supported &= ~SUPPORTED_100baseT_Full;
+			bp->port.supported[idx] &= ~SUPPORTED_100baseT_Full;
 
-	if (!(bp->link_params.speed_cap_mask &
+		if (!(bp->link_params.speed_cap_mask[idx] &
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_1G))
-		bp->port.supported &= ~(SUPPORTED_1000baseT_Half |
+			bp->port.supported[idx] &= ~(SUPPORTED_1000baseT_Half |
 					SUPPORTED_1000baseT_Full);
 
-	if (!(bp->link_params.speed_cap_mask &
+		if (!(bp->link_params.speed_cap_mask[idx] &
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_2_5G))
-		bp->port.supported &= ~SUPPORTED_2500baseX_Full;
+			bp->port.supported[idx] &= ~SUPPORTED_2500baseX_Full;
 
-	if (!(bp->link_params.speed_cap_mask &
+		if (!(bp->link_params.speed_cap_mask[idx] &
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_10G))
-		bp->port.supported &= ~SUPPORTED_10000baseT_Full;
+			bp->port.supported[idx] &= ~SUPPORTED_10000baseT_Full;
 
-	BNX2X_DEV_INFO("supported 0x%x\n", bp->port.supported);
+	}
+
+	BNX2X_DEV_INFO("supported 0x%x 0x%x\n", bp->port.supported[0],
+		       bp->port.supported[1]);
 }
 
 static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 {
-	bp->link_params.req_duplex = DUPLEX_FULL;
-
-	switch (bp->port.link_config & PORT_FEATURE_LINK_SPEED_MASK) {
+	u32 link_config, idx, cfg_size = 0;
+	bp->port.advertising[0] = 0;
+	bp->port.advertising[1] = 0;
+	switch (bp->link_params.num_phys) {
+	case 1:
+	case 2:
+		cfg_size = 1;
+		break;
+	case 3:
+		cfg_size = 2;
+		break;
+	}
+	for (idx = 0; idx < cfg_size; idx++) {
+		bp->link_params.req_duplex[idx] = DUPLEX_FULL;
+		link_config = bp->port.link_config[idx];
+		switch (link_config & PORT_FEATURE_LINK_SPEED_MASK) {
 	case PORT_FEATURE_LINK_SPEED_AUTO:
-		if (bp->port.supported & SUPPORTED_Autoneg) {
-			bp->link_params.req_line_speed = SPEED_AUTO_NEG;
-			bp->port.advertising = bp->port.supported;
+			if (bp->port.supported[idx] & SUPPORTED_Autoneg) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_AUTO_NEG;
+				bp->port.advertising[idx] |=
+					bp->port.supported[idx];
 		} else {
-				/* force 10G, no AN */
-				bp->link_params.req_line_speed = SPEED_10000;
-			bp->port.advertising =	(ADVERTISED_10000baseT_Full |
+			/* force 10G, no AN */
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10000;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10000baseT_Full |
 						 ADVERTISED_FIBRE);
+				continue;
 		}
 		break;
 
 	case PORT_FEATURE_LINK_SPEED_10M_FULL:
-		if (bp->port.supported & SUPPORTED_10baseT_Full) {
-			bp->link_params.req_line_speed = SPEED_10;
-			bp->port.advertising = (ADVERTISED_10baseT_Full |
+			if (bp->port.supported[idx] & SUPPORTED_10baseT_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10baseT_Full |
 						ADVERTISED_TP);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				    bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
 
 	case PORT_FEATURE_LINK_SPEED_10M_HALF:
-		if (bp->port.supported & SUPPORTED_10baseT_Half) {
-			bp->link_params.req_line_speed = SPEED_10;
-			bp->link_params.req_duplex = DUPLEX_HALF;
-			bp->port.advertising = (ADVERTISED_10baseT_Half |
+			if (bp->port.supported[idx] & SUPPORTED_10baseT_Half) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10;
+				bp->link_params.req_duplex[idx] =
+					DUPLEX_HALF;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10baseT_Half |
 						ADVERTISED_TP);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				    bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
 
 	case PORT_FEATURE_LINK_SPEED_100M_FULL:
-		if (bp->port.supported & SUPPORTED_100baseT_Full) {
-			bp->link_params.req_line_speed = SPEED_100;
-			bp->port.advertising = (ADVERTISED_100baseT_Full |
+			if (bp->port.supported[idx] & SUPPORTED_100baseT_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_100;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_100baseT_Full |
 						ADVERTISED_TP);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				    bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
 
 	case PORT_FEATURE_LINK_SPEED_100M_HALF:
-		if (bp->port.supported & SUPPORTED_100baseT_Half) {
-			bp->link_params.req_line_speed = SPEED_100;
-			bp->link_params.req_duplex = DUPLEX_HALF;
-			bp->port.advertising = (ADVERTISED_100baseT_Half |
+			if (bp->port.supported[idx] & SUPPORTED_100baseT_Half) {
+				bp->link_params.req_line_speed[idx] = SPEED_100;
+				bp->link_params.req_duplex[idx] = DUPLEX_HALF;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_100baseT_Half |
 						ADVERTISED_TP);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				    bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
 
 	case PORT_FEATURE_LINK_SPEED_1G:
-		if (bp->port.supported & SUPPORTED_1000baseT_Full) {
-			bp->link_params.req_line_speed = SPEED_1000;
-			bp->port.advertising = (ADVERTISED_1000baseT_Full |
+			if (bp->port.supported[idx] &
+			    SUPPORTED_1000baseT_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_1000;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_1000baseT_Full |
 						ADVERTISED_TP);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				    bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
 
 	case PORT_FEATURE_LINK_SPEED_2_5G:
-		if (bp->port.supported & SUPPORTED_2500baseX_Full) {
-			bp->link_params.req_line_speed = SPEED_2500;
-			bp->port.advertising = (ADVERTISED_2500baseX_Full |
+			if (bp->port.supported[idx] &
+			    SUPPORTED_2500baseX_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_2500;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_2500baseX_Full |
 						ADVERTISED_TP);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				     bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
@@ -6171,16 +6282,19 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 	case PORT_FEATURE_LINK_SPEED_10G_CX4:
 	case PORT_FEATURE_LINK_SPEED_10G_KX4:
 	case PORT_FEATURE_LINK_SPEED_10G_KR:
-		if (bp->port.supported & SUPPORTED_10000baseT_Full) {
-			bp->link_params.req_line_speed = SPEED_10000;
-			bp->port.advertising = (ADVERTISED_10000baseT_Full |
+			if (bp->port.supported[idx] &
+			    SUPPORTED_10000baseT_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10000;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10000baseT_Full |
 						ADVERTISED_FIBRE);
 		} else {
 			BNX2X_ERROR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
-				    bp->port.link_config,
-				    bp->link_params.speed_cap_mask);
+				    link_config,
+				     bp->link_params.speed_cap_mask[idx]);
 			return;
 		}
 		break;
@@ -6188,23 +6302,28 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 	default:
 		BNX2X_ERROR("NVRAM config error. "
 			    "BAD link speed link_config 0x%x\n",
-			    bp->port.link_config);
-		bp->link_params.req_line_speed = SPEED_AUTO_NEG;
-		bp->port.advertising = bp->port.supported;
+				  link_config);
+			bp->link_params.req_line_speed[idx] = SPEED_AUTO_NEG;
+			bp->port.advertising[idx] = bp->port.supported[idx];
 		break;
 	}
 
-	bp->link_params.req_flow_ctrl = (bp->port.link_config &
+		bp->link_params.req_flow_ctrl[idx] = (link_config &
 					 PORT_FEATURE_FLOW_CONTROL_MASK);
-	if ((bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO) &&
-	    !(bp->port.supported & SUPPORTED_Autoneg))
-		bp->link_params.req_flow_ctrl = BNX2X_FLOW_CTRL_NONE;
+		if ((bp->link_params.req_flow_ctrl[idx] ==
+		     BNX2X_FLOW_CTRL_AUTO) &&
+		    !(bp->port.supported[idx] & SUPPORTED_Autoneg)) {
+			bp->link_params.req_flow_ctrl[idx] =
+				BNX2X_FLOW_CTRL_NONE;
+		}
 
-	BNX2X_DEV_INFO("req_line_speed %d  req_duplex %d  req_flow_ctrl 0x%x"
-		       "  advertising 0x%x\n",
-		       bp->link_params.req_line_speed,
-		       bp->link_params.req_duplex,
-		       bp->link_params.req_flow_ctrl, bp->port.advertising);
+		BNX2X_DEV_INFO("req_line_speed %d  req_duplex %d req_flow_ctrl"
+			       " 0x%x advertising 0x%x\n",
+			       bp->link_params.req_line_speed[idx],
+			       bp->link_params.req_duplex[idx],
+			       bp->link_params.req_flow_ctrl[idx],
+			       bp->port.advertising[idx]);
+	}
 }
 
 static void __devinit bnx2x_set_mac_buf(u8 *mac_buf, u32 mac_lo, u16 mac_hi)
@@ -6228,14 +6347,20 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	bp->link_params.lane_config =
 		SHMEM_RD(bp, dev_info.port_hw_config[port].lane_config);
 
-	bp->link_params.speed_cap_mask =
+	bp->link_params.speed_cap_mask[0] =
 		SHMEM_RD(bp,
 			 dev_info.port_hw_config[port].speed_capability_mask);
-
-	bp->port.link_config =
+	bp->link_params.speed_cap_mask[1] =
+		SHMEM_RD(bp,
+			 dev_info.port_hw_config[port].speed_capability_mask2);
+	bp->port.link_config[0] =
 		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config);
 
+	bp->port.link_config[1] =
+		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config2);
 
+	bp->link_params.multi_phy_config =
+		SHMEM_RD(bp, dev_info.port_hw_config[port].multi_phy_config);
 	/* If the device is capable of WoL, set the default state according
 	 * to the HW
 	 */
@@ -6244,11 +6369,12 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		   (config & PORT_FEATURE_WOL_ENABLED));
 
 	BNX2X_DEV_INFO("lane_config 0x%08x"
-		       "  speed_cap_mask 0x%08x  link_config 0x%08x\n",
+		       "speed_cap_mask0 0x%08x  link_config0 0x%08x\n",
 		       bp->link_params.lane_config,
-		       bp->link_params.speed_cap_mask, bp->port.link_config);
+		       bp->link_params.speed_cap_mask[0],
+		       bp->port.link_config[0]);
 
-	bp->link_params.switch_cfg |= (bp->port.link_config &
+	bp->link_params.switch_cfg = (bp->port.link_config[0] &
 				       PORT_FEATURE_CONNECTED_SWITCH_MASK);
 	bnx2x_phy_probe(&bp->link_params);
 	bnx2x_link_settings_supported(bp, bp->link_params.switch_cfg);

@@ -1283,7 +1283,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	   common blocks should be initialized, otherwise - not
 	*/
 	if (!BP_NOMCP(bp)) {
-		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ);
+		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ, 0);
 		if (!load_code) {
 			BNX2X_ERR("MCP response failure, aborting\n");
 			rc = -EBUSY;
@@ -1322,9 +1322,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_init_hw(bp, load_code);
 	if (rc) {
 		BNX2X_ERR("HW init failed, aborting\n");
-		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE);
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP);
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE, 0);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP, 0);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
 		goto load_error2;
 	}
 
@@ -1339,7 +1339,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* Send LOAD_DONE command to MCP */
 	if (!BP_NOMCP(bp)) {
-		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE);
+		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE, 0);
 		if (!load_code) {
 			BNX2X_ERR("MCP response failure, aborting\n");
 			rc = -EBUSY;
@@ -1455,8 +1455,8 @@ load_error4:
 load_error3:
 	bnx2x_int_disable_sync(bp, 1);
 	if (!BP_NOMCP(bp)) {
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP);
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP, 0);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
 	}
 	bp->port.pmf = 0;
 	/* Free SKBs, SGEs, TPA pool and driver internals */

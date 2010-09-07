@@ -49,10 +49,11 @@ void bnx2x_link_set(struct bnx2x *bp);
  * Query link status
  *
  * @param bp
+ * @param is_serdes
  *
  * @return 0 - link is UP
  */
-u8 bnx2x_link_test(struct bnx2x *bp);
+u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes);
 
 /**
  * Handles link status change
