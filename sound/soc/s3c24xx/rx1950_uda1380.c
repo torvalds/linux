@@ -19,18 +19,11 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/timer.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/uda1380.h>
