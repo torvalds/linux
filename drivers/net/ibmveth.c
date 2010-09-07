@@ -1010,7 +1010,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 		if (!ibmveth_rxq_pending_buffer(adapter))
 			break;
 
-		rmb();
+		smp_rmb();
 		if (!ibmveth_rxq_buffer_valid(adapter)) {
 			wmb(); /* suggested by larson1 */
 			adapter->rx_invalid_buffer++;
