@@ -195,7 +195,7 @@ static inline unsigned long ptr_to_compat_reg(void __user *uptr)
 	return (long)(int)(long __force)uptr;
 }
 
-static inline void __user *compat_alloc_user_space(long len)
+static inline void __user *arch_compat_alloc_user_space(long len)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	return (void __user *)regs->sp - len;
