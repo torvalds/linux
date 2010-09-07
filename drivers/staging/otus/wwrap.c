@@ -936,7 +936,7 @@ u32_t zfwReadReg(zdev_t *dev, u32_t offset)
 
 #define KEVENT_WATCHDOG        0x00000001
 
-u32_t smp_kevent_Lock = 0;
+u32_t smp_kevent_Lock;
 
 void kevent(struct work_struct *work)
 {
