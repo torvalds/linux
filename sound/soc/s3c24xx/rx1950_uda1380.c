@@ -40,6 +40,8 @@
 
 #include <mach/regs-clock.h>
 
+#include <asm/mach-types.h>
+
 #include "s3c-dma.h"
 #include "s3c24xx-i2s.h"
 #include "../codecs/uda1380.h"
@@ -273,6 +275,9 @@ static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 static int __init rx1950_init(void)
 {
 	int ret;
+
+	if (!machine_is_rx1950())
+		return -ENODEV;
 
 	/* configure some gpios */
 	ret = gpio_request(S3C2410_GPA(1), "speaker-power");
