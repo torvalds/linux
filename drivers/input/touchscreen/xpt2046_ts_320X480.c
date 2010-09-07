@@ -744,6 +744,15 @@ static int __devinit setup_pendown(struct spi_device *spi, struct xpt2046 *ts)
 		return err;
 	}
 
+    err = gpio_direction_input(pdata->gpio_pendown);
+    if (err) {
+		dev_err(&spi->dev, "failed to switch GPIO to input%d\n",
+				pdata->gpio_pendown);
+		return err;
+    }
+    
+    gpio_pull_updown(pdata->gpio_pendown,GPIOPullUp);
+
 	ts->gpio_pendown = pdata->gpio_pendown;
 	return 0;
 }
