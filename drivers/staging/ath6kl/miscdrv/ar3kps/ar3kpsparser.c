@@ -27,6 +27,9 @@
 
 #include "ar3kpsparser.h"
 
+#include <linux/ctype.h>
+#include <linux/kernel.h>
+
 #define BD_ADDR_SIZE            6
 #define WRITE_PATCH             8
 #define ENABLE_PATCH            11
@@ -61,20 +64,6 @@
 #define MAX_BYTE_LENGTH                   244
 
 #define SKIP_BLANKS(str) while (*str == ' ') str++
-#define MIN(x, y) (((x) <= (y))? (x):(y))
-#define MAX(x, y) (((x) >= (y))? (x):(y))
-
-#define UNUSED(x) (x=x)
-
-#define IS_BETWEEN(x, lower, upper) (((lower) <= (x)) && ((x) <= (upper)))
-#define IS_DIGIT(c) (IS_BETWEEN((c), '0', '9'))
-#define IS_HEX(c)   (IS_BETWEEN((c), '0', '9') || IS_BETWEEN((c), 'a', 'f') || IS_BETWEEN((c), 'A', 'F'))
-#define TO_LOWER(c) (IS_BETWEEN((c), 'A', 'Z') ? ((c) - 'A' + 'a') : (c))
-#define IS_BLANK(c) ((c) == ' ')
-#define CONV_DEC_DIGIT_TO_VALUE(c) ((c) - '0')
-#define CONV_HEX_DIGIT_TO_VALUE(c) (IS_DIGIT(c) ? ((c) - '0') : (IS_BETWEEN((c), 'A', 'Z') ? ((c) - 'A' + 10) : ((c) - 'a' + 10))) 
-#define CONV_VALUE_TO_HEX(v) ((A_UINT8)( ((v & 0x0F) <= 9) ? ((v & 0x0F) + '0') : ((v & 0x0F) - 10 + 'A') ) )
-
 
 enum MinBootFileFormatE
 {
@@ -483,12 +472,12 @@ A_STATUS AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat
                     if((stPS_DataFormat.eDataType == eHex) && stPS_DataFormat.bIsArray == true) {
                        while(uReadCount > 0) {
                            PsTagEntry[TagCount].TagData[stReadStatus.uByteCount] =
-                                                     (A_UINT8)(CONV_HEX_DIGIT_TO_VALUE(pCharLine[stReadStatus.uCharCount]) << 4)
-                                                     | (A_UINT8)(CONV_HEX_DIGIT_TO_VALUE(pCharLine[stReadStatus.uCharCount + 1]));
+                                                     (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount]) << 4)
+                                                     | (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 1]));
 
                            PsTagEntry[TagCount].TagData[stReadStatus.uByteCount+1] =
-                                                     (A_UINT8)(CONV_HEX_DIGIT_TO_VALUE(pCharLine[stReadStatus.uCharCount + 3]) << 4)
-                                                     | (A_UINT8)(CONV_HEX_DIGIT_TO_VALUE(pCharLine[stReadStatus.uCharCount + 4]));
+                                                     (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 3]) << 4)
+                                                     | (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 4]));
 
                            stReadStatus.uCharCount += 6; // read two bytes, plus a space;
                            stReadStatus.uByteCount += 2;
@@ -574,14 +563,14 @@ A_STATUS GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char * b
     unsigned char ch;
 
     ch = AthReadChar(srcbuffer,len,pos);
-    if(ch != '\0' && IS_HEX(ch)) {
+    if(ch != '\0' && isxdigit(ch)) {
         buffer[0] =  ch;
     } else 
     {
         return A_ERROR;
     }
     ch = AthReadChar(srcbuffer,len,pos);
-    if(ch != '\0' && IS_HEX(ch)) {
+    if(ch != '\0' && isxdigit(ch)) {
         buffer[1] =  ch;
     } else 
     {
@@ -606,7 +595,7 @@ A_STATUS AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
     Patch_Count = 0;
 
     while(NULL != AthGetLine(Line,MAX_BYTE_LENGTH,patchbuffer,patchlen,&filepos)) {
-        if(strlen(Line) <= 1 || !IS_HEX(Line[0])) {
+        if(strlen(Line) <= 1 || !isxdigit(Line[0])) {
             continue;
         } else {
             break;

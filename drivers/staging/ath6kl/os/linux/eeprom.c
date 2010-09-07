@@ -71,24 +71,22 @@ wmic_ether_aton(const char *orig, A_UINT8 *eth)
   i = 0;
   for(bufp = orig; *bufp != '\0'; ++bufp) {
     unsigned int val;
-    unsigned char c = *bufp++;
-    if (c >= '0' && c <= '9') val = c - '0';
-    else if (c >= 'a' && c <= 'f') val = c - 'a' + 10;
-    else if (c >= 'A' && c <= 'F') val = c - 'A' + 10;
-    else {
-        printk("%s: MAC value is invalid\n", __FUNCTION__);
-        break;
-    }
+	int h, l;
 
-    val <<= 4;
-    c = *bufp++;
-    if (c >= '0' && c <= '9') val |= c - '0';
-    else if (c >= 'a' && c <= 'f') val |= c - 'a' + 10;
-    else if (c >= 'A' && c <= 'F') val |= c - 'A' + 10;
-    else {
-        printk("%s: MAC value is invalid\n", __FUNCTION__);
-        break;
-    }
+	h = hex_to_bin(*bufp++);
+
+	if (h < 0) {
+		printk("%s: MAC value is invalid\n", __FUNCTION__);
+		break;
+	}
+
+	l = hex_to_bin(*bufp++);
+	if (l < 0) {
+		printk("%s: MAC value is invalid\n", __FUNCTION__);
+		break;
+	}
+
+	val = (h << 4) | l;
 
     eth[i] = (unsigned char) (val & 0377);
     if(++i == ATH_MAC_LEN) {
