@@ -1994,10 +1994,9 @@ vortex_error(struct net_device *dev, int status)
 		}
 	}
 
-	if (status & RxEarly) {				/* Rx early is unused. */
-		vortex_rx(dev);
+	if (status & RxEarly)				/* Rx early is unused. */
 		iowrite16(AckIntr | RxEarly, ioaddr + EL3_CMD);
-	}
+
 	if (status & StatsFull) {			/* Empty statistics. */
 		static int DoneDidThat;
 		if (vortex_debug > 4)
@@ -2298,7 +2297,12 @@ vortex_interrupt(int irq, void *dev_id)
 		if (status & (HostError | RxEarly | StatsFull | TxComplete | IntReq)) {
 			if (status == 0xffff)
 				break;
+			if (status & RxEarly)
+				vortex_rx(dev);
+			spin_unlock(&vp->window_lock);
 			vortex_error(dev, status);
+			spin_lock(&vp->window_lock);
+			window_set(vp, 7);
 		}
 
 		if (--work_done < 0) {
