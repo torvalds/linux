@@ -1959,9 +1959,7 @@ exit_put:
 /*
  * Initialize the perf_event context in a task_struct:
  */
-static void
-__perf_event_init_context(struct perf_event_context *ctx,
-			    struct task_struct *task)
+static void __perf_event_init_context(struct perf_event_context *ctx)
 {
 	raw_spin_lock_init(&ctx->lock);
 	mutex_init(&ctx->mutex);
@@ -1969,7 +1967,25 @@ __perf_event_init_context(struct perf_event_context *ctx,
 	INIT_LIST_HEAD(&ctx->flexible_groups);
 	INIT_LIST_HEAD(&ctx->event_list);
 	atomic_set(&ctx->refcount, 1);
-	ctx->task = task;
+}
+
+static struct perf_event_context *
+alloc_perf_context(struct pmu *pmu, struct task_struct *task)
+{
+	struct perf_event_context *ctx;
+
+	ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	__perf_event_init_context(ctx);
+	if (task) {
+		ctx->task = task;
+		get_task_struct(task);
+	}
+	ctx->pmu = pmu;
+
+	return ctx;
 }
 
 static struct perf_event_context *
@@ -2036,22 +2052,22 @@ retry:
 	}
 
 	if (!ctx) {
-		ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
+		ctx = alloc_perf_context(pmu, task);
 		err = -ENOMEM;
 		if (!ctx)
 			goto errout;
-		__perf_event_init_context(ctx, task);
-		ctx->pmu = pmu;
+
 		get_ctx(ctx);
+
 		if (cmpxchg(&task->perf_event_ctxp, NULL, ctx)) {
 			/*
 			 * We raced with some other task; use
 			 * the context they set.
 			 */
+			put_task_struct(task);
 			kfree(ctx);
 			goto retry;
 		}
-		get_task_struct(task);
 	}
 
 	put_task_struct(task);
@@ -5044,7 +5060,7 @@ int perf_pmu_register(struct pmu *pmu)
 		struct perf_cpu_context *cpuctx;
 
 		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
-		__perf_event_init_context(&cpuctx->ctx, NULL);
+		__perf_event_init_context(&cpuctx->ctx);
 		cpuctx->ctx.pmu = pmu;
 		cpuctx->timer_interval = TICK_NSEC;
 		hrtimer_init(&cpuctx->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -5866,15 +5882,11 @@ inherit_task_group(struct perf_event *event, struct task_struct *parent,
 		 * child.
 		 */
 
-		child_ctx = kzalloc(sizeof(struct perf_event_context),
-				    GFP_KERNEL);
+		child_ctx = alloc_perf_context(event->pmu, child);
 		if (!child_ctx)
 			return -ENOMEM;
 
-		__perf_event_init_context(child_ctx, child);
-		child_ctx->pmu = event->pmu;
 		child->perf_event_ctxp = child_ctx;
-		get_task_struct(child);
 	}
 
 	ret = inherit_group(event, parent, parent_ctx,
@@ -5885,7 +5897,6 @@ inherit_task_group(struct perf_event *event, struct task_struct *parent,
 
 	return ret;
 }
-
 
 /*
  * Initialize the perf_event context in task_struct
