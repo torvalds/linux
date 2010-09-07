@@ -51,6 +51,7 @@ static struct resource sh7786_pci0_resources[] = {
 		.name	= "PCIe0 MEM 2",
 		.start	= 0xfe100000,
 		.end	= 0xfe100000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
@@ -74,6 +75,7 @@ static struct resource sh7786_pci1_resources[] = {
 		.name	= "PCIe1 MEM 2",
 		.start	= 0xfe300000,
 		.end	= 0xfe300000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
@@ -97,6 +99,7 @@ static struct resource sh7786_pci2_resources[] = {
 		.name	= "PCIe2 MEM 2",
 		.start	= 0xfcd00000,
 		.end	= 0xfcd00000 + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 };
 
