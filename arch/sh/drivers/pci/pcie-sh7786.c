@@ -354,8 +354,8 @@ static int pcie_init(struct sh7786_pcie_port *port)
 		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
 			     chan->reg_base + SH4A_PCIEPAMR(i));
 
+		pci_write_reg(chan, res->start, SH4A_PCIEPARL(i));
 		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(i));
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARL(i));
 
 		enable_mask = MASK_PARE;
 		if (res->flags & IORESOURCE_IO)
