@@ -1051,8 +1051,14 @@ radeon_add_atom_connector(struct drm_device *dev,
 	uint32_t subpixel_order = SubPixelNone;
 	bool shared_ddc = false;
 
-	/* fixme - tv/cv/din */
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+		return;
+
+	/* if the user selected tv=0 don't try and add the connector */
+	if (((connector_type == DRM_MODE_CONNECTOR_SVIDEO) ||
+	     (connector_type == DRM_MODE_CONNECTOR_Composite) ||
+	     (connector_type == DRM_MODE_CONNECTOR_9PinDIN)) &&
+	    (radeon_tv == 0))
 		return;
 
 	/* see if we already added it */
@@ -1209,19 +1215,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_9PinDIN:
-		if (radeon_tv == 1) {
-			drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
-			drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
-			radeon_connector->dac_load_detect = true;
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.load_detect_property,
-						      1);
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.tv_std_property,
-						      radeon_atombios_get_tv_info(rdev));
-			/* no HPD on analog connectors */
-			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
-		}
+		drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
+		drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
+		radeon_connector->dac_load_detect = true;
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.load_detect_property,
+					      1);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.tv_std_property,
+					      radeon_atombios_get_tv_info(rdev));
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
@@ -1272,8 +1276,14 @@ radeon_add_legacy_connector(struct drm_device *dev,
 	struct radeon_connector *radeon_connector;
 	uint32_t subpixel_order = SubPixelNone;
 
-	/* fixme - tv/cv/din */
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+		return;
+
+	/* if the user selected tv=0 don't try and add the connector */
+	if (((connector_type == DRM_MODE_CONNECTOR_SVIDEO) ||
+	     (connector_type == DRM_MODE_CONNECTOR_Composite) ||
+	     (connector_type == DRM_MODE_CONNECTOR_9PinDIN)) &&
+	    (radeon_tv == 0))
 		return;
 
 	/* see if we already added it */
@@ -1347,26 +1357,24 @@ radeon_add_legacy_connector(struct drm_device *dev,
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_9PinDIN:
-		if (radeon_tv == 1) {
-			drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
-			drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
-			radeon_connector->dac_load_detect = true;
-			/* RS400,RC410,RS480 chipset seems to report a lot
-			 * of false positive on load detect, we haven't yet
-			 * found a way to make load detect reliable on those
-			 * chipset, thus just disable it for TV.
-			 */
-			if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480)
-				radeon_connector->dac_load_detect = false;
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.load_detect_property,
-						      radeon_connector->dac_load_detect);
-			drm_connector_attach_property(&radeon_connector->base,
-						      rdev->mode_info.tv_std_property,
-						      radeon_combios_get_tv_info(rdev));
-			/* no HPD on analog connectors */
-			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
-		}
+		drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
+		drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
+		radeon_connector->dac_load_detect = true;
+		/* RS400,RC410,RS480 chipset seems to report a lot
+		 * of false positive on load detect, we haven't yet
+		 * found a way to make load detect reliable on those
+		 * chipset, thus just disable it for TV.
+		 */
+		if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480)
+			radeon_connector->dac_load_detect = false;
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.load_detect_property,
+					      radeon_connector->dac_load_detect);
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.tv_std_property,
+					      radeon_combios_get_tv_info(rdev));
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_lvds_connector_funcs, connector_type);
