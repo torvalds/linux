@@ -380,17 +380,13 @@ struct platform_device *__init_or_module platform_device_register_resndata(
 
 	pdev->dev.parent = parent;
 
-	if (res) {
-		ret = platform_device_add_resources(pdev, res, num);
-		if (ret)
-			goto err;
-	}
+	ret = platform_device_add_resources(pdev, res, num);
+	if (ret)
+		goto err;
 
-	if (data) {
-		ret = platform_device_add_data(pdev, data, size);
-		if (ret)
-			goto err;
-	}
+	ret = platform_device_add_data(pdev, data, size);
+	if (ret)
+		goto err;
 
 	ret = platform_device_add(pdev);
 	if (ret) {
@@ -537,17 +533,13 @@ struct platform_device * __init_or_module platform_create_bundle(
 		goto err_out;
 	}
 
-	if (res) {
-		error = platform_device_add_resources(pdev, res, n_res);
-		if (error)
-			goto err_pdev_put;
-	}
+	error = platform_device_add_resources(pdev, res, n_res);
+	if (error)
+		goto err_pdev_put;
 
-	if (data) {
-		error = platform_device_add_data(pdev, data, size);
-		if (error)
-			goto err_pdev_put;
-	}
+	error = platform_device_add_data(pdev, data, size);
+	if (error)
+		goto err_pdev_put;
 
 	error = platform_device_add(pdev);
 	if (error)
