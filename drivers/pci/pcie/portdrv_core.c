@@ -14,6 +14,8 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/pcieport_if.h>
+#include <linux/aer.h>
+#include <linux/pci-aspm.h>
 
 #include "../pci.h"
 #include "portdrv.h"
@@ -236,24 +238,64 @@ static int get_port_device_capability(struct pci_dev *dev)
 	int services = 0, pos;
 	u16 reg16;
 	u32 reg32;
+	int cap_mask;
+	int err;
+
+	err = pcie_port_platform_notify(dev, &cap_mask);
+	if (pcie_ports_auto) {
+		if (err) {
+			pcie_no_aspm();
+			return 0;
+		}
+	} else {
+		cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
+				| PCIE_PORT_SERVICE_VC;
+		if (pci_aer_available())
+			cap_mask |= PCIE_PORT_SERVICE_AER;
+	}
 
 	pos = pci_pcie_cap(dev);
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 	/* Hot-Plug Capable */
-	if (reg16 & PCI_EXP_FLAGS_SLOT) {
+	if ((cap_mask & PCIE_PORT_SERVICE_HP) && (reg16 & PCI_EXP_FLAGS_SLOT)) {
 		pci_read_config_dword(dev, pos + PCI_EXP_SLTCAP, &reg32);
-		if (reg32 & PCI_EXP_SLTCAP_HPC)
+		if (reg32 & PCI_EXP_SLTCAP_HPC) {
 			services |= PCIE_PORT_SERVICE_HP;
+			/*
+			 * Disable hot-plug interrupts in case they have been
+			 * enabled by the BIOS and the hot-plug service driver
+			 * is not loaded.
+			 */
+			pos += PCI_EXP_SLTCTL;
+			pci_read_config_word(dev, pos, &reg16);
+			reg16 &= ~(PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
+			pci_write_config_word(dev, pos, reg16);
+		}
 	}
 	/* AER capable */
-	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR))
+	if ((cap_mask & PCIE_PORT_SERVICE_AER)
+	    && pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR)) {
 		services |= PCIE_PORT_SERVICE_AER;
+		/*
+		 * Disable AER on this port in case it's been enabled by the
+		 * BIOS (the AER service driver will enable it when necessary).
+		 */
+		pci_disable_pcie_error_reporting(dev);
+	}
 	/* VC support */
 	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
 		services |= PCIE_PORT_SERVICE_VC;
 	/* Root ports are capable of generating PME too */
-	if (dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if ((cap_mask & PCIE_PORT_SERVICE_PME)
+	    && dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
 		services |= PCIE_PORT_SERVICE_PME;
+		/*
+		 * Disable PME interrupt on this port in case it's been enabled
+		 * by the BIOS (the PME service driver will enable it when
+		 * necessary).
+		 */
+		pcie_pme_interrupt_enable(dev, false);
+	}
 
 	return services;
 }
@@ -494,6 +536,9 @@ static void pcie_port_shutdown_service(struct device *dev) {}
  */
 int pcie_port_service_register(struct pcie_port_service_driver *new)
 {
+	if (pcie_ports_disabled)
+		return -ENODEV;
+
 	new->driver.name = (char *)new->name;
 	new->driver.bus = &pcie_port_bus_type;
 	new->driver.probe = pcie_port_probe_service;

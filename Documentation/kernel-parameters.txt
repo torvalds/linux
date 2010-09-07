@@ -1974,15 +1974,18 @@ and is between 256 and 4096 characters. It is defined in the file
 		force	Enable ASPM even on devices that claim not to support it.
 			WARNING: Forcing ASPM on may cause system lockups.
 
+	pcie_ports=	[PCIE] PCIe ports handling:
+		auto	Ask the BIOS whether or not to use native PCIe services
+			associated with PCIe ports (PME, hot-plug, AER).  Use
+			them only if that is allowed by the BIOS.
+		native	Use native PCIe services associated with PCIe ports
+			unconditionally.
+		compat	Treat PCIe ports as PCI-to-PCI bridges, disable the PCIe
+			ports driver.
+
 	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
-			Format: {auto|force}[,nomsi]
-		auto	Use native PCIe PME signaling if the BIOS allows the
-			kernel to control PCIe config registers of root ports.
-		force	Use native PCIe PME signaling even if the BIOS refuses
-			to allow the kernel to control the relevant PCIe config
-			registers.
 		nomsi	Do not use MSI for native PCIe PME signaling (this makes
-			all PCIe root ports use INTx for everything).
+			all PCIe root ports use INTx for all services).
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 

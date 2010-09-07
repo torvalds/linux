@@ -176,19 +176,11 @@ static inline void pciehp_firmware_init(void)
 {
 	pciehp_acpi_slot_detection_init();
 }
-
-static inline int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
-{
-	int retval;
-	u32 flags = (OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |
-		     OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-	retval = acpi_get_hp_hw_control_from_firmware(dev, flags);
-	if (retval)
-		return retval;
-	return pciehp_acpi_slot_detection_check(dev);
-}
 #else
 #define pciehp_firmware_init()				do {} while (0)
-#define pciehp_get_hp_hw_control_from_firmware(dev) 	0
+static inline int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
+{
+	return 0;
+}
 #endif 				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */
