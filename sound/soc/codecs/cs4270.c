@@ -540,7 +540,6 @@ struct snd_soc_dai_driver cs4270_dai = {
 	},
 	.ops = &cs4270_dai_ops,
 };
-EXPORT_SYMBOL_GPL(cs4270_dai);
 
 /**
  * cs4270_probe - ASoC probe function
