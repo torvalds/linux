@@ -818,19 +818,12 @@ void viafb_lcd_disable(void)
 		viafb_write_reg_mask(SR3D, VIASR, 0x00, 0x20);
 		/* 24 bit DI data paht off */
 		viafb_write_reg_mask(CR91, VIACR, 0x80, 0x80);
-		/* Simultaneout disabled   */
-		viafb_write_reg_mask(CR6B, VIACR, 0x00, 0x08);
 	}
 
 	/* Disable expansion bit   */
 	viafb_write_reg_mask(CR79, VIACR, 0x00, 0x01);
-	/* CRT path set to IGA1    */
-	viafb_write_reg_mask(SR16, VIASR, 0x00, 0x40);
 	/* Simultaneout disabled   */
 	viafb_write_reg_mask(CR6B, VIACR, 0x00, 0x08);
-	/* IGA2 path disabled      */
-	viafb_write_reg_mask(CR6A, VIACR, 0x00, 0x80);
-
 }
 
 static void set_lcd_output_path(int set_iga, int output_interface)
@@ -892,33 +885,9 @@ void viafb_lcd_enable(void)
 		viafb_write_reg_mask(SR3D, VIASR, 0x20, 0x20);
 		/* 24 bit DI data paht on  */
 		viafb_write_reg_mask(CR91, VIACR, 0x00, 0x80);
-
-		/* Set data source selection bit by iga path */
-		if (viaparinfo->lvds_setting_info->iga_path == IGA1) {
-			/* DFP-H set to IGA1       */
-			viafb_write_reg_mask(CR97, VIACR, 0x00, 0x10);
-			/* DFP-L set to IGA1       */
-			viafb_write_reg_mask(CR99, VIACR, 0x00, 0x10);
-		} else {
-			/* DFP-H set to IGA2       */
-			viafb_write_reg_mask(CR97, VIACR, 0x10, 0x10);
-			/* DFP-L set to IGA2       */
-			viafb_write_reg_mask(CR99, VIACR, 0x10, 0x10);
-		}
 		/* LCD enabled             */
 		viafb_write_reg_mask(CR6A, VIACR, 0x48, 0x48);
 	}
-
-	if (viaparinfo->lvds_setting_info->iga_path == IGA1) {
-		/* CRT path set to IGA2    */
-		viafb_write_reg_mask(SR16, VIASR, 0x40, 0x40);
-		/* IGA2 path disabled      */
-		viafb_write_reg_mask(CR6A, VIACR, 0x00, 0x80);
-		/* IGA2 path enabled       */
-	} else {		/* IGA2 */
-		viafb_write_reg_mask(CR6A, VIACR, 0x80, 0x80);
-	}
-
 }
 
 static void lcd_powersequence_off(void)
