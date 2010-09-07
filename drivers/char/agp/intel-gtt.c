@@ -618,8 +618,7 @@ static void intel_i830_init_gtt_entries(void)
 			gtt_entries = 0;
 			break;
 		}
-	} else if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB ||
-		   agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB) {
+	} else if (IS_SNB) {
 		/*
 		 * SandyBridge has new memory control reg at 0x50.w
 		 */
@@ -1389,6 +1388,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 		break;
 	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB:
 	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB:
+	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB:
 		*gtt_offset = MB(2);
 
 		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
