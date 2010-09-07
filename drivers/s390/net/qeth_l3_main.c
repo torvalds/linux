@@ -103,12 +103,7 @@ int qeth_l3_string_to_ipaddr4(const char *buf, __u8 *addr)
 
 void qeth_l3_ipaddr6_to_string(const __u8 *addr, char *buf)
 {
-	sprintf(buf, "%02x%02x:%02x%02x:%02x%02x:%02x%02x"
-		     ":%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-		     addr[0], addr[1], addr[2], addr[3],
-		     addr[4], addr[5], addr[6], addr[7],
-		     addr[8], addr[9], addr[10], addr[11],
-		     addr[12], addr[13], addr[14], addr[15]);
+	sprintf(buf, "%pI6", addr);
 }
 
 int qeth_l3_string_to_ipaddr6(const char *buf, __u8 *addr)
