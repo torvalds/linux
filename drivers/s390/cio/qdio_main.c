@@ -884,8 +884,19 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 	if (unlikely(irq_ptr->state == QDIO_IRQ_STATE_STOPPED))
 		return;
 
-	for_each_input_queue(irq_ptr, q, i)
-		tasklet_schedule(&q->tasklet);
+	for_each_input_queue(irq_ptr, q, i) {
+		if (q->u.in.queue_start_poll) {
+			/* skip if polling is enabled or already in work */
+			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
+				     &q->u.in.queue_irq_state)) {
+				qperf_inc(q, int_discarded);
+				continue;
+			}
+			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
+						 q->irq_ptr->int_parm);
+		} else
+			tasklet_schedule(&q->tasklet);
+	}
 
 	if (!(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED))
 		return;
@@ -1518,6 +1529,129 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(do_QDIO);
+
+/**
+ * qdio_start_irq - process input buffers
+ * @cdev: associated ccw_device for the qdio subchannel
+ * @nr: input queue number
+ *
+ * Return codes
+ *   0 - success
+ *   1 - irqs not started since new data is available
+ */
+int qdio_start_irq(struct ccw_device *cdev, int nr)
+{
+	struct qdio_q *q;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+
+	if (!irq_ptr)
+		return -ENODEV;
+	q = irq_ptr->input_qs[nr];
+
+	WARN_ON(queue_irqs_enabled(q));
+
+	if (!shared_ind(q->irq_ptr))
+		xchg(q->irq_ptr->dsci, 0);
+
+	qdio_stop_polling(q);
+	clear_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state);
+
+	/*
+	 * We need to check again to not lose initiative after
+	 * resetting the ACK state.
+	 */
+	if (!shared_ind(q->irq_ptr) && *q->irq_ptr->dsci)
+		goto rescan;
+	if (!qdio_inbound_q_done(q))
+		goto rescan;
+	return 0;
+
+rescan:
+	if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
+			     &q->u.in.queue_irq_state))
+		return 0;
+	else
+		return 1;
+
+}
+EXPORT_SYMBOL(qdio_start_irq);
+
+/**
+ * qdio_get_next_buffers - process input buffers
+ * @cdev: associated ccw_device for the qdio subchannel
+ * @nr: input queue number
+ * @bufnr: first filled buffer number
+ * @error: buffers are in error state
+ *
+ * Return codes
+ *   < 0 - error
+ *   = 0 - no new buffers found
+ *   > 0 - number of processed buffers
+ */
+int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
+			  int *error)
+{
+	struct qdio_q *q;
+	int start, end;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+
+	if (!irq_ptr)
+		return -ENODEV;
+	q = irq_ptr->input_qs[nr];
+	WARN_ON(queue_irqs_enabled(q));
+
+	qdio_sync_after_thinint(q);
+
+	/*
+	 * The interrupt could be caused by a PCI request. Check the
+	 * PCI capable outbound queues.
+	 */
+	qdio_check_outbound_after_thinint(q);
+
+	if (!qdio_inbound_q_moved(q))
+		return 0;
+
+	/* Note: upper-layer MUST stop processing immediately here ... */
+	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
+		return -EIO;
+
+	start = q->first_to_kick;
+	end = q->first_to_check;
+	*bufnr = start;
+	*error = q->qdio_error;
+
+	/* for the next time */
+	q->first_to_kick = end;
+	q->qdio_error = 0;
+	return sub_buf(end, start);
+}
+EXPORT_SYMBOL(qdio_get_next_buffers);
+
+/**
+ * qdio_stop_irq - disable interrupt processing for the device
+ * @cdev: associated ccw_device for the qdio subchannel
+ * @nr: input queue number
+ *
+ * Return codes
+ *   0 - interrupts were already disabled
+ *   1 - interrupts successfully disabled
+ */
+int qdio_stop_irq(struct ccw_device *cdev, int nr)
+{
+	struct qdio_q *q;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+
+	if (!irq_ptr)
+		return -ENODEV;
+	q = irq_ptr->input_qs[nr];
+
+	if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
+			     &q->u.in.queue_irq_state))
+		return 0;
+	else
+		return 1;
+}
+EXPORT_SYMBOL(qdio_stop_irq);
 
 static int __init init_QDIO(void)
 {
