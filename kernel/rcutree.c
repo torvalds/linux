@@ -162,7 +162,7 @@ EXPORT_SYMBOL_GPL(rcu_note_context_switch);
 #ifdef CONFIG_NO_HZ
 DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 	.dynticks_nesting = 1,
-	.dynticks = 1,
+	.dynticks = ATOMIC_INIT(1),
 };
 #endif /* #ifdef CONFIG_NO_HZ */
 
@@ -321,13 +321,25 @@ void rcu_enter_nohz(void)
 	unsigned long flags;
 	struct rcu_dynticks *rdtp;
 
-	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	local_irq_save(flags);
 	rdtp = &__get_cpu_var(rcu_dynticks);
-	if (--rdtp->dynticks_nesting == 0)
-		rdtp->dynticks++;
-	WARN_ON_ONCE(rdtp->dynticks & 0x1);
+	if (--rdtp->dynticks_nesting) {
+		local_irq_restore(flags);
+		return;
+	}
+	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
+	smp_mb__before_atomic_inc();  /* See above. */
+	atomic_inc(&rdtp->dynticks);
+	smp_mb__after_atomic_inc();  /* Force ordering with next sojourn. */
+	WARN_ON_ONCE(atomic_read(&rdtp->dynticks) & 0x1);
 	local_irq_restore(flags);
+
+	/* If the interrupt queued a callback, get out of dyntick mode. */
+	if (in_irq() &&
+	    (__get_cpu_var(rcu_sched_data).nxtlist ||
+	     __get_cpu_var(rcu_bh_data).nxtlist ||
+	     rcu_preempt_needs_cpu(smp_processor_id())))
+		set_need_resched();
 }
 
 /*
@@ -343,11 +355,16 @@ void rcu_exit_nohz(void)
 
 	local_irq_save(flags);
 	rdtp = &__get_cpu_var(rcu_dynticks);
-	rdtp->dynticks++;
-	rdtp->dynticks_nesting++;
-	WARN_ON_ONCE(!(rdtp->dynticks & 0x1));
+	if (rdtp->dynticks_nesting++) {
+		local_irq_restore(flags);
+		return;
+	}
+	smp_mb__before_atomic_inc();  /* Force ordering w/previous sojourn. */
+	atomic_inc(&rdtp->dynticks);
+	/* CPUs seeing atomic_inc() must see later RCU read-side crit sects */
+	smp_mb__after_atomic_inc();  /* See above. */
+	WARN_ON_ONCE(!(atomic_read(&rdtp->dynticks) & 0x1));
 	local_irq_restore(flags);
-	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
 }
 
 /**
@@ -361,11 +378,15 @@ void rcu_nmi_enter(void)
 {
 	struct rcu_dynticks *rdtp = &__get_cpu_var(rcu_dynticks);
 
-	if (rdtp->dynticks & 0x1)
+	if (rdtp->dynticks_nmi_nesting == 0 &&
+	    (atomic_read(&rdtp->dynticks) & 0x1))
 		return;
-	rdtp->dynticks_nmi++;
-	WARN_ON_ONCE(!(rdtp->dynticks_nmi & 0x1));
-	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
+	rdtp->dynticks_nmi_nesting++;
+	smp_mb__before_atomic_inc();  /* Force delay from prior write. */
+	atomic_inc(&rdtp->dynticks);
+	/* CPUs seeing atomic_inc() must see later RCU read-side crit sects */
+	smp_mb__after_atomic_inc();  /* See above. */
+	WARN_ON_ONCE(!(atomic_read(&rdtp->dynticks) & 0x1));
 }
 
 /**
@@ -379,11 +400,14 @@ void rcu_nmi_exit(void)
 {
 	struct rcu_dynticks *rdtp = &__get_cpu_var(rcu_dynticks);
 
-	if (rdtp->dynticks & 0x1)
+	if (rdtp->dynticks_nmi_nesting == 0 ||
+	    --rdtp->dynticks_nmi_nesting != 0)
 		return;
-	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
-	rdtp->dynticks_nmi++;
-	WARN_ON_ONCE(rdtp->dynticks_nmi & 0x1);
+	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
+	smp_mb__before_atomic_inc();  /* See above. */
+	atomic_inc(&rdtp->dynticks);
+	smp_mb__after_atomic_inc();  /* Force delay to next write. */
+	WARN_ON_ONCE(atomic_read(&rdtp->dynticks) & 0x1);
 }
 
 /**
@@ -394,13 +418,7 @@ void rcu_nmi_exit(void)
  */
 void rcu_irq_enter(void)
 {
-	struct rcu_dynticks *rdtp = &__get_cpu_var(rcu_dynticks);
-
-	if (rdtp->dynticks_nesting++)
-		return;
-	rdtp->dynticks++;
-	WARN_ON_ONCE(!(rdtp->dynticks & 0x1));
-	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
+	rcu_exit_nohz();
 }
 
 /**
@@ -412,19 +430,7 @@ void rcu_irq_enter(void)
  */
 void rcu_irq_exit(void)
 {
-	struct rcu_dynticks *rdtp = &__get_cpu_var(rcu_dynticks);
-
-	if (--rdtp->dynticks_nesting)
-		return;
-	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
-	rdtp->dynticks++;
-	WARN_ON_ONCE(rdtp->dynticks & 0x1);
-
-	/* If the interrupt queued a callback, get out of dyntick mode. */
-	if (in_irq() &&
-	    (__this_cpu_read(rcu_sched_data.nxtlist) ||
-	     __this_cpu_read(rcu_bh_data.nxtlist)))
-		set_need_resched();
+	rcu_enter_nohz();
 }
 
 #ifdef CONFIG_SMP
@@ -436,19 +442,8 @@ void rcu_irq_exit(void)
  */
 static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
-	int ret;
-	int snap;
-	int snap_nmi;
-
-	snap = rdp->dynticks->dynticks;
-	snap_nmi = rdp->dynticks->dynticks_nmi;
-	smp_mb();	/* Order sampling of snap with end of grace period. */
-	rdp->dynticks_snap = snap;
-	rdp->dynticks_nmi_snap = snap_nmi;
-	ret = ((snap & 0x1) == 0) && ((snap_nmi & 0x1) == 0);
-	if (ret)
-		rdp->dynticks_fqs++;
-	return ret;
+	rdp->dynticks_snap = atomic_add_return(0, &rdp->dynticks->dynticks);
+	return 0;
 }
 
 /*
@@ -459,16 +454,11 @@ static int dyntick_save_progress_counter(struct rcu_data *rdp)
  */
 static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 {
-	long curr;
-	long curr_nmi;
-	long snap;
-	long snap_nmi;
+	unsigned long curr;
+	unsigned long snap;
 
-	curr = rdp->dynticks->dynticks;
-	snap = rdp->dynticks_snap;
-	curr_nmi = rdp->dynticks->dynticks_nmi;
-	snap_nmi = rdp->dynticks_nmi_snap;
-	smp_mb(); /* force ordering with cpu entering/leaving dynticks. */
+	curr = (unsigned long)atomic_add_return(0, &rdp->dynticks->dynticks);
+	snap = (unsigned long)rdp->dynticks_snap;
 
 	/*
 	 * If the CPU passed through or entered a dynticks idle phase with
@@ -478,8 +468,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * read-side critical section that started before the beginning
 	 * of the current RCU grace period.
 	 */
-	if ((curr != snap || (curr & 0x1) == 0) &&
-	    (curr_nmi != snap_nmi || (curr_nmi & 0x1) == 0)) {
+	if ((curr & 0x1) == 0 || ULONG_CMP_GE(curr, snap + 2)) {
 		rdp->dynticks_fqs++;
 		return 1;
 	}
