@@ -2398,6 +2398,7 @@
 #define  RR_HW_HIGH_POWER_FRAMES_MASK   0xff00
 
 #define FDI_PLL_BIOS_0  0x46000
+#define  FDI_PLL_FB_CLOCK_MASK  0xff
 #define FDI_PLL_BIOS_1  0x46004
 #define FDI_PLL_BIOS_2  0x46008
 #define DISPLAY_PORT_PLL_BIOS_0         0x4600c

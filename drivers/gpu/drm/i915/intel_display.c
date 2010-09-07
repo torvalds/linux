@@ -342,6 +342,13 @@ static bool
 intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
 			   int target, int refclk, intel_clock_t *best_clock);
 
+static inline u32 /* units of 100MHz */
+intel_fdi_link_freq(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return (I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2;
+}
+
 static const intel_limit_t intel_limits_i8xx_dvo = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
         .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
@@ -3767,7 +3774,15 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				target_clock = mode->clock;
 			else
 				target_clock = adjusted_mode->clock;
-			link_bw = 270000;
+
+			/* FDI is a binary signal running at ~2.7GHz, encoding
+			 * each output octet as 10 bits. The actual frequency
+			 * is stored as a divider into a 100MHz clock, and the
+			 * mode pixel clock is stored in units of 1KHz.
+			 * Hence the bw of each lane in terms of the mode signal
+			 * is:
+			 */
+			link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 		}
 
 		/* determine panel color depth */
