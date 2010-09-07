@@ -1954,10 +1954,11 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 
 	for (i = 0; i < (data * 2); i++) {
 		if ((i % 2) == 0)
-			bnx2x_set_led(&bp->link_params, LED_MODE_OPER,
-				      SPEED_1000);
+			bnx2x_set_led(&bp->link_params, &bp->link_vars,
+				      LED_MODE_OPER, SPEED_1000);
 		else
-			bnx2x_set_led(&bp->link_params, LED_MODE_OFF, 0);
+			bnx2x_set_led(&bp->link_params, &bp->link_vars,
+				      LED_MODE_OFF, 0);
 
 		msleep_interruptible(500);
 		if (signal_pending(current))
@@ -1965,7 +1966,7 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 	}
 
 	if (bp->link_vars.link_up)
-		bnx2x_set_led(&bp->link_params, LED_MODE_OPER,
+		bnx2x_set_led(&bp->link_params, &bp->link_vars, LED_MODE_OPER,
 			      bp->link_vars.line_speed);
 
 	return 0;

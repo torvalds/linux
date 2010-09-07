@@ -296,9 +296,12 @@ u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
    Basically, the CLC takes care of the led for the link, but in case one needs
    to set/unset the led unnaturally, set the "mode" to LED_MODE_OPER to
    blink the led, and LED_MODE_OFF to set the led off.*/
-u8 bnx2x_set_led(struct link_params *params, u8 mode, u32 speed);
-#define LED_MODE_OFF	0
-#define LED_MODE_OPER 	2
+u8 bnx2x_set_led(struct link_params *params, struct link_vars *vars,
+		 u8 mode, u32 speed);
+#define LED_MODE_OFF			0
+#define LED_MODE_ON			1
+#define LED_MODE_OPER			2
+#define LED_MODE_FRONT_PANEL_OFF	3
 
 u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port, u32 led_idx, u32 value);
 
