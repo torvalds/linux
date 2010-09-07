@@ -186,7 +186,9 @@ static inline struct tnode *node_parent_rcu(struct node *node)
 {
 	struct tnode *ret = node_parent(node);
 
-	return rcu_dereference(ret);
+	return rcu_dereference_check(ret,
+				     rcu_read_lock_held() ||
+				     lockdep_rtnl_is_held());
 }
 
 /* Same as rcu_assign_pointer
@@ -1753,7 +1755,9 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct node *c)
 
 static struct leaf *trie_firstleaf(struct trie *t)
 {
-	struct tnode *n = (struct tnode *) rcu_dereference(t->trie);
+	struct tnode *n = (struct tnode *) rcu_dereference_check(t->trie,
+							rcu_read_lock_held() ||
+							lockdep_rtnl_is_held());
 
 	if (!n)
 		return NULL;
