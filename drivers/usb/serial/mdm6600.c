@@ -602,6 +602,9 @@ static void mdm6600_read_bulk_cb(struct urb *u)
 		return;
 	}
 
+	/* remove urb from in_flight list */
+	usb_unanchor_urb(u);
+
 	/* process urb in bottom half */
 	usb_anchor_urb(u, &modem->read.pending);
 	schedule_work(&modem->read.work);
