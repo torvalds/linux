@@ -260,6 +260,8 @@ static void dib7000p_set_adc_state(struct dib7000p_state *state, enum dibx000_ad
 
 //	dprintk( "908: %x, 909: %x\n", reg_908, reg_909);
 
+	reg_908 |= (state->cfg.enable_current_mirror & 1) << 7;
+
 	dib7000p_write_word(state, 908, reg_908);
 	dib7000p_write_word(state, 909, reg_909);
 }

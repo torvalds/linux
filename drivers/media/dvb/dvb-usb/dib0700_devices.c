@@ -940,6 +940,57 @@ static int stk7070p_frontend_attach(struct dvb_usb_adapter *adap)
 	return adap->fe == NULL ? -ENODEV : 0;
 }
 
+/* STK7770P */
+static struct dib7000p_config dib7770p_dib7000p_config = {
+	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_config_count = 1,
+	.agc = &dib7070_agc_config,
+	.bw  = &dib7070_bw_config_12_mhz,
+	.tuner_is_baseband = 1,
+	.spur_protect = 1,
+
+	.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
+	.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
+	.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
+
+	.hostbus_diversity = 1,
+	.enable_current_mirror = 1,
+};
+
+static int stk7770p_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct usb_device_descriptor *p = &adap->dev->udev->descriptor;
+	if (p->idVendor  == cpu_to_le16(USB_VID_PINNACLE) &&
+	    p->idProduct == cpu_to_le16(USB_PID_PINNACLE_PCTV72E))
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
+	else
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+	msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+
+	dib0700_ctrl_clock(adap->dev, 72, 1);
+
+	msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
+
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				     &dib7770p_dib7000p_config) != 0) {
+		err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+		    __func__);
+		return -ENODEV;
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+		&dib7770p_dib7000p_config);
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
 /* DIB807x generic */
 static struct dibx000_agc_config dib807x_agc_config[2] = {
 	{
@@ -2406,7 +2457,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				.pid_filter_count = 32,
 				.pid_filter       = stk70x0p_pid_filter,
 				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
-				.frontend_attach  = stk7070p_frontend_attach,
+				.frontend_attach  = stk7770p_frontend_attach,
 				.tuner_attach     = dib7770p_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
