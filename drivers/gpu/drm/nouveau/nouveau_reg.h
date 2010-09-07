@@ -551,6 +551,8 @@
 #define NV10_PFIFO_CACHE1_DMA_SUBROUTINE                   0x0000324C
 #define NV03_PFIFO_CACHE1_PULL0                            0x00003240
 #define NV04_PFIFO_CACHE1_PULL0                            0x00003250
+#    define NV04_PFIFO_CACHE1_PULL0_HASH_FAILED            0x00000010
+#    define NV04_PFIFO_CACHE1_PULL0_HASH_BUSY              0x00001000
 #define NV03_PFIFO_CACHE1_PULL1                            0x00003250
 #define NV04_PFIFO_CACHE1_PULL1                            0x00003254
 #define NV04_PFIFO_CACHE1_HASH                             0x00003258

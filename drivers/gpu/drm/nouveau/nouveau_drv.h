@@ -296,7 +296,6 @@ struct nouveau_fifo_engine {
 	void (*disable)(struct drm_device *);
 	void (*enable)(struct drm_device *);
 	bool (*reassign)(struct drm_device *, bool enable);
-	bool (*cache_flush)(struct drm_device *dev);
 	bool (*cache_pull)(struct drm_device *dev, bool enable);
 
 	int  (*channel_id)(struct drm_device *);
@@ -569,10 +568,7 @@ struct drm_nouveau_private {
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
-	struct {
-		struct nouveau_tile_reg reg[NOUVEAU_MAX_TILE_NR];
-		spinlock_t lock;
-	} tile;
+	struct nouveau_tile_reg tile[NOUVEAU_MAX_TILE_NR];
 
 	/* VRAM/fb configuration */
 	uint64_t vram_size;
@@ -917,7 +913,6 @@ extern int  nv04_fifo_init(struct drm_device *);
 extern void nv04_fifo_disable(struct drm_device *);
 extern void nv04_fifo_enable(struct drm_device *);
 extern bool nv04_fifo_reassign(struct drm_device *, bool);
-extern bool nv04_fifo_cache_flush(struct drm_device *);
 extern bool nv04_fifo_cache_pull(struct drm_device *, bool);
 extern int  nv04_fifo_channel_id(struct drm_device *);
 extern int  nv04_fifo_create_context(struct nouveau_channel *);
@@ -955,7 +950,6 @@ extern void nvc0_fifo_takedown(struct drm_device *);
 extern void nvc0_fifo_disable(struct drm_device *);
 extern void nvc0_fifo_enable(struct drm_device *);
 extern bool nvc0_fifo_reassign(struct drm_device *, bool);
-extern bool nvc0_fifo_cache_flush(struct drm_device *);
 extern bool nvc0_fifo_cache_pull(struct drm_device *, bool);
 extern int  nvc0_fifo_channel_id(struct drm_device *);
 extern int  nvc0_fifo_create_context(struct nouveau_channel *);

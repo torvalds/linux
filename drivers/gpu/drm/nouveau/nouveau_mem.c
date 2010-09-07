@@ -47,18 +47,14 @@ nv10_mem_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+	struct nouveau_tile_reg *tile = &dev_priv->tile[i];
 
 	tile->addr = addr;
 	tile->size = size;
 	tile->used = !!pitch;
 	nouveau_fence_unref((void **)&tile->fence);
 
-	if (!pfifo->cache_flush(dev))
-		return;
-
 	pfifo->reassign(dev, false);
-	pfifo->cache_flush(dev);
 	pfifo->cache_pull(dev, false);
 
 	nouveau_wait_for_idle(dev);
@@ -76,34 +72,36 @@ nv10_mem_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	struct nouveau_tile_reg *tile = dev_priv->tile.reg, *found = NULL;
-	int i;
+	struct nouveau_tile_reg *found = NULL;
+	unsigned long i, flags;
 
-	spin_lock(&dev_priv->tile.lock);
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	for (i = 0; i < pfb->num_tiles; i++) {
-		if (tile[i].used)
+		struct nouveau_tile_reg *tile = &dev_priv->tile[i];
+
+		if (tile->used)
 			/* Tile region in use. */
 			continue;
 
-		if (tile[i].fence &&
-		    !nouveau_fence_signalled(tile[i].fence, NULL))
+		if (tile->fence &&
+		    !nouveau_fence_signalled(tile->fence, NULL))
 			/* Pending tile region. */
 			continue;
 
-		if (max(tile[i].addr, addr) <
-		    min(tile[i].addr + tile[i].size, addr + size))
+		if (max(tile->addr, addr) <
+		    min(tile->addr + tile->size, addr + size))
 			/* Kill an intersecting tile region. */
 			nv10_mem_set_region_tiling(dev, i, 0, 0, 0);
 
 		if (pitch && !found) {
 			/* Free tile region. */
 			nv10_mem_set_region_tiling(dev, i, addr, size, pitch);
-			found = &tile[i];
+			found = tile;
 		}
 	}
 
-	spin_unlock(&dev_priv->tile.lock);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	return found;
 }
@@ -567,8 +565,6 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		NV_ERROR(dev, "Error initialising bo driver: %d\n", ret);
 		return ret;
 	}
-
-	spin_lock_init(&dev_priv->tile.lock);
 
 	dev_priv->fb_available_size = dev_priv->vram_size;
 	dev_priv->fb_mappable_pages = dev_priv->fb_available_size;

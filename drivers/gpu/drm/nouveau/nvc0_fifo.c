@@ -43,12 +43,6 @@ nvc0_fifo_reassign(struct drm_device *dev, bool enable)
 }
 
 bool
-nvc0_fifo_cache_flush(struct drm_device *dev)
-{
-	return true;
-}
-
-bool
 nvc0_fifo_cache_pull(struct drm_device *dev, bool enable)
 {
 	return false;

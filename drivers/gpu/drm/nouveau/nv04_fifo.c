@@ -71,37 +71,32 @@ nv04_fifo_reassign(struct drm_device *dev, bool enable)
 }
 
 bool
-nv04_fifo_cache_flush(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	uint64_t start = ptimer->read(dev);
-
-	do {
-		if (nv_rd32(dev, NV03_PFIFO_CACHE1_GET) ==
-		    nv_rd32(dev, NV03_PFIFO_CACHE1_PUT))
-			return true;
-
-	} while (ptimer->read(dev) - start < 100000000);
-
-	NV_ERROR(dev, "Timeout flushing the PFIFO cache.\n");
-
-	return false;
-}
-
-bool
 nv04_fifo_cache_pull(struct drm_device *dev, bool enable)
 {
-	uint32_t pull = nv_rd32(dev, NV04_PFIFO_CACHE1_PULL0);
+	int pull = nv_mask(dev, NV04_PFIFO_CACHE1_PULL0, 1, enable);
 
-	if (enable) {
-		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, pull | 1);
-	} else {
-		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, pull & ~1);
+	if (!enable) {
+		/* In some cases the PFIFO puller may be left in an
+		 * inconsistent state if you try to stop it when it's
+		 * busy translating handles. Sometimes you get a
+		 * PFIFO_CACHE_ERROR, sometimes it just fails silently
+		 * sending incorrect instance offsets to PGRAPH after
+		 * it's started up again. To avoid the latter we
+		 * invalidate the most recently calculated instance.
+		 */
+		if (!nv_wait(dev, NV04_PFIFO_CACHE1_PULL0,
+			     NV04_PFIFO_CACHE1_PULL0_HASH_BUSY, 0))
+			NV_ERROR(dev, "Timeout idling the PFIFO puller.\n");
+
+		if (nv_rd32(dev, NV04_PFIFO_CACHE1_PULL0) &
+		    NV04_PFIFO_CACHE1_PULL0_HASH_FAILED)
+			nv_wr32(dev, NV03_PFIFO_INTR_0,
+				NV_PFIFO_INTR_CACHE_ERROR);
+
 		nv_wr32(dev, NV04_PFIFO_CACHE1_HASH, 0);
 	}
 
-	return !!(pull & 1);
+	return pull & 1;
 }
 
 int
