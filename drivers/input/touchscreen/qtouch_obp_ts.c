@@ -908,6 +908,8 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 				 ts->finger_data[i].x_data);
 		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
 				 ts->finger_data[i].y_data);
+		input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID,
+				 i+1);
 		input_mt_sync(ts->input_dev);
 	}
 	input_sync(ts->input_dev);
@@ -1128,6 +1130,8 @@ static int qtouch_ts_register_input(struct qtouch_ts_data *ts)
 		input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR,
 				     ts->pdata->abs_min_w, ts->pdata->abs_max_w,
 				     ts->pdata->fuzz_w, 0);
+		input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID,
+				     0, ts->pdata->multi_touch_cfg.num_touch, 1, 0);
 	}
 
 	memset(&ts->finger_data[0], 0,
@@ -1929,6 +1933,7 @@ static int qtouch_ts_resume(struct i2c_client *client)
 		if (ts->finger_data[i].down == 0)
 			continue;
 		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+		input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, i+1);
 		input_mt_sync(ts->input_dev);
 		memset(&ts->finger_data[i], 0, sizeof(struct coordinate_map));
 	}
