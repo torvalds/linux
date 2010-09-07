@@ -181,7 +181,7 @@ nv50_graph_channel(struct drm_device *dev)
 	/* Be sure we're not in the middle of a context switch or bad things
 	 * will happen, such as unloading the wrong pgraph context.
 	 */
-	if (!nv_wait(0x400300, 0x00000001, 0x00000000))
+	if (!nv_wait(dev, 0x400300, 0x00000001, 0x00000000))
 		NV_ERROR(dev, "Ctxprog is still running\n");
 
 	inst = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);

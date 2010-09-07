@@ -1252,7 +1252,7 @@ static inline void nv_wr08(struct drm_device *dev, unsigned reg, u8 val)
 	iowrite8(val, dev_priv->mmio + reg);
 }
 
-#define nv_wait(reg, mask, val) \
+#define nv_wait(dev, reg, mask, val) \
 	nouveau_wait_until(dev, 2000000000ULL, (reg), (mask), (val))
 
 /* PRAMIN access */

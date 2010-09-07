@@ -524,7 +524,8 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x80000000);
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl);
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x00010000);
-		if (!nv_wait(NV50_AUXCH_CTRL(index), 0x00010000, 0x00000000)) {
+		if (!nv_wait(dev, NV50_AUXCH_CTRL(index),
+			     0x00010000, 0x00000000)) {
 			NV_ERROR(dev, "expected bit 16 == 0, got 0x%08x\n",
 				 nv_rd32(dev, NV50_AUXCH_CTRL(index)));
 			ret = -EBUSY;

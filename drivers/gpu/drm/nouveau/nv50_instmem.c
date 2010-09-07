@@ -439,7 +439,7 @@ void
 nv50_instmem_flush(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x00330c, 0x00000001);
-	if (!nv_wait(0x00330c, 0x00000002, 0x00000000))
+	if (!nv_wait(dev, 0x00330c, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
 }
 
@@ -447,7 +447,7 @@ void
 nv84_instmem_flush(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x070000, 0x00000001);
-	if (!nv_wait(0x070000, 0x00000002, 0x00000000))
+	if (!nv_wait(dev, 0x070000, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
 }
 
@@ -455,7 +455,7 @@ void
 nv50_vm_flush(struct drm_device *dev, int engine)
 {
 	nv_wr32(dev, 0x100c80, (engine << 16) | 1);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000))
+	if (!nv_wait(dev, 0x100c80, 0x00000001, 0x00000000))
 		NV_ERROR(dev, "vm flush timeout: engine %d\n", engine);
 }
 
