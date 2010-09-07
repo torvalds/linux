@@ -2114,7 +2114,6 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     struct rk2818fb_inf *inf = NULL;
     struct resource *res = NULL;
     struct resource *mem = NULL;
-    struct rk2818_fb_setting_info *fb_setting = NULL;
     struct rk2818fb_info *mach_info = NULL;
     struct rk28fb_screen *screen = NULL;
 	int irq = 0;
@@ -2339,28 +2338,28 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     
 	if(mach_info)
     {
-        fb_setting = kmalloc(sizeof(struct rk2818_fb_setting_info), GFP_KERNEL);
+        struct rk2818_fb_setting_info fb_setting;
         if( OUT_P888==inf->lcd_info.face ||
             OUT_P888==inf->tv_info[0].face ||
             OUT_P888==inf->hdmi_info[0].face )     // set lcdc iomux
         {
-            fb_setting->data_num = 24;     
+            fb_setting.data_num = 24;
         } 
         else if(OUT_P666 == inf->lcd_info.face )
         {
-            fb_setting->data_num = 18; 
+            fb_setting.data_num = 18;
         }        
         else 
         {
-            fb_setting->data_num = 16; 
+            fb_setting.data_num = 16;
         }        
-        fb_setting->den_en = 1;
-        fb_setting->vsync_en = 1;
-        fb_setting->disp_on_en = 1;
-        fb_setting->standby_en = 1;
+        fb_setting.den_en = 1;
+        fb_setting.vsync_en = 1;
+        fb_setting.disp_on_en = 1;
+        fb_setting.standby_en = 1;
         if( inf->lcd_info.mcu_usefmk )
-            fb_setting->mcu_fmk_en =1;        
-        mach_info->io_init(fb_setting);
+            fb_setting.mcu_fmk_en =1;
+        mach_info->io_init(&fb_setting);
     }
     
 	set_lcd_pin(pdev, 1);
