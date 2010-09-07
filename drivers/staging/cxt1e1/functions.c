@@ -184,10 +184,10 @@ OS_sem_init (void *sem, int state)
     switch (state)
     {
         case SEM_TAKEN:
-        init_MUTEX_LOCKED ((struct semaphore *) sem);
+		sema_init((struct semaphore *) sem, 0);
         break;
     case SEM_AVAILABLE:
-        init_MUTEX ((struct semaphore *) sem);
+	    sema_init((struct semaphore *) sem, 1);
         break;
     default:                        /* otherwise, set sem.count to state's
                                      * value */

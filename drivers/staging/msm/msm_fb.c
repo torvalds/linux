@@ -915,7 +915,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	mfd->pan_waiting = FALSE;
 	init_completion(&mfd->pan_comp);
 	init_completion(&mfd->refresher_comp);
-	init_MUTEX(&mfd->sem);
+	sema_init(&mfd->sem, 1);
 
 	fbram_offset = PAGE_ALIGN((int)fbram)-(int)fbram;
 	fbram += fbram_offset;

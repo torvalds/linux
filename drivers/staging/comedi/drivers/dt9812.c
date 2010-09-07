@@ -1128,7 +1128,7 @@ static int __init usb_dt9812_init(void)
 
 	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-		init_MUTEX(&dt9812[i].mutex);
+		sema_init(&dt9812[i].mutex, 1);
 		dt9812[i].serial = 0;
 		dt9812[i].usb = NULL;
 		dt9812[i].comedi = NULL;

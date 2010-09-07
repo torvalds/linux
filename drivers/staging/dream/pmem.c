@@ -1231,7 +1231,7 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	pmem[id].ioctl = ioctl;
 	pmem[id].release = release;
 	init_rwsem(&pmem[id].bitmap_sem);
-	init_MUTEX(&pmem[id].data_list_sem);
+	sema_init(&pmem[id].data_list_sem, 1);
 	INIT_LIST_HEAD(&pmem[id].data_list);
 	pmem[id].dev.name = pdata->name;
 	pmem[id].dev.minor = id;
