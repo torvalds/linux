@@ -909,9 +909,9 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 				priv->CCK_index =(u8) i;
 				RT_TRACE(COMP_POWER_TRACKING, "Initial reg0x%x = 0x%x, CCK_index=0x%x\n",
 					rCCK0_TxFilter1, TempCCk, priv->CCK_index);
-		break;
-	}
-}
+				break;
+			}
+		}
 		priv->btxpower_trackingInit = TRUE;
 		//pHalData->TXPowercount = 0;
 		return;
@@ -1561,13 +1561,10 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 		return;
 	tx_power_track_counter++;
 
-
-	 if(tx_power_track_counter > 90)
-	 	{
-				queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
+	if (tx_power_track_counter > 90) {
+		queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
 		tx_power_track_counter =0;
-	 	}
-
+	}
 }
 
 #ifndef RTL8190P
@@ -1600,12 +1597,11 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		TM_Trigger = 1;
 		return;
 	}
-	else
-		{
+	else {
 		//DbgPrint("Schedule TxPowerTrackingWorkItem\n");
 			queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
 		TM_Trigger = 0;
-		}
+	}
 }
 #endif
 
@@ -1738,7 +1734,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		RT_TRACE(COMP_POWER_TRACKING,"CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_DebugPort, TempVal);
 	}
-	}
+}
 #endif
 
 
@@ -2583,25 +2579,23 @@ static	void dm_cs_ratio(
 	}
 
 
+	if((dm_digtable.precs_ratio_state != dm_digtable.curcs_ratio_state) ||
+		!initialized || force_write)
 	{
-		if((dm_digtable.precs_ratio_state != dm_digtable.curcs_ratio_state) ||
-			!initialized || force_write)
+		//DbgPrint("Write CS_ratio state = %d\n", DM_DigTable.CurCS_ratioState);
+		if(dm_digtable.curcs_ratio_state == DIG_CS_RATIO_LOWER)
 		{
-			//DbgPrint("Write CS_ratio state = %d\n", DM_DigTable.CurCS_ratioState);
-			if(dm_digtable.curcs_ratio_state == DIG_CS_RATIO_LOWER)
-			{
-				// Lower CS ratio for CCK.
-				write_nic_byte(dev, 0xa0a, 0x08);
-			}
-			else if(dm_digtable.curcs_ratio_state == DIG_CS_RATIO_HIGHER)
-			{
-				// Higher CS ratio for CCK.
-				write_nic_byte(dev, 0xa0a, 0xcd);
-			}
-			dm_digtable.precs_ratio_state = dm_digtable.curcs_ratio_state;
-			initialized = 1;
-			force_write = 0;
+			// Lower CS ratio for CCK.
+			write_nic_byte(dev, 0xa0a, 0x08);
 		}
+		else if(dm_digtable.curcs_ratio_state == DIG_CS_RATIO_HIGHER)
+		{
+			// Higher CS ratio for CCK.
+			write_nic_byte(dev, 0xa0a, 0xcd);
+		}
+		dm_digtable.precs_ratio_state = dm_digtable.curcs_ratio_state;
+		initialized = 1;
+		force_write = 0;
 	}
 }
 
@@ -2857,7 +2851,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 
 	tmp1byte = read_nic_byte(dev,GPI);
 	if(tmp1byte == 0xff)
-	return;
+		return;
 
 	if (tmp1byte&BIT6 || tmp1byte&BIT0)
 	{
@@ -2896,46 +2890,34 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
 
-		if(!priv->up)
-		{
+	if (!priv->up) {
 		RT_TRACE((COMP_INIT | COMP_POWER | COMP_RF),"dm_gpio_change_rf_callback(): Callback function breaks out!!\n");
-		}
-		else
-		{
-			// 0x108 GPIO input register is read only
-			//set 0x108 B1= 1: RF-ON; 0: RF-OFF.
-			tmp1byte = read_nic_byte(dev,GPI);
+	} else {
+		// 0x108 GPIO input register is read only
+		//set 0x108 B1= 1: RF-ON; 0: RF-OFF.
+		tmp1byte = read_nic_byte(dev,GPI);
 
-			eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
+		eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
 
-			if (priv->bHwRadioOff && (eRfPowerStateToSet == eRfOn))
-			{
+		if (priv->bHwRadioOff && (eRfPowerStateToSet == eRfOn)) {
 			RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio ON\n");
 
-				priv->bHwRadioOff = false;
-				bActuallySet = true;
-			}
-			else if ( (!priv->bHwRadioOff) && (eRfPowerStateToSet == eRfOff))
-			{
+			priv->bHwRadioOff = false;
+			bActuallySet = true;
+		} else if ((!priv->bHwRadioOff) && (eRfPowerStateToSet == eRfOff)) {
 			RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio OFF\n");
-				priv->bHwRadioOff = true;
-				bActuallySet = true;
-			}
+			priv->bHwRadioOff = true;
+			bActuallySet = true;
+		}
 
-			if(bActuallySet)
-			{
+		if (bActuallySet) {
 			priv->bHwRfOffAction = 1;
-				MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
-				//DrvIFIndicateCurrentPhyStatus(pAdapter);
-
-		}
-		else
-		{
+			MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
+			//DrvIFIndicateCurrentPhyStatus(pAdapter);
+		} else {
 			msleep(2000);
-			}
-
 		}
-
+	}
 }
 
 #endif
@@ -2958,8 +2940,8 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
-       struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
-       struct net_device *dev =priv->ieee80211->dev;
+	struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
+	struct net_device *dev =priv->ieee80211->dev;
 	//bool bactually_set = false;
 	u8 rfpath = 0, i;
 
@@ -3820,6 +3802,4 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 #endif
 }
-
-/*---------------------------Define function prototype------------------------*/
 
