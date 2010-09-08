@@ -645,10 +645,13 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
 		goto out;
 	}
-	if ((ret & PM8607_VERSION_MASK) == PM8607_VERSION)
+	switch (ret & PM8607_VERSION_MASK) {
+	case 0x40:
+	case 0x50:
 		dev_info(chip->dev, "Marvell 88PM8607 (ID: %02x) detected\n",
 			 ret);
-	else {
+		break;
+	default:
 		dev_err(chip->dev, "Failed to detect Marvell 88PM8607. "
 			"Chip ID: %02x\n", ret);
 		goto out;
