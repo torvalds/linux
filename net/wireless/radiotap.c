@@ -14,6 +14,7 @@
  * See COPYING for more details.
  */
 
+#include <linux/kernel.h>
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <asm/unaligned.h>
@@ -45,7 +46,7 @@ static const struct radiotap_align_size rtap_namespace_sizes[] = {
 };
 
 static const struct ieee80211_radiotap_namespace radiotap_ns = {
-	.n_bits = sizeof(rtap_namespace_sizes) / sizeof(rtap_namespace_sizes[0]),
+	.n_bits = ARRAY_SIZE(rtap_namespace_sizes),
 	.align_size = rtap_namespace_sizes,
 };
 
