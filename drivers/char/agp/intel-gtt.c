@@ -81,8 +81,16 @@ static struct gatt_mask intel_gen6_masks[] =
          .type = INTEL_AGP_CACHED_MEMORY_LLC_MLC_GFDT },
 };
 
+struct intel_gtt_driver {
+	unsigned int gen : 8;
+	unsigned int is_g33 : 1;
+	unsigned int is_pineview : 1;
+	unsigned int is_ironlake : 1;
+};
+
 static struct _intel_private {
 	struct intel_gtt base;
+	const struct intel_gtt_driver *driver;
 	struct pci_dev *pcidev;	/* device one */
 	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
@@ -96,6 +104,11 @@ static struct _intel_private {
 	struct resource ifp_resource;
 	int resource_valid;
 } intel_private;
+
+#define INTEL_GTT_GEN	intel_private.driver->gen
+#define IS_G33		intel_private.driver->is_g33
+#define IS_PINEVIEW	intel_private.driver->is_pineview
+#define IS_IRONLAKE	intel_private.driver->is_ironlake
 
 #ifdef USE_PCI_DMA_API
 static int intel_agp_map_page(struct page *page, dma_addr_t *ret)
@@ -543,7 +556,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
 
-	if (IS_G4X || IS_PINEVIEW)
+	if (INTEL_GTT_GEN > 4 || IS_PINEVIEW)
 		overhead_entries = 0;
 	else
 		overhead_entries = intel_private.base.gtt_mappable_entries
@@ -573,7 +586,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 			stolen_size = 0;
 			break;
 		}
-	} else if (IS_SNB) {
+	} else if (INTEL_GTT_GEN == 6) {
 		/*
 		 * SandyBridge has new memory control reg at 0x50.w
 		 */
@@ -700,7 +713,7 @@ static unsigned int intel_gtt_total_entries(void)
 {
 	int size;
 
-	if (IS_G33 || IS_I965 || IS_G4X) {
+	if (IS_G33 || INTEL_GTT_GEN >= 4) {
 		u32 pgetbl_ctl;
 		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
 
@@ -1086,7 +1099,7 @@ static void intel_i9xx_setup_flush(void)
 	if (intel_private.ifp_resource.start)
 		return;
 
-	if (IS_SNB)
+	if (INTEL_GTT_GEN == 6)
 		return;
 
 	/* setup a resource for this object */
@@ -1094,7 +1107,7 @@ static void intel_i9xx_setup_flush(void)
 	intel_private.ifp_resource.flags = IORESOURCE_MEM;
 
 	/* Setup chipset flush for 915 */
-	if (IS_I965 || IS_G33 || IS_G4X) {
+	if (IS_G33 || INTEL_GTT_GEN >= 4) {
 		intel_i965_g33_setup_chipset_flush();
 	} else {
 		intel_i915_setup_chipset_flush();
@@ -1196,7 +1209,8 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 
 	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
 
-	if (!IS_SNB && mask_type != 0 && mask_type != AGP_PHYS_MEMORY &&
+	if (INTEL_GTT_GEN != 6 && mask_type != 0 &&
+	    mask_type != AGP_PHYS_MEMORY &&
 	    mask_type != INTEL_AGP_CACHED_MEMORY)
 		goto out_err;
 
@@ -1631,6 +1645,34 @@ static const struct agp_bridge_driver intel_g33_driver = {
 #endif
 };
 
+static const struct intel_gtt_driver i8xx_gtt_driver = {
+	.gen = 2,
+};
+static const struct intel_gtt_driver i915_gtt_driver = {
+	.gen = 3,
+};
+static const struct intel_gtt_driver g33_gtt_driver = {
+	.gen = 3,
+	.is_g33 = 1,
+};
+static const struct intel_gtt_driver pineview_gtt_driver = {
+	.gen = 3,
+	.is_pineview = 1, .is_g33 = 1,
+};
+static const struct intel_gtt_driver i965_gtt_driver = {
+	.gen = 4,
+};
+static const struct intel_gtt_driver g4x_gtt_driver = {
+	.gen = 5,
+};
+static const struct intel_gtt_driver ironlake_gtt_driver = {
+	.gen = 5,
+	.is_ironlake = 1,
+};
+static const struct intel_gtt_driver sandybridge_gtt_driver = {
+	.gen = 6,
+};
+
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
  * driver and gmch_driver must be non-null, and find_gmch will determine
  * which one should be used if a gmch_chip_id is present.
@@ -1639,57 +1681,86 @@ static const struct intel_gtt_driver_description {
 	unsigned int gmch_chip_id;
 	char *name;
 	const struct agp_bridge_driver *gmch_driver;
+	const struct intel_gtt_driver *gtt_driver;
 } intel_gtt_chipsets[] = {
-	{ PCI_DEVICE_ID_INTEL_82810_IG1, "i810", &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82810_IG3, "i810", &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82810E_IG, "i810", &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82815_CGC, "i815", &intel_810_driver },
-	{ PCI_DEVICE_ID_INTEL_82830_CGC, "830M", &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82845G_IG, "830M", &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82854_IG, "854", &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82855GM_IG, "855GM", &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_82865_IG, "865", &intel_830_driver },
-	{ PCI_DEVICE_ID_INTEL_E7221_IG, "E7221 (i915)", &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82915G_IG, "915G", &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82915GM_IG, "915GM", &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945G_IG, "945G", &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945GM_IG, "945GM", &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82945GME_IG, "945GME", &intel_915_driver },
-	{ PCI_DEVICE_ID_INTEL_82946GZ_IG, "946GZ", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82G35_IG, "G35", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965Q_IG, "965Q", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965G_IG, "965G", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965GM_IG, "965GM", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965GME_IG, "965GME/GLE", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_G33_IG, "G33", &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_Q35_IG, "Q35", &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_Q33_IG, "Q33", &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, "GMA3150", &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_PINEVIEW_IG, "GMA3150", &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_GM45_IG, "GM45", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_EAGLELAKE_IG, "Eaglelake", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_Q45_IG, "Q45/Q43", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_G45_IG, "G45/G43", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_B43_IG, "B43", &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_G41_IG, "G41", &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_82810_IG1, "i810", &intel_810_driver , NULL},
+	{ PCI_DEVICE_ID_INTEL_82810_IG3, "i810", &intel_810_driver , NULL},
+	{ PCI_DEVICE_ID_INTEL_82810E_IG, "i810", &intel_810_driver , NULL},
+	{ PCI_DEVICE_ID_INTEL_82815_CGC, "i815", &intel_810_driver , NULL},
+	{ PCI_DEVICE_ID_INTEL_82830_CGC, "830M",
+		&intel_830_driver , &i8xx_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82845G_IG, "830M",
+		&intel_830_driver , &i8xx_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82854_IG, "854",
+		&intel_830_driver , &i8xx_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82855GM_IG, "855GM",
+		&intel_830_driver , &i8xx_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82865_IG, "865",
+		&intel_830_driver , &i8xx_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_E7221_IG, "E7221 (i915)",
+		&intel_915_driver , &i915_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82915G_IG, "915G",
+		&intel_915_driver , &i915_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82915GM_IG, "915GM",
+		&intel_915_driver , &i915_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82945G_IG, "945G",
+		&intel_915_driver , &i915_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82945GM_IG, "945GM",
+		&intel_915_driver , &i915_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82945GME_IG, "945GME",
+		&intel_915_driver , &i915_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82946GZ_IG, "946GZ",
+		&intel_i965_driver , &i965_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82G35_IG, "G35",
+		&intel_i965_driver , &i965_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82965Q_IG, "965Q",
+		&intel_i965_driver , &i965_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82965G_IG, "965G",
+		&intel_i965_driver , &i965_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82965GM_IG, "965GM",
+		&intel_i965_driver , &i965_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_82965GME_IG, "965GME/GLE",
+		&intel_i965_driver , &i965_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_G33_IG, "G33",
+		&intel_g33_driver , &g33_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_Q35_IG, "Q35",
+		&intel_g33_driver , &g33_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_Q33_IG, "Q33",
+		&intel_g33_driver , &g33_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, "GMA3150",
+		&intel_g33_driver , &pineview_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_PINEVIEW_IG, "GMA3150",
+		&intel_g33_driver , &pineview_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_GM45_IG, "GM45",
+		&intel_i965_driver , &g4x_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_EAGLELAKE_IG, "Eaglelake",
+		&intel_i965_driver , &g4x_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_Q45_IG, "Q45/Q43",
+		&intel_i965_driver , &g4x_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_G45_IG, "G45/G43",
+		&intel_i965_driver , &g4x_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_B43_IG, "B43",
+		&intel_i965_driver , &g4x_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_G41_IG, "G41",
+		&intel_i965_driver , &g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG,
-	    "HD Graphics", &intel_i965_driver },
+	    "HD Graphics", &intel_i965_driver , &ironlake_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
-	    "HD Graphics", &intel_i965_driver },
+	    "HD Graphics", &intel_i965_driver , &ironlake_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT1_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_PLUS_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT1_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_PLUS_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG,
-	    "Sandybridge", &intel_gen6_driver },
+	    "Sandybridge", &intel_gen6_driver , &sandybridge_gtt_driver },
 	{ 0, NULL, NULL }
 };
 
@@ -1720,6 +1791,8 @@ int intel_gmch_probe(struct pci_dev *pdev,
 		if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
 			bridge->driver =
 				intel_gtt_chipsets[i].gmch_driver;
+			intel_private.driver = 
+				intel_gtt_chipsets[i].gtt_driver;
 			break;
 		}
 	}
