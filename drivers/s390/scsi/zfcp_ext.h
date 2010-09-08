@@ -80,6 +80,7 @@ extern void zfcp_erp_modify_unit_status(struct zfcp_unit *, char *, void *, u32,
 					int);
 extern void zfcp_erp_unit_reopen(struct zfcp_unit *, int, char *, void *);
 extern void zfcp_erp_unit_shutdown(struct zfcp_unit *, int, char *, void *);
+extern void zfcp_erp_unit_shutdown_wait(struct zfcp_unit *, char *);
 extern void zfcp_erp_unit_failed(struct zfcp_unit *, char *, void *);
 extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern void zfcp_erp_thread_kill(struct zfcp_adapter *);
