@@ -41,6 +41,10 @@ config MACH_TAVOREVB
 	select PXA3xx
 	select CPU_PXA930
 
+config MACH_TAVOREVB3
+	bool "PXA95x Development Platform (aka TavorEVB III)"
+	select CPU_PXA950
+
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select PXA3xx
