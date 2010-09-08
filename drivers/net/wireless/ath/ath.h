@@ -78,6 +78,7 @@ enum ath_crypt_caps {
 	ATH_CRYPT_CAP_CIPHER_AESCCM		= BIT(3),
 	ATH_CRYPT_CAP_CIPHER_CKIP		= BIT(4),
 	ATH_CRYPT_CAP_CIPHER_TKIP		= BIT(5),
+	ATH_CRYPT_CAP_MIC_COMBINED		= BIT(6),
 };
 
 struct ath_keyval {
@@ -150,7 +151,6 @@ struct ath_common {
 	u32 keymax;
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);
 	DECLARE_BITMAP(tkip_keymap, ATH_KEYMAX);
-	u8 splitmic;
 	enum ath_crypt_caps crypt_caps;
 
 	struct ath_regulatory regulatory;

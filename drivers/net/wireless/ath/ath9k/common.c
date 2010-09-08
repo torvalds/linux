@@ -174,7 +174,7 @@ static int ath_setkey_tkip(struct ath_common *common, u16 keyix, const u8 *key,
 		}
 		return ath9k_hw_set_keycache_entry(ah, keyix, hk, addr);
 	}
-	if (!common->splitmic) {
+	if (common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED) {
 		/* TX and RX keys share the same key cache entry. */
 		memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
 		memcpy(hk->kv_txmic, key_txmic, sizeof(hk->kv_txmic));
@@ -205,7 +205,7 @@ static int ath_reserve_key_cache_slot_tkip(struct ath_common *common)
 		if (test_bit(i, common->keymap) ||
 		    test_bit(i + 64, common->keymap))
 			continue; /* At least one part of TKIP key allocated */
-		if (common->splitmic &&
+		if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED) &&
 		    (test_bit(i + 32, common->keymap) ||
 		     test_bit(i + 64 + 32, common->keymap)))
 			continue; /* At least one part of TKIP key allocated */
@@ -225,7 +225,7 @@ static int ath_reserve_key_cache_slot(struct ath_common *common,
 		return ath_reserve_key_cache_slot_tkip(common);
 
 	/* First, try to find slots that would not be available for TKIP. */
-	if (common->splitmic) {
+	if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)) {
 		for (i = IEEE80211_WEP_NKID; i < common->keymax / 4; i++) {
 			if (!test_bit(i, common->keymap) &&
 			    (test_bit(i + 32, common->keymap) ||
@@ -266,7 +266,7 @@ static int ath_reserve_key_cache_slot(struct ath_common *common,
 		 * TKIP will not be used. */
 		if (i >= 64 && i < 64 + IEEE80211_WEP_NKID)
 			continue;
-		if (common->splitmic) {
+		if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)) {
 			if (i >= 32 && i < 32 + IEEE80211_WEP_NKID)
 				continue;
 			if (i >= 64 + 32 && i < 64 + 32 + IEEE80211_WEP_NKID)
@@ -374,7 +374,7 @@ int ath9k_cmn_key_config(struct ath_common *common,
 		set_bit(idx + 64, common->keymap);
 		set_bit(idx, common->tkip_keymap);
 		set_bit(idx + 64, common->tkip_keymap);
-		if (common->splitmic) {
+		if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)) {
 			set_bit(idx + 32, common->keymap);
 			set_bit(idx + 64 + 32, common->keymap);
 			set_bit(idx + 32, common->tkip_keymap);
@@ -407,7 +407,7 @@ void ath9k_cmn_key_delete(struct ath_common *common,
 	clear_bit(key->hw_key_idx, common->tkip_keymap);
 	clear_bit(key->hw_key_idx + 64, common->tkip_keymap);
 
-	if (common->splitmic) {
+	if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)) {
 		ath9k_hw_keyreset(ah, key->hw_key_idx + 32);
 		clear_bit(key->hw_key_idx + 32, common->keymap);
 		clear_bit(key->hw_key_idx + 64 + 32, common->keymap);
