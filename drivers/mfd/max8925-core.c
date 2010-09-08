@@ -429,24 +429,25 @@ static void max8925_irq_sync_unlock(unsigned int irq)
 	irq_tsc = cache_tsc;
 	for (i = 0; i < ARRAY_SIZE(max8925_irqs); i++) {
 		irq_data = &max8925_irqs[i];
+		/* 1 -- disable, 0 -- enable */
 		switch (irq_data->mask_reg) {
 		case MAX8925_CHG_IRQ1_MASK:
-			irq_chg[0] &= irq_data->enable;
+			irq_chg[0] &= ~irq_data->enable;
 			break;
 		case MAX8925_CHG_IRQ2_MASK:
-			irq_chg[1] &= irq_data->enable;
+			irq_chg[1] &= ~irq_data->enable;
 			break;
 		case MAX8925_ON_OFF_IRQ1_MASK:
-			irq_on[0] &= irq_data->enable;
+			irq_on[0] &= ~irq_data->enable;
 			break;
 		case MAX8925_ON_OFF_IRQ2_MASK:
-			irq_on[1] &= irq_data->enable;
+			irq_on[1] &= ~irq_data->enable;
 			break;
 		case MAX8925_RTC_IRQ_MASK:
-			irq_rtc &= irq_data->enable;
+			irq_rtc &= ~irq_data->enable;
 			break;
 		case MAX8925_TSC_IRQ_MASK:
-			irq_tsc &= irq_data->enable;
+			irq_tsc &= ~irq_data->enable;
 			break;
 		default:
 			dev_err(chip->dev, "wrong IRQ\n");
