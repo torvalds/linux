@@ -253,17 +253,27 @@ static unsigned int max8649_get_mode(struct regulator_dev *rdev)
 	return REGULATOR_MODE_NORMAL;
 }
 
-static struct regulator_ops max8649_dcdc_ops = {
-	.set_voltage	= max8649_set_voltage,
-	.get_voltage	= max8649_get_voltage,
-	.list_voltage	= max8649_list_voltage,
-	.enable		= max8649_enable,
-	.disable	= max8649_disable,
-	.is_enabled	= max8649_is_enabled,
-	.enable_time	= max8649_enable_time,
-	.set_mode	= max8649_set_mode,
-	.get_mode	= max8649_get_mode,
+static int max8649_set_suspend_voltage(struct regulator_dev *rdev, int uV)
+{
+	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
 
+	dev_info(info->dev, "%d uV suspend voltage\n", uV);
+	return max8649_set_voltage(rdev, uV, uV);
+}
+
+static struct regulator_ops max8649_dcdc_ops = {
+	.set_voltage		= max8649_set_voltage,
+	.get_voltage		= max8649_get_voltage,
+	.list_voltage		= max8649_list_voltage,
+	.enable			= max8649_enable,
+	.disable		= max8649_disable,
+	.is_enabled		= max8649_is_enabled,
+	.enable_time		= max8649_enable_time,
+	.set_mode		= max8649_set_mode,
+	.get_mode		= max8649_get_mode,
+	.set_suspend_voltage	= max8649_set_suspend_voltage,
+	.set_suspend_enable	= max8649_enable,
+	.set_suspend_disable	= max8649_disable,
 };
 
 static struct regulator_desc dcdc_desc = {
