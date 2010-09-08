@@ -71,6 +71,15 @@ struct ath_regulatory {
 	struct reg_dmn_pair_mapping *regpair;
 };
 
+enum ath_crypt_caps {
+	ATH_CRYPT_CAP_MIC_AESCCM		= BIT(0),
+	ATH_CRYPT_CAP_MIC_CKIP			= BIT(1),
+	ATH_CRYPT_CAP_MIC_TKIP			= BIT(2),
+	ATH_CRYPT_CAP_CIPHER_AESCCM		= BIT(3),
+	ATH_CRYPT_CAP_CIPHER_CKIP		= BIT(4),
+	ATH_CRYPT_CAP_CIPHER_TKIP		= BIT(5),
+};
+
 /**
  * struct ath_ops - Register read/write operations
  *
@@ -121,6 +130,7 @@ struct ath_common {
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);
 	DECLARE_BITMAP(tkip_keymap, ATH_KEYMAX);
 	u8 splitmic;
+	enum ath_crypt_caps crypt_caps;
 
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
