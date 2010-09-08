@@ -1232,6 +1232,18 @@ out:
 	return 0;
 }
 
+static bool list_has_sctp_addr(const struct list_head *list,
+			       union sctp_addr *ipaddr)
+{
+	struct sctp_transport *addr;
+
+	list_for_each_entry(addr, list, transports) {
+		if (sctp_cmp_addr_exact(ipaddr, &addr->ipaddr))
+			return true;
+	}
+
+	return false;
+}
 /* A restart is occurring, check to make sure no new addresses
  * are being added as we may be under a takeover attack.
  */
@@ -1240,10 +1252,10 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 				       struct sctp_chunk *init,
 				       sctp_cmd_seq_t *commands)
 {
-	struct sctp_transport *new_addr, *addr;
-	int found;
+	struct sctp_transport *new_addr;
+	int ret = 1;
 
-	/* Implementor's Guide - Sectin 5.2.2
+	/* Implementor's Guide - Section 5.2.2
 	 * ...
 	 * Before responding the endpoint MUST check to see if the
 	 * unexpected INIT adds new addresses to the association. If new
@@ -1254,31 +1266,19 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 	/* Search through all current addresses and make sure
 	 * we aren't adding any new ones.
 	 */
-	new_addr = NULL;
-	found = 0;
-
 	list_for_each_entry(new_addr, &new_asoc->peer.transport_addr_list,
-			transports) {
-		found = 0;
-		list_for_each_entry(addr, &asoc->peer.transport_addr_list,
-				transports) {
-			if (sctp_cmp_addr_exact(&new_addr->ipaddr,
-						&addr->ipaddr)) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
+			    transports) {
+		if (!list_has_sctp_addr(&asoc->peer.transport_addr_list,
+					&new_addr->ipaddr)) {
+			sctp_sf_send_restart_abort(&new_addr->ipaddr, init,
+						   commands);
+			ret = 0;
 			break;
-	}
-
-	/* If a new address was added, ABORT the sender. */
-	if (!found && new_addr) {
-		sctp_sf_send_restart_abort(&new_addr->ipaddr, init, commands);
+		}
 	}
 
 	/* Return success if all addresses were found. */
-	return found;
+	return ret;
 }
 
 /* Populate the verification/tie tags based on overlapping INIT
