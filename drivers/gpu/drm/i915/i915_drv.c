@@ -281,6 +281,8 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (state.event == PM_EVENT_PRETHAW)
 		return 0;
 
+	drm_kms_helper_poll_disable(dev);
+
 	error = i915_drm_freeze(dev);
 	if (error)
 		return error;
@@ -325,12 +327,19 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 int i915_resume(struct drm_device *dev)
 {
+	int ret;
+
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
 
 	pci_set_master(dev->pdev);
 
-	return i915_drm_thaw(dev);
+	ret = i915_drm_thaw(dev);
+	if (ret)
+		return ret;
+
+	drm_kms_helper_poll_enable(dev);
+	return 0;
 }
 
 static int i965_reset_complete(struct drm_device *dev)
