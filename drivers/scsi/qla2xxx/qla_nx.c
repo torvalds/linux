@@ -3152,6 +3152,20 @@ qla82xx_start_iocbs(srb_t *sp)
 	}
 }
 
+void qla82xx_rom_lock_recovery(struct qla_hw_data *ha)
+{
+	if (qla82xx_rom_lock(ha))
+		/* Someone else is holding the lock. */
+		qla_printk(KERN_INFO, ha, "Resetting rom_lock\n");
+
+	/*
+	 * Either we got the lock, or someone
+	 * else died while holding it.
+	 * In either case, unlock.
+	 */
+	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+}
+
 /*
  * qla82xx_device_bootstrap
  *    Initialize device, set DEV_READY, start fw
@@ -3166,12 +3180,13 @@ qla82xx_start_iocbs(srb_t *sp)
 static int
 qla82xx_device_bootstrap(scsi_qla_host_t *vha)
 {
-	int rval, i, timeout;
+	int rval = QLA_SUCCESS;
+	int i, timeout;
 	uint32_t old_count, count;
 	struct qla_hw_data *ha = vha->hw;
+	int need_reset = 0, peg_stuck = 1;
 
-	if (qla82xx_need_reset(ha))
-		goto dev_initialize;
+	need_reset = qla82xx_need_reset(ha);
 
 	old_count = qla82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 
@@ -3185,8 +3200,26 @@ qla82xx_device_bootstrap(scsi_qla_host_t *vha)
 
 		count = qla82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 		if (count != old_count)
+			peg_stuck = 0;
+	}
+
+	if (need_reset) {
+		/* We are trying to perform a recovery here. */
+		if (peg_stuck)
+			qla82xx_rom_lock_recovery(ha);
+		goto dev_initialize;
+	} else  {
+		/* Start of day for this ha context. */
+		if (peg_stuck) {
+			/* Either we are the first or recovery in progress. */
+			qla82xx_rom_lock_recovery(ha);
+			goto dev_initialize;
+		} else
+			/* Firmware already running. */
 			goto dev_ready;
 	}
+
+	return rval;
 
 dev_initialize:
 	/* set to DEV_INITIALIZING */
