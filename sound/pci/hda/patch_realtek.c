@@ -990,23 +990,44 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 	alc_fix_pll(codec);
 }
 
-static void alc_automute_pin(struct hda_codec *codec)
+static void alc_automute_speaker(struct hda_codec *codec, int pinctl)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int nid = spec->autocfg.hp_pins[0];
+	unsigned int mute;
+	hda_nid_t nid;
 	int i;
 
-	if (!nid)
-		return;
-	spec->jack_present = snd_hda_jack_detect(codec, nid);
+	spec->jack_present = 0;
+	for (i = 0; i < ARRAY_SIZE(spec->autocfg.hp_pins); i++) {
+		nid = spec->autocfg.hp_pins[i];
+		if (!nid)
+			break;
+		if (snd_hda_jack_detect(codec, nid)) {
+			spec->jack_present = 1;
+			break;
+		}
+	}
+
+	mute = spec->jack_present ? HDA_AMP_MUTE : 0;
+	/* Toggle internal speakers muting */
 	for (i = 0; i < ARRAY_SIZE(spec->autocfg.speaker_pins); i++) {
 		nid = spec->autocfg.speaker_pins[i];
 		if (!nid)
 			break;
-		snd_hda_codec_write(codec, nid, 0,
+		if (pinctl) {
+			snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    spec->jack_present ? 0 : PIN_OUT);
+		} else {
+			snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+		}
 	}
+}
+
+static void alc_automute_pin(struct hda_codec *codec)
+{
+	alc_automute_speaker(codec, 1);
 }
 
 static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
@@ -1236,24 +1257,35 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 static void alc_init_auto_hp(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
 
-	if (!spec->autocfg.hp_pins[0])
-		return;
-
-	if (!spec->autocfg.speaker_pins[0]) {
-		if (spec->autocfg.line_out_pins[0] &&
-		    spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
-			spec->autocfg.speaker_pins[0] =
-				spec->autocfg.line_out_pins[0];
-		else
+	if (!cfg->hp_pins[0]) {
+		if (cfg->line_out_type != AUTO_PIN_HP_OUT)
 			return;
 	}
 
-	snd_printdd("realtek: Enable HP auto-muting on NID 0x%x\n",
-		    spec->autocfg.hp_pins[0]);
-	snd_hda_codec_write_cache(codec, spec->autocfg.hp_pins[0], 0,
+	if (!cfg->speaker_pins[0]) {
+		if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
+			return;
+		memcpy(cfg->speaker_pins, cfg->line_out_pins,
+		       sizeof(cfg->speaker_pins));
+		cfg->speaker_outs = cfg->line_outs;
+	}
+
+	if (!cfg->hp_pins[0]) {
+		memcpy(cfg->hp_pins, cfg->line_out_pins,
+		       sizeof(cfg->hp_pins));
+		cfg->hp_outs = cfg->line_outs;
+	}
+
+	for (i = 0; i < cfg->hp_outs; i++) {
+		snd_printdd("realtek: Enable HP auto-muting on NID 0x%x\n",
+			    cfg->hp_pins[i]);
+		snd_hda_codec_write_cache(codec, cfg->hp_pins[i], 0,
 				  AC_VERB_SET_UNSOLICITED_ENABLE,
 				  AC_USRSP_EN | ALC880_HP_EVENT);
+	}
 	spec->unsol_event = alc_sku_unsol_event;
 }
 
@@ -1711,31 +1743,7 @@ static struct hda_verb alc888_fujitsu_xa3530_verbs[] = {
 
 static void alc_automute_amp(struct hda_codec *codec)
 {
-	struct alc_spec *spec = codec->spec;
-	unsigned int mute;
-	hda_nid_t nid;
-	int i;
-
-	spec->jack_present = 0;
-	for (i = 0; i < ARRAY_SIZE(spec->autocfg.hp_pins); i++) {
-		nid = spec->autocfg.hp_pins[i];
-		if (!nid)
-			break;
-		if (snd_hda_jack_detect(codec, nid)) {
-			spec->jack_present = 1;
-			break;
-		}
-	}
-
-	mute = spec->jack_present ? HDA_AMP_MUTE : 0;
-	/* Toggle internal speakers muting */
-	for (i = 0; i < ARRAY_SIZE(spec->autocfg.speaker_pins); i++) {
-		nid = spec->autocfg.speaker_pins[i];
-		if (!nid)
-			break;
-		snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0,
-					 HDA_AMP_MUTE, mute);
-	}
+	alc_automute_speaker(codec, 0);
 }
 
 static void alc_automute_amp_unsol_event(struct hda_codec *codec,
