@@ -299,10 +299,6 @@ void dm_check_ac_dc_power(struct net_device *dev)
 
 void hal_dm_watchdog(struct net_device *dev)
 {
-        //struct r8192_priv *priv = ieee80211_priv(dev);
-
-	//static u8 	previous_bssid[6] ={0};
-
 	dm_check_ac_dc_power(dev);
 
 	/*Add by amy 2008/05/15 ,porting from windows code.*/
@@ -1575,7 +1571,6 @@ void dm_initialize_txpower_tracking(struct net_device *dev)
 #ifdef RTL8190P
 	dm_InitializeTXPowerTracking_TSSI(dev);
 #else
-	//if(priv->bDcut == TRUE)
 	if(priv->IC_Cut >= IC_VersionCut_D)
 		dm_InitializeTXPowerTracking_TSSI(dev);
 	else
@@ -1777,14 +1772,13 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 
 
 void dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
-{	// dm_CCKTxPowerAdjust
+{
 #ifndef RTL8190P
 	struct r8192_priv *priv = ieee80211_priv(dev);
 #endif
 #ifdef RTL8190P
 	dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 #else
-	//if(priv->bDcut == TRUE)
 	if(priv->IC_Cut >= IC_VersionCut_D)
 		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 	else
