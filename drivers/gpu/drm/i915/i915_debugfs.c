@@ -886,6 +886,9 @@ i915_wedged_read(struct file *filp,
 		       "wedged :  %d\n",
 		       atomic_read(&dev_priv->mm.wedged));
 
+	if (len > sizeof (buf))
+		len = sizeof (buf);
+
 	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
 }
 
