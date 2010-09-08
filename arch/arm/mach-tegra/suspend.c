@@ -37,6 +37,8 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 
+#include <linux/regulator/machine.h>
+
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
@@ -385,6 +387,11 @@ static void tegra_suspend_dram(bool do_lp0)
 	wmb();
 }
 
+static int tegra_suspend_begin(suspend_state_t state)
+{
+	return regulator_suspend_prepare(state);
+}
+
 static int tegra_suspend_prepare_late(void)
 {
 	disable_irq(INT_SYS_STATS_MON);
@@ -537,6 +544,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 
 static struct platform_suspend_ops tegra_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
+	.begin		= tegra_suspend_begin,
 	.prepare_late	= tegra_suspend_prepare_late,
 	.wake		= tegra_suspend_wake,
 	.enter		= tegra_suspend_enter,
