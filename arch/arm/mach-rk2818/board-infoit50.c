@@ -348,7 +348,6 @@ struct pca9554_platform_data rk2818_pca9554_data={
 	.pca9954_irq_pin=RK2818_PIN_PE2,
 	.settinginfo=extern_gpio_settinginfo,
 	.settinginfolen=ARRAY_SIZE(extern_gpio_settinginfo),
-	.names="pca9554",
 };
 #endif
 
@@ -449,9 +448,12 @@ struct tca6424_platform_data rk2818_tca6424_data={
 	.gpio_irq_start=NR_AIC_IRQS + 2*NUM_GROUP + CONFIG_SPI_FPGA_GPIO_IRQ_NUM,
 	.irq_pin_num=CONFIG_EXPANDED_GPIO_IRQ_NUM,
 	.tca6424_irq_pin=RK2818_PIN_PA1,
+	.expand_port_group = 3,
+	.expand_port_pinnum = 8,
+	.rk_irq_mode = IRQF_TRIGGER_LOW,
+	.rk_irq_gpio_pull_up_down = GPIOPullUp,
 	.settinginfo=extgpio_tca6424_settinginfo,
 	.settinginfolen=ARRAY_SIZE(extgpio_tca6424_settinginfo),
-	.names="extend_gpio_tca6424",
 	.reseti2cpin = tca6424_reset_itr,
 };
 #endif
@@ -487,14 +489,16 @@ static struct wm8994_platform_data wm8994_data = {
  * i2c devices
  * author: kfx@rock-chips.com
 *****************************************************************************************/
-static void rk2818_i2c0_io_init(void)
+static int rk2818_i2c0_io_init(void)
 {
 	rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, IOMUXA_I2C0);
+	return 0;
 }
 
-static void rk2818_i2c1_io_init(void)
+static int rk2818_i2c1_io_init(void)
 {
 	rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
+	return 0;
 }
 struct rk2818_i2c_platform_data default_i2c0_data = { 
 	.bus_num    = 0,
@@ -843,6 +847,7 @@ static int serial_io_init2(void)
 {
 	rk2818_mux_api_set(GPIOF01_UART2_SEL_NAME, IOMUXB_UART2_IN_OUT);
 	rk2818_mux_api_set(GPIOA23_UART2_SEL_NAME, IOMUXB_UART2_CTS_RTS);
+	return 0;
 }
 
 struct rk2818_serial_platform_data rk2818_serial2_platdata = {
@@ -1156,7 +1161,7 @@ struct rk2818fb_info rk2818_fb_info = {
 #define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
 
 #define BL_EN_PIN         RK2818_PIN_PF3
-#define BL_EN_VALUE       GPIO_HIGH
+#define BL_EN_VALUE       GPIO_LOW   ///GPIO_HIGH
 
 
 
