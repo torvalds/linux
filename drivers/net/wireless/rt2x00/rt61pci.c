@@ -1654,6 +1654,7 @@ static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_TXDONE, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDONE, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_BEACON_DONE, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_ENABLE_MITIGATION, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_MITIGATION_PERIOD, 0xff);
 	rt2x00pci_register_write(rt2x00dev, INT_MASK_CSR, reg);
@@ -1667,6 +1668,7 @@ static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, MCU_INT_MASK_CSR_5, mask);
 	rt2x00_set_field32(&reg, MCU_INT_MASK_CSR_6, mask);
 	rt2x00_set_field32(&reg, MCU_INT_MASK_CSR_7, mask);
+	rt2x00_set_field32(&reg, MCU_INT_MASK_CSR_TWAKEUP, mask);
 	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
 }
 
