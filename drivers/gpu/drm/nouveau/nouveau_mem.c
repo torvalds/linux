@@ -417,6 +417,23 @@ nouveau_mem_detect(struct drm_device *dev)
 	return -ENOMEM;
 }
 
+#if __OS_HAS_AGP
+static unsigned long
+get_agp_mode(struct drm_device *dev, unsigned long mode)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	/*
+	 * FW seems to be broken on nv18, it makes the card lock up
+	 * randomly.
+	 */
+	if (dev_priv->chipset == 0x18)
+		mode &= ~PCI_AGP_COMMAND_FW;
+
+	return mode;
+}
+#endif
+
 int
 nouveau_mem_reset_agp(struct drm_device *dev)
 {
@@ -436,7 +453,7 @@ nouveau_mem_reset_agp(struct drm_device *dev)
 		if (ret)
 			return ret;
 
-		mode.mode = info.mode & ~PCI_AGP_COMMAND_FW;
+		mode.mode = get_agp_mode(dev, info.mode) & ~PCI_AGP_COMMAND_FW;
 		ret = drm_agp_enable(dev, mode);
 		if (ret)
 			return ret;
@@ -491,7 +508,7 @@ nouveau_mem_init_agp(struct drm_device *dev)
 	}
 
 	/* see agp.h for the AGPSTAT_* modes available */
-	mode.mode = info.mode;
+	mode.mode = get_agp_mode(dev, info.mode);
 	ret = drm_agp_enable(dev, mode);
 	if (ret) {
 		NV_ERROR(dev, "Unable to enable AGP: %d\n", ret);
