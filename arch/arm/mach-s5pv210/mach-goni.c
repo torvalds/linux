@@ -35,6 +35,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
+#include <plat/keypad.h>
 #include <plat/sdhci.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -109,6 +110,28 @@ static struct s3c_fb_platdata goni_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_VCLK | VIDCON1_INV_VDEN
 			  | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= s5pv210_fb_gpio_setup_24bpp,
+};
+
+/* KEYPAD */
+static uint32_t keymap[] __initdata = {
+	/* KEY(row, col, keycode) */
+	KEY(0, 1, KEY_MENU),		/* Send */
+	KEY(0, 2, KEY_BACK),		/* End */
+	KEY(1, 1, KEY_CONFIG),		/* Half shot */
+	KEY(1, 2, KEY_VOLUMEUP),
+	KEY(2, 1, KEY_CAMERA),		/* Full shot */
+	KEY(2, 2, KEY_VOLUMEDOWN),
+};
+
+static struct matrix_keymap_data keymap_data __initdata = {
+	.keymap		= keymap,
+	.keymap_size	= ARRAY_SIZE(keymap),
+};
+
+static struct samsung_keypad_platdata keypad_data __initdata = {
+	.keymap_data	= &keymap_data,
+	.rows		= 3,
+	.cols		= 3,
 };
 
 /* MAX8998 regulators */
@@ -465,6 +488,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
+	&samsung_device_keypad,
 };
 
 static void __init goni_map_io(void)
@@ -485,6 +509,9 @@ static void __init goni_machine_init(void)
 
 	/* FB */
 	s3c_fb_set_platdata(&goni_lcd_pdata);
+
+	/* KEYPAD */
+	samsung_keypad_set_platdata(&keypad_data);
 
 	platform_add_devices(goni_devices, ARRAY_SIZE(goni_devices));
 }
