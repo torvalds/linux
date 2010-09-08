@@ -143,7 +143,8 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	unit = zfcp_unit_find(port, zfcp_scsi_dev_lun(sdev));
 	if (unit)
 		put_device(&unit->dev);
-	else {
+
+	if (!unit && !(adapter->connection_features & FSF_FEATURE_NPIV_MODE)) {
 		put_device(&port->dev);
 		return -ENXIO;
 	}
@@ -309,8 +310,8 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	}
 
 	/* tell the SCSI stack some characteristics of this adapter */
-	adapter->scsi_host->max_id = 1;
-	adapter->scsi_host->max_lun = 1;
+	adapter->scsi_host->max_id = 511;
+	adapter->scsi_host->max_lun = 0xFFFFFFFF;
 	adapter->scsi_host->max_channel = 0;
 	adapter->scsi_host->unique_id = dev_id.devno;
 	adapter->scsi_host->max_cmd_len = 16; /* in struct fcp_cmnd */
@@ -687,7 +688,6 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_port_type = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
-	.disable_target_scan = 1,
 	.dd_bsg_size = sizeof(struct zfcp_fsf_ct_els),
 };
 
