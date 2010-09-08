@@ -163,7 +163,7 @@ static int tca6424_read_three_reg(struct i2c_client *client, const char reg, cha
 	return (ret>0)?0:ret;
 }
 
-static int tca6424_gpio_direction_input(struct gpio_chip *gc, uint8_t pin_num)
+static int tca6424_gpio_direction_input(struct gpio_chip *gc, unsigned pin_num)
 {
 	struct tca6424_chip *chip;
 	uint8_t gpioPortNum;
@@ -203,7 +203,7 @@ err:
 	return (ret<0)?-1:0;
 }
 
-static int tca6424_gpio_direction_output(struct gpio_chip *gc,uint8_t pin_num, int val)
+static int tca6424_gpio_direction_output(struct gpio_chip *gc, unsigned pin_num, int val)
 {
 	struct tca6424_chip *chip;
 	uint8_t gpioPortNum;
@@ -283,7 +283,7 @@ static int tca6424_gpio_direction_output(struct gpio_chip *gc,uint8_t pin_num, i
     return (ret<0)?-1:0;
 }
 
-static int tca6424_gpio_get_value(struct gpio_chip *gc, uint8_t pin_num)
+static int tca6424_gpio_get_value(struct gpio_chip *gc, unsigned pin_num)
 {
 	struct tca6424_chip *chip;
 	uint8_t gpioPortNum;
@@ -318,7 +318,7 @@ static int tca6424_gpio_get_value(struct gpio_chip *gc, uint8_t pin_num)
 	return ((chip->gtca6424_struct.reg_input[gpioPortNum] >> gpioPortPinNum) & 0x01);
 }
 
-static void tca6424_gpio_set_value(struct gpio_chip *gc, uint8_t pin_num, int val)
+static void tca6424_gpio_set_value(struct gpio_chip *gc, unsigned pin_num, int val)
 {
 	struct tca6424_chip *chip;
 	uint8_t gpioPortNum;
@@ -511,6 +511,7 @@ static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_de
 	
 	chip->gpio_start = pdata->gpio_base;
 	chip->gpio_pin_num=pdata->gpio_pin_num;
+	chip->client = client;
 	chip->names = pdata->names;
 
 	#ifdef CONFIG_SOFT_INTERRUPT
@@ -541,7 +542,6 @@ static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_de
 			DBGERR(" %s setup failed, %d\n",__FUNCTION__,ret);
 	}
 	i2c_set_clientdata(client, chip);
-	chip->client = client;
 
 	#ifdef CONFIG_SOFT_INTERRUPT
 	expand_irq_init(chip,&chip->gtca6424_struct,tca6424_irq_read_inputreg);
