@@ -2974,6 +2974,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
 	spin_lock(&hugetlb_lock);
 	if (is_hugepage_on_freelist(hpage)) {
 		list_del(&hpage->lru);
+		set_page_refcounted(hpage);
 		h->free_huge_pages--;
 		h->free_huge_pages_node[nid]--;
 		ret = 0;
