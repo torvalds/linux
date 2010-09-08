@@ -156,7 +156,7 @@ Failed:
 
 
 #endif
-}	/* CMPK_Message_Handle_Tx */
+}
 
 /*-----------------------------------------------------------------------------
  * Function:    cmpk_counttxstatistic()
@@ -250,7 +250,7 @@ cmpk_count_txstatistic(
 	priv->stats.txretrycount += pstx_fb->retry_cnt;
 	priv->stats.txfeedbackretry += pstx_fb->retry_cnt;
 
-}	/* cmpk_CountTxStatistic */
+}
 
 
 
@@ -334,7 +334,7 @@ cmpk_handle_tx_feedback(
 	   or multicast. */
 	//CountTxStatistics( pAdapter, &tcb );
 
-}	/* cmpk_Handle_Tx_Feedback */
+}
 
 static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 {
@@ -445,7 +445,7 @@ cmpk_handle_interrupt_status(
 
 	DMESG("<---- cmpk_handle_interrupt_status()\n");
 
-}	/* cmpk_handle_interrupt_status */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -493,7 +493,7 @@ cmpk_handle_query_config_rx(
 	rx_query_cfg.mask 			= (pmsg[12] << 24) | (pmsg[13] << 16) |
 								  (pmsg[14] << 8) | (pmsg[15] << 0);
 
-}	/* cmpk_Handle_Query_Config_Rx */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -559,7 +559,7 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 	priv->stats.txbytesunicast		+= pstx_status->txuclength;
 
 	priv->stats.last_packet_rate		= pstx_status->rate;
-}	/* cmpk_CountTxStatus */
+}
 
 
 
@@ -591,7 +591,7 @@ cmpk_handle_tx_status(
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_tx_status(dev, &rx_tx_sts);
 
-}	/* cmpk_Handle_Tx_Status */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -671,7 +671,7 @@ cmpk_handle_tx_rate_history(
 			priv->stats.txrate.ht_mcs[j][i] += ptxrate->ht_mcs[j][i];
 	}
 
-}	/* cmpk_Handle_Tx_Rate_History */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -801,4 +801,4 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 	return	1;	/* This is a command packet. */
 
 	RT_TRACE(COMP_EVENTS, "<----cmpk_message_handle_rx()\n");
-}	/* CMPK_Message_Handle_Rx */
+}

@@ -5591,7 +5591,7 @@ static u8 rtl819x_query_rxpwrpercentage(
 		return	(100+antpower);
 	}
 
-}	/* QueryRxPwrPercentage */
+}
 
 static u8
 rtl819x_evm_dbtopercentage(
@@ -5943,7 +5943,7 @@ static void rtl8192_query_rxphystatus(
 		if (rf_rx_num != 0)
 			pstats->SignalStrength = precord_stats->SignalStrength = (u8)(rtl819x_signal_scale_mapping((long)(total_rssi/=rf_rx_num)));
 	}
-}	/* QueryRxPhyStatus8190Pci */
+}
 
 static void
 rtl8192_record_rxdesc_forlateruse(

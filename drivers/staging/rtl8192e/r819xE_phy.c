@@ -1853,7 +1853,7 @@ static u32 phy_FwRFSerialRead(
 			return 0;
 	}
 	return read_nic_dword(dev, RF_DATA);
-}	/* phy_FwRFSerialRead */
+}
 
 /******************************************************************************
  *function:  We support firmware to execute RF-R/W.
@@ -1907,7 +1907,7 @@ phy_FwRFSerialWrite(
 	/* 2008/01/17 MH We support delay in firmware side now. */
 	//delay_us(20);
 
-}	/* phy_FwRFSerialWrite */
+}
 
 
 /******************************************************************************

@@ -207,7 +207,7 @@ void init_hal_dm(struct net_device *dev)
 	INIT_DELAYED_WORK(&priv->gpio_change_rf_wq,  dm_gpio_change_rf_callback);
 #endif
 
-}	// InitHalDm
+}
 
 void deinit_hal_dm(struct net_device *dev)
 {
@@ -270,7 +270,7 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
-}	// dm_CheckEdcaTurbo
+}
 #endif
 
 
@@ -328,7 +328,7 @@ void hal_dm_watchdog(struct net_device *dev)
 #ifdef USB_RX_AGGREGATION_SUPPORT
 	dm_CheckRxAggregation(dev);
 #endif
-}	//HalDmWatchDog
+}
 
 
 /*
@@ -380,7 +380,7 @@ void init_rate_adaptive(struct net_device * dev)
 		pra->ping_rssi_ratr	= 	0x0000000d;//cosa add for test
 	}
 
-}	// InitRateAdaptive
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -552,7 +552,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 		pra->ratr_state = DM_RATR_STA_MAX;
 	}
 
-}	// dm_CheckRateAdaptive
+}
 
 
 static void dm_init_bandwidth_autoswitch(struct net_device * dev)
@@ -564,7 +564,7 @@ static void dm_init_bandwidth_autoswitch(struct net_device * dev)
 	priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = false;
 	priv->ieee80211->bandwidth_auto_switch.bautoswitch_enable = false;
 
-}	// dm_init_bandwidth_autoswitch
+}
 
 
 static void dm_bandwidth_autoswitch(struct net_device * dev)
@@ -583,7 +583,7 @@ static void dm_bandwidth_autoswitch(struct net_device * dev)
 
 		}
 	}
-}	// dm_BandwidthAutoSwitch
+}
 
 //OFDM default at 0db, index=6.
 #ifndef RTL8190P
@@ -1581,7 +1581,7 @@ void dm_initialize_txpower_tracking(struct net_device *dev)
 	else
 		dm_InitializeTXPowerTracking_ThermalMeter(dev);
 #endif
-}	// dm_InitializeTXPowerTracking
+}
 
 
 static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
@@ -1659,7 +1659,7 @@ static void dm_check_txpower_tracking(struct net_device *dev)
 		dm_CheckTXPowerTracking_ThermalMeter(dev);
 #endif
 
-}	// dm_CheckTXPowerTracking
+}
 
 
 static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
@@ -1813,7 +1813,7 @@ static void dm_txpower_reset_recovery(
 	RT_TRACE(COMP_POWER_TRACKING, "Reset Recovery: Fill in RFC_txPowerTrackingIndex is %x\n",priv->rfc_txpowertrackingindex);
 	RT_TRACE(COMP_POWER_TRACKING, "Reset Recovery : RF C I/Q Amplify Gain is %ld\n",priv->txbbgain_table[priv->rfc_txpowertrackingindex].txbb_iq_amplifygain);
 
-}	// dm_TXPowerResetRecovery
+}
 
 void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 {
@@ -1859,7 +1859,7 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 	//
 	dm_bb_initialgain_restore(dev);
 
-}	// DM_RestoreDynamicMechanismState
+}
 
 static void dm_bb_initialgain_restore(struct net_device *dev)
 {
@@ -1888,7 +1888,7 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 	//PHY_SetBBReg(Adapter, UFWP, bMaskLWord, 0x100);
 	rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);	// Only clear byte 1 and rewrite.
 
-}	// dm_BBInitialGainRestore
+}
 
 
 void dm_backup_dynamic_mechanism_state(struct net_device *dev)
@@ -1901,7 +1901,7 @@ void dm_backup_dynamic_mechanism_state(struct net_device *dev)
 	//Backup BB InitialGain
 	dm_bb_initialgain_backup(dev);
 
-}	// DM_BackupDynamicMechanismState
+}
 
 
 static void dm_bb_initialgain_backup(struct net_device *dev)
@@ -1927,7 +1927,7 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc68 is %x\n",priv->initgain_backup.xdagccore1);
 	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xa0a is %x\n",priv->initgain_backup.cca);
 
-}   // dm_BBInitialGainBakcup
+}
 
 #endif
 /*-----------------------------------------------------------------------------
@@ -2012,7 +2012,7 @@ void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type, u32	
 			dm_value = 0x50;
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
 	}
-}	/* DM_ChangeDynamicInitGainThresh */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -2059,7 +2059,7 @@ static void dm_dig_init(struct net_device *dev)
 	else
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
 
-}	/* dm_dig_init */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -2131,7 +2131,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 		dm_digtable.dig_algorithm_switch = 0;
 	dm_digtable.pre_connect_state = dm_digtable.cur_connect_state;
 
-}	/* dm_CtrlInitGainByRssi */
+}
 
 static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	struct net_device *dev)
@@ -2302,7 +2302,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 	dm_ctrl_initgain_byrssi_highpwr(dev);
 
-}	/* dm_CtrlInitGainByRssi */
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -2393,7 +2393,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 
 	reset_cnt_highpwr = priv->reset_count;
 
-}	/* dm_CtrlInitGainByRssiHighPwr */
+}
 
 
 static void dm_initial_gain(
@@ -2647,7 +2647,7 @@ void dm_init_edca_turbo(struct net_device *dev)
 	priv->bcurrent_turbo_EDCA = false;
 	priv->ieee80211->bis_any_nonbepkts = false;
 	priv->bis_cur_rdlstate = false;
-}	// dm_init_edca_turbo
+}
 
 #if 1
 static void dm_check_edca_turbo(
@@ -2761,7 +2761,7 @@ dm_CheckEdcaTurbo_EXIT:
 	priv->ieee80211->bis_any_nonbepkts = false;
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
-}	// dm_CheckEdcaTurbo
+}
 #endif
 
 static void dm_init_ctstoself(struct net_device * dev)
@@ -2864,7 +2864,7 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 		queue_delayed_work(priv->priv_wq,&priv->gpio_change_rf_wq,0);
 #endif
 
-}	/* dm_CheckRfCtrlGPIO */
+}
 
 #endif
 /*-----------------------------------------------------------------------------
@@ -2971,7 +2971,7 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 
 		}
 
-}	/* dm_GPIOChangeRF */
+}
 
 #endif
 /*-----------------------------------------------------------------------------
@@ -3015,7 +3015,7 @@ void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 		return;
 
 	dm_rxpath_sel_byrssi(dev);
-}	/* DM_RFPathCheckWorkItemCallBack */
+}
 
 static void dm_init_rxpath_selection(struct net_device * dev)
 {
@@ -3320,7 +3320,7 @@ static	void	dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	queue_delayed_work(priv->priv_wq,&priv->rfpath_check_wq,0);
-}	/* dm_CheckRxRFPath */
+}
 
 
 static void dm_init_fsync (struct net_device *dev)
@@ -3817,7 +3817,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
 	priv->bLastDTPFlag_Low = priv->bDynamicTxLowPower;
 
-}	/* dm_dynamic_txpower */
+}
 
 //added by vivi, for read tx rate and retrycount
 static void dm_check_txrateandretrycount(struct net_device * dev)
