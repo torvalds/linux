@@ -228,6 +228,8 @@ struct huge_bootmem_page {
 	struct hstate *hstate;
 };
 
+struct page *alloc_huge_page_node(struct hstate *h, int nid);
+
 /* arch callback */
 int __init alloc_bootmem_huge_page(struct hstate *h);
 
@@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
 
 #else
 struct hstate {};
+#define alloc_huge_page_node(h, nid) NULL
 #define alloc_bootmem_huge_page(h) NULL
 #define hstate_file(f) NULL
 #define hstate_vma(v) NULL
