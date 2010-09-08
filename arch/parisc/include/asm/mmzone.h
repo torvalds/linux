@@ -45,7 +45,7 @@ static inline int pfn_to_nid(unsigned long pfn)
 		return 0;
 
 	i = pfn >> PFNNID_SHIFT;
-	BUG_ON(i >= sizeof(pfnnid_map) / sizeof(pfnnid_map[0]));
+	BUG_ON(i >= ARRAY_SIZE(pfnnid_map));
 	r = pfnnid_map[i];
 	BUG_ON(r == 0xff);
 
