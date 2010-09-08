@@ -1136,7 +1136,6 @@ __initconst = {
 static void __init
 xen_patch_branch(unsigned long tag, unsigned long type)
 {
-	const unsigned long nelem =
-		sizeof(xen_branch_target) / sizeof(xen_branch_target[0]);
-	__paravirt_patch_apply_branch(tag, type, xen_branch_target, nelem);
+	__paravirt_patch_apply_branch(tag, type, xen_branch_target,
+					ARRAY_SIZE(xen_branch_target));
 }
