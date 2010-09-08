@@ -510,6 +510,13 @@ int __ir_input_register(struct input_dev *input_dev,
 		   (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_IR_RAW) ?
 			" in raw mode" : "");
 
+	/*
+	 * Default delay of 250ms is too short for some protocols, expecially
+	 * since the timeout is currently set to 250ms. Increase it to 500ms,
+	 * to avoid wrong repetition of the keycodes.
+	 */
+	input_dev->rep[REP_DELAY] = 500;
+
 	return 0;
 
 out_event:
