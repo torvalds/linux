@@ -3830,10 +3830,9 @@ static const struct {
 
 static void enable_blocks_parity(struct bnx2x *bp)
 {
-	int i, mask_arr_len =
-		sizeof(bnx2x_parity_mask)/(sizeof(bnx2x_parity_mask[0]));
+	int i;
 
-	for (i = 0; i < mask_arr_len; i++)
+	for (i = 0; i < ARRAY_SIZE(bnx2x_parity_mask); i++)
 		REG_WR(bp, bnx2x_parity_mask[i].addr,
 			bnx2x_parity_mask[i].mask);
 }
