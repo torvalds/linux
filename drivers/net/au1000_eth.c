@@ -58,11 +58,11 @@
 #include <linux/crc32.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/cpu.h>
+#include <linux/io.h>
 
-#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/processor.h>
 
 #include <au1000.h>
