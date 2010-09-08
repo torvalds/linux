@@ -813,6 +813,28 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	POSTING_READ(PCH_PP_CONTROL);
 }
 
+static void ironlake_edp_panel_vdd_on(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp |= EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+}
+
+static void ironlake_edp_panel_vdd_off(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+}
+
 static void ironlake_edp_backlight_on (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -868,7 +890,7 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 
 	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
-		ironlake_edp_panel_on(dev);
+		ironlake_edp_panel_vdd_on(dev);
 		ironlake_edp_pll_on(encoder);
 	}
 	if (dp_reg & DP_PORT_EN)
@@ -885,8 +907,10 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 	if (!(dp_reg & DP_PORT_EN)) {
 		intel_dp_link_train(intel_dp);
 	}
-	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
+	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
+		ironlake_edp_panel_on(dev);
 		ironlake_edp_backlight_on(dev);
+	}
 }
 
 static void
@@ -1371,11 +1395,10 @@ ironlake_dp_detect(struct drm_connector *connector)
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum drm_connector_status status;
-	bool was_on = false;
 
 	/* Panel needs power for AUX to work */
 	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
-		was_on = ironlake_edp_panel_on(connector->dev);
+		ironlake_edp_panel_vdd_on(connector->dev);
 	status = connector_status_disconnected;
 	if (intel_dp_aux_native_read(intel_dp,
 				     0x000, intel_dp->dpcd,
@@ -1386,8 +1409,8 @@ ironlake_dp_detect(struct drm_connector *connector)
 	}
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
 		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
-	if ((IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) && !was_on)
-		ironlake_edp_panel_off(connector->dev);
+	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
+		ironlake_edp_panel_vdd_off(connector->dev);
 	return status;
 }
 
