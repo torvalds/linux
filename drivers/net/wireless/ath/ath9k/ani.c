@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/kernel.h>
 #include "hw.h"
 #include "hw-ops.h"
 
@@ -48,7 +49,7 @@ static const struct ani_ofdm_level_entry ofdm_level_table[] = {
 	{  7,  8,  0  }  /* lvl 9 */
 };
 #define ATH9K_ANI_OFDM_NUM_LEVEL \
-	(sizeof(ofdm_level_table)/sizeof(ofdm_level_table[0]))
+	ARRAY_SIZE(ofdm_level_table)
 #define ATH9K_ANI_OFDM_MAX_LEVEL \
 	(ATH9K_ANI_OFDM_NUM_LEVEL-1)
 #define ATH9K_ANI_OFDM_DEF_LEVEL \
@@ -94,7 +95,7 @@ static const struct ani_cck_level_entry cck_level_table[] = {
 };
 
 #define ATH9K_ANI_CCK_NUM_LEVEL \
-	(sizeof(cck_level_table)/sizeof(cck_level_table[0]))
+	ARRAY_SIZE(cck_level_table)
 #define ATH9K_ANI_CCK_MAX_LEVEL \
 	(ATH9K_ANI_CCK_NUM_LEVEL-1)
 #define ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI \
