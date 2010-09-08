@@ -164,14 +164,7 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 	BUG_ON(!zfcp_reqlist_isempty(adapter->req_list));
 	adapter->req_no = 0;
 
-	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,
-				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
-	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-				"ccsonl2", NULL);
-	zfcp_erp_wait(adapter);
-
-	flush_work(&adapter->scan_work);
-
+	zfcp_ccw_activate(cdev);
 	zfcp_ccw_adapter_put(adapter);
 	return 0;
 }
