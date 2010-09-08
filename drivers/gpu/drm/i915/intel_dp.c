@@ -894,6 +894,7 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
+		ironlake_edp_panel_off(dev);
 		ironlake_edp_backlight_off(dev);
 		ironlake_edp_panel_vdd_on(dev);
 		ironlake_edp_pll_on(encoder);
