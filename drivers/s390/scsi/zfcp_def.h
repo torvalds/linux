@@ -234,6 +234,45 @@ struct zfcp_unit {
 };
 
 /**
+ * struct zfcp_scsi_dev - zfcp data per SCSI device
+ * @status: zfcp internal status flags
+ * @lun_handle: handle from "open lun" for issuing FSF requests
+ * @erp_action: zfcp erp data for opening and recovering this LUN
+ * @erp_counter: zfcp erp counter for this LUN
+ * @latencies: FSF channel and fabric latencies
+ * @port: zfcp_port where this LUN belongs to
+ */
+struct zfcp_scsi_dev {
+	atomic_t		status;
+	u32			lun_handle;
+	struct zfcp_erp_action	erp_action;
+	atomic_t		erp_counter;
+	struct zfcp_latencies	latencies;
+	struct zfcp_port	*port;
+};
+
+/**
+ * sdev_to_zfcp - Access zfcp LUN data for SCSI device
+ * @sdev: scsi_device where to get the zfcp_scsi_dev pointer
+ */
+static inline struct zfcp_scsi_dev *sdev_to_zfcp(struct scsi_device *sdev)
+{
+	return scsi_transport_device_data(sdev);
+}
+
+/**
+ * zfcp_scsi_dev_lun - Return SCSI device LUN as 64 bit FCP LUN
+ * @sdev: SCSI device where to get the LUN from
+ */
+static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
+{
+	u64 fcp_lun;
+
+	int_to_scsilun(sdev->lun, (struct scsi_lun *)&fcp_lun);
+	return fcp_lun;
+}
+
+/**
  * struct zfcp_fsf_req - basic FSF request structure
  * @list: list of FSF requests
  * @req_id: unique request ID

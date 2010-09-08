@@ -159,6 +159,9 @@ static int __init zfcp_module_init(void)
 		fc_attach_transport(&zfcp_transport_functions);
 	if (!zfcp_data.scsi_transport_template)
 		goto out_transport;
+	scsi_transport_reserve_device(zfcp_data.scsi_transport_template,
+				      sizeof(struct zfcp_scsi_dev));
+
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval) {
