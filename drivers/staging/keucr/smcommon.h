@@ -1,4 +1,4 @@
-//----- < SMCommon.h> --------------------------------------------------
+/*----- < SMCommon.h> --------------------------------------------------*/
 #ifndef SMCOMMON_INCD
 #define SMCOMMON_INCD
 
@@ -24,17 +24,10 @@ Define Difinetion
 #define ERR_IllegalFmt      0x0031 /* Medium Format Corrupted */
 #define ERR_NoSmartMedia    0x003A /* Medium Not Present */
 
-
-
 /***************************************************************************/
-//#define SUCCESS   0 /* SUCCESS */
-//#define ERROR    -1 /* ERROR */
+char Bit_D_Count(BYTE);
+char Bit_D_CountWord(WORD);
+void StringCopy(char *, char *, int);
+int  StringCmp(char *, char *, int);
 
-/***************************************************************************/
-char Bit_D_Count     (BYTE);
-char Bit_D_CountWord (WORD);
-void StringCopy    (char *, char *, int);
-int  StringCmp     (char *, char *, int);
-
-
-#endif // already included
+#endif

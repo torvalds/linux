@@ -80,10 +80,10 @@
 #define MS_REG_MNG_SYSFLG_USER                  MS_REG_MNG_SYSFLG   // user block
 #define MS_REG_MNG_SYSFLG_BOOT                  0x00            // system block
 #define MS_REG_MNG_RESERVED                     0xc3
-#define MS_REG_MNG_DEFAULT                      (MS_REG_MNG_SCMS_COPY_OK |     \
-                                                MS_REG_MNG_ATFLG_OTHER |  \
-                                                MS_REG_MNG_SYSFLG_USER |  \
-                                                MS_REG_MNG_RESERVED)
+#define MS_REG_MNG_DEFAULT		(MS_REG_MNG_SCMS_COPY_OK |	\
+					 MS_REG_MNG_ATFLG_OTHER |	\
+					 MS_REG_MNG_SYSFLG_USER |	\
+					 MS_REG_MNG_RESERVED)
 
 // Error codes
 #define MS_STATUS_SUCCESS                       0x0000
@@ -183,201 +183,199 @@
 //----- MemStickRegisters --------------------------------------------
 // Status registers (16 bytes)
 typedef struct {
-    BYTE   Reserved0;          // 00
-    BYTE   INTRegister;        // 01
-    BYTE   StatusRegister0;    // 02
-    BYTE   StatusRegister1;    // 03
-    BYTE   Reserved1[12];      // 04-0F
+	BYTE Reserved0;		// 00
+	BYTE INTRegister;	// 01
+	BYTE StatusRegister0;	// 02
+	BYTE StatusRegister1;	// 03
+	BYTE Reserved1[12];	// 04-0F
 } MemStickStatusRegisters;
 
 // Parameter registers (6 bytes)
 typedef struct {
-    BYTE   SystemParameter;    // 10
-    BYTE   BlockAddress2;      // 11
-    BYTE   BlockAddress1;      // 12
-    BYTE   BlockAddress0;      // 13
-    BYTE   CMDParameter;       // 14
-    BYTE   PageAddress;        // 15
+	BYTE SystemParameter;	// 10
+	BYTE BlockAddress2;	// 11
+	BYTE BlockAddress1;	// 12
+	BYTE BlockAddress0;	// 13
+	BYTE CMDParameter;	// 14
+	BYTE PageAddress;	// 15
 } MemStickParameterRegisters;
 
 // Extra registers (9 bytes)
 typedef struct {
-    BYTE   OverwriteFlag;      // 16
-    BYTE   ManagementFlag;     // 17
-    BYTE   LogicalAddress1;    // 18
-    BYTE   LogicalAddress0;    // 19
-    BYTE   ReservedArea[5];    // 1A-1E
+	BYTE OverwriteFlag;	// 16
+	BYTE ManagementFlag;	// 17
+	BYTE LogicalAddress1;	// 18
+	BYTE LogicalAddress0;	// 19
+	BYTE ReservedArea[5];	// 1A-1E
 } MemStickExtraDataRegisters;
 
 // All registers in Memory Stick (32 bytes, includes 1 byte padding)
 typedef struct {
-    MemStickStatusRegisters     status;
-    MemStickParameterRegisters  param;
-    MemStickExtraDataRegisters  extra;
-    BYTE                        padding;
+	MemStickStatusRegisters status;
+	MemStickParameterRegisters param;
+	MemStickExtraDataRegisters extra;
+	BYTE padding;
 } MemStickRegisters, *PMemStickRegisters;
 
 //----- MemStickBootBlockPage0 ---------------------------------------
 typedef struct {
-    WORD   wBlockID;
-    WORD   wFormatVersion;
-    BYTE   bReserved1[184];
-    BYTE   bNumberOfDataEntry;
-    BYTE   bReserved2[179];
+	WORD wBlockID;
+	WORD wFormatVersion;
+	BYTE bReserved1[184];
+	BYTE bNumberOfDataEntry;
+	BYTE bReserved2[179];
 } MemStickBootBlockHeader;
 
 typedef struct {
-    DWORD   dwStart;
-    DWORD   dwSize;
-    BYTE    bType;
-    BYTE    bReserved[3];
+	DWORD dwStart;
+	DWORD dwSize;
+	BYTE bType;
+	BYTE bReserved[3];
 } MemStickBootBlockSysEntRec;
 
 typedef struct {
-    MemStickBootBlockSysEntRec  entry[MS_NUMBER_OF_SYSTEM_ENTRY];
+	MemStickBootBlockSysEntRec entry[MS_NUMBER_OF_SYSTEM_ENTRY];
 } MemStickBootBlockSysEnt;
 
 typedef struct {
-    BYTE   bMsClass;       // must be 1
-    BYTE   bCardType;      // see below
-    WORD   wBlockSize;     // n KB
-    WORD   wBlockNumber;       // number of physical block
-    WORD   wTotalBlockNumber;  // number of logical block
-    WORD   wPageSize;      // must be 0x200
-    BYTE   bExtraSize;     // 0x10
-    BYTE   bSecuritySupport;
-    BYTE   bAssemblyDate[8];
-    BYTE   bFactoryArea[4];
-    BYTE   bAssemblyMakerCode;
-    BYTE   bAssemblyMachineCode[3];
-    WORD   wMemoryMakerCode;
-    WORD   wMemoryDeviceCode;
-    WORD   wMemorySize;
-    BYTE   bReserved1;
-    BYTE   bReserved2;
-    BYTE   bVCC;
-    BYTE   bVPP;
-    WORD   wControllerChipNumber;
-    WORD   wControllerFunction;  // New MS
-    BYTE   bReserved3[9];        // New MS
-    BYTE   bParallelSupport;     // New MS
-    WORD   wFormatValue;         // New MS
-    BYTE   bFormatType;
-    BYTE   bUsage;
-    BYTE   bDeviceType;
-    BYTE   bReserved4[22];
-    BYTE   bFUValue3;
-    BYTE   bFUValue4;
-    BYTE   bReserved5[15];
+	BYTE bMsClass;		// must be 1
+	BYTE bCardType;		// see below
+	WORD wBlockSize;	// n KB
+	WORD wBlockNumber;	// number of physical block
+	WORD wTotalBlockNumber;	// number of logical block
+	WORD wPageSize;		// must be 0x200
+	BYTE bExtraSize;	// 0x10
+	BYTE bSecuritySupport;
+	BYTE bAssemblyDate[8];
+	BYTE bFactoryArea[4];
+	BYTE bAssemblyMakerCode;
+	BYTE bAssemblyMachineCode[3];
+	WORD wMemoryMakerCode;
+	WORD wMemoryDeviceCode;
+	WORD wMemorySize;
+	BYTE bReserved1;
+	BYTE bReserved2;
+	BYTE bVCC;
+	BYTE bVPP;
+	WORD wControllerChipNumber;
+	WORD wControllerFunction;	// New MS
+	BYTE bReserved3[9];		// New MS
+	BYTE bParallelSupport;		// New MS
+	WORD wFormatValue;		// New MS
+	BYTE bFormatType;
+	BYTE bUsage;
+	BYTE bDeviceType;
+	BYTE bReserved4[22];
+	BYTE bFUValue3;
+	BYTE bFUValue4;
+	BYTE bReserved5[15];
 } MemStickBootBlockSysInf;
 
 typedef struct {
-    MemStickBootBlockHeader header;
-    MemStickBootBlockSysEnt sysent;
-    MemStickBootBlockSysInf sysinf;
+	MemStickBootBlockHeader header;
+	MemStickBootBlockSysEnt sysent;
+	MemStickBootBlockSysInf sysinf;
 } MemStickBootBlockPage0;
 
 //----- MemStickBootBlockCIS_IDI -------------------------------------
 typedef struct {
-    BYTE   bCistplDEVICE[6];            // 0
-    BYTE   bCistplDEVICE0C[6];          // 6
-    BYTE   bCistplJEDECC[4];            // 12
-    BYTE   bCistplMANFID[6];            // 16
-    BYTE   bCistplVER1[32];             // 22
-    BYTE   bCistplFUNCID[4];            // 54
-    BYTE   bCistplFUNCE0[4];            // 58
-    BYTE   bCistplFUNCE1[5];            // 62
-    BYTE   bCistplCONF[7];              // 67
-    BYTE   bCistplCFTBLENT0[10];        // 74
-    BYTE   bCistplCFTBLENT1[8];         // 84
-    BYTE   bCistplCFTBLENT2[12];        // 92
-    BYTE   bCistplCFTBLENT3[8];         // 104
-    BYTE   bCistplCFTBLENT4[17];        // 112
-    BYTE   bCistplCFTBLENT5[8];         // 129
-    BYTE   bCistplCFTBLENT6[17];        // 137
-    BYTE   bCistplCFTBLENT7[8];         // 154
-    BYTE   bCistplNOLINK[3];            // 162
+	BYTE bCistplDEVICE[6];            // 0
+	BYTE bCistplDEVICE0C[6];          // 6
+	BYTE bCistplJEDECC[4];            // 12
+	BYTE bCistplMANFID[6];            // 16
+	BYTE bCistplVER1[32];             // 22
+	BYTE bCistplFUNCID[4];            // 54
+	BYTE bCistplFUNCE0[4];            // 58
+	BYTE bCistplFUNCE1[5];            // 62
+	BYTE bCistplCONF[7];              // 67
+	BYTE bCistplCFTBLENT0[10];        // 74
+	BYTE bCistplCFTBLENT1[8];         // 84
+	BYTE bCistplCFTBLENT2[12];        // 92
+	BYTE bCistplCFTBLENT3[8];         // 104
+	BYTE bCistplCFTBLENT4[17];        // 112
+	BYTE bCistplCFTBLENT5[8];         // 129
+	BYTE bCistplCFTBLENT6[17];        // 137
+	BYTE bCistplCFTBLENT7[8];         // 154
+	BYTE bCistplNOLINK[3];            // 162
 } MemStickBootBlockCIS;
 
 typedef struct {
-    #define MS_IDI_GENERAL_CONF         0x848A
-    WORD  wIDIgeneralConfiguration;     // 0
-    WORD  wIDInumberOfCylinder;         // 1
-    WORD  wIDIreserved0;                // 2
-    WORD  wIDInumberOfHead;             // 3
-    WORD  wIDIbytesPerTrack;            // 4
-    WORD  wIDIbytesPerSector;           // 5
-    WORD  wIDIsectorsPerTrack;          // 6
-    WORD  wIDItotalSectors[2];          // 7-8  high,low
-    WORD  wIDIreserved1[11];            // 9-19
-    WORD  wIDIbufferType;               // 20
-    WORD  wIDIbufferSize;               // 21
-    WORD  wIDIlongCmdECC;               // 22
-    WORD  wIDIfirmVersion[4];           // 23-26
-    WORD  wIDImodelName[20];            // 27-46
-    WORD  wIDIreserved2;                // 47
-    WORD  wIDIlongWordSupported;        // 48
-    WORD  wIDIdmaSupported;             // 49
-    WORD  wIDIreserved3;                // 50
-    WORD  wIDIpioTiming;                // 51
-    WORD  wIDIdmaTiming;                // 52
-    WORD  wIDItransferParameter;        // 53
-    WORD  wIDIformattedCylinder;        // 54
-    WORD  wIDIformattedHead;            // 55
-    WORD  wIDIformattedSectorsPerTrack; // 56
-    WORD  wIDIformattedTotalSectors[2]; // 57-58
-    WORD  wIDImultiSector;              // 59
-    WORD  wIDIlbaSectors[2];            // 60-61
-    WORD  wIDIsingleWordDMA;            // 62
-    WORD  wIDImultiWordDMA;             // 63
-    WORD  wIDIreserved4[192];           // 64-255
+#define MS_IDI_GENERAL_CONF         0x848A
+	WORD wIDIgeneralConfiguration;     // 0
+	WORD wIDInumberOfCylinder;         // 1
+	WORD wIDIreserved0;                // 2
+	WORD wIDInumberOfHead;             // 3
+	WORD wIDIbytesPerTrack;            // 4
+	WORD wIDIbytesPerSector;           // 5
+	WORD wIDIsectorsPerTrack;          // 6
+	WORD wIDItotalSectors[2];          // 7-8  high,low
+	WORD wIDIreserved1[11];            // 9-19
+	WORD wIDIbufferType;               // 20
+	WORD wIDIbufferSize;               // 21
+	WORD wIDIlongCmdECC;               // 22
+	WORD wIDIfirmVersion[4];           // 23-26
+	WORD wIDImodelName[20];            // 27-46
+	WORD wIDIreserved2;                // 47
+	WORD wIDIlongWordSupported;        // 48
+	WORD wIDIdmaSupported;             // 49
+	WORD wIDIreserved3;                // 50
+	WORD wIDIpioTiming;                // 51
+	WORD wIDIdmaTiming;                // 52
+	WORD wIDItransferParameter;        // 53
+	WORD wIDIformattedCylinder;        // 54
+	WORD wIDIformattedHead;            // 55
+	WORD wIDIformattedSectorsPerTrack; // 56
+	WORD wIDIformattedTotalSectors[2]; // 57-58
+	WORD wIDImultiSector;              // 59
+	WORD wIDIlbaSectors[2];            // 60-61
+	WORD wIDIsingleWordDMA;            // 62
+	WORD wIDImultiWordDMA;             // 63
+	WORD wIDIreserved4[192];           // 64-255
 } MemStickBootBlockIDI;
 
 typedef struct {
+	union {
+		MemStickBootBlockCIS cis;
+		BYTE dmy[256];
+	} cis;
 
-    union
-    {
-        MemStickBootBlockCIS    cis;
-        BYTE                    dmy[256];
-    } cis;
-
-    union
-    {
-        MemStickBootBlockIDI    idi;
-        BYTE                    dmy[256];
-    } idi;
+	union {
+	MemStickBootBlockIDI idi;
+	BYTE dmy[256];
+	} idi;
 
 } MemStickBootBlockCIS_IDI;
 
 //----- MS_LibControl ------------------------------------------------
 typedef struct {
-    BYTE  reserved;
-    BYTE  intr;
-    BYTE  status0;
-    BYTE  status1;
-    BYTE  ovrflg;
-    BYTE  mngflg;
-    WORD  logadr;
+	BYTE reserved;
+	BYTE intr;
+	BYTE status0;
+	BYTE status1;
+	BYTE ovrflg;
+	BYTE mngflg;
+	WORD logadr;
 } MS_LibTypeExtdat;
 
 typedef struct {
-    DWORD               flags;
-    DWORD               BytesPerSector;
-    DWORD               NumberOfCylinder;
-    DWORD               SectorsPerCylinder;
-    WORD                cardType;               // R/W, RO, Hybrid
-    WORD                blockSize;
-    WORD                PagesPerBlock;
-    WORD                NumberOfPhyBlock;
-    WORD                NumberOfLogBlock;
-    WORD                NumberOfSegment;
-    WORD                *Phy2LogMap;            //phy2log table
-    WORD                *Log2PhyMap;            //log2phy table
-    WORD                wrtblk;
-    BYTE                pagemap[(MS_MAX_PAGES_PER_BLOCK+(MS_LIB_BITS_PER_BYTE-1))/MS_LIB_BITS_PER_BYTE];
-    BYTE                *blkpag;
-    MS_LibTypeExtdat    *blkext;
-    BYTE               copybuf[512];
+	DWORD flags;
+	DWORD BytesPerSector;
+	DWORD NumberOfCylinder;
+	DWORD SectorsPerCylinder;
+	WORD cardType;			// R/W, RO, Hybrid
+	WORD blockSize;
+	WORD PagesPerBlock;
+	WORD NumberOfPhyBlock;
+	WORD NumberOfLogBlock;
+	WORD NumberOfSegment;
+	WORD *Phy2LogMap;		// phy2log table
+	WORD *Log2PhyMap;		// log2phy table
+	WORD wrtblk;
+	BYTE pagemap[(MS_MAX_PAGES_PER_BLOCK + (MS_LIB_BITS_PER_BYTE-1)) /
+		     MS_LIB_BITS_PER_BYTE];
+	BYTE *blkpag;
+	MS_LibTypeExtdat *blkext;
+	BYTE copybuf[512];
 } MS_LibControl;
 
 #endif

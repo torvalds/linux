@@ -1,4 +1,4 @@
-//----- < smil.h> ----------------------------------------------------
+/*----- < smil.h> ----------------------------------------------------*/
 #ifndef SMIL_INCD
 #define SMIL_INCD
 
@@ -165,43 +165,44 @@ Struct Definition
 ***************************************************************************/
 struct SSFDCTYPE
 {
-    BYTE    Model;
-    BYTE    Attribute;
-    BYTE    MaxZones;
-    BYTE    MaxSectors;
-    WORD    MaxBlocks;
-    WORD    MaxLogBlocks;
+	BYTE Model;
+	BYTE Attribute;
+	BYTE MaxZones;
+	BYTE MaxSectors;
+	WORD MaxBlocks;
+	WORD MaxLogBlocks;
 };
 
 typedef struct SSFDCTYPE_T
 {
-    BYTE    Model;
-    BYTE    Attribute;
-    BYTE    MaxZones;
-    BYTE    MaxSectors;
-    WORD    MaxBlocks;
-    WORD    MaxLogBlocks;
+	BYTE Model;
+	BYTE Attribute;
+	BYTE MaxZones;
+	BYTE MaxSectors;
+	WORD MaxBlocks;
+	WORD MaxLogBlocks;
 } *SSFDCTYPE_T;
 
 struct ADDRESS
 {
-    BYTE    Zone;     /* Zone Number */
-    BYTE    Sector;   /* Sector(512byte) Number on Block */
-    WORD    PhyBlock; /* Physical Block Number on Zone */
-    WORD    LogBlock; /* Logical Block Number of Zone */
+	BYTE Zone;	/* Zone Number */
+	BYTE Sector;	/* Sector(512byte) Number on Block */
+	WORD PhyBlock;	/* Physical Block Number on Zone */
+	WORD LogBlock;	/* Logical Block Number of Zone */
 };
+
 typedef struct ADDRESS_T
 {
-    BYTE    Zone;     /* Zone Number */
-    BYTE    Sector;   /* Sector(512byte) Number on Block */
-    WORD    PhyBlock; /* Physical Block Number on Zone */
-    WORD    LogBlock; /* Logical Block Number of Zone */
-}*ADDRESS_T;
+	BYTE Zone;	/* Zone Number */
+	BYTE Sector;	/* Sector(512byte) Number on Block */
+	WORD PhyBlock;	/* Physical Block Number on Zone */
+	WORD LogBlock;	/* Logical Block Number of Zone */
+} *ADDRESS_T;
 
 struct CIS_AREA
 {
-    BYTE    Sector;   /* Sector(512byte) Number on Block */
-    WORD    PhyBlock; /* Physical Block Number on Zone 0 */
+	BYTE Sector;	/* Sector(512byte) Number on Block */
+	WORD PhyBlock;	/* Physical Block Number on Zone 0 */
 };
 
 
