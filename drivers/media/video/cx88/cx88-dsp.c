@@ -175,13 +175,7 @@ static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 		stereo_freq = FREQ_EIAJ_STEREO;
 		dual_freq = FREQ_EIAJ_DUAL;
 		break;
-	case WW_NONE:
-	case WW_BTSC:
-	case WW_I:
-	case WW_L:
-	case WW_I2SPT:
-	case WW_FM:
-	case WW_I2SADC:
+	default:
 		printk(KERN_WARNING "%s/0: unsupported audio mode %d for %s\n",
 		       core->name, core->tvaudio, __func__);
 		return UNSET;
