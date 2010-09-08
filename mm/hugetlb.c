@@ -423,14 +423,14 @@ static void clear_huge_page(struct page *page,
 	}
 }
 
-static void copy_gigantic_page(struct page *dst, struct page *src,
+static void copy_user_gigantic_page(struct page *dst, struct page *src,
 			   unsigned long addr, struct vm_area_struct *vma)
 {
 	int i;
 	struct hstate *h = hstate_vma(vma);
 	struct page *dst_base = dst;
 	struct page *src_base = src;
-	might_sleep();
+
 	for (i = 0; i < pages_per_huge_page(h); ) {
 		cond_resched();
 		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
@@ -440,14 +440,15 @@ static void copy_gigantic_page(struct page *dst, struct page *src,
 		src = mem_map_next(src, src_base, i);
 	}
 }
-static void copy_huge_page(struct page *dst, struct page *src,
+
+static void copy_user_huge_page(struct page *dst, struct page *src,
 			   unsigned long addr, struct vm_area_struct *vma)
 {
 	int i;
 	struct hstate *h = hstate_vma(vma);
 
 	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-		copy_gigantic_page(dst, src, addr, vma);
+		copy_user_gigantic_page(dst, src, addr, vma);
 		return;
 	}
 
@@ -455,6 +456,40 @@ static void copy_huge_page(struct page *dst, struct page *src,
 	for (i = 0; i < pages_per_huge_page(h); i++) {
 		cond_resched();
 		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
+	}
+}
+
+static void copy_gigantic_page(struct page *dst, struct page *src)
+{
+	int i;
+	struct hstate *h = page_hstate(src);
+	struct page *dst_base = dst;
+	struct page *src_base = src;
+
+	for (i = 0; i < pages_per_huge_page(h); ) {
+		cond_resched();
+		copy_highpage(dst, src);
+
+		i++;
+		dst = mem_map_next(dst, dst_base, i);
+		src = mem_map_next(src, src_base, i);
+	}
+}
+
+void copy_huge_page(struct page *dst, struct page *src)
+{
+	int i;
+	struct hstate *h = page_hstate(src);
+
+	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+		copy_gigantic_page(dst, src);
+		return;
+	}
+
+	might_sleep();
+	for (i = 0; i < pages_per_huge_page(h); i++) {
+		cond_resched();
+		copy_highpage(dst + i, src + i);
 	}
 }
 
@@ -2412,7 +2447,7 @@ retry_avoidcopy:
 	if (unlikely(anon_vma_prepare(vma)))
 		return VM_FAULT_OOM;
 
-	copy_huge_page(new_page, old_page, address, vma);
+	copy_user_huge_page(new_page, old_page, address, vma);
 	__SetPageUptodate(new_page);
 
 	/*
