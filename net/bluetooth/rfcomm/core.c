@@ -1698,7 +1698,7 @@ static int rfcomm_recv_frame(struct rfcomm_session *s, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type 0x%02x\n", type);
+		BT_ERR("Unknown packet type 0x%02x", type);
 		break;
 	}
 	kfree_skb(skb);
