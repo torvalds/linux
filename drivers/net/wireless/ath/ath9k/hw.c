@@ -1258,7 +1258,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	    (chan->channel != ah->curchan->channel) &&
 	    ((chan->channelFlags & CHANNEL_ALL) ==
 	     (ah->curchan->channelFlags & CHANNEL_ALL)) &&
-	    !AR_SREV_9280(ah)) {
+	    (!AR_SREV_9280(ah) || AR_DEVID_7010(ah))) {
 
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
