@@ -376,7 +376,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 			unsigned short ModeNo)
 {
-	unsigned short ModeIdIndex = 0;
+	unsigned short ModeIdIndex;
 	/* unsigned char *pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress; */
 	struct vb_device_info VBINF;
 	struct vb_device_info *pVBInfo = &VBINF;
@@ -3512,9 +3512,6 @@ unsigned char XGI_GetLCDInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 unsigned char XGI_SearchModeID(unsigned short ModeNo,
 		unsigned short *ModeIdIndex, struct vb_device_info *pVBInfo)
 {
-
-#ifdef LINUX /* chiawen for linux solution */
-
 	if (ModeNo <= 5)
 		ModeNo |= 1;
 	if (ModeNo <= 0x13) {
@@ -3540,8 +3537,6 @@ unsigned char XGI_SearchModeID(unsigned short ModeNo,
 				return 0;
 		}
 	}
-
-#endif
 
 	return 1;
 }
@@ -3834,7 +3829,7 @@ unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short tempbx, ModeIdIndex = 0, RefreshRateTableIndex;
+	unsigned short tempbx, ModeIdIndex, RefreshRateTableIndex;
 
 	tempbx = pVBInfo->VBInfo;
 	pVBInfo->SetFlag |= ProgrammingCRT2;
