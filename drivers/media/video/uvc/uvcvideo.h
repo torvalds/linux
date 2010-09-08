@@ -172,6 +172,9 @@ struct uvc_xu_control {
 #define UVC_CTRL_CONTROL_TIMEOUT	300
 #define UVC_CTRL_STREAMING_TIMEOUT	5000
 
+/* Maximum allowed number of control mappings per device */
+#define UVC_MAX_CONTROL_MAPPINGS	1024
+
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
 #define UVC_QUIRK_PROBE_MINMAX		0x00000002
@@ -472,6 +475,7 @@ struct uvc_device {
 
 	enum uvc_device_state state;
 	atomic_t users;
+	atomic_t nmappings;
 
 	/* Video control interface */
 	__u16 uvc_version;

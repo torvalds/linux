@@ -1760,6 +1760,7 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->streams);
 	atomic_set(&dev->nstreams, 0);
 	atomic_set(&dev->users, 0);
+	atomic_set(&dev->nmappings, 0);
 
 	dev->udev = usb_get_dev(udev);
 	dev->intf = usb_get_intf(intf);

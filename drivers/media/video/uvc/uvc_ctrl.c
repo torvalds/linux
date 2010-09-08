@@ -1435,6 +1435,7 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	struct uvc_entity *entity;
 	struct uvc_control *ctrl;
 	int found = 0;
+	int ret;
 
 	if (mapping->id & ~V4L2_CTRL_ID_MASK) {
 		uvc_trace(UVC_TRACE_CONTROL, "Can't add mapping '%s', control "
@@ -1478,7 +1479,20 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		}
 	}
 
+	/* Prevent excess memory consumption */
+	if (atomic_inc_return(&dev->nmappings) > UVC_MAX_CONTROL_MAPPINGS) {
+		atomic_dec(&dev->nmappings);
+		uvc_trace(UVC_TRACE_CONTROL, "Can't add mapping '%s', maximum "
+			"mappings count (%u) exceeded.\n", mapping->name,
+			UVC_MAX_CONTROL_MAPPINGS);
+		ret = -ENOMEM;
+		goto done;
+	}
+
 	ret = __uvc_ctrl_add_mapping(dev, ctrl, mapping);
+	if (ret < 0)
+		atomic_dec(&dev->nmappings);
+
 done:
 	mutex_unlock(&chain->ctrl_mutex);
 	return ret;

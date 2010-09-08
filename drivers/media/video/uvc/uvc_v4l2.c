@@ -1025,16 +1025,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	/* Dynamic controls. */
 	case UVCIOC_CTRL_ADD:
 		/* Legacy ioctl, kept for API compatibility reasons */
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
 		return -EEXIST;
 
 	case UVCIOC_CTRL_MAP_OLD:
 	case UVCIOC_CTRL_MAP:
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
 		return uvc_ioctl_ctrl_map(chain, arg,
 					  cmd == UVCIOC_CTRL_MAP_OLD);
 
