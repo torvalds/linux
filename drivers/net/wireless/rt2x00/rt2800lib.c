@@ -2053,6 +2053,14 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, LG_FBK_CFG1, reg);
 
 	/*
+	 * Do not force the BA window size, we use the TXWI to set it
+	 */
+	rt2800_register_read(rt2x00dev, AMPDU_BA_WINSIZE, &reg);
+	rt2x00_set_field32(&reg, AMPDU_BA_WINSIZE_FORCE_WINSIZE_ENABLE, 0);
+	rt2x00_set_field32(&reg, AMPDU_BA_WINSIZE_FORCE_WINSIZE, 0);
+	rt2800_register_write(rt2x00dev, AMPDU_BA_WINSIZE, reg);
+
+	/*
 	 * We must clear the error counters.
 	 * These registers are cleared on read,
 	 * so we may pass a useless variable to store the value.
