@@ -566,7 +566,7 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	 * reset the contents on initial power up.
 	 */
 	for (i = 0; i < common->keymax; i++)
-		ath9k_hw_keyreset(priv->ah, (u16) i);
+		ath_hw_keyreset(common, (u16) i);
 }
 
 static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
