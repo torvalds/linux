@@ -12205,6 +12205,35 @@ static struct hda_verb alc262_toshiba_rx1_unsol_verbs[] = {
 	{}
 };
 
+/*
+ * Pin config fixes
+ */
+enum {
+	PINFIX_FSC_H270,
+};
+
+static const struct alc_fixup alc262_fixups[] = {
+	[PINFIX_FSC_H270] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x14, 0x99130110 }, /* speaker */
+			{ 0x15, 0x0221142f }, /* front HP */
+			{ 0x1b, 0x0121141f }, /* rear HP */
+			{ }
+		}
+	},
+	[PINFIX_PB_M5210] = {
+		.verbs = (const struct hda_verb[]) {
+			{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{}
+		}
+	},
+};
+
+static struct snd_pci_quirk alc262_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", PINFIX_FSC_H270),
+	{}
+};
+
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc262_loopbacks	alc880_loopbacks
@@ -12628,6 +12657,9 @@ static int patch_alc262(struct hda_codec *codec)
 		board_config = ALC262_AUTO;
 	}
 
+	if (board_config == ALC262_AUTO)
+		alc_pick_fixup(codec, alc262_fixup_tbl, alc262_fixups, 1);
+
 	if (board_config == ALC262_AUTO) {
 		/* automatic parse from the BIOS config */
 		err = alc262_parse_auto_config(codec);
@@ -12695,6 +12727,9 @@ static int patch_alc262(struct hda_codec *codec)
 		set_capture_mixer(codec);
 	if (!spec->no_analog && has_cdefine_beep(codec))
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
+
+	if (board_config == ALC262_AUTO)
+		alc_pick_fixup(codec, alc262_fixup_tbl, alc262_fixups, 0);
 
 	spec->vmaster_nid = 0x0c;
 
