@@ -698,6 +698,7 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
  */
 static int me_huge_page(struct page *p, unsigned long pfn)
 {
+	int res = 0;
 	struct page *hpage = compound_head(p);
 	/*
 	 * We can safely recover from error on free or reserved (i.e.
@@ -710,8 +711,9 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 	 * so there is no race between isolation and mapping/unmapping.
 	 */
 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
-		__isolate_hwpoisoned_huge_page(hpage);
-		return RECOVERED;
+		res = dequeue_hwpoisoned_huge_page(hpage);
+		if (!res)
+			return RECOVERED;
 	}
 	return DELAYED;
 }

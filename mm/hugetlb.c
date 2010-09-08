@@ -2955,18 +2955,39 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 	hugetlb_acct_memory(h, -(chg - freed));
 }
 
+/* Should be called in hugetlb_lock */
+static int is_hugepage_on_freelist(struct page *hpage)
+{
+	struct page *page;
+	struct page *tmp;
+	struct hstate *h = page_hstate(hpage);
+	int nid = page_to_nid(hpage);
+
+	list_for_each_entry_safe(page, tmp, &h->hugepage_freelists[nid], lru)
+		if (page == hpage)
+			return 1;
+	return 0;
+}
+
+#ifdef CONFIG_MEMORY_FAILURE
 /*
  * This function is called from memory failure code.
  * Assume the caller holds page lock of the head page.
  */
-void __isolate_hwpoisoned_huge_page(struct page *hpage)
+int dequeue_hwpoisoned_huge_page(struct page *hpage)
 {
 	struct hstate *h = page_hstate(hpage);
 	int nid = page_to_nid(hpage);
+	int ret = -EBUSY;
 
 	spin_lock(&hugetlb_lock);
-	list_del(&hpage->lru);
-	h->free_huge_pages--;
-	h->free_huge_pages_node[nid]--;
+	if (is_hugepage_on_freelist(hpage)) {
+		list_del(&hpage->lru);
+		h->free_huge_pages--;
+		h->free_huge_pages_node[nid]--;
+		ret = 0;
+	}
 	spin_unlock(&hugetlb_lock);
+	return ret;
 }
+#endif
