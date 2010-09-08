@@ -660,6 +660,11 @@ struct regulator_init_data max8649_regulator_init_data[] = {
 			.max_uV			= 1100000,
 			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
 			.always_on		= 1,
+			.state_mem = {
+				 .uV		= 1000000,
+				 .enabled	= 1,
+				 .disabled	= 0,
+			}
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(max8649_consumers),
 		.consumer_supplies	= max8649_consumers,
@@ -668,7 +673,7 @@ struct regulator_init_data max8649_regulator_init_data[] = {
 
 struct max8649_platform_data stingray_max8649_pdata = {
 	.regulator = max8649_regulator_init_data,
-	.mode = 3,
+	.mode = 1,
 	.extclk = 0,
 	.ramp_timing = MAX8649_RAMP_32MV,
 	.ramp_down = 0,
@@ -727,6 +732,8 @@ int __init stingray_power_init(void)
 		stingray_display_led.led_regulator = "sw5";
 		stingray_display_led.cpcap_register = CPCAP_REG_KLC,
 		stingray_privacy_led.led_regulator = "sw5";
+
+		stingray_max8649_pdata.mode = 3;
 	}
 
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
