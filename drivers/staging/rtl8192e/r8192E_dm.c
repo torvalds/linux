@@ -21,7 +21,7 @@ Major Change History:
 #include "r8190_rtl8256.h"
 
 #define DRV_NAME "rtl819xE"
-/*---------------------------Define Local Constant---------------------------*/
+
 //
 // Indicate different AP vendor for IOT issue.
 //
@@ -46,19 +46,11 @@ static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 
 #define RTK_UL_EDCA 0xa44f
 #define RTK_DL_EDCA 0x5e4322
-/*---------------------------Define Local Constant---------------------------*/
 
 
-/*------------------------Define global variable-----------------------------*/
-// Debug variable ?
 dig_t	dm_digtable;
 // For Dynamic Rx Path Selection by Signal Strength
 DRxPathSel	DM_RxPathSelTable;
-/*------------------------Define global variable-----------------------------*/
-
-
-/*------------------------Define local variable------------------------------*/
-/*------------------------Define local variable------------------------------*/
 
 
 /*--------------------Define export function prototype-----------------------*/
@@ -95,11 +87,6 @@ extern  void    dm_gpio_change_rf_callback(struct work_struct *work);
 #endif
 
 
-
-/*--------------------Define export function prototype-----------------------*/
-
-
-/*---------------------Define local function prototype-----------------------*/
 // DM --> Rate Adaptive
 static	void	dm_check_rate_adaptive(struct net_device *dev);
 
@@ -108,19 +95,11 @@ static	void	dm_init_bandwidth_autoswitch(struct net_device *dev);
 static	void	dm_bandwidth_autoswitch(	struct net_device *dev);
 
 // DM --> TX power control
-//static	void	dm_initialize_txpower_tracking(struct net_device *dev);
-
 static	void	dm_check_txpower_tracking(struct net_device *dev);
-
-
-
-//static	void	dm_txpower_reset_recovery(struct net_device *dev);
-
 
 // DM --> BB init gain restore
 #ifndef RTL8192U
 static	void	dm_bb_initialgain_restore(struct net_device *dev);
-
 
 // DM --> BB init gain backup
 static	void	dm_bb_initialgain_backup(struct net_device *dev);
@@ -143,37 +122,29 @@ static	void	dm_check_edca_turbo(struct net_device *dev);
 // DM --> HW RF control
 static	void	dm_check_rfctrl_gpio(struct net_device *dev);
 
-#ifndef RTL8190P
-//static	void	dm_gpio_change_rf(struct net_device *dev);
-#endif
 // DM --> Check PBC
 static	void dm_check_pbc_gpio(struct net_device *dev);
-
 
 // DM --> Check current RX RF path state
 static	void	dm_check_rx_path_selection(struct net_device *dev);
 static 	void dm_init_rxpath_selection(struct net_device *dev);
 static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 
-
 // DM --> Fsync for broadcom ap
 static void dm_init_fsync(struct net_device *dev);
 static void dm_deInit_fsync(struct net_device *dev);
 
-//Added by vivi, 20080522
 static	void	dm_check_txrateandretrycount(struct net_device *dev);
 
-/*---------------------Define local function prototype-----------------------*/
 
 /*---------------------Define of Tx Power Control For Near/Far Range --------*/   //Add by Jacken 2008/02/18
 static	void	dm_init_dynamic_txpower(struct net_device *dev);
 static	void	dm_dynamic_txpower(struct net_device *dev);
 
-
 // DM --> For rate adaptive and DIG, we must send RSSI to firmware
 static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
-/*---------------------------Define function prototype------------------------*/
+
 //================================================================================
 //	HW Dynamic mechanism interface.
 //================================================================================

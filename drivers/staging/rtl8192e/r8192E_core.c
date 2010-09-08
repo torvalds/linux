@@ -58,9 +58,6 @@
 #include "r819xE_phyreg.h"
 #include "r819xE_cmdpkt.h"
 #include "r8192E_dm.h"
-//#include "r8192xU_phyreg.h"
-//#include <linux/usb.h>
-// FIXME: check if 2.6.7 is ok
 
 #ifdef CONFIG_PM
 #include "r8192_pm.h"
