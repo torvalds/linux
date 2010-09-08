@@ -546,6 +546,9 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (get_user(ur_idx, &(ur->regionindex)))
 			return -EFAULT;
 
+		if (ur_idx >= mtd->numeraseregions)
+			return -EINVAL;
+
 		kr = &(mtd->eraseregions[ur_idx]);
 
 		if (put_user(kr->offset, &(ur->offset))
