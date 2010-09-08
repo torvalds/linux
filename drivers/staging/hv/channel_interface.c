@@ -97,20 +97,6 @@ static int IVmbusChannelTeardownGpadl(struct hv_device *device, u32 GpadlHandle)
 
 }
 
-void GetChannelInterface(struct vmbus_channel_interface *iface)
-{
-	iface->Open = IVmbusChannelOpen;
-	iface->Close	= IVmbusChannelClose;
-	iface->SendPacket = IVmbusChannelSendPacket;
-	iface->SendPacketPageBuffer = IVmbusChannelSendPacketPageBuffer;
-	iface->SendPacketMultiPageBuffer =
-					IVmbusChannelSendPacketMultiPageBuffer;
-	iface->RecvPacket = IVmbusChannelRecvPacket;
-	iface->RecvPacketRaw	= IVmbusChannelRecvPacketRaw;
-	iface->EstablishGpadl = IVmbusChannelEstablishGpadl;
-	iface->TeardownGpadl = IVmbusChannelTeardownGpadl;
-	iface->GetInfo = GetChannelInfo;
-}
 
 void GetChannelInfo(struct hv_device *device, struct hv_device_info *info)
 {
@@ -150,3 +136,18 @@ void GetChannelInfo(struct hv_device *device, struct hv_device_info *info)
 	info->Outbound.BytesAvailToRead = debugInfo.Outbound.BytesAvailToRead;
 	info->Outbound.BytesAvailToWrite = debugInfo.Outbound.BytesAvailToWrite;
 }
+
+
+/* vmbus interface function pointer table */
+const struct vmbus_channel_interface vmbus_ops = {
+	.Open = IVmbusChannelOpen,
+	.Close = IVmbusChannelClose,
+	.SendPacket = IVmbusChannelSendPacket,
+	.SendPacketPageBuffer = IVmbusChannelSendPacketPageBuffer,
+	.SendPacketMultiPageBuffer = IVmbusChannelSendPacketMultiPageBuffer,
+	.RecvPacket = IVmbusChannelRecvPacket,
+	.RecvPacketRaw	= IVmbusChannelRecvPacketRaw,
+	.EstablishGpadl = IVmbusChannelEstablishGpadl,
+	.TeardownGpadl = IVmbusChannelTeardownGpadl,
+	.GetInfo = GetChannelInfo,
+};

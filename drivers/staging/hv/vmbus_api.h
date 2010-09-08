@@ -129,6 +129,9 @@ struct vmbus_channel_interface {
 	void (*GetInfo)(struct hv_device *dev, struct hv_device_info *devinfo);
 };
 
+extern const struct vmbus_channel_interface vmbus_ops;
+
+
 /* Base driver object */
 struct hv_driver {
 	const char *name;
@@ -183,7 +186,6 @@ struct vmbus_driver {
 	void (*OnEventDpc)(struct hv_driver *driver);
 	void (*GetChannelOffers)(void);
 
-	void (*GetChannelInterface)(struct vmbus_channel_interface *i);
 	void (*GetChannelInfo)(struct hv_device *dev,
 			       struct hv_device_info *devinfo);
 };

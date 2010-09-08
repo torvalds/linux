@@ -458,9 +458,7 @@ EXPORT_SYMBOL(vmbus_child_driver_unregister);
  */
 void vmbus_get_interface(struct vmbus_channel_interface *interface)
 {
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
-
-	vmbus_drv_obj->GetChannelInterface(interface);
+	*interface = vmbus_ops;
 }
 EXPORT_SYMBOL(vmbus_get_interface);
 

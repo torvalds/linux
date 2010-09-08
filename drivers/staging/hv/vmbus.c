@@ -61,14 +61,6 @@ static void VmbusGetChannelOffers(void)
 }
 
 /*
- * VmbusGetChannelInterface - Get the channel interface
- */
-static void VmbusGetChannelInterface(struct vmbus_channel_interface *Interface)
-{
-	GetChannelInterface(Interface);
-}
-
-/*
  * VmbusGetChannelInfo - Get the device info for the specified device object
  */
 static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
@@ -279,7 +271,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->OnMsgDpc		= VmbusOnMsgDPC;
 	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
-	driver->GetChannelInterface	= VmbusGetChannelInterface;
 	driver->GetChannelInfo		= VmbusGetChannelInfo;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
