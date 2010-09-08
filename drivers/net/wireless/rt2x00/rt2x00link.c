@@ -188,7 +188,6 @@ static void rt2x00lib_antenna_diversity_eval(struct rt2x00_dev *rt2x00dev)
 static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 {
 	struct link_ant *ant = &rt2x00dev->link.ant;
-	unsigned int flags = ant->flags;
 
 	/*
 	 * Determine if software diversity is enabled for
@@ -196,22 +195,19 @@ static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 	 * Always perform this check since within the link
 	 * tuner interval the configuration might have changed.
 	 */
-	flags &= ~ANTENNA_RX_DIVERSITY;
-	flags &= ~ANTENNA_TX_DIVERSITY;
+	ant->flags &= ~ANTENNA_RX_DIVERSITY;
+	ant->flags &= ~ANTENNA_TX_DIVERSITY;
 
 	if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
-		flags |= ANTENNA_RX_DIVERSITY;
+		ant->flags |= ANTENNA_RX_DIVERSITY;
 	if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
-		flags |= ANTENNA_TX_DIVERSITY;
+		ant->flags |= ANTENNA_TX_DIVERSITY;
 
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY) &&
 	    !(ant->flags & ANTENNA_TX_DIVERSITY)) {
 		ant->flags = 0;
 		return true;
 	}
-
-	/* Update flags */
-	ant->flags = flags;
 
 	/*
 	 * If we have only sampled the data over the last period
