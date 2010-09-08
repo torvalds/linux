@@ -755,6 +755,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 			break;
 		}
 	}
+
 	if (!local && gtt_entries > intel_max_stolen) {
 		dev_info(&intel_private.bridge_dev->dev,
 			 "detected %dK stolen memory, trimming to %dK\n",
@@ -771,6 +772,47 @@ static unsigned int intel_gtt_stolen_entries(void)
 	}
 
 	return gtt_entries;
+}
+
+static unsigned int intel_gtt_mappable_entries(void)
+{
+	unsigned int aperture_size;
+	u16 gmch_ctrl;
+
+	aperture_size = 1024 * 1024;
+
+	pci_read_config_word(intel_private.bridge_dev,
+			     I830_GMCH_CTRL, &gmch_ctrl);
+
+	switch (intel_private.pcidev->device) {
+	case PCI_DEVICE_ID_INTEL_82830_CGC:
+	case PCI_DEVICE_ID_INTEL_82845G_IG:
+	case PCI_DEVICE_ID_INTEL_82855GM_IG:
+	case PCI_DEVICE_ID_INTEL_82865_IG:
+		if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_64M)
+			aperture_size *= 64;
+		else
+			aperture_size *= 128;
+		break;
+	default:
+		/* 9xx supports large sizes, just look at the length */
+		aperture_size = pci_resource_len(intel_private.pcidev, 2);
+		break;
+	}
+
+	return aperture_size >> PAGE_SHIFT;
+}
+
+static int intel_gtt_init(void)
+{
+	/* we have to call this as early as possible after the MMIO base address is known */
+	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
+	if (intel_private.base.gtt_stolen_entries == 0) {
+		iounmap(intel_private.registers);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static void intel_i830_fini_flush(void)
@@ -825,7 +867,7 @@ static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
  */
 static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 {
-	int page_order;
+	int page_order, ret;
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp;
@@ -845,12 +887,9 @@ static int intel_i830_create_gatt_table(struct agp_bridge_data *bridge)
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();	/* FIXME: ?? */
 
-	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
-	if (intel_private.base.gtt_stolen_entries == 0) {
-		iounmap(intel_private.registers);
-		return -ENOMEM;
-	}
+	ret = intel_gtt_init();
+	if (ret != 0)
+		return ret;
 
 	agp_bridge->gatt_table = NULL;
 
@@ -1302,7 +1341,7 @@ static int intel_i915_get_gtt_size(void)
  */
 static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 {
-	int page_order;
+	int page_order, ret;
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp, temp2;
@@ -1335,12 +1374,10 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();	/* FIXME: ? */
 
-	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
-	if (intel_private.base.gtt_stolen_entries == 0) {
+	ret = intel_gtt_init();
+	if (ret != 0) {
 		iounmap(intel_private.gtt);
-		iounmap(intel_private.registers);
-		return -ENOMEM;
+		return ret;
 	}
 
 	agp_bridge->gatt_table = NULL;
@@ -1426,7 +1463,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
  */
 static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 {
-	int page_order;
+	int page_order, ret;
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp;
@@ -1459,12 +1496,10 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();   /* FIXME: ? */
 
-	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
-	if (intel_private.base.gtt_stolen_entries == 0) {
+	ret = intel_gtt_init();
+	if (ret != 0) {
 		iounmap(intel_private.gtt);
-		iounmap(intel_private.registers);
-		return -ENOMEM;
+		return ret;
 	}
 
 	agp_bridge->gatt_table = NULL;
@@ -1775,6 +1810,11 @@ int intel_gmch_probe(struct pci_dev *pdev,
 	else
 		pci_set_consistent_dma_mask(intel_private.pcidev,
 					    DMA_BIT_MASK(mask));
+
+	if (bridge->driver == &intel_810_driver)
+		return 1;
+
+	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
 
 	return 1;
 }
