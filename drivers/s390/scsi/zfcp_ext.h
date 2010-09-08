@@ -15,12 +15,10 @@
 #include "zfcp_fc.h"
 
 /* zfcp_aux.c */
-extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, u64);
 extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, u64);
 extern struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *);
 extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
-extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
 extern void zfcp_device_unregister(struct device *,
@@ -163,8 +161,6 @@ extern void zfcp_scsi_rport_work(struct work_struct *);
 extern void zfcp_scsi_schedule_rport_register(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rport_block(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *);
-extern void zfcp_scsi_scan(struct zfcp_unit *);
-extern void zfcp_scsi_scan_work(struct work_struct *);
 extern void zfcp_scsi_set_prot(struct zfcp_adapter *);
 extern void zfcp_scsi_dif_sense_error(struct scsi_cmnd *, int);
 
@@ -174,5 +170,14 @@ extern struct attribute_group zfcp_sysfs_adapter_attrs;
 extern struct attribute_group zfcp_sysfs_port_attrs;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];
+
+/* zfcp_unit.c */
+extern int zfcp_unit_add(struct zfcp_port *, u64);
+extern int zfcp_unit_remove(struct zfcp_port *, u64);
+extern struct zfcp_unit *zfcp_unit_find(struct zfcp_port *, u64);
+extern struct scsi_device *zfcp_unit_sdev(struct zfcp_unit *unit);
+extern void zfcp_unit_scsi_scan(struct zfcp_unit *);
+extern void zfcp_unit_queue_scsi_scan(struct zfcp_port *);
+extern unsigned int zfcp_unit_sdev_status(struct zfcp_unit *);
 
 #endif	/* ZFCP_EXT_H */

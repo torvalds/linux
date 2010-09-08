@@ -257,28 +257,15 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 					 const char *buf, size_t count)
 {
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
-	struct zfcp_unit *unit;
 	u64 fcp_lun;
-	int retval = -EINVAL;
-
-	if (!(port && get_device(&port->dev)))
-		return -EBUSY;
 
 	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
-		goto out;
+		return -EINVAL;
 
-	unit = zfcp_unit_enqueue(port, fcp_lun);
-	if (IS_ERR(unit))
-		goto out;
-	else
-		retval = 0;
+	if (zfcp_unit_add(port, fcp_lun))
+		return -EINVAL;
 
-	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
-	zfcp_erp_wait(unit->port->adapter);
-	zfcp_scsi_scan(unit);
-out:
-	put_device(&port->dev);
-	return retval ? retval : (ssize_t) count;
+	return count;
 }
 static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
 
@@ -287,42 +274,15 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 					    const char *buf, size_t count)
 {
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
-	struct zfcp_unit *unit;
 	u64 fcp_lun;
-	int retval = -EINVAL;
-	struct scsi_device *sdev;
-
-	if (!(port && get_device(&port->dev)))
-		return -EBUSY;
 
 	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
-		goto out;
+		return -EINVAL;
 
-	unit = zfcp_get_unit_by_lun(port, fcp_lun);
-	if (!unit)
-		goto out;
-	else
-		retval = 0;
+	if (zfcp_unit_remove(port, fcp_lun))
+		return -EINVAL;
 
-	sdev = scsi_device_lookup(port->adapter->scsi_host, 0,
-				  port->starget_id,
-				  scsilun_to_int((struct scsi_lun *)&fcp_lun));
-	if (sdev) {
-		scsi_remove_device(sdev);
-		scsi_device_put(sdev);
-	}
-
-	write_lock_irq(&port->unit_list_lock);
-	list_del(&unit->list);
-	write_unlock_irq(&port->unit_list_lock);
-
-	put_device(&unit->dev);
-
-	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
-	zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
-out:
-	put_device(&port->dev);
-	return retval ? retval : (ssize_t) count;
+	return count;
 }
 static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);
 
