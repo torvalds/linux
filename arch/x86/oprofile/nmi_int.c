@@ -621,7 +621,9 @@ static int __init ppro_init(char **cpu_type)
 	case 14:
 		*cpu_type = "i386/core";
 		break;
-	case 15: case 23:
+	case 0x0f:
+	case 0x16:
+	case 0x17:
 		*cpu_type = "i386/core_2";
 		break;
 	case 0x1a:
