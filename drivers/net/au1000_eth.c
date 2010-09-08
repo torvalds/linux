@@ -34,6 +34,8 @@
  *
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/capability.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
@@ -720,24 +722,26 @@ static int au1000_rx(struct net_device *dev)
 			netif_rx(skb);	/* pass the packet to upper layers */
 		} else {
 			if (au1000_debug > 4) {
+				pr_err("rx_error(s):");
 				if (status & RX_MISSED_FRAME)
-					printk("rx miss\n");
+					pr_cont(" miss");
 				if (status & RX_WDOG_TIMER)
-					printk("rx wdog\n");
+					pr_cont(" wdog");
 				if (status & RX_RUNT)
-					printk("rx runt\n");
+					pr_cont(" runt");
 				if (status & RX_OVERLEN)
-					printk("rx overlen\n");
+					pr_cont(" overlen");
 				if (status & RX_COLL)
-					printk("rx coll\n");
+					pr_cont(" coll");
 				if (status & RX_MII_ERROR)
-					printk("rx mii error\n");
+					pr_cont(" mii error");
 				if (status & RX_CRC_ERROR)
-					printk("rx crc error\n");
+					pr_cont(" crc error");
 				if (status & RX_LEN_ERROR)
-					printk("rx len error\n");
+					pr_cont(" len error");
 				if (status & RX_U_CNTRL_FRAME)
-					printk("rx u control frame\n");
+					pr_cont(" u control frame");
+				pr_cont("\n");
 			}
 		}
 		prxd->buff_stat = (u32)(pDB->dma_addr | RX_DMA_ENABLE);
@@ -1199,7 +1203,8 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	netdev_info(dev, "Au1xx0 Ethernet found at 0x%lx, irq %d\n",
 			(unsigned long)base->start, irq);
 	if (version_printed++ == 0)
-		printk("%s version %s %s\n", DRV_NAME, DRV_VERSION, DRV_AUTHOR);
+		pr_info("%s version %s %s\n",
+					DRV_NAME, DRV_VERSION, DRV_AUTHOR);
 
 	return 0;
 
