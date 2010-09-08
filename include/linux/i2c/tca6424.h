@@ -18,6 +18,8 @@ $Log: gpio.h,v $
 #define TCA6424_Port0PinNum 8
 #define TCA6424_Port1PinNum 8
 #define TCA6424_Port2PinNum 8
+#define EXTGPIO_OUTPUT 	0
+#define EXTGPIO_INPUT	1
 
 #define TCA6424_TotalPortPinNum (TCA6424_Port0PinNum+TCA6424_Port1PinNum+TCA6424_Port2PinNum)
 
@@ -40,6 +42,6 @@ $Log: gpio.h,v $
 #define tca6424setbit(a,num) ((a)|(0x01<<(num)))
 #define tca6424clearbit(a,num) ((a)&(~(0x01<<(num))))
 
-#define TCA6424_I2C_RATE 300*1000
+#define TCA6424_I2C_RATE 400*1000
 
 #endif

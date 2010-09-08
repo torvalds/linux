@@ -45,6 +45,9 @@
 
 #include "devices.h"
 
+#include <linux/input/matrix_keypad.h>
+
+
 #include "../../../drivers/spi/rk2818_spim.h"
 #include "../../../drivers/input/touchscreen/xpt2046_ts.h"
 #include "../../../drivers/staging/android/timed_gpio.h"
@@ -449,6 +452,10 @@ struct tca6424_platform_data rk2818_tca6424_data={
 	.gpio_irq_start=NR_AIC_IRQS + 2*NUM_GROUP + CONFIG_SPI_FPGA_GPIO_IRQ_NUM,
 	.irq_pin_num=CONFIG_EXPANDED_GPIO_IRQ_NUM,
 	.tca6424_irq_pin=RK2818_PIN_PA1,
+	.expand_port_group = 3,
+	.expand_port_pinnum = 8,
+	.rk_irq_mode = IRQF_TRIGGER_LOW,
+	.rk_irq_gpio_pull_up_down = GPIOPullUp,
 	.settinginfo=extgpio_tca6424_settinginfo,
 	.settinginfolen=ARRAY_SIZE(extgpio_tca6424_settinginfo),
 	.names="extend_gpio_tca6424",
@@ -513,7 +520,7 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
-	.mode 		= I2C_MODE_IRQ,
+	.mode 		= I2C_MODE_POLL,
 	.io_init = rk2818_i2c1_io_init,
 };
 
@@ -1377,6 +1384,125 @@ struct platform_device rk2818_device_dm9k = {
 };
 #endif
 
+#ifdef CONFIG_KEYBOARD_MATRIX
+/*
+ * InfoPhone Matrix Keyboard Device
+ */
+
+#define KEYOUT0     TCA6424_P01
+#define KEYOUT1		TCA6424_P02
+#define KEYOUT2		TCA6424_P03
+#define KEYOUT3		TCA6424_P04
+#define KEYOUT4		TCA6424_P05
+
+#define KEYIN0		TCA6424_P12
+#define KEYIN1		TCA6424_P13
+#define KEYIN2		TCA6424_P14
+#define KEYIN3		TCA6424_P15
+
+
+#if 1
+static const uint32_t rk2818matrix_keymap[] = {
+#if 0
+	KEY(0, 0, KEY_1),
+	KEY(0, 1, KEY_3),
+	KEY(0, 2, KEY_5),
+	KEY(0, 3, KEY_6),
+	KEY(0, 4, KEY_7),
+	KEY(1, 0, KEY_2),
+	KEY(1, 1, KEY_4),
+	KEY(1, 2, KEY_R),
+	KEY(1, 3, KEY_Y),
+	KEY(1, 4, KEY_8),
+	KEY(2, 0, KEY_TAB),
+	KEY(2, 1, KEY_Q),
+	KEY(2, 2, KEY_E),
+	KEY(2, 3, KEY_T),
+	KEY(2, 4, KEY_G),
+	KEY(3, 0, KEY_LEFTCTRL),
+	KEY(3, 1, KEY_W),
+	KEY(3, 2, KEY_S),
+	KEY(3, 3, KEY_F),
+	KEY(3, 4, KEY_V),
+#else
+	KEY(0, 0, KEY_1),
+	KEY(1, 0, KEY_2),
+	KEY(2, 0, KEY_3),
+	KEY(3, 0, KEY_TAB),
+	KEY(0, 1, KEY_4),
+	KEY(1, 1, KEY_5),
+	KEY(2, 1, KEY_6),
+	KEY(3, 1, KEY_R),
+	KEY(0, 2, KEY_7),
+	KEY(1, 2, KEY_8),
+	KEY(2, 2, KEY_9),
+	KEY(3, 2, KEY_Q),
+	KEY(0, 3, KEY_E),
+	KEY(1, 3, KEY_0),
+	KEY(2, 3, KEY_G),
+	KEY(3, 3, KEY_LEFTCTRL),
+	KEY(0, 4, KEY_W),
+	KEY(1, 4, KEY_S),
+	KEY(2, 4, KEY_F),
+	KEY(3, 4, KEY_V),
+#endif
+};
+#else
+static const uint32_t rk2818matrix_keymap[] = {
+	KEY(0, 0, KEY_1),
+	KEY(0, 1, KEY_2),
+	KEY(0, 2, KEY_3),
+	KEY(0, 3, KEY_TAB),
+	KEY(1, 0, KEY_4),
+	KEY(1, 1, KEY_5),
+	KEY(1, 2, KEY_6),
+	KEY(1, 3, KEY_R),
+	KEY(2, 0, KEY_7),
+	KEY(2, 1, KEY_8),
+	KEY(2, 2, KEY_9),
+	KEY(2, 3, KEY_LEFTCTRL),
+	KEY(3, 0, KEY_SWITCHVIDEOMODE),
+	KEY(3, 1, KEY_0),
+	KEY(3, 2, KEY_S),
+	KEY(3, 3, KEY_F),
+	KEY(4, 0, KEY_G),
+	KEY(4, 1, KEY_W),
+	KEY(4, 2, KEY_S),
+	KEY(4, 3, KEY_F),
+};
+
+#endif
+
+static struct matrix_keymap_data rk2818matrix_keymap_data = {
+	.keymap		= rk2818matrix_keymap,
+	.keymap_size	= ARRAY_SIZE(rk2818matrix_keymap),
+};
+
+static const int rk2818matrix_row_gpios[] =
+		{ KEYIN0, KEYIN1, KEYIN2, KEYIN3 };
+static const int rk2818matrix_col_gpios[] =
+		{ KEYOUT0, KEYOUT1, KEYOUT2, KEYOUT3, KEYOUT4 };
+
+static struct matrix_keypad_platform_data rk2818matrixkey_pdata = {
+	.keymap_data		= &rk2818matrix_keymap_data,
+	.row_gpios		= rk2818matrix_row_gpios,
+	.col_gpios		= rk2818matrix_col_gpios,
+	.num_row_gpios		= ARRAY_SIZE(rk2818matrix_row_gpios),
+	.num_col_gpios		= ARRAY_SIZE(rk2818matrix_col_gpios),
+	.col_scan_delay_us	= 100,
+	.debounce_ms		= 10,
+	.wakeup			= 1,
+};
+
+static struct platform_device rk2818_device_matrixkey = {
+	.name		= "matrix-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &rk2818matrixkey_pdata,
+	},
+};
+#endif /* CONFIG_KEYBOARD_MATRIX */
+
 #ifdef CONFIG_HEADSET_DET
 struct rk2818_headset_data rk2818_headset_info = {
 	.irq		= TCA6424_P23,
@@ -1481,6 +1607,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_DM9000
 	&rk2818_device_dm9k,
+#endif
+#ifdef CONFIG_KEYBOARD_MATRIX	
+	&rk2818_device_matrixkey,
 #endif
 #ifdef CONFIG_HEADSET_DET
     &rk28_device_headset,
