@@ -419,6 +419,8 @@ static int copy_strings(int argc, const char __user *const __user *argv,
 		while (len > 0) {
 			int offset, bytes_to_copy;
 
+			cond_resched();
+
 			offset = pos % PAGE_SIZE;
 			if (offset == 0)
 				offset = PAGE_SIZE;
