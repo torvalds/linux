@@ -452,9 +452,9 @@ static int au1000_mii_probe (struct net_device *dev)
  * has the virtual and dma address of a buffer suitable for
  * both, receive and transmit operations.
  */
-static db_dest_t *au1000_GetFreeDB(struct au1000_private *aup)
+static struct db_dest *au1000_GetFreeDB(struct au1000_private *aup)
 {
-	db_dest_t *pDB;
+	struct db_dest *pDB;
 	pDB = aup->pDBfree;
 
 	if (pDB) {
@@ -463,9 +463,9 @@ static db_dest_t *au1000_GetFreeDB(struct au1000_private *aup)
 	return pDB;
 }
 
-void au1000_ReleaseDB(struct au1000_private *aup, db_dest_t *pDB)
+void au1000_ReleaseDB(struct au1000_private *aup, struct db_dest *pDB)
 {
-	db_dest_t *pDBfree = aup->pDBfree;
+	struct db_dest *pDBfree = aup->pDBfree;
 	if (pDBfree)
 		pDBfree->pnext = pDB;
 	aup->pDBfree = pDB;
@@ -524,11 +524,11 @@ au1000_setup_hw_rings(struct au1000_private *aup, u32 rx_base, u32 tx_base)
 
 	for (i = 0; i < NUM_RX_DMA; i++) {
 		aup->rx_dma_ring[i] =
-			(volatile rx_dma_t *) (rx_base + sizeof(rx_dma_t)*i);
+			(volatile struct rx_dma *) (rx_base + sizeof(struct rx_dma)*i);
 	}
 	for (i = 0; i < NUM_TX_DMA; i++) {
 		aup->tx_dma_ring[i] =
-			(volatile tx_dma_t *) (tx_base + sizeof(tx_dma_t)*i);
+			(volatile struct tx_dma *) (tx_base + sizeof(struct tx_dma)*i);
 	}
 }
 
@@ -681,9 +681,9 @@ static int au1000_rx(struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 	struct sk_buff *skb;
-	volatile rx_dma_t *prxd;
+	volatile struct rx_dma *prxd;
 	u32 buff_stat, status;
-	db_dest_t *pDB;
+	struct db_dest *pDB;
 	u32	frmlen;
 
 	netif_dbg(aup, rx_status, dev, "au1000_rx head %d\n", aup->rx_head);
@@ -774,7 +774,7 @@ static void au1000_update_tx_stats(struct net_device *dev, u32 status)
 static void au1000_tx_ack(struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
-	volatile tx_dma_t *ptxd;
+	volatile struct tx_dma *ptxd;
 
 	ptxd = aup->tx_dma_ring[aup->tx_tail];
 
@@ -873,9 +873,9 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 	struct net_device_stats *ps = &dev->stats;
-	volatile tx_dma_t *ptxd;
+	volatile struct tx_dma *ptxd;
 	u32 buff_stat;
-	db_dest_t *pDB;
+	struct db_dest *pDB;
 	int i;
 
 	netif_dbg(aup, tx_queued, dev, "tx: aup %x len=%d, data=%p, head %d\n",
@@ -991,7 +991,7 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	struct au1000_private *aup = NULL;
 	struct au1000_eth_platform_data *pd;
 	struct net_device *dev = NULL;
-	db_dest_t *pDB, *pDBfree;
+	struct db_dest *pDB, *pDBfree;
 	int irq, i, err = 0;
 	struct resource *base, *macen;
 
@@ -1054,7 +1054,7 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	}
 
 	/* aup->mac is the base address of the MAC's registers */
-	aup->mac = (volatile mac_reg_t *)ioremap_nocache(base->start, resource_size(base));
+	aup->mac = (volatile struct mac_reg *)ioremap_nocache(base->start, resource_size(base));
 	if (!aup->mac) {
 		dev_err(&pdev->dev, "failed to ioremap MAC registers\n");
 		err = -ENXIO;
