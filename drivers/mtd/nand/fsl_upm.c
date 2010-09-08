@@ -186,7 +186,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	if (!flash_np)
 		return -ENODEV;
 
-	fun->mtd.name = kasprintf(GFP_KERNEL, "%x.%s", io_res->start,
+	fun->mtd.name = kasprintf(GFP_KERNEL, "0x%llx.%s", (u64)io_res->start,
 				  flash_np->name);
 	if (!fun->mtd.name) {
 		ret = -ENOMEM;
