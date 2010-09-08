@@ -604,14 +604,11 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			else
 				rc = -EINVAL;
 
-			if (server->secType == Kerberos) {
-				if (!server->sec_kerberos &&
-						!server->sec_mskerberos)
-					rc = -EOPNOTSUPP;
-			} else if (server->secType == RawNTLMSSP) {
-				if (!server->sec_ntlmssp)
-					rc = -EOPNOTSUPP;
-			} else
+			if (server->sec_kerberos || server->sec_mskerberos)
+				server->secType = Kerberos;
+			else if (server->sec_ntlmssp)
+				server->secType = RawNTLMSSP;
+			else
 				rc = -EOPNOTSUPP;
 		}
 	} else

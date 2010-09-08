@@ -61,19 +61,6 @@
 #define NTLMSSP_NEGOTIATE_KEY_XCH   0x40000000
 #define NTLMSSP_NEGOTIATE_56        0x80000000
 
-/* Define AV Pair Field IDs */
-#define NTLMSSP_AV_EOL			0
-#define NTLMSSP_AV_NB_COMPUTER_NAME	1
-#define NTLMSSP_AV_NB_DOMAIN_NAME	2
-#define NTLMSSP_AV_DNS_COMPUTER_NAME	3
-#define NTLMSSP_AV_DNS_DOMAIN_NAME	4
-#define NTLMSSP_AV_DNS_TREE_NAME	5
-#define NTLMSSP_AV_FLAGS		6
-#define NTLMSSP_AV_TIMESTAMP		7
-#define NTLMSSP_AV_RESTRICTION		8
-#define NTLMSSP_AV_TARGET_NAME		9
-#define NTLMSSP_AV_CHANNEL_BINDINGS	10
-
 /* Although typedefs are not commonly used for structure definitions */
 /* in the Linux kernel, in this particular case they are useful      */
 /* to more closely match the standards document for NTLMSSP from     */
