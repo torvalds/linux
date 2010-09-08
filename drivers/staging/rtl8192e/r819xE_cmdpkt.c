@@ -322,35 +322,6 @@ cmpk_handle_tx_feedback(
 
 }
 
-static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16 tx_rate;
-	{
-		//
-		// 070117, rcnjko: 87B have to S/W beacon for DTM encryption_cmn.
-		//
-		if((priv->ieee80211->current_network.mode == IEEE_A)  ||
-			(priv->ieee80211->current_network.mode == IEEE_N_5G) ||
-			((priv->ieee80211->current_network.mode == IEEE_N_24G)  && (!priv->ieee80211->pHTInfo->bCurSuppCCK)))
-		{
-			tx_rate = 60;
-			DMESG("send beacon frame  tx rate is 6Mbpm\n");
-		}
-		else
-		{
-			tx_rate =10;
-			DMESG("send beacon frame  tx rate is 1Mbpm\n");
-		}
-
-		//rtl819xusb_beacon_tx(dev,tx_rate); // HW Beacon
-
-	}
-
-}
-
-
-
 
 /*-----------------------------------------------------------------------------
  * Function:    cmpk_handle_interrupt_status()
@@ -418,12 +389,6 @@ cmpk_handle_interrupt_status(
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
 		}
-
-		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
-		{
-			cmdpkt_beacontimerinterrupt_819xusb(dev);
-		}
-
 	}
 
 	 // Other informations in interrupt status we need?
