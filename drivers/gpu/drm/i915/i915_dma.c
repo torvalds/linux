@@ -1000,8 +1000,7 @@ intel_teardown_mchbar(struct drm_device *dev)
  * how much was set aside so we can use it for our own purposes.
  */
 static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
-			  uint32_t *preallocated_size,
-			  uint32_t *start)
+			  uint32_t *preallocated_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 tmp = 0;
@@ -1152,7 +1151,6 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 	}
 
 	*preallocated_size = stolen - overhead;
-	*start = overhead;
 
 	return 0;
 }
@@ -1362,7 +1360,6 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 }
 
 static int i915_load_modeset_init(struct drm_device *dev,
-				  unsigned long prealloc_start,
 				  unsigned long prealloc_size,
 				  unsigned long agp_size)
 {
@@ -2051,7 +2048,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_i915_private *dev_priv;
 	resource_size_t base, size;
 	int ret = 0, mmio_bar;
-	uint32_t agp_size, prealloc_size, prealloc_start;
+	uint32_t agp_size, prealloc_size;
 	/* i915 has 4 more counters */
 	dev->counters += 4;
 	dev->types[6] = _DRM_STAT_IRQ;
@@ -2110,7 +2107,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
-	ret = i915_probe_agp(dev, &agp_size, &prealloc_size, &prealloc_start);
+	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
 	if (ret)
 		goto out_iomapfree;
 
@@ -2202,8 +2199,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_load_modeset_init(dev, prealloc_start,
-					     prealloc_size, agp_size);
+		ret = i915_load_modeset_init(dev, prealloc_size, agp_size);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
 			goto out_workqueue_free;
