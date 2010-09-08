@@ -3089,14 +3089,8 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	if (!sk)
 		return -ENOENT;
 
-	if (sk->sk_state != BT_CONFIG) {
-		struct l2cap_cmd_rej rej;
-
-		rej.reason = cpu_to_le16(0x0002);
-		l2cap_send_cmd(conn, cmd->ident, L2CAP_COMMAND_REJ,
-				sizeof(rej), &rej);
+	if (sk->sk_state == BT_DISCONN)
 		goto unlock;
-	}
 
 	/* Reject if config buffer is too small. */
 	len = cmd_len - sizeof(*req);
