@@ -34,6 +34,14 @@ extern void zfcp_ccw_adapter_put(struct zfcp_adapter *);
 
 /* zfcp_cfdc.c */
 extern struct miscdevice zfcp_cfdc_misc;
+extern void zfcp_cfdc_port_denied(struct zfcp_port *, union fsf_status_qual *);
+extern void zfcp_cfdc_lun_denied(struct scsi_device *, union fsf_status_qual *);
+extern void zfcp_cfdc_lun_shrng_vltn(struct scsi_device *,
+				     union fsf_status_qual *);
+extern int zfcp_cfdc_open_lun_eval(struct scsi_device *,
+				   struct fsf_qtcb_bottom_support *);
+extern void zfcp_cfdc_adapter_access_changed(struct zfcp_adapter *);
+
 
 /* zfcp_dbf.c */
 extern int zfcp_dbf_adapter_register(struct zfcp_adapter *);
@@ -88,10 +96,6 @@ extern void zfcp_erp_wait(struct zfcp_adapter *);
 extern void zfcp_erp_notify(struct zfcp_erp_action *, unsigned long);
 extern void zfcp_erp_port_boxed(struct zfcp_port *, char *, void *);
 extern void zfcp_erp_lun_boxed(struct scsi_device *, char *, void *);
-extern void zfcp_erp_port_access_denied(struct zfcp_port *, char *, void *);
-extern void zfcp_erp_lun_access_denied(struct scsi_device *, char *, void *);
-extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, char *,
-					    void *);
 extern void zfcp_erp_timeout_handler(unsigned long);
 
 /* zfcp_fc.c */

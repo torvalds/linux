@@ -61,47 +61,6 @@ static u32 fsf_qtcb_type[] = {
 	[FSF_QTCB_UPLOAD_CONTROL_FILE] =  FSF_SUPPORT_COMMAND
 };
 
-static void zfcp_act_eval_err(struct zfcp_adapter *adapter, u32 table)
-{
-	u16 subtable = table >> 16;
-	u16 rule = table & 0xffff;
-	const char *act_type[] = { "unknown", "OS", "WWPN", "DID", "LUN" };
-
-	if (subtable && subtable < ARRAY_SIZE(act_type))
-		dev_warn(&adapter->ccw_device->dev,
-			 "Access denied according to ACT rule type %s, "
-			 "rule %d\n", act_type[subtable], rule);
-}
-
-static void zfcp_fsf_access_denied_port(struct zfcp_fsf_req *req,
-					struct zfcp_port *port)
-{
-	struct fsf_qtcb_header *header = &req->qtcb->header;
-	dev_warn(&req->adapter->ccw_device->dev,
-		 "Access denied to port 0x%016Lx\n",
-		 (unsigned long long)port->wwpn);
-	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[0]);
-	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[1]);
-	zfcp_erp_port_access_denied(port, "fspad_1", req);
-	req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-}
-
-static void zfcp_fsf_access_denied_lun(struct zfcp_fsf_req *req,
-				       struct scsi_device *sdev)
-{
-	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
-
-	struct fsf_qtcb_header *header = &req->qtcb->header;
-	dev_warn(&req->adapter->ccw_device->dev,
-		 "Access denied to LUN 0x%016Lx on port 0x%016Lx\n",
-		 (unsigned long long)zfcp_scsi_dev_lun(sdev),
-		 (unsigned long long)zfcp_sdev->port->wwpn);
-	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[0]);
-	zfcp_act_eval_err(req->adapter, header->fsf_status_qual.halfword[1]);
-	zfcp_erp_lun_access_denied(sdev, "fsadl_1", req);
-	req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-}
-
 static void zfcp_fsf_class_not_supp(struct zfcp_fsf_req *req)
 {
 	dev_err(&req->adapter->ccw_device->dev, "FCP device not "
@@ -295,13 +254,12 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_STATUS_READ_NOTIFICATION_LOST:
 		if (sr_buf->status_subtype & FSF_STATUS_READ_SUB_ACT_UPDATED)
-			zfcp_erp_adapter_access_changed(adapter, "fssrh_3",
-							req);
+			zfcp_cfdc_adapter_access_changed(adapter);
 		if (sr_buf->status_subtype & FSF_STATUS_READ_SUB_INCOMING_ELS)
 			queue_work(adapter->work_queue, &adapter->scan_work);
 		break;
 	case FSF_STATUS_READ_CFDC_UPDATED:
-		zfcp_erp_adapter_access_changed(adapter, "fssrh_4", req);
+		zfcp_cfdc_adapter_access_changed(adapter);
 		break;
 	case FSF_STATUS_READ_FEATURE_UPDATE_ALERT:
 		adapter->adapter_features = sr_buf->payload.word[0];
@@ -1116,8 +1074,10 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 	case FSF_RESPONSE_SIZE_TOO_LARGE:
 		break;
 	case FSF_ACCESS_DENIED:
-		if (port)
-			zfcp_fsf_access_denied_port(req, port);
+		if (port) {
+			zfcp_cfdc_port_denied(port, &header->fsf_status_qual);
+			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
+		}
 		break;
 	case FSF_SBAL_MISMATCH:
 		/* should never occure, avoided in zfcp_fsf_send_els */
@@ -1375,7 +1335,8 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	case FSF_PORT_ALREADY_OPEN:
 		break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_port(req, port);
+		zfcp_cfdc_port_denied(port, &header->fsf_status_qual);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
 		dev_warn(&req->adapter->ccw_device->dev,
@@ -1682,7 +1643,7 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_port(req, port);
+		zfcp_cfdc_port_denied(port, &header->fsf_status_qual);
 		break;
 	case FSF_PORT_BOXED:
 		/* can't use generic zfcp_erp_modify_port_status because
@@ -1768,9 +1729,6 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 	struct fsf_qtcb_bottom_support *bottom = &req->qtcb->bottom.support;
-	struct fsf_queue_designator *queue_designator =
-				&header->fsf_status_qual.fsf_queue_designator;
-	int exclusive, readwrite;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
@@ -1789,29 +1747,15 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 	case FSF_LUN_ALREADY_OPEN:
 		break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_lun(req, sdev);
-		atomic_clear_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
-		atomic_clear_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
+		zfcp_cfdc_lun_denied(sdev, &header->fsf_status_qual);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_PORT_BOXED:
 		zfcp_erp_port_boxed(zfcp_sdev->port, "fsouh_2", req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_LUN_SHARING_VIOLATION:
-		if (header->fsf_status_qual.word[0])
-			dev_warn(&adapter->ccw_device->dev,
-				 "LUN 0x%Lx on port 0x%Lx is already in "
-				 "use by CSS%d, MIF Image ID %x\n",
-				 (unsigned long long)zfcp_scsi_dev_lun(sdev),
-				 (unsigned long long)zfcp_sdev->port->wwpn,
-				 queue_designator->cssid,
-				 queue_designator->hla);
-		else
-			zfcp_act_eval_err(adapter,
-					  header->fsf_status_qual.word[2]);
-		zfcp_erp_lun_access_denied(sdev, "fsolh_3", req);
-		atomic_clear_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
-		atomic_clear_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
+		zfcp_cfdc_lun_shrng_vltn(sdev, &header->fsf_status_qual);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_MAXIMUM_NUMBER_OF_LUNS_EXCEEDED:
@@ -1839,51 +1783,7 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 	case FSF_GOOD:
 		zfcp_sdev->lun_handle = header->lun_handle;
 		atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &zfcp_sdev->status);
-
-		if (!(adapter->connection_features & FSF_FEATURE_NPIV_MODE) &&
-		    (adapter->adapter_features & FSF_FEATURE_LUN_SHARING) &&
-		    !zfcp_ccw_priv_sch(adapter)) {
-			exclusive = (bottom->lun_access_info &
-					FSF_UNIT_ACCESS_EXCLUSIVE);
-			readwrite = (bottom->lun_access_info &
-					FSF_UNIT_ACCESS_OUTBOUND_TRANSFER);
-
-			if (!exclusive)
-				atomic_set_mask(ZFCP_STATUS_LUN_SHARED,
-						&zfcp_sdev->status);
-
-			if (!readwrite) {
-				atomic_set_mask(ZFCP_STATUS_LUN_READONLY,
-						&zfcp_sdev->status);
-				dev_info(&adapter->ccw_device->dev,
-					 "SCSI device at LUN 0x%016Lx on port "
-					 "0x%016Lx opened read-only\n",
-				    (unsigned long long)zfcp_scsi_dev_lun(sdev),
-				    (unsigned long long)zfcp_sdev->port->wwpn);
-        		}
-
-        		if (exclusive && !readwrite) {
-				dev_err(&adapter->ccw_device->dev,
-					"Exclusive read-only access not "
-					"supported (LUN 0x%016Lx, "
-					"port 0x%016Lx)\n",
-				    (unsigned long long)zfcp_scsi_dev_lun(sdev),
-				    (unsigned long long)zfcp_sdev->port->wwpn);
-				zfcp_erp_lun_failed(sdev, "fsolh_5", req);
-				req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-				zfcp_erp_lun_shutdown(sdev, 0, "fsolh_6", req);
-        		} else if (!exclusive && readwrite) {
-				dev_err(&adapter->ccw_device->dev,
-					"Shared read-write access not "
-					"supported (LUN 0x%016Lx, port "
-					"0x%016Lx)\n",
-				    (unsigned long long)zfcp_scsi_dev_lun(sdev),
-				    (unsigned long long)zfcp_sdev->port->wwpn);
-				zfcp_erp_lun_failed(sdev, "fsolh_7", req);
-				req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-				zfcp_erp_lun_shutdown(sdev, 0, "fsolh_8", req);
-        		}
-		}
+		zfcp_cfdc_open_lun_eval(sdev, bottom);
 		break;
 	}
 }
@@ -2106,7 +2006,8 @@ static void zfcp_fsf_fcp_handler_common(struct zfcp_fsf_req *req)
 		zfcp_fsf_class_not_supp(req);
 		break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_lun(req, sdev);
+		zfcp_cfdc_lun_denied(sdev, &header->fsf_status_qual);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_DIRECTION_INDICATOR_NOT_VALID:
 		dev_err(&req->adapter->ccw_device->dev,
