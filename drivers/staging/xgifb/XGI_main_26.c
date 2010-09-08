@@ -2797,7 +2797,6 @@ static void XGIfb_post_setmode(void)
 
 }
 
-#ifndef MODULE
 XGIINITSTATIC int __init XGIfb_setup(char *options)
 {
 	char *this_opt;
@@ -2880,7 +2879,6 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 	printk("\nxgifb: outa xgifb_setup 3450");
 	return 0;
 }
-#endif
 
 static unsigned char VBIOS_BUF[65535];
 
@@ -3461,13 +3459,12 @@ static struct pci_driver xgifb_driver = {
 
 XGIINITSTATIC int __init xgifb_init(void)
 {
-#ifndef MODULE
 	char *option = NULL;
 
 	if (fb_get_options("xgifb", &option))
 		return -ENODEV;
 	XGIfb_setup(option);
-#endif
+
 	return pci_register_driver(&xgifb_driver);
 }
 
