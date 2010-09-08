@@ -1,0 +1,7 @@
+config BCM_WIMAX
+       tristate "Beceem BCS200/BCS220-3 and BCSM250 wimax support"
+       depends on USB && NET && EXPERIMENTAL
+       default N
+       help
+         This is an experimental driver for the Beceem WIMAX chipset used
+	 by Sprint 4G.

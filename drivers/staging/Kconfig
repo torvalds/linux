@@ -161,5 +161,7 @@ source "drivers/staging/ath6kl/Kconfig"
 
 source "drivers/staging/keucr/Kconfig"
 
+source "drivers/staging/bcm/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
