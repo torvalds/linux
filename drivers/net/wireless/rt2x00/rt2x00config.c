@@ -81,7 +81,8 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 
 void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct rt2x00_intf *intf,
-			  struct ieee80211_bss_conf *bss_conf)
+			  struct ieee80211_bss_conf *bss_conf,
+			  u32 changed)
 {
 	struct rt2x00lib_erp erp;
 
@@ -102,7 +103,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	/* Update global beacon interval time, this is needed for PS support */
 	rt2x00dev->beacon_int = bss_conf->beacon_int;
 
-	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
+	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp, changed);
 }
 
 static inline

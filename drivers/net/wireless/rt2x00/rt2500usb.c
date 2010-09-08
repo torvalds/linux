@@ -494,24 +494,34 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
-				 struct rt2x00lib_erp *erp)
+				 struct rt2x00lib_erp *erp,
+				 u32 changed)
 {
 	u16 reg;
 
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
-			   !!erp->short_preamble);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
+				   !!erp->short_preamble);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
+	}
 
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR11, erp->basic_rates);
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR11,
+					 erp->basic_rates);
 
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL, erp->beacon_int * 4);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL,
+				   erp->beacon_int * 4);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
+	}
 
-	rt2500usb_register_write(rt2x00dev, MAC_CSR10, erp->slot_time);
-	rt2500usb_register_write(rt2x00dev, MAC_CSR11, erp->sifs);
-	rt2500usb_register_write(rt2x00dev, MAC_CSR12, erp->eifs);
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		rt2500usb_register_write(rt2x00dev, MAC_CSR10, erp->slot_time);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR11, erp->sifs);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR12, erp->eifs);
+	}
 }
 
 static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
