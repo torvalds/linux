@@ -232,13 +232,17 @@ union drbd_state {
 		unsigned conn:5 ;   /* 17/32	 cstates */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
-		unsigned susp:1 ;   /* 2/2	 IO suspended  no/yes */
+		unsigned susp:1 ;   /* 2/2	 IO suspended no/yes (by user) */
 		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
 		unsigned peer_isp:1 ;
 		unsigned user_isp:1 ;
-		unsigned _pad:11;   /* 0	 unused */
+		unsigned susp_nod:1 ; /* IO suspended because no data */
+		unsigned susp_fen:1 ; /* IO suspended because fence peer handler runs*/
+		unsigned _pad:9;   /* 0	 unused */
 #elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned _pad:11;   /* 0	 unused */
+		unsigned _pad:9;
+		unsigned susp_fen:1 ;
+		unsigned susp_nod:1 ;
 		unsigned user_isp:1 ;
 		unsigned peer_isp:1 ;
 		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */

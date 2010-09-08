@@ -209,7 +209,8 @@ enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
 		put_ldev(mdev);
 	} else {
 		dev_warn(DEV, "Not fencing peer, I'm not even Consistent myself.\n");
-		return mdev->state.pdsk;
+		nps = mdev->state.pdsk;
+		goto out;
 	}
 
 	r = drbd_khelper(mdev, "fence-peer");
@@ -256,6 +257,14 @@ enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
 
 	dev_info(DEV, "fence-peer helper returned %d (%s)\n",
 			(r>>8) & 0xff, ex_to_string);
+
+out:
+	if (mdev->state.susp_fen && nps >= D_UNKNOWN) {
+		/* The handler was not successful... unfreeze here, the
+		   state engine can not unfreeze... */
+		_drbd_request_state(mdev, NS(susp_fen, 0), CS_VERBOSE);
+	}
+
 	return nps;
 }
 
@@ -550,7 +559,7 @@ char *ppsize(char *buf, unsigned long long size)
 void drbd_suspend_io(struct drbd_conf *mdev)
 {
 	set_bit(SUSPEND_IO, &mdev->flags);
-	if (mdev->state.susp)
+	if (is_susp(mdev->state))
 		return;
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
 }
@@ -1016,7 +1025,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	drbd_suspend_io(mdev);
 	/* also wait for the last barrier ack. */
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || mdev->state.susp);
+	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || is_susp(mdev->state));
 	/* and for any other previously queued work */
 	drbd_flush_workqueue(mdev);
 
@@ -1114,8 +1123,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND) &&
-	    !(mdev->state.role == R_PRIMARY && mdev->state.susp &&
-	      mdev->sync_conf.on_no_data == OND_SUSPEND_IO)) {
+	    !(mdev->state.role == R_PRIMARY && mdev->state.susp_nod)) {
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
 		cp_discovered = 1;
 	}
@@ -1939,7 +1947,7 @@ static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		drbd_md_sync(mdev);
 	}
 	drbd_suspend_io(mdev);
-	reply->ret_code = drbd_request_state(mdev, NS(susp, 0));
+	reply->ret_code = drbd_request_state(mdev, NS3(susp, 0, susp_nod, 0, susp_fen, 0));
 	if (reply->ret_code == SS_SUCCESS) {
 		if (mdev->state.conn < C_CONNECTED)
 			tl_clear(mdev);

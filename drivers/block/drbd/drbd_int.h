@@ -1681,6 +1681,8 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 #define susp_MASK 1
 #define user_isp_MASK 1
 #define aftr_isp_MASK 1
+#define susp_nod_MASK 1
+#define susp_fen_MASK 1
 
 #define NS(T, S) \
 	({ union drbd_state mask; mask.i = 0; mask.T = T##_MASK; mask; }), \
@@ -2254,11 +2256,16 @@ static inline int drbd_state_is_stable(union drbd_state s)
 	return 1;
 }
 
+static inline int is_susp(union drbd_state s)
+{
+	return s.susp || s.susp_nod || s.susp_fen;
+}
+
 static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
 {
 	int mxb = drbd_get_max_buffers(mdev);
 
-	if (mdev->state.susp)
+	if (is_susp(mdev->state))
 		return 0;
 	if (test_bit(SUSPEND_IO, &mdev->flags))
 		return 0;

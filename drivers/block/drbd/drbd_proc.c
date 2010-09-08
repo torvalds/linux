@@ -213,7 +213,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   drbd_disk_str(mdev->state.pdsk),
 			   (mdev->net_conf == NULL ? ' ' :
 			    (mdev->net_conf->wire_protocol - DRBD_PROT_A+'A')),
-			   mdev->state.susp ? 's' : 'r',
+			   is_susp(mdev->state) ? 's' : 'r',
 			   mdev->state.aftr_isp ? 'a' : '-',
 			   mdev->state.peer_isp ? 'p' : '-',
 			   mdev->state.user_isp ? 'u' : '-',

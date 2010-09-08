@@ -287,7 +287,7 @@ static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_e
 {
 	struct drbd_conf *mdev = req->mdev;
 
-	if (!mdev->state.susp)
+	if (!is_susp(mdev->state))
 		_req_may_be_done(req, m);
 }
 
@@ -812,7 +812,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 			    (mdev->state.pdsk == D_INCONSISTENT &&
 			     mdev->state.conn >= C_CONNECTED));
 
-	if (!(local || remote) && !mdev->state.susp) {
+	if (!(local || remote) && !is_susp(mdev->state)) {
 		dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
 		goto fail_free_complete;
 	}
@@ -838,7 +838,7 @@ allocate_barrier:
 	/* GOOD, everything prepared, grab the spin_lock */
 	spin_lock_irq(&mdev->req_lock);
 
-	if (mdev->state.susp) {
+	if (is_susp(mdev->state)) {
 		/* If we got suspended, use the retry mechanism of
 		   generic_make_request() to restart processing of this
 		   bio. In the next call to drbd_make_request_26

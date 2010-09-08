@@ -654,7 +654,7 @@ static void print_st(struct drbd_conf *mdev, char *name, union drbd_state ns)
 	    drbd_role_str(ns.peer),
 	    drbd_disk_str(ns.disk),
 	    drbd_disk_str(ns.pdsk),
-	    ns.susp ? 's' : 'r',
+	    is_susp(ns) ? 's' : 'r',
 	    ns.aftr_isp ? 'a' : '-',
 	    ns.peer_isp ? 'p' : '-',
 	    ns.user_isp ? 'u' : '-'
@@ -925,12 +925,12 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	if (fp == FP_STONITH &&
 	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
 	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
-		ns.susp = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
+		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
 
 	if (mdev->sync_conf.on_no_data == OND_SUSPEND_IO &&
 	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
 	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
-		ns.susp = 1; /* Suspend IO while no data available (no accessible data available) */
+		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
 
 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
 		if (ns.conn == C_SYNC_SOURCE)
@@ -1030,7 +1030,10 @@ int __drbd_set_state(struct drbd_conf *mdev,
 		PSC(conn);
 		PSC(disk);
 		PSC(pdsk);
-		PSC(susp);
+		if (is_susp(ns) != is_susp(os))
+			pbp += sprintf(pbp, "susp( %s -> %s ) ",
+				       drbd_susp_str(is_susp(os)),
+				       drbd_susp_str(is_susp(ns)));
 		PSC(aftr_isp);
 		PSC(peer_isp);
 		PSC(user_isp);
@@ -1218,6 +1221,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 {
 	enum drbd_fencing_p fp;
 	enum drbd_req_event what = nothing;
+	union drbd_state nsm = (union drbd_state){ .i = -1 };
 
 	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
@@ -1241,19 +1245,21 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* Here we have the actions that are performed after a
 	   state change. This function might sleep */
 
-	if (os.susp && ns.susp && mdev->sync_conf.on_no_data == OND_SUSPEND_IO) {
+	nsm.i = -1;
+	if (ns.susp_nod) {
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 			if (ns.conn == C_CONNECTED)
-				what = resend;
+				what = resend, nsm.susp_nod = 0;
 			else /* ns.conn > C_CONNECTED */
 				dev_err(DEV, "Unexpected Resynd going on!\n");
 		}
 
 		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
-			what = restart_frozen_disk_io;
+			what = restart_frozen_disk_io, nsm.susp_nod = 0;
+
 	}
 
-	if (fp == FP_STONITH && ns.susp) {
+	if (ns.susp_fen) {
 		/* case1: The outdate peer handler is successful: */
 		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
 			tl_clear(mdev);
@@ -1263,20 +1269,22 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				drbd_md_sync(mdev);
 			}
 			spin_lock_irq(&mdev->req_lock);
-			_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
+			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
 			spin_unlock_irq(&mdev->req_lock);
 		}
 		/* case2: The connection was established again: */
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 			clear_bit(NEW_CUR_UUID, &mdev->flags);
 			what = resend;
+			nsm.susp_fen = 0;
 		}
 	}
 
 	if (what != nothing) {
 		spin_lock_irq(&mdev->req_lock);
 		_tl_restart(mdev, what);
-		_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
+		nsm.i &= mdev->state.i;
+		_drbd_set_state(mdev, nsm, CS_VERBOSE, NULL);
 		spin_unlock_irq(&mdev->req_lock);
 	}
 
@@ -1298,7 +1306,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
-				if (mdev->state.susp) {
+				if (is_susp(mdev->state)) {
 					set_bit(NEW_CUR_UUID, &mdev->flags);
 				} else {
 					drbd_uuid_new_current(mdev);
@@ -1417,7 +1425,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		resume_next_sg(mdev);
 
 	/* free tl_hash if we Got thawed and are C_STANDALONE */
-	if (ns.conn == C_STANDALONE && ns.susp == 0 && mdev->tl_hash)
+	if (ns.conn == C_STANDALONE && !is_susp(ns) && mdev->tl_hash)
 		drbd_free_tl_hash(mdev);
 
 	/* Upon network connection, we need to start the receiver */
@@ -2732,7 +2740,9 @@ static void drbd_set_defaults(struct drbd_conf *mdev)
 		  .conn = C_STANDALONE,
 		  .disk = D_DISKLESS,
 		  .pdsk = D_UNKNOWN,
-		  .susp = 0
+		  .susp = 0,
+		  .susp_nod = 0,
+		  .susp_fen = 0
 		} };
 }
 

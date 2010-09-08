@@ -3315,7 +3315,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	if ((nconn == C_CONNECTED || nconn == C_WF_BITMAP_S) && ns.disk == D_NEGOTIATING)
 		ns.disk = mdev->new_state_tmp.disk;
 	cs_flags = CS_VERBOSE + (oconn < C_CONNECTED && nconn >= C_CONNECTED ? 0 : CS_HARD);
-	if (ns.pdsk == D_CONSISTENT && ns.susp && nconn == C_CONNECTED && oconn < C_CONNECTED &&
+	if (ns.pdsk == D_CONSISTENT && is_susp(ns) && nconn == C_CONNECTED && oconn < C_CONNECTED &&
 	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
 		/* Do not allow tl_restart(resend) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
@@ -3829,7 +3829,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	kfree(mdev->p_uuid);
 	mdev->p_uuid = NULL;
 
-	if (!mdev->state.susp)
+	if (!is_susp(mdev->state))
 		tl_clear(mdev);
 
 	dev_info(DEV, "Connection closed\n");
@@ -3858,7 +3858,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	if (os.conn == C_DISCONNECTING) {
 		wait_event(mdev->net_cnt_wait, atomic_read(&mdev->net_cnt) == 0);
 
-		if (!mdev->state.susp) {
+		if (!is_susp(mdev->state)) {
 			/* we must not free the tl_hash
 			 * while application io is still on the fly */
 			wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
