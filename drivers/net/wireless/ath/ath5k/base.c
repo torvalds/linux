@@ -2570,6 +2570,7 @@ static int
 ath5k_init(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	int ret, i;
 
 	mutex_lock(&sc->lock);
@@ -2605,8 +2606,8 @@ ath5k_init(struct ath5k_softc *sc)
 	 * Reset the key cache since some parts do not reset the
 	 * contents on initial power up or resume from suspend.
 	 */
-	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
-		ath5k_hw_reset_key(ah, i);
+	for (i = 0; i < common->keymax; i++)
+		ath_hw_keyreset(common, (u16)i);
 
 	ath5k_hw_set_ack_bitrate_high(ah, true);
 	ret = 0;
@@ -3287,9 +3288,6 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (modparam_nohwcrypt)
 		return -EOPNOTSUPP;
 
-	if (sc->opmode == NL80211_IFTYPE_AP)
-		return -EOPNOTSUPP;
-
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -3298,7 +3296,6 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (sc->ah->ah_aes_support)
 			break;
-
 		return -EOPNOTSUPP;
 	default:
 		WARN_ON(1);
@@ -3309,27 +3306,25 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = ath5k_hw_set_key(sc->ah, key->keyidx, key,
-				       sta ? sta->addr : NULL);
-		if (ret) {
-			ATH5K_ERR(sc, "can't set the key\n");
-			goto unlock;
+		ret = ath_key_config(common, vif, sta, key);
+		if (ret >= 0) {
+			key->hw_key_idx = ret;
+			/* push IV and Michael MIC generation to stack */
+			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
+				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			if (key->cipher == WLAN_CIPHER_SUITE_CCMP)
+				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
+			ret = 0;
 		}
-		__set_bit(key->keyidx, common->keymap);
-		key->hw_key_idx = key->keyidx;
-		key->flags |= (IEEE80211_KEY_FLAG_GENERATE_IV |
-			       IEEE80211_KEY_FLAG_GENERATE_MMIC);
 		break;
 	case DISABLE_KEY:
-		ath5k_hw_reset_key(sc->ah, key->keyidx);
-		__clear_bit(key->keyidx, common->keymap);
+		ath_key_delete(common, key);
 		break;
 	default:
 		ret = -EINVAL;
-		goto unlock;
 	}
 
-unlock:
 	mmiowb();
 	mutex_unlock(&sc->lock);
 	return ret;
