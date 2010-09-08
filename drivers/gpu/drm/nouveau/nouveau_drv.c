@@ -35,9 +35,9 @@
 
 #include "drm_pciids.h"
 
-MODULE_PARM_DESC(noagp, "Disable AGP");
-int nouveau_noagp;
-module_param_named(noagp, nouveau_noagp, int, 0400);
+MODULE_PARM_DESC(agpmode, "AGP mode (0 to disable AGP)");
+int nouveau_agpmode = -1;
+module_param_named(agpmode, nouveau_agpmode, int, 0400);
 
 MODULE_PARM_DESC(modeset, "Enable kernel modesetting");
 static int nouveau_modeset = -1; /* kms */

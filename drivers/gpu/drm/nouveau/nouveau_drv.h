@@ -659,7 +659,7 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 } while (0)
 
 /* nouveau_drv.c */
-extern int nouveau_noagp;
+extern int nouveau_agpmode;
 extern int nouveau_duallink;
 extern int nouveau_uscript_lvds;
 extern int nouveau_uscript_tmds;

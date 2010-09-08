@@ -430,6 +430,16 @@ get_agp_mode(struct drm_device *dev, unsigned long mode)
 	if (dev_priv->chipset == 0x18)
 		mode &= ~PCI_AGP_COMMAND_FW;
 
+	/*
+	 * AGP mode set in the command line.
+	 */
+	if (nouveau_agpmode > 0) {
+		bool agpv3 = mode & 0x8;
+		int rate = agpv3 ? nouveau_agpmode / 4 : nouveau_agpmode;
+
+		mode = (mode & ~0x7) | (rate & 0x7);
+	}
+
 	return mode;
 }
 #endif
@@ -613,7 +623,7 @@ nouveau_mem_gart_init(struct drm_device *dev)
 	dev_priv->gart_info.type = NOUVEAU_GART_NONE;
 
 #if !defined(__powerpc__) && !defined(__ia64__)
-	if (drm_device_is_agp(dev) && dev->agp && !nouveau_noagp) {
+	if (drm_device_is_agp(dev) && dev->agp && nouveau_agpmode) {
 		ret = nouveau_mem_init_agp(dev);
 		if (ret)
 			NV_ERROR(dev, "Error initialising AGP: %d\n", ret);
