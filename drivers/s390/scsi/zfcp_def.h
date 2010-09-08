@@ -325,9 +325,4 @@ struct zfcp_data {
 	struct kmem_cache	*adisc_cache;
 };
 
-/********************** ZFCP SPECIFIC DEFINES ********************************/
-
-#define ZFCP_SET                0x00000100
-#define ZFCP_CLEAR              0x00000200
-
 #endif /* ZFCP_DEF_H */

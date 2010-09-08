@@ -104,7 +104,7 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
-static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, char *id,
+static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req,
 					 struct fsf_link_down_info *link_down)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -184,7 +184,7 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, char *id,
 			 "the FC fabric is down\n");
 	}
 out:
-	zfcp_erp_adapter_failed(adapter, id, req);
+	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
 static void zfcp_fsf_status_read_link_down(struct zfcp_fsf_req *req)
@@ -195,13 +195,13 @@ static void zfcp_fsf_status_read_link_down(struct zfcp_fsf_req *req)
 
 	switch (sr_buf->status_subtype) {
 	case FSF_STATUS_READ_SUB_NO_PHYSICAL_LINK:
-		zfcp_fsf_link_down_info_eval(req, "fssrld1", ldi);
+		zfcp_fsf_link_down_info_eval(req, ldi);
 		break;
 	case FSF_STATUS_READ_SUB_FDISC_FAILED:
-		zfcp_fsf_link_down_info_eval(req, "fssrld2", ldi);
+		zfcp_fsf_link_down_info_eval(req, ldi);
 		break;
 	case FSF_STATUS_READ_SUB_FIRMWARE_UPDATE:
-		zfcp_fsf_link_down_info_eval(req, "fssrld3", NULL);
+		zfcp_fsf_link_down_info_eval(req, NULL);
 	};
 }
 
@@ -242,9 +242,8 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		dev_info(&adapter->ccw_device->dev,
 			 "The local link has been restored\n");
 		/* All ports should be marked as ready to run again */
-		zfcp_erp_modify_adapter_status(adapter, "fssrh_1", NULL,
-					       ZFCP_STATUS_COMMON_RUNNING,
-					       ZFCP_SET);
+		zfcp_erp_set_adapter_status(adapter,
+					    ZFCP_STATUS_COMMON_RUNNING);
 		zfcp_erp_adapter_reopen(adapter,
 					ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
 					ZFCP_STATUS_COMMON_ERP_FAILED,
@@ -359,16 +358,14 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 		zfcp_erp_adapter_shutdown(adapter, 0, "fspse_4", req);
 		break;
 	case FSF_PROT_LINK_DOWN:
-		zfcp_fsf_link_down_info_eval(req, "fspse_5",
-					     &psq->link_down_info);
+		zfcp_fsf_link_down_info_eval(req, &psq->link_down_info);
 		/* go through reopen to flush pending requests */
 		zfcp_erp_adapter_reopen(adapter, 0, "fspse_6", req);
 		break;
 	case FSF_PROT_REEST_QUEUE:
 		/* All ports should be marked as ready to run again */
-		zfcp_erp_modify_adapter_status(adapter, "fspse_7", NULL,
-					       ZFCP_STATUS_COMMON_RUNNING,
-					       ZFCP_SET);
+		zfcp_erp_set_adapter_status(adapter,
+					    ZFCP_STATUS_COMMON_RUNNING);
 		zfcp_erp_adapter_reopen(adapter,
 					ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
 					ZFCP_STATUS_COMMON_ERP_FAILED,
@@ -538,7 +535,7 @@ static void zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *req)
 		atomic_set_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
 				&adapter->status);
 
-		zfcp_fsf_link_down_info_eval(req, "fsecdh2",
+		zfcp_fsf_link_down_info_eval(req,
 			&qtcb->header.fsf_status_qual.link_down_info);
 		break;
 	default:
@@ -604,7 +601,7 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:
 		zfcp_fsf_exchange_port_evaluate(req);
-		zfcp_fsf_link_down_info_eval(req, "fsepdh1",
+		zfcp_fsf_link_down_info_eval(req,
 			&qtcb->header.fsf_status_qual.link_down_info);
 		break;
 	}
@@ -797,11 +794,17 @@ static void zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED;
 		break;
 	case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(zfcp_sdev->port, "fsafch3", req);
+		zfcp_erp_set_port_status(zfcp_sdev->port,
+					 ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_port_reopen(zfcp_sdev->port,
+				     ZFCP_STATUS_COMMON_ERP_FAILED, "fsafch3",
+				     req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_LUN_BOXED:
-		zfcp_erp_lun_boxed(sdev, "fsafch4", req);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_lun_reopen(sdev, ZFCP_STATUS_COMMON_ERP_FAILED,
+				    "fsafch4", req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
                 break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
@@ -1343,7 +1346,8 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 			 "Not enough FCP adapter resources to open "
 			 "remote port 0x%016Lx\n",
 			 (unsigned long long)port->wwpn);
-		zfcp_erp_port_failed(port, "fsoph_1", req);
+		zfcp_erp_set_port_status(port,
+					 ZFCP_STATUS_COMMON_ERP_FAILED);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
@@ -1453,9 +1457,7 @@ static void zfcp_fsf_close_port_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		break;
 	case FSF_GOOD:
-		zfcp_erp_modify_port_status(port, "fscph_2", req,
-					    ZFCP_STATUS_COMMON_OPEN,
-					    ZFCP_CLEAR);
+		zfcp_erp_clear_port_status(port, ZFCP_STATUS_COMMON_OPEN);
 		break;
 	}
 }
@@ -1653,7 +1655,9 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 			if (sdev_to_zfcp(sdev)->port == port)
 				atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN,
 						  &sdev_to_zfcp(sdev)->status);
-		zfcp_erp_port_boxed(port, "fscpph2", req);
+		zfcp_erp_set_port_status(port, ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
+				     "fscpph2", req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
@@ -1751,7 +1755,11 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(zfcp_sdev->port, "fsouh_2", req);
+		zfcp_erp_set_port_status(zfcp_sdev->port,
+					 ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_port_reopen(zfcp_sdev->port,
+				     ZFCP_STATUS_COMMON_ERP_FAILED, "fsouh_2",
+				     req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_LUN_SHARING_VIOLATION:
@@ -1764,7 +1772,7 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 			 "0x%016Lx on port 0x%016Lx\n",
 			 (unsigned long long)zfcp_scsi_dev_lun(sdev),
 			 (unsigned long long)zfcp_sdev->port->wwpn);
-		zfcp_erp_lun_failed(sdev, "fsolh_4", req);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ERP_FAILED);
 		/* fall through */
 	case FSF_INVALID_COMMAND_OPTION:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -1856,7 +1864,11 @@ static void zfcp_fsf_close_lun_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(zfcp_sdev->port, "fscuh_3", req);
+		zfcp_erp_set_port_status(zfcp_sdev->port,
+					 ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_port_reopen(zfcp_sdev->port,
+				     ZFCP_STATUS_COMMON_ERP_FAILED, "fscuh_3",
+				     req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
@@ -2032,11 +2044,17 @@ static void zfcp_fsf_fcp_handler_common(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(zfcp_sdev->port, "fssfch5", req);
+		zfcp_erp_set_port_status(zfcp_sdev->port,
+					 ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_port_reopen(zfcp_sdev->port,
+				     ZFCP_STATUS_COMMON_ERP_FAILED, "fssfch5",
+				     req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_LUN_BOXED:
-		zfcp_erp_lun_boxed(sdev, "fssfch6", req);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ACCESS_BOXED);
+		zfcp_erp_lun_reopen(sdev, ZFCP_STATUS_COMMON_ERP_FAILED,
+				    "fssfch6", req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:

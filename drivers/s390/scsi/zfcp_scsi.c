@@ -158,8 +158,7 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	zfcp_sdev->latencies.cmd.fabric.min = 0xFFFFFFFF;
 	spin_lock_init(&zfcp_sdev->latencies.lock);
 
-	zfcp_erp_modify_lun_status(sdev, "scsla_0", NULL,
-				   ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_RUNNING);
 	zfcp_erp_lun_reopen(sdev, 0, "scsla_1", NULL);
 	zfcp_erp_wait(port->adapter);
 

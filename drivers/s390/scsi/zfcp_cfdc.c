@@ -328,9 +328,9 @@ void zfcp_cfdc_port_denied(struct zfcp_port *port,
 
 	zfcp_act_eval_err(port->adapter, qual->halfword[0]);
 	zfcp_act_eval_err(port->adapter, qual->halfword[1]);
-	zfcp_erp_modify_port_status(port, "cfadp_1", NULL,
-				    ZFCP_STATUS_COMMON_ERP_FAILED |
-				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
+	zfcp_erp_set_port_status(port,
+				 ZFCP_STATUS_COMMON_ERP_FAILED |
+				 ZFCP_STATUS_COMMON_ACCESS_DENIED);
 }
 
 /**
@@ -349,9 +349,9 @@ void zfcp_cfdc_lun_denied(struct scsi_device *sdev,
 		 (unsigned long long)zfcp_sdev->port->wwpn);
 	zfcp_act_eval_err(zfcp_sdev->port->adapter, qual->halfword[0]);
 	zfcp_act_eval_err(zfcp_sdev->port->adapter, qual->halfword[1]);
-	zfcp_erp_modify_lun_status(sdev, "cfadl_1", NULL,
-				   ZFCP_STATUS_COMMON_ERP_FAILED |
-				   ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
+	zfcp_erp_set_lun_status(sdev,
+				ZFCP_STATUS_COMMON_ERP_FAILED |
+				ZFCP_STATUS_COMMON_ACCESS_DENIED);
 
 	atomic_clear_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
 	atomic_clear_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
@@ -378,9 +378,9 @@ void zfcp_cfdc_lun_shrng_vltn(struct scsi_device *sdev,
 	else
 		zfcp_act_eval_err(zfcp_sdev->port->adapter, qual->word[2]);
 
-	zfcp_erp_modify_lun_status(sdev, "fsosh_3", NULL,
-				   ZFCP_STATUS_COMMON_ERP_FAILED |
-				   ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
+	zfcp_erp_set_lun_status(sdev,
+				ZFCP_STATUS_COMMON_ERP_FAILED |
+				ZFCP_STATUS_COMMON_ACCESS_DENIED);
 	atomic_clear_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
 	atomic_clear_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
 }
@@ -424,7 +424,7 @@ int zfcp_cfdc_open_lun_eval(struct scsi_device *sdev,
 			"not supported (LUN 0x%016Lx, port 0x%016Lx)\n",
 			zfcp_scsi_dev_lun(sdev),
 			(unsigned long long)zfcp_sdev->port->wwpn);
-		zfcp_erp_lun_failed(sdev, "fsosh_5", NULL);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ERP_FAILED);
 		zfcp_erp_lun_shutdown(sdev, 0, "fsouh_6", NULL);
 		return -EACCES;
 	}
@@ -435,7 +435,7 @@ int zfcp_cfdc_open_lun_eval(struct scsi_device *sdev,
 			"(LUN 0x%016Lx, port 0x%016Lx)\n",
 			zfcp_scsi_dev_lun(sdev),
 			(unsigned long long)zfcp_sdev->port->wwpn);
-		zfcp_erp_lun_failed(sdev, "fsosh_7", NULL);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ERP_FAILED);
 		zfcp_erp_lun_shutdown(sdev, 0, "fsosh_8", NULL);
 		return -EACCES;
 	}

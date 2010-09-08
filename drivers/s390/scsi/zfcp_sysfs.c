@@ -104,8 +104,7 @@ static ssize_t zfcp_sysfs_port_failed_store(struct device *dev,
 	if (strict_strtoul(buf, 0, &val) || val != 0)
 		return -EINVAL;
 
-	zfcp_erp_modify_port_status(port, "sypfai1", NULL,
-				    ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_set_port_status(port, ZFCP_STATUS_COMMON_RUNNING);
 	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED, "sypfai2",
 			     NULL);
 	zfcp_erp_wait(port->adapter);
@@ -147,9 +146,7 @@ static ssize_t zfcp_sysfs_unit_failed_store(struct device *dev,
 
 	sdev = zfcp_unit_sdev(unit);
 	if (sdev) {
-		zfcp_erp_modify_lun_status(sdev, "syufai1", NULL,
-					   ZFCP_STATUS_COMMON_RUNNING,
-					   ZFCP_SET);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_RUNNING);
 		zfcp_erp_lun_reopen(sdev, ZFCP_STATUS_COMMON_ERP_FAILED,
 				    "syufai2", NULL);
 		zfcp_erp_wait(unit->port->adapter);
@@ -199,8 +196,7 @@ static ssize_t zfcp_sysfs_adapter_failed_store(struct device *dev,
 		goto out;
 	}
 
-	zfcp_erp_modify_adapter_status(adapter, "syafai1", NULL,
-				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 				"syafai2", NULL);
 	zfcp_erp_wait(adapter);
