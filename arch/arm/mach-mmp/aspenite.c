@@ -16,6 +16,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -239,6 +240,7 @@ MACHINE_START(ASPENITE, "PXA168-based Aspenite Development Platform")
 	.phys_io        = APB_PHYS_BASE,
 	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
 	.map_io		= mmp_map_io,
+	.nr_irqs	= IRQ_BOARD_START,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = common_init,
@@ -248,6 +250,7 @@ MACHINE_START(ZYLONITE2, "PXA168-based Zylonite2 Development Platform")
 	.phys_io        = APB_PHYS_BASE,
 	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
 	.map_io		= mmp_map_io,
+	.nr_irqs	= IRQ_BOARD_START,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = common_init,
