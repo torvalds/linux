@@ -783,7 +783,7 @@ static bool ironlake_edp_panel_on (struct drm_device *dev)
 		DRM_ERROR("panel on wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
 
-	pp &= ~(PANEL_UNLOCK_REGS | EDP_FORCE_VDD);
+	pp &= ~(PANEL_UNLOCK_REGS);
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -811,7 +811,7 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 			  I915_READ(PCH_PP_STATUS));
 
 	/* Make sure VDD is enabled so DP AUX will work */
-	pp |= EDP_FORCE_VDD | PANEL_POWER_RESET; /* restore panel reset bit */
+	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
 }
