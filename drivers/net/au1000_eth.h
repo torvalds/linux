@@ -46,7 +46,7 @@
  */
 struct db_dest {
 	struct db_dest *pnext;
-	volatile u32 *vaddr;
+	u32 *vaddr;
 	dma_addr_t dma_addr;
 };
 
@@ -88,8 +88,8 @@ struct mac_reg {
 struct au1000_private {
 	struct db_dest *pDBfree;
 	struct db_dest db[NUM_RX_BUFFS+NUM_TX_BUFFS];
-	volatile struct rx_dma *rx_dma_ring[NUM_RX_DMA];
-	volatile struct tx_dma *tx_dma_ring[NUM_TX_DMA];
+	struct rx_dma *rx_dma_ring[NUM_RX_DMA];
+	struct tx_dma *tx_dma_ring[NUM_TX_DMA];
 	struct db_dest *rx_db_inuse[NUM_RX_DMA];
 	struct db_dest *tx_db_inuse[NUM_TX_DMA];
 	u32 rx_head;
@@ -120,8 +120,8 @@ struct au1000_private {
 
 	/* These variables are just for quick access
 	 * to certain regs addresses. */
-	volatile struct mac_reg *mac;  /* mac registers                      */
-	volatile u32 *enable;     /* address of MAC Enable Register     */
+	struct mac_reg *mac;  /* mac registers                      */
+	u32 *enable;     /* address of MAC Enable Register     */
 
 	u32 vaddr;                /* virtual address of rx/tx buffers   */
 	dma_addr_t dma_addr;      /* dma address of rx/tx buffers       */
