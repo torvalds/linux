@@ -250,7 +250,6 @@ struct pca9554_platform_data rk2818_pca9554_data={
 	.pca9954_irq_pin=RK2818_PIN_PE2,
 	.settinginfo=extern_gpio_settinginfo,
 	.settinginfolen=ARRAY_SIZE(extern_gpio_settinginfo),
-	.names="pca9554",
 };
 #endif
 

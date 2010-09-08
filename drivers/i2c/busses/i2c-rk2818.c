@@ -463,14 +463,12 @@ exit:
 		}
 
 		//not I2C code,add by sxj,used for extend gpio intrrupt,set SCL and SDA pin.
-		if(msg->flags & I2C_M_RD)
-		{
-			#if defined (CONFIG_IOEXTEND_TCA6424)
-			if (pdata && pdata->reseti2cpin) {
-				pdata->reseti2cpin();
-			}
-			#endif	
+		#if defined (CONFIG_IOEXTEND_TCA6424)
+		if (pdata && pdata->reseti2cpin) {
+			pdata->reseti2cpin();
 		}
+		#endif	
+	
 			
 	}
 	return ret;

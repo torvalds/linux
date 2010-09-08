@@ -127,42 +127,47 @@ struct rk2818_gpio_expander_info {
 
 struct pca9554_platform_data {
 	/*  the first extern gpio number in all of gpio groups */
-	unsigned gpio_base;
-	unsigned	gpio_pin_num;
+	unsigned int gpio_base;
+	unsigned int gpio_pin_num;
 	/*  the first gpio irq  number in all of irq source */
 
-	unsigned gpio_irq_start;
-	unsigned irq_pin_num;        //中断的个数
-	unsigned    pca9954_irq_pin;        //扩展IO的中断挂在哪个gpio
+	unsigned int gpio_irq_start;
+	unsigned int irq_pin_num;        //中断的个数
+	unsigned int pca9954_irq_pin;        //扩展IO的中断挂在哪个gpio
 	/* initial polarity inversion setting */
-	uint16_t	invert;
+	uint16_t invert;
 	struct rk2818_gpio_expander_info  *settinginfo;
 	int  settinginfolen;
-	void		*context;	/* param to setup/teardown */
+	void	*context;	/* param to setup/teardown */
 
 	int		(*setup)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
 	int		(*teardown)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
-	char		**names;
+	char	**names;
 };
 
 struct tca6424_platform_data {
 	/*  the first extern gpio number in all of gpio groups */
-	unsigned gpio_base;
-	unsigned	gpio_pin_num;
+	unsigned int gpio_base;
+	unsigned int gpio_pin_num;
 	/*  the first gpio irq  number in all of irq source */
 
-	unsigned gpio_irq_start;
-	unsigned irq_pin_num;        //中断的个数
-	unsigned tca6424_irq_pin;        //扩展IO的中断挂在哪个gpio
+	unsigned int gpio_irq_start;
+	unsigned int irq_pin_num;        //中断的个数
+	unsigned int tca6424_irq_pin;     //扩展IO的中断挂在哪个gpio
+	unsigned int expand_port_group;
+	unsigned int expand_port_pinnum;
+	unsigned int rk_irq_mode;
+	unsigned int rk_irq_gpio_pull_up_down;
+	
 	/* initial polarity inversion setting */
 	uint16_t	invert;
 	struct rk2818_gpio_expander_info  *settinginfo;
 	int  settinginfolen;
-	void		*context;	/* param to setup/teardown */
+	void	*context;	/* param to setup/teardown */
 
 	int		(*setup)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
 	int		(*teardown)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
-	char		**names;
+	char	**names;
 	void    (*reseti2cpin)(void);
 };
 
