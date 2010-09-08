@@ -365,8 +365,6 @@ extern int cifs_verify_signature(struct smb_hdr *,
 				__u32 expected_sequence_number);
 extern int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
 				 const char *pass);
-extern int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *,
-			const struct nls_table *);
 extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
 extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
 			     const struct nls_table *);
