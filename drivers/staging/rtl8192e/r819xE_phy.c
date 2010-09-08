@@ -1489,13 +1489,11 @@ void rtl8192_setBBreg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask, u32 
  * ****************************************************************************/
 u32 rtl8192_QueryBBReg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask)
 {
-	u32 Ret = 0, OriginalValue, BitShift;
+	u32 OriginalValue, BitShift;
 
 	OriginalValue = read_nic_dword(dev, dwRegAddr);
 	BitShift = rtl8192_CalculateBitShift(dwBitMask);
-	Ret = (OriginalValue & dwBitMask) >> BitShift;
-
-	return Ret;
+	return (OriginalValue & dwBitMask) >> BitShift;
 }
 /******************************************************************************
  *function:  This function read register from RF chip
@@ -1812,7 +1810,6 @@ static u32 phy_FwRFSerialRead(
 	RF90_RADIO_PATH_E	eRFPath,
 	u32				Offset	)
 {
-	u32		retValue = 0;
 	u32		Data = 0;
 	u8		time = 0;
 	//DbgPrint("FW RF CTRL\n\r");
@@ -1855,10 +1852,7 @@ static u32 phy_FwRFSerialRead(
 		else
 			return 0;
 	}
-	retValue = read_nic_dword(dev, RF_DATA);
-
-	return retValue;
-
+	return read_nic_dword(dev, RF_DATA);
 }	/* phy_FwRFSerialRead */
 
 /******************************************************************************
@@ -2315,12 +2309,10 @@ static RT_STATUS rtl8192_BB_Config_ParaFile(struct net_device* dev)
  * ***************************************************************************/
 RT_STATUS rtl8192_BBConfig(struct net_device* dev)
 {
-	RT_STATUS	rtStatus = RT_STATUS_SUCCESS;
 	rtl8192_InitBBRFRegDef(dev);
 	//config BB&RF. As hardCode based initialization has not been well
 	//implemented, so use file first.FIXME:should implement it for hardcode?
-	rtStatus = rtl8192_BB_Config_ParaFile(dev);
-	return rtStatus;
+	return rtl8192_BB_Config_ParaFile(dev);
 }
 
 /******************************************************************************
