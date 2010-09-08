@@ -708,7 +708,6 @@ static unsigned int intel_gtt_stolen_entries(void)
 	return stolen_entries;
 }
 
-#if 0 /* extracted code in bad shape, needs some cleaning before use */
 static unsigned int intel_gtt_total_entries(void)
 {
 	int size;
@@ -750,7 +749,6 @@ static unsigned int intel_gtt_total_entries(void)
 		return intel_private.base.gtt_mappable_entries;
 	}
 }
-#endif
 
 static unsigned int intel_gtt_mappable_entries(void)
 {
@@ -1248,45 +1246,6 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
 	return 0;
 }
 
-/* Return the aperture size by just checking the resource length.  The effect
- * described in the spec of the MSAC registers is just changing of the
- * resource size.
- */
-static int intel_i915_get_gtt_size(void)
-{
-	int size;
-
-	if (IS_G33) {
-		u16 gmch_ctrl;
-
-		/* G33's GTT size defined in gmch_ctrl */
-		pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
-		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
-		case I830_GMCH_GMS_STOLEN_512:
-			size = 512;
-			break;
-		case I830_GMCH_GMS_STOLEN_1024:
-			size = 1024;
-			break;
-		case I830_GMCH_GMS_STOLEN_8192:
-			size = 8*1024;
-			break;
-		default:
-			dev_info(&intel_private.bridge_dev->dev,
-				 "unknown page table size 0x%x, assuming 512KB\n",
-				(gmch_ctrl & I830_GMCH_GMS_MASK));
-			size = 512;
-		}
-	} else {
-		/* On previous hardware, the GTT size was just what was
-		 * required to map the aperture.
-		 */
-		size = agp_bridge->driver->fetch_size();
-	}
-
-	return KB(size);
-}
-
 /* The intel i915 automatically initializes the agp aperture during POST.
  * Use the memory already set aside for in the GTT.
  */
@@ -1306,19 +1265,18 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
 	pci_read_config_dword(intel_private.pcidev, I915_PTEADDR, &temp2);
 
-	gtt_map_size = intel_i915_get_gtt_size();
-
-	intel_private.gtt = ioremap(temp2, gtt_map_size);
-	if (!intel_private.gtt)
-		return -ENOMEM;
-
-	intel_private.base.gtt_total_entries = gtt_map_size / 4;
-
 	temp &= 0xfff80000;
 
 	intel_private.registers = ioremap(temp, 128 * 4096);
-	if (!intel_private.registers) {
-		iounmap(intel_private.gtt);
+	if (!intel_private.registers)
+		return -ENOMEM;
+
+	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
+	gtt_map_size = intel_private.base.gtt_total_entries * 4;
+
+	intel_private.gtt = ioremap(temp2, gtt_map_size);
+	if (!intel_private.gtt) {
+		iounmap(intel_private.registers);
 		return -ENOMEM;
 	}
 
