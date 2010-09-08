@@ -754,13 +754,14 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 }
 
-static void ironlake_edp_panel_on (struct drm_device *dev)
+/* Returns true if the panel was already on when called */
+static bool ironlake_edp_panel_on (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
 	if (I915_READ(PCH_PP_STATUS) & PP_ON)
-		return;
+		return true;
 
 	pp = I915_READ(PCH_PP_CONTROL);
 
@@ -780,6 +781,8 @@ static void ironlake_edp_panel_on (struct drm_device *dev)
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
+
+	return false;
 }
 
 static void ironlake_edp_panel_off (struct drm_device *dev)
@@ -860,7 +863,7 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
-	if (IS_eDP(intel_dp)) {
+	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
 		ironlake_edp_panel_on(dev);
 		ironlake_edp_pll_on(encoder);
@@ -1365,7 +1368,11 @@ ironlake_dp_detect(struct drm_connector *connector)
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum drm_connector_status status;
+	bool was_on = false;
 
+	/* Panel needs power for AUX to work */
+	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
+		was_on = ironlake_edp_panel_on(connector->dev);
 	status = connector_status_disconnected;
 	if (intel_dp_aux_native_read(intel_dp,
 				     0x000, intel_dp->dpcd,
@@ -1376,6 +1383,8 @@ ironlake_dp_detect(struct drm_connector *connector)
 	}
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
 		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
+	if ((IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) && !was_on)
+		ironlake_edp_panel_off(connector->dev);
 	return status;
 }
 
