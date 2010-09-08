@@ -24,21 +24,7 @@
 #include "r8192E.h"
 #include "r8192E_hw.h"
 #include "r819xE_cmdpkt.h"
-/*---------------------------Define Local Constant---------------------------*/
-/* Debug constant*/
-#define		CMPK_DEBOUNCE_CNT			1
-/* 2007/10/24 MH Add for printing a range of data. */
-#define		CMPK_PRINT(Address)\
-{\
-	unsigned char	i;\
-	u32	temp[10];\
-	\
-	memcpy(temp, Address, 40);\
-	for (i = 0; i <40; i+=4)\
-		printk("\r\n %08x", temp[i]);\
-}\
 
-/*---------------------------Define functions---------------------------------*/
 /*-----------------------------------------------------------------------------
  * Function:	cmpk_message_handle_tx()
  *
