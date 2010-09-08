@@ -377,8 +377,13 @@
 #define  BLEND_CONTROL_FIX		(0 << 2)
 #define  BLEND_CONTROL_ALPHA		(1 << 2)
 #define  BLEND_CONTROL_DEPENDANT	(2 << 2)
+#define  BLEND_CONTROL_PREMULT		(3 << 2)
 #define  BLEND_WEIGHT0(x)		(((x) & 0xff) << 8)
 #define  BLEND_WEIGHT1(x)		(((x) & 0xff) << 16)
+#define  BLEND(key, control, weight0, weight1)			\
+	  (CKEY_ ## key | BLEND_CONTROL_ ## control |		\
+	   BLEND_WEIGHT0(weight0) | BLEND_WEIGHT0(weight1))
+
 
 #define DC_WIN_HP_FETCH_CONTROL			0x714
 #define DC_WINBUF_START_ADDR			0x800

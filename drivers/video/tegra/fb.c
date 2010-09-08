@@ -290,7 +290,8 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	struct fb_info *info;
 	struct tegra_fb_info *tegra_fb;
 	void __iomem *fb_base = NULL;
-	unsigned long fb_size = 0;	unsigned long fb_phys = 0;
+	unsigned long fb_size = 0;
+	unsigned long fb_phys = 0;
 	int ret = 0;
 
 	win = tegra_dc_get_window(dc, fb_data->win);
@@ -363,11 +364,15 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	win->w = fb_data->xres;
 	win->h = fb_data->yres;
 	/* TODO: set to output res dc */
+	win->out_x = 0;
+	win->out_y = 0;
 	win->out_w = fb_data->xres;
 	win->out_h = fb_data->yres;
+	win->z = 0;
 	win->phys_addr = fb_phys;
 	win->virt_addr = fb_base;
-	win->flags = TEGRA_WIN_FLAG_ENABLED | TEGRA_WIN_FLAG_COLOR_EXPAND;
+	win->stride = fb_data->xres * fb_data->bits_per_pixel / 8;
+	win->flags = TEGRA_WIN_FLAG_ENABLED;
 
 	if (fb_mem)
 		tegra_fb_set_par(info);

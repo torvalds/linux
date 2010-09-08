@@ -25,18 +25,6 @@
 #define TEGRA_MAX_DC		2
 #define DC_N_WINDOWS		3
 
-struct tegra_dc_blend {
-	u32	nokey;
-	u32	one_win;
-	u32	two_win_x;
-	u32	two_win_y;
-	u32	three_win_xy;
-};
-
-#define BLEND(key, control, weight0, weight1)				\
-	(CKEY_ ## key | BLEND_CONTROL_ ## control |			\
-	 BLEND_WEIGHT0(weight0) | BLEND_WEIGHT0(weight1))
-
 struct tegra_dc_mode {
 	int	pclk;
 	int	h_ref_to_sync;
@@ -96,19 +84,27 @@ struct tegra_dc_win {
 
 	void			*virt_addr;
 	dma_addr_t		phys_addr;
+	unsigned		stride;
 	unsigned		x;
 	unsigned		y;
 	unsigned		w;
 	unsigned		h;
+	unsigned		out_x;
+	unsigned		out_y;
 	unsigned		out_w;
 	unsigned		out_h;
+	unsigned		z;
 
 	int			dirty;
 	struct tegra_dc		*dc;
 };
 
 #define TEGRA_WIN_FLAG_ENABLED		(1 << 0)
-#define TEGRA_WIN_FLAG_COLOR_EXPAND	(1 << 1)
+#define TEGRA_WIN_FLAG_BLEND_PREMULT	(1 << 1)
+#define TEGRA_WIN_FLAG_BLEND_COVERAGE	(1 << 2)
+
+#define TEGRA_WIN_BLEND_FLAGS_MASK \
+	(TEGRA_WIN_FLAG_BLEND_PREMULT | TEGRA_WIN_FLAG_BLEND_COVERAGE)
 
 /* Note: These are the actual values written to the DC_WIN_COLOR_DEPTH register
  * and may change in new tegra architectures.
@@ -163,9 +159,6 @@ void tegra_dc_disable(struct tegra_dc *dc);
  */
 int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n);
 int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n);
-
-/* will probably be replaced with an interface describing the window order */
-void tegra_dc_set_blending(struct tegra_dc *dc, struct tegra_dc_blend *blend);
 
 int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode);
 

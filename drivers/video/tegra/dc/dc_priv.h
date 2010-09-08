@@ -25,6 +25,11 @@
 
 struct tegra_dc;
 
+struct tegra_dc_blend {
+	unsigned z[DC_N_WINDOWS];
+	unsigned flags[DC_N_WINDOWS];
+};
+
 struct tegra_dc_out_ops {
 	/* initialize output.  dc clocks are not on at this point */
 	int (*init)(struct tegra_dc *dc);
@@ -60,6 +65,7 @@ struct tegra_dc {
 	struct tegra_dc_mode		mode;
 
 	struct tegra_dc_win		windows[DC_N_WINDOWS];
+	struct tegra_dc_blend		blend;
 	int				n_windows;
 
 	wait_queue_head_t		wq;
