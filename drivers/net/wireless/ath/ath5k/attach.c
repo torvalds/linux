@@ -317,12 +317,14 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	common->keymax = (sc->ah->ah_version == AR5K_AR5210 ?
 			  AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211);
 
-	ah->ah_aes_support = srev >= AR5K_SREV_AR5212_V4 &&
-		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
-		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5));
+	if (srev >= AR5K_SREV_AR5212_V4 &&
+	    (ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
+	    !AR5K_EEPROM_AES_DIS(ee->ee_misc5)))
+		common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM |
+					ATH_CRYPT_CAP_MIC_AESCCM;
 
 	if (srev >= AR5K_SREV_AR2414) {
-		ah->ah_combined_mic = true;
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
 		AR5K_REG_ENABLE_BITS(ah, AR5K_MISC_MODE,
 			AR5K_MISC_MODE_COMBINED_MIC);
 	}

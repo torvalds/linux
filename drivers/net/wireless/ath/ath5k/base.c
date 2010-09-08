@@ -3294,7 +3294,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_TKIP:
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		if (sc->ah->ah_aes_support)
+		if (common->crypt_caps & ATH_CRYPT_CAP_CIPHER_AESCCM)
 			break;
 		return -EOPNOTSUPP;
 	default:
