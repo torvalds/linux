@@ -1808,8 +1808,12 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BT
         &raho_rfkill,
 #endif
+#ifdef CONFIG_UART0_RK2818
 	&rk2818_device_uart0,
+#endif	
+#ifdef CONFIG_UART1_RK2818	
 	&rk2818_device_uart1,
+#endif	
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
 #endif

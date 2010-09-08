@@ -176,6 +176,7 @@ struct platform_device rk2818_device_i2c1 = {
 		.platform_data = &default_i2c1_data,
 	},
 };
+#ifdef CONFIG_SPI_FPGA_I2C
 struct platform_device rk2818_device_i2c2 = {
 	.name	= "fpga_i2c",
 	.id	= 2,	
@@ -190,6 +191,8 @@ struct platform_device rk2818_device_i2c3 = {
 		.platform_data = &default_i2c3_data,
 	},
 };
+#endif
+#ifdef CONFIG_UART0_RK2818
 struct platform_device rk2818_device_uart0 = {
 	.name	= "rk2818_serial",
 	.id	= 0,
@@ -199,25 +202,34 @@ struct platform_device rk2818_device_uart0 = {
 		.platform_data = &rk2818_serial0_platdata,
 	},
 };
+#endif
+#ifdef CONFIG_UART1_RK2818
 struct platform_device rk2818_device_uart1 = {
 	.name	= "rk2818_serial",
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_uart1),
 	.resource	= resources_uart1,
 };
+#endif
+#ifdef CONFIG_UART2_RK2818
 struct platform_device rk2818_device_uart2 = {
 	.name	= "rk2818_serial",
 	.id	= 2,
 	.num_resources	= ARRAY_SIZE(resources_uart2),
 	.resource	= resources_uart2,
+	.dev = {
+		.platform_data = &rk2818_serial2_platdata,
+	},
 };
+#endif
+#ifdef CONFIG_UART3_RK2818
 struct platform_device rk2818_device_uart3 = {
 	.name	= "rk2818_serial",
 	.id	= 3,
 	.num_resources	= ARRAY_SIZE(resources_uart3),
 	.resource	= resources_uart3,
 };
-
+#endif
 /*
  * rk2818 spi master device
  */

@@ -21,6 +21,7 @@ extern struct platform_device rk2818_device_uart1;
 extern struct platform_device rk2818_device_uart2;
 extern struct platform_device rk2818_device_uart3;
 extern struct rk2818_serial_platform_data rk2818_serial0_platdata;
+extern struct rk2818_serial_platform_data rk2818_serial2_platdata;
 extern struct platform_device rk2818_device_spim;
 extern struct rk2818_spi_platform_data rk2818_spi_platdata;
 extern struct platform_device rk2818_device_i2c0;

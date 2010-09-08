@@ -546,7 +546,9 @@ struct platform_device rk2818_device_dm9k = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_UART1_RK2818	
 	&rk2818_device_uart1,
+#endif	
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
 #endif

@@ -1482,6 +1482,21 @@ config SERIAL_RK2818
 	depends on ARM && ARCH_RK2818
 	select SERIAL_CORE
 
+config UART0_RK2818
+	bool "RockChip rk2818 serial port 0 support"
+	depends on SERIAL_RK2818
+	
+config UART1_RK2818
+	bool "RockChip rk2818 serial port 1 support"
+	depends on SERIAL_RK2818
+	
+config UART2_RK2818
+	bool "RockChip rk2818 serial port 2 support"
+	depends on SERIAL_RK2818
+	
+config UART3_RK2818
+	bool "RockChip rk2818 serial port 3 support"
+	depends on SERIAL_RK2818
 
 config SERIAL_RK2818_CONSOLE
 	bool "Rockchip rk2818 serial console support"

@@ -192,6 +192,9 @@ static void flush(struct rk2818_spi *dws)
 
 static void spi_cs_control(struct rk2818_spi *dws, u32 cs)
 {
+	#ifdef CONFIG_MACH_RK2818INFO_IT50
+	return;
+	#else 
 	struct rk2818_spi_platform_data *pdata = dws->master->dev.platform_data;
 	struct spi_cs_gpio *cs_gpios = pdata->chipselect_gpios;
 	int i;
@@ -201,6 +204,7 @@ static void spi_cs_control(struct rk2818_spi *dws, u32 cs)
 			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 	else
 		gpio_direction_output(cs_gpios[cs-1].cs_gpio, GPIO_LOW);
+	#endif
 }
 
 static int null_writer(struct rk2818_spi *dws)

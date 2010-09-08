@@ -232,8 +232,8 @@ static int info_wifi_status_register(void (*callback)(int card_present, void *de
  	return 0;
 }
 
-#define INFO_WIFI_GPIO_POWER_N  TCA6424_P25
-#define INFO_WIFI_GPIO_RESET_N  TCA6424_P27 
+#define INFO_WIFI_GPIO_POWER_N  TCA6424_P01
+#define INFO_WIFI_GPIO_RESET_N  TCA6424_P00 
 
 int info_wifi_power_state = 0;
 int info_bt_power_state = 0;
@@ -354,75 +354,75 @@ struct pca9554_platform_data rk2818_pca9554_data={
 
 #if defined (CONFIG_IOEXTEND_TCA6424)
 struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
-
 	{
-		.gpio_num    		= TCA6424_P01,
-		.pin_type           = GPIO_OUT,
-		.pin_value		= GPIO_LOW,
+		.gpio_num			= TCA6424_P00,  //wifi reset
+		.pin_type			= GPIO_OUT,
+		.pin_value			= GPIO_LOW,
 	},
-
 	{
-		.gpio_num    		= TCA6424_P02,// tp3
+		.gpio_num			= TCA6424_P01,  //wifi reg on
+		.pin_type			= GPIO_OUT,
+		.pin_value			= GPIO_LOW,
+	},
+	{
+		.gpio_num    		= TCA6424_P02,// charge check
+		.pin_type           = GPIO_IN,
+	},
+	{
+		.gpio_num    		= TCA6424_P03, ///sensor power
 		.pin_type           = GPIO_OUT,
 		.pin_value			= GPIO_LOW,
-	 },
-	 {
-		.gpio_num    		= TCA6424_P03,
-		.pin_type           = GPIO_OUT,
-		.pin_value			= GPIO_LOW,
-	 },
-
+	},
 	{
 		.gpio_num    		= TCA6424_P04,// tp3
 		.pin_type           = GPIO_OUT,
 		.pin_value			= GPIO_LOW,
-	 },
-	 {
+	},
+	{
 		.gpio_num    		= TCA6424_P05,
 		.pin_type           = GPIO_OUT,
 		.pin_value			= GPIO_LOW,
-	 }, 
-	 {
+	}, 
+	{
 		.gpio_num    		= TCA6424_P11,
 		.pin_type           = GPIO_OUT,
 		.pin_value			= GPIO_HIGH,
-	 }, 
-	 {
+	}, 
+	{
 		.gpio_num    		= TCA6424_P12,
 		.pin_type           = GPIO_IN,
 		//.pin_value			=GPIO_HIGH,
-	 },
+	},
 
 	{
 		.gpio_num    		= TCA6424_P13,// tp3
 		.pin_type           = GPIO_IN,
 		//.pin_value			=GPIO_HIGH,
-	 },
-	 {
+	},
+	{
 		.gpio_num    		= TCA6424_P14,
 		.pin_type           = GPIO_IN,
 		//.pin_value			=GPIO_HIGH,
-	 },
-
-	 {
+	},
+	{
 		.gpio_num    		= TCA6424_P15,// tp3
 		.pin_type           = GPIO_IN,
 		//.pin_value			=GPIO_HIGH,
-	 },
-	 {
-		.gpio_num    		= TCA6424_P17,// 3G PowerOn
-		.pin_type           	= GPIO_OUT,
-		.pin_value		=GPIO_HIGH,
-	 },
-         {
-                .gpio_num               = TCA6424_P25,  //wifi reg on
-                .pin_type               = GPIO_OUT,
-                .pin_value              = GPIO_LOW,
 	},
 	{
-                .gpio_num               = TCA6424_P27,  //wifi reset
-                .pin_type               = GPIO_OUT,
-                .pin_value              = GPIO_LOW,
+		.gpio_num    		= TCA6424_P12,// 3G PowerOn
+		.pin_type           = GPIO_OUT,
+		.pin_value			=GPIO_HIGH,
+	},
+	{
+		.gpio_num               = TCA6424_P22,  //headset_observe
+		.pin_type               = GPIO_IN,
+		//.pin_value              = GPIO_HIGH,
+	},
+	{
+		.gpio_num               = TCA6424_P23,  //WM8994 POWER
+		.pin_type               = GPIO_OUT,
+		.pin_value              = GPIO_HIGH,
 	},
 };
 
@@ -517,21 +517,6 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.io_init = rk2818_i2c1_io_init,
 };
 
-struct rk2818_i2c_spi_data default_i2c2_data = { 
-	.bus_num    = 2,
-	.flags      = 0,
-	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
-	
-};
-struct rk2818_i2c_spi_data default_i2c3_data = { 
-
-	.bus_num    = 3,
-	.flags      = 0,
-	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
-	
-};
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)
 	{
@@ -630,7 +615,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK2818
 
-#define RK2818_CAM_POWER_PIN    TCA6424_P16
+#define RK2818_CAM_POWER_PIN    TCA6424_P03
 #define RK2818_CAM_RESET_PIN    INVALID_GPIO
 
 static int rk28_sensor_io_init(void);
@@ -669,12 +654,8 @@ static int rk28_sensor_io_init(void)
             ret = gpio_request(camera_power, "camera power");
             if (ret)
                 continue;
-
             gpio_set_value(camera_reset, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
             gpio_direction_output(camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
-
-			//printk("\n%s....%d  %x   ******** ddl *********\n",__FUNCTION__,__LINE__,(((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
-
         }
 
         if (camera_reset != INVALID_GPIO) {
@@ -688,9 +669,6 @@ static int rk28_sensor_io_init(void)
 
             gpio_set_value(camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
             gpio_direction_output(camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
-
-			//printk("\n%s....%d  %x   ******** ddl *********\n",__FUNCTION__,__LINE__,((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
-
         }
     }
 
@@ -701,8 +679,6 @@ static int rk28_sensor_io_deinit(void)
 {
     unsigned int i;
     unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
-
-    //printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
 
     for (i=0; i<2; i++) {
         camera_reset = rk28_camera_platform_data.gpio_res[i].gpio_reset;
@@ -759,7 +735,6 @@ static int rk28_sensor_power(struct device *dev, int on)
     return 0;
 }
 
-
 #define OV2655_IIC_ADDR 	    0x60
 static struct i2c_board_info rk2818_i2c_cam_info[] = {
 #ifdef CONFIG_SOC_CAMERA_OV2655
@@ -784,7 +759,7 @@ struct soc_camera_link rk2818_iclink = {
  * battery  devices
  * author: lw@rock-chips.com
  *****************************************************************************************/
-#define CHARGEOK_PIN	TCA6424_P07
+#define CHARGEOK_PIN	TCA6424_P02
 struct rk2818_battery_platform_data rk2818_battery_platdata = {
 	.charge_ok_pin = CHARGEOK_PIN,
 	.charge_ok_level = 0,
@@ -793,6 +768,7 @@ struct rk2818_battery_platform_data rk2818_battery_platdata = {
  * serial devices
  * author: lhh@rock-chips.com
  *****************************************************************************************/
+#ifdef CONFIG_UART0_RK2818
 static int serial_io_init(void)
 {
 	int ret;
@@ -861,7 +837,18 @@ static int serial_io_init(void)
 struct rk2818_serial_platform_data rk2818_serial0_platdata = {
 	.io_init = serial_io_init,
 };
+#endif
+#ifdef CONFIG_UART2_RK2818
+static int serial_io_init2(void)
+{
+	rk2818_mux_api_set(GPIOF01_UART2_SEL_NAME, IOMUXB_UART2_IN_OUT);
+	rk2818_mux_api_set(GPIOA23_UART2_SEL_NAME, IOMUXB_UART2_CTS_RTS);
+}
 
+struct rk2818_serial_platform_data rk2818_serial2_platdata = {
+	.io_init = serial_io_init2,
+};
+#endif
 /*****************************************************************************************
  * i2s devices
  * author: lhhrock-chips.com
@@ -880,7 +867,7 @@ struct rk2818_i2s_platform_data rk2818_i2s_platdata = {
  * spi devices
  * author: lhhrock-chips.com
  *****************************************************************************************/
-#define SPI_CHIPSELECT_NUM 2
+#define SPI_CHIPSELECT_NUM 1
 struct spi_cs_gpio rk2818_spi_cs_gpios[SPI_CHIPSELECT_NUM] = {
 	{
 		.name = "spi cs0",
@@ -888,55 +875,24 @@ struct spi_cs_gpio rk2818_spi_cs_gpios[SPI_CHIPSELECT_NUM] = {
 		.cs_iomux_name = GPIOB4_SPI0CS0_MMC0D4_NAME,//if no iomux,set it NULL
 		.cs_iomux_mode = IOMUXA_GPIO0_B4,
 	},
-	{
-		.name = "spi cs1",
-		.cs_gpio = RK2818_PIN_PB0,
-		.cs_iomux_name = GPIOB0_SPI0CSN1_MMC1PCA_NAME,
-		.cs_iomux_mode = IOMUXA_GPIO0_B0,
-	}
-
 };
 
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {	
-	int i,j,ret;
 	//clk
 	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME, IOMUXA_SPI0);
-	//cs
-	if (cs_gpios) {
-		for (i=0; i<cs_num; i++) {
-			rk2818_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
-			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
-			if (ret) {
-				for (j=0;j<i;j++) {
-					gpio_free(cs_gpios[j].cs_gpio);
-					rk2818_mux_api_mode_resume(cs_gpios[j].cs_iomux_name);
-				}
-				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
-				return -1;
-			}
-		}
-	}
+	//cs  no cs for tp
 	return 0;
 }
 
 static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
-	int i;
-	rk2818_mux_api_mode_resume(GPIOB_SPI0_MMC0_NAME);	
-	
-	if (cs_gpios) {
-		for (i=0; i<cs_num; i++) {
-			gpio_free(cs_gpios[i].cs_gpio);
-			rk2818_mux_api_mode_resume(cs_gpios[i].cs_iomux_name);
-		}
-	}
-	
+	rk2818_mux_api_mode_resume(GPIOB_SPI0_MMC0_NAME);		
 	return 0;
 }
 
 struct rk2818_spi_platform_data rk2818_spi_platdata = {
-	.num_chipselect = SPI_CHIPSELECT_NUM,//raho 大板需要支持3个片选 dxj
+	.num_chipselect = SPI_CHIPSELECT_NUM,
 	.chipselect_gpios = rk2818_spi_cs_gpios,
 	.io_init = spi_io_init,
 	.io_deinit = spi_io_deinit,
@@ -948,37 +904,7 @@ struct rk2818_spi_platform_data rk2818_spi_platdata = {
 #define XPT2046_GPIO_INT           RK2818_PIN_PE3
 #define DEBOUNCE_REPTIME  3
 
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) 
-static struct xpt2046_platform_data xpt2046_info = {
-	.model			= 2046,
-	.keep_vref_on 	= 1,
-	.swap_xy		= 0,
-	.x_min			= 0,
-	.x_max			= 320,
-	.y_min			= 0,
-	.y_max			= 480,
-	.debounce_max		= 7,
-	.debounce_rep		= DEBOUNCE_REPTIME,
-	.debounce_tol		= 20,
-	.gpio_pendown		= XPT2046_GPIO_INT,
-	.penirq_recheck_delay_usecs = 1,
-};
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
-static struct xpt2046_platform_data xpt2046_info = {
-	.model			= 2046,
-	.keep_vref_on 	= 1,
-	.swap_xy		= 0,
-	.x_min			= 0,
-	.x_max			= 320,
-	.y_min			= 0,
-	.y_max			= 480,
-	.debounce_max		= 7,
-	.debounce_rep		= DEBOUNCE_REPTIME,
-	.debounce_tol		= 20,
-	.gpio_pendown		= XPT2046_GPIO_INT,
-	.penirq_recheck_delay_usecs = 1,
-};
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) 
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) 
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,
 	.keep_vref_on 	= 1,
@@ -1012,26 +938,6 @@ static struct xpt2046_platform_data xpt2046_info = {
 };
 #endif
 static struct spi_board_info board_spi_devices[] = {
-#if defined(CONFIG_SPI_FPGA)
-	{	/* fpga ice65l08xx */
-		.modalias	= "spi_fpga",
-		.chip_select	= 1,
-		.max_speed_hz	= 8 * 1000 * 1000,
-		.bus_num	= 0,
-		.mode	= SPI_MODE_0,
-	},
-#endif
-#if defined(CONFIG_ENC28J60)	
-	{	/* net chip */
-		.modalias	= "enc28j60",
-		.chip_select	= 1,
-		.max_speed_hz	= 12 * 1000 * 1000,
-		.bus_num	= 0,
-		.mode	= SPI_MODE_0,
-	},
-#endif	
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)\
-    ||defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
 	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 0,
@@ -1040,7 +946,6 @@ static struct spi_board_info board_spi_devices[] = {
 		.irq = XPT2046_GPIO_INT,
 		.platform_data = &xpt2046_info,
 	},
-#endif
 }; 
 
 /*****************************************************************************************
@@ -1127,22 +1032,20 @@ struct rk2818lcd_info rk2818_lcd_info = {
     .io_init   = rk2818_lcd_io_init,
     .io_deinit = rk2818_lcd_io_deinit, 
 };
-
-
 /*****************************************************************************************
  * frame buffe  devices
  * author: zyw@rock-chips.com
  *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK2818_PIN_PB1
+#define FB_DISPLAY_ON_PIN           RK2818_PIN_PB4
 #define FB_LCD_STANDBY_PIN          INVALID_GPIO
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
-#define FB_DISPLAY_ON_VALUE         GPIO_LOW
+#define FB_DISPLAY_ON_VALUE         GPIO_HIGH
 #define FB_LCD_STANDBY_VALUE        0
 
-#define FB_DISPLAY_ON_MUX_NAME      GPIOB1_SMCS1_MMC0PCA_NAME
-#define FB_DISPLAY_ON_MUX_MODE      IOMUXA_GPIO0_B1
+#define FB_DISPLAY_ON_MUX_NAME      GPIOB4_SPI0CS0_MMC0D4_NAME
+#define FB_DISPLAY_ON_MUX_MODE      IOMUXA_GPIO0_B4
 
 #define FB_LCD_STANDBY_MUX_NAME     NULL
 #define FB_LCD_STANDBY_MUX_MODE     1
@@ -1297,89 +1200,9 @@ struct rk2818_bl_info rk2818_bl_info = {
     .io_deinit = rk2818_backlight_io_deinit, 
 };
 
-/********************************************************
-*				dm9000 net work devices
-*				author:lyx
-********************************************************/
-#ifdef CONFIG_DM9000
-/*
-GPIOA5_FLASHCS1_SEL_NAME     IOMUXB_FLASH_CS1
-GPIOA6_FLASHCS2_SEL_NAME     IOMUXB_FLASH_CS2
-GPIOA7_FLASHCS3_SEL_NAME     IOMUXB_FLASH_CS3
-GPIOE_SPI1_FLASH_SEL1_NAME   IOMUXA_FLASH_CS45
-GPIOE_SPI1_FLASH_SEL_NAME    IOMUXA_FLASH_CS67
-*/
-#define DM9000_USE_NAND_CS 1     //cs can be 1,2,3,4,5,6 or 7
-#define DM9000_CS_IOMUX_NAME GPIOA5_FLASHCS1_SEL_NAME
-#define DM9000_CS_IOMUX_MODE IOMUXB_FLASH_CS1
-#define DM9000_NET_INT_PIN RK2818_PIN_PA3
-#define DM9000_INT_IOMUX_NAME GPIOA23_UART2_SEL_NAME
-#define DM9000_INT_IOMUX_MODE IOMUXB_GPIO0_A23
-#define DM9000_INT_INIT_VALUE GPIOPullDown
-#define DM9000_IRQ IRQF_TRIGGER_HIGH
-#define DM9000_IO_ADDR (RK2818_NANDC_PHYS + 0x800 + DM9000_USE_NAND_CS*0x100 + 0x8)
-#define DM9000_DATA_ADDR (RK2818_NANDC_PHYS + 0x800 + DM9000_USE_NAND_CS*0x100 + 0x4)
-
-static int dm9k_gpio_set(void)
-{
-	//cs
-	rk2818_mux_api_set(DM9000_CS_IOMUX_NAME, DM9000_CS_IOMUX_MODE);
-	//int
-	rk2818_mux_api_set(DM9000_INT_IOMUX_NAME, DM9000_INT_IOMUX_MODE);
-		
-	return 0;
-}
-static int dm9k_gpio_free(void)
-{
-	rk2818_mux_api_mode_resume(DM9000_INT_IOMUX_NAME);
-	rk2818_mux_api_mode_resume(DM9000_CS_IOMUX_NAME);
-	return 0;
-}
-
-static struct resource dm9k_resource[] = {
-	[0] = {
-		.start = DM9000_IO_ADDR,    
-		.end   = DM9000_IO_ADDR + 3,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = DM9000_DATA_ADDR,	
-		.end   = DM9000_DATA_ADDR + 3,
-		.flags = IORESOURCE_MEM,
-	},
-	[2] = {
-		.start = DM9000_NET_INT_PIN,
-		.end   = DM9000_NET_INT_PIN,
-		.flags = IORESOURCE_IRQ | DM9000_IRQ,
-	}
-
-};
-
-/* for the moment we limit ourselves to 8bit IO until some
- * better IO routines can be written and tested
-*/
-struct dm9000_plat_data dm9k_platdata = {	
-	.flags = DM9000_PLATF_8BITONLY,
-	.irq_pin = DM9000_NET_INT_PIN,
-	.irq_pin_value = DM9000_INT_INIT_VALUE,
-	.io_init = dm9k_gpio_set,
-	.io_deinit = dm9k_gpio_free,
-};
-
-struct platform_device rk2818_device_dm9k = {
-	.name		= "dm9000",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(dm9k_resource),
-	.resource	= dm9k_resource,
-	.dev		= {
-		.platform_data = &dm9k_platdata,
-	}
-};
-#endif
-
 #ifdef CONFIG_HEADSET_DET
 struct rk2818_headset_data rk2818_headset_info = {
-	.irq		= TCA6424_P23,
+	.irq		= TCA6424_P22,
 	.irq_type	= IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING,
 	.headset_in_type= HEADSET_IN_HIGH,
 };
@@ -1446,9 +1269,12 @@ struct rk2818_nand_platform_data rk2818_nand_data = {
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART0_RK2818	
 	&rk2818_device_uart0,
-#endif
+#endif	
 #ifdef CONFIG_UART1_RK2818	
 	&rk2818_device_uart1,
+#endif	
+#ifdef CONFIG_UART2_RK2818	
+	&rk2818_device_uart2,
 #endif	
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
@@ -1482,9 +1308,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_MTD_NAND_RK2818
 	&rk2818_nand_device,
-#endif
-#ifdef CONFIG_DM9000
-	&rk2818_device_dm9k,
 #endif
 #ifdef CONFIG_HEADSET_DET
     &rk28_device_headset,
