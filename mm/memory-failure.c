@@ -693,8 +693,6 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
  * Issues:
  * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
  *   To narrow down kill region to one page, we need to break up pmd.
- * - To support soft-offlining for hugepage, we need to support hugepage
- *   migration.
  */
 static int me_huge_page(struct page *p, unsigned long pfn)
 {
@@ -1220,7 +1218,11 @@ EXPORT_SYMBOL(unpoison_memory);
 static struct page *new_page(struct page *p, unsigned long private, int **x)
 {
 	int nid = page_to_nid(p);
-	return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
+	if (PageHuge(p))
+		return alloc_huge_page_node(page_hstate(compound_head(p)),
+						   nid);
+	else
+		return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
 }
 
 /*
@@ -1248,8 +1250,15 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 	 * was free.
 	 */
 	set_migratetype_isolate(p);
+	/*
+	 * When the target page is a free hugepage, just remove it
+	 * from free hugepage list.
+	 */
 	if (!get_page_unless_zero(compound_head(p))) {
-		if (is_free_buddy_page(p)) {
+		if (PageHuge(p)) {
+			pr_debug("get_any_page: %#lx free huge page\n", pfn);
+			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
+		} else if (is_free_buddy_page(p)) {
 			pr_debug("get_any_page: %#lx free buddy page\n", pfn);
 			/* Set hwpoison bit while page is still isolated */
 			SetPageHWPoison(p);
@@ -1265,6 +1274,45 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 	}
 	unset_migratetype_isolate(p);
 	unlock_system_sleep();
+	return ret;
+}
+
+static int soft_offline_huge_page(struct page *page, int flags)
+{
+	int ret;
+	unsigned long pfn = page_to_pfn(page);
+	struct page *hpage = compound_head(page);
+	LIST_HEAD(pagelist);
+
+	ret = get_any_page(page, pfn, flags);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		goto done;
+
+	if (PageHWPoison(hpage)) {
+		put_page(hpage);
+		pr_debug("soft offline: %#lx hugepage already poisoned\n", pfn);
+		return -EBUSY;
+	}
+
+	/* Keep page count to indicate a given hugepage is isolated. */
+
+	list_add(&hpage->lru, &pagelist);
+	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
+	if (ret) {
+		pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+			 pfn, ret, page->flags);
+		if (ret > 0)
+			ret = -EIO;
+		return ret;
+	}
+done:
+	if (!PageHWPoison(hpage))
+		atomic_long_add(1 << compound_order(hpage), &mce_bad_pages);
+	set_page_hwpoison_huge_page(hpage);
+	dequeue_hwpoisoned_huge_page(hpage);
+	/* keep elevated page count for bad page */
 	return ret;
 }
 
@@ -1294,6 +1342,9 @@ int soft_offline_page(struct page *page, int flags)
 {
 	int ret;
 	unsigned long pfn = page_to_pfn(page);
+
+	if (PageHuge(page))
+		return soft_offline_huge_page(page, flags);
 
 	ret = get_any_page(page, pfn, flags);
 	if (ret < 0)
