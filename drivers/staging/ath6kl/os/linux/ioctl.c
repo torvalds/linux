@@ -2713,7 +2713,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	    }
 
-	    if (get_user(cmd.ieType, userdata))
+	    if (get_user(cmd.ieType, userdata)) {
 		ret = -EFAULT;
 		break;
 	    }
