@@ -252,7 +252,7 @@ config EXPANDED_GPIO_IRQ_NUM
 	int "setting the amount of expanded gpio irqs"
 	help
 	  for tca6424, set 24	
-config SOFT_INTERRUPT
+config EXPAND_GPIO_SOFT_INTERRUPT
 	bool "soft interrupt for expand gpio use"
 	help
 	  if you want expand gpio support interrupt,choose it

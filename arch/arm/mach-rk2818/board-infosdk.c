@@ -1388,7 +1388,6 @@ struct platform_device rk2818_device_dm9k = {
 /*
  * InfoPhone Matrix Keyboard Device
  */
-
 #define KEYOUT0     TCA6424_P01
 #define KEYOUT1		TCA6424_P02
 #define KEYOUT2		TCA6424_P03
@@ -1400,31 +1399,7 @@ struct platform_device rk2818_device_dm9k = {
 #define KEYIN2		TCA6424_P14
 #define KEYIN3		TCA6424_P15
 
-
-#if 1
 static const uint32_t rk2818matrix_keymap[] = {
-#if 0
-	KEY(0, 0, KEY_1),
-	KEY(0, 1, KEY_3),
-	KEY(0, 2, KEY_5),
-	KEY(0, 3, KEY_6),
-	KEY(0, 4, KEY_7),
-	KEY(1, 0, KEY_2),
-	KEY(1, 1, KEY_4),
-	KEY(1, 2, KEY_R),
-	KEY(1, 3, KEY_Y),
-	KEY(1, 4, KEY_8),
-	KEY(2, 0, KEY_TAB),
-	KEY(2, 1, KEY_Q),
-	KEY(2, 2, KEY_E),
-	KEY(2, 3, KEY_T),
-	KEY(2, 4, KEY_G),
-	KEY(3, 0, KEY_LEFTCTRL),
-	KEY(3, 1, KEY_W),
-	KEY(3, 2, KEY_S),
-	KEY(3, 3, KEY_F),
-	KEY(3, 4, KEY_V),
-#else
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),
@@ -1445,33 +1420,7 @@ static const uint32_t rk2818matrix_keymap[] = {
 	KEY(1, 4, KEY_S),
 	KEY(2, 4, KEY_F),
 	KEY(3, 4, KEY_V),
-#endif
 };
-#else
-static const uint32_t rk2818matrix_keymap[] = {
-	KEY(0, 0, KEY_1),
-	KEY(0, 1, KEY_2),
-	KEY(0, 2, KEY_3),
-	KEY(0, 3, KEY_TAB),
-	KEY(1, 0, KEY_4),
-	KEY(1, 1, KEY_5),
-	KEY(1, 2, KEY_6),
-	KEY(1, 3, KEY_R),
-	KEY(2, 0, KEY_7),
-	KEY(2, 1, KEY_8),
-	KEY(2, 2, KEY_9),
-	KEY(2, 3, KEY_LEFTCTRL),
-	KEY(3, 0, KEY_SWITCHVIDEOMODE),
-	KEY(3, 1, KEY_0),
-	KEY(3, 2, KEY_S),
-	KEY(3, 3, KEY_F),
-	KEY(4, 0, KEY_G),
-	KEY(4, 1, KEY_W),
-	KEY(4, 2, KEY_S),
-	KEY(4, 3, KEY_F),
-};
-
-#endif
 
 static struct matrix_keymap_data rk2818matrix_keymap_data = {
 	.keymap		= rk2818matrix_keymap,

@@ -43,7 +43,7 @@ NOTES		:
 #include <linux/delay.h>
 #include <linux/i2c/tca6424.h>
 #include <linux/ktime.h>
-#include "../drivers/gpio/soft_interrupt.h"
+#include "../drivers/gpio/expand_gpio_soft_interrupt.h"
 
 #if 0
 #define TCA6424DEB
@@ -293,7 +293,7 @@ static int tca6424_gpio_get_value(struct gpio_chip *gc, unsigned pin_num)
 
 	chip = container_of(gc, struct tca6424_chip, gpio_chip);
 
-	#ifdef CONFIG_SOFT_INTERRUPT
+	#ifdef CONFIG_EXPAND_GPIO_SOFT_INTERRUPT
 	ret = wait_untill_input_reg_flash( );
 	if(ret<0)
 		return -1;
@@ -306,7 +306,7 @@ static int tca6424_gpio_get_value(struct gpio_chip *gc, unsigned pin_num)
 	if((gpioPortNum>=TCA6424_PortNum)||(gpioPortPinNum>=portnum[gpioPortNum]))
 		return -1;
 
-	#ifndef CONFIG_SOFT_INTERRUPT
+	#ifndef CONFIG_EXPAND_GPIO_SOFT_INTERRUPT
 	uint8_t reg_val;
 	ret = tca6424_read_reg(chip->client, Regaddr, &reg_val);
 	if (ret < 0) 
@@ -514,7 +514,7 @@ static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_de
 	chip->client = client;
 	chip->names = pdata->names;
 
-	#ifdef CONFIG_SOFT_INTERRUPT
+	#ifdef CONFIG_EXPAND_GPIO_SOFT_INTERRUPT
 	chip->expand = &expand_irq_data;
 	chip->expand->gpio_irq_start =pdata->gpio_irq_start;
 	chip->expand->irq_pin_num = pdata->irq_pin_num;
@@ -543,7 +543,7 @@ static int __devinit tca6424_probe(struct i2c_client *client,const struct i2c_de
 	}
 	i2c_set_clientdata(client, chip);
 
-	#ifdef CONFIG_SOFT_INTERRUPT
+	#ifdef CONFIG_EXPAND_GPIO_SOFT_INTERRUPT
 	expand_irq_init(chip,&chip->gtca6424_struct,tca6424_irq_read_inputreg);
 	#endif
 	return 0;

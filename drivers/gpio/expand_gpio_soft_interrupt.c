@@ -44,7 +44,7 @@ NOTES		:
 #include <linux/delay.h>
 #include <linux/i2c/tca6424.h>
 #include <linux/ktime.h>
-#include "../drivers/gpio/soft_interrupt.h"
+#include "../drivers/gpio/expand_gpio_soft_interrupt.h"
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -64,12 +64,13 @@ NOTES		:
 #define MIN(x,y) (((x)<(y))?(x):(y)) 
 
 
-int expand_gpio_irq_en = -1;
-int expand_gpio_irq_ctrflag = -1;
-unsigned int expand_gpio_irq_num = 0;
+static int expand_gpio_irq_en = -1;
+static int expand_gpio_irq_ctrflag = -1;
+static unsigned int expand_gpio_irq_num = 0;
 
-struct workqueue_struct *irqworkqueue;
-extern struct lock_class_key gpio_lock_class;
+static struct workqueue_struct *irqworkqueue;
+static struct lock_class_key gpio_lock_class;
+
 struct expand_gpio_soft_int expand_irq_data;
 
 void expand_gpio_irq_ctr_dis(int irq,int ctrflag)
