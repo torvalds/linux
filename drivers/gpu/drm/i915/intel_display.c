@@ -2487,6 +2487,20 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
+static void intel_crtc_disable(struct drm_crtc *crtc)
+{
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	struct drm_device *dev = crtc->dev;
+
+	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	if (crtc->fb) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+		mutex_unlock(&dev->struct_mutex);
+	}
+}
+
 /* Prepare for a mode set.
  *
  * Note we could be a lot smarter here.  We need to figure out which outputs
@@ -5163,6 +5177,7 @@ static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base = intel_pipe_set_base,
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
+	.disable = intel_crtc_disable,
 };
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {
