@@ -26,9 +26,10 @@
 #include "ix2505v.h"
 
 static int ix2505v_debug;
-#define dprintk(level, args...) \
-	do { if (ix2505v_debug & level) printk(KERN_DEBUG "ix2505v: " args); \
-	} while (0)
+#define dprintk(level, args...) do { \
+	if (ix2505v_debug & level) \
+		printk(KERN_DEBUG "ix2505v: " args); \
+} while (0)
 
 #define deb_info(args...)  dprintk(0x01, args)
 #define deb_i2c(args...)  dprintk(0x02, args)
@@ -47,7 +48,7 @@ struct ix2505v_state {
  *
  *  byte1 = address
  *  byte2;
- *  	POR = Power on Reset (VCC H=<2.2v L=>2.2v)
+ *	POR = Power on Reset (VCC H=<2.2v L=>2.2v)
  *	FL  = Phase Lock (H=lock L=unlock)
  *	RD0-2 = Reserved internal operations
  *
@@ -166,7 +167,7 @@ static int ix2505v_set_params(struct dvb_frontend *fe,
 	data[1] = (N << 5) | (A & 0x1f);
 	data[2] = 0x81 | ((cc & 0x3) << 5) ; /*PD5,PD4 & TM = 0|C1,C0|REF=1*/
 
-	deb_info("Frq=%d x=%d N=%d A=%d \n", frequency, x, N, A);
+	deb_info("Frq=%d x=%d N=%d A=%d\n", frequency, x, N, A);
 
 	if (frequency <= 1065000)
 		local_osc = (6 << 5) | 2;
@@ -182,11 +183,10 @@ static int ix2505v_set_params(struct dvb_frontend *fe,
 		local_osc = (4 << 5);
 	else if (frequency <= 1942000)
 		local_osc = (5 << 5);
-	else 		/*frequency up to 2150000*/
+	else		/*frequency up to 2150000*/
 		local_osc = (6 << 5);
 
 	data[3] = local_osc; /* all other bits set 0 */
-
 
 	if (b_w <= 10000)
 		lpf = 0xc;
@@ -212,7 +212,7 @@ static int ix2505v_set_params(struct dvb_frontend *fe,
 		lpf = 0xb;
 
 	deb_info("Osc=%x b_w=%x lpf=%x\n", local_osc, b_w, lpf);
-	deb_info("Data 0=[%x%x%x%x] \n", data[0], data[1], data[2], data[3]);
+	deb_info("Data 0=[%x%x%x%x]\n", data[0], data[1], data[2], data[3]);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -226,13 +226,12 @@ static int ix2505v_set_params(struct dvb_frontend *fe,
 	len = 1;
 	ret |= ix2505v_write(state, &data[2], len); /* write byte 4 only */
 
-
 	msleep(10);
 
 	data[2] |= ((lpf >> 2) & 0x3) << 3; /* lpf */
 	data[3] |= (lpf & 0x3) << 2;
 
-	deb_info("Data 2=[%x%x] \n", data[2], data[3]);
+	deb_info("Data 2=[%x%x]\n", data[2], data[3]);
 
 	len = 2;
 	ret |= ix2505v_write(state, &data[2], len); /* write byte 4 & 5 */
