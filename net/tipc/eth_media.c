@@ -101,15 +101,12 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
  * Accept only packets explicitly sent to this node, or broadcast packets;
  * ignores packets sent using Ethernet multicast, and traffic sent to other
  * nodes (which can happen if interface is running in promiscuous mode).
- * Routine truncates any Ethernet padding/CRC appended to the message,
- * and ensures message size matches actual length
  */
 
 static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 		    struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
-	u32 size;
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(buf);
@@ -118,13 +115,9 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 	if (likely(eb_ptr->bearer)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
-			size = msg_size((struct tipc_msg *)buf->data);
-			skb_trim(buf, size);
-			if (likely(buf->len == size)) {
-				buf->next = NULL;
-				tipc_recv_msg(buf, eb_ptr->bearer);
-				return 0;
-			}
+			buf->next = NULL;
+			tipc_recv_msg(buf, eb_ptr->bearer);
+			return 0;
 		}
 	}
 	kfree_skb(buf);

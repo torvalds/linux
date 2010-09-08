@@ -248,6 +248,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 
 	/* Handle message for another node */
 	msg_dbg(msg, "NET>SEND>: ");
+	skb_trim(buf, msg_size(msg));
 	tipc_link_send(buf, dnode, msg_link_selector(msg));
 }
 
