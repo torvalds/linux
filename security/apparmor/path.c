@@ -59,8 +59,7 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 {
 	struct path root, tmp;
 	char *res;
-	int deleted, connected;
-	int error = 0;
+	int connected, error = 0;
 
 	/* Get the root we want to resolve too, released below */
 	if (flags & PATH_CHROOT_REL) {
@@ -74,19 +73,8 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 	}
 
 	spin_lock(&dcache_lock);
-	/* There is a race window between path lookup here and the
-	 * need to strip the " (deleted) string that __d_path applies
-	 * Detect the race and relookup the path
-	 *
-	 * The stripping of (deleted) is a hack that could be removed
-	 * with an updated __d_path
-	 */
-	do {
-		tmp = root;
-		deleted = d_unlinked(path->dentry);
-		res = __d_path(path, &tmp, buf, buflen);
-
-	} while (deleted != d_unlinked(path->dentry));
+	tmp = root;
+	res = __d_path(path, &tmp, buf, buflen);
 	spin_unlock(&dcache_lock);
 
 	*name = res;
@@ -98,21 +86,17 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 		*name = buf;
 		goto out;
 	}
-	if (deleted) {
-		/* On some filesystems, newly allocated dentries appear to the
-		 * security_path hooks as a deleted dentry except without an
-		 * inode allocated.
-		 *
-		 * Remove the appended deleted text and return as string for
-		 * normal mediation, or auditing.  The (deleted) string is
-		 * guaranteed to be added in this case, so just strip it.
-		 */
-		buf[buflen - 11] = 0;	/* - (len(" (deleted)") +\0) */
 
-		if (path->dentry->d_inode && !(flags & PATH_MEDIATE_DELETED)) {
+	/* Handle two cases:
+	 * 1. A deleted dentry && profile is not allowing mediation of deleted
+	 * 2. On some filesystems, newly allocated dentries appear to the
+	 *    security_path hooks as a deleted dentry except without an inode
+	 *    allocated.
+	 */
+	if (d_unlinked(path->dentry) && path->dentry->d_inode &&
+	    !(flags & PATH_MEDIATE_DELETED)) {
 			error = -ENOENT;
 			goto out;
-		}
 	}
 
 	/* Determine if the path is connected to the expected root */
