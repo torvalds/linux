@@ -1951,6 +1951,9 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	release_sock(sk);
 
+	if (sock->type == SOCK_STREAM)
+		return bt_sock_stream_recvmsg(iocb, sock, msg, len, flags);
+
 	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
 }
 
