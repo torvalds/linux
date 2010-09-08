@@ -145,18 +145,10 @@ static	void	dm_dynamic_txpower(struct net_device *dev);
 static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
 
-//================================================================================
-//	HW Dynamic mechanism interface.
-//================================================================================
-
-//
-//	Description:
-//		Prepare SW resource for HW dynamic mechanism.
-//
-//	Assumption:
-//		This function is only invoked at driver intialization once.
-//
-//
+/*
+ * Prepare SW resource for HW dynamic mechanism.
+ * This function is only invoked at driver intialization once.
+ */
 void init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -350,22 +342,6 @@ void init_rate_adaptive(struct net_device * dev)
 }
 
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_check_rate_adaptive()
- *
- * Overview:
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/26/08	amy 	Create version 0 proting from windows code.
- *
- *---------------------------------------------------------------------------*/
 static void dm_check_rate_adaptive(struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1891,22 +1867,7 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 }
 
 #endif
-/*-----------------------------------------------------------------------------
- * Function:	dm_change_dynamic_initgain_thresh()
- *
- * Overview:
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/29/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+
 void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type, u32	dm_value)
 {
 	if (dm_type == DIG_TYPE_THRESH_HIGH)
@@ -1976,22 +1937,7 @@ void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type, u32	
 }
 
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_dig_init()
- *
- * Overview:	Set DIG scheme init value.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/15/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/* Set DIG scheme init value. */
 static void dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -2023,23 +1969,11 @@ static void dm_dig_init(struct net_device *dev)
 }
 
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_ctrl_initgain_byrssi()
- *
- * Overview:	Driver must monitor RSSI and notify firmware to change initial
- *				gain according to different threshold. BB team provide the
- *				suggested solution.
- *
- * Input:			struct net_device *dev
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/27/2008	amy		Create Version 0 porting from windows code.
- *---------------------------------------------------------------------------*/
+/*
+ * Driver must monitor RSSI and notify firmware to change initial
+ * gain according to different threshold. BB team provide the
+ * suggested solution.
+ */
 static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
 
@@ -2265,23 +2199,6 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 }
 
-
-/*-----------------------------------------------------------------------------
- * Function:	dm_ctrl_initgain_byrssi_highpwr()
- *
- * Overview:
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/28/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
 static void dm_ctrl_initgain_byrssi_highpwr(
 	struct net_device * dev)
 {
@@ -2785,22 +2702,7 @@ static void dm_ctstoself(struct net_device *dev)
 
 
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_check_rfctrl_gpio()
- *
- * Overview:	Copy 8187B template for 9xseries.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/28/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/* Copy 8187B template for 9xseries */
 #if 1
 static void dm_check_rfctrl_gpio(struct net_device * dev)
 {
@@ -2826,22 +2728,7 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 }
 
 #endif
-/*-----------------------------------------------------------------------------
- * Function:	dm_check_pbc_gpio()
- *
- * Overview:	Check if PBC button is pressed.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/28/2008	amy 	Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/* Check if PBC button is pressed. */
 static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
 #ifdef RTL8192U
@@ -2866,26 +2753,12 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 
 #ifdef RTL8192E
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_GPIOChangeRF
- * Overview:	PCI will not support workitem call back HW radio on-off control.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	02/21/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
+/* PCI will not support workitem call back HW radio on-off control. */
 void dm_gpio_change_rf_callback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
-       struct r8192_priv *priv = container_of(dwork,struct r8192_priv,gpio_change_rf_wq);
-       struct net_device *dev = priv->ieee80211->dev;
+	struct r8192_priv *priv = container_of(dwork,struct r8192_priv,gpio_change_rf_wq);
+	struct net_device *dev = priv->ieee80211->dev;
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
@@ -2921,22 +2794,8 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 }
 
 #endif
-/*-----------------------------------------------------------------------------
- * Function:	DM_RFPathCheckWorkItemCallBack()
- *
- * Overview:	Check if Current RF RX path is enabled
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	01/30/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
+
+/* Check if Current RF RX path is enabled */
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
@@ -3247,28 +3106,14 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 	}
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_check_rx_path_selection()
- *
- * Overview:	Call a workitem to check current RXRF path and Rx Path selection by RSSI.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/28/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void	dm_check_rx_path_selection(struct net_device *dev)
+/*
+ * Call a workitem to check current RXRF path and Rx Path selection by RSSI.
+ */
+static void dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	queue_delayed_work(priv->priv_wq,&priv->rfpath_check_wq,0);
 }
-
 
 static void dm_init_fsync (struct net_device *dev)
 {
@@ -3664,24 +3509,10 @@ void dm_check_fsync(struct net_device *dev)
 	}
 }
 
-/*---------------------------Define function prototype------------------------*/
-/*-----------------------------------------------------------------------------
- * Function:	DM_DynamicTxPower()
- *
- * Overview:	Detect Signal strength to control TX Registry
- 			Tx Power Control For Near/Far Range
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	03/06/2008	Jacken	Create Version 0.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * Detect Signal strength to control TX Registry
+ * Tx Power Control For Near/Far Range
+ */
 static void dm_init_dynamic_txpower(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);

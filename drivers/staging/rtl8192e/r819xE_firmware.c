@@ -3,16 +3,7 @@
  *
  * Description: This routine will initialize firmware. If any error occurs
  *		during the initialization process, the routine shall terminate
- *		immediately and return fail.  NIC driver should call
- *		NdisOpenFile only from MiniportInitialize.
- *
- * Arguments:   The pointer of the adapter
- *
- * Returns:
- *		NDIS_STATUS_FAILURE - the following initialization process
- *				      should be terminated
- *		NDIS_STATUS_SUCCESS - if firmware initialization process
- *				      success
+ *		immediately and return fail.
  */
 
 #include "r8192E.h"
@@ -116,18 +107,11 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 }
 
 /*
- * Procedure:    Check whether main code is download OK. If OK, turn on CPU
+ * Check whether main code is download OK. If OK, turn on CPU
  *
- * Description:   CPU register locates in different page against general
- *		  register.  Switch to CPU register in the begin and switch
- *		  back before return
- *
- * Arguments:   The pointer of the adapter
- *
- * Returns:
- *	NDIS_STATUS_FAILURE - the following initialization process should be
- *			      terminated
- *	NDIS_STATUS_SUCCESS - if firmware initialization process success
+ * CPU register locates in different page against general
+ * register.  Switch to CPU register in the begin and switch
+ * back before return
  */
 static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
