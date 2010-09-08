@@ -253,4 +253,7 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
 		IS_SNB)
 
+int intel_gmch_probe(struct pci_dev *pdev,
+			       struct agp_bridge_data *bridge);
+void intel_gmch_remove(struct pci_dev *pdev);
 #endif

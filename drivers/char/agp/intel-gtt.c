@@ -15,6 +15,17 @@
  * /fairy-tale-mode off
  */
 
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/pagemap.h>
+#include <linux/agp_backend.h>
+#include <asm/smp.h>
+#include "agp.h"
+#include "intel-agp.h"
+#include <linux/intel-gtt.h>
+
 /*
  * If we have Intel graphics, we're not going to have anything other than
  * an Intel IOMMU. So make the correct use of the PCI DMA API contingent
@@ -1728,7 +1739,7 @@ static int find_gmch(u16 device)
 	return 1;
 }
 
-int __devinit intel_gmch_probe(struct pci_dev *pdev,
+int intel_gmch_probe(struct pci_dev *pdev,
 				      struct agp_bridge_data *bridge)
 {
 	int i, mask;
@@ -1766,9 +1777,14 @@ int __devinit intel_gmch_probe(struct pci_dev *pdev,
 
 	return 1;
 }
+EXPORT_SYMBOL(intel_gmch_probe);
 
-void __devexit intel_gmch_remove(struct pci_dev *pdev)
+void intel_gmch_remove(struct pci_dev *pdev)
 {
 	if (intel_private.pcidev)
 		pci_dev_put(intel_private.pcidev);
 }
+EXPORT_SYMBOL(intel_gmch_remove);
+
+MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
+MODULE_LICENSE("GPL and additional rights");
