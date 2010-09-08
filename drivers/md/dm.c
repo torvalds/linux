@@ -621,16 +621,17 @@ static void dec_pending(struct dm_io *io, int error)
 		if (io_error == DM_ENDIO_REQUEUE)
 			return;
 
-		if (!(bio->bi_rw & REQ_FLUSH) || !bio->bi_size) {
-			trace_block_bio_complete(md->queue, bio);
-			bio_endio(bio, io_error);
-		} else {
+		if ((bio->bi_rw & REQ_FLUSH) && bio->bi_size) {
 			/*
 			 * Preflush done for flush with data, reissue
 			 * without REQ_FLUSH.
 			 */
 			bio->bi_rw &= ~REQ_FLUSH;
 			queue_io(md, bio);
+		} else {
+			/* done with normal IO or empty flush */
+			trace_block_bio_complete(md->queue, bio);
+			bio_endio(bio, io_error);
 		}
 	}
 }
@@ -1132,15 +1133,14 @@ static void __issue_target_requests(struct clone_info *ci, struct dm_target *ti,
 		__issue_target_request(ci, ti, request_nr, len);
 }
 
-static int __clone_and_map_flush(struct clone_info *ci)
+static int __clone_and_map_empty_flush(struct clone_info *ci)
 {
 	unsigned target_nr = 0;
 	struct dm_target *ti;
 
+	BUG_ON(bio_has_data(ci->bio));
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
 		__issue_target_requests(ci, ti, ti->num_flush_requests, 0);
-
-	ci->sector_count = 0;
 
 	return 0;
 }
@@ -1282,7 +1282,6 @@ static int __clone_and_map(struct clone_info *ci)
  */
 static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 {
-	bool is_flush = bio->bi_rw & REQ_FLUSH;
 	struct clone_info ci;
 	int error = 0;
 
@@ -1302,20 +1301,17 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	ci.sector = bio->bi_sector;
 	ci.idx = bio->bi_idx;
 
-	if (!is_flush) {
+	start_io_acct(ci.io);
+	if (bio->bi_rw & REQ_FLUSH) {
+		ci.bio = &ci.md->flush_bio;
+		ci.sector_count = 0;
+		error = __clone_and_map_empty_flush(&ci);
+		/* dec_pending submits any data associated with flush */
+	} else {
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
-	} else {
-		ci.bio = &ci.md->flush_bio;
-		ci.sector_count = 1;
-	}
-
-	start_io_acct(ci.io);
-	while (ci.sector_count && !error) {
-		if (!is_flush)
+		while (ci.sector_count && !error)
 			error = __clone_and_map(&ci);
-		else
-			error = __clone_and_map_flush(&ci);
 	}
 
 	/* drop the extra reference count */
