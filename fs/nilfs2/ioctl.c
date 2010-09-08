@@ -117,7 +117,7 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 	if (copy_from_user(&cpmode, argp, sizeof(cpmode)))
 		goto out;
 
-	mutex_lock(&nilfs->ns_mount_mutex);
+	down_read(&inode->i_sb->s_umount);
 
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	ret = nilfs_cpfile_change_cpmode(
@@ -127,7 +127,7 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 	else
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 
-	mutex_unlock(&nilfs->ns_mount_mutex);
+	up_read(&inode->i_sb->s_umount);
 out:
 	mnt_drop_write(filp->f_path.mnt);
 	return ret;
