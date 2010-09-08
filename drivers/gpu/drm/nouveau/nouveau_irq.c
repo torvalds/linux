@@ -202,16 +202,45 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 		}
 
 		if (status & NV_PFIFO_INTR_DMA_PUSHER) {
-			NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d\n", chid);
+			u32 get = nv_rd32(dev, 0x003244);
+			u32 put = nv_rd32(dev, 0x003240);
+			u32 push = nv_rd32(dev, 0x003220);
+			u32 state = nv_rd32(dev, 0x003228);
 
+			if (dev_priv->card_type == NV_50) {
+				u32 ho_get = nv_rd32(dev, 0x003328);
+				u32 ho_put = nv_rd32(dev, 0x003320);
+				u32 ib_get = nv_rd32(dev, 0x003334);
+				u32 ib_put = nv_rd32(dev, 0x003330);
+
+				NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%02x%08x "
+					     "Put 0x%02x%08x IbGet 0x%08x IbPut 0x%08x "
+					     "State 0x%08x Push 0x%08x\n",
+					chid, ho_get, get, ho_put, put, ib_get, ib_put,
+					state, push);
+
+				/* METHOD_COUNT, in DMA_STATE on earlier chipsets */
+				nv_wr32(dev, 0x003364, 0x00000000);
+				if (get != put || ho_get != ho_put) {
+					nv_wr32(dev, 0x003244, put);
+					nv_wr32(dev, 0x003328, ho_put);
+				} else
+				if (ib_get != ib_put) {
+					nv_wr32(dev, 0x003334, ib_put);
+				}
+			} else {
+				NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%08x "
+					     "Put 0x%08x State 0x%08x Push 0x%08x\n",
+					chid, get, put, state, push);
+
+				if (get != put)
+					nv_wr32(dev, 0x003244, put);
+			}
+
+			nv_wr32(dev, 0x003228, 0x00000000);
+			nv_wr32(dev, 0x003220, 0x00000001);
+			nv_wr32(dev, 0x002100, NV_PFIFO_INTR_DMA_PUSHER);
 			status &= ~NV_PFIFO_INTR_DMA_PUSHER;
-			nv_wr32(dev, NV03_PFIFO_INTR_0,
-						NV_PFIFO_INTR_DMA_PUSHER);
-
-			nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_STATE, 0x00000000);
-			if (nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUT) != get)
-				nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_GET,
-								get + 4);
 		}
 
 		if (status & NV_PFIFO_INTR_SEMAPHORE) {
