@@ -246,8 +246,11 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	/* The clock divider is based off the hrawclk,
 	 * and would like to run at 2MHz. So, take the
 	 * hrawclk value and divide by 2 and use that
+	 *
+	 * Note that PCH attached eDP panels should use a 125MHz input
+	 * clock divider.
 	 */
-	if (IS_eDP(intel_dp)) {
+	if (IS_eDP(intel_dp) && !IS_PCH_eDP(intel_dp)) {
 		if (IS_GEN6(dev))
 			aux_clock_divider = 200; /* SNB eDP input clock at 400Mhz */
 		else
