@@ -60,7 +60,7 @@ struct zfcp_dbf_rec_record_trigger {
 	u8 need;
 	u32 as;
 	u32 ps;
-	u32 us;
+	u32 ls;
 	u64 ref;
 	u64 action;
 	u64 wwpn;
@@ -350,16 +350,16 @@ void zfcp_dbf_scsi_abort(const char *tag, struct zfcp_dbf *dbf,
 /**
  * zfcp_dbf_scsi_devreset - trace event for Logical Unit or Target Reset
  * @tag: tag indicating success or failure of reset operation
+ * @scmnd: SCSI command which caused this error recovery
  * @flag: indicates type of reset (Target Reset, Logical Unit Reset)
- * @unit: unit that needs reset
- * @scsi_cmnd: SCSI command which caused this error recovery
  */
 static inline
-void zfcp_dbf_scsi_devreset(const char *tag, u8 flag, struct zfcp_unit *unit,
-			    struct scsi_cmnd *scsi_cmnd)
+void zfcp_dbf_scsi_devreset(const char *tag, struct scsi_cmnd *scmnd, u8 flag)
 {
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scmnd->device);
+
 	zfcp_dbf_scsi(flag == FCP_TMF_TGT_RESET ? "trst" : "lrst", tag, 1,
-			    unit->port->adapter->dbf, scsi_cmnd, NULL, 0);
+		      zfcp_sdev->port->adapter->dbf, scmnd, NULL, 0);
 }
 
 #endif /* ZFCP_DBF_H */

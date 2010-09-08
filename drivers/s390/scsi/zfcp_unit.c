@@ -134,14 +134,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	unit->fcp_lun = fcp_lun;
 	unit->dev.parent = &port->dev;
 	unit->dev.release = zfcp_unit_release;
-	unit->latencies.write.channel.min = 0xFFFFFFFF;
-	unit->latencies.write.fabric.min = 0xFFFFFFFF;
-	unit->latencies.read.channel.min = 0xFFFFFFFF;
-	unit->latencies.read.fabric.min = 0xFFFFFFFF;
-	unit->latencies.cmd.channel.min = 0xFFFFFFFF;
-	unit->latencies.cmd.fabric.min = 0xFFFFFFFF;
 	INIT_WORK(&unit->scsi_work, zfcp_unit_scsi_scan_work);
-	spin_lock_init(&unit->latencies.lock);
 
 	if (dev_set_name(&unit->dev, "0x%016llx",
 			 (unsigned long long) fcp_lun)) {
@@ -165,9 +158,6 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	list_add_tail(&unit->list, &port->unit_list);
 	write_unlock_irq(&port->unit_list_lock);
 
-	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &unit->status);
-	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
-	zfcp_erp_wait(unit->port->adapter);
 	zfcp_unit_scsi_scan(unit);
 
 	return 0;
@@ -248,7 +238,6 @@ int zfcp_unit_remove(struct zfcp_port *port, u64 fcp_lun)
 
 	put_device(&unit->dev);
 
-	zfcp_erp_unit_shutdown(unit, 0, "unrem_1", NULL);
 	zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
 
 	return 0;

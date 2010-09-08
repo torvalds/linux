@@ -68,19 +68,19 @@ ZFCP_DEFINE_ATTR(zfcp_port, port, access_denied, "%d\n",
 		  ZFCP_STATUS_COMMON_ACCESS_DENIED) != 0);
 
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, status, "0x%08x\n",
-		 atomic_read(&unit->status));
+		 zfcp_unit_sdev_status(unit));
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, in_recovery, "%d\n",
-		 (atomic_read(&unit->status) &
+		 (zfcp_unit_sdev_status(unit) &
 		  ZFCP_STATUS_COMMON_ERP_INUSE) != 0);
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_denied, "%d\n",
-		 (atomic_read(&unit->status) &
+		 (zfcp_unit_sdev_status(unit) &
 		  ZFCP_STATUS_COMMON_ACCESS_DENIED) != 0);
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_shared, "%d\n",
-		 (atomic_read(&unit->status) &
-		  ZFCP_STATUS_UNIT_SHARED) != 0);
+		 (zfcp_unit_sdev_status(unit) &
+		  ZFCP_STATUS_LUN_SHARED) != 0);
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_readonly, "%d\n",
-		 (atomic_read(&unit->status) &
-		  ZFCP_STATUS_UNIT_READONLY) != 0);
+		 (zfcp_unit_sdev_status(unit) &
+		  ZFCP_STATUS_LUN_READONLY) != 0);
 
 static ssize_t zfcp_sysfs_port_failed_show(struct device *dev,
 					   struct device_attribute *attr,
@@ -121,11 +121,17 @@ static ssize_t zfcp_sysfs_unit_failed_show(struct device *dev,
 					   char *buf)
 {
 	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit, dev);
+	struct scsi_device *sdev;
+	unsigned int status, failed = 1;
 
-	if (atomic_read(&unit->status) & ZFCP_STATUS_COMMON_ERP_FAILED)
-		return sprintf(buf, "1\n");
+	sdev = zfcp_unit_sdev(unit);
+	if (sdev) {
+		status = atomic_read(&sdev_to_zfcp(sdev)->status);
+		failed = status & ZFCP_STATUS_COMMON_ERP_FAILED ? 1 : 0;
+		scsi_device_put(sdev);
+	}
 
-	return sprintf(buf, "0\n");
+	return sprintf(buf, "%d\n", failed);
 }
 
 static ssize_t zfcp_sysfs_unit_failed_store(struct device *dev,
@@ -134,15 +140,21 @@ static ssize_t zfcp_sysfs_unit_failed_store(struct device *dev,
 {
 	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit, dev);
 	unsigned long val;
+	struct scsi_device *sdev;
 
 	if (strict_strtoul(buf, 0, &val) || val != 0)
 		return -EINVAL;
 
-	zfcp_erp_modify_unit_status(unit, "syufai1", NULL,
-				    ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
-	zfcp_erp_unit_reopen(unit, ZFCP_STATUS_COMMON_ERP_FAILED,
-			     "syufai2", NULL);
-	zfcp_erp_wait(unit->port->adapter);
+	sdev = zfcp_unit_sdev(unit);
+	if (sdev) {
+		zfcp_erp_modify_lun_status(sdev, "syufai1", NULL,
+					   ZFCP_STATUS_COMMON_RUNNING,
+					   ZFCP_SET);
+		zfcp_erp_lun_reopen(sdev, ZFCP_STATUS_COMMON_ERP_FAILED,
+				    "syufai2", NULL);
+		zfcp_erp_wait(unit->port->adapter);
+	} else
+		zfcp_unit_scsi_scan(unit);
 
 	return count;
 }
@@ -347,9 +359,9 @@ zfcp_sysfs_unit_##_name##_latency_show(struct device *dev,		\
 				       struct device_attribute *attr,	\
 				       char *buf) {			\
 	struct scsi_device *sdev = to_scsi_device(dev);			\
-	struct zfcp_unit *unit = sdev->hostdata;			\
-	struct zfcp_latencies *lat = &unit->latencies;			\
-	struct zfcp_adapter *adapter = unit->port->adapter;		\
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);		\
+	struct zfcp_latencies *lat = &zfcp_sdev->latencies;		\
+	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;	\
 	unsigned long long fsum, fmin, fmax, csum, cmin, cmax, cc;	\
 									\
 	spin_lock_bh(&lat->lock);					\
@@ -378,8 +390,8 @@ zfcp_sysfs_unit_##_name##_latency_store(struct device *dev,		\
 					const char *buf, size_t count)	\
 {									\
 	struct scsi_device *sdev = to_scsi_device(dev);			\
-	struct zfcp_unit *unit = sdev->hostdata;			\
-	struct zfcp_latencies *lat = &unit->latencies;			\
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);		\
+	struct zfcp_latencies *lat = &zfcp_sdev->latencies;		\
 	unsigned long flags;						\
 									\
 	spin_lock_irqsave(&lat->lock, flags);				\
@@ -407,26 +419,26 @@ static ssize_t zfcp_sysfs_scsi_##_name##_show(struct device *dev,	\
 					      struct device_attribute *attr,\
 					      char *buf)                 \
 {                                                                        \
-	struct scsi_device *sdev  = to_scsi_device(dev);		 \
-	struct zfcp_unit *unit = sdev->hostdata;			 \
+	struct scsi_device *sdev = to_scsi_device(dev);			 \
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);		 \
+	struct zfcp_port *port = zfcp_sdev->port;			 \
 									 \
 	return sprintf(buf, _format, _value);                            \
 }                                                                        \
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_scsi_##_name##_show, NULL);
 
 ZFCP_DEFINE_SCSI_ATTR(hba_id, "%s\n",
-		      dev_name(&unit->port->adapter->ccw_device->dev));
+		      dev_name(&port->adapter->ccw_device->dev));
 ZFCP_DEFINE_SCSI_ATTR(wwpn, "0x%016llx\n",
-		      (unsigned long long) unit->port->wwpn);
+		      (unsigned long long) port->wwpn);
 
 static ssize_t zfcp_sysfs_scsi_fcp_lun_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	struct zfcp_unit *unit = sdev->hostdata;
 
-	return sprintf(buf, "0x%016llx\n", (unsigned long long) unit->fcp_lun);
+	return sprintf(buf, "0x%016llx\n", zfcp_scsi_dev_lun(sdev));
 }
 static DEVICE_ATTR(fcp_lun, S_IRUGO, zfcp_sysfs_scsi_fcp_lun_show, NULL);
 
