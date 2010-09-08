@@ -3417,13 +3417,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 		XGIfb_registered = 1;
 
-		printk(KERN_INFO "XGIfb: Installed XGIFB_GET_INFO ioctl (%lx)\n",
-				XGIFB_GET_INFO);
-
-		/*		printk(KERN_INFO "XGIfb: 2D acceleration is %s, scrolling mode %s\n",
-		 XGIfb_accel ? "enabled" : "disabled",
-		 XGIfb_ypan  ? "ypan" : "redraw");
-		 */
 		printk(KERN_INFO "fb%d: %s frame buffer device, Version %d.%d.%02d\n",
 				fb_info->node, myid, VER_MAJOR, VER_MINOR, VER_LEVEL);
 
