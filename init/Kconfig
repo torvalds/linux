@@ -660,8 +660,12 @@ config SYSFS_DEPRECATED
 	depends on SYSFS
 	default n
 	help
-	  This option switches the layout of the "block" class devices, to not
-	  show up in /sys/class/block/, but only in /sys/block/.
+	  This option adds code that switches the layout of the "block" class
+	  devices, to not show up in /sys/class/block/, but only in
+	  /sys/block/.
+
+	  This switch is only active when the sysfs.deprecated=1 boot option is
+	  passed or the SYSFS_DEPRECATED_V2 option is set.
 
 	  This option allows new kernels to run on old distributions and tools,
 	  which might get confused by /sys/class/block/. Since 2007/2008 all
@@ -672,8 +676,22 @@ config SYSFS_DEPRECATED
 	  option enabled.
 
 	  Only if you are using a new kernel on an old distribution, you might
-	  need to say Y here. Never say Y, if the original kernel, that came
-	  with your distribution, has not set this option.
+	  need to say Y here.
+
+config SYSFS_DEPRECATED_V2
+	bool "enabled deprecated sysfs features by default"
+	default n
+	depends on SYSFS
+	depends on SYSFS_DEPRECATED
+	help
+	  Enable deprecated sysfs by default.
+
+	  See the CONFIG_SYSFS_DEPRECATED option for more details about this
+	  option.
+
+	  Only if you are using a new kernel on an old distribution, you might
+	  need to say Y here. Even then, odds are you would not need it
+	  enabled, you can always pass the boot option if absolutely necessary.
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"

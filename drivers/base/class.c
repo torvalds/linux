@@ -184,9 +184,9 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	if (!cls->dev_kobj)
 		cls->dev_kobj = sysfs_dev_char_kobj;
 
-#if defined(CONFIG_SYSFS_DEPRECATED) && defined(CONFIG_BLOCK)
+#if defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
-	if (cls != &block_class)
+	if (!sysfs_deprecated || cls != &block_class)
 		cp->class_subsys.kobj.kset = class_kset;
 #else
 	cp->class_subsys.kobj.kset = class_kset;

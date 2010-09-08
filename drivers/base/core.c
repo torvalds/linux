@@ -26,6 +26,19 @@
 #include "base.h"
 #include "power/power.h"
 
+#ifdef CONFIG_SYSFS_DEPRECATED
+#ifdef CONFIG_SYSFS_DEPRECATED_V2
+long sysfs_deprecated = 1;
+#else
+long sysfs_deprecated = 0;
+#endif
+static __init int sysfs_deprecated_setup(char *arg)
+{
+	return strict_strtol(arg, 10, &sysfs_deprecated);
+}
+early_param("sysfs.deprecated", sysfs_deprecated_setup);
+#endif
+
 int (*platform_notify)(struct device *dev) = NULL;
 int (*platform_notify_remove)(struct device *dev) = NULL;
 static struct kobject *dev_kobj;
@@ -617,14 +630,13 @@ static struct kobject *get_device_parent(struct device *dev,
 		struct kobject *parent_kobj;
 		struct kobject *k;
 
-#ifdef CONFIG_SYSFS_DEPRECATED
 		/* block disks show up in /sys/block */
-		if (dev->class == &block_class) {
+		if (sysfs_deprecated && dev->class == &block_class) {
 			if (parent && parent->class == &block_class)
 				return &parent->kobj;
 			return &block_class.p->class_subsys.kobj;
 		}
-#endif
+
 		/*
 		 * If we have no parent, we live in "virtual".
 		 * Class-devices with a non class-device as parent, live
@@ -707,11 +719,9 @@ static int device_add_class_symlinks(struct device *dev)
 			goto out_subsys;
 	}
 
-#ifdef CONFIG_SYSFS_DEPRECATED
 	/* /sys/block has directories and does not need symlinks */
-	if (dev->class == &block_class)
+	if (sysfs_deprecated && dev->class == &block_class)
 		return 0;
-#endif
 
 	/* link in the class directory pointing to the device */
 	error = sysfs_create_link(&dev->class->p->class_subsys.kobj,
@@ -738,10 +748,8 @@ static void device_remove_class_symlinks(struct device *dev)
 	if (dev->parent && device_is_not_partition(dev))
 		sysfs_remove_link(&dev->kobj, "device");
 	sysfs_remove_link(&dev->kobj, "subsystem");
-#ifdef CONFIG_SYSFS_DEPRECATED
-	if (dev->class == &block_class)
+	if (sysfs_deprecated && dev->class == &block_class)
 		return;
-#endif
 	sysfs_delete_link(&dev->class->p->class_subsys.kobj, &dev->kobj, dev_name(dev));
 }
 

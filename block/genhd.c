@@ -22,9 +22,7 @@
 #include "blk.h"
 
 static DEFINE_MUTEX(block_class_lock);
-#ifndef CONFIG_SYSFS_DEPRECATED
 struct kobject *block_depr;
-#endif
 
 /* for extended dynamic devt allocation, currently only one major is used */
 #define MAX_EXT_DEVT		(1 << MINORBITS)
@@ -803,10 +801,9 @@ static int __init genhd_device_init(void)
 
 	register_blkdev(BLOCK_EXT_MAJOR, "blkext");
 
-#ifndef CONFIG_SYSFS_DEPRECATED
 	/* create top-level block dir */
-	block_depr = kobject_create_and_add("block", NULL);
-#endif
+	if (!sysfs_deprecated)
+		block_depr = kobject_create_and_add("block", NULL);
 	return 0;
 }
 
