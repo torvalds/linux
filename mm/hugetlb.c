@@ -2217,6 +2217,19 @@ nomem:
 	return -ENOMEM;
 }
 
+static int is_hugetlb_entry_migration(pte_t pte)
+{
+	swp_entry_t swp;
+
+	if (huge_pte_none(pte) || pte_present(pte))
+		return 0;
+	swp = pte_to_swp_entry(pte);
+	if (non_swap_entry(swp) && is_migration_entry(swp)) {
+		return 1;
+	} else
+		return 0;
+}
+
 static int is_hugetlb_entry_hwpoisoned(pte_t pte)
 {
 	swp_entry_t swp;
@@ -2648,7 +2661,10 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	ptep = huge_pte_offset(mm, address);
 	if (ptep) {
 		entry = huge_ptep_get(ptep);
-		if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+		if (unlikely(is_hugetlb_entry_migration(entry))) {
+			migration_entry_wait(mm, (pmd_t *)ptep, address);
+			return 0;
+		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
 			return VM_FAULT_HWPOISON;
 	}
 
