@@ -99,7 +99,8 @@ struct au1000_private {
 
 	int mac_id;
 
-	int mac_enabled;       /* whether MAC is currently enabled and running (req. for mdio) */
+	int mac_enabled;       /* whether MAC is currently enabled and running
+				 (req. for mdio) */
 
 	int old_link;          /* used by au1000_adjust_link */
 	int old_speed;
@@ -117,7 +118,8 @@ struct au1000_private {
 	int phy_busid;
 	int phy_irq;
 
-	/* These variables are just for quick access to certain regs addresses. */
+	/* These variables are just for quick access
+	 * to certain regs addresses. */
 	volatile struct mac_reg *mac;  /* mac registers                      */
 	volatile u32 *enable;     /* address of MAC Enable Register     */
 
