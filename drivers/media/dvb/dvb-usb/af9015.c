@@ -1370,7 +1370,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 9, /* check max from dvb-usb.h */
+		.num_device_descs = 10, /* check max from dvb-usb.h */
 		.devices = {
 			{
 				.name = "Afatech AF9015 DVB-T USB2.0 stick",
@@ -1420,6 +1420,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "AVerMedia AVerTV DVB-T Volar X",
 				.cold_ids = {&af9015_usb_table[9], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "TerraTec Cinergy T Stick RC",
+				.cold_ids = {&af9015_usb_table[33], NULL},
 				.warm_ids = {NULL},
 			},
 		}
@@ -1636,24 +1641,6 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "AverMedia AVerTV Volar M (A815Mac)",
 				.cold_ids = {&af9015_usb_table[32], NULL},
-				.warm_ids = {NULL},
-			},
-		},
-
-		.identify_state = af9015_identify_state,
-
-		.rc.legacy = {
-			.rc_query         = af9015_rc_query,
-			.rc_interval      = 150,
-		},
-
-		.i2c_algo = &af9015_i2c_algo,
-
-		.num_device_descs = 1, /* check max from dvb-usb.h */
-		.devices = {
-			{
-				.name = "TerraTec Cinergy T Stick RC",
-				.cold_ids = {&af9015_usb_table[33], NULL},
 				.warm_ids = {NULL},
 			},
 		}
