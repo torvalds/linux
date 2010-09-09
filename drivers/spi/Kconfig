@@ -153,7 +153,10 @@ config SPI_IMX_VER_0_4
 	def_bool y if ARCH_MX31
 
 config SPI_IMX_VER_0_7
-	def_bool y if ARCH_MX25 || ARCH_MX35
+	def_bool y if ARCH_MX25 || ARCH_MX35 || ARCH_MX51
+
+config SPI_IMX_VER_2_3
+	def_bool y if ARCH_MX51
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"

@@ -65,6 +65,7 @@ enum spi_imx_devtype {
 	SPI_IMX_VER_0_4,
 	SPI_IMX_VER_0_5,
 	SPI_IMX_VER_0_7,
+	SPI_IMX_VER_2_3,
 	SPI_IMX_VER_AUTODETECT,
 };
 
@@ -155,7 +156,7 @@ static unsigned int spi_imx_clkdiv_1(unsigned int fin,
 	return max;
 }
 
-/* MX1, MX31, MX35 */
+/* MX1, MX31, MX35, MX51 CSPI */
 static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 		unsigned int fspi)
 {
@@ -168,6 +169,128 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 	}
 
 	return 7;
+}
+
+#define SPI_IMX2_3_CTRL		0x08
+#define SPI_IMX2_3_CTRL_ENABLE		(1 <<  0)
+#define SPI_IMX2_3_CTRL_XCH		(1 <<  2)
+#define SPI_IMX2_3_CTRL_MODE(cs)	(1 << ((cs) +  4))
+#define SPI_IMX2_3_CTRL_POSTDIV_OFFSET	8
+#define SPI_IMX2_3_CTRL_PREDIV_OFFSET	12
+#define SPI_IMX2_3_CTRL_CS(cs)		((cs) << 18)
+#define SPI_IMX2_3_CTRL_BL_OFFSET	20
+
+#define SPI_IMX2_3_CONFIG	0x0c
+#define SPI_IMX2_3_CONFIG_SCLKPHA(cs)	(1 << ((cs) +  0))
+#define SPI_IMX2_3_CONFIG_SCLKPOL(cs)	(1 << ((cs) +  4))
+#define SPI_IMX2_3_CONFIG_SBBCTRL(cs)	(1 << ((cs) +  8))
+#define SPI_IMX2_3_CONFIG_SSBPOL(cs)	(1 << ((cs) + 12))
+
+#define SPI_IMX2_3_INT		0x10
+#define SPI_IMX2_3_INT_TEEN		(1 <<  0)
+#define SPI_IMX2_3_INT_RREN		(1 <<  3)
+
+#define SPI_IMX2_3_STAT		0x18
+#define SPI_IMX2_3_STAT_RR		(1 <<  3)
+
+/* MX51 eCSPI */
+static unsigned int spi_imx2_3_clkdiv(unsigned int fin, unsigned int fspi)
+{
+	/*
+	 * there are two 4-bit dividers, the pre-divider divides by
+	 * $pre, the post-divider by 2^$post
+	 */
+	unsigned int pre, post;
+
+	if (unlikely(fspi > fin))
+		return 0;
+
+	post = fls(fin) - fls(fspi);
+	if (fin > fspi << post)
+		post++;
+
+	/* now we have: (fin <= fspi << post) with post being minimal */
+
+	post = max(4U, post) - 4;
+	if (unlikely(post > 0xf)) {
+		pr_err("%s: cannot set clock freq: %u (base freq: %u)\n",
+				__func__, fspi, fin);
+		return 0xff;
+	}
+
+	pre = DIV_ROUND_UP(fin, fspi << post) - 1;
+
+	pr_debug("%s: fin: %u, fspi: %u, post: %u, pre: %u\n",
+			__func__, fin, fspi, post, pre);
+	return (pre << SPI_IMX2_3_CTRL_PREDIV_OFFSET) |
+		(post << SPI_IMX2_3_CTRL_POSTDIV_OFFSET);
+}
+
+static void __maybe_unused spi_imx2_3_intctrl(struct spi_imx_data *spi_imx, int enable)
+{
+	unsigned val = 0;
+
+	if (enable & MXC_INT_TE)
+		val |= SPI_IMX2_3_INT_TEEN;
+
+	if (enable & MXC_INT_RR)
+		val |= SPI_IMX2_3_INT_RREN;
+
+	writel(val, spi_imx->base + SPI_IMX2_3_INT);
+}
+
+static void __maybe_unused spi_imx2_3_trigger(struct spi_imx_data *spi_imx)
+{
+	u32 reg;
+
+	reg = readl(spi_imx->base + SPI_IMX2_3_CTRL);
+	reg |= SPI_IMX2_3_CTRL_XCH;
+	writel(reg, spi_imx->base + SPI_IMX2_3_CTRL);
+}
+
+static int __maybe_unused spi_imx2_3_config(struct spi_imx_data *spi_imx,
+		struct spi_imx_config *config)
+{
+	u32 ctrl = SPI_IMX2_3_CTRL_ENABLE, cfg = 0;
+
+	/* set master mode */
+	ctrl |= SPI_IMX2_3_CTRL_MODE(config->cs);
+
+	/* set clock speed */
+	ctrl |= spi_imx2_3_clkdiv(spi_imx->spi_clk, config->speed_hz);
+
+	/* set chip select to use */
+	ctrl |= SPI_IMX2_3_CTRL_CS(config->cs);
+
+	ctrl |= (config->bpw - 1) << SPI_IMX2_3_CTRL_BL_OFFSET;
+
+	cfg |= SPI_IMX2_3_CONFIG_SBBCTRL(config->cs);
+
+	if (config->mode & SPI_CPHA)
+		cfg |= SPI_IMX2_3_CONFIG_SCLKPHA(config->cs);
+
+	if (config->mode & SPI_CPOL)
+		cfg |= SPI_IMX2_3_CONFIG_SCLKPOL(config->cs);
+
+	if (config->mode & SPI_CS_HIGH)
+		cfg |= SPI_IMX2_3_CONFIG_SSBPOL(config->cs);
+
+	writel(ctrl, spi_imx->base + SPI_IMX2_3_CTRL);
+	writel(cfg, spi_imx->base + SPI_IMX2_3_CONFIG);
+
+	return 0;
+}
+
+static int __maybe_unused spi_imx2_3_rx_available(struct spi_imx_data *spi_imx)
+{
+	return readl(spi_imx->base + SPI_IMX2_3_STAT) & SPI_IMX2_3_STAT_RR;
+}
+
+static void __maybe_unused spi_imx2_3_reset(struct spi_imx_data *spi_imx)
+{
+	/* drain receive buffer */
+	while (spi_imx2_3_rx_available(spi_imx))
+		readl(spi_imx->base + MXC_CSPIRXDATA);
 }
 
 #define MX31_INTREG_TEEN	(1 << 0)
@@ -447,6 +570,15 @@ static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
 		.reset = spi_imx0_4_reset,
 	},
 #endif
+#ifdef CONFIG_SPI_IMX_VER_2_3
+	[SPI_IMX_VER_2_3] = {
+		.intctrl = spi_imx2_3_intctrl,
+		.config = spi_imx2_3_config,
+		.trigger = spi_imx2_3_trigger,
+		.rx_available = spi_imx2_3_rx_available,
+		.reset = spi_imx2_3_reset,
+	},
+#endif
 };
 
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
@@ -602,6 +734,12 @@ static struct platform_device_id spi_imx_devtype[] = {
 	}, {
 		.name = "imx35-cspi",
 		.driver_data = SPI_IMX_VER_0_7,
+	}, {
+		.name = "imx51-cspi",
+		.driver_data = SPI_IMX_VER_0_7,
+	}, {
+		.name = "imx51-ecspi",
+		.driver_data = SPI_IMX_VER_2_3,
 	}, {
 		/* sentinel */
 	}
