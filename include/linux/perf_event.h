@@ -889,6 +889,7 @@ extern void perf_event_task_sched_out(struct task_struct *task, struct task_stru
 extern int perf_event_init_task(struct task_struct *child);
 extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
+extern void perf_event_delayed_put(struct task_struct *task);
 extern void set_perf_event_pending(void);
 extern void perf_event_do_pending(void);
 extern void perf_event_print_debug(void);
@@ -1067,6 +1068,7 @@ perf_event_task_sched_out(struct task_struct *task,
 static inline int perf_event_init_task(struct task_struct *child)	{ return 0; }
 static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
+static inline void perf_event_delayed_put(struct task_struct *task)	{ }
 static inline void perf_event_do_pending(void)				{ }
 static inline void perf_event_print_debug(void)				{ }
 static inline int perf_event_task_disable(void)				{ return -EINVAL; }
