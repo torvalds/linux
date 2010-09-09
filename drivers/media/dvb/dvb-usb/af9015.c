@@ -801,6 +801,9 @@ static const struct af9015_setup af9015_setup_hashes[] = {
 	{ 0x9b7dc64e,
 		ir_codes_af9015_table_mygictv, ARRAY_SIZE(ir_codes_af9015_table_mygictv),
 		af9015_ir_table_mygictv, ARRAY_SIZE(af9015_ir_table_mygictv) },
+	{ 0x14e89ffe,
+		ir_codes_terratec, ARRAY_SIZE(ir_codes_terratec),
+		af9015_ir_terratec, ARRAY_SIZE(af9015_ir_terratec) },
 	{ }
 };
 
