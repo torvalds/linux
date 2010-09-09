@@ -5226,18 +5226,6 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	return 0;
 }
 
-struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
-{
-	struct drm_crtc *crtc = NULL;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		if (intel_crtc->pipe == pipe)
-			break;
-	}
-	return crtc;
-}
-
 static int intel_encoder_clones(struct drm_device *dev, int type_mask)
 {
 	struct intel_encoder *encoder;

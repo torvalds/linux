@@ -932,7 +932,7 @@ void intel_lvds_init(struct drm_device *dev)
 
 	lvds = I915_READ(LVDS);
 	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
-	crtc = intel_get_crtc_from_pipe(dev, pipe);
+	crtc = intel_get_crtc_for_pipe(dev, pipe);
 
 	if (crtc && (lvds & LVDS_PORT_EN)) {
 		dev_priv->panel_fixed_mode = intel_crtc_mode_get(dev, crtc);

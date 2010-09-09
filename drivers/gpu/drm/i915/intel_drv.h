@@ -177,6 +177,13 @@ struct intel_crtc {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
+static inline struct drm_crtc *
+intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return dev_priv->pipe_to_crtc_mapping[pipe];
+}
+
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_device *dev;
@@ -235,7 +242,6 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern void intel_wait_for_vblank_off(struct drm_device *dev, int pipe);
 extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
-extern struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe);
 extern struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 						   struct drm_connector *connector,
 						   struct drm_display_mode *mode,
