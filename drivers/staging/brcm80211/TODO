@@ -39,3 +39,9 @@ Other
   handling of different interfaces so that a single binary driver can be built.
 - Add support for new chips (obviously an ongoing item).
 
+Contact
+=====
+Brett Rudley <brudley@broadcom.com>
+Henry Ptasinski <henryp@broadcom.com>
+Nohee Ko <noheek@broadcom.com>
+
