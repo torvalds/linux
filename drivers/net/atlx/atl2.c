@@ -51,10 +51,10 @@
 
 #define ATL2_DRV_VERSION "2.2.3"
 
-static char atl2_driver_name[] = "atl2";
+static const char atl2_driver_name[] = "atl2";
 static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
-static char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
-static char atl2_driver_version[] = ATL2_DRV_VERSION;
+static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
+static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
