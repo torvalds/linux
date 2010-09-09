@@ -1951,7 +1951,22 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
 	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
-	dev_priv->wq = create_singlethread_workqueue("i915");
+	/* The i915 workqueue is primarily used for batched retirement of
+	 * requests (and thus managing bo) once the task has been completed
+	 * by the GPU. i915_gem_retire_requests() is called directly when we
+	 * need high-priority retirement, such as waiting for an explicit
+	 * bo.
+	 *
+	 * It is also used for periodic low-priority events, such as
+	 * idle-timers and hangcheck.
+	 *
+	 * All tasks on the workqueue are expected to acquire the dev mutex
+	 * so there is no point in running more than one instance of the
+	 * workqueue at any time: max_active = 1 and NON_REENTRANT.
+	 */
+	dev_priv->wq = alloc_workqueue("i915",
+				       WQ_UNBOUND | WQ_NON_REENTRANT,
+				       1);
 	if (dev_priv->wq == NULL) {
 		DRM_ERROR("Failed to create our workqueue.\n");
 		ret = -ENOMEM;
