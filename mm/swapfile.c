@@ -318,10 +318,8 @@ checks:
 	if (offset > si->highest_bit)
 		scan_base = offset = si->lowest_bit;
 
-	/* reuse swap entry of cache-only swap if not hibernation. */
-	if (vm_swap_full()
-		&& usage == SWAP_HAS_CACHE
-		&& si->swap_map[offset] == SWAP_HAS_CACHE) {
+	/* reuse swap entry of cache-only swap if not busy. */
+	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
 		int swap_was_freed;
 		spin_unlock(&swap_lock);
 		swap_was_freed = __try_to_reclaim_swap(si, offset);
@@ -686,6 +684,24 @@ int try_to_free_swap(struct page *page)
 	if (PageWriteback(page))
 		return 0;
 	if (page_swapcount(page))
+		return 0;
+
+	/*
+	 * Once hibernation has begun to create its image of memory,
+	 * there's a danger that one of the calls to try_to_free_swap()
+	 * - most probably a call from __try_to_reclaim_swap() while
+	 * hibernation is allocating its own swap pages for the image,
+	 * but conceivably even a call from memory reclaim - will free
+	 * the swap from a page which has already been recorded in the
+	 * image as a clean swapcache page, and then reuse its swap for
+	 * another page of the image.  On waking from hibernation, the
+	 * original page might be freed under memory pressure, then
+	 * later read back in from swap, now with the wrong data.
+	 *
+	 * Hibernation clears bits from gfp_allowed_mask to prevent
+	 * memory reclaim from writing to disk, so check that here.
+	 */
+	if (!(gfp_allowed_mask & __GFP_IO))
 		return 0;
 
 	delete_from_swap_cache(page);
