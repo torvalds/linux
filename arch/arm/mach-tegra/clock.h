@@ -41,28 +41,6 @@
 #define ENABLE_ON_INIT		(1 << 28)
 
 struct clk;
-struct regulator;
-
-struct dvfs_table {
-	unsigned long rate;
-	int millivolts;
-};
-
-struct dvfs_process_id_table {
-	int process_id;
-	struct dvfs_table *table;
-};
-
-struct dvfs {
-	struct regulator *reg;
-	struct dvfs_table *table;
-	int max_millivolts;
-
-	int process_id_table_length;
-	const char *reg_id;
-	bool cpu;
-	struct dvfs_process_id_table process_id_table[];
-};
 
 struct clk_mux_sel {
 	struct clk	*input;
@@ -141,8 +119,6 @@ struct clk {
 	/* Virtual cpu clock */
 	struct clk			*main;
 	struct clk			*backup;
-
-	struct dvfs			*dvfs;
 };
 
 
