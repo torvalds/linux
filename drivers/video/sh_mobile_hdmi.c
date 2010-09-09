@@ -389,20 +389,20 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 	 * [6:5] set required down sampling rate if required
 	 * [4:3] set required audio source
 	 */
-	switch (pdata->flags & HDMI_SRC_MASK) {
+	switch (pdata->flags & HDMI_SND_SRC_MASK) {
 	default:
 		/* fall through */
-	case HDMI_SRC_I2S:
-		data = (0x0 << 3);
+	case HDMI_SND_SRC_I2S:
+		data = 0x0 << 3;
 		break;
-	case HDMI_SRC_SPDIF:
-		data = (0x1 << 3);
+	case HDMI_SND_SRC_SPDIF:
+		data = 0x1 << 3;
 		break;
-	case HDMI_SRC_DSD:
-		data = (0x2 << 3);
+	case HDMI_SND_SRC_DSD:
+		data = 0x2 << 3;
 		break;
-	case HDMI_SRC_HBR:
-		data = (0x3 << 3);
+	case HDMI_SND_SRC_HBR:
+		data = 0x3 << 3;
 		break;
 	}
 	hdmi_write(hdmi, data, HDMI_AUDIO_SETTING_1);
