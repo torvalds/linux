@@ -1039,7 +1039,7 @@ CONFIG_BCM4329_NVRAM_PATH="/system/etc/wifi/bcm4329.cal"
 # CONFIG_USB_KAWETH is not set
 # CONFIG_USB_PEGASUS is not set
 # CONFIG_USB_RTL8150 is not set
-# CONFIG_USB_USBNET is not set
+CONFIG_USB_USBNET=y
 # CONFIG_USB_HSO is not set
 # CONFIG_USB_IPHETH is not set
 # CONFIG_WAN is not set
@@ -1631,6 +1631,7 @@ CONFIG_USB_TEGRA_HCD=y
 # CONFIG_USB_PRINTER is not set
 # CONFIG_USB_WDM is not set
 # CONFIG_USB_TMC is not set
+CONFIG_USB_NET_CDCETHER=y
 
 #
 # NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may
