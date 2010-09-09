@@ -817,6 +817,7 @@ config SND_VIA82XX_MODEM
 config SND_VIRTUOSO
 	tristate "Asus Virtuoso 100/200 (Xonar)"
 	select SND_OXYGEN_LIB
+	select SND_JACK if INPUT=y || INPUT=SND
 	help
 	  Say Y here to include support for sound cards based on the
 	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X,

@@ -25,8 +25,8 @@
  * SPI 0 -> WM8766 (surround, center/LFE, back)
  * SPI 1 -> WM8776 (front, input)
  *
- * GPIO 4 <- headphone detect
- * GPIO 6 -> route input jack to input 1/2 (1/0)
+ * GPIO 4 <- headphone detect, 0 = plugged
+ * GPIO 6 -> route input jack to mic-in (0) or line-in (1)
  * GPIO 7 -> enable output to speakers
  * GPIO 8 -> enable output to speakers
  *
@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
@@ -63,6 +64,7 @@ struct xonar_wm87x6 {
 	struct snd_kcontrol *line_adcmux_control;
 	struct snd_kcontrol *mic_adcmux_control;
 	struct snd_kcontrol *lc_controls[13];
+	struct snd_jack *hp_jack;
 };
 
 static void wm8776_write(struct oxygen *chip,
@@ -177,6 +179,16 @@ static void wm8776_init(struct oxygen *chip)
 	wm8776_registers_init(chip);
 }
 
+static void xonar_ds_report_hp_jack(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	u16 bits;
+
+	bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
+	snd_jack_report(data->hp_jack,
+			bits & GPIO_DS_HP_DETECT ? 0 : SND_JACK_HEADPHONE);
+}
+
 static void xonar_ds_init(struct oxygen *chip)
 {
 	struct xonar_wm87x6 *data = chip->model_data;
@@ -194,6 +206,10 @@ static void xonar_ds_init(struct oxygen *chip)
 	chip->interrupt_mask |= OXYGEN_INT_GPIO;
 
 	xonar_enable_output(chip);
+
+	snd_jack_new(chip->card, "Headphone",
+		     SND_JACK_HEADPHONE, &data->hp_jack);
+	xonar_ds_report_hp_jack(chip);
 
 	snd_component_add(chip->card, "WM8776");
 	snd_component_add(chip->card, "WM8766");
@@ -332,10 +348,7 @@ static void update_wm87x6_mute(struct oxygen *chip)
 
 static void xonar_ds_gpio_changed(struct oxygen *chip)
 {
-	u16 bits;
-
-	bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
-	snd_printk(KERN_INFO "HP detect: %d\n", !!(bits & GPIO_DS_HP_DETECT));
+	xonar_ds_report_hp_jack(chip);
 }
 
 static int wm8776_bit_switch_get(struct snd_kcontrol *ctl,
