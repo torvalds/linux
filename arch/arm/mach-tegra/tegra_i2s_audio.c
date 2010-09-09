@@ -51,6 +51,12 @@
 
 #include "clock.h"
 
+#define PCM_BUFFER_MAX_SIZE_ORDER	(PAGE_SHIFT + 2)
+#define PCM_BUFFER_DMA_CHUNK_SIZE_ORDER	PAGE_SHIFT
+#define PCM_BUFFER_THRESHOLD_ORDER	(PCM_BUFFER_MAX_SIZE_ORDER - 1)
+#define PCM_DMA_CHUNK_MIN_SIZE_ORDER	3
+
+#define PCM_IN_BUFFER_PADDING		(1<<6) /* bytes */
 
 /* per stream (input/output) */
 struct audio_stream {
@@ -63,6 +69,7 @@ struct audio_stream {
 	dma_addr_t buf_phys;
 	struct kfifo fifo;
 	struct completion fifo_completion;
+	struct scatterlist sg;
 
 	unsigned errors;
 
@@ -465,12 +472,6 @@ static inline u32 i2s_get_fifo_full_empty_count(unsigned long base, int fifo)
 	return val & I2S_I2S_FIFO_SCR_FIFO_FULL_EMPTY_COUNT_MASK;
 }
 
-#define PCM_IN_BUFFER_PADDING		(1<<6) /* bytes */
-#define PCM_BUFFER_MAX_SIZE_ORDER	(PAGE_SHIFT + 2)
-#define PCM_BUFFER_DMA_CHUNK_SIZE_ORDER	(PCM_BUFFER_MAX_SIZE_ORDER - 1)
-#define PCM_BUFFER_THRESHOLD_ORDER	PCM_BUFFER_DMA_CHUNK_SIZE_ORDER
-#define PCM_DMA_CHUNK_MIN_SIZE_ORDER	3
-
 static int init_stream_buffer(struct audio_stream *,
 		struct tegra_audio_buf_config *cfg, unsigned);
 
@@ -690,7 +691,8 @@ static void dma_tx_complete_callback(struct tegra_dma_req *req)
 		aos->errors++;
 	}
 
-	kfifo_skip(&aos->fifo, count);
+	kfifo_dma_out_finish(&aos->fifo, count);
+	dma_unmap_sg(NULL, &aos->sg, 1, DMA_TO_DEVICE);
 
 	if (kfifo_avail(&aos->fifo) >= threshold_size(aos) &&
 			!completion_done(&aos->fifo_completion)) {
@@ -727,7 +729,8 @@ static void dma_rx_complete_callback(struct tegra_dma_req *req)
 			count, kfifo_avail(&ais->fifo));
 
 	BUG_ON(kfifo_avail(&ais->fifo) < count);
-	__kfifo_add_in(&ais->fifo, count);
+	kfifo_dma_in_finish(&ais->fifo, count);
+	dma_unmap_sg(NULL, &ais->sg, 1, DMA_FROM_DEVICE);
 
 	if (kfifo_avail(&ais->fifo) <= threshold_size(ais) &&
 			!completion_done(&ais->fifo_completion)) {
@@ -800,19 +803,21 @@ static int resume_dma_playback(struct audio_stream *aos)
 	struct audio_driver_state *ads = ads_from_out(aos);
 	struct tegra_dma_req *req = &aos->dma_req;
 
-	unsigned out, in;
+	if (aos->dma_has_it) {
+		pr_debug("%s: playback already in progress\n", __func__);
+		return -EALREADY;
+	}
 
-	out = __kfifo_off(&aos->fifo, aos->fifo.out);
-	in = __kfifo_off(&aos->fifo, aos->fifo.in);
-
+	rc = kfifo_dma_out_prepare(&aos->fifo, &aos->sg,
+			1, kfifo_len(&aos->fifo));
 	/* stop_playback_if_necessary() already checks to see if the fifo is
 	 * empty.
 	 */
-	BUG_ON(!kfifo_len(&aos->fifo));
-
-	if (aos->dma_has_it) {
-		pr_debug("%s: playback already in progress\n", __func__);
-		return 0;
+	BUG_ON(!rc);
+	rc = dma_map_sg(NULL, &aos->sg, 1, DMA_TO_DEVICE);
+	if (rc < 0) {
+		pr_err("%s: could not map dma memory: %d\n", __func__, rc);
+		return rc;
 	}
 
 #if 0
@@ -821,20 +826,17 @@ static int resume_dma_playback(struct audio_stream *aos)
 	i2s_fifo_set_attention_level(ads->i2s_base,
 			I2S_FIFO_TX, aos->i2s_fifo_atn_level);
 
-	req->source_addr = aos->buf_phys + out;
-	if (out < in)
-		req->size = in - out;
-	else
-		req->size = kfifo_size(&aos->fifo) - out;
 
+	req->source_addr = sg_dma_address(&aos->sg);
+	req->size = sg_dma_len(&aos->sg);
 	dma_sync_single_for_device(NULL,
-			aos->buf_phys + out, req->size, DMA_TO_DEVICE);
+			req->source_addr, req->size, DMA_TO_DEVICE);
 
 	/* Don't send all the data yet. */
 	if (req->size > chunk_size(aos))
 		req->size = chunk_size(aos);
-	pr_debug("%s resume playback (%d in fifo, writing %d, in %d out %d)\n",
-			__func__, kfifo_len(&aos->fifo), req->size, in, out);
+	pr_debug("%s resume playback (%d in fifo, writing %d)\n",
+			__func__, kfifo_len(&aos->fifo), req->size);
 
 	i2s_fifo_enable(ads->i2s_base, I2S_FIFO_TX, 1);
 
@@ -871,15 +873,9 @@ static void stop_dma_playback(struct audio_stream *aos)
 /* Called with ais->dma_req_lock taken. */
 static int resume_dma_recording(struct audio_stream *ais)
 {
+	int rc;
 	struct audio_driver_state *ads = ads_from_in(ais);
 	struct tegra_dma_req *req = &ais->dma_req;
-
-	unsigned out, in;
-
-	out = __kfifo_off(&ais->fifo, ais->fifo.out);
-	in = __kfifo_off(&ais->fifo, ais->fifo.in);
-
-	pr_debug("%s in %d out %d\n", __func__, in, out);
 
 	BUG_ON(kfifo_is_full(&ais->fifo));
 
@@ -888,21 +884,24 @@ static int resume_dma_recording(struct audio_stream *ais)
 		return 0;
 	}
 
-	req->dest_addr = ais->buf_phys + in;
-	if (out <= in)
-		req->size = kfifo_size(&ais->fifo) - in;
-	else
-		req->size = out - in;
-
 	/* Don't send all the data yet. */
 	if (req->size > chunk_size(ais))
 		req->size = chunk_size(ais);
+	rc = kfifo_dma_in_prepare(&ais->fifo, &ais->sg, 1,
+			kfifo_avail(&ais->fifo));
+	BUG_ON(!rc);
+	rc = dma_map_sg(NULL, &ais->sg, 1, DMA_FROM_DEVICE);
+	if (rc < 0) {
+		pr_err("%s: coult not map dma for recording: %d\n",
+				__func__, rc);
+		return rc;
+	}
 
-	req->size = round_down(req->size, 4);
+	req->dest_addr = sg_dma_address(&ais->sg);
+	req->size = round_down(sg_dma_len(&ais->sg), 4);
 
 	if (!req->size) {
-		pr_err("%s: invalid request size %d (in %d out %d)\n", __func__,
-			req->size, in, out);
+		pr_err("%s: invalid request size %d\n", __func__, req->size);
 		return -EIO;
 	}
 
@@ -1468,22 +1467,21 @@ static int downsample(const s16 *in, int in_len,
 }
 
 static ssize_t __downsample_to_user(struct audio_driver_state *ads,
-				void __user *buf, unsigned int off,
-				int src_size,
-				int dst_size,
+				void __user *dst, int dst_size,
+				void *src, int src_size,
 				int *num_consumed)
 {
 	int bytes_ds;
 
 	pr_debug("%s\n", __func__);
 
-	bytes_ds = downsample(ads->in.buffer + off, src_size / sizeof(s16),
-			ads->in.buffer + off, dst_size / sizeof(s16),
+	bytes_ds = downsample(src, src_size / sizeof(s16),
+			src, dst_size / sizeof(s16),
 			num_consumed,
 			ads->in_divs, ads->in_divs_len,
 			ads->in_config.stereo) * sizeof(s16);
 
-	if (copy_to_user(buf, ads->in.buffer + off, bytes_ds)) {
+	if (copy_to_user(dst, src, bytes_ds)) {
 		pr_err("%s: error copying %d bytes to user\n", __func__,
 			bytes_ds);
 		return -EFAULT;
@@ -1491,8 +1489,6 @@ static ssize_t __downsample_to_user(struct audio_driver_state *ads,
 
 	*num_consumed *= sizeof(s16);
 	BUG_ON(*num_consumed > src_size);
-
-	kfifo_skip(&ads->in.fifo, *num_consumed);
 
 	pr_debug("%s: generated %d, skipped %d, original in fifo %d\n",
 			__func__, bytes_ds, *num_consumed, src_size);
@@ -1504,74 +1500,93 @@ static ssize_t downsample_to_user(struct audio_driver_state *ads,
 			void __user *buf,
 			size_t size) /* bytes to write to user buffer */
 {
-	unsigned out, in;
-	int bytes_consumed_from_fifo;
-	int bytes_ds;
-	int bytes_till_end;
+	int i, nr_sg;
+	int bytes_consumed_from_fifo, bc_now;
+	int bytes_ds, ds_now;
 	bool take_two = false;
 
-	out = __kfifo_off(&ads->in.fifo, ads->in.fifo.out);
-	in  = __kfifo_off(&ads->in.fifo, ads->in.fifo.in);
-
-	pr_debug("%s (size %d out %d in %d)\n", __func__, size, out, in);
-
-	if (kfifo_is_empty(&ads->in.fifo)) {
-		pr_debug("%s: input fifo is empty\n", __func__);
-		return 0;
-	}
+	struct scatterlist sgl[PCM_BUFFER_MAX_SIZE_ORDER - PAGE_SHIFT];
+	sg_init_table(sgl, ARRAY_SIZE(sgl));
 
 	if (size == 0) {
 		pr_debug("%s: user buffer is full\n", __func__);
 		return 0;
 	}
 
-	/* Does the fifo have enough bytes?  We need a contiguous stretch of
-	 * data in the fifo (not wrapping around).
-	 */
-	if (out < in) {
-		bytes_ds = __downsample_to_user(ads, buf, out,
-					in - out,
-					size,
-					&bytes_consumed_from_fifo);
-		pr_debug("%s: (out < in) downsampled (%d req, %d actual)"\
-			" -> %d (size %d)\n", __func__,
-			in - out, bytes_consumed_from_fifo,
-			bytes_ds, size);
-		BUG_ON(bytes_ds > size);
-		return bytes_ds;
+	if (kfifo_is_empty(&ads->in.fifo)) {
+		pr_debug("%s: input fifo is empty\n", __func__);
+		return 0;
 	}
 
-	bytes_till_end = kfifo_size(&ads->in.fifo) - out;
+	nr_sg = kfifo_dma_out_prepare(&ads->in.fifo,
+				sgl, ARRAY_SIZE(sgl),
+				kfifo_len(&ads->in.fifo));
+	BUG_ON(!nr_sg);
+
+	pr_debug("%s (fifo size %d)\n", __func__, size);
+
+	bytes_ds = 0;
+	bytes_consumed_from_fifo = 0;
+	for (bytes_ds = 0, i = 0; i < nr_sg; i++) {
+		BUG_ON(!sgl[i].length);
 
 again:
-	bytes_ds = __downsample_to_user(ads, buf, out,
-				bytes_till_end,
-				size,
-				&bytes_consumed_from_fifo);
-	pr_debug("%s: (out > in) downsampled (req %d act %d size %d) -> %d\n",
-		__func__, bytes_till_end, bytes_consumed_from_fifo,
-		bytes_ds, size);
-	BUG_ON(bytes_ds > size);
+		ds_now = __downsample_to_user(ads,
+					buf, size,
+					sg_virt(&sgl[i]), sgl[i].length,
+					&bc_now);
 
-	if (!bytes_ds) {
-		BUG_ON(take_two);
-		take_two = true;
+		if (!ds_now && !sg_is_last(sgl + i)) {
 
-		if (in < PCM_IN_BUFFER_PADDING) {
-			pr_debug("%s: not enough data till end of fifo\n",
-					__func__);
-			return 0;
+			BUG_ON(bc_now);
+			BUG_ON(take_two);
+			take_two = true;
+
+			/* The assumption is that this sgl entry is at the end
+			 * of the fifo, and there isn't enough space till the
+			 * end of the fifo for at least one target sample to be
+			 * generated.  When this happens, we copy enough bytes
+			 * from the next sgl entry to the end of the buffer of
+			 * the current one, knowing that the copied bytes will
+			 * cause the fifo to wrap around.  We adjust the next
+			 * entry, and continue with the loop.
+			 */
+
+			BUG_ON(sg_virt(&sgl[i]) + sgl[i].length !=
+				ads->in.buffer + kfifo_size(&ads->in.fifo));
+
+			if (sgl[i + 1].length < PCM_IN_BUFFER_PADDING) {
+				pr_debug("%s: not enough data till end of fifo\n",
+						__func__);
+				return 0;
+			}
+
+			memcpy(sg_virt(&sgl[i]) + sgl[i].length,
+				sg_virt(&sgl[i + 1]),
+				PCM_IN_BUFFER_PADDING);
+			sgl[i].length += PCM_IN_BUFFER_PADDING;
+
+			sg_set_buf(&sgl[i + 1],
+				sg_virt(&sgl[i + 1]) + PCM_IN_BUFFER_PADDING,
+				sgl[i + 1].length - PCM_IN_BUFFER_PADDING);
+
+			goto again;
 		}
 
-		pr_debug("%s: adding padding to fifo\n", __func__);
-
-		memcpy(ads->in.buffer + buf_size(&ads->in),
-			ads->in.buffer,
-			PCM_IN_BUFFER_PADDING);
-		bytes_till_end += PCM_IN_BUFFER_PADDING;
-		pr_debug("%s: take two\n", __func__);
-		goto again;
+		bytes_ds += ds_now;
+		buf += ds_now;
+		BUG_ON(ds_now > size);
+		size -= ds_now;
+		bytes_consumed_from_fifo += bc_now;
+		pr_debug("%s: downsampled (%d req, %d actual)" \
+			" -> total ds %d (size %d)\n", __func__,
+			sgl[i].length, bytes_consumed_from_fifo,
+			bytes_ds, size);
+		if (sg_is_last(sgl + i))
+			break;
 	}
+
+	kfifo_dma_out_finish(&ads->in.fifo, bytes_consumed_from_fifo);
 
 	return bytes_ds;
 }
@@ -1820,6 +1835,7 @@ static int init_stream_buffer(struct audio_stream *s,
 	}
 
 	kfifo_init(&s->fifo, s->buffer, 1 << cfg->size);
+	sg_init_table(&s->sg, 1);
 	return 0;
 }
 
