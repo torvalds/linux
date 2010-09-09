@@ -1,0 +1,14 @@
+menuconfig BRCM80211
+	tristate "Broadcom 802.11 WLAN driver for bcm43xx chips"
+	depends on PCI && WLAN
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	default N
+	help
+	  If built as a module, it will be called brcm80211.ko.
+
+config BRCM80211_PCI
+	bool "Broadcom 802.11 WLAN NIC driver"
+	depends on BRCM80211
+	default y
+

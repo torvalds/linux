@@ -61,6 +61,8 @@ source "drivers/staging/echo/Kconfig"
 
 source "drivers/staging/otus/Kconfig"
 
+source "drivers/staging/brcm80211/Kconfig"
+
 source "drivers/staging/rt2860/Kconfig"
 
 source "drivers/staging/rt2870/Kconfig"
