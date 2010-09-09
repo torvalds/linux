@@ -566,7 +566,7 @@ static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
 	}
 	label = spec->cap_labels[spec->input_mux.num_items];
 	strcpy(label, type);
-	spec->input_mux.items[spec->input_mux.num_items].label = label;
+	strcpy(spec->input_mux.items[spec->input_mux.num_items].label, label);
 
 	/* unmute the PIN external input */
 	unmute_input(codec, node, 0); /* index = 0? */

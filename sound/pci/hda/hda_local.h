@@ -215,7 +215,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid);
  */
 #define HDA_MAX_NUM_INPUTS	16
 struct hda_input_mux_item {
-	const char *label;
+	char label[32];
 	unsigned int index;
 };
 struct hda_input_mux {
@@ -391,8 +391,8 @@ struct auto_pin_cfg_item {
 };
 
 struct auto_pin_cfg;
-const char *snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
-					int input);
+void snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
+				 int input, char *label);
 
 struct auto_pin_cfg {
 	int line_outs;

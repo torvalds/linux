@@ -4974,8 +4974,8 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec,
 		if (idx < 0 && cap2)
 			idx = get_connection_index(codec, cap2, pin);
 		if (idx >= 0) {
-			imux->items[imux->num_items].label =
-				snd_hda_get_input_pin_label(cfg, i);
+			snd_hda_get_input_pin_label(cfg, i,
+				imux->items[imux->num_items].label);
 			imux->items[imux->num_items].index = idx;
 			imux->num_items++;
 		}
@@ -10626,9 +10626,9 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 			break;
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
-			char label[32];
-			snprintf(label, sizeof(label), "%s Boost",
-				 snd_hda_get_input_pin_label(cfg, i));
+			char pinname[32], label[32];
+			snd_hda_get_input_pin_label(cfg, i, pinname);
+			snprintf(label, sizeof(label), "%s Boost", pinname);
 			err = add_control(spec, ALC_CTL_WIDGET_VOL, label, 0,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 			if (err < 0)

@@ -2926,13 +2926,13 @@ static int ad1988_auto_create_analog_input_ctls(struct ad198x_spec *spec,
 				       type <= AUTO_PIN_FRONT_MIC);
 		if (err < 0)
 			return err;
-		imux->items[imux->num_items].label =
-			snd_hda_get_input_pin_label(cfg, i);
+		snd_hda_get_input_pin_label(cfg, i,
+			imux->items[imux->num_items].label);
 		imux->items[imux->num_items].index =
 			ad1988_pin_to_adc_idx(cfg->inputs[i].pin);
 		imux->num_items++;
 	}
-	imux->items[imux->num_items].label = "Mix";
+	strcpy(imux->items[imux->num_items].label, "Mix");
 	imux->items[imux->num_items].index = 9;
 	imux->num_items++;
 

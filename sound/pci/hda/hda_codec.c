@@ -4662,17 +4662,8 @@ const char *auto_pin_cfg_labels[AUTO_PIN_LAST] = {
 };
 EXPORT_SYMBOL_HDA(auto_pin_cfg_labels);
 
-static const char *input_labels[AUTO_PIN_LAST][4] = {
-	{ "Mic", "Mic 2", "Mic 3", "Mic 4" },
-	{ "Front Mic", "Front Mic 2", "Front Mic 3", "Front Mic 4" },
-	{ "Line", "Line 2", "Line 3", "Line 4" },
-	{ "Front Line", "Front Line 2", "Front Line 3", "Front Line 4" },
-	{ "CD", "CD 2", "CD 3", "CD 4" },
-	{ "Aux", "Aux 2", "Aux 3", "Aux 4" },
-};
-
-const char *snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
-					int input)
+void snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
+				 int input, char *str)
 {
 	int type = cfg->inputs[input].type;
 	int idx;
@@ -4681,7 +4672,10 @@ const char *snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
 		if (type != cfg->inputs[input].type)
 			break;
 	}
-	return input_labels[type][idx];
+	if (idx > 0)
+		sprintf(str, "%s %d", auto_pin_cfg_labels[type], idx);
+	else
+		strcpy(str, auto_pin_cfg_labels[type]);
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_input_pin_label);
 

@@ -1116,7 +1116,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		struct hda_input_mux *smux = &spec->private_smux;
 		/* check for mute support on SPDIF out */
 		if (wcaps & AC_WCAP_OUT_AMP) {
-			smux->items[smux->num_items].label = "Off";
+			strcpy(smux->items[smux->num_items].label, "Off");
 			smux->items[smux->num_items].index = 0;
 			smux->num_items++;
 			spec->spdif_mute = 1;
@@ -3274,8 +3274,8 @@ static int stac92xx_auto_create_mono_output_ctls(struct hda_codec *codec)
 		return -EINVAL;
 
 	for (i = 0; i < num_cons; i++) {
-		mono_mux->items[mono_mux->num_items].label =
-					stac92xx_mono_labels[i];
+		strcpy(mono_mux->items[mono_mux->num_items].label,
+		       stac92xx_mono_labels[i]);
 		mono_mux->items[mono_mux->num_items].index = i;
 		mono_mux->num_items++;
 	}
@@ -3404,7 +3404,7 @@ static int stac92xx_auto_create_spdif_mux_ctls(struct hda_codec *codec)
 		labels = stac92xx_spdif_labels;
 
 	for (i = 0; i < num_cons; i++) {
-		spdif_mux->items[spdif_mux->num_items].label = labels[i];
+		strcpy(spdif_mux->items[spdif_mux->num_items].label, labels[i]);
 		spdif_mux->items[spdif_mux->num_items].index = i;
 		spdif_mux->num_items++;
 	}
@@ -3538,7 +3538,7 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 	int err, i;
 	unsigned int def_conf;
 
-	dimux->items[dimux->num_items].label = stac92xx_dmic_labels[0];
+	strcpy(dimux->items[dimux->num_items].label, stac92xx_dmic_labels[0]);
 	dimux->items[dimux->num_items].index = 0;
 	dimux->num_items++;
 
@@ -3572,11 +3572,11 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 				return err;
 		}
 
-		dimux->items[dimux->num_items].label = label;
+		strcpy(dimux->items[dimux->num_items].label, label);
 		dimux->items[dimux->num_items].index = index;
 		dimux->num_items++;
 		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1) {
-			imux->items[imux->num_items].label = label;
+			strcpy(imux->items[imux->num_items].label, label);
 			imux->items[imux->num_items].index = index;
 			imux->num_items++;
 		}
@@ -3713,7 +3713,7 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		if (err < 0)
 			return err;
 
-		imux->items[imux->num_items].label = label;
+		strcpy(imux->items[imux->num_items].label, label);
 		imux->items[imux->num_items].index = index;
 		imux->num_items++;
 	}
