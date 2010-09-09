@@ -2501,41 +2501,66 @@ static void ibmvfc_terminate_rport_io(struct fc_rport *rport)
 	LEAVE;
 }
 
-static const struct {
-	enum ibmvfc_async_event ae;
-	const char *desc;
-} ae_desc [] = {
-	{ IBMVFC_AE_ELS_PLOGI,		"PLOGI" },
-	{ IBMVFC_AE_ELS_LOGO,		"LOGO" },
-	{ IBMVFC_AE_ELS_PRLO,		"PRLO" },
-	{ IBMVFC_AE_SCN_NPORT,		"N-Port SCN" },
-	{ IBMVFC_AE_SCN_GROUP,		"Group SCN" },
-	{ IBMVFC_AE_SCN_DOMAIN,		"Domain SCN" },
-	{ IBMVFC_AE_SCN_FABRIC,		"Fabric SCN" },
-	{ IBMVFC_AE_LINK_UP,		"Link Up" },
-	{ IBMVFC_AE_LINK_DOWN,		"Link Down" },
-	{ IBMVFC_AE_LINK_DEAD,		"Link Dead" },
-	{ IBMVFC_AE_HALT,			"Halt" },
-	{ IBMVFC_AE_RESUME,		"Resume" },
-	{ IBMVFC_AE_ADAPTER_FAILED,	"Adapter Failed" },
+static const struct ibmvfc_async_desc ae_desc [] = {
+	{ IBMVFC_AE_ELS_PLOGI,		"PLOGI",		IBMVFC_DEFAULT_LOG_LEVEL + 1 },
+	{ IBMVFC_AE_ELS_LOGO,		"LOGO",		IBMVFC_DEFAULT_LOG_LEVEL + 1 },
+	{ IBMVFC_AE_ELS_PRLO,		"PRLO",		IBMVFC_DEFAULT_LOG_LEVEL + 1 },
+	{ IBMVFC_AE_SCN_NPORT,		"N-Port SCN",	IBMVFC_DEFAULT_LOG_LEVEL + 1 },
+	{ IBMVFC_AE_SCN_GROUP,		"Group SCN",	IBMVFC_DEFAULT_LOG_LEVEL + 1 },
+	{ IBMVFC_AE_SCN_DOMAIN,		"Domain SCN",	IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_SCN_FABRIC,		"Fabric SCN",	IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_LINK_UP,		"Link Up",		IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_LINK_DOWN,		"Link Down",	IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_LINK_DEAD,		"Link Dead",	IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_HALT,			"Halt",		IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_RESUME,		"Resume",		IBMVFC_DEFAULT_LOG_LEVEL },
+	{ IBMVFC_AE_ADAPTER_FAILED,	"Adapter Failed",	IBMVFC_DEFAULT_LOG_LEVEL },
 };
 
-static const char *unknown_ae = "Unknown async";
+static const struct ibmvfc_async_desc unknown_ae = {
+	0, "Unknown async", IBMVFC_DEFAULT_LOG_LEVEL
+};
 
 /**
  * ibmvfc_get_ae_desc - Get text description for async event
  * @ae:	async event
  *
  **/
-static const char *ibmvfc_get_ae_desc(u64 ae)
+static const struct ibmvfc_async_desc *ibmvfc_get_ae_desc(u64 ae)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ae_desc); i++)
 		if (ae_desc[i].ae == ae)
-			return ae_desc[i].desc;
+			return &ae_desc[i];
 
-	return unknown_ae;
+	return &unknown_ae;
+}
+
+static const struct {
+	enum ibmvfc_ae_link_state state;
+	const char *desc;
+} link_desc [] = {
+	{ IBMVFC_AE_LS_LINK_UP,		" link up" },
+	{ IBMVFC_AE_LS_LINK_BOUNCED,	" link bounced" },
+	{ IBMVFC_AE_LS_LINK_DOWN,	" link down" },
+	{ IBMVFC_AE_LS_LINK_DEAD,	" link dead" },
+};
+
+/**
+ * ibmvfc_get_link_state - Get text description for link state
+ * @state:	link state
+ *
+ **/
+static const char *ibmvfc_get_link_state(enum ibmvfc_ae_link_state state)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(link_desc); i++)
+		if (link_desc[i].state == state)
+			return link_desc[i].desc;
+
+	return "";
 }
 
 /**
@@ -2547,11 +2572,12 @@ static const char *ibmvfc_get_ae_desc(u64 ae)
 static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 				struct ibmvfc_host *vhost)
 {
-	const char *desc = ibmvfc_get_ae_desc(crq->event);
+	const struct ibmvfc_async_desc *desc = ibmvfc_get_ae_desc(crq->event);
 	struct ibmvfc_target *tgt;
 
-	ibmvfc_log(vhost, 3, "%s event received. scsi_id: %llx, wwpn: %llx,"
-		   " node_name: %llx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
+	ibmvfc_log(vhost, desc->log_level, "%s event received. scsi_id: %llx, wwpn: %llx,"
+		   " node_name: %llx%s\n", desc->desc, crq->scsi_id, crq->wwpn, crq->node_name,
+		   ibmvfc_get_link_state(crq->link_state));
 
 	switch (crq->event) {
 	case IBMVFC_AE_RESUME:
