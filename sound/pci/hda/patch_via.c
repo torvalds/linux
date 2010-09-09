@@ -568,7 +568,7 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(spec, nid))
 			ctl = PIN_OUT;
-		else if (i <= AUTO_PIN_FRONT_MIC)
+		else if (i == AUTO_PIN_MIC)
 			ctl = PIN_VREF50;
 		else
 			ctl = PIN_IN;
@@ -1328,7 +1328,7 @@ static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin)
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		if (pin == cfg->inputs[i].pin)
-			return cfg->inputs[i].type < AUTO_PIN_FRONT_LINE;
+			return cfg->inputs[i].type <= AUTO_PIN_LINE_IN;
 	}
 	return 0;
 }
@@ -1356,9 +1356,9 @@ static int via_smart51_get(struct snd_kcontrol *kcontrol,
 		hda_nid_t nid = cfg->inputs[i].pin;
 		int ctl = snd_hda_codec_read(codec, nid, 0,
 					     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		if (cfg->inputs[i].type >= AUTO_PIN_FRONT_LINE)
+		if (cfg->inputs[i].type > AUTO_PIN_LINE_IN)
 			continue;
-		if (cfg->inputs[i].type == AUTO_PIN_FRONT_MIC &&
+		if (cfg->inputs[i].type == AUTO_PIN_MIC &&
 		    spec->hp_independent_mode && spec->codec_type != VT1718S)
 			continue; /* ignore FMic for independent HP */
 		if ((ctl & AC_PINCTL_IN_EN) && !(ctl & AC_PINCTL_OUT_EN))
@@ -1382,9 +1382,9 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 		hda_nid_t nid = cfg->inputs[i].pin;
 		unsigned int parm;
 
-		if (cfg->inputs[i].type >= AUTO_PIN_FRONT_LINE)
+		if (cfg->inputs[i].type > AUTO_PIN_LINE_IN)
 			continue;
-		if (cfg->inputs[i].type == AUTO_PIN_FRONT_MIC &&
+		if (cfg->inputs[i].type == AUTO_PIN_MIC &&
 		    spec->hp_independent_mode && spec->codec_type != VT1718S)
 			continue; /* don't retask FMic for independent HP */
 
@@ -1404,7 +1404,7 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 					codec, nid, HDA_OUTPUT, 0, HDA_AMP_MUTE,
 					HDA_AMP_UNMUTE);
 		}
-		if (cfg->inputs[i].type == AUTO_PIN_FRONT_MIC) {
+		if (cfg->inputs[i].type == AUTO_PIN_MIC) {
 			if (spec->codec_type == VT1708S
 			    || spec->codec_type == VT1716S) {
 				/* input = index 1 (AOW3) */
@@ -1450,7 +1450,7 @@ static int via_smart51_build(struct via_spec *spec)
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		nid = cfg->inputs[i].pin;
-		if (cfg->inputs[i].type < AUTO_PIN_FRONT_LINE) {
+		if (cfg->inputs[i].type <= AUTO_PIN_LINE_IN) {
 			knew = via_clone_control(spec, &via_smart51_mixer[1]);
 			if (knew == NULL)
 				return -ENOMEM;

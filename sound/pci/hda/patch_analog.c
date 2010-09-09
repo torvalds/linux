@@ -2923,7 +2923,7 @@ static int ad1988_auto_create_analog_input_ctls(struct ad198x_spec *spec,
 			type_idx = 0;
 		err = new_analog_input(spec, cfg->inputs[i].pin,
 				       auto_pin_cfg_labels[type], type_idx,
-				       type <= AUTO_PIN_FRONT_MIC);
+				       type == AUTO_PIN_MIC);
 		if (err < 0)
 			return err;
 		snd_hda_get_input_pin_label(cfg, i,
@@ -3015,7 +3015,7 @@ static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 			break;
 		}
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    i <= AUTO_PIN_FRONT_MIC ? PIN_VREF80 : PIN_IN);
+				    i == AUTO_PIN_MIC ? PIN_VREF80 : PIN_IN);
 		if (nid != AD1988_PIN_CD_NID)
 			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_OUT_MUTE);

@@ -2834,7 +2834,7 @@ static hda_nid_t check_line_out_switch(struct hda_codec *codec)
 	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
 		return 0;
 	for (i = 0; i < cfg->num_inputs; i++) {
-		if (cfg->inputs[i].type == AUTO_PIN_LINE) {
+		if (cfg->inputs[i].type == AUTO_PIN_LINE_IN) {
 			nid = cfg->inputs[i].pin;
 			pincap = snd_hda_query_pin_caps(codec, nid);
 			if (pincap & AC_PINCAP_OUT)
@@ -2852,16 +2852,14 @@ static hda_nid_t check_mic_out_switch(struct hda_codec *codec, hda_nid_t *dac)
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	unsigned int def_conf, pincap;
-	int i, mic_type;
+	int i;
 
 	*dac = 0;
 	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
 		return 0;
-	mic_type = AUTO_PIN_MIC;
- again:
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
-		if (cfg->inputs[i].type != mic_type)
+		if (cfg->inputs[i].type != AUTO_PIN_MIC)
 			continue;
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
 		/* some laptops have an internal analog microphone
@@ -2874,10 +2872,6 @@ static hda_nid_t check_mic_out_switch(struct hda_codec *codec, hda_nid_t *dac)
 					return nid;
 			}
 		}
-	}
-	if (mic_type == AUTO_PIN_MIC) {
-		mic_type = AUTO_PIN_FRONT_MIC;
-		goto again;
 	}
 	return 0;
 }
@@ -3222,7 +3216,7 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	}
 
 	for (idx = 0; idx < cfg->num_inputs; idx++) {
-		if (cfg->inputs[idx].type > AUTO_PIN_FRONT_LINE)
+		if (cfg->inputs[idx].type > AUTO_PIN_LINE_IN)
 			break;
 		nid = cfg->inputs[idx].pin;
 		err = stac92xx_add_jack_mode_control(codec, nid, idx);
@@ -3621,7 +3615,7 @@ static int set_mic_route(struct hda_codec *codec,
 		if (pin == cfg->inputs[i].pin)
 			break;
 	}
-	if (i < cfg->num_inputs && cfg->inputs[i].type <= AUTO_PIN_FRONT_MIC) {
+	if (i < cfg->num_inputs && cfg->inputs[i].type == AUTO_PIN_MIC) {
 		/* analog pin */
 		i = get_connection_index(codec, spec->mux_nids[0], pin);
 		if (i < 0)
@@ -3656,7 +3650,7 @@ static int stac_check_auto_mic(struct hda_codec *codec)
 	int i;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
-		if (cfg->inputs[i].type >= AUTO_PIN_LINE)
+		if (cfg->inputs[i].type >= AUTO_PIN_LINE_IN)
 			return 0; /* must be exclusively mics */
 	}
 	fixed = ext = 0;
@@ -4394,7 +4388,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		int type = cfg->inputs[i].type;
 		unsigned int pinctl, conf;
-		if (type == AUTO_PIN_MIC || type == AUTO_PIN_FRONT_MIC) {
+		if (type == AUTO_PIN_MIC) {
 			/* for mic pins, force to initialize */
 			pinctl = stac92xx_get_default_vref(codec, nid);
 			pinctl |= AC_PINCTL_IN_EN;

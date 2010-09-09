@@ -4396,7 +4396,7 @@ static void add_auto_cfg_input_pin(struct auto_pin_cfg *cfg, hda_nid_t nid,
  * output, i.e. to line_out_pins[0].  So, line_outs is always positive
  * if any analog output exists.
  *
- * The analog input pins are assigned to input_pins array.
+ * The analog input pins are assigned to inputs array.
  * The digital input/output pins are assigned to dig_in_pin and dig_out_pin,
  * respectively.
  */
@@ -4480,39 +4480,16 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			sequences_hp[cfg->hp_outs] = (assoc << 4) | seq;
 			cfg->hp_outs++;
 			break;
-		case AC_JACK_MIC_IN: {
-			int preferred, alt;
-			if (loc == AC_JACK_LOC_FRONT ||
-			    (loc & 0x30) == AC_JACK_LOC_INTERNAL) {
-				preferred = AUTO_PIN_FRONT_MIC;
-				alt = AUTO_PIN_MIC;
-			} else {
-				preferred = AUTO_PIN_MIC;
-				alt = AUTO_PIN_FRONT_MIC;
-			}
-			if (!cfg->input_pins[preferred])
-				cfg->input_pins[preferred] = nid;
-			else if (!cfg->input_pins[alt])
-				cfg->input_pins[alt] = nid;
-			add_auto_cfg_input_pin(cfg, nid, preferred);
+		case AC_JACK_MIC_IN:
+			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_MIC);
 			break;
-		}
-		case AC_JACK_LINE_IN: {
-			int type;
-			if (loc == AC_JACK_LOC_FRONT)
-				type = AUTO_PIN_FRONT_LINE;
-			else
-				type = AUTO_PIN_LINE;
-			cfg->input_pins[type] = nid;
-			add_auto_cfg_input_pin(cfg, nid, type);
+		case AC_JACK_LINE_IN:
+			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_LINE_IN);
 			break;
-		}
 		case AC_JACK_CD:
-			cfg->input_pins[AUTO_PIN_CD] = nid;
 			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_CD);
 			break;
 		case AC_JACK_AUX:
-			cfg->input_pins[AUTO_PIN_AUX] = nid;
 			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_AUX);
 			break;
 		case AC_JACK_SPDIF_OUT:
@@ -4569,21 +4546,6 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			      cfg->speaker_outs);
 	sort_pins_by_sequence(cfg->hp_pins, sequences_hp,
 			      cfg->hp_outs);
-
-	/* if we have only one mic, make it AUTO_PIN_MIC */
-	if (!cfg->input_pins[AUTO_PIN_MIC] &&
-	    cfg->input_pins[AUTO_PIN_FRONT_MIC]) {
-		cfg->input_pins[AUTO_PIN_MIC] =
-			cfg->input_pins[AUTO_PIN_FRONT_MIC];
-		cfg->input_pins[AUTO_PIN_FRONT_MIC] = 0;
-	}
-	/* ditto for line-in */
-	if (!cfg->input_pins[AUTO_PIN_LINE] &&
-	    cfg->input_pins[AUTO_PIN_FRONT_LINE]) {
-		cfg->input_pins[AUTO_PIN_LINE] =
-			cfg->input_pins[AUTO_PIN_FRONT_LINE];
-		cfg->input_pins[AUTO_PIN_FRONT_LINE] = 0;
-	}
 
 	/*
 	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
@@ -4658,7 +4620,7 @@ EXPORT_SYMBOL_HDA(snd_hda_parse_pin_def_config);
 
 /* labels for input pins - for obsoleted config stuff */
 const char *auto_pin_cfg_labels[AUTO_PIN_LAST] = {
-	"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
+	"Mic", "Line", "CD", "Aux"
 };
 EXPORT_SYMBOL_HDA(auto_pin_cfg_labels);
 

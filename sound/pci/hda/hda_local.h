@@ -366,9 +366,7 @@ struct hda_bus_unsolicited {
 
 enum {
 	AUTO_PIN_MIC,
-	AUTO_PIN_FRONT_MIC,
-	AUTO_PIN_LINE,
-	AUTO_PIN_FRONT_LINE,
+	AUTO_PIN_LINE_IN,
 	AUTO_PIN_CD,
 	AUTO_PIN_AUX,
 	AUTO_PIN_LAST
@@ -403,7 +401,6 @@ struct auto_pin_cfg {
 	int hp_outs;
 	int line_out_type;	/* AUTO_PIN_XXX_OUT */
 	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
-	hda_nid_t input_pins[AUTO_PIN_LAST]; /* old config; to be deprecated */
 	int num_inputs;
 	struct auto_pin_cfg_item inputs[AUTO_CFG_MAX_INS];
 	int dig_outs;

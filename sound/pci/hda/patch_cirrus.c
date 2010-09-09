@@ -436,8 +436,8 @@ static int parse_input(struct hda_codec *codec)
 
 	/* check whether the automatic mic switch is available */
 	if (spec->num_inputs == 2 &&
-	    cfg->inputs[0].type <= AUTO_PIN_FRONT_MIC &&
-	    cfg->inputs[1].type == AUTO_PIN_FRONT_MIC) {
+	    cfg->inputs[0].type == AUTO_PIN_MIC &&
+	    cfg->inputs[1].type == AUTO_PIN_MIC) {
 		if (is_ext_mic(codec, cfg->inputs[0].pin)) {
 			if (!is_ext_mic(codec, cfg->inputs[1].pin)) {
 				spec->mic_detect = 1;
@@ -921,7 +921,7 @@ static void init_input(struct hda_codec *codec)
 			continue;
 		/* set appropriate pin control and mute first */
 		ctl = PIN_IN;
-		if (cfg->inputs[i].type <= AUTO_PIN_FRONT_MIC) {
+		if (cfg->inputs[i].type == AUTO_PIN_MIC) {
 			unsigned int caps = snd_hda_query_pin_caps(codec, pin);
 			caps >>= AC_PINCAP_VREF_SHIFT;
 			if (caps & AC_PINCAP_VREF_80)

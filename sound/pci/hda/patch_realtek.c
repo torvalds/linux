@@ -846,7 +846,7 @@ static void alc_set_input_pin(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int val = PIN_IN;
 
-	if (auto_pin_type <= AUTO_PIN_FRONT_MIC) {
+	if (auto_pin_type == AUTO_PIN_MIC) {
 		unsigned int pincap;
 		unsigned int oldval;
 		oldval = snd_hda_codec_read(codec, nid, 0,
@@ -1298,7 +1298,7 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 
 	/* there must be only two mic inputs exclusively */
 	for (i = 0; i < cfg->num_inputs; i++)
-		if (cfg->inputs[i].type >= AUTO_PIN_LINE)
+		if (cfg->inputs[i].type >= AUTO_PIN_LINE_IN)
 			return;
 
 	fixed = ext = 0;
@@ -10622,7 +10622,7 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 	hda_nid_t nid;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
-		if (cfg->inputs[i].type > AUTO_PIN_FRONT_MIC)
+		if (cfg->inputs[i].type > AUTO_PIN_MIC)
 			break;
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
@@ -19270,7 +19270,7 @@ static void alc680_base_setup(struct hda_codec *codec)
 	spec->autocfg.inputs[0].pin = 0x18;
 	spec->autocfg.inputs[0].type = AUTO_PIN_MIC;
 	spec->autocfg.inputs[1].pin = 0x19;
-	spec->autocfg.inputs[1].type = AUTO_PIN_LINE;
+	spec->autocfg.inputs[1].type = AUTO_PIN_LINE_IN;
 }
 
 static void alc680_unsol_event(struct hda_codec *codec,
