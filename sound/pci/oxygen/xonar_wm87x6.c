@@ -29,6 +29,13 @@
  * GPIO 6 -> route input jack to input 1/2 (1/0)
  * GPIO 7 -> enable output to speakers
  * GPIO 8 -> enable output to speakers
+ *
+ * WM8766:
+ *
+ * input 1 <- line
+ * input 2 <- mic
+ * input 3 <- front mic
+ * input 4 <- aux
  */
 
 #include <linux/pci.h>
@@ -896,7 +903,10 @@ static const struct snd_kcontrol_new ds_controls[] = {
 		.put = wm8776_input_mux_put,
 		.private_value = 1 << 1,
 	},
-	WM8776_BIT_SWITCH("Aux", WM8776_ADCMUX, 1 << 2, 0, 0),
+	WM8776_BIT_SWITCH("Front Mic Capture Switch",
+			  WM8776_ADCMUX, 1 << 2, 0, 0),
+	WM8776_BIT_SWITCH("Aux Capture Switch",
+			  WM8776_ADCMUX, 1 << 3, 0, 0),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "ADC Filter Capture Enum",
