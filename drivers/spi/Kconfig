@@ -143,6 +143,18 @@ config SPI_GPIO
 	  GPIO operations, you should be able to leverage that for better
 	  speed with a custom version of this driver; see the source code.
 
+config SPI_IMX_VER_IMX1
+	def_bool y if SOC_IMX1
+
+config SPI_IMX_VER_0_0
+	def_bool y if SOC_IMX21 || SOC_IMX27
+
+config SPI_IMX_VER_0_4
+	def_bool y if ARCH_MX31
+
+config SPI_IMX_VER_0_7
+	def_bool y if ARCH_MX25 || ARCH_MX35
+
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
 	depends on ARCH_MXC
