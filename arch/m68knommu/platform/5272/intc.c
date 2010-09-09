@@ -128,11 +128,9 @@ void __init init_IRQ(void)
 	writel(0x88888888, MCF_MBAR + MCFSIM_ICR4);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
-		irq_desc[irq].status = IRQ_DISABLED;
-		irq_desc[irq].action = NULL;
-		irq_desc[irq].depth = 1;
-		irq_desc[irq].chip = &intc_irq_chip;
-		intc_irq_set_type(irq, 0);
+		set_irq_chip(irq, &intc_irq_chip);
+		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+		set_irq_handler(irq, handle_level_irq);
 	}
 }
 
