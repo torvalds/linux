@@ -81,7 +81,7 @@ static struct resource real6410_dm9k_resource[] = {
 	[2] = {
 		.start	= S3C_EINT(7),
 		.end	= S3C_EINT(7),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL
 	}
 };
 
