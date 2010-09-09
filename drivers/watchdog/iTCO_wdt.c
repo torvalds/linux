@@ -146,6 +146,7 @@ enum iTCO_chipsets {
 	TCO_CPT29,	/* Cougar Point */
 	TCO_CPT30,	/* Cougar Point */
 	TCO_CPT31,	/* Cougar Point */
+	TCO_PBG,	/* Patsburg */
 };
 
 static struct {
@@ -233,6 +234,7 @@ static struct {
 	{"Cougar Point", 2},
 	{"Cougar Point", 2},
 	{"Cougar Point", 2},
+	{"Patsburg", 2},
 	{NULL, 0}
 };
 
@@ -348,6 +350,7 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(0x1c5d,				TCO_CPT29)},
 	{ ITCO_PCI_DEVICE(0x1c5e,				TCO_CPT30)},
 	{ ITCO_PCI_DEVICE(0x1c5f,				TCO_CPT31)},
+	{ ITCO_PCI_DEVICE(0x1d40,				TCO_PBG)},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);
