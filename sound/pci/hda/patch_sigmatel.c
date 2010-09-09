@@ -191,11 +191,6 @@ struct sigmatel_mic_route {
 	signed char dmux_idx;
 };
 
-struct unique_input_names {
-	int num;
-	char uname[HDA_MAX_NUM_INPUTS][32];
-};
-
 struct sigmatel_spec {
 	struct snd_kcontrol_new *mixers[4];
 	unsigned int num_mixers;
@@ -312,7 +307,6 @@ struct sigmatel_spec {
 	struct hda_input_mux private_imux;
 	struct hda_input_mux private_smux;
 	struct hda_input_mux private_mono_mux;
-	struct unique_input_names private_u_inp_names;
 };
 
 static hda_nid_t stac9200_adc_nids[1] = {
@@ -1116,9 +1110,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		struct hda_input_mux *smux = &spec->private_smux;
 		/* check for mute support on SPDIF out */
 		if (wcaps & AC_WCAP_OUT_AMP) {
-			strcpy(smux->items[smux->num_items].label, "Off");
-			smux->items[smux->num_items].index = 0;
-			smux->num_items++;
+			snd_hda_add_imux_item(smux, "Off", 0, NULL);
 			spec->spdif_mute = 1;
 		}
 		stac_smux_mixer.count = spec->num_smuxes;
@@ -2797,7 +2789,7 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	}
 
 	if (control) {
-		strcpy(name, auto_pin_cfg_labels[idx]);
+		strcpy(name, hda_get_input_pin_label(codec, nid, 1));
 		return stac92xx_add_control(codec->spec, control,
 					strcat(name, " Jack Mode"), nid);
 	}
@@ -3267,12 +3259,9 @@ static int stac92xx_auto_create_mono_output_ctls(struct hda_codec *codec)
 	if (num_cons <= 0 || num_cons > ARRAY_SIZE(stac92xx_mono_labels))
 		return -EINVAL;
 
-	for (i = 0; i < num_cons; i++) {
-		strcpy(mono_mux->items[mono_mux->num_items].label,
-		       stac92xx_mono_labels[i]);
-		mono_mux->items[mono_mux->num_items].index = i;
-		mono_mux->num_items++;
-	}
+	for (i = 0; i < num_cons; i++)
+		snd_hda_add_imux_item(mono_mux, stac92xx_mono_labels[i], i,
+				      NULL);
 
 	return stac92xx_add_control(spec, STAC_CTL_WIDGET_MONO_MUX,
 				"Mono Mux", spec->mono_nid);
@@ -3397,11 +3386,8 @@ static int stac92xx_auto_create_spdif_mux_ctls(struct hda_codec *codec)
 	if (!labels)
 		labels = stac92xx_spdif_labels;
 
-	for (i = 0; i < num_cons; i++) {
-		strcpy(spdif_mux->items[spdif_mux->num_items].label, labels[i]);
-		spdif_mux->items[spdif_mux->num_items].index = i;
-		spdif_mux->num_items++;
-	}
+	for (i = 0; i < num_cons; i++)
+		snd_hda_add_imux_item(spdif_mux, labels[i], i, NULL);
 
 	return 0;
 }
@@ -3452,76 +3438,6 @@ static int create_elem_capture_vol(struct hda_codec *codec, hda_nid_t nid,
 	return 1;
 }
 
-static const char *get_input_src_label(struct hda_codec *codec, hda_nid_t nid)
-{
-	unsigned int def_conf;
-
-	def_conf = snd_hda_codec_get_pincfg(codec, nid);
-
-	switch (get_defcfg_device(def_conf)) {
-	case AC_JACK_MIC_IN:
-		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_FIXED ||
-				((get_defcfg_location(def_conf) & 0xf0)
-						== AC_JACK_LOC_INTERNAL))
-			return "Internal Mic";
-		if ((get_defcfg_location(def_conf) & 0xf0)
-						== AC_JACK_LOC_SEPARATE)
-			return "Dock Mic";
-		if (get_defcfg_location(def_conf) == AC_JACK_LOC_REAR)
-			return "Rear Mic";
-		return "Mic";
-	case AC_JACK_LINE_IN:
-		if ((get_defcfg_location(def_conf) & 0xf0)
-						== AC_JACK_LOC_SEPARATE)
-			return "Dock Line";
-		return "Line";
-	case AC_JACK_AUX:
-		return "Aux";
-	case AC_JACK_CD:
-		return "CD";
-	case AC_JACK_SPDIF_IN:
-		return "SPDIF In";
-	case AC_JACK_DIG_OTHER_IN:
-		return "Digital In";
-	}
-
-	snd_printd("invalid inp pin %02x device config %08x", nid, def_conf);
-	return NULL;
-}
-
-static const char *get_unique_inp_src_label(struct hda_codec *codec,
-				hda_nid_t nid)
-{
-	int i, n;
-	const char *label;
-	struct sigmatel_spec *spec = codec->spec;
-	struct hda_input_mux *imux = &spec->private_imux;
-	struct hda_input_mux *dimux = &spec->private_dimux;
-	struct unique_input_names *unames = &spec->private_u_inp_names;
-
-	label = get_input_src_label(codec, nid);
-	n = 0;
-
-	for (i = 0; i < imux->num_items; i++) {
-		if (!strncmp(label, imux->items[i].label, strlen(label)))
-			n++;
-	}
-	if (snd_hda_get_bool_hint(codec, "separate_dmux") == 1) {
-		for (i = 0; i < dimux->num_items; i++) {
-			if (!strncmp(label, dimux->items[i].label,
-					strlen(label)))
-				n++;
-		}
-	}
-	if (n > 0 && unames->num < HDA_MAX_NUM_INPUTS) {
-		sprintf(&unames->uname[unames->num][0], "%.28s %d", label, n);
-		label = &unames->uname[unames->num][0];
-		unames->num++;
-	}
-
-	return label;
-}
-
 /* create playback/capture controls for input pins on dmic capable codecs */
 static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
@@ -3532,13 +3448,11 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 	int err, i;
 	unsigned int def_conf;
 
-	strcpy(dimux->items[dimux->num_items].label, stac92xx_dmic_labels[0]);
-	dimux->items[dimux->num_items].index = 0;
-	dimux->num_items++;
+	snd_hda_add_imux_item(dimux, stac92xx_dmic_labels[0], 0, NULL);
 
 	for (i = 0; i < spec->num_dmics; i++) {
 		hda_nid_t nid;
-		int index;
+		int index, type_idx;
 		const char *label;
 
 		nid = spec->dmic_nids[i];
@@ -3552,28 +3466,22 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 		if (index < 0)
 			continue;
 
-		label = get_unique_inp_src_label(codec, nid);
-		if (label == NULL)
-			return -EINVAL;
+		label = hda_get_input_pin_label(codec, nid, 1);
+		snd_hda_add_imux_item(dimux, label, index, &type_idx);
 
-		err = create_elem_capture_vol(codec, nid, label, 0, HDA_INPUT);
+		err = create_elem_capture_vol(codec, nid, label, type_idx,
+					      HDA_INPUT);
 		if (err < 0)
 			return err;
 		if (!err) {
-			err = create_elem_capture_vol(codec, nid, label, 0,
-						      HDA_OUTPUT);
+			err = create_elem_capture_vol(codec, nid, label,
+						      type_idx, HDA_OUTPUT);
 			if (err < 0)
 				return err;
 		}
 
-		strcpy(dimux->items[dimux->num_items].label, label);
-		dimux->items[dimux->num_items].index = index;
-		dimux->num_items++;
-		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1) {
-			strcpy(imux->items[imux->num_items].label, label);
-			imux->items[imux->num_items].index = index;
-			imux->num_items++;
-		}
+		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1)
+			snd_hda_add_imux_item(imux, label, index, NULL);
 	}
 
 	return 0;
@@ -3675,12 +3583,12 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux;
-	int i, j, type_idx = 0;
+	int i, j;
 	const char *label;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
-		int index, err;
+		int index, err, type_idx;
 
 		index = -1;
 		for (j = 0; j < spec->num_muxes; j++) {
@@ -3692,24 +3600,14 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		if (index < 0)
 			continue;
 
-		if (i > 0 && cfg->inputs[i].type == cfg->inputs[i - 1].type)
-			type_idx++;
-		else
-			type_idx = 0;
-
-		label = get_unique_inp_src_label(codec, nid);
-		if (label == NULL)
-			return -EINVAL;
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		snd_hda_add_imux_item(imux, label, index, &type_idx);
 
 		err = create_elem_capture_vol(codec, nid,
 					      label, type_idx,
 					      HDA_INPUT);
 		if (err < 0)
 			return err;
-
-		strcpy(imux->items[imux->num_items].label, label);
-		imux->items[imux->num_items].index = index;
-		imux->num_items++;
 	}
 	spec->num_analog_muxes = imux->num_items;
 

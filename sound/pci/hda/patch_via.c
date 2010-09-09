@@ -2374,13 +2374,8 @@ static void create_hp_imux(struct via_spec *spec)
 	static const char *texts[] = { "OFF", "ON", NULL};
 
 	/* for hp mode select */
-	i = 0;
-	while (texts[i] != NULL) {
-		strcpy(imux->items[imux->num_items].label, texts[i]);
-		imux->items[imux->num_items].index = i;
-		imux->num_items++;
-		i++;
-	}
+	for (i = 0; texts[i]; i++)
+		snd_hda_add_imux_item(imux, texts[i], i, NULL);
 
 	spec->hp_mux = &spec->private_imux[1];
 }
@@ -2412,26 +2407,25 @@ static int vt1708_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 					    const struct auto_pin_cfg *cfg,
 					    hda_nid_t cap_nid,
 					    hda_nid_t pin_idxs[], int num_idxs)
 {
+	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
 	int i, err, idx, type, type_idx = 0;
 
 	/* for internal loopback recording select */
 	for (idx = 0; idx < num_idxs; idx++) {
 		if (pin_idxs[idx] == 0xff) {
-			strcpy(imux->items[imux->num_items].label,
-			       "Stereo Mixer");
-			imux->items[imux->num_items].index = idx;
-			imux->num_items++;
+			snd_hda_add_imux_item(imux, "Stereo Mixer", idx, NULL);
 			break;
 		}
 	}
 
 	for (i = 0; i < cfg->num_inputs; i++) {
+		const char *label;
 		type = cfg->inputs[i].type;
 		for (idx = 0; idx < num_idxs; idx++)
 			if (pin_idxs[idx] == cfg->inputs[i].pin)
@@ -2442,24 +2436,21 @@ static int vt_auto_create_analog_input_ctls(struct via_spec *spec,
 			type_idx++;
 		else
 			type_idx = 0;
-		err = via_new_analog_input(spec, auto_pin_cfg_labels[type],
-					   type_idx, idx, cap_nid);
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		err = via_new_analog_input(spec, label, type_idx, idx, cap_nid);
 		if (err < 0)
 			return err;
-		snd_hda_get_input_pin_label(cfg, i,
-			imux->items[imux->num_items].label);
-		imux->items[imux->num_items].index = idx;
-		imux->num_items++;
+		snd_hda_add_imux_item(imux, label, idx, NULL);
 	}
 	return 0;
 }
 
 /* create playback/capture controls for input pins */
-static int vt1708_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1708_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0xff, 0x24, 0x1d, 0x1e, 0x21 };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x17, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x17, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -2559,7 +2550,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	err = vt1708_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1708_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1708_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 	/* add jack detect on/off control */
@@ -3026,11 +3017,11 @@ static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1709_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1709_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0xff, 0x23, 0x1d, 0x1e, 0x21 };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x18, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x18, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -3054,7 +3045,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	err = vt1709_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1709_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1709_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -3556,11 +3547,11 @@ static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1708B_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1708B_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0xff, 0x1f, 0x1a, 0x1b, 0x1e };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x16, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -3584,7 +3575,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	err = vt1708B_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1708B_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1708B_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -3992,11 +3983,11 @@ static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1708S_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1708S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x16, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -4045,7 +4036,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	err = vt1708S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1708S_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1708S_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -4335,24 +4326,19 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	imux = &spec->private_imux[1];
 
 	/* for hp mode select */
-	i = 0;
-	while (texts[i] != NULL)	{
-		strcpy(imux->items[imux->num_items].label, texts[i]);
-		imux->items[imux->num_items].index = i;
-		imux->num_items++;
-		i++;
-	}
+	for (i = 0; texts[i]; i++)
+		snd_hda_add_imux_item(imux, texts[i], i, NULL);
 
 	spec->hp_mux = &spec->private_imux[1];
 	return 0;
 }
 
 /* create playback/capture controls for input pins */
-static int vt1702_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1702_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0x14, 0x15, 0x18, 0xff };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x1a, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x1a, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -4382,7 +4368,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 				  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
 				  (0x5 << AC_AMPCAP_STEP_SIZE_SHIFT) |
 				  (1 << AC_AMPCAP_MUTE_SHIFT));
-	err = vt1702_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1702_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -4733,11 +4719,11 @@ static int vt1718S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1718S_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1718S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0x2c, 0x2b, 0x2a, 0x29, 0, 0xff };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x21, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -4762,7 +4748,7 @@ static int vt1718S_parse_auto_config(struct hda_codec *codec)
 	err = vt1718S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1718S_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1718S_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -5195,11 +5181,11 @@ static int vt1716S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1716S_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1716S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
 	static hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
-	return vt_auto_create_analog_input_ctls(spec, cfg, 0x16, pin_idxs,
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
 						ARRAY_SIZE(pin_idxs));
 }
 
@@ -5223,7 +5209,7 @@ static int vt1716S_parse_auto_config(struct hda_codec *codec)
 	err = vt1716S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1716S_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1716S_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -5504,14 +5490,15 @@ static int vt2002P_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt2002P_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt2002P_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
+	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
 	static hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0xff };
 	int err;
 
-	err = vt_auto_create_analog_input_ctls(spec, cfg, 0x21, pin_idxs,
+	err = vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
 					       ARRAY_SIZE(pin_idxs));
 	if (err < 0)
 		return err;
@@ -5521,9 +5508,7 @@ static int vt2002P_auto_create_analog_input_ctls(struct via_spec *spec,
 		return err;
 
 	/* for digital mic select */
-	strcpy(imux->items[imux->num_items].label, "Digital Mic");
-	imux->items[imux->num_items].index = 4;
-	imux->num_items++;
+	snd_hda_add_imux_item(imux, "Digital Mic", 4, NULL);
 
 	return 0;
 }
@@ -5551,7 +5536,7 @@ static int vt2002P_parse_auto_config(struct hda_codec *codec)
 	err = vt2002P_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt2002P_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt2002P_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -5826,14 +5811,15 @@ static int vt1812_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 }
 
 /* create playback/capture controls for input pins */
-static int vt1812_auto_create_analog_input_ctls(struct via_spec *spec,
+static int vt1812_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
+	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
 	static hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0, 0, 0xff };
 	int err;
 
-	err = vt_auto_create_analog_input_ctls(spec, cfg, 0x21, pin_idxs,
+	err = vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
 					       ARRAY_SIZE(pin_idxs));
 	if (err < 0)
 		return err;
@@ -5844,9 +5830,7 @@ static int vt1812_auto_create_analog_input_ctls(struct via_spec *spec,
 		return err;
 
 	/* for digital mic select */
-	strcpy(imux->items[imux->num_items].label, "Digital Mic");
-	imux->items[imux->num_items].index = 6;
-	imux->num_items++;
+	snd_hda_add_imux_item(imux, "Digital Mic", 6, NULL);
 
 	return 0;
 }
@@ -5874,7 +5858,7 @@ static int vt1812_parse_auto_config(struct hda_codec *codec)
 	err = vt1812_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1812_auto_create_analog_input_ctls(spec, &spec->autocfg);
+	err = vt1812_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 

@@ -378,8 +378,6 @@ enum {
 	AUTO_PIN_HP_OUT
 };
 
-extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
-
 #define AUTO_CFG_MAX_OUTS	5
 #define AUTO_CFG_MAX_INS	8
 
@@ -389,8 +387,13 @@ struct auto_pin_cfg_item {
 };
 
 struct auto_pin_cfg;
-void snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
-				 int input, char *label);
+const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
+				    int check_location);
+const char *hda_get_autocfg_input_label(struct hda_codec *codec,
+					const struct auto_pin_cfg *cfg,
+					int input);
+int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+			  int index, int *type_index_ret);
 
 struct auto_pin_cfg {
 	int line_outs;

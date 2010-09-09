@@ -4607,7 +4607,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	snd_printd("   inputs:");
 	for (i = 0; i < cfg->num_inputs; i++) {
 		snd_printdd(" %s=0x%x",
-			    auto_pin_cfg_labels[cfg->inputs[i].type],
+			    hda_get_autocfg_input_label(codec, cfg, i),
 			    cfg->inputs[i].pin);
 	}
 	snd_printd("\n");
@@ -4618,28 +4618,87 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_parse_pin_def_config);
 
-/* labels for input pins - for obsoleted config stuff */
-const char *auto_pin_cfg_labels[AUTO_PIN_LAST] = {
-	"Mic", "Line", "CD", "Aux"
-};
-EXPORT_SYMBOL_HDA(auto_pin_cfg_labels);
+const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
+					int check_location)
+{
+	unsigned int def_conf, loc;
 
-void snd_hda_get_input_pin_label(const struct auto_pin_cfg *cfg,
-				 int input, char *str)
+	def_conf = snd_hda_codec_get_pincfg(codec, pin);
+	loc = get_defcfg_location(def_conf);
+
+	switch (get_defcfg_device(def_conf)) {
+	case AC_JACK_MIC_IN:
+		if (!check_location)
+			return "Mic";
+		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_FIXED ||
+		    (loc & 0x30) == AC_JACK_LOC_INTERNAL)
+			return "Internal Mic";
+		if ((loc & 0x30) == AC_JACK_LOC_SEPARATE)
+			return "Dock Mic";
+		if (loc == AC_JACK_LOC_REAR)
+			return "Rear Mic";
+		return "Mic";
+	case AC_JACK_LINE_IN:
+		if (!check_location)
+			return "Line";
+		if ((loc & 0xf0) == AC_JACK_LOC_SEPARATE)
+			return "Dock Line";
+		return "Line";
+	case AC_JACK_AUX:
+		return "Aux";
+	case AC_JACK_CD:
+		return "CD";
+	case AC_JACK_SPDIF_IN:
+		return "SPDIF In";
+	case AC_JACK_DIG_OTHER_IN:
+		return "Digital In";
+	default:
+		return "Misc";
+	}
+}
+EXPORT_SYMBOL_HDA(hda_get_input_pin_label);
+
+const char *hda_get_autocfg_input_label(struct hda_codec *codec,
+					const struct auto_pin_cfg *cfg,
+					int input)
 {
 	int type = cfg->inputs[input].type;
-	int idx;
+	int has_multiple_pins = 0;
 
-	for  (idx = 0; idx < 3 && --input >= 0; idx++) {
-		if (type != cfg->inputs[input].type)
-			break;
-	}
-	if (idx > 0)
-		sprintf(str, "%s %d", auto_pin_cfg_labels[type], idx);
-	else
-		strcpy(str, auto_pin_cfg_labels[type]);
+	if ((input > 0 && cfg->inputs[input - 1].type == type) ||
+	    (input < cfg->num_inputs - 1 && cfg->inputs[input + 1].type == type))
+		has_multiple_pins = 1;
+	return hda_get_input_pin_label(codec, cfg->inputs[input].pin,
+				       has_multiple_pins);
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_input_pin_label);
+EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
+
+int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+			  int index, int *type_idx)
+{
+	int i, label_idx = 0;
+	if (imux->num_items >= HDA_MAX_NUM_INPUTS) {
+		snd_printd(KERN_ERR "hda_codec: Too many imux items!\n");
+		return -EINVAL;
+	}
+	for (i = 0; i < imux->num_items; i++) {
+		if (!strncmp(label, imux->items[i].label, strlen(label)))
+			label_idx++;
+	}
+	if (type_idx)
+		*type_idx = label_idx;
+	if (label_idx > 0)
+		snprintf(imux->items[imux->num_items].label,
+			 sizeof(imux->items[imux->num_items].label),
+			 "%s %d", label, label_idx);
+	else
+		strlcpy(imux->items[imux->num_items].label, label,
+			sizeof(imux->items[imux->num_items].label));
+	imux->items[imux->num_items].index = index;
+	imux->num_items++;
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_add_imux_item);
 
 
 #ifdef CONFIG_PM

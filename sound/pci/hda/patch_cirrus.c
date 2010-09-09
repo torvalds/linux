@@ -673,6 +673,7 @@ static int cs_capture_source_info(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cs_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	unsigned int idx;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -681,7 +682,8 @@ static int cs_capture_source_info(struct snd_kcontrol *kcontrol,
 	if (uinfo->value.enumerated.item >= spec->num_inputs)
 		uinfo->value.enumerated.item = spec->num_inputs - 1;
 	idx = spec->input_idx[uinfo->value.enumerated.item];
-	strcpy(uinfo->value.enumerated.name, auto_pin_cfg_labels[idx]);
+	strcpy(uinfo->value.enumerated.name,
+	       hda_get_input_pin_label(codec, cfg->inputs[idx].pin, 1));
 	return 0;
 }
 

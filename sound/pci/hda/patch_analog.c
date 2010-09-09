@@ -2909,32 +2909,27 @@ static int new_analog_input(struct ad198x_spec *spec, hda_nid_t pin,
 }
 
 /* create playback/capture controls for input pins */
-static int ad1988_auto_create_analog_input_ctls(struct ad198x_spec *spec,
+static int ad1988_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
+	struct ad198x_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux;
-	int i, err, type, type_idx = 0;
+	int i, err, type, type_idx;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
+		const char *label;
 		type = cfg->inputs[i].type;
-		if (i > 0 && type != cfg->inputs[i - 1].type)
-			type_idx++;
-		else
-			type_idx = 0;
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		snd_hda_add_imux_item(imux, label,
+				      ad1988_pin_to_adc_idx(cfg->inputs[i].pin),
+				      &type_idx);
 		err = new_analog_input(spec, cfg->inputs[i].pin,
-				       auto_pin_cfg_labels[type], type_idx,
+				       label, type_idx,
 				       type == AUTO_PIN_MIC);
 		if (err < 0)
 			return err;
-		snd_hda_get_input_pin_label(cfg, i,
-			imux->items[imux->num_items].label);
-		imux->items[imux->num_items].index =
-			ad1988_pin_to_adc_idx(cfg->inputs[i].pin);
-		imux->num_items++;
 	}
-	strcpy(imux->items[imux->num_items].label, "Mix");
-	imux->items[imux->num_items].index = 9;
-	imux->num_items++;
+	snd_hda_add_imux_item(imux, "Mix", 9, NULL);
 
 	if ((err = add_control(spec, AD_CTL_WIDGET_VOL,
 			       "Analog Mix Playback Volume",
@@ -3046,7 +3041,7 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 						"Speaker")) < 0 ||
 	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.hp_pins[0],
 						"Headphone")) < 0 ||
-	    (err = ad1988_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	    (err = ad1988_auto_create_analog_input_ctls(codec, &spec->autocfg)) < 0)
 		return err;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
