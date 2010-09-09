@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -28,9 +29,15 @@ static struct resource s5p_fimc2_resource[] = {
 	},
 };
 
+static u64 s5p_fimc2_dma_mask = DMA_BIT_MASK(32);
+
 struct platform_device s5p_device_fimc2 = {
 	.name		= "s5p-fimc",
 	.id		= 2,
 	.num_resources	= ARRAY_SIZE(s5p_fimc2_resource),
 	.resource	= s5p_fimc2_resource,
+	.dev		= {
+		.dma_mask		= &s5p_fimc2_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
