@@ -97,8 +97,12 @@ static void wm8766_write(struct oxygen *chip,
 			 (0 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
-	if (reg < ARRAY_SIZE(data->wm8766_regs))
+	if (reg < ARRAY_SIZE(data->wm8766_regs)) {
+		if ((reg >= WM8766_LDA1 && reg <= WM8766_RDA1) ||
+		    (reg >= WM8766_LDA2 && reg <= WM8766_MASTDA))
+			value &= ~WM8766_UPDATE;
 		data->wm8766_regs[reg] = value;
+	}
 }
 
 static void wm8766_write_cached(struct oxygen *chip,
@@ -107,12 +111,8 @@ static void wm8766_write_cached(struct oxygen *chip,
 	struct xonar_wm87x6 *data = chip->model_data;
 
 	if (reg >= ARRAY_SIZE(data->wm8766_regs) ||
-	    value != data->wm8766_regs[reg]) {
-		if ((reg >= WM8766_LDA1 && reg <= WM8766_RDA1) ||
-		    (reg >= WM8766_LDA2 && reg <= WM8766_MASTDA))
-			value &= ~WM8766_UPDATE;
+	    value != data->wm8766_regs[reg])
 		wm8766_write(chip, reg, value);
-	}
 }
 
 static void wm8776_registers_init(struct oxygen *chip)
