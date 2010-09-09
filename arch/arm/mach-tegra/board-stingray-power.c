@@ -632,7 +632,7 @@ struct regulator_consumer_supply max8649_consumers[] = {
 struct regulator_init_data max8649_regulator_init_data[] = {
 	{
 		.constraints = {
-			.min_uV			= 750000,
+			.min_uV			= 770000,
 			.max_uV			= 1100000,
 			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
 			.always_on		= 1,
