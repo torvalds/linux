@@ -26,15 +26,19 @@
 #include <asm/uaccess.h>
 #include <mach/gpio.h>
 
-#if 1
+#if 0
 #define DBG(x...)   printk(KERN_INFO x)
 #else
 #define DBG(x...)
 #endif
 
+#ifdef CONFIG_MACH_RK2818INFO_IT50
+#define INFO_BT_GPIO_POWER_N   TCA6424_P02
+#define INFO_BT_GPIO_RESET_N   TCA6424_P14
+#else
 #define INFO_BT_GPIO_POWER_N   TCA6424_P25
 #define INFO_BT_GPIO_RESET_N   TCA6424_P22
-
+#endif
 static struct rfkill *bt_rfk;
 static const char bt_name[] = "bcm4329";
 extern int info_bt_power_state;

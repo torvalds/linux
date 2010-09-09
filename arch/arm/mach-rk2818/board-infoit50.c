@@ -226,9 +226,9 @@ static int info_wifi_status(struct device *dev)
 static int info_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id) 
 {
 	if(wifi_status_cb)
- 		return -EAGAIN;
-        wifi_status_cb = callback;
-        wifi_status_cb_devid = dev_id;
+		return -EAGAIN;
+	wifi_status_cb = callback;
+	wifi_status_cb_devid = dev_id;
  	return 0;
 }
 
@@ -258,7 +258,7 @@ static int info_wifi_power(int on)
 	}
 
 	info_wifi_power_state = on;
-        return 0;
+	return 0;
 }
 
 static int info_wifi_reset_state;
@@ -285,12 +285,12 @@ static int info_wifi_set_carddetect(int val)
 
 static struct wifi_platform_data info_wifi_control = {
 	.set_power = info_wifi_power,
-        .set_reset = info_wifi_reset,
-        .set_carddetect = info_wifi_set_carddetect,
+	.set_reset = info_wifi_reset,
+	.set_carddetect = info_wifi_set_carddetect,
 };
 static struct platform_device info_wifi_device = {
 	.name = "bcm4329_wlan",
-        .id = 1,
+	.id = 1,
 	.dev = {
 		.platform_data = &info_wifi_control,
          },
@@ -364,49 +364,9 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.pin_value			= GPIO_LOW,
 	},
 	{
-		.gpio_num    		= TCA6424_P02,// charge check
-		.pin_type           = GPIO_IN,
-	},
-	{
 		.gpio_num    		= TCA6424_P03, ///sensor power
 		.pin_type           = GPIO_OUT,
 		.pin_value			= GPIO_LOW,
-	},
-	{
-		.gpio_num    		= TCA6424_P04,// tp3
-		.pin_type           = GPIO_OUT,
-		.pin_value			= GPIO_LOW,
-	},
-	{
-		.gpio_num    		= TCA6424_P05,
-		.pin_type           = GPIO_OUT,
-		.pin_value			= GPIO_LOW,
-	}, 
-	{
-		.gpio_num    		= TCA6424_P11,
-		.pin_type           = GPIO_OUT,
-		.pin_value			= GPIO_HIGH,
-	}, 
-	{
-		.gpio_num    		= TCA6424_P12,
-		.pin_type           = GPIO_IN,
-		//.pin_value			=GPIO_HIGH,
-	},
-
-	{
-		.gpio_num    		= TCA6424_P13,// tp3
-		.pin_type           = GPIO_IN,
-		//.pin_value			=GPIO_HIGH,
-	},
-	{
-		.gpio_num    		= TCA6424_P14,
-		.pin_type           = GPIO_IN,
-		//.pin_value			=GPIO_HIGH,
-	},
-	{
-		.gpio_num    		= TCA6424_P15,// tp3
-		.pin_type           = GPIO_IN,
-		//.pin_value			=GPIO_HIGH,
 	},
 	{
 		.gpio_num    		= TCA6424_P12,// 3G PowerOn
