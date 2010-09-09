@@ -53,7 +53,8 @@ static int sca3000_rip_hw_rb(struct iio_ring_buffer *r,
 	struct iio_dev *indio_dev = hw_ring->private;
 	struct sca3000_state *st = indio_dev->dev_data;
 	u8 *rx;
-	int ret, num_available, num_read = 0;
+	s16 *samples;
+	int ret, i, num_available, num_read = 0;
 	int bytes_per_sample = 1;
 
 	if (st->bpse == 11)
@@ -87,6 +88,17 @@ static int sca3000_rip_hw_rb(struct iio_ring_buffer *r,
 	ret = sca3000_read_data(st,
 				SCA3000_REG_ADDR_RING_OUT,
 				data, num_read);
+
+	/* Convert byte order and shift to default resolution */
+	if (st->bpse == 11) {
+		samples = (s16*)(*data+1);
+		for (i = 0; i < (num_read/2); i++) {
+			samples[i] = be16_to_cpup(
+					(__be16 *)&(samples[i]));
+			samples[i] >>= 3;
+		}
+	}
+
 error_ret:
 	mutex_unlock(&st->lock);
 
