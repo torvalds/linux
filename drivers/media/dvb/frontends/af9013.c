@@ -1381,6 +1381,7 @@ static int af9013_init(struct dvb_frontend *fe)
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
+	case AF9013_TUNER_MXL5007T:
 		len = ARRAY_SIZE(tuner_init_mxl5005);
 		init = tuner_init_mxl5005;
 		break;

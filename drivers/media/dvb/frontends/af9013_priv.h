@@ -480,9 +480,10 @@ static struct regdesc tuner_init_mxl5003d[] = {
 	{ 0x9bd9, 0, 8, 0x08 },
 };
 
-/* MaxLinear MXL5005 tuner init
+/* MaxLinear MXL5005S & MXL5007T tuner init
    AF9013_TUNER_MXL5005D   =  13
-   AF9013_TUNER_MXL5005R   =  30 */
+   AF9013_TUNER_MXL5005R   =  30
+   AF9013_TUNER_MXL5007T   = 177 */
 static struct regdesc tuner_init_mxl5005[] = {
 	{ 0x9bd5, 0, 8, 0x01 },
 	{ 0x9bd6, 0, 8, 0x07 },
