@@ -4618,32 +4618,64 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_parse_pin_def_config);
 
+enum {
+	MIC_ATTR_INT,
+	MIC_ATTR_DOCK,
+	MIC_ATTR_NORMAL,
+	MIC_ATTR_FRONT,
+	MIC_ATTR_REAR,
+};
+
+static int get_mic_pin_attr(unsigned int def_conf)
+{
+	unsigned int loc = get_defcfg_location(def_conf);
+	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_FIXED ||
+	    (loc & 0x30) == AC_JACK_LOC_INTERNAL)
+		return MIC_ATTR_INT;
+	if ((loc & 0x30) == AC_JACK_LOC_SEPARATE)
+		return MIC_ATTR_DOCK;
+	if (loc == AC_JACK_LOC_REAR)
+		return MIC_ATTR_REAR;
+	if (loc == AC_JACK_LOC_FRONT)
+		return MIC_ATTR_FRONT;
+	return MIC_ATTR_NORMAL;
+}
+
+enum {
+	LINE_ATTR_DOCK,
+	LINE_ATTR_NORMAL,
+};
+
+static int get_line_pin_attr(unsigned int def_conf)
+{
+	unsigned int loc = get_defcfg_location(def_conf);
+	if ((loc & 0xf0) == AC_JACK_LOC_SEPARATE)
+		return LINE_ATTR_DOCK;
+	return LINE_ATTR_NORMAL;
+}
+
 const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
 					int check_location)
 {
-	unsigned int def_conf, loc;
+	unsigned int def_conf;
+	static const char *mic_names[] = {
+		"Internal Mic", "Dock Mic", "Mic", "Front Mic", "Rear Mic",
+	};
+	static const char *line_names[] = {
+		"Dock Line", "Line",
+	};
 
 	def_conf = snd_hda_codec_get_pincfg(codec, pin);
-	loc = get_defcfg_location(def_conf);
 
 	switch (get_defcfg_device(def_conf)) {
 	case AC_JACK_MIC_IN:
 		if (!check_location)
 			return "Mic";
-		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_FIXED ||
-		    (loc & 0x30) == AC_JACK_LOC_INTERNAL)
-			return "Internal Mic";
-		if ((loc & 0x30) == AC_JACK_LOC_SEPARATE)
-			return "Dock Mic";
-		if (loc == AC_JACK_LOC_REAR)
-			return "Rear Mic";
-		return "Mic";
+		return mic_names[get_mic_pin_attr(def_conf)];
 	case AC_JACK_LINE_IN:
 		if (!check_location)
 			return "Line";
-		if ((loc & 0xf0) == AC_JACK_LOC_SEPARATE)
-			return "Dock Line";
-		return "Line";
+		return line_names[get_line_pin_attr(def_conf)];
 	case AC_JACK_AUX:
 		return "Aux";
 	case AC_JACK_CD:
@@ -4658,6 +4690,36 @@ const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
 }
 EXPORT_SYMBOL_HDA(hda_get_input_pin_label);
 
+/* Check whether the location prefix needs to be added to the label.
+ * If all mic-jacks are in the same location (e.g. rear panel), we don't
+ * have to put "Front" prefix to each label.  In such a case, returns false.
+ */
+static int check_mic_location_need(struct hda_codec *codec,
+				   const struct auto_pin_cfg *cfg,
+				   int input)
+{
+	unsigned int defc;
+	int i, attr, attr2;
+
+	defc = snd_hda_codec_get_pincfg(codec, cfg->inputs[input].pin);
+	attr = get_mic_pin_attr(defc);
+	/* for internal or docking mics, we need locations */
+	if (attr <= MIC_ATTR_NORMAL)
+		return 1;
+
+	attr = 0;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		defc = snd_hda_codec_get_pincfg(codec, cfg->inputs[i].pin);
+		attr2 = get_mic_pin_attr(defc);
+		if (attr2 >= MIC_ATTR_NORMAL) {
+			if (attr && attr != attr2)
+				return 1; /* different locations found */
+			attr = attr2;
+		}
+	}
+	return 0;
+}
+
 const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 					const struct auto_pin_cfg *cfg,
 					int input)
@@ -4668,6 +4730,8 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 	if ((input > 0 && cfg->inputs[input - 1].type == type) ||
 	    (input < cfg->num_inputs - 1 && cfg->inputs[input + 1].type == type))
 		has_multiple_pins = 1;
+	if (has_multiple_pins && type == AUTO_PIN_MIC)
+		has_multiple_pins &= check_mic_location_need(codec, cfg, input);
 	return hda_get_input_pin_label(codec, cfg->inputs[input].pin,
 				       has_multiple_pins);
 }
