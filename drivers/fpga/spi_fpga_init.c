@@ -72,7 +72,7 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, fpga_trans_work);
 	unsigned long flags;
-	spin_lock_irqsave(&port->work_lock, flags);
+	
 	while (!list_empty(&port->trans_queue)) 
 	{
 		struct spi_fpga_transfer	*t = NULL, *tmp;
@@ -94,9 +94,11 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 			kfree(t->txbuf);
 			kfree(t);
 		}
+		spin_lock_irqsave(&port->work_lock, flags);
 		list_del_init(&port->trans_queue);
+		spin_unlock_irqrestore(&port->work_lock, flags);
 	}
-	spin_unlock_irqrestore(&port->work_lock, flags);
+
 
 }
 
@@ -110,7 +112,7 @@ int spi_write_work(struct spi_device *spi, const u8 *buf, size_t len)
 	if (!t)
 	{
 		printk("err:%s:ENOMEM\n",__FUNCTION__);
-		return ;
+		return -ENOMEM;
 	}
 
 	t->txbuf = (char *)kmalloc(32, GFP_KERNEL);
@@ -297,7 +299,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			rx_buf[0] = 0;
 			rx_buf[1] = 0;	
 			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf)-1, rx_buf, n_rx);
-			result = rx_buf[1];
+			result = (rx_buf[0] << 8) | rx_buf[1];
 			DBG("%s,SEL_INT reg=0x%x,result=0x%x\n",__FUNCTION__,reg&0xff,result&0xff);
 			break;
 		default:
@@ -405,7 +407,7 @@ static void spi_fpga_irq_work_handler(struct work_struct *work)
 
 	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	
-	ret = spi_in(port, ICE_SEL_READ_INT_TYPE, READ_TOP_INT);
+	ret = spi_in(port, ICE_SEL_READ_INT_TYPE, READ_TOP_INT) & 0xff;
 	if((ret | ICE_INT_TYPE_UART0) == ICE_INT_TYPE_UART0)
 	{
 #if defined(CONFIG_SPI_FPGA_UART)
@@ -472,12 +474,6 @@ static irqreturn_t spi_fpga_irq(int irq, void *dev_id)
 
 static int spi_set_sysclk(int set)
 {
-	int ret;
-	ret = gpio_request(SPI_FPGA_STANDBY_PIN, NULL);
-	if (ret) {
-		printk("%s:failed to request standby pin\n",__FUNCTION__);
-		return ret;
-	}
 	rk2818_mux_api_set(GPIOH7_HSADCCLK_SEL_NAME,IOMUXB_GPIO1_D7);	
 	gpio_direction_output(SPI_FPGA_STANDBY_PIN,set);
 
@@ -527,7 +523,11 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	
 	mutex_init(&port->spi_lock);
 	spin_lock_init(&port->work_lock);
-	
+	ret = gpio_request(SPI_FPGA_STANDBY_PIN, NULL);
+	if (ret) {
+		printk("%s:failed to request standby pin\n",__FUNCTION__);
+		return ret;
+	}
 	spi_set_sysclk(GPIO_HIGH);
 
 #if SPI_FPGA_TRANS_WORK
@@ -648,17 +648,46 @@ static int __devexit spi_fpga_remove(struct spi_device *spi)
 
 #ifdef CONFIG_PM
 
+static int spi_fpga_wait_suspend(struct spi_fpga_port *port)
+{
+	int i,n_tx,n_rx;
+	for(i=0;i<1000;i++)
+	{
+		n_tx = spi_in(port, UART_LSR, READ_TOP_INT);
+		n_rx = spi_in(port, UART_LSR, SEL_UART);
+		if((((n_tx >> 8) & 0x3f) == 0) && (((n_rx >> 8) & 0x3f) == 0))	//no data in tx_buf and rx_buf
+		{
+			printk("%s,i=%d\n",__FUNCTION__,i);
+			return 0;	
+		}
+	}
+	
+	return -1;
+}
+
 static int spi_fpga_suspend(struct spi_device *spi, pm_message_t state)
 {
-	//struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
-
+	struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
+	int ret;
+	ret = spi_fpga_wait_suspend(port);
+	if(!ret)
+	{
+		spi_set_sysclk(GPIO_LOW);
+	}
+	else
+	{
+		printk("fail to suspend fpga because it is sending or recieve data!\n");
+		return -1;
+	}
+	printk("%s\n",__FUNCTION__);
 	return 0;
 }
 
 static int spi_fpga_resume(struct spi_device *spi)
 {
 	//struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
-
+	spi_set_sysclk(GPIO_HIGH);
+	printk("%s\n",__FUNCTION__);
 	return 0;
 }
 
