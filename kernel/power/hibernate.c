@@ -338,7 +338,6 @@ int hibernation_snapshot(int platform_mode)
 		goto Close;
 
 	suspend_console();
-	hibernation_freeze_swap();
 	saved_mask = clear_gfp_allowed_mask(GFP_IOFS);
 	error = dpm_suspend_start(PMSG_FREEZE);
 	if (error)
