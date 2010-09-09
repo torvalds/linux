@@ -25,13 +25,40 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <asm/clkdev.h>
+#include <mach/clk.h>
 
 #include "board.h"
 #include "clock.h"
+#include "dvfs.h"
 
 static LIST_HEAD(clocks);
 
+/*
+ * clock_lock must be held when:
+ *   Accessing any clock register non-atomically
+ *     or
+ *   Relying on any state of a clk struct not to change, unless clk_is_dvfs
+ *   returns true on that clk struct, and dvfs_lock is held instead.
+ *
+ *   Any function that changes the state of a clk struct must hold
+ *   the dvfs_lock if clk_is_auto_dvfs(clk) is true, and the clock_lock.
+ *
+ *   When taking dvfs_lock and clock_lock, dvfs_lock must be taken first.
+ */
 static DEFINE_SPINLOCK(clock_lock);
+
+static inline bool clk_is_auto_dvfs(struct clk *c)
+{
+	smp_rmb();
+	return c->auto_dvfs;
+};
+
+static inline bool clk_is_dvfs(struct clk *c)
+{
+	smp_rmb();
+	return c->is_dvfs;
+};
+
 struct clk *tegra_get_clock_by_name(const char *name)
 {
 	struct clk *c;
@@ -48,22 +75,31 @@ struct clk *tegra_get_clock_by_name(const char *name)
 	return ret;
 }
 
-static void clk_recalculate_rate(struct clk *c)
+static unsigned long clk_predict_rate_from_parent(struct clk *c, struct clk *p)
 {
 	u64 rate;
 
-	if (!c->parent)
-		return;
-
-	rate = c->parent->rate;
+	rate = p->rate;
 
 	if (c->mul != 0 && c->div != 0) {
 		rate = rate * c->mul;
 		do_div(rate, c->div);
 	}
 
+	return rate;
+}
+
+static void clk_recalculate_rate(struct clk *c)
+{
+	unsigned long rate;
+
+	if (!c->parent)
+		return;
+
+	rate = clk_predict_rate_from_parent(c, c->parent);
+
 	if (rate > c->max_rate)
-		pr_warn("clocks: Set clock %s to rate %llu, max is %lu\n",
+		pr_warn("clocks: Set clock %s to rate %lu, max is %lu\n",
 			c->name, rate, c->max_rate);
 
 	c->rate = rate;
@@ -95,6 +131,7 @@ void clk_init(struct clk *c)
 
 	INIT_LIST_HEAD(&c->children);
 	INIT_LIST_HEAD(&c->sibling);
+	INIT_LIST_HEAD(&c->dvfs);
 
 	if (c->ops && c->ops->init)
 		c->ops->init(c);
@@ -152,9 +189,20 @@ int clk_enable(struct clk *c)
 	int ret;
 	unsigned long flags;
 
+	if (clk_is_auto_dvfs(c)) {
+		lock_dvfs();
+		ret = tegra_dvfs_set_rate(c, c->rate);
+		if (ret)
+			goto out;
+	}
+
 	spin_lock_irqsave(&clock_lock, flags);
 	ret = clk_enable_locked(c);
 	spin_unlock_irqrestore(&clock_lock, flags);
+
+out:
+	if (clk_is_auto_dvfs(c))
+		unlock_dvfs();
 
 	return ret;
 }
@@ -182,9 +230,18 @@ void clk_disable(struct clk *c)
 {
 	unsigned long flags;
 
+	if (clk_is_auto_dvfs(c))
+		lock_dvfs();
+
 	spin_lock_irqsave(&clock_lock, flags);
 	clk_disable_locked(c);
 	spin_unlock_irqrestore(&clock_lock, flags);
+
+	if (clk_is_auto_dvfs(c)) {
+		if (c->refcnt == 0)
+			tegra_dvfs_set_rate(c, 0);
+		unlock_dvfs();
+	}
 }
 EXPORT_SYMBOL(clk_disable);
 
@@ -209,11 +266,32 @@ int clk_set_parent_locked(struct clk *c, struct clk *parent)
 
 int clk_set_parent(struct clk *c, struct clk *parent)
 {
-	int ret;
+	int ret = 0;
 	unsigned long flags;
+	unsigned long new_rate = clk_predict_rate_from_parent(c, parent);
+
+
+	if (clk_is_auto_dvfs(c)) {
+		lock_dvfs();
+		if (c->refcnt > 0 && (!c->parent || new_rate > c->rate))
+			ret = tegra_dvfs_set_rate(c, new_rate);
+		if (!ret)
+			goto out;
+	}
+
 	spin_lock_irqsave(&clock_lock, flags);
 	ret = clk_set_parent_locked(c, parent);
 	spin_unlock_irqrestore(&clock_lock, flags);
+	if (!ret)
+		goto out;
+
+	if (clk_is_auto_dvfs(c) && c->refcnt > 0)
+		ret = tegra_dvfs_set_rate(c, new_rate);
+
+out:
+	if (clk_is_auto_dvfs(c))
+		unlock_dvfs();
+
 	return ret;
 }
 EXPORT_SYMBOL(clk_set_parent);
@@ -228,11 +306,16 @@ int clk_set_rate_locked(struct clk *c, unsigned long rate)
 {
 	int ret;
 
+	if (rate == c->requested_rate)
+		return 0;
+
 	if (rate > c->max_rate)
 		rate = c->max_rate;
 
 	if (!c->ops || !c->ops->set_rate)
 		return -ENOSYS;
+
+	c->requested_rate = rate;
 
 	ret = c->ops->set_rate(c, rate);
 
@@ -251,10 +334,27 @@ int clk_set_rate(struct clk *c, unsigned long rate)
 	int ret = 0;
 	unsigned long flags;
 
+	if (clk_is_auto_dvfs(c)) {
+		lock_dvfs();
+		if (rate > c->rate && c->refcnt > 0)
+			ret = tegra_dvfs_set_rate(c, rate);
+		if (ret)
+			goto out;
+	}
+
 	spin_lock_irqsave(&clock_lock, flags);
 	ret = clk_set_rate_locked(c, rate);
 	spin_unlock_irqrestore(&clock_lock, flags);
 
+	if (ret)
+		goto out;
+
+	if (clk_is_auto_dvfs(c) && c->refcnt > 0)
+		ret = tegra_dvfs_set_rate(c, rate);
+
+out:
+	if (clk_is_auto_dvfs(c))
+		unlock_dvfs();
 	return ret;
 }
 EXPORT_SYMBOL(clk_set_rate);
@@ -363,12 +463,27 @@ void __init tegra_init_clock(void)
 	tegra2_init_clocks();
 }
 
+void __init tegra_clk_set_dvfs_rates(void)
+{
+	struct clk *c;
+	list_for_each_entry(c, &clocks, node) {
+		if (clk_is_auto_dvfs(c)) {
+			if (c->refcnt > 0)
+				tegra_dvfs_set_rate(c, c->rate);
+			else
+				tegra_dvfs_set_rate(c, 0);
+		} else if (clk_is_dvfs(c)) {
+			tegra_dvfs_set_rate(c, c->dvfs_rate);
+		}
+	}
+}
+
 int __init tegra_disable_boot_clocks(void)
 {
 	unsigned long flags;
-
 	struct clk *c;
 
+	lock_dvfs();
 	spin_lock_irqsave(&clock_lock, flags);
 
 	list_for_each_entry(c, &clocks, node) {
@@ -382,7 +497,7 @@ int __init tegra_disable_boot_clocks(void)
 	}
 
 	spin_unlock_irqrestore(&clock_lock, flags);
-
+	unlock_dvfs();
 	return 0;
 }
 late_initcall(tegra_disable_boot_clocks);
@@ -390,11 +505,20 @@ late_initcall(tegra_disable_boot_clocks);
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *clk_debugfs_root;
 
+static void dvfs_show_one(struct seq_file *s, struct dvfs *d, int level)
+{
+	seq_printf(s, "%*s  %-*s%21s%d mV\n",
+			level * 3 + 1, "",
+			30 - level * 3, d->reg_id,
+			"",
+			d->cur_millivolts);
+}
 
 static void clock_tree_show_one(struct seq_file *s, struct clk *c, int level)
 {
 	struct clk *child;
 	struct clk *safe;
+	struct dvfs *d;
 	const char *state = "uninit";
 	char div[8] = {0};
 
@@ -426,6 +550,10 @@ static void clock_tree_show_one(struct seq_file *s, struct clk *c, int level)
 		!c->set ? '*' : ' ',
 		30 - level * 3, c->name,
 		state, c->refcnt, div, c->rate);
+
+	list_for_each_entry(d, &c->dvfs, node)
+		dvfs_show_one(s, d, level + 1);
+
 	list_for_each_entry_safe(child, safe, &c->children, sibling) {
 		clock_tree_show_one(s, child, level + 1);
 	}
@@ -553,6 +681,9 @@ static int __init clk_debugfs_init(void)
 	d = debugfs_create_file("clock_tree", S_IRUGO, clk_debugfs_root, NULL,
 		&clock_tree_fops);
 	if (!d)
+		goto err_out;
+
+	if (dvfs_debugfs_init(clk_debugfs_root))
 		goto err_out;
 
 	list_for_each_entry(c, &clocks, node) {

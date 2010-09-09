@@ -2,6 +2,7 @@ obj-y                                   += common.o
 obj-y                                   += io.o
 obj-y                                   += irq.o legacy_irq.o
 obj-y                                   += clock.o
+obj-y                                   += dvfs.o
 obj-y                                   += timer.o
 obj-y                                   += gpio.o
 obj-y                                   += pinmux.o

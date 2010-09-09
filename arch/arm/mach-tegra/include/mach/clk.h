@@ -20,7 +20,11 @@
 #ifndef __MACH_CLK_H
 #define __MACH_CLK_H
 
+struct dvfs;
+
 void tegra_periph_reset_deassert(struct clk *c);
 void tegra_periph_reset_assert(struct clk *c);
+
+int tegra_dvfs_set_rate(struct clk *c, unsigned long rate);
 
 #endif

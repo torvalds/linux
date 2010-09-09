@@ -84,8 +84,12 @@ struct clk {
 	struct clk_ops			*ops;
 	struct clk			*parent;
 	struct clk_lookup		lookup;
+	unsigned long			dvfs_rate;
 	unsigned long			rate;
+	unsigned long			requested_rate;
 	unsigned long			max_rate;
+	bool				is_dvfs;
+	bool				auto_dvfs;
 	u32				flags;
 	u32				refcnt;
 	const char			*name;
@@ -119,6 +123,8 @@ struct clk {
 	/* Virtual cpu clock */
 	struct clk			*main;
 	struct clk			*backup;
+
+	struct list_head		dvfs;
 };
 
 
@@ -146,5 +152,6 @@ int clk_set_parent_locked(struct clk *c, struct clk *parent);
 int clk_set_rate_locked(struct clk *c, unsigned long rate);
 int clk_reparent(struct clk *c, struct clk *parent);
 void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
+void tegra_clk_set_dvfs_rates(void);
 
 #endif
