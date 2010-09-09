@@ -91,6 +91,12 @@ static struct intel_dvo *enc_to_intel_dvo(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dvo, base.base);
 }
 
+static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
+{
+	return container_of(intel_attached_encoder(connector),
+			    struct intel_dvo, base);
+}
+
 static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -112,8 +118,7 @@ static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
 static int intel_dvo_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -223,16 +228,13 @@ static void intel_dvo_mode_set(struct drm_encoder *encoder,
  */
 static enum drm_connector_status intel_dvo_detect(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
-
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
 
 static int intel_dvo_get_modes(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 
 	/* We should probably have an i2c driver get_modes function for those
 	 * devices which will have a fixed set of modes determined by the chip
@@ -280,7 +282,7 @@ static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_dvo_connector_helper_funcs = {
 	.mode_valid = intel_dvo_mode_valid,
 	.get_modes = intel_dvo_get_modes,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static void intel_dvo_enc_destroy(struct drm_encoder *encoder)
@@ -310,8 +312,7 @@ intel_dvo_get_current_mode(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	uint32_t dvo_val = I915_READ(intel_dvo->dev.dvo_reg);
 	struct drm_display_mode *mode = NULL;
 
@@ -431,8 +432,7 @@ void intel_dvo_init(struct drm_device *dev)
 		drm_encoder_helper_add(&intel_encoder->base,
 				       &intel_dvo_helper_funcs);
 
-		drm_mode_connector_attach_encoder(&intel_connector->base,
-						  &intel_encoder->base);
+		intel_connector_attach_encoder(intel_connector, intel_encoder);
 		if (dvo->type == INTEL_DVO_CHIP_LVDS) {
 			/* For our LVDS chipsets, we should hopefully be able
 			 * to dig the fixed panel mode out of the BIOS data.

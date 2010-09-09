@@ -67,6 +67,12 @@ static struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dp, base.base);
 }
 
+static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
+{
+	return container_of(intel_attached_encoder(connector),
+			    struct intel_dp, base);
+}
+
 static void intel_dp_start_link_train(struct intel_dp *intel_dp);
 static void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 static void intel_dp_link_down(struct intel_dp *intel_dp);
@@ -148,8 +154,7 @@ static int
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
@@ -1405,8 +1410,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 static enum drm_connector_status
 ironlake_dp_detect(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	enum drm_connector_status status;
 
 	/* Panel needs power for AUX to work */
@@ -1436,8 +1440,7 @@ ironlake_dp_detect(struct drm_connector *connector)
 static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t temp, bit;
@@ -1480,8 +1483,7 @@ intel_dp_detect(struct drm_connector *connector)
 
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -1554,7 +1556,7 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {
 	.get_modes = intel_dp_get_modes,
 	.mode_valid = intel_dp_mode_valid,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
@@ -1674,8 +1676,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_dp_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->base);
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_sysfs_connector_add(connector);
 
 	/* Set up the DDC bus. */

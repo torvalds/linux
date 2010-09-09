@@ -436,14 +436,11 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
 
 	if (dev_priv->lvds_edid_good) {
-		ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
-
+		struct intel_encoder *encoder = intel_attached_encoder(connector);
+		int ret = intel_ddc_get_modes(connector, encoder->ddc_bus);
 		if (ret)
 			return ret;
 	}
@@ -596,7 +593,7 @@ static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
 	.get_modes = intel_lvds_get_modes,
 	.mode_valid = intel_lvds_mode_valid,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
@@ -847,7 +844,7 @@ void intel_lvds_init(struct drm_device *dev)
 	drm_encoder_init(dev, &intel_encoder->base, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base, &intel_encoder->base);
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);

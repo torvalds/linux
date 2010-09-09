@@ -48,6 +48,12 @@ static struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_hdmi, base.base);
 }
 
+static struct intel_hdmi *intel_attached_hdmi(struct drm_connector *connector)
+{
+	return container_of(intel_attached_encoder(connector),
+			    struct intel_hdmi, base);
+}
+
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -141,8 +147,7 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
@@ -163,8 +168,7 @@ intel_hdmi_detect(struct drm_connector *connector)
 
 static int intel_hdmi_get_modes(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 
 	/* We should parse the EDID data and find out if it's an HDMI sink so
 	 * we can send audio to it.
@@ -198,7 +202,7 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs = {
 	.get_modes = intel_hdmi_get_modes,
 	.mode_valid = intel_hdmi_mode_valid,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
@@ -270,8 +274,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->base);
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_sysfs_connector_add(connector);
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written

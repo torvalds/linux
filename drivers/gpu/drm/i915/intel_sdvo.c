@@ -189,6 +189,12 @@ static struct intel_sdvo *enc_to_intel_sdvo(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_sdvo, base.base);
 }
 
+static struct intel_sdvo *intel_attached_sdvo(struct drm_connector *connector)
+{
+	return container_of(intel_attached_encoder(connector),
+			    struct intel_sdvo, base);
+}
+
 static struct intel_sdvo_connector *to_intel_sdvo_connector(struct drm_connector *connector)
 {
 	return container_of(to_intel_connector(connector), struct intel_sdvo_connector, base);
@@ -1239,8 +1245,7 @@ static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 static int intel_sdvo_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -1372,18 +1377,22 @@ static struct drm_connector *
 intel_find_analog_connector(struct drm_device *dev)
 {
 	struct drm_connector *connector;
-	struct drm_encoder *encoder;
-	struct intel_sdvo *intel_sdvo;
+	struct intel_sdvo *encoder;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		intel_sdvo = enc_to_intel_sdvo(encoder);
-		if (intel_sdvo->base.type == INTEL_OUTPUT_ANALOG) {
-			list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-				if (encoder == intel_attached_encoder(connector))
+	list_for_each_entry(encoder,
+			    &dev->mode_config.encoder_list,
+			    base.base.head) {
+		if (encoder->base.type == INTEL_OUTPUT_ANALOG) {
+			list_for_each_entry(connector,
+					    &dev->mode_config.connector_list,
+					    head) {
+				if (&encoder->base ==
+				    intel_attached_encoder(connector))
 					return connector;
 			}
 		}
 	}
+
 	return NULL;
 }
 
@@ -1406,8 +1415,7 @@ intel_analog_is_connected(struct drm_device *dev)
 enum drm_connector_status
 intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	enum drm_connector_status status = connector_status_connected;
 	struct edid *edid = NULL;
@@ -1468,8 +1476,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connector)
 {
 	uint16_t response;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	enum drm_connector_status ret;
 
@@ -1516,8 +1523,7 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 
 static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	int num_modes;
 
 	/* set the bus switch and get the modes */
@@ -1605,8 +1611,7 @@ struct drm_display_mode sdvo_tv_modes[] = {
 
 static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	struct intel_sdvo_sdtv_resolution_request tv_res;
 	uint32_t reply = 0, format_map = 0;
 	int i;
@@ -1640,8 +1645,7 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 
 static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct drm_display_mode *newmode;
 
@@ -1757,8 +1761,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			struct drm_property *property,
 			uint64_t val)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	uint16_t temp_value;
 	uint8_t cmd;
@@ -1861,9 +1864,8 @@ set_value:
 
 
 done:
-	if (encoder->crtc) {
-		struct drm_crtc *crtc = encoder->crtc;
-
+	if (intel_sdvo->base.base.crtc) {
+		struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
 		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
 					 crtc->y, crtc->fb);
 	}
@@ -1891,7 +1893,7 @@ static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs = {
 	.get_modes = intel_sdvo_get_modes,
 	.mode_valid = intel_sdvo_mode_valid,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
@@ -2058,20 +2060,23 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 }
 
 static void
-intel_sdvo_connector_init(struct drm_encoder *encoder,
-			  struct drm_connector *connector)
+intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
+			  struct intel_sdvo *encoder)
 {
-	drm_connector_init(encoder->dev, connector, &intel_sdvo_connector_funcs,
-			   connector->connector_type);
+	drm_connector_init(encoder->base.base.dev,
+			   &connector->base.base,
+			   &intel_sdvo_connector_funcs,
+			   connector->base.base.connector_type);
 
-	drm_connector_helper_add(connector, &intel_sdvo_connector_helper_funcs);
+	drm_connector_helper_add(&connector->base.base,
+				 &intel_sdvo_connector_helper_funcs);
 
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
+	connector->base.base.interlace_allowed = 0;
+	connector->base.base.doublescan_allowed = 0;
+	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
-	drm_sysfs_connector_add(connector);
+	intel_connector_attach_encoder(&connector->base, &encoder->base);
+	drm_sysfs_connector_add(&connector->base.base);
 }
 
 static bool
@@ -2112,7 +2117,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
-	intel_sdvo_connector_init(encoder, connector);
+	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 
 	return true;
 }
@@ -2141,7 +2146,7 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 	intel_sdvo->base.needs_tv_clock = true;
 	intel_sdvo->base.clone_mask = 1 << INTEL_SDVO_TV_CLONE_BIT;
 
-	intel_sdvo_connector_init(encoder, connector);
+	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 
 	if (!intel_sdvo_tv_create_property(intel_sdvo, intel_sdvo_connector, type))
 		goto err;
@@ -2186,7 +2191,8 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 	intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
-	intel_sdvo_connector_init(encoder, connector);
+	intel_sdvo_connector_init(intel_sdvo_connector,
+				  intel_sdvo);
 	return true;
 }
 
@@ -2218,7 +2224,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	intel_sdvo->base.clone_mask = ((1 << INTEL_ANALOG_CLONE_BIT) |
 				       (1 << INTEL_SDVO_LVDS_CLONE_BIT));
 
-	intel_sdvo_connector_init(encoder, connector);
+	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 

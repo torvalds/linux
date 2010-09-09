@@ -404,8 +404,7 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 static enum drm_connector_status intel_crt_detect(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct drm_crtc *crtc;
 	int dpms_mode;
 	enum drm_connector_status status;
@@ -417,18 +416,18 @@ static enum drm_connector_status intel_crt_detect(struct drm_connector *connecto
 			return connector_status_disconnected;
 	}
 
-	if (intel_crt_detect_ddc(encoder))
+	if (intel_crt_detect_ddc(&encoder->base))
 		return connector_status_connected;
 
 	/* for pre-945g platforms use load detect */
-	if (encoder->crtc && encoder->crtc->enabled) {
-		status = intel_crt_load_detect(encoder->crtc, intel_encoder);
+	if (encoder->base.crtc && encoder->base.crtc->enabled) {
+		status = intel_crt_load_detect(encoder->base.crtc, encoder);
 	} else {
-		crtc = intel_get_load_detect_pipe(intel_encoder, connector,
+		crtc = intel_get_load_detect_pipe(encoder, connector,
 						  NULL, &dpms_mode);
 		if (crtc) {
-			status = intel_crt_load_detect(crtc, intel_encoder);
-			intel_release_load_detect_pipe(intel_encoder,
+			status = intel_crt_load_detect(crtc, encoder);
+			intel_release_load_detect_pipe(encoder,
 						       connector, dpms_mode);
 		} else
 			status = connector_status_unknown;
@@ -447,13 +446,12 @@ static void intel_crt_destroy(struct drm_connector *connector)
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	int ret;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct i2c_adapter *ddc_bus;
 	struct drm_device *dev = connector->dev;
 
 
-	ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
+	ret = intel_ddc_get_modes(connector, encoder->ddc_bus);
 	if (ret || !IS_G4X(dev))
 		goto end;
 
@@ -504,7 +502,7 @@ static const struct drm_connector_funcs intel_crt_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_crt_connector_helper_funcs = {
 	.mode_valid = intel_crt_mode_valid,
 	.get_modes = intel_crt_get_modes,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static const struct drm_encoder_funcs intel_crt_enc_funcs = {
@@ -536,8 +534,7 @@ void intel_crt_init(struct drm_device *dev)
 	drm_encoder_init(dev, &intel_encoder->base, &intel_crt_enc_funcs,
 			 DRM_MODE_ENCODER_DAC);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->base);
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	/* Set up the DDC bus. */
 	if (HAS_PCH_SPLIT(dev))

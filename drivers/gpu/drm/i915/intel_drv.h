@@ -150,6 +150,7 @@ struct intel_encoder {
 
 struct intel_connector {
 	struct drm_connector base;
+	struct intel_encoder *encoder;
 };
 
 struct intel_crtc {
@@ -234,7 +235,14 @@ extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 
-extern struct drm_encoder *intel_attached_encoder(struct drm_connector *connector);
+static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
+{
+	return to_intel_connector(connector)->encoder;
+}
+
+extern void intel_connector_attach_encoder(struct intel_connector *connector,
+					   struct intel_encoder *encoder);
+extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
 
 extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);

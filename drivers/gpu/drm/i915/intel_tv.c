@@ -903,6 +903,13 @@ static struct intel_tv *enc_to_intel_tv(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_tv, base.base);
 }
 
+static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
+{
+	return container_of(intel_attached_encoder(connector),
+			    struct intel_tv,
+			    base);
+}
+
 static void
 intel_tv_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -945,8 +952,7 @@ static enum drm_mode_status
 intel_tv_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
+	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
 
 	/* Ensure TV refresh is close to desired refresh */
@@ -1306,8 +1312,7 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
  */
 static void intel_tv_find_better_format(struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
+	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
 	int i;
 
@@ -1339,14 +1344,13 @@ static enum drm_connector_status
 intel_tv_detect(struct drm_connector *connector)
 {
 	struct drm_display_mode mode;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
+	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	int type;
 
 	mode = reported_modes[0];
 	drm_mode_set_crtcinfo(&mode, CRTC_INTERLACE_HALVE_V);
 
-	if (encoder->crtc && encoder->crtc->enabled) {
+	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
 		type = intel_tv_detect_type(intel_tv);
 	} else {
 		struct drm_crtc *crtc;
@@ -1391,8 +1395,7 @@ static void
 intel_tv_chose_preferred_modes(struct drm_connector *connector,
 			       struct drm_display_mode *mode_ptr)
 {
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
+	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
 
 	if (tv_mode->nbr_end < 480 && mode_ptr->vdisplay == 480)
@@ -1417,8 +1420,7 @@ static int
 intel_tv_get_modes(struct drm_connector *connector)
 {
 	struct drm_display_mode *mode_ptr;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
+	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
 	int j, count = 0;
 	u64 tmp;
@@ -1483,9 +1485,8 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 		      uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
-	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_tv *intel_tv = intel_attached_tv(connector);
+	struct drm_crtc *crtc = intel_tv->base.base.crtc;
 	int ret = 0;
 	bool changed = false;
 
@@ -1550,7 +1551,7 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_tv_connector_helper_funcs = {
 	.mode_valid = intel_tv_mode_valid,
 	.get_modes = intel_tv_get_modes,
-	.best_encoder = intel_attached_encoder,
+	.best_encoder = intel_best_encoder,
 };
 
 static const struct drm_encoder_funcs intel_tv_enc_funcs = {
@@ -1659,8 +1660,7 @@ intel_tv_init(struct drm_device *dev)
 	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
 			 DRM_MODE_ENCODER_TVDAC);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->base);
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	intel_encoder->clone_mask = (1 << INTEL_TV_CLONE_BIT);
