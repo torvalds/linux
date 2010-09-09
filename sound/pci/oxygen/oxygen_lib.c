@@ -519,16 +519,21 @@ static void oxygen_init(struct oxygen *chip)
 	}
 }
 
-static void oxygen_card_free(struct snd_card *card)
+static void oxygen_shutdown(struct oxygen *chip)
 {
-	struct oxygen *chip = card->private_data;
-
 	spin_lock_irq(&chip->reg_lock);
 	chip->interrupt_mask = 0;
 	chip->pcm_running = 0;
 	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	spin_unlock_irq(&chip->reg_lock);
+}
+
+static void oxygen_card_free(struct snd_card *card)
+{
+	struct oxygen *chip = card->private_data;
+
+	oxygen_shutdown(chip);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 	flush_scheduled_work();
@@ -778,3 +783,13 @@ int oxygen_pci_resume(struct pci_dev *pci)
 }
 EXPORT_SYMBOL(oxygen_pci_resume);
 #endif /* CONFIG_PM */
+
+void oxygen_pci_shutdown(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct oxygen *chip = card->private_data;
+
+	oxygen_shutdown(chip);
+	chip->model.cleanup(chip);
+}
+EXPORT_SYMBOL(oxygen_pci_shutdown);

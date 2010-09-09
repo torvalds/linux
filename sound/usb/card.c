@@ -126,7 +126,7 @@ static void snd_usb_stream_disconnect(struct list_head *head)
 	for (idx = 0; idx < 2; idx++) {
 		subs = &as->substream[idx];
 		if (!subs->num_formats)
-			return;
+			continue;
 		snd_usb_release_substream_urbs(subs, 1);
 		subs->interface = -1;
 	}
