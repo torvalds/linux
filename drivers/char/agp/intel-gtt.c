@@ -124,21 +124,6 @@ static struct _intel_private {
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
 
 #if USE_PCI_DMA_API
-static int intel_agp_map_page(struct page *page, dma_addr_t *ret)
-{
-	*ret = pci_map_page(intel_private.pcidev, page, 0,
-			    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(intel_private.pcidev, *ret))
-		return -EINVAL;
-	return 0;
-}
-
-static void intel_agp_unmap_page(struct page *page, dma_addr_t dma)
-{
-	pci_unmap_page(intel_private.pcidev, dma,
-		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-}
-
 static void intel_agp_free_sglist(struct agp_memory *mem)
 {
 	struct sg_table st;
@@ -1447,7 +1432,6 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
-	.needs_scratch_page	= true,
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
@@ -1474,7 +1458,6 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
-	.needs_scratch_page	= true,
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
@@ -1495,8 +1478,6 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 #if USE_PCI_DMA_API
-	.agp_map_page		= intel_agp_map_page,
-	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
 	.agp_unmap_memory	= intel_agp_unmap_memory,
 #endif
@@ -1507,7 +1488,6 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
-	.needs_scratch_page	= true,
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
@@ -1528,8 +1508,6 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 #if USE_PCI_DMA_API
-	.agp_map_page		= intel_agp_map_page,
-	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
 	.agp_unmap_memory	= intel_agp_unmap_memory,
 #endif
@@ -1540,7 +1518,6 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
-	.needs_scratch_page	= true,
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
@@ -1561,8 +1538,6 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.agp_type_to_mask_type	= intel_gen6_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 #if USE_PCI_DMA_API
-	.agp_map_page		= intel_agp_map_page,
-	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
 	.agp_unmap_memory	= intel_agp_unmap_memory,
 #endif
@@ -1573,7 +1548,6 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
-	.needs_scratch_page	= true,
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
@@ -1594,8 +1568,6 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 #if USE_PCI_DMA_API
-	.agp_map_page		= intel_agp_map_page,
-	.agp_unmap_page		= intel_agp_unmap_page,
 	.agp_map_memory		= intel_agp_map_memory,
 	.agp_unmap_memory	= intel_agp_unmap_memory,
 #endif
