@@ -1154,49 +1154,18 @@ struct rk2818fb_info rk2818_fb_info = {
 #define PWM_ID            0  
 #define PWM_MUX_NAME      GPIOF2_APWM0_SEL_NAME
 #define PWM_MUX_MODE      IOMUXB_PWM0
-#define PWM_EFFECT_VALUE  0
-
-
-#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
-#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
-
-#define BL_EN_PIN         RK2818_PIN_PF3
-#define BL_EN_VALUE       GPIO_LOW   ///GPIO_HIGH
-
-
+#define PWM_EFFECT_VALUE  1
 
 static int rk2818_backlight_io_init(void)
 {
-    int ret = 0;
-    
     rk2818_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
-
-    rk2818_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE); 
-
-    ret = gpio_request(BL_EN_PIN, NULL); 
-    if(ret != 0)
-    {
-        gpio_free(BL_EN_PIN);
-        printk(KERN_ERR ">>>>>> lcd_cs gpio_request err \n ");        
-    }
-    
-    gpio_direction_output(BL_EN_PIN, 0);
-    gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
-
-    return ret;
+    return 0;
 }
 
 static int rk2818_backlight_io_deinit(void)
 {
-    int ret = 0;
-    
-    gpio_free(BL_EN_PIN);
-    
     rk2818_mux_api_mode_resume(PWM_MUX_NAME);
-
-    rk2818_mux_api_mode_resume(BL_EN_MUX_NAME);
-
-    return ret;
+    return 0;
 }
 struct rk2818_bl_info rk2818_bl_info = {
     .pwm_id   = PWM_ID,

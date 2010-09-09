@@ -270,11 +270,11 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
     div_total >>= (1 + (PWM_DIV >> 9));
     div_total = (div_total) ? div_total : 1;
     
-    if(rk2818_bl_info->bl_ref) {
-        divh = 0;
-    } else {
+   /// if(rk2818_bl_info->bl_ref) {
+    ///    divh = 0;
+   /// } else {
         divh = div_total / 2;
-    }
+   // }
 
     /*init timer to dispose workqueue */
     setup_timer(&rk2818_bl_info->timer, rk2818_delaybacklight_timer, (unsigned long)rk2818_bl_info);
