@@ -822,17 +822,19 @@ dm365_queue_priority_mapping[][2] = {
 	{-1, -1},
 };
 
-static struct edma_soc_info dm365_edma_info[] = {
-	{
-		.n_channel		= 64,
-		.n_region		= 4,
-		.n_slot			= 256,
-		.n_tc			= 4,
-		.n_cc			= 1,
-		.queue_tc_mapping	= dm365_queue_tc_mapping,
-		.queue_priority_mapping	= dm365_queue_priority_mapping,
-		.default_queue		= EVENTQ_3,
-	},
+static struct edma_soc_info edma_cc0_info = {
+	.n_channel		= 64,
+	.n_region		= 4,
+	.n_slot			= 256,
+	.n_tc			= 4,
+	.n_cc			= 1,
+	.queue_tc_mapping	= dm365_queue_tc_mapping,
+	.queue_priority_mapping	= dm365_queue_priority_mapping,
+	.default_queue		= EVENTQ_3,
+};
+
+static struct edma_soc_info *dm365_edma_info[EDMA_MAX_CC] = {
+	&edma_cc0_info,
 };
 
 static struct resource edma_resources[] = {
@@ -1020,6 +1022,8 @@ static struct davinci_timer_info dm365_timer_info = {
 	.clocksource_id	= T0_TOP,
 };
 
+#define DM365_UART1_BASE	(IO_PHYS + 0x106000)
+
 static struct plat_serial8250_port dm365_serial_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART0_BASE,
@@ -1030,7 +1034,7 @@ static struct plat_serial8250_port dm365_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
-		.mapbase	= DAVINCI_UART1_BASE,
+		.mapbase	= DM365_UART1_BASE,
 		.irq		= IRQ_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,

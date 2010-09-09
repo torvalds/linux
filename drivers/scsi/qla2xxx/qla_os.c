@@ -115,8 +115,8 @@ int ql2xmaxqueues = 1;
 module_param(ql2xmaxqueues, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xmaxqueues,
 		"Enables MQ settings "
-		"Default is 1 for single queue. Set it to number \
-			of queues in MQ mode.");
+		"Default is 1 for single queue. Set it to number "
+		"of queues in MQ mode.");
 
 int ql2xmultique_tag;
 module_param(ql2xmultique_tag, int, S_IRUGO|S_IRUSR);

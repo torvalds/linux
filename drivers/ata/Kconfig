@@ -187,6 +187,15 @@ config ATA_PIIX
 
 	  If unsure, say N.
 
+config SATA_DWC
+	tristate "DesignWare Cores SATA support"
+	depends on 460EX
+	help
+	  This option enables support for the on-chip SATA controller of the
+	  AppliedMicro processor 460EX.
+
+	  If unsure, say N.
+
 config SATA_MV
 	tristate "Marvell SATA support"
 	help
@@ -642,6 +651,17 @@ config PATA_VIA
 
 	  If unsure, say N.
 
+config PATA_PXA
+	tristate "PXA DMA-capable PATA support"
+	depends on ARCH_PXA
+	help
+	  This option enables support for harddrive attached to PXA CPU's bus.
+
+	  NOTE: This driver utilizes PXA DMA controller, in case your hardware
+	        is not capable of doing MWDMA, use pata_platform instead.
+
+	  If unsure, say N.
+
 config PATA_WINBOND
 	tristate "Winbond SL82C105 PATA support"
 	depends on PCI
@@ -796,9 +816,19 @@ config PATA_RZ1000
 
 	  If unsure, say N.
 
+config PATA_SAMSUNG_CF
+	tristate "Samsung SoC PATA support"
+	depends on SAMSUNG_DEV_IDE
+	help
+	  This option enables basic support for Samsung's S3C/S5P board
+	  PATA controllers via the new ATA layer
+
+	  If unsure, say N.
+
 config PATA_WINBOND_VLB
 	tristate "Winbond W83759A VLB PATA support (Experimental)"
 	depends on ISA && EXPERIMENTAL
+	select PATA_LEGACY
 	help
 	  Support for the Winbond W83759A controller on Vesa Local Bus
 	  systems.

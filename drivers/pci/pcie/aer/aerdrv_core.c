@@ -727,20 +727,21 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 static int get_e_source(struct aer_rpc *rpc, struct aer_err_source *e_src)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	/* Lock access to Root error producer/consumer index */
 	spin_lock_irqsave(&rpc->e_lock, flags);
-	if (rpc->prod_idx != rpc->cons_idx) {
-		*e_src = rpc->e_sources[rpc->cons_idx];
-		rpc->cons_idx++;
-		if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
-			rpc->cons_idx = 0;
-		ret = 1;
+	if (rpc->prod_idx == rpc->cons_idx) {
+		spin_unlock_irqrestore(&rpc->e_lock, flags);
+		return 0;
 	}
+
+	*e_src = rpc->e_sources[rpc->cons_idx];
+	rpc->cons_idx++;
+	if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
+		rpc->cons_idx = 0;
 	spin_unlock_irqrestore(&rpc->e_lock, flags);
 
-	return ret;
+	return 1;
 }
 
 /**
@@ -771,22 +772,10 @@ void aer_isr(struct work_struct *work)
  */
 int aer_init(struct pcie_device *dev)
 {
-	if (pcie_aer_get_firmware_first(dev->port)) {
-		dev_printk(KERN_DEBUG, &dev->device,
-			   "PCIe errors handled by platform firmware.\n");
-		goto out;
-	}
-
-	if (aer_osc_setup(dev))
-		goto out;
-
-	return 0;
-out:
 	if (forceload) {
 		dev_printk(KERN_DEBUG, &dev->device,
 			   "aerdrv forceload requested.\n");
 		pcie_aer_force_firmware_first(dev->port, 0);
-		return 0;
 	}
-	return -ENXIO;
+	return 0;
 }

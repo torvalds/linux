@@ -150,7 +150,7 @@ static int __devinit fs_mii_bitbang_init(struct mii_bus *bus,
 	return 0;
 }
 
-static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
+static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev,
                                         const struct of_device_id *match)
 {
 	struct mii_bus *new_bus;
@@ -200,7 +200,7 @@ out:
 	return ret;
 }
 
-static int fs_enet_mdio_remove(struct of_device *ofdev)
+static int fs_enet_mdio_remove(struct platform_device *ofdev)
 {
 	struct mii_bus *bus = dev_get_drvdata(&ofdev->dev);
 	struct bb_info *bitbang = bus->priv;

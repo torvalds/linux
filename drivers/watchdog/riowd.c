@@ -172,7 +172,7 @@ static struct miscdevice riowd_miscdev = {
 	.fops	= &riowd_fops
 };
 
-static int __devinit riowd_probe(struct of_device *op,
+static int __devinit riowd_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	struct riowd *p;
@@ -219,7 +219,7 @@ out:
 	return err;
 }
 
-static int __devexit riowd_remove(struct of_device *op)
+static int __devexit riowd_remove(struct platform_device *op)
 {
 	struct riowd *p = dev_get_drvdata(&op->dev);
 
@@ -250,12 +250,12 @@ static struct of_platform_driver riowd_driver = {
 
 static int __init riowd_init(void)
 {
-	return of_register_driver(&riowd_driver, &of_bus_type);
+	return of_register_platform_driver(&riowd_driver);
 }
 
 static void __exit riowd_exit(void)
 {
-	of_unregister_driver(&riowd_driver);
+	of_unregister_platform_driver(&riowd_driver);
 }
 
 module_init(riowd_init);

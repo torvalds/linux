@@ -240,12 +240,13 @@ struct rio_priv {
 
 static void __iomem *rio_regs_win;
 
+#ifdef CONFIG_E500
 static int (*saved_mcheck_exception)(struct pt_regs *regs);
 
 static int fsl_rio_mcheck_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry = NULL;
-	unsigned long reason = (mfspr(SPRN_MCSR) & MCSR_MASK);
+	unsigned long reason = mfspr(SPRN_MCSR);
 
 	if (reason & MCSR_BUS_RBERR) {
 		reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
@@ -269,6 +270,7 @@ static int fsl_rio_mcheck_exception(struct pt_regs *regs)
 	else
 		return cur_cpu_spec->machine_check(regs);
 }
+#endif
 
 /**
  * fsl_rio_doorbell_send - Send a MPC85xx doorbell message
@@ -1332,13 +1334,13 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 
 /**
  * fsl_rio_setup - Setup Freescale PowerPC RapidIO interface
- * @dev: of_device pointer
+ * @dev: platform_device pointer
  *
  * Initializes MPC85xx RapidIO hardware interface, configures
  * master port with system-specific info, and registers the
  * master port with the RapidIO subsystem.
  */
-int fsl_rio_setup(struct of_device *dev)
+int fsl_rio_setup(struct platform_device *dev)
 {
 	struct rio_ops *ops;
 	struct rio_mport *port;
@@ -1517,8 +1519,10 @@ int fsl_rio_setup(struct of_device *dev)
 	fsl_rio_doorbell_init(port);
 	fsl_rio_port_write_init(port);
 
+#ifdef CONFIG_E500
 	saved_mcheck_exception = ppc_md.machine_check_exception;
 	ppc_md.machine_check_exception = fsl_rio_mcheck_exception;
+#endif
 	/* Ensure that RFXE is set */
 	mtspr(SPRN_HID1, (mfspr(SPRN_HID1) | 0x20000));
 
@@ -1536,7 +1540,7 @@ err_ops:
 
 /* The probe function for RapidIO peer-to-peer network.
  */
-static int __devinit fsl_of_rio_rpn_probe(struct of_device *dev,
+static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	int rc;

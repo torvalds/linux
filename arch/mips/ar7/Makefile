@@ -8,4 +8,3 @@ obj-y := \
 	platform.o \
 	gpio.o \
 	clock.o
-EXTRA_CFLAGS += -Werror

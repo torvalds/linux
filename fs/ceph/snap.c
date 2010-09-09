@@ -435,7 +435,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap_snap *capsnap;
-	int used;
+	int used, dirty;
 
 	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
 	if (!capsnap) {
@@ -445,6 +445,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 	spin_lock(&inode->i_lock);
 	used = __ceph_caps_used(ci);
+	dirty = __ceph_caps_dirty(ci);
 	if (__ceph_have_pending_cap_snap(ci)) {
 		/* there is no point in queuing multiple "pending" cap_snaps,
 		   as no new writes are allowed to start when pending, so any
@@ -452,11 +453,15 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
-	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR)) {
+	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR) ||
+		   (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
+			     CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
 
+		dout("queue_cap_snap %p cap_snap %p queuing under %p\n", inode,
+		     capsnap, snapc);
 		igrab(inode);
-
+		
 		atomic_set(&capsnap->nref, 1);
 		capsnap->ci = ci;
 		INIT_LIST_HEAD(&capsnap->ci_item);
@@ -464,15 +469,21 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 		capsnap->follows = snapc->seq - 1;
 		capsnap->issued = __ceph_caps_issued(ci, NULL);
-		capsnap->dirty = __ceph_caps_dirty(ci);
+		capsnap->dirty = dirty;
 
 		capsnap->mode = inode->i_mode;
 		capsnap->uid = inode->i_uid;
 		capsnap->gid = inode->i_gid;
 
-		/* fixme? */
-		capsnap->xattr_blob = NULL;
-		capsnap->xattr_len = 0;
+		if (dirty & CEPH_CAP_XATTR_EXCL) {
+			__ceph_build_xattrs_blob(ci);
+			capsnap->xattr_blob =
+				ceph_buffer_get(ci->i_xattrs.blob);
+			capsnap->xattr_version = ci->i_xattrs.version;
+		} else {
+			capsnap->xattr_blob = NULL;
+			capsnap->xattr_version = 0;
+		}
 
 		/* dirty page count moved from _head to this cap_snap;
 		   all subsequent writes page dirties occur _after_ this
@@ -480,7 +491,9 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		capsnap->dirty_pages = ci->i_wrbuffer_ref_head;
 		ci->i_wrbuffer_ref_head = 0;
 		capsnap->context = snapc;
-		ci->i_head_snapc = NULL;
+		ci->i_head_snapc =
+			ceph_get_snap_context(ci->i_snap_realm->cached_context);
+		dout(" new snapc is %p\n", ci->i_head_snapc);
 		list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
 
 		if (used & CEPH_CAP_FILE_WR) {
@@ -539,6 +552,41 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	return 1;  /* caller may want to ceph_flush_snaps */
 }
 
+/*
+ * Queue cap_snaps for snap writeback for this realm and its children.
+ * Called under snap_rwsem, so realm topology won't change.
+ */
+static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
+{
+	struct ceph_inode_info *ci;
+	struct inode *lastinode = NULL;
+	struct ceph_snap_realm *child;
+
+	dout("queue_realm_cap_snaps %p %llx inodes\n", realm, realm->ino);
+
+	spin_lock(&realm->inodes_with_caps_lock);
+	list_for_each_entry(ci, &realm->inodes_with_caps,
+			    i_snap_realm_item) {
+		struct inode *inode = igrab(&ci->vfs_inode);
+		if (!inode)
+			continue;
+		spin_unlock(&realm->inodes_with_caps_lock);
+		if (lastinode)
+			iput(lastinode);
+		lastinode = inode;
+		ceph_queue_cap_snap(ci);
+		spin_lock(&realm->inodes_with_caps_lock);
+	}
+	spin_unlock(&realm->inodes_with_caps_lock);
+	if (lastinode)
+		iput(lastinode);
+
+	dout("queue_realm_cap_snaps %p %llx children\n", realm, realm->ino);
+	list_for_each_entry(child, &realm->children, child_item)
+		queue_realm_cap_snaps(child);
+
+	dout("queue_realm_cap_snaps %p %llx done\n", realm, realm->ino);
+}
 
 /*
  * Parse and apply a snapblob "snap trace" from the MDS.  This specifies
@@ -589,29 +637,8 @@ more:
 		 *
 		 * ...unless it's a snap deletion!
 		 */
-		if (!deletion) {
-			struct ceph_inode_info *ci;
-			struct inode *lastinode = NULL;
-
-			spin_lock(&realm->inodes_with_caps_lock);
-			list_for_each_entry(ci, &realm->inodes_with_caps,
-					    i_snap_realm_item) {
-				struct inode *inode = igrab(&ci->vfs_inode);
-				if (!inode)
-					continue;
-				spin_unlock(&realm->inodes_with_caps_lock);
-				if (lastinode)
-					iput(lastinode);
-				lastinode = inode;
-				ceph_queue_cap_snap(ci);
-				spin_lock(&realm->inodes_with_caps_lock);
-			}
-			spin_unlock(&realm->inodes_with_caps_lock);
-			if (lastinode)
-				iput(lastinode);
-			dout("update_snap_trace cap_snaps queued\n");
-		}
-
+		if (!deletion)
+			queue_realm_cap_snaps(realm);
 	} else {
 		dout("update_snap_trace %llx %p seq %lld unchanged\n",
 		     realm->ino, realm, realm->seq);

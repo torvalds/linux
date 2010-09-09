@@ -87,8 +87,8 @@ static int ceph_x_decrypt(struct ceph_crypto_key *secret,
 /*
  * get existing (or insert new) ticket handler
  */
-struct ceph_x_ticket_handler *get_ticket_handler(struct ceph_auth_client *ac,
-						 int service)
+static struct ceph_x_ticket_handler *
+get_ticket_handler(struct ceph_auth_client *ac, int service)
 {
 	struct ceph_x_ticket_handler *th;
 	struct ceph_x_info *xi = ac->private;
@@ -376,7 +376,7 @@ static void ceph_x_validate_tickets(struct ceph_auth_client *ac, int *pneed)
 
 		th = get_ticket_handler(ac, service);
 
-		if (!th) {
+		if (IS_ERR(th)) {
 			*pneed |= service;
 			continue;
 		}
@@ -398,6 +398,9 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 	int ret;
 	struct ceph_x_ticket_handler *th =
 		get_ticket_handler(ac, CEPH_ENTITY_TYPE_AUTH);
+
+	if (IS_ERR(th))
+		return PTR_ERR(th);
 
 	ceph_x_validate_tickets(ac, &need);
 
@@ -429,7 +432,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		auth->struct_v = 1;
 		auth->key = 0;
 		for (u = (u64 *)tmp_enc; u + 1 <= (u64 *)(tmp_enc + ret); u++)
-			auth->key ^= *u;
+			auth->key ^= *(__le64 *)u;
 		dout(" server_challenge %llx client_challenge %llx key %llx\n",
 		     xi->server_challenge, le64_to_cpu(auth->client_challenge),
 		     le64_to_cpu(auth->key));
@@ -450,7 +453,6 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 			return -ERANGE;
 		head->op = cpu_to_le16(CEPHX_GET_PRINCIPAL_SESSION_KEY);
 
-		BUG_ON(!th);
 		ret = ceph_x_build_authorizer(ac, th, &xi->auth_authorizer);
 		if (ret)
 			return ret;
@@ -505,7 +507,8 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 
 	case CEPHX_GET_PRINCIPAL_SESSION_KEY:
 		th = get_ticket_handler(ac, CEPH_ENTITY_TYPE_AUTH);
-		BUG_ON(!th);
+		if (IS_ERR(th))
+			return PTR_ERR(th);
 		ret = ceph_x_proc_ticket_reply(ac, &th->session_key,
 					       buf + sizeof(*head), end);
 		break;
@@ -563,8 +566,8 @@ static int ceph_x_verify_authorizer_reply(struct ceph_auth_client *ac,
 	void *end = p + sizeof(au->reply_buf);
 
 	th = get_ticket_handler(ac, au->service);
-	if (!th)
-		return -EIO;  /* hrm! */
+	if (IS_ERR(th))
+		return PTR_ERR(th);
 	ret = ceph_x_decrypt(&th->session_key, &p, end, &reply, sizeof(reply));
 	if (ret < 0)
 		return ret;
@@ -626,7 +629,7 @@ static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
 	struct ceph_x_ticket_handler *th;
 
 	th = get_ticket_handler(ac, peer_type);
-	if (th && !IS_ERR(th))
+	if (!IS_ERR(th))
 		remove_ticket_handler(ac, th);
 }
 

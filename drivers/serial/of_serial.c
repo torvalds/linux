@@ -14,10 +14,9 @@
 #include <linux/slab.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
-
-#include <asm/prom.h>
 
 struct of_serial_info {
 	int type;
@@ -27,7 +26,7 @@ struct of_serial_info {
 /*
  * Fill a struct uart_port for a given device node
  */
-static int __devinit of_platform_serial_setup(struct of_device *ofdev,
+static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 					int type, struct uart_port *port)
 {
 	struct resource resource;
@@ -80,7 +79,7 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 /*
  * Try to register a serial port
  */
-static int __devinit of_platform_serial_probe(struct of_device *ofdev,
+static int __devinit of_platform_serial_probe(struct platform_device *ofdev,
 						const struct of_device_id *id)
 {
 	struct of_serial_info *info;
@@ -134,7 +133,7 @@ out:
 /*
  * Release a line
  */
-static int of_platform_serial_remove(struct of_device *ofdev)
+static int of_platform_serial_remove(struct platform_device *ofdev)
 {
 	struct of_serial_info *info = dev_get_drvdata(&ofdev->dev);
 	switch (info->type) {

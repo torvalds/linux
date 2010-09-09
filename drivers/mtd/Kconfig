@@ -311,15 +311,17 @@ config SM_FTL
 	select MTD_BLKDEVS
 	select MTD_NAND_ECC
 	help
-	  This enables new and very EXPERMENTAL support for SmartMedia/xD
+	  This enables EXPERIMENTAL R/W support for SmartMedia/xD
 	  FTL (Flash translation layer).
-	  Write support isn't yet well tested, therefore this code IS likely to
-	  eat your card, so please don't use it together with valuable data.
-	  Use readonly driver (CONFIG_SSFDC) instead.
+	  Write support is only lightly tested, therefore this driver
+	  isn't recommended to use with valuable data (anyway if you have
+	  valuable data, do backups regardless of software/hardware you
+	  use, because you never know what will eat your data...)
+	  If you only need R/O access, you can use older R/O driver
+	  (CONFIG_SSFDC)
 
 config MTD_OOPS
 	tristate "Log panic/oops to an MTD buffer"
-	depends on MTD
 	help
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in a flash partition where it can be read back at some

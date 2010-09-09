@@ -810,9 +810,9 @@ xfs_qm_export_dquot(
 	}
 
 #ifdef DEBUG
-	if (((XFS_IS_UQUOTA_ENFORCED(mp) && dst->d_flags == XFS_USER_QUOTA) ||
+	if (((XFS_IS_UQUOTA_ENFORCED(mp) && dst->d_flags == FS_USER_QUOTA) ||
 	     (XFS_IS_OQUOTA_ENFORCED(mp) &&
-			(dst->d_flags & (XFS_PROJ_QUOTA | XFS_GROUP_QUOTA)))) &&
+			(dst->d_flags & (FS_PROJ_QUOTA | FS_GROUP_QUOTA)))) &&
 	    dst->d_id != 0) {
 		if (((int) dst->d_bcount >= (int) dst->d_blk_softlimit) &&
 		    (dst->d_blk_softlimit > 0)) {
@@ -833,17 +833,17 @@ xfs_qm_export_qtype_flags(
 	/*
 	 * Can't be more than one, or none.
 	 */
-	ASSERT((flags & (XFS_PROJ_QUOTA | XFS_USER_QUOTA)) !=
-		(XFS_PROJ_QUOTA | XFS_USER_QUOTA));
-	ASSERT((flags & (XFS_PROJ_QUOTA | XFS_GROUP_QUOTA)) !=
-		(XFS_PROJ_QUOTA | XFS_GROUP_QUOTA));
-	ASSERT((flags & (XFS_USER_QUOTA | XFS_GROUP_QUOTA)) !=
-		(XFS_USER_QUOTA | XFS_GROUP_QUOTA));
-	ASSERT((flags & (XFS_PROJ_QUOTA|XFS_USER_QUOTA|XFS_GROUP_QUOTA)) != 0);
+	ASSERT((flags & (FS_PROJ_QUOTA | FS_USER_QUOTA)) !=
+		(FS_PROJ_QUOTA | FS_USER_QUOTA));
+	ASSERT((flags & (FS_PROJ_QUOTA | FS_GROUP_QUOTA)) !=
+		(FS_PROJ_QUOTA | FS_GROUP_QUOTA));
+	ASSERT((flags & (FS_USER_QUOTA | FS_GROUP_QUOTA)) !=
+		(FS_USER_QUOTA | FS_GROUP_QUOTA));
+	ASSERT((flags & (FS_PROJ_QUOTA|FS_USER_QUOTA|FS_GROUP_QUOTA)) != 0);
 
 	return (flags & XFS_DQ_USER) ?
-		XFS_USER_QUOTA : (flags & XFS_DQ_PROJ) ?
-			XFS_PROJ_QUOTA : XFS_GROUP_QUOTA;
+		FS_USER_QUOTA : (flags & XFS_DQ_PROJ) ?
+			FS_PROJ_QUOTA : FS_GROUP_QUOTA;
 }
 
 STATIC uint
@@ -854,16 +854,16 @@ xfs_qm_export_flags(
 
 	uflags = 0;
 	if (flags & XFS_UQUOTA_ACCT)
-		uflags |= XFS_QUOTA_UDQ_ACCT;
+		uflags |= FS_QUOTA_UDQ_ACCT;
 	if (flags & XFS_PQUOTA_ACCT)
-		uflags |= XFS_QUOTA_PDQ_ACCT;
+		uflags |= FS_QUOTA_PDQ_ACCT;
 	if (flags & XFS_GQUOTA_ACCT)
-		uflags |= XFS_QUOTA_GDQ_ACCT;
+		uflags |= FS_QUOTA_GDQ_ACCT;
 	if (flags & XFS_UQUOTA_ENFD)
-		uflags |= XFS_QUOTA_UDQ_ENFD;
+		uflags |= FS_QUOTA_UDQ_ENFD;
 	if (flags & (XFS_OQUOTA_ENFD)) {
 		uflags |= (flags & XFS_GQUOTA_ACCT) ?
-			XFS_QUOTA_GDQ_ENFD : XFS_QUOTA_PDQ_ENFD;
+			FS_QUOTA_GDQ_ENFD : FS_QUOTA_PDQ_ENFD;
 	}
 	return (uflags);
 }

@@ -48,7 +48,6 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -261,12 +260,11 @@ static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
-static const dev_info_t dev_info = "ni_mio_cs";
 
 static int cs_attach(struct pcmcia_device *link)
 {
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->io.NumPorts1 = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	link->resource[0]->end = 16;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -311,13 +309,12 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 {
 	int base, ret;
 
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
-	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-	p_dev->io.NumPorts2 = 0;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
-		p_dev->io.BasePort1 = base;
-		ret = pcmcia_request_io(p_dev, &p_dev->io);
+		p_dev->resource[0]->start = base;
+		ret = pcmcia_request_io(p_dev);
 		if (!ret)
 			return 0;
 	}
@@ -356,7 +353,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
-	dev->iobase = link->io.BasePort1;
+	dev->iobase = link->resource[0]->start;
 
 	irq = link->irq;
 
@@ -450,7 +447,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = dev_info,
+		.name = "ni_mio_cs",
 		},
 };
 

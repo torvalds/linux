@@ -144,9 +144,7 @@ extern int kdb_getword(unsigned long *, unsigned long, size_t);
 extern int kdb_putword(unsigned long, unsigned long, size_t);
 
 extern int kdbgetularg(const char *, unsigned long *);
-extern int kdb_set(int, const char **);
 extern char *kdbgetenv(const char *);
-extern int kdbgetintenv(const char *, int *);
 extern int kdbgetaddrarg(int, const char **, int*, unsigned long *,
 			 long *, char **);
 extern int kdbgetsymval(const char *, kdb_symtab_t *);
@@ -257,7 +255,14 @@ extern void kdb_ps1(const struct task_struct *p);
 extern void kdb_print_nameval(const char *name, unsigned long val);
 extern void kdb_send_sig_info(struct task_struct *p, struct siginfo *info);
 extern void kdb_meminfo_proc_show(void);
+#ifdef CONFIG_KALLSYMS
 extern const char *kdb_walk_kallsyms(loff_t *pos);
+#else /* ! CONFIG_KALLSYMS */
+static inline const char *kdb_walk_kallsyms(loff_t *pos)
+{
+	return NULL;
+}
+#endif /* ! CONFIG_KALLSYMS */
 extern char *kdb_getstr(char *, size_t, char *);
 
 /* Defines for kdb_symbol_print */

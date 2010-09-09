@@ -16,9 +16,7 @@
 #include "chrdev.h"
 
 /* IIO TODO LIST */
-/* Static device specific elements (conversion factors etc)
- * should be exported via sysfs
- *
+/*
  * Provide means of adjusting timer accuracy.
  * Currently assumes nano seconds.
  */
@@ -284,49 +282,6 @@ int iio_push_event(struct iio_dev *dev_info,
 		  s64 timestamp);
 
 /**
- * struct iio_work_cont - container for when singleton handler case matters
- * @ws:			[DEVICE] work_struct when not only possible event
- * @ws_nocheck:		[DEVICE] work_struct when only possible event
- * @address:		[DEVICE] associated register address
- * @mask:		[DEVICE] associated mask for identifying event source
- * @st:			[DEVICE] device specific state information
- **/
-struct iio_work_cont {
-	struct work_struct	ws;
-	struct work_struct	ws_nocheck;
-	int			address;
-	int			mask;
-	void			*st;
-};
-
-#define to_iio_work_cont_check(_ws)			\
-	container_of(_ws, struct iio_work_cont, ws)
-
-#define to_iio_work_cont_no_check(_ws)				\
-	container_of(_ws, struct iio_work_cont, ws_nocheck)
-
-/**
- * iio_init_work_cont() - intiialize the elements of a work container
- * @cont: the work container
- * @_checkfunc: function called when there are multiple possible int sources
- * @_nocheckfunc: function for when there is only one int source
- * @_add: driver dependent, typically a register address
- * @_mask: driver dependent, typically a bit mask for a register
- * @_st: driver dependent, typically pointer to a device state structure
- **/
-static inline void
-iio_init_work_cont(struct iio_work_cont *cont,
-		   void (*_checkfunc)(struct work_struct *),
-		   void (*_nocheckfunc)(struct work_struct *),
-		   int _add, int _mask, void *_st)
-{
-	INIT_WORK(&(cont)->ws, _checkfunc);
-	INIT_WORK(&(cont)->ws_nocheck, _nocheckfunc);
-	cont->address = _add;
-	cont->mask = _mask;
-	cont->st = _st;
-}
-/**
  * __iio_push_event() - tries to add an event to the list associated with a chrdev
  * @ev_int:		the event interface to which we are pushing the event
  * @ev_code:		the outgoing event code
@@ -428,7 +383,9 @@ void iio_put(void);
  **/
 void iio_get(void);
 
-/* Ring buffer related */
+/**
+ * iio_device_get_chrdev_minor() - get an unused minor number
+ **/
 int iio_device_get_chrdev_minor(void);
 void iio_device_free_chrdev_minor(int val);
 

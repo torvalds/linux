@@ -281,11 +281,7 @@ static gfn_t pse36_gfn_delta(u32 gpte)
 
 static void __set_spte(u64 *sptep, u64 spte)
 {
-#ifdef CONFIG_X86_64
-	set_64bit((unsigned long *)sptep, spte);
-#else
-	set_64bit((unsigned long long *)sptep, spte);
-#endif
+	set_64bit(sptep, spte);
 }
 
 static u64 __xchg_spte(u64 *sptep, u64 new_spte)

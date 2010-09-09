@@ -47,8 +47,10 @@ asmlinkage long microblaze_clone(int flags, unsigned long stack, struct pt_regs 
 	return do_fork(flags, stack, regs, 0, NULL, NULL);
 }
 
-asmlinkage long microblaze_execve(char __user *filenamei, char __user *__user *argv,
-			char __user *__user *envp, struct pt_regs *regs)
+asmlinkage long microblaze_execve(const char __user *filenamei,
+				  const char __user *const __user *argv,
+				  const char __user *const __user *envp,
+				  struct pt_regs *regs)
 {
 	int error;
 	char *filename;
@@ -77,7 +79,9 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register const char *__a __asm__("r5") = filename;
 	register const void *__b __asm__("r6") = argv;

@@ -157,25 +157,25 @@ void gdbstub_printk(const char *fmt, ...)
 #ifdef CONFIG_GDBSTUB_DEBUG_ENTRY
 #define gdbstub_entry(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_entry(FMT, ...) ({ 0; })
+#define gdbstub_entry(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_GDBSTUB_DEBUG_PROTOCOL
 #define gdbstub_proto(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_proto(FMT, ...) ({ 0; })
+#define gdbstub_proto(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_GDBSTUB_DEBUG_IO
 #define gdbstub_io(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_io(FMT, ...) ({ 0; })
+#define gdbstub_io(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_GDBSTUB_DEBUG_BREAKPOINT
 #define gdbstub_bkpt(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_bkpt(FMT, ...) ({ 0; })
+#define gdbstub_bkpt(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #endif /* !__ASSEMBLY__ */

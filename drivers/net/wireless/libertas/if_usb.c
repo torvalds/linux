@@ -289,10 +289,13 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 
 	/* Upload firmware */
+	kparam_block_sysfs_write(fw_name);
 	if (__if_usb_prog_firmware(cardp, lbs_fw_name, BOOT_CMD_FW_BY_USB)) {
+		kparam_unblock_sysfs_write(fw_name);
 		lbs_deb_usbd(&udev->dev, "FW upload failed\n");
 		goto err_prog_firmware;
 	}
+	kparam_unblock_sysfs_write(fw_name);
 
 	if (!(priv = lbs_add_card(cardp, &udev->dev)))
 		goto err_prog_firmware;

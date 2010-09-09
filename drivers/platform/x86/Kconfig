@@ -219,6 +219,13 @@ config SONYPI_COMPAT
 	  ---help---
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
 
+config IDEAPAD_ACPI
+	tristate "Lenovo IdeaPad ACPI Laptop Extras"
+	depends on ACPI
+	depends on RFKILL
+	help
+	  This is a driver for the rfkill switches on Lenovo IdeaPad netbooks.
+
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
@@ -479,10 +486,12 @@ config TOPSTAR_LAPTOP
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	select INPUT_POLLDEV
-	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings
 	  on "legacy free" Toshiba laptops.  These laptops can be recognized by

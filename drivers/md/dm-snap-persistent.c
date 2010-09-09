@@ -266,7 +266,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int rw,
  */
 static chunk_t area_location(struct pstore *ps, chunk_t area)
 {
-	return 1 + ((ps->exceptions_per_area + 1) * area);
+	return NUM_SNAPSHOT_HDR_CHUNKS + ((ps->exceptions_per_area + 1) * area);
 }
 
 /*
@@ -780,8 +780,8 @@ static int persistent_commit_merge(struct dm_exception_store *store,
 	 * ps->current_area does not get reduced by prepare_merge() until
 	 * after commit_merge() has removed the nr_merged previous exceptions.
 	 */
-	ps->next_free = (area_location(ps, ps->current_area) - 1) +
-			(ps->current_committed + 1) + NUM_SNAPSHOT_HDR_CHUNKS;
+	ps->next_free = area_location(ps, ps->current_area) +
+			ps->current_committed + 1;
 
 	return 0;
 }

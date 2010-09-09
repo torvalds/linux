@@ -20,12 +20,13 @@
 #define NEC_HEADER_PULSE	(16 * NEC_UNIT)
 #define NECX_HEADER_PULSE	(8  * NEC_UNIT) /* Less common NEC variant */
 #define NEC_HEADER_SPACE	(8  * NEC_UNIT)
-#define NEC_REPEAT_SPACE	(8  * NEC_UNIT)
+#define NEC_REPEAT_SPACE	(4  * NEC_UNIT)
 #define NEC_BIT_PULSE		(1  * NEC_UNIT)
 #define NEC_BIT_0_SPACE		(1  * NEC_UNIT)
 #define NEC_BIT_1_SPACE		(3  * NEC_UNIT)
 #define	NEC_TRAILER_PULSE	(1  * NEC_UNIT)
 #define	NEC_TRAILER_SPACE	(10 * NEC_UNIT) /* even longer in reality */
+#define NECX_REPEAT_BITS	1
 
 enum nec_state {
 	STATE_INACTIVE,
@@ -67,8 +68,12 @@ static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 		if (!ev.pulse)
 			break;
 
-		if (!eq_margin(ev.duration, NEC_HEADER_PULSE, NEC_UNIT / 2) &&
-		    !eq_margin(ev.duration, NECX_HEADER_PULSE, NEC_UNIT / 2))
+		if (eq_margin(ev.duration, NEC_HEADER_PULSE, NEC_UNIT / 2)) {
+			data->is_nec_x = false;
+			data->necx_repeat = false;
+		} else if (eq_margin(ev.duration, NECX_HEADER_PULSE, NEC_UNIT / 2))
+			data->is_nec_x = true;
+		else
 			break;
 
 		data->count = 0;
@@ -104,6 +109,17 @@ static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 	case STATE_BIT_SPACE:
 		if (ev.pulse)
 			break;
+
+		if (data->necx_repeat && data->count == NECX_REPEAT_BITS &&
+			geq_margin(ev.duration,
+			NEC_TRAILER_SPACE, NEC_UNIT / 2)) {
+				IR_dprintk(1, "Repeat last key\n");
+				ir_repeat(input_dev);
+				data->state = STATE_INACTIVE;
+				return 0;
+
+		} else if (data->count > NECX_REPEAT_BITS)
+			data->necx_repeat = false;
 
 		data->bits <<= 1;
 		if (eq_margin(ev.duration, NEC_BIT_1_SPACE, NEC_UNIT / 2))
@@ -158,6 +174,9 @@ static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 			scancode = address << 8 | command;
 			IR_dprintk(1, "NEC scancode 0x%04x\n", scancode);
 		}
+
+		if (data->is_nec_x)
+			data->necx_repeat = true;
 
 		ir_keydown(input_dev, scancode, 0);
 		data->state = STATE_INACTIVE;

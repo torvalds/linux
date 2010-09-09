@@ -874,8 +874,8 @@ struct mdp4_overlay_pipe *mdp4_overlay_pipe_alloc(void)
 		if (pipe->pipe_ndx == 0) {
 			pipe->pipe_ndx = i + 1;	/* start from 1 */
 			init_completion(&pipe->comp);
-	printk(KERN_INFO "mdp4_overlay_pipe_alloc: pipe=%x ndx=%d\n",
-					(int)pipe, pipe->pipe_ndx);
+	printk(KERN_INFO "mdp4_overlay_pipe_alloc: pipe=%p ndx=%d\n",
+					pipe, pipe->pipe_ndx);
 			return pipe;
 		}
 		pipe++;
@@ -887,8 +887,8 @@ struct mdp4_overlay_pipe *mdp4_overlay_pipe_alloc(void)
 
 void mdp4_overlay_pipe_free(struct mdp4_overlay_pipe *pipe)
 {
-	printk(KERN_INFO "mdp4_overlay_pipe_free: pipe=%x ndx=%d\n",
-					(int)pipe, pipe->pipe_ndx);
+	printk(KERN_INFO "mdp4_overlay_pipe_free: pipe=%p ndx=%d\n",
+					pipe, pipe->pipe_ndx);
 	memset(pipe, 0, sizeof(*pipe));
 }
 

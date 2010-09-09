@@ -46,7 +46,6 @@
 #include <linux/ethtool.h>
 #include <linux/ieee80211.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -315,9 +314,8 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	local->finder = p_dev;
 
 	/* The io structure describes IO port mapping. None used here */
-	p_dev->io.NumPorts1 = 0;
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines = 5;
+	p_dev->resource[0]->end = 0;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
 	p_dev->conf.Attributes = CONF_ENABLE_IRQ;
@@ -394,7 +392,6 @@ static int ray_config(struct pcmcia_device *link)
 	int ret = 0;
 	int i;
 	win_req_t req;
-	memreq_t mem;
 	struct net_device *dev = (struct net_device *)link->priv;
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -431,9 +428,7 @@ static int ray_config(struct pcmcia_device *link)
 	ret = pcmcia_request_window(link, &req, &link->win);
 	if (ret)
 		goto failed;
-	mem.CardOffset = 0x0000;
-	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link, link->win, &mem);
+	ret = pcmcia_map_mem_page(link, link->win, 0);
 	if (ret)
 		goto failed;
 	local->sram = ioremap(req.Base, req.Size);
@@ -447,9 +442,7 @@ static int ray_config(struct pcmcia_device *link)
 	ret = pcmcia_request_window(link, &req, &local->rmem_handle);
 	if (ret)
 		goto failed;
-	mem.CardOffset = 0x8000;
-	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link, local->rmem_handle, &mem);
+	ret = pcmcia_map_mem_page(link, local->rmem_handle, 0x8000);
 	if (ret)
 		goto failed;
 	local->rmem = ioremap(req.Base, req.Size);
@@ -463,9 +456,7 @@ static int ray_config(struct pcmcia_device *link)
 	ret = pcmcia_request_window(link, &req, &local->amem_handle);
 	if (ret)
 		goto failed;
-	mem.CardOffset = 0x0000;
-	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link, local->amem_handle, &mem);
+	ret = pcmcia_map_mem_page(link, local->amem_handle, 0);
 	if (ret)
 		goto failed;
 	local->amem = ioremap(req.Base, req.Size);
@@ -793,7 +784,6 @@ static void ray_release(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 	ray_dev_t *local = netdev_priv(dev);
-	int i;
 
 	dev_dbg(&link->dev, "ray_release\n");
 
@@ -802,13 +792,6 @@ static void ray_release(struct pcmcia_device *link)
 	iounmap(local->sram);
 	iounmap(local->rmem);
 	iounmap(local->amem);
-	/* Do bother checking to see if these succeed or not */
-	i = pcmcia_release_window(link, local->amem_handle);
-	if (i != 0)
-		dev_dbg(&link->dev, "ReleaseWindow(local->amem) ret = %x\n", i);
-	i = pcmcia_release_window(link, local->rmem_handle);
-	if (i != 0)
-		dev_dbg(&link->dev, "ReleaseWindow(local->rmem) ret = %x\n", i);
 	pcmcia_disable_device(link);
 
 	dev_dbg(&link->dev, "ray_release ending\n");

@@ -151,6 +151,7 @@ typedef void (*ceph_mds_request_callback_t) (struct ceph_mds_client *mdsc,
 struct ceph_mds_request {
 	u64 r_tid;                   /* transaction id */
 	struct rb_node r_node;
+	struct ceph_mds_client *r_mdsc;
 
 	int r_op;                    /* mds op code */
 	int r_mds;
@@ -207,8 +208,8 @@ struct ceph_mds_request {
 
 	int               r_attempts;   /* resend attempts */
 	int               r_num_fwd;    /* number of forward attempts */
-	int               r_num_stale;
 	int               r_resend_mds; /* mds to resend to next, if any*/
+	u32               r_sent_on_mseq; /* cap mseq request was sent at*/
 
 	struct kref       r_kref;
 	struct list_head  r_wait;
@@ -233,7 +234,8 @@ struct ceph_mds_client {
 	struct mutex            mutex;         /* all nested structures */
 
 	struct ceph_mdsmap      *mdsmap;
-	struct completion       safe_umount_waiters, session_close_waiters;
+	struct completion       safe_umount_waiters;
+	wait_queue_head_t       session_close_wq;
 	struct list_head        waiting_for_map;
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
@@ -266,6 +268,27 @@ struct ceph_mds_client {
 	int               num_cap_flushing; /* # caps we are flushing */
 	spinlock_t        cap_dirty_lock;   /* protects above items */
 	wait_queue_head_t cap_flushing_wq;
+
+	/*
+	 * Cap reservations
+	 *
+	 * Maintain a global pool of preallocated struct ceph_caps, referenced
+	 * by struct ceph_caps_reservations.  This ensures that we preallocate
+	 * memory needed to successfully process an MDS response.  (If an MDS
+	 * sends us cap information and we fail to process it, we will have
+	 * problems due to the client and MDS being out of sync.)
+	 *
+	 * Reservations are 'owned' by a ceph_cap_reservation context.
+	 */
+	spinlock_t	caps_list_lock;
+	struct		list_head caps_list; /* unused (reserved or
+						unreserved) */
+	int		caps_total_count;    /* total caps allocated */
+	int		caps_use_count;      /* in use */
+	int		caps_reserve_count;  /* unused, reserved */
+	int		caps_avail_count;    /* unused, unreserved */
+	int		caps_min_count;      /* keep at least this many
+						(unreserved) */
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry 	  *debugfs_file;
@@ -324,8 +347,7 @@ static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
 }
 
 extern int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
-				 struct ceph_mds_session *session,
-				 int extra);
+				 struct ceph_mds_session *session);
 extern void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
 				   struct ceph_mds_session *session);
 
@@ -342,5 +364,8 @@ extern void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 
 extern void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc,
 				 struct ceph_msg *msg);
+
+extern void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
+					  struct ceph_mds_session *session);
 
 #endif

@@ -340,7 +340,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	char *p;
 
 	p = d_path(&file->f_path, last_sysfs_file, sizeof(last_sysfs_file));
-	if (p)
+	if (!IS_ERR(p))
 		memmove(last_sysfs_file, p, strlen(p) + 1);
 
 	/* need attr_sd for attr and ops, its parent for kobj */
@@ -593,7 +593,8 @@ EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
  * @mode: file permissions.
  *
  */
-int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
+int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
+		     mode_t mode)
 {
 	struct sysfs_dirent *sd;
 	struct iattr newattrs;

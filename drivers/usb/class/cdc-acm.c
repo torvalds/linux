@@ -636,19 +636,13 @@ static void acm_tty_unregister(struct acm *acm)
 
 static int acm_tty_chars_in_buffer(struct tty_struct *tty);
 
-static void acm_port_down(struct acm *acm, int drain)
+static void acm_port_down(struct acm *acm)
 {
 	int i, nr = acm->rx_buflimit;
 	mutex_lock(&open_mutex);
 	if (acm->dev) {
 		usb_autopm_get_interface(acm->control);
 		acm_set_control(acm, acm->ctrlout = 0);
-		/* try letting the last writes drain naturally */
-		if (drain) {
-			wait_event_interruptible_timeout(acm->drain_wait,
-				(ACM_NW == acm_wb_is_avail(acm)) || !acm->dev,
-					ACM_CLOSE_TIMEOUT * HZ);
-		}
 		usb_kill_urb(acm->ctrlurb);
 		for (i = 0; i < ACM_NW; i++)
 			usb_kill_urb(acm->wb[i].urb);
@@ -664,7 +658,7 @@ static void acm_tty_hangup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	tty_port_hangup(&acm->port);
-	acm_port_down(acm, 0);
+	acm_port_down(acm);
 }
 
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
@@ -685,7 +679,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 		mutex_unlock(&open_mutex);
 		return;
 	}
-	acm_port_down(acm, 0);
+	acm_port_down(acm);
 	tty_port_close_end(&acm->port, tty);
 	tty_port_tty_set(&acm->port, NULL);
 }
@@ -971,7 +965,8 @@ static int acm_probe(struct usb_interface *intf,
 	}
 
 	if (!buflen) {
-		if (intf->cur_altsetting->endpoint->extralen &&
+		if (intf->cur_altsetting->endpoint &&
+				intf->cur_altsetting->endpoint->extralen &&
 				intf->cur_altsetting->endpoint->extra) {
 			dev_dbg(&intf->dev,
 				"Seeking extra descriptors on endpoint\n");
@@ -1487,6 +1482,11 @@ static int acm_reset_resume(struct usb_interface *intf)
 		USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM, \
 		USB_CDC_ACM_PROTO_VENDOR)
 
+#define SAMSUNG_PCSUITE_ACM_INFO(x) \
+		USB_DEVICE_AND_INTERFACE_INFO(0x04e7, x, \
+		USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM, \
+		USB_CDC_ACM_PROTO_VENDOR)
+
 /*
  * USB driver structure.
  */
@@ -1597,6 +1597,17 @@ static const struct usb_device_id acm_ids[] = {
 	{ NOKIA_PCSUITE_ACM_INFO(0x0108), }, /* Nokia 5320 XpressMusic 2G */
 	{ NOKIA_PCSUITE_ACM_INFO(0x01f5), }, /* Nokia N97, RM-505 */
 	{ NOKIA_PCSUITE_ACM_INFO(0x02e3), }, /* Nokia 5230, RM-588 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0178), }, /* Nokia E63 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x010e), }, /* Nokia E75 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x02d9), }, /* Nokia 6760 Slide */
+	{ NOKIA_PCSUITE_ACM_INFO(0x01d0), }, /* Nokia E52 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0223), }, /* Nokia E72 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0275), }, /* Nokia X6 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x026c), }, /* Nokia N97 Mini */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0154), }, /* Nokia 5800 XpressMusic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04ce), }, /* Nokia E90 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x01d4), }, /* Nokia E55 */
+	{ SAMSUNG_PCSUITE_ACM_INFO(0x6651), }, /* Samsung GTi8510 (INNOV8) */
 
 	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
 
@@ -1604,6 +1615,10 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0694, 0xff00),
 	.driver_info = NOT_A_MODEM,
        	},
+
+	/* control interfaces without any protocol set */
+	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
+		USB_CDC_PROTO_NONE) },
 
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,

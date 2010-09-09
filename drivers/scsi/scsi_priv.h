@@ -148,8 +148,6 @@ static inline void scsi_netlink_exit(void) {}
 /* scsi_pm.c */
 #ifdef CONFIG_PM_OPS
 extern const struct dev_pm_ops scsi_bus_pm_ops;
-#else /* CONFIG_PM_OPS */
-#define scsi_bus_pm_ops		(*NULL)
 #endif
 #ifdef CONFIG_PM_RUNTIME
 extern void scsi_autopm_get_target(struct scsi_target *);

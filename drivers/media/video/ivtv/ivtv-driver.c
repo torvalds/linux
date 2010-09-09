@@ -53,6 +53,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-vbi.h"
 #include "ivtv-routing.h"
+#include "ivtv-controls.h"
 #include "ivtv-gpio.h"
 
 #include <media/tveeprom.h>
@@ -705,6 +706,8 @@ done:
  */
 static int __devinit ivtv_init_struct1(struct ivtv *itv)
 {
+	struct sched_param param = { .sched_priority = 99 };
+
 	itv->base_addr = pci_resource_start(itv->pdev, 0);
 	itv->enc_mbox.max_mbox = 2; /* the encoder has 3 mailboxes (0-2) */
 	itv->dec_mbox.max_mbox = 1; /* the decoder has 2 mailboxes (0-1) */
@@ -716,21 +719,24 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	itv->irq_work_queues = create_singlethread_workqueue(itv->v4l2_dev.name);
-	if (itv->irq_work_queues == NULL) {
-		IVTV_ERR("Could not create ivtv workqueue\n");
+	init_kthread_worker(&itv->irq_worker);
+	itv->irq_worker_task = kthread_run(kthread_worker_fn, &itv->irq_worker,
+					   itv->v4l2_dev.name);
+	if (IS_ERR(itv->irq_worker_task)) {
+		IVTV_ERR("Could not create ivtv task\n");
 		return -1;
 	}
+	/* must use the FIFO scheduler as it is realtime sensitive */
+	sched_setscheduler(itv->irq_worker_task, SCHED_FIFO, &param);
 
-	INIT_WORK(&itv->irq_work_queue, ivtv_irq_work_handler);
+	init_kthread_work(&itv->irq_work, ivtv_irq_work_handler);
 
 	/* start counting open_id at 1 */
 	itv->open_id = 1;
 
 	/* Initial settings */
-	cx2341x_fill_defaults(&itv->params);
-	itv->params.port = CX2341X_PORT_MEMORY;
-	itv->params.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
+	itv->cxhdl.port = CX2341X_PORT_MEMORY;
+	itv->cxhdl.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
 	init_waitqueue_head(&itv->eos_waitq);
 	init_waitqueue_head(&itv->event_waitq);
 	init_waitqueue_head(&itv->vsync_waitq);
@@ -1000,13 +1006,20 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		retval = -ENOMEM;
 		goto err;
 	}
+	retval = cx2341x_handler_init(&itv->cxhdl, 50);
+	if (retval)
+		goto err;
+	itv->v4l2_dev.ctrl_handler = &itv->cxhdl.hdl;
+	itv->cxhdl.ops = &ivtv_cxhdl_ops;
+	itv->cxhdl.priv = itv;
+	itv->cxhdl.func = ivtv_api_func;
 
 	IVTV_DEBUG_INFO("base addr: 0x%08x\n", itv->base_addr);
 
 	/* PCI Device Setup */
 	retval = ivtv_setup_pci(itv, pdev, pci_id);
 	if (retval == -EIO)
-		goto free_workqueue;
+		goto free_worker;
 	if (retval == -ENXIO)
 		goto free_mem;
 
@@ -1121,7 +1134,7 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->yuv_info.v4l2_src_w = itv->yuv_info.osd_full_w;
 	itv->yuv_info.v4l2_src_h = itv->yuv_info.osd_full_h;
 
-	itv->params.video_gop_size = itv->is_60hz ? 15 : 12;
+	cx2341x_handler_set_50hz(&itv->cxhdl, itv->is_50hz);
 
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_MPG] = 0x08000;
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_PCM] = 0x01200;
@@ -1218,8 +1231,8 @@ free_mem:
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-free_workqueue:
-	destroy_workqueue(itv->irq_work_queues);
+free_worker:
+	kthread_stop(itv->irq_worker_task);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1263,15 +1276,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	IVTV_DEBUG_INFO("Getting firmware version..\n");
 	ivtv_firmware_versions(itv);
 
-	if (itv->card->hw_all & IVTV_HW_CX25840) {
-		struct v4l2_control ctrl;
-
+	if (itv->card->hw_all & IVTV_HW_CX25840)
 		v4l2_subdev_call(itv->sd_video, core, load_fw);
-		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
-		ctrl.id = V4L2_CID_PRIVATE_BASE;
-		ctrl.value = itv->pvr150_workaround;
-		v4l2_subdev_call(itv->sd_video, core, s_ctrl, &ctrl);
-	}
 
 	vf.tuner = 0;
 	vf.type = V4L2_TUNER_ANALOG_TV;
@@ -1323,6 +1329,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	/* For cards with video out, this call needs interrupts enabled */
 	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
+	/* Setup initial controls */
+	cx2341x_handler_setup(&itv->cxhdl);
 	return 0;
 }
 
@@ -1363,9 +1371,9 @@ static void ivtv_remove(struct pci_dev *pdev)
 	ivtv_set_irq_mask(itv, 0xffffffff);
 	del_timer_sync(&itv->dma_timer);
 
-	/* Stop all Work Queues */
-	flush_workqueue(itv->irq_work_queues);
-	destroy_workqueue(itv->irq_work_queues);
+	/* Kill irq worker */
+	flush_kthread_worker(&itv->irq_worker);
+	kthread_stop(itv->irq_worker_task);
 
 	ivtv_streams_cleanup(itv, 1);
 	ivtv_udma_free(itv);

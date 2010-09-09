@@ -733,7 +733,7 @@ static u32 msrs_to_save[] = {
 	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
 	HV_X64_MSR_APIC_ASSIST_PAGE,
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
-	MSR_K6_STAR,
+	MSR_STAR,
 #ifdef CONFIG_X86_64
 	MSR_CSTAR, MSR_KERNEL_GS_BASE, MSR_SYSCALL_MASK, MSR_LSTAR,
 #endif
@@ -2387,7 +2387,7 @@ static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
 	if (cpu_has_xsave)
 		memcpy(guest_xsave->region,
 			&vcpu->arch.guest_fpu.state->xsave,
-			sizeof(struct xsave_struct));
+			xstate_size);
 	else {
 		memcpy(guest_xsave->region,
 			&vcpu->arch.guest_fpu.state->fxsave,
@@ -2405,7 +2405,7 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 
 	if (cpu_has_xsave)
 		memcpy(&vcpu->arch.guest_fpu.state->xsave,
-			guest_xsave->region, sizeof(struct xsave_struct));
+			guest_xsave->region, xstate_size);
 	else {
 		if (xstate_bv & ~XSTATE_FPSSE)
 			return -EINVAL;

@@ -732,15 +732,9 @@ cifs_find_inode(struct inode *inode, void *opaque)
 	if ((inode->i_mode & S_IFMT) != (fattr->cf_mode & S_IFMT))
 		return 0;
 
-	/*
-	 * uh oh -- it's a directory. We can't use it since hardlinked dirs are
-	 * verboten. Disable serverino and return it as if it were found, the
-	 * caller can discard it, generate a uniqueid and retry the find
-	 */
-	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry)) {
+	/* if it's not a directory or has no dentries, then flag it */
+	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry))
 		fattr->cf_flags |= CIFS_FATTR_INO_COLLISION;
-		cifs_autodisable_serverino(CIFS_SB(inode->i_sb));
-	}
 
 	return 1;
 }
@@ -752,6 +746,27 @@ cifs_init_inode(struct inode *inode, void *opaque)
 
 	CIFS_I(inode)->uniqueid = fattr->cf_uniqueid;
 	return 0;
+}
+
+/*
+ * walk dentry list for an inode and report whether it has aliases that
+ * are hashed. We use this to determine if a directory inode can actually
+ * be used.
+ */
+static bool
+inode_has_hashed_dentries(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
+			spin_unlock(&dcache_lock);
+			return true;
+		}
+	}
+	spin_unlock(&dcache_lock);
+	return false;
 }
 
 /* Given fattrs, get a corresponding inode */
@@ -769,12 +784,16 @@ retry_iget5_locked:
 
 	inode = iget5_locked(sb, hash, cifs_find_inode, cifs_init_inode, fattr);
 	if (inode) {
-		/* was there a problematic inode number collision? */
+		/* was there a potentially problematic inode collision? */
 		if (fattr->cf_flags & CIFS_FATTR_INO_COLLISION) {
-			iput(inode);
-			fattr->cf_uniqueid = iunique(sb, ROOT_I);
 			fattr->cf_flags &= ~CIFS_FATTR_INO_COLLISION;
-			goto retry_iget5_locked;
+
+			if (inode_has_hashed_dentries(inode)) {
+				cifs_autodisable_serverino(CIFS_SB(sb));
+				iput(inode);
+				fattr->cf_uniqueid = iunique(sb, ROOT_I);
+				goto retry_iget5_locked;
+			}
 		}
 
 		cifs_fattr_to_inode(inode, fattr);
@@ -815,7 +834,7 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 						xid, NULL);
 
 	if (!inode)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(rc);
 
 #ifdef CONFIG_CIFS_FSCACHE
 	/* populate tcon->resource_id */
@@ -1679,26 +1698,16 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	return rc;
 }
 
-static int cifs_vmtruncate(struct inode *inode, loff_t offset)
+static void cifs_setsize(struct inode *inode, loff_t offset)
 {
 	loff_t oldsize;
-	int err;
 
 	spin_lock(&inode->i_lock);
-	err = inode_newsize_ok(inode, offset);
-	if (err) {
-		spin_unlock(&inode->i_lock);
-		goto out;
-	}
-
 	oldsize = inode->i_size;
 	i_size_write(inode, offset);
 	spin_unlock(&inode->i_lock);
+
 	truncate_pagecache(inode, oldsize, offset);
-	if (inode->i_op->truncate)
-		inode->i_op->truncate(inode);
-out:
-	return err;
 }
 
 static int
@@ -1771,7 +1780,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 
 	if (rc == 0) {
 		cifsInode->server_eof = attrs->ia_size;
-		rc = cifs_vmtruncate(inode, attrs->ia_size);
+		cifs_setsize(inode, attrs->ia_size);
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
 
@@ -1796,14 +1805,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 
 	xid = GetXid();
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
-		/* check if we have permission to change attrs */
-		rc = inode_change_ok(inode, attrs);
-		if (rc < 0)
-			goto out;
-		else
-			rc = 0;
-	}
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		attrs->ia_valid |= ATTR_FORCE;
+
+	rc = inode_change_ok(inode, attrs);
+	if (rc < 0)
+		goto out;
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -1889,18 +1896,24 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 
-	if (!rc) {
-		rc = inode_setattr(inode, attrs);
+	if (rc)
+		goto out;
 
-		/* force revalidate when any of these times are set since some
-		   of the fs types (eg ext3, fat) do not have fine enough
-		   time granularity to match protocol, and we do not have a
-		   a way (yet) to query the server fs's time granularity (and
-		   whether it rounds times down).
-		*/
-		if (!rc && (attrs->ia_valid & (ATTR_MTIME | ATTR_CTIME)))
-			cifsInode->time = 0;
-	}
+	if ((attrs->ia_valid & ATTR_SIZE) &&
+	    attrs->ia_size != i_size_read(inode))
+		truncate_setsize(inode, attrs->ia_size);
+
+	setattr_copy(inode, attrs);
+	mark_inode_dirty(inode);
+
+	/* force revalidate when any of these times are set since some
+	   of the fs types (eg ext3, fat) do not have fine enough
+	   time granularity to match protocol, and we do not have a
+	   a way (yet) to query the server fs's time granularity (and
+	   whether it rounds times down).
+	*/
+	if (attrs->ia_valid & (ATTR_MTIME | ATTR_CTIME))
+		cifsInode->time = 0;
 out:
 	kfree(args);
 	kfree(full_path);
@@ -1925,14 +1938,13 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	cFYI(1, "setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid);
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
-		/* check if we have permission to change attrs */
-		rc = inode_change_ok(inode, attrs);
-		if (rc < 0) {
-			FreeXid(xid);
-			return rc;
-		} else
-			rc = 0;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		attrs->ia_valid |= ATTR_FORCE;
+
+	rc = inode_change_ok(inode, attrs);
+	if (rc < 0) {
+		FreeXid(xid);
+		return rc;
 	}
 
 	full_path = build_path_from_dentry(direntry);
@@ -2040,8 +2052,17 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	/* do not need local check to inode_check_ok since the server does
 	   that */
-	if (!rc)
-		rc = inode_setattr(inode, attrs);
+	if (rc)
+		goto cifs_setattr_exit;
+
+	if ((attrs->ia_valid & ATTR_SIZE) &&
+	    attrs->ia_size != i_size_read(inode))
+		truncate_setsize(inode, attrs->ia_size);
+
+	setattr_copy(inode, attrs);
+	mark_inode_dirty(inode);
+	return 0;
+
 cifs_setattr_exit:
 	kfree(full_path);
 	FreeXid(xid);

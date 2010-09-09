@@ -1150,7 +1150,7 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 /**
  * Module Initialization Routine
  */
-static int __init crypto4xx_probe(struct of_device *ofdev,
+static int __init crypto4xx_probe(struct platform_device *ofdev,
 				  const struct of_device_id *match)
 {
 	int rc;
@@ -1258,7 +1258,7 @@ err_alloc_dev:
 	return rc;
 }
 
-static int __exit crypto4xx_remove(struct of_device *ofdev)
+static int __exit crypto4xx_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);

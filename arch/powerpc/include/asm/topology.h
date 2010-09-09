@@ -41,8 +41,6 @@ static inline int cpu_to_node(int cpu)
 			       cpu_all_mask :				\
 			       node_to_cpumask_map[node])
 
-int of_node_to_nid(struct device_node *device);
-
 struct pci_bus;
 #ifdef CONFIG_PCI
 extern int pcibus_to_node(struct pci_bus *bus);
@@ -87,17 +85,15 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 	.balance_interval	= 1,					\
 }
 
+extern int __node_distance(int, int);
+#define node_distance(a, b) __node_distance(a, b)
+
 extern void __init dump_numa_cpu_topology(void);
 
 extern int sysfs_add_device_to_node(struct sys_device *dev, int nid);
 extern void sysfs_remove_device_from_node(struct sys_device *dev, int nid);
 
 #else
-
-static inline int of_node_to_nid(struct device_node *device)
-{
-	return 0;
-}
 
 static inline void dump_numa_cpu_topology(void) {}
 

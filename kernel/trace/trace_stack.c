@@ -110,12 +110,12 @@ static inline void check_stack(void)
 static void
 stack_trace_call(unsigned long ip, unsigned long parent_ip)
 {
-	int cpu, resched;
+	int cpu;
 
 	if (unlikely(!ftrace_enabled || stack_trace_disabled))
 		return;
 
-	resched = ftrace_preempt_disable();
+	preempt_disable_notrace();
 
 	cpu = raw_smp_processor_id();
 	/* no atomic needed, we only modify this variable by this cpu */
@@ -127,7 +127,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
  out:
 	per_cpu(trace_active, cpu)--;
 	/* prevent recursion in schedule */
-	ftrace_preempt_enable(resched);
+	preempt_enable_notrace();
 }
 
 static struct ftrace_ops trace_ops __read_mostly =
@@ -249,7 +249,7 @@ static int trace_lookup_stack(struct seq_file *m, long i)
 {
 	unsigned long addr = stack_dump_trace[i];
 
-	return seq_printf(m, "%pF\n", (void *)addr);
+	return seq_printf(m, "%pS\n", (void *)addr);
 }
 
 static void print_disabled(struct seq_file *m)

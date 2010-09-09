@@ -209,6 +209,7 @@ enum {
 							link offline */
 	AHCI_HFLAG_NO_SNTF		= (1 << 12), /* no sntf */
 	AHCI_HFLAG_NO_FPDMA_AA		= (1 << 13), /* no FPDMA AA */
+	AHCI_HFLAG_YES_FBS		= (1 << 14), /* force FBS cap on */
 
 	/* ap->flags bits */
 

@@ -89,10 +89,12 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 #include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
 #if defined(CONFIG_OF)
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #endif
@@ -465,7 +467,7 @@ struct request *ace_get_next_request(struct request_queue * q)
 	struct request *req;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		if (blk_fs_request(req))
+		if (req->cmd_type == REQ_TYPE_FS)
 			break;
 		blk_start_request(req);
 		__blk_end_request_all(req, -EIO);
@@ -901,11 +903,14 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_open() users=%i\n", ace->users + 1);
 
+	lock_kernel();
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
 	check_disk_change(bdev);
+	unlock_kernel();
+
 	return 0;
 }
 
@@ -917,6 +922,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_release() users=%i\n", ace->users - 1);
 
+	lock_kernel();
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users--;
 	if (ace->users == 0) {
@@ -924,6 +930,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 		ace_out(ace, ACE_CTRL, val & ~ACE_CTRL_LOCKREQ);
 	}
 	spin_unlock_irqrestore(&ace->lock, flags);
+	unlock_kernel();
 	return 0;
 }
 
@@ -1188,7 +1195,7 @@ static struct platform_driver ace_platform_driver = {
 
 #if defined(CONFIG_OF)
 static int __devinit
-ace_of_probe(struct of_device *op, const struct of_device_id *match)
+ace_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource res;
 	resource_size_t physaddr;
@@ -1220,7 +1227,7 @@ ace_of_probe(struct of_device *op, const struct of_device_id *match)
 	return ace_alloc(&op->dev, id ? *id : 0, physaddr, irq, bus_width);
 }
 
-static int __devexit ace_of_remove(struct of_device *op)
+static int __devexit ace_of_remove(struct platform_device *op)
 {
 	ace_free(&op->dev);
 	return 0;

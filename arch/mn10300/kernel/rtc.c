@@ -20,9 +20,6 @@
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
-/* last time the RTC got updated */
-static long last_rtc_update;
-
 /* time for RTC to update itself in ioclks */
 static unsigned long mn10300_rtc_update_period;
 
@@ -110,7 +107,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 
 int update_persistent_clock(struct timespec now)
 {
-	return set_rtc_mms(now.tv_sec);
+	return set_rtc_mmss(now.tv_sec);
 }
 
 /*

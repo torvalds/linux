@@ -88,7 +88,6 @@ struct nfs4_delegation {
 	struct nfs4_client	*dl_client;
 	struct nfs4_file	*dl_file;
 	struct file_lock	*dl_flock;
-	struct file		*dl_vfs_file;
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
@@ -342,11 +341,49 @@ struct nfs4_file {
 	struct list_head        fi_hash;    /* hash by "struct inode *" */
 	struct list_head        fi_stateids;
 	struct list_head	fi_delegations;
+	/* One each for O_RDONLY, O_WRONLY, O_RDWR: */
+	struct file *		fi_fds[3];
+	/* One each for O_RDONLY, O_WRONLY: */
+	atomic_t		fi_access[2];
+	/*
+	 * Each open stateid contributes 1 to either fi_readers or
+	 * fi_writers, or both, depending on the open mode.  A
+	 * delegation also takes an fi_readers reference.  Lock
+	 * stateid's take none.
+	 */
+	atomic_t		fi_readers;
+	atomic_t		fi_writers;
 	struct inode		*fi_inode;
 	u32                     fi_id;      /* used with stateowner->so_id 
 					     * for stateid_hashtbl hash */
 	bool			fi_had_conflict;
 };
+
+/* XXX: for first cut may fall back on returning file that doesn't work
+ * at all? */
+static inline struct file *find_writeable_file(struct nfs4_file *f)
+{
+	if (f->fi_fds[O_WRONLY])
+		return f->fi_fds[O_WRONLY];
+	return f->fi_fds[O_RDWR];
+}
+
+static inline struct file *find_readable_file(struct nfs4_file *f)
+{
+	if (f->fi_fds[O_RDONLY])
+		return f->fi_fds[O_RDONLY];
+	return f->fi_fds[O_RDWR];
+}
+
+static inline struct file *find_any_file(struct nfs4_file *f)
+{
+	if (f->fi_fds[O_RDWR])
+		return f->fi_fds[O_RDWR];
+	else if (f->fi_fds[O_WRONLY])
+		return f->fi_fds[O_WRONLY];
+	else
+		return f->fi_fds[O_RDONLY];
+}
 
 /*
 * nfs4_stateid can either be an open stateid or (eventually) a lock stateid
@@ -373,7 +410,6 @@ struct nfs4_stateid {
 	struct nfs4_stateowner      * st_stateowner;
 	struct nfs4_file            * st_file;
 	stateid_t                     st_stateid;
-	struct file                 * st_vfs_file;
 	unsigned long                 st_access_bmap;
 	unsigned long                 st_deny_bmap;
 	struct nfs4_stateid         * st_openstp;

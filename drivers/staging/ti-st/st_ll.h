@@ -41,6 +41,7 @@
 #define ST_LL_AWAKE_TO_ASLEEP      3
 #define ST_LL_INVALID		   4
 
+/* different PM notifications coming from chip */
 #define LL_SLEEP_IND	0x30
 #define LL_SLEEP_ACK	0x31
 #define LL_WAKE_UP_IND	0x32
@@ -50,13 +51,19 @@
 long st_ll_init(struct st_data_s *);
 long st_ll_deinit(struct st_data_s *);
 
-/* enable/disable ST LL along with KIM start/stop
+/**
+ * enable/disable ST LL along with KIM start/stop
  * called by ST Core
  */
 void st_ll_enable(struct st_data_s *);
 void st_ll_disable(struct st_data_s *);
 
+/**
+ * various funcs used by ST core to set/get the various PM states
+ * of the chip.
+ */
 unsigned long st_ll_getstate(struct st_data_s *);
 unsigned long st_ll_sleep_state(struct st_data_s *, unsigned char);
 void st_ll_wakeup(struct st_data_s *);
+
 #endif /* ST_LL_H */

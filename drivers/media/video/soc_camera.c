@@ -779,9 +779,12 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	ret = ici->ops->get_crop(icd, &current_crop);
 
 	/* Prohibit window size change with initialised buffers */
-	if (icf->vb_vidq.bufs[0] && !ret &&
-	    (a->c.width != current_crop.c.width ||
-	     a->c.height != current_crop.c.height)) {
+	if (ret < 0) {
+		dev_err(&icd->dev,
+			"S_CROP denied: getting current crop failed\n");
+	} else if (icf->vb_vidq.bufs[0] &&
+		   (a->c.width != current_crop.c.width ||
+		    a->c.height != current_crop.c.height)) {
 		dev_err(&icd->dev,
 			"S_CROP denied: queue initialised and sizes differ\n");
 		ret = -EBUSY;

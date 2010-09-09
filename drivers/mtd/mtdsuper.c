@@ -1,6 +1,8 @@
 /* MTD-based superblock management
  *
  * Copyright © 2001-2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright © 2001-2010 David Woodhouse <dwmw2@infradead.org>
+ *
  * Written by:  David Howells <dhowells@redhat.com>
  *              David Woodhouse <dwmw2@infradead.org>
  *

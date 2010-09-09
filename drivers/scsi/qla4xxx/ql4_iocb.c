@@ -19,7 +19,7 @@ qla4xxx_space_in_req_ring(struct scsi_qla_host *ha, uint16_t req_cnt)
 
 	/* Calculate number of free request entries. */
 	if ((req_cnt + 2) >= ha->req_q_count) {
-		cnt = (uint16_t) le32_to_cpu(ha->shadow_regs->req_q_out);
+		cnt = (uint16_t) ha->isp_ops->rd_shdw_req_q_out(ha);
 		if (ha->request_in < cnt)
 			ha->req_q_count = cnt - ha->request_in;
 		else

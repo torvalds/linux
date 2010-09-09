@@ -55,12 +55,12 @@ struct sd {
 	u8 effect;
 
 	u8 sensor;
-enum {
+};
+enum sensors {
 	SENSOR_OM6802,
 	SENSOR_OTHER,
 	SENSOR_TAS5130A,
 	SENSOR_LT168G,		/* must verify if this is the actual model */
-} sensors;
 };
 
 /* V4L2 controls supported by the driver */

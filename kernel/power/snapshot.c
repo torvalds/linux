@@ -1086,6 +1086,7 @@ void swsusp_free(void)
 	buffer = NULL;
 	alloc_normal = 0;
 	alloc_highmem = 0;
+	hibernation_thaw_swap();
 }
 
 /* Helper functions used for the shrinking of memory. */

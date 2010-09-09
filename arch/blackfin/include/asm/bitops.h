@@ -22,7 +22,9 @@
 
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/ffs.h>
+#include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/lock.h>
+
 #include <asm-generic/bitops/ext2-non-atomic.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 #include <asm-generic/bitops/minix.h>
@@ -115,29 +117,30 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
  * of bits set) of a N-bit word
  */
 
-static inline unsigned int hweight32(unsigned int w)
+static inline unsigned int __arch_hweight32(unsigned int w)
 {
 	unsigned int res;
 
-	__asm__ ("%0.l = ONES %0;"
+	__asm__ ("%0.l = ONES %1;"
 		"%0 = %0.l (Z);"
 		: "=d" (res) : "d" (w));
 	return res;
 }
 
-static inline unsigned int hweight64(__u64 w)
+static inline unsigned int __arch_hweight64(__u64 w)
 {
-	return hweight32((unsigned int)(w >> 32)) + hweight32((unsigned int)w);
+	return __arch_hweight32((unsigned int)(w >> 32)) +
+	       __arch_hweight32((unsigned int)w);
 }
 
-static inline unsigned int hweight16(unsigned int w)
+static inline unsigned int __arch_hweight16(unsigned int w)
 {
-	return hweight32(w & 0xffff);
+	return __arch_hweight32(w & 0xffff);
 }
 
-static inline unsigned int hweight8(unsigned int w)
+static inline unsigned int __arch_hweight8(unsigned int w)
 {
-	return hweight32(w & 0xff);
+	return __arch_hweight32(w & 0xff);
 }
 
 #endif				/* _BLACKFIN_BITOPS_H */

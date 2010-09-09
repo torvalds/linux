@@ -122,9 +122,9 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
-static int gfar_probe(struct of_device *ofdev,
+static int gfar_probe(struct platform_device *ofdev,
 		const struct of_device_id *match);
-static int gfar_remove(struct of_device *ofdev);
+static int gfar_remove(struct platform_device *ofdev);
 static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
@@ -605,7 +605,7 @@ static int gfar_parse_group(struct device_node *np,
 	return 0;
 }
 
-static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
+static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 {
 	const char *model;
 	const char *ctype;
@@ -959,7 +959,7 @@ static void gfar_detect_errata(struct gfar_private *priv)
 
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
-static int gfar_probe(struct of_device *ofdev,
+static int gfar_probe(struct platform_device *ofdev,
 		const struct of_device_id *match)
 {
 	u32 tempval;
@@ -1238,7 +1238,7 @@ register_fail:
 	return err;
 }
 
-static int gfar_remove(struct of_device *ofdev)
+static int gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = dev_get_drvdata(&ofdev->dev);
 

@@ -564,7 +564,7 @@ static void cxacru_timeout_kill(unsigned long data)
 }
 
 static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
-				 int* actual_length)
+				 int *actual_length)
 {
 	struct timer_list timer;
 
@@ -952,7 +952,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 		put_unaligned(cpu_to_le32(addr), (__le32 *)(buf + offb));
 		offb += 4;
 		addr += l;
-		if(l)
+		if (l)
 			memcpy(buf + offb, data + offd, l);
 		if (l < stride)
 			memset(buf + offb + l, 0, stride - l);
@@ -967,7 +967,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 			}
 			offb = 0;
 		}
-	} while(offd < size);
+	} while (offd < size);
 	dbg("sent fw %#x", fw);
 
 	ret = 0;
@@ -1043,8 +1043,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	if (instance->modem_type->boot_rom_patch) {
 		val = cpu_to_le32(BR_ADDR);
 		ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, BR_STACK_ADDR, (u8 *) &val, 4);
-	}
-	else {
+	} else {
 		ret = cxacru_fw(usb_dev, FW_GOTO_MEM, 0x0, 0x0, FW_ADDR, NULL, 0);
 	}
 	if (ret) {
@@ -1068,7 +1067,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 }
 
 static int cxacru_find_firmware(struct cxacru_data *instance,
-				char* phase, const struct firmware **fw_p)
+				char *phase, const struct firmware **fw_p)
 {
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct device *dev = &usbatm->usb_intf->dev;
@@ -1128,6 +1127,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 {
 	struct cxacru_data *instance;
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	struct usb_host_endpoint *cmd_ep = usb_dev->ep_in[CXACRU_EP_CMD];
 	int ret;
 
 	/* instance init */
@@ -1172,15 +1172,34 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 		goto fail;
 	}
 
-	usb_fill_int_urb(instance->rcv_urb,
+	if (!cmd_ep) {
+		dbg("cxacru_bind: no command endpoint");
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	if ((cmd_ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			== USB_ENDPOINT_XFER_INT) {
+		usb_fill_int_urb(instance->rcv_urb,
 			usb_dev, usb_rcvintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->rcv_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->rcv_done, 1);
 
-	usb_fill_int_urb(instance->snd_urb,
+		usb_fill_int_urb(instance->snd_urb,
 			usb_dev, usb_sndintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->snd_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->snd_done, 4);
+	} else {
+		usb_fill_bulk_urb(instance->rcv_urb,
+			usb_dev, usb_rcvbulkpipe(usb_dev, CXACRU_EP_CMD),
+			instance->rcv_buf, PAGE_SIZE,
+			cxacru_blocking_completion, &instance->rcv_done);
+
+		usb_fill_bulk_urb(instance->snd_urb,
+			usb_dev, usb_sndbulkpipe(usb_dev, CXACRU_EP_CMD),
+			instance->snd_buf, PAGE_SIZE,
+			cxacru_blocking_completion, &instance->snd_done);
+	}
 
 	mutex_init(&instance->cm_serialize);
 

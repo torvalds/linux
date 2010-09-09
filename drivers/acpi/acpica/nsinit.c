@@ -103,8 +103,8 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nInitialized %hd/%hd Regions %hd/%hd Fields %hd/%hd "
-			      "Buffers %hd/%hd Packages (%hd nodes)\n",
+			      "\nInitialized %u/%u Regions %u/%u Fields %u/%u "
+			      "Buffers %u/%u Packages (%u nodes)\n",
 			      info.op_region_init, info.op_region_count,
 			      info.field_init, info.field_count,
 			      info.buffer_init, info.buffer_count,
@@ -112,9 +112,9 @@ acpi_status acpi_ns_initialize_objects(void)
 			      info.object_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "%hd Control Methods found\n", info.method_count));
+			  "%u Control Methods found\n", info.method_count));
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "%hd Op Regions found\n", info.op_region_count));
+			  "%u Op Regions found\n", info.op_region_count));
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -208,8 +208,8 @@ acpi_status acpi_ns_initialize_devices(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nExecuted %hd _INI methods requiring %hd _STA executions "
-			      "(examined %hd objects)\n",
+			      "\nExecuted %u _INI methods requiring %u _STA executions "
+			      "(examined %u objects)\n",
 			      info.num_INI, info.num_STA, info.device_count));
 
 	return_ACPI_STATUS(status);
@@ -410,7 +410,7 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 	 * The only _INI methods that we care about are those that are
 	 * present under Device, Processor, and Thermal objects.
 	 */
-	parent_node = acpi_ns_get_parent_node(node);
+	parent_node = node->parent;
 	switch (parent_node->type) {
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_PROCESSOR:
@@ -420,7 +420,7 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 
 		while (parent_node) {
 			parent_node->flags |= ANOBJ_SUBTREE_HAS_INI;
-			parent_node = acpi_ns_get_parent_node(parent_node);
+			parent_node = parent_node->parent;
 		}
 		break;
 

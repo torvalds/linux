@@ -23,6 +23,7 @@ extern int perf_config(config_fn_t fn, void *);
 extern int perf_config_int(const char *, const char *);
 extern int perf_config_bool(const char *, const char *);
 extern int config_error_nonbool(const char *);
+extern const char *perf_config_dirname(const char *, const char *);
 
 /* pager.c */
 extern void setup_pager(void);

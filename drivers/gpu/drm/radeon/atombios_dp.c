@@ -296,7 +296,7 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 		u8 this_v = dp_get_adjust_request_voltage(link_status, lane);
 		u8 this_p = dp_get_adjust_request_pre_emphasis(link_status, lane);
 
-		DRM_DEBUG("requested signal parameters: lane %d voltage %s pre_emph %s\n",
+		DRM_DEBUG_KMS("requested signal parameters: lane %d voltage %s pre_emph %s\n",
 			  lane,
 			  voltage_names[this_v >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
 			  pre_emph_names[this_p >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
@@ -313,7 +313,7 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 	if (p >= dp_pre_emphasis_max(v))
 		p = dp_pre_emphasis_max(v) | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-	DRM_DEBUG("using signal parameters: voltage %s pre_emph %s\n",
+	DRM_DEBUG_KMS("using signal parameters: voltage %s pre_emph %s\n",
 		  voltage_names[(v & DP_TRAIN_VOLTAGE_SWING_MASK) >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
 		  pre_emph_names[(p & DP_TRAIN_PRE_EMPHASIS_MASK) >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
 
@@ -358,7 +358,7 @@ retry:
 	if (args.v1.ucReplyStatus && !args.v1.ucDataOutLen) {
 		if (args.v1.ucReplyStatus == 0x20 && retry_count++ < 10)
 			goto retry;
-		DRM_DEBUG("failed to get auxch %02x%02x %02x %02x 0x%02x %02x after %d retries\n",
+		DRM_DEBUG_KMS("failed to get auxch %02x%02x %02x %02x 0x%02x %02x after %d retries\n",
 			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
 			  chan->rec.i2c_id, args.v1.ucReplyStatus, retry_count);
 		return false;
@@ -461,10 +461,10 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 		memcpy(dig_connector->dpcd, msg, 8);
 		{
 			int i;
-			DRM_DEBUG("DPCD: ");
+			DRM_DEBUG_KMS("DPCD: ");
 			for (i = 0; i < 8; i++)
-				DRM_DEBUG("%02x ", msg[i]);
-			DRM_DEBUG("\n");
+				DRM_DEBUG_KMS("%02x ", msg[i]);
+			DRM_DEBUG_KMS("\n");
 		}
 		return true;
 	}
@@ -512,7 +512,7 @@ static bool atom_dp_get_link_status(struct radeon_connector *radeon_connector,
 		return false;
 	}
 
-	DRM_DEBUG("link status %02x %02x %02x %02x %02x %02x\n",
+	DRM_DEBUG_KMS("link status %02x %02x %02x %02x %02x %02x\n",
 		  link_status[0], link_status[1], link_status[2],
 		  link_status[3], link_status[4], link_status[5]);
 	return true;
@@ -610,7 +610,7 @@ void dp_link_train(struct drm_encoder *encoder,
 		enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER;
 	else
 		enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER;
-	if (dig_connector->linkb)
+	if (dig->linkb)
 		enc_id |= ATOM_DP_CONFIG_LINK_B;
 	else
 		enc_id |= ATOM_DP_CONFIG_LINK_A;
@@ -695,7 +695,7 @@ void dp_link_train(struct drm_encoder *encoder,
 	if (!clock_recovery)
 		DRM_ERROR("clock recovery failed\n");
 	else
-		DRM_DEBUG("clock recovery at voltage %d pre-emphasis %d\n",
+		DRM_DEBUG_KMS("clock recovery at voltage %d pre-emphasis %d\n",
 			  train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
 			  (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK) >>
 			  DP_TRAIN_PRE_EMPHASIS_SHIFT);
@@ -739,7 +739,7 @@ void dp_link_train(struct drm_encoder *encoder,
 	if (!channel_eq)
 		DRM_ERROR("channel eq failed\n");
 	else
-		DRM_DEBUG("channel eq at voltage %d pre-emphasis %d\n",
+		DRM_DEBUG_KMS("channel eq at voltage %d pre-emphasis %d\n",
 			  train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
 			  (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT);

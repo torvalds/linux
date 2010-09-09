@@ -811,6 +811,38 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 	return len;
 }
 
+static int srp_post_recv(struct srp_target_port *target)
+{
+	unsigned long flags;
+	struct srp_iu *iu;
+	struct ib_sge list;
+	struct ib_recv_wr wr, *bad_wr;
+	unsigned int next;
+	int ret;
+
+	spin_lock_irqsave(target->scsi_host->host_lock, flags);
+
+	next	 = target->rx_head & (SRP_RQ_SIZE - 1);
+	wr.wr_id = next;
+	iu	 = target->rx_ring[next];
+
+	list.addr   = iu->dma;
+	list.length = iu->size;
+	list.lkey   = target->srp_host->srp_dev->mr->lkey;
+
+	wr.next     = NULL;
+	wr.sg_list  = &list;
+	wr.num_sge  = 1;
+
+	ret = ib_post_recv(target->qp, &wr, &bad_wr);
+	if (!ret)
+		++target->rx_head;
+
+	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
+
+	return ret;
+}
+
 static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 {
 	struct srp_request *req;
@@ -868,6 +900,7 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 {
 	struct ib_device *dev;
 	struct srp_iu *iu;
+	int res;
 	u8 opcode;
 
 	iu = target->rx_ring[wc->wr_id];
@@ -879,21 +912,10 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 	opcode = *(u8 *) iu->buf;
 
 	if (0) {
-		int i;
-
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "recv completion, opcode 0x%02x\n", opcode);
-
-		for (i = 0; i < wc->byte_len; ++i) {
-			if (i % 8 == 0)
-				printk(KERN_ERR "  [%02x] ", i);
-			printk(" %02x", ((u8 *) iu->buf)[i]);
-			if ((i + 1) % 8 == 0)
-				printk("\n");
-		}
-
-		if (wc->byte_len % 8)
-			printk("\n");
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 8, 1,
+			       iu->buf, wc->byte_len, true);
 	}
 
 	switch (opcode) {
@@ -915,6 +937,11 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 
 	ib_dma_sync_single_for_device(dev, iu->dma, target->max_ti_iu_len,
 				      DMA_FROM_DEVICE);
+
+	res = srp_post_recv(target);
+	if (res != 0)
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "Recv failed with error code %d\n", res);
 }
 
 static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
@@ -952,45 +979,6 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 
 		++target->tx_tail;
 	}
-}
-
-static int __srp_post_recv(struct srp_target_port *target)
-{
-	struct srp_iu *iu;
-	struct ib_sge list;
-	struct ib_recv_wr wr, *bad_wr;
-	unsigned int next;
-	int ret;
-
-	next 	 = target->rx_head & (SRP_RQ_SIZE - 1);
-	wr.wr_id = next;
-	iu 	 = target->rx_ring[next];
-
-	list.addr   = iu->dma;
-	list.length = iu->size;
-	list.lkey   = target->srp_host->srp_dev->mr->lkey;
-
-	wr.next     = NULL;
-	wr.sg_list  = &list;
-	wr.num_sge  = 1;
-
-	ret = ib_post_recv(target->qp, &wr, &bad_wr);
-	if (!ret)
-		++target->rx_head;
-
-	return ret;
-}
-
-static int srp_post_recv(struct srp_target_port *target)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(target->scsi_host->host_lock, flags);
-	ret = __srp_post_recv(target);
-	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
-
-	return ret;
 }
 
 /*
@@ -1100,11 +1088,6 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "Failed to map data\n");
 		goto err;
-	}
-
-	if (__srp_post_recv(target)) {
-		shost_printk(KERN_ERR, target->scsi_host, PFX "Recv failed\n");
-		goto err_unmap;
 	}
 
 	ib_dma_sync_single_for_device(dev, iu->dma, srp_max_iu_len,
@@ -1249,6 +1232,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	int attr_mask = 0;
 	int comp = 0;
 	int opcode = 0;
+	int i;
 
 	switch (event->event) {
 	case IB_CM_REQ_ERROR:
@@ -1298,7 +1282,11 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		if (target->status)
 			break;
 
-		target->status = srp_post_recv(target);
+		for (i = 0; i < SRP_RQ_SIZE; i++) {
+			target->status = srp_post_recv(target);
+			if (target->status)
+				break;
+		}
 		if (target->status)
 			break;
 
@@ -1564,6 +1552,18 @@ static ssize_t show_orig_dgid(struct device *dev,
 	return sprintf(buf, "%pI6\n", target->orig_dgid);
 }
 
+static ssize_t show_req_lim(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
+
+	if (target->state == SRP_TARGET_DEAD ||
+	    target->state == SRP_TARGET_REMOVED)
+		return -ENODEV;
+
+	return sprintf(buf, "%d\n", target->req_lim);
+}
+
 static ssize_t show_zero_req_lim(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -1598,6 +1598,7 @@ static DEVICE_ATTR(service_id,	    S_IRUGO, show_service_id,	   NULL);
 static DEVICE_ATTR(pkey,	    S_IRUGO, show_pkey,		   NULL);
 static DEVICE_ATTR(dgid,	    S_IRUGO, show_dgid,		   NULL);
 static DEVICE_ATTR(orig_dgid,	    S_IRUGO, show_orig_dgid,	   NULL);
+static DEVICE_ATTR(req_lim,         S_IRUGO, show_req_lim,         NULL);
 static DEVICE_ATTR(zero_req_lim,    S_IRUGO, show_zero_req_lim,	   NULL);
 static DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,   NULL);
 static DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
@@ -1609,6 +1610,7 @@ static struct device_attribute *srp_host_attrs[] = {
 	&dev_attr_pkey,
 	&dev_attr_dgid,
 	&dev_attr_orig_dgid,
+	&dev_attr_req_lim,
 	&dev_attr_zero_req_lim,
 	&dev_attr_local_ib_port,
 	&dev_attr_local_ib_device,

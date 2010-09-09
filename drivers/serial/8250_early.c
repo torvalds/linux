@@ -19,9 +19,11 @@
  * The user can specify the device directly, e.g.,
  *	earlycon=uart8250,io,0x3f8,9600n8
  *	earlycon=uart8250,mmio,0xff5e0000,115200n8
+ *	earlycon=uart8250,mmio32,0xff5e0000,115200n8
  * or
  *	console=uart8250,io,0x3f8,9600n8
  *	console=uart8250,mmio,0xff5e0000,115200n8
+ *	console=uart8250,mmio32,0xff5e0000,115200n8
  */
 
 #include <linux/tty.h>
@@ -48,18 +50,31 @@ static struct early_serial8250_device early_device;
 
 static unsigned int __init serial_in(struct uart_port *port, int offset)
 {
-	if (port->iotype == UPIO_MEM)
+	switch (port->iotype) {
+	case UPIO_MEM:
 		return readb(port->membase + offset);
-	else
+	case UPIO_MEM32:
+		return readl(port->membase + (offset << 2));
+	case UPIO_PORT:
 		return inb(port->iobase + offset);
+	default:
+		return 0;
+	}
 }
 
 static void __init serial_out(struct uart_port *port, int offset, int value)
 {
-	if (port->iotype == UPIO_MEM)
+	switch (port->iotype) {
+	case UPIO_MEM:
 		writeb(value, port->membase + offset);
-	else
+		break;
+	case UPIO_MEM32:
+		writel(value, port->membase + (offset << 2));
+		break;
+	case UPIO_PORT:
 		outb(value, port->iobase + offset);
+		break;
+	}
 }
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
@@ -137,15 +152,21 @@ static int __init parse_options(struct early_serial8250_device *device,
 								char *options)
 {
 	struct uart_port *port = &device->port;
-	int mmio, length;
+	int mmio, mmio32, length;
 
 	if (!options)
 		return -ENODEV;
 
 	port->uartclk = BASE_BAUD * 16;
-	if (!strncmp(options, "mmio,", 5)) {
-		port->iotype = UPIO_MEM;
-		port->mapbase = simple_strtoul(options + 5, &options, 0);
+
+	mmio = !strncmp(options, "mmio,", 5);
+	mmio32 = !strncmp(options, "mmio32,", 7);
+	if (mmio || mmio32) {
+		port->iotype = (mmio ? UPIO_MEM : UPIO_MEM32);
+		port->mapbase = simple_strtoul(options + (mmio ? 5 : 7),
+					       &options, 0);
+		if (mmio32)
+			port->regshift = 2;
 #ifdef CONFIG_FIX_EARLYCON_MEM
 		set_fixmap_nocache(FIX_EARLYCON_MEM_BASE,
 					port->mapbase & PAGE_MASK);
@@ -157,11 +178,10 @@ static int __init parse_options(struct early_serial8250_device *device,
 		if (!port->membase) {
 			printk(KERN_ERR "%s: Couldn't ioremap 0x%llx\n",
 				__func__,
-			       (unsigned long long)port->mapbase);
+			       (unsigned long long) port->mapbase);
 			return -ENOMEM;
 		}
 #endif
-		mmio = 1;
 	} else if (!strncmp(options, "io,", 3)) {
 		port->iotype = UPIO_PORT;
 		port->iobase = simple_strtoul(options + 3, &options, 0);
@@ -181,11 +201,18 @@ static int __init parse_options(struct early_serial8250_device *device,
 			device->baud);
 	}
 
-	printk(KERN_INFO "Early serial console at %s 0x%llx (options '%s')\n",
-		mmio ? "MMIO" : "I/O port",
-		mmio ? (unsigned long long) port->mapbase
-		     : (unsigned long long) port->iobase,
-		device->options);
+	if (mmio || mmio32)
+		printk(KERN_INFO
+		       "Early serial console at MMIO%s 0x%llx (options '%s')\n",
+			mmio32 ? "32" : "",
+			(unsigned long long)port->mapbase,
+			device->options);
+	else
+		printk(KERN_INFO
+		      "Early serial console at I/O port 0x%lx (options '%s')\n",
+			port->iobase,
+			device->options);
+
 	return 0;
 }
 

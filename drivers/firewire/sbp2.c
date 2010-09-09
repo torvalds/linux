@@ -410,8 +410,7 @@ static void free_orb(struct kref *kref)
 
 static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 			      int tcode, int destination, int source,
-			      int generation, int speed,
-			      unsigned long long offset,
+			      int generation, unsigned long long offset,
 			      void *payload, size_t length, void *callback_data)
 {
 	struct sbp2_logical_unit *lu = callback_data;
@@ -451,7 +450,7 @@ static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 
 	if (&orb->link != &lu->orb_list) {
 		orb->callback(orb, &status);
-		kref_put(&orb->kref, free_orb);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	} else {
 		fw_error("status write for unknown orb\n");
 	}
@@ -473,20 +472,28 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	 * So this callback only sets the rcode if it hasn't already
 	 * been set and only does the cleanup if the transaction
 	 * failed and we didn't already get a status write.
+	 *
+	 * Here we treat RCODE_CANCELLED like RCODE_COMPLETE because some
+	 * OXUF936QSE firmwares occasionally respond after Split_Timeout and
+	 * complete the ORB just fine.  Note, we also get RCODE_CANCELLED
+	 * from sbp2_cancel_orbs() if fw_cancel_transaction() == 0.
 	 */
 	spin_lock_irqsave(&card->lock, flags);
 
 	if (orb->rcode == -1)
 		orb->rcode = rcode;
-	if (orb->rcode != RCODE_COMPLETE) {
+
+	if (orb->rcode != RCODE_COMPLETE && orb->rcode != RCODE_CANCELLED) {
 		list_del(&orb->link);
 		spin_unlock_irqrestore(&card->lock, flags);
+
 		orb->callback(orb, NULL);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	} else {
 		spin_unlock_irqrestore(&card->lock, flags);
 	}
 
-	kref_put(&orb->kref, free_orb);
+	kref_put(&orb->kref, free_orb); /* transaction callback reference */
 }
 
 static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
@@ -502,14 +509,12 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 	list_add_tail(&orb->link, &lu->orb_list);
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
-	/* Take a ref for the orb list and for the transaction callback. */
-	kref_get(&orb->kref);
-	kref_get(&orb->kref);
+	kref_get(&orb->kref); /* transaction callback reference */
+	kref_get(&orb->kref); /* orb callback reference */
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation, device->max_speed, offset,
-			&orb->pointer, sizeof(orb->pointer),
-			complete_transaction, orb);
+			&orb->pointer, 8, complete_transaction, orb);
 }
 
 static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
@@ -527,11 +532,11 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 
 	list_for_each_entry_safe(orb, next, &list, link) {
 		retval = 0;
-		if (fw_cancel_transaction(device->card, &orb->t) == 0)
-			continue;
+		fw_cancel_transaction(device->card, &orb->t);
 
 		orb->rcode = RCODE_CANCELLED;
 		orb->callback(orb, NULL);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	}
 
 	return retval;
@@ -654,7 +659,7 @@ static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
 			   lu->tgt->node_id, lu->generation, device->max_speed,
 			   lu->command_block_agent_address + SBP2_AGENT_RESET,
-			   &d, sizeof(d));
+			   &d, 4);
 }
 
 static void complete_agent_reset_write_no_wait(struct fw_card *card,
@@ -676,7 +681,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&d, sizeof(d), complete_agent_reset_write_no_wait, t);
+			&d, 4, complete_agent_reset_write_no_wait, t);
 }
 
 static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
@@ -866,8 +871,7 @@ static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
 			   lu->tgt->node_id, lu->generation, device->max_speed,
-			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT,
-			   &d, sizeof(d));
+			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &d, 4);
 }
 
 static void sbp2_reconnect(struct work_struct *work);

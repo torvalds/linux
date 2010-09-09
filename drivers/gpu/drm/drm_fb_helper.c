@@ -94,10 +94,11 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_conn
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 	struct drm_fb_helper_cmdline_mode *cmdline_mode;
-	struct drm_connector *connector = fb_helper_conn->connector;
+	struct drm_connector *connector;
 
 	if (!fb_helper_conn)
 		return false;
+	connector = fb_helper_conn->connector;
 
 	cmdline_mode = &fb_helper_conn->cmdline_mode;
 	if (!mode_option)
@@ -241,6 +242,80 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 
+int drm_fb_helper_debug_enter(struct fb_info *info)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct drm_crtc_helper_funcs *funcs;
+	int i;
+
+	if (list_empty(&kernel_fb_helper_list))
+		return false;
+
+	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
+		for (i = 0; i < helper->crtc_count; i++) {
+			struct drm_mode_set *mode_set =
+				&helper->crtc_info[i].mode_set;
+
+			if (!mode_set->crtc->enabled)
+				continue;
+
+			funcs =	mode_set->crtc->helper_private;
+			funcs->mode_set_base_atomic(mode_set->crtc,
+						    mode_set->fb,
+						    mode_set->x,
+						    mode_set->y);
+
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_debug_enter);
+
+/* Find the real fb for a given fb helper CRTC */
+static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc *c;
+
+	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
+		if (crtc->base.id == c->base.id)
+			return c->fb;
+	}
+
+	return NULL;
+}
+
+int drm_fb_helper_debug_leave(struct fb_info *info)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct drm_crtc *crtc;
+	struct drm_crtc_helper_funcs *funcs;
+	struct drm_framebuffer *fb;
+	int i;
+
+	for (i = 0; i < helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set = &helper->crtc_info[i].mode_set;
+		crtc = mode_set->crtc;
+		funcs = crtc->helper_private;
+		fb = drm_mode_config_fb(crtc);
+
+		if (!crtc->enabled)
+			continue;
+
+		if (!fb) {
+			DRM_ERROR("no fb to restore??\n");
+			continue;
+		}
+
+		funcs->mode_set_base_atomic(mode_set->crtc, fb, crtc->x,
+					    crtc->y);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_debug_leave);
+
 bool drm_fb_helper_force_kernel_mode(void)
 {
 	int i = 0;
@@ -295,7 +370,7 @@ static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 }
 static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
 
-static void drm_fb_helper_sysrq(int dummy1, struct tty_struct *dummy3)
+static void drm_fb_helper_sysrq(int dummy1)
 {
 	schedule_work(&drm_fb_helper_restore_work);
 }
@@ -611,7 +686,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (var->pixclock != 0)
+	if (var->pixclock != 0 || in_dbg_master())
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */

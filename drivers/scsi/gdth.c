@@ -4914,7 +4914,7 @@ static int __init gdth_eisa_probe_one(u16 eisa_slot)
 
 	error = scsi_add_host(shp, NULL);
 	if (error)
-		goto out_free_coal_stat;
+		goto out_free_ccb_phys;
 	list_add_tail(&ha->list, &gdth_instances);
 	gdth_timer_init();
 

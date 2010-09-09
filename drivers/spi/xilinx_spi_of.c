@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/of_spi.h>
@@ -37,7 +38,7 @@
 #include "xilinx_spi.h"
 
 
-static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
+static int __devinit xilinx_spi_of_probe(struct platform_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct spi_master *master;
@@ -80,13 +81,10 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 
 	dev_set_drvdata(&ofdev->dev, master);
 
-	/* Add any subnodes on the SPI bus */
-	of_register_spi_devices(master, ofdev->dev.of_node);
-
 	return 0;
 }
 
-static int __devexit xilinx_spi_remove(struct of_device *ofdev)
+static int __devexit xilinx_spi_remove(struct platform_device *ofdev)
 {
 	xilinx_spi_deinit(dev_get_drvdata(&ofdev->dev));
 	dev_set_drvdata(&ofdev->dev, 0);
@@ -95,7 +93,7 @@ static int __devexit xilinx_spi_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static int __exit xilinx_spi_of_remove(struct of_device *op)
+static int __exit xilinx_spi_of_remove(struct platform_device *op)
 {
 	return xilinx_spi_remove(op);
 }

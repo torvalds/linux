@@ -37,7 +37,6 @@
 #define UINPUT_VERSION		3
 
 #ifdef __KERNEL__
-#define UINPUT_MINOR		223
 #define UINPUT_NAME		"uinput"
 #define UINPUT_BUFFER_SIZE	16
 #define UINPUT_NUM_REQUESTS	16

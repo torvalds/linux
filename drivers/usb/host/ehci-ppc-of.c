@@ -106,7 +106,7 @@ ppc44x_enable_bmt(struct device_node *dn)
 
 
 static int __devinit
-ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
+ehci_hcd_ppc_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -192,17 +192,19 @@ ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 	}
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
-		return 0;
+	if (rv)
+		goto err_ehci;
 
+	return 0;
+
+err_ehci:
+	if (ehci->has_amcc_usb23)
+		iounmap(ehci->ohci_hcctrl_reg);
 	iounmap(hcd->regs);
 err_ioremap:
 	irq_dispose_mapping(irq);
 err_irq:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-
-	if (ehci->has_amcc_usb23)
-		iounmap(ehci->ohci_hcctrl_reg);
 err_rmr:
 	usb_put_hcd(hcd);
 
@@ -210,7 +212,7 @@ err_rmr:
 }
 
 
-static int ehci_hcd_ppc_of_remove(struct of_device *op)
+static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -253,7 +255,7 @@ static int ehci_hcd_ppc_of_remove(struct of_device *op)
 }
 
 
-static int ehci_hcd_ppc_of_shutdown(struct of_device *op)
+static int ehci_hcd_ppc_of_shutdown(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 
