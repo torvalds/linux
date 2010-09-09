@@ -11,6 +11,7 @@
 
 #define imx_spi_imx_data_entry_single(soc, type, _devid, _id, hwid, _size) \
 	{								\
+		.devid = _devid,					\
 		.id = _id,						\
 		.iobase = soc ## _ ## type ## hwid ## _BASE_ADDR,	\
 		.iosize = _size,					\
@@ -83,6 +84,6 @@ struct platform_device *__init imx_add_spi_imx(
 		},
 	};
 
-	return imx_add_platform_device("spi_imx", data->id,
+	return imx_add_platform_device(data->devid, data->id,
 			res, ARRAY_SIZE(res), pdata, sizeof(*pdata));
 }

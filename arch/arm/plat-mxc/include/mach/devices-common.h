@@ -77,6 +77,7 @@ struct platform_device *__init imx_add_mxc_nand_v21(resource_size_t iobase,
 
 #include <mach/spi.h>
 struct imx_spi_imx_data {
+	const char *devid;
 	int id;
 	resource_size_t iobase;
 	resource_size_t iosize;

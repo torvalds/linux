@@ -525,9 +525,9 @@ DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
 
 static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
-	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
-	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
-	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
+	_REGISTER_CLOCK("imx31-cspi.0", NULL, cspi1_clk)
+	_REGISTER_CLOCK("imx31-cspi.1", NULL, cspi2_clk)
+	_REGISTER_CLOCK("imx31-cspi.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
 	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
