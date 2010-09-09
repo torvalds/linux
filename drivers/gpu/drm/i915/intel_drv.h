@@ -137,7 +137,7 @@ struct intel_fbdev {
 };
 
 struct intel_encoder {
-	struct drm_encoder enc;
+	struct drm_encoder base;
 	int type;
 	struct i2c_adapter *i2c_bus;
 	struct i2c_adapter *ddc_bus;
@@ -174,7 +174,7 @@ struct intel_crtc {
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
-#define enc_to_intel_encoder(x) container_of(x, struct intel_encoder, enc)
+#define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
 struct intel_unpin_work {

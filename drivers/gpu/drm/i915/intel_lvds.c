@@ -50,7 +50,7 @@ struct intel_lvds {
 
 static struct intel_lvds *enc_to_intel_lvds(struct drm_encoder *encoder)
 {
-	return container_of(enc_to_intel_encoder(encoder), struct intel_lvds, base);
+	return container_of(encoder, struct intel_lvds, base.base);
 }
 
 static void intel_lvds_lock_panel(struct drm_device *dev, bool lock)
@@ -437,7 +437,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
@@ -839,15 +839,15 @@ void intel_lvds_init(struct drm_device *dev)
 	}
 
 	intel_encoder = &intel_lvds->base;
-	encoder = &intel_encoder->enc;
+	encoder = &intel_encoder->base;
 	connector = &intel_connector->base;
 	drm_connector_init(dev, &intel_connector->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
 
-	drm_encoder_init(dev, &intel_encoder->enc, &intel_lvds_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->base, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base, &intel_encoder->enc);
+	drm_mode_connector_attach_encoder(&intel_connector->base, &intel_encoder->base);
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);

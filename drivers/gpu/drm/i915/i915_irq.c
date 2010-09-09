@@ -260,16 +260,12 @@ static void i915_hotplug_work_func(struct work_struct *work)
 						    hotplug_work);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 
-	if (mode_config->num_encoder) {
-		list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-			struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-	
-			if (intel_encoder->hot_plug)
-				(*intel_encoder->hot_plug) (intel_encoder);
-		}
-	}
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
+		if (encoder->hot_plug)
+			encoder->hot_plug(encoder);
+
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
 }

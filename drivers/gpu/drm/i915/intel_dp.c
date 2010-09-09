@@ -64,7 +64,7 @@ struct intel_dp {
 
 static struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
 {
-	return container_of(enc_to_intel_encoder(encoder), struct intel_dp, base);
+	return container_of(encoder, struct intel_dp, base.base);
 }
 
 static void intel_dp_start_link_train(struct intel_dp *intel_dp);
@@ -236,7 +236,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *recv, int recv_size)
 {
 	uint32_t output_reg = intel_dp->output_reg;
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ch_ctl = output_reg + 0x10;
 	uint32_t ch_data = ch_ctl + 4;
@@ -704,7 +704,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 {
 	struct drm_device *dev = encoder->dev;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_crtc *crtc = intel_dp->base.enc.crtc;
+	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	intel_dp->DP = (DP_VOLTAGE_0_4 |
@@ -1174,9 +1174,9 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint8_t dp_train_pat,
 			bool first)
 {
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.enc.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
 	int ret;
 
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
@@ -1200,7 +1200,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 static void
 intel_dp_start_link_train(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	int i;
 	uint8_t voltage;
 	bool clock_recovery = false;
@@ -1280,7 +1280,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 static void
 intel_dp_complete_link_train(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool channel_eq = false;
 	int tries;
@@ -1345,7 +1345,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 static void
 intel_dp_link_down(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t DP = intel_dp->DP;
 
@@ -1388,7 +1388,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
-	if (!intel_dp->base.enc.crtc)
+	if (!intel_dp->base.base.crtc)
 		return;
 
 	if (!intel_dp_get_link_status(intel_dp)) {
@@ -1438,7 +1438,7 @@ intel_dp_detect(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t temp, bit;
 	enum drm_connector_status status;
@@ -1482,7 +1482,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_device *dev = intel_dp->base.enc.dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
@@ -1670,12 +1670,12 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	intel_dp->has_audio = false;
 	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
 
-	drm_encoder_init(dev, &intel_encoder->enc, &intel_dp_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(&intel_encoder->enc, &intel_dp_helper_funcs);
+	drm_encoder_helper_add(&intel_encoder->base, &intel_dp_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->enc);
+					  &intel_encoder->base);
 	drm_sysfs_connector_add(connector);
 
 	/* Set up the DDC bus. */

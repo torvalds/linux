@@ -900,7 +900,7 @@ static const struct tv_mode tv_modes[] = {
 
 static struct intel_tv *enc_to_intel_tv(struct drm_encoder *encoder)
 {
-	return container_of(enc_to_intel_encoder(encoder), struct intel_tv, base);
+	return container_of(encoder, struct intel_tv, base.base);
 }
 
 static void
@@ -1230,7 +1230,7 @@ static const struct drm_display_mode reported_modes[] = {
 static int
 intel_tv_detect_type (struct intel_tv *intel_tv)
 {
-	struct drm_encoder *encoder = &intel_tv->base.enc;
+	struct drm_encoder *encoder = &intel_tv->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -1656,15 +1656,16 @@ intel_tv_init(struct drm_device *dev)
 	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);
 
-	drm_encoder_init(dev, &intel_encoder->enc, &intel_tv_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
 			 DRM_MODE_ENCODER_TVDAC);
 
-	drm_mode_connector_attach_encoder(&intel_connector->base, &intel_encoder->enc);
+	drm_mode_connector_attach_encoder(&intel_connector->base,
+					  &intel_encoder->base);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	intel_encoder->clone_mask = (1 << INTEL_TV_CLONE_BIT);
-	intel_encoder->enc.possible_crtcs = ((1 << 0) | (1 << 1));
-	intel_encoder->enc.possible_clones = (1 << INTEL_OUTPUT_TVOUT);
+	intel_encoder->base.possible_crtcs = ((1 << 0) | (1 << 1));
+	intel_encoder->base.possible_clones = (1 << INTEL_OUTPUT_TVOUT);
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 
 	/* BIOS margin values */
@@ -1675,7 +1676,7 @@ intel_tv_init(struct drm_device *dev)
 
 	intel_tv->tv_format = tv_modes[initial_mode].name;
 
-	drm_encoder_helper_add(&intel_encoder->enc, &intel_tv_helper_funcs);
+	drm_encoder_helper_add(&intel_encoder->base, &intel_tv_helper_funcs);
 	drm_connector_helper_add(connector, &intel_tv_connector_helper_funcs);
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;

@@ -45,7 +45,7 @@ struct intel_hdmi {
 
 static struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 {
-	return container_of(enc_to_intel_encoder(encoder), struct intel_hdmi, base);
+	return container_of(encoder, struct intel_hdmi, base.base);
 }
 
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
@@ -266,12 +266,12 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	intel_hdmi->sdvox_reg = sdvox_reg;
 
-	drm_encoder_init(dev, &intel_encoder->enc, &intel_hdmi_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(&intel_encoder->enc, &intel_hdmi_helper_funcs);
+	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->enc);
+					  &intel_encoder->base);
 	drm_sysfs_connector_add(connector);
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written

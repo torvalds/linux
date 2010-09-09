@@ -744,20 +744,17 @@ static void intel_clock(struct drm_device *dev, int refclk, intel_clock_t *clock
 /**
  * Returns whether any output on the specified pipe is of the specified type
  */
-bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
+bool intel_pipe_has_type(struct drm_crtc *crtc, int type)
 {
-    struct drm_device *dev = crtc->dev;
-    struct drm_mode_config *mode_config = &dev->mode_config;
-    struct drm_encoder *l_entry;
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
 
-    list_for_each_entry(l_entry, &mode_config->encoder_list, head) {
-	    if (l_entry && l_entry->crtc == crtc) {
-		    struct intel_encoder *intel_encoder = enc_to_intel_encoder(l_entry);
-		    if (intel_encoder->type == type)
-			    return true;
-	    }
-    }
-    return false;
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
+		if (encoder->base.crtc == crtc && encoder->type == type)
+			return true;
+
+	return false;
 }
 
 #define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
@@ -2459,7 +2456,7 @@ void intel_encoder_commit (struct drm_encoder *encoder)
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
 {
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
 	if (intel_encoder->ddc_bus)
 		intel_i2c_destroy(intel_encoder->ddc_bus);
@@ -3540,7 +3537,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		intel_encoder = enc_to_intel_encoder(encoder);
+		intel_encoder = to_intel_encoder(encoder);
 		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
@@ -4430,7 +4427,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *possible_crtc;
 	struct drm_crtc *supported_crtc =NULL;
-	struct drm_encoder *encoder = &intel_encoder->enc;
+	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -4511,7 +4508,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 				    struct drm_connector *connector, int dpms_mode)
 {
-	struct drm_encoder *encoder = &intel_encoder->enc;
+	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -5243,24 +5240,23 @@ struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 
 static int intel_encoder_clones(struct drm_device *dev, int type_mask)
 {
+	struct intel_encoder *encoder;
 	int index_mask = 0;
-	struct drm_encoder *encoder;
 	int entry = 0;
 
-        list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-		if (type_mask & intel_encoder->clone_mask)
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+		if (type_mask & encoder->clone_mask)
 			index_mask |= (1 << entry);
 		entry++;
 	}
+
 	return index_mask;
 }
-
 
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
 	if (IS_MOBILE(dev) && !IS_I830(dev))
@@ -5349,12 +5345,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-
-		encoder->possible_crtcs = intel_encoder->crtc_mask;
-		encoder->possible_clones = intel_encoder_clones(dev,
-						intel_encoder->clone_mask);
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+		encoder->base.possible_crtcs = encoder->crtc_mask;
+		encoder->base.possible_clones =
+			intel_encoder_clones(dev, encoder->clone_mask);
 	}
 }
 

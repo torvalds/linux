@@ -186,7 +186,7 @@ struct intel_sdvo_connector {
 
 static struct intel_sdvo *enc_to_intel_sdvo(struct drm_encoder *encoder)
 {
-	return container_of(enc_to_intel_encoder(encoder), struct intel_sdvo, base);
+	return container_of(encoder, struct intel_sdvo, base.base);
 }
 
 static struct intel_sdvo_connector *to_intel_sdvo_connector(struct drm_connector *connector)
@@ -211,7 +211,7 @@ intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
  */
 static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 {
-	struct drm_device *dev = intel_sdvo->base.enc.dev;
+	struct drm_device *dev = intel_sdvo->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 bval = val, cval = val;
 	int i;
@@ -2077,7 +2077,7 @@ intel_sdvo_connector_init(struct drm_encoder *encoder,
 static bool
 intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 {
-	struct drm_encoder *encoder = &intel_sdvo->base.enc;
+	struct drm_encoder *encoder = &intel_sdvo->base.base;
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
@@ -2120,36 +2120,36 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 static bool
 intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 {
-        struct drm_encoder *encoder = &intel_sdvo->base.enc;
-        struct drm_connector *connector;
-        struct intel_connector *intel_connector;
-        struct intel_sdvo_connector *intel_sdvo_connector;
+	struct drm_encoder *encoder = &intel_sdvo->base.base;
+	struct drm_connector *connector;
+	struct intel_connector *intel_connector;
+	struct intel_sdvo_connector *intel_sdvo_connector;
 
 	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
 	if (!intel_sdvo_connector)
 		return false;
 
 	intel_connector = &intel_sdvo_connector->base;
-        connector = &intel_connector->base;
-        encoder->encoder_type = DRM_MODE_ENCODER_TVDAC;
-        connector->connector_type = DRM_MODE_CONNECTOR_SVIDEO;
+	connector = &intel_connector->base;
+	encoder->encoder_type = DRM_MODE_ENCODER_TVDAC;
+	connector->connector_type = DRM_MODE_CONNECTOR_SVIDEO;
 
-        intel_sdvo->controlled_output |= type;
-        intel_sdvo_connector->output_flag = type;
+	intel_sdvo->controlled_output |= type;
+	intel_sdvo_connector->output_flag = type;
 
-        intel_sdvo->is_tv = true;
-        intel_sdvo->base.needs_tv_clock = true;
-        intel_sdvo->base.clone_mask = 1 << INTEL_SDVO_TV_CLONE_BIT;
+	intel_sdvo->is_tv = true;
+	intel_sdvo->base.needs_tv_clock = true;
+	intel_sdvo->base.clone_mask = 1 << INTEL_SDVO_TV_CLONE_BIT;
 
-        intel_sdvo_connector_init(encoder, connector);
+	intel_sdvo_connector_init(encoder, connector);
 
-        if (!intel_sdvo_tv_create_property(intel_sdvo, intel_sdvo_connector, type))
+	if (!intel_sdvo_tv_create_property(intel_sdvo, intel_sdvo_connector, type))
 		goto err;
 
-        if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
+	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
-        return true;
+	return true;
 
 err:
 	intel_sdvo_destroy_enhance_property(connector);
@@ -2160,43 +2160,10 @@ err:
 static bool
 intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 {
-        struct drm_encoder *encoder = &intel_sdvo->base.enc;
-        struct drm_connector *connector;
-        struct intel_connector *intel_connector;
-        struct intel_sdvo_connector *intel_sdvo_connector;
-
-	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
-	if (!intel_sdvo_connector)
-		return false;
-
-	intel_connector = &intel_sdvo_connector->base;
-        connector = &intel_connector->base;
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-        encoder->encoder_type = DRM_MODE_ENCODER_DAC;
-        connector->connector_type = DRM_MODE_CONNECTOR_VGA;
-
-        if (device == 0) {
-                intel_sdvo->controlled_output |= SDVO_OUTPUT_RGB0;
-                intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB0;
-        } else if (device == 1) {
-                intel_sdvo->controlled_output |= SDVO_OUTPUT_RGB1;
-                intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
-        }
-
-        intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
-				       (1 << INTEL_ANALOG_CLONE_BIT));
-
-        intel_sdvo_connector_init(encoder, connector);
-        return true;
-}
-
-static bool
-intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
-{
-        struct drm_encoder *encoder = &intel_sdvo->base.enc;
-        struct drm_connector *connector;
-        struct intel_connector *intel_connector;
-        struct intel_sdvo_connector *intel_sdvo_connector;
+	struct drm_encoder *encoder = &intel_sdvo->base.base;
+	struct drm_connector *connector;
+	struct intel_connector *intel_connector;
+	struct intel_sdvo_connector *intel_sdvo_connector;
 
 	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
 	if (!intel_sdvo_connector)
@@ -2204,22 +2171,55 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_connector = &intel_sdvo_connector->base;
 	connector = &intel_connector->base;
-        encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
-        connector->connector_type = DRM_MODE_CONNECTOR_LVDS;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	encoder->encoder_type = DRM_MODE_ENCODER_DAC;
+	connector->connector_type = DRM_MODE_CONNECTOR_VGA;
 
-        if (device == 0) {
-                intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS0;
-                intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS0;
-        } else if (device == 1) {
-                intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS1;
-                intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
-        }
+	if (device == 0) {
+		intel_sdvo->controlled_output |= SDVO_OUTPUT_RGB0;
+		intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB0;
+	} else if (device == 1) {
+		intel_sdvo->controlled_output |= SDVO_OUTPUT_RGB1;
+		intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
+	}
 
-        intel_sdvo->base.clone_mask = ((1 << INTEL_ANALOG_CLONE_BIT) |
+	intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+				       (1 << INTEL_ANALOG_CLONE_BIT));
+
+	intel_sdvo_connector_init(encoder, connector);
+	return true;
+}
+
+static bool
+intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
+{
+	struct drm_encoder *encoder = &intel_sdvo->base.base;
+	struct drm_connector *connector;
+	struct intel_connector *intel_connector;
+	struct intel_sdvo_connector *intel_sdvo_connector;
+
+	intel_sdvo_connector = kzalloc(sizeof(struct intel_sdvo_connector), GFP_KERNEL);
+	if (!intel_sdvo_connector)
+		return false;
+
+	intel_connector = &intel_sdvo_connector->base;
+	connector = &intel_connector->base;
+	encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
+	connector->connector_type = DRM_MODE_CONNECTOR_LVDS;
+
+	if (device == 0) {
+		intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS0;
+		intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS0;
+	} else if (device == 1) {
+		intel_sdvo->controlled_output |= SDVO_OUTPUT_LVDS1;
+		intel_sdvo_connector->output_flag = SDVO_OUTPUT_LVDS1;
+	}
+
+	intel_sdvo->base.clone_mask = ((1 << INTEL_ANALOG_CLONE_BIT) |
 				       (1 << INTEL_SDVO_LVDS_CLONE_BIT));
 
-        intel_sdvo_connector_init(encoder, connector);
-        if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
+	intel_sdvo_connector_init(encoder, connector);
+	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
 	return true;
@@ -2291,7 +2291,7 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 					  struct intel_sdvo_connector *intel_sdvo_connector,
 					  int type)
 {
-	struct drm_device *dev = intel_sdvo->base.enc.dev;
+	struct drm_device *dev = intel_sdvo->base.base.dev;
 	struct intel_sdvo_tv_format format;
 	uint32_t format_map, i;
 
@@ -2357,7 +2357,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 				      struct intel_sdvo_connector *intel_sdvo_connector,
 				      struct intel_sdvo_enhancements_reply enhancements)
 {
-	struct drm_device *dev = intel_sdvo->base.enc.dev;
+	struct drm_device *dev = intel_sdvo->base.base.dev;
 	struct drm_connector *connector = &intel_sdvo_connector->base.base;
 	uint16_t response, data_value[2];
 
@@ -2486,7 +2486,7 @@ intel_sdvo_create_enhance_property_lvds(struct intel_sdvo *intel_sdvo,
 					struct intel_sdvo_connector *intel_sdvo_connector,
 					struct intel_sdvo_enhancements_reply enhancements)
 {
-	struct drm_device *dev = intel_sdvo->base.enc.dev;
+	struct drm_device *dev = intel_sdvo->base.base.dev;
 	struct drm_connector *connector = &intel_sdvo_connector->base.base;
 	uint16_t response, data_value[2];
 
@@ -2593,8 +2593,8 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	intel_encoder->ddc_bus->algo = &intel_sdvo_i2c_bit_algo;
 
 	/* encoder type will be decided later */
-	drm_encoder_init(dev, &intel_encoder->enc, &intel_sdvo_enc_funcs, 0);
-	drm_encoder_helper_add(&intel_encoder->enc, &intel_sdvo_helper_funcs);
+	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0);
+	drm_encoder_helper_add(&intel_encoder->base, &intel_sdvo_helper_funcs);
 
 	/* In default case sdvo lvds is false */
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))
@@ -2637,7 +2637,7 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	return true;
 
 err_enc:
-	drm_encoder_cleanup(&intel_encoder->enc);
+	drm_encoder_cleanup(&intel_encoder->base);
 err_i2c:
 	if (intel_sdvo->analog_ddc_bus != NULL)
 		intel_i2c_destroy(intel_sdvo->analog_ddc_bus);

@@ -54,9 +54,9 @@ bool intel_ddc_probe(struct intel_encoder *intel_encoder)
 		}
 	};
 
-	intel_i2c_quirk_set(intel_encoder->enc.dev, true);
+	intel_i2c_quirk_set(intel_encoder->base.dev, true);
 	ret = i2c_transfer(intel_encoder->ddc_bus, msgs, 2);
-	intel_i2c_quirk_set(intel_encoder->enc.dev, false);
+	intel_i2c_quirk_set(intel_encoder->base.dev, false);
 	if (ret == 2)
 		return true;
 

@@ -263,7 +263,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 
 static bool intel_crt_detect_ddc(struct drm_encoder *encoder)
 {
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
 	/* CRT should always be at 0, but check anyway */
 	if (intel_encoder->type != INTEL_OUTPUT_ANALOG)
@@ -275,7 +275,7 @@ static bool intel_crt_detect_ddc(struct drm_encoder *encoder)
 static enum drm_connector_status
 intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder)
 {
-	struct drm_encoder *encoder = &intel_encoder->enc;
+	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -405,7 +405,7 @@ static enum drm_connector_status intel_crt_detect(struct drm_connector *connecto
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct drm_crtc *crtc;
 	int dpms_mode;
 	enum drm_connector_status status;
@@ -448,7 +448,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	int ret;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct i2c_adapter *ddc_bus;
 	struct drm_device *dev = connector->dev;
 
@@ -533,11 +533,11 @@ void intel_crt_init(struct drm_device *dev)
 	drm_connector_init(dev, &intel_connector->base,
 			   &intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
-	drm_encoder_init(dev, &intel_encoder->enc, &intel_crt_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->base, &intel_crt_enc_funcs,
 			 DRM_MODE_ENCODER_DAC);
 
 	drm_mode_connector_attach_encoder(&intel_connector->base,
-					  &intel_encoder->enc);
+					  &intel_encoder->base);
 
 	/* Set up the DDC bus. */
 	if (HAS_PCH_SPLIT(dev))
@@ -563,7 +563,7 @@ void intel_crt_init(struct drm_device *dev)
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_encoder_helper_add(&intel_encoder->enc, &intel_crt_helper_funcs);
+	drm_encoder_helper_add(&intel_encoder->base, &intel_crt_helper_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
 	drm_sysfs_connector_add(connector);
