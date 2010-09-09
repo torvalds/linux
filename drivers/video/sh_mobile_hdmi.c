@@ -224,13 +224,9 @@ static u8 hdmi_read(struct sh_hdmi *hdmi, u8 reg)
 	return ioread8(hdmi->base + reg);
 }
 
-/************************************************************************
-
-
-			HDMI sound
-
-
-************************************************************************/
+/*
+ *	HDMI sound
+ */
 static unsigned int sh_hdmi_snd_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
@@ -273,13 +269,10 @@ static struct snd_soc_codec_driver soc_codec_dev_sh_hdmi = {
 	.write		= sh_hdmi_snd_write,
 };
 
-/************************************************************************
+/*
+ *	HDMI video
+ */
 
-
-			HDMI video
-
-
-************************************************************************/
 /* External video parameter settings */
 static void hdmi_external_video_param(struct sh_hdmi *hdmi)
 {
@@ -398,7 +391,7 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 	 */
 	switch (pdata->flags & HDMI_SRC_MASK) {
 	default:
-		/* FALL THROUGH */
+		/* fall through */
 	case HDMI_SRC_I2S:
 		data = (0x0 << 3);
 		break;
