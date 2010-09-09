@@ -1365,11 +1365,11 @@ static void rk2818_power_off(void)
 #define PLAY_ON_LEVEL 0
 static  ADC_keyst gAdcValueTab[] = 
 {
-	{95,  AD2KEY1},///VOLUME_DOWN
-	{249, AD2KEY2},///VOLUME_UP
+	{0,  AD2KEY1},///VOLUME_DOWN
+	{118, AD2KEY2},///VOLUME_UP
 	{408, AD2KEY3},///MENU
-	{560, AD2KEY4},///HOME
-	{725, AD2KEY5},///BACK
+	{510, AD2KEY4},///HOME
+	{612, AD2KEY5},///BACK
 	{816, AD2KEY6},///CALL
 	{0,0}
 };
