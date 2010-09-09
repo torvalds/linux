@@ -534,8 +534,9 @@ int w_make_resync_request(struct drbd_conf *mdev,
 
 	/* starting with drbd 8.3.8, we can handle multi-bio EEs,
 	 * if it should be necessary */
-	max_segment_size = mdev->agreed_pro_version < 94 ?
-		queue_max_segment_size(mdev->rq_queue) : DRBD_MAX_SEGMENT_SIZE;
+	max_segment_size =
+		mdev->agreed_pro_version < 94 ? queue_max_segment_size(mdev->rq_queue) :
+		mdev->agreed_pro_version < 95 ?	DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_SEGMENT_SIZE;
 
 	if (mdev->rs_plan_s.size) { /* mdev->sync_conf.c_plan_ahead */
 		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
