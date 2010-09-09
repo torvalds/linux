@@ -1,6 +1,6 @@
 /*
  * Intel Langwell USB OTG transceiver driver
- * Copyright (C) 2008 - 2009, Intel Corporation.
+ * Copyright (C) 2008 - 2010, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -40,7 +40,7 @@
 #include <linux/usb/langwell_otg.h>
 
 #define	DRIVER_DESC		"Intel Langwell USB OTG transceiver driver"
-#define	DRIVER_VERSION		"3.0.0.32L.0003"
+#define	DRIVER_VERSION		"July 10, 2010"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Henry Yuan <hang.yuan@intel.com>, Hao Wu <hao.wu@intel.com>");

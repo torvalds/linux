@@ -69,7 +69,7 @@ config NOP_USB_XCEIV
 
 config USB_LANGWELL_OTG
 	tristate "Intel Langwell USB OTG dual-role support"
-	depends on USB && X86_MRST
+	depends on USB && PCI && INTEL_SCU_IPC
 	select USB_OTG
 	select USB_OTG_UTILS
 	help
