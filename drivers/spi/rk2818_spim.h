@@ -136,7 +136,7 @@ struct rk2818_spi {
 	int			(*write)(struct rk2818_spi *dws);
 	int			(*read)(struct rk2818_spi *dws);
 	irqreturn_t		(*transfer_handler)(struct rk2818_spi *dws);
-	void (*cs_control)(struct rk2818_spi *dws, u32 cs);
+	void (*cs_control)(struct rk2818_spi *dws, u32 cs, u8 flag);
 
 	/* Dma info */
 	int			dma_inited;
@@ -206,7 +206,7 @@ struct rk2818_spi_chip {
 	u8 poll_mode;	/* 0 for contoller polling mode */
 	u8 type;	/* SPI/SSP/Micrwire */
 	u8 enable_dma;
-	void (*cs_control)(struct rk2818_spi *dws, u32 cs);
+	void (*cs_control)(struct rk2818_spi *dws, u32 cs, u8 flag);
 };
 
 #endif /* __DRIVERS_SPIM_RK2818_HEADER_H */
