@@ -139,7 +139,8 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 }
 
 static enum drm_connector_status
-intel_hdmi_detect(struct drm_connector *connector)
+intel_hdmi_detect(struct drm_connector *connector,
+		  bool nondestructive)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);

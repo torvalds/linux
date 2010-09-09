@@ -335,7 +335,8 @@ static void vmw_ldu_connector_restore(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-	vmw_ldu_connector_detect(struct drm_connector *connector)
+	vmw_ldu_connector_detect(struct drm_connector *connector,
+				 bool nondestructive)
 {
 	if (vmw_connector_to_ldu(connector)->pref_active)
 		return connector_status_connected;
