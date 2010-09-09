@@ -18963,6 +18963,26 @@ static void alc662_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
+enum {
+	ALC662_FIXUP_IDEAPAD,
+};
+
+static const struct alc_fixup alc662_fixups[] = {
+	[ALC662_FIXUP_IDEAPAD] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x17, 0x99130112 }, /* subwoofer */
+			{ }
+		}
+	},
+};
+
+static struct snd_pci_quirk alc662_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
+	{}
+};
+
+
+
 static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
@@ -18995,6 +19015,7 @@ static int patch_alc662(struct hda_codec *codec)
 	}
 
 	if (board_config == ALC662_AUTO) {
+		alc_pick_fixup(codec, alc662_fixup_tbl, alc662_fixups, 1);
 		/* automatic parse from the BIOS config */
 		err = alc662_parse_auto_config(codec);
 		if (err < 0) {
@@ -19053,8 +19074,11 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC662_AUTO)
+	if (board_config == ALC662_AUTO) {
 		spec->init_hook = alc662_auto_init;
+		alc_pick_fixup(codec, alc662_fixup_tbl, alc662_fixups, 0);
+	}
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc662_loopbacks;
