@@ -77,9 +77,9 @@ static u32 mop500_sdi0_vdd_handler(struct device *dev, unsigned int vdd,
 				   unsigned char power_mode)
 {
 	if (power_mode == MMC_POWER_UP)
-		gpio_set_value(GPIO_SDMMC_EN, 1);
+		gpio_set_value_cansleep(GPIO_SDMMC_EN, 1);
 	else if (power_mode == MMC_POWER_OFF)
-		gpio_set_value(GPIO_SDMMC_EN, 0);
+		gpio_set_value_cansleep(GPIO_SDMMC_EN, 0);
 
 	return MCI_FBCLKEN | MCI_CMDDIREN | MCI_DATA0DIREN |
 	       MCI_DATA2DIREN | MCI_DATA31DIREN;
