@@ -1368,25 +1368,29 @@ enum {
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
-	loff_t			func_pos;
-	struct ftrace_page	*pg;
-	int			hidx;
-	int			idx;
-	unsigned		flags;
-	struct trace_parser	parser;
+	loff_t				func_pos;
+	struct ftrace_page		*pg;
+	struct dyn_ftrace		*func;
+	struct ftrace_func_probe	*probe;
+	struct trace_parser		parser;
+	int				hidx;
+	int				idx;
+	unsigned			flags;
 };
 
 static void *
-t_hash_next(struct seq_file *m, void *v, loff_t *pos)
+t_hash_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct hlist_node *hnd = v;
+	struct hlist_node *hnd = NULL;
 	struct hlist_head *hhd;
 
 	WARN_ON(!(iter->flags & FTRACE_ITER_HASH));
 
 	(*pos)++;
 
+	if (iter->probe)
+		hnd = &iter->probe->node;
  retry:
 	if (iter->hidx >= FTRACE_FUNC_HASHSIZE)
 		return NULL;
@@ -1409,7 +1413,12 @@ t_hash_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	}
 
-	return hnd;
+	if (WARN_ON_ONCE(!hnd))
+		return NULL;
+
+	iter->probe = hlist_entry(hnd, struct ftrace_func_probe, node);
+
+	return iter;
 }
 
 static void *t_hash_start(struct seq_file *m, loff_t *pos)
@@ -1428,19 +1437,24 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 
 	iter->hidx = 0;
 	for (l = 0; l <= (*pos - iter->func_pos); ) {
-		p = t_hash_next(m, p, &l);
+		p = t_hash_next(m, &l);
 		if (!p)
 			break;
 	}
-	return p;
+	if (!p)
+		return NULL;
+
+	return iter;
 }
 
-static int t_hash_show(struct seq_file *m, void *v)
+static int
+t_hash_show(struct seq_file *m, struct ftrace_iterator *iter)
 {
 	struct ftrace_func_probe *rec;
-	struct hlist_node *hnd = v;
 
-	rec = hlist_entry(hnd, struct ftrace_func_probe, node);
+	rec = iter->probe;
+	if (WARN_ON_ONCE(!rec))
+		return -EIO;
 
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
@@ -1461,7 +1475,7 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	struct dyn_ftrace *rec = NULL;
 
 	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_next(m, v, pos);
+		return t_hash_next(m, pos);
 
 	(*pos)++;
 
@@ -1495,7 +1509,12 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	}
 
-	return rec;
+	if (!rec)
+		return NULL;
+
+	iter->func = rec;
+
+	return iter;
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
@@ -1530,10 +1549,14 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 			break;
 	}
 
-	if (!p && iter->flags & FTRACE_ITER_FILTER)
-		return t_hash_start(m, pos);
+	if (!p) {
+		if (iter->flags & FTRACE_ITER_FILTER)
+			return t_hash_start(m, pos);
 
-	return p;
+		return NULL;
+	}
+
+	return iter;
 }
 
 static void t_stop(struct seq_file *m, void *p)
@@ -1544,15 +1567,17 @@ static void t_stop(struct seq_file *m, void *p)
 static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct dyn_ftrace *rec = v;
+	struct dyn_ftrace *rec;
 
 	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_show(m, v);
+		return t_hash_show(m, iter);
 
 	if (iter->flags & FTRACE_ITER_PRINTALL) {
 		seq_printf(m, "#### all functions enabled ####\n");
 		return 0;
 	}
+
+	rec = iter->func;
 
 	if (!rec)
 		return 0;
