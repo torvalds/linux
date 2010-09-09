@@ -27,7 +27,9 @@
 
 #include <linux/cache.h>
 
-#define rcu_init_sched()	do { } while (0)
+static inline void rcu_init(void)
+{
+}
 
 #ifdef CONFIG_TINY_RCU
 
@@ -125,16 +127,12 @@ static inline void rcu_cpu_stall_reset(void)
 }
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-
 extern int rcu_scheduler_active __read_mostly;
 extern void rcu_scheduler_starting(void);
-
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
-
 static inline void rcu_scheduler_starting(void)
 {
 }
-
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 #endif /* __LINUX_RCUTINY_H */
