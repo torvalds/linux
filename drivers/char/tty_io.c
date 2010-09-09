@@ -355,7 +355,7 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 		if (*stp == '\0')
 			stp = NULL;
 
-		if (tty_line >= 0 && tty_line <= p->num && p->ops &&
+		if (tty_line >= 0 && tty_line < p->num && p->ops &&
 		    p->ops->poll_init && !p->ops->poll_init(p, tty_line, stp)) {
 			res = tty_driver_kref_get(p);
 			*line = tty_line;

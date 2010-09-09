@@ -647,7 +647,7 @@ struct vortex_private {
 	u16 io_size;						/* Size of PCI region (for release_region) */
 
 	/* Serialises access to hardware other than MII and variables below.
-	 * The lock hierarchy is rtnl_lock > lock > mii_lock > window_lock. */
+	 * The lock hierarchy is rtnl_lock > {lock, mii_lock} > window_lock. */
 	spinlock_t lock;
 
 	spinlock_t mii_lock;		/* Serialises access to MII */
@@ -2984,7 +2984,6 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int err;
 	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
 	pci_power_t state = 0;
 
 	if(VORTEX_PCI(vp))
@@ -2994,9 +2993,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if(state != 0)
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D0);
-	spin_lock_irqsave(&vp->lock, flags);
 	err = generic_mii_ioctl(&vp->mii, if_mii(rq), cmd, NULL);
-	spin_unlock_irqrestore(&vp->lock, flags);
 	if(state != 0)
 		pci_set_power_state(VORTEX_PCI(vp), state);
 

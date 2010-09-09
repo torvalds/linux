@@ -1606,6 +1606,8 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 
 	iounmap(pep->base);
 	pep->base = NULL;
+	mdiobus_unregister(pep->smi_bus);
+	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);
 	flush_scheduled_work();
 	free_netdev(dev);

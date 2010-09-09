@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
+#include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
 
@@ -118,6 +119,54 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 
 	if (lock)
 	    spin_unlock(lock);
+	return 0;
+}
+
+static int i915_gem_pageflip_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	unsigned long flags;
+	struct intel_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		const char *pipe = crtc->pipe ? "B" : "A";
+		const char *plane = crtc->plane ? "B" : "A";
+		struct intel_unpin_work *work;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		work = crtc->unpin_work;
+		if (work == NULL) {
+			seq_printf(m, "No flip due on pipe %s (plane %s)\n",
+				   pipe, plane);
+		} else {
+			if (!work->pending) {
+				seq_printf(m, "Flip queued on pipe %s (plane %s)\n",
+					   pipe, plane);
+			} else {
+				seq_printf(m, "Flip pending (waiting for vsync) on pipe %s (plane %s)\n",
+					   pipe, plane);
+			}
+			if (work->enable_stall_check)
+				seq_printf(m, "Stall check enabled, ");
+			else
+				seq_printf(m, "Stall check waiting for page flip ioctl, ");
+			seq_printf(m, "%d prepares\n", work->pending);
+
+			if (work->old_fb_obj) {
+				struct drm_i915_gem_object *obj_priv = to_intel_bo(work->old_fb_obj);
+				if(obj_priv)
+					seq_printf(m, "Old framebuffer gtt_offset 0x%08x\n", obj_priv->gtt_offset );
+			}
+			if (work->pending_flip_obj) {
+				struct drm_i915_gem_object *obj_priv = to_intel_bo(work->pending_flip_obj);
+				if(obj_priv)
+					seq_printf(m, "New framebuffer gtt_offset 0x%08x\n", obj_priv->gtt_offset );
+			}
+		}
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
+
 	return 0;
 }
 
@@ -777,6 +826,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
+	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},

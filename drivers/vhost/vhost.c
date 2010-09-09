@@ -323,7 +323,10 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	dev->mm = NULL;
 
 	WARN_ON(!list_empty(&dev->work_list));
-	kthread_stop(dev->worker);
+	if (dev->worker) {
+		kthread_stop(dev->worker);
+		dev->worker = NULL;
+	}
 }
 
 static int log_access_ok(void __user *log_base, u64 addr, unsigned long sz)

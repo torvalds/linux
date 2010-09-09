@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
+#include <linux/intel-gtt.h>
 
 static uint32_t i915_gem_get_gtt_alignment(struct drm_gem_object *obj);
 static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
@@ -135,12 +136,15 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	drm_gem_object_unreference_unlocked(obj);
-	if (ret)
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
 		return ret;
+	}
+
+	/* Sink the floating reference from kref_init(handlecount) */
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	args->handle = handle;
-
 	return 0;
 }
 
@@ -3585,6 +3589,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ret != 0) {
 			DRM_ERROR("copy %d cliprects failed: %d\n",
 				  args->num_cliprects, ret);
+			ret = -EFAULT;
 			goto pre_mutex_err;
 		}
 	}
