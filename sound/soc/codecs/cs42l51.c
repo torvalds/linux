@@ -649,6 +649,6 @@ static void __exit cs42l51_exit(void)
 }
 module_exit(cs42l51_exit);
 
-MODULE_AUTHOR("Arnaud Patard <apatard@mandriva.com>");
+MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Cirrus Logic CS42L51 ALSA SoC Codec Driver");
 MODULE_LICENSE("GPL");
