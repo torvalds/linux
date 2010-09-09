@@ -112,14 +112,6 @@ struct rds_info_connection {
 	uint8_t	flags;
 } __attribute__((packed));
 
-struct rds_info_flow {
-	__be32		laddr;
-	__be32		faddr;
-	uint32_t	bytes;
-	__be16		lport;
-	__be16		fport;
-} __attribute__((packed));
-
 #define RDS_INFO_MESSAGE_FLAG_ACK               0x01
 #define RDS_INFO_MESSAGE_FLAG_FAST_ACK          0x02
 
