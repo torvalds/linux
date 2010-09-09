@@ -147,6 +147,7 @@ config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
 	depends on ARCH_MXC
 	select SPI_BITBANG
+	default m if IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  This enables using the Freescale i.MX SPI controllers in master
 	  mode.
