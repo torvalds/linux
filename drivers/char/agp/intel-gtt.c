@@ -1232,27 +1232,6 @@ static void intel_i9xx_setup_flush(void)
 			"can't ioremap flush page - no chipset flushing\n");
 }
 
-static int intel_i9xx_configure(void)
-{
-	int i;
-
-	intel_enable_gtt();
-
-	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
-
-	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = intel_private.base.gtt_stolen_entries; i <
-				intel_private.base.gtt_total_entries; i++) {
-			writel(agp_bridge->scratch_page, intel_private.gtt+i);
-		}
-		readl(intel_private.gtt+i-1);	/* PCI Posting. */
-	}
-
-	global_cache_flush();
-
-	return 0;
-}
-
 static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
 {
 	if (intel_private.i9xx_flush_page)
@@ -1340,6 +1319,30 @@ static void i965_write_entry(dma_addr_t addr, unsigned int entry,
 	/* Shift high bits down */
 	addr |= (addr >> 28) & 0xf0;
 	writel(addr | I810_PTE_VALID, intel_private.gtt + entry);
+}
+
+static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
+			     unsigned int flags)
+{
+	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
+	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
+	u32 pte_flags;
+
+	if (type_mask == AGP_USER_UNCACHED_MEMORY)
+		pte_flags = GEN6_PTE_UNCACHED;
+	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
+		pte_flags = GEN6_PTE_LLC;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	} else { /* set 'normal'/'cached' to LLC by default */
+		pte_flags = GEN6_PTE_LLC_MLC;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	}
+
+	/* gen6 has bit11-4 for physical addr bit39-32 */
+	addr |= (addr >> 28) & 0xff0;
+	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
 static int i9xx_setup(void)
@@ -1538,7 +1541,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
-	.configure		= intel_i9xx_configure,
+	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_gen6_mask_memory,
@@ -1640,6 +1643,7 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
 	.setup = i9xx_setup,
+	.write_entry = gen6_write_entry,
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
