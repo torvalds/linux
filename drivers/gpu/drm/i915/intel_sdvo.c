@@ -462,54 +462,55 @@ static const char *cmd_status_names[] = {
 	"Scaling not supported"
 };
 
-static void intel_sdvo_debug_response(struct intel_sdvo *intel_sdvo,
-				      void *response, int response_len,
-				      u8 status)
+static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
+				     void *response, int response_len)
 {
+	u8 retry = 5;
+	u8 status;
 	int i;
 
+	/*
+	 * The documentation states that all commands will be
+	 * processed within 15µs, and that we need only poll
+	 * the status byte a maximum of 3 times in order for the
+	 * command to be complete.
+	 *
+	 * Check 5 times in case the hardware failed to read the docs.
+	 */
+	do {
+		if (!intel_sdvo_read_byte(intel_sdvo,
+					  SDVO_I2C_CMD_STATUS,
+					  &status))
+			return false;
+	} while (status == SDVO_CMD_STATUS_PENDING && --retry);
+
 	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(intel_sdvo));
-	for (i = 0; i < response_len; i++)
-		DRM_LOG_KMS("%02X ", ((u8 *)response)[i]);
-	for (; i < 8; i++)
-		DRM_LOG_KMS("   ");
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
 		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
 	else
 		DRM_LOG_KMS("(??? %d)", status);
-	DRM_LOG_KMS("\n");
-}
 
-static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
-				     void *response, int response_len)
-{
-	int i;
-	u8 status;
-	u8 retry = 50;
+	if (status != SDVO_CMD_STATUS_SUCCESS)
+		goto log_fail;
 
-	while (retry--) {
-		/* Read the command response */
-		for (i = 0; i < response_len; i++) {
-			if (!intel_sdvo_read_byte(intel_sdvo,
-						  SDVO_I2C_RETURN_0 + i,
-						  &((u8 *)response)[i]))
-				return false;
-		}
-
-		/* read the return status */
-		if (!intel_sdvo_read_byte(intel_sdvo, SDVO_I2C_CMD_STATUS,
-					  &status))
-			return false;
-
-		intel_sdvo_debug_response(intel_sdvo, response, response_len,
-					  status);
-		if (status != SDVO_CMD_STATUS_PENDING)
-			break;
-
-		mdelay(50);
+	/* Read the command response */
+	for (i = 0; i < response_len; i++) {
+		if (!intel_sdvo_read_byte(intel_sdvo,
+					  SDVO_I2C_RETURN_0 + i,
+					  &((u8 *)response)[i]))
+			goto log_fail;
+		DRM_LOG_KMS("%02X ", ((u8 *)response)[i]);
 	}
 
-	return status == SDVO_CMD_STATUS_SUCCESS;
+	for (; i < 8; i++)
+		DRM_LOG_KMS("   ");
+	DRM_LOG_KMS("\n");
+
+	return true;
+
+log_fail:
+	DRM_LOG_KMS("\n");
+	return false;
 }
 
 static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
