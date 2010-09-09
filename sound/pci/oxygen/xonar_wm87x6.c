@@ -27,8 +27,8 @@
  *
  * GPIO 4 <- headphone detect, 0 = plugged
  * GPIO 6 -> route input jack to mic-in (0) or line-in (1)
- * GPIO 7 -> enable output to speakers
- * GPIO 8 -> enable output to speakers
+ * GPIO 7 -> enable output to front L/R speaker channels
+ * GPIO 8 -> enable output to other speaker channels and front panel headphone
  *
  * WM8766:
  *
@@ -52,7 +52,8 @@
 
 #define GPIO_DS_HP_DETECT	0x0010
 #define GPIO_DS_INPUT_ROUTE	0x0040
-#define GPIO_DS_OUTPUT_ENABLE	0x0180
+#define GPIO_DS_OUTPUT_FRONTLR	0x0080
+#define GPIO_DS_OUTPUT_ENABLE	0x0100
 
 #define LC_CONTROL_LIMITER	0x40000000
 #define LC_CONTROL_ALC		0x20000000
@@ -150,7 +151,10 @@ static void wm8776_registers_init(struct oxygen *chip)
 
 static void wm8766_registers_init(struct oxygen *chip)
 {
+	struct xonar_wm87x6 *data = chip->model_data;
+
 	wm8766_write(chip, WM8766_RESET, 0);
+	wm8766_write(chip, WM8766_DAC_CTRL, data->wm8766_regs[WM8766_DAC_CTRL]);
 	wm8766_write(chip, WM8766_INT_CTRL, WM8766_FMT_LJUST | WM8766_IWL_24);
 	wm8766_write(chip, WM8766_DAC_CTRL2,
 		     WM8766_ZCD | (chip->dac_mute ? WM8766_DMUTE_MASK : 0));
@@ -179,14 +183,38 @@ static void wm8776_init(struct oxygen *chip)
 	wm8776_registers_init(chip);
 }
 
-static void xonar_ds_report_hp_jack(struct oxygen *chip)
+static void wm8766_init(struct oxygen *chip)
 {
 	struct xonar_wm87x6 *data = chip->model_data;
-	u16 bits;
 
-	bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
-	snd_jack_report(data->hp_jack,
-			bits & GPIO_DS_HP_DETECT ? 0 : SND_JACK_HEADPHONE);
+	data->wm8766_regs[WM8766_DAC_CTRL] =
+		WM8766_PL_LEFT_LEFT | WM8766_PL_RIGHT_RIGHT;
+	wm8766_registers_init(chip);
+}
+
+static void xonar_ds_handle_hp_jack(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	bool hp_plugged;
+	unsigned int reg;
+
+	mutex_lock(&chip->mutex);
+
+	hp_plugged = !(oxygen_read16(chip, OXYGEN_GPIO_DATA) &
+		       GPIO_DS_HP_DETECT);
+
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      hp_plugged ? 0 : GPIO_DS_OUTPUT_FRONTLR,
+			      GPIO_DS_OUTPUT_FRONTLR);
+
+	reg = data->wm8766_regs[WM8766_DAC_CTRL] & ~WM8766_MUTEALL;
+	if (hp_plugged)
+		reg |= WM8766_MUTEALL;
+	wm8766_write_cached(chip, WM8766_DAC_CTRL, reg);
+
+	snd_jack_report(data->hp_jack, hp_plugged ? SND_JACK_HEADPHONE : 0);
+
+	mutex_unlock(&chip->mutex);
 }
 
 static void xonar_ds_init(struct oxygen *chip)
@@ -197,10 +225,12 @@ static void xonar_ds_init(struct oxygen *chip)
 	data->generic.output_enable_bit = GPIO_DS_OUTPUT_ENABLE;
 
 	wm8776_init(chip);
-	wm8766_registers_init(chip);
+	wm8766_init(chip);
 
-	oxygen_write16_masked(chip, OXYGEN_GPIO_CONTROL, GPIO_DS_INPUT_ROUTE,
-			      GPIO_DS_HP_DETECT | GPIO_DS_INPUT_ROUTE);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_DS_INPUT_ROUTE | GPIO_DS_OUTPUT_FRONTLR);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
+			    GPIO_DS_HP_DETECT);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_DS_INPUT_ROUTE);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_INTERRUPT_MASK, GPIO_DS_HP_DETECT);
 	chip->interrupt_mask |= OXYGEN_INT_GPIO;
@@ -209,7 +239,7 @@ static void xonar_ds_init(struct oxygen *chip)
 
 	snd_jack_new(chip->card, "Headphone",
 		     SND_JACK_HEADPHONE, &data->hp_jack);
-	xonar_ds_report_hp_jack(chip);
+	xonar_ds_handle_hp_jack(chip);
 
 	snd_component_add(chip->card, "WM8776");
 	snd_component_add(chip->card, "WM8766");
@@ -231,6 +261,7 @@ static void xonar_ds_resume(struct oxygen *chip)
 	wm8776_registers_init(chip);
 	wm8766_registers_init(chip);
 	xonar_enable_output(chip);
+	xonar_ds_handle_hp_jack(chip);
 }
 
 static void wm8776_adc_hardware_filter(unsigned int channel,
@@ -348,7 +379,7 @@ static void update_wm87x6_mute(struct oxygen *chip)
 
 static void xonar_ds_gpio_changed(struct oxygen *chip)
 {
-	xonar_ds_report_hp_jack(chip);
+	xonar_ds_handle_hp_jack(chip);
 }
 
 static int wm8776_bit_switch_get(struct snd_kcontrol *ctl,
