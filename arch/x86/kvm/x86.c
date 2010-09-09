@@ -1651,6 +1651,20 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case 0xcd: /* fsb frequency */
 		data = 3;
 		break;
+		/*
+		 * MSR_EBC_FREQUENCY_ID
+		 * Conservative value valid for even the basic CPU models.
+		 * Models 0,1: 000 in bits 23:21 indicating a bus speed of
+		 * 100MHz, model 2 000 in bits 18:16 indicating 100MHz,
+		 * and 266MHz for model 3, or 4. Set Core Clock
+		 * Frequency to System Bus Frequency Ratio to 1 (bits
+		 * 31:24) even though these are only valid for CPU
+		 * models > 2, however guests may end up dividing or
+		 * multiplying by zero otherwise.
+		 */
+	case MSR_EBC_FREQUENCY_ID:
+		data = 1 << 24;
+		break;
 	case MSR_IA32_APICBASE:
 		data = kvm_get_apic_base(vcpu);
 		break;
