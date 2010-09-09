@@ -254,11 +254,6 @@ void r600_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int r600_cs_parse(struct radeon_cs_parser *p);
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
-int r600_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset,
-		  uint64_t dst_offset,
-		  unsigned num_pages,
-		  struct radeon_fence *fence);
 int r600_irq_process(struct radeon_device *rdev);
 int r600_irq_set(struct radeon_device *rdev);
 bool r600_gpu_is_lockup(struct radeon_device *rdev);
@@ -304,6 +299,9 @@ int evergreen_resume(struct radeon_device *rdev);
 bool evergreen_gpu_is_lockup(struct radeon_device *rdev);
 int evergreen_asic_reset(struct radeon_device *rdev);
 void evergreen_bandwidth_update(struct radeon_device *rdev);
+int evergreen_copy_blit(struct radeon_device *rdev,
+			uint64_t src_offset, uint64_t dst_offset,
+			unsigned num_pages, struct radeon_fence *fence);
 void evergreen_hpd_init(struct radeon_device *rdev);
 void evergreen_hpd_fini(struct radeon_device *rdev);
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);

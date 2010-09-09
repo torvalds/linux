@@ -1130,6 +1130,12 @@ void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence)
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
 			int size_bytes);
+/* evergreen blit */
+int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
+void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
+void evergreen_kms_blit_copy(struct radeon_device *rdev,
+			     u64 src_gpu_addr, u64 dst_gpu_addr,
+			     int size_bytes);
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
@@ -1471,6 +1477,8 @@ extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 extern int evergreen_irq_set(struct radeon_device *rdev);
+extern int evergreen_blit_init(struct radeon_device *rdev);
+extern void evergreen_blit_fini(struct radeon_device *rdev);
 
 /* radeon_acpi.c */ 
 #if defined(CONFIG_ACPI) 
