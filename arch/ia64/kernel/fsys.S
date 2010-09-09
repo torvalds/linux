@@ -424,14 +424,26 @@ EX(.fail_efault, ld8 r14=[r33])			// r14 <- *set
 	andcm r14=r14,r17			// filter out SIGKILL & SIGSTOP
 
 #ifdef CONFIG_SMP
-	mov r17=1
-	;;
-	cmpxchg4.acq r18=[r31],r17,ar.ccv	// try to acquire the lock
+	// __ticket_spin_trylock(r31)
+	ld4 r17=[r31]
 	mov r8=EINVAL			// default to EINVAL
 	;;
+	extr r9=r17,17,15
+	;;
+	xor r18=r17,r9
+	adds r19=1,r17
+	;;
+	extr.u r18=r18,0,15
+	;;
+	cmp.eq p0,p7=0,r18
+(p7)	br.cond.spnt.many .lock_contention
+	mov.m ar.ccv=r17
+	;;
+	cmpxchg4.acq r9=[r31],r19,ar.ccv
+	;;
+	cmp4.eq p0,p7=r9,r17
+(p7)	br.cond.spnt.many .lock_contention
 	ld8 r3=[r2]			// re-read current->blocked now that we hold the lock
-	cmp4.ne p6,p0=r18,r0
-(p6)	br.cond.spnt.many .lock_contention
 	;;
 #else
 	ld8 r3=[r2]			// re-read current->blocked now that we hold the lock
@@ -490,7 +502,17 @@ EX(.fail_efault, ld8 r14=[r33])			// r14 <- *set
 (p6)	br.cond.spnt.few 1b			// yes -> retry
 
 #ifdef CONFIG_SMP
-	st4.rel [r31]=r0			// release the lock
+	// __ticket_spin_unlock(r31)
+	adds r31=2,r31
+	;;
+	ld2.bias r2=[r31]
+	mov r3=65534
+	;;
+	adds r2=2,r2
+	;;
+	and r3=r3,r2
+	;;
+	st2.rel [r31]=r3
 #endif
 	SSM_PSR_I(p0, p9, r31)
 	;;
@@ -512,7 +534,17 @@ EX(.fail_efault, (p15) st8 [r34]=r3)
 
 .sig_pending:
 #ifdef CONFIG_SMP
-	st4.rel [r31]=r0			// release the lock
+	// __ticket_spin_unlock(r31)
+	adds r31=2,r31
+	;;
+	ld2.bias r2=[r31]
+	mov r3=65534
+	;;
+	adds r2=2,r2
+	;;
+	and r3=r3,r2
+	;;
+	st2.rel [r31]=r3
 #endif
 	SSM_PSR_I(p0, p9, r17)
 	;;
