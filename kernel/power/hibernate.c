@@ -29,6 +29,7 @@
 #include "power.h"
 
 
+static int nocompress = 0;
 static int noresume = 0;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
@@ -638,6 +639,8 @@ int hibernate(void)
 
 		if (hibernation_mode == HIBERNATION_PLATFORM)
 			flags |= SF_PLATFORM_MODE;
+		if (nocompress)
+			flags |= SF_NOCOMPRESS_MODE;
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write(flags);
 		swsusp_free();
@@ -1004,6 +1007,15 @@ static int __init resume_offset_setup(char *str)
 	return 1;
 }
 
+static int __init hibernate_setup(char *str)
+{
+	if (!strncmp(str, "noresume", 8))
+		noresume = 1;
+	else if (!strncmp(str, "nocompress", 10))
+		nocompress = 1;
+	return 1;
+}
+
 static int __init noresume_setup(char *str)
 {
 	noresume = 1;
@@ -1013,3 +1025,4 @@ static int __init noresume_setup(char *str)
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
+__setup("hibernate=", hibernate_setup);
