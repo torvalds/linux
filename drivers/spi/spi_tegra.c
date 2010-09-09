@@ -338,15 +338,15 @@ static void tegra_spi_rx_dma_complete(struct tegra_dma_req *req)
 
 	spin_lock_irqsave(&tspi->lock, flags);
 
-	if (timeout >= 1000)
-		m->status = -EIO;
-
 	val = spi_tegra_readl(tspi, SLINK_STATUS);
 	val |= SLINK_RDY;
 	spi_tegra_writel(tspi, val, SLINK_STATUS);
 
-
 	m = list_first_entry(&tspi->queue, struct spi_message, queue);
+
+	if (timeout >= 1000)
+		m->status = -EIO;
+
 	spi = m->state;
 
 	tspi->cur_pos += spi_tegra_drain_rx_fifo(tspi, tspi->cur);
