@@ -19,7 +19,7 @@
 static struct resource s5p_fimc1_resource[] = {
 	[0] = {
 		.start	= S5P_PA_FIMC1,
-		.end	= S5P_PA_FIMC1 + SZ_1M - 1,
+		.end	= S5P_PA_FIMC1 + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
