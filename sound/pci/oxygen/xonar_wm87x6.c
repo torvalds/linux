@@ -377,6 +377,24 @@ static void update_wm87x6_mute(struct oxygen *chip)
 			    (chip->dac_mute ? WM8766_DMUTE_MASK : 0));
 }
 
+static void update_wm8766_center_lfe_mix(struct oxygen *chip, bool mixed)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	unsigned int reg;
+
+	/*
+	 * The WM8766 can mix left and right channels, but this setting
+	 * applies to all three stereo pairs.
+	 */
+	reg = data->wm8766_regs[WM8766_DAC_CTRL] &
+		~(WM8766_PL_LEFT_MASK | WM8766_PL_RIGHT_MASK);
+	if (mixed)
+		reg |= WM8766_PL_LEFT_LRMIX | WM8766_PL_RIGHT_LRMIX;
+	else
+		reg |= WM8766_PL_LEFT_LEFT | WM8766_PL_RIGHT_RIGHT;
+	wm8766_write_cached(chip, WM8766_DAC_CTRL, reg);
+}
+
 static void xonar_ds_gpio_changed(struct oxygen *chip)
 {
 	xonar_ds_handle_hp_jack(chip);
@@ -1067,6 +1085,7 @@ static const struct oxygen_model model_xonar_ds = {
 	.set_adc_params = set_wm8776_adc_params,
 	.update_dac_volume = update_wm87x6_volume,
 	.update_dac_mute = update_wm87x6_mute,
+	.update_center_lfe_mix = update_wm8766_center_lfe_mix,
 	.gpio_changed = xonar_ds_gpio_changed,
 	.dac_tlv = wm87x6_dac_db_scale,
 	.model_data_size = sizeof(struct xonar_wm87x6),
