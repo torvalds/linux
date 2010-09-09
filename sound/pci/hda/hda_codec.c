@@ -4654,6 +4654,14 @@ static int get_line_pin_attr(unsigned int def_conf)
 	return LINE_ATTR_NORMAL;
 }
 
+/**
+ * hda_get_input_pin_label - Give a label for the given input pin
+ *
+ * When check_location is true, the function checks the pin location
+ * for mic and line-in pins, and set an appropriate prefix like "Front",
+ * "Rear", "Internal".
+ */
+
 const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
 					int check_location)
 {
@@ -4720,6 +4728,14 @@ static int check_mic_location_need(struct hda_codec *codec,
 	return 0;
 }
 
+/**
+ * hda_get_autocfg_input_label - Get a label for the given input
+ *
+ * Get a label for the given input pin defined by the autocfg item.
+ * Unlike hda_get_input_pin_label(), this function checks all inputs
+ * defined in autocfg and avoids the redundant mic/line prefix as much as
+ * possible.
+ */
 const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 					const struct auto_pin_cfg *cfg,
 					int input)
@@ -4737,6 +4753,13 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
 
+/**
+ * snd_hda_add_imux_item - Add an item to input_mux
+ *
+ * When the same label is used already in the existing items, the number
+ * suffix is appended to the label.  This label index number is stored
+ * to type_idx when non-NULL pointer is given.
+ */
 int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
 			  int index, int *type_idx)
 {
