@@ -371,7 +371,7 @@ static void spi_uart_start_tx(struct spi_uart *uart)
 	if (!(uart->ier & UART_IER_THRI)) {
 		uart->ier |= UART_IER_THRI;
 		spi_out(port, UART_IER, uart->ier, SEL_UART);
-		printk("t,");
+		DBG("t,");
 	}	
 	
 	DBG("%s:UART_IER=0x%x\n",__FUNCTION__,uart->ier);
@@ -402,7 +402,7 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	unsigned int ch, flag;
 	int max_count = 1024;
-	//printk("rx:");
+	DBG("rx:");
 #if SPI_UART_TXRX_BUF
 	int ret,count,stat = 0;
 	int i = 0;
@@ -433,21 +433,19 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 			uart->icount.rx++;
 			ch = buf[i];
 			tty_insert_flip_char(tty, ch, flag);
-			//if(gBaud == 1500000)
-			//printk("0x%x,",ch);
+			DBG("0x%x,",ch);
 		}
-		//printk("\n");
+		DBG("\n");
 	}	
 
 	tty_flip_buffer_push(tty); 
-	//if(gBaud == 1500000)
-	//printk("\n");
+	DBG("\n");
 	
 #else	
 	while (--max_count >0 )
 	{
 		ch = spi_in(port, UART_RX, SEL_UART);//
-		//printk("0x%x,",ch&0xff);
+		DBG("0x%x,",ch&0xff);
 		flag = TTY_NORMAL;
 		uart->icount.rx++;
 		//--max_count;
@@ -491,12 +489,12 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 		if(!(*status & UART_LSR_DR))
 			break;
 	} 
-	//printk("\n");
+	DBG("\n");
 	DBG("%s:LINE=%d,rx_count=%d\n",__FUNCTION__,__LINE__,(1024-max_count));
 	tty_flip_buffer_push(tty);
 
 #endif
-	printk("r%d\n",1024-max_count);
+	DBG("r%d\n",1024-max_count);
 	
 }
 
@@ -522,7 +520,7 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		//printk("circ_empty()\n");
 		return;
 	}
-	//printk("tx:");
+	DBG("tx:");
 
 #if SPI_UART_TXRX_BUF
 	//send several bytes one time
@@ -532,15 +530,13 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		if (circ_empty(xmit))
 		break;
 		buf[SPI_UART_FIFO_LEN - count] = xmit->buf[xmit->tail];
-		//if(gBaud == 1500000)
-		//printk("0x%x,",buf[SPI_UART_FIFO_LEN - count]&0xff);
+		DBG("0x%x,",buf[SPI_UART_FIFO_LEN - count]&0xff);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		uart->icount.tx++;
 		--count;
 
 	}
-	//if(gBaud == 1500000)
-	//printk("\n");
+	DBG("\n");
 	if(SPI_UART_FIFO_LEN - count > 0)
 	spi_uart_write_buf(uart,buf,SPI_UART_FIFO_LEN - count);
 #else
@@ -549,7 +545,7 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 	while(count > 0)
 	{
 		spi_out(port, UART_TX, xmit->buf[xmit->tail], SEL_UART);
-		//printk("0x%x,",xmit->buf[xmit->tail]);
+		DBG("0x%x,",xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		uart->icount.tx++;
 		--count;
@@ -557,22 +553,22 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		break;	
 	}
 #endif
-	//printk("\n");
+	DBG("\n");
 	DBG("%s:LINE=%d,tx_count=%d\n",__FUNCTION__,__LINE__,(SPI_UART_FIFO_LEN-count));
 	if (circ_chars_pending(xmit) < WAKEUP_CHARS)
 	{	
 		tty_wakeup(uart->tty);
-		//printk("k,");
+		DBG("k,");
 	}
 	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	if (circ_empty(xmit))
 	{
 		DBG("circ_empty(xmit)\n");
 		spi_uart_stop_tx(uart);
-		//printk("e,");
+		DBG("e,");
 	}
 	
-	printk("t%d\n",SPI_UART_FIFO_LEN-count);
+	DBG("t%d\n",SPI_UART_FIFO_LEN-count);
 
 	DBG("uart->tty->hw_stopped = %d\n",uart->tty->hw_stopped);
 }
@@ -984,7 +980,7 @@ static int spi_uart_write(struct tty_struct * tty, const unsigned char *buf,
 		mutex_lock(&port->spi_lock);
 			DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 			/*Note:ICE65L08 output a 'Transmitter holding register interrupt' after 1us*/
-			printk("s,");
+			DBG("s,");
 			spi_uart_start_tx(uart);
 			//spi_uart_handle_irq(port->spi);
 		mutex_unlock(&port->spi_lock);	
