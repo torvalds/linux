@@ -247,6 +247,7 @@ static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.remove = 	ad1980_soc_remove,
 	.reg_cache_size = ARRAY_SIZE(ad1980_reg),
 	.reg_word_size = sizeof(u16),
+	.reg_cache_default = ad1980_reg,
 	.reg_cache_step = 2,
 	.write = ac97_write,
 	.read = ac97_read,
