@@ -32,6 +32,7 @@
 #include "mxl5005s.h"
 #include "mc44s803.h"
 #include "tda18218.h"
+#include "mxl5007t.h"
 
 static int dvb_usb_af9015_debug;
 module_param_named(debug, dvb_usb_af9015_debug, int, 0644);
@@ -999,6 +1000,7 @@ static int af9015_read_config(struct usb_device *udev)
 		case AF9013_TUNER_MXL5003D:
 		case AF9013_TUNER_MXL5005D:
 		case AF9013_TUNER_MXL5005R:
+		case AF9013_TUNER_MXL5007T:
 			af9015_af9013_config[i].rf_spec_inv = 0;
 			break;
 		case AF9013_TUNER_MC44S803:
@@ -1212,6 +1214,11 @@ static struct tda18218_config af9015_tda18218_config = {
 	.i2c_wr_max = 21, /* max wr bytes AF9015 I2C adap can handle at once */
 };
 
+static struct mxl5007t_config af9015_mxl5007t_config = {
+	.xtal_freq_hz = MxL_XTAL_24_MHZ,
+	.if_freq_hz = MxL_IF_4_57_MHZ,
+};
+
 static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct af9015_state *state = adap->dev->priv;
@@ -1263,6 +1270,10 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 		ret = dvb_attach(mc44s803_attach, adap->fe, i2c_adap,
 			&af9015_mc44s803_config) == NULL ? -ENODEV : 0;
 		break;
+	case AF9013_TUNER_MXL5007T:
+		ret = dvb_attach(mxl5007t_attach, adap->fe, i2c_adap,
+			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
+		break;
 	case AF9013_TUNER_UNKNOWN:
 	default:
 		ret = -ENODEV;
@@ -1309,6 +1320,8 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_4)},
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
 	{USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_T_STICK_RC)},
+	{USB_DEVICE(USB_VID_TERRATEC,
+		USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1370,7 +1383,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 10, /* check max from dvb-usb.h */
+		.num_device_descs = 11, /* check max from dvb-usb.h */
 		.devices = {
 			{
 				.name = "Afatech AF9015 DVB-T USB2.0 stick",
@@ -1425,6 +1438,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "TerraTec Cinergy T Stick RC",
 				.cold_ids = {&af9015_usb_table[33], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "TerraTec Cinergy T Stick Dual RC",
+				.cold_ids = {&af9015_usb_table[34], NULL},
 				.warm_ids = {NULL},
 			},
 		}
