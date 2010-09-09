@@ -4383,6 +4383,23 @@ static void add_auto_cfg_input_pin(struct auto_pin_cfg *cfg, hda_nid_t nid,
 	}
 }
 
+/* sort inputs in the order of AUTO_PIN_* type */
+static void sort_autocfg_input_pins(struct auto_pin_cfg *cfg)
+{
+	int i, j;
+
+	for (i = 0; i < cfg->num_inputs; i++) {
+		for (j = i + 1; j < cfg->num_inputs; j++) {
+			if (cfg->inputs[i].type > cfg->inputs[j].type) {
+				struct auto_pin_cfg_item tmp;
+				tmp = cfg->inputs[i];
+				cfg->inputs[i] = cfg->inputs[j];
+				cfg->inputs[j] = tmp;
+			}
+		}
+	}
+}
+
 /*
  * Parse all pin widgets and store the useful pin nids to cfg
  *
@@ -4584,6 +4601,8 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		cfg->line_out_pins[2] = nid;
 		break;
 	}
+
+	sort_autocfg_input_pins(cfg);
 
 	/*
 	 * debug prints of the parsed results
