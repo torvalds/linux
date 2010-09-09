@@ -145,6 +145,11 @@ void NvRmModuleGetBaseAddress( NvRmDeviceHandle hRmDeviceHandle, NvRmModuleID Mo
 		*pSize = 256 * 1024;
 		break;
 
+	case NvRmModuleID_Mpe:
+		*pBaseAddress = 0x54040000;
+		*pSize = 256 * 1024;
+		break;
+
 	case NvRmModuleID_Vcp:
 		*pBaseAddress = 0x6000e000;
 		*pSize = 4096;
