@@ -278,59 +278,10 @@ err:
 	return err;
 }
 
-static void tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
-				    struct tegra_dc_win *win,
-				    struct tegra_fb_windowattr *attr)
-{
-	if (!attr->buff_id) {
-		win->flags = 0;
-		return;
-	}
-	win->flags = TEGRA_WIN_FLAG_ENABLED;
-	if (attr->blend == TEGRA_FB_WIN_BLEND_PREMULT)
-		win->flags |= TEGRA_WIN_FLAG_BLEND_PREMULT;
-	else if (attr->blend == TEGRA_FB_WIN_BLEND_COVERAGE)
-		win->flags |= TEGRA_WIN_FLAG_BLEND_COVERAGE;
-	win->fmt = attr->pixformat;
-	win->x = attr->x;
-	win->y = attr->y;
-	win->w = attr->w;
-	win->h = attr->h;
-	win->out_x = attr->out_x;
-	win->out_y = attr->out_y;
-	win->out_w = attr->out_w;
-	win->out_h = attr->out_h;
-	win->z = attr->z;
-	// STOPSHIP need to check perms on handle
-	win->phys_addr = nvmap_pin_single((struct nvmap_handle *)attr->buff_id);
-	win->phys_addr += attr->offset;
-	win->stride = attr->stride;
-	if ((s32)attr->pre_syncpt_id >= 0) {
-		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt,
-					   attr->pre_syncpt_id,
-					   attr->pre_syncpt_val,
-					   msecs_to_jiffies(500));
-	}
-}
-
-static void tegra_fb_set_windowhandle(struct tegra_fb_info *tegra_fb,
-				      struct tegra_dc_win *win,
-				      unsigned long handle)
-{
-	if (win->cur_handle)
-		nvmap_unpin((struct nvmap_handle **)&win->cur_handle, 1);
-	win->cur_handle = handle;
-}
-
 static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
 			 struct tegra_fb_flip_args *args)
 {
-	struct tegra_dc_win *win;
-	struct tegra_dc_win *wins[TEGRA_FB_FLIP_N_WINDOWS];
-	struct tegra_dc_win **w = wins;
-	struct tegra_dc *dc = tegra_fb->win->dc;
 	int err = 0;
-	int i;
 
 	if (WARN_ON(!tegra_fb->nvmap_file))
 		return -EFAULT;
@@ -338,34 +289,30 @@ static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
 	if (WARN_ON(!tegra_fb->ndev))
 		return -EFAULT;
 
-	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		int idx = args->win[i].index;
-		win = tegra_dc_get_window(dc, idx);
-		if (win) {
-			tegra_fb_set_windowattr(tegra_fb, win, &args->win[i]);
-			*w++ = win;
-		} else if (idx != -1) {
-			dev_warn(&tegra_fb->ndev->dev,
-				 "invalid window index %d on flip\n", idx);
-		}
+	// XXX need to check perms on handle
+	tegra_fb->win->phys_addr = nvmap_pin_single((struct nvmap_handle *) args->buff_id);
+
+	if ((s32)args->pre_syncpt_id >= 0) {
+		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt, args->pre_syncpt_id,
+				   args->pre_syncpt_val, msecs_to_jiffies(500));
 	}
 
-	err = tegra_dc_update_windows(wins, w - wins);
+	err = tegra_dc_update_windows(&tegra_fb->win, 1);
 	if (err < 0)
 		return err;
 
-	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		win = tegra_dc_get_window(dc, args->win[i].index);
-		if (win)
-			tegra_fb_set_windowhandle(tegra_fb, win,
-						  args->win[i].buff_id);
-	}
+	if (tegra_fb->win->cur_handle)
+		nvmap_unpin((struct nvmap_handle **) &tegra_fb->win->cur_handle, 1);
+	tegra_fb->win->cur_handle = args->buff_id;
 
 	args->post_syncpt_val = err;
 	args->post_syncpt_id = tegra_dc_get_syncpt_id(tegra_fb->win->dc);
 
 	return 0;
 }
+
+
+/* TODO: implement private window ioctls to set overlay x,y */
 
 static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
