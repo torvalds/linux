@@ -494,13 +494,13 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 		struct clk *pll_d_clk =
 			clk_get_sys(NULL, "pll_d");
 
-		if (dc->mode.pclk > 70000)
+		if (dc->mode.pclk > 70000000)
 			rate = 594000000;
 		else
 			rate = 216000000;
 
 		if (rate != clk_get_rate(pll_d_clk))
-		    clk_set_rate(pll_d_clk, rate);
+			clk_set_rate(pll_d_clk, rate);
 
 		if (clk_get_parent(clk) != pll_d_out0_clk)
 			clk_set_parent(clk, pll_d_out0_clk);
