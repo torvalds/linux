@@ -43,6 +43,12 @@ struct platform_device *__init imx_add_mxc_nand_v21(resource_size_t iobase,
 		int irq, const struct mxc_nand_platform_data *pdata);
 
 #include <mach/spi.h>
-struct platform_device *__init imx_add_spi_imx(int id,
-		resource_size_t iobase, resource_size_t iosize, int irq,
+struct imx_spi_imx_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	int irq;
+};
+struct platform_device *__init imx_add_spi_imx(
+		const struct imx_spi_imx_data *data,
 		const struct spi_imx_master *pdata);

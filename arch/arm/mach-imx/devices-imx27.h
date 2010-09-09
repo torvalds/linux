@@ -30,9 +30,9 @@
 #define imx27_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand_v1(MX27_NFC_BASE_ADDR, MX27_INT_NANDFC, pdata)
 
-#define imx27_add_spi_imx0(pdata)	\
-	imx_add_spi_imx(0, MX27_CSPI1_BASE_ADDR, SZ_4K, MX27_INT_CSPI1, pdata)
-#define imx27_add_spi_imx1(pdata)	\
-	imx_add_spi_imx(1, MX27_CSPI2_BASE_ADDR, SZ_4K, MX27_INT_CSPI2, pdata)
-#define imx27_add_spi_imx2(pdata)	\
-	imx_add_spi_imx(2, MX27_CSPI3_BASE_ADDR, SZ_4K, MX27_INT_CSPI3, pdata)
+extern const struct imx_spi_imx_data imx27_cspi_data[] __initconst;
+#define imx27_add_cspi(id, pdata)	\
+	imx_add_spi_imx(&imx27_cspi_data[id], pdata)
+#define imx27_add_spi_imx0(pdata)	imx27_add_cspi(0, pdata)
+#define imx27_add_spi_imx1(pdata)	imx27_add_cspi(1, pdata)
+#define imx27_add_spi_imx2(pdata)	imx27_add_cspi(2, pdata)

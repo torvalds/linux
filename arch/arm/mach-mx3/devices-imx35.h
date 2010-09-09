@@ -31,7 +31,8 @@
 #define imx35_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand_v21(MX35_NFC_BASE_ADDR, MX35_INT_NANDFC, pdata)
 
-#define imx35_add_spi_imx0(pdata)	\
-	imx_add_spi_imx(0, MX35_CSPI1_BASE_ADDR, SZ_4K, MX35_INT_CSPI1, pdata)
-#define imx35_add_spi_imx1(pdata)	\
-	imx_add_spi_imx(1, MX35_CSPI2_BASE_ADDR, SZ_4K, MX35_INT_CSPI2, pdata)
+extern const struct imx_spi_imx_data imx35_cspi_data[] __initconst;
+#define imx35_add_cspi(id, pdata)	\
+	imx_add_spi_imx(&imx35_cspi_data[id], pdata)
+#define imx35_add_spi_imx0(pdata)	imx35_add_cspi(0, pdata)
+#define imx35_add_spi_imx1(pdata)	imx35_add_cspi(1, pdata)
