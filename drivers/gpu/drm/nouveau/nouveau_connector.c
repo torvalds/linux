@@ -130,6 +130,36 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 	return NULL;
 }
 
+static struct nouveau_encoder *
+nouveau_connector_of_detect(struct drm_connector *connector)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = connector->dev;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct nouveau_encoder *nv_encoder;
+	struct device_node *cn, *dn = pci_device_to_OF_node(dev->pdev);
+
+	if (!dn ||
+	    !((nv_encoder = find_encoder_by_type(connector, OUTPUT_TMDS)) ||
+	      (nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG))))
+		return NULL;
+
+	for_each_child_of_node(dn, cn) {
+		const char *name = of_get_property(cn, "name", NULL);
+		const void *edid = of_get_property(cn, "EDID", NULL);
+		int idx = name ? name[strlen(name) - 1] - 'A' : 0;
+
+		if (nv_encoder->dcb->i2c_index == idx && edid) {
+			nv_connector->edid =
+				kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
+			of_node_put(cn);
+			return nv_encoder;
+		}
+	}
+#endif
+	return NULL;
+}
+
 static void
 nouveau_connector_set_encoder(struct drm_connector *connector,
 			      struct nouveau_encoder *nv_encoder)
@@ -221,6 +251,12 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 			}
 		}
 
+		nouveau_connector_set_encoder(connector, nv_encoder);
+		return connector_status_connected;
+	}
+
+	nv_encoder = nouveau_connector_of_detect(connector);
+	if (nv_encoder) {
 		nouveau_connector_set_encoder(connector, nv_encoder);
 		return connector_status_connected;
 	}
