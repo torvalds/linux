@@ -264,7 +264,6 @@ struct rds_transport rds_iw_transport = {
 	.laddr_check		= rds_iw_laddr_check,
 	.xmit_complete		= rds_iw_xmit_complete,
 	.xmit			= rds_iw_xmit,
-	.xmit_cong_map		= NULL,
 	.xmit_rdma		= rds_iw_xmit_rdma,
 	.recv			= rds_iw_recv,
 	.conn_alloc		= rds_iw_conn_alloc,
@@ -272,7 +271,6 @@ struct rds_transport rds_iw_transport = {
 	.conn_connect		= rds_iw_conn_connect,
 	.conn_shutdown		= rds_iw_conn_shutdown,
 	.inc_copy_to_user	= rds_iw_inc_copy_to_user,
-	.inc_purge		= rds_iw_inc_purge,
 	.inc_free		= rds_iw_inc_free,
 	.cm_initiate_connect	= rds_iw_cm_initiate_connect,
 	.cm_handle_connect	= rds_iw_cm_handle_connect,
@@ -289,7 +287,7 @@ struct rds_transport rds_iw_transport = {
 	.t_prefer_loopback	= 1,
 };
 
-int __init rds_iw_init(void)
+int rds_iw_init(void)
 {
 	int ret;
 

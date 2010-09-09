@@ -77,56 +77,6 @@ int rds_tcp_sendmsg(struct socket *sock, void *data, unsigned int len)
 }
 
 /* the core send_sem serializes this with other xmit and shutdown */
-int rds_tcp_xmit_cong_map(struct rds_connection *conn,
-			  struct rds_cong_map *map, unsigned long offset)
-{
-	static struct rds_header rds_tcp_map_header = {
-		.h_flags = RDS_FLAG_CONG_BITMAP,
-	};
-	struct rds_tcp_connection *tc = conn->c_transport_data;
-	unsigned long i;
-	int ret;
-	int copied = 0;
-
-	/* Some problem claims cpu_to_be32(constant) isn't a constant. */
-	rds_tcp_map_header.h_len = cpu_to_be32(RDS_CONG_MAP_BYTES);
-
-	if (offset < sizeof(struct rds_header)) {
-		ret = rds_tcp_sendmsg(tc->t_sock,
-				      (void *)&rds_tcp_map_header + offset,
-				      sizeof(struct rds_header) - offset);
-		if (ret <= 0)
-			return ret;
-		offset += ret;
-		copied = ret;
-		if (offset < sizeof(struct rds_header))
-			return ret;
-	}
-
-	offset -= sizeof(struct rds_header);
-	i = offset / PAGE_SIZE;
-	offset = offset % PAGE_SIZE;
-	BUG_ON(i >= RDS_CONG_MAP_PAGES);
-
-	do {
-		ret = tc->t_sock->ops->sendpage(tc->t_sock,
-					virt_to_page(map->m_page_addrs[i]),
-					offset, PAGE_SIZE - offset,
-					MSG_DONTWAIT);
-		if (ret <= 0)
-			break;
-		copied += ret;
-		offset += ret;
-		if (offset == PAGE_SIZE) {
-			offset = 0;
-			i++;
-		}
-	} while (i < RDS_CONG_MAP_PAGES);
-
-        return copied ? copied : ret;
-}
-
-/* the core send_sem serializes this with other xmit and shutdown */
 int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 	         unsigned int hdr_off, unsigned int sg, unsigned int off)
 {
@@ -166,21 +116,21 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 			goto out;
 	}
 
-	while (sg < rm->m_nents) {
+	while (sg < rm->data.op_nents) {
 		ret = tc->t_sock->ops->sendpage(tc->t_sock,
-						sg_page(&rm->m_sg[sg]),
-						rm->m_sg[sg].offset + off,
-						rm->m_sg[sg].length - off,
+						sg_page(&rm->data.op_sg[sg]),
+						rm->data.op_sg[sg].offset + off,
+						rm->data.op_sg[sg].length - off,
 						MSG_DONTWAIT|MSG_NOSIGNAL);
-		rdsdebug("tcp sendpage %p:%u:%u ret %d\n", (void *)sg_page(&rm->m_sg[sg]),
-			 rm->m_sg[sg].offset + off, rm->m_sg[sg].length - off,
+		rdsdebug("tcp sendpage %p:%u:%u ret %d\n", (void *)sg_page(&rm->data.op_sg[sg]),
+			 rm->data.op_sg[sg].offset + off, rm->data.op_sg[sg].length - off,
 			 ret);
 		if (ret <= 0)
 			break;
 
 		off += ret;
 		done += ret;
-		if (off == rm->m_sg[sg].length) {
+		if (off == rm->data.op_sg[sg].length) {
 			off = 0;
 			sg++;
 		}
@@ -226,7 +176,7 @@ void rds_tcp_write_space(struct sock *sk)
 
 	read_lock(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
-	if (conn == NULL) {
+	if (!conn) {
 		write_space = sk->sk_write_space;
 		goto out;
 	}

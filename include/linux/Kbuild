@@ -302,6 +302,7 @@ header-y += quota.h
 header-y += radeonfb.h
 header-y += random.h
 header-y += raw.h
+header-y += rds.h
 header-y += reboot.h
 header-y += reiserfs_fs.h
 header-y += reiserfs_xattr.h

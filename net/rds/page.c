@@ -116,7 +116,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 	/* jump straight to allocation if we're trying for a huge page */
 	if (bytes >= PAGE_SIZE) {
 		page = alloc_page(gfp);
-		if (page == NULL) {
+		if (!page) {
 			ret = -ENOMEM;
 		} else {
 			sg_set_page(scat, page, PAGE_SIZE, 0);
@@ -162,7 +162,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 		rem = &per_cpu(rds_page_remainders, get_cpu());
 		local_irq_save(flags);
 
-		if (page == NULL) {
+		if (!page) {
 			ret = -ENOMEM;
 			break;
 		}
@@ -186,6 +186,7 @@ out:
 		 ret ? 0 : scat->length);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rds_page_remainder_alloc);
 
 static int rds_page_remainder_cpu_notify(struct notifier_block *self,
 					 unsigned long action, void *hcpu)

@@ -70,7 +70,7 @@ struct rds_iw_send_work {
 	struct rds_message	*s_rm;
 
 	/* We should really put these into a union: */
-	struct rds_rdma_op	*s_op;
+	struct rm_rdma_op	*s_op;
 	struct rds_iw_mapping	*s_mapping;
 	struct ib_mr		*s_mr;
 	struct ib_fast_reg_page_list *s_page_list;
@@ -284,7 +284,7 @@ void rds_iw_conn_free(void *arg);
 int rds_iw_conn_connect(struct rds_connection *conn);
 void rds_iw_conn_shutdown(struct rds_connection *conn);
 void rds_iw_state_change(struct sock *sk);
-int __init rds_iw_listen_init(void);
+int rds_iw_listen_init(void);
 void rds_iw_listen_stop(void);
 void __rds_iw_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_iw_cm_handle_connect(struct rdma_cm_id *cm_id,
@@ -321,12 +321,11 @@ void rds_iw_flush_mrs(void);
 void rds_iw_remove_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_id);
 
 /* ib_recv.c */
-int __init rds_iw_recv_init(void);
+int rds_iw_recv_init(void);
 void rds_iw_recv_exit(void);
 int rds_iw_recv(struct rds_connection *conn);
 int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 		       gfp_t page_gfp, int prefill);
-void rds_iw_inc_purge(struct rds_incoming *inc);
 void rds_iw_inc_free(struct rds_incoming *inc);
 int rds_iw_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
 			     size_t size);
@@ -358,7 +357,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context);
 void rds_iw_send_init_ring(struct rds_iw_connection *ic);
 void rds_iw_send_clear_ring(struct rds_iw_connection *ic);
-int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op);
+int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op);
 void rds_iw_send_add_credits(struct rds_connection *conn, unsigned int credits);
 void rds_iw_advertise_credits(struct rds_connection *conn, unsigned int posted);
 int rds_iw_send_grab_credits(struct rds_iw_connection *ic, u32 wanted,
@@ -371,7 +370,7 @@ unsigned int rds_iw_stats_info_copy(struct rds_info_iterator *iter,
 				    unsigned int avail);
 
 /* ib_sysctl.c */
-int __init rds_iw_sysctl_init(void);
+int rds_iw_sysctl_init(void);
 void rds_iw_sysctl_exit(void);
 extern unsigned long rds_iw_sysctl_max_send_wr;
 extern unsigned long rds_iw_sysctl_max_recv_wr;

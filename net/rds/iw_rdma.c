@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 
 #include "rds.h"
-#include "rdma.h"
 #include "iw.h"
 
 
