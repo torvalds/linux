@@ -1368,6 +1368,7 @@ enum {
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
+	loff_t			func_pos;
 	struct ftrace_page	*pg;
 	int			hidx;
 	int			idx;
@@ -1418,12 +1419,15 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 	loff_t l;
 
 	if (!(iter->flags & FTRACE_ITER_HASH))
-		*pos = 0;
+		iter->func_pos = *pos;
+
+	if (iter->func_pos > *pos)
+		return NULL;
 
 	iter->flags |= FTRACE_ITER_HASH;
 
 	iter->hidx = 0;
-	for (l = 0; l <= *pos; ) {
+	for (l = 0; l <= (*pos - iter->func_pos); ) {
 		p = t_hash_next(m, p, &l);
 		if (!p)
 			break;
