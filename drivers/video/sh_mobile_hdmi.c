@@ -967,7 +967,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	ret =  snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_sh_hdmi, &sh_hdmi_dai, 1);
 	if (ret < 0)
-		goto egetclk;
+		goto esndreg;
 
 	hdmi->dev = &pdev->dev;
 
@@ -1054,6 +1054,8 @@ eclkenable:
 erate:
 	clk_put(hdmi->hdmi_clk);
 egetclk:
+	snd_soc_unregister_codec(&pdev->dev);
+esndreg:
 	kfree(hdmi);
 
 	return ret;
