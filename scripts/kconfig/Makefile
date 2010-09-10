@@ -273,12 +273,10 @@ $(obj)/.tmp_qtcheck:
 	      moc="/usr/bin/moc"; \
 	    fi; \
 	else \
-	  headerpath="\$$(shell qmake -query QT_INSTALL_HEADERS)"; \
-	  libpath="\$$(shell qmake -query QT_INSTALL_LIBS)"; \
-	  binpath="\$$(shell qmake -query QT_INSTALL_BINS)"; \
-	  cflags="-I$$headerpath -I$$headerpath/QtCore -I$$headerpath/QtGui -I$$headerpath/Qt3Support -DQT3_SUPPORT"; \
-	  libs="-L$$libpath -Wl,-rpath,$$libpath -lQtCore -lQtGui -lQt3Support"; \
-	  moc="$$binpath/moc"; \
+	  cflags="\$$(shell pkg-config QtCore --cflags) \$$(shell pkg-config QtGui --cflags) \$$(shell pkg-config Qt3Support --cflags)"; \
+	  libs="\$$(shell pkg-config QtCore --libs) \$$(shell pkg-config QtGui --libs) \$$(shell pkg-config Qt3Support --libs)"; \
+	  binpath="\$$(shell pkg-config QtCore --variable=prefix)"; \
+	  moc="$$binpath/bin/moc"; \
 	fi; \
 	echo "KC_QT_CFLAGS=$$cflags" > $@; \
 	echo "KC_QT_LIBS=$$libs" >> $@; \
