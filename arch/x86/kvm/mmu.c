@@ -2398,7 +2398,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
-			pdptr = kvm_pdptr_read(vcpu, i);
+			pdptr = kvm_pdptr_read_mmu(vcpu, &vcpu->arch.mmu, i);
 			if (!is_present_gpte(pdptr)) {
 				vcpu->arch.mmu.pae_root[i] = 0;
 				continue;
