@@ -476,6 +476,11 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 		goto proc_cqe;
 	}
 
+	if (CQE_OPCODE(hw_cqe) == FW_RI_TERMINATE) {
+		ret = -EAGAIN;
+		goto skip_cqe;
+	}
+
 	/*
 	 * RECV completion.
 	 */
@@ -696,6 +701,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		case T4_ERR_MSN_RANGE:
 		case T4_ERR_IRD_OVERFLOW:
 		case T4_ERR_OPCODE:
+		case T4_ERR_INTERNAL_ERR:
 			wc->status = IB_WC_FATAL_ERR;
 			break;
 		case T4_ERR_SWFLUSH:
