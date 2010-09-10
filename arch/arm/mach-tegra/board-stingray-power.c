@@ -279,9 +279,9 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 	{CPCAP_REG_S1C2,      0x0000},
 	{CPCAP_REG_S2C1,      0x4830},
 	{CPCAP_REG_S2C2,      0x3030},
-	{CPCAP_REG_S3C,       0x0541},
-	{CPCAP_REG_S4C1,      0x4830},
-	{CPCAP_REG_S4C2,      0x3030},
+	{CPCAP_REG_S3C,       0x0439},
+	{CPCAP_REG_S4C1,      0x4930},
+	{CPCAP_REG_S4C2,      0x301C},
 	{CPCAP_REG_S6C,       0x0000},
 	{CPCAP_REG_VRF1C,     0x0000},
 	{CPCAP_REG_VRF2C,     0x0000},
@@ -296,26 +296,26 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 
 unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW2]      = 0x0800,
-	[CPCAP_SW4]      = 0x0800,
+	[CPCAP_SW4]      = 0x0900,
 	[CPCAP_SW5]      = 0x0000,
-	[CPCAP_VCAM]     = 0x0003,
-	[CPCAP_VCSI]     = 0x0003,
+	[CPCAP_VCAM]     = 0x0007,
+	[CPCAP_VCSI]     = 0x0007,
 	[CPCAP_VDAC]     = 0x0003,
-	[CPCAP_VDIG]     = 0x0003,
+	[CPCAP_VDIG]     = 0x0005,
 	[CPCAP_VFUSE]    = 0x0080,
-	[CPCAP_VHVIO]    = 0x0003,
-	[CPCAP_VSDIO]    = 0x0003,
-	[CPCAP_VPLL]     = 0x0042,
+	[CPCAP_VHVIO]    = 0x0002,
+	[CPCAP_VSDIO]    = 0x0002,
+	[CPCAP_VPLL]     = 0x0001,
 	[CPCAP_VRF1]     = 0x000C,
 	[CPCAP_VRF2]     = 0x0003,
 	[CPCAP_VRFREF]   = 0x0003,
-	[CPCAP_VWLAN1]   = 0x0003,
-	[CPCAP_VWLAN2]   = 0x000C,
+	[CPCAP_VWLAN1]   = 0x0005,
+	[CPCAP_VWLAN2]   = 0x0008,
 	[CPCAP_VSIM]     = 0x0003,
 	[CPCAP_VSIMCARD] = 0x1E00,
 	[CPCAP_VVIB]     = 0x0001,
 	[CPCAP_VUSB]     = 0x000C,
-	[CPCAP_VAUDIO]   = 0x0006,
+	[CPCAP_VAUDIO]   = 0x0004,
 };
 
 unsigned short cpcap_regulator_off_mode_values[CPCAP_NUM_REGULATORS] = {
@@ -370,20 +370,8 @@ struct regulator_consumer_supply cpcap_vhvio_consumers[] = {
 	REGULATOR_CONSUMER("vcc", "3-000f" /* accelerometer */),
 };
 
-struct regulator_consumer_supply cpcap_vsdio_consumers[] = {
-	REGULATOR_CONSUMER("vsdio", NULL),
-};
-
 struct regulator_consumer_supply cpcap_vcsi_consumers[] = {
 	REGULATOR_CONSUMER("vcsi", "tegra_camera"),
-};
-
-struct regulator_consumer_supply cpcap_vwlan2_consumers[] = {
-	REGULATOR_CONSUMER("vwlan2", NULL /* sd slot */),
-};
-
-struct regulator_consumer_supply cpcap_vvib_consumers[] = {
-	REGULATOR_CONSUMER("vvib", NULL /* vibrator */),
 };
 
 struct regulator_consumer_supply cpcap_vusb_consumers[] = {
@@ -492,11 +480,10 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 		.constraints = {
 			.min_uV			= 3000000,
 			.max_uV			= 3000000,
-			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+			.valid_ops_mask		= 0,
+			.always_on		= 1,
 			.apply_uV		= 1,
 		},
-		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vsdio_consumers),
-		.consumer_supplies	= cpcap_vsdio_consumers,
 	},
 	[CPCAP_VPLL] = {
 		.constraints = {
@@ -533,17 +520,17 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 1800000,
 			.max_uV			= 1900000,
 			.valid_ops_mask		= 0,
+			.always_on		= 1,
 		},
 	},
 	[CPCAP_VWLAN2] = {
 		.constraints = {
 			.min_uV			= 3300000,
 			.max_uV			= 3300000,
-			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+			.valid_ops_mask		= 0,
+			.always_on		= 1,
 			.apply_uV		= 1,
 		},
-		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vwlan2_consumers),
-		.consumer_supplies	= cpcap_vwlan2_consumers,
 	},
 	[CPCAP_VSIM] = {
 		.constraints = {
@@ -563,11 +550,8 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 		.constraints = {
 			.min_uV			= 1300000,
 			.max_uV			= 3000000,
-			.valid_ops_mask		= (REGULATOR_CHANGE_VOLTAGE |
-						   REGULATOR_CHANGE_STATUS),
+			.valid_ops_mask		= 0,
 		},
-		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vvib_consumers),
-		.consumer_supplies	= cpcap_vvib_consumers,
 	},
 	[CPCAP_VUSB] = {
 		.constraints = {
@@ -615,6 +599,17 @@ static struct cpcap_platform_data stingray_cpcap_data = {
 	.ac_changed = NULL,
 	.batt_changed = NULL,
 	.usb_changed = NULL,
+	.hwcfg = {
+		(CPCAP_HWCFG0_SEC_STBY_SW3 |
+		 CPCAP_HWCFG0_SEC_STBY_SW4 |
+		 CPCAP_HWCFG0_SEC_STBY_VAUDIO |
+		 CPCAP_HWCFG0_SEC_STBY_VCAM |
+		 CPCAP_HWCFG0_SEC_STBY_VCSI |
+		 CPCAP_HWCFG0_SEC_STBY_VHVIO |
+		 CPCAP_HWCFG0_SEC_STBY_VPLL |
+		 CPCAP_HWCFG0_SEC_STBY_VSDIO),
+		(CPCAP_HWCFG1_SEC_STBY_VWLAN1 |
+		 CPCAP_HWCFG1_SEC_STBY_VWLAN2)}
 };
 
 static struct spi_board_info stingray_spi_board_info[] __initdata = {
