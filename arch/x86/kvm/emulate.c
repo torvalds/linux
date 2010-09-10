@@ -1198,6 +1198,9 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 	*(unsigned long *)dest =
 		(ctxt->eflags & ~change_mask) | (val & change_mask);
 
+	if (rc == X86EMUL_PROPAGATE_FAULT)
+		emulate_pf(ctxt);
+
 	return rc;
 }
 
