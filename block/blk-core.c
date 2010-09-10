@@ -1198,9 +1198,9 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int el_ret;
 	unsigned int bytes = bio->bi_size;
 	const unsigned short prio = bio_prio(bio);
-	const bool sync = (bio->bi_rw & REQ_SYNC);
-	const bool unplug = (bio->bi_rw & REQ_UNPLUG);
-	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
+	const bool sync = !!(bio->bi_rw & REQ_SYNC);
+	const bool unplug = !!(bio->bi_rw & REQ_UNPLUG);
+	const unsigned long ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int rw_flags;
 
 	if ((bio->bi_rw & REQ_HARDBARRIER) &&

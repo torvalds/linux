@@ -445,8 +445,8 @@ static int bdi_forker_thread(void *ptr)
 		switch (action) {
 		case FORK_THREAD:
 			__set_current_state(TASK_RUNNING);
-			task = kthread_run(bdi_writeback_thread, &bdi->wb, "flush-%s",
-					   dev_name(bdi->dev));
+			task = kthread_create(bdi_writeback_thread, &bdi->wb,
+					      "flush-%s", dev_name(bdi->dev));
 			if (IS_ERR(task)) {
 				/*
 				 * If thread creation fails, force writeout of
@@ -457,10 +457,13 @@ static int bdi_forker_thread(void *ptr)
 				/*
 				 * The spinlock makes sure we do not lose
 				 * wake-ups when racing with 'bdi_queue_work()'.
+				 * And as soon as the bdi thread is visible, we
+				 * can start it.
 				 */
 				spin_lock_bh(&bdi->wb_lock);
 				bdi->wb.task = task;
 				spin_unlock_bh(&bdi->wb_lock);
+				wake_up_process(task);
 			}
 			break;
 
