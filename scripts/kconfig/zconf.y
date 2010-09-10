@@ -502,6 +502,10 @@ void conf_parse(const char *name)
 		prop = prop_alloc(P_DEFAULT, modules_sym);
 		prop->expr = expr_alloc_symbol(sym_lookup("MODULES", 0));
 	}
+
+	rootmenu.prompt->text = _(rootmenu.prompt->text);
+	rootmenu.prompt->text = sym_expand_string_value(rootmenu.prompt->text);
+
 	menu_finalize(&rootmenu);
 	for_all_symbols(i, sym) {
 		if (sym_check_deps(sym))
