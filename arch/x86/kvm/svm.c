@@ -104,6 +104,8 @@ struct nested_state {
 	u32 intercept_exceptions;
 	u64 intercept;
 
+	/* Nested Paging related state */
+	u64 nested_cr3;
 };
 
 #define MSRPM_OFFSETS	16
@@ -1598,6 +1600,34 @@ static int vmmcall_interception(struct vcpu_svm *svm)
 	skip_emulated_instruction(&svm->vcpu);
 	kvm_emulate_hypercall(&svm->vcpu);
 	return 1;
+}
+
+static unsigned long nested_svm_get_tdp_cr3(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	return svm->nested.nested_cr3;
+}
+
+static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
+				   unsigned long root)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm->vmcb->control.nested_cr3 = root;
+	force_new_asid(vcpu);
+}
+
+static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm->vmcb->control.exit_code = SVM_EXIT_NPF;
+	svm->vmcb->control.exit_code_hi = 0;
+	svm->vmcb->control.exit_info_1 = vcpu->arch.fault.error_code;
+	svm->vmcb->control.exit_info_2 = vcpu->arch.fault.address;
+
+	nested_svm_vmexit(svm);
 }
 
 static int nested_svm_check_permissions(struct vcpu_svm *svm)
