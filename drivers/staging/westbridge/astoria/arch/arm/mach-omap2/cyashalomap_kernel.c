@@ -359,9 +359,9 @@ static int cy_as_hal_gpmc_init(void)
 	/*
 	 * these are globals are full VMAs of the gpmc_base above
 	 */
-	ncmd_reg_vma = GPMC_VMA(GPMC_NAND_CMD);
-	naddr_reg_vma = GPMC_VMA(GPMC_NAND_ADDR);
-	ndata_reg_vma = GPMC_VMA(GPMC_NAND_DATA);
+	ncmd_reg_vma = GPMC_VMA(AST_GPMC_NAND_CMD);
+	naddr_reg_vma = GPMC_VMA(AST_GPMC_NAND_ADDR);
+	ndata_reg_vma = GPMC_VMA(AST_GPMC_NAND_DATA);
 
 	/*
 	 * request GPMC CS for ASTORIA request

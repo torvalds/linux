@@ -31,6 +31,9 @@
 #define _INCLUDED_CYASMEMMAP_H_
 
 /* defines copied from OMAP kernel branch */
+
+#define OMAP2_PULL_UP		(1 << 4)
+#define OMAP2_PULL_ENA		(1 << 3)
 #define	OMAP34XX_MUX_MODE0	0
 #define	OMAP34XX_MUX_MODE4	4
 #define OMAP3_INPUT_EN		(1 << 8)
@@ -250,9 +253,9 @@
 /*
  *gpmc nand registers for CS4
  */
-#define GPMC_NAND_CMD		(0x7c + (0x30*AST_GPMC_CS))
-#define GPMC_NAND_ADDR		(0x80 + (0x30*AST_GPMC_CS))
-#define GPMC_NAND_DATA		(0x84 + (0x30*AST_GPMC_CS))
+#define AST_GPMC_NAND_CMD		(0x7c + (0x30*AST_GPMC_CS))
+#define AST_GPMC_NAND_ADDR		(0x80 + (0x30*AST_GPMC_CS))
+#define AST_GPMC_NAND_DATA		(0x84 + (0x30*AST_GPMC_CS))
 
 #define GPMC_STAT_REG		(0x54)
 #define GPMC_ERR_TYPE	   (0x48)
