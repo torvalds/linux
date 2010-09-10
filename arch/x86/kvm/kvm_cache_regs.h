@@ -42,7 +42,7 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 		      (unsigned long *)&vcpu->arch.regs_avail))
 		kvm_x86_ops->cache_reg(vcpu, VCPU_EXREG_PDPTR);
 
-	return vcpu->arch.pdptrs[index];
+	return vcpu->arch.walk_mmu->pdptrs[index];
 }
 
 static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)

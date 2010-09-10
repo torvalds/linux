@@ -257,6 +257,8 @@ struct kvm_mmu {
 
 	u64 *pae_root;
 	u64 rsvd_bits_mask[2][4];
+
+	u64 pdptrs[4]; /* pae */
 };
 
 struct kvm_vcpu_arch {
@@ -276,7 +278,6 @@ struct kvm_vcpu_arch {
 	unsigned long cr4_guest_owned_bits;
 	unsigned long cr8;
 	u32 hflags;
-	u64 pdptrs[4]; /* pae */
 	u64 efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
@@ -592,7 +593,7 @@ void kvm_mmu_zap_all(struct kvm *kvm);
 unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm);
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages);
 
-int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
+int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3);
 
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes);

@@ -1842,20 +1842,20 @@ static void ept_load_pdptrs(struct kvm_vcpu *vcpu)
 		return;
 
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-		vmcs_write64(GUEST_PDPTR0, vcpu->arch.pdptrs[0]);
-		vmcs_write64(GUEST_PDPTR1, vcpu->arch.pdptrs[1]);
-		vmcs_write64(GUEST_PDPTR2, vcpu->arch.pdptrs[2]);
-		vmcs_write64(GUEST_PDPTR3, vcpu->arch.pdptrs[3]);
+		vmcs_write64(GUEST_PDPTR0, vcpu->arch.mmu.pdptrs[0]);
+		vmcs_write64(GUEST_PDPTR1, vcpu->arch.mmu.pdptrs[1]);
+		vmcs_write64(GUEST_PDPTR2, vcpu->arch.mmu.pdptrs[2]);
+		vmcs_write64(GUEST_PDPTR3, vcpu->arch.mmu.pdptrs[3]);
 	}
 }
 
 static void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 {
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-		vcpu->arch.pdptrs[0] = vmcs_read64(GUEST_PDPTR0);
-		vcpu->arch.pdptrs[1] = vmcs_read64(GUEST_PDPTR1);
-		vcpu->arch.pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
-		vcpu->arch.pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
+		vcpu->arch.mmu.pdptrs[0] = vmcs_read64(GUEST_PDPTR0);
+		vcpu->arch.mmu.pdptrs[1] = vmcs_read64(GUEST_PDPTR1);
+		vcpu->arch.mmu.pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
+		vcpu->arch.mmu.pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
 	}
 
 	__set_bit(VCPU_EXREG_PDPTR,
