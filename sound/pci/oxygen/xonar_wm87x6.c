@@ -53,6 +53,8 @@ struct xonar_wm87x6 {
 	struct xonar_generic generic;
 	u16 wm8776_regs[0x17];
 	u16 wm8766_regs[0x10];
+	struct snd_kcontrol *line_adcmux_control;
+	struct snd_kcontrol *mic_adcmux_control;
 	struct snd_kcontrol *lc_controls[13];
 };
 
@@ -193,6 +195,7 @@ static void xonar_ds_init(struct oxygen *chip)
 static void xonar_ds_cleanup(struct oxygen *chip)
 {
 	xonar_disable_output(chip);
+	wm8776_write(chip, WM8776_RESET, 0);
 }
 
 static void xonar_ds_suspend(struct oxygen *chip)
@@ -603,6 +606,7 @@ static int wm8776_input_mux_put(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 	struct xonar_wm87x6 *data = chip->model_data;
+	struct snd_kcontrol *other_ctl;
 	unsigned int mux_bit = ctl->private_value;
 	u16 reg;
 	int changed;
@@ -610,8 +614,18 @@ static int wm8776_input_mux_put(struct snd_kcontrol *ctl,
 	mutex_lock(&chip->mutex);
 	reg = data->wm8776_regs[WM8776_ADCMUX];
 	if (value->value.integer.value[0]) {
-		reg &= ~0x003;
 		reg |= mux_bit;
+		/* line-in and mic-in are exclusive */
+		mux_bit ^= 3;
+		if (reg & mux_bit) {
+			reg &= ~mux_bit;
+			if (mux_bit == 1)
+				other_ctl = data->line_adcmux_control;
+			else
+				other_ctl = data->mic_adcmux_control;
+			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+				       &other_ctl->id);
+		}
 	} else
 		reg &= ~mux_bit;
 	changed = reg != data->wm8776_regs[WM8776_ADCMUX];
@@ -963,7 +977,13 @@ static int xonar_ds_mixer_init(struct oxygen *chip)
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;
+		if (!strcmp(ctl->id.name, "Line Capture Switch"))
+			data->line_adcmux_control = ctl;
+		else if (!strcmp(ctl->id.name, "Mic Capture Switch"))
+			data->mic_adcmux_control = ctl;
 	}
+	if (!data->line_adcmux_control || !data->mic_adcmux_control)
+		return -ENXIO;
 	BUILD_BUG_ON(ARRAY_SIZE(lc_controls) != ARRAY_SIZE(data->lc_controls));
 	for (i = 0; i < ARRAY_SIZE(lc_controls); ++i) {
 		ctl = snd_ctl_new1(&lc_controls[i], chip);
