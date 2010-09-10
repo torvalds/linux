@@ -256,6 +256,7 @@ struct kvm_mmu {
 	bool direct_map;
 
 	u64 *pae_root;
+	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];
 
 	u64 pdptrs[4]; /* pae */
