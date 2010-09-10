@@ -1989,8 +1989,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	if ((temp & DPLL_VCO_ENABLE) == 0) {
 		I915_WRITE(pch_dpll_reg, temp | DPLL_VCO_ENABLE);
 		I915_READ(pch_dpll_reg);
+		udelay(200);
 	}
-	udelay(200);
 
 	if (HAS_PCH_CPT(dev)) {
 		/* Be sure PCH DPLL SEL is set */
@@ -2135,8 +2135,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 			DRM_ERROR("failed to turn off cpu pipe\n");
 	} else
 		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
-
-	udelay(100);
 
 	/* Disable PF */
 	I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1, 0);
