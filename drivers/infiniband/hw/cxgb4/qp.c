@@ -35,6 +35,14 @@ static int ocqp_support;
 module_param(ocqp_support, int, 0644);
 MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=0)");
 
+static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
+{
+	unsigned long flag;
+	spin_lock_irqsave(&qhp->lock, flag);
+	qhp->attr.state = state;
+	spin_unlock_irqrestore(&qhp->lock, flag);
+}
+
 static void dealloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
 	c4iw_ocqp_pool_free(rdev, sq->dma_addr, sq->memsize);
@@ -949,46 +957,38 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
  * Assumes qhp lock is held.
  */
 static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
-		       struct c4iw_cq *schp, unsigned long *flag)
+		       struct c4iw_cq *schp)
 {
 	int count;
 	int flushed;
+	unsigned long flag;
 
 	PDBG("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
-	/* take a ref on the qhp since we must release the lock */
-	atomic_inc(&qhp->refcnt);
-	spin_unlock_irqrestore(&qhp->lock, *flag);
 
 	/* locking hierarchy: cq lock first, then qp lock. */
-	spin_lock_irqsave(&rchp->lock, *flag);
+	spin_lock_irqsave(&rchp->lock, flag);
 	spin_lock(&qhp->lock);
 	c4iw_flush_hw_cq(&rchp->cq);
 	c4iw_count_rcqes(&rchp->cq, &qhp->wq, &count);
 	flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
-	spin_unlock_irqrestore(&rchp->lock, *flag);
+	spin_unlock_irqrestore(&rchp->lock, flag);
 	if (flushed)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
 	/* locking hierarchy: cq lock first, then qp lock. */
-	spin_lock_irqsave(&schp->lock, *flag);
+	spin_lock_irqsave(&schp->lock, flag);
 	spin_lock(&qhp->lock);
 	c4iw_flush_hw_cq(&schp->cq);
 	c4iw_count_scqes(&schp->cq, &qhp->wq, &count);
 	flushed = c4iw_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
-	spin_unlock_irqrestore(&schp->lock, *flag);
+	spin_unlock_irqrestore(&schp->lock, flag);
 	if (flushed)
 		(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
-
-	/* deref */
-	if (atomic_dec_and_test(&qhp->refcnt))
-		wake_up(&qhp->wait);
-
-	spin_lock_irqsave(&qhp->lock, *flag);
 }
 
-static void flush_qp(struct c4iw_qp *qhp, unsigned long *flag)
+static void flush_qp(struct c4iw_qp *qhp)
 {
 	struct c4iw_cq *rchp, *schp;
 
@@ -1002,7 +1002,7 @@ static void flush_qp(struct c4iw_qp *qhp, unsigned long *flag)
 			t4_set_cq_in_error(&schp->cq);
 		return;
 	}
-	__flush_qp(qhp, rchp, schp, flag);
+	__flush_qp(qhp, rchp, schp);
 }
 
 static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
@@ -1010,7 +1010,6 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 {
 	struct fw_ri_wr *wqe;
 	int ret;
-	struct c4iw_wr_wait wr_wait;
 	struct sk_buff *skb;
 
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
@@ -1029,15 +1028,15 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe->flowid_len16 = cpu_to_be32(
 		FW_WR_FLOWID(ep->hwtid) |
 		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
-	wqe->cookie = (unsigned long) &wr_wait;
+	wqe->cookie = (unsigned long) &ep->com.wr_wait;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
-	c4iw_init_wr_wait(&wr_wait);
+	c4iw_init_wr_wait(&ep->com.wr_wait);
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
 		goto out;
 
-	ret = c4iw_wait_for_reply(&rhp->rdev, &wr_wait, qhp->ep->hwtid,
+	ret = c4iw_wait_for_reply(&rhp->rdev, &ep->com.wr_wait, qhp->ep->hwtid,
 			     qhp->wq.sq.qid, __func__);
 out:
 	PDBG("%s ret %d\n", __func__, ret);
@@ -1072,7 +1071,6 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 {
 	struct fw_ri_wr *wqe;
 	int ret;
-	struct c4iw_wr_wait wr_wait;
 	struct sk_buff *skb;
 
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
@@ -1092,7 +1090,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 		FW_WR_FLOWID(qhp->ep->hwtid) |
 		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
 
-	wqe->cookie = (unsigned long) &wr_wait;
+	wqe->cookie = (unsigned long) &qhp->ep->com.wr_wait;
 
 	wqe->u.init.type = FW_RI_TYPE_INIT;
 	wqe->u.init.mpareqbit_p2ptype =
@@ -1129,13 +1127,13 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	if (qhp->attr.mpa_attr.initiator)
 		build_rtr_msg(qhp->attr.mpa_attr.p2p_type, &wqe->u.init);
 
-	c4iw_init_wr_wait(&wr_wait);
+	c4iw_init_wr_wait(&qhp->ep->com.wr_wait);
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
 		goto out;
 
-	ret = c4iw_wait_for_reply(&rhp->rdev, &wr_wait, qhp->ep->hwtid,
-			     qhp->wq.sq.qid, __func__);
+	ret = c4iw_wait_for_reply(&rhp->rdev, &qhp->ep->com.wr_wait,
+				  qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
 out:
 	PDBG("%s ret %d\n", __func__, ret);
 	return ret;
@@ -1148,7 +1146,6 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 {
 	int ret = 0;
 	struct c4iw_qp_attributes newattr = qhp->attr;
-	unsigned long flag;
 	int disconnect = 0;
 	int terminate = 0;
 	int abort = 0;
@@ -1159,7 +1156,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	     qhp, qhp->wq.sq.qid, qhp->wq.rq.qid, qhp->ep, qhp->attr.state,
 	     (mask & C4IW_QP_ATTR_NEXT_STATE) ? attrs->next_state : -1);
 
-	spin_lock_irqsave(&qhp->lock, flag);
+	mutex_lock(&qhp->mutex);
 
 	/* Process attr changes if in IDLE */
 	if (mask & C4IW_QP_ATTR_VALID_MODIFY) {
@@ -1210,7 +1207,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			qhp->attr.mpa_attr = attrs->mpa_attr;
 			qhp->attr.llp_stream_handle = attrs->llp_stream_handle;
 			qhp->ep = qhp->attr.llp_stream_handle;
-			qhp->attr.state = C4IW_QP_STATE_RTS;
+			set_state(qhp, C4IW_QP_STATE_RTS);
 
 			/*
 			 * Ref the endpoint here and deref when we
@@ -1219,15 +1216,13 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			 * transition.
 			 */
 			c4iw_get_ep(&qhp->ep->com);
-			spin_unlock_irqrestore(&qhp->lock, flag);
 			ret = rdma_init(rhp, qhp);
-			spin_lock_irqsave(&qhp->lock, flag);
 			if (ret)
 				goto err;
 			break;
 		case C4IW_QP_STATE_ERROR:
-			qhp->attr.state = C4IW_QP_STATE_ERROR;
-			flush_qp(qhp, &flag);
+			set_state(qhp, C4IW_QP_STATE_ERROR);
+			flush_qp(qhp);
 			break;
 		default:
 			ret = -EINVAL;
@@ -1238,39 +1233,38 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		switch (attrs->next_state) {
 		case C4IW_QP_STATE_CLOSING:
 			BUG_ON(atomic_read(&qhp->ep->com.kref.refcount) < 2);
-			qhp->attr.state = C4IW_QP_STATE_CLOSING;
+			set_state(qhp, C4IW_QP_STATE_CLOSING);
 			ep = qhp->ep;
 			if (!internal) {
 				abort = 0;
 				disconnect = 1;
-				c4iw_get_ep(&ep->com);
+				c4iw_get_ep(&qhp->ep->com);
 			}
-			spin_unlock_irqrestore(&qhp->lock, flag);
 			ret = rdma_fini(rhp, qhp, ep);
-			spin_lock_irqsave(&qhp->lock, flag);
 			if (ret) {
-				c4iw_get_ep(&ep->com);
+				if (internal)
+					c4iw_get_ep(&qhp->ep->com);
 				disconnect = abort = 1;
 				goto err;
 			}
 			break;
 		case C4IW_QP_STATE_TERMINATE:
-			qhp->attr.state = C4IW_QP_STATE_TERMINATE;
+			set_state(qhp, C4IW_QP_STATE_TERMINATE);
 			if (qhp->ibqp.uobject)
 				t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
-			c4iw_get_ep(&ep->com);
 			if (!internal)
 				terminate = 1;
 			disconnect = 1;
+			c4iw_get_ep(&qhp->ep->com);
 			break;
 		case C4IW_QP_STATE_ERROR:
-			qhp->attr.state = C4IW_QP_STATE_ERROR;
+			set_state(qhp, C4IW_QP_STATE_ERROR);
 			if (!internal) {
 				abort = 1;
 				disconnect = 1;
 				ep = qhp->ep;
-				c4iw_get_ep(&ep->com);
+				c4iw_get_ep(&qhp->ep->com);
 			}
 			goto err;
 			break;
@@ -1286,8 +1280,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		}
 		switch (attrs->next_state) {
 		case C4IW_QP_STATE_IDLE:
-			flush_qp(qhp, &flag);
-			qhp->attr.state = C4IW_QP_STATE_IDLE;
+			flush_qp(qhp);
+			set_state(qhp, C4IW_QP_STATE_IDLE);
 			qhp->attr.llp_stream_handle = NULL;
 			c4iw_put_ep(&qhp->ep->com);
 			qhp->ep = NULL;
@@ -1309,7 +1303,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			ret = -EINVAL;
 			goto out;
 		}
-		qhp->attr.state = C4IW_QP_STATE_IDLE;
+		set_state(qhp, C4IW_QP_STATE_IDLE);
 		break;
 	case C4IW_QP_STATE_TERMINATE:
 		if (!internal) {
@@ -1335,13 +1329,13 @@ err:
 	if (!ep)
 		ep = qhp->ep;
 	qhp->ep = NULL;
-	qhp->attr.state = C4IW_QP_STATE_ERROR;
+	set_state(qhp, C4IW_QP_STATE_ERROR);
 	free = 1;
 	wake_up(&qhp->wait);
 	BUG_ON(!ep);
-	flush_qp(qhp, &flag);
+	flush_qp(qhp);
 out:
-	spin_unlock_irqrestore(&qhp->lock, flag);
+	mutex_unlock(&qhp->mutex);
 
 	if (terminate)
 		post_terminate(qhp, NULL, internal ? GFP_ATOMIC : GFP_KERNEL);
@@ -1363,7 +1357,6 @@ out:
 	 */
 	if (free)
 		c4iw_put_ep(&ep->com);
-
 	PDBG("%s exit state %d\n", __func__, qhp->attr.state);
 	return ret;
 }
@@ -1478,6 +1471,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.max_ord = 1;
 	qhp->attr.max_ird = 1;
 	spin_lock_init(&qhp->lock);
+	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
 	atomic_set(&qhp->refcnt, 1);
 

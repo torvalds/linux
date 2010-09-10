@@ -46,6 +46,7 @@
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/kfifo.h>
+#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 
@@ -353,6 +354,7 @@ struct c4iw_qp {
 	struct c4iw_qp_attributes attr;
 	struct t4_wq wq;
 	spinlock_t lock;
+	struct mutex mutex;
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
@@ -605,7 +607,7 @@ struct c4iw_ep_common {
 	struct c4iw_dev *dev;
 	enum c4iw_ep_state state;
 	struct kref kref;
-	spinlock_t lock;
+	struct mutex mutex;
 	struct sockaddr_in local_addr;
 	struct sockaddr_in remote_addr;
 	struct c4iw_wr_wait wr_wait;
