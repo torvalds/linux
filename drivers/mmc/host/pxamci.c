@@ -576,7 +576,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * We can do SG-DMA, but we don't because we never know how much
 	 * data we successfully wrote to the card.
 	 */
-	mmc->max_phys_segs = NR_SG;
+	mmc->max_segs = NR_SG;
 
 	/*
 	 * Our hardware DMA can handle a maximum of one page per SG entry.

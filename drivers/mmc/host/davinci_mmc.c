@@ -138,7 +138,7 @@
 /*
  * One scatterlist dma "segment" is at most MAX_CCNT rw_threshold units,
  * and we handle up to MAX_NR_SG segments.  MMC_BLOCK_BOUNCE kicks in only
- * for drivers with max_hw_segs == 1, making the segments bigger (64KB)
+ * for drivers with max_segs == 1, making the segments bigger (64KB)
  * than the page or two that's otherwise typical. nr_sg (passed from
  * platform data) == 16 gives at least the same throughput boost, using
  * EDMA transfer linkage instead of spending CPU time copying pages.
@@ -1239,8 +1239,7 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	 * Each hw_seg uses one EDMA parameter RAM slot, always one
 	 * channel and then usually some linked slots.
 	 */
-	mmc->max_hw_segs	= 1 + host->n_link;
-	mmc->max_phys_segs	= mmc->max_hw_segs;
+	mmc->max_segs		= 1 + host->n_link;
 
 	/* EDMA limit per hw segment (one or two MBytes) */
 	mmc->max_seg_size	= MAX_CCNT * rw_threshold;
@@ -1250,8 +1249,7 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	mmc->max_blk_count	= 65535; /* NBLK is 16 bits */
 	mmc->max_req_size	= mmc->max_blk_size * mmc->max_blk_count;
 
-	dev_dbg(mmc_dev(host->mmc), "max_phys_segs=%d\n", mmc->max_phys_segs);
-	dev_dbg(mmc_dev(host->mmc), "max_hw_segs=%d\n", mmc->max_hw_segs);
+	dev_dbg(mmc_dev(host->mmc), "max_segs=%d\n", mmc->max_segs);
 	dev_dbg(mmc_dev(host->mmc), "max_blk_size=%d\n", mmc->max_blk_size);
 	dev_dbg(mmc_dev(host->mmc), "max_req_size=%d\n", mmc->max_req_size);
 	dev_dbg(mmc_dev(host->mmc), "max_seg_size=%d\n", mmc->max_seg_size);

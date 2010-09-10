@@ -1345,8 +1345,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
-	mmc->max_hw_segs = MMC_SPI_BLOCKSATONCE;
-	mmc->max_phys_segs = MMC_SPI_BLOCKSATONCE;
+	mmc->max_segs = MMC_SPI_BLOCKSATONCE;
 	mmc->max_req_size = MMC_SPI_BLOCKSATONCE * MMC_SPI_BLOCKSIZE;
 	mmc->max_blk_count = MMC_SPI_BLOCKSATONCE;
 

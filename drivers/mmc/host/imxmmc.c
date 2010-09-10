@@ -966,8 +966,7 @@ static int __init imxmci_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_4_BIT_DATA;
 
 	/* MMC core transfer sizes tunable parameters */
-	mmc->max_hw_segs = 64;
-	mmc->max_phys_segs = 64;
+	mmc->max_segs = 64;
 	mmc->max_seg_size = 64*512;	/* default PAGE_CACHE_SIZE */
 	mmc->max_req_size = 64*512;	/* default PAGE_CACHE_SIZE */
 	mmc->max_blk_size = 2048;

@@ -742,8 +742,7 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	mmc->max_blk_size = 2048;
 	mmc->max_blk_count = 65535;
 
-	mmc->max_hw_segs = 1;
-	mmc->max_phys_segs = 1;
+	mmc->max_segs = 1;
 	mmc->max_seg_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 

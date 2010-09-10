@@ -846,8 +846,7 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_MMC_HIGHSPEED;
 	if (pd->caps)
 		mmc->caps |= pd->caps;
-	mmc->max_phys_segs = 128;
-	mmc->max_hw_segs = 128;
+	mmc->max_segs = 128;
 	mmc->max_blk_size = 512;
 	mmc->max_blk_count = 65535;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;

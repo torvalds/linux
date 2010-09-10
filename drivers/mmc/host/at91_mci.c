@@ -947,8 +947,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->max_blk_size  = MCI_MAXBLKSIZE;
 	mmc->max_blk_count = MCI_BLKATONCE;
 	mmc->max_req_size  = MCI_BUFSIZE;
-	mmc->max_phys_segs = MCI_BLKATONCE;
-	mmc->max_hw_segs   = MCI_BLKATONCE;
+	mmc->max_segs      = MCI_BLKATONCE;
 	mmc->max_seg_size  = MCI_BUFSIZE;
 
 	host = mmc_priv(mmc);

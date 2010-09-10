@@ -734,8 +734,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	/*
 	 * We can do SGIO
 	 */
-	mmc->max_hw_segs = 16;
-	mmc->max_phys_segs = NR_SG;
+	mmc->max_segs = NR_SG;
 
 	/*
 	 * Since only a certain number of bits are valid in the data length
