@@ -54,7 +54,7 @@ MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 #define dprintk	if (debug) printk
 
 /* Register values to initialise the demod */
-static u8 init_tab[] = {
+static const u8 init_tab[] = {
 	0x00, 0x00, /* Stop aquisition */
 	0x0B, 0x06,
 	0x09, 0x01,
@@ -576,7 +576,7 @@ static void cx22702_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx22702_ops;
+static const struct dvb_frontend_ops cx22702_ops;
 
 struct dvb_frontend *cx22702_attach(const struct cx22702_config *config,
 	struct i2c_adapter *i2c)
@@ -608,7 +608,7 @@ error:
 }
 EXPORT_SYMBOL(cx22702_attach);
 
-static struct dvb_frontend_ops cx22702_ops = {
+static const struct dvb_frontend_ops cx22702_ops = {
 
 	.info = {
 		.name			= "Conexant CX22702 DVB-T",
