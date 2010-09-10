@@ -239,7 +239,7 @@ static int device_process(struct m2mtest_ctx *ctx,
 		return -EFAULT;
 	}
 
-	if (in_buf->vb.size < out_buf->vb.size) {
+	if (in_buf->vb.size > out_buf->vb.size) {
 		v4l2_err(&dev->v4l2_dev, "Output buffer is too small\n");
 		return -EINVAL;
 	}
