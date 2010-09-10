@@ -74,33 +74,33 @@
 
 #define	NUM_VOLTAGE_SAMPLE	((1000*SLOPE_SECOND_COUNTS) / TIMER_MS_COUNTS)	//存储的采样点个数
 
-int gBatLastStatus = 0;
-int gBatStatus =  POWER_SUPPLY_STATUS_UNKNOWN;
-int gBatHealth = POWER_SUPPLY_HEALTH_GOOD;
-int gBatLastPresent = 0;
-int gBatPresent = BATT_PRESENT_TRUE;
-int gBatLastVoltage =  0;
-int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
-int gBatLastCapacity = 0;
-int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
+static int gBatLastStatus = 0;
+static int gBatStatus =  POWER_SUPPLY_STATUS_UNKNOWN;
+static int gBatHealth = POWER_SUPPLY_HEALTH_GOOD;
+static int gBatLastPresent = 0;
+static int gBatPresent = BATT_PRESENT_TRUE;
+static int gBatLastVoltage =  0;
+static int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
+static int gBatLastCapacity = 0;
+static int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
 
-int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE+2]; //add 2 to handle one bug
-int gBatSlopeValue = 0;
-int gBatVoltageValue[2]={0,0};
-int *pSamples = &gBatVoltageSamples[0];		//采样点指针
-int gFlagLoop = 0;		//采样足够标志
-int gNumSamples = 0;
-int gNumCharge = 0;
-int gMaxCharge = 0;
-int gNumLoader = 0;
-int gMaxLoader = 0;
+static int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE+2]; //add 2 to handle one bug
+static int gBatSlopeValue = 0;
+static int gBatVoltageValue[2]={0,0};
+static int *pSamples = &gBatVoltageSamples[0];		//采样点指针
+static int gFlagLoop = 0;		//采样足够标志
+static int gNumSamples = 0;
+static int gNumCharge = 0;
+static int gMaxCharge = 0;
+static int gNumLoader = 0;
+static int gMaxLoader = 0;
 
-int gBatSlopeLevel = SLOPE_LOW_LEVEL;
-int gBatVoltageLevel = VOLTAGE_MID_LEVEL;
-int gBatUseStatus = BAT_LOADER_STATUS;	
+static int gBatSlopeLevel = SLOPE_LOW_LEVEL;
+static int gBatVoltageLevel = VOLTAGE_MID_LEVEL;
+static int gBatUseStatus = BAT_LOADER_STATUS;	
 
 static struct regulator *pChargeregulator;
-int gVbuscharge = 0;
+static int gVbuscharge = 0;
 
 extern int dwc_vbus_status(void);
 extern int get_msc_connect_flag(void);
@@ -179,12 +179,14 @@ static void rk2818_get_bat_status(struct rk2818_battery_data *bat)
 {
 	if(rk2818_get_charge_status() == 1)
 	{
+		/*
 		if(gpio_get_value (bat->charge_ok_pin) == bat->charge_ok_level)
 		{
 			gBatStatus = POWER_SUPPLY_STATUS_FULL;
 			DBG("Battery is Full!\n");
 		}
 		else
+		*/	
 		gBatStatus = POWER_SUPPLY_STATUS_CHARGING;		
 	}
 	else
