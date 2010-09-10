@@ -1265,6 +1265,8 @@ static void show_help(struct menu *menu)
 			str_append(&help, _(menu_get_help(menu)));
 			str_append(&help, "\n");
 			get_symbol_str(&help, menu->sym);
+		} else {
+			str_append(&help, _(menu_get_help(menu)));
 		}
 	} else {
 		str_append(&help, nohelp_text);
