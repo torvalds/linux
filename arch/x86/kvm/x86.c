@@ -338,6 +338,22 @@ void kvm_inject_page_fault(struct kvm_vcpu *vcpu)
 	kvm_queue_exception_e(vcpu, PF_VECTOR, error_code);
 }
 
+void kvm_propagate_fault(struct kvm_vcpu *vcpu)
+{
+	u32 nested, error;
+
+	error   = vcpu->arch.fault.error_code;
+	nested  = error &  PFERR_NESTED_MASK;
+	error   = error & ~PFERR_NESTED_MASK;
+
+	vcpu->arch.fault.error_code = error;
+
+	if (mmu_is_nested(vcpu) && !nested)
+		vcpu->arch.nested_mmu.inject_page_fault(vcpu);
+	else
+		vcpu->arch.mmu.inject_page_fault(vcpu);
+}
+
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.nmi_pending = 1;
@@ -4140,7 +4156,7 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	if (ctxt->exception == PF_VECTOR)
-		kvm_inject_page_fault(vcpu);
+		kvm_propagate_fault(vcpu);
 	else if (ctxt->error_code_valid)
 		kvm_queue_exception_e(vcpu, ctxt->exception, ctxt->error_code);
 	else
