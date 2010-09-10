@@ -363,6 +363,8 @@ struct snd_soc_ops {
 	int (*hw_free)(struct snd_pcm_substream *);
 	int (*prepare)(struct snd_pcm_substream *);
 	int (*trigger)(struct snd_pcm_substream *, int);
+    /* set volume,add by qiuen*/
+	void (*set_volume)(unsigned char mode,unsigned char volume);
 };
 
 /* SoC Audio Codec */

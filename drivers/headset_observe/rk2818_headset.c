@@ -39,9 +39,9 @@
 
 /* Debug */
 #if 0
-#define DBG	printk
+#define DBG(x...) printk(KERN_INFO x)
 #else
-#define DBG
+#define DBG(x...) do { } while (0)
 #endif
 
 /* ¶ú»ú×´Ì¬ */

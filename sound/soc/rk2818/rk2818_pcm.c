@@ -365,9 +365,21 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct rockchip_runtime_data *prtd = substream->runtime->private_data;
 	int ret = 0;
-
-	DBG("Enter::%s----%d---%d\n",__FUNCTION__,__LINE__,cmd);
-
+	/**************add by qiuen for volume*****/
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *pCodec_dai = rtd->dai->codec_dai;
+	int vol = 0;
+	int streamType = 0;
+	
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	
+	if(cmd==SNDRV_PCM_TRIGGER_VOLUME){
+		vol = substream->number % 100;
+		streamType = (substream->number / 100) % 100;
+		DBG("enter:vol=%d,streamType=%d\n",vol,streamType);
+		pCodec_dai->ops->set_volume(streamType, vol);
+	}
+	/****************************************************/
 	spin_lock(&prtd->lock);
 
 	switch (cmd) {
