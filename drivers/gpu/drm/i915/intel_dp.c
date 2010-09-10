@@ -781,7 +781,7 @@ static bool ironlake_edp_panel_on (struct drm_device *dev)
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
 
-	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
+	pp |= POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 
 	if (wait_for(I915_READ(PCH_PP_STATUS) & PP_ON, 5000))
