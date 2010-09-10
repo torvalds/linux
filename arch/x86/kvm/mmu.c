@@ -2578,12 +2578,12 @@ static void paging_free(struct kvm_vcpu *vcpu)
 	nonpaging_free(vcpu);
 }
 
-static bool is_rsvd_bits_set(struct kvm_vcpu *vcpu, u64 gpte, int level)
+static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
 {
 	int bit7;
 
 	bit7 = (gpte >> 7) & 1;
-	return (gpte & vcpu->arch.mmu.rsvd_bits_mask[bit7][level-1]) != 0;
+	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) != 0;
 }
 
 #define PTTYPE 64
@@ -2859,7 +2859,7 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 		return;
         }
 
-	if (is_rsvd_bits_set(vcpu, *(u64 *)new, PT_PAGE_TABLE_LEVEL))
+	if (is_rsvd_bits_set(&vcpu->arch.mmu, *(u64 *)new, PT_PAGE_TABLE_LEVEL))
 		return;
 
 	++vcpu->kvm->stat.mmu_pte_updated;
