@@ -40,6 +40,8 @@
 #define RAM_START_ST         0x0000
 #define RAM_END_ST           0x0FFF
 
+#define HWCFG_ADDR_ST        0x0122
+
 enum {
 	READ_STATE_1,	/* Send size and location of RAM read. */
 	READ_STATE_2,   /*!< Read MT registers. */
@@ -684,6 +686,9 @@ static int fw_load(struct cpcap_uc_data *uc_data, struct device *dev)
 	unsigned short num_bytes;
 	unsigned short num_words;
 	unsigned char odd_bytes;
+	struct cpcap_platform_data *data;
+
+	data = uc_data->cpcap->spi->controller_data;
 
 	if (!uc_data || !dev)
 		return -EINVAL;
@@ -743,6 +748,12 @@ static int fw_load(struct cpcap_uc_data *uc_data, struct device *dev)
 
 	if (!err) {
 		uc_data->is_ready = 1;
+
+		if (uc_data->cpcap->vendor == CPCAP_VENDOR_ST) {
+			err = ram_write(uc_data, HWCFG_ADDR_ST, CPCAP_HWCFG_NUM,
+					data->hwcfg);
+			dev_info(dev, "Loaded HWCFG data: %d\n", err);
+		}
 
 		err = cpcap_uc_start(uc_data->cpcap, CPCAP_MACRO_4);
 		dev_info(dev, "Started macro 4: %d\n", err);

@@ -39,6 +39,32 @@
 #define CPCAP_IRQ_INT4_INDEX 48
 #define CPCAP_IRQ_INT5_INDEX 64
 
+#define CPCAP_HWCFG_NUM       2    /* The number of hardware config words. */
+/*
+ * Tell the uC to setup the secondary standby bits for the regulators used.
+ */
+#define CPCAP_HWCFG0_SEC_STBY_SW1       0x0001
+#define CPCAP_HWCFG0_SEC_STBY_SW2       0x0002
+#define CPCAP_HWCFG0_SEC_STBY_SW3       0x0004
+#define CPCAP_HWCFG0_SEC_STBY_SW4       0x0008
+#define CPCAP_HWCFG0_SEC_STBY_SW5       0x0010
+#define CPCAP_HWCFG0_SEC_STBY_VAUDIO    0x0020
+#define CPCAP_HWCFG0_SEC_STBY_VCAM      0x0040
+#define CPCAP_HWCFG0_SEC_STBY_VCSI      0x0080
+#define CPCAP_HWCFG0_SEC_STBY_VDAC      0x0100
+#define CPCAP_HWCFG0_SEC_STBY_VDIG      0x0200
+#define CPCAP_HWCFG0_SEC_STBY_VHVIO     0x0400
+#define CPCAP_HWCFG0_SEC_STBY_VPLL      0x0800
+#define CPCAP_HWCFG0_SEC_STBY_VRF1      0x1000
+#define CPCAP_HWCFG0_SEC_STBY_VRF2      0x2000
+#define CPCAP_HWCFG0_SEC_STBY_VRFREF    0x4000
+#define CPCAP_HWCFG0_SEC_STBY_VSDIO     0x8000
+
+#define CPCAP_HWCFG1_SEC_STBY_VWLAN1    0x0001
+#define CPCAP_HWCFG1_SEC_STBY_VWLAN2    0x0002
+#define CPCAP_HWCFG1_SEC_STBY_VSIM      0x0004
+#define CPCAP_HWCFG1_SEC_STBY_VSIMCARD  0x0008
+
 #define CPCAP_WHISPER_MODE_PU       0x00000001
 #define CPCAP_WHISPER_ENABLE_UART   0x00000002
 #define CPCAP_WHISPER_ACCY_MASK     0xF8000000
@@ -546,6 +572,7 @@ struct cpcap_platform_data {
 			     struct cpcap_batt_data *);
 	void (*usb_changed)(struct power_supply *,
 			    struct cpcap_batt_usb_data *);
+	u16 hwcfg[CPCAP_HWCFG_NUM];
 };
 
 struct cpcap_whisper_pdata {
