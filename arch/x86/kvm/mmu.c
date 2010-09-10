@@ -2634,6 +2634,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
 	context->direct_map = true;
+	context->nx = false;
 	return 0;
 }
 
@@ -2687,7 +2688,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 	u64 exb_bit_rsvd = 0;
 
-	if (!is_nx(vcpu))
+	if (!context->nx)
 		exb_bit_rsvd = rsvd_bits(63, 63);
 	switch (level) {
 	case PT32_ROOT_LEVEL:
@@ -2746,6 +2747,8 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 					struct kvm_mmu *context,
 					int level)
 {
+	context->nx = is_nx(vcpu);
+
 	reset_rsvds_bits_mask(vcpu, context, level);
 
 	ASSERT(is_pae(vcpu));
@@ -2772,6 +2775,8 @@ static int paging64_init_context(struct kvm_vcpu *vcpu,
 static int paging32_init_context(struct kvm_vcpu *vcpu,
 				 struct kvm_mmu *context)
 {
+	context->nx = false;
+
 	reset_rsvds_bits_mask(vcpu, context, PT32_ROOT_LEVEL);
 
 	context->new_cr3 = paging_new_cr3;
@@ -2810,19 +2815,24 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->set_cr3 = kvm_x86_ops->set_tdp_cr3;
 	context->get_cr3 = get_cr3;
 	context->inject_page_fault = kvm_inject_page_fault;
+	context->nx = is_nx(vcpu);
 
 	if (!is_paging(vcpu)) {
+		context->nx = false;
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
 		context->root_level = 0;
 	} else if (is_long_mode(vcpu)) {
+		context->nx = is_nx(vcpu);
 		reset_rsvds_bits_mask(vcpu, context, PT64_ROOT_LEVEL);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 		context->root_level = PT64_ROOT_LEVEL;
 	} else if (is_pae(vcpu)) {
+		context->nx = is_nx(vcpu);
 		reset_rsvds_bits_mask(vcpu, context, PT32E_ROOT_LEVEL);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 		context->root_level = PT32E_ROOT_LEVEL;
 	} else {
+		context->nx = false;
 		reset_rsvds_bits_mask(vcpu, context, PT32_ROOT_LEVEL);
 		context->gva_to_gpa = paging32_gva_to_gpa;
 		context->root_level = PT32_ROOT_LEVEL;
@@ -2878,17 +2888,21 @@ static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	 * functions between mmu and nested_mmu are swapped.
 	 */
 	if (!is_paging(vcpu)) {
+		g_context->nx = false;
 		g_context->root_level = 0;
 		g_context->gva_to_gpa = nonpaging_gva_to_gpa_nested;
 	} else if (is_long_mode(vcpu)) {
+		g_context->nx = is_nx(vcpu);
 		reset_rsvds_bits_mask(vcpu, g_context, PT64_ROOT_LEVEL);
 		g_context->root_level = PT64_ROOT_LEVEL;
 		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
 	} else if (is_pae(vcpu)) {
+		g_context->nx = is_nx(vcpu);
 		reset_rsvds_bits_mask(vcpu, g_context, PT32E_ROOT_LEVEL);
 		g_context->root_level = PT32E_ROOT_LEVEL;
 		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
 	} else {
+		g_context->nx = false;
 		reset_rsvds_bits_mask(vcpu, g_context, PT32_ROOT_LEVEL);
 		g_context->root_level = PT32_ROOT_LEVEL;
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;

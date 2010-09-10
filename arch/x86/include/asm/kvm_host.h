@@ -259,6 +259,8 @@ struct kvm_mmu {
 	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];
 
+	bool nx;
+
 	u64 pdptrs[4]; /* pae */
 };
 
