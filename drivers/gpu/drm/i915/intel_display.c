@@ -1641,6 +1641,7 @@ static void ironlake_set_pll_edp (struct drm_crtc *crtc, int clock)
 		dpa_ctl |= DP_PLL_FREQ_270MHZ;
 	}
 	I915_WRITE(DP_A, dpa_ctl);
+	POSTING_READ(DP_A);
 
 	udelay(500);
 }
@@ -1708,6 +1709,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_2;
 	I915_WRITE(fdi_rx_reg, temp);
+	POSTING_READ(fdi_rx_reg);
 	udelay(150);
 
 	tries = 0;
@@ -1788,6 +1790,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 		temp |= snb_b_fdi_train_param[i];
 		I915_WRITE(fdi_tx_reg, temp);
+		POSTING_READ(fdi_tx_reg);
 		udelay(500);
 
 		temp = I915_READ(fdi_rx_iir_reg);
@@ -1823,6 +1826,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		temp |= FDI_LINK_TRAIN_PATTERN_2;
 	}
 	I915_WRITE(fdi_rx_reg, temp);
+	POSTING_READ(fdi_rx_reg);
 	udelay(150);
 
 	for (i = 0; i < 4; i++ ) {
@@ -1830,6 +1834,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 		temp |= snb_b_fdi_train_param[i];
 		I915_WRITE(fdi_tx_reg, temp);
+		POSTING_READ(fdi_tx_reg);
 		udelay(500);
 
 		temp = I915_READ(fdi_rx_iir_reg);
