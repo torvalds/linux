@@ -1848,6 +1848,50 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
+static void ironlake_fdi_enable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
+	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	u32 temp;
+	u32 pipe_bpc;
+
+	temp = I915_READ(pipeconf_reg);
+	pipe_bpc = temp & PIPE_BPC_MASK;
+
+	/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
+	temp = I915_READ(fdi_rx_reg);
+	/*
+	 * make the BPC in FDI Rx be consistent with that in
+	 * pipeconf reg.
+	 */
+	temp &= ~(0x7 << 16);
+	temp |= (pipe_bpc << 11);
+	temp &= ~(7 << 19);
+	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
+	I915_READ(fdi_rx_reg);
+	udelay(200);
+
+	/* Switch from Rawclk to PCDclk */
+	temp = I915_READ(fdi_rx_reg);
+	I915_WRITE(fdi_rx_reg, temp | FDI_SEL_PCDCLK);
+	I915_READ(fdi_rx_reg);
+	udelay(200);
+
+	/* Enable CPU FDI TX PLL, always on for Ironlake */
+	temp = I915_READ(fdi_tx_reg);
+	if ((temp & FDI_TX_PLL_ENABLE) == 0) {
+		I915_WRITE(fdi_tx_reg, temp | FDI_TX_PLL_ENABLE);
+		I915_READ(fdi_tx_reg);
+		udelay(100);
+	}
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1889,33 +1933,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		}
 	}
 
-	/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
-	temp = I915_READ(fdi_rx_reg);
-	/*
-	 * make the BPC in FDI Rx be consistent with that in
-	 * pipeconf reg.
-	 */
-	temp &= ~(0x7 << 16);
-	temp |= (pipe_bpc << 11);
-	temp &= ~(7 << 19);
-	temp |= (intel_crtc->fdi_lanes - 1) << 19;
-	I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
-	I915_READ(fdi_rx_reg);
-	udelay(200);
-
-	/* Switch from Rawclk to PCDclk */
-	temp = I915_READ(fdi_rx_reg);
-	I915_WRITE(fdi_rx_reg, temp | FDI_SEL_PCDCLK);
-	I915_READ(fdi_rx_reg);
-	udelay(200);
-
-	/* Enable CPU FDI TX PLL, always on for Ironlake */
-	temp = I915_READ(fdi_tx_reg);
-	if ((temp & FDI_TX_PLL_ENABLE) == 0) {
-		I915_WRITE(fdi_tx_reg, temp | FDI_TX_PLL_ENABLE);
-		I915_READ(fdi_tx_reg);
-		udelay(100);
-	}
+	ironlake_fdi_enable(crtc);
 
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
