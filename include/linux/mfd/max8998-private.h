@@ -1,5 +1,5 @@
 /*
- * max8698.h - Voltage regulator driver for the Maxim 8998
+ * max8998.h - Voltage regulator driver for the Maxim 8998
  *
  *  Copyright (C) 2009-2010 Samsung Electrnoics
  *  Kyungmin Park <kyungmin.park@samsung.com>
@@ -22,6 +22,8 @@
 
 #ifndef __LINUX_MFD_MAX8998_PRIV_H
 #define __LINUX_MFD_MAX8998_PRIV_H
+
+#define MAX8998_NUM_IRQ_REGS	4
 
 /* MAX 8998 registers */
 enum {
@@ -72,20 +74,86 @@ enum {
 	MAX8998_REG_LBCNFG2,
 };
 
+/* IRQ definitions */
+enum {
+	MAX8998_IRQ_DCINF,
+	MAX8998_IRQ_DCINR,
+	MAX8998_IRQ_JIGF,
+	MAX8998_IRQ_JIGR,
+	MAX8998_IRQ_PWRONF,
+	MAX8998_IRQ_PWRONR,
+
+	MAX8998_IRQ_WTSREVNT,
+	MAX8998_IRQ_SMPLEVNT,
+	MAX8998_IRQ_ALARM1,
+	MAX8998_IRQ_ALARM0,
+
+	MAX8998_IRQ_ONKEY1S,
+	MAX8998_IRQ_TOPOFFR,
+	MAX8998_IRQ_DCINOVPR,
+	MAX8998_IRQ_CHGRSTF,
+	MAX8998_IRQ_DONER,
+	MAX8998_IRQ_CHGFAULT,
+
+	MAX8998_IRQ_LOBAT1,
+	MAX8998_IRQ_LOBAT2,
+
+	MAX8998_IRQ_NR,
+};
+
+#define MAX8998_IRQ_DCINF_MASK		(1 << 2)
+#define MAX8998_IRQ_DCINR_MASK		(1 << 3)
+#define MAX8998_IRQ_JIGF_MASK		(1 << 4)
+#define MAX8998_IRQ_JIGR_MASK		(1 << 5)
+#define MAX8998_IRQ_PWRONF_MASK		(1 << 6)
+#define MAX8998_IRQ_PWRONR_MASK		(1 << 7)
+
+#define MAX8998_IRQ_WTSREVNT_MASK	(1 << 0)
+#define MAX8998_IRQ_SMPLEVNT_MASK	(1 << 1)
+#define MAX8998_IRQ_ALARM1_MASK		(1 << 2)
+#define MAX8998_IRQ_ALARM0_MASK		(1 << 3)
+
+#define MAX8998_IRQ_ONKEY1S_MASK	(1 << 0)
+#define MAX8998_IRQ_TOPOFFR_MASK	(1 << 2)
+#define MAX8998_IRQ_DCINOVPR_MASK	(1 << 3)
+#define MAX8998_IRQ_CHGRSTF_MASK	(1 << 4)
+#define MAX8998_IRQ_DONER_MASK		(1 << 5)
+#define MAX8998_IRQ_CHGFAULT_MASK	(1 << 7)
+
+#define MAX8998_IRQ_LOBAT1_MASK		(1 << 0)
+#define MAX8998_IRQ_LOBAT2_MASK		(1 << 1)
+
 /**
  * struct max8998_dev - max8998 master device for sub-drivers
  * @dev: master device of the chip (can be used to access platform data)
  * @i2c: i2c client private data
  * @iolock: mutex for serializing io access
+ * @irqlock: mutex for buslock
+ * @irq_base: base IRQ number for max8998, required for IRQs
+ * @irq: generic IRQ number for max8998
+ * @ono: power onoff IRQ number for max8998
+ * @irq_masks_cur: currently active value
+ * @irq_masks_cache: cached hardware value
  */
-
 struct max8998_dev {
 	struct device *dev;
 	struct i2c_client *i2c;
 	struct mutex iolock;
+	struct mutex irqlock;
+
+	int irq_base;
+	int irq;
+	int ono;
+	u8 irq_masks_cur[MAX8998_NUM_IRQ_REGS];
+	u8 irq_masks_cache[MAX8998_NUM_IRQ_REGS];
 };
 
+int max8998_irq_init(struct max8998_dev *max8998);
+void max8998_irq_exit(struct max8998_dev *max8998);
+
 extern int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest);
+extern int max8998_bulk_read(struct i2c_client *i2c, u8 reg, int count,
+		u8 *buf);
 extern int max8998_write_reg(struct i2c_client *i2c, u8 reg, u8 value);
 extern int max8998_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
 

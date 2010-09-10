@@ -1,5 +1,5 @@
 /*
- * max8698.c - mfd core driver for the Maxim 8998
+ * max8998.c - mfd core driver for the Maxim 8998
  *
  *  Copyright (C) 2009-2010 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
@@ -53,6 +53,21 @@ int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 }
 EXPORT_SYMBOL(max8998_read_reg);
 
+int max8998_bulk_read(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
+{
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
+	int ret;
+
+	mutex_lock(&max8998->iolock);
+	ret = i2c_smbus_read_i2c_block_data(i2c, reg, count, buf);
+	mutex_unlock(&max8998->iolock);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(max8998_bulk_read);
+
 int max8998_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 {
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
@@ -87,6 +102,7 @@ EXPORT_SYMBOL(max8998_update_reg);
 static int max8998_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	struct max8998_platform_data *pdata = i2c->dev.platform_data;
 	struct max8998_dev *max8998;
 	int ret = 0;
 
@@ -97,7 +113,14 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, max8998);
 	max8998->dev = &i2c->dev;
 	max8998->i2c = i2c;
+	max8998->irq = i2c->irq;
+	if (pdata) {
+		max8998->ono = pdata->ono;
+		max8998->irq_base = pdata->irq_base;
+	}
 	mutex_init(&max8998->iolock);
+
+	max8998_irq_init(max8998);
 
 	ret = mfd_add_devices(max8998->dev, -1,
 			      max8998_devs, ARRAY_SIZE(max8998_devs),

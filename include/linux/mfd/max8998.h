@@ -1,5 +1,5 @@
 /*
- * max8698.h - Voltage regulator driver for the Maxim 8998
+ * max8998.h - Voltage regulator driver for the Maxim 8998
  *
  *  Copyright (C) 2009-2010 Samsung Electrnoics
  *  Kyungmin Park <kyungmin.park@samsung.com>
@@ -66,13 +66,16 @@ struct max8998_regulator_data {
 
 /**
  * struct max8998_board - packages regulator init data
- * @num_regulators: number of regultors used
  * @regulators: array of defined regulators
+ * @num_regulators: number of regultors used
+ * @irq_base: base IRQ number for max8998, required for IRQs
+ * @ono: power onoff IRQ number for max8998
  */
-
 struct max8998_platform_data {
-	int				num_regulators;
 	struct max8998_regulator_data	*regulators;
+	int				num_regulators;
+	int				irq_base;
+	int				ono;
 };
 
 #endif /*  __LINUX_MFD_MAX8998_H */
