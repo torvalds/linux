@@ -351,16 +351,14 @@ static struct spi_board_info ek_spi_devices[] = {
 };
 
 #else /* CONFIG_SPI_ATMEL_* */
+/* spi0 and mmc/sd share the same PIO pins: cannot be used at the same time */
 
 /*
  * MCI (SD/MMC)
- * spi0 and mmc/sd share the same PIO pins: cannot be used at the same time
+ * det_pin, wp_pin and vcc_pin are not connected
  */
 static struct at91_mmc_data __initdata ek_mmc_data = {
 	.wire4		= 1,
-//	.det_pin	= ... not connected
-//	.wp_pin		= ... not connected
-//	.vcc_pin	= ... not connected
 };
 
 #endif /* CONFIG_SPI_ATMEL_* */
