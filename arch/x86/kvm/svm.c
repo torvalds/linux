@@ -3481,6 +3481,10 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 		if (svm_has(SVM_FEATURE_NRIP))
 			entry->edx |= SVM_FEATURE_NRIP;
 
+		/* Support NPT for the guest if enabled */
+		if (npt_enabled)
+			entry->edx |= SVM_FEATURE_NPT;
+
 		break;
 	}
 }
