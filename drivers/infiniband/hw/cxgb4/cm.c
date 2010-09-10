@@ -172,7 +172,7 @@ static int c4iw_l2t_send(struct c4iw_rdev *rdev, struct sk_buff *skb,
 	error = cxgb4_l2t_send(rdev->lldi.ports[0], skb, l2e);
 	if (error < 0)
 		kfree_skb(skb);
-	return error;
+	return error < 0 ? error : 0;
 }
 
 int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb)
@@ -187,7 +187,7 @@ int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb)
 	error = cxgb4_ofld_send(rdev->lldi.ports[0], skb);
 	if (error < 0)
 		kfree_skb(skb);
-	return error;
+	return error < 0 ? error : 0;
 }
 
 static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
