@@ -11,8 +11,8 @@ menuconfig INPUT_JOGBALL
 
 if INPUT_JOGBALL
 
-config RK28_JOGBALL
-	tristate "RK28 Jogball"
+config RK2818_JOGBALL
+	tristate "RK2818 Jogball"
 	depends on INPUT_JOGBALL	
 	help
 	    say Y here if you have a jogball interface .  

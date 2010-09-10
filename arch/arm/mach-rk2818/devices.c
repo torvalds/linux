@@ -484,6 +484,14 @@ struct platform_device rk2818_nand_device = {
 };
 
 #endif
+
+#if defined(CONFIG_INPUT_JOGBALL)
+struct platform_device rk2818_jogball_device = {
+		.name	= "rk2818_jogball",
+		.id 	= -1,
+};
+#endif
+
 /*DWC_OTG*/
 static struct resource dwc_otg_resource[] = {
 	{

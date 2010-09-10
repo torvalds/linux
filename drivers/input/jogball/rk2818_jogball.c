@@ -430,7 +430,7 @@ static struct platform_driver rk28_jogball_driver =
 	.probe		= rk28_jogball_probe,
 	.remove 	= __devexit_p(rk28_jogball_remove),
 	.driver 	= {
-		.name	= "rk28_jogball",
+		.name	= "rk2818_jogball",
 		.owner	= THIS_MODULE,
 	},
 	.shutdown   = rk28_jogball_shutdown,
