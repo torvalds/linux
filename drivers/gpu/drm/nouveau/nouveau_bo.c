@@ -162,8 +162,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nouveau_bo_fixup_align(dev, tile_mode, tile_flags, &align, &size);
 	align >>= PAGE_SHIFT;
 
-	nvbo->placement.fpfn = 0;
-	nvbo->placement.lpfn = mappable ? dev_priv->fb_mappable_pages : 0;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
 	nvbo->channel = chan;
@@ -907,7 +905,26 @@ nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 static int
 nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
-	return 0;
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	/* as long as the bo isn't in vram, and isn't tiled, we've got
+	 * nothing to do here.
+	 */
+	if (bo->mem.mem_type != TTM_PL_VRAM) {
+		if (dev_priv->chipset < NV_50 || !nvbo->tile_flags)
+			return 0;
+	}
+
+	/* make sure bo is in mappable vram */
+	if (bo->mem.mm_node->start + bo->mem.num_pages < dev_priv->fb_mappable_pages)
+		return 0;
+
+
+	nvbo->placement.fpfn = 0;
+	nvbo->placement.lpfn = dev_priv->fb_mappable_pages;
+	nouveau_bo_placement_set(nvbo, TTM_PL_VRAM, 0);
+	return ttm_bo_validate(bo, &nvbo->placement, false, true, false);
 }
 
 struct ttm_bo_driver nouveau_bo_driver = {
