@@ -33,7 +33,7 @@ struct cc_workarea {
 	u32	prop_offset;
 };
 
-static void dlpar_free_cc_property(struct property *prop)
+void dlpar_free_cc_property(struct property *prop)
 {
 	kfree(prop->name);
 	kfree(prop->value);
@@ -102,7 +102,7 @@ static void dlpar_free_one_cc_node(struct device_node *dn)
 	kfree(dn);
 }
 
-static void dlpar_free_cc_nodes(struct device_node *dn)
+void dlpar_free_cc_nodes(struct device_node *dn)
 {
 	if (dn->child)
 		dlpar_free_cc_nodes(dn->child);
