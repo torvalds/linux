@@ -526,6 +526,8 @@ struct kvm_x86_ops {
 	bool (*rdtscp_supported)(void);
 	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment);
 
+	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
+
 	void (*set_supported_cpuid)(u32 func, struct kvm_cpuid_entry2 *entry);
 
 	bool (*has_wbinvd_exit)(void);
