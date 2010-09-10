@@ -570,12 +570,12 @@ struct ata_queued_cmd {
 	unsigned int		extrabytes;
 	unsigned int		curbytes;
 
-	struct scatterlist	*cursg;
-	unsigned int		cursg_ofs;
-
 	struct scatterlist	sgent;
 
 	struct scatterlist	*sg;
+
+	struct scatterlist	*cursg;
+	unsigned int		cursg_ofs;
 
 	unsigned int		err_mask;
 	struct ata_taskfile	result_tf;
