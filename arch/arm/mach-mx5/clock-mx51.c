@@ -764,21 +764,21 @@ static struct clk kpp_clk = {
 	.id = 0,
 };
 
-#define DEFINE_CLOCK(name, i, er, es, gr, sr, p, s)	\
-	static struct clk name = {			\
-		.id		= i,			\
-		.enable_reg	= er,			\
-		.enable_shift	= es,			\
-		.get_rate	= gr,			\
-		.set_rate	= sr,			\
-		.enable		= _clk_ccgr_enable,	\
-		.disable	= _clk_ccgr_disable,	\
-		.parent		= p,			\
-		.secondary	= s,			\
+#define DEFINE_CLOCK_FULL(name, i, er, es, gr, sr, e, d, p, s)		\
+	static struct clk name = {					\
+		.id		= i,					\
+		.enable_reg	= er,					\
+		.enable_shift	= es,					\
+		.get_rate	= gr,					\
+		.set_rate	= sr,					\
+		.enable		= e,					\
+		.disable	= d,					\
+		.parent		= p,					\
+		.secondary	= s,					\
 	}
 
-/* DEFINE_CLOCK(name, id, enable_reg, enable_shift,
-   get_rate, set_rate, parent, secondary); */
+#define DEFINE_CLOCK(name, i, er, es, gr, sr, p, s)			\
+	DEFINE_CLOCK_FULL(name, i, er, es, gr, sr, _clk_ccgr_enable, _clk_ccgr_disable, p, s)
 
 /* Shared peripheral bus arbiter */
 DEFINE_CLOCK(spba_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG0_OFFSET,
