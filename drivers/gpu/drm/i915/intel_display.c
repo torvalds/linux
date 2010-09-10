@@ -5635,6 +5635,10 @@ void ironlake_enable_drps(struct drm_device *dev)
 	u32 rgvmodectl = I915_READ(MEMMODECTL);
 	u8 fmax, fmin, fstart, vstart;
 
+	/* Enable temp reporting */
+	I915_WRITE16(PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
+	I915_WRITE16(TSC1, I915_READ(TSC1) | TSE);
+
 	/* 100ms RC evaluation intervals */
 	I915_WRITE(RCUPEI, 100000);
 	I915_WRITE(RCDNEI, 100000);

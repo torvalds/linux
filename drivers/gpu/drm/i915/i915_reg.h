@@ -928,6 +928,8 @@
 #define CLKCFG_MEM_800					(3 << 4)
 #define CLKCFG_MEM_MASK					(7 << 4)
 
+#define TSC1			0x11001
+#define   TSE			(1<<0)
 #define TR1			0x11006
 #define TSFS			0x11020
 #define   TSFS_SLOPE_MASK	0x0000ff00
@@ -1072,6 +1074,8 @@
 #define   MEMSTAT_SRC_CTL_STDBY 3
 #define RCPREVBSYTUPAVG		0x113b8
 #define RCPREVBSYTDNAVG		0x113bc
+#define PMMISC			0x11214
+#define   MCPPCE_EN		(1<<0) /* enable PM_MSG from PCH->MPC */
 #define SDEW			0x1124c
 #define CSIEW0			0x11250
 #define CSIEW1			0x11254
