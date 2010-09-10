@@ -2404,7 +2404,7 @@ retry_avoidcopy:
 		set_huge_pte_at(mm, address, ptep,
 				make_huge_pte(vma, new_page, 1));
 		page_remove_rmap(old_page);
-		hugepage_add_anon_rmap(new_page, vma, address);
+		hugepage_add_new_anon_rmap(new_page, vma, address);
 		/* Make the old page be freed below */
 		new_page = old_page;
 		mmu_notifier_invalidate_range_end(mm,
