@@ -93,11 +93,12 @@ static struct resource dm9000_resource[] = {
 		.start	= AT91_PIN_PC11,
 		.end	= AT91_PIN_PC11,
 		.flags	= IORESOURCE_IRQ
+			| IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
 static struct dm9000_plat_data dm9000_platdata = {
-	.flags		= DM9000_PLATF_16BITONLY,
+	.flags		= DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM,
 };
 
 static struct platform_device dm9000_device = {
