@@ -508,7 +508,7 @@ static int cx22702_read_signal_strength(struct dvb_frontend *fe,
 {
 	struct cx22702_state *state = fe->demodulator_priv;
 
-	u16 rs_ber = 0;
+	u16 rs_ber;
 	rs_ber = cx22702_readreg(state, 0x23);
 	*signal_strength = (rs_ber << 8) | rs_ber;
 
@@ -519,7 +519,7 @@ static int cx22702_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct cx22702_state *state = fe->demodulator_priv;
 
-	u16 rs_ber = 0;
+	u16 rs_ber;
 	if (cx22702_readreg(state, 0xE4) & 0x02) {
 		/* Realtime statistics */
 		rs_ber = (cx22702_readreg(state, 0xDE) & 0x7F) << 7
@@ -590,7 +590,6 @@ struct dvb_frontend *cx22702_attach(const struct cx22702_config *config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	state->prevUCBlocks = 0;
 
 	/* check if the demod is there */
 	if (cx22702_readreg(state, 0x1f) != 0x3)
