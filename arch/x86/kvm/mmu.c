@@ -2714,6 +2714,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 	context->root_hpa = INVALID_PAGE;
 	context->direct_map = true;
+	context->set_cr3 = kvm_x86_ops->set_cr3;
 
 	if (!is_paging(vcpu)) {
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
@@ -2752,7 +2753,8 @@ static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 		r = paging32_init_context(vcpu);
 
 	vcpu->arch.mmu.base_role.cr4_pae = !!is_pae(vcpu);
-	vcpu->arch.mmu.base_role.cr0_wp = is_write_protection(vcpu);
+	vcpu->arch.mmu.base_role.cr0_wp  = is_write_protection(vcpu);
+	vcpu->arch.mmu.set_cr3           = kvm_x86_ops->set_cr3;
 
 	return r;
 }
@@ -2796,7 +2798,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	if (r)
 		goto out;
 	/* set_cr3() should ensure TLB has been flushed */
-	kvm_x86_ops->set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
+	vcpu->arch.mmu.set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
 out:
 	return r;
 }
