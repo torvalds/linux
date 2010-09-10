@@ -2708,7 +2708,7 @@ static int paging32E_init_context(struct kvm_vcpu *vcpu,
 
 static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 {
-	struct kvm_mmu *context = &vcpu->arch.mmu;
+	struct kvm_mmu *context = vcpu->arch.walk_mmu;
 
 	context->new_cr3 = nonpaging_new_cr3;
 	context->page_fault = tdp_page_fault;
@@ -2767,11 +2767,11 @@ EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
 static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
-	int r = kvm_init_shadow_mmu(vcpu, &vcpu->arch.mmu);
+	int r = kvm_init_shadow_mmu(vcpu, vcpu->arch.walk_mmu);
 
-	vcpu->arch.mmu.set_cr3           = kvm_x86_ops->set_cr3;
-	vcpu->arch.mmu.get_cr3           = get_cr3;
-	vcpu->arch.mmu.inject_page_fault = kvm_inject_page_fault;
+	vcpu->arch.walk_mmu->set_cr3           = kvm_x86_ops->set_cr3;
+	vcpu->arch.walk_mmu->get_cr3           = get_cr3;
+	vcpu->arch.walk_mmu->inject_page_fault = kvm_inject_page_fault;
 
 	return r;
 }
