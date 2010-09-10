@@ -761,7 +761,7 @@ static int efx_probe_port(struct efx_nic *efx)
 	/* Connect up MAC/PHY operations table */
 	rc = efx->type->probe_port(efx);
 	if (rc)
-		goto err;
+		return rc;
 
 	/* Sanity check MAC address */
 	if (is_valid_ether_addr(efx->mac_address)) {
@@ -782,7 +782,7 @@ static int efx_probe_port(struct efx_nic *efx)
 	return 0;
 
  err:
-	efx_remove_port(efx);
+	efx->type->remove_port(efx);
 	return rc;
 }
 
