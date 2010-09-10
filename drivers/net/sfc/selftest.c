@@ -567,7 +567,7 @@ static int efx_wait_for_link(struct efx_nic *efx)
 			efx->type->monitor(efx);
 			mutex_unlock(&efx->mac_lock);
 		} else {
-			struct efx_channel *channel = &efx->channel[0];
+			struct efx_channel *channel = efx_get_channel(efx, 0);
 			if (channel->work_pending)
 				efx_process_channel_now(channel);
 		}
@@ -594,6 +594,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 {
 	enum efx_loopback_mode mode;
 	struct efx_loopback_state *state;
+	struct efx_channel *channel = efx_get_channel(efx, 0);
 	struct efx_tx_queue *tx_queue;
 	int rc = 0;
 
@@ -634,7 +635,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 		}
 
 		/* Test both types of TX queue */
-		efx_for_each_channel_tx_queue(tx_queue, &efx->channel[0]) {
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			state->offload_csum = (tx_queue->queue &
 					       EFX_TXQ_TYPE_OFFLOAD);
 			rc = efx_test_loopback(tx_queue,

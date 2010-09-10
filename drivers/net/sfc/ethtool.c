@@ -328,9 +328,10 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 				  unsigned int test_index,
 				  struct ethtool_string *strings, u64 *data)
 {
+	struct efx_channel *channel = efx_get_channel(efx, 0);
 	struct efx_tx_queue *tx_queue;
 
-	efx_for_each_channel_tx_queue(tx_queue, &efx->channel[0]) {
+	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		efx_fill_test(test_index++, strings, data,
 			      &lb_tests->tx_sent[tx_queue->queue],
 			      EFX_TX_QUEUE_NAME(tx_queue),
@@ -673,15 +674,15 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_tx_queue *tx_queue;
 	struct efx_channel *channel;
 
 	memset(coalesce, 0, sizeof(*coalesce));
 
 	/* Find lowest IRQ moderation across all used TX queues */
 	coalesce->tx_coalesce_usecs_irq = ~((u32) 0);
-	efx_for_each_tx_queue(tx_queue, efx) {
-		channel = tx_queue->channel;
+	efx_for_each_channel(channel, efx) {
+		if (!efx_channel_get_tx_queue(channel, 0))
+			continue;
 		if (channel->irq_moderation < coalesce->tx_coalesce_usecs_irq) {
 			if (channel->channel < efx->n_rx_channels)
 				coalesce->tx_coalesce_usecs_irq =
@@ -708,7 +709,6 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
-	struct efx_tx_queue *tx_queue;
 	unsigned tx_usecs, rx_usecs, adaptive;
 
 	if (coalesce->use_adaptive_tx_coalesce)
@@ -725,8 +725,9 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	adaptive = coalesce->use_adaptive_rx_coalesce;
 
 	/* If the channel is shared only allow RX parameters to be set */
-	efx_for_each_tx_queue(tx_queue, efx) {
-		if ((tx_queue->channel->channel < efx->n_rx_channels) &&
+	efx_for_each_channel(channel, efx) {
+		if (efx_channel_get_rx_queue(channel) &&
+		    efx_channel_get_tx_queue(channel, 0) &&
 		    tx_usecs) {
 			netif_err(efx, drv, efx->net_dev, "Channel is shared. "
 				  "Only RX coalescing may be set\n");

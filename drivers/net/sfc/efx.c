@@ -248,7 +248,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 
 	efx_rx_strategy(channel);
 
-	efx_fast_push_rx_descriptors(&efx->rx_queue[channel->channel]);
+	efx_fast_push_rx_descriptors(efx_channel_get_rx_queue(channel));
 
 	return spent;
 }
@@ -1050,7 +1050,8 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 				efx->n_rx_channels = efx->n_channels;
 			}
 			for (i = 0; i < n_channels; i++)
-				efx->channel[i].irq = xentries[i].vector;
+				efx_get_channel(efx, i)->irq =
+					xentries[i].vector;
 		} else {
 			/* Fall back to single channel MSI */
 			efx->interrupt_mode = EFX_INT_MODE_MSI;
@@ -1066,7 +1067,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_tx_channels = 1;
 		rc = pci_enable_msi(efx->pci_dev);
 		if (rc == 0) {
-			efx->channel[0].irq = efx->pci_dev->irq;
+			efx_get_channel(efx, 0)->irq = efx->pci_dev->irq;
 		} else {
 			netif_err(efx, drv, efx->net_dev,
 				  "could not enable MSI\n");
@@ -1355,20 +1356,20 @@ static unsigned irq_mod_ticks(int usecs, int resolution)
 void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
 			     bool rx_adaptive)
 {
-	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
 	unsigned tx_ticks = irq_mod_ticks(tx_usecs, EFX_IRQ_MOD_RESOLUTION);
 	unsigned rx_ticks = irq_mod_ticks(rx_usecs, EFX_IRQ_MOD_RESOLUTION);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	efx_for_each_tx_queue(tx_queue, efx)
-		tx_queue->channel->irq_moderation = tx_ticks;
-
 	efx->irq_rx_adaptive = rx_adaptive;
 	efx->irq_rx_moderation = rx_ticks;
-	efx_for_each_rx_queue(rx_queue, efx)
-		rx_queue->channel->irq_moderation = rx_ticks;
+	efx_for_each_channel(channel, efx) {
+		if (efx_channel_get_rx_queue(channel))
+			channel->irq_moderation = rx_ticks;
+		else if (efx_channel_get_tx_queue(channel, 0))
+			channel->irq_moderation = tx_ticks;
+	}
 }
 
 /**************************************************************************
@@ -1767,6 +1768,7 @@ fail_registered:
 
 static void efx_unregister_netdev(struct efx_nic *efx)
 {
+	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 
 	if (!efx->net_dev)
@@ -1777,8 +1779,10 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	/* Free up any skbs still remaining. This has to happen before
 	 * we try to unregister the netdev as running their destructors
 	 * may be needed to get the device ref. count to 0. */
-	efx_for_each_tx_queue(tx_queue, efx)
-		efx_release_tx_buffers(tx_queue);
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			efx_release_tx_buffers(tx_queue);
+	}
 
 	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));

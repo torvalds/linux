@@ -37,8 +37,9 @@
 void efx_stop_queue(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
+	struct efx_tx_queue *tx_queue = efx_channel_get_tx_queue(channel, 0);
 
-	if (!channel->tx_queue)
+	if (!tx_queue)
 		return;
 
 	spin_lock_bh(&channel->tx_stop_lock);
@@ -46,9 +47,8 @@ void efx_stop_queue(struct efx_channel *channel)
 
 	atomic_inc(&channel->tx_stop_count);
 	netif_tx_stop_queue(
-		netdev_get_tx_queue(
-			efx->net_dev,
-			channel->tx_queue->queue / EFX_TXQ_TYPES));
+		netdev_get_tx_queue(efx->net_dev,
+				    tx_queue->queue / EFX_TXQ_TYPES));
 
 	spin_unlock_bh(&channel->tx_stop_lock);
 }
@@ -57,8 +57,9 @@ void efx_stop_queue(struct efx_channel *channel)
 void efx_wake_queue(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
+	struct efx_tx_queue *tx_queue = efx_channel_get_tx_queue(channel, 0);
 
-	if (!channel->tx_queue)
+	if (!tx_queue)
 		return;
 
 	local_bh_disable();
@@ -66,9 +67,8 @@ void efx_wake_queue(struct efx_channel *channel)
 				&channel->tx_stop_lock)) {
 		netif_vdbg(efx, tx_queued, efx->net_dev, "waking TX queue\n");
 		netif_tx_wake_queue(
-			netdev_get_tx_queue(
-				efx->net_dev,
-				channel->tx_queue->queue / EFX_TXQ_TYPES));
+			netdev_get_tx_queue(efx->net_dev,
+					    tx_queue->queue / EFX_TXQ_TYPES));
 		spin_unlock(&channel->tx_stop_lock);
 	}
 	local_bh_enable();
@@ -390,9 +390,9 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	if (unlikely(efx->port_inhibited))
 		return NETDEV_TX_BUSY;
 
-	tx_queue = &efx->tx_queue[EFX_TXQ_TYPES * skb_get_queue_mapping(skb)];
-	if (likely(skb->ip_summed == CHECKSUM_PARTIAL))
-		tx_queue += EFX_TXQ_TYPE_OFFLOAD;
+	tx_queue = efx_get_tx_queue(efx, skb_get_queue_mapping(skb),
+				    skb->ip_summed == CHECKSUM_PARTIAL ?
+				    EFX_TXQ_TYPE_OFFLOAD : 0);
 
 	return efx_enqueue_skb(tx_queue, skb);
 }

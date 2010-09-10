@@ -311,7 +311,7 @@ static void efx_recycle_rx_buffer(struct efx_channel *channel,
 				  struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = channel->efx;
-	struct efx_rx_queue *rx_queue = &efx->rx_queue[channel->channel];
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
 	struct efx_rx_buffer *new_buf;
 	unsigned index;
 
