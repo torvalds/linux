@@ -1305,7 +1305,8 @@ err:
 
 	/* disassociate the LLP connection */
 	qhp->attr.llp_stream_handle = NULL;
-	ep = qhp->ep;
+	if (!ep)
+		ep = qhp->ep;
 	qhp->ep = NULL;
 	qhp->attr.state = C4IW_QP_STATE_ERROR;
 	free = 1;
