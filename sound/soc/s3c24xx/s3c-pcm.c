@@ -364,8 +364,6 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 #define S3C_PCM_RATES  SNDRV_PCM_RATE_8000_96000
 
 #define S3C_PCM_DAI_DECLARE			\
-{								\
-	.name		 = "samsung-dai",			\
 	.symmetric_rates = 1,					\
 	.ops = &s3c_pcm_dai_ops,				\
 	.playback = {						\
@@ -379,12 +377,17 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 		.channels_max	= 2,				\
 		.rates		= S3C_PCM_RATES,		\
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,	\
-	},							\
-}
+	}
 
 struct snd_soc_dai_driver s3c_pcm_dai[] = {
-	S3C_PCM_DAI_DECLARE,
-	S3C_PCM_DAI_DECLARE,
+	[0] = {
+		.name	= "samsung-pcm.0",
+		S3C_PCM_DAI_DECLARE,
+	},
+	[1] = {
+		.name	= "samsung-pcm.1",
+		S3C_PCM_DAI_DECLARE,
+	},
 };
 EXPORT_SYMBOL_GPL(s3c_pcm_dai);
 
@@ -468,7 +471,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	}
 	clk_enable(pcm->pclk);
 
-	ret = snd_soc_register_dai(&pdev->dev, s3c_pcm_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get pcm_clock\n");
 		goto err5;
