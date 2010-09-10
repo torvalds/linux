@@ -79,21 +79,6 @@ static inline void *cplhdr(struct sk_buff *skb)
 	return skb->data;
 }
 
-#define C4IW_WR_TO (10*HZ)
-
-struct c4iw_wr_wait {
-	wait_queue_head_t wait;
-	int done;
-	int ret;
-};
-
-static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
-{
-	wr_waitp->ret = 0;
-	wr_waitp->done = 0;
-	init_waitqueue_head(&wr_waitp->wait);
-}
-
 struct c4iw_resource {
 	struct kfifo tpt_fifo;
 	spinlock_t tpt_fifo_lock;
@@ -140,6 +125,44 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 {
 	return min((int)T4_MAX_NUM_STAG, (int)(rdev->lldi.vr->stag.size >> 5));
 }
+
+#define C4IW_WR_TO (10*HZ)
+
+struct c4iw_wr_wait {
+	wait_queue_head_t wait;
+	int done;
+	int ret;
+};
+
+static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	wr_waitp->ret = 0;
+	wr_waitp->done = 0;
+	init_waitqueue_head(&wr_waitp->wait);
+}
+
+static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
+				 struct c4iw_wr_wait *wr_waitp,
+				 u32 hwtid, u32 qpid,
+				 const char *func)
+{
+	unsigned to = C4IW_WR_TO;
+	do {
+
+		wait_event_timeout(wr_waitp->wait, wr_waitp->done, to);
+		if (!wr_waitp->done) {
+			printk(KERN_ERR MOD "%s - Device %s not responding - "
+			       "tid %u qpid %u\n", func,
+			       pci_name(rdev->lldi.pdev), hwtid, qpid);
+			to = to << 2;
+		}
+	} while (!wr_waitp->done);
+	if (wr_waitp->ret)
+		printk(KERN_WARNING MOD "%s: FW reply %d tid %u qpid %u\n",
+		       pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+	return wr_waitp->ret;
+}
+
 
 struct c4iw_dev {
 	struct ib_device ibdev;
@@ -582,9 +605,7 @@ struct c4iw_ep_common {
 	spinlock_t lock;
 	struct sockaddr_in local_addr;
 	struct sockaddr_in remote_addr;
-	wait_queue_head_t waitq;
-	int rpl_done;
-	int rpl_err;
+	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 };
 

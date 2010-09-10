@@ -252,7 +252,7 @@ static void *alloc_ep(int size, gfp_t gfp)
 	if (epc) {
 		kref_init(&epc->kref);
 		spin_lock_init(&epc->lock);
-		init_waitqueue_head(&epc->waitq);
+		c4iw_init_wr_wait(&epc->wr_wait);
 	}
 	PDBG("%s alloc ep %p\n", __func__, epc);
 	return epc;
@@ -1213,9 +1213,9 @@ static int pass_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	PDBG("%s ep %p status %d error %d\n", __func__, ep,
 	     rpl->status, status2errno(rpl->status));
-	ep->com.rpl_err = status2errno(rpl->status);
-	ep->com.rpl_done = 1;
-	wake_up(&ep->com.waitq);
+	ep->com.wr_wait.ret = status2errno(rpl->status);
+	ep->com.wr_wait.done = 1;
+	wake_up(&ep->com.wr_wait.wait);
 
 	return 0;
 }
@@ -1249,9 +1249,9 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_listen_ep *ep = lookup_stid(t, stid);
 
 	PDBG("%s ep %p\n", __func__, ep);
-	ep->com.rpl_err = status2errno(rpl->status);
-	ep->com.rpl_done = 1;
-	wake_up(&ep->com.waitq);
+	ep->com.wr_wait.ret = status2errno(rpl->status);
+	ep->com.wr_wait.done = 1;
+	wake_up(&ep->com.wr_wait.wait);
 	return 0;
 }
 
@@ -1507,17 +1507,17 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		 * in rdma connection migration (see c4iw_accept_cr()).
 		 */
 		__state_set(&ep->com, CLOSING);
-		ep->com.rpl_done = 1;
-		ep->com.rpl_err = -ECONNRESET;
+		ep->com.wr_wait.done = 1;
+		ep->com.wr_wait.ret = -ECONNRESET;
 		PDBG("waking up ep %p tid %u\n", ep, ep->hwtid);
-		wake_up(&ep->com.waitq);
+		wake_up(&ep->com.wr_wait.wait);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
-		ep->com.rpl_done = 1;
-		ep->com.rpl_err = -ECONNRESET;
+		ep->com.wr_wait.done = 1;
+		ep->com.wr_wait.ret = -ECONNRESET;
 		PDBG("waking up ep %p tid %u\n", ep, ep->hwtid);
-		wake_up(&ep->com.waitq);
+		wake_up(&ep->com.wr_wait.wait);
 		break;
 	case FPDU_MODE:
 		start_ep_timer(ep);
@@ -1605,10 +1605,10 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		connect_reply_upcall(ep, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
-		ep->com.rpl_done = 1;
-		ep->com.rpl_err = -ECONNRESET;
+		ep->com.wr_wait.done = 1;
+		ep->com.wr_wait.ret = -ECONNRESET;
 		PDBG("waking up ep %p\n", ep);
-		wake_up(&ep->com.waitq);
+		wake_up(&ep->com.wr_wait.wait);
 		break;
 	case MPA_REQ_RCVD:
 
@@ -1618,10 +1618,10 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		 * rejects the CR. Also wake up anyone waiting
 		 * in rdma connection migration (see c4iw_accept_cr()).
 		 */
-		ep->com.rpl_done = 1;
-		ep->com.rpl_err = -ECONNRESET;
+		ep->com.wr_wait.done = 1;
+		ep->com.wr_wait.ret = -ECONNRESET;
 		PDBG("waking up ep %p tid %u\n", ep, ep->hwtid);
-		wake_up(&ep->com.waitq);
+		wake_up(&ep->com.wr_wait.wait);
 		break;
 	case MORIBUND:
 	case CLOSING:
@@ -2043,6 +2043,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	}
 
 	state_set(&ep->com, LISTEN);
+	c4iw_init_wr_wait(&ep->com.wr_wait);
 	err = cxgb4_create_server(ep->com.dev->rdev.lldi.ports[0], ep->stid,
 				  ep->com.local_addr.sin_addr.s_addr,
 				  ep->com.local_addr.sin_port,
@@ -2051,15 +2052,8 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		goto fail3;
 
 	/* wait for pass_open_rpl */
-	wait_event_timeout(ep->com.waitq, ep->com.rpl_done, C4IW_WR_TO);
-	if (ep->com.rpl_done)
-		err = ep->com.rpl_err;
-	else {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(ep->com.dev->rdev.lldi.pdev));
-		ep->com.dev->rdev.flags = T4_FATAL_ERROR;
-		err = -EIO;
-	}
+	err = c4iw_wait_for_reply(&ep->com.dev->rdev, &ep->com.wr_wait, 0, 0,
+				  __func__);
 	if (!err) {
 		cm_id->provider_data = ep;
 		goto out;
@@ -2083,20 +2077,12 @@ int c4iw_destroy_listen(struct iw_cm_id *cm_id)
 
 	might_sleep();
 	state_set(&ep->com, DEAD);
-	ep->com.rpl_done = 0;
-	ep->com.rpl_err = 0;
+	c4iw_init_wr_wait(&ep->com.wr_wait);
 	err = listen_stop(ep);
 	if (err)
 		goto done;
-	wait_event_timeout(ep->com.waitq, ep->com.rpl_done, C4IW_WR_TO);
-	if (ep->com.rpl_done)
-		err = ep->com.rpl_err;
-	else {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(ep->com.dev->rdev.lldi.pdev));
-		ep->com.dev->rdev.flags = T4_FATAL_ERROR;
-		err = -EIO;
-	}
+	err = c4iw_wait_for_reply(&ep->com.dev->rdev, &ep->com.wr_wait, 0, 0,
+				  __func__);
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid, PF_INET);
 done:
 	cm_id->rem_ref(cm_id);

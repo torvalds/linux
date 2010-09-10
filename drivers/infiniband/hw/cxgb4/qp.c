@@ -198,14 +198,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	ret = c4iw_ofld_send(rdev, skb);
 	if (ret)
 		goto err7;
-	wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-	if (!wr_wait.done) {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(rdev->lldi.pdev));
-		rdev->flags = T4_FATAL_ERROR;
-		ret = -EIO;
-	} else
-		ret = wr_wait.ret;
+	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, wq->sq.qid, __func__);
 	if (ret)
 		goto err7;
 
@@ -997,20 +990,8 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	if (ret)
 		goto out;
 
-	wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-	if (!wr_wait.done) {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(rhp->rdev.lldi.pdev));
-		rhp->rdev.flags = T4_FATAL_ERROR;
-		ret = -EIO;
-	} else {
-		ret = wr_wait.ret;
-		if (ret)
-			printk(KERN_WARNING MOD
-			       "%s: Abnormal close qpid %d ret %u\n",
-			       pci_name(rhp->rdev.lldi.pdev), qhp->wq.sq.qid,
-			       ret);
-	}
+	ret = c4iw_wait_for_reply(&rhp->rdev, &wr_wait, qhp->ep->hwtid,
+			     qhp->wq.sq.qid, __func__);
 out:
 	PDBG("%s ret %d\n", __func__, ret);
 	return ret;
@@ -1106,14 +1087,8 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	if (ret)
 		goto out;
 
-	wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-	if (!wr_wait.done) {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(rhp->rdev.lldi.pdev));
-		rhp->rdev.flags = T4_FATAL_ERROR;
-		ret = -EIO;
-	} else
-		ret = wr_wait.ret;
+	ret = c4iw_wait_for_reply(&rhp->rdev, &wr_wait, qhp->ep->hwtid,
+			     qhp->wq.sq.qid, __func__);
 out:
 	PDBG("%s ret %d\n", __func__, ret);
 	return ret;
