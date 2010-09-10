@@ -59,8 +59,15 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 #define EFX_MAX_EVQ_SIZE 16384UL
 #define EFX_MIN_EVQ_SIZE 512UL
 
+/* The smallest [rt]xq_entries that the driver supports. Callers of
+ * efx_wake_queue() assume that they can subsequently send at least one
+ * skb. Falcon/A1 may require up to three descriptors per skb_frag. */
+#define EFX_MIN_RING_SIZE (roundup_pow_of_two(2 * 3 * MAX_SKB_FRAGS))
+
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
+extern int
+efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);
 
 /* Ports */
 extern int efx_reconfigure_port(struct efx_nic *efx);

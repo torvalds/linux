@@ -299,7 +299,6 @@ enum efx_rx_alloc_method {
  *
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
- * @name: Name for channel and IRQ
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
  * @irq_moderation: IRQ moderation value (in hardware ticks)
@@ -333,7 +332,6 @@ enum efx_rx_alloc_method {
 struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
-	char name[IFNAMSIZ + 6];
 	bool enabled;
 	int irq;
 	unsigned int irq_moderation;
@@ -644,6 +642,7 @@ union efx_multicast_hash {
  * @tx_queue: TX DMA queues
  * @rx_queue: RX DMA queues
  * @channel: Channels
+ * @channel_name: Names for channels and their IRQs
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
  * @next_buffer_table: First available buffer table id
@@ -730,6 +729,7 @@ struct efx_nic {
 	enum reset_type reset_pending;
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
+	char channel_name[IFNAMSIZ + 6][EFX_MAX_CHANNELS];
 
 	unsigned rxq_entries;
 	unsigned txq_entries;

@@ -1478,7 +1478,7 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
  */
 static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 {
-	struct efx_channel *channel = dev_id;
+	struct efx_channel *channel = *(struct efx_channel **)dev_id;
 	struct efx_nic *efx = channel->efx;
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	int syserr;
@@ -1553,7 +1553,8 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, efx_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
-				 channel->name, channel);
+				 efx->channel_name[channel->channel],
+				 &efx->channel[channel->channel]);
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "failed to hook IRQ %d\n", channel->irq);
@@ -1565,7 +1566,7 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 
  fail2:
 	efx_for_each_channel(channel, efx)
-		free_irq(channel->irq, channel);
+		free_irq(channel->irq, &efx->channel[channel->channel]);
  fail1:
 	return rc;
 }
@@ -1578,7 +1579,7 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 	/* Disable MSI/MSI-X interrupts */
 	efx_for_each_channel(channel, efx) {
 		if (channel->irq)
-			free_irq(channel->irq, channel);
+			free_irq(channel->irq, &efx->channel[channel->channel]);
 	}
 
 	/* ACK legacy interrupt */

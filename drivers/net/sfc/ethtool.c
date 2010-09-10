@@ -742,6 +742,42 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	return 0;
 }
 
+static void efx_ethtool_get_ringparam(struct net_device *net_dev,
+				      struct ethtool_ringparam *ring)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	ring->rx_max_pending = EFX_MAX_DMAQ_SIZE;
+	ring->tx_max_pending = EFX_MAX_DMAQ_SIZE;
+	ring->rx_mini_max_pending = 0;
+	ring->rx_jumbo_max_pending = 0;
+	ring->rx_pending = efx->rxq_entries;
+	ring->tx_pending = efx->txq_entries;
+	ring->rx_mini_pending = 0;
+	ring->rx_jumbo_pending = 0;
+}
+
+static int efx_ethtool_set_ringparam(struct net_device *net_dev,
+				     struct ethtool_ringparam *ring)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (ring->rx_mini_pending || ring->rx_jumbo_pending ||
+	    ring->rx_pending > EFX_MAX_DMAQ_SIZE ||
+	    ring->tx_pending > EFX_MAX_DMAQ_SIZE)
+		return -EINVAL;
+
+	if (ring->rx_pending < EFX_MIN_RING_SIZE ||
+	    ring->tx_pending < EFX_MIN_RING_SIZE) {
+		netif_err(efx, drv, efx->net_dev,
+			  "TX and RX queues cannot be smaller than %ld\n",
+			  EFX_MIN_RING_SIZE);
+		return -EINVAL;
+	}
+
+	return efx_realloc_channels(efx, ring->rx_pending, ring->tx_pending);
+}
+
 static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
@@ -972,6 +1008,8 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.set_eeprom		= efx_ethtool_set_eeprom,
 	.get_coalesce		= efx_ethtool_get_coalesce,
 	.set_coalesce		= efx_ethtool_set_coalesce,
+	.get_ringparam		= efx_ethtool_get_ringparam,
+	.set_ringparam		= efx_ethtool_set_ringparam,
 	.get_pauseparam         = efx_ethtool_get_pauseparam,
 	.set_pauseparam         = efx_ethtool_set_pauseparam,
 	.get_rx_csum		= efx_ethtool_get_rx_csum,
