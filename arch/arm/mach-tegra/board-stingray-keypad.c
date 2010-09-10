@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/gpio_event.h>
-#include <linux/keyreset.h>
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
 
@@ -26,12 +25,10 @@
 
 static unsigned int stingray_row_gpios[] = {
 	TEGRA_GPIO_PR0,
-	TEGRA_GPIO_PR1,
-	TEGRA_GPIO_PR2
+	TEGRA_GPIO_PR1
 };
 static unsigned int stingray_col_gpios[] = {
-	TEGRA_GPIO_PQ0,
-	TEGRA_GPIO_PQ1
+	TEGRA_GPIO_PQ0
 };
 
 #define KEYMAP_INDEX(col, row) ((col)*ARRAY_SIZE(stingray_row_gpios) + (row))
@@ -39,11 +36,7 @@ static unsigned int stingray_col_gpios[] = {
 static const unsigned short stingray_p3_keymap[ARRAY_SIZE(stingray_col_gpios) *
 					     ARRAY_SIZE(stingray_row_gpios)] = {
 	[KEYMAP_INDEX(0, 0)] = KEY_VOLUMEUP,
-	[KEYMAP_INDEX(1, 0)] = KEY_BACK,
-	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEDOWN,
-	[KEYMAP_INDEX(1, 1)] = KEY_HOME,
-	[KEYMAP_INDEX(0, 2)] = KEY_AUX,
-	[KEYMAP_INDEX(1, 2)] = KEY_MENU,
+	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEDOWN
 };
 
 static struct gpio_event_matrix_info stingray_keypad_matrix_info = {
@@ -89,34 +82,10 @@ static struct platform_device stingray_keypad_device = {
 	},
 };
 
-static int stingray_reset_keys_up[] = {
-	BTN_MOUSE,		/* XXX */
-        0
-};
-
-static struct keyreset_platform_data stingray_reset_keys_pdata = {
-	.keys_up = stingray_reset_keys_up,
-	.keys_down = {
-		KEY_LEFTSHIFT,
-		KEY_LEFTALT,
-		KEY_BACKSPACE,
-		0
-	},
-};
-
-static struct platform_device stingray_reset_keys_device = {
-         .name = KEYRESET_NAME,
-         .dev.platform_data = &stingray_reset_keys_pdata,
-};
-
 int __init stingray_keypad_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_PR0);
 	tegra_gpio_enable(TEGRA_GPIO_PR1);
-	tegra_gpio_enable(TEGRA_GPIO_PR2);
 	tegra_gpio_enable(TEGRA_GPIO_PQ0);
-	tegra_gpio_enable(TEGRA_GPIO_PQ1);
-	tegra_gpio_enable(TEGRA_GPIO_PQ2);
-	platform_device_register(&stingray_reset_keys_device);
 	return platform_device_register(&stingray_keypad_device);
 }
