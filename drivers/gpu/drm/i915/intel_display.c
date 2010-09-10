@@ -1848,7 +1848,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
-static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1881,6 +1881,354 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	temp = I915_READ(pipeconf_reg);
 	pipe_bpc = temp & PIPE_BPC_MASK;
 
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		temp = I915_READ(PCH_LVDS);
+		if ((temp & LVDS_PORT_EN) == 0) {
+			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
+			POSTING_READ(PCH_LVDS);
+		}
+	}
+
+	if (!HAS_eDP) {
+		/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
+		temp = I915_READ(fdi_rx_reg);
+		/*
+		 * make the BPC in FDI Rx be consistent with that in
+		 * pipeconf reg.
+		 */
+		temp &= ~(0x7 << 16);
+		temp |= (pipe_bpc << 11);
+		temp &= ~(7 << 19);
+		temp |= (intel_crtc->fdi_lanes - 1) << 19;
+		I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
+		I915_READ(fdi_rx_reg);
+		udelay(200);
+
+		/* Switch from Rawclk to PCDclk */
+		temp = I915_READ(fdi_rx_reg);
+		I915_WRITE(fdi_rx_reg, temp | FDI_SEL_PCDCLK);
+		I915_READ(fdi_rx_reg);
+		udelay(200);
+
+		/* Enable CPU FDI TX PLL, always on for Ironlake */
+		temp = I915_READ(fdi_tx_reg);
+		if ((temp & FDI_TX_PLL_ENABLE) == 0) {
+			I915_WRITE(fdi_tx_reg, temp | FDI_TX_PLL_ENABLE);
+			I915_READ(fdi_tx_reg);
+			udelay(100);
+		}
+	}
+
+	/* Enable panel fitting for LVDS */
+	if (dev_priv->pch_pf_size &&
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
+	     || HAS_eDP || intel_pch_has_edp(crtc))) {
+		/* Force use of hard-coded filter coefficients
+		 * as some pre-programmed values are broken,
+		 * e.g. x201.
+		 */
+		I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1,
+			   PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(pipe ? PFB_WIN_POS : PFA_WIN_POS,
+			   dev_priv->pch_pf_pos);
+		I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ,
+			   dev_priv->pch_pf_size);
+	}
+
+	/* Enable CPU pipe */
+	temp = I915_READ(pipeconf_reg);
+	if ((temp & PIPEACONF_ENABLE) == 0) {
+		I915_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
+		I915_READ(pipeconf_reg);
+		udelay(100);
+	}
+
+	/* configure and enable CPU plane */
+	temp = I915_READ(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
+		I915_WRITE(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+		/* Flush the plane changes */
+		I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
+	}
+
+	if (!HAS_eDP) {
+		/* For PCH output, training FDI link */
+		if (IS_GEN6(dev))
+			gen6_fdi_link_train(crtc);
+		else
+			ironlake_fdi_link_train(crtc);
+
+		/* enable PCH DPLL */
+		temp = I915_READ(pch_dpll_reg);
+		if ((temp & DPLL_VCO_ENABLE) == 0) {
+			I915_WRITE(pch_dpll_reg, temp | DPLL_VCO_ENABLE);
+			I915_READ(pch_dpll_reg);
+		}
+		udelay(200);
+
+		if (HAS_PCH_CPT(dev)) {
+			/* Be sure PCH DPLL SEL is set */
+			temp = I915_READ(PCH_DPLL_SEL);
+			if (trans_dpll_sel == 0 &&
+			    (temp & TRANSA_DPLL_ENABLE) == 0)
+				temp |= (TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
+			else if (trans_dpll_sel == 1 &&
+				 (temp & TRANSB_DPLL_ENABLE) == 0)
+				temp |= (TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+			I915_WRITE(PCH_DPLL_SEL, temp);
+			I915_READ(PCH_DPLL_SEL);
+		}
+		/* set transcoder timing */
+		I915_WRITE(trans_htot_reg, I915_READ(cpu_htot_reg));
+		I915_WRITE(trans_hblank_reg, I915_READ(cpu_hblank_reg));
+		I915_WRITE(trans_hsync_reg, I915_READ(cpu_hsync_reg));
+
+		I915_WRITE(trans_vtot_reg, I915_READ(cpu_vtot_reg));
+		I915_WRITE(trans_vblank_reg, I915_READ(cpu_vblank_reg));
+		I915_WRITE(trans_vsync_reg, I915_READ(cpu_vsync_reg));
+
+		/* enable normal train */
+		temp = I915_READ(fdi_tx_reg);
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		I915_WRITE(fdi_tx_reg, temp | FDI_LINK_TRAIN_NONE |
+			   FDI_TX_ENHANCE_FRAME_ENABLE);
+		I915_READ(fdi_tx_reg);
+
+		temp = I915_READ(fdi_rx_reg);
+		if (HAS_PCH_CPT(dev)) {
+			temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+			temp |= FDI_LINK_TRAIN_NORMAL_CPT;
+		} else {
+			temp &= ~FDI_LINK_TRAIN_NONE;
+			temp |= FDI_LINK_TRAIN_NONE;
+		}
+		I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
+		I915_READ(fdi_rx_reg);
+
+		/* wait one idle pattern time */
+		udelay(100);
+
+		/* For PCH DP, enable TRANS_DP_CTL */
+		if (HAS_PCH_CPT(dev) &&
+		    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+			int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
+			int reg;
+
+			reg = I915_READ(trans_dp_ctl);
+			reg &= ~(TRANS_DP_PORT_SEL_MASK |
+				 TRANS_DP_SYNC_MASK);
+			reg |= (TRANS_DP_OUTPUT_ENABLE |
+				TRANS_DP_ENH_FRAMING);
+
+			if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+				reg |= TRANS_DP_HSYNC_ACTIVE_HIGH;
+			if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+				reg |= TRANS_DP_VSYNC_ACTIVE_HIGH;
+
+			switch (intel_trans_dp_port_sel(crtc)) {
+			case PCH_DP_B:
+				reg |= TRANS_DP_PORT_SEL_B;
+				break;
+			case PCH_DP_C:
+				reg |= TRANS_DP_PORT_SEL_C;
+				break;
+			case PCH_DP_D:
+				reg |= TRANS_DP_PORT_SEL_D;
+				break;
+			default:
+				DRM_DEBUG_KMS("Wrong PCH DP port return. Guess port B\n");
+				reg |= TRANS_DP_PORT_SEL_B;
+				break;
+			}
+
+			I915_WRITE(trans_dp_ctl, reg);
+			POSTING_READ(trans_dp_ctl);
+		}
+
+		/* enable PCH transcoder */
+		temp = I915_READ(transconf_reg);
+		/*
+		 * make the BPC in transcoder be consistent with
+		 * that in pipeconf reg.
+		 */
+		temp &= ~PIPE_BPC_MASK;
+		temp |= pipe_bpc;
+		I915_WRITE(transconf_reg, temp | TRANS_ENABLE);
+		I915_READ(transconf_reg);
+
+		if (wait_for(I915_READ(transconf_reg) & TRANS_STATE_ENABLE, 100))
+			DRM_ERROR("failed to enable transcoder\n");
+	}
+
+	intel_crtc_load_lut(crtc);
+
+	intel_update_fbc(crtc, &crtc->mode);
+}
+
+static void ironlake_crtc_disable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+	int pch_dpll_reg = (pipe == 0) ? PCH_DPLL_A : PCH_DPLL_B;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
+	int dspbase_reg = (plane == 0) ? DSPAADDR : DSPBADDR;
+	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
+	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	int transconf_reg = (pipe == 0) ? TRANSACONF : TRANSBCONF;
+	int trans_dpll_sel = (pipe == 0) ? 0 : 1;
+	u32 temp;
+	u32 pipe_bpc;
+
+	temp = I915_READ(pipeconf_reg);
+	pipe_bpc = temp & PIPE_BPC_MASK;
+
+	drm_vblank_off(dev, pipe);
+	/* Disable display plane */
+	temp = I915_READ(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
+		I915_WRITE(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+		/* Flush the plane changes */
+		I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
+		I915_READ(dspbase_reg);
+	}
+
+	if (dev_priv->cfb_plane == plane &&
+	    dev_priv->display.disable_fbc)
+		dev_priv->display.disable_fbc(dev);
+
+	/* disable cpu pipe, disable after all planes disabled */
+	temp = I915_READ(pipeconf_reg);
+	if ((temp & PIPEACONF_ENABLE) != 0) {
+		I915_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+
+		/* wait for cpu pipe off, pipe state */
+		if (wait_for((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) == 0, 50))
+			DRM_ERROR("failed to turn off cpu pipe\n");
+	} else
+		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
+
+	udelay(100);
+
+	/* Disable PF */
+	I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1, 0);
+	I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ, 0);
+
+	/* disable CPU FDI tx and PCH FDI rx */
+	temp = I915_READ(fdi_tx_reg);
+	I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_ENABLE);
+	I915_READ(fdi_tx_reg);
+
+	temp = I915_READ(fdi_rx_reg);
+	/* BPC in FDI rx is consistent with that in pipeconf */
+	temp &= ~(0x07 << 16);
+	temp |= (pipe_bpc << 11);
+	I915_WRITE(fdi_rx_reg, temp & ~FDI_RX_ENABLE);
+	I915_READ(fdi_rx_reg);
+
+	udelay(100);
+
+	/* still set train pattern 1 */
+	temp = I915_READ(fdi_tx_reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_1;
+	I915_WRITE(fdi_tx_reg, temp);
+	POSTING_READ(fdi_tx_reg);
+
+	temp = I915_READ(fdi_rx_reg);
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
+	} else {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_PATTERN_1;
+	}
+	I915_WRITE(fdi_rx_reg, temp);
+	POSTING_READ(fdi_rx_reg);
+
+	udelay(100);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		temp = I915_READ(PCH_LVDS);
+		I915_WRITE(PCH_LVDS, temp & ~LVDS_PORT_EN);
+		I915_READ(PCH_LVDS);
+		udelay(100);
+	}
+
+	/* disable PCH transcoder */
+	temp = I915_READ(transconf_reg);
+	if ((temp & TRANS_ENABLE) != 0) {
+		I915_WRITE(transconf_reg, temp & ~TRANS_ENABLE);
+
+		/* wait for PCH transcoder off, transcoder state */
+		if (wait_for((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) == 0, 50))
+			DRM_ERROR("failed to disable transcoder\n");
+	}
+
+	temp = I915_READ(transconf_reg);
+	/* BPC in transcoder is consistent with that in pipeconf */
+	temp &= ~PIPE_BPC_MASK;
+	temp |= pipe_bpc;
+	I915_WRITE(transconf_reg, temp);
+	I915_READ(transconf_reg);
+	udelay(100);
+
+	if (HAS_PCH_CPT(dev)) {
+		/* disable TRANS_DP_CTL */
+		int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
+		int reg;
+
+		reg = I915_READ(trans_dp_ctl);
+		reg &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
+		I915_WRITE(trans_dp_ctl, reg);
+		POSTING_READ(trans_dp_ctl);
+
+		/* disable DPLL_SEL */
+		temp = I915_READ(PCH_DPLL_SEL);
+		if (trans_dpll_sel == 0)
+			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
+		else
+			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+		I915_WRITE(PCH_DPLL_SEL, temp);
+		I915_READ(PCH_DPLL_SEL);
+
+	}
+
+	/* disable PCH DPLL */
+	temp = I915_READ(pch_dpll_reg);
+	I915_WRITE(pch_dpll_reg, temp & ~DPLL_VCO_ENABLE);
+	I915_READ(pch_dpll_reg);
+
+	/* Switch from PCDclk to Rawclk */
+	temp = I915_READ(fdi_rx_reg);
+	temp &= ~FDI_SEL_PCDCLK;
+	I915_WRITE(fdi_rx_reg, temp);
+	I915_READ(fdi_rx_reg);
+
+	/* Disable CPU FDI TX PLL */
+	temp = I915_READ(fdi_tx_reg);
+	I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_PLL_ENABLE);
+	I915_READ(fdi_tx_reg);
+	udelay(100);
+
+	temp = I915_READ(fdi_rx_reg);
+	temp &= ~FDI_RX_PLL_ENABLE;
+	I915_WRITE(fdi_rx_reg, temp);
+	I915_READ(fdi_rx_reg);
+
+	/* Wait for the clocks to turn off. */
+	udelay(100);
+}
+
+static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
 	 */
@@ -1889,331 +2237,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		DRM_DEBUG_KMS("crtc %d/%d dpms on\n", pipe, plane);
-
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-			temp = I915_READ(PCH_LVDS);
-			if ((temp & LVDS_PORT_EN) == 0) {
-				I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
-				POSTING_READ(PCH_LVDS);
-			}
-		}
-
-		if (!HAS_eDP) {
-
-			/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
-			temp = I915_READ(fdi_rx_reg);
-			/*
-			 * make the BPC in FDI Rx be consistent with that in
-			 * pipeconf reg.
-			 */
-			temp &= ~(0x7 << 16);
-			temp |= (pipe_bpc << 11);
-			temp &= ~(7 << 19);
-			temp |= (intel_crtc->fdi_lanes - 1) << 19;
-			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
-			I915_READ(fdi_rx_reg);
-			udelay(200);
-
-			/* Switch from Rawclk to PCDclk */
-			temp = I915_READ(fdi_rx_reg);
-			I915_WRITE(fdi_rx_reg, temp | FDI_SEL_PCDCLK);
-			I915_READ(fdi_rx_reg);
-			udelay(200);
-
-			/* Enable CPU FDI TX PLL, always on for Ironlake */
-			temp = I915_READ(fdi_tx_reg);
-			if ((temp & FDI_TX_PLL_ENABLE) == 0) {
-				I915_WRITE(fdi_tx_reg, temp | FDI_TX_PLL_ENABLE);
-				I915_READ(fdi_tx_reg);
-				udelay(100);
-			}
-		}
-
-		/* Enable panel fitting for LVDS */
-		if (dev_priv->pch_pf_size &&
-		    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
-		    || HAS_eDP || intel_pch_has_edp(crtc))) {
-			/* Force use of hard-coded filter coefficients
-			 * as some pre-programmed values are broken,
-			 * e.g. x201.
-			 */
-			I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1,
-				   PF_ENABLE | PF_FILTER_MED_3x3);
-			I915_WRITE(pipe ? PFB_WIN_POS : PFA_WIN_POS,
-				   dev_priv->pch_pf_pos);
-			I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ,
-				   dev_priv->pch_pf_size);
-		}
-
-		/* Enable CPU pipe */
-		temp = I915_READ(pipeconf_reg);
-		if ((temp & PIPEACONF_ENABLE) == 0) {
-			I915_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
-			I915_READ(pipeconf_reg);
-			udelay(100);
-		}
-
-		/* configure and enable CPU plane */
-		temp = I915_READ(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			I915_WRITE(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
-		}
-
-		if (!HAS_eDP) {
-			/* For PCH output, training FDI link */
-			if (IS_GEN6(dev))
-				gen6_fdi_link_train(crtc);
-			else
-				ironlake_fdi_link_train(crtc);
-
-			/* enable PCH DPLL */
-			temp = I915_READ(pch_dpll_reg);
-			if ((temp & DPLL_VCO_ENABLE) == 0) {
-				I915_WRITE(pch_dpll_reg, temp | DPLL_VCO_ENABLE);
-				I915_READ(pch_dpll_reg);
-			}
-			udelay(200);
-
-			if (HAS_PCH_CPT(dev)) {
-				/* Be sure PCH DPLL SEL is set */
-				temp = I915_READ(PCH_DPLL_SEL);
-				if (trans_dpll_sel == 0 &&
-						(temp & TRANSA_DPLL_ENABLE) == 0)
-					temp |= (TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
-				else if (trans_dpll_sel == 1 &&
-						(temp & TRANSB_DPLL_ENABLE) == 0)
-					temp |= (TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
-				I915_WRITE(PCH_DPLL_SEL, temp);
-				I915_READ(PCH_DPLL_SEL);
-			}
-
-			/* set transcoder timing */
-			I915_WRITE(trans_htot_reg, I915_READ(cpu_htot_reg));
-			I915_WRITE(trans_hblank_reg, I915_READ(cpu_hblank_reg));
-			I915_WRITE(trans_hsync_reg, I915_READ(cpu_hsync_reg));
-
-			I915_WRITE(trans_vtot_reg, I915_READ(cpu_vtot_reg));
-			I915_WRITE(trans_vblank_reg, I915_READ(cpu_vblank_reg));
-			I915_WRITE(trans_vsync_reg, I915_READ(cpu_vsync_reg));
-
-			/* enable normal train */
-			temp = I915_READ(fdi_tx_reg);
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			I915_WRITE(fdi_tx_reg, temp | FDI_LINK_TRAIN_NONE |
-					FDI_TX_ENHANCE_FRAME_ENABLE);
-			I915_READ(fdi_tx_reg);
-
-			temp = I915_READ(fdi_rx_reg);
-			if (HAS_PCH_CPT(dev)) {
-				temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-				temp |= FDI_LINK_TRAIN_NORMAL_CPT;
-			} else {
-				temp &= ~FDI_LINK_TRAIN_NONE;
-				temp |= FDI_LINK_TRAIN_NONE;
-			}
-			I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
-			I915_READ(fdi_rx_reg);
-
-			/* wait one idle pattern time */
-			udelay(100);
-
-			/* For PCH DP, enable TRANS_DP_CTL */
-			if (HAS_PCH_CPT(dev) &&
-			    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-				int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
-				int reg;
-
-				reg = I915_READ(trans_dp_ctl);
-				reg &= ~(TRANS_DP_PORT_SEL_MASK |
-					 TRANS_DP_SYNC_MASK);
-				reg |= (TRANS_DP_OUTPUT_ENABLE |
-					TRANS_DP_ENH_FRAMING);
-
-				if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
-				      reg |= TRANS_DP_HSYNC_ACTIVE_HIGH;
-				if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
-				      reg |= TRANS_DP_VSYNC_ACTIVE_HIGH;
-
-				switch (intel_trans_dp_port_sel(crtc)) {
-				case PCH_DP_B:
-					reg |= TRANS_DP_PORT_SEL_B;
-					break;
-				case PCH_DP_C:
-					reg |= TRANS_DP_PORT_SEL_C;
-					break;
-				case PCH_DP_D:
-					reg |= TRANS_DP_PORT_SEL_D;
-					break;
-				default:
-					DRM_DEBUG_KMS("Wrong PCH DP port return. Guess port B\n");
-					reg |= TRANS_DP_PORT_SEL_B;
-					break;
-				}
-
-				I915_WRITE(trans_dp_ctl, reg);
-				POSTING_READ(trans_dp_ctl);
-			}
-
-			/* enable PCH transcoder */
-			temp = I915_READ(transconf_reg);
-			/*
-			 * make the BPC in transcoder be consistent with
-			 * that in pipeconf reg.
-			 */
-			temp &= ~PIPE_BPC_MASK;
-			temp |= pipe_bpc;
-			I915_WRITE(transconf_reg, temp | TRANS_ENABLE);
-			I915_READ(transconf_reg);
-
-			if (wait_for(I915_READ(transconf_reg) & TRANS_STATE_ENABLE, 100))
-				DRM_ERROR("failed to enable transcoder\n");
-		}
-
-		intel_crtc_load_lut(crtc);
-
-		intel_update_fbc(crtc, &crtc->mode);
+		ironlake_crtc_enable(crtc);
 		break;
 
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG_KMS("crtc %d/%d dpms off\n", pipe, plane);
-
-		drm_vblank_off(dev, pipe);
-		/* Disable display plane */
-		temp = I915_READ(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			I915_WRITE(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
-			I915_READ(dspbase_reg);
-		}
-
-		if (dev_priv->cfb_plane == plane &&
-		    dev_priv->display.disable_fbc)
-			dev_priv->display.disable_fbc(dev);
-
-		/* disable cpu pipe, disable after all planes disabled */
-		temp = I915_READ(pipeconf_reg);
-		if ((temp & PIPEACONF_ENABLE) != 0) {
-			I915_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-
-			/* wait for cpu pipe off, pipe state */
-			if (wait_for((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) == 0, 50))
-				DRM_ERROR("failed to turn off cpu pipe\n");
-		} else
-			DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
-
-		udelay(100);
-
-		/* Disable PF */
-		I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1, 0);
-		I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ, 0);
-
-		/* disable CPU FDI tx and PCH FDI rx */
-		temp = I915_READ(fdi_tx_reg);
-		I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_ENABLE);
-		I915_READ(fdi_tx_reg);
-
-		temp = I915_READ(fdi_rx_reg);
-		/* BPC in FDI rx is consistent with that in pipeconf */
-		temp &= ~(0x07 << 16);
-		temp |= (pipe_bpc << 11);
-		I915_WRITE(fdi_rx_reg, temp & ~FDI_RX_ENABLE);
-		I915_READ(fdi_rx_reg);
-
-		udelay(100);
-
-		/* still set train pattern 1 */
-		temp = I915_READ(fdi_tx_reg);
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_PATTERN_1;
-		I915_WRITE(fdi_tx_reg, temp);
-		POSTING_READ(fdi_tx_reg);
-
-		temp = I915_READ(fdi_rx_reg);
-		if (HAS_PCH_CPT(dev)) {
-			temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-			temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
-		} else {
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			temp |= FDI_LINK_TRAIN_PATTERN_1;
-		}
-		I915_WRITE(fdi_rx_reg, temp);
-		POSTING_READ(fdi_rx_reg);
-
-		udelay(100);
-
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-			temp = I915_READ(PCH_LVDS);
-			I915_WRITE(PCH_LVDS, temp & ~LVDS_PORT_EN);
-			I915_READ(PCH_LVDS);
-			udelay(100);
-		}
-
-		/* disable PCH transcoder */
-		temp = I915_READ(transconf_reg);
-		if ((temp & TRANS_ENABLE) != 0) {
-			I915_WRITE(transconf_reg, temp & ~TRANS_ENABLE);
-
-			/* wait for PCH transcoder off, transcoder state */
-			if (wait_for((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) == 0, 50))
-				DRM_ERROR("failed to disable transcoder\n");
-		}
-
-		temp = I915_READ(transconf_reg);
-		/* BPC in transcoder is consistent with that in pipeconf */
-		temp &= ~PIPE_BPC_MASK;
-		temp |= pipe_bpc;
-		I915_WRITE(transconf_reg, temp);
-		I915_READ(transconf_reg);
-		udelay(100);
-
-		if (HAS_PCH_CPT(dev)) {
-			/* disable TRANS_DP_CTL */
-			int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
-			int reg;
-
-			reg = I915_READ(trans_dp_ctl);
-			reg &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
-			I915_WRITE(trans_dp_ctl, reg);
-			POSTING_READ(trans_dp_ctl);
-
-			/* disable DPLL_SEL */
-			temp = I915_READ(PCH_DPLL_SEL);
-			if (trans_dpll_sel == 0)
-				temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
-			else
-				temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
-			I915_WRITE(PCH_DPLL_SEL, temp);
-			I915_READ(PCH_DPLL_SEL);
-
-		}
-
-		/* disable PCH DPLL */
-		temp = I915_READ(pch_dpll_reg);
-		I915_WRITE(pch_dpll_reg, temp & ~DPLL_VCO_ENABLE);
-		I915_READ(pch_dpll_reg);
-
-		/* Switch from PCDclk to Rawclk */
-		temp = I915_READ(fdi_rx_reg);
-		temp &= ~FDI_SEL_PCDCLK;
-		I915_WRITE(fdi_rx_reg, temp);
-		I915_READ(fdi_rx_reg);
-
-		/* Disable CPU FDI TX PLL */
-		temp = I915_READ(fdi_tx_reg);
-		I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_PLL_ENABLE);
-		I915_READ(fdi_tx_reg);
-		udelay(100);
-
-		temp = I915_READ(fdi_rx_reg);
-		temp &= ~FDI_RX_PLL_ENABLE;
-		I915_WRITE(fdi_rx_reg, temp);
-		I915_READ(fdi_rx_reg);
-
-		/* Wait for the clocks to turn off. */
-		udelay(100);
+		ironlake_crtc_disable(crtc);
 		break;
 	}
 }
