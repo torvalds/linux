@@ -2262,7 +2262,7 @@ static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 	 */
 }
 
-static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void i9xx_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2275,6 +2275,107 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
 
+	/* Enable the DPLL */
+	temp = I915_READ(dpll_reg);
+	if ((temp & DPLL_VCO_ENABLE) == 0) {
+		I915_WRITE(dpll_reg, temp);
+		I915_READ(dpll_reg);
+		/* Wait for the clocks to stabilize. */
+		udelay(150);
+		I915_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
+		I915_READ(dpll_reg);
+		/* Wait for the clocks to stabilize. */
+		udelay(150);
+		I915_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
+		I915_READ(dpll_reg);
+		/* Wait for the clocks to stabilize. */
+		udelay(150);
+	}
+
+	/* Enable the pipe */
+	temp = I915_READ(pipeconf_reg);
+	if ((temp & PIPEACONF_ENABLE) == 0)
+		I915_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
+
+	/* Enable the plane */
+	temp = I915_READ(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
+		I915_WRITE(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
+		/* Flush the plane changes */
+		I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
+	}
+
+	intel_crtc_load_lut(crtc);
+
+	if ((IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
+
+	/* Give the overlay scaler a chance to enable if it's on this pipe */
+	intel_crtc_dpms_overlay(intel_crtc, true);
+}
+
+static void i9xx_crtc_disable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
+	int dspbase_reg = (plane == 0) ? DSPAADDR : DSPBADDR;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	u32 temp;
+
+	/* Give the overlay scaler a chance to disable if it's on this pipe */
+	intel_crtc_dpms_overlay(intel_crtc, false);
+	drm_vblank_off(dev, pipe);
+
+	if (dev_priv->cfb_plane == plane &&
+	    dev_priv->display.disable_fbc)
+		dev_priv->display.disable_fbc(dev);
+
+	/* Disable display plane */
+	temp = I915_READ(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
+		I915_WRITE(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+		/* Flush the plane changes */
+		I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
+		I915_READ(dspbase_reg);
+	}
+
+	if (!IS_I9XX(dev)) {
+		/* Wait for vblank for the disable to take effect */
+		intel_wait_for_vblank_off(dev, pipe);
+	}
+
+	/* Don't disable pipe A or pipe A PLLs if needed */
+	if (pipeconf_reg == PIPEACONF &&
+	    (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+		goto skip_pipe_off;
+
+	/* Next, disable display pipes */
+	temp = I915_READ(pipeconf_reg);
+	if ((temp & PIPEACONF_ENABLE) != 0) {
+		I915_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+		I915_READ(pipeconf_reg);
+	}
+
+	/* Wait for vblank for the disable to take effect. */
+	intel_wait_for_vblank_off(dev, pipe);
+
+	temp = I915_READ(dpll_reg);
+	if ((temp & DPLL_VCO_ENABLE) != 0) {
+		I915_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+		I915_READ(dpll_reg);
+	}
+skip_pipe_off:
+	/* Wait for the clocks to turn off. */
+	udelay(150);
+}
+
+static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
 	 */
@@ -2282,90 +2383,10 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		/* Enable the DPLL */
-		temp = I915_READ(dpll_reg);
-		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			I915_WRITE(dpll_reg, temp);
-			I915_READ(dpll_reg);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			I915_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
-			I915_READ(dpll_reg);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			I915_WRITE(dpll_reg, temp | DPLL_VCO_ENABLE);
-			I915_READ(dpll_reg);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-		}
-
-		/* Enable the pipe */
-		temp = I915_READ(pipeconf_reg);
-		if ((temp & PIPEACONF_ENABLE) == 0)
-			I915_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
-
-		/* Enable the plane */
-		temp = I915_READ(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			I915_WRITE(dspcntr_reg, temp | DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
-		}
-
-		intel_crtc_load_lut(crtc);
-
-		if ((IS_I965G(dev) || plane == 0))
-			intel_update_fbc(crtc, &crtc->mode);
-
-		/* Give the overlay scaler a chance to enable if it's on this pipe */
-		intel_crtc_dpms_overlay(intel_crtc, true);
-	break;
+		i9xx_crtc_enable(crtc);
+		break;
 	case DRM_MODE_DPMS_OFF:
-		/* Give the overlay scaler a chance to disable if it's on this pipe */
-		intel_crtc_dpms_overlay(intel_crtc, false);
-		drm_vblank_off(dev, pipe);
-
-		if (dev_priv->cfb_plane == plane &&
-		    dev_priv->display.disable_fbc)
-			dev_priv->display.disable_fbc(dev);
-
-		/* Disable display plane */
-		temp = I915_READ(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			I915_WRITE(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
-			I915_READ(dspbase_reg);
-		}
-
-		if (!IS_I9XX(dev)) {
-			/* Wait for vblank for the disable to take effect */
-			intel_wait_for_vblank_off(dev, pipe);
-		}
-
-		/* Don't disable pipe A or pipe A PLLs if needed */
-		if (pipeconf_reg == PIPEACONF &&
-		    (dev_priv->quirks & QUIRK_PIPEA_FORCE))
-			goto skip_pipe_off;
-
-		/* Next, disable display pipes */
-		temp = I915_READ(pipeconf_reg);
-		if ((temp & PIPEACONF_ENABLE) != 0) {
-			I915_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-			I915_READ(pipeconf_reg);
-		}
-
-		/* Wait for vblank for the disable to take effect. */
-		intel_wait_for_vblank_off(dev, pipe);
-
-		temp = I915_READ(dpll_reg);
-		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			I915_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
-			I915_READ(dpll_reg);
-		}
-	skip_pipe_off:
-		/* Wait for the clocks to turn off. */
-		udelay(150);
+		i9xx_crtc_disable(crtc);
 		break;
 	}
 }
