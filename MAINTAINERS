@@ -3905,10 +3905,8 @@ F:	Documentation/serial/moxa-smartio
 F:	drivers/char/mxser.*
 
 MSI LAPTOP SUPPORT
-M:	Lennart Poettering <mzxreary@0pointer.de>
+M:	Lee, Chun-Yi <jlee@novell.com>
 L:	platform-driver-x86@vger.kernel.org
-W:	https://tango.0pointer.de/mailman/listinfo/s270-linux
-W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
 
