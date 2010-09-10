@@ -1757,11 +1757,59 @@ static void __devexit sundance_remove1 (struct pci_dev *pdev)
 	}
 }
 
+#ifdef CONFIG_PM
+
+static int sundance_suspend(struct pci_dev *pci_dev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pci_dev);
+
+	if (!netif_running(dev))
+		return 0;
+
+	netdev_close(dev);
+	netif_device_detach(dev);
+
+	pci_save_state(pci_dev);
+	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
+
+	return 0;
+}
+
+static int sundance_resume(struct pci_dev *pci_dev)
+{
+	struct net_device *dev = pci_get_drvdata(pci_dev);
+	int err = 0;
+
+	if (!netif_running(dev))
+		return 0;
+
+	pci_set_power_state(pci_dev, PCI_D0);
+	pci_restore_state(pci_dev);
+
+	err = netdev_open(dev);
+	if (err) {
+		printk(KERN_ERR "%s: Can't resume interface!\n",
+				dev->name);
+		goto out;
+	}
+
+	netif_device_attach(dev);
+
+out:
+	return err;
+}
+
+#endif /* CONFIG_PM */
+
 static struct pci_driver sundance_driver = {
 	.name		= DRV_NAME,
 	.id_table	= sundance_pci_tbl,
 	.probe		= sundance_probe1,
 	.remove		= __devexit_p(sundance_remove1),
+#ifdef CONFIG_PM
+	.suspend	= sundance_suspend,
+	.resume		= sundance_resume,
+#endif /* CONFIG_PM */
 };
 
 static int __init sundance_init(void)
