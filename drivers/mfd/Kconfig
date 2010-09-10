@@ -434,7 +434,7 @@ config PCF50633_GPIO
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300
+	default y if ARCH_U300 || ARCH_U8500
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
@@ -475,7 +475,7 @@ config EZX_PCAP
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on SPI=y && GENERIC_HARDIRQS
+	depends on SPI=y && GENERIC_HARDIRQS && ABX500_CORE
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management

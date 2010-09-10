@@ -6,8 +6,7 @@
  *
  * ABX500 core access functions.
  * The abx500 interface is used for the Analog Baseband chip
- * ab3100, ab3550, ab5500 and possibly comming. It is not used for
- * ab4500 and ab8500 since they are another family of chip.
+ * ab3100, ab3550, ab5500, and ab8500.
  *
  * Author: Mattias Wallin <mattias.wallin@stericsson.com>
  * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com>
