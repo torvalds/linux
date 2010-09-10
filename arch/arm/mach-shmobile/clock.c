@@ -1,7 +1,9 @@
 /*
- * SH-Mobile Timer
+ * SH-Mobile Clock Framework
  *
  * Copyright (C) 2010  Magnus Damm
+ *
+ * Used together with arch/arm/common/clkdev.c and drivers/sh/clk.c.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

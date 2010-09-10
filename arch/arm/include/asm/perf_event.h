@@ -17,7 +17,7 @@
  * counter interrupts are regular interrupts and not an NMI. This
  * means that when we receive the interrupt we can call
  * perf_event_do_pending() that handles all of the work with
- * interrupts enabled.
+ * interrupts disabled.
  */
 static inline void
 set_perf_event_pending(void)

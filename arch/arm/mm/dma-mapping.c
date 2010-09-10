@@ -229,6 +229,8 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 			}
 		} while (size -= PAGE_SIZE);
 
+		dsb();
+
 		return (void *)c->vm_start;
 	}
 	return NULL;
