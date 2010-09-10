@@ -175,8 +175,7 @@ EXPORT_SYMBOL_GPL(unregister_keyboard_notifier);
  */
 
 struct getset_keycode_data {
-	unsigned int scancode;
-	unsigned int keycode;
+	struct input_keymap_entry ke;
 	int error;
 };
 
@@ -184,32 +183,50 @@ static int getkeycode_helper(struct input_handle *handle, void *data)
 {
 	struct getset_keycode_data *d = data;
 
-	d->error = input_get_keycode(handle->dev, d->scancode, &d->keycode);
+	d->error = input_get_keycode(handle->dev, &d->ke);
 
 	return d->error == 0; /* stop as soon as we successfully get one */
 }
 
 int getkeycode(unsigned int scancode)
 {
-	struct getset_keycode_data d = { scancode, 0, -ENODEV };
+	struct getset_keycode_data d = {
+		.ke	= {
+			.flags		= 0,
+			.len		= sizeof(scancode),
+			.keycode	= 0,
+		},
+		.error	= -ENODEV,
+	};
+
+	memcpy(d.ke.scancode, &scancode, sizeof(scancode));
 
 	input_handler_for_each_handle(&kbd_handler, &d, getkeycode_helper);
 
-	return d.error ?: d.keycode;
+	return d.error ?: d.ke.keycode;
 }
 
 static int setkeycode_helper(struct input_handle *handle, void *data)
 {
 	struct getset_keycode_data *d = data;
 
-	d->error = input_set_keycode(handle->dev, d->scancode, d->keycode);
+	d->error = input_set_keycode(handle->dev, &d->ke);
 
 	return d->error == 0; /* stop as soon as we successfully set one */
 }
 
 int setkeycode(unsigned int scancode, unsigned int keycode)
 {
-	struct getset_keycode_data d = { scancode, keycode, -ENODEV };
+	struct getset_keycode_data d = {
+		.ke	= {
+			.flags		= 0,
+			.len		= sizeof(scancode),
+			.keycode	= keycode,
+		},
+		.error	= -ENODEV,
+	};
+
+	memcpy(d.ke.scancode, &scancode, sizeof(scancode));
 
 	input_handler_for_each_handle(&kbd_handler, &d, setkeycode_helper);
 
