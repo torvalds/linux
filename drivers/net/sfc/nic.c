@@ -539,8 +539,8 @@ void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue)
 	wmb();
 	write_ptr = rx_queue->added_count & EFX_RXQ_MASK;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_RX_DESC_WPTR_DWORD, write_ptr);
-	efx_writed_page(rx_queue->efx, &reg,
-			FR_AZ_RX_DESC_UPD_DWORD_P0, rx_queue->queue);
+	efx_writed_page(rx_queue->efx, &reg, FR_AZ_RX_DESC_UPD_DWORD_P0,
+			efx_rx_queue_index(rx_queue));
 }
 
 int efx_nic_probe_rx(struct efx_rx_queue *rx_queue)
@@ -561,7 +561,7 @@ void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
 
 	netif_dbg(efx, hw, efx->net_dev,
 		  "RX queue %d ring in special buffers %d-%d\n",
-		  rx_queue->queue, rx_queue->rxd.index,
+		  efx_rx_queue_index(rx_queue), rx_queue->rxd.index,
 		  rx_queue->rxd.index + rx_queue->rxd.entries - 1);
 
 	rx_queue->flushed = FLUSH_NONE;
@@ -575,9 +575,10 @@ void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
 			      FRF_AZ_RX_ISCSI_HDIG_EN, iscsi_digest_en,
 			      FRF_AZ_RX_DESCQ_BUF_BASE_ID, rx_queue->rxd.index,
 			      FRF_AZ_RX_DESCQ_EVQ_ID,
-			      rx_queue->channel->channel,
+			      efx_rx_queue_channel(rx_queue)->channel,
 			      FRF_AZ_RX_DESCQ_OWNER_ID, 0,
-			      FRF_AZ_RX_DESCQ_LABEL, rx_queue->queue,
+			      FRF_AZ_RX_DESCQ_LABEL,
+			      efx_rx_queue_index(rx_queue),
 			      FRF_AZ_RX_DESCQ_SIZE,
 			      __ffs(rx_queue->rxd.entries),
 			      FRF_AZ_RX_DESCQ_TYPE, 0 /* kernel queue */ ,
@@ -585,7 +586,7 @@ void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
 			      FRF_AZ_RX_DESCQ_JUMBO, !is_b0,
 			      FRF_AZ_RX_DESCQ_EN, 1);
 	efx_writeo_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
-			 rx_queue->queue);
+			 efx_rx_queue_index(rx_queue));
 }
 
 static void efx_flush_rx_queue(struct efx_rx_queue *rx_queue)
@@ -598,7 +599,8 @@ static void efx_flush_rx_queue(struct efx_rx_queue *rx_queue)
 	/* Post a flush command */
 	EFX_POPULATE_OWORD_2(rx_flush_descq,
 			     FRF_AZ_RX_FLUSH_DESCQ_CMD, 1,
-			     FRF_AZ_RX_FLUSH_DESCQ, rx_queue->queue);
+			     FRF_AZ_RX_FLUSH_DESCQ,
+			     efx_rx_queue_index(rx_queue));
 	efx_writeo(efx, &rx_flush_descq, FR_AZ_RX_FLUSH_DESCQ);
 }
 
@@ -613,7 +615,7 @@ void efx_nic_fini_rx(struct efx_rx_queue *rx_queue)
 	/* Remove RX descriptor ring from card */
 	EFX_ZERO_OWORD(rx_desc_ptr);
 	efx_writeo_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
-			 rx_queue->queue);
+			 efx_rx_queue_index(rx_queue));
 
 	/* Unpin RX descriptor ring */
 	efx_fini_special_buffer(efx, &rx_queue->rxd);
@@ -714,6 +716,7 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 				 bool *rx_ev_pkt_ok,
 				 bool *discard)
 {
+	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	struct efx_nic *efx = rx_queue->efx;
 	bool rx_ev_buf_owner_id_err, rx_ev_ip_hdr_chksum_err;
 	bool rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
@@ -746,14 +749,14 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	/* Count errors that are not in MAC stats.  Ignore expected
 	 * checksum errors during self-test. */
 	if (rx_ev_frm_trunc)
-		++rx_queue->channel->n_rx_frm_trunc;
+		++channel->n_rx_frm_trunc;
 	else if (rx_ev_tobe_disc)
-		++rx_queue->channel->n_rx_tobe_disc;
+		++channel->n_rx_tobe_disc;
 	else if (!efx->loopback_selftest) {
 		if (rx_ev_ip_hdr_chksum_err)
-			++rx_queue->channel->n_rx_ip_hdr_chksum_err;
+			++channel->n_rx_ip_hdr_chksum_err;
 		else if (rx_ev_tcp_udp_chksum_err)
-			++rx_queue->channel->n_rx_tcp_udp_chksum_err;
+			++channel->n_rx_tcp_udp_chksum_err;
 	}
 
 	/* The frame must be discarded if any of these are true. */
@@ -769,7 +772,7 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "
 			  EFX_QWORD_FMT "%s%s%s%s%s%s%s%s\n",
-			  rx_queue->queue, EFX_QWORD_VAL(*event),
+			  efx_rx_queue_index(rx_queue), EFX_QWORD_VAL(*event),
 			  rx_ev_buf_owner_id_err ? " [OWNER_ID_ERR]" : "",
 			  rx_ev_ip_hdr_chksum_err ?
 			  " [IP_HDR_CHKSUM_ERR]" : "",
@@ -1269,7 +1272,7 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 		if (rx_queue->flushed != FLUSH_DONE)
 			netif_err(efx, hw, efx->net_dev,
 				  "rx queue %d flush command timed out\n",
-				  rx_queue->queue);
+				  efx_rx_queue_index(rx_queue));
 		rx_queue->flushed = FLUSH_DONE;
 	}
 

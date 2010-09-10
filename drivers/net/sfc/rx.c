@@ -341,7 +341,7 @@ static void efx_recycle_rx_buffer(struct efx_channel *channel,
  */
 void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 {
-	struct efx_channel *channel = rx_queue->channel;
+	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	unsigned fill_level;
 	int space, rc = 0;
 
@@ -364,7 +364,8 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filling descriptor ring from"
 		   " level %d to level %d using %s allocation\n",
-		   rx_queue->queue, fill_level, rx_queue->fast_fill_limit,
+		   efx_rx_queue_index(rx_queue), fill_level,
+		   rx_queue->fast_fill_limit,
 		   channel->rx_alloc_push_pages ? "page" : "skb");
 
 	do {
@@ -382,7 +383,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filled descriptor ring "
-		   "to level %d\n", rx_queue->queue,
+		   "to level %d\n", efx_rx_queue_index(rx_queue),
 		   rx_queue->added_count - rx_queue->removed_count);
 
  out:
@@ -393,7 +394,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 void efx_rx_slow_fill(unsigned long context)
 {
 	struct efx_rx_queue *rx_queue = (struct efx_rx_queue *)context;
-	struct efx_channel *channel = rx_queue->channel;
+	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 
 	/* Post an event to cause NAPI to run and refill the queue */
 	efx_nic_generate_fill_event(channel);
@@ -421,7 +422,7 @@ static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 			netif_err(efx, rx_err, efx->net_dev,
 				  " RX queue %d seriously overlength "
 				  "RX event (0x%x > 0x%x+0x%x). Leaking\n",
-				  rx_queue->queue, len, max_len,
+				  efx_rx_queue_index(rx_queue), len, max_len,
 				  efx->type->rx_buffer_padding);
 		/* If this buffer was skb-allocated, then the meta
 		 * data at the end of the skb will be trashed. So
@@ -434,10 +435,10 @@ static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 			netif_err(efx, rx_err, efx->net_dev,
 				  " RX queue %d overlength RX event "
 				  "(0x%x > 0x%x)\n",
-				  rx_queue->queue, len, max_len);
+				  efx_rx_queue_index(rx_queue), len, max_len);
 	}
 
-	rx_queue->channel->n_rx_overlength++;
+	efx_rx_queue_channel(rx_queue)->n_rx_overlength++;
 }
 
 /* Pass a received packet up through the generic LRO stack
@@ -507,7 +508,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		   unsigned int len, bool checksummed, bool discard)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	struct efx_channel *channel = rx_queue->channel;
+	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	struct efx_rx_buffer *rx_buf;
 	bool leak_packet = false;
 
@@ -528,7 +529,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 
 	netif_vdbg(efx, rx_status, efx->net_dev,
 		   "RX queue %d received id %x at %llx+%x %s%s\n",
-		   rx_queue->queue, index,
+		   efx_rx_queue_index(rx_queue), index,
 		   (unsigned long long)rx_buf->dma_addr, len,
 		   (checksummed ? " [SUMMED]" : ""),
 		   (discard ? " [DISCARD]" : ""));
@@ -560,12 +561,11 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	rx_buf->len = len;
 out:
-	if (rx_queue->channel->rx_pkt)
-		__efx_rx_packet(rx_queue->channel,
-				rx_queue->channel->rx_pkt,
-				rx_queue->channel->rx_pkt_csummed);
-	rx_queue->channel->rx_pkt = rx_buf;
-	rx_queue->channel->rx_pkt_csummed = checksummed;
+	if (channel->rx_pkt)
+		__efx_rx_packet(channel,
+				channel->rx_pkt, channel->rx_pkt_csummed);
+	channel->rx_pkt = rx_buf;
+	channel->rx_pkt_csummed = checksummed;
 }
 
 /* Handle a received packet.  Second half: Touches packet payload. */
@@ -654,7 +654,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev,
-		  "creating RX queue %d\n", rx_queue->queue);
+		  "creating RX queue %d\n", efx_rx_queue_index(rx_queue));
 
 	/* Allocate RX buffers */
 	rxq_size = EFX_RXQ_SIZE * sizeof(*rx_queue->buffer);
@@ -675,7 +675,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	unsigned int max_fill, trigger, limit;
 
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
-		  "initialising RX queue %d\n", rx_queue->queue);
+		  "initialising RX queue %d\n", efx_rx_queue_index(rx_queue));
 
 	/* Initialise ptr fields */
 	rx_queue->added_count = 0;
@@ -703,7 +703,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 	struct efx_rx_buffer *rx_buf;
 
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
-		  "shutting down RX queue %d\n", rx_queue->queue);
+		  "shutting down RX queue %d\n", efx_rx_queue_index(rx_queue));
 
 	del_timer_sync(&rx_queue->slow_fill);
 	efx_nic_fini_rx(rx_queue);
@@ -720,7 +720,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 void efx_remove_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
-		  "destroying RX queue %d\n", rx_queue->queue);
+		  "destroying RX queue %d\n", efx_rx_queue_index(rx_queue));
 
 	efx_nic_remove_rx(rx_queue);
 

@@ -943,6 +943,17 @@ struct efx_nic_type {
 			continue;					\
 		else
 
+static inline struct efx_channel *
+efx_rx_queue_channel(struct efx_rx_queue *rx_queue)
+{
+	return rx_queue->channel;
+}
+
+static inline int efx_rx_queue_index(struct efx_rx_queue *rx_queue)
+{
+	return rx_queue->queue;
+}
+
 /* Returns a pointer to the specified receive buffer in the RX
  * descriptor queue.
  */
