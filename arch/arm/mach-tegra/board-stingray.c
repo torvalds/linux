@@ -23,6 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
+#include <linux/tegra_usb.h>
 #include <linux/pda_power.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
@@ -385,7 +386,7 @@ static struct platform_device rndis_device = {
 };
 #endif
 
-static struct tegra_utmip_config host_phy_config[] = {
+static struct tegra_utmip_config utmi_phy_config[] = {
 	[0] = {
 		.hssync_start_delay = 0,
 		.idle_wait_delay = 17,
@@ -395,7 +396,7 @@ static struct tegra_utmip_config host_phy_config[] = {
 		.xcvr_lsfslew = 2,
 		.xcvr_lsrslew = 2,
 	},
-	[2] = {
+	[1] = {
 		.hssync_start_delay = 0,
 		.idle_wait_delay = 17,
 		.elastic_limit = 16,
@@ -409,6 +410,24 @@ static struct tegra_utmip_config host_phy_config[] = {
 static struct tegra_ulpi_config ulpi_phy_config = {
 	.reset_gpio = TEGRA_GPIO_PG2,
 	.clk = "clk_dev2",
+};
+
+static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
+	[0] = {
+		.phy_config = &utmi_phy_config[0],
+		.operating_mode = TEGRA_USB_OTG,
+		.power_down_on_bus_suspend = 0,
+	},
+	[1] = {
+		.phy_config = &ulpi_phy_config,
+		.operating_mode = TEGRA_USB_HOST,
+		.power_down_on_bus_suspend = 1,
+	},
+	[2] = {
+		.phy_config = &utmi_phy_config[1],
+		.operating_mode = TEGRA_USB_HOST,
+		.power_down_on_bus_suspend = 1,
+	},
 };
 
 /* bq24617 charger */
@@ -749,8 +768,8 @@ static void stingray_usb_init(void)
 	struct android_usb_platform_data *platform_data;
 
 	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
-	tegra_ehci2_device.dev.platform_data = &ulpi_phy_config;
-	tegra_ehci3_device.dev.platform_data = &host_phy_config[2];
+	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
+	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[2];
 
 	platform_device_register(&tegra_udc_device);
 	platform_device_register(&tegra_ehci2_device);
@@ -990,7 +1009,7 @@ static void __init tegra_stingray_init(void)
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
 	cpcap_device_register(&cpcap_audio_device);
 
-	tegra_ehci1_device.dev.platform_data = &host_phy_config[0];
+	tegra_ehci1_device.dev.platform_data = &tegra_ehci_pdata[0];
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
