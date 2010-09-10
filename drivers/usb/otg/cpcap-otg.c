@@ -21,6 +21,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
+#include <linux/tegra_usb.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -55,30 +56,44 @@ static const char *cpcap_state_name(enum usb_otg_state state)
 void cpcap_start_host(struct cpcap_otg_data *cpcap)
 {
 	int retval;
+	struct platform_device *pdev;
+	struct platform_device *host = cpcap->host;
+	void *platform_data;
 
-	cpcap->pdev = platform_device_alloc(cpcap->host->name, cpcap->host->id);
-	if (!cpcap->pdev)
+	pdev = platform_device_alloc(host->name, host->id);
+	if (!pdev)
 		return;
 
-	if (cpcap->host->resource) {
-		retval = platform_device_add_resources(cpcap->pdev,
-						cpcap->host->resource,
-						cpcap->host->num_resources);
+	if (host->resource) {
+		retval = platform_device_add_resources(pdev, host->resource,
+							host->num_resources);
 		if (retval)
 			goto error;
 	}
 
-	cpcap->pdev->dev.dma_mask = cpcap->host->dev.dma_mask;
-	cpcap->pdev->dev.coherent_dma_mask = cpcap->host->dev.coherent_dma_mask;
+	pdev->dev.dma_mask = host->dev.dma_mask;
+	pdev->dev.coherent_dma_mask = host->dev.coherent_dma_mask;
 
-	retval = platform_device_add(cpcap->pdev);
-	if (retval)
+	platform_data = kmalloc(sizeof(struct tegra_ehci_platform_data), GFP_KERNEL);
+	if (!platform_data)
 		goto error;
 
+	memcpy(platform_data, host->dev.platform_data,
+				sizeof(struct tegra_ehci_platform_data));
+	pdev->dev.platform_data = platform_data;
+
+	retval = platform_device_add(pdev);
+	if (retval)
+		goto error_add;
+
+	cpcap->pdev = pdev;
 	return;
+
+error_add:
+	kfree(platform_data);
 error:
 	pr_err("%s: failed to add the host contoller device\n", __func__);
-	platform_device_put(cpcap->pdev);
+	platform_device_put(pdev);
 }
 
 void cpcap_stop_host(struct cpcap_otg_data *cpcap)
