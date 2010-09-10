@@ -42,6 +42,7 @@ struct intel_hdmi {
 	u32 sdvox_reg;
 	int ddc_bus;
 	bool has_hdmi_sink;
+	bool has_audio;
 };
 
 static struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
@@ -72,11 +73,12 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 
-	if (intel_hdmi->has_hdmi_sink) {
+	/* Required on CPT */
+	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
+		sdvox |= HDMI_MODE_SELECT;
+
+	if (intel_hdmi->has_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
-		if (HAS_PCH_CPT(dev))
-			sdvox |= HDMI_MODE_SELECT;
-	}
 
 	if (intel_crtc->pipe == 1) {
 		if (HAS_PCH_CPT(dev))
@@ -154,6 +156,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status = connector_status_disconnected;
 
 	intel_hdmi->has_hdmi_sink = false;
+	intel_hdmi->has_audio = false;
 	edid = drm_get_edid(connector,
 			    &dev_priv->gmbus[intel_hdmi->ddc_bus].adapter);
 
@@ -161,6 +164,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
 			intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+			intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
 		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
