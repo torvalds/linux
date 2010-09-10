@@ -2784,11 +2784,46 @@ static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
+{
+	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
+
+	g_context->get_cr3           = get_cr3;
+	g_context->inject_page_fault = kvm_inject_page_fault;
+
+	/*
+	 * Note that arch.mmu.gva_to_gpa translates l2_gva to l1_gpa. The
+	 * translation of l2_gpa to l1_gpa addresses is done using the
+	 * arch.nested_mmu.gva_to_gpa function. Basically the gva_to_gpa
+	 * functions between mmu and nested_mmu are swapped.
+	 */
+	if (!is_paging(vcpu)) {
+		g_context->root_level = 0;
+		g_context->gva_to_gpa = nonpaging_gva_to_gpa_nested;
+	} else if (is_long_mode(vcpu)) {
+		reset_rsvds_bits_mask(vcpu, g_context, PT64_ROOT_LEVEL);
+		g_context->root_level = PT64_ROOT_LEVEL;
+		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
+	} else if (is_pae(vcpu)) {
+		reset_rsvds_bits_mask(vcpu, g_context, PT32E_ROOT_LEVEL);
+		g_context->root_level = PT32E_ROOT_LEVEL;
+		g_context->gva_to_gpa = paging64_gva_to_gpa_nested;
+	} else {
+		reset_rsvds_bits_mask(vcpu, g_context, PT32_ROOT_LEVEL);
+		g_context->root_level = PT32_ROOT_LEVEL;
+		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
+	}
+
+	return 0;
+}
+
 static int init_kvm_mmu(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.update_pte.pfn = bad_pfn;
 
-	if (tdp_enabled)
+	if (mmu_is_nested(vcpu))
+		return init_kvm_nested_mmu(vcpu);
+	else if (tdp_enabled)
 		return init_kvm_tdp_mmu(vcpu);
 	else
 		return init_kvm_softmmu(vcpu);
