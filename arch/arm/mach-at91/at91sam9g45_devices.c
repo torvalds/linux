@@ -46,7 +46,7 @@ static struct resource hdmac_resources[] = {
 		.end	= AT91_BASE_SYS + AT91_DMA + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
-	[2] = {
+	[1] = {
 		.start	= AT91SAM9G45_ID_DMA,
 		.end	= AT91SAM9G45_ID_DMA,
 		.flags	= IORESOURCE_IRQ,
@@ -835,9 +835,9 @@ static struct platform_device at91sam9g45_tcb1_device = {
 static void __init at91_add_device_tc(void)
 {
 	/* this chip has one clock and irq for all six TC channels */
-	at91_clock_associate("tcb_clk", &at91sam9g45_tcb0_device.dev, "t0_clk");
+	at91_clock_associate("tcb0_clk", &at91sam9g45_tcb0_device.dev, "t0_clk");
 	platform_device_register(&at91sam9g45_tcb0_device);
-	at91_clock_associate("tcb_clk", &at91sam9g45_tcb1_device.dev, "t0_clk");
+	at91_clock_associate("tcb1_clk", &at91sam9g45_tcb1_device.dev, "t0_clk");
 	platform_device_register(&at91sam9g45_tcb1_device);
 }
 #else
