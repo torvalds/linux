@@ -35,7 +35,7 @@ struct ir_scancode_table {
 	unsigned int		len;	/* Used number of entries */
 	unsigned int		alloc;	/* Size of *scan in bytes */
 	u64			ir_type;
-	char			*name;
+	const char		*name;
 	spinlock_t		lock;
 };
 
