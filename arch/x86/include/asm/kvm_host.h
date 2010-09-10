@@ -249,6 +249,7 @@ struct kvm_mmu {
 	int root_level;
 	int shadow_root_level;
 	union kvm_mmu_page_role base_role;
+	bool direct_map;
 
 	u64 *pae_root;
 	u64 rsvd_bits_mask[2][4];

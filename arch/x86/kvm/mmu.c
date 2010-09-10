@@ -1448,7 +1448,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	if (role.direct)
 		role.cr4_pae = 0;
 	role.access = access;
-	if (!tdp_enabled && vcpu->arch.mmu.root_level <= PT32_ROOT_LEVEL) {
+	if (!vcpu->arch.mmu.direct_map
+	    && vcpu->arch.mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
@@ -1973,7 +1974,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		spte |= shadow_user_mask;
 	if (level > PT_PAGE_TABLE_LEVEL)
 		spte |= PT_PAGE_SIZE_MASK;
-	if (tdp_enabled)
+	if (vcpu->arch.mmu.direct_map)
 		spte |= kvm_x86_ops->get_mt_mask(vcpu, gfn,
 			kvm_is_mmio_pfn(pfn));
 
@@ -1983,8 +1984,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	spte |= (u64)pfn << PAGE_SHIFT;
 
 	if ((pte_access & ACC_WRITE_MASK)
-	    || (!tdp_enabled && write_fault && !is_write_protection(vcpu)
-		&& !user_fault)) {
+	    || (!vcpu->arch.mmu.direct_map && write_fault
+		&& !is_write_protection(vcpu) && !user_fault)) {
 
 		if (level > PT_PAGE_TABLE_LEVEL &&
 		    has_wrprotected_page(vcpu->kvm, gfn, level)) {
@@ -1995,7 +1996,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 		spte |= PT_WRITABLE_MASK;
 
-		if (!tdp_enabled && !(pte_access & ACC_WRITE_MASK))
+		if (!vcpu->arch.mmu.direct_map
+		    && !(pte_access & ACC_WRITE_MASK))
 			spte &= ~PT_USER_MASK;
 
 		/*
@@ -2371,7 +2373,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		ASSERT(!VALID_PAGE(root));
 		if (mmu_check_root(vcpu, root_gfn))
 			return 1;
-		if (tdp_enabled) {
+		if (vcpu->arch.mmu.direct_map) {
 			direct = 1;
 			root_gfn = 0;
 		}
@@ -2406,7 +2408,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 				return 1;
 		} else if (vcpu->arch.mmu.root_level == 0)
 			root_gfn = 0;
-		if (tdp_enabled) {
+		if (vcpu->arch.mmu.direct_map) {
 			direct = 1;
 			root_gfn = i << 30;
 		}
@@ -2544,6 +2546,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 	context->root_level = 0;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
+	context->direct_map = true;
 	return 0;
 }
 
@@ -2663,6 +2666,7 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu, int level)
 	context->root_level = level;
 	context->shadow_root_level = level;
 	context->root_hpa = INVALID_PAGE;
+	context->direct_map = false;
 	return 0;
 }
 
@@ -2687,6 +2691,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu)
 	context->root_level = PT32_ROOT_LEVEL;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
+	context->direct_map = false;
 	return 0;
 }
 
@@ -2708,6 +2713,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->invlpg = nonpaging_invlpg;
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 	context->root_hpa = INVALID_PAGE;
+	context->direct_map = true;
 
 	if (!is_paging(vcpu)) {
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
@@ -3060,7 +3066,7 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t gpa;
 	int r;
 
-	if (tdp_enabled)
+	if (vcpu->arch.mmu.direct_map)
 		return 0;
 
 	gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
