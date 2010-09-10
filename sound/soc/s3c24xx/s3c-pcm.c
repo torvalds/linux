@@ -522,7 +522,7 @@ static struct platform_driver s3c_pcm_driver = {
 	.probe  = s3c_pcm_dev_probe,
 	.remove = s3c_pcm_dev_remove,
 	.driver = {
-		.name = "samsung-pcm-audio",
+		.name = "samsung-pcm",
 		.owner = THIS_MODULE,
 	},
 };
@@ -543,4 +543,4 @@ module_exit(s3c_pcm_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("S3C PCM Controller Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:samsung-pcm-audio");
+MODULE_ALIAS("platform:samsung-pcm");
