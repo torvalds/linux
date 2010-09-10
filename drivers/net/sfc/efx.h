@@ -37,8 +37,6 @@ efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 extern void efx_stop_queue(struct efx_channel *channel);
 extern void efx_wake_queue(struct efx_channel *channel);
-#define EFX_TXQ_SIZE 1024
-#define EFX_TXQ_MASK (EFX_TXQ_SIZE - 1)
 
 /* RX */
 extern int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
@@ -53,13 +51,16 @@ extern void __efx_rx_packet(struct efx_channel *channel,
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			  unsigned int len, bool checksummed, bool discard);
 extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
-#define EFX_RXQ_SIZE 1024
-#define EFX_RXQ_MASK (EFX_RXQ_SIZE - 1)
+
+#define EFX_MAX_DMAQ_SIZE 4096UL
+#define EFX_DEFAULT_DMAQ_SIZE 1024UL
+#define EFX_MIN_DMAQ_SIZE 512UL
+
+#define EFX_MAX_EVQ_SIZE 16384UL
+#define EFX_MIN_EVQ_SIZE 512UL
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
-#define EFX_EVQ_SIZE 4096
-#define EFX_EVQ_MASK (EFX_EVQ_SIZE - 1)
 
 /* Ports */
 extern int efx_reconfigure_port(struct efx_nic *efx);

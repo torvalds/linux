@@ -356,7 +356,7 @@ static inline void efx_notify_tx_desc(struct efx_tx_queue *tx_queue)
 	unsigned write_ptr;
 	efx_dword_t reg;
 
-	write_ptr = tx_queue->write_count & EFX_TXQ_MASK;
+	write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_TX_DESC_WPTR_DWORD, write_ptr);
 	efx_writed_page(tx_queue->efx, &reg,
 			FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
@@ -377,7 +377,7 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
 
 	do {
-		write_ptr = tx_queue->write_count & EFX_TXQ_MASK;
+		write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
 		buffer = &tx_queue->buffer[write_ptr];
 		txd = efx_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
@@ -398,10 +398,11 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 int efx_nic_probe_tx(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
-	BUILD_BUG_ON(EFX_TXQ_SIZE < 512 || EFX_TXQ_SIZE > 4096 ||
-		     EFX_TXQ_SIZE & EFX_TXQ_MASK);
+	unsigned entries;
+
+	entries = tx_queue->ptr_mask + 1;
 	return efx_alloc_special_buffer(efx, &tx_queue->txd,
-					EFX_TXQ_SIZE * sizeof(efx_qword_t));
+					entries * sizeof(efx_qword_t));
 }
 
 void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
@@ -526,30 +527,32 @@ efx_build_rx_desc(struct efx_rx_queue *rx_queue, unsigned index)
  */
 void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue)
 {
+	struct efx_nic *efx = rx_queue->efx;
 	efx_dword_t reg;
 	unsigned write_ptr;
 
 	while (rx_queue->notified_count != rx_queue->added_count) {
-		efx_build_rx_desc(rx_queue,
-				  rx_queue->notified_count &
-				  EFX_RXQ_MASK);
+		efx_build_rx_desc(
+			rx_queue,
+			rx_queue->notified_count & rx_queue->ptr_mask);
 		++rx_queue->notified_count;
 	}
 
 	wmb();
-	write_ptr = rx_queue->added_count & EFX_RXQ_MASK;
+	write_ptr = rx_queue->added_count & rx_queue->ptr_mask;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_RX_DESC_WPTR_DWORD, write_ptr);
-	efx_writed_page(rx_queue->efx, &reg, FR_AZ_RX_DESC_UPD_DWORD_P0,
+	efx_writed_page(efx, &reg, FR_AZ_RX_DESC_UPD_DWORD_P0,
 			efx_rx_queue_index(rx_queue));
 }
 
 int efx_nic_probe_rx(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	BUILD_BUG_ON(EFX_RXQ_SIZE < 512 || EFX_RXQ_SIZE > 4096 ||
-		     EFX_RXQ_SIZE & EFX_RXQ_MASK);
+	unsigned entries;
+
+	entries = rx_queue->ptr_mask + 1;
 	return efx_alloc_special_buffer(efx, &rx_queue->rxd,
-					EFX_RXQ_SIZE * sizeof(efx_qword_t));
+					entries * sizeof(efx_qword_t));
 }
 
 void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
@@ -685,7 +688,7 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_queue = efx_channel_get_tx_queue(
 			channel, tx_ev_q_label % EFX_TXQ_TYPES);
 		tx_packets = ((tx_ev_desc_ptr - tx_queue->read_count) &
-			      EFX_TXQ_MASK);
+			      tx_queue->ptr_mask);
 		channel->irq_mod_score += tx_packets;
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
@@ -796,8 +799,8 @@ efx_handle_rx_bad_index(struct efx_rx_queue *rx_queue, unsigned index)
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned expected, dropped;
 
-	expected = rx_queue->removed_count & EFX_RXQ_MASK;
-	dropped = (index - expected) & EFX_RXQ_MASK;
+	expected = rx_queue->removed_count & rx_queue->ptr_mask;
+	dropped = (index - expected) & rx_queue->ptr_mask;
 	netif_info(efx, rx_err, efx->net_dev,
 		   "dropped %d events (index=%d expected=%d)\n",
 		   dropped, index, expected);
@@ -835,7 +838,7 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	rx_queue = efx_channel_get_rx_queue(channel);
 
 	rx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_DESC_PTR);
-	expected_ptr = rx_queue->removed_count & EFX_RXQ_MASK;
+	expected_ptr = rx_queue->removed_count & rx_queue->ptr_mask;
 	if (unlikely(rx_ev_desc_ptr != expected_ptr))
 		efx_handle_rx_bad_index(rx_queue, rx_ev_desc_ptr);
 
@@ -1002,6 +1005,7 @@ efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 
 int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 {
+	struct efx_nic *efx = channel->efx;
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
@@ -1026,7 +1030,7 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 		EFX_SET_QWORD(*p_event);
 
 		/* Increment read pointer */
-		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
+		read_ptr = (read_ptr + 1) & channel->eventq_mask;
 
 		ev_code = EFX_QWORD_FIELD(event, FSF_AZ_EV_CODE);
 
@@ -1038,7 +1042,7 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 			break;
 		case FSE_AZ_EV_CODE_TX_EV:
 			tx_packets += efx_handle_tx_event(channel, &event);
-			if (tx_packets >= EFX_TXQ_SIZE) {
+			if (tx_packets > efx->txq_entries) {
 				spent = budget;
 				goto out;
 			}
@@ -1073,10 +1077,11 @@ out:
 int efx_nic_probe_eventq(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
-	BUILD_BUG_ON(EFX_EVQ_SIZE < 512 || EFX_EVQ_SIZE > 32768 ||
-		     EFX_EVQ_SIZE & EFX_EVQ_MASK);
+	unsigned entries;
+
+	entries = channel->eventq_mask + 1;
 	return efx_alloc_special_buffer(efx, &channel->eventq,
-					EFX_EVQ_SIZE * sizeof(efx_qword_t));
+					entries * sizeof(efx_qword_t));
 }
 
 void efx_nic_init_eventq(struct efx_channel *channel)
@@ -1172,7 +1177,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	unsigned int read_ptr = channel->eventq_read_ptr;
-	unsigned int end_ptr = (read_ptr - 1) & EFX_EVQ_MASK;
+	unsigned int end_ptr = (read_ptr - 1) & channel->eventq_mask;
 
 	do {
 		efx_qword_t *event = efx_event(channel, read_ptr);
@@ -1212,7 +1217,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 		 * it's ok to throw away every non-flush event */
 		EFX_SET_QWORD(*event);
 
-		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
+		read_ptr = (read_ptr + 1) & channel->eventq_mask;
 	} while (read_ptr != end_ptr);
 
 	channel->eventq_read_ptr = read_ptr;

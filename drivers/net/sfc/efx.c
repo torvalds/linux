@@ -348,7 +348,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	napi_disable(&channel->napi_str);
 
 	/* Poll the channel */
-	efx_process_channel(channel, EFX_EVQ_SIZE);
+	efx_process_channel(channel, channel->eventq_mask + 1);
 
 	/* Ack the eventq. This may cause an interrupt to be generated
 	 * when they are reenabled */
@@ -365,8 +365,17 @@ void efx_process_channel_now(struct efx_channel *channel)
  */
 static int efx_probe_eventq(struct efx_channel *channel)
 {
+	struct efx_nic *efx = channel->efx;
+	unsigned long entries;
+
 	netif_dbg(channel->efx, probe, channel->efx->net_dev,
 		  "chan %d create event queue\n", channel->channel);
+
+	/* Build an event queue with room for one event per tx and rx buffer,
+	 * plus some extra for link state events and MCDI completions. */
+	entries = roundup_pow_of_two(efx->rxq_entries + efx->txq_entries + 128);
+	EFX_BUG_ON_PARANOID(entries > EFX_MAX_EVQ_SIZE);
+	channel->eventq_mask = max(entries, EFX_MIN_EVQ_SIZE) - 1;
 
 	return efx_nic_probe_eventq(channel);
 }
@@ -1191,6 +1200,7 @@ static int efx_probe_all(struct efx_nic *efx)
 	}
 
 	/* Create channels */
+	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 	efx_for_each_channel(channel, efx) {
 		rc = efx_probe_channel(channel);
 		if (rc) {
@@ -2100,9 +2110,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	}
 
 	efx->type = type;
-
-	/* As close as we can get to guaranteeing that we don't overflow */
-	BUILD_BUG_ON(EFX_EVQ_SIZE < EFX_TXQ_SIZE + EFX_RXQ_SIZE);
 
 	EFX_BUG_ON_PARANOID(efx->type->phys_addr_channels > EFX_MAX_CHANNELS);
 

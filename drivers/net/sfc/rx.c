@@ -133,7 +133,7 @@ static int efx_init_rx_buffers_skb(struct efx_rx_queue *rx_queue)
 	unsigned index, count;
 
 	for (count = 0; count < EFX_RX_BATCH; ++count) {
-		index = rx_queue->added_count & EFX_RXQ_MASK;
+		index = rx_queue->added_count & rx_queue->ptr_mask;
 		rx_buf = efx_rx_buffer(rx_queue, index);
 
 		rx_buf->skb = netdev_alloc_skb(net_dev, skb_len);
@@ -208,7 +208,7 @@ static int efx_init_rx_buffers_page(struct efx_rx_queue *rx_queue)
 		dma_addr += sizeof(struct efx_rx_page_state);
 
 	split:
-		index = rx_queue->added_count & EFX_RXQ_MASK;
+		index = rx_queue->added_count & rx_queue->ptr_mask;
 		rx_buf = efx_rx_buffer(rx_queue, index);
 		rx_buf->dma_addr = dma_addr + EFX_PAGE_IP_ALIGN;
 		rx_buf->skb = NULL;
@@ -285,7 +285,7 @@ static void efx_resurrect_rx_buffer(struct efx_rx_queue *rx_queue,
 	 * we'd like to insert an additional descriptor whilst leaving
 	 * EFX_RXD_HEAD_ROOM for the non-recycle path */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count + 2);
-	if (unlikely(fill_level >= EFX_RXQ_SIZE - EFX_RXD_HEAD_ROOM)) {
+	if (unlikely(fill_level > rx_queue->max_fill)) {
 		/* We could place "state" on a list, and drain the list in
 		 * efx_fast_push_rx_descriptors(). For now, this will do. */
 		return;
@@ -294,7 +294,7 @@ static void efx_resurrect_rx_buffer(struct efx_rx_queue *rx_queue,
 	++state->refcnt;
 	get_page(rx_buf->page);
 
-	index = rx_queue->added_count & EFX_RXQ_MASK;
+	index = rx_queue->added_count & rx_queue->ptr_mask;
 	new_buf = efx_rx_buffer(rx_queue, index);
 	new_buf->dma_addr = rx_buf->dma_addr ^ (PAGE_SIZE >> 1);
 	new_buf->skb = NULL;
@@ -319,7 +319,7 @@ static void efx_recycle_rx_buffer(struct efx_channel *channel,
 	    page_count(rx_buf->page) == 1)
 		efx_resurrect_rx_buffer(rx_queue, rx_buf);
 
-	index = rx_queue->added_count & EFX_RXQ_MASK;
+	index = rx_queue->added_count & rx_queue->ptr_mask;
 	new_buf = efx_rx_buffer(rx_queue, index);
 
 	memcpy(new_buf, rx_buf, sizeof(*new_buf));
@@ -347,7 +347,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
+	EFX_BUG_ON_PARANOID(fill_level > rx_queue->efx->rxq_entries);
 	if (fill_level >= rx_queue->fast_fill_trigger)
 		goto out;
 
@@ -650,15 +650,22 @@ void efx_rx_strategy(struct efx_channel *channel)
 int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	unsigned int rxq_size;
+	unsigned int entries;
 	int rc;
 
+	/* Create the smallest power-of-two aligned ring */
+	entries = max(roundup_pow_of_two(efx->rxq_entries), EFX_MIN_DMAQ_SIZE);
+	EFX_BUG_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
+	rx_queue->ptr_mask = entries - 1;
+
 	netif_dbg(efx, probe, efx->net_dev,
-		  "creating RX queue %d\n", efx_rx_queue_index(rx_queue));
+		  "creating RX queue %d size %#x mask %#x\n",
+		  efx_rx_queue_index(rx_queue), efx->rxq_entries,
+		  rx_queue->ptr_mask);
 
 	/* Allocate RX buffers */
-	rxq_size = EFX_RXQ_SIZE * sizeof(*rx_queue->buffer);
-	rx_queue->buffer = kzalloc(rxq_size, GFP_KERNEL);
+	rx_queue->buffer = kzalloc(entries * sizeof(*rx_queue->buffer),
+				   GFP_KERNEL);
 	if (!rx_queue->buffer)
 		return -ENOMEM;
 
@@ -672,6 +679,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 
 void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 {
+	struct efx_nic *efx = rx_queue->efx;
 	unsigned int max_fill, trigger, limit;
 
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
@@ -682,10 +690,9 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->notified_count = 0;
 	rx_queue->removed_count = 0;
 	rx_queue->min_fill = -1U;
-	rx_queue->min_overfill = -1U;
 
 	/* Initialise limit fields */
-	max_fill = EFX_RXQ_SIZE - EFX_RXD_HEAD_ROOM;
+	max_fill = efx->rxq_entries - EFX_RXD_HEAD_ROOM;
 	trigger = max_fill * min(rx_refill_threshold, 100U) / 100U;
 	limit = max_fill * min(rx_refill_limit, 100U) / 100U;
 
@@ -710,7 +717,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Release RX buffers NB start at index 0 not current HW ptr */
 	if (rx_queue->buffer) {
-		for (i = 0; i <= EFX_RXQ_MASK; i++) {
+		for (i = 0; i <= rx_queue->ptr_mask; i++) {
 			rx_buf = efx_rx_buffer(rx_queue, i);
 			efx_fini_rx_buffer(rx_queue, rx_buf);
 		}

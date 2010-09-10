@@ -137,6 +137,7 @@ struct efx_tx_buffer {
  * @channel: The associated channel
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
+ * @ptr_mask: The size of the ring minus 1.
  * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
@@ -170,6 +171,7 @@ struct efx_tx_queue {
 	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
+	unsigned int ptr_mask;
 	enum efx_flush_state flushed;
 
 	/* Members used mainly on the completion path */
@@ -227,6 +229,7 @@ struct efx_rx_page_state {
  * @efx: The associated Efx NIC
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
+ * @ptr_mask: The size of the ring minus 1.
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
@@ -238,9 +241,6 @@ struct efx_rx_page_state {
  * @min_fill: RX descriptor minimum non-zero fill level.
  *	This records the minimum fill level observed when a ring
  *	refill was triggered.
- * @min_overfill: RX descriptor minimum overflow fill level.
- *	This records the minimum fill level at which RX queue
- *	overflow was observed.  It should never be set.
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
@@ -250,6 +250,7 @@ struct efx_rx_queue {
 	struct efx_nic *efx;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
+	unsigned int ptr_mask;
 
 	int added_count;
 	int notified_count;
@@ -307,6 +308,7 @@ enum efx_rx_alloc_method {
  * @reset_work: Scheduled reset work thread
  * @work_pending: Is work pending via NAPI?
  * @eventq: Event queue buffer
+ * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
  * @magic_count: Event queue test event count
@@ -339,6 +341,7 @@ struct efx_channel {
 	struct napi_struct napi_str;
 	bool work_pending;
 	struct efx_special_buffer eventq;
+	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
 	unsigned int magic_count;
@@ -641,6 +644,8 @@ union efx_multicast_hash {
  * @tx_queue: TX DMA queues
  * @rx_queue: RX DMA queues
  * @channel: Channels
+ * @rxq_entries: Size of receive queues requested by user.
+ * @txq_entries: Size of transmit queues requested by user.
  * @next_buffer_table: First available buffer table id
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
@@ -726,6 +731,8 @@ struct efx_nic {
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
 
+	unsigned rxq_entries;
+	unsigned txq_entries;
 	unsigned next_buffer_table;
 	unsigned n_channels;
 	unsigned n_rx_channels;
