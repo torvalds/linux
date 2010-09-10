@@ -636,8 +636,14 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 	spin_lock(&dlm->track_lock);
 	if (oldres)
 		track_list = &oldres->tracking;
-	else
+	else {
 		track_list = &dlm->tracking_list;
+		if (list_empty(track_list)) {
+			dl = NULL;
+			spin_unlock(&dlm->track_lock);
+			goto bail;
+		}
+	}
 
 	list_for_each_entry(res, track_list, tracking) {
 		if (&res->tracking == &dlm->tracking_list)
@@ -660,6 +666,7 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 	} else
 		dl = NULL;
 
+bail:
 	/* passed to seq_show */
 	return dl;
 }
