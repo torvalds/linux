@@ -833,7 +833,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev;
 	struct net_device *netdev = NULL;
 	struct wireless_dev *wdev;
-	int result, rem_txq_params = 0;
+	int result = 0, rem_txq_params = 0;
 	struct nlattr *nl_txq_params;
 	u32 changed;
 	u8 retry_short = 0, retry_long = 0;
