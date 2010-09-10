@@ -2466,6 +2466,14 @@ static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr,
 	return vaddr;
 }
 
+static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gva_t vaddr,
+					 u32 access, u32 *error)
+{
+	if (error)
+		*error = 0;
+	return vcpu->arch.nested_mmu.translate_gpa(vcpu, vaddr, access);
+}
+
 static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 				u32 error_code)
 {

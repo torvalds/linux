@@ -276,6 +276,16 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 					write_fault, user_fault, fetch_fault);
 }
 
+static int FNAME(walk_addr_nested)(struct guest_walker *walker,
+				   struct kvm_vcpu *vcpu, gva_t addr,
+				   int write_fault, int user_fault,
+				   int fetch_fault)
+{
+	return FNAME(walk_addr_generic)(walker, vcpu, &vcpu->arch.nested_mmu,
+					addr, write_fault, user_fault,
+					fetch_fault);
+}
+
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			      u64 *spte, const void *pte)
 {
@@ -650,6 +660,27 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
 			     !!(access & PFERR_WRITE_MASK),
 			     !!(access & PFERR_USER_MASK),
 			     !!(access & PFERR_FETCH_MASK));
+
+	if (r) {
+		gpa = gfn_to_gpa(walker.gfn);
+		gpa |= vaddr & ~PAGE_MASK;
+	} else if (error)
+		*error = walker.error_code;
+
+	return gpa;
+}
+
+static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
+				      u32 access, u32 *error)
+{
+	struct guest_walker walker;
+	gpa_t gpa = UNMAPPED_GVA;
+	int r;
+
+	r = FNAME(walk_addr_nested)(&walker, vcpu, vaddr,
+				    access & PFERR_WRITE_MASK,
+				    access & PFERR_USER_MASK,
+				    access & PFERR_FETCH_MASK);
 
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
