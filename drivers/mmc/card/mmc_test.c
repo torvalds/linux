@@ -19,6 +19,10 @@
 #include <linux/swap.h>		/* For nr_free_buffer_pages() */
 #include <linux/list.h>
 
+#include <linux/debugfs.h>
+#include <linux/uaccess.h>
+#include <linux/seq_file.h>
+
 #define RESULT_OK		0
 #define RESULT_FAIL		1
 #define RESULT_UNSUP_HOST	2
@@ -107,6 +111,18 @@ struct mmc_test_general_result {
 	int testcase;
 	int result;
 	struct list_head tr_lst;
+};
+
+/**
+ * struct mmc_test_dbgfs_file - debugfs related file.
+ * @link: double-linked list
+ * @card: card under test
+ * @file: file created under debugfs
+ */
+struct mmc_test_dbgfs_file {
+	struct list_head link;
+	struct mmc_card *card;
+	struct dentry *file;
 };
 
 /**
@@ -2124,14 +2140,12 @@ static void mmc_test_free_result(struct mmc_card *card)
 	mutex_unlock(&mmc_test_lock);
 }
 
-static ssize_t mmc_test_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static LIST_HEAD(mmc_test_file_test);
+
+static int mtf_test_show(struct seq_file *sf, void *data)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
+	struct mmc_card *card = (struct mmc_card *)sf->private;
 	struct mmc_test_general_result *gr;
-	char *p = buf;
-	size_t len = PAGE_SIZE;
-	int ret;
 
 	mutex_lock(&mmc_test_lock);
 
@@ -2141,49 +2155,44 @@ static ssize_t mmc_test_show(struct device *dev,
 		if (gr->card != card)
 			continue;
 
-		ret = snprintf(p, len, "Test %d: %d\n", gr->testcase + 1,
-			gr->result);
-		if (ret < 0)
-			goto err;
-		if (ret >= len) {
-			ret = -ENOBUFS;
-			goto err;
-		}
-		p += ret;
-		len -= ret;
+		seq_printf(sf, "Test %d: %d\n", gr->testcase + 1, gr->result);
 
 		list_for_each_entry(tr, &gr->tr_lst, link) {
-			ret = snprintf(p, len, "%u %d %lu.%09lu %u\n",
+			seq_printf(sf, "%u %d %lu.%09lu %u\n",
 				tr->count, tr->sectors,
 				(unsigned long)tr->ts.tv_sec,
 				(unsigned long)tr->ts.tv_nsec,
 				tr->rate);
-			if (ret < 0)
-				goto err;
-			if (ret >= len) {
-				ret = -ENOBUFS;
-				goto err;
-			}
-			p += ret;
-			len -= ret;
 		}
 	}
 
-	ret = PAGE_SIZE - len;
-err:
 	mutex_unlock(&mmc_test_lock);
 
-	return ret;
+	return 0;
 }
 
-static ssize_t mmc_test_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static int mtf_test_open(struct inode *inode, struct file *file)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
+	return single_open(file, mtf_test_show, inode->i_private);
+}
+
+static ssize_t mtf_test_write(struct file *file, const char __user *buf,
+	size_t count, loff_t *pos)
+{
+	struct seq_file *sf = (struct seq_file *)file->private_data;
+	struct mmc_card *card = (struct mmc_card *)sf->private;
 	struct mmc_test_card *test;
+	char lbuf[12];
 	long testcase;
 
-	if (strict_strtol(buf, 10, &testcase))
+	if (count >= sizeof(lbuf))
+		return -EINVAL;
+
+	if (copy_from_user(lbuf, buf, count))
+		return -EFAULT;
+	lbuf[count] = '\0';
+
+	if (strict_strtol(lbuf, 10, &testcase))
 		return -EINVAL;
 
 	test = kzalloc(sizeof(struct mmc_test_card), GFP_KERNEL);
@@ -2222,7 +2231,69 @@ static ssize_t mmc_test_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(test, S_IWUSR | S_IRUGO, mmc_test_show, mmc_test_store);
+static const struct file_operations mmc_test_fops_test = {
+	.open		= mtf_test_open,
+	.read		= seq_read,
+	.write		= mtf_test_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void mmc_test_free_file_test(struct mmc_card *card)
+{
+	struct mmc_test_dbgfs_file *df, *dfs;
+
+	mutex_lock(&mmc_test_lock);
+
+	list_for_each_entry_safe(df, dfs, &mmc_test_file_test, link) {
+		if (card && df->card != card)
+			continue;
+		debugfs_remove(df->file);
+		list_del(&df->link);
+		kfree(df);
+	}
+
+	mutex_unlock(&mmc_test_lock);
+}
+
+static int mmc_test_register_file_test(struct mmc_card *card)
+{
+	struct dentry *file = NULL;
+	struct mmc_test_dbgfs_file *df;
+	int ret = 0;
+
+	mutex_lock(&mmc_test_lock);
+
+	if (card->debugfs_root)
+		file = debugfs_create_file("test", S_IWUSR | S_IRUGO,
+			card->debugfs_root, card, &mmc_test_fops_test);
+
+	if (IS_ERR_OR_NULL(file)) {
+		dev_err(&card->dev,
+			"Can't create file. Perhaps debugfs is disabled.\n");
+		ret = -ENODEV;
+		goto err;
+	}
+
+	df = kmalloc(sizeof(struct mmc_test_dbgfs_file), GFP_KERNEL);
+	if (!df) {
+		debugfs_remove(file);
+		dev_err(&card->dev,
+			"Can't allocate memory for internal usage.\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	df->card = card;
+	df->file = file;
+
+	list_add(&df->link, &mmc_test_file_test);
+
+err:
+	mutex_unlock(&mmc_test_lock);
+
+	return ret;
+}
 
 static int mmc_test_probe(struct mmc_card *card)
 {
@@ -2231,7 +2302,7 @@ static int mmc_test_probe(struct mmc_card *card)
 	if (!mmc_card_mmc(card) && !mmc_card_sd(card))
 		return -ENODEV;
 
-	ret = device_create_file(&card->dev, &dev_attr_test);
+	ret = mmc_test_register_file_test(card);
 	if (ret)
 		return ret;
 
@@ -2243,7 +2314,7 @@ static int mmc_test_probe(struct mmc_card *card)
 static void mmc_test_remove(struct mmc_card *card)
 {
 	mmc_test_free_result(card);
-	device_remove_file(&card->dev, &dev_attr_test);
+	mmc_test_free_file_test(card);
 }
 
 static struct mmc_driver mmc_driver = {
@@ -2263,6 +2334,7 @@ static void __exit mmc_test_exit(void)
 {
 	/* Clear stalled data if card is still plugged */
 	mmc_test_free_result(NULL);
+	mmc_test_free_file_test(NULL);
 
 	mmc_unregister_driver(&mmc_driver);
 }
