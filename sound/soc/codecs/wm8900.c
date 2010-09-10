@@ -1256,7 +1256,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.resume =	wm8900_resume,
 	.set_bias_level = wm8900_set_bias_level,
 	.volatile_register = wm8900_volatile_register,
-	.reg_cache_size = sizeof(wm8900_reg_defaults),
+	.reg_cache_size = ARRAY_SIZE(wm8900_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8900_reg_defaults,
 };

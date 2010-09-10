@@ -750,7 +750,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.suspend =	wm8940_suspend,
 	.resume =	wm8940_resume,
 	.set_bias_level = wm8940_set_bias_level,
-	.reg_cache_size = sizeof(wm8940_reg_defaults),
+	.reg_cache_size = ARRAY_SIZE(wm8940_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8940_reg_defaults,
 };

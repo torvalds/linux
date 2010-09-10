@@ -453,7 +453,7 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.probe =	wm8741_probe,
 	.resume =	wm8741_resume,
-	.reg_cache_size = sizeof(wm8741_reg_defaults),
+	.reg_cache_size = ARRAY_SIZE(wm8741_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = &wm8741_reg_defaults,
 };

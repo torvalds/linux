@@ -809,7 +809,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
 	.suspend =	wm8988_suspend,
 	.resume =	wm8988_resume,
 	.set_bias_level = wm8988_set_bias_level,
-	.reg_cache_size = sizeof(wm8988_reg),
+	.reg_cache_size = ARRAY_SIZE(wm8988_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8988_reg,
 };

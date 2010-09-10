@@ -448,7 +448,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.suspend = 	wm8776_suspend,
 	.resume =	wm8776_resume,
 	.set_bias_level = wm8776_set_bias_level,
-	.reg_cache_size = sizeof(wm8776_reg),
+	.reg_cache_size = ARRAY_SIZE(wm8776_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8776_reg,
 };

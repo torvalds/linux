@@ -272,7 +272,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8728 = {
 	.suspend =	wm8728_suspend,
 	.resume =	wm8728_resume,
 	.set_bias_level = wm8728_set_bias_level,
-	.reg_cache_size = sizeof(wm8728_reg_defaults),
+	.reg_cache_size = ARRAY_SIZE(wm8728_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8728_reg_defaults,
 };
