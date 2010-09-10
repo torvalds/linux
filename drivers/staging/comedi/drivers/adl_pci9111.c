@@ -266,19 +266,28 @@ TODO:
 	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_8254_CONTROL)
 
 #define pci9111_8254_counter_0_set(data) \
-	outb(data & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
+	do { \
+		outb(data & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
 		outb((data >> 8) & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0)
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
+	} while (0)
 
 #define pci9111_8254_counter_1_set(data) \
-	outb(data & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
+	do { \
+		outb(data & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
 		outb((data >> 8) & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1)
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
+	} while (0)
 
 #define pci9111_8254_counter_2_set(data) \
-	outb(data & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
+	do { \
+		outb(data & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
 		outb((data >> 8) & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2)
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
+	} while (0)
 
 /*  Function prototypes */
 
