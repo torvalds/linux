@@ -534,6 +534,11 @@ static inline gpa_t gfn_to_gpa(gfn_t gfn)
 	return (gpa_t)gfn << PAGE_SHIFT;
 }
 
+static inline gfn_t gpa_to_gfn(gpa_t gpa)
+{
+	return (gfn_t)(gpa >> PAGE_SHIFT);
+}
+
 static inline hpa_t pfn_to_hpa(pfn_t pfn)
 {
 	return (hpa_t)pfn << PAGE_SHIFT;
