@@ -91,6 +91,8 @@ int perf_trace_init(struct perf_event *p_event)
 		    tp_event->class && tp_event->class->reg &&
 		    try_module_get(tp_event->mod)) {
 			ret = perf_trace_event_init(tp_event, p_event);
+			if (ret)
+				module_put(tp_event->mod);
 			break;
 		}
 	}
@@ -146,6 +148,7 @@ void perf_trace_destroy(struct perf_event *p_event)
 		}
 	}
 out:
+	module_put(tp_event->mod);
 	mutex_unlock(&event_mutex);
 }
 
