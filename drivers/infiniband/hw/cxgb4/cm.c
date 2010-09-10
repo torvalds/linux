@@ -1725,23 +1725,24 @@ static int close_con_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 
 static int terminate(struct c4iw_dev *dev, struct sk_buff *skb)
 {
-	struct c4iw_ep *ep;
-	struct cpl_rdma_terminate *term = cplhdr(skb);
+	struct cpl_rdma_terminate *rpl = cplhdr(skb);
 	struct tid_info *t = dev->rdev.lldi.tids;
-	unsigned int tid = GET_TID(term);
+	unsigned int tid = GET_TID(rpl);
+	struct c4iw_ep *ep;
+	struct c4iw_qp_attributes attrs;
 
 	ep = lookup_tid(t, tid);
+	BUG_ON(!ep);
 
-	if (state_read(&ep->com) != FPDU_MODE)
-		return 0;
+	if (ep->com.qp) {
+		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n", tid,
+		       ep->com.qp->wq.sq.qid);
+		attrs.next_state = C4IW_QP_STATE_TERMINATE;
+		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+	} else
+		printk(KERN_WARNING MOD "TERM received tid %u no qp\n", tid);
 
-	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	skb_pull(skb, sizeof *term);
-	PDBG("%s saving %d bytes of term msg\n", __func__, skb->len);
-	skb_copy_from_linear_data(skb, ep->com.qp->attr.terminate_buffer,
-				  skb->len);
-	ep->com.qp->attr.terminate_msg_len = skb->len;
-	ep->com.qp->attr.is_terminate_local = 0;
 	return 0;
 }
 

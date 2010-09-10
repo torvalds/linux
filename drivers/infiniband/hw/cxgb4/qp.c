@@ -1238,7 +1238,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
 			c4iw_get_ep(&ep->com);
-			terminate = 1;
+			if (!internal)
+				terminate = 1;
 			disconnect = 1;
 			break;
 		case C4IW_QP_STATE_ERROR:
