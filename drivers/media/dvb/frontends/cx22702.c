@@ -128,19 +128,20 @@ static int cx22702_set_inversion(struct cx22702_state *state, int inversion)
 {
 	u8 val;
 
+	val = cx22702_readreg(state, 0x0C);
 	switch (inversion) {
 	case INVERSION_AUTO:
 		return -EOPNOTSUPP;
 	case INVERSION_ON:
-		val = cx22702_readreg(state, 0x0C);
-		return cx22702_writereg(state, 0x0C, val | 0x01);
+		val |= 0x01;
+		break;
 	case INVERSION_OFF:
-		val = cx22702_readreg(state, 0x0C);
-		return cx22702_writereg(state, 0x0C, val & 0xfe);
+		val &= 0xfe;
+		break;
 	default:
 		return -EINVAL;
 	}
-
+	return cx22702_writereg(state, 0x0C, val);
 }
 
 /* Retrieve the demod settings */
@@ -247,13 +248,15 @@ static int cx22702_get_tps(struct cx22702_state *state,
 static int cx22702_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct cx22702_state *state = fe->demodulator_priv;
+	u8 val;
+
 	dprintk("%s(%d)\n", __func__, enable);
+	val = cx22702_readreg(state, 0x0D);
 	if (enable)
-		return cx22702_writereg(state, 0x0D,
-			cx22702_readreg(state, 0x0D) & 0xfe);
+		val &= 0xfe;
 	else
-		return cx22702_writereg(state, 0x0D,
-			cx22702_readreg(state, 0x0D) | 1);
+		val |= 0x01;
+	return cx22702_writereg(state, 0x0D, val);
 }
 
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
@@ -273,23 +276,21 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 	cx22702_set_inversion(state, p->inversion);
 
 	/* set bandwidth */
+	val = cx22702_readreg(state, 0x0C) & 0xcf;
 	switch (p->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
-		cx22702_writereg(state, 0x0C,
-			(cx22702_readreg(state, 0x0C) & 0xcf) | 0x20);
+		val |= 0x20;
 		break;
 	case BANDWIDTH_7_MHZ:
-		cx22702_writereg(state, 0x0C,
-			(cx22702_readreg(state, 0x0C) & 0xcf) | 0x10);
+		val |= 0x10;
 		break;
 	case BANDWIDTH_8_MHZ:
-		cx22702_writereg(state, 0x0C,
-			cx22702_readreg(state, 0x0C) & 0xcf);
 		break;
 	default:
 		dprintk("%s: invalid bandwidth\n", __func__);
 		return -EINVAL;
 	}
+	cx22702_writereg(state, 0x0C, val);
 
 	p->u.ofdm.code_rate_LP = FEC_AUTO; /* temp hack as manual not working */
 
