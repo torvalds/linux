@@ -430,8 +430,8 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data)
 	}
 
 	/* Get the protocol type of the ethernet frame that arrived */
-	proto_type = ((in_be32(addr + XEL_HEADER_OFFSET +
-			XEL_RXBUFF_OFFSET) >> XEL_HEADER_SHIFT) &
+	proto_type = ((ntohl(in_be32(addr + XEL_HEADER_OFFSET +
+			XEL_RXBUFF_OFFSET)) >> XEL_HEADER_SHIFT) &
 			XEL_RPLR_LENGTH_MASK);
 
 	/* Check if received ethernet frame is a raw ethernet frame
@@ -439,9 +439,9 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data)
 	if (proto_type > (ETH_FRAME_LEN + ETH_FCS_LEN)) {
 
 		if (proto_type == ETH_P_IP) {
-			length = ((in_be32(addr +
+			length = ((ntohl(in_be32(addr +
 					XEL_HEADER_IP_LENGTH_OFFSET +
-					XEL_RXBUFF_OFFSET) >>
+					XEL_RXBUFF_OFFSET)) >>
 					XEL_HEADER_SHIFT) &
 					XEL_RPLR_LENGTH_MASK);
 			length += ETH_HLEN + ETH_FCS_LEN;
