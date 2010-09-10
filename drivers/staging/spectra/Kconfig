@@ -2,6 +2,7 @@
 menuconfig SPECTRA
 	tristate "Denali Spectra Flash Translation Layer"
 	depends on BLOCK
+	depends on X86_MRST
 	default n
 	---help---
 	  Enable the FTL pseudo-filesystem used with the NAND Flash

@@ -138,7 +138,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 				break;
 		}
 
-		if (!agpmem)
+		if (&agpmem->head == &dev->agp->memory)
 			goto vm_fault_error;
 
 		/*

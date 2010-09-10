@@ -250,10 +250,13 @@ int choose_orig(void *data, int32_t size)
 int is_my_mac(uint8_t *addr)
 {
 	struct batman_if *batman_if;
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if ((batman_if->net_dev) &&
-		    (compare_orig(batman_if->net_dev->dev_addr, addr))) {
+		if (batman_if->if_status != IF_ACTIVE)
+			continue;
+
+		if (compare_orig(batman_if->net_dev->dev_addr, addr)) {
 			rcu_read_unlock();
 			return 1;
 		}

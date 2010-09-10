@@ -99,6 +99,13 @@ static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 		}
 	}
 
+	/* switch the pads to ddc mode */
+	if (ASIC_IS_DCE3(rdev) && rec->hw_capable) {
+		temp = RREG32(rec->mask_clk_reg);
+		temp &= ~(1 << 16);
+		WREG32(rec->mask_clk_reg, temp);
+	}
+
 	/* clear the output pin values */
 	temp = RREG32(rec->a_clk_reg) & ~rec->a_clk_mask;
 	WREG32(rec->a_clk_reg, temp);
@@ -206,7 +213,7 @@ static void post_xfer(struct i2c_adapter *i2c_adap)
 
 static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 {
-	u32 sclk = radeon_get_engine_clock(rdev);
+	u32 sclk = rdev->pm.current_sclk;
 	u32 prescale = 0;
 	u32 nm;
 	u8 n, m, loop;

@@ -246,6 +246,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 
 	struct fib_result res;
 	int no_addr, rpf, accept_local;
+	bool dev_match;
 	int ret;
 	struct net *net;
 
@@ -273,12 +274,22 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	}
 	*spec_dst = FIB_RES_PREFSRC(res);
 	fib_combine_itag(itag, &res);
+	dev_match = false;
+
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	if (FIB_RES_DEV(res) == dev || res.fi->fib_nhs > 1)
+	for (ret = 0; ret < res.fi->fib_nhs; ret++) {
+		struct fib_nh *nh = &res.fi->fib_nh[ret];
+
+		if (nh->nh_dev == dev) {
+			dev_match = true;
+			break;
+		}
+	}
 #else
 	if (FIB_RES_DEV(res) == dev)
+		dev_match = true;
 #endif
-	{
+	if (dev_match) {
 		ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
 		fib_res_put(&res);
 		return ret;

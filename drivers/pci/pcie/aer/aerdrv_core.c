@@ -772,22 +772,10 @@ void aer_isr(struct work_struct *work)
  */
 int aer_init(struct pcie_device *dev)
 {
-	if (pcie_aer_get_firmware_first(dev->port)) {
-		dev_printk(KERN_DEBUG, &dev->device,
-			   "PCIe errors handled by platform firmware.\n");
-		goto out;
-	}
-
-	if (aer_osc_setup(dev))
-		goto out;
-
-	return 0;
-out:
 	if (forceload) {
 		dev_printk(KERN_DEBUG, &dev->device,
 			   "aerdrv forceload requested.\n");
 		pcie_aer_force_firmware_first(dev->port, 0);
-		return 0;
 	}
-	return -ENXIO;
+	return 0;
 }
