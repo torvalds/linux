@@ -487,11 +487,9 @@ static void emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
 	emulate_exception(ctxt, GP_VECTOR, err, true);
 }
 
-static void emulate_pf(struct x86_emulate_ctxt *ctxt, unsigned long addr,
-		       int err)
+static void emulate_pf(struct x86_emulate_ctxt *ctxt)
 {
-	ctxt->cr2 = addr;
-	emulate_exception(ctxt, PF_VECTOR, err, true);
+	emulate_exception(ctxt, PF_VECTOR, 0, true);
 }
 
 static void emulate_ud(struct x86_emulate_ctxt *ctxt)
@@ -834,7 +832,7 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 		rc = ops->read_emulated(addr, mc->data + mc->end, n, &err,
 					ctxt->vcpu);
 		if (rc == X86EMUL_PROPAGATE_FAULT)
-			emulate_pf(ctxt, addr, err);
+			emulate_pf(ctxt);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		mc->end += n;
@@ -921,7 +919,7 @@ static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	addr = dt.address + index * 8;
 	ret = ops->read_std(addr, desc, sizeof *desc, ctxt->vcpu,  &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT)
-		emulate_pf(ctxt, addr, err);
+		emulate_pf(ctxt);
 
        return ret;
 }
@@ -947,7 +945,7 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	addr = dt.address + index * 8;
 	ret = ops->write_std(addr, desc, sizeof *desc, ctxt->vcpu, &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT)
-		emulate_pf(ctxt, addr, err);
+		emulate_pf(ctxt);
 
 	return ret;
 }
@@ -1117,7 +1115,7 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 					&err,
 					ctxt->vcpu);
 		if (rc == X86EMUL_PROPAGATE_FAULT)
-			emulate_pf(ctxt, c->dst.addr.mem, err);
+			emulate_pf(ctxt);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
@@ -1939,7 +1937,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		emulate_pf(ctxt, old_tss_base, err);
+		emulate_pf(ctxt);
 		return ret;
 	}
 
@@ -1949,7 +1947,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			     &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		emulate_pf(ctxt, old_tss_base, err);
+		emulate_pf(ctxt);
 		return ret;
 	}
 
@@ -1957,7 +1955,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		emulate_pf(ctxt, new_tss_base, err);
+		emulate_pf(ctxt);
 		return ret;
 	}
 
@@ -1970,7 +1968,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 				     ctxt->vcpu, &err);
 		if (ret == X86EMUL_PROPAGATE_FAULT) {
 			/* FIXME: need to provide precise fault address */
-			emulate_pf(ctxt, new_tss_base, err);
+			emulate_pf(ctxt);
 			return ret;
 		}
 	}
@@ -2081,7 +2079,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		emulate_pf(ctxt, old_tss_base, err);
+		emulate_pf(ctxt);
 		return ret;
 	}
 
@@ -2091,7 +2089,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			     &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		emulate_pf(ctxt, old_tss_base, err);
+		emulate_pf(ctxt);
 		return ret;
 	}
 
@@ -2099,7 +2097,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		emulate_pf(ctxt, new_tss_base, err);
+		emulate_pf(ctxt);
 		return ret;
 	}
 
@@ -2112,7 +2110,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 				     ctxt->vcpu, &err);
 		if (ret == X86EMUL_PROPAGATE_FAULT) {
 			/* FIXME: need to provide precise fault address */
-			emulate_pf(ctxt, new_tss_base, err);
+			emulate_pf(ctxt);
 			return ret;
 		}
 	}

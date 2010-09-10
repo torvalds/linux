@@ -229,7 +229,6 @@ struct x86_emulate_ctxt {
 	int exception; /* exception that happens during emulation or -1 */
 	u32 error_code; /* error code for exception */
 	bool error_code_valid;
-	unsigned long cr2; /* faulted address in case of #PF */
 
 	/* decode cache */
 	struct decode_cache decode;

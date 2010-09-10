@@ -329,11 +329,12 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
-void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long addr,
-			   u32 error_code)
+void kvm_inject_page_fault(struct kvm_vcpu *vcpu)
 {
+	unsigned error_code = vcpu->arch.fault.error_code;
+
 	++vcpu->stat.pf_guest;
-	vcpu->arch.cr2 = addr;
+	vcpu->arch.cr2 = vcpu->arch.fault.address;
 	kvm_queue_exception_e(vcpu, PF_VECTOR, error_code);
 }
 
@@ -4080,7 +4081,7 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	if (ctxt->exception == PF_VECTOR)
-		kvm_inject_page_fault(vcpu, ctxt->cr2, ctxt->error_code);
+		kvm_inject_page_fault(vcpu);
 	else if (ctxt->error_code_valid)
 		kvm_queue_exception_e(vcpu, ctxt->exception, ctxt->error_code);
 	else

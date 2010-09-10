@@ -258,6 +258,10 @@ error:
 		walker->error_code |= PFERR_FETCH_MASK;
 	if (rsvd_fault)
 		walker->error_code |= PFERR_RSVD_MASK;
+
+	vcpu->arch.fault.address    = addr;
+	vcpu->arch.fault.error_code = walker->error_code;
+
 	trace_kvm_mmu_walker_error(walker->error_code);
 	return 0;
 }
@@ -521,7 +525,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	 */
 	if (!r) {
 		pgprintk("%s: guest page fault\n", __func__);
-		inject_page_fault(vcpu, addr, walker.error_code);
+		inject_page_fault(vcpu);
 		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
 		return 0;
 	}
