@@ -32,6 +32,12 @@ struct scsi_cmnd;
 #endif
 
 /*
+ * DIX-capable adapters effectively support infinite chaining for the
+ * protection information scatterlist
+ */
+#define SCSI_MAX_PROT_SG_SEGMENTS	0xFFFF
+
+/*
  * Special value for scanning to specify scanning or rescanning of all
  * possible channels, (target) ids, or luns on a given shost.
  */
