@@ -117,9 +117,9 @@ static int rcv_win = 256 * 1024;
 module_param(rcv_win, int, 0644);
 MODULE_PARM_DESC(rcv_win, "TCP receive window in bytes (default=256KB)");
 
-static int snd_win = 32 * 1024;
+static int snd_win = 128 * 1024;
 module_param(snd_win, int, 0644);
-MODULE_PARM_DESC(snd_win, "TCP send window in bytes (default=32KB)");
+MODULE_PARM_DESC(snd_win, "TCP send window in bytes (default=128KB)");
 
 static struct workqueue_struct *workq;
 
