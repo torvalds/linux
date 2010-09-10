@@ -102,11 +102,14 @@ static void s3c_pcm_snd_rxctrl(struct s3c_pcm_info *pcm, int on)
 
 	ctl = readl(regs + S3C_PCM_CTL);
 	clkctl = readl(regs + S3C_PCM_CLKCTL);
+	ctl &= ~(S3C_PCM_CTL_RXDIPSTICK_MASK
+			 << S3C_PCM_CTL_RXDIPSTICK_SHIFT);
 
 	if (on) {
 		ctl |= S3C_PCM_CTL_RXDMA_EN;
 		ctl |= S3C_PCM_CTL_RXFIFO_EN;
 		ctl |= S3C_PCM_CTL_ENABLE;
+		ctl |= (0x20<<S3C_PCM_CTL_RXDIPSTICK_SHIFT);
 		clkctl |= S3C_PCM_CLKCTL_SERCLK_EN;
 	} else {
 		ctl &= ~S3C_PCM_CTL_RXDMA_EN;
