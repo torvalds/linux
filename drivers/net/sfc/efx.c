@@ -1546,11 +1546,11 @@ static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struc
 	stats->tx_packets = mac_stats->tx_packets;
 	stats->rx_bytes = mac_stats->rx_bytes;
 	stats->tx_bytes = mac_stats->tx_bytes;
+	stats->rx_dropped = efx->n_rx_nodesc_drop_cnt;
 	stats->multicast = mac_stats->rx_multicast;
 	stats->collisions = mac_stats->tx_collision;
 	stats->rx_length_errors = (mac_stats->rx_gtjumbo +
 				   mac_stats->rx_length_error);
-	stats->rx_over_errors = efx->n_rx_nodesc_drop_cnt;
 	stats->rx_crc_errors = mac_stats->rx_bad;
 	stats->rx_frame_errors = mac_stats->rx_align_error;
 	stats->rx_fifo_errors = mac_stats->rx_overflow;
