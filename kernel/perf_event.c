@@ -5236,12 +5236,15 @@ struct pmu *perf_init_event(struct perf_event *event)
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
 		int ret = pmu->event_init(event);
 		if (!ret)
-			break;
+			goto unlock;
+
 		if (ret != -ENOENT) {
 			pmu = ERR_PTR(ret);
-			break;
+			goto unlock;
 		}
 	}
+	pmu = ERR_PTR(-ENOENT);
+unlock:
 	srcu_read_unlock(&pmus_srcu, idx);
 
 	return pmu;
