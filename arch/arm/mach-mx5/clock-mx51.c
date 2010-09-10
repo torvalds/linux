@@ -41,34 +41,36 @@ static struct clk usboh3_clk;
 
 #define MAX_DPLL_WAIT_TRIES	1000 /* 1000 * udelay(1) = 1ms */
 
+static void _clk_ccgr_setclk(struct clk *clk, unsigned mode)
+{
+	u32 reg = __raw_readl(clk->enable_reg);
+
+	reg &= ~(MXC_CCM_CCGRx_CG_MASK << clk->enable_shift);
+	reg |= mode << clk->enable_shift;
+
+	__raw_writel(reg, clk->enable_reg);
+}
+
 static int _clk_ccgr_enable(struct clk *clk)
 {
-	u32 reg;
-
-	reg = __raw_readl(clk->enable_reg);
-	reg |= MXC_CCM_CCGRx_MOD_ON << clk->enable_shift;
-	__raw_writel(reg, clk->enable_reg);
-
+	_clk_ccgr_setclk(clk, MXC_CCM_CCGRx_MOD_ON);
 	return 0;
 }
 
 static void _clk_ccgr_disable(struct clk *clk)
 {
-	u32 reg;
-	reg = __raw_readl(clk->enable_reg);
-	reg &= ~(MXC_CCM_CCGRx_CG_MASK << clk->enable_shift);
-	__raw_writel(reg, clk->enable_reg);
+	_clk_ccgr_setclk(clk, MXC_CCM_CCGRx_MOD_OFF);
+}
 
+static int _clk_ccgr_enable_inrun(struct clk *clk)
+{
+	_clk_ccgr_setclk(clk, MXC_CCM_CCGRx_MOD_IDLE);
+	return 0;
 }
 
 static void _clk_ccgr_disable_inwait(struct clk *clk)
 {
-	u32 reg;
-
-	reg = __raw_readl(clk->enable_reg);
-	reg &= ~(MXC_CCM_CCGRx_CG_MASK << clk->enable_shift);
-	reg |= MXC_CCM_CCGRx_MOD_IDLE << clk->enable_shift;
-	__raw_writel(reg, clk->enable_reg);
+	_clk_ccgr_setclk(clk, MXC_CCM_CCGRx_MOD_IDLE);
 }
 
 /*
