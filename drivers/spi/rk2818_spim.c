@@ -799,14 +799,15 @@ static int do_transfer(struct rk2818_spi *dws)
 		if (dws->tx) {
 			do_write(dws);
 		}
+		wait_till_tf_empty(dws);
+		wait_till_not_busy(dws);
 		do_read(dws);
 	}
 	else {
 		do_write(dws);
+		wait_till_tf_empty(dws);
+		wait_till_not_busy(dws);
 	}
-
-	wait_till_tf_empty(dws);
-	wait_till_not_busy(dws);
 	
 	dws->cur_msg->actual_length += dws->len;
 	
