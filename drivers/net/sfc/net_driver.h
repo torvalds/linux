@@ -225,8 +225,6 @@ struct efx_rx_page_state {
 /**
  * struct efx_rx_queue - An Efx RX queue
  * @efx: The associated Efx NIC
- * @queue: DMA queue number
- * @channel: The associated channel
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @added_count: Number of buffers added to the receive queue.
@@ -250,8 +248,6 @@ struct efx_rx_page_state {
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
-	int queue;
-	struct efx_channel *channel;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 
@@ -327,9 +323,10 @@ enum efx_rx_alloc_method {
  * @n_rx_frm_trunc: Count of RX_FRM_TRUNC errors
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
- * @tx_queue: Pointer to first TX queue, or %NULL if not used for TX
+ * @rx_queue: RX queue for this channel
  * @tx_stop_count: Core TX queue stop count
  * @tx_stop_lock: Core TX queue stop lock
+ * @tx_queue: TX queues for this channel
  */
 struct efx_channel {
 	struct efx_nic *efx;
@@ -366,9 +363,12 @@ struct efx_channel {
 	struct efx_rx_buffer *rx_pkt;
 	bool rx_pkt_csummed;
 
-	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue rx_queue;
+
 	atomic_t tx_stop_count;
 	spinlock_t tx_stop_lock;
+
+	struct efx_tx_queue tx_queue[2];
 };
 
 enum efx_led_mode {
@@ -724,9 +724,7 @@ struct efx_nic {
 	enum nic_state state;
 	enum reset_type reset_pending;
 
-	struct efx_tx_queue tx_queue[EFX_MAX_TX_QUEUES];
-	struct efx_rx_queue rx_queue[EFX_MAX_RX_QUEUES];
-	struct efx_channel channel[EFX_MAX_CHANNELS];
+	struct efx_channel *channel[EFX_MAX_CHANNELS];
 
 	unsigned next_buffer_table;
 	unsigned n_channels;
@@ -913,34 +911,30 @@ static inline struct efx_channel *
 efx_get_channel(struct efx_nic *efx, unsigned index)
 {
 	EFX_BUG_ON_PARANOID(index >= efx->n_channels);
-	return &efx->channel[index];
+	return efx->channel[index];
 }
 
 /* Iterate over all used channels */
 #define efx_for_each_channel(_channel, _efx)				\
-	for (_channel = &((_efx)->channel[0]);				\
-	     _channel < &((_efx)->channel[(efx)->n_channels]);		\
-	     _channel++)
+	for (_channel = (_efx)->channel[0];				\
+	     _channel;							\
+	     _channel = (_channel->channel + 1 < (_efx)->n_channels) ?	\
+		     (_efx)->channel[_channel->channel + 1] : NULL)
 
-static inline struct efx_tx_queue *
-efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
-{
-	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
-			    type >= EFX_TXQ_TYPES);
-	return &efx->tx_queue[index * EFX_TXQ_TYPES + type];
-}
+extern struct efx_tx_queue *
+efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type);
 
 static inline struct efx_tx_queue *
 efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
 {
 	struct efx_tx_queue *tx_queue = channel->tx_queue;
 	EFX_BUG_ON_PARANOID(type >= EFX_TXQ_TYPES);
-	return tx_queue ? tx_queue + type : NULL;
+	return tx_queue->channel ? tx_queue + type : NULL;
 }
 
 /* Iterate over all TX queues belonging to a channel */
 #define efx_for_each_channel_tx_queue(_tx_queue, _channel)		\
-	for (_tx_queue = (_channel)->tx_queue;				\
+	for (_tx_queue = efx_channel_get_tx_queue(channel, 0);		\
 	     _tx_queue && _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES; \
 	     _tx_queue++)
 
@@ -948,41 +942,31 @@ static inline struct efx_rx_queue *
 efx_get_rx_queue(struct efx_nic *efx, unsigned index)
 {
 	EFX_BUG_ON_PARANOID(index >= efx->n_rx_channels);
-	return &efx->rx_queue[index];
+	return &efx->channel[index]->rx_queue;
 }
-
-/* Iterate over all used RX queues */
-#define efx_for_each_rx_queue(_rx_queue, _efx)				\
-	for (_rx_queue = &((_efx)->rx_queue[0]);			\
-	     _rx_queue < &((_efx)->rx_queue[(_efx)->n_rx_channels]);	\
-	     _rx_queue++)
 
 static inline struct efx_rx_queue *
 efx_channel_get_rx_queue(struct efx_channel *channel)
 {
-	struct efx_rx_queue *rx_queue =
-		&channel->efx->rx_queue[channel->channel];
-	return rx_queue->channel == channel ? rx_queue : NULL;
+	return channel->channel < channel->efx->n_rx_channels ?
+		&channel->rx_queue : NULL;
 }
 
 /* Iterate over all RX queues belonging to a channel */
 #define efx_for_each_channel_rx_queue(_rx_queue, _channel)		\
-	for (_rx_queue = &((_channel)->efx->rx_queue[(_channel)->channel]); \
+	for (_rx_queue = efx_channel_get_rx_queue(channel);		\
 	     _rx_queue;							\
-	     _rx_queue = NULL)						\
-		if (_rx_queue->channel != (_channel))			\
-			continue;					\
-		else
+	     _rx_queue = NULL)
 
 static inline struct efx_channel *
 efx_rx_queue_channel(struct efx_rx_queue *rx_queue)
 {
-	return rx_queue->channel;
+	return container_of(rx_queue, struct efx_channel, rx_queue);
 }
 
 static inline int efx_rx_queue_index(struct efx_rx_queue *rx_queue)
 {
-	return rx_queue->queue;
+	return efx_rx_queue_channel(rx_queue)->channel;
 }
 
 /* Returns a pointer to the specified receive buffer in the RX

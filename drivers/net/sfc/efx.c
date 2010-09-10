@@ -114,7 +114,7 @@ static struct workqueue_struct *reset_workqueue;
  * This is only used in MSI-X interrupt mode
  */
 static unsigned int separate_tx_channels;
-module_param(separate_tx_channels, uint, 0644);
+module_param(separate_tx_channels, uint, 0444);
 MODULE_PARM_DESC(separate_tx_channels,
 		 "Use separate channels for TX and RX");
 
@@ -334,6 +334,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 
+	BUG_ON(channel->channel >= efx->n_channels);
 	BUG_ON(!channel->enabled);
 
 	/* Disable interrupts and wait for ISRs to complete */
@@ -1098,26 +1099,32 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	efx->legacy_irq = 0;
 }
 
+struct efx_tx_queue *
+efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
+{
+	unsigned tx_channel_offset =
+		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
+	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
+			    type >= EFX_TXQ_TYPES);
+	return &efx->channel[tx_channel_offset + index]->tx_queue[type];
+}
+
 static void efx_set_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
 	unsigned tx_channel_offset =
 		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
 
+	/* Channel pointers were set in efx_init_struct() but we now
+	 * need to clear them for TX queues in any RX-only channels. */
 	efx_for_each_channel(channel, efx) {
-		if (channel->channel - tx_channel_offset < efx->n_tx_channels) {
-			channel->tx_queue = &efx->tx_queue[
-				(channel->channel - tx_channel_offset) *
-				EFX_TXQ_TYPES];
+		if (channel->channel - tx_channel_offset >=
+		    efx->n_tx_channels) {
 			efx_for_each_channel_tx_queue(tx_queue, channel)
-				tx_queue->channel = channel;
+				tx_queue->channel = NULL;
 		}
 	}
-
-	efx_for_each_rx_queue(rx_queue, efx)
-		rx_queue->channel = &efx->channel[rx_queue->queue];
 }
 
 static int efx_probe_nic(struct efx_nic *efx)
@@ -2044,7 +2051,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
-	int i;
+	int i, j;
 
 	/* Initialise common structures */
 	memset(efx, 0, sizeof(*efx));
@@ -2072,27 +2079,22 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 
 	for (i = 0; i < EFX_MAX_CHANNELS; i++) {
-		channel = &efx->channel[i];
+		efx->channel[i] = kzalloc(sizeof(*channel), GFP_KERNEL);
+		channel = efx->channel[i];
 		channel->efx = efx;
 		channel->channel = i;
-		channel->work_pending = false;
 		spin_lock_init(&channel->tx_stop_lock);
 		atomic_set(&channel->tx_stop_count, 1);
-	}
-	for (i = 0; i < EFX_MAX_TX_QUEUES; i++) {
-		tx_queue = &efx->tx_queue[i];
-		tx_queue->efx = efx;
-		tx_queue->queue = i;
-		tx_queue->buffer = NULL;
-		tx_queue->channel = &efx->channel[0]; /* for safety */
-		tx_queue->tso_headers_free = NULL;
-	}
-	for (i = 0; i < EFX_MAX_RX_QUEUES; i++) {
-		rx_queue = &efx->rx_queue[i];
+
+		for (j = 0; j < EFX_TXQ_TYPES; j++) {
+			tx_queue = &channel->tx_queue[j];
+			tx_queue->efx = efx;
+			tx_queue->queue = i * EFX_TXQ_TYPES + j;
+			tx_queue->channel = channel;
+		}
+
+		rx_queue = &channel->rx_queue;
 		rx_queue->efx = efx;
-		rx_queue->queue = i;
-		rx_queue->channel = &efx->channel[0]; /* for safety */
-		rx_queue->buffer = NULL;
 		setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
 			    (unsigned long)rx_queue);
 	}
@@ -2120,6 +2122,11 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 
 static void efx_fini_struct(struct efx_nic *efx)
 {
+	int i;
+
+	for (i = 0; i < EFX_MAX_CHANNELS; i++)
+		kfree(efx->channel[i]);
+
 	if (efx->workqueue) {
 		destroy_workqueue(efx->workqueue);
 		efx->workqueue = NULL;
