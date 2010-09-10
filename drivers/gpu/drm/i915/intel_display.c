@@ -1857,11 +1857,17 @@ static void ironlake_fdi_enable(struct drm_crtc *crtc)
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
 	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	int data_m1_reg = (pipe == 0) ? PIPEA_DATA_M1 : PIPEB_DATA_M1;
 	u32 temp;
 	u32 pipe_bpc;
+	u32 tx_size;
 
 	temp = I915_READ(pipeconf_reg);
 	pipe_bpc = temp & PIPE_BPC_MASK;
+
+	/* Write the TU size bits so error detection works */
+	tx_size = I915_READ(data_m1_reg) & TU_SIZE_MASK;
+	I915_WRITE(FDI_RXA_TUSIZE1, tx_size);
 
 	/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 	temp = I915_READ(fdi_rx_reg);
