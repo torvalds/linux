@@ -1582,6 +1582,8 @@ void hugepage_add_anon_rmap(struct page *page,
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 	int first;
+
+	BUG_ON(!PageLocked(page));
 	BUG_ON(!anon_vma);
 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	first = atomic_inc_and_test(&page->_mapcount);
