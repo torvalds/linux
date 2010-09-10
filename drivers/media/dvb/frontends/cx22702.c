@@ -316,33 +316,31 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 	}
 
 	/* manually programmed values */
-	val = 0;
-	switch (p->u.ofdm.constellation) {
+	switch (p->u.ofdm.constellation) {		/* mask 0x18 */
 	case QPSK:
-		val = (val & 0xe7);
+		val = 0x00;
 		break;
 	case QAM_16:
-		val = (val & 0xe7) | 0x08;
+		val = 0x08;
 		break;
 	case QAM_64:
-		val = (val & 0xe7) | 0x10;
+		val = 0x10;
 		break;
 	default:
 		dprintk("%s: invalid constellation\n", __func__);
 		return -EINVAL;
 	}
-	switch (p->u.ofdm.hierarchy_information) {
+	switch (p->u.ofdm.hierarchy_information) {	/* mask 0x07 */
 	case HIERARCHY_NONE:
-		val = (val & 0xf8);
 		break;
 	case HIERARCHY_1:
-		val = (val & 0xf8) | 1;
+		val |= 0x01;
 		break;
 	case HIERARCHY_2:
-		val = (val & 0xf8) | 2;
+		val |= 0x02;
 		break;
 	case HIERARCHY_4:
-		val = (val & 0xf8) | 3;
+		val |= 0x03;
 		break;
 	default:
 		dprintk("%s: invalid hierarchy\n", __func__);
@@ -350,44 +348,42 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 	}
 	cx22702_writereg(state, 0x06, val);
 
-	val = 0;
-	switch (p->u.ofdm.code_rate_HP) {
+	switch (p->u.ofdm.code_rate_HP) {		/* mask 0x38 */
 	case FEC_NONE:
 	case FEC_1_2:
-		val = (val & 0xc7);
+		val = 0x00;
 		break;
 	case FEC_2_3:
-		val = (val & 0xc7) | 0x08;
+		val = 0x08;
 		break;
 	case FEC_3_4:
-		val = (val & 0xc7) | 0x10;
+		val = 0x10;
 		break;
 	case FEC_5_6:
-		val = (val & 0xc7) | 0x18;
+		val = 0x18;
 		break;
 	case FEC_7_8:
-		val = (val & 0xc7) | 0x20;
+		val = 0x20;
 		break;
 	default:
 		dprintk("%s: invalid code_rate_HP\n", __func__);
 		return -EINVAL;
 	}
-	switch (p->u.ofdm.code_rate_LP) {
+	switch (p->u.ofdm.code_rate_LP) {		/* mask 0x07 */
 	case FEC_NONE:
 	case FEC_1_2:
-		val = (val & 0xf8);
 		break;
 	case FEC_2_3:
-		val = (val & 0xf8) | 1;
+		val |= 0x01;
 		break;
 	case FEC_3_4:
-		val = (val & 0xf8) | 2;
+		val |= 0x02;
 		break;
 	case FEC_5_6:
-		val = (val & 0xf8) | 3;
+		val |= 0x03;
 		break;
 	case FEC_7_8:
-		val = (val & 0xf8) | 4;
+		val |= 0x04;
 		break;
 	default:
 		dprintk("%s: invalid code_rate_LP\n", __func__);
@@ -395,30 +391,28 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 	}
 	cx22702_writereg(state, 0x07, val);
 
-	val = 0;
-	switch (p->u.ofdm.guard_interval) {
+	switch (p->u.ofdm.guard_interval) {		/* mask 0x0c */
 	case GUARD_INTERVAL_1_32:
-		val = (val & 0xf3);
+		val = 0x00;
 		break;
 	case GUARD_INTERVAL_1_16:
-		val = (val & 0xf3) | 0x04;
+		val = 0x04;
 		break;
 	case GUARD_INTERVAL_1_8:
-		val = (val & 0xf3) | 0x08;
+		val = 0x08;
 		break;
 	case GUARD_INTERVAL_1_4:
-		val = (val & 0xf3) | 0x0c;
+		val = 0x0c;
 		break;
 	default:
 		dprintk("%s: invalid guard_interval\n", __func__);
 		return -EINVAL;
 	}
-	switch (p->u.ofdm.transmission_mode) {
+	switch (p->u.ofdm.transmission_mode) {		/* mask 0x03 */
 	case TRANSMISSION_MODE_2K:
-		val = (val & 0xfc);
 		break;
 	case TRANSMISSION_MODE_8K:
-		val = (val & 0xfc) | 1;
+		val |= 0x1;
 		break;
 	default:
 		dprintk("%s: invalid transmission_mode\n", __func__);
