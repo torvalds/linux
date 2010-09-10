@@ -450,7 +450,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 				    mac_stats->rx_bad_bytes);
 	MAC_STAT(rx_packets, RX_PKTS);
 	MAC_STAT(rx_good, RX_GOOD_PKTS);
-	mac_stats->rx_bad = mac_stats->rx_packets - mac_stats->rx_good;
+	MAC_STAT(rx_bad, RX_BAD_FCS_PKTS);
 	MAC_STAT(rx_pause, RX_PAUSE_PKTS);
 	MAC_STAT(rx_control, RX_CONTROL_PKTS);
 	MAC_STAT(rx_unicast, RX_UNICAST_PKTS);
