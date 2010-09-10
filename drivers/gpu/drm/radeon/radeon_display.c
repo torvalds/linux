@@ -1151,6 +1151,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 
 			/* fix up for overscan on hdmi */
 			if (ASIC_IS_AVIVO(rdev) &&
+			    (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
 			    ((radeon_encoder->underscan_type == UNDERSCAN_ON) ||
 			     ((radeon_encoder->underscan_type == UNDERSCAN_AUTO) &&
 			      drm_detect_hdmi_monitor(radeon_connector->edid) &&
