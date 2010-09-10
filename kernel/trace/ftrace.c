@@ -1368,6 +1368,7 @@ enum {
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
+	loff_t				pos;
 	loff_t				func_pos;
 	struct ftrace_page		*pg;
 	struct dyn_ftrace		*func;
@@ -1385,9 +1386,8 @@ t_hash_next(struct seq_file *m, loff_t *pos)
 	struct hlist_node *hnd = NULL;
 	struct hlist_head *hhd;
 
-	WARN_ON(!(iter->flags & FTRACE_ITER_HASH));
-
 	(*pos)++;
+	iter->pos = *pos;
 
 	if (iter->probe)
 		hnd = &iter->probe->node;
@@ -1427,13 +1427,8 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 	void *p = NULL;
 	loff_t l;
 
-	if (!(iter->flags & FTRACE_ITER_HASH))
-		iter->func_pos = *pos;
-
 	if (iter->func_pos > *pos)
 		return NULL;
-
-	iter->flags |= FTRACE_ITER_HASH;
 
 	iter->hidx = 0;
 	for (l = 0; l <= (*pos - iter->func_pos); ) {
@@ -1443,6 +1438,9 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 	}
 	if (!p)
 		return NULL;
+
+	/* Only set this if we have an item */
+	iter->flags |= FTRACE_ITER_HASH;
 
 	return iter;
 }
@@ -1478,6 +1476,8 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		return t_hash_next(m, pos);
 
 	(*pos)++;
+	iter->pos = *pos;
+	iter->func_pos = *pos;
 
 	if (iter->flags & FTRACE_ITER_PRINTALL)
 		return NULL;
@@ -1517,6 +1517,13 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	return iter;
 }
 
+static void reset_iter_read(struct ftrace_iterator *iter)
+{
+	iter->pos = 0;
+	iter->func_pos = 0;
+	iter->flags &= ~(FTRACE_ITER_PRINTALL & FTRACE_ITER_HASH);
+}
+
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
@@ -1524,6 +1531,12 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	loff_t l;
 
 	mutex_lock(&ftrace_lock);
+	/*
+	 * If an lseek was done, then reset and start from beginning.
+	 */
+	if (*pos < iter->pos)
+		reset_iter_read(iter);
+
 	/*
 	 * For set_ftrace_filter reading, if we have the filter
 	 * off, we can short cut and just print out that all
@@ -1541,6 +1554,11 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_start(m, pos);
 
+	/*
+	 * Unfortunately, we need to restart at ftrace_pages_start
+	 * every time we let go of the ftrace_mutex. This is because
+	 * those pointers can change without the lock.
+	 */
 	iter->pg = ftrace_pages_start;
 	iter->idx = 0;
 	for (l = 0; l <= *pos; ) {
@@ -2447,7 +2465,7 @@ static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = seq_read,
 	.write = ftrace_filter_write,
-	.llseek = no_llseek,
+	.llseek = ftrace_regex_lseek,
 	.release = ftrace_filter_release,
 };
 
