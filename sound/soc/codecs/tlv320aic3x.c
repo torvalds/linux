@@ -1069,7 +1069,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		if (aic3x->master) {
+		if (codec->bias_level == SND_SOC_BIAS_STANDBY &&
+		    aic3x->master) {
 			/* enable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
 			aic3x_write(codec, AIC3X_PLL_PROGA_REG,
@@ -1077,14 +1078,15 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		/* fall through and disable pll */
-	case SND_SOC_BIAS_OFF:
-		if (aic3x->master) {
+		if (codec->bias_level == SND_SOC_BIAS_PREPARE &&
+		    aic3x->master) {
 			/* disable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
 			aic3x_write(codec, AIC3X_PLL_PROGA_REG,
 				    reg & ~PLL_ENABLE);
 		}
+		break;
+	case SND_SOC_BIAS_OFF:
 		break;
 	}
 	codec->bias_level = level;
