@@ -124,6 +124,8 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	unsigned index, pt_access, uninitialized_var(pte_access);
 	gpa_t pte_gpa;
 	bool eperm, present, rsvd_fault;
+	int offset;
+	u32 access = 0;
 
 	trace_kvm_mmu_pagetable_walk(addr, write_fault, user_fault,
 				     fetch_fault);
@@ -153,12 +155,14 @@ walk:
 		index = PT_INDEX(addr, walker->level);
 
 		table_gfn = gpte_to_gfn(pte);
-		pte_gpa = gfn_to_gpa(table_gfn);
-		pte_gpa += index * sizeof(pt_element_t);
+		offset    = index * sizeof(pt_element_t);
+		pte_gpa   = gfn_to_gpa(table_gfn) + offset;
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		if (kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte))) {
+		if (kvm_read_guest_page_mmu(vcpu, mmu, table_gfn, &pte,
+					    offset, sizeof(pte),
+					    PFERR_USER_MASK|PFERR_WRITE_MASK)) {
 			present = false;
 			break;
 		}
@@ -209,15 +213,27 @@ walk:
 				is_large_pte(pte) &&
 				mmu->root_level == PT64_ROOT_LEVEL)) {
 			int lvl = walker->level;
+			gpa_t real_gpa;
+			gfn_t gfn;
 
-			walker->gfn = gpte_to_gfn_lvl(pte, lvl);
-			walker->gfn += (addr & PT_LVL_OFFSET_MASK(lvl))
-					>> PAGE_SHIFT;
+			gfn = gpte_to_gfn_lvl(pte, lvl);
+			gfn += (addr & PT_LVL_OFFSET_MASK(lvl)) >> PAGE_SHIFT;
 
 			if (PTTYPE == 32 &&
 			    walker->level == PT_DIRECTORY_LEVEL &&
 			    is_cpuid_PSE36())
-				walker->gfn += pse36_gfn_delta(pte);
+				gfn += pse36_gfn_delta(pte);
+
+			access |= write_fault ? PFERR_WRITE_MASK : 0;
+			access |= fetch_fault ? PFERR_FETCH_MASK : 0;
+			access |= user_fault  ? PFERR_USER_MASK  : 0;
+
+			real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn),
+						      access);
+			if (real_gpa == UNMAPPED_GVA)
+				return 0;
+
+			walker->gfn = real_gpa >> PAGE_SHIFT;
 
 			break;
 		}
