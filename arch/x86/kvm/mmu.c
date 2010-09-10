@@ -2365,7 +2365,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	int direct = 0;
 	u64 pdptr;
 
-	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
+	root_gfn = vcpu->arch.mmu.get_cr3(vcpu) >> PAGE_SHIFT;
 
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
@@ -2562,6 +2562,11 @@ static void paging_new_cr3(struct kvm_vcpu *vcpu)
 	mmu_free_roots(vcpu);
 }
 
+static unsigned long get_cr3(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.cr3;
+}
+
 static void inject_page_fault(struct kvm_vcpu *vcpu,
 			      u64 addr,
 			      u32 err_code)
@@ -2715,6 +2720,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->root_hpa = INVALID_PAGE;
 	context->direct_map = true;
 	context->set_cr3 = kvm_x86_ops->set_tdp_cr3;
+	context->get_cr3 = get_cr3;
 
 	if (!is_paging(vcpu)) {
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
@@ -2755,6 +2761,7 @@ static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.base_role.cr4_pae = !!is_pae(vcpu);
 	vcpu->arch.mmu.base_role.cr0_wp  = is_write_protection(vcpu);
 	vcpu->arch.mmu.set_cr3           = kvm_x86_ops->set_cr3;
+	vcpu->arch.mmu.get_cr3           = get_cr3;
 
 	return r;
 }

@@ -130,7 +130,7 @@ walk:
 	present = true;
 	eperm = rsvd_fault = false;
 	walker->level = vcpu->arch.mmu.root_level;
-	pte = vcpu->arch.cr3;
+	pte = vcpu->arch.mmu.get_cr3(vcpu);
 #if PTTYPE == 64
 	if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
 		pte = kvm_pdptr_read(vcpu, (addr >> 30) & 3);
@@ -143,7 +143,7 @@ walk:
 	}
 #endif
 	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
-	       (vcpu->arch.cr3 & CR3_NONPAE_RESERVED_BITS) == 0);
+	       (vcpu->arch.mmu.get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
 
 	pt_access = ACC_ALL;
 
