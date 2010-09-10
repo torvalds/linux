@@ -497,7 +497,7 @@ comment "ISDB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
 config DVB_S921
-	tristate "Sharp S921 tuner"
+	tristate "Sharp S921 frontend"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help

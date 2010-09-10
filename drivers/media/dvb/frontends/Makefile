@@ -5,7 +5,6 @@
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/
 EXTRA_CFLAGS += -Idrivers/media/common/tuners/
 
-s921-objs := s921_module.o s921_core.o
 stb0899-objs = stb0899_drv.o stb0899_algo.o
 stv0900-objs = stv0900_core.o stv0900_sw.o
 au8522-objs = au8522_dig.o au8522_decoder.o
