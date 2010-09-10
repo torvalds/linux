@@ -52,7 +52,8 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 					  u32 clusters,
 					  int *credits,
 					  int *ref_blocks);
-int ocfs2_refcount_cow(struct inode *inode, struct buffer_head *di_bh,
+int ocfs2_refcount_cow(struct inode *inode,
+		       struct file *filep, struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos);
 
 typedef int (ocfs2_post_refcount_func)(struct inode *inode,
