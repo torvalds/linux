@@ -826,8 +826,8 @@ fail_unlock_mutex:
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  *
- * Allocate percpu area of @size bytes aligned at @align.  Might
- * sleep.  Might trigger writeouts.
+ * Allocate zero-filled percpu area of @size bytes aligned at @align.
+ * Might sleep.  Might trigger writeouts.
  *
  * CONTEXT:
  * Does GFP_KERNEL allocation.
@@ -846,9 +846,10 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  *
- * Allocate percpu area of @size bytes aligned at @align from reserved
- * percpu area if arch has set it up; otherwise, allocation is served
- * from the same dynamic area.  Might sleep.  Might trigger writeouts.
+ * Allocate zero-filled percpu area of @size bytes aligned at @align
+ * from reserved percpu area if arch has set it up; otherwise,
+ * allocation is served from the same dynamic area.  Might sleep.
+ * Might trigger writeouts.
  *
  * CONTEXT:
  * Does GFP_KERNEL allocation.
