@@ -2478,16 +2478,60 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
-static void intel_crtc_prepare (struct drm_crtc *crtc)
+/* Prepare for a mode set.
+ *
+ * Note we could be a lot smarter here.  We need to figure out which outputs
+ * will be enabled, which disabled (in short, how the config will changes)
+ * and perform the minimum necessary steps to accomplish that, e.g. updating
+ * watermarks, FBC configuration, making sure PLLs are programmed correctly,
+ * panel fitting is in the proper state, etc.
+ */
+static void i9xx_crtc_prepare(struct drm_crtc *crtc)
 {
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	intel_crtc->cursor_on = false;
+	intel_crtc_update_cursor(crtc);
+
+	i9xx_crtc_disable(crtc);
+	intel_clear_scanline_wait(dev);
 }
 
-static void intel_crtc_commit (struct drm_crtc *crtc)
+static void i9xx_crtc_commit(struct drm_crtc *crtc)
 {
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	intel_update_watermarks(dev);
+	i9xx_crtc_enable(crtc);
+
+	intel_crtc->cursor_on = true;
+	intel_crtc_update_cursor(crtc);
+}
+
+static void ironlake_crtc_prepare(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	intel_crtc->cursor_on = false;
+	intel_crtc_update_cursor(crtc);
+
+	ironlake_crtc_disable(crtc);
+	intel_clear_scanline_wait(dev);
+}
+
+static void ironlake_crtc_commit(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	intel_update_watermarks(dev);
+	ironlake_crtc_enable(crtc);
+
+	intel_crtc->cursor_on = true;
+	intel_crtc_update_cursor(crtc);
 }
 
 void intel_encoder_prepare (struct drm_encoder *encoder)
@@ -5184,14 +5228,12 @@ cleanup_work:
 	return ret;
 }
 
-static const struct drm_crtc_helper_funcs intel_helper_funcs = {
+static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.dpms = intel_crtc_dpms,
 	.mode_fixup = intel_crtc_mode_fixup,
 	.mode_set = intel_crtc_mode_set,
 	.mode_set_base = intel_pipe_set_base,
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
-	.prepare = intel_crtc_prepare,
-	.commit = intel_crtc_commit,
 	.load_lut = intel_crtc_load_lut,
 };
 
@@ -5241,6 +5283,15 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = -1;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		intel_helper_funcs.prepare = ironlake_crtc_prepare;
+		intel_helper_funcs.commit = ironlake_crtc_commit;
+	} else {
+		intel_helper_funcs.prepare = i9xx_crtc_prepare;
+		intel_helper_funcs.commit = i9xx_crtc_commit;
+	}
+
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
 	intel_crtc->busy = false;
