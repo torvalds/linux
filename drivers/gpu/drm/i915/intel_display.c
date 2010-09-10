@@ -4170,7 +4170,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(data_m1_reg, TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(data_n1_reg, TU_SIZE(m_n.tu) | m_n.gmch_n);
+		I915_WRITE(data_n1_reg, m_n.gmch_n);
 		I915_WRITE(link_m1_reg, m_n.link_m);
 		I915_WRITE(link_n1_reg, m_n.link_n);
 
