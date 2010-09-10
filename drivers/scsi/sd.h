@@ -63,6 +63,9 @@ struct scsi_disk {
 	unsigned	first_scan : 1;
 	unsigned	thin_provisioning : 1;
 	unsigned	unmap : 1;
+	unsigned	tpws : 1;
+	unsigned	tpu : 1;
+	unsigned	tpvpd : 1;
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 
