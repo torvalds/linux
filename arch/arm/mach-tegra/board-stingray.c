@@ -661,6 +661,7 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	/*{ "emc",	"pll_p",	0,		true},
 	{ "emc",	"pll_m",	600000000,	false},*/
 	{ "pll_m",	NULL,		600000000,	true},
+	{ "mpe",	"pll_m",	250000000,	false},
 	{ "pll_a",	NULL,		24000000,	false},
 	{ "pll_a_out0",	NULL,		24000000,	false},
 	{ "i2s1",	"pll_a_out0",	24000000,	false},
