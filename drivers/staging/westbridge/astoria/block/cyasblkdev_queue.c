@@ -95,7 +95,7 @@ static int cyasblkdev_prep_request(
 	DBGPRN_FUNC_NAME;
 
 	/* we only like normal block requests.*/
-	if (!blk_fs_request(req)) {
+	if (req->cmd_type != REQ_TYPE_FS && !(req->cmd_flags & REQ_DISCARD)) {
 		#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message("%s:%x bad request received\n",
 			__func__, current->pid) ;
