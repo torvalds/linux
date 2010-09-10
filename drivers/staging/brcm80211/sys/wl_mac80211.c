@@ -837,6 +837,9 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 	wl->osh = osh;
 	atomic_set(&wl->callbacks, 0);
 
+	/* setup the bottom half handler */
+	tasklet_init(&wl->tasklet, wl_dpc, (ulong) wl);
+
 #ifdef WLC_HIGH_ONLY
 	wl->rpc_th = bcm_rpc_tp_attach(osh, NULL);
 	if (wl->rpc_th == NULL) {
@@ -905,17 +908,16 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 #endif
 
 	/* common load-time initialization */
-	if (!
-	    (wl->wlc =
-	     wlc_attach((void *)wl, vendor, device, unit, wl->piomode, osh,
-			wl->regsva, wl->bcm_bustype, btparam, &err))) {
+	wl->wlc = wlc_attach((void *)wl, vendor, device, unit, wl->piomode, osh,
+			     wl->regsva, wl->bcm_bustype, btparam, &err);
+#ifndef WLC_HIGH_ONLY
+	wl_release_fw(wl);
+#endif
+	if (!wl->wlc) {
 		printf("%s: %s driver failed with code %d\n", KBUILD_MODNAME,
 		       EPI_VERSION_STR, err);
 		goto fail;
 	}
-#ifndef WLC_HIGH_ONLY
-	wl_release_fw(wl);
-#endif
 	wl->pub = wlc_pub(wl->wlc);
 
 	wl->pub->ieee_hw = hw;
@@ -941,9 +943,6 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 	/* Set SDIO drive strength */
 	wlc_iovar_setint(wl->wlc, "sd_drivestrength", sd_drivestrength);
 #endif
-
-	/* setup the bottom half handler */
-	tasklet_init(&wl->tasklet, wl_dpc, (ulong) wl);
 
 #ifdef WLC_LOW
 	/* register our interrupt handler */
@@ -1710,11 +1709,9 @@ void wl_free(wl_info_t * wl)
 
 	ASSERT(wl);
 #ifndef WLC_HIGH_ONLY
-	ASSERT(wl->irq);	/* bmac does not use direct interrupt */
 	/* free ucode data */
 	if (wl->fw.fw_cnt)
 		wl_ucode_data_free();
-	ASSERT(wl->wlc);
 	if (wl->irq)
 		free_irq(wl->irq, wl);
 #endif
@@ -2509,6 +2506,7 @@ static int wl_request_fw(wl_info_t * wl, struct pci_dev *pdev)
 		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
 		if (status) {
 			printf("fail to request firmware %s\n", fw_name);
+			wl_release_fw(wl);
 			return status;
 		}
 		WL_NONE(("request fw %s\n", fw_name));
@@ -2517,6 +2515,7 @@ static int wl_request_fw(wl_info_t * wl, struct pci_dev *pdev)
 		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
 		if (status) {
 			printf("fail to request firmware %s\n", fw_name);
+			wl_release_fw(wl);
 			return status;
 		}
 		wl->fw.hdr_num_entries[i] =
@@ -2539,7 +2538,7 @@ void wl_ucode_free_buf(void *p)
 static void wl_release_fw(wl_info_t * wl)
 {
 	int i;
-	for (i = 0; i < wl->fw.fw_cnt; i++) {
+	for (i = 0; i < WL_MAX_FW; i++) {
 		release_firmware(wl->fw.fw_bin[i]);
 		release_firmware(wl->fw.fw_hdr[i]);
 	}
