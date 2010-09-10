@@ -39,6 +39,7 @@
  * port exist in what processor (on same processor or other processor).
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -238,16 +239,13 @@ typedef struct NvRmPrivPortsRec
 
     // Mutex for transport
     NvOsMutexHandle mutex;
-
-    NvRmMemHandle hMessageMem;
-    void          *pTransmitMem;
-    void          *pReceiveMem;
-    NvU32         MessageMemPhysAddr;
+    dma_addr_t     messageDma;
+    void __iomem  *pTransmitMem;
+    void __iomem  *pReceiveMem;
 
     NvRmPrivXpcMessageHandle hXpc;
 
-    // if a message comes in, but the receiver's queue is full,
-    // then we don't clear the inbound message to allow another message
+    // if a message comes in, but the receiver's queue is full,    // then we don't clear the inbound message to allow another message
     // and set this flag.  We use 2 variables here, so we don't need a lock.
     volatile NvU8  ReceiveBackPressureOn;
     NvU8           ReceiveBackPressureOff;
@@ -363,10 +361,6 @@ ExtractMessage(NvRmTransportHandle hPort, NvU8 *message, NvU32 *pMessageSize, Nv
 
     hPort->RecvMessageQueue.ReadIndex = (NvU16)NextIndex;
 }
-
-
-
-static void *s_TmpIsrMsgBuffer;
 
 /**
  * Connect message
@@ -530,32 +524,12 @@ static void InboxFullIsr(void *args)
          HandleAVPResetMessage(hDevice);
          return;
     }
-    // if we're on the AVP, the first message we get will configure the message info
-    if (s_TransportInfo.MessageMemPhysAddr == 0)
-    {
-        MessageData = MessageData;
-        s_TransportInfo.MessageMemPhysAddr = MessageData;
-        s_TransportInfo.pReceiveMem  = (void*)MessageData;
-        s_TransportInfo.pTransmitMem = (void *) (MessageData + MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE);
-        // ack the message and return.
-        *(NvU32*)s_TransportInfo.pReceiveMem = TransportCmd_None;
-        return;
-    }
 
     // otherwise decode and dispatch the message.
 
 
-    if (s_TransportInfo.pReceiveMem == NULL)
-    {
-        /* QT/EMUTRANS takes this path. */
-        NvRmMemRead(s_TransportInfo.hMessageMem, MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE, s_TmpIsrMsgBuffer, MAX_MESSAGE_LENGTH);
-        pMessage = s_TmpIsrMsgBuffer;
-        NvRmMemWrite(s_TransportInfo.hMessageMem, MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE, s_TmpIsrMsgBuffer, 2*sizeof(NvU32));
-    }
-    else
-    {
-        pMessage = (NvU32*)s_TransportInfo.pReceiveMem;
-    }
+    BUG_ON(s_TransportInfo.pReceiveMem == NULL);
+    pMessage = (NvU32*)s_TransportInfo.pReceiveMem;
 
     MessageCommand = pMessage[0];
 
@@ -613,76 +587,36 @@ RegisterTransportInterrupt(NvRmDeviceHandle hDevice)
 
 void NvRmPrivXpcSendMsgAddress(void)
 {
-    BUG_ON(!s_TransportInfo.MessageMemPhysAddr);
+    BUG_ON(!s_TransportInfo.messageDma);
+    pr_info("msgBuff at %08x\n", s_TransportInfo.messageDma);
     NvRmPrivXpcSendMessage(s_TransportInfo.hXpc,
-                           s_TransportInfo.MessageMemPhysAddr);
+                           s_TransportInfo.messageDma);
 }
+
+#define MESSAGE_DMA_SIZE (2 * (MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE))
 
 // allocate buffers to be used for sending/receiving messages.
-static void
-NvRmPrivTransportAllocBuffers(NvRmDeviceHandle hRmDevice)
+static void NvRmPrivTransportAllocBuffers(NvRmDeviceHandle hRmDevice)
 {
-#if !NV_IS_AVP
-    // These buffers are always allocated on the CPU side.  We'll pass the address over the AVP
-    //
 
-    NvError Error = NvSuccess;
-    NvRmMemHandle hNewMemHandle = NULL;
+    s_TransportInfo.pTransmitMem = dma_alloc_coherent(NULL, MESSAGE_DMA_SIZE,
+                                      &s_TransportInfo.messageDma, GFP_KERNEL);
 
-    // Create memory handle
-    Error = NvRmMemHandleCreate(hRmDevice, &hNewMemHandle, (MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE)*2);
-    if (Error)
-        goto fail;
+    BUG_ON(!s_TransportInfo.pTransmitMem);
 
-    // Allocates the memory from the Heap
-    Error = NvRmMemAlloc(hNewMemHandle, NULL, 0,
-                         XPC_MESSAGE_ALIGNMENT_SIZE, NvOsMemAttribute_Uncached);
-    if (Error)
-        goto fail;
+    s_TransportInfo.pReceiveMem = s_TransportInfo.pTransmitMem +
+        MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE;
 
-    s_TransportInfo.MessageMemPhysAddr = NvRmMemPin(hNewMemHandle);
-
-    // If it is success to create the memory handle.
-    // We have to be able to get a mapping to this, because it is used at interrupt time!
-    s_TransportInfo.hMessageMem = hNewMemHandle;
-    Error = NvRmMemMap(hNewMemHandle, 0,
-        (MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE)*2,
-        NVOS_MEM_READ_WRITE,
-        &s_TransportInfo.pTransmitMem);
-    if (Error)
-    {
-        s_TransportInfo.pTransmitMem = NULL;
-        s_TransportInfo.pReceiveMem = NULL;
-    }
-    else
-    {
-        s_TransportInfo.pReceiveMem  = (void *) (((NvUPtr)s_TransportInfo.pTransmitMem) +
-                                                              MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE);
-    }
-
-    s_TransportInfo.hMessageMem = hNewMemHandle;
-    NvRmMemWr32(hNewMemHandle, 0, 0xdeadf00d); // set this non-zero to throttle messages to the avp till avp is ready.
-    NvRmMemWr32(hNewMemHandle,  MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE, 0);
-
-    return;
-
-
-fail:
-    NvRmMemHandleFree(hNewMemHandle);
-    s_TransportInfo.hMessageMem = NULL;
-    return;
-#else
-    return;
-#endif
+    // set this non-zero to throttle messages to the avp till avp is ready.
+    writel(0xdeadf00dul, s_TransportInfo.pTransmitMem);
+    writel(0, s_TransportInfo.pReceiveMem);
 }
 
 
-static void
-NvRmPrivTransportFreeBuffers(NvRmDeviceHandle hRmDevice)
+static void NvRmPrivTransportFreeBuffers(NvRmDeviceHandle hRmDevice)
 {
-#if !NV_IS_AVP
-    NvRmMemHandleFree(s_TransportInfo.hMessageMem);
-#endif
+    dma_free_coherent(NULL, MESSAGE_DMA_SIZE, s_TransportInfo.pTransmitMem,
+                      s_TransportInfo.messageDma);
 }
 
 static volatile NvBool s_Transport_Inited = NV_FALSE;
@@ -709,13 +643,6 @@ NvError NvRmTransportInit(NvRmDeviceHandle hRmDevice)
 
     NvRmPrivTransportAllocBuffers(hRmDevice);
 #endif
-
-    if (1)  // Used in EMUTRANS mode where the buffers cannot be mapped.
-    {
-        s_TmpIsrMsgBuffer = NvOsAlloc(MAX_MESSAGE_LENGTH);
-        if (!s_TmpIsrMsgBuffer)
-            goto fail;
-    }
 
 #if LOOPBACK_PROFILE
     {
@@ -746,7 +673,6 @@ fail:
     NvRmPrivXpcDestroy(s_TransportInfo.hXpc);
     NvRmPrivTransportFreeBuffers(hRmDevice);
 #endif
-    NvOsFree(s_TmpIsrMsgBuffer);
     NvOsMutexDestroy(s_TransportInfo.mutex);
     return err;
 }
@@ -764,7 +690,6 @@ void NvRmTransportDeInit(NvRmDeviceHandle hRmDevice)
     set_irq_flags(s_TransportInterruptHandle, IRQF_VALID);
     s_TransportInterruptHandle = -1;
 #endif
-    NvOsFree(s_TmpIsrMsgBuffer);
     NvOsMutexDestroy(s_TransportInfo.mutex);
 }
 
@@ -1085,112 +1010,55 @@ exit_gracefully:
 
 
 
-static NvError
-NvRmPrivTransportWaitResponse(NvRmDeviceHandle hDevice, NvU32 *response, NvU32 ResponseLength, NvU32 TimeoutMS)
+static NvError NvRmPrivTransportWaitResponse(NvRmDeviceHandle hDevice,
+                                             NvU32 *response,
+                                             NvU32 ResponseLength,
+                                             NvU32 TimeoutMS)
 {
-    NvU32   CurrentTime;
+    NvU32   Elapsed;
     NvU32   StartTime;
     NvU32   Response;
-    NvBool  GotResponse = NV_TRUE;
-    NvError err         = NvError_Timeout;
-    volatile NvU32 *pXpcMessage = (volatile NvU32*)s_TransportInfo.pTransmitMem;
 
-    if (pXpcMessage == NULL)
-    {
-        if (!NV_IS_AVP)
-        {
-            Response = NvRmMemRd32(s_TransportInfo.hMessageMem, 0);
-        } else
-        {
-            NV_ASSERT(0);
-            return NvSuccess;
-        }
-    }
-    else
-    {
-        Response = pXpcMessage[0];
-    }
+    StartTime = NvOsGetTimeMS();
+
+    do {
+        Response = readl(s_TransportInfo.pTransmitMem);
+        if (Response == TransportCmd_Response)
+            break;
+        cpu_relax();
+        Elapsed = NvOsGetTimeMS() - StartTime;
+    } while (Elapsed < TimeoutMS);
 
     if (Response != TransportCmd_Response)
-    {
-        GotResponse = NV_FALSE;
+        return NvError_Timeout;
 
-        // response is not back yet, so spin till its here.
-        StartTime = NvOsGetTimeMS();
-        CurrentTime = StartTime;
-        while ( (CurrentTime - StartTime) < TimeoutMS )
-        {
-            if ( pXpcMessage && (pXpcMessage[0] == TransportCmd_Response) )
-            {
-                GotResponse = NV_TRUE;
-                break;
-            }
-            else if ( !pXpcMessage )
-            {
-                NV_ASSERT(!"Invalid pXpcMessage pointer is accessed");
-            }
-            CurrentTime = NvOsGetTimeMS();
-        }
-    }
-
-    if ( pXpcMessage && GotResponse )
-    {
-        err = NvSuccess;
-        NvOsMemcpy(response, (void *)pXpcMessage, ResponseLength);
-    }
-
-    return err;
+    memcpy(response, s_TransportInfo.pTransmitMem, ResponseLength);
+    return NvSuccess;
 }
 
 
 static NvError NvRmPrivTransportSendMessage(NvRmDeviceHandle hDevice,
-    NvU32 *MessageHdr, NvU32 MessageHdrLength,
-    NvU32 *Message, NvU32 MessageLength)
+                                            NvU32 *MessageHdr,
+                                            NvU32 MessageHdrLength,
+                                            NvU32 *Message, NvU32 MessageLength)
 {
     NvU32 ReadData;
 
-    if (s_TransportInfo.pTransmitMem == NULL)
-    {
-        /* QT/EMUTRANS takes this code path */
-        if (!NV_IS_AVP)
-        {
-            ReadData = NvRmMemRd32(s_TransportInfo.hMessageMem, 0);
-        } else
-        {
-            NV_ASSERT(0);
-            return NvSuccess;
-        }
-    }
-    else
-    {
-        ReadData = ((volatile NvU32*)s_TransportInfo.pTransmitMem)[0];
-    }
+    BUG_ON(s_TransportInfo.pTransmitMem == NULL);
+    ReadData = readl(s_TransportInfo.pTransmitMem);
 
     // Check for clear to send
-    if ( ReadData != 0)
+    if (ReadData != 0)
         return NvError_TransportMessageBoxFull;  // someone else is sending a message
 
-    if (s_TransportInfo.pTransmitMem == NULL)
+    memcpy(s_TransportInfo.pTransmitMem, MessageHdr, MessageHdrLength);
+    if (Message && MessageLength)
     {
-        /* QT/EMUTRANS takes this code path */
-        NvRmMemWrite(s_TransportInfo.hMessageMem, 0, MessageHdr, MessageHdrLength);
-        if (Message && MessageLength)
-        {
-            NvRmMemWrite(s_TransportInfo.hMessageMem, MessageHdrLength,
-                Message, MessageLength);
-        }
+        memcpy(s_TransportInfo.pTransmitMem + MessageHdrLength,
+               Message, MessageLength);
     }
-    else
-    {
-        NvOsMemcpy(s_TransportInfo.pTransmitMem, MessageHdr, MessageHdrLength);
-        if (Message && MessageLength)
-        {
-            NvOsMemcpy(s_TransportInfo.pTransmitMem + MessageHdrLength,
-                Message, MessageLength);
-        }
-        NvOsFlushWriteCombineBuffer();
-    }
-    NvRmPrivXpcSendMessage(s_TransportInfo.hXpc, s_TransportInfo.MessageMemPhysAddr);
+    wmb();
+    NvRmPrivXpcSendMessage(s_TransportInfo.hXpc, s_TransportInfo.messageDma);
     return NvSuccess;
 }
 
@@ -1219,28 +1087,13 @@ NvError NvRmTransportSendMsgInLP0(NvRmTransportHandle hPort,
     }
     NvOsFlushWriteCombineBuffer();
 
-    NvRmPrivXpcSendMessage(s_TransportInfo.hXpc, s_TransportInfo.MessageMemPhysAddr);
+    NvRmPrivXpcSendMessage(s_TransportInfo.hXpc, s_TransportInfo.messageDma);
     return NvSuccess;
 }
 
-static void
-NvRmPrivTransportClearSend(NvRmDeviceHandle hDevice)
+static void NvRmPrivTransportClearSend(NvRmDeviceHandle hDevice)
 {
-    if (s_TransportInfo.pTransmitMem == NULL)
-    {
-        /* QT/EMUTRANS take this path */
-        if (!NV_IS_AVP)
-        {
-            NvRmMemWr32(s_TransportInfo.hMessageMem, 0, TransportCmd_None);
-        } else
-        {
-            NV_ASSERT(0);
-        }
-    }
-    else
-    {
-        ((NvU32*)s_TransportInfo.pTransmitMem)[0] = TransportCmd_None;
-    }
+    writel(TransportCmd_None, s_TransportInfo.pTransmitMem);
 }
 
 /**
@@ -1285,7 +1138,7 @@ NvError NvRmTransportConnect(NvRmTransportHandle hPort, NvU32 TimeoutMS)
                 break;
             }
         }
-        else if (s_TransportInfo.hMessageMem || s_TransportInfo.pReceiveMem)  // if no shared buffer, then we can't create a remote connection.
+        else if (s_TransportInfo.pReceiveMem)
         {
             ConnectMessage[0] = TransportCmd_Connect;
             ConnectMessage[1] = (NvU32)hPort;
@@ -1573,8 +1426,6 @@ NvRmTransportRecvMsg(
     NvU32 MaxSize,
     NvU32 *pMessageSize)
 {
-    NvU8 TmpMessage[MAX_MESSAGE_LENGTH];
-
     NV_ASSERT(hPort);
     NV_ASSERT( (hPort->State == PortState_Connected) || (hPort->State == PortState_Disconnected) );
     NV_ASSERT(pMessageBuffer);
@@ -1605,23 +1456,8 @@ NvRmTransportRecvMsg(
         NV_ASSERT( ((NvU8)s_TransportInfo.ReceiveBackPressureOn) == ((NvU8)(s_TransportInfo.ReceiveBackPressureOff+1)) );
         ++s_TransportInfo.ReceiveBackPressureOff;
 
-        if (s_TransportInfo.pReceiveMem == NULL)
-        {
-            /* QT/EMUTRANS takes this path. */
-            NvRmMemRead(s_TransportInfo.hMessageMem,
-                        MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE,
-                        TmpMessage,
-                        MAX_MESSAGE_LENGTH);
-            HandlePortMessage(hPort->hRmDevice, (volatile void *)TmpMessage);
-            NvRmMemWrite(s_TransportInfo.hMessageMem,
-                         MAX_MESSAGE_LENGTH + MAX_COMMAND_SIZE,
-                         TmpMessage,
-                         2*sizeof(NvU32) );
-        }
-        else
-        {
-            HandlePortMessage(hPort->hRmDevice, (NvU32*)s_TransportInfo.pReceiveMem);
-        }
+        BUG_ON(s_TransportInfo.pReceiveMem == NULL);
+        HandlePortMessage(hPort->hRmDevice, (NvU32*)s_TransportInfo.pReceiveMem);
     }
 
 #if LOOPBACK_PROFILE

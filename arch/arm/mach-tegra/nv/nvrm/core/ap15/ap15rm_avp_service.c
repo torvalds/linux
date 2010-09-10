@@ -40,6 +40,9 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 
+#include <mach/nvmap.h>
+
+#include "../../../../../../../drivers/video/tegra/nvmap/nvmap.h"
 #include "nvcommon.h"
 #include "nvassert.h"
 #include "nvrm_drf.h"
@@ -57,13 +60,67 @@
 #include "mach/io.h"
 #include "mach/iomap.h"
 
+extern struct nvmap_client *s_AvpClient;
+
 #define NV_USE_AOS 1
 
+static void HandleCreateMessage(const NvRmMessage_HandleCreat *req,
+                                NvRmMessage_HandleCreatResponse *resp)
+{
+    struct nvmap_handle_ref *ref;
+
+    resp->msg = NvRmMsg_MemHandleCreate_Response;
+    ref = nvmap_create_handle(s_AvpClient, req->size);
+    if (IS_ERR(ref)) {
+        resp->error = NvError_InsufficientMemory;
+    } else {
+        resp->error = NvSuccess;
+        resp->hMem = (NvRmMemHandle)nvmap_ref_to_id(ref);
+    }
+}
+
+static void HandleAllocMessage(const NvRmMessage_MemAlloc *req, NvRmMessage_Response *resp)
+{
+    struct nvmap_handle *handle;
+    unsigned int heap_mask = 0;
+    unsigned int i;
+    size_t align;
+    int err;
+
+    resp->msg = NvRmMsg_MemAlloc_Response;
+
+    if (!req->NumHeaps)
+        heap_mask = NVMAP_HEAP_CARVEOUT_GENERIC | NVMAP_HEAP_SYSMEM;
+
+    for (i = 0; i < req->NumHeaps; i++) {
+        if (req->Heaps[i] == NvRmHeap_GART)
+            heap_mask |= NVMAP_HEAP_IOVMM;
+        else if (req->Heaps[i] == NvRmHeap_IRam)
+            heap_mask |= NVMAP_HEAP_CARVEOUT_IRAM;
+        else if (req->Heaps[i] == NvRmHeap_External)
+            heap_mask |= NVMAP_HEAP_SYSMEM;
+        else if (req->Heaps[i] == NvRmHeap_ExternalCarveOut)
+            heap_mask |= NVMAP_HEAP_CARVEOUT_GENERIC;
+    }
+
+    handle = nvmap_get_handle_id(s_AvpClient, (unsigned long)req->hMem);
+    if (IS_ERR(handle)) {
+        resp->error = NvError_AccessDenied;
+        return;
+    }
+
+    align = max_t(size_t, L1_CACHE_BYTES, req->Alignment);
+    err = nvmap_alloc_handle_id(s_AvpClient, (unsigned long)req->hMem,
+                                heap_mask, align, 0);
+    nvmap_handle_put(handle);
+
+    if (err)
+        resp->error = NvError_InsufficientMemory;
+    else
+        resp->error = NvSuccess;
+}
 void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int messageLength)
 {
-    NvError Error = NvSuccess;
-    NvRmMemHandle hMem;
-
     switch (*(NvRmMsg *)pRecvMessage) {
 
     case NvRmMsg_MemHandleCreate:
@@ -72,17 +129,10 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         NvRmMessage_HandleCreatResponse msgRHandleCreate;
 
         msgHandleCreate = (NvRmMessage_HandleCreat*)pRecvMessage;
-
-        msgRHandleCreate.msg = NvRmMsg_MemHandleCreate;
-        Error = NvRmMemHandleCreate(hRPCHandle->hRmDevice,&hMem, msgHandleCreate->size);
-        if (!Error) {
-            msgRHandleCreate.hMem = hMem;
-        }
-        msgRHandleCreate.msg = NvRmMsg_MemHandleCreate_Response;
-        msgRHandleCreate.error = Error;
-
+        HandleCreateMessage(msgHandleCreate, &msgRHandleCreate);
         NvRmPrivRPCSendMsg(hRPCHandle, &msgRHandleCreate,
                            sizeof(msgRHandleCreate));
+        barrier();
     }
     break;
     case NvRmMsg_MemHandleOpen:
@@ -91,7 +141,8 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
     {
         NvRmMessage_HandleFree *msgHandleFree = NULL;
         msgHandleFree = (NvRmMessage_HandleFree*)pRecvMessage;
-        NvRmMemHandleFree(msgHandleFree->hMem);
+        nvmap_free_handle_id(s_AvpClient, (unsigned long)msgHandleFree->hMem);
+        barrier();
     }
     break;
     case NvRmMsg_MemAlloc:
@@ -100,68 +151,79 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         NvRmMessage_Response msgResponse;
         msgMemAlloc = (NvRmMessage_MemAlloc*)pRecvMessage;
 
-         Error = NvRmMemAlloc(msgMemAlloc->hMem,
-                    (msgMemAlloc->NumHeaps == 0) ? NULL : msgMemAlloc->Heaps,
-                    msgMemAlloc->NumHeaps,
-                    msgMemAlloc->Alignment,
-                    msgMemAlloc->Coherency);
-        msgResponse.msg = NvRmMsg_MemAlloc_Response;
-        msgResponse.error = Error;
-
+        HandleAllocMessage(msgMemAlloc, &msgResponse);
         NvRmPrivRPCSendMsg(hRPCHandle, &msgResponse, sizeof(msgResponse));
+        barrier();
     }
     break;
     case NvRmMsg_MemPin:
     {
-        NvRmMessage_Pin *msgHandleFree = NULL;
-        NvRmMessage_PinResponse msgResponse;
-        msgHandleFree = (NvRmMessage_Pin*)pRecvMessage;
+        NvRmMessage_Pin *msg;
+        NvRmMessage_PinResponse response;
+        unsigned long id;
+        int err;
 
-        msgResponse.address = NvRmMemPin(msgHandleFree->hMem);
-        msgResponse.msg = NvRmMsg_MemPin_Response;
+        msg = (NvRmMessage_Pin *)pRecvMessage;
+        id = (unsigned long)msg->hMem;
+        response.msg = NvRmMsg_MemPin_Response;
 
-        NvRmPrivRPCSendMsg(hRPCHandle, &msgResponse, sizeof(msgResponse));
+        err = nvmap_pin_ids(s_AvpClient, 1, &id);
+        if (!err)
+            response.address = nvmap_handle_address(s_AvpClient, id);
+        else
+            response.address = 0xffffffff;
+
+        NvRmPrivRPCSendMsg(hRPCHandle, &response, sizeof(response));
+        barrier();
     }
     break;
     case NvRmMsg_MemUnpin:
     {
-        NvRmMessage_HandleFree *msgHandleFree = NULL;
+        NvRmMessage_HandleFree *msg = NULL;
         NvRmMessage_Response msgResponse;
-        msgHandleFree = (NvRmMessage_HandleFree*)pRecvMessage;
+        unsigned long id;
 
-        NvRmMemUnpin(msgHandleFree->hMem);
+        msg = (NvRmMessage_HandleFree*)pRecvMessage;
+        id = (unsigned long)msg->hMem;
+        nvmap_unpin_ids(s_AvpClient, 1, &id);
 
         msgResponse.msg = NvRmMsg_MemUnpin_Response;
         msgResponse.error = NvSuccess;
 
         NvRmPrivRPCSendMsg(hRPCHandle, &msgResponse, sizeof(msgResponse));
+        barrier();
     }
     break;
     case NvRmMsg_MemGetAddress:
     {
-        NvRmMessage_GetAddress *msgGetAddress = NULL;
-        NvRmMessage_GetAddressResponse msgGetAddrResponse;
+        NvRmMessage_GetAddress *msg = NULL;
+        NvRmMessage_GetAddressResponse response;
+        unsigned long address;
 
-        msgGetAddress = (NvRmMessage_GetAddress*)pRecvMessage;
-
-        msgGetAddrResponse.msg     = NvRmMsg_MemGetAddress_Response;
-        msgGetAddrResponse.address = NvRmMemGetAddress(msgGetAddress->hMem,msgGetAddress->Offset);
-
-        NvRmPrivRPCSendMsg(hRPCHandle, &msgGetAddrResponse, sizeof(msgGetAddrResponse));
+        msg = (NvRmMessage_GetAddress*)pRecvMessage;
+        address = nvmap_handle_address(s_AvpClient, (unsigned long)msg->hMem);
+        response.address = address + msg->Offset;
+        response.msg = NvRmMsg_MemGetAddress_Response;
+        NvRmPrivRPCSendMsg(hRPCHandle, &response, sizeof(response));
+        barrier();
     }
     break;
     case NvRmMsg_HandleFromId :
     {
-        NvRmMessage_HandleFromId *msgHandleFromId = NULL;
-        NvRmMessage_Response msgResponse;
-        NvRmMemHandle hMem;
+        NvRmMessage_HandleFromId *msg = NULL;
+        struct nvmap_handle_ref *ref;
+        NvRmMessage_Response response;
 
-        msgHandleFromId = (NvRmMessage_HandleFromId*)pRecvMessage;
+        msg = (NvRmMessage_HandleFromId*)pRecvMessage;
+        ref = nvmap_duplicate_handle_id(s_AvpClient, msg->id);
 
-        msgResponse.msg     = NvRmMsg_HandleFromId_Response;
-        msgResponse.error = NvRmMemHandleFromId(msgHandleFromId->id, &hMem);
+        response.msg = NvRmMsg_HandleFromId_Response;
+        if (IS_ERR(ref))
+            response.error = NvError_InsufficientMemory;
+        else
+            response.error = NvSuccess;
 
-        NvRmPrivRPCSendMsg(hRPCHandle, &msgResponse, sizeof(NvRmMessage_Response));
+        NvRmPrivRPCSendMsg(hRPCHandle, &response, sizeof(response));
     }
     break;
     case NvRmMsg_PowerModuleClockControl:
@@ -267,8 +329,8 @@ void NvRmPrivProcessMessage(NvRmRPCHandle hRPCHandle, char *pRecvMessage, int me
         NvOsDebugPrintf("AVP has been reset by WDT\n");
         break;
     default:
-	    panic("AVP Service::ProcessMessage: bad message");
-	    break;
+            panic("AVP Service::ProcessMessage: bad message");
+            break;
     }
 }
 

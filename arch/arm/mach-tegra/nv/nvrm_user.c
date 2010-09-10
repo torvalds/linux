@@ -166,9 +166,10 @@ static void client_detach(NvRtClientHandle client)
             void* ptr = NvRtFreeObjRef(&dctx,
                                        NvRtObjType_NvRm_NvRmMemHandle,
                                        NULL);
-            if (!ptr) break;
+            WARN_ON_ONCE(ptr);
+	    if (!ptr)
+		    break;
             NVRT_LEAK("NvRm", "NvRmMemHandle", ptr);
-            NvRmMemHandleFree(ptr);
         }
 
         NvRtUnregisterClient(s_RtHandle, client);

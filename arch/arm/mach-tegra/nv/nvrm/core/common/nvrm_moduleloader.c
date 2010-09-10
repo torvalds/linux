@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <mach/nvmap.h>
 
 #include "nvcommon.h"
 #include "nvassert.h"
@@ -62,7 +63,10 @@
 
 static const struct firmware *s_FwEntry;
 static NvRmRPCHandle s_RPCHandle = NULL;
-static NvRmMemHandle s_KernelImage = NULL;
+
+static struct nvmap_handle_ref *s_KernelImage = NULL;
+struct nvmap_client *s_AvpClient = NULL;
+
 static NvError SendMsgDetachModule(NvRmLibraryHandle  hLibHandle);
 static NvError SendMsgAttachModule(
     NvRmLibraryHandle hLibHandle,
@@ -330,8 +334,7 @@ NvError NvRmLoadLibraryEx(
     NvRmLibraryHandle library = NULL;
     NvError e = NvSuccess;
     PrivateOsFileHandle hFile = NULL;
-    NvRmMemHandle hMem = NULL;
-    NvRmHeap loadHeap = NvRmHeap_ExternalCarveOut;
+    struct nvmap_handle_ref *staging = NULL;
     void *loadAddr = NULL;
     NvU32 len = 0;
     NvU32 physAddr;
@@ -357,18 +360,27 @@ NvError NvRmLoadLibraryEx(
     NV_CHECK_ERROR_CLEANUP(PrivateOsFopen(pLibName, NVOS_OPEN_READ, &hFile));
     len = (NvU32)hFile->pend - (NvU32)hFile->pstart;
 
-    NV_CHECK_ERROR_CLEANUP(NvRmMemHandleCreate(hDevice, &hMem, len));
-
-    NV_CHECK_ERROR_CLEANUP(NvRmMemAlloc(hMem, &loadHeap, 1, L1_CACHE_BYTES,
-                                        NvOsMemAttribute_WriteCombined));
-
-    NV_CHECK_ERROR_CLEANUP(NvRmMemMap(hMem, 0, len, NVOS_MEM_READ_WRITE, &loadAddr));
-
-    physAddr = NvRmMemPin(hMem);
+    staging = nvmap_alloc(s_AvpClient, len, L1_CACHE_BYTES,
+                          NVMAP_HANDLE_WRITE_COMBINE);
+    if (IS_ERR(staging)) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
+    loadAddr = nvmap_mmap(staging);
+    if (!loadAddr) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
+    physAddr = nvmap_pin(s_AvpClient, staging);
+    if (IS_ERR((void*)physAddr)) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
 
     NvOsMemcpy(loadAddr, hFile->pstart, len);
 
-    NvOsFlushWriteCombineBuffer();
+    memcpy(loadAddr, hFile->pstart, len);
+    wmb();
 
     NV_CHECK_ERROR_CLEANUP(SendMsgAttachModule(library, pArgs, physAddr, len,
                                                IsApproachGreedy, sizeOfArgs));
@@ -376,11 +388,15 @@ NvError NvRmLoadLibraryEx(
 fail:
     if (loadAddr)
     {
-        NvRmMemUnpin(hMem);
-        NvRmMemUnmap(hMem, loadAddr, len);
+        if (!IS_ERR((void*)physAddr))
+            nvmap_unpin(s_AvpClient, staging);
+
+        nvmap_munmap(staging, loadAddr);
     }
 
-    NvRmMemHandleFree(hMem);
+    if (!IS_ERR_OR_NULL(staging))
+        nvmap_free(s_AvpClient, staging);
+
     if (hFile)
         PrivateOsFclose(hFile);
 
@@ -546,7 +562,6 @@ void NvRmPrivXpcSendMsgAddress(void);
 static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
 {
     u32 *stub_phys = &_tegra_avp_launcher_stub_data[AVP_LAUNCHER_MMU_PHYSICAL];
-    NvRmHeap heaps[] = { NvRmHeap_External, NvRmHeap_ExternalCarveOut };
     PrivateOsFileHandle kernel;
     void *map = NULL;
     NvError e;
@@ -556,21 +571,38 @@ static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
     if (s_KernelImage)
         return NvSuccess;
 
-    NV_CHECK_ERROR_CLEANUP(NvRmMemHandleCreate(hRm, &s_KernelImage, SZ_1M));
-    NV_CHECK_ERROR_CLEANUP(NvRmMemAlloc(s_KernelImage, heaps,
-                                        NV_ARRAY_SIZE(heaps), SZ_1M,
-                                        NvOsMemAttribute_WriteCombined));
-    NV_CHECK_ERROR_CLEANUP(NvRmMemMap(s_KernelImage, 0, SZ_1M,
-                                      NVOS_MEM_READ_WRITE, &map));
-    
-    phys = NvRmMemPin(s_KernelImage);
+    s_AvpClient = nvmap_create_client(nvmap_dev);
+    if (IS_ERR(s_AvpClient)) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
+
+    s_KernelImage = nvmap_alloc(s_AvpClient, SZ_1M, SZ_1M,
+                                NVMAP_HANDLE_WRITE_COMBINE);
+    if (IS_ERR(s_KernelImage)) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
+
+    map = nvmap_mmap(s_KernelImage);
+    if (map == NULL) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
+
+    phys = nvmap_pin(s_AvpClient, s_KernelImage);
+    if (IS_ERR((void *)phys)) {
+        e = NvError_InsufficientMemory;
+        goto fail;
+    }
 
     NV_CHECK_ERROR_CLEANUP(PrivateOsFopen("nvrm_avp.bin",
                                           NVOS_OPEN_READ, &kernel));
 
-    NvOsMemset(map, 0, SZ_1M);
+    memset(map, 0, SZ_1M);
     len = (NvU32)kernel->pend - (NvU32)kernel->pstart;
-    NvOsMemcpy(map, kernel->pstart, len);
+    memcpy(map, kernel->pstart, len);
+    wmb();
 
     PrivateOsFclose(kernel);
 
@@ -591,7 +623,7 @@ static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
         goto fail;
     }
 
-    NvRmMemUnmap(s_KernelImage, map, SZ_1M);
+    nvmap_munmap(s_KernelImage, map);
 
     return NvSuccess;
 
@@ -599,11 +631,15 @@ fail:
     writel(2 << 29, IO_ADDRESS(TEGRA_FLOW_CTRL_BASE) + FLOW_CTRL_HALT_COP);
     if (map)
     {
-        NvRmMemUnpin(s_KernelImage);
-        NvRmMemUnmap(s_KernelImage, map, SZ_1M);
+        if (!IS_ERR_OR_NULL((void *)phys))
+            nvmap_unpin(s_AvpClient, s_KernelImage);
     }
-    NvRmMemHandleFree(s_KernelImage);
+    if (!IS_ERR_OR_NULL(s_KernelImage))
+        nvmap_free(s_AvpClient, s_KernelImage);
+    if (!IS_ERR_OR_NULL(s_AvpClient))
+        nvmap_client_put(s_AvpClient);
     s_KernelImage = NULL;
+    s_AvpClient = NULL;
     return e;
 }
 
@@ -712,31 +748,31 @@ int __init _avp_suspend_resume_init(void)
 
 static int avp_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	NvError err;
+        NvError err;
 
-	err = NvRmPrivSuspendAvp(s_RPCHandle);
-	if (err != NvSuccess)
-		return -EIO;
-	return 0;
+        err = NvRmPrivSuspendAvp(s_RPCHandle);
+        if (err != NvSuccess)
+                return -EIO;
+        return 0;
 }
 
 static int avp_resume(struct platform_device *pdev)
 {
-	NvError err;
+        NvError err;
 
-	err = NvRmPrivResumeAvp(s_RPCHandle);
-	if (err != NvSuccess)
-		return -EIO;
-	return 0;
+        err = NvRmPrivResumeAvp(s_RPCHandle);
+        if (err != NvSuccess)
+                return -EIO;
+        return 0;
 }
 
 static struct platform_driver avp_nvfw_driver = {
-	.suspend = avp_suspend,
-	.resume  = avp_resume,
-	.driver  = {
-		.name  = "nvfw-avp-device",
-		.owner = THIS_MODULE,
-	},
+        .suspend = avp_suspend,
+        .resume  = avp_resume,
+        .driver  = {
+                .name  = "nvfw-avp-device",
+                .owner = THIS_MODULE,
+        },
 };
 
 int __init _avp_suspend_resume_init(void);
