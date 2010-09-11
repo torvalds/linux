@@ -49,8 +49,7 @@ u16_t zfLnxAsocNotify(zdev_t *dev, u16_t *macAddr, u8_t *body, u16_t bodySize,
 	memset(&wreq, 0, sizeof(wreq));
 	memcpy(wreq.addr.sa_data, macAddr, ETH_ALEN);
 	wreq.addr.sa_family = ARPHRD_ETHER;
-	printk(KERN_DEBUG "join_event of MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	printk(KERN_DEBUG "join_event of MAC: %pM\n", addr);
 
 	for (i = 0; i < ZM_OAL_MAX_STA_SUPPORT; i++) {
 		for (j = 0; j < IEEE80211_ADDR_LEN; j++) {
@@ -114,9 +113,7 @@ u16_t zfLnxDisAsocNotify(zdev_t *dev, u8_t *macAddr, u16_t port)
 	memset(&wreq, 0, sizeof(wreq));
 	memcpy(wreq.addr.sa_data, macAddr, ETH_ALEN);
 	wreq.addr.sa_family = ARPHRD_ETHER;
-	printk(KERN_DEBUG "zfwDisAsocNotify(), MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
-
+	printk(KERN_DEBUG "zfwDisAsocNotify(), MAC: %pM\n", addr);
 
 	return 0;
 }
@@ -131,9 +128,7 @@ u16_t zfLnxApConnectNotify(zdev_t *dev, u8_t *macAddr, u16_t port)
 	memset(&wreq, 0, sizeof(wreq));
 	memcpy(wreq.addr.sa_data, macAddr, ETH_ALEN);
 	wreq.addr.sa_family = ARPHRD_ETHER;
-	printk(KERN_DEBUG "zfwApConnectNotify(), MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
-
+	printk(KERN_DEBUG "zfwApConnectNotify(), MAC: %pM\n", addr);
 
 	return 0;
 }
@@ -254,9 +249,7 @@ void zfLnxApMicFailureNotify(zdev_t *dev, u8_t *addr, zbuf_t *buf)
 	memset(&wreq, 0, sizeof(wreq));
 	memcpy(wreq.addr.sa_data, addr, ETH_ALEN);
 	wreq.addr.sa_family = ARPHRD_ETHER;
-	printk(KERN_DEBUG "zfwApMicFailureNotify(), "
-			"MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	printk(KERN_DEBUG "zfwApMicFailureNotify(), MAC: %pM\n", addr);
 
 	return;
 }

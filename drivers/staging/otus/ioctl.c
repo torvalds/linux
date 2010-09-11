@@ -2188,10 +2188,7 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 		printk(KERN_ERR "usbdrv_wpa_ioctl: ZD_CMD_SET_MLME\n");
 
 		/* Translate STA's address */
-		sprintf(mac_addr, "%02x:%02x:%02x:%02x:%02x:%02x",
-			zdparm->sta_addr[0], zdparm->sta_addr[1],
-			zdparm->sta_addr[2], zdparm->sta_addr[3],
-			zdparm->sta_addr[4], zdparm->sta_addr[5]);
+		sprintf(mac_addr, "%pM", &zdparm->sta_addr[0]);
 
 		switch (zdparm->u.mlme.cmd) {
 		case MLME_STA_DEAUTH:
