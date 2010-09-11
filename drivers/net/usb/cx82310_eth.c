@@ -138,11 +138,9 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_device *udev = dev->udev;
 
 	/* avoid ADSL modems - continue only if iProduct is "USB NET CARD" */
-	if (udev->descriptor.iProduct &&
-	    usb_string(udev, udev->descriptor.iProduct, buf, sizeof(buf)) &&
-	    strcmp(buf, "USB NET CARD")) {
-		dev_err(&udev->dev,
-			"probably an ADSL modem, use cxacru driver instead\n");
+	if (usb_string(udev, udev->descriptor.iProduct, buf, sizeof(buf)) > 0
+	    && strcmp(buf, "USB NET CARD")) {
+		dev_info(&udev->dev, "ignoring: probably an ADSL modem\n");
 		return -ENODEV;
 	}
 
