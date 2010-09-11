@@ -94,6 +94,7 @@ struct intel_gtt_driver {
 	/* Flags is a more or less chipset specific opaque value.
 	 * For chipsets that need to support old ums (non-gem) code, this
 	 * needs to be identical to the various supported agp memory types! */
+	bool (*check_flags)(unsigned int flags);
 };
 
 static struct _intel_private {
@@ -1037,19 +1038,27 @@ static int intel_fake_agp_configure(void)
 	return 0;
 }
 
-static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
-				     int type)
+static bool i830_check_flags(unsigned int flags)
 {
-	int i, j, num_entries;
-	void *temp;
+	switch (flags) {
+	case 0:
+	case AGP_PHYS_MEMORY:
+	case AGP_USER_CACHED_MEMORY:
+	case AGP_USER_MEMORY:
+		return true;
+	}
+
+	return false;
+}
+
+static int intel_fake_agp_insert_entries(struct agp_memory *mem,
+					 off_t pg_start, int type)
+{
+	int i, j;
 	int ret = -EINVAL;
-	int mask_type;
 
 	if (mem->page_count == 0)
 		goto out;
-
-	temp = agp_bridge->current_size;
-	num_entries = A_SIZE_FIX(temp)->num_entries;
 
 	if (pg_start < intel_private.base.gtt_stolen_entries) {
 		dev_printk(KERN_DEBUG, &intel_private.pcidev->dev,
@@ -1061,29 +1070,21 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 		goto out_err;
 	}
 
-	if ((pg_start + mem->page_count) > num_entries)
+	if ((pg_start + mem->page_count) > intel_private.base.gtt_total_entries)
 		goto out_err;
-
-	/* The i830 can't check the GTT for entries since its read only,
-	 * depend on the caller to make the correct offset decisions.
-	 */
 
 	if (type != mem->type)
 		goto out_err;
 
-	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
-
-	if (mask_type != 0 && mask_type != AGP_PHYS_MEMORY &&
-	    mask_type != INTEL_AGP_CACHED_MEMORY)
+	if (!intel_private.driver->check_flags(type))
 		goto out_err;
 
 	if (!mem->is_flushed)
 		global_cache_flush();
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		writel(agp_bridge->driver->mask_memory(agp_bridge,
-				page_to_phys(mem->pages[i]), mask_type),
-		       intel_private.gtt+j);
+		intel_private.driver->write_entry(page_to_phys(mem->pages[i]),
+						  j, type);
 	}
 	readl(intel_private.gtt+j-1);
 
@@ -1094,8 +1095,8 @@ out_err:
 	return ret;
 }
 
-static int intel_i830_remove_entries(struct agp_memory *mem, off_t pg_start,
-				     int type)
+static int intel_fake_agp_remove_entries(struct agp_memory *mem,
+					 off_t pg_start, int type)
 {
 	int i;
 
@@ -1109,7 +1110,8 @@ static int intel_i830_remove_entries(struct agp_memory *mem, off_t pg_start,
 	}
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
-		writel(agp_bridge->scratch_page, intel_private.gtt+i);
+		intel_private.driver->write_entry(intel_private.scratch_page_dma,
+						  i, 0);
 	}
 	readl(intel_private.gtt+i-1);
 
@@ -1441,8 +1443,8 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
-	.insert_memory		= intel_i830_insert_entries,
-	.remove_memory		= intel_i830_remove_entries,
+	.insert_memory		= intel_fake_agp_insert_entries,
+	.remove_memory		= intel_fake_agp_remove_entries,
 	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
@@ -1577,6 +1579,7 @@ static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
 	.setup = i830_setup,
 	.write_entry = i830_write_entry,
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
