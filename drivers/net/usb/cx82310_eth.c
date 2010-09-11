@@ -150,11 +150,11 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/*
 	 * this must not include ethernet header as the device can send partial
-	 * packets with no header (URB is at least 2 bytes long, so 2 is OK)
+	 * packets with no header (and sometimes even empty URBs)
 	 */
-	dev->net->hard_header_len = 2;
+	dev->net->hard_header_len = 0;
 	/* we can send at most 1514 bytes of data (+ 2-byte header) per URB */
-	dev->hard_mtu = CX82310_MTU + dev->net->hard_header_len;
+	dev->hard_mtu = CX82310_MTU + 2;
 	/* we can receive URBs up to 4KB from the device */
 	dev->rx_urb_size = 4096;
 
@@ -226,12 +226,6 @@ static int cx82310_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		dev->partial_rem = 0;
 		if (skb->len < 2)
 			return 1;
-	}
-
-	if (skb->len < 2) {
-		dev_err(&dev->udev->dev, "RX frame too short: %d B\n",
-			skb->len);
-		return 0;
 	}
 
 	/* a skb can contain multiple packets */
