@@ -976,8 +976,8 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 
 	if (!pEntry) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("STASendPacket->Cannot find pEntry(%2x:%2x:%2x:%2x:%2x:%2x) in MacTab!\n",
-			  PRINT_MAC(pSrcBufVA)));
+			("STASendPacket->Cannot find pEntry(%pM) in MacTab!\n",
+				pSrcBufVA));
 		/* Resourece is low, system did not allocate virtual address */
 		/* return NDIS_STATUS_FAILURE directly to upper layer */
 		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);

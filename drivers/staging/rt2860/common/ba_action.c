@@ -654,8 +654,8 @@ BOOLEAN BARecSessionAdd(struct rt_rtmp_adapter *pAd,
 	} else {
 		Status = FALSE;
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("Can't Accept ADDBA for %02x:%02x:%02x:%02x:%02x:%02x TID = %d\n",
-			  PRINT_MAC(pEntry->Addr), TID));
+			("Can't Accept ADDBA for %pM TID = %d\n",
+				&pEntry->Addr[0], TID));
 	}
 	return (Status);
 }

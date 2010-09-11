@@ -682,9 +682,7 @@ void RTMPSendWirelessEvent(struct rt_rtmp_adapter *pAd,
 
 		if (pAddr)
 			pBufPtr +=
-			    sprintf(pBufPtr,
-				    "(RT2860) STA(%02x:%02x:%02x:%02x:%02x:%02x) ",
-				    PRINT_MAC(pAddr));
+			    sprintf(pBufPtr, "(RT2860) STA(%pM) ", pAddr);
 		else if (BssIdx < MAX_MBSSID_NUM)
 			pBufPtr +=
 			    sprintf(pBufPtr, "(RT2860) BSS(wlan%d) ", BssIdx);
