@@ -103,8 +103,12 @@ structure. The driver fills the rest of the structure or returns an
 <structfield>index</structfield> is invalid. Menu items are enumerated
 by calling <constant>VIDIOC_QUERYMENU</constant> with successive
 <structfield>index</structfield> values from &v4l2-queryctrl;
-<structfield>minimum</structfield> (0) to
-<structfield>maximum</structfield>, inclusive.</para>
+<structfield>minimum</structfield> to
+<structfield>maximum</structfield>, inclusive. Note that it is possible
+for <constant>VIDIOC_QUERYMENU</constant> to return an &EINVAL; for some
+indices between <structfield>minimum</structfield> and <structfield>maximum</structfield>.
+In that case that particular menu item is not supported by this driver. Also note that
+the <structfield>minimum</structfield> value is not necessarily 0.</para>
 
     <para>See also the examples in <xref linkend="control" />.</para>
 
@@ -139,7 +143,7 @@ string. This information is intended for the user.</entry>
 	    <entry><structfield>minimum</structfield></entry>
 	    <entry>Minimum value, inclusive. This field gives a lower
 bound for <constant>V4L2_CTRL_TYPE_INTEGER</constant> controls and the
-lowest valid index (always 0) for <constant>V4L2_CTRL_TYPE_MENU</constant> controls.
+lowest valid index for <constant>V4L2_CTRL_TYPE_MENU</constant> controls.
 For <constant>V4L2_CTRL_TYPE_STRING</constant> controls the minimum value
 gives the minimum length of the string. This length <emphasis>does not include the terminating
 zero</emphasis>. It may not be valid for any other type of control, including
@@ -279,7 +283,7 @@ values which are actually different on the hardware.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_TYPE_MENU</constant></entry>
-	    <entry>0</entry>
+	    <entry>&ge; 0</entry>
 	    <entry>1</entry>
 	    <entry>N-1</entry>
 	    <entry>The control has a menu of N choices. The names of
@@ -405,8 +409,10 @@ writing a value will cause the device to carry out a given action
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-queryctrl; <structfield>id</structfield>
-is invalid. The &v4l2-querymenu; <structfield>id</structfield> or
-<structfield>index</structfield> is invalid.</para>
+is invalid. The &v4l2-querymenu; <structfield>id</structfield> is
+invalid or <structfield>index</structfield> is out of range (less than
+<structfield>minimum</structfield> or greater than <structfield>maximum</structfield>)
+or this particular menu item is not supported by the driver.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

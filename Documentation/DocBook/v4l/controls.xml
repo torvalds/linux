@@ -364,9 +364,6 @@ enumerate_menu (void)
 	      querymenu.index++) {
 		if (0 == ioctl (fd, &VIDIOC-QUERYMENU;, &amp;querymenu)) {
 			printf ("  %s\n", querymenu.name);
-		} else {
-			perror ("VIDIOC_QUERYMENU");
-			exit (EXIT_FAILURE);
 		}
 	}
 }
