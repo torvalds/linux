@@ -81,6 +81,7 @@ struct intel_gtt_driver {
 	 * For chipsets that need to support old ums (non-gem) code, this
 	 * needs to be identical to the various supported agp memory types! */
 	bool (*check_flags)(unsigned int flags);
+	void (*chipset_flush)(void);
 };
 
 static struct _intel_private {
@@ -838,7 +839,7 @@ static void intel_i830_setup_flush(void)
  * that buffer out, we just fill 1KB and clflush it out, on the assumption
  * that it'll push whatever was in there out.  It appears to work.
  */
-static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
+static void i830_chipset_flush(void)
 {
 	unsigned int *pg = intel_private.i8xx_flush_page;
 
@@ -1062,6 +1063,11 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 	return 0;
 }
 
+static void intel_fake_agp_chipset_flush(struct agp_bridge_data *bridge)
+{
+	intel_private.driver->chipset_flush();
+}
+
 static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
 						       int type)
 {
@@ -1163,7 +1169,7 @@ static void intel_i9xx_setup_flush(void)
 			"can't ioremap flush page - no chipset flushing\n");
 }
 
-static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
+static void i9xx_chipset_flush(void)
 {
 	if (intel_private.i9xx_flush_page)
 		writel(1, intel_private.i9xx_flush_page);
@@ -1294,7 +1300,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.chipset_flush		= intel_i830_chipset_flush,
+	.chipset_flush		= intel_fake_agp_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_915_driver = {
@@ -1317,7 +1323,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.chipset_flush		= intel_i915_chipset_flush,
+	.chipset_flush		= intel_fake_agp_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_i965_driver = {
@@ -1340,7 +1346,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.chipset_flush		= intel_i915_chipset_flush,
+	.chipset_flush		= intel_fake_agp_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_gen6_driver = {
@@ -1363,7 +1369,7 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.chipset_flush		= intel_i915_chipset_flush,
+	.chipset_flush		= intel_fake_agp_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_g33_driver = {
@@ -1386,7 +1392,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.chipset_flush		= intel_i915_chipset_flush,
+	.chipset_flush		= intel_fake_agp_chipset_flush,
 };
 
 static const struct intel_gtt_driver i81x_gtt_driver = {
@@ -1397,6 +1403,7 @@ static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.setup = i830_setup,
 	.write_entry = i830_write_entry,
 	.check_flags = i830_check_flags,
+	.chipset_flush = i830_chipset_flush,
 };
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
@@ -1404,6 +1411,7 @@ static const struct intel_gtt_driver i915_gtt_driver = {
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
 	.write_entry = i830_write_entry, 
 	.check_flags = i830_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 static const struct intel_gtt_driver g33_gtt_driver = {
 	.gen = 3,
@@ -1411,6 +1419,7 @@ static const struct intel_gtt_driver g33_gtt_driver = {
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
 	.check_flags = i830_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 static const struct intel_gtt_driver pineview_gtt_driver = {
 	.gen = 3,
@@ -1418,18 +1427,21 @@ static const struct intel_gtt_driver pineview_gtt_driver = {
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
 	.check_flags = i830_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
 	.check_flags = i830_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 static const struct intel_gtt_driver g4x_gtt_driver = {
 	.gen = 5,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
 	.check_flags = i830_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.gen = 5,
@@ -1437,12 +1449,14 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
 	.check_flags = i830_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
 	.setup = i9xx_setup,
 	.write_entry = gen6_write_entry,
 	.check_flags = gen6_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
