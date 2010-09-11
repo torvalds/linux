@@ -401,7 +401,7 @@ static void i915_error_work_func(struct work_struct *work)
 		case 4:
 			DRM_DEBUG_DRIVER("resetting chip\n");
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
-			if (!i965_reset(dev, GDRST_RENDER)) {
+			if (!i965_reset(dev, GRDOM_RENDER)) {
 				atomic_set(&dev_priv->mm.wedged, 0);
 				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 			}

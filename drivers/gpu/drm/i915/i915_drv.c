@@ -330,7 +330,7 @@ int i915_resume(struct drm_device *dev)
 static int i965_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
-	pci_read_config_byte(dev->pdev, GDRST, &gdrst);
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
 	return gdrst & 0x1;
 }
 
@@ -375,8 +375,8 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
-	pci_read_config_byte(dev->pdev, GDRST, &gdrst);
-	pci_write_config_byte(dev->pdev, GDRST, gdrst | flags | 0x1);
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST, gdrst | flags | 0x1);
 
 	/* Wait for the hardware to reset (but no more than 500 ms) */
 	if (wait_for(i965_reset_complete(dev), 500)) {

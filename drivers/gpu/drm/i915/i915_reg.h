@@ -108,10 +108,12 @@
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
 #define LBB	0xf4
-#define GDRST 0xc0
-#define  GDRST_FULL	(0<<2)
-#define  GDRST_RENDER	(1<<2)
-#define  GDRST_MEDIA	(3<<2)
+
+/* Graphics reset regs */
+#define I965_GDRST 0xc0
+#define  GRDOM_FULL	(0<<2)
+#define  GRDOM_RENDER	(1<<2)
+#define  GRDOM_MEDIA	(3<<2)
 
 /* VGA stuff */
 
