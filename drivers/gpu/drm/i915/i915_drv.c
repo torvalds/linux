@@ -32,6 +32,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
 
 #include <linux/console.h>
 #include "drm_crtc_helper.h"
@@ -326,6 +327,13 @@ int i915_resume(struct drm_device *dev)
 	return i915_drm_thaw(dev);
 }
 
+static int i965_reset_complete(struct drm_device *dev)
+{
+	u8 gdrst;
+	pci_read_config_byte(dev->pdev, GDRST, &gdrst);
+	return gdrst & 0x1;
+}
+
 /**
  * i965_reset - reset chip after a hang
  * @dev: drm device to reset
@@ -345,7 +353,6 @@ int i915_resume(struct drm_device *dev)
 int i965_reset(struct drm_device *dev, u8 flags)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned long timeout;
 	u8 gdrst;
 	/*
 	 * We really should only reset the display subsystem if we actually
@@ -364,23 +371,15 @@ int i965_reset(struct drm_device *dev, u8 flags)
 		i915_save_display(dev);
 
 	/*
-	 * Set the domains we want to reset, then the reset bit (bit 0).
-	 * Clear the reset bit after a while and wait for hardware status
-	 * bit (bit 1) to be set
+	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
+	 * well as the reset bit (GR/bit 0).  Setting the GR bit
+	 * triggers the reset; when done, the hardware will clear it.
 	 */
 	pci_read_config_byte(dev->pdev, GDRST, &gdrst);
-	pci_write_config_byte(dev->pdev, GDRST, gdrst | flags | ((flags == GDRST_FULL) ? 0x1 : 0x0));
-	udelay(50);
-	pci_write_config_byte(dev->pdev, GDRST, gdrst & 0xfe);
+	pci_write_config_byte(dev->pdev, GDRST, gdrst | flags | 0x1);
 
-	/* ...we don't want to loop forever though, 500ms should be plenty */
-       timeout = jiffies + msecs_to_jiffies(500);
-	do {
-		udelay(100);
-		pci_read_config_byte(dev->pdev, GDRST, &gdrst);
-	} while ((gdrst & 0x1) && time_after(timeout, jiffies));
-
-	if (gdrst & 0x1) {
+	/* Wait for the hardware to reset (but no more than 500 ms) */
+	if (wait_for(i965_reset_complete(dev), 500)) {
 		WARN(true, "i915: Failed to reset chip\n");
 		mutex_unlock(&dev->struct_mutex);
 		return -EIO;
