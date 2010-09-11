@@ -1350,17 +1350,25 @@ void i915_hangcheck_elapsed(unsigned long data)
 		i915_seqno_passed(i915_get_gem_seqno(dev,
 				&dev_priv->render_ring),
 			i915_get_tail_request(dev)->seqno)) {
+		bool missed_wakeup = false;
+
 		dev_priv->hangcheck_count = 0;
 
 		/* Issue a wake-up to catch stuck h/w. */
-		if (dev_priv->render_ring.waiting_gem_seqno |
-		    dev_priv->bsd_ring.waiting_gem_seqno) {
-			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
-			if (dev_priv->render_ring.waiting_gem_seqno)
-				DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
-			if (dev_priv->bsd_ring.waiting_gem_seqno)
-				DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+		if (dev_priv->render_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->render_ring.irq_queue)) {
+			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+			missed_wakeup = true;
 		}
+
+		if (dev_priv->bsd_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->bsd_ring.irq_queue)) {
+			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+			missed_wakeup = true;
+		}
+
+		if (missed_wakeup)
+			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
 		return;
 	}
 
