@@ -142,9 +142,8 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
     len += sprintf (buffer + len, "Board Number:  %d\n", bip->brdno);
     len += sprintf (buffer + len, "Hardware ID:   0x%02X\n", ci->hdw_bid);
     len += sprintf (buffer + len, "Board SN:      %06X\n", bip->brd_sn);
-    len += sprintf (buffer + len, "Board MAC:     %02X-%02X-%02X-%02X-%02X-%02X\n",
-           bip->brd_mac_addr[0], bip->brd_mac_addr[1], bip->brd_mac_addr[2],
-          bip->brd_mac_addr[3], bip->brd_mac_addr[4], bip->brd_mac_addr[5]);
+	len += sprintf(buffer + len, "Board MAC:     %pMF\n",
+		&bip->brd_mac_addr[0]);
     len += sprintf (buffer + len, "Ports:         %d\n", ci->max_port);
     len += sprintf (buffer + len, "Channels:      %d\n", bip->brd_chan_cnt);
 #if 1
