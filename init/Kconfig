@@ -64,7 +64,7 @@ config BROKEN_ON_SMP
 
 config LOCK_KERNEL
 	bool
-	depends on SMP || PREEMPT
+	depends on (SMP || PREEMPT) && BKL
 	default y
 
 config INIT_ENV_ARG_LIMIT
