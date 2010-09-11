@@ -45,10 +45,7 @@ struct pj_data {
 };
 
 struct pj_event {
-	__be16	x0;
-	__be16	y0;
-	__be16	x1;
-	__be16	y1;
+	__be16	coord[2][2];
 	__u8	fingers;
 	__u8	gesture;
 };
@@ -74,9 +71,7 @@ static irqreturn_t pj_irq(int irq, void *dev_id)
 	struct pj_data *touch = dev_id;
 	struct i2c_client *client = touch->client;
 	union pj_buff event;
-	unsigned short x, y;
-	int offs;
-	int ret;
+	int ret, i;
 
 	ret = i2c_smbus_read_i2c_block_data(client, X1_H,
 					    sizeof(event.buff), event.buff);
@@ -97,23 +92,14 @@ static irqreturn_t pj_irq(int irq, void *dev_id)
 	if (!event.data.fingers || (event.data.fingers > 2))
 		goto out;
 
-	offs = (event.data.fingers == 2) ? ABS_HAT0X : ABS_X;
-
-	x = __be16_to_cpu(event.data.x0);
-	y = __be16_to_cpu(event.data.y0);
-
-	dev_dbg(&client->dev, "f[0] x=%u, y=%u\n", x, y);
-	input_report_abs(touch->input_dev, offs, x);
-	input_report_abs(touch->input_dev, offs + 1, y);
-
-	if (event.data.fingers == 1)
-		goto out;
-
-	x = __be16_to_cpu(event.data.x1);
-	y = __be16_to_cpu(event.data.y1);
-	dev_dbg(&client->dev, "f[1] x=%u, y=%u\n", x, y);
-	input_report_abs(touch->input_dev, ABS_HAT1X, x);
-	input_report_abs(touch->input_dev, ABS_HAT1Y, y);
+	for (i = 0; i < event.data.fingers; i++) {
+		input_report_abs(touch->input_dev, ABS_MT_POSITION_X,
+				 __be16_to_cpu(event.data.coord[i][0]));
+		input_report_abs(touch->input_dev, ABS_MT_POSITION_Y,
+				 __be16_to_cpu(event.data.coord[i][1]));
+		input_report_abs(touch->input_dev, ABS_MT_TRACKING_ID, i + 1);
+		input_mt_sync(touch->input_dev);
+	}
 
 out:
 	input_sync(touch->input_dev);
@@ -203,6 +189,7 @@ static int pj_probe(struct i2c_client *client,
 
 	input_set_abs_params(touch->input_dev, ABS_MT_POSITION_X, 0, 4095, 0, 0);
 	input_set_abs_params(touch->input_dev, ABS_MT_POSITION_Y, 0, 4095, 0, 0);
+	input_set_abs_params(touch->input_dev, ABS_MT_TRACKING_ID, 0, 2, 1, 0);
 
 	ret = input_register_device(touch->input_dev);
 	if (ret) {
