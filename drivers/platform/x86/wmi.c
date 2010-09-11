@@ -128,30 +128,18 @@ static struct acpi_driver acpi_wmi_driver = {
  */
 static int wmi_parse_hexbyte(const u8 *src)
 {
-	unsigned int x; /* For correct wrapping */
 	int h;
+	int value;
 
 	/* high part */
-	x = src[0];
-	if (x - '0' <= '9' - '0') {
-		h = x - '0';
-	} else if (x - 'a' <= 'f' - 'a') {
-		h = x - 'a' + 10;
-	} else if (x - 'A' <= 'F' - 'A') {
-		h = x - 'A' + 10;
-	} else {
+	h = value = hex_to_bin(src[0]);
+	if (value < 0)
 		return -1;
-	}
-	h <<= 4;
 
 	/* low part */
-	x = src[1];
-	if (x - '0' <= '9' - '0')
-		return h | (x - '0');
-	if (x - 'a' <= 'f' - 'a')
-		return h | (x - 'a' + 10);
-	if (x - 'A' <= 'F' - 'A')
-		return h | (x - 'A' + 10);
+	value = hex_to_bin(src[1]);
+	if (value >= 0)
+		return (h << 4) | value;
 	return -1;
 }
 
