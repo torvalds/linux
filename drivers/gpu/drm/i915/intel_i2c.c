@@ -38,16 +38,18 @@
 void intel_i2c_quirk_set(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
 	if (!IS_PINEVIEW(dev))
 		return;
+
+	val = I915_READ(DSPCLK_GATE_D);
 	if (enable)
-		I915_WRITE(DSPCLK_GATE_D,
-			I915_READ(DSPCLK_GATE_D) | DPCUNIT_CLOCK_GATE_DISABLE);
+		val |= DPCUNIT_CLOCK_GATE_DISABLE;
 	else
-		I915_WRITE(DSPCLK_GATE_D,
-			I915_READ(DSPCLK_GATE_D) & (~DPCUNIT_CLOCK_GATE_DISABLE));
+		val &= ~DPCUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(DSPCLK_GATE_D, val);
 }
 
 /*
@@ -60,20 +62,14 @@ static int get_clock(void *data)
 {
 	struct intel_i2c_chan *chan = data;
 	struct drm_i915_private *dev_priv = chan->drm_dev->dev_private;
-	u32 val;
-
-	val = I915_READ(chan->reg);
-	return ((val & GPIO_CLOCK_VAL_IN) != 0);
+	return (I915_READ(chan->reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
 {
 	struct intel_i2c_chan *chan = data;
 	struct drm_i915_private *dev_priv = chan->drm_dev->dev_private;
-	u32 val;
-
-	val = I915_READ(chan->reg);
-	return ((val & GPIO_DATA_VAL_IN) != 0);
+	return (I915_READ(chan->reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
@@ -94,7 +90,7 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			GPIO_CLOCK_VAL_MASK;
 	I915_WRITE(chan->reg, reserved | clock_bits);
-	udelay(I2C_RISEFALL_TIME); /* wait for the line to change state */
+	POSTING_READ(chan->reg);
 }
 
 static void set_data(void *data, int state_high)
@@ -116,7 +112,7 @@ static void set_data(void *data, int state_high)
 			GPIO_DATA_VAL_MASK;
 
 	I915_WRITE(chan->reg, reserved | data_bits);
-	udelay(I2C_RISEFALL_TIME); /* wait for the line to change state */
+	POSTING_READ(chan->reg);
 }
 
 /* Clears the GMBUS setup.  Our driver doesn't make use of the GMBUS I2C
@@ -129,11 +125,10 @@ intel_i2c_reset_gmbus(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev))
 		I915_WRITE(PCH_GMBUS0, 0);
-	} else {
+	else
 		I915_WRITE(GMBUS0, 0);
-	}
 }
 
 /**
@@ -177,7 +172,7 @@ struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 	chan->algo.setscl = set_clock;
 	chan->algo.getsda = get_data;
 	chan->algo.getscl = get_clock;
-	chan->algo.udelay = 20;
+	chan->algo.udelay = I2C_RISEFALL_TIME;
 	chan->algo.timeout = usecs_to_jiffies(2200);
 	chan->algo.data = chan;
 
@@ -191,9 +186,10 @@ struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 	/* JJJ:  raise SCL and SDA? */
 	intel_i2c_quirk_set(dev, true);
 	set_data(chan, 1);
+	udelay(I2C_RISEFALL_TIME);
 	set_clock(chan, 1);
+	udelay(I2C_RISEFALL_TIME);
 	intel_i2c_quirk_set(dev, false);
-	udelay(20);
 
 	return &chan->adapter;
 
