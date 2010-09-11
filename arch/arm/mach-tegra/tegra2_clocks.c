@@ -1875,6 +1875,7 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("2d", "tegra_grhost", "gr2d"),
 	CLK_DUPLICATE("3d", "tegra_grhost", "gr3d"),
 	CLK_DUPLICATE("epp", "tegra_grhost", "epp"),
+	CLK_DUPLICATE("mpe", "tegra_grhost", "mpe"),
 };
 
 #define CLK(dev, con, ck)	\
