@@ -615,7 +615,7 @@ struct rk28camera_platform_data rk28_camera_platform_data = {
             .gpio_reset = RK2818_CAM_RESET_PIN,
             .gpio_power = RK2818_CAM_POWER_PIN,
             .gpio_flag = (RK28_CAM_POWERACTIVE_L|RK28_CAM_RESETACTIVE_L),
-            .dev_name = "ov2655"
+            .dev_name = "ov9650"
         }, {
             .gpio_reset = INVALID_GPIO,
             .gpio_power = INVALID_GPIO,
@@ -721,11 +721,11 @@ static int rk28_sensor_power(struct device *dev, int on)
     return 0;
 }
 
-#define OV2655_IIC_ADDR 	    0x60
+#define OV9650_IIC_ADDR 	    0x60
 static struct i2c_board_info rk2818_i2c_cam_info[] = {
-#ifdef CONFIG_SOC_CAMERA_OV2655
+#ifdef CONFIG_SOC_CAMERA_OV9650
 	{
-		I2C_BOARD_INFO("ov2655", OV2655_IIC_ADDR>>1)
+		I2C_BOARD_INFO("ov9650", OV9650_IIC_ADDR>>1)
 	},
 #endif
 };
@@ -735,8 +735,8 @@ struct soc_camera_link rk2818_iclink = {
 	.power		= rk28_sensor_power,
 	.board_info	= &rk2818_i2c_cam_info[0],
 	.i2c_adapter_id	= 1,
-#ifdef CONFIG_SOC_CAMERA_OV2655
-	.module_name	= "ov2655",
+#ifdef CONFIG_SOC_CAMERA_OV9650
+	.module_name	= "ov9650",
 #endif
 };
 #endif

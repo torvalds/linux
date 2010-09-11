@@ -461,15 +461,6 @@ exit:
 		{
 			dev_err(i2c->dev, "<error>rk2818_i2c_stop timeout\n");
 		}
-
-		//not I2C code,add by sxj,used for extend gpio intrrupt,set SCL and SDA pin.
-		#if defined (CONFIG_IOEXTEND_TCA6424)
-		if (pdata && pdata->reseti2cpin) {
-			pdata->reseti2cpin();
-		}
-		#endif	
-	
-			
 	}
 	return ret;
 

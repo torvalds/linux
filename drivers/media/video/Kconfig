@@ -870,7 +870,11 @@ config SOC_CAMERA_OV2655
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov2655 camera driver
-
+config SOC_CAMERA_OV9650
+	tristate "ov9650 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov2655 camera driver
 config SOC_CAMERA_OV3640
 	tristate "ov3640 camera support"
 	depends on SOC_CAMERA && I2C

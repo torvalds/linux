@@ -37,7 +37,7 @@ static android_early_suspend_t jogball_early_suspend;
 #endif
 
 /* Debug */
-#define JB_DEBUG 1
+//#define JB_DEBUG 1
 
 #ifdef JB_DEBUG
 #define DBG	printk
