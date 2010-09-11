@@ -1334,6 +1334,14 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
 	return 0;
 }
 
+static void i965_write_entry(dma_addr_t addr, unsigned int entry,
+			     unsigned int flags)
+{
+	/* Shift high bits down */
+	addr |= (addr >> 28) & 0xf0;
+	writel(addr | I810_PTE_VALID, intel_private.gtt + entry);
+}
+
 static int i9xx_setup(void)
 {
 	u32 reg_addr;
@@ -1497,7 +1505,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
-	.configure		= intel_i9xx_configure,
+	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
@@ -1563,7 +1571,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.aperture_sizes		= intel_fake_agp_sizes,
 	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
-	.configure		= intel_i9xx_configure,
+	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
@@ -1605,24 +1613,29 @@ static const struct intel_gtt_driver g33_gtt_driver = {
 	.gen = 3,
 	.is_g33 = 1,
 	.setup = i9xx_setup,
+	.write_entry = i965_write_entry,
 };
 static const struct intel_gtt_driver pineview_gtt_driver = {
 	.gen = 3,
 	.is_pineview = 1, .is_g33 = 1,
 	.setup = i9xx_setup,
+	.write_entry = i965_write_entry,
 };
 static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
 	.setup = i9xx_setup,
+	.write_entry = i965_write_entry,
 };
 static const struct intel_gtt_driver g4x_gtt_driver = {
 	.gen = 5,
 	.setup = i9xx_setup,
+	.write_entry = i965_write_entry,
 };
 static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.gen = 5,
 	.is_ironlake = 1,
 	.setup = i9xx_setup,
+	.write_entry = i965_write_entry,
 };
 static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
