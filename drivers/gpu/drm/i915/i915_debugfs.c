@@ -719,6 +719,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	} else {
 		seq_printf(m, "FBC disabled: ");
 		switch (dev_priv->no_fbc_reason) {
+		case FBC_NO_OUTPUT:
+			seq_printf(m, "no outputs");
+			break;
 		case FBC_STOLEN_TOO_SMALL:
 			seq_printf(m, "not enough stolen memory");
 			break;

@@ -219,6 +219,7 @@ struct intel_device_info {
 };
 
 enum no_fbc_reason {
+	FBC_NO_OUTPUT, /* no outputs enabled to compress */
 	FBC_STOLEN_TOO_SMALL, /* not enough space to hold compressed buffers */
 	FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
 	FBC_MODE_TOO_LARGE, /* mode too large for compression */
@@ -307,8 +308,10 @@ typedef struct drm_i915_private {
 
 	unsigned long cfb_size;
 	unsigned long cfb_pitch;
+	unsigned long cfb_offset;
 	int cfb_fence;
 	int cfb_plane;
+	int cfb_y;
 
 	int irq_enabled;
 

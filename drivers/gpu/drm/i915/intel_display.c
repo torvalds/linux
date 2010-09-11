@@ -1047,7 +1047,6 @@ void intel_wait_for_vblank_off(struct drm_device *dev, int pipe)
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
-/* Parameters have changed, update FBC info */
 static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1058,6 +1057,14 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane, i;
 	u32 fbc_ctl, fbc_ctl2;
+
+	if (fb->pitch == dev_priv->cfb_pitch &&
+	    obj_priv->fence_reg == dev_priv->cfb_fence &&
+	    intel_crtc->plane == dev_priv->cfb_plane &&
+	    I915_READ(FBC_CONTROL) & FBC_CTL_EN)
+		return;
+
+	i8xx_disable_fbc(dev);
 
 	dev_priv->cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
 
@@ -1100,12 +1107,6 @@ void i8xx_disable_fbc(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 fbc_ctl;
 
-	if (!I915_HAS_FBC(dev))
-		return;
-
-	if (!(I915_READ(FBC_CONTROL) & FBC_CTL_EN))
-		return;	/* Already off, just return */
-
 	/* Disable compression */
 	fbc_ctl = I915_READ(FBC_CONTROL);
 	fbc_ctl &= ~FBC_CTL_EN;
@@ -1140,9 +1141,23 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	unsigned long stall_watermark = 200;
 	u32 dpfc_ctl;
 
+	dpfc_ctl = I915_READ(DPFC_CONTROL);
+	if (dpfc_ctl & DPFC_CTL_EN) {
+		if (dev_priv->cfb_pitch == dev_priv->cfb_pitch / 64 - 1 &&
+		    dev_priv->cfb_fence == obj_priv->fence_reg &&
+		    dev_priv->cfb_plane == intel_crtc->plane &&
+		    dev_priv->cfb_y == crtc->y)
+			return;
+
+		I915_WRITE(DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
+		POSTING_READ(DPFC_CONTROL);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+	}
+
 	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
 	dev_priv->cfb_fence = obj_priv->fence_reg;
 	dev_priv->cfb_plane = intel_crtc->plane;
+	dev_priv->cfb_y = crtc->y;
 
 	dpfc_ctl = plane | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
 	if (obj_priv->tiling_mode != I915_TILING_NONE) {
@@ -1152,7 +1167,6 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		I915_WRITE(DPFC_CHICKEN, ~DPFC_HT_MODIFY);
 	}
 
-	I915_WRITE(DPFC_CONTROL, dpfc_ctl);
 	I915_WRITE(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
 		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
 		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
@@ -1171,10 +1185,12 @@ void g4x_disable_fbc(struct drm_device *dev)
 
 	/* Disable compression */
 	dpfc_ctl = I915_READ(DPFC_CONTROL);
-	dpfc_ctl &= ~DPFC_CTL_EN;
-	I915_WRITE(DPFC_CONTROL, dpfc_ctl);
+	if (dpfc_ctl & DPFC_CTL_EN) {
+		dpfc_ctl &= ~DPFC_CTL_EN;
+		I915_WRITE(DPFC_CONTROL, dpfc_ctl);
 
-	DRM_DEBUG_KMS("disabled FBC\n");
+		DRM_DEBUG_KMS("disabled FBC\n");
+	}
 }
 
 static bool g4x_fbc_enabled(struct drm_device *dev)
@@ -1197,11 +1213,26 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	unsigned long stall_watermark = 200;
 	u32 dpfc_ctl;
 
+	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
+	if (dpfc_ctl & DPFC_CTL_EN) {
+		if (dev_priv->cfb_pitch == dev_priv->cfb_pitch / 64 - 1 &&
+		    dev_priv->cfb_fence == obj_priv->fence_reg &&
+		    dev_priv->cfb_plane == intel_crtc->plane &&
+		    dev_priv->cfb_offset == obj_priv->gtt_offset &&
+		    dev_priv->cfb_y == crtc->y)
+			return;
+
+		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
+		POSTING_READ(ILK_DPFC_CONTROL);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+	}
+
 	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
 	dev_priv->cfb_fence = obj_priv->fence_reg;
 	dev_priv->cfb_plane = intel_crtc->plane;
+	dev_priv->cfb_offset = obj_priv->gtt_offset;
+	dev_priv->cfb_y = crtc->y;
 
-	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
 	dpfc_ctl &= DPFC_RESERVED;
 	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
 	if (obj_priv->tiling_mode != I915_TILING_NONE) {
@@ -1211,15 +1242,13 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		I915_WRITE(ILK_DPFC_CHICKEN, ~DPFC_HT_MODIFY);
 	}
 
-	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
 	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
 		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
 		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
 	I915_WRITE(ILK_FBC_RT_BASE, obj_priv->gtt_offset | ILK_FBC_RT_VALID);
 	/* enable it... */
-	I915_WRITE(ILK_DPFC_CONTROL, I915_READ(ILK_DPFC_CONTROL) |
-		   DPFC_CTL_EN);
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
 }
@@ -1231,10 +1260,12 @@ void ironlake_disable_fbc(struct drm_device *dev)
 
 	/* Disable compression */
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
-	dpfc_ctl &= ~DPFC_CTL_EN;
-	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
+	if (dpfc_ctl & DPFC_CTL_EN) {
+		dpfc_ctl &= ~DPFC_CTL_EN;
+		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
 
-	DRM_DEBUG_KMS("disabled FBC\n");
+		DRM_DEBUG_KMS("disabled FBC\n");
+	}
 }
 
 static bool ironlake_fbc_enabled(struct drm_device *dev)
@@ -1276,8 +1307,7 @@ void intel_disable_fbc(struct drm_device *dev)
 
 /**
  * intel_update_fbc - enable/disable FBC as needed
- * @crtc: CRTC to point the compressor at
- * @mode: mode in use
+ * @dev: the drm_device
  *
  * Set up the framebuffer compression hardware at mode set time.  We
  * enable it if possible:
@@ -1294,18 +1324,14 @@ void intel_disable_fbc(struct drm_device *dev)
  *
  * We need to enable/disable FBC on a global basis.
  */
-static void intel_update_fbc(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode)
+static void intel_update_fbc(struct drm_device *dev)
 {
-	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_crtc *crtc = NULL, *tmp_crtc;
+	struct intel_crtc *intel_crtc;
+	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj_priv;
-	struct drm_crtc *tmp_crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int plane = intel_crtc->plane;
-	int crtcs_enabled = 0;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1314,12 +1340,6 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 
 	if (!I915_HAS_FBC(dev))
 		return;
-
-	if (!crtc->fb)
-		return;
-
-	intel_fb = to_intel_framebuffer(fb);
-	obj_priv = to_intel_bo(intel_fb->obj);
 
 	/*
 	 * If FBC is already on, we just have to verify that we can
@@ -1331,35 +1351,47 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
-		if (tmp_crtc->enabled)
-			crtcs_enabled++;
+		if (tmp_crtc->enabled) {
+			if (crtc) {
+				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
+				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
+				goto out_disable;
+			}
+			crtc = tmp_crtc;
+		}
 	}
-	DRM_DEBUG_KMS("%d pipes active\n", crtcs_enabled);
-	if (crtcs_enabled > 1) {
-		DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
-		dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
+
+	if (!crtc || crtc->fb == NULL) {
+		DRM_DEBUG_KMS("no output, disabling\n");
+		dev_priv->no_fbc_reason = FBC_NO_OUTPUT;
 		goto out_disable;
 	}
+
+	intel_crtc = to_intel_crtc(crtc);
+	fb = crtc->fb;
+	intel_fb = to_intel_framebuffer(fb);
+	obj_priv = to_intel_bo(intel_fb->obj);
+
 	if (intel_fb->obj->size > dev_priv->cfb_size) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling "
 				"compression\n");
 		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
-	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
-	    (mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
+	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
+	    (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)) {
 		DRM_DEBUG_KMS("mode incompatible with compression, "
 				"disabling\n");
 		dev_priv->no_fbc_reason = FBC_UNSUPPORTED_MODE;
 		goto out_disable;
 	}
-	if ((mode->hdisplay > 2048) ||
-	    (mode->vdisplay > 1536)) {
+	if ((crtc->mode.hdisplay > 2048) ||
+	    (crtc->mode.vdisplay > 1536)) {
 		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		dev_priv->no_fbc_reason = FBC_MODE_TOO_LARGE;
 		goto out_disable;
 	}
-	if ((IS_I915GM(dev) || IS_I945GM(dev)) && plane != 0) {
+	if ((IS_I915GM(dev) || IS_I945GM(dev)) && intel_crtc->plane != 0) {
 		DRM_DEBUG_KMS("plane not 0, disabling compression\n");
 		dev_priv->no_fbc_reason = FBC_BAD_PLANE;
 		goto out_disable;
@@ -1374,18 +1406,7 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	if (in_dbg_master())
 		goto out_disable;
 
-	if (intel_fbc_enabled(dev)) {
-		/* We can re-enable it in this case, but need to update pitch */
-		if ((fb->pitch > dev_priv->cfb_pitch) ||
-		    (obj_priv->fence_reg != dev_priv->cfb_fence) ||
-		    (plane != dev_priv->cfb_plane))
-			intel_disable_fbc(dev);
-	}
-
-	/* Now try to turn it back on if possible */
-	if (!intel_fbc_enabled(dev))
-		intel_enable_fbc(crtc, 500);
-
+	intel_enable_fbc(crtc, 500);
 	return;
 
 out_disable:
@@ -1527,10 +1548,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 	POSTING_READ(dspbase);
 
-	if (IS_I965G(dev) || plane == 0)
-		intel_update_fbc(crtc, &crtc->mode);
-
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	intel_update_fbc(dev);
 	intel_increase_pllclock(crtc);
 
 	return 0;
@@ -2093,8 +2111,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		DRM_ERROR("failed to enable transcoder\n");
 
 	intel_crtc_load_lut(crtc);
-
-	intel_update_fbc(crtc, &crtc->mode);
+	intel_update_fbc(dev);
 }
 
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
@@ -2336,9 +2353,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	intel_crtc_load_lut(crtc);
-
-	if ((IS_I965G(dev) || plane == 0))
-		intel_update_fbc(crtc, &crtc->mode);
+	intel_update_fbc(dev);
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
@@ -2473,9 +2488,9 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	dev_priv->display.dpms(crtc, mode);
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (mode == DRM_MODE_DPMS_ON) {
 		intel_crtc_update_cursor(crtc);
-	else {
+	} else {
 		/* XXX Note that this is not a complete solution, but a hack
 		 * to avoid the most frequently hit hang.
 		 */
@@ -2483,6 +2498,7 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		intel_update_watermarks(dev);
 	}
+	intel_update_fbc(dev);
 
 	if (!dev->primary->master)
 		return;
