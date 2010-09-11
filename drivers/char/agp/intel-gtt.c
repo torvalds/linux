@@ -1536,8 +1536,8 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
-	.insert_memory		= intel_i915_insert_entries,
-	.remove_memory		= intel_i915_remove_entries,
+	.insert_memory		= intel_fake_agp_insert_entries,
+	.remove_memory		= intel_fake_agp_remove_entries,
 	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
@@ -1546,10 +1546,6 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#if USE_PCI_DMA_API
-	.agp_map_memory		= intel_agp_map_memory,
-	.agp_unmap_memory	= intel_agp_unmap_memory,
-#endif
 };
 
 static const struct agp_bridge_driver intel_gen6_driver = {
@@ -1596,8 +1592,8 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
-	.insert_memory		= intel_i915_insert_entries,
-	.remove_memory		= intel_i915_remove_entries,
+	.insert_memory		= intel_fake_agp_insert_entries,
+	.remove_memory		= intel_fake_agp_remove_entries,
 	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
@@ -1606,10 +1602,6 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#if USE_PCI_DMA_API
-	.agp_map_memory		= intel_agp_map_memory,
-	.agp_unmap_memory	= intel_agp_unmap_memory,
-#endif
 };
 
 static const struct intel_gtt_driver i8xx_gtt_driver = {
@@ -1630,28 +1622,33 @@ static const struct intel_gtt_driver g33_gtt_driver = {
 	.is_g33 = 1,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver pineview_gtt_driver = {
 	.gen = 3,
 	.is_pineview = 1, .is_g33 = 1,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver g4x_gtt_driver = {
 	.gen = 5,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.gen = 5,
 	.is_ironlake = 1,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
