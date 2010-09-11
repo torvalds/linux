@@ -1445,6 +1445,16 @@ S:	Maintained
 F:	Documentation/video4linux/cafe_ccic
 F:	drivers/media/video/cafe_ccic*
 
+CAIF NETWORK LAYER
+M:	Sjur Braendeland <sjur.brandeland@stericsson.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	Documentation/networking/caif/
+F:	drivers/net/caif/
+F:	include/linux/caif/
+F:	include/net/caif/
+F:	net/caif/
+
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <muli@il.ibm.com>
 M:	"Jon D. Mason" <jdmason@kudzu.us>

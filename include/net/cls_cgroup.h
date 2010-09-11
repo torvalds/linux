@@ -27,11 +27,17 @@ struct cgroup_cls_state
 #ifdef CONFIG_NET_CLS_CGROUP
 static inline u32 task_cls_classid(struct task_struct *p)
 {
+	int classid;
+
 	if (in_interrupt())
 		return 0;
 
-	return container_of(task_subsys_state(p, net_cls_subsys_id),
-			    struct cgroup_cls_state, css)->classid;
+	rcu_read_lock();
+	classid = container_of(task_subsys_state(p, net_cls_subsys_id),
+			       struct cgroup_cls_state, css)->classid;
+	rcu_read_unlock();
+
+	return classid;
 }
 #else
 extern int net_cls_subsys_id;

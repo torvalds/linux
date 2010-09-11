@@ -62,8 +62,11 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 	if (!inet->inet_saddr)
 		inet->inet_saddr = rt->rt_src;	/* Update source address */
-	if (!inet->inet_rcv_saddr)
+	if (!inet->inet_rcv_saddr) {
 		inet->inet_rcv_saddr = rt->rt_src;
+		if (sk->sk_prot->rehash)
+			sk->sk_prot->rehash(sk);
+	}
 	inet->inet_daddr = rt->rt_dst;
 	inet->inet_dport = usin->sin_port;
 	sk->sk_state = TCP_ESTABLISHED;
