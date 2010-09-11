@@ -124,7 +124,6 @@ static struct _intel_private {
 #define IS_PINEVIEW	intel_private.driver->is_pineview
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
 
-#if USE_PCI_DMA_API
 static void intel_agp_free_sglist(struct agp_memory *mem)
 {
 	struct sg_table st;
@@ -143,6 +142,9 @@ static int intel_agp_map_memory(struct agp_memory *mem)
 	struct sg_table st;
 	struct scatterlist *sg;
 	int i;
+
+	if (mem->sg_list)
+		return 0; /* already mapped (for e.g. resume */
 
 	DBG("try mapping %lu pages\n", (unsigned long)mem->page_count);
 
@@ -175,6 +177,7 @@ static void intel_agp_unmap_memory(struct agp_memory *mem)
 	intel_agp_free_sglist(mem);
 }
 
+#if USE_PCI_DMA_API
 static void intel_agp_insert_sg_entries(struct agp_memory *mem,
 					off_t pg_start, int mask_type)
 {
@@ -1051,6 +1054,31 @@ static bool i830_check_flags(unsigned int flags)
 	return false;
 }
 
+static void intel_gtt_insert_sg_entries(struct scatterlist *sg_list,
+					unsigned int sg_len,
+					unsigned int pg_start,
+					unsigned int flags)
+{
+	struct scatterlist *sg;
+	unsigned int len, m;
+	int i, j;
+
+	j = pg_start;
+
+	/* sg may merge pages, but we have to separate
+	 * per-page addr for GTT */
+	for_each_sg(sg_list, sg, sg_len, i) {
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
+		for (m = 0; m < len; m++) {
+			dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+			intel_private.driver->write_entry(addr,
+							  j, flags);
+			j++;
+		}
+	}
+	readl(intel_private.gtt+j-1);
+}
+
 static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 					 off_t pg_start, int type)
 {
@@ -1082,11 +1110,21 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	if (!mem->is_flushed)
 		global_cache_flush();
 
-	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		intel_private.driver->write_entry(page_to_phys(mem->pages[i]),
-						  j, type);
+	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2) {
+		ret = intel_agp_map_memory(mem);
+		if (ret != 0)
+			return ret;
+
+		intel_gtt_insert_sg_entries(mem->sg_list, mem->num_sg,
+					    pg_start, type);
+	} else {
+		for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
+			dma_addr_t addr = page_to_phys(mem->pages[i]);
+			intel_private.driver->write_entry(addr,
+							  j, type);
+		}
+		readl(intel_private.gtt+j-1);
 	}
-	readl(intel_private.gtt+j-1);
 
 out:
 	ret = 0;
@@ -1108,6 +1146,9 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 			 "trying to disable local/stolen memory\n");
 		return -EINVAL;
 	}
+
+	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2)
+		intel_agp_unmap_memory(mem);
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
 		intel_private.driver->write_entry(intel_private.scratch_page_dma,
@@ -1469,8 +1510,8 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
-	.insert_memory		= intel_i915_insert_entries,
-	.remove_memory		= intel_i915_remove_entries,
+	.insert_memory		= intel_fake_agp_insert_entries,
+	.remove_memory		= intel_fake_agp_remove_entries,
 	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
@@ -1479,10 +1520,6 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#if USE_PCI_DMA_API
-	.agp_map_memory		= intel_agp_map_memory,
-	.agp_unmap_memory	= intel_agp_unmap_memory,
-#endif
 };
 
 static const struct agp_bridge_driver intel_i965_driver = {
@@ -1586,6 +1623,7 @@ static const struct intel_gtt_driver i915_gtt_driver = {
 	.setup = i9xx_setup,
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
 	.write_entry = i830_write_entry, 
+	.check_flags = i830_check_flags,
 };
 static const struct intel_gtt_driver g33_gtt_driver = {
 	.gen = 3,
