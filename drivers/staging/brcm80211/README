@@ -40,8 +40,8 @@ Firmware installation
 Firmware is available from the Linux firmware repository at:
 
 	git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
-	http://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
-	https://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+	http://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
+	https://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
 
 For all chips, copy brcm/bcm43xx-0-610-809-0.fw and
 brcm/bcm43xx_hdr-0-610-809-0.fw to /lib/firmware/brcm (or wherever firmware is
