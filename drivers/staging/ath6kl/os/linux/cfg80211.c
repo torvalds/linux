@@ -544,13 +544,10 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
 
         ibss_channel = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
 
-        AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-                        ("%s: inform bss with bssid %02x:%02x:%02x:%02x:%02x:%02x "\
-                         "channel %d beaconInterval %d capability 0x%x\n",
-                        __func__,
-                        mgmt->bssid[0], mgmt->bssid[1], mgmt->bssid[2],
-                        mgmt->bssid[3], mgmt->bssid[4], mgmt->bssid[5],
-                        ibss_channel->hw_value, beaconInterval, capability));
+	AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+		("%s: inform bss with bssid %pM channel %d beaconInterval %d "
+			"capability 0x%x\n", __func__, &mgmt->bssid[0],
+			ibss_channel->hw_value, beaconInterval, capability));
 
         bss = cfg80211_inform_bss_frame(ar->wdev->wiphy,
                                         ibss_channel, mgmt,
@@ -715,12 +712,9 @@ ar6k_cfg80211_scan_node(void *arg, bss_t *ni)
     channel = ieee80211_get_channel(wiphy, freq);
     signal  = ni->ni_snr * 100;
 
-    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-                    ("%s: bssid %02x:%02x:%02x:%02x:%02x:%02x channel %d freq %d size %d\n",
-                   __func__,
-                   mgmt->bssid[0], mgmt->bssid[1], mgmt->bssid[2],
-                   mgmt->bssid[3], mgmt->bssid[4], mgmt->bssid[5],
-                   channel->hw_value, freq, size));
+	AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+		("%s: bssid %pM channel %d freq %d size %d\n", __func__,
+			&mgmt->bssid[0], channel->hw_value, freq, size));
     cfg80211_inform_bss_frame(wiphy, channel, mgmt,
                               le16_to_cpu(size),
                               signal, GFP_KERNEL);

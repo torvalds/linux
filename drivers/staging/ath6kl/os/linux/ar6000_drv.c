@@ -956,12 +956,10 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
         ptr_mac = (A_UINT8 *)((A_UCHAR *)eeprom_data + AR6003_MAC_ADDRESS_OFFSET);
         break;
     default:
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Invalid Target Type \n"));
+	AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid Target Type\n"));
         return;
     }
-    printk("MAC from EEPROM %02X:%02X:%02X:%02X:%02X:%02X\n", 
-            ptr_mac[0], ptr_mac[1], ptr_mac[2], 
-            ptr_mac[3], ptr_mac[4], ptr_mac[5]); 
+	printk(KERN_DEBUG "MAC from EEPROM %pM\n", &ptr_mac[0]);
 
     /* create a random MAC in case we cannot read file from system */
     ptr_mac[0] = 0;
@@ -990,9 +988,7 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
         }
         A_RELEASE_FIRMWARE(softmac_entry);
     }
-    printk("MAC from %s %02X:%02X:%02X:%02X:%02X:%02X\n", source,
-            ptr_mac[0], ptr_mac[1], ptr_mac[2], 
-            ptr_mac[3], ptr_mac[4], ptr_mac[5]); 
+	printk(KERN_DEBUG "MAC from %s %pM\n", source, &ptr_mac[0]);
    calculate_crc(ar->arTargetType, eeprom_data);
 }
 #endif /* SOFTMAC_FILE_USED */

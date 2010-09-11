@@ -1456,11 +1456,9 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
     buf = datap + sizeof(WMI_BSS_INFO_HDR);
     len -= sizeof(WMI_BSS_INFO_HDR);
 
-    A_DPRINTF(DBG_WMI2, (DBGFMT "bssInfo event - ch %u, rssi %02x, "
-              "bssid \"%02x:%02x:%02x:%02x:%02x:%02x\"\n", DBGARG,
-              bih->channel, (unsigned char) bih->rssi, bih->bssid[0],
-              bih->bssid[1], bih->bssid[2], bih->bssid[3], bih->bssid[4],
-              bih->bssid[5]));
+	A_DPRINTF(DBG_WMI2, (DBGFMT "bssInfo event - ch %u, rssi %02x, "
+		"bssid \"%pM\"\n", DBGARG, bih->channel,
+		(unsigned char) bih->rssi, i&bih->bssid[0]));
 
     if(wps_enable && (bih->frameType == PROBERESP_FTYPE) ) {
         wmi_node_return(wmip, bss);
