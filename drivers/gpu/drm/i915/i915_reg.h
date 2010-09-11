@@ -2219,8 +2219,8 @@
 #define  WM1_LP_SR_EN		(1<<31)
 #define  WM1_LP_LATENCY_SHIFT	24
 #define  WM1_LP_LATENCY_MASK	(0x7f<<24)
-#define  WM1_LP_FBC_LP1_MASK	(0xf<<20)
-#define  WM1_LP_FBC_LP1_SHIFT	20
+#define  WM1_LP_FBC_MASK	(0xf<<20)
+#define  WM1_LP_FBC_SHIFT	20
 #define  WM1_LP_SR_MASK		(0x1ff<<8)
 #define  WM1_LP_SR_SHIFT	8
 #define  WM1_LP_CURSOR_MASK	(0x3f)

@@ -3404,146 +3404,130 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
 #define ILK_LP0_PLANE_LATENCY		700
 #define ILK_LP0_CURSOR_LATENCY		1300
 
-static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
-		       int planeb_clock, int sr_hdisplay, int sr_htotal,
-		       int pixel_size)
+static bool ironlake_compute_wm0(struct drm_device *dev,
+				 int pipe,
+				 int *plane_wm,
+				 int *cursor_wm)
+{
+	struct drm_crtc *crtc;
+	int htotal, hdisplay, clock, pixel_size = 0;
+	int line_time_us, line_count, entries;
+
+	crtc = intel_get_crtc_for_pipe(dev, pipe);
+	if (crtc->fb == NULL || !crtc->enabled)
+		return false;
+
+	htotal = crtc->mode.htotal;
+	hdisplay = crtc->mode.hdisplay;
+	clock = crtc->mode.clock;
+	pixel_size = crtc->fb->bits_per_pixel / 8;
+
+	/* Use the small buffer method to calculate plane watermark */
+	entries = ((clock * pixel_size / 1000) * ILK_LP0_PLANE_LATENCY) / 1000;
+	entries = DIV_ROUND_UP(entries,
+			       ironlake_display_wm_info.cacheline_size);
+	*plane_wm = entries + ironlake_display_wm_info.guard_size;
+	if (*plane_wm > (int)ironlake_display_wm_info.max_wm)
+		*plane_wm = ironlake_display_wm_info.max_wm;
+
+	/* Use the large buffer method to calculate cursor watermark */
+	line_time_us = ((htotal * 1000) / clock);
+	line_count = (ILK_LP0_CURSOR_LATENCY / line_time_us + 1000) / 1000;
+	entries = line_count * 64 * pixel_size;
+	entries = DIV_ROUND_UP(entries,
+			       ironlake_cursor_wm_info.cacheline_size);
+	*cursor_wm = entries + ironlake_cursor_wm_info.guard_size;
+	if (*cursor_wm > ironlake_cursor_wm_info.max_wm)
+		*cursor_wm = ironlake_cursor_wm_info.max_wm;
+
+	return true;
+}
+
+static void ironlake_update_wm(struct drm_device *dev,
+			       int planea_clock, int planeb_clock,
+			       int sr_hdisplay, int sr_htotal,
+			       int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
-	int sr_wm, cursor_wm;
-	unsigned long line_time_us;
-	int sr_clock, entries_required;
-	u32 reg_value;
-	int line_count;
-	int planea_htotal = 0, planeb_htotal = 0;
-	struct drm_crtc *crtc;
+	int plane_wm, cursor_wm, enabled;
+	int tmp;
 
-	/* Need htotal for all active display plane */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		if (intel_crtc->dpms_mode == DRM_MODE_DPMS_ON) {
-			if (intel_crtc->plane == 0)
-				planea_htotal = crtc->mode.htotal;
-			else
-				planeb_htotal = crtc->mode.htotal;
-		}
+	enabled = 0;
+	if (ironlake_compute_wm0(dev, 0, &plane_wm, &cursor_wm)) {
+		I915_WRITE(WM0_PIPEA_ILK,
+			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
+			      " plane %d, " "cursor: %d\n",
+			      plane_wm, cursor_wm);
+		enabled++;
 	}
 
-	/* Calculate and update the watermark for plane A */
-	if (planea_clock) {
-		entries_required = ((planea_clock / 1000) * pixel_size *
-				     ILK_LP0_PLANE_LATENCY) / 1000;
-		entries_required = DIV_ROUND_UP(entries_required,
-						ironlake_display_wm_info.cacheline_size);
-		planea_wm = entries_required +
-			    ironlake_display_wm_info.guard_size;
-
-		if (planea_wm > (int)ironlake_display_wm_info.max_wm)
-			planea_wm = ironlake_display_wm_info.max_wm;
-
-		/* Use the large buffer method to calculate cursor watermark */
-		line_time_us = (planea_htotal * 1000) / planea_clock;
-
-		/* Use ns/us then divide to preserve precision */
-		line_count = (ILK_LP0_CURSOR_LATENCY / line_time_us + 1000) / 1000;
-
-		/* calculate the cursor watermark for cursor A */
-		entries_required = line_count * 64 * pixel_size;
-		entries_required = DIV_ROUND_UP(entries_required,
-						ironlake_cursor_wm_info.cacheline_size);
-		cursora_wm = entries_required + ironlake_cursor_wm_info.guard_size;
-		if (cursora_wm > ironlake_cursor_wm_info.max_wm)
-			cursora_wm = ironlake_cursor_wm_info.max_wm;
-
-		reg_value = I915_READ(WM0_PIPEA_ILK);
-		reg_value &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
-		reg_value |= (planea_wm << WM0_PIPE_PLANE_SHIFT) |
-			     (cursora_wm & WM0_PIPE_CURSOR_MASK);
-		I915_WRITE(WM0_PIPEA_ILK, reg_value);
-		DRM_DEBUG_KMS("FIFO watermarks For pipe A - plane %d, "
-				"cursor: %d\n", planea_wm, cursora_wm);
-	}
-	/* Calculate and update the watermark for plane B */
-	if (planeb_clock) {
-		entries_required = ((planeb_clock / 1000) * pixel_size *
-				     ILK_LP0_PLANE_LATENCY) / 1000;
-		entries_required = DIV_ROUND_UP(entries_required,
-						ironlake_display_wm_info.cacheline_size);
-		planeb_wm = entries_required +
-			    ironlake_display_wm_info.guard_size;
-
-		if (planeb_wm > (int)ironlake_display_wm_info.max_wm)
-			planeb_wm = ironlake_display_wm_info.max_wm;
-
-		/* Use the large buffer method to calculate cursor watermark */
-		line_time_us = (planeb_htotal * 1000) / planeb_clock;
-
-		/* Use ns/us then divide to preserve precision */
-		line_count = (ILK_LP0_CURSOR_LATENCY / line_time_us + 1000) / 1000;
-
-		/* calculate the cursor watermark for cursor B */
-		entries_required = line_count * 64 * pixel_size;
-		entries_required = DIV_ROUND_UP(entries_required,
-						ironlake_cursor_wm_info.cacheline_size);
-		cursorb_wm = entries_required + ironlake_cursor_wm_info.guard_size;
-		if (cursorb_wm > ironlake_cursor_wm_info.max_wm)
-			cursorb_wm = ironlake_cursor_wm_info.max_wm;
-
-		reg_value = I915_READ(WM0_PIPEB_ILK);
-		reg_value &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
-		reg_value |= (planeb_wm << WM0_PIPE_PLANE_SHIFT) |
-			     (cursorb_wm & WM0_PIPE_CURSOR_MASK);
-		I915_WRITE(WM0_PIPEB_ILK, reg_value);
-		DRM_DEBUG_KMS("FIFO watermarks For pipe B - plane %d, "
-				"cursor: %d\n", planeb_wm, cursorb_wm);
+	if (ironlake_compute_wm0(dev, 1, &plane_wm, &cursor_wm)) {
+		I915_WRITE(WM0_PIPEB_ILK,
+			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
+			      " plane %d, cursor: %d\n",
+			      plane_wm, cursor_wm);
+		enabled++;
 	}
 
 	/*
 	 * Calculate and update the self-refresh watermark only when one
 	 * display plane is used.
 	 */
-	if (!planea_clock || !planeb_clock) {
-
+	tmp = 0;
+	if (enabled == 1 && /* XXX disabled due to buggy implmentation? */ 0) {
+		unsigned long line_time_us;
+		int small, large, plane_fbc;
+		int sr_clock, entries;
+		int line_count, line_size;
 		/* Read the self-refresh latency. The unit is 0.5us */
 		int ilk_sr_latency = I915_READ(MLTR_ILK) & ILK_SRLT_MASK;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_htotal * 1000) / sr_clock);
+		line_time_us = (sr_htotal * 1000) / sr_clock;
 
 		/* Use ns/us then divide to preserve precision */
 		line_count = ((ilk_sr_latency * 500) / line_time_us + 1000)
 			       / 1000;
+		line_size = sr_hdisplay * pixel_size;
 
-		/* calculate the self-refresh watermark for display plane */
-		entries_required = line_count * sr_hdisplay * pixel_size;
-		entries_required = DIV_ROUND_UP(entries_required,
-						ironlake_display_srwm_info.cacheline_size);
-		sr_wm = entries_required +
-			ironlake_display_srwm_info.guard_size;
+		/* Use the minimum of the small and large buffer method for primary */
+		small = ((sr_clock * pixel_size / 1000) * (ilk_sr_latency * 500)) / 1000;
+		large = line_count * line_size;
+
+		entries = DIV_ROUND_UP(min(small, large),
+				       ironlake_display_srwm_info.cacheline_size);
+
+		plane_fbc = entries * 64;
+		plane_fbc = DIV_ROUND_UP(plane_fbc, line_size);
+
+		plane_wm = entries + ironlake_display_srwm_info.guard_size;
+		if (plane_wm > (int)ironlake_display_srwm_info.max_wm)
+			plane_wm = ironlake_display_srwm_info.max_wm;
 
 		/* calculate the self-refresh watermark for display cursor */
-		entries_required = line_count * pixel_size * 64;
-		entries_required = DIV_ROUND_UP(entries_required,
-						ironlake_cursor_srwm_info.cacheline_size);
-		cursor_wm = entries_required +
-			    ironlake_cursor_srwm_info.guard_size;
+		entries = line_count * pixel_size * 64;
+		entries = DIV_ROUND_UP(entries,
+				       ironlake_cursor_srwm_info.cacheline_size);
+
+		cursor_wm = entries + ironlake_cursor_srwm_info.guard_size;
+		if (cursor_wm > (int)ironlake_cursor_srwm_info.max_wm)
+			cursor_wm = ironlake_cursor_srwm_info.max_wm;
 
 		/* configure watermark and enable self-refresh */
-		reg_value = I915_READ(WM1_LP_ILK);
-		reg_value &= ~(WM1_LP_LATENCY_MASK | WM1_LP_SR_MASK |
-			       WM1_LP_CURSOR_MASK);
-		reg_value |= (ilk_sr_latency << WM1_LP_LATENCY_SHIFT) |
-			     (sr_wm << WM1_LP_SR_SHIFT) | cursor_wm;
-
-		I915_WRITE(WM1_LP_ILK, reg_value);
-		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
-				"cursor %d\n", sr_wm, cursor_wm);
-
-	} else {
-		/* Turn off self refresh if both pipes are enabled */
-		I915_WRITE(WM1_LP_ILK, I915_READ(WM1_LP_ILK) & ~WM1_LP_SR_EN);
+		tmp = (WM1_LP_SR_EN |
+		       (ilk_sr_latency << WM1_LP_LATENCY_SHIFT) |
+		       (plane_fbc << WM1_LP_FBC_SHIFT) |
+		       (plane_wm << WM1_LP_SR_SHIFT) |
+		       cursor_wm);
+		DRM_DEBUG_KMS("self-refresh watermark: display plane %d, fbc lines %d,"
+			      " cursor %d\n", plane_wm, plane_fbc, cursor_wm);
 	}
+	I915_WRITE(WM1_LP_ILK, tmp);
+	/* XXX setup WM2 and WM3 */
 }
+
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
  *
