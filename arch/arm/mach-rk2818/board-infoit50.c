@@ -369,6 +369,28 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.pin_value			= GPIO_LOW,
 	},
 	{
+		.gpio_num    		= TCA6424_P06,  //jog down up left right  p06 p07 p10 p11
+		.pin_type           = GPIO_IN,
+		//.pin_value			= GPIO_LOW,
+	}, 
+	{
+		.gpio_num    		= TCA6424_P07,
+		.pin_type           = GPIO_IN,
+		//.pin_value			= GPIO_LOW,
+	}, 
+	{
+		.gpio_num    		= TCA6424_P10,
+		.pin_type           = GPIO_IN,
+		//.pin_value			= GPIO_LOW,
+	}, 
+	
+	{
+		.gpio_num    		= TCA6424_P11,
+		.pin_type           = GPIO_IN,
+		//.pin_value			= GPIO_LOW,
+	}, 
+	
+	{
 		.gpio_num    		= TCA6424_P12,// 3G PowerOn
 		.pin_type           = GPIO_OUT,
 		.pin_value			=GPIO_HIGH,
@@ -477,7 +499,7 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
-	.mode 		= I2C_MODE_IRQ,
+	.mode 		= I2C_MODE_POLL,
 	.io_init = rk2818_i2c1_io_init,
 };
 
@@ -1245,6 +1267,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_HEADSET_DET
     &rk28_device_headset,
+#endif
+#ifdef CONFIG_INPUT_JOGBALL
+	&rk2818_jogball_device,
 #endif
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
