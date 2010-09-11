@@ -177,61 +177,6 @@ static void intel_agp_unmap_memory(struct agp_memory *mem)
 	intel_agp_free_sglist(mem);
 }
 
-#if USE_PCI_DMA_API
-static void intel_agp_insert_sg_entries(struct agp_memory *mem,
-					off_t pg_start, int mask_type)
-{
-	struct scatterlist *sg;
-	int i, j;
-
-	j = pg_start;
-
-	WARN_ON(!mem->num_sg);
-
-	if (mem->num_sg == mem->page_count) {
-		for_each_sg(mem->sg_list, sg, mem->page_count, i) {
-			writel(agp_bridge->driver->mask_memory(agp_bridge,
-					sg_dma_address(sg), mask_type),
-					intel_private.gtt+j);
-			j++;
-		}
-	} else {
-		/* sg may merge pages, but we have to separate
-		 * per-page addr for GTT */
-		unsigned int len, m;
-
-		for_each_sg(mem->sg_list, sg, mem->num_sg, i) {
-			len = sg_dma_len(sg) / PAGE_SIZE;
-			for (m = 0; m < len; m++) {
-				writel(agp_bridge->driver->mask_memory(agp_bridge,
-								       sg_dma_address(sg) + m * PAGE_SIZE,
-								       mask_type),
-				       intel_private.gtt+j);
-				j++;
-			}
-		}
-	}
-	readl(intel_private.gtt+j-1);
-}
-
-#else
-
-static void intel_agp_insert_sg_entries(struct agp_memory *mem,
-					off_t pg_start, int mask_type)
-{
-	int i, j;
-
-	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		writel(agp_bridge->driver->mask_memory(agp_bridge,
-				page_to_phys(mem->pages[i]), mask_type),
-		       intel_private.gtt+j);
-	}
-
-	readl(intel_private.gtt+j-1);
-}
-
-#endif
-
 static int intel_i810_fetch_size(void)
 {
 	u32 smram_miscc;
@@ -1266,87 +1211,17 @@ static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
 		writel(1, intel_private.i9xx_flush_page);
 }
 
-static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
-				     int type)
-{
-	int num_entries;
-	void *temp;
-	int ret = -EINVAL;
-	int mask_type;
-
-	if (mem->page_count == 0)
-		goto out;
-
-	temp = agp_bridge->current_size;
-	num_entries = A_SIZE_FIX(temp)->num_entries;
-
-	if (pg_start < intel_private.base.gtt_stolen_entries) {
-		dev_printk(KERN_DEBUG, &intel_private.pcidev->dev,
-			   "pg_start == 0x%.8lx, gtt_stolen_entries == 0x%.8x\n",
-			   pg_start, intel_private.base.gtt_stolen_entries);
-
-		dev_info(&intel_private.pcidev->dev,
-			 "trying to insert into local/stolen memory\n");
-		goto out_err;
-	}
-
-	if ((pg_start + mem->page_count) > num_entries)
-		goto out_err;
-
-	/* The i915 can't check the GTT for entries since it's read only;
-	 * depend on the caller to make the correct offset decisions.
-	 */
-
-	if (type != mem->type)
-		goto out_err;
-
-	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
-
-	if (INTEL_GTT_GEN != 6 && mask_type != 0 &&
-	    mask_type != AGP_PHYS_MEMORY &&
-	    mask_type != INTEL_AGP_CACHED_MEMORY)
-		goto out_err;
-
-	if (!mem->is_flushed)
-		global_cache_flush();
-
-	intel_agp_insert_sg_entries(mem, pg_start, mask_type);
-
- out:
-	ret = 0;
- out_err:
-	mem->is_flushed = true;
-	return ret;
-}
-
-static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
-				     int type)
-{
-	int i;
-
-	if (mem->page_count == 0)
-		return 0;
-
-	if (pg_start < intel_private.base.gtt_stolen_entries) {
-		dev_info(&intel_private.pcidev->dev,
-			 "trying to disable local/stolen memory\n");
-		return -EINVAL;
-	}
-
-	for (i = pg_start; i < (mem->page_count + pg_start); i++)
-		writel(agp_bridge->scratch_page, intel_private.gtt+i);
-
-	readl(intel_private.gtt+i-1);
-
-	return 0;
-}
-
 static void i965_write_entry(dma_addr_t addr, unsigned int entry,
 			     unsigned int flags)
 {
 	/* Shift high bits down */
 	addr |= (addr >> 28) & 0xf0;
 	writel(addr | I810_PTE_VALID, intel_private.gtt + entry);
+}
+
+static bool gen6_check_flags(unsigned int flags)
+{
+	return true;
 }
 
 static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
@@ -1562,8 +1437,8 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
 	.free_gatt_table	= intel_fake_agp_free_gatt_table,
-	.insert_memory		= intel_i915_insert_entries,
-	.remove_memory		= intel_i915_remove_entries,
+	.insert_memory		= intel_fake_agp_insert_entries,
+	.remove_memory		= intel_fake_agp_remove_entries,
 	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
@@ -1572,10 +1447,6 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_gen6_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
-#if USE_PCI_DMA_API
-	.agp_map_memory		= intel_agp_map_memory,
-	.agp_unmap_memory	= intel_agp_unmap_memory,
-#endif
 };
 
 static const struct agp_bridge_driver intel_g33_driver = {
@@ -1654,6 +1525,7 @@ static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
 	.setup = i9xx_setup,
 	.write_entry = gen6_write_entry,
+	.check_flags = gen6_check_flags,
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
