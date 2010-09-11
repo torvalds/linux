@@ -1168,7 +1168,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		if (!IS_I9XX(dev))
 			intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-		I915_WRITE(pipeconf_reg, pipeconf & ~PIPEACONF_ENABLE);
+		I915_WRITE(pipeconf_reg, pipeconf & ~PIPECONF_ENABLE);
 		/* Wait for vblank for the disable to take effect. */
 		intel_wait_for_vblank_off(dev, intel_crtc->pipe);
 

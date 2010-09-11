@@ -191,12 +191,7 @@ static int
 i915_pipe_enabled(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long pipeconf = pipe ? PIPEBCONF : PIPEACONF;
-
-	if (I915_READ(pipeconf) & PIPEACONF_ENABLE)
-		return 1;
-
-	return 0;
+	return I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE;
 }
 
 /* Called from drm generic code, passed a 'crtc', which
@@ -207,10 +202,7 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long high_frame;
 	unsigned long low_frame;
-	u32 high1, high2, low, count;
-
-	high_frame = pipe ? PIPEBFRAMEHIGH : PIPEAFRAMEHIGH;
-	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
+	u32 high1, high2, low;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
 		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
@@ -218,23 +210,23 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 		return 0;
 	}
 
+	high_frame = pipe ? PIPEBFRAMEHIGH : PIPEAFRAMEHIGH;
+	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
+
 	/*
 	 * High & low register fields aren't synchronized, so make sure
 	 * we get a low value that's stable across two reads of the high
 	 * register.
 	 */
 	do {
-		high1 = ((I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK) >>
-			 PIPE_FRAME_HIGH_SHIFT);
-		low =  ((I915_READ(low_frame) & PIPE_FRAME_LOW_MASK) >>
-			PIPE_FRAME_LOW_SHIFT);
-		high2 = ((I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK) >>
-			 PIPE_FRAME_HIGH_SHIFT);
+		high1 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
+		low   = I915_READ(low_frame)  & PIPE_FRAME_LOW_MASK;
+		high2 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
 	} while (high1 != high2);
 
-	count = (high1 << 8) | low;
-
-	return count;
+	high1 >>= PIPE_FRAME_HIGH_SHIFT;
+	low >>= PIPE_FRAME_LOW_SHIFT;
+	return (high1 << 8) | low;
 }
 
 u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
@@ -1207,11 +1199,8 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
-	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
-	u32 pipeconf;
 
-	pipeconf = I915_READ(pipeconf_reg);
-	if (!(pipeconf & PIPEACONF_ENABLE))
+	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);

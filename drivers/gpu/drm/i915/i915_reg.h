@@ -25,6 +25,8 @@
 #ifndef _I915_REG_H_
 #define _I915_REG_H_
 
+#define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
+
 /*
  * The Bridge device's PCI config space has information about the
  * fb aperture size and the amount of pre-reserved memory.
@@ -605,6 +607,7 @@
 #define   VGA1_PD_P1_MASK	(0x1f << 8)
 #define DPLL_A	0x06014
 #define DPLL_B	0x06018
+#define DPLL(pipe) _PIPE(pipe, DPLL_A, DPLL_B)
 #define   DPLL_VCO_ENABLE		(1 << 31)
 #define   DPLL_DVO_HIGH_SPEED		(1 << 30)
 #define   DPLL_SYNCLOCK_ENABLE		(1 << 29)
@@ -738,10 +741,13 @@
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
 #define DPLL_B_MD 0x06020 /* 965+ only */
+#define DPLL_MD(pipe) _PIPE(pipe, DPLL_A_MD, DPLL_B_MD)
 #define FPA0	0x06040
 #define FPA1	0x06044
 #define FPB0	0x06048
 #define FPB1	0x0604c
+#define FP0(pipe) _PIPE(pipe, FPA0, FPB0)
+#define FP1(pipe) _PIPE(pipe, FPA1, FPB1)
 #define   FP_N_DIV_MASK		0x003f0000
 #define   FP_N_PINEVIEW_DIV_MASK	0x00ff0000
 #define   FP_N_DIV_SHIFT		16
@@ -1155,6 +1161,15 @@
 #define VSYNC_B		0x61014
 #define PIPEBSRC	0x6101c
 #define BCLRPAT_B	0x61020
+
+#define HTOTAL(pipe) _PIPE(pipe, HTOTAL_A, HTOTAL_B)
+#define HBLANK(pipe) _PIPE(pipe, HBLANK_A, HBLANK_B)
+#define HSYNC(pipe) _PIPE(pipe, HSYNC_A, HSYNC_B)
+#define VTOTAL(pipe) _PIPE(pipe, VTOTAL_A, VTOTAL_B)
+#define VBLANK(pipe) _PIPE(pipe, VBLANK_A, VBLANK_B)
+#define VSYNC(pipe) _PIPE(pipe, VSYNC_A, VSYNC_B)
+#define PIPESRC(pipe) _PIPE(pipe, PIPEASRC, PIPEBSRC)
+#define BCLRPAT(pipe) _PIPE(pipe, BCLRPAT_A, BCLRPAT_B)
 
 /* VGA port control */
 #define ADPA			0x61100
@@ -2086,15 +2101,15 @@
 #define PIPEADSL		0x70000
 #define   DSL_LINEMASK	       	0x00000fff
 #define PIPEACONF		0x70008
-#define   PIPEACONF_ENABLE	(1<<31)
-#define   PIPEACONF_DISABLE	0
-#define   PIPEACONF_DOUBLE_WIDE	(1<<30)
+#define   PIPECONF_ENABLE	(1<<31)
+#define   PIPECONF_DISABLE	0
+#define   PIPECONF_DOUBLE_WIDE	(1<<30)
 #define   I965_PIPECONF_ACTIVE	(1<<30)
-#define   PIPEACONF_SINGLE_WIDE	0
-#define   PIPEACONF_PIPE_UNLOCKED 0
-#define   PIPEACONF_PIPE_LOCKED	(1<<25)
-#define   PIPEACONF_PALETTE	0
-#define   PIPEACONF_GAMMA		(1<<24)
+#define   PIPECONF_SINGLE_WIDE	0
+#define   PIPECONF_PIPE_UNLOCKED 0
+#define   PIPECONF_PIPE_LOCKED	(1<<25)
+#define   PIPECONF_PALETTE	0
+#define   PIPECONF_GAMMA		(1<<24)
 #define   PIPECONF_FORCE_BORDER	(1<<25)
 #define   PIPECONF_PROGRESSIVE	(0 << 21)
 #define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
@@ -2146,6 +2161,8 @@
 #define   PIPE_10BPC				(1 << 5)
 #define   PIPE_6BPC				(2 << 5)
 #define   PIPE_12BPC				(3 << 5)
+
+#define PIPECONF(pipe) _PIPE(pipe, PIPEACONF, PIPEBCONF)
 
 #define DSPARB			0x70030
 #define   DSPARB_CSTART_MASK	(0x7f << 7)
@@ -2346,6 +2363,14 @@
 #define DSPASURF		0x7019C /* 965+ only */
 #define DSPATILEOFF		0x701A4 /* 965+ only */
 
+#define DSPCNTR(plane) _PIPE(plane, DSPACNTR, DSPBCNTR)
+#define DSPADDR(plane) _PIPE(plane, DSPAADDR, DSPBADDR)
+#define DSPSTRIDE(plane) _PIPE(plane, DSPASTRIDE, DSPBSTRIDE)
+#define DSPPOS(plane) _PIPE(plane, DSPAPOS, DSPBPOS)
+#define DSPSIZE(plane) _PIPE(plane, DSPASIZE, DSPBSIZE)
+#define DSPSURF(plane) _PIPE(plane, DSPASURF, DSPBSURF)
+#define DSPTILEOFF(plane) _PIPE(plane, DSPATILEOFF, DSPBTILEOFF)
+
 /* VBIOS flags */
 #define SWF00			0x71410
 #define SWF01			0x71414
@@ -2434,46 +2459,47 @@
 #define PIPEA_DATA_M1           0x60030
 #define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
 #define  TU_SIZE_MASK           0x7e000000
-#define  PIPEA_DATA_M1_OFFSET   0
+#define  PIPE_DATA_M1_OFFSET    0
 #define PIPEA_DATA_N1           0x60034
-#define  PIPEA_DATA_N1_OFFSET   0
+#define  PIPE_DATA_N1_OFFSET    0
 
 #define PIPEA_DATA_M2           0x60038
-#define  PIPEA_DATA_M2_OFFSET   0
+#define  PIPE_DATA_M2_OFFSET    0
 #define PIPEA_DATA_N2           0x6003c
-#define  PIPEA_DATA_N2_OFFSET   0
+#define  PIPE_DATA_N2_OFFSET    0
 
 #define PIPEA_LINK_M1           0x60040
-#define  PIPEA_LINK_M1_OFFSET   0
+#define  PIPE_LINK_M1_OFFSET    0
 #define PIPEA_LINK_N1           0x60044
-#define  PIPEA_LINK_N1_OFFSET   0
+#define  PIPE_LINK_N1_OFFSET    0
 
 #define PIPEA_LINK_M2           0x60048
-#define  PIPEA_LINK_M2_OFFSET   0
+#define  PIPE_LINK_M2_OFFSET    0
 #define PIPEA_LINK_N2           0x6004c
-#define  PIPEA_LINK_N2_OFFSET   0
+#define  PIPE_LINK_N2_OFFSET    0
 
 /* PIPEB timing regs are same start from 0x61000 */
 
 #define PIPEB_DATA_M1           0x61030
-#define  PIPEB_DATA_M1_OFFSET   0
 #define PIPEB_DATA_N1           0x61034
-#define  PIPEB_DATA_N1_OFFSET   0
 
 #define PIPEB_DATA_M2           0x61038
-#define  PIPEB_DATA_M2_OFFSET   0
 #define PIPEB_DATA_N2           0x6103c
-#define  PIPEB_DATA_N2_OFFSET   0
 
 #define PIPEB_LINK_M1           0x61040
-#define  PIPEB_LINK_M1_OFFSET   0
 #define PIPEB_LINK_N1           0x61044
-#define  PIPEB_LINK_N1_OFFSET   0
 
 #define PIPEB_LINK_M2           0x61048
-#define  PIPEB_LINK_M2_OFFSET   0
 #define PIPEB_LINK_N2           0x6104c
-#define  PIPEB_LINK_N2_OFFSET   0
+
+#define PIPE_DATA_M1(pipe) _PIPE(pipe, PIPEA_DATA_M1, PIPEB_DATA_M1)
+#define PIPE_DATA_N1(pipe) _PIPE(pipe, PIPEA_DATA_N1, PIPEB_DATA_N1)
+#define PIPE_DATA_M2(pipe) _PIPE(pipe, PIPEA_DATA_M2, PIPEB_DATA_M2)
+#define PIPE_DATA_N2(pipe) _PIPE(pipe, PIPEA_DATA_N2, PIPEB_DATA_N2)
+#define PIPE_LINK_M1(pipe) _PIPE(pipe, PIPEA_LINK_M1, PIPEB_LINK_M1)
+#define PIPE_LINK_N1(pipe) _PIPE(pipe, PIPEA_LINK_N1, PIPEB_LINK_N1)
+#define PIPE_LINK_M2(pipe) _PIPE(pipe, PIPEA_LINK_M2, PIPEB_LINK_M2)
+#define PIPE_LINK_N2(pipe) _PIPE(pipe, PIPEA_LINK_N2, PIPEB_LINK_N2)
 
 /* CPU panel fitter */
 #define PFA_CTL_1               0x68080
@@ -2614,11 +2640,14 @@
 
 #define PCH_DPLL_A              0xc6014
 #define PCH_DPLL_B              0xc6018
+#define PCH_DPLL(pipe) _PIPE(pipe, PCH_DPLL_A, PCH_DPLL_B)
 
 #define PCH_FPA0                0xc6040
 #define PCH_FPA1                0xc6044
 #define PCH_FPB0                0xc6048
 #define PCH_FPB1                0xc604c
+#define PCH_FP0(pipe) _PIPE(pipe, PCH_FPA0, PCH_FPB0)
+#define PCH_FP1(pipe) _PIPE(pipe, PCH_FPA1, PCH_FPB1)
 
 #define PCH_DPLL_TEST           0xc606c
 
@@ -2704,6 +2733,13 @@
 #define TRANS_VBLANK_B          0xe1010
 #define TRANS_VSYNC_B           0xe1014
 
+#define TRANS_HTOTAL(pipe) _PIPE(pipe, TRANS_HTOTAL_A, TRANS_HTOTAL_B)
+#define TRANS_HBLANK(pipe) _PIPE(pipe, TRANS_HBLANK_A, TRANS_HBLANK_B)
+#define TRANS_HSYNC(pipe) _PIPE(pipe, TRANS_HSYNC_A, TRANS_HSYNC_B)
+#define TRANS_VTOTAL(pipe) _PIPE(pipe, TRANS_VTOTAL_A, TRANS_VTOTAL_B)
+#define TRANS_VBLANK(pipe) _PIPE(pipe, TRANS_VBLANK_A, TRANS_VBLANK_B)
+#define TRANS_VSYNC(pipe) _PIPE(pipe, TRANS_VSYNC_A, TRANS_VSYNC_B)
+
 #define TRANSB_DATA_M1          0xe1030
 #define TRANSB_DATA_N1          0xe1034
 #define TRANSB_DATA_M2          0xe1038
@@ -2715,6 +2751,7 @@
 
 #define TRANSACONF              0xf0008
 #define TRANSBCONF              0xf1008
+#define TRANSCONF(plane) _PIPE(plane, TRANSACONF, TRANSBCONF)
 #define  TRANS_DISABLE          (0<<31)
 #define  TRANS_ENABLE           (1<<31)
 #define  TRANS_STATE_MASK       (1<<30)
@@ -2739,6 +2776,7 @@
 /* CPU: FDI_TX */
 #define FDI_TXA_CTL             0x60100
 #define FDI_TXB_CTL             0x61100
+#define FDI_TX_CTL(pipe) _PIPE(pipe, FDI_TXA_CTL, FDI_TXB_CTL)
 #define  FDI_TX_DISABLE         (0<<31)
 #define  FDI_TX_ENABLE          (1<<31)
 #define  FDI_LINK_TRAIN_PATTERN_1       (0<<28)
@@ -2780,8 +2818,8 @@
 /* FDI_RX, FDI_X is hard-wired to Transcoder_X */
 #define FDI_RXA_CTL             0xf000c
 #define FDI_RXB_CTL             0xf100c
+#define FDI_RX_CTL(pipe) _PIPE(pipe, FDI_RXA_CTL, FDI_RXB_CTL)
 #define  FDI_RX_ENABLE          (1<<31)
-#define  FDI_RX_DISABLE         (0<<31)
 /* train, dp width same as FDI_TX */
 #define  FDI_DP_PORT_WIDTH_X8           (7<<19)
 #define  FDI_8BPC                       (0<<16)
@@ -2796,8 +2834,7 @@
 #define  FDI_FS_ERR_REPORT_ENABLE       (1<<9)
 #define  FDI_FE_ERR_REPORT_ENABLE       (1<<8)
 #define  FDI_RX_ENHANCE_FRAME_ENABLE    (1<<6)
-#define  FDI_SEL_RAWCLK                 (0<<4)
-#define  FDI_SEL_PCDCLK                 (1<<4)
+#define  FDI_PCDCLK	                (1<<4)
 /* CPT */
 #define  FDI_AUTO_TRAINING			(1<<10)
 #define  FDI_LINK_TRAIN_PATTERN_1_CPT		(0<<8)
@@ -2812,6 +2849,9 @@
 #define FDI_RXA_TUSIZE2         0xf0038
 #define FDI_RXB_TUSIZE1         0xf1030
 #define FDI_RXB_TUSIZE2         0xf1038
+#define FDI_RX_MISC(pipe) _PIPE(pipe, FDI_RXA_MISC, FDI_RXB_MISC)
+#define FDI_RX_TUSIZE1(pipe) _PIPE(pipe, FDI_RXA_TUSIZE1, FDI_RXB_TUSIZE1)
+#define FDI_RX_TUSIZE2(pipe) _PIPE(pipe, FDI_RXA_TUSIZE2, FDI_RXB_TUSIZE2)
 
 /* FDI_RX interrupt register format */
 #define FDI_RX_INTER_LANE_ALIGN         (1<<10)
@@ -2830,6 +2870,8 @@
 #define FDI_RXA_IMR             0xf0018
 #define FDI_RXB_IIR             0xf1014
 #define FDI_RXB_IMR             0xf1018
+#define FDI_RX_IIR(pipe) _PIPE(pipe, FDI_RXA_IIR, FDI_RXB_IIR)
+#define FDI_RX_IMR(pipe) _PIPE(pipe, FDI_RXA_IMR, FDI_RXB_IMR)
 
 #define FDI_PLL_CTL_1           0xfe000
 #define FDI_PLL_CTL_2           0xfe004
@@ -2949,6 +2991,7 @@
 #define TRANS_DP_CTL_A		0xe0300
 #define TRANS_DP_CTL_B		0xe1300
 #define TRANS_DP_CTL_C		0xe2300
+#define TRANS_DP_CTL(pipe)	(TRANS_DP_CTL_A + (pipe) * 0x01000)
 #define  TRANS_DP_OUTPUT_ENABLE	(1<<31)
 #define  TRANS_DP_PORT_SEL_B	(0<<29)
 #define  TRANS_DP_PORT_SEL_C	(1<<29)

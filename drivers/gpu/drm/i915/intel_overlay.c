@@ -255,7 +255,7 @@ i830_activate_pipe_a(struct drm_device *dev)
 		return 0;
 
 	/* most i8xx have pipe a forced on, so don't trust dpms mode */
-	if (I915_READ(PIPEACONF) & PIPEACONF_ENABLE)
+	if (I915_READ(PIPEACONF) & PIPECONF_ENABLE)
 		return 0;
 
 	crtc_funcs = crtc->base.helper_private;
@@ -876,15 +876,14 @@ static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
 {
 	drm_i915_private_t *dev_priv = overlay->dev->dev_private;
 	u32 pipeconf;
-	int pipeconf_reg = (crtc->pipe == 0) ? PIPEACONF : PIPEBCONF;
 
 	if (!crtc->base.enabled || crtc->dpms_mode != DRM_MODE_DPMS_ON)
 		return -EINVAL;
 
-	pipeconf = I915_READ(pipeconf_reg);
+	pipeconf = I915_READ(PIPECONF(crtc->pipe));
 
 	/* can't use the overlay with double wide pipe */
-	if (!IS_I965G(overlay->dev) && pipeconf & PIPEACONF_DOUBLE_WIDE)
+	if (!IS_I965G(overlay->dev) && pipeconf & PIPECONF_DOUBLE_WIDE)
 		return -EINVAL;
 
 	return 0;
