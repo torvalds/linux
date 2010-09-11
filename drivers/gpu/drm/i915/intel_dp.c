@@ -1366,14 +1366,13 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	if (HAS_PCH_CPT(dev) && !IS_eDP(intel_dp)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
-		POSTING_READ(intel_dp->output_reg);
 	} else {
 		DP &= ~DP_LINK_TRAIN_MASK;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
-		POSTING_READ(intel_dp->output_reg);
 	}
+	POSTING_READ(intel_dp->output_reg);
 
-	udelay(17000);
+	msleep(17);
 
 	if (IS_eDP(intel_dp))
 		DP |= DP_LINK_TRAIN_OFF;
