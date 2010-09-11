@@ -334,6 +334,24 @@ static int i965_reset_complete(struct drm_device *dev)
 	return gdrst & 0x1;
 }
 
+static int i965_do_reset(struct drm_device *dev, u8 flags)
+{
+	u8 gdrst;
+
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST, gdrst | flags | 0x1);
+
+	return wait_for(i965_reset_complete(dev), 500);
+}
+
+static int ironlake_do_reset(struct drm_device *dev, u8 flags)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR, gdrst | flags | 0x1);
+	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
+}
+
 /**
  * i965_reset - reset chip after a hang
  * @dev: drm device to reset
@@ -353,12 +371,12 @@ static int i965_reset_complete(struct drm_device *dev)
 int i965_reset(struct drm_device *dev, u8 flags)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u8 gdrst;
 	/*
 	 * We really should only reset the display subsystem if we actually
 	 * need to
 	 */
 	bool need_display = true;
+	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -375,11 +393,11 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
-	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
-	pci_write_config_byte(dev->pdev, I965_GDRST, gdrst | flags | 0x1);
-
-	/* Wait for the hardware to reset (but no more than 500 ms) */
-	if (wait_for(i965_reset_complete(dev), 500)) {
+	if (IS_IRONLAKE(dev))
+		ret = ironlake_do_reset(dev, flags);
+	else
+		ret = i965_do_reset(dev, flags);
+	if (ret) {
 		WARN(true, "i915: Failed to reset chip\n");
 		mutex_unlock(&dev->struct_mutex);
 		return -EIO;

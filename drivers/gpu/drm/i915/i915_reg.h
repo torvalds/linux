@@ -110,7 +110,8 @@
 #define LBB	0xf4
 
 /* Graphics reset regs */
-#define I965_GDRST 0xc0
+#define I965_GDRST 0xc0 /* PCI config register */
+#define ILK_GDSR 0x2ca4 /* MCHBAR offset */
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
