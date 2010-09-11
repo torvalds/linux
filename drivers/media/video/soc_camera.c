@@ -1146,6 +1146,20 @@ static int default_s_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
 	return v4l2_subdev_call(sd, video, s_crop, a);
 }
 
+static int default_g_parm(struct soc_camera_device *icd,
+			  struct v4l2_streamparm *parm)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, g_parm, parm);
+}
+
+static int default_s_parm(struct soc_camera_device *icd,
+			  struct v4l2_streamparm *parm)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, s_parm, parm);
+}
+
 static void soc_camera_device_init(struct device *dev, void *pdata)
 {
 	dev->platform_data	= pdata;
@@ -1177,6 +1191,10 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 		ici->ops->get_crop = default_g_crop;
 	if (!ici->ops->cropcap)
 		ici->ops->cropcap = default_cropcap;
+	if (!ici->ops->set_parm)
+		ici->ops->set_parm = default_s_parm;
+	if (!ici->ops->get_parm)
+		ici->ops->get_parm = default_g_parm;
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
