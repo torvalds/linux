@@ -465,10 +465,7 @@ int cvm_oct_common_init(struct net_device *dev)
 
 	if (cvm_oct_mac_addr_offset >= octeon_bootinfo->mac_addr_count)
 		printk(KERN_DEBUG "%s: Using MAC outside of the assigned range:"
-			" %02x:%02x:%02x:%02x:%02x:%02x\n", dev->name,
-			sa.sa_data[0] & 0xff, sa.sa_data[1] & 0xff,
-			sa.sa_data[2] & 0xff, sa.sa_data[3] & 0xff,
-			sa.sa_data[4] & 0xff, sa.sa_data[5] & 0xff);
+			" %pM\n", dev->name, &sa.sa_data[0]);
 	cvm_oct_mac_addr_offset++;
 
 	/*
