@@ -739,7 +739,7 @@ defined in error. Drivers may interpret them as in <xref
 	    <entry>b<subscript>1</subscript></entry>
 	    <entry>b<subscript>0</subscript></entry>
 	  </row>
-	  <row id="V4L2-PIX-FMT-BGR666">
+	  <row><!-- id="V4L2-PIX-FMT-BGR666" -->
 	    <entry><constant>V4L2_PIX_FMT_BGR666</constant></entry>
 	    <entry>'BGRH'</entry>
 	    <entry></entry>
