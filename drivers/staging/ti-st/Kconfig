@@ -16,7 +16,7 @@ config TI_ST
 
 config ST_BT
 	tristate "BlueZ bluetooth driver for ST"
-	depends on BT
+	depends on BT && RFKILL
 	select TI_ST
 	help
 	  This enables the Bluetooth driver for TI BT/FM/GPS combo devices.
