@@ -251,6 +251,15 @@ config MTD_NETtel
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
+config MTD_BCM963XX
+        tristate "Map driver for Broadcom BCM963xx boards"
+        depends on BCM63XX
+	select MTD_MAP_BANK_WIDTH_2
+	select MTD_CFI_I1
+        help
+	  Support for parsing CFE image tag and creating MTD partitions on
+	  Broadcom BCM63xx boards.
+
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
