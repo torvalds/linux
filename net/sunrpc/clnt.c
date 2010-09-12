@@ -964,7 +964,48 @@ call_reserveresult(struct rpc_task *task)
 }
 
 /*
- * 2.	Allocate the buffer. For details, see sched.c:rpc_malloc.
+ * 2.	Bind and/or refresh the credentials
+ */
+static void
+call_refresh(struct rpc_task *task)
+{
+	dprint_status(task);
+
+	task->tk_action = call_refreshresult;
+	task->tk_status = 0;
+	task->tk_client->cl_stats->rpcauthrefresh++;
+	rpcauth_refreshcred(task);
+}
+
+/*
+ * 2a.	Process the results of a credential refresh
+ */
+static void
+call_refreshresult(struct rpc_task *task)
+{
+	int status = task->tk_status;
+
+	dprint_status(task);
+
+	task->tk_status = 0;
+	task->tk_action = call_allocate;
+	if (status >= 0 && rpcauth_uptodatecred(task))
+		return;
+	switch (status) {
+	case -EACCES:
+		rpc_exit(task, -EACCES);
+		return;
+	case -ENOMEM:
+		rpc_exit(task, -ENOMEM);
+		return;
+	case -ETIMEDOUT:
+		rpc_delay(task, 3*HZ);
+	}
+	task->tk_action = call_refresh;
+}
+
+/*
+ * 2b.	Allocate the buffer. For details, see sched.c:rpc_malloc.
  *	(Note: buffer memory is freed in xprt_release).
  */
 static void
@@ -1013,47 +1054,6 @@ call_allocate(struct rpc_task *task)
 	}
 
 	rpc_exit(task, -ERESTARTSYS);
-}
-
-/*
- * 2a.	Bind and/or refresh the credentials
- */
-static void
-call_refresh(struct rpc_task *task)
-{
-	dprint_status(task);
-
-	task->tk_action = call_refreshresult;
-	task->tk_status = 0;
-	task->tk_client->cl_stats->rpcauthrefresh++;
-	rpcauth_refreshcred(task);
-}
-
-/*
- * 2b.	Process the results of a credential refresh
- */
-static void
-call_refreshresult(struct rpc_task *task)
-{
-	int status = task->tk_status;
-
-	dprint_status(task);
-
-	task->tk_status = 0;
-	task->tk_action = call_allocate;
-	if (status >= 0 && rpcauth_uptodatecred(task))
-		return;
-	switch (status) {
-	case -EACCES:
-		rpc_exit(task, -EACCES);
-		return;
-	case -ENOMEM:
-		rpc_exit(task, -ENOMEM);
-		return;
-	case -ETIMEDOUT:
-		rpc_delay(task, 3*HZ);
-	}
-	task->tk_action = call_refresh;
 }
 
 static inline int
