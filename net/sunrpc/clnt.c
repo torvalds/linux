@@ -931,7 +931,7 @@ call_reserveresult(struct rpc_task *task)
 	task->tk_status = 0;
 	if (status >= 0) {
 		if (task->tk_rqstp) {
-			task->tk_action = call_allocate;
+			task->tk_action = call_refresh;
 			return;
 		}
 
@@ -972,7 +972,7 @@ call_reserveresult(struct rpc_task *task)
 static void
 call_allocate(struct rpc_task *task)
 {
-	unsigned int slack = task->tk_client->cl_auth->au_cslack;
+	unsigned int slack = task->tk_rqstp->rq_cred->cr_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
@@ -980,7 +980,7 @@ call_allocate(struct rpc_task *task)
 	dprint_status(task);
 
 	task->tk_status = 0;
-	task->tk_action = call_refresh;
+	task->tk_action = call_bind;
 
 	if (req->rq_buffer)
 		return;
@@ -1042,7 +1042,7 @@ call_refreshresult(struct rpc_task *task)
 	dprint_status(task);
 
 	task->tk_status = 0;
-	task->tk_action = call_bind;
+	task->tk_action = call_allocate;
 	if (status >= 0 && rpcauth_uptodatecred(task))
 		return;
 	switch (status) {
