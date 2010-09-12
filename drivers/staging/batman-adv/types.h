@@ -128,7 +128,6 @@ struct bat_priv {
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
-	struct hlist_head gw_list;
 	struct list_head vis_send_list;
 	struct hashtable_t *orig_hash;
 	struct hashtable_t *hna_local_hash;
@@ -139,7 +138,6 @@ struct bat_priv {
 	spinlock_t forw_bcast_list_lock;
 	spinlock_t hna_lhash_lock;
 	spinlock_t hna_ghash_lock;
-	spinlock_t gw_list_lock;
 	spinlock_t vis_hash_lock;
 	spinlock_t vis_list_lock;
 	int16_t num_local_hna;
@@ -147,7 +145,6 @@ struct bat_priv {
 	struct delayed_work hna_work;
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
-	struct gw_node *curr_gw;
 	struct vis_info *my_vis_info;
 };
 
