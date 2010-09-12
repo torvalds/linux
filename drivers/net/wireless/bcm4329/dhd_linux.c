@@ -359,7 +359,7 @@ module_param(dhd_dpc_prio, int, 0);
 extern int dhd_dongle_memsize;
 module_param(dhd_dongle_memsize, int, 0);
 
-/* Contorl fw roaming */
+/* Control fw roaming */
 #ifdef CUSTOMER_HW2
 uint dhd_roam = 0;
 #else
@@ -578,7 +578,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 
 				dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
-			roamvar = 0;
+			roamvar = dhd_roam;
 			bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 #endif /* CUSTOMER_HW2 */
