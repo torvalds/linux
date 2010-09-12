@@ -1756,6 +1756,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (ret)
 		return ret;
 
+	/* Ensure the QX3 illuminators' states are restored upon resume */
+	if (sd->params.qx3.qx3_detected)
+		command_setlights(gspca_dev);
+
 	sd_stopN(gspca_dev);
 
 	PDEBUG(D_PROBE, "CPIA Version:             %d.%02d (%d.%d)",
