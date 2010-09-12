@@ -76,6 +76,9 @@ struct intel_gtt_driver {
 	unsigned int dma_mask_size : 8;
 	/* Chipset specific GTT setup */
 	int (*setup)(void);
+	/* This should undo anything done in ->setup() save the unmapping
+	 * of the mmio register file, that's done in the generic code. */
+	void (*cleanup)(void);
 	void (*write_entry)(dma_addr_t addr, unsigned int entry, unsigned int flags);
 	/* Flags is a more or less chipset specific opaque value.
 	 * For chipsets that need to support old ums (non-gem) code, this
@@ -732,12 +735,8 @@ static void intel_gtt_teardown_scratch_page(void)
 
 static void intel_gtt_cleanup(void)
 {
-	if (intel_private.i9xx_flush_page)
-		iounmap(intel_private.i9xx_flush_page);
-	if (intel_private.resource_valid)
-		release_resource(&intel_private.ifp_resource);
-	intel_private.ifp_resource.start = 0;
-	intel_private.resource_valid = 0;
+	intel_private.driver->cleanup();
+
 	iounmap(intel_private.gtt);
 	iounmap(intel_private.registers);
 	
@@ -766,6 +765,7 @@ static int intel_gtt_init(void)
 	intel_private.gtt = ioremap(intel_private.gtt_bus_addr,
 				    gtt_map_size);
 	if (!intel_private.gtt) {
+		intel_private.driver->cleanup();
 		iounmap(intel_private.registers);
 		return -ENOMEM;
 	}
@@ -775,6 +775,7 @@ static int intel_gtt_init(void)
 	/* we have to call this as early as possible after the MMIO base address is known */
 	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
 	if (intel_private.base.gtt_stolen_entries == 0) {
+		intel_private.driver->cleanup();
 		iounmap(intel_private.registers);
 		iounmap(intel_private.gtt);
 		return -ENOMEM;
@@ -809,7 +810,7 @@ static int intel_fake_agp_fetch_size(void)
 	return 0;
 }
 
-static void intel_i830_fini_flush(void)
+static void i830_cleanup(void)
 {
 	kunmap(intel_private.i8xx_page);
 	intel_private.i8xx_flush_page = NULL;
@@ -831,7 +832,7 @@ static void intel_i830_setup_flush(void)
 
 	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
 	if (!intel_private.i8xx_flush_page)
-		intel_i830_fini_flush();
+		i830_cleanup();
 }
 
 /* The chipset_flush interface needs to get data that has already been
@@ -1174,6 +1175,16 @@ static void intel_i9xx_setup_flush(void)
 			"can't ioremap flush page - no chipset flushing\n");
 }
 
+static void i9xx_cleanup(void)
+{
+	if (intel_private.i9xx_flush_page)
+		iounmap(intel_private.i9xx_flush_page);
+	if (intel_private.resource_valid)
+		release_resource(&intel_private.ifp_resource);
+	intel_private.ifp_resource.start = 0;
+	intel_private.resource_valid = 0;
+}
+
 static void i9xx_chipset_flush(void)
 {
 	if (intel_private.i9xx_flush_page)
@@ -1215,6 +1226,10 @@ static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 	/* gen6 has bit11-4 for physical addr bit39-32 */
 	addr |= (addr >> 28) & 0xff0;
 	writel(addr | pte_flags, intel_private.gtt + entry);
+}
+
+static void gen6_cleanup(void)
+{
 }
 
 static int i9xx_setup(void)
@@ -1315,6 +1330,7 @@ static const struct intel_gtt_driver i81x_gtt_driver = {
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
 	.setup = i830_setup,
+	.cleanup = i830_cleanup,
 	.write_entry = i830_write_entry,
 	.dma_mask_size = 32,
 	.check_flags = i830_check_flags,
@@ -1323,6 +1339,7 @@ static const struct intel_gtt_driver i8xx_gtt_driver = {
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
 	.setup = i9xx_setup,
+	.cleanup = i9xx_cleanup,
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
 	.write_entry = i830_write_entry, 
 	.dma_mask_size = 32,
@@ -1333,6 +1350,7 @@ static const struct intel_gtt_driver g33_gtt_driver = {
 	.gen = 3,
 	.is_g33 = 1,
 	.setup = i9xx_setup,
+	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
@@ -1342,6 +1360,7 @@ static const struct intel_gtt_driver pineview_gtt_driver = {
 	.gen = 3,
 	.is_pineview = 1, .is_g33 = 1,
 	.setup = i9xx_setup,
+	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
@@ -1350,6 +1369,7 @@ static const struct intel_gtt_driver pineview_gtt_driver = {
 static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
 	.setup = i9xx_setup,
+	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
@@ -1358,6 +1378,7 @@ static const struct intel_gtt_driver i965_gtt_driver = {
 static const struct intel_gtt_driver g4x_gtt_driver = {
 	.gen = 5,
 	.setup = i9xx_setup,
+	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
@@ -1367,6 +1388,7 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.gen = 5,
 	.is_ironlake = 1,
 	.setup = i9xx_setup,
+	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
@@ -1375,6 +1397,7 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
 	.setup = i9xx_setup,
+	.cleanup = gen6_cleanup,
 	.write_entry = gen6_write_entry,
 	.dma_mask_size = 40,
 	.check_flags = gen6_check_flags,
