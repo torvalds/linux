@@ -274,7 +274,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 	}
 
 	if (buf_bsize && ((bufnum + 16) >= R8A66597_MAX_BUFNUM)) {
-		pr_err(KERN_ERR "r8a66597 pipe memory is insufficient\n");
+		pr_err("r8a66597 pipe memory is insufficient\n");
 		return -ENOMEM;
 	}
 
