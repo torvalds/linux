@@ -1446,6 +1446,11 @@ static const struct hid_device_id hid_usb_table[] = {
 	{ }
 };
 
+struct usb_interface *usbhid_find_interface(int minor)
+{
+	return usb_find_interface(&hid_driver, minor);
+}
+
 static struct hid_driver hid_usb_driver = {
 	.name = "generic-usb",
 	.id_table = hid_usb_table,
