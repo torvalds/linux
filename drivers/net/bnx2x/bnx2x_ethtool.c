@@ -961,7 +961,14 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 	ering->rx_mini_max_pending = 0;
 	ering->rx_jumbo_max_pending = 0;
 
-	ering->rx_pending = bp->rx_ring_size;
+	if (bp->rx_ring_size)
+		ering->rx_pending = bp->rx_ring_size;
+	else
+		if (bp->state == BNX2X_STATE_OPEN && bp->num_queues)
+			ering->rx_pending = MAX_RX_AVAIL/bp->num_queues;
+		else
+			ering->rx_pending = MAX_RX_AVAIL;
+
 	ering->rx_mini_pending = 0;
 	ering->rx_jumbo_pending = 0;
 
@@ -981,6 +988,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	}
 
 	if ((ering->rx_pending > MAX_RX_AVAIL) ||
+	    (ering->rx_pending < MIN_RX_AVAIL) ||
 	    (ering->tx_pending > MAX_TX_AVAIL) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4))
 		return -EINVAL;

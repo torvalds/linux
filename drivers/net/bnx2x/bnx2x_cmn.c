@@ -781,6 +781,10 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 					      ETH_MAX_AGGREGATION_QUEUES_E1H;
 	u16 ring_prod, cqe_ring_prod;
 	int i, j;
+	int rx_ring_size = bp->rx_ring_size ? bp->rx_ring_size :
+					      MAX_RX_AVAIL/bp->num_queues;
+
+	rx_ring_size = max_t(int, MIN_RX_AVAIL, rx_ring_size);
 
 	bp->rx_buf_size = bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN;
 	DP(NETIF_MSG_IFUP,
@@ -883,7 +887,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 		/* Allocate BDs and initialize BD ring */
 		fp->rx_comp_cons = 0;
 		cqe_ring_prod = ring_prod = 0;
-		for (i = 0; i < bp->rx_ring_size; i++) {
+		for (i = 0; i < rx_ring_size; i++) {
 			if (bnx2x_alloc_rx_skb(bp, fp, ring_prod) < 0) {
 				BNX2X_ERR("was only able to allocate "
 					  "%d rx skbs on queue[%d]\n", i, j);

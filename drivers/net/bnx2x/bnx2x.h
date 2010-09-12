@@ -20,8 +20,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.52.53-6"
-#define DRV_MODULE_RELDATE      "2010/09/07"
+#define DRV_MODULE_VERSION      "1.52.53-7"
+#define DRV_MODULE_RELDATE      "2010/09/12"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
@@ -369,6 +369,7 @@ struct bnx2x_fastpath {
 #define NUM_RX_BD			(RX_DESC_CNT * NUM_RX_RINGS)
 #define MAX_RX_BD			(NUM_RX_BD - 1)
 #define MAX_RX_AVAIL			(MAX_RX_DESC_CNT * NUM_RX_RINGS - 2)
+#define MIN_RX_AVAIL			128
 #define NEXT_RX_IDX(x)		((((x) & RX_DESC_MASK) == \
 				  (MAX_RX_DESC_CNT - 1)) ? (x) + 3 : (x) + 1)
 #define RX_BD(x)			((x) & MAX_RX_BD)
