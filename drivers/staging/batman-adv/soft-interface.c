@@ -201,7 +201,7 @@ void interface_rx(struct net_device *soft_iface,
 	skb_pull_rcsum(skb, hdr_size);
 /*	skb_set_mac_header(skb, -sizeof(struct ethhdr));*/
 
-	skb->dev = soft_iface;
+	/* skb->dev & skb->pkt_type are set here */
 	skb->protocol = eth_type_trans(skb, soft_iface);
 
 	/* should not be neccesary anymore as we use skb_pull_rcsum()
@@ -209,9 +209,6 @@ void interface_rx(struct net_device *soft_iface,
 	 * -- Dec 21st 2009, Simon Wunderlich */
 
 /*	skb->ip_summed = CHECKSUM_UNNECESSARY;*/
-
-	/* TODO: set skb->pkt_type to PACKET_BROADCAST, PACKET_MULTICAST,
-	 * PACKET_OTHERHOST or PACKET_HOST */
 
 	priv->stats.rx_packets++;
 	priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
