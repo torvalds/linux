@@ -580,7 +580,7 @@ static int mmci_get_ro(struct mmc_host *mmc)
 	if (host->gpio_wp == -ENOSYS)
 		return -ENOSYS;
 
-	return gpio_get_value(host->gpio_wp);
+	return gpio_get_value_cansleep(host->gpio_wp);
 }
 
 static int mmci_get_cd(struct mmc_host *mmc)
@@ -595,7 +595,8 @@ static int mmci_get_cd(struct mmc_host *mmc)
 
 		status = plat->status(mmc_dev(host->mmc));
 	} else
-		status = !!gpio_get_value(host->gpio_cd) ^ plat->cd_invert;
+		status = !!gpio_get_value_cansleep(host->gpio_cd)
+			^ plat->cd_invert;
 
 	/*
 	 * Use positive logic throughout - status is zero for no card,
