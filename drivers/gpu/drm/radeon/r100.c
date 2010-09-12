@@ -2020,18 +2020,7 @@ bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *l
 		return false;
 	}
 	elapsed = jiffies_to_msecs(cjiffies - lockup->last_jiffies);
-	if (elapsed >= 3000) {
-		/* very likely the improbable case where current
-		 * rptr is equal to last recorded, a while ago, rptr
-		 * this is more likely a false positive update tracking
-		 * information which should force us to be recall at
-		 * latter point
-		 */
-		lockup->last_cp_rptr = cp->rptr;
-		lockup->last_jiffies = jiffies;
-		return false;
-	}
-	if (elapsed >= 1000) {
+	if (elapsed >= 10000) {
 		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
 		return true;
 	}
