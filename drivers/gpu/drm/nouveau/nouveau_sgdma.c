@@ -151,7 +151,7 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 				nv_wo32(gpuobj, (pte * 4) + 0, dma_offset | 3);
 				pte += 1;
 			} else {
-				nv_wo32(gpuobj, (pte * 4), dma_offset | 0x21);
+				nv_wo32(gpuobj, (pte * 4) + 0, 0x00000000);
 				nv_wo32(gpuobj, (pte * 4) + 4, 0x00000000);
 				pte += 2;
 			}
@@ -279,9 +279,8 @@ nouveau_sgdma_init(struct drm_device *dev)
 		}
 	} else {
 		for (i = 0; i < obj_size; i += 8) {
-			nv_wo32(gpuobj, i + 0,
-				dev_priv->gart_info.sg_dummy_bus | 0x21);
-			nv_wo32(gpuobj, i + 4, 0);
+			nv_wo32(gpuobj, i + 0, 0x00000000);
+			nv_wo32(gpuobj, i + 4, 0x00000000);
 		}
 	}
 	dev_priv->engine.instmem.flush(dev);
