@@ -1200,7 +1200,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 
 	/* Basic memrange allocator for stolen space (aka mm.vram) */
 	drm_mm_init(&dev_priv->mm.vram, 0, prealloc_size);
-	DRM_INFO("set up %ldM of stolen space\n", prealloc_size / (1024*1024));
 
 	/* We're off and running w/KMS */
 	dev_priv->mm.suspended = 0;

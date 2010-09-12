@@ -41,7 +41,6 @@
 
 /* Max amount of stolen space, anything above will be returned to Linux */
 int intel_max_stolen = 32 * 1024 * 1024;
-EXPORT_SYMBOL(intel_max_stolen);
 
 static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
@@ -755,6 +754,11 @@ static int intel_gtt_init(void)
 
 	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
 	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
+
+	dev_info(&intel_private.bridge_dev->dev,
+			"detected gtt size: %dK total, %dK mappable\n",
+			intel_private.base.gtt_total_entries * 4,
+			intel_private.base.gtt_mappable_entries * 4);
 
 	gtt_map_size = intel_private.base.gtt_total_entries * 4;
 

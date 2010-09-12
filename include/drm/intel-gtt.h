@@ -2,8 +2,6 @@
 
 #ifndef _DRM_INTEL_GTT_H
 #define	_DRM_INTEL_GTT_H
-extern int intel_max_stolen; /* from AGP driver */
-
 struct intel_gtt {
 	/* Number of stolen gtt entries at the beginning. */
 	unsigned int gtt_stolen_entries;
