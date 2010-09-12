@@ -226,7 +226,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 			goto out_no_principal;
 	}
 
-	kref_init(&clnt->cl_kref);
+	atomic_set(&clnt->cl_count, 1);
 
 	err = rpc_setup_pipedir(clnt, program->pipe_dir_name);
 	if (err < 0)
@@ -390,14 +390,14 @@ rpc_clone_client(struct rpc_clnt *clnt)
 		if (new->cl_principal == NULL)
 			goto out_no_principal;
 	}
-	kref_init(&new->cl_kref);
+	atomic_set(&new->cl_count, 1);
 	err = rpc_setup_pipedir(new, clnt->cl_program->pipe_dir_name);
 	if (err != 0)
 		goto out_no_path;
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
 	xprt_get(clnt->cl_xprt);
-	kref_get(&clnt->cl_kref);
+	atomic_inc(&clnt->cl_count);
 	rpc_register_client(new);
 	rpciod_up();
 	return new;
@@ -465,10 +465,8 @@ EXPORT_SYMBOL_GPL(rpc_shutdown_client);
  * Free an RPC client
  */
 static void
-rpc_free_client(struct kref *kref)
+rpc_free_client(struct rpc_clnt *clnt)
 {
-	struct rpc_clnt *clnt = container_of(kref, struct rpc_clnt, cl_kref);
-
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
 	if (!IS_ERR(clnt->cl_path.dentry)) {
@@ -495,12 +493,10 @@ out_free:
  * Free an RPC client
  */
 static void
-rpc_free_auth(struct kref *kref)
+rpc_free_auth(struct rpc_clnt *clnt)
 {
-	struct rpc_clnt *clnt = container_of(kref, struct rpc_clnt, cl_kref);
-
 	if (clnt->cl_auth == NULL) {
-		rpc_free_client(kref);
+		rpc_free_client(clnt);
 		return;
 	}
 
@@ -509,10 +505,11 @@ rpc_free_auth(struct kref *kref)
 	 *       release remaining GSS contexts. This mechanism ensures
 	 *       that it can do so safely.
 	 */
-	kref_init(kref);
+	atomic_inc(&clnt->cl_count);
 	rpcauth_release(clnt->cl_auth);
 	clnt->cl_auth = NULL;
-	kref_put(kref, rpc_free_client);
+	if (atomic_dec_and_test(&clnt->cl_count))
+		rpc_free_client(clnt);
 }
 
 /*
@@ -525,7 +522,8 @@ rpc_release_client(struct rpc_clnt *clnt)
 
 	if (list_empty(&clnt->cl_tasks))
 		wake_up(&destroy_wait);
-	kref_put(&clnt->cl_kref, rpc_free_auth);
+	if (atomic_dec_and_test(&clnt->cl_count))
+		rpc_free_auth(clnt);
 }
 
 /**
@@ -588,7 +586,7 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 	if (clnt != NULL) {
 		rpc_task_release_client(task);
 		task->tk_client = clnt;
-		kref_get(&clnt->cl_kref);
+		atomic_inc(&clnt->cl_count);
 		if (clnt->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
 		/* Add to the client's list of all tasks */

@@ -371,21 +371,23 @@ rpc_show_info(struct seq_file *m, void *v)
 static int
 rpc_info_open(struct inode *inode, struct file *file)
 {
-	struct rpc_clnt *clnt;
+	struct rpc_clnt *clnt = NULL;
 	int ret = single_open(file, rpc_show_info, NULL);
 
 	if (!ret) {
 		struct seq_file *m = file->private_data;
-		mutex_lock(&inode->i_mutex);
-		clnt = RPC_I(inode)->private;
-		if (clnt) {
-			kref_get(&clnt->cl_kref);
+
+		spin_lock(&file->f_path.dentry->d_lock);
+		if (!d_unhashed(file->f_path.dentry))
+			clnt = RPC_I(inode)->private;
+		if (clnt != NULL && atomic_inc_not_zero(&clnt->cl_count)) {
+			spin_unlock(&file->f_path.dentry->d_lock);
 			m->private = clnt;
 		} else {
+			spin_unlock(&file->f_path.dentry->d_lock);
 			single_release(inode, file);
 			ret = -EINVAL;
 		}
-		mutex_unlock(&inode->i_mutex);
 	}
 	return ret;
 }
