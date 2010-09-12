@@ -169,6 +169,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 			((unsigned char *)entry + dvo_timing_offset);
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	if (!panel_fixed_mode)
+		return;
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
