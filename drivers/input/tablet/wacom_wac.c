@@ -866,7 +866,13 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	for (i = 0; i < 2; i++) {
 		int p = data[9 * i + 2];
 		input_mt_slot(input, i);
-		if (p) {
+		/*
+		 * Touch events need to be disabled while stylus is
+		 * in proximity because user's hand is resting on touchpad
+		 * and sending unwanted events.  User expects tablet buttons
+		 * to continue working though.
+		 */
+		if (p && !wacom->shared->stylus_in_proximity) {
 			int x = get_unaligned_be16(&data[9 * i + 3]) & 0x7ff;
 			int y = get_unaligned_be16(&data[9 * i + 5]) & 0x7ff;
 			if (features->quirks & WACOM_QUIRK_BBTOUCH_LOWRES) {
