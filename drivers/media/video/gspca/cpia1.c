@@ -373,6 +373,10 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcomptarget(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcomptarget(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setilluminator1(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getilluminator1(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setilluminator2(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getilluminator2(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -431,6 +435,34 @@ static const struct ctrl sd_ctrls[] = {
 		},
 		.set = sd_setfreq,
 		.get = sd_getfreq,
+	},
+	{
+		{
+			.id	 = V4L2_CID_ILLUMINATORS_1,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Illuminator 1",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define ILLUMINATORS_1_DEF 0
+			.default_value = ILLUMINATORS_1_DEF,
+		},
+		.set = sd_setilluminator1,
+		.get = sd_getilluminator1,
+	},
+	{
+		{
+			.id	 = V4L2_CID_ILLUMINATORS_2,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Illuminator 2",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define ILLUMINATORS_2_DEF 0
+			.default_value = ILLUMINATORS_2_DEF,
+		},
+		.set = sd_setilluminator2,
+		.get = sd_getilluminator2,
 	},
 	{
 		{
@@ -1059,7 +1091,6 @@ static int command_resume(struct gspca_dev *gspca_dev)
 			  0, sd->params.streamStartLine, 0, 0);
 }
 
-#if 0 /* Currently unused */
 static int command_setlights(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1079,7 +1110,6 @@ static int command_setlights(struct gspca_dev *gspca_dev)
 	return do_command(gspca_dev, CPIA_COMMAND_WriteMCPort, 2, 0,
 			  p1 | p2 | 0xE0, 0);
 }
-#endif
 
 static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)
 {
@@ -1927,6 +1957,72 @@ static int sd_getcomptarget(struct gspca_dev *gspca_dev, __s32 *val)
 
 	*val = sd->params.compressionTarget.frTargeting;
 	return 0;
+}
+
+static int sd_setilluminator(struct gspca_dev *gspca_dev, __s32 val, int n)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret;
+
+	if (!sd->params.qx3.qx3_detected)
+		return -EINVAL;
+
+	switch (n) {
+	case 1:
+		sd->params.qx3.bottomlight = val ? 1 : 0;
+		break;
+	case 2:
+		sd->params.qx3.toplight = val ? 1 : 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = command_setlights(gspca_dev);
+	if (ret && ret != -EINVAL)
+		ret = -EBUSY;
+
+	return ret;
+}
+
+static int sd_setilluminator1(struct gspca_dev *gspca_dev, __s32 val)
+{
+	return sd_setilluminator(gspca_dev, val, 1);
+}
+
+static int sd_setilluminator2(struct gspca_dev *gspca_dev, __s32 val)
+{
+	return sd_setilluminator(gspca_dev, val, 2);
+}
+
+static int sd_getilluminator(struct gspca_dev *gspca_dev, __s32 *val, int n)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->params.qx3.qx3_detected)
+		return -EINVAL;
+
+	switch (n) {
+	case 1:
+		*val = sd->params.qx3.bottomlight;
+		break;
+	case 2:
+		*val = sd->params.qx3.toplight;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int sd_getilluminator1(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	return sd_getilluminator(gspca_dev, val, 1);
+}
+
+static int sd_getilluminator2(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	return sd_getilluminator(gspca_dev, val, 2);
 }
 
 static int sd_querymenu(struct gspca_dev *gspca_dev,
