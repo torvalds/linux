@@ -155,6 +155,16 @@ static int fdtv_get_frontend(struct dvb_frontend *fe,
 	return -EOPNOTSUPP;
 }
 
+static int fdtv_get_property(struct dvb_frontend *fe, struct dtv_property *tvp)
+{
+	return 0;
+}
+
+static int fdtv_set_property(struct dvb_frontend *fe, struct dtv_property *tvp)
+{
+	return 0;
+}
+
 void fdtv_frontend_init(struct firedtv *fdtv)
 {
 	struct dvb_frontend_ops *ops = &fdtv->fe.ops;
@@ -165,6 +175,9 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 
 	ops->set_frontend		= fdtv_set_frontend;
 	ops->get_frontend		= fdtv_get_frontend;
+
+	ops->get_property		= fdtv_get_property;
+	ops->set_property		= fdtv_set_property;
 
 	ops->read_status		= fdtv_read_status;
 	ops->read_ber			= fdtv_read_ber;
@@ -179,6 +192,24 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 
 	switch (fdtv->type) {
 	case FIREDTV_DVB_S:
+		fi->type		= FE_QPSK;
+
+		fi->frequency_min	= 950000;
+		fi->frequency_max	= 2150000;
+		fi->frequency_stepsize	= 125;
+		fi->symbol_rate_min	= 1000000;
+		fi->symbol_rate_max	= 40000000;
+
+		fi->caps		= FE_CAN_INVERSION_AUTO |
+					  FE_CAN_FEC_1_2	|
+					  FE_CAN_FEC_2_3	|
+					  FE_CAN_FEC_3_4	|
+					  FE_CAN_FEC_5_6	|
+					  FE_CAN_FEC_7_8	|
+					  FE_CAN_FEC_AUTO	|
+					  FE_CAN_QPSK;
+		break;
+
 	case FIREDTV_DVB_S2:
 		fi->type		= FE_QPSK;
 
@@ -188,14 +219,15 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
 
-		fi->caps 		= FE_CAN_INVERSION_AUTO	|
-					  FE_CAN_FEC_1_2	|
-					  FE_CAN_FEC_2_3	|
-					  FE_CAN_FEC_3_4	|
-					  FE_CAN_FEC_5_6	|
-					  FE_CAN_FEC_7_8	|
-					  FE_CAN_FEC_AUTO	|
-					  FE_CAN_QPSK;
+		fi->caps		= FE_CAN_INVERSION_AUTO |
+					  FE_CAN_FEC_1_2        |
+					  FE_CAN_FEC_2_3        |
+					  FE_CAN_FEC_3_4        |
+					  FE_CAN_FEC_5_6        |
+					  FE_CAN_FEC_7_8        |
+					  FE_CAN_FEC_AUTO       |
+					  FE_CAN_QPSK           |
+					  FE_CAN_2G_MODULATION;
 		break;
 
 	case FIREDTV_DVB_C:

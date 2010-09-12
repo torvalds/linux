@@ -24,6 +24,8 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
+#include <dvb_frontend.h>
+
 #include "firedtv.h"
 
 #define FCP_COMMAND_REGISTER		0xfffff0000b00ULL
@@ -368,10 +370,30 @@ static int avc_tuner_tuneqpsk(struct firedtv *fdtv,
 		c->operand[12] = 0;
 
 	if (fdtv->type == FIREDTV_DVB_S2) {
-		c->operand[13] = 0x1;
-		c->operand[14] = 0xff;
-		c->operand[15] = 0xff;
-
+		if (fdtv->fe.dtv_property_cache.delivery_system == SYS_DVBS2) {
+			switch (fdtv->fe.dtv_property_cache.modulation) {
+			case QAM_16:		c->operand[13] = 0x1; break;
+			case QPSK:		c->operand[13] = 0x2; break;
+			case PSK_8:		c->operand[13] = 0x3; break;
+			default:		c->operand[13] = 0x2; break;
+			}
+			switch (fdtv->fe.dtv_property_cache.rolloff) {
+			case ROLLOFF_AUTO:	c->operand[14] = 0x2; break;
+			case ROLLOFF_35:	c->operand[14] = 0x2; break;
+			case ROLLOFF_20:	c->operand[14] = 0x0; break;
+			case ROLLOFF_25:	c->operand[14] = 0x1; break;
+			/* case ROLLOFF_NONE:	c->operand[14] = 0xff; break; */
+			}
+			switch (fdtv->fe.dtv_property_cache.pilot) {
+			case PILOT_AUTO:	c->operand[15] = 0x0; break;
+			case PILOT_OFF:		c->operand[15] = 0x0; break;
+			case PILOT_ON:		c->operand[15] = 0x1; break;
+			}
+		} else {
+			c->operand[13] = 0x1;  /* auto modulation */
+			c->operand[14] = 0xff; /* disable rolloff */
+			c->operand[15] = 0xff; /* disable pilot */
+		}
 		return 16;
 	} else {
 		return 13;
