@@ -3297,13 +3297,14 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 	unsigned long size;
 	unsigned prim_walk;
 	unsigned nverts;
+	unsigned num_cb = track->num_cb;
 
-	for (i = 0; i < track->num_cb; i++) {
+	if (!track->zb_cb_clear && !track->color_channel_mask &&
+	    !track->blend_read_enable)
+		num_cb = 0;
+
+	for (i = 0; i < num_cb; i++) {
 		if (track->cb[i].robj == NULL) {
-			if (!(track->zb_cb_clear || track->color_channel_mask ||
-			      track->blend_read_enable)) {
-				continue;
-			}
 			DRM_ERROR("[drm] No buffer for color buffer %d !\n", i);
 			return -EINVAL;
 		}
