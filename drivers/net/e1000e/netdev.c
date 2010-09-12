@@ -3412,22 +3412,16 @@ static int e1000_test_msi_interrupt(struct e1000_adapter *adapter)
 
 	if (adapter->flags & FLAG_MSI_TEST_FAILED) {
 		adapter->int_mode = E1000E_INT_MODE_LEGACY;
-		err = -EIO;
-		e_info("MSI interrupt test failed!\n");
-	}
+		e_info("MSI interrupt test failed, using legacy interrupt.\n");
+	} else
+		e_dbg("MSI interrupt test succeeded!\n");
 
 	free_irq(adapter->pdev->irq, netdev);
 	pci_disable_msi(adapter->pdev);
 
-	if (err == -EIO)
-		goto msi_test_failed;
-
-	/* okay so the test worked, restore settings */
-	e_dbg("MSI interrupt test succeeded!\n");
 msi_test_failed:
 	e1000e_set_interrupt_capability(adapter);
-	e1000_request_irq(adapter);
-	return err;
+	return e1000_request_irq(adapter);
 }
 
 /**
@@ -3458,21 +3452,6 @@ static int e1000_test_msi(struct e1000_adapter *adapter)
 		pci_cmd |= PCI_COMMAND_SERR;
 		pci_write_config_word(adapter->pdev, PCI_COMMAND, pci_cmd);
 	}
-
-	/* success ! */
-	if (!err)
-		return 0;
-
-	/* EIO means MSI test failed */
-	if (err != -EIO)
-		return err;
-
-	/* back to INTx mode */
-	e_warn("MSI interrupt test failed, using legacy interrupt.\n");
-
-	e1000_free_irq(adapter);
-
-	err = e1000_request_irq(adapter);
 
 	return err;
 }
