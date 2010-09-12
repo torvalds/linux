@@ -172,6 +172,7 @@ config CRYPTO_DEV_MV_CESA
 
 config CRYPTO_DEV_NIAGARA2
        tristate "Niagara2 Stream Processing Unit driver"
+       select CRYPTO_DES
        select CRYPTO_ALGAPI
        depends on SPARC64
        help
