@@ -242,7 +242,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 	}
 
 	dev_priv->gart_info.sg_dummy_page =
-		alloc_page(GFP_KERNEL|__GFP_DMA32);
+		alloc_page(GFP_KERNEL|__GFP_DMA32|__GFP_ZERO);
 	if (!dev_priv->gart_info.sg_dummy_page) {
 		nouveau_gpuobj_ref(NULL, &gpuobj);
 		return -ENOMEM;
