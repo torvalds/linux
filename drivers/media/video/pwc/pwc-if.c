@@ -1365,7 +1365,7 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 	}
 
 	PWC_DEBUG_READ("Copying data to user space.\n");
-	if (pdev->vpalette == VIDEO_PALETTE_RAW)
+	if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
 		bytes_to_read = pdev->frame_size + sizeof(struct pwc_raw_frame);
 	else
 		bytes_to_read = pdev->view.size;
@@ -1800,13 +1800,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	}
 
 	pdev->vdev->release = video_device_release;
-	rc = video_register_device(pdev->vdev, VFL_TYPE_GRABBER, video_nr);
-	if (rc < 0) {
-		PWC_ERROR("Failed to register as video device (%d).\n", rc);
-		goto err_video_release;
-	}
-
-	PWC_INFO("Registered as %s.\n", video_device_node_name(pdev->vdev));
 
 	/* occupy slot */
 	if (hint < MAX_DEV_HINTS)
@@ -1814,13 +1807,21 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	PWC_DEBUG_PROBE("probe() function returning struct at 0x%p.\n", pdev);
 	usb_set_intfdata(intf, pdev);
-	rc = pwc_create_sysfs_files(pdev->vdev);
-	if (rc)
-		goto err_video_unreg;
 
 	/* Set the leds off */
 	pwc_set_leds(pdev, 0, 0);
 	pwc_camera_power(pdev, 0);
+
+	rc = video_register_device(pdev->vdev, VFL_TYPE_GRABBER, video_nr);
+	if (rc < 0) {
+		PWC_ERROR("Failed to register as video device (%d).\n", rc);
+		goto err_video_release;
+	}
+	rc = pwc_create_sysfs_files(pdev->vdev);
+	if (rc)
+		goto err_video_unreg;
+
+	PWC_INFO("Registered as %s.\n", video_device_node_name(pdev->vdev));
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	/* register webcam snapshot button input device */
