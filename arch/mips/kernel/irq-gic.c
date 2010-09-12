@@ -130,7 +130,7 @@ static int gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	int		i;
 
 	irq -= _irqbase;
-	pr_debug(KERN_DEBUG "%s(%d) called\n", __func__, irq);
+	pr_debug("%s(%d) called\n", __func__, irq);
 	cpumask_and(&tmp, cpumask, cpu_online_mask);
 	if (cpus_empty(tmp))
 		return -1;
