@@ -855,16 +855,13 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 	return retval;
 }
 
-static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
+static int wacom_bpt_touch(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
 	int sp = 0, sx = 0, sy = 0, count = 0;
 	int i;
-
-	if (len != WACOM_PKGLEN_BBTOUCH)
-		return 0;
 
 	for (i = 0; i < 2; i++) {
 		int p = data[9 * i + 2];
@@ -903,6 +900,14 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 	input_report_key(input, BTN_RIGHT, (data[1] & 0x01) != 0);
 
 	input_sync(input);
+
+	return 0;
+}
+
+static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
+{
+	if (len == WACOM_PKGLEN_BBTOUCH)
+		return wacom_bpt_touch(wacom);
 
 	return 0;
 }
