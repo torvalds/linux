@@ -60,6 +60,49 @@ struct snr_table {
 	u8 snr;
 };
 
+struct coeff {
+	u32 adc_clock;
+	fe_bandwidth_t bw;
+	u32 ns_coeff1_2048nu;
+	u32 ns_coeff1_8191nu;
+	u32 ns_coeff1_8192nu;
+	u32 ns_coeff1_8193nu;
+	u32 ns_coeff2_2k;
+	u32 ns_coeff2_8k;
+};
+
+/* coeff lookup table */
+static struct coeff coeff_table[] = {
+	/* 28.800 MHz */
+	{ 28800, BANDWIDTH_6_MHZ, 0x01e79e7a, 0x0079eb6e, 0x0079e79e,
+		0x0079e3cf, 0x00f3cf3d, 0x003cf3cf },
+	{ 28800, BANDWIDTH_7_MHZ, 0x0238e38e, 0x008e3d55, 0x008e38e4,
+		0x008e3472, 0x011c71c7, 0x00471c72 },
+	{ 28800, BANDWIDTH_8_MHZ, 0x028a28a3, 0x00a28f3d, 0x00a28a29,
+		0x00a28514, 0x01451451, 0x00514514 },
+	/* 20.480 MHz */
+	{ 20480, BANDWIDTH_6_MHZ, 0x02adb6dc, 0x00ab7313, 0x00ab6db7,
+		0x00ab685c, 0x0156db6e, 0x0055b6dc },
+	{ 20480, BANDWIDTH_7_MHZ, 0x03200001, 0x00c80640, 0x00c80000,
+		0x00c7f9c0, 0x01900000, 0x00640000 },
+	{ 20480, BANDWIDTH_8_MHZ, 0x03924926, 0x00e4996e, 0x00e49249,
+		0x00e48b25, 0x01c92493, 0x00724925 },
+	/* 28.000 MHz */
+	{ 28000, BANDWIDTH_6_MHZ, 0x01f58d10, 0x007d672f, 0x007d6344,
+		0x007d5f59, 0x00fac688, 0x003eb1a2 },
+	{ 28000, BANDWIDTH_7_MHZ, 0x02492492, 0x00924db7, 0x00924925,
+		0x00924492, 0x01249249, 0x00492492 },
+	{ 28000, BANDWIDTH_8_MHZ, 0x029cbc15, 0x00a7343f, 0x00a72f05,
+		0x00a729cc, 0x014e5e0a, 0x00539783 },
+	/* 25.000 MHz */
+	{ 25000, BANDWIDTH_6_MHZ, 0x0231bcb5, 0x008c7391, 0x008c6f2d,
+		0x008c6aca, 0x0118de5b, 0x00463797 },
+	{ 25000, BANDWIDTH_7_MHZ, 0x028f5c29, 0x00a3dc29, 0x00a3d70a,
+		0x00a3d1ec, 0x0147ae14, 0x0051eb85 },
+	{ 25000, BANDWIDTH_8_MHZ, 0x02ecfb9d, 0x00bb44c1, 0x00bb3ee7,
+		0x00bb390d, 0x01767dce, 0x005d9f74 },
+};
+
 /* QPSK SNR lookup table */
 static struct snr_table qpsk_snr_table[] = {
 	{ 0x0b4771,  0 },
