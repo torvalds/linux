@@ -30,7 +30,7 @@ struct sk_buff *merge_frag_packet(struct list_head *head,
 	struct sk_buff *skb);
 
 void create_frag_entry(struct list_head *head, struct sk_buff *skb);
-void create_frag_buffer(struct list_head *head);
+int create_frag_buffer(struct list_head *head);
 struct frag_packet_list_entry *search_frag_packet(struct list_head *head,
 	struct unicast_frag_packet *up);
 void frag_list_free(struct list_head *head);

@@ -1232,8 +1232,12 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 
 		orig_node->last_frag_packet = jiffies;
 
-		if (list_empty(&orig_node->frag_list))
-			create_frag_buffer(&orig_node->frag_list);
+		if (list_empty(&orig_node->frag_list) &&
+			create_frag_buffer(&orig_node->frag_list)) {
+			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
+					       flags);
+			return NET_RX_DROP;
+		}
 
 		tmp_frag_entry =
 			search_frag_packet(&orig_node->frag_list,

@@ -78,7 +78,7 @@ void create_frag_entry(struct list_head *head, struct sk_buff *skb)
 	return;
 }
 
-void create_frag_buffer(struct list_head *head)
+int create_frag_buffer(struct list_head *head)
 {
 	int i;
 	struct frag_packet_list_entry *tfp;
@@ -86,13 +86,17 @@ void create_frag_buffer(struct list_head *head)
 	for (i = 0; i < FRAG_BUFFER_SIZE; i++) {
 		tfp = kmalloc(sizeof(struct frag_packet_list_entry),
 			GFP_ATOMIC);
+		if (!tfp) {
+			frag_list_free(head);
+			return -ENOMEM;
+		}
 		tfp->skb = NULL;
 		tfp->seqno = 0;
 		INIT_LIST_HEAD(&tfp->list);
 		list_add(&tfp->list, head);
 	}
 
-	return;
+	return 0;
 }
 
 struct frag_packet_list_entry *search_frag_packet(struct list_head *head,
