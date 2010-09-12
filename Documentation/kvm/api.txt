@@ -1042,8 +1042,9 @@ number is just right, the 'nent' field is adjusted to the number of valid
 entries in the 'entries' array, which is then filled.
 
 The entries returned are the host cpuid as returned by the cpuid instruction,
-with unknown or unsupported features masked out.  The fields in each entry
-are defined as follows:
+with unknown or unsupported features masked out.  Some features (for example,
+x2apic), may not be present in the host cpu, but are exposed by kvm if it can
+emulate them efficiently. The fields in each entry are defined as follows:
 
   function: the eax value used to obtain the entry
   index: the ecx value used to obtain the entry (for entries that are
