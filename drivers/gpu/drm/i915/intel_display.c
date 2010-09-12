@@ -1034,16 +1034,17 @@ void intel_wait_for_vblank_off(struct drm_device *dev, int pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipedsl_reg = (pipe == 0 ? PIPEADSL : PIPEBDSL);
 	unsigned long timeout = jiffies + msecs_to_jiffies(100);
-	u32 last_line;
+	u32 last_line, line;
 
 	/* Wait for the display line to settle */
+	line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
 	do {
-		last_line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
-		mdelay(5);
-	} while (((I915_READ(pipedsl_reg) & DSL_LINEMASK) != last_line) &&
-		 time_after(timeout, jiffies));
+		last_line = line;
+		MSLEEP(5);
+		line = I915_READ(pipedsl_reg) & DSL_LINEMASK;
+	} while (line != last_line && time_after(timeout, jiffies));
 
-	if (time_after(jiffies, timeout))
+	if (line != last_line)
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
