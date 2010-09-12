@@ -73,6 +73,7 @@ struct intel_gtt_driver {
 	unsigned int is_g33 : 1;
 	unsigned int is_pineview : 1;
 	unsigned int is_ironlake : 1;
+	unsigned int dma_mask_size : 8;
 	/* Chipset specific GTT setup */
 	int (*setup)(void);
 	void (*write_entry)(dma_addr_t addr, unsigned int entry, unsigned int flags);
@@ -1309,11 +1310,13 @@ static const struct agp_bridge_driver intel_fake_agp_driver = {
 
 static const struct intel_gtt_driver i81x_gtt_driver = {
 	.gen = 1,
+	.dma_mask_size = 32,
 };
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
 	.setup = i830_setup,
 	.write_entry = i830_write_entry,
+	.dma_mask_size = 32,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i830_chipset_flush,
 };
@@ -1322,6 +1325,7 @@ static const struct intel_gtt_driver i915_gtt_driver = {
 	.setup = i9xx_setup,
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
 	.write_entry = i830_write_entry, 
+	.dma_mask_size = 32,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1330,6 +1334,7 @@ static const struct intel_gtt_driver g33_gtt_driver = {
 	.is_g33 = 1,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1338,6 +1343,7 @@ static const struct intel_gtt_driver pineview_gtt_driver = {
 	.is_pineview = 1, .is_g33 = 1,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1345,6 +1351,7 @@ static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1352,6 +1359,7 @@ static const struct intel_gtt_driver g4x_gtt_driver = {
 	.gen = 5,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1360,6 +1368,7 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.is_ironlake = 1,
 	.setup = i9xx_setup,
 	.write_entry = i965_write_entry,
+	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1367,6 +1376,7 @@ static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.gen = 6,
 	.setup = i9xx_setup,
 	.write_entry = gen6_write_entry,
+	.dma_mask_size = 40,
 	.check_flags = gen6_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
@@ -1511,13 +1521,7 @@ int intel_gmch_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
 
-	if (intel_private.driver->write_entry == gen6_write_entry)
-		mask = 40;
-	else if (intel_private.driver->write_entry == i965_write_entry)
-		mask = 36;
-	else
-		mask = 32;
-
+	mask = intel_private.driver->dma_mask_size;
 	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
 		dev_err(&intel_private.pcidev->dev,
 			"set gfx device dma mask %d-bit failed!\n", mask);
