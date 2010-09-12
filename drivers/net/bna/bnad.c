@@ -867,11 +867,12 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tcb *tcb)
 static void
 bnad_cb_tx_cleanup(struct bnad *bnad, struct bna_tcb *tcb)
 {
-	struct bnad_unmap_q *unmap_q = tcb->unmap_q;
+	struct bnad_unmap_q *unmap_q;
 
 	if (!tcb || (!tcb->unmap_q))
 		return;
 
+	unmap_q = tcb->unmap_q;
 	if (!unmap_q->unmap_array)
 		return;
 
