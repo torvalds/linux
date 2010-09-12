@@ -1325,6 +1325,7 @@ static  ADC_keyst gAdcValueTab[] =
 	{510, AD2KEY4},///HOME
 	{612, AD2KEY5},///BACK
 	{816, AD2KEY6},///CALL
+	{221, KEYSTART},///ENTER
 	{0,0}
 };
 
@@ -1343,7 +1344,7 @@ struct adc_key_data rk2818_adc_key = {
     .adc_chn        = 1,
     .adc_key_table  = gAdcValueTab,
     .initKeyCode    = gInitKeyCode,
-    .adc_key_cnt    = 7,
+    .adc_key_cnt    = 9,
 };
 struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
 	.adc_key = &rk2818_adc_key,
