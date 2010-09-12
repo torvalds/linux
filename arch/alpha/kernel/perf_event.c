@@ -422,9 +422,10 @@ static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 static int alpha_pmu_add(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	int n0;
 	int ret;
-	unsigned long flags;
+	unsigned long irq_flags;
 
 	/*
 	 * The Sparc code has the IRQ disable first followed by the perf
@@ -435,7 +436,7 @@ static int alpha_pmu_add(struct perf_event *event, int flags)
 	 * final PMI to occur before we disable interrupts.
 	 */
 	perf_pmu_disable(event->pmu);
-	local_irq_save(flags);
+	local_irq_save(irq_flags);
 
 	/* Default to error to be returned */
 	ret = -EAGAIN;
@@ -458,7 +459,7 @@ static int alpha_pmu_add(struct perf_event *event, int flags)
 	if (!(flags & PERF_EF_START))
 		hwc->state |= PERF_HES_STOPPED;
 
-	local_irq_restore(flags);
+	local_irq_restore(irq_flags);
 	perf_pmu_enable(event->pmu);
 
 	return ret;
@@ -474,11 +475,11 @@ static void alpha_pmu_del(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	unsigned long flags;
+	unsigned long irq_flags;
 	int j;
 
 	perf_pmu_disable(event->pmu);
-	local_irq_save(flags);
+	local_irq_save(irq_flags);
 
 	for (j = 0; j < cpuc->n_events; j++) {
 		if (event == cpuc->event[j]) {
@@ -504,7 +505,7 @@ static void alpha_pmu_del(struct perf_event *event, int flags)
 		}
 	}
 
-	local_irq_restore(flags);
+	local_irq_restore(irq_flags);
 	perf_pmu_enable(event->pmu);
 }
 
@@ -523,7 +524,7 @@ static void alpha_pmu_stop(struct perf_event *event, int flags)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	if (!(hwc->state & PERF_HES_STOPPED)) {
-		cpuc->idx_mask &= !(1UL<<hwc->idx);
+		cpuc->idx_mask &= ~(1UL<<hwc->idx);
 		hwc->state |= PERF_HES_STOPPED;
 	}
 
@@ -533,7 +534,7 @@ static void alpha_pmu_stop(struct perf_event *event, int flags)
 	}
 
 	if (cpuc->enabled)
-		wrperfmon(PERFMON_CMD_ENABLE, (1UL<<hwc->idx));
+		wrperfmon(PERFMON_CMD_DISABLE, (1UL<<hwc->idx));
 }
 
 
@@ -849,7 +850,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 			/* Interrupts coming too quickly; "throttle" the
 			 * counter, i.e., disable it for a little while.
 			 */
-			cpuc->idx_mask &= ~(1UL<<idx);
+			alpha_pmu_stop(event, 0);
 		}
 	}
 	wrperfmon(PERFMON_CMD_ENABLE, cpuc->idx_mask);
