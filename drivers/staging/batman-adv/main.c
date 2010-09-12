@@ -71,6 +71,8 @@ static void __exit batman_exit(void)
 	flush_workqueue(bat_event_workqueue);
 	destroy_workqueue(bat_event_workqueue);
 	bat_event_workqueue = NULL;
+
+	synchronize_net();
 }
 
 int mesh_init(struct net_device *soft_iface)
@@ -132,9 +134,6 @@ void mesh_free(struct net_device *soft_iface)
 	hna_local_free(bat_priv);
 	hna_global_free(bat_priv);
 
-	synchronize_net();
-
-	synchronize_rcu();
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 }
 
