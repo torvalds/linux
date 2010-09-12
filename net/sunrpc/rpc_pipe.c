@@ -47,7 +47,7 @@ static void rpc_purge_list(struct rpc_inode *rpci, struct list_head *head,
 		return;
 	do {
 		msg = list_entry(head->next, struct rpc_pipe_msg, list);
-		list_del(&msg->list);
+		list_del_init(&msg->list);
 		msg->errno = err;
 		destroy_msg(msg);
 	} while (!list_empty(head));
@@ -207,7 +207,7 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 	if (msg != NULL) {
 		spin_lock(&inode->i_lock);
 		msg->errno = -EAGAIN;
-		list_del(&msg->list);
+		list_del_init(&msg->list);
 		spin_unlock(&inode->i_lock);
 		rpci->ops->destroy_msg(msg);
 	}
@@ -267,7 +267,7 @@ rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 	if (res < 0 || msg->len == msg->copied) {
 		filp->private_data = NULL;
 		spin_lock(&inode->i_lock);
-		list_del(&msg->list);
+		list_del_init(&msg->list);
 		spin_unlock(&inode->i_lock);
 		rpci->ops->destroy_msg(msg);
 	}
