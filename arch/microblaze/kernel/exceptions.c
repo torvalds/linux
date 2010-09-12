@@ -86,8 +86,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 	switch (type & 0x1F) {
 	case MICROBLAZE_ILL_OPCODE_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug(KERN_WARNING "Illegal opcode exception " \
-							"in user mode.\n");
+			pr_debug("Illegal opcode exception in user mode\n");
 			_exception(SIGILL, regs, ILL_ILLOPC, addr);
 			return;
 		}
@@ -97,8 +96,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		break;
 	case MICROBLAZE_IBUS_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug(KERN_WARNING "Instruction bus error " \
-						"exception in user mode.\n");
+			pr_debug("Instruction bus error exception in user mode\n");
 			_exception(SIGBUS, regs, BUS_ADRERR, addr);
 			return;
 		}
@@ -108,8 +106,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		break;
 	case MICROBLAZE_DBUS_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug(KERN_WARNING "Data bus error exception " \
-							"in user mode.\n");
+			pr_debug("Data bus error exception in user mode\n");
 			_exception(SIGBUS, regs, BUS_ADRERR, addr);
 			return;
 		}
@@ -119,8 +116,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		break;
 	case MICROBLAZE_DIV_ZERO_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug(KERN_WARNING "Divide by zero exception " \
-							"in user mode\n");
+			pr_debug("Divide by zero exception in user mode\n");
 			_exception(SIGILL, regs, FPE_INTDIV, addr);
 			return;
 		}
@@ -129,7 +125,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		die("Divide by zero exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_FPU_EXCEPTION:
-		pr_debug(KERN_WARNING "FPU exception\n");
+		pr_debug("FPU exception\n");
 		/* IEEE FP exception */
 		/* I removed fsr variable and use code var for storing fsr */
 		if (fsr & FSR_IO)
@@ -147,7 +143,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 
 #ifdef CONFIG_MMU
 	case MICROBLAZE_PRIVILEGED_EXCEPTION:
-		pr_debug(KERN_WARNING "Privileged exception\n");
+		pr_debug("Privileged exception\n");
 		/* "brk r0,r0" - used as debug breakpoint - old toolchain */
 		if (get_user(code, (unsigned long *)regs->pc) == 0
 			&& code == 0x980c0000) {
