@@ -22,12 +22,40 @@
 #include <linux/ioctl.h>  /* For IOCTL macros */
 
 #define SOC2030_IOCTL_SET_MODE		_IOWR('o', 1, struct soc2030_mode)
-#define SOC2030_IOCTL_GET_STATUS	 _IOC(_IOC_READ, 'o', 2, 10)
+#define SOC2030_IOCTL_GET_STATUS	_IOC(_IOC_READ, 'o', 2, 10)
+#define SOC2030_IOCTL_SET_PRIVATE	_IOWR('o', 3, struct soc2030_regs)
+#define SOC2030_IOCTL_GET_MODES		_IO('o', 4)
+#define SOC2030_IOCTL_GET_NUM_MODES	_IOR('o', 5, unsigned int)
 
+#define SOC2030_POLL_WAITMS 50
+#define SOC2030_MAX_RETRIES 3
+#define SOC2030_POLL_RETRIES 5
+
+#define SOC2030_MAX_PRIVATE_SIZE 1024
+
+enum {
+	REG_TABLE_END,
+	WRITE_REG_DATA,
+	WRITE_REG_BIT_H,
+	WRITE_REG_BIT_L,
+	POLL_REG_DATA,
+	POLL_REG_BIT_H,
+	POLL_REG_BIT_L,
+	POLL_VAR_DATA,
+	DELAY_MS,
+};
+
+struct soc2030_regs {
+	__u8 op;
+	__u16 addr;
+	__u16 val;
+};
 
 struct soc2030_mode {
 	int xres;
 	int yres;
+	int fps;
+	struct soc2030_regs *regset;
 };
 
 #ifdef __KERNEL__
