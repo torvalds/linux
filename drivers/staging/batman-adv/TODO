@@ -1,3 +1,8 @@
+ * Rework usage of RCU
+    - don't leak pointers from rcu out of rcu critical area which may
+      get freed
+    - check were synchronize_rcu must be used
+    - go through Documentation/RCU/checklist.txt
  * Request a new review
  * Process the comments from the review
  * Move into mainline proper
