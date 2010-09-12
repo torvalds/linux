@@ -83,10 +83,7 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 
 	if (on) {
 		I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
-		POSTING_READ(lvds_reg);
-
-		I915_WRITE(ctl_reg, I915_READ(ctl_reg) |
-			   POWER_TARGET_ON);
+		I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
 		if (wait_for(I915_READ(status_reg) & PP_ON, 1000))
 			DRM_ERROR("timed out waiting to enable LVDS pipe");
 
@@ -94,11 +91,7 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 	} else {
 		intel_panel_set_backlight(dev, 0);
 
-		I915_WRITE(ctl_reg, I915_READ(ctl_reg) &
-			   ~POWER_TARGET_ON);
-		if (wait_for((I915_READ(status_reg) & PP_ON) == 0, 1000))
-			DRM_ERROR("timed out waiting for LVDS pipe to turn off");
-
+		I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
 		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 		POSTING_READ(lvds_reg);
 	}
