@@ -732,7 +732,6 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
 	panel_fixed_mode = dev_priv->panel_fixed_mode;
 	temp_downclock = panel_fixed_mode->clock;
 
-	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		/*
 		 * If one mode has the same resolution with the fixed_panel
@@ -758,7 +757,6 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
 			}
 		}
 	}
-	mutex_unlock(&dev->mode_config.mutex);
 	if (temp_downclock < panel_fixed_mode->clock &&
 	    i915_lvds_downclock) {
 		/* We found the downclock for LVDS. */
@@ -929,23 +927,18 @@ void intel_lvds_init(struct drm_device *dev)
 		dev_priv->lvds_edid_good = false;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
-		mutex_lock(&dev->mode_config.mutex);
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			dev_priv->panel_fixed_mode =
 				drm_mode_duplicate(dev, scan);
-			mutex_unlock(&dev->mode_config.mutex);
 			intel_find_lvds_downclock(dev, connector);
 			goto out;
 		}
-		mutex_unlock(&dev->mode_config.mutex);
 	}
 
 	/* Failed to get EDID, what about VBT? */
 	if (dev_priv->lfp_lvds_vbt_mode) {
-		mutex_lock(&dev->mode_config.mutex);
 		dev_priv->panel_fixed_mode =
 			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
-		mutex_unlock(&dev->mode_config.mutex);
 		if (dev_priv->panel_fixed_mode) {
 			dev_priv->panel_fixed_mode->type |=
 				DRM_MODE_TYPE_PREFERRED;
