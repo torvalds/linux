@@ -76,7 +76,7 @@ struct crystalhd_adp {
 	spinlock_t		lock;
 
 	/* API Related */
-	unsigned int		chd_dec_major;
+	int		chd_dec_major;
 	unsigned int		cfg_users;
 
 	struct crystalhd_ioctl_data	*idata_free_head;	/* ioctl data pool */
