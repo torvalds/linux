@@ -69,20 +69,6 @@ static struct gatt_mask intel_i810_masks[] =
 #define INTEL_AGP_CACHED_MEMORY_LLC_MLC        3
 #define INTEL_AGP_CACHED_MEMORY_LLC_MLC_GFDT   4
 
-static struct gatt_mask intel_gen6_masks[] =
-{
-	{.mask = I810_PTE_VALID | GEN6_PTE_UNCACHED,
-	 .type = INTEL_AGP_UNCACHED_MEMORY },
-	{.mask = I810_PTE_VALID | GEN6_PTE_LLC,
-         .type = INTEL_AGP_CACHED_MEMORY_LLC },
-	{.mask = I810_PTE_VALID | GEN6_PTE_LLC | GEN6_PTE_GFDT,
-         .type = INTEL_AGP_CACHED_MEMORY_LLC_GFDT },
-	{.mask = I810_PTE_VALID | GEN6_PTE_LLC_MLC,
-         .type = INTEL_AGP_CACHED_MEMORY_LLC_MLC },
-	{.mask = I810_PTE_VALID | GEN6_PTE_LLC_MLC | GEN6_PTE_GFDT,
-         .type = INTEL_AGP_CACHED_MEMORY_LLC_MLC_GFDT },
-};
-
 struct intel_gtt_driver {
 	unsigned int gen : 8;
 	unsigned int is_g33 : 1;
@@ -286,34 +272,6 @@ static void i8xx_destroy_pages(struct page *page)
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
 }
-
-static int intel_i830_type_to_mask_type(struct agp_bridge_data *bridge,
-					int type)
-{
-	if (type < AGP_USER_TYPES)
-		return type;
-	else if (type == AGP_USER_CACHED_MEMORY)
-		return INTEL_AGP_CACHED_MEMORY;
-	else
-		return 0;
-}
-
-static int intel_gen6_type_to_mask_type(struct agp_bridge_data *bridge,
-					int type)
-{
-	unsigned int type_mask = type & ~AGP_USER_CACHED_MEMORY_GFDT;
-	unsigned int gfdt = type & AGP_USER_CACHED_MEMORY_GFDT;
-
-	if (type_mask == AGP_USER_UNCACHED_MEMORY)
-		return INTEL_AGP_UNCACHED_MEMORY;
-	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC)
-		return gfdt ? INTEL_AGP_CACHED_MEMORY_LLC_MLC_GFDT :
-			      INTEL_AGP_CACHED_MEMORY_LLC_MLC;
-	else /* set 'normal'/'cached' to LLC by default */
-		return gfdt ? INTEL_AGP_CACHED_MEMORY_LLC_GFDT :
-			      INTEL_AGP_CACHED_MEMORY_LLC;
-}
-
 
 static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 				int type)
@@ -1290,35 +1248,6 @@ static int i9xx_setup(void)
 	return 0;
 }
 
-/*
- * The i965 supports 36-bit physical addresses, but to keep
- * the format of the GTT the same, the bits that don't fit
- * in a 32-bit word are shifted down to bits 4..7.
- *
- * Gcc is smart enough to notice that "(addr >> 28) & 0xf0"
- * is always zero on 32-bit architectures, so no need to make
- * this conditional.
- */
-static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
-					    dma_addr_t addr, int type)
-{
-	/* Shift high bits down */
-	addr |= (addr >> 28) & 0xf0;
-
-	/* Type checking must be done elsewhere */
-	return addr | bridge->driver->masks[type].mask;
-}
-
-static unsigned long intel_gen6_mask_memory(struct agp_bridge_data *bridge,
-					    dma_addr_t addr, int type)
-{
-	/* gen6 has bit11-4 for physical addr bit39-32 */
-	addr |= (addr >> 28) & 0xff0;
-
-	/* Type checking must be done elsewhere */
-	return addr | bridge->driver->masks[type].mask;
-}
-
 static const struct agp_bridge_driver intel_810_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= intel_i810_sizes,
@@ -1353,8 +1282,6 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
-	.mask_memory		= intel_i810_mask_memory,
-	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
@@ -1367,7 +1294,6 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i830_chipset_flush,
 };
 
@@ -1379,8 +1305,6 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
-	.mask_memory		= intel_i810_mask_memory,
-	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
@@ -1393,7 +1317,6 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
 
@@ -1405,8 +1328,6 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
-	.mask_memory		= intel_i965_mask_memory,
-	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
@@ -1419,7 +1340,6 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
 
@@ -1431,8 +1351,6 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
-	.mask_memory		= intel_gen6_mask_memory,
-	.masks			= intel_gen6_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
@@ -1445,7 +1363,6 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.agp_type_to_mask_type	= intel_gen6_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
 
@@ -1457,8 +1374,6 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.configure		= intel_fake_agp_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
 	.cleanup		= intel_gtt_cleanup,
-	.mask_memory		= intel_i965_mask_memory,
-	.masks			= intel_i810_masks,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
 	.create_gatt_table	= intel_fake_agp_create_gatt_table,
@@ -1471,10 +1386,12 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
 
+static const struct intel_gtt_driver i81x_gtt_driver = {
+	.gen = 1,
+};
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
 	.setup = i830_setup,
@@ -1538,10 +1455,14 @@ static const struct intel_gtt_driver_description {
 	const struct agp_bridge_driver *gmch_driver;
 	const struct intel_gtt_driver *gtt_driver;
 } intel_gtt_chipsets[] = {
-	{ PCI_DEVICE_ID_INTEL_82810_IG1, "i810", &intel_810_driver , NULL},
-	{ PCI_DEVICE_ID_INTEL_82810_IG3, "i810", &intel_810_driver , NULL},
-	{ PCI_DEVICE_ID_INTEL_82810E_IG, "i810", &intel_810_driver , NULL},
-	{ PCI_DEVICE_ID_INTEL_82815_CGC, "i815", &intel_810_driver , NULL},
+	{ PCI_DEVICE_ID_INTEL_82810_IG1, "i810", &intel_810_driver,
+		&i81x_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82810_IG3, "i810", &intel_810_driver,
+		&i81x_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82810E_IG, "i810", &intel_810_driver,
+		&i81x_gtt_driver},
+	{ PCI_DEVICE_ID_INTEL_82815_CGC, "i815", &intel_810_driver,
+		&i81x_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82830_CGC, "830M",
 		&intel_830_driver , &i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82845G_IG, "830M",
@@ -1664,9 +1585,9 @@ int intel_gmch_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
 
-	if (bridge->driver->mask_memory == intel_gen6_mask_memory)
+	if (intel_private.driver->write_entry == gen6_write_entry)
 		mask = 40;
-	else if (bridge->driver->mask_memory == intel_i965_mask_memory)
+	else if (intel_private.driver->write_entry == i965_write_entry)
 		mask = 36;
 	else
 		mask = 32;
