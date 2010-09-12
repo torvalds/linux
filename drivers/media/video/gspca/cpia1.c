@@ -380,6 +380,7 @@ static int sd_getilluminator2(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 	{
+#define BRIGHTNESS_IDX 0
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -394,6 +395,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
+#define CONTRAST_IDX 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -408,6 +410,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
+#define SATURATION_IDX 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -422,6 +425,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setsaturation,
 	    .get = sd_getsaturation,
 	},
+#define POWER_LINE_FREQUENCY_IDX 3
 	{
 		{
 			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -436,6 +440,7 @@ static const struct ctrl sd_ctrls[] = {
 		.set = sd_setfreq,
 		.get = sd_getfreq,
 	},
+#define ILLUMINATORS_1_IDX 4
 	{
 		{
 			.id	 = V4L2_CID_ILLUMINATORS_1,
@@ -450,6 +455,7 @@ static const struct ctrl sd_ctrls[] = {
 		.set = sd_setilluminator1,
 		.get = sd_getilluminator1,
 	},
+#define ILLUMINATORS_2_IDX 5
 	{
 		{
 			.id	 = V4L2_CID_ILLUMINATORS_2,
@@ -464,6 +470,7 @@ static const struct ctrl sd_ctrls[] = {
 		.set = sd_setilluminator2,
 		.get = sd_getilluminator2,
 	},
+#define COMP_TARGET_IDX 6
 	{
 		{
 #define V4L2_CID_COMP_TARGET V4L2_CID_PRIVATE_BASE
@@ -1756,9 +1763,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (ret)
 		return ret;
 
-	/* Ensure the QX3 illuminators' states are restored upon resume */
+	/* Ensure the QX3 illuminators' states are restored upon resume,
+	   or disable the illuminator controls, if this isn't a QX3 */
 	if (sd->params.qx3.qx3_detected)
 		command_setlights(gspca_dev);
+	else
+		gspca_dev->ctrl_dis |=
+			((1 << ILLUMINATORS_1_IDX) | (1 << ILLUMINATORS_2_IDX));
 
 	sd_stopN(gspca_dev);
 
