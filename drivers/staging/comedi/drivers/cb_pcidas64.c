@@ -3078,7 +3078,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 			spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 	/*  if we are have all the data, then quit */
-	if ((cmd->stop_src == TRIG_COUNT && priv(dev)->ai_count <= 0) ||
+	if ((cmd->stop_src == TRIG_COUNT && (int)priv(dev)->ai_count <= 0) ||
 	    (cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT))) {
 		async->events |= COMEDI_CB_EOA;
 	}
