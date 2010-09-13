@@ -2568,11 +2568,8 @@ static void __iwl3945_down(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	int exit_pending = test_bit(STATUS_EXIT_PENDING, &priv->status);
-	struct ieee80211_conf *conf = NULL;
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
-
-	conf = ieee80211_get_hw_conf(priv->hw);
 
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
@@ -2827,12 +2824,9 @@ void iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		.flags = CMD_SIZE_HUGE,
 	};
 	struct iwl3945_scan_cmd *scan;
-	struct ieee80211_conf *conf = NULL;
 	u8 n_probes = 0;
 	enum ieee80211_band band;
 	bool is_active = false;
-
-	conf = ieee80211_get_hw_conf(priv->hw);
 
 	cancel_delayed_work(&priv->scan_check);
 

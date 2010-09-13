@@ -1158,7 +1158,6 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		.flags = CMD_SIZE_HUGE,
 	};
 	struct iwl_scan_cmd *scan;
-	struct ieee80211_conf *conf = NULL;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u32 rate_flags = 0;
 	u16 cmd_len;
@@ -1174,8 +1173,6 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	if (vif)
 		ctx = iwl_rxon_ctx_from_vif(vif);
-
-	conf = ieee80211_get_hw_conf(priv->hw);
 
 	cancel_delayed_work(&priv->scan_check);
 
