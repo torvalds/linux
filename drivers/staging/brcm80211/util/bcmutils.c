@@ -792,10 +792,7 @@ int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr * ea) {
 
 char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf)
 {
-	static const char template[] = "%02x:%02x:%02x:%02x:%02x:%02x";
-	snprintf(buf, 18, template,
-		 ea->octet[0] & 0xff, ea->octet[1] & 0xff, ea->octet[2] & 0xff,
-		 ea->octet[3] & 0xff, ea->octet[4] & 0xff, ea->octet[5] & 0xff);
+	snprintf(buf, 18, "%pM", ea->octet);
 	return (buf);
 }
 
