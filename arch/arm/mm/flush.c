@@ -17,6 +17,7 @@
 #include <asm/smp_plat.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
+#include <asm/smp_plat.h>
 
 #include "mm.h"
 
@@ -93,12 +94,10 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 #define flush_pfn_alias(pfn,vaddr)	do { } while (0)
 #endif
 
-#ifdef CONFIG_SMP
 static void flush_ptrace_access_other(void *args)
 {
 	__flush_icache_all();
 }
-#endif
 
 static
 void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
@@ -122,11 +121,9 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	if (vma->vm_flags & VM_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
 		__cpuc_coherent_kern_range(addr, addr + len);
-#ifdef CONFIG_SMP
 		if (cache_ops_need_broadcast())
 			smp_call_function(flush_ptrace_access_other,
 					  NULL, 1);
-#endif
 	}
 }
 
@@ -276,12 +273,10 @@ void flush_dcache_page(struct page *page)
 
 	mapping = page_mapping(page);
 
-#ifndef CONFIG_SMP
-	if (mapping && !mapping_mapped(mapping))
+	if (!cache_ops_need_broadcast() &&
+	    mapping && !mapping_mapped(mapping))
 		clear_bit(PG_dcache_clean, &page->flags);
-	else
-#endif
-	{
+	else {
 		__flush_dcache_page(mapping, page);
 		if (mapping && cache_is_vivt())
 			__flush_dcache_aliases(mapping, page);
