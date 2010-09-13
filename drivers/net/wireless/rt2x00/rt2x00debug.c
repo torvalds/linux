@@ -380,7 +380,7 @@ static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
 					     loff_t *offset)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
-	char *name[] = { "WEP64", "WEP128", "TKIP", "AES" };
+	static const char * const name[] = { "WEP64", "WEP128", "TKIP", "AES" };
 	char *data;
 	char *temp;
 	size_t size;
