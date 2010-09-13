@@ -224,7 +224,7 @@ static int __devinit pkgtemp_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&pdev->dev.kobj, &pkgtemp_group);
 	if (err)
-		goto exit_free;
+		goto exit_dev;
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -238,6 +238,8 @@ static int __devinit pkgtemp_probe(struct platform_device *pdev)
 
 exit_class:
 	sysfs_remove_group(&pdev->dev.kobj, &pkgtemp_group);
+exit_dev:
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 exit_free:
 	kfree(data);
 exit:
@@ -250,6 +252,7 @@ static int __devexit pkgtemp_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &pkgtemp_group);
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 	return 0;
