@@ -44,7 +44,7 @@
 bool intel_pipe_has_type (struct drm_crtc *crtc, int type);
 static void intel_update_watermarks(struct drm_device *dev);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
-static void intel_crtc_update_cursor(struct drm_crtc *crtc);
+static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
 typedef struct {
     /* given values */
@@ -1927,6 +1927,26 @@ static void intel_flush_display_plane(struct drm_device *dev,
 	I915_WRITE(reg, I915_READ(reg));
 }
 
+/*
+ * When we disable a pipe, we need to clear any pending scanline wait events
+ * to avoid hanging the ring, which we assume we are waiting on.
+ */
+static void intel_clear_scanline_wait(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 tmp;
+
+	if (IS_GEN2(dev))
+		/* Can't break the hang on i8xx */
+		return;
+
+	tmp = I915_READ(PRB0_CTL);
+	if (tmp & RING_WAIT) {
+		I915_WRITE(PRB0_CTL, tmp);
+		POSTING_READ(PRB0_CTL);
+	}
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1935,6 +1955,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
+
+	intel_update_watermarks(dev);
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		temp = I915_READ(PCH_LVDS);
@@ -2082,6 +2104,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
+	intel_crtc_update_cursor(crtc, true);
 }
 
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
@@ -2094,6 +2117,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	u32 reg, temp;
 
 	drm_vblank_off(dev, pipe);
+	intel_crtc_update_cursor(crtc, false);
 
 	/* Disable display plane */
 	reg = DSPCNTR(plane);
@@ -2220,6 +2244,10 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	/* Wait for the clocks to turn off. */
 	POSTING_READ(reg);
 	udelay(100);
+
+	intel_update_watermarks(dev);
+	intel_update_fbc(dev);
+	intel_clear_scanline_wait(dev);
 }
 
 static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -2270,6 +2298,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
 
+	intel_update_watermarks(dev);
+
 	/* Enable the DPLL */
 	reg = DPLL(pipe);
 	temp = I915_READ(reg);
@@ -2312,6 +2342,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
+	intel_crtc_update_cursor(crtc, true);
 }
 
 static void i9xx_crtc_disable(struct drm_crtc *crtc)
@@ -2325,6 +2356,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, false);
+	intel_crtc_update_cursor(crtc, false);
 	drm_vblank_off(dev, pipe);
 
 	if (dev_priv->cfb_plane == plane &&
@@ -2346,7 +2378,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 	/* Don't disable pipe A or pipe A PLLs if needed */
 	if (pipe == 0 && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
-		return;
+		goto done;
 
 	/* Next, disable display pipes */
 	reg = PIPECONF(pipe);
@@ -2368,6 +2400,11 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		POSTING_READ(reg);
 		udelay(150);
 	}
+
+done:
+	intel_update_fbc(dev);
+	intel_update_watermarks(dev);
+	intel_clear_scanline_wait(dev);
 }
 
 static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -2387,26 +2424,6 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
-/*
- * When we disable a pipe, we need to clear any pending scanline wait events
- * to avoid hanging the ring, which we assume we are waiting on.
- */
-static void intel_clear_scanline_wait(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 tmp;
-
-	if (IS_GEN2(dev))
-		/* Can't break the hang on i8xx */
-		return;
-
-	tmp = I915_READ(PRB0_CTL);
-	if (tmp & RING_WAIT) {
-		I915_WRITE(PRB0_CTL, tmp);
-		POSTING_READ(PRB0_CTL);
-	}
-}
-
 /**
  * Sets the power management mode of the pipe and plane.
  */
@@ -2423,33 +2440,8 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		return;
 
 	intel_crtc->dpms_mode = mode;
-	intel_crtc->cursor_on = mode == DRM_MODE_DPMS_ON;
-
-	/* When switching on the display, ensure that SR is disabled
-	 * with multiple pipes prior to enabling to new pipe.
-	 *
-	 * When switching off the display, make sure the cursor is
-	 * properly hidden and there are no pending waits prior to
-	 * disabling the pipe.
-	 */
-	if (mode == DRM_MODE_DPMS_ON)
-		intel_update_watermarks(dev);
-	else
-		intel_crtc_update_cursor(crtc);
 
 	dev_priv->display.dpms(crtc, mode);
-
-	if (mode == DRM_MODE_DPMS_ON) {
-		intel_crtc_update_cursor(crtc);
-	} else {
-		/* XXX Note that this is not a complete solution, but a hack
-		 * to avoid the most frequently hit hang.
-		 */
-		intel_clear_scanline_wait(dev);
-
-		intel_update_watermarks(dev);
-	}
-	intel_update_fbc(dev);
 
 	if (!dev->primary->master)
 		return;
@@ -2485,50 +2477,22 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
  */
 static void i9xx_crtc_prepare(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_crtc->cursor_on = false;
-	intel_crtc_update_cursor(crtc);
-
 	i9xx_crtc_disable(crtc);
-	intel_clear_scanline_wait(dev);
 }
 
 static void i9xx_crtc_commit(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_update_watermarks(dev);
 	i9xx_crtc_enable(crtc);
-
-	intel_crtc->cursor_on = true;
-	intel_crtc_update_cursor(crtc);
 }
 
 static void ironlake_crtc_prepare(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_crtc->cursor_on = false;
-	intel_crtc_update_cursor(crtc);
-
 	ironlake_crtc_disable(crtc);
-	intel_clear_scanline_wait(dev);
 }
 
 static void ironlake_crtc_commit(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_update_watermarks(dev);
 	ironlake_crtc_enable(crtc);
-
-	intel_crtc->cursor_on = true;
-	intel_crtc_update_cursor(crtc);
 }
 
 void intel_encoder_prepare (struct drm_encoder *encoder)
@@ -3615,7 +3579,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* Ensure that the cursor is valid for the new mode before changing... */
-	intel_crtc_update_cursor(crtc);
+	intel_crtc_update_cursor(crtc, true);
 
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
 		has_reduced_clock = limit->find_pll(limit, crtc,
@@ -4225,7 +4189,8 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 }
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
-static void intel_crtc_update_cursor(struct drm_crtc *crtc)
+static void intel_crtc_update_cursor(struct drm_crtc *crtc,
+				     bool on)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4238,7 +4203,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc)
 
 	pos = 0;
 
-	if (intel_crtc->cursor_on && crtc->fb) {
+	if (on && crtc->enabled && crtc->fb) {
 		base = intel_crtc->cursor_addr;
 		if (x > (int) crtc->fb->width)
 			base = 0;
@@ -4370,7 +4335,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	intel_crtc->cursor_width = width;
 	intel_crtc->cursor_height = height;
 
-	intel_crtc_update_cursor(crtc);
+	intel_crtc_update_cursor(crtc, true);
 
 	return 0;
 fail_unpin:
@@ -4389,7 +4354,7 @@ static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	intel_crtc->cursor_x = x;
 	intel_crtc->cursor_y = y;
 
-	intel_crtc_update_cursor(crtc);
+	intel_crtc_update_cursor(crtc, true);
 
 	return 0;
 }
