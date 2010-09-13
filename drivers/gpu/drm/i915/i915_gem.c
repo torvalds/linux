@@ -2645,26 +2645,6 @@ i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj)
 					    old_write_domain);
 }
 
-int
-i915_gem_object_flush_write_domain(struct drm_gem_object *obj)
-{
-	int ret = 0;
-
-	switch (obj->write_domain) {
-	case I915_GEM_DOMAIN_GTT:
-		i915_gem_object_flush_gtt_write_domain(obj);
-		break;
-	case I915_GEM_DOMAIN_CPU:
-		i915_gem_object_flush_cpu_write_domain(obj);
-		break;
-	default:
-		ret = i915_gem_object_flush_gpu_write_domain(obj, true);
-		break;
-	}
-
-	return ret;
-}
-
 /**
  * Moves a single object to the GTT read, and possibly write domain.
  *
@@ -2686,21 +2666,16 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 	if (ret != 0)
 		return ret;
 
-	old_write_domain = obj->write_domain;
-	old_read_domains = obj->read_domains;
+	i915_gem_object_flush_cpu_write_domain(obj);
 
-	/* If we're writing through the GTT domain, then CPU and GPU caches
-	 * will need to be invalidated at next use.
-	 */
 	if (write) {
 		ret = i915_gem_object_wait_rendering(obj);
 		if (ret)
 			return ret;
-
-		obj->read_domains &= I915_GEM_DOMAIN_GTT;
 	}
 
-	i915_gem_object_flush_cpu_write_domain(obj);
+	old_write_domain = obj->write_domain;
+	old_read_domains = obj->read_domains;
 
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
@@ -2708,6 +2683,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 	BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
 	obj->read_domains |= I915_GEM_DOMAIN_GTT;
 	if (write) {
+		obj->read_domains = I915_GEM_DOMAIN_GTT;
 		obj->write_domain = I915_GEM_DOMAIN_GTT;
 		obj_priv->dirty = 1;
 	}
@@ -2773,6 +2749,12 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	 */
 	i915_gem_object_set_to_full_cpu_read_domain(obj);
 
+	if (write) {
+		ret = i915_gem_object_wait_rendering(obj);
+		if (ret)
+			return ret;
+	}
+
 	old_write_domain = obj->write_domain;
 	old_read_domains = obj->read_domains;
 
@@ -2792,10 +2774,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	 * need to be invalidated at next use.
 	 */
 	if (write) {
-		ret = i915_gem_object_wait_rendering(obj);
-		if (ret)
-			return ret;
-
 		obj->read_domains &= I915_GEM_DOMAIN_CPU;
 		obj->write_domain = I915_GEM_DOMAIN_CPU;
 	}

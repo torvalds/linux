@@ -1448,6 +1448,12 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 	if (ret != 0)
 		return ret;
 
+	ret = i915_gem_object_set_to_display_plane(obj);
+	if (ret != 0) {
+		i915_gem_object_unpin(obj);
+		return ret;
+	}
+
 	/* Install a fence for tiled scan-out. Pre-i965 always needs a
 	 * fence, whereas 965+ only requires a fence if using
 	 * framebuffer compression.  For simplicity, we always install
@@ -1585,13 +1591,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
 	if (ret != 0) {
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
-
-	ret = i915_gem_object_set_to_display_plane(obj);
-	if (ret != 0) {
-		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
@@ -5043,9 +5042,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(obj);
 
 	crtc->fb = fb;
-	ret = i915_gem_object_flush_write_domain(obj);
-	if (ret)
-		goto cleanup_objs;
 
 	ret = drm_vblank_get(dev, intel_crtc->pipe);
 	if (ret)
