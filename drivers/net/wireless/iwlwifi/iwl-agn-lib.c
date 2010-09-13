@@ -1781,6 +1781,8 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	bt_cmd.kill_ack_mask = priv->kill_ack_mask;
 	bt_cmd.kill_cts_mask = priv->kill_cts_mask;
 	bt_cmd.valid = priv->bt_valid;
+	bt_cmd.tx_prio_boost = 0;
+	bt_cmd.rx_prio_boost = 0;
 
 	/*
 	 * Configure BT coex mode to "no coexistence" when the
