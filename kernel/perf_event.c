@@ -2150,7 +2150,9 @@ static void free_event(struct perf_event *event)
 	if (event->destroy)
 		event->destroy(event);
 
-	put_ctx(event->ctx);
+	if (event->ctx)
+		put_ctx(event->ctx);
+
 	call_rcu(&event->rcu_head, free_event_rcu);
 }
 
