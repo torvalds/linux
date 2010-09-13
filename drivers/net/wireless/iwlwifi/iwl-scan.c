@@ -361,7 +361,7 @@ static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	cancel_delayed_work(&priv->scan_check);
 
-	if (!iwl_is_ready(priv)) {
+	if (!iwl_is_ready_rf(priv)) {
 		IWL_WARN(priv, "request scan called when driver not ready.\n");
 		return -EIO;
 	}
@@ -372,23 +372,8 @@ static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 		return -EBUSY;
 	}
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Aborting scan due to device shutdown\n");
-		return -EIO;
-	}
-
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 		IWL_DEBUG_HC(priv, "Scan request while abort pending.\n");
-		return -EBUSY;
-	}
-
-	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_HC(priv, "Aborting scan due to RF Kill activation\n");
-		return -EIO;
-	}
-
-	if (!test_bit(STATUS_READY, &priv->status)) {
-		IWL_DEBUG_HC(priv, "Scan request while uninitialized.\n");
 		return -EBUSY;
 	}
 
