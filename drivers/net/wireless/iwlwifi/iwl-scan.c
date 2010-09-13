@@ -106,14 +106,22 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 	priv->scan_request = NULL;
 }
 
-static void iwl_force_scan_end(struct iwl_priv *priv)
+void iwl_force_scan_end(struct iwl_priv *priv)
 {
+	lockdep_assert_held(&priv->mutex);
+
+	if (!test_bit(STATUS_SCANNING, &priv->status)) {
+		IWL_DEBUG_SCAN(priv, "Forcing scan end while not scanning\n");
+		return;
+	}
+
 	IWL_DEBUG_SCAN(priv, "Forcing scan end\n");
 	clear_bit(STATUS_SCANNING, &priv->status);
 	clear_bit(STATUS_SCAN_HW, &priv->status);
 	clear_bit(STATUS_SCAN_ABORTING, &priv->status);
 	iwl_complete_scan(priv, true);
 }
+EXPORT_SYMBOL(iwl_force_scan_end);
 
 static void iwl_do_scan_abort(struct iwl_priv *priv)
 {
@@ -157,7 +165,6 @@ EXPORT_SYMBOL(iwl_scan_cancel);
  */
 int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 {
-	int ret;
 	unsigned long timeout = jiffies + msecs_to_jiffies(ms);
 
 	lockdep_assert_held(&priv->mutex);
@@ -172,10 +179,7 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 		msleep(20);
 	}
 
-	ret = test_bit(STATUS_SCAN_HW, &priv->status);
-	if (ret)
-		iwl_force_scan_end(priv);
-	return ret;
+	return test_bit(STATUS_SCAN_HW, &priv->status);
 }
 EXPORT_SYMBOL(iwl_scan_cancel_timeout);
 
@@ -490,8 +494,11 @@ static void iwl_bg_scan_check(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, scan_check.work);
 
+	/* Since we are here firmware does not finish scan and
+	 * most likely is in bad shape, so we don't bother to
+	 * send abort command, just force scan complete to mac80211 */
 	mutex_lock(&priv->mutex);
-	iwl_scan_cancel_timeout(priv, 200);
+	iwl_force_scan_end(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -547,8 +554,8 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
-	cancel_delayed_work(&priv->scan_check);
-
+	/* We keep scan_check work queued in case when firmware will not
+	 * report back scan completed notification */
 	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, 200);
 	mutex_unlock(&priv->mutex);
@@ -631,3 +638,16 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_setup_scan_deferred_work);
 
+void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
+{
+	cancel_work_sync(&priv->start_internal_scan);
+	cancel_work_sync(&priv->abort_scan);
+	cancel_work_sync(&priv->scan_completed);
+
+	if (cancel_delayed_work_sync(&priv->scan_check)) {
+		mutex_lock(&priv->mutex);
+		iwl_force_scan_end(priv);
+		mutex_unlock(&priv->mutex);
+	}
+}
+EXPORT_SYMBOL(iwl_cancel_scan_deferred_work);

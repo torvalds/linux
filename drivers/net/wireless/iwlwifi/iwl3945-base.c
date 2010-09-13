@@ -3762,10 +3762,10 @@ static void iwl3945_cancel_deferred_work(struct iwl_priv *priv)
 	iwl3945_hw_cancel_deferred_work(priv);
 
 	cancel_delayed_work_sync(&priv->init_alive_start);
-	cancel_delayed_work(&priv->scan_check);
 	cancel_delayed_work(&priv->alive_start);
-	cancel_work_sync(&priv->start_internal_scan);
 	cancel_work_sync(&priv->beacon_update);
+
+	iwl_cancel_scan_deferred_work(priv);
 }
 
 static struct attribute *iwl3945_sysfs_entries[] = {

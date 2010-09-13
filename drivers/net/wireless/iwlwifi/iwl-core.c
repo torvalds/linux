@@ -2089,8 +2089,10 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(ctx->vif != vif);
 	ctx->vif = NULL;
 
-	if (priv->scan_vif == vif)
-		iwl_scan_cancel_timeout(priv, 100);
+	if (priv->scan_vif == vif) {
+		iwl_scan_cancel_timeout(priv, 200);
+		iwl_force_scan_end(priv);
+	}
 	iwl_set_mode(priv, vif);
 
 	if (!ctx->always_active)
