@@ -45,6 +45,8 @@ __clean-files	:= $(extra-y) $(always)                  \
 		   $(host-progs)                         \
 		   $(hostprogs-y) $(hostprogs-m) $(hostprogs-)
 
+__clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
+
 # as clean-files is given relative to the current directory, this adds
 # a $(obj) prefix, except for absolute paths
 
