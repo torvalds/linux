@@ -729,7 +729,7 @@ struct efx_nic {
 	enum reset_type reset_pending;
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
-	char channel_name[IFNAMSIZ + 6][EFX_MAX_CHANNELS];
+	char channel_name[EFX_MAX_CHANNELS][IFNAMSIZ + 6];
 
 	unsigned rxq_entries;
 	unsigned txq_entries;
