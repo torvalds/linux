@@ -875,15 +875,13 @@ static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
 					  struct intel_crtc *crtc)
 {
 	drm_i915_private_t *dev_priv = overlay->dev->dev_private;
-	u32 pipeconf;
 
-	if (!crtc->base.enabled || crtc->dpms_mode != DRM_MODE_DPMS_ON)
+	if (!crtc->active)
 		return -EINVAL;
 
-	pipeconf = I915_READ(PIPECONF(crtc->pipe));
-
 	/* can't use the overlay with double wide pipe */
-	if (!IS_I965G(overlay->dev) && pipeconf & PIPECONF_DOUBLE_WIDE)
+	if (!IS_I965G(overlay->dev) &&
+	    (I915_READ(PIPECONF(crtc->pipe)) & (PIPECONF_DOUBLE_WIDE | PIPECONF_ENABLE)) != PIPECONF_ENABLE)
 		return -EINVAL;
 
 	return 0;

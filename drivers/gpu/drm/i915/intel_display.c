@@ -1956,6 +1956,10 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
 
+	if (intel_crtc->active)
+		return;
+
+	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
@@ -2116,6 +2120,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
 
+	if (!intel_crtc->active)
+		return;
+
 	drm_vblank_off(dev, pipe);
 	intel_crtc_update_cursor(crtc, false);
 
@@ -2245,6 +2252,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(100);
 
+	intel_crtc->active = false;
 	intel_update_watermarks(dev);
 	intel_update_fbc(dev);
 	intel_clear_scanline_wait(dev);
@@ -2298,6 +2306,10 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
 
+	if (intel_crtc->active)
+		return;
+
+	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
 	/* Enable the DPLL */
@@ -2354,6 +2366,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
 
+	if (!intel_crtc->active)
+		return;
+
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, false);
 	intel_crtc_update_cursor(crtc, false);
@@ -2402,6 +2417,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	}
 
 done:
+	intel_crtc->active = false;
 	intel_update_fbc(dev);
 	intel_update_watermarks(dev);
 	intel_clear_scanline_wait(dev);
@@ -3463,7 +3479,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 	/* Get the clock config from both planes */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		if (intel_crtc->dpms_mode == DRM_MODE_DPMS_ON) {
+		if (intel_crtc->active) {
 			enabled++;
 			if (intel_crtc->plane == 0) {
 				DRM_DEBUG_KMS("plane A (pipe %d) clock: %d\n",

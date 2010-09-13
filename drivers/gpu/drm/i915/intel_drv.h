@@ -169,6 +169,7 @@ struct intel_crtc {
 	enum plane plane;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
+	bool active; /* is the crtc on? independent of the dpms mode */
 	bool busy; /* is scanout buffer being updated frequently? */
 	struct timer_list idle_timer;
 	bool lowfreq_avail;
