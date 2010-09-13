@@ -637,7 +637,9 @@ static void eth16i_initialize(struct net_device *dev, int boot)
 
 	/* Set interface port type */
 	if(boot) {
-		char *porttype[] = {"BNC", "DIX", "TP", "AUTO", "FROM_EPROM" };
+		static const char * const porttype[] = {
+			"BNC", "DIX", "TP", "AUTO", "FROM_EPROM"
+		};
 
 		switch(dev->if_port)
 		{
