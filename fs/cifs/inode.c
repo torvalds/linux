@@ -1462,27 +1462,16 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 {
 	char *fromName = NULL;
 	char *toName = NULL;
-	struct cifs_sb_info *cifs_sb_source;
-	struct cifs_sb_info *cifs_sb_target;
+	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid, rc, tmprc;
 
-	cifs_sb_target = CIFS_SB(target_dir->i_sb);
-	cifs_sb_source = CIFS_SB(source_dir->i_sb);
-	tcon = cifs_sb_source->tcon;
+	cifs_sb = CIFS_SB(source_dir->i_sb);
+	tcon = cifs_sb->tcon;
 
 	xid = GetXid();
-
-	/*
-	 * BB: this might be allowed if same server, but different share.
-	 * Consider adding support for this
-	 */
-	if (tcon != cifs_sb_target->tcon) {
-		rc = -EXDEV;
-		goto cifs_rename_exit;
-	}
 
 	/*
 	 * we already have the rename sem so we do not need to
@@ -1519,17 +1508,16 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 		info_buf_target = info_buf_source + 1;
 		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, fromName,
 					info_buf_source,
-					cifs_sb_source->local_nls,
-					cifs_sb_source->mnt_cifs_flags &
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (tmprc != 0)
 			goto unlink_target;
 
-		tmprc = CIFSSMBUnixQPathInfo(xid, tcon,
-					toName, info_buf_target,
-					cifs_sb_target->local_nls,
-					/* remap based on source sb */
-					cifs_sb_source->mnt_cifs_flags &
+		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, toName,
+					info_buf_target,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 		if (tmprc == 0 && (info_buf_source->UniqueId ==
