@@ -215,6 +215,36 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
 	flush_dcache_mmap_unlock(mapping);
 }
 
+#if __LINUX_ARM_ARCH__ >= 6
+void __sync_icache_dcache(pte_t pteval)
+{
+	unsigned long pfn;
+	struct page *page;
+	struct address_space *mapping;
+
+	if (!pte_present_user(pteval))
+		return;
+	if (cache_is_vipt_nonaliasing() && !pte_exec(pteval))
+		/* only flush non-aliasing VIPT caches for exec mappings */
+		return;
+	pfn = pte_pfn(pteval);
+	if (!pfn_valid(pfn))
+		return;
+
+	page = pfn_to_page(pfn);
+	if (cache_is_vipt_aliasing())
+		mapping = page_mapping(page);
+	else
+		mapping = NULL;
+
+	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+		__flush_dcache_page(mapping, page);
+	/* pte_exec() already checked above for non-aliasing VIPT cache */
+	if (cache_is_vipt_nonaliasing() || pte_exec(pteval))
+		__flush_icache_all();
+}
+#endif
+
 /*
  * Ensure cache coherency between kernel mapping and userspace mapping
  * of this page.
