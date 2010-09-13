@@ -302,6 +302,7 @@ sonixj		0c45:60fb	Surfer NoName
 sonixj		0c45:60fc	LG-LIC300
 sonixj		0c45:60fe	Microdia Audio
 sonixj		0c45:6100	PC Camera (SN9C128)
+sonixj		0c45:6102	PC Camera (SN9C128)
 sonixj		0c45:610a	PC Camera (SN9C128)
 sonixj		0c45:610b	PC Camera (SN9C128)
 sonixj		0c45:610c	PC Camera (SN9C128)
