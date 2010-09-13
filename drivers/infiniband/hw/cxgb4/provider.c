@@ -149,19 +149,28 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	addr = mm->addr;
 	kfree(mm);
 
-	if ((addr >= pci_resource_start(rdev->lldi.pdev, 2)) &&
-	    (addr < (pci_resource_start(rdev->lldi.pdev, 2) +
-		       pci_resource_len(rdev->lldi.pdev, 2)))) {
+	if ((addr >= pci_resource_start(rdev->lldi.pdev, 0)) &&
+	    (addr < (pci_resource_start(rdev->lldi.pdev, 0) +
+		    pci_resource_len(rdev->lldi.pdev, 0)))) {
 
 		/*
-		 * Map T4 DB register.
+		 * MA_SYNC register...
 		 */
-		if (vma->vm_flags & VM_READ)
-			return -EPERM;
-
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
-		vma->vm_flags &= ~VM_MAYREAD;
+		ret = io_remap_pfn_range(vma, vma->vm_start,
+					 addr >> PAGE_SHIFT,
+					 len, vma->vm_page_prot);
+	} else if ((addr >= pci_resource_start(rdev->lldi.pdev, 2)) &&
+		   (addr < (pci_resource_start(rdev->lldi.pdev, 2) +
+		    pci_resource_len(rdev->lldi.pdev, 2)))) {
+
+		/*
+		 * Map user DB or OCQP memory...
+		 */
+		if (addr >= rdev->oc_mw_pa)
+			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
+		else
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
@@ -472,6 +481,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;
 	dev->ibdev.get_protocol_stats = c4iw_get_mib;
+	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

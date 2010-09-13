@@ -364,7 +364,14 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		printk(KERN_ERR MOD "error %d initializing rqt pool\n", err);
 		goto err3;
 	}
+	err = c4iw_ocqp_pool_create(rdev);
+	if (err) {
+		printk(KERN_ERR MOD "error %d initializing ocqp pool\n", err);
+		goto err4;
+	}
 	return 0;
+err4:
+	c4iw_rqtpool_destroy(rdev);
 err3:
 	c4iw_pblpool_destroy(rdev);
 err2:
@@ -391,6 +398,7 @@ static void c4iw_remove(struct c4iw_dev *dev)
 	idr_destroy(&dev->cqidr);
 	idr_destroy(&dev->qpidr);
 	idr_destroy(&dev->mmidr);
+	iounmap(dev->rdev.oc_mw_kva);
 	ib_dealloc_device(&dev->ibdev);
 }
 
@@ -405,6 +413,17 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		return NULL;
 	}
 	devp->rdev.lldi = *infop;
+
+	devp->rdev.oc_mw_pa = pci_resource_start(devp->rdev.lldi.pdev, 2) +
+		(pci_resource_len(devp->rdev.lldi.pdev, 2) -
+		 roundup_pow_of_two(devp->rdev.lldi.vr->ocq.size));
+	devp->rdev.oc_mw_kva = ioremap_wc(devp->rdev.oc_mw_pa,
+					       devp->rdev.lldi.vr->ocq.size);
+
+	printk(KERN_INFO MOD "ocq memory: "
+	       "hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
+	       devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
+	       devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
 
 	mutex_lock(&dev_mutex);
 
