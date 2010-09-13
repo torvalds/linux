@@ -154,7 +154,7 @@ extern void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
             enum v4l2_field field,
             unsigned int msize,
             void *priv);
-            
+
 /* buffer for one video frame */
 struct rk28_buffer
 {
@@ -204,8 +204,8 @@ static int rk28_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
     /* planar capture requires Y, U and V buffers to be page aligned */
     *size = PAGE_ALIGN( icd->user_width * icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
 
-    RK28CAMERA_DG("\n%s..%d.. size = %d   ******** ddl *********\n",__FUNCTION__,__LINE__, *size);
-    
+    RK28CAMERA_DG("\n%s..%d.. size = %d\n",__FUNCTION__,__LINE__, *size);
+
     return 0;
 }
 static void rk28_videobuf_free(struct videobuf_queue *vq, struct rk28_buffer *buf)
@@ -237,9 +237,9 @@ static int rk28_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buff
 
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
             vb, vb->baddr, vb->bsize);
-            
-    //RK28CAMERA_TR("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
-    
+
+    //RK28CAMERA_TR("\n%s..%d..  \n",__FUNCTION__,__LINE__);
+
     /* Added list head initialization on alloc */
     WARN_ON(!list_empty(&vb->queue));
 
@@ -259,7 +259,7 @@ static int rk28_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buff
         vb->field   = field;
         vb->state   = VIDEOBUF_NEEDS_INIT;
     }
-    
+
     vb->size = vb->width * vb->height * ((buf->fmt->depth + 7) >> 3) ;          /* ddl@rock-chips.com : fmt->depth is coorect */
     if (0 != vb->baddr && vb->bsize < vb->size) {
         ret = -EINVAL;
@@ -273,7 +273,7 @@ static int rk28_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buff
         }
         vb->state = VIDEOBUF_PREPARED;
     }
-    //RK28CAMERA_TR("\n%s..%d..   ^^^^^^^^^ ddl ^^^^^^^^^^ \n",__FUNCTION__,__LINE__);
+    //RK28CAMERA_TR("\n%s..%d.. \n",__FUNCTION__,__LINE__);
     return 0;
 fail:
     rk28_videobuf_free(vq, buf);
@@ -305,12 +305,12 @@ static void rk28_videobuf_queue(struct videobuf_queue *vq,
 
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
             vb, vb->baddr, vb->bsize);
-    
+
     vb->state = VIDEOBUF_ACTIVE;
     spin_lock_irqsave(&pcdev->lock, flags);
     list_add_tail(&vb->queue, &pcdev->capture);
 
-    if (!pcdev->active) {   
+    if (!pcdev->active) {
         pcdev->active = vb;
         rk28_videobuf_capture(vb);
     }
@@ -323,16 +323,16 @@ static irqreturn_t rk28_camera_irq(int irq, void *data)
     struct videobuf_buffer *vb;
 
     read_vip_reg(RK28_VIP_INT_STS);    /* clear vip interrupte single  */
-    
+
     /* ddl@rock-chps.com : Current VIP is run in One Frame Mode, Frame 1 is validate */
     if (read_vip_reg(RK28_VIP_FB_SR) & 0x01) {
-    
+
         if (pcdev->frame_inval) {
             pcdev->frame_inval--;
             rk28_videobuf_capture(pcdev->active);
             return IRQ_HANDLED;
         }
-        
+
         vb = pcdev->active;
         list_del_init(&vb->queue);
 
@@ -413,34 +413,34 @@ static int rk28_camera_activate(struct rk28_camera_dev *pcdev, struct soc_camera
 {
     unsigned long sensor_bus_flags = SOCAM_MCLK_24MHZ;
     struct clk *parent;
-    
-    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
-    if (!pcdev->clk || IS_ERR(pcdev->clk)) 
+
+    RK28CAMERA_DG("\n%s..%d.. \n",__FUNCTION__,__LINE__);
+    if (!pcdev->clk || IS_ERR(pcdev->clk))
         RK28CAMERA_TR(KERN_ERR "failed to get vip_clk source\n");
-        
+
     //if (icd->ops->query_bus_param)                                                  /* ddl@rock-chips.com : Query Sensor's xclk */
         //sensor_bus_flags = icd->ops->query_bus_param(icd);
-    
-    if (sensor_bus_flags & SOCAM_MCLK_48MHZ) {        
+
+    if (sensor_bus_flags & SOCAM_MCLK_48MHZ) {
         parent = clk_get(NULL, "clk48m");
-        if (!parent || IS_ERR(parent)) 
+        if (!parent || IS_ERR(parent))
              goto RK28_CAMERA_ACTIVE_ERR;
-    } else if (sensor_bus_flags & SOCAM_MCLK_27MHZ) {        
+    } else if (sensor_bus_flags & SOCAM_MCLK_27MHZ) {
         parent = clk_get(NULL, "extclk");
-        if (!parent || IS_ERR(parent)) 
+        if (!parent || IS_ERR(parent))
              goto RK28_CAMERA_ACTIVE_ERR;
-    } else {        
+    } else {
         parent = clk_get(NULL, "xin24m");
-        if (!parent || IS_ERR(parent)) 
-             goto RK28_CAMERA_ACTIVE_ERR;        
+        if (!parent || IS_ERR(parent))
+             goto RK28_CAMERA_ACTIVE_ERR;
     }
-    
-    clk_set_parent(pcdev->clk, parent); 
-   
+
+    clk_set_parent(pcdev->clk, parent);
+
     clk_enable(pcdev->clk);
     rk2818_mux_api_set(GPIOF6_VIPCLK_SEL_NAME, IOMUXB_VIP_CLKOUT);
     ndelay(10);
-     
+
     write_vip_reg(RK28_VIP_RESET, 0x76543210);  /* ddl@rock-chips.com : vip software reset */
     udelay(10);
 
@@ -448,13 +448,13 @@ static int rk28_camera_activate(struct rk28_camera_dev *pcdev, struct soc_camera
     write_vip_reg(RK28_VIP_INT_MASK, 0x01);                    //capture complete interrupt enable
     write_vip_reg(RK28_VIP_CRM,  0x00000000);               //Y/CB/CR color modification
 
-    return 0; 
+    return 0;
 RK28_CAMERA_ACTIVE_ERR:
     return -ENODEV;
 }
 
 static void rk28_camera_deactivate(struct rk28_camera_dev *pcdev)
-{    
+{
     pcdev->active = NULL;
 
     write_vip_reg(RK28_VIP_CTRL, 0);
@@ -462,7 +462,7 @@ static void rk28_camera_deactivate(struct rk28_camera_dev *pcdev)
 
     rk2818_mux_api_set(GPIOF6_VIPCLK_SEL_NAME, IOMUXB_GPIO1_B6);
     clk_disable(pcdev->clk);
-    
+
     return;
 }
 
@@ -472,7 +472,7 @@ static int rk28_camera_add_device(struct soc_camera_device *icd)
 {
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk28_camera_dev *pcdev = ici->priv;
-    struct device *control = to_soc_camera_control(icd);   
+    struct device *control = to_soc_camera_control(icd);
     struct v4l2_subdev *sd;
     int ret;
 
@@ -489,7 +489,7 @@ static int rk28_camera_add_device(struct soc_camera_device *icd)
     ret = rk28_camera_activate(pcdev,icd);
     if (ret)
         goto ebusy;
-        
+
     /* ddl@rock-chips.com : v4l2_subdev is not created when ici->ops->add called in soc_camera_probe  */
     if (control) {
         sd = dev_get_drvdata(control);
@@ -535,7 +535,7 @@ static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     unsigned int vip_ctrl_val = 0;
     int ret = 0;
 
-    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d..\n",__FUNCTION__,__LINE__);
 
     bus_flags = RK28_CAM_BUS_PARAM;
 
@@ -547,11 +547,11 @@ static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     }
 
     ret = icd->ops->set_bus_param(icd, common_flags);
-    if (ret < 0) 
+    if (ret < 0)
         goto RK28_CAMERA_SET_BUS_PARAM_END;
 
     icd->buswidth = 8;
-    
+
     vip_ctrl_val = read_vip_reg(RK28_VIP_CTRL);
     if (common_flags & SOCAM_PCLK_SAMPLE_FALLING)
         vip_ctrl_val |= NEGATIVE_EDGE;
@@ -561,13 +561,13 @@ static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
         set_vip_vsp(VSY_HIGH_ACTIVE);
 
     vip_ctrl_val |= ENABLE_CAPTURE;
-    
+
     write_vip_reg(RK28_VIP_CTRL, vip_ctrl_val);
-    RK28CAMERA_DG("\n%s..CtrReg=%x    ******** ddl *********\n",__FUNCTION__,read_vip_reg(RK28_VIP_CTRL));
+    RK28CAMERA_DG("\n%s..CtrReg=%x  \n",__FUNCTION__,read_vip_reg(RK28_VIP_CTRL));
 
 RK28_CAMERA_SET_BUS_PARAM_END:
 	if (ret)
-    	RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
+    	RK28CAMERA_TR("\n%s..%d.. ret = %d \n",__FUNCTION__,__LINE__, ret);
     return ret;
 }
 
@@ -598,14 +598,14 @@ static const struct soc_camera_data_format rk28_camera_formats[] = {
 		.depth		= 16,
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
-	}, 
+	},
 };
 
 static void rk28_camera_setup_format(struct soc_camera_device *icd, __u32 host_pixfmt, __u32 cam_pixfmt, struct v4l2_rect *rect)
 {
     unsigned int vip_fs,vip_crop;
     unsigned int vip_ctrl_val = SENSOR | ONEFRAME |DISABLE_CAPTURE;
-    
+
     switch (host_pixfmt)
     {
         case V4L2_PIX_FMT_YUV422P:
@@ -617,7 +617,7 @@ static void rk28_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
         default:                                                                                /* ddl@rock-chips.com : vip output format is hold when pixfmt is invalidate */
             vip_ctrl_val |= (read_vip_reg(RK28_VIP_CTRL) & VIPREGYUV422);
             break;
-    }        
+    }
 
     switch (cam_pixfmt)
     {
@@ -631,24 +631,26 @@ static void rk28_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
             vip_ctrl_val |= (read_vip_reg(RK28_VIP_CTRL) & SENSOR_YUYV);
             break;
     }
-    
-    write_vip_reg(RK28_VIP_CTRL, vip_ctrl_val);         /* ddl@rock-chips.com: VIP capture mode and capture format must be set before FS register set */  
+
+    write_vip_reg(RK28_VIP_CTRL, vip_ctrl_val);         /* ddl@rock-chips.com: VIP capture mode and capture format must be set before FS register set */
 
     read_vip_reg(RK28_VIP_INT_STS);                              /* clear vip interrupte single  */
-    
+
     if (vip_ctrl_val & ONEFRAME)  {
         vip_crop = ((rect->left<<16) + rect->top);
         vip_fs  = (((rect->width + rect->left)<<16) + (rect->height+rect->top));
     } else if (vip_ctrl_val & PING_PONG) {
         WARN_ON(rect->left ||rect->top );
+		RK28CAMERA_DG("\n %s..PingPang not support Crop \n",__FUNCTION__);
+		return;
     }
-    
+
     write_vip_reg(RK28_VIP_CROP, vip_crop);
     write_vip_reg(RK28_VIP_FS, vip_fs);
 
-    write_vip_reg(RK28_VIP_FB_SR,  0x00000003);   
-    
-    RK28CAMERA_DG("\n%s.. crop:%x .. fs : %x *** ddl ***\n",__FUNCTION__,vip_crop,vip_fs);
+    write_vip_reg(RK28_VIP_FB_SR,  0x00000003);
+
+    RK28CAMERA_DG("\n%s.. crop:%x .. fs : %x\n",__FUNCTION__,vip_crop,vip_fs);
 }
 
 static int rk28_camera_get_formats(struct soc_camera_device *icd, int idx,
@@ -656,9 +658,9 @@ static int rk28_camera_get_formats(struct soc_camera_device *icd, int idx,
 {
     struct device *dev = icd->dev.parent;
     int formats = 0, buswidth, ret;
-    
+
     buswidth = 8;
-    
+
     ret = rk28_camera_try_bus_param(icd, buswidth);
     if (ret < 0)
         return 0;
@@ -675,8 +677,8 @@ static int rk28_camera_get_formats(struct soc_camera_device *icd, int idx,
                 dev_dbg(dev, "Providing format %s using %s\n",
                 	rk28_camera_formats[0].name,
                 	icd->formats[idx].name);
-            }  
-        
+            }
+
             formats++;
             if (xlate) {
                 xlate->host_fmt = &rk28_camera_formats[1];
@@ -705,33 +707,33 @@ static int rk28_camera_set_crop(struct soc_camera_device *icd,
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     struct v4l2_format f;
     struct v4l2_pix_format *pix = &f.fmt.pix;
-    int ret;	
-    
+    int ret;
+
     f.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
     ret = v4l2_subdev_call(sd, video, g_fmt, &f);
     if (ret < 0)
         return ret;
-        
-    if ((pix->width < (a->c.left + a->c.width)) || (pix->height < (a->c.top + a->c.height)))  {    
-    
+
+    if ((pix->width < (a->c.left + a->c.width)) || (pix->height < (a->c.top + a->c.height)))  {
+
         pix->width = a->c.left + a->c.width;
         pix->height = a->c.top + a->c.height;
-        
+
         v4l_bound_align_image(&pix->width, 48, 2048, 1,
             &pix->height, 32, 2048, 0,
             icd->current_fmt->fourcc == V4L2_PIX_FMT_YUV422P ?4 : 0);
-            	
+
         ret = v4l2_subdev_call(sd, video, s_fmt, &f);
         if (ret < 0)
             return ret;
-    } 
+    }
 
     rk28_camera_setup_format(icd, icd->current_fmt->fourcc, pix->pixelformat, &a->c);
 
     icd->user_width = pix->width;
     icd->user_height = pix->height;
-    
+
     return 0;
 }
 
@@ -741,19 +743,19 @@ static int rk28_camera_set_fmt(struct soc_camera_device *icd,
     struct device *dev = icd->dev.parent;
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     const struct soc_camera_data_format *cam_fmt = NULL;
-    const struct soc_camera_format_xlate *xlate = NULL;    
+    const struct soc_camera_format_xlate *xlate = NULL;
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct v4l2_format cam_f = *f;
     struct v4l2_rect rect;
     int ret;
 
-    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d..  \n",__FUNCTION__,__LINE__);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
     if (!xlate) {
         dev_err(dev, "Format %x not found\n", pix->pixelformat);
         ret = -EINVAL;
-        goto RK28_CAMERA_SET_FMT_END; 
+        goto RK28_CAMERA_SET_FMT_END;
     }
 
     cam_fmt = xlate->cam_fmt;
@@ -771,16 +773,16 @@ static int rk28_camera_set_fmt(struct soc_camera_device *icd,
         rect.width = pix->width;
         rect.height = pix->height;
 
-        RK28CAMERA_DG("\n%s..%s..%s  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name);
+        RK28CAMERA_DG("\n%s..%s..%s \n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name);
         rk28_camera_setup_format(icd, pix->pixelformat, cam_fmt->fourcc, &rect);
-        
+
         icd->buswidth = xlate->buswidth;
-        icd->current_fmt = xlate->host_fmt;        
+        icd->current_fmt = xlate->host_fmt;
     }
 
 RK28_CAMERA_SET_FMT_END:
 	if (ret)
-    	RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
+    	RK28CAMERA_TR("\n%s..%d.. ret = %d  \n",__FUNCTION__,__LINE__, ret);
     return ret;
 }
 
@@ -793,12 +795,12 @@ static int rk28_camera_try_fmt(struct soc_camera_device *icd,
     struct v4l2_pix_format *pix = &f->fmt.pix;
     __u32 pixfmt = pix->pixelformat;
     enum v4l2_field field;
-    int ret,i;
+    int ret;
 
-    RK28CAMERA_DG("\n%s..%d..   ******** ddl *********\n",__FUNCTION__,__LINE__);
+    RK28CAMERA_DG("\n%s..%d.. \n",__FUNCTION__,__LINE__);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
-    if (!xlate) {       
+    if (!xlate) {
         dev_err(ici->v4l2_dev.dev, "Format %x not found\n", pixfmt);
         ret = -EINVAL;
         goto RK28_CAMERA_TRY_FMT_END;
@@ -830,8 +832,8 @@ static int rk28_camera_try_fmt(struct soc_camera_device *icd,
 
 RK28_CAMERA_TRY_FMT_END:
 	if (ret)
-    	RK28CAMERA_TR("\n%s..%d.. ret = %d  ^^^^^^^^^ ddl^^^^^^^^^^\n",__FUNCTION__,__LINE__, ret);
-    return ret;   
+    	RK28CAMERA_TR("\n%s..%d.. ret = %d  \n",__FUNCTION__,__LINE__, ret);
+    return ret;
 }
 
 static int rk28_camera_reqbufs(struct soc_camera_file *icf,
@@ -908,7 +910,7 @@ static int rk28_camera_resume(struct soc_camera_device *icd)
 }
 
 static struct soc_camera_host_ops rk28_soc_camera_host_ops =
-{    
+{
     .owner		= THIS_MODULE,
     .add		= rk28_camera_add_device,
     .remove		= rk28_camera_remove_device,
@@ -932,7 +934,7 @@ static int rk28_camera_probe(struct platform_device *pdev)
     int irq;
     int err = 0;
 
-    RK28CAMERA_DG("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
+    RK28CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
     irq = platform_get_irq(pdev, 0);
     if (!res || irq < 0) {
@@ -947,7 +949,7 @@ static int rk28_camera_probe(struct platform_device *pdev)
         goto exit_alloc;
     }
     rk28_camdev_info_ptr = pcdev;
-    
+
     /*config output clk*/
     pcdev->clk = clk_get(&pdev->dev, "vip");
     if (!pcdev->clk || IS_ERR(pcdev->clk))  {
@@ -955,7 +957,7 @@ static int rk28_camera_probe(struct platform_device *pdev)
         err = -ENOENT;
         goto exit_eclkget;
     }
-    
+
     dev_set_drvdata(&pdev->dev, pcdev);
     pcdev->res = res;
 
@@ -993,7 +995,7 @@ static int rk28_camera_probe(struct platform_device *pdev)
     if (err) {
         dev_err(pcdev->dev, "Camera interrupt register failed \n");
         goto exit_reqirq;
-    }    
+    }
 
     pcdev->soc_host.drv_name	= RK28_CAM_DRV_NAME;
     pcdev->soc_host.ops		= &rk28_soc_camera_host_ops;
@@ -1005,22 +1007,22 @@ static int rk28_camera_probe(struct platform_device *pdev)
     if (err)
         goto exit_free_irq;
 
-    RK28CAMERA_DG("\n%s..%s..%d    ^^^^^^^^ ddl^^^^^^^^\n",__FUNCTION__,__FILE__,__LINE__);
+    RK28CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     return 0;
 
-exit_free_irq:     
+exit_free_irq:
     free_irq(pcdev->irq, pcdev);
 exit_reqirq:
     iounmap(pcdev->base);
 exit_ioremap:
     release_mem_region(res->start, res->end - res->start + 1);
-exit_reqmem:  
+exit_reqmem:
     clk_put(pcdev->clk);
 exit_eclkget:
     kfree(pcdev);
-exit_alloc:    
+exit_alloc:
     rk28_camdev_info_ptr = NULL;
-exit:    
+exit:
     return err;
 }
 
@@ -1032,7 +1034,7 @@ static int __devexit rk28_camera_remove(struct platform_device *pdev)
     free_irq(pcdev->irq, pcdev);
 
     soc_camera_host_unregister(&pcdev->soc_host);
-    
+
     res = pcdev->res;
     release_mem_region(res->start, res->end - res->start + 1);
 
@@ -1059,7 +1061,7 @@ static struct platform_driver rk28_camera_driver =
 
 static int __devinit rk28_camera_init(void)
 {
-    RK28CAMERA_DG("\n%s..%s..%d    ******** ddl *********\n",__FUNCTION__,__FILE__,__LINE__);
+    RK28CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     return platform_driver_register(&rk28_camera_driver);
 }
 

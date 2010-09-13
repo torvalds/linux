@@ -325,22 +325,8 @@ struct platform_device rk2818_device_camera = {
 		.platform_data  = &rk28_camera_platform_data,
 	}
 };
-
-/*platform_device : soc-camera need  */
-struct platform_device rk2818_soc_camera_pdrv = {
-	.name	= "soc-camera-pdrv",
-	.id	= -1,
-	.dev	= {
-		#ifdef CONFIG_SOC_CAMERA_OV9650
-		.init_name = "ov9650",
-		#endif
-		#ifdef CONFIG_SOC_CAMERA_OV2655
-		.init_name = "ov2655",
-		#endif
-		.platform_data = &rk2818_iclink,
-	},
-};
-#endif 
+extern struct platform_device rk2818_soc_camera_pdrv;
+#endif
 
 /*ADC*/
 static struct resource rk2818_adc_resource[] = {

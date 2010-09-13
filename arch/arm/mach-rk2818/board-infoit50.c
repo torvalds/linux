@@ -600,9 +600,22 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK2818
+#define SENSOR_NAME_0 RK28_CAM_SENSOR_NAME_OV9650
+#define SENSOR_IIC_ADDR_0 	    0x60
+#define SENSOR_IIC_ADAPTER_ID_0    1
+#define SENSOR_POWER_PIN_0         TCA6424_P03
+#define SENSOR_RESET_PIN_0         INVALID_GPIO
+#define SENSOR_POWERACTIVE_LEVEL_0 RK28_CAM_POWERACTIVE_L
+#define SENSOR_RESETACTIVE_LEVEL_0 RK28_CAM_RESETACTIVE_L
 
-#define RK2818_CAM_POWER_PIN    TCA6424_P03
-#define RK2818_CAM_RESET_PIN    INVALID_GPIO
+
+#define SENSOR_NAME_1 NULL
+#define SENSOR_IIC_ADDR_1 	    0x00
+#define SENSOR_IIC_ADAPTER_ID_1    0xff
+#define SENSOR_POWER_PIN_1         INVALID_GPIO
+#define SENSOR_RESET_PIN_1         INVALID_GPIO
+#define SENSOR_POWERACTIVE_LEVEL_1 RK28_CAM_POWERACTIVE_L
+#define SENSOR_RESETACTIVE_LEVEL_1 RK28_CAM_RESETACTIVE_L
 
 static int rk28_sensor_io_init(void);
 static int rk28_sensor_io_deinit(void);
@@ -612,14 +625,15 @@ struct rk28camera_platform_data rk28_camera_platform_data = {
     .io_deinit = rk28_sensor_io_deinit,
     .gpio_res = {
         {
-            .gpio_reset = RK2818_CAM_RESET_PIN,
-            .gpio_power = RK2818_CAM_POWER_PIN,
-            .gpio_flag = (RK28_CAM_POWERACTIVE_L|RK28_CAM_RESETACTIVE_L),
-            .dev_name = "ov9650"
+            .gpio_reset = SENSOR_RESET_PIN_0,
+            .gpio_power = SENSOR_POWER_PIN_0,
+            .gpio_flag = (SENSOR_POWERACTIVE_LEVEL_0|SENSOR_RESETACTIVE_LEVEL_0),
+            .dev_name = SENSOR_NAME_0,
         }, {
-            .gpio_reset = INVALID_GPIO,
-            .gpio_power = INVALID_GPIO,
-            .dev_name = NULL
+            .gpio_reset = SENSOR_RESET_PIN_1,
+            .gpio_power = SENSOR_POWER_PIN_1,
+            .gpio_flag = (SENSOR_POWERACTIVE_LEVEL_1|SENSOR_RESETACTIVE_LEVEL_1),
+            .dev_name = SENSOR_NAME_1,
         }
     }
 };
@@ -702,42 +716,47 @@ static int rk28_sensor_power(struct device *dev, int on)
 
     if (camera_reset != INVALID_GPIO) {
         gpio_set_value(camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
-        //printk("\n%s..%s..ResetPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev),camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+        //printk("\n%s..%s..ResetPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_reset, ((camera_ioflag&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
     }
     if (camera_power != INVALID_GPIO)  {
         if (on) {
         	gpio_set_value(camera_power, ((camera_ioflag&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
-			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_power, ((camera_ioflag&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_power, ((camera_ioflag&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
 		} else {
 			gpio_set_value(camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
-			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
+			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_power, (((~camera_ioflag)&RK28_CAM_POWERACTIVE_MASK)>>RK28_CAM_POWERACTIVE_BITPOS));
 		}
 	}
     if (camera_reset != INVALID_GPIO) {
         msleep(3);          /* delay 3 ms */
         gpio_set_value(camera_reset,(((~camera_ioflag)&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
-        //printk("\n%s..%s..ResetPin= %d..PinLevel = %x   ******** ddl *********\n",__FUNCTION__,dev_name(dev), camera_reset, (((~camera_ioflag)&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
+        //printk("\n%s..%s..ResetPin= %d..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_reset, (((~camera_ioflag)&RK28_CAM_RESETACTIVE_MASK)>>RK28_CAM_RESETACTIVE_BITPOS));
     }
     return 0;
 }
 
-#define OV9650_IIC_ADDR 	    0x60
 static struct i2c_board_info rk2818_i2c_cam_info[] = {
-#ifdef CONFIG_SOC_CAMERA_OV9650
 	{
-		I2C_BOARD_INFO("ov9650", OV9650_IIC_ADDR>>1)
+		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
 	},
-#endif
 };
 
 struct soc_camera_link rk2818_iclink = {
 	.bus_id		= RK28_CAM_PLATFORM_DEV_ID,
 	.power		= rk28_sensor_power,
 	.board_info	= &rk2818_i2c_cam_info[0],
-	.i2c_adapter_id	= 1,
-#ifdef CONFIG_SOC_CAMERA_OV9650
-	.module_name	= "ov9650",
-#endif
+	.i2c_adapter_id	= SENSOR_IIC_ADAPTER_ID_0,
+	.module_name	= SENSOR_NAME_0,
+};
+
+/*platform_device : soc-camera need  */
+struct platform_device rk2818_soc_camera_pdrv = {
+	.name	= "soc-camera-pdrv",
+	.id	= -1,
+	.dev	= {
+		.init_name = SENSOR_NAME_0,
+		.platform_data = &rk2818_iclink,
+	},
 };
 #endif
 
