@@ -293,18 +293,11 @@ static int hist_browser__run(struct hist_browser *self, const char *title)
 	int key;
 	int exit_keys[] = { 'a', '?', 'h', 'C', 'd', 'D', 'E', 't',
 			    NEWT_KEY_ENTER, NEWT_KEY_RIGHT, NEWT_KEY_LEFT, 0, };
-	char str[256], unit;
-	unsigned long nr_events = self->hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 	self->b.entries = &self->hists->entries;
 	self->b.nr_entries = self->hists->nr_entries;
 
 	hist_browser__refresh_dimensions(self);
-
-	nr_events = convert_unit(nr_events, &unit);
-	snprintf(str, sizeof(str), "Events: %lu%c                            ",
-		 nr_events, unit);
-	newtDrawRootText(0, 0, str);
 
 	if (ui_browser__show(&self->b, title,
 			     "Press '?' for help on key bindings") < 0)
@@ -782,21 +775,26 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *self)
 	return self->he_selection->thread;
 }
 
-static int hist_browser__title(char *bf, size_t size, const char *ev_name,
-			       const struct dso *dso, const struct thread *thread)
+static int hists__browser_title(struct hists *self, char *bf, size_t size,
+				const char *ev_name, const struct dso *dso,
+				const struct thread *thread)
 {
-	int printed = 0;
+	char unit;
+	int printed;
+	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
+
+	nr_events = convert_unit(nr_events, &unit);
+	printed = snprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
 
 	if (thread)
 		printed += snprintf(bf + printed, size - printed,
-				    "Thread: %s(%d)",
-				    (thread->comm_set ?  thread->comm : ""),
+				    ", Thread: %s(%d)",
+				    (thread->comm_set ? thread->comm : ""),
 				    thread->pid);
 	if (dso)
 		printed += snprintf(bf + printed, size - printed,
-				    "%sDSO: %s", thread ? " " : "",
-				    dso->short_name);
-	return printed ?: snprintf(bf, size, "Event: %s", ev_name);
+				    ", DSO: %s", dso->short_name);
+	return printed;
 }
 
 int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
@@ -817,9 +815,8 @@ int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
 
 	ui_helpline__push(helpline);
 
-	hist_browser__title(msg, sizeof(msg), ev_name,
-			    dso_filter, thread_filter);
-
+	hists__browser_title(self, msg, sizeof(msg), ev_name,
+			     dso_filter, thread_filter);
 	while (1) {
 		const struct thread *thread;
 		const struct dso *dso;
@@ -957,8 +954,8 @@ zoom_out_dso:
 				pstack__push(fstack, &dso_filter);
 			}
 			hists__filter_by_dso(self, dso_filter);
-			hist_browser__title(msg, sizeof(msg), ev_name,
-					    dso_filter, thread_filter);
+			hists__browser_title(self, msg, sizeof(msg), ev_name,
+					     dso_filter, thread_filter);
 			hist_browser__reset(browser);
 		} else if (choice == zoom_thread) {
 zoom_thread:
@@ -975,8 +972,8 @@ zoom_out_thread:
 				pstack__push(fstack, &thread_filter);
 			}
 			hists__filter_by_thread(self, thread_filter);
-			hist_browser__title(msg, sizeof(msg), ev_name,
-					    dso_filter, thread_filter);
+			hists__browser_title(self, msg, sizeof(msg), ev_name,
+					     dso_filter, thread_filter);
 			hist_browser__reset(browser);
 		}
 	}

@@ -130,13 +130,10 @@ void ui_browser__refresh_dimensions(struct ui_browser *self)
 	int cols, rows;
 	newtGetScreenSize(&cols, &rows);
 
-	if (self->width > cols - 4)
-		self->width = cols - 4;
-	self->height = rows - 5;
-	if (self->height > self->nr_entries)
-		self->height = self->nr_entries;
-	self->y  = (rows - self->height) / 2;
-	self->x = (cols - self->width) / 2;
+	self->width = cols - 1;
+	self->height = rows - 2;
+	self->y = 1;
+	self->x = 0;
 }
 
 void ui_browser__reset_index(struct ui_browser *self)
@@ -168,21 +165,23 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 		       NEWT_KEY_PGDN, NEWT_KEY_HOME, NEWT_KEY_END, ' ',
 		       NEWT_KEY_LEFT, NEWT_KEY_ESCAPE, 'q', CTRL('c'), 0 };
 
-	if (self->form != NULL) {
+	if (self->form != NULL)
 		newtFormDestroy(self->form);
-		newtPopWindow();
-	}
+
 	ui_browser__refresh_dimensions(self);
-	newtCenteredWindow(self->width, self->height, title);
 	self->form = newtForm(NULL, NULL, 0);
 	if (self->form == NULL)
 		return -1;
 
-	self->sb = newtVerticalScrollbar(self->width, 0, self->height,
+	self->sb = newtVerticalScrollbar(self->width, 1, self->height,
 					 HE_COLORSET_NORMAL,
 					 HE_COLORSET_SELECTED);
 	if (self->sb == NULL)
 		return -1;
+
+	SLsmg_gotorc(0, 0);
+	ui_browser__set_color(self, NEWT_COLORSET_ROOT);
+	slsmg_write_nstring(title, self->width);
 
 	ui_browser__add_exit_keys(self, keys);
 	newtFormAddComponent(self->form, self->sb);
@@ -196,7 +195,6 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 void ui_browser__hide(struct ui_browser *self)
 {
 	newtFormDestroy(self->form);
-	newtPopWindow();
 	self->form = NULL;
 	ui_helpline__pop();
 }
