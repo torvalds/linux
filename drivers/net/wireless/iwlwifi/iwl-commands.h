@@ -2486,7 +2486,12 @@ struct iwlagn_bt_cmd {
 	__le16 bt4_decision_time; /* unused */
 	__le16 valid;
 	u8 prio_boost;
-	u8 reserved[3];
+	/*
+	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
+	 * if configure the following patterns
+	 */
+	u8 tx_prio_boost;	/* SW boost of WiFi tx priority */
+	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
 
 #define IWLAGN_BT_SCO_ACTIVE	cpu_to_le32(BIT(0))
