@@ -273,8 +273,8 @@ $(obj)/.tmp_qtcheck:
 	      moc="/usr/bin/moc"; \
 	    fi; \
 	else \
-	  cflags="\$$(shell pkg-config QtCore --cflags) \$$(shell pkg-config QtGui --cflags) \$$(shell pkg-config Qt3Support --cflags)"; \
-	  libs="\$$(shell pkg-config QtCore --libs) \$$(shell pkg-config QtGui --libs) \$$(shell pkg-config Qt3Support --libs)"; \
+	  cflags="\$$(shell pkg-config QtCore QtGui Qt3Support --cflags)"; \
+	  libs="\$$(shell pkg-config QtCore QtGui Qt3Support --libs)"; \
 	  binpath="\$$(shell pkg-config QtCore --variable=prefix)"; \
 	  moc="$$binpath/bin/moc"; \
 	fi; \
