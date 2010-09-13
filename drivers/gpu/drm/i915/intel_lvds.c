@@ -46,6 +46,7 @@ struct intel_lvds {
 	int fitting_mode;
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
+	bool pfit_dirty;
 };
 
 static struct intel_lvds *enc_to_intel_lvds(struct drm_encoder *encoder)
@@ -53,31 +54,20 @@ static struct intel_lvds *enc_to_intel_lvds(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_lvds, base.base);
 }
 
-static void intel_lvds_lock_panel(struct drm_device *dev, bool lock)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (lock)
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) & 0x3);
-	else
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
-}
-
 /**
  * Sets the power state for the panel.
  */
-static void intel_lvds_set_power(struct drm_device *dev, bool on)
+static void intel_lvds_set_power(struct intel_lvds *intel_lvds, bool on)
 {
+	struct drm_device *dev = intel_lvds->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, status_reg, lvds_reg;
+	u32 ctl_reg, lvds_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		status_reg = PCH_PP_STATUS;
 		lvds_reg = PCH_LVDS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		status_reg = PP_STATUS;
 		lvds_reg = LVDS;
 	}
 
@@ -86,8 +76,18 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
 		intel_panel_set_backlight(dev, dev_priv->backlight_level);
 	} else {
+		dev_priv->backlight_level = intel_panel_get_backlight(dev);
+
 		intel_panel_set_backlight(dev, 0);
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
+
+		if (intel_lvds->pfit_control) {
+			if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
+				DRM_ERROR("timed out waiting for panel to power off\n");
+			I915_WRITE(PFIT_CONTROL, 0);
+			intel_lvds->pfit_control = 0;
+		}
+
 		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 	}
 	POSTING_READ(lvds_reg);
@@ -95,12 +95,12 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 
 static void intel_lvds_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct drm_device *dev = encoder->dev;
+	struct intel_lvds *intel_lvds = enc_to_intel_lvds(encoder);
 
 	if (mode == DRM_MODE_DPMS_ON)
-		intel_lvds_set_power(dev, true);
+		intel_lvds_set_power(intel_lvds, true);
 	else
-		intel_lvds_set_power(dev, false);
+		intel_lvds_set_power(intel_lvds, false);
 
 	/* XXX: We never power down the LVDS pairs. */
 }
@@ -331,8 +331,12 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
-	intel_lvds->pfit_control = pfit_control;
-	intel_lvds->pfit_pgm_ratios = pfit_pgm_ratios;
+	if (pfit_control != intel_lvds->pfit_control ||
+	    pfit_pgm_ratios != intel_lvds->pfit_pgm_ratios) {
+		intel_lvds->pfit_control = pfit_control;
+		intel_lvds->pfit_pgm_ratios = pfit_pgm_ratios;
+		intel_lvds->pfit_dirty = true;
+	}
 	dev_priv->lvds_border_bits = border;
 
 	/*
@@ -352,24 +356,56 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 
 	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 
-	if (intel_lvds->pfit_control == I915_READ(PFIT_CONTROL))
-		intel_lvds_lock_panel(dev, false);
-	else
-		intel_lvds_set_power(dev, false);
+	/* We try to do the minimum that is necessary in order to unlock
+	 * the registers for mode setting.
+	 *
+	 * On Ironlake, this is quite simple as we just set the unlock key
+	 * and ignore all subtleties. (This may cause some issues...)
+	 *
+	 * Prior to Ironlake, we must disable the pipe if we want to adjust
+	 * the panel fitter. However at all other times we can just reset
+	 * the registers regardless.
+	 */
+
+	if (HAS_PCH_SPLIT(dev)) {
+		I915_WRITE(PCH_PP_CONTROL,
+			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
+	} else if (intel_lvds->pfit_dirty) {
+		I915_WRITE(PP_CONTROL,
+			   I915_READ(PP_CONTROL) & ~POWER_TARGET_ON);
+		I915_WRITE(LVDS, I915_READ(LVDS) & ~LVDS_PORT_EN);
+	} else {
+		I915_WRITE(PP_CONTROL,
+			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
+	}
 }
 
-static void intel_lvds_commit( struct drm_encoder *encoder)
+static void intel_lvds_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_lvds *intel_lvds = enc_to_intel_lvds(encoder);
 
 	if (dev_priv->backlight_level == 0)
 		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
 
-	if ((I915_READ(PP_CONTROL) & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS)
-		intel_lvds_lock_panel(dev, true);
-	else
-		intel_lvds_set_power(dev, true);
+	/* Undo any unlocking done in prepare to prevent accidental
+	 * adjustment of the registers.
+	 */
+	if (HAS_PCH_SPLIT(dev)) {
+		u32 val = I915_READ(PCH_PP_CONTROL);
+		if ((val & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS)
+			I915_WRITE(PCH_PP_CONTROL, val & 0x3);
+	} else {
+		u32 val = I915_READ(PP_CONTROL);
+		if ((val & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS)
+			I915_WRITE(PP_CONTROL, val & 0x3);
+	}
+
+	/* Always do a full power on as we do not know what state
+	 * we were left in.
+	 */
+	intel_lvds_set_power(intel_lvds, true);
 }
 
 static void intel_lvds_mode_set(struct drm_encoder *encoder,
@@ -389,13 +425,20 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev))
 		return;
 
+	if (!intel_lvds->pfit_dirty)
+		return;
+
 	/*
 	 * Enable automatic panel scaling so that non-native modes fill the
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
+	if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
+		DRM_ERROR("timed out waiting for panel to power off\n");
+
 	I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
 	I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
+	intel_lvds->pfit_dirty = false;
 }
 
 /**
@@ -822,6 +865,10 @@ void intel_lvds_init(struct drm_device *dev)
 	if (!intel_connector) {
 		kfree(intel_lvds);
 		return;
+	}
+
+	if (!HAS_PCH_SPLIT(dev)) {
+		intel_lvds->pfit_control = I915_READ(PFIT_CONTROL);
 	}
 
 	intel_encoder = &intel_lvds->base;

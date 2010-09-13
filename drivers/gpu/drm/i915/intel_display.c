@@ -2636,33 +2636,6 @@ static int i830_get_display_clock_speed(struct drm_device *dev)
 	return 133000;
 }
 
-/**
- * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
- */
-int intel_panel_fitter_pipe (struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32  pfit_control;
-
-	/* i830 doesn't have a panel fitter */
-	if (IS_I830(dev))
-		return -1;
-
-	pfit_control = I915_READ(PFIT_CONTROL);
-
-	/* See if the panel fitter is in use */
-	if ((pfit_control & PFIT_ENABLE) == 0)
-		return -1;
-
-	/* 965 can place panel fitter on either pipe */
-	if (IS_I965G(dev))
-		return (pfit_control >> 29) & 0x3;
-
-	/* older chips can only use pipe 1 */
-	return 1;
-}
-
 struct fdi_m_n {
 	u32        tu;
 	u32        gmch_m;
@@ -3920,10 +3893,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 	pipeconf |= PIPECONF_ENABLE;
 	dpll |= DPLL_VCO_ENABLE;
-
-	/* Disable the panel fitter if it was on our pipe */
-	if (!HAS_PCH_SPLIT(dev) && intel_panel_fitter_pipe(dev) == pipe)
-		I915_WRITE(PFIT_CONTROL, 0);
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);

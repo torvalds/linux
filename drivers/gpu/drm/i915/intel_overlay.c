@@ -1050,6 +1050,33 @@ static int check_overlay_src(struct drm_device *dev,
 	return 0;
 }
 
+/**
+ * Return the pipe currently connected to the panel fitter,
+ * or -1 if the panel fitter is not present or not in use
+ */
+static int intel_panel_fitter_pipe(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32  pfit_control;
+
+	/* i830 doesn't have a panel fitter */
+	if (IS_I830(dev))
+		return -1;
+
+	pfit_control = I915_READ(PFIT_CONTROL);
+
+	/* See if the panel fitter is in use */
+	if ((pfit_control & PFIT_ENABLE) == 0)
+		return -1;
+
+	/* 965 can place panel fitter on either pipe */
+	if (IS_I965G(dev))
+		return (pfit_control >> 29) & 0x3;
+
+	/* older chips can only use pipe 1 */
+	return 1;
+}
+
 int intel_overlay_put_image(struct drm_device *dev, void *data,
                             struct drm_file *file_priv)
 {
@@ -1124,9 +1151,9 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		overlay->crtc = crtc;
 		crtc->overlay = overlay;
 
-		if (intel_panel_fitter_pipe(dev) == crtc->pipe
-		    /* and line to wide, i.e. one-line-mode */
-		    && mode->hdisplay > 1024) {
+		/* line too wide, i.e. one-line-mode */
+		if (mode->hdisplay > 1024 &&
+		    intel_panel_fitter_pipe(dev) == crtc->pipe) {
 			overlay->pfit_active = 1;
 			update_pfit_vscale_ratio(overlay);
 		} else
