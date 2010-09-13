@@ -3857,9 +3857,6 @@ wl_iw_iscan_get_scan(
 
 	WL_TRACE(("%s return to WE %d bytes APs=%d\n", __FUNCTION__, dwrq->length, counter));
 
-	if (!dwrq->length)
-		return -EAGAIN;
-
 	return 0;
 }
 #endif 
