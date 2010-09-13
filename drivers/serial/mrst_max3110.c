@@ -447,7 +447,6 @@ static int max3110_main_thread(void *_max)
 	return ret;
 }
 
-#ifdef CONFIG_MRST_MAX3110_IRQ
 static irqreturn_t serial_m3110_irq(int irq, void *dev_id)
 {
 	struct uart_max3110 *max = dev_id;
@@ -459,7 +458,7 @@ static irqreturn_t serial_m3110_irq(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-#else
+
 /* if don't use RX IRQ, then need a thread to polling read */
 static int max3110_read_thread(void *_max)
 {
@@ -482,7 +481,6 @@ static int max3110_read_thread(void *_max)
 
 	return 0;
 }
-#endif
 
 static int serial_m3110_startup(struct uart_port *port)
 {
@@ -505,34 +503,38 @@ static int serial_m3110_startup(struct uart_port *port)
 	/* as we use thread to handle tx/rx, need set low latency */
 	port->state->port.tty->low_latency = 1;
 
-#ifdef CONFIG_MRST_MAX3110_IRQ
-	ret = request_irq(max->irq, serial_m3110_irq,
-				IRQ_TYPE_EDGE_FALLING, "max3110", max);
-	if (ret)
-		return ret;
-
-	/* Enable RX IRQ only */
-	config |= WC_RXA_IRQ_ENABLE;
-#else
-	/* If IRQ is disabled, start a read thread for input data */
-	max->read_thread =
-		kthread_run(max3110_read_thread, max, "max3110_read");
-	if (IS_ERR(max->read_thread)) {
-		ret = PTR_ERR(max->read_thread);
+	if (max->irq) {
 		max->read_thread = NULL;
-		pr_err(PR_FMT "Can't create read thread!");
-		return ret;
+		ret = request_irq(max->irq, serial_m3110_irq,
+				IRQ_TYPE_EDGE_FALLING, "max3110", max);
+		if (ret) {
+			max->irq = 0;
+			pr_err(PR_FMT "unable to allocate IRQ, polling\n");
+		}  else {
+			/* Enable RX IRQ only */
+			config |= WC_RXA_IRQ_ENABLE;
+		}
 	}
-#endif
+
+	if (max->irq == 0) {
+		/* If IRQ is disabled, start a read thread for input data */
+		max->read_thread =
+			kthread_run(max3110_read_thread, max, "max3110_read");
+		if (IS_ERR(max->read_thread)) {
+			ret = PTR_ERR(max->read_thread);
+			max->read_thread = NULL;
+			pr_err(PR_FMT "Can't create read thread!\n");
+			return ret;
+		}
+	}
 
 	ret = max3110_out(max, config);
 	if (ret) {
-#ifdef CONFIG_MRST_MAX3110_IRQ
-		free_irq(max->irq, max);
-#else
-		kthread_stop(max->read_thread);
+		if (max->irq)
+			free_irq(max->irq, max);
+		if (max->read_thread)
+			kthread_stop(max->read_thread);
 		max->read_thread = NULL;
-#endif
 		return ret;
 	}
 
@@ -551,9 +553,8 @@ static void serial_m3110_shutdown(struct uart_port *port)
 		max->read_thread = NULL;
 	}
 
-#ifdef CONFIG_MRST_MAX3110_IRQ
-	free_irq(max->irq, max);
-#endif
+	if (max->irq)
+		free_irq(max->irq, max);
 
 	/* Disable interrupts from this port */
 	config = WC_TAG | WC_SW_SHDI;

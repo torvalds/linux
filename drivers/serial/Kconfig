@@ -717,13 +717,6 @@ config SERIAL_MRST_MAX3110
 	  the Intel Moorestown platform. On other systems use the max3100
 	  driver.
 
-config MRST_MAX3110_IRQ
-	boolean "Enable GPIO IRQ for Max3110 over Moorestown"
-	default n
-	depends on SERIAL_MRST_MAX3110 && GPIO_LANGWELL
-	help
-	  This has to be enabled after Moorestown GPIO driver is loaded
-
 config SERIAL_MFD_HSU
 	tristate "Medfield High Speed UART support"
 	depends on PCI
