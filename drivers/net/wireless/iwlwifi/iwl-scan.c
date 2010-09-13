@@ -71,7 +71,7 @@ int iwl_scan_cancel(struct iwl_priv *priv)
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
 		if (!test_and_set_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 			IWL_DEBUG_SCAN(priv, "Queuing scan abort.\n");
-			queue_work(priv->workqueue, &priv->abort_scan);
+			schedule_work(&priv->abort_scan);
 
 		} else
 			IWL_DEBUG_SCAN(priv, "Scan abort already in progress.\n");

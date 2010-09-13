@@ -2892,8 +2892,9 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
 
-	if (!exit_pending)
-		set_bit(STATUS_EXIT_PENDING, &priv->status);
+	iwl_scan_cancel_timeout(priv, 200);
+
+	exit_pending = test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
 	 * to prevent rearm timer */
@@ -3502,15 +3503,6 @@ static void iwl_mac_stop(struct ieee80211_hw *hw)
 		return;
 
 	priv->is_open = 0;
-
-	if (iwl_is_ready_rf(priv) || test_bit(STATUS_SCAN_HW, &priv->status)) {
-		/* stop mac, cancel any scan request and clear
-		 * RXON_FILTER_ASSOC_MSK BIT
-		 */
-		mutex_lock(&priv->mutex);
-		iwl_scan_cancel_timeout(priv, 100);
-		mutex_unlock(&priv->mutex);
-	}
 
 	iwl_down(priv);
 
