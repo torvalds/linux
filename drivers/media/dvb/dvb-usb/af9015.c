@@ -496,7 +496,8 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 	/* wait 2nd demodulator ready */
 	msleep(100);
 
-	ret = af9015_read_reg_i2c(d, 0x3a, 0x98be, &val);
+	ret = af9015_read_reg_i2c(d,
+		af9015_af9013_config[1].demod_address, 0x98be, &val);
 	if (ret)
 		goto error;
 	else
