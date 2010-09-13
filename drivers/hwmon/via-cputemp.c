@@ -22,10 +22,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/jiffies.h>
 #include <linux/hwmon.h>
 #include <linux/sysfs.h>
 #include <linux/hwmon-sysfs.h>
