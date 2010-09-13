@@ -266,7 +266,7 @@ static int tc589_config(struct pcmcia_device *link)
     __be16 *phys_addr;
     int ret, i, j, multi = 0, fifo;
     unsigned int ioaddr;
-    char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+    static const char * const ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
     u8 *buf;
     size_t len;
 
