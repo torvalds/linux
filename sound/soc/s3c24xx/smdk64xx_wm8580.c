@@ -242,7 +242,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 };
 
 static struct snd_soc_card smdk64xx = {
-	.name = "smdk64xx",
+	.name = "SMDK64xx 5.1",
 	.dai_link = smdk64xx_dai,
 	.num_links = ARRAY_SIZE(smdk64xx_dai),
 };
