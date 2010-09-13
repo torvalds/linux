@@ -915,7 +915,7 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_epoch_ent
 {
 	if (drbd_ee_has_active_page(e)) {
 		/* This might happen if sendpage() has not finished */
-		int i = DIV_ROUND_UP(e->size, PAGE_SIZE);
+		int i = (e->size + PAGE_SIZE -1) >> PAGE_SHIFT;
 		atomic_add(i, &mdev->pp_in_use_by_net);
 		atomic_sub(i, &mdev->pp_in_use);
 		spin_lock_irq(&mdev->req_lock);
