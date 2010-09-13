@@ -33,7 +33,6 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
-#include <linux/pci.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 
