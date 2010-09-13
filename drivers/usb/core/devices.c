@@ -65,8 +65,8 @@
 #define ALLOW_SERIAL_NUMBER
 
 static const char *format_topo =
-/* T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=ddd MxCh=dd */
-"\nT:  Bus=%2.2d Lev=%2.2d Prnt=%2.2d Port=%2.2d Cnt=%2.2d Dev#=%3d Spd=%3s MxCh=%2d\n";
+/* T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=dddd MxCh=dd */
+"\nT:  Bus=%2.2d Lev=%2.2d Prnt=%2.2d Port=%2.2d Cnt=%2.2d Dev#=%3d Spd=%-4s MxCh=%2d\n";
 
 static const char *format_string_manufacturer =
 /* S:  Manufacturer=xxxx */
@@ -510,11 +510,13 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 		speed = "1.5"; break;
 	case USB_SPEED_UNKNOWN:		/* usb 1.1 root hub code */
 	case USB_SPEED_FULL:
-		speed = "12 "; break;
+		speed = "12"; break;
 	case USB_SPEED_HIGH:
 		speed = "480"; break;
+	case USB_SPEED_SUPER:
+		speed = "5000"; break;
 	default:
-		speed = "?? ";
+		speed = "??";
 	}
 	data_end = pages_start + sprintf(pages_start, format_topo,
 			bus->busnum, level, parent_devnum,
