@@ -1262,7 +1262,8 @@ static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 				}
 				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
 				return -1;
-			}
+			}			
+			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 		}
 	}
 	return 0;
