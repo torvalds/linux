@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <plat/pxa27x_keypad.h>
+#include <linux/i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -38,6 +39,13 @@ static unsigned long teton_bga_pin_config[] __initdata = {
 	GPIO110_KP_MKIN0,
 	GPIO111_KP_MKOUT7,
 	GPIO112_KP_MKOUT6,
+
+	/* I2C Bus */
+	GPIO105_CI2C_SDA,
+	GPIO106_CI2C_SCL,
+
+	/* RTC */
+	GPIO78_GPIO,
 };
 
 static unsigned int teton_bga_matrix_key_map[] = {
@@ -55,6 +63,13 @@ static struct pxa27x_keypad_platform_data teton_bga_keypad_info __initdata = {
 	.debounce_interval      = 30,
 };
 
+static struct i2c_board_info teton_bga_i2c_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("ds1337", 0x68),
+		.irq = gpio_to_irq(RTC_INT_GPIO)
+	},
+};
+
 static void __init teton_bga_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(teton_bga_pin_config));
@@ -62,6 +77,7 @@ static void __init teton_bga_init(void)
 	/* on-chip devices */
 	pxa168_add_uart(1);
 	pxa168_add_keypad(&teton_bga_keypad_info);
+	pxa168_add_twsi(0, NULL, ARRAY_AND_SIZE(teton_bga_i2c_info));
 }
 
 MACHINE_START(TETON_BGA, "PXA168-based Teton BGA Development Platform")
