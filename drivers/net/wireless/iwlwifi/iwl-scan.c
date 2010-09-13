@@ -490,18 +490,8 @@ static void iwl_bg_scan_check(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, scan_check.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
-	if (test_bit(STATUS_SCANNING, &priv->status) &&
-	    !test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan completion watchdog (%dms)\n",
-			       jiffies_to_msecs(IWL_SCAN_CHECK_WATCHDOG));
-
-		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
-			iwl_send_scan_abort(priv);
-	}
+	iwl_scan_cancel_timeout(priv, 200);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -560,7 +550,7 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 	cancel_delayed_work(&priv->scan_check);
 
 	mutex_lock(&priv->mutex);
-	iwl_do_scan_abort(priv);
+	iwl_scan_cancel_timeout(priv, 200);
 	mutex_unlock(&priv->mutex);
 }
 
