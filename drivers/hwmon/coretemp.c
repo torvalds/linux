@@ -541,16 +541,19 @@ static int __init coretemp_init(void)
 				" has no thermal sensor.\n", c->x86_model);
 		}
 	}
+
+#ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
 		err = -ENODEV;
 		goto exit_driver_unreg;
 	}
+#endif
 
 	register_hotcpu_notifier(&coretemp_cpu_notifier);
 	return 0;
 
-exit_driver_unreg:
 #ifndef CONFIG_HOTPLUG_CPU
+exit_driver_unreg:
 	platform_driver_unregister(&coretemp_driver);
 #endif
 exit:
