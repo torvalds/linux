@@ -34,6 +34,20 @@
 
 #define DCB_LOC_ON_CHIP 0
 
+#define ROM16(x) le16_to_cpu(*(uint16_t *)&(x))
+#define ROM32(x) le32_to_cpu(*(uint32_t *)&(x))
+#define ROMPTR(bios, x) (ROM16(x) ? &(bios)->data[ROM16(x)] : NULL)
+
+struct bit_entry {
+	uint8_t  id;
+	uint8_t  version;
+	uint16_t length;
+	uint16_t offset;
+	uint8_t *data;
+};
+
+int bit_table(struct drm_device *, u8 id, struct bit_entry *);
+
 struct dcb_i2c_entry {
 	uint32_t entry;
 	uint8_t port_type;
@@ -224,6 +238,11 @@ struct pll_lims {
 
 struct nvbios {
 	struct drm_device *dev;
+	enum {
+		NVBIOS_BMP,
+		NVBIOS_BIT
+	} type;
+	uint16_t offset;
 
 	uint8_t chip_version;
 

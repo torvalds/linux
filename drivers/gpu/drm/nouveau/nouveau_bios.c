@@ -43,9 +43,6 @@
 #define BIOSLOG(sip, fmt, arg...) NV_DEBUG(sip->dev, fmt, ##arg)
 #define LOG_OLD_VALUE(x)
 
-#define ROM16(x) le16_to_cpu(*(uint16_t *)&(x))
-#define ROM32(x) le32_to_cpu(*(uint32_t *)&(x))
-
 struct init_exec {
 	bool execute;
 	bool repeat;
@@ -270,12 +267,6 @@ struct init_tbl_entry {
 	 *  < 0: failure, table parsing will be aborted
 	 */
 	int (*handler)(struct nvbios *, uint16_t, struct init_exec *);
-};
-
-struct bit_entry {
-	uint8_t id[2];
-	uint16_t length;
-	uint16_t offset;
 };
 
 static int parse_init_table(struct nvbios *, unsigned int, struct init_exec *);
@@ -5365,7 +5356,7 @@ parse_bit_M_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	if (bitentry->length < 0x5)
 		return 0;
 
-	if (bitentry->id[1] < 2) {
+	if (bitentry->version < 2) {
 		bios->ram_restrict_group_count = bios->data[bitentry->offset + 2];
 		bios->ram_restrict_tbl_ptr = ROM16(bios->data[bitentry->offset + 3]);
 	} else {
@@ -5475,27 +5466,40 @@ struct bit_table {
 
 #define BIT_TABLE(id, funcid) ((struct bit_table){ id, parse_bit_##funcid##_tbl_entry })
 
+int
+bit_table(struct drm_device *dev, u8 id, struct bit_entry *bit)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	u8 entries, *entry;
+
+	entries = bios->data[bios->offset + 10];
+	entry   = &bios->data[bios->offset + 12];
+	while (entries--) {
+		if (entry[0] == id) {
+			bit->id = entry[0];
+			bit->version = entry[1];
+			bit->length = ROM16(entry[2]);
+			bit->offset = ROM16(entry[4]);
+			bit->data = ROMPTR(bios, entry[4]);
+			return 0;
+		}
+
+		entry += bios->data[bios->offset + 9];
+	}
+
+	return -ENOENT;
+}
+
 static int
 parse_bit_table(struct nvbios *bios, const uint16_t bitoffset,
 		struct bit_table *table)
 {
 	struct drm_device *dev = bios->dev;
-	uint8_t maxentries = bios->data[bitoffset + 4];
-	int i, offset;
 	struct bit_entry bitentry;
 
-	for (i = 0, offset = bitoffset + 6; i < maxentries; i++, offset += 6) {
-		bitentry.id[0] = bios->data[offset];
-
-		if (bitentry.id[0] != table->id)
-			continue;
-
-		bitentry.id[1] = bios->data[offset + 1];
-		bitentry.length = ROM16(bios->data[offset + 2]);
-		bitentry.offset = ROM16(bios->data[offset + 4]);
-
+	if (bit_table(dev, table->id, &bitentry) == 0)
 		return table->parse_fn(dev, bios, &bitentry);
-	}
 
 	NV_INFO(dev, "BIT table '%c' not found\n", table->id);
 	return -ENOSYS;
@@ -6752,6 +6756,8 @@ static int nouveau_parse_vbios_struct(struct drm_device *dev)
 					bit_signature, sizeof(bit_signature));
 	if (offset) {
 		NV_TRACE(dev, "BIT BIOS found\n");
+		bios->type = NVBIOS_BIT;
+		bios->offset = offset;
 		return parse_bit_structure(bios, offset + 6);
 	}
 
@@ -6759,6 +6765,8 @@ static int nouveau_parse_vbios_struct(struct drm_device *dev)
 					bmp_signature, sizeof(bmp_signature));
 	if (offset) {
 		NV_TRACE(dev, "BMP BIOS found\n");
+		bios->type = NVBIOS_BMP;
+		bios->offset = offset;
 		return parse_bmp_structure(dev, bios, offset);
 	}
 
