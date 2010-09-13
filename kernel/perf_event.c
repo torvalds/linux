@@ -2015,6 +2015,43 @@ alloc_perf_context(struct pmu *pmu, struct task_struct *task)
 	return ctx;
 }
 
+static struct task_struct *
+find_lively_task_by_vpid(pid_t vpid)
+{
+	struct task_struct *task;
+	int err;
+
+	rcu_read_lock();
+	if (!vpid)
+		task = current;
+	else
+		task = find_task_by_vpid(vpid);
+	if (task)
+		get_task_struct(task);
+	rcu_read_unlock();
+
+	if (!task)
+		return ERR_PTR(-ESRCH);
+
+	/*
+	 * Can't attach events to a dying task.
+	 */
+	err = -ESRCH;
+	if (task->flags & PF_EXITING)
+		goto errout;
+
+	/* Reuse ptrace permission checks for now. */
+	err = -EACCES;
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
+		goto errout;
+
+	return task;
+errout:
+	put_task_struct(task);
+	return ERR_PTR(err);
+
+}
+
 static struct perf_event_context *
 find_get_context(struct pmu *pmu, pid_t pid, int cpu)
 {
@@ -2047,29 +2084,9 @@ find_get_context(struct pmu *pmu, pid_t pid, int cpu)
 		return ctx;
 	}
 
-	rcu_read_lock();
-	if (!pid)
-		task = current;
-	else
-		task = find_task_by_vpid(pid);
-	if (task)
-		get_task_struct(task);
-	rcu_read_unlock();
-
-	if (!task)
-		return ERR_PTR(-ESRCH);
-
-	/*
-	 * Can't attach events to a dying task.
-	 */
-	err = -ESRCH;
-	if (task->flags & PF_EXITING)
-		goto errout;
-
-	/* Reuse ptrace permission checks for now. */
-	err = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ))
-		goto errout;
+	task = find_lively_task_by_vpid(pid);
+	if (IS_ERR(task))
+		return (void*)task;
 
 	err = -EINVAL;
 	ctxn = pmu->task_ctx_nr;
