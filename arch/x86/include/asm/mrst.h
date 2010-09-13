@@ -47,4 +47,7 @@ extern enum mrst_timer_options mrst_timer_options;
 
 extern struct console early_mrst_console;
 extern void mrst_early_console_init(void);
+
+extern struct console early_hsu_console;
+extern void hsu_early_console_init(void);
 #endif /* _ASM_X86_MRST_H */

@@ -1,5 +1,5 @@
 /*
- * early_printk_mrst.c - spi-uart early printk for Intel Moorestown platform
+ * early_printk_mrst.c - early consoles for Intel MID platforms
  *
  * Copyright (c) 2008-2010, Intel Corporation
  *
@@ -9,9 +9,19 @@
  * of the License.
  */
 
+/*
+ * This file implements two early consoles named mrst and hsu.
+ * mrst is based on Maxim3110 spi-uart device, it exists in both
+ * Moorestown and Medfield platforms, while hsu is based on a High
+ * Speed UART device which only exists in the Medfield platform
+ */
+
+#include <linux/serial_reg.h>
+#include <linux/serial_mfd.h>
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
 
@@ -227,6 +237,83 @@ static void early_mrst_spi_write(struct console *con, const char *str, unsigned 
 struct console early_mrst_console = {
 	.name =		"earlymrst",
 	.write =	early_mrst_spi_write,
+	.flags =	CON_PRINTBUFFER,
+	.index =	-1,
+};
+
+/*
+ * Following is the early console based on Medfield HSU (High
+ * Speed UART) device.
+ */
+#define HSU_PORT2_PADDR		0xffa28180
+
+static void __iomem *phsu;
+
+void hsu_early_console_init(void)
+{
+	u8 lcr;
+
+	phsu = (void *)set_fixmap_offset_nocache(FIX_EARLYCON_MEM_BASE,
+							HSU_PORT2_PADDR);
+
+	/* Disable FIFO */
+	writeb(0x0, phsu + UART_FCR);
+
+	/* Set to default 115200 bps, 8n1 */
+	lcr = readb(phsu + UART_LCR);
+	writeb((0x80 | lcr), phsu + UART_LCR);
+	writeb(0x18, phsu + UART_DLL);
+	writeb(lcr,  phsu + UART_LCR);
+	writel(0x3600, phsu + UART_MUL*4);
+
+	writeb(0x8, phsu + UART_MCR);
+	writeb(0x7, phsu + UART_FCR);
+	writeb(0x3, phsu + UART_LCR);
+
+	/* Clear IRQ status */
+	readb(phsu + UART_LSR);
+	readb(phsu + UART_RX);
+	readb(phsu + UART_IIR);
+	readb(phsu + UART_MSR);
+
+	/* Enable FIFO */
+	writeb(0x7, phsu + UART_FCR);
+}
+
+#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
+
+static void early_hsu_putc(char ch)
+{
+	unsigned int timeout = 10000; /* 10ms */
+	u8 status;
+
+	while (--timeout) {
+		status = readb(phsu + UART_LSR);
+		if (status & BOTH_EMPTY)
+			break;
+		udelay(1);
+	}
+
+	/* Only write the char when there was no timeout */
+	if (timeout)
+		writeb(ch, phsu + UART_TX);
+}
+
+static void early_hsu_write(struct console *con, const char *str, unsigned n)
+{
+	int i;
+
+	for (i = 0; i < n && *str; i++) {
+		if (*str == '\n')
+			early_hsu_putc('\r');
+		early_hsu_putc(*str);
+		str++;
+	}
+}
+
+struct console early_hsu_console = {
+	.name =		"earlyhsu",
+	.write =	early_hsu_write,
 	.flags =	CON_PRINTBUFFER,
 	.index =	-1,
 };
