@@ -3,6 +3,9 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
+#ifdef __ASSEMBLY__
+#include <asm/thread_info.h>
+#endif
 
 /*
  * Stack layout in 'ret_from_exception':
