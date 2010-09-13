@@ -78,7 +78,7 @@ static int w9968cf_write_fsb(struct sd *sd, u16* data)
 			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
 			      value, 0x06, sd->gspca_dev.usb_buf, 6, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Write FSB registers failed (%d)", ret);
+		err("Write FSB registers failed (%d)", ret);
 		return ret;
 	}
 
@@ -104,7 +104,7 @@ static int w9968cf_write_sb(struct sd *sd, u16 value)
 	udelay(W9968CF_I2C_BUS_DELAY);
 
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Write SB reg [01] %04x failed", value);
+		err("Write SB reg [01] %04x failed", value);
 		return ret;
 	}
 
@@ -130,7 +130,7 @@ static int w9968cf_read_sb(struct sd *sd)
 		ret = sd->gspca_dev.usb_buf[0] |
 		      (sd->gspca_dev.usb_buf[1] << 8);
 	else
-		PDEBUG(D_ERR, "Read SB reg [01] failed");
+		err("Read SB reg [01] failed");
 
 	udelay(W9968CF_I2C_BUS_DELAY);
 

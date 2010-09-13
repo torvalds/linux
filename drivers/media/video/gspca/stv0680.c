@@ -79,8 +79,7 @@ static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 			      val, 0, gspca_dev->usb_buf, size, 500);
 
 	if ((ret < 0) && (req != 0x0a))
-		PDEBUG(D_ERR,
-		       "usb_control_msg error %i, request = 0x%x, error = %i",
+		err("usb_control_msg error %i, request = 0x%x, error = %i",
 		       set, req, ret);
 
 	return ret;
@@ -237,7 +236,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (stv_sndctrl(gspca_dev, 2, 0x06, 0x0100, 0x12) != 0x12 ||
 	    gspca_dev->usb_buf[8] != 0x53 || gspca_dev->usb_buf[9] != 0x05) {
-		PDEBUG(D_ERR, "Could not get descriptor 0100.");
+		err("Could not get descriptor 0100.");
 		return stv0680_handle_error(gspca_dev, -EIO);
 	}
 

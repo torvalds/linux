@@ -178,8 +178,7 @@ static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 			0x00, index,
 			gspca_dev->usb_buf, length, PAC207_CTRL_TIMEOUT);
 	if (err < 0)
-		PDEBUG(D_ERR,
-			"Failed to write registers to index 0x%04X, error %d)",
+		err("Failed to write registers to index 0x%04X, error %d)",
 			index, err);
 
 	return err;
@@ -195,7 +194,7 @@ static int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value, index, NULL, 0, PAC207_CTRL_TIMEOUT);
 	if (err)
-		PDEBUG(D_ERR, "Failed to write a register (index 0x%04X,"
+		err("Failed to write a register (index 0x%04X,"
 			" value 0x%02X, error %d)", index, value, err);
 
 	return err;
@@ -211,8 +210,7 @@ static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 			0x00, index,
 			gspca_dev->usb_buf, 1, PAC207_CTRL_TIMEOUT);
 	if (res < 0) {
-		PDEBUG(D_ERR,
-			"Failed to read a register (index 0x%04X, error %d)",
+		err("Failed to read a register (index 0x%04X, error %d)",
 			index, res);
 		return res;
 	}

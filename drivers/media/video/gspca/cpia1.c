@@ -510,7 +510,7 @@ retry:
 			      gspca_dev->usb_buf, databytes, 1000);
 
 	if (ret < 0)
-		PDEBUG(D_ERR, "usb_control_msg %02x, error %d", command[1],
+		err("usb_control_msg %02x, error %d", command[1],
 		       ret);
 
 	if (ret == -EPIPE && retries > 0) {
@@ -1236,7 +1236,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 	cmd[7] = 0;
 	ret = cpia_usb_transferCmd(gspca_dev, cmd);
 	if (ret) {
-		PDEBUG(D_ERR, "ReadVPRegs(30,4,9,8) - failed: %d", ret);
+		err("ReadVPRegs(30,4,9,8) - failed: %d", ret);
 		return;
 	}
 	exp_acc = gspca_dev->usb_buf[0];

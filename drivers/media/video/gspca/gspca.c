@@ -148,7 +148,7 @@ static void int_irq(struct urb *urb)
 	if (ret == 0) {
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0)
-			PDEBUG(D_ERR, "Resubmit URB failed with error %i", ret);
+			err("Resubmit URB failed with error %i", ret);
 	}
 }
 
@@ -177,8 +177,8 @@ static int gspca_input_connect(struct gspca_dev *dev)
 
 		err = input_register_device(input_dev);
 		if (err) {
-			PDEBUG(D_ERR, "Input device registration failed "
-				"with error %i", err);
+			err("Input device registration failed with error %i",
+				err);
 			input_dev->dev.parent = NULL;
 			input_free_device(input_dev);
 		} else {
@@ -328,8 +328,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		}
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
-			PDEBUG(D_ERR,
-				"ISOC data error: [%d] len=%d, status=%d",
+			err("ISOC data error: [%d] len=%d, status=%d",
 				i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
@@ -347,7 +346,7 @@ resubmit:
 	/* resubmit the URB */
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
-		PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", st);
+		err("usb_submit_urb() ret %d", st);
 }
 
 /*
@@ -401,7 +400,7 @@ resubmit:
 	if (gspca_dev->cam.bulk_nurbs != 0) {
 		st = usb_submit_urb(urb, GFP_ATOMIC);
 		if (st < 0)
-			PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", st);
+			err("usb_submit_urb() ret %d", st);
 	}
 }
 
@@ -590,7 +589,7 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 		return 0;
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_STREAM, "set alt 0 err %d", ret);
+		err("set alt 0 err %d", ret);
 	return ret;
 }
 
@@ -850,8 +849,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			break;
 		gspca_stream_off(gspca_dev);
 		if (ret != -ENOSPC) {
-			PDEBUG(D_ERR|D_STREAM,
-				"usb_submit_urb alt %d err %d",
+			err("usb_submit_urb alt %d err %d",
 				gspca_dev->alt, ret);
 			goto out;
 		}
@@ -2243,7 +2241,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	/* we don't handle multi-config cameras */
 	if (dev->descriptor.bNumConfigurations != 1) {
-		PDEBUG(D_ERR, "%04x:%04x too many config",
+		err("%04x:%04x too many config",
 				id->idVendor, id->idProduct);
 		return -ENODEV;
 	}

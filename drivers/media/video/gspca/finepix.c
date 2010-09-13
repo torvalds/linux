@@ -182,7 +182,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Init the device */
 	ret = command(gspca_dev, 0);
 	if (ret < 0) {
-		PDEBUG(D_STREAM, "init failed %d", ret);
+		err("init failed %d", ret);
 		return ret;
 	}
 
@@ -194,14 +194,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			FPIX_MAX_TRANSFER, &len,
 			FPIX_TIMEOUT);
 	if (ret < 0) {
-		PDEBUG(D_STREAM, "usb_bulk_msg failed %d", ret);
+		err("usb_bulk_msg failed %d", ret);
 		return ret;
 	}
 
 	/* Request a frame, but don't read it */
 	ret = command(gspca_dev, 1);
 	if (ret < 0) {
-		PDEBUG(D_STREAM, "frame request failed %d", ret);
+		err("frame request failed %d", ret);
 		return ret;
 	}
 

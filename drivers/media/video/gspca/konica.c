@@ -200,7 +200,7 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 			0,
 			1000);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -221,7 +221,7 @@ static void reg_r(struct gspca_dev *gspca_dev, u16 value, u16 index)
 			2,
 			1000);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -284,7 +284,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
 	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
 	if (!alt) {
-		PDEBUG(D_ERR, "Couldn't get altsetting");
+		err("Couldn't get altsetting");
 		return -EIO;
 	}
 
@@ -386,7 +386,7 @@ static void sd_isoc_irq(struct urb *urb)
 		PDEBUG(D_ERR, "urb status: %d", urb->status);
 		st = usb_submit_urb(urb, GFP_ATOMIC);
 		if (st < 0)
-			PDEBUG(D_ERR|D_PACK, "resubmit urb error %d", st);
+			err("resubmit urb error %d", st);
 		return;
 	}
 
@@ -477,7 +477,7 @@ resubmit:
 	}
 	st = usb_submit_urb(status_urb, GFP_ATOMIC);
 	if (st < 0)
-		PDEBUG(D_ERR|D_PACK, "usb_submit_urb(status_urb) ret %d", st);
+		err("usb_submit_urb(status_urb) ret %d", st);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

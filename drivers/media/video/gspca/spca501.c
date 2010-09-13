@@ -1852,7 +1852,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write: 0x%02x 0x%02x 0x%02x",
 		req, index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 

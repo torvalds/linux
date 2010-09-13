@@ -5698,7 +5698,7 @@ static u8 reg_r_i(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_i err %d", ret);
+		err("reg_r_i err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -5730,7 +5730,7 @@ static void reg_w_i(struct gspca_dev *gspca_dev,
 			value, index, NULL, 0,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w_i err %d", ret);
+		err("reg_w_i err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -6503,8 +6503,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				PDEBUG(D_PROBE, "Sensor Tas5130 (VF0250)");
 				break;
 			default:
-				PDEBUG(D_PROBE,
-					"Unknown sensor - set to TAS5130C");
+				warn("Unknown sensor - set to TAS5130C");
 				sd->sensor = SENSOR_TAS5130C;
 			}
 			break;
@@ -6610,7 +6609,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			PDEBUG(D_ERR|D_PROBE, "Unknown sensor %04x", sensor);
+			err("Unknown sensor %04x", sensor);
 			return -EINVAL;
 		}
 	}

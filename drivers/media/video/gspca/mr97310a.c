@@ -267,7 +267,7 @@ static int mr_write(struct gspca_dev *gspca_dev, int len)
 			  usb_sndbulkpipe(gspca_dev->dev, 4),
 			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
-		PDEBUG(D_ERR, "reg write [%02x] error %d",
+		err("reg write [%02x] error %d",
 		       gspca_dev->usb_buf[0], rc);
 	return rc;
 }
@@ -281,7 +281,7 @@ static int mr_read(struct gspca_dev *gspca_dev, int len)
 			  usb_rcvbulkpipe(gspca_dev->dev, 3),
 			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
-		PDEBUG(D_ERR, "reg read [%02x] error %d",
+		err("reg read [%02x] error %d",
 		       gspca_dev->usb_buf[0], rc);
 	return rc;
 }
@@ -540,7 +540,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 1;
 			break;
 		default:
-			PDEBUG(D_ERR, "Unknown CIF Sensor id : %02x",
+			err("Unknown CIF Sensor id : %02x",
 			       gspca_dev->usb_buf[1]);
 			return -ENODEV;
 		}
@@ -575,10 +575,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 2;
 		} else if ((gspca_dev->usb_buf[0] != 0x03) &&
 					(gspca_dev->usb_buf[0] != 0x04)) {
-			PDEBUG(D_ERR, "Unknown VGA Sensor id Byte 0: %02x",
+			err("Unknown VGA Sensor id Byte 0: %02x",
 					gspca_dev->usb_buf[0]);
-			PDEBUG(D_ERR, "Defaults assumed, may not work");
-			PDEBUG(D_ERR, "Please report this");
+			err("Defaults assumed, may not work");
+			err("Please report this");
 		}
 		/* Sakar Digital color needs to be adjusted. */
 		if ((gspca_dev->usb_buf[0] == 0x03) &&
@@ -595,12 +595,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				/* Nothing to do here. */
 				break;
 			default:
-				PDEBUG(D_ERR,
-					"Unknown VGA Sensor id Byte 1: %02x",
+				err("Unknown VGA Sensor id Byte 1: %02x",
 					gspca_dev->usb_buf[1]);
-				PDEBUG(D_ERR,
-					"Defaults assumed, may not work");
-				PDEBUG(D_ERR, "Please report this");
+				err("Defaults assumed, may not work");
+				err("Please report this");
 			}
 		}
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",

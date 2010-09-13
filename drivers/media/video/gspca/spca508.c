@@ -1276,7 +1276,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write i:0x%04x = 0x%02x",
 		index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_USBO, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -1298,7 +1298,7 @@ static int reg_read(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "reg read i:%04x --> %02x",
 		index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		PDEBUG(D_ERR|D_USBI, "reg_read err %d", ret);
+		err("reg_read err %d", ret);
 		return ret;
 	}
 	return gspca_dev->usb_buf[0];

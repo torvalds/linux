@@ -1599,7 +1599,7 @@ static void ov7648_probe(struct gspca_dev *gspca_dev)
 		return;
 	}
 
-	PDEBUG(D_PROBE, "Unknown sensor %04x", val);
+	err("Unknown sensor %04x", val);
 }
 
 /* 0c45:6142 sensor may be po2030n, gc0305 or gc0307 */
@@ -1635,7 +1635,7 @@ static void po2030n_probe(struct gspca_dev *gspca_dev)
 		PDEBUG(D_PROBE, "Sensor po2030n");
 /*		sd->sensor = SENSOR_PO2030N; */
 	} else {
-		PDEBUG(D_PROBE, "Unknown sensor ID %04x", val);
+		err("Unknown sensor ID %04x", val);
 	}
 }
 

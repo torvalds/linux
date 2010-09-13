@@ -585,8 +585,7 @@ int gl860_RTx(struct gspca_dev *gspca_dev,
 	}
 
 	if (r < 0)
-		PDEBUG(D_ERR,
-			"ctrl transfer failed %4d "
+		err("ctrl transfer failed %4d "
 			"[p%02x r%d v%04x i%04x len%d]",
 			r, pref, req, val, index, len);
 	else if (len > 1 && r < len)

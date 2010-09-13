@@ -892,7 +892,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_OM6802;
 		break;
 	default:
-		PDEBUG(D_ERR|D_PROBE, "unknown sensor %04x", sensor_id);
+		err("unknown sensor %04x", sensor_id);
 		return -EINVAL;
 	}
 

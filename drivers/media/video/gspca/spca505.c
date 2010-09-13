@@ -582,7 +582,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d",
 		req, index, value, ret);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -689,8 +689,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 	}
 	if (ret != 0x0101) {
-		PDEBUG(D_ERR|D_CONF,
-			"After vector read returns 0x%04x should be 0x0101",
+		err("After vector read returns 0x%04x should be 0x0101",
 			ret);
 	}
 

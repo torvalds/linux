@@ -142,7 +142,7 @@ static u8 reg_r(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r err %d", ret);
+		err("reg_r err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -167,7 +167,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -197,7 +197,7 @@ static void rcv_val(struct gspca_dev *gspca_dev,
 			&alen,
 			500);		/* timeout in milliseconds */
 	if (ret < 0) {
-		PDEBUG(D_ERR, "rcv_val err %d", ret);
+		err("rcv_val err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -240,7 +240,7 @@ static void snd_val(struct gspca_dev *gspca_dev,
 			&alen,
 			500);	/* timeout in milliseconds */
 	if (ret < 0) {
-		PDEBUG(D_ERR, "snd_val err %d", ret);
+		err("snd_val err %d", ret);
 		gspca_dev->usb_err = ret;
 	} else {
 		if (ads == 0x003f08) {
@@ -323,7 +323,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	ret = reg_r(gspca_dev, 0x0740);
 	if (gspca_dev->usb_err >= 0) {
 		if (ret != 0xff) {
-			PDEBUG(D_ERR|D_STREAM, "init reg: 0x%02x", ret);
+			err("init reg: 0x%02x", ret);
 			gspca_dev->usb_err = -EIO;
 		}
 	}
@@ -357,7 +357,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 					gspca_dev->iface,
 					gspca_dev->alt);
 	if (ret < 0) {
-		PDEBUG(D_ERR|D_STREAM, "set intf %d %d failed",
+		err("set intf %d %d failed",
 			gspca_dev->iface, gspca_dev->alt);
 		gspca_dev->usb_err = ret;
 		goto out;

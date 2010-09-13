@@ -189,7 +189,7 @@ int stv06xx_read_sensor(struct sd *sd, const u8 address, u16 *value)
 			      0x04, 0x40, 0x1400, 0, buf, I2C_BUFFER_LENGTH,
 			      STV06XX_URB_MSG_TIMEOUT);
 	if (err < 0) {
-		PDEBUG(D_ERR, "I2C: Read error writing address: %d", err);
+		err("I2C: Read error writing address: %d", err);
 		return err;
 	}
 

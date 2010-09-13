@@ -171,7 +171,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "GET %02x 0000 %04x %02x", req, index,
 			 gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r err %d", ret);
+		err("reg_r err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -193,7 +193,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			value, index,
 			NULL, 0, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -217,7 +217,7 @@ static void reg_wb(struct gspca_dev *gspca_dev,
 			value, index,
 			gspca_dev->usb_buf, 1, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }

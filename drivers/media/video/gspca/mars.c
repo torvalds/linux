@@ -150,7 +150,7 @@ static int reg_w(struct gspca_dev *gspca_dev,
 			&alen,
 			500);	/* timeout in milliseconds */
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write [%02x] error %d",
+		err("reg write [%02x] error %d",
 			gspca_dev->usb_buf[0], ret);
 	return ret;
 }

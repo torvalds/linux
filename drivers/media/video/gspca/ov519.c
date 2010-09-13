@@ -1900,7 +1900,7 @@ static int reg_w(struct sd *sd, __u16 index, __u16 value)
 			sd->gspca_dev.usb_buf, 1, 500);
 leave:
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Write reg 0x%04x -> [0x%02x] failed",
+		err("Write reg 0x%04x -> [0x%02x] failed",
 		       value, index);
 		return ret;
 	}
@@ -1938,7 +1938,7 @@ static int reg_r(struct sd *sd, __u16 index)
 		ret = sd->gspca_dev.usb_buf[0];
 		PDEBUG(D_USBI, "Read reg [0x%02X] -> 0x%04X", index, ret);
 	} else
-		PDEBUG(D_ERR, "Read reg [0x%02x] failed", index);
+		err("Read reg [0x%02x] failed", index);
 
 	return ret;
 }
@@ -1958,7 +1958,7 @@ static int reg_r8(struct sd *sd,
 	if (ret >= 0)
 		ret = sd->gspca_dev.usb_buf[0];
 	else
-		PDEBUG(D_ERR, "Read reg 8 [0x%02x] failed", index);
+		err("Read reg 8 [0x%02x] failed", index);
 
 	return ret;
 }
@@ -2006,7 +2006,7 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 			0, index,
 			sd->gspca_dev.usb_buf, n, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Write reg32 [%02x] %08x failed", index, value);
+		err("Write reg32 [%02x] %08x failed", index, value);
 		return ret;
 	}
 
@@ -2203,7 +2203,7 @@ static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 			(__u16)value, (__u16)reg, NULL, 0, 500);
 
 	if (ret < 0) {
-		PDEBUG(D_ERR, "i2c 0x%02x -> [0x%02x] failed", value, reg);
+		err("i2c 0x%02x -> [0x%02x] failed", value, reg);
 		return ret;
 	}
 
@@ -2225,7 +2225,7 @@ static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
 		ret = sd->gspca_dev.usb_buf[0];
 		PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, ret);
 	} else
-		PDEBUG(D_ERR, "i2c read [0x%02x] failed", reg);
+		err("i2c read [0x%02x] failed", reg);
 
 	return ret;
 }
@@ -2481,7 +2481,7 @@ static int ov_hires_configure(struct sd *sd)
 	int high, low;
 
 	if (sd->bridge != BRIDGE_OVFX2) {
-		PDEBUG(D_ERR, "error hires sensors only supported with ovfx2");
+		err("error hires sensors only supported with ovfx2");
 		return -1;
 	}
 
@@ -2498,7 +2498,7 @@ static int ov_hires_configure(struct sd *sd)
 		PDEBUG(D_PROBE, "Sensor is an OV3610");
 		sd->sensor = SEN_OV3610;
 	} else {
-		PDEBUG(D_ERR, "Error unknown sensor type: 0x%02x%02x",
+		err("Error unknown sensor type: 0x%02x%02x",
 		       high, low);
 		return -1;
 	}
@@ -2526,7 +2526,7 @@ static int ov8xx0_configure(struct sd *sd)
 	if ((rc & 3) == 1) {
 		sd->sensor = SEN_OV8610;
 	} else {
-		PDEBUG(D_ERR, "Unknown image sensor version: %d", rc & 3);
+		err("Unknown image sensor version: %d", rc & 3);
 		return -1;
 	}
 
@@ -2589,9 +2589,8 @@ static int ov7xx0_configure(struct sd *sd)
 		if (high == 0x76) {
 			switch (low) {
 			case 0x30:
-				PDEBUG(D_PROBE, "Sensor is an OV7630/OV7635");
-				PDEBUG(D_ERR,
-				      "7630 is not supported by this driver");
+				err("Sensor is an OV7630/OV7635");
+				err("7630 is not supported by this driver");
 				return -1;
 			case 0x40:
 				PDEBUG(D_PROBE, "Sensor is an OV7645");
@@ -2614,7 +2613,7 @@ static int ov7xx0_configure(struct sd *sd)
 			sd->sensor = SEN_OV7620;
 		}
 	} else {
-		PDEBUG(D_ERR, "Unknown image sensor version: %d", rc & 3);
+		err("Unknown image sensor version: %d", rc & 3);
 		return -1;
 	}
 
@@ -2641,9 +2640,8 @@ static int ov6xx0_configure(struct sd *sd)
 	switch (rc) {
 	case 0x00:
 		sd->sensor = SEN_OV6630;
-		PDEBUG(D_ERR,
-			"WARNING: Sensor is an OV66308. Your camera may have");
-		PDEBUG(D_ERR, "been misdetected in previous driver versions.");
+		warn("WARNING: Sensor is an OV66308. Your camera may have");
+		warn("been misdetected in previous driver versions.");
 		break;
 	case 0x01:
 		sd->sensor = SEN_OV6620;
@@ -2659,12 +2657,11 @@ static int ov6xx0_configure(struct sd *sd)
 		break;
 	case 0x90:
 		sd->sensor = SEN_OV6630;
-		PDEBUG(D_ERR,
-			"WARNING: Sensor is an OV66307. Your camera may have");
-		PDEBUG(D_ERR, "been misdetected in previous driver versions.");
+		warn("WARNING: Sensor is an OV66307. Your camera may have");
+		warn("been misdetected in previous driver versions.");
 		break;
 	default:
-		PDEBUG(D_ERR, "FATAL: Unknown sensor version: 0x%02x", rc);
+		err("FATAL: Unknown sensor version: 0x%02x", rc);
 		return -1;
 	}
 
@@ -3082,7 +3079,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			goto error;
 		}
 	} else {
-		PDEBUG(D_ERR, "Can't determine sensor slave IDs");
+		err("Can't determine sensor slave IDs");
 		goto error;
 	}
 
@@ -3253,7 +3250,7 @@ static int ov511_mode_init_regs(struct sd *sd)
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
 	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
 	if (!alt) {
-		PDEBUG(D_ERR, "Couldn't get altsetting");
+		err("Couldn't get altsetting");
 		return -EIO;
 	}
 
@@ -3377,7 +3374,7 @@ static int ov518_mode_init_regs(struct sd *sd)
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
 	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
 	if (!alt) {
-		PDEBUG(D_ERR, "Couldn't get altsetting");
+		err("Couldn't get altsetting");
 		return -EIO;
 	}
 
