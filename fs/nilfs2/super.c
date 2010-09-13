@@ -833,6 +833,38 @@ static int nilfs_try_to_shrink_tree(struct dentry *root_dentry)
 	return nilfs_tree_was_touched(root_dentry);
 }
 
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno)
+{
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct nilfs_root *root;
+	struct inode *inode;
+	struct dentry *dentry;
+	int ret;
+
+	if (cno < 0 || cno > nilfs->ns_cno)
+		return false;
+
+	if (cno >= nilfs_last_cno(nilfs))
+		return true;	/* protect recent checkpoints */
+
+	ret = false;
+	root = nilfs_lookup_root(NILFS_SB(sb)->s_nilfs, cno);
+	if (root) {
+		inode = nilfs_ilookup(sb, root, NILFS_ROOT_INO);
+		if (inode) {
+			dentry = d_find_alias(inode);
+			if (dentry) {
+				if (nilfs_tree_was_touched(dentry))
+					ret = nilfs_try_to_shrink_tree(dentry);
+				dput(dentry);
+			}
+			iput(inode);
+		}
+		nilfs_put_root(root);
+	}
+	return ret;
+}
+
 /**
  * nilfs_fill_super() - initialize a super block instance
  * @sb: super_block

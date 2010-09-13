@@ -242,7 +242,6 @@ struct nilfs_root *nilfs_find_or_create_root(struct the_nilfs *nilfs,
 					     __u64 cno);
 void nilfs_put_root(struct nilfs_root *root);
 struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *, int, __u64);
-int nilfs_checkpoint_is_mounted(struct the_nilfs *, __u64, int);
 int nilfs_near_disk_full(struct the_nilfs *);
 void nilfs_fall_back_super_block(struct the_nilfs *);
 void nilfs_swap_super_block(struct the_nilfs *);

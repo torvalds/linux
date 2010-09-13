@@ -863,26 +863,19 @@ int nilfs_cpfile_is_snapshot(struct inode *cpfile, __u64 cno)
  */
 int nilfs_cpfile_change_cpmode(struct inode *cpfile, __u64 cno, int mode)
 {
-	struct the_nilfs *nilfs;
 	int ret;
-
-	nilfs = NILFS_MDT(cpfile)->mi_nilfs;
 
 	switch (mode) {
 	case NILFS_CHECKPOINT:
-		/*
-		 * Check for protecting existing snapshot mounts:
-		 * ns_mount_mutex is used to make this operation atomic and
-		 * exclusive with a new mount job.  Though it doesn't cover
-		 * umount, it's enough for the purpose.
-		 */
-		if (nilfs_checkpoint_is_mounted(nilfs, cno, 1)) {
-			/* Current implementation does not have to protect
-			   plain read-only mounts since they are exclusive
-			   with a read/write mount and are protected from the
-			   cleaner. */
+		if (nilfs_checkpoint_is_mounted(cpfile->i_sb, cno))
+			/*
+			 * Current implementation does not have to protect
+			 * plain read-only mounts since they are exclusive
+			 * with a read/write mount and are protected from the
+			 * cleaner.
+			 */
 			ret = -EBUSY;
-		} else
+		else
 			ret = nilfs_cpfile_clear_snapshot(cpfile, cno);
 		return ret;
 	case NILFS_SNAPSHOT:

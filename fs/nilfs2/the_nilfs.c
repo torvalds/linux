@@ -769,24 +769,3 @@ void nilfs_put_root(struct nilfs_root *root)
 		kfree(root);
 	}
 }
-
-int nilfs_checkpoint_is_mounted(struct the_nilfs *nilfs, __u64 cno,
-				int snapshot_mount)
-{
-	struct nilfs_root *root;
-	int ret;
-
-	if (cno < 0 || cno > nilfs->ns_cno)
-		return false;
-
-	if (cno >= nilfs_last_cno(nilfs))
-		return true;	/* protect recent checkpoints */
-
-	ret = false;
-	root = nilfs_lookup_root(nilfs, cno);
-	if (root) {
-		ret = true;
-		nilfs_put_root(root);
-	}
-	return ret;
-}

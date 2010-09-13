@@ -506,6 +506,16 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 	return 0;
 }
 
+struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long ino)
+{
+	struct nilfs_iget_args args = {
+		.ino = ino, .root = root, .cno = 0, .for_gc = 0
+	};
+
+	return ilookup5(sb, ino, nilfs_iget_test, &args);
+}
+
 struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
 				unsigned long ino)
 {

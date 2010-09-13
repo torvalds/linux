@@ -244,6 +244,8 @@ extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
 extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
+struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long ino);
 struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
 				unsigned long ino);
 struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
@@ -285,6 +287,7 @@ extern int nilfs_commit_super(struct nilfs_sb_info *, int);
 extern int nilfs_cleanup_super(struct nilfs_sb_info *);
 int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 			    struct nilfs_root **root);
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
 
 /* gcinode.c */
 int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
