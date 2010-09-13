@@ -280,11 +280,9 @@ static int __devinit get_tjmax(struct cpuinfo_x86 *c, u32 id,
 	case 0x1a:
 		dev_warn(dev, "TjMax is assumed as 100 C!\n");
 		return 100000;
-		break;
 	case 0x17:
 	case 0x1c:		/* Atom CPUs */
 		return adjust_tjmax(c, id, dev);
-		break;
 	default:
 		dev_warn(dev, "CPU (model=0x%x) is not supported yet,"
 			" using default TjMax of 100C.\n", c->x86_model);
