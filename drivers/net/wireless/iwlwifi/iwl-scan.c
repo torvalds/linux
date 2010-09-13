@@ -573,7 +573,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 
 	if (!test_and_clear_bit(STATUS_SCANNING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan already completed.\n");
-		goto out;
+		goto out_settings;
 	}
 
 	if (priv->is_internal_short_scan && !aborted) {
@@ -599,6 +599,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 out_complete:
 	iwl_complete_scan(priv, aborted);
 
+out_settings:
 	/* Can we still talk to firmware ? */
 	if (!iwl_is_ready_rf(priv))
 		goto out;
