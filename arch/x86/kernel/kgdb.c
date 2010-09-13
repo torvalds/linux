@@ -477,8 +477,6 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 				   raw_smp_processor_id());
 		}
 
-		kgdb_correct_hw_break();
-
 		return 0;
 	}
 
