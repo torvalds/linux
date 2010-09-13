@@ -5201,6 +5201,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = -1;
+	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 
 	if (HAS_PCH_SPLIT(dev)) {
 		intel_helper_funcs.prepare = ironlake_crtc_prepare;
