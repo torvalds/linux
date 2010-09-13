@@ -599,6 +599,14 @@ config CPU_CP15_MPU
 	help
 	  Processor has the CP15 register, which has MPU related registers.
 
+config CPU_USE_DOMAINS
+	bool
+	depends on MMU
+	default y if !CPU_32v6K
+	help
+	  This option enables or disables the use of domain switching
+	  via the set_fs() function.
+
 #
 # CPU supports 36-bit I/O
 #

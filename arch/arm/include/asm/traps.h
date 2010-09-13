@@ -27,4 +27,6 @@ static inline int in_exception_text(unsigned long ptr)
 extern void __init early_trap_init(void);
 extern void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame);
 
+extern void *vectors_page;
+
 #endif

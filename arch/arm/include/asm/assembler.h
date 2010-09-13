@@ -18,6 +18,7 @@
 #endif
 
 #include <asm/ptrace.h>
+#include <asm/domain.h>
 
 /*
  * Endian independent macros for shifting bytes within registers.
@@ -206,12 +207,12 @@
  */
 #ifdef CONFIG_THUMB2_KERNEL
 
-	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort
+	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort, t=T()
 9999:
 	.if	\inc == 1
-	\instr\cond\()bt \reg, [\ptr, #\off]
+	\instr\cond\()b\()\t\().w \reg, [\ptr, #\off]
 	.elseif	\inc == 4
-	\instr\cond\()t \reg, [\ptr, #\off]
+	\instr\cond\()\t\().w \reg, [\ptr, #\off]
 	.else
 	.error	"Unsupported inc macro argument"
 	.endif
@@ -246,13 +247,13 @@
 
 #else	/* !CONFIG_THUMB2_KERNEL */
 
-	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort
+	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort, t=T()
 	.rept	\rept
 9999:
 	.if	\inc == 1
-	\instr\cond\()bt \reg, [\ptr], #\inc
+	\instr\cond\()b\()\t \reg, [\ptr], #\inc
 	.elseif	\inc == 4
-	\instr\cond\()t \reg, [\ptr], #\inc
+	\instr\cond\()\t \reg, [\ptr], #\inc
 	.else
 	.error	"Unsupported inc macro argument"
 	.endif

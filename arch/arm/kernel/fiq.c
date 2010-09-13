@@ -45,6 +45,7 @@
 #include <asm/fiq.h>
 #include <asm/irq.h>
 #include <asm/system.h>
+#include <asm/traps.h>
 
 static unsigned long no_fiq_insn;
 
@@ -77,7 +78,11 @@ int show_fiq_list(struct seq_file *p, void *v)
 
 void set_fiq_handler(void *start, unsigned int length)
 {
+#if defined(CONFIG_CPU_USE_DOMAINS)
 	memcpy((void *)0xffff001c, start, length);
+#else
+	memcpy(vectors_page + 0x1c, start, length);
+#endif
 	flush_icache_range(0xffff001c, 0xffff001c + length);
 	if (!vectors_high())
 		flush_icache_range(0x1c, 0x1c + length);
