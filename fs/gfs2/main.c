@@ -140,7 +140,7 @@ static int __init init_gfs2_fs(void)
 
 	error = -ENOMEM;
 	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
-					  WQ_NON_REENTRANT | WQ_RESCUER, 0);
+					  WQ_RESCUER | WQ_FREEZEABLE, 0);
 	if (!gfs_recovery_wq)
 		goto fail_wq;
 
