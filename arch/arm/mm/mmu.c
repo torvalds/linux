@@ -15,6 +15,7 @@
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
 #include <linux/sort.h>
+#include <linux/fs.h>
 
 #include <asm/cputype.h>
 #include <asm/sections.h>
@@ -497,6 +498,19 @@ static void __init build_mem_type_table(void)
 			t->prot_sect |= PMD_DOMAIN(t->domain);
 	}
 }
+
+#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+			      unsigned long size, pgprot_t vma_prot)
+{
+	if (!pfn_valid(pfn))
+		return pgprot_noncached(vma_prot);
+	else if (file->f_flags & O_SYNC)
+		return pgprot_writecombine(vma_prot);
+	return vma_prot;
+}
+EXPORT_SYMBOL(phys_mem_access_prot);
+#endif
 
 #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
 
