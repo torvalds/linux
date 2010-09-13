@@ -305,6 +305,8 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_ROTATE:			return "Rotate";
 	case V4L2_CID_BG_COLOR:			return "Background Color";
 	case V4L2_CID_CHROMA_GAIN:		return "Chroma Gain";
+	case V4L2_CID_ILLUMINATORS_1:		return "Illuminator 1";
+	case V4L2_CID_ILLUMINATORS_2:		return "Illuminator 2";
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -419,6 +421,8 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_AUDIO_LIMITER_ENABLED:
 	case V4L2_CID_AUDIO_COMPRESSION_ENABLED:
 	case V4L2_CID_PILOT_TONE_ENABLED:
+	case V4L2_CID_ILLUMINATORS_1:
+	case V4L2_CID_ILLUMINATORS_2:
 		*type = V4L2_CTRL_TYPE_BOOLEAN;
 		*min = 0;
 		*max = *step = 1;
