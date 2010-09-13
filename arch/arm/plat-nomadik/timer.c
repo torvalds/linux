@@ -131,17 +131,12 @@ void __init nmdk_timer_init(void)
 {
 	unsigned long rate;
 	struct clk *clk0;
-	struct clk *clk1;
 	u32 cr;
 
 	clk0 = clk_get_sys("mtu0", NULL);
 	BUG_ON(IS_ERR(clk0));
 
-	clk1 = clk_get_sys("mtu1", NULL);
-	BUG_ON(IS_ERR(clk1));
-
 	clk_enable(clk0);
-	clk_enable(clk1);
 
 	/*
 	 * Tick rate is 2.4MHz for Nomadik and 110MHz for ux500:
@@ -170,15 +165,8 @@ void __init nmdk_timer_init(void)
 		pr_err("timer: failed to initialize clock source %s\n",
 		       nmdk_clksrc.name);
 
-	/* Timer 1 is used for events, fix according to rate */
-	cr = MTU_CRn_32BITS;
-	rate = clk_get_rate(clk1);
-	if (rate > 16 << 20) {
-		rate /= 16;
-		cr |= MTU_CRn_PRESCALE_16;
-	} else {
-		cr |= MTU_CRn_PRESCALE_1;
-	}
+	/* Timer 1 is used for events */
+
 	clockevents_calc_mult_shift(&nmdk_clkevt, rate, MTU_MIN_RANGE);
 
 	writel(cr | MTU_CRn_ONESHOT, mtu_base + MTU_CR(1)); /* off, currently */
