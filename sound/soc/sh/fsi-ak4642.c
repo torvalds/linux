@@ -43,7 +43,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 };
 
 static struct snd_soc_card fsi_soc_card  = {
-	.name		= "FSI",
+	.name		= "FSI (AK4642)",
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
 };
