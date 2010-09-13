@@ -299,7 +299,7 @@ typedef struct drm_i915_private {
 	int num_pipe;
 
 	/* For hangcheck timer */
-#define DRM_I915_HANGCHECK_PERIOD 75 /* in jiffies */
+#define DRM_I915_HANGCHECK_PERIOD 250 /* in ms */
 	struct timer_list hangcheck_timer;
 	int hangcheck_count;
 	uint32_t last_acthd;

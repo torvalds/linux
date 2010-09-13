@@ -328,7 +328,8 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		trace_i915_gem_request_complete(dev, seqno);
 		DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
 		dev_priv->hangcheck_count = 0;
-		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+		mod_timer(&dev_priv->hangcheck_timer,
+			  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 	}
 	if (gt_iir & GT_BSD_USER_INTERRUPT)
 		DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
@@ -1018,7 +1019,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			trace_i915_gem_request_complete(dev, seqno);
 			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
 			dev_priv->hangcheck_count = 0;
-			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+			mod_timer(&dev_priv->hangcheck_timer,
+				  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 		}
 
 		if (HAS_BSD(dev) && (iir & I915_BSD_USER_INTERRUPT))
@@ -1394,7 +1396,8 @@ void i915_hangcheck_elapsed(unsigned long data)
 
 out:
 	/* Reset timer case chip hangs without another request being added */
-	mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+	mod_timer(&dev_priv->hangcheck_timer,
+		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 }
 
 /* drm_dma.h hooks
