@@ -222,21 +222,11 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		       jiffies_to_msecs(elapsed_jiffies
 					(priv->scan_start, jiffies)));
 
-	/*
-	 * If a request to abort was given, or the scan did not succeed
-	 * then we reset the scan state machine and terminate,
-	 * re-queuing another scan if one has been requested
-	 */
-	if (test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->status))
-		IWL_DEBUG_INFO(priv, "Aborted scan completed.\n");
-
-	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
-
-	clear_bit(STATUS_SCANNING, &priv->status);
+	queue_work(priv->workqueue, &priv->scan_completed);
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
-	    priv->cfg->advanced_bt_coexist && priv->bt_status !=
-	    scan_notif->bt_status) {
+	    priv->cfg->advanced_bt_coexist &&
+	    priv->bt_status != scan_notif->bt_status) {
 		if (scan_notif->bt_status) {
 			/* BT on */
 			if (!priv->bt_ch_announce)
@@ -254,7 +244,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		priv->bt_status = scan_notif->bt_status;
 		queue_work(priv->workqueue, &priv->bt_traffic_change_work);
 	}
-	queue_work(priv->workqueue, &priv->scan_completed);
 }
 
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)
@@ -554,7 +543,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
-	bool internal = false;
+	bool internal = false, aborted;
 	struct iwl_rxon_context *ctx;
 
 	IWL_DEBUG_SCAN(priv, "SCAN complete scan\n");
@@ -562,6 +551,15 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	cancel_delayed_work(&priv->scan_check);
 
 	mutex_lock(&priv->mutex);
+
+	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->status);
+	if (aborted)
+		IWL_DEBUG_INFO(priv, "Aborted scan completed.\n");
+
+	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
+
+	clear_bit(STATUS_SCANNING, &priv->status);
+
 	if (priv->is_internal_short_scan) {
 		priv->is_internal_short_scan = false;
 		IWL_DEBUG_SCAN(priv, "internal short scan completed\n");
@@ -569,7 +567,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	} else if (priv->scan_request) {
 		priv->scan_request = NULL;
 		priv->scan_vif = NULL;
-		ieee80211_scan_completed(priv->hw, false);
+		ieee80211_scan_completed(priv->hw, aborted);
 	}
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
