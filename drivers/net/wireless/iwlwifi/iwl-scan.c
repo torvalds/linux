@@ -106,6 +106,15 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 	priv->scan_request = NULL;
 }
 
+static void iwl_force_scan_end(struct iwl_priv *priv)
+{
+	IWL_DEBUG_SCAN(priv, "Forcing scan end\n");
+	clear_bit(STATUS_SCANNING, &priv->status);
+	clear_bit(STATUS_SCAN_HW, &priv->status);
+	clear_bit(STATUS_SCAN_ABORTING, &priv->status);
+	iwl_complete_scan(priv, true);
+}
+
 static void iwl_do_scan_abort(struct iwl_priv *priv)
 {
 	int ret;
@@ -125,10 +134,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 	ret = iwl_send_scan_abort(priv);
 	if (ret) {
 		IWL_DEBUG_SCAN(priv, "Send scan abort failed %d\n", ret);
-		clear_bit(STATUS_SCANNING, &priv->status);
-		clear_bit(STATUS_SCAN_HW, &priv->status);
-		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
-		iwl_complete_scan(priv, true);
+		iwl_force_scan_end(priv);
 	} else
 		IWL_DEBUG_SCAN(priv, "Sucessfully send scan abort\n");
 }
@@ -151,6 +157,7 @@ EXPORT_SYMBOL(iwl_scan_cancel);
  */
 int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 {
+	int ret;
 	unsigned long timeout = jiffies + msecs_to_jiffies(ms);
 
 	lockdep_assert_held(&priv->mutex);
@@ -165,7 +172,10 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 		msleep(20);
 	}
 
-	return test_bit(STATUS_SCAN_HW, &priv->status);
+	ret = test_bit(STATUS_SCAN_HW, &priv->status);
+	if (ret)
+		iwl_force_scan_end(priv);
+	return ret;
 }
 EXPORT_SYMBOL(iwl_scan_cancel_timeout);
 

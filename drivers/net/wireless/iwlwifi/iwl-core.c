@@ -2081,7 +2081,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-	bool scan_completed = false;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -2090,17 +2089,12 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(ctx->vif != vif);
 	ctx->vif = NULL;
 
-	iwl_scan_cancel_timeout(priv, 100);
+	if (priv->scan_vif == vif)
+		iwl_scan_cancel_timeout(priv, 100);
 	iwl_set_mode(priv, vif);
 
 	if (!ctx->always_active)
 		ctx->is_active = false;
-
-	if (priv->scan_vif == vif) {
-		scan_completed = true;
-		priv->scan_vif = NULL;
-		priv->scan_request = NULL;
-	}
 
 	/*
 	 * When removing the IBSS interface, overwrite the
@@ -2114,9 +2108,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 	memset(priv->bssid, 0, ETH_ALEN);
 	mutex_unlock(&priv->mutex);
-
-	if (scan_completed)
-		ieee80211_scan_completed(priv->hw, true);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -2298,6 +2289,7 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	iwl_scan_cancel_timeout(priv, 100);
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->mutex);
@@ -2307,7 +2299,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	/* we are restarting association process
 	 * clear RXON_FILTER_ASSOC_MSK bit
 	 */
-	iwl_scan_cancel_timeout(priv, 100);
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv, ctx);
 
