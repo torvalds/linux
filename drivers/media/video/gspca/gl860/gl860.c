@@ -540,15 +540,12 @@ static int __init sd_mod_init(void)
 
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "driver registered");
-
 	return 0;
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "driver deregistered");
 }
 
 module_init(sd_mod_init);

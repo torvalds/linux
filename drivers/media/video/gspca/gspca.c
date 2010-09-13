@@ -2428,7 +2428,7 @@ EXPORT_SYMBOL(gspca_auto_gain_n_exposure);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-	info("main v%d.%d.%d registered",
+	info("v%d.%d.%d registered",
 		(DRIVER_VERSION_NUMBER >> 16) & 0xff,
 		(DRIVER_VERSION_NUMBER >> 8) & 0xff,
 		DRIVER_VERSION_NUMBER & 0xff);
@@ -2436,7 +2436,6 @@ static int __init gspca_init(void)
 }
 static void __exit gspca_exit(void)
 {
-	info("main deregistered");
 }
 
 module_init(gspca_init);
