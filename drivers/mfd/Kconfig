@@ -483,6 +483,14 @@ config AB8500_CORE
 	  read/write functions for the devices to get access to this chip.
 	  This chip embeds various other multimedia funtionalities as well.
 
+config AB8500_DEBUG
+       bool "Enable debug info via debugfs"
+       depends on AB8500_CORE && DEBUG_FS
+       default y if DEBUG_FS
+       help
+         Select this option if you want debug information using the debug
+         filesystem, debugfs.
+
 config AB3550_CORE
         bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
 	select MFD_CORE
