@@ -51,6 +51,7 @@ extern struct platform_device rk2818_device_fb;
 extern struct platform_device rk2818_device_adc;
 extern struct platform_device rk2818_device_adckey;
 extern struct rk2818_adckey_platform_data rk2818_adckey_platdata;
+extern struct rk2818_jogball_paltform_data rk2818_jogball_platdata;			
 extern struct platform_device rk2818_device_battery;
 extern struct rk2818_battery_platform_data rk2818_battery_platdata;
 extern struct platform_device rk2818_device_backlight;

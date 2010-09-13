@@ -1368,6 +1368,18 @@ struct adc_key_data rk2818_adc_key = {
 struct rk2818_adckey_platform_data rk2818_adckey_platdata = {
 	.adc_key = &rk2818_adc_key,
 };
+
+struct jgball_data rk2818_jogball = {
+	.pin_up = TCA6424_P11,
+	.pin_down = TCA6424_P06,
+	.pin_left = TCA6424_P10,
+	.pin_right = TCA6424_P07,
+};
+struct rk2818_jogball_paltform_data rk2818_jogball_platdata = {
+	.jogball_key = &rk2818_jogball,
+};
+
+
 #if CONFIG_ANDROID_TIMED_GPIO
 struct timed_gpio_platform_data rk28_vibrator_info = {
 	.num_gpios = 0,
