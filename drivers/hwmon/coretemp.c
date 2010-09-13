@@ -491,14 +491,22 @@ exit:
 
 static void coretemp_device_remove(unsigned int cpu)
 {
-	struct pdev_entry *p, *n;
+	struct pdev_entry *p;
+	unsigned int i;
+
 	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		if (p->cpu == cpu) {
-			platform_device_unregister(p->pdev);
-			list_del(&p->list);
-			kfree(p);
-		}
+	list_for_each_entry(p, &pdev_list, list) {
+		if (p->cpu != cpu)
+			continue;
+
+		platform_device_unregister(p->pdev);
+		list_del(&p->list);
+		mutex_unlock(&pdev_list_mutex);
+		kfree(p);
+		for_each_cpu(i, cpu_sibling_mask(cpu))
+			if (i != cpu && !coretemp_device_add(i))
+				break;
+		return;
 	}
 	mutex_unlock(&pdev_list_mutex);
 }
