@@ -254,6 +254,18 @@ struct rk2818_adckey_platform_data {
 	struct adc_key_data *adc_key;
 };
 
+struct  jgball_data {
+	u32 pin_up;
+	u32 pin_down;
+	u32 pin_left;
+	u32 pin_right;
+};
+
+struct rk2818_jogball_paltform_data {
+	struct jgball_data *jogball_key;
+};
+
+
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 void __init rk2818_add_devices(void);
 void __init rk2818_map_common_io(void);

@@ -480,6 +480,9 @@ struct platform_device rk2818_nand_device = {
 struct platform_device rk2818_jogball_device = {
 		.name	= "rk2818_jogball",
 		.id 	= -1,
+		.dev = {
+			.platform_data = &rk2818_jogball_platdata,
+		},
 };
 #endif
 

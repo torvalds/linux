@@ -28,7 +28,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <linux/irq.h>
-
+#include <mach/board.h>
 
 #ifdef CONFIG_ANDROID_POWER
 #include <linux/android_power.h>
@@ -37,7 +37,7 @@ static android_early_suspend_t jogball_early_suspend;
 #endif
 
 /* Debug */
-#define JB_DEBUG 0
+//#define JB_DEBUG 0
 
 #ifdef JB_DEBUG
 #define DBG	printk
@@ -51,11 +51,6 @@ static android_early_suspend_t jogball_early_suspend;
 #define JB_KEY_RIGHT        106
 
 #define JOGBALL_PHYS_NAME	"rk28_jogball/input0"
-
-#define JOGBALL_KEY_UP_IO       TCA6424_P11
-#define JOGBALL_KEY_DOWN_IO     TCA6424_P06
-#define JOGBALL_KEY_LEFT_IO     TCA6424_P10
-#define JOGBALL_KEY_RIGHT_IO    TCA6424_P07
 
 #define JOGBALL_MAX_CNT 1
 
@@ -73,37 +68,39 @@ static unsigned char initkey_code[ ] =
 struct rk28_jogball 
 {
 	struct input_dev *input_dev;
+	struct rk2818_jogball_paltform_data *pdata;
 	unsigned char keycodes[5];
 };
 
 struct rk28_jogball *prockjogball;
 
 
-static int rk28_jogball_disable_irq(void )
+static int rk28_jogball_disable_irq(struct rk2818_jogball_paltform_data *pdata )
 {
 
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_UP_IO));
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_RIGHT_IO));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_up));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_down));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_left));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_right));
 	
 	return 0;
 }
 
-static int rk28_jogball_enable_irq(void)
+static int rk28_jogball_enable_irq(struct rk2818_jogball_paltform_data *pdata)
 {
 
-	enable_irq (gpio_to_irq(JOGBALL_KEY_UP_IO));
-	enable_irq (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
-	enable_irq (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
-	enable_irq (gpio_to_irq(JOGBALL_KEY_RIGHT_IO));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_up));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_down));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_left));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_right));
 
     return 0;
 }
 static irqreturn_t rk28_jogball_up_ISR(int irq, void *dev_id)
 {	
-	
-	 rk28_jogball_disable_irq( );
+		
+	struct rk28_jogball *ball = dev_id;	
+	 rk28_jogball_disable_irq(ball->pdata);
 	 DBG("jogball: up begain\n");
 	jogball_cnt_up++;
 
@@ -121,16 +118,16 @@ static irqreturn_t rk28_jogball_up_ISR(int irq, void *dev_id)
 		jogball_cnt_right = 0;
 	}	
 
-	 rk28_jogball_enable_irq( );
-	 printk("jogball: up end\n");
+	 rk28_jogball_enable_irq( ball->pdata);
+	 DBG("jogball: up end\n");
 	return IRQ_HANDLED;
 }
 
 
 static irqreturn_t rk28_jogball_down_ISR(int irq, void *dev_id)
 {
-	 rk28_jogball_disable_irq( );
-
+	struct rk28_jogball *ball = dev_id;	
+	 rk28_jogball_disable_irq(ball->pdata);
 	jogball_cnt_down++;
 	DBG("jogball: down start \n");
 	if (jogball_cnt_down >= JOGBALL_MAX_CNT){
@@ -147,14 +144,16 @@ static irqreturn_t rk28_jogball_down_ISR(int irq, void *dev_id)
 		jogball_cnt_right = 0;
 	}	
 	DBG("jogball: down end\n");
-	 rk28_jogball_enable_irq( );
+	 rk28_jogball_enable_irq(ball->pdata);
 	return IRQ_HANDLED;
 }
 
 
 static irqreturn_t rk28_jogball_left_ISR(int irq, void *dev_id)
 {
-	 rk28_jogball_disable_irq( );
+
+	 struct rk28_jogball *ball = dev_id;	
+	 rk28_jogball_disable_irq(ball->pdata);
 	DBG("jogball: left begain\n");
 	jogball_cnt_left++;
 	
@@ -172,13 +171,14 @@ static irqreturn_t rk28_jogball_left_ISR(int irq, void *dev_id)
 		jogball_cnt_right = 0;
 	}	
 	DBG("jogball: left end \n");
-	 rk28_jogball_enable_irq( );
+	 rk28_jogball_enable_irq(ball->pdata);
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t rk28_jogball_right_ISR(int irq, void *dev_id)
 {
-	 rk28_jogball_disable_irq( );
+	struct rk28_jogball *ball = dev_id;	
+	rk28_jogball_disable_irq(ball->pdata);
 	DBG("jogball: right start\n");
 	jogball_cnt_right++;
 
@@ -196,7 +196,7 @@ static irqreturn_t rk28_jogball_right_ISR(int irq, void *dev_id)
 		jogball_cnt_right = 0;
 	}	
 	DBG("jogball: right end\n");
-	 rk28_jogball_enable_irq( );
+	 rk28_jogball_enable_irq(ball->pdata);
 	return IRQ_HANDLED;
 }
 
@@ -223,12 +223,13 @@ void rk28_jogball_shutdown(struct platform_device *dev)
 
 static int rk28_jogball_probe(struct platform_device *pdev)
 {
-  #if 1
+
       int    error, i;
 	struct rk28_jogball *jogball = NULL;
 	struct input_dev *input_dev = NULL;
-
-	printk("***************rk28_jogball_probe...\n");
+	struct rk2818_jogball_paltform_data *pdata = pdev->dev.platform_data;
+	if(!(pdata->jogball_key))
+		return -1;
 	
 	jogball = kzalloc(sizeof(struct rk28_jogball), GFP_KERNEL);
 	if (jogball == NULL)
@@ -256,8 +257,8 @@ static int rk28_jogball_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(initkey_code); i++)
 		set_bit(initkey_code[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
-    input_dev->evbit[0] = BIT_MASK(EV_KEY);
-    
+  	input_dev->evbit[0] = BIT_MASK(EV_KEY);
+    	jogball->pdata = pdata;
 	jogball->input_dev = input_dev;
 	input_set_drvdata(input_dev, jogball);
 
@@ -277,59 +278,59 @@ static int rk28_jogball_probe(struct platform_device *pdev)
 	//JOG_UP_PORT
 	
 
-	error = gpio_request(JOGBALL_KEY_UP_IO,"Jog up");
+	error = gpio_request(pdata->jogball_key->pin_up,"Jog up");
 	if(error)
 	{
 		printk("unable to request JOG_UP_PORT IRQ err=%d\n", error);
 		goto failed3;
 	}
-	gpio_direction_input(JOGBALL_KEY_UP_IO);	
-	error = request_irq(gpio_to_irq(JOGBALL_KEY_UP_IO),rk28_jogball_up_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
+	gpio_direction_input(pdata->jogball_key->pin_up);	
+	error = request_irq(gpio_to_irq(pdata->jogball_key->pin_up),rk28_jogball_up_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
 	if(error)
 	{
 		printk("unable to request JOG_UP_PORT irq\n");
 		goto failed4;
 	}	
 	//JOG_DOWN_PORT
-	error = gpio_request(JOGBALL_KEY_DOWN_IO,"jog down");
+	error = gpio_request(pdata->jogball_key->pin_down,"jog down");
 	if(error)
 	{
 		printk("unable to request JOG_DOWN_PORT IRQ err=%d\n", error);
 		goto failed5;
 	}
-	gpio_direction_input(JOGBALL_KEY_DOWN_IO);
+	gpio_direction_input(pdata->jogball_key->pin_down);
 	//gpio_pull_updown(JOG_DOWN_PORT,GPIOPullUp);
-	error = request_irq(gpio_to_irq(JOGBALL_KEY_DOWN_IO),rk28_jogball_down_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
+	error = request_irq(gpio_to_irq(pdata->jogball_key->pin_down),rk28_jogball_down_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
 	if(error)
 	{
 		printk("unable to request JOG_DOWN_PORT irq\n");
 		goto failed6;
 	}	
 	//JOG_LEFT_PORT
-	error = gpio_request(JOGBALL_KEY_LEFT_IO,"jog left");
+	error = gpio_request(pdata->jogball_key->pin_left,"jog left");
 	if(error)
 	{
 		printk("unable to request JOG_LEFT_PORT IRQ err=%d\n", error);
 		goto failed7;
 	}
-	gpio_direction_input(JOGBALL_KEY_LEFT_IO);
+	gpio_direction_input(pdata->jogball_key->pin_left);
 	//gpio_pull_updown(JOG_LEFT_PORT,GPIOPullUp);
-	error = request_irq(gpio_to_irq(JOGBALL_KEY_LEFT_IO),rk28_jogball_left_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
+	error = request_irq(gpio_to_irq(pdata->jogball_key->pin_left),rk28_jogball_left_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
 	if(error)
 	{
 		printk("unable to request JOG_LEFT_PORT irq\n");
 		goto failed8;
 	}	
 	//JOG_RIGHT_PORT
-	error = gpio_request(JOGBALL_KEY_RIGHT_IO,NULL);
+	error = gpio_request(pdata->jogball_key->pin_right,NULL);
 	if(error)
 	{
 		printk("unable to request JOG_RIGHT_PORT IRQ err=%d\n", error);
 		goto failed9;
 	}
-	gpio_direction_input(JOGBALL_KEY_RIGHT_IO);
+	gpio_direction_input(pdata->jogball_key->pin_right);
 	//gpio_pull_updown(JOG_RIGHT_PORT,GPIOPullUp);
-	error = request_irq(gpio_to_irq(JOGBALL_KEY_RIGHT_IO),rk28_jogball_right_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
+	error = request_irq(gpio_to_irq(pdata->jogball_key->pin_right),rk28_jogball_right_ISR,IRQ_TYPE_EDGE_RISING,NULL,jogball);
 	if(error)
 	{
 		printk("unable to request JOG_RIGHT_PORT irq\n");
@@ -343,26 +344,26 @@ static int rk28_jogball_probe(struct platform_device *pdev)
     jogball_early_suspend.level = 0x2;
     android_register_early_suspend(&jogball_early_suspend);
 #endif
-#endif
-	printk("******************rk28_jogball_probe end\n");
+
+	printk("JOGBALL:rk28_jogball_probe sucess\n");
 	return 0;
 #if 1
 failed10:
-	free_irq(gpio_to_irq(JOGBALL_KEY_RIGHT_IO),NULL);
+	free_irq(gpio_to_irq(pdata->jogball_key->pin_down),NULL);
 failed9:
-	gpio_free(JOGBALL_KEY_RIGHT_IO);
+	gpio_free(pdata->jogball_key->pin_down);
 failed8:
-	free_irq(gpio_to_irq(JOGBALL_KEY_LEFT_IO),NULL);
+	free_irq(gpio_to_irq(pdata->jogball_key->pin_left),NULL);
 failed7:
-	gpio_free(JOGBALL_KEY_LEFT_IO);
+	gpio_free(pdata->jogball_key->pin_left);
 failed6:		
-	free_irq(gpio_to_irq(JOGBALL_KEY_DOWN_IO),NULL);
+	free_irq(gpio_to_irq(pdata->jogball_key->pin_down),NULL);
 failed5:
-	gpio_free(JOGBALL_KEY_DOWN_IO);
+	gpio_free(pdata->jogball_key->pin_down);
 failed4:
-	free_irq(gpio_to_irq(JOGBALL_KEY_UP_IO),NULL);
+	free_irq(gpio_to_irq(pdata->jogball_key->pin_up),NULL);
 failed3:
-	gpio_free(JOGBALL_KEY_UP_IO);
+	gpio_free(pdata->jogball_key->pin_up);
 	
 	input_unregister_device(jogball->input_dev);
 
@@ -394,23 +395,25 @@ static int __devexit rk28_jogball_remove(struct platform_device *pdev)
 
 static int rk28_jogball_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	DBG("IN jogball suspend !!\n");
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_UP_IO));
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
-	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_RIGHT_IO));
 	
+	struct rk2818_jogball_paltform_data *pdata = pdev->dev.platform_data;
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_up));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_down));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_left));
+	disable_irq_nosync (gpio_to_irq(pdata->jogball_key->pin_right));
+	DBG("rk28_jogball_suspend\n")
 	return 0;
 }
 
 static int rk28_jogball_resume(struct platform_device *pdev)
 {
-	DBG("IN jogball resume !!\n");
-	enable_irq (gpio_to_irq(JOGBALL_KEY_UP_IO));
-	enable_irq (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
-	enable_irq (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
-	enable_irq (gpio_to_irq(JOGBALL_KEY_RIGHT_IO));
-
+	
+	struct rk2818_jogball_paltform_data *pdata = pdev->dev.platform_data;
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_up));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_down));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_left));
+	enable_irq (gpio_to_irq(pdata->jogball_key->pin_right));
+	DBG("rk28_jogball_resume\n")
     return 0;
 }
 
@@ -436,12 +439,11 @@ static struct platform_driver rk28_jogball_driver =
 {
 	int ret;
 
-	printk("****************JOGBALL inital\n");
+	DBG("rk28_jogball_initl\n");
 	ret = platform_driver_register(&rk28_jogball_driver);
 	if (ret < 0){
 		printk("register rk28_jogball_driver failed!!\n");
-	}
-	printk("********************JOGBALL inital end\n");
+	}	
 	return ret;
 }
 
