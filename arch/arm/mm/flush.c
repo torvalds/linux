@@ -40,6 +40,18 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 	    : "cc");
 }
 
+static void flush_icache_alias(unsigned long pfn, unsigned long vaddr, unsigned long len)
+{
+	unsigned long colour = CACHE_COLOUR(vaddr);
+	unsigned long offset = vaddr & (PAGE_SIZE - 1);
+	unsigned long to;
+
+	set_pte_ext(TOP_PTE(ALIAS_FLUSH_START) + colour, pfn_pte(pfn, PAGE_KERNEL), 0);
+	to = ALIAS_FLUSH_START + (colour << PAGE_SHIFT) + offset;
+	flush_tlb_kernel_page(to);
+	flush_icache_range(to, to + len);
+}
+
 void flush_cache_mm(struct mm_struct *mm)
 {
 	if (cache_is_vivt()) {
@@ -90,8 +102,10 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 	if (vma->vm_flags & VM_EXEC && icache_is_vivt_asid_tagged())
 		__flush_icache_all();
 }
+
 #else
-#define flush_pfn_alias(pfn,vaddr)	do { } while (0)
+#define flush_pfn_alias(pfn,vaddr)		do { } while (0)
+#define flush_icache_alias(pfn,vaddr,len)	do { } while (0)
 #endif
 
 static void flush_ptrace_access_other(void *args)
@@ -117,10 +131,13 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 		return;
 	}
 
-	/* VIPT non-aliasing cache */
+	/* VIPT non-aliasing D-cache */
 	if (vma->vm_flags & VM_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
-		__cpuc_coherent_kern_range(addr, addr + len);
+		if (icache_is_vipt_aliasing())
+			flush_icache_alias(page_to_pfn(page), uaddr, len);
+		else
+			__cpuc_coherent_kern_range(addr, addr + len);
 		if (cache_ops_need_broadcast())
 			smp_call_function(flush_ptrace_access_other,
 					  NULL, 1);
