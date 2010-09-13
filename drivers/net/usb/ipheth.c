@@ -429,10 +429,6 @@ static const struct net_device_ops ipheth_netdev_ops = {
 	.ndo_get_stats = &ipheth_stats,
 };
 
-static struct device_type ipheth_type = {
-	.name	= "wwan",
-};
-
 static int ipheth_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
@@ -450,7 +446,7 @@ static int ipheth_probe(struct usb_interface *intf,
 
 	netdev->netdev_ops = &ipheth_netdev_ops;
 	netdev->watchdog_timeo = IPHETH_TX_TIMEOUT;
-	strcpy(netdev->name, "wwan%d");
+	strcpy(netdev->name, "eth%d");
 
 	dev = netdev_priv(netdev);
 	dev->udev = udev;
@@ -500,7 +496,6 @@ static int ipheth_probe(struct usb_interface *intf,
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	SET_ETHTOOL_OPS(netdev, &ops);
-	SET_NETDEV_DEVTYPE(netdev, &ipheth_type);
 
 	retval = register_netdev(netdev);
 	if (retval) {

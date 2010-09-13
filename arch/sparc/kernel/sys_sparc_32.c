@@ -166,7 +166,6 @@ sparc_breakpoint (struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	lock_kernel();
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
@@ -180,7 +179,6 @@ sparc_breakpoint (struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
 #endif
-	unlock_kernel();
 }
 
 asmlinkage int

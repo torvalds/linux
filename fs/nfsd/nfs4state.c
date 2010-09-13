@@ -440,7 +440,7 @@ test_share(struct nfs4_stateid *stp, struct nfsd4_open *open) {
 
 static int nfs4_access_to_omode(u32 access)
 {
-	switch (access) {
+	switch (access & NFS4_SHARE_ACCESS_BOTH) {
 	case NFS4_SHARE_ACCESS_READ:
 		return O_RDONLY;
 	case NFS4_SHARE_ACCESS_WRITE:
