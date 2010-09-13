@@ -485,6 +485,9 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs)
 	int error;
 	int i, cpu;
 	int trace_on = 0;
+
+	kgdb_disable_hw_debug(ks->linux_regs);
+
 acquirelock:
 	/*
 	 * Interrupts will be restored by the 'trap return' code, except when
@@ -568,8 +571,6 @@ return_normal:
 	/* Call the I/O driver's pre_exception routine */
 	if (dbg_io_ops->pre_exception)
 		dbg_io_ops->pre_exception();
-
-	kgdb_disable_hw_debug(ks->linux_regs);
 
 	/*
 	 * Get the passive CPU lock which will hold all the non-primary
@@ -661,6 +662,8 @@ kgdb_restore:
 		else
 			kgdb_sstep_pid = 0;
 	}
+	if (arch_kgdb_ops.correct_hw_break)
+		arch_kgdb_ops.correct_hw_break();
 	if (trace_on)
 		tracing_on();
 	/* Free kgdb_active */
