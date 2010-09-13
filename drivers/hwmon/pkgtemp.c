@@ -284,9 +284,10 @@ static int __cpuinit pkgtemp_device_add(unsigned int cpu)
 	int err;
 	struct platform_device *pdev;
 	struct pdev_entry *pdev_entry;
-#ifdef CONFIG_SMP
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-#endif
+
+	if (!cpu_has(c, X86_FEATURE_PTS))
+		return 0;
 
 	mutex_lock(&pdev_list_mutex);
 
@@ -403,11 +404,6 @@ static int __init pkgtemp_init(void)
 		goto exit;
 
 	for_each_online_cpu(i) {
-		struct cpuinfo_x86 *c = &cpu_data(i);
-
-		if (!cpu_has(c, X86_FEATURE_PTS))
-			continue;
-
 		err = pkgtemp_device_add(i);
 		if (err)
 			goto exit_devices_unreg;
