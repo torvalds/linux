@@ -37,7 +37,7 @@ static android_early_suspend_t jogball_early_suspend;
 #endif
 
 /* Debug */
-//#define JB_DEBUG 1
+#define JB_DEBUG 0
 
 #ifdef JB_DEBUG
 #define DBG	printk
@@ -52,12 +52,12 @@ static android_early_suspend_t jogball_early_suspend;
 
 #define JOGBALL_PHYS_NAME	"rk28_jogball/input0"
 
-#define JOGBALL_KEY_UP_IO       TCA6424_P06
-#define JOGBALL_KEY_DOWN_IO     TCA6424_P07
+#define JOGBALL_KEY_UP_IO       TCA6424_P11
+#define JOGBALL_KEY_DOWN_IO     TCA6424_P06
 #define JOGBALL_KEY_LEFT_IO     TCA6424_P10
-#define JOGBALL_KEY_RIGHT_IO    TCA6424_P11
+#define JOGBALL_KEY_RIGHT_IO    TCA6424_P07
 
-#define JOGBALL_MAX_CNT 2
+#define JOGBALL_MAX_CNT 1
 
 static volatile int jogball_cnt_up = 0;
 static volatile int jogball_cnt_down = 0;
@@ -78,11 +78,10 @@ struct rk28_jogball
 
 struct rk28_jogball *prockjogball;
 
-//static void rk28_jogball_up_ISR(void)
 
 static int rk28_jogball_disable_irq(void )
 {
-	//DBG("IN jogball suspend !!\n");
+
 	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_UP_IO));
 	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
 	disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
@@ -93,7 +92,7 @@ static int rk28_jogball_disable_irq(void )
 
 static int rk28_jogball_enable_irq(void)
 {
-	//DBG("IN jogball resume !!\n");
+
 	enable_irq (gpio_to_irq(JOGBALL_KEY_UP_IO));
 	enable_irq (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
 	enable_irq (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
@@ -105,10 +104,11 @@ static irqreturn_t rk28_jogball_up_ISR(int irq, void *dev_id)
 {	
 	
 	 rk28_jogball_disable_irq( );
+	 DBG("jogball: up begain\n");
 	jogball_cnt_up++;
 
-	if (jogball_cnt_up > JOGBALL_MAX_CNT){
-		//printk("jogball: up\n");
+	if (jogball_cnt_up >= JOGBALL_MAX_CNT){
+		DBG("jogball: up\n");
 		
 		input_report_key(prockjogball->input_dev, JB_KEY_UP, 1);
 		input_sync(prockjogball->input_dev);
@@ -119,23 +119,22 @@ static irqreturn_t rk28_jogball_up_ISR(int irq, void *dev_id)
 		jogball_cnt_down = 0;
 		jogball_cnt_left = 0;
 		jogball_cnt_right = 0;
-	}
-	
-	//gpio_irq_enable(JOGBALL_KEY_UP_IO);
-	//enable_irq (gpio_to_irq(JOGBALL_KEY_UP_IO));
+	}	
+
 	 rk28_jogball_enable_irq( );
+	 printk("jogball: up end\n");
 	return IRQ_HANDLED;
 }
 
-//static void rk28_jogball_down_ISR(void)
+
 static irqreturn_t rk28_jogball_down_ISR(int irq, void *dev_id)
 {
 	 rk28_jogball_disable_irq( );
-	 //disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
+
 	jogball_cnt_down++;
-	
-	if (jogball_cnt_down > JOGBALL_MAX_CNT){
-		//printk("jogball: down\n");
+	DBG("jogball: down start \n");
+	if (jogball_cnt_down >= JOGBALL_MAX_CNT){
+		DBG("jogball: down\n");
 		
 		input_report_key(prockjogball->input_dev, JB_KEY_DOWN, 1);
 		input_sync(prockjogball->input_dev);
@@ -146,23 +145,21 @@ static irqreturn_t rk28_jogball_down_ISR(int irq, void *dev_id)
 		jogball_cnt_down = 0;
 		jogball_cnt_left = 0;
 		jogball_cnt_right = 0;
-	}
-	
-	//gpio_irq_enable(JOGBALL_KEY_DOWN_IO);
-	//enable_irq (gpio_to_irq(JOGBALL_KEY_DOWN_IO));
+	}	
+	DBG("jogball: down end\n");
 	 rk28_jogball_enable_irq( );
 	return IRQ_HANDLED;
 }
 
-//static void rk28_jogball_left_ISR(void)
+
 static irqreturn_t rk28_jogball_left_ISR(int irq, void *dev_id)
 {
 	 rk28_jogball_disable_irq( );
-	//disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
+	DBG("jogball: left begain\n");
 	jogball_cnt_left++;
-
-	if (jogball_cnt_left > JOGBALL_MAX_CNT){
-		//printk("jogball: left\n");
+	
+	if (jogball_cnt_left >= JOGBALL_MAX_CNT){
+		DBG("jogball: left\n");
 		
 		input_report_key(prockjogball->input_dev, JB_KEY_LEFT, 1);
 		input_sync(prockjogball->input_dev);
@@ -173,23 +170,20 @@ static irqreturn_t rk28_jogball_left_ISR(int irq, void *dev_id)
 		jogball_cnt_down = 0;
 		jogball_cnt_left = 0;
 		jogball_cnt_right = 0;
-	}
-	
-	//gpio_irq_enable(JOGBALL_KEY_LEFT_IO);
-	//enable_irq (gpio_to_irq(JOGBALL_KEY_LEFT_IO));
+	}	
+	DBG("jogball: left end \n");
 	 rk28_jogball_enable_irq( );
 	return IRQ_HANDLED;
 }
 
-//static void rk28_jogball_right_ISR(void)
 static irqreturn_t rk28_jogball_right_ISR(int irq, void *dev_id)
 {
 	 rk28_jogball_disable_irq( );
-	//disable_irq_nosync (gpio_to_irq(JOGBALL_KEY_RIGHT_IO));
+	DBG("jogball: right start\n");
 	jogball_cnt_right++;
 
-	if (jogball_cnt_right > JOGBALL_MAX_CNT){
-		//printk("jogball: right\n");
+	if (jogball_cnt_right >= JOGBALL_MAX_CNT){
+		DBG("jogball: right\n");
 		
 		input_report_key(prockjogball->input_dev, JB_KEY_RIGHT, 1);
 		input_sync(prockjogball->input_dev);
@@ -200,10 +194,8 @@ static irqreturn_t rk28_jogball_right_ISR(int irq, void *dev_id)
 		jogball_cnt_down = 0;
 		jogball_cnt_left = 0;
 		jogball_cnt_right = 0;
-	}
-	
-	//gpio_irq_enable(JOGBALL_KEY_RIGHT_IO);
-	//enable_irq (gpio_to_irq(JOGBALL_KEY_RIGHT_IO));
+	}	
+	DBG("jogball: right end\n");
 	 rk28_jogball_enable_irq( );
 	return IRQ_HANDLED;
 }
