@@ -1354,7 +1354,6 @@ static int wm8990_probe(struct snd_soc_codec *codec)
 	wm8990_reset(codec);
 
 	/* charge output caps */
-	codec->bias_level = SND_SOC_BIAS_OFF;
 	wm8990_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	reg = snd_soc_read(codec, WM8990_AUDIO_INTERFACE_4);

@@ -1550,7 +1550,6 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, reg;
 
-	codec->bias_level = SND_SOC_BIAS_OFF;
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8753->control_type);
