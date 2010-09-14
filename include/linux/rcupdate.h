@@ -310,24 +310,32 @@ extern int rcu_my_thread_group_empty(void);
  * (e.g., __rcu_bh, * __rcu_sched, and __srcu), should this make sense in
  * the future.
  */
+
+#ifdef __CHECKER__
+#define rcu_dereference_sparse(p, space) \
+	((void)(((typeof(*p) space *)p) == p))
+#else /* #ifdef __CHECKER__ */
+#define rcu_dereference_sparse(p, space)
+#endif /* #else #ifdef __CHECKER__ */
+
 #define __rcu_access_pointer(p, space) \
 	({ \
 		typeof(*p) *_________p1 = (typeof(*p)*__force )ACCESS_ONCE(p); \
-		(void) (((typeof (*p) space *)p) == p); \
+		rcu_dereference_sparse(p, space); \
 		((typeof(*p) __force __kernel *)(_________p1)); \
 	})
 #define __rcu_dereference_check(p, c, space) \
 	({ \
 		typeof(*p) *_________p1 = (typeof(*p)*__force )ACCESS_ONCE(p); \
 		rcu_lockdep_assert(c); \
-		(void) (((typeof (*p) space *)p) == p); \
+		rcu_dereference_sparse(p, space); \
 		smp_read_barrier_depends(); \
 		((typeof(*p) __force __kernel *)(_________p1)); \
 	})
 #define __rcu_dereference_protected(p, c, space) \
 	({ \
 		rcu_lockdep_assert(c); \
-		(void) (((typeof (*p) space *)p) == p); \
+		rcu_dereference_sparse(p, space); \
 		((typeof(*p) __force __kernel *)(p)); \
 	})
 
