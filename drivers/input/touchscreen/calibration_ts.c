@@ -38,8 +38,24 @@ typedef struct {
 CALIBRATION_PARAMETER, *PCALIBRATION_PARAMETER;
 
 static unsigned char            v_Calibrated = 0;
-static CALIBRATION_PARAMETER    v_CalcParam;
-
+static CALIBRATION_PARAMETER    v_CalcParam ={
+	.a1		=18670 ,
+	.b1		=98,
+	.c1		= -2230109,
+	.a2   	= 291,
+	.b2  		= 12758,
+	.c2  		= -5118934,
+	.delta	= 91931,
+};
+static CALIBRATION_PARAMETER v_CalcParam_bak = {
+	.a1=17704 ,
+	.b1=-20,
+	.c1= -1460283,
+	.a2   = 382,
+	.b2  = 12685,
+	.c2  = -5595261,
+	.delta	 = 88403,
+};
 unsigned char
 ErrorAnalysis(
     int   cCalibrationPoints,     //@PARM The number of calibration points
@@ -320,26 +336,30 @@ TouchPanelCalibrateAPoint(
 {
     int   x, y;
 
-    if ( !v_Calibrated )
+    if ( v_Calibrated )
     {
-        *pCalX = 200; //UncalX;
-        *pCalY = 160; //UncalY;
-        return;
-    }
+
      //
      // Note the *4 in the expression below.  This is a workaround
      // on behalf of gwe.  It provides a form of
      // sub-pixel accuracy desirable for inking
      //
-    x = (v_CalcParam.a1 * UncalX + v_CalcParam.b1 * UncalY +
-         v_CalcParam.c1) * 4 / v_CalcParam.delta;
-    y = (v_CalcParam.a2 * UncalX + v_CalcParam.b2 * UncalY +
-         v_CalcParam.c2) * 4 / v_CalcParam.delta;
+    	x = (v_CalcParam.a1 * UncalX + v_CalcParam.b1 * UncalY +
+         	v_CalcParam.c1) * 4 / v_CalcParam.delta;
+    	y = (v_CalcParam.a2 * UncalX + v_CalcParam.b2 * UncalY +
+         	v_CalcParam.c2) * 4 / v_CalcParam.delta;
+     }
+     else{
+	 	x = (v_CalcParam_bak.a1 * UncalX + v_CalcParam_bak.b1 * UncalY +
+         		v_CalcParam_bak.c1) * 4 / v_CalcParam_bak.delta;
+    		y = (v_CalcParam_bak.a2 * UncalX + v_CalcParam_bak.b2 * UncalY +
+         		v_CalcParam_bak.c2) * 4 / v_CalcParam_bak.delta;
+     }
     if ( x < 0 ){
         x = 0;
     }
 
-    if ( y < 0 ){
+    if  (y < 0 ){
         y = 0;
     }
 
@@ -409,6 +429,7 @@ ErrorAnalysis(
                 x,
                 y
                 );
+	 
         dx = x - pScreenXBuffer[i];
         dy = y - pScreenYBuffer[i];
         err = dx * dx + dy * dy;
@@ -422,17 +443,150 @@ ErrorAnalysis(
 
     if (maxErr < (errThreshold * errThreshold))
     {
+    		 printk(" v_CalcParam.a1=%d \n"	 
+    			"v_CalcParam.b1=%d\n"	
+    			"v_CalcParam.c1= %d\n"	 
+  			 " v_CalcParam.a2   = %d\n" 
+   			" v_CalcParam.b2  = %d\n"	
+   			" v_CalcParam.c2  = %d\n"
+    			"v_CalcParam.delta   = %d\n",    
+   			 v_CalcParam.a1 , \
+    			v_CalcParam.b1 , 	\
+    			v_CalcParam.c1 ,	\
+    			v_CalcParam.a2 ,	\
+    			v_CalcParam.b2,	\
+    			v_CalcParam.c2 ,	\
+    			v_CalcParam.delta);
         return 1;
     }
     else
     {
-        memset(&v_CalcParam, 0, sizeof(v_CalcParam));
-        v_Calibrated = 0;
-        
+       memset(&v_CalcParam, 0, sizeof(v_CalcParam));
+       v_Calibrated = 0;
+       v_CalcParam.a1 =  v_CalcParam_bak.a1;
+    	v_CalcParam.b1 = v_CalcParam_bak.b1 ;
+    	v_CalcParam.c1=  v_CalcParam_bak.c1;
+    	v_CalcParam.a2 = v_CalcParam_bak.a2;
+    	v_CalcParam.b2  = v_CalcParam_bak.b2;
+    	v_CalcParam.c2 =  v_CalcParam_bak.c2;
+    	v_CalcParam.delta=  v_CalcParam_bak.delta;
         return 0;
     }
 }
 
+#define FILTER_BUF_LEN 8
+typedef struct 
+{
+	unsigned short x;
+	unsigned short y;
+}P;
+static P sTouchFilterBuff[FILTER_BUF_LEN];
+static int sBuffIndex = 0;
+static P sReportFilter = {0,0};
+void ClearBuff(void)
+{
+	memset(sTouchFilterBuff,0,FILTER_BUF_LEN*sizeof(P));
+	sReportFilter.x = 0;
+	sReportFilter.y = 0;
+	sBuffIndex = 0;
+}
+void addToBuff(int* x,int* y)
+{	
+	int index;
+	index=sBuffIndex++%FILTER_BUF_LEN;
+	sTouchFilterBuff[index].x = *x;
+	sTouchFilterBuff[index].y = *y;
+}
+#define TS_ERR_TDOWN -1
+#define TS_ERR_LOWBUF -2
+//#define TS_MINX	138
+//#define TS_MINY	375
+//#define TS_MAXX	3935
+//#define TS_MAXY	3920
+//#define TS_xISVALID(x) (x>=TS_MINX&&x<=TS_MAXX)
+#define TS_isINVALID(X,Y) (X==4095||Y==4095||X==0||Y==0)
+#define ABS(x) ((x)>0?(x):-(x))
+static P spoint;
+int TouchFilter(unsigned short* x,unsigned short* y,bool isdown)
+{
+#if 1
+	int ret = 0;
+	if(isdown==0&&sBuffIndex==0)
+		{
+		spoint.x = *x;
+		spoint.y = *y;
+		ClearBuff();
+		ret=TS_ERR_TDOWN;
+		}
+	if(!TS_isINVALID(x,y))
+		addToBuff(x,y);
+	if(sBuffIndex<FILTER_BUF_LEN)
+		ret=TS_ERR_LOWBUF;
+	if(ret==0)
+		{
+		P *p = sTouchFilterBuff;
+		P *p1 = p+1;
+		int index =0;
+		while(1)
+			{
+			if(ABS(p->x-p1->x)<60||ABS(p->y-p1->y)<60)
+				{
+				*x=spoint.x;
+				*y=spoint.y;
+				//printk("p(%d,%d)	p1(%d,%d)\n",p->x,p->y,p1->x,p1->y);
+				//ret=-3;
+				break;
+				}
+			p++;
+			p1++;
+			if(++index>=FILTER_BUF_LEN-1)break;
+			}
+		spoint.x=*x;
+		spoint.y=*y;
+		}
+	
+#else	
+	int ret = 0;
+	if(isdown==0&&sBuffIndex==0)
+		{
+		ClearBuff();
+		ret=TS_ERR_TDOWN;
+		}
+	if(!TS_isINVALID(x,y))
+		addToBuff(x,y);
+	if(sBuffIndex<FILTER_BUF_LEN)
+		ret=TS_ERR_LOWBUF;
+	if(ret==0)
+		{
+		P adp;
+		int index =0;
+		while(1)
+			{
+			adp.x+=sTouchFilterBuff[index].x;
+			adp.y+=sTouchFilterBuff[index].y;
+			if(++index>=FILTER_BUF_LEN)break;
+			}
+		*x = adp.x/FILTER_BUF_LEN;
+		*y = adp.y/FILTER_BUF_LEN;
+		}
+#endif
+	return ret;
+	
+}
+
+#define SLAP_X 2
+#define SLAP_Y 0
+void TouchReportFilter(unsigned short* x,unsigned short* y)
+{
+	if((sReportFilter.x==0&&sReportFilter.y==0)||
+		(ABS(sReportFilter.x - *x)>SLAP_X&&ABS(sReportFilter.y - *y)>SLAP_Y))
+		{
+		sReportFilter.x = *x;
+		sReportFilter.y = *y;
+		}
+	*x = sReportFilter.x;
+	*y = sReportFilter.y;
+}
 #if 0
 int main(void)
 {

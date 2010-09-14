@@ -16,6 +16,12 @@
 #ifndef __DRIVERS_TOUCHSCREEN_CALIBRATION_TS_H
 #define __DRIVERS_TOUCHSCREEN_CALIBRATION_TS_H
 
+struct adc_point
+{
+    int x;
+    int y;
+};
+
 #define TWO_DIMENSIONAL_CALIBRATION 1
 
 #define ADC_PRECISION       12          // Precision of ADC output (in bits)

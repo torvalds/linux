@@ -597,4 +597,16 @@ config TOUCHSCREEN_PCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_ts.
+	  
+choice 
+  prompt "Touch panel resolution"
+  default TP_800x480
+
+  config TP_800x480
+  bool "800x480"
+
+  config TP_1024x600
+  bool "1024x600"
+
+endchoice
 endif

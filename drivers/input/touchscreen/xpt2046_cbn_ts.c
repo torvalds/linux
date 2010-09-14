@@ -201,110 +201,14 @@ typedef struct
     s16 y;
 }POINT;
 
-#if (0)
-static struct xpt2046_platform_data xpt2046_info = {
-	.model			= 2046,
-	.keep_vref_on 	= 1,
-	.swap_xy		= 0,
-	.x_min			= 0,
-	.x_max			= 800,
-	.y_min			= 0,
-	.y_max			= 480,
-	.debounce_max		= 7,
-	.debounce_rep		= DEBOUNCE_REPTIME,
-	.debounce_tol		= 20,
-	.gpio_pendown		= RK2818_PIN_PE3,
-	.penirq_recheck_delay_usecs = 1,
 
-};
-#endif /* (0) */
 static void xpt2046_enable(struct xpt2046 *ts);
 static void xpt2046_disable(struct xpt2046 *ts);
 
-static POINT gADPoint;
-int screen_x[] = { 50,  750,   50,  750,  400};
-int screen_y[] = { 40,   40,  440,  440,  240};
-int uncali_x[] = {329, 3750,  331, 3757, 2046};
-int uncali_y[] = {593,  532, 3675, 3655, 2121};
+volatile struct adc_point gADPoint;
 
-// This code is touch check
-static ssize_t xpt2046_mode_show(struct device_driver *drv,char *buf)
-{
-    int count;
-    
-	count = sprintf(buf,"xpt2046_mode_show:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-	                uncali_x[0], uncali_y[0],
-	                uncali_x[1], uncali_y[1],
-	                uncali_x[2], uncali_y[2],
-	                uncali_x[3], uncali_y[3],
-	                uncali_x[4], uncali_y[4]);
 
-	printk("buf: %s", buf);
-	
-	return count;
-}
 
-static ssize_t xpt2046_mode_store(struct device_driver * drv, const char * buf, size_t count)
-{
-    int i, j = 0;
-    char temp[5];
-
-    printk("xpt2046_mode_store: %s\n", buf);
-    
-    for (i = 0; i < 5; i++)
-    {
-        strncpy(temp, buf + 5 * (j++), 4);
-        uncali_x[i] = simple_strtol(temp, NULL, 10);
-        strncpy(temp, buf + 5 * (j++), 4);
-        uncali_y[i] = simple_strtol(temp, NULL, 10);
-        printk("SN=%d uncali_x=%d uncali_y=%d\n", 
-                i, uncali_x[i], uncali_y[i]);
-    }
-
-  	return count; 
-}
-
-//This code is Touch adc simple value
-static ssize_t xpt2046_adc_show(struct device_driver *drv,char *buf)
-{
-    printk("xpt2046_adc_show: x=%d y=%d\n", gADPoint.x, gADPoint.y);
-    
-	return sprintf(buf, "%d,%d\n", gADPoint.x, gADPoint.y);
-}
-
-static ssize_t xpt2046_cali_status(struct device_driver *drv, char *buf)
-{
-    int ret;
-    
-    ret = TouchPanelSetCalibration(4, screen_x, screen_y, uncali_x, uncali_y);
-    if (ret == 1)
-        ret = sprintf(buf, "successful\n");
-    else
-        ret = sprintf(buf, "fail\n");
-    
-    printk("xpt2046_cali_status: buf=<%s", buf);
-    
-	return ret;
-}
-
-//static DEVICE_ATTR(adc, 0666, xpt2046_adc_show, NULL);
-//static DEVICE_ATTR(calistatus, 0666, xpt2046_cali_status, NULL);
-//static DEVICE_ATTR(mode, 0666, xpt2046_mode_show, xpt2046_mode_store);
-static DRIVER_ATTR(touchadc, 0666, xpt2046_adc_show, NULL);
-static DRIVER_ATTR(calistatus, 0666, xpt2046_cali_status, NULL);
-static DRIVER_ATTR(touchcheck, 0666, xpt2046_mode_show, xpt2046_mode_store);
-#if (0)
-static struct attribute *xpt2046_attributes[] = {
-	&dev_attr_touchadc.attr,
-	&dev_attr_calistatus.attr,
-	&dev_attr_touchcheck.attr,
-	NULL,
-};
-
-static struct attribute_group xpt2046_attr_group = {
-	.attrs = xpt2046_attributes,
-};
-#endif /* (0) */
 
 static int device_suspended(struct device *dev)
 {
@@ -1028,31 +932,29 @@ static struct spi_driver xpt2046_driver = {
 
 static int __init xpt2046_init(void)
 {
-	//return spi_register_driver(&xpt2046_driver);
-	int ret = spi_register_driver(&xpt2046_driver);
-
-    if (ret == 0)
-    {
-	    gADPoint.x = 0;
-	    gADPoint.y = 0;
-	    ret = driver_create_file(&xpt2046_driver.driver, &driver_attr_touchcheck);
-	    ret += driver_create_file(&xpt2046_driver.driver, &driver_attr_touchadc);
-	    ret += driver_create_file(&xpt2046_driver.driver, &driver_attr_calistatus);
-	}
+	xpt2046printk("Touch panel drive XPT2046 driver init...\n");
 	
-	return ret;
+	gADPoint.x = 0;
+	gADPoint.y = 0;
+	
+	int ret = spi_register_driver(&xpt2046_driver);
+    if (ret)
+    {
+ 		printk("Register XPT2046 driver failed.\n");
+	    return ret;
+	}
+
+	return 0;
+
 }
-module_init(xpt2046_init);
+
 
 static void __exit xpt2046_exit(void)
 {
-	//spi_unregister_driver(&xpt2046_driver);
-	driver_remove_file(&xpt2046_driver.driver, &driver_attr_touchcheck);
-    driver_remove_file(&xpt2046_driver.driver, &driver_attr_touchadc);
-    driver_remove_file(&xpt2046_driver.driver, &driver_attr_calistatus);
-    
+	xpt2046printk("Touch panel drive XPT2046 driver exit...\n");
 	spi_unregister_driver(&xpt2046_driver);
 }
+module_init(xpt2046_init);
 module_exit(xpt2046_exit);
 
 MODULE_DESCRIPTION("rk2818 spi xpt2046 TouchScreen Driver");
