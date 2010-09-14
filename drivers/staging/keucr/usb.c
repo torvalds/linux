@@ -30,6 +30,7 @@ static struct usb_device_id eucr_usb_ids [] = {
 MODULE_DEVICE_TABLE (usb, eucr_usb_ids);
 
 
+#ifdef CONFIG_PM
 
 int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 {
@@ -101,6 +102,14 @@ int eucr_reset_resume(struct usb_interface *iface)
 	return 0;
 }
 //EXPORT_SYMBOL_GPL(usb_stor_reset_resume);
+
+#else
+
+#define eucr_suspend		NULL
+#define eucr_resume		NULL
+#define eucr_reset_resume	NULL
+
+#endif
 
 //----- eucr_pre_reset() ---------------------
 static int eucr_pre_reset(struct usb_interface *iface)
