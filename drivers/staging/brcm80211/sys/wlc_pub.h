@@ -452,7 +452,7 @@ typedef struct {
 #define WLPKTFLAG_RIFS(pkttag)	((pkttag)->flags & WLF_RIFS)
 
 /* API for accessing BSSCFG index in WLPKTTAG */
-#define BSSCFGIDX_ISVALID(bsscfgidx) (((bsscfgidx >= 0)&&(bsscfgidx < WLC_MAXBSSCFG)) ? 1 : 0)
+#define BSSCFGIDX_ISVALID(bsscfgidx) (((bsscfgidx >= 0) && (bsscfgidx < WLC_MAXBSSCFG)) ? 1 : 0)
 
 static INLINE int8 wlc_pkttag_bsscfg_get(void *p)
 {

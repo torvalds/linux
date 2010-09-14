@@ -415,15 +415,15 @@ extern "C" {
 }
 
 #ifndef ABS
-#define	ABS(a)			(((a) < 0)? -(a):(a))
+#define	ABS(a)			(((a) < 0) ? -(a):(a))
 #endif				/* ABS */
 
 #ifndef MIN
-#define	MIN(a, b)		(((a) < (b))?(a):(b))
+#define	MIN(a, b)		(((a) < (b)) ? (a):(b))
 #endif				/* MIN */
 
 #ifndef MAX
-#define	MAX(a, b)		(((a) > (b))?(a):(b))
+#define	MAX(a, b)		(((a) > (b)) ? (a):(b))
 #endif				/* MAX */
 
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))

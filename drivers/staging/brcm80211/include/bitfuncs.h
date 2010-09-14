@@ -38,7 +38,7 @@ static INLINE uint32 find_msbit(uint32 x);
 static INLINE uint32 find_msbit(uint32 x)
 {
 	uint msbit;
- __asm__("bsrl %1,%0":"=r"(msbit)
+ __asm__("bsrl %1,%0" : "=r"(msbit)
  :		"r"(x));
 	return msbit;
 }

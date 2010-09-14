@@ -834,7 +834,7 @@ struct antsel_info {
 };
 
 #define	CHANNEL_BANDUNIT(wlc, ch) (((ch) <= CH_MAX_2G_CHANNEL) ? BAND_2G_INDEX : BAND_5G_INDEX)
-#define	OTHERBANDUNIT(wlc)	((uint)((wlc)->band->bandunit? BAND_2G_INDEX : BAND_5G_INDEX))
+#define	OTHERBANDUNIT(wlc)	((uint)((wlc)->band->bandunit ? BAND_2G_INDEX : BAND_5G_INDEX))
 
 #define IS_MBAND_UNLOCKED(wlc) \
 	((NBANDS(wlc) > 1) && !(wlc)->bandlocked)

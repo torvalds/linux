@@ -971,7 +971,7 @@ uint16
 
 #define LCNPHY_IQLOCC_READ(val) ((uint8)(-(int8)(((val) & 0xf0) >> 4) + (int8)((val) & 0x0f)))
 #define FIXED_TXPWR 78
-#define LCNPHY_TEMPSENSE(val) ((int16)((val > 255)?(val - 512):val))
+#define LCNPHY_TEMPSENSE(val) ((int16)((val > 255) ? (val - 512) : val))
 
 static uint32 wlc_lcnphy_qdiv_roundup(uint32 divident, uint32 divisor,
 				      uint8 precision);

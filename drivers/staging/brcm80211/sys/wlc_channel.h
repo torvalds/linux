@@ -47,7 +47,7 @@ struct wlc_info;
 
 /* macro to get 5 GHz channel group index for tx power */
 #define CHANNEL_POWER_IDX_5G(c) \
-	(((c) < 52) ? 0 : (((c) < 62) ? 1 :(((c) < 100) ? 2 : (((c) < 149) ? 3 : 4))))
+	(((c) < 52) ? 0 : (((c) < 62) ? 1 : (((c) < 100) ? 2 : (((c) < 149) ? 3 : 4))))
 
 #define WLC_MAXPWR_TBL_SIZE		6	/* max of BAND_5G_PWR_LVLS and 6 for 2.4 GHz */
 #define WLC_MAXPWR_MIMO_TBL_SIZE	14	/* max of BAND_5G_PWR_LVLS and 14 for 2.4 GHz */
