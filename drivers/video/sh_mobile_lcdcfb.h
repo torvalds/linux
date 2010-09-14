@@ -3,6 +3,7 @@
 
 #include <linux/completion.h>
 #include <linux/fb.h>
+#include <linux/mutex.h>
 #include <linux/wait.h>
 
 /* per-channel registers */
@@ -33,6 +34,8 @@ struct sh_mobile_lcdc_chan {
 	wait_queue_head_t frame_end_wait;
 	struct completion vsync_completion;
 	struct fb_var_screeninfo display_var;
+	int use_count;
+	struct mutex open_lock;		/* protects the use counter */
 };
 
 #endif
