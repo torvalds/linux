@@ -492,12 +492,55 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	unsigned int len = 0;
 	int i;
 	u8 addr[ETH_ALEN];
+	u32 tmp;
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"primary: %s (%s chan=%d ht=%d)\n",
 			wiphy_name(sc->pri_wiphy->hw->wiphy),
 			ath_wiphy_state_str(sc->pri_wiphy->state),
 			sc->pri_wiphy->chan_idx, sc->pri_wiphy->chan_is_ht);
+
+	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
+	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"addr: %pM\n", addr);
+	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_BSSMSKL), addr);
+	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"addrmask: %pM\n", addr);
+	tmp = ath9k_hw_getrxfilter(sc->sc_ah);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"rfilt: 0x%x", tmp);
+	if (tmp & ATH9K_RX_FILTER_UCAST)
+		len += snprintf(buf + len, sizeof(buf) - len, " UCAST");
+	if (tmp & ATH9K_RX_FILTER_MCAST)
+		len += snprintf(buf + len, sizeof(buf) - len, " MCAST");
+	if (tmp & ATH9K_RX_FILTER_BCAST)
+		len += snprintf(buf + len, sizeof(buf) - len, " BCAST");
+	if (tmp & ATH9K_RX_FILTER_CONTROL)
+		len += snprintf(buf + len, sizeof(buf) - len, " CONTROL");
+	if (tmp & ATH9K_RX_FILTER_BEACON)
+		len += snprintf(buf + len, sizeof(buf) - len, " BEACON");
+	if (tmp & ATH9K_RX_FILTER_PROM)
+		len += snprintf(buf + len, sizeof(buf) - len, " PROM");
+	if (tmp & ATH9K_RX_FILTER_PROBEREQ)
+		len += snprintf(buf + len, sizeof(buf) - len, " PROBEREQ");
+	if (tmp & ATH9K_RX_FILTER_PHYERR)
+		len += snprintf(buf + len, sizeof(buf) - len, " PHYERR");
+	if (tmp & ATH9K_RX_FILTER_MYBEACON)
+		len += snprintf(buf + len, sizeof(buf) - len, " MYBEACON");
+	if (tmp & ATH9K_RX_FILTER_COMP_BAR)
+		len += snprintf(buf + len, sizeof(buf) - len, " COMP_BAR");
+	if (tmp & ATH9K_RX_FILTER_PSPOLL)
+		len += snprintf(buf + len, sizeof(buf) - len, " PSPOLL");
+	if (tmp & ATH9K_RX_FILTER_PHYRADAR)
+		len += snprintf(buf + len, sizeof(buf) - len, " PHYRADAR");
+	if (tmp & ATH9K_RX_FILTER_MCAST_BCAST_ALL)
+		len += snprintf(buf + len, sizeof(buf) - len, " MCAST_BCAST_ALL\n");
+	else
+		len += snprintf(buf + len, sizeof(buf) - len, "\n");
+
+	/* Put variable-length stuff down here, and check for overflows. */
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
 		if (aphy == NULL)
@@ -508,16 +551,6 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 				ath_wiphy_state_str(aphy->state),
 				aphy->chan_idx, aphy->chan_is_ht);
 	}
-
-	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
-	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"addr: %pM\n", addr);
-	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_BSSMSKL), addr);
-	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"addrmask: %pM\n", addr);
-
 	if (len > sizeof(buf))
 		len = sizeof(buf);
 
