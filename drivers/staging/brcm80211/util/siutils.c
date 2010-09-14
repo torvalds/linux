@@ -69,7 +69,7 @@ static uint BCMINITFN(socram_banksize) (si_info_t *sii, sbsocramregs_t *r,
 					uint8 idx, uint8 mtype);
 
 /* global variable to indicate reservation/release of gpio's */
-static uint32 si_gpioreservation = 0;
+static uint32 si_gpioreservation;
 
 /* global flag to prevent shared resources from being initialized multiple times in si_attach() */
 

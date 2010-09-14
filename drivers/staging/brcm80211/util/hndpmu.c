@@ -1840,7 +1840,7 @@ uint32 BCMINITFN(si_pmu_mem_clock) (si_t *sih, osl_t *osh)
 /* Measure ILP clock frequency */
 #define ILP_CALC_DUR	10	/* ms, make sure 1000 can be divided by it. */
 
-static uint32 ilpcycles_per_sec = 0;
+static uint32 ilpcycles_per_sec;
 
 uint32 BCMINITFN(si_pmu_ilp_clock) (si_t *sih, osl_t *osh)
 {

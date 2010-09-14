@@ -38,7 +38,7 @@ typedef struct _vars {
 
 #define	VARS_T_OH	sizeof(vars_t)
 
-static vars_t *vars = NULL;
+static vars_t *vars;
 
 #define NVRAM_FILE	1
 

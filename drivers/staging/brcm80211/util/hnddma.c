@@ -48,7 +48,7 @@
 #define rxd64		dregs.d64_u.rxd_64
 
 /* default dma message level (if input msg_level pointer is null in dma_attach()) */
-static uint dma_msg_level = 0;
+static uint dma_msg_level;
 
 #define	MAXNAMEL	8	/* 8 char names */
 
