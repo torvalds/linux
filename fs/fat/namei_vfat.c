@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
-#include <linux/smp_lock.h>     /* For lock_kernel() */
 #include "fat.h"
 
 /*
@@ -1056,10 +1055,10 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
-	lock_kernel();
+	lock_super(sb);
 	res = fat_fill_super(sb, data, silent, &vfat_dir_inode_operations, 1);
 	if (res) {
-		unlock_kernel();
+		unlock_super(sb);
 		return res;
 	}
 
@@ -1068,7 +1067,7 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 	else
 		sb->s_root->d_op = &vfat_dentry_ops;
 
-	unlock_kernel();
+	unlock_super(sb);
 	return 0;
 }
 
