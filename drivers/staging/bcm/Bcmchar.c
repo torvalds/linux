@@ -1141,7 +1141,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 			}
 			if(IoBuffer.OutputLength < sizeof(stLocalSFAddIndicationAlt))
 			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Mismatch req: %lx needed is =0x%x!!!",
+				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Mismatch req: %lx needed is =0x%zx!!!",
 					IoBuffer.OutputLength, sizeof(stLocalSFAddIndicationAlt));
 				return -EINVAL;
 			}
@@ -1172,7 +1172,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 
 			if(IoBuffer.OutputLength != sizeof(S_MIBS_HOST_STATS_MIBS))
 			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Length Check failed %lu %d\n", IoBuffer.OutputLength,
+				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Length Check failed %lu %zd\n", IoBuffer.OutputLength,
 											sizeof(S_MIBS_HOST_STATS_MIBS));
 	          	return -EINVAL;
 			}
@@ -1854,7 +1854,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 				}
 				if(IoBuffer.OutputLength != sizeof(FLASH2X_BITMAP))
 				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Structure size mismatch Lib :0x%lx Driver :0x%x ",IoBuffer.OutputLength, sizeof(FLASH2X_BITMAP));
+					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Structure size mismatch Lib :0x%lx Driver :0x%zx ",IoBuffer.OutputLength, sizeof(FLASH2X_BITMAP));
 					break;
 				}
 
@@ -2073,7 +2073,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 
 					if(IoBuffer.OutputLength < sizeof(FLASH2X_CS_INFO))
 					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0," Passed buffer size:0x%lX is insufficient for the CS structure.. \nRequired size :0x%x ",IoBuffer.OutputLength, sizeof(FLASH2X_CS_INFO));
+						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0," Passed buffer size:0x%lX is insufficient for the CS structure.. \nRequired size :0x%zx ",IoBuffer.OutputLength, sizeof(FLASH2X_CS_INFO));
 						Status = -EINVAL;
 						break;
 					}
@@ -2089,7 +2089,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 				{
 					if(IoBuffer.OutputLength < sizeof(FLASH_CS_INFO))
 					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0," Passed buffer size:0x%lX is insufficient for the CS structure.. Required size :0x%u ",IoBuffer.OutputLength, sizeof(FLASH_CS_INFO));
+						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0," Passed buffer size:0x%lX is insufficient for the CS structure.. Required size :0x%zx ",IoBuffer.OutputLength, sizeof(FLASH_CS_INFO));
 						Status = -EINVAL;
 						break;
 					}
@@ -2296,7 +2296,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 				if(IoBuffer.OutputLength < sizeof(DevInfo))
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"User Passed buffer length is less than actural buffer size");
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"user passed buffer size :0x%lX, expected size :0x%x",IoBuffer.OutputLength, sizeof(DevInfo));
+					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"user passed buffer size :0x%lX, expected size :0x%zx",IoBuffer.OutputLength, sizeof(DevInfo));
 					Status = -EINVAL;
 					break;
 				}
@@ -2324,7 +2324,7 @@ static INT bcm_char_ioctl(struct inode *inode, struct file *filp,
 				}
 				if(IoBuffer.OutputLength < sizeof(ST_TIME_ELAPSED))
 				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"User Passed buffer length:0x%lx is less than expected buff size :0x%X",IoBuffer.OutputLength,sizeof(ST_TIME_ELAPSED));
+					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"User Passed buffer length:0x%lx is less than expected buff size :0x%zX",IoBuffer.OutputLength,sizeof(ST_TIME_ELAPSED));
 					Status = -EINVAL;
 					break;
 				}

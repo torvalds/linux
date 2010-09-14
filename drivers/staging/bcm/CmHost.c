@@ -1706,9 +1706,9 @@ static inline ULONG RestoreSFParam(PMINI_ADAPTER Adapter, ULONG ulAddrSFParamSet
 		return 0;
 	}
 	ulAddrSFParamSet = ntohl(ulAddrSFParamSet);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " RestoreSFParam: Total Words of DSX Message To Read: 0x%x  From Target At : 0x%lx ",
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " RestoreSFParam: Total Words of DSX Message To Read: 0x%zx  From Target At : 0x%lx ",
 				nBytesToRead/sizeof(ULONG),ulAddrSFParamSet);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "sizeof(stServiceFlowParamSI) = %x", sizeof(stServiceFlowParamSI));
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "sizeof(stServiceFlowParamSI) = %zx", sizeof(stServiceFlowParamSI));
 
 	//Read out the SF Param Set At the indicated Location
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "nBytesToRead = %x", nBytesToRead);
@@ -1728,7 +1728,7 @@ static __inline ULONG StoreSFParam(PMINI_ADAPTER Adapter,PUCHAR pucSrcBuffer,ULO
 	{
 		return 0;
 	}
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " StoreSFParam: Total Words of DSX Message To Write: 0x%X  To Target At : 0x%lX ",(nBytesToWrite/sizeof(ULONG)),ulAddrSFParamSet);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " StoreSFParam: Total Words of DSX Message To Write: 0x%zX  To Target At : 0x%lX ",(nBytesToWrite/sizeof(ULONG)),ulAddrSFParamSet);
 
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "WRM  with %x bytes",nBytesToWrite);
 
@@ -1926,7 +1926,7 @@ static inline stLocalSFAddIndicationAlt
 
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Dumping the whole raw packet");
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "============================================================");
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " pstAddIndicationDest->sfActiveSet size  %x %p", sizeof(*pstAddIndicationDest), pstAddIndicationDest);
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " pstAddIndicationDest->sfActiveSet size  %zx %p", sizeof(*pstAddIndicationDest), pstAddIndicationDest);
 	//BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, (unsigned char *)pstAddIndicationDest, sizeof(*pstAddIndicationDest));
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "============================================================");
 	return pstAddIndicationDest;
@@ -1952,7 +1952,7 @@ ULONG SetUpTargetDsxBuffers(PMINI_ADAPTER Adapter)
 		 return 0;
 	 }
 
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Size of Each DSX Buffer(Also size of ServiceFlowParamSI): %x ",sizeof(stServiceFlowParamSI));
+	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Size of Each DSX Buffer(Also size of ServiceFlowParamSI): %zx ",sizeof(stServiceFlowParamSI));
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Reading DSX buffer From Target location %x ",DSX_MESSAGE_EXCHANGE_BUFFER);
 
  	Status = rdmalt(Adapter, DSX_MESSAGE_EXCHANGE_BUFFER,
