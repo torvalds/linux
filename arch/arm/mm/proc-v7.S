@@ -243,6 +243,15 @@ __v7_setup:
 	orrle	r10, r10, #1 << 4		@ set bit #4
 	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
+#ifdef CONFIG_ARM_ERRATA_742231
+	teq	r6, #0x20			@ present in r2p0
+	teqne	r6, #0x21			@ present in r2p1
+	teqne	r6, #0x22			@ present in r2p2
+	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orreq	r10, r10, #1 << 12		@ set bit #12
+	orreq	r10, r10, #1 << 22		@ set bit #22
+	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
 
 3:	mov	r10, #0
 #ifdef HARVARD_CACHE
