@@ -229,10 +229,7 @@ static ssize_t show_name(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct uio_device *idev = dev_get_drvdata(dev);
-	if (idev)
-		return sprintf(buf, "%s\n", idev->info->name);
-	else
-		return -ENODEV;
+	return sprintf(buf, "%s\n", idev->info->name);
 }
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
@@ -240,10 +237,7 @@ static ssize_t show_version(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct uio_device *idev = dev_get_drvdata(dev);
-	if (idev)
-		return sprintf(buf, "%s\n", idev->info->version);
-	else
-		return -ENODEV;
+	return sprintf(buf, "%s\n", idev->info->version);
 }
 static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 
@@ -251,11 +245,7 @@ static ssize_t show_event(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct uio_device *idev = dev_get_drvdata(dev);
-	if (idev)
-		return sprintf(buf, "%u\n",
-				(unsigned int)atomic_read(&idev->event));
-	else
-		return -ENODEV;
+	return sprintf(buf, "%u\n", (unsigned int)atomic_read(&idev->event));
 }
 static DEVICE_ATTR(event, S_IRUGO, show_event, NULL);
 
@@ -878,7 +868,6 @@ void uio_unregister_device(struct uio_info *info)
 
 	uio_dev_del_attributes(idev);
 
-	dev_set_drvdata(idev->dev, NULL);
 	device_destroy(uio_class, MKDEV(uio_major, idev->minor));
 	kfree(idev);
 
