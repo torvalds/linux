@@ -566,8 +566,8 @@ extern const uint8 wme_fifo2ac[];
 #define WLC_UPDATE_STATS(wlc)	0	/* No stats support */
 #define WLCNTINCR(a)		/* No stats support */
 #define WLCNTDECR(a)		/* No stats support */
-#define WLCNTADD(a,delta)	/* No stats support */
-#define WLCNTSET(a,value)	/* No stats support */
+#define WLCNTADD(a, delta)	/* No stats support */
+#define WLCNTSET(a, value)	/* No stats support */
 #define WLCNTVAL(a)		0	/* No stats support */
 
 /* common functions for every port */

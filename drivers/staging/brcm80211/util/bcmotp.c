@@ -149,7 +149,7 @@ static otpinfo_t otpinfo;
 #define OTPGU_P_SHIFT		(OTPGU_HWP_OFF % 16)
 
 /* OTP Size */
-#define OTP_SZ_FU_324		((ROUNDUP(324,8))/8)	/* 324 bits */
+#define OTP_SZ_FU_324		((ROUNDUP(324, 8))/8)	/* 324 bits */
 #define OTP_SZ_FU_288		(288/8)	/* 288 bits */
 #define OTP_SZ_FU_216		(216/8)	/* 216 bits */
 #define OTP_SZ_FU_72		(72/8)	/* 72 bits */

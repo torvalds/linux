@@ -130,7 +130,7 @@ typedef struct {
 #define wlc_key_hw_wowl_init(a, b, c, d) do {} while (0)
 #define wlc_key_sw_wowl_update(a, b, c, d, e) do {} while (0)
 #define wlc_key_sw_wowl_create(a, b, c) (BCME_ERROR)
-#define wlc_key_iv_update(a, b, c, d, e) do {(void)e;} while (0)
+#define wlc_key_iv_update(a, b, c, d, e) do {(void)e; } while (0)
 #define wlc_key_iv_init(a, b, c) do {} while (0)
 #define wlc_key_set_error(a, b, c) (BCME_ERROR)
 #define wlc_key_dump_hw(a, b) (BCME_ERROR)

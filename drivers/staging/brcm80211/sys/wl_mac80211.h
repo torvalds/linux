@@ -126,8 +126,8 @@ struct wl_info {
 #define WL_UNLOCK(wl)	spin_unlock_bh(&(wl)->lock)
 
 /* locking from inside wl_isr */
-#define WL_ISRLOCK(wl, flags) do {spin_lock(&(wl)->isr_lock); (void)(flags);} while (0)
-#define WL_ISRUNLOCK(wl, flags) do {spin_unlock(&(wl)->isr_lock); (void)(flags);} while (0)
+#define WL_ISRLOCK(wl, flags) do {spin_lock(&(wl)->isr_lock); (void)(flags); } while (0)
+#define WL_ISRUNLOCK(wl, flags) do {spin_unlock(&(wl)->isr_lock); (void)(flags); } while (0)
 
 /* locking under WL_LOCK() to synchronize with wl_isr */
 #define INT_LOCK(wl, flags)	spin_lock_irqsave(&(wl)->isr_lock, flags)

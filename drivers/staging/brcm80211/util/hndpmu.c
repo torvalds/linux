@@ -1875,7 +1875,8 @@ static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab1)[] = {
 	4, 0x2}, {
 	2, 0x3}, {
 	1, 0x0}, {
-0, 0x0} };
+	0, 0x0}
+	};
 
 /* SDIO Drive Strength to sel value table for PMU Rev 2, 3 */
 static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab2)[] = {
@@ -1886,7 +1887,8 @@ static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab2)[] = {
 	6, 0x4}, {
 	4, 0x2}, {
 	2, 0x1}, {
-0, 0x0} };
+	0, 0x0}
+	};
 
 /* SDIO Drive Strength to sel value table for PMU Rev 8 (1.8V) */
 static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab3)[] = {
@@ -1898,7 +1900,8 @@ static const sdiod_drive_str_t BCMINITDATA(sdiod_drive_strength_tab3)[] = {
 	12, 0x3}, {
 	8, 0x2}, {
 	4, 0x1}, {
-0, 0x0} };
+	0, 0x0}
+	};
 
 #define SDIOD_DRVSTR_KEY(chip, pmu)	(((chip) << 16) | (pmu))
 

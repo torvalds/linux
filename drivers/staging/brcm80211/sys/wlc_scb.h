@@ -201,8 +201,8 @@ struct scb {
 
 #define WLCNTSCBINCR(a)		/* No stats support */
 #define WLCNTSCBDECR(a)		/* No stats support */
-#define WLCNTSCBADD(a,delta)	/* No stats support */
-#define WLCNTSCBSET(a,value)	/* No stats support */
+#define WLCNTSCBADD(a, delta)	/* No stats support */
+#define WLCNTSCBSET(a, value)	/* No stats support */
 #define WLCNTSCBVAL(a)		0	/* No stats support */
 #define WLCNTSCB_COND_SET(c, a, v)	/* No stats support */
 #define WLCNTSCB_COND_ADD(c, a, d)	/* No stats support */
