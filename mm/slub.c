@@ -209,6 +209,7 @@ static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
 							{ return 0; }
 static inline void sysfs_slab_remove(struct kmem_cache *s)
 {
+	kfree(s->name);
 	kfree(s);
 }
 
@@ -3169,6 +3170,16 @@ void __init kmem_cache_init(void)
 	slab_state = UP;
 
 	/* Provide the correct kmalloc names now that the caches are up */
+	if (KMALLOC_MIN_SIZE <= 32) {
+		kmalloc_caches[1]->name = kstrdup(kmalloc_caches[1]->name, GFP_NOWAIT);
+		BUG_ON(!kmalloc_caches[1]->name);
+	}
+
+	if (KMALLOC_MIN_SIZE <= 64) {
+		kmalloc_caches[2]->name = kstrdup(kmalloc_caches[2]->name, GFP_NOWAIT);
+		BUG_ON(!kmalloc_caches[2]->name);
+	}
+
 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
 		char *s = kasprintf(GFP_NOWAIT, "kmalloc-%d", 1 << i);
 
@@ -3271,6 +3282,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		size_t align, unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
+	char *n;
 
 	if (WARN_ON(!name))
 		return NULL;
@@ -3294,19 +3306,25 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		return s;
 	}
 
+	n = kstrdup(name, GFP_KERNEL);
+	if (!n)
+		goto err;
+
 	s = kmalloc(kmem_size, GFP_KERNEL);
 	if (s) {
-		if (kmem_cache_open(s, name,
+		if (kmem_cache_open(s, n,
 				size, align, flags, ctor)) {
 			list_add(&s->list, &slab_caches);
 			if (sysfs_slab_add(s)) {
 				list_del(&s->list);
+				kfree(n);
 				kfree(s);
 				goto err;
 			}
 			up_write(&slub_lock);
 			return s;
 		}
+		kfree(n);
 		kfree(s);
 	}
 	up_write(&slub_lock);
@@ -4439,6 +4457,7 @@ static void kmem_cache_release(struct kobject *kobj)
 {
 	struct kmem_cache *s = to_slab(kobj);
 
+	kfree(s->name);
 	kfree(s);
 }
 
