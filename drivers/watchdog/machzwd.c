@@ -388,7 +388,7 @@ static struct notifier_block zf_notifier = {
 
 static void __init zf_show_action(int act)
 {
-	char *str[] = { "RESET", "SMI", "NMI", "SCI" };
+	static const char * const str[] = { "RESET", "SMI", "NMI", "SCI" };
 
 	printk(KERN_INFO PFX ": Watchdog using action = %s\n", str[act]);
 }
