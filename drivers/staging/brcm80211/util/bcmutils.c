@@ -106,7 +106,8 @@ uint BCMFASTPATH pkttotlen(osl_t *osh, void *p)
 /* return the last buffer of chained pkt */
 void *pktlast(osl_t *osh, void *p)
 {
-	for (; PKTNEXT(p); p = PKTNEXT(p)) ;
+	for (; PKTNEXT(p); p = PKTNEXT(p))
+		;
 
 	return p;
 }
@@ -286,7 +287,8 @@ bool BCMFASTPATH pktq_pdel(struct pktq *pq, void *pktbuf, int prec)
 		if (q->head == NULL)
 			q->tail = NULL;
 	} else {
-		for (p = q->head; p && PKTLINK(p) != pktbuf; p = PKTLINK(p)) ;
+		for (p = q->head; p && PKTLINK(p) != pktbuf; p = PKTLINK(p))
+			;
 		if (p == NULL)
 			return FALSE;
 
@@ -619,7 +621,8 @@ char *BCMROMFN(bcmstrcat) (char *dest, const char *src)
 
 	p = dest + strlen(dest);
 
-	while ((*p++ = *src++) != '\0') ;
+	while ((*p++ = *src++) != '\0')
+		;
 
 	return dest;
 }
@@ -632,7 +635,8 @@ char *BCMROMFN(bcmstrncat) (char *dest, const char *src, uint size)
 	p = dest + strlen(dest);
 	endp = p + size;
 
-	while (p != endp && (*p++ = *src++) != '\0') ;
+	while (p != endp && (*p++ = *src++) != '\0')
+		;
 
 	return dest;
 }
@@ -841,7 +845,8 @@ char *getvar(char *vars, const char *name)
 		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
 			return &s[len + 1];
 
-		while (*s++) ;
+		while (*s++)
+			;
 	}
 
 	/* then query nvram */

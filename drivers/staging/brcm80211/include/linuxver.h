@@ -100,7 +100,8 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 		struct pid *pid;    \
 		pid = find_get_pid((pid_t)nr);    \
 		tsk = pid_task(pid, PIDTYPE_PID);    \
-		if (tsk) send_sig(sig, tsk, 1); \
+		if (tsk) \
+			send_sig(sig, tsk, 1); \
 	} while (0)
 
 #define WL_DEV_IF(dev)          ((wl_if_t*)netdev_priv(dev))

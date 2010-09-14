@@ -4385,7 +4385,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			/* validate the name value */
 			name = (char *)arg;
 			for (i = 0; i < (uint) len && *name != '\0';
-			     i++, name++) ;
+			     i++, name++)
+				;
 
 			if (i == (uint) len) {
 				bcmerror = BCME_BUFTOOSHORT;

@@ -199,7 +199,8 @@ static uint16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 
 	for (k = 0;
 	     ((st = R_REG(oi->osh, &cc->otpprog)) & OTPP_START_BUSY)
-	     && (k < OTPP_TRIES); k++) ;
+	     && (k < OTPP_TRIES); k++)
+		;
 	if (k >= OTPP_TRIES) {
 		return 0xffff;
 	}
@@ -259,7 +260,8 @@ static void BCMNMIATTACHFN(_ipxotp_init) (otpinfo_t *oi, chipcregs_t *cc)
 	W_REG(oi->osh, &cc->otpprog, otpp);
 	for (k = 0;
 	     ((st = R_REG(oi->osh, &cc->otpprog)) & OTPP_START_BUSY)
-	     && (k < OTPP_TRIES); k++) ;
+	     && (k < OTPP_TRIES); k++)
+		;
 	if (k >= OTPP_TRIES) {
 		return;
 	}

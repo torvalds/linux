@@ -190,12 +190,16 @@ extern int osl_error(int bcmerror);
 			__typeof(*(r)) __osl_v; \
 			__asm__ __volatile__("sync"); \
 			switch (sizeof(*(r))) { \
-			case sizeof(uint8):	__osl_v = \
-				readb((volatile uint8*)(r)); break; \
-			case sizeof(uint16):	__osl_v = \
-				readw((volatile uint16*)(r)); break; \
-			case sizeof(uint32):	__osl_v = \
-				readl((volatile uint32*)(r)); break; \
+			case sizeof(uint8): \
+				__osl_v = readb((volatile uint8*)(r)); \
+				break; \
+			case sizeof(uint16): \
+				__osl_v = readw((volatile uint16*)(r)); \
+				break; \
+			case sizeof(uint32): \
+				__osl_v = \
+				readl((volatile uint32*)(r)); \
+				break; \
 			} \
 			__asm__ __volatile__("sync"); \
 			__osl_v; \
@@ -228,12 +232,17 @@ extern int osl_error(int bcmerror);
 		({ \
 			__typeof(*(r)) __osl_v; \
 			switch (sizeof(*(r))) { \
-			case sizeof(uint8):	__osl_v = \
-				readb((volatile uint8*)((uintptr)(r)^3)); break; \
-			case sizeof(uint16):	__osl_v = \
-				readw((volatile uint16*)((uintptr)(r)^2)); break; \
-			case sizeof(uint32):	__osl_v = \
-				readl((volatile uint32*)(r)); break; \
+			case sizeof(uint8): \
+				__osl_v = \
+				readb((volatile uint8*)((uintptr)(r)^3)); \
+				break; \
+			case sizeof(uint16): \
+				__osl_v = \
+				readw((volatile uint16*)((uintptr)(r)^2)); \
+				break; \
+			case sizeof(uint32): \
+				__osl_v = readl((volatile uint32*)(r)); \
+				break; \
 			} \
 			__osl_v; \
 		}), \
@@ -353,9 +362,15 @@ extern void *osl_pktdup(osl_t *osh, void *skb);
 )
 #define RPC_WRITE_REG(osh, r, v) do { \
 	switch (sizeof(*(r))) { \
-	case sizeof(uint8):	osl_writeb((osh), (volatile uint8*)(r), (uint8)(v)); break; \
-	case sizeof(uint16):	osl_writew((osh), (volatile uint16*)(r), (uint16)(v)); break; \
-	case sizeof(uint32):	osl_writel((osh), (volatile uint32*)(r), (uint32)(v)); break; \
+	case sizeof(uint8): \
+		osl_writeb((osh), (volatile uint8*)(r), (uint8)(v)); \
+		break; \
+	case sizeof(uint16): \
+		osl_writew((osh), (volatile uint16*)(r), (uint16)(v)); \
+		break; \
+	case sizeof(uint32): \
+		osl_writel((osh), (volatile uint32*)(r), (uint32)(v)); \
+		break; \
 	} \
 } while (0)
 
