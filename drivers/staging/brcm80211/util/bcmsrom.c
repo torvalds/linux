@@ -124,7 +124,8 @@ static int BCMATTACHFN(varbuf_append) (varbuf_t *b, const char *fmt, ...)
 	}
 
 	/* Remove any earlier occurrence of the same variable */
-	if ((s = strchr(b->buf, '=')) != NULL) {
+	s = strchr(b->buf, '=');
+	if (s != NULL) {
 		len = (size_t) (s - b->buf);
 		for (s = b->base; s < b->buf;) {
 			if ((bcmp(s, b->buf, len) == 0) && s[len] == '=') {
@@ -1515,7 +1516,8 @@ static int otp_read_pci(osl_t *osh, si_t *sih, uint16 *buf, uint bufsz)
 
 	ASSERT(bufsz <= OTP_SZ_MAX);
 
-	if ((otp = MALLOC(osh, OTP_SZ_MAX)) == NULL) {
+	otp = MALLOC(osh, OTP_SZ_MAX);
+	if (otp == NULL) {
 		return BCME_ERROR;
 	}
 
@@ -1594,9 +1596,11 @@ BCMATTACHFN(initvars_flash) (si_t *sih, osl_t *osh, char **base, uint len)
 	char devpath[SI_DEVPATH_BUFSZ];
 
 	/* allocate memory and read in flash */
-	if (!(flash = MALLOC(osh, NVRAM_SPACE)))
+	flash = MALLOC(osh, NVRAM_SPACE);
+	if (!flash)
 		return BCME_NOMEM;
-	if ((err = nvram_getall(flash, NVRAM_SPACE)))
+	err = nvram_getall(flash, NVRAM_SPACE);
+	if (err)
 		goto exit;
 
 	si_devpath(sih, devpath, sizeof(devpath));
@@ -1655,7 +1659,8 @@ BCMATTACHFN(initvars_flash_si) (si_t *sih, char **vars, uint *count)
 	if (!vp)
 		return BCME_NOMEM;
 
-	if ((err = initvars_flash(sih, osh, &vp, MAXSZ_NVRAM_VARS)) == 0)
+	err = initvars_flash(sih, osh, &vp, MAXSZ_NVRAM_VARS);
+	if (err == 0)
 		err = initvars_table(osh, base, vp, vars, count);
 
 	MFREE(osh, base, MAXSZ_NVRAM_VARS);
@@ -1921,7 +1926,8 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 		uint32 val;
 		val = 0;
 
-		if ((value = si_getdevpathvar(sih, "sromrev"))) {
+		value = si_getdevpathvar(sih, "sromrev");
+		if (value) {
 			sromrev = (uint8) bcm_strtoul(value, NULL, 0);
 			flash = TRUE;
 			goto varscont;
@@ -1929,7 +1935,8 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 
 		BS_ERROR(("%s, SROM CRC Error\n", __func__));
 
-		if ((value = si_getnvramflvar(sih, "sromrev"))) {
+		value = si_getnvramflvar(sih, "sromrev");
+		if (value) {
 			err = 0;
 			goto errout;
 		}
@@ -1962,7 +1969,8 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 
 	/* read variables from flash */
 	if (flash) {
-		if ((err = initvars_flash(sih, osh, &vp, MAXSZ_NVRAM_VARS)))
+		err = initvars_flash(sih, osh, &vp, MAXSZ_NVRAM_VARS);
+		if (err)
 			goto errout;
 		goto varsdone;
 	}
@@ -2006,7 +2014,8 @@ BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count)
 	ASSERT(numfn <= SDIOD_MAX_IOFUNCS);
 
 	for (fn = 0; fn <= numfn; fn++) {
-		if ((cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT)) == NULL) {
+		cis[fn] = MALLOC(osh, SBSDIO_CIS_SIZE_LIMIT)
+		if (cis[fn] == NULL) {
 			rc = -1;
 			break;
 		}

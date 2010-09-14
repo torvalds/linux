@@ -172,7 +172,8 @@ int phy_getintvar(phy_info_t *pi, const char *name)
 {
 	char *val;
 
-	if ((val = PHY_GETVAR(pi, name)) == NULL)
+	val = PHY_GETVAR(pi, name);
+	if (val == NULL)
 		return 0;
 
 	return bcm_strtoul(val, NULL, 0);
@@ -549,8 +550,8 @@ shared_phy_t *BCMATTACHFN(wlc_phy_shared_attach) (shared_phy_params_t *shp)
 {
 	shared_phy_t *sh;
 
-	if ((sh =
-	     (shared_phy_t *) MALLOC(shp->osh, sizeof(shared_phy_t))) == NULL) {
+	sh = (shared_phy_t *) MALLOC(shp->osh, sizeof(shared_phy_t));
+	if (sh == NULL) {
 		return NULL;
 	}
 	bzero((char *)sh, sizeof(shared_phy_t));
@@ -619,14 +620,16 @@ wlc_phy_t *BCMATTACHFN(wlc_phy_attach) (shared_phy_t *sh, void *regs,
 		}
 	}
 
-	if ((sflags & SISF_DB_PHY) && (pi = sh->phy_head)) {
+	pi = sh->phy_head;
+	if ((sflags & SISF_DB_PHY) && pi) {
 
 		wlapi_bmac_corereset(pi->sh->physhim, pi->pubpi.coreflags);
 		pi->refcnt++;
 		return &pi->pubpi_ro;
 	}
 
-	if ((pi = (phy_info_t *) MALLOC(osh, sizeof(phy_info_t))) == NULL) {
+	pi = (phy_info_t *) MALLOC(osh, sizeof(phy_info_t));
+	if (pi == NULL) {
 		return NULL;
 	}
 	bzero((char *)pi, sizeof(phy_info_t));
@@ -744,9 +747,10 @@ wlc_phy_t *BCMATTACHFN(wlc_phy_attach) (shared_phy_t *sh, void *regs,
 
 	if (ISNPHY(pi)) {
 
-		if (!(pi->phycal_timer = wlapi_init_timer(pi->sh->physhim,
+		pi->phycal_timer = wlapi_init_timer(pi->sh->physhim,
 							  wlc_phy_timercb_phycal,
-							  pi, "phycal"))) {
+							  pi, "phycal");
+		if (!pi->phycal_timer) {
 			goto err;
 		}
 
@@ -3014,9 +3018,12 @@ void wlc_phy_BSSinit(wlc_phy_t *pih, bool bonlyap, int rssi)
 void
 wlc_phy_papd_decode_epsilon(uint32 epsilon, int32 *eps_real, int32 *eps_imag)
 {
-	if ((*eps_imag = (epsilon >> 13)) > 0xfff)
+	*eps_imag = (epsilon >> 13);
+	if (*eps_imag > 0xfff)
 		*eps_imag -= 0x2000;
-	if ((*eps_real = (epsilon & 0x1fff)) > 0xfff)
+
+	*eps_real = (epsilon & 0x1fff);
+	if (*eps_real > 0xfff)
 		*eps_real -= 0x2000;
 }
 

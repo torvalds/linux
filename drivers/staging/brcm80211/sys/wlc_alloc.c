@@ -42,7 +42,8 @@ void *wlc_calloc(osl_t *osh, uint unit, uint size)
 {
 	void *item;
 
-	if ((item = MALLOC(osh, size)) == NULL)
+	item = MALLOC(osh, size);
+	if (item == NULL)
 		WL_ERROR(("wl%d: %s: out of memory, malloced %d bytes\n",
 			  unit, __func__, MALLOCED(osh)));
 	else
@@ -77,14 +78,15 @@ static wlc_pub_t *BCMATTACHFN(wlc_pub_malloc) (osl_t *osh, uint unit,
 					       uint *err, uint devid) {
 	wlc_pub_t *pub;
 
-	if ((pub =
-	     (wlc_pub_t *) wlc_calloc(osh, unit, sizeof(wlc_pub_t))) == NULL) {
+	pub = (wlc_pub_t *) wlc_calloc(osh, unit, sizeof(wlc_pub_t));
+	if (pub == NULL) {
 		*err = 1001;
 		goto fail;
 	}
 
-	if ((pub->tunables = (wlc_tunables_t *)
-	     wlc_calloc(osh, unit, sizeof(wlc_tunables_t))) == NULL) {
+	pub->tunables = (wlc_tunables_t *)wlc_calloc(osh, unit,
+		sizeof(wlc_tunables_t));
+	if (pub->tunables == NULL) {
 		*err = 1028;
 		goto fail;
 	}
@@ -92,9 +94,9 @@ static wlc_pub_t *BCMATTACHFN(wlc_pub_malloc) (osl_t *osh, uint unit,
 	/* need to init the tunables now */
 	wlc_tunables_init(pub->tunables, devid);
 
-	if ((pub->multicast = (struct ether_addr *)
-	     wlc_calloc(osh, unit,
-			(sizeof(struct ether_addr) * MAXMULTILIST))) == NULL) {
+	pub->multicast = (struct ether_addr *)wlc_calloc(osh, unit,
+		(sizeof(struct ether_addr) * MAXMULTILIST));
+	if (pub->multicast == NULL) {
 		*err = 1003;
 		goto fail;
 	}
@@ -127,13 +129,13 @@ wlc_bsscfg_t *wlc_bsscfg_malloc(osl_t *osh, uint unit)
 {
 	wlc_bsscfg_t *cfg;
 
-	if ((cfg =
-	     (wlc_bsscfg_t *) wlc_calloc(osh, unit,
-					 sizeof(wlc_bsscfg_t))) == NULL)
+	cfg = (wlc_bsscfg_t *) wlc_calloc(osh, unit, sizeof(wlc_bsscfg_t));
+	if (cfg == NULL)
 		goto fail;
 
-	if ((cfg->current_bss = (wlc_bss_info_t *)
-	     wlc_calloc(osh, unit, sizeof(wlc_bss_info_t))) == NULL)
+	cfg->current_bss = (wlc_bss_info_t *)wlc_calloc(osh, unit,
+		sizeof(wlc_bss_info_t));
+	if (cfg->current_bss == NULL)
 		goto fail;
 
 	return cfg;
@@ -180,9 +182,8 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 					    uint devid) {
 	wlc_info_t *wlc;
 
-	if ((wlc =
-	     (wlc_info_t *) wlc_calloc(osh, unit,
-				       sizeof(wlc_info_t))) == NULL) {
+	wlc = (wlc_info_t *) wlc_calloc(osh, unit, sizeof(wlc_info_t));
+	if (wlc == NULL) {
 		*err = 1002;
 		goto fail;
 	}
@@ -190,7 +191,8 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 	wlc->hwrxoff = WL_HWRXOFF;
 
 	/* allocate wlc_pub_t state structure */
-	if ((wlc->pub = wlc_pub_malloc(osh, unit, err, devid)) == NULL) {
+	wlc->pub = wlc_pub_malloc(osh, unit, err, devid);
+	if (wlc->pub == NULL) {
 		*err = 1003;
 		goto fail;
 	}
@@ -198,16 +200,18 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 
 	/* allocate wlc_hw_info_t state structure */
 
-	if ((wlc->hw = (wlc_hw_info_t *)
-	     wlc_calloc(osh, unit, sizeof(wlc_hw_info_t))) == NULL) {
+	wlc->hw = (wlc_hw_info_t *)wlc_calloc(osh, unit,
+		sizeof(wlc_hw_info_t));
+	if (wlc->hw == NULL) {
 		*err = 1005;
 		goto fail;
 	}
 	wlc->hw->wlc = wlc;
 
 #ifdef WLC_LOW
-	if ((wlc->hw->bandstate[0] = (wlc_hwband_t *)
-	     wlc_calloc(osh, unit, (sizeof(wlc_hwband_t) * MAXBANDS))) == NULL) {
+	wlc->hw->bandstate[0] = (wlc_hwband_t *)wlc_calloc(osh, unit,
+		(sizeof(wlc_hwband_t) * MAXBANDS));
+	if (wlc->hw->bandstate[0] == NULL) {
 		*err = 1006;
 		goto fail;
 	} else {
@@ -221,36 +225,37 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 	}
 #endif				/* WLC_LOW */
 
-	if ((wlc->modulecb = (modulecb_t *)
-	     wlc_calloc(osh, unit,
-			sizeof(modulecb_t) * WLC_MAXMODULES)) == NULL) {
+	wlc->modulecb = (modulecb_t *)wlc_calloc(osh, unit,
+		sizeof(modulecb_t) * WLC_MAXMODULES);
+	if (wlc->modulecb == NULL) {
 		*err = 1009;
 		goto fail;
 	}
 
-	if ((wlc->default_bss = (wlc_bss_info_t *)
-	     wlc_calloc(osh, unit, sizeof(wlc_bss_info_t))) == NULL) {
+	wlc->default_bss = (wlc_bss_info_t *)wlc_calloc(osh, unit,
+		sizeof(wlc_bss_info_t));
+	if (wlc->default_bss == NULL) {
 		*err = 1010;
 		goto fail;
 	}
 
-	if ((wlc->cfg = wlc_bsscfg_malloc(osh, unit)) == NULL) {
+	wlc->cfg = wlc_bsscfg_malloc(osh, unit);
+	if (wlc->cfg == NULL) {
 		*err = 1011;
 		goto fail;
 	}
 	wlc_bsscfg_ID_assign(wlc, wlc->cfg);
 
-	if ((wlc->pkt_callback = (pkt_cb_t *)
-	     wlc_calloc(osh, unit,
-			(sizeof(pkt_cb_t) *
-			 (wlc->pub->tunables->maxpktcb + 1)))) == NULL) {
+	wlc->pkt_callback = (pkt_cb_t *)wlc_calloc(osh, unit,
+		(sizeof(pkt_cb_t) * (wlc->pub->tunables->maxpktcb + 1)));
+	if (wlc->pkt_callback == NULL) {
 		*err = 1013;
 		goto fail;
 	}
 
-	if ((wlc->wsec_def_keys[0] = (wsec_key_t *)
-	     wlc_calloc(osh, unit,
-			(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS))) == NULL) {
+	wlc->wsec_def_keys[0] = (wsec_key_t *)wlc_calloc(osh, unit,
+		(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS));
+	if (wlc->wsec_def_keys[0] == NULL) {
 		*err = 1015;
 		goto fail;
 	} else {
@@ -262,20 +267,22 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 		}
 	}
 
-	if ((wlc->protection = (wlc_protection_t *)
-	     wlc_calloc(osh, unit, sizeof(wlc_protection_t))) == NULL) {
+	wlc->protection = (wlc_protection_t *)wlc_calloc(osh, unit,
+		sizeof(wlc_protection_t));
+	if (wlc->protection == NULL) {
 		*err = 1016;
 		goto fail;
 	}
 
-	if ((wlc->stf = (wlc_stf_t *)
-	     wlc_calloc(osh, unit, sizeof(wlc_stf_t))) == NULL) {
+	wlc->stf = (wlc_stf_t *)wlc_calloc(osh, unit, sizeof(wlc_stf_t));
+	if (wlc->stf == NULL) {
 		*err = 1017;
 		goto fail;
 	}
 
-	if ((wlc->bandstate[0] = (wlcband_t *)
-	     wlc_calloc(osh, unit, (sizeof(wlcband_t) * MAXBANDS))) == NULL) {
+	wlc->bandstate[0] = (wlcband_t *)wlc_calloc(osh, unit,
+				(sizeof(wlcband_t) * MAXBANDS));
+	if (wlc->bandstate[0] == NULL) {
 		*err = 1025;
 		goto fail;
 	} else {
@@ -288,14 +295,15 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 		}
 	}
 
-	if ((wlc->corestate = (wlccore_t *)
-	     wlc_calloc(osh, unit, sizeof(wlccore_t))) == NULL) {
+	wlc->corestate = (wlccore_t *)wlc_calloc(osh, unit, sizeof(wlccore_t));
+	if (wlc->corestate == NULL) {
 		*err = 1026;
 		goto fail;
 	}
 
-	if ((wlc->corestate->macstat_snapshot = (macstat_t *)
-	     wlc_calloc(osh, unit, sizeof(macstat_t))) == NULL) {
+	wlc->corestate->macstat_snapshot =
+		(macstat_t *)wlc_calloc(osh, unit, sizeof(macstat_t));
+	if (wlc->corestate->macstat_snapshot == NULL) {
 		*err = 1027;
 		goto fail;
 	}

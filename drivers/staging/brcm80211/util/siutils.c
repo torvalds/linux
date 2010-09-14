@@ -88,7 +88,8 @@ si_t *BCMATTACHFN(si_attach) (uint devid, osl_t *osh, void *regs,
 	si_info_t *sii;
 
 	/* alloc si_info_t */
-	if ((sii = MALLOC(osh, sizeof(si_info_t))) == NULL) {
+	sii = MALLOC(osh, sizeof(si_info_t));
+	if (sii == NULL) {
 		SI_ERROR(("si_attach: malloc failed! malloced %d bytes\n",
 			  MALLOCED(osh)));
 		return NULL;
@@ -269,14 +270,13 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	/* fixup necessary chip/core configurations */
 	if (BUSTYPE(sii->pub.bustype) == PCI_BUS) {
 		if (SI_FAST(sii)) {
-			if (!sii->pch &&
-			    ((sii->pch =
-			      (void *)(uintptr) pcicore_init(&sii->pub,
-							     sii->osh,
-							     (void *)
-							     PCIEREGS(sii))) ==
-			     NULL))
-				return FALSE;
+			if (!sii->pch) {
+				sii->pch = (void *)(uintptr)pcicore_init(
+					&sii->pub, sii->osh,
+					(void *)PCIEREGS(sii));
+				if (sii->pch == NULL)
+					return FALSE;
+			}
 		}
 		if (si_pci_fixcfg(&sii->pub)) {
 			SI_ERROR(("si_doattach: sb_pci_fixcfg failed\n"));
@@ -300,15 +300,15 @@ static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 		/* do a pci config read to get subsystem id and subvendor id */
 		w = OSL_PCI_READ_CONFIG(sii->osh, PCI_CFG_SVID, sizeof(uint32));
 		/* Let nvram variables override subsystem Vend/ID */
-		if ((sii->pub.boardvendor =
-		     (uint16) si_getdevpathintvar(&sii->pub, "boardvendor"))
-		    == 0)
+		sii->pub.boardvendor = (uint16)si_getdevpathintvar(&sii->pub,
+			"boardvendor");
+		if (sii->pub.boardvendor == 0)
 			sii->pub.boardvendor = w & 0xffff;
 		else
 			SI_ERROR(("Overriding boardvendor: 0x%x instead of 0x%x\n", sii->pub.boardvendor, w & 0xffff));
-		if ((sii->pub.boardtype =
-		     (uint16) si_getdevpathintvar(&sii->pub, "boardtype"))
-		    == 0)
+		sii->pub.boardtype = (uint16)si_getdevpathintvar(&sii->pub,
+			"boardtype");
+		if (sii->pub.boardtype == 0)
 			sii->pub.boardtype = (w >> 16) & 0xffff;
 		else
 			SI_ERROR(("Overriding boardtype: 0x%x instead of 0x%x\n", sii->pub.boardtype, (w >> 16) & 0xffff));
@@ -331,11 +331,12 @@ static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 	case SI_BUS:
 	case JTAG_BUS:
 		sii->pub.boardvendor = VENDOR_BROADCOM;
-		if (pvars == NULL
-		    || ((sii->pub.boardtype = getintvar(pvars, "prodid")) == 0))
-			if ((sii->pub.boardtype =
-			     getintvar(NULL, "boardtype")) == 0)
+		sii->pub.boardtype = getintvar(pvars, "prodid");
+		if (pvars == NULL || (sii->pub.boardtype == 0)) {
+			sii->pub.boardtype = getintvar(NULL, "boardtype");
+			if (sii->pub.boardtype == 0)
 				sii->pub.boardtype = 0xffff;
+		}
 		break;
 	}
 
@@ -456,7 +457,8 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	}
 
 	/* setup the GPIO based LED powersave register */
-	if ((w = getintvar(pvars, "leddc")) == 0)
+	w = getintvar(pvars, "leddc");
+	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
 	sb_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, gpiotimerval), ~0, w);
 
@@ -614,7 +616,8 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	}
 
 	/* setup the GPIO based LED powersave register */
-	if ((w = getintvar(pvars, "leddc")) == 0)
+	w = getintvar(pvars, "leddc");
+	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
 	si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, gpiotimerval), ~0, w);
 
@@ -1331,15 +1334,24 @@ uint16 BCMATTACHFN(si_d11_devid) (si_t *sih)
 	uint16 device;
 
 	/* normal case: nvram variable with devpath->devid->wl0id */
-	if ((device = (uint16) si_getdevpathintvar(sih, "devid")) != 0) ;
-	/* Get devid from OTP/SPROM depending on where the SROM is read */
-	else if ((device = (uint16) getintvar(sii->vars, "devid")) != 0) ;
-	/* no longer support wl0id, but keep the code here for backward compatibility. */
-	else if ((device = (uint16) getintvar(sii->vars, "wl0id")) != 0) ;
-	else
-		/* ignore it */
-		device = 0xffff;
+	device = (uint16) si_getdevpathintvar(sih, "devid");
+	if (device != 0)
+		goto bail;
 
+	/* Get devid from OTP/SPROM depending on where the SROM is read */
+	device = (uint16) getintvar(sii->vars, "devid");
+	if (device != 0)
+		goto bail;
+
+	/* no longer support wl0id, but keep the code here for backward compatibility. */
+	device = (uint16) getintvar(sii->vars, "wl0id");
+	if (device != 0)
+		goto bail;
+
+	/* ignore it */
+	device = 0xffff;
+
+bail:
 	return device;
 }
 
@@ -1448,11 +1460,14 @@ void BCMINITFN(si_clkctl_init) (si_t *sih)
 	fast = SI_FAST(sii);
 	if (!fast) {
 		origidx = sii->curidx;
-		if ((cc =
-		     (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0)) == NULL)
+		cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
+		if (cc == NULL)
 			return;
-	} else if ((cc = (chipcregs_t *) CCREGS_FAST(sii)) == NULL)
-		return;
+	} else {
+		cc = (chipcregs_t *) CCREGS_FAST(sii);
+		if (cc == NULL)
+			return;
+	}
 	ASSERT(cc != NULL);
 
 	/* set all Instaclk chip ILP to 1 MHz */
@@ -1493,11 +1508,14 @@ uint16 BCMINITFN(si_clkctl_fast_pwrup_delay) (si_t *sih)
 	if (!fast) {
 		origidx = sii->curidx;
 		INTR_OFF(sii, intr_val);
-		if ((cc =
-		     (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0)) == NULL)
+		cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
+		if (cc == NULL)
 			goto done;
-	} else if ((cc = (chipcregs_t *) CCREGS_FAST(sii)) == NULL)
-		goto done;
+	} else {
+		cc = (chipcregs_t *) CCREGS_FAST(sii);
+		if (cc == NULL)
+			goto done;
+	}
 	ASSERT(cc != NULL);
 
 	slowminfreq = si_slowclk_freq(sii, FALSE, cc);
@@ -1640,8 +1658,11 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 			goto done;
 
 		cc = (chipcregs_t *) si_setcore(&sii->pub, CC_CORE_ID, 0);
-	} else if ((cc = (chipcregs_t *) CCREGS_FAST(sii)) == NULL)
-		goto done;
+	} else {
+		cc = (chipcregs_t *) CCREGS_FAST(sii);
+		if (cc == NULL)
+			goto done;
+	}
 	ASSERT(cc != NULL);
 
 	if (!CCCTL_ENAB(&sii->pub) && (sii->pub.ccrev < 20))
@@ -1893,9 +1914,8 @@ void si_sdio_init(si_t *sih)
 		ASSERT(idx == si_findcoreidx(sih, D11_CORE_ID, 0));
 
 		/* switch to sdio core */
-		if (!
-		    (sdpregs =
-		     (sdpcmd_regs_t *) si_setcore(sih, PCMCIA_CORE_ID, 0)))
+		sdpregs = (sdpcmd_regs_t *) si_setcore(sih, PCMCIA_CORE_ID, 0);
+		if (!sdpregs)
 			sdpregs =
 			    (sdpcmd_regs_t *) si_setcore(sih, SDIOD_CORE_ID, 0);
 		ASSERT(sdpregs);
@@ -2408,7 +2428,8 @@ void *BCMATTACHFN(si_gpio_handler_register) (si_t *sih, uint32 event,
 	if (sih->ccrev < 11)
 		return NULL;
 
-	if ((gi = MALLOC(sii->osh, sizeof(gpioh_item_t))) == NULL)
+	gi = MALLOC(sii->osh, sizeof(gpioh_item_t));
+	if (gi == NULL)
 		return NULL;
 
 	bzero(gi, sizeof(gpioh_item_t));
@@ -2525,11 +2546,13 @@ void si_socdevram(si_t *sih, bool set, uint8 *enable, uint8 *protect)
 		*enable = *protect = 0;
 
 	/* Switch to SOCRAM core */
-	if (!(regs = si_setcore(sih, SOCRAM_CORE_ID, 0)))
+	regs = si_setcore(sih, SOCRAM_CORE_ID, 0);
+	if (!regs)
 		goto done;
 
 	/* Get info for determining size */
-	if (!(wasup = si_iscoreup(sih)))
+	wasup = si_iscoreup(sih);
+	if (!wasup)
 		si_core_reset(sih, 0, 0);
 
 	corerev = si_corerev(sih);
@@ -2606,11 +2629,13 @@ uint32 si_socdevram_size(si_t *sih)
 	origidx = si_coreidx(sih);
 
 	/* Switch to SOCRAM core */
-	if (!(regs = si_setcore(sih, SOCRAM_CORE_ID, 0)))
+	regs = si_setcore(sih, SOCRAM_CORE_ID, 0);
+	if (!regs)
 		goto done;
 
 	/* Get info for determining size */
-	if (!(wasup = si_iscoreup(sih)))
+	wasup = si_iscoreup(sih);
+	if (!wasup)
 		si_core_reset(sih, 0, 0);
 
 	corerev = si_corerev(sih);
@@ -2659,11 +2684,13 @@ uint32 si_socram_size(si_t *sih)
 	origidx = si_coreidx(sih);
 
 	/* Switch to SOCRAM core */
-	if (!(regs = si_setcore(sih, SOCRAM_CORE_ID, 0)))
+	regs = si_setcore(sih, SOCRAM_CORE_ID, 0);
+	if (!regs)
 		goto done;
 
 	/* Get info for determining size */
-	if (!(wasup = si_iscoreup(sih)))
+	wasup = si_iscoreup(sih);
+	if (!wasup)
 		si_core_reset(sih, 0, 0);
 	corerev = si_corerev(sih);
 	coreinfo = R_REG(sii->osh, &regs->coreinfo);

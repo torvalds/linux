@@ -64,10 +64,9 @@ wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
-	if (!
-	    (physhim =
-	     (wlc_phy_shim_info_t *) MALLOC(wlc_hw->osh,
-					    sizeof(wlc_phy_shim_info_t)))) {
+	physhim = (wlc_phy_shim_info_t *)MALLOC(wlc_hw->osh,
+		sizeof(wlc_phy_shim_info_t));
+	if (!physhim) {
 		WL_ERROR(("wl%d: wlc_phy_shim_attach: out of mem, malloced %d bytes\n", wlc_hw->unit, MALLOCED(wlc_hw->osh)));
 		return NULL;
 	}

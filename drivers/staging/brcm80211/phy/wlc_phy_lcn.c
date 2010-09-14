@@ -1882,7 +1882,8 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
 
-	if (NULL == (values_to_save = MALLOC(pi->sh->osh, sizeof(uint16) * 20))) {
+	values_to_save = MALLOC(pi->sh->osh, sizeof(uint16) * 20);
+	if (NULL == values_to_save) {
 		return;
 	}
 
@@ -3203,7 +3204,8 @@ static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t *pi, uint16 num_samps)
 
 	wlc_lcnphy_set_rx_iq_comp(pi, 0, 0);
 
-	if (!(result = wlc_lcnphy_rx_iq_est(pi, num_samps, 32, &iq_est)))
+	result = wlc_lcnphy_rx_iq_est(pi, num_samps, 32, &iq_est);
+	if (!result)
 		goto cleanup;
 
 	iq = (int32) iq_est.iq_prod;
@@ -3287,7 +3289,8 @@ wlc_lcnphy_rx_iq_cal(phy_info_t *pi, const lcnphy_rx_iqcomp_t *iqcomp,
 	int16 *ptr;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
-	if (NULL == (ptr = MALLOC(pi->sh->osh, sizeof(int16) * 131))) {
+	ptr = MALLOC(pi->sh->osh, sizeof(int16) * 131);
+	if (NULL == ptr) {
 		return FALSE;
 	}
 	if (module == 2) {
@@ -3587,8 +3590,9 @@ void wlc_lcnphy_get_tssi(phy_info_t *pi, int8 *ofdm_pwr, int8 *cck_pwr)
 {
 	int8 cck_offset;
 	uint16 status;
+	status = (read_phy_reg(pi, 0x4ab));
 	if (wlc_lcnphy_tssi_based_pwr_ctrl_enabled(pi) &&
-	    ((status = (read_phy_reg(pi, 0x4ab))) & (0x1 << 15))) {
+	    (status  & (0x1 << 15))) {
 		*ofdm_pwr = (int8) (((read_phy_reg(pi, 0x4ab) & (0x1ff << 0))
 				     >> 0) >> 1);
 
@@ -4040,11 +4044,13 @@ wlc_lcnphy_a1(phy_info_t *pi, int cal_type, int num_levels, int step_size_lg2)
 	uint16 *phy_c32;
 	phy_c21 = 0;
 	phy_c10 = phy_c13 = phy_c14 = phy_c8 = 0;
-	if (NULL == (ptr = MALLOC(pi->sh->osh, sizeof(int16) * 131))) {
+	ptr = MALLOC(pi->sh->osh, sizeof(int16) * 131);
+	if (NULL == ptr) {
 		return;
 	}
 
-	if (NULL == (phy_c32 = MALLOC(pi->sh->osh, sizeof(uint16) * 20))) {
+	phy_c32 = MALLOC(pi->sh->osh, sizeof(uint16) * 20);
+	if (NULL == phy_c32) {
 		return;
 	}
 	phy_c26 = read_phy_reg(pi, 0x6da);

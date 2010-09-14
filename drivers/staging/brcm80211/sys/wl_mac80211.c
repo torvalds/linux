@@ -884,7 +884,8 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 		btparam = wl->rpc;
 	} else
 #endif
-	if ((wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ)) == NULL) {
+	wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ);
+	if (wl->regsva == NULL) {
 		WL_ERROR(("wl%d: ioremap() failed\n", unit));
 		goto fail;
 	}
@@ -993,8 +994,8 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 #endif				/* BCMDBG */
 	printf("\n");
 
-	if ((wl->proc_entry =
-	     create_proc_entry(PROC_ENTRY_NAME, 0644, NULL)) == NULL) {
+	wl->proc_entry = create_proc_entry(PROC_ENTRY_NAME, 0644, NULL);
+	if (wl->proc_entry == NULL) {
 		WL_ERROR(("create_proc_entry failed *******\n"));
 		ASSERT(0);
 	} else {
@@ -1003,7 +1004,8 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 		wl->proc_entry->data = wl;
 		/* wl->proc_entry->owner = THIS_MODULE; */
 
-		if ((wl->ioctlbuf = (char *)vmalloc(PAGE_SIZE)) == NULL) {
+		wl->ioctlbuf = (char *)vmalloc(PAGE_SIZE);
+		if (wl->ioctlbuf == NULL) {
 			WL_ERROR(("%s: Vmalloc failed\n", __func__));
 		}
 		wl->ioctlbuf_sz = PAGE_SIZE;
@@ -1145,10 +1147,9 @@ static void *wl_dbus_probe_cb(void *arg, const char *desc, uint32 bustype,
 	wl_info_t *wl;
 	WL_ERROR(("%s:\n", __func__));
 
-	if (!
-	    (wl =
-	     wl_attach(BCM_DNGL_VID, BCM_DNGL_BDC_PID, (ulong) NULL, RPC_BUS,
-		       NULL, 0))) {
+	wl = wl_attach(BCM_DNGL_VID, BCM_DNGL_BDC_PID, (ulong) NULL, RPC_BUS,
+		NULL, 0);
+	if (!wl) {
 		WL_ERROR(("%s: wl_attach failed\n", __func__));
 	}
 
@@ -1656,7 +1657,8 @@ static int __init wl_module_init(void)
 #endif				/* BCMDBG */
 
 #ifndef BCMSDIO
-	if (!(error = pci_module_init(&wl_pci_driver)))
+	error = pci_module_init(&wl_pci_driver);
+	if (!error)
 		return 0;
 
 #endif				/* !BCMSDIO */
@@ -1827,7 +1829,8 @@ wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
 
 	WL_TRACE(("wl%d: wl_schedule_task\n", wl->pub->unit));
 
-	if (!(task = osl_malloc(wl->osh, sizeof(wl_task_t)))) {
+	task = osl_malloc(wl->osh, sizeof(wl_task_t));
+	if (!task) {
 		WL_ERROR(("wl%d: wl_schedule_task: out of memory, malloced %d bytes\n", wl->pub->unit, osl_malloced(wl->osh)));
 		return -ENOMEM;
 	}
@@ -1959,7 +1962,8 @@ irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 	WL_ISRLOCK(wl, flags);
 
 	/* call common first level interrupt handler */
-	if ((ours = wlc_isr(wl->wlc, &wantdpc))) {
+	ours = wlc_isr(wl->wlc, &wantdpc);
+	if (ours) {
 		/* if more to do... */
 		if (wantdpc) {
 
@@ -2079,7 +2083,8 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 {
 	wl_timer_t *t;
 
-	if (!(t = osl_malloc(wl->osh, sizeof(wl_timer_t)))) {
+	t = osl_malloc(wl->osh, sizeof(wl_timer_t));
+	if (!t) {
 		WL_ERROR(("wl%d: wl_init_timer: out of memory, malloced %d bytes\n", wl->pub->unit, osl_malloced(wl->osh)));
 		return 0;
 	}
@@ -2096,7 +2101,8 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 	wl->timers = t;
 
 #ifdef BCMDBG
-	if ((t->name = osl_malloc(wl->osh, strlen(name) + 1)))
+	t->name = osl_malloc(wl->osh, strlen(name) + 1);
+	if (t->name)
 		strcpy(t->name, name);
 #endif
 

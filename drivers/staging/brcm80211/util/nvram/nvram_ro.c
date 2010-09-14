@@ -57,7 +57,8 @@ static void BCMINITFN(get_flash_nvram) (si_t *sih, struct nvram_header *nvh)
 	nvs = R_REG(osh, &nvh->len) - sizeof(struct nvram_header);
 	bufsz = nvs + VARS_T_OH;
 
-	if ((new = (vars_t *) MALLOC(osh, bufsz)) == NULL) {
+	new = (vars_t *) MALLOC(osh, bufsz);
+	if (new == NULL) {
 		NVR_MSG(("Out of memory for flash vars\n"));
 		return;
 	}
@@ -91,7 +92,8 @@ int BCMATTACHFN(nvram_append) (void *si, char *varlst, uint varsz)
 	uint bufsz = VARS_T_OH;
 	vars_t *new;
 
-	if ((new = MALLOC(si_osh((si_t *) si), bufsz)) == NULL)
+	new = MALLOC(si_osh((si_t *) si), bufsz);
+	if (new == NULL)
 		return BCME_NOMEM;
 
 	new->vars = varlst;
@@ -144,9 +146,11 @@ char *nvram_get(const char *name)
 	char *v = NULL;
 	vars_t *cur;
 
-	for (cur = vars; cur; cur = cur->next)
-		if ((v = findvar(cur->vars, cur->vars + cur->size, name)))
+	for (cur = vars; cur; cur = cur->next) {
+		v = findvar(cur->vars, cur->vars + cur->size, name);
+		if (v)
 			break;
+	}
 
 	return v;
 }

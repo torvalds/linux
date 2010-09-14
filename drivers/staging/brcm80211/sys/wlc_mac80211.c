@@ -1569,16 +1569,16 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 
 bool BCMATTACHFN(wlc_timers_init) (wlc_info_t *wlc, int unit)
 {
-	if (!
-	    (wlc->wdtimer =
-	     wl_init_timer(wlc->wl, wlc_watchdog_by_timer, wlc, "watchdog"))) {
+	wlc->wdtimer = wl_init_timer(wlc->wl, wlc_watchdog_by_timer,
+		wlc, "watchdog");
+	if (!wlc->wdtimer) {
 		WL_ERROR(("wl%d:  wl_init_timer for wdtimer failed\n", unit));
 		goto fail;
 	}
 
-	if (!
-	    (wlc->radio_timer =
-	     wl_init_timer(wlc->wl, wlc_radio_timer, wlc, "radio"))) {
+	wlc->radio_timer = wl_init_timer(wlc->wl, wlc_radio_timer,
+		wlc, "radio");
+	if (!wlc->radio_timer) {
 		WL_ERROR(("wl%d:  wl_init_timer for radio_timer failed\n",
 			  unit));
 		goto fail;
@@ -1725,15 +1725,16 @@ static uint BCMATTACHFN(wlc_attach_module) (wlc_info_t *wlc)
 	uint unit;
 	unit = wlc->pub->unit;
 
-	if ((wlc->asi =
-	     wlc_antsel_attach(wlc, wlc->osh, wlc->pub, wlc->hw)) == NULL) {
+	wlc->asi = wlc_antsel_attach(wlc, wlc->osh, wlc->pub, wlc->hw);
+	if (wlc->asi == NULL) {
 		WL_ERROR(("wl%d: wlc_attach: wlc_antsel_attach failed\n",
 			  unit));
 		err = 44;
 		goto fail;
 	}
 
-	if ((wlc->ampdu = wlc_ampdu_attach(wlc)) == NULL) {
+	wlc->ampdu = wlc_ampdu_attach(wlc);
+	if (wlc->ampdu == NULL) {
 		WL_ERROR(("wl%d: wlc_attach: wlc_ampdu_attach failed\n", unit));
 		err = 50;
 		goto fail;
@@ -1824,8 +1825,8 @@ void *BCMATTACHFN(wlc_attach) (void *wl, uint16 vendor, uint16 device,
 		   && 4 == WLC_NUMRXIVS));
 
 	/* allocate wlc_info_t state and its substructures */
-	if ((wlc =
-	     (wlc_info_t *) wlc_attach_malloc(osh, unit, &err, device)) == NULL)
+	wlc = (wlc_info_t *) wlc_attach_malloc(osh, unit, &err, device);
+	if (wlc == NULL)
 		goto fail;
 	wlc->osh = osh;
 	pub = wlc->pub;
@@ -2177,7 +2178,8 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 
 	wlc->regs = 0;
 
-	if ((wlc->rpctx = wlc_rpctx_attach(wlc->pub, wlc)) == NULL)
+	wlc->rpctx = wlc_rpctx_attach(wlc->pub, wlc);
+	if (wlc->rpctx == NULL)
 		return -1;
 
 	/*
@@ -3435,7 +3437,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		     (int)(2 * sizeof(int))) ? WLC_BAND_AUTO : ((int *)arg)[1];
 
 		/* bcmerror checking */
-		if ((bcmerror = wlc_iocregchk(wlc, band)))
+		bcmerror = wlc_iocregchk(wlc, band);
+		if (bcmerror)
 			break;
 
 		if (val >= MHFMAX) {
@@ -3458,7 +3461,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		     (int)(2 * sizeof(int))) ? WLC_BAND_AUTO : ((int *)arg)[1];
 
 		/* bcmerror checking */
-		if ((bcmerror = wlc_iocregchk(wlc, band)))
+		bcmerror = wlc_iocregchk(wlc, band);
+		if (bcmerror)
 			break;
 
 		i = (uint16) val;
@@ -3480,7 +3484,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		     (int)(2 * sizeof(int))) ? WLC_BAND_AUTO : ((int *)arg)[1];
 
 		/* bcmerror checking */
-		if ((bcmerror = wlc_iocregchk(wlc, band)))
+		bcmerror = wlc_iocregchk(wlc, band);
+		if (bcmerror)
 			break;
 
 		if (val & 1) {
@@ -3500,7 +3505,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		     (int)(2 * sizeof(int))) ? WLC_BAND_AUTO : ((int *)arg)[1];
 
 		/* bcmerror checking */
-		if ((bcmerror = wlc_iocregchk(wlc, band)))
+		bcmerror = wlc_iocregchk(wlc, band);
+		if (bcmerror)
 			break;
 
 		if (val & 1) {
@@ -3526,7 +3532,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			band = r->band;
 
 		/* bcmerror checking */
-		if ((bcmerror = wlc_iocregchk(wlc, band)))
+		bcmerror = wlc_iocregchk(wlc, band);
+		if (bcmerror)
 			break;
 
 		if ((r->byteoff + r->size) > sizeof(d11regs_t)) {
@@ -3561,7 +3568,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			band = r->band;
 
 		/* bcmerror checking */
-		if ((bcmerror = wlc_iocregchk(wlc, band)))
+		bcmerror = wlc_iocregchk(wlc, band);
+		if (bcmerror)
 			break;
 
 		if (r->byteoff + r->size > sizeof(d11regs_t)) {
@@ -3849,8 +3857,9 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			 * The format is 8 bytes, with least significant in seq[0].
 			 */
 
+			key = WSEC_KEY(wlc, val);
 			if ((val >= 0) && (val < WLC_MAX_WSEC_KEYS(wlc)) &&
-			    (key = WSEC_KEY(wlc, val)) != NULL) {
+				(key != NULL)) {
 				uint8 seq[DOT11_WPA_KEY_RSC_LEN];
 				uint16 lo;
 				uint32 hi;
@@ -4334,7 +4343,8 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			wsec_key_t *key;
 
 			/* treat the 'val' parm as the key id */
-			if ((key = WSEC_BSS_DEFAULT_KEY(bsscfg)) != NULL) {
+			key = WSEC_BSS_DEFAULT_KEY(bsscfg);
+			if (key != NULL) {
 				*pval = key->id == val ? TRUE : FALSE;
 			} else {
 				bcmerror = BCME_BADKEYIDX;
@@ -4349,11 +4359,10 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 			/* treat the 'val' parm as the key id */
 			for (i = 0; i < WSEC_MAX_DEFAULT_KEYS; i++) {
-				if ((key = bsscfg->bss_def_keys[i]) != NULL &&
-				    key->id == val) {
-					if ((old_key =
-					     WSEC_BSS_DEFAULT_KEY(bsscfg)) !=
-					    NULL)
+				key = bsscfg->bss_def_keys[i];
+				if (key != NULL && key->id == val) {
+					old_key = WSEC_BSS_DEFAULT_KEY(bsscfg);
+					if (old_key != NULL)
 						old_key->flags &=
 						    ~WSEC_PRIMARY_KEY;
 					key->flags |= WSEC_PRIMARY_KEY;
@@ -4635,7 +4644,8 @@ wlc_iovar_op(wlc_info_t *wlc, const char *name,
 	for (i = 0; i < WLC_MAXMODULES; i++) {
 		if (!wlc->modulecb[i].iovars)
 			continue;
-		if ((vi = wlc_iovar_lookup(wlc->modulecb[i].iovars, name)))
+		vi = wlc_iovar_lookup(wlc->modulecb[i].iovars, name);
+		if (vi)
 			break;
 	}
 	/* iovar name not found */
@@ -4711,7 +4721,8 @@ wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg, int len,
 		goto exit;
 
 	/* length check on io buf */
-	if ((err = bcm_iovar_lencheck(vi, arg, len, set)))
+	err = bcm_iovar_lencheck(vi, arg, len, set);
+	if (err)
 		goto exit;
 
 	/* On set, check value ranges for integer types */
@@ -4762,8 +4773,8 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
 	bsscfg = NULL;
 	current_bss = NULL;
 
-	if ((err =
-	     wlc_iovar_check(wlc->pub, vi, arg, len, IOV_ISSET(actionid))) != 0)
+	err = wlc_iovar_check(wlc->pub, vi, arg, len, IOV_ISSET(actionid));
+	if (err != 0)
 		return err;
 
 	/* convenience int and bool vals for first 8 bytes of buffer */
@@ -4789,9 +4800,9 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
 			uint qdbm;
 			bool override;
 
-			if ((err =
-			     wlc_phy_txpower_get(wlc->band->pi, &qdbm,
-						 &override)) != BCME_OK)
+			err = wlc_phy_txpower_get(wlc->band->pi, &qdbm,
+				&override);
+			if (err != BCME_OK)
 				return err;
 
 			/* Return qdbm units */
@@ -6087,7 +6098,8 @@ uint16 BCMFASTPATH wlc_phytxctl1_calc(wlc_info_t *wlc, ratespec_t rspec)
 	} else {		/* legacy OFDM/CCK */
 		int16 phycfg;
 		/* get the phyctl byte from rate phycfg table */
-		if ((phycfg = wlc_rate_legacy_phyctl(RSPEC2RATE(rspec))) == -1) {
+		phycfg = wlc_rate_legacy_phyctl(RSPEC2RATE(rspec));
+		if (phycfg == -1) {
 			WL_ERROR(("wlc_phytxctl1_calc: wrong legacy OFDM/CCK rate\n"));
 			ASSERT(0);
 			phycfg = 0;
@@ -6753,7 +6765,8 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	       ((preamble_type[1] == WLC_MM_PREAMBLE) ==
 		(txh->MModeFbrLen != 0)));
 
-	if (SCB_WME(scb) && qos && wlc->edcf_txop[(ac = wme_fifo2ac[queue])]) {
+	ac = wme_fifo2ac[queue];
+	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
 		ASSERT(!ETHER_ISMULTI(&h->a1));

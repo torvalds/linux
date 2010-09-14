@@ -190,10 +190,12 @@ void *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
-	if ((q->head = PKTLINK(p)) == NULL)
+	q->head = PKTLINK(p);
+	if (q->head == NULL)
 		q->tail = NULL;
 
 	q->len--;
@@ -214,7 +216,8 @@ void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
 	for (prev = NULL; p != q->tail; p = PKTLINK(p))
@@ -279,7 +282,8 @@ bool BCMFASTPATH pktq_pdel(struct pktq *pq, void *pktbuf, int prec)
 	q = &pq->q[prec];
 
 	if (q->head == pktbuf) {
-		if ((q->head = PKTLINK(pktbuf)) == NULL)
+		q->head = PKTLINK(pktbuf);
+		if (q->head == NULL)
 			q->tail = NULL;
 	} else {
 		for (p = q->head; p && PKTLINK(p) != pktbuf; p = PKTLINK(p)) ;
@@ -329,10 +333,12 @@ void *BCMFASTPATH pktq_deq(struct pktq *pq, int *prec_out)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
-	if ((q->head = PKTLINK(p)) == NULL)
+	q->head = PKTLINK(p);
+	if (q->head == NULL)
 		q->tail = NULL;
 
 	q->len--;
@@ -362,7 +368,8 @@ void *BCMFASTPATH pktq_deq_tail(struct pktq *pq, int *prec_out)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
 	for (prev = NULL; p != q->tail; p = PKTLINK(p))
@@ -461,10 +468,12 @@ void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 
 	q = &pq->q[prec];
 
-	if ((p = q->head) == NULL)
+	p = q->head;
+	if (p == NULL)
 		return NULL;
 
-	if ((q->head = PKTLINK(p)) == NULL)
+	q->head = PKTLINK(p);
+	if (q->head == NULL)
 		q->tail = NULL;
 
 	q->len--;
@@ -847,7 +856,8 @@ int getintvar(char *vars, const char *name)
 {
 	char *val;
 
-	if ((val = getvar(vars, name)) == NULL)
+	val = getvar(vars, name);
+	if (val == NULL)
 		return 0;
 
 	return bcm_strtoul(val, NULL, 0);
@@ -859,7 +869,8 @@ int getintvararray(char *vars, const char *name, uint8 index)
 	int i = 0;
 	int val = 0;
 
-	if ((buf = getvar(vars, name)) == NULL) {
+	buf = getvar(vars, name);
+	if (buf == NULL) {
 		return 0;
 	}
 
@@ -975,7 +986,8 @@ static void BCMINITFN(bcm_nvram_refresh) (char *flash)
 	/* default "empty" vars cache */
 	bzero(flash, 2);
 
-	if ((ret = nvram_getall(flash, NVRAM_SPACE)))
+	ret = nvram_getall(flash, NVRAM_SPACE);
+	if (ret)
 		return;
 
 	/* determine nvram length */
@@ -1021,7 +1033,8 @@ int BCMINITFN(bcm_nvram_cache) (void *sih)
 	osh = si_osh((si_t *) sih);
 
 	/* allocate memory and read in flash */
-	if (!(flash = MALLOC(osh, NVRAM_SPACE))) {
+	flash = MALLOC(osh, NVRAM_SPACE);
+	if (!flash) {
 		ret = BCME_NOMEM;
 		goto exit;
 	}
@@ -1030,7 +1043,8 @@ int BCMINITFN(bcm_nvram_cache) (void *sih)
 #ifdef BCMNVRAMR
 	if (vars_len > 3) {
 		/* copy into a properly-sized buffer */
-		if (!(nvram_vars = MALLOC(osh, vars_len))) {
+		nvram_vars = MALLOC(osh, vars_len);
+		if (!nvram_vars) {
 			ret = BCME_NOMEM;
 		} else
 			bcopy(flash, nvram_vars, vars_len);

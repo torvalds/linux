@@ -640,7 +640,8 @@ static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih)
 	osh = si_osh(oi->sih);
 
 	/* Check for otp */
-	if ((cc = si_setcoreidx(sih, SI_CC_IDX)) != NULL) {
+	cc = si_setcoreidx(sih, SI_CC_IDX);
+	if (cc != NULL) {
 		cap = R_REG(osh, &cc->capabilities);
 		if ((cap & CC_CAP_OTPSIZE) == 0) {
 			/* Nothing there */
@@ -754,7 +755,8 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 
 	/* Read the whole otp so we can easily manipulate it */
 	lim = hndotp_size(oh);
-	if ((rawotp = MALLOC(si_osh(oi->sih), lim)) == NULL) {
+	rawotp = MALLOC(si_osh(oi->sih), lim);
+	if (rawotp == NULL) {
 		rc = -2;
 		goto out;
 	}
@@ -927,7 +929,8 @@ BCMNMIATTACHFN(otp_read_region) (si_t *sih, int region, uint16 *data,
 	void *oh;
 	int err = 0;
 
-	if (!(wasup = si_is_otp_powered(sih)))
+	wasup = si_is_otp_powered(sih);
+	if (!wasup)
 		si_otp_power(sih, TRUE);
 
 	if (!si_is_otp_powered(sih) || si_is_otp_disabled(sih)) {

@@ -113,7 +113,8 @@ void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
 	ASSERT(sih->bustype == PCI_BUS);
 
 	/* alloc pcicore_info_t */
-	if ((pi = MALLOC(osh, sizeof(pcicore_info_t))) == NULL) {
+	pi = MALLOC(osh, sizeof(pcicore_info_t));
+	if (pi == NULL) {
 		PCI_ERROR(("pci_attach: malloc failed! malloced %d bytes\n",
 			   MALLOCED(osh)));
 		return NULL;

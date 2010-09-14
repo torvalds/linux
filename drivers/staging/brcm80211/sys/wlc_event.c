@@ -69,7 +69,8 @@ wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t *pub,
 	eq->wl = wl;
 	eq->pub = pub;
 
-	if (!(eq->timer = wl_init_timer(eq->wl, wlc_timer_cb, eq, "eventq"))) {
+	eq->timer = wl_init_timer(eq->wl, wlc_timer_cb, eq, "eventq");
+	if (!eq->timer) {
 		WL_ERROR(("wl%d: wlc_eventq_attach: timer failed\n",
 			  pub->unit));
 		MFREE(eq->pub->osh, eq, sizeof(wlc_eventq_t));

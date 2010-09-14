@@ -363,7 +363,8 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	uint size;
 
 	/* allocate private info structure */
-	if ((di = MALLOC(osh, sizeof(dma_info_t))) == NULL) {
+	di = MALLOC(osh, sizeof(dma_info_t));
+	if (di == NULL) {
 #ifdef BCMDBG
 		printf("dma_attach: out of memory, malloced %d bytes\n",
 		       MALLOCED(osh));
@@ -499,7 +500,8 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	/* allocate tx packet pointer vector */
 	if (ntxd) {
 		size = ntxd * sizeof(void *);
-		if ((di->txp = MALLOC(osh, size)) == NULL) {
+		di->txp = MALLOC(osh, size);
+		if (di->txp == NULL) {
 			DMA_ERROR(("%s: dma_attach: out of tx memory, malloced %d bytes\n", di->name, MALLOCED(osh)));
 			goto fail;
 		}
@@ -509,7 +511,8 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	/* allocate rx packet pointer vector */
 	if (nrxd) {
 		size = nrxd * sizeof(void *);
-		if ((di->rxp = MALLOC(osh, size)) == NULL) {
+		di->rxp = MALLOC(osh, size);
+		if (di->rxp == NULL) {
 			DMA_ERROR(("%s: dma_attach: out of rx memory, malloced %d bytes\n", di->name, MALLOCED(osh)));
 			goto fail;
 		}
@@ -545,16 +548,16 @@ hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
 	if (DMASGLIST_ENAB) {
 		if (ntxd) {
 			size = ntxd * sizeof(hnddma_seg_map_t);
-			if ((di->txp_dmah =
-			     (hnddma_seg_map_t *) MALLOC(osh, size)) == NULL)
+			di->txp_dmah = (hnddma_seg_map_t *) MALLOC(osh, size);
+			if (di->txp_dmah == NULL)
 				goto fail;
 			bzero((char *)di->txp_dmah, size);
 		}
 
 		if (nrxd) {
 			size = nrxd * sizeof(hnddma_seg_map_t);
-			if ((di->rxp_dmah =
-			     (hnddma_seg_map_t *) MALLOC(osh, size)) == NULL)
+			di->rxp_dmah = (hnddma_seg_map_t *) MALLOC(osh, size);
+			if (di->rxp_dmah == NULL)
 				goto fail;
 			bzero((char *)di->rxp_dmah, size);
 		}
@@ -1395,10 +1398,9 @@ static void *dma_ringalloc(osl_t *osh, uint32 boundary, uint size,
 	uint32 desc_strtaddr;
 	uint32 alignbytes = 1 << *alignbits;
 
-	if (NULL ==
-	    (va =
-	     DMA_ALLOC_CONSISTENT(osh, size, *alignbits, alloced, descpa,
-				  dmah)))
+	va = DMA_ALLOC_CONSISTENT(osh, size, *alignbits, alloced, descpa,
+		dmah);
+	if (NULL == va)
 		return NULL;
 
 	desc_strtaddr = (uint32) ROUNDUP((uintptr) va, alignbytes);
@@ -1517,10 +1519,9 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 	align = (1 << align_bits);
 
 	if (direction == DMA_TX) {
-		if ((va =
-		     dma_ringalloc(di->osh, D32RINGALIGN, size, &align_bits,
-				   &alloced, &di->txdpaorig,
-				   &di->tx_dmah)) == NULL) {
+		va = dma_ringalloc(di->osh, D32RINGALIGN, size, &align_bits,
+			&alloced, &di->txdpaorig, &di->tx_dmah);
+		if (va == NULL) {
 			DMA_ERROR(("%s: dma_alloc: DMA_ALLOC_CONSISTENT(ntxd) failed\n", di->name));
 			return FALSE;
 		}
@@ -1539,10 +1540,9 @@ static bool dma32_alloc(dma_info_t *di, uint direction)
 		di->txdalloc = alloced;
 		ASSERT(ISALIGNED((uintptr) di->txd32, align));
 	} else {
-		if ((va =
-		     dma_ringalloc(di->osh, D32RINGALIGN, size, &align_bits,
-				   &alloced, &di->rxdpaorig,
-				   &di->rx_dmah)) == NULL) {
+		va = dma_ringalloc(di->osh, D32RINGALIGN, size, &align_bits,
+			&alloced, &di->rxdpaorig, &di->rx_dmah);
+		if (va == NULL) {
 			DMA_ERROR(("%s: dma_alloc: DMA_ALLOC_CONSISTENT(nrxd) failed\n", di->name));
 			return FALSE;
 		}
@@ -2087,10 +2087,9 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 	align = (1 << align_bits);
 
 	if (direction == DMA_TX) {
-		if ((va =
-		     dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
-				   &alloced, &di->txdpaorig,
-				   &di->tx_dmah)) == NULL) {
+		va = dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
+			&alloced, &di->txdpaorig, &di->tx_dmah);
+		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(ntxd) failed\n", di->name));
 			return FALSE;
 		}
@@ -2107,10 +2106,9 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		di->txdalloc = alloced;
 		ASSERT(ISALIGNED((uintptr) di->txd64, align));
 	} else {
-		if ((va =
-		     dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
-				   &alloced, &di->rxdpaorig,
-				   &di->rx_dmah)) == NULL) {
+		va = dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
+			&alloced, &di->rxdpaorig, &di->rx_dmah);
+		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(nrxd) failed\n", di->name));
 			return FALSE;
 		}

@@ -679,12 +679,14 @@ static void si_pmu_res_masks(si_t *sih, uint32 * pmin, uint32 * pmax)
 	}
 
 	/* Apply nvram override to min mask */
-	if ((val = getvar(NULL, "rmin")) != NULL) {
+	val = getvar(NULL, "rmin");
+	if (val != NULL) {
 		PMU_MSG(("Applying rmin=%s to min_mask\n", val));
 		min_mask = (uint32) bcm_strtoul(val, NULL, 0);
 	}
 	/* Apply nvram override to max mask */
-	if ((val = getvar(NULL, "rmax")) != NULL) {
+	val = getvar(NULL, "rmax");
+	if (val != NULL) {
 		PMU_MSG(("Applying rmax=%s to max_mask\n", val));
 		max_mask = (uint32) bcm_strtoul(val, NULL, 0);
 	}
@@ -797,7 +799,8 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 	/* Apply nvram overrides to up/down timers */
 	for (i = 0; i < rsrcs; i++) {
 		snprintf(name, sizeof(name), "r%dt", i);
-		if ((val = getvar(NULL, name)) == NULL)
+		val = getvar(NULL, name);
+		if (val == NULL)
 			continue;
 		PMU_MSG(("Applying %s=%s to rsrc %d res_updn_timer\n", name,
 			 val, i));
@@ -847,7 +850,8 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 	/* Apply nvram overrides to dependancies masks */
 	for (i = 0; i < rsrcs; i++) {
 		snprintf(name, sizeof(name), "r%dd", i);
-		if ((val = getvar(NULL, name)) == NULL)
+		val = getvar(NULL, name);
+		if (val == NULL)
 			continue;
 		PMU_MSG(("Applying %s=%s to rsrc %d res_dep_mask\n", name, val,
 			 i));
