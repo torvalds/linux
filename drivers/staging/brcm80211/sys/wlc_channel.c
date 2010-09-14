@@ -1473,7 +1473,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	}
 
 	/* Copy the 40 MHZ MCS 0-7 CDD value to the 40 MHZ MCS 0-7 SISO value if it wasn't
-	 * provided explicitly. 
+	 * provided explicitly.
 	 */
 
 	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
