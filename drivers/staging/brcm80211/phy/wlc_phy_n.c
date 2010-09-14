@@ -21554,7 +21554,7 @@ wlc_phy_rfctrlintc_override_nphy(phy_info_t *pi, uint8 field, uint16 value,
 						   (0x1 << 10));
 
 					and_phy_reg(pi, 0x2ff, (uint16)
-						    ~ (0x3 << 14));
+						    ~(0x3 << 14));
 					or_phy_reg(pi, 0x2ff, (0x1 << 13));
 					or_phy_reg(pi, 0x2ff, (0x1 << 0));
 				} else {
@@ -22535,10 +22535,10 @@ void wlc_phy_stopplayback_nphy(phy_info_t *pi)
 	} else if (playback_status & 0x2) {
 
 		and_phy_reg(pi, 0xc2,
-			    (uint16) ~ NPHY_iqloCalCmdGctl_IQLO_CAL_EN);
+			    (uint16) ~NPHY_iqloCalCmdGctl_IQLO_CAL_EN);
 	}
 
-	and_phy_reg(pi, 0xc3, (uint16) ~ (0x1 << 2));
+	and_phy_reg(pi, 0xc3, (uint16) ~(0x1 << 2));
 
 	if ((pi->nphy_bb_mult_save & BB_MULT_VALID_MASK) != 0) {
 

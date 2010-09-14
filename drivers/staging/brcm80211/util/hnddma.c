@@ -1372,7 +1372,7 @@ static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags)
 static uintptr _dma_getvar(dma_info_t *di, const char *name)
 {
 	if (!strcmp(name, "&txavail"))
-		return (uintptr) & (di->hnddma.txavail);
+		return (uintptr) &(di->hnddma.txavail);
 	else {
 		ASSERT(0);
 	}

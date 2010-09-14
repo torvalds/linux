@@ -593,7 +593,7 @@ void qm_log10(int32 N, int16 qN, int16 *log10N, int16 *qLog10N)
 	/* adjust for the qformat of the N as
 	 * log2(mag * 2^x) = log2(mag) + x
 	 */
-	s32log = qm_add32(s32log, ((int32) - qN) << 15);	/* q.15 format */
+	s32log = qm_add32(s32log, ((int32) -qN) << 15);	/* q.15 format */
 
 	/* normalize the result. */
 	s16norm = qm_norm32(s32log);

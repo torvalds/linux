@@ -2691,7 +2691,7 @@ wlc_lcnphy_run_samples(phy_info_t *pi,
 
 	if (iqcalmode) {
 
-		and_phy_reg(pi, 0x453, (uint16) ~ (0x1 << 15));
+		and_phy_reg(pi, 0x453, (uint16) ~(0x1 << 15));
 		or_phy_reg(pi, 0x453, (0x1 << 15));
 	} else {
 		write_phy_reg(pi, 0x63f, 1);
@@ -2824,7 +2824,7 @@ void wlc_lcnphy_stop_tx_tone(phy_info_t *pi)
 static void wlc_lcnphy_clear_trsw_override(phy_info_t *pi)
 {
 
-	and_phy_reg(pi, 0x44c, (uint16) ~ ((0x1 << 1) | (0x1 << 0)));
+	and_phy_reg(pi, 0x44c, (uint16) ~((0x1 << 1) | (0x1 << 0)));
 }
 
 void wlc_lcnphy_get_tx_iqcc(phy_info_t *pi, uint16 *a, uint16 *b)

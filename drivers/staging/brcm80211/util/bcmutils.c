@@ -578,7 +578,7 @@ ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
 		result = result * base + value;
 		/* Detected overflow */
 		if (result < last_result && !minus)
-			return (ulong) - 1;
+			return (ulong) -1;
 		last_result = result;
 		cp++;
 	}

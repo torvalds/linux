@@ -1924,7 +1924,7 @@ BCMINITFN(si_sdiod_drive_strength_init) (si_t *sih, osl_t *osh,
 
 	switch (SDIOD_DRVSTR_KEY(sih->chip, sih->pmurev)) {
 	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 8):
-		str_tab = (sdiod_drive_str_t *) & sdiod_drive_strength_tab3;
+		str_tab = (sdiod_drive_str_t *) &sdiod_drive_strength_tab3;
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;

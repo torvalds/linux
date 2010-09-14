@@ -1459,7 +1459,7 @@ void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg, bool suspend)
 		acp_shm.status |= WME_STATUS_NEWAC;
 
 		/* Fill in shm acparam table */
-		shm_entry = (uint16 *) & acp_shm;
+		shm_entry = (uint16 *) &acp_shm;
 		for (i = 0; i < (int)sizeof(shm_acparams_t); i += 2)
 			wlc_write_shm(wlc,
 				      M_EDCF_QINFO +
@@ -1497,7 +1497,7 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 	 * STA uses AC params from wme_param_ie.
 	 */
 
-	edcf_acp = (edcf_acparam_t *) & wlc->wme_param_ie.acparam[0];
+	edcf_acp = (edcf_acparam_t *) &wlc->wme_param_ie.acparam[0];
 
 	wlc->wme_admctl = 0;
 
@@ -1546,7 +1546,7 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 		acp_shm.status |= WME_STATUS_NEWAC;
 
 		/* Fill in shm acparam table */
-		shm_entry = (uint16 *) & acp_shm;
+		shm_entry = (uint16 *) &acp_shm;
 		for (j = 0; j < (int)sizeof(shm_acparams_t); j += 2)
 			wlc_write_shm(wlc,
 				      M_EDCF_QINFO +
@@ -3653,7 +3653,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			}
 
 			rxstatus = R_REG(wlc->osh, &wlc->regs->phyrxstatus0);
-			if (rxstatus == 0xdead || rxstatus == (uint16) - 1) {
+			if (rxstatus == 0xdead || rxstatus == (uint16) -1) {
 				bcmerror = BCME_ERROR;
 				break;
 			}
@@ -3915,7 +3915,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			wl_rateset_t *ret_rs = (wl_rateset_t *) arg;
 
 			bzero(&rs, sizeof(wlc_rateset_t));
-			wlc_default_rateset(wlc, (wlc_rateset_t *) & rs);
+			wlc_default_rateset(wlc, (wlc_rateset_t *) &rs);
 
 			if (len < (int)(rs.count + sizeof(rs.count))) {
 				bcmerror = BCME_BUFTOOSHORT;
@@ -5402,12 +5402,12 @@ void wlc_print_txdesc(d11txh_t *txh)
 
 	bcm_format_hex(hexbuf, rtsph, sizeof(txh->RTSPhyHeader));
 	printf("RTS PLCP: %s ", hexbuf);
-	bcm_format_hex(hexbuf, (uint8 *) & rts, sizeof(txh->rts_frame));
+	bcm_format_hex(hexbuf, (uint8 *) &rts, sizeof(txh->rts_frame));
 	printf("RTS Frame: %s", hexbuf);
 	printf("\n");
 
 	if (mtcl & TXC_SENDRTS) {
-		wlc_print_dot11_mac_hdr((uint8 *) & rts,
+		wlc_print_dot11_mac_hdr((uint8 *) &rts,
 					sizeof(txh->rts_frame));
 	}
 }
@@ -6869,7 +6869,7 @@ void wlc_tbtt(wlc_info_t *wlc, d11regs_t *regs)
 
 			cur = OSL_SYSUPTIME();
 			delta = cur > wlc->WDlast ? cur - wlc->WDlast :
-			    (uint32) ~ 0 - wlc->WDlast + cur + 1;
+			    (uint32) ~0 - wlc->WDlast + cur + 1;
 			if (delta >= TIMER_INTERVAL_WATCHDOG) {
 				wlc_watchdog((void *)wlc);
 				wlc->WDlast = cur;

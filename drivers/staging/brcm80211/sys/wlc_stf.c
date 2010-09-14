@@ -116,7 +116,7 @@ wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, uint16 *ss_algo_channel,
 	*ss_algo_channel = 0;
 
 	if (!wlc->pub->up) {
-		*ss_algo_channel = (uint16) - 1;
+		*ss_algo_channel = (uint16) -1;
 		return;
 	}
 
@@ -378,7 +378,7 @@ int wlc_stf_ss_update(wlc_info_t *wlc, wlcband_t *band)
 	/* NOTE: opmode can only be SISO or CDD as STBC is decided on a per-packet basis */
 	if (WLC_STBC_CAP_PHY(wlc) &&
 	    wlc->stf->ss_algosel_auto
-	    && (wlc->stf->ss_algo_channel != (uint16) - 1)) {
+	    && (wlc->stf->ss_algo_channel != (uint16) -1)) {
 		ASSERT(isset(&wlc->stf->ss_algo_channel, PHY_TXC1_MODE_CDD)
 		       || isset(&wlc->stf->ss_algo_channel,
 				PHY_TXC1_MODE_SISO));
@@ -420,7 +420,7 @@ int BCMATTACHFN(wlc_stf_attach) (wlc_info_t *wlc)
 
 	if (WLC_STBC_CAP_PHY(wlc)) {
 		wlc->stf->ss_algosel_auto = TRUE;
-		wlc->stf->ss_algo_channel = (uint16) - 1;	/* Init the default value */
+		wlc->stf->ss_algo_channel = (uint16) -1;	/* Init the default value */
 	}
 	return 0;
 }

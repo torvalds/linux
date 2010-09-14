@@ -2408,8 +2408,8 @@ wlc_phy_txpower_get_current(wlc_phy_t *ppi, tx_power_t *power, uint channel)
 				power->flags &=
 				    ~(WL_TX_POWER_F_HW | WL_TX_POWER_F_ENABLED);
 
-			wlc_lcnphy_get_tssi(pi, (int8 *) & power->est_Pout[0],
-					    (int8 *) & power->est_Pout_cck);
+			wlc_lcnphy_get_tssi(pi, (int8 *) &power->est_Pout[0],
+					    (int8 *) &power->est_Pout_cck);
 		}
 		wlc_phyreg_exit(ppi);
 	}
