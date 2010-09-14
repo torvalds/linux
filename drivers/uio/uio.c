@@ -512,7 +512,7 @@ static unsigned int uio_poll(struct file *filep, poll_table *wait)
 	struct uio_listener *listener = filep->private_data;
 	struct uio_device *idev = listener->dev;
 
-	if (idev->info->irq == UIO_IRQ_NONE)
+	if (!idev->info->irq)
 		return -EIO;
 
 	poll_wait(filep, &idev->wait, wait);
@@ -530,7 +530,7 @@ static ssize_t uio_read(struct file *filep, char __user *buf,
 	ssize_t retval;
 	s32 event_count;
 
-	if (idev->info->irq == UIO_IRQ_NONE)
+	if (!idev->info->irq)
 		return -EIO;
 
 	if (count != sizeof(s32))
@@ -578,7 +578,7 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 	ssize_t retval;
 	s32 irq_on;
 
-	if (idev->info->irq == UIO_IRQ_NONE)
+	if (!idev->info->irq)
 		return -EIO;
 
 	if (count != sizeof(s32))
@@ -825,9 +825,9 @@ int __uio_register_device(struct module *owner,
 
 	info->uio_dev = idev;
 
-	if (idev->info->irq >= 0) {
-		ret = request_irq(idev->info->irq, uio_interrupt,
-				  idev->info->irq_flags, idev->info->name, idev);
+	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
+		ret = request_irq(info->irq, uio_interrupt,
+				  info->irq_flags, info->name, idev);
 		if (ret)
 			goto err_request_irq;
 	}
@@ -863,7 +863,7 @@ void uio_unregister_device(struct uio_info *info)
 
 	uio_free_minor(idev);
 
-	if (info->irq >= 0)
+	if (info->irq && (info->irq != UIO_IRQ_CUSTOM))
 		free_irq(info->irq, idev);
 
 	uio_dev_del_attributes(idev);
