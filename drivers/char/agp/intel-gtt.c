@@ -98,6 +98,7 @@ static struct _intel_private {
 	u8 __iomem *registers;
 	phys_addr_t gtt_bus_addr;
 	phys_addr_t gma_bus_addr;
+	phys_addr_t pte_bus_addr;
 	u32 __iomem *gtt;		/* I915G */
 	int num_dcache_entries;
 	union {
@@ -896,10 +897,8 @@ static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 
 static void intel_enable_gtt(void)
 {
-	u32 ptetbl_addr, gma_addr;
+	u32 gma_addr;
 	u16 gmch_ctrl;
-
-	ptetbl_addr = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 
 	if (INTEL_GTT_GEN == 2)
 		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
@@ -914,7 +913,8 @@ static void intel_enable_gtt(void)
 	gmch_ctrl |= I830_GMCH_ENABLED;
 	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
 
-	writel(ptetbl_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
+	writel(intel_private.pte_bus_addr|I810_PGETBL_ENABLED,
+	       intel_private.registers+I810_PGETBL_CTL);
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
 }
 
@@ -930,6 +930,8 @@ static int i830_setup(void)
 		return -ENOMEM;
 
 	intel_private.gtt_bus_addr = reg_addr + I810_PTE_BASE;
+	intel_private.pte_bus_addr =
+		readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 
 	intel_i830_setup_flush();
 
@@ -1279,6 +1281,7 @@ static int i9xx_setup(void)
 
 	if (INTEL_GTT_GEN == 3) {
 		u32 gtt_addr;
+
 		pci_read_config_dword(intel_private.pcidev,
 				      I915_PTEADDR, &gtt_addr);
 		intel_private.gtt_bus_addr = gtt_addr;
@@ -1297,6 +1300,9 @@ static int i9xx_setup(void)
 		}
 		intel_private.gtt_bus_addr = reg_addr + gtt_offset;
 	}
+
+	intel_private.pte_bus_addr =
+		readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 
 	intel_i9xx_setup_flush();
 
