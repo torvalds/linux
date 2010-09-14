@@ -37,26 +37,6 @@ static struct cpcap_device *cpcap;
 static struct cpcap_audio_platform_data *pdata;
 static unsigned current_output = CPCAP_AUDIO_OUT_SPEAKER;
 static unsigned current_input  = -1U; /* none */
-static unsigned current_volume = CPCAP_AUDIO_OUT_VOL_MAX;
-static unsigned current_in_volume = CPCAP_AUDIO_IN_VOL_MAX;
-
-static int cpcap_set_volume(struct cpcap_device *cpcap, unsigned volume)
-{
-	pr_info("%s\n", __func__);
-	volume &= 0xF;
-	volume = volume << 12 | volume << 8;
-	return cpcap_regacc_write(cpcap, CPCAP_REG_RXVC, volume, 0xFF00);
-}
-
-
-static int cpcap_set_mic_volume(struct cpcap_device *cpcap, unsigned volume)
-{
-	pr_info("%s\n", __func__);
-	volume &= 0x1F;
-	/* set the same volume for mic1 and mic2 */
-	volume = volume << 5 | volume;
-	return cpcap_regacc_write(cpcap, CPCAP_REG_TXMP, volume, 0x3FF);
-}
 
 static int cpcap_audio_ctl_open(struct inode *inode, struct file *file)
 {
@@ -219,13 +199,8 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EINVAL;
 			goto done;
 		}
-		rc = cpcap_set_volume(cpcap, (unsigned)arg);
-		if (rc < 0) {
-			pr_err("%s: could not set audio volume to %ld: %d\n",
-				__func__, arg, rc);
-			goto done;
-		}
-		current_volume = arg;
+		pdata->state->output_gain = arg;
+		cpcap_audio_set_audio_state(pdata->state);
 		break;
 	case CPCAP_AUDIO_IN_SET_VOLUME:
 		if (arg > CPCAP_AUDIO_IN_VOL_MAX) {
@@ -234,23 +209,18 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EINVAL;
 			goto done;
 		}
-		rc = cpcap_set_mic_volume(cpcap, (unsigned)arg);
-		if (rc < 0) {
-			pr_err("%s: could not set audio-input"\
-				" volume to %ld: %d\n", __func__, arg, rc);
-			goto done;
-		}
-		current_in_volume = arg;
+		pdata->state->input_gain = (unsigned)arg;
+		cpcap_audio_set_audio_state(pdata->state);
 		break;
 	case CPCAP_AUDIO_OUT_GET_VOLUME:
-		if (copy_to_user((void __user *)arg, &current_volume,
+		if (copy_to_user((void __user *)arg, &pdata->state->output_gain,
 					sizeof(unsigned int))) {
 			rc = -EFAULT;
 			goto done;
 		}
 		break;
 	case CPCAP_AUDIO_IN_GET_VOLUME:
-		if (copy_to_user((void __user *)arg, &current_in_volume,
+		if (copy_to_user((void __user *)arg, &pdata->state->input_gain,
 					sizeof(unsigned int))) {
 			rc = -EFAULT;
 			goto done;
@@ -312,6 +282,8 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 		goto fail3;
 	cpcap_audio_register_dump(pdata->state);
 
+	pdata->state->output_gain = 10;
+	pdata->state->input_gain = 31;
 	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
 	cpcap_audio_set_audio_state(pdata->state);
 	cpcap_audio_register_dump(pdata->state);

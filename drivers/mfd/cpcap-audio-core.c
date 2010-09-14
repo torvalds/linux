@@ -1117,10 +1117,3 @@ int cpcap_audio_init(struct cpcap_audio_state *state, const char *regulator)
 
 	return 0;
 }
-
-int cpcap_set_volume(struct cpcap_device *cpcap, unsigned volume)
-{
-	volume &= 0xF;
-	volume = volume << 12 | volume << 8;
-	return cpcap_regacc_write(cpcap, CPCAP_REG_RXVC, volume, 0xFF00);
-}
