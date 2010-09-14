@@ -1,12 +1,13 @@
 #include "headers.h"
 
-char *buff_dump_base[]={"DEC", "HEX",  "OCT", "BIN"	};
-
 static UINT current_debug_level=BCM_SCREAM;
 
 int bcm_print_buffer( UINT debug_level, const char *function_name,
 				  char *file_name, int line_number, unsigned char *buffer, int bufferlen, unsigned int base)
 {
+	static const char * const buff_dump_base[] = {
+		"DEC", "HEX", "OCT", "BIN"
+	};
 	if(debug_level>=current_debug_level)
 	{
 		int i=0;
