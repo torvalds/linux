@@ -50,6 +50,7 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
+#include <asm/e820.h>
 
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
@@ -391,7 +392,7 @@ static struct notifier_block xenstore_notifier;
 
 static int __init balloon_init(void)
 {
-	unsigned long pfn;
+	unsigned long pfn, extra_pfn_end;
 	struct page *page;
 
 	if (!xen_pv_domain())
@@ -412,8 +413,10 @@ static int __init balloon_init(void)
 	register_balloon(&balloon_sysdev);
 
 	/* Initialise the balloon with excess memory space. */
+	extra_pfn_end = min(e820_end_of_ram_pfn(),
+			    (unsigned long)PFN_DOWN(xen_extra_mem_start + xen_extra_mem_size));
 	for (pfn = PFN_UP(xen_extra_mem_start);
-	     pfn < PFN_DOWN(xen_extra_mem_start + xen_extra_mem_size);
+	     pfn < extra_pfn_end;
 	     pfn++) {
 		page = pfn_to_page(pfn);
 		/* totalram_pages doesn't include the boot-time
