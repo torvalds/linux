@@ -37,6 +37,18 @@ extern void xen_syscall32_target(void);
 /* Amount of extra memory space we add to the e820 ranges */
 phys_addr_t xen_extra_mem_start, xen_extra_mem_size;
 
+/* 
+ * The maximum amount of extra memory compared to the base size.  The
+ * main scaling factor is the size of struct page.  At extreme ratios
+ * of base:extra, all the base memory can be filled with page
+ * structures for the extra memory, leaving no space for anything
+ * else.
+ * 
+ * 10x seems like a reasonable balance between scaling flexibility and
+ * leaving a practically usable system.
+ */
+#define EXTRA_MEM_RATIO		(10)
+
 static __init void xen_add_extra_mem(unsigned long pages)
 {
 	u64 size = (u64)pages * PAGE_SIZE;
@@ -134,6 +146,7 @@ char * __init xen_memory_setup(void)
 	int rc;
 	struct xen_memory_map memmap;
 	unsigned long extra_pages = 0;
+	unsigned long extra_limit;
 	int i;
 
 	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
@@ -195,6 +208,25 @@ char * __init xen_memory_setup(void)
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
 	extra_pages += xen_return_unused_memory(xen_start_info->nr_pages, &e820);
+
+	/*
+	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
+	 * factor the base size.  On non-highmem systems, the base
+	 * size is the full initial memory allocation; on highmem it
+	 * is limited to the max size of lowmem, so that it doesn't
+	 * get completely filled.
+	 *
+	 * In principle there could be a problem in lowmem systems if
+	 * the initial memory is also very large with respect to
+	 * lowmem, but we won't try to deal with that here.
+	 */
+	extra_limit = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
+			  max_pfn + extra_pages);
+
+	if (extra_limit >= max_pfn)
+		extra_pages = extra_limit - max_pfn;
+	else
+		extra_pages = 0;
 
 	xen_add_extra_mem(extra_pages);
 
