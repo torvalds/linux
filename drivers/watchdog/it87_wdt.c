@@ -12,7 +12,7 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8716, IT8718, IT8726 and IT8712 (J,K version).
+ *	IT8716, IT8718, IT8720, IT8726 and IT8712 (J,K version).
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -45,7 +45,7 @@
 
 #include <asm/system.h>
 
-#define WATCHDOG_VERSION	"1.12"
+#define WATCHDOG_VERSION	"1.13"
 #define WATCHDOG_NAME		"IT87 WDT"
 #define PFX			WATCHDOG_NAME ": "
 #define DRIVER_VERSION		WATCHDOG_NAME " driver, v" WATCHDOG_VERSION "\n"
@@ -80,6 +80,7 @@
 #define IT8712_ID	0x8712
 #define IT8716_ID	0x8716
 #define IT8718_ID	0x8718
+#define IT8720_ID	0x8720
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
 
 /* GPIO Configuration Registers LDN=0x07 */
@@ -92,7 +93,7 @@
 #define WDT_CIRINT	0x80
 #define WDT_MOUSEINT	0x40
 #define WDT_KYBINT	0x20
-#define WDT_GAMEPORT	0x10 /* not it8718 */
+#define WDT_GAMEPORT	0x10 /* not in it8718, it8720 */
 #define WDT_FORCE	0x02
 #define WDT_ZERO	0x01
 
@@ -529,6 +530,7 @@ static struct notifier_block wdt_notifier = {
 static int __init it87_wdt_init(void)
 {
 	int rc = 0;
+	int try_gameport = !nogameport;
 	u16 chip_type;
 	u8  chip_rev;
 	unsigned long flags;
@@ -542,8 +544,11 @@ static int __init it87_wdt_init(void)
 
 	switch (chip_type) {
 	case IT8716_ID:
-	case IT8718_ID:
 	case IT8726_ID:
+		break;
+	case IT8718_ID:
+	case IT8720_ID:
+		try_gameport = 0;
 		break;
 	case IT8712_ID:
 		if (chip_rev > 7)
@@ -571,7 +576,7 @@ static int __init it87_wdt_init(void)
 	superio_outb(0x00, WDTCTRL);
 
 	/* First try to get Gameport support */
-	if (chip_type != IT8718_ID && !nogameport) {
+	if (try_gameport) {
 		superio_select(GAMEPORT);
 		base = superio_inw(BASEREG);
 		if (!base) {
@@ -676,7 +681,7 @@ err_out_region:
 		spin_unlock_irqrestore(&spinlock, flags);
 	}
 err_out:
-	if (chip_type != IT8718_ID && !nogameport) {
+	if (try_gameport) {
 		spin_lock_irqsave(&spinlock, flags);
 		superio_enter();
 		superio_select(GAMEPORT);

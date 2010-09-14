@@ -565,10 +565,11 @@ config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86 && EXPERIMENTAL
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8716,
-	  IT8718, IT8726, IT8712(Version J,K) Super I/O chips. This watchdog
-	  simply watches your kernel to make sure it doesn't freeze, and if
-	  it does, it reboots your computer after a certain amount of time.
+	  This is the driver for the hardware watchdog on the ITE
+	  IT8716, IT8718, IT8720, IT8726, IT8712(Version J,K) Super I/O
+	  chips. This watchdog simply watches your kernel to make sure
+	  it doesn't freeze, and if it does, it reboots your computer
+	  after a certain amount of time.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called it87_wdt.
