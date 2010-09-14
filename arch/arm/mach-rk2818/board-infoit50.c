@@ -396,6 +396,11 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.pin_value			=GPIO_HIGH,
 	},
 	{
+		.gpio_num    		= TCA6424_P17,// 3G reset
+		.pin_type           = GPIO_OUT,
+		.pin_value			=GPIO_HIGH,
+	},
+	{
 		.gpio_num               = TCA6424_P22,  //headset_observe
 		.pin_type               = GPIO_IN,
 		//.pin_value              = GPIO_HIGH,
@@ -1338,11 +1343,11 @@ static void rk2818_power_off(void)
 #define PLAY_ON_LEVEL 0
 static  ADC_keyst gAdcValueTab[] = 
 {
-	{0,  AD2KEY1},///VOLUME_DOWN
-	{118, AD2KEY2},///VOLUME_UP
+	{0,  AD2KEY4},  //home   AD2KEY1},///VOLUME_DOWN
+	{118, AD2KEY5},  //back AD2KEY2},///VOLUME_UP
 	{408, AD2KEY3},///MENU
-	{510, AD2KEY4},///HOME
-	{612, AD2KEY5},///BACK
+	{510, AD2KEY2},  ///VOLUME_UP AD2KEY4},///HOME
+	{612, AD2KEY1}, //VOLUME_DOWN  AD2KEY5},///BACK
 	{816, AD2KEY6},///CALL
 	{221, KEYSTART},///ENTER
 	{0,0}
