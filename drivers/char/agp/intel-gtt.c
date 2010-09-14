@@ -539,8 +539,7 @@ static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
 	return addr | bridge->driver->masks[type].mask;
 }
 
-static struct aper_size_info_fixed intel_fake_agp_sizes[] =
-{
+static const struct aper_size_info_fixed const intel_fake_agp_sizes[] = {
 	{128, 32768, 5},
 	/* The 64M mode still requires a 128k gatt */
 	{64, 16384, 5},
@@ -833,16 +832,17 @@ static int intel_gtt_init(void)
 
 static int intel_fake_agp_fetch_size(void)
 {
+	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);
 	unsigned int aper_size;
 	int i;
-	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);
 
 	aper_size = (intel_private.base.gtt_mappable_entries << PAGE_SHIFT)
 		    / MB(1);
 
 	for (i = 0; i < num_sizes; i++) {
 		if (aper_size == intel_fake_agp_sizes[i].size) {
-			agp_bridge->current_size = intel_fake_agp_sizes + i;
+			agp_bridge->current_size =
+				(void *) (intel_fake_agp_sizes + i);
 			return aper_size;
 		}
 	}
@@ -1363,9 +1363,9 @@ static const struct agp_bridge_driver intel_810_driver = {
 
 static const struct agp_bridge_driver intel_830_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.aperture_sizes		= intel_fake_agp_sizes,
+	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
 	.configure		= intel_i830_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
@@ -1390,9 +1390,9 @@ static const struct agp_bridge_driver intel_830_driver = {
 
 static const struct agp_bridge_driver intel_915_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.aperture_sizes		= intel_fake_agp_sizes,
+	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
@@ -1423,9 +1423,9 @@ static const struct agp_bridge_driver intel_915_driver = {
 
 static const struct agp_bridge_driver intel_i965_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.aperture_sizes		= intel_fake_agp_sizes,
+	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
@@ -1456,9 +1456,9 @@ static const struct agp_bridge_driver intel_i965_driver = {
 
 static const struct agp_bridge_driver intel_gen6_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.aperture_sizes		= intel_fake_agp_sizes,
+	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
@@ -1489,9 +1489,9 @@ static const struct agp_bridge_driver intel_gen6_driver = {
 
 static const struct agp_bridge_driver intel_g33_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_fake_agp_sizes,
 	.size_type		= FIXED_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.aperture_sizes		= intel_fake_agp_sizes,
+	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
 	.needs_scratch_page	= true,
 	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_fake_agp_fetch_size,
