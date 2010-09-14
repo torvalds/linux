@@ -746,6 +746,7 @@ int __init board_boot_mode_init(char *s)
 	strncpy(boot_mode, s, BOOT_MODE_MAX_LEN);
 	boot_mode[BOOT_MODE_MAX_LEN] = '\0';
 	printk(KERN_INFO "boot_mode=%s\n", boot_mode);
+	return 1;
 }
 __setup("androidboot.mode=", board_boot_mode_init);
 
