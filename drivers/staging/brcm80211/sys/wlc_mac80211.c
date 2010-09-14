@@ -3317,7 +3317,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 	ASSERT(!(wlc->pub->hw_off && wlc->pub->up));
 
 	/* default argument is generic integer */
-	pval = arg ? (int *)arg : NULL;
+	pval = arg ? (int *)arg:NULL;
 
 	/* This will prevent the misaligned access */
 	if (pval && (uint32) len >= sizeof(val))
