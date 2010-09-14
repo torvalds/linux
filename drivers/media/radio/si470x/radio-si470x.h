@@ -177,7 +177,6 @@ struct si470x_device {
 
 	/* driver management */
 	unsigned char disconnected;
-	struct mutex disconnect_lock;
 #endif
 
 #if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
