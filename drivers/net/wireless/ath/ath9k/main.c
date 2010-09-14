@@ -1415,7 +1415,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	sc->nvifs++;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_set_bssid_mask(hw);
+		ath9k_set_bssid_mask(hw, vif);
 
 	if (sc->nvifs > 1)
 		goto out; /* skip global settings for secondary vif */

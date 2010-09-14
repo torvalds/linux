@@ -719,7 +719,7 @@ static inline void ath_ahb_exit(void) {};
 void ath9k_ps_wakeup(struct ath_softc *sc);
 void ath9k_ps_restore(struct ath_softc *sc);
 
-void ath9k_set_bssid_mask(struct ieee80211_hw *hw);
+void ath9k_set_bssid_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int ath9k_wiphy_add(struct ath_softc *sc);
 int ath9k_wiphy_del(struct ath_wiphy *aphy);
 void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb);
