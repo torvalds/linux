@@ -45,10 +45,7 @@ static DEFINE_IDR(uio_idr);
 static const struct file_operations uio_fops;
 
 /* UIO class infrastructure */
-static struct uio_class {
-	struct kref kref;
-	struct class *class;
-} *uio_class;
+static struct class *uio_class;
 
 /* Protect idr accesses */
 static DEFINE_MUTEX(minor_lock);
@@ -757,55 +754,35 @@ static void uio_major_cleanup(void)
 
 static int init_uio_class(void)
 {
-	int ret = 0;
-
-	if (uio_class != NULL) {
-		kref_get(&uio_class->kref);
-		goto exit;
-	}
+	struct class *class;
+	int ret;
 
 	/* This is the first time in here, set everything up properly */
 	ret = uio_major_init();
 	if (ret)
 		goto exit;
 
-	uio_class = kzalloc(sizeof(*uio_class), GFP_KERNEL);
-	if (!uio_class) {
-		ret = -ENOMEM;
-		goto err_kzalloc;
-	}
-
-	kref_init(&uio_class->kref);
-	uio_class->class = class_create(THIS_MODULE, "uio");
-	if (IS_ERR(uio_class->class)) {
-		ret = IS_ERR(uio_class->class);
+	class = class_create(THIS_MODULE, "uio");
+	if (IS_ERR(class)) {
+		ret = IS_ERR(class);
 		printk(KERN_ERR "class_create failed for uio\n");
 		goto err_class_create;
 	}
+	uio_class = class;
 	return 0;
 
 err_class_create:
-	kfree(uio_class);
-	uio_class = NULL;
-err_kzalloc:
 	uio_major_cleanup();
 exit:
 	return ret;
 }
 
-static void release_uio_class(struct kref *kref)
+static void release_uio_class(void)
 {
 	/* Ok, we cheat as we know we only have one uio_class */
-	class_destroy(uio_class->class);
-	kfree(uio_class);
-	uio_major_cleanup();
+	class_destroy(uio_class);
 	uio_class = NULL;
-}
-
-static void uio_class_destroy(void)
-{
-	if (uio_class)
-		kref_put(&uio_class->kref, release_uio_class);
+	uio_major_cleanup();
 }
 
 /**
@@ -828,10 +805,6 @@ int __uio_register_device(struct module *owner,
 
 	info->uio_dev = NULL;
 
-	ret = init_uio_class();
-	if (ret)
-		return ret;
-
 	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
 	if (!idev) {
 		ret = -ENOMEM;
@@ -847,7 +820,7 @@ int __uio_register_device(struct module *owner,
 	if (ret)
 		goto err_get_minor;
 
-	idev->dev = device_create(uio_class->class, parent,
+	idev->dev = device_create(uio_class, parent,
 				  MKDEV(uio_major, idev->minor), idev,
 				  "uio%d", idev->minor);
 	if (IS_ERR(idev->dev)) {
@@ -874,13 +847,12 @@ int __uio_register_device(struct module *owner,
 err_request_irq:
 	uio_dev_del_attributes(idev);
 err_uio_dev_add_attributes:
-	device_destroy(uio_class->class, MKDEV(uio_major, idev->minor));
+	device_destroy(uio_class, MKDEV(uio_major, idev->minor));
 err_device_create:
 	uio_free_minor(idev);
 err_get_minor:
 	kfree(idev);
 err_kzalloc:
-	uio_class_destroy();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__uio_register_device);
@@ -907,9 +879,8 @@ void uio_unregister_device(struct uio_info *info)
 	uio_dev_del_attributes(idev);
 
 	dev_set_drvdata(idev->dev, NULL);
-	device_destroy(uio_class->class, MKDEV(uio_major, idev->minor));
+	device_destroy(uio_class, MKDEV(uio_major, idev->minor));
 	kfree(idev);
-	uio_class_destroy();
 
 	return;
 }
@@ -917,11 +888,12 @@ EXPORT_SYMBOL_GPL(uio_unregister_device);
 
 static int __init uio_init(void)
 {
-	return 0;
+	return init_uio_class();
 }
 
 static void __exit uio_exit(void)
 {
+	release_uio_class();
 }
 
 module_init(uio_init)
