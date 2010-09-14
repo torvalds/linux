@@ -204,8 +204,13 @@ __v7_setup:
 	bne	2f
 	and	r5, r0, #0x00f00000		@ variant
 	and	r6, r0, #0x0000000f		@ revision
-	orr	r0, r6, r5, lsr #20-4		@ combine variant and revision
+	orr	r6, r6, r5, lsr #20-4		@ combine variant and revision
+	ubfx	r0, r0, #4, #12			@ primary part number
 
+	/* Cortex-A8 Errata */
+	ldr	r10, =0x00000c08		@ Cortex-A8 primary part number
+	teq	r0, r10
+	bne	2f
 #ifdef CONFIG_ARM_ERRATA_430973
 	teq	r5, #0x00100000			@ only present in r1p*
 	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
@@ -213,14 +218,14 @@ __v7_setup:
 	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
 #ifdef CONFIG_ARM_ERRATA_458693
-	teq	r0, #0x20			@ only present in r2p0
+	teq	r6, #0x20			@ only present in r2p0
 	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
 	orreq	r10, r10, #(1 << 5)		@ set L1NEON to 1
 	orreq	r10, r10, #(1 << 9)		@ set PLDNOP to 1
 	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
 #ifdef CONFIG_ARM_ERRATA_460075
-	teq	r0, #0x20			@ only present in r2p0
+	teq	r6, #0x20			@ only present in r2p0
 	mrceq	p15, 1, r10, c9, c0, 2		@ read L2 cache aux ctrl register
 	tsteq	r10, #1 << 22
 	orreq	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
