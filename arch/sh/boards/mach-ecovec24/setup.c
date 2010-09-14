@@ -400,9 +400,32 @@ static struct platform_device keysc_device = {
 
 /* TouchScreen */
 #define IRQ0 32
+static int ts_get_pendown_state(void)
+{
+	int val = 0;
+	gpio_free(GPIO_FN_INTC_IRQ0);
+	gpio_request(GPIO_PTZ0, NULL);
+	gpio_direction_input(GPIO_PTZ0);
+
+	val = gpio_get_value(GPIO_PTZ0);
+
+	gpio_free(GPIO_PTZ0);
+	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
+
+	return val ? 0 : 1;
+}
+
+static int ts_init(void)
+{
+	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
+	return 0;
+}
+
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
-	.x_plate_ohms		= 1000,
+	.x_plate_ohms		= 180,
+	.get_pendown_state	= ts_get_pendown_state,
+	.init_platform_hw	= ts_init,
 };
 
 static struct i2c_board_info ts_i2c_clients = {
@@ -1096,7 +1119,6 @@ static int __init arch_setup(void)
 		gpio_direction_output(GPIO_PTF4, 1);
 
 		/* enable TouchScreen */
-		gpio_request(GPIO_FN_INTC_IRQ0, NULL);
 		i2c_register_board_info(0, &ts_i2c_clients, 1);
 		set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
 	}
