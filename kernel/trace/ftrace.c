@@ -1477,10 +1477,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 	iter->pos = *pos;
-	iter->func_pos = *pos;
 
 	if (iter->flags & FTRACE_ITER_PRINTALL)
-		return NULL;
+		return t_hash_start(m, pos);
 
  retry:
 	if (iter->idx >= iter->pg->index) {
@@ -1510,8 +1509,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	}
 
 	if (!rec)
-		return NULL;
+		return t_hash_start(m, pos);
 
+	iter->func_pos = *pos;
 	iter->func = rec;
 
 	return iter;
