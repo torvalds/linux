@@ -2597,6 +2597,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
 	/* Queue the GPU write cache flushing we need. */
 	old_write_domain = obj->write_domain;
 	i915_gem_flush(dev, 0, obj->write_domain);
+	BUG_ON(obj->write_domain);
 
 	trace_i915_gem_object_change_domain(obj,
 					    obj->read_domains,
@@ -2704,7 +2705,8 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
  * wait, as in modesetting process we're not supposed to be interrupted.
  */
 int
-i915_gem_object_set_to_display_plane(struct drm_gem_object *obj)
+i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
+				     bool pipelined)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	uint32_t old_read_domains;
@@ -2714,8 +2716,8 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj)
 	if (obj_priv->gtt_space == NULL)
 		return -EINVAL;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, true);
-	if (ret != 0)
+	ret = i915_gem_object_flush_gpu_write_domain(obj, pipelined);
+	if (ret)
 		return ret;
 
 	i915_gem_object_flush_cpu_write_domain(obj);

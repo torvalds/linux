@@ -1417,7 +1417,9 @@ out_disable:
 }
 
 int
-intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
+intel_pin_and_fence_fb_obj(struct drm_device *dev,
+			   struct drm_gem_object *obj,
+			   bool pipelined)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	u32 alignment;
@@ -1445,14 +1447,12 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 	}
 
 	ret = i915_gem_object_pin(obj, alignment);
-	if (ret != 0)
+	if (ret)
 		return ret;
 
-	ret = i915_gem_object_set_to_display_plane(obj);
-	if (ret != 0) {
-		i915_gem_object_unpin(obj);
-		return ret;
-	}
+	ret = i915_gem_object_set_to_display_plane(obj, pipelined);
+	if (ret)
+		goto err_unpin;
 
 	/* Install a fence for tiled scan-out. Pre-i965 always needs a
 	 * fence, whereas 965+ only requires a fence if using
@@ -1462,13 +1462,15 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj);
-		if (ret != 0) {
-			i915_gem_object_unpin(obj);
-			return ret;
-		}
+		if (ret)
+			goto err_unpin;
 	}
 
 	return 0;
+
+err_unpin:
+	i915_gem_object_unpin(obj);
+	return ret;
 }
 
 /* Assume fb object is pinned & idle & fenced and just update base pointers */
@@ -1589,7 +1591,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
@@ -5004,7 +5006,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_unpin_work *work;
 	unsigned long flags, offset;
 	int pipe = intel_crtc->pipe;
-	u32 pf, pipesrc;
+	u32 was_dirty, pf, pipesrc;
 	int ret;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -5033,7 +5035,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj);
+	was_dirty = obj->write_domain & I915_GEM_GPU_DOMAINS;
+	ret = intel_pin_and_fence_fb_obj(dev, obj, true);
 	if (ret)
 		goto cleanup_work;
 
@@ -5051,17 +5054,24 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
-	if (IS_GEN3(dev) || IS_GEN2(dev)) {
-		u32 flip_mask;
-
-		if (intel_crtc->plane)
-			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-		else
-			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-
+	if (was_dirty || IS_GEN3(dev) || IS_GEN2(dev)) {
 		BEGIN_LP_RING(2);
-		OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
-		OUT_RING(0);
+		if (IS_GEN3(dev) || IS_GEN2(dev)) {
+			u32 flip_mask;
+
+			/* Can't queue multiple flips, so wait for the previous
+			 * one to finish before executing the next.
+			 */
+
+			if (intel_crtc->plane)
+				flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+			else
+				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+
+			OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
+		} else
+			OUT_RING(MI_NOOP);
+		OUT_RING(MI_FLUSH);
 		ADVANCE_LP_RING();
 	}
 

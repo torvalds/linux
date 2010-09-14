@@ -1013,7 +1013,8 @@ void i915_gem_process_flushing_list(struct drm_device *dev,
 				    struct intel_ring_buffer *ring);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
-int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj);
+int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
+					 bool pipelined);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_gem_object *obj,
 				int id,

@@ -281,7 +281,8 @@ extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 
 extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
-				      struct drm_gem_object *obj);
+				      struct drm_gem_object *obj,
+				      bool pipelined);
 
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
