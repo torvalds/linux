@@ -2293,6 +2293,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted);
  * This function allows the iterator function to sleep, when the iterator
  * function is atomic @ieee80211_iterate_active_interfaces_atomic can
  * be used.
+ * Does not iterate over a new interface during add_interface()
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
  * @iterator: the iterator function to call
@@ -2310,6 +2311,7 @@ void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
  * hardware that are currently active and calls the callback for them.
  * This function requires the iterator callback function to be atomic,
  * if that is not desired, use @ieee80211_iterate_active_interfaces instead.
+ * Does not iterate over a new interface during add_interface()
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
  * @iterator: the iterator function to call, cannot sleep
