@@ -774,18 +774,17 @@ static unsigned int intel_gtt_total_entries(void)
 static unsigned int intel_gtt_mappable_entries(void)
 {
 	unsigned int aperture_size;
-	u16 gmch_ctrl;
-
-	aperture_size = 1024 * 1024;
-
-	pci_read_config_word(intel_private.bridge_dev,
-			     I830_GMCH_CTRL, &gmch_ctrl);
 
 	if (INTEL_GTT_GEN == 2) {
+		u16 gmch_ctrl;
+
+		pci_read_config_word(intel_private.bridge_dev,
+				     I830_GMCH_CTRL, &gmch_ctrl);
+
 		if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_64M)
-			aperture_size *= 64;
+			aperture_size = MB(64);
 		else
-			aperture_size *= 128;
+			aperture_size = MB(128);
 	} else {
 		/* 9xx supports large sizes, just look at the length */
 		aperture_size = pci_resource_len(intel_private.pcidev, 2);
@@ -798,8 +797,6 @@ static int intel_gtt_init(void)
 {
 	u32 gtt_map_size;
 	int ret;
-
-	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
 
 	ret = intel_private.driver->setup();
 	if (ret != 0)
