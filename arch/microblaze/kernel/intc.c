@@ -126,7 +126,7 @@ void __init init_IRQ(void)
 				0
 			};
 #endif
-	static char *intc_list[] = {
+	const char * const intc_list[] = {
 				"xlnx,xps-intc-1.00.a",
 				"xlnx,opb-intc-1.00.c",
 				"xlnx,opb-intc-1.00.b",
