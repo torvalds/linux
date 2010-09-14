@@ -201,7 +201,7 @@ __v7_setup:
 	mrc	p15, 0, r0, c0, c0, 0		@ read main ID register
 	and	r10, r0, #0xff000000		@ ARM?
 	teq	r10, #0x41000000
-	bne	2f
+	bne	3f
 	and	r5, r0, #0x00f00000		@ variant
 	and	r6, r0, #0x0000000f		@ revision
 	orr	r6, r6, r5, lsr #20-4		@ combine variant and revision
@@ -231,8 +231,20 @@ __v7_setup:
 	orreq	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
 	mcreq	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
 #endif
+	b	3f
 
-2:	mov	r10, #0
+	/* Cortex-A9 Errata */
+2:	ldr	r10, =0x00000c09		@ Cortex-A9 primary part number
+	teq	r0, r10
+	bne	3f
+#ifdef CONFIG_ARM_ERRATA_742230
+	cmp	r6, #0x22			@ only present up to r2p2
+	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orrle	r10, r10, #1 << 4		@ set bit #4
+	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
+
+3:	mov	r10, #0
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #endif
