@@ -103,7 +103,7 @@
 #define SDPCM_DOFFSET_SHIFT		24
 
 #define SDPCM_FCMASK_OFFSET		4	/* Flow control */
-#define SDPCM_FCMASK_VALUE(p)		(((uint8 *)p)[SDPCM_FCMASK_OFFSET ] & 0xff)
+#define SDPCM_FCMASK_VALUE(p)		(((uint8 *)p)[SDPCM_FCMASK_OFFSET] & 0xff)
 #define SDPCM_WINDOW_OFFSET		5	/* Credit based fc */
 #define SDPCM_WINDOW_VALUE(p)		(((uint8 *)p)[SDPCM_WINDOW_OFFSET] & 0xff)
 #define SDPCM_VERSION_OFFSET		6	/* Version # */
