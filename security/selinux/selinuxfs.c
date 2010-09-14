@@ -110,6 +110,7 @@ enum sel_inos {
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
 	SEL_REJECT_UNKNOWN, /* export unknown reject handling to userspace */
 	SEL_DENY_UNKNOWN, /* export unknown deny handling to userspace */
+	SEL_STATUS,	/* export current status using mmap() */
 	SEL_INO_NEXT,	/* The next inode number to use */
 };
 
@@ -171,6 +172,7 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		if (selinux_enforcing)
 			avc_ss_reset(0);
 		selnl_notify_setenforce(selinux_enforcing);
+		selinux_status_update_setenforce(selinux_enforcing);
 	}
 	length = count;
 out:
@@ -202,6 +204,59 @@ static ssize_t sel_read_handle_unknown(struct file *filp, char __user *buf,
 
 static const struct file_operations sel_handle_unknown_ops = {
 	.read		= sel_read_handle_unknown,
+	.llseek		= generic_file_llseek,
+};
+
+static int sel_open_handle_status(struct inode *inode, struct file *filp)
+{
+	struct page    *status = selinux_kernel_status_page();
+
+	if (!status)
+		return -ENOMEM;
+
+	filp->private_data = status;
+
+	return 0;
+}
+
+static ssize_t sel_read_handle_status(struct file *filp, char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	struct page    *status = filp->private_data;
+
+	BUG_ON(!status);
+
+	return simple_read_from_buffer(buf, count, ppos,
+				       page_address(status),
+				       sizeof(struct selinux_kernel_status));
+}
+
+static int sel_mmap_handle_status(struct file *filp,
+				  struct vm_area_struct *vma)
+{
+	struct page    *status = filp->private_data;
+	unsigned long	size = vma->vm_end - vma->vm_start;
+
+	BUG_ON(!status);
+
+	/* only allows one page from the head */
+	if (vma->vm_pgoff > 0 || size != PAGE_SIZE)
+		return -EIO;
+	/* disallow writable mapping */
+	if (vma->vm_flags & VM_WRITE)
+		return -EPERM;
+	/* disallow mprotect() turns it into writable */
+	vma->vm_flags &= ~VM_MAYWRITE;
+
+	return remap_pfn_range(vma, vma->vm_start,
+			       page_to_pfn(status),
+			       size, vma->vm_page_prot);
+}
+
+static const struct file_operations sel_handle_status_ops = {
+	.open		= sel_open_handle_status,
+	.read		= sel_read_handle_status,
+	.mmap		= sel_mmap_handle_status,
 	.llseek		= generic_file_llseek,
 };
 
@@ -1612,6 +1667,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 		[SEL_CHECKREQPROT] = {"checkreqprot", &sel_checkreqprot_ops, S_IRUGO|S_IWUSR},
 		[SEL_REJECT_UNKNOWN] = {"reject_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		[SEL_DENY_UNKNOWN] = {"deny_unknown", &sel_handle_unknown_ops, S_IRUGO},
+		[SEL_STATUS] = {"status", &sel_handle_status_ops, S_IRUGO},
 		/* last one */ {""}
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);
