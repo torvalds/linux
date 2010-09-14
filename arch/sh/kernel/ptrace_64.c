@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -474,10 +474,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 {
 #define WPC_DBRMODE 0x0d104008
-	static int first_call = 1;
+	static unsigned long first_call;
 
-	lock_kernel();
-	if (first_call) {
+	if (!test_and_set_bit(0, &first_call)) {
 		/* Set WPC.DBRMODE to 0.  This makes all debug events get
 		 * delivered through RESVEC, i.e. into the handlers in entry.S.
 		 * (If the kernel was downloaded using a remote gdb, WPC.DBRMODE
@@ -487,9 +486,7 @@ asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 		 * the remote gdb.) */
 		printk("DBRMODE set to 0 to permit native debugging\n");
 		poke_real_address_q(WPC_DBRMODE, 0);
-		first_call = 0;
 	}
-	unlock_kernel();
 
 	return sys_ptrace(request, pid, addr, data);
 }
