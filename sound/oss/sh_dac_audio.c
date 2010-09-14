@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sound.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/soundcard.h>
 #include <linux/interrupt.h>
 #include <linux/hrtimer.h>
@@ -34,6 +34,7 @@
 
 #define BUFFER_SIZE 48000
 
+static DEFINE_MUTEX(sh_dac_audio_mutex);
 static int rate;
 static int empty;
 static char *data_buffer, *buffer_begin, *buffer_end;
@@ -163,9 +164,9 @@ static long dac_audio_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&sh_dac_audio_mutex);
 	ret = dac_audio_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&sh_dac_audio_mutex);
 
 	return ret;
 }
@@ -229,16 +230,16 @@ static int dac_audio_open(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_READ)
 		return -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&sh_dac_audio_mutex);
 	if (in_use) {
-		unlock_kernel();
+		mutex_unlock(&sh_dac_audio_mutex);
 		return -EBUSY;
 	}
 
 	in_use = 1;
 
 	dac_audio_start();
-	unlock_kernel();
+	mutex_unlock(&sh_dac_audio_mutex);
 	return 0;
 }
 
