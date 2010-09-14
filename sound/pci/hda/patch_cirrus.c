@@ -972,6 +972,53 @@ static struct hda_verb cs_coef_init_verbs[] = {
 	{} /* terminator */
 };
 
+/* Errata: CS4207 rev C0/C1/C2 Silicon
+ *
+ * http://www.cirrus.com/en/pubs/errata/ER880C3.pdf
+ *
+ * 6. At high temperature (TA > +85°C), the digital supply current (IVD)
+ * may be excessive (up to an additional 200 μA), which is most easily
+ * observed while the part is being held in reset (RESET# active low).
+ *
+ * Root Cause: At initial powerup of the device, the logic that drives
+ * the clock and write enable to the S/PDIF SRC RAMs is not properly
+ * initialized.
+ * Certain random patterns will cause a steady leakage current in those
+ * RAM cells. The issue will resolve once the SRCs are used (turned on).
+ *
+ * Workaround: The following verb sequence briefly turns on the S/PDIF SRC
+ * blocks, which will alleviate the issue.
+ */
+
+static struct hda_verb cs_errata_init_verbs[] = {
+	{0x01, AC_VERB_SET_POWER_STATE, 0x00}, /* AFG: D0 */
+	{0x11, AC_VERB_SET_PROC_STATE, 0x01},  /* VPW: processing on */
+
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0008},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x9999},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0017},
+	{0x11, AC_VERB_SET_PROC_COEF, 0xa412},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0001},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0009},
+
+	{0x07, AC_VERB_SET_POWER_STATE, 0x00}, /* S/PDIF Rx: D0 */
+	{0x08, AC_VERB_SET_POWER_STATE, 0x00}, /* S/PDIF Tx: D0 */
+
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0017},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x2412},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0008},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0000},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0001},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0008},
+	{0x11, AC_VERB_SET_PROC_STATE, 0x00},
+
+	{0x07, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Rx: D3 */
+	{0x08, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Tx: D3 */
+	/*{0x01, AC_VERB_SET_POWER_STATE, 0x03},*/ /* AFG: D3 This is already handled */
+
+	{} /* terminator */
+};
+
 /* SPDIF setup */
 static void init_digital(struct hda_codec *codec)
 {
@@ -990,6 +1037,9 @@ static void init_digital(struct hda_codec *codec)
 static int cs_init(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
+
+	/* init_verb sequence for C0/C1/C2 errata*/
+	snd_hda_sequence_write(codec, cs_errata_init_verbs);
 
 	snd_hda_sequence_write(codec, cs_coef_init_verbs);
 

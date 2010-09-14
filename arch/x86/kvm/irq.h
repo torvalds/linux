@@ -43,7 +43,6 @@ struct kvm_kpic_state {
 	u8 irr;		/* interrupt request register */
 	u8 imr;		/* interrupt mask register */
 	u8 isr;		/* interrupt service register */
-	u8 isr_ack;	/* interrupt ack detection */
 	u8 priority_add;	/* highest irq priority */
 	u8 irq_base;
 	u8 read_reg_select;
@@ -56,6 +55,7 @@ struct kvm_kpic_state {
 	u8 init4;		/* true if 4 byte init */
 	u8 elcr;		/* PIIX edge/trigger selection */
 	u8 elcr_mask;
+	u8 isr_ack;	/* interrupt ack detection */
 	struct kvm_pic *pics_state;
 };
 

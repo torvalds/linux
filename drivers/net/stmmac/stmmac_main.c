@@ -1865,14 +1865,14 @@ static int stmmac_resume(struct platform_device *pdev)
 	if (!netif_running(dev))
 		return 0;
 
-	spin_lock(&priv->lock);
-
 	if (priv->shutdown) {
 		/* Re-open the interface and re-init the MAC/DMA
-		   and the rings. */
+		   and the rings (i.e. on hibernation stage) */
 		stmmac_open(dev);
-		goto out_resume;
+		return 0;
 	}
+
+	spin_lock(&priv->lock);
 
 	/* Power Down bit, into the PM register, is cleared
 	 * automatically as soon as a magic packet or a Wake-up frame
@@ -1901,7 +1901,6 @@ static int stmmac_resume(struct platform_device *pdev)
 
 	netif_start_queue(dev);
 
-out_resume:
 	spin_unlock(&priv->lock);
 	return 0;
 }

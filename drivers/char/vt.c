@@ -906,22 +906,16 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			 * bottom of buffer
 			 */
 			old_origin += (old_rows - new_rows) * old_row_size;
-			end = vc->vc_scr_end;
 		} else {
 			/*
 			 * Cursor is in no man's land, copy 1/2 screenful
 			 * from the top and bottom of cursor position
 			 */
 			old_origin += (vc->vc_y - new_rows/2) * old_row_size;
-			end = old_origin + (old_row_size * new_rows);
 		}
-	} else
-		/*
-		 * Cursor near the top, copy contents from the top of buffer
-		 */
-		end = (old_rows > new_rows) ? old_origin +
-			(old_row_size * new_rows) :
-			vc->vc_scr_end;
+	}
+
+	end = old_origin + old_row_size * min(old_rows, new_rows);
 
 	update_attr(vc);
 
@@ -3075,8 +3069,7 @@ static int bind_con_driver(const struct consw *csw, int first, int last,
 
 		old_was_color = vc->vc_can_do_color;
 		vc->vc_sw->con_deinit(vc);
-		if (!vc->vc_origin)
-			vc->vc_origin = (unsigned long)vc->vc_screenbuf;
+		vc->vc_origin = (unsigned long)vc->vc_screenbuf;
 		visual_init(vc, i, 0);
 		set_origin(vc);
 		update_attr(vc);

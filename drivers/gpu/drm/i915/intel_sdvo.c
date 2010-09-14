@@ -1061,8 +1061,9 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo, mode))
 			return false;
 
-		if (!intel_sdvo_set_input_timings_for_mode(intel_sdvo, mode, adjusted_mode))
-			return false;
+		(void) intel_sdvo_set_input_timings_for_mode(intel_sdvo,
+							     mode,
+							     adjusted_mode);
 	} else if (intel_sdvo->is_lvds) {
 		drm_mode_set_crtcinfo(intel_sdvo->sdvo_lvds_fixed_mode, 0);
 
@@ -1070,8 +1071,9 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 							    intel_sdvo->sdvo_lvds_fixed_mode))
 			return false;
 
-		if (!intel_sdvo_set_input_timings_for_mode(intel_sdvo, mode, adjusted_mode))
-			return false;
+		(void) intel_sdvo_set_input_timings_for_mode(intel_sdvo,
+							     mode,
+							     adjusted_mode);
 	}
 
 	/* Make the CRTC code factor in the SDVO pixel multiplier.  The
@@ -1108,10 +1110,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	in_out.in0 = intel_sdvo->attached_output;
 	in_out.in1 = 0;
 
-	if (!intel_sdvo_set_value(intel_sdvo,
-				  SDVO_CMD_SET_IN_OUT_MAP,
-				  &in_out, sizeof(in_out)))
-		return;
+	intel_sdvo_set_value(intel_sdvo,
+			     SDVO_CMD_SET_IN_OUT_MAP,
+			     &in_out, sizeof(in_out));
 
 	if (intel_sdvo->is_hdmi) {
 		if (!intel_sdvo_set_avi_infoframe(intel_sdvo, mode))
@@ -1122,11 +1123,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* We have tried to get input timing in mode_fixup, and filled into
 	   adjusted_mode */
-	if (intel_sdvo->is_tv || intel_sdvo->is_lvds) {
-		intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
+	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
+	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
 		input_dtd.part2.sdvo_flags = intel_sdvo->sdvo_flags;
-	} else
-		intel_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
 	/* If it's a TV, we already set the output timing in mode_fixup.
 	 * Otherwise, the output timing is equal to the input timing.
@@ -1137,8 +1136,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 						  intel_sdvo->attached_output))
 			return;
 
-		if (!intel_sdvo_set_output_timing(intel_sdvo, &input_dtd))
-			return;
+		(void) intel_sdvo_set_output_timing(intel_sdvo, &input_dtd);
 	}
 
 	/* Set the input timing to the screen. Assume always input 0. */
@@ -1165,8 +1163,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		intel_sdvo_set_input_timing(encoder, &input_dtd);
 	}
 #else
-	if (!intel_sdvo_set_input_timing(intel_sdvo, &input_dtd))
-		return;
+	(void) intel_sdvo_set_input_timing(intel_sdvo, &input_dtd);
 #endif
 
 	sdvo_pixel_multiply = intel_sdvo_get_pixel_multiplier(mode);
@@ -1932,6 +1929,41 @@ static const struct drm_encoder_funcs intel_sdvo_enc_funcs = {
 	.destroy = intel_sdvo_enc_destroy,
 };
 
+static void
+intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo)
+{
+	uint16_t mask = 0;
+	unsigned int num_bits;
+
+	/* Make a mask of outputs less than or equal to our own priority in the
+	 * list.
+	 */
+	switch (sdvo->controlled_output) {
+	case SDVO_OUTPUT_LVDS1:
+		mask |= SDVO_OUTPUT_LVDS1;
+	case SDVO_OUTPUT_LVDS0:
+		mask |= SDVO_OUTPUT_LVDS0;
+	case SDVO_OUTPUT_TMDS1:
+		mask |= SDVO_OUTPUT_TMDS1;
+	case SDVO_OUTPUT_TMDS0:
+		mask |= SDVO_OUTPUT_TMDS0;
+	case SDVO_OUTPUT_RGB1:
+		mask |= SDVO_OUTPUT_RGB1;
+	case SDVO_OUTPUT_RGB0:
+		mask |= SDVO_OUTPUT_RGB0;
+		break;
+	}
+
+	/* Count bits to find what number we are in the priority list. */
+	mask &= sdvo->caps.output_flags;
+	num_bits = hweight16(mask);
+	/* If more than 3 outputs, default to DDC bus 3 for now. */
+	if (num_bits > 3)
+		num_bits = 3;
+
+	/* Corresponds to SDVO_CONTROL_BUS_DDCx */
+	sdvo->ddc_bus = 1 << num_bits;
+}
 
 /**
  * Choose the appropriate DDC bus for control bus switch command for this
@@ -1951,7 +1983,10 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 	else
 		mapping = &(dev_priv->sdvo_mappings[1]);
 
-	sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
+	if (mapping->initialized)
+		sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
+	else
+		intel_sdvo_guess_ddc_bus(sdvo);
 }
 
 static bool

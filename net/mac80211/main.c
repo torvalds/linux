@@ -732,6 +732,12 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	rtnl_unlock();
 
+	/*
+	 * Now all work items will be gone, but the
+	 * timer might still be armed, so delete it
+	 */
+	del_timer_sync(&local->work_timer);
+
 	cancel_work_sync(&local->reconfig_filter);
 
 	ieee80211_clear_tx_pending(local);

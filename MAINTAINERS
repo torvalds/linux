@@ -1445,6 +1445,16 @@ S:	Maintained
 F:	Documentation/video4linux/cafe_ccic
 F:	drivers/media/video/cafe_ccic*
 
+CAIF NETWORK LAYER
+M:	Sjur Braendeland <sjur.brandeland@stericsson.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	Documentation/networking/caif/
+F:	drivers/net/caif/
+F:	include/linux/caif/
+F:	include/net/caif/
+F:	net/caif/
+
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <muli@il.ibm.com>
 M:	"Jon D. Mason" <jdmason@kudzu.us>
@@ -2201,6 +2211,12 @@ L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/ehca/
 
+EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
+M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ehea/
+
 EMBEDDED LINUX
 M:	Paul Gortmaker <paul.gortmaker@windriver.com>
 M:	Matt Mackall <mpm@selenic.com>
@@ -2780,11 +2796,6 @@ M:	"Venkatesh Pallipadi (Venki)" <venki@google.com>
 S:	Maintained
 F:	arch/x86/kernel/hpet.c
 F:	arch/x86/include/asm/hpet.h
-
-HPET:	ACPI
-M:	Bob Picco <bob.picco@hp.com>
-S:	Maintained
-F:	drivers/char/hpet.c
 
 HPFS FILESYSTEM
 M:	Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
@@ -3398,7 +3409,7 @@ F:	drivers/s390/kvm/
 
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
-W:	http://ftp.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
+W:	http://kernel.org/pub/linux/utils/kernel/kexec/
 L:	kexec@lists.infradead.org
 S:	Maintained
 F:	include/linux/kexec.h
@@ -3923,8 +3934,7 @@ F:	Documentation/sound/oss/MultiSound
 F:	sound/oss/msnd*
 
 MULTITECH MULTIPORT CARD (ISICOM)
-M:	Jiri Slaby <jirislaby@gmail.com>
-S:	Maintained
+S:	Orphan
 F:	drivers/char/isicom.c
 F:	include/linux/isicom.h
 
@@ -4604,7 +4614,7 @@ F:	include/linux/preempt.h
 PRISM54 WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://prism54.org
+W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
@@ -4805,6 +4815,7 @@ RCUTORTURE MODULE
 M:	Josh Triplett <josh@freedesktop.org>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 S:	Supported
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-2.6-rcu.git
 F:	Documentation/RCU/torture.txt
 F:	kernel/rcutorture.c
 
@@ -4829,6 +4840,7 @@ M:	Dipankar Sarma <dipankar@in.ibm.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 W:	http://www.rdrop.com/users/paulmck/rclock/
 S:	Supported
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-2.6-rcu.git
 F:	Documentation/RCU/
 F:	include/linux/rcu*
 F:	include/linux/srcu*
@@ -4836,12 +4848,10 @@ F:	kernel/rcu*
 F:	kernel/srcu*
 X:	kernel/rcutorture.c
 
-REAL TIME CLOCK DRIVER
+REAL TIME CLOCK DRIVER (LEGACY)
 M:	Paul Gortmaker <p_gortmaker@yahoo.com>
 S:	Maintained
-F:	Documentation/rtc.txt
-F:	drivers/rtc/
-F:	include/linux/rtc.h
+F:	drivers/char/rtc.c
 
 REAL TIME CLOCK (RTC) SUBSYSTEM
 M:	Alessandro Zummo <a.zummo@towertech.it>

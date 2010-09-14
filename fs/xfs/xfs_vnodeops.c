@@ -2299,15 +2299,22 @@ xfs_alloc_file_space(
 			e = allocatesize_fsb;
 		}
 
+		/*
+		 * The transaction reservation is limited to a 32-bit block
+		 * count, hence we need to limit the number of blocks we are
+		 * trying to reserve to avoid an overflow. We can't allocate
+		 * more than @nimaps extents, and an extent is limited on disk
+		 * to MAXEXTLEN (21 bits), so use that to enforce the limit.
+		 */
+		resblks = min_t(xfs_fileoff_t, (e - s), (MAXEXTLEN * nimaps));
 		if (unlikely(rt)) {
-			resrtextents = qblocks = (uint)(e - s);
+			resrtextents = qblocks = resblks;
 			resrtextents /= mp->m_sb.sb_rextsize;
 			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 			quota_flag = XFS_QMOPT_RES_RTBLKS;
 		} else {
 			resrtextents = 0;
-			resblks = qblocks = \
-				XFS_DIOSTRAT_SPACE_RES(mp, (uint)(e - s));
+			resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, resblks);
 			quota_flag = XFS_QMOPT_RES_REGBLKS;
 		}
 
