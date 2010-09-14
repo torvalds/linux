@@ -594,7 +594,7 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 
 SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 {
-	char *sysinfo_table[] = {
+	const char *sysinfo_table[] = {
 		utsname()->sysname,
 		utsname()->nodename,
 		utsname()->release,
@@ -606,7 +606,7 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 		"dummy",	/* secure RPC domain */
 	};
 	unsigned long offset;
-	char *res;
+	const char *res;
 	long len, err = -EINVAL;
 
 	offset = command-1;
