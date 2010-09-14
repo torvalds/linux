@@ -1531,7 +1531,7 @@ build_script (struct unw_frame_info *info)
 	struct unw_labeled_state *ls, *next;
 	unsigned long ip = info->ip;
 	struct unw_state_record sr;
-	struct unw_table *table;
+	struct unw_table *table, *prev;
 	struct unw_reg_info *r;
 	struct unw_insn insn;
 	u8 *dp, *desc_end;
@@ -1560,11 +1560,26 @@ build_script (struct unw_frame_info *info)
 
 	STAT(parse_start = ia64_get_itc());
 
+	prev = NULL;
 	for (table = unw.tables; table; table = table->next) {
 		if (ip >= table->start && ip < table->end) {
+			/*
+			 * Leave the kernel unwind table at the very front,
+			 * lest moving it breaks some assumption elsewhere.
+			 * Otherwise, move the matching table to the second
+			 * position in the list so that traversals can benefit
+			 * from commonality in backtrace paths.
+			 */
+			if (prev && prev != unw.tables) {
+				/* unw is safe - we're already spinlocked */
+				prev->next = table->next;
+				table->next = unw.tables->next;
+				unw.tables->next = table;
+			}
 			e = lookup(table, ip - table->segment_base);
 			break;
 		}
+		prev = table;
 	}
 	if (!e) {
 		/* no info, return default unwinder (leaf proc, no mem stack, no saved regs)  */
