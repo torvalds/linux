@@ -35,8 +35,12 @@
 
 static struct cpcap_device *cpcap;
 static struct cpcap_audio_platform_data *pdata;
-static unsigned current_output = CPCAP_AUDIO_OUT_SPEAKER;
-static unsigned current_input  = -1U; /* none */
+static struct cpcap_audio_stream current_output = {
+	.id	= CPCAP_AUDIO_OUT_SPEAKER,
+};
+static struct cpcap_audio_stream current_input = {
+	.id	= CPCAP_AUDIO_IN_MIC1,
+};
 
 static int cpcap_audio_ctl_open(struct inode *inode, struct file *file)
 {
@@ -49,6 +53,111 @@ static int cpcap_audio_ctl_release(struct inode *inode, struct file *file)
 }
 
 static DEFINE_MUTEX(cpcap_lock);
+
+static void tegra_setup_audio_output_off(void)
+{
+	/* turn off the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 0);
+	gpio_direction_output(pdata->headset_gpio, 0);
+
+	if (!current_input.on) {
+		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
+		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
+		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
+		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
+	}
+
+	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_NONE;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_NONE;
+	cpcap_audio_set_audio_state(pdata->state);
+}
+
+static void tegra_setup_audio_out_speaker_on(void)
+{
+	/* turn off the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 0);
+	gpio_direction_output(pdata->headset_gpio, 0);
+
+	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_LOUDSPEAKER;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
+	cpcap_audio_set_audio_state(pdata->state);
+
+	/* turn on the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 1);
+	gpio_direction_output(pdata->headset_gpio, 0);
+}
+
+static void tegra_setup_audio_out_headset_on(void)
+{
+	/* turn off the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 0);
+	gpio_direction_output(pdata->headset_gpio, 0);
+
+	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_STEREO_HEADSET;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
+	cpcap_audio_set_audio_state(pdata->state);
+
+	/* turn on the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 0);
+	gpio_direction_output(pdata->headset_gpio, 1);
+}
+
+static void tegra_setup_audio_out_headset_and_speaker_on(void)
+{
+	/* turn off the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 0);
+	gpio_direction_output(pdata->headset_gpio, 0);
+
+	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_STEREO_HEADSET;
+	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_LINEOUT;
+	cpcap_audio_set_audio_state(pdata->state);
+
+	/* turn on the amplifier */
+	gpio_direction_output(pdata->speaker_gpio, 1);
+	gpio_direction_output(pdata->headset_gpio, 1);
+}
+
+static void tegra_setup_audio_in_mute(void)
+{
+	if (!current_output.on) {
+		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
+		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
+		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
+		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
+	}
+
+	pdata->state->microphone = CPCAP_AUDIO_IN_NONE;
+
+	cpcap_audio_set_audio_state(pdata->state);
+}
+
+static void tegra_setup_audio_in_handset_on(void)
+{
+	pdata->state->codec_mute = CPCAP_AUDIO_CODEC_UNMUTE;
+	pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_UNMUTE;
+	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+
+	pdata->state->microphone = CPCAP_AUDIO_IN_HANDSET;
+	cpcap_audio_set_audio_state(pdata->state);
+}
+
+static void tegra_setup_audio_in_headset_on(void)
+{
+	pdata->state->codec_mute = CPCAP_AUDIO_CODEC_UNMUTE;
+	pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_UNMUTE;
+	pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
+	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
+
+	pdata->state->microphone = CPCAP_AUDIO_IN_HEADSET;
+	cpcap_audio_set_audio_state(pdata->state);
+}
 
 static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
@@ -75,67 +184,60 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		case CPCAP_AUDIO_OUT_SPEAKER:
 			pr_info("%s: setting output path to speaker\n",
 					__func__);
-			pdata->state->stdac_primary_speaker =
-					CPCAP_AUDIO_OUT_NONE;
-			cpcap_audio_set_audio_state(pdata->state);
-			if (!out.on) {
-				if (pdata->speaker_gpio >= 0)
-					gpio_direction_output(
-						pdata->speaker_gpio, 0);
-				break;
-			}
-
-			pr_info("%s: enable speaker\n", __func__);
-
-			pdata->state->stdac_primary_speaker =
-					CPCAP_AUDIO_OUT_LOUDSPEAKER;
-			gpio_direction_output(pdata->headset_gpio, 0);
-			gpio_direction_output(pdata->speaker_gpio, 1);
+			if (out.on)
+				tegra_setup_audio_out_speaker_on();
+			else
+				tegra_setup_audio_output_off();
+			current_output = out;
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET:
 			pr_info("%s: setting output path to headset\n",
-					__func__);
-			pdata->state->stdac_primary_speaker =
-					CPCAP_AUDIO_OUT_NONE;
-			cpcap_audio_set_audio_state(pdata->state);
-			if (!out.on) {
-				if (pdata->headset_gpio >= 0)
-					gpio_direction_output(
-						pdata->headset_gpio, 0);
-				break;
-			}
-			pdata->state->stdac_primary_speaker =
-					CPCAP_AUDIO_OUT_STEREO_HEADSET;
-			cpcap_audio_set_audio_state(pdata->state);
-			gpio_direction_output(pdata->speaker_gpio, 0);
-			gpio_direction_output(pdata->headset_gpio, 1);
+					__func__);;
+			if (out.on)
+				tegra_setup_audio_out_headset_on();
+			else
+				tegra_setup_audio_output_off();
+			current_output = out;
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET_AND_SPEAKER:
 			pr_info("%s: setting output path to "
 					"headset + speaker\n", __func__);
-			pdata->state->stdac_primary_speaker =
-					CPCAP_AUDIO_OUT_NONE;
-			cpcap_audio_set_audio_state(pdata->state);
-			if (!out.on) {
-				if (pdata->headset_gpio >= 0)
-					gpio_direction_output(
-						pdata->headset_gpio, 0);
-					gpio_direction_output(
-						pdata->speaker_gpio, 0);
+			if (out.on)
+				tegra_setup_audio_out_headset_and_speaker_on();
+			else
+				tegra_setup_audio_output_off();
+
+			current_output = out;
+			break;
+		case CPCAP_AUDIO_OUT_STANDBY:
+			current_output.on = !out.on;
+			if (out.on) {
+				pr_info("%s: standby mode\n", __func__);
+				tegra_setup_audio_output_off();
 				break;
 			}
-			pdata->state->stdac_primary_speaker =
-					CPCAP_AUDIO_OUT_STEREO_HEADSET;
-			cpcap_audio_set_audio_state(pdata->state);
-			gpio_direction_output(pdata->speaker_gpio, 1);
-			gpio_direction_output(pdata->headset_gpio, 1);
+
+			switch (current_output.id) {
+			case CPCAP_AUDIO_OUT_SPEAKER:
+				pr_info("%s: standby off (speaker)", __func__);
+				tegra_setup_audio_out_speaker_on();
+				break;
+			case CPCAP_AUDIO_OUT_HEADSET:
+				pr_info("%s: standby off (headset)", __func__);
+				tegra_setup_audio_out_headset_on();
+				break;
+			case CPCAP_AUDIO_OUT_HEADSET_AND_SPEAKER:
+				pr_info("%s: standby off (speaker + headset)",
+					__func__);
+				tegra_setup_audio_out_headset_and_speaker_on();
+				break;
+			}
 			break;
 		}
-		current_output = out.id;
 		break;
 	case CPCAP_AUDIO_OUT_GET_OUTPUT:
 		if (copy_to_user((void __user *)arg, &current_output,
-					sizeof(unsigned int)))
+					sizeof(current_output)))
 			rc = -EFAULT;
 		break;
 	case CPCAP_AUDIO_IN_SET_INPUT:
@@ -152,44 +254,53 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			goto done;
 		}
 
-		pr_info("%s: muting current input before switch\n", __func__);
-
-		pdata->state->microphone = CPCAP_AUDIO_IN_NONE;
-		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
-		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
-		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_OFF;
-		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_OFF;
-		cpcap_audio_set_audio_state(pdata->state);
-
-		if (!in.on)
-			break;
-
-		pdata->state->codec_mute = CPCAP_AUDIO_CODEC_UNMUTE;
-		pdata->state->stdac_mute = CPCAP_AUDIO_STDAC_UNMUTE;
-		pdata->state->codec_mode = CPCAP_AUDIO_CODEC_ON;
-		pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
-
 		switch (in.id) {
 		case CPCAP_AUDIO_IN_MIC1:
-			pr_info("%s: setting input path to on-board mic\n",
+			if (in.on) {
+				pr_info("%s: setting input path to on-board mic\n",
 					__func__);
-			pdata->state->microphone = CPCAP_AUDIO_IN_HANDSET;
-			cpcap_audio_set_audio_state(pdata->state);
-			cpcap_audio_register_dump(pdata->state);
+				tegra_setup_audio_in_handset_on();
+			} else {
+				pr_info("%s: mute on-board mic\n", __func__);
+				tegra_setup_audio_in_mute();
+			}
+
+			current_input = in;
 			break;
 		case CPCAP_AUDIO_IN_MIC2:
-			pr_info("%s: setting input path to headset mic\n",
+			if (in.on) {
+				pr_info("%s: setting input path to headset mic\n",
 					__func__);
-			pdata->state->microphone = CPCAP_AUDIO_IN_HEADSET;
-			cpcap_audio_set_audio_state(pdata->state);
-			cpcap_audio_register_dump(pdata->state);
+				tegra_setup_audio_in_headset_on();
+			} else {
+				pr_info("%s: mute headset mic\n", __func__);
+				tegra_setup_audio_in_mute();
+			}
+
+			current_input = in;
+			break;
+		case CPCAP_AUDIO_IN_STANDBY:
+			current_input.on = !in.on;
+			if (in.on) {
+				pr_info("%s: microphone in standby mode\n",
+					__func__);
+				tegra_setup_audio_in_mute();
+				break;
+			}
+			switch (current_input.id) {
+			case CPCAP_AUDIO_IN_MIC1:
+				tegra_setup_audio_in_headset_on();
+				break;
+			case CPCAP_AUDIO_IN_MIC2:
+				tegra_setup_audio_in_handset_on();
+				break;
+			}
 			break;
 		}
-		current_input = arg;
 		break;
 	case CPCAP_AUDIO_IN_GET_INPUT:
 		if (copy_to_user((void __user *)arg, &current_input,
-					sizeof(unsigned int)))
+					sizeof(current_input)))
 			rc = -EFAULT;
 		break;
 	case CPCAP_AUDIO_OUT_SET_VOLUME:
@@ -280,13 +391,6 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 	pdata->state->cpcap = cpcap;
 	if (cpcap_audio_init(pdata->state, pdata->regulator))
 		goto fail3;
-	cpcap_audio_register_dump(pdata->state);
-
-	pdata->state->output_gain = 10;
-	pdata->state->input_gain = 31;
-	pdata->state->stdac_mode = CPCAP_AUDIO_STDAC_ON;
-	cpcap_audio_set_audio_state(pdata->state);
-	cpcap_audio_register_dump(pdata->state);
 
 	rc = misc_register(&cpcap_audio_ctl);
 	if (rc < 0) {

@@ -934,7 +934,7 @@ static void cpcap_audio_configure_input(struct cpcap_audio_state *state,
 
 static void cpcap_audio_configure_power(int power)
 {
-	static int previous_power = -1;
+	static int previous_power;
 
 	pr_debug("%s() called with power= %d\n", __func__, power);
 
