@@ -48,7 +48,8 @@ static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 						     uint64_t offset,
 						     uint64_t size);
 static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj);
-static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
+static int i915_gem_object_wait_rendering(struct drm_gem_object *obj,
+					  bool interruptible);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
@@ -1181,7 +1182,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Need a new fence register? */
 	if (obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj);
+		ret = i915_gem_object_get_fence_reg(obj, true);
 		if (ret)
 			goto unlock;
 	}
@@ -1919,7 +1920,8 @@ i915_gem_flush(struct drm_device *dev,
  * safe to unbind from the GTT or access from the CPU.
  */
 static int
-i915_gem_object_wait_rendering(struct drm_gem_object *obj)
+i915_gem_object_wait_rendering(struct drm_gem_object *obj,
+			       bool interruptible)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
@@ -1938,10 +1940,11 @@ i915_gem_object_wait_rendering(struct drm_gem_object *obj)
 		DRM_INFO("%s: object %p wait for seqno %08x\n",
 			  __func__, obj, obj_priv->last_rendering_seqno);
 #endif
-		ret = i915_wait_request(dev,
-					obj_priv->last_rendering_seqno,
-					obj_priv->ring);
-		if (ret != 0)
+		ret = i915_do_wait_request(dev,
+					   obj_priv->last_rendering_seqno,
+					   interruptible,
+					   obj_priv->ring);
+		if (ret)
 			return ret;
 	}
 
@@ -2234,7 +2237,8 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
 }
 
-static int i915_find_fence_reg(struct drm_device *dev)
+static int i915_find_fence_reg(struct drm_device *dev,
+			       bool interruptible)
 {
 	struct drm_i915_fence_reg *reg = NULL;
 	struct drm_i915_gem_object *obj_priv = NULL;
@@ -2279,7 +2283,7 @@ static int i915_find_fence_reg(struct drm_device *dev)
 	 * private reference to obj like the other callers of put_fence_reg
 	 * (set_tiling ioctl) do. */
 	drm_gem_object_reference(obj);
-	ret = i915_gem_object_put_fence_reg(obj);
+	ret = i915_gem_object_put_fence_reg(obj, interruptible);
 	drm_gem_object_unreference(obj);
 	if (ret != 0)
 		return ret;
@@ -2301,7 +2305,8 @@ static int i915_find_fence_reg(struct drm_device *dev)
  * and tiling format.
  */
 int
-i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
+i915_gem_object_get_fence_reg(struct drm_gem_object *obj,
+			      bool interruptible)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2336,7 +2341,7 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 		break;
 	}
 
-	ret = i915_find_fence_reg(dev);
+	ret = i915_find_fence_reg(dev, interruptible);
 	if (ret < 0)
 		return ret;
 
@@ -2403,12 +2408,14 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
  * i915_gem_object_put_fence_reg - waits on outstanding fenced access
  * to the buffer to finish, and then resets the fence register.
  * @obj: tiled object holding a fence register.
+ * @bool: whether the wait upon the fence is interruptible
  *
  * Zeroes out the fence register itself and clears out the associated
  * data structures in dev_priv and obj_priv.
  */
 int
-i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
+i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
+			      bool interruptible)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
@@ -2429,11 +2436,11 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 	if (!IS_I965G(dev)) {
 		int ret;
 
-		ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+		ret = i915_gem_object_flush_gpu_write_domain(obj, true);
 		if (ret)
 			return ret;
 
-		ret = i915_gem_object_wait_rendering(obj);
+		ret = i915_gem_object_wait_rendering(obj, interruptible);
 		if (ret)
 			return ret;
 	}
@@ -2606,7 +2613,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
 	if (pipelined)
 		return 0;
 
-	return i915_gem_object_wait_rendering(obj);
+	return i915_gem_object_wait_rendering(obj, true);
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -2674,7 +2681,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 	i915_gem_object_flush_cpu_write_domain(obj);
 
 	if (write) {
-		ret = i915_gem_object_wait_rendering(obj);
+		ret = i915_gem_object_wait_rendering(obj, true);
 		if (ret)
 			return ret;
 	}
@@ -2756,7 +2763,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	i915_gem_object_set_to_full_cpu_read_domain(obj);
 
 	if (write) {
-		ret = i915_gem_object_wait_rendering(obj);
+		ret = i915_gem_object_wait_rendering(obj, true);
 		if (ret)
 			return ret;
 	}
@@ -3125,7 +3132,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	 * properly handle blits to/from tiled surfaces.
 	 */
 	if (need_fence) {
-		ret = i915_gem_object_get_fence_reg(obj);
+		ret = i915_gem_object_get_fence_reg(obj, false);
 		if (ret != 0) {
 			i915_gem_object_unpin(obj);
 			return ret;

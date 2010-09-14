@@ -986,8 +986,10 @@ void i915_gem_lastclose(struct drm_device *dev);
 uint32_t i915_get_gem_seqno(struct drm_device *dev,
 		struct intel_ring_buffer *ring);
 bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
-int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
-int i915_gem_object_put_fence_reg(struct drm_gem_object *obj);
+int i915_gem_object_get_fence_reg(struct drm_gem_object *obj,
+				  bool interruptible);
+int i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
+				  bool interruptible);
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
 int i915_gem_object_set_domain(struct drm_gem_object *obj,

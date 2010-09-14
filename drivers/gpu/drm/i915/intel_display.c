@@ -1461,7 +1461,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	 */
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj);
+		ret = i915_gem_object_get_fence_reg(obj, false);
 		if (ret)
 			goto err_unpin;
 	}

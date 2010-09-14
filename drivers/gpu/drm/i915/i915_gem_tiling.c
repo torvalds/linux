@@ -328,7 +328,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		if (!i915_gem_object_fence_offset_ok(obj, args->tiling_mode))
 			ret = i915_gem_object_unbind(obj);
 		else if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-			ret = i915_gem_object_put_fence_reg(obj);
+			ret = i915_gem_object_put_fence_reg(obj, true);
 		else
 			i915_gem_release_mmap(obj);
 
