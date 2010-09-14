@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
@@ -1088,13 +1087,7 @@ static int dvb_demux_do_ioctl(struct file *file,
 static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
 }
 
 static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
@@ -1186,13 +1179,7 @@ static int dvb_dvr_do_ioctl(struct file *file,
 static long dvb_dvr_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
 static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
