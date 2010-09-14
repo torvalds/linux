@@ -556,27 +556,7 @@ static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
-
-	/* Programming the ULPI register function control */
-	ulpi_viewport_write(phy, 0x04, 0x4D);
-
-	/* Resetting the ULPI register IndicatorPassThru */
-	ulpi_viewport_write(phy, 0x09, 0x40);
-
-	/* USB Interrupt Rising - making sure vbus comparator and id are off */
-	ulpi_viewport_write(phy, 0x0D, 0x00);
-
-	/* USB Interrupt Falling */
-	ulpi_viewport_write(phy, 0x10, 0x00);
-
-	/* Carkit Control */
-	ulpi_viewport_write(phy, 0x19, 0x00);
-
-	/* Disabling ID float Rise/Fall (Carkit Enable) */
-	ulpi_viewport_write(phy, 0x1D, 0x00);
-
-	/* USB I/O and power */
-	ulpi_viewport_write(phy, 0x39, 0x00);
+	struct tegra_ulpi_config *config = phy->config;
 
 	/* Clear WKCN/WKDS/WKOC wake-on events that can cause the USB
 	 * Controller to immediately bring the ULPI PHY out of low power
@@ -585,6 +565,7 @@ static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
 	val &= ~(USB_PORTSC1_WKOC | USB_PORTSC1_WKDS | USB_PORTSC1_WKCN);
 	writel(val, base + USB_PORTSC1);
 
+	gpio_direction_output(config->reset_gpio, 0);
 	clk_disable(phy->clk);
 }
 
