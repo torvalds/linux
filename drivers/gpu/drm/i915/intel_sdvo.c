@@ -530,8 +530,8 @@ static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
  * another I2C transaction after issuing the DDC bus switch, it will be
  * switched to the internal SDVO register.
  */
-static void intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
-					      u8 target)
+static int intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
+					     u8 target)
 {
 	u8 out_buf[2], cmd_buf[2], ret_value[2], ret;
 	struct i2c_msg msgs[] = {
@@ -557,9 +557,10 @@ static void intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
 	};
 
 	intel_sdvo_debug_write(intel_sdvo, SDVO_CMD_SET_CONTROL_BUS_SWITCH,
-					&target, 1);
+			       &target, 1);
 	/* write the DDC switch command argument */
-	intel_sdvo_write_byte(intel_sdvo, SDVO_I2C_ARG_0, target);
+	if (!intel_sdvo_write_byte(intel_sdvo, SDVO_I2C_ARG_0, target))
+		return -EIO;
 
 	out_buf[0] = SDVO_I2C_OPCODE;
 	out_buf[1] = SDVO_CMD_SET_CONTROL_BUS_SWITCH;
@@ -569,17 +570,20 @@ static void intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
 	ret_value[1] = 0;
 
 	ret = i2c_transfer(intel_sdvo->base.i2c_bus, msgs, 3);
+	if (ret < 0)
+		return ret;
 	if (ret != 3) {
 		/* failure in I2C transfer */
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
-		return;
+		return -EIO;
 	}
 	if (ret_value[0] != SDVO_CMD_STATUS_SUCCESS) {
 		DRM_DEBUG_KMS("DDC switch command returns response %d\n",
-					ret_value[0]);
-		return;
+			      ret_value[0]);
+		return -EIO;
 	}
-	return;
+
+	return 0;
 }
 
 static bool intel_sdvo_set_value(struct intel_sdvo *intel_sdvo, u8 cmd, const void *data, int len)
@@ -1982,13 +1986,18 @@ static int intel_sdvo_master_xfer(struct i2c_adapter *i2c_adap,
 {
 	struct intel_sdvo *intel_sdvo;
 	const struct i2c_algorithm *algo;
+	int ret;
 
 	intel_sdvo = container_of(i2c_adap->algo_data,
 				  struct intel_sdvo,
 				  base);
 	algo = intel_sdvo->base.i2c_bus->algo;
 
-	intel_sdvo_set_control_bus_switch(intel_sdvo, intel_sdvo->ddc_bus);
+	ret = intel_sdvo_set_control_bus_switch(intel_sdvo,
+						intel_sdvo->ddc_bus);
+	if (ret)
+		return ret;
+
 	return algo->master_xfer(i2c_adap, msgs, num);
 }
 
