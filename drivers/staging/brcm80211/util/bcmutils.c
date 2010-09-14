@@ -680,8 +680,7 @@ char *bcmstrtok(char **string, const char *delimiters, char *tokdelim)
 	/* Set bits in delimiter table */
 	do {
 		map[*delimiters >> 5] |= (1 << (*delimiters & 31));
-	}
-	while (*delimiters++);
+	} while (*delimiters++);
 
 	str = (unsigned char *)*string;
 
