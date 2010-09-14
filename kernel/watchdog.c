@@ -473,6 +473,9 @@ static void watchdog_disable_all_cpus(void)
 {
 	int cpu;
 
+	if (no_watchdog)
+		return;
+
 	for_each_online_cpu(cpu)
 		watchdog_disable(cpu);
 
