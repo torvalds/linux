@@ -599,7 +599,8 @@ const locale_mimo_info_t *wlc_get_mimo_5g(uint8 locale_idx)
 	return g_mimo_5g_table[locale_idx];
 }
 
-wlc_cm_info_t *BCMATTACHFN(wlc_channel_mgr_attach) (wlc_info_t *wlc) {
+wlc_cm_info_t *BCMATTACHFN(wlc_channel_mgr_attach) (wlc_info_t *wlc)
+{
 	wlc_cm_info_t *wlc_cm;
 	char country_abbrev[WLC_CNTRY_BUF_SZ];
 	const country_info_t *country;
@@ -646,7 +647,8 @@ wlc_cm_info_t *BCMATTACHFN(wlc_channel_mgr_attach) (wlc_info_t *wlc) {
 	return wlc_cm;
 }
 
-void BCMATTACHFN(wlc_channel_mgr_detach) (wlc_cm_info_t *wlc_cm) {
+void BCMATTACHFN(wlc_channel_mgr_detach) (wlc_cm_info_t *wlc_cm)
+{
 	if (wlc_cm)
 		MFREE(wlc_cm->pub->osh, wlc_cm, sizeof(wlc_cm_info_t));
 }

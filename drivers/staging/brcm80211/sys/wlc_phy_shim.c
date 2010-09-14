@@ -79,7 +79,8 @@ wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t *wlc_hw,
 	return physhim;
 }
 
-void BCMATTACHFN(wlc_phy_shim_detach) (wlc_phy_shim_info_t *physhim) {
+void BCMATTACHFN(wlc_phy_shim_detach) (wlc_phy_shim_info_t *physhim)
+{
 	if (!physhim)
 		return;
 

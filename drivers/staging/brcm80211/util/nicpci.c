@@ -542,7 +542,8 @@ static void pcie_war_serdes(pcicore_info_t *pi)
 
 /* Fix MISC config to allow coming out of L2/L3-Ready state w/o PRST */
 /* Needs to happen when coming out of 'standby'/'hibernate' */
-static void BCMINITFN(pcie_misc_config_fixup) (pcicore_info_t *pi) {
+static void BCMINITFN(pcie_misc_config_fixup) (pcicore_info_t *pi)
+{
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	uint16 val16, *reg16;
 
@@ -637,7 +638,8 @@ void pcie_war_ovr_aspm_update(void *pch, uint8 aspm)
 }
 
 /* ***** Functions called during driver state changes ***** */
-void BCMATTACHFN(pcicore_attach) (void *pch, char *pvars, int state) {
+void BCMATTACHFN(pcicore_attach) (void *pch, char *pvars, int state)
+{
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	si_t *sih = pi->sih;
 

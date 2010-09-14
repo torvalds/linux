@@ -204,7 +204,8 @@ static void wlc_bmac_update_slot_timing(wlc_hw_info_t *wlc_hw, bool shortslot)
 	}
 }
 
-static void WLBANDINITFN(wlc_ucode_bsinit) (wlc_hw_info_t *wlc_hw) {
+static void WLBANDINITFN(wlc_ucode_bsinit) (wlc_hw_info_t *wlc_hw)
+{
 	/* init microcode host flags */
 	wlc_write_mhf(wlc_hw, wlc_hw->band->mhfs);
 
@@ -230,7 +231,8 @@ static void WLBANDINITFN(wlc_ucode_bsinit) (wlc_hw_info_t *wlc_hw) {
 }
 
 /* switch to new band but leave it inactive */
-static uint32 WLBANDINITFN(wlc_setband_inact) (wlc_info_t *wlc, uint bandunit) {
+static uint32 WLBANDINITFN(wlc_setband_inact) (wlc_info_t *wlc, uint bandunit)
+{
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	uint32 macintmask;
 	uint32 tmp;
@@ -563,7 +565,8 @@ int wlc_bmac_state_get(wlc_hw_info_t *wlc_hw, wlc_bmac_state_t *state)
 }
 
 static bool
-BCMATTACHFN(wlc_bmac_attach_dmapio) (wlc_info_t *wlc, uint j, bool wme) {
+BCMATTACHFN(wlc_bmac_attach_dmapio) (wlc_info_t *wlc, uint j, bool wme)
+{
 	uint i;
 	char name[8];
 	/* ucode host flag 2 needed for pio mode, independent of band and fifo */
@@ -681,7 +684,8 @@ BCMATTACHFN(wlc_bmac_attach_dmapio) (wlc_info_t *wlc, uint j, bool wme) {
 	return TRUE;
 }
 
-static void BCMATTACHFN(wlc_bmac_detach_dmapio) (wlc_hw_info_t *wlc_hw) {
+static void BCMATTACHFN(wlc_bmac_detach_dmapio) (wlc_hw_info_t *wlc_hw)
+{
 	uint j;
 
 	for (j = 0; j < NFIFO; j++) {
@@ -1039,7 +1043,8 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
  * may get overrides later in this function
  *  BMAC_NOTES, move low out and resolve the dangling ones
  */
-void BCMATTACHFN(wlc_bmac_info_init) (wlc_hw_info_t *wlc_hw) {
+void BCMATTACHFN(wlc_bmac_info_init) (wlc_hw_info_t *wlc_hw)
+{
 	wlc_info_t *wlc = wlc_hw->wlc;
 
 	/* set default sw macintmask value */
@@ -1060,7 +1065,8 @@ void BCMATTACHFN(wlc_bmac_info_init) (wlc_hw_info_t *wlc_hw) {
 /*
  * low level detach
  */
-int BCMATTACHFN(wlc_bmac_detach) (wlc_info_t *wlc) {
+int BCMATTACHFN(wlc_bmac_detach) (wlc_info_t *wlc)
+{
 	uint i;
 	wlc_hwband_t *band;
 	wlc_hw_info_t *wlc_hw = wlc->hw;
@@ -1110,7 +1116,8 @@ int BCMATTACHFN(wlc_bmac_detach) (wlc_info_t *wlc) {
 
 }
 
-void BCMINITFN(wlc_bmac_reset) (wlc_hw_info_t *wlc_hw) {
+void BCMINITFN(wlc_bmac_reset) (wlc_hw_info_t *wlc_hw)
+{
 	WL_TRACE(("wl%d: wlc_bmac_reset\n", wlc_hw->unit));
 
 	WLCNTINCR(wlc_hw->wlc->pub->_cnt->reset);
@@ -1176,7 +1183,8 @@ BCMINITFN(wlc_bmac_init) (wlc_hw_info_t *wlc_hw, chanspec_t chanspec,
 		wlc_clkctl_clk(wlc_hw, CLK_DYNAMIC);
 }
 
-int BCMINITFN(wlc_bmac_up_prep) (wlc_hw_info_t *wlc_hw) {
+int BCMINITFN(wlc_bmac_up_prep) (wlc_hw_info_t *wlc_hw)
+{
 	uint coremask;
 
 	WL_TRACE(("wl%d: %s:\n", wlc_hw->unit, __func__));
@@ -1223,7 +1231,8 @@ int BCMINITFN(wlc_bmac_up_prep) (wlc_hw_info_t *wlc_hw) {
 	return 0;
 }
 
-int BCMINITFN(wlc_bmac_up_finish) (wlc_hw_info_t *wlc_hw) {
+int BCMINITFN(wlc_bmac_up_finish) (wlc_hw_info_t *wlc_hw)
+{
 	WL_TRACE(("wl%d: %s:\n", wlc_hw->unit, __func__));
 
 	wlc_hw->up = TRUE;
@@ -1236,7 +1245,8 @@ int BCMINITFN(wlc_bmac_up_finish) (wlc_hw_info_t *wlc_hw) {
 	return 0;
 }
 
-int BCMUNINITFN(wlc_bmac_down_prep) (wlc_hw_info_t *wlc_hw) {
+int BCMUNINITFN(wlc_bmac_down_prep) (wlc_hw_info_t *wlc_hw)
+{
 	bool dev_gone;
 	uint callbacks = 0;
 
@@ -1263,7 +1273,8 @@ int BCMUNINITFN(wlc_bmac_down_prep) (wlc_hw_info_t *wlc_hw) {
 	return callbacks;
 }
 
-int BCMUNINITFN(wlc_bmac_down_finish) (wlc_hw_info_t *wlc_hw) {
+int BCMUNINITFN(wlc_bmac_down_finish) (wlc_hw_info_t *wlc_hw)
+{
 	uint callbacks = 0;
 	bool dev_gone;
 
@@ -1441,7 +1452,8 @@ static void wlc_clkctl_clk(wlc_hw_info_t *wlc_hw, uint mode)
 
 /* set initial host flags value */
 static void
-BCMINITFN(wlc_mhfdef) (wlc_info_t *wlc, uint16 *mhfs, uint16 mhf2_init) {
+BCMINITFN(wlc_mhfdef) (wlc_info_t *wlc, uint16 *mhfs, uint16 mhf2_init)
+{
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 
 	bzero(mhfs, sizeof(uint16) * MHFMAX);
@@ -1896,7 +1908,8 @@ wlc_bmac_write_hw_bcntemplates(wlc_hw_info_t *wlc_hw, void *bcn, int len,
 	}
 }
 
-static void WLBANDINITFN(wlc_bmac_upd_synthpu) (wlc_hw_info_t *wlc_hw) {
+static void WLBANDINITFN(wlc_bmac_upd_synthpu) (wlc_hw_info_t *wlc_hw)
+{
 	uint16 v;
 	wlc_info_t *wlc = wlc_hw->wlc;
 	/* update SYNTHPU_DLY */
@@ -1914,7 +1927,8 @@ static void WLBANDINITFN(wlc_bmac_upd_synthpu) (wlc_hw_info_t *wlc_hw) {
 
 /* band-specific init */
 static void
-WLBANDINITFN(wlc_bmac_bsinit) (wlc_info_t *wlc, chanspec_t chanspec) {
+WLBANDINITFN(wlc_bmac_bsinit) (wlc_info_t *wlc, chanspec_t chanspec)
+{
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 
 	WL_TRACE(("wl%d: wlc_bmac_bsinit: bandunit %d\n", wlc_hw->unit,
@@ -2105,7 +2119,8 @@ WLBANDINITFN(wlc_bmac_setband) (wlc_hw_info_t *wlc_hw, uint bandunit,
 }
 
 /* low-level band switch utility routine */
-void WLBANDINITFN(wlc_setxband) (wlc_hw_info_t *wlc_hw, uint bandunit) {
+void WLBANDINITFN(wlc_setxband) (wlc_hw_info_t *wlc_hw, uint bandunit)
+{
 	WL_TRACE(("wl%d: wlc_setxband: bandunit %d\n", wlc_hw->unit, bandunit));
 
 	wlc_hw->band = wlc_hw->bandstate[bandunit];
@@ -2120,7 +2135,8 @@ void WLBANDINITFN(wlc_setxband) (wlc_hw_info_t *wlc_hw, uint bandunit) {
 	}
 }
 
-static bool BCMATTACHFN(wlc_isgoodchip) (wlc_hw_info_t *wlc_hw) {
+static bool BCMATTACHFN(wlc_isgoodchip) (wlc_hw_info_t *wlc_hw)
+{
 
 	/* reject unsupported corerev */
 	if (!VALID_COREREV(wlc_hw->corerev)) {
@@ -2131,7 +2147,8 @@ static bool BCMATTACHFN(wlc_isgoodchip) (wlc_hw_info_t *wlc_hw) {
 	return TRUE;
 }
 
-static bool BCMATTACHFN(wlc_validboardtype) (wlc_hw_info_t *wlc_hw) {
+static bool BCMATTACHFN(wlc_validboardtype) (wlc_hw_info_t *wlc_hw)
+{
 	bool goodboard = TRUE;
 	uint boardrev = wlc_hw->boardrev;
 
@@ -2154,7 +2171,8 @@ static bool BCMATTACHFN(wlc_validboardtype) (wlc_hw_info_t *wlc_hw) {
 	return goodboard;
 }
 
-static char *BCMINITFN(wlc_get_macaddr) (wlc_hw_info_t *wlc_hw) {
+static char *BCMINITFN(wlc_get_macaddr) (wlc_hw_info_t *wlc_hw)
+{
 	const char *varname = "macaddr";
 	char *macaddr;
 
@@ -2226,7 +2244,8 @@ bool wlc_bmac_radio_read_hwdisabled(wlc_hw_info_t *wlc_hw)
 }
 
 /* Initialize just the hardware when coming out of POR or S3/S5 system states */
-void BCMINITFN(wlc_bmac_hw_up) (wlc_hw_info_t *wlc_hw) {
+void BCMINITFN(wlc_bmac_hw_up) (wlc_hw_info_t *wlc_hw)
+{
 	if (wlc_hw->wlc->pub->hw_up)
 		return;
 
@@ -2300,7 +2319,8 @@ static bool wlc_dma_rxreset(wlc_hw_info_t *wlc_hw, uint fifo)
  *   clear software macintstatus for fresh new start
  * one testing hack wlc_hw->noreset will bypass the d11/phy reset
  */
-void BCMINITFN(wlc_bmac_corereset) (wlc_hw_info_t *wlc_hw, uint32 flags) {
+void BCMINITFN(wlc_bmac_corereset) (wlc_hw_info_t *wlc_hw, uint32 flags)
+{
 	d11regs_t *regs;
 	uint i;
 	bool fastclk;
@@ -2387,7 +2407,8 @@ void BCMINITFN(wlc_bmac_corereset) (wlc_hw_info_t *wlc_hw, uint32 flags) {
  * txfifo sizes needs to be modified(increased) since the newer cores
  * have more memory.
  */
-static void BCMINITFN(wlc_corerev_fifofixup) (wlc_hw_info_t *wlc_hw) {
+static void BCMINITFN(wlc_corerev_fifofixup) (wlc_hw_info_t *wlc_hw)
+{
 	d11regs_t *regs = wlc_hw->regs;
 	uint16 fifo_nu;
 	uint16 txfifo_startblk = TXFIFO_START_BLK, txfifo_endblk;
@@ -2446,7 +2467,8 @@ static void BCMINITFN(wlc_corerev_fifofixup) (wlc_hw_info_t *wlc_hw) {
  *   config other core registers
  *   init dma
  */
-static void BCMINITFN(wlc_coreinit) (wlc_info_t *wlc) {
+static void BCMINITFN(wlc_coreinit) (wlc_info_t *wlc)
+{
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	d11regs_t *regs;
 	uint32 sflags;
@@ -2687,7 +2709,8 @@ void wlc_bmac_switch_macfreq(wlc_hw_info_t *wlc_hw, uint8 spurmode)
 }
 
 /* Initialize GPIOs that are controlled by D11 core */
-static void BCMINITFN(wlc_gpio_init) (wlc_info_t *wlc) {
+static void BCMINITFN(wlc_gpio_init) (wlc_info_t *wlc)
+{
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 	d11regs_t *regs;
 	uint32 gc, gm;
@@ -2751,7 +2774,8 @@ static void BCMINITFN(wlc_gpio_init) (wlc_info_t *wlc) {
 	si_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
 }
 
-static void BCMATTACHFN(wlc_ucode_download) (wlc_hw_info_t *wlc_hw) {
+static void BCMATTACHFN(wlc_ucode_download) (wlc_hw_info_t *wlc_hw)
+{
 	wlc_info_t *wlc;
 	wlc = wlc_hw->wlc;
 
@@ -3634,7 +3658,8 @@ wlc_bmac_read_tsf(wlc_hw_info_t *wlc_hw, uint32 *tsf_l_ptr,
 	return;
 }
 
-bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw) {
+bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw)
+{
 	d11regs_t *regs;
 	uint32 w, val;
 	volatile uint16 *reg16;

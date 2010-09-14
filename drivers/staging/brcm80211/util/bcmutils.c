@@ -525,7 +525,8 @@ const unsigned char bcm_ctype[] = {
 	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L	/* 240-255 */
 };
 
-ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base) {
+ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
+{
 	ulong result, last_result = 0, value;
 	bool minus;
 
@@ -580,12 +581,14 @@ ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base) {
 	return (result);
 }
 
-int BCMROMFN(bcm_atoi) (char *s) {
+int BCMROMFN(bcm_atoi) (char *s)
+{
 	return (int)bcm_strtoul(s, NULL, 10);
 }
 
 /* return pointer to location of substring 'needle' in 'haystack' */
-char *BCMROMFN(bcmstrstr) (char *haystack, char *needle) {
+char *BCMROMFN(bcmstrstr) (char *haystack, char *needle)
+{
 	int len, nlen;
 	int i;
 
@@ -601,7 +604,8 @@ char *BCMROMFN(bcmstrstr) (char *haystack, char *needle) {
 	return (NULL);
 }
 
-char *BCMROMFN(bcmstrcat) (char *dest, const char *src) {
+char *BCMROMFN(bcmstrcat) (char *dest, const char *src)
+{
 	char *p;
 
 	p = dest + strlen(dest);
@@ -611,7 +615,8 @@ char *BCMROMFN(bcmstrcat) (char *dest, const char *src) {
 	return (dest);
 }
 
-char *BCMROMFN(bcmstrncat) (char *dest, const char *src, uint size) {
+char *BCMROMFN(bcmstrncat) (char *dest, const char *src, uint size)
+{
 	char *endp;
 	char *p;
 
@@ -778,7 +783,8 @@ int bcmstrnicmp(const char *s1, const char *s2, int cnt)
 }
 
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea) {
+int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea)
+{
 	int i = 0;
 
 	for (;;) {
@@ -959,7 +965,8 @@ const char *bcmerrorstr(int bcmerror)
 }
 
 #ifdef WLC_LOW
-static void BCMINITFN(bcm_nvram_refresh) (char *flash) {
+static void BCMINITFN(bcm_nvram_refresh) (char *flash)
+{
 	int i;
 	int ret = 0;
 
@@ -998,7 +1005,8 @@ char *bcm_nvram_vars(uint *length)
 }
 
 /* copy nvram vars into locally-allocated multi-string array */
-int BCMINITFN(bcm_nvram_cache) (void *sih) {
+int BCMINITFN(bcm_nvram_cache) (void *sih)
+{
 	int ret = 0;
 	void *osh;
 	char *flash = NULL;
@@ -1254,7 +1262,8 @@ uint16 BCMROMFN(hndcrc16) (uint8 *pdata,	/* pointer to array of data to process 
  * *buflen is not modified if the TLV elt parameter is invalid, or is decremented
  * by the TLV parameter's length if it is valid.
  */
-bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen) {
+bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen)
+{
 	int len;
 
 	/* validate current elt */
@@ -1278,7 +1287,8 @@ bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen) {
  * triples, returning a pointer to the substring whose first element
  * matches tag
  */
-bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen, uint key) {
+bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen, uint key)
+{
 	bcm_tlv_t *elt;
 	int totlen;
 
@@ -1306,7 +1316,8 @@ bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen, uint key) {
  * matches tag.  Stop parsing when we see an element whose ID is greater
  * than the target key.
  */
-bcm_tlv_t *BCMROMFN(bcm_parse_ordered_tlvs) (void *buf, int buflen, uint key) {
+bcm_tlv_t *BCMROMFN(bcm_parse_ordered_tlvs) (void *buf, int buflen, uint key)
+{
 	bcm_tlv_t *elt;
 	int totlen;
 
@@ -1589,7 +1600,8 @@ static const uint16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
 /* 185: */ 42170, 44668, 47315, 50119, 53088, 56234, 59566, 63096
 };
 
-uint16 BCMROMFN(bcm_qdbm_to_mw) (uint8 qdbm) {
+uint16 BCMROMFN(bcm_qdbm_to_mw) (uint8 qdbm)
+{
 	uint factor = 1;
 	int idx = qdbm - QDBM_OFFSET;
 
@@ -1612,7 +1624,8 @@ uint16 BCMROMFN(bcm_qdbm_to_mw) (uint8 qdbm) {
 	return ((nqdBm_to_mW_map[idx] + factor / 2) / factor);
 }
 
-uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw) {
+uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw)
+{
 	uint8 qdbm;
 	int offset;
 	uint mw_uint = mw;
@@ -1642,7 +1655,8 @@ uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw) {
 	return (qdbm);
 }
 
-uint BCMROMFN(bcm_bitcount) (uint8 *bitmap, uint length) {
+uint BCMROMFN(bcm_bitcount) (uint8 *bitmap, uint length)
+{
 	uint bitcount = 0, i;
 	uint8 tmp;
 	for (i = 0; i < length; i++) {

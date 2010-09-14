@@ -158,7 +158,8 @@ antsel_info_t *BCMNMIATTACHFN(wlc_antsel_attach) (wlc_info_t *wlc, osl_t *osh,
 	return asi;
 }
 
-void BCMATTACHFN(wlc_antsel_detach) (antsel_info_t *asi) {
+void BCMATTACHFN(wlc_antsel_detach) (antsel_info_t *asi)
+{
 	if (!asi)
 		return;
 

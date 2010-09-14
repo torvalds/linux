@@ -79,7 +79,8 @@ wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t *pub,
 	return eq;
 }
 
-int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t *eq) {
+int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t *eq)
+{
 	/* Clean up pending events */
 	wlc_eventq_down(eq);
 
@@ -97,7 +98,8 @@ int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t *eq) {
 	return 0;
 }
 
-int BCMUNINITFN(wlc_eventq_down) (wlc_eventq_t *eq) {
+int BCMUNINITFN(wlc_eventq_down) (wlc_eventq_t *eq)
+{
 	int callbacks = 0;
 	if (eq->tpending && !eq->workpending) {
 		if (!wl_del_timer(eq->wl, eq->timer))

@@ -105,7 +105,8 @@ static void ai_hwfixup(si_info_t *sii)
 }
 
 /* parse the enumeration rom to identify all cores */
-void BCMATTACHFN(ai_scan) (si_t *sih, void *regs, uint devid) {
+void BCMATTACHFN(ai_scan) (si_t *sih, void *regs, uint devid)
+{
 	si_info_t *sii = SI_INFO(sih);
 	chipcregs_t *cc = (chipcregs_t *) regs;
 	uint32 erombase, *eromptr, *eromlim;

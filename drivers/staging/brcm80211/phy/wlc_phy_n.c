@@ -14209,7 +14209,8 @@ bool wlc_phy_bist_check_phy(wlc_phy_t *pih)
 	return FALSE;
 }
 
-static void WLBANDINITFN(wlc_phy_bphy_init_nphy) (phy_info_t *pi) {
+static void WLBANDINITFN(wlc_phy_bphy_init_nphy) (phy_info_t *pi)
+{
 	uint16 addr, val;
 
 	ASSERT(ISNPHY(pi));
@@ -14266,7 +14267,8 @@ wlc_phy_table_read_nphy(phy_info_t *pi, uint32 id, uint32 len, uint32 offset,
 	wlc_phy_read_table_nphy(pi, &tbl);
 }
 
-static void WLBANDINITFN(wlc_phy_static_table_download_nphy) (phy_info_t *pi) {
+static void WLBANDINITFN(wlc_phy_static_table_download_nphy) (phy_info_t *pi)
+{
 	uint idx;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 16)) {
@@ -14288,7 +14290,8 @@ static void WLBANDINITFN(wlc_phy_static_table_download_nphy) (phy_info_t *pi) {
 	}
 }
 
-static void WLBANDINITFN(wlc_phy_tbl_init_nphy) (phy_info_t *pi) {
+static void WLBANDINITFN(wlc_phy_tbl_init_nphy) (phy_info_t *pi)
+{
 	uint idx = 0;
 	uint8 antswctrllut;
 
@@ -14499,7 +14502,8 @@ bool wlc_phy_attach_nphy(phy_info_t *pi)
 	return TRUE;
 }
 
-static void BCMATTACHFN(wlc_phy_txpwrctrl_config_nphy) (phy_info_t *pi) {
+static void BCMATTACHFN(wlc_phy_txpwrctrl_config_nphy) (phy_info_t *pi)
+{
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		pi->nphy_txpwrctrl = PHY_TPC_HW_ON;
@@ -14518,7 +14522,8 @@ static void BCMATTACHFN(wlc_phy_txpwrctrl_config_nphy) (phy_info_t *pi) {
 		pi->phy_5g_pwrgain = TRUE;
 }
 
-void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi) {
+void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
+{
 	uint16 val;
 	uint16 clip1_ths[2];
 	nphy_txgains_t target_gain;
@@ -27740,7 +27745,8 @@ wlc_phy_mcs_to_ofdm_powers_nphy(uint8 *power, uint8 rate_ofdm_start,
 	}
 }
 
-void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi) {
+void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi)
+{
 	uint rate1, rate2, band_num;
 	uint8 tmp_bw40po = 0, tmp_cddpo = 0, tmp_stbcpo = 0;
 	uint8 tmp_max_pwr = 0;
@@ -27937,7 +27943,8 @@ void BCMNMIATTACHFN(wlc_phy_txpwr_apply_nphy) (phy_info_t *pi) {
 	return;
 }
 
-static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi) {
+static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi)
+{
 	uint16 bw40po, cddpo, stbcpo, bwduppo;
 	uint band_num;
 
@@ -28144,7 +28151,8 @@ static void BCMATTACHFN(wlc_phy_txpwr_srom_read_ppr_nphy) (phy_info_t *pi) {
 	wlc_phy_txpwr_apply_nphy(pi);
 }
 
-static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_nphy) (phy_info_t *pi) {
+static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_nphy) (phy_info_t *pi)
+{
 
 	pi->antswitch = (uint8) PHY_GETINTVAR(pi, "antswitch");
 	pi->aa2g = (uint8) PHY_GETINTVAR(pi, "aa2g");

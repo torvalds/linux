@@ -397,7 +397,8 @@ bool wlc_ps_allowed(wlc_info_t *wlc)
 	return TRUE;
 }
 
-void BCMINITFN(wlc_reset) (wlc_info_t *wlc) {
+void BCMINITFN(wlc_reset) (wlc_info_t *wlc)
+{
 	WL_TRACE(("wl%d: wlc_reset\n", wlc->pub->unit));
 
 	wlc->check_for_unaligned_tbtt = FALSE;
@@ -443,7 +444,8 @@ void wlc_fatal_error(wlc_info_t *wlc)
  * if other configurations are in conflict (bandlocked, 11n mode disabled,
  * invalid channel for current country, etc.)
  */
-static chanspec_t BCMINITFN(wlc_init_chanspec) (wlc_info_t *wlc) {
+static chanspec_t BCMINITFN(wlc_init_chanspec) (wlc_info_t *wlc)
+{
 	chanspec_t chanspec =
 	    1 | WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE |
 	    WL_CHANSPEC_BAND_2G;
@@ -466,7 +468,8 @@ static void wlc_init_scb(wlc_info_t *wlc, struct scb *scb)
 		scb->seqnum[i] = 0;
 }
 
-void BCMINITFN(wlc_init) (wlc_info_t *wlc) {
+void BCMINITFN(wlc_init) (wlc_info_t *wlc)
+{
 	d11regs_t *regs;
 	chanspec_t chanspec;
 	int i;
@@ -1326,7 +1329,8 @@ static void wlc_bandinit_ordered(wlc_info_t *wlc, chanspec_t chanspec)
 }
 
 /* band-specific init */
-static void WLBANDINITFN(wlc_bsinit) (wlc_info_t *wlc) {
+static void WLBANDINITFN(wlc_bsinit) (wlc_info_t *wlc)
+{
 	WL_TRACE(("wl%d: wlc_bsinit: bandunit %d\n", wlc->pub->unit,
 		  wlc->band->bandunit));
 
@@ -1343,7 +1347,8 @@ static void WLBANDINITFN(wlc_bsinit) (wlc_info_t *wlc) {
 }
 
 /* switch to and initialize new band */
-static void WLBANDINITFN(wlc_setband) (wlc_info_t *wlc, uint bandunit) {
+static void WLBANDINITFN(wlc_setband) (wlc_info_t *wlc, uint bandunit)
+{
 	int idx;
 	wlc_bsscfg_t *cfg;
 
@@ -1562,7 +1567,8 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 
 }
 
-bool BCMATTACHFN(wlc_timers_init) (wlc_info_t *wlc, int unit) {
+bool BCMATTACHFN(wlc_timers_init) (wlc_info_t *wlc, int unit)
+{
 	if (!
 	    (wlc->wdtimer =
 	     wl_init_timer(wlc->wl, wlc_watchdog_by_timer, wlc, "watchdog"))) {
@@ -1588,7 +1594,8 @@ bool BCMATTACHFN(wlc_timers_init) (wlc_info_t *wlc, int unit) {
  * Initialize wlc_info default values ...
  * may get overrides later in this function
  */
-void BCMATTACHFN(wlc_info_init) (wlc_info_t *wlc, int unit) {
+void BCMATTACHFN(wlc_info_init) (wlc_info_t *wlc, int unit)
+{
 	int i;
 	/* Assume the device is there until proven otherwise */
 	wlc->device_present = TRUE;
@@ -1712,7 +1719,8 @@ static bool wlc_state_bmac_sync(wlc_info_t *wlc)
 	return TRUE;
 }
 
-static uint BCMATTACHFN(wlc_attach_module) (wlc_info_t *wlc) {
+static uint BCMATTACHFN(wlc_attach_module) (wlc_info_t *wlc)
+{
 	uint err = 0;
 	uint unit;
 	unit = wlc->pub->unit;
@@ -2080,7 +2088,8 @@ void *BCMATTACHFN(wlc_attach) (void *wl, uint16 vendor, uint16 device,
 	return (NULL);
 }
 
-static void BCMNMIATTACHFN(wlc_attach_antgain_init) (wlc_info_t *wlc) {
+static void BCMNMIATTACHFN(wlc_attach_antgain_init) (wlc_info_t *wlc)
+{
 	uint unit;
 	unit = wlc->pub->unit;
 
@@ -2110,7 +2119,8 @@ static void BCMNMIATTACHFN(wlc_attach_antgain_init) (wlc_info_t *wlc) {
 	}
 }
 
-static bool BCMATTACHFN(wlc_attach_stf_ant_init) (wlc_info_t *wlc) {
+static bool BCMATTACHFN(wlc_attach_stf_ant_init) (wlc_info_t *wlc)
+{
 	int aa;
 	uint unit;
 	char *vars;
@@ -2277,7 +2287,8 @@ int wlc_bmac_detach(wlc_info_t *wlc)
 
 #endif				/* WLC_HIGH_ONLY */
 
-static void BCMATTACHFN(wlc_timers_deinit) (wlc_info_t *wlc) {
+static void BCMATTACHFN(wlc_timers_deinit) (wlc_info_t *wlc)
+{
 	/* free timer state */
 	if (wlc->wdtimer) {
 		wl_free_timer(wlc->wl, wlc->wdtimer);
@@ -2289,7 +2300,8 @@ static void BCMATTACHFN(wlc_timers_deinit) (wlc_info_t *wlc) {
 	}
 }
 
-static void BCMATTACHFN(wlc_detach_module) (wlc_info_t *wlc) {
+static void BCMATTACHFN(wlc_detach_module) (wlc_info_t *wlc)
+{
 	if (wlc->asi) {
 		wlc_antsel_detach(wlc->asi);
 		wlc->asi = NULL;
@@ -2311,7 +2323,8 @@ static void BCMATTACHFN(wlc_detach_module) (wlc_info_t *wlc) {
  *    One exception is sb register access, which is possible if crystal is turned on
  * After "down" state, driver should avoid software timer with the exception of radio_monitor.
  */
-uint BCMATTACHFN(wlc_detach) (wlc_info_t *wlc) {
+uint BCMATTACHFN(wlc_detach) (wlc_info_t *wlc)
+{
 	uint i;
 	uint callbacks = 0;
 
@@ -2728,7 +2741,8 @@ static void wlc_watchdog(void *arg)
 }
 
 /* make interface operational */
-int BCMINITFN(wlc_up) (wlc_info_t *wlc) {
+int BCMINITFN(wlc_up) (wlc_info_t *wlc)
+{
 	WL_TRACE(("wl%d: %s:\n", wlc->pub->unit, __func__));
 
 	/* HW is turned off so don't try to access it */
@@ -2835,7 +2849,8 @@ int BCMINITFN(wlc_up) (wlc_info_t *wlc) {
 }
 
 /* Initialize the base precedence map for dequeueing from txq based on WME settings */
-static void BCMINITFN(wlc_tx_prec_map_init) (wlc_info_t *wlc) {
+static void BCMINITFN(wlc_tx_prec_map_init) (wlc_info_t *wlc)
+{
 	wlc->tx_prec_map = WLC_PREC_BMP_ALL;
 	bzero(wlc->fifo2prec_map, sizeof(uint16) * NFIFO);
 
@@ -2853,7 +2868,8 @@ static void BCMINITFN(wlc_tx_prec_map_init) (wlc_info_t *wlc) {
 	}
 }
 
-static uint BCMUNINITFN(wlc_down_del_timer) (wlc_info_t *wlc) {
+static uint BCMUNINITFN(wlc_down_del_timer) (wlc_info_t *wlc)
+{
 	uint callbacks = 0;
 
 	return callbacks;
@@ -2864,7 +2880,8 @@ static uint BCMUNINITFN(wlc_down_del_timer) (wlc_info_t *wlc) {
  * disable the hardware, free any transient buffer state.
  * Return a count of the number of driver callbacks still pending.
  */
-uint BCMUNINITFN(wlc_down) (wlc_info_t *wlc) {
+uint BCMUNINITFN(wlc_down) (wlc_info_t *wlc)
+{
 
 	uint callbacks = 0;
 	int i;
@@ -8505,7 +8522,8 @@ void wlc_default_rateset(wlc_info_t *wlc, wlc_rateset_t *rs)
 			    wlc->stf->txstreams);
 }
 
-static void BCMATTACHFN(wlc_bss_default_init) (wlc_info_t *wlc) {
+static void BCMATTACHFN(wlc_bss_default_init) (wlc_info_t *wlc)
+{
 	chanspec_t chanspec;
 	wlcband_t *band;
 	wlc_bss_info_t *bi = wlc->default_bss;

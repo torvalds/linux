@@ -290,7 +290,8 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	return TRUE;
 }
 
-static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars) {
+static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
+{
 	uint w = 0;
 
 	/* get boardtype and boardrev */
@@ -666,7 +667,8 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 #endif				/* BCMSDIO */
 
 /* may be called with core in reset */
-void BCMATTACHFN(si_detach) (si_t *sih) {
+void BCMATTACHFN(si_detach) (si_t *sih)
+{
 	si_info_t *sii;
 	uint idx;
 
@@ -1108,7 +1110,8 @@ int si_corebist(si_t *sih)
 	return result;
 }
 
-static uint32 BCMINITFN(factor6) (uint32 x) {
+static uint32 BCMINITFN(factor6) (uint32 x)
+{
 	switch (x) {
 	case CC_F6_2:
 		return 2;
@@ -1128,7 +1131,8 @@ static uint32 BCMINITFN(factor6) (uint32 x) {
 }
 
 /* calculate the speed the SI would run at given a set of clockcontrol values */
-uint32 BCMINITFN(si_clock_rate) (uint32 pll_type, uint32 n, uint32 m) {
+uint32 BCMINITFN(si_clock_rate) (uint32 pll_type, uint32 n, uint32 m)
+{
 	uint32 n1, n2, clock, m1, m2, m3, mc;
 
 	n1 = n & CN_N1_MASK;
@@ -1212,7 +1216,8 @@ uint32 BCMINITFN(si_clock_rate) (uint32 pll_type, uint32 n, uint32 m) {
 	}
 }
 
-uint32 BCMINITFN(si_clock) (si_t *sih) {
+uint32 BCMINITFN(si_clock) (si_t *sih)
+{
 	si_info_t *sii;
 	chipcregs_t *cc;
 	uint32 n, m;
@@ -1254,14 +1259,16 @@ uint32 BCMINITFN(si_clock) (si_t *sih) {
 	return rate;
 }
 
-uint32 BCMINITFN(si_alp_clock) (si_t *sih) {
+uint32 BCMINITFN(si_alp_clock) (si_t *sih)
+{
 	if (PMUCTL_ENAB(sih))
 		return si_pmu_alp_clock(sih, si_osh(sih));
 
 	return ALP_CLOCK;
 }
 
-uint32 BCMINITFN(si_ilp_clock) (si_t *sih) {
+uint32 BCMINITFN(si_ilp_clock) (si_t *sih)
+{
 	if (PMUCTL_ENAB(sih))
 		return si_pmu_ilp_clock(sih, si_osh(sih));
 
@@ -1318,7 +1325,8 @@ void si_watchdog_ms(si_t *sih, uint32 ms)
 	si_watchdog(sih, wd_msticks * ms);
 }
 
-uint16 BCMATTACHFN(si_d11_devid) (si_t *sih) {
+uint16 BCMATTACHFN(si_d11_devid) (si_t *sih)
+{
 	si_info_t *sii = SI_INFO(sih);
 	uint16 device;
 
@@ -1398,7 +1406,8 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 	return (0);
 }
 
-static void BCMINITFN(si_clkctl_setdelay) (si_info_t *sii, void *chipcregs) {
+static void BCMINITFN(si_clkctl_setdelay) (si_info_t *sii, void *chipcregs)
+{
 	chipcregs_t *cc = (chipcregs_t *) chipcregs;
 	uint slowmaxfreq, pll_delay, slowclk;
 	uint pll_on_delay, fref_sel_delay;
@@ -1425,7 +1434,8 @@ static void BCMINITFN(si_clkctl_setdelay) (si_info_t *sii, void *chipcregs) {
 }
 
 /* initialize power control delay registers */
-void BCMINITFN(si_clkctl_init) (si_t *sih) {
+void BCMINITFN(si_clkctl_init) (si_t *sih)
+{
 	si_info_t *sii;
 	uint origidx = 0;
 	chipcregs_t *cc;
@@ -1457,7 +1467,8 @@ void BCMINITFN(si_clkctl_init) (si_t *sih) {
 }
 
 /* return the value suitable for writing to the dot11 core FAST_PWRUP_DELAY register */
-uint16 BCMINITFN(si_clkctl_fast_pwrup_delay) (si_t *sih) {
+uint16 BCMINITFN(si_clkctl_fast_pwrup_delay) (si_t *sih)
+{
 	si_info_t *sii;
 	uint origidx = 0;
 	chipcregs_t *cc;
@@ -1692,7 +1703,8 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 }
 
 /* Build device path. Support SI, PCI, and JTAG for now. */
-int BCMATTACHFN(si_devpath) (si_t *sih, char *path, int size) {
+int BCMATTACHFN(si_devpath) (si_t *sih, char *path, int size)
+{
 	int slen;
 
 	ASSERT(path != NULL);
@@ -1734,7 +1746,8 @@ int BCMATTACHFN(si_devpath) (si_t *sih, char *path, int size) {
 }
 
 /* Get a variable, but only if it has a devpath prefix */
-char *BCMATTACHFN(si_getdevpathvar) (si_t *sih, const char *name) {
+char *BCMATTACHFN(si_getdevpathvar) (si_t *sih, const char *name)
+{
 	char varname[SI_DEVPATH_BUFSZ + 32];
 
 	si_devpathvar(sih, varname, sizeof(varname), name);
@@ -1743,7 +1756,8 @@ char *BCMATTACHFN(si_getdevpathvar) (si_t *sih, const char *name) {
 }
 
 /* Get a variable, but only if it has a devpath prefix */
-int BCMATTACHFN(si_getdevpathintvar) (si_t *sih, const char *name) {
+int BCMATTACHFN(si_getdevpathintvar) (si_t *sih, const char *name)
+{
 #if defined(BCMBUSTYPE) && (BCMBUSTYPE == SI_BUS)
 	return (getintvar(NULL, name));
 #else
@@ -1903,7 +1917,8 @@ void si_sdio_init(si_t *sih)
 }
 #endif				/* BCMSDIO */
 
-bool BCMATTACHFN(si_pci_war16165) (si_t *sih) {
+bool BCMATTACHFN(si_pci_war16165) (si_t *sih)
+{
 	si_info_t *sii;
 
 	sii = SI_INFO(sih);
@@ -1938,7 +1953,8 @@ void si_chippkg_set(si_t *sih, uint val)
 	sii->pub.chippkg = val;
 }
 
-void BCMINITFN(si_pci_up) (si_t *sih) {
+void BCMINITFN(si_pci_up) (si_t *sih)
+{
 	si_info_t *sii;
 
 	sii = SI_INFO(sih);
@@ -1956,7 +1972,8 @@ void BCMINITFN(si_pci_up) (si_t *sih) {
 }
 
 /* Unconfigure and/or apply various WARs when system is going to sleep mode */
-void BCMUNINITFN(si_pci_sleep) (si_t *sih) {
+void BCMUNINITFN(si_pci_sleep) (si_t *sih)
+{
 	si_info_t *sii;
 
 	sii = SI_INFO(sih);
@@ -1965,7 +1982,8 @@ void BCMUNINITFN(si_pci_sleep) (si_t *sih) {
 }
 
 /* Unconfigure and/or apply various WARs when going down */
-void BCMINITFN(si_pci_down) (si_t *sih) {
+void BCMINITFN(si_pci_down) (si_t *sih)
+{
 	si_info_t *sii;
 
 	sii = SI_INFO(sih);
@@ -1985,7 +2003,8 @@ void BCMINITFN(si_pci_down) (si_t *sih) {
  * Configure the pci core for pci client (NIC) action
  * coremask is the bitvec of cores by index to be enabled.
  */
-void BCMATTACHFN(si_pci_setup) (si_t *sih, uint coremask) {
+void BCMATTACHFN(si_pci_setup) (si_t *sih, uint coremask)
+{
 	si_info_t *sii;
 	sbpciregs_t *pciregs = NULL;
 	uint32 siflag = 0, w;
@@ -2404,7 +2423,8 @@ void *BCMATTACHFN(si_gpio_handler_register) (si_t *sih, uint32 event,
 	return (void *)(gi);
 }
 
-void BCMATTACHFN(si_gpio_handler_unregister) (si_t *sih, void *gpioh) {
+void BCMATTACHFN(si_gpio_handler_unregister) (si_t *sih, void *gpioh)
+{
 	si_info_t *sii;
 	gpioh_item_t *p, *n;
 

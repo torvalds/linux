@@ -508,7 +508,8 @@ void mod_phy_reg(phy_info_t *pi, uint16 addr, uint16 mask, uint16 val)
 	pi->phy_wreg = 0;
 }
 
-static void WLBANDINITFN(wlc_set_phy_uninitted) (phy_info_t *pi) {
+static void WLBANDINITFN(wlc_set_phy_uninitted) (phy_info_t *pi)
+{
 	int i, j;
 
 	pi->initialized = FALSE;
@@ -544,7 +545,8 @@ static void WLBANDINITFN(wlc_set_phy_uninitted) (phy_info_t *pi) {
 	}
 }
 
-shared_phy_t *BCMATTACHFN(wlc_phy_shared_attach) (shared_phy_params_t *shp) {
+shared_phy_t *BCMATTACHFN(wlc_phy_shared_attach) (shared_phy_params_t *shp)
+{
 	shared_phy_t *sh;
 
 	if ((sh =
@@ -582,7 +584,8 @@ shared_phy_t *BCMATTACHFN(wlc_phy_shared_attach) (shared_phy_params_t *shp) {
 	return sh;
 }
 
-void BCMATTACHFN(wlc_phy_shared_detach) (shared_phy_t *phy_sh) {
+void BCMATTACHFN(wlc_phy_shared_detach) (shared_phy_t *phy_sh)
+{
 	osl_t *osh;
 
 	if (phy_sh) {
@@ -774,7 +777,8 @@ wlc_phy_t *BCMATTACHFN(wlc_phy_attach) (shared_phy_t *sh, void *regs,
 	return NULL;
 }
 
-void BCMATTACHFN(wlc_phy_detach) (wlc_phy_t *pih) {
+void BCMATTACHFN(wlc_phy_detach) (wlc_phy_t *pih)
+{
 	phy_info_t *pi = (phy_info_t *) pih;
 
 	if (pih) {
@@ -912,7 +916,8 @@ uint32 wlc_phy_clk_bwbits(wlc_phy_t *pih)
 	return phy_bw_clkbits;
 }
 
-void WLBANDINITFN(wlc_phy_por_inform) (wlc_phy_t *ppi) {
+void WLBANDINITFN(wlc_phy_por_inform) (wlc_phy_t *ppi)
+{
 	phy_info_t *pi = (phy_info_t *) ppi;
 
 	pi->phy_init_por = TRUE;
@@ -957,7 +962,8 @@ void wlc_phy_hw_state_upd(wlc_phy_t *pih, bool newstate)
 	pi->sh->up = newstate;
 }
 
-void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec) {
+void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
+{
 	uint32 mc;
 	initfn_t phy_init = NULL;
 	phy_info_t *pi = (phy_info_t *) pih;
@@ -1016,7 +1022,8 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec) {
 	pi->init_in_progress = FALSE;
 }
 
-void BCMINITFN(wlc_phy_cal_init) (wlc_phy_t *pih) {
+void BCMINITFN(wlc_phy_cal_init) (wlc_phy_t *pih)
+{
 	phy_info_t *pi = (phy_info_t *) pih;
 	initfn_t cal_init = NULL;
 
@@ -1031,7 +1038,8 @@ void BCMINITFN(wlc_phy_cal_init) (wlc_phy_t *pih) {
 	}
 }
 
-int BCMUNINITFN(wlc_phy_down) (wlc_phy_t *pih) {
+int BCMUNINITFN(wlc_phy_down) (wlc_phy_t *pih)
+{
 	phy_info_t *pi = (phy_info_t *) pih;
 	int callbacks = 0;
 

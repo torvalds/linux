@@ -90,13 +90,15 @@ static int initvars_table(osl_t *osh, char *start, char *end, char **vars,
 static int initvars_flash(si_t *sih, osl_t *osh, char **vp, uint len);
 
 /* Initialization of varbuf structure */
-static void BCMATTACHFN(varbuf_init) (varbuf_t *b, char *buf, uint size) {
+static void BCMATTACHFN(varbuf_init) (varbuf_t *b, char *buf, uint size)
+{
 	b->size = size;
 	b->base = b->buf = buf;
 }
 
 /* append a null terminated var=value string */
-static int BCMATTACHFN(varbuf_append) (varbuf_t *b, const char *fmt, ...) {
+static int BCMATTACHFN(varbuf_append) (varbuf_t *b, const char *fmt, ...)
+{
 	va_list ap;
 	int r;
 	size_t len;
@@ -1582,7 +1584,8 @@ BCMATTACHFN(initvars_table) (osl_t *osh, char *start, char *end, char **vars,
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_flash) (si_t *sih, osl_t *osh, char **base, uint len) {
+BCMATTACHFN(initvars_flash) (si_t *sih, osl_t *osh, char **base, uint len)
+{
 	char *vp = *base;
 	char *flash;
 	int err;
@@ -1638,7 +1641,8 @@ BCMATTACHFN(initvars_flash) (si_t *sih, osl_t *osh, char **base, uint len) {
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_flash_si) (si_t *sih, char **vars, uint *count) {
+BCMATTACHFN(initvars_flash_si) (si_t *sih, char **vars, uint *count)
+{
 	osl_t *osh = si_osh(sih);
 	char *vp, *base;
 	int err;
@@ -1992,7 +1996,8 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count) {
+BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count)
+{
 	uint8 *cis[SBSDIO_NUM_FUNCTION + 1];
 	uint fn, numfn;
 	int rc = 0;
@@ -2026,7 +2031,8 @@ BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count) {
 }
 
 /* set SDIO sprom command register */
-static int BCMATTACHFN(sprom_cmd_sdio) (osl_t *osh, uint8 cmd) {
+static int BCMATTACHFN(sprom_cmd_sdio) (osl_t *osh, uint8 cmd)
+{
 	uint8 status = 0;
 	uint wait_cnt = 1000;
 

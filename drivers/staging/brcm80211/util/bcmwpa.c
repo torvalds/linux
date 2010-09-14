@@ -39,7 +39,8 @@ bool bcm_is_wfa_ie(uint8 *ie, uint8 **tlvs, uint *tlvs_len, uint8 type)
 	return FALSE;
 }
 
-wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (uint8 * parse, uint len) {
+wpa_ie_fixed_t *BCMROMFN(bcm_find_wpaie) (uint8 * parse, uint len)
+{
 	bcm_tlv_t *ie;
 
 	while ((ie = bcm_parse_tlvs(parse, len, DOT11_MNG_VS_ID))) {
