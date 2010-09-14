@@ -112,18 +112,6 @@ static const u8 aic3x_reg[AIC3X_CACHEREGNUM] = {
 };
 
 /*
- * read aic3x register cache
- */
-static inline unsigned int aic3x_read_reg_cache(struct snd_soc_codec *codec,
-						unsigned int reg)
-{
-	u8 *cache = codec->reg_cache;
-	if (reg >= AIC3X_CACHEREGNUM)
-		return -1;
-	return cache[reg];
-}
-
-/*
  * write aic3x register cache
  */
 static inline void aic3x_write_reg_cache(struct snd_soc_codec *codec,
@@ -133,28 +121,6 @@ static inline void aic3x_write_reg_cache(struct snd_soc_codec *codec,
 	if (reg >= AIC3X_CACHEREGNUM)
 		return;
 	cache[reg] = value;
-}
-
-/*
- * write to the aic3x register space
- */
-static int aic3x_write(struct snd_soc_codec *codec, unsigned int reg,
-		       unsigned int value)
-{
-	u8 data[2];
-
-	/* data is
-	 *   D15..D8 aic3x register offset
-	 *   D7...D0 register data
-	 */
-	data[0] = reg & 0xff;
-	data[1] = value & 0xff;
-
-	aic3x_write_reg_cache(codec, data[0], data[1]);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
 }
 
 /*
@@ -1299,9 +1265,15 @@ static int aic3x_init(struct snd_soc_codec *codec)
 static int aic3x_probe(struct snd_soc_codec *codec)
 {
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
-	codec->hw_write = (hw_write_t) i2c_master_send;
 	codec->control_data = aic3x->control_data;
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, aic3x->control_type);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
+	}
 
 	aic3x_init(codec);
 
@@ -1330,8 +1302,6 @@ static int aic3x_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_aic3x = {
-	.read = aic3x_read_reg_cache,
-	.write = aic3x_write,
 	.set_bias_level = aic3x_set_bias_level,
 	.reg_cache_size = ARRAY_SIZE(aic3x_reg),
 	.reg_word_size = sizeof(u8),
@@ -1375,6 +1345,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	}
 
 	aic3x->control_data = i2c;
+	aic3x->control_type = SND_SOC_I2C;
+
 	i2c_set_clientdata(i2c, aic3x);
 	if (pdata) {
 		aic3x->gpio_reset = pdata->gpio_reset;
