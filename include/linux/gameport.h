@@ -55,7 +55,7 @@ struct gameport {
 struct gameport_driver {
 
 	void *private;
-	char *description;
+	const char *description;
 
 	int (*connect)(struct gameport *, struct gameport_driver *drv);
 	int (*reconnect)(struct gameport *);
