@@ -159,40 +159,34 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 		wl1271_error("sdio write failed (%d)", ret);
 }
 
-static int wl1271_sdio_power_on(struct wl1271 *wl)
+static void wl1271_sdio_power_on(struct wl1271 *wl)
 {
 	struct sdio_func *func = wl_to_func(wl);
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);
 	sdio_release_host(func);
-
-	return 0;
 }
 
-static int wl1271_sdio_power_off(struct wl1271 *wl)
+static void wl1271_sdio_power_off(struct wl1271 *wl)
 {
 	struct sdio_func *func = wl_to_func(wl);
 
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
-
-	return 0;
 }
 
 static void wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 {
-	struct sdio_func *func = wl_to_func(wl);
-
 	/* Let the SDIO stack handle wlan_enable control, so we
 	 * keep host claimed while wlan is in use to keep wl1271
 	 * alive.
 	 */
 	if (enable)
-		return wl1271_sdio_power_on(wl);
+		wl1271_sdio_power_on(wl);
 	else
-		return wl1271_sdio_power_off(wl);
+		wl1271_sdio_power_off(wl);
 
 }
 
