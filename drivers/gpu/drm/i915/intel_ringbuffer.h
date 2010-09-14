@@ -16,7 +16,6 @@ struct  intel_ring_buffer {
 			u32 tail;
 			u32 start;
 	} regs;
-	unsigned int	ring_flag;
 	unsigned long	size;
 	unsigned int	alignment;
 	void		*virtual_start;

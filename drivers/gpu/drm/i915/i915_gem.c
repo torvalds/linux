@@ -1580,9 +1580,8 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 				 gpu_write_list) {
 		struct drm_gem_object *obj = &obj_priv->base;
 
-		if ((obj->write_domain & flush_domains) ==
-		    obj->write_domain &&
-		    obj_priv->ring->ring_flag == ring->ring_flag) {
+		if (obj->write_domain & flush_domains &&
+		    obj_priv->ring == ring) {
 			uint32_t old_write_domain = obj->write_domain;
 
 			obj->write_domain = 0;

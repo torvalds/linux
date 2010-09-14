@@ -805,7 +805,6 @@ struct intel_ring_buffer render_ring = {
 		.tail = PRB0_TAIL,
 		.start = PRB0_START
 	},
-	.ring_flag		= I915_EXEC_RENDER,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
 	.virtual_start		= NULL,
@@ -843,7 +842,6 @@ struct intel_ring_buffer bsd_ring = {
 		.tail = BSD_RING_TAIL,
 		.start = BSD_RING_START
 	},
-	.ring_flag		= I915_EXEC_BSD,
 	.size			= 32 * PAGE_SIZE,
 	.alignment		= PAGE_SIZE,
 	.virtual_start		= NULL,
