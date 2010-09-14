@@ -260,8 +260,6 @@ void __init time_init(void)
 #endif
 	const char * const timer_list[] = {
 		"xlnx,xps-timer-1.00.a",
-		"xlnx,opb-timer-1.00.b",
-		"xlnx,opb-timer-1.00.a",
 		NULL
 	};
 

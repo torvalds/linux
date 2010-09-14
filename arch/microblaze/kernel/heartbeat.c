@@ -49,7 +49,6 @@ void setup_heartbeat(void)
 	int j;
 	const char * const gpio_list[] = {
 		"xlnx,xps-gpio-1.00.a",
-		"xlnx,opb-gpio-1.00.a",
 		NULL
 	};
 

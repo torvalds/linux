@@ -128,9 +128,6 @@ void __init init_IRQ(void)
 #endif
 	const char * const intc_list[] = {
 				"xlnx,xps-intc-1.00.a",
-				"xlnx,opb-intc-1.00.c",
-				"xlnx,opb-intc-1.00.b",
-				"xlnx,opb-intc-1.00.a",
 				NULL
 			};
 
