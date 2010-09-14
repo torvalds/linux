@@ -370,7 +370,7 @@ static const char BCMATTACHDATA(vstr_macaddr)[] = "macaddr=%s";
 static const char BCMATTACHDATA(vstr_usbepnum)[] = "usbepnum=0x%x";
 static const char BCMATTACHDATA(vstr_end)[] = "END\0";
 
-uint8 patch_pair = 0;
+uint8 patch_pair;
 
 /* For dongle HW, accept partial calibration parameters */
 #define BCMDONGLECASE(n)
