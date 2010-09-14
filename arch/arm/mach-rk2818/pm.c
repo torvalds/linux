@@ -81,15 +81,6 @@ static inline u32 sdram_get_mem_type(void)
 #define MODE5_CNT(n)       (((n) & 0xFFFF) << 16)
 #define CTRL_REG_62        0xf8  // LOWPOWER_INTERNAL_CNT/LOWPOWER_EXTERNAL_CNT.
 
-/****************************************************************/
-//函数名: sdram_enter_self_refresh
-//描述: SDRAM进入自刷新模式
-//参数说明:
-//返回值: 对于DDR就是CTRL_REG_62的值，供sdram_exit_self_refresh使用
-//相关全局变量:
-//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
-//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
-/****************************************************************/
 u32 __tcmfunc sdram_enter_self_refresh(void)
 {
 	u32 r;
@@ -100,7 +91,7 @@ u32 __tcmfunc sdram_enter_self_refresh(void)
 	case MOBILE_SDRAM:
 		msdr_writel(msdr_readl(MSDR_SCTLR) | ENTER_SELF_REFRESH, MSDR_SCTLR);
 
-		while (!(msdr_readl(MSDR_SCTLR) & SR_MODE));  //确定已经进入self-refresh
+		while (!(msdr_readl(MSDR_SCTLR) & SR_MODE));  
 
 		/* Disable Mobile SDRAM/SDRAM Common/Controller hclk clock */
 		r = scu_readl(SCU_CLKGATE1_CON);
@@ -116,22 +107,13 @@ u32 __tcmfunc sdram_enter_self_refresh(void)
 	case MOBILE_DDR:
 		r = ddr_readl(CTRL_REG_62);
 		ddr_writel((r & ~MODE5_MASK) | MODE5_CNT(1), CTRL_REG_62);
-		//FIXME: 等待进入self-refresh
+		
 		break;
 	}
 
 	return r;
 }
 
-/****************************************************************/
-//函数名: sdram_exit_self_refresh
-//描述: SDRAM退出自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
-//     (2)必须保证运行时这个函数的代码不在SDRAM上
-/****************************************************************/
 void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
 {
 	u32 r;
@@ -152,7 +134,7 @@ void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
 
 		msdr_writel(msdr_readl(MSDR_SCTLR) & ~ENTER_SELF_REFRESH, MSDR_SCTLR);
 
-		while (msdr_readl(MSDR_SCTLR) & SR_MODE);  //确定退出进入self-refresh
+		while (msdr_readl(MSDR_SCTLR) & SR_MODE);  
 		break;
 
 	case DDRII:
@@ -161,9 +143,9 @@ void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
 		break;
 	}
 
-	tcm_udelay(100, 24); //DRVDelayUs(100); 延时一下比较安全，保证退出后稳定
+	tcm_udelay(100, 24); //DRVDelayUs(100); 
 }
-#define RK2818_MOBLIE_PM_CON
+//#define RK2818_MOBLIE_PM_CON
 #ifdef RK2818_MOBLIE_PM_CON
 
 #define RK2818_MOBLIE_PM_PRT_ORIGINAL_REG
@@ -297,16 +279,15 @@ static void __tcmfunc rk2818_pm_suspend_first(struct rk2818_pm_st *pm_save)
 	pm_save->gpio1_regbit=0x6db;
 	//pm_save->savereg[0]=rk2818_ddr_reg[82];
 	//rk2818_ddr_reg[82]=rk2818_ddr_reg[82]&(~(0xffff))&(~(0xf<<20));
-	
-	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,0);		//����PMU��DVS��
+	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,0);
 }
 
 static void __tcmfunc rk2818_pm_resume_first(struct rk2818_pm_st *pm_save)
 {
 	unsigned int *rk2818_ddr_reg=(unsigned int *)RK2818_SDRAMC_BASE;
 	
-	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,1);		//����PMU��DVS��
-	
+	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,1);
+
 	//rk2818_ddr_reg[82]=pm_save->save[0];
 
 }
@@ -364,6 +345,10 @@ static void __tcmfunc rk2818_soc_scu_suspend(struct rk2818_pm_st *pm_save)
 
 }
 //  output 1 is a output pin 
+
+
+
+
 
 static void __tcmfunc rk2818_soc_general_cpu_suspend(struct rk2818_pm_st *pm_save)
 {
@@ -465,6 +450,7 @@ static void __tcmfunc rk2818_soc_general_cpu_suspend(struct rk2818_pm_st *pm_sav
 }
 static void rk2818_pm_reg_print(unsigned int *pm_save_reg,unsigned int *pm_ch_reg,int num,char *name)
 {
+
 	 int i;
 
 #ifdef RK2818_MOBLIE_PM_PRT_ORIGINAL_REG
@@ -545,8 +531,12 @@ static int __tcmfunc rk2818_tcm_idle(void)
 	rk2818_pm_suspend_first((struct rk2818_pm_st *)&pm_save.pm_scu_reg);
 	tcm_udelay(1, 24);
 	rk2818_pm_soc_suspend((struct rk2818_pm_st *)&pm_save.pm_scu_reg);
+	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,0);
+
 	tcm_udelay(1, 24);
 	asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,1);
+
 	rk2818_pm_resume_first((struct rk2818_pm_st *)&pm_save.pm_scu_reg);
 	tcm_udelay(1, 24);
 	rk2818_pm_soc_resume((struct rk2818_pm_st *)&pm_save.pm_scu_reg);
@@ -569,7 +559,7 @@ static int __tcmfunc rk2818_tcm_idle(void)
 	tcm_udelay(5, 24);
 
 	scu_writel(scu_mode, SCU_MODE_CON); // normal
-	rk2818_pm_print((struct rk2818_pm_st *)&pm_save.pm_scu_reg);
+	//rk2818_pm_print((struct rk2818_pm_st *)&pm_save.pm_scu_reg);
 	return unit;
 }
 
@@ -587,10 +577,10 @@ static void rk2818_idle(void)
 static int rk2818_pm_enter(suspend_state_t state)
 {
 	int irq_val = 0;
-      struct regulator *buck1;
-	u32 scu_mode = scu_readl(SCU_MODE_CON);
-	u32 scu_apll = scu_readl(SCU_APLL_CON);
-	u32 scu_clksel0 = scu_readl(SCU_CLKSEL0_CON);
+//      struct regulator *buck1;
+//	u32 scu_mode = scu_readl(SCU_MODE_CON);
+//	u32 scu_apll = scu_readl(SCU_APLL_CON);
+//	u32 scu_clksel0 = scu_readl(SCU_CLKSEL0_CON);
 
 	printk(KERN_DEBUG "before core halt\n");
 
@@ -633,4 +623,3 @@ static int __init rk2818_pm_init(void)
 }
 
 __initcall(rk2818_pm_init);
-
