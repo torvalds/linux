@@ -18,15 +18,15 @@
 #define	_siutils_priv_h_
 
 /* Silicon Backplane externs */
-extern void sb_scan(si_t * sih, void *regs, uint devid);
-uint sb_coreid(si_t * sih);
-uint sb_corerev(si_t * sih);
-extern uint sb_corereg(si_t * sih, uint coreidx, uint regoff, uint mask,
+extern void sb_scan(si_t *sih, void *regs, uint devid);
+uint sb_coreid(si_t *sih);
+uint sb_corerev(si_t *sih);
+extern uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		       uint val);
-extern bool sb_iscoreup(si_t * sih);
-void *sb_setcoreidx(si_t * sih, uint coreidx);
+extern bool sb_iscoreup(si_t *sih);
+void *sb_setcoreidx(si_t *sih, uint coreidx);
 extern uint32 sb_base(uint32 admatch);
-extern void sb_core_reset(si_t * sih, uint32 bits, uint32 resetbits);
-extern void sb_core_disable(si_t * sih, uint32 bits);
-extern bool sb_taclear(si_t * sih, bool details);
+extern void sb_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
+extern void sb_core_disable(si_t *sih, uint32 bits);
+extern bool sb_taclear(si_t *sih, bool details);
 #endif				/* _siutils_priv_h_ */

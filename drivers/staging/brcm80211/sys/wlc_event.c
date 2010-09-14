@@ -53,8 +53,8 @@ struct wlc_eventq {
 /*
  * Export functions
  */
-wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t * pub,
-					      struct wlc_info * wlc, void *wl,
+wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t *pub,
+					      struct wlc_info *wlc, void *wl,
 					      wlc_eventq_cb_t cb) {
 	wlc_eventq_t *eq;
 
@@ -79,7 +79,7 @@ wlc_eventq_t *BCMATTACHFN(wlc_eventq_attach) (wlc_pub_t * pub,
 	return eq;
 }
 
-int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t * eq) {
+int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t *eq) {
 	/* Clean up pending events */
 	wlc_eventq_down(eq);
 
@@ -97,7 +97,7 @@ int BCMATTACHFN(wlc_eventq_detach) (wlc_eventq_t * eq) {
 	return 0;
 }
 
-int BCMUNINITFN(wlc_eventq_down) (wlc_eventq_t * eq) {
+int BCMUNINITFN(wlc_eventq_down) (wlc_eventq_t *eq) {
 	int callbacks = 0;
 	if (eq->tpending && !eq->workpending) {
 		if (!wl_del_timer(eq->wl, eq->timer))
@@ -118,7 +118,7 @@ int BCMUNINITFN(wlc_eventq_down) (wlc_eventq_t * eq) {
 	return callbacks;
 }
 
-wlc_event_t *wlc_event_alloc(wlc_eventq_t * eq)
+wlc_event_t *wlc_event_alloc(wlc_eventq_t *eq)
 {
 	wlc_event_t *e;
 
@@ -131,14 +131,14 @@ wlc_event_t *wlc_event_alloc(wlc_eventq_t * eq)
 	return e;
 }
 
-void wlc_event_free(wlc_eventq_t * eq, wlc_event_t * e)
+void wlc_event_free(wlc_eventq_t *eq, wlc_event_t *e)
 {
 	ASSERT(e->data == NULL);
 	ASSERT(e->next == NULL);
 	MFREE(eq->pub->osh, e, sizeof(wlc_event_t));
 }
 
-void wlc_eventq_enq(wlc_eventq_t * eq, wlc_event_t * e)
+void wlc_eventq_enq(wlc_eventq_t *eq, wlc_event_t *e)
 {
 	ASSERT(e->next == NULL);
 	e->next = NULL;
@@ -158,7 +158,7 @@ void wlc_eventq_enq(wlc_eventq_t * eq, wlc_event_t * e)
 	}
 }
 
-wlc_event_t *wlc_eventq_deq(wlc_eventq_t * eq)
+wlc_event_t *wlc_eventq_deq(wlc_eventq_t *eq)
 {
 	wlc_event_t *e;
 
@@ -173,7 +173,7 @@ wlc_event_t *wlc_eventq_deq(wlc_eventq_t * eq)
 	return e;
 }
 
-wlc_event_t *wlc_eventq_next(wlc_eventq_t * eq, wlc_event_t * e)
+wlc_event_t *wlc_eventq_next(wlc_eventq_t *eq, wlc_event_t *e)
 {
 #ifdef BCMDBG
 	wlc_event_t *etmp;
@@ -188,7 +188,7 @@ wlc_event_t *wlc_eventq_next(wlc_eventq_t * eq, wlc_event_t * e)
 	return e->next;
 }
 
-int wlc_eventq_cnt(wlc_eventq_t * eq)
+int wlc_eventq_cnt(wlc_eventq_t *eq)
 {
 	wlc_event_t *etmp;
 	int cnt = 0;
@@ -199,7 +199,7 @@ int wlc_eventq_cnt(wlc_eventq_t * eq)
 	return cnt;
 }
 
-bool wlc_eventq_avail(wlc_eventq_t * eq)
+bool wlc_eventq_avail(wlc_eventq_t *eq)
 {
 	return (eq->head != NULL);
 }

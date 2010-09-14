@@ -20,7 +20,7 @@
 /* Is this body of this tlvs entry a WFA entry? If
  * not update the tlvs buffer pointer/length.
  */
-bool bcm_is_wfa_ie(uint8 * ie, uint8 ** tlvs, uint * tlvs_len, uint8 type)
+bool bcm_is_wfa_ie(uint8 *ie, uint8 **tlvs, uint *tlvs_len, uint8 type)
 {
 	/* If the contents match the WFA_OUI and type */
 	if ((ie[TLV_LEN_OFF] > (WFA_OUI_LEN + 1)) &&

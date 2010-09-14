@@ -31,7 +31,7 @@
 /* EROM parsing */
 
 static uint32
-get_erom_ent(si_t * sih, uint32 ** eromptr, uint32 mask, uint32 match)
+get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 {
 	uint32 ent;
 	uint inv = 0, nom = 0;
@@ -66,8 +66,8 @@ get_erom_ent(si_t * sih, uint32 ** eromptr, uint32 mask, uint32 match)
 }
 
 static uint32
-get_asd(si_t * sih, uint32 ** eromptr, uint sp, uint ad, uint st,
-	uint32 * addrl, uint32 * addrh, uint32 * sizel, uint32 * sizeh)
+get_asd(si_t *sih, uint32 **eromptr, uint sp, uint ad, uint st,
+	uint32 *addrl, uint32 *addrh, uint32 *sizel, uint32 *sizeh)
 {
 	uint32 asd, sz, szd;
 
@@ -100,12 +100,12 @@ get_asd(si_t * sih, uint32 ** eromptr, uint sp, uint ad, uint st,
 	return asd;
 }
 
-static void ai_hwfixup(si_info_t * sii)
+static void ai_hwfixup(si_info_t *sii)
 {
 }
 
 /* parse the enumeration rom to identify all cores */
-void BCMATTACHFN(ai_scan) (si_t * sih, void *regs, uint devid) {
+void BCMATTACHFN(ai_scan) (si_t *sih, void *regs, uint devid) {
 	si_info_t *sii = SI_INFO(sih);
 	chipcregs_t *cc = (chipcregs_t *) regs;
 	uint32 erombase, *eromptr, *eromlim;
@@ -310,7 +310,7 @@ void BCMATTACHFN(ai_scan) (si_t * sih, void *regs, uint devid) {
 /* This function changes the logical "focus" to the indicated core.
  * Return the current core's virtual address.
  */
-void *ai_setcoreidx(si_t * sih, uint coreidx)
+void *ai_setcoreidx(si_t *sih, uint coreidx)
 {
 	si_info_t *sii = SI_INFO(sih);
 	uint32 addr = sii->coresba[coreidx];
@@ -371,13 +371,13 @@ void *ai_setcoreidx(si_t * sih, uint coreidx)
 }
 
 /* Return the number of address spaces in current core */
-int ai_numaddrspaces(si_t * sih)
+int ai_numaddrspaces(si_t *sih)
 {
 	return 2;
 }
 
 /* Return the address of the nth address space in the current core */
-uint32 ai_addrspace(si_t * sih, uint asidx)
+uint32 ai_addrspace(si_t *sih, uint asidx)
 {
 	si_info_t *sii;
 	uint cidx;
@@ -396,7 +396,7 @@ uint32 ai_addrspace(si_t * sih, uint asidx)
 }
 
 /* Return the size of the nth address space in the current core */
-uint32 ai_addrspacesize(si_t * sih, uint asidx)
+uint32 ai_addrspacesize(si_t *sih, uint asidx)
 {
 	si_info_t *sii;
 	uint cidx;
@@ -414,7 +414,7 @@ uint32 ai_addrspacesize(si_t * sih, uint asidx)
 	}
 }
 
-uint ai_flag(si_t * sih)
+uint ai_flag(si_t *sih)
 {
 	si_info_t *sii;
 	aidmp_t *ai;
@@ -429,11 +429,11 @@ uint ai_flag(si_t * sih)
 	return (R_REG(sii->osh, &ai->oobselouta30) & 0x1f);
 }
 
-void ai_setint(si_t * sih, int siflag)
+void ai_setint(si_t *sih, int siflag)
 {
 }
 
-void ai_write_wrap_reg(si_t * sih, uint32 offset, uint32 val)
+void ai_write_wrap_reg(si_t *sih, uint32 offset, uint32 val)
 {
 	si_info_t *sii = SI_INFO(sih);
 	uint32 *w = (uint32 *) sii->curwrap;
@@ -441,7 +441,7 @@ void ai_write_wrap_reg(si_t * sih, uint32 offset, uint32 val)
 	return;
 }
 
-uint ai_corevendor(si_t * sih)
+uint ai_corevendor(si_t *sih)
 {
 	si_info_t *sii;
 	uint32 cia;
@@ -451,7 +451,7 @@ uint ai_corevendor(si_t * sih)
 	return ((cia & CIA_MFG_MASK) >> CIA_MFG_SHIFT);
 }
 
-uint ai_corerev(si_t * sih)
+uint ai_corerev(si_t *sih)
 {
 	si_info_t *sii;
 	uint32 cib;
@@ -461,7 +461,7 @@ uint ai_corerev(si_t * sih)
 	return ((cib & CIB_REV_MASK) >> CIB_REV_SHIFT);
 }
 
-bool ai_iscoreup(si_t * sih)
+bool ai_iscoreup(si_t *sih)
 {
 	si_info_t *sii;
 	aidmp_t *ai;
@@ -483,7 +483,7 @@ bool ai_iscoreup(si_t * sih)
  * Also, when using pci/pcie, we can optimize away the core switching for pci registers
  * and (on newer pci cores) chipcommon registers.
  */
-uint ai_corereg(si_t * sih, uint coreidx, uint regoff, uint mask, uint val)
+uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 {
 	uint origidx = 0;
 	uint32 *r = NULL;
@@ -570,7 +570,7 @@ uint ai_corereg(si_t * sih, uint coreidx, uint regoff, uint mask, uint val)
 	return (w);
 }
 
-void ai_core_disable(si_t * sih, uint32 bits)
+void ai_core_disable(si_t *sih, uint32 bits)
 {
 	si_info_t *sii;
 	volatile uint32 dummy;
@@ -598,7 +598,7 @@ void ai_core_disable(si_t * sih, uint32 bits)
  * bits - core specific bits that are set during and after reset sequence
  * resetbits - core specific bits that are set only during reset sequence
  */
-void ai_core_reset(si_t * sih, uint32 bits, uint32 resetbits)
+void ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 {
 	si_info_t *sii;
 	aidmp_t *ai;
@@ -626,7 +626,7 @@ void ai_core_reset(si_t * sih, uint32 bits, uint32 resetbits)
 	OSL_DELAY(1);
 }
 
-void ai_core_cflags_wo(si_t * sih, uint32 mask, uint32 val)
+void ai_core_cflags_wo(si_t *sih, uint32 mask, uint32 val)
 {
 	si_info_t *sii;
 	aidmp_t *ai;
@@ -651,7 +651,7 @@ void ai_core_cflags_wo(si_t * sih, uint32 mask, uint32 val)
 	}
 }
 
-uint32 ai_core_cflags(si_t * sih, uint32 mask, uint32 val)
+uint32 ai_core_cflags(si_t *sih, uint32 mask, uint32 val)
 {
 	si_info_t *sii;
 	aidmp_t *ai;
@@ -677,7 +677,7 @@ uint32 ai_core_cflags(si_t * sih, uint32 mask, uint32 val)
 	return R_REG(sii->osh, &ai->ioctrl);
 }
 
-uint32 ai_core_sflags(si_t * sih, uint32 mask, uint32 val)
+uint32 ai_core_sflags(si_t *sih, uint32 mask, uint32 val)
 {
 	si_info_t *sii;
 	aidmp_t *ai;
@@ -704,7 +704,7 @@ uint32 ai_core_sflags(si_t * sih, uint32 mask, uint32 val)
 }
 
 #ifdef BCMDBG
-void ai_view(si_t * sih, bool verbose)
+void ai_view(si_t *sih, bool verbose)
 {
 	si_info_t *sii;
 	osl_t *osh;

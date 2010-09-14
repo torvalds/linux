@@ -35,20 +35,20 @@ struct wlc_rpc_phy {
 };
 
 #define RPCTX_ENAB(pub)		(TRUE)
-extern rpctx_info_t *wlc_rpctx_attach(wlc_pub_t * pub, struct wlc_info *wlc);
-extern int wlc_rpctx_fifoinit(rpctx_info_t * rpctx, uint fifo, uint ntxd);
-extern void wlc_rpctx_detach(rpctx_info_t * rpctx);
-extern int wlc_rpctx_dump(rpctx_info_t * rpctx, struct bcmstrbuf *b);
-extern void *wlc_rpctx_getnexttxp(rpctx_info_t * rpctx, uint fifo);
-extern void wlc_rpctx_txreclaim(rpctx_info_t * rpctx);
-extern uint wlc_rpctx_txavail(rpctx_info_t * rpctx, uint fifo);
-extern int wlc_rpctx_pkteng(rpctx_info_t * rpctx, uint fifo, void *p);
-extern int wlc_rpctx_tx(rpctx_info_t * rpctx, uint fifo, void *p, bool commit,
+extern rpctx_info_t *wlc_rpctx_attach(wlc_pub_t *pub, struct wlc_info *wlc);
+extern int wlc_rpctx_fifoinit(rpctx_info_t *rpctx, uint fifo, uint ntxd);
+extern void wlc_rpctx_detach(rpctx_info_t *rpctx);
+extern int wlc_rpctx_dump(rpctx_info_t *rpctx, struct bcmstrbuf *b);
+extern void *wlc_rpctx_getnexttxp(rpctx_info_t *rpctx, uint fifo);
+extern void wlc_rpctx_txreclaim(rpctx_info_t *rpctx);
+extern uint wlc_rpctx_txavail(rpctx_info_t *rpctx, uint fifo);
+extern int wlc_rpctx_pkteng(rpctx_info_t *rpctx, uint fifo, void *p);
+extern int wlc_rpctx_tx(rpctx_info_t *rpctx, uint fifo, void *p, bool commit,
 			uint16 frameid, uint8 txpktpend);
-extern void wlc_rpctx_txpktpendinc(rpctx_info_t * rpctx, uint fifo, uint8 val);
-extern void wlc_rpctx_txpktpenddec(rpctx_info_t * rpctx, uint fifo, uint8 val);
-extern void wlc_rpctx_txpktpendclr(rpctx_info_t * rpctx, uint fifo);
-extern int wlc_rpctx_txpktpend(rpctx_info_t * rpctx, uint fifo, bool all);
+extern void wlc_rpctx_txpktpendinc(rpctx_info_t *rpctx, uint fifo, uint8 val);
+extern void wlc_rpctx_txpktpenddec(rpctx_info_t *rpctx, uint fifo, uint8 val);
+extern void wlc_rpctx_txpktpendclr(rpctx_info_t *rpctx, uint fifo);
+extern int wlc_rpctx_txpktpend(rpctx_info_t *rpctx, uint fifo, bool all);
 
 #else
 #define	RPCTX_ENAB(pub)			(FALSE)

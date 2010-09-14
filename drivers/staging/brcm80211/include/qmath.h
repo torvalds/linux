@@ -57,11 +57,11 @@ int16 qm_div_s(int16 num, int16 denom);
 
 int16 qm_abs16(int16 op);
 
-int16 qm_div16(int16 num, int16 denom, int16 * qQuotient);
+int16 qm_div16(int16 num, int16 denom, int16 *qQuotient);
 
 int32 qm_abs32(int32 op);
 
-int16 qm_div163232(int32 num, int32 denom, int16 * qquotient);
+int16 qm_div163232(int32 num, int32 denom, int16 *qquotient);
 
 int32 qm_mul323216(int32 op1, int16 op2);
 
@@ -73,8 +73,8 @@ int32 qm_mul32(int32 a, int32 b);
 
 int32 qm_muls32(int32 a, int32 b);
 
-void qm_log10(int32 N, int16 qN, int16 * log10N, int16 * qLog10N);
+void qm_log10(int32 N, int16 qN, int16 *log10N, int16 *qLog10N);
 
-void qm_1byN(int32 N, int16 qN, int32 * result, int16 * qResult);
+void qm_1byN(int32 N, int16 qN, int32 *result, int16 *qResult);
 
 #endif				/* #ifndef __QMATH_H__ */

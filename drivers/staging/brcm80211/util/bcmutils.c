@@ -34,7 +34,7 @@ static int vars_len = -1;
 #endif				/* WLC_LOW */
 
 /* copy a pkt buffer chain into a buffer */
-uint pktcopy(osl_t * osh, void *p, uint offset, int len, uchar * buf)
+uint pktcopy(osl_t *osh, void *p, uint offset, int len, uchar *buf)
 {
 	uint n, ret = 0;
 
@@ -65,7 +65,7 @@ uint pktcopy(osl_t * osh, void *p, uint offset, int len, uchar * buf)
 }
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(osl_t * osh, void *p, uint offset, int len, uchar * buf)
+uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, uchar *buf)
 {
 	uint n, ret = 0;
 
@@ -93,7 +93,7 @@ uint pktfrombuf(osl_t * osh, void *p, uint offset, int len, uchar * buf)
 }
 
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(osl_t * osh, void *p)
+uint BCMFASTPATH pkttotlen(osl_t *osh, void *p)
 {
 	uint total;
 
@@ -104,7 +104,7 @@ uint BCMFASTPATH pkttotlen(osl_t * osh, void *p)
 }
 
 /* return the last buffer of chained pkt */
-void *pktlast(osl_t * osh, void *p)
+void *pktlast(osl_t *osh, void *p)
 {
 	for (; PKTNEXT(p); p = PKTNEXT(p)) ;
 
@@ -112,7 +112,7 @@ void *pktlast(osl_t * osh, void *p)
 }
 
 /* count segments of a chained packet */
-uint BCMFASTPATH pktsegcnt(osl_t * osh, void *p)
+uint BCMFASTPATH pktsegcnt(osl_t *osh, void *p)
 {
 	uint cnt;
 
@@ -234,7 +234,7 @@ void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 }
 
 void
-pktq_pflush(osl_t * osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
+pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
 	    int arg)
 {
 	struct pktq_prec *q;
@@ -419,7 +419,7 @@ void *pktq_peek_tail(struct pktq *pq, int *prec_out)
 	return (pq->q[prec].tail);
 }
 
-void pktq_flush(osl_t * osh, struct pktq *pq, bool dir, ifpkt_cb_t fn, int arg)
+void pktq_flush(osl_t *osh, struct pktq *pq, bool dir, ifpkt_cb_t fn, int arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
@@ -778,7 +778,7 @@ int bcmstrnicmp(const char *s1, const char *s2, int cnt)
 }
 
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr * ea) {
+int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea) {
 	int i = 0;
 
 	for (;;) {
@@ -926,7 +926,7 @@ uint getgpiopin(char *vars, char *pin_name, uint def_pin)
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, osl_t * osh, void *p0)
+void prpkt(const char *msg, osl_t *osh, void *p0)
 {
 	void *p;
 
@@ -983,7 +983,7 @@ static void BCMINITFN(bcm_nvram_refresh) (char *flash) {
 		vars_len = 0;
 }
 
-char *bcm_nvram_vars(uint * length)
+char *bcm_nvram_vars(uint *length)
 {
 #ifndef BCMNVRAMR
 	/* cache may be stale if nvram is read/write */
@@ -1039,7 +1039,7 @@ int BCMINITFN(bcm_nvram_cache) (void *sih) {
 #endif				/* WLC_LOW */
 
 /* iovar table lookup */
-const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t * table, const char *name)
+const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table, const char *name)
 {
 	const bcm_iovar_t *vi;
 	const char *lookup_name;
@@ -1062,7 +1062,7 @@ const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t * table, const char *name)
 	return NULL;		/* var name not found */
 }
 
-int bcm_iovar_lencheck(const bcm_iovar_t * vi, void *arg, int len, bool set)
+int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 {
 	int bcmerror = 0;
 
@@ -1167,7 +1167,7 @@ static const uint8 crc8_table[256] = {
 #define CRC_INNER_LOOP(n, c, x) \
 	(c) = ((c) >> 8) ^ crc##n##_table[((c) ^ (x)) & 0xff]
 
-uint8 BCMROMFN(hndcrc8) (uint8 * pdata,	/* pointer to array of data to process */
+uint8 BCMROMFN(hndcrc8) (uint8 *pdata,	/* pointer to array of data to process */
 			 uint nbytes,	/* number of input data bytes to process */
 			 uint8 crc	/* either CRC8_INIT_VALUE or previous return value */
     ) {
@@ -1237,7 +1237,7 @@ static const uint16 crc16_table[256] = {
 	0x7BC7, 0x6A4E, 0x58D5, 0x495C, 0x3DE3, 0x2C6A, 0x1EF1, 0x0F78
 };
 
-uint16 BCMROMFN(hndcrc16) (uint8 * pdata,	/* pointer to array of data to process */
+uint16 BCMROMFN(hndcrc16) (uint8 *pdata,	/* pointer to array of data to process */
 			   uint nbytes,	/* number of input data bytes to process */
 			   uint16 crc	/* either CRC16_INIT_VALUE or previous return value */
     ) {
@@ -1254,7 +1254,7 @@ uint16 BCMROMFN(hndcrc16) (uint8 * pdata,	/* pointer to array of data to process
  * *buflen is not modified if the TLV elt parameter is invalid, or is decremented
  * by the TLV parameter's length if it is valid.
  */
-bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t * elt, int *buflen) {
+bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen) {
 	int len;
 
 	/* validate current elt */
@@ -1334,7 +1334,7 @@ bcm_tlv_t *BCMROMFN(bcm_parse_ordered_tlvs) (void *buf, int buflen, uint key) {
 
 #if defined(BCMDBG)
 int
-bcm_format_flags(const bcm_bit_desc_t * bd, uint32 flags, char *buf, int len)
+bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags, char *buf, int len)
 {
 	int i;
 	char *p = buf;
@@ -1402,7 +1402,7 @@ int bcm_format_hex(char *str, const void *bytes, int len)
 #endif				/* defined(BCMDBG) */
 
 /* pretty hex print a contiguous buffer */
-void prhex(const char *msg, uchar * buf, uint nbytes)
+void prhex(const char *msg, uchar *buf, uint nbytes)
 {
 	char line[128], *p;
 	int len = sizeof(line);
@@ -1517,7 +1517,7 @@ void printbig(char *buf)
 /* routine to dump fields in a fileddesc structure */
 uint
 bcmdumpfields(bcmutl_rdreg_rtn read_rtn, void *arg0, uint arg1,
-	      struct fielddesc * fielddesc_array, char *buf, uint32 bufsize)
+	      struct fielddesc *fielddesc_array, char *buf, uint32 bufsize)
 {
 	uint filled_len;
 	int len;
@@ -1642,7 +1642,7 @@ uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw) {
 	return (qdbm);
 }
 
-uint BCMROMFN(bcm_bitcount) (uint8 * bitmap, uint length) {
+uint BCMROMFN(bcm_bitcount) (uint8 *bitmap, uint length) {
 	uint bitcount = 0, i;
 	uint8 tmp;
 	for (i = 0; i < length; i++) {
@@ -1687,7 +1687,7 @@ int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 	return r;
 }
 
-void bcm_inc_bytes(uchar * num, int num_bytes, uint8 amount)
+void bcm_inc_bytes(uchar *num, int num_bytes, uint8 amount)
 {
 	int i;
 
@@ -1699,7 +1699,7 @@ void bcm_inc_bytes(uchar * num, int num_bytes, uint8 amount)
 	}
 }
 
-int bcm_cmp_bytes(uchar * arg1, uchar * arg2, uint8 nbytes)
+int bcm_cmp_bytes(uchar *arg1, uchar *arg2, uint8 nbytes)
 {
 	int i;
 
@@ -1710,7 +1710,7 @@ int bcm_cmp_bytes(uchar * arg1, uchar * arg2, uint8 nbytes)
 	return 0;
 }
 
-void bcm_print_bytes(char *name, const uchar * data, int len)
+void bcm_print_bytes(char *name, const uchar *data, int len)
 {
 	int i;
 	int per_line = 0;

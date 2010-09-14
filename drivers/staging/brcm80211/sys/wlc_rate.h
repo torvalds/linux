@@ -151,7 +151,7 @@ extern void wlc_rateset_copy(const struct wlc_rateset *src,
 			     struct wlc_rateset *dst);
 
 /* would be nice to have these documented ... */
-extern ratespec_t wlc_compute_rspec(d11rxhdr_t * rxh, uint8 * plcp);
+extern ratespec_t wlc_compute_rspec(d11rxhdr_t *rxh, uint8 *plcp);
 
 extern void wlc_rateset_filter(struct wlc_rateset *src, struct wlc_rateset *dst,
 			       bool basic_only, uint8 rates, uint xmask,

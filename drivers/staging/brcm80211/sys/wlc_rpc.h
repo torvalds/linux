@@ -420,7 +420,7 @@ typedef struct wlc_rpc_ctx {
 	wlc_hw_info_t *wlc_hw;
 } wlc_rpc_ctx_t;
 
-static INLINE rpc_buf_t *wlc_rpc_buf_alloc(rpc_info_t * rpc, bcm_xdr_buf_t * b,
+static INLINE rpc_buf_t *wlc_rpc_buf_alloc(rpc_info_t *rpc, bcm_xdr_buf_t *b,
 					   uint len, wlc_rpc_id_t rpc_id)
 {
 	rpc_buf_t *rpc_buf;
@@ -440,7 +440,7 @@ static INLINE rpc_buf_t *wlc_rpc_buf_alloc(rpc_info_t * rpc, bcm_xdr_buf_t * b,
 
 #if defined(BCMDBG)
 static __inline wlc_rpc_id_t
-wlc_rpc_id_get(struct rpc_info *rpc, rpc_buf_t * buf)
+wlc_rpc_id_get(struct rpc_info *rpc, rpc_buf_t *buf)
 {
 	wlc_rpc_id_t rpc_id;
 	bcm_xdr_buf_t b;
@@ -453,7 +453,7 @@ wlc_rpc_id_get(struct rpc_info *rpc, rpc_buf_t * buf)
 }
 #endif
 
-static __inline int _wlc_rpc_call(struct rpc_info *rpc, rpc_buf_t * send)
+static __inline int _wlc_rpc_call(struct rpc_info *rpc, rpc_buf_t *send)
 {
 	int _err = 0;
 #if defined(BCMDBG)
@@ -481,11 +481,11 @@ static __inline int _wlc_rpc_call(struct rpc_info *rpc, rpc_buf_t * send)
 #include <d11.h>
 
 #ifdef WLC_LOW
-extern void wlc_rpc_bmac_dispatch(wlc_rpc_ctx_t * rpc_ctx, struct rpc_buf *buf);
-extern void wlc_rpc_bmac_dump_txfifohist(wlc_hw_info_t * wlc_hw,
+extern void wlc_rpc_bmac_dispatch(wlc_rpc_ctx_t *rpc_ctx, struct rpc_buf *buf);
+extern void wlc_rpc_bmac_dump_txfifohist(wlc_hw_info_t *wlc_hw,
 					 bool dump_clear);
 #else
-extern void wlc_rpc_high_dispatch(wlc_rpc_ctx_t * ctx, struct rpc_buf *buf);
+extern void wlc_rpc_high_dispatch(wlc_rpc_ctx_t *ctx, struct rpc_buf *buf);
 #endif
 
 /* Packed structure for ease of transport across RPC bus along uint32 boundary */
@@ -497,8 +497,8 @@ typedef struct wlc_rpc_txstatus {
 } wlc_rpc_txstatus_t;
 
 static INLINE
-    void txstatus2rpc_txstatus(tx_status_t * txstatus,
-			       wlc_rpc_txstatus_t * rpc_txstatus)
+    void txstatus2rpc_txstatus(tx_status_t *txstatus,
+			       wlc_rpc_txstatus_t *rpc_txstatus)
 {
 	rpc_txstatus->PAD_framelen = txstatus->framelen;
 	rpc_txstatus->status_frameid =
@@ -510,8 +510,8 @@ static INLINE
 }
 
 static INLINE
-    void rpc_txstatus2txstatus(wlc_rpc_txstatus_t * rpc_txstatus,
-			       tx_status_t * txstatus)
+    void rpc_txstatus2txstatus(wlc_rpc_txstatus_t *rpc_txstatus,
+			       tx_status_t *txstatus)
 {
 	txstatus->framelen = rpc_txstatus->PAD_framelen & 0xffff;
 	txstatus->status = (rpc_txstatus->status_frameid >> 16) & 0xffff;
@@ -522,6 +522,6 @@ static INLINE
 	txstatus->phyerr = rpc_txstatus->ackphyrxsh_phyerr & 0xffff;
 }
 
-extern void wlc_bmac_dngl_reboot(rpc_info_t * rpc);
+extern void wlc_bmac_dngl_reboot(rpc_info_t *rpc);
 
 #endif				/* WLC_RPC_H */

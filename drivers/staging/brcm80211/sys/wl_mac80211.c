@@ -82,20 +82,20 @@
 extern struct device *sdiommc_dev;
 #endif
 
-extern void wlc_wme_setparams(wlc_info_t * wlc, u16 aci, void *arg,
+extern void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg,
 			      bool suspend);
-bool wlc_sendpkt_mac80211(wlc_info_t * wlc, void *sdu, struct ieee80211_hw *hw);
-void wlc_mac_bcn_promisc_change(wlc_info_t * wlc, bool promisc);
-void wlc_set_addrmatch(wlc_info_t * wlc, int match_reg_offset,
+bool wlc_sendpkt_mac80211(wlc_info_t *wlc, void *sdu, struct ieee80211_hw *hw);
+void wlc_mac_bcn_promisc_change(wlc_info_t *wlc, bool promisc);
+void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
 		       const struct ether_addr *addr);
 
 static void wl_timer(ulong data);
-static void _wl_timer(wl_timer_t * t);
+static void _wl_timer(wl_timer_t *t);
 
 /* proc fs */
 static int wl_proc_read(char *buffer, char **start, off_t offset, int length,
 			int *eof, void *data);
-static int wl_proc_write(struct file *filp, const char __user * buff,
+static int wl_proc_write(struct file *filp, const char __user *buff,
 			 unsigned long len, void *data);
 
 #ifdef WLC_HIGH_ONLY
@@ -104,13 +104,13 @@ static int wl_proc_write(struct file *filp, const char __user * buff,
 #define TXQ_LOCK(_wl, _flags) spin_lock_irqsave(&(_wl)->txq_lock, (_flags))
 #define TXQ_UNLOCK(_wl, _flags)  spin_unlock_irqrestore(&(_wl)->txq_lock, (_flags))
 static void wl_rpc_down(void *wlh);
-static void wl_rpcq_free(wl_info_t * wl);
+static void wl_rpcq_free(wl_info_t *wl);
 static void wl_rpcq_dispatch(struct wl_task *task);
 static void wl_rpc_dispatch_schedule(void *ctx, struct rpc_buf *buf);
 static void wl_start_txqwork(struct wl_task *task);
-static void wl_txq_free(wl_info_t * wl);
-static void wl_timer_task(wl_task_t * task);
-static int wl_schedule_task(wl_info_t * wl, void (*fn) (struct wl_task *),
+static void wl_txq_free(wl_info_t *wl);
+static void wl_timer_task(wl_task_t *task);
+static int wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *),
 			    void *context);
 #endif				/* WLC_HIGH_ONLY */
 
@@ -162,13 +162,13 @@ struct ieee80211_tkip_data {
 
 #ifndef WLC_HIGH_ONLY
 #define	WL_INFO(dev)		((wl_info_t*)(WL_DEV_IF(dev)->wl))	/* points to wl */
-static int wl_request_fw(wl_info_t * wl, struct pci_dev *pdev);
-static void wl_release_fw(wl_info_t * wl);
+static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev);
+static void wl_release_fw(wl_info_t *wl);
 #endif
 
 /* local prototypes */
-static int wl_start(struct sk_buff *skb, wl_info_t * wl);
-static int wl_start_int(wl_info_t * wl, struct ieee80211_hw *hw,
+static int wl_start(struct sk_buff *skb, wl_info_t *wl);
+static int wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw,
 			struct sk_buff *skb);
 static void wl_dpc(ulong data);
 
@@ -271,7 +271,7 @@ static int wl_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta);
 static int wl_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   enum ieee80211_ampdu_mlme_action action,
-			   struct ieee80211_sta *sta, u16 tid, u16 * ssn);
+			   struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
 #ifdef WLC_HIGH_ONLY
 static int wl_ops_tx_nl(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -703,7 +703,7 @@ static int
 wl_ampdu_action(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif,
 		enum ieee80211_ampdu_mlme_action action,
-		struct ieee80211_sta *sta, u16 tid, u16 * ssn)
+		struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 #if defined(BCMDBG)
 	struct scb *scb = (struct scb *)sta->drv_priv;
@@ -771,7 +771,7 @@ static const struct ieee80211_ops wl_ops = {
 	.ampdu_action = wl_ampdu_action,
 };
 
-static int wl_set_hint(wl_info_t * wl, char *abbrev)
+static int wl_set_hint(wl_info_t *wl, char *abbrev)
 {
 	WL_ERROR(("%s: Sending country code %c%c to MAC80211\n", __func__,
 		  abbrev[0], abbrev[1]));
@@ -1071,7 +1071,7 @@ wl_proc_read(char *buffer, char **start, off_t offset, int length, int *eof,
 
 /* OS Entry point when app attempts to write */
 static int
-wl_proc_write(struct file *filp, const char __user * buff, unsigned long length,
+wl_proc_write(struct file *filp, const char __user *buff, unsigned long length,
 	      void *data)
 {
 	wl_info_t *wl = (wl_info_t *) data;
@@ -1702,7 +1702,7 @@ module_exit(wl_module_exit);
  * by the wl parameter.
  *
  */
-void wl_free(wl_info_t * wl)
+void wl_free(wl_info_t *wl)
 {
 	wl_timer_t *t, *next;
 	osl_t *osh;
@@ -1790,7 +1790,7 @@ void wl_free(wl_info_t * wl)
 
 #ifdef WLC_LOW
 /* transmit a packet */
-static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t * wl)
+static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 {
 	if (!wl)
 		return -ENETDOWN;
@@ -1800,7 +1800,7 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t * wl)
 #endif				/* WLC_LOW */
 
 static int BCMFASTPATH
-wl_start_int(wl_info_t * wl, struct ieee80211_hw *hw, struct sk_buff *skb)
+wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 #ifdef WLC_HIGH_ONLY
 	WL_LOCK(wl);
@@ -1812,7 +1812,7 @@ wl_start_int(wl_info_t * wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 	return (NETDEV_TX_OK);
 }
 
-void wl_txflowcontrol(wl_info_t * wl, struct wl_if *wlif, bool state, int prio)
+void wl_txflowcontrol(wl_info_t *wl, struct wl_if *wlif, bool state, int prio)
 {
 	WL_ERROR(("Shouldn't be here %s\n", __func__));
 }
@@ -1820,7 +1820,7 @@ void wl_txflowcontrol(wl_info_t * wl, struct wl_if *wlif, bool state, int prio)
 #if defined(WLC_HIGH_ONLY)
 /* Schedule a completion handler to run at safe time */
 static int
-wl_schedule_task(wl_info_t * wl, void (*fn) (struct wl_task * task),
+wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
 		 void *context)
 {
 	wl_task_t *task;
@@ -1847,7 +1847,7 @@ wl_schedule_task(wl_info_t * wl, void (*fn) (struct wl_task * task),
 }
 #endif				/* defined(WLC_HIGH_ONLY) */
 
-void wl_init(wl_info_t * wl)
+void wl_init(wl_info_t *wl)
 {
 	WL_TRACE(("wl%d: wl_init\n", wl->pub->unit));
 
@@ -1856,7 +1856,7 @@ void wl_init(wl_info_t * wl)
 	wlc_init(wl->wlc);
 }
 
-uint wl_reset(wl_info_t * wl)
+uint wl_reset(wl_info_t *wl)
 {
 	WL_TRACE(("wl%d: wl_reset\n", wl->pub->unit));
 
@@ -1872,7 +1872,7 @@ uint wl_reset(wl_info_t * wl)
  * These are interrupt on/off entry points. Disable interrupts
  * during interrupt state transition.
  */
-void BCMFASTPATH wl_intrson(wl_info_t * wl)
+void BCMFASTPATH wl_intrson(wl_info_t *wl)
 {
 #if defined(WLC_LOW)
 	unsigned long flags;
@@ -1883,12 +1883,12 @@ void BCMFASTPATH wl_intrson(wl_info_t * wl)
 #endif				/* WLC_LOW */
 }
 
-bool wl_alloc_dma_resources(wl_info_t * wl, uint addrwidth)
+bool wl_alloc_dma_resources(wl_info_t *wl, uint addrwidth)
 {
 	return TRUE;
 }
 
-uint32 BCMFASTPATH wl_intrsoff(wl_info_t * wl)
+uint32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
 {
 #if defined(WLC_LOW)
 	unsigned long flags;
@@ -1903,7 +1903,7 @@ uint32 BCMFASTPATH wl_intrsoff(wl_info_t * wl)
 #endif				/* WLC_LOW */
 }
 
-void wl_intrsrestore(wl_info_t * wl, uint32 macintmask)
+void wl_intrsrestore(wl_info_t *wl, uint32 macintmask)
 {
 #if defined(WLC_LOW)
 	unsigned long flags;
@@ -1914,7 +1914,7 @@ void wl_intrsrestore(wl_info_t * wl, uint32 macintmask)
 #endif				/* WLC_LOW */
 }
 
-int wl_up(wl_info_t * wl)
+int wl_up(wl_info_t *wl)
 {
 	int error = 0;
 
@@ -1926,7 +1926,7 @@ int wl_up(wl_info_t * wl)
 	return (error);
 }
 
-void wl_down(wl_info_t * wl)
+void wl_down(wl_info_t *wl)
 {
 	uint callbacks, ret_val = 0;
 
@@ -2017,17 +2017,17 @@ static void BCMFASTPATH wl_dpc(ulong data)
 #endif				/* WLC_LOW */
 }
 
-static void wl_link_up(wl_info_t * wl, char *ifname)
+static void wl_link_up(wl_info_t *wl, char *ifname)
 {
 	WL_ERROR(("wl%d: link up (%s)\n", wl->pub->unit, ifname));
 }
 
-static void wl_link_down(wl_info_t * wl, char *ifname)
+static void wl_link_down(wl_info_t *wl, char *ifname)
 {
 	WL_ERROR(("wl%d: link down (%s)\n", wl->pub->unit, ifname));
 }
 
-void wl_event(wl_info_t * wl, char *ifname, wlc_event_t * e)
+void wl_event(wl_info_t *wl, char *ifname, wlc_event_t *e)
 {
 
 	switch (e->event.event_type) {
@@ -2053,7 +2053,7 @@ static void wl_timer(ulong data)
 #endif				/* WLC_HIGH_ONLY */
 }
 
-static void _wl_timer(wl_timer_t * t)
+static void _wl_timer(wl_timer_t *t)
 {
 	WL_LOCK(t->wl);
 
@@ -2074,7 +2074,7 @@ static void _wl_timer(wl_timer_t * t)
 	WL_UNLOCK(t->wl);
 }
 
-wl_timer_t *wl_init_timer(wl_info_t * wl, void (*fn) (void *arg), void *arg,
+wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 			  const char *name)
 {
 	wl_timer_t *t;
@@ -2106,7 +2106,7 @@ wl_timer_t *wl_init_timer(wl_info_t * wl, void (*fn) (void *arg), void *arg,
 /* BMAC_NOTE: Add timer adds only the kernel timer since it's going to be more accurate
  * as well as it's easier to make it periodic
  */
-void wl_add_timer(wl_info_t * wl, wl_timer_t * t, uint ms, int periodic)
+void wl_add_timer(wl_info_t *wl, wl_timer_t *t, uint ms, int periodic)
 {
 #ifdef BCMDBG
 	if (t->set) {
@@ -2126,7 +2126,7 @@ void wl_add_timer(wl_info_t * wl, wl_timer_t * t, uint ms, int periodic)
 }
 
 /* return TRUE if timer successfully deleted, FALSE if still pending */
-bool wl_del_timer(wl_info_t * wl, wl_timer_t * t)
+bool wl_del_timer(wl_info_t *wl, wl_timer_t *t)
 {
 	if (t->set) {
 		t->set = FALSE;
@@ -2139,7 +2139,7 @@ bool wl_del_timer(wl_info_t * wl, wl_timer_t * t)
 	return TRUE;
 }
 
-void wl_free_timer(wl_info_t * wl, wl_timer_t * t)
+void wl_free_timer(wl_info_t *wl, wl_timer_t *t)
 {
 	wl_timer_t *tmp;
 
@@ -2225,7 +2225,7 @@ static void wl_rpc_down(void *wlh)
 	wl_rpcq_free(wl);
 }
 
-static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t * wl)
+static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 {
 
 	ulong flags;
@@ -2302,7 +2302,7 @@ static void wl_start_txqwork(struct wl_task *task)
 	return;
 }
 
-static void wl_txq_free(wl_info_t * wl)
+static void wl_txq_free(wl_info_t *wl)
 {
 	struct sk_buff *skb;
 
@@ -2320,7 +2320,7 @@ static void wl_txq_free(wl_info_t * wl)
 	wl->txq_tail = NULL;
 }
 
-static void wl_rpcq_free(wl_info_t * wl)
+static void wl_rpcq_free(wl_info_t *wl)
 {
 	rpc_buf_t *buf;
 
@@ -2369,7 +2369,7 @@ static void wl_rpcq_dispatch(struct wl_task *task)
 	atomic_dec(&wl->callbacks);
 }
 
-static void wl_rpcq_add(wl_info_t * wl, rpc_buf_t * buf)
+static void wl_rpcq_add(wl_info_t *wl, rpc_buf_t *buf)
 {
 	ulong flags;
 
@@ -2420,7 +2420,7 @@ static void wl_rpc_dispatch_schedule(void *ctx, struct rpc_buf *buf)
 	}
 }
 
-static void wl_timer_task(wl_task_t * task)
+static void wl_timer_task(wl_task_t *task)
 {
 	wl_timer_t *t = (wl_timer_t *) task->context;
 
@@ -2441,7 +2441,7 @@ char *wl_firmwares[WL_MAX_FW] = {
 };
 
 #ifdef WLC_LOW
-int wl_ucode_init_buf(wl_info_t * wl, void **pbuf, uint32 idx)
+int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, uint32 idx)
 {
 	int i, entry;
 	const uint8 *pdata;
@@ -2467,7 +2467,7 @@ int wl_ucode_init_buf(wl_info_t * wl, void **pbuf, uint32 idx)
 	return -1;
 }
 
-int wl_ucode_init_uint(wl_info_t * wl, uint32 * data, uint32 idx)
+int wl_ucode_init_uint(wl_info_t *wl, uint32 *data, uint32 idx)
 {
 	int i, entry;
 	const uint8 *pdata;
@@ -2489,7 +2489,7 @@ int wl_ucode_init_uint(wl_info_t * wl, uint32 * data, uint32 idx)
 }
 #endif				/* WLC_LOW */
 
-static int wl_request_fw(wl_info_t * wl, struct pci_dev *pdev)
+static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
 {
 	int status;
 	struct device *device = &pdev->dev;
@@ -2535,7 +2535,7 @@ void wl_ucode_free_buf(void *p)
 }
 #endif				/* WLC_LOW */
 
-static void wl_release_fw(wl_info_t * wl)
+static void wl_release_fw(wl_info_t *wl)
 {
 	int i;
 	for (i = 0; i < WL_MAX_FW; i++) {

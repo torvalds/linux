@@ -26,7 +26,7 @@ extern void osl_os_close_image(void *image);
 /* Linux Kernel: File Operations: end */
 
 extern osl_t *osl_attach(void *pdev, uint bustype, bool pkttag);
-extern void osl_detach(osl_t * osh);
+extern void osl_detach(osl_t *osh);
 
 extern uint32 g_assert_type;
 
@@ -54,8 +54,8 @@ extern void osl_delay(uint usec);
 	osl_pcmcia_read_attr((osh), (offset), (buf), (size))
 #define	OSL_PCMCIA_WRITE_ATTR(osh, offset, buf, size) \
 	osl_pcmcia_write_attr((osh), (offset), (buf), (size))
-extern void osl_pcmcia_read_attr(osl_t * osh, uint offset, void *buf, int size);
-extern void osl_pcmcia_write_attr(osl_t * osh, uint offset, void *buf,
+extern void osl_pcmcia_read_attr(osl_t *osh, uint offset, void *buf, int size);
+extern void osl_pcmcia_write_attr(osl_t *osh, uint offset, void *buf,
 				  int size);
 
 /* PCI configuration space access macros */
@@ -63,14 +63,14 @@ extern void osl_pcmcia_write_attr(osl_t * osh, uint offset, void *buf,
 	osl_pci_read_config((osh), (offset), (size))
 #define	OSL_PCI_WRITE_CONFIG(osh, offset, size, val) \
 	osl_pci_write_config((osh), (offset), (size), (val))
-extern uint32 osl_pci_read_config(osl_t * osh, uint offset, uint size);
-extern void osl_pci_write_config(osl_t * osh, uint offset, uint size, uint val);
+extern uint32 osl_pci_read_config(osl_t *osh, uint offset, uint size);
+extern void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val);
 
 /* PCI device bus # and slot # */
 #define OSL_PCI_BUS(osh)	osl_pci_bus(osh)
 #define OSL_PCI_SLOT(osh)	osl_pci_slot(osh)
-extern uint osl_pci_bus(osl_t * osh);
-extern uint osl_pci_slot(osl_t * osh);
+extern uint osl_pci_bus(osl_t *osh);
+extern uint osl_pci_slot(osl_t *osh);
 
 /* Pkttag flag should be part of public information */
 typedef struct {
@@ -106,14 +106,14 @@ typedef struct {
 #define MALLOC(osh, size)	osl_malloc((osh), (size))
 #define MFREE(osh, addr, size)	osl_mfree((osh), (addr), (size))
 #define MALLOCED(osh)		osl_malloced((osh))
-extern void *osl_malloc(osl_t * osh, uint size);
-extern void osl_mfree(osl_t * osh, void *addr, uint size);
-extern uint osl_malloced(osl_t * osh);
+extern void *osl_malloc(osl_t *osh, uint size);
+extern void osl_mfree(osl_t *osh, void *addr, uint size);
+extern uint osl_malloced(osl_t *osh);
 
 #define NATIVE_MALLOC(osh, size)	kmalloc(size, GFP_ATOMIC)
 #define NATIVE_MFREE(osh, addr, size)	kfree(addr)
 #define	MALLOC_FAILED(osh)		osl_malloc_failed((osh))
-extern uint osl_malloc_failed(osl_t * osh);
+extern uint osl_malloc_failed(osl_t *osh);
 
 /* allocate/free shared (dma-able) consistent memory */
 #define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
@@ -122,9 +122,9 @@ extern uint osl_malloc_failed(osl_t * osh);
 #define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
 	osl_dma_free_consistent((osh), (void*)(va), (size), (pa))
 extern uint osl_dma_consistent_align(void);
-extern void *osl_dma_alloc_consistent(osl_t * osh, uint size, uint16 align,
-				      uint * tot, ulong * pap);
-extern void osl_dma_free_consistent(osl_t * osh, void *va, uint size, ulong pa);
+extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align,
+				      uint *tot, ulong *pap);
+extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, ulong pa);
 
 /* map/unmap direction */
 #define	DMA_TX	1		/* TX direction for DMA */
@@ -135,8 +135,8 @@ extern void osl_dma_free_consistent(osl_t * osh, void *va, uint size, ulong pa);
 	osl_dma_map((osh), (va), (size), (direction))
 #define	DMA_UNMAP(osh, pa, size, direction, p, dmah) \
 	osl_dma_unmap((osh), (pa), (size), (direction))
-extern uint osl_dma_map(osl_t * osh, void *va, uint size, int direction);
-extern void osl_dma_unmap(osl_t * osh, uint pa, uint size, int direction);
+extern uint osl_dma_map(osl_t *osh, void *va, uint size, int direction);
+extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 
 /* API for DMA addressing capability */
 #define OSL_DMADDRWIDTH(osh, addrwidth) do {} while (0)
@@ -330,10 +330,10 @@ extern int osl_error(int bcmerror);
 #define	PKTCLRSKIPCT(osh, skb)
 #define	PKTSKIPCT(osh, skb)
 
-extern void osl_pktfree(osl_t * osh, void *skb, bool send);
+extern void osl_pktfree(osl_t *osh, void *skb, bool send);
 
-extern void *osl_pktget(osl_t * osh, uint len);
-extern void *osl_pktdup(osl_t * osh, void *skb);
+extern void *osl_pktget(osl_t *osh, uint len);
+extern void *osl_pktdup(osl_t *osh, void *skb);
 
 #define	PKTLINK(skb)			(((struct sk_buff*)(skb))->prev)
 #define	PKTSETLINK(skb, x)		(((struct sk_buff*)(skb))->prev = (struct sk_buff*)(x))
@@ -359,12 +359,12 @@ extern void *osl_pktdup(osl_t * osh, void *skb);
 	} \
 } while (0)
 
-extern uint8 osl_readb(osl_t * osh, volatile uint8 * r);
-extern uint16 osl_readw(osl_t * osh, volatile uint16 * r);
-extern uint32 osl_readl(osl_t * osh, volatile uint32 * r);
-extern void osl_writeb(osl_t * osh, volatile uint8 * r, uint8 v);
-extern void osl_writew(osl_t * osh, volatile uint16 * r, uint16 v);
-extern void osl_writel(osl_t * osh, volatile uint32 * r, uint32 v);
+extern uint8 osl_readb(osl_t *osh, volatile uint8 *r);
+extern uint16 osl_readw(osl_t *osh, volatile uint16 *r);
+extern uint32 osl_readl(osl_t *osh, volatile uint32 *r);
+extern void osl_writeb(osl_t *osh, volatile uint8 *r, uint8 v);
+extern void osl_writew(osl_t *osh, volatile uint16 *r, uint16 v);
+extern void osl_writel(osl_t *osh, volatile uint32 *r, uint32 v);
 #endif				/* BCMSDIO */
 
 #endif				/* _linux_osl_h_ */

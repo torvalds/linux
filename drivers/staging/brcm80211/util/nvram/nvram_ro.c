@@ -46,7 +46,7 @@ static char *findvar(char *vars, char *lim, const char *name);
 
 #if defined(FLASH)
 /* copy flash to ram */
-static void BCMINITFN(get_flash_nvram) (si_t * sih, struct nvram_header * nvh) {
+static void BCMINITFN(get_flash_nvram) (si_t *sih, struct nvram_header *nvh) {
 	osl_t *osh;
 	uint nvs, bufsz;
 	vars_t *new;

@@ -337,7 +337,7 @@ The qformat of the quotient is returned through the pointer (qQuotient) passed
 to this function. The qformat of quotient is adjusted appropriately such that
 the quotient occupies all 16 bits.
 */
-int16 qm_div16(int16 num, int16 denom, int16 * qQuotient)
+int16 qm_div16(int16 num, int16 denom, int16 *qQuotient)
 {
 	int16 sign;
 	int16 nNum, nDenom;
@@ -380,7 +380,7 @@ The qformat of the quotient is returned through the pointer (qquotient) passed
 to this function. The qformat of quotient is adjusted appropriately such that
 the quotient occupies all 16 bits.
 */
-int16 qm_div163232(int32 num, int32 denom, int16 * qquotient)
+int16 qm_div163232(int32 num, int32 denom, int16 *qquotient)
 {
 	int32 sign;
 	int16 nNum, nDenom;
@@ -545,7 +545,7 @@ qLog10N - address where log10N qformat will be written.
 Note/Problem:
 For accurate results input should be in normalized or near normalized form.
 */
-void qm_log10(int32 N, int16 qN, int16 * log10N, int16 * qLog10N)
+void qm_log10(int32 N, int16 qN, int16 *log10N, int16 *qLog10N)
 {
 	int16 s16norm, s16tableIndex, s16errorApproximation;
 	uint16 u16offset;
@@ -631,7 +631,7 @@ sqrtN - address where 1/N has to be written.
 qsqrtN - address where q format of 1/N has to be written.
 */
 #define qx 29
-void qm_1byN(int32 N, int16 qN, int32 * result, int16 * qResult)
+void qm_1byN(int32 N, int16 qN, int32 *result, int16 *qResult)
 {
 	int16 normN;
 	int32 s32firstTerm, s32secondTerm, x;

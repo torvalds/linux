@@ -219,7 +219,7 @@ static INLINE uint32 bcmswap32by16(uint32 val)
 /* Reverse pairs of bytes in a buffer (not for high-performance use) */
 /* buf	- start of buffer of shorts to swap */
 /* len  - byte length of buffer */
-static INLINE void bcmswap16_buf(uint16 * buf, uint len)
+static INLINE void bcmswap16_buf(uint16 *buf, uint len)
 {
 	len = len / 2;
 
@@ -232,7 +232,7 @@ static INLINE void bcmswap16_buf(uint16 * buf, uint len)
 /*
  * Store 16-bit value to unaligned little-endian byte array.
  */
-static INLINE void htol16_ua_store(uint16 val, uint8 * bytes)
+static INLINE void htol16_ua_store(uint16 val, uint8 *bytes)
 {
 	bytes[0] = val & 0xff;
 	bytes[1] = val >> 8;
@@ -241,7 +241,7 @@ static INLINE void htol16_ua_store(uint16 val, uint8 * bytes)
 /*
  * Store 32-bit value to unaligned little-endian byte array.
  */
-static INLINE void htol32_ua_store(uint32 val, uint8 * bytes)
+static INLINE void htol32_ua_store(uint32 val, uint8 *bytes)
 {
 	bytes[0] = val & 0xff;
 	bytes[1] = (val >> 8) & 0xff;
@@ -252,7 +252,7 @@ static INLINE void htol32_ua_store(uint32 val, uint8 * bytes)
 /*
  * Store 16-bit value to unaligned network-(big-)endian byte array.
  */
-static INLINE void hton16_ua_store(uint16 val, uint8 * bytes)
+static INLINE void hton16_ua_store(uint16 val, uint8 *bytes)
 {
 	bytes[0] = val >> 8;
 	bytes[1] = val & 0xff;
@@ -261,7 +261,7 @@ static INLINE void hton16_ua_store(uint16 val, uint8 * bytes)
 /*
  * Store 32-bit value to unaligned network-(big-)endian byte array.
  */
-static INLINE void hton32_ua_store(uint32 val, uint8 * bytes)
+static INLINE void hton32_ua_store(uint32 val, uint8 *bytes)
 {
 	bytes[0] = val >> 24;
 	bytes[1] = (val >> 16) & 0xff;

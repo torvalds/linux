@@ -26,9 +26,9 @@ extern uint wl_reset(struct wl_info *wl);
 extern void wl_intrson(struct wl_info *wl);
 extern uint32 wl_intrsoff(struct wl_info *wl);
 extern void wl_intrsrestore(struct wl_info *wl, uint32 macintmask);
-extern void wl_event(struct wl_info *wl, char *ifname, wlc_event_t * e);
-extern void wl_event_sendup(struct wl_info *wl, const wlc_event_t * e,
-			    uint8 * data, uint32 len);
+extern void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e);
+extern void wl_event_sendup(struct wl_info *wl, const wlc_event_t *e,
+			    uint8 *data, uint32 len);
 extern int wl_up(struct wl_info *wl);
 extern void wl_down(struct wl_info *wl);
 extern void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
@@ -45,10 +45,10 @@ extern void wl_add_timer(struct wl_info *wl, struct wl_timer *timer, uint ms,
 			 int periodic);
 extern bool wl_del_timer(struct wl_info *wl, struct wl_timer *timer);
 
-extern uint wl_buf_to_pktcopy(osl_t * osh, void *p, uchar * buf, int len,
+extern uint wl_buf_to_pktcopy(osl_t *osh, void *p, uchar *buf, int len,
 			      uint offset);
-extern void *wl_get_pktbuffer(osl_t * osh, int len);
-extern int wl_set_pktlen(osl_t * osh, void *p, int len);
+extern void *wl_get_pktbuffer(osl_t *osh, int len);
+extern int wl_set_pktlen(osl_t *osh, void *p, int len);
 
 #define wl_sort_bsslist(a, b) FALSE
 
@@ -59,5 +59,5 @@ extern int wl_tkip_encrypt(struct wl_info *wl, void *p, int hdr_len);
 extern int wl_tkip_decrypt(struct wl_info *wl, void *p, int hdr_len,
 			   bool group_key);
 extern void wl_tkip_printstats(struct wl_info *wl, bool group_key);
-extern int wl_tkip_keyset(struct wl_info *wl, wsec_key_t * key);
+extern int wl_tkip_keyset(struct wl_info *wl, wsec_key_t *key);
 #endif				/* _wl_export_h_ */

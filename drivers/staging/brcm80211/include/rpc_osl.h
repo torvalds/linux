@@ -18,16 +18,16 @@
 #define _rpcosl_h_
 
 typedef struct rpc_osl rpc_osl_t;
-extern rpc_osl_t *rpc_osl_attach(osl_t * osh);
-extern void rpc_osl_detach(rpc_osl_t * rpc_osh);
+extern rpc_osl_t *rpc_osl_attach(osl_t *osh);
+extern void rpc_osl_detach(rpc_osl_t *rpc_osh);
 
 #define RPC_OSL_LOCK(rpc_osh) rpc_osl_lock((rpc_osh))
 #define RPC_OSL_UNLOCK(rpc_osh) rpc_osl_unlock((rpc_osh))
 #define RPC_OSL_WAIT(rpc_osh, to, ptimedout)	rpc_osl_wait((rpc_osh), (to), (ptimedout))
 #define RPC_OSL_WAKE(rpc_osh)			rpc_osl_wake((rpc_osh))
-extern void rpc_osl_lock(rpc_osl_t * rpc_osh);
-extern void rpc_osl_unlock(rpc_osl_t * rpc_osh);
-extern int rpc_osl_wait(rpc_osl_t * rpc_osh, uint ms, bool * ptimedout);
-extern void rpc_osl_wake(rpc_osl_t * rpc_osh);
+extern void rpc_osl_lock(rpc_osl_t *rpc_osh);
+extern void rpc_osl_unlock(rpc_osl_t *rpc_osh);
+extern int rpc_osl_wait(rpc_osl_t *rpc_osh, uint ms, bool *ptimedout);
+extern void rpc_osl_wake(rpc_osl_t *rpc_osh);
 
 #endif				/* _rpcosl_h_ */

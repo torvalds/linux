@@ -34,8 +34,8 @@
 #endif
 
 /* Allocate/init/free per-OS private data */
-extern int sdioh_sdmmc_osinit(sdioh_info_t * sd);
-extern void sdioh_sdmmc_osfree(sdioh_info_t * sd);
+extern int sdioh_sdmmc_osinit(sdioh_info_t *sd);
+extern void sdioh_sdmmc_osfree(sdioh_info_t *sd);
 
 #define BLOCK_SIZE_64 64
 #define BLOCK_SIZE_512 512
@@ -81,23 +81,23 @@ struct sdioh_info {
 extern uint sd_msglevel;
 
 /* OS-independent interrupt handler */
-extern bool check_client_intr(sdioh_info_t * sd);
+extern bool check_client_intr(sdioh_info_t *sd);
 
 /* Core interrupt enable/disable of device interrupts */
-extern void sdioh_sdmmc_devintr_on(sdioh_info_t * sd);
-extern void sdioh_sdmmc_devintr_off(sdioh_info_t * sd);
+extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
+extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 
 /**************************************************************
  * Internal interfaces: bcmsdh_sdmmc.c references to per-port code
  */
 
 /* Register mapping routines */
-extern uint32 *sdioh_sdmmc_reg_map(osl_t * osh, int32 addr, int size);
-extern void sdioh_sdmmc_reg_unmap(osl_t * osh, int32 addr, int size);
+extern uint32 *sdioh_sdmmc_reg_map(osl_t *osh, int32 addr, int size);
+extern void sdioh_sdmmc_reg_unmap(osl_t *osh, int32 addr, int size);
 
 /* Interrupt (de)registration routines */
-extern int sdioh_sdmmc_register_irq(sdioh_info_t * sd, uint irq);
-extern void sdioh_sdmmc_free_irq(uint irq, sdioh_info_t * sd);
+extern int sdioh_sdmmc_register_irq(sdioh_info_t *sd, uint irq);
+extern void sdioh_sdmmc_free_irq(uint irq, sdioh_info_t *sd);
 
 typedef struct _BCMSDH_SDMMC_INSTANCE {
 	sdioh_info_t *sd;

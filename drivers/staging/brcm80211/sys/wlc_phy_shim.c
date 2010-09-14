@@ -60,7 +60,7 @@ struct wlc_phy_shim_info {
 	void *wl;		/* pointer to os-specific private state */
 };
 
-wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t * wlc_hw,
+wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
@@ -79,172 +79,172 @@ wlc_phy_shim_info_t *BCMATTACHFN(wlc_phy_shim_attach) (wlc_hw_info_t * wlc_hw,
 	return physhim;
 }
 
-void BCMATTACHFN(wlc_phy_shim_detach) (wlc_phy_shim_info_t * physhim) {
+void BCMATTACHFN(wlc_phy_shim_detach) (wlc_phy_shim_info_t *physhim) {
 	if (!physhim)
 		return;
 
 	MFREE(physhim->wlc_hw->osh, physhim, sizeof(wlc_phy_shim_info_t));
 }
 
-struct wlapi_timer *wlapi_init_timer(wlc_phy_shim_info_t * physhim,
+struct wlapi_timer *wlapi_init_timer(wlc_phy_shim_info_t *physhim,
 				     void (*fn) (void *arg), void *arg,
 				     const char *name)
 {
 	return (struct wlapi_timer *)wl_init_timer(physhim->wl, fn, arg, name);
 }
 
-void wlapi_free_timer(wlc_phy_shim_info_t * physhim, struct wlapi_timer *t)
+void wlapi_free_timer(wlc_phy_shim_info_t *physhim, struct wlapi_timer *t)
 {
 	wl_free_timer(physhim->wl, (struct wl_timer *)t);
 }
 
 void
-wlapi_add_timer(wlc_phy_shim_info_t * physhim, struct wlapi_timer *t, uint ms,
+wlapi_add_timer(wlc_phy_shim_info_t *physhim, struct wlapi_timer *t, uint ms,
 		int periodic)
 {
 	wl_add_timer(physhim->wl, (struct wl_timer *)t, ms, periodic);
 }
 
-bool wlapi_del_timer(wlc_phy_shim_info_t * physhim, struct wlapi_timer *t)
+bool wlapi_del_timer(wlc_phy_shim_info_t *physhim, struct wlapi_timer *t)
 {
 	return wl_del_timer(physhim->wl, (struct wl_timer *)t);
 }
 
-void wlapi_intrson(wlc_phy_shim_info_t * physhim)
+void wlapi_intrson(wlc_phy_shim_info_t *physhim)
 {
 	wl_intrson(physhim->wl);
 }
 
-uint32 wlapi_intrsoff(wlc_phy_shim_info_t * physhim)
+uint32 wlapi_intrsoff(wlc_phy_shim_info_t *physhim)
 {
 	return wl_intrsoff(physhim->wl);
 }
 
-void wlapi_intrsrestore(wlc_phy_shim_info_t * physhim, uint32 macintmask)
+void wlapi_intrsrestore(wlc_phy_shim_info_t *physhim, uint32 macintmask)
 {
 	wl_intrsrestore(physhim->wl, macintmask);
 }
 
-void wlapi_bmac_write_shm(wlc_phy_shim_info_t * physhim, uint offset, uint16 v)
+void wlapi_bmac_write_shm(wlc_phy_shim_info_t *physhim, uint offset, uint16 v)
 {
 	wlc_bmac_write_shm(physhim->wlc_hw, offset, v);
 }
 
-uint16 wlapi_bmac_read_shm(wlc_phy_shim_info_t * physhim, uint offset)
+uint16 wlapi_bmac_read_shm(wlc_phy_shim_info_t *physhim, uint offset)
 {
 	return wlc_bmac_read_shm(physhim->wlc_hw, offset);
 }
 
 void
-wlapi_bmac_mhf(wlc_phy_shim_info_t * physhim, uint8 idx, uint16 mask,
+wlapi_bmac_mhf(wlc_phy_shim_info_t *physhim, uint8 idx, uint16 mask,
 	       uint16 val, int bands)
 {
 	wlc_bmac_mhf(physhim->wlc_hw, idx, mask, val, bands);
 }
 
-void wlapi_bmac_corereset(wlc_phy_shim_info_t * physhim, uint32 flags)
+void wlapi_bmac_corereset(wlc_phy_shim_info_t *physhim, uint32 flags)
 {
 	wlc_bmac_corereset(physhim->wlc_hw, flags);
 }
 
-void wlapi_suspend_mac_and_wait(wlc_phy_shim_info_t * physhim)
+void wlapi_suspend_mac_and_wait(wlc_phy_shim_info_t *physhim)
 {
 	wlc_suspend_mac_and_wait(physhim->wlc);
 }
 
-void wlapi_switch_macfreq(wlc_phy_shim_info_t * physhim, uint8 spurmode)
+void wlapi_switch_macfreq(wlc_phy_shim_info_t *physhim, uint8 spurmode)
 {
 	wlc_bmac_switch_macfreq(physhim->wlc_hw, spurmode);
 }
 
-void wlapi_enable_mac(wlc_phy_shim_info_t * physhim)
+void wlapi_enable_mac(wlc_phy_shim_info_t *physhim)
 {
 	wlc_enable_mac(physhim->wlc);
 }
 
-void wlapi_bmac_mctrl(wlc_phy_shim_info_t * physhim, uint32 mask, uint32 val)
+void wlapi_bmac_mctrl(wlc_phy_shim_info_t *physhim, uint32 mask, uint32 val)
 {
 	wlc_bmac_mctrl(physhim->wlc_hw, mask, val);
 }
 
-void wlapi_bmac_phy_reset(wlc_phy_shim_info_t * physhim)
+void wlapi_bmac_phy_reset(wlc_phy_shim_info_t *physhim)
 {
 	wlc_bmac_phy_reset(physhim->wlc_hw);
 }
 
-void wlapi_bmac_bw_set(wlc_phy_shim_info_t * physhim, uint16 bw)
+void wlapi_bmac_bw_set(wlc_phy_shim_info_t *physhim, uint16 bw)
 {
 	wlc_bmac_bw_set(physhim->wlc_hw, bw);
 }
 
-uint16 wlapi_bmac_get_txant(wlc_phy_shim_info_t * physhim)
+uint16 wlapi_bmac_get_txant(wlc_phy_shim_info_t *physhim)
 {
 	return wlc_bmac_get_txant(physhim->wlc_hw);
 }
 
-void wlapi_bmac_phyclk_fgc(wlc_phy_shim_info_t * physhim, bool clk)
+void wlapi_bmac_phyclk_fgc(wlc_phy_shim_info_t *physhim, bool clk)
 {
 	wlc_bmac_phyclk_fgc(physhim->wlc_hw, clk);
 }
 
-void wlapi_bmac_macphyclk_set(wlc_phy_shim_info_t * physhim, bool clk)
+void wlapi_bmac_macphyclk_set(wlc_phy_shim_info_t *physhim, bool clk)
 {
 	wlc_bmac_macphyclk_set(physhim->wlc_hw, clk);
 }
 
-void wlapi_bmac_core_phypll_ctl(wlc_phy_shim_info_t * physhim, bool on)
+void wlapi_bmac_core_phypll_ctl(wlc_phy_shim_info_t *physhim, bool on)
 {
 	wlc_bmac_core_phypll_ctl(physhim->wlc_hw, on);
 }
 
-void wlapi_bmac_core_phypll_reset(wlc_phy_shim_info_t * physhim)
+void wlapi_bmac_core_phypll_reset(wlc_phy_shim_info_t *physhim)
 {
 	wlc_bmac_core_phypll_reset(physhim->wlc_hw);
 }
 
-void wlapi_bmac_ucode_wake_override_phyreg_set(wlc_phy_shim_info_t * physhim)
+void wlapi_bmac_ucode_wake_override_phyreg_set(wlc_phy_shim_info_t *physhim)
 {
 	wlc_ucode_wake_override_set(physhim->wlc_hw, WLC_WAKE_OVERRIDE_PHYREG);
 }
 
-void wlapi_bmac_ucode_wake_override_phyreg_clear(wlc_phy_shim_info_t * physhim)
+void wlapi_bmac_ucode_wake_override_phyreg_clear(wlc_phy_shim_info_t *physhim)
 {
 	wlc_ucode_wake_override_clear(physhim->wlc_hw,
 				      WLC_WAKE_OVERRIDE_PHYREG);
 }
 
 void
-wlapi_bmac_write_template_ram(wlc_phy_shim_info_t * physhim, int offset,
+wlapi_bmac_write_template_ram(wlc_phy_shim_info_t *physhim, int offset,
 			      int len, void *buf)
 {
 	wlc_bmac_write_template_ram(physhim->wlc_hw, offset, len, buf);
 }
 
-uint16 wlapi_bmac_rate_shm_offset(wlc_phy_shim_info_t * physhim, uint8 rate)
+uint16 wlapi_bmac_rate_shm_offset(wlc_phy_shim_info_t *physhim, uint8 rate)
 {
 	return wlc_bmac_rate_shm_offset(physhim->wlc_hw, rate);
 }
 
-void wlapi_ucode_sample_init(wlc_phy_shim_info_t * physhim)
+void wlapi_ucode_sample_init(wlc_phy_shim_info_t *physhim)
 {
 }
 
 void
-wlapi_copyfrom_objmem(wlc_phy_shim_info_t * physhim, uint offset, void *buf,
+wlapi_copyfrom_objmem(wlc_phy_shim_info_t *physhim, uint offset, void *buf,
 		      int len, uint32 sel)
 {
 	wlc_bmac_copyfrom_objmem(physhim->wlc_hw, offset, buf, len, sel);
 }
 
 void
-wlapi_copyto_objmem(wlc_phy_shim_info_t * physhim, uint offset, const void *buf,
+wlapi_copyto_objmem(wlc_phy_shim_info_t *physhim, uint offset, const void *buf,
 		    int l, uint32 sel)
 {
 	wlc_bmac_copyto_objmem(physhim->wlc_hw, offset, buf, l, sel);
 }
 
 void
-wlapi_bmac_pktengtx(wlc_phy_shim_info_t * physhim, wl_pkteng_t * pkteng,
+wlapi_bmac_pktengtx(wlc_phy_shim_info_t *physhim, wl_pkteng_t *pkteng,
 		    uint8 rate, struct ether_addr *sa, uint32 wait_delay)
 {
 	wlc_pktengtx(physhim->wlc, pkteng, rate, sa, wait_delay);

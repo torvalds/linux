@@ -65,38 +65,38 @@ extern uint _varsz;
 
 #define SROM_CIS_SINGLE	1
 
-static int initvars_srom_si(si_t * sih, osl_t * osh, void *curmap, char **vars,
-			    uint * count);
-static void _initvars_srom_pci(uint8 sromrev, uint16 * srom, uint off,
-			       varbuf_t * b);
-static int initvars_srom_pci(si_t * sih, void *curmap, char **vars,
-			     uint * count);
-static int initvars_flash_si(si_t * sih, char **vars, uint * count);
+static int initvars_srom_si(si_t *sih, osl_t *osh, void *curmap, char **vars,
+			    uint *count);
+static void _initvars_srom_pci(uint8 sromrev, uint16 *srom, uint off,
+			       varbuf_t *b);
+static int initvars_srom_pci(si_t *sih, void *curmap, char **vars,
+			     uint *count);
+static int initvars_flash_si(si_t *sih, char **vars, uint *count);
 #ifdef BCMSDIO
-static int initvars_cis_sdio(osl_t * osh, char **vars, uint * count);
-static int sprom_cmd_sdio(osl_t * osh, uint8 cmd);
-static int sprom_read_sdio(osl_t * osh, uint16 addr, uint16 * data);
+static int initvars_cis_sdio(osl_t *osh, char **vars, uint *count);
+static int sprom_cmd_sdio(osl_t *osh, uint8 cmd);
+static int sprom_read_sdio(osl_t *osh, uint16 addr, uint16 *data);
 #endif				/* BCMSDIO */
-static int sprom_read_pci(osl_t * osh, si_t * sih, uint16 * sprom, uint wordoff,
-			  uint16 * buf, uint nwords, bool check_crc);
+static int sprom_read_pci(osl_t *osh, si_t *sih, uint16 *sprom, uint wordoff,
+			  uint16 *buf, uint nwords, bool check_crc);
 #if defined(BCMNVRAMR)
-static int otp_read_pci(osl_t * osh, si_t * sih, uint16 * buf, uint bufsz);
+static int otp_read_pci(osl_t *osh, si_t *sih, uint16 *buf, uint bufsz);
 #endif
-static uint16 srom_cc_cmd(si_t * sih, osl_t * osh, void *ccregs, uint32 cmd,
+static uint16 srom_cc_cmd(si_t *sih, osl_t *osh, void *ccregs, uint32 cmd,
 			  uint wordoff, uint16 data);
 
-static int initvars_table(osl_t * osh, char *start, char *end, char **vars,
-			  uint * count);
-static int initvars_flash(si_t * sih, osl_t * osh, char **vp, uint len);
+static int initvars_table(osl_t *osh, char *start, char *end, char **vars,
+			  uint *count);
+static int initvars_flash(si_t *sih, osl_t *osh, char **vp, uint len);
 
 /* Initialization of varbuf structure */
-static void BCMATTACHFN(varbuf_init) (varbuf_t * b, char *buf, uint size) {
+static void BCMATTACHFN(varbuf_init) (varbuf_t *b, char *buf, uint size) {
 	b->size = size;
 	b->base = b->buf = buf;
 }
 
 /* append a null terminated var=value string */
-static int BCMATTACHFN(varbuf_append) (varbuf_t * b, const char *fmt, ...) {
+static int BCMATTACHFN(varbuf_append) (varbuf_t *b, const char *fmt, ...) {
 	va_list ap;
 	int r;
 	size_t len;
@@ -151,8 +151,8 @@ static int BCMATTACHFN(varbuf_append) (varbuf_t * b, const char *fmt, ...) {
  * Return 0 on success, nonzero on error.
  */
 int
-BCMATTACHFN(srom_var_init) (si_t * sih, uint bustype, void *curmap, osl_t * osh,
-			    char **vars, uint * count) {
+BCMATTACHFN(srom_var_init) (si_t *sih, uint bustype, void *curmap, osl_t *osh,
+			    char **vars, uint *count) {
 	uint len;
 
 	len = 0;
@@ -189,8 +189,8 @@ BCMATTACHFN(srom_var_init) (si_t * sih, uint bustype, void *curmap, osl_t * osh,
 
 /* support only 16-bit word read from srom */
 int
-srom_read(si_t * sih, uint bustype, void *curmap, osl_t * osh,
-	  uint byteoff, uint nbytes, uint16 * buf, bool check_crc)
+srom_read(si_t *sih, uint bustype, void *curmap, osl_t *osh,
+	  uint byteoff, uint nbytes, uint16 *buf, bool check_crc)
 {
 	uint off, nw;
 #ifdef BCMSDIO
@@ -377,8 +377,8 @@ uint8 patch_pair = 0;
 #define BCMDONGLECASE(n)
 
 int
-BCMATTACHFN(srom_parsecis) (osl_t * osh, uint8 * pcis[], uint ciscnt,
-			    char **vars, uint * count)
+BCMATTACHFN(srom_parsecis) (osl_t *osh, uint8 *pcis[], uint ciscnt,
+			    char **vars, uint *count)
 {
 	char eabuf[32];
 	char *base;
@@ -1411,7 +1411,7 @@ BCMATTACHFN(srom_parsecis) (osl_t * osh, uint8 * pcis[], uint ciscnt,
  * not in the bus cores.
  */
 static uint16
-srom_cc_cmd(si_t * sih, osl_t * osh, void *ccregs, uint32 cmd, uint wordoff,
+srom_cc_cmd(si_t *sih, osl_t *osh, void *ccregs, uint32 cmd, uint wordoff,
 	    uint16 data)
 {
 	chipcregs_t *cc = (chipcregs_t *) ccregs;
@@ -1445,8 +1445,8 @@ srom_cc_cmd(si_t * sih, osl_t * osh, void *ccregs, uint32 cmd, uint wordoff,
  * Return 0 on success, nonzero on error.
  */
 static int
-sprom_read_pci(osl_t * osh, si_t * sih, uint16 * sprom, uint wordoff,
-	       uint16 * buf, uint nwords, bool check_crc)
+sprom_read_pci(osl_t *osh, si_t *sih, uint16 *sprom, uint wordoff,
+	       uint16 *buf, uint nwords, bool check_crc)
 {
 	int err = 0;
 	uint i;
@@ -1505,7 +1505,7 @@ sprom_read_pci(osl_t * osh, si_t * sih, uint16 * sprom, uint wordoff,
 }
 
 #if defined(BCMNVRAMR)
-static int otp_read_pci(osl_t * osh, si_t * sih, uint16 * buf, uint bufsz)
+static int otp_read_pci(osl_t *osh, si_t *sih, uint16 *buf, uint bufsz)
 {
 	uint8 *otp;
 	uint sz = OTP_SZ_MAX / 2;	/* size in words */
@@ -1555,8 +1555,8 @@ static int otp_read_pci(osl_t * osh, si_t * sih, uint16 * buf, uint bufsz)
 * Return 0 on success, nonzero on error.
 */
 static int
-BCMATTACHFN(initvars_table) (osl_t * osh, char *start, char *end, char **vars,
-			     uint * count) {
+BCMATTACHFN(initvars_table) (osl_t *osh, char *start, char *end, char **vars,
+			     uint *count) {
 	int c = (int)(end - start);
 
 	/* do it only when there is more than just the null string */
@@ -1582,7 +1582,7 @@ BCMATTACHFN(initvars_table) (osl_t * osh, char *start, char *end, char **vars,
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_flash) (si_t * sih, osl_t * osh, char **base, uint len) {
+BCMATTACHFN(initvars_flash) (si_t *sih, osl_t *osh, char **base, uint len) {
 	char *vp = *base;
 	char *flash;
 	int err;
@@ -1638,7 +1638,7 @@ BCMATTACHFN(initvars_flash) (si_t * sih, osl_t * osh, char **base, uint len) {
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_flash_si) (si_t * sih, char **vars, uint * count) {
+BCMATTACHFN(initvars_flash_si) (si_t *sih, char **vars, uint *count) {
 	osl_t *osh = si_osh(sih);
 	char *vp, *base;
 	int err;
@@ -1697,8 +1697,8 @@ static bool mask_valid(uint16 mask)
 #endif				/* BCMDBG */
 
 static void
-BCMATTACHFN(_initvars_srom_pci) (uint8 sromrev, uint16 * srom, uint off,
-				 varbuf_t * b) {
+BCMATTACHFN(_initvars_srom_pci) (uint8 sromrev, uint16 *srom, uint off,
+				 varbuf_t *b) {
 	uint16 w;
 	uint32 val;
 	const sromvar_t *srv;
@@ -1846,8 +1846,8 @@ BCMATTACHFN(_initvars_srom_pci) (uint8 sromrev, uint16 * srom, uint off,
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_srom_pci) (si_t * sih, void *curmap, char **vars,
-				uint * count) {
+BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
+				uint *count) {
 	uint16 *srom, *sromwindow;
 	uint8 sromrev = 0;
 	uint32 sr;
@@ -1992,7 +1992,7 @@ BCMATTACHFN(initvars_srom_pci) (si_t * sih, void *curmap, char **vars,
  * Return 0 on success, nonzero on error.
  */
 static int
-BCMATTACHFN(initvars_cis_sdio) (osl_t * osh, char **vars, uint * count) {
+BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count) {
 	uint8 *cis[SBSDIO_NUM_FUNCTION + 1];
 	uint fn, numfn;
 	int rc = 0;
@@ -2026,7 +2026,7 @@ BCMATTACHFN(initvars_cis_sdio) (osl_t * osh, char **vars, uint * count) {
 }
 
 /* set SDIO sprom command register */
-static int BCMATTACHFN(sprom_cmd_sdio) (osl_t * osh, uint8 cmd) {
+static int BCMATTACHFN(sprom_cmd_sdio) (osl_t *osh, uint8 cmd) {
 	uint8 status = 0;
 	uint wait_cnt = 1000;
 
@@ -2045,7 +2045,7 @@ static int BCMATTACHFN(sprom_cmd_sdio) (osl_t * osh, uint8 cmd) {
 }
 
 /* read a word from the SDIO srom */
-static int sprom_read_sdio(osl_t * osh, uint16 addr, uint16 * data)
+static int sprom_read_sdio(osl_t *osh, uint16 addr, uint16 *data)
 {
 	uint8 addr_l, addr_h, data_l, data_h;
 
@@ -2074,8 +2074,8 @@ static int sprom_read_sdio(osl_t * osh, uint16 addr, uint16 * data)
 #endif				/* BCMSDIO */
 
 static int
-BCMATTACHFN(initvars_srom_si) (si_t * sih, osl_t * osh, void *curmap,
-			       char **vars, uint * varsz) {
+BCMATTACHFN(initvars_srom_si) (si_t *sih, osl_t *osh, void *curmap,
+			       char **vars, uint *varsz) {
 	/* Search flash nvram section for srom variables */
 	return initvars_flash_si(sih, vars, varsz);
 }

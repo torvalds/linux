@@ -105,20 +105,20 @@ typedef struct country_info country_info_t;
 typedef struct wlc_cm_info wlc_cm_info_t;
 
 extern wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc);
-extern void wlc_channel_mgr_detach(wlc_cm_info_t * wlc_cm);
+extern void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm);
 
-extern int wlc_set_countrycode(wlc_cm_info_t * wlc_cm, const char *ccode);
-extern int wlc_set_countrycode_rev(wlc_cm_info_t * wlc_cm,
+extern int wlc_set_countrycode(wlc_cm_info_t *wlc_cm, const char *ccode);
+extern int wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 				   const char *country_abbrev,
 				   const char *ccode, int regrev);
 
-extern const char *wlc_channel_country_abbrev(wlc_cm_info_t * wlc_cm);
-extern uint8 wlc_channel_locale_flags(wlc_cm_info_t * wlc_cm);
-extern uint8 wlc_channel_locale_flags_in_band(wlc_cm_info_t * wlc_cm,
+extern const char *wlc_channel_country_abbrev(wlc_cm_info_t *wlc_cm);
+extern uint8 wlc_channel_locale_flags(wlc_cm_info_t *wlc_cm);
+extern uint8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm,
 					      uint bandunit);
 
-extern void wlc_quiet_channels_reset(wlc_cm_info_t * wlc_cm);
-extern bool wlc_quiet_chanspec(wlc_cm_info_t * wlc_cm, chanspec_t chspec);
+extern void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm);
+extern bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
 
 #define	VALID_CHANNEL20_DB(wlc, val) wlc_valid_channel20_db((wlc)->cmi, val)
 #define	VALID_CHANNEL20_IN_BAND(wlc, bandunit, val) \
@@ -126,34 +126,34 @@ extern bool wlc_quiet_chanspec(wlc_cm_info_t * wlc_cm, chanspec_t chspec);
 #define	VALID_CHANNEL20(wlc, val) wlc_valid_channel20((wlc)->cmi, val)
 #define VALID_40CHANSPEC_IN_BAND(wlc, bandunit) wlc_valid_40chanspec_in_band((wlc)->cmi, bandunit)
 
-extern bool wlc_valid_chanspec(wlc_cm_info_t * wlc_cm, chanspec_t chspec);
-extern bool wlc_valid_chanspec_db(wlc_cm_info_t * wlc_cm, chanspec_t chspec);
-extern bool wlc_valid_channel20_db(wlc_cm_info_t * wlc_cm, uint val);
-extern bool wlc_valid_channel20_in_band(wlc_cm_info_t * wlc_cm, uint bandunit,
+extern bool wlc_valid_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
+extern bool wlc_valid_chanspec_db(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
+extern bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val);
+extern bool wlc_valid_channel20_in_band(wlc_cm_info_t *wlc_cm, uint bandunit,
 					uint val);
-extern bool wlc_valid_channel20(wlc_cm_info_t * wlc_cm, uint val);
-extern bool wlc_valid_40chanspec_in_band(wlc_cm_info_t * wlc_cm, uint bandunit);
+extern bool wlc_valid_channel20(wlc_cm_info_t *wlc_cm, uint val);
+extern bool wlc_valid_40chanspec_in_band(wlc_cm_info_t *wlc_cm, uint bandunit);
 
-extern void wlc_channel_reg_limits(wlc_cm_info_t * wlc_cm,
+extern void wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm,
 				   chanspec_t chanspec,
 				   struct txpwr_limits *txpwr);
-extern void wlc_channel_set_chanspec(wlc_cm_info_t * wlc_cm,
+extern void wlc_channel_set_chanspec(wlc_cm_info_t *wlc_cm,
 				     chanspec_t chanspec,
 				     uint8 local_constraint_qdbm);
-extern int wlc_channel_set_txpower_limit(wlc_cm_info_t * wlc_cm,
+extern int wlc_channel_set_txpower_limit(wlc_cm_info_t *wlc_cm,
 					 uint8 local_constraint_qdbm);
 
 extern const country_info_t *wlc_country_lookup(struct wlc_info *wlc,
 						const char *ccode);
-extern void wlc_locale_get_channels(const locale_info_t * locale,
-				    chanvec_t * valid_channels);
+extern void wlc_locale_get_channels(const locale_info_t *locale,
+				    chanvec_t *valid_channels);
 extern const locale_info_t *wlc_get_locale_2g(uint8 locale_idx);
 extern const locale_info_t *wlc_get_locale_5g(uint8 locale_idx);
 extern bool wlc_japan(struct wlc_info *wlc);
 
-extern uint8 wlc_get_regclass(wlc_cm_info_t * wlc_cm, chanspec_t chanspec);
+extern uint8 wlc_get_regclass(wlc_cm_info_t *wlc_cm, chanspec_t chanspec);
 extern bool wlc_channel_get_chanvec(struct wlc_info *wlc,
 				    const char *country_abbrev, int bandtype,
-				    chanvec_t * channels);
+				    chanvec_t *channels);
 
 #endif				/* _WLC_CHANNEL_H */

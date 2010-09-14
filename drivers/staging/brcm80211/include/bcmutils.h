@@ -141,7 +141,7 @@ extern "C" {
 	extern void *pktq_pdeq(struct pktq *pq, int prec);
 	extern void *pktq_pdeq_tail(struct pktq *pq, int prec);
 /* Empty the queue at particular precedence level */
-	extern void pktq_pflush(osl_t * osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
 				bool dir, ifpkt_cb_t fn, int arg);
 /* Remove a specified packet from its queue */
 	extern bool pktq_pdel(struct pktq *pq, void *p, int prec);
@@ -172,18 +172,18 @@ extern "C" {
 	extern void *pktq_deq_tail(struct pktq *pq, int *prec_out);
 	extern void *pktq_peek(struct pktq *pq, int *prec_out);
 	extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
-	extern void pktq_flush(osl_t * osh, struct pktq *pq, bool dir,
+	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir,
 			       ifpkt_cb_t fn, int arg);
 
 /* externs */
 /* packet */
-	extern uint pktcopy(osl_t * osh, void *p, uint offset, int len,
-			    uchar * buf);
-	extern uint pktfrombuf(osl_t * osh, void *p, uint offset, int len,
-			       uchar * buf);
-	extern uint pkttotlen(osl_t * osh, void *p);
-	extern void *pktlast(osl_t * osh, void *p);
-	extern uint pktsegcnt(osl_t * osh, void *p);
+	extern uint pktcopy(osl_t *osh, void *p, uint offset, int len,
+			    uchar *buf);
+	extern uint pktfrombuf(osl_t *osh, void *p, uint offset, int len,
+			       uchar *buf);
+	extern uint pkttotlen(osl_t *osh, void *p);
+	extern void *pktlast(osl_t *osh, void *p);
+	extern uint pktsegcnt(osl_t *osh, void *p);
 
 /* Get priority from a packet and pass it back in scb (or equiv) */
 	extern uint pktsetprio(void *pkt, bool update_vtag);
@@ -199,7 +199,7 @@ extern "C" {
 	extern char *BCMROMFN(bcmstrcat) (char *dest, const char *src);
 	extern char *BCMROMFN(bcmstrncat) (char *dest, const char *src,
 					   uint size);
-	extern ulong wchar2ascii(char *abuf, ushort * wbuf, ushort wbuflen,
+	extern ulong wchar2ascii(char *abuf, ushort *wbuf, ushort wbuflen,
 				 ulong abuflen);
 	char *bcmstrtok(char **string, const char *delimiters, char *tokdelim);
 	int bcmstricmp(const char *s1, const char *s2);
@@ -207,7 +207,7 @@ extern "C" {
 
 /* ethernet address */
 	extern char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf);
-	extern int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr * ea);
+	extern int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea);
 
 /* ip address */
 	struct ipv4_addr;
@@ -221,7 +221,7 @@ extern "C" {
 	extern int getintvararray(char *vars, const char *name, uint8 index);
 	extern uint getgpiopin(char *vars, char *pin_name, uint def_pin);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, osl_t * osh, void *p0);
+	extern void prpkt(const char *msg, osl_t *osh, void *p0);
 #endif				/* BCMDBG */
 #define bcm_perf_enable()
 #define bcmstats(fmt)
@@ -233,7 +233,7 @@ extern "C" {
 #define bcmprinttslogs()
 #define bcmprinttstamp(us)
 
-	extern char *bcm_nvram_vars(uint * length);
+	extern char *bcm_nvram_vars(uint *length);
 	extern int bcm_nvram_cache(void *sih);
 
 /* Support for sharing code across in-driver iovar implementations.
@@ -266,9 +266,9 @@ extern "C" {
 
 /* flags are per-driver based on driver attributes */
 
-	extern const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t * table,
+	extern const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table,
 						   const char *name);
-	extern int bcm_iovar_lencheck(const bcm_iovar_t * table, void *arg,
+	extern int bcm_iovar_lencheck(const bcm_iovar_t *table, void *arg,
 				      int len, bool set);
 #if defined(BCMDBG)
 	extern int bcm_format_ssid(char *buf, const uchar ssid[],
@@ -506,7 +506,7 @@ extern "C" {
 /* crypto utility function */
 /* 128-bit xor: *dst = *src1 xor *src2. dst1, src1 and src2 may have any alignment */
 	static INLINE void
-	 xor_128bit_block(const uint8 * src1, const uint8 * src2, uint8 * dst) {
+	 xor_128bit_block(const uint8 *src1, const uint8 *src2, uint8 *dst) {
 		if (
 #ifdef __i386__
 			   1 ||
@@ -537,11 +537,11 @@ extern "C" {
 
 /* externs */
 /* crc */
-	extern uint8 BCMROMFN(hndcrc8) (uint8 * p, uint nbytes, uint8 crc);
-	extern uint16 BCMROMFN(hndcrc16) (uint8 * p, uint nbytes, uint16 crc);
+	extern uint8 BCMROMFN(hndcrc8) (uint8 *p, uint nbytes, uint8 crc);
+	extern uint16 BCMROMFN(hndcrc16) (uint8 *p, uint nbytes, uint16 crc);
 /* format/print */
 #if defined(BCMDBG)
-	extern int bcm_format_flags(const bcm_bit_desc_t * bd, uint32 flags,
+	extern int bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags,
 				    char *buf, int len);
 	extern int bcm_format_hex(char *str, const void *bytes, int len);
 #endif
@@ -552,10 +552,10 @@ extern "C" {
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
 	extern char *bcm_brev_str(uint32 brev, char *buf);
 	extern void printbig(char *buf);
-	extern void prhex(const char *msg, uchar * buf, uint len);
+	extern void prhex(const char *msg, uchar *buf, uint len);
 
 /* IE parsing */
-	extern bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t * elt, int *buflen);
+	extern bcm_tlv_t *BCMROMFN(bcm_next_tlv) (bcm_tlv_t *elt, int *buflen);
 	extern bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen,
 						    uint key);
 	extern bcm_tlv_t *BCMROMFN(bcm_parse_ordered_tlvs) (void *buf,
@@ -585,9 +585,9 @@ extern "C" {
 
 	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
 	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
-	extern void bcm_inc_bytes(uchar * num, int num_bytes, uint8 amount);
-	extern int bcm_cmp_bytes(uchar * arg1, uchar * arg2, uint8 nbytes);
-	extern void bcm_print_bytes(char *name, const uchar * cdata, int len);
+	extern void bcm_inc_bytes(uchar *num, int num_bytes, uint8 amount);
+	extern int bcm_cmp_bytes(uchar *arg1, uchar *arg2, uint8 nbytes);
+	extern void bcm_print_bytes(char *name, const uchar *cdata, int len);
 
 	typedef uint32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
 					   uint32 offset);
@@ -597,7 +597,7 @@ extern "C" {
 
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);
-	extern uint BCMROMFN(bcm_bitcount) (uint8 * bitmap, uint bytelength);
+	extern uint BCMROMFN(bcm_bitcount) (uint8 *bitmap, uint bytelength);
 
 #ifdef __cplusplus
 }

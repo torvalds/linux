@@ -975,77 +975,77 @@ uint16
 
 static uint32 wlc_lcnphy_qdiv_roundup(uint32 divident, uint32 divisor,
 				      uint8 precision);
-static void wlc_lcnphy_set_rx_gain_by_distribution(phy_info_t * pi,
+static void wlc_lcnphy_set_rx_gain_by_distribution(phy_info_t *pi,
 						   uint16 ext_lna, uint16 trsw,
 						   uint16 biq2, uint16 biq1,
 						   uint16 tia, uint16 lna2,
 						   uint16 lna1);
-static void wlc_lcnphy_clear_tx_power_offsets(phy_info_t * pi);
-static void wlc_lcnphy_set_pa_gain(phy_info_t * pi, uint16 gain);
-static void wlc_lcnphy_set_trsw_override(phy_info_t * pi, bool tx, bool rx);
-static void wlc_lcnphy_set_bbmult(phy_info_t * pi, uint8 m0);
-static uint8 wlc_lcnphy_get_bbmult(phy_info_t * pi);
-static void wlc_lcnphy_get_tx_gain(phy_info_t * pi, lcnphy_txgains_t * gains);
-static void wlc_lcnphy_set_tx_gain_override(phy_info_t * pi, bool bEnable);
-static void wlc_lcnphy_toggle_afe_pwdn(phy_info_t * pi);
-static void wlc_lcnphy_rx_gain_override_enable(phy_info_t * pi, bool enable);
-static void wlc_lcnphy_set_tx_gain(phy_info_t * pi,
-				   lcnphy_txgains_t * target_gains);
-static bool wlc_lcnphy_rx_iq_est(phy_info_t * pi, uint16 num_samps,
-				 uint8 wait_time, lcnphy_iq_est_t * iq_est);
-static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t * pi, uint16 num_samps);
-static uint16 wlc_lcnphy_get_pa_gain(phy_info_t * pi);
-static void wlc_lcnphy_afe_clk_init(phy_info_t * pi, uint8 mode);
-extern void wlc_lcnphy_tx_pwr_ctrl_init(wlc_phy_t * ppi);
-extern void wlc_lcnphy_pktengtx(wlc_phy_t * ppi, wl_pkteng_t * pkteng,
+static void wlc_lcnphy_clear_tx_power_offsets(phy_info_t *pi);
+static void wlc_lcnphy_set_pa_gain(phy_info_t *pi, uint16 gain);
+static void wlc_lcnphy_set_trsw_override(phy_info_t *pi, bool tx, bool rx);
+static void wlc_lcnphy_set_bbmult(phy_info_t *pi, uint8 m0);
+static uint8 wlc_lcnphy_get_bbmult(phy_info_t *pi);
+static void wlc_lcnphy_get_tx_gain(phy_info_t *pi, lcnphy_txgains_t *gains);
+static void wlc_lcnphy_set_tx_gain_override(phy_info_t *pi, bool bEnable);
+static void wlc_lcnphy_toggle_afe_pwdn(phy_info_t *pi);
+static void wlc_lcnphy_rx_gain_override_enable(phy_info_t *pi, bool enable);
+static void wlc_lcnphy_set_tx_gain(phy_info_t *pi,
+				   lcnphy_txgains_t *target_gains);
+static bool wlc_lcnphy_rx_iq_est(phy_info_t *pi, uint16 num_samps,
+				 uint8 wait_time, lcnphy_iq_est_t *iq_est);
+static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t *pi, uint16 num_samps);
+static uint16 wlc_lcnphy_get_pa_gain(phy_info_t *pi);
+static void wlc_lcnphy_afe_clk_init(phy_info_t *pi, uint8 mode);
+extern void wlc_lcnphy_tx_pwr_ctrl_init(wlc_phy_t *ppi);
+extern void wlc_lcnphy_pktengtx(wlc_phy_t *ppi, wl_pkteng_t *pkteng,
 				uint8 rate, struct ether_addr *sa,
 				uint32 wait_delay);
-static void wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t * pi,
+static void wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t *pi,
 						    uint8 channel);
 
-static void wlc_lcnphy_load_tx_gain_table(phy_info_t * pi,
-					  const lcnphy_tx_gain_tbl_entry * g);
+static void wlc_lcnphy_load_tx_gain_table(phy_info_t *pi,
+					  const lcnphy_tx_gain_tbl_entry *g);
 
-static void wlc_lcnphy_samp_cap(phy_info_t * pi, int clip_detect_algo,
-				uint16 thresh, int16 * ptr, int mode);
+static void wlc_lcnphy_samp_cap(phy_info_t *pi, int clip_detect_algo,
+				uint16 thresh, int16 *ptr, int mode);
 static int wlc_lcnphy_calc_floor(int16 coeff, int type);
-static void wlc_lcnphy_tx_iqlo_loopback(phy_info_t * pi,
-					uint16 * values_to_save);
-static void wlc_lcnphy_tx_iqlo_loopback_cleanup(phy_info_t * pi,
-						uint16 * values_to_save);
-static void wlc_lcnphy_set_cc(phy_info_t * pi, int cal_type, int16 coeff_x,
+static void wlc_lcnphy_tx_iqlo_loopback(phy_info_t *pi,
+					uint16 *values_to_save);
+static void wlc_lcnphy_tx_iqlo_loopback_cleanup(phy_info_t *pi,
+						uint16 *values_to_save);
+static void wlc_lcnphy_set_cc(phy_info_t *pi, int cal_type, int16 coeff_x,
 			      int16 coeff_y);
-static lcnphy_unsign16_struct wlc_lcnphy_get_cc(phy_info_t * pi, int cal_type);
-static void wlc_lcnphy_a1(phy_info_t * pi, int cal_type,
+static lcnphy_unsign16_struct wlc_lcnphy_get_cc(phy_info_t *pi, int cal_type);
+static void wlc_lcnphy_a1(phy_info_t *pi, int cal_type,
 			  int num_levels, int step_size_lg2);
-static void wlc_lcnphy_tx_iqlo_soft_cal_full(phy_info_t * pi);
+static void wlc_lcnphy_tx_iqlo_soft_cal_full(phy_info_t *pi);
 
-static void wlc_lcnphy_set_chanspec_tweaks(phy_info_t * pi,
+static void wlc_lcnphy_set_chanspec_tweaks(phy_info_t *pi,
 					   chanspec_t chanspec);
-static void wlc_lcnphy_agc_temp_init(phy_info_t * pi);
-static void wlc_lcnphy_temp_adj(phy_info_t * pi);
-static void wlc_lcnphy_clear_papd_comptable(phy_info_t * pi);
-static void wlc_lcnphy_baseband_init(phy_info_t * pi);
-static void wlc_lcnphy_radio_init(phy_info_t * pi);
-static void wlc_lcnphy_rc_cal(phy_info_t * pi);
-static void wlc_lcnphy_rcal(phy_info_t * pi);
-static void wlc_lcnphy_txrx_spur_avoidance_mode(phy_info_t * pi, bool enable);
-static int wlc_lcnphy_load_tx_iir_filter(phy_info_t * pi, bool is_ofdm,
+static void wlc_lcnphy_agc_temp_init(phy_info_t *pi);
+static void wlc_lcnphy_temp_adj(phy_info_t *pi);
+static void wlc_lcnphy_clear_papd_comptable(phy_info_t *pi);
+static void wlc_lcnphy_baseband_init(phy_info_t *pi);
+static void wlc_lcnphy_radio_init(phy_info_t *pi);
+static void wlc_lcnphy_rc_cal(phy_info_t *pi);
+static void wlc_lcnphy_rcal(phy_info_t *pi);
+static void wlc_lcnphy_txrx_spur_avoidance_mode(phy_info_t *pi, bool enable);
+static int wlc_lcnphy_load_tx_iir_filter(phy_info_t *pi, bool is_ofdm,
 					 int16 filt_type);
-static void wlc_lcnphy_set_rx_iq_comp(phy_info_t * pi, uint16 a, uint16 b);
+static void wlc_lcnphy_set_rx_iq_comp(phy_info_t *pi, uint16 a, uint16 b);
 
-void wlc_lcnphy_write_table(phy_info_t * pi, const phytbl_info_t * pti)
+void wlc_lcnphy_write_table(phy_info_t *pi, const phytbl_info_t *pti)
 {
 	wlc_phy_write_table(pi, pti, 0x455, 0x457, 0x456);
 }
 
-void wlc_lcnphy_read_table(phy_info_t * pi, phytbl_info_t * pti)
+void wlc_lcnphy_read_table(phy_info_t *pi, phytbl_info_t *pti)
 {
 	wlc_phy_read_table(pi, pti, 0x455, 0x457, 0x456);
 }
 
 static void
-wlc_lcnphy_common_read_table(phy_info_t * pi, uint32 tbl_id,
+wlc_lcnphy_common_read_table(phy_info_t *pi, uint32 tbl_id,
 			     CONST void *tbl_ptr, uint32 tbl_len,
 			     uint32 tbl_width, uint32 tbl_offset)
 {
@@ -1059,7 +1059,7 @@ wlc_lcnphy_common_read_table(phy_info_t * pi, uint32 tbl_id,
 }
 
 static void
-wlc_lcnphy_common_write_table(phy_info_t * pi, uint32 tbl_id,
+wlc_lcnphy_common_write_table(phy_info_t *pi, uint32 tbl_id,
 			      CONST void *tbl_ptr, uint32 tbl_len,
 			      uint32 tbl_width, uint32 tbl_offset)
 {
@@ -1121,7 +1121,7 @@ static int wlc_lcnphy_calc_floor(int16 coeff_x, int type)
 	return k;
 }
 
-int8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t * pi)
+int8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t *pi)
 {
 	int8 index;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -1137,7 +1137,7 @@ int8 wlc_lcnphy_get_current_tx_pwr_idx(phy_info_t * pi)
 	return index;
 }
 
-static uint32 wlc_lcnphy_measure_digital_power(phy_info_t * pi, uint16 nsamples)
+static uint32 wlc_lcnphy_measure_digital_power(phy_info_t *pi, uint16 nsamples)
 {
 	lcnphy_iq_est_t iq_est = { 0, 0, 0 };
 
@@ -1146,7 +1146,7 @@ static uint32 wlc_lcnphy_measure_digital_power(phy_info_t * pi, uint16 nsamples)
 	return (iq_est.i_pwr + iq_est.q_pwr) / nsamples;
 }
 
-void wlc_lcnphy_crsuprs(phy_info_t * pi, int channel)
+void wlc_lcnphy_crsuprs(phy_info_t *pi, int channel)
 {
 	uint16 afectrlovr, afectrlovrval;
 	afectrlovr = read_phy_reg(pi, 0x43b);
@@ -1177,7 +1177,7 @@ void wlc_lcnphy_crsuprs(phy_info_t * pi, int channel)
 	}
 }
 
-static void wlc_lcnphy_toggle_afe_pwdn(phy_info_t * pi)
+static void wlc_lcnphy_toggle_afe_pwdn(phy_info_t *pi)
 {
 	uint16 save_AfeCtrlOvrVal, save_AfeCtrlOvr;
 
@@ -1194,7 +1194,7 @@ static void wlc_lcnphy_toggle_afe_pwdn(phy_info_t * pi)
 	write_phy_reg(pi, 0x43b, save_AfeCtrlOvr);
 }
 
-static void wlc_lcnphy_txrx_spur_avoidance_mode(phy_info_t * pi, bool enable)
+static void wlc_lcnphy_txrx_spur_avoidance_mode(phy_info_t *pi, bool enable)
 {
 	if (enable) {
 		write_phy_reg(pi, 0x942, 0x7);
@@ -1213,7 +1213,7 @@ static void wlc_lcnphy_txrx_spur_avoidance_mode(phy_info_t * pi, bool enable)
 	wlapi_switch_macfreq(pi->sh->physhim, enable);
 }
 
-void wlc_phy_chanspec_set_lcnphy(phy_info_t * pi, chanspec_t chanspec)
+void wlc_phy_chanspec_set_lcnphy(phy_info_t *pi, chanspec_t chanspec)
 {
 	uint8 channel = CHSPEC_CHANNEL(chanspec);
 
@@ -1250,7 +1250,7 @@ void wlc_phy_chanspec_set_lcnphy(phy_info_t * pi, chanspec_t chanspec)
 
 }
 
-static void wlc_lcnphy_set_dac_gain(phy_info_t * pi, uint16 dac_gain)
+static void wlc_lcnphy_set_dac_gain(phy_info_t *pi, uint16 dac_gain)
 {
 	uint16 dac_ctrl;
 
@@ -1261,7 +1261,7 @@ static void wlc_lcnphy_set_dac_gain(phy_info_t * pi, uint16 dac_gain)
 
 }
 
-static void wlc_lcnphy_set_tx_gain_override(phy_info_t * pi, bool bEnable)
+static void wlc_lcnphy_set_tx_gain_override(phy_info_t *pi, bool bEnable)
 {
 	uint16 bit = bEnable ? 1 : 0;
 
@@ -1272,7 +1272,7 @@ static void wlc_lcnphy_set_tx_gain_override(phy_info_t * pi, bool bEnable)
 	mod_phy_reg(pi, 0x43b, (0x1 << 6), bit << 6);
 }
 
-static uint16 wlc_lcnphy_get_pa_gain(phy_info_t * pi)
+static uint16 wlc_lcnphy_get_pa_gain(phy_info_t *pi)
 {
 	uint16 pa_gain;
 
@@ -1284,7 +1284,7 @@ static uint16 wlc_lcnphy_get_pa_gain(phy_info_t * pi)
 }
 
 static void
-wlc_lcnphy_set_tx_gain(phy_info_t * pi, lcnphy_txgains_t * target_gains)
+wlc_lcnphy_set_tx_gain(phy_info_t *pi, lcnphy_txgains_t *target_gains)
 {
 	uint16 pa_gain = wlc_lcnphy_get_pa_gain(pi);
 
@@ -1309,7 +1309,7 @@ wlc_lcnphy_set_tx_gain(phy_info_t * pi, lcnphy_txgains_t * target_gains)
 	wlc_lcnphy_enable_tx_gain_override(pi);
 }
 
-static void wlc_lcnphy_set_bbmult(phy_info_t * pi, uint8 m0)
+static void wlc_lcnphy_set_bbmult(phy_info_t *pi, uint8 m0)
 {
 	uint16 m0m1 = (uint16) m0 << 8;
 	phytbl_info_t tab;
@@ -1322,7 +1322,7 @@ static void wlc_lcnphy_set_bbmult(phy_info_t * pi, uint8 m0)
 	wlc_lcnphy_write_table(pi, &tab);
 }
 
-static void wlc_lcnphy_clear_tx_power_offsets(phy_info_t * pi)
+static void wlc_lcnphy_clear_tx_power_offsets(phy_info_t *pi)
 {
 	uint32 data_buf[64];
 	phytbl_info_t tab;
@@ -1351,7 +1351,7 @@ typedef enum {
 	LCNPHY_TSSI_EXT
 } lcnphy_tssi_mode_t;
 
-static void wlc_lcnphy_set_tssi_mux(phy_info_t * pi, lcnphy_tssi_mode_t pos)
+static void wlc_lcnphy_set_tssi_mux(phy_info_t *pi, lcnphy_tssi_mode_t pos)
 {
 	mod_phy_reg(pi, 0x4d7, (0x1 << 0), (0x1) << 0);
 
@@ -1390,7 +1390,7 @@ static void wlc_lcnphy_set_tssi_mux(phy_info_t * pi, lcnphy_tssi_mode_t pos)
 	}
 }
 
-static uint16 wlc_lcnphy_rfseq_tbl_adc_pwrup(phy_info_t * pi)
+static uint16 wlc_lcnphy_rfseq_tbl_adc_pwrup(phy_info_t *pi)
 {
 	uint16 N1, N2, N3, N4, N5, N6, N;
 	N1 = ((read_phy_reg(pi, 0x4a5) & (0xff << 0))
@@ -1411,7 +1411,7 @@ static uint16 wlc_lcnphy_rfseq_tbl_adc_pwrup(phy_info_t * pi)
 	return N;
 }
 
-static void wlc_lcnphy_pwrctrl_rssiparams(phy_info_t * pi)
+static void wlc_lcnphy_pwrctrl_rssiparams(phy_info_t *pi)
 {
 	uint16 auxpga_vmid, auxpga_vmid_temp, auxpga_gain_temp;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -1455,7 +1455,7 @@ static void wlc_lcnphy_pwrctrl_rssiparams(phy_info_t * pi)
 	mod_radio_reg(pi, RADIO_2064_REG082, (1 << 5), (1 << 5));
 }
 
-static void wlc_lcnphy_tssi_setup(phy_info_t * pi)
+static void wlc_lcnphy_tssi_setup(phy_info_t *pi)
 {
 	phytbl_info_t tab;
 	uint32 rfseq, ind;
@@ -1569,7 +1569,7 @@ static void wlc_lcnphy_tssi_setup(phy_info_t * pi)
 	wlc_lcnphy_pwrctrl_rssiparams(pi);
 }
 
-void wlc_lcnphy_tx_pwr_update_npt(phy_info_t * pi)
+void wlc_lcnphy_tx_pwr_update_npt(phy_info_t *pi)
 {
 	uint16 tx_cnt, tx_total, npt;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -1599,7 +1599,7 @@ int32 wlc_lcnphy_tssi2dbm(int32 tssi, int32 a1, int32 b0, int32 b1)
 	return p;
 }
 
-static void wlc_lcnphy_txpower_reset_npt(phy_info_t * pi)
+static void wlc_lcnphy_txpower_reset_npt(phy_info_t *pi)
 {
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 	if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
@@ -1609,7 +1609,7 @@ static void wlc_lcnphy_txpower_reset_npt(phy_info_t * pi)
 	pi_lcn->lcnphy_tssi_npt = LCNPHY_TX_PWR_CTRL_START_NPT;
 }
 
-void wlc_lcnphy_txpower_recalc_target(phy_info_t * pi)
+void wlc_lcnphy_txpower_recalc_target(phy_info_t *pi)
 {
 	phytbl_info_t tab;
 	uint32 rate_table[WLC_NUM_RATES_CCK + WLC_NUM_RATES_OFDM +
@@ -1640,7 +1640,7 @@ void wlc_lcnphy_txpower_recalc_target(phy_info_t * pi)
 	}
 }
 
-static void wlc_lcnphy_set_tx_pwr_soft_ctrl(phy_info_t * pi, int8 index)
+static void wlc_lcnphy_set_tx_pwr_soft_ctrl(phy_info_t *pi, int8 index)
 {
 	uint32 cck_offset[4] = { 22, 22, 22, 22 };
 	uint32 ofdm_offset, reg_offset_cck;
@@ -1693,7 +1693,7 @@ static void wlc_lcnphy_set_tx_pwr_soft_ctrl(phy_info_t * pi, int8 index)
 
 }
 
-static int8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t * pi)
+static int8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t *pi)
 {
 	int8 index, delta_brd, delta_temp, new_index, tempcorrx;
 	int16 manp, meas_temp, temp_diff;
@@ -1758,7 +1758,7 @@ static int8 wlc_lcnphy_tempcompensated_txpwrctrl(phy_info_t * pi)
 	return new_index;
 }
 
-static uint16 wlc_lcnphy_set_tx_pwr_ctrl_mode(phy_info_t * pi, uint16 mode)
+static uint16 wlc_lcnphy_set_tx_pwr_ctrl_mode(phy_info_t *pi, uint16 mode)
 {
 
 	uint16 current_mode = mode;
@@ -1771,7 +1771,7 @@ static uint16 wlc_lcnphy_set_tx_pwr_ctrl_mode(phy_info_t * pi, uint16 mode)
 	return current_mode;
 }
 
-void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t * pi, uint16 mode)
+void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t *pi, uint16 mode)
 {
 	uint16 old_mode = wlc_lcnphy_get_tx_pwr_ctrl(pi);
 	int8 index;
@@ -1827,7 +1827,7 @@ void wlc_lcnphy_set_tx_pwr_ctrl(phy_info_t * pi, uint16 mode)
 	}
 }
 
-static bool wlc_lcnphy_iqcal_wait(phy_info_t * pi)
+static bool wlc_lcnphy_iqcal_wait(phy_info_t *pi)
 {
 	uint delay_count = 0;
 
@@ -1843,8 +1843,8 @@ static bool wlc_lcnphy_iqcal_wait(phy_info_t * pi)
 }
 
 static void
-wlc_lcnphy_tx_iqlo_cal(phy_info_t * pi,
-		       lcnphy_txgains_t * target_gains,
+wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
+		       lcnphy_txgains_t *target_gains,
 		       lcnphy_cal_mode_t cal_mode, bool keep_tone)
 {
 
@@ -2078,7 +2078,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t * pi,
 
 }
 
-static void wlc_lcnphy_idle_tssi_est(wlc_phy_t * ppi)
+static void wlc_lcnphy_idle_tssi_est(wlc_phy_t *ppi)
 {
 	bool suspend, tx_gain_override_old;
 	lcnphy_txgains_t old_gains;
@@ -2144,7 +2144,7 @@ static void wlc_lcnphy_idle_tssi_est(wlc_phy_t * ppi)
 		wlapi_enable_mac(pi->sh->physhim);
 }
 
-static void wlc_lcnphy_vbat_temp_sense_setup(phy_info_t * pi, uint8 mode)
+static void wlc_lcnphy_vbat_temp_sense_setup(phy_info_t *pi, uint8 mode)
 {
 	bool suspend;
 	uint16 save_txpwrCtrlEn;
@@ -2286,7 +2286,7 @@ static void wlc_lcnphy_vbat_temp_sense_setup(phy_info_t * pi, uint8 mode)
 	OSL_DELAY(999);
 }
 
-void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (wlc_phy_t * ppi) {
+void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (wlc_phy_t *ppi) {
 	lcnphy_txgains_t tx_gains;
 	uint8 bbmult;
 	phytbl_info_t tab;
@@ -2363,7 +2363,7 @@ void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (wlc_phy_t * ppi) {
 		wlapi_enable_mac(pi->sh->physhim);
 }
 
-static uint8 wlc_lcnphy_get_bbmult(phy_info_t * pi)
+static uint8 wlc_lcnphy_get_bbmult(phy_info_t *pi)
 {
 	uint16 m0m1;
 	phytbl_info_t tab;
@@ -2378,7 +2378,7 @@ static uint8 wlc_lcnphy_get_bbmult(phy_info_t * pi)
 	return (uint8) ((m0m1 & 0xff00) >> 8);
 }
 
-static void wlc_lcnphy_set_pa_gain(phy_info_t * pi, uint16 gain)
+static void wlc_lcnphy_set_pa_gain(phy_info_t *pi, uint16 gain)
 {
 	mod_phy_reg(pi, 0x4fb,
 		    LCNPHY_txgainctrlovrval1_pagain_ovr_val1_MASK,
@@ -2389,8 +2389,8 @@ static void wlc_lcnphy_set_pa_gain(phy_info_t * pi, uint16 gain)
 }
 
 void
-wlc_lcnphy_get_radio_loft(phy_info_t * pi,
-			  uint8 * ei0, uint8 * eq0, uint8 * fi0, uint8 * fq0)
+wlc_lcnphy_get_radio_loft(phy_info_t *pi,
+			  uint8 *ei0, uint8 *eq0, uint8 *fi0, uint8 *fq0)
 {
 	*ei0 = LCNPHY_IQLOCC_READ(read_radio_reg(pi, RADIO_2064_REG089));
 	*eq0 = LCNPHY_IQLOCC_READ(read_radio_reg(pi, RADIO_2064_REG08A));
@@ -2398,7 +2398,7 @@ wlc_lcnphy_get_radio_loft(phy_info_t * pi,
 	*fq0 = LCNPHY_IQLOCC_READ(read_radio_reg(pi, RADIO_2064_REG08C));
 }
 
-static void wlc_lcnphy_get_tx_gain(phy_info_t * pi, lcnphy_txgains_t * gains)
+static void wlc_lcnphy_get_tx_gain(phy_info_t *pi, lcnphy_txgains_t *gains)
 {
 	uint16 dac_gain;
 
@@ -2417,7 +2417,7 @@ static void wlc_lcnphy_get_tx_gain(phy_info_t * pi, lcnphy_txgains_t * gains)
 	}
 }
 
-void wlc_lcnphy_set_tx_iqcc(phy_info_t * pi, uint16 a, uint16 b)
+void wlc_lcnphy_set_tx_iqcc(phy_info_t *pi, uint16 a, uint16 b)
 {
 	phytbl_info_t tab;
 	uint16 iqcc[2];
@@ -2433,7 +2433,7 @@ void wlc_lcnphy_set_tx_iqcc(phy_info_t * pi, uint16 a, uint16 b)
 	wlc_lcnphy_write_table(pi, &tab);
 }
 
-void wlc_lcnphy_set_tx_locc(phy_info_t * pi, uint16 didq)
+void wlc_lcnphy_set_tx_locc(phy_info_t *pi, uint16 didq)
 {
 	phytbl_info_t tab;
 
@@ -2445,7 +2445,7 @@ void wlc_lcnphy_set_tx_locc(phy_info_t * pi, uint16 didq)
 	wlc_lcnphy_write_table(pi, &tab);
 }
 
-void wlc_lcnphy_set_tx_pwr_by_index(phy_info_t * pi, int index)
+void wlc_lcnphy_set_tx_pwr_by_index(phy_info_t *pi, int index)
 {
 	phytbl_info_t tab;
 	uint16 a, b;
@@ -2506,7 +2506,7 @@ void wlc_lcnphy_set_tx_pwr_by_index(phy_info_t * pi, int index)
 	}
 }
 
-static void wlc_lcnphy_set_trsw_override(phy_info_t * pi, bool tx, bool rx)
+static void wlc_lcnphy_set_trsw_override(phy_info_t *pi, bool tx, bool rx)
 {
 
 	mod_phy_reg(pi, 0x44d,
@@ -2516,7 +2516,7 @@ static void wlc_lcnphy_set_trsw_override(phy_info_t * pi, bool tx, bool rx)
 	or_phy_reg(pi, 0x44c, (0x1 << 1) | (0x1 << 0));
 }
 
-static void wlc_lcnphy_clear_papd_comptable(phy_info_t * pi)
+static void wlc_lcnphy_clear_papd_comptable(phy_info_t *pi)
 {
 	uint32 j;
 	phytbl_info_t tab;
@@ -2536,7 +2536,7 @@ static void wlc_lcnphy_clear_papd_comptable(phy_info_t * pi)
 }
 
 static void
-wlc_lcnphy_set_rx_gain_by_distribution(phy_info_t * pi,
+wlc_lcnphy_set_rx_gain_by_distribution(phy_info_t *pi,
 				       uint16 trsw,
 				       uint16 ext_lna,
 				       uint16 biq2,
@@ -2570,7 +2570,7 @@ wlc_lcnphy_set_rx_gain_by_distribution(phy_info_t * pi,
 
 }
 
-static void wlc_lcnphy_rx_gain_override_enable(phy_info_t * pi, bool enable)
+static void wlc_lcnphy_rx_gain_override_enable(phy_info_t *pi, bool enable)
 {
 	uint16 ebit = enable ? 1 : 0;
 
@@ -2595,7 +2595,7 @@ static void wlc_lcnphy_rx_gain_override_enable(phy_info_t * pi, bool enable)
 	}
 }
 
-void wlc_lcnphy_tx_pu(phy_info_t * pi, bool bEnable)
+void wlc_lcnphy_tx_pu(phy_info_t *pi, bool bEnable)
 {
 	if (!bEnable) {
 
@@ -2673,7 +2673,7 @@ void wlc_lcnphy_tx_pu(phy_info_t * pi, bool bEnable)
 }
 
 static void
-wlc_lcnphy_run_samples(phy_info_t * pi,
+wlc_lcnphy_run_samples(phy_info_t *pi,
 		       uint16 num_samps,
 		       uint16 num_loops, uint16 wait, bool iqcalmode)
 {
@@ -2699,7 +2699,7 @@ wlc_lcnphy_run_samples(phy_info_t * pi,
 	or_radio_reg(pi, RADIO_2064_REG112, 0x6);
 }
 
-void wlc_lcnphy_deaf_mode(phy_info_t * pi, bool mode)
+void wlc_lcnphy_deaf_mode(phy_info_t *pi, bool mode)
 {
 
 	uint8 phybw40;
@@ -2724,7 +2724,7 @@ void wlc_lcnphy_deaf_mode(phy_info_t * pi, bool mode)
 }
 
 void
-wlc_lcnphy_start_tx_tone(phy_info_t * pi, int32 f_kHz, uint16 max_val,
+wlc_lcnphy_start_tx_tone(phy_info_t *pi, int32 f_kHz, uint16 max_val,
 			 bool iqcalmode)
 {
 	uint8 phy_bw;
@@ -2788,7 +2788,7 @@ wlc_lcnphy_start_tx_tone(phy_info_t * pi, int32 f_kHz, uint16 max_val,
 	wlc_lcnphy_run_samples(pi, num_samps, 0xffff, 0, iqcalmode);
 }
 
-void wlc_lcnphy_stop_tx_tone(phy_info_t * pi)
+void wlc_lcnphy_stop_tx_tone(phy_info_t *pi)
 {
 	int16 playback_status;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -2819,13 +2819,13 @@ void wlc_lcnphy_stop_tx_tone(phy_info_t * pi)
 	wlc_lcnphy_deaf_mode(pi, FALSE);
 }
 
-static void wlc_lcnphy_clear_trsw_override(phy_info_t * pi)
+static void wlc_lcnphy_clear_trsw_override(phy_info_t *pi)
 {
 
 	and_phy_reg(pi, 0x44c, (uint16) ~ ((0x1 << 1) | (0x1 << 0)));
 }
 
-void wlc_lcnphy_get_tx_iqcc(phy_info_t * pi, uint16 * a, uint16 * b)
+void wlc_lcnphy_get_tx_iqcc(phy_info_t *pi, uint16 *a, uint16 *b)
 {
 	uint16 iqcc[2];
 	phytbl_info_t tab;
@@ -2841,7 +2841,7 @@ void wlc_lcnphy_get_tx_iqcc(phy_info_t * pi, uint16 * a, uint16 * b)
 	*b = iqcc[1];
 }
 
-uint16 wlc_lcnphy_get_tx_locc(phy_info_t * pi)
+uint16 wlc_lcnphy_get_tx_locc(phy_info_t *pi)
 {
 	phytbl_info_t tab;
 	uint16 didq;
@@ -2856,7 +2856,7 @@ uint16 wlc_lcnphy_get_tx_locc(phy_info_t * pi)
 	return didq;
 }
 
-static void wlc_lcnphy_txpwrtbl_iqlo_cal(phy_info_t * pi)
+static void wlc_lcnphy_txpwrtbl_iqlo_cal(phy_info_t *pi)
 {
 
 	lcnphy_txgains_t target_gains, old_gains;
@@ -2970,7 +2970,7 @@ static void wlc_lcnphy_txpwrtbl_iqlo_cal(phy_info_t * pi)
 		wlc_lcnphy_set_tx_pwr_by_index(pi, SAVE_txpwrindex);
 }
 
-int16 wlc_lcnphy_tempsense_new(phy_info_t * pi, bool mode)
+int16 wlc_lcnphy_tempsense_new(phy_info_t *pi, bool mode)
 {
 	uint16 tempsenseval1, tempsenseval2;
 	int16 avg = 0;
@@ -3015,7 +3015,7 @@ int16 wlc_lcnphy_tempsense_new(phy_info_t * pi, bool mode)
 	return avg;
 }
 
-uint16 wlc_lcnphy_tempsense(phy_info_t * pi, bool mode)
+uint16 wlc_lcnphy_tempsense(phy_info_t *pi, bool mode)
 {
 	uint16 tempsenseval1, tempsenseval2;
 	int32 avg = 0;
@@ -3076,7 +3076,7 @@ uint16 wlc_lcnphy_tempsense(phy_info_t * pi, bool mode)
 	return (uint16) avg;
 }
 
-int8 wlc_lcnphy_tempsense_degree(phy_info_t * pi, bool mode)
+int8 wlc_lcnphy_tempsense_degree(phy_info_t *pi, bool mode)
 {
 	int32 degree = wlc_lcnphy_tempsense_new(pi, mode);
 	degree =
@@ -3085,7 +3085,7 @@ int8 wlc_lcnphy_tempsense_degree(phy_info_t * pi, bool mode)
 	return (int8) degree;
 }
 
-int8 wlc_lcnphy_vbatsense(phy_info_t * pi, bool mode)
+int8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode)
 {
 	uint16 vbatsenseval;
 	int32 avg = 0;
@@ -3121,7 +3121,7 @@ int8 wlc_lcnphy_vbatsense(phy_info_t * pi, bool mode)
 	return (int8) avg;
 }
 
-static void wlc_lcnphy_afe_clk_init(phy_info_t * pi, uint8 mode)
+static void wlc_lcnphy_afe_clk_init(phy_info_t *pi, uint8 mode)
 {
 	uint8 phybw40;
 	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
@@ -3136,9 +3136,9 @@ static void wlc_lcnphy_afe_clk_init(phy_info_t * pi, uint8 mode)
 }
 
 static bool
-wlc_lcnphy_rx_iq_est(phy_info_t * pi,
+wlc_lcnphy_rx_iq_est(phy_info_t *pi,
 		     uint16 num_samps,
-		     uint8 wait_time, lcnphy_iq_est_t * iq_est)
+		     uint8 wait_time, lcnphy_iq_est_t *iq_est)
 {
 	int wait_count = 0;
 	bool result = TRUE;
@@ -3182,7 +3182,7 @@ wlc_lcnphy_rx_iq_est(phy_info_t * pi,
 	return result;
 }
 
-static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t * pi, uint16 num_samps)
+static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t *pi, uint16 num_samps)
 {
 #define LCNPHY_MIN_RXIQ_PWR 2
 	bool result;
@@ -3267,7 +3267,7 @@ static bool wlc_lcnphy_calc_rx_iq_comp(phy_info_t * pi, uint16 num_samps)
 }
 
 static bool
-wlc_lcnphy_rx_iq_cal(phy_info_t * pi, const lcnphy_rx_iqcomp_t * iqcomp,
+wlc_lcnphy_rx_iq_cal(phy_info_t *pi, const lcnphy_rx_iqcomp_t *iqcomp,
 		     int iqcomp_sz, bool tx_switch, bool rx_switch, int module,
 		     int tx_gain_idx)
 {
@@ -3437,13 +3437,13 @@ wlc_lcnphy_rx_iq_cal(phy_info_t * pi, const lcnphy_rx_iqcomp_t * iqcomp,
 	return result;
 }
 
-static void wlc_lcnphy_temp_adj(phy_info_t * pi)
+static void wlc_lcnphy_temp_adj(phy_info_t *pi)
 {
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
 }
 
-static void wlc_lcnphy_glacial_timer_based_cal(phy_info_t * pi)
+static void wlc_lcnphy_glacial_timer_based_cal(phy_info_t *pi)
 {
 	bool suspend;
 	int8 index;
@@ -3468,7 +3468,7 @@ static void wlc_lcnphy_glacial_timer_based_cal(phy_info_t * pi)
 
 }
 
-static void wlc_lcnphy_periodic_cal(phy_info_t * pi)
+static void wlc_lcnphy_periodic_cal(phy_info_t *pi)
 {
 	bool suspend, full_cal;
 	const lcnphy_rx_iqcomp_t *rx_iqcomp;
@@ -3540,7 +3540,7 @@ static void wlc_lcnphy_periodic_cal(phy_info_t * pi)
 		wlapi_enable_mac(pi->sh->physhim);
 }
 
-void wlc_lcnphy_calib_modes(phy_info_t * pi, uint mode)
+void wlc_lcnphy_calib_modes(phy_info_t *pi, uint mode)
 {
 	uint16 temp_new;
 	int temp1, temp2, temp_diff;
@@ -3582,7 +3582,7 @@ void wlc_lcnphy_calib_modes(phy_info_t * pi, uint mode)
 	}
 }
 
-void wlc_lcnphy_get_tssi(phy_info_t * pi, int8 * ofdm_pwr, int8 * cck_pwr)
+void wlc_lcnphy_get_tssi(phy_info_t *pi, int8 *ofdm_pwr, int8 *cck_pwr)
 {
 	int8 cck_offset;
 	uint16 status;
@@ -3603,12 +3603,12 @@ void wlc_lcnphy_get_tssi(phy_info_t * pi, int8 * ofdm_pwr, int8 * cck_pwr)
 	}
 }
 
-void WLBANDINITFN(wlc_phy_cal_init_lcnphy) (phy_info_t * pi) {
+void WLBANDINITFN(wlc_phy_cal_init_lcnphy) (phy_info_t *pi) {
 	return;
 
 }
 
-static void wlc_lcnphy_set_chanspec_tweaks(phy_info_t * pi, chanspec_t chanspec)
+static void wlc_lcnphy_set_chanspec_tweaks(phy_info_t *pi, chanspec_t chanspec)
 {
 	uint8 channel = CHSPEC_CHANNEL(chanspec);
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -3661,12 +3661,12 @@ static void wlc_lcnphy_set_chanspec_tweaks(phy_info_t * pi, chanspec_t chanspec)
 }
 
 void
-wlc_lcnphy_pktengtx(wlc_phy_t * ppi, wl_pkteng_t * pkteng, uint8 rate,
+wlc_lcnphy_pktengtx(wlc_phy_t *ppi, wl_pkteng_t *pkteng, uint8 rate,
 		    struct ether_addr *sa, uint32 wait_delay)
 {
 }
 
-void wlc_lcnphy_tx_power_adjustment(wlc_phy_t * ppi)
+void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi)
 {
 	int8 index;
 	uint16 index2;
@@ -3683,7 +3683,7 @@ void wlc_lcnphy_tx_power_adjustment(wlc_phy_t * ppi)
 	}
 }
 
-static void wlc_lcnphy_set_rx_iq_comp(phy_info_t * pi, uint16 a, uint16 b)
+static void wlc_lcnphy_set_rx_iq_comp(phy_info_t *pi, uint16 a, uint16 b)
 {
 	mod_phy_reg(pi, 0x645, (0x3ff << 0), (a) << 0);
 
@@ -3699,7 +3699,7 @@ static void wlc_lcnphy_set_rx_iq_comp(phy_info_t * pi, uint16 a, uint16 b)
 
 }
 
-void WLBANDINITFN(wlc_phy_init_lcnphy) (phy_info_t * pi) {
+void WLBANDINITFN(wlc_phy_init_lcnphy) (phy_info_t *pi) {
 	uint8 phybw40;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
@@ -3748,7 +3748,7 @@ void WLBANDINITFN(wlc_phy_init_lcnphy) (phy_info_t * pi) {
 }
 
 static void
-wlc_lcnphy_tx_iqlo_loopback(phy_info_t * pi, uint16 * values_to_save)
+wlc_lcnphy_tx_iqlo_loopback(phy_info_t *pi, uint16 *values_to_save)
 {
 	uint16 vmid;
 	int i;
@@ -3841,8 +3841,8 @@ wlc_lcnphy_tx_iqlo_loopback(phy_info_t * pi, uint16 * values_to_save)
 }
 
 static void
-wlc_lcnphy_samp_cap(phy_info_t * pi, int clip_detect_algo, uint16 thresh,
-		    int16 * ptr, int mode)
+wlc_lcnphy_samp_cap(phy_info_t *pi, int clip_detect_algo, uint16 thresh,
+		    int16 *ptr, int mode)
 {
 	uint32 curval1, curval2, stpptr, curptr, strptr, val;
 	uint16 sslpnCalibClkEnCtrl, timer;
@@ -3917,7 +3917,7 @@ wlc_lcnphy_samp_cap(phy_info_t * pi, int clip_detect_algo, uint16 thresh,
 	W_REG(pi->sh->osh, &pi->regs->psm_corectlsts, curval1);
 }
 
-static void wlc_lcnphy_tx_iqlo_soft_cal_full(phy_info_t * pi)
+static void wlc_lcnphy_tx_iqlo_soft_cal_full(phy_info_t *pi)
 {
 	lcnphy_unsign16_struct iqcc0, locc2, locc3, locc4;
 
@@ -3940,7 +3940,7 @@ static void wlc_lcnphy_tx_iqlo_soft_cal_full(phy_info_t * pi)
 }
 
 static void
-wlc_lcnphy_set_cc(phy_info_t * pi, int cal_type, int16 coeff_x, int16 coeff_y)
+wlc_lcnphy_set_cc(phy_info_t *pi, int cal_type, int16 coeff_x, int16 coeff_y)
 {
 	uint16 di0dq0;
 	uint16 x, y, data_rf;
@@ -3984,7 +3984,7 @@ wlc_lcnphy_set_cc(phy_info_t * pi, int cal_type, int16 coeff_x, int16 coeff_y)
 	}
 }
 
-static lcnphy_unsign16_struct wlc_lcnphy_get_cc(phy_info_t * pi, int cal_type)
+static lcnphy_unsign16_struct wlc_lcnphy_get_cc(phy_info_t *pi, int cal_type)
 {
 	uint16 a, b, didq;
 	uint8 di0, dq0, ei, eq, fi, fq;
@@ -4019,7 +4019,7 @@ static lcnphy_unsign16_struct wlc_lcnphy_get_cc(phy_info_t * pi, int cal_type)
 }
 
 static void
-wlc_lcnphy_a1(phy_info_t * pi, int cal_type, int num_levels, int step_size_lg2)
+wlc_lcnphy_a1(phy_info_t *pi, int cal_type, int num_levels, int step_size_lg2)
 {
 	const lcnphy_spb_tone_t *phy_c1;
 	lcnphy_spb_tone_t phy_c2;
@@ -4214,7 +4214,7 @@ wlc_lcnphy_a1(phy_info_t * pi, int cal_type, int num_levels, int step_size_lg2)
 }
 
 static void
-wlc_lcnphy_tx_iqlo_loopback_cleanup(phy_info_t * pi, uint16 * values_to_save)
+wlc_lcnphy_tx_iqlo_loopback_cleanup(phy_info_t *pi, uint16 *values_to_save)
 {
 	int i;
 
@@ -4229,7 +4229,7 @@ wlc_lcnphy_tx_iqlo_loopback_cleanup(phy_info_t * pi, uint16 * values_to_save)
 }
 
 static void
-WLBANDINITFN(wlc_lcnphy_load_tx_gain_table) (phy_info_t * pi,
+WLBANDINITFN(wlc_lcnphy_load_tx_gain_table) (phy_info_t *pi,
 					     const lcnphy_tx_gain_tbl_entry *
 					     gain_table) {
 	uint32 j;
@@ -4265,7 +4265,7 @@ WLBANDINITFN(wlc_lcnphy_load_tx_gain_table) (phy_info_t * pi,
 	}
 }
 
-static void wlc_lcnphy_load_rfpower(phy_info_t * pi)
+static void wlc_lcnphy_load_rfpower(phy_info_t *pi)
 {
 	phytbl_info_t tab;
 	uint32 val, bbmult, rfgain;
@@ -4314,7 +4314,7 @@ static void wlc_lcnphy_load_rfpower(phy_info_t * pi)
 	}
 }
 
-static void WLBANDINITFN(wlc_lcnphy_tbl_init) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_lcnphy_tbl_init) (phy_info_t *pi) {
 	uint idx;
 	uint8 phybw40;
 	phytbl_info_t tab;
@@ -4408,7 +4408,7 @@ static void WLBANDINITFN(wlc_lcnphy_tbl_init) (phy_info_t * pi) {
 	wlc_lcnphy_clear_papd_comptable(pi);
 }
 
-static void WLBANDINITFN(wlc_lcnphy_rev0_baseband_init) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_lcnphy_rev0_baseband_init) (phy_info_t *pi) {
 	uint16 afectrl1;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
@@ -4454,7 +4454,7 @@ static void WLBANDINITFN(wlc_lcnphy_rev0_baseband_init) (phy_info_t * pi) {
 
 }
 
-static void WLBANDINITFN(wlc_lcnphy_rev2_baseband_init) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_lcnphy_rev2_baseband_init) (phy_info_t *pi) {
 	if (CHSPEC_IS5G(pi->radio_chanspec)) {
 		mod_phy_reg(pi, 0x416, (0xff << 0), 80 << 0);
 
@@ -4462,7 +4462,7 @@ static void WLBANDINITFN(wlc_lcnphy_rev2_baseband_init) (phy_info_t * pi) {
 	}
 }
 
-static void wlc_lcnphy_agc_temp_init(phy_info_t * pi)
+static void wlc_lcnphy_agc_temp_init(phy_info_t *pi)
 {
 	int16 temp;
 	phytbl_info_t tab;
@@ -4523,7 +4523,7 @@ static void wlc_lcnphy_agc_temp_init(phy_info_t * pi)
 
 }
 
-static void WLBANDINITFN(wlc_lcnphy_bu_tweaks) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_lcnphy_bu_tweaks) (phy_info_t *pi) {
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
 
@@ -4577,7 +4577,7 @@ static void WLBANDINITFN(wlc_lcnphy_bu_tweaks) (phy_info_t * pi) {
 	}
 }
 
-static void WLBANDINITFN(wlc_lcnphy_baseband_init) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_lcnphy_baseband_init) (phy_info_t *pi) {
 
 	wlc_lcnphy_tbl_init(pi);
 	wlc_lcnphy_rev0_baseband_init(pi);
@@ -4586,7 +4586,7 @@ static void WLBANDINITFN(wlc_lcnphy_baseband_init) (phy_info_t * pi) {
 	wlc_lcnphy_bu_tweaks(pi);
 }
 
-static void WLBANDINITFN(wlc_radio_2064_init) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_radio_2064_init) (phy_info_t *pi) {
 	uint32 i;
 	lcnphy_radio_regs_t *lcnphyregs = NULL;
 
@@ -4646,14 +4646,14 @@ static void WLBANDINITFN(wlc_radio_2064_init) (phy_info_t * pi) {
 	wlc_lcnphy_rc_cal(pi);
 }
 
-static void WLBANDINITFN(wlc_lcnphy_radio_init) (phy_info_t * pi) {
+static void WLBANDINITFN(wlc_lcnphy_radio_init) (phy_info_t *pi) {
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
 
 	wlc_radio_2064_init(pi);
 }
 
-static void wlc_lcnphy_rcal(phy_info_t * pi)
+static void wlc_lcnphy_rcal(phy_info_t *pi)
 {
 	uint8 rcal_value;
 
@@ -4684,7 +4684,7 @@ static void wlc_lcnphy_rcal(phy_info_t * pi)
 	and_radio_reg(pi, RADIO_2064_REG057, 0xFE);
 }
 
-static void wlc_lcnphy_rc_cal(phy_info_t * pi)
+static void wlc_lcnphy_rc_cal(phy_info_t *pi)
 {
 	uint8 dflt_rc_cal_val;
 	uint16 flt_val;
@@ -4707,7 +4707,7 @@ static void wlc_lcnphy_rc_cal(phy_info_t * pi)
 	return;
 }
 
-static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_lcnphy) (phy_info_t * pi) {
+static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_lcnphy) (phy_info_t *pi) {
 	int8 txpwr = 0;
 	int i;
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
@@ -4828,7 +4828,7 @@ static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_lcnphy) (phy_info_t * pi) {
 	return TRUE;
 }
 
-void wlc_2064_vco_cal(phy_info_t * pi)
+void wlc_2064_vco_cal(phy_info_t *pi)
 {
 	uint8 calnrst;
 
@@ -4844,7 +4844,7 @@ void wlc_2064_vco_cal(phy_info_t * pi)
 }
 
 static void
-wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t * pi, uint8 channel)
+wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t *pi, uint8 channel)
 {
 	uint i;
 	const chan_info_2064_lcnphy_t *ci;
@@ -5009,7 +5009,7 @@ wlc_lcnphy_radio_2064_channel_tune_4313(phy_info_t * pi, uint8 channel)
 	}
 }
 
-bool wlc_phy_tpc_isenabled_lcnphy(phy_info_t * pi)
+bool wlc_phy_tpc_isenabled_lcnphy(phy_info_t *pi)
 {
 	if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
 		return 0;
@@ -5018,7 +5018,7 @@ bool wlc_phy_tpc_isenabled_lcnphy(phy_info_t * pi)
 			wlc_lcnphy_get_tx_pwr_ctrl((pi)));
 }
 
-void wlc_phy_txpower_recalc_target_lcnphy(phy_info_t * pi)
+void wlc_phy_txpower_recalc_target_lcnphy(phy_info_t *pi)
 {
 	uint16 pwr_ctrl;
 	if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi)) {
@@ -5034,12 +5034,12 @@ void wlc_phy_txpower_recalc_target_lcnphy(phy_info_t * pi)
 		return;
 }
 
-void wlc_phy_detach_lcnphy(phy_info_t * pi)
+void wlc_phy_detach_lcnphy(phy_info_t *pi)
 {
 	MFREE(pi->sh->osh, pi->u.pi_lcnphy, sizeof(phy_info_lcnphy_t));
 }
 
-bool wlc_phy_attach_lcnphy(phy_info_t * pi)
+bool wlc_phy_attach_lcnphy(phy_info_t *pi)
 {
 	phy_info_lcnphy_t *pi_lcn;
 
@@ -5091,7 +5091,7 @@ bool wlc_phy_attach_lcnphy(phy_info_t * pi)
 	return TRUE;
 }
 
-static void wlc_lcnphy_set_rx_gain(phy_info_t * pi, uint32 gain)
+static void wlc_lcnphy_set_rx_gain(phy_info_t *pi, uint32 gain)
 {
 	uint16 trsw, ext_lna, lna1, lna2, tia, biq0, biq1, gain0_15, gain16_19;
 
@@ -5121,7 +5121,7 @@ static void wlc_lcnphy_set_rx_gain(phy_info_t * pi, uint32 gain)
 	wlc_lcnphy_rx_gain_override_enable(pi, TRUE);
 }
 
-static uint32 wlc_lcnphy_get_receive_power(phy_info_t * pi, int32 * gain_index)
+static uint32 wlc_lcnphy_get_receive_power(phy_info_t *pi, int32 *gain_index)
 {
 	uint32 received_power = 0;
 	int32 max_index = 0;
@@ -5157,7 +5157,7 @@ static uint32 wlc_lcnphy_get_receive_power(phy_info_t * pi, int32 * gain_index)
 	return received_power;
 }
 
-int32 wlc_lcnphy_rx_signal_power(phy_info_t * pi, int32 gain_index)
+int32 wlc_lcnphy_rx_signal_power(phy_info_t *pi, int32 gain_index)
 {
 	int32 gain = 0;
 	int32 nominal_power_db;
@@ -5229,7 +5229,7 @@ int32 wlc_lcnphy_rx_signal_power(phy_info_t * pi, int32 gain_index)
 }
 
 static int
-wlc_lcnphy_load_tx_iir_filter(phy_info_t * pi, bool is_ofdm, int16 filt_type)
+wlc_lcnphy_load_tx_iir_filter(phy_info_t *pi, bool is_ofdm, int16 filt_type)
 {
 	int16 filt_index = -1;
 	int j;

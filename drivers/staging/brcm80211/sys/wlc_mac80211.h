@@ -361,7 +361,7 @@ typedef struct wlcband {
 typedef void (*cb_fn_t) (void *);
 
 /* tx completion callback takes 3 args */
-typedef void (*pkcb_fn_t) (wlc_info_t * wlc, uint txstatus, void *arg);
+typedef void (*pkcb_fn_t) (wlc_info_t *wlc, uint txstatus, void *arg);
 
 typedef struct pkt_cb {
 	pkcb_fn_t fn;		/* function to call when tx frame completes */
@@ -871,169 +871,169 @@ struct antsel_info {
 	((len1 == len2) && !bcmp(ssid1, ssid2, len1))
 
 /* API shared by both WLC_HIGH and WLC_LOW driver */
-extern void wlc_high_dpc(wlc_info_t * wlc, uint32 macintstatus);
-extern void wlc_fatal_error(wlc_info_t * wlc);
-extern void wlc_bmac_rpc_watchdog(wlc_info_t * wlc);
-extern void wlc_recv(wlc_info_t * wlc, void *p);
-extern bool wlc_dotxstatus(wlc_info_t * wlc, tx_status_t * txs, uint32 frm_tx2);
-extern void wlc_txfifo(wlc_info_t * wlc, uint fifo, void *p, bool commit,
+extern void wlc_high_dpc(wlc_info_t *wlc, uint32 macintstatus);
+extern void wlc_fatal_error(wlc_info_t *wlc);
+extern void wlc_bmac_rpc_watchdog(wlc_info_t *wlc);
+extern void wlc_recv(wlc_info_t *wlc, void *p);
+extern bool wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, uint32 frm_tx2);
+extern void wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit,
 		       int8 txpktpend);
-extern void wlc_txfifo_complete(wlc_info_t * wlc, uint fifo, int8 txpktpend);
-extern void wlc_info_init(wlc_info_t * wlc, int unit);
-extern void wlc_print_txstatus(tx_status_t * txs);
-extern int wlc_xmtfifo_sz_get(wlc_info_t * wlc, uint fifo, uint * blocks);
-extern void wlc_write_template_ram(wlc_info_t * wlc, int offset, int len,
+extern void wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, int8 txpktpend);
+extern void wlc_info_init(wlc_info_t *wlc, int unit);
+extern void wlc_print_txstatus(tx_status_t *txs);
+extern int wlc_xmtfifo_sz_get(wlc_info_t *wlc, uint fifo, uint *blocks);
+extern void wlc_write_template_ram(wlc_info_t *wlc, int offset, int len,
 				   void *buf);
-extern void wlc_write_hw_bcntemplates(wlc_info_t * wlc, void *bcn, int len,
+extern void wlc_write_hw_bcntemplates(wlc_info_t *wlc, void *bcn, int len,
 				      bool both);
 #if defined(BCMDBG)
-extern void wlc_get_rcmta(wlc_info_t * wlc, int idx, struct ether_addr *addr);
+extern void wlc_get_rcmta(wlc_info_t *wlc, int idx, struct ether_addr *addr);
 #endif
-extern void wlc_set_rcmta(wlc_info_t * wlc, int idx,
+extern void wlc_set_rcmta(wlc_info_t *wlc, int idx,
 			  const struct ether_addr *addr);
-extern void wlc_set_addrmatch(wlc_info_t * wlc, int match_reg_offset,
+extern void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
 			      const struct ether_addr *addr);
-extern void wlc_read_tsf(wlc_info_t * wlc, uint32 * tsf_l_ptr,
-			 uint32 * tsf_h_ptr);
-extern void wlc_set_cwmin(wlc_info_t * wlc, uint16 newmin);
-extern void wlc_set_cwmax(wlc_info_t * wlc, uint16 newmax);
-extern void wlc_fifoerrors(wlc_info_t * wlc);
-extern void wlc_pllreq(wlc_info_t * wlc, bool set, mbool req_bit);
-extern void wlc_reset_bmac_done(wlc_info_t * wlc);
-extern void wlc_protection_upd(wlc_info_t * wlc, uint idx, int val);
-extern void wlc_hwtimer_gptimer_set(wlc_info_t * wlc, uint us);
-extern void wlc_hwtimer_gptimer_abort(wlc_info_t * wlc);
-extern void wlc_pktengtx(wlc_info_t * wlc, wl_pkteng_t * pkteng, uint8 rate,
+extern void wlc_read_tsf(wlc_info_t *wlc, uint32 *tsf_l_ptr,
+			 uint32 *tsf_h_ptr);
+extern void wlc_set_cwmin(wlc_info_t *wlc, uint16 newmin);
+extern void wlc_set_cwmax(wlc_info_t *wlc, uint16 newmax);
+extern void wlc_fifoerrors(wlc_info_t *wlc);
+extern void wlc_pllreq(wlc_info_t *wlc, bool set, mbool req_bit);
+extern void wlc_reset_bmac_done(wlc_info_t *wlc);
+extern void wlc_protection_upd(wlc_info_t *wlc, uint idx, int val);
+extern void wlc_hwtimer_gptimer_set(wlc_info_t *wlc, uint us);
+extern void wlc_hwtimer_gptimer_abort(wlc_info_t *wlc);
+extern void wlc_pktengtx(wlc_info_t *wlc, wl_pkteng_t *pkteng, uint8 rate,
 			 struct ether_addr *sa, uint32 wait_delay);
 
 #if defined(BCMDBG)
-extern void wlc_print_rxh(d11rxhdr_t * rxh);
-extern void wlc_print_hdrs(wlc_info_t * wlc, const char *prefix, uint8 * frame,
-			   d11txh_t * txh, d11rxhdr_t * rxh, uint len);
-extern void wlc_print_txdesc(d11txh_t * txh);
+extern void wlc_print_rxh(d11rxhdr_t *rxh);
+extern void wlc_print_hdrs(wlc_info_t *wlc, const char *prefix, uint8 *frame,
+			   d11txh_t *txh, d11rxhdr_t *rxh, uint len);
+extern void wlc_print_txdesc(d11txh_t *txh);
 #endif
 #if defined(BCMDBG)
-extern void wlc_print_dot11_mac_hdr(uint8 * buf, int len);
+extern void wlc_print_dot11_mac_hdr(uint8 *buf, int len);
 #endif
 
 #ifdef WLC_LOW
-extern void wlc_setxband(wlc_hw_info_t * wlc_hw, uint bandunit);
-extern void wlc_coredisable(wlc_hw_info_t * wlc_hw);
+extern void wlc_setxband(wlc_hw_info_t *wlc_hw, uint bandunit);
+extern void wlc_coredisable(wlc_hw_info_t *wlc_hw);
 #endif
 
-extern bool wlc_valid_rate(wlc_info_t * wlc, ratespec_t rate, int band,
+extern bool wlc_valid_rate(wlc_info_t *wlc, ratespec_t rate, int band,
 			   bool verbose);
-extern void wlc_ap_upd(wlc_info_t * wlc);
+extern void wlc_ap_upd(wlc_info_t *wlc);
 
 /* helper functions */
-extern void wlc_shm_ssid_upd(wlc_info_t * wlc, wlc_bsscfg_t * cfg);
-extern int wlc_set_gmode(wlc_info_t * wlc, uint8 gmode, bool config);
+extern void wlc_shm_ssid_upd(wlc_info_t *wlc, wlc_bsscfg_t *cfg);
+extern int wlc_set_gmode(wlc_info_t *wlc, uint8 gmode, bool config);
 
-extern void wlc_mac_bcn_promisc_change(wlc_info_t * wlc, bool promisc);
-extern void wlc_mac_bcn_promisc(wlc_info_t * wlc);
-extern void wlc_mac_promisc(wlc_info_t * wlc);
-extern void wlc_txflowcontrol(wlc_info_t * wlc, wlc_txq_info_t * qi, bool on,
+extern void wlc_mac_bcn_promisc_change(wlc_info_t *wlc, bool promisc);
+extern void wlc_mac_bcn_promisc(wlc_info_t *wlc);
+extern void wlc_mac_promisc(wlc_info_t *wlc);
+extern void wlc_txflowcontrol(wlc_info_t *wlc, wlc_txq_info_t *qi, bool on,
 			      int prio);
-extern void wlc_txflowcontrol_override(wlc_info_t * wlc, wlc_txq_info_t * qi,
+extern void wlc_txflowcontrol_override(wlc_info_t *wlc, wlc_txq_info_t *qi,
 				       bool on, uint override);
-extern bool wlc_txflowcontrol_prio_isset(wlc_info_t * wlc, wlc_txq_info_t * qi,
+extern bool wlc_txflowcontrol_prio_isset(wlc_info_t *wlc, wlc_txq_info_t *qi,
 					 int prio);
-extern void wlc_send_q(wlc_info_t * wlc, wlc_txq_info_t * qi);
-extern int wlc_prep_pdu(wlc_info_t * wlc, void *pdu, uint * fifo);
+extern void wlc_send_q(wlc_info_t *wlc, wlc_txq_info_t *qi);
+extern int wlc_prep_pdu(wlc_info_t *wlc, void *pdu, uint *fifo);
 
-extern uint16 wlc_calc_lsig_len(wlc_info_t * wlc, ratespec_t ratespec,
+extern uint16 wlc_calc_lsig_len(wlc_info_t *wlc, ratespec_t ratespec,
 				uint mac_len);
-extern ratespec_t wlc_rspec_to_rts_rspec(wlc_info_t * wlc, ratespec_t rspec,
+extern ratespec_t wlc_rspec_to_rts_rspec(wlc_info_t *wlc, ratespec_t rspec,
 					 bool use_rspec, uint16 mimo_ctlchbw);
-extern uint16 wlc_compute_rtscts_dur(wlc_info_t * wlc, bool cts_only,
+extern uint16 wlc_compute_rtscts_dur(wlc_info_t *wlc, bool cts_only,
 				     ratespec_t rts_rate, ratespec_t frame_rate,
 				     uint8 rts_preamble_type,
 				     uint8 frame_preamble_type, uint frame_len,
 				     bool ba);
 
-extern void wlc_tbtt(wlc_info_t * wlc, d11regs_t * regs);
+extern void wlc_tbtt(wlc_info_t *wlc, d11regs_t *regs);
 
 #if defined(BCMDBG)
-extern void wlc_dump_ie(wlc_info_t * wlc, bcm_tlv_t * ie, struct bcmstrbuf *b);
+extern void wlc_dump_ie(wlc_info_t *wlc, bcm_tlv_t *ie, struct bcmstrbuf *b);
 #endif
 
-extern bool wlc_ps_check(wlc_info_t * wlc);
-extern void wlc_reprate_init(wlc_info_t * wlc);
-extern void wlc_bsscfg_reprate_init(wlc_bsscfg_t * bsscfg);
-extern void wlc_uint64_sub(uint32 * a_high, uint32 * a_low, uint32 b_high,
+extern bool wlc_ps_check(wlc_info_t *wlc);
+extern void wlc_reprate_init(wlc_info_t *wlc);
+extern void wlc_bsscfg_reprate_init(wlc_bsscfg_t *bsscfg);
+extern void wlc_uint64_sub(uint32 *a_high, uint32 *a_low, uint32 b_high,
 			   uint32 b_low);
 extern uint32 wlc_calc_tbtt_offset(uint32 bi, uint32 tsf_h, uint32 tsf_l);
 
 /* Shared memory access */
-extern void wlc_write_shm(wlc_info_t * wlc, uint offset, uint16 v);
-extern uint16 wlc_read_shm(wlc_info_t * wlc, uint offset);
-extern void wlc_set_shm(wlc_info_t * wlc, uint offset, uint16 v, int len);
-extern void wlc_copyto_shm(wlc_info_t * wlc, uint offset, const void *buf,
+extern void wlc_write_shm(wlc_info_t *wlc, uint offset, uint16 v);
+extern uint16 wlc_read_shm(wlc_info_t *wlc, uint offset);
+extern void wlc_set_shm(wlc_info_t *wlc, uint offset, uint16 v, int len);
+extern void wlc_copyto_shm(wlc_info_t *wlc, uint offset, const void *buf,
 			   int len);
-extern void wlc_copyfrom_shm(wlc_info_t * wlc, uint offset, void *buf, int len);
+extern void wlc_copyfrom_shm(wlc_info_t *wlc, uint offset, void *buf, int len);
 
-extern void wlc_update_beacon(wlc_info_t * wlc);
-extern void wlc_bss_update_beacon(wlc_info_t * wlc, struct wlc_bsscfg *bsscfg);
+extern void wlc_update_beacon(wlc_info_t *wlc);
+extern void wlc_bss_update_beacon(wlc_info_t *wlc, struct wlc_bsscfg *bsscfg);
 
-extern void wlc_update_probe_resp(wlc_info_t * wlc, bool suspend);
-extern void wlc_bss_update_probe_resp(wlc_info_t * wlc, wlc_bsscfg_t * cfg,
+extern void wlc_update_probe_resp(wlc_info_t *wlc, bool suspend);
+extern void wlc_bss_update_probe_resp(wlc_info_t *wlc, wlc_bsscfg_t *cfg,
 				      bool suspend);
 
-extern bool wlc_ismpc(wlc_info_t * wlc);
-extern bool wlc_is_non_delay_mpc(wlc_info_t * wlc);
-extern void wlc_radio_mpc_upd(wlc_info_t * wlc);
-extern bool wlc_prec_enq(wlc_info_t * wlc, struct pktq *q, void *pkt, int prec);
-extern bool wlc_prec_enq_head(wlc_info_t * wlc, struct pktq *q, void *pkt,
+extern bool wlc_ismpc(wlc_info_t *wlc);
+extern bool wlc_is_non_delay_mpc(wlc_info_t *wlc);
+extern void wlc_radio_mpc_upd(wlc_info_t *wlc);
+extern bool wlc_prec_enq(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec);
+extern bool wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, void *pkt,
 			      int prec, bool head);
-extern uint16 wlc_phytxctl1_calc(wlc_info_t * wlc, ratespec_t rspec);
-extern void wlc_compute_plcp(wlc_info_t * wlc, ratespec_t rate, uint length,
-			     uint8 * plcp);
-extern uint wlc_calc_frame_time(wlc_info_t * wlc, ratespec_t ratespec,
+extern uint16 wlc_phytxctl1_calc(wlc_info_t *wlc, ratespec_t rspec);
+extern void wlc_compute_plcp(wlc_info_t *wlc, ratespec_t rate, uint length,
+			     uint8 *plcp);
+extern uint wlc_calc_frame_time(wlc_info_t *wlc, ratespec_t ratespec,
 				uint8 preamble_type, uint mac_len);
 
-extern void wlc_set_chanspec(wlc_info_t * wlc, chanspec_t chanspec);
+extern void wlc_set_chanspec(wlc_info_t *wlc, chanspec_t chanspec);
 
-extern bool wlc_timers_init(wlc_info_t * wlc, int unit);
+extern bool wlc_timers_init(wlc_info_t *wlc, int unit);
 
 extern const bcm_iovar_t wlc_iovars[];
 
-extern int wlc_doiovar(void *hdl, const bcm_iovar_t * vi, uint32 actionid,
+extern int wlc_doiovar(void *hdl, const bcm_iovar_t *vi, uint32 actionid,
 		       const char *name, void *params, uint p_len, void *arg,
-		       int len, int val_size, wlc_if_t * wlcif);
+		       int len, int val_size, wlc_if_t *wlcif);
 
 #if defined(BCMDBG)
-extern void wlc_print_ies(wlc_info_t * wlc, uint8 * ies, uint ies_len);
+extern void wlc_print_ies(wlc_info_t *wlc, uint8 *ies, uint ies_len);
 #endif
 
-extern int wlc_set_nmode(wlc_info_t * wlc, int32 nmode);
-extern void wlc_ht_mimops_cap_update(wlc_info_t * wlc, uint8 mimops_mode);
-extern void wlc_mimops_action_ht_send(wlc_info_t * wlc, wlc_bsscfg_t * bsscfg,
+extern int wlc_set_nmode(wlc_info_t *wlc, int32 nmode);
+extern void wlc_ht_mimops_cap_update(wlc_info_t *wlc, uint8 mimops_mode);
+extern void wlc_mimops_action_ht_send(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg,
 				      uint8 mimops_mode);
 
-extern void wlc_switch_shortslot(wlc_info_t * wlc, bool shortslot);
-extern void wlc_set_bssid(wlc_bsscfg_t * cfg);
-extern void wlc_edcf_setparams(wlc_bsscfg_t * cfg, bool suspend);
-extern void wlc_wme_setparams(wlc_info_t * wlc, u16 aci, void *arg,
+extern void wlc_switch_shortslot(wlc_info_t *wlc, bool shortslot);
+extern void wlc_set_bssid(wlc_bsscfg_t *cfg);
+extern void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend);
+extern void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg,
 			      bool suspend);
 
-extern void wlc_set_ratetable(wlc_info_t * wlc);
-extern int wlc_set_mac(wlc_bsscfg_t * cfg);
-extern void wlc_beacon_phytxctl_txant_upd(wlc_info_t * wlc,
+extern void wlc_set_ratetable(wlc_info_t *wlc);
+extern int wlc_set_mac(wlc_bsscfg_t *cfg);
+extern void wlc_beacon_phytxctl_txant_upd(wlc_info_t *wlc,
 					  ratespec_t bcn_rate);
-extern void wlc_mod_prb_rsp_rate_table(wlc_info_t * wlc, uint frame_len);
-extern ratespec_t wlc_lowest_basic_rspec(wlc_info_t * wlc, wlc_rateset_t * rs);
-extern uint16 wlc_compute_bcntsfoff(wlc_info_t * wlc, ratespec_t rspec,
+extern void wlc_mod_prb_rsp_rate_table(wlc_info_t *wlc, uint frame_len);
+extern ratespec_t wlc_lowest_basic_rspec(wlc_info_t *wlc, wlc_rateset_t *rs);
+extern uint16 wlc_compute_bcntsfoff(wlc_info_t *wlc, ratespec_t rspec,
 				    bool short_preamble, bool phydelay);
-extern void wlc_radio_disable(wlc_info_t * wlc);
-extern void wlc_bcn_li_upd(wlc_info_t * wlc);
+extern void wlc_radio_disable(wlc_info_t *wlc);
+extern void wlc_bcn_li_upd(wlc_info_t *wlc);
 
-extern int wlc_get_revision_info(wlc_info_t * wlc, void *buf, uint len);
-extern void wlc_out(wlc_info_t * wlc);
-extern void wlc_set_home_chanspec(wlc_info_t * wlc, chanspec_t chanspec);
-extern void wlc_watchdog_upd(wlc_info_t * wlc, bool tbtt);
-extern bool wlc_ps_allowed(wlc_info_t * wlc);
-extern bool wlc_stay_awake(wlc_info_t * wlc);
-extern void wlc_wme_initparams_sta(wlc_info_t * wlc, wme_param_ie_t * pe);
+extern int wlc_get_revision_info(wlc_info_t *wlc, void *buf, uint len);
+extern void wlc_out(wlc_info_t *wlc);
+extern void wlc_set_home_chanspec(wlc_info_t *wlc, chanspec_t chanspec);
+extern void wlc_watchdog_upd(wlc_info_t *wlc, bool tbtt);
+extern bool wlc_ps_allowed(wlc_info_t *wlc);
+extern bool wlc_stay_awake(wlc_info_t *wlc);
+extern void wlc_wme_initparams_sta(wlc_info_t *wlc, wme_param_ie_t *pe);
 
-extern void wlc_bss_list_free(wlc_info_t * wlc, wlc_bss_list_t * bss_list);
+extern void wlc_bss_list_free(wlc_info_t *wlc, wlc_bss_list_t *bss_list);
 #endif				/* _wlc_h_ */

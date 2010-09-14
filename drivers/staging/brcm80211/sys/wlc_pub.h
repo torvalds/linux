@@ -224,7 +224,7 @@ struct wlc_if;
 /* watchdog down and dump callback function proto's */
 typedef int (*watchdog_fn_t) (void *handle);
 typedef int (*down_fn_t) (void *handle);
-typedef int (*dump_fn_t) (void *handle, struct bcmstrbuf * b);
+typedef int (*dump_fn_t) (void *handle, struct bcmstrbuf *b);
 
 /* IOVar handler
  *
@@ -239,10 +239,10 @@ typedef int (*dump_fn_t) (void *handle, struct bcmstrbuf * b);
  *
  * All pointers may point into the same buffer.
  */
-typedef int (*iovar_fn_t) (void *handle, const bcm_iovar_t * vi,
+typedef int (*iovar_fn_t) (void *handle, const bcm_iovar_t *vi,
 			   uint32 actionid, const char *name, void *params,
 			   uint plen, void *arg, int alen, int vsize,
-			   struct wlc_if * wlcif);
+			   struct wlc_if *wlcif);
 
 #define MAC80211_PROMISC_BCNS	(1 << 0)
 #define MAC80211_SCAN		(1 << 1)
@@ -516,7 +516,7 @@ static INLINE int8 wlc_pkttag_bsscfg_get(void *p)
 
 #define PROMISC_ENAB(wlc)	(bcmspace && (wlc)->promisc)
 
-extern void wlc_pkttag_info_move(wlc_pub_t * pub, void *pkt_from, void *pkt_to);
+extern void wlc_pkttag_info_move(wlc_pub_t *pub, void *pkt_from, void *pkt_to);
 
 #define WLPKTTAGSCB(p) (WLPKTTAG(p)->_scb)
 
@@ -572,8 +572,8 @@ extern const uint8 wme_fifo2ac[];
 
 /* common functions for every port */
 extern void *wlc_attach(void *wl, uint16 vendor, uint16 device, uint unit,
-			bool piomode, osl_t * osh, void *regsva, uint bustype,
-			void *btparam, uint * perr);
+			bool piomode, osl_t *osh, void *regsva, uint bustype,
+			void *btparam, uint *perr);
 extern uint wlc_detach(struct wlc_info *wlc);
 extern int wlc_up(struct wlc_info *wlc);
 extern uint wlc_down(struct wlc_info *wlc);
@@ -590,9 +590,9 @@ extern void wlc_intrson(struct wlc_info *wlc);
 extern uint32 wlc_intrsoff(struct wlc_info *wlc);
 extern void wlc_intrsrestore(struct wlc_info *wlc, uint32 macintmask);
 extern bool wlc_intrsupd(struct wlc_info *wlc);
-extern bool wlc_isr(struct wlc_info *wlc, bool * wantdpc);
+extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
-extern bool wlc_send80211_raw(struct wlc_info *wlc, wlc_if_t * wlcif, void *p,
+extern bool wlc_send80211_raw(struct wlc_info *wlc, wlc_if_t *wlcif, void *p,
 			      uint ac);
 extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,
 			int p_len, void *arg, int len, bool set,
@@ -623,11 +623,11 @@ extern void wlc_mhf(struct wlc_info *wlc, uint8 idx, uint16 mask, uint16 val,
 		    int bands);
 extern uint16 wlc_mhf_get(struct wlc_info *wlc, uint8 idx, int bands);
 extern uint32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
-extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t * rateset);
-extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t * rs);
+extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset);
+extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
 extern void wlc_join_attempt(struct wlc_bsscfg *cfg);
 extern void wlc_join_bss_start(struct wlc_bsscfg *cfg);
-extern void wlc_join_BSS(struct wlc_bsscfg *cfg, wlc_bss_info_t * bi);
+extern void wlc_join_BSS(struct wlc_bsscfg *cfg, wlc_bss_info_t *bi);
 
 /* wlc_phy.c helper functions */
 extern bool wlc_scan_inprog(struct wlc_info *wlc);
@@ -640,16 +640,16 @@ extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
 
 /* ioctl */
 extern int wlc_iovar_getint8(struct wlc_info *wlc, const char *name,
-			     int8 * arg);
-extern int wlc_iovar_check(wlc_pub_t * pub, const bcm_iovar_t * vi, void *arg,
+			     int8 *arg);
+extern int wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg,
 			   int len, bool set);
 
-extern int wlc_module_register(wlc_pub_t * pub, const bcm_iovar_t * iovars,
+extern int wlc_module_register(wlc_pub_t *pub, const bcm_iovar_t *iovars,
 			       const char *name, void *hdl, iovar_fn_t iovar_fn,
 			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
-extern int wlc_module_unregister(wlc_pub_t * pub, const char *name, void *hdl);
+extern int wlc_module_unregister(wlc_pub_t *pub, const char *name, void *hdl);
 extern void wlc_event_if(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
-			 wlc_event_t * e, const struct ether_addr *addr);
+			 wlc_event_t *e, const struct ether_addr *addr);
 extern void wlc_suspend_mac_and_wait(struct wlc_info *wlc);
 extern void wlc_enable_mac(struct wlc_info *wlc);
 extern uint16 wlc_rate_shm_offset(struct wlc_info *wlc, uint8 rate);
@@ -657,13 +657,13 @@ extern uint32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
 extern uint32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
 
 static INLINE int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
-				    uint * arg)
+				    uint *arg)
 {
 	return wlc_iovar_getint(wlc, name, (int *)arg);
 }
 
 static INLINE int wlc_iovar_getuint8(struct wlc_info *wlc, const char *name,
-				     uint8 * arg)
+				     uint8 *arg)
 {
 	return wlc_iovar_getint8(wlc, name, (int8 *) arg);
 }
@@ -682,7 +682,7 @@ extern int wlc_iocpichk(struct wlc_info *wlc, uint phytype);
 #endif
 
 /* helper functions */
-extern void wlc_getrand(struct wlc_info *wlc, uint8 * buf, int len);
+extern void wlc_getrand(struct wlc_info *wlc, uint8 *buf, int len);
 
 struct scb;
 extern void wlc_ps_on(struct wlc_info *wlc, struct scb *scb);

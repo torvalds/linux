@@ -130,12 +130,12 @@ struct exec_parms;
 typedef void *(*probe_cb_t) (void *arg, const char *desc, uint32 bustype,
 			     uint32 hdrlen);
 typedef void (*disconnect_cb_t) (void *arg);
-typedef void *(*exec_cb_t) (struct exec_parms * args);
+typedef void *(*exec_cb_t) (struct exec_parms *args);
 
 /* Client callbacks registered during dbus_attach() */
 typedef struct dbus_callbacks {
 	void (*send_complete) (void *cbarg, void *info, int status);
-	void (*recv_buf) (void *cbarg, uint8 * buf, int len);
+	void (*recv_buf) (void *cbarg, uint8 *buf, int len);
 	void (*recv_pkt) (void *cbarg, void *pkt);
 	void (*txflowcontrol) (void *cbarg, bool onoff);
 	void (*errhandler) (void *cbarg, int err);
@@ -153,19 +153,19 @@ struct dbus_irb_tx;
 struct dbus_intf_callbacks;
 
 typedef struct {
-	void *(*attach) (struct dbus_pub * pub, void *cbarg,
-			 struct dbus_intf_callbacks * cbs);
-	void (*detach) (struct dbus_pub * pub, void *bus);
+	void *(*attach) (struct dbus_pub *pub, void *cbarg,
+			 struct dbus_intf_callbacks *cbs);
+	void (*detach) (struct dbus_pub *pub, void *bus);
 
 	int (*up) (void *bus);
 	int (*down) (void *bus);
-	int (*send_irb) (void *bus, struct dbus_irb_tx * txirb);
-	int (*recv_irb) (void *bus, struct dbus_irb_rx * rxirb);
-	int (*cancel_irb) (void *bus, struct dbus_irb_tx * txirb);
-	int (*send_ctl) (void *bus, uint8 * buf, int len);
-	int (*recv_ctl) (void *bus, uint8 * buf, int len);
-	int (*get_stats) (void *bus, dbus_stats_t * stats);
-	int (*get_attrib) (void *bus, dbus_attrib_t * attrib);
+	int (*send_irb) (void *bus, struct dbus_irb_tx *txirb);
+	int (*recv_irb) (void *bus, struct dbus_irb_rx *rxirb);
+	int (*cancel_irb) (void *bus, struct dbus_irb_tx *txirb);
+	int (*send_ctl) (void *bus, uint8 *buf, int len);
+	int (*recv_ctl) (void *bus, uint8 *buf, int len);
+	int (*get_stats) (void *bus, dbus_stats_t *stats);
+	int (*get_attrib) (void *bus, dbus_attrib_t *attrib);
 
 	int (*pnp) (void *bus, int event);
 	int (*remove) (void *bus);
@@ -180,20 +180,20 @@ typedef struct {
 
 	int (*iovar_op) (void *bus, const char *name, void *params, int plen,
 			 void *arg, int len, bool set);
-	void (*dump) (void *bus, struct bcmstrbuf * strbuf);
-	int (*set_config) (void *bus, dbus_config_t * config);
-	int (*get_config) (void *bus, dbus_config_t * config);
+	void (*dump) (void *bus, struct bcmstrbuf *strbuf);
+	int (*set_config) (void *bus, dbus_config_t *config);
+	int (*get_config) (void *bus, dbus_config_t *config);
 
 	 bool(*device_exists) (void *bus);
 	 bool(*dlneeded) (void *bus);
-	int (*dlstart) (void *bus, uint8 * fw, int len);
+	int (*dlstart) (void *bus, uint8 *fw, int len);
 	int (*dlrun) (void *bus);
 	 bool(*recv_needed) (void *bus);
 
 	void *(*exec_rxlock) (void *bus, exec_cb_t func,
-			      struct exec_parms * args);
+			      struct exec_parms *args);
 	void *(*exec_txlock) (void *bus, exec_cb_t func,
-			      struct exec_parms * args);
+			      struct exec_parms *args);
 
 	int (*tx_timer_init) (void *bus);
 	int (*tx_timer_start) (void *bus, uint timeout);
@@ -235,40 +235,40 @@ extern int dbus_deregister(void);
 
 extern const dbus_pub_t *dbus_attach(struct osl_info *osh, int rxsize, int nrxq,
 				     int ntxq, void *cbarg,
-				     dbus_callbacks_t * cbs,
+				     dbus_callbacks_t *cbs,
 				     struct shared_info *sh);
-extern void dbus_detach(const dbus_pub_t * pub);
+extern void dbus_detach(const dbus_pub_t *pub);
 
-extern int dbus_up(const dbus_pub_t * pub);
-extern int dbus_down(const dbus_pub_t * pub);
-extern int dbus_stop(const dbus_pub_t * pub);
-extern int dbus_shutdown(const dbus_pub_t * pub);
-extern void dbus_flowctrl_rx(const dbus_pub_t * pub, bool on);
+extern int dbus_up(const dbus_pub_t *pub);
+extern int dbus_down(const dbus_pub_t *pub);
+extern int dbus_stop(const dbus_pub_t *pub);
+extern int dbus_shutdown(const dbus_pub_t *pub);
+extern void dbus_flowctrl_rx(const dbus_pub_t *pub, bool on);
 
-extern int dbus_send_buf(const dbus_pub_t * pub, uint8 * buf, int len,
+extern int dbus_send_buf(const dbus_pub_t *pub, uint8 *buf, int len,
 			 void *info);
-extern int dbus_send_pkt(const dbus_pub_t * pub, void *pkt, void *info);
-extern int dbus_send_ctl(const dbus_pub_t * pub, uint8 * buf, int len);
-extern int dbus_recv_ctl(const dbus_pub_t * pub, uint8 * buf, int len);
+extern int dbus_send_pkt(const dbus_pub_t *pub, void *pkt, void *info);
+extern int dbus_send_ctl(const dbus_pub_t *pub, uint8 *buf, int len);
+extern int dbus_recv_ctl(const dbus_pub_t *pub, uint8 *buf, int len);
 
-extern int dbus_get_stats(const dbus_pub_t * pub, dbus_stats_t * stats);
-extern int dbus_get_attrib(const dbus_pub_t * pub, dbus_attrib_t * attrib);
-extern int dbus_get_device_speed(const dbus_pub_t * pub);
-extern int dbus_set_config(const dbus_pub_t * pub, dbus_config_t * config);
-extern int dbus_get_config(const dbus_pub_t * pub, dbus_config_t * config);
+extern int dbus_get_stats(const dbus_pub_t *pub, dbus_stats_t *stats);
+extern int dbus_get_attrib(const dbus_pub_t *pub, dbus_attrib_t *attrib);
+extern int dbus_get_device_speed(const dbus_pub_t *pub);
+extern int dbus_set_config(const dbus_pub_t *pub, dbus_config_t *config);
+extern int dbus_get_config(const dbus_pub_t *pub, dbus_config_t *config);
 
-extern void *dbus_pktget(const dbus_pub_t * pub, int len);
-extern void dbus_pktfree(const dbus_pub_t * pub, void *pkt);
+extern void *dbus_pktget(const dbus_pub_t *pub, int len);
+extern void dbus_pktfree(const dbus_pub_t *pub, void *pkt);
 
-extern int dbus_set_errmask(const dbus_pub_t * pub, uint32 mask);
-extern int dbus_pnp_sleep(const dbus_pub_t * pub);
-extern int dbus_pnp_resume(const dbus_pub_t * pub, int *fw_reload);
-extern int dbus_pnp_disconnect(const dbus_pub_t * pub);
+extern int dbus_set_errmask(const dbus_pub_t *pub, uint32 mask);
+extern int dbus_pnp_sleep(const dbus_pub_t *pub);
+extern int dbus_pnp_resume(const dbus_pub_t *pub, int *fw_reload);
+extern int dbus_pnp_disconnect(const dbus_pub_t *pub);
 
-extern int dbus_iovar_op(const dbus_pub_t * pub, const char *name,
+extern int dbus_iovar_op(const dbus_pub_t *pub, const char *name,
 			 void *params, int plen, void *arg, int len, bool set);
 #ifdef BCMDBG
-extern void dbus_hist_dump(const dbus_pub_t * pub, struct bcmstrbuf *b);
+extern void dbus_hist_dump(const dbus_pub_t *pub, struct bcmstrbuf *b);
 #endif				/* BCMDBG */
 /*
  * Private Common Bus Interface
@@ -303,15 +303,15 @@ typedef struct dbus_irb_tx {
  * so, internally, different info can be passed to upper layer
  */
 typedef struct dbus_intf_callbacks {
-	void (*send_irb_timeout) (void *cbarg, dbus_irb_tx_t * txirb);
-	void (*send_irb_complete) (void *cbarg, dbus_irb_tx_t * txirb,
+	void (*send_irb_timeout) (void *cbarg, dbus_irb_tx_t *txirb);
+	void (*send_irb_complete) (void *cbarg, dbus_irb_tx_t *txirb,
 				   int status);
-	void (*recv_irb_complete) (void *cbarg, dbus_irb_rx_t * rxirb,
+	void (*recv_irb_complete) (void *cbarg, dbus_irb_rx_t *rxirb,
 				   int status);
 	void (*errhandler) (void *cbarg, int err);
 	void (*ctl_complete) (void *cbarg, int type, int status);
 	void (*state_change) (void *cbarg, int state);
-	 bool(*isr) (void *cbarg, bool * wantdpc);
+	 bool(*isr) (void *cbarg, bool *wantdpc);
 	 bool(*dpc) (void *cbarg, bool bounded);
 	void (*watchdog) (void *cbarg);
 	void *(*pktget) (void *cbarg, uint len, bool send);
@@ -330,7 +330,7 @@ typedef struct dbus_intf_callbacks {
  */
 extern int dbus_bus_register(int vid, int pid, probe_cb_t prcb,
 			     disconnect_cb_t discb, void *prarg,
-			     dbus_intf_t ** intf, void *param1, void *param2);
+			     dbus_intf_t **intf, void *param1, void *param2);
 extern int dbus_bus_deregister(void);
 
 /*
@@ -339,7 +339,7 @@ extern int dbus_bus_deregister(void);
  */
 extern int dbus_bus_osl_register(int vid, int pid, probe_cb_t prcb,
 				 disconnect_cb_t discb, void *prarg,
-				 dbus_intf_t ** intf, void *param1,
+				 dbus_intf_t **intf, void *param1,
 				 void *param2);
 extern int dbus_bus_osl_deregister(void);
 
@@ -349,7 +349,7 @@ extern int dbus_bus_osl_deregister(void);
  */
 extern int dbus_bus_osl_hw_register(int vid, int pid, probe_cb_t prcb,
 				    disconnect_cb_t discb, void *prarg,
-				    dbus_intf_t ** intf);
+				    dbus_intf_t **intf);
 extern int dbus_bus_osl_hw_deregister(void);
 
 #endif				/* __DBUS_H__ */

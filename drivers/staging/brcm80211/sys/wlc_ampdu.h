@@ -17,23 +17,23 @@
 #ifndef _wlc_ampdu_h_
 #define _wlc_ampdu_h_
 
-extern ampdu_info_t *wlc_ampdu_attach(wlc_info_t * wlc);
-extern void wlc_ampdu_detach(ampdu_info_t * ampdu);
-extern bool wlc_ampdu_cap(ampdu_info_t * ampdu);
-extern int wlc_ampdu_set(ampdu_info_t * ampdu, bool on);
-extern int wlc_sendampdu(ampdu_info_t * ampdu, wlc_txq_info_t * qi, void **aggp,
+extern ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc);
+extern void wlc_ampdu_detach(ampdu_info_t *ampdu);
+extern bool wlc_ampdu_cap(ampdu_info_t *ampdu);
+extern int wlc_ampdu_set(ampdu_info_t *ampdu, bool on);
+extern int wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **aggp,
 			 int prec);
-extern void wlc_ampdu_dotxstatus(ampdu_info_t * ampdu, struct scb *scb, void *p,
-				 tx_status_t * txs);
-extern void wlc_ampdu_reset(ampdu_info_t * ampdu);
-extern void wlc_ampdu_macaddr_upd(wlc_info_t * wlc);
-extern void wlc_ampdu_shm_upd(ampdu_info_t * ampdu);
+extern void wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
+				 tx_status_t *txs);
+extern void wlc_ampdu_reset(ampdu_info_t *ampdu);
+extern void wlc_ampdu_macaddr_upd(wlc_info_t *wlc);
+extern void wlc_ampdu_shm_upd(ampdu_info_t *ampdu);
 
-extern uint8 wlc_ampdu_null_delim_cnt(ampdu_info_t * ampdu, struct scb *scb,
+extern uint8 wlc_ampdu_null_delim_cnt(ampdu_info_t *ampdu, struct scb *scb,
 				      ratespec_t rspec, int phylen);
-extern void scb_ampdu_cleanup(ampdu_info_t * ampdu, struct scb *scb);
+extern void scb_ampdu_cleanup(ampdu_info_t *ampdu, struct scb *scb);
 #ifdef WLC_HIGH_ONLY
-extern void wlc_ampdu_txstatus_complete(ampdu_info_t * ampdu, uint32 s1,
+extern void wlc_ampdu_txstatus_complete(ampdu_info_t *ampdu, uint32 s1,
 					uint32 s2);
 #endif
 
