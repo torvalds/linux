@@ -834,11 +834,45 @@ static void __init gpio_no_direction(u32 addr)
 }
 
 /* TouchScreen */
+#ifdef CONFIG_AP4EVB_QHD
+# define GPIO_TSC_IRQ	GPIO_FN_IRQ28_123
+# define GPIO_TSC_PORT	GPIO_PORT123
+#else /* WVGA */
+# define GPIO_TSC_IRQ	GPIO_FN_IRQ7_40
+# define GPIO_TSC_PORT	GPIO_PORT40
+#endif
+
 #define IRQ28	evt2irq(0x3380) /* IRQ28A */
 #define IRQ7	evt2irq(0x02e0) /* IRQ7A */
+static int ts_get_pendown_state(void)
+{
+	int val;
+
+	gpio_free(GPIO_TSC_IRQ);
+
+	gpio_request(GPIO_TSC_PORT, NULL);
+
+	gpio_direction_input(GPIO_TSC_PORT);
+
+	val = gpio_get_value(GPIO_TSC_PORT);
+
+	gpio_request(GPIO_TSC_IRQ, NULL);
+
+	return !val;
+}
+
+static int ts_init(void)
+{
+	gpio_request(GPIO_TSC_IRQ, NULL);
+
+	return 0;
+}
+
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
-	.x_plate_ohms		= 1000,
+	.x_plate_ohms		= 180,
+	.get_pendown_state	= ts_get_pendown_state,
+	.init_platform_hw	= ts_init,
 };
 
 static struct i2c_board_info tsc_device = {
@@ -1015,7 +1049,6 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_KEYIN4,     NULL);
 
 	/* enable TouchScreen */
-	gpio_request(GPIO_FN_IRQ28_123, NULL);
 	set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ28;
@@ -1072,7 +1105,6 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].lcd_size_cfg.height	= 91;
 
 	/* enable TouchScreen */
-	gpio_request(GPIO_FN_IRQ7_40, NULL);
 	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ7;
