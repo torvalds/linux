@@ -15,6 +15,9 @@
 #include "trace.h"
 #include "trace_output.h"
 
+/* When set, irq functions will be ignored */
+static int ftrace_graph_skip_irqs;
+
 struct fgraph_cpu_data {
 	pid_t		last_pid;
 	int		depth;
@@ -208,6 +211,14 @@ int __trace_graph_entry(struct trace_array *tr,
 	return 1;
 }
 
+static inline int ftrace_graph_ignore_irqs(void)
+{
+	if (!ftrace_graph_skip_irqs)
+		return 0;
+
+	return in_irq();
+}
+
 int trace_graph_entry(struct ftrace_graph_ent *trace)
 {
 	struct trace_array *tr = graph_array;
@@ -222,7 +233,8 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 		return 0;
 
 	/* trace it when it is-nested-in or is a function enabled. */
-	if (!(trace->depth || ftrace_graph_addr(trace->func)))
+	if (!(trace->depth || ftrace_graph_addr(trace->func)) ||
+	      ftrace_graph_ignore_irqs())
 		return 0;
 
 	local_irq_save(flags);
@@ -1334,6 +1346,14 @@ void graph_trace_close(struct trace_iterator *iter)
 	}
 }
 
+static int func_graph_set_flag(u32 old_flags, u32 bit, int set)
+{
+	if (bit == TRACE_GRAPH_PRINT_IRQS)
+		ftrace_graph_skip_irqs = !set;
+
+	return 0;
+}
+
 static struct trace_event_functions graph_functions = {
 	.trace		= print_graph_function_event,
 };
@@ -1360,6 +1380,7 @@ static struct tracer graph_trace __read_mostly = {
 	.print_line	= print_graph_function,
 	.print_header	= print_graph_headers,
 	.flags		= &tracer_flags,
+	.set_flag	= func_graph_set_flag,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest	= trace_selftest_startup_function_graph,
 #endif
