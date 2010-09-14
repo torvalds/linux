@@ -751,7 +751,6 @@ static int x25_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct x25_route *rt;
 	int rc = 0;
 
-	lock_kernel();
 	lock_sock(sk);
 	if (sk->sk_state == TCP_ESTABLISHED && sock->state == SS_CONNECTING) {
 		sock->state = SS_CONNECTED;
@@ -829,7 +828,6 @@ out_put_route:
 	x25_route_put(rt);
 out:
 	release_sock(sk);
-	unlock_kernel();
 	return rc;
 }
 
