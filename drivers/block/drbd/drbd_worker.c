@@ -387,6 +387,13 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 	if (drbd_submit_ee(mdev, e, READ, DRBD_FAULT_RS_RD) == 0)
 		return 0;
 
+	/* drbd_submit_ee currently fails for one reason only:
+	 * not being able to allocate enough bios.
+	 * Is dropping the connection going to help? */
+	spin_lock_irq(&mdev->req_lock);
+	list_del(&e->w.list);
+	spin_unlock_irq(&mdev->req_lock);
+
 	drbd_free_ee(mdev, e);
 defer:
 	put_ldev(mdev);

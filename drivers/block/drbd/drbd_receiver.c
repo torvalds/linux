@@ -1573,6 +1573,13 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 	if (drbd_submit_ee(mdev, e, WRITE, DRBD_FAULT_RS_WR) == 0)
 		return TRUE;
 
+	/* drbd_submit_ee currently fails for one reason only:
+	 * not being able to allocate enough bios.
+	 * Is dropping the connection going to help? */
+	spin_lock_irq(&mdev->req_lock);
+	list_del(&e->w.list);
+	spin_unlock_irq(&mdev->req_lock);
+
 	drbd_free_ee(mdev, e);
 fail:
 	put_ldev(mdev);
@@ -1998,6 +2005,16 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 	if (drbd_submit_ee(mdev, e, rw, DRBD_FAULT_DT_WR) == 0)
 		return TRUE;
 
+	/* drbd_submit_ee currently fails for one reason only:
+	 * not being able to allocate enough bios.
+	 * Is dropping the connection going to help? */
+	spin_lock_irq(&mdev->req_lock);
+	list_del(&e->w.list);
+	hlist_del_init(&e->colision);
+	spin_unlock_irq(&mdev->req_lock);
+	if (e->flags & EE_CALL_AL_COMPLETE_IO)
+		drbd_al_complete_io(mdev, e->sector);
+
 out_interrupted:
 	/* yes, the epoch_size now is imbalanced.
 	 * but we drop the connection anyways, so we don't have a chance to
@@ -2201,6 +2218,14 @@ submit:
 
 	if (drbd_submit_ee(mdev, e, READ, fault_type) == 0)
 		return TRUE;
+
+	/* drbd_submit_ee currently fails for one reason only:
+	 * not being able to allocate enough bios.
+	 * Is dropping the connection going to help? */
+	spin_lock_irq(&mdev->req_lock);
+	list_del(&e->w.list);
+	spin_unlock_irq(&mdev->req_lock);
+	/* no drbd_rs_complete_io(), we are dropping the connection anyways */
 
 out_free_e:
 	put_ldev(mdev);
