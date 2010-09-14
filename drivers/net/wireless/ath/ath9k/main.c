@@ -1156,8 +1156,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	else
 		ah->imask |= ATH9K_INT_RX;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_GTT)
-		ah->imask |= ATH9K_INT_GTT;
+	ah->imask |= ATH9K_INT_GTT;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
@@ -1379,12 +1378,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 
-	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK) &&
-	    sc->nvifs > 0) {
-		ret = -ENOBUFS;
-		goto out;
-	}
-
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		ic_opmode = NL80211_IFTYPE_STATION;
@@ -1414,8 +1407,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	sc->nvifs++;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_set_bssid_mask(hw, vif);
+	ath9k_set_bssid_mask(hw, vif);
 
 	if (sc->nvifs > 1)
 		goto out; /* skip global settings for secondary vif */
