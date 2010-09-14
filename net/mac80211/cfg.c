@@ -577,6 +577,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 				 struct sta_info *sta,
 				 struct station_parameters *params)
 {
+	unsigned long flags;
 	u32 rates;
 	int i, j;
 	struct ieee80211_supported_band *sband;
@@ -585,7 +586,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 
 	sband = local->hw.wiphy->bands[local->oper_channel->band];
 
-	spin_lock_bh(&sta->lock);
+	spin_lock_irqsave(&sta->flaglock, flags);
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
 
@@ -612,7 +613,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		if (set & BIT(NL80211_STA_FLAG_MFP))
 			sta->flags |= WLAN_STA_MFP;
 	}
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, flags);
 
 	/*
 	 * cfg80211 validates this (1-2007) and allows setting the AID
