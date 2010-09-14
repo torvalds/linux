@@ -1201,8 +1201,8 @@ BWL_PRE_PACKED_STRUCT struct tx_status {
 #define M_20IN40_IQ			(0x380 * 2)
 
 /* SHM locations where ucode stores the current power index */
-#define M_CURR_IDX1		(0x384 *2)
-#define M_CURR_IDX2		(0x387 *2)
+#define M_CURR_IDX1		(0x384 * 2)
+#define M_CURR_IDX2		(0x387 * 2)
 
 #define M_BSCALE_ANT0	(0x5e * 2)
 #define M_BSCALE_ANT1	(0x5f * 2)

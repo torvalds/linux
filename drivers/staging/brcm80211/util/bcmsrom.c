@@ -503,8 +503,8 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, uint8 *pcis[], uint ciscnt,
 					    && !(ETHER_ISMULTI(&cis[i + 2]))) {
 						ASSERT(cis[i + 1] ==
 						       ETHER_ADDR_LEN);
-						bcm_ether_ntoa((struct
-								ether_addr *)
+						bcm_ether_ntoa(
+							(struct ether_addr *)
 							       &cis[i + 2],
 							       eabuf);
 
@@ -975,8 +975,8 @@ BCMATTACHFN(srom_parsecis) (osl_t *osh, uint8 *pcis[], uint ciscnt,
 				case HNBU_MACADDR:
 					if (!(ETHER_ISNULLADDR(&cis[i + 1])) &&
 					    !(ETHER_ISMULTI(&cis[i + 1]))) {
-						bcm_ether_ntoa((struct
-								ether_addr *)
+						bcm_ether_ntoa(
+							(struct ether_addr *)
 							       &cis[i + 1],
 							       eabuf);
 
