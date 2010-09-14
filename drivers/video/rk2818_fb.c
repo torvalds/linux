@@ -2070,7 +2070,6 @@ void resume(struct early_suspend *h)
     struct rk2818fb_inf *inf = info->inf;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
     if(!inf) {
         printk("inf==0, rk2818fb_resume fail! \n");
         return ;
@@ -2088,7 +2087,6 @@ void resume(struct early_suspend *h)
         }        
         msleep(100);
 	}
-
     LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));    
     LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -2100,6 +2098,7 @@ void resume(struct early_suspend *h)
 	}
     msleep(100);
     set_lcd_pin(g_pdev, 1);
+	memcpy(inf->preg, &inf->regbak, 47*4);  //resume reg
 }
 
 struct suspend_info suspend_info = {
