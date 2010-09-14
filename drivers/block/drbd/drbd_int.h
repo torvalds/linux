@@ -852,6 +852,7 @@ enum {
 	BITMAP_IO,		/* suspend application io;
 				   once no more io in flight, start bitmap io */
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
+	GO_DISKLESS,		/* Disk failed, local_cnt reached zero, we are going diskless */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
 	NET_CONGESTED,		/* The data socket is congested */
 
@@ -976,6 +977,7 @@ struct drbd_conf {
 	unsigned int ko_count;
 	struct drbd_work  resync_work,
 			  unplug_work,
+			  go_diskless,
 			  md_sync_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
@@ -1278,6 +1280,7 @@ extern void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 extern int drbd_bmio_set_n_write(struct drbd_conf *mdev);
 extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
 extern int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why);
+extern void drbd_go_diskless(struct drbd_conf *mdev);
 
 
 /* Meta data layout
@@ -2123,8 +2126,11 @@ static inline void put_ldev(struct drbd_conf *mdev)
 	int i = atomic_dec_return(&mdev->local_cnt);
 	__release(local);
 	D_ASSERT(i >= 0);
-	if (i == 0)
+	if (i == 0) {
+		if (mdev->state.disk == D_FAILED)
+			drbd_go_diskless(mdev);
 		wake_up(&mdev->misc_wait);
+	}
 }
 
 #ifndef __CHECKER__

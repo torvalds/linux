@@ -77,6 +77,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused);
 static void md_sync_timer_fn(unsigned long data);
 static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused);
+static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused);
 
 MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
 	      "Lars Ellenberg <lars@linbit.com>");
@@ -1363,42 +1364,46 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
 		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL, "set_n_write from invalidate");
 
+	/* first half of local IO error */
 	if (os.disk > D_FAILED && ns.disk == D_FAILED) {
-		enum drbd_io_error_p eh;
+		enum drbd_io_error_p eh = EP_PASS_ON;
 
-		eh = EP_PASS_ON;
+		if (drbd_send_state(mdev))
+			dev_warn(DEV, "Notified peer that my disk is broken.\n");
+		else
+			dev_err(DEV, "Sending state for drbd_io_error() failed\n");
+
+		drbd_rs_cancel_all(mdev);
+
 		if (get_ldev_if_state(mdev, D_FAILED)) {
 			eh = mdev->ldev->dc.on_io_error;
 			put_ldev(mdev);
 		}
-
-		drbd_rs_cancel_all(mdev);
-		/* since get_ldev() only works as long as disk>=D_INCONSISTENT,
-		   and it is D_DISKLESS here, local_cnt can only go down, it can
-		   not increase... It will reach zero */
-		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
-		mdev->rs_total = 0;
-		mdev->rs_failed = 0;
-		atomic_set(&mdev->rs_pending_cnt, 0);
-
-		spin_lock_irq(&mdev->req_lock);
-		_drbd_set_state(_NS(mdev, disk, D_DISKLESS), CS_HARD, NULL);
-		spin_unlock_irq(&mdev->req_lock);
-
 		if (eh == EP_CALL_HELPER)
 			drbd_khelper(mdev, "local-io-error");
 	}
 
+
+	/* second half of local IO error handling,
+	 * after local_cnt references have reached zero: */
+	if (os.disk == D_FAILED && ns.disk == D_DISKLESS) {
+		mdev->rs_total = 0;
+		mdev->rs_failed = 0;
+		atomic_set(&mdev->rs_pending_cnt, 0);
+	}
+
 	if (os.disk > D_DISKLESS && ns.disk == D_DISKLESS) {
+		int c = atomic_read(&mdev->local_cnt);
 
-		if (os.disk == D_FAILED) /* && ns.disk == D_DISKLESS*/ {
-			if (drbd_send_state(mdev))
-				dev_warn(DEV, "Notified peer that my disk is broken.\n");
-			else
-				dev_err(DEV, "Sending state in drbd_io_error() failed\n");
+		if (drbd_send_state(mdev))
+			dev_warn(DEV, "Notified peer that I detached my disk.\n");
+		else
+			dev_err(DEV, "Sending state for detach failed\n");
+
+		if (c != 0) {
+			dev_err(DEV, "Logic bug, local_cnt=%d, but should be 0\n", c);
+			wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 		}
-
-		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 		lc_destroy(mdev->resync);
 		mdev->resync = NULL;
 		lc_destroy(mdev->act_log);
@@ -2803,11 +2808,13 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&mdev->meta.work.q);
 	INIT_LIST_HEAD(&mdev->resync_work.list);
 	INIT_LIST_HEAD(&mdev->unplug_work.list);
+	INIT_LIST_HEAD(&mdev->go_diskless.list);
 	INIT_LIST_HEAD(&mdev->md_sync_work.list);
 	INIT_LIST_HEAD(&mdev->bm_io_work.w.list);
 
 	mdev->resync_work.cb  = w_resync_inactive;
 	mdev->unplug_work.cb  = w_send_write_hint;
+	mdev->go_diskless.cb  = w_go_diskless;
 	mdev->md_sync_work.cb = w_md_sync;
 	mdev->bm_io_work.w.cb = w_bitmap_io;
 	init_timer(&mdev->resync_timer);
@@ -2885,6 +2892,7 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	D_ASSERT(list_empty(&mdev->meta.work.q));
 	D_ASSERT(list_empty(&mdev->resync_work.list));
 	D_ASSERT(list_empty(&mdev->unplug_work.list));
+	D_ASSERT(list_empty(&mdev->go_diskless.list));
 
 }
 
@@ -3710,6 +3718,24 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	work->why = NULL;
 
 	return 1;
+}
+
+static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+{
+	D_ASSERT(mdev->state.disk == D_FAILED);
+	D_ASSERT(atomic_read(&mdev->local_cnt) == 0);
+
+	drbd_force_state(mdev, NS(disk, D_DISKLESS));
+
+	clear_bit(GO_DISKLESS, &mdev->flags);
+	return 1;
+}
+
+void drbd_go_diskless(struct drbd_conf *mdev)
+{
+	D_ASSERT(mdev->state.disk == D_FAILED);
+	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
+		drbd_queue_work_front(&mdev->data.work, &mdev->go_diskless);
 }
 
 /**
