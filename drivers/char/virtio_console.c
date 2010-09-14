@@ -596,6 +596,10 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 	ssize_t ret;
 	bool nonblock;
 
+	/* Userspace could be out to fool us */
+	if (!count)
+		return 0;
+
 	port = filp->private_data;
 
 	nonblock = filp->f_flags & O_NONBLOCK;
