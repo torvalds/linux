@@ -128,7 +128,7 @@ intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
 }
 
 struct intel_i2c_chan {
-	struct drm_device *drm_dev; /* for getting at dev. private (mmio etc.) */
+	struct intel_encoder *encoder;
 	u32 reg; /* GPIO reg */
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo;
@@ -206,7 +206,8 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
-struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
+struct i2c_adapter *intel_i2c_create(struct intel_encoder *encoder,
+				     const u32 reg,
 				     const char *name);
 void intel_i2c_destroy(struct i2c_adapter *adapter);
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);

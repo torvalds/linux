@@ -899,7 +899,8 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Set up the DDC bus. */
-	intel_encoder->ddc_bus = intel_i2c_create(dev, gpio, "LVDSDDC_C");
+	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
+						  gpio, "LVDSDDC_C");
 	if (!intel_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");

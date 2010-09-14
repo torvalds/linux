@@ -184,7 +184,7 @@ struct intel_sdvo_connector {
 	u32	cur_dot_crawl,	max_dot_crawl;
 };
 
-static struct intel_sdvo *enc_to_intel_sdvo(struct drm_encoder *encoder)
+static struct intel_sdvo *to_intel_sdvo(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_sdvo, base.base);
 }
@@ -1051,7 +1051,7 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
 	int multiplier;
 
 	/* We need to construct preferred input timings based on our
@@ -1093,7 +1093,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
 	struct intel_sdvo_dtd input_dtd;
@@ -1200,7 +1200,7 @@ static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	u32 temp;
 
@@ -1899,7 +1899,7 @@ static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs
 
 static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 {
-	struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
 
 	if (intel_sdvo->analog_ddc_bus)
 		intel_i2c_destroy(intel_sdvo->analog_ddc_bus);
@@ -1984,35 +1984,15 @@ intel_sdvo_get_digital_encoding_mode(struct intel_sdvo *intel_sdvo, int device)
 				     &intel_sdvo->is_hdmi, 1);
 }
 
-static struct intel_sdvo *
-intel_sdvo_chan_to_intel_sdvo(struct intel_i2c_chan *chan)
-{
-	struct drm_device *dev = chan->drm_dev;
-	struct drm_encoder *encoder;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct intel_sdvo *intel_sdvo = enc_to_intel_sdvo(encoder);
-		if (intel_sdvo->base.ddc_bus == &chan->adapter)
-			return intel_sdvo;
-	}
-
-	return NULL;
-}
-
 static int intel_sdvo_master_xfer(struct i2c_adapter *i2c_adap,
 				  struct i2c_msg msgs[], int num)
 {
 	struct intel_sdvo *intel_sdvo;
-	struct i2c_algo_bit_data *algo_data;
 	const struct i2c_algorithm *algo;
 
-	algo_data = (struct i2c_algo_bit_data *)i2c_adap->algo_data;
-	intel_sdvo =
-		intel_sdvo_chan_to_intel_sdvo((struct intel_i2c_chan *)
-					      (algo_data->data));
-	if (intel_sdvo == NULL)
-		return -EINVAL;
-
+	intel_sdvo = container_of(i2c_adap->algo_data,
+				  struct intel_sdvo,
+				  base);
 	algo = intel_sdvo->base.i2c_bus->algo;
 
 	intel_sdvo_set_control_bus_switch(intel_sdvo, intel_sdvo->ddc_bus);
@@ -2560,9 +2540,13 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 
 	/* setup the DDC bus. */
 	if (IS_SDVOB(sdvo_reg))
-		intel_encoder->i2c_bus = intel_i2c_create(dev, i2c_reg, "SDVOCTRL_E for SDVOB");
+		intel_encoder->i2c_bus =
+			intel_i2c_create(intel_encoder,
+					 i2c_reg, "SDVOCTRL_E for SDVOB");
 	else
-		intel_encoder->i2c_bus = intel_i2c_create(dev, i2c_reg, "SDVOCTRL_E for SDVOC");
+		intel_encoder->i2c_bus =
+			intel_i2c_create(intel_encoder,
+					 i2c_reg, "SDVOCTRL_E for SDVOC");
 
 	if (!intel_encoder->i2c_bus)
 		goto err_inteloutput;
@@ -2583,14 +2567,20 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 
 	/* setup the DDC bus. */
 	if (IS_SDVOB(sdvo_reg)) {
-		intel_encoder->ddc_bus = intel_i2c_create(dev, ddc_reg, "SDVOB DDC BUS");
-		intel_sdvo->analog_ddc_bus = intel_i2c_create(dev, analog_ddc_reg,
-						"SDVOB/VGA DDC BUS");
+		intel_encoder->ddc_bus =
+			intel_i2c_create(intel_encoder,
+					 ddc_reg, "SDVOB DDC BUS");
+		intel_sdvo->analog_ddc_bus =
+			intel_i2c_create(intel_encoder,
+					 analog_ddc_reg, "SDVOB/VGA DDC BUS");
 		dev_priv->hotplug_supported_mask |= SDVOB_HOTPLUG_INT_STATUS;
 	} else {
-		intel_encoder->ddc_bus = intel_i2c_create(dev, ddc_reg, "SDVOC DDC BUS");
-		intel_sdvo->analog_ddc_bus = intel_i2c_create(dev, analog_ddc_reg,
-						"SDVOC/VGA DDC BUS");
+		intel_encoder->ddc_bus =
+			intel_i2c_create(intel_encoder,
+					 ddc_reg, "SDVOC DDC BUS");
+		intel_sdvo->analog_ddc_bus =
+			intel_i2c_create(intel_encoder,
+					 analog_ddc_reg, "SDVOC/VGA DDC BUS");
 		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
 	}
 	if (intel_encoder->ddc_bus == NULL || intel_sdvo->analog_ddc_bus == NULL)

@@ -58,25 +58,31 @@ void intel_i2c_quirk_set(struct drm_device *dev, bool enable)
 
 #define I2C_RISEFALL_TIME 20
 
+static inline struct drm_i915_private *
+get_dev_priv(struct intel_i2c_chan *chan)
+{
+	return chan->encoder->base.dev->dev_private;
+}
+
 static int get_clock(void *data)
 {
 	struct intel_i2c_chan *chan = data;
-	struct drm_i915_private *dev_priv = chan->drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = get_dev_priv(chan);
 	return (I915_READ(chan->reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
 {
 	struct intel_i2c_chan *chan = data;
-	struct drm_i915_private *dev_priv = chan->drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = get_dev_priv(chan);
 	return (I915_READ(chan->reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
 {
 	struct intel_i2c_chan *chan = data;
-	struct drm_device *dev = chan->drm_dev;
-	struct drm_i915_private *dev_priv = chan->drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = get_dev_priv(chan);
+	struct drm_device *dev = dev_priv->dev;
 	u32 reserved = 0, clock_bits;
 
 	/* On most chips, these bits must be preserved in software. */
@@ -96,8 +102,8 @@ static void set_clock(void *data, int state_high)
 static void set_data(void *data, int state_high)
 {
 	struct intel_i2c_chan *chan = data;
-	struct drm_device *dev = chan->drm_dev;
-	struct drm_i915_private *dev_priv = chan->drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = get_dev_priv(chan);
+	struct drm_device *dev = dev_priv->dev;
 	u32 reserved = 0, data_bits;
 
 	/* On most chips, these bits must be preserved in software. */
@@ -153,16 +159,18 @@ intel_i2c_reset_gmbus(struct drm_device *dev)
  *   %GPIOH
  * see PRM for details on how these different busses are used.
  */
-struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
+struct i2c_adapter *intel_i2c_create(struct intel_encoder *encoder,
+				     const u32 reg,
 				     const char *name)
 {
 	struct intel_i2c_chan *chan;
+	struct drm_device *dev = encoder->base.dev;
 
 	chan = kzalloc(sizeof(struct intel_i2c_chan), GFP_KERNEL);
 	if (!chan)
 		goto out_free;
 
-	chan->drm_dev = dev;
+	chan->encoder = encoder;
 	chan->reg = reg;
 	snprintf(chan->adapter.name, I2C_NAME_SIZE, "intel drm %s", name);
 	chan->adapter.owner = THIS_MODULE;
@@ -178,7 +186,7 @@ struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 
 	i2c_set_adapdata(&chan->adapter, chan);
 
-	if(i2c_bit_add_bus(&chan->adapter))
+	if (i2c_bit_add_bus(&chan->adapter))
 		goto out_free;
 
 	intel_i2c_reset_gmbus(dev);

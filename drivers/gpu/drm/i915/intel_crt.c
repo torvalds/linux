@@ -445,19 +445,17 @@ static void intel_crt_destroy(struct drm_connector *connector)
 
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
-	int ret;
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct i2c_adapter *ddc_bus;
 	struct drm_device *dev = connector->dev;
-
+	int ret;
 
 	ret = intel_ddc_get_modes(connector, encoder->ddc_bus);
 	if (ret || !IS_G4X(dev))
 		goto end;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	ddc_bus = intel_i2c_create(connector->dev, GPIOD, "CRTDDC_D");
-
+	ddc_bus = intel_i2c_create(encoder, GPIOD, "CRTDDC_D");
 	if (!ddc_bus) {
 		dev_printk(KERN_ERR, &connector->dev->pdev->dev,
 			   "DDC bus registration failed for CRTDDC_D.\n");
@@ -545,7 +543,8 @@ void intel_crt_init(struct drm_device *dev)
 		if (dev_priv->crt_ddc_bus != 0)
 			i2c_reg = dev_priv->crt_ddc_bus;
 	}
-	intel_encoder->ddc_bus = intel_i2c_create(dev, i2c_reg, "CRTDDC_A");
+	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
+						  i2c_reg, "CRTDDC_A");
 	if (!intel_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");

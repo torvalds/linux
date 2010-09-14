@@ -362,7 +362,8 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder = &intel_dvo->base;
 
 	/* Set up the DDC bus */
-	intel_encoder->ddc_bus = intel_i2c_create(dev, GPIOD, "DVODDC_D");
+	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
+						  GPIOD, "DVODDC_D");
 	if (!intel_encoder->ddc_bus)
 		goto free_intel;
 
@@ -389,10 +390,10 @@ void intel_dvo_init(struct drm_device *dev)
 		 */
 		if (i2cbus != NULL)
 			intel_i2c_destroy(i2cbus);
-		if (!(i2cbus = intel_i2c_create(dev, gpio,
-			gpio == GPIOB ? "DVOI2C_B" : "DVOI2C_E"))) {
+		i2cbus = intel_i2c_create(intel_encoder, gpio,
+					  gpio == GPIOB ?  "DVOI2C_B" : "DVOI2C_E");
+		if (i2cbus == NULL)
 			continue;
-		}
 
 		intel_dvo->dev = *dvo;
 		ret = dvo->dev_ops->init(&intel_dvo->dev, i2cbus);
