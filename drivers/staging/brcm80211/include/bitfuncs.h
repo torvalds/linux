@@ -78,7 +78,7 @@ static INLINE uint32 find_msbit(uint32 x)
 	if (temp_x & DB_POW_MASK1) {
 		msbit += 1;
 	}
-	return (msbit);
+	return msbit;
 }
 
 #endif				/* USE_PENTIUM_BSR && __GNUC__ */

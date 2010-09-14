@@ -166,7 +166,7 @@ static INLINE uint16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
 	struct dot11_header *h;
 	txh = (d11txh_t *) PKTDATA(p);
 	h = (struct dot11_header *)((uint8 *) (txh + 1) + D11_PHY_HDR_LEN);
-	return (ltoh16(h->seq) >> SEQNUM_SHIFT);
+	return ltoh16(h->seq) >> SEQNUM_SHIFT;
 }
 
 ampdu_info_t *BCMATTACHFN(wlc_ampdu_attach) (wlc_info_t *wlc)
@@ -1400,7 +1400,7 @@ void wlc_ampdu_macaddr_upd(wlc_info_t *wlc)
 
 bool wlc_aggregatable(wlc_info_t *wlc, uint8 tid)
 {
-	return (wlc->ampdu->ini_enable[tid]);
+	return wlc->ampdu->ini_enable[tid];
 }
 
 void wlc_ampdu_shm_upd(ampdu_info_t *ampdu)

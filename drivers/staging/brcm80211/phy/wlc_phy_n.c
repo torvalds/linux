@@ -15125,7 +15125,7 @@ uint8 wlc_phy_rxcore_getstate_nphy(wlc_phy_t *pih)
 	regval = read_phy_reg(pi, 0xa2);
 	rxen_bits = (regval >> 4) & 0xf;
 
-	return ((uint8) rxen_bits);
+	return (uint8) rxen_bits;
 }
 
 bool wlc_phy_n_txpower_ipa_ison(phy_info_t *pi)
@@ -18336,9 +18336,9 @@ static uint16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 		write_radio_reg(pi, RADIO_2056_SYN_PLL_MAST2 | RADIO_2056_SYN,
 				savereg);
 
-		return (rcal_reg & 0x1f);
+		return rcal_reg & 0x1f;
 	}
-	return (rcal_reg & 0x3e);
+	return rcal_reg & 0x3e;
 }
 
 static void
@@ -18620,7 +18620,7 @@ static uint16 wlc_phy_radio2057_rccal(phy_info_t *pi)
 
 	write_radio_reg(pi, RADIO_2057_RCCAL_START_R1_Q1_P1, 0x15);
 
-	return (rccal_valid);
+	return rccal_valid;
 }
 
 static void
@@ -20902,7 +20902,7 @@ wlc_phy_poll_rssi_nphy(phy_info_t *pi, uint8 rssi_type, int32 *rssi_buf,
 		write_phy_reg(pi, 0x7d, rfctrlrssiothers2_save);
 	}
 
-	return (rssi_out_val);
+	return rssi_out_val;
 }
 
 int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
@@ -21185,7 +21185,7 @@ int16 wlc_phy_tempsense_nphy(phy_info_t *pi)
 		write_phy_reg(pi, 0xa5, afectrlOverride_save);
 	}
 
-	return ((int16) radio_temp[0] + offset);
+	return (int16) radio_temp[0] + offset;
 }
 
 static void
@@ -22719,7 +22719,7 @@ nphy_txgains_t wlc_phy_get_tx_gain_nphy(phy_info_t *pi)
 		}
 	}
 
-	return (target_gain);
+	return target_gain;
 }
 
 static void
@@ -25759,7 +25759,7 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, uint8 core_idx, uint8 loopback_type)
 
 	pi->nphy_anarxlpf_adjusted = FALSE;
 
-	return (best_rccal_val - 0x80);
+	return best_rccal_val - 0x80;
 }
 
 #define WAIT_FOR_SCOPE	4000000
@@ -28718,8 +28718,8 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 
 static bool wlc_phy_txpwr_ison_nphy(phy_info_t *pi)
 {
-	return (read_phy_reg((pi), 0x1e7) & ((0x1 << 15) |
-					     (0x1 << 14) | (0x1 << 13)));
+	return read_phy_reg((pi), 0x1e7) & ((0x1 << 15) |
+					     (0x1 << 14) | (0x1 << 13));
 }
 
 static uint8 wlc_phy_txpwr_idx_cur_get_nphy(phy_info_t *pi, uint8 core)

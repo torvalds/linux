@@ -100,7 +100,7 @@ uint BCMFASTPATH pkttotlen(osl_t *osh, void *p)
 	total = 0;
 	for (; p; p = PKTNEXT(p))
 		total += PKTLEN(p);
-	return (total);
+	return total;
 }
 
 /* return the last buffer of chained pkt */
@@ -108,7 +108,7 @@ void *pktlast(osl_t *osh, void *p)
 {
 	for (; PKTNEXT(p); p = PKTNEXT(p)) ;
 
-	return (p);
+	return p;
 }
 
 /* count segments of a chained packet */
@@ -399,7 +399,7 @@ void *pktq_peek(struct pktq *pq, int *prec_out)
 	if (prec_out)
 		*prec_out = prec;
 
-	return (pq->q[prec].head);
+	return pq->q[prec].head;
 }
 
 void *pktq_peek_tail(struct pktq *pq, int *prec_out)
@@ -416,7 +416,7 @@ void *pktq_peek_tail(struct pktq *pq, int *prec_out)
 	if (prec_out)
 		*prec_out = prec;
 
-	return (pq->q[prec].tail);
+	return pq->q[prec].tail;
 }
 
 void pktq_flush(osl_t *osh, struct pktq *pq, bool dir, ifpkt_cb_t fn, int arg)
@@ -578,7 +578,7 @@ ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
 	if (endp)
 		*endp = (char *)cp;
 
-	return (result);
+	return result;
 }
 
 int BCMROMFN(bcm_atoi) (char *s)
@@ -593,15 +593,15 @@ char *BCMROMFN(bcmstrstr) (char *haystack, char *needle)
 	int i;
 
 	if ((haystack == NULL) || (needle == NULL))
-		return (haystack);
+		return haystack;
 
 	nlen = strlen(needle);
 	len = strlen(haystack) - nlen + 1;
 
 	for (i = 0; i < len; i++)
 		if (memcmp(needle, &haystack[i], nlen) == 0)
-			return (&haystack[i]);
-	return (NULL);
+			return &haystack[i];
+	return NULL;
 }
 
 char *BCMROMFN(bcmstrcat) (char *dest, const char *src)
@@ -612,7 +612,7 @@ char *BCMROMFN(bcmstrcat) (char *dest, const char *src)
 
 	while ((*p++ = *src++) != '\0') ;
 
-	return (dest);
+	return dest;
 }
 
 char *BCMROMFN(bcmstrncat) (char *dest, const char *src, uint size)
@@ -625,7 +625,7 @@ char *BCMROMFN(bcmstrncat) (char *dest, const char *src, uint size)
 
 	while (p != endp && (*p++ = *src++) != '\0') ;
 
-	return (dest);
+	return dest;
 }
 
 /****************************************************************************
@@ -793,13 +793,13 @@ int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea)
 			break;
 	}
 
-	return (i == 6);
+	return i == 6;
 }
 
 char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf)
 {
 	snprintf(buf, 18, "%pM", ea->octet);
-	return (buf);
+	return buf;
 }
 
 void bcm_mdelay(uint ms)
@@ -830,13 +830,13 @@ char *getvar(char *vars, const char *name)
 	/* first look in vars[] */
 	for (s = vars; s && *s;) {
 		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
-			return (&s[len + 1]);
+			return &s[len + 1];
 
 		while (*s++) ;
 	}
 
 	/* then query nvram */
-	return (nvram_get(name));
+	return nvram_get(name);
 }
 
 /*
@@ -848,9 +848,9 @@ int getintvar(char *vars, const char *name)
 	char *val;
 
 	if ((val = getvar(vars, name)) == NULL)
-		return (0);
+		return 0;
 
-	return (bcm_strtoul(val, NULL, 0));
+	return bcm_strtoul(val, NULL, 0);
 }
 
 int getintvararray(char *vars, const char *name, uint8 index)
@@ -860,7 +860,7 @@ int getintvararray(char *vars, const char *name, uint8 index)
 	int val = 0;
 
 	if ((buf = getvar(vars, name)) == NULL) {
-		return (0);
+		return 0;
 	}
 
 	/* table values are always separated by "," or " " */
@@ -891,7 +891,7 @@ static int findmatch(char *string, char *name)
 		string = c + 1;
 	}
 
-	return (!strcmp(string, name));
+	return !strcmp(string, name);
 }
 
 /* Return gpio pin number assigned to the named pin
@@ -1301,7 +1301,7 @@ bcm_tlv_t *BCMROMFN(bcm_parse_tlvs) (void *buf, int buflen, uint key)
 
 		/* validate remaining totlen */
 		if ((elt->id == key) && (totlen >= (len + 2)))
-			return (elt);
+			return elt;
 
 		elt = (bcm_tlv_t *) ((uint8 *) elt + (len + 2));
 		totlen -= (len + 2);
@@ -1331,11 +1331,11 @@ bcm_tlv_t *BCMROMFN(bcm_parse_ordered_tlvs) (void *buf, int buflen, uint key)
 
 		/* Punt if we start seeing IDs > than target key */
 		if (id > key)
-			return (NULL);
+			return NULL;
 
 		/* validate remaining totlen */
 		if ((id == key) && (totlen >= (len + 2)))
-			return (elt);
+			return elt;
 
 		elt = (bcm_tlv_t *) ((uint8 *) elt + (len + 2));
 		totlen -= (len + 2);
@@ -1496,7 +1496,7 @@ char *bcm_brev_str(uint32 brev, char *buf)
 		snprintf(buf, 8, "%c%03x",
 			 ((brev & 0xf000) == 0x1000) ? 'P' : 'A', brev & 0xfff);
 
-	return (buf);
+	return buf;
 }
 
 #define BUFSIZE_TODUMP_ATONCE 512	/* Buffer size */
@@ -1621,7 +1621,7 @@ uint16 BCMROMFN(bcm_qdbm_to_mw) (uint8 qdbm)
 	/* return the mW value scaled down to the correct factor of 10,
 	 * adding in factor/2 to get proper rounding.
 	 */
-	return ((nqdBm_to_mW_map[idx] + factor / 2) / factor);
+	return (nqdBm_to_mW_map[idx] + factor / 2) / factor;
 }
 
 uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw)
@@ -1652,7 +1652,7 @@ uint8 BCMROMFN(bcm_mw_to_qdbm) (uint16 mw)
 
 	qdbm += (uint8) offset;
 
-	return (qdbm);
+	return qdbm;
 }
 
 uint BCMROMFN(bcm_bitcount) (uint8 *bitmap, uint length)
@@ -1719,7 +1719,7 @@ int bcm_cmp_bytes(uchar *arg1, uchar *arg2, uint8 nbytes)
 
 	for (i = nbytes - 1; i >= 0; i--) {
 		if (arg1[i] != arg2[i])
-			return (arg1[i] - arg2[i]);
+			return arg1[i] - arg2[i];
 	}
 	return 0;
 }

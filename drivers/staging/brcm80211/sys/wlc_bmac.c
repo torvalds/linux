@@ -259,7 +259,7 @@ static uint32 WLBANDINITFN(wlc_setband_inact) (wlc_info_t *wlc, uint bandunit)
 
 	wlc_setxband(wlc_hw, bandunit);
 
-	return (macintmask);
+	return macintmask;
 }
 
 /* Process received frames */
@@ -315,7 +315,7 @@ wlc_bmac_recv(wlc_hw_info_t *wlc_hw, uint fifo, bool bound)
 		wlc_recv(wlc_hw->wlc, p);
 	}
 
-	return (n >= bound_limit);
+	return n >= bound_limit;
 }
 
 /* second-level interrupt processing
@@ -441,11 +441,11 @@ bool BCMFASTPATH wlc_dpc(wlc_info_t *wlc, bool bounded)
 	ASSERT(bounded == TRUE || wlc->macintstatus == 0);
 
 	/* it isn't done and needs to be resched if macintstatus is non-zero */
-	return (wlc->macintstatus != 0);
+	return wlc->macintstatus != 0;
 
  fatal:
 	wl_init(wlc->wl);
-	return (wlc->macintstatus != 0);
+	return wlc->macintstatus != 0;
 }
 
 /* common low-level watchdog code */
@@ -1345,13 +1345,13 @@ void wlc_bmac_set_hw_etheraddr(wlc_hw_info_t *wlc_hw, struct ether_addr *ea)
 
 int wlc_bmac_bandtype(wlc_hw_info_t *wlc_hw)
 {
-	return (wlc_hw->band->bandtype);
+	return wlc_hw->band->bandtype;
 }
 
 void *wlc_cur_phy(wlc_info_t *wlc)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
-	return ((void *)wlc_hw->band->pi);
+	return (void *)wlc_hw->band->pi;
 }
 
 /* control chip clock to save power, enable dynamic clock or force fast clock */
@@ -2240,7 +2240,7 @@ bool wlc_bmac_radio_read_hwdisabled(wlc_hw_info_t *wlc_hw)
 	if (!xtal)
 		wlc_bmac_xtal(wlc_hw, OFF);
 
-	return (v);
+	return v;
 }
 
 /* Initialize just the hardware when coming out of POR or S3/S5 system states */
@@ -2308,7 +2308,7 @@ static bool wlc_dma_rxreset(wlc_hw_info_t *wlc_hw, uint fifo)
 		OSL_DELAY(2000);
 	}
 
-	return (dma_rxreset(di));
+	return dma_rxreset(di);
 }
 
 /* d11 core reset
@@ -3002,7 +3002,7 @@ uint32 wlc_intrsoff(wlc_info_t *wlc)
 	wlc->macintmask = 0;
 
 	/* return previous macintmask; resolve race between us and our isr */
-	return (wlc->macintstatus ? 0 : macintmask);
+	return wlc->macintstatus ? 0 : macintmask;
 }
 
 void wlc_intrsrestore(wlc_info_t *wlc, uint32 macintmask)
@@ -3289,7 +3289,7 @@ bool BCMFASTPATH wlc_isr(wlc_info_t *wlc, bool *wantdpc)
 	*wantdpc = FALSE;
 
 	if (!wlc_hw->up || !wlc->macintmask)
-		return (FALSE);
+		return FALSE;
 
 	/* read and clear macintstatus and intstatus registers */
 	macintstatus = wlc_intstatus(wlc, TRUE);
@@ -3299,7 +3299,7 @@ bool BCMFASTPATH wlc_isr(wlc_info_t *wlc, bool *wantdpc)
 
 	/* it is not for us */
 	if (macintstatus == 0)
-		return (FALSE);
+		return FALSE;
 
 	*wantdpc = TRUE;
 
@@ -3307,7 +3307,7 @@ bool BCMFASTPATH wlc_isr(wlc_info_t *wlc, bool *wantdpc)
 	ASSERT(wlc->macintstatus == 0);
 	wlc->macintstatus = macintstatus;
 
-	return (TRUE);
+	return TRUE;
 
 }
 
@@ -3634,7 +3634,7 @@ static uint16 wlc_bmac_ofdm_ratetable_offset(wlc_hw_info_t *wlc_hw, uint8 rate)
 	/* Find the SHM pointer to the rate table entry by looking in the
 	 * Direct-map Table
 	 */
-	return (2 * wlc_bmac_read_shm(wlc_hw, M_RT_DIRMAP_A + (plcp_rate * 2)));
+	return 2 * wlc_bmac_read_shm(wlc_hw, M_RT_DIRMAP_A + (plcp_rate * 2));
 }
 
 void wlc_bmac_band_stf_ss_set(wlc_hw_info_t *wlc_hw, uint8 stf_mode)
@@ -3686,7 +3686,7 @@ bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw)
 	val = R_REG(osh, &regs->objdata);
 	if (val != (uint32) 0xaa5555aa) {
 		WL_ERROR(("wl%d: validate_chip_access: SHM = 0x%x, expected 0xaa5555aa\n", wlc_hw->unit, val));
-		return (FALSE);
+		return FALSE;
 	}
 
 	W_REG(osh, &regs->objaddr, OBJADDR_SHM_SEL | 0);
@@ -3698,7 +3698,7 @@ bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw)
 	val = R_REG(osh, &regs->objdata);
 	if (val != (uint32) 0x55aaaa55) {
 		WL_ERROR(("wl%d: validate_chip_access: SHM = 0x%x, expected 0x55aaaa55\n", wlc_hw->unit, val));
-		return (FALSE);
+		return FALSE;
 	}
 
 	W_REG(osh, &regs->objaddr, OBJADDR_SHM_SEL | 0);
@@ -3728,12 +3728,12 @@ bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw)
 		val = R_REG(osh, &regs->tsf_cfpstrt_l);
 		if (val != (uint) 0xBBBB) {
 			WL_ERROR(("wl%d: validate_chip_access: tsf_cfpstrt_l = 0x%x, expected" " 0x%x\n", wlc_hw->unit, val, 0xBBBB));
-			return (FALSE);
+			return FALSE;
 		}
 		val = R_REG(osh, &regs->tsf_cfpstrt_h);
 		if (val != (uint) 0xCCCC) {
 			WL_ERROR(("wl%d: validate_chip_access: tsf_cfpstrt_h = 0x%x, expected" " 0x%x\n", wlc_hw->unit, val, 0xCCCC));
-			return (FALSE);
+			return FALSE;
 		}
 
 	}
@@ -3745,10 +3745,10 @@ bool BCMATTACHFN(wlc_bmac_validate_chip_access) (wlc_hw_info_t *wlc_hw)
 	if ((w != (MCTL_IHR_EN | MCTL_WAKE)) &&
 	    (w != (MCTL_IHR_EN | MCTL_GMODE | MCTL_WAKE))) {
 		WL_ERROR(("wl%d: validate_chip_access: maccontrol = 0x%x, expected 0x%x or 0x%x\n", wlc_hw->unit, w, (MCTL_IHR_EN | MCTL_WAKE), (MCTL_IHR_EN | MCTL_GMODE | MCTL_WAKE)));
-		return (FALSE);
+		return FALSE;
 	}
 
-	return (TRUE);
+	return TRUE;
 }
 
 #define PHYPLL_WAIT_US	100000
@@ -4189,7 +4189,7 @@ uint16 wlc_bmac_rate_shm_offset(wlc_hw_info_t *wlc_hw, uint8 rate)
 	/* Find the SHM pointer to the rate table entry by looking in the
 	 * Direct-map Table
 	 */
-	return (2 * wlc_bmac_read_shm(wlc_hw, table_ptr + (index * 2)));
+	return 2 * wlc_bmac_read_shm(wlc_hw, table_ptr + (index * 2));
 }
 
 void wlc_bmac_set_txpwr_percent(wlc_hw_info_t *wlc_hw, uint8 val)

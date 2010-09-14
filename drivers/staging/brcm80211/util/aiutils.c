@@ -319,7 +319,7 @@ void *ai_setcoreidx(si_t *sih, uint coreidx)
 	void *regs;
 
 	if (coreidx >= sii->numcores)
-		return (NULL);
+		return NULL;
 
 	/*
 	 * If the user has provided an interrupt mask enabled function,
@@ -427,7 +427,7 @@ uint ai_flag(si_t *sih)
 	}
 	ai = sii->curwrap;
 
-	return (R_REG(sii->osh, &ai->oobselouta30) & 0x1f);
+	return R_REG(sii->osh, &ai->oobselouta30) & 0x1f;
 }
 
 void ai_setint(si_t *sih, int siflag)
@@ -449,7 +449,7 @@ uint ai_corevendor(si_t *sih)
 
 	sii = SI_INFO(sih);
 	cia = sii->cia[sii->curidx];
-	return ((cia & CIA_MFG_MASK) >> CIA_MFG_SHIFT);
+	return (cia & CIA_MFG_MASK) >> CIA_MFG_SHIFT;
 }
 
 uint ai_corerev(si_t *sih)
@@ -459,7 +459,7 @@ uint ai_corerev(si_t *sih)
 
 	sii = SI_INFO(sih);
 	cib = sii->cib[sii->curidx];
-	return ((cib & CIB_REV_MASK) >> CIB_REV_SHIFT);
+	return (cib & CIB_REV_MASK) >> CIB_REV_SHIFT;
 }
 
 bool ai_iscoreup(si_t *sih)
@@ -568,7 +568,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 		INTR_RESTORE(sii, intr_val);
 	}
 
-	return (w);
+	return w;
 }
 
 void ai_core_disable(si_t *sih, uint32 bits)

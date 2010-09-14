@@ -187,7 +187,7 @@ void *BCMFASTPATH osl_pktget(osl_t *osh, uint len)
 		osh->pub.pktalloced++;
 	}
 
-	return ((void *)skb);
+	return (void *)skb;
 }
 
 /* Free the driver packet. Free the tag if present */
@@ -246,7 +246,7 @@ uint32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 		       offset, (PCI_CFG_RETRY - retry));
 #endif				/* BCMDBG */
 
-	return (val);
+	return val;
 }
 
 void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
@@ -315,12 +315,12 @@ void *osl_malloc(osl_t *osh, uint size)
 	if ((addr = kmalloc(size, GFP_ATOMIC)) == NULL) {
 		if (osh)
 			osh->failed++;
-		return (NULL);
+		return NULL;
 	}
 	if (osh)
 		osh->malloced += size;
 
-	return (addr);
+	return addr;
 }
 
 void osl_mfree(osl_t *osh, void *addr, uint size)
@@ -335,18 +335,18 @@ void osl_mfree(osl_t *osh, void *addr, uint size)
 uint osl_malloced(osl_t *osh)
 {
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-	return (osh->malloced);
+	return osh->malloced;
 }
 
 uint osl_malloc_failed(osl_t *osh)
 {
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-	return (osh->failed);
+	return osh->failed;
 }
 
 uint osl_dma_consistent_align(void)
 {
-	return (PAGE_SIZE);
+	return PAGE_SIZE;
 }
 
 void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
@@ -359,7 +359,7 @@ void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits,
 		size += align;
 	*alloced = size;
 
-	return (pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap));
+	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
 }
 
 void osl_dma_free_consistent(osl_t *osh, void *va, uint size, ulong pa)
@@ -375,7 +375,7 @@ uint BCMFASTPATH osl_dma_map(osl_t *osh, void *va, uint size, int direction)
 
 	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
 	dir = (direction == DMA_TX) ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
-	return (pci_map_single(osh->pdev, va, size, dir));
+	return pci_map_single(osh->pdev, va, size, dir);
 }
 
 void BCMFASTPATH osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction)
@@ -461,7 +461,7 @@ void *osl_pktdup(osl_t *osh, void *skb)
 
 	/* Increment the packet counter */
 	osh->pub.pktalloced++;
-	return (p);
+	return p;
 }
 
 #ifdef BCMSDIO

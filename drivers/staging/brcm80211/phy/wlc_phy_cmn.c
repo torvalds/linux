@@ -160,12 +160,12 @@ char *phy_getvar(phy_info_t *pi, const char *name)
 
 	for (s = vars; s && *s;) {
 		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
-			return (&s[len + 1]);
+			return &s[len + 1];
 
 		while (*s++) ;
 	}
 
-	return (nvram_get(name));
+	return nvram_get(name);
 }
 
 int phy_getintvar(phy_info_t *pi, const char *name)
@@ -173,9 +173,9 @@ int phy_getintvar(phy_info_t *pi, const char *name)
 	char *val;
 
 	if ((val = PHY_GETVAR(pi, name)) == NULL)
-		return (0);
+		return 0;
 
-	return (bcm_strtoul(val, NULL, 0));
+	return bcm_strtoul(val, NULL, 0);
 }
 
 void wlc_phyreg_enter(wlc_phy_t *pih)
@@ -216,7 +216,7 @@ uint16 read_radio_reg(phy_info_t *pi, uint16 addr)
 		return 0xffff;
 
 	if (NORADIO_ENAB(pi->pubpi))
-		return (NORADIO_IDCODE & 0xffff);
+		return NORADIO_IDCODE & 0xffff;
 
 	switch (pi->pubpi.phy_type) {
 	case PHY_TYPE_N:
@@ -303,7 +303,7 @@ static uint32 read_radio_id(phy_info_t *pi)
 	uint32 id;
 
 	if (NORADIO_ENAB(pi->pubpi))
-		return (NORADIO_IDCODE);
+		return NORADIO_IDCODE;
 
 	if (D11REV_GE(pi->sh->corerev, 24)) {
 		uint32 b0, b1, b2;
@@ -415,7 +415,7 @@ uint16 read_phy_reg(phy_info_t *pi, uint16 addr)
 		|| D11REV_IS(pi->sh->corerev, 12)) || wlc_phy_war41476(pi));
 
 	pi->phy_wreg = 0;
-	return (R_REG(osh, &regs->phyregdata));
+	return R_REG(osh, &regs->phyregdata);
 }
 
 void write_phy_reg(phy_info_t *pi, uint16 addr, uint16 val)
@@ -1514,8 +1514,8 @@ int wlc_phy_channel2freq(uint channel)
 
 	for (i = 0; i < ARRAYSIZE(chan_info_all); i++)
 		if (chan_info_all[i].chan == channel)
-			return (chan_info_all[i].freq);
-	return (0);
+			return chan_info_all[i].freq;
+	return 0;
 }
 
 void
@@ -1599,7 +1599,7 @@ int wlc_phy_txpower_get(wlc_phy_t *ppi, uint *qdbm, bool *override)
 	*qdbm = pi->tx_user_target[0];
 	if (override != NULL)
 		*override = pi->txpwroverride;
-	return (0);
+	return 0;
 }
 
 void wlc_phy_txpower_target_set(wlc_phy_t *ppi, struct txpwr_limits *txpwr)
@@ -1687,7 +1687,7 @@ int wlc_phy_txpower_set(wlc_phy_t *ppi, uint qdbm, bool override)
 				wlapi_enable_mac(pi->sh->physhim);
 		}
 	}
-	return (0);
+	return 0;
 }
 
 void
@@ -2309,7 +2309,7 @@ static uint32 wlc_phy_txpower_est_power_nphy(phy_info_t *pi)
 
 	est_pwr =
 	    (uint32) ((pwr0 << 24) | (pwr1 << 16) | (adj_pwr0 << 8) | adj_pwr1);
-	return (est_pwr);
+	return est_pwr;
 }
 
 void
@@ -2421,7 +2421,7 @@ bool wlc_phy_test_ison(wlc_phy_t *ppi)
 {
 	phy_info_t *pi = (phy_info_t *) ppi;
 
-	return (pi->phytest_on);
+	return pi->phytest_on;
 }
 
 bool wlc_phy_ant_rxdiv_get(wlc_phy_t *ppi, uint8 *pval)
@@ -3440,7 +3440,7 @@ bool wlc_phy_txpower_ipa_ison(wlc_phy_t *ppi)
 	phy_info_t *pi = (phy_info_t *) ppi;
 
 	if (ISNPHY(pi))
-		return (wlc_phy_n_txpower_ipa_ison(pi));
+		return wlc_phy_n_txpower_ipa_ison(pi);
 	else
 		return 0;
 }

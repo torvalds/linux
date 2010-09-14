@@ -116,7 +116,7 @@ void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
 	if ((pi = MALLOC(osh, sizeof(pcicore_info_t))) == NULL) {
 		PCI_ERROR(("pci_attach: malloc failed! malloced %d bytes\n",
 			   MALLOCED(osh)));
-		return (NULL);
+		return NULL;
 	}
 
 	bzero(pi, sizeof(pcicore_info_t));
@@ -733,7 +733,7 @@ bool pcicore_pmecap_fast(osl_t *osh)
 
 	pmecap = OSL_PCI_READ_CONFIG(osh, cap_ptr, sizeof(uint32));
 
-	return ((pmecap & PME_CAP_PM_STATES) != 0);
+	return (pmecap & PME_CAP_PM_STATES) != 0;
 }
 
 /* return TRUE if PM capability exists in the pci config space
@@ -762,7 +762,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi)
 		pi->pmecap = (pmecap & PME_CAP_PM_STATES) != 0;
 	}
 
-	return (pi->pmecap);
+	return pi->pmecap;
 }
 
 /* Enable PME generation */

@@ -43,7 +43,7 @@ the most of qmath functions can be replaced with processor intrinsic instruction
 */
 int32 qm_mul321616(int16 op1, int16 op2)
 {
-	return ((int32) (op1) * (int32) (op2));
+	return (int32) (op1) * (int32) (op2);
 }
 
 /*
@@ -55,7 +55,7 @@ int16 qm_mul16(int16 op1, int16 op2)
 {
 	int32 result;
 	result = ((int32) (op1) * (int32) (op2));
-	return ((int16) (result >> 16));
+	return (int16) (result >> 16);
 }
 
 /*
@@ -101,7 +101,7 @@ int16 qm_muls16(int16 op1, int16 op2)
 	} else {
 		result = ((int32) (op1) * (int32) (op2));
 	}
-	return ((int16) (result >> 15));
+	return (int16) (result >> 15);
 }
 
 /*
@@ -311,7 +311,7 @@ int16 qm_div_s(int16 num, int16 denom)
 		}
 	}
 	var_out = (int16) (L_num & 0x7fff);
-	return (var_out);
+	return var_out;
 }
 
 /*

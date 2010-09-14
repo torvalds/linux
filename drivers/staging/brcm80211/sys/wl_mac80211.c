@@ -775,7 +775,7 @@ static int wl_set_hint(wl_info_t *wl, char *abbrev)
 {
 	WL_ERROR(("%s: Sending country code %c%c to MAC80211\n", __func__,
 		  abbrev[0], abbrev[1]));
-	return (regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev));
+	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
 }
 
 /**
@@ -1403,7 +1403,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl_band_2GHz_nphy;
 	} else {
 		BUG();
-		return (-1);
+		return -1;
 	}
 
 	/* Assume all bands use the same phy.  True for 11n devices. */
@@ -1417,13 +1417,13 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			    &wl_band_5GHz_nphy;
 		} else {
-			return (-1);
+			return -1;
 		}
 	}
 
 	WL_NONE(("%s: 2ghz = %d, 5ghz = %d\n", __func__, 1, has_5g));
 
-	return (0);
+	return 0;
 }
 
 static int ieee_hw_init(struct ieee80211_hw *hw)
@@ -1449,7 +1449,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	hw->rate_control_algorithm = "minstrel_ht";
 
 	hw->sta_data_size = sizeof(struct scb);
-	return (ieee_hw_rate_init(hw));
+	return ieee_hw_rate_init(hw);
 }
 
 #ifndef BCMSDIO
@@ -1478,14 +1478,14 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    (((pdev->device & 0xff00) != 0x4300) &&
 	     ((pdev->device & 0xff00) != 0x4700) &&
 	     ((pdev->device < 43000) || (pdev->device > 43999))))
-		return (-ENODEV);
+		return -ENODEV;
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
 		WL_ERROR(("%s: Cannot enable device %d-%d_%d\n", __func__,
 			  pdev->bus->number, PCI_SLOT(pdev->devfn),
 			  PCI_FUNC(pdev->devfn)));
-		return (-ENODEV);
+		return -ENODEV;
 	}
 	pci_set_master(pdev);
 
@@ -1574,7 +1574,7 @@ static int wl_resume(struct pci_dev *pdev)
 	err = wl_up(wl);
 	WL_UNLOCK(wl);
 
-	return (err);
+	return err;
 }
 #endif				/* LINUXSTA_PS */
 
@@ -1657,7 +1657,7 @@ static int __init wl_module_init(void)
 
 #ifndef BCMSDIO
 	if (!(error = pci_module_init(&wl_pci_driver)))
-		return (0);
+		return 0;
 
 #endif				/* !BCMSDIO */
 
@@ -1671,7 +1671,7 @@ static int __init wl_module_init(void)
 	}
 #endif				/* WLC_HIGH_ONLY */
 
-	return (error);
+	return error;
 }
 
 /**
@@ -1809,7 +1809,7 @@ wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 #ifdef WLC_HIGH_ONLY
 	WL_UNLOCK(wl);
 #endif
-	return (NETDEV_TX_OK);
+	return NETDEV_TX_OK;
 }
 
 void wl_txflowcontrol(wl_info_t *wl, struct wl_if *wlif, bool state, int prio)
@@ -1865,7 +1865,7 @@ uint wl_reset(wl_info_t *wl)
 	/* dpc will not be rescheduled */
 	wl->resched = 0;
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -1919,11 +1919,11 @@ int wl_up(wl_info_t *wl)
 	int error = 0;
 
 	if (wl->pub->up)
-		return (0);
+		return 0;
 
 	error = wlc_up(wl->wlc);
 
-	return (error);
+	return error;
 }
 
 void wl_down(wl_info_t *wl)
@@ -2254,7 +2254,7 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 
 	TXQ_UNLOCK(wl, flags);
 
-	return (0);
+	return 0;
 
 }
 

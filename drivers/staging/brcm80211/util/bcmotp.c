@@ -553,13 +553,13 @@ static otp_fn_t ipxotp_fn = {
 static int hndotp_status(void *oh)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	return ((int)(oi->hwprot | oi->signvalid));
+	return (int)(oi->hwprot | oi->signvalid);
 }
 
 static int hndotp_size(void *oh)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	return ((int)(oi->size));
+	return (int)(oi->size);
 }
 
 static uint16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
@@ -574,7 +574,7 @@ static uint16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 	osh = si_osh(oi->sih);
 
 	ptr = (volatile uint16 *)((volatile char *)cc + CC_SROM_OTP);
-	return (R_REG(osh, &ptr[wn]));
+	return R_REG(osh, &ptr[wn]);
 }
 
 static uint16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
@@ -591,7 +591,7 @@ static uint16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 
 	ptr = (volatile uint16 *)((volatile char *)cc + CC_SROM_OTP);
 
-	return (R_REG(osh, &ptr[(oi->size / 2) + woff]));
+	return R_REG(osh, &ptr[(oi->size / 2) + woff]);
 }
 
 static uint16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)

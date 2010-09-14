@@ -945,7 +945,7 @@ wlc_channels_init(wlc_cm_info_t *wlc_cm, const country_info_t *country)
 	wlc_quiet_channels_reset(wlc_cm);
 	wlc_channels_commit(wlc_cm);
 
-	return (0);
+	return 0;
 }
 
 /* Update the radio state (enable/disable) and tx power targets
@@ -1020,7 +1020,7 @@ void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm)
 
 bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 {
-	return (N_ENAB(wlc_cm->wlc->pub) && CHSPEC_IS40(chspec) ?
+	return N_ENAB(wlc_cm->wlc->pub) && CHSPEC_IS40(chspec) ?
 		(isset
 		 (wlc_cm->quiet_channels.vec,
 		  LOWER_20_SB(CHSPEC_CHANNEL(chspec)))
@@ -1029,7 +1029,7 @@ bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 									quiet_channels.
 									vec,
 									CHSPEC_CHANNEL
-									(chspec)));
+									(chspec));
 }
 
 /* Is the channel valid for the current locale? (but don't consider channels not
@@ -1039,9 +1039,9 @@ bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val)
 {
 	wlc_info_t *wlc = wlc_cm->wlc;
 
-	return (VALID_CHANNEL20(wlc, val) ||
+	return VALID_CHANNEL20(wlc, val) ||
 		(!wlc->bandlocked
-		 && VALID_CHANNEL20_IN_BAND(wlc, OTHERBANDUNIT(wlc), val)));
+		 && VALID_CHANNEL20_IN_BAND(wlc, OTHERBANDUNIT(wlc), val));
 }
 
 /* Is the channel valid for the current locale and specified band? */
@@ -1547,9 +1547,9 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 	/* Check a 20Mhz channel */
 	if (CHSPEC_IS20(chspec)) {
 		if (dualband)
-			return (VALID_CHANNEL20_DB(wlc_cm->wlc, channel));
+			return VALID_CHANNEL20_DB(wlc_cm->wlc, channel);
 		else
-			return (VALID_CHANNEL20(wlc_cm->wlc, channel));
+			return VALID_CHANNEL20(wlc_cm->wlc, channel);
 	}
 #ifdef SUPPORT_40MHZ
 	/* We know we are now checking a 40MHZ channel, so we should only be here

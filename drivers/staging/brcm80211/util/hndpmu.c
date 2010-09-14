@@ -589,7 +589,7 @@ static bool BCMATTACHFN(si_pmu_res_depfltr_bb) (si_t *sih)
 static bool BCMATTACHFN(si_pmu_res_depfltr_ncb) (si_t *sih)
 {
 
-	return ((sih->boardflags & BFL_NOCBUCK) != 0);
+	return (sih->boardflags & BFL_NOCBUCK) != 0;
 }
 
 /* TRUE if the power topology uses the PALDO */
@@ -1656,7 +1656,7 @@ BCMINITFN(si_pmu5_clock) (si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
 	if (CHIPID(sih->chip) == BCM5357_CHIP_ID) {
 		/* Detect failure in clock setting */
 		if ((R_REG(osh, &cc->chipstatus) & 0x40000) != 0) {
-			return (133 * 1000000);
+			return 133 * 1000000;
 		}
 	}
 
@@ -1684,7 +1684,7 @@ BCMINITFN(si_pmu5_clock) (si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
 		  __func__, p1, p2, ndiv, ndiv, m, div, fc, fc / div));
 
 	/* Return clock in Hertz */
-	return ((fc / div) * 1000000);
+	return (fc / div) * 1000000;
 }
 
 /* query backplane clock frequency */
@@ -2617,7 +2617,7 @@ si_pmu_waitforclk_on_backplane(si_t *sih, osl_t *osh, uint32 clk,
 	/* Return to original core */
 	si_setcoreidx(sih, origidx);
 
-	return (R_REG(osh, &cc->pmustatus) & clk);
+	return R_REG(osh, &cc->pmustatus) & clk;
 }
 
 /*

@@ -161,7 +161,7 @@ BCMATTACHFN(srom_var_init) (si_t *sih, uint bustype, void *curmap, osl_t *osh,
 
 	ASSERT(bustype == BUSTYPE(bustype));
 	if (vars == NULL || count == NULL)
-		return (0);
+		return 0;
 
 	*vars = NULL;
 	*count = 0;
@@ -174,7 +174,7 @@ BCMATTACHFN(srom_var_init) (si_t *sih, uint bustype, void *curmap, osl_t *osh,
 	case PCI_BUS:
 		ASSERT(curmap != NULL);
 		if (curmap == NULL)
-			return (-1);
+			return -1;
 
 		return initvars_srom_pci(sih, curmap, vars, count);
 
@@ -186,7 +186,7 @@ BCMATTACHFN(srom_var_init) (si_t *sih, uint bustype, void *curmap, osl_t *osh,
 	default:
 		ASSERT(0);
 	}
-	return (-1);
+	return -1;
 }
 
 /* support only 16-bit word read from srom */
@@ -2027,7 +2027,7 @@ BCMATTACHFN(initvars_cis_sdio) (osl_t *osh, char **vars, uint *count)
 	while (fn-- > 0)
 		MFREE(osh, cis[fn], SBSDIO_CIS_SIZE_LIMIT);
 
-	return (rc);
+	return rc;
 }
 
 /* set SDIO sprom command register */

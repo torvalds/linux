@@ -79,7 +79,7 @@ char *wf_chspec_ntoa(chanspec_t chspec, char *buf)
 
 	/* Outputs a max of 6 chars including '\0'  */
 	snprintf(buf, 6, "%d%s%s%s", channel, band, bw, sb);
-	return (buf);
+	return buf;
 }
 
 /* given a chanspec string, convert to a chanspec.
@@ -145,7 +145,7 @@ chanspec_t wf_chspec_aton(char *a)
 	}
 
  done:
-	return (channel | band | bw | ctl_sb);
+	return channel | band | bw | ctl_sb;
 }
 
 /*
