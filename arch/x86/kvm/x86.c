@@ -342,18 +342,12 @@ void kvm_inject_page_fault(struct kvm_vcpu *vcpu)
 
 void kvm_propagate_fault(struct kvm_vcpu *vcpu)
 {
-	u32 nested, error;
-
-	error   = vcpu->arch.fault.error_code;
-	nested  = error &  PFERR_NESTED_MASK;
-	error   = error & ~PFERR_NESTED_MASK;
-
-	vcpu->arch.fault.error_code = error;
-
-	if (mmu_is_nested(vcpu) && !nested)
+	if (mmu_is_nested(vcpu) && !vcpu->arch.fault.nested)
 		vcpu->arch.nested_mmu.inject_page_fault(vcpu);
 	else
 		vcpu->arch.mmu.inject_page_fault(vcpu);
+
+	vcpu->arch.fault.nested = false;
 }
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
@@ -3524,7 +3518,7 @@ static gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access)
 	access |= PFERR_USER_MASK;
 	t_gpa  = vcpu->arch.mmu.gva_to_gpa(vcpu, gpa, access, &error);
 	if (t_gpa == UNMAPPED_GVA)
-		vcpu->arch.fault.error_code |= PFERR_NESTED_MASK;
+		vcpu->arch.fault.nested = true;
 
 	return t_gpa;
 }

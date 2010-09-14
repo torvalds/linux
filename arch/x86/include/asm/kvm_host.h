@@ -322,6 +322,7 @@ struct kvm_vcpu_arch {
 	struct {
 		u64      address;
 		unsigned error_code;
+		bool     nested;
 	} fault;
 
 	/* only needed in kvm_pv_mmu_op() path, but it's hot so
