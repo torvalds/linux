@@ -23,9 +23,10 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/kobject.h>
+#include <linux/cdev.h>
 #include <linux/uio_driver.h>
 
-#define UIO_MAX_DEVICES 255
+#define UIO_MAX_DEVICES		(1U << MINORBITS)
 
 struct uio_device {
 	struct module		*owner;
@@ -41,6 +42,7 @@ struct uio_device {
 };
 
 static int uio_major;
+static struct cdev *uio_cdev;
 static DEFINE_IDR(uio_idr);
 static const struct file_operations uio_fops;
 
@@ -731,15 +733,44 @@ static const struct file_operations uio_fops = {
 
 static int uio_major_init(void)
 {
-	uio_major = register_chrdev(0, "uio", &uio_fops);
-	if (uio_major < 0)
-		return uio_major;
-	return 0;
+	static const char name[] = "uio";
+	struct cdev *cdev = NULL;
+	dev_t uio_dev = 0;
+	int result;
+
+	result = alloc_chrdev_region(&uio_dev, 0, UIO_MAX_DEVICES, name);
+	if (result)
+		goto out;
+
+	result = -ENOMEM;
+	cdev = cdev_alloc();
+	if (!cdev)
+		goto out_unregister;
+
+	cdev->owner = THIS_MODULE;
+	cdev->ops = &uio_fops;
+	kobject_set_name(&cdev->kobj, "%s", name);
+
+	result = cdev_add(cdev, uio_dev, UIO_MAX_DEVICES);
+	if (result)
+		goto out_put;
+
+	uio_major = MAJOR(uio_dev);
+	uio_cdev = cdev;
+	result = 0;
+out:
+	return result;
+out_put:
+	kobject_put(&cdev->kobj);
+out_unregister:
+	unregister_chrdev_region(uio_dev, UIO_MAX_DEVICES);
+	goto out;
 }
 
 static void uio_major_cleanup(void)
 {
-	unregister_chrdev(uio_major, "uio");
+	unregister_chrdev_region(MKDEV(uio_major, 0), UIO_MAX_DEVICES);
+	cdev_del(uio_cdev);
 }
 
 static int init_uio_class(void)
