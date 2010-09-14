@@ -673,19 +673,19 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 			break;
 		case IP_USER_FLOW:
 			sprintf(p, "\tSrc IP addr: 0x%x\n",
-				fsc->fs.h_u.raw_ip4_spec.ip4src);
+				fsc->fs.h_u.usr_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc IP mask: 0x%x\n",
-				fsc->fs.m_u.raw_ip4_spec.ip4src);
+				fsc->fs.m_u.usr_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP addr: 0x%x\n",
-				fsc->fs.h_u.raw_ip4_spec.ip4dst);
+				fsc->fs.h_u.usr_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP mask: 0x%x\n",
-				fsc->fs.m_u.raw_ip4_spec.ip4dst);
+				fsc->fs.m_u.usr_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;

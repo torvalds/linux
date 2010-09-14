@@ -7462,9 +7462,11 @@ static int niu_add_ethtool_tcam_entry(struct niu *np,
 	if (fsp->flow_type == IP_USER_FLOW) {
 		int i;
 		int add_usr_cls = 0;
-		int ipv6 = 0;
 		struct ethtool_usrip4_spec *uspec = &fsp->h_u.usr_ip4_spec;
 		struct ethtool_usrip4_spec *umask = &fsp->m_u.usr_ip4_spec;
+
+		if (uspec->ip_ver != ETH_RX_NFC_IP4)
+			return -EINVAL;
 
 		niu_lock_parent(np, flags);
 
@@ -7494,9 +7496,7 @@ static int niu_add_ethtool_tcam_entry(struct niu *np,
 				default:
 					break;
 				}
-				if (uspec->ip_ver == ETH_RX_NFC_IP6)
-					ipv6 = 1;
-				ret = tcam_user_ip_class_set(np, class, ipv6,
+				ret = tcam_user_ip_class_set(np, class, 0,
 							     uspec->proto,
 							     uspec->tos,
 							     umask->tos);
@@ -7553,16 +7553,7 @@ static int niu_add_ethtool_tcam_entry(struct niu *np,
 		ret = -EINVAL;
 		goto out;
 	case IP_USER_FLOW:
-		if (fsp->h_u.usr_ip4_spec.ip_ver == ETH_RX_NFC_IP4) {
-			niu_get_tcamkey_from_ip4fs(fsp, tp, l2_rdc_table,
-						   class);
-		} else {
-			/* Not yet implemented */
-			netdev_info(np->dev, "niu%d: In %s(): usr flow for IPv6 not implemented\n",
-				    parent->index, __func__);
-			ret = -EINVAL;
-			goto out;
-		}
+		niu_get_tcamkey_from_ip4fs(fsp, tp, l2_rdc_table, class);
 		break;
 	default:
 		netdev_info(np->dev, "niu%d: In %s(): Unknown flow type %d\n",
