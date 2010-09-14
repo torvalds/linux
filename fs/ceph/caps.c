@@ -1227,7 +1227,7 @@ retry:
 		 * pages to be written out.
 		 */
 		if (capsnap->dirty_pages || capsnap->writing)
-			continue;
+			break;
 
 		/*
 		 * if cap writeback already occurred, we should have dropped
@@ -1276,8 +1276,8 @@ retry:
 			      &session->s_cap_snaps_flushing);
 		spin_unlock(&inode->i_lock);
 
-		dout("flush_snaps %p cap_snap %p follows %lld size %llu\n",
-		     inode, capsnap, next_follows, capsnap->size);
+		dout("flush_snaps %p cap_snap %p follows %lld tid %llu\n",
+		     inode, capsnap, capsnap->follows, capsnap->flush_tid);
 		send_cap_msg(session, ceph_vino(inode).ino, 0,
 			     CEPH_CAP_OP_FLUSHSNAP, capsnap->issued, 0,
 			     capsnap->dirty, 0, capsnap->flush_tid, 0, mseq,
