@@ -244,28 +244,28 @@ static struct platform_device cpcap_otg = {
 };
 
 static struct cpcap_audio_state stingray_cpcap_audio_state = {
-	NULL,
-	CPCAP_AUDIO_MODE_NORMAL,
-	CPCAP_AUDIO_CODEC_OFF,
-	CPCAP_AUDIO_CODEC_RATE_8000_HZ,
-	CPCAP_AUDIO_CODEC_MUTE,
-	CPCAP_AUDIO_STDAC_OFF,
-	CPCAP_AUDIO_STDAC_RATE_44100_HZ,
-	CPCAP_AUDIO_STDAC_MUTE,
-	CPCAP_AUDIO_ANALOG_SOURCE_OFF,
-	CPCAP_AUDIO_OUT_NONE,
-	CPCAP_AUDIO_OUT_NONE,
-	CPCAP_AUDIO_OUT_LINEOUT,
-	CPCAP_AUDIO_OUT_LINEOUT,
-	CPCAP_AUDIO_OUT_NONE,
-	CPCAP_AUDIO_OUT_NONE,
-	CPCAP_AUDIO_BALANCE_NEUTRAL,
-	CPCAP_AUDIO_BALANCE_NEUTRAL,
-	CPCAP_AUDIO_BALANCE_NEUTRAL,
-	7,                      /*default output gain */
-	CPCAP_AUDIO_IN_NONE,
-	31,                     /*default input_gain */
-	CPCAP_AUDIO_RAT_NONE
+	.cpcap                   = NULL,
+	.mode                    = CPCAP_AUDIO_MODE_NORMAL,
+	.codec_mode              = CPCAP_AUDIO_CODEC_OFF,
+	.codec_rate              = CPCAP_AUDIO_CODEC_RATE_8000_HZ,
+	.codec_mute              = CPCAP_AUDIO_CODEC_MUTE,
+	.stdac_mode              = CPCAP_AUDIO_STDAC_OFF,
+	.stdac_rate              = CPCAP_AUDIO_STDAC_RATE_44100_HZ,
+	.stdac_mute              = CPCAP_AUDIO_STDAC_MUTE,
+	.analog_source           = CPCAP_AUDIO_ANALOG_SOURCE_OFF,
+	.codec_primary_speaker   = CPCAP_AUDIO_OUT_NONE,
+	.codec_secondary_speaker = CPCAP_AUDIO_OUT_NONE,
+	.stdac_primary_speaker   = CPCAP_AUDIO_OUT_NONE,
+	.stdac_secondary_speaker = CPCAP_AUDIO_OUT_NONE,
+	.ext_primary_speaker     = CPCAP_AUDIO_OUT_NONE,
+	.ext_secondary_speaker   = CPCAP_AUDIO_OUT_NONE,
+	.codec_primary_balance   = CPCAP_AUDIO_BALANCE_NEUTRAL,
+	.stdac_primary_balance   = CPCAP_AUDIO_BALANCE_NEUTRAL,
+	.ext_primary_balance     = CPCAP_AUDIO_BALANCE_NEUTRAL,
+	.output_gain             = 7,
+	.microphone              = CPCAP_AUDIO_IN_NONE,
+	.input_gain              = 31,
+	.rat_type                = CPCAP_AUDIO_RAT_NONE
 };
 
 /* CPCAP is i2s master; tegra_audio_pdata.master == false */
