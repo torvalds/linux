@@ -467,7 +467,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		INIT_LIST_HEAD(&capsnap->ci_item);
 		INIT_LIST_HEAD(&capsnap->flushing_item);
 
-		capsnap->follows = snapc->seq - 1;
+		capsnap->follows = snapc->seq;
 		capsnap->issued = __ceph_caps_issued(ci, NULL);
 		capsnap->dirty = dirty;
 
