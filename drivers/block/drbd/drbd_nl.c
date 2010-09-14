@@ -861,6 +861,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	struct inode *inode, *inode2;
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
+	unsigned int max_seg_s;
 	int rv;
 	int cp_discovered = 0;
 	int logical_block_size;
@@ -1133,9 +1134,20 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	mdev->read_cnt = 0;
 	mdev->writ_cnt = 0;
 
-	drbd_setup_queue_param(mdev, mdev->state.conn == C_CONNECTED &&
-			       mdev->agreed_pro_version < 95 ?
-			       DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_SEGMENT_SIZE);
+	max_seg_s = DRBD_MAX_SEGMENT_SIZE;
+	if (mdev->state.conn == C_CONNECTED) {
+		/* We are Primary, Connected, and now attach a new local
+		 * backing store. We must not increase the user visible maximum
+		 * bio size on this device to something the peer may not be
+		 * able to handle. */
+		if (mdev->agreed_pro_version < 94)
+			max_seg_s = queue_max_segment_size(mdev->rq_queue);
+		else if (mdev->agreed_pro_version == 94)
+			max_seg_s = DRBD_MAX_SIZE_H80_PACKET;
+		/* else: drbd 8.3.9 and later, stay with default */
+	}
+
+	drbd_setup_queue_param(mdev, max_seg_s);
 
 	/* If I am currently not R_PRIMARY,
 	 * but meta data primary indicator is set,

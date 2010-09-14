@@ -3088,6 +3088,8 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 
 		if (mdev->agreed_pro_version < 94)
 			max_seg_s = be32_to_cpu(p->max_segment_size);
+		else if (mdev->agreed_pro_version == 94)
+			max_seg_s = DRBD_MAX_SIZE_H80_PACKET;
 		else /* drbd 8.3.8 onwards */
 			max_seg_s = DRBD_MAX_SEGMENT_SIZE;
 
