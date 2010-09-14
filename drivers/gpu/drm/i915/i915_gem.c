@@ -2430,12 +2430,16 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 		int ret;
 
 		ret = i915_gem_object_flush_gpu_write_domain(obj, false);
-		if (ret != 0)
+		if (ret)
+			return ret;
+
+		ret = i915_gem_object_wait_rendering(obj);
+		if (ret)
 			return ret;
 	}
 
 	i915_gem_object_flush_gtt_write_domain(obj);
-	i915_gem_clear_fence_reg (obj);
+	i915_gem_clear_fence_reg(obj);
 
 	return 0;
 }
