@@ -28,8 +28,20 @@
 
 /* debug/trace */
 #ifdef BCMDBG
-#define	DMA_ERROR(args) if (!(*di->msg_level & 1)); else printf args
-#define	DMA_TRACE(args) if (!(*di->msg_level & 2)); else printf args
+#define	DMA_ERROR(args) \
+	do { \
+		if (!(*di->msg_level & 1)) \
+			; \
+		else \
+			printf args; \
+	} while (0)
+#define	DMA_TRACE(args) \
+	do { \
+		if (!(*di->msg_level & 2)) \
+			; \
+		else \
+			printf args; \
+	} while (0)
 #else
 #define	DMA_ERROR(args)
 #define	DMA_TRACE(args)

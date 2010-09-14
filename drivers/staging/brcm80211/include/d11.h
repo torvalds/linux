@@ -696,7 +696,10 @@ BWL_PRE_PACKED_STRUCT struct cck_phy_hdr {
 #define WLC_GET_CCK_PLCP_LEN(plcp) (plcp[4] + (plcp[5] << 8))
 #define WLC_GET_MIMO_PLCP_LEN(plcp) (plcp[1] + (plcp[2] << 8))
 #define WLC_SET_MIMO_PLCP_LEN(plcp, len) \
-	plcp[1] = len & 0xff; plcp[2] = ((len >> 8) & 0xff);
+	do { \
+		plcp[1] = len & 0xff; \
+		plcp[2] = ((len >> 8) & 0xff); \
+	} while (0);
 
 #define WLC_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
 #define WLC_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)
