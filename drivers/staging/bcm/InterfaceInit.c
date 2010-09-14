@@ -277,6 +277,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		/* If Suspend then only support dynamic suspend */
 		if(psAdapter->bDoSuspend)
 		{
+#ifdef CONFIG_PM
 			udev->autosuspend_delay = 0;
 			intf->needs_remote_wakeup = 1;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
@@ -290,6 +291,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 #endif
 			INIT_WORK(&psIntfAdapter->usbSuspendWork, putUsbSuspend);
 			BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Enabling USB Auto-Suspend\n");
+#endif
 		}
 		else
 		{
