@@ -27,7 +27,7 @@
 
 #define EPI_BUILD_NUMBER	1
 
-#define	EPI_VERSION		5, 75, 11, 0
+#define	EPI_VERSION		{ 5, 75, 11, 0 }
 
 #ifdef BCMSDIO
 /* EPI_VERSION_NUM must match FW version */

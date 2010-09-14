@@ -1282,7 +1282,7 @@ typedef struct ht_cap_ie ht_cap_ie_t;
 #define AMPDU_RX_FACTOR_16K	1
 #define AMPDU_RX_FACTOR_32K	2
 #define AMPDU_RX_FACTOR_64K	3
-#define AMPDU_RX_FACTOR_BASE	8*1024
+#define AMPDU_RX_FACTOR_BASE	(8*1024)
 
 #define AMPDU_DELIMITER_LEN	4
 

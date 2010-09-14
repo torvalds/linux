@@ -185,7 +185,7 @@ struct scb {
 
 #define SCB_BSSCFG(a)           ((a)->bsscfg)
 
-#define SCB_SEQNUM(scb, prio)	(scb)->seqnum[(prio)]
+#define SCB_SEQNUM(scb, prio)	((scb)->seqnum[(prio)])
 
 #define SCB_ISMULTI(a)	ETHER_ISMULTI((a)->ea.octet)
 #define SCB_ISVALID(a, _pkttag_dbgid)	((a) && (a)->_dbgid == (_pkttag_dbgid))

@@ -69,7 +69,7 @@
 					 * accumulate between resets.
 					 */
 
-#define TX_SEQ_TO_INDEX(seq) (seq) % AMPDU_TX_BA_MAX_WSIZE
+#define TX_SEQ_TO_INDEX(seq) ((seq) % AMPDU_TX_BA_MAX_WSIZE)
 
 /* max possible overhead per mpdu in the ampdu; 3 is for roundup if needed */
 #define AMPDU_MAX_MPDU_OVERHEAD (DOT11_FCS_LEN + DOT11_ICV_AES_LEN + AMPDU_DELIMITER_LEN + 3 \

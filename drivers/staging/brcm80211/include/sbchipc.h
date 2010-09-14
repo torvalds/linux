@@ -1299,15 +1299,15 @@ typedef volatile struct {
 #define CCTRL4331_EXT_LNA		(1<<2)	/* 0 disable */
 #define CCTRL4331_SPROM_GPIO13_15       (1<<3)	/* sprom/gpio13-15 mux */
 #define CCTRL4331_EXTPA_EN		(1<<4)	/* 0 ext pa disable, 1 ext pa enabled */
-#define CCTRL4331_GPIOCLK_ON_SPROMCS	<1<<5)	/* set drive out GPIO_CLK on sprom_cs pin */
+#define CCTRL4331_GPIOCLK_ON_SPROMCS	(1<<5)	/* set drive out GPIO_CLK on sprom_cs pin */
 #define CCTRL4331_PCIE_MDIO_ON_SPROMCS	(1<<6)	/* use sprom_cs pin as PCIE mdio interface */
 #define CCTRL4331_EXTPA_ON_GPIO2_5	(1<<7)	/* aband extpa will be at gpio2/5 and sprom_dout */
 #define CCTRL4331_OVR_PIPEAUXCLKEN	(1<<8)	/* override core control on pipe_AuxClkEnable */
 #define CCTRL4331_OVR_PIPEAUXPWRDOWN	(1<<9)	/* override core control on pipe_AuxPowerDown */
-#define CCTRL4331_PCIE_AUXCLKEN		<1<<10)	/* pcie_auxclkenable */
-#define CCTRL4331_PCIE_PIPE_PLLDOWN	<1<<11)	/* pcie_pipe_pllpowerdown */
-#define CCTRL4331_BT_SHD0_ON_GPIO4	<1<<16)	/* enable bt_shd0 at gpio4 */
-#define CCTRL4331_BT_SHD1_ON_GPIO5	<1<<17)	/* enable bt_shd1 at gpio5 */
+#define CCTRL4331_PCIE_AUXCLKEN		(1<<10)	/* pcie_auxclkenable */
+#define CCTRL4331_PCIE_PIPE_PLLDOWN	(1<<11)	/* pcie_pipe_pllpowerdown */
+#define CCTRL4331_BT_SHD0_ON_GPIO4	(1<<16)	/* enable bt_shd0 at gpio4 */
+#define CCTRL4331_BT_SHD1_ON_GPIO5	(1<<17)	/* enable bt_shd1 at gpio5 */
 
 /* 4331 Chip specific ChipStatus register bits */
 #define	CST4331_XTAL_FREQ		0x00000001	/* crystal frequency 20/40Mhz */

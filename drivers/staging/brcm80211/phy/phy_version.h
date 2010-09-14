@@ -27,7 +27,7 @@
 
 #define	PHY_BUILD_NUMBER		0
 
-#define	PHY_VERSION			1, 82, 8, 0
+#define	PHY_VERSION			{ 1, 82, 8, 0 }
 
 #define	PHY_VERSION_NUM		0x01520800
 

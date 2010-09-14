@@ -309,7 +309,7 @@ extern int osl_error(int bcmerror);
 #endif				/* !defined(CONFIG_MMC_MSM7X00A */
 #define	REG_UNMAP(va)		iounmap((va))
 
-#define	R_SM(r)			*(r)
+#define	R_SM(r)			(*(r))
 #define	W_SM(r, v)		(*(r) = (v))
 #define	BZERO_SM(r, len)	memset((r), '\0', (len))
 
@@ -329,11 +329,11 @@ extern int osl_error(int bcmerror);
 #define	PKTPUSH(skb, bytes)		skb_push((struct sk_buff*)(skb), (bytes))
 #define	PKTPULL(skb, bytes)		skb_pull((struct sk_buff*)(skb), (bytes))
 #define	PKTTAG(skb)			((void*)(((struct sk_buff*)(skb))->cb))
-#define PKTALLOCED(osh)			((osl_pubinfo_t *)(osh))->pktalloced
+#define PKTALLOCED(osh)			(((osl_pubinfo_t *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		FALSE
 
-#define PKTUNALLOC(osh)			((osl_pubinfo_t *)(osh))->pktalloced--
+#define PKTUNALLOC(osh)			(((osl_pubinfo_t *)(osh))->pktalloced--)
 
 #define	PKTSETSKIPCT(osh, skb)
 #define	PKTCLRSKIPCT(osh, skb)

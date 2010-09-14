@@ -226,7 +226,7 @@ typedef enum {
 
 #define RDR_NTIERS  1
 #define RDR_TIER_SIZE 64
-#define RDR_LIST_SIZE 512/3
+#define RDR_LIST_SIZE (512/3)
 #define RDR_EPOCH_SIZE 40
 #define RDR_NANTENNAS 2
 #define RDR_NTIER_SIZE  RDR_LIST_SIZE

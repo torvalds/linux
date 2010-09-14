@@ -226,7 +226,7 @@ extern "C" {
 #define bcm_perf_enable()
 #define bcmstats(fmt)
 #define	bcmlog(fmt, a1, a2)
-#define	bcmdumplog(buf, size)	*buf = '\0'
+#define	bcmdumplog(buf, size)	(*buf = '\0')
 #define	bcmdumplogent(buf, idx)	-1
 
 #define bcmtslog(tstamp, fmt, a1, a2)
@@ -432,7 +432,7 @@ extern "C" {
 #define ALIGN_ADDR(addr, boundary) (void *)(((uintptr)(addr) + (boundary) - 1) \
 	& ~((boundary) - 1))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
-#define VALID_MASK(mask)	!((mask) & ((mask) + 1))
+#define VALID_MASK(mask)	(!((mask) & ((mask) + 1)))
 #ifndef OFFSETOF
 #define	OFFSETOF(type, member)	((uint)(uintptr)&((type *)0)->member)
 #endif				/* OFFSETOF */

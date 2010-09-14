@@ -229,8 +229,8 @@ module_param_string(name, name, IFNAMSIZ, 0);
 
 #define WL_MAGIC 	0xdeadbeef
 
-#define HW_TO_WL(hw)	 hw->priv
-#define WL_TO_HW(wl)	  wl->pub->ieee_hw
+#define HW_TO_WL(hw)	 (hw->priv)
+#define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
 #ifdef WLC_HIGH_ONLY
 static int wl_ops_tx_nl(struct ieee80211_hw *hw, struct sk_buff *skb);
 #else

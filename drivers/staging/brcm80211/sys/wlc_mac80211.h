@@ -177,13 +177,13 @@ extern const uint8 prio2fifo[];
 #define WLC_WME_RETRY_LFB_GET(wlc, ac)      GFIELD(wlc->wme_retries[ac], EDCF_LFB)
 
 #define WLC_WME_RETRY_SHORT_SET(wlc, ac, val) \
-	wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_SHORT, val)
+	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_SHORT, val))
 #define WLC_WME_RETRY_SFB_SET(wlc, ac, val) \
-	wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_SFB, val)
+	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_SFB, val))
 #define WLC_WME_RETRY_LONG_SET(wlc, ac, val) \
-	wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_LONG, val)
+	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_LONG, val))
 #define WLC_WME_RETRY_LFB_SET(wlc, ac, val) \
-	wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_LFB, val)
+	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_LFB, val))
 
 /* PLL requests */
 #define WLC_PLLREQ_SHARED	0x1	/* pll is shared on old chips */

@@ -1191,7 +1191,7 @@ static const uint8 crc8_table[256] = {
 };
 
 #define CRC_INNER_LOOP(n, c, x) \
-	(c) = ((c) >> 8) ^ crc##n##_table[((c) ^ (x)) & 0xff]
+	((c) = ((c) >> 8) ^ crc##n##_table[((c) ^ (x)) & 0xff])
 
 uint8 BCMROMFN(hndcrc8) (uint8 *pdata,	/* pointer to array of data to process */
 			 uint nbytes,	/* number of input data bytes to process */
