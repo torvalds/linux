@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/mma7660.h>
 #include <mach/gpio.h>
+#include <mach/board.h> 
 #ifdef CONFIG_ANDROID_POWER
 #include <linux/android_power.h>
 #endif
@@ -234,7 +235,7 @@ static int mma7660_get_data(struct i2c_client *client)
 	char buffer[3];
 	int ret;
     struct mma7660_axis axis;
-
+    struct rk2818_gs_platform_data *pdata = client->dev.platform_data;
     do {
         memset(buffer, 0, 3);
         buffer[0] = MMA7660_REG_X_OUT;
@@ -247,8 +248,14 @@ static int mma7660_get_data(struct i2c_client *client)
 	axis.y = -mma7660_convert_to_int(buffer[MMA7660_REG_Y_OUT]);
 	axis.z = -mma7660_convert_to_int(buffer[MMA7660_REG_Z_OUT]);
 
-    //rk28printk( "%s: ------------------mma7660_GetData axis = %d  %d  %d--------------\n",
-    //       __func__, axis.x, axis.y, axis.z); 
+	if(pdata->swap_xy)
+	{
+		axis.y = -axis.y;
+		swap(axis.x,axis.y);		
+	}
+	
+  //  rk28printk( "%s: ------------------mma7660_GetData axis = %d  %d  %d--------------\n",
+  //         __func__, axis.x, axis.y, axis.z); 
      
     //memcpy(sense_data, &axis, sizeof(axis));
     mma7660_report_value(client, &axis);
@@ -501,6 +508,7 @@ static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id 
 	INIT_DELAYED_WORK(&mma7660->delaywork, mma7660_delaywork_func);
 
 	mma7660->client = client;
+	//mma7660->swap_xy = 
 	i2c_set_clientdata(client, mma7660);
 
 	this_client = client;

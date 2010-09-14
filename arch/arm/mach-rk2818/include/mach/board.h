@@ -184,6 +184,7 @@ struct rk2818_gs_platform_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 	int gsensor_irq_pin;
+	bool	swap_xy;	/* swap x and y axes  add swj */
 };
 
 /*serial*/

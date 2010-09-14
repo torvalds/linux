@@ -452,6 +452,7 @@ struct tca6424_platform_data rk2818_tca6424_data={
 
 struct rk2818_gs_platform_data rk2818_gs_platdata = {
 	.gsensor_irq_pin = GS_IRQ_PIN,
+	.swap_xy 	   = 1,
 };
 
 /*****************************************************************************************
