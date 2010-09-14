@@ -92,10 +92,10 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 	cmd->skb = skb;
 	cmd->hif_dev = hif_dev;
 
-	usb_fill_int_urb(urb, hif_dev->udev,
-			 usb_sndintpipe(hif_dev->udev, USB_REG_OUT_PIPE),
+	usb_fill_bulk_urb(urb, hif_dev->udev,
+			 usb_sndbulkpipe(hif_dev->udev, USB_REG_OUT_PIPE),
 			 skb->data, skb->len,
-			 hif_usb_regout_cb, cmd, 1);
+			 hif_usb_regout_cb, cmd);
 
 	usb_anchor_urb(urb, &hif_dev->regout_submitted);
 	ret = usb_submit_urb(urb, GFP_KERNEL);
@@ -822,7 +822,9 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 
 static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 {
-	int ret;
+	int ret, idx;
+	struct usb_host_interface *alt = &hif_dev->interface->altsetting[0];
+	struct usb_endpoint_descriptor *endp;
 
 	/* Request firmware */
 	ret = request_firmware(&hif_dev->firmware, hif_dev->fw_name,
@@ -848,6 +850,22 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 			"ath9k_htc: Firmware - %s download failed\n",
 			hif_dev->fw_name);
 		goto err_fw_download;
+	}
+
+	/* On downloading the firmware to the target, the USB descriptor of EP4
+	 * is 'patched' to change the type of the endpoint to Bulk. This will
+	 * bring down CPU usage during the scan period.
+	 */
+	for (idx = 0; idx < alt->desc.bNumEndpoints; idx++) {
+		endp = &alt->endpoint[idx].desc;
+		if (((endp->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK)
+				== 0x04) &&
+		    ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+				== USB_ENDPOINT_XFER_INT)) {
+			endp->bmAttributes &= ~USB_ENDPOINT_XFERTYPE_MASK;
+			endp->bmAttributes |= USB_ENDPOINT_XFER_BULK;
+			endp->bInterval = 0;
+		}
 	}
 
 	return 0;
