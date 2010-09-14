@@ -483,51 +483,6 @@ int omap3_can_sleep(void)
 	return 1;
 }
 
-/* This sets pwrdm state (other than mpu & core. Currently only ON &
- * RET are supported. Function is assuming that clkdm doesn't have
- * hw_sup mode enabled. */
-int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
-{
-	u32 cur_state;
-	int sleep_switch = 0;
-	int ret = 0;
-
-	if (pwrdm == NULL || IS_ERR(pwrdm))
-		return -EINVAL;
-
-	while (!(pwrdm->pwrsts & (1 << state))) {
-		if (state == PWRDM_POWER_OFF)
-			return ret;
-		state--;
-	}
-
-	cur_state = pwrdm_read_next_pwrst(pwrdm);
-	if (cur_state == state)
-		return ret;
-
-	if (pwrdm_read_pwrst(pwrdm) < PWRDM_POWER_ON) {
-		omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
-		sleep_switch = 1;
-		pwrdm_wait_transition(pwrdm);
-	}
-
-	ret = pwrdm_set_next_pwrst(pwrdm, state);
-	if (ret) {
-		printk(KERN_ERR "Unable to set state of powerdomain: %s\n",
-		       pwrdm->name);
-		goto err;
-	}
-
-	if (sleep_switch) {
-		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
-		pwrdm_wait_transition(pwrdm);
-		pwrdm_state_switch(pwrdm);
-	}
-
-err:
-	return ret;
-}
-
 static void omap3_pm_idle(void)
 {
 	local_irq_disable();
@@ -569,7 +524,7 @@ static int omap3_pm_suspend(void)
 		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
 	/* Set ones wanted by suspend */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
-		if (set_pwrdm_state(pwrst->pwrdm, pwrst->next_state))
+		if (omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state))
 			goto restore;
 		if (pwrdm_clear_all_prev_pwrst(pwrst->pwrdm))
 			goto restore;
@@ -590,7 +545,7 @@ restore:
 			       pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
-		set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
+		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
 		printk(KERN_ERR "Could not enter target state in pm_suspend\n");
@@ -939,7 +894,7 @@ void omap3_pm_off_mode_enable(int enable)
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state = state;
-		set_pwrdm_state(pwrst->pwrdm, state);
+		omap_set_pwrdm_state(pwrst->pwrdm, state);
 	}
 }
 
@@ -984,7 +939,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	if (pwrdm_has_hdwr_sar(pwrdm))
 		pwrdm_enable_hdwr_sar(pwrdm);
 
-	return set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
+	return omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
 }
 
 /*

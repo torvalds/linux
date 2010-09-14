@@ -18,6 +18,9 @@
 #include <plat/omap_device.h>
 #include <plat/common.h>
 
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
+
 static struct omap_device_pm_latency *pm_lats;
 
 static struct device *mpu_dev;
@@ -81,6 +84,53 @@ static void omap2_init_processor_devices(void)
 	if (cpu_is_omap44xx())
 		_init_omap_device("dsp", &dsp_dev);
 	_init_omap_device("l3_main", &l3_dev);
+}
+
+/*
+ * This sets pwrdm state (other than mpu & core. Currently only ON &
+ * RET are supported. Function is assuming that clkdm doesn't have
+ * hw_sup mode enabled.
+ */
+int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
+{
+	u32 cur_state;
+	int sleep_switch = 0;
+	int ret = 0;
+
+	if (pwrdm == NULL || IS_ERR(pwrdm))
+		return -EINVAL;
+
+	while (!(pwrdm->pwrsts & (1 << state))) {
+		if (state == PWRDM_POWER_OFF)
+			return ret;
+		state--;
+	}
+
+	cur_state = pwrdm_read_next_pwrst(pwrdm);
+	if (cur_state == state)
+		return ret;
+
+	if (pwrdm_read_pwrst(pwrdm) < PWRDM_POWER_ON) {
+		omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
+		sleep_switch = 1;
+		pwrdm_wait_transition(pwrdm);
+	}
+
+	ret = pwrdm_set_next_pwrst(pwrdm, state);
+	if (ret) {
+		printk(KERN_ERR "Unable to set state of powerdomain: %s\n",
+		       pwrdm->name);
+		goto err;
+	}
+
+	if (sleep_switch) {
+		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
+	}
+
+err:
+	return ret;
 }
 
 static int __init omap2_common_pm_init(void)
