@@ -1490,8 +1490,8 @@ wlc_bmac_mhf(wlc_hw_info_t *wlc_hw, uint8 idx, uint16 mask, uint16 val,
 	     int bands)
 {
 	uint16 save;
-	uint16 addr[MHFMAX] =
-	    { M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
+	uint16 addr[MHFMAX] = {
+		M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
 		M_HOST_FLAGS5
 	};
 	wlc_hwband_t *band;
@@ -1569,8 +1569,8 @@ uint16 wlc_bmac_mhf_get(wlc_hw_info_t *wlc_hw, uint8 idx, int bands)
 static void wlc_write_mhf(wlc_hw_info_t *wlc_hw, uint16 *mhfs)
 {
 	uint8 idx;
-	uint16 addr[] =
-	    { M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
+	uint16 addr[] = {
+		M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
 		M_HOST_FLAGS5
 	};
 

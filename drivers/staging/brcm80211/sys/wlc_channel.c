@@ -971,8 +971,8 @@ static void wlc_channels_commit(wlc_cm_info_t *wlc_cm)
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
 		WL_ERROR(("wl%d: %s: no valid channel for \"%s\" nbands %d bandlocked %d\n", wlc->pub->unit, __func__, wlc_cm->country_abbrev, NBANDS(wlc), wlc->bandlocked));
 	} else
-	    if (mboolisset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE))
-	{
+	    if (mboolisset(wlc->pub->radio_disabled,
+		WL_RADIO_COUNTRY_DISABLE)) {
 		/* country/locale with valid channel, clear the radio disable bit */
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
 	}

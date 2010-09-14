@@ -256,8 +256,7 @@ static const char BCMATTACHDATA(vstr_manfid)[] = "manfid=0x%x";
 static const char BCMATTACHDATA(vstr_prodid)[] = "prodid=0x%x";
 #ifdef BCMSDIO
 static const char BCMATTACHDATA(vstr_sdmaxspeed)[] = "sdmaxspeed=%d";
-static const char BCMATTACHDATA(vstr_sdmaxblk)[][13] =
-{
+static const char BCMATTACHDATA(vstr_sdmaxblk)[][13] = {
 "sdmaxblk0=%d", "sdmaxblk1=%d", "sdmaxblk2=%d"};
 #endif
 static const char BCMATTACHDATA(vstr_regwindowsz)[] = "regwindowsz=%d";
@@ -271,22 +270,18 @@ static const char BCMATTACHDATA(vstr_aa5g)[] = "aa5g=0x%x";
 static const char BCMATTACHDATA(vstr_ag)[] = "ag%d=0x%x";
 static const char BCMATTACHDATA(vstr_cc)[] = "cc=%d";
 static const char BCMATTACHDATA(vstr_opo)[] = "opo=%d";
-static const char BCMATTACHDATA(vstr_pa0b)[][9] =
-{
+static const char BCMATTACHDATA(vstr_pa0b)[][9] = {
 "pa0b0=%d", "pa0b1=%d", "pa0b2=%d"};
 
 static const char BCMATTACHDATA(vstr_pa0itssit)[] = "pa0itssit=%d";
 static const char BCMATTACHDATA(vstr_pa0maxpwr)[] = "pa0maxpwr=%d";
-static const char BCMATTACHDATA(vstr_pa1b)[][9] =
-{
+static const char BCMATTACHDATA(vstr_pa1b)[][9] = {
 "pa1b0=%d", "pa1b1=%d", "pa1b2=%d"};
 
-static const char BCMATTACHDATA(vstr_pa1lob)[][11] =
-{
+static const char BCMATTACHDATA(vstr_pa1lob)[][11] = {
 "pa1lob0=%d", "pa1lob1=%d", "pa1lob2=%d"};
 
-static const char BCMATTACHDATA(vstr_pa1hib)[][11] =
-{
+static const char BCMATTACHDATA(vstr_pa1hib)[][11] = {
 "pa1hib0=%d", "pa1hib1=%d", "pa1hib2=%d"};
 
 static const char BCMATTACHDATA(vstr_pa1itssit)[] = "pa1itssit=%d";

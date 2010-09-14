@@ -2905,10 +2905,10 @@ BCMATTACHFN(si_sprom_enable) (si_t *sih, bool enable)
 int si_cis_source(si_t *sih)
 {
 	/* Many chips have the same mapping of their chipstatus field */
-	static const uint cis_sel[] =
-	    { CIS_DEFAULT, CIS_SROM, CIS_OTP, CIS_SROM };
-	static const uint cis_43236_sel[] =
-	    { CIS_DEFAULT, CIS_SROM, CIS_OTP, CIS_OTP };
+	static const uint cis_sel[] = {
+		CIS_DEFAULT, CIS_SROM, CIS_OTP, CIS_SROM };
+	static const uint cis_43236_sel[] = {
+		CIS_DEFAULT, CIS_SROM, CIS_OTP, CIS_OTP };
 
 	/* PCI chips use SROM format instead of CIS */
 	if (BUSTYPE(sih->bustype) == PCI_BUS)

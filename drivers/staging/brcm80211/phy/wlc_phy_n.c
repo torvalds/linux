@@ -14073,10 +14073,10 @@ static uint32 nphy_tpc_5GHz_txgain_HiPwrEPA[] = {
 
 static uint8 ant_sw_ctrl_tbl_rev8_2o3[] = { 0x14, 0x18 };
 static uint8 ant_sw_ctrl_tbl_rev8[] = { 0x4, 0x8, 0x4, 0x8, 0x11, 0x12 };
-static uint8 ant_sw_ctrl_tbl_rev8_2057v7_core0[] =
-    { 0x09, 0x0a, 0x15, 0x16, 0x09, 0x0a };
-static uint8 ant_sw_ctrl_tbl_rev8_2057v7_core1[] =
-    { 0x09, 0x0a, 0x09, 0x0a, 0x15, 0x16 };
+static uint8 ant_sw_ctrl_tbl_rev8_2057v7_core0[] = {
+	0x09, 0x0a, 0x15, 0x16, 0x09, 0x0a };
+static uint8 ant_sw_ctrl_tbl_rev8_2057v7_core1[] = {
+	0x09, 0x0a, 0x09, 0x0a, 0x15, 0x16 };
 
 static bool wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 				   chan_info_nphy_radio2057_t **t0,
@@ -16075,10 +16075,10 @@ static void wlc_phy_workarounds_nphy(phy_info_t *pi)
 			if ((NREV_GE(pi->pubpi.phy_rev, 4))
 			    && (chan_freq_range == WL_CHAN_FREQ_RANGE_2G)) {
 
-				uint16 auxadc_vmid[] =
-				    { 0xa2, 0xb4, 0xb4, 0x270 };
-				uint16 auxadc_gain[] =
-				    { 0x02, 0x02, 0x02, 0x00 };
+				uint16 auxadc_vmid[] = {
+					0xa2, 0xb4, 0xb4, 0x270 };
+				uint16 auxadc_gain[] = {
+					0x02, 0x02, 0x02, 0x00 };
 
 				wlc_phy_table_write_nphy(pi,
 							 NPHY_TBL_ID_AFECTRL, 4,
@@ -16371,42 +16371,42 @@ static void wlc_phy_workarounds_nphy_gainctrl(phy_info_t *pi)
 	int8 lna2A_gain_db_rev5[] = { -7, 0, 4, 8 };
 	int8 lna2A_gain_db_rev6[] = { -7, 0, 4, 8 };
 	int8 *lna2_gain_db = NULL;
-	int8 tiaG_gain_db[] =
-	    { 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A };
-	int8 tiaA_gain_db[] =
-	    { 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13 };
-	int8 tiaA_gain_db_rev4[] =
-	    { 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
-	int8 tiaA_gain_db_rev5[] =
-	    { 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
-	int8 tiaA_gain_db_rev6[] =
-	    { 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
+	int8 tiaG_gain_db[] = {
+		0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A };
+	int8 tiaA_gain_db[] = {
+		0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13 };
+	int8 tiaA_gain_db_rev4[] = {
+		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
+	int8 tiaA_gain_db_rev5[] = {
+		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
+	int8 tiaA_gain_db_rev6[] = {
+		0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d };
 	int8 *tia_gain_db;
-	int8 tiaG_gainbits[] =
-	    { 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
-	int8 tiaA_gainbits[] =
-	    { 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06 };
-	int8 tiaA_gainbits_rev4[] =
-	    { 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
-	int8 tiaA_gainbits_rev5[] =
-	    { 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
-	int8 tiaA_gainbits_rev6[] =
-	    { 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
+	int8 tiaG_gainbits[] = {
+		0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
+	int8 tiaA_gainbits[] = {
+		0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06 };
+	int8 tiaA_gainbits_rev4[] = {
+		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
+	int8 tiaA_gainbits_rev5[] = {
+		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
+	int8 tiaA_gainbits_rev6[] = {
+		0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 };
 	int8 *tia_gainbits;
 	int8 lpf_gain_db[] = { 0x00, 0x06, 0x0c, 0x12, 0x12, 0x12 };
 	int8 lpf_gainbits[] = { 0x00, 0x01, 0x02, 0x03, 0x03, 0x03 };
 	uint16 rfseqG_init_gain[] = { 0x613f, 0x613f, 0x613f, 0x613f };
 	uint16 rfseqG_init_gain_rev4[] = { 0x513f, 0x513f, 0x513f, 0x513f };
 	uint16 rfseqG_init_gain_rev5[] = { 0x413f, 0x413f, 0x413f, 0x413f };
-	uint16 rfseqG_init_gain_rev5_elna[] =
-	    { 0x013f, 0x013f, 0x013f, 0x013f };
+	uint16 rfseqG_init_gain_rev5_elna[] = {
+		0x013f, 0x013f, 0x013f, 0x013f };
 	uint16 rfseqG_init_gain_rev6[] = { 0x513f, 0x513f };
 	uint16 rfseqG_init_gain_rev6_224B0[] = { 0x413f, 0x413f };
 	uint16 rfseqG_init_gain_rev6_elna[] = { 0x113f, 0x113f };
 	uint16 rfseqA_init_gain[] = { 0x516f, 0x516f, 0x516f, 0x516f };
 	uint16 rfseqA_init_gain_rev4[] = { 0x614f, 0x614f, 0x614f, 0x614f };
-	uint16 rfseqA_init_gain_rev4_elna[] =
-	    { 0x314f, 0x314f, 0x314f, 0x314f };
+	uint16 rfseqA_init_gain_rev4_elna[] = {
+		0x314f, 0x314f, 0x314f, 0x314f };
 	uint16 rfseqA_init_gain_rev5[] = { 0x714f, 0x714f, 0x714f, 0x714f };
 	uint16 rfseqA_init_gain_rev6[] = { 0x714f, 0x714f };
 	uint16 *rfseq_init_gain;
@@ -16967,8 +16967,8 @@ static void wlc_phy_workarounds_nphy_gainctrl_2057_rev5(phy_info_t *pi)
 	int8 lna1_gain_db[] = { 8, 13, 17, 22 };
 	int8 lna2_gain_db[] = { -2, 7, 11, 15 };
 	int8 tia_gain_db[] = { -4, -1, 2, 5, 5, 5, 5, 5, 5, 5 };
-	int8 tia_gainbits[] =
-	    { 0x0, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
+	int8 tia_gainbits[] = {
+		0x0, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
 
 	mod_phy_reg(pi, 0x1c, (0x1 << 13), (1 << 13));
 	mod_phy_reg(pi, 0x32, (0x1 << 13), (1 << 13));
@@ -17091,8 +17091,8 @@ static void wlc_phy_workarounds_nphy_gainctrl_2057_rev6(phy_info_t *pi)
 			if ((freq <= 5080) || (freq == 5825)) {
 
 				int8 lna1A_gain_db_rev7[] = { 11, 16, 20, 24 };
-				int8 lna1A_gain_db_2_rev7[] =
-				    { 11, 17, 22, 25 };
+				int8 lna1A_gain_db_2_rev7[] = {
+					11, 17, 22, 25 };
 				int8 lna2A_gain_db_rev7[] = { -1, 6, 10, 14 };
 
 				crsminu_th = 0x3e;
@@ -17102,8 +17102,8 @@ static void wlc_phy_workarounds_nphy_gainctrl_2057_rev6(phy_info_t *pi)
 			} else if ((freq >= 5500) && (freq <= 5700)) {
 
 				int8 lna1A_gain_db_rev7[] = { 11, 17, 21, 25 };
-				int8 lna1A_gain_db_2_rev7[] =
-				    { 12, 18, 22, 26 };
+				int8 lna1A_gain_db_2_rev7[] = {
+					12, 18, 22, 26 };
 				int8 lna2A_gain_db_rev7[] = { 1, 8, 12, 16 };
 
 				crsminu_th = 0x45;
@@ -17116,8 +17116,8 @@ static void wlc_phy_workarounds_nphy_gainctrl_2057_rev6(phy_info_t *pi)
 			} else {
 
 				int8 lna1A_gain_db_rev7[] = { 12, 18, 22, 26 };
-				int8 lna1A_gain_db_2_rev7[] =
-				    { 12, 18, 22, 26 };
+				int8 lna1A_gain_db_2_rev7[] = {
+					12, 18, 22, 26 };
 				int8 lna2A_gain_db_rev7[] = { -1, 6, 10, 14 };
 
 				crsminu_th = 0x41;
@@ -22843,8 +22843,7 @@ static void wlc_phy_txcal_radio_setup_nphy(phy_info_t *pi)
 							 core, TX_SSI_MUX, 0x4);
 					if (!
 					    (pi->
-					     internal_tx_iqlo_cal_tapoff_intpa_nphy))
-					{
+					     internal_tx_iqlo_cal_tapoff_intpa_nphy)) {
 
 						WRITE_RADIO_REG3(pi, RADIO_2057,
 								 TX, core,
@@ -22877,8 +22876,7 @@ static void wlc_phy_txcal_radio_setup_nphy(phy_info_t *pi)
 							 0x06);
 					if (!
 					    (pi->
-					     internal_tx_iqlo_cal_tapoff_intpa_nphy))
-					{
+					     internal_tx_iqlo_cal_tapoff_intpa_nphy)) {
 
 						WRITE_RADIO_REG3(pi, RADIO_2057,
 								 TX, core,
@@ -28187,8 +28185,7 @@ static bool BCMATTACHFN(wlc_phy_txpwr_srom_read_nphy) (phy_info_t *pi)
 		    (NPHY_SROM_TEMPSHIFT + NPHY_SROM_MAXTEMPOFFSET)) {
 			pi->phy_tempsense_offset = NPHY_SROM_MAXTEMPOFFSET;
 		} else if (pi->phy_tempsense_offset < (NPHY_SROM_TEMPSHIFT +
-						       NPHY_SROM_MINTEMPOFFSET))
-		{
+						    NPHY_SROM_MINTEMPOFFSET)) {
 			pi->phy_tempsense_offset = NPHY_SROM_MINTEMPOFFSET;
 		} else {
 			pi->phy_tempsense_offset -= NPHY_SROM_TEMPSHIFT;

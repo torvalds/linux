@@ -233,8 +233,8 @@ static bool in_send_q = FALSE;
 #define wme_shmemacindex(ac)	wme_ac2fifo[ac]
 
 #ifdef BCMDBG
-static const char *fifo_names[] =
-    { "AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
+static const char *fifo_names[] = {
+	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 const char *aci_names[] = { "AC_BE", "AC_BK", "AC_VI", "AC_VO" };
 #endif
 
