@@ -446,8 +446,7 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
  * needed, using lid status notification from the input layer.
  */
 static enum drm_connector_status
-intel_lvds_detect(struct drm_connector *connector,
-		  bool nondestructive)
+intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
@@ -543,7 +542,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 */
 	if (connector)
 		connector->status = connector->funcs->detect(connector,
-							     true);
+							     false);
 
 	/* Don't force modeset on machines where it causes a GPU lockup */
 	if (dmi_check_system(intel_no_modeset_on_lid))

@@ -401,8 +401,7 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 }
 
 static enum drm_connector_status
-intel_crt_detect(struct drm_connector *connector,
-		 bool nondestructive)
+intel_crt_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
@@ -421,7 +420,7 @@ intel_crt_detect(struct drm_connector *connector,
 	if (intel_crt_detect_ddc(encoder))
 		return connector_status_connected;
 
-	if (nondestructive)
+	if (!force)
 		return connector->status;
 
 	/* for pre-945g platforms use load detect */

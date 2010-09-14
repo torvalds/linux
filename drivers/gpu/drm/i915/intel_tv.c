@@ -1341,8 +1341,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
  * we have a pipe programmed in order to probe the TV.
  */
 static enum drm_connector_status
-intel_tv_detect(struct drm_connector *connector,
-		bool nondestructive)
+intel_tv_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_display_mode mode;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
@@ -1354,7 +1353,7 @@ intel_tv_detect(struct drm_connector *connector,
 
 	if (encoder->crtc && encoder->crtc->enabled) {
 		type = intel_tv_detect_type(intel_tv);
-	} else if (nondestructive) {
+	} else if (force) {
 		struct drm_crtc *crtc;
 		int dpms_mode;
 
