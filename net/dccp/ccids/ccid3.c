@@ -370,6 +370,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
+	struct tfrc_tx_hist_entry *acked;
 	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
@@ -383,17 +384,24 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	    hc->tx_state != TFRC_SSTATE_NO_FBACK)
 		return;
 
-	now = ktime_get_real();
-
-	/* Estimate RTT from history if ACK number is valid */
-	r_sample = tfrc_tx_hist_rtt(hc->tx_hist,
-				    DCCP_SKB_CB(skb)->dccpd_ack_seq, now);
-	if (r_sample == 0) {
-		DCCP_WARN("%s(%p): %s with bogus ACK-%llu\n", dccp_role(sk), sk,
-			  dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type),
-			  (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq);
+	/*
+	 * Locate the acknowledged packet in the TX history.
+	 *
+	 * Returning "entry not found" here can for instance happen when
+	 *  - the host has not sent out anything (e.g. a passive server),
+	 *  - the Ack is outdated (packet with higher Ack number was received),
+	 *  - it is a bogus Ack (for a packet not sent on this connection).
+	 */
+	acked = tfrc_tx_hist_find_entry(hc->tx_hist, dccp_hdr_ack_seq(skb));
+	if (acked == NULL)
 		return;
-	}
+	/* For the sake of RTT sampling, ignore/remove all older entries */
+	tfrc_tx_hist_purge(&acked->next);
+
+	/* Update the moving average for the RTT estimate (RFC 3448, 4.3) */
+	now	  = ktime_get_real();
+	r_sample  = dccp_sample_rtt(sk, ktime_us_delta(now, acked->stamp));
+	hc->tx_rtt = tfrc_ewma(hc->tx_rtt, r_sample, 9);
 
 	/* Update receive rate in units of 64 * bytes/second */
 	hc->tx_x_recv = opt_recv->ccid3or_receive_rate;
@@ -405,11 +413,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hc->tx_p = 0;
 	else				       /* can not exceed 100% */
 		hc->tx_p = scaled_div(1, pinv);
-	/*
-	 * Validate new RTT sample and update moving average
-	 */
-	r_sample = dccp_sample_rtt(sk, r_sample);
-	hc->tx_rtt = tfrc_ewma(hc->tx_rtt, r_sample, 9);
+
 	/*
 	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
 	 */
