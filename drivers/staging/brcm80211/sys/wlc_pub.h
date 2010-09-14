@@ -417,7 +417,7 @@ typedef struct {
 	} shared;
 } wlc_pkttag_t;
 
-#define WLPKTTAG(p) ((wlc_pkttag_t*)PKTTAG(p))
+#define WLPKTTAG(p) ((wlc_pkttag_t *)PKTTAG(p))
 
 /* Flags used in wlc_pkttag_t.
  * If adding a flag, be sure to check if WLPKTTAG_FLAG_MOVE should transfer it.

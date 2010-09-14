@@ -88,16 +88,16 @@ typedef struct {
 
 #define PKTFREESETCB(osh, _tx_fn, _tx_ctx)			\
 	do {							\
-		((osl_pubinfo_t*)osh)->tx_fn = _tx_fn;		\
-		((osl_pubinfo_t*)osh)->tx_ctx = _tx_ctx;	\
+		((osl_pubinfo_t *)osh)->tx_fn = _tx_fn;		\
+		((osl_pubinfo_t *)osh)->tx_ctx = _tx_ctx;	\
 	} while (0)
 
 #ifdef BCMSDIO
 #define REGOPSSET(osh, rreg, wreg, ctx)			\
 	do {						\
-		((osl_pubinfo_t*)osh)->rreg_fn = rreg;	\
-		((osl_pubinfo_t*)osh)->wreg_fn = wreg;	\
-		((osl_pubinfo_t*)osh)->reg_ctx = ctx;	\
+		((osl_pubinfo_t *)osh)->rreg_fn = rreg;	\
+		((osl_pubinfo_t *)osh)->wreg_fn = wreg;	\
+		((osl_pubinfo_t *)osh)->reg_ctx = ctx;	\
 	} while (0)
 #endif
 
@@ -120,7 +120,7 @@ extern uint osl_malloc_failed(osl_t *osh);
 #define	DMA_ALLOC_CONSISTENT(osh, size, align, tot, pap, dmah) \
 	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
 #define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
-	osl_dma_free_consistent((osh), (void*)(va), (size), (pa))
+	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
 extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align,
 				      uint *tot, ulong *pap);
@@ -149,9 +149,9 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #endif
 
 #if defined(BCMSDIO)
-#define SELECT_BUS_WRITE(osh, mmap_op, bus_op) if (((osl_pubinfo_t*)(osh))->mmbus) \
+#define SELECT_BUS_WRITE(osh, mmap_op, bus_op) if (((osl_pubinfo_t *)(osh))->mmbus) \
 		mmap_op else bus_op
-#define SELECT_BUS_READ(osh, mmap_op, bus_op) (((osl_pubinfo_t*)(osh))->mmbus) ? \
+#define SELECT_BUS_READ(osh, mmap_op, bus_op) (((osl_pubinfo_t *)(osh))->mmbus) ? \
 		mmap_op : bus_op
 #else
 #define SELECT_BUS_WRITE(osh, mmap_op, bus_op) mmap_op
@@ -319,16 +319,16 @@ extern int osl_error(int bcmerror);
 #define	PKTGET(osh, len, send)		osl_pktget((osh), (len))
 #define	PKTDUP(osh, skb)		osl_pktdup((osh), (skb))
 #define	PKTFREE(osh, skb, send)		osl_pktfree((osh), (skb), (send))
-#define	PKTDATA(skb)			(((struct sk_buff*)(skb))->data)
-#define	PKTLEN(skb)			(((struct sk_buff*)(skb))->len)
-#define PKTHEADROOM(skb)		(PKTDATA(skb)-(((struct sk_buff*)(skb))->head))
-#define PKTTAILROOM(skb) ((((struct sk_buff*)(skb))->end)-(((struct sk_buff*)(skb))->tail))
-#define	PKTNEXT(skb)			(((struct sk_buff*)(skb))->next)
-#define	PKTSETNEXT(skb, x)		(((struct sk_buff*)(skb))->next = (struct sk_buff*)(x))
-#define	PKTSETLEN(skb, len)		__skb_trim((struct sk_buff*)(skb), (len))
-#define	PKTPUSH(skb, bytes)		skb_push((struct sk_buff*)(skb), (bytes))
-#define	PKTPULL(skb, bytes)		skb_pull((struct sk_buff*)(skb), (bytes))
-#define	PKTTAG(skb)			((void*)(((struct sk_buff*)(skb))->cb))
+#define	PKTDATA(skb)			(((struct sk_buff *)(skb))->data)
+#define	PKTLEN(skb)			(((struct sk_buff *)(skb))->len)
+#define PKTHEADROOM(skb)		(PKTDATA(skb)-(((struct sk_buff *)(skb))->head))
+#define PKTTAILROOM(skb) ((((struct sk_buff *)(skb))->end)-(((struct sk_buff *)(skb))->tail))
+#define	PKTNEXT(skb)			(((struct sk_buff *)(skb))->next)
+#define	PKTSETNEXT(skb, x)		(((struct sk_buff *)(skb))->next = (struct sk_buff*)(x))
+#define	PKTSETLEN(skb, len)		__skb_trim((struct sk_buff *)(skb), (len))
+#define	PKTPUSH(skb, bytes)		skb_push((struct sk_buff *)(skb), (bytes))
+#define	PKTPULL(skb, bytes)		skb_pull((struct sk_buff *)(skb), (bytes))
+#define	PKTTAG(skb)			((void *)(((struct sk_buff *)(skb))->cb))
 #define PKTALLOCED(osh)			(((osl_pubinfo_t *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		FALSE
@@ -344,15 +344,15 @@ extern void osl_pktfree(osl_t *osh, void *skb, bool send);
 extern void *osl_pktget(osl_t *osh, uint len);
 extern void *osl_pktdup(osl_t *osh, void *skb);
 
-#define	PKTLINK(skb)			(((struct sk_buff*)(skb))->prev)
-#define	PKTSETLINK(skb, x)		(((struct sk_buff*)(skb))->prev = (struct sk_buff*)(x))
-#define	PKTPRIO(skb)			(((struct sk_buff*)(skb))->priority)
-#define	PKTSETPRIO(skb, x)		(((struct sk_buff*)(skb))->priority = (x))
-#define PKTSUMNEEDED(skb)		(((struct sk_buff*)(skb))->ip_summed == CHECKSUM_HW)
-#define PKTSETSUMGOOD(skb, x)		(((struct sk_buff*)(skb))->ip_summed = \
+#define	PKTLINK(skb)			(((struct sk_buff *)(skb))->prev)
+#define	PKTSETLINK(skb, x)		(((struct sk_buff *)(skb))->prev = (struct sk_buff*)(x))
+#define	PKTPRIO(skb)			(((struct sk_buff *)(skb))->priority)
+#define	PKTSETPRIO(skb, x)		(((struct sk_buff *)(skb))->priority = (x))
+#define PKTSUMNEEDED(skb)		(((struct sk_buff *)(skb))->ip_summed == CHECKSUM_HW)
+#define PKTSETSUMGOOD(skb, x)		(((struct sk_buff *)(skb))->ip_summed = \
 						((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
 /* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because skb->ip_summed is overloaded */
-#define PKTSHARED(skb)                  (((struct sk_buff*)(skb))->cloned)
+#define PKTSHARED(skb)                  (((struct sk_buff *)(skb))->cloned)
 
 #ifdef BCMSDIO
 #define RPC_READ_REG(osh, r) (\

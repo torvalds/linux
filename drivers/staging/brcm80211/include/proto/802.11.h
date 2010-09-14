@@ -653,7 +653,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_management_notification {
 #define WME_INVALID_PARAMETERS		1
 #define WME_ADMISSION_REFUSED		3
 
-#define BCN_PRB_SSID(body) ((char*)(body) + DOT11_BCN_PRB_LEN)
+#define BCN_PRB_SSID(body) ((char *)(body) + DOT11_BCN_PRB_LEN)
 
 #define DOT11_OPEN_SYSTEM	0
 #define DOT11_SHARED_KEY	1

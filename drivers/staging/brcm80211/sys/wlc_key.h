@@ -69,7 +69,7 @@ struct wlc_bsscfg;
 
 /* default key */
 #define WSEC_BSS_DEFAULT_KEY(bsscfg) (((bsscfg)->wsec_index == -1) ? \
-	(struct wsec_key*)NULL : (bsscfg)->bss_def_keys[(bsscfg)->wsec_index])
+	(struct wsec_key *)NULL : (bsscfg)->bss_def_keys[(bsscfg)->wsec_index])
 
 /* Macros for key management in IBSS mode */
 #define WSEC_IBSS_MAX_PEERS	16	/* Max # of IBSS Peers */

@@ -87,11 +87,11 @@
 
 #define DMAREG(wlc_hw, direction, fifonum)	(D11REV_LT(wlc_hw->corerev, 11) ? \
 	((direction == DMA_TX) ? \
-		(void*)(uintptr)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].xmt) : \
-		(void*)(uintptr)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].rcv)) : \
+		(void *)(uintptr)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].xmt) : \
+		(void *)(uintptr)&(wlc_hw->regs->fifo.f32regs.dmaregs[fifonum].rcv)) : \
 	((direction == DMA_TX) ? \
-		(void*)(uintptr)&(wlc_hw->regs->fifo.f64regs[fifonum].dmaxmt) : \
-		(void*)(uintptr)&(wlc_hw->regs->fifo.f64regs[fifonum].dmarcv)))
+		(void *)(uintptr)&(wlc_hw->regs->fifo.f64regs[fifonum].dmaxmt) : \
+		(void *)(uintptr)&(wlc_hw->regs->fifo.f64regs[fifonum].dmarcv)))
 
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.

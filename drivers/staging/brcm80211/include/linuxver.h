@@ -104,6 +104,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs * ptregs);
 			send_sig(sig, tsk, 1); \
 	} while (0)
 
-#define WL_DEV_IF(dev)          ((wl_if_t*)netdev_priv(dev))
+#define WL_DEV_IF(dev)          ((wl_if_t *)netdev_priv(dev))
 
 #endif				/* _linuxver_h_ */

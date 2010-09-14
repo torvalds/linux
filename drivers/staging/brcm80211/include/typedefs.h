@@ -162,7 +162,7 @@ typedef float64 float_t;
 /* define PTRSZ, INLINE */
 
 #ifndef PTRSZ
-#define	PTRSZ	sizeof(char*)
+#define	PTRSZ	sizeof(char *)
 #endif
 
 /* Detect compiler type. */

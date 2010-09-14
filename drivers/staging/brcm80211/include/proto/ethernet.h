@@ -76,14 +76,14 @@ BWL_PRE_PACKED_STRUCT struct ether_addr {
 
 #define ETHER_ISMULTI(ea) (((const uint8 *)(ea))[0] & 1)
 
-#define	ether_cmp(a, b)	(!(((short*)a)[0] == ((short*)b)[0]) | \
-			 !(((short*)a)[1] == ((short*)b)[1]) | \
-			 !(((short*)a)[2] == ((short*)b)[2]))
+#define	ether_cmp(a, b)	(!(((short *)a)[0] == ((short *)b)[0]) | \
+			 !(((short *)a)[1] == ((short *)b)[1]) | \
+			 !(((short *)a)[2] == ((short *)b)[2]))
 
 #define	ether_copy(s, d) { \
-		((short*)d)[0] = ((short*)s)[0]; \
-		((short*)d)[1] = ((short*)s)[1]; \
-		((short*)d)[2] = ((short*)s)[2]; }
+		((short *)d)[0] = ((short *)s)[0]; \
+		((short *)d)[1] = ((short *)s)[1]; \
+		((short *)d)[2] = ((short *)s)[2]; }
 
 static const struct ether_addr ether_bcast = { {255, 255, 255, 255, 255, 255} };
 static const struct ether_addr ether_null = { {0, 0, 0, 0, 0, 0} };
