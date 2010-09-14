@@ -112,28 +112,21 @@ static const u8 aic3x_reg[AIC3X_CACHEREGNUM] = {
 };
 
 /*
- * write aic3x register cache
- */
-static inline void aic3x_write_reg_cache(struct snd_soc_codec *codec,
-					 u8 reg, u8 value)
-{
-	u8 *cache = codec->reg_cache;
-	if (reg >= AIC3X_CACHEREGNUM)
-		return;
-	cache[reg] = value;
-}
-
-/*
- * read from the aic3x register space
+ * read from the aic3x register space. Only use for this function is if
+ * wanting to read volatile bits from those registers that has both read-only
+ * and read/write bits. All other cases should use snd_soc_read.
  */
 static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
 		      u8 *value)
 {
-	*value = reg & 0xff;
+	u8 *cache = codec->reg_cache;
 
-	value[0] = i2c_smbus_read_byte_data(codec->control_data, value[0]);
+	if (reg >= AIC3X_CACHEREGNUM)
+		return -1;
 
-	aic3x_write_reg_cache(codec, reg, *value);
+	*value = codec->hw_read(codec, reg);
+	cache[reg] = *value;
+
 	return 0;
 }
 
