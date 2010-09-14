@@ -45,8 +45,15 @@ int screen_y[5] = { 40,  40, 440, 440, 240};
 int uncali_x[5] = { 0 };
 int uncali_y[5] = { 0 };
 
+#ifdef CONFIG_MACH_RK2818INFO_IT50
 int uncali_x_default[5] = { 3735,  301, 3754,  290, 1993 };
 int uncali_y_default[5] = {  3442,  3497, 413, 459, 1880 };
+#endif
+
+#ifdef CONFIG_MACH_RK2818INFO 
+int uncali_x_default[5] = { 438,  565, 3507,  3631, 2105 };
+int uncali_y_default[5] = {  3756,  489, 3792, 534, 2159 };
+#endif
 
 static ssize_t touch_mode_show(struct class *cls, char *_buf)
 {
