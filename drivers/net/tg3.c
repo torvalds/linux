@@ -4549,7 +4549,7 @@ static void tg3_recycle_rx(struct tg3_napi *tnapi,
 	struct tg3 *tp = tnapi->tp;
 	struct tg3_rx_buffer_desc *src_desc, *dest_desc;
 	struct ring_info *src_map, *dest_map;
-	struct tg3_rx_prodring_set *spr = &tp->prodring[0];
+	struct tg3_rx_prodring_set *spr = &tp->napi[0].prodring;
 	int dest_idx;
 
 	switch (opaque_key) {
@@ -4619,7 +4619,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 	u32 sw_idx = tnapi->rx_rcb_ptr;
 	u16 hw_idx;
 	int received;
-	struct tg3_rx_prodring_set *tpr = tnapi->prodring;
+	struct tg3_rx_prodring_set *tpr = &tnapi->prodring;
 
 	hw_idx = *(tnapi->rx_rcb_prod_idx);
 	/*
@@ -4644,13 +4644,13 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		desc_idx = desc->opaque & RXD_OPAQUE_INDEX_MASK;
 		opaque_key = desc->opaque & RXD_OPAQUE_RING_MASK;
 		if (opaque_key == RXD_OPAQUE_RING_STD) {
-			ri = &tp->prodring[0].rx_std_buffers[desc_idx];
+			ri = &tp->napi[0].prodring.rx_std_buffers[desc_idx];
 			dma_addr = dma_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &std_prod_idx;
 			rx_std_posted++;
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
-			ri = &tp->prodring[0].rx_jmb_buffers[desc_idx];
+			ri = &tp->napi[0].prodring.rx_jmb_buffers[desc_idx];
 			dma_addr = dma_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &jmb_prod_idx;
@@ -4981,14 +4981,14 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 		work_done += tg3_rx(tnapi, budget - work_done);
 
 	if ((tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) && tnapi == &tp->napi[1]) {
-		struct tg3_rx_prodring_set *dpr = &tp->prodring[0];
+		struct tg3_rx_prodring_set *dpr = &tp->napi[0].prodring;
 		int i, err = 0;
 		u32 std_prod_idx = dpr->rx_std_prod_idx;
 		u32 jmb_prod_idx = dpr->rx_jmb_prod_idx;
 
 		for (i = 1; i < tp->irq_cnt; i++)
 			err |= tg3_rx_prodring_xfer(tp, dpr,
-						    tp->napi[i].prodring);
+						    &tp->napi[i].prodring);
 
 		wmb();
 
@@ -6057,7 +6057,7 @@ static void tg3_rx_prodring_free(struct tg3 *tp,
 {
 	int i;
 
-	if (tpr != &tp->prodring[0]) {
+	if (tpr != &tp->napi[0].prodring) {
 		for (i = tpr->rx_std_cons_idx; i != tpr->rx_std_prod_idx;
 		     i = (i + 1) % TG3_RX_RING_SIZE)
 			tg3_rx_skb_free(tp, &tpr->rx_std_buffers[i],
@@ -6103,7 +6103,7 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 	tpr->rx_jmb_cons_idx = 0;
 	tpr->rx_jmb_prod_idx = 0;
 
-	if (tpr != &tp->prodring[0]) {
+	if (tpr != &tp->napi[0].prodring) {
 		memset(&tpr->rx_std_buffers[0], 0, TG3_RX_STD_BUFF_RING_SIZE);
 		if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE)
 			memset(&tpr->rx_jmb_buffers[0], 0,
@@ -6253,7 +6253,7 @@ static void tg3_free_rings(struct tg3 *tp)
 	for (j = 0; j < tp->irq_cnt; j++) {
 		struct tg3_napi *tnapi = &tp->napi[j];
 
-		tg3_rx_prodring_free(tp, &tp->prodring[j]);
+		tg3_rx_prodring_free(tp, &tnapi->prodring);
 
 		if (!tnapi->tx_buffers)
 			continue;
@@ -6325,7 +6325,7 @@ static int tg3_init_rings(struct tg3 *tp)
 		if (tnapi->rx_rcb)
 			memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
 
-		if (tg3_rx_prodring_alloc(tp, &tp->prodring[i])) {
+		if (tg3_rx_prodring_alloc(tp, &tnapi->prodring)) {
 			tg3_free_rings(tp);
 			return -ENOMEM;
 		}
@@ -6361,6 +6361,8 @@ static void tg3_free_consistent(struct tg3 *tp)
 			tnapi->rx_rcb = NULL;
 		}
 
+		tg3_rx_prodring_fini(tp, &tnapi->prodring);
+
 		if (tnapi->hw_status) {
 			pci_free_consistent(tp->pdev, TG3_HW_STATUS_SIZE,
 					    tnapi->hw_status,
@@ -6374,9 +6376,6 @@ static void tg3_free_consistent(struct tg3 *tp)
 				    tp->hw_stats, tp->stats_mapping);
 		tp->hw_stats = NULL;
 	}
-
-	for (i = 0; i < tp->irq_cnt; i++)
-		tg3_rx_prodring_fini(tp, &tp->prodring[i]);
 }
 
 /*
@@ -6386,11 +6385,6 @@ static void tg3_free_consistent(struct tg3 *tp)
 static int tg3_alloc_consistent(struct tg3 *tp)
 {
 	int i;
-
-	for (i = 0; i < tp->irq_cnt; i++) {
-		if (tg3_rx_prodring_init(tp, &tp->prodring[i]))
-			goto err_out;
-	}
 
 	tp->hw_stats = pci_alloc_consistent(tp->pdev,
 					    sizeof(struct tg3_hw_stats),
@@ -6412,6 +6406,9 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 
 		memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 		sblk = tnapi->hw_status;
+
+		if (tg3_rx_prodring_init(tp, &tnapi->prodring))
+			goto err_out;
 
 		/* If multivector TSS is enabled, vector 0 does not handle
 		 * tx interrupts.  Don't allocate any resources for it.
@@ -6451,8 +6448,6 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 			tnapi->rx_rcb_prod_idx = &sblk->rx_mini_consumer;
 			break;
 		}
-
-		tnapi->prodring = &tp->prodring[i];
 
 		/*
 		 * If multivector RSS is enabled, vector 0 does not handle
@@ -7647,7 +7642,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 {
 	u32 val, rdmac_mode;
 	int i, err, limit;
-	struct tg3_rx_prodring_set *tpr = &tp->prodring[0];
+	struct tg3_rx_prodring_set *tpr = &tp->napi[0].prodring;
 
 	tg3_disable_ints(tp);
 
@@ -10627,7 +10622,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	int num_pkts, tx_len, rx_len, i, err;
 	struct tg3_rx_buffer_desc *desc;
 	struct tg3_napi *tnapi, *rnapi;
-	struct tg3_rx_prodring_set *tpr = &tp->prodring[0];
+	struct tg3_rx_prodring_set *tpr = &tp->napi[0].prodring;
 
 	tnapi = &tp->napi[0];
 	rnapi = &tp->napi[0];
