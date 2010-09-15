@@ -25,7 +25,6 @@
 #define DM365_EMAC_CNTRL_OFFSET		(0x0000)
 #define DM365_EMAC_CNTRL_MOD_OFFSET	(0x3000)
 #define DM365_EMAC_CNTRL_RAM_OFFSET	(0x1000)
-#define DM365_EMAC_MDIO_OFFSET		(0x4000)
 #define DM365_EMAC_CNTRL_RAM_SIZE	(0x2000)
 
 /* Base of key scan register bank */

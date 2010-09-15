@@ -24,9 +24,7 @@
 #include <mach/nand.h>
 #include <mach/mux.h>
 
-#define MITYOMAPL138_PHY_MASK		0x08 /* hardcoded for now */
-#define MITYOMAPL138_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
-
+#define MITYOMAPL138_PHY_ID		"0:03"
 static struct davinci_i2c_platform_data mityomap_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
@@ -273,9 +271,7 @@ static void __init mityomapl138_config_emac(void)
 	/* configure the CFGCHIP3 register for RMII or MII */
 	__raw_writel(val, cfg_chip3_base);
 
-	soc_info->emac_pdata->phy_mask = MITYOMAPL138_PHY_MASK;
-	pr_debug("setting phy_mask to %x\n", soc_info->emac_pdata->phy_mask);
-	soc_info->emac_pdata->mdio_max_freq = MITYOMAPL138_MDIO_FREQUENCY;
+	soc_info->emac_pdata->phy_id = MITYOMAPL138_PHY_ID;
 
 	ret = da8xx_register_emac();
 	if (ret)

@@ -54,9 +54,7 @@ static inline int have_tvp7002(void)
 	return 0;
 }
 
-#define DM365_EVM_PHY_MASK		(0x2)
-#define DM365_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
-
+#define DM365_EVM_PHY_ID		"0:01"
 /*
  * A MAX-II CPLD is used for various board control functions.
  */
@@ -535,8 +533,7 @@ fail:
 
 		/* ... and ENET ... */
 		dm365evm_emac_configure();
-		soc_info->emac_pdata->phy_mask = DM365_EVM_PHY_MASK;
-		soc_info->emac_pdata->mdio_max_freq = DM365_EVM_MDIO_FREQUENCY;
+		soc_info->emac_pdata->phy_id = DM365_EVM_PHY_ID;
 		resets &= ~BIT(3);
 
 		/* ... and AIC33 */

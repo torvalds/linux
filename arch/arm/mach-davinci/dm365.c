@@ -691,7 +691,6 @@ static struct emac_platform_data dm365_emac_pdata = {
 	.ctrl_reg_offset	= DM365_EMAC_CNTRL_OFFSET,
 	.ctrl_mod_reg_offset	= DM365_EMAC_CNTRL_MOD_OFFSET,
 	.ctrl_ram_offset	= DM365_EMAC_CNTRL_RAM_OFFSET,
-	.mdio_reg_offset	= DM365_EMAC_MDIO_OFFSET,
 	.ctrl_ram_size		= DM365_EMAC_CNTRL_RAM_SIZE,
 	.version		= EMAC_VERSION_2,
 };
