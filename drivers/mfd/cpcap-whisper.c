@@ -120,6 +120,8 @@ struct cpcap_whisper_data {
 	struct otg_transceiver *otg;
 };
 
+static struct cpcap_whisper_data *whisper_di;
+
 static int whisper_debug;
 module_param(whisper_debug, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -607,6 +609,21 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
 	return retval;
 }
 
+void cpcap_accy_whisper_spdif_set_state(int state)
+{
+	if (!whisper_di)
+		return;
+
+	if (!switch_get_state(&whisper_di->dsdev))
+		return;
+
+	state = ((state > 0) ? 1 : 0);
+	switch_set_state(&whisper_di->asdev, state);
+
+	pr_info("%s: Audio cable %s present\n", __func__,
+		(state ? "is" : "not"));
+}
+
 static int cpcap_whisper_probe(struct platform_device *pdev)
 {
 	int retval;
@@ -683,6 +700,7 @@ static int cpcap_whisper_probe(struct platform_device *pdev)
 #endif
 
 	data->cpcap->accydata = data;
+	whisper_di = data;
 	dev_info(&pdev->dev, "CPCAP Whisper detection probed\n");
 
 	/* Perform initial detection */

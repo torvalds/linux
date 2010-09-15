@@ -782,6 +782,8 @@ unsigned char cpcap_uc_status(struct cpcap_device *cpcap,
 int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned int cmd,
 		       char *dock_id);
 
+void cpcap_accy_whisper_spdif_set_state(int state);
+
 #define  cpcap_driver_register platform_driver_register
 #define  cpcap_driver_unregister platform_driver_unregister
 
