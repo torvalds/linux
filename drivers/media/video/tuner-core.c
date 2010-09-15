@@ -1052,12 +1052,6 @@ static int tuner_probe(struct i2c_client *client,
 			printk(KERN_CONT "%02x ", buffer[i]);
 		printk("\n");
 	}
-	/* HACK: This test was added to avoid tuner to probe tda9840 and
-	   tea6415c on the MXB card */
-	if (client->adapter->id == I2C_HW_SAA7146 && client->addr < 0x4a) {
-		kfree(t);
-		return -ENODEV;
-	}
 
 	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
