@@ -72,6 +72,7 @@ extern u8 acpi_gbl_truncate_io_addresses;
 
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
+extern u8 acpi_gbl_system_awake_and_running;
 
 extern u32 acpi_rsdt_forced;
 /*

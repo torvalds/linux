@@ -132,6 +132,7 @@ struct acpi_table_fadt acpi_gbl_FADT;
 u32 acpi_current_gpe_count;
 u32 acpi_gbl_trace_flags;
 acpi_name acpi_gbl_trace_method_name;
+u8 acpi_gbl_system_awake_and_running;
 
 #endif
 
@@ -278,7 +279,6 @@ ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;
 ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
-ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
 ACPI_EXTERN u8 acpi_gbl_osi_data;
 ACPI_EXTERN struct acpi_interface_info *acpi_gbl_supported_interfaces;
 
