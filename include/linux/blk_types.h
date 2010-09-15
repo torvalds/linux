@@ -130,6 +130,8 @@ enum rq_flag_bits {
 	/* bio only flags */
 	__REQ_UNPLUG,		/* unplug the immediately after submission */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
+	__REQ_THROTTLED,	/* This bio has already been subjected to
+				 * throttling rules. Don't do it again. */
 
 	/* request only flags */
 	__REQ_SORTED,		/* elevator knows about this request */
@@ -172,6 +174,7 @@ enum rq_flag_bits {
 
 #define REQ_UNPLUG		(1 << __REQ_UNPLUG)
 #define REQ_RAHEAD		(1 << __REQ_RAHEAD)
+#define REQ_THROTTLED		(1 << __REQ_THROTTLED)
 
 #define REQ_SORTED		(1 << __REQ_SORTED)
 #define REQ_SOFTBARRIER		(1 << __REQ_SOFTBARRIER)
