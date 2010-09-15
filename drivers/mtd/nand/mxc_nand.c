@@ -67,7 +67,9 @@
 #define NFC_V1_V2_CONFIG1_BIG		(1 << 5)
 #define NFC_V1_V2_CONFIG1_RST		(1 << 6)
 #define NFC_V1_V2_CONFIG1_CE		(1 << 7)
-#define NFC_V1_V2_CONFIG1_ONE_CYCLE	(1 << 8)
+#define NFC_V2_CONFIG1_ONE_CYCLE	(1 << 8)
+#define NFC_V2_CONFIG1_PPB(x)		(((x) & 0x3) << 9)
+#define NFC_V2_CONFIG1_FP_INT		(1 << 11)
 
 #define NFC_V1_V2_CONFIG2_INT		(1 << 15)
 
@@ -402,16 +404,16 @@ static void send_read_id_v1_v2(struct mxc_nand_host *host)
 	/* Wait for operation to complete */
 	wait_op_done(host, true);
 
-	if (this->options & NAND_BUSWIDTH_16) {
-		void __iomem *main_buf = host->main_area0;
-		/* compress the ID info */
-		writeb(readb(main_buf + 2), main_buf + 1);
-		writeb(readb(main_buf + 4), main_buf + 2);
-		writeb(readb(main_buf + 6), main_buf + 3);
-		writeb(readb(main_buf + 8), main_buf + 4);
-		writeb(readb(main_buf + 10), main_buf + 5);
-	}
 	memcpy(host->data_buf, host->main_area0, 16);
+
+	if (this->options & NAND_BUSWIDTH_16) {
+		/* compress the ID info */
+		host->data_buf[1] = host->data_buf[2];
+		host->data_buf[2] = host->data_buf[4];
+		host->data_buf[3] = host->data_buf[6];
+		host->data_buf[4] = host->data_buf[8];
+		host->data_buf[5] = host->data_buf[10];
+	}
 }
 
 static uint16_t get_dev_status_v3(struct mxc_nand_host *host)
@@ -729,27 +731,30 @@ static void preset_v1_v2(struct mtd_info *mtd)
 {
 	struct nand_chip *nand_chip = mtd->priv;
 	struct mxc_nand_host *host = nand_chip->priv;
-	uint16_t tmp;
+	uint16_t config1 = 0;
 
-	/* enable interrupt, disable spare enable */
-	tmp = readw(NFC_V1_V2_CONFIG1);
-	tmp &= ~NFC_V1_V2_CONFIG1_INT_MSK;
-	tmp &= ~NFC_V1_V2_CONFIG1_SP_EN;
-	if (nand_chip->ecc.mode == NAND_ECC_HW) {
-		tmp |= NFC_V1_V2_CONFIG1_ECC_EN;
-	} else {
-		tmp &= ~NFC_V1_V2_CONFIG1_ECC_EN;
-	}
+	if (nand_chip->ecc.mode == NAND_ECC_HW)
+		config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
+
+	if (nfc_is_v21())
+		config1 |= NFC_V2_CONFIG1_FP_INT;
+
+	if (!cpu_is_mx21())
+		config1 |= NFC_V1_V2_CONFIG1_INT_MSK;
 
 	if (nfc_is_v21() && mtd->writesize) {
+		uint16_t pages_per_block = mtd->erasesize / mtd->writesize;
+
 		host->eccsize = get_eccsize(mtd);
 		if (host->eccsize == 4)
-			tmp |= NFC_V2_CONFIG1_ECC_MODE_4;
+			config1 |= NFC_V2_CONFIG1_ECC_MODE_4;
+
+		config1 |= NFC_V2_CONFIG1_PPB(ffs(pages_per_block) - 6);
 	} else {
 		host->eccsize = 1;
 	}
 
-	writew(tmp, NFC_V1_V2_CONFIG1);
+	writew(config1, NFC_V1_V2_CONFIG1);
 	/* preset operation */
 
 	/* Unlock the internal RAM Buffer */
