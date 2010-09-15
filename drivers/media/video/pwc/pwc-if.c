@@ -163,7 +163,7 @@ static const struct v4l2_file_operations pwc_fops = {
 	.read =		pwc_video_read,
 	.poll =		pwc_video_poll,
 	.mmap =		pwc_video_mmap,
-	.ioctl =        pwc_video_ioctl,
+	.unlocked_ioctl = pwc_video_ioctl,
 };
 static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
@@ -1247,8 +1247,8 @@ static int pwc_video_close(struct file *file)
 
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
-	lock_kernel();
 	pdev = video_get_drvdata(vdev);
+	mutex_lock(&pdev->modlock);
 	if (pdev->vopen == 0)
 		PWC_DEBUG_MODULE("video_close() called on closed device?\n");
 
@@ -1286,7 +1286,7 @@ static int pwc_video_close(struct file *file)
 			if (device_hint[hint].pdev == pdev)
 				device_hint[hint].pdev = NULL;
 	}
-	unlock_kernel();
+	mutex_unlock(&pdev->modlock);
 
 	return 0;
 }
@@ -1872,8 +1872,8 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	struct pwc_device *pdev;
 	int hint;
 
-	lock_kernel();
 	pdev = usb_get_intfdata (intf);
+	mutex_lock(&pdev->modlock);
 	usb_set_intfdata (intf, NULL);
 	if (pdev == NULL) {
 		PWC_ERROR("pwc_disconnect() Called without private pointer.\n");
@@ -1898,9 +1898,7 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	wake_up_interruptible(&pdev->frameq);
 	/* Wait until device is closed */
 	if (pdev->vopen) {
-		mutex_lock(&pdev->modlock);
 		pdev->unplugged = 1;
-		mutex_unlock(&pdev->modlock);
 		pwc_iso_stop(pdev);
 	} else {
 		/* Device is closed, so we can safely unregister it */
@@ -1914,7 +1912,7 @@ disconnect_out:
 				device_hint[hint].pdev = NULL;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&pdev->modlock);
 }
 
 
