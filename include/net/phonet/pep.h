@@ -77,6 +77,11 @@ static inline struct pnpipehdr *pnp_hdr(struct sk_buff *skb)
 #define MAX_PNPIPE_HEADER (MAX_PHONET_HEADER + 4)
 
 enum {
+	PNS_PIPE_CREATE_REQ = 0x00,
+	PNS_PIPE_CREATE_RESP,
+	PNS_PIPE_REMOVE_REQ,
+	PNS_PIPE_REMOVE_RESP,
+
 	PNS_PIPE_DATA = 0x20,
 	PNS_PIPE_ALIGNED_DATA,
 

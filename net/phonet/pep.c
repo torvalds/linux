@@ -620,6 +620,28 @@ drop:
 	return err;
 }
 
+static int pipe_do_remove(struct sock *sk)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	struct pnpipehdr *ph;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(MAX_PNPIPE_HEADER, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, MAX_PNPIPE_HEADER);
+	__skb_push(skb, sizeof(*ph));
+	skb_reset_transport_header(skb);
+	ph = pnp_hdr(skb);
+	ph->utid = 0;
+	ph->message_id = PNS_PIPE_REMOVE_REQ;
+	ph->pipe_handle = pn->pipe_handle;
+	ph->data[0] = PAD;
+
+	return pn_skb_send(sk, skb, &pipe_srv);
+}
+
 /* associated socket ceases to exist */
 static void pep_sock_close(struct sock *sk, long timeout)
 {
@@ -638,7 +660,10 @@ static void pep_sock_close(struct sock *sk, long timeout)
 		sk_for_each_safe(sknode, p, n, &pn->ackq)
 			sk_del_node_init(sknode);
 		sk->sk_state = TCP_CLOSE;
-	}
+	} else if ((1 << sk->sk_state) & (TCPF_SYN_RECV|TCPF_ESTABLISHED))
+		/* Forcefully remove dangling Phonet pipe */
+		pipe_do_remove(sk);
+
 	ifindex = pn->ifindex;
 	pn->ifindex = 0;
 	release_sock(sk);
