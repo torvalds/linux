@@ -884,10 +884,8 @@ enum {
 	FTRACE_ENABLE_CALLS		= (1 << 0),
 	FTRACE_DISABLE_CALLS		= (1 << 1),
 	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
-	FTRACE_ENABLE_MCOUNT		= (1 << 3),
-	FTRACE_DISABLE_MCOUNT		= (1 << 4),
-	FTRACE_START_FUNC_RET		= (1 << 5),
-	FTRACE_STOP_FUNC_RET		= (1 << 6),
+	FTRACE_START_FUNC_RET		= (1 << 3),
+	FTRACE_STOP_FUNC_RET		= (1 << 4),
 };
 
 static int ftrace_filtered;
@@ -1226,8 +1224,6 @@ static void ftrace_shutdown(int command)
 
 static void ftrace_startup_sysctl(void)
 {
-	int command = FTRACE_ENABLE_MCOUNT;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -1235,23 +1231,17 @@ static void ftrace_startup_sysctl(void)
 	saved_ftrace_func = NULL;
 	/* ftrace_start_up is true if we want ftrace running */
 	if (ftrace_start_up)
-		command |= FTRACE_ENABLE_CALLS;
-
-	ftrace_run_update_code(command);
+		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 }
 
 static void ftrace_shutdown_sysctl(void)
 {
-	int command = FTRACE_DISABLE_MCOUNT;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
 	/* ftrace_start_up is true if ftrace is running */
 	if (ftrace_start_up)
-		command |= FTRACE_DISABLE_CALLS;
-
-	ftrace_run_update_code(command);
+		ftrace_run_update_code(FTRACE_DISABLE_CALLS);
 }
 
 static cycle_t		ftrace_update_time;
