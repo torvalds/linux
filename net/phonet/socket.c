@@ -565,3 +565,91 @@ const struct file_operations pn_sock_seq_fops = {
 	.release = seq_release_net,
 };
 #endif
+
+static struct  {
+	struct sock *sk[256];
+} pnres;
+
+/*
+ * Find and hold socket based on resource.
+ */
+struct sock *pn_find_sock_by_res(struct net *net, u8 res)
+{
+	struct sock *sk;
+
+	if (!net_eq(net, &init_net))
+		return NULL;
+
+	rcu_read_lock();
+	sk = rcu_dereference(pnres.sk[res]);
+	if (sk)
+		sock_hold(sk);
+	rcu_read_unlock();
+	return sk;
+}
+
+static DEFINE_MUTEX(resource_mutex);
+
+int pn_sock_bind_res(struct sock *sk, u8 res)
+{
+	int ret = -EADDRINUSE;
+
+	if (!net_eq(sock_net(sk), &init_net))
+		return -ENOIOCTLCMD;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (pn_socket_autobind(sk->sk_socket))
+		return -EAGAIN;
+
+	mutex_lock(&resource_mutex);
+	if (pnres.sk[res] == NULL) {
+		sock_hold(sk);
+		rcu_assign_pointer(pnres.sk[res], sk);
+		ret = 0;
+	}
+	mutex_unlock(&resource_mutex);
+	return ret;
+}
+
+int pn_sock_unbind_res(struct sock *sk, u8 res)
+{
+	int ret = -ENOENT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&resource_mutex);
+	if (pnres.sk[res] == sk) {
+		rcu_assign_pointer(pnres.sk[res], NULL);
+		ret = 0;
+	}
+	mutex_unlock(&resource_mutex);
+
+	if (ret == 0) {
+		synchronize_rcu();
+		sock_put(sk);
+	}
+	return ret;
+}
+
+void pn_sock_unbind_all_res(struct sock *sk)
+{
+	unsigned res, match = 0;
+
+	mutex_lock(&resource_mutex);
+	for (res = 0; res < 256; res++) {
+		if (pnres.sk[res] == sk) {
+			rcu_assign_pointer(pnres.sk[res], NULL);
+			match++;
+		}
+	}
+	mutex_unlock(&resource_mutex);
+
+	if (match == 0)
+		return;
+	synchronize_rcu();
+	while (match > 0) {
+		sock_put(sk);
+		match--;
+	}
+}
