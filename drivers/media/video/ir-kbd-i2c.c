@@ -354,11 +354,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x0b:
 	case 0x47:
 	case 0x71:
-		if (adap->id == I2C_HW_B_CX2388x ||
-		    adap->id == I2C_HW_B_CX2341X) {
+		if (adap->id == I2C_HW_B_CX2388x) {
 			/* Handled by cx88-input */
-			name = adap->id == I2C_HW_B_CX2341X ? "CX2341x remote"
-							    : "CX2388x remote";
+			name = "CX2388x remote";
 			ir_type     = IR_TYPE_RC5;
 			ir->get_key = get_key_haup_xvr;
 			if (hauppauge == 1) {
