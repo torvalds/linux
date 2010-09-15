@@ -39,7 +39,6 @@
 
 #include "mux.h"
 
-#define AM35XX_EVM_PHY_MASK		(0xF)
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
 
 static struct mdio_platform_data am3517_evm_mdio_pdata = {
@@ -64,8 +63,6 @@ static struct platform_device am3517_mdio_device = {
 };
 
 static struct emac_platform_data am3517_evm_emac_pdata = {
-	.phy_mask	= AM35XX_EVM_PHY_MASK,
-	.mdio_max_freq	= AM35XX_EVM_MDIO_FREQUENCY,
 	.rmii_en	= 1,
 };
 
@@ -135,7 +132,6 @@ void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 	pdata->ctrl_reg_offset		= AM35XX_EMAC_CNTRL_OFFSET;
 	pdata->ctrl_mod_reg_offset	= AM35XX_EMAC_CNTRL_MOD_OFFSET;
 	pdata->ctrl_ram_offset		= AM35XX_EMAC_CNTRL_RAM_OFFSET;
-	pdata->mdio_reg_offset		= AM35XX_EMAC_MDIO_OFFSET;
 	pdata->ctrl_ram_size		= AM35XX_EMAC_CNTRL_RAM_SIZE;
 	pdata->version			= EMAC_VERSION_2;
 	pdata->hw_ram_addr		= AM35XX_EMAC_HW_RAM_ADDR;
