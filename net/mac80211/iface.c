@@ -280,6 +280,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			netif_carrier_on(dev);
 	}
 
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
+
 	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
 		/* Create STA entry for the WDS peer */
 		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
@@ -331,8 +333,6 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 
 	netif_tx_start_all_queues(dev);
 
-	set_bit(SDATA_STATE_RUNNING, &sdata->state);
-
 	return 0;
  err_del_interface:
 	drv_remove_interface(local, &sdata->vif);
@@ -343,6 +343,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 	sdata->bss = NULL;
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		list_del(&sdata->u.vlan.list);
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	return res;
 }
 
