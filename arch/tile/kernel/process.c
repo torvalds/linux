@@ -561,8 +561,9 @@ out:
 }
 
 #ifdef CONFIG_COMPAT
-long _compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
-			compat_uptr_t __user *envp, struct pt_regs *regs)
+long _compat_sys_execve(const char __user *path,
+			const compat_uptr_t __user *argv,
+			const compat_uptr_t __user *envp, struct pt_regs *regs)
 {
 	long error;
 	char *filename;
