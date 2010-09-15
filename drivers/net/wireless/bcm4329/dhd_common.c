@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69 2010/08/20 00:39:21 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.3 2010/09/10 21:30:16 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1312,6 +1312,52 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	bcm_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
+	if (dhd_roam == 0)
+	{
+		/* set internal roaming roaming parameters */
+		int roam_scan_period = 30; /* in sec */
+		int roam_fullscan_period = 120; /* in sec */
+		int roam_trigger = -85;
+		int roam_delta = 15;
+		int band;
+		int band_temp_set = WLC_BAND_2G;
+
+		if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_ROAM_SCAN_PERIOD, \
+			(char *)&roam_scan_period, sizeof(roam_scan_period)) < 0)
+			DHD_ERROR(("%s: roam scan setup failed\n", __FUNCTION__));
+
+		bcm_mkiovar("fullroamperiod", (char *)&roam_fullscan_period, \
+					 4, iovbuf, sizeof(iovbuf));
+		if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, \
+			iovbuf, sizeof(iovbuf)) < 0)
+			DHD_ERROR(("%s: roam fullscan setup failed\n", __FUNCTION__));
+
+		if (dhdcdc_query_ioctl(dhd, 0, WLC_GET_BAND, \
+				(char *)&band, sizeof(band)) < 0)
+			DHD_ERROR(("%s: roam delta setting failed\n", __FUNCTION__));
+		else {
+			if ((band == WLC_BAND_AUTO) || (band == WLC_BAND_ALL))
+			{
+				/* temp set band to insert new roams values */
+				if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_BAND, \
+					(char *)&band_temp_set, sizeof(band_temp_set)) < 0)
+					DHD_ERROR(("%s: local band seting failed\n", __FUNCTION__));
+			}
+			if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_ROAM_DELTA, \
+				(char *)&roam_delta, sizeof(roam_delta)) < 0)
+				DHD_ERROR(("%s: roam delta setting failed\n", __FUNCTION__));
+
+			if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_ROAM_TRIGGER, \
+				(char *)&roam_trigger, sizeof(roam_trigger)) < 0)
+				DHD_ERROR(("%s: roam trigger setting failed\n", __FUNCTION__));
+
+			/* Restore original band settinngs */
+			if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_BAND, \
+				(char *)&band, sizeof(band)) < 0)
+				DHD_ERROR(("%s: Original band restore failed\n", __FUNCTION__));
+		}
+	}
+
 	/* Force STA UP */
 	if (dhd_radio_up)
 		dhdcdc_set_ioctl(dhd, 0, WLC_UP, (char *)&up, sizeof(up));
@@ -1790,7 +1836,7 @@ int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 
 /* Function to execute combined scan */
 int
-dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, uchar scan_fr)
+dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr)
 {
 	int err = -1;
 	char iovbuf[128];

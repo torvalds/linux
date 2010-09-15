@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.35 2010/08/20 02:42:33 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.36.4.1 2010/09/10 19:24:30 Exp $
  */
 
 
@@ -49,7 +49,7 @@
 #define DTIM_SKIP_SET_CMD			"DTIMSKIPSET"
 #define SETSUSPEND_CMD				"SETSUSPENDOPT"
 #define PNOSSIDCLR_SET_CMD			"PNOSSIDCLR"
-#define PNOSETUP_SET_CMD			"PNOSETUP"
+#define PNOSETUP_SET_CMD			"PNOSETUP "
 #define PNOENABLE_SET_CMD			"PNOFORCE"
 #define PNODEBUG_SET_CMD			"PNODEBUG"
 
@@ -216,17 +216,17 @@ extern int net_os_send_hang_message(struct net_device *dev);
 
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
-extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, uchar  scan_fr);
+extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort  scan_fr);
 extern int dhd_pno_get_status(dhd_pub_t *dhd);
 extern int dhd_dev_pno_reset(struct net_device *dev);
 extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, \
-				 int nssid, uchar  scan_fr);
+				 int nssid, ushort  scan_fr);
 extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
 
 #define PNO_TLV_PREFIX			'S'
 #define PNO_TLV_VERSION			1
-#define PNO_TLV_SUBVERSION 		0
+#define PNO_TLV_SUBVERSION 		1
 #define PNO_TLV_RESERVED		0
 #define PNO_TLV_TYPE_SSID_IE		'S'
 #define PNO_TLV_TYPE_TIME		'T'

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c,v 1.42.10.10.2.14 2010/08/17 16:34:23 Exp $
+ * $Id: bcmsdh_linux.c,v 1.42.10.10.2.14.4.2 2010/09/15 00:30:11 Exp $
  */
 
 /**
@@ -180,7 +180,7 @@ int bcmsdh_probe(struct device *dev)
 #endif /* BCMLXSDMMC */
 	int irq = 0;
 	uint32 vendevid;
-	unsigned long irq_flags = IRQF_TRIGGER_FALLING;
+	unsigned long irq_flags = 0;
 
 #if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
 	pdev = to_platform_device(dev);
@@ -191,6 +191,12 @@ int bcmsdh_probe(struct device *dev)
 #endif /* BCMLXSDMMC */
 
 #if defined(OOB_INTR_ONLY)
+#ifdef HW_OOB
+	irq_flags = \
+		IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE;
+#else
+	 irq_flags = IRQF_TRIGGER_FALLING;
+#endif /* HW_OOB */
 	irq = dhd_customer_oob_irq_map(&irq_flags);
 	if  (irq < 0) {
 		SDLX_MSG(("%s: Host irq is not defined\n", __FUNCTION__));
@@ -621,6 +627,8 @@ int bcmsdh_register_oob_intr(void * dhdp)
 	dev_set_drvdata(sdhcinfo->dev, dhdp);
 
 	if (!sdhcinfo->oob_irq_registered) {
+		SDLX_MSG(("%s IRQ=%d Type=%X \n", __FUNCTION__, \
+				(int)sdhcinfo->oob_irq, (int)sdhcinfo->oob_flags));
 		/* Refer to customer Host IRQ docs about proper irqflags definition */
 		error = request_irq(sdhcinfo->oob_irq, wlan_oob_irq, sdhcinfo->oob_flags,
 			"bcmsdh_sdmmc", NULL);

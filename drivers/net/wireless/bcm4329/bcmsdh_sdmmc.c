@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c,v 1.1.2.5.6.29 2010/03/19 17:16:08 Exp $
+ * $Id: bcmsdh_sdmmc.c,v 1.1.2.5.6.30.4.1 2010/09/02 23:12:21 Exp $
  */
 #include <typedefs.h>
 
@@ -55,7 +55,7 @@ extern void sdio_function_cleanup(void);
 #if !defined(OOB_INTR_ONLY)
 static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
-#endif
+#endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
 extern int sdio_reset_comm(struct mmc_card *card);
 
@@ -1066,11 +1066,13 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	return (Status);
 }
 
+/* this function performs "abort" for both of host & device */
 extern int
 sdioh_abort(sdioh_info_t *sd, uint func)
 {
+#if defined(MMC_SDIO_ABORT)
 	char t_func = (char) func;
-
+#endif /* defined(MMC_SDIO_ABORT) */
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 
 #if defined(MMC_SDIO_ABORT)

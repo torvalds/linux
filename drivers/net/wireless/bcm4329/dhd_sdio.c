@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.129 2010/08/19 20:36:22 Exp $
+ * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.129.4.1 2010/09/02 23:13:16 Exp $
  */
 
 #include <typedefs.h>
@@ -4218,11 +4218,9 @@ dhdsdio_dpc(dhd_bus_t *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
-
 #if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(1);
-#endif
-
+#endif /* (OOB_INTR_ONLY) */
 	/* Re-enable interrupts to detect new device events (mailbox, rx frame)
 	 * or clock availability.  (Allows tx loop to check ipend if desired.)
 	 * (Unless register access seems hosed, as we may not be able to ACK...)

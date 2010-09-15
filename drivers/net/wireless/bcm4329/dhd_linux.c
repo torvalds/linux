@@ -556,7 +556,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				4, iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
-			/* Disable build-in roaming to allowed ext supplicant to take of romaing */
+			/* Disable build-in roaming to allowed ext supplicant to take of roaming */
 			bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 #endif /* CUSTOMER_HW2 */
@@ -1387,11 +1387,6 @@ dhd_watchdog_thread(void *data)
 			}
 			/* Count the tick for reference */
 			dhd->pub.tickcnt++;
-
-			/* Reschedule the watchdog */
-			if (dhd->wd_timer_valid) {
-				mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
-			}
 			dhd_os_wake_unlock(&dhd->pub);
 		}
 		else
@@ -1406,8 +1401,15 @@ dhd_watchdog(ulong data)
 {
 	dhd_info_t *dhd = (dhd_info_t *)data;
 
+	dhd_os_wake_lock(&dhd->pub);
 	if (dhd->watchdog_pid >= 0) {
 		up(&dhd->watchdog_sem);
+
+		/* Reschedule the watchdog */
+		if (dhd->wd_timer_valid) {
+				mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+		}
+		dhd_os_wake_unlock(&dhd->pub);
 		return;
 	}
 
@@ -1420,6 +1422,7 @@ dhd_watchdog(ulong data)
 	/* Reschedule the watchdog */
 	if (dhd->wd_timer_valid)
 		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+	dhd_os_wake_unlock(&dhd->pub);
 }
 
 static int
@@ -1873,7 +1876,11 @@ dhd_open(struct net_device *net)
 	ifidx = dhd_net2idx(dhd, net);
 	DHD_TRACE(("%s: ifidx %d\n", __FUNCTION__, ifidx));
 
-	/* ASSERT(ifidx == 0); */
+	if ((dhd->iflist[ifidx]) && (dhd->iflist[ifidx]->state == WLC_E_IF_DEL)) {
+		DHD_ERROR(("%s: Error: called when IF already deleted\n", __FUNCTION__));
+		return -1;
+	}
+
 
 	if (ifidx == 0) { /* do it only for primary eth0 */
 
@@ -2841,6 +2848,14 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 
 #if defined(CONFIG_WIRELESS_EXT)
 	ASSERT(dhd->iflist[*ifidx] != NULL);
+
+	if (ntoh32(event->event_type) == WLC_E_IF) {
+		DHD_INFO(("<0> interface:%d OP:%d don't pass to wext,"
+			"net_device might not be created yet\n",
+				*ifidx, ntoh32(event->event_type)));
+		return bcmerror;
+	}
+
 	ASSERT(dhd->iflist[*ifidx]->net != NULL);
 
 	if (dhd->iflist[*ifidx]->net)
@@ -2990,7 +3005,7 @@ dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled)
 
 /* Linux wrapper to call common dhd_pno_set */
 int
-dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, int nssid, uchar  scan_fr)
+dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, int nssid, ushort  scan_fr)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
