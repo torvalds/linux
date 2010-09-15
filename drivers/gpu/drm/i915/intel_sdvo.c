@@ -1480,7 +1480,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	if (edid == NULL)
 		edid = intel_sdvo_get_analog_edid(connector);
 
-	status = connector_status_disconnected;
+	status = connector_status_unknown;
 	if (edid != NULL) {
 		/* DDC bus is shared, match EDID to connector type */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
