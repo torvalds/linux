@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-chip-ident.h>
 
 #include "tvp5150_reg.h"
@@ -1111,9 +1110,25 @@ static const struct i2c_device_id tvp5150_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tvp5150_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tvp5150",
-	.probe = tvp5150_probe,
-	.remove = tvp5150_remove,
-	.id_table = tvp5150_id,
+static struct i2c_driver tvp5150_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tvp5150",
+	},
+	.probe		= tvp5150_probe,
+	.remove		= tvp5150_remove,
+	.id_table	= tvp5150_id,
 };
+
+static __init int init_tvp5150(void)
+{
+	return i2c_add_driver(&tvp5150_driver);
+}
+
+static __exit void exit_tvp5150(void)
+{
+	i2c_del_driver(&tvp5150_driver);
+}
+
+module_init(init_tvp5150);
+module_exit(exit_tvp5150);
