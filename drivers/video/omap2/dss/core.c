@@ -37,6 +37,7 @@
 #include <plat/clock.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 static struct {
 	struct platform_device *pdev;
@@ -501,6 +502,8 @@ static int omap_dss_probe(struct platform_device *pdev)
 	int i;
 
 	core.pdev = pdev;
+
+	dss_features_init();
 
 	dss_init_overlay_managers(pdev);
 	dss_init_overlays(pdev);

@@ -39,6 +39,7 @@
 #include <plat/display.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 /* DISPC */
 #define DISPC_BASE			0x48050400
@@ -774,11 +775,11 @@ static void _dispc_set_vid_size(enum omap_plane plane, int width, int height)
 
 static void _dispc_setup_global_alpha(enum omap_plane plane, u8 global_alpha)
 {
-
-	BUG_ON(plane == OMAP_DSS_VIDEO1);
-
-	if (cpu_is_omap24xx())
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return;
+
+	BUG_ON(!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+			plane == OMAP_DSS_VIDEO1);
 
 	if (plane == OMAP_DSS_GFX)
 		REG_FLD_MOD(DISPC_GLOBAL_ALPHA, global_alpha, 7, 0);
@@ -949,17 +950,14 @@ static void dispc_read_plane_fifo_sizes(void)
 				      DISPC_VID_FIFO_SIZE_STATUS(1) };
 	u32 size;
 	int plane;
+	u8 start, end;
 
 	enable_clocks(1);
 
-	for (plane = 0; plane < ARRAY_SIZE(dispc.fifo_size); ++plane) {
-		if (cpu_is_omap24xx())
-			size = FLD_GET(dispc_read_reg(fsz_reg[plane]), 8, 0);
-		else if (cpu_is_omap34xx())
-			size = FLD_GET(dispc_read_reg(fsz_reg[plane]), 10, 0);
-		else
-			BUG();
+	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
+	for (plane = 0; plane < ARRAY_SIZE(dispc.fifo_size); ++plane) {
+		size = FLD_GET(dispc_read_reg(fsz_reg[plane]), start, end);
 		dispc.fifo_size[plane] = size;
 	}
 
@@ -976,6 +974,8 @@ void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high)
 	const struct dispc_reg ftrs_reg[] = { DISPC_GFX_FIFO_THRESHOLD,
 				       DISPC_VID_FIFO_THRESHOLD(0),
 				       DISPC_VID_FIFO_THRESHOLD(1) };
+	u8 hi_start, hi_end, lo_start, lo_end;
+
 	enable_clocks(1);
 
 	DSSDBG("fifo(%d) low/high old %u/%u, new %u/%u\n",
@@ -984,12 +984,12 @@ void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high)
 			REG_GET(ftrs_reg[plane], 27, 16),
 			low, high);
 
-	if (cpu_is_omap24xx())
-		dispc_write_reg(ftrs_reg[plane],
-				FLD_VAL(high, 24, 16) | FLD_VAL(low, 8, 0));
-	else
-		dispc_write_reg(ftrs_reg[plane],
-				FLD_VAL(high, 27, 16) | FLD_VAL(low, 11, 0));
+	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
+	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
+
+	dispc_write_reg(ftrs_reg[plane],
+			FLD_VAL(high, hi_start, hi_end) |
+			FLD_VAL(low, lo_start, lo_end));
 
 	enable_clocks(0);
 }
@@ -1009,13 +1009,16 @@ static void _dispc_set_fir(enum omap_plane plane, int hinc, int vinc)
 	u32 val;
 	const struct dispc_reg fir_reg[] = { DISPC_VID_FIR(0),
 				      DISPC_VID_FIR(1) };
+	u8 hinc_start, hinc_end, vinc_start, vinc_end;
 
 	BUG_ON(plane == OMAP_DSS_GFX);
 
-	if (cpu_is_omap24xx())
-		val = FLD_VAL(vinc, 27, 16) | FLD_VAL(hinc, 11, 0);
-	else
-		val = FLD_VAL(vinc, 28, 16) | FLD_VAL(hinc, 12, 0);
+	dss_feat_get_reg_field(FEAT_REG_FIRHINC, &hinc_start, &hinc_end);
+	dss_feat_get_reg_field(FEAT_REG_FIRVINC, &vinc_start, &vinc_end);
+
+	val = FLD_VAL(vinc, vinc_start, vinc_end) |
+			FLD_VAL(hinc, hinc_start, hinc_end);
+
 	dispc_write_reg(fir_reg[plane-1], val);
 }
 
@@ -1541,6 +1544,8 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		case OMAP_DSS_COLOR_ARGB16:
 		case OMAP_DSS_COLOR_ARGB32:
 		case OMAP_DSS_COLOR_RGBA32:
+			if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+				return -EINVAL;
 		case OMAP_DSS_COLOR_RGBX32:
 			if (cpu_is_omap24xx())
 				return -EINVAL;
@@ -1581,9 +1586,10 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		case OMAP_DSS_COLOR_ARGB16:
 		case OMAP_DSS_COLOR_ARGB32:
 		case OMAP_DSS_COLOR_RGBA32:
-			if (cpu_is_omap24xx())
+			if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 				return -EINVAL;
-			if (plane == OMAP_DSS_VIDEO1)
+			if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+					plane == OMAP_DSS_VIDEO1)
 				return -EINVAL;
 			break;
 
@@ -1976,7 +1982,7 @@ void dispc_enable_trans_key(enum omap_channel ch, bool enable)
 }
 void dispc_enable_alpha_blending(enum omap_channel ch, bool enable)
 {
-	if (cpu_is_omap24xx())
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return;
 
 	enable_clocks(1);
@@ -1990,7 +1996,7 @@ bool dispc_alpha_blending_enabled(enum omap_channel ch)
 {
 	bool enabled;
 
-	if (cpu_is_omap24xx())
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return false;
 
 	enable_clocks(1);
