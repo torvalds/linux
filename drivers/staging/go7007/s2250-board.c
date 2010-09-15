@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-subdev.h>
 #include "go7007-priv.h"
 
@@ -675,9 +674,25 @@ static const struct i2c_device_id s2250_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, s2250_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "s2250",
-	.probe = s2250_probe,
-	.remove = s2250_remove,
-	.id_table = s2250_id,
+static struct i2c_driver s2250_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "s2250",
+	},
+	.probe		= s2250_probe,
+	.remove		= s2250_remove,
+	.id_table	= s2250_id,
 };
+
+static __init int init_s2250(void)
+{
+	return i2c_add_driver(&s2250_driver);
+}
+
+static __exit void exit_s2250(void)
+{
+	i2c_del_driver(&s2250_driver);
+}
+
+module_init(init_s2250);
+module_exit(exit_s2250);
