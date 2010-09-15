@@ -486,17 +486,6 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer);
 
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_predefined_warning(const char *module_name,
-			   u32 line_number,
-			   char *pathname,
-			   u8 node_flags, const char *format, ...);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_predefined_info(const char *module_name,
-			u32 line_number,
-			char *pathname, u8 node_flags, const char *format, ...);
-
 /* Values for Base above (16=Hex, 10=Decimal) */
 
 #define ACPI_ANY_BASE        0
@@ -587,6 +576,32 @@ acpi_status
 acpi_ut_create_list(char *list_name,
 		    u16 object_size, struct acpi_memory_list **return_cache);
 
-#endif
+#endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
+
+/*
+ * utxferror - various error/warning output functions
+ */
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_warning(const char *module_name,
+			   u32 line_number,
+			   char *pathname,
+			   u8 node_flags, const char *format, ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_info(const char *module_name,
+			u32 line_number,
+			char *pathname, u8 node_flags, const char *format, ...);
+
+void
+acpi_ut_namespace_error(const char *module_name,
+			u32 line_number,
+			const char *internal_name, acpi_status lookup_status);
+
+void
+acpi_ut_method_error(const char *module_name,
+		     u32 line_number,
+		     const char *message,
+		     struct acpi_namespace_node *node,
+		     const char *path, acpi_status lookup_status);
 
 #endif				/* _ACUTILS_H */
