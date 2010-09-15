@@ -1673,6 +1673,15 @@ static int alc_read_coef_idx(struct hda_codec *codec,
 	return val;
 }
 
+static void alc_write_coef_idx(struct hda_codec *codec, unsigned int coef_idx,
+							unsigned int coef_val)
+{
+	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX,
+			    coef_idx);
+	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_PROC_COEF,
+			    coef_val);
+}
+
 /* set right pin controls for digital I/O */
 static void alc_auto_init_digital(struct hda_codec *codec)
 {
@@ -14598,6 +14607,68 @@ static void alc269_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static int alc269_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	struct alc_spec *spec = codec->spec;
+	int val;
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017) {
+		val = alc_read_coef_idx(codec, 0x04);
+		/* Power down output pin */
+		alc_write_coef_idx(codec, 0x04, val & ~(1<<11));
+	}
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+		val = alc_read_coef_idx(codec, 0x04);
+		/* Power down output pin */
+		alc_write_coef_idx(codec, 0x04, val & ~(1<<11));
+		msleep(150);
+	}
+
+	alc_shutup(codec);
+	if (spec && spec->power_hook)
+		spec->power_hook(codec);
+	return 0;
+}
+#endif
+#ifdef SND_HDA_NEEDS_RESUME
+static int alc269_resume(struct hda_codec *codec)
+{
+	int val;
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+		val = alc_read_coef_idx(codec, 0x04);
+		/* Power down output pin */
+		alc_write_coef_idx(codec, 0x04, val & ~(1<<11));
+		msleep(150);
+	}
+
+	codec->patch_ops.init(codec);
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017) {
+		val = alc_read_coef_idx(codec, 0x04);
+		/* Power up output pin */
+		alc_write_coef_idx(codec, 0x04, val | (1<<11));
+		msleep(200);
+	}
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+		val = alc_read_coef_idx(codec, 0x04);
+		/* Power up output pin */
+		alc_write_coef_idx(codec, 0x04, val | (1<<11));
+	}
+
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (codec->patch_ops.check_power_status)
+		codec->patch_ops.check_power_status(codec, 0x01);
+#endif
+	return 0;
+}
+#endif
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 };
@@ -14814,6 +14885,41 @@ static struct alc_config_preset alc269_presets[] = {
 	},
 };
 
+static int alc269_fill_coef(struct hda_codec *codec)
+{
+	int val;
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) < 0x015) {
+		alc_write_coef_idx(codec, 0xf, 0x960b);
+		alc_write_coef_idx(codec, 0xe, 0x8817);
+	}
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x016) {
+		alc_write_coef_idx(codec, 0xf, 0x960b);
+		alc_write_coef_idx(codec, 0xe, 0x8814);
+	}
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017) {
+		val = alc_read_coef_idx(codec, 0x04);
+		/* Power up output pin */
+		alc_write_coef_idx(codec, 0x04, val | (1<<11));
+	}
+
+	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+		val = alc_read_coef_idx(codec, 0xd);
+		if ((val & 0x0c00) >> 10 != 0x1) {
+			/* Capless ramp up clock control */
+			alc_write_coef_idx(codec, 0xd, val | 1<<10);
+		}
+		val = alc_read_coef_idx(codec, 0x17);
+		if ((val & 0x01c0) >> 6 != 0x4) {
+			/* Class D power on reset */
+			alc_write_coef_idx(codec, 0x17, val | 1<<7);
+		}
+	}
+	return 0;
+}
+
 static int patch_alc269(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
@@ -14838,6 +14944,8 @@ static int patch_alc269(struct hda_codec *codec)
 		is_alc269vb = 1;
 	} else
 		alc_fix_pll_init(codec, 0x20, 0x04, 15);
+
+	alc269_fill_coef(codec);
 
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
 						  alc269_models,
@@ -14917,6 +15025,12 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	codec->patch_ops.suspend = alc269_suspend;
+#endif
+#ifdef SND_HDA_NEEDS_RESUME
+	codec->patch_ops.resume = alc269_resume;
+#endif
 	if (board_config == ALC269_AUTO)
 		spec->init_hook = alc269_auto_init;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
