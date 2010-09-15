@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2009 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
  * All rights reserved
  * www.brocade.com
  *
@@ -15,22 +15,15 @@
  * General Public License for more details.
  */
 
-#include <bfa.h>
-#include <bfa_ioc.h>
-#include <bfa_fwimg_priv.h>
-#include <cna/bfa_cna_trcmod.h>
-#include <cs/bfa_debug.h>
-#include <bfi/bfi_ioc.h>
-#include <bfi/bfi_cbreg.h>
-#include <log/bfa_log_hal.h>
-#include <defs/bfa_defs_pci.h>
+#include "bfa_ioc.h"
+#include "bfi_cbreg.h"
+#include "bfa_defs.h"
 
 BFA_TRC_FILE(CNA, IOC_CB);
 
 /*
  * forward declarations
  */
-static bfa_status_t bfa_ioc_cb_pll_init(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc);
@@ -95,6 +88,7 @@ static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
  * Host <-> LPU mailbox command/status registers
  */
 static struct { u32 hfn, lpu; } iocreg_mbcmd[] = {
+
 	{ HOSTFN0_LPU0_CMD_STAT, LPU0_HOSTFN0_CMD_STAT },
 	{ HOSTFN1_LPU1_CMD_STAT, LPU1_HOSTFN1_CMD_STAT }
 };
@@ -154,6 +148,7 @@ bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc)
 /**
  * Initialize IOC to port mapping.
  */
+
 static void
 bfa_ioc_cb_map_port(struct bfa_ioc_s *ioc)
 {
@@ -161,6 +156,7 @@ bfa_ioc_cb_map_port(struct bfa_ioc_s *ioc)
 	 * For crossbow, port id is same as pci function.
 	 */
 	ioc->port_id = bfa_ioc_pcifn(ioc);
+
 	bfa_trc(ioc, ioc->port_id);
 }
 
@@ -170,75 +166,6 @@ bfa_ioc_cb_map_port(struct bfa_ioc_s *ioc)
 static void
 bfa_ioc_cb_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 {
-}
-
-static bfa_status_t
-bfa_ioc_cb_pll_init(struct bfa_ioc_s *ioc)
-{
-	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
-	u32	pll_sclk, pll_fclk;
-
-	/*
-	 *  Hold semaphore so that nobody can access the chip during init.
-	 */
-	bfa_ioc_sem_get(ioc->ioc_regs.ioc_init_sem_reg);
-
-	pll_sclk = __APP_PLL_212_ENABLE | __APP_PLL_212_LRESETN |
-			__APP_PLL_212_P0_1(3U) |
-			__APP_PLL_212_JITLMT0_1(3U) |
-			__APP_PLL_212_CNTLMT0_1(3U);
-	pll_fclk = __APP_PLL_400_ENABLE | __APP_PLL_400_LRESETN |
-			__APP_PLL_400_RSEL200500 | __APP_PLL_400_P0_1(3U) |
-			__APP_PLL_400_JITLMT0_1(3U) |
-			__APP_PLL_400_CNTLMT0_1(3U);
-
-	bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_UNINIT);
-	bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_UNINIT);
-
-	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
-
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-			__APP_PLL_212_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-			__APP_PLL_212_BYPASS |
-			__APP_PLL_212_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-			__APP_PLL_400_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-			__APP_PLL_400_BYPASS |
-			__APP_PLL_400_LOGIC_SOFT_RESET);
-	bfa_os_udelay(2);
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-			__APP_PLL_212_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-			__APP_PLL_400_LOGIC_SOFT_RESET);
-
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-			pll_sclk | __APP_PLL_212_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-			pll_fclk | __APP_PLL_400_LOGIC_SOFT_RESET);
-
-	/**
-	 * Wait for PLLs to lock.
-	 */
-	bfa_os_udelay(2000);
-	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
-	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
-
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk);
-
-	/*
-	 *  release semaphore.
-	 */
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_init_sem_reg);
-
-	return BFA_STATUS_OK;
 }
 
 /**
@@ -255,4 +182,55 @@ bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc)
 	 */
 	bfa_reg_read(ioc->ioc_regs.ioc_sem_reg);
 	bfa_ioc_hw_sem_release(ioc);
+}
+
+
+
+bfa_status_t
+bfa_ioc_cb_pll_init(bfa_os_addr_t rb, bfa_boolean_t fcmode)
+{
+	u32	pll_sclk, pll_fclk;
+
+	pll_sclk = __APP_PLL_212_ENABLE | __APP_PLL_212_LRESETN |
+		__APP_PLL_212_P0_1(3U) |
+		__APP_PLL_212_JITLMT0_1(3U) |
+		__APP_PLL_212_CNTLMT0_1(3U);
+	pll_fclk = __APP_PLL_400_ENABLE | __APP_PLL_400_LRESETN |
+		__APP_PLL_400_RSEL200500 | __APP_PLL_400_P0_1(3U) |
+		__APP_PLL_400_JITLMT0_1(3U) |
+		__APP_PLL_400_CNTLMT0_1(3U);
+	bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_UNINIT);
+	bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_UNINIT);
+	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
+	bfa_reg_write(rb + APP_PLL_212_CTL_REG,
+			  __APP_PLL_212_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_212_CTL_REG,
+			  __APP_PLL_212_BYPASS |
+			  __APP_PLL_212_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
+			  __APP_PLL_400_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
+			  __APP_PLL_400_BYPASS |
+			  __APP_PLL_400_LOGIC_SOFT_RESET);
+	bfa_os_udelay(2);
+	bfa_reg_write(rb + APP_PLL_212_CTL_REG,
+			  __APP_PLL_212_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
+			  __APP_PLL_400_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_212_CTL_REG,
+			  pll_sclk | __APP_PLL_212_LOGIC_SOFT_RESET);
+	bfa_reg_write(rb + APP_PLL_400_CTL_REG,
+			  pll_fclk | __APP_PLL_400_LOGIC_SOFT_RESET);
+	bfa_os_udelay(2000);
+	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
+	bfa_reg_write((rb + APP_PLL_212_CTL_REG), pll_sclk);
+	bfa_reg_write((rb + APP_PLL_400_CTL_REG), pll_fclk);
+
+	return BFA_STATUS_OK;
 }
