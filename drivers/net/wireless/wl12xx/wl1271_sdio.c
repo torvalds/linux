@@ -29,13 +29,11 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
 #include <linux/gpio.h>
+#include <linux/wl12xx.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
 #include "wl1271_io.h"
-
-
-#define RX71_WL1271_IRQ_GPIO		42
 
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x0097
@@ -208,6 +206,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
 {
 	struct ieee80211_hw *hw;
+	const struct wl12xx_platform_data *wlan_data;
 	struct wl1271 *wl;
 	int ret;
 
@@ -227,12 +226,14 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
 
-	wl->irq = gpio_to_irq(RX71_WL1271_IRQ_GPIO);
-	if (wl->irq < 0) {
-		ret = wl->irq;
-		wl1271_error("could not get irq!");
+	wlan_data = wl12xx_get_platform_data();
+	if (IS_ERR(wlan_data)) {
+		ret = PTR_ERR(wlan_data);
+		wl1271_error("missing wlan platform data: %d", ret);
 		goto out_free;
 	}
+
+	wl->irq = wlan_data->irq;
 
 	ret = request_irq(wl->irq, wl1271_irq, 0, DRIVER_NAME, wl);
 	if (ret < 0) {
