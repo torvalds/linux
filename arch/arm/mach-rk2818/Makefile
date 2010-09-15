@@ -10,4 +10,4 @@ obj-$(CONFIG_MACH_RK2818MID) += board-midsdk.o
 obj-$(CONFIG_MACH_RK2818PHONE) += board-phonesdk.o
 obj-$(CONFIG_MACH_RAHO) += board-raho.o board-raho-rfkill.o
 obj-$(CONFIG_MACH_RK2818INFO) += board-infosdk.o board-infosdk-rfkill.o 
-obj-$(CONFIG_MACH_RK2818INFO_IT50) += board-infoit50.o board-infosdk-rfkill.o 
+obj-$(CONFIG_MACH_RK2818INFO_IT50) += board-infoit50.o board-infoit50-rfkill.o 

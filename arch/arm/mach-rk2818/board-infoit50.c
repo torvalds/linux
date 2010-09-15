@@ -232,7 +232,7 @@ static int info_wifi_status_register(void (*callback)(int card_present, void *de
  	return 0;
 }
 
-#define INFO_WIFI_GPIO_POWER_N  TCA6424_P01
+#define INFO_WIFI_GPIO_POWER_N  TCA6424_P00
 #define INFO_WIFI_GPIO_RESET_N  TCA6424_P00 
 
 int info_wifi_power_state = 0;
@@ -244,16 +244,11 @@ static int info_wifi_power(int on)
 	if (on){
 		gpio_set_value(INFO_WIFI_GPIO_POWER_N, on);
 		mdelay(100);
-		pr_info("wifi turn on power\n");
+		pr_info("wifi turn on power and reset deactive\n");
 	}else{
-		if (!info_bt_power_state){
-			gpio_set_value(INFO_WIFI_GPIO_POWER_N, on);	
-			mdelay(100);
-			pr_info("wifi shut off power\n");
-		}else
-		{
-			pr_info("wifi shouldn't shut off power, bt is using it!\n"); 
-		}
+		gpio_set_value(INFO_WIFI_GPIO_POWER_N, on);	
+		mdelay(100);
+		pr_info("wifi shut off power and reset active\n");
 
 	}
 
@@ -264,9 +259,7 @@ static int info_wifi_power(int on)
 static int info_wifi_reset_state;
 static int info_wifi_reset(int on)
 {
-	pr_info("%s: %d\n", __func__, on);
-	gpio_set_value(INFO_WIFI_GPIO_RESET_N, on);
-	mdelay(100);
+	pr_info("%s: do nothing\n", __func__);
 	info_wifi_reset_state = on;
 	return 0;
 }
@@ -298,7 +291,7 @@ static struct platform_device info_wifi_device = {
 
 /* bluetooth rfkill device */
 static struct platform_device info_rfkill = {
-	.name = "info_rfkill",
+	.name = "infoit50_rfkill",
 	.id = -1,
 };
  
@@ -354,12 +347,12 @@ struct pca9554_platform_data rk2818_pca9554_data={
 #if defined (CONFIG_IOEXTEND_TCA6424)
 struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 	{
-		.gpio_num			= TCA6424_P00,  //wifi reset
+		.gpio_num			= TCA6424_P00,  //wifi power and reset together
 		.pin_type			= GPIO_OUT,
 		.pin_value			= GPIO_LOW,
 	},
 	{
-		.gpio_num			= TCA6424_P01,  //wifi reg on
+		.gpio_num			= TCA6424_P01,  //bt reg on
 		.pin_type			= GPIO_OUT,
 		.pin_value			= GPIO_LOW,
 	},
@@ -394,6 +387,11 @@ struct rk2818_gpio_expander_info  extgpio_tca6424_settinginfo[] = {
 		.gpio_num    		= TCA6424_P12,// 3G PowerOn
 		.pin_type           = GPIO_OUT,
 		.pin_value			=GPIO_HIGH,
+	},
+	{
+		.gpio_num        	= TCA6424_P14,
+		.pin_type 		= GPIO_OUT,
+		.pin_value 		= GPIO_LOW,
 	},
 	{
 		.gpio_num    		= TCA6424_P17,// 3G reset
