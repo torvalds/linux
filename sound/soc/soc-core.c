@@ -323,6 +323,34 @@ static const struct file_operations dai_list_fops = {
 	.llseek = default_llseek,/* read accesses f_pos */
 };
 
+static ssize_t platform_list_read_file(struct file *file,
+				       char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	ssize_t ret = 0;
+	struct snd_soc_platform *platform;
+
+	if (!buf)
+		return -ENOMEM;
+
+	list_for_each_entry(platform, &platform_list, list)
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
+				platform->name);
+
+	if (ret >= 0)
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+
+	kfree(buf);
+
+	return ret;
+}
+
+static const struct file_operations platform_list_fops = {
+	.read = platform_list_read_file,
+	.llseek = default_llseek,/* read accesses f_pos */
+};
+
 #else
 
 static inline void soc_init_codec_debugfs(struct snd_soc_codec *codec)
@@ -3252,6 +3280,10 @@ static int __init snd_soc_init(void)
 	if (!debugfs_create_file("dais", 0444, debugfs_root, NULL,
 				 &dai_list_fops))
 		pr_warn("ASoC: Failed to create DAI list debugfs file\n");
+
+	if (!debugfs_create_file("platforms", 0444, debugfs_root, NULL,
+				 &platform_list_fops))
+		pr_warn("ASoC: Failed to create platform list debugfs file\n");
 #endif
 
 	return platform_driver_register(&soc_driver);
