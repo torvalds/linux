@@ -90,7 +90,7 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= (memblock_end_of_DRAM() - 1);
+	return mask >= get_dma_offset(dev) + (memblock_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif
