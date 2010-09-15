@@ -769,19 +769,14 @@ static int video_open(struct file *file)
 		break;
 	}
 
-	lock_kernel();
-
-	core = dev->core;
-
 	dprintk(1, "open dev=%s radio=%d type=%s\n",
 		video_device_node_name(vdev), radio, v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (unlikely(!fh))
 		return -ENOMEM;
-	}
+
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -789,6 +784,9 @@ static int video_open(struct file *file)
 	fh->width    = 320;
 	fh->height   = 240;
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
+
+	mutex_lock(&core->lock);
+	core = dev->core;
 
 	videobuf_queue_sg_init(&fh->vidq, &cx8800_video_qops,
 			    &dev->pci->dev, &dev->slock,
@@ -826,9 +824,9 @@ static int video_open(struct file *file)
 		}
 		call_all(core, tuner, s_radio);
 	}
-	unlock_kernel();
 
 	atomic_inc(&core->users);
+	mutex_unlock(&core->lock);
 
 	return 0;
 }
@@ -920,10 +918,11 @@ static int video_release(struct file *file)
 
 	videobuf_mmap_free(&fh->vidq);
 	videobuf_mmap_free(&fh->vbiq);
+
+	mutex_lock(&dev->core->lock);
 	file->private_data = NULL;
 	kfree(fh);
 
-	mutex_lock(&dev->core->lock);
 	if(atomic_dec_and_test(&dev->core->users))
 		call_all(dev->core, core, s_power, 0);
 	mutex_unlock(&dev->core->lock);
