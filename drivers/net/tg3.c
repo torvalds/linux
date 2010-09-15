@@ -8827,15 +8827,8 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
 	tp->dev->real_num_tx_queues = 1;
-	if (tp->irq_cnt > 1) {
+	if (tp->irq_cnt > 1)
 		tp->tg3_flags3 |= TG3_FLG3_ENABLE_RSS;
-
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719) {
-			tp->tg3_flags3 |= TG3_FLG3_ENABLE_TSS;
-			tp->dev->real_num_tx_queues = tp->irq_cnt - 1;
-		}
-	}
 
 	return true;
 }
