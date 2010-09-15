@@ -12415,14 +12415,18 @@ skip_phy_reset:
 
 static void __devinit tg3_read_vpd(struct tg3 *tp)
 {
-	u8 vpd_data[TG3_NVM_VPD_LEN];
+	u8 *vpd_data;
 	unsigned int block_end, rosize, len;
 	int j, i = 0;
 	u32 magic;
 
 	if ((tp->tg3_flags3 & TG3_FLG3_NO_NVRAM) ||
 	    tg3_nvram_read(tp, 0x0, &magic))
-		goto out_not_found;
+		goto out_no_vpd;
+
+	vpd_data = kmalloc(TG3_NVM_VPD_LEN, GFP_KERNEL);
+	if (!vpd_data)
+		goto out_no_vpd;
 
 	if (magic == TG3_EEPROM_MAGIC) {
 		for (i = 0; i < TG3_NVM_VPD_LEN; i += 4) {
@@ -12506,9 +12510,12 @@ partno:
 
 	memcpy(tp->board_part_number, &vpd_data[i], len);
 
-	return;
-
 out_not_found:
+	kfree(vpd_data);
+	if (!tp->board_part_number[0])
+		return;
+
+out_no_vpd:
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		strcpy(tp->board_part_number, "BCM95906");
 	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 &&
