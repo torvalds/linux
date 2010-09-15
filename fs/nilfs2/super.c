@@ -556,7 +556,6 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
-	int option;
 
 	if (!options)
 		return 1;
@@ -594,8 +593,6 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 			nilfs_write_opt(sbi, ERROR_MODE, ERRORS_CONT);
 			break;
 		case Opt_snapshot:
-			if (match_int(&args[0], &option) || option <= 0)
-				return 0;
 			if (is_remount) {
 				printk(KERN_ERR
 				       "NILFS: \"%s\" option is invalid "
@@ -1065,7 +1062,7 @@ static int nilfs_identify(char *data, struct nilfs_super_data *sd)
 {
 	char *p, *options = data;
 	substring_t args[MAX_OPT_ARGS];
-	int option, token;
+	int token;
 	int ret = 0;
 
 	do {
@@ -1073,16 +1070,18 @@ static int nilfs_identify(char *data, struct nilfs_super_data *sd)
 		if (p != NULL && *p) {
 			token = match_token(p, tokens, args);
 			if (token == Opt_snapshot) {
-				if (!(sd->flags & MS_RDONLY))
+				if (!(sd->flags & MS_RDONLY)) {
 					ret++;
-				else {
-					ret = match_int(&args[0], &option);
-					if (!ret) {
-						if (option > 0)
-							sd->cno = option;
-						else
-							ret++;
-					}
+				} else {
+					sd->cno = simple_strtoull(args[0].from,
+								  NULL, 0);
+					/*
+					 * No need to see the end pointer;
+					 * match_token() has done syntax
+					 * checking.
+					 */
+					if (sd->cno == 0)
+						ret++;
 				}
 			}
 			if (ret)
