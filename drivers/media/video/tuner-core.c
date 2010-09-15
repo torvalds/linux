@@ -20,7 +20,6 @@
 #include <media/tuner-types.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv.h>
 #include "mt20xx.h"
 #include "tda8290.h"
 #include "tea5761.h"
@@ -1176,15 +1175,31 @@ static const struct i2c_device_id tuner_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tuner_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tuner",
-	.probe = tuner_probe,
-	.remove = tuner_remove,
-	.command = tuner_command,
-	.suspend = tuner_suspend,
-	.resume = tuner_resume,
-	.id_table = tuner_id,
+static struct i2c_driver tuner_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tuner",
+	},
+	.probe		= tuner_probe,
+	.remove		= tuner_remove,
+	.command	= tuner_command,
+	.suspend	= tuner_suspend,
+	.resume		= tuner_resume,
+	.id_table	= tuner_id,
 };
+
+static __init int init_tuner(void)
+{
+	return i2c_add_driver(&tuner_driver);
+}
+
+static __exit void exit_tuner(void)
+{
+	i2c_del_driver(&tuner_driver);
+}
+
+module_init(init_tuner);
+module_exit(exit_tuner);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
