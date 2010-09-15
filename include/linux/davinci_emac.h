@@ -14,6 +14,10 @@
 #include <linux/if_ether.h>
 #include <linux/memory.h>
 
+struct mdio_platform_data {
+	unsigned long		bus_freq;
+};
+
 struct emac_platform_data {
 	char mac_addr[ETH_ALEN];
 	u32 ctrl_reg_offset;
