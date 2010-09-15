@@ -27,11 +27,9 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("vp27smpx driver");
 MODULE_AUTHOR("Hans Verkuil");
@@ -200,9 +198,25 @@ static const struct i2c_device_id vp27smpx_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, vp27smpx_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "vp27smpx",
-	.probe = vp27smpx_probe,
-	.remove = vp27smpx_remove,
-	.id_table = vp27smpx_id,
+static struct i2c_driver vp27smpx_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "vp27smpx",
+	},
+	.probe		= vp27smpx_probe,
+	.remove		= vp27smpx_remove,
+	.id_table	= vp27smpx_id,
 };
+
+static __init int init_vp27smpx(void)
+{
+	return i2c_add_driver(&vp27smpx_driver);
+}
+
+static __exit void exit_vp27smpx(void)
+{
+	i2c_del_driver(&vp27smpx_driver);
+}
+
+module_init(init_vp27smpx);
+module_exit(exit_vp27smpx);
