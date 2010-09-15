@@ -809,7 +809,7 @@ static int loopback_channels_get(struct snd_kcontrol *kcontrol,
 	
 	ucontrol->value.integer.value[0] =
 		loopback->setup[kcontrol->id.subdevice]
-			       [kcontrol->id.device].rate;
+			       [kcontrol->id.device].channels;
 	return 0;
 }
 
