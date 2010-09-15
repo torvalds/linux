@@ -128,6 +128,27 @@ blkio_update_group_weight(struct blkio_group *blkg, unsigned int weight)
 	}
 }
 
+static inline void blkio_update_group_bps(struct blkio_group *blkg, u64 bps,
+				int fileid)
+{
+	struct blkio_policy_type *blkiop;
+
+	list_for_each_entry(blkiop, &blkio_list, list) {
+
+		/* If this policy does not own the blkg, do not send updates */
+		if (blkiop->plid != blkg->plid)
+			continue;
+
+		if (fileid == BLKIO_THROTL_read_bps_device
+		    && blkiop->ops.blkio_update_group_read_bps_fn)
+			blkiop->ops.blkio_update_group_read_bps_fn(blkg, bps);
+
+		if (fileid == BLKIO_THROTL_write_bps_device
+		    && blkiop->ops.blkio_update_group_write_bps_fn)
+			blkiop->ops.blkio_update_group_write_bps_fn(blkg, bps);
+	}
+}
+
 /*
  * Add to the appropriate stat variable depending on the request type.
  * This should be called with the blkg->stats_lock held.
@@ -612,6 +633,7 @@ static int blkio_policy_parse_and_set(char *buf,
 	unsigned long major, minor, temp;
 	int i = 0;
 	dev_t dev;
+	u64 bps;
 
 	memset(s, 0, sizeof(s));
 
@@ -667,7 +689,16 @@ static int blkio_policy_parse_and_set(char *buf,
 
 		newpn->plid = plid;
 		newpn->fileid = fileid;
-		newpn->weight = temp;
+		newpn->val.weight = temp;
+		break;
+	case BLKIO_POLICY_THROTL:
+		ret = strict_strtoull(s[1], 10, &bps);
+		if (ret)
+			return -EINVAL;
+
+		newpn->plid = plid;
+		newpn->fileid = fileid;
+		newpn->val.bps = bps;
 		break;
 	default:
 		BUG();
@@ -684,18 +715,45 @@ unsigned int blkcg_get_weight(struct blkio_cgroup *blkcg,
 	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_PROP,
 				BLKIO_PROP_weight_device);
 	if (pn)
-		return pn->weight;
+		return pn->val.weight;
 	else
 		return blkcg->weight;
 }
 EXPORT_SYMBOL_GPL(blkcg_get_weight);
+
+uint64_t blkcg_get_read_bps(struct blkio_cgroup *blkcg, dev_t dev)
+{
+	struct blkio_policy_node *pn;
+
+	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_read_bps_device);
+	if (pn)
+		return pn->val.bps;
+	else
+		return -1;
+}
+
+uint64_t blkcg_get_write_bps(struct blkio_cgroup *blkcg, dev_t dev)
+{
+	struct blkio_policy_node *pn;
+	pn = blkio_policy_search_node(blkcg, dev, BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_write_bps_device);
+	if (pn)
+		return pn->val.bps;
+	else
+		return -1;
+}
 
 /* Checks whether user asked for deleting a policy rule */
 static bool blkio_delete_rule_command(struct blkio_policy_node *pn)
 {
 	switch(pn->plid) {
 	case BLKIO_POLICY_PROP:
-		if (pn->weight == 0)
+		if (pn->val.weight == 0)
+			return 1;
+		break;
+	case BLKIO_POLICY_THROTL:
+		if (pn->val.bps == 0)
 			return 1;
 		break;
 	default:
@@ -710,7 +768,10 @@ static void blkio_update_policy_rule(struct blkio_policy_node *oldpn,
 {
 	switch(oldpn->plid) {
 	case BLKIO_POLICY_PROP:
-		oldpn->weight = newpn->weight;
+		oldpn->val.weight = newpn->val.weight;
+		break;
+	case BLKIO_POLICY_THROTL:
+		oldpn->val.bps = newpn->val.bps;
 		break;
 	default:
 		BUG();
@@ -725,12 +786,22 @@ static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
 		struct blkio_group *blkg, struct blkio_policy_node *pn)
 {
 	unsigned int weight;
+	u64 bps;
 
 	switch(pn->plid) {
 	case BLKIO_POLICY_PROP:
-		weight = pn->weight ? pn->weight :
+		weight = pn->val.weight ? pn->val.weight :
 				blkcg->weight;
 		blkio_update_group_weight(blkg, weight);
+		break;
+	case BLKIO_POLICY_THROTL:
+		switch(pn->fileid) {
+		case BLKIO_THROTL_read_bps_device:
+		case BLKIO_THROTL_write_bps_device:
+			bps = pn->val.bps ? pn->val.bps : (-1);
+			blkio_update_group_bps(blkg, bps, pn->fileid);
+			break;
+		}
 		break;
 	default:
 		BUG();
@@ -826,7 +897,17 @@ blkio_print_policy_node(struct seq_file *m, struct blkio_policy_node *pn)
 		case BLKIO_POLICY_PROP:
 			if (pn->fileid == BLKIO_PROP_weight_device)
 				seq_printf(m, "%u:%u\t%u\n", MAJOR(pn->dev),
-					MINOR(pn->dev), pn->weight);
+					MINOR(pn->dev), pn->val.weight);
+			break;
+		case BLKIO_POLICY_THROTL:
+			if (pn->fileid == BLKIO_THROTL_read_bps_device)
+				seq_printf(m, "%u:%u\t%llu\n", MAJOR(pn->dev),
+					MINOR(pn->dev), pn->val.bps);
+			else if (pn->fileid == BLKIO_THROTL_write_bps_device)
+				seq_printf(m, "%u:%u\t%llu\n", MAJOR(pn->dev),
+					MINOR(pn->dev), pn->val.bps);
+			else
+				BUG();
 			break;
 		default:
 			BUG();
@@ -863,6 +944,16 @@ static int blkiocg_file_read(struct cgroup *cgrp, struct cftype *cft,
 	case BLKIO_POLICY_PROP:
 		switch(name) {
 		case BLKIO_PROP_weight_device:
+			blkio_read_policy_node_files(cft, blkcg, m);
+			return 0;
+		default:
+			BUG();
+		}
+		break;
+	case BLKIO_POLICY_THROTL:
+		switch(name){
+		case BLKIO_THROTL_read_bps_device:
+		case BLKIO_THROTL_write_bps_device:
 			blkio_read_policy_node_files(cft, blkcg, m);
 			return 0;
 		default:
@@ -959,7 +1050,18 @@ static int blkiocg_file_read_map(struct cgroup *cgrp, struct cftype *cft,
 			BUG();
 		}
 		break;
-
+	case BLKIO_POLICY_THROTL:
+		switch(name){
+		case BLKIO_THROTL_io_service_bytes:
+			return blkio_read_blkg_stats(blkcg, cft, cb,
+						BLKIO_STAT_SERVICE_BYTES, 1);
+		case BLKIO_THROTL_io_serviced:
+			return blkio_read_blkg_stats(blkcg, cft, cb,
+						BLKIO_STAT_SERVICED, 1);
+		default:
+			BUG();
+		}
+		break;
 	default:
 		BUG();
 	}
@@ -1053,6 +1155,23 @@ struct cftype blkio_files[] = {
 		.write_u64 = blkiocg_file_write_u64,
 	},
 	{
+		.name = "throttle.read_bps_device",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_read_bps_device),
+		.read_seq_string = blkiocg_file_read,
+		.write_string = blkiocg_file_write,
+		.max_write_len = 256,
+	},
+
+	{
+		.name = "throttle.write_bps_device",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_write_bps_device),
+		.read_seq_string = blkiocg_file_read,
+		.write_string = blkiocg_file_write,
+		.max_write_len = 256,
+	},
+	{
 		.name = "time",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
 				BLKIO_PROP_time),
@@ -1071,9 +1190,21 @@ struct cftype blkio_files[] = {
 		.read_map = blkiocg_file_read_map,
 	},
 	{
+		.name = "throttle.io_service_bytes",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_io_service_bytes),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
 		.name = "io_serviced",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
 				BLKIO_PROP_io_serviced),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "throttle.io_serviced",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_io_serviced),
 		.read_map = blkiocg_file_read_map,
 	},
 	{

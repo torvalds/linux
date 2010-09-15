@@ -17,6 +17,7 @@
 
 enum blkio_policy_id {
 	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
+	BLKIO_POLICY_THROTL,		/* Throttling */
 };
 
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
@@ -88,6 +89,14 @@ enum blkcg_file_name_prop {
 	BLKIO_PROP_dequeue,
 };
 
+/* cgroup files owned by throttle policy */
+enum blkcg_file_name_throtl {
+	BLKIO_THROTL_read_bps_device,
+	BLKIO_THROTL_write_bps_device,
+	BLKIO_THROTL_io_service_bytes,
+	BLKIO_THROTL_io_serviced,
+};
+
 struct blkio_cgroup {
 	struct cgroup_subsys_state css;
 	unsigned int weight;
@@ -146,23 +155,42 @@ struct blkio_group {
 struct blkio_policy_node {
 	struct list_head node;
 	dev_t dev;
-	unsigned int weight;
 	/* This node belongs to max bw policy or porportional weight policy */
 	enum blkio_policy_id plid;
 	/* cgroup file to which this rule belongs to */
 	int fileid;
+
+	union {
+		unsigned int weight;
+		/*
+		 * Rate read/write in terms of byptes per second
+		 * Whether this rate represents read or write is determined
+		 * by file type "fileid".
+		 */
+		u64 bps;
+	} val;
 };
 
 extern unsigned int blkcg_get_weight(struct blkio_cgroup *blkcg,
+				     dev_t dev);
+extern uint64_t blkcg_get_read_bps(struct blkio_cgroup *blkcg,
+				     dev_t dev);
+extern uint64_t blkcg_get_write_bps(struct blkio_cgroup *blkcg,
 				     dev_t dev);
 
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
 typedef void (blkio_update_group_weight_fn) (struct blkio_group *blkg,
 						unsigned int weight);
+typedef void (blkio_update_group_read_bps_fn) (struct blkio_group *blkg,
+						u64 read_bps);
+typedef void (blkio_update_group_write_bps_fn) (struct blkio_group *blkg,
+						u64 write_bps);
 
 struct blkio_policy_ops {
 	blkio_unlink_group_fn *blkio_unlink_group_fn;
 	blkio_update_group_weight_fn *blkio_update_group_weight_fn;
+	blkio_update_group_read_bps_fn *blkio_update_group_read_bps_fn;
+	blkio_update_group_write_bps_fn *blkio_update_group_write_bps_fn;
 };
 
 struct blkio_policy_type {
