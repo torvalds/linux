@@ -1296,9 +1296,9 @@ void ieee80211_recalc_smps(struct ieee80211_local *local,
 	int count = 0;
 
 	if (forsdata)
-		WARN_ON(!mutex_is_locked(&forsdata->u.mgd.mtx));
+		lockdep_assert_held(&forsdata->u.mgd.mtx);
 
-	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+	lockdep_assert_held(&local->iflist_mtx);
 
 	/*
 	 * This function could be improved to handle multiple

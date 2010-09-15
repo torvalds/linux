@@ -92,7 +92,7 @@ enum rx_mgmt_action {
 /* utils */
 static inline void ASSERT_MGD_MTX(struct ieee80211_if_managed *ifmgd)
 {
-	WARN_ON(!mutex_is_locked(&ifmgd->mtx));
+	lockdep_assert_held(&ifmgd->mtx);
 }
 
 /*

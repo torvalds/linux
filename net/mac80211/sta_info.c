@@ -280,7 +280,7 @@ static int sta_info_finish_insert(struct sta_info *sta, bool async)
 	unsigned long flags;
 	int err = 0;
 
-	WARN_ON(!mutex_is_locked(&local->sta_mtx));
+	lockdep_assert_held(&local->sta_mtx);
 
 	/* notify driver */
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
