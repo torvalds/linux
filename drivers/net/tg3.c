@@ -1917,19 +1917,16 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
  */
 static int tg3_phy_reset(struct tg3 *tp)
 {
-	u32 cpmuctrl;
-	u32 phy_status;
+	u32 val, cpmuctrl;
 	int err;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		u32 val;
-
 		val = tr32(GRC_MISC_CFG);
 		tw32_f(GRC_MISC_CFG, val & ~GRC_MISC_CFG_EPHY_IDDQ);
 		udelay(40);
 	}
-	err  = tg3_readphy(tp, MII_BMSR, &phy_status);
-	err |= tg3_readphy(tp, MII_BMSR, &phy_status);
+	err  = tg3_readphy(tp, MII_BMSR, &val);
+	err |= tg3_readphy(tp, MII_BMSR, &val);
 	if (err != 0)
 		return -EBUSY;
 
@@ -1961,18 +1958,14 @@ static int tg3_phy_reset(struct tg3 *tp)
 		return err;
 
 	if (cpmuctrl & CPMU_CTRL_GPHY_10MB_RXONLY) {
-		u32 phy;
-
-		phy = MII_TG3_DSP_EXP8_AEDW | MII_TG3_DSP_EXP8_REJ2MHz;
-		tg3_phydsp_write(tp, MII_TG3_DSP_EXP8, phy);
+		val = MII_TG3_DSP_EXP8_AEDW | MII_TG3_DSP_EXP8_REJ2MHz;
+		tg3_phydsp_write(tp, MII_TG3_DSP_EXP8, val);
 
 		tw32(TG3_CPMU_CTRL, cpmuctrl);
 	}
 
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5784_AX ||
 	    GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5761_AX) {
-		u32 val;
-
 		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
 		if ((val & CPMU_LSPD_1000MB_MACCLK_MASK) ==
 		    CPMU_LSPD_1000MB_MACCLK_12_5) {
@@ -2028,23 +2021,19 @@ out:
 		/* Cannot do read-modify-write on 5401 */
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4c20);
 	} else if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
-		u32 phy_reg;
-
 		/* Set bit 14 with read-modify-write to preserve other bits */
 		if (!tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0007) &&
-		    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &phy_reg))
-			tg3_writephy(tp, MII_TG3_AUX_CTRL, phy_reg | 0x4000);
+		    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &val))
+			tg3_writephy(tp, MII_TG3_AUX_CTRL, val | 0x4000);
 	}
 
 	/* Set phy register 0x10 bit 0 to high fifo elasticity to support
 	 * jumbo frames transmission.
 	 */
 	if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
-		u32 phy_reg;
-
-		if (!tg3_readphy(tp, MII_TG3_EXT_CTRL, &phy_reg))
+		if (!tg3_readphy(tp, MII_TG3_EXT_CTRL, &val))
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
-				     phy_reg | MII_TG3_EXT_CTRL_FIFO_ELASTIC);
+				     val | MII_TG3_EXT_CTRL_FIFO_ELASTIC);
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
@@ -3060,7 +3049,7 @@ static int tg3_adv_1000T_flowctrl_ok(struct tg3 *tp, u32 *lcladv, u32 *rmtadv)
 static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 {
 	int current_link_up;
-	u32 bmsr, dummy;
+	u32 bmsr, val;
 	u32 lcl_adv, rmt_adv;
 	u16 current_speed;
 	u8 current_duplex;
@@ -3140,8 +3129,8 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	}
 
 	/* Clear pending interrupts... */
-	tg3_readphy(tp, MII_TG3_ISTAT, &dummy);
-	tg3_readphy(tp, MII_TG3_ISTAT, &dummy);
+	tg3_readphy(tp, MII_TG3_ISTAT, &val);
+	tg3_readphy(tp, MII_TG3_ISTAT, &val);
 
 	if (tp->phy_flags & TG3_PHYFLG_USE_MI_INTERRUPT)
 		tg3_writephy(tp, MII_TG3_IMASK, ~MII_TG3_INT_LINKCHG);
@@ -3162,8 +3151,6 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	current_duplex = DUPLEX_INVALID;
 
 	if (tp->phy_flags & TG3_PHYFLG_CAPACITIVE_COUPLING) {
-		u32 val;
-
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4007);
 		tg3_readphy(tp, MII_TG3_AUX_CTRL, &val);
 		if (!(val & (1 << 10))) {
@@ -3238,13 +3225,11 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 
 relink:
 	if (current_link_up == 0 || (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
-		u32 tmp;
-
 		tg3_phy_copper_begin(tp);
 
-		tg3_readphy(tp, MII_BMSR, &tmp);
-		if (!tg3_readphy(tp, MII_BMSR, &tmp) &&
-		    (tmp & BMSR_LSTATUS))
+		tg3_readphy(tp, MII_BMSR, &bmsr);
+		if (!tg3_readphy(tp, MII_BMSR, &bmsr) &&
+		    (bmsr & BMSR_LSTATUS))
 			current_link_up = 1;
 	}
 
