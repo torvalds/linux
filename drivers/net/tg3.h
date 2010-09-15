@@ -1302,7 +1302,11 @@
 #define  RDMAC_STATUS_FIFOURUN		 0x00000080
 #define  RDMAC_STATUS_FIFOOREAD		 0x00000100
 #define  RDMAC_STATUS_LNGREAD		 0x00000200
-/* 0x4808 --> 0x4c00 unused */
+/* 0x4808 --> 0x4900 unused */
+
+#define TG3_RDMA_RSRVCTRL_REG		0x00004900
+#define TG3_RDMA_RSRVCTRL_FIFO_OFLW_FIX	 0x00000004
+/* 0x4904 --> 0x4c00 unused */
 
 /* Write DMA control registers */
 #define WDMAC_MODE			0x00004c00

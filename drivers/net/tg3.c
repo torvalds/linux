@@ -8015,6 +8015,16 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 		rdmac_mode |= RDMAC_MODE_IPV6_LSO_EN;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
+	    (tp->tg3_flags3 & TG3_FLG3_5717_PLUS)) {
+		val = tr32(TG3_RDMA_RSRVCTRL_REG);
+		tw32(TG3_RDMA_RSRVCTRL_REG,
+		     val | TG3_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
+	}
+
 	/* Receive/send statistics. */
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		val = tr32(RCVLPC_STATS_ENABLE);
