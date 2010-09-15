@@ -35,7 +35,6 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 #include <media/i2c-addr.h>
 
@@ -2079,9 +2078,25 @@ static const struct i2c_device_id tvaudio_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tvaudio_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tvaudio",
-	.probe = tvaudio_probe,
-	.remove = tvaudio_remove,
-	.id_table = tvaudio_id,
+static struct i2c_driver tvaudio_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tvaudio",
+	},
+	.probe		= tvaudio_probe,
+	.remove		= tvaudio_remove,
+	.id_table	= tvaudio_id,
 };
+
+static __init int init_tvaudio(void)
+{
+	return i2c_add_driver(&tvaudio_driver);
+}
+
+static __exit void exit_tvaudio(void)
+{
+	i2c_del_driver(&tvaudio_driver);
+}
+
+module_init(init_tvaudio);
+module_exit(exit_tvaudio);
