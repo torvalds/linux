@@ -4663,6 +4663,8 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 
 	if (flags & ACL_START) {
 		struct l2cap_hdr *hdr;
+		struct sock *sk;
+		u16 cid;
 		int len;
 
 		if (conn->rx_len) {
@@ -4681,6 +4683,7 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 
 		hdr = (struct l2cap_hdr *) skb->data;
 		len = __le16_to_cpu(hdr->len) + L2CAP_HDR_SIZE;
+		cid = __le16_to_cpu(hdr->cid);
 
 		if (len == skb->len) {
 			/* Complete frame received */
@@ -4696,6 +4699,19 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 			l2cap_conn_unreliable(conn, ECOMM);
 			goto drop;
 		}
+
+		sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
+
+		if (sk && l2cap_pi(sk)->imtu < len - L2CAP_HDR_SIZE) {
+			BT_ERR("Frame exceeding recv MTU (len %d, MTU %d)",
+					len, l2cap_pi(sk)->imtu);
+			bh_unlock_sock(sk);
+			l2cap_conn_unreliable(conn, ECOMM);
+			goto drop;
+		}
+
+		if (sk)
+			bh_unlock_sock(sk);
 
 		/* Allocate skb for the complete frame (with header) */
 		conn->rx_skb = bt_skb_alloc(len, GFP_ATOMIC);
