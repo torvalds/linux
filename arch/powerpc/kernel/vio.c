@@ -1254,8 +1254,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	if (device_register(&viodev->dev)) {
 		printk(KERN_ERR "%s: failed to register device %s\n",
 				__func__, dev_name(&viodev->dev));
-		/* XXX free TCE table */
-		kfree(viodev);
+		put_device(&viodev->dev);
 		return NULL;
 	}
 
