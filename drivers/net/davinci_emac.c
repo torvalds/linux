@@ -63,6 +63,8 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 
+#include "davinci_cpdma.h"
+
 static int debug_level;
 module_param(debug_level, int, 0);
 MODULE_PARM_DESC(debug_level, "DaVinci EMAC debug level (NETIF_MSG bits)");
@@ -113,6 +115,7 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define EMAC_DEF_MAX_FRAME_SIZE		(1500 + 14 + 4 + 4)
 #define EMAC_DEF_TX_CH			(0) /* Default 0th channel */
 #define EMAC_DEF_RX_CH			(0) /* Default 0th channel */
+#define EMAC_DEF_RX_NUM_DESC		(128)
 #define EMAC_DEF_MAX_TX_CH		(1) /* Max TX channels configured */
 #define EMAC_DEF_MAX_RX_CH		(1) /* Max RX channels configured */
 #define EMAC_POLL_WEIGHT		(64) /* Default NAPI poll weight */
@@ -460,6 +463,9 @@ struct emac_priv {
 	u32 hw_ram_addr;
 	struct emac_txch *txch[EMAC_DEF_MAX_TX_CH];
 	struct emac_rxch *rxch[EMAC_DEF_MAX_RX_CH];
+	struct cpdma_ctlr *dma;
+	struct cpdma_chan *txchan;
+	struct cpdma_chan *rxchan;
 	u32 link; /* 1=link on, 0=link off */
 	u32 speed; /* 0=Auto Neg, 1=No PHY, 10,100, 1000 - mbps */
 	u32 duplex; /* Link duplex: 0=Half, 1=Full */
@@ -624,6 +630,8 @@ static void emac_dump_regs(struct emac_priv *priv)
 		emac_read(EMAC_RXMOFOVERRUNS));
 	dev_info(emac_dev, "EMAC: rx_dma_overruns:%d\n",
 		emac_read(EMAC_RXDMAOVERRUNS));
+
+	cpdma_ctlr_dump(priv->dma);
 }
 
 /**
@@ -1151,6 +1159,70 @@ static irqreturn_t emac_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static struct sk_buff *emac_rx_alloc(struct emac_priv *priv)
+{
+	struct sk_buff *skb = dev_alloc_skb(priv->rx_buf_size);
+	if (WARN_ON(!skb))
+		return NULL;
+	skb->dev = priv->ndev;
+	skb_reserve(skb, NET_IP_ALIGN);
+	return skb;
+}
+
+static void emac_rx_handler(void *token, int len, int status)
+{
+	struct sk_buff		*skb = token;
+	struct net_device	*ndev = skb->dev;
+	struct emac_priv	*priv = netdev_priv(ndev);
+	struct device		*emac_dev = &ndev->dev;
+	int			ret;
+
+	/* free and bail if we are shutting down */
+	if (unlikely(!netif_running(ndev))) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	/* recycle on recieve error */
+	if (status < 0) {
+		ndev->stats.rx_errors++;
+		goto recycle;
+	}
+
+	/* feed received packet up the stack */
+	skb_put(skb, len);
+	skb->protocol = eth_type_trans(skb, ndev);
+	netif_receive_skb(skb);
+	ndev->stats.rx_bytes += len;
+	ndev->stats.rx_packets++;
+
+	/* alloc a new packet for receive */
+	skb = emac_rx_alloc(priv);
+	if (!skb) {
+		if (netif_msg_rx_err(priv) && net_ratelimit())
+			dev_err(emac_dev, "failed rx buffer alloc\n");
+		return;
+	}
+
+recycle:
+	ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
+			skb_tailroom(skb), GFP_KERNEL);
+	if (WARN_ON(ret < 0))
+		dev_kfree_skb_any(skb);
+}
+
+static void emac_tx_handler(void *token, int len, int status)
+{
+	struct sk_buff		*skb = token;
+	struct net_device	*ndev = skb->dev;
+
+	if (unlikely(netif_queue_stopped(ndev)))
+		netif_start_queue(ndev);
+	ndev->stats.tx_packets++;
+	ndev->stats.tx_bytes += len;
+	dev_kfree_skb_any(skb);
+}
+
 /** EMAC on-chip buffer descriptor memory
  *
  * WARNING: Please note that the on chip memory is used for both TX and RX
@@ -1532,42 +1604,36 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct device *emac_dev = &ndev->dev;
 	int ret_code;
-	struct emac_netbufobj tx_buf; /* buffer obj-only single frame support */
-	struct emac_netpktobj tx_packet;  /* packet object */
 	struct emac_priv *priv = netdev_priv(ndev);
 
 	/* If no link, return */
 	if (unlikely(!priv->link)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: No link to transmit");
-		return NETDEV_TX_BUSY;
+		goto fail_tx;
 	}
 
-	/* Build the buffer and packet objects - Since only single fragment is
-	 * supported, need not set length and token in both packet & object.
-	 * Doing so for completeness sake & to show that this needs to be done
-	 * in multifragment case
-	 */
-	tx_packet.buf_list = &tx_buf;
-	tx_packet.num_bufs = 1; /* only single fragment supported */
-	tx_packet.pkt_length = skb->len;
-	tx_packet.pkt_token = (void *)skb;
-	tx_buf.length = skb->len;
-	tx_buf.buf_token = (void *)skb;
-	tx_buf.data_ptr = skb->data;
-	ret_code = emac_send(priv, &tx_packet, EMAC_DEF_TX_CH);
+	ret_code = skb_padto(skb, EMAC_DEF_MIN_ETHPKTSIZE);
+	if (unlikely(ret_code < 0)) {
+		if (netif_msg_tx_err(priv) && net_ratelimit())
+			dev_err(emac_dev, "DaVinci EMAC: packet pad failed");
+		goto fail_tx;
+	}
+
+	ret_code = cpdma_chan_submit(priv->txchan, skb, skb->data, skb->len,
+				     GFP_KERNEL);
 	if (unlikely(ret_code != 0)) {
-		if (ret_code == EMAC_ERR_TX_OUT_OF_BD) {
-			if (netif_msg_tx_err(priv) && net_ratelimit())
-				dev_err(emac_dev, "DaVinci EMAC: xmit() fatal"\
-					" err. Out of TX BD's");
-			netif_stop_queue(priv->ndev);
-		}
-		ndev->stats.tx_dropped++;
-		return NETDEV_TX_BUSY;
+		if (netif_msg_tx_err(priv) && net_ratelimit())
+			dev_err(emac_dev, "DaVinci EMAC: desc submit failed");
+		goto fail_tx;
 	}
 
 	return NETDEV_TX_OK;
+
+fail_tx:
+	ndev->stats.tx_dropped++;
+	netif_stop_queue(ndev);
+	return NETDEV_TX_BUSY;
 }
 
 /**
@@ -1588,13 +1654,12 @@ static void emac_dev_tx_timeout(struct net_device *ndev)
 	if (netif_msg_tx_err(priv))
 		dev_err(emac_dev, "DaVinci EMAC: xmit timeout, restarting TX");
 
+	emac_dump_regs(priv);
+
 	ndev->stats.tx_errors++;
 	emac_int_disable(priv);
-	emac_stop_txch(priv, EMAC_DEF_TX_CH);
-	emac_cleanup_txch(priv, EMAC_DEF_TX_CH);
-	emac_init_txch(priv, EMAC_DEF_TX_CH);
-	emac_write(EMAC_TXHDP(0), 0);
-	emac_write(EMAC_TXINTMASKSET, BIT(EMAC_DEF_TX_CH));
+	cpdma_chan_stop(priv->txchan);
+	cpdma_chan_start(priv->txchan);
 	emac_int_enable(priv);
 }
 
@@ -1915,7 +1980,6 @@ static void emac_setmac(struct emac_priv *priv, u32 ch, char *mac_addr)
 static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
-	struct emac_rxch *rxch = priv->rxch[EMAC_DEF_RX_CH];
 	struct device *emac_dev = &priv->ndev->dev;
 	struct sockaddr *sa = addr;
 
@@ -1926,11 +1990,10 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
 	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
 
-	/* If the interface is down - rxch is NULL. */
 	/* MAC address is configured only after the interface is enabled. */
 	if (netif_running(ndev)) {
-		memcpy(rxch->mac_addr, sa->sa_data, ndev->addr_len);
-		emac_setmac(priv, EMAC_DEF_RX_CH, rxch->mac_addr);
+		memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
+		emac_setmac(priv, EMAC_DEF_RX_CH, priv->mac_addr);
 	}
 
 	if (netif_msg_drv(priv))
@@ -2139,7 +2202,7 @@ end_emac_rx_bdproc:
  */
 static int emac_hw_enable(struct emac_priv *priv)
 {
-	u32 ch, val, mbp_enable, mac_control;
+	u32 val, mbp_enable, mac_control;
 
 	/* Soft reset */
 	emac_write(EMAC_SOFTRESET, 1);
@@ -2182,26 +2245,9 @@ static int emac_hw_enable(struct emac_priv *priv)
 	emac_write(EMAC_RXUNICASTCLEAR, EMAC_RX_UNICAST_CLEAR_ALL);
 	priv->rx_addr_type = (emac_read(EMAC_MACCONFIG) >> 8) & 0xFF;
 
-	val = emac_read(EMAC_TXCONTROL);
-	val |= EMAC_TX_CONTROL_TX_ENABLE_VAL;
-	emac_write(EMAC_TXCONTROL, val);
-	val = emac_read(EMAC_RXCONTROL);
-	val |= EMAC_RX_CONTROL_RX_ENABLE_VAL;
-	emac_write(EMAC_RXCONTROL, val);
 	emac_write(EMAC_MACINTMASKSET, EMAC_MAC_HOST_ERR_INTMASK_VAL);
 
-	for (ch = 0; ch < EMAC_DEF_MAX_TX_CH; ch++) {
-		emac_write(EMAC_TXHDP(ch), 0);
-		emac_write(EMAC_TXINTMASKSET, BIT(ch));
-	}
-	for (ch = 0; ch < EMAC_DEF_MAX_RX_CH; ch++) {
-		struct emac_rxch *rxch = priv->rxch[ch];
-		emac_setmac(priv, ch, rxch->mac_addr);
-		emac_write(EMAC_RXINTMASKSET, BIT(ch));
-		rxch->queue_active = 1;
-		emac_write(EMAC_RXHDP(ch),
-			   emac_virt_to_phys(rxch->active_queue_head, priv));
-	}
+	emac_setmac(priv, EMAC_DEF_RX_CH, priv->mac_addr);
 
 	/* Enable MII */
 	val = emac_read(EMAC_MACCONTROL);
@@ -2246,8 +2292,8 @@ static int emac_poll(struct napi_struct *napi, int budget)
 		mask = EMAC_DM646X_MAC_IN_VECTOR_TX_INT_VEC;
 
 	if (status & mask) {
-		num_tx_pkts = emac_tx_bdproc(priv, EMAC_DEF_TX_CH,
-					  EMAC_DEF_TX_MAX_SERVICE);
+		num_tx_pkts = cpdma_chan_process(priv->txchan,
+					      EMAC_DEF_TX_MAX_SERVICE);
 	} /* TX processing */
 
 	mask = EMAC_DM644X_MAC_IN_VECTOR_RX_INT_VEC;
@@ -2256,7 +2302,7 @@ static int emac_poll(struct napi_struct *napi, int budget)
 		mask = EMAC_DM646X_MAC_IN_VECTOR_RX_INT_VEC;
 
 	if (status & mask) {
-		num_rx_pkts = emac_rx_bdproc(priv, EMAC_DEF_RX_CH, budget);
+		num_rx_pkts = cpdma_chan_process(priv->rxchan, budget);
 	} /* RX processing */
 
 	mask = EMAC_DM644X_MAC_IN_VECTOR_HOST_INT;
@@ -2397,9 +2443,9 @@ static int match_first_device(struct device *dev, void *data)
 static int emac_dev_open(struct net_device *ndev)
 {
 	struct device *emac_dev = &ndev->dev;
-	u32 rc, cnt, ch;
+	u32 cnt;
 	struct resource *res;
-	int q, m;
+	int q, m, ret;
 	int i = 0;
 	int k = 0;
 	struct emac_priv *priv = netdev_priv(ndev);
@@ -2411,29 +2457,21 @@ static int emac_dev_open(struct net_device *ndev)
 	/* Configuration items */
 	priv->rx_buf_size = EMAC_DEF_MAX_FRAME_SIZE + NET_IP_ALIGN;
 
-	/* Clear basic hardware */
-	for (ch = 0; ch < EMAC_MAX_TXRX_CHANNELS; ch++) {
-		emac_write(EMAC_TXHDP(ch), 0);
-		emac_write(EMAC_RXHDP(ch), 0);
-		emac_write(EMAC_RXHDP(ch), 0);
-		emac_write(EMAC_RXINTMASKCLEAR, EMAC_INT_MASK_CLEAR);
-		emac_write(EMAC_TXINTMASKCLEAR, EMAC_INT_MASK_CLEAR);
-	}
 	priv->mac_hash1 = 0;
 	priv->mac_hash2 = 0;
 	emac_write(EMAC_MACHASH1, 0);
 	emac_write(EMAC_MACHASH2, 0);
 
-	/* multi ch not supported - open 1 TX, 1RX ch by default */
-	rc = emac_init_txch(priv, EMAC_DEF_TX_CH);
-	if (0 != rc) {
-		dev_err(emac_dev, "DaVinci EMAC: emac_init_txch() failed");
-		return rc;
-	}
-	rc = emac_init_rxch(priv, EMAC_DEF_RX_CH, priv->mac_addr);
-	if (0 != rc) {
-		dev_err(emac_dev, "DaVinci EMAC: emac_init_rxch() failed");
-		return rc;
+	for (i = 0; i < EMAC_DEF_RX_NUM_DESC; i++) {
+		struct sk_buff *skb = emac_rx_alloc(priv);
+
+		if (!skb)
+			break;
+
+		ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
+					skb_tailroom(skb), GFP_KERNEL);
+		if (WARN_ON(ret < 0))
+			break;
 	}
 
 	/* Request IRQ */
@@ -2457,6 +2495,8 @@ static int emac_dev_open(struct net_device *ndev)
 		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
 		emac_set_coalesce(ndev, &coal);
 	}
+
+	cpdma_ctlr_start(priv->dma);
 
 	priv->phydev = NULL;
 	/* use the first phy on the bus if pdata did not give us a phy id */
@@ -2545,10 +2585,7 @@ static int emac_dev_stop(struct net_device *ndev)
 
 	netif_carrier_off(ndev);
 	emac_int_disable(priv);
-	emac_stop_txch(priv, EMAC_DEF_TX_CH);
-	emac_stop_rxch(priv, EMAC_DEF_RX_CH);
-	emac_cleanup_txch(priv, EMAC_DEF_TX_CH);
-	emac_cleanup_rxch(priv, EMAC_DEF_RX_CH);
+	cpdma_ctlr_stop(priv->dma);
 	emac_write(EMAC_SOFTRESET, 1);
 
 	if (priv->phydev)
@@ -2653,9 +2690,10 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev;
 	struct emac_priv *priv;
-	unsigned long size;
+	unsigned long size, hw_ram_addr;
 	struct emac_platform_data *pdata;
 	struct device *emac_dev;
+	struct cpdma_params dma_params;
 
 	/* obtain emac clock from kernel */
 	emac_clk = clk_get(&pdev->dev, NULL);
@@ -2731,11 +2769,40 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	priv->ctrl_ram_size = pdata->ctrl_ram_size;
 	priv->emac_ctrl_ram = priv->remap_addr + pdata->ctrl_ram_offset;
 
-	if (pdata->hw_ram_addr)
-		priv->hw_ram_addr = pdata->hw_ram_addr;
-	else
-		priv->hw_ram_addr = (u32 __force)res->start +
-					pdata->ctrl_ram_offset;
+	hw_ram_addr = pdata->hw_ram_addr;
+	if (!hw_ram_addr)
+		hw_ram_addr = (u32 __force)res->start + pdata->ctrl_ram_offset;
+
+	memset(&dma_params, 0, sizeof(dma_params));
+	dma_params.dev			= emac_dev;
+	dma_params.dmaregs		= priv->emac_base;
+	dma_params.rxthresh		= priv->emac_base + 0x120;
+	dma_params.rxfree		= priv->emac_base + 0x140;
+	dma_params.txhdp		= priv->emac_base + 0x600;
+	dma_params.rxhdp		= priv->emac_base + 0x620;
+	dma_params.txcp			= priv->emac_base + 0x640;
+	dma_params.rxcp			= priv->emac_base + 0x660;
+	dma_params.num_chan		= EMAC_MAX_TXRX_CHANNELS;
+	dma_params.min_packet_size	= EMAC_DEF_MIN_ETHPKTSIZE;
+	dma_params.desc_mem_phys	= hw_ram_addr;
+	dma_params.desc_mem_size	= pdata->ctrl_ram_size;
+	dma_params.desc_align		= 16;
+
+	priv->dma = cpdma_ctlr_create(&dma_params);
+	if (!priv->dma) {
+		dev_err(emac_dev, "DaVinci EMAC: Error initializing DMA\n");
+		rc = -ENOMEM;
+		goto no_dma;
+	}
+
+	priv->txchan = cpdma_chan_create(priv->dma, tx_chan_num(EMAC_DEF_TX_CH),
+				       emac_tx_handler);
+	priv->rxchan = cpdma_chan_create(priv->dma, rx_chan_num(EMAC_DEF_RX_CH),
+				       emac_rx_handler);
+	if (WARN_ON(!priv->txchan || !priv->rxchan)) {
+		rc = -ENOMEM;
+		goto no_irq_res;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -2778,6 +2845,12 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 netdev_reg_err:
 	clk_disable(emac_clk);
 no_irq_res:
+	if (priv->txchan)
+		cpdma_chan_destroy(priv->txchan);
+	if (priv->rxchan)
+		cpdma_chan_destroy(priv->rxchan);
+	cpdma_ctlr_destroy(priv->dma);
+no_dma:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, res->end - res->start + 1);
 	iounmap(priv->remap_addr);
@@ -2805,6 +2878,12 @@ static int __devexit davinci_emac_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	if (priv->txchan)
+		cpdma_chan_destroy(priv->txchan);
+	if (priv->rxchan)
+		cpdma_chan_destroy(priv->rxchan);
+	cpdma_ctlr_destroy(priv->dma);
 
 	release_mem_region(res->start, res->end - res->start + 1);
 
