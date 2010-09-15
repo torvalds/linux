@@ -350,7 +350,7 @@ EXPORT_SYMBOL(iwl_init_scan_params);
 static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 					  struct ieee80211_vif *vif,
 					  bool internal,
-					  enum nl80211_band band)
+					  enum ieee80211_band band)
 {
 	int ret;
 
