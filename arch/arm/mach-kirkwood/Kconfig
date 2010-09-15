@@ -58,6 +58,12 @@ config MACH_TS41X
 	  QNAP TS-410, TS-410U, TS-419P and TS-419U Turbo NAS
 	  devices.
 
+config MACH_DOCKSTAR
+	bool "Seagate FreeAgent DockStar"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate FreeAgent DockStar.
+
 config MACH_OPENRD
         bool
 
