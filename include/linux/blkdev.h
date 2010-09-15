@@ -1097,11 +1097,11 @@ static inline int queue_dma_alignment(struct request_queue *q)
 	return q ? q->dma_alignment : 511;
 }
 
-static inline int blk_rq_aligned(struct request_queue *q, void *addr,
+static inline int blk_rq_aligned(struct request_queue *q, unsigned long addr,
 				 unsigned int len)
 {
 	unsigned int alignment = queue_dma_alignment(q) | q->dma_pad_mask;
-	return !((unsigned long)addr & alignment) && !(len & alignment);
+	return !(addr & alignment) && !(len & alignment);
 }
 
 /* assumes size > 256 */
