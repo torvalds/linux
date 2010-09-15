@@ -14,13 +14,13 @@ void __percpu *__alloc_percpu(size_t size, size_t align)
 	 * percpu sections on SMP for which this path isn't used.
 	 */
 	WARN_ON_ONCE(align > SMP_CACHE_BYTES);
-	return kzalloc(size, GFP_KERNEL);
+	return (void __percpu __force *)kzalloc(size, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(__alloc_percpu);
 
 void free_percpu(void __percpu *p)
 {
-	kfree(p);
+	kfree(this_cpu_ptr(p));
 }
 EXPORT_SYMBOL_GPL(free_percpu);
 

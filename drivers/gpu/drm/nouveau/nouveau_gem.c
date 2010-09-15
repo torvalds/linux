@@ -245,7 +245,7 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
 		ttm_bo_unreserve(&nvbo->bo);
-		drm_gem_object_unreference(nvbo->gem);
+		drm_gem_object_unreference_unlocked(nvbo->gem);
 	}
 }
 
@@ -300,7 +300,7 @@ retry:
 			validate_fini(op, NULL);
 			if (ret == -EAGAIN)
 				ret = ttm_bo_wait_unreserved(&nvbo->bo, false);
-			drm_gem_object_unreference(gem);
+			drm_gem_object_unreference_unlocked(gem);
 			if (ret) {
 				NV_ERROR(dev, "fail reserve\n");
 				return ret;
@@ -337,7 +337,9 @@ retry:
 				return -EINVAL;
 			}
 
+			mutex_unlock(&drm_global_mutex);
 			ret = ttm_bo_wait_cpu(&nvbo->bo, false);
+			mutex_lock(&drm_global_mutex);
 			if (ret) {
 				NV_ERROR(dev, "fail wait_cpu\n");
 				return ret;
@@ -614,8 +616,6 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return PTR_ERR(bo);
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
 	/* Mark push buffers as being used on PFIFO, the validation code
 	 * will then make sure that if the pushbuf bo moves, that they
 	 * happen on the kernel channel, which will in turn cause a sync
@@ -663,7 +663,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 				      push[i].length);
 		}
 	} else
-	if (dev_priv->card_type >= NV_20) {
+	if (dev_priv->chipset >= 0x25) {
 		ret = RING_SPACE(chan, req->nr_push * 2);
 		if (ret) {
 			NV_ERROR(dev, "cal_space: %d\n", ret);
@@ -729,7 +729,6 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 out:
 	validate_fini(&op, fence);
 	nouveau_fence_unref((void**)&fence);
-	mutex_unlock(&dev->struct_mutex);
 	kfree(bo);
 	kfree(push);
 
@@ -738,7 +737,7 @@ out_next:
 		req->suffix0 = 0x00000000;
 		req->suffix1 = 0x00000000;
 	} else
-	if (dev_priv->card_type >= NV_20) {
+	if (dev_priv->chipset >= 0x25) {
 		req->suffix0 = 0x00020000;
 		req->suffix1 = 0x00000000;
 	} else {

@@ -1231,7 +1231,6 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	struct drm_encoder *encoder = &intel_tv->base.enc;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	unsigned long irqflags;
 	u32 tv_ctl, save_tv_ctl;
 	u32 tv_dac, save_tv_dac;
@@ -1268,11 +1267,15 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 		   DAC_C_0_7_V);
 	I915_WRITE(TV_CTL, tv_ctl);
 	I915_WRITE(TV_DAC, tv_dac);
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	POSTING_READ(TV_DAC);
+	msleep(20);
+
 	tv_dac = I915_READ(TV_DAC);
 	I915_WRITE(TV_DAC, save_tv_dac);
 	I915_WRITE(TV_CTL, save_tv_ctl);
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	POSTING_READ(TV_CTL);
+	msleep(20);
+
 	/*
 	 *  A B C
 	 *  0 1 1 Composite

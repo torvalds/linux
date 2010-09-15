@@ -694,7 +694,15 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	log_ar_at_event('R', p.speed, p.header, evt);
 
 	/*
-	 * The OHCI bus reset handler synthesizes a phy packet with
+	 * Several controllers, notably from NEC and VIA, forget to
+	 * write ack_complete status at PHY packet reception.
+	 */
+	if (evt == OHCI1394_evt_no_status &&
+	    (p.header[0] & 0xff) == (OHCI1394_phy_tcode << 4))
+		p.ack = ACK_COMPLETE;
+
+	/*
+	 * The OHCI bus reset handler synthesizes a PHY packet with
 	 * the new generation number when a bus reset happens (see
 	 * section 8.4.2.3).  This helps us determine when a request
 	 * was received and make sure we send the response in the same

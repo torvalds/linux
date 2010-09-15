@@ -808,7 +808,7 @@ int bdi_writeback_thread(void *data)
 			wb->last_active = jiffies;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!list_empty(&bdi->work_list)) {
+		if (!list_empty(&bdi->work_list) || kthread_should_stop()) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}

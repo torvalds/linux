@@ -147,8 +147,8 @@ static void __init eukrea_cpuimx25_init(void)
 	if (!otg_mode_host)
 		mxc_register_device(&otg_udc_device, &otg_device_pdata);
 
-#ifdef CONFIG_MACH_EUKREA_MBIMXSD_BASEBOARD
-	eukrea_mbimxsd_baseboard_init();
+#ifdef CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD
+	eukrea_mbimxsd25_baseboard_init();
 #endif
 }
 

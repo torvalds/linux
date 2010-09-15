@@ -1,0 +1,45 @@
+CFQ ioscheduler tunables
+========================
+
+slice_idle
+----------
+This specifies how long CFQ should idle for next request on certain cfq queues
+(for sequential workloads) and service trees (for random workloads) before
+queue is expired and CFQ selects next queue to dispatch from.
+
+By default slice_idle is a non-zero value. That means by default we idle on
+queues/service trees. This can be very helpful on highly seeky media like
+single spindle SATA/SAS disks where we can cut down on overall number of
+seeks and see improved throughput.
+
+Setting slice_idle to 0 will remove all the idling on queues/service tree
+level and one should see an overall improved throughput on faster storage
+devices like multiple SATA/SAS disks in hardware RAID configuration. The down
+side is that isolation provided from WRITES also goes down and notion of
+IO priority becomes weaker.
+
+So depending on storage and workload, it might be useful to set slice_idle=0.
+In general I think for SATA/SAS disks and software RAID of SATA/SAS disks
+keeping slice_idle enabled should be useful. For any configurations where
+there are multiple spindles behind single LUN (Host based hardware RAID
+controller or for storage arrays), setting slice_idle=0 might end up in better
+throughput and acceptable latencies.
+
+CFQ IOPS Mode for group scheduling
+===================================
+Basic CFQ design is to provide priority based time slices. Higher priority
+process gets bigger time slice and lower priority process gets smaller time
+slice. Measuring time becomes harder if storage is fast and supports NCQ and
+it would be better to dispatch multiple requests from multiple cfq queues in
+request queue at a time. In such scenario, it is not possible to measure time
+consumed by single queue accurately.
+
+What is possible though is to measure number of requests dispatched from a
+single queue and also allow dispatch from multiple cfq queue at the same time.
+This effectively becomes the fairness in terms of IOPS (IO operations per
+second).
+
+If one sets slice_idle=0 and if storage supports NCQ, CFQ internally switches
+to IOPS mode and starts providing fairness in terms of number of requests
+dispatched. Note that this mode switching takes effect only for group
+scheduling. For non-cgroup users nothing should change.

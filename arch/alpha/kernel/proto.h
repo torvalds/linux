@@ -156,9 +156,6 @@ extern void SMC669_Init(int);
 /* es1888.c */
 extern void es1888_init(void);
 
-/* ns87312.c */
-extern void ns87312_enable_ide(long ide_base);
-
 /* ../lib/fpreg.c */
 extern void alpha_write_fp_reg (unsigned long reg, unsigned long val);
 extern unsigned long alpha_read_fp_reg (unsigned long reg);

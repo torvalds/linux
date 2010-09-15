@@ -2282,6 +2282,9 @@ static int setup_list(struct strlist **list, const char *list_str,
 
 int symbol__init(void)
 {
+	if (symbol_conf.initialized)
+		return 0;
+
 	elf_version(EV_CURRENT);
 	if (symbol_conf.sort_by_name)
 		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
@@ -2307,6 +2310,7 @@ int symbol__init(void)
 		       symbol_conf.sym_list_str, "symbol") < 0)
 		goto out_free_comm_list;
 
+	symbol_conf.initialized = true;
 	return 0;
 
 out_free_dso_list:
@@ -2318,11 +2322,14 @@ out_free_comm_list:
 
 void symbol__exit(void)
 {
+	if (!symbol_conf.initialized)
+		return;
 	strlist__delete(symbol_conf.sym_list);
 	strlist__delete(symbol_conf.dso_list);
 	strlist__delete(symbol_conf.comm_list);
 	vmlinux_path__exit();
 	symbol_conf.sym_list = symbol_conf.dso_list = symbol_conf.comm_list = NULL;
+	symbol_conf.initialized = false;
 }
 
 int machines__create_kernel_maps(struct rb_root *self, pid_t pid)

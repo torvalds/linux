@@ -924,6 +924,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 	ip_vs_out_stats(cp, skb);
 	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
+	ip_vs_update_conntrack(skb, cp, 0);
 	ip_vs_conn_put(cp);
 
 	skb->ipvs_property = 1;

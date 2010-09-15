@@ -633,7 +633,8 @@ struct vortex_private {
 		open:1,
 		medialock:1,
 		must_free_region:1,				/* Flag: if zero, Cardbus owns the I/O region */
-		large_frames:1;			/* accept large frames */
+		large_frames:1,			/* accept large frames */
+		handling_irq:1;			/* private in_irq indicator */
 	int drv_flags;
 	u16 status_enable;
 	u16 intr_enable;
@@ -646,7 +647,7 @@ struct vortex_private {
 	u16 io_size;						/* Size of PCI region (for release_region) */
 
 	/* Serialises access to hardware other than MII and variables below.
-	 * The lock hierarchy is rtnl_lock > lock > mii_lock > window_lock. */
+	 * The lock hierarchy is rtnl_lock > {lock, mii_lock} > window_lock. */
 	spinlock_t lock;
 
 	spinlock_t mii_lock;		/* Serialises access to MII */
@@ -1993,10 +1994,9 @@ vortex_error(struct net_device *dev, int status)
 		}
 	}
 
-	if (status & RxEarly) {				/* Rx early is unused. */
-		vortex_rx(dev);
+	if (status & RxEarly)				/* Rx early is unused. */
 		iowrite16(AckIntr | RxEarly, ioaddr + EL3_CMD);
-	}
+
 	if (status & StatsFull) {			/* Empty statistics. */
 		static int DoneDidThat;
 		if (vortex_debug > 4)
@@ -2132,6 +2132,15 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		pr_debug("%s: Trying to send a packet, Tx index %d.\n",
 			   dev->name, vp->cur_tx);
 	}
+
+	/*
+	 * We can't allow a recursion from our interrupt handler back into the
+	 * tx routine, as they take the same spin lock, and that causes
+	 * deadlock.  Just return NETDEV_TX_BUSY and let the stack try again in
+	 * a bit
+	 */
+	if (vp->handling_irq)
+		return NETDEV_TX_BUSY;
 
 	if (vp->cur_tx - vp->dirty_tx >= TX_RING_SIZE) {
 		if (vortex_debug > 0)
@@ -2288,7 +2297,12 @@ vortex_interrupt(int irq, void *dev_id)
 		if (status & (HostError | RxEarly | StatsFull | TxComplete | IntReq)) {
 			if (status == 0xffff)
 				break;
+			if (status & RxEarly)
+				vortex_rx(dev);
+			spin_unlock(&vp->window_lock);
 			vortex_error(dev, status);
+			spin_lock(&vp->window_lock);
+			window_set(vp, 7);
 		}
 
 		if (--work_done < 0) {
@@ -2335,11 +2349,13 @@ boomerang_interrupt(int irq, void *dev_id)
 
 	ioaddr = vp->ioaddr;
 
+
 	/*
 	 * It seems dopey to put the spinlock this early, but we could race against vortex_tx_timeout
 	 * and boomerang_start_xmit
 	 */
 	spin_lock(&vp->lock);
+	vp->handling_irq = 1;
 
 	status = ioread16(ioaddr + EL3_STATUS);
 
@@ -2447,6 +2463,7 @@ boomerang_interrupt(int irq, void *dev_id)
 		pr_debug("%s: exiting interrupt, status %4.4x.\n",
 			   dev->name, status);
 handler_exit:
+	vp->handling_irq = 0;
 	spin_unlock(&vp->lock);
 	return IRQ_HANDLED;
 }
@@ -2971,7 +2988,6 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int err;
 	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
 	pci_power_t state = 0;
 
 	if(VORTEX_PCI(vp))
@@ -2981,9 +2997,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if(state != 0)
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D0);
-	spin_lock_irqsave(&vp->lock, flags);
 	err = generic_mii_ioctl(&vp->mii, if_mii(rq), cmd, NULL);
-	spin_unlock_irqrestore(&vp->lock, flags);
 	if(state != 0)
 		pci_set_power_state(VORTEX_PCI(vp), state);
 

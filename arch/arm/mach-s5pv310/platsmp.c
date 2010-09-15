@@ -187,6 +187,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 * until it receives a soft interrupt, and then the
 		 * secondary CPU branches to this address.
 		 */
-	__raw_writel(BSYM(virt_to_phys(s5pv310_secondary_startup)), S5P_INFORM0);
+	__raw_writel(BSYM(virt_to_phys(s5pv310_secondary_startup)), S5P_VA_SYSRAM);
 	}
 }

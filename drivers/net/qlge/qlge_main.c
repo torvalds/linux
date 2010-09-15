@@ -3919,12 +3919,12 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	for (i = 0; i < qdev->rss_ring_count; i++)
 		netif_napi_del(&qdev->rx_ring[i].napi);
 
-	ql_free_rx_buffers(qdev);
-
 	status = ql_adapter_reset(qdev);
 	if (status)
 		netif_err(qdev, ifdown, qdev->ndev, "reset(func #%d) FAILED!\n",
 			  qdev->func);
+	ql_free_rx_buffers(qdev);
+
 	return status;
 }
 
