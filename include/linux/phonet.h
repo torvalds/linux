@@ -47,6 +47,8 @@
 
 /* ioctls */
 #define SIOCPNGETOBJECT		(SIOCPROTOPRIVATE + 0)
+#define SIOCPNADDRESOURCE	(SIOCPROTOPRIVATE + 14)
+#define SIOCPNDELRESOURCE	(SIOCPROTOPRIVATE + 15)
 
 /* Phonet protocol header */
 struct phonethdr {

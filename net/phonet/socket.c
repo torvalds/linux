@@ -158,6 +158,7 @@ void pn_sock_unhash(struct sock *sk)
 	spin_lock_bh(&pnsocks.lock);
 	sk_del_node_init(sk);
 	spin_unlock_bh(&pnsocks.lock);
+	pn_sock_unbind_all_res(sk);
 }
 EXPORT_SYMBOL(pn_sock_unhash);
 
