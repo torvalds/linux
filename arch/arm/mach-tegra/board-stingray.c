@@ -939,6 +939,11 @@ static void __init tegra_stingray_init(void)
 	gpio_direction_output(TEGRA_GPIO_PC5, 1);
 	gpio_export(TEGRA_GPIO_PC5, false);
 
+	tegra_gpio_enable(TEGRA_GPIO_PQ6);
+	gpio_request(TEGRA_GPIO_PQ6, "usb_bp_rem_wake");
+	gpio_direction_input(TEGRA_GPIO_PQ6);
+	gpio_export(TEGRA_GPIO_PQ6, false);
+
 	/* Enable charging */
 	tegra_gpio_enable(TEGRA_GPIO_PV5);
 	gpio_request(TEGRA_GPIO_PV5, "chg_stat1");
