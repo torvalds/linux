@@ -174,12 +174,12 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 {
 	int err = 0;
 	journal_t *journal;
-	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", file, dentry, datasync,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog_entry("(0x%p, %d, 0x%p, '%.*s')\n", file, datasync,
+		   file->f_path.dentry, file->f_path.dentry->d_name.len,
+		   file->f_path.dentry->d_name.name);
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC)) {
 		/*
