@@ -35,7 +35,7 @@ config ARCH_OMAP3
 	default y
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI
-	select ARM_L1_CACHE_SHIFT_6
+	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -43,6 +43,8 @@ config ARCH_OMAP4
 	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select ARM_GIC
+	select PL310_ERRATA_588369
+	select ARM_ERRATA_720789
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
