@@ -24,10 +24,7 @@ struct emac_platform_data {
 	u32 ctrl_mod_reg_offset;
 	u32 ctrl_ram_offset;
 	u32 hw_ram_addr;
-	u32 mdio_reg_offset;
 	u32 ctrl_ram_size;
-	u32 phy_mask;
-	u32 mdio_max_freq;
 
 	/*
 	 * phy_id can be one of the following:
