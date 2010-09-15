@@ -666,7 +666,11 @@ ENTRY(__return_to_virtual)
 	mcr	p15, 0, r0, c3, c0, 0	@ domain access register
 
 	mov32	r0, 0xff0a81a8
+#ifdef CONFIG_SMP
+	mov32	r1, 0xc0e0c0e0
+#else
 	mov32	r1, 0x40e040e0
+#endif
 	mcr	p15, 0, r0, c10, c2, 0	@ PRRR
 	mcr	p15, 0, r1, c10, c2, 1	@ NMRR
 	mrc	p15, 0, r0, c1, c0, 0
