@@ -125,9 +125,6 @@ struct intel_sdvo {
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
 
-	/* Mac mini hack -- use the same DDC as the analog connector */
-	struct i2c_adapter *analog_ddc_bus;
-
 	/* Input timings for adjusted_mode */
 	struct intel_sdvo_dtd input_dtd;
 };
@@ -1417,6 +1414,34 @@ intel_analog_is_connected(struct drm_device *dev)
 	return true;
 }
 
+/* Mac mini hack -- use the same DDC as the analog connector */
+static struct edid *
+intel_sdvo_get_analog_edid(struct drm_connector *connector)
+{
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct drm_device *dev = connector->dev;
+	struct i2c_adapter *ddc;
+	struct edid *edid;
+	u32 ddc_reg;
+
+	if (!intel_analog_is_connected(dev))
+		return NULL;
+
+	if (HAS_PCH_SPLIT(dev))
+		ddc_reg = PCH_GPIOA;
+	else
+		ddc_reg = GPIOA;
+
+	ddc = intel_i2c_create(encoder, ddc_reg, "SDVO/VGA DDC BUS");
+	if (ddc == NULL)
+		return NULL;
+
+	edid = drm_get_edid(connector, ddc);
+	intel_i2c_destroy(ddc);
+
+	return edid;
+}
+
 enum drm_connector_status
 intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 {
@@ -1452,10 +1477,8 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	 * When there is no edid and no monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector.
 	 */
-	if (edid == NULL &&
-	    intel_sdvo->analog_ddc_bus &&
-	    !intel_analog_is_connected(connector->dev))
-		edid = drm_get_edid(connector, intel_sdvo->analog_ddc_bus);
+	if (edid == NULL)
+		edid = intel_sdvo_get_analog_edid(connector);
 
 	status = connector_status_disconnected;
 	if (edid != NULL) {
@@ -1522,10 +1545,13 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
+	struct edid *edid;
 	int num_modes;
 
 	/* set the bus switch and get the modes */
 	num_modes = intel_ddc_get_modes(connector, intel_sdvo->base.ddc_bus);
+	if (num_modes)
+		return;
 
 	/*
 	 * Mac mini hack.  On this device, the DVI-I connector shares one DDC
@@ -1533,12 +1559,12 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	 * DDC fails, check to see if the analog output is disconnected, in
 	 * which case we'll look there for the digital DDC data.
 	 */
-	if (num_modes == 0 &&
-	    intel_sdvo->analog_ddc_bus &&
-	    !intel_analog_is_connected(connector->dev)) {
-		/* Switch to the analog ddc bus and try that
-		 */
-		(void) intel_ddc_get_modes(connector, intel_sdvo->analog_ddc_bus);
+	edid = intel_sdvo_get_analog_edid(connector);
+	if (edid != NULL) {
+		drm_mode_connector_update_edid_property(connector, edid);
+		drm_add_edid_modes(connector, edid);
+		connector->display_info.raw_edid = NULL;
+		kfree(edid);
 	}
 }
 
@@ -1897,9 +1923,6 @@ static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs
 static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 {
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
-
-	if (intel_sdvo->analog_ddc_bus)
-		intel_i2c_destroy(intel_sdvo->analog_ddc_bus);
 
 	if (intel_sdvo->sdvo_lvds_fixed_mode != NULL)
 		drm_mode_destroy(encoder->dev,
@@ -2519,7 +2542,7 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	struct intel_sdvo *intel_sdvo;
 	u8 ch[0x40];
 	int i;
-	u32 i2c_reg, ddc_reg, analog_ddc_reg;
+	u32 i2c_reg, ddc_reg;
 
 	intel_sdvo = kzalloc(sizeof(struct intel_sdvo), GFP_KERNEL);
 	if (!intel_sdvo)
@@ -2533,11 +2556,9 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	if (HAS_PCH_SPLIT(dev)) {
 		i2c_reg = PCH_GPIOE;
 		ddc_reg = PCH_GPIOE;
-		analog_ddc_reg = PCH_GPIOA;
 	} else {
 		i2c_reg = GPIOE;
 		ddc_reg = GPIOE;
-		analog_ddc_reg = GPIOA;
 	}
 
 	/* setup the DDC bus. */
@@ -2572,20 +2593,14 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 		intel_encoder->ddc_bus =
 			intel_i2c_create(intel_encoder,
 					 ddc_reg, "SDVOB DDC BUS");
-		intel_sdvo->analog_ddc_bus =
-			intel_i2c_create(intel_encoder,
-					 analog_ddc_reg, "SDVOB/VGA DDC BUS");
 		dev_priv->hotplug_supported_mask |= SDVOB_HOTPLUG_INT_STATUS;
 	} else {
 		intel_encoder->ddc_bus =
 			intel_i2c_create(intel_encoder,
 					 ddc_reg, "SDVOC DDC BUS");
-		intel_sdvo->analog_ddc_bus =
-			intel_i2c_create(intel_encoder,
-					 analog_ddc_reg, "SDVOC/VGA DDC BUS");
 		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
 	}
-	if (intel_encoder->ddc_bus == NULL || intel_sdvo->analog_ddc_bus == NULL)
+	if (intel_encoder->ddc_bus == NULL)
 		goto err_i2c;
 
 	/* Wrap with our custom algo which switches to DDC mode */
@@ -2638,8 +2653,6 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 err_enc:
 	drm_encoder_cleanup(&intel_encoder->base);
 err_i2c:
-	if (intel_sdvo->analog_ddc_bus != NULL)
-		intel_i2c_destroy(intel_sdvo->analog_ddc_bus);
 	if (intel_encoder->ddc_bus != NULL)
 		intel_i2c_destroy(intel_encoder->ddc_bus);
 	if (intel_encoder->i2c_bus != NULL)
