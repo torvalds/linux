@@ -44,8 +44,7 @@ static void audio_jack_status_work(struct work_struct *work)
 {
 	struct motorola_sc *sc = container_of(work, struct motorola_sc, work);
 
-	/* TODO: Action on Audio Cable insertion. */
-
+	cpcap_accy_whisper_spdif_set_state(sc->audio_cable_inserted);
 }
 
 static int mot_rawevent(struct hid_device *hdev, struct hid_report *report,
