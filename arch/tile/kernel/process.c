@@ -667,7 +667,7 @@ void show_regs(struct pt_regs *regs)
 	       regs->regs[51], regs->regs[52], regs->tp);
 	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
 #else
-	for (i = 0; i < 52; i += 3)
+	for (i = 0; i < 52; i += 4)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
 		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
 		       i, regs->regs[i], i+1, regs->regs[i+1],
