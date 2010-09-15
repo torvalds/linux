@@ -869,8 +869,7 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags)
 	struct sk_buff *skb;
 	int rc = -EINVAL;
 
-	lock_kernel();
-	if (!sk || sk->sk_state != TCP_LISTEN)
+	if (!sk)
 		goto out;
 
 	rc = -EOPNOTSUPP;
@@ -878,6 +877,10 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags)
 		goto out;
 
 	lock_sock(sk);
+	rc = -EINVAL;
+	if (sk->sk_state != TCP_LISTEN)
+		goto out2;
+
 	rc = x25_wait_for_data(sk, sk->sk_rcvtimeo);
 	if (rc)
 		goto out2;
@@ -897,7 +900,6 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags)
 out2:
 	release_sock(sk);
 out:
-	unlock_kernel();
 	return rc;
 }
 
