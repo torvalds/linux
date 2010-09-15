@@ -2159,6 +2159,11 @@ lpfc_nodev_tmo_set(struct lpfc_vport *vport, int val)
 	if (val >= LPFC_MIN_DEVLOSS_TMO && val <= LPFC_MAX_DEVLOSS_TMO) {
 		vport->cfg_nodev_tmo = val;
 		vport->cfg_devloss_tmo = val;
+		/*
+		 * For compat: set the fc_host dev loss so new rports
+		 * will get the value.
+		 */
+		fc_host_dev_loss_tmo(lpfc_shost_from_vport(vport)) = val;
 		lpfc_update_rport_devloss_tmo(vport);
 		return 0;
 	}
@@ -2208,6 +2213,7 @@ lpfc_devloss_tmo_set(struct lpfc_vport *vport, int val)
 		vport->cfg_nodev_tmo = val;
 		vport->cfg_devloss_tmo = val;
 		vport->dev_loss_tmo_changed = 1;
+		fc_host_dev_loss_tmo(lpfc_shost_from_vport(vport)) = val;
 		lpfc_update_rport_devloss_tmo(vport);
 		return 0;
 	}
@@ -4370,14 +4376,6 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 		ndlp ? wwn_to_u64(ndlp->nlp_portname.u.wwn) : 0;
 }
 
-static void
-lpfc_get_host_def_loss_tmo(struct Scsi_Host *shost)
-{
-        struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-
-	fc_host_def_dev_loss_tmo(shost) = vport->cfg_devloss_tmo;
-}
-
 /**
  * lpfc_set_rport_loss_tmo - Set the rport dev loss tmo
  * @rport: fc rport address.
@@ -4486,7 +4484,6 @@ struct fc_function_template lpfc_transport_functions = {
 	.get_host_fabric_name = lpfc_get_host_fabric_name,
 	.show_host_fabric_name = 1,
 
-	.get_host_def_dev_loss_tmo = lpfc_get_host_def_loss_tmo,
 	/*
 	 * The LPFC driver treats linkdown handling as target loss events
 	 * so there are no sysfs handlers for link_down_tmo.
@@ -4554,7 +4551,6 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.get_host_fabric_name = lpfc_get_host_fabric_name,
 	.show_host_fabric_name = 1,
 
-	.get_host_def_dev_loss_tmo = lpfc_get_host_def_loss_tmo,
 	/*
 	 * The LPFC driver treats linkdown handling as target loss events
 	 * so there are no sysfs handlers for link_down_tmo.

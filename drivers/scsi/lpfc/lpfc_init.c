@@ -2817,6 +2817,8 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 		(((uint32_t) vport->fc_sparam.cmn.bbRcvSizeMsb & 0x0F) << 8) |
 		(uint32_t) vport->fc_sparam.cmn.bbRcvSizeLsb;
 
+	fc_host_dev_loss_tmo(shost) = vport->cfg_devloss_tmo;
+
 	/* This value is also unchanging */
 	memset(fc_host_active_fc4s(shost), 0,
 	       sizeof(fc_host_active_fc4s(shost)));
