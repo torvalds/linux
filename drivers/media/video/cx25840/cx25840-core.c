@@ -42,7 +42,6 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -2043,9 +2042,25 @@ static const struct i2c_device_id cx25840_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cx25840_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "cx25840",
-	.probe = cx25840_probe,
-	.remove = cx25840_remove,
-	.id_table = cx25840_id,
+static struct i2c_driver cx25840_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "cx25840",
+	},
+	.probe		= cx25840_probe,
+	.remove		= cx25840_remove,
+	.id_table	= cx25840_id,
 };
+
+static __init int init_cx25840(void)
+{
+	return i2c_add_driver(&cx25840_driver);
+}
+
+static __exit void exit_cx25840(void)
+{
+	i2c_del_driver(&cx25840_driver);
+}
+
+module_init(init_cx25840);
+module_exit(exit_cx25840);
