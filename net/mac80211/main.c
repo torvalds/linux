@@ -362,7 +362,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return NOTIFY_DONE;
 
-	idev = sdata->dev->ip_ptr;
+	idev = __in_dev_get_rtnl(sdata->dev);
 	if (!idev)
 		return NOTIFY_DONE;
 

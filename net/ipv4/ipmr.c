@@ -724,7 +724,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	case 0:
 		if (vifc->vifc_flags == VIFF_USE_IFINDEX) {
 			dev = dev_get_by_index(net, vifc->vifc_lcl_ifindex);
-			if (dev && dev->ip_ptr == NULL) {
+			if (dev && __in_dev_get_rtnl(dev) == NULL) {
 				dev_put(dev);
 				return -EADDRNOTAVAIL;
 			}
