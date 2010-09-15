@@ -195,7 +195,7 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
  * 512 and 1024 entries respectively. 
  */
 
-static unsigned long max_p2m_pfn __read_mostly;
+unsigned long xen_max_p2m_pfn __read_mostly;
 
 #define P2M_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
 #define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
@@ -293,7 +293,7 @@ void xen_build_mfn_list_list(void)
 		p2m_top_mfn_init(p2m_top_mfn);
 	}
 
-	for (pfn = 0; pfn < max_p2m_pfn; pfn += P2M_PER_PAGE) {
+	for (pfn = 0; pfn < xen_max_p2m_pfn; pfn += P2M_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
 		unsigned mididx = p2m_mid_index(pfn);
 		unsigned long **mid;
@@ -335,7 +335,7 @@ void xen_setup_mfn_list_list(void)
 
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
 		virt_to_mfn(p2m_top_mfn);
-	HYPERVISOR_shared_info->arch.max_pfn = max_p2m_pfn;
+	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
 }
 
 /* Set up p2m_top to point to the domain-builder provided p2m pages */
@@ -345,7 +345,7 @@ void __init xen_build_dynamic_phys_to_machine(void)
 	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 	unsigned pfn;
 
-	max_p2m_pfn = max_pfn;
+	xen_max_p2m_pfn = max_pfn;
 
 	p2m_missing = extend_brk(PAGE_SIZE, PAGE_SIZE);
 	p2m_init(p2m_missing);

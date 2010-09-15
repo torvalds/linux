@@ -64,6 +64,8 @@ static __init void xen_add_extra_mem(unsigned long pages)
 		      "XEN EXTRA");
 
 	xen_extra_mem_size += size;
+
+	xen_max_p2m_pfn = PFN_DOWN(xen_extra_mem_start + xen_extra_mem_size);
 }
 
 static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
