@@ -1226,18 +1226,6 @@ static int tea6320_initialize(struct CHIPSTATE * chip)
 static int tda8425_shift10(int val) { return (val >> 10) | 0xc0; }
 static int tda8425_shift12(int val) { return (val >> 12) | 0xf0; }
 
-static int tda8425_initialize(struct CHIPSTATE *chip)
-{
-	struct CHIPDESC *desc = chip->desc;
-	struct i2c_client *c = v4l2_get_subdevdata(&chip->sd);
-	int inputmap[4] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
-			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF};
-
-	if (c->adapter->id == I2C_HW_B_RIVA)
-		memcpy(desc->inputmap, inputmap, sizeof(inputmap));
-	return 0;
-}
-
 static void tda8425_setmode(struct CHIPSTATE *chip, int mode)
 {
 	int s1 = chip->shadow.bytes[TDA8425_S1+1] & 0xe1;
@@ -1573,7 +1561,6 @@ static struct CHIPDESC chiplist[] = {
 		.treblereg  = TDA8425_TR,
 
 		/* callbacks */
-		.initialize = tda8425_initialize,
 		.volfunc    = tda8425_shift10,
 		.bassfunc   = tda8425_shift12,
 		.treblefunc = tda8425_shift12,
