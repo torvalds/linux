@@ -654,3 +654,99 @@ void pn_sock_unbind_all_res(struct sock *sk)
 		match--;
 	}
 }
+
+#ifdef CONFIG_PROC_FS
+static struct sock **pn_res_get_idx(struct seq_file *seq, loff_t pos)
+{
+	struct net *net = seq_file_net(seq);
+	unsigned i;
+
+	if (!net_eq(net, &init_net))
+		return NULL;
+
+	for (i = 0; i < 256; i++) {
+		if (pnres.sk[i] == NULL)
+			continue;
+		if (!pos)
+			return pnres.sk + i;
+		pos--;
+	}
+	return NULL;
+}
+
+static struct sock **pn_res_get_next(struct seq_file *seq, struct sock **sk)
+{
+	struct net *net = seq_file_net(seq);
+	unsigned i;
+
+	BUG_ON(!net_eq(net, &init_net));
+
+	for (i = (sk - pnres.sk) + 1; i < 256; i++)
+		if (pnres.sk[i])
+			return pnres.sk + i;
+	return NULL;
+}
+
+static void *pn_res_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(resource_mutex)
+{
+	mutex_lock(&resource_mutex);
+	return *pos ? pn_res_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
+}
+
+static void *pn_res_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct sock **sk;
+
+	if (v == SEQ_START_TOKEN)
+		sk = pn_res_get_idx(seq, 0);
+	else
+		sk = pn_res_get_next(seq, v);
+	(*pos)++;
+	return sk;
+}
+
+static void pn_res_seq_stop(struct seq_file *seq, void *v)
+	__releases(resource_mutex)
+{
+	mutex_unlock(&resource_mutex);
+}
+
+static int pn_res_seq_show(struct seq_file *seq, void *v)
+{
+	int len;
+
+	if (v == SEQ_START_TOKEN)
+		seq_printf(seq, "%s%n", "rs   uid inode", &len);
+	else {
+		struct sock **psk = v;
+		struct sock *sk = *psk;
+
+		seq_printf(seq, "%02X %5d %lu%n",
+			psk - pnres.sk, sock_i_uid(sk), sock_i_ino(sk), &len);
+	}
+	seq_printf(seq, "%*s\n", 63 - len, "");
+	return 0;
+}
+
+static const struct seq_operations pn_res_seq_ops = {
+	.start = pn_res_seq_start,
+	.next = pn_res_seq_next,
+	.stop = pn_res_seq_stop,
+	.show = pn_res_seq_show,
+};
+
+static int pn_res_open(struct inode *inode, struct file *file)
+{
+	return seq_open_net(inode, file, &pn_res_seq_ops,
+				sizeof(struct seq_net_private));
+}
+
+const struct file_operations pn_res_seq_fops = {
+	.owner = THIS_MODULE,
+	.open = pn_res_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_net,
+};
+#endif
