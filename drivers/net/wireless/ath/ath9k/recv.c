@@ -1338,7 +1338,7 @@ static void ath_select_ant_div_from_quick_scan(struct ath_ant_comb *antcomb,
 	}
 }
 
-void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf)
+static void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf)
 {
 	/* Adjust the fast_div_bias based on main and alt lna conf */
 	switch ((ant_conf->main_lna_conf << 4) | ant_conf->alt_lna_conf) {
