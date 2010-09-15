@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
