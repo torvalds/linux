@@ -115,7 +115,6 @@
  *
  * ACPI_SIZE        16/32/64-bit unsigned value
  * ACPI_NATIVE_INT  16/32/64-bit signed value
- *
  */
 
 /*******************************************************************************
@@ -131,6 +130,16 @@ typedef COMPILER_DEPENDENT_UINT64 UINT64;
 typedef COMPILER_DEPENDENT_INT64 INT64;
 
 /*! [End] no source code translation !*/
+
+/*
+ * Value returned by acpi_os_get_thread_id. There is no standard "thread_id"
+ * across operating systems or even the various UNIX systems. Since ACPICA
+ * only needs the thread ID as a unique thread identifier, we use a u64
+ * as the only common data type - it will accommodate any type of pointer or
+ * any type of integer. It is up to the host-dependent OSL to cast the
+ * native thread ID type to a u64 (in acpi_os_get_thread_id).
+ */
+#define acpi_thread_id                  u64
 
 /*******************************************************************************
  *
@@ -210,12 +219,6 @@ typedef u32 acpi_physical_address;
  * be defined in the OS-specific header, and this will take precedence.
  *
  ******************************************************************************/
-
-/* Value returned by acpi_os_get_thread_id */
-
-#ifndef acpi_thread_id
-#define acpi_thread_id			acpi_size
-#endif
 
 /* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
 
