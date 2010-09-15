@@ -112,6 +112,22 @@ However, connect() and getpeername() are not supported, as they did
 not seem useful with Phonet usages (could be added easily).
 
 
+Resource subscription
+---------------------
+
+A Phonet datagram socket can be subscribed to any number of 8-bits
+Phonet resources, as follow:
+
+  uint32_t res = 0xXX;
+  ioctl(fd, SIOCPNADDRESOURCE, &res);
+
+Subscription is similarly cancelled using the SIOCPNDELRESOURCE I/O
+control request, or when the socket is closed.
+
+Note that no more than one socket can be subcribed to any given
+resource at a time. If not, ioctl() will return EBUSY.
+
+
 Phonet Pipe protocol
 --------------------
 
