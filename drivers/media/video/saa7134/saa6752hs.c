@@ -36,7 +36,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 
@@ -992,12 +991,28 @@ static const struct i2c_device_id saa6752hs_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, saa6752hs_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "saa6752hs",
-	.probe = saa6752hs_probe,
-	.remove = saa6752hs_remove,
-	.id_table = saa6752hs_id,
+static struct i2c_driver saa6752hs_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "saa6752hs",
+	},
+	.probe		= saa6752hs_probe,
+	.remove		= saa6752hs_remove,
+	.id_table	= saa6752hs_id,
 };
+
+static __init int init_saa6752hs(void)
+{
+	return i2c_add_driver(&saa6752hs_driver);
+}
+
+static __exit void exit_saa6752hs(void)
+{
+	i2c_del_driver(&saa6752hs_driver);
+}
+
+module_init(init_saa6752hs);
+module_exit(exit_saa6752hs);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
