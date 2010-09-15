@@ -48,11 +48,27 @@
 ACPI_MODULE_NAME("utmath")
 
 /*
- * Support for double-precision integer divide.  This code is included here
- * in order to support kernel environments where the double-precision math
- * library is not available.
+ * Optional support for 64-bit double-precision integer divide. This code
+ * is configurable and is implemented in order to support 32-bit kernel
+ * environments where a 64-bit double-precision math library is not available.
+ *
+ * Support for a more normal 64-bit divide/modulo (with check for a divide-
+ * by-zero) appears after this optional section of code.
  */
 #ifndef ACPI_USE_NATIVE_DIVIDE
+/* Structures used only for 64-bit divide */
+typedef struct uint64_struct {
+	u32 lo;
+	u32 hi;
+
+} uint64_struct;
+
+typedef union uint64_overlay {
+	u64 full;
+	struct uint64_struct part;
+
+} uint64_overlay;
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_short_divide
@@ -69,6 +85,7 @@ ACPI_MODULE_NAME("utmath")
  *              32-bit remainder.
  *
  ******************************************************************************/
+
 acpi_status
 acpi_ut_short_divide(u64 dividend,
 		     u32 divisor, u64 *out_quotient, u32 *out_remainder)

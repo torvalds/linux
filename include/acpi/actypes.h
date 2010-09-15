@@ -378,16 +378,6 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 typedef u8 acpi_owner_id;
 #define ACPI_OWNER_ID_MAX               0xFF
 
-struct uint64_struct {
-	u32 lo;
-	u32 hi;
-};
-
-union uint64_overlay {
-	u64 full;
-	struct uint64_struct part;
-};
-
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
 
