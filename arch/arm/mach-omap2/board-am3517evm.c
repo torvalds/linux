@@ -18,6 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/i2c/pca953x.h>
@@ -41,6 +42,27 @@
 #define AM35XX_EVM_PHY_MASK		(0xF)
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
 
+static struct mdio_platform_data am3517_evm_mdio_pdata = {
+	.bus_freq	= AM35XX_EVM_MDIO_FREQUENCY,
+};
+
+static struct resource am3517_mdio_resources[] = {
+	{
+		.start  = AM35XX_IPSS_EMAC_BASE + AM35XX_EMAC_MDIO_OFFSET,
+		.end    = AM35XX_IPSS_EMAC_BASE + AM35XX_EMAC_MDIO_OFFSET +
+			  SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device am3517_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(am3517_mdio_resources),
+	.resource	= am3517_mdio_resources,
+	.dev.platform_data = &am3517_evm_mdio_pdata,
+};
+
 static struct emac_platform_data am3517_evm_emac_pdata = {
 	.phy_mask	= AM35XX_EVM_PHY_MASK,
 	.mdio_max_freq	= AM35XX_EVM_MDIO_FREQUENCY,
@@ -50,7 +72,7 @@ static struct emac_platform_data am3517_evm_emac_pdata = {
 static struct resource am3517_emac_resources[] = {
 	{
 		.start  = AM35XX_IPSS_EMAC_BASE,
-		.end    = AM35XX_IPSS_EMAC_BASE + 0x3FFFF,
+		.end    = AM35XX_IPSS_EMAC_BASE + 0x2FFFF,
 		.flags  = IORESOURCE_MEM,
 	},
 	{
@@ -121,6 +143,9 @@ void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 	pdata->interrupt_disable	= am3517_disable_ethernet_int;
 	am3517_emac_device.dev.platform_data	= pdata;
 	platform_device_register(&am3517_emac_device);
+	platform_device_register(&am3517_mdio_device);
+	clk_add_alias(NULL, dev_name(&am3517_mdio_device.dev),
+		      NULL, &am3517_emac_device.dev);
 
 	regval = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
 	regval = regval & (~(AM35XX_CPGMACSS_SW_RST));
