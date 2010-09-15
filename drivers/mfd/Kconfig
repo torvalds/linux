@@ -475,13 +475,24 @@ config EZX_PCAP
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on SPI=y && GENERIC_HARDIRQS && ABX500_CORE
+	depends on GENERIC_HARDIRQS && ABX500_CORE && SPI_MASTER
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management
-	  chip. This connects to U8500 on the SSP/SPI bus and exports
-	  read/write functions for the devices to get access to this chip.
+	  chip. This connects to U8500 either on the SSP/SPI bus
+	  or the I2C bus via PRCMU. It also adds the irq_chip
+	  parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia funtionalities as well.
+
+config AB8500_I2C_CORE
+	bool "AB8500 register access via PRCMU I2C"
+	depends on AB8500_CORE && UX500_SOC_DB8500
+	default y
+	help
+	  This enables register access to the AB8500 chip via PRCMU I2C.
+	  The AB8500 chip can be accessed via SPI or I2C. On DB8500 hardware
+	  the I2C bus is connected to the Power Reset
+	  and Mangagement Unit, PRCMU.
 
 config AB8500_DEBUG
        bool "Enable debug info via debugfs"
