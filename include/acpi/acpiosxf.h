@@ -230,13 +230,6 @@ acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
 				u32 reg, u64 value, u32 width);
 
 /*
- * Interim function needed for PCI IRQ routing
- */
-void
-acpi_os_derive_pci_id(acpi_handle device,
-		      acpi_handle region, struct acpi_pci_id **pci_id);
-
-/*
  * Miscellaneous
  */
 acpi_status

@@ -123,6 +123,13 @@ acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 #ifdef	ACPI_FUTURE_USAGE
 /*
+ * hwpci - PCI configuration support
+ */
+acpi_status
+acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id,
+		      acpi_handle root_pci_device, acpi_handle pci_region);
+
+/*
  * hwtimer - ACPI Timer prototypes
  */
 acpi_status acpi_get_timer_resolution(u32 * resolution);
