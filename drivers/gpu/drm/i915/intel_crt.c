@@ -548,6 +548,10 @@ void intel_crt_init(struct drm_device *dev)
 	if (!intel_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");
+		drm_connector_cleanup(&intel_connector->base);
+		kfree(intel_connector);
+		drm_encoder_cleanup(&intel_encoder->base);
+		kfree(intel_encoder);
 		return;
 	}
 

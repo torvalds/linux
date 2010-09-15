@@ -2552,6 +2552,8 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
+	/* encoder type will be decided later */
+	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		i2c_reg = PCH_GPIOE;
@@ -2606,31 +2608,29 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	/* Wrap with our custom algo which switches to DDC mode */
 	intel_encoder->ddc_bus->algo = &intel_sdvo_i2c_bit_algo;
 
-	/* encoder type will be decided later */
-	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_sdvo_helper_funcs);
 
 	/* In default case sdvo lvds is false */
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))
-		goto err_enc;
+		goto err_i2c;
 
 	if (intel_sdvo_output_setup(intel_sdvo,
 				    intel_sdvo->caps.output_flags) != true) {
 		DRM_DEBUG_KMS("SDVO output failed to setup on SDVO%c\n",
 			      IS_SDVOB(sdvo_reg) ? 'B' : 'C');
-		goto err_enc;
+		goto err_i2c;
 	}
 
 	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))
-		goto err_enc;
+		goto err_i2c;
 
 	if (!intel_sdvo_get_input_pixel_clock_range(intel_sdvo,
 						    &intel_sdvo->pixel_clock_min,
 						    &intel_sdvo->pixel_clock_max))
-		goto err_enc;
+		goto err_i2c;
 
 	DRM_DEBUG_KMS("%s device VID/DID: %02X:%02X.%02X, "
 			"clock range %dMHz - %dMHz, "
@@ -2650,14 +2650,13 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1) ? 'Y' : 'N');
 	return true;
 
-err_enc:
-	drm_encoder_cleanup(&intel_encoder->base);
 err_i2c:
 	if (intel_encoder->ddc_bus != NULL)
 		intel_i2c_destroy(intel_encoder->ddc_bus);
 	if (intel_encoder->i2c_bus != NULL)
 		intel_i2c_destroy(intel_encoder->i2c_bus);
 err_inteloutput:
+	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_sdvo);
 
 	return false;

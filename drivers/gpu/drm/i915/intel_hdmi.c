@@ -228,6 +228,9 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	}
 
 	intel_encoder = &intel_hdmi->base;
+	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
+			 DRM_MODE_ENCODER_TMDS);
+
 	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
@@ -272,8 +275,6 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	intel_hdmi->sdvox_reg = sdvox_reg;
 
-	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
@@ -291,6 +292,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	return;
 
 err_connector:
+	drm_encoder_cleanup(&intel_encoder->base);
 	drm_connector_cleanup(connector);
 	kfree(intel_hdmi);
 	kfree(intel_connector);

@@ -360,6 +360,8 @@ void intel_dvo_init(struct drm_device *dev)
 	}
 
 	intel_encoder = &intel_dvo->base;
+	drm_encoder_init(dev, &intel_encoder->base,
+			 &intel_dvo_enc_funcs, encoder_type);
 
 	/* Set up the DDC bus */
 	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
@@ -428,8 +430,6 @@ void intel_dvo_init(struct drm_device *dev)
 		connector->interlace_allowed = false;
 		connector->doublescan_allowed = false;
 
-		drm_encoder_init(dev, &intel_encoder->base,
-				 &intel_dvo_enc_funcs, encoder_type);
 		drm_encoder_helper_add(&intel_encoder->base,
 				       &intel_dvo_helper_funcs);
 
@@ -456,6 +456,7 @@ void intel_dvo_init(struct drm_device *dev)
 	if (i2cbus != NULL)
 		intel_i2c_destroy(i2cbus);
 free_intel:
+	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_dvo);
 	kfree(intel_connector);
 }
