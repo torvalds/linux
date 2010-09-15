@@ -1530,15 +1530,6 @@ qla2x00_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 }
 
 static void
-qla2x00_get_host_def_loss_tmo(struct Scsi_Host *shost)
-{
-	scsi_qla_host_t *vha = shost_priv(shost);
-	struct qla_hw_data *ha = vha->hw;
-
-	fc_host_def_dev_loss_tmo(shost) = ha->port_down_retry_count;
-}
-
-static void
 qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
 	struct Scsi_Host *host = rport_to_shost(rport);
@@ -1785,6 +1776,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	/* initialize attributes */
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) =
@@ -1912,7 +1904,6 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_host_fabric_name = 1,
 	.get_host_port_state = qla2x00_get_host_port_state,
 	.show_host_port_state = 1,
-	.get_host_def_dev_loss_tmo = qla2x00_get_host_def_loss_tmo,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,
@@ -1959,7 +1950,6 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 	.show_host_fabric_name = 1,
 	.get_host_port_state = qla2x00_get_host_port_state,
 	.show_host_port_state = 1,
-	.get_host_def_dev_loss_tmo = qla2x00_get_host_def_loss_tmo,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,
@@ -1988,6 +1978,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	u32 speed = FC_PORTSPEED_UNKNOWN;
 
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) = FC_COS_CLASS3;
