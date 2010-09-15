@@ -4581,7 +4581,8 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	sky2->port = port;
 
-	dev->features |= NETIF_F_TSO | NETIF_F_IP_CSUM | NETIF_F_SG;
+	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG
+		| NETIF_F_TSO  | NETIF_F_GRO;
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;
 
