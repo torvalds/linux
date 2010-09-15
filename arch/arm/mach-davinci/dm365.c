@@ -699,7 +699,7 @@ static struct emac_platform_data dm365_emac_pdata = {
 static struct resource dm365_emac_resources[] = {
 	{
 		.start	= DM365_EMAC_BASE,
-		.end	= DM365_EMAC_BASE + 0x47ff,
+		.end	= DM365_EMAC_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -732,6 +732,21 @@ static struct platform_device dm365_emac_device = {
 	},
 	.num_resources	= ARRAY_SIZE(dm365_emac_resources),
 	.resource	= dm365_emac_resources,
+};
+
+static struct resource dm365_mdio_resources[] = {
+	{
+		.start	= DM365_EMAC_MDIO_BASE,
+		.end	= DM365_EMAC_MDIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm365_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm365_mdio_resources),
+	.resource	= dm365_mdio_resources,
 };
 
 static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
@@ -1220,7 +1235,12 @@ static int __init dm365_init_devices(void)
 
 	davinci_cfg_reg(DM365_INT_EDMA_CC);
 	platform_device_register(&dm365_edma_device);
+
+	platform_device_register(&dm365_mdio_device);
 	platform_device_register(&dm365_emac_device);
+	clk_add_alias(NULL, dev_name(&dm365_mdio_device.dev),
+		      NULL, &dm365_emac_device.dev);
+
 	/* Add isif clock alias */
 	clk_add_alias("master", dm365_isif_dev.name, "vpss_master", NULL);
 	platform_device_register(&dm365_vpss_device);

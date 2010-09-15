@@ -366,7 +366,7 @@ static struct emac_platform_data dm646x_emac_pdata = {
 static struct resource dm646x_emac_resources[] = {
 	{
 		.start	= DM646X_EMAC_BASE,
-		.end	= DM646X_EMAC_BASE + 0x47ff,
+		.end	= DM646X_EMAC_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -399,6 +399,21 @@ static struct platform_device dm646x_emac_device = {
 	},
 	.num_resources	= ARRAY_SIZE(dm646x_emac_resources),
 	.resource	= dm646x_emac_resources,
+};
+
+static struct resource dm646x_mdio_resources[] = {
+	{
+		.start	= DM646X_EMAC_MDIO_BASE,
+		.end	= DM646X_EMAC_MDIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm646x_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm646x_mdio_resources),
+	.resource	= dm646x_mdio_resources,
 };
 
 /*
@@ -897,7 +912,11 @@ static int __init dm646x_init_devices(void)
 	if (!cpu_is_davinci_dm646x())
 		return 0;
 
+	platform_device_register(&dm646x_mdio_device);
 	platform_device_register(&dm646x_emac_device);
+	clk_add_alias(NULL, dev_name(&dm646x_mdio_device.dev),
+		      NULL, &dm646x_emac_device.dev);
+
 	return 0;
 }
 postcore_initcall(dm646x_init_devices);
