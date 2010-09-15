@@ -37,7 +37,6 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-event.h>
 #include <linux/dvb/audio.h>
-#include <linux/i2c-id.h>
 
 u16 ivtv_service2vbi(int type)
 {

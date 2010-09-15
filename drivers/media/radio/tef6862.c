@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/slab.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
