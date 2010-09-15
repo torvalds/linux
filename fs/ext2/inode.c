@@ -458,7 +458,7 @@ failed_out:
  *	the same format as ext2_get_branch() would do. We are calling it after
  *	we had read the existing part of chain and partial points to the last
  *	triple of that (one with zero ->key). Upon the exit we have the same
- *	picture as after the successful ext2_get_block(), excpet that in one
+ *	picture as after the successful ext2_get_block(), except that in one
  *	place chain is disconnected - *branch->p is still zero (we did not
  *	set the last link), but branch->key contains the number that should
  *	be placed into *branch->p to fill that gap.
@@ -662,7 +662,7 @@ static int ext2_get_blocks(struct inode *inode,
 	mutex_lock(&ei->truncate_mutex);
 	/*
 	 * If the indirect block is missing while we are reading
-	 * the chain(ext3_get_branch() returns -EAGAIN err), or
+	 * the chain(ext2_get_branch() returns -EAGAIN err), or
 	 * if the chain has been changed after we grab the semaphore,
 	 * (either because another process truncated this branch, or
 	 * another get_block allocated this branch) re-grab the chain to see if
