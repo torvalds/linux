@@ -2765,6 +2765,25 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	}
 }
 
+static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
+{
+	struct iwl_calib_cfg_cmd calib_cfg_cmd;
+	struct iwl_host_cmd cmd = {
+		.id = CALIBRATION_CFG_CMD,
+		.len = sizeof(struct iwl_calib_cfg_cmd),
+		.data = &calib_cfg_cmd,
+	};
+
+	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));
+	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
+	calib_cfg_cmd.ucd_calib_cfg.once.start = cfg;
+	calib_cfg_cmd.ucd_calib_cfg.once.send_res = 0;
+	calib_cfg_cmd.ucd_calib_cfg.flags = 0;
+
+	return iwl_send_cmd(priv, &cmd);
+}
+
+
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
@@ -2800,6 +2819,10 @@ static void iwl_alive_start(struct iwl_priv *priv)
 			"Could not complete ALIVE transition [ntf]: %d\n", ret);
 		goto restart;
 	}
+
+	if (priv->hw_params.calib_rt_cfg)
+		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
+
 
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
