@@ -457,17 +457,20 @@ int wl1271_boot(struct wl1271 *wl)
 {
 	int ret = 0;
 	u32 tmp, clk, pause;
+	int ref_clock = wl->ref_clock;
 
 	wl1271_boot_hw_version(wl);
 
-	if (REF_CLOCK == 0 || REF_CLOCK == 2 || REF_CLOCK == 4)
+	if (ref_clock == 0 || ref_clock == 2 || ref_clock == 4)
 		/* ref clk: 19.2/38.4/38.4-XTAL */
 		clk = 0x3;
-	else if (REF_CLOCK == 1 || REF_CLOCK == 3)
+	else if (ref_clock == 1 || ref_clock == 3)
 		/* ref clk: 26/52 */
 		clk = 0x5;
+	else
+		return -EINVAL;
 
-	if (REF_CLOCK != 0) {
+	if (ref_clock != 0) {
 		u16 val;
 		/* Set clock type (open drain) */
 		val = wl1271_top_reg_read(wl, OCP_REG_CLK_TYPE);
@@ -516,7 +519,7 @@ int wl1271_boot(struct wl1271 *wl)
 	wl1271_debug(DEBUG_BOOT, "clk2 0x%x", clk);
 
 	/* 2 */
-	clk |= (REF_CLOCK << 1) << 4;
+	clk |= (ref_clock << 1) << 4;
 	wl1271_write32(wl, DRPW_SCRATCH_START, clk);
 
 	wl1271_set_partition(wl, &part_table[PART_WORK]);

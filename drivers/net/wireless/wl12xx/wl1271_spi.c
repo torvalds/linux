@@ -372,6 +372,8 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
+	wl->ref_clock = pdata->board_ref_clock;
+
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {
 		wl1271_error("irq missing in platform data");
