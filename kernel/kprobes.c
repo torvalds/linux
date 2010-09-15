@@ -1343,14 +1343,11 @@ int __kprobes register_jprobes(struct jprobe **jps, int num)
 		jp = jps[i];
 		addr = arch_deref_entry_point(jp->entry);
 
-		if (!kernel_text_address(addr))
-			ret = -EINVAL;
-		else {
-			/* Todo: Verify probepoint is a function entry point */
-			jp->kp.pre_handler = setjmp_pre_handler;
-			jp->kp.break_handler = longjmp_break_handler;
-			ret = register_kprobe(&jp->kp);
-		}
+		/* Todo: Verify probepoint is a function entry point */
+		jp->kp.pre_handler = setjmp_pre_handler;
+		jp->kp.break_handler = longjmp_break_handler;
+		ret = register_kprobe(&jp->kp);
+
 		if (ret < 0) {
 			if (i > 0)
 				unregister_jprobes(jps, i);
