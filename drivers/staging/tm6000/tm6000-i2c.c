@@ -32,8 +32,6 @@
 #include "tuner-xc2028.h"
 
 
-/*FIXME: Hack to avoid needing to patch i2c-id.h */
-#define I2C_HW_B_TM6000 I2C_HW_B_EM28XX
 /* ----------------------------------------------------------- */
 
 static unsigned int i2c_debug = 0;
@@ -324,7 +322,6 @@ static struct i2c_adapter tm6000_adap_template = {
 	.owner = THIS_MODULE,
 	.class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.name = "tm6000",
-	.id = I2C_HW_B_TM6000,
 	.algo = &tm6000_algo,
 };
 
