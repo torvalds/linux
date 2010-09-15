@@ -19,7 +19,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-i2c-drv.h>
 
 
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
@@ -1496,9 +1495,25 @@ static const struct i2c_device_id ov7670_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ov7670_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "ov7670",
-	.probe = ov7670_probe,
-	.remove = ov7670_remove,
-	.id_table = ov7670_id,
+static struct i2c_driver ov7670_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "ov7670",
+	},
+	.probe		= ov7670_probe,
+	.remove		= ov7670_remove,
+	.id_table	= ov7670_id,
 };
+
+static __init int init_ov7670(void)
+{
+	return i2c_add_driver(&ov7670_driver);
+}
+
+static __exit void exit_ov7670(void)
+{
+	i2c_del_driver(&ov7670_driver);
+}
+
+module_init(init_ov7670);
+module_exit(exit_ov7670);
