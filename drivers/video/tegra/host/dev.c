@@ -700,6 +700,8 @@ static int __devinit nvhost_probe(struct platform_device *pdev)
 
 	nvhost_bus_register(host);
 
+	nvhost_debug_init(host);
+
 	dev_info(&pdev->dev, "initialized\n");
 	return 0;
 

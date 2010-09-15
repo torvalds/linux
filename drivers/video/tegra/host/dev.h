@@ -46,4 +46,6 @@ struct nvhost_master {
 	struct nvhost_channel channels[NVHOST_NUMCHANNELS];
 };
 
+void nvhost_debug_init(struct nvhost_master *master);
+
 #endif

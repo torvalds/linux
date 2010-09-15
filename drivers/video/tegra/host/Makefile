@@ -7,6 +7,7 @@ nvhost-objs = \
 	nvhost_channel.o \
 	nvhost_3dctx.o \
 	dev.o \
-	bus.o
+	bus.o \
+	debug.o
 
 obj-$(CONFIG_TEGRA_GRHOST) += nvhost.o
