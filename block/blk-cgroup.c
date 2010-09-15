@@ -811,8 +811,6 @@ static int blkiocg_weight_device_read(struct cgroup *cgrp, struct cftype *cft,
 	struct blkio_cgroup *blkcg;
 	struct blkio_policy_node *pn;
 
-	seq_printf(m, "dev\tweight\n");
-
 	blkcg = cgroup_to_blkio_cgroup(cgrp);
 	if (!list_empty(&blkcg->policy_list)) {
 		spin_lock_irq(&blkcg->lock);
