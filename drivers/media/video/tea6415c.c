@@ -34,7 +34,6 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include "tea6415c.h"
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
@@ -175,9 +174,25 @@ static const struct i2c_device_id tea6415c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tea6415c_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tea6415c",
-	.probe = tea6415c_probe,
-	.remove = tea6415c_remove,
-	.id_table = tea6415c_id,
+static struct i2c_driver tea6415c_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tea6415c",
+	},
+	.probe		= tea6415c_probe,
+	.remove		= tea6415c_remove,
+	.id_table	= tea6415c_id,
 };
+
+static __init int init_tea6415c(void)
+{
+	return i2c_add_driver(&tea6415c_driver);
+}
+
+static __exit void exit_tea6415c(void)
+{
+	i2c_del_driver(&tea6415c_driver);
+}
+
+module_init(init_tea6415c);
+module_exit(exit_tea6415c);
