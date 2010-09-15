@@ -110,12 +110,12 @@ static struct scsi_host_template fnic_host_template = {
 };
 
 static void
-fnic_get_host_def_loss_tmo(struct Scsi_Host *shost)
+fnic_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
 {
-	struct fc_lport *lp = shost_priv(shost);
-	struct fnic *fnic = lport_priv(lp);
-
-	fc_host_def_dev_loss_tmo(shost) = fnic->config.port_down_timeout / 1000;
+	if (timeout)
+		rport->dev_loss_tmo = timeout;
+	else
+		rport->dev_loss_tmo = 1;
 }
 
 static void fnic_get_host_speed(struct Scsi_Host *shost);
@@ -145,9 +145,9 @@ static struct fc_function_template fnic_fc_functions = {
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 	.show_rport_dev_loss_tmo = 1,
+	.set_rport_dev_loss_tmo = fnic_set_rport_dev_loss_tmo,
 	.issue_fc_host_lip = fnic_reset,
 	.get_fc_host_stats = fnic_get_stats,
-	.get_host_def_dev_loss_tmo = fnic_get_host_def_loss_tmo,
 	.dd_fcrport_size = sizeof(struct fc_rport_libfc_priv),
 	.terminate_rport_io = fnic_terminate_rport_io,
 	.bsg_request = fc_lport_bsg_request,
@@ -712,6 +712,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		goto err_out_free_exch_mgr;
 	}
 	fc_host_maxframe_size(lp->host) = lp->mfs;
+	fc_host_dev_loss_tmo(lp->host) = fnic->config.port_down_timeout / 1000;
 
 	sprintf(fc_host_symbolic_name(lp->host),
 		DRV_NAME " v" DRV_VERSION " over %s", fnic->name);
