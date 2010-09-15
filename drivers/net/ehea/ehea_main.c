@@ -818,8 +818,6 @@ static void check_sqs(struct ehea_port *port)
 			}
 		}
 	}
-
-	return;
 }
 
 
