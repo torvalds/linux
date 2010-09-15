@@ -28,6 +28,15 @@ struct emac_platform_data {
 	u32 ctrl_ram_size;
 	u32 phy_mask;
 	u32 mdio_max_freq;
+
+	/*
+	 * phy_id can be one of the following:
+	 *   - NULL		: use the first phy on the bus,
+	 *   - ""		: force to 100/full, no mdio control
+	 *   - "<bus>:<addr>"	: use the specified bus and phy
+	 */
+	const char *phy_id;
+
 	u8 rmii_en;
 	u8 version;
 	void (*interrupt_enable) (void);
