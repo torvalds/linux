@@ -290,19 +290,6 @@ acpi_status acpi_initialize_objects(u32 flags)
 	}
 
 	/*
-	 * Complete the GPE initialization for the GPE blocks defined in the FADT
-	 * (GPE block 0 and 1).
-	 *
-	 * NOTE: Currently, there seems to be no need to run the _REG methods
-	 * before enabling the GPEs.
-	 */
-	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		status = acpi_ev_install_fadt_gpes();
-		if (ACPI_FAILURE(status))
-			return (status);
-	}
-
-	/*
 	 * Empty the caches (delete the cached objects) on the assumption that
 	 * the table load filled them up more than they will be at runtime --
 	 * thus wasting non-paged memory.

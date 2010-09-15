@@ -766,6 +766,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
 	acpi_current_gpe_count = 0;
+	acpi_all_gpes_initialized = FALSE;
 
 	/* Global handlers */
 

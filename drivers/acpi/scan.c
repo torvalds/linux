@@ -1431,6 +1431,7 @@ EXPORT_SYMBOL(acpi_bus_add);
 int acpi_bus_start(struct acpi_device *device)
 {
 	struct acpi_bus_ops ops;
+	int result;
 
 	if (!device)
 		return -EINVAL;
@@ -1438,7 +1439,11 @@ int acpi_bus_start(struct acpi_device *device)
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_start = 1;
 
-	return acpi_bus_scan(device->handle, &ops, NULL);
+	result = acpi_bus_scan(device->handle, &ops, NULL);
+
+	acpi_update_gpes();
+
+	return result;
 }
 EXPORT_SYMBOL(acpi_bus_start);
 
@@ -1552,6 +1557,8 @@ int __init acpi_scan_init(void)
 
 	if (result)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
+	else
+		acpi_update_gpes();
 
 	return result;
 }

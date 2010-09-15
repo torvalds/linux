@@ -725,6 +725,7 @@ static void dock_notify(acpi_handle handle, u32 event, void *data)
 			complete_dock(ds);
 			dock_event(ds, event, DOCK_EVENT);
 			dock_lock(ds, 1);
+			acpi_update_gpes();
 			break;
 		}
 		if (dock_present(ds) || dock_in_progress(ds))
