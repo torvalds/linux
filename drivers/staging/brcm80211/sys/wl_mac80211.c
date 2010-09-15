@@ -1639,7 +1639,7 @@ static int __init wl_module_init(void)
 	else {
 		char *var = getvar(NULL, "wl_msglevel");
 		if (var)
-			wl_msg_level = bcm_strtoul(var, NULL, 0);
+			wl_msg_level = simple_strtoul(var, NULL, 0);
 	}
 #ifndef WLC_HIGH_ONLY
 	{
@@ -1650,7 +1650,7 @@ static int __init wl_module_init(void)
 		else {
 			char *var = getvar(NULL, "phy_msglevel");
 			if (var)
-				phyhal_msg_level = bcm_strtoul(var, NULL, 0);
+				phyhal_msg_level = simple_strtoul(var, NULL, 0);
 		}
 	}
 #endif				/* WLC_HIGH_ONLY */

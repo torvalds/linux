@@ -22,6 +22,7 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <osl.h>
+#include <linux/kernel.h>
 #include <proto/802.11.h>
 #include <bcmwifi.h>
 #include <bcmutils.h>
@@ -760,12 +761,12 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 
 		var = getvar(vars, "vendid");
 		if (var) {
-			vendor = (uint16) bcm_strtoul(var, NULL, 0);
+			vendor = (uint16) simple_strtoul(var, NULL, 0);
 			WL_ERROR(("Overriding vendor id = 0x%x\n", vendor));
 		}
 		var = getvar(vars, "devid");
 		if (var) {
-			uint16 devid = (uint16) bcm_strtoul(var, NULL, 0);
+			uint16 devid = (uint16) simple_strtoul(var, NULL, 0);
 			if (devid != 0xffff) {
 				device = devid;
 				WL_ERROR(("Overriding device id = 0x%x\n",

@@ -17,6 +17,7 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <osl.h>
+#include <linux/kernel.h>
 #include <stdarg.h>
 #include <bcmutils.h>
 #include <hndsoc.h>
@@ -1924,7 +1925,7 @@ BCMATTACHFN(initvars_srom_pci) (si_t *sih, void *curmap, char **vars,
 
 		value = si_getdevpathvar(sih, "sromrev");
 		if (value) {
-			sromrev = (uint8) bcm_strtoul(value, NULL, 0);
+			sromrev = (uint8) simple_strtoul(value, NULL, 0);
 			flash = TRUE;
 			goto varscont;
 		}

@@ -165,19 +165,6 @@ extern "C" {
 #define	PKTPRIO_UPD	0x400	/* DSCP used to update VLAN prio */
 #define	PKTPRIO_DSCP	0x800	/* DSCP prio found */
 
-/* string */
-	extern int BCMROMFN(bcm_atoi) (char *s);
-	extern ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base);
-	extern char *BCMROMFN(bcmstrstr) (char *haystack, char *needle);
-	extern char *BCMROMFN(bcmstrcat) (char *dest, const char *src);
-	extern char *BCMROMFN(bcmstrncat) (char *dest, const char *src,
-					   uint size);
-	extern ulong wchar2ascii(char *abuf, ushort *wbuf, ushort wbuflen,
-				 ulong abuflen);
-	char *bcmstrtok(char **string, const char *delimiters, char *tokdelim);
-	int bcmstricmp(const char *s1, const char *s2);
-	int bcmstrnicmp(const char *s1, const char *s2, int cnt);
-
 /* ethernet address */
 	extern char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf);
 	extern int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea);

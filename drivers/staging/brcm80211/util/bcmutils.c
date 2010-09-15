@@ -18,6 +18,8 @@
 #include <bcmdefs.h>
 #include <stdarg.h>
 #include <osl.h>
+#include <linux/ctype.h>
+#include <linux/kernel.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>
@@ -26,8 +28,6 @@
 #include <proto/ethernet.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
-
-#include <linux/ctype.h>
 
 #ifdef WLC_LOW
 /* nvram vars cache */
@@ -492,271 +492,13 @@ void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 	return p;
 }
 
-ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
-{
-	ulong result, last_result = 0, value;
-	bool minus;
-
-	minus = FALSE;
-
-	while (isspace(*cp))
-		cp++;
-
-	if (cp[0] == '+')
-		cp++;
-	else if (cp[0] == '-') {
-		minus = TRUE;
-		cp++;
-	}
-
-	if (base == 0) {
-		if (cp[0] == '0') {
-			if ((cp[1] == 'x') || (cp[1] == 'X')) {
-				base = 16;
-				cp = &cp[2];
-			} else {
-				base = 8;
-				cp = &cp[1];
-			}
-		} else
-			base = 10;
-	} else if (base == 16 && (cp[0] == '0')
-		   && ((cp[1] == 'x') || (cp[1] == 'X'))) {
-		cp = &cp[2];
-	}
-
-	result = 0;
-
-	while (isxdigit(*cp) &&
-	       (value =
-		isdigit(*cp) ? *cp - '0' : toupper(*cp) - 'A' + 10) <
-	       base) {
-		result = result * base + value;
-		/* Detected overflow */
-		if (result < last_result && !minus)
-			return (ulong) -1;
-		last_result = result;
-		cp++;
-	}
-
-	if (minus)
-		result = (ulong) (-(long)result);
-
-	if (endp)
-		*endp = (char *)cp;
-
-	return result;
-}
-
-int BCMROMFN(bcm_atoi) (char *s)
-{
-	return (int)bcm_strtoul(s, NULL, 10);
-}
-
-/* return pointer to location of substring 'needle' in 'haystack' */
-char *BCMROMFN(bcmstrstr) (char *haystack, char *needle)
-{
-	int len, nlen;
-	int i;
-
-	if ((haystack == NULL) || (needle == NULL))
-		return haystack;
-
-	nlen = strlen(needle);
-	len = strlen(haystack) - nlen + 1;
-
-	for (i = 0; i < len; i++)
-		if (memcmp(needle, &haystack[i], nlen) == 0)
-			return &haystack[i];
-	return NULL;
-}
-
-char *BCMROMFN(bcmstrcat) (char *dest, const char *src)
-{
-	char *p;
-
-	p = dest + strlen(dest);
-
-	while ((*p++ = *src++) != '\0')
-		;
-
-	return dest;
-}
-
-char *BCMROMFN(bcmstrncat) (char *dest, const char *src, uint size)
-{
-	char *endp;
-	char *p;
-
-	p = dest + strlen(dest);
-	endp = p + size;
-
-	while (p != endp && (*p++ = *src++) != '\0')
-		;
-
-	return dest;
-}
-
-/****************************************************************************
-* Function:   bcmstrtok
-*
-* Purpose:
-*  Tokenizes a string. This function is conceptually similiar to ANSI C strtok(),
-*  but allows strToken() to be used by different strings or callers at the same
-*  time. Each call modifies '*string' by substituting a NULL character for the
-*  first delimiter that is encountered, and updates 'string' to point to the char
-*  after the delimiter. Leading delimiters are skipped.
-*
-* Parameters:
-*  string      (mod) Ptr to string ptr, updated by token.
-*  delimiters  (in)  Set of delimiter characters.
-*  tokdelim    (out) Character that delimits the returned token. (May
-*                    be set to NULL if token delimiter is not required).
-*
-* Returns:  Pointer to the next token found. NULL when no more tokens are found.
-*****************************************************************************
-*/
-char *bcmstrtok(char **string, const char *delimiters, char *tokdelim)
-{
-	unsigned char *str;
-	unsigned long map[8];
-	int count;
-	char *nextoken;
-
-	if (tokdelim != NULL) {
-		/* Prime the token delimiter */
-		*tokdelim = '\0';
-	}
-
-	/* Clear control map */
-	for (count = 0; count < 8; count++) {
-		map[count] = 0;
-	}
-
-	/* Set bits in delimiter table */
-	do {
-		map[*delimiters >> 5] |= (1 << (*delimiters & 31));
-	} while (*delimiters++);
-
-	str = (unsigned char *)*string;
-
-	/* Find beginning of token (skip over leading delimiters). Note that
-	 * there is no token iff this loop sets str to point to the terminal
-	 * null (*str == '\0')
-	 */
-	while (((map[*str >> 5] & (1 << (*str & 31))) && *str) || (*str == ' ')) {
-		str++;
-	}
-
-	nextoken = (char *)str;
-
-	/* Find the end of the token. If it is not the end of the string,
-	 * put a null there.
-	 */
-	for (; *str; str++) {
-		if (map[*str >> 5] & (1 << (*str & 31))) {
-			if (tokdelim != NULL) {
-				*tokdelim = *str;
-			}
-
-			*str++ = '\0';
-			break;
-		}
-	}
-
-	*string = (char *)str;
-
-	/* Determine if a token has been found. */
-	if (nextoken == (char *)str) {
-		return NULL;
-	} else {
-		return nextoken;
-	}
-}
-
-#define xToLower(C) \
-	((C >= 'A' && C <= 'Z') ? (char)((int)C - (int)'A' + (int)'a') : C)
-
-/****************************************************************************
-* Function:   bcmstricmp
-*
-* Purpose:    Compare to strings case insensitively.
-*
-* Parameters: s1 (in) First string to compare.
-*             s2 (in) Second string to compare.
-*
-* Returns:    Return 0 if the two strings are equal, -1 if t1 < t2 and 1 if
-*             t1 > t2, when ignoring case sensitivity.
-*****************************************************************************
-*/
-int bcmstricmp(const char *s1, const char *s2)
-{
-	char dc, sc;
-
-	while (*s2 && *s1) {
-		dc = xToLower(*s1);
-		sc = xToLower(*s2);
-		if (dc < sc)
-			return -1;
-		if (dc > sc)
-			return 1;
-		s1++;
-		s2++;
-	}
-
-	if (*s1 && !*s2)
-		return 1;
-	if (!*s1 && *s2)
-		return -1;
-	return 0;
-}
-
-/****************************************************************************
-* Function:   bcmstrnicmp
-*
-* Purpose:    Compare to strings case insensitively, upto a max of 'cnt'
-*             characters.
-*
-* Parameters: s1  (in) First string to compare.
-*             s2  (in) Second string to compare.
-*             cnt (in) Max characters to compare.
-*
-* Returns:    Return 0 if the two strings are equal, -1 if t1 < t2 and 1 if
-*             t1 > t2, when ignoring case sensitivity.
-*****************************************************************************
-*/
-int bcmstrnicmp(const char *s1, const char *s2, int cnt)
-{
-	char dc, sc;
-
-	while (*s2 && *s1 && cnt) {
-		dc = xToLower(*s1);
-		sc = xToLower(*s2);
-		if (dc < sc)
-			return -1;
-		if (dc > sc)
-			return 1;
-		s1++;
-		s2++;
-		cnt--;
-	}
-
-	if (!cnt)
-		return 0;
-	if (*s1 && !*s2)
-		return 1;
-	if (!*s1 && *s2)
-		return -1;
-	return 0;
-}
-
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
 int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea)
 {
 	int i = 0;
 
 	for (;;) {
-		ea->octet[i++] = (char)bcm_strtoul(p, &p, 16);
+		ea->octet[i++] = (char)simple_strtoul(p, &p, 16);
 		if (!*p++ || i == 6)
 			break;
 	}
@@ -820,7 +562,7 @@ int getintvar(char *vars, const char *name)
 	if (val == NULL)
 		return 0;
 
-	return bcm_strtoul(val, NULL, 0);
+	return simple_strtoul(val, NULL, 0);
 }
 
 int getintvararray(char *vars, const char *name, uint8 index)
@@ -836,7 +578,7 @@ int getintvararray(char *vars, const char *name, uint8 index)
 
 	/* table values are always separated by "," or " " */
 	while (*buf != '\0') {
-		val = bcm_strtoul(buf, &endp, 0);
+		val = simple_strtoul(buf, &endp, 0);
 		if (i == index) {
 			return val;
 		}

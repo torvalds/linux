@@ -17,6 +17,7 @@
 #include <wlc_cfg.h>
 
 #include <osl.h>
+#include <linux/kernel.h>
 #include <bcmendian.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>
@@ -177,7 +178,7 @@ int phy_getintvar(phy_info_t *pi, const char *name)
 	if (val == NULL)
 		return 0;
 
-	return bcm_strtoul(val, NULL, 0);
+	return simple_strtoul(val, NULL, 0);
 }
 
 void wlc_phyreg_enter(wlc_phy_t *pih)

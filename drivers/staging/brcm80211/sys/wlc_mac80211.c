@@ -18,6 +18,7 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <osl.h>
+#include <linux/ctype.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
 #include <siutils.h>
@@ -74,8 +75,6 @@
 #define R_REG(osh, r) RPC_READ_REG(osh, r)
 #define W_REG(osh, r, v) RPC_WRITE_REG(osh, r, v)
 #endif
-
-#include <linux/ctype.h>
 
 /*
  * buffer length needed for wlc_format_ssid

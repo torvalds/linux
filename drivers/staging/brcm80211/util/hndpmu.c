@@ -17,6 +17,7 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <osl.h>
+#include <linux/kernel.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmdevs.h>
@@ -663,13 +664,13 @@ static void si_pmu_res_masks(si_t *sih, uint32 * pmin, uint32 * pmax)
 	val = getvar(NULL, "rmin");
 	if (val != NULL) {
 		PMU_MSG(("Applying rmin=%s to min_mask\n", val));
-		min_mask = (uint32) bcm_strtoul(val, NULL, 0);
+		min_mask = (uint32) simple_strtoul(val, NULL, 0);
 	}
 	/* Apply nvram override to max mask */
 	val = getvar(NULL, "rmax");
 	if (val != NULL) {
 		PMU_MSG(("Applying rmax=%s to max_mask\n", val));
-		max_mask = (uint32) bcm_strtoul(val, NULL, 0);
+		max_mask = (uint32) simple_strtoul(val, NULL, 0);
 	}
 
 	*pmin = min_mask;
@@ -787,7 +788,7 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 			 val, i));
 		W_REG(osh, &cc->res_table_sel, (uint32) i);
 		W_REG(osh, &cc->res_updn_timer,
-		      (uint32) bcm_strtoul(val, NULL, 0));
+		      (uint32) simple_strtoul(val, NULL, 0));
 	}
 
 	/* Program resource dependencies table */
@@ -838,7 +839,7 @@ void BCMATTACHFN(si_pmu_res_init) (si_t *sih, osl_t *osh)
 			 i));
 		W_REG(osh, &cc->res_table_sel, (uint32) i);
 		W_REG(osh, &cc->res_dep_mask,
-		      (uint32) bcm_strtoul(val, NULL, 0));
+		      (uint32) simple_strtoul(val, NULL, 0));
 	}
 
 	/* Determine min/max rsrc masks */
