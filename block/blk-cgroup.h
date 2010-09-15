@@ -15,6 +15,10 @@
 
 #include <linux/cgroup.h>
 
+enum blkio_policy_id {
+	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
+};
+
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 
 #ifndef CONFIG_BLK_CGROUP
@@ -65,6 +69,25 @@ enum blkg_state_flags {
 	BLKG_empty,
 };
 
+/* cgroup files owned by proportional weight policy */
+enum blkcg_file_name_prop {
+	BLKIO_PROP_weight = 1,
+	BLKIO_PROP_weight_device,
+	BLKIO_PROP_io_service_bytes,
+	BLKIO_PROP_io_serviced,
+	BLKIO_PROP_time,
+	BLKIO_PROP_sectors,
+	BLKIO_PROP_io_service_time,
+	BLKIO_PROP_io_wait_time,
+	BLKIO_PROP_io_merged,
+	BLKIO_PROP_io_queued,
+	BLKIO_PROP_avg_queue_size,
+	BLKIO_PROP_group_wait_time,
+	BLKIO_PROP_idle_time,
+	BLKIO_PROP_empty_time,
+	BLKIO_PROP_dequeue,
+};
+
 struct blkio_cgroup {
 	struct cgroup_subsys_state css;
 	unsigned int weight;
@@ -112,6 +135,8 @@ struct blkio_group {
 	char path[128];
 	/* The device MKDEV(major, minor), this group has been created for */
 	dev_t dev;
+	/* policy which owns this blk group */
+	enum blkio_policy_id plid;
 
 	/* Need to serialize the stats in the case of reset/update */
 	spinlock_t stats_lock;
@@ -122,6 +147,10 @@ struct blkio_policy_node {
 	struct list_head node;
 	dev_t dev;
 	unsigned int weight;
+	/* This node belongs to max bw policy or porportional weight policy */
+	enum blkio_policy_id plid;
+	/* cgroup file to which this rule belongs to */
+	int fileid;
 };
 
 extern unsigned int blkcg_get_weight(struct blkio_cgroup *blkcg,
@@ -139,6 +168,7 @@ struct blkio_policy_ops {
 struct blkio_policy_type {
 	struct list_head list;
 	struct blkio_policy_ops ops;
+	enum blkio_policy_id plid;
 };
 
 /* Blkio controller policy registration */
@@ -212,7 +242,8 @@ static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-			struct blkio_group *blkg, void *key, dev_t dev);
+	struct blkio_group *blkg, void *key, dev_t dev,
+	enum blkio_policy_id plid);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
@@ -234,7 +265,8 @@ static inline struct blkio_cgroup *
 cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 
 static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-			struct blkio_group *blkg, void *key, dev_t dev) {}
+		struct blkio_group *blkg, void *key, dev_t dev,
+		enum blkio_policy_id plid) {}
 
 static inline int
 blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
