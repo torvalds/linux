@@ -29,10 +29,8 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("tlv320aic23b driver");
 MODULE_AUTHOR("Scott Alfter, Ulf Eklund, Hans Verkuil");
@@ -199,9 +197,25 @@ static const struct i2c_device_id tlv320aic23b_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tlv320aic23b_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tlv320aic23b",
-	.probe = tlv320aic23b_probe,
-	.remove = tlv320aic23b_remove,
-	.id_table = tlv320aic23b_id,
+static struct i2c_driver tlv320aic23b_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tlv320aic23b",
+	},
+	.probe		= tlv320aic23b_probe,
+	.remove		= tlv320aic23b_remove,
+	.id_table	= tlv320aic23b_id,
 };
+
+static __init int init_tlv320aic23b(void)
+{
+	return i2c_add_driver(&tlv320aic23b_driver);
+}
+
+static __exit void exit_tlv320aic23b(void)
+{
+	i2c_del_driver(&tlv320aic23b_driver);
+}
+
+module_init(init_tlv320aic23b);
+module_exit(exit_tlv320aic23b);
