@@ -2116,23 +2116,9 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 		     MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_ERASE;
 
-	switch (mmc_slot(host).wires) {
-	case 8:
-		mmc->caps |= MMC_CAP_8_BIT_DATA;
-		/* Fall through */
-	case 4:
+	mmc->caps |= mmc_slot(host).caps;
+	if (mmc->caps & MMC_CAP_8_BIT_DATA)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
-		break;
-	case 1:
-		/* Nothing to crib here */
-	case 0:
-		/* Assuming nothing was given by board, Core use's 1-Bit */
-		break;
-	default:
-		/* Completely unexpected.. Core goes with 1-Bit Width */
-		dev_crit(mmc_dev(host->mmc), "Invalid width %d\n used!"
-			"using 1 instead\n", mmc_slot(host).wires);
-	}
 
 	if (mmc_slot(host).nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
