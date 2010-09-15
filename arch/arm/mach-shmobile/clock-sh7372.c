@@ -548,7 +548,7 @@ void __init sh7372_clock_init(void)
 		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
-		ret = sh_clk_div6_reparent_register(div6_reparent_clks, DIV6_NR);
+		ret = sh_clk_div6_reparent_register(div6_reparent_clks, DIV6_REPARENT_NR);
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
