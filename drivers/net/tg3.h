@@ -2659,7 +2659,8 @@ struct tg3_rx_prodring_set {
 	dma_addr_t			rx_jmb_mapping;
 };
 
-#define TG3_IRQ_MAX_VECS 5
+#define TG3_IRQ_MAX_VECS_RSS		5
+#define TG3_IRQ_MAX_VECS		TG3_IRQ_MAX_VECS_RSS
 
 struct tg3_napi {
 	struct napi_struct		napi	____cacheline_aligned;
