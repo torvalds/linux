@@ -1184,7 +1184,12 @@ EXPORT_SYMBOL(vio_unregister_driver);
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	/* XXX should free TCE table */
+	struct iommu_table *tbl = get_iommu_table_base(dev);
+
+	/* iSeries uses a common table for all vio devices */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES) && tbl)
+		iommu_free_table(tbl, dev->of_node ?
+			dev->of_node->full_name : dev_name(dev));
 	of_node_put(dev->of_node);
 	kfree(to_vio_dev(dev));
 }
