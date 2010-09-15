@@ -21,33 +21,6 @@
 extern "C" {
 #endif
 
-/* ctype replacement */
-#define _BCM_U	0x01		/* upper */
-#define _BCM_L	0x02		/* lower */
-#define _BCM_D	0x04		/* digit */
-#define _BCM_C	0x08		/* cntrl */
-#define _BCM_P	0x10		/* punct */
-#define _BCM_S	0x20		/* white space (space/lf/tab) */
-#define _BCM_X	0x40		/* hex digit */
-#define _BCM_SP	0x80		/* hard space (0x20) */
-
-	extern const unsigned char bcm_ctype[];
-#define bcm_ismask(x)	(bcm_ctype[(int)(unsigned char)(x)])
-
-#define bcm_isalnum(c)	((bcm_ismask(c)&(_BCM_U|_BCM_L|_BCM_D)) != 0)
-#define bcm_isalpha(c)	((bcm_ismask(c)&(_BCM_U|_BCM_L)) != 0)
-#define bcm_iscntrl(c)	((bcm_ismask(c)&(_BCM_C)) != 0)
-#define bcm_isdigit(c)	((bcm_ismask(c)&(_BCM_D)) != 0)
-#define bcm_isgraph(c)	((bcm_ismask(c)&(_BCM_P|_BCM_U|_BCM_L|_BCM_D)) != 0)
-#define bcm_islower(c)	((bcm_ismask(c)&(_BCM_L)) != 0)
-#define bcm_isprint(c)	((bcm_ismask(c)&(_BCM_P|_BCM_U|_BCM_L|_BCM_D|_BCM_SP)) != 0)
-#define bcm_ispunct(c)	((bcm_ismask(c)&(_BCM_P)) != 0)
-#define bcm_isspace(c)	((bcm_ismask(c)&(_BCM_S)) != 0)
-#define bcm_isupper(c)	((bcm_ismask(c)&(_BCM_U)) != 0)
-#define bcm_isxdigit(c)	((bcm_ismask(c)&(_BCM_D|_BCM_X)) != 0)
-#define bcm_tolower(c)	(bcm_isupper((c)) ? ((c) + 'a' - 'A') : (c))
-#define bcm_toupper(c)	(bcm_islower((c)) ? ((c) + 'A' - 'a') : (c))
-
 /* Buffer structure for collecting string-formatted data
 * using bcm_bprintf() API.
 * Use bcm_binit() to initialize before use

@@ -27,6 +27,8 @@
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
 
+#include <linux/ctype.h>
+
 #ifdef WLC_LOW
 /* nvram vars cache */
 static char *nvram_vars;
@@ -490,52 +492,6 @@ void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 	return p;
 }
 
-const unsigned char bcm_ctype[] = {
-
-	_BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C,	/* 0-7 */
-	_BCM_C, _BCM_C | _BCM_S, _BCM_C | _BCM_S, _BCM_C | _BCM_S,
-	    _BCM_C | _BCM_S, _BCM_C | _BCM_S, _BCM_C,
-	_BCM_C,			/* 8-15 */
-	_BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C,	/* 16-23 */
-	_BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C, _BCM_C,	/* 24-31 */
-	_BCM_S | _BCM_SP, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,	/* 32-39 */
-	_BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,	/* 40-47 */
-	_BCM_D, _BCM_D, _BCM_D, _BCM_D, _BCM_D, _BCM_D, _BCM_D, _BCM_D,	/* 48-55 */
-	_BCM_D, _BCM_D, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,	/* 56-63 */
-	_BCM_P, _BCM_U | _BCM_X, _BCM_U | _BCM_X, _BCM_U | _BCM_X,
-	    _BCM_U | _BCM_X, _BCM_U | _BCM_X,
-	_BCM_U | _BCM_X, _BCM_U,	/* 64-71 */
-	_BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U,	/* 72-79 */
-	_BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U,	/* 80-87 */
-	_BCM_U, _BCM_U, _BCM_U, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,	/* 88-95 */
-	_BCM_P, _BCM_L | _BCM_X, _BCM_L | _BCM_X, _BCM_L | _BCM_X,
-	    _BCM_L | _BCM_X, _BCM_L | _BCM_X,
-	_BCM_L | _BCM_X, _BCM_L,	/* 96-103 */
-	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L,	/* 104-111 */
-	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L,	/* 112-119 */
-	_BCM_L, _BCM_L, _BCM_L, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_C,	/* 120-127 */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	/* 128-143 */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	/* 144-159 */
-	_BCM_S | _BCM_SP, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,
-	    _BCM_P, _BCM_P, _BCM_P,
-	_BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,	/* 160-175 */
-	_BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,
-	    _BCM_P, _BCM_P,
-	_BCM_P, _BCM_P, _BCM_P, _BCM_P, _BCM_P,	/* 176-191 */
-	_BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U,
-	    _BCM_U, _BCM_U,
-	_BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U,	/* 192-207 */
-	_BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_P, _BCM_U,
-	    _BCM_U, _BCM_U,
-	_BCM_U, _BCM_U, _BCM_U, _BCM_U, _BCM_L,	/* 208-223 */
-	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L,
-	    _BCM_L, _BCM_L,
-	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L,	/* 224-239 */
-	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_P, _BCM_L,
-	    _BCM_L, _BCM_L,
-	_BCM_L, _BCM_L, _BCM_L, _BCM_L, _BCM_L	/* 240-255 */
-};
-
 ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
 {
 	ulong result, last_result = 0, value;
@@ -543,7 +499,7 @@ ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
 
 	minus = FALSE;
 
-	while (bcm_isspace(*cp))
+	while (isspace(*cp))
 		cp++;
 
 	if (cp[0] == '+')
@@ -571,9 +527,9 @@ ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base)
 
 	result = 0;
 
-	while (bcm_isxdigit(*cp) &&
+	while (isxdigit(*cp) &&
 	       (value =
-		bcm_isdigit(*cp) ? *cp - '0' : bcm_toupper(*cp) - 'A' + 10) <
+		isdigit(*cp) ? *cp - '0' : toupper(*cp) - 'A' + 10) <
 	       base) {
 		result = result * base + value;
 		/* Detected overflow */
@@ -1775,7 +1731,7 @@ int bcm_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
 		if (c == '\\') {
 			*p++ = '\\';
 			*p++ = '\\';
-		} else if (bcm_isprint((uchar) c)) {
+		} else if (isprint((uchar) c)) {
 			*p++ = (char)c;
 		} else {
 			p += snprintf(p, (endp - p), "\\x%02X", c);

@@ -75,6 +75,8 @@
 #define W_REG(osh, r, v) RPC_WRITE_REG(osh, r, v)
 #endif
 
+#include <linux/ctype.h>
+
 /*
  * buffer length needed for wlc_format_ssid
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
@@ -5486,7 +5488,7 @@ int wlc_format_ssid(char *buf, const uchar ssid[], uint ssid_len)
 		if (c == '\\') {
 			*p++ = '\\';
 			*p++ = '\\';
-		} else if (bcm_isprint((uchar) c)) {
+		} else if (isprint((uchar) c)) {
 			*p++ = (char)c;
 		} else {
 			p += snprintf(p, (endp - p), "\\x%02X", c);
