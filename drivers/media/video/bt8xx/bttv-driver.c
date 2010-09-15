@@ -3417,13 +3417,13 @@ bttv_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct v4l2_file_operations bttv_fops =
 {
-	.owner	  = THIS_MODULE,
-	.open	  = bttv_open,
-	.release  = bttv_release,
-	.ioctl	  = video_ioctl2,
-	.read	  = bttv_read,
-	.mmap	  = bttv_mmap,
-	.poll     = bttv_poll,
+	.owner		  = THIS_MODULE,
+	.open		  = bttv_open,
+	.release	  = bttv_release,
+	.unlocked_ioctl	  = video_ioctl2,
+	.read		  = bttv_read,
+	.mmap		  = bttv_mmap,
+	.poll		  = bttv_poll,
 };
 
 static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
