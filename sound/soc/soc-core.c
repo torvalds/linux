@@ -270,6 +270,33 @@ static void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
 	debugfs_remove_recursive(codec->debugfs_codec_root);
 }
 
+static ssize_t codec_list_read_file(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	ssize_t ret = 0;
+	struct snd_soc_codec *codec;
+
+	if (!buf)
+		return -ENOMEM;
+
+	list_for_each_entry(codec, &codec_list, list)
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
+				codec->name);
+
+	if (ret >= 0)
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+
+	kfree(buf);
+
+	return ret;
+}
+
+static const struct file_operations codec_list_fops = {
+	.read = codec_list_read_file,
+	.llseek = default_llseek,/* read accesses f_pos */
+};
+
 #else
 
 static inline void soc_init_codec_debugfs(struct snd_soc_codec *codec)
@@ -3191,6 +3218,11 @@ static int __init snd_soc_init(void)
 		       "ASoC: Failed to create debugfs directory\n");
 		debugfs_root = NULL;
 	}
+
+	if (!debugfs_create_file("codecs", 0444, debugfs_root, NULL,
+				 &codec_list_fops))
+		pr_warn("ASoC: Failed to create CODEC list debugfs file\n");
+
 #endif
 
 	return platform_driver_register(&soc_driver);
