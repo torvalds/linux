@@ -39,6 +39,8 @@
 
 struct tps6586x_rtc {
 	unsigned long     epoch_start;
+	int		  irq;
+	bool		  irq_en;
 	struct rtc_device *rtc;
 };
 
@@ -100,10 +102,6 @@ static int tps6586x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buff[3] = (ticks >> 8) & 0xff;
 	buff[4] = ticks & 0xff;
 
-	dev_info(dev, "setting time to %lu seconds (%llu ticks)\n",
-		 seconds, ticks);
-	
-
 	err = tps6586x_clr_bits(tps_dev, RTC_CTRL, RTC_ENABLE);
 	if (err < 0) {
 		dev_err(dev, "failed to clear RTC_ENABLE\n");
@@ -125,13 +123,115 @@ static int tps6586x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static int tps6586x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
+	struct device *tps_dev = to_tps6586x_dev(dev);
+	unsigned long seconds;
+	unsigned long ticks;
+	u8 buff[3];
+	int err;
+
+	if (rtc->irq == -1)
+		return -EIO;
+
+	rtc_tm_to_time(&alrm->time, &seconds);
+
+	if (WARN_ON(alrm->enabled && (seconds < rtc->epoch_start))) {
+		dev_err(dev, "can't set alarm to requested time\n");
+		return -EINVAL;
+	}
+
+	if (rtc->irq_en && rtc->irq_en && (rtc->irq != -1)) {
+		disable_irq(rtc->irq);
+		rtc->irq_en = false;
+	}
+
+	seconds -= rtc->epoch_start;
+	ticks = (seconds << 10) & 0xffffff;
+
+	buff[0] = (ticks >> 16) & 0xff;
+	buff[1] = (ticks >> 8) & 0xff;
+	buff[2] = ticks & 0xff;
+
+	err = tps6586x_writes(tps_dev, RTC_ALARM1_HI, sizeof(buff), buff);
+	if (err) {
+		dev_err(tps_dev, "unable to program alarm\n");
+		return err;
+	}
+
+	if (alrm->enabled && (rtc->irq != -1)) {
+		enable_irq(rtc->irq);
+		rtc->irq_en = true;
+	}
+
+	return err;
+}
+
+static int tps6586x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
+	struct device *tps_dev = to_tps6586x_dev(dev);
+	unsigned long ticks;
+	unsigned long seconds;
+	u8 buff[3];
+	int err;
+
+	err = tps6586x_reads(tps_dev, RTC_ALARM1_HI, sizeof(buff), buff);
+	if (err)
+		return err;
+
+	ticks = (buff[0] << 16) | (buff[1] << 8) | buff[2];
+	seconds = ticks >> 10;
+	seconds += rtc->epoch_start;
+
+	rtc_time_to_tm(seconds, &alrm->time);
+	alrm->enabled = rtc->irq_en;
+
+	return 0;
+}
+
+static int tps6586x_rtc_update_irq_enable(struct device *dev,
+					  unsigned int enabled)
+{
+	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
+
+	if (rtc->irq == -1)
+		return -EIO;
+
+	enabled = !!enabled;
+	if (enabled == rtc->irq_en)
+		return 0;
+
+	if (enabled)
+		enable_irq(rtc->irq);
+	else
+		disable_irq(rtc->irq);
+
+	rtc->irq_en = enabled;
+	return 0;
+}
+
 static const struct rtc_class_ops tps6586x_rtc_ops = {
 	.read_time	= tps6586x_rtc_read_time,
 	.set_time	= tps6586x_rtc_set_time,
+	.set_alarm	= tps6586x_rtc_set_alarm,
+	.read_alarm	= tps6586x_rtc_read_alarm,
+	.update_irq_enable = tps6586x_rtc_update_irq_enable,
 };
+
+static irqreturn_t tps6586x_rtc_irq(int irq, void *data)
+{
+	struct device *dev = data;
+	struct tps6586x_rtc *rtc = dev_get_drvdata(dev);
+
+	rtc_update_irq(rtc->rtc, 1, RTC_IRQF | RTC_AF);
+	return IRQ_HANDLED;
+}
 
 static int __devinit tps6586x_rtc_probe(struct platform_device *pdev)
 {
+	struct tps6586x_rtc_platform_data *pdata = pdev->dev.platform_data;
 	struct device *tps_dev = to_tps6586x_dev(&pdev->dev);
 	struct tps6586x_rtc *rtc;
 	int err;
@@ -141,7 +241,12 @@ static int __devinit tps6586x_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
+	rtc->irq = -1;
+	if (!pdata || (pdata->irq < 0))
+		dev_warn(&pdev->dev, "no IRQ specified, wakeup is disabled\n");
+
 	rtc->epoch_start = mktime(TPS_EPOCH, 1, 1, 0, 0, 0);
+
 	rtc->rtc = rtc_device_register("tps6586x-rtc", &pdev->dev,
 				       &tps6586x_rtc_ops, THIS_MODULE);
 
@@ -159,6 +264,21 @@ static int __devinit tps6586x_rtc_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, rtc);
+	if (pdata && (pdata->irq >= 0)) {
+		rtc->irq = pdata->irq;
+		err = request_threaded_irq(pdata->irq, NULL, tps6586x_rtc_irq,
+					   IRQF_ONESHOT, "tps6586x-rtc",
+					   &pdev->dev);
+		if (err) {
+			dev_warn(&pdev->dev, "unable to request IRQ\n");
+			rtc->irq = -1;
+		} else {
+			device_init_wakeup(&pdev->dev, 1);
+			disable_irq(rtc->irq);
+			enable_irq_wake(rtc->irq);
+		}
+	}
+
 	return 0;
 
 fail:
@@ -172,6 +292,8 @@ static int __devexit tps6586x_rtc_remove(struct platform_device *pdev)
 {
 	struct tps6586x_rtc *rtc = dev_get_drvdata(&pdev->dev);
 
+	if (rtc->irq != -1)
+		free_irq(rtc->irq, rtc);
 	rtc_device_unregister(rtc->rtc);
 	kfree(rtc);
 	return 0;
