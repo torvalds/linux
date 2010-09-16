@@ -470,8 +470,9 @@ struct ethtool_rxfh_indir {
  * @action: RX ring/queue index to deliver to (non-negative) or other action
  *	(negative, e.g. %ETHTOOL_RXNTUPLE_ACTION_DROP)
  *
- * Zero values in @h_u may be ignored, as if all the corresponding
- * mask bits were set.
+ * For flow types %TCP_V4_FLOW, %UDP_V4_FLOW and %SCTP_V4_FLOW, where
+ * a field value and mask are both zero this is treated as if all mask
+ * bits are set i.e. the field is ignored.
  */
 struct ethtool_rx_ntuple_flow_spec {
 	__u32		 flow_type;

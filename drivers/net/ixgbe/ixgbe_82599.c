@@ -1910,56 +1910,27 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 	              (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
 
 	/*
-	 * Program the relevant mask registers.  If src/dst_port or src/dst_addr
-	 * are zero, then assume a full mask for that field.  Also assume that
-	 * a VLAN of 0 is unspecified, so mask that out as well.  L4type
-	 * cannot be masked out in this implementation.
+	 * Program the relevant mask registers.  L4type cannot be
+	 * masked out in this implementation.
 	 *
 	 * This also assumes IPv4 only.  IPv6 masking isn't supported at this
 	 * point in time.
 	 */
-	if (src_ipv4 == 0)
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, 0xffffffff);
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, input_masks->src_ip_mask);
-
-	if (dst_ipv4 == 0)
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, 0xffffffff);
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, input_masks->dst_ip_mask);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, input_masks->src_ip_mask);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, input_masks->dst_ip_mask);
 
 	switch (l4type & IXGBE_ATR_L4TYPE_MASK) {
 	case IXGBE_ATR_L4TYPE_TCP:
-		if (src_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, 0xffff);
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
-			                input_masks->src_port_mask);
-
-		if (dst_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
-			                (0xffff << 16)));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
-			                (input_masks->dst_port_mask << 16)));
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, input_masks->src_port_mask);
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+				(IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
+				 (input_masks->dst_port_mask << 16)));
 		break;
 	case IXGBE_ATR_L4TYPE_UDP:
-		if (src_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, 0xffff);
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
-			                input_masks->src_port_mask);
-
-		if (dst_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
-			                (0xffff << 16)));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
-			                (input_masks->src_port_mask << 16)));
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, input_masks->src_port_mask);
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+				(IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
+				 (input_masks->src_port_mask << 16)));
 		break;
 	default:
 		/* this already would have failed above */
@@ -1967,11 +1938,11 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 	}
 
 	/* Program the last mask register, FDIRM */
-	if (input_masks->vlan_id_mask || !vlan_id)
+	if (input_masks->vlan_id_mask)
 		/* Mask both VLAN and VLANP - bits 0 and 1 */
 		fdirm |= 0x3;
 
-	if (input_masks->data_mask || !flex_bytes)
+	if (input_masks->data_mask)
 		/* Flex bytes need masking, so mask the whole thing - bit 4 */
 		fdirm |= 0x10;
 
