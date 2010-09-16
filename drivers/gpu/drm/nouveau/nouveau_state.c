@@ -36,6 +36,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
+#include "nouveau_pm.h"
 #include "nv50_display.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
@@ -527,6 +528,8 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_display_early;
 
+	nouveau_pm_init(dev);
+
 	ret = nouveau_mem_vram_init(dev);
 	if (ret)
 		goto out_bios;
@@ -635,6 +638,7 @@ out_gpuobj:
 out_vram:
 	nouveau_mem_vram_fini(dev);
 out_bios:
+	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);
 out_display_early:
 	engine->display.late_takedown(dev);
@@ -677,6 +681,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	drm_irq_uninstall(dev);
 
+	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);
 
 	vga_client_register(dev->pdev, NULL, NULL, NULL);

@@ -359,6 +359,51 @@ struct nouveau_gpio_engine {
 	void (*irq_enable)(struct drm_device *, enum dcb_gpio_tag, bool on);
 };
 
+struct nouveau_pm_voltage_level {
+	u8 voltage;
+	u8 vid;
+};
+
+struct nouveau_pm_voltage {
+	bool supported;
+	u8 vid_mask;
+
+	struct nouveau_pm_voltage_level *level;
+	int nr_level;
+};
+
+#define NOUVEAU_PM_MAX_LEVEL 8
+struct nouveau_pm_level {
+	struct device_attribute dev_attr;
+	char name[32];
+	int id;
+
+	u32 core;
+	u32 memory;
+	u32 shader;
+	u32 unk05;
+
+	u8 voltage;
+	u8 fanspeed;
+};
+
+struct nouveau_pm_engine {
+	struct nouveau_pm_voltage voltage;
+	struct nouveau_pm_level perflvl[NOUVEAU_PM_MAX_LEVEL];
+	int nr_perflvl;
+
+	struct nouveau_pm_level boot;
+	struct nouveau_pm_level *cur;
+
+	int (*clock_get)(struct drm_device *, u32 id);
+	void *(*clock_pre)(struct drm_device *, u32 id, int khz);
+	void (*clock_set)(struct drm_device *, void *);
+	int (*voltage_get)(struct drm_device *);
+	int (*voltage_set)(struct drm_device *, int voltage);
+	int (*fanspeed_get)(struct drm_device *);
+	int (*fanspeed_set)(struct drm_device *, int fanspeed);
+};
+
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
 	struct nouveau_mc_engine      mc;
@@ -368,6 +413,7 @@ struct nouveau_engine {
 	struct nouveau_fifo_engine    fifo;
 	struct nouveau_display_engine display;
 	struct nouveau_gpio_engine    gpio;
+	struct nouveau_pm_engine      pm;
 };
 
 struct nouveau_pll_vals {
