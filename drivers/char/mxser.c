@@ -1700,7 +1700,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		return 0;
 	}
 
-	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT && cmd != TIOCGICOUNT &&
+	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT &&
 			test_bit(TTY_IO_ERROR, &tty->flags))
 		return -EIO;
 
@@ -1730,32 +1730,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 
 		return wait_event_interruptible(info->port.delta_msr_wait,
 				mxser_cflags_changed(info, arg, &cnow));
-	/*
-	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-	 * Return: write counters to the user passed counter struct
-	 * NB: both 1->0 and 0->1 transitions are counted except for
-	 *     RI where only 0->1 is counted.
-	 */
-	case TIOCGICOUNT: {
-		struct serial_icounter_struct icnt = { 0 };
-		spin_lock_irqsave(&info->slock, flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->slock, flags);
-
-		icnt.frame = cnow.frame;
-		icnt.brk = cnow.brk;
-		icnt.overrun = cnow.overrun;
-		icnt.buf_overrun = cnow.buf_overrun;
-		icnt.parity = cnow.parity;
-		icnt.rx = cnow.rx;
-		icnt.tx = cnow.tx;
-		icnt.cts = cnow.cts;
-		icnt.dsr = cnow.dsr;
-		icnt.rng = cnow.rng;
-		icnt.dcd = cnow.dcd;
-
-		return copy_to_user(argp, &icnt, sizeof(icnt)) ? -EFAULT : 0;
-	}
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	case MOXA_SDS_RSTICOUNTER:
@@ -1825,6 +1799,39 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	default:
 		return -ENOIOCTLCMD;
 	}
+	return 0;
+}
+
+	/*
+	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+	 * Return: write counters to the user passed counter struct
+	 * NB: both 1->0 and 0->1 transitions are counted except for
+	 *     RI where only 0->1 is counted.
+	 */
+
+static int mxser_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount)
+
+{
+	struct mxser_port *info = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->slock, flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->slock, flags);
+
+	icount->frame = cnow.frame;
+	icount->brk = cnow.brk;
+	icount->overrun = cnow.overrun;
+	icount->buf_overrun = cnow.buf_overrun;
+	icount->parity = cnow.parity;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
 	return 0;
 }
 
@@ -2326,6 +2333,7 @@ static const struct tty_operations mxser_ops = {
 	.wait_until_sent = mxser_wait_until_sent,
 	.tiocmget = mxser_tiocmget,
 	.tiocmset = mxser_tiocmset,
+	.get_icount = mxser_get_icount,
 };
 
 struct tty_port_operations mxser_port_ops = {
