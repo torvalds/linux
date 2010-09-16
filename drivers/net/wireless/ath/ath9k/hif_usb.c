@@ -541,7 +541,8 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 		}
 
 		usb_fill_int_urb(urb, hif_dev->udev,
-				 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
+				 usb_rcvbulkpipe(hif_dev->udev,
+						 USB_REG_IN_PIPE),
 				 nskb->data, MAX_REG_IN_BUF_SIZE,
 				 ath9k_hif_usb_reg_in_cb, nskb, 1);
 
@@ -720,7 +721,8 @@ static int ath9k_hif_usb_alloc_reg_in_urb(struct hif_device_usb *hif_dev)
 		goto err;
 
 	usb_fill_int_urb(hif_dev->reg_in_urb, hif_dev->udev,
-			 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
+			 usb_rcvbulkpipe(hif_dev->udev,
+					 USB_REG_IN_PIPE),
 			 skb->data, MAX_REG_IN_BUF_SIZE,
 			 ath9k_hif_usb_reg_in_cb, skb, 1);
 
