@@ -306,6 +306,24 @@ __alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
 	__alloc_workqueue_key((name), (flags), (max_active), NULL, NULL)
 #endif
 
+/**
+ * alloc_ordered_workqueue - allocate an ordered workqueue
+ * @name: name of the workqueue
+ * @flags: WQ_* flags (only WQ_FREEZEABLE and WQ_RESCUER are meaningful)
+ *
+ * Allocate an ordered workqueue.  An ordered workqueue executes at
+ * most one work item at any given time in the queued order.  They are
+ * implemented as unbound workqueues with @max_active of one.
+ *
+ * RETURNS:
+ * Pointer to the allocated workqueue on success, %NULL on failure.
+ */
+static inline struct workqueue_struct *
+alloc_ordered_workqueue(const char *name, unsigned int flags)
+{
+	return alloc_workqueue(name, WQ_UNBOUND | flags, 1);
+}
+
 #define create_workqueue(name)					\
 	alloc_workqueue((name), WQ_RESCUER, 1)
 #define create_freezeable_workqueue(name)			\
