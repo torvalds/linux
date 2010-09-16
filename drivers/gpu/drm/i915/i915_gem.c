@@ -260,6 +260,16 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static bool
+i915_gem_object_cpu_accessible(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	return obj->gtt_space == NULL ||
+		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
+}
+
 static inline int
 fast_shmem_read(struct page **pages,
 		loff_t page_base, int page_offset,
@@ -1255,6 +1265,9 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Now bind it into the GTT if needed */
 	mutex_lock(&dev->struct_mutex);
+	if (!i915_gem_object_cpu_accessible(obj_priv))
+		i915_gem_object_unbind(obj);
+
 	if (!obj_priv->gtt_space) {
 		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
 		if (ret)
@@ -3465,10 +3478,14 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 		ret = 0;
 		for (i = 0; i < count; i++) {
 			struct drm_i915_gem_exec_object2 *entry = &exec_list[i];
-			struct drm_i915_gem_object *obj= to_intel_bo(object_list[i]);
+			struct drm_i915_gem_object *obj = to_intel_bo(object_list[i]);
 			bool need_fence =
 				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 				obj->tiling_mode != I915_TILING_NONE;
+
+			/* g33/pnv can't fence buffers in the unmappable part */
+			bool need_mappable =
+				entry->relocation_count ? true : need_fence;
 
 			/* Check fence reg constraints and rebind if necessary */
 			if (need_fence &&
@@ -3480,7 +3497,8 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 			}
 
 			ret = i915_gem_object_pin(&obj->base,
-						  entry->alignment, true);
+						  entry->alignment,
+						  need_mappable);
 			if (ret)
 				break;
 
@@ -4064,7 +4082,8 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
 	if (obj_priv->gtt_space != NULL) {
 		if (alignment == 0)
 			alignment = i915_gem_get_gtt_alignment(obj);
-		if (obj_priv->gtt_offset & (alignment - 1)) {
+		if (obj_priv->gtt_offset & (alignment - 1) ||
+		    (mappable && !i915_gem_object_cpu_accessible(obj_priv))) {
 			WARN(obj_priv->pin_count,
 			     "bo is already pinned with incorrect alignment:"
 			     " offset=%x, req.alignment=%x\n",
