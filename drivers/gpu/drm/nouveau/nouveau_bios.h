@@ -170,16 +170,28 @@ enum LVDS_script {
 	LVDS_PANEL_OFF
 };
 
-/* changing these requires matching changes to reg tables in nv_get_clock */
-#define MAX_PLL_TYPES	4
+/* these match types in pll limits table version 0x40,
+ * nouveau uses them on all chipsets internally where a
+ * specific pll needs to be referenced, but the exact
+ * register isn't known.
+ */
 enum pll_types {
-	NVPLL,
-	MPLL,
-	VPLL1,
-	VPLL2
+	PLL_CORE   = 0x01,
+	PLL_SHADER = 0x02,
+	PLL_UNK03  = 0x03,
+	PLL_MEMORY = 0x04,
+	PLL_UNK05  = 0x05,
+	PLL_UNK40  = 0x40,
+	PLL_UNK41  = 0x41,
+	PLL_UNK42  = 0x42,
+	PLL_VPLL0  = 0x80,
+	PLL_VPLL1  = 0x81,
+	PLL_MAX    = 0xff
 };
 
 struct pll_lims {
+	u32 reg;
+
 	struct {
 		int minfreq;
 		int maxfreq;

@@ -427,22 +427,11 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum pll_types plltype,
 		       struct nouveau_pll_vals *pllvals)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	const uint32_t nv04_regs[MAX_PLL_TYPES] = { NV_PRAMDAC_NVPLL_COEFF,
-						    NV_PRAMDAC_MPLL_COEFF,
-						    NV_PRAMDAC_VPLL_COEFF,
-						    NV_RAMDAC_VPLL2 };
-	const uint32_t nv40_regs[MAX_PLL_TYPES] = { 0x4000,
-						    0x4020,
-						    NV_PRAMDAC_VPLL_COEFF,
-						    NV_RAMDAC_VPLL2 };
-	uint32_t reg1, pll1, pll2 = 0;
+	uint32_t reg1 = get_pll_register(dev, plltype), pll1, pll2 = 0;
 	struct pll_lims pll_lim;
 	int ret;
 
-	if (dev_priv->card_type < NV_40)
-		reg1 = nv04_regs[plltype];
-	else
-		reg1 = nv40_regs[plltype];
+	BUG_ON(reg1 == 0);
 
 	pll1 = nvReadMC(dev, reg1);
 
@@ -492,7 +481,8 @@ nouveau_hw_get_clock(struct drm_device *dev, enum pll_types plltype)
 {
 	struct nouveau_pll_vals pllvals;
 
-	if (plltype == MPLL && (dev->pci_device & 0x0ff0) == CHIPSET_NFORCE) {
+	if (plltype == PLL_MEMORY &&
+	    (dev->pci_device & 0x0ff0) == CHIPSET_NFORCE) {
 		uint32_t mpllP;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 3), 0x6c, &mpllP);
@@ -501,7 +491,8 @@ nouveau_hw_get_clock(struct drm_device *dev, enum pll_types plltype)
 
 		return 400000 / mpllP;
 	} else
-	if (plltype == MPLL && (dev->pci_device & 0xff0) == CHIPSET_NFORCE2) {
+	if (plltype == PLL_MEMORY &&
+	    (dev->pci_device & 0xff0) == CHIPSET_NFORCE2) {
 		uint32_t clock;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 5), 0x4c, &clock);
@@ -526,9 +517,9 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 	struct nouveau_pll_vals pv;
 	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
 
-	if (get_pll_limits(dev, head ? VPLL2 : VPLL1, &pll_lim))
+	if (get_pll_limits(dev, pllreg, &pll_lim))
 		return;
-	nouveau_hw_get_pllvals(dev, head ? VPLL2 : VPLL1, &pv);
+	nouveau_hw_get_pllvals(dev, pllreg, &pv);
 
 	if (pv.M1 >= pll_lim.vco1.min_m && pv.M1 <= pll_lim.vco1.max_m &&
 	    pv.N1 >= pll_lim.vco1.min_n && pv.N1 <= pll_lim.vco1.max_n &&
@@ -661,7 +652,7 @@ nv_save_state_ramdac(struct drm_device *dev, int head,
 	if (dev_priv->card_type >= NV_10)
 		regp->nv10_cursync = NVReadRAMDAC(dev, head, NV_RAMDAC_NV10_CURSYNC);
 
-	nouveau_hw_get_pllvals(dev, head ? VPLL2 : VPLL1, &regp->pllvals);
+	nouveau_hw_get_pllvals(dev, head ? PLL_VPLL1 : PLL_VPLL0, &regp->pllvals);
 	state->pllsel = NVReadRAMDAC(dev, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
 	if (nv_two_heads(dev))
 		state->sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK);

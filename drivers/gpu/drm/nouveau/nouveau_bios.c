@@ -4675,6 +4675,92 @@ int run_tmds_table(struct drm_device *dev, struct dcb_entry *dcbent, int head, i
 	return 0;
 }
 
+struct pll_mapping {
+	u8  type;
+	u32 reg;
+};
+
+static struct pll_mapping nv04_pll_mapping[] = {
+	{ PLL_CORE  , NV_PRAMDAC_NVPLL_COEFF },
+	{ PLL_MEMORY, NV_PRAMDAC_MPLL_COEFF },
+	{ PLL_VPLL0 , NV_PRAMDAC_VPLL_COEFF },
+	{ PLL_VPLL1 , NV_RAMDAC_VPLL2 },
+	{}
+};
+
+static struct pll_mapping nv40_pll_mapping[] = {
+	{ PLL_CORE  , 0x004000 },
+	{ PLL_MEMORY, 0x004020 },
+	{ PLL_VPLL0 , NV_PRAMDAC_VPLL_COEFF },
+	{ PLL_VPLL1 , NV_RAMDAC_VPLL2 },
+	{}
+};
+
+static struct pll_mapping nv50_pll_mapping[] = {
+	{ PLL_CORE  , 0x004028 },
+	{ PLL_SHADER, 0x004020 },
+	{ PLL_UNK03 , 0x004000 },
+	{ PLL_MEMORY, 0x004008 },
+	{ PLL_UNK40 , 0x00e810 },
+	{ PLL_UNK41 , 0x00e818 },
+	{ PLL_UNK42 , 0x00e824 },
+	{ PLL_VPLL0 , 0x614100 },
+	{ PLL_VPLL1 , 0x614900 },
+	{}
+};
+
+static struct pll_mapping nv84_pll_mapping[] = {
+	{ PLL_CORE  , 0x004028 },
+	{ PLL_SHADER, 0x004020 },
+	{ PLL_MEMORY, 0x004008 },
+	{ PLL_UNK05 , 0x004030 },
+	{ PLL_UNK41 , 0x00e818 },
+	{ PLL_VPLL0 , 0x614100 },
+	{ PLL_VPLL1 , 0x614900 },
+	{}
+};
+
+u32
+get_pll_register(struct drm_device *dev, enum pll_types type)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct pll_mapping *map;
+	int i;
+
+	if (dev_priv->card_type < NV_40)
+		map = nv04_pll_mapping;
+	else
+	if (dev_priv->card_type < NV_50)
+		map = nv40_pll_mapping;
+	else {
+		u8 *plim = &bios->data[bios->pll_limit_tbl_ptr];
+
+		if (plim[0] >= 0x40) {
+			u8 *entry = plim + plim[1];
+			for (i = 0; i < plim[3]; i++, entry += plim[2]) {
+				if (entry[0] == type)
+					return ROM32(entry[3]);
+			}
+
+			return 0;
+		}
+
+		if (dev_priv->chipset == 0x50)
+			map = nv50_pll_mapping;
+		else
+			map = nv84_pll_mapping;
+	}
+
+	while (map->reg) {
+		if (map->type == type)
+			return map->reg;
+		map++;
+	}
+
+	return 0;
+}
+
 int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims *pll_lim)
 {
 	/*
@@ -4750,6 +4836,14 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 	/* initialize all members to zero */
 	memset(pll_lim, 0, sizeof(struct pll_lims));
 
+	/* if we were passed a type rather than a register, figure
+	 * out the register and store it
+	 */
+	if (limit_match > PLL_MAX)
+		pll_lim->reg = limit_match;
+	else
+		pll_lim->reg = get_pll_register(dev, limit_match);
+
 	if (pll_lim_ver == 0x10 || pll_lim_ver == 0x11) {
 		uint8_t *pll_rec = &bios->data[bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex];
 
@@ -4785,7 +4879,6 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		pll_lim->max_usable_log2p = 0x6;
 	} else if (pll_lim_ver == 0x20 || pll_lim_ver == 0x21) {
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
-		uint32_t reg = 0; /* default match */
 		uint8_t *pll_rec;
 		int i;
 
@@ -4797,29 +4890,8 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 			NV_WARN(dev, "Default PLL limit entry has non-zero "
 				       "register field\n");
 
-		if (limit_match > MAX_PLL_TYPES)
-			/* we've been passed a reg as the match */
-			reg = limit_match;
-		else /* limit match is a pll type */
-			for (i = 1; i < entries && !reg; i++) {
-				uint32_t cmpreg = ROM32(bios->data[plloffs + recordlen * i]);
-
-				if (limit_match == NVPLL &&
-				    (cmpreg == NV_PRAMDAC_NVPLL_COEFF || cmpreg == 0x4000))
-					reg = cmpreg;
-				if (limit_match == MPLL &&
-				    (cmpreg == NV_PRAMDAC_MPLL_COEFF || cmpreg == 0x4020))
-					reg = cmpreg;
-				if (limit_match == VPLL1 &&
-				    (cmpreg == NV_PRAMDAC_VPLL_COEFF || cmpreg == 0x4010))
-					reg = cmpreg;
-				if (limit_match == VPLL2 &&
-				    (cmpreg == NV_RAMDAC_VPLL2 || cmpreg == 0x4018))
-					reg = cmpreg;
-			}
-
 		for (i = 1; i < entries; i++)
-			if (ROM32(bios->data[plloffs + recordlen * i]) == reg) {
+			if (ROM32(bios->data[plloffs + recordlen * i]) == pll_lim->reg) {
 				pllindex = i;
 				break;
 			}
@@ -4827,7 +4899,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		pll_rec = &bios->data[plloffs + recordlen * pllindex];
 
 		BIOSLOG(bios, "Loading PLL limits for reg 0x%08x\n",
-			pllindex ? reg : 0);
+			pllindex ? pll_lim->reg : 0);
 
 		/*
 		 * Frequencies are stored in tables in MHz, kHz are more
@@ -4877,8 +4949,8 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		if (cv == 0x51 && !pll_lim->refclk) {
 			uint32_t sel_clk = bios_rd32(bios, NV_PRAMDAC_SEL_CLK);
 
-			if (((limit_match == NV_PRAMDAC_VPLL_COEFF || limit_match == VPLL1) && sel_clk & 0x20) ||
-			    ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
+			if ((pll_lim->reg == NV_PRAMDAC_VPLL_COEFF && sel_clk & 0x20) ||
+			    (pll_lim->reg == NV_RAMDAC_VPLL2 && sel_clk & 0x80)) {
 				if (bios_idxprt_rd(bios, NV_CIO_CRX__COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
 					pll_lim->refclk = 200000;
 				else
@@ -4891,10 +4963,10 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		int i;
 
 		BIOSLOG(bios, "Loading PLL limits for register 0x%08x\n",
-			limit_match);
+			pll_lim->reg);
 
 		for (i = 0; i < entries; i++, entry += recordlen) {
-			if (ROM32(entry[3]) == limit_match) {
+			if (ROM32(entry[3]) == pll_lim->reg) {
 				record = &bios->data[ROM16(entry[1])];
 				break;
 			}
@@ -4902,7 +4974,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 
 		if (!record) {
 			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", limit_match);
+				 "limits table", pll_lim->reg);
 			return -ENOENT;
 		}
 
@@ -4931,10 +5003,10 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		int i;
 
 		BIOSLOG(bios, "Loading PLL limits for register 0x%08x\n",
-			limit_match);
+			pll_lim->reg);
 
 		for (i = 0; i < entries; i++, entry += recordlen) {
-			if (ROM32(entry[3]) == limit_match) {
+			if (ROM32(entry[3]) == pll_lim->reg) {
 				record = &bios->data[ROM16(entry[1])];
 				break;
 			}
@@ -4942,7 +5014,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 
 		if (!record) {
 			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", limit_match);
+				 "limits table", pll_lim->reg);
 			return -ENOENT;
 		}
 

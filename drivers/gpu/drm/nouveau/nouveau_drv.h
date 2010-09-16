@@ -853,6 +853,7 @@ extern struct dcb_gpio_entry *nouveau_bios_gpio_entry(struct drm_device *,
 						      enum dcb_gpio_tag);
 extern struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
+extern u32 get_pll_register(struct drm_device *, enum pll_types);
 extern int get_pll_limits(struct drm_device *, uint32_t limit_match,
 			  struct pll_lims *);
 extern int nouveau_bios_run_display_table(struct drm_device *,

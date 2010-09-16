@@ -109,7 +109,7 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	struct nouveau_pll_vals *pv = &regp->pllvals;
 	struct pll_lims pll_lim;
 
-	if (get_pll_limits(dev, nv_crtc->index ? VPLL2 : VPLL1, &pll_lim))
+	if (get_pll_limits(dev, nv_crtc->index ? PLL_VPLL1 : PLL_VPLL0, &pll_lim))
 		return;
 
 	/* NM2 == 0 is used to determine single stage mode on two stage plls */

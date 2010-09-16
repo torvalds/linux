@@ -198,8 +198,8 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
-	int MClk = nouveau_hw_get_clock(dev, MPLL);
-	int NVClk = nouveau_hw_get_clock(dev, NVPLL);
+	int MClk = nouveau_hw_get_clock(dev, PLL_MEMORY);
+	int NVClk = nouveau_hw_get_clock(dev, PLL_CORE);
 	uint32_t cfg1 = nvReadFB(dev, NV04_PFB_CFG1);
 
 	sim_data.pclk_khz = VClk;
