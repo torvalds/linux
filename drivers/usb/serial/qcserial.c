@@ -118,6 +118,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	spin_lock_init(&data->susp_lock);
 
+	usb_enable_autosuspend(serial->dev);
+
 	switch (nintf) {
 	case 1:
 		/* QDL mode */
