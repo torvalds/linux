@@ -1640,9 +1640,10 @@ static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol, struct snd_ctl
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = cval->max;
-	if ((int)uinfo->value.enumerated.item >= cval->max)
+	if (uinfo->value.enumerated.item >= cval->max)
 		uinfo->value.enumerated.item = cval->max - 1;
-	strcpy(uinfo->value.enumerated.name, itemlist[uinfo->value.enumerated.item]);
+	strlcpy(uinfo->value.enumerated.name, itemlist[uinfo->value.enumerated.item],
+		sizeof(uinfo->value.enumerated.name));
 	return 0;
 }
 
