@@ -65,8 +65,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_max);
 DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
 
-static int nf_conntrack_hash_rnd_initted;
-static unsigned int nf_conntrack_hash_rnd;
+static unsigned int nf_conntrack_hash_rnd __read_mostly;
 
 static u_int32_t __hash_conntrack(const struct nf_conntrack_tuple *tuple,
 				  u16 zone, unsigned int size, unsigned int rnd)
@@ -574,10 +573,18 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 {
 	struct nf_conn *ct;
 
-	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
-		get_random_bytes(&nf_conntrack_hash_rnd,
-				sizeof(nf_conntrack_hash_rnd));
-		nf_conntrack_hash_rnd_initted = 1;
+	if (unlikely(!nf_conntrack_hash_rnd)) {
+		unsigned int rand;
+
+		/*
+		 * Why not initialize nf_conntrack_rnd in a "init()" function ?
+		 * Because there isn't enough entropy when system initializing,
+		 * and we initialize it as late as possible.
+		 */
+		do {
+			get_random_bytes(&rand, sizeof(rand));
+		} while (!rand);
+		cmpxchg(&nf_conntrack_hash_rnd, 0, rand);
 	}
 
 	/* We don't want any race condition at early drop stage */
