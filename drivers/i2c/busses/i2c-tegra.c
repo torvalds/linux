@@ -37,6 +37,7 @@
 #define I2C_CNFG				0x000
 #define I2C_CNFG_PACKET_MODE_EN			(1<<10)
 #define I2C_CNFG_NEW_MASTER_FSM			(1<<11)
+#define I2C_STATUS				0x01C
 #define I2C_SL_CNFG				0x020
 #define I2C_SL_CNFG_NEWSL			(1<<2)
 #define I2C_SL_ADDR1				0x02c
@@ -77,6 +78,7 @@
 #define I2C_ERR_NONE				0x00
 #define I2C_ERR_NO_ACK				0x01
 #define I2C_ERR_ARBITRATION_LOST		0x02
+#define I2C_ERR_UNKNOWN_INTERRUPT		0x04
 
 #define PACKET_HEADER0_HEADER_SIZE_SHIFT	28
 #define PACKET_HEADER0_PACKET_ID_SHIFT		16
@@ -112,6 +114,7 @@ struct tegra_i2c_dev {
 	void __iomem *base;
 	int cont_id;
 	int irq;
+	bool irq_disabled;
 	int is_dvc;
 	struct completion msg_complete;
 	int msg_err;
@@ -322,6 +325,12 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		err = -ETIMEDOUT;
 
 	clk_disable(i2c_dev->clk);
+
+	if (i2c_dev->irq_disabled) {
+		i2c_dev->irq_disabled = 0;
+		enable_irq(i2c_dev->irq);
+	}
+
 	return 0;
 }
 
@@ -334,9 +343,19 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	status = i2c_readl(i2c_dev, I2C_INT_STATUS);
 
 	if (status == 0) {
-		dev_warn(i2c_dev->dev, "irq status 0 %08x\n",
-			i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS));
-		return IRQ_HANDLED;
+		dev_warn(i2c_dev->dev, "irq status 0 %08x %08x %08x\n",
+			 i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS),
+			 i2c_readl(i2c_dev, I2C_STATUS),
+			 i2c_readl(i2c_dev, I2C_CNFG));
+		i2c_dev->msg_err |= I2C_ERR_UNKNOWN_INTERRUPT;
+
+		if (! i2c_dev->irq_disabled) {
+			disable_irq_nosync(i2c_dev->irq);
+			i2c_dev->irq_disabled = 1;
+		}
+
+		complete(&i2c_dev->msg_complete);
+		goto err;
 	}
 
 	if (unlikely(status & status_err)) {
@@ -377,6 +396,8 @@ err:
 		I2C_INT_PACKET_XFER_COMPLETE | I2C_INT_TX_FIFO_DATA_REQ |
 		I2C_INT_RX_FIFO_DATA_REQ);
 	i2c_writel(i2c_dev, status, I2C_INT_STATUS);
+	if (i2c_dev->is_dvc)
+		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
 	return IRQ_HANDLED;
 }
 
