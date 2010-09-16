@@ -516,10 +516,9 @@ BYTE CHbyGetChannelMapping(BYTE byChannelNumber)
 BYTE    ii;
 BYTE    byCHMapping = 0;
 
-    for (ii=1; ii<=CB_MAX_CHANNEL; ii++ ) {
-        if ( sChannelTbl[ii].byChannelNumber == byChannelNumber ) {
-            byCHMapping = ii;
-        }
+	for (ii = 1; ii <= CB_MAX_CHANNEL; ii++) {
+		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)
+			byCHMapping = ii;
     }
     return byCHMapping;
 }
