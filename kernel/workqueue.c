@@ -2326,6 +2326,48 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
+static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
+			     bool wait_executing)
+{
+	struct worker *worker = NULL;
+	struct global_cwq *gcwq;
+	struct cpu_workqueue_struct *cwq;
+
+	might_sleep();
+	gcwq = get_work_gcwq(work);
+	if (!gcwq)
+		return false;
+
+	spin_lock_irq(&gcwq->lock);
+	if (!list_empty(&work->entry)) {
+		/*
+		 * See the comment near try_to_grab_pending()->smp_rmb().
+		 * If it was re-queued to a different gcwq under us, we
+		 * are not going to wait.
+		 */
+		smp_rmb();
+		cwq = get_work_cwq(work);
+		if (unlikely(!cwq || gcwq != cwq->gcwq))
+			goto already_gone;
+	} else if (wait_executing) {
+		worker = find_worker_executing_work(gcwq, work);
+		if (!worker)
+			goto already_gone;
+		cwq = worker->current_cwq;
+	} else
+		goto already_gone;
+
+	insert_wq_barrier(cwq, barr, work, worker);
+	spin_unlock_irq(&gcwq->lock);
+
+	lock_map_acquire(&cwq->wq->lockdep_map);
+	lock_map_release(&cwq->wq->lockdep_map);
+	return true;
+already_gone:
+	spin_unlock_irq(&gcwq->lock);
+	return false;
+}
+
 /**
  * flush_work - wait for a work to finish executing the last queueing instance
  * @work: the work to flush
@@ -2346,46 +2388,14 @@ EXPORT_SYMBOL_GPL(flush_workqueue);
  */
 bool flush_work(struct work_struct *work)
 {
-	struct worker *worker = NULL;
-	struct global_cwq *gcwq;
-	struct cpu_workqueue_struct *cwq;
 	struct wq_barrier barr;
 
-	might_sleep();
-	gcwq = get_work_gcwq(work);
-	if (!gcwq)
-		return 0;
-
-	spin_lock_irq(&gcwq->lock);
-	if (!list_empty(&work->entry)) {
-		/*
-		 * See the comment near try_to_grab_pending()->smp_rmb().
-		 * If it was re-queued to a different gcwq under us, we
-		 * are not going to wait.
-		 */
-		smp_rmb();
-		cwq = get_work_cwq(work);
-		if (unlikely(!cwq || gcwq != cwq->gcwq))
-			goto already_gone;
-	} else {
-		worker = find_worker_executing_work(gcwq, work);
-		if (!worker)
-			goto already_gone;
-		cwq = worker->current_cwq;
-	}
-
-	insert_wq_barrier(cwq, &barr, work, worker);
-	spin_unlock_irq(&gcwq->lock);
-
-	lock_map_acquire(&cwq->wq->lockdep_map);
-	lock_map_release(&cwq->wq->lockdep_map);
-
-	wait_for_completion(&barr.done);
-	destroy_work_on_stack(&barr.work);
-	return true;
-already_gone:
-	spin_unlock_irq(&gcwq->lock);
-	return false;
+	if (start_flush_work(work, &barr, true)) {
+		wait_for_completion(&barr.done);
+		destroy_work_on_stack(&barr.work);
+		return true;
+	} else
+		return false;
 }
 EXPORT_SYMBOL_GPL(flush_work);
 
