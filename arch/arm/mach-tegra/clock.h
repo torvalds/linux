@@ -53,7 +53,6 @@ struct dvfs_process_id_table {
 	struct dvfs_table *table;
 };
 
-
 struct dvfs {
 	struct regulator *reg;
 	struct dvfs_table *table;
@@ -128,6 +127,7 @@ struct clk {
 	unsigned long			vco_min;
 	unsigned long			vco_max;
 	const struct clk_pll_table	*pll_table;
+	int				pll_lock_delay;
 
 	/* DIV */
 	u32				div;
