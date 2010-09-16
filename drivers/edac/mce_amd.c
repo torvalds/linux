@@ -640,6 +640,7 @@ static int __init mce_amd_init(void)
 
 	case 0x12:
 		fam_ops->dc_mce = f12h_dc_mce;
+		fam_ops->ic_mce = k8_ic_mce;
 		break;
 
 	case 0x14:
