@@ -690,6 +690,8 @@ struct ceph_snap_realm {
 
 	struct list_head empty_item;     /* if i have ref==0 */
 
+	struct list_head dirty_item;     /* if realm needs new context */
+
 	/* the current set of snaps for this realm */
 	struct ceph_snap_context *cached_context;
 
