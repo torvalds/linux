@@ -1015,8 +1015,6 @@ qlcnic_check_fw_hearbeat(struct qlcnic_adapter *adapter)
 int
 qlcnic_need_fw_reset(struct qlcnic_adapter *adapter)
 {
-	u32 val, version, major, minor, build;
-
 	if (qlcnic_check_fw_hearbeat(adapter)) {
 		qlcnic_rom_lock_recovery(adapter);
 		return 1;
@@ -1025,20 +1023,8 @@ qlcnic_need_fw_reset(struct qlcnic_adapter *adapter)
 	if (adapter->need_fw_reset)
 		return 1;
 
-	/* check if we have got newer or different file firmware */
-	if (adapter->fw) {
-
-		val = qlcnic_get_fw_version(adapter);
-
-		version = QLCNIC_DECODE_VERSION(val);
-
-		major = QLCRD32(adapter, QLCNIC_FW_VERSION_MAJOR);
-		minor = QLCRD32(adapter, QLCNIC_FW_VERSION_MINOR);
-		build = QLCRD32(adapter, QLCNIC_FW_VERSION_SUB);
-
-		if (version > QLCNIC_VERSION_CODE(major, minor, build))
-			return 1;
-	}
+	if (adapter->fw)
+		return 1;
 
 	return 0;
 }
@@ -1170,18 +1156,6 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 	qlcnic_rom_fast_read(adapter, QLCNIC_BIOS_VERSION_OFFSET, (int *)&bios);
 	if ((__force u32)val != bios) {
 		dev_err(&pdev->dev, "%s: firmware bios is incompatible\n",
-				fw_name[fw_type]);
-		return -EINVAL;
-	}
-
-	/* check if flashed firmware is newer */
-	if (qlcnic_rom_fast_read(adapter,
-			QLCNIC_FW_VERSION_OFFSET, (int *)&val))
-		return -EIO;
-
-	val = QLCNIC_DECODE_VERSION(val);
-	if (val > ver) {
-		dev_info(&pdev->dev, "%s: firmware is older than flash\n",
 				fw_name[fw_type]);
 		return -EINVAL;
 	}
