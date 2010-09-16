@@ -546,7 +546,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	obj_priv = to_intel_bo(obj);
 	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
 
-	ret = i915_gem_object_pin(obj, 4096);
+	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret != 0) {
 		goto err_unref;
 	}
@@ -602,7 +602,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 
 	ring->gem_object = obj;
 
-	ret = i915_gem_object_pin(obj, PAGE_SIZE);
+	ret = i915_gem_object_pin(obj, PAGE_SIZE, true);
 	if (ret)
 		goto err_unref;
 

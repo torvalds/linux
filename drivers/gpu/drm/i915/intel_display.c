@@ -1461,7 +1461,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		BUG();
 	}
 
-	ret = i915_gem_object_pin(obj, alignment);
+	ret = i915_gem_object_pin(obj, alignment, true);
 	if (ret)
 		return ret;
 
@@ -4353,7 +4353,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
 	if (!dev_priv->info->cursor_needs_physical) {
-		ret = i915_gem_object_pin(bo, PAGE_SIZE);
+		ret = i915_gem_object_pin(bo, PAGE_SIZE, true);
 		if (ret) {
 			DRM_ERROR("failed to pin cursor bo\n");
 			goto fail_locked;
@@ -5517,7 +5517,7 @@ intel_alloc_context_page(struct drm_device *dev)
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_object_pin(ctx, 4096);
+	ret = i915_gem_object_pin(ctx, 4096, true);
 	if (ret) {
 		DRM_ERROR("failed to pin power context: %d\n", ret);
 		goto err_unref;

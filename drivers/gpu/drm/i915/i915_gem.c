@@ -51,7 +51,7 @@ static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *o
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj,
 					  bool interruptible);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
-					   unsigned alignment);
+				       unsigned alignment, bool mappable);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -1031,7 +1031,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	else if (obj_priv->tiling_mode == I915_TILING_NONE &&
 		 obj_priv->gtt_space &&
 		 obj->write_domain != I915_GEM_DOMAIN_CPU) {
-		ret = i915_gem_object_pin(obj, 0);
+		ret = i915_gem_object_pin(obj, 0, true);
 		if (ret)
 			goto out;
 
@@ -1256,7 +1256,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Now bind it into the GTT if needed */
 	mutex_lock(&dev->struct_mutex);
 	if (!obj_priv->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0);
+		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
 		if (ret)
 			goto unlock;
 
@@ -1506,7 +1506,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	 * initial fault faster and any subsequent flushing possible).
 	 */
 	if (!obj_priv->agp_mem) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0);
+		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
 		if (ret)
 			goto out;
 	}
@@ -2635,7 +2635,9 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
  * Finds free space in the GTT aperture and binds the object there.
  */
 static int
-i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
+i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
+			    unsigned alignment,
+			    bool mappable)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -2659,22 +2661,42 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	/* If the object is bigger than the entire aperture, reject it early
 	 * before evicting everything in a vain attempt to find space.
 	 */
-	if (obj->size > dev_priv->mm.gtt_total) {
+	if (obj->size >
+	    (mappable ? dev_priv->mm.gtt_mappable_end : dev_priv->mm.gtt_total)) {
 		DRM_ERROR("Attempting to bind an object larger than the aperture\n");
 		return -E2BIG;
 	}
 
  search_free:
-	free_space = drm_mm_search_free(&dev_priv->mm.gtt_space,
-					obj->size, alignment, 0);
-	if (free_space != NULL)
-		obj_priv->gtt_space = drm_mm_get_block(free_space, obj->size,
-						       alignment);
+	if (mappable)
+		free_space =
+			drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
+						    obj->size, alignment, 0,
+						    dev_priv->mm.gtt_mappable_end,
+						    0);
+	else
+		free_space = drm_mm_search_free(&dev_priv->mm.gtt_space,
+						obj->size, alignment, 0);
+
+	if (free_space != NULL) {
+		if (mappable)
+			obj_priv->gtt_space =
+				drm_mm_get_block_range_generic(free_space,
+							       obj->size,
+							       alignment, 0,
+							       dev_priv->mm.gtt_mappable_end,
+							       0);
+		else
+			obj_priv->gtt_space =
+				drm_mm_get_block(free_space, obj->size,
+						 alignment);
+	}
 	if (obj_priv->gtt_space == NULL) {
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
-		ret = i915_gem_evict_something(dev, obj->size, alignment, true);
+		ret = i915_gem_evict_something(dev, obj->size, alignment,
+					       mappable);
 		if (ret)
 			return ret;
 
@@ -2689,7 +2711,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		if (ret == -ENOMEM) {
 			/* first try to clear up some space from the GTT */
 			ret = i915_gem_evict_something(dev, obj->size,
-						       alignment, true);
+						       alignment, mappable);
 			if (ret) {
 				/* now try to shrink everyone else */
 				if (gfpmask) {
@@ -2719,7 +2741,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
 
-		ret = i915_gem_evict_something(dev, obj->size, alignment, true);
+		ret = i915_gem_evict_something(dev, obj->size, alignment,
+					       mappable);
 		if (ret)
 			return ret;
 
@@ -3456,7 +3479,8 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 					break;
 			}
 
-			ret = i915_gem_object_pin(&obj->base, entry->alignment);
+			ret = i915_gem_object_pin(&obj->base,
+						  entry->alignment, true);
 			if (ret)
 				break;
 
@@ -4026,7 +4050,8 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 }
 
 int
-i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
+i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
+		    bool mappable)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4051,7 +4076,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	}
 
 	if (obj_priv->gtt_space == NULL) {
-		ret = i915_gem_object_bind_to_gtt(obj, alignment);
+		ret = i915_gem_object_bind_to_gtt(obj, alignment, mappable);
 		if (ret)
 			return ret;
 	}
@@ -4133,7 +4158,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	obj_priv->user_pin_count++;
 	obj_priv->pin_filp = file_priv;
 	if (obj_priv->user_pin_count == 1) {
-		ret = i915_gem_object_pin(obj, args->alignment);
+		ret = i915_gem_object_pin(obj, args->alignment, true);
 		if (ret)
 			goto out;
 	}
@@ -4445,7 +4470,7 @@ i915_gem_init_pipe_control(struct drm_device *dev)
 	obj_priv = to_intel_bo(obj);
 	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
 
-	ret = i915_gem_object_pin(obj, 4096);
+	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret)
 		goto err_unref;
 
