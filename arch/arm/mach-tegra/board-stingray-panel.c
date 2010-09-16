@@ -320,16 +320,12 @@ static void stingray_panel_early_suspend(struct early_suspend *h)
 {
 	if (num_registered_fb > 0)
 		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
-
-	pr_info("KONK: early_suspend\n");
 }
 
 static void stingray_panel_late_resume(struct early_suspend *h)
 {
 	if (num_registered_fb > 0)
 		fb_blank(registered_fb[0], FB_BLANK_UNBLANK);
-
-	pr_info("KONK: late_resume\n");
 }
 #endif
 
