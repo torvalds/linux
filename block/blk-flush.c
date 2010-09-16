@@ -205,7 +205,6 @@ static void bio_end_flush(struct bio *bio, int err)
  * @bdev:	blockdev to issue flush for
  * @gfp_mask:	memory allocation flags (for bio_alloc)
  * @error_sector:	error sector
- * @flags:	BLKDEV_IFL_* flags to control behaviour
  *
  * Description:
  *    Issue a flush for the block device in question. Caller can supply
@@ -214,7 +213,7 @@ static void bio_end_flush(struct bio *bio, int err)
  *    request was pushed in some internal queue for later handling.
  */
 int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
-		sector_t *error_sector, unsigned long flags)
+		sector_t *error_sector)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q;
@@ -240,21 +239,19 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 	bio = bio_alloc(gfp_mask, 0);
 	bio->bi_end_io = bio_end_flush;
 	bio->bi_bdev = bdev;
-	if (test_bit(BLKDEV_WAIT, &flags))
-		bio->bi_private = &wait;
+	bio->bi_private = &wait;
 
 	bio_get(bio);
 	submit_bio(WRITE_FLUSH, bio);
-	if (test_bit(BLKDEV_WAIT, &flags)) {
-		wait_for_completion(&wait);
-		/*
-		 * The driver must store the error location in ->bi_sector, if
-		 * it supports it. For non-stacked drivers, this should be
-		 * copied from blk_rq_pos(rq).
-		 */
-		if (error_sector)
-			*error_sector = bio->bi_sector;
-	}
+	wait_for_completion(&wait);
+
+	/*
+	 * The driver must store the error location in ->bi_sector, if
+	 * it supports it. For non-stacked drivers, this should be
+	 * copied from blk_rq_pos(rq).
+	 */
+	if (error_sector)
+               *error_sector = bio->bi_sector;
 
 	if (!bio_flagged(bio, BIO_UPTODATE))
 		ret = -EIO;

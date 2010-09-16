@@ -128,10 +128,9 @@ int ext4_sync_file(struct file *file, int datasync)
 		    (journal->j_fs_dev != journal->j_dev) &&
 		    (journal->j_flags & JBD2_BARRIER))
 			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
-					NULL, BLKDEV_IFL_WAIT);
+					NULL);
 		ret = jbd2_log_wait_commit(journal, commit_tid);
 	} else if (journal->j_flags & JBD2_BARRIER)
-		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL,
-			BLKDEV_IFL_WAIT);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 	return ret;
 }
