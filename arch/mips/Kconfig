@@ -1647,8 +1647,16 @@ config MIPS_MT_SMP
 	select SYS_SUPPORTS_SMP
 	select SMP_UP
 	help
-	  This is a kernel model which is also known a VSMP or lately
-	  has been marketesed into SMVP.
+	  This is a kernel model which is known a VSMP but lately has been
+	  marketesed into SMVP.
+	  Virtual SMP uses the processor's VPEs  to implement virtual
+	  processors. In currently available configuration of the 34K processor
+	  this allows for a dual processor. Both processors will share the same
+	  primary caches; each will obtain the half of the TLB for it's own
+	  exclusive use. For a layman this model can be described as similar to
+	  what Intel calls Hyperthreading.
+
+	  For further information see http://www.linux-mips.org/wiki/34K#VSMP
 
 config MIPS_MT_SMTC
 	bool "SMTC: Use all TCs on all VPEs for SMP"
@@ -1665,6 +1673,14 @@ config MIPS_MT_SMTC
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
+	  is presenting the available TC's of the core as processors to Linux.
+	  On currently available 34K processors this means a Linux system will
+	  see up to 5 processors. The implementation of the SMTC kernel differs
+	  significantly from VSMP and cannot efficiently coexist in the same
+	  kernel binary so the choice between VSMP and SMTC is a compile time
+	  decision.
+
+	  For further information see http://www.linux-mips.org/wiki/34K#SMTC
 
 endchoice
 
