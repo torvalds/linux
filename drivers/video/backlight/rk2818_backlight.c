@@ -25,9 +25,7 @@
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 
-#ifdef CONFIG_ANDROID_POWER
-#include <linux/android_power.h>
-#endif
+#include <linux/earlysuspend.h>
 #include <asm/io.h>
 //#include <mach/typedef.h>
 #include <mach/iomux.h>
@@ -43,7 +41,7 @@
 /*
  * Debug
  */
-#if 0
+#if 1
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -71,8 +69,9 @@ static s32 rk2818_bl_update_status(struct backlight_device *bl)
     
     div_total = read_pwm_reg(id, PWM_REG_LRC);
     if (ref) {
-	 DBG(">>>%s-->%d   bl->props.brightness == %d\n",__FUNCTION__,__LINE__,bl->props.brightness);
+
         divh = div_total*(bl->props.brightness)/BL_STEP;
+	 DBG(">>>%s-->%d   bl->props.brightness == %d, div_total == %d , divh == %d\n",__FUNCTION__,__LINE__,bl->props.brightness, div_total, divh);
     } else {
      	 DBG(">>>%s-->%d   bl->props.brightness == %d\n",__FUNCTION__,__LINE__,bl->props.brightness);
 	 if(bl->props.brightness < BACKLIGHT_SEE_MINVALUE)	/*avoid can't view screen when close backlight*/
@@ -94,7 +93,7 @@ static s32 rk2818_bl_get_brightness(struct backlight_device *bl)
     div_total = read_pwm_reg(id, PWM_REG_LRC);
     divh = read_pwm_reg(id, PWM_REG_HRC);
 
-	DBG("%s::========================================\n",__func__);
+	DBG("%s::======================================== div_total: %d\n",__func__,div_total);
 
     if (ref) {
         return BL_STEP*divh/div_total;
@@ -176,8 +175,8 @@ static void rk2818_delaybacklight_timer(unsigned long data)
     DBG("%s: ======================== \n",__func__); 
 }
 
-#ifdef CONFIG_ANDROID_POWER
-static void rk2818_bl_suspend(android_early_suspend_t *h)
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void rk2818_bl_suspend(struct early_suspend *h)
 {
     struct rk2818_bl_info *rk2818_bl_info;
     u32 id;
@@ -194,7 +193,7 @@ static void rk2818_bl_suspend(android_early_suspend_t *h)
     } else {
         divh = div_total;
     }
-
+    DBG("%s: ==========  jyk  suspend  =============== \n",__func__); 
     write_pwm_reg(id, PWM_REG_HRC, divh);
 
     suspend_flag = 1;
@@ -203,7 +202,7 @@ static void rk2818_bl_suspend(android_early_suspend_t *h)
 }
 
 
-static void rk2818_bl_resume(android_early_suspend_t *h)
+static void rk2818_bl_resume(struct early_suspend *h)
 {
     struct rk2818_bl_info *rk2818_bl_info;
    // u32 id, brightness;
@@ -232,7 +231,7 @@ static void rk2818_bl_resume(android_early_suspend_t *h)
 	#endif 
 }
 
-static android_early_suspend_t bl_early_suspend;
+static struct early_suspend bl_early_suspend;
 #endif
 
 static int rk2818_backlight_probe(struct platform_device *pdev)
@@ -242,10 +241,10 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
     u32 id  =  rk2818_bl_info->pwm_id;
     u32 divh, div_total;
     struct clk* arm_pclk; 
+ 
+    DBG("%s::============== jyk  ==========================\n",__func__);
 
-    DBG("%s::========================================\n",__func__);
-
-	if (rk2818_bl) {
+    if (rk2818_bl) {
         DBG(KERN_CRIT "%s: backlight device register has existed \n",
                __func__); 
 		return -EEXIST;		
@@ -257,7 +256,7 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
                __func__); 
 		return -ENODEV;		
 	}
-
+	
     arm_pclk = clk_get(NULL, "arm_pclk");
     if (!arm_pclk || IS_ERR(arm_pclk)) 
     {
@@ -265,6 +264,8 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;	
 	}
     div_total = clk_get_rate(arm_pclk)/PWM_APB_PRE_DIV;
+
+	
     clk_put(arm_pclk);
     
     div_total >>= (1 + (PWM_DIV >> 9));
@@ -293,11 +294,11 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
 	rk2818_bl->props.max_brightness = BL_STEP;
 	rk2818_bl->props.brightness = rk2818_bl_get_brightness(rk2818_bl);
 
-#ifdef CONFIG_ANDROID_POWER
+#ifdef CONFIG_HAS_EARLYSUSPEND
     bl_early_suspend.suspend = rk2818_bl_suspend;
     bl_early_suspend.resume = rk2818_bl_resume;
     bl_early_suspend.level = ~0x0;
-    android_register_early_suspend(&bl_early_suspend);
+    register_early_suspend(&bl_early_suspend);
 #endif
 
     if (rk2818_bl_info && rk2818_bl_info->io_init) {
@@ -313,8 +314,8 @@ static int rk2818_backlight_remove(struct platform_device *pdev)
     
 	if (rk2818_bl) {
 		backlight_device_unregister(rk2818_bl);
-#ifdef CONFIG_ANDROID_POWER
-        android_unregister_early_suspend(&bl_early_suspend);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+        unregister_early_suspend(&bl_early_suspend);
 #endif       
         cpufreq_unregister_notifier(&rk2818_bl_info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
         if (rk2818_bl_info && rk2818_bl_info->io_deinit) {
@@ -355,7 +356,7 @@ static void rk2818_backlight_shutdown(struct platform_device *pdev)
 	}
 	//printk("------------rk28_backlight_shutdown  mdelay----------------------------\n");
 	write_pwm_reg(id, PWM_REG_HRC, divh); 
-    mdelay(100);
+	mdelay(100);
 	/*set  PF1=1 PF2=1 for close backlight*/	
 
     if(rk2818_bl_info->bl_ref) {
@@ -384,7 +385,7 @@ static int __init rk2818_backlight_init(void)
 	platform_driver_register(&rk2818_backlight_driver);
 	return 0;
 }
-rootfs_initcall(rk2818_backlight_init);
+//rootfs_initcall(rk2818_backlight_init);
 
-//late_initcall(rk28_backlight_init);
+late_initcall(rk2818_backlight_init);
 //module_init(rk28_backlight_init);
