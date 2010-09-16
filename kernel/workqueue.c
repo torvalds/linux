@@ -2327,16 +2327,24 @@ out_unlock:
 EXPORT_SYMBOL_GPL(flush_workqueue);
 
 /**
- * flush_work - block until a work_struct's callback has terminated
- * @work: the work which is to be flushed
+ * flush_work - wait for a work to finish executing the last queueing instance
+ * @work: the work to flush
  *
- * Returns false if @work has already terminated.
+ * Wait until @work has finished execution.  This function considers
+ * only the last queueing instance of @work.  If @work has been
+ * enqueued across different CPUs on a non-reentrant workqueue or on
+ * multiple workqueues, @work might still be executing on return on
+ * some of the CPUs from earlier queueing.
  *
- * It is expected that, prior to calling flush_work(), the caller has
- * arranged for the work to not be requeued, otherwise it doesn't make
- * sense to use this function.
+ * If @work was queued only on a non-reentrant, ordered or unbound
+ * workqueue, @work is guaranteed to be idle on return if it hasn't
+ * been requeued since flush started.
+ *
+ * RETURNS:
+ * %true if flush_work() waited for the work to finish execution,
+ * %false if it was already idle.
  */
-int flush_work(struct work_struct *work)
+bool flush_work(struct work_struct *work)
 {
 	struct worker *worker = NULL;
 	struct global_cwq *gcwq;
@@ -2374,12 +2382,48 @@ int flush_work(struct work_struct *work)
 
 	wait_for_completion(&barr.done);
 	destroy_work_on_stack(&barr.work);
-	return 1;
+	return true;
 already_gone:
 	spin_unlock_irq(&gcwq->lock);
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL_GPL(flush_work);
+
+static bool wait_on_cpu_work(struct global_cwq *gcwq, struct work_struct *work)
+{
+	struct wq_barrier barr;
+	struct worker *worker;
+
+	spin_lock_irq(&gcwq->lock);
+
+	worker = find_worker_executing_work(gcwq, work);
+	if (unlikely(worker))
+		insert_wq_barrier(worker->current_cwq, &barr, work, worker);
+
+	spin_unlock_irq(&gcwq->lock);
+
+	if (unlikely(worker)) {
+		wait_for_completion(&barr.done);
+		destroy_work_on_stack(&barr.work);
+		return true;
+	} else
+		return false;
+}
+
+static bool wait_on_work(struct work_struct *work)
+{
+	bool ret = false;
+	int cpu;
+
+	might_sleep();
+
+	lock_map_acquire(&work->lockdep_map);
+	lock_map_release(&work->lockdep_map);
+
+	for_each_gcwq_cpu(cpu)
+		ret |= wait_on_cpu_work(get_gcwq(cpu), work);
+	return ret;
+}
 
 /*
  * Upon a successful return (>= 0), the caller "owns" WORK_STRUCT_PENDING bit,
@@ -2423,39 +2467,7 @@ static int try_to_grab_pending(struct work_struct *work)
 	return ret;
 }
 
-static void wait_on_cpu_work(struct global_cwq *gcwq, struct work_struct *work)
-{
-	struct wq_barrier barr;
-	struct worker *worker;
-
-	spin_lock_irq(&gcwq->lock);
-
-	worker = find_worker_executing_work(gcwq, work);
-	if (unlikely(worker))
-		insert_wq_barrier(worker->current_cwq, &barr, work, worker);
-
-	spin_unlock_irq(&gcwq->lock);
-
-	if (unlikely(worker)) {
-		wait_for_completion(&barr.done);
-		destroy_work_on_stack(&barr.work);
-	}
-}
-
-static void wait_on_work(struct work_struct *work)
-{
-	int cpu;
-
-	might_sleep();
-
-	lock_map_acquire(&work->lockdep_map);
-	lock_map_release(&work->lockdep_map);
-
-	for_each_gcwq_cpu(cpu)
-		wait_on_cpu_work(get_gcwq(cpu), work);
-}
-
-static int __cancel_work_timer(struct work_struct *work,
+static bool __cancel_work_timer(struct work_struct *work,
 				struct timer_list* timer)
 {
 	int ret;
@@ -2472,42 +2484,60 @@ static int __cancel_work_timer(struct work_struct *work,
 }
 
 /**
- * cancel_work_sync - block until a work_struct's callback has terminated
- * @work: the work which is to be flushed
+ * cancel_work_sync - cancel a work and wait for it to finish
+ * @work: the work to cancel
  *
- * Returns true if @work was pending.
+ * Cancel @work and wait for its execution to finish.  This function
+ * can be used even if the work re-queues itself or migrates to
+ * another workqueue.  On return from this function, @work is
+ * guaranteed to be not pending or executing on any CPU.
  *
- * cancel_work_sync() will cancel the work if it is queued. If the work's
- * callback appears to be running, cancel_work_sync() will block until it
- * has completed.
+ * cancel_work_sync(&delayed_work->work) must not be used for
+ * delayed_work's.  Use cancel_delayed_work_sync() instead.
  *
- * It is possible to use this function if the work re-queues itself. It can
- * cancel the work even if it migrates to another workqueue, however in that
- * case it only guarantees that work->func() has completed on the last queued
- * workqueue.
- *
- * cancel_work_sync(&delayed_work->work) should be used only if ->timer is not
- * pending, otherwise it goes into a busy-wait loop until the timer expires.
- *
- * The caller must ensure that workqueue_struct on which this work was last
+ * The caller must ensure that the workqueue on which @work was last
  * queued can't be destroyed before this function returns.
+ *
+ * RETURNS:
+ * %true if @work was pending, %false otherwise.
  */
-int cancel_work_sync(struct work_struct *work)
+bool cancel_work_sync(struct work_struct *work)
 {
 	return __cancel_work_timer(work, NULL);
 }
 EXPORT_SYMBOL_GPL(cancel_work_sync);
 
 /**
- * cancel_delayed_work_sync - reliably kill off a delayed work.
- * @dwork: the delayed work struct
+ * flush_delayed_work - wait for a dwork to finish executing the last queueing
+ * @dwork: the delayed work to flush
  *
- * Returns true if @dwork was pending.
+ * Delayed timer is cancelled and the pending work is queued for
+ * immediate execution.  Like flush_work(), this function only
+ * considers the last queueing instance of @dwork.
  *
- * It is possible to use this function if @dwork rearms itself via queue_work()
- * or queue_delayed_work(). See also the comment for cancel_work_sync().
+ * RETURNS:
+ * %true if flush_work() waited for the work to finish execution,
+ * %false if it was already idle.
  */
-int cancel_delayed_work_sync(struct delayed_work *dwork)
+bool flush_delayed_work(struct delayed_work *dwork)
+{
+	if (del_timer_sync(&dwork->timer))
+		__queue_work(raw_smp_processor_id(),
+			     get_work_cwq(&dwork->work)->wq, &dwork->work);
+	return flush_work(&dwork->work);
+}
+EXPORT_SYMBOL(flush_delayed_work);
+
+/**
+ * cancel_delayed_work_sync - cancel a delayed work and wait for it to finish
+ * @dwork: the delayed work cancel
+ *
+ * This is cancel_work_sync() for delayed works.
+ *
+ * RETURNS:
+ * %true if @dwork was pending, %false otherwise.
+ */
+bool cancel_delayed_work_sync(struct delayed_work *dwork)
 {
 	return __cancel_work_timer(&dwork->work, &dwork->timer);
 }
@@ -2557,23 +2587,6 @@ int schedule_delayed_work(struct delayed_work *dwork,
 	return queue_delayed_work(system_wq, dwork, delay);
 }
 EXPORT_SYMBOL(schedule_delayed_work);
-
-/**
- * flush_delayed_work - block until a dwork_struct's callback has terminated
- * @dwork: the delayed work which is to be flushed
- *
- * Any timeout is cancelled, and any pending work is run immediately.
- */
-void flush_delayed_work(struct delayed_work *dwork)
-{
-	if (del_timer_sync(&dwork->timer)) {
-		__queue_work(get_cpu(), get_work_cwq(&dwork->work)->wq,
-			     &dwork->work);
-		put_cpu();
-	}
-	flush_work(&dwork->work);
-}
-EXPORT_SYMBOL(flush_delayed_work);
 
 /**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
