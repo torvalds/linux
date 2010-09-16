@@ -1554,6 +1554,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	 * IEEE80211_CONF_CHANGE_PS is only passed by mac80211 for STA mode.
 	 */
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		unsigned long flags;
+		spin_lock_irqsave(&sc->sc_pm_lock, flags);
 		if (conf->flags & IEEE80211_CONF_PS) {
 			sc->ps_flags |= PS_ENABLED;
 			/*
@@ -1568,7 +1570,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			sc->ps_enabled = false;
 			sc->ps_flags &= ~(PS_ENABLED |
 					  PS_NULLFUNC_COMPLETED);
-			ath9k_setpower(sc, ATH9K_PM_AWAKE);
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				ath9k_hw_setrxabort(sc->sc_ah, 0);
@@ -1583,6 +1585,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 				}
 			}
 		}
+		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
