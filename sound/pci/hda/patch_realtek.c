@@ -10634,16 +10634,21 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t pin, dac;
+	int i;
 
-	pin = spec->autocfg.hp_pins[0];
-	if (pin) {
+	for (i = 0; i < ARRAY_SIZE(spec->autocfg.hp_pins); i++) {
+		pin = spec->autocfg.hp_pins[i];
+		if (!pin)
+			break;
 		dac = spec->multiout.hp_nid;
 		if (!dac)
 			dac = spec->multiout.dac_nids[0]; /* to front */
 		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
 	}
-	pin = spec->autocfg.speaker_pins[0];
-	if (pin) {
+	for (i = 0; i < ARRAY_SIZE(spec->autocfg.speaker_pins); i++) {
+		pin = spec->autocfg.speaker_pins[i];
+		if (!pin)
+			break;
 		dac = spec->multiout.extra_out_nid[0];
 		if (!dac)
 			dac = spec->multiout.dac_nids[0]; /* to front */
