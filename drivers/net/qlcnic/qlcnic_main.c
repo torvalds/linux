@@ -371,6 +371,13 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static void qlcnic_vlan_rx_register(struct net_device *netdev,
+		struct vlan_group *grp)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	adapter->vlgrp = grp;
+}
+
 static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_open	   = qlcnic_open,
 	.ndo_stop	   = qlcnic_close,
@@ -381,6 +388,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_set_mac_address    = qlcnic_set_mac,
 	.ndo_change_mtu	   = qlcnic_change_mtu,
 	.ndo_tx_timeout	   = qlcnic_tx_timeout,
+	.ndo_vlan_rx_register = qlcnic_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -1446,7 +1454,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_GRO);
+		NETIF_F_IPV6_CSUM | NETIF_F_GRO | NETIF_F_HW_VLAN_RX);
 	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_IPV6_CSUM);
 

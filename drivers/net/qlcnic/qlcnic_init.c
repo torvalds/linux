@@ -1380,24 +1380,28 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 }
 
 static int
-qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter, struct sk_buff *skb)
+qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter, struct sk_buff *skb,
+			u16 *vlan_tag)
 {
-	u16 vlan_tag;
 	struct ethhdr *eth_hdr;
 
-	if (!__vlan_get_tag(skb, &vlan_tag)) {
-		if (vlan_tag == adapter->pvid) {
-			/* strip the tag from the packet and send it up */
-			eth_hdr = (struct ethhdr *) skb->data;
-			memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
-			skb_pull(skb, VLAN_HLEN);
-			return 0;
-		}
+	if (!__vlan_get_tag(skb, vlan_tag)) {
+		eth_hdr = (struct ethhdr *) skb->data;
+		memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
+		skb_pull(skb, VLAN_HLEN);
+	}
+	if (!adapter->pvid)
+		return 0;
+
+	if (*vlan_tag == adapter->pvid) {
+		/* Outer vlan tag. Packet should follow non-vlan path */
+		*vlan_tag = 0xffff;
+		return 0;
 	}
 	if (adapter->flags & QLCNIC_TAGGING_ENABLED)
 		return 0;
 
-	return -EIO;
+	return -EINVAL;
 }
 
 static struct qlcnic_rx_buffer *
@@ -1411,6 +1415,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
 	int index, length, cksum, pkt_offset;
+	u16 vid = 0xffff;
 
 	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
@@ -1441,17 +1446,18 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 
-	if (unlikely(adapter->pvid)) {
-		if (qlcnic_check_rx_tagging(adapter, skb)) {
-			adapter->stats.rxdropped++;
-			dev_kfree_skb_any(skb);
-			return buffer;
-		}
+	if (unlikely(qlcnic_check_rx_tagging(adapter, skb, &vid))) {
+		adapter->stats.rxdropped++;
+		dev_kfree_skb(skb);
+		return buffer;
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	napi_gro_receive(&sds_ring->napi, skb);
+	if ((vid != 0xffff) && adapter->vlgrp)
+		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
+	else
+		napi_gro_receive(&sds_ring->napi, skb);
 
 	adapter->stats.rx_pkts++;
 	adapter->stats.rxbytes += length;
@@ -1480,6 +1486,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	int index;
 	u16 lro_length, length, data_offset;
 	u32 seq_number;
+	u16 vid = 0xffff;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1514,13 +1521,12 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 
 	skb_pull(skb, l2_hdr_offset);
 
-	if (unlikely(adapter->pvid)) {
-		if (qlcnic_check_rx_tagging(adapter, skb)) {
-			adapter->stats.rxdropped++;
-			dev_kfree_skb_any(skb);
-			return buffer;
-		}
+	if (unlikely(qlcnic_check_rx_tagging(adapter, skb, &vid))) {
+		adapter->stats.rxdropped++;
+		dev_kfree_skb(skb);
+		return buffer;
 	}
+
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	iph = (struct iphdr *)skb->data;
@@ -1535,7 +1541,10 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 
 	length = skb->len;
 
-	netif_receive_skb(skb);
+	if ((vid != 0xffff) && adapter->vlgrp)
+		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
+	else
+		netif_receive_skb(skb);
 
 	adapter->stats.lro_pkts++;
 	adapter->stats.lrobytes += length;

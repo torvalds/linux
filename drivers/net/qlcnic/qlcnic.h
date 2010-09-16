@@ -1013,6 +1013,7 @@ struct qlcnic_adapter {
 
 	u64 dev_rst_time;
 
+	struct vlan_group *vlgrp;
 	struct qlcnic_npar_info *npars;
 	struct qlcnic_eswitch *eswitch;
 	struct qlcnic_nic_template *nic_ops;
