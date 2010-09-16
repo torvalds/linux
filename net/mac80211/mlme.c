@@ -124,6 +124,15 @@ static void mod_beacon_timer(struct ieee80211_sub_if_data *sdata)
 		  round_jiffies_up(jiffies + IEEE80211_BEACON_LOSS_TIME));
 }
 
+void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+		return;
+
+	mod_timer(&sdata->u.mgd.conn_mon_timer,
+		  round_jiffies_up(jiffies + IEEE80211_CONNECTION_IDLE_TIME));
+}
+
 static int ecw2cw(int ecw)
 {
 	return (1 << ecw) - 1;
@@ -1018,11 +1027,7 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
-		return;
-
-	mod_timer(&sdata->u.mgd.conn_mon_timer,
-		  round_jiffies_up(jiffies + IEEE80211_CONNECTION_IDLE_TIME));
+	ieee80211_sta_reset_conn_monitor(sdata);
 }
 
 static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
