@@ -125,6 +125,7 @@ static const struct intel_device_info intel_g33_info = {
 static const struct intel_device_info intel_g45_info = {
 	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_gm45_info = {
@@ -132,6 +133,7 @@ static const struct intel_device_info intel_gm45_info = {
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.supports_tv = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_pineview_info = {
@@ -143,11 +145,13 @@ static const struct intel_device_info intel_pineview_info = {
 static const struct intel_device_info intel_ironlake_d_info = {
 	.gen = 5, .is_ironlake = 1,
 	.need_gfx_hws = 1, .has_pipe_cxsr = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
 	.gen = 5, .is_ironlake = 1, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {

@@ -214,6 +214,7 @@ struct intel_device_info {
 	u8 has_overlay : 1;
 	u8 overlay_needs_physical : 1;
 	u8 supports_tv : 1;
+	u8 has_bsd_ring : 1;
 };
 
 enum no_fbc_reason {
@@ -1237,7 +1238,7 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
 
-#define HAS_BSD(dev)            (IS_IRONLAKE(dev) || IS_G4X(dev))
+#define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)
