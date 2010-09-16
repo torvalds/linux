@@ -77,7 +77,10 @@ static bool match_scancode(struct hid_usage *usage,
 static bool match_keycode(struct hid_usage *usage,
 			  unsigned int cur_idx, unsigned int keycode)
 {
-	return usage->code == keycode;
+	/*
+	 * We should exclude unmapped usages when doing lookup by keycode.
+	 */
+	return (usage->type == EV_KEY && usage->code == keycode);
 }
 
 static bool match_index(struct hid_usage *usage,
@@ -103,7 +106,7 @@ static struct hid_usage *hidinput_find_key(struct hid_device *hid,
 			for (i = 0; i < report->maxfield; i++) {
 				for (j = 0; j < report->field[i]->maxusage; j++) {
 					usage = report->field[i]->usage + j;
-					if (usage->type == EV_KEY) {
+					if (usage->type == EV_KEY || usage->type == 0) {
 						if (match(usage, cur_idx, value)) {
 							if (usage_idx)
 								*usage_idx = cur_idx;
@@ -144,7 +147,8 @@ static int hidinput_getkeycode(struct input_dev *dev,
 
 	usage = hidinput_locate_usage(hid, ke, &index);
 	if (usage) {
-		ke->keycode = usage->code;
+		ke->keycode = usage->type == EV_KEY ?
+				usage->code : KEY_RESERVED;
 		ke->index = index;
 		scancode = usage->hid & (HID_USAGE_PAGE | HID_USAGE);
 		ke->len = sizeof(scancode);
@@ -164,7 +168,8 @@ static int hidinput_setkeycode(struct input_dev *dev,
 
 	usage = hidinput_locate_usage(hid, ke, NULL);
 	if (usage) {
-		*old_keycode = usage->code;
+		*old_keycode = usage->type == EV_KEY ?
+				usage->code : KEY_RESERVED;
 		usage->code = ke->keycode;
 
 		clear_bit(*old_keycode, dev->keybit);
