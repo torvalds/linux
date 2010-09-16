@@ -74,15 +74,9 @@ static const char *f10h_nb_mce_desc[] = {
 	"ECC Error in the Probe Filter directory"
 };
 
-static bool f10h_dc_mce(u16 ec)
+static bool f12h_dc_mce(u16 ec)
 {
-	u8 r4  = (ec >> 4) & 0xf;
 	bool ret = false;
-
-	if (r4 == R4_GEN) {
-		pr_cont("during data scrub.\n");
-		return true;
-	}
 
 	if (MEM_ERROR(ec)) {
 		u8 ll = ec & 0x3;
@@ -96,6 +90,18 @@ static bool f10h_dc_mce(u16 ec)
 			ret = false;
 	}
 	return ret;
+}
+
+static bool f10h_dc_mce(u16 ec)
+{
+	u8 r4  = (ec >> 4) & 0xf;
+	u8 ll  = ec & 0x3;
+
+	if (r4 == R4_GEN && ll == LL_L1) {
+		pr_cont("during data scrub.\n");
+		return true;
+	}
+	return f12h_dc_mce(ec);
 }
 
 static bool k8_dc_mce(u16 ec)
@@ -630,6 +636,10 @@ static int __init mce_amd_init(void)
 		fam_ops->dc_mce = k8_dc_mce;
 		fam_ops->ic_mce = k8_ic_mce;
 		fam_ops->nb_mce = f10h_nb_mce;
+		break;
+
+	case 0x12:
+		fam_ops->dc_mce = f12h_dc_mce;
 		break;
 
 	case 0x14:
