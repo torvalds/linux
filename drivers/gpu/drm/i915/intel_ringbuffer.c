@@ -132,6 +132,12 @@ static unsigned int render_ring_get_tail(struct drm_device *dev,
 	return I915_READ(PRB0_TAIL) & TAIL_ADDR;
 }
 
+static inline void render_ring_set_tail(struct drm_device *dev, u32 value)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	I915_WRITE(PRB0_TAIL, value);
+}
+
 static unsigned int render_ring_get_active_head(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
@@ -144,8 +150,7 @@ static unsigned int render_ring_get_active_head(struct drm_device *dev,
 static void render_ring_advance_ring(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE(PRB0_TAIL, ring->tail);
+	render_ring_set_tail(dev, ring->tail);
 }
 
 static int init_ring_common(struct drm_device *dev,
@@ -159,7 +164,7 @@ static int init_ring_common(struct drm_device *dev,
 	/* Stop the ring if it's running. */
 	I915_WRITE(ring->regs.ctl, 0);
 	I915_WRITE(ring->regs.head, 0);
-	I915_WRITE(ring->regs.tail, 0);
+	ring->set_tail(dev, 0);
 
 	/* Initialize the ring. */
 	I915_WRITE(ring->regs.start, obj_priv->gtt_offset);
@@ -400,6 +405,12 @@ static inline unsigned int bsd_ring_get_tail(struct drm_device *dev,
 	return I915_READ(BSD_RING_TAIL) & TAIL_ADDR;
 }
 
+static inline void bsd_ring_set_tail(struct drm_device *dev, u32 value)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	I915_WRITE(BSD_RING_TAIL, value);
+}
+
 static inline unsigned int bsd_ring_get_active_head(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
@@ -410,8 +421,7 @@ static inline unsigned int bsd_ring_get_active_head(struct drm_device *dev,
 static inline void bsd_ring_advance_ring(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE(BSD_RING_TAIL, ring->tail);
+	bsd_ring_set_tail(dev, ring->tail);
 }
 
 static int init_bsd_ring(struct drm_device *dev,
@@ -817,6 +827,7 @@ static struct intel_ring_buffer render_ring = {
 	.init			= init_render_ring,
 	.get_head		= render_ring_get_head,
 	.get_tail		= render_ring_get_tail,
+	.set_tail		= render_ring_set_tail,
 	.get_active_head	= render_ring_get_active_head,
 	.advance_ring		= render_ring_advance_ring,
 	.flush			= render_ring_flush,
@@ -855,6 +866,7 @@ static struct intel_ring_buffer bsd_ring = {
 	.init			= init_bsd_ring,
 	.get_head		= bsd_ring_get_head,
 	.get_tail		= bsd_ring_get_tail,
+	.set_tail		= bsd_ring_set_tail,
 	.get_active_head	= bsd_ring_get_active_head,
 	.advance_ring		= bsd_ring_advance_ring,
 	.flush			= bsd_ring_flush,

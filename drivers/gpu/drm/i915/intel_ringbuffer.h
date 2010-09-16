@@ -48,6 +48,8 @@ struct  intel_ring_buffer {
 			struct intel_ring_buffer *ring);
 	unsigned int	(*get_tail)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
+	void		(*set_tail)(struct drm_device *dev,
+			u32 value);
 	unsigned int	(*get_active_head)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
 	void		(*advance_ring)(struct drm_device *dev,
