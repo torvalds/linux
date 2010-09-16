@@ -21,6 +21,8 @@ MODULE_AUTHOR("Domao");
 MODULE_DESCRIPTION("ENE USB Mass Storage driver for Linux");
 MODULE_LICENSE("GPL");
 
+static unsigned int delay_use = 1;
+
 static struct usb_device_id eucr_usb_ids [] = {
 	{ USB_DEVICE(0x058f, 0x6366) },
 	{ USB_DEVICE(0x0cf2, 0x6230) },
@@ -181,11 +183,10 @@ static int usb_stor_control_thread(void * __us)
 		mutex_lock(&(us->dev_mutex));
 
 		/* if the device has disconnected, we are free to exit */
-/*		if (test_bit(US_FLIDX_DISCONNECTING, &us->flags))
-		{
+		if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 			mutex_unlock(&us->dev_mutex);
 			break;
-		}*/
+		}
 
 		/* lock access to the state */
 		scsi_lock(host);
@@ -551,15 +552,13 @@ static int usb_stor_scan_thread(void * __us)
       printk("usb --- usb_stor_scan_thread\n");
 	printk("EUCR : device found at %d\n", us->pusb_dev->devnum);
 
-// Have we to add this code ?
-//	set_freezable();
-//	/* Wait for the timeout to expire or for a disconnect */
-//	if (delay_use > 0)
-//	{
-//		wait_event_freezable_timeout(us->delay_wait,
-//				test_bit(US_FLIDX_DONT_SCAN, &us->dflags),
-//				delay_use * HZ);
-//	}
+	set_freezable();
+	/* Wait for the timeout to expire or for a disconnect */
+	if (delay_use > 0) {
+		wait_event_freezable_timeout(us->delay_wait,
+				test_bit(US_FLIDX_DONT_SCAN, &us->dflags),
+				delay_use * HZ);
+	}
 
 	/* If the device is still connected, perform the scanning */
 	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags))
