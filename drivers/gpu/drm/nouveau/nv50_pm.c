@@ -80,7 +80,7 @@ nv50_pm_clock_pre(struct drm_device *dev, u32 id, int khz)
 	ret = get_pll_limits(dev, id, &state->pll);
 	if (ret < 0) {
 		kfree(state);
-		return ERR_PTR(ret);
+		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
 	}
 
 	ret = nv50_calc_pll(dev, &state->pll, khz, &state->N, &state->M,

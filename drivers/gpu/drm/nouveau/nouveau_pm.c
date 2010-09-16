@@ -28,6 +28,78 @@
 #include "nouveau_pm.h"
 
 static int
+nouveau_pm_clock_set(struct drm_device *dev, u8 id, u32 khz)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	void *pre_state;
+
+	if (khz == 0)
+		return 0;
+
+	pre_state = pm->clock_pre(dev, id, khz);
+	if (IS_ERR(pre_state))
+		return PTR_ERR(pre_state);
+
+	if (pre_state)
+		pm->clock_set(dev, pre_state);
+	return 0;
+}
+
+static int
+nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_level *perflvl = NULL;
+	int ret;
+
+	/* safety precaution, for now */
+	if (nouveau_perflvl_wr != 7777)
+		return -EPERM;
+
+	if (!pm->clock_set)
+		return -EINVAL;
+
+	if (!strncmp(profile, "boot", 4))
+		perflvl = &pm->boot;
+	else {
+		int pl = simple_strtol(profile, NULL, 10);
+		int i;
+
+		for (i = 0; i < pm->nr_perflvl; i++) {
+			if (pm->perflvl[i].id == pl) {
+				perflvl = &pm->perflvl[i];
+				break;
+			}
+		}
+
+		if (!perflvl)
+			return -EINVAL;
+	}
+
+	if (perflvl == pm->cur)
+		return 0;
+
+	NV_INFO(dev, "setting performance level: %s\n", profile);
+	if (pm->voltage.supported && pm->voltage_set && perflvl->voltage) {
+		ret = pm->voltage_set(dev, perflvl->voltage);
+		if (ret) {
+			NV_ERROR(dev, "voltage_set %d failed: %d\n",
+				 perflvl->voltage, ret);
+		}
+	}
+
+	nouveau_pm_clock_set(dev, PLL_CORE, perflvl->core);
+	nouveau_pm_clock_set(dev, PLL_SHADER, perflvl->shader);
+	nouveau_pm_clock_set(dev, PLL_MEMORY, perflvl->memory);
+	nouveau_pm_clock_set(dev, PLL_UNK05, perflvl->unk05);
+
+	pm->cur = perflvl;
+	return 0;
+}
+
+static int
 nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -130,7 +202,13 @@ static ssize_t
 nouveau_pm_set_perflvl(struct device *d, struct device_attribute *a,
 		       const char *buf, size_t count)
 {
-	return -EPERM;
+        struct drm_device *dev = pci_get_drvdata(to_pci_dev(d));
+	int ret;
+
+	ret = nouveau_pm_profile_set(dev, buf);
+	if (ret)
+		return ret;
+	return strlen(buf);
 }
 
 DEVICE_ATTR(performance_level, S_IRUGO | S_IWUSR,
@@ -161,6 +239,15 @@ nouveau_pm_init(struct drm_device *dev)
 
 		nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));
 		NV_INFO(dev, "c: %s", info);
+	}
+
+	/* switch performance levels now if requested */
+	if (nouveau_perflvl != NULL) {
+		ret = nouveau_pm_profile_set(dev, nouveau_perflvl);
+		if (ret) {
+			NV_ERROR(dev, "error setting perflvl \"%s\": %d\n",
+				 nouveau_perflvl, ret);
+		}
 	}
 
 	/* initialise sysfs */

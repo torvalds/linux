@@ -4832,8 +4832,11 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 	 */
 	if (limit_match > PLL_MAX)
 		pll_lim->reg = limit_match;
-	else
+	else {
 		pll_lim->reg = get_pll_register(dev, limit_match);
+		if (!pll_lim->reg)
+			return -ENOENT;
+	}
 
 	if (pll_lim_ver == 0x10 || pll_lim_ver == 0x11) {
 		uint8_t *pll_rec = &bios->data[bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex];

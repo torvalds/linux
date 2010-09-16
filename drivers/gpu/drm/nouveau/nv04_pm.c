@@ -50,7 +50,7 @@ nv04_pm_clock_pre(struct drm_device *dev, u32 id, int khz)
 	ret = get_pll_limits(dev, id, &state->pll);
 	if (ret) {
 		kfree(state);
-		return ERR_PTR(ret);
+		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
 	}
 
 	ret = nouveau_calc_pll_mnp(dev, &state->pll, khz, &state->calc);

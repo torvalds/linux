@@ -102,6 +102,14 @@ MODULE_PARM_DESC(reg_debug, "Register access debug bitmask:\n"
 int nouveau_reg_debug;
 module_param_named(reg_debug, nouveau_reg_debug, int, 0600);
 
+MODULE_PARM_DESC(perflvl, "Performance level (default: boot)\n");
+char *nouveau_perflvl;
+module_param_named(perflvl, nouveau_perflvl, charp, 0400);
+
+MODULE_PARM_DESC(perflvl_wr, "Allow perflvl changes (warning: dangerous!)\n");
+int nouveau_perflvl_wr;
+module_param_named(perflvl_wr, nouveau_perflvl_wr, int, 0400);
+
 int nouveau_fbpercrtc;
 #if 0
 module_param_named(fbpercrtc, nouveau_fbpercrtc, int, 0400);
