@@ -481,7 +481,8 @@ static int radeon_lvds_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connector)
+static enum drm_connector_status
+radeon_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
@@ -594,7 +595,8 @@ static int radeon_vga_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static enum drm_connector_status radeon_vga_detect(struct drm_connector *connector)
+static enum drm_connector_status
+radeon_vga_detect(struct drm_connector *connector, bool force)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder;
@@ -691,7 +693,8 @@ static int radeon_tv_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static enum drm_connector_status radeon_tv_detect(struct drm_connector *connector)
+static enum drm_connector_status
+radeon_tv_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_encoder *encoder;
 	struct drm_encoder_helper_funcs *encoder_funcs;
@@ -748,7 +751,8 @@ static int radeon_dvi_get_modes(struct drm_connector *connector)
  * we have to check if this analog encoder is shared with anyone else (TV)
  * if its shared we have to set the other connector to disconnected.
  */
-static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connector)
+static enum drm_connector_status
+radeon_dvi_detect(struct drm_connector *connector, bool force)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder = NULL;
@@ -972,7 +976,8 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static enum drm_connector_status radeon_dp_detect(struct drm_connector *connector)
+static enum drm_connector_status
+radeon_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
