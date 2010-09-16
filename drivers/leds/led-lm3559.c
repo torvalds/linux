@@ -22,17 +22,18 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/err.h>
 
 #include <linux/led-lm3559.h>
 
-/*#define DEBUG*/
+/* #define DEBUG */
 
 #define LM3559_ALLOWED_R_BYTES   1
 #define LM3559_ALLOWED_W_BYTES   2
 #define LM3559_MAX_RW_RETRIES    5
 #define LM3559_I2C_RETRY_DELAY  10
 #define LM3559_TORCH_STEP	64
-#define LM3559_STROBE_STEP	24
+#define LM3559_STROBE_STEP	16
 #define LM3559_PRIVACY_STEP     32
 #define LM3559_RGB_STEP		32
 
@@ -63,19 +64,8 @@
 struct lm3559_data {
 	struct i2c_client *client;
 	struct lm3559_platform_data *pdata;
-	struct led_classdev led_dev;
-	struct led_classdev spotlight_dev;
-	struct led_classdev msg_ind_red_class_dev;
-	struct led_classdev msg_ind_green_class_dev;
-	struct led_classdev msg_ind_blue_class_dev;
-	struct mutex enable_reg_lock;
-	struct work_struct wq;
-	int camera_strobe_brightness;
-	int flash_light_brightness;
-	int torch_light_brightness;
-	int privacy_light_brightness;
-	int msg_ind_light_brightness;
-	int blink_val;
+	struct led_classdev flash_dev;
+	struct led_classdev torch_dev;
 };
 
 #ifdef DEBUG
@@ -105,7 +95,8 @@ struct lm3559_reg {
 static uint32_t lm3559_debug;
 module_param_named(flash_debug, lm3559_debug, uint, 0664);
 
-int lm3559_read_reg(struct lm3559_data *torch_data, uint8_t reg, uint8_t * val)
+static int lm3559_read_reg(struct lm3559_data *torch_data,
+				uint8_t reg, uint8_t* val)
 {
 	int err = -1;
 	int i = 0;
@@ -139,7 +130,8 @@ int lm3559_read_reg(struct lm3559_data *torch_data, uint8_t reg, uint8_t * val)
 	return 0;
 }
 
-int lm3559_write_reg(struct lm3559_data *torch_data, uint8_t reg, uint8_t val)
+static int lm3559_write_reg(struct lm3559_data *torch_data,
+				uint8_t reg, uint8_t val)
 {
 	int bytes;
 	int i = 0;
@@ -235,230 +227,71 @@ static DEVICE_ATTR(registers, 0644, ld_lm3559_registers_show,
 
 int lm3559_init_registers(struct lm3559_data *torch_data)
 {
-
-	if (lm3559_write_reg(torch_data, LM3559_TORCH_BRIGHTNESS,
-			     torch_data->pdata->torch_brightness_def) ||
-		lm3559_write_reg(torch_data, LM3559_ADC_DELAY_REG,
-			     torch_data->pdata->adc_delay_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_FLASH_BRIGHTNESS,
-			     torch_data->pdata->flash_brightness_def) ||
+	if (lm3559_write_reg(torch_data, LM3559_TORCH_BRIGHTNESS, 0) ||
+		lm3559_write_reg(torch_data, LM3559_ADC_DELAY_REG, 0) ||
+		lm3559_write_reg(torch_data, LM3559_FLASH_BRIGHTNESS, 0) ||
 		lm3559_write_reg(torch_data, LM3559_FLASH_DURATION,
 			     torch_data->pdata->flash_duration_def) ||
-		lm3559_write_reg(torch_data, LM3559_CONFIG_REG_1,
-			     torch_data->pdata->config_reg_1_def) ||
-		lm3559_write_reg(torch_data, LM3559_CONFIG_REG_2,
-			     torch_data->pdata->config_reg_2_def) ||
+		lm3559_write_reg(torch_data, LM3559_CONFIG_REG_1, 0x6C) ||
+		lm3559_write_reg(torch_data, LM3559_CONFIG_REG_2, 0) ||
 		lm3559_write_reg(torch_data, LM3559_VIN_MONITOR,
-			     torch_data->pdata->vin_monitor_def) ||
-		lm3559_write_reg(torch_data, LM3559_GPIO_REG,
-			     torch_data->pdata->gpio_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_FLAG_REG,
-			     torch_data->pdata->flag_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_PRIVACY_REG,
-			     torch_data->pdata->privacy_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_MSG_IND_REG,
-			     torch_data->pdata->msg_ind_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_MSG_BLINK_REG,
-			     torch_data->pdata->msg_ind_blink_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_PWM_REG,
-			     torch_data->pdata->pwm_reg_def) ||
-		lm3559_write_reg(torch_data, LM3559_ENABLE_REG,
-			     torch_data->pdata->enable_reg_def)) {
+			torch_data->pdata->vin_monitor_def) ||
+		lm3559_write_reg(torch_data, LM3559_GPIO_REG, 0) ||
+		lm3559_write_reg(torch_data, LM3559_FLAG_REG, 0) ||
+		lm3559_write_reg(torch_data, LM3559_PRIVACY_REG, 0x10) ||
+		lm3559_write_reg(torch_data, LM3559_MSG_IND_REG, 0) ||
+		lm3559_write_reg(torch_data, LM3559_MSG_BLINK_REG, 0) ||
+		lm3559_write_reg(torch_data, LM3559_PWM_REG, 0) ||
+		lm3559_write_reg(torch_data, LM3559_ENABLE_REG, 0)) {
 		pr_err("%s:Register initialization failed\n", __func__);
 		return -EIO;
 	}
 	return 0;
 }
-static int lm3559_enable_led(struct lm3559_data *torch_data, uint8_t enable_val)
-{
+
+static int lm3559_check_led_error(struct lm3559_data *torch_data) {
 	int err = 0;
-	uint8_t val = 0;
-	uint8_t temp_val;
 
-	mutex_lock(&torch_data->enable_reg_lock);
-	err = lm3559_read_reg(torch_data, LM3559_ENABLE_REG,
-		&val);
-	if (err) {
-		pr_err("%s: Reading 0x%X failed %i\n",
-			__func__, LM3559_ENABLE_REG, err);
-		goto unlock_and_return;
-	}
+	if (torch_data->pdata->flags & LM3559_FLAG_ERROR_CHECK) {
 
-	temp_val = (val | enable_val);
-	err = lm3559_write_reg(torch_data, LM3559_ENABLE_REG,
-		temp_val);
-	if (err) {
-		pr_err("%s: Writing to 0x%X failed %i\n",
-			__func__, LM3559_ENABLE_REG, err);
-	}
+		uint8_t err_flags;
+		err = lm3559_read_reg(torch_data, LM3559_FLAG_REG, &err_flags);
+		if (err) {
+			pr_err("%s: Reading the status failed for %i\n",
+				__func__, err);
+			return -EIO;
+		}
 
-unlock_and_return:
-	mutex_unlock(&torch_data->enable_reg_lock);
-	return err;
-}
-
-static int lm3559_disable_led(struct lm3559_data *torch_data,
-		uint8_t enable_val)
-{
-	int err = 0;
-	uint8_t val = 0;
-	uint8_t temp_val;
-
-	mutex_lock(&torch_data->enable_reg_lock);
-	err = lm3559_read_reg(torch_data, LM3559_ENABLE_REG,
-		&val);
-	if (err) {
-		pr_err("%s: Reading 0x%X failed %i\n",
-			__func__, LM3559_ENABLE_REG, err);
-		goto unlock_and_return;
-	}
-	temp_val = (val & enable_val);
-	err = lm3559_write_reg(torch_data, LM3559_ENABLE_REG,
-		temp_val);
-	if (err) {
-		pr_err("%s: Writing to 0x%X failed %i\n",
-			__func__, LM3559_ENABLE_REG, err);
-	}
-
-unlock_and_return:
-	mutex_unlock(&torch_data->enable_reg_lock);
-	return err;
-}
-static int lm3559_privacy_write(struct lm3559_data *torch_data)
-{
-	int err = 0;
-	uint8_t privacy_light_val;
-	uint8_t err_flags;
-
-	err = lm3559_read_reg(torch_data, LM3559_FLAG_REG, &err_flags);
-	if (err) {
-		pr_err("%s: Reading the status failed for %i\n",
-			__func__, err);
-		return -EIO;
-	}
-
-	if (torch_data->pdata->flags & LM3559_ERROR_CHECK) {
 		if (err_flags & (VOLTAGE_MONITOR_FAULT |
-			THERMAL_MONITOR_FAULT |	LED_FAULT |
-			THERMAL_SHUTDOWN)) {
-				pr_err("%s: Error indicated by the chip 0x%X\n",
-					__func__, err_flags);
-				return err_flags;
-		}
-	}
-	if (torch_data->privacy_light_brightness) {
-		privacy_light_val = (torch_data->pdata->privacy_reg_def & 0xf8);
-		privacy_light_val |= (torch_data->privacy_light_brightness /
-				LM3559_PRIVACY_STEP);
-		err = lm3559_write_reg(torch_data, LM3559_PRIVACY_REG,
-			privacy_light_val);
-		if (err) {
-			pr_err("%s: Writing to 0x%X failed %i\n",
-				__func__, LM3559_PRIVACY_REG, err);
-			return -EIO;
-		}
-		err = lm3559_write_reg(torch_data, LM3559_PWM_REG,
-			torch_data->pdata->pwm_val);
-		if (err) {
-			pr_err("%s: Writing to 0x%X failed %i\n",
-				__func__, LM3559_PWM_REG, err);
-			return -EIO;
-		}
-		err = lm3559_enable_led(torch_data,
-			torch_data->pdata->privacy_enable_val);
-	} else {
-		err = lm3559_disable_led(torch_data, 0xc0);
-	}
-
-	return err;
-}
-
-static int lm3559_torch_write(struct lm3559_data *torch_data)
-{
-	int err = 0;
-	int temp_val;
-	int val = 0;;
-
-	if (torch_data->torch_light_brightness) {
-		temp_val = torch_data->torch_light_brightness /
-			LM3559_TORCH_STEP;
-		val |= temp_val << 3;
-		val |= temp_val;
-
-		err = lm3559_write_reg(torch_data, LM3559_TORCH_BRIGHTNESS,
-			val);
-
-		if (err) {
-			pr_err("%s: Writing to 0x%X failed %i\n",
-				__func__, LM3559_TORCH_BRIGHTNESS, err);
-			return -EIO;
-		}
-
-		err = lm3559_write_reg(torch_data, LM3559_FLASH_DURATION,
-			torch_data->pdata->flash_duration_def);
-		if (err) {
-			pr_err("%s: Writing to 0x%X failed %i\n",
-				__func__, LM3559_FLASH_DURATION, err);
-			return -EIO;
-		}
-
-		err = lm3559_write_reg(torch_data, LM3559_VIN_MONITOR,
-					torch_data->pdata->vin_monitor_def);
-		if (err) {
-			pr_err("%s: Writing to 0x%X failed %i\n",
-				__func__, LM3559_VIN_MONITOR, err);
-			return -EIO;
-		}
-
-		err = lm3559_enable_led(torch_data,
-			torch_data->pdata->torch_enable_val);
-	} else {
-		err = lm3559_disable_led(torch_data, 0xc0);
-	}
-
-	return err;
-}
-
-static int lm3559_strobe_write(struct lm3559_data *torch_data)
-{
-	int err;
-	uint8_t err_flags;
-	uint8_t strobe_brightness;
-	int val;
-
-	err = lm3559_read_reg(torch_data, LM3559_FLAG_REG, &err_flags);
-	if (err) {
-		pr_err("%s: Reading the status failed for %i\n",
-			__func__, err);
-		return -EIO;
-	}
-	if (torch_data->pdata->flags & LM3559_ERROR_CHECK) {
-		if (err_flags & (VOLTAGE_MONITOR_FAULT |
-			THERMAL_MONITOR_FAULT | LED_FAULT |
-			THERMAL_SHUTDOWN)) {
+				THERMAL_MONITOR_FAULT |
+				LED_FAULT |
+				THERMAL_SHUTDOWN)) {
 			pr_err("%s: Error indicated by the chip 0x%X\n",
 				__func__, err_flags);
-			return err_flags;
+			err = -EIO;
 		}
 	}
-	if (torch_data->camera_strobe_brightness) {
-		val = torch_data->camera_strobe_brightness / LM3559_STROBE_STEP;
-		strobe_brightness = val << 4;
-		strobe_brightness |= val ;
+
+	return err;
+}
+
+static int lm3559_flash_prepare(struct lm3559_data *torch_data)
+{
+	int err = lm3559_check_led_error(torch_data);
+	if (err)
+		return err;
+
+	if (torch_data->flash_dev.brightness != LED_OFF) {
+		uint8_t strobe_brightness;
+		uint val = torch_data->flash_dev.brightness;
+		val = (val * (1024/LM3559_STROBE_STEP)) >> 10;
+		strobe_brightness = val | (val << 4);
 
 		err = lm3559_write_reg(torch_data, LM3559_FLASH_BRIGHTNESS,
-			torch_data->camera_strobe_brightness);
+			strobe_brightness);
 		if (err) {
 			pr_err("%s: Writing to 0x%X failed %i\n",
 				__func__, LM3559_FLASH_BRIGHTNESS, err);
-			return -EIO;
-		}
-
-		err = lm3559_write_reg(torch_data, LM3559_TORCH_BRIGHTNESS,
-			torch_data->pdata->torch_brightness_def);
-		if (err) {
-			pr_err("%s: Writing to 0x%X failed %i\n",
-				__func__, LM3559_TORCH_BRIGHTNESS, err);
 			return -EIO;
 		}
 
@@ -478,307 +311,102 @@ static int lm3559_strobe_write(struct lm3559_data *torch_data)
 			return -EIO;
 		}
 
-		err = lm3559_enable_led(torch_data,
-			torch_data->pdata->flash_enable_val);
+		/* setup flash for trigger by strobe pin:
+		   enable LED1 and LED2, but do not enable current */
+		err = lm3559_write_reg(torch_data, LM3559_ENABLE_REG, 0x18);
+
 	} else {
-		err = lm3559_disable_led(torch_data, 0xc0);
+		/* disable LED1 and LED2 and current */
+		err = lm3559_write_reg(torch_data, LM3559_ENABLE_REG, 0);
 	}
+
+	if (err)
+		pr_err("%s: Writing to 0x%X failed %i\n",
+			__func__, LM3559_ENABLE_REG, err);
 
 	return err;
 }
 
-static void lm3559_rgb_work(struct work_struct *work)
+static int lm3559_torch_enable(struct lm3559_data *torch_data)
 {
-	int err;
-	uint8_t val = 0;
-	uint8_t temp_val;
-	uint8_t rgb_val;
+	int err = lm3559_check_led_error(torch_data);
+	if (err)
+		return err;
 
-	struct lm3559_data *msg_ind_data =
-		container_of(work, struct lm3559_data, wq);
+	if (torch_data->torch_dev.brightness) {
+		uint8_t torch_brightness;
+		uint val = torch_data->torch_dev.brightness;
+		val = (val * (1024/LM3559_TORCH_STEP)) >> 10;
+		torch_brightness = val | (val << 3);
 
-	if (msg_ind_data->msg_ind_light_brightness) {
-		if (msg_ind_data->blink_val) {
-			err = lm3559_write_reg(msg_ind_data,
-				LM3559_MSG_BLINK_REG,
-				msg_ind_data->pdata->msg_ind_blink_val);
-			if (err) {
-				pr_err("%s: Reading 0x%X failed %i\n",
-					__func__, LM3559_MSG_BLINK_REG, err);
-				return;
-			}
-		}
-
-		rgb_val = msg_ind_data->pdata->msg_ind_val;
-		rgb_val |= (msg_ind_data->msg_ind_light_brightness /
-			LM3559_RGB_STEP);
-
-		err = lm3559_write_reg(msg_ind_data, LM3559_MSG_IND_REG,
-			rgb_val);
+		err = lm3559_write_reg(torch_data, LM3559_TORCH_BRIGHTNESS,
+			torch_brightness);
 		if (err) {
-			pr_err("%s: Writing reg 0x%X failed %i\n",
-				__func__, LM3559_MSG_IND_REG, err);
-			return;
+			pr_err("%s: Writing to 0x%X failed %i\n",
+				__func__, LM3559_TORCH_BRIGHTNESS, err);
+			return -EIO;
 		}
 
-		if (msg_ind_data->blink_val) {
-			if (lm3559_debug)
-				pr_info("%s: Blink MSG LED\n", __func__);
-			val = 0x80;
+		err = lm3559_write_reg(torch_data, LM3559_VIN_MONITOR,
+					torch_data->pdata->vin_monitor_def);
+		if (err) {
+			pr_err("%s: Writing to 0x%X failed %i\n",
+				__func__, LM3559_VIN_MONITOR, err);
+			return -EIO;
 		}
 
-		temp_val = (val | 0x40);
-		err = lm3559_enable_led(msg_ind_data, temp_val);
+		/* enable LED1 and LED2, enable current */
+		err = lm3559_write_reg(torch_data, LM3559_ENABLE_REG, 0x1A);
 
 	} else {
-		if (msg_ind_data->blink_val == 0) {
-			if (lm3559_debug)
-				pr_info("%s: Turn off blink MSG LED\n",
-					__func__);
-			val = 0x7f;
-		} else {
+		/* disable LED1 and LED2 and current */
+		err = lm3559_write_reg(torch_data, LM3559_ENABLE_REG, 0);
+	}
 
-			val = 0x3f;
+	return err;
+}
+
+static void lm3559_flash_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness value)
+{
+	struct lm3559_data *torch_data =
+	    container_of(led_cdev, struct lm3559_data, flash_dev);
+	lm3559_flash_prepare(torch_data);
+}
+
+static void lm3559_torch_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness value)
+{
+	struct lm3559_data *torch_data =
+	    container_of(led_cdev, struct lm3559_data, torch_dev);
+	lm3559_torch_enable(torch_data);
+}
+
+static int lm3559_remove(struct i2c_client *client)
+{
+	struct lm3559_data *torch_data = i2c_get_clientdata(client);
+
+	if (torch_data) {
+
+		if (!IS_ERR_OR_NULL(torch_data->torch_dev.dev)) {
+#ifdef DEBUG
+			device_remove_file(torch_data->torch_dev.dev,
+				&dev_attr_registers);
+#endif
+			led_classdev_unregister(&torch_data->torch_dev);
 		}
-		err = lm3559_disable_led(msg_ind_data, val);
+
+		if (!IS_ERR_OR_NULL(torch_data->flash_dev.dev)) {
+#ifdef DEBUG
+			device_remove_file(torch_data->flash_dev.dev,
+				&dev_attr_registers);
+#endif
+			led_classdev_unregister(&torch_data->flash_dev);
+		}
+
+		kfree(torch_data->pdata);
+		kfree(torch_data);
 	}
-}
-
-/* This is a dummy interface for the LED class this will clear
-the error flag register */
-static void lm3559_brightness_set(struct led_classdev *led_cdev,
-				  enum led_brightness value)
-{
-	int err;
-	uint8_t err_flags;
-
-	struct lm3559_data *torch_data =
-	    container_of(led_cdev, struct lm3559_data, led_dev);
-
-	err = lm3559_read_reg(torch_data, LM3559_FLAG_REG, &err_flags);
-	if (err) {
-		pr_err("%s: Reading the status failed for %i\n", __func__,
-		       err);
-		return;
-	}
-	return;
-}
-
-static ssize_t lm3559_strobe_err_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	int err;
-	uint8_t err_flags;
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	err = lm3559_read_reg(torch_data, LM3559_FLAG_REG, &err_flags);
-	if (err) {
-		pr_err("%s: Reading the status failed for %i\n",
-			__func__, err);
-		return -EIO;
-	}
-
-	sprintf(buf, "%d\n", (err_flags & TX1_INTERRUPT_FAULT));
-
-	return sizeof(buf);
-}
-static DEVICE_ATTR(strobe_err, 0644, lm3559_strobe_err_show, NULL);
-
-static ssize_t lm3559_torch_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	sprintf(buf, "%d\n", torch_data->flash_light_brightness);
-
-	return sizeof(buf);
-}
-
-
-static ssize_t lm3559_torch_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	int err = 0;
-	unsigned long torch_val = LED_OFF;
-
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	err = strict_strtoul(buf, 10, &torch_val);
-	if (err) {
-		pr_err("%s: Invalid parameter sent\n", __func__);
-		return -1;
-	}
-
-	torch_data->torch_light_brightness = torch_val;
-	err = lm3559_torch_write(torch_data);
-
-	return err;
-
-};
-static DEVICE_ATTR(flash_light, 0644, lm3559_torch_show, lm3559_torch_store);
-
-static void lm3559_spot_light_brightness_set(struct led_classdev *led_cdev,
-				  enum led_brightness value)
-{
-	struct lm3559_data *torch_data =
-	    container_of(led_cdev, struct lm3559_data, spotlight_dev);
-
-	torch_data->torch_light_brightness = value;
-	lm3559_torch_write(torch_data);
-}
-
-static ssize_t lm3559_strobe_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	sprintf(buf, "%d\n", torch_data->camera_strobe_brightness);
-
-	return sizeof(buf);
-}
-
-static ssize_t lm3559_strobe_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	int err;
-	unsigned long strobe_val = LED_OFF;
-
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	err = strict_strtoul(buf, 10, &strobe_val);
-	if (err) {
-		pr_err("%s: Invalid parameter sent\n", __func__);
-		return -1;
-	}
-
-	torch_data->camera_strobe_brightness = strobe_val;
-	err = lm3559_strobe_write(torch_data);
-
-	return err;
-}
-static DEVICE_ATTR(camera_strobe, 0644, lm3559_strobe_show,
-	lm3559_strobe_store);
-
-static ssize_t lm3559_privacy_light_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	sprintf(buf, "%d\n", torch_data->privacy_light_brightness);
-
-	return sizeof(buf);
-}
-
-static ssize_t lm3559_privacy_light_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	int err = 0;
-	unsigned long privacy_val = LED_OFF;
-
-	struct i2c_client *client = container_of(dev->parent,
-						 struct i2c_client, dev);
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	err = strict_strtoul(buf, 10, &privacy_val);
-	if (err) {
-		pr_err("%s: Invalid parameter sent\n", __func__);
-		return -1;
-	}
-
-	torch_data->privacy_light_brightness = privacy_val;
-	err = lm3559_privacy_write(torch_data);
-
-	return err;
-
-};
-static DEVICE_ATTR(privacy_light, 0644, lm3559_privacy_light_show,
-		   lm3559_privacy_light_store);
-
-
-static void msg_ind_red_set(struct led_classdev *led_cdev,
-			    enum led_brightness value)
-{
-	struct lm3559_data *msg_ind_data =
-	    container_of(led_cdev, struct lm3559_data,
-			 msg_ind_red_class_dev);
-
-	msg_ind_data->msg_ind_light_brightness = value;
-	schedule_work(&msg_ind_data->wq);
-}
-
-static void msg_ind_green_set(struct led_classdev *led_cdev,
-			    enum led_brightness value)
-{
-	struct lm3559_data *msg_ind_data =
-	    container_of(led_cdev, struct lm3559_data,
-			 msg_ind_green_class_dev);
-
-	msg_ind_data->msg_ind_light_brightness = value;
-	schedule_work(&msg_ind_data->wq);
-}
-
-static void msg_ind_blue_set(struct led_classdev *led_cdev,
-			    enum led_brightness value)
-{
-	struct lm3559_data *msg_ind_data =
-	    container_of(led_cdev, struct lm3559_data,
-			 msg_ind_blue_class_dev);
-
-	msg_ind_data->msg_ind_light_brightness = value;
-	schedule_work(&msg_ind_data->wq);
-}
-
-static int msg_ind_red_blink(struct led_classdev *led_cdev,
-		unsigned long *delay_on,
-		unsigned long *delay_off)
-{
-	struct lm3559_data *msg_ind_data =
-	    container_of(led_cdev, struct lm3559_data,
-			 msg_ind_red_class_dev);
-
-	msg_ind_data->blink_val = *delay_on;
-	schedule_work(&msg_ind_data->wq);
-	return 0;
-}
-
-static int msg_ind_green_blink(struct led_classdev *led_cdev,
-		unsigned long *delay_on,
-		unsigned long *delay_off)
-{
-	struct lm3559_data *msg_ind_data =
-	    container_of(led_cdev, struct lm3559_data,
-			 msg_ind_green_class_dev);
-
-	msg_ind_data->blink_val = *delay_on;
-	schedule_work(&msg_ind_data->wq);
-	return 0;
-}
-
-static int msg_ind_blue_blink(struct led_classdev *led_cdev,
-		unsigned long *delay_on,
-		unsigned long *delay_off)
-{
-	struct lm3559_data *msg_ind_data =
-	    container_of(led_cdev, struct lm3559_data,
-			 msg_ind_blue_class_dev);
-
-	msg_ind_data->blink_val = *delay_on;
-	schedule_work(&msg_ind_data->wq);
 	return 0;
 }
 
@@ -791,11 +419,6 @@ static int lm3559_probe(struct i2c_client *client,
 
 	if (pdata == NULL) {
 		dev_err(&client->dev, "platform data is NULL. exiting.\n");
-		return -ENODEV;
-	}
-
-	if (!pdata->flags) {
-		pr_err("%s: Device does not exist\n", __func__);
 		return -ENODEV;
 	}
 
@@ -813,234 +436,54 @@ static int lm3559_probe(struct i2c_client *client,
 	torch_data->client = client;
 	torch_data->pdata = pdata;
 
-	mutex_init(&torch_data->enable_reg_lock);
-
 	i2c_set_clientdata(client, torch_data);
 
 	err = lm3559_init_registers(torch_data);
 	if (err < 0)
-		goto error2;
+		goto error;
 
-	INIT_WORK(&torch_data->wq, lm3559_rgb_work);
-
-	torch_data->led_dev.name = LM3559_LED_DEV;
-	torch_data->led_dev.brightness_set = lm3559_brightness_set;
-	torch_data->led_dev.brightness = LED_OFF;
-	torch_data->led_dev.max_brightness = 255;
+	torch_data->flash_dev.name = "flash";
+	torch_data->flash_dev.brightness_set = lm3559_flash_brightness_set;
+	torch_data->flash_dev.brightness = LED_OFF;
+	torch_data->flash_dev.max_brightness = LED_FULL;
 	err = led_classdev_register((struct device *)
-				    &client->dev, &torch_data->led_dev);
+		&client->dev, &torch_data->flash_dev);
 	if (err < 0) {
-		err = -ENODEV;
-		pr_err("%s: Register led class failed: %d\n",
+		pr_err("%s: Register flash led class failed: %d\n",
 			__func__, err);
-		goto error3;
+		goto error;
 	}
 
-	if (torch_data->pdata->flags & LM3559_TORCH) {
-		if (lm3559_debug)
-			pr_info("%s: Creating Torch\n", __func__);
-		err = device_create_file(torch_data->led_dev.dev,
-					 &dev_attr_flash_light);
-		if (err < 0) {
-			err = -ENODEV;
-			pr_err("%s:File device creation failed: %d\n",
-				__func__, err);
-			goto error4;
-		}
-	}
-
-	if (torch_data->pdata->flags & LM3559_FLASH) {
-		if (lm3559_debug)
-			pr_info("%s: Creating Flash\n", __func__);
-		err = device_create_file(torch_data->led_dev.dev,
-					 &dev_attr_camera_strobe);
-		if (err < 0) {
-			err = -ENODEV;
-			pr_err("%s:File device creation failed: %d\n",
-				__func__, err);
-			goto error5;
-		}
-		err = device_create_file(torch_data->led_dev.dev,
-					 &dev_attr_strobe_err);
-		if (err < 0) {
-			err = -ENODEV;
-			pr_err("%s:File device creation failed: %d\n",
-				__func__, err);
-			goto error6;
-		}
-	}
-
-	if (torch_data->pdata->flags & LM3559_PRIVACY) {
-		if (lm3559_debug)
-			pr_info("%s: Creating Privacy\n", __func__);
-		err = device_create_file(torch_data->led_dev.dev,
-					 &dev_attr_privacy_light);
-		if (err < 0) {
-			err = -ENODEV;
-			pr_err("%s:File device creation failed: %d\n",
-				__func__, err);
-			goto error7;
-		}
-	}
-
-	if (torch_data->pdata->flags & LM3559_FLASH_LIGHT) {
-		if (lm3559_debug)
-			pr_info("%s: Creating Spotlight\n", __func__);
-		torch_data->spotlight_dev.name = LM3559_LED_SPOTLIGHT;
-		torch_data->spotlight_dev.brightness_set =
-			lm3559_spot_light_brightness_set;
-		torch_data->spotlight_dev.brightness = LED_OFF;
-		torch_data->spotlight_dev.max_brightness = 255;
-
-		err = led_classdev_register((struct device *)
-			&client->dev, &torch_data->spotlight_dev);
-		if (err < 0) {
-			err = -ENODEV;
-			pr_err("%s: Register led class failed: %d\n",
-				__func__, err);
-			goto error6;
-		}
-	}
-
-	if (torch_data->pdata->flags & LM3559_MSG_IND_RED) {
-		if (lm3559_debug)
-			pr_info("%s: Creating MSG Red Indication\n",
-			__func__);
-		torch_data->msg_ind_red_class_dev.name = "red";
-		torch_data->msg_ind_red_class_dev.brightness_set =
-			msg_ind_red_set;
-		torch_data->msg_ind_red_class_dev.blink_set =
-			msg_ind_red_blink;
-		torch_data->msg_ind_red_class_dev.brightness = LED_OFF;
-		torch_data->msg_ind_red_class_dev.max_brightness = 255;
-
-		err = led_classdev_register((struct device *)
-			&client->dev, &torch_data->msg_ind_red_class_dev);
-		if (err < 0) {
-			pr_err("%s:Register Red LED class failed\n",
-				__func__);
-			goto err_reg_red_class_failed;
-		}
-	}
-
-	if (torch_data->pdata->flags & LM3559_MSG_IND_GREEN) {
-		if (lm3559_debug)
-			pr_info("%s: Creating MSG Green Indication\n",
-			__func__);
-		torch_data->msg_ind_green_class_dev.name = "green";
-		torch_data->msg_ind_green_class_dev.brightness_set =
-			msg_ind_green_set;
-		torch_data->msg_ind_green_class_dev.blink_set =
-			msg_ind_green_blink;
-		torch_data->msg_ind_red_class_dev.brightness = LED_OFF;
-		torch_data->msg_ind_red_class_dev.max_brightness = 255;
-		err = led_classdev_register((struct device *)
-			&client->dev, &torch_data->msg_ind_green_class_dev);
-		if (err < 0) {
-			pr_err("%s: Register Green LED class failed\n",
-				__func__);
-			goto err_reg_green_class_failed;
-		}
-	}
-
-	if (torch_data->pdata->flags & LM3559_MSG_IND_BLUE) {
-		if (lm3559_debug)
-			pr_info("%s: Creating MSG Blue Indication\n",
-			__func__);
-		torch_data->msg_ind_blue_class_dev.name = "blue";
-		torch_data->msg_ind_blue_class_dev.brightness_set =
-			msg_ind_blue_set;
-		torch_data->msg_ind_blue_class_dev.blink_set =
-			msg_ind_blue_blink;
-		torch_data->msg_ind_blue_class_dev.brightness = LED_OFF;
-		torch_data->msg_ind_blue_class_dev.max_brightness = 255;
-
-		err = led_classdev_register((struct device *)
-			&client->dev, &torch_data->msg_ind_blue_class_dev);
-		if (err < 0) {
-			pr_err("%s: Register Blue LED class failed\n",
-				__func__);
-			goto err_reg_blue_class_failed;
-		}
-	}
 #ifdef DEBUG
-	err = device_create_file(torch_data->led_dev.dev, &dev_attr_registers);
+	err = device_create_file(torch_data->flash_dev.dev,
+		&dev_attr_registers);
+	if (err < 0)
+		pr_err("%s:File device creation failed: %d\n", __func__, err);
+#endif
+
+	torch_data->torch_dev.name = "torch";
+	torch_data->torch_dev.brightness_set = lm3559_torch_brightness_set;
+	torch_data->torch_dev.brightness = LED_OFF;
+	torch_data->torch_dev.max_brightness = LED_FULL;
+	err = led_classdev_register((struct device *)
+		&client->dev, &torch_data->torch_dev);
+	if (err < 0) {
+		pr_err("%s: Register torch led class failed: %d\n",
+			__func__, err);
+		goto error;
+	}
+
+#ifdef DEBUG
+	err = device_create_file(torch_data->torch_dev.dev,
+		&dev_attr_registers);
 	if (err < 0)
 		pr_err("%s:File device creation failed: %d\n", __func__, err);
 #endif
 
 	return 0;
-
-err_reg_blue_class_failed:
-	if (torch_data->pdata->flags & LM3559_MSG_IND_GREEN)
-		led_classdev_unregister(&torch_data->msg_ind_green_class_dev);
-err_reg_green_class_failed:
-	if (torch_data->pdata->flags & LM3559_MSG_IND_RED)
-		led_classdev_unregister(&torch_data->msg_ind_red_class_dev);
-err_reg_red_class_failed:
-	if (torch_data->pdata->flags & LM3559_PRIVACY)
-		device_remove_file(torch_data->led_dev.dev,
-			&dev_attr_privacy_light);
-error7:
-	if (torch_data->pdata->flags & LM3559_FLASH_LIGHT)
-		led_classdev_unregister(&torch_data->spotlight_dev);
-	if (torch_data->pdata->flags & LM3559_FLASH)
-		device_remove_file(torch_data->led_dev.dev,
-			&dev_attr_strobe_err);
-error6:
-	if (torch_data->pdata->flags & LM3559_FLASH)
-		device_remove_file(torch_data->led_dev.dev,
-			&dev_attr_camera_strobe);
-error5:
-	if (torch_data->pdata->flags & LM3559_TORCH)
-		device_remove_file(torch_data->led_dev.dev,
-			&dev_attr_flash_light);
-error4:
-	led_classdev_unregister(&torch_data->led_dev);
-error3:
-error2:
-	kfree(torch_data);
+error:
+	lm3559_remove(client);
 	return err;
-}
-
-static int lm3559_remove(struct i2c_client *client)
-{
-	struct lm3559_data *torch_data = i2c_get_clientdata(client);
-
-	if (torch_data->pdata->flags & LM3559_FLASH) {
-		device_remove_file(torch_data->led_dev.dev,
-				&dev_attr_camera_strobe);
-		device_remove_file(torch_data->led_dev.dev,
-				&dev_attr_strobe_err);
-	}
-	if (torch_data->pdata->flags & LM3559_TORCH)
-		device_remove_file(torch_data->led_dev.dev,
-				&dev_attr_flash_light);
-
-	led_classdev_unregister(&torch_data->led_dev);
-
-	if (torch_data->pdata->flags & LM3559_FLASH_LIGHT)
-		led_classdev_unregister(&torch_data->spotlight_dev);
-
-	if (torch_data->pdata->flags & LM3559_PRIVACY)
-		device_remove_file(torch_data->led_dev.dev,
-				&dev_attr_privacy_light);
-
-	if (torch_data->pdata->flags & LM3559_MSG_IND_RED)
-		led_classdev_unregister(&torch_data->msg_ind_red_class_dev);
-
-	if (torch_data->pdata->flags & LM3559_MSG_IND_GREEN)
-		led_classdev_unregister(&torch_data->msg_ind_green_class_dev);
-
-	if (torch_data->pdata->flags & LM3559_MSG_IND_BLUE)
-		led_classdev_unregister(&torch_data->msg_ind_blue_class_dev);
-
-#ifdef DEBUG
-	device_remove_file(torch_data->led_dev.dev, &dev_attr_registers);
-#endif
-	kfree(torch_data->pdata);
-	kfree(torch_data);
-	return 0;
 }
 
 static const struct i2c_device_id lm3559_id[] = {
