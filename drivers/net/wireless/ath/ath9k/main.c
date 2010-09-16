@@ -255,13 +255,11 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	ath_update_txpow(sc);
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
-	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL | SC_OP_SCANNING))) {
-		ath_start_ani(common);
-		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
-	}
-
-	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL)))
+	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL))) {
 		ath_beacon_config(sc, NULL);
+		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+		ath_start_ani(common);
+	}
 
  ps_restore:
 	ath9k_ps_restore(sc);
@@ -2036,7 +2034,6 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 
 	aphy->state = ATH_WIPHY_SCAN;
 	ath9k_wiphy_pause_all_forced(sc, aphy);
-	sc->sc_flags |= SC_OP_SCANNING;
 	mutex_unlock(&sc->mutex);
 }
 
@@ -2051,7 +2048,6 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 
 	mutex_lock(&sc->mutex);
 	aphy->state = ATH_WIPHY_ACTIVE;
-	sc->sc_flags &= ~SC_OP_SCANNING;
 	mutex_unlock(&sc->mutex);
 }
 
