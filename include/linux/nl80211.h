@@ -1020,6 +1020,8 @@ enum nl80211_attrs {
  * @NL80211_IFTYPE_WDS: wireless distribution interface
  * @NL80211_IFTYPE_MONITOR: monitor interface receiving all frames
  * @NL80211_IFTYPE_MESH_POINT: mesh point
+ * @NL80211_IFTYPE_P2P_CLIENT: P2P client
+ * @NL80211_IFTYPE_P2P_GO: P2P group owner
  * @NL80211_IFTYPE_MAX: highest interface type number currently defined
  * @NUM_NL80211_IFTYPES: number of defined interface types
  *
@@ -1036,6 +1038,8 @@ enum nl80211_iftype {
 	NL80211_IFTYPE_WDS,
 	NL80211_IFTYPE_MONITOR,
 	NL80211_IFTYPE_MESH_POINT,
+	NL80211_IFTYPE_P2P_CLIENT,
+	NL80211_IFTYPE_P2P_GO,
 
 	/* keep last */
 	NUM_NL80211_IFTYPES,

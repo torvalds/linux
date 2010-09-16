@@ -410,12 +410,14 @@ static int nl80211_key_allowed(struct wireless_dev *wdev)
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_P2P_GO:
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!wdev->current_bss)
 			return -ENOLINK;
 		break;
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
 		if (wdev->sme_state != CFG80211_SME_CONNECTED)
 			return -ENOLINK;
 		break;
@@ -766,7 +768,8 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 		wdev->iftype == NL80211_IFTYPE_AP ||
 		wdev->iftype == NL80211_IFTYPE_WDS ||
 		wdev->iftype == NL80211_IFTYPE_MESH_POINT ||
-		wdev->iftype == NL80211_IFTYPE_MONITOR;
+		wdev->iftype == NL80211_IFTYPE_MONITOR ||
+		wdev->iftype == NL80211_IFTYPE_P2P_GO;
 }
 
 static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
@@ -1693,7 +1696,8 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1785,7 +1789,8 @@ static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2128,10 +2133,12 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	switch (dev->ieee80211_ptr->iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_P2P_GO:
 		/* disallow mesh-specific things */
 		if (params.plink_action)
 			err = -EINVAL;
 		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
 		/* disallow everything but AUTHORIZED flag */
 		if (params.plink_action)
@@ -2233,7 +2240,8 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -2286,7 +2294,8 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -2660,7 +2669,8 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3363,6 +3373,7 @@ static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	}
 
 	switch (wdev->iftype) {
+	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
 		if (intbss == wdev->current_bss)
 			NLA_PUT_U32(msg, NL80211_BSS_STATUS,
@@ -3649,7 +3660,8 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3804,7 +3816,8 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3888,7 +3901,8 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3954,7 +3968,8 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4332,7 +4347,8 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4408,7 +4424,8 @@ static int nl80211_disconnect(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4496,7 +4513,8 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
 	pmksa.pmkid = nla_data(info->attrs[NL80211_ATTR_PMKID]);
 	pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4541,7 +4559,8 @@ static int nl80211_flush_pmksa(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4823,7 +4842,8 @@ static int nl80211_register_mgmt(struct sk_buff *skb, struct genl_info *info)
 		goto unlock_rtnl;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4875,7 +4895,8 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -5093,7 +5114,8 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 		goto unlock_rdev;
 	}
 
-	if (wdev->iftype != NL80211_IFTYPE_STATION) {
+	if (wdev->iftype != NL80211_IFTYPE_STATION &&
+	    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 		err = -EOPNOTSUPP;
 		goto unlock_rdev;
 	}

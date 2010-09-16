@@ -726,6 +726,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			dev->ethtool_ops = &cfg80211_ethtool_ops;
 
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
+		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||
 		     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
 			dev->priv_flags |= IFF_DONT_BRIDGE;
 		break;
@@ -734,6 +735,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, true);
 			break;
+		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_STATION:
 			wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
