@@ -24,12 +24,12 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/nvhost.h>
 
 #include <asm/atomic.h>
 
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <mach/nvhost.h>
 
 struct tegra_fb_info {
 	struct tegra_dc_win	*win;

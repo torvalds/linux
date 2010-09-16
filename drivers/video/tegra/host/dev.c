@@ -22,7 +22,6 @@
 
 #include "dev.h"
 
-#include <linux/nvhost.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
@@ -31,9 +30,10 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/file.h>
-#include <linux/nvhost.h>
 
 #include <asm/io.h>
+
+#include <mach/nvhost.h>
 
 #define DRIVER_NAME "tegra_grhost"
 #define IFACE_NAME "nvhost"

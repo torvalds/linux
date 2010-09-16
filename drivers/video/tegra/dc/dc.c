@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/nvhost.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -35,6 +34,7 @@
 #include <mach/clk.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <mach/nvhost.h>
 
 #include "dc_reg.h"
 #include "dc_priv.h"
