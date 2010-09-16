@@ -128,7 +128,7 @@ struct if_sdio_card {
 	bool			helper_allocated;
 	bool			firmware_allocated;
 
-	u8			buffer[65536];
+	u8			buffer[65536] __attribute__((aligned(4)));
 
 	spinlock_t		lock;
 	struct if_sdio_packet	*packets;

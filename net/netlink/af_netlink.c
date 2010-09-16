@@ -2102,6 +2102,26 @@ static void __net_exit netlink_net_exit(struct net *net)
 #endif
 }
 
+static void __init netlink_add_usersock_entry(void)
+{
+	unsigned long *listeners;
+	int groups = 32;
+
+	listeners = kzalloc(NLGRPSZ(groups) + sizeof(struct listeners_rcu_head),
+			    GFP_KERNEL);
+	if (!listeners)
+		panic("netlink_add_usersock_entry: Cannot allocate listneres\n");
+
+	netlink_table_grab();
+
+	nl_table[NETLINK_USERSOCK].groups = groups;
+	nl_table[NETLINK_USERSOCK].listeners = listeners;
+	nl_table[NETLINK_USERSOCK].module = THIS_MODULE;
+	nl_table[NETLINK_USERSOCK].registered = 1;
+
+	netlink_table_ungrab();
+}
+
 static struct pernet_operations __net_initdata netlink_net_ops = {
 	.init = netlink_net_init,
 	.exit = netlink_net_exit,
@@ -2149,6 +2169,8 @@ static int __init netlink_proto_init(void)
 		hash->mask = 0;
 		hash->rehash_time = jiffies;
 	}
+
+	netlink_add_usersock_entry();
 
 	sock_register(&netlink_family_ops);
 	register_pernet_subsys(&netlink_net_ops);
