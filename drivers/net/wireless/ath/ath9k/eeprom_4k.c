@@ -1161,7 +1161,7 @@ static u32 ath9k_hw_4k_get_eeprom_antenna_cfg(struct ath_hw *ah,
 }
 
 static u8 ath9k_hw_4k_get_num_ant_config(struct ath_hw *ah,
-					 enum ieee80211_band freq_band)
+					 enum ath9k_hal_freq_band freq_band)
 {
 	return 1;
 }
