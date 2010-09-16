@@ -5160,7 +5160,7 @@ static void alc880_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (alc_is_input_pin(codec, nid)) {
-			alc_set_input_pin(codec, nid, i);
+			alc_set_input_pin(codec, nid, cfg->inputs[i].type);
 			if (nid != ALC880_PIN_CD_NID &&
 			    (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
 				snd_hda_codec_write(codec, nid, 0,
@@ -6793,7 +6793,7 @@ static void alc260_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (nid >= 0x12) {
-			alc_set_input_pin(codec, nid, i);
+			alc_set_input_pin(codec, nid, cfg->inputs[i].type);
 			if (nid != ALC260_PIN_CD_NID &&
 			    (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
 				snd_hda_codec_write(codec, nid, 0,
@@ -10664,7 +10664,7 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
-		alc_set_input_pin(codec, nid, i);
+		alc_set_input_pin(codec, nid, cfg->inputs[i].type);
 		if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -15856,7 +15856,7 @@ static void alc861_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (nid >= 0x0c && nid <= 0x11)
-			alc_set_input_pin(codec, nid, i);
+			alc_set_input_pin(codec, nid, cfg->inputs[i].type);
 	}
 }
 
@@ -16849,7 +16849,7 @@ static void alc861vd_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (alc_is_input_pin(codec, nid)) {
-			alc_set_input_pin(codec, nid, i);
+			alc_set_input_pin(codec, nid, cfg->inputs[i].type);
 			if (nid != ALC861VD_PIN_CD_NID &&
 			    (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
 				snd_hda_codec_write(codec, nid, 0,
@@ -19086,7 +19086,7 @@ static void alc662_auto_init_analog_input(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (alc_is_input_pin(codec, nid)) {
-			alc_set_input_pin(codec, nid, i);
+			alc_set_input_pin(codec, nid, cfg->inputs[i].type);
 			if (nid != ALC662_PIN_CD_NID &&
 			    (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
 				snd_hda_codec_write(codec, nid, 0,
