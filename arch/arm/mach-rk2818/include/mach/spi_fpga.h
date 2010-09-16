@@ -203,6 +203,7 @@ struct spi_fpga_port {
 #define ICE_INT_TYPE_I2C3		(~(1<<4))
 #define ICE_INT_TYPE_GPIO		(~(1<<5))
 #define ICE_INT_TYPE_DPRAM		(~(1<<6))
+#define ICE_INT_TYPE_SLEEP		(~(1<<7))
 
 #define ICE_INT_I2C_ACK			(~(1<<0))
 #define ICE_INT_I2C_READ		(~(1<<1))
@@ -231,11 +232,16 @@ struct spi_fpga_port {
 #define ICE_SEL_GPIO0_DIR			(0X01)
 #define ICE_SEL_GPIO0_DATA			(0X02)
 #define ICE_SEL_GPIO0_INT_EN		(0X03)
-#define ICE_SEL_GPIO0_INT_TRI		(0X04)
+#define ICE_SEL_GPIO0_INT_TRI		(0X04)		//0:falling edge  1:rising edge
 #define ICE_SEL_GPIO0_INT_STATE		(0X05)
+#define ICE_SEL_GPIO0_INT_TYPE		(0X06)		//0:edge 1:level,if 1 then support falling and rising trigger
+#define ICE_SEL_GPIO0_INT_WAKE		(0X07)		
 
 #define	ICE_SEL_GPIO_DIR			(0X01)
 #define	ICE_SEL_GPIO_DATA			(0X02)
+
+#define ICE_STATUS_SLEEP			1
+#define ICE_STATUS_WAKE				0
 
 /*spi to i2c*/
 
@@ -344,10 +350,17 @@ typedef enum eSpiGpioPinInt
 }eSpiGpioPinInt_t;
 
 
-typedef enum eSpiGpioIntType 
+typedef enum eSpiGpioIntTri 
 {
 	SPI_GPIO_EDGE_FALLING = 0,
 	SPI_GPIO_EDGE_RISING,
+}eSpiGpioIntTri_t;
+
+
+typedef enum eSpiGpioIntType 
+{
+	SPI_GPIO_EDGE = 0,
+	SPI_GPIO_LEVEL,
 }eSpiGpioIntType_t;
 
 typedef enum eSpiGpioPinDirection
@@ -532,9 +545,9 @@ extern int spi_gpio_set_pinlevel(eSpiGpioPinNum_t PinNum, eSpiGpioPinLevel_t Pin
 extern eSpiGpioPinLevel_t spi_gpio_get_pinlevel(eSpiGpioPinNum_t PinNum);
 extern int spi_gpio_enable_int(eSpiGpioPinNum_t PinNum);
 extern int spi_gpio_disable_int(eSpiGpioPinNum_t PinNum);
-extern int spi_gpio_set_int_trigger(eSpiGpioPinNum_t PinNum,eSpiGpioIntType_t IntType);
+extern int spi_gpio_set_int_trigger(eSpiGpioPinNum_t PinNum,eSpiGpioIntTri_t IntTri);
 extern int spi_gpio_read_iir(void);
-extern int spi_request_gpio_irq(eSpiGpioPinNum_t PinNum, pSpiFunc Routine, eSpiGpioIntType_t IntType,void *dev_id);
+extern int spi_request_gpio_irq(eSpiGpioPinNum_t PinNum, pSpiFunc Routine, eSpiGpioIntTri_t IntType,void *dev_id);
 extern int spi_free_gpio_irq(eSpiGpioPinNum_t PinNum);
 extern int spi_gpio_handle_irq(struct spi_device *spi);
 extern int spi_gpio_init(void);

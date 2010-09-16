@@ -364,7 +364,7 @@ int spi_gpio_disable_int(eSpiGpioPinNum_t PinNum)
 }
 
 
-int spi_gpio_set_int_trigger(eSpiGpioPinNum_t PinNum,eSpiGpioIntType_t IntType)
+int spi_gpio_set_int_trigger(eSpiGpioPinNum_t PinNum,eSpiGpioIntTri_t IntTri)
 {
 	int reg = get_gpio_addr(PinNum);
 	//struct spi_fpga_port *port = pFpgaPort;
@@ -376,6 +376,40 @@ int spi_gpio_set_int_trigger(eSpiGpioPinNum_t PinNum,eSpiGpioIntType_t IntType)
 	if(ICE_SEL_GPIO0 == reg)
 	{
 		reg |= ICE_SEL_GPIO0_INT_TRI;
+
+		if((state & (1 << PinNum )) == 0)
+		{
+			printk("%s:Fail to enable int because it is gpio pin!\n",__FUNCTION__);
+			return -1;
+		}
+	
+		DBG("%s,PinNum=%d,IntTri=%d\n",__FUNCTION__,PinNum,IntTri);	
+		
+		spi_gpio_write_reg(reg, PinNum, IntTri);
+		
+	}
+	else
+	{
+		printk("%s:error\n",__FUNCTION__);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+int spi_gpio_set_int_type(eSpiGpioPinNum_t PinNum,eSpiGpioIntType_t IntType)
+{
+	int reg = get_gpio_addr(PinNum);
+	//struct spi_fpga_port *port = pFpgaPort;
+	int state;
+	spin_lock(&gpio_state_lock);
+	state = gGpio0State;
+	spin_unlock(&gpio_state_lock);
+	
+	if(ICE_SEL_GPIO0 == reg)
+	{
+		reg |= ICE_SEL_GPIO0_INT_TYPE;
 
 		if((state & (1 << PinNum )) == 0)
 		{
@@ -408,7 +442,7 @@ int spi_gpio_read_iir(void)
 	return ret;
 }
 
-int spi_request_gpio_irq(eSpiGpioPinNum_t PinNum, pSpiFunc Routine, eSpiGpioIntType_t IntType,void *dev_id)
+int spi_request_gpio_irq(eSpiGpioPinNum_t PinNum, pSpiFunc Routine, eSpiGpioIntTri_t IntType,void *dev_id)
 {			
 #if 0
 	if(PinNum >= SPI_GPIO_IRQ_NUM)
@@ -537,6 +571,9 @@ void spi_gpio_work_handler(struct work_struct *work)
 	}
 
 #elif (FPGA_TYPE == ICE_CC196)
+	gpio_direction_output(RK2818_PIN_PE0,0);
+	udelay(2);
+	gpio_direction_output(RK2818_PIN_PE0,1);
 	for(i=4;i<81;i++)
 	{
 		gpio_direction_output(SPI_FPGA_EXPANDER_BASE+i,TestGpioPinLevel);
@@ -563,7 +600,7 @@ void spi_gpio_work_handler(struct work_struct *work)
 static void spi_testgpio_timer(unsigned long data)
 {
 	struct spi_fpga_port *port = (struct spi_fpga_port *)data;
-	port->gpio.gpio_timer.expires  = jiffies + msecs_to_jiffies(1000);
+	port->gpio.gpio_timer.expires  = jiffies + msecs_to_jiffies(3000);
 	add_timer(&port->gpio.gpio_timer);
 	queue_work(port->gpio.spi_gpio_workqueue, &port->gpio.spi_gpio_work);
 }
@@ -870,7 +907,7 @@ static void _spi_gpio_irq_disable(unsigned irq)
 static int _spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 {
 	int gpio = irq_to_gpio(irq) - SPI_FPGA_EXPANDER_BASE;
-	int int_type = 0;
+	int int_tri = 0, int_type = 0;
 	DBG("%s:line=%d,irq=%d,type=%d,gpio=%d\n",__FUNCTION__,__LINE__,irq,type,gpio);
 	if(gpio < 16)
 	spi_gpio_int_sel(gpio,SPI_GPIO0_IS_INT);
@@ -882,16 +919,23 @@ static int _spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	switch(type)
 	{
 		case IRQF_TRIGGER_FALLING:
-			int_type = SPI_GPIO_EDGE_FALLING;
+			int_type = SPI_GPIO_EDGE;
+			int_tri = SPI_GPIO_EDGE_FALLING;
 			break;
 		case IRQF_TRIGGER_RISING:
-			int_type = SPI_GPIO_EDGE_RISING;
+			int_type = SPI_GPIO_EDGE;
+			int_tri = SPI_GPIO_EDGE_RISING;
+			break;
+		case (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING):
+			int_type = SPI_GPIO_LEVEL;
+			int_tri = SPI_GPIO_EDGE_FALLING;
 			break;
 		default:
 			printk("err:%s:FPGA don't support this intterupt type!\n",__FUNCTION__);	
 			break;
 	}
-	spi_gpio_set_int_trigger(gpio, int_type);
+	spi_gpio_set_int_type(gpio, int_type);
+	spi_gpio_set_int_trigger(gpio, int_tri);
 	return 0;
 }
 
@@ -1105,7 +1149,7 @@ void spi_gpio_test_gpio_irq_init(void)
 			break;
 
 			case 3:
-			ret = request_irq(irq ,spi_gpio_int_test_3,IRQF_TRIGGER_FALLING,NULL,port);
+			ret = request_irq(irq ,spi_gpio_int_test_3,(IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING),NULL,port);
 			if(ret)
 			{
 				printk("%s:unable to request GPIO[%d] irq\n",__FUNCTION__,gpio);

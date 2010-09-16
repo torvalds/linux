@@ -444,9 +444,14 @@ static void spi_fpga_irq_work_handler(struct work_struct *work)
 		spi_dpram_handle_ack(spi);
 #endif
 	}
+	else if((ret | ICE_INT_TYPE_SLEEP) == ICE_INT_TYPE_SLEEP)
+	{
+		DBG("%s:ICE_INT_TYPE_SLEEP ret=0x%x\n",__FUNCTION__,ret);
+		printk("FPGA wake up system now ...\n");
+	}
 	else
 	{
-		printk("%s:NO such INT TYPE,ret=0x%x\n",__FUNCTION__,ret);
+		printk("warning:ret=0x%x\n",ret);
 	}
 
 	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
@@ -472,7 +477,7 @@ static irqreturn_t spi_fpga_irq(int irq, void *dev_id)
 }
 
 
-static int spi_set_sysclk(int set)
+static int spi_fpga_set_sysclk(int set)
 {
 	rk2818_mux_api_set(GPIOH7_HSADCCLK_SEL_NAME,IOMUXB_GPIO1_D7);	
 	gpio_direction_output(SPI_FPGA_STANDBY_PIN,set);
@@ -480,6 +485,19 @@ static int spi_set_sysclk(int set)
 	return 0;
 }
 
+static int spi_fpga_set_status(struct spi_fpga_port *port, int stat)
+{
+	if(stat == ICE_STATUS_SLEEP)
+	{
+		spi_out(port, (ICE_SEL_GPIO0 | ICE_SEL_GPIO0_INT_WAKE), ICE_STATUS_SLEEP, SEL_GPIO);
+	}
+	else
+	{
+		spi_out(port, (ICE_SEL_GPIO0 | ICE_SEL_GPIO0_INT_WAKE), ICE_STATUS_WAKE, SEL_GPIO);
+	}
+
+	return 0;
+}
 
 static int spi_fpga_rst(void)
 {
@@ -528,8 +546,8 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 		printk("%s:failed to request standby pin\n",__FUNCTION__);
 		return ret;
 	}
-	spi_set_sysclk(GPIO_HIGH);
-
+	spi_fpga_set_sysclk(GPIO_HIGH);
+	
 #if SPI_FPGA_TRANS_WORK
 	init_waitqueue_head(&port->wait_wq);
 	init_waitqueue_head(&port->wait_rq);
@@ -545,7 +563,8 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	INIT_LIST_HEAD(&port->trans_queue);
 #endif
 
-	spi_fpga_rst();
+	spi_fpga_rst();		//reset fpga
+	
 	sprintf(b, "fpga_irq_workqueue");
 	port->fpga_irq_workqueue = create_rt_workqueue(b);
 	if (!port->fpga_irq_workqueue) {
@@ -617,8 +636,10 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	}	
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	pFpgaPort = port;
+
 	
 #if defined(CONFIG_SPI_FPGA_GPIO)
+	spi_fpga_set_status(port, ICE_STATUS_WAKE);
 	spi_gpio_init();
 #endif
 
@@ -653,7 +674,7 @@ static int spi_fpga_wait_suspend(struct spi_fpga_port *port)
 	int i,n_tx,n_rx;
 	for(i=0;i<1000;i++)
 	{
-		n_tx = spi_in(port, UART_LSR, READ_TOP_INT);
+		n_tx = spi_in(port, UART_LSR, READ_TOP_INT);	//CONFIG_SPI_FPGA_UART = 1
 		n_rx = spi_in(port, UART_LSR, SEL_UART);
 		if((((n_tx >> 8) & 0x3f) == 0) && (((n_rx >> 8) & 0x3f) == 0))	//no data in tx_buf and rx_buf
 		{
@@ -667,27 +688,37 @@ static int spi_fpga_wait_suspend(struct spi_fpga_port *port)
 
 static int spi_fpga_suspend(struct spi_device *spi, pm_message_t state)
 {
+
 	struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
 	int ret;
 	ret = spi_fpga_wait_suspend(port);
 	if(!ret)
 	{
-		spi_set_sysclk(GPIO_LOW);
+		spi_fpga_set_status(port, ICE_STATUS_SLEEP);	//CONFIG_SPI_FPGA_GPIO = 1
+		udelay(1);
+		spi_fpga_set_sysclk(GPIO_LOW);
 	}
 	else
 	{
 		printk("fail to suspend fpga because it is sending or recieve data!\n");
 		return -1;
 	}
+
 	printk("%s\n",__FUNCTION__);
+
 	return 0;
 }
 
 static int spi_fpga_resume(struct spi_device *spi)
 {
-	//struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
-	spi_set_sysclk(GPIO_HIGH);
+
+	struct spi_fpga_port *port = dev_get_drvdata(&spi->dev);
+	spi_fpga_set_sysclk(GPIO_HIGH);
+	udelay(1);
+	spi_fpga_set_status(port, ICE_STATUS_WAKE);
+
 	printk("%s\n",__FUNCTION__);
+
 	return 0;
 }
 
