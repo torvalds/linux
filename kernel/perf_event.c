@@ -3836,18 +3836,20 @@ static void perf_event_task_event(struct perf_task_event *task_event)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
 		perf_event_task_ctx(&cpuctx->ctx, task_event);
 
 		ctx = task_event->task_ctx;
 		if (!ctx) {
 			ctxn = pmu->task_ctx_nr;
 			if (ctxn < 0)
-				continue;
+				goto next;
 			ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
 		}
 		if (ctx)
 			perf_event_task_ctx(ctx, task_event);
+next:
+		put_cpu_ptr(pmu->pmu_cpu_context);
 	}
 	rcu_read_unlock();
 }
@@ -3969,16 +3971,18 @@ static void perf_event_comm_event(struct perf_comm_event *comm_event)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
 		perf_event_comm_ctx(&cpuctx->ctx, comm_event);
 
 		ctxn = pmu->task_ctx_nr;
 		if (ctxn < 0)
-			continue;
+			goto next;
 
 		ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
 		if (ctx)
 			perf_event_comm_ctx(ctx, comm_event);
+next:
+		put_cpu_ptr(pmu->pmu_cpu_context);
 	}
 	rcu_read_unlock();
 }
@@ -4152,19 +4156,21 @@ got_name:
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
 		perf_event_mmap_ctx(&cpuctx->ctx, mmap_event,
 					vma->vm_flags & VM_EXEC);
 
 		ctxn = pmu->task_ctx_nr;
 		if (ctxn < 0)
-			continue;
+			goto next;
 
 		ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
 		if (ctx) {
 			perf_event_mmap_ctx(ctx, mmap_event,
 					vma->vm_flags & VM_EXEC);
 		}
+next:
+		put_cpu_ptr(pmu->pmu_cpu_context);
 	}
 	rcu_read_unlock();
 
