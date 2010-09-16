@@ -121,17 +121,15 @@ struct smp_ops_t smp_85xx_ops = {
 };
 
 #ifdef CONFIG_KEXEC
-static int kexec_down_cpus = 0;
+atomic_t kexec_down_cpus = ATOMIC_INIT(0);
 
 void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 {
-	/* When crashing, this gets called on all CPU's we only
-	 * take down the non-boot cpus */
-	if (smp_processor_id() != boot_cpuid)
-	{
-		local_irq_disable();
-		kexec_down_cpus++;
+	local_irq_disable();
 
+	if (secondary) {
+		atomic_inc(&kexec_down_cpus);
+		/* loop forever */
 		while (1);
 	}
 }
@@ -144,14 +142,14 @@ static void mpc85xx_smp_kexec_down(void *arg)
 
 static void mpc85xx_smp_machine_kexec(struct kimage *image)
 {
-	int timeout = 2000;
-	int i;
+	int timeout = INT_MAX;
+	int i, num_cpus = num_present_cpus();
 
-	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
 
-	smp_call_function(mpc85xx_smp_kexec_down, NULL, 0);
+	if (image->type == KEXEC_TYPE_DEFAULT)
+		smp_call_function(mpc85xx_smp_kexec_down, NULL, 0);
 
-	while ( (kexec_down_cpus != (num_online_cpus() - 1)) &&
+	while ( (atomic_read(&kexec_down_cpus) != (num_cpus - 1)) &&
 		( timeout > 0 ) )
 	{
 		timeout--;
@@ -160,7 +158,7 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 	if ( !timeout )
 		printk(KERN_ERR "Unable to bring down secondary cpu(s)");
 
-	for (i = 0; i < num_present_cpus(); i++)
+	for (i = 0; i < num_cpus; i++)
 	{
 		if ( i == smp_processor_id() ) continue;
 		mpic_reset_core(i);
