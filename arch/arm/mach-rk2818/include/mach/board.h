@@ -224,7 +224,7 @@ struct rk2818_spi_platform_data {
 #define AD2KEY6                 61    ///CALL
 #define AD2KEY7                 127   ///SEARCH
 #define ENDCALL					62
-#define	KEYSTART				28			//ENTER
+#define	KEYSTART				232  ///DPAD_CENTER  28			//ENTER
 #define KEYMENU					AD2KEY6		///CALL
 #define	KEY_PLAY_SHORT_PRESS	KEYSTART	//code for short press the play key
 #define	KEY_PLAY_LONG_PRESS		ENDCALL		//code for long press the play key
