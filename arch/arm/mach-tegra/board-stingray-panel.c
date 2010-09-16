@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/nvhost.h>
 #include <linux/bootmem.h>
+#include <linux/earlysuspend.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -309,6 +310,29 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_led_info[] = {
 	 },
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+/* put early_suspend/late_resume handlers here for the display in order
+ * to keep the code out of the display driver, keeping it closer to upstream
+ */
+struct early_suspend stingray_panel_early_suspender;
+
+static void stingray_panel_early_suspend(struct early_suspend *h)
+{
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
+
+	pr_info("KONK: early_suspend\n");
+}
+
+static void stingray_panel_late_resume(struct early_suspend *h)
+{
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_UNBLANK);
+
+	pr_info("KONK: late_resume\n");
+}
+#endif
+
 #define FB_MEM_SIZE	(1920 * 1080 * 4 * 2)
 void __init stingray_fb_alloc(void)
 {
@@ -348,6 +372,13 @@ int __init stingray_panel_init(void)
 	} else {
 		regulator_enable(stingray_csi_reg);
 	}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	stingray_panel_early_suspender.suspend = stingray_panel_early_suspend;
+	stingray_panel_early_suspender.resume = stingray_panel_late_resume;
+	stingray_panel_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	register_early_suspend(&stingray_panel_early_suspender);
+#endif
 
 	return nvhost_device_register(&stingray_disp1_device);
 //	return  nvhost_device_register(&stingray_disp2_device);
