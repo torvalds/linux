@@ -36,7 +36,6 @@
 #include <linux/parser.h>
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>     /* For lock_kernel() */
 #include "ecryptfs_kernel.h"
 
 /**
@@ -551,7 +550,6 @@ static int ecryptfs_get_sb(struct file_system_type *fs_type, int flags,
 	const char *err = "Getting sb failed";
 	int rc;
 
-	lock_kernel();
 	sbi = kmem_cache_zalloc(ecryptfs_sb_info_cache, GFP_KERNEL);
 	if (!sbi) {
 		rc = -ENOMEM;
@@ -610,7 +608,6 @@ static int ecryptfs_get_sb(struct file_system_type *fs_type, int flags,
 		goto out;
 	}
 	simple_set_mnt(mnt, s);
-	unlock_kernel();
 	return 0;
 
 out:
@@ -619,7 +616,6 @@ out:
 		kmem_cache_free(ecryptfs_sb_info_cache, sbi);
 	}
 	printk(KERN_ERR "%s; rc = [%d]\n", err, rc);
-	unlock_kernel();
 	return rc;
 }
 
