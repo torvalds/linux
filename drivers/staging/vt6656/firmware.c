@@ -806,7 +806,7 @@ FIRMWAREbDownload(
                 if (pBuffer)
                     kfree(pBuffer);
                 spin_lock_irq(&pDevice->lock);
-                return (FALSE);
+		return FALSE;
             }
         }
     }
