@@ -125,8 +125,6 @@ static int kexec_down_cpus = 0;
 
 void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 {
-	mpic_teardown_this_cpu(1);
-
 	/* When crashing, this gets called on all CPU's we only
 	 * take down the non-boot cpus */
 	if (smp_processor_id() != boot_cpuid)
