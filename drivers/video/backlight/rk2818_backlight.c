@@ -41,7 +41,7 @@
 /*
  * Debug
  */
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -193,7 +193,9 @@ static void rk2818_bl_suspend(struct early_suspend *h)
     } else {
         divh = div_total;
     }
-    DBG("%s: ==========  jyk  suspend  =============== \n",__func__); 
+
+    DBG("%s: ==========  suspend  =============== \n",__func__); 
+
     write_pwm_reg(id, PWM_REG_HRC, divh);
 
     suspend_flag = 1;
@@ -242,7 +244,7 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
     u32 divh, div_total;
     struct clk* arm_pclk; 
  
-    DBG("%s::============== jyk  ==========================\n",__func__);
+    DBG("%s::=======================================\n",__func__);
 
     if (rk2818_bl) {
         DBG(KERN_CRIT "%s: backlight device register has existed \n",
