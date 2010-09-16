@@ -539,6 +539,10 @@ config PROVE_RCU_REPEATEDLY
 	 disabling, allowing multiple RCU-lockdep warnings to be printed
 	 on a single reboot.
 
+	 Say Y to allow multiple RCU-lockdep warnings per boot.
+
+	 Say N if you are unsure.
+
 config SPARSE_RCU_POINTER
 	bool "RCU debugging: sparse-based checks for pointer usage"
 	default n
