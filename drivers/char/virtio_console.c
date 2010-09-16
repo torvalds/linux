@@ -809,6 +809,8 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 	reclaim_consumed_buffers(port);
 	spin_unlock_irq(&port->outvq_lock);
 
+	nonseekable_open(inode, filp);
+
 	/* Notify host of port being opened */
 	send_control_msg(filp->private_data, VIRTIO_CONSOLE_PORT_OPEN, 1);
 
@@ -840,6 +842,7 @@ static const struct file_operations port_fops = {
 	.poll  = port_fops_poll,
 	.release = port_fops_release,
 	.fasync = port_fops_fasync,
+	.llseek = no_llseek,
 };
 
 /*
