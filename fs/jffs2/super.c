@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/fs.h>
@@ -148,17 +147,13 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 	struct jffs2_sb_info *c;
 	int ret;
 
-	lock_kernel();
-
 	D1(printk(KERN_DEBUG "jffs2_get_sb_mtd():"
 		  " New superblock for device %d (\"%s\")\n",
 		  sb->s_mtd->index, sb->s_mtd->name));
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
-	if (!c) {
-		unlock_kernel();
+	if (!c)
 		return -ENOMEM;
-	}
 
 	c->mtd = sb->s_mtd;
 	c->os_priv = sb;
@@ -181,7 +176,6 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_flags |= MS_POSIXACL;
 #endif
 	ret = jffs2_do_fill_super(sb, data, silent);
-	unlock_kernel();
 	return ret;
 }
 
@@ -198,8 +192,6 @@ static void jffs2_put_super (struct super_block *sb)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
 	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
-
-	lock_kernel();
 
 	if (sb->s_dirt)
 		jffs2_write_super(sb);
@@ -221,8 +213,6 @@ static void jffs2_put_super (struct super_block *sb)
 	jffs2_clear_xattr_subsystem(c);
 	if (c->mtd->sync)
 		c->mtd->sync(c->mtd);
-
-	unlock_kernel();
 
 	D1(printk(KERN_DEBUG "jffs2_put_super returning\n"));
 }
