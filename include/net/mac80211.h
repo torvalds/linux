@@ -769,6 +769,8 @@ struct ieee80211_channel_switch {
  * @bss_conf: BSS configuration for this interface, either our own
  *	or the BSS we're associated to
  * @addr: address of this interface
+ * @p2p: indicates whether this AP or STA interface is a p2p
+ *	interface, i.e. a GO or p2p-sta respectively
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  */
@@ -776,6 +778,7 @@ struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_bss_conf bss_conf;
 	u8 addr[ETH_ALEN];
+	bool p2p;
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
@@ -1701,7 +1704,7 @@ struct ieee80211_ops {
 			     struct ieee80211_vif *vif);
 	int (*change_interface)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
-				enum nl80211_iftype new_type);
+				enum nl80211_iftype new_type, bool p2p);
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif);
 	int (*config)(struct ieee80211_hw *hw, u32 changed);
@@ -2719,6 +2722,28 @@ static inline bool
 conf_is_ht(struct ieee80211_conf *conf)
 {
 	return conf->channel_type != NL80211_CHAN_NO_HT;
+}
+
+static inline enum nl80211_iftype
+ieee80211_iftype_p2p(enum nl80211_iftype type, bool p2p)
+{
+	if (p2p) {
+		switch (type) {
+		case NL80211_IFTYPE_STATION:
+			return NL80211_IFTYPE_P2P_CLIENT;
+		case NL80211_IFTYPE_AP:
+			return NL80211_IFTYPE_P2P_GO;
+		default:
+			break;
+		}
+	}
+	return type;
+}
+
+static inline enum nl80211_iftype
+ieee80211_vif_type_p2p(struct ieee80211_vif *vif)
+{
+	return ieee80211_iftype_p2p(vif->type, vif->p2p);
 }
 
 #endif /* MAC80211_H */

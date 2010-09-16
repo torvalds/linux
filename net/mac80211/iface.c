@@ -188,6 +188,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
 		/* cannot happen */
 		WARN_ON(1);
 		break;
@@ -844,6 +846,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	/* and set some type-dependent values */
 	sdata->vif.type = type;
+	sdata->vif.p2p = false;
 	sdata->dev->netdev_ops = &ieee80211_dataif_ops;
 	sdata->wdev.iftype = type;
 
@@ -857,10 +860,20 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	INIT_WORK(&sdata->work, ieee80211_iface_work);
 
 	switch (type) {
+	case NL80211_IFTYPE_P2P_GO:
+		type = NL80211_IFTYPE_AP;
+		sdata->vif.type = type;
+		sdata->vif.p2p = true;
+		/* fall through */
 	case NL80211_IFTYPE_AP:
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		type = NL80211_IFTYPE_STATION;
+		sdata->vif.type = type;
+		sdata->vif.p2p = true;
+		/* fall through */
 	case NL80211_IFTYPE_STATION:
 		ieee80211_sta_setup_sdata(sdata);
 		break;
@@ -894,6 +907,8 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret, err;
+	enum nl80211_iftype internal_type = type;
+	bool p2p = false;
 
 	ASSERT_RTNL();
 
@@ -926,11 +941,19 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 		 * code isn't prepared to handle).
 		 */
 		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		p2p = true;
+		internal_type = NL80211_IFTYPE_STATION;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		p2p = true;
+		internal_type = NL80211_IFTYPE_AP;
+		break;
 	default:
 		return -EBUSY;
 	}
 
-	ret = ieee80211_check_concurrent_iface(sdata, type);
+	ret = ieee80211_check_concurrent_iface(sdata, internal_type);
 	if (ret)
 		return ret;
 
@@ -938,7 +961,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_teardown_sdata(sdata->dev);
 
-	ret = drv_change_interface(local, sdata, type);
+	ret = drv_change_interface(local, sdata, internal_type, p2p);
 	if (ret)
 		type = sdata->vif.type;
 
@@ -957,7 +980,7 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 
 	ASSERT_RTNL();
 
-	if (type == sdata->vif.type)
+	if (type == ieee80211_vif_type_p2p(&sdata->vif))
 		return 0;
 
 	/* Setting ad-hoc mode on non-IBSS channel is not supported. */

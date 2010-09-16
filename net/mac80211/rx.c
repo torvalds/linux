@@ -2588,9 +2588,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		if (compare_ether_addr(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
 		break;
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_UNSPECIFIED:
-	case NUM_NL80211_IFTYPES:
+	default:
 		/* should never get here */
 		WARN_ON(1);
 		break;
