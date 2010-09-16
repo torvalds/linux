@@ -918,10 +918,6 @@ struct net_device {
 	unsigned short		needed_headroom;
 	unsigned short		needed_tailroom;
 
-	struct net_device	*master; /* Pointer to master device of a group,
-					  * which this device is member of.
-					  */
-
 	/* Interface address info. */
 	unsigned char		perm_addr[MAX_ADDR_LEN]; /* permanent hw address */
 	unsigned char		addr_assign_type; /* hw address assignment type */
@@ -951,7 +947,7 @@ struct net_device {
 						   assign before registering */
 
 /*
- * Cache line mostly used on receive path (including eth_type_trans())
+ * Cache lines mostly used on receive path (including eth_type_trans())
  */
 	unsigned long		last_rx;	/* Time of last Rx
 						 * This should not be set in
@@ -960,6 +956,10 @@ struct net_device {
 						 * use it if/when necessary, to
 						 * avoid dirtying this cache line.
 						 */
+
+	struct net_device	*master; /* Pointer to master device of a group,
+					  * which this device is member of.
+					  */
 
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;	/* hw address, (before bcast
@@ -980,10 +980,14 @@ struct net_device {
 	unsigned int		num_rx_queues;
 #endif
 
-	struct netdev_queue	rx_queue;
 	rx_handler_func_t	*rx_handler;
 	void			*rx_handler_data;
 
+	struct netdev_queue	rx_queue; /* use two cache lines */
+
+/*
+ * Cache lines mostly used on transmit path
+ */
 	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
 
 	/* Number of TX queues allocated at alloc_netdev_mq() time  */
@@ -997,9 +1001,7 @@ struct net_device {
 
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
-/*
- * One part is mostly used on xmit path (device)
- */
+
 	/* These may be needed for future network-power-down code. */
 
 	/*
