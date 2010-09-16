@@ -1038,10 +1038,19 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const u8 *ssid;
+	u8 *dst = ifmgd->associated->bssid;
+	u8 unicast_limit = max(1, IEEE80211_MAX_PROBE_TRIES - 3);
+
+	/*
+	 * Try sending broadcast probe requests for the last three
+	 * probe requests after the first ones failed since some
+	 * buggy APs only support broadcast probe requests.
+	 */
+	if (ifmgd->probe_send_count >= unicast_limit)
+		dst = NULL;
 
 	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
-	ieee80211_send_probe_req(sdata, ifmgd->associated->bssid,
-				 ssid + 2, ssid[1], NULL, 0);
+	ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid[1], NULL, 0);
 
 	ifmgd->probe_send_count++;
 	ifmgd->probe_timeout = jiffies + IEEE80211_PROBE_WAIT;
