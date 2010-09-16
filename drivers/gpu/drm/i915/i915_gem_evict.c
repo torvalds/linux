@@ -41,7 +41,8 @@ mark_free(struct drm_i915_gem_object *obj_priv,
 }
 
 int
-i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignment)
+i915_gem_evict_something(struct drm_device *dev, int min_size,
+	 		 unsigned alignment, bool mappable)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
@@ -51,9 +52,17 @@ i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignmen
 	i915_gem_retire_requests(dev);
 
 	/* Re-check for free space after retiring requests */
-	if (drm_mm_search_free(&dev_priv->mm.gtt_space,
-			       min_size, alignment, 0))
-		return 0;
+	if (mappable) {
+		if (drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
+				  		min_size, alignment, 0,
+						dev_priv->mm.gtt_mappable_end,
+						0))
+			return 0;
+	} else {
+		if (drm_mm_search_free(&dev_priv->mm.gtt_space,
+				       min_size, alignment, 0))
+			return 0;
+	}
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
@@ -79,7 +88,12 @@ i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignmen
 	 */
 
 	INIT_LIST_HEAD(&unwind_list);
-	drm_mm_init_scan(&dev_priv->mm.gtt_space, min_size, alignment);
+	if (mappable)
+		drm_mm_init_scan_with_range(&dev_priv->mm.gtt_space, min_size,
+					    alignment, 0,
+					    dev_priv->mm.gtt_mappable_end);
+	else
+		drm_mm_init_scan(&dev_priv->mm.gtt_space, min_size, alignment);
 
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, mm_list) {

@@ -535,6 +535,8 @@ typedef struct drm_i915_private {
 		struct drm_mm vram;
 		/** Memory allocator for GTT */
 		struct drm_mm gtt_space;
+		/** End of mappable part of GTT */
+		unsigned long gtt_mappable_end;
 
 		struct io_mapping *gtt_mapping;
 		int gtt_mtrr;
@@ -1067,7 +1069,8 @@ void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);
 
 /* i915_gem_evict.c */
-int i915_gem_evict_something(struct drm_device *dev, int min_size, unsigned alignment);
+int i915_gem_evict_something(struct drm_device *dev, int min_size,
+			     unsigned alignment, bool mappable);
 int i915_gem_evict_everything(struct drm_device *dev);
 int i915_gem_evict_inactive(struct drm_device *dev);
 

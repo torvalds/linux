@@ -187,6 +187,7 @@ int i915_gem_do_init(struct drm_device *dev,
 		    end - start);
 
 	dev_priv->mm.gtt_total = end - start;
+	dev_priv->mm.gtt_mappable_end = end;
 
 	return 0;
 }
@@ -413,7 +414,8 @@ i915_gem_object_get_pages_or_evict(struct drm_gem_object *obj)
 		struct drm_device *dev = obj->dev;
 
 		ret = i915_gem_evict_something(dev, obj->size,
-					       i915_gem_get_gtt_alignment(obj));
+					       i915_gem_get_gtt_alignment(obj),
+					       false);
 		if (ret)
 			return ret;
 
@@ -2672,7 +2674,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
-		ret = i915_gem_evict_something(dev, obj->size, alignment);
+		ret = i915_gem_evict_something(dev, obj->size, alignment, true);
 		if (ret)
 			return ret;
 
@@ -2687,7 +2689,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		if (ret == -ENOMEM) {
 			/* first try to clear up some space from the GTT */
 			ret = i915_gem_evict_something(dev, obj->size,
-						       alignment);
+						       alignment, true);
 			if (ret) {
 				/* now try to shrink everyone else */
 				if (gfpmask) {
@@ -2717,7 +2719,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
 
-		ret = i915_gem_evict_something(dev, obj->size, alignment);
+		ret = i915_gem_evict_something(dev, obj->size, alignment, true);
 		if (ret)
 			return ret;
 
