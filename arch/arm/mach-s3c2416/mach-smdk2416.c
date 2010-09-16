@@ -111,6 +111,13 @@ static struct s3c2410_uartcfg smdk2416_uartcfgs[] __initdata = {
 		.ucon	     = UCON,
 		.ulcon	     = ULCON | 0x50,
 		.ufcon	     = UFCON,
+	},
+	[3] = {
+		.hwport	     = 3,
+		.flags	     = 0,
+		.ucon	     = UCON,
+		.ulcon	     = ULCON,
+		.ufcon	     = UFCON,
 	}
 };
 
