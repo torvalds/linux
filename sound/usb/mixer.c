@@ -759,8 +759,6 @@ static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
  */
 static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 {
-	struct snd_usb_audio *chip = cval->mixer->chip;
-
 	/* for failsafe */
 	cval->min = default_min;
 	cval->max = cval->min + 1;
@@ -783,7 +781,7 @@ static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 		if (get_ctl_value(cval, UAC_GET_MAX, (cval->control << 8) | minchn, &cval->max) < 0 ||
 		    get_ctl_value(cval, UAC_GET_MIN, (cval->control << 8) | minchn, &cval->min) < 0) {
 			snd_printd(KERN_ERR "%d:%d: cannot get min/max values for control %d (id %d)\n",
-				   cval->id, snd_usb_ctrl_intf(chip), cval->control, cval->id);
+				   cval->id, snd_usb_ctrl_intf(cval->mixer->chip), cval->control, cval->id);
 			return -EINVAL;
 		}
 		if (get_ctl_value(cval, UAC_GET_RES, (cval->control << 8) | minchn, &cval->res) < 0) {
