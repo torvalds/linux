@@ -133,7 +133,7 @@ void intel_ring_advance(struct drm_device *dev,
 u32 intel_ring_get_seqno(struct drm_device *dev,
 		struct intel_ring_buffer *ring);
 
-extern struct intel_ring_buffer render_ring;
-extern struct intel_ring_buffer bsd_ring;
+int intel_init_render_ring_buffer(struct drm_device *dev);
+int intel_init_bsd_ring_buffer(struct drm_device *dev);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

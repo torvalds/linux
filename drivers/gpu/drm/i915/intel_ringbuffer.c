@@ -793,7 +793,7 @@ void intel_fill_struct(struct drm_device *dev,
 	intel_ring_advance(dev, ring);
 }
 
-struct intel_ring_buffer render_ring = {
+static struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
 	.id			= RING_RENDER,
 	.regs                   = {
@@ -831,7 +831,7 @@ struct intel_ring_buffer render_ring = {
 
 /* ring buffer for bit-stream decoder */
 
-struct intel_ring_buffer bsd_ring = {
+static struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
 	.id			= RING_BSD,
 	.regs			= {
@@ -866,3 +866,28 @@ struct intel_ring_buffer bsd_ring = {
 	.status_page		= {NULL, 0, NULL},
 	.map			= {0,}
 };
+
+int intel_init_render_ring_buffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	dev_priv->render_ring = render_ring;
+
+	if (!I915_NEED_GFX_HWS(dev)) {
+		dev_priv->render_ring.status_page.page_addr
+			= dev_priv->status_page_dmah->vaddr;
+		memset(dev_priv->render_ring.status_page.page_addr,
+				0, PAGE_SIZE);
+	}
+
+	return intel_init_ring_buffer(dev, &dev_priv->render_ring);
+}
+
+int intel_init_bsd_ring_buffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	dev_priv->bsd_ring = bsd_ring;
+
+	return intel_init_ring_buffer(dev, &dev_priv->bsd_ring);
+}
