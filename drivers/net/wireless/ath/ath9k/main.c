@@ -258,8 +258,10 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL | SC_OP_SCANNING))) {
 		ath_start_ani(common);
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
-		ath_beacon_config(sc, NULL);
 	}
+
+	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL)))
+		ath_beacon_config(sc, NULL);
 
  ps_restore:
 	ath9k_ps_restore(sc);
@@ -957,7 +959,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	ath_update_txpow(sc);
 
-	if (sc->sc_flags & SC_OP_BEACONS)
+	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
 		ath_beacon_config(sc, NULL);	/* restart beacons */
 
 	ath9k_hw_set_interrupts(ah, ah->imask);
