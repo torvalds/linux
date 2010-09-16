@@ -76,7 +76,7 @@ static int tproxy_tg_check(const struct xt_tgchk_param *par)
 
 static struct xt_target tproxy_tg_reg __read_mostly = {
 	.name		= "TPROXY",
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 	.table		= "mangle",
 	.target		= tproxy_tg,
 	.targetsize	= sizeof(struct xt_tproxy_target_info),
