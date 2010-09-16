@@ -44,7 +44,7 @@
 struct intel_lvds {
 	struct intel_encoder base;
 
-	bool edid_good;
+	struct edid *edid;
 
 	int fitting_mode;
 	u32 pfit_control;
@@ -475,14 +475,12 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct intel_lvds *intel_lvds = intel_attached_lvds(connector);
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *mode;
 
-	if (intel_lvds->edid_good) {
-		int ret = intel_ddc_get_modes(connector,
-					      &dev_priv->gmbus[GMBUS_PORT_PANEL].adapter);
-		if (ret)
-			return ret;
+	if (intel_lvds->edid) {
+		drm_mode_connector_update_edid_property(connector,
+							intel_lvds->edid);
+		return drm_add_edid_modes(connector, intel_lvds->edid);
 	}
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
@@ -906,11 +904,10 @@ void intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	intel_lvds->edid_good = true;
-	if (!intel_ddc_get_modes(connector, &dev_priv->gmbus[GMBUS_PORT_PANEL].adapter))
-		intel_lvds->edid_good = false;
+	intel_lvds->edid = drm_get_edid(connector,
+					&dev_priv->gmbus[GMBUS_PORT_PANEL].adapter);
 
-	if (!intel_lvds->edid_good) {
+	if (!intel_lvds->edid) {
 		/* Didn't get an EDID, so
 		 * Set wide sync ranges so we get all modes
 		 * handed to valid_mode for checking
