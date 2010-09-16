@@ -2435,6 +2435,41 @@ static bool wait_on_work(struct work_struct *work)
 	return ret;
 }
 
+/**
+ * flush_work_sync - wait until a work has finished execution
+ * @work: the work to flush
+ *
+ * Wait until @work has finished execution.  On return, it's
+ * guaranteed that all queueing instances of @work which happened
+ * before this function is called are finished.  In other words, if
+ * @work hasn't been requeued since this function was called, @work is
+ * guaranteed to be idle on return.
+ *
+ * RETURNS:
+ * %true if flush_work_sync() waited for the work to finish execution,
+ * %false if it was already idle.
+ */
+bool flush_work_sync(struct work_struct *work)
+{
+	struct wq_barrier barr;
+	bool pending, waited;
+
+	/* we'll wait for executions separately, queue barr only if pending */
+	pending = start_flush_work(work, &barr, false);
+
+	/* wait for executions to finish */
+	waited = wait_on_work(work);
+
+	/* wait for the pending one */
+	if (pending) {
+		wait_for_completion(&barr.done);
+		destroy_work_on_stack(&barr.work);
+	}
+
+	return pending || waited;
+}
+EXPORT_SYMBOL_GPL(flush_work_sync);
+
 /*
  * Upon a successful return (>= 0), the caller "owns" WORK_STRUCT_PENDING bit,
  * so this work can't be re-armed in any way.
@@ -2537,6 +2572,27 @@ bool flush_delayed_work(struct delayed_work *dwork)
 	return flush_work(&dwork->work);
 }
 EXPORT_SYMBOL(flush_delayed_work);
+
+/**
+ * flush_delayed_work_sync - wait for a dwork to finish
+ * @dwork: the delayed work to flush
+ *
+ * Delayed timer is cancelled and the pending work is queued for
+ * execution immediately.  Other than timer handling, its behavior
+ * is identical to flush_work_sync().
+ *
+ * RETURNS:
+ * %true if flush_work_sync() waited for the work to finish execution,
+ * %false if it was already idle.
+ */
+bool flush_delayed_work_sync(struct delayed_work *dwork)
+{
+	if (del_timer_sync(&dwork->timer))
+		__queue_work(raw_smp_processor_id(),
+			     get_work_cwq(&dwork->work)->wq, &dwork->work);
+	return flush_work_sync(&dwork->work);
+}
+EXPORT_SYMBOL(flush_delayed_work_sync);
 
 /**
  * cancel_delayed_work_sync - cancel a delayed work and wait for it to finish
