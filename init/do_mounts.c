@@ -65,7 +65,7 @@ __setup("rw", readwrite);
  *
  * Returns 1 if the device matches, and 0 otherwise.
  */
-static int __init match_dev_by_uuid(struct device *dev, void *data)
+static int match_dev_by_uuid(struct device *dev, void *data)
 {
 	u8 *uuid = data;
 	struct hd_struct *part = dev_to_part(dev);
