@@ -427,7 +427,7 @@ out:
 	return ret;
 }
 
-static bool f14h_nb_mce(u16 ec, u8 xec)
+static bool nb_noop_mce(u16 ec, u8 xec)
 {
 	return false;
 }
@@ -641,13 +641,14 @@ static int __init mce_amd_init(void)
 	case 0x12:
 		fam_ops->dc_mce = f12h_dc_mce;
 		fam_ops->ic_mce = k8_ic_mce;
+		fam_ops->nb_mce = nb_noop_mce;
 		break;
 
 	case 0x14:
 		nb_err_cpumask  = 0x3;
 		fam_ops->dc_mce = f14h_dc_mce;
 		fam_ops->ic_mce = f14h_ic_mce;
-		fam_ops->nb_mce = f14h_nb_mce;
+		fam_ops->nb_mce = nb_noop_mce;
 		break;
 
 	default:
