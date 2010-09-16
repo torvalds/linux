@@ -1292,7 +1292,8 @@ static int pci9111_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	/*  Probe the device to determine what device in the series it is. */
 
-	printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n", dev->minor);
+	printk(KERN_ERR "comedi%d: " PCI9111_DRIVER_NAME " driver\n",
+								dev->minor);
 
 	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK) {
@@ -1325,13 +1326,14 @@ static int pci9111_attach(struct comedi_device *dev,
 		}
 	}
 
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
+	printk(KERN_ERR
+		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+			dev->minor, it->options[0], it->options[1]);
 	return -EIO;
 
 found:
 
-	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
+	printk(KERN_ERR "comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
 	       dev->minor,
 	       pci9111_boards[i].name,
 	       pci_device->bus->number,
@@ -1362,7 +1364,7 @@ found:
 	io_base = pci_resource_start(pci_device, 2);
 	io_range = pci_resource_len(pci_device, 2);
 
-	printk("comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
+	printk(KERN_ERR "comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
 	       dev->minor, io_base, io_range);
 
 	dev->iobase = io_base;
@@ -1380,8 +1382,9 @@ found:
 	if (pci_device->irq > 0) {
 		if (request_irq(pci_device->irq, pci9111_interrupt,
 				IRQF_SHARED, PCI9111_DRIVER_NAME, dev) != 0) {
-			printk("comedi%d: unable to allocate irq  %u\n",
-			       dev->minor, pci_device->irq);
+			printk(KERN_ERR
+				"comedi%d: unable to allocate irq  %u\n",
+					dev->minor, pci_device->irq);
 			return -EINVAL;
 		}
 	}
