@@ -115,7 +115,7 @@ static void run_again(struct ieee80211_if_managed *ifmgd,
 		mod_timer(&ifmgd->timer, timeout);
 }
 
-static void mod_beacon_timer(struct ieee80211_sub_if_data *sdata)
+void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata)
 {
 	if (sdata->local->hw.flags & IEEE80211_HW_BEACON_FILTER)
 		return;
@@ -1390,7 +1390,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	 * Also start the timer that will detect beacon loss.
 	 */
 	ieee80211_sta_rx_notify(sdata, (struct ieee80211_hdr *)mgmt);
-	mod_beacon_timer(sdata);
+	ieee80211_sta_reset_beacon_monitor(sdata);
 
 	return true;
 }
@@ -1493,7 +1493,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 		 * we have or will be receiving any beacons or data, so let's
 		 * schedule the timers again, just in case.
 		 */
-		mod_beacon_timer(sdata);
+		ieee80211_sta_reset_beacon_monitor(sdata);
 
 		mod_timer(&ifmgd->conn_mon_timer,
 			  round_jiffies_up(jiffies +
@@ -1619,7 +1619,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	 * Push the beacon loss detection into the future since
 	 * we are processing a beacon from the AP just now.
 	 */
-	mod_beacon_timer(sdata);
+	ieee80211_sta_reset_beacon_monitor(sdata);
 
 	ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
 	ncrc = ieee802_11_parse_elems_crc(mgmt->u.beacon.variable,
