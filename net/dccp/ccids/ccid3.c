@@ -91,19 +91,16 @@ static inline u64 rfc3390_initial_rate(struct sock *sk)
 	return scaled_div(w_init << 6, hc->tx_rtt);
 }
 
-/*
- * Recalculate t_ipi and delta (should be called whenever X changes)
+/**
+ * ccid3_update_send_interval  -  Calculate new t_ipi = s / X_inst
+ * This respects the granularity of X_inst (64 * bytes/second).
  */
 static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hc)
 {
-	/* Calculate new t_ipi = s / X_inst (X_inst is in 64 * bytes/second) */
 	hc->tx_t_ipi = scaled_div32(((u64)hc->tx_s) << 6, hc->tx_x);
 
-	/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
-	hc->tx_delta = min_t(u32, hc->tx_t_ipi / 2, TFRC_OPSYS_HALF_TIME_GRAN);
-
-	ccid3_pr_debug("t_ipi=%u, delta=%u, s=%u, X=%u\n", hc->tx_t_ipi,
-		       hc->tx_delta, hc->tx_s, (unsigned)(hc->tx_x >> 6));
+	ccid3_pr_debug("t_ipi=%u, s=%u, X=%u\n", hc->tx_t_ipi,
+		       hc->tx_s, (unsigned)(hc->tx_x >> 6));
 }
 
 static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t now)
@@ -332,15 +329,15 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		delay = ktime_us_delta(hc->tx_t_nom, now);
 		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
-		 *	Scheduling of packet transmissions [RFC 3448, 4.6]
+		 *	Scheduling of packet transmissions (RFC 5348, 8.3)
 		 *
 		 * if (t_now > t_nom - delta)
 		 *       // send the packet now
 		 * else
 		 *       // send the packet in (t_nom - t_now) milliseconds.
 		 */
-		if (delay - (s64)hc->tx_delta >= 1000)
-			return (u32)delay / 1000L;
+		if (delay >= TFRC_T_DELTA)
+			return (u32)delay / USEC_PER_MSEC;
 
 		ccid3_hc_tx_update_win_count(hc, now);
 		break;
@@ -373,6 +370,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
+	struct tfrc_tx_hist_entry *acked;
 	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
@@ -386,17 +384,24 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	    hc->tx_state != TFRC_SSTATE_NO_FBACK)
 		return;
 
-	now = ktime_get_real();
-
-	/* Estimate RTT from history if ACK number is valid */
-	r_sample = tfrc_tx_hist_rtt(hc->tx_hist,
-				    DCCP_SKB_CB(skb)->dccpd_ack_seq, now);
-	if (r_sample == 0) {
-		DCCP_WARN("%s(%p): %s with bogus ACK-%llu\n", dccp_role(sk), sk,
-			  dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type),
-			  (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq);
+	/*
+	 * Locate the acknowledged packet in the TX history.
+	 *
+	 * Returning "entry not found" here can for instance happen when
+	 *  - the host has not sent out anything (e.g. a passive server),
+	 *  - the Ack is outdated (packet with higher Ack number was received),
+	 *  - it is a bogus Ack (for a packet not sent on this connection).
+	 */
+	acked = tfrc_tx_hist_find_entry(hc->tx_hist, dccp_hdr_ack_seq(skb));
+	if (acked == NULL)
 		return;
-	}
+	/* For the sake of RTT sampling, ignore/remove all older entries */
+	tfrc_tx_hist_purge(&acked->next);
+
+	/* Update the moving average for the RTT estimate (RFC 3448, 4.3) */
+	now	  = ktime_get_real();
+	r_sample  = dccp_sample_rtt(sk, ktime_us_delta(now, acked->stamp));
+	hc->tx_rtt = tfrc_ewma(hc->tx_rtt, r_sample, 9);
 
 	/* Update receive rate in units of 64 * bytes/second */
 	hc->tx_x_recv = opt_recv->ccid3or_receive_rate;
@@ -408,11 +413,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hc->tx_p = 0;
 	else				       /* can not exceed 100% */
 		hc->tx_p = scaled_div(1, pinv);
-	/*
-	 * Validate new RTT sample and update moving average
-	 */
-	r_sample = dccp_sample_rtt(sk, r_sample);
-	hc->tx_rtt = tfrc_ewma(hc->tx_rtt, r_sample, 9);
+
 	/*
 	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
 	 */
@@ -484,60 +485,31 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				     unsigned char len, u16 idx,
 				     unsigned char *value)
 {
-	int rc = 0;
-	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
 	__be32 opt_val;
 
-	if (opt_recv->ccid3or_seqno != dp->dccps_gsr) {
-		opt_recv->ccid3or_seqno		     = dp->dccps_gsr;
-		opt_recv->ccid3or_loss_event_rate    = ~0;
-		opt_recv->ccid3or_loss_intervals_idx = 0;
-		opt_recv->ccid3or_loss_intervals_len = 0;
-		opt_recv->ccid3or_receive_rate	     = 0;
-	}
-
 	switch (option) {
+	case TFRC_OPT_RECEIVE_RATE:
 	case TFRC_OPT_LOSS_EVENT_RATE:
 		if (unlikely(len != 4)) {
-			DCCP_WARN("%s(%p), invalid len %d "
-				  "for TFRC_OPT_LOSS_EVENT_RATE\n",
-				  dccp_role(sk), sk, len);
-			rc = -EINVAL;
-		} else {
-			opt_val = get_unaligned((__be32 *)value);
-			opt_recv->ccid3or_loss_event_rate = ntohl(opt_val);
-			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
-				       dccp_role(sk), sk,
-				       opt_recv->ccid3or_loss_event_rate);
+			DCCP_WARN("%s(%p), invalid len %d for %u\n",
+				  dccp_role(sk), sk, len, option);
+			return -EINVAL;
 		}
-		break;
-	case TFRC_OPT_LOSS_INTERVALS:
-		opt_recv->ccid3or_loss_intervals_idx = idx;
-		opt_recv->ccid3or_loss_intervals_len = len;
-		ccid3_pr_debug("%s(%p), LOSS_INTERVALS=(%u, %u)\n",
-			       dccp_role(sk), sk,
-			       opt_recv->ccid3or_loss_intervals_idx,
-			       opt_recv->ccid3or_loss_intervals_len);
-		break;
-	case TFRC_OPT_RECEIVE_RATE:
-		if (unlikely(len != 4)) {
-			DCCP_WARN("%s(%p), invalid len %d "
-				  "for TFRC_OPT_RECEIVE_RATE\n",
-				  dccp_role(sk), sk, len);
-			rc = -EINVAL;
-		} else {
-			opt_val = get_unaligned((__be32 *)value);
-			opt_recv->ccid3or_receive_rate = ntohl(opt_val);
-			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
-				       dccp_role(sk), sk,
-				       opt_recv->ccid3or_receive_rate);
-		}
-		break;
-	}
+		opt_val = ntohl(get_unaligned((__be32 *)value));
 
-	return rc;
+		if (option == TFRC_OPT_RECEIVE_RATE) {
+			opt_recv->ccid3or_receive_rate = opt_val;
+			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
+				       dccp_role(sk), sk, opt_val);
+		} else {
+			opt_recv->ccid3or_loss_event_rate = opt_val;
+			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
+				       dccp_role(sk), sk, opt_val);
+		}
+	}
+	return 0;
 }
 
 static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
