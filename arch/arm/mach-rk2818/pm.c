@@ -574,6 +574,8 @@ static int __tcmfunc rk2818_tcm_idle(void)
 
 	scu_writel(scu_apll, SCU_APLL_CON); // powerup
 	scu_writel(scu_clksel0 & (~3), SCU_CLKSEL0_CON);
+	
+	tcm_udelay(2, 24);
 
 	unit = 7200;  /* 24m,0.3ms , 24*300*/
 	while (unit-- > 0) {
