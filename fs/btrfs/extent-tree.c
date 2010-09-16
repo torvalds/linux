@@ -3115,6 +3115,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	u64 reserved;
 	u64 max_reclaim;
 	u64 reclaimed = 0;
+	int no_reclaim = 0;
 	int pause = 1;
 	int ret;
 
@@ -3131,12 +3132,16 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	while (1) {
 		ret = btrfs_start_one_delalloc_inode(root, trans ? 1 : 0);
 		if (!ret) {
+			if (no_reclaim > 2)
+				break;
+			no_reclaim++;
 			__set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(pause);
 			pause <<= 1;
 			if (pause > HZ / 10)
 				pause = HZ / 10;
 		} else {
+			no_reclaim = 0;
 			pause = 1;
 		}
 
