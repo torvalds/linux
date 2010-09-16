@@ -1162,7 +1162,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		return;
 
 	/* Set the SDVO control regs. */
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		sdvox = SDVO_BORDER_ENABLE;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
@@ -1185,7 +1185,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	if (intel_sdvo->is_hdmi)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
 	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */

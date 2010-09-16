@@ -97,7 +97,7 @@ render_ring_flush(struct drm_device *dev,
 		if ((invalidate_domains|flush_domains) &
 		    I915_GEM_DOMAIN_RENDER)
 			cmd &= ~MI_NO_WRITE_FLUSH;
-		if (!IS_I965G(dev)) {
+		if (INTEL_INFO(dev)->gen < 4) {
 			/*
 			 * On the 965, the sampler cache always gets flushed
 			 * and this bit is reserved.
@@ -138,7 +138,7 @@ static unsigned int render_ring_get_active_head(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 acthd_reg = IS_I965G(dev) ? ACTHD_I965 : ACTHD;
+	u32 acthd_reg = INTEL_INFO(dev)->gen ? ACTHD_I965 : ACTHD;
 
 	return I915_READ(acthd_reg);
 }
@@ -224,7 +224,7 @@ static int init_render_ring(struct drm_device *dev,
 	int ret = init_ring_common(dev, ring);
 	int mode;
 
-	if (IS_I9XX(dev) && !IS_GEN3(dev)) {
+	if (INTEL_INFO(dev)->gen > 3) {
 		mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
 		if (IS_GEN6(dev))
 			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
@@ -528,7 +528,7 @@ render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 			intel_ring_emit(dev, ring, 0);
 		} else {
 			intel_ring_begin(dev, ring, 4);
-			if (IS_I965G(dev)) {
+			if (INTEL_INFO(dev)->gen >= 4) {
 				intel_ring_emit(dev, ring,
 						MI_BATCH_BUFFER_START | (2 << 6)
 						| MI_BATCH_NON_SECURE_I965);

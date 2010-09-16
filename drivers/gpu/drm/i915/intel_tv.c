@@ -1139,7 +1139,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			   color_conversion->av);
 	}
 
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		I915_WRITE(TV_CLR_KNOBS, 0x00404000);
 	else
 		I915_WRITE(TV_CLR_KNOBS, 0x00606000);
@@ -1165,7 +1165,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
 
 		/* Wait for vblank for the disable to take effect */
-		if (!IS_I9XX(dev))
+		if (IS_GEN2(dev))
 			intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 		I915_WRITE(pipeconf_reg, pipeconf & ~PIPECONF_ENABLE);

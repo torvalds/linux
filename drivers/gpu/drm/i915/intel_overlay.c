@@ -552,15 +552,15 @@ static int uv_vsubsampling(u32 format)
 static u32 calc_swidthsw(struct drm_device *dev, u32 offset, u32 width)
 {
 	u32 mask, shift, ret;
-	if (IS_I9XX(dev)) {
-		mask = 0x3f;
-		shift = 6;
-	} else {
+	if (IS_GEN2(dev)) {
 		mask = 0x1f;
 		shift = 5;
+	} else {
+		mask = 0x3f;
+		shift = 6;
 	}
 	ret = ((offset + width + mask) >> shift) - (offset >> shift);
-	if (IS_I9XX(dev))
+	if (!IS_GEN2(dev))
 		ret <<= 1;
 	ret -=1;
 	return ret << 2;
@@ -768,7 +768,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 			goto out_unpin;
 		}
 		regs->OCONFIG = OCONF_CC_OUT_8BIT;
-		if (IS_I965GM(overlay->dev))
+		if (IS_GEN4(overlay->dev))
 			regs->OCONFIG |= OCONF_CSC_MODE_BT709;
 		regs->OCONFIG |= overlay->crtc->pipe == 0 ?
 			OCONF_PIPE_A : OCONF_PIPE_B;
@@ -880,7 +880,7 @@ static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
 		return -EINVAL;
 
 	/* can't use the overlay with double wide pipe */
-	if (!IS_I965G(overlay->dev) &&
+	if (INTEL_INFO(overlay->dev)->gen < 4 &&
 	    (I915_READ(PIPECONF(crtc->pipe)) & (PIPECONF_DOUBLE_WIDE | PIPECONF_ENABLE)) != PIPECONF_ENABLE)
 		return -EINVAL;
 
@@ -897,14 +897,15 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 	/* XXX: This is not the same logic as in the xorg driver, but more in
 	 * line with the intel documentation for the i965
 	 */
-	if (!IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
+	       	/* on i965 use the PGM reg to read out the autoscaler values */
+		ratio = I915_READ(PFIT_PGM_RATIOS) >> PFIT_VERT_SCALE_SHIFT_965;
+	} else {
 		if (pfit_control & VERT_AUTO_SCALE)
 			ratio = I915_READ(PFIT_AUTO_RATIOS);
 		else
 			ratio = I915_READ(PFIT_PGM_RATIOS);
 		ratio >>= PFIT_VERT_SCALE_SHIFT;
-	} else { /* on i965 use the PGM reg to read out the autoscaler values */
-		ratio = I915_READ(PFIT_PGM_RATIOS) >> PFIT_VERT_SCALE_SHIFT_965;
 	}
 
 	overlay->pfit_vscale_ratio = ratio;
@@ -1007,7 +1008,7 @@ static int check_overlay_src(struct drm_device *dev,
 
 	if (rec->stride_Y & stride_mask || rec->stride_UV & stride_mask)
 		return -EINVAL;
-	if (IS_I965G(dev) && rec->stride_Y < 512)
+	if (IS_GEN4(dev) && rec->stride_Y < 512)
 		return -EINVAL;
 
 	tmp = (rec->flags & I915_OVERLAY_TYPE_MASK) == I915_OVERLAY_YUV_PLANAR ?
@@ -1068,7 +1069,7 @@ static int intel_panel_fitter_pipe(struct drm_device *dev)
 		return -1;
 
 	/* 965 can place panel fitter on either pipe */
-	if (IS_I965G(dev))
+	if (IS_GEN4(dev))
 		return (pfit_control >> 29) & 0x3;
 
 	/* older chips can only use pipe 1 */
@@ -1302,7 +1303,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 		attrs->contrast   = overlay->contrast;
 		attrs->saturation = overlay->saturation;
 
-		if (IS_I9XX(dev)) {
+		if (!IS_GEN2(dev)) {
 			attrs->gamma0 = I915_READ(OGAMC0);
 			attrs->gamma1 = I915_READ(OGAMC1);
 			attrs->gamma2 = I915_READ(OGAMC2);
@@ -1334,7 +1335,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 		intel_overlay_unmap_regs(overlay, regs);
 
 		if (attrs->flags & I915_OVERLAY_UPDATE_GAMMA) {
-			if (!IS_I9XX(dev))
+			if (IS_GEN2(dev))
 				goto out_unlock;
 
 			if (overlay->active) {

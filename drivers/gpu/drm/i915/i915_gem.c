@@ -1346,14 +1346,14 @@ i915_gem_get_gtt_alignment(struct drm_gem_object *obj)
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (IS_I965G(dev) || obj_priv->tiling_mode == I915_TILING_NONE)
+	if (INTEL_INFO(dev)->gen >= 4 || obj_priv->tiling_mode == I915_TILING_NONE)
 		return 4096;
 
 	/*
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
 	 */
-	if (IS_I9XX(dev))
+	if (INTEL_INFO(dev)->gen == 3)
 		start = 1024*1024;
 	else
 		start = 512*1024;
@@ -1660,7 +1660,7 @@ i915_retire_commands(struct drm_device *dev, struct intel_ring_buffer *ring)
 	uint32_t flush_domains = 0;
 
 	/* The sampler always gets flushed on i965 (sigh) */
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		flush_domains |= I915_GEM_DOMAIN_SAMPLER;
 
 	ring->flush(dev, ring,
@@ -2443,7 +2443,7 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 	 * therefore we must wait for any outstanding access to complete
 	 * before clearing the fence.
 	 */
-	if (!IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen < 4) {
 		int ret;
 
 		ret = i915_gem_object_flush_gpu_write_domain(obj, true);
@@ -3893,7 +3893,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		exec2_list[i].relocs_ptr = exec_list[i].relocs_ptr;
 		exec2_list[i].alignment = exec_list[i].alignment;
 		exec2_list[i].offset = exec_list[i].offset;
-		if (!IS_I965G(dev))
+		if (INTEL_INFO(dev)->gen < 4)
 			exec2_list[i].flags = EXEC_OBJECT_NEEDS_FENCE;
 		else
 			exec2_list[i].flags = 0;
@@ -4614,21 +4614,30 @@ i915_gem_load(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		dev_priv->fence_reg_start = 3;
 
-	if (IS_I965G(dev) || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+	if (INTEL_INFO(dev)->gen >= 4 || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
 
 	/* Initialize fence registers to zero */
-	if (IS_I965G(dev)) {
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), 0);
+		break;
+	case 5:
+	case 4:
 		for (i = 0; i < 16; i++)
 			I915_WRITE64(FENCE_REG_965_0 + (i * 8), 0);
-	} else {
-		for (i = 0; i < 8; i++)
-			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
+		break;
+	case 3:
 		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 			for (i = 0; i < 8; i++)
 				I915_WRITE(FENCE_REG_945_8 + (i * 4), 0);
+	case 2:
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
+		break;
 	}
 	i915_gem_detect_bit_6_swizzle(dev);
 	init_waitqueue_head(&dev_priv->pending_flip_queue);

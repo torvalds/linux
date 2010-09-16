@@ -79,7 +79,7 @@ static int intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
-	if (!IS_I9XX(dev))
+	if (IS_GEN2(dev))
 		max_clock = 350000;
 	else
 		max_clock = 400000;
@@ -123,7 +123,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	 * Disable separate mode multiplier used when cloning SDVO to CRT
 	 * XXX this needs to be adjusted when we really are cloning
 	 */
-	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 		dpll_md = I915_READ(dpll_md_reg);
 		I915_WRITE(dpll_md_reg,
 			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
@@ -325,7 +325,7 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 	/* Set the border color to purple. */
 	I915_WRITE(bclrpat_reg, 0x500050);
 
-	if (IS_I9XX(dev)) {
+	if (!IS_GEN2(dev)) {
 		uint32_t pipeconf = I915_READ(pipeconf_reg);
 		I915_WRITE(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
 		POSTING_READ(pipeconf_reg);
@@ -411,7 +411,7 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	int dpms_mode;
 	enum drm_connector_status status;
 
-	if (IS_I9XX(dev) && !IS_I915G(dev) && !IS_I915GM(dev)) {
+	if (I915_HAS_HOTPLUG(dev)) {
 		if (intel_crt_detect_hotplug(connector))
 			return connector_status_connected;
 		else

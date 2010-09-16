@@ -196,13 +196,9 @@ struct drm_i915_display_funcs {
 struct intel_device_info {
 	u8 gen;
 	u8 is_mobile : 1;
-	u8 is_i8xx : 1;
 	u8 is_i85x : 1;
 	u8 is_i915g : 1;
-	u8 is_i9xx : 1;
 	u8 is_i945gm : 1;
-	u8 is_i965g : 1;
-	u8 is_i965gm : 1;
 	u8 is_g33 : 1;
 	u8 need_gfx_hws : 1;
 	u8 is_g4x : 1;
@@ -217,6 +213,7 @@ struct intel_device_info {
 	u8 cursor_needs_physical : 1;
 	u8 has_overlay : 1;
 	u8 overlay_needs_physical : 1;
+	u8 supports_tv : 1;
 };
 
 enum no_fbc_reason {
@@ -1220,8 +1217,6 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_I915GM(dev)		((dev)->pci_device == 0x2592)
 #define IS_I945G(dev)		((dev)->pci_device == 0x2772)
 #define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
-#define IS_I965G(dev)		(INTEL_INFO(dev)->is_i965g)
-#define IS_I965GM(dev)		(INTEL_INFO(dev)->is_i965gm)
 #define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
 #define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
 #define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
@@ -1233,7 +1228,6 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
 #define IS_IRONLAKE(dev)	(INTEL_INFO(dev)->is_ironlake)
-#define IS_I9XX(dev)		(INTEL_INFO(dev)->is_i9xx)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
 #define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
@@ -1251,20 +1245,18 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
  */
-#define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
+#define HAS_128_BYTE_Y_TILING(dev) (!IS_GEN2(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
-#define SUPPORTS_DIGITAL_OUTPUTS(dev)	(IS_I9XX(dev) && !IS_PINEVIEW(dev))
+#define SUPPORTS_DIGITAL_OUTPUTS(dev)	(!IS_GEN2(dev) && !IS_PINEVIEW(dev))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
 #define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
 #define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
-#define SUPPORTS_TV(dev)		(IS_I9XX(dev) && IS_MOBILE(dev) && \
-					!IS_IRONLAKE(dev) && !IS_PINEVIEW(dev) && \
-					!IS_GEN6(dev))
+#define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
 #define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
 
-#define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IRONLAKE(dev))
+#define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 #define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)

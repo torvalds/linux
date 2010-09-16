@@ -198,7 +198,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 
 	/* Should never happen!! */
-	if (!IS_I965G(dev) && intel_crtc->pipe == 0) {
+	if (INTEL_INFO(dev)->gen < 4 && intel_crtc->pipe == 0) {
 		DRM_ERROR("Can't support LVDS on pipe A\n");
 		return false;
 	}
@@ -227,7 +227,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	/* Make sure pre-965s set dither correctly */
-	if (!IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen < 4) {
 		if (dev_priv->panel_wants_dither || dev_priv->lvds_dither)
 			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 	}
@@ -238,7 +238,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		goto out;
 
 	/* 965+ wants fuzzy fitting */
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 				 PFIT_FILTER_FUZZY);
 
@@ -264,7 +264,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	case DRM_MODE_SCALE_ASPECT:
 		/* Scale but preserve the aspect ratio */
-		if (IS_I965G(dev)) {
+		if (INTEL_INFO(dev)->gen >= 4) {
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
 
@@ -323,7 +323,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		 * Fortunately this is all done for us in hw.
 		 */
 		pfit_control |= PFIT_ENABLE;
-		if (IS_I965G(dev))
+		if (INTEL_INFO(dev)->gen >= 4)
 			pfit_control |= PFIT_SCALING_AUTO;
 		else
 			pfit_control |= (VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |

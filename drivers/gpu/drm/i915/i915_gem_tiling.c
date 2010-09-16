@@ -98,7 +98,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (!IS_I9XX(dev)) {
+	} else if (IS_GEN2(dev)) {
 		/* As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
@@ -190,19 +190,19 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (!IS_I9XX(dev) ||
+	if (IS_GEN2(dev) ||
 	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
 		tile_width = 128;
 	else
 		tile_width = 512;
 
 	/* check maximum stride & object size */
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		/* i965 stores the end address of the gtt mapping in the fence
 		 * reg, so dont bother to check the size */
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (IS_GEN3(dev) || IS_GEN2(dev)) {
+	} else {
 		if (stride > 8192)
 			return false;
 
@@ -216,7 +216,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	}
 
 	/* 965+ just needs multiples of tile width */
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		if (stride & (tile_width - 1))
 			return false;
 		return true;
@@ -244,16 +244,18 @@ i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (!IS_I965G(dev)) {
-		if (obj_priv->gtt_offset & (obj->size - 1))
+	if (INTEL_INFO(dev)->gen >= 4)
+		return true;
+
+	if (obj_priv->gtt_offset & (obj->size - 1))
+		return false;
+
+	if (IS_GEN3(dev)) {
+		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
 			return false;
-		if (IS_I9XX(dev)) {
-			if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
-				return false;
-		} else {
-			if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
-				return false;
-		}
+	} else {
+		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
+			return false;
 	}
 
 	return true;

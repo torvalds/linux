@@ -58,13 +58,9 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	seq_printf(m, "gen: %d\n", info->gen);
 #define B(x) seq_printf(m, #x ": %s\n", yesno(info->x))
 	B(is_mobile);
-	B(is_i8xx);
 	B(is_i85x);
 	B(is_i915g);
-	B(is_i9xx);
 	B(is_i945gm);
-	B(is_i965g);
-	B(is_i965gm);
 	B(is_g33);
 	B(need_gfx_hws);
 	B(is_g4x);
@@ -79,6 +75,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(cursor_needs_physical);
 	B(has_overlay);
 	B(overlay_needs_physical);
+	B(supports_tv);
 #undef B
 
 	return 0;
@@ -473,7 +470,7 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	seq_printf(m, "RingHead :  %08x\n", head);
 	seq_printf(m, "RingTail :  %08x\n", tail);
 	seq_printf(m, "RingSize :  %08lx\n", dev_priv->render_ring.size);
-	seq_printf(m, "Acthd :     %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
+	seq_printf(m, "Acthd :     %08x\n", I915_READ(INTEL_INFO(dev)->gen >= 4 ? ACTHD_I965 : ACTHD));
 
 	return 0;
 }
@@ -535,7 +532,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr);
 	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone);
 	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd);
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
 		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
 	}
@@ -757,7 +754,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 	if (IS_IRONLAKE(dev))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
-	else if (IS_I965GM(dev) || IS_I945G(dev) || IS_I945GM(dev))
+	else if (IS_CRESTLINE(dev) || IS_I945G(dev) || IS_I945GM(dev))
 		sr_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
 	else if (IS_I915GM(dev))
 		sr_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;

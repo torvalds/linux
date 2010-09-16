@@ -116,7 +116,7 @@ static int is_backlight_combination_mode(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		return I915_READ(BLC_PWM_CTL2) & BLM_COMBINATION_MODE;
 
 	if (IS_GEN2(dev))
@@ -138,7 +138,7 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 			max >>= 17;
 		} else {
 			max >>= 16;
-			if (!IS_I965G(dev))
+			if (INTEL_INFO(dev)->gen < 4)
 				max &= ~1;
 		}
 

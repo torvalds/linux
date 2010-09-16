@@ -63,7 +63,7 @@ static int i915_init_phys_hws(struct drm_device *dev)
 
 	memset(dev_priv->render_ring.status_page.page_addr, 0, PAGE_SIZE);
 
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
 					     0xf0;
 
@@ -376,7 +376,7 @@ i915_emit_box(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		BEGIN_LP_RING(4);
 		OUT_RING(GFX_OP_DRAWRECT_INFO_I965);
 		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
@@ -480,7 +480,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 
 		if (!IS_I830(dev) && !IS_845G(dev)) {
 			BEGIN_LP_RING(2);
-			if (IS_I965G(dev)) {
+			if (INTEL_INFO(dev)->gen >= 4) {
 				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6) | MI_BATCH_NON_SECURE_I965);
 				OUT_RING(batch->start);
 			} else {
@@ -887,12 +887,12 @@ static int
 intel_alloc_mchbar_resource(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	int reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
 	int ret;
 
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
 	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
@@ -919,7 +919,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 		return ret;
 	}
 
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
 				       upper_32_bits(dev_priv->mch_res.start));
 
@@ -933,7 +933,7 @@ static void
 intel_setup_mchbar(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int mchbar_reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
 
@@ -970,7 +970,7 @@ static void
 intel_teardown_mchbar(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int mchbar_reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 
 	if (dev_priv->mchbar_need_disable) {
@@ -1012,11 +1012,11 @@ static unsigned long i915_gtt_to_phys(struct drm_device *dev,
 {
 	unsigned long *gtt;
 	unsigned long entry, phys;
-	int gtt_bar = IS_I9XX(dev) ? 0 : 1;
+	int gtt_bar = IS_GEN2(dev) ? 1 : 0;
 	int gtt_offset, gtt_size;
 
-	if (IS_I965G(dev)) {
-		if (IS_G4X(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (IS_G4X(dev) || INTEL_INFO(dev)->gen > 4) {
 			gtt_offset = 2*1024*1024;
 			gtt_size = 2*1024*1024;
 		} else {
@@ -1041,10 +1041,8 @@ static unsigned long i915_gtt_to_phys(struct drm_device *dev,
 	DRM_DEBUG_DRIVER("GTT addr: 0x%08lx, PTE: 0x%08lx\n", gtt_addr, entry);
 
 	/* Mask out these reserved bits on this hardware. */
-	if (!IS_I9XX(dev) || IS_I915G(dev) || IS_I915GM(dev) ||
-	    IS_I945G(dev) || IS_I945GM(dev)) {
+	if (INTEL_INFO(dev)->gen < 4 && !IS_G33(dev))
 		entry &= ~PTE_ADDRESS_MASK_HIGH;
-	}
 
 	/* If it's not a mapping type we know, then bail. */
 	if ((entry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_UNCACHED &&
@@ -1899,7 +1897,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->info = (struct intel_device_info *) flags;
 
 	/* Add register map (needed for suspend/resume) */
-	mmio_bar = IS_I9XX(dev) ? 0 : 1;
+	mmio_bar = IS_GEN2(dev) ? 1 : 0;
 	base = pci_resource_start(dev->pdev, mmio_bar);
 	size = pci_resource_len(dev->pdev, mmio_bar);
 

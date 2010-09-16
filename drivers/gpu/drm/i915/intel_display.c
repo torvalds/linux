@@ -708,16 +708,16 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 		limit = intel_ironlake_limit(crtc);
 	else if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc);
-	} else if (IS_I9XX(dev) && !IS_PINEVIEW(dev)) {
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits_i9xx_lvds;
-		else
-			limit = &intel_limits_i9xx_sdvo;
 	} else if (IS_PINEVIEW(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_pineview_lvds;
 		else
 			limit = &intel_limits_pineview_sdvo;
+	} else if (!IS_GEN2(dev)) {
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+			limit = &intel_limits_i9xx_lvds;
+		else
+			limit = &intel_limits_i9xx_sdvo;
 	} else {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i8xx_lvds;
@@ -1429,7 +1429,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	case I915_TILING_NONE:
 		if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
 			alignment = 128 * 1024;
-		else if (IS_I965G(dev))
+		else if (INTEL_INFO(dev)->gen >= 4)
 			alignment = 4 * 1024;
 		else
 			alignment = 64 * 1024;
@@ -1524,7 +1524,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		DRM_ERROR("Unknown color depth\n");
 		return -EINVAL;
 	}
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		if (obj_priv->tiling_mode != I915_TILING_NONE)
 			dspcntr |= DISPPLANE_TILED;
 		else
@@ -1543,7 +1543,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
 		      Start, Offset, x, y, fb->pitch);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitch);
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPSURF(plane), Start);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPADDR(plane), Offset);
@@ -2388,7 +2388,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		intel_flush_display_plane(dev, plane);
 
 		/* Wait for vblank for the disable to take effect */
-		if (!IS_I9XX(dev))
+		if (IS_GEN2(dev))
 			intel_wait_for_vblank_off(dev, pipe);
 	}
 
@@ -3181,11 +3181,11 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
 			      "cursor %d\n", srwm, cursor_sr);
 
-		if (IS_I965GM(dev))
+		if (IS_CRESTLINE(dev))
 			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
-		if (IS_I965GM(dev))
+		if (IS_CRESTLINE(dev))
 			I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
 				   & ~FW_BLC_SELF_EN);
 	}
@@ -3215,9 +3215,9 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	int sr_clock, sr_entries = 0;
 
 	/* Create copies of the base settings for each pipe */
-	if (IS_I965GM(dev) || IS_I945GM(dev))
+	if (IS_CRESTLINE(dev) || IS_I945GM(dev))
 		planea_params = planeb_params = i945_wm_info;
-	else if (IS_I9XX(dev))
+	else if (!IS_GEN2(dev))
 		planea_params = planeb_params = i915_wm_info;
 	else
 		planea_params = planeb_params = i855_wm_info;
@@ -3576,7 +3576,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		refclk = dev_priv->lvds_ssc_freq * 1000;
 		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
 			      refclk / 1000);
-	} else if (IS_I9XX(dev)) {
+	} else if (!IS_GEN2(dev)) {
 		refclk = 96000;
 		if (HAS_PCH_SPLIT(dev))
 			refclk = 120000; /* 120Mhz refclk */
@@ -3775,7 +3775,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (!HAS_PCH_SPLIT(dev))
 		dpll = DPLL_VGA_MODE_DIS;
 
-	if (IS_I9XX(dev)) {
+	if (!IS_GEN2(dev)) {
 		if (is_lvds)
 			dpll |= DPLLB_MODE_LVDS;
 		else
@@ -3818,7 +3818,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 			break;
 		}
-		if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev))
+		if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
 			dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
 	} else {
 		if (is_lvds) {
@@ -3859,7 +3859,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			dspcntr |= DISPPLANE_SEL_PIPE_B;
 	}
 
-	if (pipe == 0 && !IS_I965G(dev)) {
+	if (pipe == 0 && INTEL_INFO(dev)->gen < 4) {
 		/* Enable pixel doubling when the dot clock is > 90% of the (display)
 		 * core speed.
 		 *
@@ -3947,7 +3947,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * panels behave in the two modes.
 		 */
 		/* set the dithering flag on non-PCH LVDS as needed */
-		if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
+		if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 			if (dev_priv->lvds_dither)
 				temp |= LVDS_ENABLE_DITHER;
 			else
@@ -3991,7 +3991,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		POSTING_READ(dpll_reg);
 		udelay(150);
 
-		if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
+		if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 			temp = 0;
 			if (is_sdvo) {
 				temp = intel_mode_get_pixel_multiplier(adjusted_mode);
@@ -4334,7 +4334,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		addr = obj_priv->phys_obj->handle->busaddr;
 	}
 
-	if (!IS_I9XX(dev))
+	if (IS_GEN2(dev))
 		I915_WRITE(CURSIZE, (height << 12) | width);
 
  finish:
@@ -4569,7 +4569,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
 	}
 
-	if (IS_I9XX(dev)) {
+	if (!IS_GEN2(dev)) {
 		if (IS_PINEVIEW(dev))
 			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW) >>
 				DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW);
@@ -5768,20 +5768,20 @@ void intel_init_clock_gating(struct drm_device *dev)
 		if (IS_GM45(dev))
 			dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
 		I915_WRITE(DSPCLK_GATE_D, dspclk_gate);
-	} else if (IS_I965GM(dev)) {
+	} else if (IS_CRESTLINE(dev)) {
 		I915_WRITE(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
 		I915_WRITE(RENCLK_GATE_D2, 0);
 		I915_WRITE(DSPCLK_GATE_D, 0);
 		I915_WRITE(RAMCLK_GATE_D, 0);
 		I915_WRITE16(DEUC, 0);
-	} else if (IS_I965G(dev)) {
+	} else if (IS_BROADWATER(dev)) {
 		I915_WRITE(RENCLK_GATE_D1, I965_RCZ_CLOCK_GATE_DISABLE |
 		       I965_RCC_CLOCK_GATE_DISABLE |
 		       I965_RCPB_CLOCK_GATE_DISABLE |
 		       I965_ISC_CLOCK_GATE_DISABLE |
 		       I965_FBC_CLOCK_GATE_DISABLE);
 		I915_WRITE(RENCLK_GATE_D2, 0);
-	} else if (IS_I9XX(dev)) {
+	} else if (IS_GEN3(dev)) {
 		u32 dstate = I915_READ(D_STATE);
 
 		dstate |= DSTATE_PLL_D3_OFF | DSTATE_GFX_CLOCK_GATING |
@@ -5863,7 +5863,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
 			dev_priv->display.enable_fbc = g4x_enable_fbc;
 			dev_priv->display.disable_fbc = g4x_disable_fbc;
-		} else if (IS_I965GM(dev)) {
+		} else if (IS_CRESTLINE(dev)) {
 			dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
 			dev_priv->display.enable_fbc = i8xx_enable_fbc;
 			dev_priv->display.disable_fbc = i8xx_disable_fbc;
@@ -5923,9 +5923,9 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.update_wm = pineview_update_wm;
 	} else if (IS_G4X(dev))
 		dev_priv->display.update_wm = g4x_update_wm;
-	else if (IS_I965G(dev))
+	else if (IS_GEN4(dev))
 		dev_priv->display.update_wm = i965_update_wm;
-	else if (IS_I9XX(dev)) {
+	else if (IS_GEN3(dev)) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
 	} else if (IS_I85X(dev)) {
@@ -6039,24 +6039,24 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_init_display(dev);
 
-	if (IS_I965G(dev)) {
-		dev->mode_config.max_width = 8192;
-		dev->mode_config.max_height = 8192;
-	} else if (IS_I9XX(dev)) {
+	if (IS_GEN2(dev)) {
+		dev->mode_config.max_width = 2048;
+		dev->mode_config.max_height = 2048;
+	} else if (IS_GEN3(dev)) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else {
-		dev->mode_config.max_width = 2048;
-		dev->mode_config.max_height = 2048;
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
 	}
 
 	/* set memory base */
-	if (IS_I9XX(dev))
-		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 2);
-	else
+	if (IS_GEN2(dev))
 		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
+	else
+		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 2);
 
-	if (IS_MOBILE(dev) || IS_I9XX(dev))
+	if (IS_MOBILE(dev) || !IS_GEN2(dev))
 		dev_priv->num_pipe = 2;
 	else
 		dev_priv->num_pipe = 1;

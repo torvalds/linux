@@ -172,7 +172,7 @@ void intel_enable_asle (struct drm_device *dev)
 	else {
 		i915_enable_pipestat(dev_priv, 1,
 				     PIPE_LEGACY_BLC_EVENT_ENABLE);
-		if (IS_I965G(dev))
+		if (INTEL_INFO(dev)->gen >= 4)
 			i915_enable_pipestat(dev_priv, 0,
 					     PIPE_LEGACY_BLC_EVENT_ENABLE);
 	}
@@ -397,15 +397,18 @@ static void i915_error_work_func(struct work_struct *work)
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
-		if (IS_I965G(dev)) {
+		switch (INTEL_INFO(dev)->gen) {
+		case 4:
 			DRM_DEBUG_DRIVER("resetting chip\n");
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
 			if (!i965_reset(dev, GDRST_RENDER)) {
 				atomic_set(&dev_priv->mm.wedged, 0);
 				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 			}
-		} else {
+			break;
+		default:
 			DRM_DEBUG_DRIVER("reboot required\n");
+			break;
 		}
 	}
 }
@@ -501,7 +504,7 @@ i915_get_bbaddr(struct drm_device *dev, u32 *ring)
 
 	if (IS_I830(dev) || IS_845G(dev))
 		cmd = MI_BATCH_BUFFER;
-	else if (IS_I965G(dev))
+	else if (INTEL_INFO(dev)->gen >= 4)
 		cmd = (MI_BATCH_BUFFER_START | (2 << 6) |
 		       MI_BATCH_NON_SECURE_I965);
 	else
@@ -580,7 +583,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->pipeastat = I915_READ(PIPEASTAT);
 	error->pipebstat = I915_READ(PIPEBSTAT);
 	error->instpm = I915_READ(INSTPM);
-	if (!IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen < 4) {
 		error->ipeir = I915_READ(IPEIR);
 		error->ipehr = I915_READ(IPEHR);
 		error->instdone = I915_READ(INSTDONE);
@@ -778,7 +781,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 		}
 	}
 
-	if (IS_I9XX(dev)) {
+	if (!IS_GEN2(dev)) {
 		if (eir & I915_ERROR_PAGE_TABLE) {
 			u32 pgtbl_err = I915_READ(PGTBL_ER);
 			printk(KERN_ERR "page table error\n");
@@ -804,7 +807,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 		printk(KERN_ERR "instruction error\n");
 		printk(KERN_ERR "  INSTPM: 0x%08x\n",
 		       I915_READ(INSTPM));
-		if (!IS_I965G(dev)) {
+		if (INTEL_INFO(dev)->gen < 4) {
 			u32 ipeir = I915_READ(IPEIR);
 
 			printk(KERN_ERR "  IPEIR: 0x%08x\n",
@@ -905,7 +908,7 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 
 	/* Potential stall - if we see that the flip has happened, assume a missed interrupt */
 	obj_priv = to_intel_bo(work->pending_flip_obj);
-	if(IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		int dspsurf = intel_crtc->plane == 0 ? DSPASURF : DSPBSURF;
 		stall_detected = I915_READ(dspsurf) == obj_priv->gtt_offset;
 	} else {
@@ -944,7 +947,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 	iir = I915_READ(IIR);
 
-	if (IS_I965G(dev))
+	if (INTEL_INFO(dev)->gen >= 4)
 		vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS;
 	else
 		vblank_status = PIPE_VBLANK_INTERRUPT_STATUS;
@@ -1209,7 +1212,7 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_enable_display_irq(dev_priv, (pipe == 0) ? 
 					    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
-	else if (IS_I965G(dev))
+	else if (INTEL_INFO(dev)->gen >= 4)
 		i915_enable_pipestat(dev_priv, pipe,
 				     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	else
@@ -1322,11 +1325,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t acthd, instdone, instdone1;
 
-	/* No reset support on this chip yet. */
-	if (IS_GEN6(dev))
-		return;
-
-	if (!IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen < 4) {
 		acthd = I915_READ(ACTHD);
 		instdone = I915_READ(INSTDONE);
 		instdone1 = 0;

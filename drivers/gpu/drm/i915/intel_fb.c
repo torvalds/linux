@@ -68,7 +68,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_gem_object *fbo = NULL;
 	struct drm_i915_gem_object *obj_priv;
 	struct device *device = &dev->pdev->dev;
-	int size, ret, mmio_bar = IS_I9XX(dev) ? 0 : 1;
+	int size, ret, mmio_bar = IS_GEN2(dev) ? 1 : 0;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -129,7 +129,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out_unpin;
 	}
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	if (IS_I9XX(dev))
+	if (!IS_GEN2(dev))
 		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 2);
 	else
 		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
