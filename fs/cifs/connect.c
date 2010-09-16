@@ -1706,9 +1706,6 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	if (ses) {
 		cFYI(1, "Existing smb sess found (status=%d)", ses->status);
 
-		/* existing SMB ses has a server reference already */
-		cifs_put_tcp_session(server);
-
 		mutex_lock(&ses->session_mutex);
 		rc = cifs_negotiate_protocol(xid, ses);
 		if (rc) {
@@ -1731,6 +1728,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 			}
 		}
 		mutex_unlock(&ses->session_mutex);
+
+		/* existing SMB ses has a server reference already */
+		cifs_put_tcp_session(server);
 		FreeXid(xid);
 		return ses;
 	}
