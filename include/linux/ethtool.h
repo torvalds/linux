@@ -841,21 +841,21 @@ struct ethtool_ops {
 #define WAKE_MAGICSECURE	(1 << 6) /* only meaningful if WAKE_MAGIC */
 
 /* L3-L4 network traffic flow types */
-#define	TCP_V4_FLOW	0x01
-#define	UDP_V4_FLOW	0x02
-#define	SCTP_V4_FLOW	0x03
-#define	AH_ESP_V4_FLOW	0x04
-#define	TCP_V6_FLOW	0x05
-#define	UDP_V6_FLOW	0x06
-#define	SCTP_V6_FLOW	0x07
-#define	AH_ESP_V6_FLOW	0x08
-#define	AH_V4_FLOW	0x09
-#define	ESP_V4_FLOW	0x0a
-#define	AH_V6_FLOW	0x0b
-#define	ESP_V6_FLOW	0x0c
-#define	IP_USER_FLOW	0x0d
-#define	IPV4_FLOW	0x10
-#define	IPV6_FLOW	0x11
+#define	TCP_V4_FLOW	0x01	/* hash or spec (tcp_ip4_spec) */
+#define	UDP_V4_FLOW	0x02	/* hash or spec (udp_ip4_spec) */
+#define	SCTP_V4_FLOW	0x03	/* hash or spec (sctp_ip4_spec) */
+#define	AH_ESP_V4_FLOW	0x04	/* hash only */
+#define	TCP_V6_FLOW	0x05	/* hash only */
+#define	UDP_V6_FLOW	0x06	/* hash only */
+#define	SCTP_V6_FLOW	0x07	/* hash only */
+#define	AH_ESP_V6_FLOW	0x08	/* hash only */
+#define	AH_V4_FLOW	0x09	/* hash or spec (ah_ip4_spec) */
+#define	ESP_V4_FLOW	0x0a	/* hash or spec (esp_ip4_spec) */
+#define	AH_V6_FLOW	0x0b	/* hash only */
+#define	ESP_V6_FLOW	0x0c	/* hash only */
+#define	IP_USER_FLOW	0x0d	/* spec only (usr_ip4_spec) */
+#define	IPV4_FLOW	0x10	/* hash only */
+#define	IPV6_FLOW	0x11	/* hash only */
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)
