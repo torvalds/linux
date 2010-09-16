@@ -214,8 +214,9 @@ extern int compat_setup_rt_frame(int sig, struct k_sigaction *ka,
 struct compat_sigaction;
 struct compat_siginfo;
 struct compat_sigaltstack;
-long compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp);
+long compat_sys_execve(const char __user *path,
+		       const compat_uptr_t __user *argv,
+		       const compat_uptr_t __user *envp);
 long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
 			     struct compat_sigaction __user *oact,
 			     size_t sigsetsize);
