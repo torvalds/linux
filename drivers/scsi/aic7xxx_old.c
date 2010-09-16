@@ -10119,7 +10119,6 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
   struct aic_dev_data *aic_dev = cmd->device->hostdata;
   struct scsi_device *sdptr = cmd->device;
   unsigned char tindex = TARGET_INDEX(cmd);
-  struct request *req = cmd->request;
   int use_sg;
 
   mask = (0x01 << tindex);
