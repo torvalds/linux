@@ -642,7 +642,7 @@ static unsigned int port_fops_poll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &port->waitqueue, wait);
 
 	ret = 0;
-	if (port->inbuf)
+	if (!will_read_block(port))
 		ret |= POLLIN | POLLRDNORM;
 	if (!will_write_block(port))
 		ret |= POLLOUT;
