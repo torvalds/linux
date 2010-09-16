@@ -431,7 +431,8 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum pll_types plltype,
 	struct pll_lims pll_lim;
 	int ret;
 
-	BUG_ON(reg1 == 0);
+	if (reg1 == 0)
+		return -ENOENT;
 
 	pll1 = nvReadMC(dev, reg1);
 
@@ -480,6 +481,7 @@ int
 nouveau_hw_get_clock(struct drm_device *dev, enum pll_types plltype)
 {
 	struct nouveau_pll_vals pllvals;
+	int ret;
 
 	if (plltype == PLL_MEMORY &&
 	    (dev->pci_device & 0x0ff0) == CHIPSET_NFORCE) {
@@ -499,7 +501,9 @@ nouveau_hw_get_clock(struct drm_device *dev, enum pll_types plltype)
 		return clock;
 	}
 
-	nouveau_hw_get_pllvals(dev, plltype, &pllvals);
+	ret = nouveau_hw_get_pllvals(dev, plltype, &pllvals);
+	if (ret)
+		return ret;
 
 	return nouveau_hw_pllvals_to_clk(&pllvals);
 }

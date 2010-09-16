@@ -96,6 +96,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= NULL;
 		engine->gpio.set		= NULL;
 		engine->gpio.irq_enable		= NULL;
+		engine->pm.clock_get		= nv04_pm_clock_get;
+		engine->pm.clock_pre		= nv04_pm_clock_pre;
+		engine->pm.clock_set		= nv04_pm_clock_set;
 		break;
 	case 0x10:
 		engine->instmem.init		= nv04_instmem_init;
@@ -147,6 +150,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv10_gpio_get;
 		engine->gpio.set		= nv10_gpio_set;
 		engine->gpio.irq_enable		= NULL;
+		engine->pm.clock_get		= nv04_pm_clock_get;
+		engine->pm.clock_pre		= nv04_pm_clock_pre;
+		engine->pm.clock_set		= nv04_pm_clock_set;
 		break;
 	case 0x20:
 		engine->instmem.init		= nv04_instmem_init;
@@ -198,6 +204,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv10_gpio_get;
 		engine->gpio.set		= nv10_gpio_set;
 		engine->gpio.irq_enable		= NULL;
+		engine->pm.clock_get		= nv04_pm_clock_get;
+		engine->pm.clock_pre		= nv04_pm_clock_pre;
+		engine->pm.clock_set		= nv04_pm_clock_set;
 		break;
 	case 0x30:
 		engine->instmem.init		= nv04_instmem_init;
@@ -249,6 +258,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv10_gpio_get;
 		engine->gpio.set		= nv10_gpio_set;
 		engine->gpio.irq_enable		= NULL;
+		engine->pm.clock_get		= nv04_pm_clock_get;
+		engine->pm.clock_pre		= nv04_pm_clock_pre;
+		engine->pm.clock_set		= nv04_pm_clock_set;
+		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
+		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		break;
 	case 0x40:
 	case 0x60:
@@ -301,6 +315,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv10_gpio_get;
 		engine->gpio.set		= nv10_gpio_set;
 		engine->gpio.irq_enable		= NULL;
+		engine->pm.clock_get		= nv04_pm_clock_get;
+		engine->pm.clock_pre		= nv04_pm_clock_pre;
+		engine->pm.clock_set		= nv04_pm_clock_set;
+		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
+		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		break;
 	case 0x50:
 	case 0x80: /* gotta love NVIDIA's consistency.. */

@@ -22,33 +22,58 @@
  * Authors: Ben Skeggs
  */
 
-#ifndef __NOUVEAU_PM_H__
-#define __NOUVEAU_PM_H__
+#include "drmP.h"
+#include "nouveau_drv.h"
+#include "nouveau_hw.h"
 
-/* nouveau_pm.c */
-int  nouveau_pm_init(struct drm_device *dev);
-void nouveau_pm_fini(struct drm_device *dev);
+struct nv04_pm_state {
+	struct pll_lims pll;
+	struct nouveau_pll_vals calc;
+};
 
-/* nouveau_volt.c */
-void nouveau_volt_init(struct drm_device *);
-void nouveau_volt_fini(struct drm_device *);
-int  nouveau_volt_vid_lookup(struct drm_device *, int voltage);
-int  nouveau_volt_lvl_lookup(struct drm_device *, int vid);
-int  nouveau_voltage_gpio_get(struct drm_device *);
-int  nouveau_voltage_gpio_set(struct drm_device *, int voltage);
+int
+nv04_pm_clock_get(struct drm_device *dev, u32 id)
+{
+	return nouveau_hw_get_clock(dev, id);
+}
 
-/* nouveau_perf.c */
-void nouveau_perf_init(struct drm_device *);
-void nouveau_perf_fini(struct drm_device *);
+void *
+nv04_pm_clock_pre(struct drm_device *dev, u32 id, int khz)
+{
+	struct nv04_pm_state *state;
+	int ret;
 
-/* nv04_pm.c */
-int nv04_pm_clock_get(struct drm_device *, u32 id);
-void *nv04_pm_clock_pre(struct drm_device *, u32 id, int khz);
-void nv04_pm_clock_set(struct drm_device *, void *);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
 
-/* nv50_pm.c */
-int nv50_pm_clock_get(struct drm_device *, u32 id);
-void *nv50_pm_clock_pre(struct drm_device *, u32 id, int khz);
-void nv50_pm_clock_set(struct drm_device *, void *);
+	ret = get_pll_limits(dev, id, &state->pll);
+	if (ret) {
+		kfree(state);
+		return ERR_PTR(ret);
+	}
 
-#endif
+	ret = nouveau_calc_pll_mnp(dev, &state->pll, khz, &state->calc);
+	if (!ret) {
+		kfree(state);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return state;
+}
+
+void
+nv04_pm_clock_set(struct drm_device *dev, void *pre_state)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv04_pm_state *state = pre_state;
+	u32 reg = state->pll.reg;
+
+	/* thank the insane nouveau_hw_setpll() interface for this */
+	if (dev_priv->card_type >= NV_40)
+		reg += 4;
+
+	nouveau_hw_setpll(dev, reg, &state->calc);
+	kfree(state);
+}
+
