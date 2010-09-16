@@ -1096,6 +1096,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	u8 rx_status_len = ah->caps.rx_status_len;
 	u64 tsf = 0;
 	u32 tsf_lower = 0;
+	unsigned long flags;
 
 	if (edma)
 		dma_type = DMA_BIDIRECTIONAL;
@@ -1204,11 +1205,13 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			sc->rx.rxotherant = 0;
 		}
 
+		spin_lock_irqsave(&sc->sc_pm_lock, flags);
 		if (unlikely(ath9k_check_auto_sleep(sc) ||
 			     (sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					      PS_WAIT_FOR_CAB |
 					      PS_WAIT_FOR_PSPOLL_DATA))))
 			ath_rx_ps(sc, skb);
+		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 		ath_rx_send_to_mac80211(hw, sc, skb, rxs);
 
