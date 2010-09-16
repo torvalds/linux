@@ -355,6 +355,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv50_gpio_get;
 		engine->gpio.set		= nv50_gpio_set;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
+		engine->pm.clock_get		= nv50_pm_clock_get;
+		engine->pm.clock_pre		= nv50_pm_clock_pre;
+		engine->pm.clock_set		= nv50_pm_clock_set;
+		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
+		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		break;
 	case 0xC0:
 		engine->instmem.init		= nvc0_instmem_init;
