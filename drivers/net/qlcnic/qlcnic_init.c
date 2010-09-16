@@ -1455,7 +1455,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	if ((vid != 0xffff) && adapter->vlgrp)
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
+		vlan_gro_receive(&sds_ring->napi, adapter->vlgrp, vid, skb);
 	else
 		napi_gro_receive(&sds_ring->napi, skb);
 
