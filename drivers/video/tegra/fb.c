@@ -127,6 +127,7 @@ static int tegra_fb_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 	info->fix.line_length = var->xres * var->bits_per_pixel / 8;
+	tegra_fb->win->stride = info->fix.line_length;
 
 	if (var->pixclock) {
 		struct tegra_dc_mode mode;
