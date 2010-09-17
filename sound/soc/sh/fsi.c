@@ -357,6 +357,11 @@ static int fsi_get_fifo_residue(struct fsi_priv *fsi, int is_play)
 	return residue;
 }
 
+static u8 *fsi_dma_get_area(struct fsi_priv *fsi)
+{
+	return fsi->substream->runtime->dma_area + fsi->byte_offset;
+}
+
 /************************************************************************
 
 
@@ -550,8 +555,7 @@ static int fsi_data_push(struct fsi_priv *fsi, int startup)
 	if (fifo_free < send)
 		send = fifo_free;
 
-	start = runtime->dma_area;
-	start += fsi->byte_offset;
+	start = fsi_dma_get_area(fsi);
 
 	switch (width) {
 	case 2:
@@ -633,8 +637,7 @@ static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 	if (free < fifo_fill)
 		fifo_fill = free;
 
-	start = runtime->dma_area;
-	start += fsi->byte_offset;
+	start = fsi_dma_get_area(fsi);
 
 	switch (width) {
 	case 2:
