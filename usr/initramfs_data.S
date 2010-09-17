@@ -25,6 +25,7 @@ SECTIONS
   in the ELF header, as required by certain architectures.
 */
 
-.section .init.ramfs,"a"
-.incbin "usr/initramfs_data.cpio"
+#include <linux/stringify.h>
 
+.section .init.ramfs,"a"
+.incbin __stringify(INITRAMFS_IMAGE)
