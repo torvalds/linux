@@ -54,9 +54,9 @@
 
 #include "iw_cxgb4.h"
 
-static int fastreg_support;
+static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
-MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=0)");
+MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
 static int c4iw_modify_port(struct ib_device *ibdev,
 			    u8 port, int port_modify_mask,
