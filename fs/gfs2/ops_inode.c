@@ -471,18 +471,15 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (!gfs2_assert_withdraw(sdp, !error)) {
 		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
 		struct gfs2_dirent *dent = (struct gfs2_dirent *)(di+1);
-		struct qstr str;
 
-		gfs2_str2qstr(&str, ".");
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_qstr2dirent(&str, GFS2_DIRENT_SIZE(str.len), dent);
+		gfs2_qstr2dirent(&gfs2_qdot, GFS2_DIRENT_SIZE(gfs2_qdot.len), dent);
 		dent->de_inum = di->di_num; /* already GFS2 endian */
 		dent->de_type = cpu_to_be16(DT_DIR);
 		di->di_entries = cpu_to_be32(1);
 
-		gfs2_str2qstr(&str, "..");
 		dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
-		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
+		gfs2_qstr2dirent(&gfs2_qdotdot, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
 
 		gfs2_inum_out(dip, dent);
 		dent->de_type = cpu_to_be16(DT_DIR);
@@ -523,7 +520,6 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 static int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 		       struct gfs2_inode *ip)
 {
-	struct qstr dotname;
 	int error;
 
 	if (ip->i_entries != 2) {
@@ -540,13 +536,11 @@ static int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 	if (error)
 		return error;
 
-	gfs2_str2qstr(&dotname, ".");
-	error = gfs2_dir_del(ip, &dotname);
+	error = gfs2_dir_del(ip, &gfs2_qdot);
 	if (error)
 		return error;
 
-	gfs2_str2qstr(&dotname, "..");
-	error = gfs2_dir_del(ip, &dotname);
+	error = gfs2_dir_del(ip, &gfs2_qdotdot);
 	if (error)
 		return error;
 
@@ -695,10 +689,7 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 	struct inode *dir = &to->i_inode;
 	struct super_block *sb = dir->i_sb;
 	struct inode *tmp;
-	struct qstr dotdot;
 	int error = 0;
-
-	gfs2_str2qstr(&dotdot, "..");
 
 	igrab(dir);
 
@@ -712,7 +703,7 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			break;
 		}
 
-		tmp = gfs2_lookupi(dir, &dotdot, 1);
+		tmp = gfs2_lookupi(dir, &gfs2_qdotdot, 1);
 		if (IS_ERR(tmp)) {
 			error = PTR_ERR(tmp);
 			break;
@@ -921,9 +912,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	}
 
 	if (dir_rename) {
-		struct qstr name;
-		gfs2_str2qstr(&name, "..");
-
 		error = gfs2_change_nlink(ndip, +1);
 		if (error)
 			goto out_end_trans;
@@ -931,7 +919,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_end_trans;
 
-		error = gfs2_dir_mvino(ip, &name, ndip, DT_DIR);
+		error = gfs2_dir_mvino(ip, &gfs2_qdotdot, ndip, DT_DIR);
 		if (error)
 			goto out_end_trans;
 	} else {
