@@ -112,6 +112,7 @@
 #include <asm/numa_64.h>
 #endif
 #include <asm/mce.h>
+#include <asm/alternative.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -726,6 +727,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	int acpi = 0;
 	int k8 = 0;
+	unsigned long flags;
 
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
@@ -1071,6 +1073,10 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.oem.banner();
 
 	mcheck_init();
+
+	local_irq_save(flags);
+	arch_init_ideal_nop5();
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_X86_32
