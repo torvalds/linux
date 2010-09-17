@@ -670,7 +670,7 @@ config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
-	depends on X86_64 && PCI && K8_NB
+	depends on X86_64 && PCI && AMD_NB
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
@@ -2076,7 +2076,7 @@ config OLPC_OPENFIRMWARE
 
 endif # X86_32
 
-config K8_NB
+config AMD_NB
 	def_bool y
 	depends on CPU_SUP_AMD && PCI
 

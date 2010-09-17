@@ -1,5 +1,5 @@
 #include "amd64_edac.h"
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 static struct edac_pci_ctl_info *amd64_ctl_pci;
 

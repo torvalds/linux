@@ -8,7 +8,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 static u32 *flush_words;
 

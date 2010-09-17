@@ -15,7 +15,7 @@
 #include <linux/mmzone.h>
 #include <asm/page.h>		/* PAGE_SIZE */
 #include <asm/e820.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 #include <asm/gart.h>
 #include "agp.h"
 
