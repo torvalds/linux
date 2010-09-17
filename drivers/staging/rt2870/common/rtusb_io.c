@@ -1882,7 +1882,7 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 						("UpdateRxWCIDTable(): Aid=%d, "
 							"Addr=%pM!\n",
 							pEntry->Aid,
-							&pEntry->Addr[0]));
+							pEntry->Addr));
 				}
 				break;
 
