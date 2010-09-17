@@ -940,7 +940,6 @@ static int ips_monitor(void *data)
 		kfree(mch_samples);
 		kfree(cpu_samples);
 		kfree(mchp_samples);
-		kthread_stop(ips->adjust);
 		return -ENOMEM;
 	}
 
@@ -1535,19 +1534,24 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ips_enable_cpu_turbo(ips);
 	ips->cpu_turbo_enabled = true;
 
-	/* Set up the work queue and monitor/adjust threads */
-	ips->monitor = kthread_run(ips_monitor, ips, "ips-monitor");
-	if (IS_ERR(ips->monitor)) {
-		dev_err(&dev->dev,
-			"failed to create thermal monitor thread, aborting\n");
-		ret = -ENOMEM;
-		goto error_free_irq;
-	}
-
+	/* Create thermal adjust thread */
 	ips->adjust = kthread_create(ips_adjust, ips, "ips-adjust");
 	if (IS_ERR(ips->adjust)) {
 		dev_err(&dev->dev,
 			"failed to create thermal adjust thread, aborting\n");
+		ret = -ENOMEM;
+		goto error_free_irq;
+
+	}
+
+	/*
+	 * Set up the work queue and monitor thread. The monitor thread
+	 * will wake up ips_adjust thread.
+	 */
+	ips->monitor = kthread_run(ips_monitor, ips, "ips-monitor");
+	if (IS_ERR(ips->monitor)) {
+		dev_err(&dev->dev,
+			"failed to create thermal monitor thread, aborting\n");
 		ret = -ENOMEM;
 		goto error_thread_cleanup;
 	}
@@ -1566,7 +1570,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return ret;
 
 error_thread_cleanup:
-	kthread_stop(ips->monitor);
+	kthread_stop(ips->adjust);
 error_free_irq:
 	free_irq(ips->dev->irq, ips);
 error_unmap:
