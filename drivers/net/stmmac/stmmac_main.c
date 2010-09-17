@@ -134,13 +134,6 @@ static int buf_sz = DMA_BUFFER_SIZE;
 module_param(buf_sz, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(buf_sz, "DMA buffer size");
 
-/* In case of Giga ETH, we can enable/disable the COE for the
- * transmit HW checksum computation.
- * Note that, if tx csum is off in HW, SG will be still supported. */
-static int tx_coe = HW_CSUM;
-module_param(tx_coe, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(tx_coe, "GMAC COE type 2 [on/off]");
-
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 				      NETIF_MSG_LINK | NETIF_MSG_IFUP |
 				      NETIF_MSG_IFDOWN | NETIF_MSG_TIMER);
@@ -569,29 +562,22 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
  *  stmmac_dma_operation_mode - HW DMA operation mode
  *  @priv : pointer to the private device structure.
  *  Description: it sets the DMA operation mode: tx/rx DMA thresholds
- *  or Store-And-Forward capability. It also verifies the COE for the
- *  transmission in case of Giga ETH.
+ *  or Store-And-Forward capability.
  */
 static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
-	if (!priv->is_gmac) {
-		/* MAC 10/100 */
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, 0);
-		priv->tx_coe = NO_HW_CSUM;
-	} else {
-		if ((priv->dev->mtu <= ETH_DATA_LEN) && (tx_coe)) {
-			priv->hw->dma->dma_mode(priv->ioaddr,
-						SF_DMA_MODE, SF_DMA_MODE);
-			tc = SF_DMA_MODE;
-			priv->tx_coe = HW_CSUM;
-		} else {
-			/* Checksum computation is performed in software. */
-			priv->hw->dma->dma_mode(priv->ioaddr, tc,
-						SF_DMA_MODE);
-			priv->tx_coe = NO_HW_CSUM;
-		}
-	}
-	tx_coe = priv->tx_coe;
+	if (likely((priv->tx_coe) && (!priv->no_csum_insertion))) {
+		/* In case of GMAC, SF mode has to be enabled
+		 * to perform the TX COE. This depends on:
+		 * 1) TX COE if actually supported
+		 * 2) There is no bugged Jumbo frame support
+		 *    that needs to not insert csum in the TDES.
+		 */
+		priv->hw->dma->dma_mode(priv->ioaddr,
+					SF_DMA_MODE, SF_DMA_MODE);
+		tc = SF_DMA_MODE;
+	} else
+		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
 }
 
 /**
@@ -858,6 +844,12 @@ static int stmmac_open(struct net_device *dev)
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
 
+	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
+	if (priv->rx_coe)
+		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
+	if (priv->tx_coe)
+		pr_info("\tTX Checksum insertion supported\n");
+
 	priv->shutdown = 0;
 
 	/* Initialise the MMC (if present) to disable all interrupts. */
@@ -1066,7 +1058,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		return stmmac_sw_tso(priv, skb);
 
 	if (likely((skb->ip_summed == CHECKSUM_PARTIAL))) {
-		if (likely(priv->tx_coe == NO_HW_CSUM))
+		if (unlikely((!priv->tx_coe) || (priv->no_csum_insertion)))
 			skb_checksum_help(skb);
 		else
 			csum_insertion = 1;
@@ -1390,6 +1382,15 @@ static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
+	/* Some GMAC devices have a bugged Jumbo frame support that
+	 * needs to have the Tx COE disabled for oversized frames
+	 * (due to limited buffer sizes). In this case we disable
+	 * the TX csum insertionin the TDES and not use SF. */
+	if ((priv->bugged_jumbo) && (priv->dev->mtu > ETH_DATA_LEN))
+		priv->no_csum_insertion = 1;
+	else
+		priv->no_csum_insertion = 0;
+
 	dev->mtu = new_mtu;
 
 	return 0;
@@ -1509,9 +1510,6 @@ static int stmmac_probe(struct net_device *dev)
 	dev->features |= NETIF_F_HW_VLAN_RX;
 #endif
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
-
-	if (priv->is_gmac)
-		priv->rx_csum = 1;
 
 	if (flow_ctrl)
 		priv->flow_ctrl = FLOW_AUTO;	/* RX/TX pause on */
@@ -1662,7 +1660,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto out;
 	}
-	pr_info("done!\n");
+	pr_info("\tdone!\n");
 
 	if (!request_mem_region(res->start, resource_size(res),
 				pdev->name)) {
@@ -1705,6 +1703,8 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv->bus_id = plat_dat->bus_id;
 	priv->pbl = plat_dat->pbl;	/* TLI */
 	priv->mii_clk_csr = plat_dat->clk_csr;
+	priv->tx_coe = plat_dat->tx_coe;
+	priv->bugged_jumbo = plat_dat->bugged_jumbo;
 	priv->is_gmac = plat_dat->has_gmac;	/* GMAC is on board */
 	priv->enh_desc = plat_dat->enh_desc;
 	priv->ioaddr = addr;
@@ -1966,8 +1966,6 @@ static int __init stmmac_cmdline_opt(char *str)
 			strict_strtoul(opt + 7, 0, (unsigned long *)&buf_sz);
 		else if (!strncmp(opt, "tc:", 3))
 			strict_strtoul(opt + 3, 0, (unsigned long *)&tc);
-		else if (!strncmp(opt, "tx_coe:", 7))
-			strict_strtoul(opt + 7, 0, (unsigned long *)&tx_coe);
 		else if (!strncmp(opt, "watchdog:", 9))
 			strict_strtoul(opt + 9, 0, (unsigned long *)&watchdog);
 		else if (!strncmp(opt, "flow_ctrl:", 10))

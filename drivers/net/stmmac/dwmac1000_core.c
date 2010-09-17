@@ -50,6 +50,18 @@ static void dwmac1000_core_init(void __iomem *ioaddr)
 #endif
 }
 
+static int dwmac1000_rx_coe_supported(void __iomem *ioaddr)
+{
+	u32 value = readl(ioaddr + GMAC_CONTROL);
+
+	value |= GMAC_CONTROL_IPC;
+	writel(value, ioaddr + GMAC_CONTROL);
+
+	value = readl(ioaddr + GMAC_CONTROL);
+
+	return !!(value & GMAC_CONTROL_IPC);
+}
+
 static void dwmac1000_dump_regs(void __iomem *ioaddr)
 {
 	int i;
@@ -202,6 +214,7 @@ static void dwmac1000_irq_status(void __iomem *ioaddr)
 
 struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
+	.rx_coe = dwmac1000_rx_coe_supported,
 	.dump_regs = dwmac1000_dump_regs,
 	.host_irq_status = dwmac1000_irq_status,
 	.set_filter = dwmac1000_set_filter,

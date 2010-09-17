@@ -51,7 +51,6 @@ struct stmmac_priv {
 	int is_gmac;
 	dma_addr_t dma_rx_phy;
 	unsigned int dma_rx_size;
-	int rx_csum;
 	unsigned int dma_buf_sz;
 	struct device *device;
 	struct mac_device_info *hw;
@@ -92,6 +91,9 @@ struct stmmac_priv {
 	struct vlan_group *vlgrp;
 #endif
 	int enh_desc;
+	int rx_coe;
+	int bugged_jumbo;
+	int no_csum_insertion;
 };
 
 #ifdef CONFIG_STM_DRIVERS

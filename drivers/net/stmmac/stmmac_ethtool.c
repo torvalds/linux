@@ -209,7 +209,7 @@ u32 stmmac_ethtool_get_rx_csum(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	return priv->rx_csum;
+	return priv->rx_coe;
 }
 
 static void

@@ -102,8 +102,6 @@ struct stmmac_extra_stats {
 
 #define SF_DMA_MODE 1 /* DMA STORE-AND-FORWARD Operation Mode */
 
-#define HW_CSUM 1
-#define NO_HW_CSUM 0
 enum rx_frame_status { /* IPC status */
 	good_frame = 0,
 	discard_frame = 1,
@@ -205,6 +203,8 @@ struct stmmac_dma_ops {
 struct stmmac_ops {
 	/* MAC core initialization */
 	void (*core_init) (void __iomem *ioaddr) ____cacheline_aligned;
+	/* Support checksum offload engine */
+	int  (*rx_coe) (void __iomem *ioaddr);
 	/* Dump MAC registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Handle extra events on specific interrupts hw dependent */
