@@ -1,6 +1,10 @@
 #ifndef MACH_TCC8K_COMMON_H
 #define MACH_TCC8K_COMMON_H
 
+#include <linux/platform_device.h>
+
+extern struct platform_device tcc_nand_device;
+
 struct clk;
 
 extern void tcc_clocks_init(unsigned long xi_freq, unsigned long xti_freq);
