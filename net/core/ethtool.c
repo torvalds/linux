@@ -1181,8 +1181,11 @@ static int ethtool_set_gro(struct net_device *dev, char __user *useraddr)
 		return -EFAULT;
 
 	if (edata.data) {
-		if (!dev->ethtool_ops->get_rx_csum ||
-		    !dev->ethtool_ops->get_rx_csum(dev))
+		u32 rxcsum = dev->ethtool_ops->get_rx_csum ?
+				dev->ethtool_ops->get_rx_csum(dev) :
+				ethtool_op_get_rx_csum(dev);
+
+		if (!rxcsum)
 			return -EINVAL;
 		dev->features |= NETIF_F_GRO;
 	} else
