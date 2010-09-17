@@ -4648,8 +4648,11 @@ enum {
 static int get_mic_pin_attr(unsigned int def_conf)
 {
 	unsigned int loc = get_defcfg_location(def_conf);
-	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_FIXED ||
-	    (loc & 0x30) == AC_JACK_LOC_INTERNAL)
+	unsigned int conn = get_defcfg_connect(def_conf);
+	/* Windows may claim the internal mic to be BOTH, too */
+	if (conn == AC_JACK_PORT_FIXED || conn == AC_JACK_PORT_BOTH)
+		return MIC_ATTR_INT;
+	if ((loc & 0x30) == AC_JACK_LOC_INTERNAL)
 		return MIC_ATTR_INT;
 	if ((loc & 0x30) == AC_JACK_LOC_SEPARATE)
 		return MIC_ATTR_DOCK;
