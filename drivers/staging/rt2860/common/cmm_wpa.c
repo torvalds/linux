@@ -222,7 +222,7 @@ void WpaEAPOLKeyAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 
 		DBGPRINT(RT_DEBUG_TRACE,
 			("Receive EAPoL-Key frame from STA %pMF\n",
-				&pEntry->Addr[0]));
+				pEntry->Addr));
 
 		if (((pEapol_packet->ProVer != EAPOL_VER)
 		     && (pEapol_packet->ProVer != EAPOL_VER2))

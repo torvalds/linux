@@ -654,7 +654,7 @@ void CntlOidRTBssidProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 			   } */
 			/* No active association, join the BSS immediately */
 			DBGPRINT(RT_DEBUG_TRACE, ("CNTL - joining %pM ...\n",
-					&pOidBssid[0]));
+					pOidBssid));
 
 			JoinParmFill(pAd, &JoinReq, pAd->MlmeAux.BssIdx);
 			MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_MLME_JOIN_REQ,
@@ -777,7 +777,7 @@ void CntlWaitJoinProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *El
 				pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
 				DBGPRINT(RT_DEBUG_TRACE,
 					("CNTL - join the IBSS = %pM ...\n",
-						&pAd->CommonCfg.Bssid[0]));
+						pAd->CommonCfg.Bssid));
 
 				pAd->IndicateMediaState =
 				    NdisMediaStateConnected;
@@ -896,7 +896,7 @@ void CntlWaitStartProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 
 			DBGPRINT(RT_DEBUG_TRACE,
 				("CNTL - start a new IBSS = %pM ...\n",
-					&pAd->CommonCfg.Bssid[0]));
+					pAd->CommonCfg.Bssid));
 		} else {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("CNTL - Start IBSS fail. BUG!\n"));

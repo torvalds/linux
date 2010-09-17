@@ -795,7 +795,7 @@ void MlmeDisassocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_ele
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		("ASSOC - Send DISASSOC request[BSSID::%pM (Reason=%d)\n",
-			&pDisassocReq->Addr[0], pDisassocReq->Reason));
+			pDisassocReq->Addr, pDisassocReq->Reason));
 	MgtMacHeaderInit(pAd, &DisassocHdr, SUBTYPE_DISASSOC, 0, pDisassocReq->Addr, pDisassocReq->Addr);	/* patch peap ttls switching issue */
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
 			  sizeof(struct rt_header_802_11), &DisassocHdr,

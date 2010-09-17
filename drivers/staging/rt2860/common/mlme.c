@@ -1537,8 +1537,7 @@ void MlmeAutoReconnectLastSSID(struct rt_rtmp_adapter *pAd)
 	if (pAd->StaCfg.bAutoConnectByBssid) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			("Driver auto reconnect to last OID_802_11_BSSID "
-				"setting - %pM\n",
-				&pAd->MlmeAux.Bssid[0]));
+				"setting - %pM\n", pAd->MlmeAux.Bssid));
 
 		pAd->MlmeAux.Channel = pAd->CommonCfg.Channel;
 		MlmeEnqueue(pAd,

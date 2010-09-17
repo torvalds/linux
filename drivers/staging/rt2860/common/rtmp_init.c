@@ -749,7 +749,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 		/*      pAd->PermanentAddress[5] = RandomByte(pAd)&0xf8; */
 
 		DBGPRINT_RAW(RT_DEBUG_TRACE,
-			("E2PROM MAC: =%pM\n", &pAd->PermanentAddress[0]));
+			("E2PROM MAC: =%pM\n", pAd->PermanentAddress));
 		if (pAd->bLocalAdminMAC == FALSE) {
 			MAC_DW0_STRUC csr2;
 			MAC_DW1_STRUC csr3;
@@ -767,7 +767,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 			RTMP_IO_WRITE32(pAd, MAC_ADDR_DW1, csr3.word);
 			DBGPRINT_RAW(RT_DEBUG_TRACE,
 				("E2PROM MAC: =%pM\n",
-					&pAd->PermanentAddress[0]));
+					pAd->PermanentAddress));
 		}
 	}
 
