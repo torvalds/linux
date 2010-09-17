@@ -849,6 +849,12 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 	if (dc->out && dc->out->disable)
 		dc->out->disable();
 
+	/* flush any pending syncpt waits */
+	while (dc->syncpt_min < dc->syncpt_max) {
+		dc->syncpt_min++;
+		nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt, dc->syncpt_id);
+	}
+
 	tegra_dc_io_end(dc);
 }
 
