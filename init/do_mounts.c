@@ -291,13 +291,13 @@ out:
 #ifdef CONFIG_ROOT_NFS
 static int __init mount_nfs_root(void)
 {
-	void *data = nfs_root_data();
+	char *root_dev, *root_data;
 
-	create_dev("/dev/root", ROOT_DEV);
-	if (data &&
-	    do_mount_root("/dev/root", "nfs", root_mountflags, data) == 0)
-		return 1;
-	return 0;
+	if (nfs_root_data(&root_dev, &root_data) != 0)
+		return 0;
+	if (do_mount_root(root_dev, "nfs", root_mountflags, root_data) != 0)
+		return 0;
+	return 1;
 }
 #endif
 
