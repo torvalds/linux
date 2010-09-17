@@ -2025,39 +2025,17 @@ out_close:
 }
 
 struct dentry *
-nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags, struct iattr *attr)
 {
-	struct path path = {
-		.mnt = nd->path.mnt,
-		.dentry = dentry,
-	};
+	struct dentry *dentry = ctx->path.dentry;
 	struct dentry *parent;
-	struct iattr attr;
-	struct rpc_cred *cred;
 	struct nfs4_state *state;
 	struct dentry *res;
-	int open_flags = nd->intent.open.flags;
-	fmode_t fmode = open_flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
 
-	if (nd->flags & LOOKUP_CREATE) {
-		attr.ia_mode = nd->intent.open.create_mode;
-		attr.ia_valid = ATTR_MODE;
-		if (!IS_POSIXACL(dir))
-			attr.ia_mode &= ~current_umask();
-	} else {
-		open_flags &= ~O_EXCL;
-		attr.ia_valid = 0;
-		BUG_ON(open_flags & O_CREAT);
-	}
-
-	cred = rpc_lookup_cred();
-	if (IS_ERR(cred))
-		return (struct dentry *)cred;
 	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
 	nfs_block_sillyrename(parent);
-	state = nfs4_do_open(dir, &path, fmode, open_flags, &attr, cred);
-	put_rpccred(cred);
+	state = nfs4_do_open(dir, &ctx->path, ctx->mode, open_flags, attr, ctx->cred);
 	if (IS_ERR(state)) {
 		if (PTR_ERR(state) == -ENOENT) {
 			d_add(dentry, NULL);
@@ -2067,11 +2045,15 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		return (struct dentry *)state;
 	}
 	res = d_add_unique(dentry, igrab(state->inode));
-	if (res != NULL)
-		path.dentry = res;
-	nfs_set_verifier(path.dentry, nfs_save_change_attribute(dir));
+	if (res != NULL) {
+		struct dentry *dummy = ctx->path.dentry;
+
+		ctx->path.dentry = dget(res);
+		dput(dummy);
+	}
+	ctx->state = state;
+	nfs_set_verifier(ctx->path.dentry, nfs_save_change_attribute(dir));
 	nfs_unblock_sillyrename(parent);
-	nfs4_intent_set_file(nd, &path, state, fmode);
 	return res;
 }
 

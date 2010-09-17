@@ -38,6 +38,7 @@
 #include "delegation.h"
 #include "iostat.h"
 #include "internal.h"
+#include "fscache.h"
 
 /* #define NFS_DEBUG_VERBOSE 1 */
 
@@ -1029,9 +1030,61 @@ static int is_atomic_open(struct nameidata *nd)
 	return 1;
 }
 
+static struct nfs_open_context *nameidata_to_nfs_open_context(struct dentry *dentry, struct nameidata *nd)
+{
+	struct path path = {
+		.mnt = nd->path.mnt,
+		.dentry = dentry,
+	};
+	struct nfs_open_context *ctx;
+	struct rpc_cred *cred;
+	fmode_t fmode = nd->intent.open.flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
+
+	cred = rpc_lookup_cred();
+	if (IS_ERR(cred))
+		return ERR_CAST(cred);
+	ctx = alloc_nfs_open_context(&path, cred, fmode);
+	put_rpccred(cred);
+	if (ctx == NULL)
+		return ERR_PTR(-ENOMEM);
+	return ctx;
+}
+
+static int do_open(struct inode *inode, struct file *filp)
+{
+	nfs_fscache_set_inode_cookie(inode, filp);
+	return 0;
+}
+
+static int nfs_intent_set_file(struct nameidata *nd, struct nfs_open_context *ctx)
+{
+	struct file *filp;
+	int ret = 0;
+
+	/* If the open_intent is for execute, we have an extra check to make */
+	if (ctx->mode & FMODE_EXEC) {
+		ret = nfs_may_open(ctx->path.dentry->d_inode,
+				ctx->cred,
+				nd->intent.open.flags);
+		if (ret < 0)
+			goto out;
+	}
+	filp = lookup_instantiate_filp(nd, ctx->path.dentry, do_open);
+	if (IS_ERR(filp))
+		ret = PTR_ERR(filp);
+	else
+		nfs_file_set_open_context(filp, ctx);
+out:
+	put_nfs_open_context(ctx);
+	return ret;
+}
+
 static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
+	struct nfs_open_context *ctx;
+	struct iattr attr;
 	struct dentry *res = NULL;
+	int open_flags;
 	int error;
 
 	dfprintk(VFS, "NFS: atomic_lookup(%s/%ld), %s\n",
@@ -1054,9 +1107,27 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		goto out;
 	}
 
+	ctx = nameidata_to_nfs_open_context(dentry, nd);
+	res = ERR_CAST(ctx);
+	if (IS_ERR(ctx))
+		goto out;
+
+	open_flags = nd->intent.open.flags;
+	if (nd->flags & LOOKUP_CREATE) {
+		attr.ia_mode = nd->intent.open.create_mode;
+		attr.ia_valid = ATTR_MODE;
+		if (!IS_POSIXACL(dir))
+			attr.ia_mode &= ~current_umask();
+	} else {
+		open_flags &= ~O_EXCL;
+		attr.ia_valid = 0;
+		BUG_ON(open_flags & O_CREAT);
+	}
+
 	/* Open the file on the server */
-	res = nfs4_atomic_open(dir, dentry, nd);
+	res = nfs4_atomic_open(dir, ctx, open_flags, &attr);
 	if (IS_ERR(res)) {
+		put_nfs_open_context(ctx);
 		error = PTR_ERR(res);
 		switch (error) {
 			/* Make a negative dentry */
@@ -1074,8 +1145,10 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 			default:
 				goto out;
 		}
-	} else if (res != NULL)
+	}
+	if (res != NULL)
 		dentry = res;
+	nfs_intent_set_file(nd, ctx);
 out:
 	return res;
 no_open:
