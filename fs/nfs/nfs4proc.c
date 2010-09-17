@@ -1998,7 +1998,7 @@ out:
 	return status;
 }
 
-struct inode *
+static struct inode *
 nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags, struct iattr *attr)
 {
 	struct nfs4_state *state;
@@ -5358,6 +5358,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.lock		= nfs4_proc_lock,
 	.clear_acl_cache = nfs4_zap_acl_attr,
 	.close_context  = nfs4_close_context,
+	.open_context	= nfs4_atomic_open,
 };
 
 /*

@@ -34,7 +34,6 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 
-#include "nfs4_fs.h"
 #include "delegation.h"
 #include "iostat.h"
 #include "internal.h"
@@ -1127,7 +1126,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 
 	/* Open the file on the server */
 	nfs_block_sillyrename(dentry->d_parent);
-	inode = nfs4_atomic_open(dir, ctx, open_flags, &attr);
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr);
 	if (IS_ERR(inode)) {
 		nfs_unblock_sillyrename(dentry->d_parent);
 		put_nfs_open_context(ctx);
@@ -1175,8 +1174,10 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 	if (!is_atomic_open(nd) || d_mountpoint(dentry))
 		goto no_open;
+
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
+
 	/* We can't create new files in nfs_open_revalidate(), so we
 	 * optimize away revalidation of negative dentries.
 	 */
@@ -1205,7 +1206,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 * operations that change the directory. We therefore save the
 	 * change attribute *before* we do the RPC call.
 	 */
-	inode = nfs4_atomic_open(dir, ctx, openflags, NULL);
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, NULL);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		switch (ret) {

@@ -1065,6 +1065,10 @@ struct nfs_rpc_ops {
 	int	(*lock_check_bounds)(const struct file_lock *);
 	void	(*clear_acl_cache)(struct inode *);
 	void	(*close_context)(struct nfs_open_context *ctx, int);
+	struct inode * (*open_context) (struct inode *dir,
+				struct nfs_open_context *ctx,
+				int open_flags,
+				struct iattr *iattr);
 };
 
 /*
