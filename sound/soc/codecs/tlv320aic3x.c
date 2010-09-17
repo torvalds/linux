@@ -646,6 +646,14 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINE1R"),
 	SND_SOC_DAPM_INPUT("LINE2L"),
 	SND_SOC_DAPM_INPUT("LINE2R"),
+
+	/*
+	 * Virtual output pin to detection block inside codec. This can be
+	 * used to keep codec bias on if gpio or detection features are needed.
+	 * Force pin on or construct a path with an input jack and mic bias
+	 * widgets.
+	 */
+	SND_SOC_DAPM_OUTPUT("Detection"),
 };
 
 static const struct snd_soc_dapm_widget aic3007_dapm_widgets[] = {
