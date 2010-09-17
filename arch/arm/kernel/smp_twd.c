@@ -31,22 +31,23 @@ static unsigned long twd_target_rate;
 static void twd_set_mode(enum clock_event_mode mode,
 			struct clock_event_device *clk)
 {
-	unsigned long ctrl;
+	unsigned long ctrl = __raw_readl(twd_base + TWD_TIMER_CONTROL);
+	ctrl |= TWD_TIMER_CONTROL_PRESCALE_MASK;
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* timer load already set up */
-		ctrl = TWD_TIMER_CONTROL_ENABLE | TWD_TIMER_CONTROL_IT_ENABLE
+		ctrl |= TWD_TIMER_CONTROL_ENABLE | TWD_TIMER_CONTROL_IT_ENABLE
 			| TWD_TIMER_CONTROL_PERIODIC;
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* period set, and timer enabled in 'next_event' hook */
-		ctrl = TWD_TIMER_CONTROL_IT_ENABLE | TWD_TIMER_CONTROL_ONESHOT;
+		ctrl |= TWD_TIMER_CONTROL_IT_ENABLE | TWD_TIMER_CONTROL_ONESHOT;
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	default:
-		ctrl = 0;
+		break;
 	}
 
 	__raw_writel(ctrl, twd_base + TWD_TIMER_CONTROL);
@@ -145,9 +146,8 @@ static void __cpuinit twd_calibrate_rate(unsigned long target_rate,
 			twd_target_rate = target_rate;
 
 			cpu_rate = twd_timer_rate * periphclk_prescaler;
-			twd_recalc_prescaler(cpu_rate);
-
 			twd_timer_rate = twd_target_rate;
+			twd_recalc_prescaler(cpu_rate);
 		}
 
 		printk("%lu.%02luMHz.\n", twd_timer_rate / 1000000,
