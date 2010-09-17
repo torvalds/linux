@@ -436,12 +436,10 @@ static char *carl9170_debugfs_phy_noise_read(struct ar9170 *ar, char *buf,
 		return buf;
 	}
 
-	ADD(buf, *len, bufsize, "Chain 1: %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[1], ar->noise[4]);
+	ADD(buf, *len, bufsize, "Chain 0: %10d dBm, ext. chan.:%10d dBm\n",
+	    ar->noise[0], ar->noise[2]);
 	ADD(buf, *len, bufsize, "Chain 2: %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[2], ar->noise[5]);
-	ADD(buf, *len, bufsize, "Combined %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[0], ar->noise[3]);
+	    ar->noise[1], ar->noise[3]);
 
 	return buf;
 }

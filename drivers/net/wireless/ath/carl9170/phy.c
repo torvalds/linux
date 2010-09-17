@@ -1566,9 +1566,8 @@ static int carl9170_calc_noise_dbm(u32 raw_noise)
 int carl9170_get_noisefloor(struct ar9170 *ar)
 {
 	static const u32 phy_regs[] = {
-		AR9170_PHY_REG_CCA, AR9170_PHY_REG_CH1_CCA,
-		AR9170_PHY_REG_CH2_CCA, AR9170_PHY_REG_EXT_CCA,
-		AR9170_PHY_REG_CH1_EXT_CCA, AR9170_PHY_REG_CH2_EXT_CCA };
+		AR9170_PHY_REG_CCA, AR9170_PHY_REG_CH2_CCA,
+		AR9170_PHY_REG_EXT_CCA, AR9170_PHY_REG_CH2_EXT_CCA };
 	u32 phy_res[ARRAY_SIZE(phy_regs)];
 	int err, i;
 
@@ -1578,12 +1577,12 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 	if (err)
 		return err;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 2; i++) {
 		ar->noise[i] = carl9170_calc_noise_dbm(
 			(phy_res[i] >> 19) & 0x1ff);
 
-		ar->noise[i + 3] = carl9170_calc_noise_dbm(
-			(phy_res[i + 3] >> 23) & 0x1ff);
+		ar->noise[i + 2] = carl9170_calc_noise_dbm(
+			(phy_res[i + 2] >> 23) & 0x1ff);
 	}
 
 	return 0;
