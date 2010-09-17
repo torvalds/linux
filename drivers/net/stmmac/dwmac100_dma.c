@@ -35,10 +35,18 @@ static int dwmac100_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
 			     u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	int limit;
+
 	/* DMA SW reset */
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
-	do {} while ((readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET));
+	limit = 15000;
+	while (limit--) {
+		if (!(readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET))
+			break;
+	}
+	if (limit < 0)
+		return -EBUSY;
 
 	/* Enable Application Access by writing to DMA CSR0 */
 	writel(DMA_BUS_MODE_DEFAULT | (pbl << DMA_BUS_MODE_PBL_SHIFT),
