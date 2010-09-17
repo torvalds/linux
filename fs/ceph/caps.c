@@ -1534,7 +1534,7 @@ retry_locked:
 	 */
 	if ((!is_delayed || mdsc->stopping) &&
 	    ci->i_wrbuffer_ref == 0 &&               /* no dirty pages... */
-	    ci->i_rdcache_gen &&                     /* may have cached pages */
+	    inode->i_data.nrpages &&                 /* have cached pages */
 	    (file_wanted == 0 ||                     /* no open files */
 	     (revoking & (CEPH_CAP_FILE_CACHE|
 			  CEPH_CAP_FILE_LAZYIO))) && /*  or revoking cache */
