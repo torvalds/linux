@@ -32,6 +32,7 @@
 struct plat_stmmacenet_data {
 	int bus_id;
 	int pbl;
+	int clk_csr;
 	int has_gmac;
 	int enh_desc;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);

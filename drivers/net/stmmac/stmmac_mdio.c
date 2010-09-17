@@ -53,7 +53,7 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	int data;
 	u16 regValue = (((phyaddr << 11) & (0x0000F800)) |
 			((phyreg << 6) & (0x000007C0)));
-	regValue |= MII_BUSY;	/* in case of GMAC */
+	regValue |= MII_BUSY | ((priv->mii_clk_csr & 7) << 2);
 
 	do {} while (((readl(priv->ioaddr + mii_address)) & MII_BUSY) == 1);
 	writel(regValue, priv->ioaddr + mii_address);
@@ -85,7 +85,8 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	    (((phyaddr << 11) & (0x0000F800)) | ((phyreg << 6) & (0x000007C0)))
 	    | MII_WRITE;
 
-	value |= MII_BUSY;
+	value |= MII_BUSY | ((priv->mii_clk_csr & 7) << 2);
+
 
 	/* Wait until any existing MII operation is complete */
 	do {} while (((readl(priv->ioaddr + mii_address)) & MII_BUSY) == 1);

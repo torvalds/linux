@@ -78,6 +78,7 @@ struct stmmac_priv {
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
+	int mii_clk_csr;
 
 	u32 msg_enable;
 	spinlock_t lock;
