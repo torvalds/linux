@@ -98,7 +98,9 @@ enum {
 	SIU_CLKB_EXT
 };
 
+struct device;
 struct siu_info {
+	struct device		*dev;
 	int			port_id;
 	u32 __iomem		*pram;
 	u32 __iomem		*xram;

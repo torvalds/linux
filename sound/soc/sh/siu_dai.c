@@ -71,8 +71,7 @@ struct port_flag {
 	struct format_flag	capture;
 };
 
-struct siu_info *siu_i2s_data = NULL;
-EXPORT_SYMBOL_GPL(siu_i2s_data);
+struct siu_info *siu_i2s_data;
 
 static struct port_flag siu_flags[SIU_PORT_NUM] = {
 	[SIU_PORT_A] = {
@@ -113,7 +112,7 @@ static void siu_dai_start(struct siu_port *port_info)
 	dev_dbg(port_info->pcm->card->dev, "%s\n", __func__);
 
 	/* Turn on SIU clock */
-	pm_runtime_get_sync(port_info->pcm->card->dev);
+	pm_runtime_get_sync(info->dev);
 
 	/* Issue software reset to siu */
 	siu_write32(base + SIU_SRCTL, 0);
@@ -160,7 +159,7 @@ static void siu_dai_stop(struct siu_port *port_info)
 	siu_write32(base + SIU_SRCTL, 0);
 
 	/* Turn off SIU clock */
-	pm_runtime_put_sync(port_info->pcm->card->dev);
+	pm_runtime_put_sync(info->dev);
 }
 
 static void siu_dai_spbAselect(struct siu_port *port_info)
@@ -675,20 +674,36 @@ static int siu_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	}
 
 	siu_clk = clk_get(dai->dev, siu_name);
-	if (IS_ERR(siu_clk))
+	if (IS_ERR(siu_clk)) {
+		dev_err(dai->dev, "%s: cannot get a SIU clock: %ld\n", __func__,
+			PTR_ERR(siu_clk));
 		return PTR_ERR(siu_clk);
-
-	parent_clk = clk_get(dai->dev, parent_name);
-	if (!IS_ERR(parent_clk)) {
-		ret = clk_set_parent(siu_clk, parent_clk);
-		if (!ret)
-			clk_set_rate(siu_clk, freq);
-		clk_put(parent_clk);
 	}
 
+	parent_clk = clk_get(dai->dev, parent_name);
+	if (IS_ERR(parent_clk)) {
+		ret = PTR_ERR(parent_clk);
+		dev_err(dai->dev, "cannot get a SIU clock parent: %d\n", ret);
+		goto epclkget;
+	}
+
+	ret = clk_set_parent(siu_clk, parent_clk);
+	if (ret < 0) {
+		dev_err(dai->dev, "cannot reparent the SIU clock: %d\n", ret);
+		goto eclksetp;
+	}
+
+	ret = clk_set_rate(siu_clk, freq);
+	if (ret < 0)
+		dev_err(dai->dev, "cannot set SIU clock rate: %d\n", ret);
+
+	/* TODO: when clkdev gets reference counting we'll move these to siu_dai_shutdown() */
+eclksetp:
+	clk_put(parent_clk);
+epclkget:
 	clk_put(siu_clk);
 
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_ops siu_dai_ops = {
@@ -700,7 +715,7 @@ static struct snd_soc_dai_ops siu_dai_ops = {
 };
 
 static struct snd_soc_dai_driver siu_i2s_dai = {
-	.name	= "sui-i2s-dai",
+	.name	= "siu-i2s-dai",
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -727,6 +742,7 @@ static int __devinit siu_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 	siu_i2s_data = info;
+	info->dev = &pdev->dev;
 
 	ret = request_firmware(&fw_entry, "siu_spb.bin", &pdev->dev);
 	if (ret)
@@ -828,6 +844,7 @@ static int __devexit siu_remove(struct platform_device *pdev)
 
 static struct platform_driver siu_driver = {
 	.driver 	= {
+		.owner	= THIS_MODULE,
 		.name	= "siu-pcm-audio",
 	},
 	.probe		= siu_probe,
