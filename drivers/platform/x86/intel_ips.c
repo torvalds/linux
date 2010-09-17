@@ -1390,7 +1390,7 @@ static bool ips_get_i915_syms(struct ips_driver *ips)
 	return true;
 
 out_put_busy:
-	symbol_put(i915_gpu_turbo_disable);
+	symbol_put(i915_gpu_busy);
 out_put_lower:
 	symbol_put(i915_gpu_lower);
 out_put_raise:
