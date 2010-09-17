@@ -313,7 +313,7 @@ static void nfs3_free_createdata(struct nfs3_createdata *data)
  */
 static int
 nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-		 int flags, struct nameidata *nd)
+		 int flags, struct nfs_open_context *ctx)
 {
 	struct nfs3_createdata *data;
 	mode_t mode = sattr->ia_mode;

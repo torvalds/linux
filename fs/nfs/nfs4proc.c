@@ -1998,32 +1998,6 @@ out:
 	return status;
 }
 
-static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct nfs4_state *state, fmode_t fmode)
-{
-	struct file *filp;
-	int ret;
-
-	/* If the open_intent is for execute, we have an extra check to make */
-	if (fmode & FMODE_EXEC) {
-		ret = nfs_may_open(state->inode,
-				state->owner->so_cred,
-				nd->intent.open.flags);
-		if (ret < 0)
-			goto out_close;
-	}
-	filp = lookup_instantiate_filp(nd, path->dentry, NULL);
-	if (!IS_ERR(filp)) {
-		struct nfs_open_context *ctx;
-		ctx = nfs_file_open_context(filp);
-		ctx->state = state;
-		return 0;
-	}
-	ret = PTR_ERR(filp);
-out_close:
-	nfs4_close_sync(path, state, fmode & (FMODE_READ|FMODE_WRITE));
-	return ret;
-}
-
 struct inode *
 nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags, struct iattr *attr)
 {
@@ -2491,36 +2465,34 @@ static int nfs4_proc_readlink(struct inode *inode, struct page *page,
 
 static int
 nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-                 int flags, struct nameidata *nd)
+                 int flags, struct nfs_open_context *ctx)
 {
-	struct path path = {
-		.mnt = nd->path.mnt,
+	struct path my_path = {
 		.dentry = dentry,
 	};
+	struct path *path = &my_path;
 	struct nfs4_state *state;
-	struct rpc_cred *cred;
-	fmode_t fmode = flags & (FMODE_READ | FMODE_WRITE);
+	struct rpc_cred *cred = NULL;
+	fmode_t fmode = 0;
 	int status = 0;
 
-	cred = rpc_lookup_cred();
-	if (IS_ERR(cred)) {
-		status = PTR_ERR(cred);
-		goto out;
+	if (ctx != NULL) {
+		cred = ctx->cred;
+		path = &ctx->path;
+		fmode = ctx->mode;
 	}
-	state = nfs4_do_open(dir, &path, fmode, flags, sattr, cred);
+	state = nfs4_do_open(dir, path, fmode, flags, sattr, cred);
 	d_drop(dentry);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
-		goto out_putcred;
+		goto out;
 	}
 	d_add(dentry, igrab(state->inode));
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-	if (status == 0 && (nd->flags & LOOKUP_OPEN) != 0)
-		status = nfs4_intent_set_file(nd, &path, state, fmode);
+	if (ctx != NULL)
+		ctx->state = state;
 	else
-		nfs4_close_sync(&path, state, fmode);
-out_putcred:
-	put_rpccred(cred);
+		nfs4_close_sync(path, state, fmode);
 out:
 	return status;
 }

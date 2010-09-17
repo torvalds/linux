@@ -105,8 +105,9 @@ const struct inode_operations nfs3_dir_inode_operations = {
 #ifdef CONFIG_NFS_V4
 
 static struct dentry *nfs_atomic_lookup(struct inode *, struct dentry *, struct nameidata *);
+static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd);
 const struct inode_operations nfs4_dir_inode_operations = {
-	.create		= nfs_create,
+	.create		= nfs_open_create,
 	.lookup		= nfs_atomic_lookup,
 	.link		= nfs_link,
 	.unlink		= nfs_unlink,
@@ -1239,6 +1240,44 @@ no_open_dput:
 no_open:
 	return nfs_lookup_revalidate(dentry, nd);
 }
+
+static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode,
+		struct nameidata *nd)
+{
+	struct nfs_open_context *ctx = NULL;
+	struct iattr attr;
+	int error;
+	int open_flags = 0;
+
+	dfprintk(VFS, "NFS: create(%s/%ld), %s\n",
+			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
+
+	attr.ia_mode = mode;
+	attr.ia_valid = ATTR_MODE;
+
+	if ((nd->flags & LOOKUP_CREATE) != 0) {
+		open_flags = nd->intent.open.flags;
+
+		ctx = nameidata_to_nfs_open_context(dentry, nd);
+		error = PTR_ERR(ctx);
+		if (IS_ERR(ctx))
+			goto out_err;
+	}
+
+	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, ctx);
+	if (error != 0)
+		goto out_put_ctx;
+	if (ctx != NULL)
+		nfs_intent_set_file(nd, ctx);
+	return 0;
+out_put_ctx:
+	if (ctx != NULL)
+		put_nfs_open_context(ctx);
+out_err:
+	d_drop(dentry);
+	return error;
+}
+
 #endif /* CONFIG_NFSV4 */
 
 static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
@@ -1369,7 +1408,6 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 {
 	struct iattr attr;
 	int error;
-	int open_flags = 0;
 
 	dfprintk(VFS, "NFS: create(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
@@ -1377,10 +1415,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	attr.ia_mode = mode;
 	attr.ia_valid = ATTR_MODE;
 
-	if ((nd->flags & LOOKUP_CREATE) != 0)
-		open_flags = nd->intent.open.flags;
-
-	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, nd);
+	error = NFS_PROTO(dir)->create(dir, dentry, &attr, 0, NULL);
 	if (error != 0)
 		goto out_err;
 	return 0;
