@@ -87,6 +87,7 @@ struct ath5k_txq {
 	spinlock_t		lock;	/* lock on q and link */
 	bool			setup;
 	int			txq_len; /* number of queued buffers */
+	bool			txq_poll_mark;
 };
 
 #define ATH5K_LED_MAX_NAME_LEN 31
@@ -233,6 +234,8 @@ struct ath5k_softc {
 
 	struct ath5k_ani_state	ani_state;
 	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
+
+	struct delayed_work	tx_complete_work;
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

@@ -891,6 +891,7 @@ ath5k_txq_setup(struct ath5k_softc *sc,
 		spin_lock_init(&txq->lock);
 		txq->setup = true;
 		txq->txq_len = 0;
+		txq->txq_poll_mark = false;
 	}
 	return &sc->txqs[qnum];
 }
@@ -989,6 +990,7 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		spin_unlock_bh(&sc->txbuflock);
 	}
 	txq->link = NULL;
+	txq->txq_poll_mark = false;
 	spin_unlock_bh(&txq->lock);
 }
 
@@ -1616,6 +1618,8 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		sc->txbuf_len++;
 		txq->txq_len--;
 		spin_unlock(&sc->txbuflock);
+
+		txq->txq_poll_mark = false;
 	}
 	if (likely(list_empty(&txq->q)))
 		txq->link = NULL;
@@ -2170,6 +2174,46 @@ ath5k_tasklet_ani(unsigned long data)
 }
 
 
+static void
+ath5k_tx_complete_poll_work(struct work_struct *work)
+{
+	struct ath5k_softc *sc = container_of(work, struct ath5k_softc,
+			tx_complete_work.work);
+	struct ath5k_txq *txq;
+	int i;
+	bool needreset = false;
+
+	for (i = 0; i < ARRAY_SIZE(sc->txqs); i++) {
+		if (sc->txqs[i].setup) {
+			txq = &sc->txqs[i];
+			spin_lock_bh(&txq->lock);
+			if (txq->txq_len > 0) {
+				if (txq->txq_poll_mark) {
+					ATH5K_DBG(sc, ATH5K_DEBUG_XMIT,
+						  "TX queue stuck %d\n",
+						  txq->qnum);
+					needreset = true;
+					spin_unlock_bh(&txq->lock);
+					break;
+				} else {
+					txq->txq_poll_mark = true;
+				}
+			}
+			spin_unlock_bh(&txq->lock);
+		}
+	}
+
+	if (needreset) {
+		ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+			  "TX queues stuck, resetting\n");
+		ath5k_reset(sc, sc->curchan);
+	}
+
+	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
+		msecs_to_jiffies(ATH5K_TX_COMPLETE_POLL_INT));
+}
+
+
 /*************************\
 * Initialization routines *
 \*************************/
@@ -2261,6 +2305,10 @@ ath5k_init(struct ath5k_softc *sc)
 done:
 	mmiowb();
 	mutex_unlock(&sc->lock);
+
+	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
+			msecs_to_jiffies(ATH5K_TX_COMPLETE_POLL_INT));
+
 	return ret;
 }
 
@@ -2318,6 +2366,8 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	mutex_unlock(&sc->lock);
 
 	stop_tasklets(sc);
+
+	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	ath5k_rfkill_hw_stop(sc->ah);
 
@@ -2505,6 +2555,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	tasklet_init(&sc->ani_tasklet, ath5k_tasklet_ani, (unsigned long)sc);
 
 	INIT_WORK(&sc->reset_work, ath5k_reset_work);
+	INIT_DELAYED_WORK(&sc->tx_complete_work, ath5k_tx_complete_poll_work);
 
 	ret = ath5k_eeprom_read_mac(ah, mac);
 	if (ret) {

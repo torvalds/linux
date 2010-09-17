@@ -206,6 +206,8 @@
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
 
+#define ATH5K_TX_COMPLETE_POLL_INT		3000	/* 3 sec */
+
 #define AR5K_INIT_CARR_SENSE_EN			1
 
 /*Swap RX/TX Descriptor for big endian archs*/
