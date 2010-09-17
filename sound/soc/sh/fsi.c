@@ -348,9 +348,57 @@ static int fsi_get_fifo_residue(struct fsi_priv *fsi, int is_play)
 	return residue;
 }
 
+/*
+ *		dma function
+ */
+
 static u8 *fsi_dma_get_area(struct fsi_priv *fsi)
 {
 	return fsi->substream->runtime->dma_area + fsi->byte_offset;
+}
+
+static void fsi_dma_soft_push16(struct fsi_priv *fsi, int size)
+{
+	u16 *start;
+	int i;
+
+	start  = (u16 *)fsi_dma_get_area(fsi);
+
+	for (i = 0; i < size; i++)
+		fsi_reg_write(fsi, DODT, ((u32)*(start + i) << 8));
+}
+
+static void fsi_dma_soft_pop16(struct fsi_priv *fsi, int size)
+{
+	u16 *start;
+	int i;
+
+	start  = (u16 *)fsi_dma_get_area(fsi);
+
+	for (i = 0; i < size; i++)
+		*(start + i) = (u16)(fsi_reg_read(fsi, DIDT) >> 8);
+}
+
+static void fsi_dma_soft_push32(struct fsi_priv *fsi, int size)
+{
+	u32 *start;
+	int i;
+
+	start  = (u32 *)fsi_dma_get_area(fsi);
+
+	for (i = 0; i < size; i++)
+		fsi_reg_write(fsi, DODT, *(start + i));
+}
+
+static void fsi_dma_soft_pop32(struct fsi_priv *fsi, int size)
+{
+	u32 *start;
+	int i;
+
+	start  = (u32 *)fsi_dma_get_area(fsi);
+
+	for (i = 0; i < size; i++)
+		*(start + i) = fsi_reg_read(fsi, DIDT);
 }
 
 /*
@@ -500,8 +548,7 @@ static int fsi_data_push(struct fsi_priv *fsi, int startup)
 	int send;
 	int fifo_free;
 	int width;
-	u8 *start;
-	int i, over_period;
+	int over_period;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -538,17 +585,12 @@ static int fsi_data_push(struct fsi_priv *fsi, int startup)
 	if (fifo_free < send)
 		send = fifo_free;
 
-	start = fsi_dma_get_area(fsi);
-
 	switch (width) {
 	case 2:
-		for (i = 0; i < send; i++)
-			fsi_reg_write(fsi, DODT,
-				      ((u32)*((u16 *)start + i) << 8));
+		fsi_dma_soft_push16(fsi, send);
 		break;
 	case 4:
-		for (i = 0; i < send; i++)
-			fsi_reg_write(fsi, DODT, *((u32 *)start + i));
+		fsi_dma_soft_push32(fsi, send);
 		break;
 	default:
 		return -EINVAL;
@@ -583,8 +625,7 @@ static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 	int free;
 	int fifo_fill;
 	int width;
-	u8 *start;
-	int i, over_period;
+	int over_period;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -620,17 +661,12 @@ static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 	if (free < fifo_fill)
 		fifo_fill = free;
 
-	start = fsi_dma_get_area(fsi);
-
 	switch (width) {
 	case 2:
-		for (i = 0; i < fifo_fill; i++)
-			*((u16 *)start + i) =
-				(u16)(fsi_reg_read(fsi, DIDT) >> 8);
+		fsi_dma_soft_pop16(fsi, fifo_fill);
 		break;
 	case 4:
-		for (i = 0; i < fifo_fill; i++)
-			*((u32 *)start + i) = fsi_reg_read(fsi, DIDT);
+		fsi_dma_soft_pop32(fsi, fifo_fill);
 		break;
 	default:
 		return -EINVAL;
