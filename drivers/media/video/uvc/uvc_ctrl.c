@@ -727,7 +727,8 @@ static const __u8 uvc_camera_guid[16] = UVC_GUID_UVC_CAMERA;
 static const __u8 uvc_media_transport_input_guid[16] =
 	UVC_GUID_UVC_MEDIA_TRANSPORT_INPUT;
 
-static int uvc_entity_match_guid(struct uvc_entity *entity, __u8 guid[16])
+static int uvc_entity_match_guid(const struct uvc_entity *entity,
+	const __u8 guid[16])
 {
 	switch (UVC_ENTITY_TYPE(entity)) {
 	case UVC_ITT_CAMERA:
