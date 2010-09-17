@@ -846,8 +846,6 @@ int carl9170_usb_restart(struct ar9170 *ar)
 
 	carl9170_usb_stop(ar);
 
-	carl9170_set_state(ar, CARL9170_UNKNOWN_STATE);
-
 	if (err)
 		goto err_out;
 
