@@ -1169,6 +1169,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct dentry *parent = NULL;
 	struct inode *inode = dentry->d_inode;
 	struct inode *dir;
+	struct nfs_open_context *ctx;
 	int openflags, ret = 0;
 
 	if (!is_atomic_open(nd) || d_mountpoint(dentry))
@@ -1194,12 +1195,20 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	/* We can't create new files, or truncate existing ones here */
 	openflags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
+	ctx = nameidata_to_nfs_open_context(dentry, nd);
+	ret = PTR_ERR(ctx);
+	if (IS_ERR(ctx))
+		goto out;
 	/*
 	 * Note: we're not holding inode->i_mutex and so may be racing with
 	 * operations that change the directory. We therefore save the
 	 * change attribute *before* we do the RPC call.
 	 */
-	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
+	ret = nfs4_open_revalidate(dir, ctx, openflags);
+	if (ret == 1)
+		nfs_intent_set_file(nd, ctx);
+	else
+		put_nfs_open_context(ctx);
 out:
 	dput(parent);
 	if (!ret)
