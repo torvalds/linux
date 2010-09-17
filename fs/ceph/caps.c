@@ -1417,17 +1417,6 @@ static int __mark_caps_flushing(struct inode *inode,
 /*
  * try to invalidate mapping pages without blocking.
  */
-static int mapping_is_empty(struct address_space *mapping)
-{
-	struct page *page = find_get_page(mapping, 0);
-
-	if (!page)
-		return 1;
-
-	put_page(page);
-	return 0;
-}
-
 static int try_nonblocking_invalidate(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -1437,7 +1426,7 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	invalidate_mapping_pages(&inode->i_data, 0, -1);
 	spin_lock(&inode->i_lock);
 
-	if (mapping_is_empty(&inode->i_data) &&
+	if (inode->i_data.nrpages == 0 &&
 	    invalidating_gen == ci->i_rdcache_gen) {
 		/* success. */
 		dout("try_nonblocking_invalidate %p success\n", inode);
