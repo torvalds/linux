@@ -641,7 +641,7 @@ void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
 	return addr;
 }
 
-#if defined(CONFIG_DYNAMIC_FTRACE)
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(HAVE_JUMP_LABEL)
 
 unsigned char ideal_nop5[IDEAL_NOP_SIZE_5];
 
