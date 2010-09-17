@@ -67,6 +67,8 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol)
 	struct phonet_protocol *pnp;
 	int err;
 
+	if (!net_eq(net, &init_net))
+		return -EAFNOSUPPORT;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -353,6 +355,8 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct sockaddr_pn sa;
 	u16 len;
 
+	if (!net_eq(net, &init_net))
+		goto out;
 	/* check we have at least a full Phonet header */
 	if (!pskb_pull(skb, sizeof(struct phonethdr)))
 		goto out;

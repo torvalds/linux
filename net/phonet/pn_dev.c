@@ -246,7 +246,11 @@ static struct notifier_block phonet_device_notifier = {
 /* Per-namespace Phonet devices handling */
 static int phonet_init_net(struct net *net)
 {
-	struct phonet_net *pnn = kmalloc(sizeof(*pnn), GFP_KERNEL);
+	struct phonet_net *pnn;
+
+	if (!net_eq(net, &init_net))
+		return 0;
+	pnn = kmalloc(sizeof(*pnn), GFP_KERNEL);
 	if (!pnn)
 		return -ENOMEM;
 
@@ -263,8 +267,12 @@ static int phonet_init_net(struct net *net)
 
 static void phonet_exit_net(struct net *net)
 {
-	struct phonet_net *pnn = net_generic(net, phonet_net_id);
+	struct phonet_net *pnn;
 	struct net_device *dev;
+
+	if (!net_eq(net, &init_net))
+		return;
+	pnn = net_generic(net, phonet_net_id);
 
 	rtnl_lock();
 	for_each_netdev(net, dev)
