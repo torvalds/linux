@@ -320,8 +320,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	if (srev >= AR5K_SREV_AR5212_V4 &&
 	    (ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
 	    !AR5K_EEPROM_AES_DIS(ee->ee_misc5)))
-		common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM |
-					ATH_CRYPT_CAP_MIC_AESCCM;
+		common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
 
 	if (srev >= AR5K_SREV_AR2414) {
 		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;

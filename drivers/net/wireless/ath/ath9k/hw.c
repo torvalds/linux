@@ -1866,6 +1866,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->low_5ghz_chan = 4920;
 	pCap->high_5ghz_chan = 6100;
 
+	common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
+
 	if (ah->config.ht_enable)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
