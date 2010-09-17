@@ -1558,9 +1558,9 @@ static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 static int carl9170_calc_noise_dbm(u32 raw_noise)
 {
 	if (raw_noise & 0x100)
-		return ~((raw_noise & 0x0ff) >> 1);
+		return ~0x1ff | raw_noise;
 	else
-		return (raw_noise & 0xff) >> 1;
+		return raw_noise;
 }
 
 int carl9170_get_noisefloor(struct ar9170 *ar)
