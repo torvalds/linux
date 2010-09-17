@@ -1135,7 +1135,7 @@ ATLX ETHERNET DRIVERS
 M:	Jay Cliburn <jcliburn@gmail.com>
 M:	Chris Snook <chris.snook@gmail.com>
 M:	Jie Yang <jie.yang@atheros.com>
-L:	atl1-devel@lists.sourceforge.net
+L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/atl1
 W:	http://atl1.sourceforge.net
 S:	Maintained
