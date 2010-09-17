@@ -1,5 +1,5 @@
 struct fm_event_hdr {
-	unsigned char plen;
+	u8 plen;
 } __attribute__ ((packed));
 
 #define FM_MAX_FRAME_SIZE 0xFF	/* TODO: */
@@ -8,6 +8,6 @@ struct fm_event_hdr {
 
 /* gps stuff */
 struct gps_event_hdr {
-unsigned char opcode;
-unsigned short plen;
+	u8 opcode;
+	u16 plen;
 } __attribute__ ((packed));

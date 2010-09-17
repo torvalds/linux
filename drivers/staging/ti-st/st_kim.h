@@ -128,10 +128,10 @@ void kim_st_list_protocols(struct st_data_s *, void *);
  *	relevant procedure to be called.
  */
 struct bts_header {
-	uint32_t magic;
-	uint32_t version;
-	uint8_t future[24];
-	uint8_t actions[0];
+	u32 magic;
+	u32 version;
+	u8 future[24];
+	u8 actions[0];
 } __attribute__ ((packed));
 
 /**
@@ -139,28 +139,28 @@ struct bts_header {
  *	data.
  */
 struct bts_action {
-	uint16_t type;
-	uint16_t size;
-	uint8_t data[0];
+	u16 type;
+	u16 size;
+	u8 data[0];
 } __attribute__ ((packed));
 
 struct bts_action_send {
-	uint8_t data[0];
+	u8 data[0];
 } __attribute__ ((packed));
 
 struct bts_action_wait {
-	uint32_t msec;
-	uint32_t size;
-	uint8_t data[0];
+	u32 msec;
+	u32 size;
+	u8 data[0];
 } __attribute__ ((packed));
 
 struct bts_action_delay {
-	uint32_t msec;
+	u32 msec;
 } __attribute__ ((packed));
 
 struct bts_action_serial {
-	uint32_t baud;
-	uint32_t flow_control;
+	u32 baud;
+	u32 flow_control;
 } __attribute__ ((packed));
 
 /**
@@ -170,10 +170,10 @@ struct bts_action_serial {
  *	when it receives request from KIM for ldisc installation.
  */
 struct hci_command {
-	uint8_t prefix;
-	uint16_t opcode;
-	uint8_t plen;
-	uint32_t speed;
+	u8 prefix;
+	u16 opcode;
+	u8 plen;
+	u32 speed;
 } __attribute__ ((packed));
 
 
