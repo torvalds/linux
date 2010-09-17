@@ -1586,44 +1586,44 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 
 	spin_lock(&txq->lock);
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
-		ds = bf->desc;
+
+		txq->txq_poll_mark = false;
+
+		/* skb might already have been processed last time. */
+		if (bf->skb != NULL) {
+			ds = bf->desc;
+
+			ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
+			if (unlikely(ret == -EINPROGRESS))
+				break;
+			else if (unlikely(ret)) {
+				ATH5K_ERR(sc,
+					"error %d while processing "
+					"queue %u\n", ret, txq->qnum);
+				break;
+			}
+
+			skb = bf->skb;
+			bf->skb = NULL;
+			pci_unmap_single(sc->pdev, bf->skbaddr, skb->len,
+					PCI_DMA_TODEVICE);
+			ath5k_tx_frame_completed(sc, skb, &ts);
+		}
 
 		/*
 		 * It's possible that the hardware can say the buffer is
 		 * completed when it hasn't yet loaded the ds_link from
-		 * host memory and moved on.  If there are more TX
-		 * descriptors in the queue, wait for TXDP to change
-		 * before processing this one.
+		 * host memory and moved on.
+		 * Always keep the last descriptor to avoid HW races...
 		 */
-		if (ath5k_hw_get_txdp(sc->ah, txq->qnum) == bf->daddr &&
-		    !list_is_last(&bf->list, &txq->q))
-			break;
-		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
-		if (unlikely(ret == -EINPROGRESS))
-			break;
-		else if (unlikely(ret)) {
-			ATH5K_ERR(sc, "error %d while processing queue %u\n",
-				ret, txq->qnum);
-			break;
+		if (ath5k_hw_get_txdp(sc->ah, txq->qnum) != bf->daddr) {
+			spin_lock(&sc->txbuflock);
+			list_move_tail(&bf->list, &sc->txbuf);
+			sc->txbuf_len++;
+			txq->txq_len--;
+			spin_unlock(&sc->txbuflock);
 		}
-
-		skb = bf->skb;
-		bf->skb = NULL;
-		pci_unmap_single(sc->pdev, bf->skbaddr, skb->len,
-				PCI_DMA_TODEVICE);
-
-		ath5k_tx_frame_completed(sc, skb, &ts);
-
-		spin_lock(&sc->txbuflock);
-		list_move_tail(&bf->list, &sc->txbuf);
-		sc->txbuf_len++;
-		txq->txq_len--;
-		spin_unlock(&sc->txbuflock);
-
-		txq->txq_poll_mark = false;
 	}
-	if (likely(list_empty(&txq->q)))
-		txq->link = NULL;
 	spin_unlock(&txq->lock);
 	if (txq->txq_len < ATH5K_TXQ_LEN_LOW)
 		ieee80211_wake_queue(sc->hw, txq->qnum);
@@ -2188,7 +2188,7 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 		if (sc->txqs[i].setup) {
 			txq = &sc->txqs[i];
 			spin_lock_bh(&txq->lock);
-			if (txq->txq_len > 0) {
+			if (txq->txq_len > 1) {
 				if (txq->txq_poll_mark) {
 					ATH5K_DBG(sc, ATH5K_DEBUG_XMIT,
 						  "TX queue stuck %d\n",
