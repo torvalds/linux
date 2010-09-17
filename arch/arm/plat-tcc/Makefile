@@ -1,3 +1,3 @@
 # "Telechips Platform Common Modules"
 
-obj-y := system.o
+obj-y := clock.o system.o

@@ -30,13 +30,13 @@
 #define EXT_MEM_CTRL_BASE	0xf0000000
 #define EXT_MEM_CTRL_SIZE	SZ_4K
 
-#define CS1_BASE_VIRT		0xf7000000
-#define AHB_PERI_BASE_VIRT	0xf4000000
-#define APB0_PERI_BASE_VIRT	0xf1000000
-#define APB1_PERI_BASE_VIRT	0xf2000000
-#define EXT_MEM_CTRL_BASE_VIRT	0xf3000000
-#define INT_SRAM_BASE_VIRT	0xf5000000
-#define DATA_TCM_BASE_VIRT	0xf6000000
+#define CS1_BASE_VIRT		(void __iomem *)0xf7000000
+#define AHB_PERI_BASE_VIRT	(void __iomem *)0xf4000000
+#define APB0_PERI_BASE_VIRT	(void __iomem *)0xf1000000
+#define APB1_PERI_BASE_VIRT	(void __iomem *)0xf2000000
+#define EXT_MEM_CTRL_BASE_VIRT	(void __iomem *)0xf3000000
+#define INT_SRAM_BASE_VIRT	(void __iomem *)0xf5000000
+#define DATA_TCM_BASE_VIRT	(void __iomem *)0xf6000000
 
 #define __REG(x)     (*((volatile u32 *)(x)))
 
@@ -649,8 +649,7 @@
 #define PMGPIO_APB_OFFS		0x800
 
 /* Clock controller registers */
-#define CKC_BASE		(APB1_PERI_BASE_VIRT + 0x6000)
-#define CKC_BASE_PHYS		(APB1_PERI_BASE + 0x6000)
+#define CKC_BASE	((void __iomem *)(APB1_PERI_BASE_VIRT + 0x6000))
 
 #define CLKCTRL_OFFS		0x00
 #define PLL0CFG_OFFS		0x04
@@ -724,8 +723,20 @@
 /* SWRESET1 bits */
 #define SWRESET1_USBH1		(1 << 20)
 
-/* System clock sources */
+/* System clock sources.
+ * Note: These are the clock sources that serve as parents for
+ * all other clocks. They have no parents themselves.
+ *
+ * These values are used for struct clk->root_id. All clocks
+ * that are not system clock sources have this value set to
+ * CLK_SRC_NOROOT.
+ * The values for system clocks start with CLK_SRC_PLL0 == 0
+ * because this gives us exactly the values needed for the lower
+ * 4 bits of ACLK_* registers. Therefore, CLK_SRC_NOROOT is
+ * defined as -1 to not disturb the order.
+ */
 enum root_clks {
+	CLK_SRC_NOROOT = -1,
 	CLK_SRC_PLL0 = 0,
 	CLK_SRC_PLL1,
 	CLK_SRC_PLL0DIV,
