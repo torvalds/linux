@@ -5,6 +5,7 @@
 
 static struct amd_decoder_ops *fam_ops;
 
+static u8 xec_mask	 = 0xf;
 static u8 nb_err_cpumask = 0xf;
 
 static bool report_gart_errors;
@@ -172,7 +173,7 @@ static bool f14h_dc_mce(u16 ec)
 static void amd_decode_dc_mce(struct mce *m)
 {
 	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & 0xf;
+	u8 xec = (m->status >> 16) & xec_mask;
 
 	pr_emerg(HW_ERR "Data Cache Error: ");
 
@@ -257,7 +258,7 @@ static bool f14h_ic_mce(u16 ec)
 static void amd_decode_ic_mce(struct mce *m)
 {
 	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & 0xf;
+	u8 xec = (m->status >> 16) & xec_mask;
 
 	pr_emerg(HW_ERR "Instruction Cache Error: ");
 
@@ -277,7 +278,7 @@ static void amd_decode_ic_mce(struct mce *m)
 static void amd_decode_bu_mce(struct mce *m)
 {
 	u32 ec = m->status & 0xffff;
-	u32 xec = (m->status >> 16) & 0xf;
+	u32 xec = (m->status >> 16) & xec_mask;
 
 	pr_emerg(HW_ERR "Bus Unit Error");
 
@@ -319,7 +320,7 @@ wrong_bu_mce:
 static void amd_decode_ls_mce(struct mce *m)
 {
 	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & 0xf;
+	u8 xec = (m->status >> 16) & xec_mask;
 
 	if (boot_cpu_data.x86 == 0x14) {
 		pr_emerg("You shouldn't be seeing an LS MCE on this cpu family,"
@@ -649,6 +650,10 @@ static int __init mce_amd_init(void)
 		fam_ops->dc_mce = f14h_dc_mce;
 		fam_ops->ic_mce = f14h_ic_mce;
 		fam_ops->nb_mce = nb_noop_mce;
+		break;
+
+	case 0x15:
+		xec_mask = 0x1f;
 		break;
 
 	default:
