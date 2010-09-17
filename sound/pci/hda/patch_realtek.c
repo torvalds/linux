@@ -14453,6 +14453,7 @@ static void alc269_auto_init(struct hda_codec *codec)
 
 enum {
 	ALC269_FIXUP_SONY_VAIO,
+	ALC269_FIXUP_DELL_M101Z,
 };
 
 static const struct hda_verb alc269_sony_vaio_fixup_verbs[] = {
@@ -14464,11 +14465,20 @@ static const struct alc_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_SONY_VAIO] = {
 		.verbs = alc269_sony_vaio_fixup_verbs
 	},
+	[ALC269_FIXUP_DELL_M101Z] = {
+		.verbs = (const struct hda_verb[]) {
+			/* Enables internal speaker */
+			{0x20, AC_VERB_SET_COEF_INDEX, 13},
+			{0x20, AC_VERB_SET_PROC_COEF, 0x4040},
+			{}
+		}
+	},
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9071, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x104d, 0x9077, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
+	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
 	{}
 };
 
