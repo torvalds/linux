@@ -3140,6 +3140,44 @@ static void ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 	mutex_unlock(&sc->lock);
 }
 
+static int ath5k_conf_tx(struct ieee80211_hw *hw, u16 queue,
+			 const struct ieee80211_tx_queue_params *params)
+{
+	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath5k_txq_info qi;
+	int ret = 0;
+
+	if (queue >= ah->ah_capabilities.cap_queues.q_tx_num)
+		return 0;
+
+	mutex_lock(&sc->lock);
+
+	ath5k_hw_get_tx_queueprops(ah, queue, &qi);
+
+	qi.tqi_aifs = params->aifs;
+	qi.tqi_cw_min = params->cw_min;
+	qi.tqi_cw_max = params->cw_max;
+	qi.tqi_burst_time = params->txop;
+
+	ATH5K_DBG(sc, ATH5K_DEBUG_ANY,
+		  "Configure tx [queue %d],  "
+		  "aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
+		  queue, params->aifs, params->cw_min,
+		  params->cw_max, params->txop);
+
+	if (ath5k_hw_set_tx_queueprops(ah, queue, &qi)) {
+		ATH5K_ERR(sc,
+			  "Unable to update hardware queue %u!\n", queue);
+		ret = -EIO;
+	} else
+		ath5k_hw_reset_tx_queue(ah, queue);
+
+	mutex_unlock(&sc->lock);
+
+	return ret;
+}
+
 static const struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
 	.start 		= ath5k_start,
@@ -3152,7 +3190,7 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
 	.get_survey	= ath5k_get_survey,
-	.conf_tx 	= NULL,
+	.conf_tx	= ath5k_conf_tx,
 	.get_tsf 	= ath5k_get_tsf,
 	.set_tsf 	= ath5k_set_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
