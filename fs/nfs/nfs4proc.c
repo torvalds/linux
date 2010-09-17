@@ -2037,34 +2037,6 @@ nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags
 	return igrab(state->inode);
 }
 
-int
-nfs4_open_revalidate(struct inode *dir, struct nfs_open_context *ctx, int openflags)
-{
-	struct nfs4_state *state;
-
-	state = nfs4_do_open(dir, &ctx->path, ctx->mode, openflags, NULL, ctx->cred);
-	if (IS_ERR(state)) {
-		switch (PTR_ERR(state)) {
-			case -EPERM:
-			case -EACCES:
-			case -EDQUOT:
-			case -ENOSPC:
-			case -EROFS:
-				return PTR_ERR(state);
-			default:
-				goto out_drop;
-		}
-	}
-	ctx->state = state;
-	if (state->inode == ctx->path.dentry->d_inode) {
-		nfs_set_verifier(ctx->path.dentry, nfs_save_change_attribute(dir));
-		return 1;
-	}
-out_drop:
-	d_drop(ctx->path.dentry);
-	return 0;
-}
-
 static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 {
 	if (ctx->state == NULL)

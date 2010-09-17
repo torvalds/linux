@@ -1204,16 +1204,36 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 * operations that change the directory. We therefore save the
 	 * change attribute *before* we do the RPC call.
 	 */
-	ret = nfs4_open_revalidate(dir, ctx, openflags);
-	if (ret == 1)
+	inode = nfs4_atomic_open(dir, ctx, openflags, NULL);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		switch (ret) {
+		case -EPERM:
+		case -EACCES:
+		case -EDQUOT:
+		case -ENOSPC:
+		case -EROFS:
+			goto out_put_ctx;
+		default:
+			goto out_drop;
+		}
+	}
+	iput(inode);
+	if (inode == dentry->d_inode) {
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		nfs_intent_set_file(nd, ctx);
-	else
-		put_nfs_open_context(ctx);
+	} else
+		goto out_drop;
 out:
 	dput(parent);
-	if (!ret)
-		d_drop(dentry);
 	return ret;
+out_drop:
+	d_drop(dentry);
+	ret = 0;
+out_put_ctx:
+	put_nfs_open_context(ctx);
+	goto out;
+
 no_open_dput:
 	dput(parent);
 no_open:
