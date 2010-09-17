@@ -849,9 +849,11 @@ ath5k_txq_setup(struct ath5k_softc *sc,
 	struct ath5k_txq *txq;
 	struct ath5k_txq_info qi = {
 		.tqi_subtype = subtype,
-		.tqi_aifs = AR5K_TXQ_USEDEFAULT,
-		.tqi_cw_min = AR5K_TXQ_USEDEFAULT,
-		.tqi_cw_max = AR5K_TXQ_USEDEFAULT
+		/* XXX: default values not correct for B and XR channels,
+		 * but who cares? */
+		.tqi_aifs = AR5K_TUNE_AIFS,
+		.tqi_cw_min = AR5K_TUNE_CWMIN,
+		.tqi_cw_max = AR5K_TUNE_CWMAX
 	};
 	int qnum;
 
@@ -901,9 +903,11 @@ static int
 ath5k_beaconq_setup(struct ath5k_hw *ah)
 {
 	struct ath5k_txq_info qi = {
-		.tqi_aifs = AR5K_TXQ_USEDEFAULT,
-		.tqi_cw_min = AR5K_TXQ_USEDEFAULT,
-		.tqi_cw_max = AR5K_TXQ_USEDEFAULT,
+		/* XXX: default values not correct for B and XR channels,
+		 * but who cares? */
+		.tqi_aifs = AR5K_TUNE_AIFS,
+		.tqi_cw_min = AR5K_TUNE_CWMIN,
+		.tqi_cw_max = AR5K_TUNE_CWMAX,
 		/* NB: for dynamic turbo, don't enable any other interrupts */
 		.tqi_flags = AR5K_TXQ_FLAG_TXDESCINT_ENABLE
 	};
@@ -937,7 +941,7 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 		 */
 		qi.tqi_aifs = 0;
 		qi.tqi_cw_min = 0;
-		qi.tqi_cw_max = 2 * ah->ah_cw_min;
+		qi.tqi_cw_max = 2 * AR5K_TUNE_CWMIN;
 	}
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,

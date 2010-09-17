@@ -258,8 +258,6 @@
 	(AR5K_INIT_PROG_IFS_TURBO)					\
 )
 
-/* token to use for aifs, cwmin, cwmax in MadWiFi */
-#define	AR5K_TXQ_USEDEFAULT	((u32) -1)
 
 /* GENERIC CHIPSET DEFINITIONS */
 
@@ -530,9 +528,9 @@ struct ath5k_txq_info {
 	enum ath5k_tx_queue tqi_type;
 	enum ath5k_tx_queue_subtype tqi_subtype;
 	u16	tqi_flags;	/* Tx queue flags (see above) */
-	u32	tqi_aifs;	/* Arbitrated Interframe Space */
-	s32	tqi_cw_min;	/* Minimum Contention Window */
-	s32	tqi_cw_max;	/* Maximum Contention Window */
+	u8	tqi_aifs;	/* Arbitrated Interframe Space */
+	u16	tqi_cw_min;	/* Minimum Contention Window */
+	u16	tqi_cw_max;	/* Maximum Contention Window */
 	u32	tqi_cbr_period; /* Constant bit rate period */
 	u32	tqi_cbr_overflow_limit;
 	u32	tqi_burst_time;
@@ -1044,9 +1042,6 @@ struct ath5k_hw {
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
 
 	u32			ah_atim_window;
-	u32			ah_aifs;
-	u32			ah_cw_min;
-	u32			ah_cw_max;
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
 
