@@ -560,16 +560,18 @@ static void fsi_soft_all_reset(struct fsi_master *master)
 	mdelay(10);
 }
 
-/* playback interrupt */
-static int fsi_data_push(struct fsi_priv *fsi, int startup)
+static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int is_play)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
 	u32 status;
-	int push_num;
-	int push_num_max;
+	u32 status_reg = is_play ? DOFF_ST : DIFF_ST;
+	int data_residue_num;
+	int data_num;
+	int data_num_max;
 	int ch_width;
 	int over_period;
+	void (*fn)(struct fsi_priv *fsi, int size);
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -596,29 +598,63 @@ static int fsi_data_push(struct fsi_priv *fsi, int startup)
 	/* get 1 channel data width */
 	ch_width = frames_to_bytes(runtime, 1) / fsi->chan_num;
 
-	/* number of push data */
-	push_num = fsi_len2num(fsi->buff_len - fsi->buff_offset, ch_width);
+	/* get residue data number of alsa */
+	data_residue_num = fsi_len2num(fsi->buff_len - fsi->buff_offset,
+				       ch_width);
 
-	/* max number of push data */
-	push_num_max = (fsi->fifo_max_num * fsi->chan_num) -
-			fsi_get_fifo_data_num(fsi, 1);
+	if (is_play) {
+		/*
+		 * for play-back
+		 *
+		 * data_num_max	: number of FSI fifo free space
+		 * data_num	: number of ALSA residue data
+		 */
+		data_num_max  = fsi->fifo_max_num * fsi->chan_num;
+		data_num_max -= fsi_get_fifo_data_num(fsi, is_play);
 
-	push_num = min(push_num, push_num_max);
+		data_num = data_residue_num;
 
-	switch (ch_width) {
-	case 2:
-		fsi_dma_soft_push16(fsi, push_num);
-		break;
-	case 4:
-		fsi_dma_soft_push32(fsi, push_num);
-		break;
-	default:
-		return -EINVAL;
+		switch (ch_width) {
+		case 2:
+			fn = fsi_dma_soft_push16;
+			break;
+		case 4:
+			fn = fsi_dma_soft_push32;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		/*
+		 * for capture
+		 *
+		 * data_num_max	: number of ALSA free space
+		 * data_num	: number of data in FSI fifo
+		 */
+		data_num_max = data_residue_num;
+		data_num     = fsi_get_fifo_data_num(fsi, is_play);
+
+		switch (ch_width) {
+		case 2:
+			fn = fsi_dma_soft_pop16;
+			break;
+		case 4:
+			fn = fsi_dma_soft_pop32;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
-	fsi->buff_offset += fsi_num2offset(push_num, ch_width);
+	data_num = min(data_num, data_num_max);
 
-	status = fsi_reg_read(fsi, DOFF_ST);
+	fn(fsi, data_num);
+
+	/* update buff_offset */
+	fsi->buff_offset += fsi_num2offset(data_num, ch_width);
+
+	/* check fifo status */
+	status = fsi_reg_read(fsi, status_reg);
 	if (!startup) {
 		struct snd_soc_dai *dai = fsi_get_dai(substream);
 
@@ -627,9 +663,10 @@ static int fsi_data_push(struct fsi_priv *fsi, int startup)
 		if (status & ERR_UNDER)
 			dev_err(dai->dev, "under run\n");
 	}
-	fsi_reg_write(fsi, DOFF_ST, 0);
+	fsi_reg_write(fsi, status_reg, 0);
 
-	fsi_irq_enable(fsi, 1);
+	/* re-enable irq */
+	fsi_irq_enable(fsi, is_play);
 
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
@@ -639,77 +676,12 @@ static int fsi_data_push(struct fsi_priv *fsi, int startup)
 
 static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 {
-	struct snd_pcm_runtime *runtime;
-	struct snd_pcm_substream *substream = NULL;
-	u32 status;
-	int pop_num;
-	int pop_num_max;
-	int ch_width;
-	int over_period;
+	return fsi_fifo_data_ctrl(fsi, startup, 0);
+}
 
-	if (!fsi			||
-	    !fsi->substream		||
-	    !fsi->substream->runtime)
-		return -EINVAL;
-
-	over_period	= 0;
-	substream	= fsi->substream;
-	runtime		= substream->runtime;
-
-	/* FSI FIFO has limit.
-	 * So, this driver can not send periods data at a time
-	 */
-	if (fsi->buff_offset >=
-	    fsi_num2offset(fsi->period_num + 1, fsi->period_len)) {
-
-		over_period = 1;
-		fsi->period_num = (fsi->period_num + 1) % runtime->periods;
-
-		if (0 == fsi->period_num)
-			fsi->buff_offset = 0;
-	}
-
-	/* get 1 channel data width */
-	ch_width = frames_to_bytes(runtime, 1) / fsi->chan_num;
-
-	/* get free space for alsa */
-	pop_num_max = fsi_len2num(fsi->buff_len - fsi->buff_offset, ch_width);
-
-	/* get recv size */
-	pop_num = fsi_get_fifo_data_num(fsi, 0);
-
-	pop_num = min(pop_num_max, pop_num);
-
-	switch (ch_width) {
-	case 2:
-		fsi_dma_soft_pop16(fsi, pop_num);
-		break;
-	case 4:
-		fsi_dma_soft_pop32(fsi, pop_num);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	fsi->buff_offset += fsi_num2offset(pop_num, ch_width);
-
-	status = fsi_reg_read(fsi, DIFF_ST);
-	if (!startup) {
-		struct snd_soc_dai *dai = fsi_get_dai(substream);
-
-		if (status & ERR_OVER)
-			dev_err(dai->dev, "over run\n");
-		if (status & ERR_UNDER)
-			dev_err(dai->dev, "under run\n");
-	}
-	fsi_reg_write(fsi, DIFF_ST, 0);
-
-	fsi_irq_enable(fsi, 0);
-
-	if (over_period)
-		snd_pcm_period_elapsed(substream);
-
-	return 0;
+static int fsi_data_push(struct fsi_priv *fsi, int startup)
+{
+	return fsi_fifo_data_ctrl(fsi, startup, 1);
 }
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
