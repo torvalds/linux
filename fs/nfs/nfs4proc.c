@@ -2570,7 +2570,7 @@ static int _nfs4_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		struct inode *new_dir, struct qstr *new_name)
 {
 	struct nfs_server *server = NFS_SERVER(old_dir);
-	struct nfs4_rename_arg arg = {
+	struct nfs_renameargs arg = {
 		.old_dir = NFS_FH(old_dir),
 		.new_dir = NFS_FH(new_dir),
 		.old_name = old_name,

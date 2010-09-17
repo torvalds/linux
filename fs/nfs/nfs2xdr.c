@@ -337,10 +337,10 @@ nfs_xdr_createargs(struct rpc_rqst *req, __be32 *p, struct nfs_createargs *args)
 static int
 nfs_xdr_renameargs(struct rpc_rqst *req, __be32 *p, struct nfs_renameargs *args)
 {
-	p = xdr_encode_fhandle(p, args->fromfh);
-	p = xdr_encode_array(p, args->fromname, args->fromlen);
-	p = xdr_encode_fhandle(p, args->tofh);
-	p = xdr_encode_array(p, args->toname, args->tolen);
+	p = xdr_encode_fhandle(p, args->old_dir);
+	p = xdr_encode_array(p, args->old_name->name, args->old_name->len);
+	p = xdr_encode_fhandle(p, args->new_dir);
+	p = xdr_encode_array(p, args->new_name->name, args->new_name->len);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
 	return 0;
 }

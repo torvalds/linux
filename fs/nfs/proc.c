@@ -370,12 +370,10 @@ nfs_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		struct inode *new_dir, struct qstr *new_name)
 {
 	struct nfs_renameargs	arg = {
-		.fromfh		= NFS_FH(old_dir),
-		.fromname	= old_name->name,
-		.fromlen	= old_name->len,
-		.tofh		= NFS_FH(new_dir),
-		.toname		= new_name->name,
-		.tolen		= new_name->len
+		.old_dir	= NFS_FH(old_dir),
+		.old_name	= old_name,
+		.new_dir	= NFS_FH(new_dir),
+		.new_name	= new_name,
 	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_RENAME],

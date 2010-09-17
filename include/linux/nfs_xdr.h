@@ -400,6 +400,18 @@ struct nfs_removeres {
 };
 
 /*
+ * Common arguments to the rename call
+ */
+struct nfs_renameargs {
+	const struct nfs_fh		*old_dir;
+	const struct nfs_fh		*new_dir;
+	const struct qstr		*old_name;
+	const struct qstr		*new_name;
+	const u32			*bitmask;
+	struct nfs4_sequence_args	seq_args;
+};
+
+/*
  * Argument struct for decode_entry function
  */
 struct nfs_entry {
@@ -432,15 +444,6 @@ struct nfs_createargs {
 	const char *		name;
 	unsigned int		len;
 	struct iattr *		sattr;
-};
-
-struct nfs_renameargs {
-	struct nfs_fh *		fromfh;
-	const char *		fromname;
-	unsigned int		fromlen;
-	struct nfs_fh *		tofh;
-	const char *		toname;
-	unsigned int		tolen;
 };
 
 struct nfs_setattrargs {
@@ -584,15 +587,6 @@ struct nfs3_mknodargs {
 	enum nfs3_ftype		type;
 	struct iattr *		sattr;
 	dev_t			rdev;
-};
-
-struct nfs3_renameargs {
-	struct nfs_fh *		fromfh;
-	const char *		fromname;
-	unsigned int		fromlen;
-	struct nfs_fh *		tofh;
-	const char *		toname;
-	unsigned int		tolen;
 };
 
 struct nfs3_linkargs {
@@ -799,15 +793,6 @@ struct nfs4_readlink {
 
 struct nfs4_readlink_res {
 	struct nfs4_sequence_res	seq_res;
-};
-
-struct nfs4_rename_arg {
-	const struct nfs_fh *		old_dir;
-	const struct nfs_fh *		new_dir;
-	const struct qstr *		old_name;
-	const struct qstr *		new_name;
-	const u32 *			bitmask;
-	struct nfs4_sequence_args	seq_args;
 };
 
 struct nfs4_rename_res {

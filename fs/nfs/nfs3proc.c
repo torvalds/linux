@@ -442,13 +442,11 @@ static int
 nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		 struct inode *new_dir, struct qstr *new_name)
 {
-	struct nfs3_renameargs	arg = {
-		.fromfh		= NFS_FH(old_dir),
-		.fromname	= old_name->name,
-		.fromlen	= old_name->len,
-		.tofh		= NFS_FH(new_dir),
-		.toname		= new_name->name,
-		.tolen		= new_name->len
+	struct nfs_renameargs	arg = {
+		.old_dir	= NFS_FH(old_dir),
+		.old_name	= old_name,
+		.new_dir	= NFS_FH(new_dir),
+		.new_name	= new_name,
 	};
 	struct nfs3_renameres res;
 	struct rpc_message msg = {
