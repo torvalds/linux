@@ -1489,7 +1489,7 @@ static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (list_empty(&sc->txbuf)) {
 		ATH5K_ERR(sc, "no further txbuf available, dropping packet\n");
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
-		ieee80211_stop_queue(hw, skb_get_queue_mapping(skb));
+		ieee80211_stop_queues(hw);
 		goto drop_packet;
 	}
 	bf = list_first_entry(&sc->txbuf, struct ath5k_buf, list);
@@ -2138,14 +2138,13 @@ ath5k_tasklet_calibrate(unsigned long data)
 				sc->curchan->center_freq));
 
 	/* Noise floor calibration interrupts rx/tx path while I/Q calibration
-	 * doesn't. We stop the queues so that calibration doesn't interfere
-	 * with TX and don't run it as often */
+	 * doesn't.
+	 * TODO: We should stop TX here, so that it doesn't interfere.
+	 * Note that stopping the queues is not enough to stop TX! */
 	if (time_is_before_eq_jiffies(ah->ah_cal_next_nf)) {
 		ah->ah_cal_next_nf = jiffies +
 			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_NF);
-		ieee80211_stop_queues(sc->hw);
 		ath5k_hw_update_noise_floor(ah);
-		ieee80211_wake_queues(sc->hw);
 	}
 
 	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
