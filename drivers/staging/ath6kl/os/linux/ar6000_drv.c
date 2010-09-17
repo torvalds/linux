@@ -4170,8 +4170,6 @@ ar6000_ready_event(void *devt, A_UINT8 *datap, A_UINT8 phyCap, A_UINT32 sw_ver, 
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
     struct net_device *dev = ar->arNetDev;
 
-    ar->arWmiReady = TRUE;
-    wake_up(&arEvent);
     A_MEMCPY(dev->dev_addr, datap, AR6000_ETH_ADDR_LEN);
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("mac address = %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
         dev->dev_addr[0], dev->dev_addr[1],
@@ -4181,6 +4179,10 @@ ar6000_ready_event(void *devt, A_UINT8 *datap, A_UINT8 phyCap, A_UINT32 sw_ver, 
     ar->arPhyCapability = phyCap;
     ar->arVersion.wlan_ver = sw_ver;
     ar->arVersion.abi_ver = abi_ver;
+
+    /* Indicate to the waiting thread that the ready event was received */
+    ar->arWmiReady = TRUE;
+    wake_up(&arEvent);
 
 #if WLAN_CONFIG_IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN
     wmi_pmparams_cmd(ar->arWmi, 0, 1, 0, 0, 1, IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN);
