@@ -3475,7 +3475,8 @@ static int is_ext_mic(struct hda_codec *codec, hda_nid_t pin)
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
 	return get_defcfg_device(def_conf) == AC_JACK_MIC_IN &&
-		snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT;
+		snd_hda_get_input_pin_attr(def_conf) >= INPUT_PIN_ATTR_NORMAL &&
+		(snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_PRES_DETECT);
 }
 
 /* check whether the pin config is suitable for auto-mic switching;
