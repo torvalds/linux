@@ -3075,7 +3075,7 @@ enum {
 	CXT5066_LAPTOP,		/* Laptops w/ EAPD support */
 	CXT5066_DELL_LAPTOP,	/* Dell Laptop */
 	CXT5066_OLPC_XO_1_5,	/* OLPC XO 1.5 */
-	CXT5066_DELL_VOSTO,	/* Dell Vostro 1015i */
+	CXT5066_DELL_VOSTRO,	/* Dell Vostro 1015i */
 	CXT5066_IDEAPAD,	/* Lenovo IdeaPad U150 */
 	CXT5066_THINKPAD,	/* Lenovo ThinkPad T410s, others? */
 	CXT5066_HP_LAPTOP,      /* HP Laptop */
@@ -3086,7 +3086,7 @@ static const char *cxt5066_models[CXT5066_MODELS] = {
 	[CXT5066_LAPTOP]	= "laptop",
 	[CXT5066_DELL_LAPTOP]	= "dell-laptop",
 	[CXT5066_OLPC_XO_1_5]	= "olpc-xo-1_5",
-	[CXT5066_DELL_VOSTO]    = "dell-vostro",
+	[CXT5066_DELL_VOSTRO]	= "dell-vostro",
 	[CXT5066_IDEAPAD]	= "ideapad",
 	[CXT5066_THINKPAD]	= "thinkpad",
 	[CXT5066_HP_LAPTOP]	= "hp-laptop",
@@ -3099,8 +3099,8 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 		      CXT5066_DELL_LAPTOP),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT5066_OLPC_XO_1_5),
 	SND_PCI_QUIRK(0x1025, 0x040a, "Acer", CXT5066_IDEAPAD),
-	SND_PCI_QUIRK(0x1028, 0x02d8, "Dell Vostro", CXT5066_DELL_VOSTO),
-	SND_PCI_QUIRK(0x1028, 0x0402, "Dell Vostro", CXT5066_DELL_VOSTO),
+	SND_PCI_QUIRK(0x1028, 0x02d8, "Dell Vostro", CXT5066_DELL_VOSTRO),
+	SND_PCI_QUIRK(0x1028, 0x0402, "Dell Vostro", CXT5066_DELL_VOSTRO),
 	SND_PCI_QUIRK(0x1028, 0x0408, "Dell Inspiron One 19T", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x103c, 0x360b, "HP G60", CXT5066_HP_LAPTOP),
 	SND_PCI_QUIRK(0x1179, 0xff1e, "Toshiba Satellite C650D", CXT5066_IDEAPAD),
@@ -3207,7 +3207,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		spec->capture_prepare = cxt5066_olpc_capture_prepare;
 		spec->capture_cleanup = cxt5066_olpc_capture_cleanup;
 		break;
-	case CXT5066_DELL_VOSTO:
+	case CXT5066_DELL_VOSTRO:
 		codec->patch_ops.init = cxt5066_init;
 		codec->patch_ops.unsol_event = cxt5066_vostro_event;
 		spec->init_verbs[0] = cxt5066_init_verbs_vostro;
