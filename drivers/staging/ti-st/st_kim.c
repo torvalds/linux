@@ -28,14 +28,15 @@
 #include <linux/gpio.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-
 #include <linux/sched.h>
+#include <linux/rfkill.h>
 
-#include "st_kim.h"
 /* understand BT events for fw response */
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/hci.h>
+
+#include "ti_wilink_st.h"
 
 
 static int kim_probe(struct platform_device *pdev);

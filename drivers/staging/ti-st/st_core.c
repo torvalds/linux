@@ -28,15 +28,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/hci.h>
-#include "fm.h"
-/*
- * packet formats for fm and gps
- * #include "gps.h"
- */
-#include "st_core.h"
-#include "st_kim.h"
-#include "st_ll.h"
-#include "st.h"
+#include "ti_wilink_st.h"
 
 /* strings to be used for rfkill entries and by
  * ST Core to be used for sysfs debug entry
