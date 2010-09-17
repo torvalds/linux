@@ -1610,7 +1610,7 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	const struct carl9170_phy_freq_params *freqpar;
 	struct carl9170_rf_init_result rf_res;
 	struct carl9170_rf_init rf;
-	u32 cmd, tmp, offs = 0;
+	u32 cmd, tmp, offs = 0, new_ht = 0;
 	int err;
 	enum carl9170_bw bw;
 	bool warm_reset;
@@ -1618,12 +1618,19 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 
 	bw = nl80211_to_carl(_bw);
 
+	if (conf_is_ht(&ar->hw->conf))
+		new_ht |= CARL9170FW_PHY_HT_ENABLE;
+
+	if (conf_is_ht40(&ar->hw->conf))
+		new_ht |= CARL9170FW_PHY_HT_DYN2040;
+
 	/* may be NULL at first setup */
 	if (ar->channel) {
 		old_channel = ar->channel;
 		warm_reset = (old_channel->band != channel->band) ||
 			     (old_channel->center_freq ==
-			      channel->center_freq);
+			      channel->center_freq) ||
+			     (ar->ht_settings != new_ht);
 
 		ar->channel = NULL;
 	} else {
@@ -1724,16 +1731,9 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 
 	freqpar = carl9170_get_hw_dyn_params(channel, bw);
 
-	rf.ht_settings = 0;
-	if (conf_is_ht(&ar->hw->conf)) {
-		rf.ht_settings |= CARL9170FW_PHY_HT_ENABLE;
-
-		if (conf_is_ht40(&ar->hw->conf)) {
-			rf.ht_settings |= CARL9170FW_PHY_HT_DYN2040;
-			SET_VAL(CARL9170FW_PHY_HT_EXT_CHAN_OFF,
-				rf.ht_settings, offs);
-		}
-	}
+	rf.ht_settings = new_ht;
+	if (conf_is_ht40(&ar->hw->conf))
+		SET_VAL(CARL9170FW_PHY_HT_EXT_CHAN_OFF, rf.ht_settings, offs);
 
 	rf.freq = cpu_to_le32(channel->center_freq * 1000);
 	rf.delta_slope_coeff_exp = cpu_to_le32(freqpar->coeff_exp);
@@ -1805,5 +1805,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		ar->ps.off_override &= ~PS_OFF_5GHZ;
 
 	ar->channel = channel;
+	ar->ht_settings = new_ht;
 	return 0;
 }
