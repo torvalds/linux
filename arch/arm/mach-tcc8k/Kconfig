@@ -1,0 +1,5 @@
+if ARCH_TCC8K
+
+comment "TCC8000 systems:"
+
+endif

@@ -748,6 +748,15 @@ config ARCH_SHARK
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
 
+config ARCH_TCC_926
+	bool "Telechips TCC ARM926-based systems"
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Telechips TCC ARM926-based systems.
+
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
 	select CPU_ARM922T
@@ -915,6 +924,8 @@ source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s5p/Kconfig"
 
 source "arch/arm/plat-spear/Kconfig"
+
+source "arch/arm/plat-tcc/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
