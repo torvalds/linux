@@ -411,6 +411,15 @@ struct nfs_renameargs {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs_renameres {
+	const struct nfs_server		*server;
+	struct nfs4_change_info		old_cinfo;
+	struct nfs_fattr		*old_fattr;
+	struct nfs4_change_info		new_cinfo;
+	struct nfs_fattr		*new_fattr;
+	struct nfs4_sequence_res	seq_res;
+};
+
 /*
  * Argument struct for decode_entry function
  */
@@ -623,11 +632,6 @@ struct nfs3_readlinkargs {
 	struct page **		pages;
 };
 
-struct nfs3_renameres {
-	struct nfs_fattr *	fromattr;
-	struct nfs_fattr *	toattr;
-};
-
 struct nfs3_linkres {
 	struct nfs_fattr *	dir_attr;
 	struct nfs_fattr *	fattr;
@@ -792,15 +796,6 @@ struct nfs4_readlink {
 };
 
 struct nfs4_readlink_res {
-	struct nfs4_sequence_res	seq_res;
-};
-
-struct nfs4_rename_res {
-	const struct nfs_server *	server;
-	struct nfs4_change_info		old_cinfo;
-	struct nfs_fattr *		old_fattr;
-	struct nfs4_change_info		new_cinfo;
-	struct nfs_fattr *		new_fattr;
 	struct nfs4_sequence_res	seq_res;
 };
 

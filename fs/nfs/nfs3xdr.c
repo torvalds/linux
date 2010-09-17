@@ -970,14 +970,14 @@ nfs3_xdr_createres(struct rpc_rqst *req, __be32 *p, struct nfs3_diropres *res)
  * Decode RENAME reply
  */
 static int
-nfs3_xdr_renameres(struct rpc_rqst *req, __be32 *p, struct nfs3_renameres *res)
+nfs3_xdr_renameres(struct rpc_rqst *req, __be32 *p, struct nfs_renameres *res)
 {
 	int	status;
 
 	if ((status = ntohl(*p++)) != 0)
 		status = nfs_stat_to_errno(status);
-	p = xdr_decode_wcc_data(p, res->fromattr);
-	p = xdr_decode_wcc_data(p, res->toattr);
+	p = xdr_decode_wcc_data(p, res->old_fattr);
+	p = xdr_decode_wcc_data(p, res->new_fattr);
 	return status;
 }
 

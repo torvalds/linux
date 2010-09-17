@@ -2577,7 +2577,7 @@ static int _nfs4_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		.new_name = new_name,
 		.bitmask = server->attr_bitmask,
 	};
-	struct nfs4_rename_res res = {
+	struct nfs_renameres res = {
 		.server = server,
 	};
 	struct rpc_message msg = {

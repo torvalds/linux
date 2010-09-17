@@ -448,7 +448,7 @@ nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		.new_dir	= NFS_FH(new_dir),
 		.new_name	= new_name,
 	};
-	struct nfs3_renameres res;
+	struct nfs_renameres res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_RENAME],
 		.rpc_argp	= &arg,
@@ -458,17 +458,17 @@ nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 
 	dprintk("NFS call  rename %s -> %s\n", old_name->name, new_name->name);
 
-	res.fromattr = nfs_alloc_fattr();
-	res.toattr = nfs_alloc_fattr();
-	if (res.fromattr == NULL || res.toattr == NULL)
+	res.old_fattr = nfs_alloc_fattr();
+	res.new_fattr = nfs_alloc_fattr();
+	if (res.old_fattr == NULL || res.new_fattr == NULL)
 		goto out;
 
 	status = rpc_call_sync(NFS_CLIENT(old_dir), &msg, 0);
-	nfs_post_op_update_inode(old_dir, res.fromattr);
-	nfs_post_op_update_inode(new_dir, res.toattr);
+	nfs_post_op_update_inode(old_dir, res.old_fattr);
+	nfs_post_op_update_inode(new_dir, res.new_fattr);
 out:
-	nfs_free_fattr(res.toattr);
-	nfs_free_fattr(res.fromattr);
+	nfs_free_fattr(res.old_fattr);
+	nfs_free_fattr(res.new_fattr);
 	dprintk("NFS reply rename: %d\n", status);
 	return status;
 }
