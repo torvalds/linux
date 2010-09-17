@@ -451,6 +451,7 @@ nouveau_pm_init(struct drm_device *dev)
 	nouveau_volt_init(dev);
 	nouveau_perf_init(dev);
 	nouveau_temp_init(dev);
+	nouveau_mem_timing_init(dev);
 
 	NV_INFO(dev, "%d available performance level(s)\n", pm->nr_perflvl);
 	for (i = 0; i < pm->nr_perflvl; i++) {
@@ -491,9 +492,10 @@ nouveau_pm_fini(struct drm_device *dev)
 	if (pm->cur != &pm->boot)
 		nouveau_pm_perflvl_set(dev, &pm->boot);
 
+	nouveau_mem_timing_fini(dev);
+	nouveau_temp_fini(dev);
 	nouveau_perf_fini(dev);
 	nouveau_volt_fini(dev);
-	nouveau_temp_fini(dev);
 
 	nouveau_hwmon_fini(dev);
 	nouveau_sysfs_fini(dev);

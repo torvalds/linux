@@ -42,6 +42,10 @@ int  nouveau_voltage_gpio_set(struct drm_device *, int voltage);
 void nouveau_perf_init(struct drm_device *);
 void nouveau_perf_fini(struct drm_device *);
 
+/* nouveau_mem.c */
+void nouveau_mem_timing_init(struct drm_device *);
+void nouveau_mem_timing_fini(struct drm_device *);
+
 /* nv04_pm.c */
 int nv04_pm_clock_get(struct drm_device *, u32 id);
 void *nv04_pm_clock_pre(struct drm_device *, u32 id, int khz);

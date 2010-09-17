@@ -401,10 +401,28 @@ struct nouveau_pm_threshold_temp {
 	s16 fan_boost;
 };
 
+struct nouveau_pm_memtiming {
+	u32 reg_100220;
+	u32 reg_100224;
+	u32 reg_100228;
+	u32 reg_10022c;
+	u32 reg_100230;
+	u32 reg_100234;
+	u32 reg_100238;
+	u32 reg_10023c;
+};
+
+struct nouveau_pm_memtimings {
+	bool supported;
+	struct nouveau_pm_memtiming *timing;
+	int nr_timing;
+};
+
 struct nouveau_pm_engine {
 	struct nouveau_pm_voltage voltage;
 	struct nouveau_pm_level perflvl[NOUVEAU_PM_MAX_LEVEL];
 	int nr_perflvl;
+	struct nouveau_pm_memtimings memtimings;
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
 
