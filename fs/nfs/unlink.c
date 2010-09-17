@@ -13,9 +13,12 @@
 #include <linux/nfs_fs.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/namei.h>
 
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "iostat.h"
+#include "delegation.h"
 
 struct nfs_unlinkdata {
 	struct hlist_node list;
@@ -244,7 +247,7 @@ void nfs_unblock_sillyrename(struct dentry *dentry)
  * @dir: parent directory of dentry
  * @dentry: dentry to unlink
  */
-int
+static int
 nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_unlinkdata *data;
@@ -302,4 +305,84 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 
 	if (data != NULL && (NFS_STALE(inode) || !nfs_call_unlink(dentry, data)))
 		nfs_free_unlinkdata(data);
+}
+
+/**
+ * nfs_sillyrename - Perform a silly-rename of a dentry
+ * @dir: inode of directory that contains dentry
+ * @dentry: dentry to be sillyrenamed
+ *
+ * NFSv2/3 is stateless and the server doesn't know when the client is
+ * holding a file open. To prevent application problems when a file is
+ * unlinked while it's still open, the client performs a "silly-rename".
+ * That is, it renames the file to a hidden file in the same directory,
+ * and only performs the unlink once the last reference to it is put.
+ *
+ * The final cleanup is done during dentry_iput.
+ */
+int
+nfs_sillyrename(struct inode *dir, struct dentry *dentry)
+{
+	static unsigned int sillycounter;
+	const int      fileidsize  = sizeof(NFS_FILEID(dentry->d_inode))*2;
+	const int      countersize = sizeof(sillycounter)*2;
+	const int      slen        = sizeof(".nfs")+fileidsize+countersize-1;
+	char           silly[slen+1];
+	struct qstr    qsilly;
+	struct dentry *sdentry;
+	int            error = -EIO;
+
+	dfprintk(VFS, "NFS: silly-rename(%s/%s, ct=%d)\n",
+		dentry->d_parent->d_name.name, dentry->d_name.name,
+		atomic_read(&dentry->d_count));
+	nfs_inc_stats(dir, NFSIOS_SILLYRENAME);
+
+	/*
+	 * We don't allow a dentry to be silly-renamed twice.
+	 */
+	error = -EBUSY;
+	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
+		goto out;
+
+	sprintf(silly, ".nfs%*.*Lx",
+		fileidsize, fileidsize,
+		(unsigned long long)NFS_FILEID(dentry->d_inode));
+
+	/* Return delegation in anticipation of the rename */
+	nfs_inode_return_delegation(dentry->d_inode);
+
+	sdentry = NULL;
+	do {
+		char *suffix = silly + slen - countersize;
+
+		dput(sdentry);
+		sillycounter++;
+		sprintf(suffix, "%*.*x", countersize, countersize, sillycounter);
+
+		dfprintk(VFS, "NFS: trying to rename %s to %s\n",
+				dentry->d_name.name, silly);
+
+		sdentry = lookup_one_len(silly, dentry->d_parent, slen);
+		/*
+		 * N.B. Better to return EBUSY here ... it could be
+		 * dangerous to delete the file while it's in use.
+		 */
+		if (IS_ERR(sdentry))
+			goto out;
+	} while (sdentry->d_inode != NULL); /* need negative lookup */
+
+	qsilly.name = silly;
+	qsilly.len  = strlen(silly);
+	error = NFS_PROTO(dir)->rename(dir, &dentry->d_name, dir, &qsilly);
+	if (dentry->d_inode)
+		nfs_mark_for_revalidate(dentry->d_inode);
+	if (!error) {
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+		d_move(dentry, sdentry);
+		error = nfs_async_unlink(dir, dentry);
+		/* If we return 0 we don't unlink */
+	}
+	dput(sdentry);
+out:
+	return error;
 }
