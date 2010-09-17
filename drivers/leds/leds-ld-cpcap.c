@@ -34,7 +34,7 @@ struct cpcap_led_data {
 	struct work_struct brightness_work;
 	enum led_brightness brightness;
 	int regulator_state;
-	u8 blink;
+	short blink_val;
 };
 
 static void cpcap_set(struct led_classdev *led_cdev,
@@ -52,7 +52,7 @@ static void cpcap_set(struct led_classdev *led_cdev,
 }
 EXPORT_SYMBOL(cpcap_set);
 
-static int cpcap_msg_ind_blink(struct led_classdev *led_cdev,
+static int cpcap_led_blink(struct led_classdev *led_cdev,
 			       unsigned long *delay_on,
 			       unsigned long *delay_off)
 {
@@ -60,8 +60,17 @@ static int cpcap_msg_ind_blink(struct led_classdev *led_cdev,
 		container_of(led_cdev, struct cpcap_led_data,
 			 cpcap_class_dev);
 
-	info->blink = 1;
-	schedule_work(&info->brightness_work);
+	info->blink_val = *delay_on;
+
+	if (info->pdata->blink_able) {
+		if(info->blink_val) {
+			cpcap_uc_start(info->cpcap, CPCAP_MACRO_6);
+		} else {
+			cpcap_uc_stop(info->cpcap, CPCAP_MACRO_6);
+			schedule_work(&info->brightness_work);
+		}
+	}
+
 	return 0;
 }
 
@@ -76,8 +85,10 @@ static void cpcap_brightness_work(struct work_struct *work)
 	brightness = cpcap_led_data->brightness;
 
 	if (brightness > 0) {
-		brightness = (cpcap_led_data->pdata->cpcap_duty_cycle |
-			cpcap_led_data->pdata->cpcap_current | 0x01);
+		brightness = (cpcap_led_data->pdata->cpcap_reg_period |
+				 cpcap_led_data->pdata->cpcap_reg_duty_cycle |
+				 cpcap_led_data->pdata->cpcap_reg_current |
+				 0x01);
 
 		if ((cpcap_led_data->regulator) &&
 		    (cpcap_led_data->regulator_state == 0)) {
@@ -88,14 +99,12 @@ static void cpcap_brightness_work(struct work_struct *work)
 		cpcap_status = cpcap_regacc_write(cpcap_led_data->cpcap,
 				cpcap_led_data->pdata->cpcap_register,
 				brightness,
-				cpcap_led_data->pdata->cpcap_mask);
+				cpcap_led_data->pdata->cpcap_reg_mask);
 
 		if (cpcap_status < 0)
 			pr_err("%s: Writing to the register failed for %i\n",
 			       __func__, cpcap_status);
 
-		if (cpcap_led_data->blink)
-			cpcap_uc_start(cpcap_led_data->cpcap, CPCAP_MACRO_6);
 	} else {
 		if ((cpcap_led_data->regulator) &&
 		    (cpcap_led_data->regulator_state == 1)) {
@@ -108,22 +117,20 @@ static void cpcap_brightness_work(struct work_struct *work)
 		cpcap_status = cpcap_regacc_write(cpcap_led_data->cpcap,
 				cpcap_led_data->pdata->cpcap_register,
 				brightness,
-				cpcap_led_data->pdata->cpcap_mask);
+				cpcap_led_data->pdata->cpcap_reg_mask);
 
 
 		brightness = 0x00;
 		cpcap_status = cpcap_regacc_write(cpcap_led_data->cpcap,
 				cpcap_led_data->pdata->cpcap_register,
 				brightness,
-				cpcap_led_data->pdata->cpcap_mask);
+				cpcap_led_data->pdata->cpcap_reg_mask);
 
 
 		if (cpcap_status < 0)
 			pr_err("%s: Writing to the register failed for %i\n",
 			       __func__, cpcap_status);
 
-		if (cpcap_led_data->blink)
-			cpcap_uc_stop(cpcap_led_data->cpcap, CPCAP_MACRO_6);
 	}
 }
 
@@ -162,10 +169,11 @@ static int cpcap_probe(struct platform_device *pdev)
 
 	info->cpcap_class_dev.name = info->pdata->class_name;
 	info->cpcap_class_dev.brightness_set = cpcap_set;
+	info->cpcap_class_dev.blink_set = cpcap_led_blink;
 	info->cpcap_class_dev.brightness = LED_OFF;
 	info->cpcap_class_dev.max_brightness = 255;
 	if (info->pdata->blink_able)
-		info->cpcap_class_dev.blink_set = cpcap_msg_ind_blink;
+		info->cpcap_class_dev.default_trigger = "timer";
 
 	ret = led_classdev_register(&pdev->dev, &info->cpcap_class_dev);
 	if (ret < 0) {

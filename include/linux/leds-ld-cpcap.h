@@ -23,32 +23,16 @@
 
 #define LD_CPCAP_LED_DRV "cpcap_led_driver"
 
-#define LD_DISP_BUTTON_DEV "button-backlight"
 #define LD_PRIVACY_LED_DEV "privacy-led"
-#define LD_NOTIF_LED_DEV "notification-backlight"
-
-struct cpcap_display_led {
-	unsigned int display_reg;
-	unsigned int display_mask;
-	unsigned int display_on;
-	unsigned int display_off;
-	unsigned int display_init;
-	unsigned int poll_intvl;
-	unsigned int zone0;
-	unsigned int zone1;
-	unsigned int zone2;
-	unsigned int zone3;
-	unsigned int zone4;
-};
+#define LD_NOTIF_LED_DEV "notification-led"
 
 struct cpcap_led {
 	u8 blink_able;
-	unsigned int cpcap_register;
-	unsigned int cpcap_mask;
-	unsigned int on_val;
-	unsigned int off_val;
-	unsigned int cpcap_duty_cycle;
-	unsigned int cpcap_current;
+	unsigned short cpcap_register;
+	unsigned short cpcap_reg_mask;
+	unsigned short cpcap_reg_period;
+	unsigned short cpcap_reg_duty_cycle;
+	unsigned short cpcap_reg_current;
 	char *class_name;
 	char *led_regulator;
 };
