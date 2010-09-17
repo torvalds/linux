@@ -2566,6 +2566,34 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	return 1;
 }
 
+static void nfs4_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+{
+	struct nfs_server *server = NFS_SERVER(dir);
+	struct nfs_renameargs *arg = msg->rpc_argp;
+	struct nfs_renameres *res = msg->rpc_resp;
+
+	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME];
+	arg->bitmask = server->attr_bitmask;
+	res->server = server;
+}
+
+static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
+				 struct inode *new_dir)
+{
+	struct nfs_renameres *res = task->tk_msg.rpc_resp;
+
+	if (!nfs4_sequence_done(task, &res->seq_res))
+		return 0;
+	if (nfs4_async_handle_error(task, res->server, NULL) == -EAGAIN)
+		return 0;
+
+	update_changeattr(old_dir, &res->old_cinfo);
+	nfs_post_op_update_inode(old_dir, res->old_fattr);
+	update_changeattr(new_dir, &res->new_cinfo);
+	nfs_post_op_update_inode(new_dir, res->new_fattr);
+	return 1;
+}
+
 static int _nfs4_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		struct inode *new_dir, struct qstr *new_name)
 {
@@ -5338,6 +5366,8 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.unlink_setup	= nfs4_proc_unlink_setup,
 	.unlink_done	= nfs4_proc_unlink_done,
 	.rename		= nfs4_proc_rename,
+	.rename_setup	= nfs4_proc_rename_setup,
+	.rename_done	= nfs4_proc_rename_done,
 	.link		= nfs4_proc_link,
 	.symlink	= nfs4_proc_symlink,
 	.mkdir		= nfs4_proc_mkdir,

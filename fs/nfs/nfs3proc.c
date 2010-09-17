@@ -438,6 +438,27 @@ nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	return 1;
 }
 
+static void
+nfs3_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+{
+	msg->rpc_proc = &nfs3_procedures[NFS3PROC_RENAME];
+}
+
+static int
+nfs3_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
+		      struct inode *new_dir)
+{
+	struct nfs_renameres *res;
+
+	if (nfs3_async_handle_jukebox(task, old_dir))
+		return 0;
+	res = task->tk_msg.rpc_resp;
+
+	nfs_post_op_update_inode(old_dir, res->old_fattr);
+	nfs_post_op_update_inode(new_dir, res->new_fattr);
+	return 1;
+}
+
 static int
 nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		 struct inode *new_dir, struct qstr *new_name)
@@ -842,6 +863,8 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.unlink_setup	= nfs3_proc_unlink_setup,
 	.unlink_done	= nfs3_proc_unlink_done,
 	.rename		= nfs3_proc_rename,
+	.rename_setup	= nfs3_proc_rename_setup,
+	.rename_done	= nfs3_proc_rename_done,
 	.link		= nfs3_proc_link,
 	.symlink	= nfs3_proc_symlink,
 	.mkdir		= nfs3_proc_mkdir,

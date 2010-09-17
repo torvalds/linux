@@ -1018,6 +1018,8 @@ struct nfs_rpc_ops {
 	int	(*unlink_done) (struct rpc_task *, struct inode *);
 	int	(*rename)  (struct inode *, struct qstr *,
 			    struct inode *, struct qstr *);
+	void	(*rename_setup)  (struct rpc_message *msg, struct inode *dir);
+	int	(*rename_done) (struct rpc_task *task, struct inode *old_dir, struct inode *new_dir);
 	int	(*link)    (struct inode *, struct inode *, struct qstr *);
 	int	(*symlink) (struct inode *, struct dentry *, struct page *,
 			    unsigned int, struct iattr *);

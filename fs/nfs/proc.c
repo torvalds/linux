@@ -365,6 +365,23 @@ static int nfs_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	return 1;
 }
 
+static void
+nfs_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+{
+	msg->rpc_proc = &nfs_procedures[NFSPROC_RENAME];
+}
+
+static int
+nfs_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
+		     struct inode *new_dir)
+{
+	if (nfs_async_handle_expired_key(task))
+		return 0;
+	nfs_mark_for_revalidate(old_dir);
+	nfs_mark_for_revalidate(new_dir);
+	return 1;
+}
+
 static int
 nfs_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		struct inode *new_dir, struct qstr *new_name)
@@ -703,6 +720,8 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.unlink_setup	= nfs_proc_unlink_setup,
 	.unlink_done	= nfs_proc_unlink_done,
 	.rename		= nfs_proc_rename,
+	.rename_setup	= nfs_proc_rename_setup,
+	.rename_done	= nfs_proc_rename_done,
 	.link		= nfs_proc_link,
 	.symlink	= nfs_proc_symlink,
 	.mkdir		= nfs_proc_mkdir,
