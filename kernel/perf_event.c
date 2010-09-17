@@ -5184,6 +5184,7 @@ int perf_pmu_register(struct pmu *pmu)
 
 		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
 		__perf_event_init_context(&cpuctx->ctx);
+		cpuctx->ctx.type = cpu_context;
 		cpuctx->ctx.pmu = pmu;
 		cpuctx->timer_interval = TICK_NSEC;
 		hrtimer_init(&cpuctx->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -5517,7 +5518,8 @@ SYSCALL_DEFINE5(perf_event_open,
 		struct perf_event_attr __user *, attr_uptr,
 		pid_t, pid, int, cpu, int, group_fd, unsigned long, flags)
 {
-	struct perf_event *event, *group_leader = NULL, *output_event = NULL;
+	struct perf_event *group_leader = NULL, *output_event = NULL;
+	struct perf_event *event, *sibling;
 	struct perf_event_attr attr;
 	struct perf_event_context *ctx;
 	struct file *event_file = NULL;
@@ -5525,6 +5527,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	struct task_struct *task = NULL;
 	struct pmu *pmu;
 	int event_fd;
+	int move_group = 0;
 	int fput_needed = 0;
 	int err;
 
@@ -5574,8 +5577,29 @@ SYSCALL_DEFINE5(perf_event_open,
 	 * any hardware group.
 	 */
 	pmu = event->pmu;
-	if ((pmu->task_ctx_nr == perf_sw_context) && group_leader)
-		pmu = group_leader->pmu;
+
+	if (group_leader &&
+	    (is_software_event(event) != is_software_event(group_leader))) {
+		if (is_software_event(event)) {
+			/*
+			 * If event and group_leader are not both a software
+			 * event, and event is, then group leader is not.
+			 *
+			 * Allow the addition of software events to !software
+			 * groups, this is safe because software events never
+			 * fail to schedule.
+			 */
+			pmu = group_leader->pmu;
+		} else if (is_software_event(group_leader) &&
+			   (group_leader->group_flags & PERF_GROUP_SOFTWARE)) {
+			/*
+			 * In case the group is a pure software group, and we
+			 * try to add a hardware event, move the whole group to
+			 * the hardware context.
+			 */
+			move_group = 1;
+		}
+	}
 
 	if (pid != -1)
 		task = find_lively_task_by_vpid(pid);
@@ -5605,8 +5629,14 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * Do not allow to attach to a group in a different
 		 * task or CPU context:
 		 */
-		if (group_leader->ctx != ctx)
-			goto err_context;
+		if (move_group) {
+			if (group_leader->ctx->type != ctx->type)
+				goto err_context;
+		} else {
+			if (group_leader->ctx != ctx)
+				goto err_context;
+		}
+
 		/*
 		 * Only a group leader can be exclusive or pinned
 		 */
@@ -5626,9 +5656,34 @@ SYSCALL_DEFINE5(perf_event_open,
 		goto err_context;
 	}
 
+	if (move_group) {
+		struct perf_event_context *gctx = group_leader->ctx;
+
+		mutex_lock(&gctx->mutex);
+		perf_event_remove_from_context(group_leader);
+		list_for_each_entry(sibling, &group_leader->sibling_list,
+				    group_entry) {
+			perf_event_remove_from_context(sibling);
+			put_ctx(gctx);
+		}
+		mutex_unlock(&gctx->mutex);
+		put_ctx(gctx);
+	}
+
 	event->filp = event_file;
 	WARN_ON_ONCE(ctx->parent_ctx);
 	mutex_lock(&ctx->mutex);
+
+	if (move_group) {
+		perf_install_in_context(ctx, group_leader, cpu);
+		get_ctx(ctx);
+		list_for_each_entry(sibling, &group_leader->sibling_list,
+				    group_entry) {
+			perf_install_in_context(ctx, sibling, cpu);
+			get_ctx(ctx);
+		}
+	}
+
 	perf_install_in_context(ctx, event, cpu);
 	++ctx->generation;
 	mutex_unlock(&ctx->mutex);
