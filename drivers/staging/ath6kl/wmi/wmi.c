@@ -1458,7 +1458,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
 
 	A_DPRINTF(DBG_WMI2, (DBGFMT "bssInfo event - ch %u, rssi %02x, "
 		"bssid \"%pM\"\n", DBGARG, bih->channel,
-		(unsigned char) bih->rssi, i&bih->bssid[0]));
+		(unsigned char) bih->rssi, bih->bssid));
 
     if(wps_enable && (bih->frameType == PROBERESP_FTYPE) ) {
         wmi_node_return(wmip, bss);
