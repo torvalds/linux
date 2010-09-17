@@ -395,6 +395,17 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
 			  int index, int *type_index_ret);
 
+enum {
+	INPUT_PIN_ATTR_UNUSED,	/* pin not connected */
+	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
+	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
+	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
+	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
+	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
+};
+
+int snd_hda_get_input_pin_attr(unsigned int def_conf);
+
 struct auto_pin_cfg {
 	int line_outs;
 	/* sorted in the order of Front/Surr/CLFE/Side */

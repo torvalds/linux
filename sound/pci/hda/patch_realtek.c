@@ -1403,19 +1403,19 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		unsigned int defcfg;
 		defcfg = snd_hda_codec_get_pincfg(codec, nid);
-		switch (get_defcfg_connect(defcfg)) {
-		case AC_JACK_PORT_FIXED:
+		switch (snd_hda_get_input_pin_attr(defcfg)) {
+		case INPUT_PIN_ATTR_INT:
 			if (fixed)
 				return; /* already occupied */
 			fixed = nid;
 			break;
-		case AC_JACK_PORT_COMPLEX:
+		case INPUT_PIN_ATTR_UNUSED:
+			return; /* invalid entry */
+		default:
 			if (ext)
 				return; /* already occupied */
 			ext = nid;
 			break;
-		default:
-			return; /* invalid entry */
 		}
 	}
 	if (!ext || !fixed)

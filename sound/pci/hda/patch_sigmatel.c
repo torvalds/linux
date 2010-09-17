@@ -2778,7 +2778,7 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	struct sigmatel_spec *spec = codec->spec;
 	char name[22];
 
-	if (!((get_defcfg_connect(def_conf)) & AC_JACK_PORT_FIXED)) {
+	if (snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT) {
 		if (stac92xx_get_default_vref(codec, nid) == AC_PINCTL_VREF_GRD
 			&& nid == spec->line_switch)
 			control = STAC_CTL_WIDGET_IO_SWITCH;
@@ -2857,7 +2857,7 @@ static hda_nid_t check_mic_out_switch(struct hda_codec *codec, hda_nid_t *dac)
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
 		/* some laptops have an internal analog microphone
 		 * which can't be used as a output */
-		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED) {
+		if (snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT) {
 			pincap = snd_hda_query_pin_caps(codec, nid);
 			if (pincap & AC_PINCAP_OUT) {
 				*dac = get_unassigned_dac(codec, nid);
@@ -3496,23 +3496,23 @@ static int check_mic_pin(struct hda_codec *codec, hda_nid_t nid,
 	if (!nid)
 		return 0;
 	cfg = snd_hda_codec_get_pincfg(codec, nid);
-	switch (get_defcfg_connect(cfg)) {
-	case AC_JACK_PORT_BOTH:
-	case AC_JACK_PORT_FIXED:
+	switch (snd_hda_get_input_pin_attr(cfg)) {
+	case INPUT_PIN_ATTR_INT:
 		if (*fixed)
 			return 1; /* already occupied */
 		*fixed = nid;
 		break;
-	case AC_JACK_PORT_COMPLEX:
-		if ((get_defcfg_location(cfg) & 0xF0) == AC_JACK_LOC_SEPARATE) {
-			if (*dock)
-				return 1; /* already occupied */
-			*dock = nid;
-		} else {
-			if (*ext)
-				return 1; /* already occupied */
-			*ext = nid;
-		}
+	case INPUT_PIN_ATTR_UNUSED:
+		break;
+	case INPUT_PIN_ATTR_DOCK:
+		if (*dock)
+			return 1; /* already occupied */
+		*dock = nid;
+		break;
+	default:
+		if (*ext)
+			return 1; /* already occupied */
+		*ext = nid;
 		break;
 	}
 	return 0;

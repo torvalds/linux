@@ -334,7 +334,7 @@ static int is_ext_mic(struct hda_codec *codec, unsigned int idx)
 	if (!(val & AC_PINCAP_PRES_DETECT))
 		return 0;
 	val = snd_hda_codec_get_pincfg(codec, pin);
-	return (get_defcfg_connect(val) == AC_JACK_PORT_COMPLEX);
+	return (snd_hda_get_input_pin_attr(val) != INPUT_PIN_ATTR_INT);
 }
 
 static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,

@@ -3462,19 +3462,12 @@ static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
-static int is_int_mic_conn(unsigned int def_conf)
-{
-	unsigned int loc = get_defcfg_location(def_conf);
-	return get_defcfg_connect(def_conf) == AC_JACK_PORT_FIXED ||
-		(loc & 0x30) == AC_JACK_LOC_INTERNAL;
-}
-
 /* return true if it's an internal-mic pin */
 static int is_int_mic(struct hda_codec *codec, hda_nid_t pin)
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
 	return get_defcfg_device(def_conf) == AC_JACK_MIC_IN &&
-		is_int_mic_conn(def_conf);
+		snd_hda_get_input_pin_attr(def_conf) == INPUT_PIN_ATTR_INT;
 }
 
 /* return true if it's an external-mic pin */
@@ -3482,7 +3475,7 @@ static int is_ext_mic(struct hda_codec *codec, hda_nid_t pin)
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
 	return get_defcfg_device(def_conf) == AC_JACK_MIC_IN &&
-		!is_int_mic_conn(def_conf);
+		snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT;
 }
 
 /* check whether the pin config is suitable for auto-mic switching;
