@@ -892,6 +892,7 @@ ath5k_txq_setup(struct ath5k_softc *sc,
 		txq->setup = true;
 		txq->txq_len = 0;
 		txq->txq_poll_mark = false;
+		txq->txq_stuck = 0;
 	}
 	return &sc->txqs[qnum];
 }
@@ -2193,6 +2194,7 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 						  "TX queue stuck %d\n",
 						  txq->qnum);
 					needreset = true;
+					txq->txq_stuck++;
 					spin_unlock_bh(&txq->lock);
 					break;
 				} else {

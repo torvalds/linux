@@ -88,6 +88,7 @@ struct ath5k_txq {
 	bool			setup;
 	int			txq_len; /* number of queued buffers */
 	bool			txq_poll_mark;
+	unsigned int		txq_stuck;	/* informational counter */
 };
 
 #define ATH5K_LED_MAX_NAME_LEN 31

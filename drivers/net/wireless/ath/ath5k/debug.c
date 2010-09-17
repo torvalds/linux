@@ -785,6 +785,8 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 
 		len += snprintf(buf+len, sizeof(buf)-len,
 				"  len: %d bufs: %d\n", txq->txq_len, n);
+		len += snprintf(buf+len, sizeof(buf)-len,
+				"  stuck: %d\n", txq->txq_stuck);
 	}
 
 	if (len > sizeof(buf))
