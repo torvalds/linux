@@ -1516,6 +1516,61 @@ drop_packet:
 	return NETDEV_TX_OK;
 }
 
+static void
+ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
+			 struct ath5k_tx_status *ts)
+{
+	struct ieee80211_tx_info *info;
+	int i;
+
+	sc->stats.tx_all_count++;
+	info = IEEE80211_SKB_CB(skb);
+
+	ieee80211_tx_info_clear_status(info);
+	for (i = 0; i < 4; i++) {
+		struct ieee80211_tx_rate *r =
+			&info->status.rates[i];
+
+		if (ts->ts_rate[i]) {
+			r->idx = ath5k_hw_to_driver_rix(sc, ts->ts_rate[i]);
+			r->count = ts->ts_retry[i];
+		} else {
+			r->idx = -1;
+			r->count = 0;
+		}
+	}
+
+	/* count the successful attempt as well */
+	info->status.rates[ts->ts_final_idx].count++;
+
+	if (unlikely(ts->ts_status)) {
+		sc->stats.ack_fail++;
+		if (ts->ts_status & AR5K_TXERR_FILT) {
+			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+			sc->stats.txerr_filt++;
+		}
+		if (ts->ts_status & AR5K_TXERR_XRETRY)
+			sc->stats.txerr_retry++;
+		if (ts->ts_status & AR5K_TXERR_FIFO)
+			sc->stats.txerr_fifo++;
+	} else {
+		info->flags |= IEEE80211_TX_STAT_ACK;
+		info->status.ack_signal = ts->ts_rssi;
+	}
+
+	/*
+	* Remove MAC header padding before giving the frame
+	* back to mac80211.
+	*/
+	ath5k_remove_padding(skb);
+
+	if (ts->ts_antenna > 0 && ts->ts_antenna < 5)
+		sc->stats.antenna_tx[ts->ts_antenna]++;
+	else
+		sc->stats.antenna_tx[0]++; /* invalid */
+
+	ieee80211_tx_status(sc->hw, skb);
+}
 
 static void
 ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
@@ -1524,8 +1579,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	struct ath5k_buf *bf, *bf0;
 	struct ath5k_desc *ds;
 	struct sk_buff *skb;
-	struct ieee80211_tx_info *info;
-	int i, ret;
+	int ret;
 
 	spin_lock(&txq->lock);
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
@@ -1541,7 +1595,6 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		if (ath5k_hw_get_txdp(sc->ah, txq->qnum) == bf->daddr &&
 		    !list_is_last(&bf->list, &txq->q))
 			break;
-
 		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
@@ -1551,58 +1604,12 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 			break;
 		}
 
-		sc->stats.tx_all_count++;
 		skb = bf->skb;
-		info = IEEE80211_SKB_CB(skb);
 		bf->skb = NULL;
-
 		pci_unmap_single(sc->pdev, bf->skbaddr, skb->len,
 				PCI_DMA_TODEVICE);
 
-		ieee80211_tx_info_clear_status(info);
-		for (i = 0; i < 4; i++) {
-			struct ieee80211_tx_rate *r =
-				&info->status.rates[i];
-
-			if (ts.ts_rate[i]) {
-				r->idx = ath5k_hw_to_driver_rix(sc, ts.ts_rate[i]);
-				r->count = ts.ts_retry[i];
-			} else {
-				r->idx = -1;
-				r->count = 0;
-			}
-		}
-
-		/* count the successful attempt as well */
-		info->status.rates[ts.ts_final_idx].count++;
-
-		if (unlikely(ts.ts_status)) {
-			sc->stats.ack_fail++;
-			if (ts.ts_status & AR5K_TXERR_FILT) {
-				info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
-				sc->stats.txerr_filt++;
-			}
-			if (ts.ts_status & AR5K_TXERR_XRETRY)
-				sc->stats.txerr_retry++;
-			if (ts.ts_status & AR5K_TXERR_FIFO)
-				sc->stats.txerr_fifo++;
-		} else {
-			info->flags |= IEEE80211_TX_STAT_ACK;
-			info->status.ack_signal = ts.ts_rssi;
-		}
-
-		/*
-		 * Remove MAC header padding before giving the frame
-		 * back to mac80211.
-		 */
-		ath5k_remove_padding(skb);
-
-		if (ts.ts_antenna > 0 && ts.ts_antenna < 5)
-			sc->stats.antenna_tx[ts.ts_antenna]++;
-		else
-			sc->stats.antenna_tx[0]++; /* invalid */
-
-		ieee80211_tx_status(sc->hw, skb);
+		ath5k_tx_frame_completed(sc, skb, &ts);
 
 		spin_lock(&sc->txbuflock);
 		list_move_tail(&bf->list, &sc->txbuf);
