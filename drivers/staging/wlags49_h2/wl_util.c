@@ -338,7 +338,7 @@ const char *DbgHwAddr(unsigned char *hwAddr)
     static char     buffer[18];
     /*------------------------------------------------------------------------*/
 
-	sprintf(buffer, "%pM", &hwAddr[0]);
+	sprintf(buffer, "%pM", hwAddr);
 
     return buffer;
 } // DbgHwAddr
