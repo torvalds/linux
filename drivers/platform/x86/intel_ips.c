@@ -948,7 +948,7 @@ static int ips_monitor(void *data)
 		ITV_ME_SEQNO_SHIFT;
 	seqno_timestamp = get_jiffies_64();
 
-	old_cpu_power = thm_readl(THM_CEC) / 65535;
+	old_cpu_power = thm_readl(THM_CEC);
 	schedule_timeout_interruptible(msecs_to_jiffies(IPS_SAMPLE_PERIOD));
 
 	/* Collect an initial average */
