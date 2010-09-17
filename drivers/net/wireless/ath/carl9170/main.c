@@ -1412,7 +1412,7 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 {
 	struct ar9170 *ar = hw->priv;
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *tmp;
 	struct sk_buff_head free;
 	int i;
 
@@ -1462,7 +1462,7 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 
 		for (i = 0; i < ar->hw->queues; i++) {
 			spin_lock_bh(&ar->tx_pending[i].lock);
-			skb_queue_walk(&ar->tx_pending[i], skb) {
+			skb_queue_walk_safe(&ar->tx_pending[i], skb, tmp) {
 				struct _carl9170_tx_superframe *super;
 				struct ieee80211_hdr *hdr;
 
