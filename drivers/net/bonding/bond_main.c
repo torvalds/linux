@@ -4678,6 +4678,10 @@ static void bond_setup(struct net_device *bond_dev)
 			       NETIF_F_HW_VLAN_RX |
 			       NETIF_F_HW_VLAN_FILTER);
 
+	/* By default, we enable GRO on bonding devices.
+	 * Actual support requires lowlevel drivers are GRO ready.
+	 */
+	bond_dev->features |= NETIF_F_GRO;
 }
 
 static void bond_work_cancel_all(struct bonding *bond)
