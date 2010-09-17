@@ -230,7 +230,7 @@
 #define THM_TC2		0xac
 #define THM_DTV		0xb0
 #define THM_ITV		0xd8
-#define   ITV_ME_SEQNO_MASK 0x000f0000 /* ME should update every ~200ms */
+#define   ITV_ME_SEQNO_MASK 0x00ff0000 /* ME should update every ~200ms */
 #define   ITV_ME_SEQNO_SHIFT (16)
 #define   ITV_MCH_TEMP_MASK 0x0000ff00
 #define   ITV_MCH_TEMP_SHIFT (8)
