@@ -31,6 +31,7 @@
 #include "nouveau_hw.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_pm.h"
 #include "nv50_display.h"
 
 #include "drm_pciids.h"
@@ -278,6 +279,8 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)
 		return ret;
+
+	nouveau_pm_resume(dev);
 
 	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
 		ret = nouveau_mem_init_agp(dev);

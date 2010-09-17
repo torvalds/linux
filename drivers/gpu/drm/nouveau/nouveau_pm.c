@@ -47,12 +47,38 @@ nouveau_pm_clock_set(struct drm_device *dev, u8 id, u32 khz)
 }
 
 static int
+nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	int ret;
+
+	if (perflvl == pm->cur)
+		return 0;
+
+	if (pm->voltage.supported && pm->voltage_set && perflvl->voltage) {
+		ret = pm->voltage_set(dev, perflvl->voltage);
+		if (ret) {
+			NV_ERROR(dev, "voltage_set %d failed: %d\n",
+				 perflvl->voltage, ret);
+		}
+	}
+
+	nouveau_pm_clock_set(dev, PLL_CORE, perflvl->core);
+	nouveau_pm_clock_set(dev, PLL_SHADER, perflvl->shader);
+	nouveau_pm_clock_set(dev, PLL_MEMORY, perflvl->memory);
+	nouveau_pm_clock_set(dev, PLL_UNK05, perflvl->unk05);
+
+	pm->cur = perflvl;
+	return 0;
+}
+
+static int
 nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_level *perflvl = NULL;
-	int ret;
 
 	/* safety precaution, for now */
 	if (nouveau_perflvl_wr != 7777)
@@ -78,25 +104,8 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 			return -EINVAL;
 	}
 
-	if (perflvl == pm->cur)
-		return 0;
-
 	NV_INFO(dev, "setting performance level: %s\n", profile);
-	if (pm->voltage.supported && pm->voltage_set && perflvl->voltage) {
-		ret = pm->voltage_set(dev, perflvl->voltage);
-		if (ret) {
-			NV_ERROR(dev, "voltage_set %d failed: %d\n",
-				 perflvl->voltage, ret);
-		}
-	}
-
-	nouveau_pm_clock_set(dev, PLL_CORE, perflvl->core);
-	nouveau_pm_clock_set(dev, PLL_SHADER, perflvl->shader);
-	nouveau_pm_clock_set(dev, PLL_MEMORY, perflvl->memory);
-	nouveau_pm_clock_set(dev, PLL_UNK05, perflvl->unk05);
-
-	pm->cur = perflvl;
-	return 0;
+	return nouveau_pm_perflvl_set(dev, perflvl);
 }
 
 static int
@@ -285,6 +294,9 @@ nouveau_pm_fini(struct drm_device *dev)
 	struct device *d = &dev->pdev->dev;
 	int i;
 
+	if (pm->cur != &pm->boot)
+		nouveau_pm_perflvl_set(dev, &pm->boot);
+
 	device_remove_file(d, &dev_attr_performance_level);
 	for (i = 0; i < pm->nr_perflvl; i++) {
 		struct nouveau_pm_level *pl = &pm->perflvl[i];
@@ -299,3 +311,17 @@ nouveau_pm_fini(struct drm_device *dev)
 	nouveau_volt_fini(dev);
 }
 
+void
+nouveau_pm_resume(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_level *perflvl;
+
+	if (pm->cur == &pm->boot)
+		return;
+
+	perflvl = pm->cur;
+	pm->cur = &pm->boot;
+	nouveau_pm_perflvl_set(dev, perflvl);
+}
