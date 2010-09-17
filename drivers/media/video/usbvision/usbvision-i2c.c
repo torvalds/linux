@@ -211,6 +211,9 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
 		I2C_CLIENT_END };
 
+	if (usbvision->registered_i2c)
+		return 0;
+
 	memcpy(&usbvision->i2c_adap, &i2c_adap_template,
 	       sizeof(struct i2c_adapter));
 
@@ -268,6 +271,8 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 				&usbvision->i2c_adap, "tuner",
 				"tuner", 0, v4l2_i2c_tuner_addrs(type));
 
+		if (sd == NULL)
+			return -ENODEV;
 		if (usbvision->tuner_type != -1) {
 			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
 			tun_setup.type = usbvision->tuner_type;
@@ -275,14 +280,18 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 			call_all(usbvision, tuner, s_type_addr, &tun_setup);
 		}
 	}
+	usbvision->registered_i2c = 1;
 
 	return 0;
 }
 
 int usbvision_i2c_unregister(struct usb_usbvision *usbvision)
 {
+	if (!usbvision->registered_i2c)
+		return 0;
 
 	i2c_del_adapter(&(usbvision->i2c_adap));
+	usbvision->registered_i2c = 0;
 
 	PDEBUG(DBG_I2C,"i2c bus for %s unregistered", usbvision->i2c_adap.name);
 
