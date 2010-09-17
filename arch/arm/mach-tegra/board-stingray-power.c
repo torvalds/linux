@@ -230,31 +230,13 @@ static struct platform_device cpcap_whisper_device = {
 	},
 };
 
-static struct cpcap_led stingray_display_led = {
-	.cpcap_register = CPCAP_REG_MDLC,
-	.cpcap_mask = 0x03FF,
-	.on_val = 0x00F5,
-	.off_val = 0x00F4,
-	.cpcap_duty_cycle = 0x2A0,
-	.cpcap_current = 0x0,
-	.class_name = LD_DISP_BUTTON_DEV,
-};
-
-static struct platform_device cpcap_disp_button_led = {
-	.name   = LD_CPCAP_LED_DRV,
-	.id     = 1,
-	.dev    = {
-		.platform_data  = &stingray_display_led,
-	},
-};
-
 static struct cpcap_led stingray_privacy_led ={
+	.blink_able = 0,
 	.cpcap_register = CPCAP_REG_BLEDC,
-	.cpcap_mask = 0x03FF,
-	.on_val = 0x00F5,
-	.off_val = 0x00F4,
-	.cpcap_duty_cycle = 0x41,
-	.cpcap_current = 0x0,
+	.cpcap_reg_mask = 0x03FF,
+	.cpcap_reg_period = 0x0000,
+	.cpcap_reg_duty_cycle = 0x0038,
+	.cpcap_reg_current = 0x0002,
 	.class_name = LD_PRIVACY_LED_DEV,
 };
 
@@ -269,11 +251,10 @@ static struct platform_device cpcap_privacy_led = {
 static struct cpcap_led stingray_notification_led ={
 	.blink_able = 1,
 	.cpcap_register = CPCAP_REG_ADLC,
-	.cpcap_mask = 0x1FFF,
-	.on_val = 0x1FF5,
-	.off_val = 0x1FF4,
-	.cpcap_duty_cycle = 0x41,
-	.cpcap_current = 0x0,
+	.cpcap_reg_mask = 0x1FFF,
+	.cpcap_reg_period = 0x0000,
+	.cpcap_reg_duty_cycle = 0x07F0,
+	.cpcap_reg_current = 0x0008,
 	.class_name = LD_NOTIF_LED_DEV,
 };
 
@@ -288,7 +269,6 @@ static struct platform_device cpcap_notification_led = {
 static struct platform_device *cpcap_devices[] = {
 	&cpcap_validity_device,
 	&cpcap_whisper_device,
-	&cpcap_disp_button_led,
 	&cpcap_notification_led,
 	&cpcap_privacy_led,
 	&cpcap_3mm5_device,
@@ -729,8 +709,6 @@ int __init stingray_power_init(void)
 	if (stingray_revision() <= STINGRAY_REVISION_M1) {
 		cpcap_regulator_mode_values[CPCAP_SW5] = 0x0022;
 
-		stingray_display_led.led_regulator = "sw5";
-		stingray_display_led.cpcap_register = CPCAP_REG_KLC,
 		stingray_privacy_led.led_regulator = "sw5";
 
 		stingray_max8649_pdata.mode = 3;
