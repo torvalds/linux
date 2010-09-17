@@ -532,8 +532,11 @@ static int carl9170_init_phy_from_eeprom(struct ar9170 *ar,
 	SET_VAL(AR9170_PHY_TPCRG1_PD_GAIN_2, val,
 		xpd2pd[m->xpdGain & 0xf] >> 2);
 	carl9170_regwrite(AR9170_PHY_REG_TPCRG1, val);
-	carl9170_regwrite_finish();
 
+	carl9170_regwrite(AR9170_PHY_REG_RX_CHAINMASK, ar->eeprom.rx_mask);
+	carl9170_regwrite(AR9170_PHY_REG_CAL_CHAINMASK, ar->eeprom.rx_mask);
+
+	carl9170_regwrite_finish();
 	return carl9170_regwrite_result();
 }
 
