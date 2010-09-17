@@ -366,6 +366,7 @@ struct ip_vs_conn {
 	union nf_inet_addr       caddr;          /* client address */
 	union nf_inet_addr       vaddr;          /* virtual address */
 	union nf_inet_addr       daddr;          /* destination address */
+	volatile __u32           flags;          /* status flags */
 	__be16                   cport;
 	__be16                   vport;
 	__be16                   dport;
@@ -378,7 +379,6 @@ struct ip_vs_conn {
 
 	/* Flags and state transition */
 	spinlock_t              lock;           /* lock for state transition */
-	volatile __u16          flags;          /* status flags */
 	volatile __u16          state;          /* state info */
 	volatile __u16          old_state;      /* old state, to be used for
 						 * state transition triggerd

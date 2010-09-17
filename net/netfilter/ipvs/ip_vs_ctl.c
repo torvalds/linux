@@ -765,7 +765,8 @@ __ip_vs_update_dest(struct ip_vs_service *svc,
 
 	/* set the weight and the flags */
 	atomic_set(&dest->weight, udest->weight);
-	conn_flags = udest->conn_flags | IP_VS_CONN_F_INACTIVE;
+	conn_flags = udest->conn_flags & IP_VS_CONN_F_DEST_MASK;
+	conn_flags |= IP_VS_CONN_F_INACTIVE;
 
 	/* check if local node and update the flags */
 #ifdef CONFIG_IP_VS_IPV6
@@ -782,7 +783,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc,
 		}
 
 	/* set the IP_VS_CONN_F_NOOUTPUT flag if not masquerading/NAT */
-	if ((conn_flags & IP_VS_CONN_F_FWD_MASK) != 0) {
+	if ((conn_flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ) {
 		conn_flags |= IP_VS_CONN_F_NOOUTPUT;
 	} else {
 		/*
