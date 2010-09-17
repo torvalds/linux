@@ -20,9 +20,10 @@ extern struct jump_entry __stop___jump_table[];
 
 extern void arch_jump_label_transform(struct jump_entry *entry,
 				 enum jump_label_type type);
+extern void arch_jump_label_text_poke_early(jump_label_t addr);
 extern void jump_label_update(unsigned long key, enum jump_label_type type);
 extern void jump_label_apply_nops(struct module *mod);
-extern void arch_jump_label_text_poke_early(jump_label_t addr);
+extern int jump_label_text_reserved(void *start, void *end);
 
 #define enable_jump_label(key) \
 	jump_label_update((unsigned long)key, JUMP_LABEL_ENABLE);
@@ -49,6 +50,11 @@ do {					\
 } while (0)
 
 static inline int jump_label_apply_nops(struct module *mod)
+{
+	return 0;
+}
+
+static inline int jump_label_text_reserved(void *start, void *end)
 {
 	return 0;
 }

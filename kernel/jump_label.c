@@ -177,6 +177,89 @@ void jump_label_update(unsigned long key, enum jump_label_type type)
 	mutex_unlock(&jump_label_mutex);
 }
 
+static int addr_conflict(struct jump_entry *entry, void *start, void *end)
+{
+	if (entry->code <= (unsigned long)end &&
+		entry->code + JUMP_LABEL_NOP_SIZE > (unsigned long)start)
+		return 1;
+
+	return 0;
+}
+
+#ifdef CONFIG_MODULES
+
+static int module_conflict(void *start, void *end)
+{
+	struct hlist_head *head;
+	struct hlist_node *node, *node_next, *module_node, *module_node_next;
+	struct jump_label_entry *e;
+	struct jump_label_module_entry *e_module;
+	struct jump_entry *iter;
+	int i, count;
+	int conflict = 0;
+
+	for (i = 0; i < JUMP_LABEL_TABLE_SIZE; i++) {
+		head = &jump_label_table[i];
+		hlist_for_each_entry_safe(e, node, node_next, head, hlist) {
+			hlist_for_each_entry_safe(e_module, module_node,
+							module_node_next,
+							&(e->modules), hlist) {
+				count = e_module->nr_entries;
+				iter = e_module->table;
+				while (count--) {
+					if (addr_conflict(iter, start, end)) {
+						conflict = 1;
+						goto out;
+					}
+					iter++;
+				}
+			}
+		}
+	}
+out:
+	return conflict;
+}
+
+#endif
+
+/***
+ * jump_label_text_reserved - check if addr range is reserved
+ * @start: start text addr
+ * @end: end text addr
+ *
+ * checks if the text addr located between @start and @end
+ * overlaps with any of the jump label patch addresses. Code
+ * that wants to modify kernel text should first verify that
+ * it does not overlap with any of the jump label addresses.
+ *
+ * returns 1 if there is an overlap, 0 otherwise
+ */
+int jump_label_text_reserved(void *start, void *end)
+{
+	struct jump_entry *iter;
+	struct jump_entry *iter_start = __start___jump_table;
+	struct jump_entry *iter_stop = __start___jump_table;
+	int conflict = 0;
+
+	mutex_lock(&jump_label_mutex);
+	iter = iter_start;
+	while (iter < iter_stop) {
+		if (addr_conflict(iter, start, end)) {
+			conflict = 1;
+			goto out;
+		}
+		iter++;
+	}
+
+	/* now check modules */
+#ifdef CONFIG_MODULES
+	conflict = module_conflict(start, end);
+#endif
+out:
+	mutex_unlock(&jump_label_mutex);
+	return conflict;
+}
+
 static __init int init_jump_label(void)
 {
 	int ret;
