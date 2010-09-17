@@ -60,6 +60,9 @@
 #define	ATH_TXBUF	200		/* number of TX buffers */
 #define ATH_BCBUF	1		/* number of beacon buffers */
 
+#define ATH5K_TXQ_LEN_MAX	(ATH_TXBUF / 4)		/* bufs per queue */
+#define ATH5K_TXQ_LEN_LOW	(ATH5K_TXQ_LEN_MAX / 2)	/* low mark */
+
 struct ath5k_buf {
 	struct list_head	list;
 	struct ath5k_desc	*desc;	/* virtual addr of desc */
@@ -83,6 +86,7 @@ struct ath5k_txq {
 	struct list_head	q;	/* transmit queue */
 	spinlock_t		lock;	/* lock on q and link */
 	bool			setup;
+	int			txq_len; /* number of queued buffers */
 };
 
 #define ATH5K_LED_MAX_NAME_LEN 31
@@ -204,7 +208,6 @@ struct ath5k_softc {
 	spinlock_t		txbuflock;
 	unsigned int		txbuf_len;	/* buf count in txbuf list */
 	struct ath5k_txq	txqs[AR5K_NUM_TX_QUEUES];	/* tx queues */
-	struct ath5k_txq	*txq;		/* main tx queue */
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
 	struct ath5k_led	tx_led;		/* tx led */
 
