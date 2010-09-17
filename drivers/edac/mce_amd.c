@@ -75,7 +75,7 @@ static const char *f10h_nb_mce_desc[] = {
 	"ECC Error in the Probe Filter directory"
 };
 
-static bool f12h_dc_mce(u16 ec)
+static bool f12h_dc_mce(u16 ec, u8 xec)
 {
 	bool ret = false;
 
@@ -93,7 +93,7 @@ static bool f12h_dc_mce(u16 ec)
 	return ret;
 }
 
-static bool f10h_dc_mce(u16 ec)
+static bool f10h_dc_mce(u16 ec, u8 xec)
 {
 	u8 r4  = (ec >> 4) & 0xf;
 	u8 ll  = ec & 0x3;
@@ -102,20 +102,20 @@ static bool f10h_dc_mce(u16 ec)
 		pr_cont("during data scrub.\n");
 		return true;
 	}
-	return f12h_dc_mce(ec);
+	return f12h_dc_mce(ec, xec);
 }
 
-static bool k8_dc_mce(u16 ec)
+static bool k8_dc_mce(u16 ec, u8 xec)
 {
 	if (BUS_ERROR(ec)) {
 		pr_cont("during system linefill.\n");
 		return true;
 	}
 
-	return f10h_dc_mce(ec);
+	return f10h_dc_mce(ec, xec);
 }
 
-static bool f14h_dc_mce(u16 ec)
+static bool f14h_dc_mce(u16 ec, u8 xec)
 {
 	u8 r4	 = (ec >> 4) & 0xf;
 	u8 ll	 = ec & 0x3;
@@ -170,6 +170,54 @@ static bool f14h_dc_mce(u16 ec)
 	return ret;
 }
 
+static bool f15h_dc_mce(u16 ec, u8 xec)
+{
+	bool ret = true;
+
+	if (MEM_ERROR(ec)) {
+
+		switch (xec) {
+		case 0x0:
+			pr_cont("Data Array access error.\n");
+			break;
+
+		case 0x1:
+			pr_cont("UC error during a linefill from L2/NB.\n");
+			break;
+
+		case 0x2:
+		case 0x11:
+			pr_cont("STQ access error.\n");
+			break;
+
+		case 0x3:
+			pr_cont("SCB access error.\n");
+			break;
+
+		case 0x10:
+			pr_cont("Tag error.\n");
+			break;
+
+		case 0x12:
+			pr_cont("LDQ access error.\n");
+			break;
+
+		default:
+			ret = false;
+		}
+	} else if (BUS_ERROR(ec)) {
+
+		if (!xec)
+			pr_cont("during system linefill.\n");
+		else
+			pr_cont(" Internal %s condition.\n",
+				((xec == 1) ? "livelock" : "deadlock"));
+	} else
+		ret = false;
+
+	return ret;
+}
+
 static void amd_decode_dc_mce(struct mce *m)
 {
 	u16 ec = m->status & 0xffff;
@@ -183,20 +231,14 @@ static void amd_decode_dc_mce(struct mce *m)
 
 		if (tt == TT_DATA) {
 			pr_cont("%s TLB %s.\n", LL_MSG(ec),
-				(xec ? "multimatch" : "parity error"));
+				((xec == 2) ? "locked miss"
+					    : (xec ? "multimatch" : "parity")));
 			return;
 		}
-		else
-			goto wrong_dc_mce;
-	}
-
-	if (!fam_ops->dc_mce(ec))
-		goto wrong_dc_mce;
-
-	return;
-
-wrong_dc_mce:
-	pr_emerg(HW_ERR "Corrupted DC MCE info?\n");
+	} else if (fam_ops->dc_mce(ec, xec))
+		;
+	else
+		pr_emerg(HW_ERR "Corrupted DC MCE info?\n");
 }
 
 static bool k8_ic_mce(u16 ec)
@@ -654,6 +696,7 @@ static int __init mce_amd_init(void)
 
 	case 0x15:
 		xec_mask = 0x1f;
+		fam_ops->dc_mce = f15h_dc_mce;
 		break;
 
 	default:

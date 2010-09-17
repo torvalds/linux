@@ -100,7 +100,7 @@ struct err_regs {
  * per-family decoder ops
  */
 struct amd_decoder_ops {
-	bool (*dc_mce)(u16);
+	bool (*dc_mce)(u16, u8);
 	bool (*ic_mce)(u16);
 	bool (*nb_mce)(u16, u8);
 };
