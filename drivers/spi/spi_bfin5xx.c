@@ -644,11 +644,16 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		drv_data->len = transfer->len;
 		cr_width = 0;
 		drv_data->ops = &bfin_transfer_ops_u8;
-	} else {
+	} else if (bits_per_word == 16) {
 		drv_data->n_bytes = 2;
 		drv_data->len = (transfer->len) >> 1;
 		cr_width = BIT_CTL_WORDSIZE;
 		drv_data->ops = &bfin_transfer_ops_u16;
+	} else {
+		dev_err(&drv_data->pdev->dev, "transfer: unsupported bits_per_word\n");
+		message->status = -EINVAL;
+		bfin_spi_giveback(drv_data);
+		return;
 	}
 	cr = read_CTRL(drv_data) & ~(BIT_CTL_TIMOD | BIT_CTL_WORDSIZE);
 	cr |= cr_width;
