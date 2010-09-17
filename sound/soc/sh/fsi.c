@@ -1219,6 +1219,7 @@ static struct platform_device_id fsi_id_table[] = {
 	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
 	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
 };
+MODULE_DEVICE_TABLE(platform, fsi_id_table);
 
 static struct platform_driver fsi_driver = {
 	.driver 	= {
@@ -1239,6 +1240,7 @@ static void __exit fsi_mobile_exit(void)
 {
 	platform_driver_unregister(&fsi_driver);
 }
+
 module_init(fsi_mobile_init);
 module_exit(fsi_mobile_exit);
 
