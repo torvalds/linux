@@ -2024,37 +2024,17 @@ out_close:
 	return ret;
 }
 
-struct dentry *
+struct inode *
 nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags, struct iattr *attr)
 {
-	struct dentry *dentry = ctx->path.dentry;
-	struct dentry *parent;
 	struct nfs4_state *state;
-	struct dentry *res;
 
-	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
-	nfs_block_sillyrename(parent);
 	state = nfs4_do_open(dir, &ctx->path, ctx->mode, open_flags, attr, ctx->cred);
-	if (IS_ERR(state)) {
-		if (PTR_ERR(state) == -ENOENT) {
-			d_add(dentry, NULL);
-			nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-		}
-		nfs_unblock_sillyrename(parent);
-		return (struct dentry *)state;
-	}
-	res = d_add_unique(dentry, igrab(state->inode));
-	if (res != NULL) {
-		struct dentry *dummy = ctx->path.dentry;
-
-		ctx->path.dentry = dget(res);
-		dput(dummy);
-	}
+	if (IS_ERR(state))
+		return ERR_CAST(state);
 	ctx->state = state;
-	nfs_set_verifier(ctx->path.dentry, nfs_save_change_attribute(dir));
-	nfs_unblock_sillyrename(parent);
-	return res;
+	return igrab(state->inode);
 }
 
 int

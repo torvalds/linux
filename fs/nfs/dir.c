@@ -1084,8 +1084,8 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	struct nfs_open_context *ctx;
 	struct iattr attr;
 	struct dentry *res = NULL;
+	struct inode *inode;
 	int open_flags;
-	int error;
 
 	dfprintk(VFS, "NFS: atomic_lookup(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
@@ -1125,13 +1125,15 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	}
 
 	/* Open the file on the server */
-	res = nfs4_atomic_open(dir, ctx, open_flags, &attr);
-	if (IS_ERR(res)) {
+	nfs_block_sillyrename(dentry->d_parent);
+	inode = nfs4_atomic_open(dir, ctx, open_flags, &attr);
+	if (IS_ERR(inode)) {
+		nfs_unblock_sillyrename(dentry->d_parent);
 		put_nfs_open_context(ctx);
-		error = PTR_ERR(res);
-		switch (error) {
+		switch (PTR_ERR(inode)) {
 			/* Make a negative dentry */
 			case -ENOENT:
+				d_add(dentry, NULL);
 				res = NULL;
 				goto out;
 			/* This turned out not to be a regular file */
@@ -1143,13 +1145,20 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 					goto no_open;
 			/* case -EINVAL: */
 			default:
+				res = ERR_CAST(inode);
 				goto out;
 		}
 	}
-	if (res != NULL)
+	res = d_add_unique(dentry, inode);
+	if (res != NULL) {
+		dput(ctx->path.dentry);
+		ctx->path.dentry = dget(res);
 		dentry = res;
+	}
 	nfs_intent_set_file(nd, ctx);
+	nfs_unblock_sillyrename(dentry->d_parent);
 out:
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	return res;
 no_open:
 	return nfs_lookup(dir, dentry, nd);
