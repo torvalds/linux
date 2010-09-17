@@ -406,8 +406,8 @@ struct qtouch_ts_platform_data stingray_touch_data_p0 = {
         },
 };
 
-/* Portable P1 and P2 */
-struct qtouch_ts_platform_data stingray_touch_data_p1p2 = {
+/* Portable P1 and later versions */
+struct qtouch_ts_platform_data stingray_touch_data_p1_or_later = {
 
 	.flags		= (QTOUCH_USE_MULTITOUCH |
 			   QTOUCH_CFG_BACKUPNV),
@@ -618,8 +618,10 @@ int __init stingray_touch_init(void)
 		 TEGRA_GPIO_TO_IRQ(touch_int_gpio);
 
 	if ((stingray_revision() == STINGRAY_REVISION_P1) ||
-		(stingray_revision() == STINGRAY_REVISION_P2))
-		stingray_i2c_bus1_touch_info[0].platform_data = &stingray_touch_data_p1p2;
+		(stingray_revision() == STINGRAY_REVISION_P2) ||
+		(stingray_revision() == STINGRAY_REVISION_P3))
+		stingray_i2c_bus1_touch_info[0].platform_data =
+				 &stingray_touch_data_p1_or_later;
 	else if (stingray_revision() == STINGRAY_REVISION_P0)
 		stingray_i2c_bus1_touch_info[0].platform_data = &stingray_touch_data_p0;
 	else
