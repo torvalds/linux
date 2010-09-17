@@ -67,6 +67,7 @@
  *				NFS over TCP.
  *	Fabian Frederick:	Option parser rebuilt (using parser lib)
  *	Chuck Lever	:	Use super.c's text-based mount option parsing
+ *	Chuck Lever	:	Add "nfsrootdebug".
  */
 
 #include <linux/types.h>
@@ -80,8 +81,6 @@
 
 #include "internal.h"
 
-/* Define this to allow debugging output */
-#undef NFSROOT_DEBUG
 #define NFSDBG_FACILITY NFSDBG_ROOT
 
 /* Default path we try to mount. "%s" gets replaced by our IP address */
@@ -101,6 +100,18 @@ static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = "";
 
 /* server:export path string passed to super.c */
 static char nfs_root_device[NFS_MAXPATHLEN + 1] __initdata = "";
+
+/*
+ * When the "nfsrootdebug" kernel command line option is specified,
+ * enable debugging messages for NFSROOT.
+ */
+static int __init nfs_root_debug(char *__unused)
+{
+	nfs_debug |= NFSDBG_ROOT | NFSDBG_MOUNT;
+	return 1;
+}
+
+__setup("nfsrootdebug", nfs_root_debug);
 
 /*
  *  Parse NFS server and directory information passed on the kernel
@@ -282,10 +293,6 @@ out_devnametoolong:
  */
 int __init nfs_root_data(char **root_device, char **root_data)
 {
-#ifdef NFSROOT_DEBUG
-	nfs_debug |= NFSDBG_ROOT | NFSDBG_MOUNT;
-#endif	/* NFSROOT_DEBUG */
-
 	servaddr = root_server_addr;
 	if (servaddr == htonl(INADDR_NONE)) {
 		printk(KERN_ERR "Root-NFS: no NFS server address\n");
