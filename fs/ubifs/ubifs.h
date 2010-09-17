@@ -1032,6 +1032,7 @@ struct ubifs_debug_info;
  * @max_leb_cnt: maximum count of logical eraseblocks
  * @old_leb_cnt: count of logical eraseblocks before re-size
  * @ro_media: the underlying UBI volume is read-only
+ * @ro_error: UBIFS switched to R/O mode because an error happened
  *
  * @dirty_pg_cnt: number of dirty pages (not used)
  * @dirty_zn_cnt: number of dirty znodes
@@ -1272,7 +1273,8 @@ struct ubifs_info {
 	int leb_cnt;
 	int max_leb_cnt;
 	int old_leb_cnt;
-	int ro_media;
+	unsigned int ro_media:1;
+	unsigned int ro_error:1;
 
 	atomic_long_t dirty_pg_cnt;
 	atomic_long_t dirty_zn_cnt;

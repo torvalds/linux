@@ -223,8 +223,8 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	mutex_lock(&c->log_mutex);
-
-	if (c->ro_media) {
+	ubifs_assert(!c->ro_media);
+	if (c->ro_error) {
 		err = -EROFS;
 		goto out_unlock;
 	}

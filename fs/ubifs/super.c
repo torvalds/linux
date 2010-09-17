@@ -1751,10 +1751,10 @@ static void ubifs_put_super(struct super_block *sb)
 				ubifs_wbuf_sync(&c->jheads[i].wbuf);
 
 		/*
-		 * On fatal errors c->ro_media is set to 1, in which case we do
+		 * On fatal errors c->ro_error is set to 1, in which case we do
 		 * not write the master node.
 		 */
-		if (!c->ro_media) {
+		if (!c->ro_error) {
 			/*
 			 * We are being cleanly unmounted which means the
 			 * orphans were killed - indicate this in the master
@@ -1798,16 +1798,20 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	}
 
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+		if (c->ro_error) {
+			ubifs_msg("cannot re-mount R/W due to prior errors");
+			return -EROFS;
+		}
 		if (c->ro_media) {
-			ubifs_msg("cannot re-mount due to prior errors");
+			ubifs_msg("cannot re-mount R/W - UBI volume is R/O");
 			return -EROFS;
 		}
 		err = ubifs_remount_rw(c);
 		if (err)
 			return err;
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
-		if (c->ro_media) {
-			ubifs_msg("cannot re-mount due to prior errors");
+		if (c->ro_error) {
+			ubifs_msg("cannot re-mount R/O due to prior errors");
 			return -EROFS;
 		}
 		ubifs_remount_ro(c);
