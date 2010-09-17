@@ -563,4 +563,5 @@ void __init tcc_clocks_init(unsigned long xi_freq, unsigned long xti_freq)
 		find_aclk_parent(lookups[i].clk);
 		clkdev_add(&lookups[i]);
 	}
+	tcc8k_timer_init(&tcz, (void __iomem *)TIMER_BASE, INT_TC32);
 }
