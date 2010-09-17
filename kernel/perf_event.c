@@ -5550,23 +5550,23 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (event_fd < 0)
 		return event_fd;
 
-	event = perf_event_alloc(&attr, cpu, group_leader, NULL, NULL);
-	if (IS_ERR(event)) {
-		err = PTR_ERR(event);
-		goto err_fd;
-	}
-
 	if (group_fd != -1) {
 		group_leader = perf_fget_light(group_fd, &fput_needed);
 		if (IS_ERR(group_leader)) {
 			err = PTR_ERR(group_leader);
-			goto err_alloc;
+			goto err_fd;
 		}
 		group_file = group_leader->filp;
 		if (flags & PERF_FLAG_FD_OUTPUT)
 			output_event = group_leader;
 		if (flags & PERF_FLAG_FD_NO_GROUP)
 			group_leader = NULL;
+	}
+
+	event = perf_event_alloc(&attr, cpu, group_leader, NULL, NULL);
+	if (IS_ERR(event)) {
+		err = PTR_ERR(event);
+		goto err_fd;
 	}
 
 	/*
@@ -5653,7 +5653,6 @@ err_context:
 	put_ctx(ctx);
 err_group_fd:
 	fput_light(group_file, fput_needed);
-err_alloc:
 	free_event(event);
 err_fd:
 	put_unused_fd(event_fd);
