@@ -45,6 +45,30 @@ static int __uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 			unit << 8 | intfnum, data, size, timeout);
 }
 
+static const char *uvc_query_name(__u8 query)
+{
+	switch (query) {
+	case UVC_SET_CUR:
+		return "SET_CUR";
+	case UVC_GET_CUR:
+		return "GET_CUR";
+	case UVC_GET_MIN:
+		return "GET_MIN";
+	case UVC_GET_MAX:
+		return "GET_MAX";
+	case UVC_GET_RES:
+		return "GET_RES";
+	case UVC_GET_LEN:
+		return "GET_LEN";
+	case UVC_GET_INFO:
+		return "GET_INFO";
+	case UVC_GET_DEF:
+		return "GET_DEF";
+	default:
+		return "<invalid>";
+	}
+}
+
 int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 			__u8 intfnum, __u8 cs, void *data, __u16 size)
 {
@@ -53,9 +77,9 @@ int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 	ret = __uvc_query_ctrl(dev, query, unit, intfnum, cs, data, size,
 				UVC_CTRL_CONTROL_TIMEOUT);
 	if (ret != size) {
-		uvc_printk(KERN_ERR, "Failed to query (%u) UVC control %u "
-			"(unit %u) : %d (exp. %u).\n", query, cs, unit, ret,
-			size);
+		uvc_printk(KERN_ERR, "Failed to query (%s) UVC control %u on "
+			"unit %u: %d (exp. %u).\n", uvc_query_name(query), cs,
+			unit, ret, size);
 		return -EIO;
 	}
 
