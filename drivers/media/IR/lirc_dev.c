@@ -366,6 +366,11 @@ int lirc_unregister_driver(int minor)
 	}
 
 	ir = irctls[minor];
+	if (!ir) {
+		printk(KERN_ERR "lirc_dev: lirc_unregister_driver: "
+		       "failed to get irctl struct for minor %d!", minor);
+		return -ENOENT;
+	}
 
 	mutex_lock(&lirc_dev_lock);
 
