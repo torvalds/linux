@@ -639,7 +639,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			fw_opcode = FW_RI_RDMA_READ_WR;
 			swsqe->opcode = FW_RI_READ_REQ;
 			if (wr->opcode == IB_WR_RDMA_READ_WITH_INV)
-				fw_flags |= FW_RI_RDMA_READ_INVALIDATE;
+				fw_flags = FW_RI_RDMA_READ_INVALIDATE;
 			else
 				fw_flags = 0;
 			err = build_rdma_read(wqe, wr, &len16);
