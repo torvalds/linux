@@ -367,6 +367,9 @@ static void carl9170_usb_tasklet(unsigned long data)
 {
 	struct ar9170 *ar = (struct ar9170 *) data;
 
+	if (!IS_INITIALIZED(ar))
+		return;
+
 	carl9170_usb_rx_work(ar);
 
 	/*
