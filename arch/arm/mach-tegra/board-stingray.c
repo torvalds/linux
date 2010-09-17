@@ -192,6 +192,21 @@ static struct platform_device hs_uarte = {
 	},
 };
 
+static struct resource mdm6600_resources[] = {
+	[0] = {
+		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PQ6),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PQ6),
+	},
+};
+
+static struct platform_device mdm6600_modem = {
+	.name = "mdm6600_modem",
+	.id   = -1,
+	.resource = mdm6600_resources,
+	.num_resources = ARRAY_SIZE(mdm6600_resources),
+};
+
 /* OTG gadget device */
 static struct tegra_utmip_config udc_phy_config = {
 	.hssync_start_delay = 0,
@@ -612,6 +627,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&ram_console_device,
 	&tegra_camera,
 	&tegra_i2s_device1,
+	&mdm6600_modem,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
