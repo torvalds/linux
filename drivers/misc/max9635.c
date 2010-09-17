@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+#include <linux/spinlock.h>
 
 #define DEBUG	1
 
@@ -59,7 +60,8 @@ struct max9635_data {
 	struct max9635_platform_data *als_pdata;
 	struct max9635_zone_conv max9635_zone_info[255];
 	atomic_t enabled;
-	int irq;
+	spinlock_t irq_lock;
+	int cur_irq_state;
 };
 
 struct max9635_data *max9635_misc_data;
@@ -183,11 +185,26 @@ init_failed:
 	return -EINVAL;
 }
 
+static void max9635_irq_enable(struct max9635_data *als_data, int enable)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&als_data->irq_lock, flags);
+	if (als_data->cur_irq_state != enable) {
+		if (enable)
+			enable_irq(als_data->client->irq);
+		else
+			disable_irq_nosync(als_data->client->irq);
+		als_data->cur_irq_state = enable;
+	}
+	spin_unlock_irqrestore(&als_data->irq_lock, flags);
+}
+
 static irqreturn_t max9635_irq_handler(int irq, void *dev)
 {
 	struct max9635_data *als_data = dev;
 
-	disable_irq_nosync(als_data->client->irq);
+	max9635_irq_enable(als_data, 0);
 	schedule_delayed_work(&als_data->working_queue, 0);
 
 	return IRQ_HANDLED;
@@ -277,7 +294,7 @@ static int max9635_report_input(struct max9635_data *als_data)
 		       __func__, ret);
 		return -1;
 	}
-	enable_irq(als_data->client->irq);
+	max9635_irq_enable(als_data, 1);
 	return ret;
 }
 
@@ -523,6 +540,9 @@ static int max9635_probe(struct i2c_client *client,
 		goto err_reg_init_failed;
 	}
 
+	spin_lock_init(&als_data->irq_lock);
+	als_data->cur_irq_state = 1;
+
 	error = request_irq(als_data->client->irq, max9635_irq_handler,
 			    IRQF_TRIGGER_FALLING, MAX9635_NAME, als_data);
 	if (error != 0) {
@@ -541,7 +561,7 @@ static int max9635_probe(struct i2c_client *client,
 		goto err_create_registers_file_failed;
 	}
 #endif
-	disable_irq_nosync(als_data->client->irq);
+	max9635_irq_enable(als_data, 0);
 	schedule_delayed_work(&als_data->working_queue, 0);
 
 	return 0;
@@ -583,7 +603,7 @@ static int max9635_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (max9635_debug)
 		pr_info("%s: Suspending\n", __func__);
 
-	disable_irq_nosync(als_data->client->irq);
+	max9635_irq_enable(als_data, 0);
 	cancel_delayed_work_sync(&als_data->working_queue);
 
 	if (atomic_read(&als_data->enabled) == 1)
