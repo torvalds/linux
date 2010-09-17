@@ -284,7 +284,7 @@ static void enh_desc_release_tx_desc(struct dma_desc *p)
 {
 	int ter = p->des01.etx.end_ring;
 
-	memset(p, 0, sizeof(struct dma_desc));
+	memset(p, 0, offsetof(struct dma_desc, des2));
 	p->des01.etx.end_ring = ter;
 }
 
