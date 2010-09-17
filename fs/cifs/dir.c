@@ -132,9 +132,9 @@ cifs_bp_rename_retry:
 
 struct cifsFileInfo *
 cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
-		  struct file *file, struct vfsmount *mnt, unsigned int oflags)
+		  struct file *file, struct vfsmount *mnt, unsigned int oflags,
+		  __u32 oplock)
 {
-	int oplock = 0;
 	struct cifsFileInfo *pCifsFile;
 	struct cifsInodeInfo *pCifsInode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
@@ -142,9 +142,6 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 	pCifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (pCifsFile == NULL)
 		return pCifsFile;
-
-	if (oplockEnabled)
-		oplock = REQ_OPLOCK;
 
 	pCifsFile->netfid = fileHandle;
 	pCifsFile->pid = current->tgid;
@@ -468,7 +465,7 @@ cifs_create_set_dentry:
 		}
 
 		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
-					       nd->path.mnt, oflags);
+					       nd->path.mnt, oflags, oplock);
 		if (pfile_info == NULL) {
 			fput(filp);
 			CIFSSMBClose(xid, tcon, fileHandle);
@@ -729,7 +726,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
 						  nd->path.mnt,
-						  nd->intent.open.flags);
+						  nd->intent.open.flags,
+						  oplock);
 			if (cfile == NULL) {
 				fput(filp);
 				CIFSSMBClose(xid, pTcon, fileHandle);
