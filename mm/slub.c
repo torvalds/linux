@@ -2104,24 +2104,8 @@ init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
 
 static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
 {
-#ifdef CONFIG_SMP
-	/*
-	 * Will use reserve that does not require slab operation during
-	 * early boot.
-	 */
 	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
 			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu));
-#else
-	/*
-	 * Special hack for UP mode. allocpercpu() falls back to kmalloc
-	 * operations. So we cannot use that before the slab allocator is up
-	 * Simply get the smallest possible compound page. The page will be
-	 * released via kfree() when the cpu caches are resized later.
-	 */
-	if (slab_state < UP)
-		s->cpu_slab = (__percpu void *)kmalloc_large(PAGE_SIZE << 1, GFP_NOWAIT);
-	else
-#endif
 
 	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
 
