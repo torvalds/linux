@@ -3162,15 +3162,14 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 		return videobuf_poll_stream(file, &fh->vbi, wait);
 	}
 
+	mutex_lock(&fh->cap.vb_lock);
 	if (check_btres(fh,RESOURCE_VIDEO_STREAM)) {
-		mutex_lock(&fh->cap.vb_lock);
 		/* streaming capture */
 		if (list_empty(&fh->cap.stream))
 			goto err;
 		buf = list_entry(fh->cap.stream.next,struct bttv_buffer,vb.stream);
 	} else {
 		/* read() capture */
-		mutex_lock(&fh->cap.vb_lock);
 		if (NULL == fh->cap.read_buf) {
 			/* need to capture a new frame */
 			if (locked_btres(fh->btv,RESOURCE_VIDEO_STREAM))
@@ -3188,7 +3187,6 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;
 		}
-		mutex_unlock(&fh->cap.vb_lock);
 		buf = (struct bttv_buffer*)fh->cap.read_buf;
 	}
 
