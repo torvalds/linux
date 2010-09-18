@@ -155,7 +155,7 @@ static struct clksrc_clk clk_mout_mpll = {
 };
 
 static struct clk *clkset_moutcore_list[] = {
-	[0] = &clk_sclk_apll.clk,
+	[0] = &clk_mout_apll.clk,
 	[1] = &clk_mout_mpll.clk,
 };
 
