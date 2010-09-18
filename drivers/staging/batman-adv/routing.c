@@ -563,6 +563,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		batman_packet->tq, batman_packet->ttl, batman_packet->version,
 		has_directlink_flag);
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
 		if (batman_if->if_status != IF_ACTIVE)
 			continue;
@@ -585,6 +586,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		if (compare_orig(ethhdr->h_source, broadcast_addr))
 			is_broadcast = 1;
 	}
+	rcu_read_unlock();
 
 	if (batman_packet->version != COMPAT_VERSION) {
 		bat_dbg(DBG_BATMAN, bat_priv,
