@@ -192,7 +192,7 @@ static int lp3972_i2c_read(struct i2c_client *i2c, char reg, int count,
 		return -EIO;
 	ret = i2c_smbus_read_byte_data(i2c, reg);
 	if (ret < 0)
-		return -EIO;
+		return ret;
 
 	*dest = ret;
 	return 0;
@@ -215,7 +215,7 @@ static u8 lp3972_reg_read(struct lp3972 *lp3972, u8 reg)
 	lp3972_i2c_read(lp3972->i2c, reg, 1, &val);
 
 	dev_dbg(lp3972->dev, "reg read 0x%02x -> 0x%02x\n", (int)reg,
-		(unsigned)val&0xff);
+		(unsigned)val & 0xff);
 
 	mutex_unlock(&lp3972->io_lock);
 
@@ -234,7 +234,7 @@ static int lp3972_set_bits(struct lp3972 *lp3972, u8 reg, u16 mask, u16 val)
 	if (ret == 0) {
 		ret = lp3972_i2c_write(lp3972->i2c, reg, 1, &tmp);
 		dev_dbg(lp3972->dev, "reg write 0x%02x -> 0x%02x\n", (int)reg,
-			(unsigned)val&0xff);
+			(unsigned)val & 0xff);
 	}
 	mutex_unlock(&lp3972->io_lock);
 
@@ -320,6 +320,13 @@ static int lp3972_ldo_set_voltage(struct regulator_dev *dev,
 	if (ret)
 		return ret;
 
+	/*
+	 * LDO1 and LDO5 support voltage control by either target voltage1
+	 * or target voltage2 register.
+	 * We use target voltage1 register for LDO1 and LDO5 in this driver.
+	 * We need to update voltage change control register(0x20) to enable
+	 * LDO1 and LDO5 to change to their programmed target values.
+	 */
 	switch (ldo) {
 	case LP3972_LDO1:
 	case LP3972_LDO5:
@@ -401,7 +408,8 @@ static int lp3972_dcdc_get_voltage(struct regulator_dev *dev)
 		val = 1000 * buck_voltage_map[buck][reg];
 	else {
 		val = 0;
-		dev_warn(&dev->dev, "chip reported incorrect voltage value.\n");
+		dev_warn(&dev->dev, "chip reported incorrect voltage value."
+				    " reg = %d\n", reg);
 	}
 
 	return val;
@@ -523,7 +531,7 @@ static struct regulator_desc regulators[] = {
 	},
 };
 
-static int setup_regulators(struct lp3972 *lp3972,
+static int __devinit setup_regulators(struct lp3972 *lp3972,
 	struct lp3972_platform_data *pdata)
 {
 	int i, err;
@@ -584,10 +592,13 @@ static int __devinit lp3972_i2c_probe(struct i2c_client *i2c,
 
 	/* Detect LP3972 */
 	ret = lp3972_i2c_read(i2c, LP3972_SYS_CONTROL1_REG, 1, &val);
-	if (ret == 0 && (val & SYS_CONTROL1_INIT_MASK) != SYS_CONTROL1_INIT_VAL)
+	if (ret == 0 &&
+		(val & SYS_CONTROL1_INIT_MASK) != SYS_CONTROL1_INIT_VAL) {
 		ret = -ENODEV;
+		dev_err(&i2c->dev, "chip reported: val = 0x%x\n", val);
+	}
 	if (ret < 0) {
-		dev_err(&i2c->dev, "failed to detect device\n");
+		dev_err(&i2c->dev, "failed to detect device. ret = %d\n", ret);
 		goto err_detect;
 	}
 
