@@ -72,7 +72,7 @@ static void __exit batman_exit(void)
 	destroy_workqueue(bat_event_workqueue);
 	bat_event_workqueue = NULL;
 
-	synchronize_net();
+	rcu_barrier();
 }
 
 int mesh_init(struct net_device *soft_iface)
