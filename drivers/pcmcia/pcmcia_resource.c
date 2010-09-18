@@ -534,6 +534,11 @@ int pcmcia_enable_device(struct pcmcia_device *p_dev)
 	s->ops->set_socket(s, &s->socket);
 	s->lock_count++;
 
+	dev_dbg(&p_dev->dev,
+		"enable_device: V %d, flags %x, base %x, regs %x, idx %x\n",
+		p_dev->vpp, flags, p_dev->config_base, p_dev->config_regs,
+		p_dev->config_index);
+
 	/* Set up CIS configuration registers */
 	base = p_dev->config_base;
 	if (p_dev->config_regs & PRESENT_COPY) {
@@ -874,6 +879,8 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, struct resource *res,
 	u_long align;
 	int w;
 
+	dev_dbg(&p_dev->dev, "request_window %pR %d\n", res, speed);
+
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&p_dev->dev, "No card present\n");
 		return -ENODEV;
@@ -970,6 +977,9 @@ EXPORT_SYMBOL(pcmcia_request_window);
 void pcmcia_disable_device(struct pcmcia_device *p_dev)
 {
 	int i;
+
+	dev_dbg(&p_dev->dev, "disabling device\n");
+
 	for (i = 0; i < MAX_WIN; i++) {
 		struct resource *res = p_dev->resource[MAX_IO_WIN + i];
 		if (res->flags & WIN_FLAGS_REQ)
