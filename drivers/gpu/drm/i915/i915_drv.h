@@ -623,6 +623,8 @@ typedef struct drm_i915_private {
 
 		/* storage for physical objects */
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
+
+		uint32_t flush_rings;
 	} mm;
 	struct sdvo_device_mapping sdvo_mappings[2];
 	/* indicate whether the LVDS_BORDER should be enabled or not */
@@ -1014,9 +1016,6 @@ int i915_do_wait_request(struct drm_device *dev,
 			 bool interruptible,
 			 struct intel_ring_buffer *ring);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-void i915_gem_process_flushing_list(struct drm_device *dev,
-				    uint32_t flush_domains,
-				    struct intel_ring_buffer *ring);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
 int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,

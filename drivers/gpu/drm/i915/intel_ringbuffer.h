@@ -10,6 +10,10 @@ struct  intel_hw_status_page {
 struct drm_i915_gem_execbuffer2;
 struct  intel_ring_buffer {
 	const char	*name;
+	enum intel_ring_id {
+		RING_RENDER = 0x1,
+		RING_BSD = 0x2,
+	} id;
 	struct		ring_regs {
 			u32 ctl;
 			u32 head;

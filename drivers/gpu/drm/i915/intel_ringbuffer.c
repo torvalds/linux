@@ -116,8 +116,6 @@ render_ring_flush(struct drm_device *dev,
 		intel_ring_emit(dev, ring, MI_NOOP);
 		intel_ring_advance(dev, ring);
 	}
-
-	i915_gem_process_flushing_list(dev, flush_domains, ring);
 }
 
 static unsigned int render_ring_get_head(struct drm_device *dev,
@@ -386,8 +384,6 @@ bsd_ring_flush(struct drm_device *dev,
 	intel_ring_emit(dev, ring, MI_FLUSH);
 	intel_ring_emit(dev, ring, MI_NOOP);
 	intel_ring_advance(dev, ring);
-
-	i915_gem_process_flushing_list(dev, flush_domains, ring);
 }
 
 static inline unsigned int bsd_ring_get_head(struct drm_device *dev,
@@ -799,6 +795,7 @@ void intel_fill_struct(struct drm_device *dev,
 
 struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
+	.id			= RING_RENDER,
 	.regs                   = {
 		.ctl = PRB0_CTL,
 		.head = PRB0_HEAD,
@@ -836,6 +833,7 @@ struct intel_ring_buffer render_ring = {
 
 struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
+	.id			= RING_BSD,
 	.regs			= {
 		.ctl = BSD_RING_CTL,
 		.head = BSD_RING_HEAD,
