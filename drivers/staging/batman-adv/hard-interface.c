@@ -111,8 +111,16 @@ static void set_primary_if(struct bat_priv *bat_priv,
 {
 	struct batman_packet *batman_packet;
 	struct vis_packet *vis_packet;
+	struct batman_if *old_if;
 
+	if (batman_if)
+		hardif_hold(batman_if);
+
+	old_if = bat_priv->primary_if;
 	bat_priv->primary_if = batman_if;
+
+	if (old_if)
+		hardif_put(old_if);
 
 	if (!bat_priv->primary_if)
 		return;
