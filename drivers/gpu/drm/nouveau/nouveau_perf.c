@@ -90,49 +90,43 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x15:
 			perflvl->fanspeed = entry[55];
 			perflvl->voltage = entry[56];
-			perflvl->core = ROM32(entry[1]) / 100;
-			perflvl->memory = ROM32(entry[5]) / 100;
+			perflvl->core = ROM32(entry[1]) * 10;
+			perflvl->memory = ROM32(entry[5]) * 10;
 			break;
 		case 0x21:
 		case 0x23:
 		case 0x24:
 			perflvl->fanspeed = entry[4];
 			perflvl->voltage = entry[5];
-			perflvl->core = ROM16(entry[6]);
-			perflvl->memory = ROM16(entry[11]);
+			perflvl->core = ROM16(entry[6]) * 1000;
+			perflvl->memory = ROM16(entry[11]) * 1000;
 			break;
 		case 0x25:
 			perflvl->fanspeed = entry[4];
 			perflvl->voltage = entry[5];
-			perflvl->core = ROM16(entry[6]);
-			perflvl->shader = ROM16(entry[10]);
-			perflvl->memory = ROM16(entry[12]);
+			perflvl->core = ROM16(entry[6]) * 1000;
+			perflvl->shader = ROM16(entry[10]) * 1000;
+			perflvl->memory = ROM16(entry[12]) * 1000;
 			break;
 		case 0x30:
 		case 0x35:
 			perflvl->fanspeed = entry[6];
 			perflvl->voltage = entry[7];
-			perflvl->core = ROM16(entry[8]);
-			perflvl->shader = ROM16(entry[10]);
-			perflvl->memory = ROM16(entry[12]);
+			perflvl->core = ROM16(entry[8]) * 1000;
+			perflvl->shader = ROM16(entry[10]) * 1000;
+			perflvl->memory = ROM16(entry[12]) * 1000;
 			/*XXX: confirm on 0x35 */
-			perflvl->unk05 = ROM16(entry[16]);
+			perflvl->unk05 = ROM16(entry[16]) * 1000;
 			break;
 		case 0x40:
 #define subent(n) entry[perf[2] + ((n) * perf[3])]
 			perflvl->fanspeed = 0; /*XXX*/
 			perflvl->voltage = 0; /*XXX: entry[2] */;
-			perflvl->core = ROM16(subent(0)) & 0xfff;
-			perflvl->shader = ROM16(subent(1)) & 0xfff;
-			perflvl->memory = ROM16(subent(2)) & 0xfff;
+			perflvl->core = (ROM16(subent(0)) & 0xfff) * 1000;
+			perflvl->shader = (ROM16(subent(1)) & 0xfff) * 1000;
+			perflvl->memory = (ROM16(subent(2)) & 0xfff) * 1000;
 			break;
 		}
-
-		/* convert MHz -> KHz, it's more convenient */
-		perflvl->core *= 1000;
-		perflvl->memory *= 1000;
-		perflvl->shader *= 1000;
-		perflvl->unk05 *= 1000;
 
 		/* make sure vid is valid */
 		if (pm->voltage.supported && perflvl->voltage) {
