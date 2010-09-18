@@ -405,13 +405,17 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	ssize_t length;
 
 	if (!batman_if)
 		return 0;
 
-	return sprintf(buff, "%s\n",
-		       batman_if->if_status == IF_NOT_IN_USE ?
-					"none" : batman_if->soft_iface->name);
+	length = sprintf(buff, "%s\n", batman_if->if_status == IF_NOT_IN_USE ?
+			 "none" : batman_if->soft_iface->name);
+
+	hardif_put(batman_if);
+
+	return length;
 }
 
 static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
@@ -421,6 +425,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	struct net_device *net_dev = to_net_dev(dev);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
 	int status_tmp = -1;
+	int ret;
 
 	if (!batman_if)
 		return count;
@@ -431,6 +436,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
 		       "interface name too long '%s'\n", buff);
+		hardif_put(batman_if);
 		return -EINVAL;
 	}
 
@@ -440,13 +446,16 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		status_tmp = IF_I_WANT_YOU;
 
 	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
-	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0)))
+	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0))) {
+		hardif_put(batman_if);
 		return count;
+	}
 
 	if (status_tmp == IF_NOT_IN_USE) {
 		rtnl_lock();
 		hardif_disable_interface(batman_if);
 		rtnl_unlock();
+		hardif_put(batman_if);
 		return count;
 	}
 
@@ -457,7 +466,10 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		rtnl_unlock();
 	}
 
-	return hardif_enable_interface(batman_if, buff);
+	ret = hardif_enable_interface(batman_if, buff);
+	hardif_put(batman_if);
+
+	return ret;
 }
 
 static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
@@ -466,23 +478,33 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	ssize_t length;
 
 	if (!batman_if)
 		return 0;
 
 	switch (batman_if->if_status) {
 	case IF_TO_BE_REMOVED:
-		return sprintf(buff, "disabling\n");
+		length = sprintf(buff, "disabling\n");
+		break;
 	case IF_INACTIVE:
-		return sprintf(buff, "inactive\n");
+		length = sprintf(buff, "inactive\n");
+		break;
 	case IF_ACTIVE:
-		return sprintf(buff, "active\n");
+		length = sprintf(buff, "active\n");
+		break;
 	case IF_TO_BE_ACTIVATED:
-		return sprintf(buff, "enabling\n");
+		length = sprintf(buff, "enabling\n");
+		break;
 	case IF_NOT_IN_USE:
 	default:
-		return sprintf(buff, "not in use\n");
+		length = sprintf(buff, "not in use\n");
+		break;
 	}
+
+	hardif_put(batman_if);
+
+	return length;
 }
 
 static BAT_ATTR(mesh_iface, S_IRUGO | S_IWUSR,
