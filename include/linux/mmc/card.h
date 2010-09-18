@@ -173,7 +173,7 @@ static inline int mmc_blksz_for_byte_mode(const struct mmc_card *c)
 #define mmc_card_name(c)	((c)->cid.prod_name)
 #define mmc_card_id(c)		(dev_name(&(c)->dev))
 
-#define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
+#define mmc_dev_to_card(d)	container_of(d, struct mmc_card, dev)
 
 #define mmc_list_to_card(l)	container_of(l, struct mmc_card, node)
 #define mmc_get_drvdata(c)	dev_get_drvdata(&(c)->dev)

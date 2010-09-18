@@ -1935,7 +1935,7 @@ static ssize_t mmc_test_show(struct device *dev,
 static ssize_t mmc_test_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct mmc_card *card = dev_to_mmc_card(dev);
+	struct mmc_card *card = mmc_dev_to_card(dev);
 	struct mmc_test_card *test;
 	int testcase;
 
