@@ -317,14 +317,14 @@ ret_from_sys_call:
 	ldq	$0, SP_OFF($sp)
 	and	$0, 8, $0
 	beq	$0, restore_all
-ret_from_reschedule:
+ret_to_user:
 	/* Make sure need_resched and sigpending don't change between
 		sampling and the rti.  */
 	lda	$16, 7
 	call_pal PAL_swpipl
 	ldl	$5, TI_FLAGS($8)
 	and	$5, _TIF_WORK_MASK, $2
-	bne	$5, work_pending
+	bne	$2, work_pending
 restore_all:
 	RESTORE_ALL
 	call_pal PAL_rti
@@ -363,7 +363,7 @@ $ret_success:
  *       $8: current.
  *      $19: The old syscall number, or zero if this is not a return
  *           from a syscall that errored and is possibly restartable.
- *      $20: Error indication.
+ *      $20: The old a3 value
  */
 
 	.align	4
@@ -392,12 +392,18 @@ $work_resched:
 
 $work_notifysig:
 	mov	$sp, $16
-	br	$1, do_switch_stack
+	bsr	$1, do_switch_stack
 	mov	$sp, $17
 	mov	$5, $18
+	mov	$19, $9		/* save old syscall number */
+	mov	$20, $10	/* save old a3 */
+	and	$5, _TIF_SIGPENDING, $2
+	cmovne	$2, 0, $9	/* we don't want double syscall restarts */
 	jsr	$26, do_notify_resume
+	mov	$9, $19
+	mov	$10, $20
 	bsr	$1, undo_switch_stack
-	br	restore_all
+	br	ret_to_user
 .end work_pending
 
 /*
