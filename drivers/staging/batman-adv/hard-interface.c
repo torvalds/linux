@@ -401,6 +401,8 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	batman_if->soft_iface = NULL;
 	batman_if->if_status = IF_NOT_IN_USE;
 	INIT_LIST_HEAD(&batman_if->list);
+	atomic_set(&batman_if->refcnt, 0);
+	hardif_hold(batman_if);
 
 	check_known_mac_addr(batman_if->net_dev->dev_addr);
 
@@ -433,8 +435,7 @@ static void hardif_remove_interface(struct batman_if *batman_if)
 	list_del_rcu(&batman_if->list);
 	synchronize_rcu();
 	sysfs_del_hardif(&batman_if->hardif_obj);
-	dev_put(batman_if->net_dev);
-	kfree(batman_if);
+	hardif_put(batman_if);
 }
 
 void hardif_remove_interfaces(void)
