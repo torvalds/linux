@@ -522,7 +522,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	struct rds_rdma_args *args;
 	struct rds_iovec vec;
 	struct rm_rdma_op *op = &rm->rdma;
-	unsigned int nr_pages;
+	int nr_pages;
 	unsigned int nr_bytes;
 	struct page **pages = NULL;
 	struct rds_iovec __user *local_vec;
