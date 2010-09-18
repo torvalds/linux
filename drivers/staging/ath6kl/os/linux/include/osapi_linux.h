@@ -39,7 +39,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
-
+#include <linux/semaphore.h>
 #include <linux/cache.h>
 
 #ifdef __GNUC__
