@@ -244,7 +244,7 @@ static struct clksrc_clk clk_mout_corebus = {
 		.id		= -1,
 	},
 	.sources	= &clkset_mout_corebus,
-	.reg_src	= { .reg = S5P_CLKSRC_CORE, .shift = 4, .size = 1 },
+	.reg_src	= { .reg = S5P_CLKSRC_DMC, .shift = 4, .size = 1 },
 };
 
 static struct clksrc_clk clk_sclk_dmc = {
@@ -253,7 +253,7 @@ static struct clksrc_clk clk_sclk_dmc = {
 		.id		= -1,
 		.parent		= &clk_mout_corebus.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 12, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 12, .size = 3 },
 };
 
 static struct clksrc_clk clk_aclk_cored = {
@@ -262,7 +262,7 @@ static struct clksrc_clk clk_aclk_cored = {
 		.id		= -1,
 		.parent		= &clk_sclk_dmc.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 16, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 16, .size = 3 },
 };
 
 static struct clksrc_clk clk_aclk_corep = {
@@ -271,7 +271,7 @@ static struct clksrc_clk clk_aclk_corep = {
 		.id		= -1,
 		.parent		= &clk_aclk_cored.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 20, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 20, .size = 3 },
 };
 
 static struct clksrc_clk clk_aclk_acp = {
@@ -280,7 +280,7 @@ static struct clksrc_clk clk_aclk_acp = {
 		.id		= -1,
 		.parent		= &clk_mout_corebus.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 0, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 0, .size = 3 },
 };
 
 static struct clksrc_clk clk_pclk_acp = {
@@ -289,7 +289,7 @@ static struct clksrc_clk clk_pclk_acp = {
 		.id		= -1,
 		.parent		= &clk_aclk_acp.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 4, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 4, .size = 3 },
 };
 
 /* Core list of CMU_TOP side */
