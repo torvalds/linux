@@ -430,6 +430,7 @@ strace:
 	beq	$1, 1f
 	ldq	$27, 0($2)
 1:	jsr	$26, ($27), sys_gettimeofday
+ret_from_straced:
 	ldgp	$gp, 0($26)
 
 	/* check return.. */
@@ -757,11 +758,15 @@ sys_vfork:
 	.ent	sys_sigreturn
 sys_sigreturn:
 	.prologue 0
+	lda	$9, ret_from_straced
+	cmpult	$26, $9, $9
 	mov	$sp, $17
 	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_sigreturn
-	br	$1, undo_switch_stack
+	bne	$9, 1f
+	jsr	$26, syscall_trace
+1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
 .end sys_sigreturn
 
@@ -770,11 +775,15 @@ sys_sigreturn:
 	.ent	sys_rt_sigreturn
 sys_rt_sigreturn:
 	.prologue 0
+	lda	$9, ret_from_straced
+	cmpult	$26, $9, $9
 	mov	$sp, $17
 	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_rt_sigreturn
-	br	$1, undo_switch_stack
+	bne	$9, 1f
+	jsr	$26, syscall_trace
+1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
 .end sys_rt_sigreturn
 
