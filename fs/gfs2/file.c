@@ -620,6 +620,8 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
  * cluster; until we do, disable leases (by just returning -EINVAL),
  * unless the administrator has requested purely local locking.
  *
+ * Locking: called under lock_flocks
+ *
  * Returns: errno
  */
 

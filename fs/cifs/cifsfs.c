@@ -562,8 +562,8 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 {
-	/* note that this is called by vfs setlease with the BKL held
-	   although I doubt that BKL is needed here in cifs */
+	/* note that this is called by vfs setlease with lock_flocks held
+	   to protect *lease from going away */
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	if (!(S_ISREG(inode->i_mode)))
