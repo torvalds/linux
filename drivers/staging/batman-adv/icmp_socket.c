@@ -45,6 +45,8 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 	unsigned int i;
 	struct socket_client *socket_client;
 
+	nonseekable_open(inode, file);
+
 	socket_client = kmalloc(sizeof(struct socket_client), GFP_KERNEL);
 
 	if (!socket_client)
@@ -283,6 +285,7 @@ static const struct file_operations fops = {
 	.read = bat_socket_read,
 	.write = bat_socket_write,
 	.poll = bat_socket_poll,
+	.llseek = no_llseek,
 };
 
 int bat_socket_setup(struct bat_priv *bat_priv)
