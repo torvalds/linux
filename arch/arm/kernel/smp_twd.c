@@ -32,7 +32,7 @@ static void twd_set_mode(enum clock_event_mode mode,
 			struct clock_event_device *clk)
 {
 	unsigned long ctrl = __raw_readl(twd_base + TWD_TIMER_CONTROL);
-	ctrl |= TWD_TIMER_CONTROL_PRESCALE_MASK;
+	ctrl &= TWD_TIMER_CONTROL_PRESCALE_MASK;
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
