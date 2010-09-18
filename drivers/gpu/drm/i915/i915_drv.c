@@ -385,9 +385,6 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 */
 	i915_gem_retire_requests(dev);
 
-	if (need_display)
-		i915_save_display(dev);
-
 	/*
 	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
@@ -428,13 +425,19 @@ int i965_reset(struct drm_device *dev, u8 flags)
 		mutex_lock(&dev->struct_mutex);
 	}
 
-	/*
-	 * Display needs restore too...
-	 */
-	if (need_display)
-		i915_restore_display(dev);
-
 	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * Perform a full modeset as on later generations, e.g. Ironlake, we may
+	 * need to retrain the display link and cannot just restore the register
+	 * values.
+	 */
+	if (need_display) {
+		mutex_lock(&dev->mode_config.mutex);
+		drm_helper_resume_force_mode(dev);
+		mutex_unlock(&dev->mode_config.mutex);
+	}
+
 	return 0;
 }
 
