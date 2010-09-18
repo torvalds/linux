@@ -171,9 +171,9 @@ void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *con
 	BUG_ON(list_empty(&ic->ib_node));
 	list_del(&ic->ib_node);
 
-	spin_lock_irq(&rds_ibdev->spinlock);
+	spin_lock(&rds_ibdev->spinlock);
 	list_add_tail(&ic->ib_node, &rds_ibdev->conn_list);
-	spin_unlock_irq(&rds_ibdev->spinlock);
+	spin_unlock(&rds_ibdev->spinlock);
 	spin_unlock_irq(&ib_nodev_conns_lock);
 
 	ic->rds_ibdev = rds_ibdev;
