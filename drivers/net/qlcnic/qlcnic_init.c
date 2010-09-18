@@ -1316,7 +1316,7 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 	}
 
-	skb_reserve(skb, 2);
+	skb_reserve(skb, NET_IP_ALIGN);
 
 	dma = pci_map_single(pdev, skb->data,
 			rds_ring->dma_size, PCI_DMA_FROMDEVICE);
