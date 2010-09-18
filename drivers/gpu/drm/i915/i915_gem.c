@@ -1668,47 +1668,6 @@ i915_retire_commands(struct drm_device *dev, struct intel_ring_buffer *ring)
 }
 
 /**
- * Moves buffers associated only with the given active seqno from the active
- * to inactive list, potentially freeing them.
- */
-static void
-i915_gem_retire_request(struct drm_device *dev,
-			struct drm_i915_gem_request *request)
-{
-	trace_i915_gem_request_retire(dev, request->seqno);
-
-	/* Move any buffers on the active list that are no longer referenced
-	 * by the ringbuffer to the flushing/inactive lists as appropriate.
-	 */
-	while (!list_empty(&request->ring->active_list)) {
-		struct drm_gem_object *obj;
-		struct drm_i915_gem_object *obj_priv;
-
-		obj_priv = list_first_entry(&request->ring->active_list,
-					    struct drm_i915_gem_object,
-					    list);
-		obj = &obj_priv->base;
-
-		/* If the seqno being retired doesn't match the oldest in the
-		 * list, then the oldest in the list must still be newer than
-		 * this seqno.
-		 */
-		if (obj_priv->last_rendering_seqno != request->seqno)
-			return;
-
-#if WATCH_LRU
-		DRM_INFO("%s: retire %d moves to inactive list %p\n",
-			 __func__, request->seqno, obj);
-#endif
-
-		if (obj->write_domain != 0)
-			i915_gem_object_move_to_flushing(obj);
-		else
-			i915_gem_object_move_to_inactive(obj);
-	}
-}
-
-/**
  * Returns true if seq1 is later than seq2.
  */
 bool
@@ -1733,36 +1692,62 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
+	bool wedged;
 
-	if (!ring->status_page.page_addr
-			|| list_empty(&ring->request_list))
+	if (!ring->status_page.page_addr ||
+	    list_empty(&ring->request_list))
 		return;
 
 	seqno = i915_get_gem_seqno(dev, ring);
+	wedged = atomic_read(&dev_priv->mm.wedged);
 
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
-		uint32_t retiring_seqno;
 
 		request = list_first_entry(&ring->request_list,
 					   struct drm_i915_gem_request,
 					   list);
-		retiring_seqno = request->seqno;
 
-		if (i915_seqno_passed(seqno, retiring_seqno) ||
-		    atomic_read(&dev_priv->mm.wedged)) {
-			i915_gem_retire_request(dev, request);
-
-			list_del(&request->list);
-			list_del(&request->client_list);
-			kfree(request);
-		} else
+		if (!wedged && !i915_seqno_passed(seqno, request->seqno))
 			break;
+
+		trace_i915_gem_request_retire(dev, request->seqno);
+
+		list_del(&request->list);
+		list_del(&request->client_list);
+		kfree(request);
+	}
+
+	/* Move any buffers on the active list that are no longer referenced
+	 * by the ringbuffer to the flushing/inactive lists as appropriate.
+	 */
+	while (!list_empty(&ring->active_list)) {
+		struct drm_gem_object *obj;
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = list_first_entry(&ring->active_list,
+					    struct drm_i915_gem_object,
+					    list);
+
+		if (!wedged &&
+		    !i915_seqno_passed(seqno, obj_priv->last_rendering_seqno))
+			break;
+
+		obj = &obj_priv->base;
+
+#if WATCH_LRU
+		DRM_INFO("%s: retire %d moves to inactive list %p\n",
+			 __func__, request->seqno, obj);
+#endif
+
+		if (obj->write_domain != 0)
+			i915_gem_object_move_to_flushing(obj);
+		else
+			i915_gem_object_move_to_inactive(obj);
 	}
 
 	if (unlikely (dev_priv->trace_irq_seqno &&
 		      i915_seqno_passed(dev_priv->trace_irq_seqno, seqno))) {
-
 		ring->user_irq_put(dev, ring);
 		dev_priv->trace_irq_seqno = 0;
 	}
