@@ -521,7 +521,6 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	err = rds_ib_setup_qp(conn);
 	if (err) {
 		rds_ib_conn_error(conn, "rds_ib_setup_qp failed (%d)\n", err);
-		mutex_unlock(&conn->c_cm_lock);
 		goto out;
 	}
 
