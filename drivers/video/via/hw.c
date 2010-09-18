@@ -1151,6 +1151,24 @@ void via_set_state(u32 devices, u8 state)
 		set_lvds2_state(state);
 }
 
+void via_set_sync_polarity(u32 devices, u8 polarity)
+{
+	if (polarity & ~(VIA_HSYNC_NEGATIVE | VIA_VSYNC_NEGATIVE)) {
+		printk(KERN_WARNING "viafb: Unsupported polarity: %d\n",
+			polarity);
+		return;
+	}
+
+	if (devices & VIA_CRT)
+		via_write_misc_reg_mask(polarity << 6, 0xC0);
+	if (devices & VIA_DVP1)
+		via_write_reg_mask(VIACR, 0x9B, polarity << 5, 0x60);
+	if (devices & VIA_LVDS1)
+		via_write_reg_mask(VIACR, 0x99, polarity << 5, 0x60);
+	if (devices & VIA_LVDS2)
+		via_write_reg_mask(VIACR, 0x97, polarity << 5, 0x60);
+}
+
 u32 via_parse_odev(char *input, char **end)
 {
 	char *ptr = input;
@@ -2026,10 +2044,10 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 	/* update polarity for CRT timing */
 	if (crt_table[index].h_sync_polarity == NEGATIVE)
-		polarity |= BIT6;
+		polarity |= VIA_HSYNC_NEGATIVE;
 	if (crt_table[index].v_sync_polarity == NEGATIVE)
-		polarity |= BIT7;
-	via_write_misc_reg_mask(polarity, BIT6 | BIT7);
+		polarity |= VIA_VSYNC_NEGATIVE;
+	via_set_sync_polarity(VIA_CRT, polarity);
 
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();

@@ -47,6 +47,10 @@
 #define VIA_STATE_SUSPEND	2
 #define VIA_STATE_OFF		3
 
+/* VIA output device sync polarity */
+#define VIA_HSYNC_NEGATIVE	0x01
+#define VIA_VSYNC_NEGATIVE	0x02
+
 /***************************************************
 * Definition IGA1 Design Method of CRTC Registers *
 ****************************************************/
@@ -912,6 +916,7 @@ void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 	      int io_type);
 void via_set_source(u32 devices, u8 iga);
 void via_set_state(u32 devices, u8 state);
+void via_set_sync_polarity(u32 devices, u8 polarity);
 u32 via_parse_odev(char *input, char **end);
 void via_odev_to_seq(struct seq_file *m, u32 odev);
 void init_ad9389(void);
