@@ -632,6 +632,7 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 		desc->sptes[0] = (u64 *)*rmapp;
 		desc->sptes[1] = spte;
 		*rmapp = (unsigned long)desc | 1;
+		++count;
 	} else {
 		rmap_printk("rmap_add: %p %llx many->many\n", spte, *spte);
 		desc = (struct kvm_rmap_desc *)(*rmapp & ~1ul);
@@ -644,7 +645,7 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 			desc = desc->more;
 		}
 		for (i = 0; desc->sptes[i]; ++i)
-			;
+			++count;
 		desc->sptes[i] = spte;
 	}
 	return count;
