@@ -79,7 +79,7 @@ struct icmp_packet {
 #define BAT_RR_LEN 16
 
 /* icmp_packet_rr must start with all fields from imcp_packet
-   as this is assumed by code that handles ICMP packets */
+ * as this is assumed by code that handles ICMP packets */
 struct icmp_packet_rr {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
