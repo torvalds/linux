@@ -418,13 +418,6 @@ out:
 	return NULL;
 }
 
-static void hardif_free_interface(struct rcu_head *rcu)
-{
-	struct batman_if *batman_if = container_of(rcu, struct batman_if, rcu);
-
-	kfree(batman_if);
-}
-
 static void hardif_remove_interface(struct batman_if *batman_if)
 {
 	/* first deactivate interface */
@@ -438,9 +431,10 @@ static void hardif_remove_interface(struct batman_if *batman_if)
 
 	/* caller must take if_list_lock */
 	list_del_rcu(&batman_if->list);
+	synchronize_rcu();
 	sysfs_del_hardif(&batman_if->hardif_obj);
 	dev_put(batman_if->net_dev);
-	call_rcu(&batman_if->rcu, hardif_free_interface);
+	kfree(batman_if);
 }
 
 void hardif_remove_interfaces(void)
