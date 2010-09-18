@@ -106,11 +106,22 @@ out:
 	return batman_if;
 }
 
+static void update_primary_addr(struct bat_priv *bat_priv)
+{
+	struct vis_packet *vis_packet;
+
+	vis_packet = (struct vis_packet *)
+				bat_priv->my_vis_info->skb_packet->data;
+	memcpy(vis_packet->vis_orig,
+	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(vis_packet->sender_orig,
+	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+}
+
 static void set_primary_if(struct bat_priv *bat_priv,
 			   struct batman_if *batman_if)
 {
 	struct batman_packet *batman_packet;
-	struct vis_packet *vis_packet;
 	struct batman_if *old_if;
 
 	if (batman_if)
@@ -129,12 +140,7 @@ static void set_primary_if(struct bat_priv *bat_priv,
 	batman_packet->flags = PRIMARIES_FIRST_HOP;
 	batman_packet->ttl = TTL;
 
-	vis_packet = (struct vis_packet *)
-				bat_priv->my_vis_info->skb_packet->data;
-	memcpy(vis_packet->vis_orig,
-	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
-	memcpy(vis_packet->sender_orig,
-	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	update_primary_addr(bat_priv);
 
 	/***
 	 * hacky trick to make sure that we send the HNA information via
@@ -516,7 +522,7 @@ static int hard_if_event(struct notifier_block *this,
 
 		bat_priv = netdev_priv(batman_if->soft_iface);
 		if (batman_if == bat_priv->primary_if)
-			set_primary_if(bat_priv, batman_if);
+			update_primary_addr(bat_priv);
 		break;
 	default:
 		break;
