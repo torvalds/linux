@@ -779,38 +779,6 @@ sys_rt_sigreturn:
 .end sys_rt_sigreturn
 
 	.align	4
-	.globl	sys_sigsuspend
-	.ent	sys_sigsuspend
-sys_sigsuspend:
-	.prologue 0
-	mov	$sp, $17
-	br	$1, do_switch_stack
-	mov	$sp, $18
-	subq	$sp, 16, $sp
-	stq	$26, 0($sp)
-	jsr	$26, do_sigsuspend
-	ldq	$26, 0($sp)
-	lda	$sp, SWITCH_STACK_SIZE+16($sp)
-	ret
-.end sys_sigsuspend
-
-	.align	4
-	.globl	sys_rt_sigsuspend
-	.ent	sys_rt_sigsuspend
-sys_rt_sigsuspend:
-	.prologue 0
-	mov	$sp, $18
-	br	$1, do_switch_stack
-	mov	$sp, $19
-	subq	$sp, 16, $sp
-	stq	$26, 0($sp)
-	jsr	$26, do_rt_sigsuspend
-	ldq	$26, 0($sp)
-	lda	$sp, SWITCH_STACK_SIZE+16($sp)
-	ret
-.end sys_rt_sigsuspend
-
-	.align	4
 	.globl	sys_sethae
 	.ent	sys_sethae
 sys_sethae:

@@ -466,6 +466,7 @@
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 
 /* "Conditional" syscalls.  What we want is
 

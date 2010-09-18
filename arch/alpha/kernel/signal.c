@@ -144,8 +144,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int
-do_sigsuspend(old_sigset_t mask, struct pt_regs *regs, struct switch_stack *sw)
+SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
 {
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
@@ -153,41 +152,6 @@ do_sigsuspend(old_sigset_t mask, struct pt_regs *regs, struct switch_stack *sw)
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-
-	/* Indicate EINTR on return from any possible signal handler,
-	   which will not come back through here, but via sigreturn.  */
-	regs->r0 = EINTR;
-	regs->r19 = 1;
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
-}
-
-asmlinkage int
-do_rt_sigsuspend(sigset_t __user *uset, size_t sigsetsize,
-		 struct pt_regs *regs, struct switch_stack *sw)
-{
-	sigset_t set;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-	if (copy_from_user(&set, uset, sizeof(set)))
-		return -EFAULT;
-
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	/* Indicate EINTR on return from any possible signal handler,
-	   which will not come back through here, but via sigreturn.  */
-	regs->r0 = EINTR;
-	regs->r19 = 1;
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
