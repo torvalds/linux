@@ -20,8 +20,6 @@
 //
 // Author(s): ="Atheros"
 //------------------------------------------------------------------------------
-#include <linux/kernel.h>
-#include <linux/skbuff.h>
 #include <a_config.h>
 #include "athdefs.h"
 #include "a_types.h"

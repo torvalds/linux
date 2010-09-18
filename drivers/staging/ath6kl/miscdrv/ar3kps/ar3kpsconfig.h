@@ -36,15 +36,11 @@
 
 #include <linux/fs.h>
 #include <linux/errno.h>
-#include <linux/string.h>
 #include <linux/signal.h>
-#include <linux/timer.h>
 
 
 #include <linux/ioctl.h>
-#include <linux/skbuff.h>
 #include <linux/firmware.h>
-#include <linux/wait.h>
 
 
 #include <net/bluetooth/bluetooth.h>

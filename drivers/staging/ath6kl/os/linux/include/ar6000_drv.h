@@ -24,22 +24,14 @@
 #ifndef _AR6000_H_
 #define _AR6000_H_
 
-#include <linux/version.h>
-
-
-#include <generated/autoconf.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/skbuff.h>
 #include <linux/if_ether.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <net/iw_handler.h>
 #include <linux/if_arp.h>
 #include <linux/ip.h>
-#include <linux/semaphore.h>
 #include <linux/wireless.h>
 #ifdef ATH6K_CONFIG_CFG80211
 #include <net/cfg80211.h>

@@ -21,8 +21,6 @@
 // Author(s): ="Atheros"
 //------------------------------------------------------------------------------
 
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
