@@ -40,9 +40,10 @@
 
 #if defined(CONFIG_DEBUG_FS)
 
-#define ACTIVE_LIST	1
-#define FLUSHING_LIST	2
-#define INACTIVE_LIST	3
+#define RENDER_LIST	1
+#define BSD_LIST	2
+#define FLUSHING_LIST	3
+#define INACTIVE_LIST	4
 
 static const char *yesno(int v)
 {
@@ -137,9 +138,13 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		return ret;
 
 	switch (list) {
-	case ACTIVE_LIST:
-		seq_printf(m, "Active:\n");
+	case RENDER_LIST:
+		seq_printf(m, "Render:\n");
 		head = &dev_priv->render_ring.active_list;
+		break;
+	case BSD_LIST:
+		seq_printf(m, "BSD:\n");
+		head = &dev_priv->bsd_ring.active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_printf(m, "Inactive:\n");
@@ -974,7 +979,8 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 
 static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0, 0},
-	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
+	{"i915_gem_render_active", i915_gem_object_list_info, 0, (void *) RENDER_LIST},
+	{"i915_gem_bsd_active", i915_gem_object_list_info, 0, (void *) BSD_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
