@@ -77,7 +77,6 @@ enum ccid3_hc_tx_states {
 	TFRC_SSTATE_NO_SENT = 1,
 	TFRC_SSTATE_NO_FBACK,
 	TFRC_SSTATE_FBACK,
-	TFRC_SSTATE_TERM,
 };
 
 /**
@@ -130,7 +129,6 @@ static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
 enum ccid3_hc_rx_states {
 	TFRC_RSTATE_NO_DATA = 1,
 	TFRC_RSTATE_DATA,
-	TFRC_RSTATE_TERM    = 127,
 };
 
 /**
