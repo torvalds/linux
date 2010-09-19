@@ -400,10 +400,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	/* Update loss event rate (which is scaled by 1e6) */
 	pinv = opt_recv->ccid3or_loss_event_rate;
-	if (pinv == ~0U || pinv == 0)	       /* see RFC 4342, 8.5   */
+	if (pinv == 0)
 		hc->tx_p = 0;
-	else				       /* can not exceed 100% */
-		hc->tx_p = scaled_div(1, pinv);
+	else
+		hc->tx_p = tfrc_invert_loss_event_rate(pinv);
 
 	/*
 	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
@@ -834,8 +834,7 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 			return -EINVAL;
 		rx_info.tfrcrx_x_recv = hc->rx_x_recv;
 		rx_info.tfrcrx_rtt    = hc->rx_rtt;
-		rx_info.tfrcrx_p      = hc->rx_pinv == 0 ? ~0U :
-					   scaled_div(1, hc->rx_pinv);
+		rx_info.tfrcrx_p      = tfrc_invert_loss_event_rate(hc->rx_pinv);
 		len = sizeof(rx_info);
 		val = &rx_info;
 		break;
