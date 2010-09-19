@@ -3582,8 +3582,17 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	enum emulation_result err = EMULATE_DONE;
 	int ret = 1;
+	u32 cpu_exec_ctrl;
+	bool intr_window_requested;
+
+	cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	intr_window_requested = cpu_exec_ctrl & CPU_BASED_VIRTUAL_INTR_PENDING;
 
 	while (!guest_state_valid(vcpu)) {
+		if (intr_window_requested
+		    && (kvm_get_rflags(&vmx->vcpu) & X86_EFLAGS_IF))
+			return handle_interrupt_window(&vmx->vcpu);
+
 		err = emulate_instruction(vcpu, 0, 0, 0);
 
 		if (err == EMULATE_DO_MMIO) {
