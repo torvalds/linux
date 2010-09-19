@@ -39,7 +39,7 @@ static void pic_irq_request(struct kvm *kvm, int level);
 static void pic_lock(struct kvm_pic *s)
 	__acquires(&s->lock)
 {
-	raw_spin_lock(&s->lock);
+	spin_lock(&s->lock);
 }
 
 static void pic_unlock(struct kvm_pic *s)
@@ -51,7 +51,7 @@ static void pic_unlock(struct kvm_pic *s)
 
 	s->wakeup_needed = false;
 
-	raw_spin_unlock(&s->lock);
+	spin_unlock(&s->lock);
 
 	if (wakeup) {
 		kvm_for_each_vcpu(i, vcpu, s->kvm) {
@@ -569,7 +569,7 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
 	if (!s)
 		return NULL;
-	raw_spin_lock_init(&s->lock);
+	spin_lock_init(&s->lock);
 	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;
 	s->pics[1].elcr_mask = 0xde;
