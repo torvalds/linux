@@ -2014,7 +2014,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	int index = 0;
 	int h_addr, v_addr;
 	u32 pll_D_N;
-	u8 polarity = 0;
 
 	for (i = 0; i < video_mode->mode_array; i++) {
 		index = i;
@@ -2041,14 +2040,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 	h_addr = crt_reg.hor_addr;
 	v_addr = crt_reg.ver_addr;
-
-	/* update polarity for CRT timing */
-	if (crt_table[index].h_sync_polarity == NEGATIVE)
-		polarity |= VIA_HSYNC_NEGATIVE;
-	if (crt_table[index].v_sync_polarity == NEGATIVE)
-		polarity |= VIA_VSYNC_NEGATIVE;
-	via_set_sync_polarity(VIA_CRT, polarity);
-
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();
 		viafb_write_reg(CR09, VIACR, 0x00);	/*initial CR09=0 */
@@ -2352,6 +2343,17 @@ static void set_display_channel(void)
 	}
 }
 
+static u8 get_sync(struct fb_info *info)
+{
+	u8 polarity = 0;
+
+	if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
+		polarity |= VIA_HSYNC_NEGATIVE;
+	if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
+		polarity |= VIA_VSYNC_NEGATIVE;
+	return polarity;
+}
+
 int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	struct VideoModeTable *vmode_tbl1, int video_bpp1)
 {
@@ -2566,6 +2568,15 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 			viafb_DeviceStatus = CRT_Device;
 	}
 	device_on();
+	if (!viafb_dual_fb)
+		via_set_sync_polarity(devices, get_sync(viafbinfo));
+	else {
+		via_set_sync_polarity(viaparinfo->shared->iga1_devices,
+			get_sync(viafbinfo));
+		via_set_sync_polarity(viaparinfo->shared->iga2_devices,
+			get_sync(viafbinfo1));
+	}
+
 	via_set_state(devices, VIA_STATE_ON);
 	device_screen_on();
 	return 1;
@@ -2719,4 +2730,9 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	    crt_reg.ver_total - (crt_reg.ver_sync_start + crt_reg.ver_sync_end);
 	var->lower_margin = crt_reg.ver_sync_start - crt_reg.ver_addr;
 	var->vsync_len = crt_reg.ver_sync_end;
+	var->sync = 0;
+	if (crt_timing[index].h_sync_polarity == POSITIVE)
+		var->sync |= FB_SYNC_HOR_HIGH_ACT;
+	if (crt_timing[index].v_sync_polarity == POSITIVE)
+		var->sync |= FB_SYNC_VERT_HIGH_ACT;
 }
