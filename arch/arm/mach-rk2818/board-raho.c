@@ -24,6 +24,7 @@
 #include <linux/mmc/host.h>
 #include <linux/circ_buf.h>
 #include <linux/miscdevice.h>
+#include <linux/usb/android_composite.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -1842,7 +1843,14 @@ struct rk2818_nand_platform_data rk2818_nand_data = {
 };
 
 
-/*****************************************/
+/********************usb*********************/
+struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "RockChip",
+	.product	= "rk2818 sdk",
+	.release	= 0x0100,
+};
+
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BT

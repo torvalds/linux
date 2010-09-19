@@ -63,6 +63,7 @@ extern struct platform_device rk2818_nand_device;
 extern struct platform_device rk2818_device_dwc_otg;
 extern struct platform_device rk2818_device_host11;
 extern struct platform_device android_usb_device;
+extern struct usb_mass_storage_platform_data mass_storage_pdata;
 extern struct platform_device usb_mass_storage_device;
 extern struct platform_device rk28_device_vibrator;
 extern struct timed_gpio_platform_data rk28_vibrator_info;
