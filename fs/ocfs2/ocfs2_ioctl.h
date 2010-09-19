@@ -23,10 +23,10 @@
 /*
  * ioctl commands
  */
-#define OCFS2_IOC_GETFLAGS	_IOR('f', 1, long)
-#define OCFS2_IOC_SETFLAGS	_IOW('f', 2, long)
-#define OCFS2_IOC32_GETFLAGS	_IOR('f', 1, int)
-#define OCFS2_IOC32_SETFLAGS	_IOW('f', 2, int)
+#define OCFS2_IOC_GETFLAGS	FS_IOC_GETFLAGS
+#define OCFS2_IOC_SETFLAGS	FS_IOC_SETFLAGS
+#define OCFS2_IOC32_GETFLAGS	FS_IOC32_GETFLAGS
+#define OCFS2_IOC32_SETFLAGS	FS_IOC32_SETFLAGS
 
 /*
  * Space reservation / allocation / free ioctls and argument structure
