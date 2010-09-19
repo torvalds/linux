@@ -384,6 +384,9 @@ struct kvm_vcpu_arch {
 	u64 last_host_tsc;
 	u64 last_guest_tsc;
 	u64 last_kernel_ns;
+	u64 last_tsc_nsec;
+	u64 last_tsc_write;
+	bool tsc_catchup;
 
 	bool nmi_pending;
 	bool nmi_injected;
@@ -444,6 +447,9 @@ struct kvm_arch {
 	u64 last_tsc_nsec;
 	u64 last_tsc_offset;
 	u64 last_tsc_write;
+	u32 virtual_tsc_khz;
+	u32 virtual_tsc_mult;
+	s8 virtual_tsc_shift;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
