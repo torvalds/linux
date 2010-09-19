@@ -1458,9 +1458,8 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 }
 
 static enum drm_connector_status
-ironlake_dp_detect(struct drm_connector *connector)
+ironlake_dp_detect(struct intel_dp *intel_dp)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	enum drm_connector_status status;
 
 	/* Can't disconnect eDP */
@@ -1470,8 +1469,8 @@ ironlake_dp_detect(struct drm_connector *connector)
 	status = connector_status_disconnected;
 	if (intel_dp_aux_native_read(intel_dp,
 				     0x000, intel_dp->dpcd,
-				     sizeof (intel_dp->dpcd)) == sizeof (intel_dp->dpcd))
-	{
+				     sizeof (intel_dp->dpcd))
+	    == sizeof(intel_dp->dpcd)) {
 		if (intel_dp->dpcd[0] != 0)
 			status = connector_status_connected;
 	}
@@ -1480,25 +1479,13 @@ ironlake_dp_detect(struct drm_connector *connector)
 	return status;
 }
 
-/**
- * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect DP connection.
- *
- * \return true if DP port is connected.
- * \return false if DP port is disconnected.
- */
 static enum drm_connector_status
-intel_dp_detect(struct drm_connector *connector, bool force)
+g4x_dp_detect(struct intel_dp *intel_dp)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t temp, bit;
 	enum drm_connector_status status;
-
-	intel_dp->has_audio = false;
-
-	if (HAS_PCH_SPLIT(dev))
-		return ironlake_dp_detect(connector);
+	uint32_t temp, bit;
 
 	switch (intel_dp->output_reg) {
 	case DP_B:
@@ -1520,14 +1507,47 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 
 	status = connector_status_disconnected;
-	if (intel_dp_aux_native_read(intel_dp,
-				     0x000, intel_dp->dpcd,
+	if (intel_dp_aux_native_read(intel_dp, 0x000, intel_dp->dpcd,
 				     sizeof (intel_dp->dpcd)) == sizeof (intel_dp->dpcd))
 	{
 		if (intel_dp->dpcd[0] != 0)
 			status = connector_status_connected;
 	}
-	return status;
+
+	return bit;
+}
+
+/**
+ * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect DP connection.
+ *
+ * \return true if DP port is connected.
+ * \return false if DP port is disconnected.
+ */
+static enum drm_connector_status
+intel_dp_detect(struct drm_connector *connector, bool force)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct drm_device *dev = intel_dp->base.base.dev;
+	enum drm_connector_status status;
+	struct edid *edid = NULL;
+
+	intel_dp->has_audio = false;
+
+	if (HAS_PCH_SPLIT(dev))
+		status = ironlake_dp_detect(intel_dp);
+	else
+		status = g4x_dp_detect(intel_dp);
+	if (status != connector_status_connected)
+		return status;
+
+	edid = drm_get_edid(connector, &intel_dp->adapter);
+	if (edid) {
+		intel_dp->has_audio = drm_detect_monitor_audio(edid);
+		connector->display_info.raw_edid = NULL;
+		kfree(edid);
+	}
+
+	return connector_status_connected;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
