@@ -19,14 +19,13 @@
 
 #include "mds_f.h"
 
-/* ============================================================================= */
-u8 MLMESendFrame(struct wbsoft_priv *adapter, u8 *pMMPDU, u16 len, u8 DataType)
-/*	DataType : FRAME_TYPE_802_11_MANAGEMENT, FRAME_TYPE_802_11_MANAGEMENT_CHALLENGE,
-				FRAME_TYPE_802_11_DATA */
+#include <linux/netdevice.h>
+
+int MLMESendFrame(struct wbsoft_priv *adapter, u8 *pMMPDU, u16 len, u8 DataType)
 {
 	if (adapter->sMlmeFrame.IsInUsed != PACKET_FREE_TO_USE) {
 		adapter->sMlmeFrame.wNumTxMMPDUDiscarded++;
-		return false;
+		return NETDEV_TX_BUSY;
 	}
 	adapter->sMlmeFrame.IsInUsed = PACKET_COME_FROM_MLME;
 
@@ -40,9 +39,9 @@ u8 MLMESendFrame(struct wbsoft_priv *adapter, u8 *pMMPDU, u16 len, u8 DataType)
 	/* H/W will enter power save by set the register. S/W don't send null frame
 	with PWRMgt bit enbled to enter power save now. */
 
-	/* Transmit NDIS packet */
 	Mds_Tx(adapter);
-	return true;
+
+	return NETDEV_TX_OK;
 }
 
 void MLME_GetNextPacket(struct wbsoft_priv *adapter, struct wb35_descriptor *desc)
