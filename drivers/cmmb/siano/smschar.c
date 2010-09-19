@@ -205,7 +205,6 @@ static int smschar_open(struct inode *inode, struct file *file)
 
 		if(g_has_opened_first==0 && dev->device_index==0)
 		{
-
 		 smsspi_poweron();
 		 g_has_opened_first=1;
 		 printk("open first********\n");
@@ -778,16 +777,16 @@ int smschar_register(void)
 	}
 //	init_waitqueue_head(&g_pnp_event);
 
-	smschr_dev_class = class_create(THIS_MODULE, "smsmdtv");
+	smschr_dev_class= class_create(THIS_MODULE, "cmmb_demodulator");
 	if(IS_ERR(smschr_dev_class)){
 		sms_err("Could not create sms char device class\n");
 		return -1;
 	}
-        sms_power_dev = device_create(smschr_dev_class,NULL,0,"%s","power_state") ;
-        if(sms_power_dev)
-        {
-           rc = device_create_file(sms_power_dev, &dev_attr_suspend) ;
-        }
+        //sms_power_dev = device_create(smschr_dev_class,NULL,0,"%s","power_state") ;
+        //if(sms_power_dev)
+        //{
+           //rc = device_create_file(sms_power_dev, &dev_attr_suspend) ;
+        //}
 	//android_register_early_suspend(&smsspi_android_suspend);//hzb 
 	return smscore_register_hotplug(smschar_hotplug);
 }
@@ -799,10 +798,10 @@ void smschar_unregister(void)
 	int i;
 	for( i = 0; i < SMSCHAR_NR_DEVS; i++)
 		device_destroy(smschr_dev_class, MKDEV(smschar_major, i));
-	class_destroy(smschr_dev_class);
-
+	
 	unregister_chrdev_region(devno, SMSCHAR_NR_DEVS);
 	smscore_unregister_hotplug(smschar_hotplug);
 	//android_unregister_early_suspend(&smsspi_android_suspend);
+	class_destroy(smschr_dev_class);
 	sms_info("unregistered\n");
 }

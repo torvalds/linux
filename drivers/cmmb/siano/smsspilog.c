@@ -40,6 +40,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "smsspicommon.h"
 #include "smsspiphy.h"
 #include <linux/spi/spi.h>
+#if 	SIANO_HALFDUPLEX
+#include <linux/kthread.h>//hzb@20100902
+#endif
 
 #define ANDROID_2_6_25
 #ifdef ANDROID_2_6_25
@@ -51,9 +54,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define SMS_INTR_PIN			19  /* 0 for nova sip, 26 for vega in the default, 19 in the reality */
 #define TX_BUFFER_SIZE			0x200
+#if 0
 #define RX_BUFFER_SIZE			(0x1000 + SPI_PACKET_SIZE + 0x100)
-#define NUM_RX_BUFFERS			64 // change to 128
-//#define NUM_RX_BUFFERS			72
+#define NUM_RX_BUFFERS			 64 // change to 128
+#else
+#define RX_BUFFER_SIZE			(0x10000 + SPI_PACKET_SIZE + 0x100)
+#define NUM_RX_BUFFERS			 4 // change to 128
+#endif
 
 
 u32 g_Sms_Int_Counter=0;
@@ -95,8 +102,20 @@ static int spi_resume_fail = 0 ;
 static int spi_suspended   = 0 ;
 
 
+
 static void spi_worker_thread(void *arg);
+
+#if SIANO_HALFDUPLEX
+int g_IsTokenOwned=FALSE;
+int g_IsTokenEnable=FALSE;
+struct semaphore 	HalfDuplexSemaphore;
+struct task_struct	*SPI_Thread;
+static int SPI_Thread_IsStop=0;
+#define MSG_HDR_FLAG_STATIC_MSG		0x0001	// Message is dynamic when this bit is '0'
+#else
 static DECLARE_WORK(spi_work_queue, (void *)spi_worker_thread);
+#endif
+
 static u8 smsspi_preamble[] = { 0xa5, 0x5a, 0xe7, 0x7e };
 
 // to support dma 16byte burst size
@@ -131,8 +150,164 @@ static void spi_worker_thread(void *arg)
 	struct _spi_msg txmsg;
 	int i=0;
 
+
+#if SIANO_HALFDUPLEX
+	static UINT8 s_SpiTokenMsgBuf[256] = {0};
+	const UINT8 g_PreambleBytes[4] = { 0xa5, 0x5a, 0xe7, 0x7e};
+	struct SmsMsgHdr_ST s_SpiTokenSendMsg = {MSG_SMS_SPI_HALFDUPLEX_TOKEN_HOST_TO_DEVICE, 0, 11, sizeof(struct SmsMsgHdr_ST), MSG_HDR_FLAG_STATIC_MSG};
+
+	memcpy( s_SpiTokenMsgBuf, g_PreambleBytes, sizeof(g_PreambleBytes) );
+	memcpy( &s_SpiTokenMsgBuf[sizeof(g_PreambleBytes)], &s_SpiTokenSendMsg, sizeof(s_SpiTokenSendMsg) );
+
 	PDEBUG("worker start\n");
+	
 	do {
+		mdelay(3);
+		if (g_IsTokenEnable){
+			if (g_IsTokenOwned){
+				if (!msg && !list_empty(&spi_device->txqueue))
+					msg = (struct _smsspi_txmsg *)list_entry(spi_device->txqueue.next, struct _smsspi_txmsg, node);
+
+				if (!msg) {
+					// TX queue empty - give up token
+					sms_debug("TX queue empty - give up token\n");
+					g_IsTokenOwned = FALSE;
+					txmsg.len = 256;
+					txmsg.buf = s_SpiTokenMsgBuf;
+					txmsg.buf_phy_addr = 0;//zzf spi_device->txbuf_phy_addr;
+					smsspi_common_transfer_msg(&spi_device->dev,&txmsg, 0);
+				} else {
+					sms_debug("msg is not null\n");
+					if (msg->add_preamble) {// need to add preamble
+						txmsg.len = min(msg->size + sizeof(smsspi_preamble),(size_t) TX_BUFFER_SIZE);
+						txmsg.buf = spi_device->txbuf;
+						txmsg.buf_phy_addr = spi_device->txbuf_phy_addr;
+						memcpy(txmsg.buf, smsspi_preamble, sizeof(smsspi_preamble));
+						memcpy(&txmsg.buf[sizeof(smsspi_preamble)],msg->buffer,txmsg.len - sizeof(smsspi_preamble));
+						msg->add_preamble = 0;
+						msg->buffer = (char*)msg->buffer + txmsg.len - sizeof(smsspi_preamble);
+						msg->size -= txmsg.len - sizeof(smsspi_preamble);
+						/* zero out the rest of aligned buffer */
+						memset(&txmsg.buf[txmsg.len], 0, TX_BUFFER_SIZE - txmsg.len);
+						if(spi_resume_fail||spi_suspended) 
+						{
+							sms_err(KERN_EMERG " SMS1180: spi failed\n");
+						} else {
+							smsspi_common_transfer_msg(&spi_device->dev, &txmsg, 1);
+						}
+					} else {// donot need to add preamble
+						txmsg.len = min(msg->size, (size_t) TX_BUFFER_SIZE);
+						txmsg.buf = spi_device->txbuf;
+						txmsg.buf_phy_addr = spi_device->txbuf_phy_addr;
+						memcpy(txmsg.buf, msg->buffer, txmsg.len);
+				
+						msg->buffer = (char*)msg->buffer + txmsg.len;
+						msg->size -= txmsg.len;
+						/* zero out the rest of aligned buffer */
+						memset(&txmsg.buf[txmsg.len], 0, TX_BUFFER_SIZE - txmsg.len);
+						if(spi_resume_fail||spi_suspended){
+							sms_err(KERN_EMERG " SMS1180: spi failed\n");
+						} else {
+							smsspi_common_transfer_msg(&spi_device->dev,&txmsg, 0);
+						}
+					}
+				} 
+
+			} else {
+				if(0)//spi_resume_fail||spi_suspended) 
+				{
+					sms_err(KERN_EMERG " SMS1180: spi failed\n") ;	  
+				} else {
+					sms_debug(KERN_EMERG "[SMS]spi_worker_thread token enable wait HalfDuplexSemaphore\n") ;
+					if (SPI_Thread_IsStop)
+						return -EINTR;
+					if (down_interruptible(&HalfDuplexSemaphore))
+						return -EINTR;
+					sms_debug(KERN_EMERG "[SMS]spi_worker_thread token enable get HalfDuplexSemaphore\n") ;
+					smsspi_common_transfer_msg(&spi_device->dev, NULL, 1);
+				}
+			}
+		}else {
+			sms_debug(KERN_EMERG "[SMS]spi_worker_thread token disable wait HalfDuplexSemaphore\n") ;
+			if (SPI_Thread_IsStop)
+					return -EINTR;
+			if (down_interruptible(&HalfDuplexSemaphore))
+					return -EINTR;
+			sms_debug(KERN_EMERG "[SMS]spi_worker_thread token disable get HalfDuplexSemaphore\n") ;
+			if (!msg && !list_empty(&spi_device->txqueue))
+				msg = (struct _smsspi_txmsg *)list_entry(spi_device->txqueue.next, struct _smsspi_txmsg, node);
+			if (msg) {
+				if (msg->add_preamble) {// need to add preamble
+					txmsg.len = min(msg->size + sizeof(smsspi_preamble),(size_t) TX_BUFFER_SIZE);
+					txmsg.buf = spi_device->txbuf;
+					txmsg.buf_phy_addr = spi_device->txbuf_phy_addr;
+					memcpy(txmsg.buf, smsspi_preamble, sizeof(smsspi_preamble));
+					memcpy(&txmsg.buf[sizeof(smsspi_preamble)],msg->buffer,txmsg.len - sizeof(smsspi_preamble));
+					msg->add_preamble = 0;
+					msg->buffer = (char*)msg->buffer + txmsg.len - sizeof(smsspi_preamble);
+					msg->size -= txmsg.len - sizeof(smsspi_preamble);
+					/* zero out the rest of aligned buffer */
+					memset(&txmsg.buf[txmsg.len], 0, TX_BUFFER_SIZE - txmsg.len);
+					if(spi_resume_fail||spi_suspended) 
+					{
+						sms_err(KERN_EMERG " SMS1180: spi failed\n");
+					} else {
+						smsspi_common_transfer_msg(&spi_device->dev, &txmsg, 1);
+					}
+				} else {// donot need to add preamble
+					txmsg.len = min(msg->size, (size_t) TX_BUFFER_SIZE);
+					txmsg.buf = spi_device->txbuf;
+					txmsg.buf_phy_addr = spi_device->txbuf_phy_addr;
+					memcpy(txmsg.buf, msg->buffer, txmsg.len);
+			
+					msg->buffer = (char*)msg->buffer + txmsg.len;
+					msg->size -= txmsg.len;
+					/* zero out the rest of aligned buffer */
+					memset(&txmsg.buf[txmsg.len], 0, TX_BUFFER_SIZE - txmsg.len);
+					if(spi_resume_fail||spi_suspended) 
+					{
+						sms_err(KERN_EMERG " SMS1180: spi failed\n");
+					} else {
+						smsspi_common_transfer_msg(&spi_device->dev,&txmsg, 0);
+					}
+				}
+			} else {
+				if(0)//spi_resume_fail||spi_suspended) 
+				{
+					sms_err(KERN_EMERG " SMS1180: spi failed\n") ;	  
+				} else {
+					smsspi_common_transfer_msg(&spi_device->dev, NULL, 1);
+				}
+			}
+
+		}
+			/* if there was write, have we finished ? */
+		if (msg && !msg->size) {
+			/* call postwrite call back */
+			if (msg->postwrite)
+				msg->postwrite(spi_device);
+
+			list_del(&msg->node);
+			complete(&msg->completion);
+			msg = NULL;
+		}
+		/* if there was read, did we read anything ? */
+
+
+		//check if we lost msg, if so, recover
+		if(g_Sms_MsgFound_Counter < g_Sms_Int_Counter){
+			sms_err("we lost msg, probably becouse dma time out\n");
+			//for(i=0; i<16; i++)
+			{
+				//smsspi_common_transfer_msg(&spi_device->dev, NULL, 1);
+			}
+			g_Sms_MsgFound_Counter = g_Sms_Int_Counter;
+		}
+	}while(1);
+#else
+	PDEBUG("worker start\n");
+	do{
+        	mdelay(6);
         /* do we have a msg to write ? */
 		if (!msg && !list_empty(&spi_device->txqueue))
 			msg = (struct _smsspi_txmsg *)list_entry(spi_device->txqueue.next, struct _smsspi_txmsg, node);
@@ -150,7 +325,7 @@ static void spi_worker_thread(void *arg)
 				memset(&txmsg.buf[txmsg.len], 0, TX_BUFFER_SIZE - txmsg.len);
                 if(spi_resume_fail||spi_suspended) 
                 {
-                    printk(KERN_EMERG " SMS1180: spi failed\n");
+                    sms_err(KERN_EMERG " SMS1180: spi failed\n");
                 } else {
                     smsspi_common_transfer_msg(&spi_device->dev, &txmsg, 1);
                 }
@@ -166,7 +341,7 @@ static void spi_worker_thread(void *arg)
 				memset(&txmsg.buf[txmsg.len], 0, TX_BUFFER_SIZE - txmsg.len);
                 if(spi_resume_fail||spi_suspended) 
                 {
-                    printk(KERN_EMERG " SMS1180: spi failed\n");
+                    sms_err(KERN_EMERG " SMS1180: spi failed\n");
                 } else {
                     smsspi_common_transfer_msg(&spi_device->dev,&txmsg, 0);
                 }
@@ -174,7 +349,7 @@ static void spi_worker_thread(void *arg)
 		} else {
             if(spi_resume_fail||spi_suspended) 
             {
-                printk(KERN_EMERG " SMS1180: spi failed\n") ;     
+                sms_err(KERN_EMERG " SMS1180: spi failed\n") ;     
             } else {
                 smsspi_common_transfer_msg(&spi_device->dev, NULL, 1);
             }
@@ -196,7 +371,7 @@ static void spi_worker_thread(void *arg)
 		//check if we lost msg, if so, recover
 		if(g_Sms_MsgFound_Counter < g_Sms_Int_Counter)
 		{
-			printk("we lost msg, probably becouse dma time out\n");
+			sms_err("we lost msg, probably becouse dma time out\n");
 			//for(i=0; i<16; i++)
 			{
 				//smsspi_common_transfer_msg(&spi_device->dev, NULL, 1);
@@ -204,7 +379,7 @@ static void spi_worker_thread(void *arg)
 			g_Sms_MsgFound_Counter = g_Sms_Int_Counter;
 		}
 	} while (!list_empty(&spi_device->txqueue) || msg);
-
+#endif
 }
 
 unsigned  long u_msgres_count =0;
@@ -218,13 +393,14 @@ static void msg_found(void *context, void *buf, int offset, int len)
     g_Sms_MsgFound_Counter++;
     u_msgres_count ++;
     
-    //sms_debug("Msg_found count = %d\n", u_msgres_count);
+    sms_debug("Msg_found count = %d\n", u_msgres_count);
+    //printk("Msg_found count = %d\n", u_msgres_count);
 
     if(len > RX_BUFFER_SIZE || offset >RX_BUFFER_SIZE )
     {
-        printk("SMS1180: msg rx over,len=0x%x,offset=0x%x\n",len,offset ) ;
-        printk("SMS1180: cb->p = [0x%x]\n",(unsigned int) cb->p) ;
-        printk("SMS1180: cb->phys=[0x%x]\n",(unsigned int) cb->phys) ;
+        sms_debug("SMS1180: msg rx over,len=0x%x,offset=0x%x\n",len,offset ) ;
+        sms_debug("SMS1180: cb->p = [0x%x]\n",(unsigned int) cb->p) ;
+        sms_debug("SMS1180: cb->phys=[0x%x]\n",(unsigned int) cb->phys) ;
     } 
     
 	cb->offset = offset;
@@ -241,10 +417,15 @@ static void smsspi_int_handler(void *context)
     
     if(spi_resume_fail||spi_suspended) 
     {
-        printk(KERN_EMERG " SMS1180: spi failed\n") ;
+        sms_err(KERN_EMERG " SMS1180: spi failed\n") ;
         return ;                       
-    }  
+    }
+#if SIANO_HALFDUPLEX
+	up(&HalfDuplexSemaphore);
+	sms_debug(KERN_EMERG "[SMS]smsspi_int_handler send HalfDuplexSemaphore@intr\n") ;
+#else
 	schedule_work(&spi_work_queue);
+#endif
 }
 
 
@@ -254,7 +435,16 @@ static int smsspi_queue_message_and_wait(struct _spi_device_st *spi_device,
 {
     init_completion(&msg->completion);
 	list_add_tail(&msg->node, &spi_device->txqueue);
+#if SIANO_HALFDUPLEX
+	if(!g_IsTokenEnable){
+		sms_debug(KERN_EMERG "[SMS]smsspi_queue_message_and_wait token disable send HalfDuplexSemaphore@writemsg\n") ;
+		up(&HalfDuplexSemaphore);
+	} else {
+		sms_debug(KERN_EMERG "[SMS]smsspi_queue_message_and_wait send HalfDuplexSemaphore\n") ;
+	}
+#else
 	schedule_work(&spi_work_queue);
+#endif
 	wait_for_completion(&msg->completion);
 	return 0;
 }
@@ -269,12 +459,12 @@ static int smsspi_SetIntLine(void *context)
 		{
 		MSG_SMS_SPI_INT_LINE_SET_REQ, 0, HIF_TASK,
 			    sizeof(struct _Msg), 0}, {
-		0, intr_pin, 100}
+		0, intr_pin, 1000}
 	};
 	struct _smsspi_txmsg msg;
 
 	PDEBUG("Sending SPI Set Interrupt command sequence\n");
-    sms_info("Sending SPI Set Interrupt command sequence\n");
+
 	msg.buffer = &Msg;
 	msg.size = sizeof(Msg);
 	msg.alignment = SPI_PACKET_SIZE;
@@ -306,7 +496,6 @@ static int smsspi_preload(void *context)
     printk(KERN_EMERG "smsmdtv: call smsspi_queue_message_and_wait\n") ;
 	smsspi_queue_message_and_wait(context, &msg);
 
-
 	ret = smsspi_SetIntLine(context);
         sms_info("smsspi_preload set int line ret = 0x%x",ret);
     //return ret;
@@ -336,12 +525,10 @@ static int smsspi_postload(void *context)
 	msg.buffer = &Msg;
 	msg.size = sizeof(Msg);
 	msg.alignment = SPI_PACKET_SIZE;
-	msg.add_preamble = 0;
+	msg.add_preamble = 1;
 	msg.prewrite = NULL;
 	msg.postwrite = NULL;	/* smsspiphy_restore_clock; */
 
-	//smsspi_queue_message_and_wait(context, &msg);
-	msleep(50);
 	g_Sms_Int_Counter=0;
 	g_Sms_Int_Counter=0;
 
@@ -455,7 +642,7 @@ void smsspi_poweron(void)
     ret = smsspibus_ssp_resume(spi_dev->phy_dev) ;
     if( ret== -1)
     {
-       printk(KERN_INFO "smsspibus_ssp_resume failed\n") ;
+       sms_err(KERN_INFO "smsspibus_ssp_resume failed\n") ;
 
 	}
 }
@@ -482,22 +669,17 @@ static int siano1186_probe( struct spi_device *Smsdevice)
     kmalloc(sizeof(struct _spi_device_st), GFP_KERNEL);
     if(!spi_device)
     {
-        printk("spi_device is null smsspi_register\n") ;
+        sms_err("spi_device is null smsspi_register\n") ;
         return 0;
     }
     spi_dev = spi_device;
 
     INIT_LIST_HEAD(&spi_device->txqueue);
 
-#if 0
-    spi_device->txbuf = kmalloc(max(TX_BUFFER_SIZE,PAGE_SIZE),GFP_KERNEL|GFP_DMA);
-    spi_device->txbuf_phy_addr = __pa(spi_device->txbuf);
-#else
     spi_device->txbuf = dma_alloc_coherent(NULL, max(TX_BUFFER_SIZE,PAGE_SIZE),&spi_device->txbuf_phy_addr, GFP_KERNEL | GFP_DMA);
-#endif
 
     if (!spi_device->txbuf) {
-        printk(KERN_INFO "%s dma_alloc_coherent(...) failed\n", __func__);
+        sms_err(KERN_INFO "%s dma_alloc_coherent(...) failed\n", __func__);
         ret = -ENOMEM;
         goto txbuf_error;
     }
@@ -508,7 +690,7 @@ static int siano1186_probe( struct spi_device *Smsdevice)
     spi_device->phy_dev =  smsspiphy_init(Smsdevice, smsspi_int_handler, spi_device);
 
     if (spi_device->phy_dev == 0) {
-        printk(KERN_INFO "%s smsspiphy_init(...) failed\n", __func__);
+        sms_err(KERN_INFO "%s smsspiphy_init(...) failed\n", __func__);
         goto phy_error;
     }
 
@@ -519,7 +701,7 @@ static int siano1186_probe( struct spi_device *Smsdevice)
 
     ret =  smsspicommon_init(&spi_device->dev, spi_device, spi_device->phy_dev, &common_cb);
     if (ret) {
-        printk(KERN_INFO "%s smsspiphy_init(...) failed\n", __func__);
+        sms_err(KERN_INFO "%s smsspiphy_init(...) failed\n", __func__);
         goto common_error;
     }
 
@@ -545,20 +727,29 @@ static int siano1186_probe( struct spi_device *Smsdevice)
         params.postload_handler = smsspi_postload;
     }
 
+#if SIANO_HALFDUPLEX
+	g_IsTokenOwned = FALSE;
+	init_MUTEX_LOCKED(&HalfDuplexSemaphore);
+	SPI_Thread = kthread_run(spi_worker_thread,NULL,"cmmb_spi_thread");
+	SPI_Thread_IsStop = 0;
+#endif
+
+
     ret = smscore_register_device(&params, &spi_device->coredev);
     if (ret < 0) {
-        printk(KERN_INFO "%s smscore_register_device(...) failed\n", __func__);
+        sms_err(KERN_INFO "%s smscore_register_device(...) failed\n", __func__);
         goto reg_device_error;
     }
 
     ret = smscore_start_device(spi_device->coredev);
     if (ret < 0) {
-        printk(KERN_INFO "%s smscore_start_device(...) failed\n", __func__);
+        sms_err(KERN_INFO "%s smscore_start_device(...) failed\n", __func__);
         goto start_device_error;
     }
     spi_resume_fail = 0 ;
     spi_suspended = 0 ;
-    printk(KERN_INFO "siano1186_probe exiting\n") ;
+
+    sms_info(KERN_INFO "siano1186_probe exiting\n") ;
    
     PDEBUG("exiting\n");
     return 0;
@@ -578,13 +769,38 @@ phy_error:
 #else
     dma_free_coherent(NULL, TX_BUFFER_SIZE, spi_device->txbuf,spi_device->txbuf_phy_addr);
 #endif
-
+   
 txbuf_error:
+    kfree(spi_device);
     sms_err("exiting error %d\n", ret);
 
     return ret;
 }
 
+
+void smsspi_remove(void)
+{
+	struct _spi_device_st *spi_device = spi_dev;
+	sms_info(KERN_INFO "smsmdtv: in smsspi_unregister\n") ;
+
+#if SIANO_HALFDUPLEX
+	SPI_Thread_IsStop = 1;
+  up(&HalfDuplexSemaphore);
+  sms_info("stop kthread \n");
+	ret = kthread_stop(SPI_Thread);
+	sms_info("stop kthread ret = 0x%x\n",ret);
+#endif
+	/* stop interrupts */
+	smsspiphy_deinit(spi_device->phy_dev);
+	
+	smscore_unregister_device(spi_device->coredev);
+
+	dma_free_coherent(NULL, TX_BUFFER_SIZE, spi_device->txbuf,spi_device->txbuf_phy_addr);
+	
+	kfree(spi_device);
+
+	sms_info("smsspi_remove exiting\n");
+}
 
 static struct spi_driver siano1186_driver = {
 	.driver = {
@@ -593,33 +809,16 @@ static struct spi_driver siano1186_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = siano1186_probe,
-	//.remove = __devexit_p(siano1186_remove),
+	.remove = __devexit_p(smsspi_remove),
 };
-
-
 
 int smsspi_register(void)
 {
-    printk(KERN_INFO "smsmdtv: in smsspi_register\n") ;
+    sms_info(KERN_INFO "smsmdtv: in smsspi_register\n") ;
     spi_register_driver(&siano1186_driver); 
 }
 
 void smsspi_unregister(void)
 {
-	struct _spi_device_st *spi_device = spi_dev;
-	printk(KERN_INFO "smsmdtv: in smsspi_unregister\n") ;
-
-	PDEBUG("entering\n");
-
-	/* stop interrupts */
-	smsspiphy_deinit(spi_device->phy_dev);
-	smscore_unregister_device(spi_device->coredev);
-
-#if 0   //spi buff kmalloc  
-    kfree(spi_device->txbuf);
-#else
-	dma_free_coherent(NULL, TX_BUFFER_SIZE, spi_device->txbuf,spi_device->txbuf_phy_addr);
-#endif    
-
-	PDEBUG("exiting\n");
+	spi_unregister_driver(&siano1186_driver);
 }

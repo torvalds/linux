@@ -173,6 +173,21 @@ void cmmb_unregister_device(struct cmmb_device *cmmbdev)
 }
 EXPORT_SYMBOL(cmmb_unregister_device);
 
+
+ssize_t cmmb_class_show_name(struct class * class, char * buf, size_t count, loff_t off)
+{
+#if defined(CONFIG_IFxxx_CMMB_Chip_Support)
+	memcpy(buf,"inno",5);
+	return 5;
+#else
+	memcpy(buf,"siano",6);
+	return 6;
+#endif
+	
+}  
+
+static CLASS_ATTR(name, 0777, cmmb_class_show_name, NULL);
+
 static int __init init_cmmbclass(void)
 {
     int retval;
@@ -199,8 +214,12 @@ static int __init init_cmmbclass(void)
 		retval = PTR_ERR(cmmb_class);
 		goto error;
 	}
-
-    cmmb_register_adapter("cmmb_adapter", NULL);
+        retval = class_create_file(cmmb_class, &class_attr_name);
+        if(retval < 0)
+        {
+            DBGERR("cmmb_class create attribute failed\n");
+        } 
+         cmmb_register_adapter("cmmb_adapter", NULL);
 
 	return 0;
 
@@ -213,12 +232,13 @@ error:
 
 static void __exit exit_cmmbclass(void)
 {
-    DBG("[CMMB HW]:[class]: exit_cmmbclass\n");
+	DBG("[CMMB HW]:[class]: exit_cmmbclass\n");
 
-    class_destroy(cmmb_class);
 	cdev_del(&cmmb_device_cdev);
-    cmmb_unregister_adapter(&CMMB_adapter);
+	cmmb_unregister_adapter(&CMMB_adapter);
 	unregister_chrdev_region(MKDEV(CMMB_MAJOR, 0), MAX_CMMB_MINORS);
+	class_remove_file(cmmb_class, &class_attr_name);
+	class_destroy(cmmb_class);
 }
 
 

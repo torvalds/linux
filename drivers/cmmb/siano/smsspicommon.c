@@ -326,6 +326,23 @@ void smsspi_common_transfer_msg(struct _spi_dev *dev, struct _spi_msg *txmsg,
 	char *txbuf;
 	struct _rx_buffer_st *buf, *tmp_buf;
 
+#if 	SIANO_HALFDUPLEX
+	if (txmsg){
+		tx_bytes = txmsg->len;
+		if (padding_allowed)
+			bytes_to_transfer =
+			    (((tx_bytes + SPI_PACKET_SIZE -
+			       1) >> SPI_PACKET_SIZE_BITS) <<
+			     SPI_PACKET_SIZE_BITS);
+		else
+			bytes_to_transfer = (((tx_bytes + 3) >> 2) << 2);
+		txbuf = txmsg->buf;
+		tx_phy_addr = txmsg->buf_phy_addr;
+		len = min(bytes_to_transfer, RX_PACKET_SIZE);
+		dev->cb.transfer_data_cb(dev->phy_context,(unsigned char *)txbuf,tx_phy_addr,NULL,NULL,len);
+	} else
+#endif
+	{
 	len = 0;
 	if (!dev->cb.transfer_data_cb) {
 		sms_err("function called while module is not initialized.\n");
@@ -418,6 +435,7 @@ void smsspi_common_transfer_msg(struct _spi_dev *dev, struct _spi_msg *txmsg,
 
 
 	dev->cb.free_rx_buf(dev->context, buf);
+}
 }
 
 int smsspicommon_init(struct _spi_dev *dev, void *context, void *phy_context,
