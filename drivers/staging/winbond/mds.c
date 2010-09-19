@@ -24,12 +24,12 @@ Mds_Destroy(struct wbsoft_priv *adapter)
 
 static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor *pDes,  u8 *buffer)
 {
-	PT00_DESCRIPTOR	pT00;
-	PT01_DESCRIPTOR	pT01;
+	struct T00_descriptor *pT00;
+	struct T01_descriptor *pT01;
 	u16	Duration, NextBodyLen, OffsetSize;
 	u8	Rate, i;
 	unsigned char	CTS_on = false, RTS_on = false;
-	PT00_DESCRIPTOR pNextT00;
+	struct T00_descriptor *pNextT00;
 	u16 BodyLen = 0;
 	unsigned char boGroupAddr = false;
 
@@ -39,9 +39,9 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 	if (!Rate)
 		Rate = 1;
 
-	pT00 = (PT00_DESCRIPTOR)buffer;
-	pT01 = (PT01_DESCRIPTOR)(buffer+4);
-	pNextT00 = (PT00_DESCRIPTOR)(buffer+OffsetSize);
+	pT00 = (struct T00_descriptor *)buffer;
+	pT01 = (struct T01_descriptor *)(buffer+4);
+	pNextT00 = (struct T00_descriptor *)(buffer+OffsetSize);
 
 	if( buffer[ DOT_11_DA_OFFSET+8 ] & 0x1 ) /* +8 for USB hdr */
 		boGroupAddr = true;
@@ -176,9 +176,9 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 			/* ----end 20061009 add by anson's endian */
 
 			buffer += OffsetSize;
-			pT01 = (PT01_DESCRIPTOR)(buffer+4);
+			pT01 = (struct T01_descriptor *)(buffer+4);
 			if (i != 1)	/* The last fragment will not have the next fragment */
-				pNextT00 = (PT00_DESCRIPTOR)(buffer+OffsetSize);
+				pNextT00 = (struct T00_descriptor *)(buffer+OffsetSize);
 		}
 
 		/*******************************************
@@ -219,7 +219,7 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor
 /* The function return the 4n size of usb pk */
 static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
 {
-	PT00_DESCRIPTOR	pT00;
+	struct T00_descriptor *pT00;
 	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*buffer;
 	u8	*src_buffer;
@@ -234,9 +234,9 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 	SizeLeft = pDes->buffer_total_size;
 	buf_index = pDes->buffer_start_index;
 
-	pT00 = (PT00_DESCRIPTOR)buffer;
+	pT00 = (struct T00_descriptor *)buffer;
 	while (SizeLeft) {
-		pT00 = (PT00_DESCRIPTOR)buffer;
+		pT00 = (struct T00_descriptor *)buffer;
 		CopySize = SizeLeft;
 		if (SizeLeft > pDes->FragmentThreshold) {
 			CopySize = pDes->FragmentThreshold;
@@ -303,7 +303,7 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 		if (SizeLeft) {
 			buffer = TargetBuffer + Size; /* Get the next 4n start address */
 			memcpy( buffer, TargetBuffer, 32 ); /* Copy 8B USB +24B 802.11 */
-			pT00 = (PT00_DESCRIPTOR)buffer;
+			pT00 = (struct T00_descriptor *)buffer;
 			pT00->T00_first_mpdu = 0;
 		}
 
@@ -322,8 +322,8 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 {
 	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0]; /* 931130.5.g */
-	PT00_DESCRIPTOR	pT00;
-	PT01_DESCRIPTOR	pT01;
+	struct T00_descriptor *pT00;
+	struct T01_descriptor *pT01;
 	u16	stmp;
 	u8	i, ctmp1, ctmp2, ctmpf;
 	u16	FragmentThreshold = CURRENT_FRAGMENT_THRESHOLD;
@@ -333,9 +333,9 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 	/*
 	 * Set USB header 8 byte
 	 */
-	pT00 = (PT00_DESCRIPTOR)TargetBuffer;
+	pT00 = (struct T00_descriptor *)TargetBuffer;
 	TargetBuffer += 4;
-	pT01 = (PT01_DESCRIPTOR)TargetBuffer;
+	pT01 = (struct T01_descriptor *)TargetBuffer;
 	TargetBuffer += 4;
 
 	pT00->value = 0; /* Clear */
@@ -550,7 +550,7 @@ Mds_Tx(struct wbsoft_priv *adapter)
 }
 
 void
-Mds_SendComplete(struct wbsoft_priv *adapter, PT02_DESCRIPTOR pT02)
+Mds_SendComplete(struct wbsoft_priv *adapter, struct T02_descriptor *pT02)
 {
 	struct wb35_mds *pMds = &adapter->Mds;
 	struct hw_data *pHwData = &adapter->sHwData;

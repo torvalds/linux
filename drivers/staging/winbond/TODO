@@ -3,7 +3,6 @@ TODO:
 	- checkpatch cleanups
 	- kerneldoc cleanups
 	- fix severeCamelCaseInfestation
-	- remove typedefs
 	- remove unused ioctls
 	- use cfg80211 for regulatory stuff
 	- fix 4k stack problems

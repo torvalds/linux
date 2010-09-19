@@ -105,7 +105,7 @@ enum {
 
 #define FLAG_BAND_RX_MASK		0x10000000 /* Bit 28 */
 
-typedef struct _R00_DESCRIPTOR {
+struct R00_descriptor {
 	union {
 		u32	value;
 #ifdef _BIG_ENDIAN_
@@ -126,9 +126,9 @@ typedef struct _R00_DESCRIPTOR {
 		};
 #endif
 	};
-} R00_DESCRIPTOR, *PR00_DESCRIPTOR;
+};
 
-typedef struct _T00_DESCRIPTOR {
+struct T00_descriptor {
 	union {
 		u32	value;
 #ifdef _BIG_ENDIAN_
@@ -157,9 +157,9 @@ typedef struct _T00_DESCRIPTOR {
 		};
 #endif
 	};
-} T00_DESCRIPTOR, *PT00_DESCRIPTOR;
+};
 
-typedef struct _R01_DESCRIPTOR {
+struct R01_descriptor {
 	union {
 		u32	value;
 #ifdef _BIG_ENDIAN_
@@ -208,9 +208,9 @@ typedef struct _R01_DESCRIPTOR {
 		};
 #endif
 	};
-} R01_DESCRIPTOR, *PR01_DESCRIPTOR;
+};
 
-typedef struct _T01_DESCRIPTOR {
+struct T01_descriptor {
 	union {
 		u32	value;
 #ifdef _BIG_ENDIAN_
@@ -245,9 +245,9 @@ typedef struct _T01_DESCRIPTOR {
 		};
 #endif
 	};
-} T01_DESCRIPTOR, *PT01_DESCRIPTOR;
+};
 
-typedef struct _T02_DESCRIPTOR {
+struct T02_descriptor {
 	union {
 		u32	value;
 #ifdef _BIG_ENDIAN_
@@ -290,7 +290,7 @@ typedef struct _T02_DESCRIPTOR {
 		};
 #endif
 	};
-} T02_DESCRIPTOR, *PT02_DESCRIPTOR;
+};
 
 struct wb35_descriptor { /* Skip length = 8 DWORD */
 	/* ID for descriptor ---, The field doesn't be cleard in the operation of Descriptor definition */
@@ -309,20 +309,20 @@ struct wb35_descriptor { /* Skip length = 8 DWORD */
 
 	/* For R00 and T00 ------------------------------ */
 	union {
-		R00_DESCRIPTOR	R00;
-		T00_DESCRIPTOR	T00;
+		struct R00_descriptor	R00;
+		struct T00_descriptor	T00;
 	};
 
 	/* For R01 and T01 ------------------------------ */
 	union {
-		R01_DESCRIPTOR	R01;
-		T01_DESCRIPTOR	T01;
+		struct R01_descriptor	R01;
+		struct T01_descriptor	T01;
 	};
 
 	/* For R02 and T02 ------------------------------ */
 	union {
 		u32		R02;
-		T02_DESCRIPTOR	T02;
+		struct T02_descriptor	T02;
 	};
 
 	/* For R03 and T03 ------------------------------ */
@@ -348,11 +348,10 @@ struct wb35_descriptor { /* Skip length = 8 DWORD */
 #define MAX_TXVGA_EEPROM		9	/* How many word(u16) of EEPROM will be used for TxVGA */
 #define MAX_RF_PARAMETER		32
 
-typedef struct _TXVGA_FOR_50 {
+struct txvga_for_50 {
 	u8	ChanNo;
 	u8	TxVgaValue;
-} TXVGA_FOR_50;
-
+};
 
 /*
  * ==============================================
@@ -479,7 +478,7 @@ struct hw_data {
 
 	u8			TxVgaSettingInEEPROM[(((MAX_TXVGA_EEPROM * 2) + 3) & ~0x03)]; /* For EEPROM value */
 	u8			TxVgaFor24[16]; /* Max is 14, 2 for alignment */
-	TXVGA_FOR_50		TxVgaFor50[36];	/* 35 channels in 5G. 35x2 = 70 byte. 2 for alignments */
+	struct txvga_for_50		TxVgaFor50[36];	/* 35 channels in 5G. 35x2 = 70 byte. 2 for alignments */
 
 	u16			Scan_Interval;
 	u16			RESERVED6;

@@ -76,14 +76,9 @@ static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
 void
 MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID, unsigned char SendOK)
 {
-	MLME_TXCALLBACK	TxCallback;
-
     /* Reclaim the data buffer */
 	adapter->sMlmeFrame.len = 0;
 	MLMEfreeMMPDUBuffer(adapter, adapter->sMlmeFrame.pMMPDU);
-
-
-	TxCallback.bResult = MLME_SUCCESS;
 
 	/* Return resource */
 	adapter->sMlmeFrame.IsInUsed = PACKET_FREE_TO_USE;

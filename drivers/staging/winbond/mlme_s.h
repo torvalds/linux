@@ -132,7 +132,7 @@
 #define boMLME_IdleScanState(_BB_)	(_BB_->wState == IDLE_SCAN)
 #define boMLME_FoundSTAinfo(_CC_)	(_CC_->wState >= IDLE_SCAN)
 
-typedef struct _MLME_FRAME {
+struct mlme_frame {
 	s8		*pMMPDU;
 	u16		len;
 	u8		DataType;
@@ -155,34 +155,6 @@ typedef struct _MLME_FRAME {
 	u16		wNumRxMMPDUInMLME;	/* Number of the Rx MMPDU */
 	u16		reserved_1;		/*  in MLME. */
 						/*  excluding the discarded */
-} MLME_FRAME, *psMLME_FRAME;
-
-typedef struct _AUTHREQ {
-
-	u8		peerMACaddr[MAC_ADDR_LENGTH];
-	u16		wAuthAlgorithm;
-} MLME_AUTHREQ_PARA, *psMLME_AUTHREQ_PARA;
-
-typedef struct _ASSOCREQ {
-	u8		PeerSTAAddr[MAC_ADDR_LENGTH];
-	u16		CapabilityInfo;
-	u16		ListenInterval;
-} __attribute__ ((packed)) MLME_ASSOCREQ_PARA, *psMLME_ASSOCREQ_PARA;
-
-typedef struct _REASSOCREQ {
-	u8		NewAPAddr[MAC_ADDR_LENGTH];
-	u16		CapabilityInfo;
-	u16		ListenInterval;
-} __attribute__ ((packed)) MLME_REASSOCREQ_PARA, *psMLME_REASSOCREQ_PARA;
-
-typedef struct _MLMECALLBACK {
-	u8		*psFramePtr;
-	u8		bResult;
-} MLME_TXCALLBACK, *psMLME_TXCALLBACK;
-
-typedef struct _RXDATA {
-	s32		FrameLength;
-	u8		__attribute__ ((packed)) *pbFramePtr;
-} __attribute__ ((packed)) RXDATA, *psRXDATA;
+};
 
 #endif

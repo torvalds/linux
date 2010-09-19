@@ -18,7 +18,7 @@ struct wbsoft_priv {
 	struct wb_local_para sLocalPara;	/* Myself connected
 							parameters */
 
-	MLME_FRAME sMlmeFrame;	/* connect to peerSTA parameters */
+	struct mlme_frame sMlmeFrame;	/* connect to peerSTA parameters */
 
 	struct wb35_mto_params sMtoPara;	/* MTO_struct ... */
 	struct hw_data sHwData;	/*For HAL */

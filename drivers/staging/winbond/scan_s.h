@@ -30,59 +30,6 @@
 #define ACTIVE_SCAN			0
 #define PASSIVE_SCAN			1
 
-/* Global data structures, Initial Scan & Background Scan */
-typedef struct _SCAN_REQ_PARA {	/* mandatory parameters for SCAN request */
-
-	u32			ScanType;	/* passive/active scan */
-
-	u8			reserved_1[2];
-
-	struct SSID_Element	sSSID; /* 34B. scan only for this SSID */
-	u8			reserved_2[2];
-
-} SCAN_REQ_PARA, *psSCAN_REQ_PARA;
-
-typedef struct _SCAN_PARAMETERS {
-	u16		wState;
-	u16		iCurrentChannelIndex;
-
-	SCAN_REQ_PARA	sScanReq;
-
-	u8		BSSID[MAC_ADDR_LENGTH + 2]; /* scan only for this BSSID */
-
-	u32		BssType;	/* scan only for this BSS type */
-
-	u16		ProbeDelay;
-	u16		MinChannelTime;
-
-	u16		MaxChannelTime;
-	u16		reserved_1;
-
-	s32		iBgScanPeriod;	/* XP: 5 sec */
-
-	u8		boBgScan;	/* Wb: enable BG scan, For XP, this value must be FALSE */
-	u8		boFastScan;	/* Wb: reserved */
-	u8		boCCAbusy;	/* Wb: HWMAC CCA busy status */
-	u8		reserved_2;
-
-	struct timer_list timer;
-
-	u32		ScanTimeStamp;	/* Increase 1 per background scan(1 minute) */
-	u32		BssTimeStamp;	/* Increase 1 per connect status check */
-	u32		RxNumPerAntenna[2];
-
-	u8		AntennaToggle;
-	u8		boInTimerHandler;
-	u8		boTimerActive;	/* Wb: reserved */
-	u8		boSave;
-
-	u32		BScanEnable; /* Background scan enable. Default is On */
-} SCAN_PARAMETERS, *psSCAN_PARAMETERS;
-
-/* Encapsulate 'adapter' data structure */
-#define psSCAN		(&(adapter->sScanPara))
-#define psSCANREQ	(&(adapter->sScanPara.sScanReq))
-
 /*
  * ===========================================================
  *	scan.h
