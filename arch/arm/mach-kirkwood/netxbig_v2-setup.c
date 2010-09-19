@@ -23,55 +23,18 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
-#include <linux/spi/flash.h>
-#include <linux/spi/spi.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
-#include <linux/i2c.h>
-#include <linux/i2c/at24.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <mach/kirkwood.h>
-#include <plat/time.h>
 #include "common.h"
 #include "mpp.h"
-
-/*****************************************************************************
- * 512KB SPI Flash on Boot Device (MACRONIX MX25L4005)
- ****************************************************************************/
-
-static struct mtd_partition netxbig_v2_flash_parts[] = {
-	{
-		.name = "u-boot",
-		.size = MTDPART_SIZ_FULL,
-		.offset = 0,
-		.mask_flags = MTD_WRITEABLE, /* force read-only */
-	},
-};
-
-static const struct flash_platform_data netxbig_v2_flash = {
-	.type		= "mx25l4005a",
-	.name		= "spi_flash",
-	.parts		= netxbig_v2_flash_parts,
-	.nr_parts	= ARRAY_SIZE(netxbig_v2_flash_parts),
-};
-
-static struct spi_board_info __initdata netxbig_v2_spi_slave_info[] = {
-	{
-		.modalias	= "m25p80",
-		.platform_data	= &netxbig_v2_flash,
-		.irq		= -1,
-		.max_speed_hz	= 20000000,
-		.bus_num	= 0,
-		.chip_select	= 0,
-	},
-};
+#include "lacie_v2-common.h"
 
 /*****************************************************************************
  * Ethernet
@@ -86,61 +49,12 @@ static struct mv643xx_eth_platform_data netxbig_v2_ge01_data = {
 };
 
 /*****************************************************************************
- * I2C devices
- ****************************************************************************/
-
-static struct at24_platform_data at24c04 = {
-	.byte_len	= SZ_4K / 8,
-	.page_size	= 16,
-};
-
-/*
- * i2c addr | chip         | description
- * 0x50     | HT24LC04     | eeprom (512B)
- */
-
-static struct i2c_board_info __initdata netxbig_v2_i2c_info[] = {
-	{
-		I2C_BOARD_INFO("24c04", 0x50),
-		.platform_data  = &at24c04,
-	}
-};
-
-/*****************************************************************************
  * SATA
  ****************************************************************************/
 
 static struct mv_sata_platform_data netxbig_v2_sata_data = {
 	.n_ports	= 2,
 };
-
-static int __initdata netxbig_v2_gpio_hdd_power[] = { 16, 17, 41, 42, 43 };
-
-static void __init netxbig_v2_sata_power_init(void)
-{
-	int i;
-	int err;
-	int hdd_nb;
-
-	if (machine_is_net2big_v2())
-		hdd_nb = 2;
-	else
-		hdd_nb = 5;
-
-	/* Power up all hard disks. */
-	for (i = 0; i < hdd_nb; i++) {
-		err = gpio_request(netxbig_v2_gpio_hdd_power[i], NULL);
-		if (err == 0) {
-			err = gpio_direction_output(
-					netxbig_v2_gpio_hdd_power[i], 1);
-			/* Free the HDD power GPIOs. This allow user-space to
-			 * configure them via the gpiolib sysfs interface. */
-			gpio_free(netxbig_v2_gpio_hdd_power[i]);
-		}
-		if (err)
-			pr_err("netxbig_v2: failed to power up HDD%d\n", i + 1);
-	}
-}
 
 /*****************************************************************************
  * GPIO keys
@@ -244,20 +158,6 @@ static struct platform_device netxbig_v2_gpio_buttons = {
  *   6  | blink blue on=1 sec and red on=1 sec
  *   7  | blink blue on=0.5 sec and blue off=2.5 sec
  */
-
-/*****************************************************************************
- * Timer
- ****************************************************************************/
-
-static void netxbig_v2_timer_init(void)
-{
-	kirkwood_tclk = 166666667;
-	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
-}
-
-struct sys_timer netxbig_v2_timer = {
-	.init = netxbig_v2_timer_init,
-};
 
 /*****************************************************************************
  * General Setup
@@ -366,7 +266,10 @@ static void __init netxbig_v2_init(void)
 	else
 		kirkwood_mpp_conf(net5big_v2_mpp_config);
 
-	netxbig_v2_sata_power_init();
+	if (machine_is_net2big_v2())
+		lacie_v2_hdd_power_init(2);
+	else
+		lacie_v2_hdd_power_init(5);
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&netxbig_v2_ge00_data);
@@ -374,12 +277,8 @@ static void __init netxbig_v2_init(void)
 		kirkwood_ge01_init(&netxbig_v2_ge01_data);
 	kirkwood_sata_init(&netxbig_v2_sata_data);
 	kirkwood_uart0_init();
-	spi_register_board_info(netxbig_v2_spi_slave_info,
-				ARRAY_SIZE(netxbig_v2_spi_slave_info));
-	kirkwood_spi_init();
-	kirkwood_i2c_init();
-	i2c_register_board_info(0, netxbig_v2_i2c_info,
-				ARRAY_SIZE(netxbig_v2_i2c_info));
+	lacie_v2_register_flash();
+	lacie_v2_register_i2c_devices();
 
 	platform_device_register(&netxbig_v2_gpio_buttons);
 
@@ -398,7 +297,7 @@ MACHINE_START(NET2BIG_V2, "LaCie 2Big Network v2")
 	.init_machine	= netxbig_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &netxbig_v2_timer,
+	.timer		= &lacie_v2_timer,
 MACHINE_END
 #endif
 
@@ -410,6 +309,6 @@ MACHINE_START(NET5BIG_V2, "LaCie 5Big Network v2")
 	.init_machine	= netxbig_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &netxbig_v2_timer,
+	.timer		= &lacie_v2_timer,
 MACHINE_END
 #endif
