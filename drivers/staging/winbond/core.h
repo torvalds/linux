@@ -42,9 +42,6 @@ struct mlme_frame {
 #define WB_MAX_LINK_NAME_LEN 40
 
 struct wbsoft_priv {
-	u32 adapterIndex;	/* 20060703.4 Add for using padapterContext
-							global adapter point */
-
 	struct wb_local_para sLocalPara;	/* Myself connected
 							parameters */
 
@@ -58,10 +55,6 @@ struct wbsoft_priv {
 
 	u32 RxByteCount;
 	u32 TxByteCount;
-
-	struct sk_buff *packet_return;
-	s32 netif_state_stop;	/* 1: stop  0: normal */
-	struct iw_statistics iw_stats;
 
 	u8 LinkName[WB_MAX_LINK_NAME_LEN];
 
