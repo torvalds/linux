@@ -29,14 +29,14 @@
 #ifndef CPIA2_DEV_HEADER
 #define CPIA2_DEV_HEADER
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 /***
  * The following defines are ioctl numbers based on video4linux private ioctls,
  * which can range from 192 (BASE_VIDIOCPRIVATE) to 255. All of these take int
  * args
  */
-#define CPIA2_IOC_SET_GPIO         _IOW('v', BASE_VIDIOCPRIVATE + 17, __u32)
+#define CPIA2_IOC_SET_GPIO         _IOW('v', BASE_VIDIOC_PRIVATE + 17, __u32)
 
 /* V4L2 driver specific controls */
 #define CPIA2_CID_TARGET_KB     (V4L2_CID_PRIVATE_BASE+0)
