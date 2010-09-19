@@ -397,19 +397,11 @@ static void i915_error_work_func(struct work_struct *work)
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
-		switch (INTEL_INFO(dev)->gen) {
-		case 5:
-		case 4:
-			DRM_DEBUG_DRIVER("resetting chip\n");
-			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
-			if (!i965_reset(dev, GRDOM_RENDER)) {
-				atomic_set(&dev_priv->mm.wedged, 0);
-				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
-			}
-			break;
-		default:
-			DRM_DEBUG_DRIVER("reboot required\n");
-			break;
+		DRM_DEBUG_DRIVER("resetting chip\n");
+		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
+		if (!i915_reset(dev, GRDOM_RENDER)) {
+			atomic_set(&dev_priv->mm.wedged, 0);
+			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 		}
 	}
 }

@@ -368,7 +368,7 @@ static int ironlake_do_reset(struct drm_device *dev, u8 flags)
  *   - re-init interrupt state
  *   - re-init display
  */
-int i965_reset(struct drm_device *dev, u8 flags)
+int i915_reset(struct drm_device *dev, u8 flags)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	/*
@@ -401,14 +401,19 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
-	if (IS_IRONLAKE(dev))
+	ret = -ENODEV;
+	switch (INTEL_INFO(dev)->gen) {
+	case 5:
 		ret = ironlake_do_reset(dev, flags);
-	else
+		break;
+	case 4:
 		ret = i965_do_reset(dev, flags);
+		break;
+	}
 	if (ret) {
-		WARN(true, "i915: Failed to reset chip\n");
+		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
-		return -EIO;
+		return ret;
 	}
 
 	/* Ok, now get things going again... */
