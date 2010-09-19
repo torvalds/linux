@@ -155,11 +155,6 @@ struct vcpu_vmx {
 			u32 limit;
 			u32 ar;
 		} tr, es, ds, fs, gs;
-		struct {
-			bool pending;
-			u8 vector;
-			unsigned rip;
-		} irq;
 	} rmode;
 	int vpid;
 	bool emulation_required;
@@ -1028,16 +1023,8 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	}
 
 	if (vmx->rmode.vm86_active) {
-		vmx->rmode.irq.pending = true;
-		vmx->rmode.irq.vector = nr;
-		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		if (kvm_exception_is_soft(nr))
-			vmx->rmode.irq.rip +=
-				vmx->vcpu.arch.event_exit_inst_len;
-		intr_info |= INTR_TYPE_SOFT_INTR;
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		if (kvm_inject_realmode_interrupt(vcpu, nr) != EMULATE_DONE)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 
@@ -2816,16 +2803,8 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 
 	++vcpu->stat.irq_injections;
 	if (vmx->rmode.vm86_active) {
-		vmx->rmode.irq.pending = true;
-		vmx->rmode.irq.vector = irq;
-		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		if (vcpu->arch.interrupt.soft)
-			vmx->rmode.irq.rip +=
-				vmx->vcpu.arch.event_exit_inst_len;
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			     irq | INTR_TYPE_SOFT_INTR | INTR_INFO_VALID_MASK);
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		if (kvm_inject_realmode_interrupt(vcpu, irq) != EMULATE_DONE)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 	intr = irq | INTR_INFO_VALID_MASK;
@@ -2857,14 +2836,8 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 
 	++vcpu->stat.nmi_injections;
 	if (vmx->rmode.vm86_active) {
-		vmx->rmode.irq.pending = true;
-		vmx->rmode.irq.vector = NMI_VECTOR;
-		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			     NMI_VECTOR | INTR_TYPE_SOFT_INTR |
-			     INTR_INFO_VALID_MASK);
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		if (kvm_inject_realmode_interrupt(vcpu, NMI_VECTOR) != EMULATE_DONE)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
@@ -3826,29 +3799,6 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
 }
 
-/*
- * Failure to inject an interrupt should give us the information
- * in IDT_VECTORING_INFO_FIELD.  However, if the failure occurs
- * when fetching the interrupt redirection bitmap in the real-mode
- * tss, this doesn't happen.  So we do it ourselves.
- */
-static void fixup_rmode_irq(struct vcpu_vmx *vmx, u32 *idt_vectoring_info)
-{
-	vmx->rmode.irq.pending = 0;
-	if (kvm_rip_read(&vmx->vcpu) + 1 != vmx->rmode.irq.rip)
-		return;
-	kvm_rip_write(&vmx->vcpu, vmx->rmode.irq.rip);
-	if (*idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
-		*idt_vectoring_info &= ~VECTORING_INFO_TYPE_MASK;
-		*idt_vectoring_info |= INTR_TYPE_EXT_INTR;
-		return;
-	}
-	*idt_vectoring_info =
-		VECTORING_INFO_VALID_MASK
-		| INTR_TYPE_EXT_INTR
-		| vmx->rmode.irq.vector;
-}
-
 static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
 				      u32 idt_vectoring_info,
 				      int instr_len_field,
@@ -3857,9 +3807,6 @@ static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
 	u8 vector;
 	int type;
 	bool idtv_info_valid;
-
-	if (vmx->rmode.irq.pending)
-		fixup_rmode_irq(vmx, &idt_vectoring_info);
 
 	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
