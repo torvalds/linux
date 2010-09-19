@@ -156,7 +156,7 @@ static struct snd_soc_dai_link migor_dai = {
 	.cpu_dai_name = "siu-i2s-dai",
 	.codec_dai_name = "wm8978-hifi",
 	.platform_name = "siu-pcm-audio",
-	.codec_name = "wm8978-codec.0-001a",
+	.codec_name = "wm8978.0-001a",
 	.ops = &migor_dai_ops,
 	.init = migor_dai_init,
 };
