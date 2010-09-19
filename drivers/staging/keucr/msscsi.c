@@ -168,6 +168,8 @@ int MS_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 		DWORD	blkno;
 
 		buf = kmalloc(blenByte, GFP_KERNEL);
+		if (buf == NULL)
+			return USB_STOR_TRANSPORT_ERROR;
 
 		result = ENE_LoadBinCode(us, MS_RW_PATTERN);
 		if (result != USB_STOR_XFER_GOOD)
@@ -271,6 +273,8 @@ int MS_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 		WORD	len, oldphy, newphy;
 
 		buf = kmalloc(blenByte, GFP_KERNEL);
+		if (buf == NULL)
+			return USB_STOR_TRANSPORT_ERROR;
 		usb_stor_set_xfer_buf(us, buf, blenByte, srb, FROM_XFER_BUF);
 
 		result = ENE_LoadBinCode(us, MS_RW_PATTERN);

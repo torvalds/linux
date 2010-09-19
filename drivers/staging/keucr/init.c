@@ -300,6 +300,8 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 		return USB_STOR_TRANSPORT_GOOD;
 
 	buf = kmalloc(0x800, GFP_KERNEL);
+	if (buf == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
 	switch ( flag )
 	{
 		// For SD

@@ -145,6 +145,8 @@ int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	buf = kmalloc(blenByte, GFP_KERNEL);
+	if (buf == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
 	result = Media_D_ReadSector(us, bn, blen, buf);
 	usb_stor_set_xfer_buf(us, buf, blenByte, srb, TO_XFER_BUF);
 	kfree(buf);
@@ -175,6 +177,8 @@ int SM_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	buf = kmalloc(blenByte, GFP_KERNEL);
+	if (buf == NULL)
+		return USB_STOR_TRANSPORT_ERROR;
 	usb_stor_set_xfer_buf(us, buf, blenByte, srb, FROM_XFER_BUF);
 	result = Media_D_CopySector(us, bn, blen, buf);
 	kfree(buf);
