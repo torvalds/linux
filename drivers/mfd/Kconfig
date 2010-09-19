@@ -563,8 +563,8 @@ config MFD_JZ4740_ADC
 	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
 
 config MFD_TPS6586X
-	tristate "TPS6586x Power Management chips"
-	depends on I2C && GPIOLIB
+	bool "TPS6586x Power Management chips"
+	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  If you say yes here you get support for the TPS6586X series of
