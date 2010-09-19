@@ -58,6 +58,9 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 	else
 		pci_write_reg(chan, *data, SH4A_PCIEPDR);
 
+	/* Disable the configuration access */
+	pci_write_reg(chan, 0, SH4A_PCIEPCTLR);
+
 	return PCIBIOS_SUCCESSFUL;
 }
 
