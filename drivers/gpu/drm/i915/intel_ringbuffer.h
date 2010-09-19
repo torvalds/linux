@@ -52,8 +52,6 @@ struct  intel_ring_buffer {
 			u32 value);
 	unsigned int	(*get_active_head)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
-	void		(*advance_ring)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
 	void		(*flush)(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
 			u32	invalidate_domains,

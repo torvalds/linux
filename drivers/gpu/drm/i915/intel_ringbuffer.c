@@ -147,12 +147,6 @@ static unsigned int render_ring_get_active_head(struct drm_device *dev,
 	return I915_READ(acthd_reg);
 }
 
-static void render_ring_advance_ring(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	render_ring_set_tail(dev, ring->tail);
-}
-
 static int init_ring_common(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
@@ -416,12 +410,6 @@ static inline unsigned int bsd_ring_get_active_head(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	return I915_READ(BSD_RING_ACTHD);
-}
-
-static inline void bsd_ring_advance_ring(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
-{
-	bsd_ring_set_tail(dev, ring->tail);
 }
 
 static int init_bsd_ring(struct drm_device *dev,
@@ -785,7 +773,7 @@ void intel_ring_advance(struct drm_device *dev,
 		struct intel_ring_buffer *ring)
 {
 	ring->tail &= ring->size - 1;
-	ring->advance_ring(dev, ring);
+	ring->set_tail(dev, ring->tail);
 }
 
 void intel_fill_struct(struct drm_device *dev,
@@ -829,7 +817,6 @@ static struct intel_ring_buffer render_ring = {
 	.get_tail		= render_ring_get_tail,
 	.set_tail		= render_ring_set_tail,
 	.get_active_head	= render_ring_get_active_head,
-	.advance_ring		= render_ring_advance_ring,
 	.flush			= render_ring_flush,
 	.add_request		= render_ring_add_request,
 	.get_gem_seqno		= render_ring_get_gem_seqno,
@@ -868,7 +855,6 @@ static struct intel_ring_buffer bsd_ring = {
 	.get_tail		= bsd_ring_get_tail,
 	.set_tail		= bsd_ring_set_tail,
 	.get_active_head	= bsd_ring_get_active_head,
-	.advance_ring		= bsd_ring_advance_ring,
 	.flush			= bsd_ring_flush,
 	.add_request		= bsd_ring_add_request,
 	.get_gem_seqno		= bsd_ring_get_gem_seqno,
