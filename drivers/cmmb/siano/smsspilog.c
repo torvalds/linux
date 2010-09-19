@@ -106,8 +106,8 @@ static int spi_suspended   = 0 ;
 static void spi_worker_thread(void *arg);
 
 #if SIANO_HALFDUPLEX
-int g_IsTokenOwned=FALSE;
-int g_IsTokenEnable=FALSE;
+int g_IsTokenOwned=false;
+int g_IsTokenEnable=false;
 struct semaphore 	HalfDuplexSemaphore;
 struct task_struct	*SPI_Thread;
 static int SPI_Thread_IsStop=0;
@@ -152,8 +152,8 @@ static void spi_worker_thread(void *arg)
 
 
 #if SIANO_HALFDUPLEX
-	static UINT8 s_SpiTokenMsgBuf[256] = {0};
-	const UINT8 g_PreambleBytes[4] = { 0xa5, 0x5a, 0xe7, 0x7e};
+	static u8 s_SpiTokenMsgBuf[256] = {0};
+	const u8 g_PreambleBytes[4] = { 0xa5, 0x5a, 0xe7, 0x7e};
 	struct SmsMsgHdr_ST s_SpiTokenSendMsg = {MSG_SMS_SPI_HALFDUPLEX_TOKEN_HOST_TO_DEVICE, 0, 11, sizeof(struct SmsMsgHdr_ST), MSG_HDR_FLAG_STATIC_MSG};
 
 	memcpy( s_SpiTokenMsgBuf, g_PreambleBytes, sizeof(g_PreambleBytes) );
@@ -171,7 +171,7 @@ static void spi_worker_thread(void *arg)
 				if (!msg) {
 					// TX queue empty - give up token
 					sms_debug("TX queue empty - give up token\n");
-					g_IsTokenOwned = FALSE;
+					g_IsTokenOwned = false;
 					txmsg.len = 256;
 					txmsg.buf = s_SpiTokenMsgBuf;
 					txmsg.buf_phy_addr = 0;//zzf spi_device->txbuf_phy_addr;
@@ -728,7 +728,7 @@ static int siano1186_probe( struct spi_device *Smsdevice)
     }
 
 #if SIANO_HALFDUPLEX
-	g_IsTokenOwned = FALSE;
+	g_IsTokenOwned = false;
 	init_MUTEX_LOCKED(&HalfDuplexSemaphore);
 	SPI_Thread = kthread_run(spi_worker_thread,NULL,"cmmb_spi_thread");
 	SPI_Thread_IsStop = 0;
@@ -782,7 +782,7 @@ void smsspi_remove(void)
 {
 	struct _spi_device_st *spi_device = spi_dev;
 	sms_info(KERN_INFO "smsmdtv: in smsspi_unregister\n") ;
-
+        int ret;
 #if SIANO_HALFDUPLEX
 	SPI_Thread_IsStop = 1;
   up(&HalfDuplexSemaphore);

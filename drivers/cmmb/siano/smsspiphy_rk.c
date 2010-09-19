@@ -180,11 +180,13 @@ static unsigned long dma_map_buf(struct spiphy_dev_s *spiphy_dev, char *buf,
 		return 0;
 	}
 	/* map buffer */
+/*
 	phyaddr = dma_map_single(spiphy_dev->dev, buf, len, direction);
 	if (dma_mapping_error(phyaddr)) {
 		PERROR("exiting  with error\n");
 		return 0;
 	}
+*/
 	return phyaddr;
 }
 
