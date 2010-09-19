@@ -368,7 +368,7 @@ extern int cifs_verify_signature(struct smb_hdr *,
 extern int cifs_calculate_session_key(struct session_key *key, const char *rn,
 				 const char *pass);
 extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
-extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
+extern int setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
 			     const struct nls_table *);
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(const char *password, const char *cryptkey,

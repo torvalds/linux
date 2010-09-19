@@ -1740,6 +1740,8 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	if (ses == NULL)
 		goto get_ses_fail;
 
+	ses->tilen = 0;
+	ses->tiblob = NULL;
 	/* new SMB session uses our server ref */
 	ses->server = server;
 	if (server->addr.sockAddr6.sin6_family == AF_INET6)
