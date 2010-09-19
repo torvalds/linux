@@ -356,10 +356,9 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 
 	dbg_io("LEB %d:%d, %d bytes, jhead %s",
 	       wbuf->lnum, wbuf->offs, wbuf->used, dbg_jhead(wbuf->jhead));
-	ubifs_assert(!(c->vfs_sb->s_flags & MS_RDONLY));
 	ubifs_assert(!(wbuf->avail & 7));
 	ubifs_assert(wbuf->offs + c->min_io_size <= c->leb_size);
-	ubifs_assert(!c->ro_media);
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 
 	if (c->ro_error)
 		return -EROFS;
@@ -441,7 +440,7 @@ int ubifs_bg_wbufs_sync(struct ubifs_info *c)
 {
 	int err, i;
 
-	ubifs_assert(!c->ro_media);
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 	if (!c->need_wbuf_sync)
 		return 0;
 	c->need_wbuf_sync = 0;
@@ -521,7 +520,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	ubifs_assert(!(wbuf->offs & 7) && wbuf->offs <= c->leb_size);
 	ubifs_assert(wbuf->avail > 0 && wbuf->avail <= c->min_io_size);
 	ubifs_assert(mutex_is_locked(&wbuf->io_mutex));
-	ubifs_assert(!c->ro_media);
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 
 	if (c->leb_size - wbuf->offs - wbuf->used < aligned_len) {
 		err = -ENOSPC;
@@ -666,7 +665,7 @@ int ubifs_write_node(struct ubifs_info *c, void *buf, int len, int lnum,
 	       buf_len);
 	ubifs_assert(lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
 	ubifs_assert(offs % c->min_io_size == 0 && offs < c->leb_size);
-	ubifs_assert(!c->ro_media);
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 
 	if (c->ro_error)
 		return -EROFS;

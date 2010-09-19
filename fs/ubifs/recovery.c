@@ -292,7 +292,7 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 
 	memcpy(c->mst_node, mst, UBIFS_MST_NODE_SZ);
 
-	if ((c->vfs_sb->s_flags & MS_RDONLY)) {
+	if (c->ro_mount) {
 		/* Read-only mode. Keep a copy for switching to rw mode */
 		c->rcvrd_mst_node = kmalloc(sz, GFP_KERNEL);
 		if (!c->rcvrd_mst_node) {
@@ -469,7 +469,7 @@ static int fix_unclean_leb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		endpt = snod->offs + snod->len;
 	}
 
-	if ((c->vfs_sb->s_flags & MS_RDONLY) && !c->remounting_rw) {
+	if (c->ro_mount && !c->remounting_rw) {
 		/* Add to recovery list */
 		struct ubifs_unclean_leb *ucleb;
 
@@ -883,7 +883,7 @@ int ubifs_recover_inl_heads(const struct ubifs_info *c, void *sbuf)
 {
 	int err;
 
-	ubifs_assert(!(c->vfs_sb->s_flags & MS_RDONLY) || c->remounting_rw);
+	ubifs_assert(!c->ro_mount || c->remounting_rw);
 
 	dbg_rcvry("checking index head at %d:%d", c->ihead_lnum, c->ihead_offs);
 	err = recover_head(c, c->ihead_lnum, c->ihead_offs, sbuf);
@@ -1461,7 +1461,7 @@ int ubifs_recover_size(struct ubifs_info *c)
 			}
 		}
 		if (e->exists && e->i_size < e->d_size) {
-			if (!e->inode && (c->vfs_sb->s_flags & MS_RDONLY)) {
+			if (!e->inode && c->ro_mount) {
 				/* Fix the inode size and pin it in memory */
 				struct inode *inode;
 

@@ -1032,6 +1032,7 @@ struct ubifs_debug_info;
  * @max_leb_cnt: maximum count of logical eraseblocks
  * @old_leb_cnt: count of logical eraseblocks before re-size
  * @ro_media: the underlying UBI volume is read-only
+ * @ro_mount: the file-system was mounted as read-only
  * @ro_error: UBIFS switched to R/O mode because an error happened
  *
  * @dirty_pg_cnt: number of dirty pages (not used)
@@ -1173,11 +1174,14 @@ struct ubifs_debug_info;
  * @replay_sqnum: sequence number of node currently being replayed
  * @need_recovery: file-system needs recovery
  * @replaying: set to %1 during journal replay
- * @unclean_leb_list: LEBs to recover when mounting ro to rw
- * @rcvrd_mst_node: recovered master node to write when mounting ro to rw
+ * @unclean_leb_list: LEBs to recover when re-mounting R/O mounted FS to R/W
+ *                    mode
+ * @rcvrd_mst_node: recovered master node to write when re-mounting R/O mounted
+ *                  FS to R/W mode
  * @size_tree: inode size information for recovery
- * @remounting_rw: set while remounting from ro to rw (sb flags have MS_RDONLY)
- * @always_chk_crc: always check CRCs (while mounting and remounting rw)
+ * @remounting_rw: set while re-mounting from R/O mode to R/W mode
+ * @always_chk_crc: always check CRCs (while mounting and remounting to R/W
+ *                  mode)
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg: debugging-related information
@@ -1274,6 +1278,7 @@ struct ubifs_info {
 	int max_leb_cnt;
 	int old_leb_cnt;
 	unsigned int ro_media:1;
+	unsigned int ro_mount:1;
 	unsigned int ro_error:1;
 
 	atomic_long_t dirty_pg_cnt;

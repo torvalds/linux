@@ -627,8 +627,7 @@ static int replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 	ubifs_assert(sleb->endpt - offs >= used);
 	ubifs_assert(sleb->endpt % c->min_io_size == 0);
 
-	if (sleb->endpt + c->min_io_size <= c->leb_size &&
-	    !(c->vfs_sb->s_flags & MS_RDONLY))
+	if (sleb->endpt + c->min_io_size <= c->leb_size && !c->ro_mount)
 		err = ubifs_wbuf_seek_nolock(&c->jheads[jhead].wbuf, lnum,
 					     sleb->endpt, UBI_SHORTTERM);
 
