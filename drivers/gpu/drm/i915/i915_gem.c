@@ -1683,6 +1683,22 @@ i915_get_gem_seqno(struct drm_device *dev,
 	return ring->get_gem_seqno(dev, ring);
 }
 
+void i915_gem_reset_flushing_list(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	while (!list_empty(&dev_priv->mm.flushing_list)) {
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
+					    struct drm_i915_gem_object,
+					    list);
+
+		obj_priv->base.write_domain = 0;
+		i915_gem_object_move_to_inactive(&obj_priv->base);
+	}
+}
+
 /**
  * This function clears the request list as sequence numbers are passed.
  */
