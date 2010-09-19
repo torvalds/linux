@@ -42,7 +42,7 @@ extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 		       unsigned char *p24);
 
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
-				    const struct mac_key *key, char *signature)
+				const struct session_key *key, char *signature)
 {
 	struct	MD5Context context;
 
@@ -78,7 +78,7 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calculate_signature(cifs_pdu, &server->mac_signing_key,
+	rc = cifs_calculate_signature(cifs_pdu, &server->session_key,
 				      smb_signature);
 	if (rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
@@ -89,7 +89,7 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 }
 
 static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
-				const struct mac_key *key, char *signature)
+				const struct session_key *key, char *signature)
 {
 	struct  MD5Context context;
 	int i;
@@ -145,7 +145,7 @@ int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calc_signature2(iov, n_vec, &server->mac_signing_key,
+	rc = cifs_calc_signature2(iov, n_vec, &server->session_key,
 				      smb_signature);
 	if (rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
@@ -156,14 +156,14 @@ int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 }
 
 int cifs_verify_signature(struct smb_hdr *cifs_pdu,
-			  const struct mac_key *mac_key,
+			  const struct session_key *session_key,
 			  __u32 expected_sequence_number)
 {
 	unsigned int rc;
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
 
-	if ((cifs_pdu == NULL) || (mac_key == NULL))
+	if (cifs_pdu == NULL || session_key == NULL)
 		return -EINVAL;
 
 	if (cifs_pdu->Command == SMB_COM_NEGOTIATE)
@@ -192,7 +192,7 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 					cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
-	rc = cifs_calculate_signature(cifs_pdu, mac_key,
+	rc = cifs_calculate_signature(cifs_pdu, session_key,
 		what_we_think_sig_should_be);
 
 	if (rc)
@@ -209,7 +209,7 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 }
 
 /* We fill in key by putting in 40 byte array which was allocated by caller */
-int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
+int cifs_calculate_session_key(struct session_key *key, const char *rn,
 			   const char *password)
 {
 	char temp_key[16];
@@ -347,11 +347,11 @@ void setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
 	/* now calculate the MAC key for NTLMv2 */
 	hmac_md5_init_limK_to_64(ses->server->ntlmv2_hash, 16, &context);
 	hmac_md5_update(resp_buf, 16, &context);
-	hmac_md5_final(ses->server->mac_signing_key.data.ntlmv2.key, &context);
+	hmac_md5_final(ses->server->session_key.data.ntlmv2.key, &context);
 
-	memcpy(&ses->server->mac_signing_key.data.ntlmv2.resp, resp_buf,
+	memcpy(&ses->server->session_key.data.ntlmv2.resp, resp_buf,
 	       sizeof(struct ntlmv2_resp));
-	ses->server->mac_signing_key.len = 16 + sizeof(struct ntlmv2_resp);
+	ses->server->session_key.len = 16 + sizeof(struct ntlmv2_resp);
 }
 
 void CalcNTLMv2_response(const struct cifsSesInfo *ses,

@@ -480,7 +480,7 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	/* calculate session key,  BB what about adding similar ntlmv2 path? */
 	SMBNTencrypt(ses->password, ses->server->cryptKey, ntlm_session_key);
 	if (first)
-		cifs_calculate_mac_key(&ses->server->mac_signing_key,
+		cifs_calculate_session_key(&ses->server->session_key,
 				       ntlm_session_key, ses->password);
 
 	memcpy(tmp, ntlm_session_key, CIFS_SESS_KEY_SIZE);
@@ -690,7 +690,7 @@ ssetup_ntlmssp_authenticate:
 
 		if (first_time) /* should this be moved into common code
 				  with similar ntlmv2 path? */
-			cifs_calculate_mac_key(&ses->server->mac_signing_key,
+			cifs_calculate_session_key(&ses->server->session_key,
 				ntlm_session_key, ses->password);
 		/* copy session key */
 
@@ -765,15 +765,15 @@ ssetup_ntlmssp_authenticate:
 		}
 		/* bail out if key is too long */
 		if (msg->sesskey_len >
-		    sizeof(ses->server->mac_signing_key.data.krb5)) {
+		    sizeof(ses->server->session_key.data.krb5)) {
 			cERROR(1, "Kerberos signing key too long (%u bytes)",
 				msg->sesskey_len);
 			rc = -EOVERFLOW;
 			goto ssetup_exit;
 		}
 		if (first_time) {
-			ses->server->mac_signing_key.len = msg->sesskey_len;
-			memcpy(ses->server->mac_signing_key.data.krb5,
+			ses->server->session_key.len = msg->sesskey_len;
+			memcpy(ses->server->session_key.data.krb5,
 				msg->data, msg->sesskey_len);
 		}
 		pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
