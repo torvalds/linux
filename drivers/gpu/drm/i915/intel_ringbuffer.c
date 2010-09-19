@@ -792,7 +792,7 @@ void intel_fill_struct(struct drm_device *dev,
 	intel_ring_advance(dev, ring);
 }
 
-static struct intel_ring_buffer render_ring = {
+static const struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
 	.id			= RING_RENDER,
 	.regs                   = {
@@ -830,7 +830,7 @@ static struct intel_ring_buffer render_ring = {
 
 /* ring buffer for bit-stream decoder */
 
-static struct intel_ring_buffer bsd_ring = {
+static const struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
 	.id			= RING_BSD,
 	.regs			= {
@@ -948,7 +948,7 @@ gen6_bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 }
 
 /* ring buffer for Video Codec for Gen6+ */
-static struct intel_ring_buffer gen6_bsd_ring = {
+static const struct intel_ring_buffer gen6_bsd_ring = {
        .name			= "gen6 bsd ring",
        .id			= RING_BSD,
        .regs			= {
