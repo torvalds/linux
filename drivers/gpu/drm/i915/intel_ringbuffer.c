@@ -32,6 +32,7 @@
 #include "i915_drv.h"
 #include "i915_drm.h"
 #include "i915_trace.h"
+#include "intel_drv.h"
 
 static u32 i915_gem_get_seqno(struct drm_device *dev)
 {
@@ -865,6 +866,124 @@ static struct intel_ring_buffer bsd_ring = {
 	.map			= {0,}
 };
 
+
+static void gen6_bsd_setup_status_page(struct drm_device *dev,
+				struct  intel_ring_buffer *ring)
+{
+       drm_i915_private_t *dev_priv = dev->dev_private;
+       I915_WRITE(GEN6_BSD_HWS_PGA, ring->status_page.gfx_addr);
+       I915_READ(GEN6_BSD_HWS_PGA);
+}
+
+static inline unsigned int gen6_bsd_ring_get_head(struct drm_device *dev,
+                                       struct intel_ring_buffer *ring)
+{
+       drm_i915_private_t *dev_priv = dev->dev_private;
+       return I915_READ(GEN6_BSD_RING_HEAD) & HEAD_ADDR;
+}
+
+static inline unsigned int gen6_bsd_ring_get_tail(struct drm_device *dev,
+                                       struct intel_ring_buffer *ring)
+{
+       drm_i915_private_t *dev_priv = dev->dev_private;
+       return I915_READ(GEN6_BSD_RING_TAIL) & TAIL_ADDR;
+}
+
+static inline void gen6_bsd_ring_set_tail(struct drm_device *dev,
+                               u32 value)
+{
+       drm_i915_private_t *dev_priv = dev->dev_private;
+
+       /* Every tail move must follow the sequence below */
+       I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
+	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
+	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_DISABLE);
+       I915_WRITE(GEN6_BSD_RNCID, 0x0);
+
+       if (wait_for((I915_READ(GEN6_BSD_SLEEP_PSMI_CONTROL) &
+                               GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR) == 0,
+                       50))
+               DRM_ERROR("timed out waiting for IDLE Indicator\n");
+
+       I915_WRITE(GEN6_BSD_RING_TAIL, value);
+       I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
+	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
+	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
+}
+
+static inline unsigned int gen6_bsd_ring_get_active_head(struct drm_device *dev,
+                                               struct intel_ring_buffer *ring)
+{
+       drm_i915_private_t *dev_priv = dev->dev_private;
+       return I915_READ(GEN6_BSD_RING_ACTHD);
+}
+
+static void gen6_bsd_ring_flush(struct drm_device *dev,
+                       struct intel_ring_buffer *ring,
+                       u32 invalidate_domains,
+                       u32 flush_domains)
+{
+       intel_ring_begin(dev, ring, 4);
+       intel_ring_emit(dev, ring, MI_FLUSH_DW);
+       intel_ring_emit(dev, ring, 0);
+       intel_ring_emit(dev, ring, 0);
+       intel_ring_emit(dev, ring, 0);
+       intel_ring_advance(dev, ring);
+}
+
+static int
+gen6_bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
+               struct intel_ring_buffer *ring,
+               struct drm_i915_gem_execbuffer2 *exec,
+               struct drm_clip_rect *cliprects,
+               uint64_t exec_offset)
+{
+       uint32_t exec_start;
+       exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
+       intel_ring_begin(dev, ring, 2);
+       intel_ring_emit(dev, ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965); /* bit0-7 is the length on GEN6+ */
+       intel_ring_emit(dev, ring, exec_start);
+       intel_ring_advance(dev, ring);
+       return 0;
+}
+
+/* ring buffer for Video Codec for Gen6+ */
+static struct intel_ring_buffer gen6_bsd_ring = {
+       .name			= "gen6 bsd ring",
+       .id			= RING_BSD,
+       .regs			= {
+               .ctl    = GEN6_BSD_RING_CTL,
+               .head   = GEN6_BSD_RING_HEAD,
+               .tail   = GEN6_BSD_RING_TAIL,
+               .start  = GEN6_BSD_RING_START
+       },
+       .size			= 32 * PAGE_SIZE,
+       .alignment		= PAGE_SIZE,
+       .virtual_start		= NULL,
+       .dev			= NULL,
+       .gem_object		= NULL,
+       .head			= 0,
+       .tail			= 0,
+       .space			= 0,
+       .user_irq_refcount	= 0,
+       .irq_gem_seqno		= 0,
+       .waiting_gem_seqno	= 0,
+       .setup_status_page	= gen6_bsd_setup_status_page,
+       .init			= init_bsd_ring,
+       .get_head		= gen6_bsd_ring_get_head,
+       .get_tail		= gen6_bsd_ring_get_tail,
+       .set_tail		= gen6_bsd_ring_set_tail,
+       .get_active_head		= gen6_bsd_ring_get_active_head,
+       .flush			= gen6_bsd_ring_flush,
+       .add_request		= bsd_ring_add_request,
+       .get_gem_seqno		= bsd_ring_get_gem_seqno,
+       .user_irq_get		= bsd_ring_get_user_irq,
+       .user_irq_put		= bsd_ring_put_user_irq,
+       .dispatch_gem_execbuffer	= gen6_bsd_ring_dispatch_gem_execbuffer,
+       .status_page		= {NULL, 0, NULL},
+       .map			= {0,}
+};
+
 int intel_init_render_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -885,7 +1004,10 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	dev_priv->bsd_ring = bsd_ring;
+	if (IS_GEN6(dev))
+		dev_priv->bsd_ring = gen6_bsd_ring;
+	else
+		dev_priv->bsd_ring = bsd_ring;
 
 	return intel_init_ring_buffer(dev, &dev_priv->bsd_ring);
 }

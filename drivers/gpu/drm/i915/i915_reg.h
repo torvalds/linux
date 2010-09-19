@@ -197,11 +197,11 @@
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
 #define   MI_STORE_DWORD_INDEX_SHIFT 2
 #define MI_LOAD_REGISTER_IMM	MI_INSTR(0x22, 1)
+#define MI_FLUSH_DW		MI_INSTR(0x26, 2) /* for GEN6 */
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
-
 /*
  * 3D instructions used by the kernel
  */
@@ -482,6 +482,28 @@
 #define BSD_RING_CTL           0x0403c
 #define BSD_RING_ACTHD         0x04074
 #define BSD_HWS_PGA            0x04080
+
+/*
+ * video command stream instruction and interrupt control register defines
+ * for GEN6
+ */
+#define GEN6_BSD_RING_TAIL		0x12030
+#define GEN6_BSD_RING_HEAD		0x12034
+#define GEN6_BSD_RING_START		0x12038
+#define GEN6_BSD_RING_CTL		0x1203c
+#define GEN6_BSD_RING_ACTHD		0x12074
+#define GEN6_BSD_HWS_PGA		0x14080
+
+#define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
+#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK	(1 << 16)
+#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_DISABLE		(1 << 0)
+#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE		0
+#define   GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR			(1 << 3)
+
+#define GEN6_BSD_IMR			0x120a8
+#define   GEN6_BSD_IMR_USER_INTERRUPT	(1 << 12)
+
+#define GEN6_BSD_RNCID			0x12198
 
 /*
  * Framebuffer compression (915+ only)
@@ -2598,7 +2620,7 @@
 #define GT_SYNC_STATUS          (1 << 2)
 #define GT_USER_INTERRUPT       (1 << 0)
 #define GT_BSD_USER_INTERRUPT   (1 << 5)
-
+#define GT_GEN6_BSD_USER_INTERRUPT	(1 << 12)
 
 #define GTISR   0x44010
 #define GTIMR   0x44014

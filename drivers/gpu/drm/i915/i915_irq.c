@@ -300,6 +300,10 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	u32 de_iir, gt_iir, de_ier, pch_iir;
 	struct drm_i915_master_private *master_priv;
 	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
+	u32 bsd_usr_interrupt = GT_BSD_USER_INTERRUPT;
+
+	if (IS_GEN6(dev))
+		bsd_usr_interrupt = GT_GEN6_BSD_USER_INTERRUPT;
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
@@ -331,9 +335,8 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		mod_timer(&dev_priv->hangcheck_timer,
 			  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 	}
-	if (gt_iir & GT_BSD_USER_INTERRUPT)
+	if (gt_iir & bsd_usr_interrupt)
 		DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
-
 
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
@@ -1436,17 +1439,19 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(DEIER, dev_priv->de_irq_enable_reg);
 	(void) I915_READ(DEIER);
 
-	/* Gen6 only needs render pipe_control now */
 	if (IS_GEN6(dev))
-		render_mask = GT_PIPE_NOTIFY;
+		render_mask = GT_PIPE_NOTIFY | GT_GEN6_BSD_USER_INTERRUPT;
 
 	dev_priv->gt_irq_mask_reg = ~render_mask;
 	dev_priv->gt_irq_enable_reg = render_mask;
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		I915_WRITE(GEN6_RENDER_IMR, ~GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT);
+		I915_WRITE(GEN6_BSD_IMR, ~GEN6_BSD_IMR_USER_INTERRUPT);
+	}
+
 	I915_WRITE(GTIER, dev_priv->gt_irq_enable_reg);
 	(void) I915_READ(GTIER);
 
