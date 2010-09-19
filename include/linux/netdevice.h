@@ -228,9 +228,9 @@ struct netdev_hw_addr {
 #define NETDEV_HW_ADDR_T_SLAVE		3
 #define NETDEV_HW_ADDR_T_UNICAST	4
 #define NETDEV_HW_ADDR_T_MULTICAST	5
-	int			refcount;
 	bool			synced;
 	bool			global_use;
+	int			refcount;
 	struct rcu_head		rcu_head;
 };
 
