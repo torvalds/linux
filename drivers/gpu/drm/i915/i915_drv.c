@@ -391,6 +391,11 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 */
 	i915_gem_reset_flushing_list(dev);
 
+	/* Move everything out of the GPU domains to ensure we do any
+	 * necessary invalidation upon reuse.
+	 */
+	i915_gem_reset_inactive_gpu_domains(dev);
+
 	/*
 	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit

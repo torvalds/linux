@@ -1699,6 +1699,19 @@ void i915_gem_reset_flushing_list(struct drm_device *dev)
 	}
 }
 
+void i915_gem_reset_inactive_gpu_domains(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv;
+
+	list_for_each_entry(obj_priv,
+			    &dev_priv->mm.inactive_list,
+			    list)
+	{
+		obj_priv->base.read_domains &= ~I915_GEM_GPU_DOMAINS;
+	}
+}
+
 /**
  * This function clears the request list as sequence numbers are passed.
  */
