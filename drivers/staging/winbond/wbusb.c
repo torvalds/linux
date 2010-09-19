@@ -121,7 +121,26 @@ static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 
-	return MLMESendFrame(priv, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
+	if (priv->sMlmeFrame.IsInUsed != PACKET_FREE_TO_USE) {
+		priv->sMlmeFrame.wNumTxMMPDUDiscarded++;
+		return NETDEV_TX_BUSY;
+	}
+
+	priv->sMlmeFrame.IsInUsed = PACKET_COME_FROM_MLME;
+
+	priv->sMlmeFrame.pMMPDU		= skb->data;
+	priv->sMlmeFrame.DataType	= FRAME_TYPE_802_11_MANAGEMENT;
+	priv->sMlmeFrame.len		= skb->len;
+	priv->sMlmeFrame.wNumTxMMPDU++;
+
+	/*
+	 * H/W will enter power save by set the register. S/W don't send null
+	 * frame with PWRMgt bit enbled to enter power save now.
+	 */
+
+	Mds_Tx(priv);
+
+	return NETDEV_TX_OK;
 }
 
 static int wbsoft_start(struct ieee80211_hw *dev)
