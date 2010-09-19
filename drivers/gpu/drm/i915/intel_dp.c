@@ -48,6 +48,7 @@ struct intel_dp {
 	uint32_t DP;
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
+	int force_audio;
 	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
@@ -57,6 +58,8 @@ struct intel_dp {
 	bool is_pch_edp;
 	uint8_t	train_set[4];
 	uint8_t link_status[DP_LINK_STATUS_SIZE];
+
+	struct drm_property *force_audio_property;
 };
 
 /**
@@ -1540,11 +1543,15 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	if (status != connector_status_connected)
 		return status;
 
-	edid = drm_get_edid(connector, &intel_dp->adapter);
-	if (edid) {
-		intel_dp->has_audio = drm_detect_monitor_audio(edid);
-		connector->display_info.raw_edid = NULL;
-		kfree(edid);
+	if (intel_dp->force_audio) {
+		intel_dp->has_audio = intel_dp->force_audio > 0;
+	} else {
+		edid = drm_get_edid(connector, &intel_dp->adapter);
+		if (edid) {
+			intel_dp->has_audio = drm_detect_monitor_audio(edid);
+			connector->display_info.raw_edid = NULL;
+			kfree(edid);
+		}
 	}
 
 	return connector_status_connected;
@@ -1589,6 +1596,46 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+static int
+intel_dp_set_property(struct drm_connector *connector,
+		      struct drm_property *property,
+		      uint64_t val)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	int ret;
+
+	ret = drm_connector_property_set_value(connector, property, val);
+	if (ret)
+		return ret;
+
+	if (property == intel_dp->force_audio_property) {
+		if (val == intel_dp->force_audio)
+			return 0;
+
+		intel_dp->force_audio = val;
+
+		if (val > 0 && intel_dp->has_audio)
+			return 0;
+		if (val < 0 && !intel_dp->has_audio)
+			return 0;
+
+		intel_dp->has_audio = val > 0;
+		goto done;
+	}
+
+	return -EINVAL;
+
+done:
+	if (intel_dp->base.base.crtc) {
+		struct drm_crtc *crtc = intel_dp->base.base.crtc;
+		drm_crtc_helper_set_mode(crtc, &crtc->mode,
+					 crtc->x, crtc->y,
+					 crtc->fb);
+	}
+
+	return 0;
+}
+
 static void
 intel_dp_destroy (struct drm_connector *connector)
 {
@@ -1618,6 +1665,7 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = intel_dp_set_property,
 	.destroy = intel_dp_destroy,
 };
 
@@ -1680,6 +1728,20 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 			return true;
 	}
 	return false;
+}
+
+static void
+intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	intel_dp->force_audio_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE, "force_audio", 2);
+	if (intel_dp->force_audio_property) {
+		intel_dp->force_audio_property->values[0] = -1;
+		intel_dp->force_audio_property->values[1] = 1;
+		drm_connector_attach_property(connector, intel_dp->force_audio_property, 0);
+	}
 }
 
 void
@@ -1807,6 +1869,8 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			}
 		}
 	}
+
+	intel_dp_add_properties(intel_dp, connector);
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being
