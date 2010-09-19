@@ -78,14 +78,4 @@ u32 hal_get_bss_pk_cnt(struct hw_data *hw_data);
 #define hal_get_time_count(_P)		(_P->time_count / 10)
 #define hal_detect_error(_P)		(_P->WbUsb.DetectCount)
 
-/* The follow function is unused for IS89C35 */
-#define hal_disable_interrupt(_A)
-#define hal_enable_interrupt(_A)
-#define hal_get_interrupt_type(_A)
-#define hal_get_clear_interrupt(_A)
 #define hal_ibss_disconnect(_A)		(hal_stop_sync_bss(_A))
-#define hal_join_request_stop(_A)
-#define hw_get_cxx_reg(_A, _B, _C)
-#define hw_set_cxx_reg(_A, _B, _C)
-
-
