@@ -250,7 +250,7 @@ static struct KeyInfo panel_key_info[]={
 {KEY1_LEFT, KEY1_RIGHT, KEY_HOME, 0},
 {KEY2_LEFT, KEY2_RIGHT, KEY_MENU, 0},
 {KEY3_LEFT, KEY3_RIGHT, KEY_BACK, 0},
-{KEY4_LEFT, KEY4_RIGHT, KEY_FIND, 0},
+{KEY4_LEFT, KEY4_RIGHT, KEY_SEARCH, 0},
 };
 //end by zhao
 

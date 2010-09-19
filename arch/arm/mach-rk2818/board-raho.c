@@ -1951,13 +1951,13 @@ static void rk2818_power_off(void)
 #define PLAY_ON_LEVEL 1
 static  ADC_keyst gAdcValueTab[] = 
 {
-	{0x5c,  AD2KEY1},///VOLUME_DOWN
-	{0xbf,  AD2KEY2},///VOLUME_UP
-	{0x115, AD2KEY3},///MENU
-	{0x177, AD2KEY4},///HOME
-	{0x1d3, AD2KEY5},///BACK
-	{0x290, AD2KEY6},///CALL
-	{0x230, AD2KEY7},///SEARCH
+	{0x65,  AD2KEY1},///VOLUME_DOWN
+	{0xd3,  AD2KEY2},///VOLUME_UP
+	{0x130, AD2KEY3},///MENU
+	{0x19d, AD2KEY4},///HOME
+	{0x202, AD2KEY5},///BACK
+	{0x2d0, AD2KEY6},///CALL
+	{0x267, AD2KEY7},///SEARCH
 	{0,     0}///table end
 };
 
@@ -1970,7 +1970,7 @@ static unsigned char gInitKeyCode[] =
 struct adc_key_data rk2818_adc_key = {
     .pin_playon     = PLAY_ON_PIN,
     .playon_level   = PLAY_ON_LEVEL,
-    .adc_empty      = 900,
+    .adc_empty      = 1000,
     .adc_invalid    = 20,
     .adc_drift      = 50,
     .adc_chn        = 1,
