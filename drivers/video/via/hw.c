@@ -719,9 +719,9 @@ static struct rgbLUT palLUT_table[] = {
 };
 
 static struct via_device_mapping device_mapping[] = {
-	{VIA_6C, "6C"},
-	{VIA_93, "93"},
-	{VIA_96, "96"},
+	{VIA_LDVP0, "LDVP0"},
+	{VIA_LDVP1, "LDVP1"},
+	{VIA_DVP0, "DVP0"},
 	{VIA_CRT, "CRT"},
 	{VIA_DVP1, "DVP1"},
 	{VIA_LVDS1, "LVDS1"},
@@ -763,11 +763,11 @@ static u32 get_dvi_devices(int output_interface)
 {
 	switch (output_interface) {
 	case INTERFACE_DVP0:
-		return VIA_96 | VIA_6C;
+		return VIA_DVP0 | VIA_LDVP0;
 
 	case INTERFACE_DVP1:
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
-			return VIA_93;
+			return VIA_LDVP1;
 		else
 			return VIA_DVP1;
 
@@ -775,7 +775,7 @@ static u32 get_dvi_devices(int output_interface)
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
 			return 0;
 		else
-			return VIA_LVDS2 | VIA_96;
+			return VIA_LVDS2 | VIA_DVP0;
 
 	case INTERFACE_DFP_LOW:
 		if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266)
@@ -794,13 +794,13 @@ static u32 get_lcd_devices(int output_interface)
 {
 	switch (output_interface) {
 	case INTERFACE_DVP0:
-		return VIA_96;
+		return VIA_DVP0;
 
 	case INTERFACE_DVP1:
 		return VIA_DVP1;
 
 	case INTERFACE_DFP_HIGH:
-		return VIA_LVDS2 | VIA_96;
+		return VIA_LVDS2 | VIA_DVP0;
 
 	case INTERFACE_DFP_LOW:
 		return VIA_LVDS1 | VIA_DVP1;
@@ -988,17 +988,17 @@ static void set_crt_source(u8 iga)
 	via_write_reg_mask(VIASR, 0x16, value, 0x40);
 }
 
-static inline void set_6C_source(u8 iga)
+static inline void set_ldvp0_source(u8 iga)
 {
 	set_source_common(0x6C, 7, iga);
 }
 
-static inline void set_93_source(u8 iga)
+static inline void set_ldvp1_source(u8 iga)
 {
 	set_source_common(0x93, 7, iga);
 }
 
-static inline void set_96_source(u8 iga)
+static inline void set_dvp0_source(u8 iga)
 {
 	set_source_common(0x96, 4, iga);
 }
@@ -1020,12 +1020,12 @@ static inline void set_lvds2_source(u8 iga)
 
 void via_set_source(u32 devices, u8 iga)
 {
-	if (devices & VIA_6C)
-		set_6C_source(iga);
-	if (devices & VIA_93)
-		set_93_source(iga);
-	if (devices & VIA_96)
-		set_96_source(iga);
+	if (devices & VIA_LDVP0)
+		set_ldvp0_source(iga);
+	if (devices & VIA_LDVP1)
+		set_ldvp1_source(iga);
+	if (devices & VIA_DVP0)
+		set_dvp0_source(iga);
 	if (devices & VIA_CRT)
 		set_crt_source(iga);
 	if (devices & VIA_DVP1)
@@ -1060,7 +1060,7 @@ static void set_crt_state(u8 state)
 	via_write_reg_mask(VIACR, 0x36, value, 0x30);
 }
 
-static void set_96_state(u8 state)
+static void set_dvp0_state(u8 state)
 {
 	u8 value;
 
@@ -1136,11 +1136,11 @@ void via_set_state(u32 devices, u8 state)
 {
 	/*
 	TODO: Can we enable/disable these devices? How?
-	if (devices & VIA_6C)
-	if (devices & VIA_93)
+	if (devices & VIA_LDVP0)
+	if (devices & VIA_LDVP1)
 	*/
-	if (devices & VIA_96)
-		set_96_state(state);
+	if (devices & VIA_DVP0)
+		set_dvp0_state(state);
 	if (devices & VIA_CRT)
 		set_crt_state(state);
 	if (devices & VIA_DVP1)
