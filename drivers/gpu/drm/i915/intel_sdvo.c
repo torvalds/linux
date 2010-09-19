@@ -107,6 +107,7 @@ struct intel_sdvo {
 	 * This is set if we treat the device as HDMI, instead of DVI.
 	 */
 	bool is_hdmi;
+	bool has_audio;
 
 	/**
 	 * This is set if we detect output of sdvo device as LVDS and
@@ -138,10 +139,14 @@ struct intel_sdvo_connector {
 	/* Mark the type of connector */
 	uint16_t output_flag;
 
+	int force_audio;
+
 	/* This contains all current supported TV format */
 	u8 tv_format_supported[TV_FORMAT_NUM];
 	int   format_supported_num;
 	struct drm_property *tv_format;
+
+	struct drm_property *force_audio_property;
 
 	/* add the property for the SDVO-TV */
 	struct drm_property *left;
@@ -1150,7 +1155,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 	if (intel_crtc->pipe == 1)
 		sdvox |= SDVO_PIPE_B_SELECT;
-	if (intel_sdvo->is_hdmi)
+	if (intel_sdvo->has_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -1476,11 +1481,18 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
 			intel_sdvo->is_hdmi = drm_detect_hdmi_monitor(edid);
+			intel_sdvo->has_audio = drm_detect_monitor_audio(edid);
 		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
-	
+
+	if (status == connector_status_connected) {
+		struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
+		if (intel_sdvo_connector->force_audio)
+			intel_sdvo->has_audio = intel_sdvo_connector->force_audio > 0;
+	}
+
 	return status;
 }
 
@@ -1787,6 +1799,21 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
+	if (property == intel_sdvo_connector->force_audio_property) {
+		if (val == intel_sdvo_connector->force_audio)
+			return 0;
+
+		intel_sdvo_connector->force_audio = val;
+
+		if (val > 0 && intel_sdvo->has_audio)
+			return 0;
+		if (val < 0 && !intel_sdvo->has_audio)
+			return 0;
+
+		intel_sdvo->has_audio = val > 0;
+		goto done;
+	}
+
 #define CHECK_PROPERTY(name, NAME) \
 	if (intel_sdvo_connector->name == property) { \
 		if (intel_sdvo_connector->cur_##name == temp_value) return 0; \
@@ -2078,6 +2105,21 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	drm_sysfs_connector_add(&connector->base.base);
 }
 
+static void
+intel_sdvo_add_hdmi_properties(struct intel_sdvo_connector *connector)
+{
+	struct drm_device *dev = connector->base.base.dev;
+
+	connector->force_audio_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE, "force_audio", 2);
+	if (connector->force_audio_property) {
+		connector->force_audio_property->values[0] = -1;
+		connector->force_audio_property->values[1] = 1;
+		drm_connector_attach_property(&connector->base.base,
+					      connector->force_audio_property, 0);
+	}
+}
+
 static bool
 intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 {
@@ -2117,6 +2159,8 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
+
+	intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
 
 	return true;
 }
