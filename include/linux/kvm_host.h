@@ -36,7 +36,7 @@
 #define KVM_REQ_PENDING_TIMER      5
 #define KVM_REQ_UNHALT             6
 #define KVM_REQ_MMU_SYNC           7
-#define KVM_REQ_KVMCLOCK_UPDATE    8
+#define KVM_REQ_CLOCK_UPDATE       8
 #define KVM_REQ_KICK               9
 #define KVM_REQ_DEACTIVATE_FPU    10
 #define KVM_REQ_EVENT             11

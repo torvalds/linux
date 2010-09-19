@@ -892,7 +892,7 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 
 	/*
 	 * The guest calculates current wall clock time by adding
-	 * system time (updated by kvm_write_guest_time below) to the
+	 * system time (updated by kvm_guest_time_update below) to the
 	 * wall clock specified here.  guest system time equals host
 	 * system time for us, thus we must fill in host boot time here.
 	 */
@@ -1032,7 +1032,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
-static int kvm_write_guest_time(struct kvm_vcpu *v)
+static int kvm_guest_time_update(struct kvm_vcpu *v)
 {
 	unsigned long flags;
 	struct kvm_vcpu_arch *vcpu = &v->arch;
@@ -1052,7 +1052,7 @@ static int kvm_write_guest_time(struct kvm_vcpu *v)
 	local_irq_restore(flags);
 
 	if (unlikely(this_tsc_khz == 0)) {
-		kvm_make_request(KVM_REQ_KVMCLOCK_UPDATE, v);
+		kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
 		return 1;
 	}
 
@@ -1128,7 +1128,7 @@ static int kvm_request_guest_time_update(struct kvm_vcpu *v)
 
 	if (!vcpu->time_page)
 		return 0;
-	kvm_make_request(KVM_REQ_KVMCLOCK_UPDATE, v);
+	kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
 	return 1;
 }
 
@@ -5041,8 +5041,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_mmu_unload(vcpu);
 		if (kvm_check_request(KVM_REQ_MIGRATE_TIMER, vcpu))
 			__kvm_migrate_timers(vcpu);
-		if (kvm_check_request(KVM_REQ_KVMCLOCK_UPDATE, vcpu)) {
-			r = kvm_write_guest_time(vcpu);
+		if (kvm_check_request(KVM_REQ_CLOCK_UPDATE, vcpu)) {
+			r = kvm_guest_time_update(vcpu);
 			if (unlikely(r))
 				goto out;
 		}
