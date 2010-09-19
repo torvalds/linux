@@ -783,8 +783,6 @@ static int wb35_probe(struct usb_interface *intf,
 
 	priv = dev->priv;
 
-	spin_lock_init(&priv->SpinLock);
-
 	pWbUsb = &priv->sHwData.WbUsb;
 	pWbUsb->udev = udev;
 

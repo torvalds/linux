@@ -1,7 +1,6 @@
 #ifndef __WINBOND_CORE_H
 #define __WINBOND_CORE_H
 
-#include <linux/spinlock.h>
 #include <linux/wireless.h>
 #include <linux/types.h>
 
@@ -20,8 +19,6 @@ struct mlme_frame {
 	u16		len;
 	u8		DataType;
 	u8		IsInUsed;
-
-	spinlock_t	MLMESpinLock;
 
 	u8		TxMMPDU[MAX_NUM_TX_MMPDU][MAX_MMPDU_SIZE];
 	u8		TxMMPDUInUse[(MAX_NUM_TX_MMPDU + 3) & ~0x03];
@@ -56,8 +53,6 @@ struct wbsoft_priv {
 	struct wb35_mto_params sMtoPara;	/* MTO_struct ... */
 	struct hw_data sHwData;	/*For HAL */
 	struct wb35_mds Mds;
-
-	spinlock_t SpinLock;
 
 	atomic_t ThreadCount;
 
