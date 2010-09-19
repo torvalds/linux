@@ -75,7 +75,7 @@ config MFD_DAVINCI_VOICECODEC
 
 config MFD_DM355EVM_MSP
 	bool "DaVinci DM355 EVM microcontroller"
-	depends on I2C && MACH_DAVINCI_DM355_EVM
+	depends on I2C=y && MACH_DAVINCI_DM355_EVM
 	help
 	  This driver supports the MSP430 microcontroller used on these
 	  boards.  MSP430 firmware manages resets and power sequencing,
