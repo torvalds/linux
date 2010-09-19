@@ -1095,6 +1095,7 @@ static int kvm_write_guest_time(struct kvm_vcpu *v)
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->last_kernel_ns = kernel_ns;
+	vcpu->last_guest_tsc = tsc_timestamp;
 	vcpu->hv_clock.flags = 0;
 
 	/*
