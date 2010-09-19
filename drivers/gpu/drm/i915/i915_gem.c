@@ -1908,7 +1908,7 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno,
 	return i915_do_wait_request(dev, seqno, 1, ring);
 }
 
-static void
+void
 i915_gem_flush_ring(struct drm_device *dev,
 		    struct intel_ring_buffer *ring,
 		    uint32_t invalidate_domains,

@@ -5056,24 +5056,23 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
-	if (was_dirty || IS_GEN3(dev) || IS_GEN2(dev)) {
+	/* Schedule the pipelined flush */
+	if (was_dirty)
+		i915_gem_flush_ring(dev, obj_priv->ring, 0, was_dirty);
+
+	if (IS_GEN3(dev) || IS_GEN2(dev)) {
+		u32 flip_mask;
+
+		/* Can't queue multiple flips, so wait for the previous
+		 * one to finish before executing the next.
+		 */
 		BEGIN_LP_RING(2);
-		if (IS_GEN3(dev) || IS_GEN2(dev)) {
-			u32 flip_mask;
-
-			/* Can't queue multiple flips, so wait for the previous
-			 * one to finish before executing the next.
-			 */
-
-			if (intel_crtc->plane)
-				flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-			else
-				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-
-			OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
-		} else
-			OUT_RING(MI_NOOP);
-		OUT_RING(MI_FLUSH);
+		if (intel_crtc->plane)
+			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+		else
+			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+		OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
+		OUT_RING(MI_NOOP);
 		ADVANCE_LP_RING();
 	}
 
