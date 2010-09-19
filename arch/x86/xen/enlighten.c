@@ -250,23 +250,7 @@ static __init void xen_init_cpuid_mask(void)
 			~((1 << X86_FEATURE_APIC) |  /* disable local APIC */
 			  (1 << X86_FEATURE_ACPI));  /* disable ACPI */
 
-	ax = 1;
-	cx = 0;
-	xen_cpuid(&ax, &bx, &cx, &dx);
-
-	/* cpuid claims we support xsave; try enabling it to see what happens */
-	if (cx & (1 << (X86_FEATURE_XSAVE % 32))) {
-		unsigned long cr4;
-
-		set_in_cr4(X86_CR4_OSXSAVE);
-		
-		cr4 = read_cr4();
-
-		if ((cr4 & X86_CR4_OSXSAVE) == 0)
-			cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_XSAVE % 32));
-
-		clear_in_cr4(X86_CR4_OSXSAVE);
-	}
+	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_XSAVE % 32)); /* disable XSAVE */
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
