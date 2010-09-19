@@ -67,11 +67,6 @@ enum ccid3_options {
 	TFRC_OPT_RECEIVE_RATE	 = 194,
 };
 
-struct ccid3_options_received {
-	u32 ccid3or_loss_event_rate;
-	u32 ccid3or_receive_rate;
-};
-
 /* TFRC sender states */
 enum ccid3_hc_tx_states {
 	TFRC_SSTATE_NO_SENT = 1,
@@ -97,7 +92,6 @@ enum ccid3_hc_tx_states {
  * @tx_t_ld:		  Time last doubled during slow start
  * @tx_t_nom:		  Nominal send time of next packet
  * @tx_hist:		  Packet history
- * @tx_options_received:  Parsed set of retrieved options
  */
 struct ccid3_hc_tx_sock {
 	u64				tx_x;
@@ -115,7 +109,6 @@ struct ccid3_hc_tx_sock {
 	ktime_t				tx_t_ld;
 	ktime_t				tx_t_nom;
 	struct tfrc_tx_hist_entry	*tx_hist;
-	struct ccid3_options_received	tx_options_received;
 };
 
 static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
