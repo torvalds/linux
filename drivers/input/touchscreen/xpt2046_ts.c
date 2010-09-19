@@ -394,6 +394,14 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 		abs(ts->last_read - *val),ts->debounce_tol,
 		ts->read_rep,ts->debounce_rep);
 	
+	/* discard the first sample. */
+	 //on info_it50, the top-left area(1cmx1cm top-left square ) is not responding cause the first sample is invalid, @sep 17th
+	if(!ts->read_cnt)
+	{
+		//udelay(100);
+		ts->read_cnt++;
+		return XPT2046_FILTER_REPEAT;
+	}
 	if(*val == 4095 || *val == 0)
 	{
 		ts->read_cnt = 0;
@@ -403,11 +411,12 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 		return XPT2046_FILTER_IGNORE;
 	}
 	/* discard the first sample. */
-	if(!ts->read_cnt)
+/*	if(!ts->read_cnt)
 	{
 		ts->read_cnt++;
 		return XPT2046_FILTER_REPEAT;
 	}
+move discard ahead  */
 
 	if (ts->read_cnt==1 || (abs(ts->last_read - *val) > ts->debounce_tol)) {
 		/* Start over collecting consistent readings. */
