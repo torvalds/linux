@@ -312,6 +312,9 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	data |= 0x1;
 	pci_write_reg(chan, data, SH4A_PCIETCTLR);
 
+	/* Let things settle down a bit.. */
+	mdelay(100);
+
 	/* Enable DL_Active Interrupt generation */
 	data = pci_read_reg(chan, SH4A_PCIEDLINTENR);
 	data |= PCIEDLINTENR_DLL_ACT_ENABLE;
