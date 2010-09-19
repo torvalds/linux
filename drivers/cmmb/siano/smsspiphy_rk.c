@@ -309,6 +309,7 @@ static void chip_poweron()
 	gpio_direction_output(CMMB_1186_POWER_RESET,0);
 	gpio_direction_output(CMMB_1186_POWER_DOWN,0);
 
+//	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
 	gpio_direction_output(CMMB_1186_POWER_ENABLE,0);
 	mdelay(100);
 	gpio_direction_output(CMMB_1186_POWER_ENABLE,1);
@@ -344,7 +345,9 @@ static void chip_powerdown()
 
 //1186 cmmb power down
 #if 1
+//	GPIOSetPinDirection(CMMB_1186_POWER_ENABLE,1);
 	gpio_direction_output(CMMB_1186_POWER_ENABLE,0);
+	mdelay(300);
 //set the CS0 as gpio mode 
 
 //	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,0);
@@ -416,7 +419,7 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 		printk("gpio request error\n");
 	}
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, spibus_interrupt, GPIOEdgelRising, spiphy_dev);//
-    gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullDown);
+    gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
     request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,NULL,spiphy_dev);
 
