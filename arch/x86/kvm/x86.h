@@ -72,6 +72,7 @@ static inline int is_paging(struct kvm_vcpu *vcpu)
 
 void kvm_before_handle_nmi(struct kvm_vcpu *vcpu);
 void kvm_after_handle_nmi(struct kvm_vcpu *vcpu);
+int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq);
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data);
 
