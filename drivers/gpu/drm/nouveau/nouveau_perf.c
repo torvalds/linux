@@ -27,6 +27,51 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 
+static void
+legacy_perf_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	char *perf, *entry, *bmp = &bios->data[bios->offset];
+	int headerlen, use_straps;
+
+	if (bmp[5] < 0x5 || bmp[6] < 0x14) {
+		NV_DEBUG(dev, "BMP version too old for perf\n");
+		return;
+	}
+
+	perf = ROMPTR(bios, bmp[0x73]);
+	if (!perf) {
+		NV_DEBUG(dev, "No memclock table pointer found.\n");
+		return;
+	}
+
+	switch (perf[0]) {
+	case 0x12:
+	case 0x14:
+	case 0x18:
+		use_straps = 0;
+		headerlen = 1;
+		break;
+	case 0x01:
+		use_straps = perf[1] & 1;
+		headerlen = (use_straps ? 8 : 2);
+		break;
+	default:
+		NV_WARN(dev, "Unknown memclock table version %x.\n", perf[0]);
+		return;
+	}
+
+	entry = perf + headerlen;
+	if (use_straps)
+		entry += (nv_rd32(dev, NV_PEXTDEV_BOOT_0) & 0x3c) >> 1;
+
+	sprintf(pm->perflvl[0].name, "performance_level_0");
+	pm->perflvl[0].memory = ROM16(entry[0]) * 20;
+	pm->nr_perflvl = 1;
+}
+
 void
 nouveau_perf_init(struct drm_device *dev)
 {
@@ -59,7 +104,7 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 	} else {
 		if (bios->data[bios->offset + 6] < 0x27) {
-			NV_DEBUG(dev, "BMP version too old for perf\n");
+			legacy_perf_init(dev);
 			return;
 		}
 

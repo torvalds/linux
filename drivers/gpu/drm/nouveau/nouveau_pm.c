@@ -148,7 +148,11 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 static void
 nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 {
-	char s[16], v[16], f[16];
+	char c[16], s[16], v[16], f[16];
+
+	c[0] = '\0';
+	if (perflvl->core)
+		snprintf(c, sizeof(c), " core %dMHz", perflvl->core / 1000);
 
 	s[0] = '\0';
 	if (perflvl->shader)
@@ -162,8 +166,8 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 	if (perflvl->fanspeed)
 		snprintf(f, sizeof(f), " fanspeed %d%%", perflvl->fanspeed);
 
-	snprintf(ptr, len, "core %dMHz memory %dMHz%s%s%s\n",
-		 perflvl->core / 1000, perflvl->memory / 1000, s, v, f);
+	snprintf(ptr, len, "memory %dMHz%s%s%s%s\n", perflvl->memory / 1000,
+		 c, s, v, f);
 }
 
 static ssize_t
