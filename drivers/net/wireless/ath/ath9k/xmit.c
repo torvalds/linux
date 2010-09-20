@@ -61,6 +61,8 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 			      struct ath_tx_status *ts, int txok);
 static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
 			     int nbad, int txok, bool update_rc);
+static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
+			      int seqno);
 
 enum {
 	MCS_HT20,
@@ -143,18 +145,23 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 	struct ath_txq *txq = &sc->tx.txq[tid->ac->qnum];
 	struct ath_buf *bf;
 	struct list_head bf_head;
+	struct ath_tx_status ts;
+
 	INIT_LIST_HEAD(&bf_head);
 
-	WARN_ON(!tid->paused);
-
+	memset(&ts, 0, sizeof(ts));
 	spin_lock_bh(&txq->axq_lock);
-	tid->paused = false;
 
 	while (!list_empty(&tid->buf_q)) {
 		bf = list_first_entry(&tid->buf_q, struct ath_buf, list);
-		BUG_ON(bf_isretried(bf));
 		list_move_tail(&bf->list, &bf_head);
-		ath_tx_send_ht_normal(sc, txq, tid, &bf_head);
+
+		if (bf_isretried(bf)) {
+			ath_tx_update_baw(sc, tid, bf->bf_seqno);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
+		} else {
+			ath_tx_send_ht_normal(sc, txq, tid, &bf_head);
+		}
 	}
 
 	spin_unlock_bh(&txq->axq_lock);
@@ -429,7 +436,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			list_move_tail(&bf->list, &bf_head);
 		}
 
-		if (!txpending) {
+		if (!txpending || (tid->state & AGGR_CLEANUP)) {
 			/*
 			 * complete the acked-ones/xretried ones; update
 			 * block-ack window
@@ -508,15 +515,12 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	}
 
 	if (tid->state & AGGR_CLEANUP) {
+		ath_tx_flush_tid(sc, tid);
+
 		if (tid->baw_head == tid->baw_tail) {
 			tid->state &= ~AGGR_ADDBA_COMPLETE;
 			tid->state &= ~AGGR_CLEANUP;
-
-			/* send buffered frames as singles */
-			ath_tx_flush_tid(sc, tid);
 		}
-		rcu_read_unlock();
-		return;
 	}
 
 	rcu_read_unlock();
@@ -807,12 +811,6 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
 	struct ath_txq *txq = &sc->tx.txq[txtid->ac->qnum];
-	struct ath_tx_status ts;
-	struct ath_buf *bf;
-	struct list_head bf_head;
-
-	memset(&ts, 0, sizeof(ts));
-	INIT_LIST_HEAD(&bf_head);
 
 	if (txtid->state & AGGR_CLEANUP)
 		return;
@@ -822,31 +820,22 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 		return;
 	}
 
-	/* drop all software retried frames and mark this TID */
 	spin_lock_bh(&txq->axq_lock);
 	txtid->paused = true;
-	while (!list_empty(&txtid->buf_q)) {
-		bf = list_first_entry(&txtid->buf_q, struct ath_buf, list);
-		if (!bf_isretried(bf)) {
-			/*
-			 * NB: it's based on the assumption that
-			 * software retried frame will always stay
-			 * at the head of software queue.
-			 */
-			break;
-		}
-		list_move_tail(&bf->list, &bf_head);
-		ath_tx_update_baw(sc, txtid, bf->bf_seqno);
-		ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
-	}
+
+	/*
+	 * If frames are still being transmitted for this TID, they will be
+	 * cleaned up during tx completion. To prevent race conditions, this
+	 * TID can only be reused after all in-progress subframes have been
+	 * completed.
+	 */
+	if (txtid->baw_head != txtid->baw_tail)
+		txtid->state |= AGGR_CLEANUP;
+	else
+		txtid->state &= ~AGGR_ADDBA_COMPLETE;
 	spin_unlock_bh(&txq->axq_lock);
 
-	if (txtid->baw_head != txtid->baw_tail) {
-		txtid->state |= AGGR_CLEANUP;
-	} else {
-		txtid->state &= ~AGGR_ADDBA_COMPLETE;
-		ath_tx_flush_tid(sc, txtid);
-	}
+	ath_tx_flush_tid(sc, txtid);
 }
 
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
