@@ -31,7 +31,8 @@
 /* ------------------------------------------------------------------------
  * UVC ioctls
  */
-static int uvc_ioctl_ctrl_map(struct uvc_xu_control_mapping *xmap, int old)
+static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
+	struct uvc_xu_control_mapping *xmap, int old)
 {
 	struct uvc_control_mapping *map;
 	unsigned int size;
@@ -58,6 +59,8 @@ static int uvc_ioctl_ctrl_map(struct uvc_xu_control_mapping *xmap, int old)
 
 	case V4L2_CTRL_TYPE_MENU:
 		if (old) {
+			uvc_trace(UVC_TRACE_CONTROL, "V4L2_CTRL_TYPE_MENU not "
+				  "supported for UVCIOC_CTRL_MAP_OLD.\n");
 			ret = -EINVAL;
 			goto done;
 		}
@@ -78,17 +81,17 @@ static int uvc_ioctl_ctrl_map(struct uvc_xu_control_mapping *xmap, int old)
 		break;
 
 	default:
+		uvc_trace(UVC_TRACE_CONTROL, "Unsupported V4L2 control type "
+			  "%u.\n", xmap->v4l2_type);
 		ret = -EINVAL;
 		goto done;
 	}
 
-	ret = uvc_ctrl_add_mapping(map);
+	ret = uvc_ctrl_add_mapping(chain, map);
 
 done:
-	if (ret < 0) {
-		kfree(map->menu_info);
-		kfree(map);
-	}
+	kfree(map->menu_info);
+	kfree(map);
 
 	return ret;
 }
@@ -1021,42 +1024,19 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	/* Dynamic controls. */
 	case UVCIOC_CTRL_ADD:
-	{
-		struct uvc_xu_control_info *xinfo = arg;
-		struct uvc_control_info *info;
-
+		/* Legacy ioctl, kept for API compatibility reasons */
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		if (xinfo->size == 0)
-			return -EINVAL;
-
-		info = kzalloc(sizeof *info, GFP_KERNEL);
-		if (info == NULL)
-			return -ENOMEM;
-
-		memcpy(info->entity, xinfo->entity, sizeof info->entity);
-		info->index = xinfo->index;
-		info->selector = xinfo->selector;
-		info->size = xinfo->size;
-		info->flags = xinfo->flags;
-
-		info->flags |= UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
-			       UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF |
-			       UVC_CONTROL_EXTENSION;
-
-		ret = uvc_ctrl_add_info(info);
-		if (ret < 0)
-			kfree(info);
-		break;
-	}
+		return -EEXIST;
 
 	case UVCIOC_CTRL_MAP_OLD:
 	case UVCIOC_CTRL_MAP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		return uvc_ioctl_ctrl_map(arg, cmd == UVCIOC_CTRL_MAP_OLD);
+		return uvc_ioctl_ctrl_map(chain, arg,
+					  cmd == UVCIOC_CTRL_MAP_OLD);
 
 	case UVCIOC_CTRL_GET:
 		return uvc_xu_ctrl_query(chain, arg, 0);
