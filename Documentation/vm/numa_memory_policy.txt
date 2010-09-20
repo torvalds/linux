@@ -424,7 +424,7 @@ a command line tool, numactl(8), exists that allows one to:
 
 + set the shared policy for a shared memory segment via mbind(2)
 
-The numactl(8) tool is packages with the run-time version of the library
+The numactl(8) tool is packaged with the run-time version of the library
 containing the memory policy system call wrappers.  Some distributions
 package the headers and compile-time libraries in a separate development
 package.
