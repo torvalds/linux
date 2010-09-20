@@ -19,15 +19,49 @@
 #include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <media/dw9714l.h>
 
-#define DW9714L_MAX_RETRIES (3)
+#define POS_LOW (144)
+#define POS_HIGH (520)
+#define SETTLETIME_MS (50)
+#define FOCAL_LENGTH (4.42f)
+#define FNUMBER (2.8f)
+#define DEFAULT_MODE (MODE_LSC);
 
-#define POS_PER_STEP (3)
+#define PROT_OFF (0xECA3)
+#define PROT_ON (0xDC51)
+#define DLC_MCLK (0x2)
+#define DLC_TSRC (0x17)
+#define LSC_MCLK (0x1)
+#define LSC_S10 (0x3)
+#define LSC_S32 (0x3)
+#define LSC_TSRC (0x3)
+#define LSC_GOAL(pos) ((pos << 4) | (LSC_S32 << 2) | LSC_S10)
+#define GOAL(pos) (pos << 4)
+
+#define DW9714L_MAX_RETRIES (3)
 
 struct dw9714l_info {
 	struct i2c_client *i2c_client;
 	struct regulator *regulator;
+	struct dw9714l_config config;
+};
+
+static u16 dlc_pre_set_pos[] =
+{
+	PROT_OFF,
+	0xA10C | DLC_MCLK,
+	0xF200 | (DLC_TSRC << 3),
+	PROT_ON
+};
+
+static u16 lsc_pre_set_pos[] =
+{
+	PROT_OFF,
+	0xA104 | LSC_MCLK,
+	0xF200 | (LSC_TSRC << 3),
+	PROT_ON
 };
 
 static int dw9714l_write(struct i2c_client *client, u16 value)
@@ -60,31 +94,66 @@ static int dw9714l_write(struct i2c_client *client, u16 value)
 	return -EIO;
 }
 
+static int dw9714l_write_many(struct i2c_client *client,
+			      u16 *values,
+			      size_t count)
+{
+	int ix = 0;
+	int ret = 0;
+	while (ix < count && ret == 0)
+		ret = dw9714l_write(client, values[ix++]);
+
+	return ret;
+}
+
 static int dw9714l_set_position(struct dw9714l_info *info, u32 position)
 {
 	int ret;
 
-	/* Protection off. */
-	ret = dw9714l_write(info->i2c_client, 0xECA3);
-	if (ret)
-		return ret;
+	if (position < info->config.pos_low ||
+	    position > info->config.pos_high)
+		return -EINVAL;
 
-	ret = dw9714l_write(info->i2c_client, 0xF200 | (0x0F << 3));
-	if (ret)
-		return ret;
+	/*
+	  As we calibrate the focuser, we might go back and forth on
+	  the actual mode of setting the position. To
+	  make this least painful, we'll make the mode a settable
+	  parameter exposed to the focuser HAL.
+	 */
 
-	/* Protection on. */
-	ret = dw9714l_write(info->i2c_client, 0xDC51);
-	if (ret)
-		return ret;
+	switch(info->config.mode)
+	{
+	case MODE_LSC:
+		ret = dw9714l_write_many(info->i2c_client,
+					 lsc_pre_set_pos,
+					 ARRAY_SIZE(lsc_pre_set_pos));
 
-	ret = dw9714l_write(info->i2c_client,
-			    (position << 4) |
-			    (POS_PER_STEP << 2));
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
 
-	return 0;
+		ret = dw9714l_write(info->i2c_client,
+				    LSC_GOAL(position));
+
+		break;
+	case MODE_DLC:
+		ret = dw9714l_write_many(info->i2c_client,
+					 dlc_pre_set_pos,
+					 ARRAY_SIZE(dlc_pre_set_pos));
+
+		if (ret)
+			return ret;
+
+		/* Fall through */
+	case MODE_DIRECT:
+		ret = dw9714l_write(info->i2c_client,
+				    GOAL(position));
+		break;
+	case MODE_INVALID:
+	default:
+		WARN_ON(info->config.mode);
+	}
+
+	return ret;
 }
 
 static int dw9714l_ioctl(struct inode *inode, struct file *file,
@@ -93,11 +162,39 @@ static int dw9714l_ioctl(struct inode *inode, struct file *file,
 	struct dw9714l_info *info = file->private_data;
 
 	switch (cmd) {
+	case DW9714L_IOCTL_GET_CONFIG:
+	{
+		if (copy_to_user((void __user *) arg,
+				 &info->config,
+				 sizeof(info->config))) {
+			pr_err("%s: 0x%x\n", __func__, __LINE__);
+			return -EFAULT;
+		}
+
+		break;
+	}
+	case DW9714L_IOCTL_SET_CAL:
+	{
+		struct dw9714l_cal cal;
+		if (copy_from_user(&cal,
+				   (const void __user *) arg,
+				   sizeof(cal))) {
+			pr_err("%s: 0x%x\n", __func__, __LINE__);
+			return -EFAULT;
+		}
+
+		if (cal.mode >= MODE_INVALID)
+			return -EINVAL;
+
+		info->config.mode = cal.mode;
+		break;
+	}
 	case DW9714L_IOCTL_SET_POSITION:
 		return dw9714l_set_position(info, (u32) arg);
 	default:
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -105,9 +202,7 @@ struct dw9714l_info *info = NULL;
 
 static int dw9714l_open(struct inode *inode, struct file *file)
 {
-	u8 status;
 
-	pr_info("%s\n", __func__);
 	file->private_data = info;
 	if (info->regulator)
 		regulator_enable(info->regulator);
@@ -116,7 +211,6 @@ static int dw9714l_open(struct inode *inode, struct file *file)
 
 int dw9714l_release(struct inode *inode, struct file *file)
 {
-	pr_info("%s\n", __func__);
 	if (info->regulator)
 		regulator_disable(info->regulator);
 	file->private_data = NULL;
@@ -167,6 +261,12 @@ static int dw9714l_probe(struct i2c_client *client,
 	}
 
 	info->i2c_client = client;
+	info->config.settle_time = SETTLETIME_MS;
+	info->config.focal_length = FOCAL_LENGTH;
+	info->config.fnumber = FNUMBER;
+	info->config.pos_low = POS_LOW;
+	info->config.pos_high = POS_HIGH;
+	info->config.mode = DEFAULT_MODE;
 	i2c_set_clientdata(client, info);
 	return 0;
 }

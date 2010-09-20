@@ -24,7 +24,31 @@
 
 #include <linux/ioctl.h>  /* For IOCTL macros */
 
-#define DW9714L_IOCTL_SET_POSITION		_IOW('o', 1, u32)
+#define DW9714L_IOCTL_GET_CONFIG   _IOR('o', 1, struct dw9714l_config)
+#define DW9714L_IOCTL_SET_CAL      _IOW('o', 2, struct dw9714l_cal)
+#define DW9714L_IOCTL_SET_POSITION _IOW('o', 3, u32)
+
+enum dw9714l_mode {
+	MODE_DIRECT,
+	MODE_LSC,
+	MODE_DLC,
+	MODE_INVALID
+};
+
+struct dw9714l_config
+{
+	__u32 settle_time;
+	float focal_length;
+	float fnumber;
+	__u32 pos_low;
+	__u32 pos_high;
+	enum dw9714l_mode mode;
+};
+
+struct dw9714l_cal
+{
+	enum dw9714l_mode mode;
+};
 
 #endif  /* __DW9714L_H__ */
 
