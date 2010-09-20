@@ -926,16 +926,19 @@ alloc_new_skb:
 			    !(rt->dst.dev->features&NETIF_F_SG))
 				alloclen = mtu;
 			else
-				alloclen = datalen + fragheaderlen;
+				alloclen = fraglen;
 
 			/* The last fragment gets additional space at tail.
 			 * Note, with MSG_MORE we overallocate on fragments,
 			 * because we have no idea what fragment will be
 			 * the last.
 			 */
-			if (datalen == length + fraggap)
+			if (datalen == length + fraggap) {
 				alloclen += rt->dst.trailer_len;
-
+				/* make sure mtu is not reached */
+				if (datalen > mtu - fragheaderlen - rt->dst.trailer_len)
+					datalen -= ALIGN(rt->dst.trailer_len, 8);
+			}
 			if (transhdrlen) {
 				skb = sock_alloc_send_skb(sk,
 						alloclen + hh_len + 15,
