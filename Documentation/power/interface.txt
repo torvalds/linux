@@ -57,7 +57,7 @@ smallest image possible.  In particular, if "0" is written to this file, the
 suspend image will be as small as possible.
 
 Reading from this file will display the current image size limit, which
-is set to 500 MB by default.
+is set to 2/5 of available RAM by default.
 
 /sys/power/pm_trace controls the code which saves the last PM event point in
 the RTC across reboots, so that you can debug a machine that just hangs
