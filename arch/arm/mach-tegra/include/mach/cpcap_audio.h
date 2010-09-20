@@ -234,6 +234,7 @@ struct cpcap_audio_platform_data {
 
 int cpcap_audio_init(struct cpcap_audio_state *state, const char *regulator);
 void cpcap_audio_register_dump(struct cpcap_audio_state *state);
+void cpcap_audio_state_dump(struct cpcap_audio_state *state);
 void cpcap_audio_set_audio_state(struct cpcap_audio_state *state);
 
 #endif/*__ARCH_ARM_MACH_TEGRA_CPCAP_AUDIO_H_*/

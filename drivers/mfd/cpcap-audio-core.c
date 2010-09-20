@@ -960,6 +960,31 @@ static void cpcap_audio_configure_power(int power)
 	previous_power = power;
 }
 
+void cpcap_audio_state_dump(struct cpcap_audio_state *state)
+{
+	pr_info("mode = %d",  state->mode);
+	pr_info("codec_mode = %d", state->codec_mode);
+	pr_info("codec_rate = %d", state->codec_rate);
+	pr_info("codec_mute = %d", state->codec_mute);
+	pr_info("stdac_mode = %d", state->stdac_mode);
+	pr_info("stdac_rate = %d", state->stdac_rate);
+	pr_info("stdac_mute = %d", state->stdac_mute);
+	pr_info("analog_source = %d", state->analog_source);
+	pr_info("codec_primary_speaker = %d", state->codec_primary_speaker);
+	pr_info("codec_secondary_speaker = %d", state->codec_secondary_speaker);
+	pr_info("stdac_primary_speaker = %d", state->stdac_primary_speaker);
+	pr_info("stdac_secondary_speaker = %d", state->stdac_secondary_speaker);
+	pr_info("ext_primary_speaker = %d", state->ext_primary_speaker);
+	pr_info("ext_secondary_speaker = %d", state->ext_secondary_speaker);
+	pr_info("codec_primary_balance = %d", state->codec_primary_balance);
+	pr_info("stdac_primary_balance = %d", state->stdac_primary_balance);
+	pr_info("ext_primary_balance = %d", state->ext_primary_balance);
+	pr_info("output_gain = %d", state->output_gain);
+	pr_info("microphone = %d",  state->microphone);
+	pr_info("input_gain = %d", state->input_gain);
+	pr_info("rat_type = %d\n", state->rat_type);
+}
+
 void cpcap_audio_register_dump(struct cpcap_audio_state *state)
 {
 	unsigned short reg_val = 0;
@@ -1120,3 +1145,195 @@ int cpcap_audio_init(struct cpcap_audio_state *state, const char *regulator)
 
 	return 0;
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
+enum {
+	DEBUG_CPCAP_AUDIO_MODE,
+	DEBUG_CPCAP_AUDIO_CODEC_MODE,
+	DEBUG_CPCAP_AUDIO_CODEC_RATE,
+	DEBUG_CPCAP_AUDIO_CODEC_MUTE,
+	DEBUG_CPCAP_AUDIO_STDAC_MODE,
+	DEBUG_CPCAP_AUDIO_STDAC_RATE,
+	DEBUG_CPCAP_AUDIO_STDAC_MUTE,
+	DEBUG_CPCAP_AUDIO_ANALOG_SOURCE,
+	DEBUG_CPCAP_AUDIO_CODEC_PRIMARY_SPEAKER,
+	DEBUG_CPCAP_AUDIO_CODEC_SECONDARY_SPEAKER,
+	DEBUG_CPCAP_AUDIO_STDAC_PRIMARY_SPEAKER,
+	DEBUG_CPCAP_AUDIO_STDAC_SECONDARY_SPEAKER,
+	DEBUG_CPCAP_AUDIO_EXT_PRIMARY_SPEAKER,
+	DEBUG_CPCAP_AUDIO_EXT_SECONDARY_SPEAKER,
+	DEBUG_CPCAP_AUDIO_CODEC_PRIMARY_BALANCE,
+	DEBUG_CPCAP_AUDIO_STDAC_PRIMARY_BALANCE,
+	DEBUG_CPCAP_AUDIO_EXT_PRIMARY_BALANCE,
+	DEBUG_CPCAP_AUDIO_OUTPUT_GAIN,
+	DEBUG_CPCAP_AUDIO_MICROPHONE,
+	DEBUG_CPCAP_AUDIO_INPUT_GAIN,
+	DEBUG_CPCAP_RAT_TYPE,
+	DEBUG_CPCAP_NUM_FIELDS,
+};
+static struct cpcap_audio_state debug_state;
+
+struct debug_audio_entry {
+	int id;
+	char *name;
+	int min;
+	int max;
+	int *dbg_val;
+	int *cur_val;
+};
+
+#define DBG_ENTRY(_id, _min, _max, _fld)	\
+{						\
+	.id = _id,				\
+	.name = #_fld,				\
+	.min = _min,				\
+	.max = _max,				\
+	.dbg_val = &debug_state._fld,		\
+	.cur_val = &current_state._fld,		\
+}
+
+static struct debug_audio_entry values[] = {
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_MODE,
+		  CPCAP_AUDIO_MODE_NORMAL, CPCAP_AUDIO_MODE_TTY,
+		  mode),
+
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_CODEC_MODE,
+		  CPCAP_AUDIO_CODEC_OFF, CPCAP_AUDIO_CODEC_LOOPBACK,
+		  codec_mode),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_CODEC_RATE,
+		  CPCAP_AUDIO_CODEC_RATE_8000_HZ,
+		  CPCAP_AUDIO_CODEC_RATE_48000_HZ,
+		  codec_rate),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_CODEC_MUTE,
+		  CPCAP_AUDIO_CODEC_UNMUTE, CPCAP_AUDIO_CODEC_BYPASS_LOOP,
+		  codec_mute),
+
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_STDAC_MODE,
+		  CPCAP_AUDIO_STDAC_OFF, CPCAP_AUDIO_STDAC_ON,
+		  stdac_mode),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_STDAC_RATE,
+		  CPCAP_AUDIO_STDAC_RATE_8000_HZ,
+		  CPCAP_AUDIO_STDAC_RATE_48000_HZ,
+		  stdac_rate),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_STDAC_MUTE,
+		  CPCAP_AUDIO_STDAC_UNMUTE, CPCAP_AUDIO_STDAC_MUTE,
+		  stdac_mute),
+
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_ANALOG_SOURCE,
+		  CPCAP_AUDIO_ANALOG_SOURCE_OFF,
+		  CPCAP_AUDIO_ANALOG_SOURCE_STEREO,
+		  analog_source),
+
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_CODEC_PRIMARY_SPEAKER,
+		  CPCAP_AUDIO_OUT_NONE,
+		  CPCAP_AUDIO_OUT_NUM_OF_PATHS - 1, codec_primary_speaker),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_CODEC_SECONDARY_SPEAKER,
+		  CPCAP_AUDIO_OUT_NONE,
+		  CPCAP_AUDIO_OUT_NUM_OF_PATHS - 1 , codec_secondary_speaker),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_STDAC_PRIMARY_SPEAKER,
+		  CPCAP_AUDIO_OUT_NONE,
+		  CPCAP_AUDIO_OUT_NUM_OF_PATHS - 1, stdac_primary_speaker),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_STDAC_SECONDARY_SPEAKER,
+		  CPCAP_AUDIO_OUT_NONE,
+		  CPCAP_AUDIO_OUT_NUM_OF_PATHS - 1, stdac_secondary_speaker),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_EXT_PRIMARY_SPEAKER,
+		  CPCAP_AUDIO_OUT_NONE,
+		  CPCAP_AUDIO_OUT_NUM_OF_PATHS - 1, ext_primary_speaker),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_EXT_SECONDARY_SPEAKER,
+		  CPCAP_AUDIO_OUT_NONE,
+		  CPCAP_AUDIO_OUT_NUM_OF_PATHS - 1, ext_secondary_speaker),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_CODEC_PRIMARY_BALANCE,
+		  CPCAP_AUDIO_BALANCE_NEUTRAL,
+		  CPCAP_AUDIO_BALANCE_L_ONLY, codec_primary_balance),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_STDAC_PRIMARY_BALANCE,
+		  CPCAP_AUDIO_BALANCE_NEUTRAL,
+		  CPCAP_AUDIO_BALANCE_L_ONLY, stdac_primary_balance),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_EXT_PRIMARY_BALANCE,
+		  CPCAP_AUDIO_BALANCE_NEUTRAL,
+		  CPCAP_AUDIO_BALANCE_L_ONLY, ext_primary_balance),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_OUTPUT_GAIN, 0, 50, output_gain),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_MICROPHONE, CPCAP_AUDIO_IN_NONE,
+		  CPCAP_AUDIO_IN_NUM_OF_PATHS - 1, microphone),
+	DBG_ENTRY(DEBUG_CPCAP_AUDIO_INPUT_GAIN, 0, 50, input_gain),
+	DBG_ENTRY(DEBUG_CPCAP_RAT_TYPE,
+		  CPCAP_AUDIO_RAT_NONE, CPCAP_AUDIO_RAT_CDMA,
+		  rat_type),
+};
+
+static int tegra_audio_debug_show(struct seq_file *s, void *data)
+{
+	int field = (int) s->private;
+
+	if (field < DEBUG_CPCAP_NUM_FIELDS)
+		seq_printf(s, "%d\n", *values[field].cur_val);
+
+	return 0;
+}
+
+static int tegra_audio_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tegra_audio_debug_show, inode->i_private);
+}
+
+static int tegra_audio_debug_write(struct file *file,
+		const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buf[32];
+	int buf_sz;
+	long ival;
+	struct seq_file *s = file->private_data;
+	int field = (int) s->private;
+
+	buf_sz = min(count, (sizeof(buf)-1));
+	if (copy_from_user(buf, user_buf, buf_sz))
+		return -EFAULT;
+	buf[buf_sz] = 0;
+
+	debug_state = current_state;
+
+	if (strict_strtol(buf, 0, &ival))
+		return -EINVAL;
+	if (ival < values[field].min || ival > values[field].max) {
+		pr_err("%s: invalid value %ld\n", __func__, ival);
+		return -EINVAL;
+	}
+
+	*values[field].dbg_val = ival;
+
+	pr_info("%s setting %s to %ld\n", __func__,
+		values[field].name, ival);
+
+	cpcap_audio_set_audio_state(&debug_state);
+	return count;
+}
+
+static const struct file_operations tegra_audio_debug_fops = {
+	.open       = tegra_audio_debug_open,
+	.write      = tegra_audio_debug_write,
+	.read       = seq_read,
+	.llseek     = seq_lseek,
+	.release    = single_release,
+};
+
+static int __init tegra_audio_debug_init(void)
+{
+	int i;
+	struct dentry *d, *f;
+
+	d = debugfs_create_dir("cpcap_audio", NULL);
+
+	for (i = 0; i < DEBUG_CPCAP_NUM_FIELDS; i++) {
+		f = debugfs_create_file(values[i].name, 0755, d,
+					(void *) values[i].id,
+					&tegra_audio_debug_fops);
+	}
+
+	return 0;
+}
+
+late_initcall(tegra_audio_debug_init);
+#endif /* CONFIG_DEBUG_FS */
