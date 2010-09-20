@@ -339,9 +339,6 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
 
 u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
 {
-	//struct r8192_priv* priv = ieee80211_priv(dev);
-	//struct ieee80211_device *ieee = priv->ieee80211;
-
 	static const u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
 	static const u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
 	int wpa_ie_len= ieee->wpa_ie_len;
@@ -386,7 +383,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 		case HW_VAR_MEDIA_STATUS:
 		{
 			RT_OP_MODE	OpMode = *((RT_OP_MODE *)(val));
-			//LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
 			u8		btMsr = read_nic_byte(dev, MSR);
 
 			btMsr &= 0xfc;
@@ -395,17 +391,14 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			{
 			case RT_OP_MODE_INFRASTRUCTURE:
 				btMsr |= MSR_INFRA;
-				//LedAction = LED_CTL_LINK;
 				break;
 
 			case RT_OP_MODE_IBSS:
 				btMsr |= MSR_ADHOC;
-				// led link set separate
 				break;
 
 			case RT_OP_MODE_AP:
 				btMsr |= MSR_AP;
-				//LedAction = LED_CTL_LINK;
 				break;
 
 			default:
@@ -414,8 +407,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			}
 
 			write_nic_byte(dev, MSR, btMsr);
-
-			//priv->ieee80211->LedControlHandler(dev, LedAction);
 		}
 		break;
 
@@ -424,7 +415,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			u32	RegRCR, Type;
 
 			Type = ((u8*)(val))[0];
-			//priv->ieee80211->GetHwRegHandler(dev, HW_VAR_RCR, (u8*)(&RegRCR));
 			RegRCR = read_nic_dword(dev,RCR);
 			priv->ReceiveConfig = RegRCR;
 
@@ -433,7 +423,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			else if (Type == false)
 				RegRCR &= (~RCR_CBSSID);
 
-			//priv->ieee80211->SetHwRegHandler( dev, HW_VAR_RCR, (u8*)(&RegRCR) );
 			write_nic_dword(dev, RCR,RegRCR);
 			priv->ReceiveConfig = RegRCR;
 
@@ -442,9 +431,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 		case HW_VAR_SLOT_TIME:
 		{
-			//PSTA_QOS	pStaQos = Adapter->MgntInfo.pStaQos;
-			//AC_CODING	eACI;
-
 			priv->slot_time = val[0];
 			write_nic_byte(dev, SLOT_TIME, val[0]);
 
@@ -482,7 +468,6 @@ static int proc_get_stats_ap(char *page, char **start,
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
 	struct ieee80211_network *target;
-
 	int len = 0;
 
         list_for_each_entry(target, &ieee->network_list, list) {
@@ -510,11 +495,8 @@ static int proc_get_registers(char *page, char **start,
 			  int *eof, void *data)
 {
 	struct net_device *dev = data;
-//	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
 	int len = 0;
 	int i,n;
-
 	int max=0xff;
 
 	/* This dump the current register page */
@@ -523,54 +505,42 @@ static int proc_get_registers(char *page, char **start,
 
 	for(n=0;n<=max;)
 	{
-		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
 			"\nD:  %2x > ",n);
 
 		for(i=0;i<16 && n<=max;i++,n++)
 		len += snprintf(page + len, count - len,
 			"%2x ",read_nic_byte(dev,n));
-
-		//	printk("%2x ",read_nic_byte(dev,n));
 	}
 	len += snprintf(page + len, count - len,"\n");
 	len += snprintf(page + len, count - len,
                         "\n####################page 1##################\n ");
         for(n=0;n<=max;)
         {
-                //printk( "\nD: %2x> ", n);
                 len += snprintf(page + len, count - len,
                         "\nD:  %2x > ",n);
 
                 for(i=0;i<16 && n<=max;i++,n++)
                 len += snprintf(page + len, count - len,
                         "%2x ",read_nic_byte(dev,0x100|n));
-
-                //      printk("%2x ",read_nic_byte(dev,n));
         }
 
 	len += snprintf(page + len, count - len,
                         "\n####################page 3##################\n ");
         for(n=0;n<=max;)
         {
-                //printk( "\nD: %2x> ", n);
                 len += snprintf(page + len, count - len,
                         "\nD:  %2x > ",n);
 
                 for(i=0;i<16 && n<=max;i++,n++)
                 len += snprintf(page + len, count - len,
                         "%2x ",read_nic_byte(dev,0x300|n));
-
-                //      printk("%2x ",read_nic_byte(dev,n));
         }
-
 
 	*eof = 1;
 	return len;
 
 }
-
-
 
 static int proc_get_stats_tx(char *page, char **start,
 			  off_t offset, int count,
@@ -776,7 +746,6 @@ short check_nic_enough_desc(struct net_device *dev, int prio)
 static void tx_timeout(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//rtl8192_commit(dev);
 
 	schedule_work(&priv->reset_wq);
 	printk("TXTIMEOUT");
@@ -931,7 +900,6 @@ void PHY_SetRtl8192eRfOff(struct net_device* dev)
 
 void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 {
-	//u8 	cmd;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int i;
 	u8	OpMode;
@@ -941,17 +909,12 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	OpMode = RT_OP_MODE_NO_LINK;
 	priv->ieee80211->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &OpMode);
 
-#if 1
 	if(!priv->ieee80211->bSupportRemoteWakeUp)
 	{
 		u1bTmp = 0x0;	// disable tx/rx. In 8185 we write 0x10 (Reset bit), but here we make reference to WMAC and wirte 0x0. 2006.11.21 Emily
 		//priv->ieee80211->SetHwRegHandler(dev, HW_VAR_COMMAND, &u1bTmp );	// Using HW_VAR_COMMAND instead of writing CMDR directly. Rewrited by Annie, 2006-04-07.
 		write_nic_byte(dev, CMDR, u1bTmp);
 	}
-#else
-	cmd=read_nic_byte(dev,CMDR);
-	write_nic_byte(dev, CMDR, cmd &~ (CR_TE|CR_RE));
-#endif
 
 	mdelay(20);
 
