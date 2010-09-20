@@ -32,6 +32,14 @@ config ATH9K_DEBUGFS
 
 	  Also required for changing debug message flags at run time.
 
+config ATH9K_RATE_CONTROL
+	bool "Atheros ath9k rate control"
+	depends on ATH9K
+	default y
+	---help---
+	  Say Y, if you want to use the ath9k specific rate control
+	  module instead of minstrel_ht.
+
 config ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"
        depends on USB && MAC80211
