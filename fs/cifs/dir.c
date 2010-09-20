@@ -131,9 +131,9 @@ cifs_bp_rename_retry:
 }
 
 struct cifsFileInfo *
-cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
-		  struct file *file, struct vfsmount *mnt, unsigned int oflags,
-		  __u32 oplock)
+cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
+		  struct vfsmount *mnt, struct cifsTconInfo *tcon,
+		  unsigned int oflags, __u32 oplock)
 {
 	struct cifsFileInfo *pCifsFile;
 	struct cifsInodeInfo *pCifsInode;
@@ -150,7 +150,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
-	pCifsFile->tcon = cifs_sb_tcon(cifs_sb);
+	pCifsFile->tcon = tcon;
 	mutex_init(&pCifsFile->fh_mutex);
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
@@ -158,7 +158,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
 
 	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &cifs_sb_tcon(cifs_sb)->openFileList);
+	list_add(&pCifsFile->tlist, &tcon->openFileList);
 	pCifsInode = CIFS_I(newinode);
 	if (pCifsInode) {
 		/* if readable file instance put first in list*/
@@ -191,6 +191,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	__u32 posix_flags = 0;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_fattr fattr;
+	struct cifsTconInfo *tcon = cifs_sb_tcon(cifs_sb);
 
 	cFYI(1, "posix open %s", full_path);
 
@@ -225,9 +226,9 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 		posix_flags |= SMB_O_DIRECT;
 
 	mode &= ~current_umask();
-	rc = CIFSPOSIXCreate(xid, cifs_sb_tcon(cifs_sb), posix_flags, mode,
-			pnetfid, presp_data, poplock, full_path,
-			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+	rc = CIFSPOSIXCreate(xid, tcon, posix_flags, mode, pnetfid, presp_data,
+			     poplock, full_path, cifs_sb->local_nls,
+			     cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc)
 		goto posix_open_ret;
@@ -466,7 +467,8 @@ cifs_create_set_dentry:
 		}
 
 		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
-					       nd->path.mnt, oflags, oplock);
+					       nd->path.mnt, tcon, oflags,
+						oplock);
 		if (pfile_info == NULL) {
 			fput(filp);
 			CIFSSMBClose(xid, tcon, fileHandle);
@@ -726,7 +728,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			}
 
 			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
-						  nd->path.mnt,
+						  nd->path.mnt, pTcon,
 						  nd->intent.open.flags,
 						  oplock);
 			if (cfile == NULL) {
