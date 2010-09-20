@@ -567,7 +567,8 @@ void smp_send_stop(void)
 {
 	cpumask_t mask = cpu_online_map;
 	cpu_clear(smp_processor_id(), mask);
-	send_ipi_message(&mask, IPI_CPU_STOP);
+	if (!cpus_empty(mask))
+		send_ipi_message(&mask, IPI_CPU_STOP);
 }
 
 /*
