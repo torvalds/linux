@@ -446,7 +446,7 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	int ret;
 
 	/* Are we from a system call? */
-	if (in_syscall(__frame)) {
+	if (__frame->syscallno != -1) {
 		/* If so, check system call restarting.. */
 		switch (__frame->gr8) {
 		case -ERESTART_RESTARTBLOCK:
@@ -465,6 +465,7 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 			__frame->gr8 = __frame->orig_gr8;
 			__frame->pc -= 4;
 		}
+		__frame->syscallno = -1;
 	}
 
 	/* Set up the stack frame */
@@ -551,6 +552,7 @@ no_signal:
 			__frame->pc -= 4;
 			break;
 		}
+		__frame->syscallno = -1;
 	}
 
 	/* if there's no signal to deliver, we just put the saved sigmask
