@@ -66,8 +66,7 @@ unsigned int get_clk_frequency_khz(int info)
 		return pxa25x_get_clk_frequency_khz(info);
 	else if (cpu_is_pxa27x())
 		return pxa27x_get_clk_frequency_khz(info);
-	else
-		return pxa3xx_get_clk_frequency_khz(info);
+	return 0;
 }
 EXPORT_SYMBOL(get_clk_frequency_khz);
 
