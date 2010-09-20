@@ -96,6 +96,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 
 			{TM6010_REQ07_R04_LUMA_HAGC_CONTROL, 0xdc},
 			{TM6010_REQ07_R0D_CHROMA_KILL_LEVEL, 0x07},
+			{TM6010_REQ08_R05_A_STANDARD_MOD, 0x21}, /* FIXME */
 			{TM6010_REQ07_R3F_RESET, 0x00},
 			{0, 0, 0},
 		},
@@ -154,6 +155,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 
 			{TM6010_REQ07_R04_LUMA_HAGC_CONTROL, 0xdc},
 			{TM6010_REQ07_R0D_CHROMA_KILL_LEVEL, 0x07},
+			{TM6010_REQ08_R05_A_STANDARD_MOD, 0x21}, /* FIXME */
 			{TM6010_REQ07_R3F_RESET, 0x00},
 			{0, 0, 0},
 		},
@@ -212,6 +214,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 
 			{TM6010_REQ07_R04_LUMA_HAGC_CONTROL, 0xdc},
 			{TM6010_REQ07_R0D_CHROMA_KILL_LEVEL, 0x07},
+			{TM6010_REQ08_R05_A_STANDARD_MOD, 0x76}, /* FIXME */
 			{TM6010_REQ07_R3F_RESET, 0x00},
 			{0, 0, 0},
 		},
@@ -269,6 +272,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 			{TM6010_REQ07_R83_CHROMA_LOCK_CONFIG, 0xFF},
 
 			{TM6010_REQ07_R0D_CHROMA_KILL_LEVEL, 0x07},
+			{TM6010_REQ08_R05_A_STANDARD_MOD, 0x79},
 			{TM6010_REQ07_R3F_RESET, 0x00},
 			{0, 0, 0},
 		},
@@ -327,6 +331,7 @@ static struct tm6000_std_tv_settings tv_stds[] = {
 
 			{TM6010_REQ07_R04_LUMA_HAGC_CONTROL, 0xdd},
 			{TM6010_REQ07_R0D_CHROMA_KILL_LEVEL, 0x07},
+			{TM6010_REQ08_R05_A_STANDARD_MOD, 0x22}, /* FIXME */
 			{TM6010_REQ07_R3F_RESET, 0x00},
 			{0, 0, 0},
 		},

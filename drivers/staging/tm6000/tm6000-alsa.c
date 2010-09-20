@@ -160,15 +160,15 @@ static struct snd_pcm_hardware snd_tm6000_digital_hw = {
 		SNDRV_PCM_INFO_MMAP_VALID,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
-	.rates =		SNDRV_PCM_RATE_48000,
+	.rates =		SNDRV_PCM_RATE_CONTINUOUS,
 	.rate_min =		48000,
 	.rate_max =		48000,
 	.channels_min = 2,
 	.channels_max = 2,
-	.period_bytes_min = 62720,
-	.period_bytes_max = 62720,
+	.period_bytes_min = 64,
+	.period_bytes_max = 12544,
 	.periods_min = 1,
-	.periods_max = 1024,
+	.periods_max = 98,
 	.buffer_bytes_max = 62720 * 8,
 };
 
@@ -211,37 +211,63 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 	struct snd_pcm_runtime *runtime;
 	int period_elapsed = 0;
 	unsigned int stride, buf_pos;
+	int length;
 
-	if (!size || !substream)
+	if (!size || !substream) {
+		dprintk(1, "substream was NULL\n");
 		return -EINVAL;
+	}
 
 	runtime = substream->runtime;
-	if (!runtime || !runtime->dma_area)
+	if (!runtime || !runtime->dma_area) {
+		dprintk(1, "runtime was NULL\n");
 		return -EINVAL;
+	}
 
 	buf_pos = chip->buf_pos;
 	stride = runtime->frame_bits >> 3;
+
+	if (stride == 0) {
+		dprintk(1, "stride is zero\n");
+		return -EINVAL;
+	}
+
+	length = size / stride;
+	if (length == 0) {
+		dprintk(1, "%s: length was zero\n", __func__);
+		return -EINVAL;
+	}
 
 	dprintk(1, "Copying %d bytes at %p[%d] - buf size=%d x %d\n", size,
 		runtime->dma_area, buf_pos,
 		(unsigned int)runtime->buffer_size, stride);
 
-	if (buf_pos + size >= runtime->buffer_size * stride) {
-		unsigned int cnt = runtime->buffer_size * stride - buf_pos;
-		memcpy(runtime->dma_area + buf_pos, buf, cnt);
-		memcpy(runtime->dma_area, buf + cnt, size - cnt);
+	if (buf_pos + length >= runtime->buffer_size) {
+		unsigned int cnt = runtime->buffer_size - buf_pos;
+		memcpy(runtime->dma_area + buf_pos * stride, buf, cnt * stride);
+		memcpy(runtime->dma_area, buf + cnt * stride,
+			length * stride - cnt * stride);
 	} else
-		memcpy(runtime->dma_area + buf_pos, buf, size);
+		memcpy(runtime->dma_area + buf_pos * stride, buf,
+			length * stride);
 
-	chip->buf_pos += size;
-	if (chip->buf_pos >= runtime->buffer_size * stride)
-		chip->buf_pos -= runtime->buffer_size * stride;
+#ifndef NO_PCM_LOCK
+       snd_pcm_stream_lock(substream);
+#endif
 
-	chip->period_pos += size;
+	chip->buf_pos += length;
+	if (chip->buf_pos >= runtime->buffer_size)
+		chip->buf_pos -= runtime->buffer_size;
+
+	chip->period_pos += length;
 	if (chip->period_pos >= runtime->period_size) {
 		chip->period_pos -= runtime->period_size;
 		period_elapsed = 1;
 	}
+
+#ifndef NO_PCM_LOCK
+       snd_pcm_stream_unlock(substream);
+#endif
 
 	if (period_elapsed)
 		snd_pcm_period_elapsed(substream);

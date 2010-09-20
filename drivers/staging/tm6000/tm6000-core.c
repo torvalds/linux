@@ -256,7 +256,6 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 		tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, 0x04);
 		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
 		tm6000_set_reg(dev, TM6010_REQ08_R04_A_SIF_AMP_CTRL, 0xa0);
-		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x05);
 		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x06);
 		tm6000_set_reg(dev, TM6010_REQ08_R07_A_LEFT_VOL, 0x00);
 		tm6000_set_reg(dev, TM6010_REQ08_R08_A_RIGHT_VOL, 0x00);
