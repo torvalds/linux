@@ -809,20 +809,6 @@ void rtl8192_irq_disable(struct net_device *dev)
 	priv->irq_enabled = 0;
 }
 
-
-#if 0
-static void rtl8192_set_mode(struct net_device *dev,int mode)
-{
-	u8 ecmd;
-	ecmd=read_nic_byte(dev, EPROM_CMD);
-	ecmd=ecmd &~ EPROM_CMD_OPERATING_MODE_MASK;
-	ecmd=ecmd | (mode<<EPROM_CMD_OPERATING_MODE_SHIFT);
-	ecmd=ecmd &~ (1<<EPROM_CS_SHIFT);
-	ecmd=ecmd &~ (1<<EPROM_CK_SHIFT);
-	write_nic_byte(dev, EPROM_CMD, ecmd);
-}
-#endif
-
 void rtl8192_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1062,27 +1048,10 @@ inline u16 rtl8192_rate2rate(short rate)
 
 static void rtl8192_data_hard_stop(struct net_device *dev)
 {
-	//FIXME !!
-	#if 0
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dma_poll_mask |= (1<<TX_DMA_STOP_LOWPRIORITY_SHIFT);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-	#endif
 }
-
 
 static void rtl8192_data_hard_resume(struct net_device *dev)
 {
-	// FIXME !!
-	#if 0
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dma_poll_mask &= ~(1<<TX_DMA_STOP_LOWPRIORITY_SHIFT);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-	#endif
 }
 
 /*
