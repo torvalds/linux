@@ -128,6 +128,7 @@ struct drm_i915_master_private {
 struct drm_i915_fence_reg {
 	struct drm_gem_object *obj;
 	struct list_head lru_list;
+	bool gpu;
 };
 
 struct sdvo_device_mapping {

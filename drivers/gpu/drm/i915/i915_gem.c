@@ -2461,7 +2461,9 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 			      bool interruptible)
 {
 	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	struct drm_i915_fence_reg *reg;
 
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE)
 		return 0;
@@ -2476,7 +2478,8 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 	 * therefore we must wait for any outstanding access to complete
 	 * before clearing the fence.
 	 */
-	if (INTEL_INFO(dev)->gen < 4) {
+	reg = &dev_priv->fence_regs[obj_priv->fence_reg];
+	if (reg->gpu) {
 		int ret;
 
 		ret = i915_gem_object_flush_gpu_write_domain(obj, true);
@@ -2486,6 +2489,8 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 		ret = i915_gem_object_wait_rendering(obj, interruptible);
 		if (ret)
 			return ret;
+
+		reg->gpu = false;
 	}
 
 	i915_gem_object_flush_gtt_write_domain(obj);
@@ -3180,11 +3185,13 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	 * properly handle blits to/from tiled surfaces.
 	 */
 	if (need_fence) {
-		ret = i915_gem_object_get_fence_reg(obj, false);
+		ret = i915_gem_object_get_fence_reg(obj, true);
 		if (ret != 0) {
 			i915_gem_object_unpin(obj);
 			return ret;
 		}
+
+		dev_priv->fence_regs[obj_priv->fence_reg].gpu = true;
 	}
 
 	entry->offset = obj_priv->gtt_offset;
