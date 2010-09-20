@@ -1116,7 +1116,6 @@ reset_tx (struct net_device *dev)
 	void __iomem *ioaddr = np->base;
 	struct sk_buff *skb;
 	int i;
-	int irq = in_interrupt();
 
 	/* Reset tx logic, TxListPtr will be cleaned */
 	iowrite16 (TxDisable, ioaddr + MACCtrl1);
@@ -1131,10 +1130,7 @@ reset_tx (struct net_device *dev)
 			dma_unmap_single(&np->pci_dev->dev,
 				le32_to_cpu(np->tx_ring[i].frag[0].addr),
 				skb->len, DMA_TO_DEVICE);
-			if (irq)
-				dev_kfree_skb_irq (skb);
-			else
-				dev_kfree_skb (skb);
+			dev_kfree_skb_any(skb);
 			np->tx_skbuff[i] = NULL;
 			dev->stats.tx_dropped++;
 		}
