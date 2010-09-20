@@ -1102,42 +1102,30 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	int ret;
-	//unsigned long flags;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
+
 	/* shall not be referred by command packet */
 	assert(queue_index != TXCMD_QUEUE);
 
-	if (priv->bHwRadioOff ||(!priv->up))
+	if (priv->bHwRadioOff || (!priv->up))
 	{
 		kfree_skb(skb);
 		return;
 	}
 
-	//spin_lock_irqsave(&priv->tx_lock,flags);
+	memcpy(skb->cb, &dev, sizeof(dev));
 
-        memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-#if 0
-	tcb_desc->RATRIndex = 7;
-	tcb_desc->bTxDisableRateFallBack = 1;
-	tcb_desc->bTxUseDriverAssingedRate = 1;
-	tcb_desc->bTxEnableFwCalcDur = 1;
-#endif
 	skb_push(skb, priv->ieee80211->tx_headroom);
 	ret = rtl8192_tx(dev, skb);
-	if(ret != 0) {
+	if (ret != 0) {
 		kfree_skb(skb);
-	};
-
-//
-	if(queue_index!=MGNT_QUEUE) {
-	priv->ieee80211->stats.tx_bytes+=(skb->len - priv->ieee80211->tx_headroom);
-	priv->ieee80211->stats.tx_packets++;
 	}
 
-	//spin_unlock_irqrestore(&priv->tx_lock,flags);
-
-//	return ret;
+	if (queue_index != MGNT_QUEUE) {
+		priv->ieee80211->stats.tx_bytes += (skb->len - priv->ieee80211->tx_headroom);
+		priv->ieee80211->stats.tx_packets++;
+	}
 }
 
 /*
