@@ -5762,7 +5762,13 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 static struct dcb_gpio_entry *
 new_gpio_entry(struct nvbios *bios)
 {
+	struct drm_device *dev = bios->dev;
 	struct dcb_gpio_table *gpio = &bios->dcb.gpio;
+
+	if (gpio->entries >= DCB_MAX_NUM_GPIO_ENTRIES) {
+		NV_ERROR(dev, "exceeded maximum number of gpio entries!!\n");
+		return NULL;
+	}
 
 	return &gpio->entry[gpio->entries++];
 }
@@ -5785,113 +5791,77 @@ nouveau_bios_gpio_entry(struct drm_device *dev, enum dcb_gpio_tag tag)
 }
 
 static void
-parse_dcb30_gpio_entry(struct nvbios *bios, uint16_t offset)
-{
-	struct dcb_gpio_entry *gpio;
-	uint16_t ent = ROM16(bios->data[offset]);
-	uint8_t line = ent & 0x1f,
-		tag = ent >> 5 & 0x3f,
-		flags = ent >> 11 & 0x1f;
-
-	if (tag == 0x3f)
-		return;
-
-	gpio = new_gpio_entry(bios);
-
-	gpio->tag = tag;
-	gpio->line = line;
-	gpio->invert = flags != 4;
-	gpio->entry = ent;
-}
-
-static void
-parse_dcb40_gpio_entry(struct nvbios *bios, uint16_t offset)
-{
-	uint32_t entry = ROM32(bios->data[offset]);
-	struct dcb_gpio_entry *gpio;
-
-	if ((entry & 0x0000ff00) == 0x0000ff00)
-		return;
-
-	gpio = new_gpio_entry(bios);
-	gpio->tag = (entry & 0x0000ff00) >> 8;
-	gpio->line = (entry & 0x0000001f) >> 0;
-	gpio->state_default = (entry & 0x01000000) >> 24;
-	gpio->state[0] = (entry & 0x18000000) >> 27;
-	gpio->state[1] = (entry & 0x60000000) >> 29;
-	gpio->entry = entry;
-}
-
-static void
 parse_dcb_gpio_table(struct nvbios *bios)
 {
 	struct drm_device *dev = bios->dev;
-	uint16_t gpio_table_ptr = bios->dcb.gpio_table_ptr;
-	uint8_t *gpio_table = &bios->data[gpio_table_ptr];
-	int header_len = gpio_table[1],
-	    entries = gpio_table[2],
-	    entry_len = gpio_table[3];
-	void (*parse_entry)(struct nvbios *, uint16_t) = NULL;
+	struct dcb_gpio_entry *e;
+	u8 headerlen, entries, recordlen;
+	u8 *dcb, *gpio = NULL, *entry;
 	int i;
 
-	if (bios->dcb.version >= 0x40) {
-		if (gpio_table_ptr && entry_len != 4) {
-			NV_WARN(dev, "Invalid DCB GPIO table entry length.\n");
-			return;
-		}
+	dcb = ROMPTR(bios, bios->data[0x36]);
+	if (dcb[0] >= 0x30) {
+		gpio = ROMPTR(bios, dcb[10]);
+		if (!gpio)
+			goto no_table;
 
-		parse_entry = parse_dcb40_gpio_entry;
+		headerlen = gpio[1];
+		entries   = gpio[2];
+		recordlen = gpio[3];
+	} else
+	if (dcb[0] >= 0x22) {
+		gpio = ROMPTR(bios, dcb[-15]);
+		if (!gpio)
+			goto no_table;
 
-	} else if (bios->dcb.version >= 0x30) {
-		if (gpio_table_ptr && entry_len != 2) {
-			NV_WARN(dev, "Invalid DCB GPIO table entry length.\n");
-			return;
-		}
-
-		parse_entry = parse_dcb30_gpio_entry;
-
-	} else if (bios->dcb.version >= 0x22) {
-		/*
-		 * DCBs older than v3.0 don't really have a GPIO
-		 * table, instead they keep some GPIO info at fixed
-		 * locations.
-		 */
-		uint16_t dcbptr = ROM16(bios->data[0x36]);
-		uint8_t *tvdac_gpio = &bios->data[dcbptr - 5];
-
-		if (tvdac_gpio[0] & 1) {
-			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
-
-			gpio->tag = DCB_GPIO_TVDAC0;
-			gpio->line = tvdac_gpio[1] >> 4;
-			gpio->invert = tvdac_gpio[0] & 2;
-		}
+		headerlen = 3;
+		entries   = gpio[2];
+		recordlen = gpio[1];
 	} else {
-		/*
-		 * No systematic way to store GPIO info on pre-v2.2
-		 * DCBs, try to match the PCI device IDs.
-		 */
+		NV_DEBUG(dev, "no/unknown gpio table on DCB 0x%02x\n", dcb[0]);
+		goto no_table;
+	}
 
-		/* Apple iMac G4 NV18 */
-		if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
-			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
+	entry = gpio + headerlen;
+	for (i = 0; i < entries; i++, entry += recordlen) {
+		e = new_gpio_entry(bios);
+		if (!e)
+			break;
 
-			gpio->tag = DCB_GPIO_TVDAC0;
-			gpio->line = 4;
+		if (gpio[0] < 0x40) {
+			e->entry = ROM16(entry[0]);
+			e->tag = (e->entry & 0x07e0) >> 5;
+			if (e->tag == 0x3f) {
+				bios->dcb.gpio.entries--;
+				continue;
+			}
+
+			e->line = (e->entry & 0x001f);
+			e->invert = ((e->entry & 0xf800) >> 11) != 4;
+		} else {
+			e->entry = ROM32(entry[0]);
+			e->tag = (e->entry & 0x0000ff00) >> 8;
+			if (e->tag == 0xff) {
+				bios->dcb.gpio.entries--;
+				continue;
+			}
+
+			e->line = (e->entry & 0x0000001f) >> 0;
+			e->state_default = (e->entry & 0x01000000) >> 24;
+			e->state[0] = (e->entry & 0x18000000) >> 27;
+			e->state[1] = (e->entry & 0x60000000) >> 29;
 		}
-
 	}
 
-	if (!gpio_table_ptr)
-		return;
-
-	if (entries > DCB_MAX_NUM_GPIO_ENTRIES) {
-		NV_WARN(dev, "Too many entries in the DCB GPIO table.\n");
-		entries = DCB_MAX_NUM_GPIO_ENTRIES;
+no_table:
+	/* Apple iMac G4 NV18 */
+	if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
+		e = new_gpio_entry(bios);
+		if (e) {
+			e->tag = DCB_GPIO_TVDAC0;
+			e->line = 4;
+		}
 	}
-
-	for (i = 0; i < entries; i++)
-		parse_entry(bios, gpio_table_ptr + header_len + entry_len * i);
 }
 
 struct dcb_connector_table_entry *
