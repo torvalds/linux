@@ -274,13 +274,13 @@ struct usb_cdc_notification {
 /*
  * Class Specific structures and constants
  *
- * CDC NCM parameter structure, CDC NCM subclass 6.2.1
+ * CDC NCM NTB parameters structure, CDC NCM subclass 6.2.1
  *
  */
 
-struct usb_cdc_ncm_ntb_parameter {
+struct usb_cdc_ncm_ntb_parameters {
 	__le16	wLength;
-	__le16	bmNtbFormatSupported;
+	__le16	bmNtbFormatsSupported;
 	__le32	dwNtbInMaxSize;
 	__le16	wNdpInDivisor;
 	__le16	wNdpInPayloadRemainder;
@@ -297,8 +297,8 @@ struct usb_cdc_ncm_ntb_parameter {
  * CDC NCM transfer headers, CDC NCM subclass 3.2
  */
 
-#define NCM_NTH16_SIGN		0x484D434E /* NCMH */
-#define NCM_NTH32_SIGN		0x686D636E /* ncmh */
+#define USB_CDC_NCM_NTH16_SIGN		0x484D434E /* NCMH */
+#define USB_CDC_NCM_NTH32_SIGN		0x686D636E /* ncmh */
 
 struct usb_cdc_ncm_nth16 {
 	__le32	dwSignature;
@@ -320,11 +320,12 @@ struct usb_cdc_ncm_nth32 {
  * CDC NCM datagram pointers, CDC NCM subclass 3.3
  */
 
-#define NCM_NDP16_CRC_SIGN	0x314D434E /* NCM1 */
-#define NCM_NDP16_NOCRC_SIGN	0x304D434E /* NCM0 */
-#define NCM_NDP32_CRC_SIGN	0x316D636E /* ncm1 */
-#define NCM_NDP32_NOCRC_SIGN	0x306D636E /* ncm0 */
+#define USB_CDC_NCM_NDP16_CRC_SIGN	0x314D434E /* NCM1 */
+#define USB_CDC_NCM_NDP16_NOCRC_SIGN	0x304D434E /* NCM0 */
+#define USB_CDC_NCM_NDP32_CRC_SIGN	0x316D636E /* ncm1 */
+#define USB_CDC_NCM_NDP32_NOCRC_SIGN	0x306D636E /* ncm0 */
 
+/* 16-bit NCM Datagram Pointer Table */
 struct usb_cdc_ncm_ndp16 {
 	__le32	dwSignature;
 	__le16	wLength;
@@ -332,11 +333,12 @@ struct usb_cdc_ncm_ndp16 {
 	__u8	data[0];
 } __attribute__ ((packed));
 
+/* 32-bit NCM Datagram Pointer Table */
 struct usb_cdc_ncm_ndp32 {
 	__le32	dwSignature;
 	__le16	wLength;
 	__le16	wReserved6;
-	__le32	dwNextFpIndex;
+	__le32	dwNextNdpIndex;
 	__le32	dwReserved12;
 	__u8	data[0];
 } __attribute__ ((packed));
