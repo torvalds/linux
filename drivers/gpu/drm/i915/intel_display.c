@@ -1564,11 +1564,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_framebuffer *intel_fb;
-	struct drm_i915_gem_object *obj_priv;
-	struct drm_gem_object *obj;
-	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	int ret;
 
 	/* no fb bound */
@@ -1577,38 +1572,46 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return 0;
 	}
 
-	switch (plane) {
+	switch (intel_crtc->plane) {
 	case 0:
 	case 1:
 		break;
 	default:
-		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
 		return -EINVAL;
 	}
 
-	intel_fb = to_intel_framebuffer(crtc->fb);
-	obj = intel_fb->obj;
-	obj_priv = to_intel_bo(obj);
-
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
+	ret = intel_pin_and_fence_fb_obj(dev,
+					 to_intel_framebuffer(crtc->fb)->obj,
+					 false);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
+	if (old_fb) {
+		struct drm_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
+		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+
+		if (atomic_read(&obj_priv->pending_flip)) {
+			ret = i915_gem_wait_for_pending_flip(dev, &obj, 1);
+			if (ret) {
+				i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+				mutex_unlock(&dev->struct_mutex);
+				return ret;
+			}
+		}
+	}
+
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y);
 	if (ret) {
-		i915_gem_object_unpin(obj);
+		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
-	if (old_fb) {
-		intel_fb = to_intel_framebuffer(old_fb);
-		obj_priv = to_intel_bo(intel_fb->obj);
-		i915_gem_object_unpin(intel_fb->obj);
-	}
+	if (old_fb)
+		i915_gem_object_unpin(to_intel_framebuffer(old_fb)->obj);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1619,7 +1622,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (!master_priv->sarea_priv)
 		return 0;
 
-	if (pipe) {
+	if (intel_crtc->pipe) {
 		master_priv->sarea_priv->pipeB_x = x;
 		master_priv->sarea_priv->pipeB_y = y;
 	} else {

@@ -3497,7 +3497,7 @@ i915_gem_check_execbuffer (struct drm_i915_gem_execbuffer2 *exec,
 	return 0;
 }
 
-static int
+int
 i915_gem_wait_for_pending_flip(struct drm_device *dev,
 			       struct drm_gem_object **object_list,
 			       int count)

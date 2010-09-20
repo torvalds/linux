@@ -1024,6 +1024,9 @@ int i915_do_wait_request(struct drm_device *dev,
 			 uint32_t seqno,
 			 bool interruptible,
 			 struct intel_ring_buffer *ring);
+int i915_gem_wait_for_pending_flip(struct drm_device *dev,
+				   struct drm_gem_object **object_list,
+				   int count);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
