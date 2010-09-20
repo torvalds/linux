@@ -45,7 +45,7 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 
-#ifdef CONFIG_IPV6
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
@@ -699,7 +699,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			if ((dst = rt->rt_gateway) == 0)
 				goto tx_error_icmp;
 		}
-#ifdef CONFIG_IPV6
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		else if (skb->protocol == htons(ETH_P_IPV6)) {
 			struct in6_addr *addr6;
 			int addr_type;
@@ -774,7 +774,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			goto tx_error;
 		}
 	}
-#ifdef CONFIG_IPV6
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
 		struct rt6_info *rt6 = (struct rt6_info *)skb_dst(skb);
 
@@ -850,7 +850,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	if ((iph->ttl = tiph->ttl) == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
 			iph->ttl = old_iph->ttl;
-#ifdef CONFIG_IPV6
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		else if (skb->protocol == htons(ETH_P_IPV6))
 			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
 #endif
