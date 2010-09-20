@@ -110,7 +110,7 @@ nouveau_volt_init(struct drm_device *dev)
 	struct nvbios *bios = &dev_priv->vbios;
 	struct bit_entry P;
 	u8 *volt = NULL, *entry;
-	int i, recordlen, entries, vidmask, vidshift;
+	int i, headerlen, recordlen, entries, vidmask, vidshift;
 
 	if (bios->type == NVBIOS_BIT) {
 		if (bit_table(dev, 'P', &P))
@@ -142,18 +142,21 @@ nouveau_volt_init(struct drm_device *dev)
 	case 0x10:
 	case 0x11:
 	case 0x12:
-		recordlen = 5;
+		headerlen = 5;
+		recordlen = volt[1];
 		entries   = volt[2];
 		vidshift  = 0;
 		vidmask   = volt[4];
 		break;
 	case 0x20:
+		headerlen = volt[1];
 		recordlen = volt[3];
 		entries   = volt[2];
 		vidshift  = 0; /* could be vidshift like 0x30? */
 		vidmask   = volt[5];
 		break;
 	case 0x30:
+		headerlen = volt[1];
 		recordlen = volt[2];
 		entries   = volt[3];
 		vidshift  = hweight8(volt[5]);
@@ -190,7 +193,7 @@ nouveau_volt_init(struct drm_device *dev)
 	if (!voltage->level)
 		return;
 
-	entry = volt + volt[1];
+	entry = volt + headerlen;
 	for (i = 0; i < entries; i++, entry += recordlen) {
 		voltage->level[i].voltage = entry[0];
 		voltage->level[i].vid     = entry[1] >> vidshift;
