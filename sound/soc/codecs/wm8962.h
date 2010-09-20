@@ -181,6 +181,7 @@
 #define WM8962_EQ39                             0x175
 #define WM8962_EQ40                             0x176
 #define WM8962_EQ41                             0x177
+#define WM8962_GPIO_BASE			0x200
 #define WM8962_GPIO_2                           0x201
 #define WM8962_GPIO_3                           0x202
 #define WM8962_GPIO_5                           0x204

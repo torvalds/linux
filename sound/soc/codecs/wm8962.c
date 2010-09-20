@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -69,6 +70,10 @@ struct wm8962_priv {
 	struct input_dev *beep;
 	struct work_struct beep_work;
 	int beep_rate;
+#endif
+
+#ifdef CONFIG_GPIOLIB
+	struct gpio_chip gpio_chip;
 #endif
 };
 
@@ -1646,6 +1651,118 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 }
 #endif
 
+#ifdef CONFIG_GPIOLIB
+static inline struct wm8962_priv *gpio_to_wm8962(struct gpio_chip *chip)
+{
+	return container_of(chip, struct wm8962_priv, gpio_chip);
+}
+
+static int wm8962_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	struct wm8962_priv *wm8962 = gpio_to_wm8962(chip);
+	struct snd_soc_codec *codec = wm8962->codec;
+	int mask = 0;
+	int val;
+
+	/* The WM8962 GPIOs aren't linearly numbered.  For simplicity
+	 * we export linear numbers and error out if the unsupported
+	 * ones are requsted.
+	 */
+	switch (offset + 1) {
+	case 2:
+		mask = WM8962_CLKOUT2_SEL_MASK;
+		val = 1 << WM8962_CLKOUT2_SEL_SHIFT;
+		break;
+	case 3:
+		mask = WM8962_CLKOUT3_SEL_MASK;
+		val = 1 << WM8962_CLKOUT3_SEL_SHIFT;
+		break;
+	case 5:
+	case 6:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Some of the GPIOs are behind MFP configuration */
+	if (mask)
+		snd_soc_update_bits(codec, WM8962_ANALOGUE_CLOCKING1,
+				    mask, val);
+
+	return 0;
+}
+
+static void wm8962_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct wm8962_priv *wm8962 = gpio_to_wm8962(chip);
+	struct snd_soc_codec *codec = wm8962->codec;
+
+	snd_soc_update_bits(codec, WM8962_GPIO_BASE + offset,
+			    WM8962_GP2_LVL, value << WM8962_GP2_LVL_SHIFT);
+}
+
+static int wm8962_gpio_direction_out(struct gpio_chip *chip,
+				     unsigned offset, int value)
+{
+	struct wm8962_priv *wm8962 = gpio_to_wm8962(chip);
+	struct snd_soc_codec *codec = wm8962->codec;
+	int val;
+
+	/* Force function 1 (logic output) */
+	val = (1 << WM8962_GP2_FN_SHIFT) | (value << WM8962_GP2_LVL_SHIFT);
+
+	return snd_soc_update_bits(codec, WM8962_GPIO_BASE + offset,
+				   WM8962_GP2_FN_MASK | WM8962_GP2_LVL, val);
+}
+
+static struct gpio_chip wm8962_template_chip = {
+	.label			= "wm8962",
+	.owner			= THIS_MODULE,
+	.request		= wm8962_gpio_request,
+	.direction_output	= wm8962_gpio_direction_out,
+	.set			= wm8962_gpio_set,
+	.can_sleep		= 1,
+};
+
+static void wm8962_init_gpio(struct snd_soc_codec *codec)
+{
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
+	int ret;
+
+	wm8962->gpio_chip = wm8962_template_chip;
+	wm8962->gpio_chip.ngpio = WM8962_MAX_GPIO;
+	wm8962->gpio_chip.dev = codec->dev;
+
+	if (pdata && pdata->gpio_base)
+		wm8962->gpio_chip.base = pdata->gpio_base;
+	else
+		wm8962->gpio_chip.base = -1;
+
+	ret = gpiochip_add(&wm8962->gpio_chip);
+	if (ret != 0)
+		dev_err(codec->dev, "Failed to add GPIOs: %d\n", ret);
+}
+
+static void wm8962_free_gpio(struct snd_soc_codec *codec)
+{
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	ret = gpiochip_remove(&wm8962->gpio_chip);
+	if (ret != 0)
+		dev_err(codec->dev, "Failed to remove GPIOs: %d\n", ret);
+}
+#else
+static void wm8962_init_gpio(struct snd_soc_codec *codec)
+{
+}
+
+static void wm8962_free_gpio(struct snd_soc_codec *codec)
+{
+}
+#endif
+
 static int wm8962_probe(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -1778,6 +1895,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	wm8962_add_widgets(codec);
 
 	wm8962_init_beep(codec);
+	wm8962_init_gpio(codec);
 
 	if (i2c->irq) {
 		if (pdata && pdata->irq_active_low) {
@@ -1828,6 +1946,7 @@ static int wm8962_remove(struct snd_soc_codec *codec)
 	if (i2c->irq)
 		free_irq(i2c->irq, codec);
 
+	wm8962_free_gpio(codec);
 	wm8962_free_beep(codec);
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
 		regulator_unregister_notifier(wm8962->supplies[i].consumer,
