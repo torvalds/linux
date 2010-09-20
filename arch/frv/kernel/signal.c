@@ -547,7 +547,7 @@ no_signal:
 			break;
 
 		case -ERESTART_RESTARTBLOCK:
-			__frame->gr8 = __NR_restart_syscall;
+			__frame->gr7 = __NR_restart_syscall;
 			__frame->pc -= 4;
 			break;
 		}
