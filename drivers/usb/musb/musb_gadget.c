@@ -643,8 +643,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	 */
 
 				csr |= MUSB_RXCSR_DMAENAB;
-#ifdef USE_MODE1
 				csr |= MUSB_RXCSR_AUTOCLEAR;
+#ifdef USE_MODE1
 				/* csr |= MUSB_RXCSR_DMAMODE; */
 
 				/* this special sequence (enabling and then
