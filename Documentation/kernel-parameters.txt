@@ -1127,7 +1127,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default is 1 (enabled)
 
 	kvm-amd.nested=	[KVM,AMD] Allow nested virtualization in KVM/SVM.
-			Default is 0 (off)
+			Default is 1 (enabled)
 
 	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
 			for all guests.
