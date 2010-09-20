@@ -226,6 +226,8 @@ nv50_instmem_init(struct drm_device *dev)
 	nv_wo32(priv->fb_bar, 0x10, 0x00000000);
 	nv_wo32(priv->fb_bar, 0x14, 0x00000000);
 
+	dev_priv->engine.instmem.flush(dev);
+
 	nv_wr32(dev, 0x001708, 0x80000000 | (priv->fb_bar->cinst >> 4));
 	for (i = 0; i < 8; i++)
 		nv_wr32(dev, 0x1900 + (i*4), 0);
