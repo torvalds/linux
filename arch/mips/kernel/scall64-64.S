@@ -416,12 +416,12 @@ sys_call_table:
 	PTR	sys_pipe2
 	PTR	sys_inotify_init1
 	PTR	sys_preadv
-	PTR	sys_pwritev			/* 5390 */
+	PTR	sys_pwritev			/* 5290 */
 	PTR	sys_rt_tgsigqueueinfo
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
 	PTR	sys_recvmmsg
-	PTR	sys_fanotify_init		/* 5395 */
+	PTR	sys_fanotify_init		/* 5295 */
 	PTR	sys_fanotify_mark
 	PTR	sys_prlimit64
 	.size	sys_call_table,.-sys_call_table
