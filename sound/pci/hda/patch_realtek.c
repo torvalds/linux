@@ -14593,7 +14593,11 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	err = alc269_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	err = alc269_auto_create_input_ctls(codec, &spec->autocfg);
+	if (spec->codec_variant == ALC269_TYPE_NORMAL)
+		err = alc269_auto_create_input_ctls(codec, &spec->autocfg);
+	else
+		err = alc_auto_create_input_ctls(codec, &spec->autocfg, 0,
+						 0x22, 0);
 	if (err < 0)
 		return err;
 
