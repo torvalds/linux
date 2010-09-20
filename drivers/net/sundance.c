@@ -1018,6 +1018,12 @@ static void init_ring(struct net_device *dev)
 		np->rx_ring[i].frag[0].addr = cpu_to_le32(
 			dma_map_single(&np->pci_dev->dev, skb->data,
 				np->rx_buf_sz, DMA_FROM_DEVICE));
+		if (dma_mapping_error(&np->pci_dev->dev,
+					np->rx_ring[i].frag[0].addr)) {
+			dev_kfree_skb(skb);
+			np->rx_skbuff[i] = NULL;
+			break;
+		}
 		np->rx_ring[i].frag[0].length = cpu_to_le32(np->rx_buf_sz | LastFrag);
 	}
 	np->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
@@ -1070,6 +1076,9 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	txdesc->status = cpu_to_le32 ((entry << 2) | DisableAlign);
 	txdesc->frag[0].addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
 				skb->data, skb->len, DMA_TO_DEVICE));
+	if (dma_mapping_error(&np->pci_dev->dev,
+				txdesc->frag[0].addr))
+			goto drop_frame;
 	txdesc->frag[0].length = cpu_to_le32 (skb->len | LastFrag);
 
 	/* Increment cur_tx before tasklet_schedule() */
@@ -1090,6 +1099,12 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 			"%s: Transmit frame #%d queued in slot %d.\n",
 			dev->name, np->cur_tx, entry);
 	}
+	return NETDEV_TX_OK;
+
+drop_frame:
+	dev_kfree_skb(skb);
+	np->tx_skbuff[entry] = NULL;
+	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
 }
 
@@ -1398,6 +1413,12 @@ static void refill_rx (struct net_device *dev)
 			np->rx_ring[entry].frag[0].addr = cpu_to_le32(
 				dma_map_single(&np->pci_dev->dev, skb->data,
 					np->rx_buf_sz, DMA_FROM_DEVICE));
+			if (dma_mapping_error(&np->pci_dev->dev,
+				    np->rx_ring[entry].frag[0].addr)) {
+			    dev_kfree_skb_irq(skb);
+			    np->rx_skbuff[entry] = NULL;
+			    break;
+			}
 		}
 		/* Perhaps we need not reset this field. */
 		np->rx_ring[entry].frag[0].length =
