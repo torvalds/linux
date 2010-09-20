@@ -491,7 +491,7 @@ int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 
 int iwlagn_send_tx_power(struct iwl_priv *priv)
 {
-	struct iwl5000_tx_power_dbm_cmd tx_power_cmd;
+	struct iwlagn_tx_power_dbm_cmd tx_power_cmd;
 	u8 tx_ant_cfg_cmd;
 
 	/* half dBm need to multiply */
@@ -512,8 +512,8 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 		 */
 		tx_power_cmd.global_lmt = priv->tx_power_lmt_in_half_dbm;
 	}
-	tx_power_cmd.flags = IWL50_TX_POWER_NO_CLOSED;
-	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
+	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
+	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
 
 	if (IWL_UCODE_API(priv->ucode_ver) == 1)
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD_V1;
