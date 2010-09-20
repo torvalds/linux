@@ -112,11 +112,11 @@ struct mtd_oob_ops {
 
 #define MTD_MAX_OOBFREE_ENTRIES_LARGE	32
 #define MTD_MAX_ECCPOS_ENTRIES_LARGE	448
-#define MTD_MAX_ECCPOS_ENTRIES_OLD	64	/* Previous maximum */
 /*
- * Correct ECC layout control structure. This replaces old nand_ecclayout
- * (mtd-abi.h) that is exported via ECCGETLAYOUT ioctl. It should be expandable
- *  in the future simply by the above macros.
+ * Internal ECC layout control structure. For historical reasons, there is a
+ * similar, smaller struct nand_ecclayout_user (in mtd-abi.h) that is retained
+ * for export to user-space via the ECCGETLAYOUT ioctl.
+ * nand_ecclayout should be expandable in the future simply by the above macros.
  */
 struct nand_ecclayout {
 	__u32 eccbytes;

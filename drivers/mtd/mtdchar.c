@@ -495,7 +495,7 @@ static int shrink_ecclayout(const struct nand_ecclayout *from,
 
 	memset(to, 0, sizeof(*to));
 
-	to->eccbytes = min((int)from->eccbytes, MTD_MAX_ECCPOS_ENTRIES_OLD);
+	to->eccbytes = min((int)from->eccbytes, MTD_MAX_ECCPOS_ENTRIES);
 	for (i = 0; i < to->eccbytes; i++)
 		to->eccpos[i] = from->eccpos[i];
 
