@@ -1051,7 +1051,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 	}
 
-	
 	/* Maintain LRU order of "inactive" objects */
 	if (ret == 0 && i915_gem_object_is_inactive(obj_priv))
 		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
@@ -1552,7 +1551,7 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 	if (obj_priv->pin_count != 0)
-		list_del_init(&obj_priv->list);
+		list_move_tail(&obj_priv->list, &dev_priv->mm.pinned_list);
 	else
 		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
@@ -2044,9 +2043,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 		obj_priv->gtt_space = NULL;
 	}
 
-	/* Remove ourselves from the LRU list if present. */
-	if (!list_empty(&obj_priv->list))
-		list_del_init(&obj_priv->list);
+	list_del_init(&obj_priv->list);
 
 	if (i915_gem_object_is_purgeable(obj_priv))
 		i915_gem_object_truncate(obj);
@@ -4030,6 +4027,7 @@ int
 i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 {
 	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret;
 
@@ -4065,9 +4063,9 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	if (obj_priv->pin_count == 1) {
 		atomic_inc(&dev->pin_count);
 		atomic_add(obj->size, &dev->pin_memory);
-		if (!obj_priv->active &&
-		    (obj->write_domain & I915_GEM_GPU_DOMAINS) == 0)
-			list_del_init(&obj_priv->list);
+		if (!obj_priv->active)
+			list_move_tail(&obj_priv->list,
+				       &dev_priv->mm.pinned_list);
 	}
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
@@ -4091,8 +4089,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 	 * the inactive list
 	 */
 	if (obj_priv->pin_count == 0) {
-		if (!obj_priv->active &&
-		    (obj->write_domain & I915_GEM_GPU_DOMAINS) == 0)
+		if (!obj_priv->active)
 			list_move_tail(&obj_priv->list,
 				       &dev_priv->mm.inactive_list);
 		atomic_dec(&dev->pin_count);
@@ -4614,6 +4611,7 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.gpu_write_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
+	INIT_LIST_HEAD(&dev_priv->mm.pinned_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.active_list);

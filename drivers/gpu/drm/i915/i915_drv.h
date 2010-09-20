@@ -569,6 +569,12 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head inactive_list;
 
+		/**
+		 * LRU list of objects which are not in the ringbuffer but
+		 * are still pinned in the GTT.
+		 */
+		struct list_head pinned_list;
+
 		/** LRU list of objects with fence regs on them. */
 		struct list_head fence_list;
 

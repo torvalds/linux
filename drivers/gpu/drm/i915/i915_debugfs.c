@@ -40,10 +40,13 @@
 
 #if defined(CONFIG_DEBUG_FS)
 
-#define RENDER_LIST	1
-#define BSD_LIST	2
-#define FLUSHING_LIST	3
-#define INACTIVE_LIST	4
+enum {
+	RENDER_LIST,
+	BSD_LIST,
+	FLUSHING_LIST,
+	INACTIVE_LIST,
+	PINNED_LIST
+};
 
 static const char *yesno(int v)
 {
@@ -149,6 +152,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case INACTIVE_LIST:
 		seq_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
+		break;
+	case PINNED_LIST:
+		seq_printf(m, "Pinned:\n");
+		head = &dev_priv->mm.pinned_list;
 		break;
 	case FLUSHING_LIST:
 		seq_printf(m, "Flushing:\n");
@@ -983,6 +990,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_bsd_active", i915_gem_object_list_info, 0, (void *) BSD_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
+	{"i915_gem_pinned", i915_gem_object_list_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
