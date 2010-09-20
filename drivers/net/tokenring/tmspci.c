@@ -125,18 +125,16 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 	dev->irq 	= pci_irq_line;
 	dev->dma	= 0;
 
-	printk("%s: %s\n", dev->name, cardinfo->name);
-	printk("%s:    IO: %#4lx  IRQ: %d\n",
-	       dev->name, dev->base_addr, dev->irq);
+	dev_info(&pdev->dev, "%s\n", cardinfo->name);
+	dev_info(&pdev->dev, "    IO: %#4lx  IRQ: %d\n", dev->base_addr, dev->irq);
 		
 	tms_pci_read_eeprom(dev);
 
-	printk("%s:    Ring Station Address: %pM\n",
-	       dev->name, dev->dev_addr);
+	dev_info(&pdev->dev, "    Ring Station Address: %pM\n", dev->dev_addr);
 		
 	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
-		printk("%s: unable to get memory for dev->priv.\n", dev->name);
+		dev_info(&pdev->dev, "unable to get memory for dev->priv.\n");
 		goto err_out_region;
 	}
 
