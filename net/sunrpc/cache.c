@@ -1091,6 +1091,23 @@ static void warn_no_listener(struct cache_detail *detail)
 	}
 }
 
+static bool cache_listeners_exist(struct cache_detail *detail)
+{
+	if (atomic_read(&detail->readers))
+		return true;
+	if (detail->last_close == 0)
+		/* This cache was never opened */
+		return false;
+	if (detail->last_close < seconds_since_boot() - 30)
+		/*
+		 * We allow for the possibility that someone might
+		 * restart a userspace daemon without restarting the
+		 * server; but after 30 seconds, we give up.
+		 */
+		 return false;
+	return true;
+}
+
 /*
  * register an upcall request to user-space and queue it up for read() by the
  * upcall daemon.
@@ -1109,10 +1126,9 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
 	char *bp;
 	int len;
 
-	if (atomic_read(&detail->readers) == 0 &&
-	    detail->last_close < seconds_since_boot() - 30) {
-			warn_no_listener(detail);
-			return -EINVAL;
+	if (!cache_listeners_exist(detail)) {
+		warn_no_listener(detail);
+		return -EINVAL;
 	}
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
