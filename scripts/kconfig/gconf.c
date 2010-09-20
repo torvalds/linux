@@ -1530,12 +1530,6 @@ int main(int ac, char *av[])
 	else
 		glade_file = g_strconcat(g_get_current_dir(), "/", av[0], ".glade", NULL);
 
-	/* Load the interface and connect signals */
-	init_main_window(glade_file);
-	init_tree_model();
-	init_left_tree();
-	init_right_tree();
-
 	/* Conf stuffs */
 	if (ac > 1 && av[1][0] == '-') {
 		switch (av[1][1]) {
@@ -1554,6 +1548,12 @@ int main(int ac, char *av[])
 	conf_parse(name);
 	fixup_rootmenu(&rootmenu);
 	conf_read(NULL);
+
+	/* Load the interface and connect signals */
+	init_main_window(glade_file);
+	init_tree_model();
+	init_left_tree();
+	init_right_tree();
 
 	switch (view_mode) {
 	case SINGLE_VIEW:
