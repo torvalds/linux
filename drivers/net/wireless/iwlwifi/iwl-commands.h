@@ -1959,12 +1959,12 @@ struct iwl4965_tx_resp {
 #define IWL50_TX_RES_INV_RATE_INDEX_MSK	0x80
 
 /* refer to ra_tid */
-#define IWL50_TX_RES_TID_POS	0
-#define IWL50_TX_RES_TID_MSK	0x0f
-#define IWL50_TX_RES_RA_POS	4
-#define IWL50_TX_RES_RA_MSK	0xf0
+#define IWLAGN_TX_RES_TID_POS	0
+#define IWLAGN_TX_RES_TID_MSK	0x0f
+#define IWLAGN_TX_RES_RA_POS	4
+#define IWLAGN_TX_RES_RA_MSK	0xf0
 
-struct iwl5000_tx_resp {
+struct iwlagn_tx_resp {
 	u8 frame_count;		/* 1 no aggregation, >1 aggregation */
 	u8 bt_kill_count;	/* # blocked by bluetooth (unused for agg) */
 	u8 failure_rts;		/* # failures due to unsuccessful RTS */

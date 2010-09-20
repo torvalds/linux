@@ -40,7 +40,7 @@
 #include "iwl-agn.h"
 #include "iwl-sta.h"
 
-static inline u32 iwlagn_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
+static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
 {
 	return le32_to_cpup((__le32 *)&tx_resp->status +
 			    tx_resp->frame_count) & MAX_SN;
@@ -172,7 +172,7 @@ static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
 
 static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				 struct ieee80211_tx_info *info,
-				 struct iwl5000_tx_resp *tx_resp,
+				 struct iwlagn_tx_resp *tx_resp,
 				 int txq_id, bool is_agg)
 {
 	u16  status = le16_to_cpu(tx_resp->status.status);
@@ -223,7 +223,7 @@ const char *iwl_get_agg_tx_fail_reason(u16 status)
 
 static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 				      struct iwl_ht_agg *agg,
-				      struct iwl5000_tx_resp *tx_resp,
+				      struct iwlagn_tx_resp *tx_resp,
 				      int txq_id, u16 start_idx)
 {
 	u16 status;
@@ -390,7 +390,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	int index = SEQ_TO_INDEX(sequence);
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct ieee80211_tx_info *info;
-	struct iwl5000_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
+	struct iwlagn_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le16_to_cpu(tx_resp->status.status);
 	int tid;
 	int sta_id;
@@ -408,8 +408,10 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	memset(&info->status, 0, sizeof(info->status));
 
-	tid = (tx_resp->ra_tid & IWL50_TX_RES_TID_MSK) >> IWL50_TX_RES_TID_POS;
-	sta_id = (tx_resp->ra_tid & IWL50_TX_RES_RA_MSK) >> IWL50_TX_RES_RA_POS;
+	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
+		IWLAGN_TX_RES_TID_POS;
+	sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
+		IWLAGN_TX_RES_RA_POS;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	if (txq->sched_retry) {
