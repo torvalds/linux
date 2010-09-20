@@ -63,7 +63,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 		struct videobuf_dma_contig_memory *mem;
 
 		dev_dbg(q->dev, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		videobuf_queue_lock(q);
 
 		/* We need first to cancel streams, before unmapping */
 		if (q->streaming)
@@ -103,7 +103,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 
 		kfree(map);
 
-		mutex_unlock(&q->vb_lock);
+		videobuf_queue_unlock(q);
 	}
 }
 

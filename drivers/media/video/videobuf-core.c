@@ -350,9 +350,9 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 int videobuf_mmap_free(struct videobuf_queue *q)
 {
 	int ret;
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	ret = __videobuf_free(q);
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(videobuf_mmap_free);
@@ -407,9 +407,9 @@ int videobuf_mmap_setup(struct videobuf_queue *q,
 			enum v4l2_memory memory)
 {
 	int ret;
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	ret = __videobuf_mmap_setup(q, bcount, bsize, memory);
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(videobuf_mmap_setup);
@@ -432,7 +432,7 @@ int videobuf_reqbufs(struct videobuf_queue *q,
 		return -EINVAL;
 	}
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	if (req->type != q->type) {
 		dprintk(1, "reqbufs: queue type invalid\n");
 		retval = -EINVAL;
@@ -469,7 +469,7 @@ int videobuf_reqbufs(struct videobuf_queue *q,
 	retval = 0;
 
  done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(videobuf_reqbufs);
@@ -478,7 +478,7 @@ int videobuf_querybuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 {
 	int ret = -EINVAL;
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	if (unlikely(b->type != q->type)) {
 		dprintk(1, "querybuf: Wrong type.\n");
 		goto done;
@@ -496,7 +496,7 @@ int videobuf_querybuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 
 	ret = 0;
 done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(videobuf_querybuf);
@@ -513,7 +513,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 	if (b->memory == V4L2_MEMORY_MMAP)
 		down_read(&current->mm->mmap_sem);
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	retval = -EBUSY;
 	if (q->reading) {
 		dprintk(1, "qbuf: Reading running...\n");
@@ -605,7 +605,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 	wake_up_interruptible_sync(&q->wait);
 
 done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 
 	if (b->memory == V4L2_MEMORY_MMAP)
 		up_read(&current->mm->mmap_sem);
@@ -635,14 +635,14 @@ checks:
 			dprintk(2, "next_buffer: waiting on buffer\n");
 
 			/* Drop lock to avoid deadlock with qbuf */
-			mutex_unlock(&q->vb_lock);
+			videobuf_queue_unlock(q);
 
 			/* Checking list_empty and streaming is safe without
 			 * locks because we goto checks to validate while
 			 * holding locks before proceeding */
 			retval = wait_event_interruptible(q->wait,
 				!list_empty(&q->stream) || !q->streaming);
-			mutex_lock(&q->vb_lock);
+			videobuf_queue_lock(q);
 
 			if (retval)
 				goto done;
@@ -687,7 +687,7 @@ int videobuf_dqbuf(struct videobuf_queue *q,
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
 	memset(b, 0, sizeof(*b));
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 
 	retval = stream_next_buffer(q, &buf, nonblocking);
 	if (retval < 0) {
@@ -713,7 +713,7 @@ int videobuf_dqbuf(struct videobuf_queue *q,
 	buf->state = VIDEOBUF_IDLE;
 	b->flags &= ~V4L2_BUF_FLAG_DONE;
 done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(videobuf_dqbuf);
@@ -724,7 +724,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 	unsigned long flags = 0;
 	int retval;
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	retval = -EBUSY;
 	if (q->reading)
 		goto done;
@@ -740,7 +740,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 
 	wake_up_interruptible_sync(&q->wait);
 done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(videobuf_streamon);
@@ -760,9 +760,9 @@ int videobuf_streamoff(struct videobuf_queue *q)
 {
 	int retval;
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	retval = __videobuf_streamoff(q);
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 
 	return retval;
 }
@@ -868,7 +868,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 
 	q->ops->buf_setup(q, &nbufs, &size);
 
@@ -938,7 +938,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
 done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(videobuf_read_one);
@@ -999,9 +999,9 @@ int videobuf_read_start(struct videobuf_queue *q)
 {
 	int rc;
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	rc = __videobuf_read_start(q);
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 
 	return rc;
 }
@@ -1009,15 +1009,15 @@ EXPORT_SYMBOL_GPL(videobuf_read_start);
 
 void videobuf_read_stop(struct videobuf_queue *q)
 {
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	__videobuf_read_stop(q);
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 }
 EXPORT_SYMBOL_GPL(videobuf_read_stop);
 
 void videobuf_stop(struct videobuf_queue *q)
 {
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 
 	if (q->streaming)
 		__videobuf_streamoff(q);
@@ -1025,7 +1025,7 @@ void videobuf_stop(struct videobuf_queue *q)
 	if (q->reading)
 		__videobuf_read_stop(q);
 
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 }
 EXPORT_SYMBOL_GPL(videobuf_stop);
 
@@ -1039,7 +1039,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
 	dprintk(2, "%s\n", __func__);
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	retval = -EBUSY;
 	if (q->streaming)
 		goto done;
@@ -1097,7 +1097,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 	}
 
 done:
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
@@ -1109,7 +1109,7 @@ unsigned int videobuf_poll_stream(struct file *file,
 	struct videobuf_buffer *buf = NULL;
 	unsigned int rc = 0;
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	if (q->streaming) {
 		if (!list_empty(&q->stream))
 			buf = list_entry(q->stream.next,
@@ -1147,7 +1147,7 @@ unsigned int videobuf_poll_stream(struct file *file,
 			}
 		}
 	}
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(videobuf_poll_stream);
@@ -1164,7 +1164,7 @@ int videobuf_mmap_mapper(struct videobuf_queue *q, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	mutex_lock(&q->vb_lock);
+	videobuf_queue_lock(q);
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		struct videobuf_buffer *buf = q->bufs[i];
 
@@ -1174,7 +1174,7 @@ int videobuf_mmap_mapper(struct videobuf_queue *q, struct vm_area_struct *vma)
 			break;
 		}
 	}
-	mutex_unlock(&q->vb_lock);
+	videobuf_queue_unlock(q);
 
 	return rc;
 }

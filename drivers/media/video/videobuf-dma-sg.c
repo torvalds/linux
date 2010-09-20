@@ -358,7 +358,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	map->count--;
 	if (0 == map->count) {
 		dprintk(1, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		videobuf_queue_lock(q);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -374,7 +374,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q, q->bufs[i]);
 		}
-		mutex_unlock(&q->vb_lock);
+		videobuf_queue_unlock(q);
 		kfree(map);
 	}
 	return;

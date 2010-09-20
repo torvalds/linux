@@ -139,6 +139,7 @@ struct videobuf_qtype_ops {
 
 struct videobuf_queue {
 	struct mutex               vb_lock;
+	struct mutex               *ext_lock;
 	spinlock_t                 *irqlock;
 	struct device		   *dev;
 
@@ -166,6 +167,18 @@ struct videobuf_queue {
 	/* driver private data */
 	void                       *priv_data;
 };
+
+static inline void videobuf_queue_lock(struct videobuf_queue *q)
+{
+	if (!q->ext_lock)
+		mutex_lock(&q->vb_lock);
+}
+
+static inline void videobuf_queue_unlock(struct videobuf_queue *q)
+{
+	if (!q->ext_lock)
+		mutex_unlock(&q->vb_lock);
+}
 
 int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
 int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
