@@ -1042,7 +1042,7 @@ struct iwl4965_keyinfo {
 	u8 key[16];		/* 16-byte unicast decryption key */
 } __packed;
 
-/* 5000 */
+/* agn */
 struct iwl_keyinfo {
 	__le16 key_flags;
 	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
@@ -1168,7 +1168,7 @@ struct iwl4965_addsta_cmd {
 	__le16 reserved2;
 } __packed;
 
-/* 5000 */
+/* agn */
 struct iwl_addsta_cmd {
 	u8 mode;		/* 1: modify existing, 0: add new station */
 	u8 reserved[3];
