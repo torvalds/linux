@@ -501,14 +501,14 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 				request->zero = 0;
 			}
 
-			/* ... or if not, then complete it. */
-			musb_g_giveback(musb_ep, request, 0);
-
-			request = musb_ep->desc ? next_request(musb_ep) : NULL;
-			if (!request) {
-				DBG(4, "%s idle now\n",
-					musb_ep->end_point.name);
-				return;
+			if (request->actual == request->length) {
+				musb_g_giveback(musb_ep, request, 0);
+				request = musb_ep->desc ? next_request(musb_ep) : NULL;
+				if (!request) {
+					DBG(4, "%s idle now\n",
+						musb_ep->end_point.name);
+					return;
+				}
 			}
 		}
 
