@@ -815,7 +815,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (regs.len > reglen)
 		regs.len = reglen;
 
-	regbuf = kmalloc(reglen, GFP_USER);
+	regbuf = vmalloc(reglen);
 	if (!regbuf)
 		return -ENOMEM;
 
@@ -830,7 +830,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	ret = 0;
 
  out:
-	kfree(regbuf);
+	vfree(regbuf);
 	return ret;
 }
 
