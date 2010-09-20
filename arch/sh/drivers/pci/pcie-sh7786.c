@@ -13,11 +13,15 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
+#include <linux/sh_clk.h>
 #include "pcie-sh7786.h"
 #include <asm/sizes.h>
+#include <asm/clock.h>
 
 struct sh7786_pcie_port {
 	struct pci_channel	*hose;
+	struct clk		*fclk, phy_clk;
 	unsigned int		index;
 	int			endpoint;
 	int			link;
@@ -121,6 +125,10 @@ static struct pci_channel sh7786_pci_channels[] = {
 	DEFINE_CONTROLLER(0xfcc00000, 2),
 };
 
+static struct clk fixed_pciexclkp = {
+	.rate = 100000000,	/* 100 MHz reference clock */
+};
+
 static void __devinit sh7786_pci_fixup(struct pci_dev *dev)
 {
 	/*
@@ -139,7 +147,7 @@ static void __devinit sh7786_pci_fixup(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_RENESAS, PCI_DEVICE_ID_RENESAS_SH7786,
 			 sh7786_pci_fixup);
 
-static int phy_wait_for_ack(struct pci_channel *chan)
+static int __init phy_wait_for_ack(struct pci_channel *chan)
 {
 	unsigned int timeout = 100;
 
@@ -153,7 +161,7 @@ static int phy_wait_for_ack(struct pci_channel *chan)
 	return -ETIMEDOUT;
 }
 
-static int pci_wait_for_irq(struct pci_channel *chan, unsigned int mask)
+static int __init pci_wait_for_irq(struct pci_channel *chan, unsigned int mask)
 {
 	unsigned int timeout = 100;
 
@@ -167,8 +175,8 @@ static int pci_wait_for_irq(struct pci_channel *chan, unsigned int mask)
 	return -ETIMEDOUT;
 }
 
-static void phy_write_reg(struct pci_channel *chan, unsigned int addr,
-			  unsigned int lane, unsigned int data)
+static void __init phy_write_reg(struct pci_channel *chan, unsigned int addr,
+				 unsigned int lane, unsigned int data)
 {
 	unsigned long phyaddr;
 
@@ -188,15 +196,67 @@ static void phy_write_reg(struct pci_channel *chan, unsigned int addr,
 	phy_wait_for_ack(chan);
 }
 
-static int phy_init(struct pci_channel *chan)
+static int __init pcie_clk_init(struct sh7786_pcie_port *port)
 {
-	unsigned long ctrl;
+	struct pci_channel *chan = port->hose;
+	struct clk *clk;
+	char fclk_name[16];
+	int ret;
+
+	/*
+	 * First register the fixed clock
+	 */
+	ret = clk_register(&fixed_pciexclkp);
+	if (unlikely(ret != 0))
+		return ret;
+
+	/*
+	 * Grab the port's function clock, which the PHY clock depends
+	 * on. clock lookups don't help us much at this point, since no
+	 * dev_id is available this early. Lame.
+	 */
+	snprintf(fclk_name, sizeof(fclk_name), "pcie%d_fck", port->index);
+
+	port->fclk = clk_get(NULL, fclk_name);
+	if (IS_ERR(port->fclk)) {
+		ret = PTR_ERR(port->fclk);
+		goto err_fclk;
+	}
+
+	clk_enable(port->fclk);
+
+	/*
+	 * And now, set up the PHY clock
+	 */
+	clk = &port->phy_clk;
+
+	memset(clk, 0, sizeof(struct clk));
+
+	clk->parent = &fixed_pciexclkp;
+	clk->enable_reg = (void __iomem *)(chan->reg_base + SH4A_PCIEPHYCTLR);
+	clk->enable_bit = BITS_CKE;
+
+	ret = sh_clk_mstp32_register(clk, 1);
+	if (unlikely(ret < 0))
+		goto err_phy;
+
+	return 0;
+
+err_phy:
+	clk_disable(port->fclk);
+	clk_put(port->fclk);
+err_fclk:
+	clk_unregister(&fixed_pciexclkp);
+
+	return ret;
+}
+
+static int __init phy_init(struct sh7786_pcie_port *port)
+{
+	struct pci_channel *chan = port->hose;
 	unsigned int timeout = 100;
 
-	/* Enable clock */
-	ctrl = pci_read_reg(chan, SH4A_PCIEPHYCTLR);
-	ctrl |= (1 << BITS_CKE);
-	pci_write_reg(chan, ctrl, SH4A_PCIEPHYCTLR);
+	clk_enable(&port->phy_clk);
 
 	/* Initialize the phy */
 	phy_write_reg(chan, 0x60, 0xf, 0x004b008b);
@@ -212,9 +272,7 @@ static int phy_init(struct pci_channel *chan)
 	phy_write_reg(chan, 0x67, 0x1, 0x00000400);
 
 	/* Disable clock */
-	ctrl = pci_read_reg(chan, SH4A_PCIEPHYCTLR);
-	ctrl &= ~(1 << BITS_CKE);
-	pci_write_reg(chan, ctrl, SH4A_PCIEPHYCTLR);
+	clk_disable(&port->phy_clk);
 
 	while (timeout--) {
 		if (pci_read_reg(chan, SH4A_PCIEPHYSR))
@@ -226,7 +284,7 @@ static int phy_init(struct pci_channel *chan)
 	return -ETIMEDOUT;
 }
 
-static void pcie_reset(struct sh7786_pcie_port *port)
+static void __init pcie_reset(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
 
@@ -236,7 +294,7 @@ static void pcie_reset(struct sh7786_pcie_port *port)
 	pci_write_reg(chan, 0, SH4A_PCIETXVC0SR);
 }
 
-static int pcie_init(struct sh7786_pcie_port *port)
+static int __init pcie_init(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
 	unsigned int data;
@@ -411,25 +469,32 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
         return 71;
 }
 
-static int sh7786_pcie_core_init(void)
+static int __init sh7786_pcie_core_init(void)
 {
 	/* Return the number of ports */
 	return test_mode_pin(MODE_PIN12) ? 3 : 2;
 }
 
-static int __devinit sh7786_pcie_init_hw(struct sh7786_pcie_port *port)
+static int __init sh7786_pcie_init_hw(struct sh7786_pcie_port *port)
 {
 	int ret;
-
-	ret = phy_init(port->hose);
-	if (unlikely(ret < 0))
-		return ret;
 
 	/*
 	 * Check if we are configured in endpoint or root complex mode,
 	 * this is a fixed pin setting that applies to all PCIe ports.
 	 */
 	port->endpoint = test_mode_pin(MODE_PIN11);
+
+	/*
+	 * Setup clocks, needed both for PHY and PCIe registers.
+	 */
+	ret = pcie_clk_init(port);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = phy_init(port);
+	if (unlikely(ret < 0))
+		return ret;
 
 	ret = pcie_init(port);
 	if (unlikely(ret < 0))
