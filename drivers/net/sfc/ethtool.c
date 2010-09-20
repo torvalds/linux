@@ -15,6 +15,7 @@
 #include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
+#include "filter.h"
 #include "nic.h"
 #include "spi.h"
 #include "mdio_10g.h"
@@ -551,9 +552,22 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	u32 supported = efx->type->offload_features & ETH_FLAG_RXHASH;
+	u32 supported = (efx->type->offload_features &
+			 (ETH_FLAG_RXHASH | ETH_FLAG_NTUPLE));
+	int rc;
 
-	return ethtool_op_set_flags(net_dev, data, supported);
+	rc = ethtool_op_set_flags(net_dev, data, supported);
+	if (rc)
+		return rc;
+
+	if (!(data & ETH_FLAG_NTUPLE)) {
+		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_IP,
+				       EFX_FILTER_PRI_MANUAL);
+		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_MAC,
+				       EFX_FILTER_PRI_MANUAL);
+	}
+
+	return 0;
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,
@@ -955,6 +969,105 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 	}
 }
 
+static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
+				     struct ethtool_rx_ntuple *ntuple)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct ethtool_tcpip4_spec *ip_entry = &ntuple->fs.h_u.tcp_ip4_spec;
+	struct ethtool_tcpip4_spec *ip_mask = &ntuple->fs.m_u.tcp_ip4_spec;
+	struct ethhdr *mac_entry = &ntuple->fs.h_u.ether_spec;
+	struct ethhdr *mac_mask = &ntuple->fs.m_u.ether_spec;
+	struct efx_filter_spec filter;
+
+	/* Range-check action */
+	if (ntuple->fs.action < ETHTOOL_RXNTUPLE_ACTION_CLEAR ||
+	    ntuple->fs.action >= (s32)efx->n_rx_channels)
+		return -EINVAL;
+
+	if (~ntuple->fs.data_mask)
+		return -EINVAL;
+
+	switch (ntuple->fs.flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		/* Must match all of destination, */
+		if (ip_mask->ip4dst | ip_mask->pdst)
+			return -EINVAL;
+		/* all or none of source, */
+		if ((ip_mask->ip4src | ip_mask->psrc) &&
+		    ((__force u32)~ip_mask->ip4src |
+		     (__force u16)~ip_mask->psrc))
+			return -EINVAL;
+		/* and nothing else */
+		if ((u8)~ip_mask->tos | (u16)~ntuple->fs.vlan_tag_mask)
+			return -EINVAL;
+		break;
+	case ETHER_FLOW:
+		/* Must match all of destination, */
+		if (!is_zero_ether_addr(mac_mask->h_dest))
+			return -EINVAL;
+		/* all or none of VID, */
+		if (ntuple->fs.vlan_tag_mask != 0xf000 &&
+		    ntuple->fs.vlan_tag_mask != 0xffff)
+			return -EINVAL;
+		/* and nothing else */
+		if (!is_broadcast_ether_addr(mac_mask->h_source) ||
+		    mac_mask->h_proto != htons(0xffff))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	filter.priority = EFX_FILTER_PRI_MANUAL;
+	filter.flags = 0;
+
+	switch (ntuple->fs.flow_type) {
+	case TCP_V4_FLOW:
+		if (!ip_mask->ip4src)
+			efx_filter_set_rx_tcp_full(&filter,
+						   htonl(ip_entry->ip4src),
+						   htons(ip_entry->psrc),
+						   htonl(ip_entry->ip4dst),
+						   htons(ip_entry->pdst));
+		else
+			efx_filter_set_rx_tcp_wild(&filter,
+						   htonl(ip_entry->ip4dst),
+						   htons(ip_entry->pdst));
+		break;
+	case UDP_V4_FLOW:
+		if (!ip_mask->ip4src)
+			efx_filter_set_rx_udp_full(&filter,
+						   htonl(ip_entry->ip4src),
+						   htons(ip_entry->psrc),
+						   htonl(ip_entry->ip4dst),
+						   htons(ip_entry->pdst));
+		else
+			efx_filter_set_rx_udp_wild(&filter,
+						   htonl(ip_entry->ip4dst),
+						   htons(ip_entry->pdst));
+		break;
+	case ETHER_FLOW:
+		if (ntuple->fs.vlan_tag_mask == 0xf000)
+			efx_filter_set_rx_mac_full(&filter,
+						   ntuple->fs.vlan_tag & 0xfff,
+						   mac_entry->h_dest);
+		else
+			efx_filter_set_rx_mac_wild(&filter, mac_entry->h_dest);
+		break;
+	}
+
+	if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_CLEAR) {
+		return efx_filter_remove_filter(efx, &filter);
+	} else {
+		if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP)
+			filter.dmaq_id = 0xfff;
+		else
+			filter.dmaq_id = ntuple->fs.action;
+		return efx_filter_insert_filter(efx, &filter, true);
+	}
+}
+
 static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev,
 				      struct ethtool_rxfh_indir *indir)
 {
@@ -1033,6 +1146,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.set_wol                = efx_ethtool_set_wol,
 	.reset			= efx_ethtool_reset,
 	.get_rxnfc		= efx_ethtool_get_rxnfc,
+	.set_rx_ntuple		= efx_ethtool_set_rx_ntuple,
 	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
 	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
 };

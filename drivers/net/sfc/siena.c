@@ -651,6 +651,6 @@ struct efx_nic_type siena_a0_nic_type = {
 	.tx_dc_base = 0x88000,
 	.rx_dc_base = 0x68000,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			     NETIF_F_RXHASH),
+			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 	.reset_world_flags = ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT,
 };
