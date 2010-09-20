@@ -729,16 +729,14 @@ static int hex32_arg(const char __user *user_buffer, unsigned long maxlen,
 	*num = 0;
 
 	for (; i < maxlen; i++) {
+		int value;
 		char c;
 		*num <<= 4;
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
-		if ((c >= '0') && (c <= '9'))
-			*num |= c - '0';
-		else if ((c >= 'a') && (c <= 'f'))
-			*num |= c - 'a' + 10;
-		else if ((c >= 'A') && (c <= 'F'))
-			*num |= c - 'A' + 10;
+		value = hex_to_bin(c);
+		if (value >= 0)
+			*num |= value;
 		else
 			break;
 	}
