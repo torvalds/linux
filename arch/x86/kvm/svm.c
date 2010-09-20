@@ -1707,6 +1707,14 @@ static inline bool nested_svm_intr(struct vcpu_svm *svm)
 	if (!(svm->vcpu.arch.hflags & HF_HIF_MASK))
 		return false;
 
+	/*
+	 * if vmexit was already requested (by intercepted exception
+	 * for instance) do not overwrite it with "external interrupt"
+	 * vmexit.
+	 */
+	if (svm->nested.exit_required)
+		return false;
+
 	svm->vmcb->control.exit_code   = SVM_EXIT_INTR;
 	svm->vmcb->control.exit_info_1 = 0;
 	svm->vmcb->control.exit_info_2 = 0;
