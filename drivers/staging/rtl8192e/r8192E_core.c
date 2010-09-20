@@ -253,18 +253,7 @@ static TX_FWINFO_T Tmp_TxFwInfo;
 
 void CamResetAllEntry(struct net_device *dev)
 {
-	//u8 ucIndex;
-	u32 ulcommand = 0;
-
-#if 1
-	ulcommand |= BIT31|BIT30;
-	write_nic_dword(dev, RWCAM, ulcommand);
-#else
-        for(ucIndex=0;ucIndex<TOTAL_CAM_ENTRY;ucIndex++)
-                CAM_mark_invalid(dev, ucIndex);
-        for(ucIndex=0;ucIndex<TOTAL_CAM_ENTRY;ucIndex++)
-                CAM_empty_entry(dev, ucIndex);
-#endif
+	write_nic_dword(dev, RWCAM, BIT31|BIT30);
 }
 
 
