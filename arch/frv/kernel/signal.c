@@ -253,6 +253,8 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set)
 	struct sigframe __user *frame;
 	int rsig;
 
+	set_fs(USER_DS);
+
 	frame = get_sigframe(ka, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
@@ -296,22 +298,23 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set)
 				   (unsigned long) (frame->retcode + 2));
 	}
 
-	/* set up registers for signal handler */
-	__frame->sp   = (unsigned long) frame;
-	__frame->lr   = (unsigned long) &frame->retcode;
-	__frame->gr8  = sig;
-
+	/* Set up registers for the signal handler */
 	if (current->personality & FDPIC_FUNCPTRS) {
 		struct fdpic_func_descriptor __user *funcptr =
 			(struct fdpic_func_descriptor __user *) ka->sa.sa_handler;
-		__get_user(__frame->pc, &funcptr->text);
-		__get_user(__frame->gr15, &funcptr->GOT);
+		struct fdpic_func_descriptor desc;
+		if (copy_from_user(&desc, funcptr, sizeof(desc)))
+			goto give_sigsegv;
+		__frame->pc = desc.text;
+		__frame->gr15 = desc.GOT;
 	} else {
 		__frame->pc   = (unsigned long) ka->sa.sa_handler;
 		__frame->gr15 = 0;
 	}
 
-	set_fs(USER_DS);
+	__frame->sp   = (unsigned long) frame;
+	__frame->lr   = (unsigned long) &frame->retcode;
+	__frame->gr8  = sig;
 
 	/* the tracer may want to single-step inside the handler */
 	if (test_thread_flag(TIF_SINGLESTEP))
@@ -340,6 +343,8 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 {
 	struct rt_sigframe __user *frame;
 	int rsig;
+
+	set_fs(USER_DS);
 
 	frame = get_sigframe(ka, sizeof(*frame));
 
@@ -395,22 +400,23 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	}
 
 	/* Set up registers for signal handler */
-	__frame->sp  = (unsigned long) frame;
-	__frame->lr   = (unsigned long) &frame->retcode;
-	__frame->gr8 = sig;
-	__frame->gr9 = (unsigned long) &frame->info;
-
 	if (current->personality & FDPIC_FUNCPTRS) {
 		struct fdpic_func_descriptor __user *funcptr =
 			(struct fdpic_func_descriptor __user *) ka->sa.sa_handler;
-		__get_user(__frame->pc, &funcptr->text);
-		__get_user(__frame->gr15, &funcptr->GOT);
+		struct fdpic_func_descriptor desc;
+		if (copy_from_user(&desc, funcptr, sizeof(desc)))
+			goto give_sigsegv;
+		__frame->pc = desc.text;
+		__frame->gr15 = desc.GOT;
 	} else {
 		__frame->pc   = (unsigned long) ka->sa.sa_handler;
 		__frame->gr15 = 0;
 	}
 
-	set_fs(USER_DS);
+	__frame->sp  = (unsigned long) frame;
+	__frame->lr  = (unsigned long) &frame->retcode;
+	__frame->gr8 = sig;
+	__frame->gr9 = (unsigned long) &frame->info;
 
 	/* the tracer may want to single-step inside the handler */
 	if (test_thread_flag(TIF_SINGLESTEP))
