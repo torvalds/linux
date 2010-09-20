@@ -235,7 +235,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	tcon = cifs_sb->tcon;
+	tcon = cifs_sb_tcon(cifs_sb);
 
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
 
@@ -345,7 +345,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS)
+	if (tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, tcon, full_path, disposition,
 			 desiredAccess, CREATE_NOT_DIR, &netfid, &oplock, buf,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags

@@ -66,11 +66,11 @@ static void cifs_fscache_enable_inode_cookie(struct inode *inode)
 	if (cifsi->fscache)
 		return;
 
-	cifsi->fscache = fscache_acquire_cookie(cifs_sb->tcon->fscache,
+	cifsi->fscache = fscache_acquire_cookie(cifs_sb_tcon(cifs_sb)->fscache,
 				&cifs_fscache_inode_object_def,
 				cifsi);
 	cFYI(1, "CIFS: got FH cookie (0x%p/0x%p)",
-			cifs_sb->tcon->fscache, cifsi->fscache);
+			cifs_sb_tcon(cifs_sb)->fscache, cifsi->fscache);
 }
 
 void cifs_fscache_release_inode_cookie(struct inode *inode)
@@ -117,7 +117,8 @@ void cifs_fscache_reset_inode_cookie(struct inode *inode)
 		/* retire the current fscache cache and get a new one */
 		fscache_relinquish_cookie(cifsi->fscache, 1);
 
-		cifsi->fscache = fscache_acquire_cookie(cifs_sb->tcon->fscache,
+		cifsi->fscache = fscache_acquire_cookie(
+					cifs_sb_tcon(cifs_sb)->fscache,
 					&cifs_fscache_inode_object_def,
 					cifsi);
 		cFYI(1, "CIFS: new cookie 0x%p oldcookie 0x%p",

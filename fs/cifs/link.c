@@ -249,7 +249,7 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 	int rc;
 	int oplock = 0;
 	__u16 netfid = 0;
-	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	struct cifsTconInfo *pTcon = cifs_sb_tcon(cifs_sb);
 	u8 *buf;
 	char *pbuf;
 	unsigned int bytes_read = 0;
@@ -321,7 +321,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	xid = GetXid();
 
 	cifs_sb_target = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb_target->tcon;
+	pTcon = cifs_sb_tcon(cifs_sb_target);
 
 /* No need to check for cross device links since server will do that
    BB note DFS case in future though (when we may have to check) */
@@ -390,7 +390,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	char *full_path = NULL;
 	char *target_path = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	struct cifsTconInfo *tcon = cifs_sb_tcon(cifs_sb);
 
 	xid = GetXid();
 
@@ -459,7 +459,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
+	pTcon = cifs_sb_tcon(cifs_sb);
 
 	full_path = build_path_from_dentry(direntry);
 

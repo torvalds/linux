@@ -61,7 +61,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb->tcon;
+	pTcon = cifs_sb_tcon(cifs_sb);
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -116,7 +116,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb->tcon;
+	pTcon = cifs_sb_tcon(cifs_sb);
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -224,7 +224,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb->tcon;
+	pTcon = cifs_sb_tcon(cifs_sb);
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -346,7 +346,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 		return -EIO;
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb->tcon;
+	pTcon = cifs_sb_tcon(cifs_sb);
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 		return -EOPNOTSUPP;

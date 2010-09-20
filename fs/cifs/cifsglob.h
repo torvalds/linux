@@ -413,6 +413,12 @@ CIFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+static inline struct cifsTconInfo *
+cifs_sb_tcon(struct cifs_sb_info *cifs_sb)
+{
+	return cifs_sb->tcon;
+}
+
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)

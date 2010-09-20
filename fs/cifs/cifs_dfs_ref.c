@@ -316,7 +316,7 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	nd->path.dentry = dget(dentry);
 
 	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	ses = cifs_sb->tcon->ses;
+	ses = cifs_sb_tcon(cifs_sb)->ses;
 
 	if (!ses) {
 		rc = -EINVAL;

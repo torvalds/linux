@@ -3026,8 +3026,8 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	int rc = 0;
 	char *tmp;
 
-	if (cifs_sb->tcon)
-		cifs_put_tcon(cifs_sb->tcon);
+	if (cifs_sb_tcon(cifs_sb))
+		cifs_put_tcon(cifs_sb_tcon(cifs_sb));
 
 	cifs_sb->tcon = NULL;
 	tmp = cifs_sb->prepath;
