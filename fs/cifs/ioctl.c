@@ -37,11 +37,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 #ifdef CONFIG_CIFS_POSIX
+	struct cifsFileInfo *pSMBFile = filep->private_data;
+	struct cifsTconInfo *tcon = pSMBFile->tcon;
 	__u64	ExtAttrBits = 0;
 	__u64	ExtAttrMask = 0;
-	__u64   caps;
-	struct cifsTconInfo *tcon;
-	struct cifsFileInfo *pSMBFile = filep->private_data;
+	__u64   caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 #endif /* CONFIG_CIFS_POSIX */
 
 	xid = GetXid();
@@ -49,17 +49,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	cFYI(1, "ioctl file %p  cmd %u  arg %lu", filep, command, arg);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-
-#ifdef CONFIG_CIFS_POSIX
-	tcon = cifs_sb->tcon;
-	if (tcon)
-		caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
-	else {
-		rc = -EIO;
-		FreeXid(xid);
-		return -EIO;
-	}
-#endif /* CONFIG_CIFS_POSIX */
 
 	switch (command) {
 		case CIFS_IOC_CHECKUMOUNT:

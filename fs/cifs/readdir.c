@@ -228,22 +228,21 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 
-	if (file->private_data == NULL) {
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	if (cifs_sb == NULL)
+		return -EINVAL;
+
+	if (file->private_data == NULL)
 		file->private_data =
 			kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
-	}
 
 	if (file->private_data == NULL)
 		return -ENOMEM;
 	cifsFile = file->private_data;
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
-
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	if (cifs_sb == NULL)
-		return -EINVAL;
-
-	pTcon = cifs_sb->tcon;
+	cifsFile->tcon = cifs_sb->tcon;
+	pTcon = cifsFile->tcon;
 	if (pTcon == NULL)
 		return -EINVAL;
 
@@ -786,9 +785,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	pTcon = cifs_sb->tcon;
-	if (pTcon == NULL)
-		return -EINVAL;
 
 	switch ((int) file->f_pos) {
 	case 0:
@@ -838,6 +834,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		} */
 
+		pTcon = cifsFile->tcon;
 		rc = find_cifs_entry(xid, pTcon, file,
 				&current_entry, &num_to_fill);
 		if (rc) {
