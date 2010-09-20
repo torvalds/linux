@@ -54,11 +54,9 @@ static inline void pxa2xx_clear_reset_status(unsigned int mask) {}
 
 #ifdef CONFIG_PXA3xx
 extern unsigned pxa3xx_get_clk_frequency_khz(int);
-extern unsigned pxa3xx_get_memclk_frequency_10khz(void);
 extern void pxa3xx_clear_reset_status(unsigned int);
 #else
 #define pxa3xx_get_clk_frequency_khz(x)		(0)
-#define pxa3xx_get_memclk_frequency_10khz()	(0)
 static inline void pxa3xx_clear_reset_status(unsigned int mask) {}
 #endif
 
