@@ -121,6 +121,24 @@ static struct pci_channel sh7786_pci_channels[] = {
 	DEFINE_CONTROLLER(0xfcc00000, 2),
 };
 
+static void __devinit sh7786_pci_fixup(struct pci_dev *dev)
+{
+	/*
+	 * Prevent enumeration of root complex resources.
+	 */
+	if (pci_is_root_bus(dev->bus) && dev->devfn == 0) {
+		int i;
+
+		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+			dev->resource[i].start	= 0;
+			dev->resource[i].end	= 0;
+			dev->resource[i].flags	= 0;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_RENESAS, PCI_DEVICE_ID_RENESAS_SH7786,
+			 sh7786_pci_fixup);
+
 static int phy_wait_for_ack(struct pci_channel *chan)
 {
 	unsigned int timeout = 100;
@@ -229,11 +247,12 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	/* Begin initialization */
 	pcie_reset(port);
 
-	/* Initialize as type1. */
-	data = pci_read_reg(chan, SH4A_PCIEPCICONF3);
-	data &= ~(0x7f << 16);
-	data |= PCI_HEADER_TYPE_BRIDGE << 16;
-	pci_write_reg(chan, data, SH4A_PCIEPCICONF3);
+	/*
+	 * Initial header for port config space is type 1, set the device
+	 * class to match. Hardware takes care of propagating the IDSETR
+	 * settings, so there is no need to bother with a quirk.
+	 */
+	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI << 16, SH4A_PCIEIDSETR1);
 
 	/* Initialize default capabilities. */
 	data = pci_read_reg(chan, SH4A_PCIEEXPCAP0);
