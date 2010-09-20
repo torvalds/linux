@@ -13484,8 +13484,10 @@ static void alc268_auto_set_output_and_unmute(struct hda_codec *codec,
 static void alc268_auto_init_multi_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t nid = spec->autocfg.line_out_pins[0];
-	if (nid) {
+	int i;
+
+	for (i = 0; i < spec->autocfg.line_outs; i++) {
+		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		alc268_auto_set_output_and_unmute(codec, nid, pin_type);
 	}
@@ -13495,13 +13497,19 @@ static void alc268_auto_init_hp_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t pin;
+	int i;
 
-	pin = spec->autocfg.hp_pins[0];
-	if (pin)
+	for (i = 0; i < spec->autocfg.hp_outs; i++) {
+		pin = spec->autocfg.hp_pins[i];
 		alc268_auto_set_output_and_unmute(codec, pin, PIN_HP);
-	pin = spec->autocfg.speaker_pins[0];
-	if (pin)
+	}
+	for (i = 0; i < spec->autocfg.speaker_outs; i++) {
+		pin = spec->autocfg.speaker_pins[i];
 		alc268_auto_set_output_and_unmute(codec, pin, PIN_OUT);
+	}
+	if (spec->autocfg.mono_out_pin)
+		snd_hda_codec_write(codec, spec->autocfg.mono_out_pin, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
 }
 
 static void alc268_auto_init_mono_speaker_out(struct hda_codec *codec)
