@@ -102,7 +102,7 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 		return NULL;
 	}
 
-	if (cifs_sb_tcon(CIFS_SB(sb))->nocase)
+	if (cifs_sb_master_tcon(CIFS_SB(sb))->nocase)
 		dentry->d_op = &cifs_ci_dentry_ops;
 	else
 		dentry->d_op = &cifs_dentry_ops;
@@ -171,7 +171,7 @@ static void
 cifs_std_info_to_fattr(struct cifs_fattr *fattr, FIND_FILE_STANDARD_INFO *info,
 		       struct cifs_sb_info *cifs_sb)
 {
-	int offset = cifs_sb_tcon(cifs_sb)->ses->server->timeAdj;
+	int offset = cifs_sb_master_tcon(cifs_sb)->ses->server->timeAdj;
 
 	memset(fattr, 0, sizeof(*fattr));
 	fattr->cf_atime = cnvrtDosUnixTm(info->LastAccessDate,

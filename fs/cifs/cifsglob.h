@@ -419,6 +419,13 @@ cifs_sb_tcon(struct cifs_sb_info *cifs_sb)
 	return cifs_sb->ptcon;
 }
 
+/* This function is always expected to succeed */
+static inline struct cifsTconInfo *
+cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb)
+{
+	return cifs_sb->ptcon;
+}
+
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
