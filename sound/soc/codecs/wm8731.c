@@ -488,8 +488,6 @@ static int wm8731_probe(struct snd_soc_codec *codec)
 	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, i;
 
-	codec->bias_level = SND_SOC_BIAS_OFF,
-
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8731->control_type);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -567,7 +565,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8731 = {
 	.suspend =	wm8731_suspend,
 	.resume =	wm8731_resume,
 	.set_bias_level = wm8731_set_bias_level,
-	.reg_cache_size = sizeof(wm8731_reg),
+	.reg_cache_size = ARRAY_SIZE(wm8731_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8731_reg,
 };

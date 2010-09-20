@@ -1919,6 +1919,7 @@ config FB_SH_MOBILE_HDMI
 	tristate "SuperH Mobile HDMI controller support"
 	depends on FB_SH_MOBILE_LCDC
 	select FB_MODE_HELPERS
+	select SND_SOC
 	---help---
 	  Driver for the on-chip SH-Mobile HDMI controller.
 

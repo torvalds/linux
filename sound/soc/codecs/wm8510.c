@@ -569,7 +569,6 @@ static int wm8510_probe(struct snd_soc_codec *codec)
 	wm8510_reset(codec);
 
 	/* power on device */
-	codec->bias_level = SND_SOC_BIAS_OFF;
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	snd_soc_add_controls(codec, wm8510_snd_controls,
 				ARRAY_SIZE(wm8510_snd_controls));

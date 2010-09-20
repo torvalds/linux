@@ -11,7 +11,6 @@
 
 #include <linux/platform_device.h>
 #include <sound/sh_fsi.h>
-#include <video/sh_mobile_hdmi.h>
 
 static struct snd_soc_dai_link fsi_dai_link = {
 	.name		= "HDMI",
@@ -23,7 +22,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 };
 
 static struct snd_soc_card fsi_soc_card  = {
-	.name		= "FSI",
+	.name		= "FSI (SH MOBILE HDMI)",
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
 };

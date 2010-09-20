@@ -642,7 +642,6 @@ static int ak4671_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	codec->hw_write = (hw_write_t)i2c_master_send;
-	codec->bias_level = SND_SOC_BIAS_OFF;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, ak4671->control_type);
 	if (ret < 0) {

@@ -1385,7 +1385,6 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 
 	codec->control_data = dac33->control_data;
 	codec->hw_write = (hw_write_t) i2c_master_send;
-	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->idle_bias_off = 1;
 	dac33->codec = codec;
 

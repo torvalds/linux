@@ -28,7 +28,7 @@ static struct snd_soc_dai_link smdk2443_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "s3c-ac97-dai",
+	.cpu_dai_name = "s3c-ac97",
 	.codec_dai_name = "ac97-hifi",
 	.codec_name = "ac97-codec",
 	.platform_name = "s3c24xx-pcm-audio",

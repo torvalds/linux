@@ -422,7 +422,7 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 	dev_info(codec->dev, "AK4642 Audio Codec %s", AK4642_VERSION);
 
 	codec->hw_write		= (hw_write_t)i2c_master_send;
-	codec->control_data = ak4642->control_data;
+	codec->control_data	= ak4642->control_data;
 
 	snd_soc_add_controls(codec, ak4642_snd_controls,
 			     ARRAY_SIZE(ak4642_snd_controls));
@@ -431,12 +431,12 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
-	.probe =	ak4642_probe,
-	.resume =	ak4642_resume,
-	.read		= ak4642_read_reg_cache,
-	.write		= ak4642_write,
-	.reg_cache_size	= ARRAY_SIZE(ak4642_reg),
-	.reg_word_size = sizeof(u8),
+	.probe			= ak4642_probe,
+	.resume			= ak4642_resume,
+	.read			= ak4642_read_reg_cache,
+	.write			= ak4642_write,
+	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),
+	.reg_word_size		= sizeof(u8),
 	.reg_cache_default	= ak4642_reg,
 };
 
@@ -448,7 +448,7 @@ static __devinit int ak4642_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	ak4642 = kzalloc(sizeof(struct ak4642_priv), GFP_KERNEL);
-	if (ak4642 == NULL)
+	if (!ak4642)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, ak4642);
@@ -481,9 +481,9 @@ static struct i2c_driver ak4642_i2c_driver = {
 		.name = "ak4642-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe =    ak4642_i2c_probe,
-	.remove =   __devexit_p(ak4642_i2c_remove),
-	.id_table = ak4642_i2c_id,
+	.probe		= ak4642_i2c_probe,
+	.remove		= __devexit_p(ak4642_i2c_remove),
+	.id_table	= ak4642_i2c_id,
 };
 #endif
 

@@ -78,7 +78,7 @@ static void s3c_pcm_snd_txctrl(struct s3c_pcm_info *pcm, int on)
 		ctl |= S3C_PCM_CTL_TXDMA_EN;
 		ctl |= S3C_PCM_CTL_TXFIFO_EN;
 		ctl |= S3C_PCM_CTL_ENABLE;
-		ctl |= (0x20<<S3C_PCM_CTL_TXDIPSTICK_SHIFT);
+		ctl |= (0x4<<S3C_PCM_CTL_TXDIPSTICK_SHIFT);
 		clkctl |= S3C_PCM_CLKCTL_SERCLK_EN;
 	} else {
 		ctl &= ~S3C_PCM_CTL_TXDMA_EN;
@@ -102,11 +102,14 @@ static void s3c_pcm_snd_rxctrl(struct s3c_pcm_info *pcm, int on)
 
 	ctl = readl(regs + S3C_PCM_CTL);
 	clkctl = readl(regs + S3C_PCM_CLKCTL);
+	ctl &= ~(S3C_PCM_CTL_RXDIPSTICK_MASK
+			 << S3C_PCM_CTL_RXDIPSTICK_SHIFT);
 
 	if (on) {
 		ctl |= S3C_PCM_CTL_RXDMA_EN;
 		ctl |= S3C_PCM_CTL_RXFIFO_EN;
 		ctl |= S3C_PCM_CTL_ENABLE;
+		ctl |= (0x20<<S3C_PCM_CTL_RXDIPSTICK_SHIFT);
 		clkctl |= S3C_PCM_CLKCTL_SERCLK_EN;
 	} else {
 		ctl &= ~S3C_PCM_CTL_RXDMA_EN;
@@ -361,8 +364,6 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 #define S3C_PCM_RATES  SNDRV_PCM_RATE_8000_96000
 
 #define S3C_PCM_DAI_DECLARE			\
-{								\
-	.name		 = "samsung-dai",			\
 	.symmetric_rates = 1,					\
 	.ops = &s3c_pcm_dai_ops,				\
 	.playback = {						\
@@ -376,12 +377,17 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 		.channels_max	= 2,				\
 		.rates		= S3C_PCM_RATES,		\
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,	\
-	},							\
-}
+	}
 
 struct snd_soc_dai_driver s3c_pcm_dai[] = {
-	S3C_PCM_DAI_DECLARE,
-	S3C_PCM_DAI_DECLARE,
+	[0] = {
+		.name	= "samsung-pcm.0",
+		S3C_PCM_DAI_DECLARE,
+	},
+	[1] = {
+		.name	= "samsung-pcm.1",
+		S3C_PCM_DAI_DECLARE,
+	},
 };
 EXPORT_SYMBOL_GPL(s3c_pcm_dai);
 
@@ -465,7 +471,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	}
 	clk_enable(pcm->pclk);
 
-	ret = snd_soc_register_dai(&pdev->dev, s3c_pcm_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get pcm_clock\n");
 		goto err5;
@@ -522,7 +528,7 @@ static struct platform_driver s3c_pcm_driver = {
 	.probe  = s3c_pcm_dev_probe,
 	.remove = s3c_pcm_dev_remove,
 	.driver = {
-		.name = "samsung-pcm-audio",
+		.name = "samsung-pcm",
 		.owner = THIS_MODULE,
 	},
 };
@@ -543,4 +549,4 @@ module_exit(s3c_pcm_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("S3C PCM Controller Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:samsung-pcm-audio");
+MODULE_ALIAS("platform:samsung-pcm");

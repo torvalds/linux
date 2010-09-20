@@ -2,6 +2,7 @@
  * kirkwood-dma.c
  *
  * (c) 2010 Arnaud Patard <apatard@mandriva.com>
+ * (c) 2010 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -397,7 +398,7 @@ static void __exit kirkwood_pcm_exit(void)
 }
 module_exit(kirkwood_pcm_exit);
 
-MODULE_AUTHOR("Arnaud Patard <apatard@mandriva.com>");
+MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Marvell Kirkwood Audio DMA module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:kirkwood-pcm-audio");

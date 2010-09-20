@@ -2245,7 +2245,6 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_set_drvdata(codec, twl4030);
 	/* Set the defaults, and power up the codec */
 	twl4030->sysclk = twl4030_codec_get_mclk() / 1000;
-	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->idle_bias_off = 1;
 
 	twl4030_init_chip(codec);

@@ -224,13 +224,9 @@ static u8 hdmi_read(struct sh_hdmi *hdmi, u8 reg)
 	return ioread8(hdmi->base + reg);
 }
 
-/************************************************************************
-
-
-			HDMI sound
-
-
-************************************************************************/
+/*
+ *	HDMI sound
+ */
 static unsigned int sh_hdmi_snd_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
@@ -253,9 +249,12 @@ static struct snd_soc_dai_driver sh_hdmi_dai = {
 	.name = "sh_mobile_hdmi-hifi",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_48000,
+		.channels_min = 2,
+		.channels_max = 8,
+		.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100  |
+			 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200  |
+			 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+			 SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
 };
@@ -273,13 +272,10 @@ static struct snd_soc_codec_driver soc_codec_dev_sh_hdmi = {
 	.write		= sh_hdmi_snd_write,
 };
 
-/************************************************************************
+/*
+ *	HDMI video
+ */
 
-
-			HDMI video
-
-
-************************************************************************/
 /* External video parameter settings */
 static void hdmi_external_video_param(struct sh_hdmi *hdmi)
 {
@@ -396,20 +392,20 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 	 * [6:5] set required down sampling rate if required
 	 * [4:3] set required audio source
 	 */
-	switch (pdata->flags & HDMI_SRC_MASK) {
+	switch (pdata->flags & HDMI_SND_SRC_MASK) {
 	default:
-		/* FALL THROUGH */
-	case HDMI_SRC_I2S:
-		data = (0x0 << 3);
+		/* fall through */
+	case HDMI_SND_SRC_I2S:
+		data = 0x0 << 3;
 		break;
-	case HDMI_SRC_SPDIF:
-		data = (0x1 << 3);
+	case HDMI_SND_SRC_SPDIF:
+		data = 0x1 << 3;
 		break;
-	case HDMI_SRC_DSD:
-		data = (0x2 << 3);
+	case HDMI_SND_SRC_DSD:
+		data = 0x2 << 3;
 		break;
-	case HDMI_SRC_HBR:
-		data = (0x3 << 3);
+	case HDMI_SND_SRC_HBR:
+		data = 0x3 << 3;
 		break;
 	}
 	hdmi_write(hdmi, data, HDMI_AUDIO_SETTING_1);
@@ -971,7 +967,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	ret =  snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_sh_hdmi, &sh_hdmi_dai, 1);
 	if (ret < 0)
-		goto egetclk;
+		goto esndreg;
 
 	hdmi->dev = &pdev->dev;
 
@@ -1058,6 +1054,8 @@ eclkenable:
 erate:
 	clk_put(hdmi->hdmi_clk);
 egetclk:
+	snd_soc_unregister_codec(&pdev->dev);
+esndreg:
 	kfree(hdmi);
 
 	return ret;

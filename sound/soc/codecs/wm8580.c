@@ -907,7 +907,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8580 = {
 	.probe =	wm8580_probe,
 	.remove =	wm8580_remove,
 	.set_bias_level = wm8580_set_bias_level,
-	.reg_cache_size = sizeof(wm8580_reg),
+	.reg_cache_size = ARRAY_SIZE(wm8580_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = &wm8580_reg,
 };

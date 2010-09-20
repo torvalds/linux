@@ -98,7 +98,9 @@ enum {
 	SIU_CLKB_EXT
 };
 
+struct device;
 struct siu_info {
+	struct device		*dev;
 	int			port_id;
 	u32 __iomem		*pram;
 	u32 __iomem		*xram;
@@ -182,7 +184,6 @@ static inline u32 siu_read32(u32 __iomem *addr)
 #define SIU_BRRB	(0x10c / sizeof(u32))
 
 extern struct snd_soc_platform_driver siu_platform;
-extern struct snd_soc_dai_driver siu_i2s_dai;
 extern struct siu_info *siu_i2s_data;
 
 int siu_init_port(int port, struct siu_port **port_info, struct snd_card *card);

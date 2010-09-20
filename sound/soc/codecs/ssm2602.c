@@ -560,7 +560,6 @@ static int ssm2602_probe(struct snd_soc_codec *codec)
 
 	pr_info("ssm2602 Audio Codec %s", SSM2602_VERSION);
 
-	codec->bias_level = SND_SOC_BIAS_OFF,
 	codec->control_data = ssm2602->control_data;
 
 	ssm2602_reset(codec);

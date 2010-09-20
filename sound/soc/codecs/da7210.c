@@ -454,7 +454,7 @@ static int da7210_probe(struct snd_soc_codec *codec)
 
 	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
-	codec->control_data = da7210->control_data;
+	codec->control_data	= da7210->control_data;
 	codec->hw_write		= (hw_write_t)i2c_master_send;
 
 	/* FIXME
@@ -547,11 +547,11 @@ static int da7210_probe(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
-	.probe =	da7210_probe,
-	.read		= da7210_read,
-	.write		= da7210_write,
-	.reg_cache_size	= ARRAY_SIZE(da7210_reg),
-	.reg_word_size = sizeof(u8),
+	.probe			= da7210_probe,
+	.read			= da7210_read,
+	.write			= da7210_write,
+	.reg_cache_size		= ARRAY_SIZE(da7210_reg),
+	.reg_word_size		= sizeof(u8),
 	.reg_cache_default	= da7210_reg,
 };
 
@@ -597,9 +597,9 @@ static struct i2c_driver da7210_i2c_driver = {
 		.name = "da7210-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = da7210_i2c_probe,
-	.remove =  __devexit_p(da7210_i2c_remove),
-	.id_table = da7210_i2c_id,
+	.probe		= da7210_i2c_probe,
+	.remove		= __devexit_p(da7210_i2c_remove),
+	.id_table	= da7210_i2c_id,
 };
 #endif
 

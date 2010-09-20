@@ -32,7 +32,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 	.cpu_dai_name	= "fsia-dai", /* fsi A */
 	.codec_dai_name	= "ak4642-hifi",
 #ifdef CONFIG_MACH_AP4EVB
-	.platform_name	= "sh_fsi2.0",
+	.platform_name	= "sh_fsi2",
 	.codec_name	= "ak4642-codec.0-0013",
 #else
 	.platform_name	= "sh_fsi.0",
@@ -43,7 +43,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 };
 
 static struct snd_soc_card fsi_soc_card  = {
-	.name		= "FSI",
+	.name		= "FSI (AK4642)",
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
 };
