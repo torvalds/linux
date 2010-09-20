@@ -255,10 +255,10 @@ int VmbusInitialize(struct hv_driver *drv)
 			VMBUS_REVISION_NUMBER);
 	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
 			VMBUS_MESSAGE_SINT);
-	DPRINT_DBG(VMBUS, "sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER)=%zd, "
+	DPRINT_DBG(VMBUS, "sizeof(vmbus_channel_packet_page_buffer)=%zd, "
 			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
-			sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER),
-			sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
+			sizeof(struct vmbus_channel_packet_page_buffer),
+			sizeof(struct vmbus_channel_packet_multipage_buffer));
 
 	drv->name = gDriverName;
 	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));

@@ -765,7 +765,7 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 {
 	int ret;
 	int i;
-	struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER desc;
+	struct vmbus_channel_packet_page_buffer desc;
 	u32 descSize;
 	u32 packetLen;
 	u32 packetLenAligned;
@@ -778,10 +778,10 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 	DumpVmbusChannel(Channel);
 
 	/*
-	 * Adjust the size down since VMBUS_CHANNEL_PACKET_PAGE_BUFFER is the
+	 * Adjust the size down since vmbus_channel_packet_page_buffer is the
 	 * largest size we support
 	 */
-	descSize = sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER) -
+	descSize = sizeof(struct vmbus_channel_packet_page_buffer) -
 			  ((MAX_PAGE_BUFFER_COUNT - PageCount) *
 			  sizeof(struct hv_page_buffer));
 	packetLen = descSize + BufferLen;
@@ -790,17 +790,17 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
 	/* Setup the descriptor */
-	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
-	desc.Flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc.DataOffset8 = descSize >> 3; /* in 8-bytes grandularity */
-	desc.Length8 = (u16)(packetLenAligned >> 3);
-	desc.TransactionId = RequestId;
-	desc.RangeCount = PageCount;
+	desc.type = VmbusPacketTypeDataUsingGpaDirect;
+	desc.flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	desc.dataoffset8 = descSize >> 3; /* in 8-bytes grandularity */
+	desc.length8 = (u16)(packetLenAligned >> 3);
+	desc.transactionid = RequestId;
+	desc.rangecount = PageCount;
 
 	for (i = 0; i < PageCount; i++) {
-		desc.Range[i].Length = PageBuffers[i].Length;
-		desc.Range[i].Offset = PageBuffers[i].Offset;
-		desc.Range[i].Pfn	 = PageBuffers[i].Pfn;
+		desc.range[i].Length = PageBuffers[i].Length;
+		desc.range[i].Offset = PageBuffers[i].Offset;
+		desc.range[i].Pfn	 = PageBuffers[i].Pfn;
 	}
 
 	sg_init_table(bufferList, 3);
@@ -826,7 +826,7 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 				void *Buffer, u32 BufferLen, u64 RequestId)
 {
 	int ret;
-	struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER desc;
+	struct vmbus_channel_packet_multipage_buffer desc;
 	u32 descSize;
 	u32 packetLen;
 	u32 packetLenAligned;
@@ -844,10 +844,10 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 		return -EINVAL;
 
 	/*
-	 * Adjust the size down since VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER is
+	 * Adjust the size down since vmbus_channel_packet_multipage_buffer is
 	 * the largest size we support
 	 */
-	descSize = sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER) -
+	descSize = sizeof(struct vmbus_channel_packet_multipage_buffer) -
 			  ((MAX_MULTIPAGE_BUFFER_COUNT - PfnCount) *
 			  sizeof(u64));
 	packetLen = descSize + BufferLen;
@@ -856,17 +856,17 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
 	/* Setup the descriptor */
-	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
-	desc.Flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc.DataOffset8 = descSize >> 3; /* in 8-bytes grandularity */
-	desc.Length8 = (u16)(packetLenAligned >> 3);
-	desc.TransactionId = RequestId;
-	desc.RangeCount = 1;
+	desc.type = VmbusPacketTypeDataUsingGpaDirect;
+	desc.flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	desc.dataoffset8 = descSize >> 3; /* in 8-bytes grandularity */
+	desc.length8 = (u16)(packetLenAligned >> 3);
+	desc.transactionid = RequestId;
+	desc.rangecount = 1;
 
-	desc.Range.Length = MultiPageBuffer->Length;
-	desc.Range.Offset = MultiPageBuffer->Offset;
+	desc.range.Length = MultiPageBuffer->Length;
+	desc.range.Offset = MultiPageBuffer->Offset;
 
-	memcpy(desc.Range.PfnArray, MultiPageBuffer->PfnArray,
+	memcpy(desc.range.PfnArray, MultiPageBuffer->PfnArray,
 	       PfnCount * sizeof(u64));
 
 	sg_init_table(bufferList, 3);

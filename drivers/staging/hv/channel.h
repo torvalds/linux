@@ -28,27 +28,27 @@
 #include "channel_mgmt.h"
 
 /* The format must be the same as struct vmdata_gpa_direct */
-struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
-	u16 Type;
-	u16 DataOffset8;
-	u16 Length8;
-	u16 Flags;
-	u64 TransactionId;
-	u32 Reserved;
-	u32 RangeCount;
-	struct hv_page_buffer Range[MAX_PAGE_BUFFER_COUNT];
+struct vmbus_channel_packet_page_buffer {
+	u16 type;
+	u16 dataoffset8;
+	u16 length8;
+	u16 flags;
+	u64 transactionid;
+	u32 reserved;
+	u32 rangecount;
+	struct hv_page_buffer range[MAX_PAGE_BUFFER_COUNT];
 } __attribute__((packed));
 
 /* The format must be the same as struct vmdata_gpa_direct */
-struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
-	u16 Type;
-	u16 DataOffset8;
-	u16 Length8;
-	u16 Flags;
-	u64 TransactionId;
-	u32 Reserved;
-	u32 RangeCount;		/* Always 1 in this case */
-	struct hv_multipage_buffer Range;
+struct vmbus_channel_packet_multipage_buffer {
+	u16 type;
+	u16 dataoffset8;
+	u16 length8;
+	u16 flags;
+	u64 transactionid;
+	u32 reserved;
+	u32 rangecount;		/* Always 1 in this case */
+	struct hv_multipage_buffer range;
 } __attribute__((packed));
 
 
