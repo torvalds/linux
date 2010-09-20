@@ -4,7 +4,7 @@
  * Author: Matthew McClintock
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
- * Copyright 2005, 2008 Freescale Semiconductor Inc.
+ * Copyright 2005, 2008, 2010 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -114,6 +114,27 @@ static void __booke_wdt_enable(void *data)
 	mtspr(SPRN_TCR, val);
 }
 
+/**
+ * booke_wdt_disable - disable the watchdog on the given CPU
+ *
+ * This function is called on each CPU.  It disables the watchdog on that CPU.
+ *
+ * TCR[WRC] cannot be changed once it has been set to non-zero, but we can
+ * effectively disable the watchdog by setting its period to the maximum value.
+ */
+static void __booke_wdt_disable(void *data)
+{
+	u32 val;
+
+	val = mfspr(SPRN_TCR);
+	val &= ~(TCR_WIE | WDTP_MASK);
+	mtspr(SPRN_TCR, val);
+
+	/* clear status to make sure nothing is pending */
+	__booke_wdt_ping(NULL);
+
+}
+
 static ssize_t booke_wdt_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
@@ -193,12 +214,21 @@ static int booke_wdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
+static int booke_wdt_release(struct inode *inode, struct file *file)
+{
+	on_each_cpu(__booke_wdt_disable, NULL, 0);
+	booke_wdt_enabled = 0;
+
+	return 0;
+}
+
 static const struct file_operations booke_wdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = booke_wdt_write,
 	.unlocked_ioctl = booke_wdt_ioctl,
 	.open = booke_wdt_open,
+	.release = booke_wdt_release,
 };
 
 static struct miscdevice booke_wdt_miscdev = {
@@ -237,4 +267,9 @@ static int __init booke_wdt_init(void)
 
 	return ret;
 }
-device_initcall(booke_wdt_init);
+
+module_init(booke_wdt_init);
+module_exit(booke_wdt_exit);
+
+MODULE_DESCRIPTION("PowerPC Book-E watchdog driver");
+MODULE_LICENSE("GPL");
