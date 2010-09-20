@@ -1479,7 +1479,6 @@ void write_nic_byte(struct net_device *dev, int x,u8 y);
 void write_nic_byte_E(struct net_device *dev, int x,u8 y);
 void write_nic_word(struct net_device *dev, int x,u16 y);
 void write_nic_dword(struct net_device *dev, int x,u32 y);
-void force_pci_posting(struct net_device *dev);
 
 void rtl8192_halt_adapter(struct net_device *dev, bool reset);
 void rtl8192_rx_enable(struct net_device *);

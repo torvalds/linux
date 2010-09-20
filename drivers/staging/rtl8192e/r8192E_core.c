@@ -484,14 +484,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 }
 
-/*
- * this might still called in what was the PHY rtl8185/rtl8192 common code
- * plans are to possibilty turn it again in one common code...
- */
-void force_pci_posting(struct net_device *dev)
-{
-}
-
 static struct proc_dir_entry *rtl8192_proc = NULL;
 
 static int proc_get_stats_ap(char *page, char **start,
@@ -814,7 +806,6 @@ void rtl8192_irq_disable(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
 	write_nic_dword(dev,INTA_MASK,0);
-	force_pci_posting(dev);
 	priv->irq_enabled = 0;
 }
 
@@ -6538,7 +6529,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
         rtl8192_try_wake_queue(dev, VO_QUEUE);
     }
 
-    force_pci_posting(dev);
     spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 
     return IRQ_HANDLED;
