@@ -124,8 +124,9 @@ MODULE_PARM_DESC(separate_tx_channels,
 static int napi_weight = 64;
 
 /* This is the time (in jiffies) between invocations of the hardware
- * monitor, which checks for known hardware bugs and resets the
- * hardware and driver as necessary.
+ * monitor.  On Falcon-based NICs, this will:
+ * - Check the on-board hardware monitor;
+ * - Poll the link state and reconfigure the hardware as necessary.
  */
 unsigned int efx_monitor_interval = 1 * HZ;
 
@@ -1545,8 +1546,7 @@ void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
  *
  **************************************************************************/
 
-/* Run periodically off the general workqueue. Serialised against
- * efx_reconfigure_port via the mac_lock */
+/* Run periodically off the general workqueue */
 static void efx_monitor(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic,
@@ -1559,16 +1559,13 @@ static void efx_monitor(struct work_struct *data)
 
 	/* If the mac_lock is already held then it is likely a port
 	 * reconfiguration is already in place, which will likely do
-	 * most of the work of check_hw() anyway. */
-	if (!mutex_trylock(&efx->mac_lock))
-		goto out_requeue;
-	if (!efx->port_enabled)
-		goto out_unlock;
-	efx->type->monitor(efx);
+	 * most of the work of monitor() anyway. */
+	if (mutex_trylock(&efx->mac_lock)) {
+		if (efx->port_enabled)
+			efx->type->monitor(efx);
+		mutex_unlock(&efx->mac_lock);
+	}
 
-out_unlock:
-	mutex_unlock(&efx->mac_lock);
-out_requeue:
 	queue_delayed_work(efx->workqueue, &efx->monitor_work,
 			   efx_monitor_interval);
 }
