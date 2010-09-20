@@ -31,6 +31,7 @@
 #define TNETV107X_TPTC0_BASE			0x01c10000
 #define TNETV107X_TPTC1_BASE			0x01c10400
 #define TNETV107X_WDOG_BASE			0x08086700
+#define TNETV107X_TSC_BASE			0x08088500
 #define TNETV107X_SDIO0_BASE			0x08088700
 #define TNETV107X_SDIO1_BASE			0x08088800
 #define TNETV107X_KEYPAD_BASE			0x08088a00
@@ -323,12 +324,31 @@ static struct platform_device keypad_device = {
 	.resource	= keypad_resources,
 };
 
+static struct resource tsc_resources[] = {
+	{
+		.start	= TNETV107X_TSC_BASE,
+		.end	= TNETV107X_TSC_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_TNETV107X_TSC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tsc_device = {
+	.name		= "tnetv107x-ts",
+	.num_resources	= ARRAY_SIZE(tsc_resources),
+	.resource	= tsc_resources,
+};
+
 void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 {
 	int i;
 
 	platform_device_register(&edma_device);
 	platform_device_register(&tnetv107x_wdt_device);
+	platform_device_register(&tsc_device);
 
 	if (info->serial_config)
 		davinci_serial_init(info->serial_config);
