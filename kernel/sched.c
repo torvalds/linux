@@ -4355,6 +4355,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 
 	rq = task_rq_lock(p, &flags);
 
+	trace_sched_pi_setprio(p, prio);
 	oldprio = p->prio;
 	prev_class = p->sched_class;
 	on_rq = p->se.on_rq;
