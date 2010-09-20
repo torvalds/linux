@@ -129,7 +129,7 @@ struct o2net_node {
 
 struct o2net_sock_container {
 	struct kref		sc_kref;
-	/* the next two are vaild for the life time of the sc */
+	/* the next two are valid for the life time of the sc */
 	struct socket		*sc_sock;
 	struct o2nm_node	*sc_node;
 

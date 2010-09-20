@@ -1667,7 +1667,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	/* opening will always block since the
 	 * monitor will be started by open, which
 	 * means we have to wait for ATR becoming
-	 * vaild = block until valid (or card
+	 * valid = block until valid (or card
 	 * inserted)
 	 */
 	if (filp->f_flags & O_NONBLOCK) {

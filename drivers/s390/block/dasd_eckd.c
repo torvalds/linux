@@ -1190,7 +1190,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		goto out_err2;
 	}
 	/*
-	 * dasd_eckd_vaildate_server is done on the first device that
+	 * dasd_eckd_validate_server is done on the first device that
 	 * is found for an LCU. All later other devices have to wait
 	 * for it, so they will read the correct feature codes.
 	 */
@@ -1216,7 +1216,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 				"Read device characteristic failed, rc=%d", rc);
 		goto out_err3;
 	}
-	/* find the vaild cylinder size */
+	/* find the valid cylinder size */
 	if (private->rdc_data.no_cyl == LV_COMPAT_CYL &&
 	    private->rdc_data.long_no_cyl)
 		private->real_cyl = private->rdc_data.long_no_cyl;
