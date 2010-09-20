@@ -14,6 +14,7 @@
 #define _LINUX_ETHTOOL_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 
 /* This should work for both 32 and 64 bit userland. */
 struct ethtool_cmd {
@@ -391,6 +392,7 @@ struct ethtool_rx_flow_spec {
 		struct ethtool_ah_espip4_spec		ah_ip4_spec;
 		struct ethtool_ah_espip4_spec		esp_ip4_spec;
 		struct ethtool_usrip4_spec		usr_ip4_spec;
+		struct ethhdr				ether_spec;
 		__u8					hdata[72];
 	} h_u, m_u;
 	__u64		ring_cookie;
@@ -483,6 +485,7 @@ struct ethtool_rx_ntuple_flow_spec {
 		struct ethtool_ah_espip4_spec		ah_ip4_spec;
 		struct ethtool_ah_espip4_spec		esp_ip4_spec;
 		struct ethtool_usrip4_spec		usr_ip4_spec;
+		struct ethhdr				ether_spec;
 		__u8					hdata[72];
 	} h_u, m_u;
 
@@ -841,7 +844,7 @@ struct ethtool_ops {
 #define WAKE_MAGIC		(1 << 5)
 #define WAKE_MAGICSECURE	(1 << 6) /* only meaningful if WAKE_MAGIC */
 
-/* L3-L4 network traffic flow types */
+/* L2-L4 network traffic flow types */
 #define	TCP_V4_FLOW	0x01	/* hash or spec (tcp_ip4_spec) */
 #define	UDP_V4_FLOW	0x02	/* hash or spec (udp_ip4_spec) */
 #define	SCTP_V4_FLOW	0x03	/* hash or spec (sctp_ip4_spec) */
@@ -857,6 +860,7 @@ struct ethtool_ops {
 #define	IP_USER_FLOW	0x0d	/* spec only (usr_ip4_spec) */
 #define	IPV4_FLOW	0x10	/* hash only */
 #define	IPV6_FLOW	0x11	/* hash only */
+#define	ETHER_FLOW	0x12	/* spec only (ether_spec) */
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)
