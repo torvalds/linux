@@ -25,6 +25,7 @@ struct vlan_priority_tci_mapping {
  *	@rx_multicast: number of received multicast packets
  *	@syncp: synchronization point for 64bit counters
  *	@rx_errors: number of errors
+ *	@rx_dropped: number of dropped packets
  */
 struct vlan_rx_stats {
 	u64			rx_packets;
@@ -32,6 +33,7 @@ struct vlan_rx_stats {
 	u64			rx_multicast;
 	struct u64_stats_sync	syncp;
 	unsigned long		rx_errors;
+	unsigned long		rx_dropped;
 };
 
 /**

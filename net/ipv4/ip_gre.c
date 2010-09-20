@@ -647,9 +647,11 @@ static int ipgre_rcv(struct sk_buff *skb)
 		skb_reset_network_header(skb);
 		ipgre_ecn_decapsulate(iph, skb);
 
-		netif_rx(skb);
+		if (netif_rx(skb) == NET_RX_DROP)
+			stats->rx_dropped++;
+
 		rcu_read_unlock();
-		return(0);
+		return 0;
 	}
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 

@@ -666,7 +666,9 @@ static int pim6_rcv(struct sk_buff *skb)
 
 	skb_tunnel_rx(skb, reg_dev);
 
-	netif_rx(skb);
+	if (netif_rx(skb) == NET_RX_DROP)
+		reg_dev->stats.rx_dropped++;
+
 	dev_put(reg_dev);
 	return 0;
  drop:

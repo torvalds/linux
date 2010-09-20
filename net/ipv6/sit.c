@@ -564,7 +564,10 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb_tunnel_rx(skb, tunnel->dev);
 
 		ipip6_ecn_decapsulate(iph, skb);
-		netif_rx(skb);
+
+		if (netif_rx(skb) == NET_RX_DROP)
+			tunnel->dev->stats.rx_dropped++;
+
 		rcu_read_unlock();
 		return 0;
 	}

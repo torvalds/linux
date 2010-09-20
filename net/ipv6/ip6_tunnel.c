@@ -725,7 +725,10 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		skb_tunnel_rx(skb, t->dev);
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
-		netif_rx(skb);
+
+		if (netif_rx(skb) == NET_RX_DROP)
+			t->dev->stats.rx_dropped++;
+
 		rcu_read_unlock();
 		return 0;
 	}
