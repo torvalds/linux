@@ -492,11 +492,12 @@ struct ethtool_rx_ntuple_flow_spec {
 	__u64		data_mask;
 
 	__s32		action;
-#define ETHTOOL_RXNTUPLE_ACTION_DROP -1		/* drop packet */
+#define ETHTOOL_RXNTUPLE_ACTION_DROP	(-1)	/* drop packet */
+#define ETHTOOL_RXNTUPLE_ACTION_CLEAR	(-2)	/* clear filter */
 };
 
 /**
- * struct ethtool_rx_ntuple - command to set RX flow filter
+ * struct ethtool_rx_ntuple - command to set or clear RX flow filter
  * @cmd: Command number - %ETHTOOL_SRXNTUPLE
  * @fs: Flow filter specification
  */
