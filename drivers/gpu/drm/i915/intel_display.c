@@ -5058,7 +5058,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	/* Schedule the pipelined flush */
 	if (was_dirty)
-		i915_gem_flush_ring(dev, obj_priv->ring, 0, was_dirty);
+		i915_gem_flush_ring(dev, NULL, obj_priv->ring, 0, was_dirty);
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
 		u32 flip_mask;

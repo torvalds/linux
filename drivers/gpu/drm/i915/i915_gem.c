@@ -1910,16 +1910,23 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno,
 
 void
 i915_gem_flush_ring(struct drm_device *dev,
+		    struct drm_file *file_priv,
 		    struct intel_ring_buffer *ring,
 		    uint32_t invalidate_domains,
 		    uint32_t flush_domains)
 {
 	ring->flush(dev, ring, invalidate_domains, flush_domains);
 	i915_gem_process_flushing_list(dev, flush_domains, ring);
+
+	if (ring->outstanding_lazy_request) {
+		(void)i915_add_request(dev, file_priv, NULL, ring);
+		ring->outstanding_lazy_request = false;
+	}
 }
 
 static void
 i915_gem_flush(struct drm_device *dev,
+	       struct drm_file *file_priv,
 	       uint32_t invalidate_domains,
 	       uint32_t flush_domains,
 	       uint32_t flush_rings)
@@ -1931,11 +1938,11 @@ i915_gem_flush(struct drm_device *dev,
 
 	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
 		if (flush_rings & RING_RENDER)
-			i915_gem_flush_ring(dev,
+			i915_gem_flush_ring(dev, file_priv,
 					    &dev_priv->render_ring,
 					    invalidate_domains, flush_domains);
 		if (flush_rings & RING_BSD)
-			i915_gem_flush_ring(dev,
+			i915_gem_flush_ring(dev, file_priv,
 					    &dev_priv->bsd_ring,
 					    invalidate_domains, flush_domains);
 	}
@@ -2054,6 +2061,7 @@ i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool lists_empty;
+	u32 seqno;
 	int ret;
 
 	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
@@ -2064,24 +2072,18 @@ i915_gpu_idle(struct drm_device *dev)
 		return 0;
 
 	/* Flush everything onto the inactive list. */
-	i915_gem_flush_ring(dev,
-			    &dev_priv->render_ring,
+	seqno = i915_gem_next_request_seqno(dev, &dev_priv->render_ring);
+	i915_gem_flush_ring(dev, NULL, &dev_priv->render_ring,
 			    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-
-	ret = i915_wait_request(dev,
-				i915_gem_next_request_seqno(dev, &dev_priv->render_ring),
-				&dev_priv->render_ring);
+	ret = i915_wait_request(dev, seqno, &dev_priv->render_ring);
 	if (ret)
 		return ret;
 
 	if (HAS_BSD(dev)) {
-		i915_gem_flush_ring(dev,
-				    &dev_priv->bsd_ring,
+		seqno = i915_gem_next_request_seqno(dev, &dev_priv->render_ring);
+		i915_gem_flush_ring(dev, NULL, &dev_priv->bsd_ring,
 				    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-
-		ret = i915_wait_request(dev,
-					i915_gem_next_request_seqno(dev, &dev_priv->bsd_ring),
-					&dev_priv->bsd_ring);
+		ret = i915_wait_request(dev, seqno, &dev_priv->bsd_ring);
 		if (ret)
 			return ret;
 	}
@@ -2651,7 +2653,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
 
 	/* Queue the GPU write cache flushing we need. */
 	old_write_domain = obj->write_domain;
-	i915_gem_flush_ring(dev,
+	i915_gem_flush_ring(dev, NULL,
 			    to_intel_bo(obj)->ring,
 			    0, obj->write_domain);
 	BUG_ON(obj->write_domain);
@@ -2780,7 +2782,7 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 	i915_gem_object_flush_cpu_write_domain(obj);
 
 	old_read_domains = obj->read_domains;
-	obj->read_domains = I915_GEM_DOMAIN_GTT;
+	obj->read_domains |= I915_GEM_DOMAIN_GTT;
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -2837,7 +2839,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	 * need to be invalidated at next use.
 	 */
 	if (write) {
-		obj->read_domains &= I915_GEM_DOMAIN_CPU;
+		obj->read_domains = I915_GEM_DOMAIN_CPU;
 		obj->write_domain = I915_GEM_DOMAIN_CPU;
 	}
 
@@ -3762,19 +3764,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			 dev->invalidate_domains,
 			 dev->flush_domains);
 #endif
-		i915_gem_flush(dev,
+		i915_gem_flush(dev, file_priv,
 			       dev->invalidate_domains,
 			       dev->flush_domains,
 			       dev_priv->mm.flush_rings);
-	}
-
-	if (dev_priv->render_ring.outstanding_lazy_request) {
-		(void)i915_add_request(dev, file_priv, NULL, &dev_priv->render_ring);
-		dev_priv->render_ring.outstanding_lazy_request = false;
-	}
-	if (dev_priv->bsd_ring.outstanding_lazy_request) {
-		(void)i915_add_request(dev, file_priv, NULL, &dev_priv->bsd_ring);
-		dev_priv->bsd_ring.outstanding_lazy_request = false;
 	}
 
 	for (i = 0; i < args->buffer_count; i++) {
@@ -4232,12 +4225,10 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * use this buffer rather sooner than later, so issuing the required
 		 * flush earlier is beneficial.
 		 */
-		if (obj->write_domain & I915_GEM_GPU_DOMAINS) {
-			i915_gem_flush_ring(dev,
+		if (obj->write_domain & I915_GEM_GPU_DOMAINS)
+			i915_gem_flush_ring(dev, file_priv,
 					    obj_priv->ring,
 					    0, obj->write_domain);
-			(void)i915_add_request(dev, file_priv, NULL, obj_priv->ring);
-		}
 
 		/* Update the active list for the hardware's current position.
 		 * Otherwise this only updates on a delayed timer or when irqs

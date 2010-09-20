@@ -1003,6 +1003,7 @@ void i915_gem_reset_flushing_list(struct drm_device *dev);
 void i915_gem_reset_inactive_gpu_domains(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
 void i915_gem_flush_ring(struct drm_device *dev,
+			 struct drm_file *file_priv,
 			 struct intel_ring_buffer *ring,
 			 uint32_t invalidate_domains,
 			 uint32_t flush_domains);
