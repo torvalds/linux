@@ -1006,14 +1006,14 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 		if (host->max_clk <= clock)
 			div = 1;
 		else {
-			for (div = 2; div < 2046; div += 2) {
+			for (div = 2; div < SDHCI_MAX_DIV_SPEC_300; div += 2) {
 				if ((host->max_clk / div) <= clock)
 					break;
 			}
 		}
 	} else {
 		/* Version 2.00 divisors must be a power of 2. */
-		for (div = 1; div < 256; div *= 2) {
+		for (div = 1; div < SDHCI_MAX_DIV_SPEC_200; div *= 2) {
 			if ((host->max_clk / div) <= clock)
 				break;
 		}
@@ -1835,8 +1835,10 @@ int sdhci_add_host(struct sdhci_host *host)
 	mmc->ops = &sdhci_ops;
 	if (host->ops->get_min_clock)
 		mmc->f_min = host->ops->get_min_clock(host);
+	else if (host->version >= SDHCI_SPEC_300)
+		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_300;
 	else
-		mmc->f_min = host->max_clk / 256;
+		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
 	mmc->f_max = host->max_clk;
 	mmc->caps |= MMC_CAP_SDIO_IRQ;
 

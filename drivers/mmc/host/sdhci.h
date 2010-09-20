@@ -185,6 +185,13 @@
 #define   SDHCI_SPEC_200	1
 #define   SDHCI_SPEC_300	2
 
+/*
+ * End of controller registers.
+ */
+
+#define SDHCI_MAX_DIV_SPEC_200	256
+#define SDHCI_MAX_DIV_SPEC_300	2046
+
 struct sdhci_ops;
 
 struct sdhci_host {
