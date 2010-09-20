@@ -3180,7 +3180,7 @@ static void stl_cd1400flush(struct stlport *portp)
 
 /*
  *	Return the current state of data flow on this port. This is only
- *	really interresting when determining if data has fully completed
+ *	really interesting when determining if data has fully completed
  *	transmission or not... This is easy for the cd1400, it accurately
  *	maintains the busy port flag.
  */
@@ -4130,7 +4130,7 @@ static void stl_sc26198flush(struct stlport *portp)
 
 /*
  *	Return the current state of data flow on this port. This is only
- *	really interresting when determining if data has fully completed
+ *	really interesting when determining if data has fully completed
  *	transmission or not... The sc26198 interrupt scheme cannot
  *	determine when all data has actually drained, so we need to
  *	check the port statusy register to be sure.
