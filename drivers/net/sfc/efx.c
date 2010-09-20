@@ -1357,8 +1357,17 @@ static int efx_probe_all(struct efx_nic *efx)
 	if (rc)
 		goto fail3;
 
+	rc = efx_probe_filters(efx);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "failed to create filter tables\n");
+		goto fail4;
+	}
+
 	return 0;
 
+ fail4:
+	efx_remove_channels(efx);
  fail3:
 	efx_remove_port(efx);
  fail2:
@@ -1489,6 +1498,7 @@ static void efx_stop_all(struct efx_nic *efx)
 
 static void efx_remove_all(struct efx_nic *efx)
 {
+	efx_remove_filters(efx);
 	efx_remove_channels(efx);
 	efx_remove_port(efx);
 	efx_remove_nic(efx);
@@ -2002,6 +2012,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	efx->mac_op->reconfigure(efx);
 
 	efx_init_channels(efx);
+	efx_restore_filters(efx);
 
 	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);

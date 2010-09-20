@@ -12,6 +12,7 @@
 #define EFX_EFX_H
 
 #include "net_driver.h"
+#include "filter.h"
 
 /* PCI IDs */
 #define EFX_VENDID_SFC	        0x1924
@@ -63,6 +64,19 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
  * efx_wake_queue() assume that they can subsequently send at least one
  * skb. Falcon/A1 may require up to three descriptors per skb_frag. */
 #define EFX_MIN_RING_SIZE (roundup_pow_of_two(2 * 3 * MAX_SKB_FRAGS))
+
+/* Filters */
+extern int efx_probe_filters(struct efx_nic *efx);
+extern void efx_restore_filters(struct efx_nic *efx);
+extern void efx_remove_filters(struct efx_nic *efx);
+extern int efx_filter_insert_filter(struct efx_nic *efx,
+				    struct efx_filter_spec *spec,
+				    bool replace);
+extern int efx_filter_remove_filter(struct efx_nic *efx,
+				    struct efx_filter_spec *spec);
+extern void efx_filter_table_clear(struct efx_nic *efx,
+				   enum efx_filter_table_id table_id,
+				   enum efx_filter_priority priority);
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
