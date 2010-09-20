@@ -1394,8 +1394,11 @@ static inline void mwait_play_dead(void)
 	unsigned int highest_cstate = 0;
 	unsigned int highest_subcstate = 0;
 	int i;
+	void *mwait_ptr;
 
 	if (!cpu_has(&current_cpu_data, X86_FEATURE_MWAIT))
+		return;
+	if (!cpu_has(&current_cpu_data, X86_FEATURE_CLFLSH))
 		return;
 	if (current_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
 		return;
@@ -1422,10 +1425,25 @@ static inline void mwait_play_dead(void)
 			(highest_subcstate - 1);
 	}
 
+	/*
+	 * This should be a memory location in a cache line which is
+	 * unlikely to be touched by other processors.  The actual
+	 * content is immaterial as it is not actually modified in any way.
+	 */
+	mwait_ptr = &current_thread_info()->flags;
+
 	wbinvd();
 
 	while (1) {
-		__monitor(&current_thread_info()->flags, 0, 0);
+		/*
+		 * The CLFLUSH is a workaround for erratum AAI65 for
+		 * the Xeon 7400 series.  It's not clear it is actually
+		 * needed, but it should be harmless in either case.
+		 * The WBINVD is insufficient due to the spurious-wakeup
+		 * case where we return around the loop.
+		 */
+		clflush(mwait_ptr);
+		__monitor(mwait_ptr, 0, 0);
 		mb();
 		__mwait(eax, 0);
 	}
