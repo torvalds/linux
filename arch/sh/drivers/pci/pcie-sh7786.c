@@ -323,9 +323,6 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	__raw_writel(memphys, chan->reg_base + SH4A_PCIELAR0);
 	__raw_writel((memsize - SZ_256) | 1, chan->reg_base + SH4A_PCIELAMR0);
 
-	__raw_writel(memphys, chan->reg_base + SH4A_PCIEPCICONF4);
-	__raw_writel(0, chan->reg_base + SH4A_PCIEPCICONF5);
-
 	/* Finish initialization */
 	data = pci_read_reg(chan, SH4A_PCIETCTLR);
 	data |= 0x1;
