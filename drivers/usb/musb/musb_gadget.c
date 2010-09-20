@@ -300,6 +300,11 @@ static void txstate(struct musb *musb, struct musb_request *req)
 #ifndef	CONFIG_MUSB_PIO_ONLY
 	if (is_dma_capable() && musb_ep->dma) {
 		struct dma_controller	*c = musb->dma_controller;
+		size_t request_size;
+
+		/* setup DMA, then program endpoint CSR */
+		request_size = min_t(size_t, request->length - request->actual,
+					musb_ep->dma->max_len);
 
 		use_dma = (request->dma != DMA_ADDR_INVALID);
 
@@ -307,11 +312,6 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 #ifdef CONFIG_USB_INVENTRA_DMA
 		{
-			size_t request_size;
-
-			/* setup DMA, then program endpoint CSR */
-			request_size = min_t(size_t, request->length,
-						musb_ep->dma->max_len);
 			if (request_size < musb_ep->packet_sz)
 				musb_ep->dma->desired_mode = 0;
 			else
@@ -373,8 +373,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 		use_dma = use_dma && c->channel_program(
 				musb_ep->dma, musb_ep->packet_sz,
 				0,
-				request->dma,
-				request->length);
+				request->dma + request->actual,
+				request_size);
 		if (!use_dma) {
 			c->channel_release(musb_ep->dma);
 			musb_ep->dma = NULL;
@@ -386,8 +386,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 		use_dma = use_dma && c->channel_program(
 				musb_ep->dma, musb_ep->packet_sz,
 				request->zero,
-				request->dma,
-				request->length);
+				request->dma + request->actual,
+				request_size);
 #endif
 	}
 #endif
