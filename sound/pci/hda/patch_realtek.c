@@ -393,6 +393,7 @@ struct alc_spec {
 	unsigned int no_analog :1; /* digital I/O only */
 	unsigned int dual_adc_switch:1; /* switch ADCs (for ALC275) */
 	int init_amp;
+	int codec_variant;	/* flag for other variants */
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
@@ -14568,6 +14569,13 @@ static int alc275_setup_dual_adc(struct hda_codec *codec)
 	return 0;
 }
 
+/* different alc269-variants */
+enum {
+	ALC269_TYPE_NORMAL,
+	ALC269_TYPE_ALC259,
+	ALC269_TYPE_ALC271X,
+};
+
 /*
  * BIOS auto configuration
  */
@@ -14596,7 +14604,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010) {
+	if (spec->codec_variant != ALC269_TYPE_NORMAL) {
 		add_verb(spec, alc269vb_init_verbs);
 		alc_ssid_check(codec, 0, 0x1b, 0x14, 0x21);
 	} else {
@@ -14962,7 +14970,6 @@ static int patch_alc269(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int board_config;
 	int err;
-	int is_alc269vb = 0;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -14974,11 +14981,13 @@ static int patch_alc269(struct hda_codec *codec)
 
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010){
 		if (codec->bus->pci->subsystem_vendor == 0x1025 &&
-		    spec->cdefine.platform_type == 1)
+		    spec->cdefine.platform_type == 1) {
 			alc_codec_rename(codec, "ALC271X");
-		else
+			spec->codec_variant = ALC269_TYPE_ALC271X;
+		} else {
 			alc_codec_rename(codec, "ALC259");
-		is_alc269vb = 1;
+			spec->codec_variant = ALC269_TYPE_ALC259;
+		}
 	} else
 		alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
@@ -15040,7 +15049,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
 	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
-		if (!is_alc269vb) {
+		if (spec->codec_variant != ALC269_TYPE_NORMAL) {
 			spec->adc_nids = alc269_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
 			spec->capsrc_nids = alc269_capsrc_nids;
