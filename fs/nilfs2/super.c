@@ -73,6 +73,7 @@ struct kmem_cache *nilfs_transaction_cachep;
 struct kmem_cache *nilfs_segbuf_cachep;
 struct kmem_cache *nilfs_btree_path_cache;
 
+static int nilfs_setup_super(struct nilfs_sb_info *sbi, int is_mount);
 static int nilfs_remount(struct super_block *sb, int *flags, char *data);
 
 static void nilfs_set_error(struct nilfs_sb_info *sbi)
@@ -439,6 +440,36 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
 	return err;
 }
 
+static int nilfs_freeze(struct super_block *sb)
+{
+	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = sbi->s_nilfs;
+	int err;
+
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	/* Mark super block clean */
+	down_write(&nilfs->ns_sem);
+	err = nilfs_cleanup_super(sbi);
+	up_write(&nilfs->ns_sem);
+	return err;
+}
+
+static int nilfs_unfreeze(struct super_block *sb)
+{
+	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = sbi->s_nilfs;
+
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	down_write(&nilfs->ns_sem);
+	nilfs_setup_super(sbi, false);
+	up_write(&nilfs->ns_sem);
+	return 0;
+}
+
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
@@ -523,6 +554,8 @@ static const struct super_operations nilfs_sops = {
 	.put_super      = nilfs_put_super,
 	/* .write_super    = nilfs_write_super, */
 	.sync_fs        = nilfs_sync_fs,
+	.freeze_fs	= nilfs_freeze,
+	.unfreeze_fs	= nilfs_unfreeze,
 	/* .write_super_lockfs */
 	/* .unlockfs */
 	.statfs         = nilfs_statfs,
@@ -626,7 +659,7 @@ nilfs_set_default_options(struct nilfs_sb_info *sbi,
 		NILFS_MOUNT_ERRORS_RO | NILFS_MOUNT_BARRIER;
 }
 
-static int nilfs_setup_super(struct nilfs_sb_info *sbi)
+static int nilfs_setup_super(struct nilfs_sb_info *sbi, int is_mount)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	struct nilfs_super_block **sbp;
@@ -637,6 +670,9 @@ static int nilfs_setup_super(struct nilfs_sb_info *sbi)
 	sbp = nilfs_prepare_super(sbi, 0);
 	if (!sbp)
 		return -EIO;
+
+	if (!is_mount)
+		goto skip_mount_setup;
 
 	max_mnt_count = le16_to_cpu(sbp[0]->s_max_mnt_count);
 	mnt_count = le16_to_cpu(sbp[0]->s_mnt_count);
@@ -654,9 +690,11 @@ static int nilfs_setup_super(struct nilfs_sb_info *sbi)
 		sbp[0]->s_max_mnt_count = cpu_to_le16(NILFS_DFL_MAX_MNT_COUNT);
 
 	sbp[0]->s_mnt_count = cpu_to_le16(mnt_count + 1);
+	sbp[0]->s_mtime = cpu_to_le64(get_seconds());
+
+skip_mount_setup:
 	sbp[0]->s_state =
 		cpu_to_le16(le16_to_cpu(sbp[0]->s_state) & ~NILFS_VALID_FS);
-	sbp[0]->s_mtime = cpu_to_le64(get_seconds());
 	/* synchronize sbp[1] with sbp[0] */
 	memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
 	return nilfs_commit_super(sbi, NILFS_SB_COMMIT_ALL);
@@ -938,7 +976,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		down_write(&nilfs->ns_sem);
-		nilfs_setup_super(sbi);
+		nilfs_setup_super(sbi, true);
 		up_write(&nilfs->ns_sem);
 	}
 
@@ -1034,7 +1072,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 			goto restore_opts;
 
 		down_write(&nilfs->ns_sem);
-		nilfs_setup_super(sbi);
+		nilfs_setup_super(sbi, true);
 		up_write(&nilfs->ns_sem);
 	}
  out:
@@ -1132,7 +1170,19 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 		goto failed;
 	}
 
+	/*
+	 * once the super is inserted into the list by sget, s_umount
+	 * will protect the lockfs code from trying to start a snapshot
+	 * while we are mounting
+	 */
+	mutex_lock(&sd.bdev->bd_fsfreeze_mutex);
+	if (sd.bdev->bd_fsfreeze_count > 0) {
+		mutex_unlock(&sd.bdev->bd_fsfreeze_mutex);
+		err = -EBUSY;
+		goto failed;
+	}
 	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, sd.bdev);
+	mutex_unlock(&sd.bdev->bd_fsfreeze_mutex);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
 		goto failed;

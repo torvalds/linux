@@ -191,6 +191,8 @@ int nilfs_transaction_begin(struct super_block *sb,
 	if (ret > 0)
 		return 0;
 
+	vfs_check_frozen(sb, SB_FREEZE_WRITE);
+
 	sbi = NILFS_SB(sb);
 	nilfs = sbi->s_nilfs;
 	down_read(&nilfs->ns_segctor_sem);
