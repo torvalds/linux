@@ -351,6 +351,7 @@ struct cifsFileInfo {
 	struct file *pfile; /* needed for writepage */
 	struct inode *pInode; /* needed for oplock break */
 	struct vfsmount *mnt;
+	struct cifsTconInfo *tcon;
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
 	bool closePend:1;	/* file is marked to close */
