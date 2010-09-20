@@ -850,8 +850,9 @@ void rtl8192_set_chan(struct net_device *dev,short ch)
 
 void rtl8192_rx_enable(struct net_device *dev)
 {
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-    write_nic_dword(dev, RDQDA,priv->rx_ring_dma);
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+
+	write_nic_dword(dev, RDQDA,priv->rx_ring_dma);
 }
 
 /* the TX_DESC_BASE setting is according to the following queue index
@@ -868,54 +869,55 @@ void rtl8192_rx_enable(struct net_device *dev)
 static const u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
 void rtl8192_tx_enable(struct net_device *dev)
 {
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-    u32 i;
-    for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
-        write_nic_dword(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	u32 i;
 
-    ieee80211_reset_queue(priv->ieee80211);
+	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
+		write_nic_dword(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
+
+	ieee80211_reset_queue(priv->ieee80211);
 }
 
 
 static void rtl8192_free_rx_ring(struct net_device *dev)
 {
-    struct r8192_priv *priv = ieee80211_priv(dev);
-    int i;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	int i;
 
-    for (i = 0; i < priv->rxringcount; i++) {
-        struct sk_buff *skb = priv->rx_buf[i];
-        if (!skb)
-            continue;
+	for (i = 0; i < priv->rxringcount; i++) {
+		struct sk_buff *skb = priv->rx_buf[i];
+		if (!skb)
+			continue;
 
-        pci_unmap_single(priv->pdev,
-                *((dma_addr_t *)skb->cb),
-                priv->rxbuffersize, PCI_DMA_FROMDEVICE);
-        kfree_skb(skb);
-    }
+		pci_unmap_single(priv->pdev,
+				 *((dma_addr_t *)skb->cb),
+				 priv->rxbuffersize, PCI_DMA_FROMDEVICE);
+		kfree_skb(skb);
+	}
 
-    pci_free_consistent(priv->pdev, sizeof(*priv->rx_ring) * priv->rxringcount,
-            priv->rx_ring, priv->rx_ring_dma);
-    priv->rx_ring = NULL;
+	pci_free_consistent(priv->pdev, sizeof(*priv->rx_ring) * priv->rxringcount,
+			    priv->rx_ring, priv->rx_ring_dma);
+	priv->rx_ring = NULL;
 }
 
 static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
 {
-    struct r8192_priv *priv = ieee80211_priv(dev);
-    struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
 
-    while (skb_queue_len(&ring->queue)) {
-        tx_desc_819x_pci *entry = &ring->desc[ring->idx];
-        struct sk_buff *skb = __skb_dequeue(&ring->queue);
+	while (skb_queue_len(&ring->queue)) {
+		tx_desc_819x_pci *entry = &ring->desc[ring->idx];
+		struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
-        pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
-                skb->len, PCI_DMA_TODEVICE);
-        kfree_skb(skb);
-        ring->idx = (ring->idx + 1) % ring->entries;
-    }
+		pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
+				 skb->len, PCI_DMA_TODEVICE);
+		kfree_skb(skb);
+		ring->idx = (ring->idx + 1) % ring->entries;
+	}
 
-    pci_free_consistent(priv->pdev, sizeof(*ring->desc)*ring->entries,
-            ring->desc, ring->dma);
-    ring->desc = NULL;
+	pci_free_consistent(priv->pdev, sizeof(*ring->desc)*ring->entries,
+			    ring->desc, ring->dma);
+	ring->desc = NULL;
 }
 
 void PHY_SetRtl8192eRfOff(struct net_device* dev)
