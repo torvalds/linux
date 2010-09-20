@@ -56,7 +56,7 @@ static void _clk_ccgr_disable(struct clk *clk)
 {
 	u32 reg;
 	reg = __raw_readl(clk->enable_reg);
-	reg &= ~(MXC_CCM_CCGRx_MOD_OFF << clk->enable_shift);
+	reg &= ~(MXC_CCM_CCGRx_CG_MASK << clk->enable_shift);
 	__raw_writel(reg, clk->enable_reg);
 
 }

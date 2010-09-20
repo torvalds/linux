@@ -1838,25 +1838,32 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	qla24xx_disable_vp(vha);
 
+	vha->flags.delete_progress = 1;
+
 	fc_remove_host(vha->host);
 
 	scsi_remove_host(vha->host);
 
-	qla2x00_free_fcports(vha);
+	if (vha->timer_active) {
+		qla2x00_vp_stop_timer(vha);
+		DEBUG15(printk(KERN_INFO "scsi(%ld): timer for the vport[%d]"
+		" = %p has stopped\n", vha->host_no, vha->vp_idx, vha));
+	}
 
 	qla24xx_deallocate_vp_id(vha);
+
+	/* No pending activities shall be there on the vha now */
+	DEBUG(msleep(random32()%10));  /* Just to see if something falls on
+					* the net we have placed below */
+
+	BUG_ON(atomic_read(&vha->vref_count));
+
+	qla2x00_free_fcports(vha);
 
 	mutex_lock(&ha->vport_lock);
 	ha->cur_vport_count--;
 	clear_bit(vha->vp_idx, ha->vp_idx_map);
 	mutex_unlock(&ha->vport_lock);
-
-	if (vha->timer_active) {
-		qla2x00_vp_stop_timer(vha);
-		DEBUG15(printk ("scsi(%ld): timer for the vport[%d] = %p "
-		    "has stopped\n",
-		    vha->host_no, vha->vp_idx, vha));
-        }
 
 	if (vha->req->id && !ha->flags.cpu_affinity_enabled) {
 		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)

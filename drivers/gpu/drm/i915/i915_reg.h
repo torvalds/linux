@@ -319,6 +319,7 @@
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
+# define MI_FLUSH_ENABLE				(1 << 11)
 
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
@@ -2205,9 +2206,17 @@
 #define  WM1_LP_SR_EN		(1<<31)
 #define  WM1_LP_LATENCY_SHIFT	24
 #define  WM1_LP_LATENCY_MASK	(0x7f<<24)
+#define  WM1_LP_FBC_LP1_MASK	(0xf<<20)
+#define  WM1_LP_FBC_LP1_SHIFT	20
 #define  WM1_LP_SR_MASK		(0x1ff<<8)
 #define  WM1_LP_SR_SHIFT	8
 #define  WM1_LP_CURSOR_MASK	(0x3f)
+#define WM2_LP_ILK		0x4510c
+#define  WM2_LP_EN		(1<<31)
+#define WM3_LP_ILK		0x45110
+#define  WM3_LP_EN		(1<<31)
+#define WM1S_LP_ILK		0x45120
+#define  WM1S_LP_EN		(1<<31)
 
 /* Memory latency timer register */
 #define MLTR_ILK		0x11222
