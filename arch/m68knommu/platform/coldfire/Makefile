@@ -26,6 +26,7 @@ obj-$(CONFIG_M528x)	+= pit.o intc-2.o
 obj-$(CONFIG_M5307)	+= timers.o intc.o
 obj-$(CONFIG_M532x)	+= timers.o intc-simr.o
 obj-$(CONFIG_M5407)	+= timers.o intc.o
+obj-$(CONFIG_M548x)	+= sltimers.o intc-2.o
 
 obj-y			+= pinmux.o gpio.o
 extra-y := head.o
