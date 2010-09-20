@@ -1300,7 +1300,7 @@ static int tm6000_open(struct file *file)
 			NULL, &dev->slock,
 			fh->type,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct tm6000_buffer),fh);
+			sizeof(struct tm6000_buffer), fh, NULL);
 
 	return 0;
 }

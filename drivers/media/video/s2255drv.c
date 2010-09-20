@@ -1817,7 +1817,7 @@ static int s2255_open(struct file *file)
 				    NULL, &dev->slock,
 				    fh->type,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct s2255_buffer), fh);
+				    sizeof(struct s2255_buffer), fh, NULL);
 	return 0;
 }
 

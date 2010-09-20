@@ -1176,7 +1176,7 @@ static int __init vivi_create_instance(int inst)
 	videobuf_queue_vmalloc_init(&dev->vb_vidq, &vivi_video_qops,
 			NULL, &dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct vivi_buffer), dev);
+			sizeof(struct vivi_buffer), dev, NULL);
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);

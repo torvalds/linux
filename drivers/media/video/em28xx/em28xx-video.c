@@ -2182,13 +2182,13 @@ static int em28xx_v4l2_open(struct file *filp)
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE, field,
-				    sizeof(struct em28xx_buffer), fh);
+				    sizeof(struct em28xx_buffer), fh, NULL);
 
 	videobuf_queue_vmalloc_init(&fh->vb_vbiq, &em28xx_vbi_qops,
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VBI_CAPTURE,
 				    V4L2_FIELD_SEQ_TB,
-				    sizeof(struct em28xx_buffer), fh);
+				    sizeof(struct em28xx_buffer), fh, NULL);
 
 	mutex_unlock(&dev->lock);
 

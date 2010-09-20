@@ -856,7 +856,7 @@ static int video_open(struct file *file)
 			      &dev->pci->dev, &dev->slock,
 			      V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			      V4L2_FIELD_INTERLACED,
-			      sizeof(struct cx25821_buffer), fh);
+			      sizeof(struct cx25821_buffer), fh, NULL);
 
        dprintk(1, "post videobuf_queue_init()\n");
        unlock_kernel();

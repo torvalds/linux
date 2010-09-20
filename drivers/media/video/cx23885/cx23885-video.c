@@ -758,7 +758,7 @@ static int video_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
-			    fh);
+			    fh, NULL);
 
 	dprintk(1, "post videobuf_queue_init()\n");
 

@@ -2008,7 +2008,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_video_qops,
 					    NULL, &dev->video_mode.slock,
 					    fh->type, V4L2_FIELD_INTERLACED,
-					    sizeof(struct cx231xx_buffer), fh);
+					    sizeof(struct cx231xx_buffer),
+					    fh, NULL);
 	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		/* Set the required alternate setting  VBI interface works in
 		   Bulk mode only */
@@ -2017,7 +2018,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_vbi_qops,
 					    NULL, &dev->vbi_mode.slock,
 					    fh->type, V4L2_FIELD_SEQ_TB,
-					    sizeof(struct cx231xx_buffer), fh);
+					    sizeof(struct cx231xx_buffer),
+					    fh, NULL);
 	}
 
 	mutex_unlock(&dev->lock);
