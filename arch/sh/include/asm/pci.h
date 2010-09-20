@@ -37,6 +37,8 @@ struct pci_channel {
 };
 
 /* arch/sh/drivers/pci/pci.c */
+extern raw_spinlock_t pci_config_lock;
+
 extern int register_pci_controller(struct pci_channel *hose);
 extern void pcibios_report_status(unsigned int status_mask, int warn);
 

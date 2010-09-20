@@ -19,6 +19,7 @@
 #include <linux/dma-debug.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 
 unsigned long PCIBIOS_MIN_IO = 0x0000;
 unsigned long PCIBIOS_MIN_MEM = 0;
@@ -56,6 +57,11 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 	}
 }
 
+/*
+ * This interrupt-safe spinlock protects all accesses to PCI
+ * configuration space.
+ */
+DEFINE_RAW_SPINLOCK(pci_config_lock);
 static DEFINE_MUTEX(pci_scan_mutex);
 
 int __devinit register_pci_controller(struct pci_channel *hose)

@@ -19,8 +19,6 @@ enum {
 	PCI_ACCESS_WRITE,
 };
 
-static DEFINE_SPINLOCK(sh7786_pcie_lock);
-
 static int sh7786_pcie_config_access(unsigned char access_type,
 		struct pci_bus *bus, unsigned int devfn, int where, u32 *data)
 {
@@ -103,7 +101,7 @@ static int sh7786_pcie_read(struct pci_bus *bus, unsigned int devfn,
 	else if ((size == 4) && (where & 3))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	spin_lock_irqsave(&sh7786_pcie_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	ret = sh7786_pcie_config_access(PCI_ACCESS_READ, bus,
 					devfn, where, &data);
 	if (ret != PCIBIOS_SUCCESSFUL) {
@@ -123,7 +121,7 @@ static int sh7786_pcie_read(struct pci_bus *bus, unsigned int devfn,
 		devfn, where, size, (unsigned long)*val);
 
 out:
-	spin_unlock_irqrestore(&sh7786_pcie_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 	return ret;
 }
 
@@ -139,7 +137,7 @@ static int sh7786_pcie_write(struct pci_bus *bus, unsigned int devfn,
 	else if ((size == 4) && (where & 3))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	spin_lock_irqsave(&sh7786_pcie_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	ret = sh7786_pcie_config_access(PCI_ACCESS_READ, bus,
 					devfn, where, &data);
 	if (ret != PCIBIOS_SUCCESSFUL)
@@ -163,7 +161,7 @@ static int sh7786_pcie_write(struct pci_bus *bus, unsigned int devfn,
 	ret = sh7786_pcie_config_access(PCI_ACCESS_WRITE, bus,
 					devfn, where, &data);
 out:
-	spin_unlock_irqrestore(&sh7786_pcie_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 	return ret;
 }
 
