@@ -1744,8 +1744,6 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	wm8962->reg_cache[WM8962_HPOUTL_VOLUME] |= WM8962_HPOUT_VU;
 	wm8962->reg_cache[WM8962_HPOUTR_VOLUME] |= WM8962_HPOUT_VU;
 
-	snd_soc_add_controls(codec, wm8962_snd_controls,
-			     ARRAY_SIZE(wm8962_snd_controls));
 	wm8962_add_widgets(codec);
 
 	wm8962_init_beep(codec);
