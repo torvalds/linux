@@ -1341,9 +1341,6 @@ static int aic3x_init(struct snd_soc_codec *codec)
 		snd_soc_write(codec, CLASSD_CTRL, 0);
 	}
 
-	/* off, with power on */
-	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
@@ -1354,6 +1351,7 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 
 	codec->control_data = aic3x->control_data;
 	aic3x->codec = codec;
+	codec->idle_bias_off = 1;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, aic3x->control_type);
 	if (ret != 0) {
@@ -1390,19 +1388,7 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(aic3x->supplies),
-				    aic3x->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_enable;
-	}
-	aic3x->power = 1;
-
-	if (aic3x->gpio_reset >= 0) {
-		udelay(1);
-		gpio_set_value(aic3x->gpio_reset, 1);
-	}
-
+	codec->cache_only = 1;
 	aic3x_init(codec);
 
 	if (aic3x->setup) {
@@ -1422,7 +1408,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 
 	return 0;
 
-err_enable:
 err_notif:
 	while (i--)
 		regulator_unregister_notifier(aic3x->supplies[i].consumer,
@@ -1446,7 +1431,6 @@ static int aic3x_remove(struct snd_soc_codec *codec)
 		gpio_set_value(aic3x->gpio_reset, 0);
 		gpio_free(aic3x->gpio_reset);
 	}
-	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
 		regulator_unregister_notifier(aic3x->supplies[i].consumer,
 					      &aic3x->disable_nb[i].nb);
