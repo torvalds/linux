@@ -2727,7 +2727,7 @@ try_mount_again:
 		goto remote_path_check;
 	}
 
-	cifs_sb->tcon = tcon;
+	cifs_sb->ptcon = tcon;
 
 	/* do not care if following two calls succeed - informational */
 	if (!tcon->ipc) {
@@ -3029,7 +3029,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	if (cifs_sb_tcon(cifs_sb))
 		cifs_put_tcon(cifs_sb_tcon(cifs_sb));
 
-	cifs_sb->tcon = NULL;
+	cifs_sb->ptcon = NULL;
 	tmp = cifs_sb->prepath;
 	cifs_sb->prepathlen = 0;
 	cifs_sb->prepath = NULL;

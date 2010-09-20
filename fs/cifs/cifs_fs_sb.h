@@ -39,7 +39,7 @@
 #define CIFS_MOUNT_MF_SYMLINKS	0x10000 /* Minshall+French Symlinks enabled */
 
 struct cifs_sb_info {
-	struct cifsTconInfo *tcon;	/* primary mount */
+	struct cifsTconInfo *ptcon;	/* primary mount */
 	struct list_head nested_tcon_q;
 	struct nls_table *local_nls;
 	unsigned int rsize;

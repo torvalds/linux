@@ -416,7 +416,7 @@ CIFS_SB(struct super_block *sb)
 static inline struct cifsTconInfo *
 cifs_sb_tcon(struct cifs_sb_info *cifs_sb)
 {
-	return cifs_sb->tcon;
+	return cifs_sb->ptcon;
 }
 
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
