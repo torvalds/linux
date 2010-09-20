@@ -17,6 +17,7 @@
 #include <plat/regs-serial.h>
 #include <plat/s5pv310.h>
 #include <plat/cpu.h>
+#include <plat/devs.h>
 
 #include <mach/map.h>
 
@@ -65,6 +66,10 @@ static struct s3c2410_uartcfg smdkv310_uartcfgs[] __initdata = {
 	},
 };
 
+static struct platform_device *smdkv310_devices[] __initdata = {
+	&s3c_device_rtc,
+};
+
 static void __init smdkv310_map_io(void)
 {
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
@@ -77,6 +82,8 @@ static void __init smdkv310_machine_init(void)
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_init(S5P_VA_L2CC, 1 << 28, 0xffffffff);
 #endif
+
+	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
 }
 
 MACHINE_START(SMDKV310, "SMDKV310")

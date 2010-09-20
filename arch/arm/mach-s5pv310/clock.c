@@ -472,6 +472,11 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5pv310_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 15),
 	}, {
+		.name		= "rtc",
+		.id		= -1,
+		.enable		= s5pv310_clk_ip_perir_ctrl,
+		.ctrlbit	= (1 << 15),
+	}, {
 		.name		= "watchdog",
 		.id		= -1,
 		.enable		= s5pv310_clk_ip_perir_ctrl,
