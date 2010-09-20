@@ -568,6 +568,13 @@
 
 #define PCI_REG(x)		((x) + 0x40000)
 
+#define U64_TO_U32_LOW(val)	((u32)((val) & 0x00000000ffffffffULL))
+#define U64_TO_U32_HIGH(val)	((u32)((val) >> 32))
+#define RES_TO_U32_LOW(val)     \
+	((sizeof(resource_size_t) > sizeof(u32)) ? U64_TO_U32_LOW(val) : (val))
+#define RES_TO_U32_HIGH(val)    \
+	((sizeof(resource_size_t) > sizeof(u32)) ? U64_TO_U32_HIGH(val) : (0))
+
 static inline void
 pci_write_reg(struct pci_channel *chan, unsigned long val, unsigned long reg)
 {

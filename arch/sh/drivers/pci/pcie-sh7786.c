@@ -304,24 +304,24 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	 * LAR1/LAMR1.
 	 */
 	if (memsize > SZ_512M) {
-		__raw_writel(memphys + SZ_512M, chan->reg_base + SH4A_PCIELAR1);
-		__raw_writel(((memsize - SZ_512M) - SZ_256) | 1,
-			     chan->reg_base + SH4A_PCIELAMR1);
+		pci_write_reg(chan, memphys + SZ_512M, SH4A_PCIELAR1);
+		pci_write_reg(chan, ((memsize - SZ_512M) - SZ_256) | 1,
+			      SH4A_PCIELAMR1);
 		memsize = SZ_512M;
 	} else {
 		/*
 		 * Otherwise just zero it out and disable it.
 		 */
-		__raw_writel(0, chan->reg_base + SH4A_PCIELAR1);
-		__raw_writel(0, chan->reg_base + SH4A_PCIELAMR1);
+		pci_write_reg(chan, 0, SH4A_PCIELAR1);
+		pci_write_reg(chan, 0, SH4A_PCIELAMR1);
 	}
 
 	/*
 	 * LAR0/LAMR0 covers up to the first 512MB, which is enough to
 	 * cover all of lowmem on most platforms.
 	 */
-	__raw_writel(memphys, chan->reg_base + SH4A_PCIELAR0);
-	__raw_writel((memsize - SZ_256) | 1, chan->reg_base + SH4A_PCIELAMR0);
+	pci_write_reg(chan, memphys, SH4A_PCIELAR0);
+	pci_write_reg(chan, (memsize - SZ_256) | 1, SH4A_PCIELAMR0);
 
 	/* Finish initialization */
 	data = pci_read_reg(chan, SH4A_PCIETCTLR);
@@ -370,7 +370,7 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	for (i = win = 0; i < chan->nr_resources; i++) {
 		struct resource *res = chan->resources + i;
 		resource_size_t size;
-		u32 enable_mask;
+		u32 mask;
 
 		/*
 		 * We can't use the 32-bit mode windows in legacy 29-bit
@@ -381,23 +381,24 @@ static int pcie_init(struct sh7786_pcie_port *port)
 
 		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(win));
 
-		size = resource_size(res);
-
 		/*
 		 * The PAMR mask is calculated in units of 256kB, which
 		 * keeps things pretty simple.
 		 */
-		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
-			     chan->reg_base + SH4A_PCIEPAMR(win));
+		size = resource_size(res);
+		mask = (roundup_pow_of_two(size) / SZ_256K) - 1;
+		pci_write_reg(chan, mask << 18, SH4A_PCIEPAMR(win));
 
-		pci_write_reg(chan, res->start, SH4A_PCIEPARL(win));
-		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(win));
+		pci_write_reg(chan, RES_TO_U32_HIGH(res->start),
+			      SH4A_PCIEPARH(win));
+		pci_write_reg(chan, RES_TO_U32_LOW(res->start),
+			      SH4A_PCIEPARL(win));
 
-		enable_mask = MASK_PARE;
+		mask = MASK_PARE;
 		if (res->flags & IORESOURCE_IO)
-			enable_mask |= MASK_SPC;
+			mask |= MASK_SPC;
 
-		pci_write_reg(chan, enable_mask, SH4A_PCIEPTCTLR(win));
+		pci_write_reg(chan, mask, SH4A_PCIEPTCTLR(win));
 
 		win++;
 	}
