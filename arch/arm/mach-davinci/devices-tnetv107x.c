@@ -33,6 +33,7 @@
 #define TNETV107X_WDOG_BASE			0x08086700
 #define TNETV107X_SDIO0_BASE			0x08088700
 #define TNETV107X_SDIO1_BASE			0x08088800
+#define TNETV107X_KEYPAD_BASE			0x08088a00
 #define TNETV107X_ASYNC_EMIF_CNTRL_BASE		0x08200000
 #define TNETV107X_ASYNC_EMIF_DATA_CE0_BASE	0x30000000
 #define TNETV107X_ASYNC_EMIF_DATA_CE1_BASE	0x40000000
@@ -298,6 +299,30 @@ static int __init nand_init(int chipsel, struct davinci_nand_pdata *data)
 	return platform_device_register(pdev);
 }
 
+static struct resource keypad_resources[] = {
+	{
+		.start	= TNETV107X_KEYPAD_BASE,
+		.end	= TNETV107X_KEYPAD_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_TNETV107X_KEYPAD,
+		.flags	= IORESOURCE_IRQ,
+		.name	= "press",
+	},
+	{
+		.start	= IRQ_TNETV107X_KEYPAD_FREE,
+		.flags	= IORESOURCE_IRQ,
+		.name	= "release",
+	},
+};
+
+static struct platform_device keypad_device = {
+	.name		= "tnetv107x-keypad",
+	.num_resources	= ARRAY_SIZE(keypad_resources),
+	.resource	= keypad_resources,
+};
+
 void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 {
 	int i;
@@ -317,4 +342,9 @@ void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 	for (i = 0; i < 4; i++)
 		if (info->nand_config[i])
 			nand_init(i, info->nand_config[i]);
+
+	if (info->keypad_config) {
+		keypad_device.dev.platform_data = info->keypad_config;
+		platform_device_register(&keypad_device);
+	}
 }
