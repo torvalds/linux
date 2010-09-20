@@ -1982,8 +1982,8 @@ int snd_soc_add_controls(struct snd_soc_codec *codec,
 		const struct snd_kcontrol_new *control = &controls[i];
 		err = snd_ctl_add(card, snd_soc_cnew(control, codec, NULL));
 		if (err < 0) {
-			dev_err(codec->dev, "%s: Failed to add %s\n",
-				codec->name, control->name);
+			dev_err(codec->dev, "%s: Failed to add %s: %d\n",
+				codec->name, control->name, err);
 			return err;
 		}
 	}
