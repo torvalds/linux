@@ -25,7 +25,6 @@
  */
 
 
-#undef LOOP_TEST
 #undef RX_DONT_PASS_UL
 #undef DEBUG_EPROM
 #undef DEBUG_RX_VERBOSE
@@ -839,36 +838,14 @@ void rtl8192_update_msr(struct net_device *dev)
 
 void rtl8192_set_chan(struct net_device *dev,short ch)
 {
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-    RT_TRACE(COMP_RF, "=====>%s()====ch:%d\n", __FUNCTION__, ch);
-    priv->chan=ch;
-#if 0
-    if(priv->ieee80211->iw_mode == IW_MODE_ADHOC ||
-            priv->ieee80211->iw_mode == IW_MODE_MASTER){
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
-        priv->ieee80211->link_state = WLAN_LINK_ASSOCIATED;
-        priv->ieee80211->master_chan = ch;
-        rtl8192_update_beacon_ch(dev);
-    }
-#endif
+	priv->chan = ch;
 
-    /* this hack should avoid frame TX during channel setting*/
+	/* need to implement rf set channel here WB */
 
-
-    //	tx = read_nic_dword(dev,TX_CONF);
-    //	tx &= ~TX_LOOPBACK_MASK;
-
-#ifndef LOOP_TEST
-    //TODO
-    //	write_nic_dword(dev,TX_CONF, tx |( TX_LOOPBACK_MAC<<TX_LOOPBACK_SHIFT));
-
-    //need to implement rf set channel here WB
-
-    if (priv->rf_set_chan)
-        priv->rf_set_chan(dev,priv->chan);
-    //	mdelay(10);
-    //	write_nic_dword(dev,TX_CONF,tx | (TX_LOOPBACK_NONE<<TX_LOOPBACK_SHIFT));
-#endif
+	if (priv->rf_set_chan)
+		priv->rf_set_chan(dev, priv->chan);
 }
 
 void rtl8192_rx_enable(struct net_device *dev)
