@@ -190,23 +190,6 @@ static void bin_vma_open(struct vm_area_struct *vma)
 	sysfs_put_active(attr_sd);
 }
 
-static void bin_vma_close(struct vm_area_struct *vma)
-{
-	struct file *file = vma->vm_file;
-	struct bin_buffer *bb = file->private_data;
-	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-
-	if (!bb->vm_ops || !bb->vm_ops->close)
-		return;
-
-	if (!sysfs_get_active(attr_sd))
-		return;
-
-	bb->vm_ops->close(vma);
-
-	sysfs_put_active(attr_sd);
-}
-
 static int bin_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
@@ -331,7 +314,6 @@ static int bin_migrate(struct vm_area_struct *vma, const nodemask_t *from,
 
 static const struct vm_operations_struct bin_vm_ops = {
 	.open		= bin_vma_open,
-	.close		= bin_vma_close,
 	.fault		= bin_fault,
 	.page_mkwrite	= bin_page_mkwrite,
 	.access		= bin_access,
@@ -375,6 +357,14 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 
 	rc = -EINVAL;
 	if (bb->mmapped && bb->vm_ops != vma->vm_ops)
+		goto out_put;
+
+	/*
+	 * It is not possible to successfully wrap close.
+	 * So error if someone is trying to use close.
+	 */
+	rc = -EINVAL;
+	if (vma->vm_ops && vma->vm_ops->close)
 		goto out_put;
 
 	rc = 0;
