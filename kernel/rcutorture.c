@@ -120,7 +120,7 @@ struct rcu_torture {
 };
 
 static LIST_HEAD(rcu_torture_freelist);
-static struct rcu_torture *rcu_torture_current;
+static struct rcu_torture __rcu *rcu_torture_current;
 static long rcu_torture_current_version;
 static struct rcu_torture rcu_tortures[10 * RCU_TORTURE_PIPE_LEN];
 static DEFINE_SPINLOCK(rcu_torture_lock);
@@ -153,8 +153,10 @@ int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
 #define FULLSTOP_SHUTDOWN 1	/* System shutdown with rcutorture running. */
 #define FULLSTOP_RMMOD    2	/* Normal rmmod of rcutorture. */
 static int fullstop = FULLSTOP_RMMOD;
-DEFINE_MUTEX(fullstop_mutex);	/* Protect fullstop transitions and spawning */
-				/*  of kthreads. */
+/*
+ * Protect fullstop transitions and spawning of kthreads.
+ */
+static DEFINE_MUTEX(fullstop_mutex);
 
 /*
  * Detect and respond to a system shutdown.
@@ -737,7 +739,8 @@ rcu_torture_writer(void *arg)
 			continue;
 		rp->rtort_pipe_count = 0;
 		udelay(rcu_random(&rand) & 0x3ff);
-		old_rp = rcu_torture_current;
+		old_rp = rcu_dereference_check(rcu_torture_current,
+					       current == writer_task);
 		rp->rtort_mbtest = 1;
 		rcu_assign_pointer(rcu_torture_current, rp);
 		smp_wmb(); /* Mods to old_rp must follow rcu_assign_pointer() */
