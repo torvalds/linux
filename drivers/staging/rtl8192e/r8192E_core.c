@@ -121,12 +121,10 @@ MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 
 
 module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
-//module_param(hwseqnum,int, S_IRUGO|S_IWUSR);
 module_param(hwwep,int, S_IRUGO|S_IWUSR);
 module_param(channels,int, S_IRUGO|S_IWUSR);
 
 MODULE_PARM_DESC(ifname," Net interface name, wlan%d=default");
-//MODULE_PARM_DESC(hwseqnum," Try to use hardware 802.11 header sequence numbers. Zero=default");
 MODULE_PARM_DESC(hwwep," Try to use hardware WEP support. Still broken and not available on all cards");
 MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 
@@ -144,7 +142,7 @@ static struct pci_driver rtl8192_pci_driver = {
 	.resume		= rtl8192E_resume,                 /* PM resume fn  */
 #else
 	.suspend	= NULL,			          /* PM suspend fn */
-	.resume      	= NULL,			          /* PM resume fn  */
+	.resume		= NULL,			          /* PM resume fn  */
 #endif
 };
 
@@ -282,7 +280,6 @@ u32 read_cam(struct net_device *dev, u8 addr)
         return read_nic_dword(dev, 0xa8);
 }
 
-////////////////////////////////////////////////////////////
 #ifdef CONFIG_RTL8180_IO_MAP
 
 u8 read_nic_byte(struct net_device *dev, int x)
@@ -487,28 +484,15 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 }
 
-
-///////////////////////////////////////////////////////////
-
-//u8 read_phy_cck(struct net_device *dev, u8 adr);
-//u8 read_phy_ofdm(struct net_device *dev, u8 adr);
-/* this might still called in what was the PHY rtl8185/rtl8192 common code
+/*
+ * this might still called in what was the PHY rtl8185/rtl8192 common code
  * plans are to possibilty turn it again in one common code...
  */
 void force_pci_posting(struct net_device *dev)
 {
 }
 
-
-//void rtl8192_rq_tx_ack(struct work_struct *work);
-
-/****************************************************************************
-   -----------------------------PROCFS STUFF-------------------------
-*****************************************************************************/
-
 static struct proc_dir_entry *rtl8192_proc = NULL;
-
-
 
 static int proc_get_stats_ap(char *page, char **start,
 			  off_t offset, int count,
@@ -797,9 +781,6 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 		      dev->name);
 	}
 }
-/****************************************************************************
-   -----------------------------MISC STUFF-------------------------
-*****************************************************************************/
 
 short check_nic_enough_desc(struct net_device *dev, int prio)
 {
@@ -821,19 +802,12 @@ static void tx_timeout(struct net_device *dev)
 	printk("TXTIMEOUT");
 }
 
-
-/****************************************************************************
-      ------------------------------HW STUFF---------------------------
-*****************************************************************************/
-
-
 static void rtl8192_irq_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	priv->irq_enabled = 1;
 	write_nic_dword(dev,INTA_MASK, priv->irq_mask);
 }
-
 
 void rtl8192_irq_disable(struct net_device *dev)
 {
@@ -1088,23 +1062,12 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	skb_queue_purge(&priv->skb_queue);
 }
 
-#if 0
-static void rtl8192_reset(struct net_device *dev)
-{
-    rtl8192_irq_disable(dev);
-    printk("This is RTL819xP Reset procedure\n");
-}
-#endif
-
 static const u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
 inline u16 rtl8192_rate2rate(short rate)
 {
 	if (rate >11) return 0;
 	return rtl_rate[rate];
 }
-
-
-
 
 static void rtl8192_data_hard_stop(struct net_device *dev)
 {
@@ -1131,7 +1094,8 @@ static void rtl8192_data_hard_resume(struct net_device *dev)
 	#endif
 }
 
-/* this function TX data frames when the ieee80211 stack requires this.
+/*
+ * this function TX data frames when the ieee80211 stack requires this.
  * It checks also if we need to stop the ieee tx queue, eventually do it
  */
 static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, int rate)
@@ -1176,7 +1140,8 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 //	return ret;
 }
 
-/* This is a rough attempt to TX a frame
+/*
+ * This is a rough attempt to TX a frame
  * This is called by the ieee 80211 stack to TX management frames.
  * If the ring is full packet are dropped (for data frame the queue
  * is stopped before this can happen).
@@ -1455,10 +1420,7 @@ void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 /*
  * Mapping Software/Hardware descriptor queue id to "Queue Select Field"
  * in TxFwInfo data structure
- * 2006.10.30 by Emily
- *
- * \param QUEUEID       Software Queue
-*/
+ */
 static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
 	u8 QueueSelect = 0x0;       //defualt set to
@@ -1564,7 +1526,7 @@ static u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
  * The tx procedure is just as following,
  * skb->cb will contain all the following information,
  * priority, morefrag, rate, &dev.
- * */
+ */
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 {
     struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1951,6 +1913,7 @@ static void rtl8192_update_beacon(struct work_struct * work)
 	ieee->pHTInfo->bCurrentRT2RTLongSlotTime = net->bssht.bdRT2RTLongSlotTime;
 	rtl8192_update_cap(dev, net->capability);
 }
+
 /*
 * background support to run QoS activate functionality
 */
@@ -2046,10 +2009,9 @@ static int rtl8192_handle_beacon(struct net_device * dev,
 }
 
 /*
-* handling the beaconing responses. if we get different QoS setting
-* off the network from the associated setting, adjust the QoS
-* setting
-*/
+ * handling the beaconing responses. if we get different QoS setting
+ * off the network from the associated setting, adjust the QoS setting
+ */
 static int rtl8192_qos_association_resp(struct r8192_priv *priv,
                                     struct ieee80211_network *network)
 {
@@ -2113,7 +2075,7 @@ static int rtl8192_handle_assoc_response(struct net_device *dev,
 }
 
 
-//updateRATRTabel for MCS only. Basic rate is not implement.
+/* updateRATRTabel for MCS only. Basic rate is not implemented. */
 static void rtl8192_update_ratr_table(struct net_device* dev)
 {
 	struct r8192_priv* priv = ieee80211_priv(dev);
@@ -2281,7 +2243,6 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 #endif
 
 }
-//init priv variables here
 
 static bool GetHalfNmodeSupportByAPs819xPci(struct net_device* dev)
 {
@@ -2405,6 +2366,7 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 	spin_unlock_irqrestore(&priv->ps_lock,flags);
 
 }
+
 static void rtl8192_init_priv_variable(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -2571,7 +2533,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->rf_set_chan = rtl8192_phy_SwChnl;
 }
 
-//init lock here
 static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 {
 	spin_lock_init(&priv->tx_lock);
@@ -2585,7 +2546,7 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 	mutex_init(&priv->mutex);
 }
 
-//init tasklet and wait_queue here. only 2.6 above kernel is considered
+/* init tasklet and wait_queue here */
 #define DRV_NAME "wlan0"
 static void rtl8192_init_priv_task(struct net_device* dev)
 {
@@ -2637,7 +2598,10 @@ static void rtl8192_get_eeprom_size(struct net_device* dev)
 	RT_TRACE(COMP_INIT, "<===========%s(), epromtype:%d\n", __FUNCTION__, priv->epromtype);
 }
 
-//used to swap endian. as ntohl & htonl are not neccessary to swap endian, so use this instead.
+/*
+ * used to swap endian. as ntohl & htonl are not
+ * neccessary to swap endian, so use this instead.
+ */
 static inline u16 endian_swap(u16* data)
 {
 	u16 tmp = *data;
@@ -2646,9 +2610,9 @@ static inline u16 endian_swap(u16* data)
 }
 
 /*
- *	Note:	Adapter->EEPROMAddressSize should be set before this function call.
- * 			EEPROM address size can be got through GetEEPROMSize8185()
-*/
+ * Adapter->EEPROMAddressSize should be set before this function call.
+ *  EEPROM address size can be got through GetEEPROMSize8185()
+ */
 static void rtl8192_read_eeprom_info(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3205,14 +3169,11 @@ static short rtl8192_init(struct net_device *dev)
 	return 0;
 }
 
-/******************************************************************************
- *function:  This function actually only set RRSR, RATR and BW_OPMODE registers
- *	     not to do all the hw config as its name says
- *   input:  net_device dev
- *  output:  none
- *  return:  none
- *  notice:  This part need to modified according to the rate set we filtered
- * ****************************************************************************/
+/*
+ * Actually only set RRSR, RATR and BW_OPMODE registers
+ *  not to do all the hw config as its name says
+ * This part need to modified according to the rate set we filtered
+ */
 static void rtl8192_hwconfig(struct net_device* dev)
 {
 	u32 regRATR = 0, regRRSR = 0;
@@ -3763,7 +3724,8 @@ static void rtl8192_prepare_beacon(struct r8192_priv *priv)
 }
 
 
-/* this configures registers for beacon tx and enables it via
+/*
+ * configure registers for beacon tx and enables it via
  * rtl8192_beacon_tx_enable(). rtl8192_beacon_tx_disable() might
  * be used to stop beacon transmission
  */
@@ -3814,11 +3776,6 @@ static void rtl8192_start_beacon(struct net_device *dev)
 	/* enable the interrupt for ad-hoc process */
 	rtl8192_irq_enable(dev);
 }
-/***************************************************************************
-    -------------------------------NET STUFF---------------------------
-***************************************************************************/
-
-
 
 static bool HalTxCheckStuck8190Pci(struct net_device *dev)
 {
@@ -3835,9 +3792,8 @@ static bool HalTxCheckStuck8190Pci(struct net_device *dev)
 }
 
 /*
-*	<Assumption: RT_TX_SPINLOCK is acquired.>
-*	First added: 2006.11.19 by emily
-*/
+ * Assumption: RT_TX_SPINLOCK is acquired.
+ */
 static RESET_TYPE
 TxCheckStuck(struct net_device *dev)
 {
@@ -4187,7 +4143,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
  * This function will do "system reset" to NIC when Tx or Rx is stuck.
  * The method checking Tx/Rx stuck of this function is supported by FW,
  * which reports Tx and Rx counter to register 0x128 and 0x130.
- * */
+ */
 static void rtl819x_ifsilentreset(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -4346,10 +4302,7 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 }
 
 #ifdef ENABLE_LPS
-//
-// Change current and default preamble mode.
-// 2005.01.06, by rcnjko.
-//
+/* Change current and default preamble mode. */
 bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -4394,14 +4347,7 @@ bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 	return true;
 }
 
-//================================================================================
-// Leisure Power Save in linked state.
-//================================================================================
-
-//
-//	Description:
-//		Enter the leisure power save mode.
-//
+/* Enter the leisure power save mode. */
 void LeisurePSEnter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -4437,10 +4383,7 @@ void LeisurePSEnter(struct net_device *dev)
 }
 
 
-//
-//	Description:
-//		Leave the leisure power save mode.
-//
+/* Leave leisure power save mode. */
 void LeisurePSLeave(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -4460,11 +4403,7 @@ void LeisurePSLeave(struct net_device *dev)
 #endif
 
 
-//
-//	Description:
-//		Enter the inactive power save mode. RF will be off
-//	2007.08.17, by shien chang.
-//
+/* Enter the inactive power save mode. RF will be off */
 void
 IPSEnter(struct net_device *dev)
 {
@@ -5084,21 +5023,7 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 	return ret_rate;
 }
 
-/**
- * Function:     UpdateRxPktTimeStamp
- * Overview:     Recored down the TSF time stamp when receiving a packet
- *
- * Input:
- *       PADAPTER        Adapter
- *       PRT_RFD         pRfd,
- *
- * Output:
- *       PRT_RFD         pRfd
- *                               (pRfd->Status.TimeStampHigh is updated)
- *                               (pRfd->Status.TimeStampLow is updated)
- * Return:
- *               None
- */
+/* Record the TSF time stamp when receiving a packet */
 static void UpdateRxPktTimeStamp8190 (struct net_device *dev, struct ieee80211_rx_stats *stats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -5123,16 +5048,14 @@ static long rtl819x_translate_todbm(u8 signal_strength_index)// 0-100 index.
 	return signal_power;
 }
 
-//
-//	Description:
-//		Update Rx signal related information in the packet reeived
-//		to RxStats. User application can query RxStats to realize
-//		current Rx signal status.
-//
-//	Assumption:
-//		In normal operation, user only care about the information of the BSS
-//		and we shall invoke this function if the packet received is from the BSS.
-//
+/*
+ * Update Rx signal related information in the packet reeived
+ * to RxStats. User application can query RxStats to realize
+ * current Rx signal status.
+ *
+ * In normal operation, user only care about the information of the BSS
+ * and we shall invoke this function if the packet received is from the BSS.
+ */
 static void
 rtl819x_update_rxsignalstatistics8190pci(
 	struct r8192_priv * priv,
@@ -5474,22 +5397,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	rtl819x_query_rxpwrpercentage()
- *
- * Overview:
- *
- * Input:		char		antpower
- *
- * Output:		NONE
- *
- * Return:		0-100 percentage
- *
- * Revised History:
- *	When		Who 	Remark
- *	05/26/2008	amy 	Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
 static u8 rtl819x_query_rxpwrpercentage(
 	char		antpower
 	)
@@ -5529,11 +5436,7 @@ rtl819x_evm_dbtopercentage(
 	return ret_val;
 }
 
-//
-//	Description:
-//	We want good-looking for signal strength/quality
-//	2007/7/19 01:09, by cosa.
-//
+/* We want good-looking for signal strength/quality */
 static long rtl819x_signal_scale_mapping(long currsig)
 {
 	long retsig;
@@ -5969,20 +5872,7 @@ static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
        rtl8192_tx_resume(priv->ieee80211->dev);
 }
 
-/**
-* Function:	UpdateReceivedRateHistogramStatistics
-* Overview:	Recored down the received data rate
-*
-* Input:
-* 	PADAPTER	Adapter
-*	PRT_RFD		pRfd,
-*
-* Output:
-*	PRT_TCB		Adapter
-*				(Adapter->RxStats.ReceivedRateHistogram[] is updated)
-* Return:
-*		None
-*/
+/* Record the received data rate */
 static void UpdateReceivedRateHistogramStatistics8190(
 	struct net_device *dev,
 	struct ieee80211_rx_stats* pstats
@@ -5993,11 +5883,6 @@ static void UpdateReceivedRateHistogramStatistics8190(
 	u32 rateIndex;
 	u32 preamble_guardinterval;  //1: short preamble/GI, 0: long preamble/GI
 
-	/* 2007/03/09 MH We will not update rate of packet from rx cmd queue. */
-	#if 0
-	if (pRfd->queue_id == CMPK_RX_QUEUE_ID)
-		return;
-	#endif
 	if(pstats->bCRC)
 		rcvType = 2;
 	else if(pstats->bICV)
@@ -6209,10 +6094,6 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_set_mac_address =		r8192_set_mac_adr,
 	.ndo_start_xmit = 		ieee80211_rtl_xmit,
 };
-
-/****************************************************************************
-     ---------------------------- PCI_STUFF---------------------------
-*****************************************************************************/
 
 static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *id)
@@ -6830,6 +6711,7 @@ bool NicIFEnableNIC(struct net_device* dev)
 
 	return (init_status == RT_STATUS_SUCCESS);
 }
+
 bool NicIFDisableNIC(struct net_device* dev)
 {
 	bool	status = true;
@@ -6854,9 +6736,5 @@ bool NicIFDisableNIC(struct net_device* dev)
 	return status;
 }
 
-
-/***************************************************************************
-     ------------------- module init / exit stubs ----------------
-****************************************************************************/
 module_init(rtl8192_pci_module_init);
 module_exit(rtl8192_pci_module_exit);
