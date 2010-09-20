@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -405,7 +406,7 @@ static int rockchip_scu_set_arm_pllclk_hw(const struct rockchip_pll_set *ps)
 	.flags		= _flags,			\
 }
 
-struct rockchip_pll_set arm_pll[] = {
+static const struct rockchip_pll_set arm_pll[] = {
 // clk_hz = 24*clkf/(clkr*clkod) clkr clkf clkod hdiv pdiv flags (pdiv=1,2,4,no 3!!)
 	ARM_PLL(576 * SCU_CLK_MHZ, 4, 96, 1, 12, 31, 41, 1),
 	ARM_PLL(384 * SCU_CLK_MHZ, 3, 96, 2,  8, 21, 41, 1),
@@ -554,12 +555,11 @@ static int rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *ps)
 	const int delay = OTHER_PLL_DELAY;
 
 	if (ps->clk_hz == 24 * SCU_CLK_MHZ) {
-		unsigned long arm_freq_mhz = arm_clk.rate / SCU_CLK_MHZ;
 		dsp_pll_clk_slow_mode(1);
 		/* 20100615,HSL@RK,when power down,set pll out=300 M. */
 		scu_writel_force(ps->pll_con, SCU_DPLL_CON);
 		pr_debug("set 24M clk, dsp power down\n");
-		tcm_udelay(delay, arm_freq_mhz);
+		tcm_udelay(1, 600);
 		scu_writel_force(scu_readl(SCU_DPLL_CON) | PLL_PD, SCU_DPLL_CON);
 	} else {
 		u32 reg_val;
@@ -590,7 +590,7 @@ static int rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *ps)
 	.pll_con	= PLL_SAT | PLL_FAST | PLL_CLKR(nr-1) | PLL_CLKF(nf-1) | PLL_CLKOD(od-1), \
 }
 
-struct rockchip_pll_set dsp_pll[] = {
+static const struct rockchip_pll_set dsp_pll[] = {
 // clk_hz = 24*clkf/(clkr*clkod) clkr clkf clkod
 	DSP_PLL(600 * SCU_CLK_MHZ, 6, 150, 1),
 	DSP_PLL(560 * SCU_CLK_MHZ, 6, 140, 1),
@@ -1258,14 +1258,14 @@ static int __clk_enable(struct clk *clk)
 int clk_enable(struct clk *clk)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	ret = __clk_enable(clk);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 
 	return ret;
 }
@@ -1284,12 +1284,11 @@ static void __clk_disable(struct clk *clk)
 
 void clk_disable(struct clk *clk)
 {
-	unsigned long flags;
-
 	if (clk == NULL || IS_ERR(clk))
 		return;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	if (clk->usecount == 0) {
 		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n", clk->name);
 		WARN_ON(1);
@@ -1299,21 +1298,21 @@ void clk_disable(struct clk *clk)
 	__clk_disable(clk);
 
 out:
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 }
 EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-	unsigned long flags;
 	unsigned long ret;
 
 	if (clk == NULL || IS_ERR(clk))
 		return 0;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	ret = clk->rate;
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 
 	return ret;
 }
@@ -1337,15 +1336,15 @@ static long __clk_round_rate(struct clk *clk, unsigned long rate)
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	unsigned long flags;
 	long ret = 0;
 
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	ret = __clk_round_rate(clk, rate);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 
 	return ret;
 }
@@ -1369,13 +1368,13 @@ static int __clk_set_rate(struct clk *clk, unsigned long rate)
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	unsigned long flags;
 	int ret = -EINVAL;
 
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	if (rate == clk->rate) {
 		ret = 0;
 		goto out;
@@ -1387,7 +1386,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		propagate_rate(clk);
 	}
 out:
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 
 	return ret;
 }
@@ -1395,7 +1394,6 @@ EXPORT_SYMBOL(clk_set_rate);
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
-	unsigned long flags;
 	int ret = -EINVAL;
 
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
@@ -1404,7 +1402,8 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk->set_parent == NULL)
 		return ret;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	if (clk->usecount == 0) {
 		ret = clk->set_parent(clk, parent);
 		if (ret == 0) {
@@ -1415,7 +1414,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		}
 	} else
 		ret = -EBUSY;
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 
 	return ret;
 }
@@ -1473,11 +1472,10 @@ static void recalculate_root_clocks(void)
 
 void clk_recalculate_root_clocks(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
+	WARN_ON(in_irq());
+	spin_lock_bh(&clockfw_lock);
 	recalculate_root_clocks();
-	spin_unlock_irqrestore(&clockfw_lock, flags);
+	spin_unlock_bh(&clockfw_lock);
 }
 
 /**
