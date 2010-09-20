@@ -1418,8 +1418,6 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
-	skb->truesize = skb->len + sizeof(struct sk_buff);
-
 	if (unlikely(qlcnic_check_rx_tagging(adapter, skb, &vid))) {
 		adapter->stats.rxdropped++;
 		dev_kfree_skb(skb);
@@ -1490,8 +1488,6 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 		data_offset = l4_hdr_offset + QLC_TCP_HDR_SIZE;
 
 	skb_put(skb, lro_length + data_offset);
-
-	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
 
 	skb_pull(skb, l2_hdr_offset);
 
@@ -1731,8 +1727,6 @@ qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
-
-	skb->truesize = skb->len + sizeof(struct sk_buff);
 
 	if (!qlcnic_check_loopback_buff(skb->data))
 		adapter->diag_cnt++;
