@@ -876,6 +876,28 @@ static void alc_set_input_pin(struct hda_codec *codec, hda_nid_t nid,
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, val);
 }
 
+static void alc_fixup_autocfg_pin_nums(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+
+	if (!cfg->line_outs) {
+		while (cfg->line_outs < AUTO_CFG_MAX_OUTS &&
+		       cfg->line_out_pins[cfg->line_outs])
+			cfg->line_outs++;
+	}
+	if (!cfg->speaker_outs) {
+		while (cfg->speaker_outs < AUTO_CFG_MAX_OUTS &&
+		       cfg->speaker_pins[cfg->speaker_outs])
+			cfg->speaker_outs++;
+	}
+	if (!cfg->hp_outs) {
+		while (cfg->hp_outs < AUTO_CFG_MAX_OUTS &&
+		       cfg->hp_pins[cfg->hp_outs])
+			cfg->hp_outs++;
+	}
+}
+
 /*
  */
 static void add_mixer(struct alc_spec *spec, struct snd_kcontrol_new *mix)
@@ -944,6 +966,8 @@ static void setup_preset(struct hda_codec *codec,
 
 	if (preset->setup)
 		preset->setup(codec);
+
+	alc_fixup_autocfg_pin_nums(codec);
 }
 
 /* Enable GPIO mask and set output */
