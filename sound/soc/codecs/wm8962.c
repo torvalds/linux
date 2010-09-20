@@ -1821,7 +1821,7 @@ MODULE_DEVICE_TABLE(i2c, wm8962_i2c_id);
 
 static struct i2c_driver wm8962_i2c_driver = {
 	.driver = {
-		.name = "WM8962",
+		.name = "wm8962",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8962_i2c_probe,
