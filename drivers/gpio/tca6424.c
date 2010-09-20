@@ -46,17 +46,12 @@ NOTES		:
 #include "../drivers/gpio/expand_gpio_soft_interrupt.h"
 
 #if 0
-#define TCA6424DEB
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
 #endif
-
-#if 0
 #define DBGERR(x...)	printk(KERN_INFO x)
-#else
-#define DBGERR(x...)
-#endif
+
 
 struct tca6424_chip {
 	
@@ -296,7 +291,10 @@ static int tca6424_gpio_get_value(struct gpio_chip *gc, unsigned pin_num)
 	#ifdef CONFIG_EXPAND_GPIO_SOFT_INTERRUPT
 	ret = wait_untill_input_reg_flash( );
 	if(ret<0)
+	{
 		return -1;
+		DBGERR("**********tca6424 get value error***************\n");
+	}
 	#endif
 	
 	gpioPortNum = pin_num/8;

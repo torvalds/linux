@@ -51,12 +51,8 @@ NOTES		:
 #else
 #define DBG(x...)
 #endif
-
-#if 0
 #define DBGERR(x...)	printk(KERN_INFO x)
-#else
-#define DBGERR(x...)
-#endif
+
 
 #define EXTPAND_GPIO_GET_BIT(a,num) (((a)>>(num))&0x01)
 #define EXTPAND_GPIO_SET_BIT(a,num) ((a)|(0x01<<(num)))
@@ -65,7 +61,7 @@ NOTES		:
 
 
 static int expand_gpio_irq_en = -1;
-static int expand_gpio_irq_ctrflag = -1;
+static int expand_gpio_irq_ctrflag = 0;
 static unsigned int expand_gpio_irq_num = 0;
 
 static struct workqueue_struct *irqworkqueue;
@@ -297,7 +293,7 @@ static irqreturn_t expand_gpio_irq_handler(int irq, void * dev_id)
 
 	DBG("******************%s*******************\n",__FUNCTION__);
 	expand_gpio_irq_ctr_dis(pchip->irq_chain,0);
-	memcpy(&oldintputreg[0],&pchip->gvar->reg_input[0],pchip->expand_port_pinnum);
+	memcpy(&oldintputreg[0],&pchip->gvar->reg_input[0],pchip->expand_port_group);
 	if(pchip->irq_data.read_allinputreg(pchip->irq_data.data,&tempintputreg[0]))
 	{
 		expand_gpio_irq_ctr_dis(pchip->irq_chain,-1);
@@ -306,7 +302,7 @@ static irqreturn_t expand_gpio_irq_handler(int irq, void * dev_id)
 		return IRQ_HANDLED;
 	}
 	
-	memcpy(&pchip->gvar->reg_input[0],&tempintputreg[0],pchip->expand_port_pinnum);
+	memcpy(&pchip->gvar->reg_input[0],&tempintputreg[0],pchip->expand_port_group);
 	//DBG("**has run at %s**,input[0] = %x,input[1] = %x,input[2] = %x\n",__FUNCTION__,pchip->gvar.reg_input[0],pchip->gvar.reg_input[1],pchip->gvar.reg_input[2]);
 
 	//Handle for different expand_port_group 
@@ -421,7 +417,7 @@ void expand_gpio_irq_setup(struct expand_gpio_soft_int *pchip)
 int wait_untill_input_reg_flash(void)
 {
 	unsigned int num = 0;
-    unsigned int tempnum = expand_gpio_irq_num;
+    	unsigned int tempnum = expand_gpio_irq_num;
 
 	while(expand_gpio_irq_ctrflag&&(expand_gpio_irq_num==tempnum))
 	{
