@@ -341,9 +341,12 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	data |= PCIEMACCTLR_SCR_DIS | (0xff << 16);
 	pci_write_reg(chan, data, SH4A_PCIEMACCTLR);
 
+	/*
+	 * This will timeout if we don't have a link, but we permit the
+	 * port to register anyways in order to support hotplug on future
+	 * hardware.
+	 */
 	ret = pci_wait_for_irq(chan, MASK_INT_TX_CTRL);
-	if (unlikely(ret != 0))
-		return -ENODEV;
 
 	data = pci_read_reg(chan, SH4A_PCIEPCICONF1);
 	data &= ~(PCI_STATUS_DEVSEL_MASK << 16);
@@ -356,9 +359,13 @@ static int pcie_init(struct sh7786_pcie_port *port)
 
 	wmb();
 
-	data = pci_read_reg(chan, SH4A_PCIEMACSR);
-	printk(KERN_NOTICE "PCI: PCIe#%d link width %d\n",
-	       port->index, (data >> 20) & 0x3f);
+	if (ret == 0) {
+		data = pci_read_reg(chan, SH4A_PCIEMACSR);
+		printk(KERN_NOTICE "PCI: PCIe#%d x%d link detected\n",
+		       port->index, (data >> 20) & 0x3f);
+	} else
+		printk(KERN_NOTICE "PCI: PCIe#%d link down\n",
+		       port->index);
 
 	for (i = win = 0; i < chan->nr_resources; i++) {
 		struct resource *res = chan->resources + i;
