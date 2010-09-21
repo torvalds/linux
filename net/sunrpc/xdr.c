@@ -111,6 +111,23 @@ xdr_decode_string_inplace(__be32 *p, char **sp,
 }
 EXPORT_SYMBOL_GPL(xdr_decode_string_inplace);
 
+/**
+ * xdr_terminate_string - '\0'-terminate a string residing in an xdr_buf
+ * @buf: XDR buffer where string resides
+ * @len: length of string, in bytes
+ *
+ */
+void
+xdr_terminate_string(struct xdr_buf *buf, const u32 len)
+{
+	char *kaddr;
+
+	kaddr = kmap_atomic(buf->pages[0], KM_USER0);
+	kaddr[buf->page_base + len] = '\0';
+	kunmap_atomic(kaddr, KM_USER0);
+}
+EXPORT_SYMBOL(xdr_terminate_string);
+
 void
 xdr_encode_pages(struct xdr_buf *xdr, struct page **pages, unsigned int base,
 		 unsigned int len)

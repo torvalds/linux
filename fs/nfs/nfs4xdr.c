@@ -4299,7 +4299,6 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 	size_t hdrlen;
 	u32 len, recvd;
 	__be32 *p;
-	char *kaddr;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_READLINK);
@@ -4330,9 +4329,7 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 	 * and and null-terminate the text (the VFS expects
 	 * null-termination).
 	 */
-	kaddr = (char *)kmap_atomic(rcvbuf->pages[0], KM_USER0);
-	kaddr[len+rcvbuf->page_base] = '\0';
-	kunmap_atomic(kaddr, KM_USER0);
+	xdr_terminate_string(rcvbuf, len);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
