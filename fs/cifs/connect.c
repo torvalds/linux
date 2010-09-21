@@ -1511,15 +1511,6 @@ cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 
 	write_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		/*
-		 * the demux thread can exit on its own while still in CifsNew
-		 * so don't accept any sockets in that state. Since the
-		 * tcpStatus never changes back to CifsNew it's safe to check
-		 * for this without a lock.
-		 */
-		if (server->tcpStatus == CifsNew)
-			continue;
-
 		if (!match_address(server, addr,
 				   (struct sockaddr *)&vol->srcaddr))
 			continue;
