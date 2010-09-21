@@ -197,7 +197,7 @@ int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
 	caif_assert(adap_layer != NULL);
 	channel_id = adap_layer->id;
 	if (adap_layer->dn == NULL || channel_id == 0) {
-		pr_err("adap_layer->id is 0\n");
+		pr_err("adap_layer->dn == NULL or adap_layer->id is 0\n");
 		ret = -ENOTCONN;
 		goto end;
 	}
