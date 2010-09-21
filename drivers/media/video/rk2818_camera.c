@@ -308,7 +308,14 @@ static void rk28_videobuf_queue(struct videobuf_queue *vq,
 
     vb->state = VIDEOBUF_ACTIVE;
     spin_lock_irqsave(&pcdev->lock, flags);
-    list_add_tail(&vb->queue, &pcdev->capture);
+	if (!list_empty(&pcdev->capture)) {
+		list_add_tail(&vb->queue, &pcdev->capture);
+	} else {
+		if (list_entry(pcdev->capture.next, struct videobuf_buffer, queue) != vb)
+			list_add_tail(&vb->queue, &pcdev->capture);
+		else
+			BUG();    /* ddl@rock-chips.com : The same videobuffer queue again */
+	}
 
     if (!pcdev->active) {
         pcdev->active = vb;
@@ -327,10 +334,16 @@ static irqreturn_t rk28_camera_irq(int irq, void *data)
     /* ddl@rock-chps.com : Current VIP is run in One Frame Mode, Frame 1 is validate */
     if (read_vip_reg(RK28_VIP_FB_SR) & 0x01) {
 
-        if (pcdev->frame_inval) {
+		if (!pcdev->active)
+			goto RK28_CAMERA_IRQ_END;
+
+        if ((pcdev->frame_inval>0) && (pcdev->frame_inval<=RK28_CAM_FRAME_INVAL)) {
             pcdev->frame_inval--;
             rk28_videobuf_capture(pcdev->active);
-            return IRQ_HANDLED;
+            goto RK28_CAMERA_IRQ_END;
+        } else if (pcdev->frame_inval) {
+        	printk("frame_inval : %0x",pcdev->frame_inval);
+            pcdev->frame_inval = 0;
         }
 
         vb = pcdev->active;
@@ -350,6 +363,7 @@ static irqreturn_t rk28_camera_irq(int irq, void *data)
         wake_up(&vb->done);
     }
 
+RK28_CAMERA_IRQ_END:
     return IRQ_HANDLED;
 }
 
@@ -486,6 +500,14 @@ static int rk28_camera_add_device(struct soc_camera_device *icd)
     dev_info(&icd->dev, "RK28 Camera driver attached to camera %d\n",
              icd->devnum);
 
+	pcdev->frame_inval = RK28_CAM_FRAME_INVAL;
+    pcdev->active = NULL;
+    pcdev->icd = NULL;
+	/* ddl@rock-chips.com: capture list must be reset, because this list may be not empty,
+     * if app havn't dequeue all videobuf before close camera device;
+	*/
+    INIT_LIST_HEAD(&pcdev->capture);
+
     ret = rk28_camera_activate(pcdev,icd);
     if (ret)
         goto ebusy;
@@ -499,8 +521,6 @@ static int rk28_camera_add_device(struct soc_camera_device *icd)
     }
 
     pcdev->icd = icd;
-
-    pcdev->frame_inval = RK28_CAM_FRAME_INVAL;
 
 ebusy:
     mutex_unlock(&camera_lock);
@@ -517,16 +537,22 @@ static void rk28_camera_remove_device(struct soc_camera_device *icd)
     dev_info(&icd->dev, "RK28 Camera driver detached from camera %d\n",
              icd->devnum);
 
+	rk28_camera_deactivate(pcdev);
+
 	/* ddl@rock-chips.com: Call videobuf_mmap_free here for free the struct video_buffer which malloc in videobuf_alloc */
 	if (pcdev->vb_vidq_ptr) {
 		videobuf_mmap_free(pcdev->vb_vidq_ptr);
 		pcdev->vb_vidq_ptr = NULL;
 	}
 
-
-    rk28_camera_deactivate(pcdev);
-
+	pcdev->active = NULL;
     pcdev->icd = NULL;
+	/* ddl@rock-chips.com: capture list must be reset, because this list may be not empty,
+     * if app havn't dequeue all videobuf before close camera device;
+	*/
+    INIT_LIST_HEAD(&pcdev->capture);
+
+	return;
 }
 
 static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
@@ -560,7 +586,8 @@ static int rk28_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     if (common_flags & SOCAM_VSYNC_ACTIVE_HIGH)
         set_vip_vsp(VSY_HIGH_ACTIVE);
 
-    vip_ctrl_val |= ENABLE_CAPTURE;
+    /* ddl@rock-chips.com : Don't enable capture here, enable in stream_on */
+    //vip_ctrl_val |= ENABLE_CAPTURE;
 
     write_vip_reg(RK28_VIP_CTRL, vip_ctrl_val);
     RK28CAMERA_DG("\n%s..CtrReg=%x  \n",__FUNCTION__,read_vip_reg(RK28_VIP_CTRL));
@@ -909,6 +936,26 @@ static int rk28_camera_resume(struct soc_camera_device *icd)
     return ret;
 }
 
+static int rk28_camera_s_stream(struct soc_camera_device *icd, int enable)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+    struct rk28_camera_dev *pcdev = ici->priv;
+    int vip_ctrl_val;
+
+	WARN_ON(pcdev->icd != icd);
+
+	vip_ctrl_val = read_vip_reg(RK28_VIP_CTRL);
+	if (enable) {
+		vip_ctrl_val |= ENABLE_CAPTURE;
+	} else {
+        vip_ctrl_val &= ~ENABLE_CAPTURE;
+	}
+	write_vip_reg(RK28_VIP_CTRL, vip_ctrl_val);
+
+	RK28CAMERA_DG("%s.. enable : %d\n", __FUNCTION__, enable);
+	return 0;
+}
+
 static struct soc_camera_host_ops rk28_soc_camera_host_ops =
 {
     .owner		= THIS_MODULE,
@@ -926,6 +973,7 @@ static struct soc_camera_host_ops rk28_soc_camera_host_ops =
     .poll		= rk28_camera_poll,
     .querycap	= rk28_camera_querycap,
     .set_bus_param	= rk28_camera_set_bus_param,
+    .s_stream = rk28_camera_s_stream   /* ddl@rock-chips.com : Add stream control for host */
 };
 static int rk28_camera_probe(struct platform_device *pdev)
 {

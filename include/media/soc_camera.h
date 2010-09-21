@@ -89,6 +89,9 @@ struct soc_camera_host_ops {
 	unsigned int (*poll)(struct file *, poll_table *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
+
+    int (*s_stream)(struct soc_camera_device *, int enable);	/* ddl@rock-chips.com : Add stream control for host */
+
 };
 
 #define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)
@@ -196,8 +199,8 @@ struct soc_camera_ops {
 	int (*resume)(struct soc_camera_device *);
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
-	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);	
-	
+	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
+
 	const struct v4l2_queryctrl *controls;
 	const struct v4l2_querymenu *menus;                /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 	int num_controls;
@@ -259,7 +262,7 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 #define SOCAM_DATA_ACTIVE_HIGH		(1 << 14)
 #define SOCAM_DATA_ACTIVE_LOW		(1 << 15)
 
-#define SOCAM_MCLK_24MHZ   (1<<29)                                      /* ddl@rock-chips.com : add  */ 
+#define SOCAM_MCLK_24MHZ   (1<<29)                                      /* ddl@rock-chips.com : add  */
 #define SOCAM_MCLK_27MHZ   (1<<30)
 #define SOCAM_MCLK_48MHZ   (1<<31)
 
