@@ -2022,7 +2022,7 @@ asmlinkage void kvm_handle_fault_on_reboot(void)
 		/* spin while reset goes on */
 		local_irq_enable();
 		while (true)
-			;
+			cpu_relax();
 	}
 	/* Fault while not rebooting.  We want the trace. */
 	BUG();
