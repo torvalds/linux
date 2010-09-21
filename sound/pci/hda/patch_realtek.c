@@ -1087,15 +1087,19 @@ static int alc_init_jacks(struct hda_codec *codec)
 	unsigned int hp_nid = spec->autocfg.hp_pins[0];
 	unsigned int mic_nid = spec->ext_mic.pin;
 
-	err = alc_add_jack(codec, hp_nid, SND_JACK_HEADPHONE);
-	if (err < 0)
-		return err;
-	alc_report_jack(codec, hp_nid);
+	if (hp_nid) {
+		err = alc_add_jack(codec, hp_nid, SND_JACK_HEADPHONE);
+		if (err < 0)
+			return err;
+		alc_report_jack(codec, hp_nid);
+	}
 
-	err = alc_add_jack(codec, mic_nid, SND_JACK_MICROPHONE);
-	if (err < 0)
-		return err;
-	alc_report_jack(codec, mic_nid);
+	if (mic_nid) {
+		err = alc_add_jack(codec, mic_nid, SND_JACK_MICROPHONE);
+		if (err < 0)
+			return err;
+		alc_report_jack(codec, mic_nid);
+	}
 
 	return 0;
 }
