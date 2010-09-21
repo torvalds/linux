@@ -1417,7 +1417,7 @@ intel_analog_is_connected(struct drm_device *dev)
 	if (!analog_connector)
 		return false;
 
-	if (analog_connector->funcs->detect(analog_connector) ==
+	if (analog_connector->funcs->detect(analog_connector, false) ==
 			connector_status_disconnected)
 		return false;
 
@@ -1486,7 +1486,8 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	return status;
 }
 
-static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_sdvo_detect(struct drm_connector *connector, bool force)
 {
 	uint16_t response;
 	struct drm_encoder *encoder = intel_attached_encoder(connector);

@@ -1386,7 +1386,7 @@ ironlake_dp_detect(struct drm_connector *connector)
  * \return false if DP port is disconnected.
  */
 static enum drm_connector_status
-intel_dp_detect(struct drm_connector *connector)
+intel_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
