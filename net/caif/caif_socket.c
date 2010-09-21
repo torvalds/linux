@@ -30,9 +30,6 @@
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(AF_CAIF);
 
-#define CAIF_DEF_SNDBUF (4096*10)
-#define CAIF_DEF_RCVBUF (4096*100)
-
 /*
  * CAIF state is re-using the TCP socket states.
  * caif_states stored in sk_state reflect the state as reported by
@@ -1117,10 +1114,6 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 
 	/* Store the protocol */
 	sk->sk_protocol = (unsigned char) protocol;
-
-	/* Sendbuf dictates the amount of outbound packets not yet sent */
-	sk->sk_sndbuf = CAIF_DEF_SNDBUF;
-	sk->sk_rcvbuf = CAIF_DEF_RCVBUF;
 
 	/*
 	 * Lock in order to try to stop someone from opening the socket
