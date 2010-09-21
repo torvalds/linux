@@ -28,9 +28,11 @@
 #include "drm.h"
 
 #include "nouveau_drv.h"
+#include "nouveau_ramht.h"
 #include "nouveau_dma.h"
 
 #define USE_REFCNT(dev) (nouveau_private(dev)->chipset >= 0x10)
+#define USE_SEMA(dev) (nouveau_private(dev)->chipset >= 0x17)
 
 struct nouveau_fence {
 	struct nouveau_channel *channel;
@@ -42,6 +44,12 @@ struct nouveau_fence {
 
 	void (*work)(void *priv, bool signalled);
 	void *priv;
+};
+
+struct nouveau_semaphore {
+	struct kref ref;
+	struct drm_device *dev;
+	struct drm_mm_node *mem;
 };
 
 static inline struct nouveau_fence *
@@ -236,17 +244,128 @@ nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 	return ret;
 }
 
+static struct nouveau_semaphore *
+alloc_semaphore(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_semaphore *sema;
+
+	if (!USE_SEMA(dev))
+		return NULL;
+
+	sema = kmalloc(sizeof(*sema), GFP_KERNEL);
+	if (!sema)
+		goto fail;
+
+	spin_lock(&dev_priv->fence.lock);
+	sema->mem = drm_mm_search_free(&dev_priv->fence.heap, 4, 0, 0);
+	if (sema->mem)
+		sema->mem = drm_mm_get_block(sema->mem, 4, 0);
+	spin_unlock(&dev_priv->fence.lock);
+
+	if (!sema->mem)
+		goto fail;
+
+	kref_init(&sema->ref);
+	sema->dev = dev;
+	nouveau_bo_wr32(dev_priv->fence.bo, sema->mem->start / 4, 0);
+
+	return sema;
+fail:
+	kfree(sema);
+	return NULL;
+}
+
+static void
+free_semaphore(struct kref *ref)
+{
+	struct nouveau_semaphore *sema =
+		container_of(ref, struct nouveau_semaphore, ref);
+	struct drm_nouveau_private *dev_priv = sema->dev->dev_private;
+
+	spin_lock(&dev_priv->fence.lock);
+	drm_mm_put_block(sema->mem);
+	spin_unlock(&dev_priv->fence.lock);
+
+	kfree(sema);
+}
+
+static void
+semaphore_work(void *priv, bool signalled)
+{
+	struct nouveau_semaphore *sema = priv;
+	struct drm_nouveau_private *dev_priv = sema->dev->dev_private;
+
+	if (unlikely(!signalled))
+		nouveau_bo_wr32(dev_priv->fence.bo, sema->mem->start / 4, 1);
+
+	kref_put(&sema->ref, free_semaphore);
+}
+
+static int
+emit_semaphore(struct nouveau_channel *chan, int method,
+	       struct nouveau_semaphore *sema)
+{
+	struct drm_nouveau_private *dev_priv = sema->dev->dev_private;
+	struct nouveau_fence *fence;
+	int ret;
+
+	ret = RING_SPACE(chan, dev_priv->card_type >= NV_50 ? 6 : 4);
+	if (ret)
+		return ret;
+
+	if (dev_priv->card_type >= NV_50) {
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
+		OUT_RING(chan, NvSema);
+	}
+	BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 1);
+	OUT_RING(chan, sema->mem->start);
+	BEGIN_RING(chan, NvSubSw, method, 1);
+	OUT_RING(chan, 1);
+
+	/* Delay semaphore destruction until its work is done */
+	ret = nouveau_fence_new(chan, &fence, true);
+	if (ret)
+		return ret;
+
+	kref_get(&sema->ref);
+	nouveau_fence_work(fence, semaphore_work, sema);
+	nouveau_fence_unref((void *)&fence);
+
+	return 0;
+}
+
 int
 nouveau_fence_sync(struct nouveau_fence *fence,
 		   struct nouveau_channel *wchan)
 {
 	struct nouveau_channel *chan = nouveau_fence_channel(fence);
+	struct drm_device *dev = wchan->dev;
+	struct nouveau_semaphore *sema;
+	int ret;
 
 	if (likely(!fence || chan == wchan ||
 		   nouveau_fence_signalled(fence, NULL)))
 		return 0;
 
-	return nouveau_fence_wait(fence, NULL, false, false);
+	sema = alloc_semaphore(dev);
+	if (!sema) {
+		/* Early card or broken userspace, fall back to
+		 * software sync. */
+		return nouveau_fence_wait(fence, NULL, false, false);
+	}
+
+	/* Signal the semaphore from chan */
+	ret = emit_semaphore(chan, NV_SW_SEMAPHORE_RELEASE, sema);
+	if (ret)
+		goto out;
+
+	/* Make wchan wait until it gets signalled */
+	ret = emit_semaphore(wchan, NV_SW_SEMAPHORE_ACQUIRE, sema);
+
+out:
+	kref_put(&sema->ref, free_semaphore);
+	return ret;
 }
 
 int
@@ -258,6 +377,8 @@ nouveau_fence_flush(void *sync_obj, void *sync_arg)
 int
 nouveau_fence_channel_init(struct nouveau_channel *chan)
 {
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
@@ -276,6 +397,30 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 		return ret;
 	BEGIN_RING(chan, NvSubSw, 0, 1);
 	OUT_RING(chan, NvSw);
+
+	/* Create a DMA object for the shared cross-channel sync area. */
+	if (USE_SEMA(dev)) {
+		struct drm_mm_node *mem = dev_priv->fence.bo->bo.mem.mm_node;
+
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
+					     mem->start << PAGE_SHIFT,
+					     mem->size << PAGE_SHIFT,
+					     NV_DMA_ACCESS_RW,
+					     NV_DMA_TARGET_VIDMEM, &obj);
+		if (ret)
+			return ret;
+
+		ret = nouveau_ramht_insert(chan, NvSema, obj);
+		nouveau_gpuobj_ref(NULL, &obj);
+		if (ret)
+			return ret;
+
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
+		OUT_RING(chan, NvSema);
+	}
 
 	FIRE_RING(chan);
 
@@ -302,3 +447,51 @@ nouveau_fence_channel_fini(struct nouveau_channel *chan)
 	}
 }
 
+int
+nouveau_fence_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int ret;
+
+	/* Create a shared VRAM heap for cross-channel sync. */
+	if (USE_SEMA(dev)) {
+		ret = nouveau_bo_new(dev, NULL, 4096, 0, TTM_PL_FLAG_VRAM,
+				     0, 0, false, true, &dev_priv->fence.bo);
+		if (ret)
+			return ret;
+
+		ret = nouveau_bo_pin(dev_priv->fence.bo, TTM_PL_FLAG_VRAM);
+		if (ret)
+			goto fail;
+
+		ret = nouveau_bo_map(dev_priv->fence.bo);
+		if (ret)
+			goto fail;
+
+		ret = drm_mm_init(&dev_priv->fence.heap, 0,
+				  dev_priv->fence.bo->bo.mem.size);
+		if (ret)
+			goto fail;
+
+		spin_lock_init(&dev_priv->fence.lock);
+	}
+
+	return 0;
+fail:
+	nouveau_bo_unmap(dev_priv->fence.bo);
+	nouveau_bo_ref(NULL, &dev_priv->fence.bo);
+	return ret;
+}
+
+void
+nouveau_fence_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (USE_SEMA(dev)) {
+		drm_mm_takedown(&dev_priv->fence.heap);
+		nouveau_bo_unmap(dev_priv->fence.bo);
+		nouveau_bo_unpin(dev_priv->fence.bo);
+		nouveau_bo_ref(NULL, &dev_priv->fence.bo);
+	}
+}

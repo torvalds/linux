@@ -639,9 +639,13 @@ nouveau_card_init(struct drm_device *dev)
 	/* what about PVIDEO/PCRTC/PRAMDAC etc? */
 
 	if (!engine->graph.accel_blocked) {
-		ret = nouveau_card_init_channel(dev);
+		ret = nouveau_fence_init(dev);
 		if (ret)
 			goto out_irq;
+
+		ret = nouveau_card_init_channel(dev);
+		if (ret)
+			goto out_fence;
 	}
 
 	ret = nouveau_backlight_init(dev);
@@ -652,6 +656,8 @@ nouveau_card_init(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	return 0;
 
+out_fence:
+	nouveau_fence_fini(dev);
 out_irq:
 	drm_irq_uninstall(dev);
 out_display:
@@ -695,7 +701,8 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	nouveau_backlight_exit(dev);
 
-	if (dev_priv->channel) {
+	if (!engine->graph.accel_blocked) {
+		nouveau_fence_fini(dev);
 		nouveau_channel_free(dev_priv->channel);
 		dev_priv->channel = NULL;
 	}
