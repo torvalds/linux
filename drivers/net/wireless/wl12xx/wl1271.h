@@ -296,6 +296,7 @@ struct wl1271_rx_mem_pool_addr {
 struct wl1271_scan {
 	struct cfg80211_scan_request *req;
 	bool *scanned_ch;
+	bool failed;
 	u8 state;
 	u8 ssid[IW_ESSID_MAX_SIZE+1];
 	size_t ssid_len;
@@ -419,7 +420,7 @@ struct wl1271 {
 
 	/* Are we currently scanning */
 	struct wl1271_scan scan;
-	struct work_struct scan_complete_work;
+	struct delayed_work scan_complete_work;
 
 	/* Our association ID */
 	u16 aid;

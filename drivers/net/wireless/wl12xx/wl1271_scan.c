@@ -30,8 +30,11 @@
 
 void wl1271_scan_complete_work(struct work_struct *work)
 {
-	struct wl1271 *wl =
-		container_of(work, struct wl1271, scan_complete_work);
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, scan_complete_work);
 
 	wl1271_debug(DEBUG_SCAN, "Scanning complete");
 
@@ -48,6 +51,11 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 
 	ieee80211_scan_completed(wl->hw, false);
+
+	if (wl->scan.failed) {
+		wl1271_info("Scan completed due to error.");
+		ieee80211_queue_work(wl->hw, &wl->recovery_work);
+	}
 }
 
 
@@ -191,7 +199,7 @@ out:
 
 void wl1271_scan_stm(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	switch (wl->scan.state) {
 	case WL1271_SCAN_STATE_IDLE:
@@ -241,12 +249,21 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_DONE:
-		ieee80211_queue_work(wl->hw, &wl->scan_complete_work);
+		wl->scan.failed = false;
+		cancel_delayed_work(&wl->scan_complete_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
+					     msecs_to_jiffies(0));
 		break;
 
 	default:
 		wl1271_error("invalid scan state");
 		break;
+	}
+
+	if (ret < 0) {
+		cancel_delayed_work(&wl->scan_complete_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
+					     msecs_to_jiffies(0));
 	}
 }
 
@@ -270,6 +287,11 @@ int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	wl->scan.scanned_ch = kzalloc(req->n_channels *
 				      sizeof(*wl->scan.scanned_ch),
 				      GFP_KERNEL);
+	/* we assume failure so that timeout scenarios are handled correctly */
+	wl->scan.failed = true;
+	ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
+				     msecs_to_jiffies(WL1271_SCAN_TIMEOUT));
+
 	wl1271_scan_stm(wl);
 
 	return 0;

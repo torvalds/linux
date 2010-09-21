@@ -46,6 +46,8 @@ void wl1271_scan_complete_work(struct work_struct *work);
 #define WL1271_SCAN_BAND_5_GHZ 1
 #define WL1271_SCAN_PROBE_REQS 3
 
+#define WL1271_SCAN_TIMEOUT    10000 /* msec */
+
 enum {
 	WL1271_SCAN_STATE_IDLE,
 	WL1271_SCAN_STATE_2GHZ_ACTIVE,

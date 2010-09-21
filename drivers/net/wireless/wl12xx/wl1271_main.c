@@ -657,8 +657,8 @@ static int wl1271_setup(struct wl1271 *wl)
 
 	INIT_WORK(&wl->irq_work, wl1271_irq_work);
 	INIT_WORK(&wl->tx_work, wl1271_tx_work);
-	INIT_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
 	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
+	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
 
 	return 0;
 }
@@ -1013,7 +1013,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	mutex_unlock(&wl->mutex);
 
-	cancel_work_sync(&wl->scan_complete_work);
+	cancel_delayed_work_sync(&wl->scan_complete_work);
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->pspoll_work);
