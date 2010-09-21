@@ -257,8 +257,7 @@ static inline void op_amd_start_ibs(void)
 			ibs_op_ctl = min(ibs_op_ctl + IBS_RANDOM_MAXCNT_OFFSET,
 					 IBS_OP_MAX_CNT);
 		}
-		if (ibs_caps & IBS_CAPS_OPCNT && ibs_config.dispatched_ops)
-			ibs_op_ctl |= IBS_OP_CNT_CTL;
+		ibs_op_ctl |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
 		ibs_op_ctl |= IBS_OP_ENABLE;
 		val = op_amd_randomize_ibs_op(ibs_op_ctl);
 		wrmsrl(MSR_AMD64_IBSOPCTL, val);
