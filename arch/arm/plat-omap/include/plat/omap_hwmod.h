@@ -14,19 +14,16 @@
  *
  * These headers and macros are used to define OMAP on-chip module
  * data and their integration with other OMAP modules and Linux.
- *
- * References:
- * - OMAP2420 Multimedia Processor Silicon Revision 2.1.1, 2.2 (SWPU064)
- * - OMAP2430 Multimedia Device POP Silicon Revision 2.1 (SWPU090)
- * - OMAP34xx Multimedia Device Silicon Revision 3.1 (SWPU108)
- * - OMAP4430 Multimedia Device Silicon Revision 1.0 (SWPU140)
- * - Open Core Protocol Specification 2.2
+ * Copious documentation and references can also be found in the
+ * omap_hwmod code, in arch/arm/mach-omap2/omap_hwmod.c (as of this
+ * writing).
  *
  * To do:
  * - add interconnect error log structures
  * - add pinmuxing
  * - init_conn_id_bit (CONNID_BIT_VECTOR)
  * - implement default hwmod SMS/SDRC flags?
+ * - remove unused fields
  *
  */
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
