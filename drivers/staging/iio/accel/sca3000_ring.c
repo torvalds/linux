@@ -206,8 +206,11 @@ static IIO_DEVICE_ATTR(accel_type,
 
 static struct attribute *sca3000_scan_el_attrs[] = {
 	&iio_scan_el_accel_x.dev_attr.attr,
+	&iio_const_attr_accel_x_index.dev_attr.attr,
 	&iio_scan_el_accel_y.dev_attr.attr,
+	&iio_const_attr_accel_y_index.dev_attr.attr,
 	&iio_scan_el_accel_z.dev_attr.attr,
+	&iio_const_attr_accel_z_index.dev_attr.attr,
 	&iio_const_attr_accel_type_available.dev_attr.attr,
 	&iio_dev_attr_accel_type.dev_attr.attr,
 	NULL
