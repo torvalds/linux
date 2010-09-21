@@ -2062,7 +2062,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	struct iwlagn_ucode_capabilities ucode_capa = {
 		.max_probe_length = 200,
 		.standard_phy_calibration_size =
-			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE,
+			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE,
 	};
 
 	memset(&pieces, 0, sizeof(pieces));
