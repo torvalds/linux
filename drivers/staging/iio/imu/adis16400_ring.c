@@ -19,6 +19,7 @@
 
 static IIO_SCAN_EL_C(in_supply, ADIS16400_SCAN_SUPPLY, IIO_SIGNED(14),
 		     ADIS16400_SUPPLY_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(in_supply, u, 14, 16);
 
 static IIO_SCAN_EL_C(gyro_x, ADIS16400_SCAN_GYRO_X, IIO_SIGNED(14),
 		     ADIS16400_XGYRO_OUT, NULL);
@@ -26,6 +27,7 @@ static IIO_SCAN_EL_C(gyro_y, ADIS16400_SCAN_GYRO_Y, IIO_SIGNED(14),
 		     ADIS16400_YGYRO_OUT, NULL);
 static IIO_SCAN_EL_C(gyro_z, ADIS16400_SCAN_GYRO_Z, IIO_SIGNED(14),
 		     ADIS16400_ZGYRO_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(gyro, s, 14, 16);
 
 static IIO_SCAN_EL_C(accel_x, ADIS16400_SCAN_ACC_X, IIO_SIGNED(14),
 		     ADIS16400_XACCL_OUT, NULL);
@@ -33,6 +35,7 @@ static IIO_SCAN_EL_C(accel_y, ADIS16400_SCAN_ACC_Y, IIO_SIGNED(14),
 		     ADIS16400_YACCL_OUT, NULL);
 static IIO_SCAN_EL_C(accel_z, ADIS16400_SCAN_ACC_Z, IIO_SIGNED(14),
 		     ADIS16400_ZACCL_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 14, 16);
 
 static IIO_SCAN_EL_C(magn_x, ADIS16400_SCAN_MAGN_X, IIO_SIGNED(14),
 		     ADIS16400_XMAGN_OUT, NULL);
@@ -40,28 +43,40 @@ static IIO_SCAN_EL_C(magn_y, ADIS16400_SCAN_MAGN_Y, IIO_SIGNED(14),
 		     ADIS16400_YMAGN_OUT, NULL);
 static IIO_SCAN_EL_C(magn_z, ADIS16400_SCAN_MAGN_Z, IIO_SIGNED(14),
 		     ADIS16400_ZMAGN_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(magn, s, 14, 16);
 
 static IIO_SCAN_EL_C(temp, ADIS16400_SCAN_TEMP, IIO_SIGNED(12),
 		     ADIS16400_TEMP_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(temp, s, 12, 16);
+
 static IIO_SCAN_EL_C(in0, ADIS16400_SCAN_ADC_0, IIO_SIGNED(12),
 		     ADIS16400_AUX_ADC, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(in0, u, 12, 16);
 
 static IIO_SCAN_EL_TIMESTAMP(12);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
 
 static struct attribute *adis16400_scan_el_attrs[] = {
 	&iio_scan_el_in_supply.dev_attr.attr,
+	&iio_const_attr_in_supply_type.dev_attr.attr,
 	&iio_scan_el_gyro_x.dev_attr.attr,
 	&iio_scan_el_gyro_y.dev_attr.attr,
 	&iio_scan_el_gyro_z.dev_attr.attr,
+	&iio_const_attr_gyro_type.dev_attr.attr,
 	&iio_scan_el_accel_x.dev_attr.attr,
 	&iio_scan_el_accel_y.dev_attr.attr,
 	&iio_scan_el_accel_z.dev_attr.attr,
+	&iio_const_attr_accel_type.dev_attr.attr,
 	&iio_scan_el_magn_x.dev_attr.attr,
 	&iio_scan_el_magn_y.dev_attr.attr,
 	&iio_scan_el_magn_z.dev_attr.attr,
+	&iio_const_attr_magn_type.dev_attr.attr,
 	&iio_scan_el_temp.dev_attr.attr,
+	&iio_const_attr_temp_type.dev_attr.attr,
 	&iio_scan_el_in0.dev_attr.attr,
+	&iio_const_attr_in0_type.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL,
 };
 
