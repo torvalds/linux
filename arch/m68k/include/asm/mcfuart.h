@@ -217,7 +217,9 @@ struct mcf_platform_uart {
 #define	MCFUART_URF_RXS		0xc0		/* Receiver status */
 #endif
 
-#if defined(CONFIG_M5272)
+#if defined(CONFIG_M548x)
+#define MCFUART_TXFIFOSIZE	512
+#elif defined(CONFIG_M5272)
 #define MCFUART_TXFIFOSIZE	25
 #else
 #define MCFUART_TXFIFOSIZE	1
