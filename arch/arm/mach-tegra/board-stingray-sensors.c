@@ -41,7 +41,7 @@
 #define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
 #define L3G4200D_IRQ_GPIO	TEGRA_GPIO_PH2
 #define AKM8975_IRQ_GPIO	TEGRA_GPIO_PQ2
-#define LM3559_GPIO		TEGRA_GPIO_PT4
+#define LM3559_RESETN_GPIO	TEGRA_GPIO_PT4
 #define OV5650_RESETN_GPIO	TEGRA_GPIO_PD2
 #define OV5650_PWRDN_GPIO	TEGRA_GPIO_PBB1
 #define SOC2030_RESETN_GPIO	TEGRA_GPIO_PD5
@@ -274,36 +274,25 @@ static int stingray_akm8975_init(void)
 }
 
 struct lm3559_platform_data stingray_lm3559_data = {
-	.flags = (LM3559_TORCH | LM3559_FLASH | LM3559_FLASH_LIGHT),
-	.enable_reg_def = 0x18,
-	.gpio_reg_def = 0x00,
-	.adc_delay_reg_def = 0xc0,
-	.vin_monitor_def = 0xc0,
-	.torch_brightness_def = 0xd2,
-	.flash_brightness_def = 0xdd,
-	.flash_duration_def = 0xef,
-	.flag_reg_def = 0x00,
-	.config_reg_1_def = 0x6a,
-	.config_reg_2_def = 0x00,
-	.privacy_reg_def = 0x10,
-	.msg_ind_reg_def = 0x00,
-	.msg_ind_blink_reg_def = 0x00,
-	.pwm_reg_def = 0x00,
-	.torch_enable_val = 0x1a,
-	.flash_enable_val = 0x1b,
-	.privacy_enable_val = 0x09,
-	.pwm_val = 0x00,
-	.msg_ind_val = 0x80,
-	.msg_ind_blink_val = 0xff,
+	.flags = 0,
+	.flash_duration_def = 0x04, /* 160ms timeout */
+	.vin_monitor_def = 0xC0,
 };
-
 
 static void stingray_lm3559_init(void)
 {
-	tegra_gpio_enable(LM3559_GPIO);
-	gpio_request(LM3559_GPIO, "lm3559_hwenable");
-	gpio_direction_output(LM3559_GPIO, 1);
+	tegra_gpio_enable(LM3559_RESETN_GPIO);
+	gpio_request(LM3559_RESETN_GPIO, "lm3559_hwenable");
+	gpio_direction_output(LM3559_RESETN_GPIO, 1);
+	gpio_export(LM3559_RESETN_GPIO, false);
 
+	/* define LM3559_STROBE_GPIO for debug, usually controlled by VGP3 */
+	#ifdef LM3559_STROBE_GPIO
+	tegra_gpio_enable(LM3559_STROBE_GPIO);
+	gpio_request(LM3559_STROBE_GPIO, "lm3559_strobe");
+	gpio_direction_output(LM3559_STROBE_GPIO, 0);
+	gpio_export(LM3559_STROBE_GPIO, false);
+	#endif
 }
 
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
