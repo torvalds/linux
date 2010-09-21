@@ -1451,7 +1451,6 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 	snd_soc_dapm_sync(codec);
 
 	/* register the rtd device */
-	rtd->dev.init_name = rtd->dai_link->stream_name;
 	rtd->dev.release = rtd_release;
 	rtd->dev.init_name = dai_link->name;
 	ret = device_register(&rtd->dev);
