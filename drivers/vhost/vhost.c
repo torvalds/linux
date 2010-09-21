@@ -1258,7 +1258,7 @@ static int __vhost_add_used_n(struct vhost_virtqueue *vq,
 
 	start = vq->last_used_idx % vq->num;
 	used = vq->used->ring + start;
-	if (copy_to_user(used, heads, count * sizeof *used)) {
+	if (__copy_to_user(used, heads, count * sizeof *used)) {
 		vq_err(vq, "Failed to write used");
 		return -EFAULT;
 	}
