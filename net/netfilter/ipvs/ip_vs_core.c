@@ -929,20 +929,31 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		ip_send_check(ip_hdr(skb));
 	}
 
+	/*
+	 * nf_iterate does not expect change in the skb->dst->dev.
+	 * It looks like it is not fatal to enable this code for hooks
+	 * where our handlers are at the end of the chain list and
+	 * when all next handlers use skb->dst->dev and not outdev.
+	 * It will definitely route properly the inout NAT traffic
+	 * when multiple paths are used.
+	 */
+
 	/* For policy routing, packets originating from this
 	 * machine itself may be routed differently to packets
 	 * passing through.  We want this packet to be routed as
 	 * if it came from this machine itself.  So re-compute
 	 * the routing information.
 	 */
+	if (sysctl_ip_vs_snat_reroute) {
 #ifdef CONFIG_IP_VS_IPV6
-	if (af == AF_INET6) {
-		if (ip6_route_me_harder(skb) != 0)
-			goto drop;
-	} else
+		if (af == AF_INET6) {
+			if (ip6_route_me_harder(skb) != 0)
+				goto drop;
+		} else
 #endif
-		if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
-			goto drop;
+			if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
+				goto drop;
+	}
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
 
@@ -991,8 +1002,13 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
 			int related, verdict = ip_vs_out_icmp_v6(skb, &related);
 
-			if (related)
+			if (related) {
+				if (sysctl_ip_vs_snat_reroute &&
+					NF_ACCEPT == verdict &&
+					ip6_route_me_harder(skb))
+					verdict = NF_DROP;
 				return verdict;
+			}
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 	} else
@@ -1000,8 +1016,13 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 		if (unlikely(iph.protocol == IPPROTO_ICMP)) {
 			int related, verdict = ip_vs_out_icmp(skb, &related);
 
-			if (related)
+			if (related) {
+				if (sysctl_ip_vs_snat_reroute &&
+					NF_ACCEPT == verdict &&
+					ip_route_me_harder(skb, RTN_LOCAL))
+					verdict = NF_DROP;
 				return verdict;
+			}
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 

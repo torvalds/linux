@@ -91,6 +91,7 @@ int sysctl_ip_vs_nat_icmp_send = 0;
 #ifdef CONFIG_IP_VS_NFCT
 int sysctl_ip_vs_conntrack;
 #endif
+int sysctl_ip_vs_snat_reroute = 1;
 
 
 #ifdef CONFIG_IP_VS_DEBUG
@@ -1598,6 +1599,13 @@ static struct ctl_table vs_vars[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_do_defense_mode,
+	},
+	{
+		.procname	= "snat_reroute",
+		.data		= &sysctl_ip_vs_snat_reroute,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #if 0
 	{
