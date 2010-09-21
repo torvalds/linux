@@ -41,6 +41,9 @@ void wl1271_pspoll_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
 	if (!test_and_clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags))
 		goto out;
 

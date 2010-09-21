@@ -39,6 +39,9 @@ void wl1271_elp_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
 	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
 	    (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
 	     !test_bit(WL1271_FLAG_IDLE, &wl->flags)))

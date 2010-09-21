@@ -792,6 +792,8 @@ int wl1271_plt_stop(struct wl1271 *wl)
 out:
 	mutex_unlock(&wl->mutex);
 
+	cancel_work_sync(&wl->irq_work);
+
 	return ret;
 }
 
@@ -995,6 +997,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->pspoll_work);
+	cancel_delayed_work_sync(&wl->elp_work);
 
 	mutex_lock(&wl->mutex);
 
