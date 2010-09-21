@@ -1242,35 +1242,29 @@ static int pod_try_init(struct usb_interface *interface,
 
 	/* create sysfs entries: */
 	err = pod_create_files2(&interface->dev);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* initialize audio system: */
 	err = line6_init_audio(line6);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* initialize MIDI subsystem: */
 	err = line6_init_midi(line6);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* initialize PCM subsystem: */
 	err = line6_init_pcm(line6, &pod_pcm_properties);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* register monitor control: */
-	err =
-	    snd_ctl_add(line6->card,
-			snd_ctl_new1(&pod_control_monitor, line6->line6pcm));
-	if (err < 0) {
+	err = snd_ctl_add(line6->card,
+			  snd_ctl_new1(&pod_control_monitor, line6->line6pcm));
+	if (err < 0)
 		return err;
-	}
 
 	/*
 	   When the sound card is registered at this point, the PODxt Live
@@ -1295,9 +1289,8 @@ int line6_pod_init(struct usb_interface *interface, struct usb_line6_pod *pod)
 {
 	int err = pod_try_init(interface, pod);
 
-	if (err < 0) {
+	if (err < 0)
 		pod_destruct(interface);
-	}
 
 	return err;
 }
@@ -1317,9 +1310,8 @@ void line6_pod_disconnect(struct usb_interface *interface)
 		struct snd_line6_pcm *line6pcm = pod->line6.line6pcm;
 		struct device *dev = &interface->dev;
 
-		if (line6pcm != NULL) {
+		if (line6pcm != NULL)
 			line6_pcm_disconnect(line6pcm);
-		}
 
 		if (dev != NULL) {
 			/* remove sysfs entries: */

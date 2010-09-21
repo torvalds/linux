@@ -634,8 +634,7 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 				"receiving status failed (error %d)\n", ret);
 			return ret;
 		}
-	}
-	while (status == 0xff);
+	} while (status == 0xff);
 
 	if (status != 0) {
 		dev_err(line6->ifcdev, "write failed (error %d)\n", ret);
@@ -667,7 +666,7 @@ ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
 /*
 	No operation (i.e., unsupported).
 */
-ssize_t line6_nop_write(struct device * dev, struct device_attribute * attr,
+ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	return count;
@@ -677,7 +676,7 @@ ssize_t line6_nop_write(struct device * dev, struct device_attribute * attr,
 	"write" request on "raw" special file.
 */
 #ifdef CONFIG_LINE6_USB_RAW
-ssize_t line6_set_raw(struct device * dev, struct device_attribute * attr,
+ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
 {
 	struct usb_interface *interface = to_usb_interface(dev);

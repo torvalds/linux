@@ -349,24 +349,20 @@ static int toneport_try_init(struct usb_interface *interface,
 
 	/* initialize audio system: */
 	err = line6_init_audio(line6);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* initialize PCM subsystem: */
 	err = line6_init_pcm(line6, &toneport_pcm_properties);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* register monitor control: */
-	err =
-	    snd_ctl_add(line6->card,
-			snd_ctl_new1(&toneport_control_monitor,
-				     line6->line6pcm));
-	if (err < 0) {
+	err = snd_ctl_add(line6->card,
+			  snd_ctl_new1(&toneport_control_monitor,
+				       line6->line6pcm));
+	if (err < 0)
 		return err;
-	}
 
 	/* register source select control: */
 	switch (usbdev->descriptor.idProduct) {
@@ -376,16 +372,14 @@ static int toneport_try_init(struct usb_interface *interface,
 		    snd_ctl_add(line6->card,
 				snd_ctl_new1(&toneport_control_source,
 					     line6->line6pcm));
-		if (err < 0) {
+		if (err < 0)
 			return err;
-		}
 	}
 
 	/* register audio system: */
 	err = line6_register_audio(line6);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	line6_read_serial_number(line6, &toneport->serial_number);
 	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
@@ -416,9 +410,8 @@ int line6_toneport_init(struct usb_interface *interface,
 {
 	int err = toneport_try_init(interface, toneport);
 
-	if (err < 0) {
+	if (err < 0)
 		toneport_destruct(interface);
-	}
 
 	return err;
 }

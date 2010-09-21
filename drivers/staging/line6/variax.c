@@ -664,15 +664,13 @@ static int variax_try_init(struct usb_interface *interface,
 
 	/* initialize audio system: */
 	err = line6_init_audio(&variax->line6);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* initialize MIDI subsystem: */
 	err = line6_init_midi(&variax->line6);
-	if (err < 0) {
+	if (err < 0)
 		return err;
-	}
 
 	/* initiate startup procedure: */
 	variax_startup1(variax);
@@ -687,9 +685,8 @@ int line6_variax_init(struct usb_interface *interface,
 {
 	int err = variax_try_init(interface, variax);
 
-	if (err < 0) {
+	if (err < 0)
 		variax_destruct(interface);
-	}
 
 	return err;
 }

@@ -380,8 +380,10 @@ int line6_init_midi(struct usb_line6 *line6)
 	int err;
 	struct snd_line6_midi *line6midi;
 
-	if (!(line6->properties->capabilities & LINE6_BIT_CONTROL))
-		return 0;	/* skip MIDI initialization and report success */
+	if (!(line6->properties->capabilities & LINE6_BIT_CONTROL)) {
+		/* skip MIDI initialization and report success */
+		return 0;
+	}
 
 	line6midi = kzalloc(sizeof(struct snd_line6_midi), GFP_KERNEL);
 

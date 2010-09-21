@@ -70,10 +70,12 @@ do {				\
 		return err;	\
 } while (0)
 
-#define CHECK_STARTUP_PROGRESS(x, n)	   \
-	if((x) >= (n))			   \
-		return;			   \
-	x = (n);
+#define CHECK_STARTUP_PROGRESS(x, n)	\
+do {					\
+	if ((x) >= (n))			\
+		return;			\
+	x = (n);			\
+} while (0)
 
 extern const unsigned char line6_midi_id[3];
 extern struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];

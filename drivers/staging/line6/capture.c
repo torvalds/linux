@@ -164,15 +164,19 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 			       len * bytes_per_frame);
 			memcpy(runtime->dma_area, fbuf + len * bytes_per_frame,
 			       (frames - len) * bytes_per_frame);
-		} else
-			dev_err(line6pcm->line6->ifcdev, "driver bug: len = %d\n", len);	/* this is somewhat paranoid */
+		} else {
+			/* this is somewhat paranoid */
+			dev_err(line6pcm->line6->ifcdev,
+				"driver bug: len = %d\n", len);
+		}
 	} else {
 		/* copy single chunk */
 		memcpy(runtime->dma_area +
 		       line6pcm->pos_in_done * bytes_per_frame, fbuf, fsize);
 	}
 
-	if ((line6pcm->pos_in_done += frames) >= runtime->buffer_size)
+	line6pcm->pos_in_done += frames;
+	if (line6pcm->pos_in_done >= runtime->buffer_size)
 		line6pcm->pos_in_done -= runtime->buffer_size;
 }
 
@@ -181,15 +185,16 @@ void line6_capture_check_period(struct snd_line6_pcm *line6pcm, int length)
 	struct snd_pcm_substream *substream =
 	    get_substream(line6pcm, SNDRV_PCM_STREAM_CAPTURE);
 
-	if ((line6pcm->bytes_in += length) >= line6pcm->period_in) {
+	line6pcm->bytes_in += length;
+	if (line6pcm->bytes_in >= line6pcm->period_in) {
 		line6pcm->bytes_in %= line6pcm->period_in;
 		snd_pcm_period_elapsed(substream);
 	}
 }
 
 /*
-  Callback for completed capture URB.
-*/
+ * Callback for completed capture URB.
+ */
 static void audio_in_callback(struct urb *urb)
 {
 	int i, index, length = 0, shutdown = 0;

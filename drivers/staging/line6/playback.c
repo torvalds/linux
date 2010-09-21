@@ -165,9 +165,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		struct usb_iso_packet_descriptor *fout =
 		    &urb_out->iso_frame_desc[i];
 
-		if (line6pcm->flags & MASK_CAPTURE) {
+		if (line6pcm->flags & MASK_CAPTURE)
 			fsize = line6pcm->prev_fsize;
-		}
 
 		if (fsize == 0) {
 			int n;
@@ -237,7 +236,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 #endif
 		}
 
-		if ((line6pcm->pos_out += urb_frames) >= runtime->buffer_size)
+		line6pcm->pos_out += urb_frames;
+		if (line6pcm->pos_out >= runtime->buffer_size)
 			line6pcm->pos_out -= runtime->buffer_size;
 	} else {
 		memset(urb_out->transfer_buffer, 0,
@@ -418,8 +418,8 @@ static void audio_out_callback(struct urb *urb)
 		submit_audio_out_urb(line6pcm);
 
 		if (test_bit(BIT_PCM_ALSA_PLAYBACK, &line6pcm->flags)) {
-			if ((line6pcm->bytes_out +=
-			     length) >= line6pcm->period_out) {
+			line6pcm->bytes_out += length;
+			if (line6pcm->bytes_out >= line6pcm->period_out) {
 				line6pcm->bytes_out %= line6pcm->period_out;
 				snd_pcm_period_elapsed(substream);
 			}
