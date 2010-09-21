@@ -811,11 +811,12 @@ static int mdm6600_reset_resume(struct usb_interface *intf)
 	return mdm6600_resume(intf);
 }
 
-int mdm6600_probe(struct usb_interface *interface,
-			       const struct usb_device_id *id)
+int mdm6600_probe(struct usb_serial *serial, const struct usb_device_id *id)
 {
-	/* we only support 1 modem (5 ports) */
-	if (mdm6600_attached_ports > 4) {
+	struct usb_device *dev = interface_to_usbdev(serial->interface);
+
+	/* we only support 1 modem */
+	if (mdm6600_attached_ports >= dev->config->desc.bNumInterfaces) {
 		pr_err("%s: only one modem supported", __func__);
 		return -EBUSY;
 	}
