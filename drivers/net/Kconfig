@@ -2515,6 +2515,18 @@ config S6GMAC
 
 source "drivers/net/stmmac/Kconfig"
 
+config PCH_GBE
+	tristate "PCH Gigabit Ethernet"
+	depends on PCI
+	---help---
+	  This is a gigabit ethernet driver for Topcliff PCH.
+	  Topcliff PCH is the platform controller hub that is used in Intel's
+	  general embedded platform.
+	  Topcliff PCH has Gigabit Ethernet interface.
+	  Using this interface, it is able to access system devices connected
+	  to Gigabit Ethernet.
+	  This driver enables Gigabit Ethernet function.
+
 endif # NETDEV_1000
 
 #
