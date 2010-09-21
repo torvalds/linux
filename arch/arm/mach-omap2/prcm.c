@@ -33,6 +33,7 @@
 #include "cm.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"
+#include "prm-regbits-44xx.h"
 
 static void __iomem *prm_base;
 static void __iomem *cm_base;
@@ -161,8 +162,8 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
 						 OMAP2_RM_RSTCTRL);
 	if (cpu_is_omap44xx())
-		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
-						 OMAP4_RM_RSTCTRL);
+		prm_set_mod_reg_bits(OMAP4430_RST_GLOBAL_WARM_SW_MASK,
+				     prcm_offs, OMAP4_RM_RSTCTRL);
 }
 
 static inline u32 __omap_prcm_read(void __iomem *base, s16 module, u16 reg)
