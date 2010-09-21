@@ -242,8 +242,6 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	 */
 	spin_lock(&block_group->lock);
 	if (block_group->disk_cache_state != BTRFS_DC_WRITTEN) {
-		printk(KERN_ERR "not reading block group %llu, dcs is %d\n", block_group->key.objectid,
-		       block_group->disk_cache_state);
 		spin_unlock(&block_group->lock);
 		return 0;
 	}

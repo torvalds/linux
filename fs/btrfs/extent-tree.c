@@ -8198,6 +8198,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	if (cache_gen != 0 &&
 	    btrfs_super_generation(&root->fs_info->super_copy) != cache_gen)
 		need_clear = 1;
+	if (btrfs_test_opt(root, CLEAR_CACHE))
+		need_clear = 1;
 
 	while (1) {
 		ret = find_first_block_group(root, path, &key);
