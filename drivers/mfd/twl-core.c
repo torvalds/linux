@@ -249,7 +249,7 @@ struct twl_mapping {
 	unsigned char sid;	/* Slave ID */
 	unsigned char base;	/* base address */
 };
-struct twl_mapping *twl_map;
+static struct twl_mapping *twl_map;
 
 static struct twl_mapping twl4030_map[TWL4030_MODULE_LAST + 1] = {
 	/*
