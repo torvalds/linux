@@ -1493,7 +1493,7 @@ static int nfsiod_start(void)
 {
 	struct workqueue_struct *wq;
 	dprintk("RPC:       creating workqueue nfsiod\n");
-	wq = create_singlethread_workqueue("nfsiod");
+	wq = alloc_workqueue("nfsiod", WQ_RESCUER, 0);
 	if (wq == NULL)
 		return -ENOMEM;
 	nfsiod_workqueue = wq;
