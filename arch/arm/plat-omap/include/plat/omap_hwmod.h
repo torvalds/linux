@@ -369,6 +369,10 @@ struct omap_hwmod_omap4_prcm {
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
  * HWMOD_NO_IDLEST : this module does not have idle status - this is the case
  *     only for few initiator modules on OMAP2 & 3.
+ * HWMOD_CONTROL_OPT_CLKS_IN_RESET: Enable all optional clocks during reset.
+ *     This is needed for devices like DSS that require optional clocks enabled
+ *     in order to complete the reset. Optional clocks will be disabled
+ *     again after the reset.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -377,6 +381,7 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_NO_OCP_AUTOIDLE			(1 << 4)
 #define HWMOD_SET_DEFAULT_CLOCKACT		(1 << 5)
 #define HWMOD_NO_IDLEST				(1 << 6)
+#define HWMOD_CONTROL_OPT_CLKS_IN_RESET		(1 << 7)
 
 /*
  * omap_hwmod._int_flags definitions
