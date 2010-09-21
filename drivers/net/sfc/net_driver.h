@@ -29,6 +29,7 @@
 #include <linux/device.h>
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
+#include <linux/vmalloc.h>
 #include <linux/i2c.h>
 
 #include "enum.h"
