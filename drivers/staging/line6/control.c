@@ -732,8 +732,6 @@ int line6_pod_create_files(int firmware, int type, struct device *dev)
 	return 0;
 }
 
-EXPORT_SYMBOL(line6_pod_create_files);
-
 void line6_pod_remove_files(int firmware, int type, struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_tweak);
@@ -908,8 +906,6 @@ void line6_pod_remove_files(int firmware, int type, struct device *dev)
 			device_remove_file(dev, &dev_attr_band_6_gain__bass);
 }
 
-EXPORT_SYMBOL(line6_pod_remove_files);
-
 int line6_variax_create_files(int firmware, int type, struct device *dev)
 {
 	int err;
@@ -955,8 +951,6 @@ int line6_variax_create_files(int firmware, int type, struct device *dev)
 	return 0;
 }
 
-EXPORT_SYMBOL(line6_variax_create_files);
-
 void line6_variax_remove_files(int firmware, int type, struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_body);
@@ -999,5 +993,3 @@ void line6_variax_remove_files(int firmware, int type, struct device *dev)
 	device_remove_file(dev, &dev_attr_mix1);
 	device_remove_file(dev, &dev_attr_pickup_wiring);
 }
-
-EXPORT_SYMBOL(line6_variax_remove_files);
