@@ -30,9 +30,6 @@
 #define CONNECT_TIMEOUT (5 * HZ)
 #define CAIF_NET_DEFAULT_QUEUE_LEN 500
 
-#undef pr_debug
-#define pr_debug pr_warn
-
 /*This list is protected by the rtnl lock. */
 static LIST_HEAD(chnl_net_list);
 
