@@ -235,6 +235,9 @@ static struct conf_drv_settings default_conf = {
 	}
 };
 
+static void __wl1271_op_remove_interface(struct wl1271 *wl);
+
+
 static void wl1271_device_release(struct device *dev)
 {
 
@@ -612,6 +615,26 @@ out:
 	return ret;
 }
 
+static void wl1271_recovery_work(struct work_struct *work)
+{
+	struct wl1271 *wl =
+		container_of(work, struct wl1271, recovery_work);
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state != WL1271_STATE_ON)
+		goto out;
+
+	wl1271_info("Hardware recovery in progress.");
+
+	/* reboot the chipset */
+	__wl1271_op_remove_interface(wl);
+	ieee80211_restart_hw(wl->hw);
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static void wl1271_fw_wakeup(struct wl1271 *wl)
 {
 	u32 elp_reg;
@@ -635,6 +658,7 @@ static int wl1271_setup(struct wl1271 *wl)
 	INIT_WORK(&wl->irq_work, wl1271_irq_work);
 	INIT_WORK(&wl->tx_work, wl1271_tx_work);
 	INIT_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
+	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
 
 	return 0;
 }
@@ -793,10 +817,10 @@ out:
 	mutex_unlock(&wl->mutex);
 
 	cancel_work_sync(&wl->irq_work);
+	cancel_work_sync(&wl->recovery_work);
 
 	return ret;
 }
-
 
 static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -1046,6 +1070,8 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(wl->vif != vif);
 	__wl1271_op_remove_interface(wl);
 	mutex_unlock(&wl->mutex);
+
+	cancel_work_sync(&wl->recovery_work);
 }
 
 static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)

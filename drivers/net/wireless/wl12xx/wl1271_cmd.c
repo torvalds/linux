@@ -94,6 +94,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
 		wl1271_error("command execute failure %d", status);
+		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 		ret = -EIO;
 	}
 
@@ -182,8 +183,10 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 	timeout = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
 	do {
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout)) {
+			ieee80211_queue_work(wl->hw, &wl->recovery_work);
 			return -ETIMEDOUT;
+		}
 
 		msleep(1);
 

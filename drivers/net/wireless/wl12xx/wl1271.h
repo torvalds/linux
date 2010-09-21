@@ -408,6 +408,9 @@ struct wl1271 {
 	/* The target interrupt mask */
 	struct work_struct irq_work;
 
+	/* Hardware recovery work */
+	struct work_struct recovery_work;
+
 	/* The mbox event mask */
 	u32 event_mask;
 

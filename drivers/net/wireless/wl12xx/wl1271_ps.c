@@ -64,7 +64,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	    test_bit(WL1271_FLAG_IDLE, &wl->flags)) {
 		cancel_delayed_work(&wl->elp_work);
 		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
-					msecs_to_jiffies(ELP_ENTRY_DELAY));
+					     msecs_to_jiffies(ELP_ENTRY_DELAY));
 	}
 }
 
@@ -99,6 +99,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 			&compl, msecs_to_jiffies(WL1271_WAKEUP_TIMEOUT));
 		if (ret == 0) {
 			wl1271_error("ELP wakeup timeout!");
+			ieee80211_queue_work(wl->hw, &wl->recovery_work);
 			ret = -ETIMEDOUT;
 			goto err;
 		} else if (ret < 0) {
