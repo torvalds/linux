@@ -2566,6 +2566,8 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 	{ "MIXINR", "IN3R Switch", "IN3R" },
 	{ "MIXINR", "PGA Switch", "INPGAR" },
 
+	{ "MICBIAS", NULL, "SYSCLK" },
+
 	{ "ADCL", NULL, "SYSCLK" },
 	{ "ADCL", NULL, "TOCLK" },
 	{ "ADCL", NULL, "MIXINL" },
