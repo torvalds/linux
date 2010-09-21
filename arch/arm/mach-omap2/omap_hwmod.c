@@ -1434,19 +1434,17 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
  *
  * Under some conditions, a driver may wish to reset the entire device.
  * Called from omap_device code.  Returns -EINVAL on error or passes along
- * the return value from _reset()/_enable().
+ * the return value from _reset().
  */
 int omap_hwmod_reset(struct omap_hwmod *oh)
 {
 	int r;
 
-	if (!oh || !(oh->_state & _HWMOD_STATE_ENABLED))
+	if (!oh)
 		return -EINVAL;
 
 	mutex_lock(&omap_hwmod_mutex);
 	r = _reset(oh);
-	if (!r)
-		r = _omap_hwmod_enable(oh);
 	mutex_unlock(&omap_hwmod_mutex);
 
 	return r;
