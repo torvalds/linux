@@ -131,7 +131,7 @@ order to avoid the degeneration that had become the ppc32 kernel entry
 point and the way a new platform should be added to the kernel. The
 legacy iSeries platform breaks those rules as it predates this scheme,
 but no new board support will be accepted in the main tree that
-doesn't follows them properly.  In addition, since the advent of the
+doesn't follow them properly.  In addition, since the advent of the
 arch/powerpc merged architecture for ppc32 and ppc64, new 32-bit
 platforms and 32-bit platforms which move into arch/powerpc will be
 required to use these rules as well.
@@ -1025,7 +1025,7 @@ dtc source code can be found at
 
 WARNING: This version is still in early development stage; the
 resulting device-tree "blobs" have not yet been validated with the
-kernel. The current generated bloc lacks a useful reserve map (it will
+kernel. The current generated block lacks a useful reserve map (it will
 be fixed to generate an empty one, it's up to the bootloader to fill
 it up) among others. The error handling needs work, bugs are lurking,
 etc...
