@@ -97,6 +97,7 @@ static void intel_lvds_set_power(struct intel_lvds *intel_lvds, bool on)
 				DRM_ERROR("timed out waiting for panel to power off\n");
 			I915_WRITE(PFIT_CONTROL, 0);
 			intel_lvds->pfit_control = 0;
+			intel_lvds->pfit_dirty = false;
 		}
 
 		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
@@ -377,8 +378,8 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
 	} else if (intel_lvds->pfit_dirty) {
 		I915_WRITE(PP_CONTROL,
-			   I915_READ(PP_CONTROL) & ~POWER_TARGET_ON);
-		I915_WRITE(LVDS, I915_READ(LVDS) & ~LVDS_PORT_EN);
+			   (I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS)
+			   & ~POWER_TARGET_ON);
 	} else {
 		I915_WRITE(PP_CONTROL,
 			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
@@ -438,6 +439,9 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
+	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
+		      intel_lvds->pfit_control,
+		      intel_lvds->pfit_pgm_ratios);
 	if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
 
