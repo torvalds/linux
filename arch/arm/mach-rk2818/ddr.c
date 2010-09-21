@@ -1320,14 +1320,37 @@ static void __tcmfunc DDRUpdateTiming(void)
     pDDR_Reg->CTRL_REG_68 = ddrCTRL_REG_68;
 }
 
+/* we avoid to use stack and global var. six instr in one cycle.*/
+#if 0
+volatile uint32 __tcmdata for_ddr_delay;
 void __tcmfunc ddr_pll_delay( int loops ) 
 {
-        volatile int i;
-        for( i = loops ; i > 0 ; i-- ){
+        for_ddr_delay = loops;
+        for( ; for_ddr_delay > 0 ; for_ddr_delay-- ){
                 ;
         }
 }
-
+#else
+asm(	
+"	.section \".tcm.text\",\"ax\"\n"	
+"	.align\n"
+"	.type	ddr_pll_delay, #function\n"
+"               .global ddr_pll_delay\n"
+"ddr_pll_delay:\n"
+"               cmp r0,#0\n"
+"               movle  pc , lr\n"
+"1:	sub  r0,r0,#1\n"	
+"	mov r1,r1\n"	
+"	mov r1,r1\n"
+"	mov r1,r1\n"
+"	mov r2,r2\n"	
+"	mov r2,r2\n"
+"               cmp r0,#0\n"
+"               bgt     1b\n"
+"	mov pc,lr\n"
+"	.previous"
+);
+#endif
 /****************************************************************/
 //函数名:SDRAM_BeforeUpdateFreq
 //描述:调整SDRAM/DDR频率前调用的函数，用于调整SDRAM/DDR时序参数
