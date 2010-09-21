@@ -3510,6 +3510,7 @@ static struct snd_pci_quirk ad1984_cfg_tbl[] = {
 	/* Lenovo Thinkpad T61/X61 */
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo Thinkpad", AD1984_THINKPAD),
 	SND_PCI_QUIRK(0x1028, 0x0214, "Dell T3400", AD1984_DELL_DESKTOP),
+	SND_PCI_QUIRK(0x1028, 0x0233, "Dell Latitude E6400", AD1984_DELL_DESKTOP),
 	{}
 };
 
