@@ -53,7 +53,7 @@ static struct pppox_sock **callid_sock;
 static DEFINE_SPINLOCK(chan_lock);
 
 static struct proto pptp_sk_proto __read_mostly;
-static struct ppp_channel_ops pptp_chan_ops;
+static const struct ppp_channel_ops pptp_chan_ops;
 static const struct proto_ops pptp_ops;
 
 #define PPP_LCP_ECHOREQ 0x09
@@ -628,7 +628,7 @@ static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 	return err;
 }
 
-static struct ppp_channel_ops pptp_chan_ops = {
+static const struct ppp_channel_ops pptp_chan_ops = {
 	.start_xmit = pptp_xmit,
 	.ioctl      = pptp_ppp_ioctl,
 };
@@ -659,12 +659,12 @@ static const struct proto_ops pptp_ops = {
 	.ioctl      = pppox_ioctl,
 };
 
-static struct pppox_proto pppox_pptp_proto = {
+static const struct pppox_proto pppox_pptp_proto = {
 	.create = pptp_create,
 	.owner  = THIS_MODULE,
 };
 
-static struct gre_protocol gre_pptp_protocol = {
+static const struct gre_protocol gre_pptp_protocol = {
 	.handler = pptp_rcv,
 };
 
