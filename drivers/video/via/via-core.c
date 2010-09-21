@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/list.h>
 #include <linux/pm.h>
+#include <asm/olpc.h>
 
 /*
  * The default port config.
@@ -26,6 +27,19 @@ static struct via_port_cfg adap_configs[] = {
 	[VIA_PORT_31]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x31 },
 	[VIA_PORT_25]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x25 },
 	[VIA_PORT_2C]	= { VIA_PORT_GPIO, VIA_MODE_I2C, VIASR, 0x2c },
+	[VIA_PORT_3D]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x3d },
+	{ 0, 0, 0, 0 }
+};
+
+/*
+ * The OLPC XO-1.5 puts the camera power and reset lines onto
+ * GPIO 2C.
+ */
+static const struct via_port_cfg olpc_adap_configs[] = {
+	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x26 },
+	[VIA_PORT_31]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x31 },
+	[VIA_PORT_25]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x25 },
+	[VIA_PORT_2C]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x2c },
 	[VIA_PORT_3D]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x3d },
 	{ 0, 0, 0, 0 }
 };
@@ -654,6 +668,9 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	global_dev.pdev = pdev;
 	global_dev.chip_type = ent->driver_data;
 	global_dev.port_cfg = adap_configs;
+	if (machine_is_olpc())
+		global_dev.port_cfg = olpc_adap_configs;
+
 	spin_lock_init(&global_dev.reg_lock);
 	ret = via_pci_setup_mmio(&global_dev);
 	if (ret)
