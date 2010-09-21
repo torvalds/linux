@@ -5,7 +5,7 @@
  * OMAP2/3 Power/Reset Management (PRM) register definitions
  *
  * Copyright (C) 2007-2009 Texas Instruments, Inc.
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2010 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -246,6 +246,10 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 	return prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
 }
 
+int omap4_prm_is_hardreset_asserted(void __iomem *rstctrl_reg, u8 shift);
+int omap4_prm_assert_hardreset(void __iomem *rstctrl_reg, u8 shift);
+int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift);
+
 #endif
 
 /*
@@ -396,6 +400,13 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  */
 #define OMAP_POWERSTATE_SHIFT				0
 #define OMAP_POWERSTATE_MASK				(0x3 << 0)
+
+
+/*
+ * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
+ * submodule to exit hardreset
+ */
+#define MAX_MODULE_HARDRESET_WAIT		10000
 
 
 #endif
