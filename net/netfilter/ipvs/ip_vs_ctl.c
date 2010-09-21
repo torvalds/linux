@@ -405,7 +405,7 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
  *	Get service by {proto,addr,port} in the service table.
  */
 static inline struct ip_vs_service *
-__ip_vs_service_get(int af, __u16 protocol, const union nf_inet_addr *vaddr,
+__ip_vs_service_find(int af, __u16 protocol, const union nf_inet_addr *vaddr,
 		    __be16 vport)
 {
 	unsigned hash;
@@ -420,7 +420,6 @@ __ip_vs_service_get(int af, __u16 protocol, const union nf_inet_addr *vaddr,
 		    && (svc->port == vport)
 		    && (svc->protocol == protocol)) {
 			/* HIT */
-			atomic_inc(&svc->usecnt);
 			return svc;
 		}
 	}
@@ -433,7 +432,7 @@ __ip_vs_service_get(int af, __u16 protocol, const union nf_inet_addr *vaddr,
  *	Get service by {fwmark} in the service table.
  */
 static inline struct ip_vs_service *
-__ip_vs_svc_fwm_get(int af, __u32 fwmark)
+__ip_vs_svc_fwm_find(int af, __u32 fwmark)
 {
 	unsigned hash;
 	struct ip_vs_service *svc;
@@ -444,7 +443,6 @@ __ip_vs_svc_fwm_get(int af, __u32 fwmark)
 	list_for_each_entry(svc, &ip_vs_svc_fwm_table[hash], f_list) {
 		if (svc->fwmark == fwmark && svc->af == af) {
 			/* HIT */
-			atomic_inc(&svc->usecnt);
 			return svc;
 		}
 	}
@@ -463,14 +461,14 @@ ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
 	/*
 	 *	Check the table hashed by fwmark first
 	 */
-	if (fwmark && (svc = __ip_vs_svc_fwm_get(af, fwmark)))
+	if (fwmark && (svc = __ip_vs_svc_fwm_find(af, fwmark)))
 		goto out;
 
 	/*
 	 *	Check the table hashed by <protocol,addr,port>
 	 *	for "full" addressed entries
 	 */
-	svc = __ip_vs_service_get(af, protocol, vaddr, vport);
+	svc = __ip_vs_service_find(af, protocol, vaddr, vport);
 
 	if (svc == NULL
 	    && protocol == IPPROTO_TCP
@@ -480,7 +478,7 @@ ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
 		 * Check if ftp service entry exists, the packet
 		 * might belong to FTP data connections.
 		 */
-		svc = __ip_vs_service_get(af, protocol, vaddr, FTPPORT);
+		svc = __ip_vs_service_find(af, protocol, vaddr, FTPPORT);
 	}
 
 	if (svc == NULL
@@ -488,10 +486,12 @@ ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
 		/*
 		 * Check if the catch-all port (port zero) exists
 		 */
-		svc = __ip_vs_service_get(af, protocol, vaddr, 0);
+		svc = __ip_vs_service_find(af, protocol, vaddr, 0);
 	}
 
   out:
+	if (svc)
+		atomic_inc(&svc->usecnt);
 	read_unlock(&__ip_vs_svc_lock);
 
 	IP_VS_DBG_BUF(9, "lookup service: fwm %u %s %s:%u %s\n",
@@ -510,14 +510,19 @@ __ip_vs_bind_svc(struct ip_vs_dest *dest, struct ip_vs_service *svc)
 	dest->svc = svc;
 }
 
-static inline void
+static void
 __ip_vs_unbind_svc(struct ip_vs_dest *dest)
 {
 	struct ip_vs_service *svc = dest->svc;
 
 	dest->svc = NULL;
-	if (atomic_dec_and_test(&svc->refcnt))
+	if (atomic_dec_and_test(&svc->refcnt)) {
+		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u usecnt=%d\n",
+			      svc->fwmark,
+			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
+			      ntohs(svc->port), atomic_read(&svc->usecnt));
 		kfree(svc);
+	}
 }
 
 
@@ -762,8 +767,8 @@ ip_vs_zero_stats(struct ip_vs_stats *stats)
  *	Update a destination in the given service
  */
 static void
-__ip_vs_update_dest(struct ip_vs_service *svc,
-		    struct ip_vs_dest *dest, struct ip_vs_dest_user_kern *udest)
+__ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
+		    struct ip_vs_dest_user_kern *udest, int add)
 {
 	int conn_flags;
 
@@ -818,6 +823,25 @@ __ip_vs_update_dest(struct ip_vs_service *svc,
 		dest->flags &= ~IP_VS_DEST_F_OVERLOAD;
 	dest->u_threshold = udest->u_threshold;
 	dest->l_threshold = udest->l_threshold;
+
+	if (add)
+		ip_vs_new_estimator(&dest->stats);
+
+	write_lock_bh(&__ip_vs_svc_lock);
+
+	/* Wait until all other svc users go away */
+	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
+
+	if (add) {
+		list_add(&dest->n_list, &svc->destinations);
+		svc->num_dests++;
+	}
+
+	/* call the update_service, because server weight may be changed */
+	if (svc->scheduler->update_service)
+		svc->scheduler->update_service(svc);
+
+	write_unlock_bh(&__ip_vs_svc_lock);
 }
 
 
@@ -865,13 +889,12 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	atomic_set(&dest->activeconns, 0);
 	atomic_set(&dest->inactconns, 0);
 	atomic_set(&dest->persistconns, 0);
-	atomic_set(&dest->refcnt, 0);
+	atomic_set(&dest->refcnt, 1);
 
 	INIT_LIST_HEAD(&dest->d_list);
 	spin_lock_init(&dest->dst_lock);
 	spin_lock_init(&dest->stats.lock);
-	__ip_vs_update_dest(svc, dest, udest);
-	ip_vs_new_estimator(&dest->stats);
+	__ip_vs_update_dest(svc, dest, udest, 1);
 
 	*dest_p = dest;
 
@@ -931,65 +954,22 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 			      IP_VS_DBG_ADDR(svc->af, &dest->vaddr),
 			      ntohs(dest->vport));
 
-		__ip_vs_update_dest(svc, dest, udest);
-
 		/*
 		 * Get the destination from the trash
 		 */
 		list_del(&dest->n_list);
 
-		ip_vs_new_estimator(&dest->stats);
-
-		write_lock_bh(&__ip_vs_svc_lock);
-
+		__ip_vs_update_dest(svc, dest, udest, 1);
+		ret = 0;
+	} else {
 		/*
-		 * Wait until all other svc users go away.
+		 * Allocate and initialize the dest structure
 		 */
-		IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
-
-		list_add(&dest->n_list, &svc->destinations);
-		svc->num_dests++;
-
-		/* call the update_service function of its scheduler */
-		if (svc->scheduler->update_service)
-			svc->scheduler->update_service(svc);
-
-		write_unlock_bh(&__ip_vs_svc_lock);
-		return 0;
+		ret = ip_vs_new_dest(svc, udest, &dest);
 	}
-
-	/*
-	 * Allocate and initialize the dest structure
-	 */
-	ret = ip_vs_new_dest(svc, udest, &dest);
-	if (ret) {
-		return ret;
-	}
-
-	/*
-	 * Add the dest entry into the list
-	 */
-	atomic_inc(&dest->refcnt);
-
-	write_lock_bh(&__ip_vs_svc_lock);
-
-	/*
-	 * Wait until all other svc users go away.
-	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
-
-	list_add(&dest->n_list, &svc->destinations);
-	svc->num_dests++;
-
-	/* call the update_service function of its scheduler */
-	if (svc->scheduler->update_service)
-		svc->scheduler->update_service(svc);
-
-	write_unlock_bh(&__ip_vs_svc_lock);
-
 	LeaveFunction(2);
 
-	return 0;
+	return ret;
 }
 
 
@@ -1028,19 +1008,7 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 		return -ENOENT;
 	}
 
-	__ip_vs_update_dest(svc, dest, udest);
-
-	write_lock_bh(&__ip_vs_svc_lock);
-
-	/* Wait until all other svc users go away */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
-
-	/* call the update_service, because server weight may be changed */
-	if (svc->scheduler->update_service)
-		svc->scheduler->update_service(svc);
-
-	write_unlock_bh(&__ip_vs_svc_lock);
-
+	__ip_vs_update_dest(svc, dest, udest, 0);
 	LeaveFunction(2);
 
 	return 0;
@@ -1067,6 +1035,10 @@ static void __ip_vs_del_dest(struct ip_vs_dest *dest)
 	 *  the destination into the trash.
 	 */
 	if (atomic_dec_and_test(&dest->refcnt)) {
+		IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u\n",
+			      dest->vfwmark,
+			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
+			      ntohs(dest->port));
 		ip_vs_dst_reset(dest);
 		/* simply decrease svc->refcnt here, let the caller check
 		   and release the service if nobody refers to it.
@@ -1133,7 +1105,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	/*
 	 *	Wait until all other svc users go away.
 	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
+	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
 
 	/*
 	 *	Unlink dest from the service
@@ -1190,7 +1162,7 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	}
 
 	/* I'm the first user of the service */
-	atomic_set(&svc->usecnt, 1);
+	atomic_set(&svc->usecnt, 0);
 	atomic_set(&svc->refcnt, 0);
 
 	svc->af = u->af;
@@ -1284,7 +1256,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	/*
 	 * Wait until all other svc users go away.
 	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
+	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
 
 	/*
 	 * Set the flags and timeout value
@@ -1383,21 +1355,23 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	/*
 	 *    Free the service if nobody refers to it
 	 */
-	if (atomic_read(&svc->refcnt) == 0)
+	if (atomic_read(&svc->refcnt) == 0) {
+		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u usecnt=%d\n",
+			      svc->fwmark,
+			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
+			      ntohs(svc->port), atomic_read(&svc->usecnt));
 		kfree(svc);
+	}
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
 }
 
 /*
- *	Delete a service from the service list
+ * Unlink a service from list and try to delete it if its refcnt reached 0
  */
-static int ip_vs_del_service(struct ip_vs_service *svc)
+static void ip_vs_unlink_service(struct ip_vs_service *svc)
 {
-	if (svc == NULL)
-		return -EEXIST;
-
 	/*
 	 * Unhash it from the service table
 	 */
@@ -1408,11 +1382,21 @@ static int ip_vs_del_service(struct ip_vs_service *svc)
 	/*
 	 * Wait until all the svc users go away.
 	 */
-	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
+	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
 
 	__ip_vs_del_service(svc);
 
 	write_unlock_bh(&__ip_vs_svc_lock);
+}
+
+/*
+ *	Delete a service from the service list
+ */
+static int ip_vs_del_service(struct ip_vs_service *svc)
+{
+	if (svc == NULL)
+		return -EEXIST;
+	ip_vs_unlink_service(svc);
 
 	return 0;
 }
@@ -1431,14 +1415,7 @@ static int ip_vs_flush(void)
 	 */
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
 		list_for_each_entry_safe(svc, nxt, &ip_vs_svc_table[idx], s_list) {
-			write_lock_bh(&__ip_vs_svc_lock);
-			ip_vs_svc_unhash(svc);
-			/*
-			 * Wait until all the svc users go away.
-			 */
-			IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
-			__ip_vs_del_service(svc);
-			write_unlock_bh(&__ip_vs_svc_lock);
+			ip_vs_unlink_service(svc);
 		}
 	}
 
@@ -1448,14 +1425,7 @@ static int ip_vs_flush(void)
 	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
 		list_for_each_entry_safe(svc, nxt,
 					 &ip_vs_svc_fwm_table[idx], f_list) {
-			write_lock_bh(&__ip_vs_svc_lock);
-			ip_vs_svc_unhash(svc);
-			/*
-			 * Wait until all the svc users go away.
-			 */
-			IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
-			__ip_vs_del_service(svc);
-			write_unlock_bh(&__ip_vs_svc_lock);
+			ip_vs_unlink_service(svc);
 		}
 	}
 
@@ -2168,15 +2138,15 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 
 	/* Lookup the exact service by <protocol, addr, port> or fwmark */
 	if (usvc.fwmark == 0)
-		svc = __ip_vs_service_get(usvc.af, usvc.protocol,
-					  &usvc.addr, usvc.port);
+		svc = __ip_vs_service_find(usvc.af, usvc.protocol,
+					   &usvc.addr, usvc.port);
 	else
-		svc = __ip_vs_svc_fwm_get(usvc.af, usvc.fwmark);
+		svc = __ip_vs_svc_fwm_find(usvc.af, usvc.fwmark);
 
 	if (cmd != IP_VS_SO_SET_ADD
 	    && (svc == NULL || svc->protocol != usvc.protocol)) {
 		ret = -ESRCH;
-		goto out_drop_service;
+		goto out_unlock;
 	}
 
 	switch (cmd) {
@@ -2209,10 +2179,6 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	default:
 		ret = -EINVAL;
 	}
-
-out_drop_service:
-	if (svc)
-		ip_vs_service_put(svc);
 
   out_unlock:
 	mutex_unlock(&__ip_vs_mutex);
@@ -2306,10 +2272,10 @@ __ip_vs_get_dest_entries(const struct ip_vs_get_dests *get,
 	int ret = 0;
 
 	if (get->fwmark)
-		svc = __ip_vs_svc_fwm_get(AF_INET, get->fwmark);
+		svc = __ip_vs_svc_fwm_find(AF_INET, get->fwmark);
 	else
-		svc = __ip_vs_service_get(AF_INET, get->protocol, &addr,
-					  get->port);
+		svc = __ip_vs_service_find(AF_INET, get->protocol, &addr,
+					   get->port);
 
 	if (svc) {
 		int count = 0;
@@ -2337,7 +2303,6 @@ __ip_vs_get_dest_entries(const struct ip_vs_get_dests *get,
 			}
 			count++;
 		}
-		ip_vs_service_put(svc);
 	} else
 		ret = -ESRCH;
 	return ret;
@@ -2458,15 +2423,14 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		entry = (struct ip_vs_service_entry *)arg;
 		addr.ip = entry->addr;
 		if (entry->fwmark)
-			svc = __ip_vs_svc_fwm_get(AF_INET, entry->fwmark);
+			svc = __ip_vs_svc_fwm_find(AF_INET, entry->fwmark);
 		else
-			svc = __ip_vs_service_get(AF_INET, entry->protocol,
-						  &addr, entry->port);
+			svc = __ip_vs_service_find(AF_INET, entry->protocol,
+						   &addr, entry->port);
 		if (svc) {
 			ip_vs_copy_service(entry, svc);
 			if (copy_to_user(user, entry, sizeof(*entry)) != 0)
 				ret = -EFAULT;
-			ip_vs_service_put(svc);
 		} else
 			ret = -ESRCH;
 	}
@@ -2733,10 +2697,12 @@ nla_put_failure:
 }
 
 static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
-				    struct nlattr *nla, int full_entry)
+				    struct nlattr *nla, int full_entry,
+				    struct ip_vs_service **ret_svc)
 {
 	struct nlattr *attrs[IPVS_SVC_ATTR_MAX + 1];
 	struct nlattr *nla_af, *nla_port, *nla_fwmark, *nla_protocol, *nla_addr;
+	struct ip_vs_service *svc;
 
 	/* Parse mandatory identifying service fields first */
 	if (nla == NULL ||
@@ -2772,12 +2738,18 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 		usvc->fwmark = 0;
 	}
 
+	if (usvc->fwmark)
+		svc = __ip_vs_svc_fwm_find(usvc->af, usvc->fwmark);
+	else
+		svc = __ip_vs_service_find(usvc->af, usvc->protocol,
+					   &usvc->addr, usvc->port);
+	*ret_svc = svc;
+
 	/* If a full entry was requested, check for the additional fields */
 	if (full_entry) {
 		struct nlattr *nla_sched, *nla_flags, *nla_timeout,
 			      *nla_netmask;
 		struct ip_vs_flags flags;
-		struct ip_vs_service *svc;
 
 		nla_sched = attrs[IPVS_SVC_ATTR_SCHED_NAME];
 		nla_flags = attrs[IPVS_SVC_ATTR_FLAGS];
@@ -2790,16 +2762,8 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 		nla_memcpy(&flags, nla_flags, sizeof(flags));
 
 		/* prefill flags from service if it already exists */
-		if (usvc->fwmark)
-			svc = __ip_vs_svc_fwm_get(usvc->af, usvc->fwmark);
-		else
-			svc = __ip_vs_service_get(usvc->af, usvc->protocol,
-						  &usvc->addr, usvc->port);
-		if (svc) {
+		if (svc)
 			usvc->flags = svc->flags;
-			ip_vs_service_put(svc);
-		} else
-			usvc->flags = 0;
 
 		/* set new flags from userland */
 		usvc->flags = (usvc->flags & ~flags.mask) |
@@ -2815,17 +2779,11 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 static struct ip_vs_service *ip_vs_genl_find_service(struct nlattr *nla)
 {
 	struct ip_vs_service_user_kern usvc;
+	struct ip_vs_service *svc;
 	int ret;
 
-	ret = ip_vs_genl_parse_service(&usvc, nla, 0);
-	if (ret)
-		return ERR_PTR(ret);
-
-	if (usvc.fwmark)
-		return __ip_vs_svc_fwm_get(usvc.af, usvc.fwmark);
-	else
-		return __ip_vs_service_get(usvc.af, usvc.protocol,
-					   &usvc.addr, usvc.port);
+	ret = ip_vs_genl_parse_service(&usvc, nla, 0, &svc);
+	return ret ? ERR_PTR(ret) : svc;
 }
 
 static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
@@ -2916,7 +2874,6 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 
 nla_put_failure:
 	cb->args[0] = idx;
-	ip_vs_service_put(svc);
 
 out_err:
 	mutex_unlock(&__ip_vs_mutex);
@@ -3129,16 +3086,9 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 
 	ret = ip_vs_genl_parse_service(&usvc,
 				       info->attrs[IPVS_CMD_ATTR_SERVICE],
-				       need_full_svc);
+				       need_full_svc, &svc);
 	if (ret)
 		goto out;
-
-	/* Lookup the exact service by <protocol, addr, port> or fwmark */
-	if (usvc.fwmark == 0)
-		svc = __ip_vs_service_get(usvc.af, usvc.protocol,
-					  &usvc.addr, usvc.port);
-	else
-		svc = __ip_vs_svc_fwm_get(usvc.af, usvc.fwmark);
 
 	/* Unless we're adding a new service, the service must already exist */
 	if ((cmd != IPVS_CMD_NEW_SERVICE) && (svc == NULL)) {
@@ -3173,6 +3123,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case IPVS_CMD_DEL_SERVICE:
 		ret = ip_vs_del_service(svc);
+		/* do not use svc, it can be freed */
 		break;
 	case IPVS_CMD_NEW_DEST:
 		ret = ip_vs_add_dest(svc, &udest);
@@ -3191,8 +3142,6 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	}
 
 out:
-	if (svc)
-		ip_vs_service_put(svc);
 	mutex_unlock(&__ip_vs_mutex);
 
 	return ret;
@@ -3238,7 +3187,6 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 			goto out_err;
 		} else if (svc) {
 			ret = ip_vs_genl_fill_service(msg, svc);
-			ip_vs_service_put(svc);
 			if (ret)
 				goto nla_put_failure;
 		} else {
