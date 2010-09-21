@@ -730,7 +730,7 @@ out:
  * @is_last: return flag if it is the last dTD of the request
  * return: pointer to the built dTD */
 static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
-		dma_addr_t *dma, int *is_last)
+		dma_addr_t *dma, int *is_last, gfp_t gfp_flags)
 {
 	u32 swap_temp;
 	struct ep_td_struct *dtd;
@@ -739,7 +739,7 @@ static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
 	*length = min(req->req.length - req->req.actual,
 			(unsigned)EP_MAX_LENGTH_TRANSFER);
 
-	dtd = dma_pool_alloc(udc_controller->td_pool, GFP_KERNEL, dma);
+	dtd = dma_pool_alloc(udc_controller->td_pool, gfp_flags, dma);
 	if (dtd == NULL)
 		return dtd;
 
@@ -789,7 +789,7 @@ static struct ep_td_struct *fsl_build_dtd(struct fsl_req *req, unsigned *length,
 }
 
 /* Generate dtd chain for a request */
-static int fsl_req_to_dtd(struct fsl_req *req)
+static int fsl_req_to_dtd(struct fsl_req *req, gfp_t gfp_flags)
 {
 	unsigned	count;
 	int		is_last;
@@ -798,7 +798,7 @@ static int fsl_req_to_dtd(struct fsl_req *req)
 	dma_addr_t dma;
 
 	do {
-		dtd = fsl_build_dtd(req, &count, &dma, &is_last);
+		dtd = fsl_build_dtd(req, &count, &dma, &is_last, gfp_flags);
 		if (dtd == NULL)
 			return -ENOMEM;
 
@@ -874,15 +874,13 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	req->req.actual = 0;
 	req->dtd_count = 0;
 
-	spin_lock_irqsave(&udc->lock, flags);
 
 	/* build dtds and push them to device queue */
-	if (!fsl_req_to_dtd(req)) {
-		fsl_queue_td(ep, req);
-	} else {
-		spin_unlock_irqrestore(&udc->lock, flags);
+	if (fsl_req_to_dtd(req, gfp_flags))
 		return -ENOMEM;
-	}
+
+	spin_lock_irqsave(&udc->lock, flags);
+	fsl_queue_td(ep, req);
 
 	/* Update ep0 state */
 	if ((ep_index(ep) == 0))
@@ -1254,7 +1252,7 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 	req->req.complete = NULL;
 	req->dtd_count = 0;
 
-	if (fsl_req_to_dtd(req) == 0)
+	if (fsl_req_to_dtd(req, GFP_ATOMIC) == 0)
 		fsl_queue_td(ep, req);
 	else
 		return -ENOMEM;
@@ -1332,7 +1330,7 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 	req->dtd_count = 0;
 
 	/* prime the data phase */
-	if ((fsl_req_to_dtd(req) == 0))
+	if ((fsl_req_to_dtd(req, GFP_ATOMIC) == 0))
 		fsl_queue_td(ep, req);
 	else			/* no mem */
 		goto stall;
