@@ -307,6 +307,17 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
+	if (priv->cfg->advanced_bt_coexist) {
+		/*
+		 * Tell uCode we are ready to perform calibration
+		 * need to perform this before any calibration
+		 * no need to close the envlope since we are going
+		 * to load the runtime uCode later.
+		 */
+		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+
+	}
 	iwlagn_send_calib_cfg(priv);
 	return;
 
@@ -364,7 +375,7 @@ static const u8 iwlagn_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 	0, 0, 0, 0, 0, 0, 0
 };
 
-static void iwlagn_send_prio_tbl(struct iwl_priv *priv)
+void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 {
 	struct iwl_bt_coex_prio_table_cmd prio_tbl_cmd;
 
@@ -375,7 +386,7 @@ static void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
 }
 
-static void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
+void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 {
 	struct iwl_bt_coex_prot_env_cmd env_cmd;
 
@@ -481,25 +492,6 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (priv->cfg->advanced_bt_coexist) {
-		/* Configure Bluetooth device coexistence support */
-		/* need to perform this before any calibration */
-		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
-		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
-		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
-		priv->cfg->ops->hcmd->send_bt_config(priv);
-		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
-
-		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC) {
-			iwlagn_send_prio_tbl(priv);
-			iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
-				BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
-			iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
-				BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
-		}
-
-	}
 
 	iwlagn_send_wimax_coex(priv);
 

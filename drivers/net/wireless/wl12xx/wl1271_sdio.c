@@ -29,13 +29,11 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
 #include <linux/gpio.h>
+#include <linux/wl12xx.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
 #include "wl1271_io.h"
-
-
-#define RX71_WL1271_IRQ_GPIO		42
 
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x0097
@@ -107,6 +105,8 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
 
+	sdio_claim_host(func);
+
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		wl1271_debug(DEBUG_SDIO, "sdio read 52 addr 0x%x, byte 0x%02x",
@@ -122,9 +122,10 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 		wl1271_dump_ascii(DEBUG_SDIO, "data: ", buf, len);
 	}
 
+	sdio_release_host(func);
+
 	if (ret)
 		wl1271_error("sdio read failed (%d)", ret);
-
 }
 
 static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
@@ -132,6 +133,8 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
@@ -147,26 +150,45 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 		else
 			ret = sdio_memcpy_toio(func, addr, buf, len);
 	}
+
+	sdio_release_host(func);
+
 	if (ret)
 		wl1271_error("sdio write failed (%d)", ret);
-
 }
 
-static void wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
+static int wl1271_sdio_power_on(struct wl1271 *wl)
 {
 	struct sdio_func *func = wl_to_func(wl);
 
+	sdio_claim_host(func);
+	sdio_enable_func(func);
+	sdio_release_host(func);
+
+	return 0;
+}
+
+static int wl1271_sdio_power_off(struct wl1271 *wl)
+{
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
+
+	return 0;
+}
+
+static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
+{
 	/* Let the SDIO stack handle wlan_enable control, so we
 	 * keep host claimed while wlan is in use to keep wl1271
 	 * alive.
 	 */
-	if (enable) {
-		sdio_claim_host(func);
-		sdio_enable_func(func);
-	} else {
-		sdio_disable_func(func);
-		sdio_release_host(func);
-	}
+	if (enable)
+		return wl1271_sdio_power_on(wl);
+	else
+		return wl1271_sdio_power_off(wl);
 }
 
 static struct wl1271_if_operations sdio_ops = {
@@ -184,6 +206,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
 {
 	struct ieee80211_hw *hw;
+	const struct wl12xx_platform_data *wlan_data;
 	struct wl1271 *wl;
 	int ret;
 
@@ -203,12 +226,15 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
 
-	wl->irq = gpio_to_irq(RX71_WL1271_IRQ_GPIO);
-	if (wl->irq < 0) {
-		ret = wl->irq;
-		wl1271_error("could not get irq!");
+	wlan_data = wl12xx_get_platform_data();
+	if (IS_ERR(wlan_data)) {
+		ret = PTR_ERR(wlan_data);
+		wl1271_error("missing wlan platform data: %d", ret);
 		goto out_free;
 	}
+
+	wl->irq = wlan_data->irq;
+	wl->ref_clock = wlan_data->board_ref_clock;
 
 	ret = request_irq(wl->irq, wl1271_irq, 0, DRIVER_NAME, wl);
 	if (ret < 0) {

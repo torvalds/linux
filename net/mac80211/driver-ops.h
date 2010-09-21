@@ -56,14 +56,14 @@ static inline int drv_add_interface(struct ieee80211_local *local,
 
 static inline int drv_change_interface(struct ieee80211_local *local,
 				       struct ieee80211_sub_if_data *sdata,
-				       enum nl80211_iftype type)
+				       enum nl80211_iftype type, bool p2p)
 {
 	int ret;
 
 	might_sleep();
 
-	trace_drv_change_interface(local, sdata, type);
-	ret = local->ops->change_interface(&local->hw, &sdata->vif, type);
+	trace_drv_change_interface(local, sdata, type, p2p);
+	ret = local->ops->change_interface(&local->hw, &sdata->vif, type, p2p);
 	trace_drv_return_int(local, ret);
 	return ret;
 }

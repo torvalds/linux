@@ -729,6 +729,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			dev->ethtool_ops = &cfg80211_ethtool_ops;
 
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
+		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||
 		     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
 			dev->priv_flags |= IFF_DONT_BRIDGE;
 		break;
@@ -737,6 +738,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, true);
 			break;
+		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_STATION:
 			wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
@@ -915,52 +917,3 @@ static void __exit cfg80211_exit(void)
 	destroy_workqueue(cfg80211_wq);
 }
 module_exit(cfg80211_exit);
-
-static int ___wiphy_printk(const char *level, const struct wiphy *wiphy,
-			   struct va_format *vaf)
-{
-	if (!wiphy)
-		return printk("%s(NULL wiphy *): %pV", level, vaf);
-
-	return printk("%s%s: %pV", level, wiphy_name(wiphy), vaf);
-}
-
-int __wiphy_printk(const char *level, const struct wiphy *wiphy,
-		   const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-	int r;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	r = ___wiphy_printk(level, wiphy, &vaf);
-	va_end(args);
-
-	return r;
-}
-EXPORT_SYMBOL(__wiphy_printk);
-
-#define define_wiphy_printk_level(func, kern_level)		\
-int func(const struct wiphy *wiphy, const char *fmt, ...)	\
-{								\
-	struct va_format vaf;					\
-	va_list args;						\
-	int r;							\
-								\
-	va_start(args, fmt);					\
-								\
-	vaf.fmt = fmt;						\
-	vaf.va = &args;						\
-								\
-	r = ___wiphy_printk(kern_level, wiphy, &vaf);		\
-	va_end(args);						\
-								\
-	return r;						\
-}								\
-EXPORT_SYMBOL(func);
-
-define_wiphy_printk_level(wiphy_debug, KERN_DEBUG);

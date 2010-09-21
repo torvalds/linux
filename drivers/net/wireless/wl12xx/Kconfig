@@ -74,4 +74,7 @@ config WL1271_SDIO
 	  If you choose to build a module, it'll be called
 	  wl1271_sdio. Say N if unsure.
 
-
+config WL12XX_PLATFORM_DATA
+	bool
+	depends on WL1271_SDIO != n
+	default y

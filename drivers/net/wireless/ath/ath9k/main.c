@@ -255,10 +255,10 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	ath_update_txpow(sc);
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
-	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL | SC_OP_SCANNING))) {
-		ath_start_ani(common);
-		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL))) {
 		ath_beacon_config(sc, NULL);
+		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+		ath_start_ani(common);
 	}
 
  ps_restore:
@@ -957,7 +957,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	ath_update_txpow(sc);
 
-	if (sc->sc_flags & SC_OP_BEACONS)
+	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
 		ath_beacon_config(sc, NULL);	/* restart beacons */
 
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -1156,8 +1156,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	else
 		ah->imask |= ATH9K_INT_RX;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_GTT)
-		ah->imask |= ATH9K_INT_GTT;
+	ah->imask |= ATH9K_INT_GTT;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
@@ -1379,12 +1378,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 
-	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK) &&
-	    sc->nvifs > 0) {
-		ret = -ENOBUFS;
-		goto out;
-	}
-
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		ic_opmode = NL80211_IFTYPE_STATION;
@@ -1414,8 +1407,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	sc->nvifs++;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_set_bssid_mask(hw);
+	ath9k_set_bssid_mask(hw, vif);
 
 	if (sc->nvifs > 1)
 		goto out; /* skip global settings for secondary vif */
@@ -1562,6 +1554,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	 * IEEE80211_CONF_CHANGE_PS is only passed by mac80211 for STA mode.
 	 */
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		unsigned long flags;
+		spin_lock_irqsave(&sc->sc_pm_lock, flags);
 		if (conf->flags & IEEE80211_CONF_PS) {
 			sc->ps_flags |= PS_ENABLED;
 			/*
@@ -1576,7 +1570,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			sc->ps_enabled = false;
 			sc->ps_flags &= ~(PS_ENABLED |
 					  PS_NULLFUNC_COMPLETED);
-			ath9k_setpower(sc, ATH9K_PM_AWAKE);
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				ath9k_hw_setrxabort(sc->sc_ah, 0);
@@ -1591,6 +1585,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 				}
 			}
 		}
+		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
@@ -1777,7 +1772,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = ath9k_cmn_key_config(common, vif, sta, key);
+		ret = ath_key_config(common, vif, sta, key);
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
@@ -1791,7 +1786,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		}
 		break;
 	case DISABLE_KEY:
-		ath9k_cmn_key_delete(common, key);
+		ath_key_delete(common, key);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1975,8 +1970,9 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		ath9k_ps_wakeup(sc);
-		ath_tx_aggr_start(sc, sta, tid, ssn);
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		ret = ath_tx_aggr_start(sc, sta, tid, ssn);
+		if (!ret)
+			ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
@@ -2039,7 +2035,6 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 
 	aphy->state = ATH_WIPHY_SCAN;
 	ath9k_wiphy_pause_all_forced(sc, aphy);
-	sc->sc_flags |= SC_OP_SCANNING;
 	mutex_unlock(&sc->mutex);
 }
 
@@ -2054,7 +2049,6 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 
 	mutex_lock(&sc->mutex);
 	aphy->state = ATH_WIPHY_ACTIVE;
-	sc->sc_flags &= ~SC_OP_SCANNING;
 	mutex_unlock(&sc->mutex);
 }
 

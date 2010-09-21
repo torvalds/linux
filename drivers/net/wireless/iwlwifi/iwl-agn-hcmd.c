@@ -287,6 +287,15 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
 	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
 
+	/*
+	 * If the PAN context is inactive, then we don't need
+	 * to update the PAN parameters, the last thing we'll
+	 * have done before it goes inactive is making the PAN
+	 * parameters be WLAN-only.
+	 */
+	if (!ctx_pan->is_active)
+		return 0;
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* only 2 slots are currently allowed */
@@ -312,7 +321,7 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 			bcnint = max_t(int, bcnint,
 				       ctx_bss->vif->bss_conf.beacon_int);
 		if (!bcnint)
-			bcnint = 100;
+			bcnint = DEFAULT_BEACON_INTERVAL;
 		slot0 = bcnint / 2;
 		slot1 = bcnint - slot0;
 
@@ -330,7 +339,12 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 		slot0 = 0;
 		slot1 = max_t(int, 1, ctx_pan->vif->bss_conf.dtim_period) *
 					ctx_pan->vif->bss_conf.beacon_int;
-		slot1 = max_t(int, 100, slot1);
+		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+			slot0 = slot1 * 3 - 20;
+			slot1 = 20;
+		}
 	}
 
 	cmd.slots[0].width = cpu_to_le16(slot0);

@@ -639,6 +639,18 @@
 #define LED_CFG_LED_POLAR		FIELD32(0x40000000)
 
 /*
+ * AMPDU_BA_WINSIZE: Force BlockAck window size
+ * FORCE_WINSIZE_ENABLE:
+ *   0: Disable forcing of BlockAck window size
+ *   1: Enable forcing of BlockAck window size, overwrites values BlockAck
+ *      window size values in the TXWI
+ * FORCE_WINSIZE: BlockAck window size
+ */
+#define AMPDU_BA_WINSIZE		0x1040
+#define AMPDU_BA_WINSIZE_FORCE_WINSIZE_ENABLE FIELD32(0x00000020)
+#define AMPDU_BA_WINSIZE_FORCE_WINSIZE	FIELD32(0x0000001f)
+
+/*
  * XIFS_TIME_CFG: MAC timing
  * CCKM_SIFS_TIME: unit 1us. Applied after CCK RX/TX
  * OFDM_SIFS_TIME: unit 1us. Applied after OFDM RX/TX

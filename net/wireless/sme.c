@@ -411,7 +411,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTING)
@@ -548,7 +549,8 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTED)
@@ -644,7 +646,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTED)

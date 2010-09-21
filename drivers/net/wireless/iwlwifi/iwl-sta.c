@@ -386,7 +386,8 @@ static struct iwl_link_quality_cmd *iwl_sta_alloc_lq(struct iwl_priv *priv,
 {
 	int i, r;
 	struct iwl_link_quality_cmd *link_cmd;
-	u32 rate_flags;
+	u32 rate_flags = 0;
+	__le32 rate_n_flags;
 
 	link_cmd = kzalloc(sizeof(struct iwl_link_quality_cmd), GFP_KERNEL);
 	if (!link_cmd) {
@@ -400,18 +401,14 @@ static struct iwl_link_quality_cmd *iwl_sta_alloc_lq(struct iwl_priv *priv,
 	else
 		r = IWL_RATE_1M_INDEX;
 
-	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
-		rate_flags = 0;
-		if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
-			rate_flags |= RATE_MCS_CCK_MSK;
+	if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
+		rate_flags |= RATE_MCS_CCK_MSK;
 
-		rate_flags |= first_antenna(priv->hw_params.valid_tx_ant) <<
+	rate_flags |= first_antenna(priv->hw_params.valid_tx_ant) <<
 				RATE_MCS_ANT_POS;
-
-		link_cmd->rs_table[i].rate_n_flags =
-			iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
-		r = iwl_get_prev_ieee_rate(r);
-	}
+	rate_n_flags = iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
+	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
+		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
 
 	link_cmd->general_params.single_stream_ant_msk =
 				first_antenna(priv->hw_params.valid_tx_ant);

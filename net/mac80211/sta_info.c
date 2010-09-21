@@ -125,7 +125,7 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if ((sta->sdata == sdata ||
-		     sta->sdata->bss == sdata->bss) &&
+		     (sta->sdata->bss && sta->sdata->bss == sdata->bss)) &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
@@ -280,7 +280,7 @@ static int sta_info_finish_insert(struct sta_info *sta, bool async)
 	unsigned long flags;
 	int err = 0;
 
-	WARN_ON(!mutex_is_locked(&local->sta_mtx));
+	lockdep_assert_held(&local->sta_mtx);
 
 	/* notify driver */
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)

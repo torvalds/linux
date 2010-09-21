@@ -545,7 +545,8 @@ static void rt73usb_config_intf(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt73usb_config_erp(struct rt2x00_dev *rt2x00dev,
-			       struct rt2x00lib_erp *erp)
+			       struct rt2x00lib_erp *erp,
+			       u32 changed)
 {
 	u32 reg;
 
@@ -554,28 +555,36 @@ static void rt73usb_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXRX_CSR0_TSF_OFFSET, IEEE80211_HEADER);
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR0, reg);
 
-	rt2x00usb_register_read(rt2x00dev, TXRX_CSR4, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_ENABLE, 1);
-	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
-			   !!erp->short_preamble);
-	rt2x00usb_register_write(rt2x00dev, TXRX_CSR4, reg);
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
+		rt2x00usb_register_read(rt2x00dev, TXRX_CSR4, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_ENABLE, 1);
+		rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
+				   !!erp->short_preamble);
+		rt2x00usb_register_write(rt2x00dev, TXRX_CSR4, reg);
+	}
 
-	rt2x00usb_register_write(rt2x00dev, TXRX_CSR5, erp->basic_rates);
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		rt2x00usb_register_write(rt2x00dev, TXRX_CSR5,
+					 erp->basic_rates);
 
-	rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL,
-			   erp->beacon_int * 16);
-	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL,
+				   erp->beacon_int * 16);
+		rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+	}
 
-	rt2x00usb_register_read(rt2x00dev, MAC_CSR9, &reg);
-	rt2x00_set_field32(&reg, MAC_CSR9_SLOT_TIME, erp->slot_time);
-	rt2x00usb_register_write(rt2x00dev, MAC_CSR9, reg);
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		rt2x00usb_register_read(rt2x00dev, MAC_CSR9, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR9_SLOT_TIME, erp->slot_time);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR9, reg);
 
-	rt2x00usb_register_read(rt2x00dev, MAC_CSR8, &reg);
-	rt2x00_set_field32(&reg, MAC_CSR8_SIFS, erp->sifs);
-	rt2x00_set_field32(&reg, MAC_CSR8_SIFS_AFTER_RX_OFDM, 3);
-	rt2x00_set_field32(&reg, MAC_CSR8_EIFS, erp->eifs);
-	rt2x00usb_register_write(rt2x00dev, MAC_CSR8, reg);
+		rt2x00usb_register_read(rt2x00dev, MAC_CSR8, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR8_SIFS, erp->sifs);
+		rt2x00_set_field32(&reg, MAC_CSR8_SIFS_AFTER_RX_OFDM, 3);
+		rt2x00_set_field32(&reg, MAC_CSR8_EIFS, erp->eifs);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR8, reg);
+	}
 }
 
 static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,

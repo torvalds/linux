@@ -1822,50 +1822,8 @@
 
 /*===5212 end===*/
 
-/*
- * Key table (WEP) register
- */
-#define AR5K_KEYTABLE_0_5210		0x9000
-#define AR5K_KEYTABLE_0_5211		0x8800
-#define AR5K_KEYTABLE_5210(_n)		(AR5K_KEYTABLE_0_5210 + ((_n) << 5))
-#define AR5K_KEYTABLE_5211(_n)		(AR5K_KEYTABLE_0_5211 + ((_n) << 5))
-#define	AR5K_KEYTABLE(_n)		(ah->ah_version == AR5K_AR5210 ? \
-					AR5K_KEYTABLE_5210(_n) : AR5K_KEYTABLE_5211(_n))
-#define AR5K_KEYTABLE_OFF(_n, x)	(AR5K_KEYTABLE(_n) + (x << 2))
-#define AR5K_KEYTABLE_TYPE(_n)		AR5K_KEYTABLE_OFF(_n, 5)
-#define AR5K_KEYTABLE_TYPE_40		0x00000000
-#define AR5K_KEYTABLE_TYPE_104		0x00000001
-#define AR5K_KEYTABLE_TYPE_128		0x00000003
-#define AR5K_KEYTABLE_TYPE_TKIP		0x00000004	/* [5212+] */
-#define AR5K_KEYTABLE_TYPE_AES		0x00000005	/* [5211+] */
-#define AR5K_KEYTABLE_TYPE_CCM		0x00000006	/* [5212+] */
-#define AR5K_KEYTABLE_TYPE_NULL		0x00000007	/* [5211+] */
-#define AR5K_KEYTABLE_ANTENNA		0x00000008	/* [5212+] */
-#define AR5K_KEYTABLE_MAC0(_n)		AR5K_KEYTABLE_OFF(_n, 6)
-#define AR5K_KEYTABLE_MAC1(_n)		AR5K_KEYTABLE_OFF(_n, 7)
-#define AR5K_KEYTABLE_VALID		0x00008000
-
-/* If key type is TKIP and MIC is enabled
- * MIC key goes in offset entry + 64 */
-#define	AR5K_KEYTABLE_MIC_OFFSET	64
-
-/* WEP 40-bit	= 40-bit  entered key + 24 bit IV = 64-bit
- * WEP 104-bit	= 104-bit entered key + 24-bit IV = 128-bit
- * WEP 128-bit	= 128-bit entered key + 24 bit IV = 152-bit
- *
- * Some vendors have introduced bigger WEP keys to address
- * security vulnerabilities in WEP. This includes:
- *
- * WEP 232-bit = 232-bit entered key + 24 bit IV = 256-bit
- *
- * We can expand this if we find ar5k Atheros cards with a larger
- * key table size.
- */
 #define AR5K_KEYTABLE_SIZE_5210		64
 #define AR5K_KEYTABLE_SIZE_5211		128
-#define	AR5K_KEYTABLE_SIZE		(ah->ah_version == AR5K_AR5210 ? \
-					AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211)
-
 
 /*===PHY REGISTERS===*/
 

@@ -74,7 +74,11 @@ const struct ieee80211_regdomain *cfg80211_regdomain;
  *     - last_request
  */
 static DEFINE_MUTEX(reg_mutex);
-#define assert_reg_lock() WARN_ON(!mutex_is_locked(&reg_mutex))
+
+static inline void assert_reg_lock(void)
+{
+	lockdep_assert_held(&reg_mutex);
+}
 
 /* Used to queue up regulatory hints */
 static LIST_HEAD(reg_requests_list);

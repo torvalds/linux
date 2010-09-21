@@ -95,7 +95,10 @@ extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_rdev_list;
 extern int cfg80211_rdev_list_generation;
 
-#define assert_cfg80211_lock() WARN_ON(!mutex_is_locked(&cfg80211_mutex))
+static inline void assert_cfg80211_lock(void)
+{
+	lockdep_assert_held(&cfg80211_mutex);
+}
 
 /*
  * You can use this to mark a wiphy_idx as not having an associated wiphy.
@@ -202,8 +205,8 @@ static inline void wdev_unlock(struct wireless_dev *wdev)
 	mutex_unlock(&wdev->mtx);
 }
 
-#define ASSERT_RDEV_LOCK(rdev) WARN_ON(!mutex_is_locked(&(rdev)->mtx));
-#define ASSERT_WDEV_LOCK(wdev) WARN_ON(!mutex_is_locked(&(wdev)->mtx));
+#define ASSERT_RDEV_LOCK(rdev) lockdep_assert_held(&(rdev)->mtx)
+#define ASSERT_WDEV_LOCK(wdev) lockdep_assert_held(&(wdev)->mtx)
 
 enum cfg80211_event_type {
 	EVENT_CONNECT_RESULT,

@@ -342,24 +342,24 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	}
 
 	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDELAYINT, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_TXDELAYINT, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDELAYINT, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_TXDELAYINT, 0);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_RX_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_AC0_DMA_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_AC1_DMA_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_AC2_DMA_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_AC3_DMA_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_HCCA_DMA_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_MGMT_DMA_DONE, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_MCU_COMMAND, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_RXTX_COHERENT, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC0_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC1_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC2_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC3_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_HCCA_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_MGMT_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_MCU_COMMAND, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RXTX_COHERENT, 0);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_TBTT, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_PRE_TBTT, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_TX_FIFO_STATUS, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_AUTO_WAKEUP, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_GPTIMER, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_RX_COHERENT, mask);
-	rt2x00_set_field32(&reg, INT_MASK_CSR_TX_COHERENT, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_GPTIMER, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RX_COHERENT, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_TX_COHERENT, 0);
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
 }
 

@@ -595,7 +595,8 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif)
 {
 	wiphy_debug(hw->wiphy, "%s (type=%d mac_addr=%pM)\n",
-		    __func__, vif->type, vif->addr);
+		    __func__, ieee80211_vif_type_p2p(vif),
+		    vif->addr);
 	hwsim_set_magic(vif);
 	return 0;
 }
@@ -603,11 +604,14 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 
 static int mac80211_hwsim_change_interface(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
-					   enum nl80211_iftype newtype)
+					   enum nl80211_iftype newtype,
+					   bool newp2p)
 {
+	newtype = ieee80211_iftype_p2p(newtype, newp2p);
 	wiphy_debug(hw->wiphy,
 		    "%s (old type=%d, new type=%d, mac_addr=%pM)\n",
-		    __func__, vif->type, newtype, vif->addr);
+		    __func__, ieee80211_vif_type_p2p(vif),
+		    newtype, vif->addr);
 	hwsim_check_magic(vif);
 
 	return 0;
@@ -617,7 +621,8 @@ static void mac80211_hwsim_remove_interface(
 	struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	wiphy_debug(hw->wiphy, "%s (type=%d mac_addr=%pM)\n",
-		    __func__, vif->type, vif->addr);
+		    __func__, ieee80211_vif_type_p2p(vif),
+		    vif->addr);
 	hwsim_check_magic(vif);
 	hwsim_clear_magic(vif);
 }
@@ -1310,6 +1315,8 @@ static int __init init_mac80211_hwsim(void)
 		hw->wiphy->interface_modes =
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_P2P_GO) |
 			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
 

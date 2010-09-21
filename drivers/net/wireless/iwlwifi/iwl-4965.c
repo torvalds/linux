@@ -2289,6 +2289,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.tx_stats_read = iwl_ucode_tx_stats_read,
 		.general_stats_read = iwl_ucode_general_stats_read,
 		.bt_stats_read = iwl_ucode_bt_stats_read,
+		.reply_tx_error = iwl_reply_tx_error_read,
 	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,

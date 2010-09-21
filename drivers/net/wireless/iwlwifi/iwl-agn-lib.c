@@ -46,6 +46,181 @@ static inline u32 iwlagn_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 			    tx_resp->frame_count) & MAX_SN;
 }
 
+static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
+{
+	status &= TX_STATUS_MSK;
+
+	switch (status) {
+	case TX_STATUS_POSTPONE_DELAY:
+		priv->_agn.reply_tx_stats.pp_delay++;
+		break;
+	case TX_STATUS_POSTPONE_FEW_BYTES:
+		priv->_agn.reply_tx_stats.pp_few_bytes++;
+		break;
+	case TX_STATUS_POSTPONE_BT_PRIO:
+		priv->_agn.reply_tx_stats.pp_bt_prio++;
+		break;
+	case TX_STATUS_POSTPONE_QUIET_PERIOD:
+		priv->_agn.reply_tx_stats.pp_quiet_period++;
+		break;
+	case TX_STATUS_POSTPONE_CALC_TTAK:
+		priv->_agn.reply_tx_stats.pp_calc_ttak++;
+		break;
+	case TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY:
+		priv->_agn.reply_tx_stats.int_crossed_retry++;
+		break;
+	case TX_STATUS_FAIL_SHORT_LIMIT:
+		priv->_agn.reply_tx_stats.short_limit++;
+		break;
+	case TX_STATUS_FAIL_LONG_LIMIT:
+		priv->_agn.reply_tx_stats.long_limit++;
+		break;
+	case TX_STATUS_FAIL_FIFO_UNDERRUN:
+		priv->_agn.reply_tx_stats.fifo_underrun++;
+		break;
+	case TX_STATUS_FAIL_DRAIN_FLOW:
+		priv->_agn.reply_tx_stats.drain_flow++;
+		break;
+	case TX_STATUS_FAIL_RFKILL_FLUSH:
+		priv->_agn.reply_tx_stats.rfkill_flush++;
+		break;
+	case TX_STATUS_FAIL_LIFE_EXPIRE:
+		priv->_agn.reply_tx_stats.life_expire++;
+		break;
+	case TX_STATUS_FAIL_DEST_PS:
+		priv->_agn.reply_tx_stats.dest_ps++;
+		break;
+	case TX_STATUS_FAIL_HOST_ABORTED:
+		priv->_agn.reply_tx_stats.host_abort++;
+		break;
+	case TX_STATUS_FAIL_BT_RETRY:
+		priv->_agn.reply_tx_stats.bt_retry++;
+		break;
+	case TX_STATUS_FAIL_STA_INVALID:
+		priv->_agn.reply_tx_stats.sta_invalid++;
+		break;
+	case TX_STATUS_FAIL_FRAG_DROPPED:
+		priv->_agn.reply_tx_stats.frag_drop++;
+		break;
+	case TX_STATUS_FAIL_TID_DISABLE:
+		priv->_agn.reply_tx_stats.tid_disable++;
+		break;
+	case TX_STATUS_FAIL_FIFO_FLUSHED:
+		priv->_agn.reply_tx_stats.fifo_flush++;
+		break;
+	case TX_STATUS_FAIL_INSUFFICIENT_CF_POLL:
+		priv->_agn.reply_tx_stats.insuff_cf_poll++;
+		break;
+	case TX_STATUS_FAIL_PASSIVE_NO_RX:
+		priv->_agn.reply_tx_stats.fail_hw_drop++;
+		break;
+	case TX_STATUS_FAIL_NO_BEACON_ON_RADAR:
+		priv->_agn.reply_tx_stats.sta_color_mismatch++;
+		break;
+	default:
+		priv->_agn.reply_tx_stats.unknown++;
+		break;
+	}
+}
+
+static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
+{
+	status &= AGG_TX_STATUS_MSK;
+
+	switch (status) {
+	case AGG_TX_STATE_UNDERRUN_MSK:
+		priv->_agn.reply_agg_tx_stats.underrun++;
+		break;
+	case AGG_TX_STATE_BT_PRIO_MSK:
+		priv->_agn.reply_agg_tx_stats.bt_prio++;
+		break;
+	case AGG_TX_STATE_FEW_BYTES_MSK:
+		priv->_agn.reply_agg_tx_stats.few_bytes++;
+		break;
+	case AGG_TX_STATE_ABORT_MSK:
+		priv->_agn.reply_agg_tx_stats.abort++;
+		break;
+	case AGG_TX_STATE_LAST_SENT_TTL_MSK:
+		priv->_agn.reply_agg_tx_stats.last_sent_ttl++;
+		break;
+	case AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK:
+		priv->_agn.reply_agg_tx_stats.last_sent_try++;
+		break;
+	case AGG_TX_STATE_LAST_SENT_BT_KILL_MSK:
+		priv->_agn.reply_agg_tx_stats.last_sent_bt_kill++;
+		break;
+	case AGG_TX_STATE_SCD_QUERY_MSK:
+		priv->_agn.reply_agg_tx_stats.scd_query++;
+		break;
+	case AGG_TX_STATE_TEST_BAD_CRC32_MSK:
+		priv->_agn.reply_agg_tx_stats.bad_crc32++;
+		break;
+	case AGG_TX_STATE_RESPONSE_MSK:
+		priv->_agn.reply_agg_tx_stats.response++;
+		break;
+	case AGG_TX_STATE_DUMP_TX_MSK:
+		priv->_agn.reply_agg_tx_stats.dump_tx++;
+		break;
+	case AGG_TX_STATE_DELAY_TX_MSK:
+		priv->_agn.reply_agg_tx_stats.delay_tx++;
+		break;
+	default:
+		priv->_agn.reply_agg_tx_stats.unknown++;
+		break;
+	}
+}
+
+static void iwlagn_set_tx_status(struct iwl_priv *priv,
+				 struct ieee80211_tx_info *info,
+				 struct iwl5000_tx_resp *tx_resp,
+				 int txq_id, bool is_agg)
+{
+	u16  status = le16_to_cpu(tx_resp->status.status);
+
+	info->status.rates[0].count = tx_resp->failure_frame + 1;
+	if (is_agg)
+		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
+	info->flags |= iwl_tx_status_to_mac80211(status);
+	iwlagn_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
+				    info);
+	if (!iwl_is_tx_success(status))
+		iwlagn_count_tx_err_status(priv, status);
+
+	IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) rate_n_flags "
+			   "0x%x retries %d\n",
+			   txq_id,
+			   iwl_get_tx_fail_reason(status), status,
+			   le32_to_cpu(tx_resp->rate_n_flags),
+			   tx_resp->failure_frame);
+}
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+#define AGG_TX_STATE_FAIL(x) case AGG_TX_STATE_ ## x: return #x
+
+const char *iwl_get_agg_tx_fail_reason(u16 status)
+{
+	status &= AGG_TX_STATUS_MSK;
+	switch (status) {
+	case AGG_TX_STATE_TRANSMITTED:
+		return "SUCCESS";
+		AGG_TX_STATE_FAIL(UNDERRUN_MSK);
+		AGG_TX_STATE_FAIL(BT_PRIO_MSK);
+		AGG_TX_STATE_FAIL(FEW_BYTES_MSK);
+		AGG_TX_STATE_FAIL(ABORT_MSK);
+		AGG_TX_STATE_FAIL(LAST_SENT_TTL_MSK);
+		AGG_TX_STATE_FAIL(LAST_SENT_TRY_CNT_MSK);
+		AGG_TX_STATE_FAIL(LAST_SENT_BT_KILL_MSK);
+		AGG_TX_STATE_FAIL(SCD_QUERY_MSK);
+		AGG_TX_STATE_FAIL(TEST_BAD_CRC32_MSK);
+		AGG_TX_STATE_FAIL(RESPONSE_MSK);
+		AGG_TX_STATE_FAIL(DUMP_TX_MSK);
+		AGG_TX_STATE_FAIL(DELAY_TX_MSK);
+	}
+
+	return "UNKNOWN";
+}
+#endif /* CONFIG_IWLWIFI_DEBUG */
+
 static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 				      struct iwl_ht_agg *agg,
 				      struct iwl5000_tx_resp *tx_resp,
@@ -53,9 +228,7 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 {
 	u16 status;
 	struct agg_tx_status *frame_status = &tx_resp->status;
-	struct ieee80211_tx_info *info = NULL;
 	struct ieee80211_hdr *hdr = NULL;
-	u32 rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 	int i, sh, idx;
 	u16 seq;
 
@@ -64,31 +237,20 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
-	agg->rate_n_flags = rate_n_flags;
+	agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 	agg->bitmap = 0;
 
 	/* # frames attempted by Tx command */
 	if (agg->frame_count == 1) {
 		/* Only one frame was attempted; no block-ack will arrive */
-		status = le16_to_cpu(frame_status[0].status);
 		idx = start_idx;
 
-		/* FIXME: code repetition */
 		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
-
-		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb);
-		info->status.rates[0].count = tx_resp->failure_frame + 1;
-		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl_tx_status_to_mac80211(status);
-		iwlagn_hwrate_to_tx_control(priv, rate_n_flags, info);
-
-		/* FIXME: code repetition end */
-
-		IWL_DEBUG_TX_REPLY(priv, "1 Frame 0x%x failure :%d\n",
-				    status & 0xff, tx_resp->failure_frame);
-		IWL_DEBUG_TX_REPLY(priv, "Rate Info rate_n_flags=%x\n", rate_n_flags);
-
+		iwlagn_set_tx_status(priv,
+				     IEEE80211_SKB_CB(
+					priv->txq[txq_id].txb[idx].skb),
+				     tx_resp, txq_id, true);
 		agg->wait_for_ba = 0;
 	} else {
 		/* Two or more frames were attempted; expect block-ack */
@@ -109,12 +271,20 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 			idx = SEQ_TO_INDEX(seq);
 			txq_id = SEQ_TO_QUEUE(seq);
 
+			if (status & AGG_TX_STATUS_MSK)
+				iwlagn_count_agg_tx_err_status(priv, status);
+
 			if (status & (AGG_TX_STATE_FEW_BYTES_MSK |
 				      AGG_TX_STATE_ABORT_MSK))
 				continue;
 
 			IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
+			IWL_DEBUG_TX_REPLY(priv, "status %s (0x%08x), "
+					   "try-count (0x%08x)\n",
+					   iwl_get_agg_tx_fail_reason(status),
+					   status & AGG_TX_STATUS_MSK,
+					   status & AGG_TX_TRY_MSK);
 
 			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
 			if (!hdr) {
@@ -281,20 +451,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 		}
 	} else {
 		BUG_ON(txq_id != txq->swq_id);
-
-		info->status.rates[0].count = tx_resp->failure_frame + 1;
-		info->flags |= iwl_tx_status_to_mac80211(status);
-		iwlagn_hwrate_to_tx_control(priv,
-					le32_to_cpu(tx_resp->rate_n_flags),
-					info);
-
-		IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) rate_n_flags "
-				   "0x%x retries %d\n",
-				   txq_id,
-				   iwl_get_tx_fail_reason(status), status,
-				   le32_to_cpu(tx_resp->rate_n_flags),
-				   tx_resp->failure_frame);
-
+		iwlagn_set_tx_status(priv, info, tx_resp, txq_id, false);
 		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 		iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
 
@@ -1154,7 +1311,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 	return added;
 }
 
-void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
+int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
@@ -1162,7 +1319,6 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		.flags = CMD_SIZE_HUGE,
 	};
 	struct iwl_scan_cmd *scan;
-	struct ieee80211_conf *conf = NULL;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u32 rate_flags = 0;
 	u16 cmd_len;
@@ -1175,51 +1331,12 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	int  chan_mod;
 	u8 active_chains;
 	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
+	int ret;
+
+	lockdep_assert_held(&priv->mutex);
 
 	if (vif)
 		ctx = iwl_rxon_ctx_from_vif(vif);
-
-	conf = ieee80211_get_hw_conf(priv->hw);
-
-	cancel_delayed_work(&priv->scan_check);
-
-	if (!iwl_is_ready(priv)) {
-		IWL_WARN(priv, "request scan called when driver not ready.\n");
-		goto done;
-	}
-
-	/* Make sure the scan wasn't canceled before this queued work
-	 * was given the chance to run... */
-	if (!test_bit(STATUS_SCANNING, &priv->status))
-		goto done;
-
-	/* This should never be called or scheduled if there is currently
-	 * a scan active in the hardware. */
-	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-		IWL_DEBUG_INFO(priv, "Multiple concurrent scan requests in parallel. "
-			       "Ignoring second request.\n");
-		goto done;
-	}
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Aborting scan due to device shutdown\n");
-		goto done;
-	}
-
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_HC(priv, "Scan request while abort pending.  Queuing.\n");
-		goto done;
-	}
-
-	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_HC(priv, "Aborting scan due to RF Kill activation\n");
-		goto done;
-	}
-
-	if (!test_bit(STATUS_READY, &priv->status)) {
-		IWL_DEBUG_HC(priv, "Scan request while uninitialized.  Queuing.\n");
-		goto done;
-	}
 
 	if (!priv->scan_cmd) {
 		priv->scan_cmd = kmalloc(sizeof(struct iwl_scan_cmd) +
@@ -1227,7 +1344,7 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		if (!priv->scan_cmd) {
 			IWL_DEBUG_SCAN(priv,
 				       "fail to allocate memory for scan\n");
-			goto done;
+			return -ENOMEM;
 		}
 	}
 	scan = priv->scan_cmd;
@@ -1334,8 +1451,8 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 						IWL_GOOD_CRC_TH_NEVER;
 		break;
 	default:
-		IWL_WARN(priv, "Invalid scan band count\n");
-		goto done;
+		IWL_WARN(priv, "Invalid scan band\n");
+		return -EIO;
 	}
 
 	band = priv->scan_band;
@@ -1415,7 +1532,7 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	}
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
-		goto done;
+		return -EIO;
 	}
 
 	cmd.len += le16_to_cpu(scan->tx_cmd.len) +
@@ -1423,30 +1540,21 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	cmd.data = scan;
 	scan->len = cpu_to_le16(cmd.len);
 
+	if (priv->cfg->ops->hcmd->set_pan_params) {
+		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
+		if (ret)
+			return ret;
+	}
+
 	set_bit(STATUS_SCAN_HW, &priv->status);
+	ret = iwl_send_cmd_sync(priv, &cmd);
+	if (ret) {
+		clear_bit(STATUS_SCAN_HW, &priv->status);
+		if (priv->cfg->ops->hcmd->set_pan_params)
+			priv->cfg->ops->hcmd->set_pan_params(priv);
+	}
 
-	if (priv->cfg->ops->hcmd->set_pan_params &&
-	    priv->cfg->ops->hcmd->set_pan_params(priv))
-		goto done;
-
-	if (iwl_send_cmd_sync(priv, &cmd))
-		goto done;
-
-	queue_delayed_work(priv->workqueue, &priv->scan_check,
-			   IWL_SCAN_CHECK_WATCHDOG);
-
-	return;
-
- done:
-	/* Cannot perform scan. Make sure we clear scanning
-	* bits from status so next scan request can be performed.
-	* If we don't clear scanning status bit here all next scan
-	* will fail
-	*/
-	clear_bit(STATUS_SCAN_HW, &priv->status);
-	clear_bit(STATUS_SCANNING, &priv->status);
-	/* inform mac80211 scan aborted */
-	queue_work(priv->workqueue, &priv->scan_completed);
+	return ret;
 }
 
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,
@@ -1673,6 +1781,8 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	bt_cmd.kill_ack_mask = priv->kill_ack_mask;
 	bt_cmd.kill_cts_mask = priv->kill_cts_mask;
 	bt_cmd.valid = priv->bt_valid;
+	bt_cmd.tx_prio_boost = 0;
+	bt_cmd.rx_prio_boost = 0;
 
 	/*
 	 * Configure BT coex mode to "no coexistence" when the

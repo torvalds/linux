@@ -31,10 +31,6 @@ struct wmi_cmd_hdr {
 	__be16 seq_no;
 } __packed;
 
-struct wmi_swba {
-	u8 beacon_pending;
-} __packed;
-
 enum wmi_cmd_id {
 	WMI_ECHO_CMDID = 0x0001,
 	WMI_ACCESS_MEMORY_CMDID,
@@ -104,7 +100,7 @@ struct wmi {
 	u32 cmd_rsp_len;
 	bool stopped;
 
-	struct sk_buff *wmi_skb;
+	u8 beacon_pending;
 	spinlock_t wmi_lock;
 
 	atomic_t mwrite_cnt;

@@ -71,6 +71,32 @@ struct ath_regulatory {
 	struct reg_dmn_pair_mapping *regpair;
 };
 
+enum ath_crypt_caps {
+	ATH_CRYPT_CAP_CIPHER_AESCCM		= BIT(0),
+	ATH_CRYPT_CAP_MIC_COMBINED		= BIT(1),
+};
+
+struct ath_keyval {
+	u8 kv_type;
+	u8 kv_pad;
+	u16 kv_len;
+	u8 kv_val[16]; /* TK */
+	u8 kv_mic[8]; /* Michael MIC key */
+	u8 kv_txmic[8]; /* Michael MIC TX key (used only if the hardware
+			 * supports both MIC keys in the same key cache entry;
+			 * in that case, kv_mic is the RX key) */
+};
+
+enum ath_cipher {
+	ATH_CIPHER_WEP = 0,
+	ATH_CIPHER_AES_OCB = 1,
+	ATH_CIPHER_AES_CCM = 2,
+	ATH_CIPHER_CKIP = 3,
+	ATH_CIPHER_TKIP = 4,
+	ATH_CIPHER_CLR = 5,
+	ATH_CIPHER_MIC = 127
+};
+
 /**
  * struct ath_ops - Register read/write operations
  *
@@ -120,7 +146,7 @@ struct ath_common {
 	u32 keymax;
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);
 	DECLARE_BITMAP(tkip_keymap, ATH_KEYMAX);
-	u8 splitmic;
+	enum ath_crypt_caps crypt_caps;
 
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
@@ -132,5 +158,11 @@ struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
 				gfp_t gfp_mask);
 
 void ath_hw_setbssidmask(struct ath_common *common);
+void ath_key_delete(struct ath_common *common, struct ieee80211_key_conf *key);
+int ath_key_config(struct ath_common *common,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta,
+			  struct ieee80211_key_conf *key);
+bool ath_hw_keyreset(struct ath_common *common, u16 entry);
 
 #endif /* ATH_H */

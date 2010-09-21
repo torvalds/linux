@@ -1820,13 +1820,8 @@ enum {
 	TX_STATUS_FAIL_TID_DISABLE = 0x8d,
 	TX_STATUS_FAIL_FIFO_FLUSHED = 0x8e,
 	TX_STATUS_FAIL_INSUFFICIENT_CF_POLL = 0x8f,
-	/* uCode drop due to FW drop request */
-	TX_STATUS_FAIL_FW_DROP = 0x90,
-	/*
-	 * uCode drop due to station color mismatch
-	 * between tx command and station table
-	 */
-	TX_STATUS_FAIL_STA_COLOR_MISMATCH_DROP = 0x91,
+	TX_STATUS_FAIL_PASSIVE_NO_RX = 0x90,
+	TX_STATUS_FAIL_NO_BEACON_ON_RADAR = 0x91,
 };
 
 #define	TX_PACKET_MODE_REGULAR		0x0000
@@ -1867,6 +1862,9 @@ enum {
 	AGG_TX_STATE_DUMP_TX_MSK = 0x200,
 	AGG_TX_STATE_DELAY_TX_MSK = 0x400
 };
+
+#define AGG_TX_STATUS_MSK	0x00000fff	/* bits 0:11 */
+#define AGG_TX_TRY_MSK		0x0000f000	/* bits 12:15 */
 
 #define AGG_TX_STATE_LAST_SENT_MSK  (AGG_TX_STATE_LAST_SENT_TTL_MSK | \
 				     AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK | \
@@ -2488,7 +2486,12 @@ struct iwlagn_bt_cmd {
 	__le16 bt4_decision_time; /* unused */
 	__le16 valid;
 	u8 prio_boost;
-	u8 reserved[3];
+	/*
+	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
+	 * if configure the following patterns
+	 */
+	u8 tx_prio_boost;	/* SW boost of WiFi tx priority */
+	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
 
 #define IWLAGN_BT_SCO_ACTIVE	cpu_to_le32(BIT(0))

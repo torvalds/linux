@@ -313,7 +313,7 @@ struct wl1271_if_operations {
 		     bool fixed);
 	void (*reset)(struct wl1271 *wl);
 	void (*init)(struct wl1271 *wl);
-	void (*power)(struct wl1271 *wl, bool enable);
+	int (*power)(struct wl1271 *wl, bool enable);
 	struct device* (*dev)(struct wl1271 *wl);
 	void (*enable_irq)(struct wl1271 *wl);
 	void (*disable_irq)(struct wl1271 *wl);
@@ -330,6 +330,7 @@ struct wl1271 {
 
 	void (*set_power)(bool enable);
 	int irq;
+	int ref_clock;
 
 	spinlock_t wl_lock;
 

@@ -49,7 +49,7 @@ static const u8 bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 static void assert_key_lock(struct ieee80211_local *local)
 {
-	WARN_ON(!mutex_is_locked(&local->key_mtx));
+	lockdep_assert_held(&local->key_mtx);
 }
 
 static struct ieee80211_sta *get_sta_for_key(struct ieee80211_key *key)

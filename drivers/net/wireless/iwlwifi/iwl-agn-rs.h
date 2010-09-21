@@ -453,15 +453,6 @@ static inline u8 first_antenna(u8 mask)
 }
 
 
-static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
-{
-	u8 rate = iwl_rates[rate_index].prev_ieee;
-
-	if (rate == IWL_RATE_INVALID)
-		rate = rate_index;
-	return rate;
-}
-
 static inline u8 iwl3945_get_prev_ieee_rate(u8 rate_index)
 {
 	u8 rate = iwl3945_rates[rate_index].prev_ieee;
