@@ -48,7 +48,7 @@ struct battery_status {
 	int current_avg_uA;
 	int charge_uAh;
 
-	u16 temp_C;		/* units of 0.1 C */
+	short temp_C;		/* units of 0.1 C */
 
 	u8 percentage;		/* battery percentage */
 	u8 age_scalar;		/* converted to percent */
