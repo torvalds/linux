@@ -1002,6 +1002,24 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 				      radeon_underscan_enum_list[i].name);
 	}
 
+	rdev->mode_info.underscan_hborder_property =
+		drm_property_create(rdev->ddev,
+					DRM_MODE_PROP_RANGE,
+					"underscan hborder", 2);
+	if (!rdev->mode_info.underscan_hborder_property)
+		return -ENOMEM;
+	rdev->mode_info.underscan_hborder_property->values[0] = 0;
+	rdev->mode_info.underscan_hborder_property->values[1] = 128;
+
+	rdev->mode_info.underscan_vborder_property =
+		drm_property_create(rdev->ddev,
+					DRM_MODE_PROP_RANGE,
+					"underscan vborder", 2);
+	if (!rdev->mode_info.underscan_vborder_property)
+		return -ENOMEM;
+	rdev->mode_info.underscan_vborder_property->values[0] = 0;
+	rdev->mode_info.underscan_vborder_property->values[1] = 128;
+
 	return 0;
 }
 
@@ -1159,8 +1177,14 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			     ((radeon_encoder->underscan_type == UNDERSCAN_AUTO) &&
 			      drm_detect_hdmi_monitor(radeon_connector->edid) &&
 			      is_hdtv_mode(mode)))) {
-				radeon_crtc->h_border = (mode->hdisplay >> 5) + 16;
-				radeon_crtc->v_border = (mode->vdisplay >> 5) + 16;
+				if (radeon_encoder->underscan_hborder != 0)
+					radeon_crtc->h_border = radeon_encoder->underscan_hborder;
+				else
+					radeon_crtc->h_border = (mode->hdisplay >> 5) + 16;
+				if (radeon_encoder->underscan_vborder != 0)
+					radeon_crtc->v_border = radeon_encoder->underscan_vborder;
+				else
+					radeon_crtc->v_border = (mode->vdisplay >> 5) + 16;
 				radeon_crtc->rmx_type = RMX_FULL;
 				src_v = crtc->mode.vdisplay;
 				dst_v = crtc->mode.vdisplay - (radeon_crtc->v_border * 2);

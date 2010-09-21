@@ -241,6 +241,8 @@ struct radeon_mode_info {
 	struct drm_property *tmds_pll_property;
 	/* underscan */
 	struct drm_property *underscan_property;
+	struct drm_property *underscan_hborder_property;
+	struct drm_property *underscan_vborder_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 
@@ -370,6 +372,8 @@ struct radeon_encoder {
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
 	enum radeon_underscan_type underscan_type;
+	uint32_t underscan_hborder;
+	uint32_t underscan_vborder;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int audio_polling_active;
