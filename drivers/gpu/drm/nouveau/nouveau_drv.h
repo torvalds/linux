@@ -1243,6 +1243,9 @@ extern void nouveau_fence_update(struct nouveau_channel *);
 extern int nouveau_fence_new(struct nouveau_channel *, struct nouveau_fence **,
 			     bool emit);
 extern int nouveau_fence_emit(struct nouveau_fence *);
+extern void nouveau_fence_work(struct nouveau_fence *fence,
+			       void (*work)(void *priv, bool signalled),
+			       void *priv);
 struct nouveau_channel *nouveau_fence_channel(struct nouveau_fence *);
 extern bool nouveau_fence_signalled(void *obj, void *arg);
 extern int nouveau_fence_wait(void *obj, void *arg, bool lazy, bool intr);

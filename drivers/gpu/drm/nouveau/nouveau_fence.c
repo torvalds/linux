@@ -39,6 +39,9 @@ struct nouveau_fence {
 
 	uint32_t sequence;
 	bool signalled;
+
+	void (*work)(void *priv, bool signalled);
+	void *priv;
 };
 
 static inline struct nouveau_fence *
@@ -78,6 +81,10 @@ nouveau_fence_update(struct nouveau_channel *chan)
 		sequence = fence->sequence;
 		fence->signalled = true;
 		list_del(&fence->entry);
+
+		if (unlikely(fence->work))
+			fence->work(fence->priv, true);
+
 		kref_put(&fence->refcount, nouveau_fence_del);
 
 		if (sequence == chan->fence.sequence_ack)
@@ -145,6 +152,25 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	FIRE_RING(chan);
 
 	return 0;
+}
+
+void
+nouveau_fence_work(struct nouveau_fence *fence,
+		   void (*work)(void *priv, bool signalled),
+		   void *priv)
+{
+	BUG_ON(fence->work);
+
+	spin_lock(&fence->channel->fence.lock);
+
+	if (fence->signalled) {
+		work(priv, true);
+	} else {
+		fence->work = work;
+		fence->priv = priv;
+	}
+
+	spin_unlock(&fence->channel->fence.lock);
 }
 
 void
@@ -268,6 +294,10 @@ nouveau_fence_channel_fini(struct nouveau_channel *chan)
 	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
 		fence->signalled = true;
 		list_del(&fence->entry);
+
+		if (unlikely(fence->work))
+			fence->work(fence->priv, false);
+
 		kref_put(&fence->refcount, nouveau_fence_del);
 	}
 }
