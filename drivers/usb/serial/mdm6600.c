@@ -106,6 +106,7 @@ static int mdm6600_wake_irq;
  * changed if other ttyUSB have been registered before.
  */
 static int mdm6600_attached_ports;
+static int mdm6600_suspended_ports;
 
 static void mdm6600_read_bulk_work(struct work_struct *work);
 static void mdm6600_read_bulk_cb(struct urb *urb);
@@ -218,6 +219,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 			pr_err("request_irq failed; err=%d", status);
 			return -ENXIO;
 		}
+		enable_irq_wake(mdm6600_wake_irq);
 		disable_irq(mdm6600_wake_irq);
 	}
 
@@ -263,8 +265,10 @@ static void mdm6600_disconnect(struct usb_serial *serial)
 
 	dbg("%s: port %d", __func__, modem->number);
 
-	if (modem->number == MODEM_INTERFACE_NUM)
+	if (modem->number == MODEM_INTERFACE_NUM) {
+		disable_irq_wake(mdm6600_wake_irq);
 		free_irq(mdm6600_wake_irq, modem);
+	}
 
 	mdm6600_kill_urbs(modem);
 
@@ -346,11 +350,6 @@ static int mdm6600_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	modem->tiocm_status = 0;
 
-	if (modem->number == MODEM_INTERFACE_NUM) {
-		enable_irq(mdm6600_wake_irq);
-		enable_irq_wake(mdm6600_wake_irq);
-	}
-
 	spin_lock_irqsave(&modem->susp_lock, flags);
 	modem->opened = 1;
 	if (modem->susp_count) {
@@ -370,11 +369,6 @@ static void mdm6600_close(struct usb_serial_port *port)
 	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
 
 	dbg("%s: port %d", __func__, modem->number);
-
-	if (modem->number == MODEM_INTERFACE_NUM) {
-		disable_irq_wake(mdm6600_wake_irq);
-		disable_irq(mdm6600_wake_irq);
-	}
 
 	modem->opened = 0;
 	mdm6600_kill_urbs(modem);
@@ -758,7 +752,10 @@ static int mdm6600_suspend(struct usb_interface *intf, pm_message_t message)
 
 	spin_lock_irq(&modem->susp_lock);
 
-	if (modem->susp_count++ == 0 && modem->opened) {
+	if (!modem->susp_count++ && modem->opened) {
+		if (!mdm6600_suspended_ports++)
+			enable_irq(mdm6600_wake_irq);
+
 		spin_unlock_irq(&modem->susp_lock);
 		dbg("%s: kill urbs", __func__);
 		mdm6600_kill_urbs(modem);
@@ -780,7 +777,10 @@ static int mdm6600_resume(struct usb_interface *intf)
 
 	spin_lock_irq(&modem->susp_lock);
 
-	if (--modem->susp_count == 0 && modem->opened) {
+	if (!--modem->susp_count && modem->opened) {
+		if (!--mdm6600_suspended_ports)
+			disable_irq(mdm6600_wake_irq);
+
 		dbg("%s: submit urbs", __func__);
 		spin_unlock_irq(&modem->susp_lock);
 
@@ -792,7 +792,6 @@ static int mdm6600_resume(struct usb_interface *intf)
 			if (rc < 0) {
 				usb_unanchor_urb(u);
 				usb_scuttle_anchored_urbs(&modem->write.delayed);
-				spin_unlock_irq(&modem->susp_lock);
 				pr_err("%s: submit bulk urb failed %d\n", __func__, rc);
 				return rc;
 			}
