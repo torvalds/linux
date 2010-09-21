@@ -9,8 +9,9 @@
 #include <mach/mx1.h>
 #include <mach/devices-common.h>
 
+extern const struct imx_imx_i2c_data imx1_imx_i2c_data __initconst;
 #define imx1_add_i2c_imx(pdata)		\
-	imx_add_imx_i2c(0, MX1_I2C_BASE_ADDR, SZ_4K, MX1_INT_I2C, pdata)
+	imx_add_imx_i2c(&imx1_imx_i2c_data, pdata)
 
 extern const struct imx_imx_uart_3irq_data imx1_imx_uart_data[] __initconst;
 #define imx1_add_imx_uart(id, pdata)	\

@@ -21,8 +21,14 @@ struct platform_device *__init imx_add_flexcan(int id,
 		const struct flexcan_platform_data *pdata);
 
 #include <mach/i2c.h>
-struct platform_device *__init imx_add_imx_i2c(int id,
-		resource_size_t iobase, resource_size_t iosize, int irq,
+struct imx_imx_i2c_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_imx_i2c(
+		const struct imx_imx_i2c_data *data,
 		const struct imxi2c_platform_data *pdata);
 
 #include <mach/ssi.h>

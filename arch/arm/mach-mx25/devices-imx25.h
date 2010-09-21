@@ -14,12 +14,12 @@
 #define imx25_add_flexcan1(pdata)	\
 	imx_add_flexcan(1, MX25_CAN2_BASE_ADDR, SZ_16K, MX25_INT_CAN2, pdata)
 
-#define imx25_add_imx_i2c0(pdata)	\
-	imx_add_imx_i2c(0, MX25_I2C1_BASE_ADDR, SZ_16K, MX25_INT_I2C1, pdata)
-#define imx25_add_imx_i2c1(pdata)	\
-	imx_add_imx_i2c(1, MX25_I2C2_BASE_ADDR, SZ_16K, MX25_INT_I2C2, pdata)
-#define imx25_add_imx_i2c2(pdata)	\
-	imx_add_imx_i2c(2, MX25_I2C3_BASE_ADDR, SZ_16K, MX25_INT_I2C3, pdata)
+extern const struct imx_imx_i2c_data imx25_imx_i2c_data[] __initconst;
+#define imx25_add_imx_i2c(id, pdata)	\
+	imx_add_imx_i2c(&imx25_imx_i2c_data[id], pdata)
+#define imx25_add_imx_i2c0(pdata)	imx25_add_imx_i2c(0, pdata)
+#define imx25_add_imx_i2c1(pdata)	imx25_add_imx_i2c(1, pdata)
+#define imx25_add_imx_i2c2(pdata)	imx25_add_imx_i2c(2, pdata)
 
 extern const struct imx_imx_ssi_data imx25_imx_ssi_data[] __initconst;
 #define imx25_add_imx_ssi(id, pdata)	\
