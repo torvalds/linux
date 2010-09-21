@@ -243,12 +243,13 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.number =  _number,					\
 		.label = _label,					\
 		.set_state = _controlfunc,				\
-	}	  
+	};								\
+	static IIO_CONST_ATTR(_name##_index, #_number)
 
 #define IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
 	__IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)
 
-#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf) \
+#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)	\
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_string##_en,		\
 				   S_IRUGO | S_IWUSR,			\
@@ -257,7 +258,14 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.number =  _number,					\
 		.label = _label,					\
 		.set_state = _cf,					\
+	};								\
+	static struct iio_const_attr iio_const_attr_##_name##_index = {	\
+		.string = #_number,					\
+		.dev_attr = __ATTR(_string##_index,			\
+				   S_IRUGO, iio_read_const_attr, NULL)	\
 	}
+
+
 #define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf) \
 	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)
 /**
@@ -272,7 +280,8 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 				   S_IRUGO | S_IWUSR,		\
 				   iio_scan_el_ts_show,		\
 				   iio_scan_el_ts_store),	\
-	}
+	};							\
+	static IIO_CONST_ATTR(timestamp_index, #number)
 
 /**
  * IIO_CONST_ATTR_SCAN_EL_TYPE - attr to specify the data format of a scan el
