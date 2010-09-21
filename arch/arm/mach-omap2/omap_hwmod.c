@@ -1829,6 +1829,84 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 }
 
 /**
+ * omap_hwmod_assert_hardreset - assert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to lookup and assert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.  Returns -EINVAL if @oh is null or if the operation is not
+ * yet supported on this OMAP; otherwise, passes along the return value
+ * from _assert_hardreset().
+ */
+int omap_hwmod_assert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+	ret = _assert_hardreset(oh, name);
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}
+
+/**
+ * omap_hwmod_deassert_hardreset - deassert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and deassert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.  Returns -EINVAL if @oh is null or if the operation is not
+ * yet supported on this OMAP; otherwise, passes along the return value
+ * from _deassert_hardreset().
+ */
+int omap_hwmod_deassert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+	ret = _deassert_hardreset(oh, name);
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}
+
+/**
+ * omap_hwmod_read_hardreset - read the HW reset line state of submodules
+ * contained in the hwmod module
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and read
+ *
+ * Return the current state of the hwmod @oh's reset line named @name:
+ * returns -EINVAL upon parameter error or if this operation
+ * is unsupported on the current OMAP; otherwise, passes along the return
+ * value from _read_hardreset().
+ */
+int omap_hwmod_read_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+	ret = _read_hardreset(oh, name);
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}
+
+
+/**
  * omap_hwmod_for_each_by_class - call @fn for each hwmod of class @classname
  * @classname: struct omap_hwmod_class name to search for
  * @fn: callback function pointer to call for each hwmod in class @classname
