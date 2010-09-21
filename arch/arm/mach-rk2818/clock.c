@@ -1304,16 +1304,10 @@ EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-	unsigned long ret;
-
 	if (clk == NULL || IS_ERR(clk))
 		return 0;
 
-	LOCK();
-	ret = clk->rate;
-	UNLOCK();
-
-	return ret;
+	return clk->rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
 
