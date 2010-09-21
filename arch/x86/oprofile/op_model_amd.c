@@ -55,10 +55,13 @@ struct ibs_config {
 	unsigned long max_cnt_op;
 	unsigned long rand_en;
 	unsigned long dispatched_ops;
+	unsigned long branch_target;
 };
 
 struct ibs_state {
-	u64	ibs_op_ctl;
+	u64		ibs_op_ctl;
+	int		branch_target;
+	unsigned long	sample_size;
 };
 
 static struct ibs_config ibs_config;
@@ -79,6 +82,7 @@ static struct ibs_state ibs_state;
 #define IBS_CAPS_OPSAM			(1U<<2)
 #define IBS_CAPS_RDWROPCNT		(1U<<3)
 #define IBS_CAPS_OPCNT			(1U<<4)
+#define IBS_CAPS_BRNTRGT		(1U<<5)
 
 #define IBS_CAPS_DEFAULT		(IBS_CAPS_AVAIL		\
 					 | IBS_CAPS_FETCHSAM	\
@@ -207,8 +211,8 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 		rdmsrl(MSR_AMD64_IBSOPCTL, ctl);
 		if (ctl & IBS_OP_VAL) {
 			rdmsrl(MSR_AMD64_IBSOPRIP, val);
-			oprofile_write_reserve(&entry, regs, val,
-					       IBS_OP_CODE, IBS_OP_SIZE);
+			oprofile_write_reserve(&entry, regs, val, IBS_OP_CODE,
+					       ibs_state.sample_size);
 			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSOPDATA, val);
 			oprofile_add_data64(&entry, val);
@@ -220,6 +224,10 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSDCPHYSAD, val);
 			oprofile_add_data64(&entry, val);
+			if (ibs_state.branch_target) {
+				rdmsrl(MSR_AMD64_IBSBRTARGET, val);
+				oprofile_add_data(&entry, (unsigned long)val);
+			}
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
@@ -266,6 +274,11 @@ static inline void op_amd_start_ibs(void)
 		val |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
 		val |= IBS_OP_ENABLE;
 		ibs_state.ibs_op_ctl = val;
+		ibs_state.sample_size = IBS_OP_SIZE;
+		if (ibs_config.branch_target) {
+			ibs_state.branch_target = 1;
+			ibs_state.sample_size++;
+		}
 		val = op_amd_randomize_ibs_op(ibs_state.ibs_op_ctl);
 		wrmsrl(MSR_AMD64_IBSOPCTL, val);
 	}
@@ -540,11 +553,9 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	/* model specific files */
 
 	/* setup some reasonable defaults */
+	memset(&ibs_config, 0, sizeof(ibs_config));
 	ibs_config.max_cnt_fetch = 250000;
-	ibs_config.fetch_enabled = 0;
 	ibs_config.max_cnt_op = 250000;
-	ibs_config.op_enabled = 0;
-	ibs_config.dispatched_ops = 0;
 
 	if (ibs_caps & IBS_CAPS_FETCHSAM) {
 		dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
@@ -565,6 +576,9 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 		if (ibs_caps & IBS_CAPS_OPCNT)
 			oprofilefs_create_ulong(sb, dir, "dispatched_ops",
 						&ibs_config.dispatched_ops);
+		if (ibs_caps & IBS_CAPS_BRNTRGT)
+			oprofilefs_create_ulong(sb, dir, "branch_target",
+						&ibs_config.branch_target);
 	}
 
 	return 0;
