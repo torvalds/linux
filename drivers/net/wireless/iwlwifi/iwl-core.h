@@ -342,6 +342,7 @@ struct iwl_ht_params {
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @need_dc_calib: need to perform init dc calibration
+ * @need_temp_offset_calib: need to perform temperature offset calibration
  * @scan_antennas: available antenna for scan operation
  *
  * We enable the driver to be backward compatible wrt API version. The
@@ -386,6 +387,7 @@ struct iwl_cfg {
 	struct iwl_bt_params *bt_params;
 	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
 	const bool need_dc_calib;	  /* if used set to true */
+	const bool need_temp_offset_calib; /* if used set to true */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 };
