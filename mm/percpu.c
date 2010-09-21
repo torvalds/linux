@@ -1702,9 +1702,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 			if (pcpu_first_unit_cpu == NR_CPUS)
 				pcpu_first_unit_cpu = cpu;
+			pcpu_last_unit_cpu = cpu;
 		}
 	}
-	pcpu_last_unit_cpu = cpu;
 	pcpu_nr_units = unit;
 
 	for_each_possible_cpu(cpu)
