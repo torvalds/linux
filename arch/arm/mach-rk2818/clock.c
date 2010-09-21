@@ -1228,6 +1228,8 @@ static struct clk_lookup clks[] = {
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clockfw_lock);
+#define LOCK() do { WARN_ON(in_irq()); if (!irqs_disabled()) spin_lock_bh(&clockfw_lock); } while (0)
+#define UNLOCK() do { if (!irqs_disabled()) spin_unlock_bh(&clockfw_lock); } while (0)
 
 static int __clk_enable(struct clk *clk)
 {
@@ -1262,10 +1264,9 @@ int clk_enable(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	ret = __clk_enable(clk);
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 
 	return ret;
 }
@@ -1287,8 +1288,7 @@ void clk_disable(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return;
 
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	if (clk->usecount == 0) {
 		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n", clk->name);
 		WARN_ON(1);
@@ -1298,7 +1298,7 @@ void clk_disable(struct clk *clk)
 	__clk_disable(clk);
 
 out:
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 }
 EXPORT_SYMBOL(clk_disable);
 
@@ -1309,10 +1309,9 @@ unsigned long clk_get_rate(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return 0;
 
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	ret = clk->rate;
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 
 	return ret;
 }
@@ -1341,10 +1340,9 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	ret = __clk_round_rate(clk, rate);
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 
 	return ret;
 }
@@ -1373,8 +1371,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	if (rate == clk->rate) {
 		ret = 0;
 		goto out;
@@ -1386,7 +1383,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		propagate_rate(clk);
 	}
 out:
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 
 	return ret;
 }
@@ -1402,8 +1399,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk->set_parent == NULL)
 		return ret;
 
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	if (clk->usecount == 0) {
 		ret = clk->set_parent(clk, parent);
 		if (ret == 0) {
@@ -1414,7 +1410,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		}
 	} else
 		ret = -EBUSY;
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 
 	return ret;
 }
@@ -1472,10 +1468,9 @@ static void recalculate_root_clocks(void)
 
 void clk_recalculate_root_clocks(void)
 {
-	WARN_ON(in_irq());
-	spin_lock_bh(&clockfw_lock);
+	LOCK();
 	recalculate_root_clocks();
-	spin_unlock_bh(&clockfw_lock);
+	UNLOCK();
 }
 
 /**
