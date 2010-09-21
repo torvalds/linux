@@ -1179,13 +1179,19 @@ int qword_get(char **bpp, char *dest, int bufsize)
 	if (bp[0] == '\\' && bp[1] == 'x') {
 		/* HEX STRING */
 		bp += 2;
-		while (isxdigit(bp[0]) && isxdigit(bp[1]) && len < bufsize) {
-			int byte = isdigit(*bp) ? *bp-'0' : toupper(*bp)-'A'+10;
-			bp++;
-			byte <<= 4;
-			byte |= isdigit(*bp) ? *bp-'0' : toupper(*bp)-'A'+10;
-			*dest++ = byte;
-			bp++;
+		while (len < bufsize) {
+			int h, l;
+
+			h = hex_to_bin(bp[0]);
+			if (h < 0)
+				break;
+
+			l = hex_to_bin(bp[1]);
+			if (l < 0)
+				break;
+
+			*dest++ = (h << 4) | l;
+			bp += 2;
 			len++;
 		}
 	} else {
