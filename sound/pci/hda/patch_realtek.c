@@ -3729,10 +3729,7 @@ static int alc_init(struct hda_codec *codec)
 	if (spec->init_hook)
 		spec->init_hook(codec);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	if (codec->patch_ops.check_power_status)
-		codec->patch_ops.check_power_status(codec, 0x01);
-#endif
+	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
 
@@ -4128,8 +4125,7 @@ static int alc_resume(struct hda_codec *codec)
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
-	if (codec->patch_ops.check_power_status)
-		codec->patch_ops.check_power_status(codec, 0x01);
+	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
 #endif
@@ -14703,8 +14699,7 @@ static int alc269_resume(struct hda_codec *codec)
 
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
-	if (codec->patch_ops.check_power_status)
-		codec->patch_ops.check_power_status(codec, 0x01);
+	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
 #endif /* SND_HDA_NEEDS_RESUME */
