@@ -247,7 +247,7 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.bit_count = _bits,					\
 		.label = _label,					\
 		.set_state = _controlfunc,				\
-	}
+	}	  
 
 #define IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
 	__IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)
@@ -279,6 +279,15 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 				   iio_scan_el_ts_store),	\
 	}
 
+/**
+ * IIO_CONST_ATTR_SCAN_EL_TYPE - attr to specify the data format of a scan el
+ * @name: the scan el name (may be more general and cover a set of scan elements
+ * @_sign: either s or u for signed or unsigned
+ * @_bits: number of actual bits occuplied by the value
+ * @_storagebits: number of bits _bits is padded to when read out of buffer
+ **/
+#define IIO_CONST_ATTR_SCAN_EL_TYPE(_name, _sign, _bits, _storagebits) \
+	IIO_CONST_ATTR(_name##_type, #_sign#_bits"/"#_storagebits);
 /*
  * These are mainly provided to allow for a change of implementation if a device
  * has a large number of scan elements

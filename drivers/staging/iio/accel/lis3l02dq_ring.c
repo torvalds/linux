@@ -84,13 +84,17 @@ static IIO_SCAN_EL_C(accel_y, 1, IIO_SIGNED(16),
 static IIO_SCAN_EL_C(accel_z, 2, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_Z_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 12, 16);
 static IIO_SCAN_EL_TIMESTAMP(3);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
 
 static struct attribute *lis3l02dq_scan_el_attrs[] = {
 	&iio_scan_el_accel_x.dev_attr.attr,
 	&iio_scan_el_accel_y.dev_attr.attr,
 	&iio_scan_el_accel_z.dev_attr.attr,
+	&iio_const_attr_accel_type.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL,
 };
 
