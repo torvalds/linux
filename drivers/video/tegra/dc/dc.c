@@ -709,6 +709,8 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x0001c702, DC_CMD_INT_MASK);
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_ENABLE);
 
+	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
+
 	if (dc->mode.pclk)
 		tegra_dc_program_mode(dc, &dc->mode);
 }
