@@ -1,6 +1,6 @@
 config USB_ENESTORAGE
 	tristate "USB ENE card reader support"
-	depends on USB && SCSI
+	depends on USB && SCSI && m
 	---help---
 	  Say Y here if you wish to control a ENE Card reader.
 
