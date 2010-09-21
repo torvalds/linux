@@ -228,7 +228,7 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 	if (reg >= codec->driver->reg_cache_size ||
 	    snd_soc_codec_volatile_register(codec, reg)) {
 		if (codec->cache_only)
-			return -EINVAL;
+			return -1;
 
 		return codec->hw_read(codec, reg);
 	} else {
@@ -455,7 +455,7 @@ static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
 	if (reg >= codec->driver->reg_cache_size ||
 	    snd_soc_codec_volatile_register(codec, reg)) {
 		if (codec->cache_only)
-			return -EINVAL;
+			return -1;
 
 		return codec->hw_read(codec, reg);
 	}
