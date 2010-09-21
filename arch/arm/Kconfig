@@ -1002,7 +1002,7 @@ endif
 
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
-	depends on CPU_V6 && !SMP
+	depends on CPU_V6
 	help
 	  Invalidation of the Instruction Cache operation can
 	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.

@@ -18,6 +18,21 @@
 #include "proc-macros.S"
 
 /*
+ *	v7_flush_icache_all()
+ *
+ *	Flush the whole I-cache.
+ *
+ *	Registers:
+ *	r0 - set to 0
+ */
+ENTRY(v7_flush_icache_all)
+	mov	r0, #0
+	ALT_SMP(mcr	p15, 0, r0, c7, c1, 0)		@ invalidate I-cache inner shareable
+	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)		@ I+BTB cache invalidate
+	mov	pc, lr
+ENDPROC(v7_flush_icache_all)
+
+/*
  *	v7_flush_dcache_all()
  *
  *	Flush the whole D-cache.
@@ -303,6 +318,7 @@ ENDPROC(v7_dma_unmap_area)
 
 	.type	v7_cache_fns, #object
 ENTRY(v7_cache_fns)
+	.long	v7_flush_icache_all
 	.long	v7_flush_kern_cache_all
 	.long	v7_flush_user_cache_all
 	.long	v7_flush_user_cache_range
