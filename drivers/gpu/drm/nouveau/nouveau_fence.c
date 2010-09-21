@@ -30,7 +30,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 
-#define USE_REFCNT (dev_priv->card_type >= NV_10)
+#define USE_REFCNT(dev) (nouveau_private(dev)->chipset >= 0x10)
 
 struct nouveau_fence {
 	struct nouveau_channel *channel;
@@ -59,14 +59,13 @@ nouveau_fence_del(struct kref *ref)
 void
 nouveau_fence_update(struct nouveau_channel *chan)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct list_head *entry, *tmp;
-	struct nouveau_fence *fence;
+	struct drm_device *dev = chan->dev;
+	struct nouveau_fence *tmp, *fence;
 	uint32_t sequence;
 
 	spin_lock(&chan->fence.lock);
 
-	if (USE_REFCNT)
+	if (USE_REFCNT(dev))
 		sequence = nvchan_rd32(chan, 0x48);
 	else
 		sequence = atomic_read(&chan->fence.last_sequence_irq);
@@ -75,9 +74,7 @@ nouveau_fence_update(struct nouveau_channel *chan)
 		goto out;
 	chan->fence.sequence_ack = sequence;
 
-	list_for_each_safe(entry, tmp, &chan->fence.pending) {
-		fence = list_entry(entry, struct nouveau_fence, entry);
-
+	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
 		sequence = fence->sequence;
 		fence->signalled = true;
 		list_del(&fence->entry);
@@ -121,8 +118,8 @@ nouveau_fence_channel(struct nouveau_fence *fence)
 int
 nouveau_fence_emit(struct nouveau_fence *fence)
 {
-	struct drm_nouveau_private *dev_priv = fence->channel->dev->dev_private;
 	struct nouveau_channel *chan = fence->channel;
+	struct drm_device *dev = chan->dev;
 	int ret;
 
 	ret = RING_SPACE(chan, 2);
@@ -143,7 +140,7 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	list_add_tail(&fence->entry, &chan->fence.pending);
 	spin_unlock(&chan->fence.lock);
 
-	BEGIN_RING(chan, NvSubSw, USE_REFCNT ? 0x0050 : 0x0150, 1);
+	BEGIN_RING(chan, NvSubSw, USE_REFCNT(dev) ? 0x0050 : 0x0150, 1);
 	OUT_RING(chan, fence->sequence);
 	FIRE_RING(chan);
 
@@ -214,29 +211,61 @@ nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 }
 
 int
+nouveau_fence_sync(struct nouveau_fence *fence,
+		   struct nouveau_channel *wchan)
+{
+	struct nouveau_channel *chan = nouveau_fence_channel(fence);
+
+	if (likely(!fence || chan == wchan ||
+		   nouveau_fence_signalled(fence, NULL)))
+		return 0;
+
+	return nouveau_fence_wait(fence, NULL, false, false);
+}
+
+int
 nouveau_fence_flush(void *sync_obj, void *sync_arg)
 {
 	return 0;
 }
 
 int
-nouveau_fence_init(struct nouveau_channel *chan)
+nouveau_fence_channel_init(struct nouveau_channel *chan)
 {
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	/* Create an NV_SW object for various sync purposes */
+	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &obj);
+	if (ret)
+		return ret;
+
+	ret = nouveau_ramht_insert(chan, NvSw, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	if (ret)
+		return ret;
+
+	ret = RING_SPACE(chan, 2);
+	if (ret)
+		return ret;
+	BEGIN_RING(chan, NvSubSw, 0, 1);
+	OUT_RING(chan, NvSw);
+
+	FIRE_RING(chan);
+
 	INIT_LIST_HEAD(&chan->fence.pending);
 	spin_lock_init(&chan->fence.lock);
 	atomic_set(&chan->fence.last_sequence_irq, 0);
+
 	return 0;
 }
 
 void
-nouveau_fence_fini(struct nouveau_channel *chan)
+nouveau_fence_channel_fini(struct nouveau_channel *chan)
 {
-	struct list_head *entry, *tmp;
-	struct nouveau_fence *fence;
+	struct nouveau_fence *tmp, *fence;
 
-	list_for_each_safe(entry, tmp, &chan->fence.pending) {
-		fence = list_entry(entry, struct nouveau_fence, entry);
-
+	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
 		fence->signalled = true;
 		list_del(&fence->entry);
 		kref_put(&fence->refcount, nouveau_fence_del);

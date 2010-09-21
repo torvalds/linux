@@ -706,6 +706,12 @@ struct drm_nouveau_private {
 };
 
 static inline struct drm_nouveau_private *
+nouveau_private(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
+
+static inline struct drm_nouveau_private *
 nouveau_bdev(struct ttm_bo_device *bd)
 {
 	return container_of(bd, struct drm_nouveau_private, ttm.bdev);
@@ -1231,8 +1237,8 @@ extern int nouveau_bo_sync_gpu(struct nouveau_bo *, struct nouveau_channel *);
 
 /* nouveau_fence.c */
 struct nouveau_fence;
-extern int nouveau_fence_init(struct nouveau_channel *);
-extern void nouveau_fence_fini(struct nouveau_channel *);
+extern int nouveau_fence_channel_init(struct nouveau_channel *);
+extern void nouveau_fence_channel_fini(struct nouveau_channel *);
 extern void nouveau_fence_update(struct nouveau_channel *);
 extern int nouveau_fence_new(struct nouveau_channel *, struct nouveau_fence **,
 			     bool emit);
@@ -1240,6 +1246,7 @@ extern int nouveau_fence_emit(struct nouveau_fence *);
 struct nouveau_channel *nouveau_fence_channel(struct nouveau_fence *);
 extern bool nouveau_fence_signalled(void *obj, void *arg);
 extern int nouveau_fence_wait(void *obj, void *arg, bool lazy, bool intr);
+extern int nouveau_fence_sync(struct nouveau_fence *, struct nouveau_channel *);
 extern int nouveau_fence_flush(void *obj, void *arg);
 extern void nouveau_fence_unref(void **obj);
 extern void *nouveau_fence_ref(void *obj);

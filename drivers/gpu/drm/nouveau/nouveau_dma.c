@@ -73,16 +73,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	/* Create an NV_SW object for various sync purposes */
-	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &obj);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ramht_insert(chan, NvSw, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
-	if (ret)
-		return ret;
-
 	/* NV_MEMORY_TO_MEMORY_FORMAT requires a notifier object */
 	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, &chan->m2mf_ntfy);
 	if (ret)
@@ -109,13 +99,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	OUT_RING(chan, NvM2MF);
 	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 	OUT_RING(chan, NvNotify0);
-
-	/* Initialise NV_SW */
-	ret = RING_SPACE(chan, 2);
-	if (ret)
-		return ret;
-	BEGIN_RING(chan, NvSubSw, 0, 1);
-	OUT_RING(chan, NvSw);
 
 	/* Sit back and pray the channel works.. */
 	FIRE_RING(chan);

@@ -223,7 +223,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	ret = nouveau_dma_init(chan);
 	if (!ret)
-		ret = nouveau_fence_init(chan);
+		ret = nouveau_fence_channel_init(chan);
 	if (ret) {
 		nouveau_channel_free(chan);
 		return ret;
@@ -270,7 +270,7 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	 * above attempts at idling were OK, but if we failed this'll tell TTM
 	 * we're done with the buffers.
 	 */
-	nouveau_fence_fini(chan);
+	nouveau_fence_channel_fini(chan);
 
 	/* This will prevent pfifo from switching channels. */
 	pfifo->reassign(dev, false);

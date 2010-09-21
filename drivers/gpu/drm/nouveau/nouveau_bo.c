@@ -36,21 +36,6 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 
-int
-nouveau_bo_sync_gpu(struct nouveau_bo *nvbo, struct nouveau_channel *chan)
-{
-	struct nouveau_fence *prev_fence = nvbo->bo.sync_obj;
-	int ret;
-
-	if (!prev_fence || nouveau_fence_channel(prev_fence) == chan)
-		return 0;
-
-	spin_lock(&nvbo->bo.lock);
-	ret = ttm_bo_wait(&nvbo->bo, false, false, false);
-	spin_unlock(&nvbo->bo.lock);
-	return ret;
-}
-
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 {
