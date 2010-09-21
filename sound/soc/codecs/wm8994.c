@@ -760,7 +760,6 @@ void handsetMIC_to_baseband_to_headset_and_record(void)
 
 void mainMIC_to_baseband_to_earpiece(void)
 {
-#ifndef CONFIG_SND_NO_EARPIECE
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
 	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
@@ -790,6 +789,7 @@ void mainMIC_to_baseband_to_earpiece(void)
 	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
 	wm8994_write(0x05,  0x0303);
 	wm8994_write(0x1F,  0x0000);
+#if defined(CONFIG_SND_INSIDE_EARPIECE)||defined(CONFIG_SND_OUTSIDE_EARPIECE)
 	vol=CONFIG_WM8994_EARPIECE_INCALL_VOL;
 	if(vol>30)vol=30;
 	if(vol<-27)vol=-27;
@@ -826,7 +826,7 @@ void mainMIC_to_baseband_to_earpiece(void)
 #ifdef CONFIG_SND_OUTSIDE_EARPIECE
 	wm8994_write(0x28,  0x0030); //IN1LP_TO_IN1L IN1LN_TO_IN1L
 	wm8994_write(0x34,  0x0002); //IN1L_TO_LINEOUT1P
-	vol=CONFIG_WM8994_EARPIECE_INCALL_MIC_VOL;
+	vol=CONFIG_WM8994_HEADSET_INCALL_MIC_VOL;
 	if(vol>30)vol=30;
 	if(vol<-22)vol=-22;
 	if(vol<-16){
@@ -836,6 +836,7 @@ void mainMIC_to_baseband_to_earpiece(void)
 		wm8994_write(0x1E,  0x0006);  //mic vol
 		wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
 	}
+#endif
 #endif
 #ifdef CONFIG_SND_BB_NORMAL_INPUT
 	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
@@ -862,7 +863,6 @@ void mainMIC_to_baseband_to_earpiece(void)
 	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
 	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
 	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
-#endif
 #endif
 }
 
