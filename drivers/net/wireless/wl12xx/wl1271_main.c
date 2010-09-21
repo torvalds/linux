@@ -232,7 +232,14 @@ static struct conf_drv_settings default_conf = {
 		.avg_weight_rssi_data         = 10,
 		.avg_weight_snr_beacon        = 20,
 		.avg_weight_snr_data          = 10
-	}
+	},
+	.scan = {
+		.min_dwell_time_active        = 7500,
+		.max_dwell_time_active        = 30000,
+		.min_dwell_time_passive       = 30000,
+		.max_dwell_time_passive       = 60000,
+		.num_probe_reqs               = 2,
+	},
 };
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl);

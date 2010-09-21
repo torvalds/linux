@@ -1016,6 +1016,44 @@ struct conf_roam_trigger_settings {
 	u8 avg_weight_snr_data;
 };
 
+struct conf_scan_settings {
+	/*
+	 * The minimum time to wait on each channel for active scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 min_dwell_time_active;
+
+	/*
+	 * The maximum time to wait on each channel for active scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 max_dwell_time_active;
+
+	/*
+	 * The maximum time to wait on each channel for passive scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 min_dwell_time_passive;
+
+	/*
+	 * The maximum time to wait on each channel for passive scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 max_dwell_time_passive;
+
+	/*
+	 * Number of probe requests to transmit on each active scan channel
+	 *
+	 * Range: u8
+	 */
+	u16 num_probe_reqs;
+
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1024,6 +1062,7 @@ struct conf_drv_settings {
 	struct conf_itrim_settings itrim;
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;
+	struct conf_scan_settings scan;
 };
 
 #endif

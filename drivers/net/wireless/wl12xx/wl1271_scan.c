@@ -64,6 +64,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 				    struct basic_scan_channel_params *channels,
 				    enum ieee80211_band band, bool passive)
 {
+	struct conf_scan_settings *c = &wl->conf.scan;
 	int i, j;
 	u32 flags;
 
@@ -91,10 +92,17 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 			wl1271_debug(DEBUG_SCAN, "beacon_found %d",
 				     req->channels[i]->beacon_found);
 
-			channels[j].min_duration =
-				cpu_to_le32(WL1271_SCAN_CHAN_MIN_DURATION);
-			channels[j].max_duration =
-				cpu_to_le32(WL1271_SCAN_CHAN_MAX_DURATION);
+			if (!passive) {
+				channels[j].min_duration =
+					cpu_to_le32(c->min_dwell_time_active);
+				channels[j].max_duration =
+					cpu_to_le32(c->max_dwell_time_active);
+			} else {
+				channels[j].min_duration =
+					cpu_to_le32(c->min_dwell_time_passive);
+				channels[j].max_duration =
+					cpu_to_le32(c->max_dwell_time_passive);
+			}
 			channels[j].early_termination = 0;
 			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
@@ -151,7 +159,7 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 	cmd->params.rx_filter_options =
 		cpu_to_le32(CFG_RX_PRSP_EN | CFG_RX_MGMT_EN | CFG_RX_BCN_EN);
 
-	cmd->params.n_probe_reqs = WL1271_SCAN_PROBE_REQS;
+	cmd->params.n_probe_reqs = wl->conf.scan.num_probe_reqs;
 	cmd->params.tx_rate = cpu_to_le32(basic_rate);
 	cmd->params.tid_trigger = 0;
 	cmd->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;

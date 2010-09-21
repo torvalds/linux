@@ -40,11 +40,8 @@ void wl1271_scan_complete_work(struct work_struct *work);
 #define WL1271_SCAN_OPT_ACTIVE         0
 #define WL1271_SCAN_OPT_PASSIVE	       1
 #define WL1271_SCAN_OPT_PRIORITY_HIGH  4
-#define WL1271_SCAN_CHAN_MIN_DURATION  30000  /* TU */
-#define WL1271_SCAN_CHAN_MAX_DURATION  60000  /* TU */
 #define WL1271_SCAN_BAND_2_4_GHZ 0
 #define WL1271_SCAN_BAND_5_GHZ 1
-#define WL1271_SCAN_PROBE_REQS 3
 
 #define WL1271_SCAN_TIMEOUT    10000 /* msec */
 
