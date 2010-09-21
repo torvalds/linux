@@ -1566,7 +1566,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	for (i = 0; i < card->num_links; i++) {
 		ret = soc_probe_dai_link(card, i);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: failed to instanciate card %s\n", card->name);
+			pr_err("asoc: failed to instantiate card %s: %d\n",
+			       card->name, ret);
 			goto probe_dai_err;
 		}
 	}
