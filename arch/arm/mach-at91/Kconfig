@@ -338,6 +338,7 @@ config MACH_AT91SAM9G20EK
 	  that embeds only one SD/MMC slot.
 
 config MACH_AT91SAM9G20EK_2MMC
+	depends on MACH_AT91SAM9G20EK
 	bool "Atmel AT91SAM9G20-EK Evaluation Kit with 2 SD/MMC Slots"
 	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
