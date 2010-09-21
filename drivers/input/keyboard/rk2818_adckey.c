@@ -136,7 +136,7 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	{
 		if(++gPlayCount > 20000)
 			gPlayCount = 101;
-		if((2 == gPlayCount) && (0 == gFlagShortPlay))
+		if((1 == gPlayCount) && (0 == gFlagShortPlay))
 		{
 			gFlagShortPlay = 1;			
 		}
