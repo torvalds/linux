@@ -37,7 +37,6 @@ MODULE_LICENSE("GPL");
 struct mmm_finger {
 	__s32 x, y, w, h;
 	__u16 id;
-	__u8 rank;
 	bool prev_touch;
 	bool touch, valid;
 };
@@ -45,7 +44,7 @@ struct mmm_finger {
 struct mmm_data {
 	struct mmm_finger f[MAX_SLOTS];
 	__u16 id;
-	__u8 curid, num;
+	__u8 curid;
 	__u8 nexp, nreal;
 	bool touch, valid;
 };
@@ -156,13 +155,7 @@ static int mmm_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 {
 	struct mmm_finger *oldest = 0;
-	bool pressed = false, released = false;
 	int i;
-
-	/*
-	 * we need to iterate on all fingers to decide if we have a press
-	 * or a release event in our touchscreen emulation.
-	 */
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		struct mmm_finger *f = &md->f[i];
 		if (!f->valid) {
@@ -183,34 +176,11 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 						wide ? f->w : f->h);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR,
 						wide ? f->h : f->w);
-			/*
-			 * touchscreen emulation: maintain the age rank
-			 * of this finger, decide if we have a press
-			 */
-			if (f->rank == 0) {
-				f->rank = ++(md->num);
-				if (f->rank == 1)
-					pressed = true;
-			}
-			if (f->rank == 1)
+			/* touchscreen emulation: pick the oldest contact */
+			if (!oldest || ((f->id - oldest->id) & (SHRT_MAX + 1)))
 				oldest = f;
 		} else {
 			/* this finger took off the screen */
-			/* touchscreen emulation: maintain age rank of others */
-			int j;
-
-			for (j = 0; j < 10; ++j) {
-				struct mmm_finger *g = &md->f[j];
-				if (g->rank > f->rank) {
-					g->rank--;
-					if (g->rank == 1)
-						oldest = g;
-				}
-			}
-			f->rank = 0;
-			--(md->num);
-			if (md->num == 0)
-				released = true;
 			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, -1);
 		}
 		f->prev_touch = f->touch;
@@ -219,11 +189,10 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 
 	/* touchscreen emulation */
 	if (oldest) {
-		if (pressed)
-			input_event(input, EV_KEY, BTN_TOUCH, 1);
+		input_event(input, EV_KEY, BTN_TOUCH, 1);
 		input_event(input, EV_ABS, ABS_X, oldest->x);
 		input_event(input, EV_ABS, ABS_Y, oldest->y);
-	} else if (released) {
+	} else {
 		input_event(input, EV_KEY, BTN_TOUCH, 0);
 	}
 	input_sync(input);
