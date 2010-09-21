@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/can/platform/ti_hecc.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -43,6 +44,8 @@
 #include <plat/usb.h>
 #include <plat/nand.h>
 #include <plat/gpmc.h>
+
+#include <mach/am35xx.h>
 
 #include "mux.h"
 
@@ -75,6 +78,47 @@ static void __init cm_t3517_init_leds(void)
 }
 #else
 static inline void cm_t3517_init_leds(void) {}
+#endif
+
+#if defined(CONFIG_CAN_TI_HECC) || defined(CONFIG_CAN_TI_HECC_MODULE)
+static struct resource cm_t3517_hecc_resources[] = {
+	{
+		.start	= AM35XX_IPSS_HECC_BASE,
+		.end	= AM35XX_IPSS_HECC_BASE + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= INT_35XX_HECC0_IRQ,
+		.end	= INT_35XX_HECC0_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct ti_hecc_platform_data cm_t3517_hecc_pdata = {
+	.scc_hecc_offset	= AM35XX_HECC_SCC_HECC_OFFSET,
+	.scc_ram_offset		= AM35XX_HECC_SCC_RAM_OFFSET,
+	.hecc_ram_offset	= AM35XX_HECC_RAM_OFFSET,
+	.mbx_offset		= AM35XX_HECC_MBOX_OFFSET,
+	.int_line		= AM35XX_HECC_INT_LINE,
+	.version		= AM35XX_HECC_VERSION,
+};
+
+static struct platform_device cm_t3517_hecc_device = {
+	.name		= "ti_hecc",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(cm_t3517_hecc_resources),
+	.resource	= cm_t3517_hecc_resources,
+	.dev		= {
+		.platform_data	= &cm_t3517_hecc_pdata,
+	},
+};
+
+static void cm_t3517_init_hecc(void)
+{
+	platform_device_register(&cm_t3517_hecc_device);
+}
+#else
+static inline void cm_t3517_init_hecc(void) {}
 #endif
 
 #if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
@@ -235,6 +279,7 @@ static void __init cm_t3517_init(void)
 	cm_t3517_init_nand();
 	cm_t3517_init_rtc();
 	cm_t3517_init_usbh();
+	cm_t3517_init_hecc();
 }
 
 MACHINE_START(CM_T3517, "Compulab CM-T3517")
