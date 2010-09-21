@@ -11,7 +11,7 @@
 #include <mach/scu.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
-#include <mach/rk2818_pm.h>
+#include <mach/rk2818-socpm.h>
 #include <linux/regulator/driver.h>
 
 extern void rockchip_timer_clocksource_suspend_resume(int suspend);
@@ -120,7 +120,8 @@ u32 __tcmfunc sdram_enter_self_refresh(void)
 	case MOBILE_DDR:
 		r = ddr_readl(CTRL_REG_62);
 		ddr_writel((r & ~MODE5_MASK) | MODE5_CNT(1), CTRL_REG_62);
-		//FIXME: 等待进入self-refresh
+	//	tcm_printascii("3x DDRII\n");
+
 		break;
 	}
 
@@ -168,6 +169,7 @@ void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
 	tcm_udelay(100, 24); //DRVDelayUs(100); 延时一下比较安全，保证退出后稳定
 }
 
+#if 0
 static void __tcmlocalfunc noinline tcm_printch(char byte)
 {
 	unsigned int timeout;
@@ -181,7 +183,6 @@ static void __tcmlocalfunc noinline tcm_printch(char byte)
 	if (byte == '\n')
 		tcm_printch('\r');
 }
-
 static void __tcmlocalfunc noinline tcm_printascii(const char *s)
 {
 	while (*s) {
@@ -201,6 +202,7 @@ static void __tcmlocalfunc noinline tcm_printhex(unsigned int hex)
 		hex <<= 4;
 	}
 }
+#endif
 
 //#define RK2818_MOBLIE_PM_CON
 #ifdef RK2818_MOBLIE_PM_CON
@@ -327,14 +329,14 @@ static void __tcmfunc rk2818_pm_suspend_first(void)
 	pm_save.gpio1_regbit=0x6db;
 	//pm_save.savereg[0]=rk2818_ddr_reg[82];
 	//rk2818_ddr_reg[82]=rk2818_ddr_reg[82]&(~(0xffff))&(~(0xf<<20));
-	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,0);
+	pm_set_gpio_pinstate(RK2818_PIN_PC2,1,0);
 	tcm_printascii("suspend frist\n");
 }
 
 static void __tcmfunc rk2818_pm_resume_first(void)
 {
 	//unsigned int *rk2818_ddr_reg=(unsigned int *)RK2818_SDRAMC_BASE;
-	//pm_set_gpio_pinstate(RK2818_PIN_PC2,1,1);
+	pm_set_gpio_pinstate(RK2818_PIN_PC2,1,1);
 	//rk2818_ddr_reg[82]=pm_save.savereg[0];
 }
 static void __tcmfunc rk2818_soc_scu_suspend(void)
@@ -489,12 +491,12 @@ static void __tcmfunc rk2818_soc_resume(unsigned int *pm_save_reg,unsigned int *
 		base_add[i]=pm_save_reg[i];
 	}
 }
-void __tcmfunc rk2818_pm_soc_suspend(void)
+static void __tcmfunc rk2818_pm_soc_suspend(void)
 { 
 	rk2818_soc_scu_suspend( );
 	//rk2818_soc_general_cpu_suspend( );
 }
-void __tcmfunc rk2818_pm_soc_resume(void)
+static void __tcmfunc rk2818_pm_soc_resume(void)
 {
 	rk2818_soc_resume(pm_save.pm_scu_reg,(unsigned int *)RK2818_SCU_BASE,pm_save.scu_regbit,PM_SCU_REG_NUM);
 	//rk2818_soc_resume(pm_save.pm_cpu_reg,(unsigned int *)RK2818_REGFILE_BASE,pm_save.cpu_regbit,PM_GENERAL_CPU_REG);
@@ -548,47 +550,56 @@ static int __tcmfunc rk2818_tcm_idle(void)
 	u32 scu_mode = scu_readl(SCU_MODE_CON);
 	u32 scu_apll = scu_readl(SCU_APLL_CON);
 	u32 scu_clksel0 = scu_readl(SCU_CLKSEL0_CON);
-	unsigned int *rk2818_scu_reg=(unsigned int *)RK2818_SCU_BASE;
-	
+
 	asm("b 1f; .align 5; 1:");
 	asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
 	
+
 	scu_writel(scu_mode & ~(3 << 2), SCU_MODE_CON); // slow
 	scu_writel(scu_apll | PLL_PD, SCU_APLL_CON); // powerdown
 
-	ctrl_reg_62 = sdram_enter_self_refresh();
-	rk2818_scu_reg[PM_SCU_CLKGATE2_CON]&=(~DIS_DTCM0BUS_CLK)&(~DIS_DTCM1BUS_CLK);
-	tcm_udelay(1, 24);
-	rk2818_pm_suspend_first( );
-	tcm_udelay(1, 24);
-	rk2818_pm_soc_suspend( );
-	tcm_udelay(1, 24);
-	asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
-	rk2818_pm_resume_first( );
-	tcm_udelay(1, 24);
-	rk2818_pm_soc_resume( );
-	tcm_udelay(1, 24);
-	sdram_exit_self_refresh(ctrl_reg_62);
 	
-	//regulator_set_voltage(buck1,1200000,1200000);
+	//tcm_printascii("3x pm ddr refresh\n");
+	//rk28_ddr_enter_self_refresh();
+	tcm_udelay(5, 24); //DRVDelayUs(100); 
+	ctrl_reg_62=sdram_enter_self_refresh();
+	tcm_udelay(200, 24); //DRVDelayUs(100); 
 
+	rk2818_socpm_suspend_first();
+	rk2818_socpm_suspend();
+	tcm_udelay(1, 24); //DRVDelayUs(100); 
+
+	asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+
+	tcm_udelay(1, 24); //DRVDelayUs(100); 
+	rk2818_socpm_resume_first();
+	rk2818_socpm_resume();
+	tcm_udelay(1, 24); //DRVDelayUs(100); 
+	sdram_exit_self_refresh(ctrl_reg_62);
+	//rk28_ddr_exit_self_refresh();
+	//tcm_printascii("3x pm re\n");
+	tcm_udelay(10, 24);
 	scu_writel(scu_apll, SCU_APLL_CON); // powerup
 	scu_writel(scu_clksel0 & (~3), SCU_CLKSEL0_CON);
-	
-	tcm_udelay(2, 24);
+	tcm_udelay(20, 24);
+	//tcm_printascii("3x pm re1\n");
 
 	unit = 7200;  /* 24m,0.3ms , 24*300*/
 	while (unit-- > 0) {
 		if (regfile_readl(CPU_APB_REG0) & 0x80)
 			break;
 	}
+	///tcm_printascii("3x pm re2\n");
 
 	tcm_udelay(5 << 8, 24);
 	scu_writel(scu_clksel0, SCU_CLKSEL0_CON);
 	tcm_udelay(5, 24);
+	//tcm_printascii("3x pm re3\n");
 
 	scu_writel(scu_mode, SCU_MODE_CON); // normal
-	//rk2818_pm_print( );
+
+	//tcm_printascii("3x pm re4\n");
+
 	return unit;
 }
 
@@ -601,8 +612,12 @@ static void rk2818_idle(void)
 	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
 	rk2818_tcm_idle();
 	asm volatile ("mov sp, %0" :: "r" (old_sp));
+
+	printk("rk2818_idle\n");
+
 }
 
+#if 1
 static void dump_register(void)
 {
 #ifdef CONFIG_PM_DEBUG
@@ -631,21 +646,18 @@ static void dump_register(void)
 
 static int rk2818_pm_enter(suspend_state_t state)
 {
-	//struct clk *arm_clk = clk_get(NULL, "arm");
-	//unsigned long arm_rate = clk_get_rate(arm_clk);
-
 	int irq_val = 0;
-    	//struct regulator *buck1;
-	//u32 scu_mode = scu_readl(SCU_MODE_CON);
-	//u32 scu_apll = scu_readl(SCU_APLL_CON);
-	//u32 scu_clksel0 = scu_readl(SCU_CLKSEL0_CON);
+	struct clk *arm_clk = clk_get(NULL, "arm");
+	unsigned long arm_rate = clk_get_rate(arm_clk);
+
 	printk(KERN_DEBUG "before core halt\n");
 
-	//clk_set_rate(arm_clk, 24000000);
+	clk_set_rate(arm_clk, 24000000);
 	dump_register();
 
 #ifdef CONFIG_RK28_USB_WAKE
 	rockchip_timer_clocksource_suspend_resume(1);
+
 	while (!irq_val) {
 		rk28_usb_suspend(0);
 #endif
@@ -654,7 +666,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_RK28_USB_WAKE
 		rk28_usb_suspend(1);
-		__udelay(400);
+		udelay(400);
 
 		irq_val = rockchip_timer_clocksource_irq_checkandclear();
 		irq_val |= rk28_usb_check_vbus_change();
@@ -663,11 +675,14 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	rockchip_timer_clocksource_suspend_resume(0);
 #endif
+
 	dump_register();
-	//clk_set_rate(arm_clk, arm_rate);
+	clk_set_rate(arm_clk, arm_rate);
+	//rk2818_socpm_print();
 	printk(KERN_DEBUG "quit arm halt,irq_val=0x%x\n", irq_val);
 	return 0;
 }
+#endif
 
 static struct platform_suspend_ops rk2818_pm_ops = {
 	.enter		= rk2818_pm_enter,
@@ -679,6 +694,4 @@ static int __init rk2818_pm_init(void)
 	suspend_set_ops(&rk2818_pm_ops);
 	return 0;
 }
-
 __initcall(rk2818_pm_init);
-

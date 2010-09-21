@@ -61,4 +61,7 @@ config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help
           Enables Power/Reset/Carddetect function abstraction
+config RK2818_SOC_PM
+  bool "Enable soc power manager function"
+		default n
 endif

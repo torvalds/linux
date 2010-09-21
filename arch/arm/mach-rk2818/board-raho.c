@@ -61,6 +61,8 @@
 #include "../../../drivers/staging/android/timed_gpio.h"
 #include "../../../sound/soc/codecs/wm8994.h"
 #include "../../../drivers/headset_observe/rk2818_headset.h"
+#include <mach/rk2818-socpm.h>
+#include <asm/tcm.h>
 
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
@@ -2006,7 +2008,122 @@ struct timed_gpio_platform_data rk28_vibrator_info = {
 	.gpios = timed_gpios,
 };
 #endif
+#if defined (CONFIG_RK2818_SOC_PM)
+void __tcmfunc rk2818_pm_scu_suspend(unsigned int *reg,int regoff)
+{
 
+	switch(regoff)
+	{
+		case PM_SCU_CLKGATE0_CON:
+			{
+			}
+
+
+	}
+		
+}
+
+
+
+void __tcmfunc rk2818_soc_general_reg_suspend(void)
+{
+	struct rk2818_pm_soc_st *general=rk2818_soc_pm.general;
+	
+	unsigned int *general_reg_addr=general->reg_base_addr;
+	#if 1
+	general->reg_ctrbit|=(0x1<<PM_GPIO0_AB_PU_CON);
+	general_reg_addr[PM_GPIO0_AB_PU_CON] =GPIO0_AB_NORMAL;
+	
+	general->reg_ctrbit|=(0x1<<PM_GPIO0_CD_PU_CON);
+	general_reg_addr[PM_GPIO0_CD_PU_CON] = GPIO0_CD_NORMAL;
+	
+	general->reg_ctrbit|=(0x1<<PM_GPIO1_AB_PU_CON);
+	general_reg_addr[PM_GPIO1_AB_PU_CON] = GPIO1_AB_NORMAL;
+	
+	general->reg_ctrbit|=(0x1<<PM_GPIO1_CD_PU_CON);
+	general_reg_addr[PM_GPIO1_CD_PU_CON] = GPIO1_CD_NORMAL;
+	#endif
+	
+	general->reg_ctrbit|=(0x1<<PM_IOMUX_A_CON);
+	general->reg_ctrbit|=(0x1<<PM_IOMUX_B_CON);
+
+	rk2818_socpm_gpio_pullupdown(RK2818_PIN_PA3,GPIOPullDown);// 处理按键
+
+	#if 1  //set uart0 pin
+		
+		general_reg_addr[PM_IOMUX_A_CON] &=(~(0x3<<PM_UART0_OUT))&(~(0x3<<PM_UART0_IN));// 00 gpio 01uart
+		general_reg_addr[PM_IOMUX_B_CON] &=(~(0x1<<PM_UART0_RTS))&(~(0x1<<PM_UART0_CTS));//
+		rk2818_socpm_set_gpio(RK2818_PIN_PG0,0,0);//uart0 sin pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PG1,0,0);//uart0 sout pin
+		
+		rk2818_socpm_set_gpio(RK2818_PIN_PG0,0,0);//uart0 sin pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PG1,0,0);//uart0 sout pin
+
+		rk2818_socpm_set_gpio(RK2818_PIN_PB2,0,0);//uart0 cts pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PB3,0,0);//uart0 rts pin
+
+		rk2818_socpm_set_gpio(RK2818_PIN_PF7,0,0);//uart0 dtr pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PE0,0,0);//uart0 dsr pin
+
+		
+	#endif
+
+	#if 1  //set uart1 pin
+		
+		general_reg_addr[PM_IOMUX_A_CON] &=(~(0x3<<PM_UART1_OUT))&(~(0x3<<PM_UART1_IN));// 00 gpio 01uart
+		rk2818_socpm_set_gpio(RK2818_PIN_PF0,0,0);//uart0 sin pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PG1,0,0);//uart0 sout pin
+	#endif
+
+
+	#if 1  //set i2c0 pin
+		general_reg_addr[PM_IOMUX_A_CON] |=(0x1<<PM_I2C0);// 1 gpio;0 i2c
+		rk2818_socpm_set_gpio(RK2818_PIN_PE4,0,0);//sda pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PE5,0,0);//scl dsr pin
+	#endif
+
+	#if 1  //set i2c1 pin
+		general_reg_addr[PM_IOMUX_A_CON] &=(~(0x3<<PM_I2C1));// 0 gpio;1 i2c
+		rk2818_socpm_set_gpio(RK2818_PIN_PE6,0,0);//sda pin
+		rk2818_socpm_set_gpio(RK2818_PIN_PE7,0,0);//scl dsr pin
+	#endif
+	#if 1  // sdio0
+
+		general_reg_addr[PM_IOMUX_A_CON] &=(~(0x1<<PM_SDIO0_CMD))&(~(0x1<<PM_SDIO0_DATA));// 1 gpio;0 i2c
+		rk2818_socpm_set_gpio(RK2818_PIN_PH0,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PH1,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PH2,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PH3,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PH4,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PH5,0,0);
+
+		//rk2818_socpm_set_gpio(RK2818_PIN_PF3,0,0);
+
+
+	#endif
+	#if 1 // sdio1
+		general_reg_addr[PM_IOMUX_A_CON] &=(~(0x1<<PM_SDIO1_CMD))&(~(0x1<<PM_SDIO1_DATA));// 1 gpio;0 i2c
+		rk2818_socpm_set_gpio(RK2818_PIN_PG2,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PG3,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PG4,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PG5,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PG6,0,0);
+		rk2818_socpm_set_gpio(RK2818_PIN_PG7,0,0);
+	#endif
+}
+void __tcmfunc rk2818_pm_set_vol(void)
+{
+	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,0);
+}
+void __tcmfunc rk2818_pm_resume_vol(void)
+{
+	rk2818_socpm_set_gpio(RK2818_PIN_PC2,1,1);
+}
+#else
+#define	pm_set_general_cpu_reg(a)
+#define	rk2818_pm_set_vol()
+#define	rk2818_pm_resume_vol()
+#endif
 static void __init machine_rk2818_init_irq(void)
 {
 	rk2818_init_irq();
@@ -2016,6 +2133,10 @@ static void __init machine_rk2818_init_irq(void)
 
 static void __init machine_rk2818_board_init(void)
 {	
+	printk("3x machine_rk2818_board_init\n");
+	
+	rk2818_socpm_int( (pm_scu_suspend) rk2818_pm_scu_suspend,(pm_general_reg_suspend) rk2818_soc_general_reg_suspend,
+	(pm_set_suspendvol) rk2818_pm_set_vol,(pm_resume_vol) rk2818_pm_resume_vol);
 	rk2818_power_on();
 	pm_power_off = rk2818_power_off;
 #ifdef CONFIG_I2C0_RK2818
