@@ -216,6 +216,13 @@ config MACH_CM_T35
 	select OMAP_PACKAGE_CUS
 	select OMAP_MUX
 
+config MACH_CM_T3517
+	bool "CompuLab CM-T3517 module"
+	depends on ARCH_OMAP3
+	default y
+	select OMAP_PACKAGE_CBB
+	select OMAP_MUX
+
 config MACH_IGEP0020
 	bool "IGEP v2 board"
 	depends on ARCH_OMAP3
