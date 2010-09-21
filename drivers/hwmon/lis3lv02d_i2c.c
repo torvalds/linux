@@ -121,7 +121,7 @@ static int lis3lv02d_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 
-	if (!lis3->pdata->wakeup_flags)
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweroff(lis3);
 	return 0;
 }
@@ -130,7 +130,7 @@ static int lis3lv02d_i2c_resume(struct i2c_client *client)
 {
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 
-	if (!lis3->pdata->wakeup_flags)
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweron(lis3);
 	return 0;
 }

@@ -1627,6 +1627,8 @@ static const struct intel_gtt_driver_description {
 		&intel_i965_driver , &g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_B43_IG, "B43",
 		&intel_i965_driver , &g4x_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_B43_1_IG, "B43",
+		&intel_i965_driver , &g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_G41_IG, "G41",
 		&intel_i965_driver , &g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG,

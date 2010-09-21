@@ -675,6 +675,43 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 	return 0;
 }
 
+static int evergreen_cp_start(struct radeon_device *rdev)
+{
+	int r;
+	uint32_t cp_me;
+
+	r = radeon_ring_lock(rdev, 7);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
+	radeon_ring_write(rdev, 0x1);
+	radeon_ring_write(rdev, 0x0);
+	radeon_ring_write(rdev, rdev->config.evergreen.max_hw_contexts - 1);
+	radeon_ring_write(rdev, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
+	radeon_ring_write(rdev, 0);
+	radeon_ring_write(rdev, 0);
+	radeon_ring_unlock_commit(rdev);
+
+	cp_me = 0xff;
+	WREG32(CP_ME_CNTL, cp_me);
+
+	r = radeon_ring_lock(rdev, 4);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+	/* init some VGT regs */
+	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
+	radeon_ring_write(rdev, (VGT_VERTEX_REUSE_BLOCK_CNTL - PACKET3_SET_CONTEXT_REG_START) >> 2);
+	radeon_ring_write(rdev, 0xe);
+	radeon_ring_write(rdev, 0x10);
+	radeon_ring_unlock_commit(rdev);
+
+	return 0;
+}
+
 int evergreen_cp_resume(struct radeon_device *rdev)
 {
 	u32 tmp;
@@ -719,7 +756,7 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	rdev->cp.rptr = RREG32(CP_RB_RPTR);
 	rdev->cp.wptr = RREG32(CP_RB_WPTR);
 
-	r600_cp_start(rdev);
+	evergreen_cp_start(rdev);
 	rdev->cp.ready = true;
 	r = radeon_ring_test(rdev);
 	if (r) {
@@ -1123,14 +1160,25 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 									EVERGREEN_MAX_BACKENDS_MASK));
 			break;
 		}
-	} else
-		gb_backend_map =
-			evergreen_get_tile_pipe_to_backend_map(rdev,
-							       rdev->config.evergreen.max_tile_pipes,
-							       rdev->config.evergreen.max_backends,
-							       ((EVERGREEN_MAX_BACKENDS_MASK <<
-								 rdev->config.evergreen.max_backends) &
-								EVERGREEN_MAX_BACKENDS_MASK));
+	} else {
+		switch (rdev->family) {
+		case CHIP_CYPRESS:
+		case CHIP_HEMLOCK:
+			gb_backend_map = 0x66442200;
+			break;
+		case CHIP_JUNIPER:
+			gb_backend_map = 0x00006420;
+			break;
+		default:
+			gb_backend_map =
+				evergreen_get_tile_pipe_to_backend_map(rdev,
+								       rdev->config.evergreen.max_tile_pipes,
+								       rdev->config.evergreen.max_backends,
+								       ((EVERGREEN_MAX_BACKENDS_MASK <<
+									 rdev->config.evergreen.max_backends) &
+									EVERGREEN_MAX_BACKENDS_MASK));
+		}
+	}
 
 	rdev->config.evergreen.tile_config = gb_addr_config;
 	WREG32(GB_BACKEND_MAP, gb_backend_map);
@@ -2054,11 +2102,6 @@ int evergreen_resume(struct radeon_device *rdev)
 	 */
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
-	/* Initialize clocks */
-	r = radeon_clocks_init(rdev);
-	if (r) {
-		return r;
-	}
 
 	r = evergreen_startup(rdev);
 	if (r) {
@@ -2164,9 +2207,6 @@ int evergreen_init(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
-	r = radeon_clocks_init(rdev);
-	if (r)
-		return r;
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
@@ -2236,7 +2276,6 @@ void evergreen_fini(struct radeon_device *rdev)
 	evergreen_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_clocks_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);

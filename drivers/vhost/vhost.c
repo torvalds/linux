@@ -60,22 +60,25 @@ static int vhost_poll_wakeup(wait_queue_t *wait, unsigned mode, int sync,
 	return 0;
 }
 
-/* Init poll structure */
-void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
-		     unsigned long mask, struct vhost_dev *dev)
+static void vhost_work_init(struct vhost_work *work, vhost_work_fn_t fn)
 {
-	struct vhost_work *work = &poll->work;
-
-	init_waitqueue_func_entry(&poll->wait, vhost_poll_wakeup);
-	init_poll_funcptr(&poll->table, vhost_poll_func);
-	poll->mask = mask;
-	poll->dev = dev;
-
 	INIT_LIST_HEAD(&work->node);
 	work->fn = fn;
 	init_waitqueue_head(&work->done);
 	work->flushing = 0;
 	work->queue_seq = work->done_seq = 0;
+}
+
+/* Init poll structure */
+void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
+		     unsigned long mask, struct vhost_dev *dev)
+{
+	init_waitqueue_func_entry(&poll->wait, vhost_poll_wakeup);
+	init_poll_funcptr(&poll->table, vhost_poll_func);
+	poll->mask = mask;
+	poll->dev = dev;
+
+	vhost_work_init(&poll->work, fn);
 }
 
 /* Start polling a file. We add ourselves to file's wait queue. The caller must
@@ -95,35 +98,38 @@ void vhost_poll_stop(struct vhost_poll *poll)
 	remove_wait_queue(poll->wqh, &poll->wait);
 }
 
-/* Flush any work that has been scheduled. When calling this, don't hold any
- * locks that are also used by the callback. */
-void vhost_poll_flush(struct vhost_poll *poll)
+static void vhost_work_flush(struct vhost_dev *dev, struct vhost_work *work)
 {
-	struct vhost_work *work = &poll->work;
 	unsigned seq;
 	int left;
 	int flushing;
 
-	spin_lock_irq(&poll->dev->work_lock);
+	spin_lock_irq(&dev->work_lock);
 	seq = work->queue_seq;
 	work->flushing++;
-	spin_unlock_irq(&poll->dev->work_lock);
+	spin_unlock_irq(&dev->work_lock);
 	wait_event(work->done, ({
-		   spin_lock_irq(&poll->dev->work_lock);
+		   spin_lock_irq(&dev->work_lock);
 		   left = seq - work->done_seq <= 0;
-		   spin_unlock_irq(&poll->dev->work_lock);
+		   spin_unlock_irq(&dev->work_lock);
 		   left;
 	}));
-	spin_lock_irq(&poll->dev->work_lock);
+	spin_lock_irq(&dev->work_lock);
 	flushing = --work->flushing;
-	spin_unlock_irq(&poll->dev->work_lock);
+	spin_unlock_irq(&dev->work_lock);
 	BUG_ON(flushing < 0);
 }
 
-void vhost_poll_queue(struct vhost_poll *poll)
+/* Flush any work that has been scheduled. When calling this, don't hold any
+ * locks that are also used by the callback. */
+void vhost_poll_flush(struct vhost_poll *poll)
 {
-	struct vhost_dev *dev = poll->dev;
-	struct vhost_work *work = &poll->work;
+	vhost_work_flush(poll->dev, &poll->work);
+}
+
+static inline void vhost_work_queue(struct vhost_dev *dev,
+				    struct vhost_work *work)
+{
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->work_lock, flags);
@@ -133,6 +139,11 @@ void vhost_poll_queue(struct vhost_poll *poll)
 		wake_up_process(dev->worker);
 	}
 	spin_unlock_irqrestore(&dev->work_lock, flags);
+}
+
+void vhost_poll_queue(struct vhost_poll *poll)
+{
+	vhost_work_queue(poll->dev, &poll->work);
 }
 
 static void vhost_vq_reset(struct vhost_dev *dev,
@@ -236,6 +247,29 @@ long vhost_dev_check_owner(struct vhost_dev *dev)
 	return dev->mm == current->mm ? 0 : -EPERM;
 }
 
+struct vhost_attach_cgroups_struct {
+        struct vhost_work work;
+        struct task_struct *owner;
+        int ret;
+};
+
+static void vhost_attach_cgroups_work(struct vhost_work *work)
+{
+        struct vhost_attach_cgroups_struct *s;
+        s = container_of(work, struct vhost_attach_cgroups_struct, work);
+        s->ret = cgroup_attach_task_all(s->owner, current);
+}
+
+static int vhost_attach_cgroups(struct vhost_dev *dev)
+{
+        struct vhost_attach_cgroups_struct attach;
+        attach.owner = current;
+        vhost_work_init(&attach.work, vhost_attach_cgroups_work);
+        vhost_work_queue(dev, &attach.work);
+        vhost_work_flush(dev, &attach.work);
+        return attach.ret;
+}
+
 /* Caller should have device mutex */
 static long vhost_dev_set_owner(struct vhost_dev *dev)
 {
@@ -255,14 +289,16 @@ static long vhost_dev_set_owner(struct vhost_dev *dev)
 	}
 
 	dev->worker = worker;
-	err = cgroup_attach_task_current_cg(worker);
+	wake_up_process(worker);	/* avoid contributing to loadavg */
+
+	err = vhost_attach_cgroups(dev);
 	if (err)
 		goto err_cgroup;
-	wake_up_process(worker);	/* avoid contributing to loadavg */
 
 	return 0;
 err_cgroup:
 	kthread_stop(worker);
+	dev->worker = NULL;
 err_worker:
 	if (dev->mm)
 		mmput(dev->mm);
@@ -323,7 +359,10 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	dev->mm = NULL;
 
 	WARN_ON(!list_empty(&dev->work_list));
-	kthread_stop(dev->worker);
+	if (dev->worker) {
+		kthread_stop(dev->worker);
+		dev->worker = NULL;
+	}
 }
 
 static int log_access_ok(void __user *log_base, u64 addr, unsigned long sz)

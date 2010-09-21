@@ -227,7 +227,8 @@ static void intel_dvo_mode_set(struct drm_encoder *encoder,
  *
  * Unimplemented.
  */
-static enum drm_connector_status intel_dvo_detect(struct drm_connector *connector)
+static enum drm_connector_status
+intel_dvo_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);

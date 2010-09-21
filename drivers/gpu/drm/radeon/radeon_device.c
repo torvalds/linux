@@ -293,30 +293,20 @@ bool radeon_card_posted(struct radeon_device *rdev)
 void radeon_update_bandwidth_info(struct radeon_device *rdev)
 {
 	fixed20_12 a;
-	u32 sclk, mclk;
+	u32 sclk = rdev->pm.current_sclk;
+	u32 mclk = rdev->pm.current_mclk;
+
+	/* sclk/mclk in Mhz */
+	a.full = dfixed_const(100);
+	rdev->pm.sclk.full = dfixed_const(sclk);
+	rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
+	rdev->pm.mclk.full = dfixed_const(mclk);
+	rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
 
 	if (rdev->flags & RADEON_IS_IGP) {
-		sclk = radeon_get_engine_clock(rdev);
-		mclk = rdev->clock.default_mclk;
-
-		a.full = dfixed_const(100);
-		rdev->pm.sclk.full = dfixed_const(sclk);
-		rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
-		rdev->pm.mclk.full = dfixed_const(mclk);
-		rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
-
 		a.full = dfixed_const(16);
 		/* core_bandwidth = sclk(Mhz) * 16 */
 		rdev->pm.core_bandwidth.full = dfixed_div(rdev->pm.sclk, a);
-	} else {
-		sclk = radeon_get_engine_clock(rdev);
-		mclk = radeon_get_memory_clock(rdev);
-
-		a.full = dfixed_const(100);
-		rdev->pm.sclk.full = dfixed_const(sclk);
-		rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
-		rdev->pm.mclk.full = dfixed_const(mclk);
-		rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
 	}
 }
 

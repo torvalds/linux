@@ -181,6 +181,7 @@ struct be_drvr_stats {
 	u64 be_rx_bytes_prev;
 	u64 be_rx_pkts;
 	u32 be_rx_rate;
+	u32 be_rx_mcast_pkt;
 	/* number of non ether type II frames dropped where
 	 * frame len > length field of Mac Hdr */
 	u32 be_802_3_dropped_frames;

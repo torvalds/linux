@@ -1437,7 +1437,7 @@ ironlake_dp_detect(struct drm_connector *connector)
  * \return false if DP port is disconnected.
  */
 static enum drm_connector_status
-intel_dp_detect(struct drm_connector *connector)
+intel_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_device *dev = intel_dp->base.base.dev;
