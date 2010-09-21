@@ -246,6 +246,11 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 	return prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
 }
 
+/* These omap2_ PRM functions apply to both OMAP2 and 3 */
+int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift);
+int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift);
+int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift);
+
 int omap4_prm_is_hardreset_asserted(void __iomem *rstctrl_reg, u8 shift);
 int omap4_prm_assert_hardreset(void __iomem *rstctrl_reg, u8 shift);
 int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift);
