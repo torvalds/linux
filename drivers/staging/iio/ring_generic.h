@@ -236,7 +236,7 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
  **/
 #define __IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
 	struct iio_scan_el iio_scan_el_##_name = {			\
-		.dev_attr = __ATTR(_number##_##_name##_en,		\
+		.dev_attr = __ATTR(_name##_en,				\
 				   S_IRUGO | S_IWUSR,			\
 				   iio_scan_el_show,			\
 				   iio_scan_el_store),			\
@@ -251,7 +251,7 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 
 #define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)	\
 	struct iio_scan_el iio_scan_el_##_name = {			\
-		.dev_attr = __ATTR(_number##_##_string##_en,		\
+		.dev_attr = __ATTR(_string##_en,			\
 				   S_IRUGO | S_IWUSR,			\
 				   iio_scan_el_show,			\
 				   iio_scan_el_store),			\
@@ -276,7 +276,7 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
  **/
 #define IIO_SCAN_EL_TIMESTAMP(number)				\
 	struct iio_scan_el iio_scan_el_timestamp = {		\
-		.dev_attr = __ATTR(number##_timestamp_en,	\
+		.dev_attr = __ATTR(_timestamp_en,		\
 				   S_IRUGO | S_IWUSR,		\
 				   iio_scan_el_ts_show,		\
 				   iio_scan_el_ts_store),	\
