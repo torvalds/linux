@@ -980,8 +980,8 @@ static int _reset(struct omap_hwmod *oh)
 
 	/* clocks must be on for this operation */
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
-		WARN(1, "omap_hwmod: %s: reset can only be entered from "
-		     "enabled state\n", oh->name);
+		pr_warning("omap_hwmod: %s: reset can only be entered from "
+			   "enabled state\n", oh->name);
 		return -EINVAL;
 	}
 
@@ -998,8 +998,8 @@ static int _reset(struct omap_hwmod *oh)
 			  MAX_MODULE_SOFTRESET_WAIT, c);
 
 	if (c == MAX_MODULE_SOFTRESET_WAIT)
-		WARN(1, "omap_hwmod: %s: softreset failed (waited %d usec)\n",
-		     oh->name, MAX_MODULE_SOFTRESET_WAIT);
+		pr_warning("omap_hwmod: %s: softreset failed (waited %d usec)\n",
+			   oh->name, MAX_MODULE_SOFTRESET_WAIT);
 	else
 		pr_debug("omap_hwmod: %s: softreset in %d usec\n", oh->name, c);
 
@@ -1198,12 +1198,12 @@ static int _setup(struct omap_hwmod *oh, void *data)
 	}
 
 	if (!(oh->flags & HWMOD_INIT_NO_RESET)) {
+		_reset(oh);
+
 		/*
-		 * XXX Do the OCP_SYSCONFIG bits need to be
-		 * reprogrammed after a reset?  If not, then this can
-		 * be removed.  If they do, then probably the
-		 * _omap_hwmod_enable() function should be split to avoid the
-		 * rewrite of the OCP_SYSCONFIG register.
+		 * OCP_SYSCONFIG bits need to be reprogrammed after a softreset.
+		 * The _omap_hwmod_enable() function should be split to
+		 * avoid the rewrite of the OCP_SYSCONFIG register.
 		 */
 		if (oh->class->sysc) {
 			_update_sysc_cache(oh);
