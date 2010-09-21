@@ -1222,7 +1222,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 			return 3;
 		}
 
-		if (cond & 1)
+		if (!(cond & 1))
 			iexec->execute = false;
 	}
 		break;
