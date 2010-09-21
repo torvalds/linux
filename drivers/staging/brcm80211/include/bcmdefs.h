@@ -17,6 +17,13 @@
 #ifndef	_bcmdefs_h_
 #define	_bcmdefs_h_
 
+#define	SI_BUS			0
+#define	PCI_BUS			1
+#define	PCMCIA_BUS		2
+#define SDIO_BUS		3
+#define JTAG_BUS		4
+#define USB_BUS			5
+#define SPI_BUS			6
 /*
  * One doesn't need to include this file explicitly, gets included automatically if
  * typedefs.h is included.

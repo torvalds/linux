@@ -59,12 +59,16 @@ static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 			    void *sdh);
 static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 			     uint32 savewin, uint *origidx, void *regs);
+#ifndef BRCM_FULLMAC
 static void si_nvram_process(si_info_t *sii, char *pvars);
+#endif
 
 /* dev path concatenation util */
+#ifndef BRCM_FULLMAC
 static char *si_devpathvar(si_t *sih, char *var, int len, const char *name);
 static bool _si_clkctl_cc(si_info_t *sii, uint mode);
 static bool si_ispcie(si_info_t *sii);
+#endif
 static uint BCMINITFN(socram_banksize) (si_info_t *sii, sbsocramregs_t *r,
 					uint8 idx, uint8 mtype);
 
@@ -115,9 +119,11 @@ static bool
 BCMATTACHFN(si_buscore_prep) (si_info_t *sii, uint bustype, uint devid,
 			      void *sdh) {
 
+#ifndef BRCM_FULLMAC
 	/* kludge to enable the clock on the 4306 which lacks a slowclock */
 	if (BUSTYPE(bustype) == PCI_BUS && !si_ispcie(sii))
 		si_clkctl_xtal(&sii->pub, XTAL | PLL, ON);
+#endif
 
 #if defined(BCMSDIO)
 	if (BUSTYPE(bustype) == SDIO_BUS) {
@@ -186,9 +192,10 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	sii->pub.cccaps = R_REG(sii->osh, &cc->capabilities);
 	/* get chipcommon extended capabilities */
 
+#ifndef BRCM_FULLMAC
 	if (sii->pub.ccrev >= 35)
 		sii->pub.cccaps_ext = R_REG(sii->osh, &cc->capabilities_ext);
-
+#endif
 	/* get pmu rev and caps */
 	if (sii->pub.cccaps & CC_CAP_PMU) {
 		sii->pub.pmucaps = R_REG(sii->osh, &cc->pmucapabilities);
@@ -248,6 +255,20 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 			*origidx = i;
 	}
 
+#ifdef BRCM_FULLMAC
+	SI_MSG(("Buscore id/type/rev %d/0x%x/%d\n", sii->pub.buscoreidx,
+		sii->pub.buscoretype, sii->pub.buscorerev));
+
+	/* Make sure any on-chip ARM is off (in case strapping is wrong),
+	* or downloaded code was
+	* already running.
+	*/
+	if ((BUSTYPE(bustype) == SDIO_BUS) || (BUSTYPE(bustype) == SPI_BUS)) {
+		if (si_setcore(&sii->pub, ARM7S_CORE_ID, 0) ||
+			si_setcore(&sii->pub, ARMCM3_CORE_ID, 0))
+			si_core_disable(&sii->pub, 0);
+	}
+#else
 	if (pci && pcie) {
 		if (si_ispcie(sii))
 			pci = FALSE;
@@ -283,13 +304,14 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 			return FALSE;
 		}
 	}
-
+#endif
 	/* return to the original core */
 	si_setcoreidx(&sii->pub, *origidx);
 
 	return TRUE;
 }
 
+#ifndef BRCM_FULLMAC
 static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 {
 	uint w = 0;
@@ -347,6 +369,7 @@ static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
+#endif	/* !BRCM_FULLMAC */
 
 /* this is will make Sonics calls directly, since Sonics is no longer supported in the Si abstraction */
 /* this has been customized for the bcm 4329 ONLY */
@@ -401,10 +424,10 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 
-	if ((CHIPID(sih->chip) == BCM4329_CHIP_ID) && (sih->chiprev == 0) &&
-	    (sih->chippkg != BCM4329_289PIN_PKG_ID)) {
-		sih->chippkg = BCM4329_182PIN_PKG_ID;
-	}
+	if ((CHIPID(sih->chip) == BCM4329_CHIP_ID) &&
+		(sih->chippkg != BCM4329_289PIN_PKG_ID))
+			sih->chippkg = BCM4329_182PIN_PKG_ID;
+
 	sih->issim = IS_SIM(sih->chippkg);
 
 	/* scan for cores */
@@ -423,6 +446,9 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 		goto exit;
 	}
 
+#ifdef BRCM_FULLMAC
+	pvars = NULL;
+#else
 	/* Init nvram from flash if it exists */
 	nvram_init((void *)&(sii->pub));
 
@@ -434,14 +460,22 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	}
 	pvars = vars ? *vars : NULL;
 	si_nvram_process(sii, pvars);
+#endif
 
 	/* === NVRAM, clock is ready === */
 
+#ifdef BRCM_FULLMAC
+	if (sii->pub.ccrev >= 20) {
+#endif
 	cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
 	W_REG(osh, &cc->gpiopullup, 0);
 	W_REG(osh, &cc->gpiopulldown, 0);
 	sb_setcoreidx(sih, origidx);
+#ifdef BRCM_FULLMAC
+	}
+#endif
 
+#ifndef BRCM_FULLMAC
 	/* PMU specific initializations */
 	if (PMUCTL_ENAB(sih)) {
 		uint32 xtalfreq;
@@ -466,6 +500,7 @@ static si_info_t *BCMATTACHFN(si_doattach) (si_info_t *sii, uint devid,
 	/* clear any previous epidiag-induced target abort */
 	sb_taclear(sih, FALSE);
 #endif				/* BCMDBG */
+#endif
 
 	return sii;
 
@@ -690,6 +725,7 @@ void BCMATTACHFN(si_detach) (si_t *sih)
 				sii->regs[idx] = NULL;
 			}
 
+#ifndef BRCM_FULLMAC
 	nvram_exit((void *)si_local);	/* free up nvram buffers */
 
 	if (BUSTYPE(sih->bustype) == PCI_BUS) {
@@ -697,6 +733,7 @@ void BCMATTACHFN(si_detach) (si_t *sih)
 			pcicore_deinit(sii->pch);
 		sii->pch = NULL;
 	}
+#endif
 #if !defined(BCMBUSTYPE) || (BCMBUSTYPE == SI_BUS)
 	if (sii != &ksii)
 #endif				/* !BCMBUSTYPE || (BCMBUSTYPE == SI_BUS) */
@@ -1219,6 +1256,7 @@ uint32 BCMINITFN(si_clock_rate) (uint32 pll_type, uint32 n, uint32 m)
 	}
 }
 
+#ifndef BRCM_FULLMAC
 uint32 BCMINITFN(si_clock) (si_t *sih)
 {
 	si_info_t *sii;
@@ -1277,8 +1315,35 @@ uint32 BCMINITFN(si_ilp_clock) (si_t *sih)
 
 	return ILP_CLOCK;
 }
+#endif
 
 /* set chip watchdog reset timer to fire in 'ticks' */
+#ifdef BRCM_FULLMAC
+void
+si_watchdog(si_t *sih, uint ticks)
+{
+	if (PMUCTL_ENAB(sih)) {
+
+		if ((sih->chip == BCM4319_CHIP_ID) && (sih->chiprev == 0) &&
+			(ticks != 0)) {
+			si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t,
+			clk_ctl_st), ~0, 0x2);
+			si_setcore(sih, USB20D_CORE_ID, 0);
+			si_core_disable(sih, 1);
+			si_setcore(sih, CC_CORE_ID, 0);
+		}
+
+		if (ticks == 1)
+			ticks = 2;
+		si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, pmuwatchdog),
+			~0, ticks);
+	} else {
+		/* instant NMI */
+		si_corereg(sih, SI_CC_IDX, OFFSETOF(chipcregs_t, watchdog),
+			~0, ticks);
+	}
+}
+#else
 void si_watchdog(si_t *sih, uint ticks)
 {
 	uint nb, maxt;
@@ -1321,6 +1386,7 @@ void si_watchdog(si_t *sih, uint ticks)
 			   ticks);
 	}
 }
+#endif
 
 /* trigger watchdog reset after ms milliseconds */
 void si_watchdog_ms(si_t *sih, uint32 ms)
@@ -1328,6 +1394,7 @@ void si_watchdog_ms(si_t *sih, uint32 ms)
 	si_watchdog(sih, wd_msticks * ms);
 }
 
+#ifndef BRCM_FULLMAC
 uint16 BCMATTACHFN(si_d11_devid) (si_t *sih)
 {
 	si_info_t *sii = SI_INFO(sih);
@@ -1897,6 +1964,7 @@ void si_pci_pmeclr(si_t *sih)
 
 	pcicore_pmeclr(sii->pch);
 }
+#endif /* !BRCM_FULLMAC */
 
 #ifdef BCMSDIO
 /* initialize the sdio core */
@@ -1937,6 +2005,7 @@ void si_sdio_init(si_t *sih)
 }
 #endif				/* BCMSDIO */
 
+#ifndef BRCM_FULLMAC
 bool BCMATTACHFN(si_pci_war16165) (si_t *sih)
 {
 	si_info_t *sii;
@@ -2160,6 +2229,7 @@ int si_pci_fixcfg(si_t *sih)
 	pcicore_hwup(sii->pch);
 	return 0;
 }
+#endif	/* !BRCM_FULLMAC */
 
 /* change logical "focus" to the gpio core for optimized access */
 void *si_gpiosetcore(si_t *sih)
@@ -2800,6 +2870,7 @@ bool si_deviceremoved(si_t *sih)
 	return FALSE;
 }
 
+#ifndef BRCM_FULLMAC
 bool si_is_sprom_available(si_t *sih)
 {
 	if (sih->ccrev >= 31) {
@@ -2959,3 +3030,4 @@ int si_cis_source(si_t *sih)
 		return CIS_DEFAULT;
 	}
 }
+#endif	/* BRCM_FULLMAC */

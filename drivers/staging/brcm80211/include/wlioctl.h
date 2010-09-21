@@ -19,6 +19,9 @@
 
 #include <typedefs.h>
 #include <proto/ethernet.h>
+#ifdef BRCM_FULLMAC
+#include <proto/bcmeth.h>
+#endif
 #include <proto/bcmevent.h>
 #include <proto/802.11.h>
 #include <bcmwifi.h>
@@ -102,7 +105,11 @@ typedef struct wl_bss_info_108 {
 	/* variable length Information Elements */
 } wl_bss_info_108_t;
 
-#define	WL_BSS_INFO_VERSION	109	/* current version of wl_bss_info struct */
+#ifdef BRCM_FULLMAC
+#define	WL_BSS_INFO_VERSION	108	/* current ver of wl_bss_info struct */
+#else
+#define	WL_BSS_INFO_VERSION	109	/* current ver of wl_bss_info struct */
+#endif
 
 /* BSS info structure
  * Applications MUST CHECK ie_offset field and length field to access IEs and
@@ -264,6 +271,7 @@ typedef struct wl_scan_results {
 #define WL_SCAN_RESULTS_PARTIAL	1
 #define WL_SCAN_RESULTS_PENDING	2
 #define WL_SCAN_RESULTS_ABORTED	3
+#define WL_SCAN_RESULTS_NO_MEM	4
 
 #define ESCAN_REQ_VERSION 1
 
@@ -843,7 +851,11 @@ typedef struct wlc_iov_trx_s {
 /* bump this number if you change the ioctl interface */
 #define WLC_IOCTL_VERSION	1
 
+#ifdef BRCM_FULLMAC
+#define	WLC_IOCTL_MAXLEN	8192
+#else
 #define	WLC_IOCTL_MAXLEN		3072	/* max length ioctl buffer required */
+#endif
 #define	WLC_IOCTL_SMLEN			256	/* "small" length ioctl buffer required */
 #define WLC_IOCTL_MEDLEN		1536	/* "med" length ioctl buffer required */
 #define WLC_SAMPLECOLLECT_MAXLEN	10240	/* Max Sample Collect buffer for two cores */
@@ -2004,4 +2016,30 @@ typedef struct wl_pkteng {
 #define WLFEATURE_DISABLE_11N_AMPDU_RX	0x00000040
 #define WLFEATURE_DISABLE_11N_GF	0x00000080
 
+#define WL_EVENTING_MASK_LEN	16
+
+#define TOE_TX_CSUM_OL		0x00000001
+#define TOE_RX_CSUM_OL		0x00000002
+
+#define PM_OFF	0
+#define PM_MAX	1
+#define PM_FAST 2
+
+typedef enum sup_auth_status {
+	WLC_SUP_DISCONNECTED = 0,
+	WLC_SUP_CONNECTING,
+	WLC_SUP_IDREQUIRED,
+	WLC_SUP_AUTHENTICATING,
+	WLC_SUP_AUTHENTICATED,
+	WLC_SUP_KEYXCHANGE,
+	WLC_SUP_KEYED,
+	WLC_SUP_TIMEOUT,
+	WLC_SUP_LAST_BASIC_STATE,
+	WLC_SUP_KEYXCHANGE_WAIT_M1 = WLC_SUP_AUTHENTICATED,
+	WLC_SUP_KEYXCHANGE_PREP_M2 = WLC_SUP_KEYXCHANGE,
+	WLC_SUP_KEYXCHANGE_WAIT_M3 = WLC_SUP_LAST_BASIC_STATE,
+	WLC_SUP_KEYXCHANGE_PREP_M4,
+	WLC_SUP_KEYXCHANGE_WAIT_G1,
+	WLC_SUP_KEYXCHANGE_PREP_G2
+} sup_auth_status_t;
 #endif				/* _wlioctl_h_ */

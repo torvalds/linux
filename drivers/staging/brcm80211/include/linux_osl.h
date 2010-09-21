@@ -79,7 +79,7 @@ typedef struct {
 	bool mmbus;		/* Bus supports memory-mapped register accesses */
 	pktfree_cb_fn_t tx_fn;	/* Callback function for PKTFREE */
 	void *tx_ctx;		/* Context to the callback function */
-#ifdef BCMSDIO
+#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 	osl_rreg_fn_t rreg_fn;	/* Read Register function */
 	osl_wreg_fn_t wreg_fn;	/* Write Register function */
 	void *reg_ctx;		/* Context to the reg callback functions */
@@ -92,7 +92,7 @@ typedef struct {
 		((osl_pubinfo_t *)osh)->tx_ctx = _tx_ctx;	\
 	} while (0)
 
-#ifdef BCMSDIO
+#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 #define REGOPSSET(osh, rreg, wreg, ctx)			\
 	do {						\
 		((osl_pubinfo_t *)osh)->rreg_fn = rreg;	\
@@ -115,15 +115,22 @@ extern uint osl_malloced(osl_t *osh);
 #define	MALLOC_FAILED(osh)		osl_malloc_failed((osh))
 extern uint osl_malloc_failed(osl_t *osh);
 
+#ifdef BRCM_FULLMAC
+#define	DMA_CONSISTENT_ALIGN	PAGE_SIZE
+#define	DMA_ALLOC_CONSISTENT(osh, size, pap, dmah, alignbits) \
+	osl_dma_alloc_consistent((osh), (size), (pap))
+extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, ulong *pap);
+#else
 /* allocate/free shared (dma-able) consistent memory */
 #define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
 #define	DMA_ALLOC_CONSISTENT(osh, size, align, tot, pap, dmah) \
 	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
-#define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
-	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
 extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align,
 				      uint *tot, ulong *pap);
+#endif
+#define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
+	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
 extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, ulong pa);
 
 /* map/unmap direction */
@@ -317,32 +324,73 @@ extern int osl_error(int bcmerror);
 
 /* packet primitives */
 #define	PKTGET(osh, len, send)		osl_pktget((osh), (len))
-#define	PKTDUP(osh, skb)		osl_pktdup((osh), (skb))
 #define	PKTFREE(osh, skb, send)		osl_pktfree((osh), (skb), (send))
-#define	PKTDATA(skb)			(((struct sk_buff *)(skb))->data)
-#define	PKTLEN(skb)			(((struct sk_buff *)(skb))->len)
+#define	PKTDATA(skb)		(((struct sk_buff *)(skb))->data)
+#define	PKTLEN(skb)		(((struct sk_buff *)(skb))->len)
 #define PKTHEADROOM(skb)		(PKTDATA(skb)-(((struct sk_buff *)(skb))->head))
 #define PKTTAILROOM(skb) ((((struct sk_buff *)(skb))->end)-(((struct sk_buff *)(skb))->tail))
-#define	PKTNEXT(skb)			(((struct sk_buff *)(skb))->next)
-#define	PKTSETNEXT(skb, x)		(((struct sk_buff *)(skb))->next = (struct sk_buff*)(x))
-#define	PKTSETLEN(skb, len)		__skb_trim((struct sk_buff *)(skb), (len))
-#define	PKTPUSH(skb, bytes)		skb_push((struct sk_buff *)(skb), (bytes))
-#define	PKTPULL(skb, bytes)		skb_pull((struct sk_buff *)(skb), (bytes))
-#define	PKTTAG(skb)			((void *)(((struct sk_buff *)(skb))->cb))
-#define PKTALLOCED(osh)			(((osl_pubinfo_t *)(osh))->pktalloced)
+#define	PKTNEXT(skb)		(((struct sk_buff *)(skb))->next)
+#define	PKTSETNEXT(skb, x)	\
+	(((struct sk_buff *)(skb))->next = (struct sk_buff *)(x))
+#define	PKTSETLEN(skb, len)	__skb_trim((struct sk_buff *)(skb), (len))
+#define	PKTPUSH(skb, bytes)	skb_push((struct sk_buff *)(skb), (bytes))
+#define	PKTPULL(skb, bytes)	skb_pull((struct sk_buff *)(skb), (bytes))
+#define	PKTDUP(osh, skb)	osl_pktdup((osh), (skb))
+#define	PKTTAG(skb)		((void *)(((struct sk_buff *)(skb))->cb))
+#define PKTALLOCED(osh)		(((osl_pubinfo_t *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		FALSE
+extern void *osl_pktget(osl_t *osh, uint len);
+extern void osl_pktfree(osl_t *osh, void *skb, bool send);
+extern void *osl_pktdup(osl_t *osh, void *skb);
 
+#ifdef BRCM_FULLMAC
+#ifdef DHD_USE_STATIC_BUF
+#define	PKTGET_STATIC(osh, len, send)		osl_pktget_static((osh), (len))
+#define	PKTFREE_STATIC(osh, skb, send)	\
+	osl_pktfree_static((osh), (skb), (send))
+#endif
+extern void *osl_pktget_static(osl_t *osh, uint len);
+extern void osl_pktfree_static(osl_t *osh, void *skb, bool send);
+
+static INLINE void *
+osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
+{
+	struct sk_buff *nskb;
+
+	if (osh->pkttag)
+		bzero((void *)skb->cb, OSL_PKTTAG_SZ);
+
+	for (nskb = skb; nskb; nskb = nskb->next)
+		osh->pktalloced++;
+
+	return (void *)skb;
+}
+#define PKTFRMNATIVE(osh, skb)	\
+	osl_pkt_frmnative(((osl_pubinfo_t *)osh), (struct sk_buff*)(skb))
+
+static INLINE struct sk_buff *
+osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
+{
+	struct sk_buff *nskb;
+
+	if (osh->pkttag)
+		bzero(((struct sk_buff *)pkt)->cb, OSL_PKTTAG_SZ);
+
+	for (nskb = (struct sk_buff *)pkt; nskb; nskb = nskb->next)
+		osh->pktalloced--;
+
+	return (struct sk_buff *)pkt;
+}
+#define PKTTONATIVE(osh, pkt)	\
+	osl_pkt_tonative((osl_pubinfo_t *)(osh), (pkt))
+#else /* !BRCM_FULLMAC */
 #define PKTUNALLOC(osh)			(((osl_pubinfo_t *)(osh))->pktalloced--)
 
 #define	PKTSETSKIPCT(osh, skb)
 #define	PKTCLRSKIPCT(osh, skb)
 #define	PKTSKIPCT(osh, skb)
-
-extern void osl_pktfree(osl_t *osh, void *skb, bool send);
-
-extern void *osl_pktget(osl_t *osh, uint len);
-extern void *osl_pktdup(osl_t *osh, void *skb);
+#endif	/* BRCM_FULLMAC */
 
 #define	PKTLINK(skb)			(((struct sk_buff *)(skb))->prev)
 #define	PKTSETLINK(skb, x)		(((struct sk_buff *)(skb))->prev = (struct sk_buff*)(x))
@@ -354,7 +402,7 @@ extern void *osl_pktdup(osl_t *osh, void *skb);
 /* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because skb->ip_summed is overloaded */
 #define PKTSHARED(skb)                  (((struct sk_buff *)(skb))->cloned)
 
-#ifdef BCMSDIO
+#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 #define RPC_READ_REG(osh, r) (\
 	sizeof(*(r)) == sizeof(uint8) ? osl_readb((osh), (volatile uint8*)(r)) : \
 	sizeof(*(r)) == sizeof(uint16) ? osl_readw((osh), (volatile uint16*)(r)) : \

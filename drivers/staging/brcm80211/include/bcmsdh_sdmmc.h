@@ -39,6 +39,8 @@ extern void sdioh_sdmmc_osfree(sdioh_info_t *sd);
 
 #define BLOCK_SIZE_64 64
 #define BLOCK_SIZE_512 512
+#define BLOCK_SIZE_4318 64
+#define BLOCK_SIZE_4328 512
 
 /* internal return code */
 #define SUCCESS	0

@@ -1430,7 +1430,7 @@ typedef struct dot11_obss_ie dot11_obss_ie_t;
 
 #define WCN_OUI			"\x00\x50\xf2"
 #define WCN_TYPE		4
-
+#define BRCM_OUI		"\x00\x10\x18"
 #include <packed_section_end.h>
 
 #endif				/* _802_11_H_ */

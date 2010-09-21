@@ -21,6 +21,36 @@
 extern "C" {
 #endif
 
+#ifdef BRCM_FULLMAC
+/* ctype replacement */
+#define _BCM_U	0x01		/* upper */
+#define _BCM_L	0x02		/* lower */
+#define _BCM_D	0x04		/* digit */
+#define _BCM_C	0x08		/* cntrl */
+#define _BCM_P	0x10		/* punct */
+#define _BCM_S	0x20		/* white space (space/lf/tab) */
+#define _BCM_X	0x40		/* hex digit */
+#define _BCM_SP	0x80		/* hard space (0x20) */
+
+	extern const unsigned char bcm_ctype[];
+#define bcm_ismask(x)	(bcm_ctype[(int)(unsigned char)(x)])
+
+#define bcm_isalnum(c)	((bcm_ismask(c)&(_BCM_U|_BCM_L|_BCM_D)) != 0)
+#define bcm_isalpha(c)	((bcm_ismask(c)&(_BCM_U|_BCM_L)) != 0)
+#define bcm_iscntrl(c)	((bcm_ismask(c)&(_BCM_C)) != 0)
+#define bcm_isdigit(c)	((bcm_ismask(c)&(_BCM_D)) != 0)
+#define bcm_isgraph(c)	((bcm_ismask(c)&(_BCM_P|_BCM_U|_BCM_L|_BCM_D)) != 0)
+#define bcm_islower(c)	((bcm_ismask(c)&(_BCM_L)) != 0)
+#define bcm_isprint(c)	\
+	((bcm_ismask(c)&(_BCM_P|_BCM_U|_BCM_L|_BCM_D|_BCM_SP)) != 0)
+#define bcm_ispunct(c)	((bcm_ismask(c)&(_BCM_P)) != 0)
+#define bcm_isspace(c)	((bcm_ismask(c)&(_BCM_S)) != 0)
+#define bcm_isupper(c)	((bcm_ismask(c)&(_BCM_U)) != 0)
+#define bcm_isxdigit(c)	((bcm_ismask(c)&(_BCM_D|_BCM_X)) != 0)
+#define bcm_tolower(c)	(bcm_isupper((c)) ? ((c) + 'a' - 'A') : (c))
+#define bcm_toupper(c)	(bcm_islower((c)) ? ((c) + 'A' - 'a') : (c))
+#endif /* BRCM_FULLMAC */
+
 /* Buffer structure for collecting string-formatted data
 * using bcm_bprintf() API.
 * Use bcm_binit() to initialize before use
@@ -114,8 +144,13 @@ extern "C" {
 	extern void *pktq_pdeq(struct pktq *pq, int prec);
 	extern void *pktq_pdeq_tail(struct pktq *pq, int prec);
 /* Empty the queue at particular precedence level */
+#ifdef BRCM_FULLMAC
 	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
-				bool dir, ifpkt_cb_t fn, int arg);
+		bool dir);
+#else
+	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
+		bool dir, ifpkt_cb_t fn, int arg);
+#endif
 /* Remove a specified packet from its queue */
 	extern bool pktq_pdel(struct pktq *pq, void *p, int prec);
 
@@ -145,8 +180,12 @@ extern "C" {
 	extern void *pktq_deq_tail(struct pktq *pq, int *prec_out);
 	extern void *pktq_peek(struct pktq *pq, int *prec_out);
 	extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
+#ifdef BRCM_FULLMAC
+	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir);
+#else
 	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir,
-			       ifpkt_cb_t fn, int arg);
+		ifpkt_cb_t fn, int arg);
+#endif
 
 /* externs */
 /* packet */
@@ -165,6 +204,20 @@ extern "C" {
 #define	PKTPRIO_UPD	0x400	/* DSCP used to update VLAN prio */
 #define	PKTPRIO_DSCP	0x800	/* DSCP prio found */
 
+#ifdef BRCM_FULLMAC
+/* string */
+	extern int BCMROMFN(bcm_atoi) (char *s);
+	extern ulong BCMROMFN(bcm_strtoul) (char *cp, char **endp, uint base);
+	extern char *BCMROMFN(bcmstrstr) (char *haystack, char *needle);
+	extern char *BCMROMFN(bcmstrcat) (char *dest, const char *src);
+	extern char *BCMROMFN(bcmstrncat) (char *dest, const char *src,
+					   uint size);
+	extern ulong wchar2ascii(char *abuf, ushort *wbuf, ushort wbuflen,
+				 ulong abuflen);
+	char *bcmstrtok(char **string, const char *delimiters, char *tokdelim);
+	int bcmstricmp(const char *s1, const char *s2);
+	int bcmstrnicmp(const char *s1, const char *s2, int cnt);
+#endif
 /* ethernet address */
 	extern char *bcm_ether_ntoa(const struct ether_addr *ea, char *buf);
 	extern int BCMROMFN(bcm_ether_atoe) (char *p, struct ether_addr *ea);

@@ -42,6 +42,13 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	char ifname[BCM_MSG_IFNAME_MAX];
 } BWL_POST_PACKED_STRUCT wl_event_msg_t;
 
+#ifdef BRCM_FULLMAC
+typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
+	struct ether_header eth;
+	bcmeth_hdr_t		bcm_hdr;
+	wl_event_msg_t		event;
+} BWL_POST_PACKED_STRUCT bcm_event_t;
+#endif
 #define BCM_MSG_LEN	(sizeof(bcm_event_t) - sizeof(bcmeth_hdr_t) - \
 	sizeof(struct ether_header))
 

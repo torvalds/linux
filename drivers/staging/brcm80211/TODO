@@ -32,6 +32,8 @@ Other
 =====
 - wlc_mac80211.[ch], wl_mac80211.[ch] and linux_osl.c all need to be refactored
     and combined.
+- Merge files that are partially duplicated between the softmac and fullmac
+  drivers
 - Replace driver's proprietary ssb interface with generic kernel ssb module
   (only used when compiling for SDIO).
 - PCI and SDIO support are currently #ifdef'ed exclusive of each other, which

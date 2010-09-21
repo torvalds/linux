@@ -12,3 +12,4 @@ config BRCM80211_PCI
 	depends on BRCM80211
 	default y
 
+source "drivers/staging/brcm80211/brcmfmac/Kconfig"
