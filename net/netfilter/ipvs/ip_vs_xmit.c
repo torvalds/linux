@@ -28,7 +28,6 @@
 #include <net/ip6_route.h>
 #include <linux/icmpv6.h>
 #include <linux/netfilter.h>
-#include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter_ipv4.h>
 
 #include <net/ip_vs.h>
@@ -194,12 +193,37 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 	dst_release(old_dst);
 }
 
-#define IP_VS_XMIT(pf, skb, rt)				\
+#define IP_VS_XMIT_TUNNEL(skb, cp)				\
+({								\
+	int __ret = NF_ACCEPT;					\
+								\
+	if (unlikely((cp)->flags & IP_VS_CONN_F_NFCT))		\
+		__ret = ip_vs_confirm_conntrack(skb, cp);	\
+	if (__ret == NF_ACCEPT) {				\
+		nf_reset(skb);					\
+		(skb)->ip_summed = CHECKSUM_NONE;		\
+	}							\
+	__ret;							\
+})
+
+#define IP_VS_XMIT_NAT(pf, skb, cp)				\
 do {							\
-	(skb)->ipvs_property = 1;			\
+	if (likely(!((cp)->flags & IP_VS_CONN_F_NFCT)))	\
+		(skb)->ipvs_property = 1;		\
+	else						\
+		ip_vs_update_conntrack(skb, cp, 1);	\
 	skb_forward_csum(skb);				\
 	NF_HOOK(pf, NF_INET_LOCAL_OUT, (skb), NULL,	\
-		(rt)->dst.dev, dst_output);		\
+		skb_dst(skb)->dev, dst_output);		\
+} while (0)
+
+#define IP_VS_XMIT(pf, skb, cp)				\
+do {							\
+	if (likely(!((cp)->flags & IP_VS_CONN_F_NFCT)))	\
+		(skb)->ipvs_property = 1;		\
+	skb_forward_csum(skb);				\
+	NF_HOOK(pf, NF_INET_LOCAL_OUT, (skb), NULL,	\
+		skb_dst(skb)->dev, dst_output);		\
 } while (0)
 
 
@@ -271,7 +295,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, cp);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -335,7 +359,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, cp);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -348,36 +372,6 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	return NF_STOLEN;
 }
 #endif
-
-void
-ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
-{
-	struct nf_conn *ct = (struct nf_conn *)skb->nfct;
-	struct nf_conntrack_tuple new_tuple;
-
-	if (ct == NULL || nf_ct_is_untracked(ct) || nf_ct_is_confirmed(ct))
-		return;
-
-	/*
-	 * The connection is not yet in the hashtable, so we update it.
-	 * CIP->VIP will remain the same, so leave the tuple in
-	 * IP_CT_DIR_ORIGINAL untouched.  When the reply comes back from the
-	 * real-server we will see RIP->DIP.
-	 */
-	new_tuple = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-	if (outin)
-		new_tuple.src.u3 = cp->daddr;
-	else
-		new_tuple.dst.u3 = cp->vaddr;
-	/*
-	 * This will also take care of UDP and other protocols.
-	 */
-	if (outin)
-		new_tuple.src.u.tcp.port = cp->dport;
-	else
-		new_tuple.dst.u.tcp.port = cp->vport;
-	nf_conntrack_alter_reply(ct, &new_tuple);
-}
 
 /*
  *      NAT transmitter (only for outside-to-inside nat forwarding)
@@ -434,8 +428,6 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
 
-	ip_vs_update_conntrack(skb, cp, 1);
-
 	/* FIXME: when application helper enlarges the packet and the length
 	   is larger than the MTU of outgoing device, there will be still
 	   MTU problem. */
@@ -443,7 +435,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
+	IP_VS_XMIT_NAT(NFPROTO_IPV4, skb, cp);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -451,8 +443,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
   tx_error_icmp:
 	dst_link_failure(skb);
   tx_error:
-	LeaveFunction(10);
 	kfree_skb(skb);
+	LeaveFunction(10);
 	return NF_STOLEN;
   tx_error_put:
 	ip_rt_put(rt);
@@ -512,8 +504,6 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
 
-	ip_vs_update_conntrack(skb, cp, 1);
-
 	/* FIXME: when application helper enlarges the packet and the length
 	   is larger than the MTU of outgoing device, there will be still
 	   MTU problem. */
@@ -521,7 +511,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
+	IP_VS_XMIT_NAT(NFPROTO_IPV6, skb, cp);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -571,6 +561,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	int    mtu;
+	int ret;
 
 	EnterFunction(10);
 
@@ -655,7 +646,11 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	ip_local_out(skb);
+	ret = IP_VS_XMIT_TUNNEL(skb, cp);
+	if (ret == NF_ACCEPT)
+		ip_local_out(skb);
+	else if (ret == NF_DROP)
+		kfree_skb(skb);
 
 	LeaveFunction(10);
 
@@ -681,6 +676,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct ipv6hdr  *iph;		/* Our new IP header */
 	unsigned int max_headroom;	/* The extra header space needed */
 	int    mtu;
+	int ret;
 
 	EnterFunction(10);
 
@@ -761,7 +757,11 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	ip6_local_out(skb);
+	ret = IP_VS_XMIT_TUNNEL(skb, cp);
+	if (ret == NF_ACCEPT)
+		ip6_local_out(skb);
+	else if (ret == NF_DROP)
+		kfree_skb(skb);
 
 	LeaveFunction(10);
 
@@ -820,7 +820,7 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, cp);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -873,7 +873,7 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, cp);
 
 	LeaveFunction(10);
 	return NF_STOLEN;
@@ -947,7 +947,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV4, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV4, skb, cp);
 
 	rc = NF_STOLEN;
 	goto out;
@@ -1022,7 +1022,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(NFPROTO_IPV6, skb, rt);
+	IP_VS_XMIT(NFPROTO_IPV6, skb, cp);
 
 	rc = NF_STOLEN;
 	goto out;

@@ -88,6 +88,9 @@ int sysctl_ip_vs_expire_nodest_conn = 0;
 int sysctl_ip_vs_expire_quiescent_template = 0;
 int sysctl_ip_vs_sync_threshold[2] = { 3, 50 };
 int sysctl_ip_vs_nat_icmp_send = 0;
+#ifdef CONFIG_IP_VS_NFCT
+int sysctl_ip_vs_conntrack;
+#endif
 
 
 #ifdef CONFIG_IP_VS_DEBUG
@@ -1580,6 +1583,15 @@ static struct ctl_table vs_vars[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_do_defense_mode,
 	},
+#ifdef CONFIG_IP_VS_NFCT
+	{
+		.procname	= "conntrack",
+		.data		= &sysctl_ip_vs_conntrack,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
 	{
 		.procname	= "secure_tcp",
 		.data		= &sysctl_ip_vs_secure_tcp,

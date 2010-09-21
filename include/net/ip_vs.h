@@ -25,7 +25,9 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>			/* for ipv6_addr_copy */
-
+#ifdef CONFIG_IP_VS_NFCT
+#include <net/netfilter/nf_conntrack.h>
+#endif
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
@@ -798,6 +800,7 @@ extern int sysctl_ip_vs_expire_nodest_conn;
 extern int sysctl_ip_vs_expire_quiescent_template;
 extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
+extern int sysctl_ip_vs_conntrack;
 extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
 
@@ -955,8 +958,47 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 	return csum_partial(diff, sizeof(diff), oldsum);
 }
 
+#ifdef CONFIG_IP_VS_NFCT
+/*
+ *      Netfilter connection tracking
+ *      (from ip_vs_nfct.c)
+ */
+static inline int ip_vs_conntrack_enabled(void)
+{
+	return sysctl_ip_vs_conntrack;
+}
+
 extern void ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp,
 				   int outin);
+extern int ip_vs_confirm_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp);
+extern void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
+				      struct ip_vs_conn *cp, u_int8_t proto,
+				      const __be16 port, int from_rs);
+extern void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp);
+
+#else
+
+static inline int ip_vs_conntrack_enabled(void)
+{
+	return 0;
+}
+
+static inline void ip_vs_update_conntrack(struct sk_buff *skb,
+					  struct ip_vs_conn *cp, int outin)
+{
+}
+
+static inline int ip_vs_confirm_conntrack(struct sk_buff *skb,
+					  struct ip_vs_conn *cp)
+{
+	return NF_ACCEPT;
+}
+
+static inline void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
+{
+}
+/* CONFIG_IP_VS_NFCT */
+#endif
 
 #endif /* __KERNEL__ */
 

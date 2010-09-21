@@ -721,6 +721,9 @@ static void ip_vs_conn_expire(unsigned long data)
 		if (cp->control)
 			ip_vs_control_del(cp);
 
+		if (cp->flags & IP_VS_CONN_F_NFCT)
+			ip_vs_conn_drop_conntrack(cp);
+
 		if (unlikely(cp->app != NULL))
 			ip_vs_unbind_app(cp);
 		ip_vs_unbind_dest(cp);
@@ -815,6 +818,16 @@ ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
 
 	if (unlikely(pp && atomic_read(&pp->appcnt)))
 		ip_vs_bind_app(cp, pp);
+
+	/*
+	 * Allow conntrack to be preserved. By default, conntrack
+	 * is created and destroyed for every packet.
+	 * Sometimes keeping conntrack can be useful for
+	 * IP_VS_CONN_F_ONE_PACKET too.
+	 */
+
+	if (ip_vs_conntrack_enabled())
+		cp->flags |= IP_VS_CONN_F_NFCT;
 
 	/* Hash it in the ip_vs_conn_tab finally */
 	ip_vs_conn_hash(cp);
