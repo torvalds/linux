@@ -671,7 +671,8 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 
 	nfs_free_fattr(res.dir_attr);
 out:
-	dprintk("NFS reply readdir: %d\n", status);
+	dprintk("NFS reply readdir%s: %d\n",
+			plus? "plus" : "", status);
 	return status;
 }
 
@@ -741,7 +742,7 @@ nfs3_proc_statfs(struct nfs_server *server, struct nfs_fh *fhandle,
 	dprintk("NFS call  fsstat\n");
 	nfs_fattr_init(stat->fattr);
 	status = rpc_call_sync(server->client, &msg, 0);
-	dprintk("NFS reply statfs: %d\n", status);
+	dprintk("NFS reply fsstat: %d\n", status);
 	return status;
 }
 
