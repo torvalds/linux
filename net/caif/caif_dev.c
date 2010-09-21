@@ -173,7 +173,7 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 	net = dev_net(dev);
 	pkt = cfpkt_fromnative(CAIF_DIR_IN, skb);
 	caifd = caif_get(dev);
-	if (!caifd || !caifd->layer.up || !caifd->layer.up->ctrlcmd)
+	if (!caifd || !caifd->layer.up || !caifd->layer.up->receive)
 		return NET_RX_DROP;
 
 	if (caifd->layer.up->receive(caifd->layer.up, pkt))
