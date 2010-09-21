@@ -1468,7 +1468,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 {
 	int ret, i;
 
-	ret = oh->mpu_irqs_cnt + oh->sdma_chs_cnt;
+	ret = oh->mpu_irqs_cnt + oh->sdma_reqs_cnt;
 
 	for (i = 0; i < oh->slaves_cnt; i++)
 		ret += oh->slaves[i]->addr_cnt;
@@ -1501,10 +1501,10 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 		r++;
 	}
 
-	for (i = 0; i < oh->sdma_chs_cnt; i++) {
-		(res + r)->name = (oh->sdma_chs + i)->name;
-		(res + r)->start = (oh->sdma_chs + i)->dma_ch;
-		(res + r)->end = (oh->sdma_chs + i)->dma_ch;
+	for (i = 0; i < oh->sdma_reqs_cnt; i++) {
+		(res + r)->name = (oh->sdma_reqs + i)->name;
+		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
+		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
 		(res + r)->flags = IORESOURCE_DMA;
 		r++;
 	}

@@ -96,7 +96,7 @@ struct omap_hwmod_irq_info {
 /**
  * struct omap_hwmod_dma_info - DMA channels used by the hwmod
  * @name: name of the DMA channel (module local name)
- * @dma_ch: DMA channel ID
+ * @dma_req: DMA request ID
  *
  * @name should be something short, e.g., "tx" or "rx".  It is for use
  * by platform_get_resource_byname().  It is defined locally to the
@@ -104,7 +104,7 @@ struct omap_hwmod_irq_info {
  */
 struct omap_hwmod_dma_info {
 	const char	*name;
-	u16		dma_ch;
+	u16		dma_req;
 };
 
 /**
@@ -410,7 +410,7 @@ struct omap_hwmod_class {
  * @class: struct omap_hwmod_class * to the class of this hwmod
  * @od: struct omap_device currently associated with this hwmod (internal use)
  * @mpu_irqs: ptr to an array of MPU IRQs (see also mpu_irqs_cnt)
- * @sdma_chs: ptr to an array of SDMA channel IDs (see also sdma_chs_cnt)
+ * @sdma_reqs: ptr to an array of System DMA request IDs (see sdma_reqs_cnt)
  * @prcm: PRCM data pertaining to this hwmod
  * @main_clk: main clock: OMAP clock name
  * @_clk: pointer to the main struct clk (filled in at runtime)
@@ -424,7 +424,7 @@ struct omap_hwmod_class {
  * @msuspendmux_reg_id: CONTROL_MSUSPENDMUX register ID (1-6)
  * @msuspendmux_shift: CONTROL_MSUSPENDMUX register bit shift
  * @mpu_irqs_cnt: number of @mpu_irqs
- * @sdma_chs_cnt: number of @sdma_chs
+ * @sdma_reqs_cnt: number of @sdma_reqs
  * @opt_clks_cnt: number of @opt_clks
  * @master_cnt: number of @master entries
  * @slaves_cnt: number of @slave entries
@@ -448,7 +448,7 @@ struct omap_hwmod {
 	struct omap_hwmod_class		*class;
 	struct omap_device		*od;
 	struct omap_hwmod_irq_info	*mpu_irqs;
-	struct omap_hwmod_dma_info	*sdma_chs;
+	struct omap_hwmod_dma_info	*sdma_reqs;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;
 		struct omap_hwmod_omap4_prcm omap4;
@@ -468,7 +468,7 @@ struct omap_hwmod {
 	u8				msuspendmux_shift;
 	u8				response_lat;
 	u8				mpu_irqs_cnt;
-	u8				sdma_chs_cnt;
+	u8				sdma_reqs_cnt;
 	u8				opt_clks_cnt;
 	u8				masters_cnt;
 	u8				slaves_cnt;
