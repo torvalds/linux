@@ -54,7 +54,6 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 	[TFRC_SSTATE_NO_SENT]  = "NO_SENT",
 	[TFRC_SSTATE_NO_FBACK] = "NO_FBACK",
 	[TFRC_SSTATE_FBACK]    = "FBACK",
-	[TFRC_SSTATE_TERM]     = "TERM",
 	};
 
 	return ccid3_state_names[state];
@@ -208,10 +207,13 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	ccid3_pr_debug("%s(%p, state=%s) - entry\n", dccp_role(sk), sk,
 		       ccid3_tx_state_name(hc->tx_state));
 
+	/* Ignore and do not restart after leaving the established state */
+	if ((1 << sk->sk_state) & ~(DCCPF_OPEN | DCCPF_PARTOPEN))
+		goto out;
+
+	/* Reset feedback state to "no feedback received" */
 	if (hc->tx_state == TFRC_SSTATE_FBACK)
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-	else if (hc->tx_state != TFRC_SSTATE_NO_FBACK)
-		goto out;
 
 	/*
 	 * Determine new allowed sending rate X as per draft rfc3448bis-00, 4.4
@@ -287,8 +289,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(skb->len == 0))
 		return -EBADMSG;
 
-	switch (hc->tx_state) {
-	case TFRC_SSTATE_NO_SENT:
+	if (hc->tx_state == TFRC_SSTATE_NO_SENT) {
 		sk_reset_timer(sk, &hc->tx_no_feedback_timer, (jiffies +
 			       usecs_to_jiffies(TFRC_INITIAL_TIMEOUT)));
 		hc->tx_last_win_count	= 0;
@@ -323,9 +324,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		ccid3_update_send_interval(hc);
 
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-		break;
-	case TFRC_SSTATE_NO_FBACK:
-	case TFRC_SSTATE_FBACK:
+
+	} else {
 		delay = ktime_us_delta(hc->tx_t_nom, now);
 		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
@@ -340,10 +340,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			return (u32)delay / USEC_PER_MSEC;
 
 		ccid3_hc_tx_update_win_count(hc, now);
-		break;
-	case TFRC_SSTATE_TERM:
-		DCCP_BUG("%s(%p) - Illegal state TERM", dccp_role(sk), sk);
-		return -EINVAL;
 	}
 
 	/* prepare to send now (add options etc.) */
@@ -369,21 +365,15 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
-	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
 	struct tfrc_tx_hist_entry *acked;
 	ktime_t now;
 	unsigned long t_nfb;
-	u32 pinv, r_sample;
+	u32 r_sample;
 
 	/* we are only interested in ACKs */
 	if (!(DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK ||
 	      DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_DATAACK))
 		return;
-	/* ... and only in the established state */
-	if (hc->tx_state != TFRC_SSTATE_FBACK &&
-	    hc->tx_state != TFRC_SSTATE_NO_FBACK)
-		return;
-
 	/*
 	 * Locate the acknowledged packet in the TX history.
 	 *
@@ -402,17 +392,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	now	  = ktime_get_real();
 	r_sample  = dccp_sample_rtt(sk, ktime_us_delta(now, acked->stamp));
 	hc->tx_rtt = tfrc_ewma(hc->tx_rtt, r_sample, 9);
-
-	/* Update receive rate in units of 64 * bytes/second */
-	hc->tx_x_recv = opt_recv->ccid3or_receive_rate;
-	hc->tx_x_recv <<= 6;
-
-	/* Update loss event rate (which is scaled by 1e6) */
-	pinv = opt_recv->ccid3or_loss_event_rate;
-	if (pinv == ~0U || pinv == 0)	       /* see RFC 4342, 8.5   */
-		hc->tx_p = 0;
-	else				       /* can not exceed 100% */
-		hc->tx_p = scaled_div(1, pinv);
 
 	/*
 	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
@@ -481,30 +460,36 @@ done_computing_x:
 			   jiffies + usecs_to_jiffies(t_nfb));
 }
 
-static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
-				     unsigned char len, u16 idx,
-				     unsigned char *value)
+static int ccid3_hc_tx_parse_options(struct sock *sk, u8 packet_type,
+				     u8 option, u8 *optval, u8 optlen)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
-	struct ccid3_options_received *opt_recv = &hc->tx_options_received;
 	__be32 opt_val;
 
 	switch (option) {
 	case TFRC_OPT_RECEIVE_RATE:
 	case TFRC_OPT_LOSS_EVENT_RATE:
-		if (unlikely(len != 4)) {
+		/* Must be ignored on Data packets, cf. RFC 4342 8.3 and 8.5 */
+		if (packet_type == DCCP_PKT_DATA)
+			break;
+		if (unlikely(optlen != 4)) {
 			DCCP_WARN("%s(%p), invalid len %d for %u\n",
-				  dccp_role(sk), sk, len, option);
+				  dccp_role(sk), sk, optlen, option);
 			return -EINVAL;
 		}
-		opt_val = ntohl(get_unaligned((__be32 *)value));
+		opt_val = ntohl(get_unaligned((__be32 *)optval));
 
 		if (option == TFRC_OPT_RECEIVE_RATE) {
-			opt_recv->ccid3or_receive_rate = opt_val;
+			/* Receive Rate is kept in units of 64 bytes/second */
+			hc->tx_x_recv = opt_val;
+			hc->tx_x_recv <<= 6;
+
 			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
 				       dccp_role(sk), sk, opt_val);
 		} else {
-			opt_recv->ccid3or_loss_event_rate = opt_val;
+			/* Update the fixpoint Loss Event Rate fraction */
+			hc->tx_p = tfrc_invert_loss_event_rate(opt_val);
+
 			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
 				       dccp_role(sk), sk, opt_val);
 		}
@@ -527,9 +512,7 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 
-	ccid3_hc_tx_set_state(sk, TFRC_SSTATE_TERM);
 	sk_stop_timer(sk, &hc->tx_no_feedback_timer);
-
 	tfrc_tx_hist_purge(&hc->tx_hist);
 }
 
@@ -588,7 +571,6 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 	static const char *const ccid3_rx_state_names[] = {
 	[TFRC_RSTATE_NO_DATA] = "NO_DATA",
 	[TFRC_RSTATE_DATA]    = "DATA",
-	[TFRC_RSTATE_TERM]    = "TERM",
 	};
 
 	return ccid3_rx_state_names[state];
@@ -614,13 +596,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 {
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	ktime_t now;
+	ktime_t now = ktime_get_real();
 	s64 delta = 0;
-
-	if (unlikely(hc->rx_state == TFRC_RSTATE_TERM))
-		return;
-
-	now = ktime_get_real();
 
 	switch (fbtype) {
 	case CCID3_FBACK_INITIAL:
@@ -825,8 +802,6 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
 
-	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
-
 	tfrc_rx_hist_purge(&hc->rx_hist);
 	tfrc_lh_cleanup(&hc->rx_li_hist);
 }
@@ -851,8 +826,7 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 			return -EINVAL;
 		rx_info.tfrcrx_x_recv = hc->rx_x_recv;
 		rx_info.tfrcrx_rtt    = hc->rx_rtt;
-		rx_info.tfrcrx_p      = hc->rx_pinv == 0 ? ~0U :
-					   scaled_div(1, hc->rx_pinv);
+		rx_info.tfrcrx_p      = tfrc_invert_loss_event_rate(hc->rx_pinv);
 		len = sizeof(rx_info);
 		val = &rx_info;
 		break;
