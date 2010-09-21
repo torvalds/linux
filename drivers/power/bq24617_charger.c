@@ -95,7 +95,7 @@ static void bq24617_work(struct work_struct *work)
 	else
 		bq_data->ac_online = 0;
 
-	pr_info("%s: ac_online=%d (stat1=%d, stat2=%d, detect=%d)\n", __func__,
+	pr_debug("%s: ac_online=%d (stat1=%d, stat2=%d, detect=%d)\n", __func__,
 		bq_data->ac_online, bq24617_stat1_value, bq24617_stat2_value,
 		detect);
 
