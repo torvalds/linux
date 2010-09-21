@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
+#include <linux/mutex.h>
 #include <plat/cpu.h>
 
 struct omap_device;
@@ -433,6 +434,7 @@ struct omap_hwmod_class {
  * @_state: internal-use hwmod state
  * @flags: hwmod flags (documented below)
  * @omap_chip: OMAP chips this hwmod is present on
+ * @_mutex: mutex serializing operations on this hwmod
  * @node: list node for hwmod list (internal use)
  *
  * @main_clk refers to this module's "main clock," which for our
@@ -461,6 +463,7 @@ struct omap_hwmod {
 	void				*dev_attr;
 	u32				_sysc_cache;
 	void __iomem			*_mpu_rt_va;
+	struct mutex			_mutex;
 	struct list_head		node;
 	u16				flags;
 	u8				_mpu_port_index;
