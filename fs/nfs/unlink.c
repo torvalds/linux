@@ -426,7 +426,6 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 		.rpc_client = NFS_CLIENT(old_dir),
 		.flags = RPC_TASK_ASYNC,
 	};
-	struct rpc_task *task;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
@@ -435,7 +434,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 
 	data->cred = rpc_lookup_cred();
 	if (IS_ERR(data->cred)) {
-		task = (struct rpc_task *)data->cred;
+		struct rpc_task *task = ERR_CAST(data->cred);
 		kfree(data);
 		return task;
 	}
@@ -468,11 +467,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 
 	NFS_PROTO(data->old_dir)->rename_setup(&msg, old_dir);
 
-	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
-		nfs_async_rename_release(data);
-
-	return task;
+	return rpc_run_task(&task_setup_data);
 }
 
 /**
