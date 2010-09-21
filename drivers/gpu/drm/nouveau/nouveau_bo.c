@@ -454,10 +454,15 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL,
-					evict || (nvbo->channel &&
-						  nvbo->channel != chan),
+	if (nvbo->channel) {
+		ret = nouveau_fence_sync(fence, nvbo->channel);
+		if (ret)
+			goto out;
+	}
+
+	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL, evict,
 					no_wait_reserve, no_wait_gpu, new_mem);
+out:
 	nouveau_fence_unref((void *)&fence);
 	return ret;
 }
