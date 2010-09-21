@@ -194,9 +194,9 @@ error_ret:
 	return ret ? ret : len;
 }
 
-static IIO_SCAN_EL_C(accel_x, 0, 0, 0, NULL);
-static IIO_SCAN_EL_C(accel_y, 1, 0, 0, NULL);
-static IIO_SCAN_EL_C(accel_z, 2, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_x, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_y, 1, 0, NULL);
+static IIO_SCAN_EL_C(accel_z, 2, 0, NULL);
 static IIO_CONST_ATTR(accel_type_available, "s8/8 s11/16");
 static IIO_DEVICE_ATTR(accel_type,
 		       S_IRUGO | S_IWUSR,

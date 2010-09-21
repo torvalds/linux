@@ -168,7 +168,6 @@ static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
  * struct iio_scan_el - an individual element of a scan
  * @dev_attr:		control attribute (if directly controllable)
  * @number:		unique identifier of element (used for bit mask)
- * @bit_count:		number of bits in scan element
  * @label:		useful data for the scan el (often reg address)
  * @set_state:		for some devices datardy signals are generated
  *			for any enabled lines.  This allows unwanted lines
@@ -177,7 +176,6 @@ static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
 struct iio_scan_el {
 	struct device_attribute		dev_attr;
 	unsigned int			number;
-	int				bit_count;
 	unsigned int			label;
 
 	int (*set_state)(struct iio_scan_el *scanel,
@@ -232,39 +230,36 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
  * @_name:	identifying name. Resulting struct is iio_scan_el_##_name,
  *		sysfs element, _name##_en.
  * @_number:	unique id number for the scan element.
- * @_bits:	number of bits in the scan element result (used in mixed bit
  *		length devices).
  * @_label:	indentification variable used by drivers.  Often a reg address.
  * @_controlfunc: function used to notify hardware of whether state changes
  **/
-#define __IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
+#define __IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_name##_en,		\
 				   S_IRUGO | S_IWUSR,			\
 				   iio_scan_el_show,			\
 				   iio_scan_el_store),			\
 		.number =  _number,					\
-		.bit_count = _bits,					\
 		.label = _label,					\
 		.set_state = _controlfunc,				\
 	}	  
 
-#define IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
-	__IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)
+#define IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
+	__IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)
 
-#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
+#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf) \
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_string##_en,		\
 				   S_IRUGO | S_IWUSR,			\
 				   iio_scan_el_show,			\
 				   iio_scan_el_store),			\
 		.number =  _number,					\
-		.bit_count = _bits,					\
 		.label = _label,					\
 		.set_state = _cf,					\
 	}
-#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
-	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf)
+#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf) \
+	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)
 /**
  * IIO_SCAN_EL_TIMESTAMP - declare a special scan element for timestamps
  * @number: specify where in the scan order this is stored.

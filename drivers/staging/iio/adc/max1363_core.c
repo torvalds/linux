@@ -42,11 +42,10 @@
 /* Here we claim all are 16 bits. This currently does no harm and saves
  * us a lot of scan element listings */
 
-#define MAX1363_SCAN_EL(number)						\
-	IIO_SCAN_EL_C(in##number, number, IIO_UNSIGNED(16), 0, NULL);
+#define MAX1363_SCAN_EL(number)				\
+	IIO_SCAN_EL_C(in##number, number, 0, NULL);
 #define MAX1363_SCAN_EL_D(p, n, number)					\
-	IIO_SCAN_NAMED_EL_C(in##p##m##in##n, in##p-in##n,		\
-			number, IIO_SIGNED(16), 0, NULL);
+	IIO_SCAN_NAMED_EL_C(in##p##m##in##n, in##p-in##n, number, 0, NULL);
 
 static MAX1363_SCAN_EL(0);
 static MAX1363_SCAN_EL(1);

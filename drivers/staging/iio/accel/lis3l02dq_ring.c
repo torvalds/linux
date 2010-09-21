@@ -75,13 +75,13 @@ error_ret:
 	return ret;
 
 }
-static IIO_SCAN_EL_C(accel_x, 0, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_x, 0,
 		     LIS3L02DQ_REG_OUT_X_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_y, 1, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_y, 1,
 		     LIS3L02DQ_REG_OUT_Y_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_z, 2, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_z, 2,
 		     LIS3L02DQ_REG_OUT_Z_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
 static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 12, 16);
