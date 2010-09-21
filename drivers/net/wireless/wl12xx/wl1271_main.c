@@ -960,15 +960,10 @@ out:
 	return ret;
 }
 
-static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif)
+static void __wl1271_op_remove_interface(struct wl1271 *wl)
 {
-	struct wl1271 *wl = hw->priv;
 	int i;
 
-	cancel_work_sync(&wl->scan_complete_work);
-
-	mutex_lock(&wl->mutex);
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
 	wl1271_info("down");
@@ -994,6 +989,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_unlock(&wl->mutex);
 
+	cancel_work_sync(&wl->scan_complete_work);
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->pspoll_work);
@@ -1039,7 +1035,16 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	wl->tx_res_if = NULL;
 	kfree(wl->target_mem_map);
 	wl->target_mem_map = NULL;
+}
 
+static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
+{
+	struct wl1271 *wl = hw->priv;
+
+	mutex_lock(&wl->mutex);
+	WARN_ON(wl->vif != vif);
+	__wl1271_op_remove_interface(wl);
 	mutex_unlock(&wl->mutex);
 }
 

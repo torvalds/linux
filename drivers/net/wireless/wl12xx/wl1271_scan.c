@@ -36,6 +36,12 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl1271_debug(DEBUG_SCAN, "Scanning complete");
 
 	mutex_lock(&wl->mutex);
+
+	if (wl->scan.state == WL1271_SCAN_STATE_IDLE) {
+		mutex_unlock(&wl->mutex);
+		return;
+	}
+
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	kfree(wl->scan.scanned_ch);
 	wl->scan.scanned_ch = NULL;
