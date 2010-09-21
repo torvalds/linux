@@ -691,8 +691,6 @@ static void _sysc_enable(struct omap_hwmod *oh)
 		_set_module_autoidle(oh, idlemode, &v);
 	}
 
-	/* XXX OCP ENAWAKEUP bit? */
-
 	/*
 	 * XXX The clock framework should handle this, by
 	 * calling into this code.  But this must wait until the
@@ -703,6 +701,10 @@ static void _sysc_enable(struct omap_hwmod *oh)
 		_set_clockactivity(oh, oh->class->sysc->clockact, &v);
 
 	_write_sysconfig(v, oh);
+
+	/* If slave is in SMARTIDLE, also enable wakeup */
+	if ((sf & SYSC_HAS_SIDLEMODE) && !(oh->flags & HWMOD_SWSUP_SIDLE))
+		_enable_wakeup(oh);
 }
 
 /**
