@@ -109,6 +109,19 @@ struct omap_hwmod_dma_info {
 };
 
 /**
+ * struct omap_hwmod_rst_info - IPs reset lines use by hwmod
+ * @name: name of the reset line (module local name)
+ * @rst_shift: Offset of the reset bit
+ *
+ * @name should be something short, e.g., "cpu0" or "rst". It is defined
+ * locally to the hwmod.
+ */
+struct omap_hwmod_rst_info {
+	const char	*name;
+	u8		rst_shift;
+};
+
+/**
  * struct omap_hwmod_opt_clk - optional clocks used by this hwmod
  * @role: "sys", "32k", "tv", etc -- for use in clk_get()
  * @clk: opt clock: OMAP clock name
@@ -328,10 +341,12 @@ struct omap_hwmod_omap2_prcm {
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
  * @clkctrl_reg: PRCM address of the clock control register
+ * @rstctrl_reg: adress of the XXX_RSTCTRL register located in the PRM
  * @submodule_wkdep_bit: bit shift of the WKDEP range
  */
 struct omap_hwmod_omap4_prcm {
 	void __iomem	*clkctrl_reg;
+	void __iomem	*rstctrl_reg;
 	u8		submodule_wkdep_bit;
 };
 
@@ -451,6 +466,7 @@ struct omap_hwmod {
 	struct omap_device		*od;
 	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_reqs;
+	struct omap_hwmod_rst_info	*rst_lines;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;
 		struct omap_hwmod_omap4_prcm omap4;
@@ -472,6 +488,7 @@ struct omap_hwmod {
 	u8				response_lat;
 	u8				mpu_irqs_cnt;
 	u8				sdma_reqs_cnt;
+	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
 	u8				masters_cnt;
 	u8				slaves_cnt;

@@ -50,11 +50,13 @@
 #include <plat/powerdomain.h>
 #include <plat/clock.h>
 #include <plat/omap_hwmod.h>
+#include <plat/prcm.h>
 
 #include "cm.h"
+#include "prm.h"
 
-/* Maximum microseconds to wait for OMAP module to reset */
-#define MAX_MODULE_RESET_WAIT		10000
+/* Maximum microseconds to wait for OMAP module to softreset */
+#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 /* Name of the OMAP hwmod for the MPU */
 #define MPU_INITIATOR_NAME		"mpu"
@@ -834,6 +836,130 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 }
 
 /**
+ * _lookup_hardreset - return the register bit shift for this hwmod/reset line
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line in the context of this hwmod
+ *
+ * Return the bit position of the reset line that match the
+ * input name. Return -ENOENT if not found.
+ */
+static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int i;
+
+	for (i = 0; i < oh->rst_lines_cnt; i++) {
+		const char *rst_line = oh->rst_lines[i].name;
+		if (!strcmp(rst_line, name)) {
+			u8 shift = oh->rst_lines[i].rst_shift;
+			pr_debug("omap_hwmod: %s: _lookup_hardreset: %s: %d\n",
+				 oh->name, rst_line, shift);
+
+			return shift;
+		}
+	}
+
+	return -ENOENT;
+}
+
+/**
+ * _assert_hardreset - assert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to lookup and assert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.
+ */
+static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_hardreset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
+						  shift);
+	else if (cpu_is_omap44xx())
+		return omap4_prm_assert_hardreset(oh->prcm.omap4.rstctrl_reg,
+						  shift);
+	else
+		return -EINVAL;
+}
+
+/**
+ * _deassert_hardreset - deassert the HW reset line of submodules contained
+ * in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and deassert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.
+ */
+static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+	int r;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_hardreset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		r = omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
+						 shift);
+	else if (cpu_is_omap44xx())
+		r = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
+						 shift);
+	else
+		return -EINVAL;
+
+	if (r == -EBUSY)
+		pr_warning("omap_hwmod: %s: failed to hardreset\n", oh->name);
+
+	return r;
+}
+
+/**
+ * _read_hardreset - read the HW reset line state of submodules
+ * contained in the hwmod module
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and read
+ *
+ * Return the state of the reset line.
+ */
+static int _read_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_hardreset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
+						       shift);
+	} else if (cpu_is_omap44xx()) {
+		return omap4_prm_is_hardreset_asserted(oh->prcm.omap4.rstctrl_reg,
+						       shift);
+	} else {
+		return -EINVAL;
+	}
+}
+
+/**
  * _reset - reset an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -869,20 +995,20 @@ static int _reset(struct omap_hwmod *oh)
 
 	omap_test_timeout((omap_hwmod_readl(oh, oh->class->sysc->syss_offs) &
 			   SYSS_RESETDONE_MASK),
-			  MAX_MODULE_RESET_WAIT, c);
+			  MAX_MODULE_SOFTRESET_WAIT, c);
 
-	if (c == MAX_MODULE_RESET_WAIT)
-		WARN(1, "omap_hwmod: %s: failed to reset in %d usec\n",
-		     oh->name, MAX_MODULE_RESET_WAIT);
+	if (c == MAX_MODULE_SOFTRESET_WAIT)
+		WARN(1, "omap_hwmod: %s: softreset failed (waited %d usec)\n",
+		     oh->name, MAX_MODULE_SOFTRESET_WAIT);
 	else
-		pr_debug("omap_hwmod: %s: reset in %d usec\n", oh->name, c);
+		pr_debug("omap_hwmod: %s: softreset in %d usec\n", oh->name, c);
 
 	/*
 	 * XXX add _HWMOD_STATE_WEDGED for modules that don't come back from
 	 * _wait_target_ready() or _reset()
 	 */
 
-	return (c == MAX_MODULE_RESET_WAIT) ? -ETIMEDOUT : 0;
+	return (c == MAX_MODULE_SOFTRESET_WAIT) ? -ETIMEDOUT : 0;
 }
 
 /**
@@ -906,6 +1032,15 @@ int _omap_hwmod_enable(struct omap_hwmod *oh)
 	}
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
+
+	/*
+	 * If an IP contains only one HW reset line, then de-assert it in order
+	 * to allow to enable the clocks. Otherwise the PRCM will return
+	 * Intransition status, and the init will failed.
+	 */
+	if ((oh->_state == _HWMOD_STATE_INITIALIZED ||
+	     oh->_state == _HWMOD_STATE_DISABLED) && oh->rst_lines_cnt == 1)
+		_deassert_hardreset(oh, oh->rst_lines[0].name);
 
 	/* XXX mux balls */
 
@@ -981,6 +1116,13 @@ static int _shutdown(struct omap_hwmod *oh)
 	if (oh->class->sysc)
 		_sysc_shutdown(oh);
 
+	/*
+	 * If an IP contains only one HW reset line, then assert it
+	 * before disabling the clocks and shutting down the IP.
+	 */
+	if (oh->rst_lines_cnt == 1)
+		_assert_hardreset(oh, oh->rst_lines[0].name);
+
 	/* clocks and deps are already disabled in idle */
 	if (oh->_state == _HWMOD_STATE_ENABLED) {
 		_del_initiator_dep(oh, mpu_oh);
@@ -1037,6 +1179,16 @@ static int _setup(struct omap_hwmod *oh, void *data)
 
 	mutex_init(&oh->_mutex);
 	oh->_state = _HWMOD_STATE_INITIALIZED;
+
+	/*
+	 * In the case of hwmod with hardreset that should not be
+	 * de-assert at boot time, we have to keep the module
+	 * initialized, because we cannot enable it properly with the
+	 * reset asserted. Exit without warning because that behavior is
+	 * expected.
+	 */
+	if ((oh->flags & HWMOD_INIT_NO_RESET) && oh->rst_lines_cnt == 1)
+		return 0;
 
 	r = _omap_hwmod_enable(oh);
 	if (r) {
