@@ -1246,7 +1246,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 						    obj->size / PAGE_SIZE, 0, 0);
 	if (!list->file_offset_node) {
 		DRM_ERROR("failed to allocate offset for bo %d\n", obj->name);
-		ret = -ENOMEM;
+		ret = -ENOSPC;
 		goto out_free_list;
 	}
 
@@ -1258,9 +1258,9 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 	}
 
 	list->hash.key = list->file_offset_node->start;
-	if (drm_ht_insert_item(&mm->offset_hash, &list->hash)) {
+	ret = drm_ht_insert_item(&mm->offset_hash, &list->hash);
+	if (ret) {
 		DRM_ERROR("failed to add to map hash\n");
-		ret = -ENOMEM;
 		goto out_free_mm;
 	}
 
