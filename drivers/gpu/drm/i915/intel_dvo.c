@@ -72,7 +72,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.name = "ch7017",
 		.dvo_reg = DVOC,
 		.slave_addr = 0x75,
-		.gpio = GMBUS_PORT_DPD,
+		.gpio = GMBUS_PORT_DPB,
 		.dev_ops = &ch7017_ops,
 	}
 };
@@ -386,7 +386,7 @@ void intel_dvo_init(struct drm_device *dev)
 		else if (dvo->type == INTEL_DVO_CHIP_LVDS)
 			gpio = GMBUS_PORT_PANEL;
 		else
-			gpio = GMBUS_PORT_DPD;
+			gpio = GMBUS_PORT_DPB;
 
 		/* Set up the I2C bus necessary for the chip we're probing.
 		 * It appears that everything is on GPIOE except for panels
