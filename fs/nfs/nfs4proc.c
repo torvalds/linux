@@ -2550,6 +2550,7 @@ static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
 
 	args->bitmask = server->cache_consistency_bitmask;
 	res->server = server;
+	res->seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_REMOVE];
 }
 
@@ -2575,6 +2576,7 @@ static void nfs4_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME];
 	arg->bitmask = server->attr_bitmask;
 	res->server = server;
+	res->seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 }
 
 static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
