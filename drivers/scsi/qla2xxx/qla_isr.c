@@ -1706,19 +1706,20 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				cp->result = DID_ERROR << 16;
 				break;
 			}
-		} else if (!lscsi_status) {
+		} else {
 			DEBUG2(qla_printk(KERN_INFO, ha,
 			    "scsi(%ld:%d:%d) Dropped frame(s) detected (0x%x "
 			    "of 0x%x bytes).\n", vha->host_no, cp->device->id,
 			    cp->device->lun, resid, scsi_bufflen(cp)));
 
-			cp->result = DID_ERROR << 16;
-			break;
+			cp->result = DID_ERROR << 16 | lscsi_status;
+			goto check_scsi_status;
 		}
 
 		cp->result = DID_OK << 16 | lscsi_status;
 		logit = 0;
 
+check_scsi_status:
 		/*
 		 * Check to see if SCSI Status is non zero. If so report SCSI
 		 * Status.

@@ -245,7 +245,7 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
 		ttm_bo_unreserve(&nvbo->bo);
-		drm_gem_object_unreference(nvbo->gem);
+		drm_gem_object_unreference_unlocked(nvbo->gem);
 	}
 }
 
@@ -300,7 +300,7 @@ retry:
 			validate_fini(op, NULL);
 			if (ret == -EAGAIN)
 				ret = ttm_bo_wait_unreserved(&nvbo->bo, false);
-			drm_gem_object_unreference(gem);
+			drm_gem_object_unreference_unlocked(gem);
 			if (ret) {
 				NV_ERROR(dev, "fail reserve\n");
 				return ret;
@@ -616,8 +616,6 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return PTR_ERR(bo);
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
 	/* Mark push buffers as being used on PFIFO, the validation code
 	 * will then make sure that if the pushbuf bo moves, that they
 	 * happen on the kernel channel, which will in turn cause a sync
@@ -731,7 +729,6 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 out:
 	validate_fini(&op, fence);
 	nouveau_fence_unref((void**)&fence);
-	mutex_unlock(&dev->struct_mutex);
 	kfree(bo);
 	kfree(push);
 

@@ -1,0 +1,4 @@
+mktables
+altivec*.c
+int*.c
+tables.c

@@ -163,7 +163,7 @@ static int pcmcia_access_config(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 
 	if (!(c->state & CONFIG_LOCKED)) {
-		dev_dbg(&s->dev, "Configuration isnt't locked\n");
+		dev_dbg(&p_dev->dev, "Configuration isnt't locked\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EACCES;
 	}
@@ -220,7 +220,7 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
 	s->win[w].card_start = offset;
 	ret = s->ops->set_mem_map(s, &s->win[w]);
 	if (ret)
-		dev_warn(&s->dev, "failed to set_mem_map\n");
+		dev_warn(&p_dev->dev, "failed to set_mem_map\n");
 	mutex_unlock(&s->ops_mutex);
 	return ret;
 } /* pcmcia_map_mem_page */
@@ -244,18 +244,18 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 
 	if (!(s->state & SOCKET_PRESENT)) {
-		dev_dbg(&s->dev, "No card present\n");
+		dev_dbg(&p_dev->dev, "No card present\n");
 		ret = -ENODEV;
 		goto unlock;
 	}
 	if (!(c->state & CONFIG_LOCKED)) {
-		dev_dbg(&s->dev, "Configuration isnt't locked\n");
+		dev_dbg(&p_dev->dev, "Configuration isnt't locked\n");
 		ret = -EACCES;
 		goto unlock;
 	}
 
 	if (mod->Attributes & (CONF_IRQ_CHANGE_VALID | CONF_VCC_CHANGE_VALID)) {
-		dev_dbg(&s->dev,
+		dev_dbg(&p_dev->dev,
 			"changing Vcc or IRQ is not allowed at this time\n");
 		ret = -EINVAL;
 		goto unlock;
@@ -265,20 +265,22 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) &&
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		if (mod->Vpp1 != mod->Vpp2) {
-			dev_dbg(&s->dev, "Vpp1 and Vpp2 must be the same\n");
+			dev_dbg(&p_dev->dev,
+				"Vpp1 and Vpp2 must be the same\n");
 			ret = -EINVAL;
 			goto unlock;
 		}
 		s->socket.Vpp = mod->Vpp1;
 		if (s->ops->set_socket(s, &s->socket)) {
-			dev_printk(KERN_WARNING, &s->dev,
+			dev_printk(KERN_WARNING, &p_dev->dev,
 				   "Unable to set VPP\n");
 			ret = -EIO;
 			goto unlock;
 		}
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
 		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
-		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
+		dev_dbg(&p_dev->dev,
+			"changing Vcc is not allowed at this time\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -401,7 +403,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 	win = &s->win[w];
 
 	if (!(p_dev->_win & CLIENT_WIN_REQ(w))) {
-		dev_dbg(&s->dev, "not releasing unknown window\n");
+		dev_dbg(&p_dev->dev, "not releasing unknown window\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
@@ -439,7 +441,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	if (req->IntType & INT_CARDBUS) {
-		dev_dbg(&s->dev, "IntType may not be INT_CARDBUS\n");
+		dev_dbg(&p_dev->dev, "IntType may not be INT_CARDBUS\n");
 		return -EINVAL;
 	}
 
@@ -447,7 +449,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED) {
 		mutex_unlock(&s->ops_mutex);
-		dev_dbg(&s->dev, "Configuration is locked\n");
+		dev_dbg(&p_dev->dev, "Configuration is locked\n");
 		return -EACCES;
 	}
 
@@ -455,7 +457,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	s->socket.Vpp = req->Vpp;
 	if (s->ops->set_socket(s, &s->socket)) {
 		mutex_unlock(&s->ops_mutex);
-		dev_printk(KERN_WARNING, &s->dev,
+		dev_printk(KERN_WARNING, &p_dev->dev,
 			   "Unable to set socket state\n");
 		return -EINVAL;
 	}
@@ -569,19 +571,20 @@ int pcmcia_request_io(struct pcmcia_device *p_dev)
 	int ret = -EINVAL;
 
 	mutex_lock(&s->ops_mutex);
-	dev_dbg(&s->dev, "pcmcia_request_io: %pR , %pR", &c->io[0], &c->io[1]);
+	dev_dbg(&p_dev->dev, "pcmcia_request_io: %pR , %pR",
+		&c->io[0], &c->io[1]);
 
 	if (!(s->state & SOCKET_PRESENT)) {
-		dev_dbg(&s->dev, "pcmcia_request_io: No card present\n");
+		dev_dbg(&p_dev->dev, "pcmcia_request_io: No card present\n");
 		goto out;
 	}
 
 	if (c->state & CONFIG_LOCKED) {
-		dev_dbg(&s->dev, "Configuration is locked\n");
+		dev_dbg(&p_dev->dev, "Configuration is locked\n");
 		goto out;
 	}
 	if (c->state & CONFIG_IO_REQ) {
-		dev_dbg(&s->dev, "IO already configured\n");
+		dev_dbg(&p_dev->dev, "IO already configured\n");
 		goto out;
 	}
 
@@ -601,7 +604,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev)
 	c->state |= CONFIG_IO_REQ;
 	p_dev->_io = 1;
 
-	dev_dbg(&s->dev, "pcmcia_request_io succeeded: %pR , %pR",
+	dev_dbg(&p_dev->dev, "pcmcia_request_io succeeded: %pR , %pR",
 		&c->io[0], &c->io[1]);
 out:
 	mutex_unlock(&s->ops_mutex);
@@ -800,7 +803,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	int w;
 
 	if (!(s->state & SOCKET_PRESENT)) {
-		dev_dbg(&s->dev, "No card present\n");
+		dev_dbg(&p_dev->dev, "No card present\n");
 		return -ENODEV;
 	}
 
@@ -809,12 +812,12 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 		req->Size = s->map_size;
 	align = (s->features & SS_CAP_MEM_ALIGN) ? req->Size : s->map_size;
 	if (req->Size & (s->map_size-1)) {
-		dev_dbg(&s->dev, "invalid map size\n");
+		dev_dbg(&p_dev->dev, "invalid map size\n");
 		return -EINVAL;
 	}
 	if ((req->Base && (s->features & SS_CAP_STATIC_MAP)) ||
 	    (req->Base & (align-1))) {
-		dev_dbg(&s->dev, "invalid base address\n");
+		dev_dbg(&p_dev->dev, "invalid base address\n");
 		return -EINVAL;
 	}
 	if (req->Base)
@@ -826,7 +829,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 		if (!(s->state & SOCKET_WIN_REQ(w)))
 			break;
 	if (w == MAX_WIN) {
-		dev_dbg(&s->dev, "all windows are used already\n");
+		dev_dbg(&p_dev->dev, "all windows are used already\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
@@ -837,7 +840,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 		win->res = pcmcia_find_mem_region(req->Base, req->Size, align,
 						0, s);
 		if (!win->res) {
-			dev_dbg(&s->dev, "allocating mem region failed\n");
+			dev_dbg(&p_dev->dev, "allocating mem region failed\n");
 			mutex_unlock(&s->ops_mutex);
 			return -EINVAL;
 		}
@@ -851,7 +854,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	win->card_start = 0;
 
 	if (s->ops->set_mem_map(s, win) != 0) {
-		dev_dbg(&s->dev, "failed to set memory mapping\n");
+		dev_dbg(&p_dev->dev, "failed to set memory mapping\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EIO;
 	}
@@ -874,7 +877,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	if (win->res)
 		request_resource(&iomem_resource, res);
 
-	dev_dbg(&s->dev, "request_window results in %pR\n", res);
+	dev_dbg(&p_dev->dev, "request_window results in %pR\n", res);
 
 	mutex_unlock(&s->ops_mutex);
 	*wh = res;

@@ -2672,6 +2672,19 @@ qla82xx_start_scsi(srb_t *sp)
 sufficient_dsds:
 		req_cnt = 1;
 
+		if (req->cnt < (req_cnt + 2)) {
+			cnt = (uint16_t)RD_REG_DWORD_RELAXED(
+				&reg->req_q_out[0]);
+			if (req->ring_index < cnt)
+				req->cnt = cnt - req->ring_index;
+			else
+				req->cnt = req->length -
+					(req->ring_index - cnt);
+		}
+
+		if (req->cnt < (req_cnt + 2))
+			goto queuing_error;
+
 		ctx = sp->ctx = mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
 		if (!sp->ctx) {
 			DEBUG(printk(KERN_INFO
@@ -3307,16 +3320,19 @@ qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			}
 			qla2xxx_wake_dpc(vha);
+			ha->flags.fw_hung = 1;
 			if (ha->flags.mbox_busy) {
-				ha->flags.fw_hung = 1;
 				ha->flags.mbox_int = 1;
 				DEBUG2(qla_printk(KERN_ERR, ha,
-				    "Due to fw hung, doing premature "
-				    "completion of mbx command\n"));
-				complete(&ha->mbx_intr_comp);
+					"Due to fw hung, doing premature "
+					"completion of mbx command\n"));
+				if (test_bit(MBX_INTR_WAIT,
+					&ha->mbx_cmd_flags))
+					complete(&ha->mbx_intr_comp);
 			}
 		}
-	}
+	} else
+		vha->seconds_since_last_heartbeat = 0;
 	vha->fw_heartbeat_counter = fw_heartbeat_counter;
 }
 
@@ -3418,13 +3434,15 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 				"%s(): Adapter reset needed!\n", __func__);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
+			ha->flags.fw_hung = 1;
 			if (ha->flags.mbox_busy) {
-				ha->flags.fw_hung = 1;
 				ha->flags.mbox_int = 1;
 				DEBUG2(qla_printk(KERN_ERR, ha,
-				    "Need reset, doing premature "
-				    "completion of mbx command\n"));
-				complete(&ha->mbx_intr_comp);
+					"Need reset, doing premature "
+					"completion of mbx command\n"));
+				if (test_bit(MBX_INTR_WAIT,
+					&ha->mbx_cmd_flags))
+					complete(&ha->mbx_intr_comp);
 			}
 		} else {
 			qla82xx_check_fw_alive(vha);
