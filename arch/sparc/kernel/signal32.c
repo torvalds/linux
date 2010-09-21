@@ -453,6 +453,64 @@ static int save_fpu_state32(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 	return err;
 }
 
+/* The I-cache flush instruction only works in the primary ASI, which
+ * right now is the nucleus, aka. kernel space.
+ *
+ * Therefore we have to kick the instructions out using the kernel
+ * side linear mapping of the physical address backing the user
+ * instructions.
+ */
+static void flush_signal_insns(unsigned long address)
+{
+	unsigned long pstate, paddr;
+	pte_t *ptep, pte;
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+
+	/* Commit all stores of the instructions we are about to flush.  */
+	wmb();
+
+	/* Disable cross-call reception.  In this way even a very wide
+	 * munmap() on another cpu can't tear down the page table
+	 * hierarchy from underneath us, since that can't complete
+	 * until the IPI tlb flush returns.
+	 */
+
+	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
+	__asm__ __volatile__("wrpr %0, %1, %%pstate"
+				: : "r" (pstate), "i" (PSTATE_IE));
+
+	pgdp = pgd_offset(current->mm, address);
+	if (pgd_none(*pgdp))
+		goto out_irqs_on;
+	pudp = pud_offset(pgdp, address);
+	if (pud_none(*pudp))
+		goto out_irqs_on;
+	pmdp = pmd_offset(pudp, address);
+	if (pmd_none(*pmdp))
+		goto out_irqs_on;
+
+	ptep = pte_offset_map(pmdp, address);
+	pte = *ptep;
+	if (!pte_present(pte))
+		goto out_unmap;
+
+	paddr = (unsigned long) page_address(pte_page(pte));
+
+	__asm__ __volatile__("flush	%0 + %1"
+			     : /* no outputs */
+			     : "r" (paddr),
+			       "r" (address & (PAGE_SIZE - 1))
+			     : "memory");
+
+out_unmap:
+	pte_unmap(ptep);
+out_irqs_on:
+	__asm__ __volatile__("wrpr %0, 0x0, %%pstate" : : "r" (pstate));
+
+}
+
 static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 			  int signo, sigset_t *oldset)
 {
@@ -547,13 +605,7 @@ static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 	if (ka->ka_restorer) {
 		regs->u_regs[UREG_I7] = (unsigned long)ka->ka_restorer;
 	} else {
-		/* Flush instruction space. */
 		unsigned long address = ((unsigned long)&(sf->insns[0]));
-		pgd_t *pgdp = pgd_offset(current->mm, address);
-		pud_t *pudp = pud_offset(pgdp, address);
-		pmd_t *pmdp = pmd_offset(pudp, address);
-		pte_t *ptep;
-		pte_t pte;
 
 		regs->u_regs[UREG_I7] = (unsigned long) (&(sf->insns[0]) - 2);
 	
@@ -562,22 +614,7 @@ static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 		if (err)
 			goto sigsegv;
 
-		preempt_disable();
-		ptep = pte_offset_map(pmdp, address);
-		pte = *ptep;
-		if (pte_present(pte)) {
-			unsigned long page = (unsigned long)
-				page_address(pte_page(pte));
-
-			wmb();
-			__asm__ __volatile__("flush	%0 + %1"
-					     : /* no outputs */
-					     : "r" (page),
-					       "r" (address & (PAGE_SIZE - 1))
-					     : "memory");
-		}
-		pte_unmap(ptep);
-		preempt_enable();
+		flush_signal_insns(address);
 	}
 	return;
 
@@ -687,12 +724,7 @@ static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 	if (ka->ka_restorer)
 		regs->u_regs[UREG_I7] = (unsigned long)ka->ka_restorer;
 	else {
-		/* Flush instruction space. */
 		unsigned long address = ((unsigned long)&(sf->insns[0]));
-		pgd_t *pgdp = pgd_offset(current->mm, address);
-		pud_t *pudp = pud_offset(pgdp, address);
-		pmd_t *pmdp = pmd_offset(pudp, address);
-		pte_t *ptep;
 
 		regs->u_regs[UREG_I7] = (unsigned long) (&(sf->insns[0]) - 2);
 	
@@ -704,21 +736,7 @@ static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 		if (err)
 			goto sigsegv;
 
-		preempt_disable();
-		ptep = pte_offset_map(pmdp, address);
-		if (pte_present(*ptep)) {
-			unsigned long page = (unsigned long)
-				page_address(pte_page(*ptep));
-
-			wmb();
-			__asm__ __volatile__("flush	%0 + %1"
-					     : /* no outputs */
-					     : "r" (page),
-					       "r" (address & (PAGE_SIZE - 1))
-					     : "memory");
-		}
-		pte_unmap(ptep);
-		preempt_enable();
+		flush_signal_insns(address);
 	}
 	return;
 
