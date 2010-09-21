@@ -94,7 +94,7 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MINOR);
 			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
-					1, 1, 0, 0);
+					0, 1, 0, 0);
 			return 1;
 		case HID_DG_CONTACTID:
 			field->logical_maximum = MAX_TRKID;
