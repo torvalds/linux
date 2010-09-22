@@ -299,7 +299,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 			int bus_pin = general->crt_ddc_gmbus_pin;
 			DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
 			if (bus_pin >= 1 && bus_pin <= 6)
-				dev_priv->crt_ddc_pin = bus_pin - 1;
+				dev_priv->crt_ddc_pin = bus_pin;
 		} else {
 			DRM_DEBUG_KMS("BDB_GD too small (%d). Invalid.\n",
 				  block_size);
