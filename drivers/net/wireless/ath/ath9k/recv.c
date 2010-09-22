@@ -455,7 +455,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	if ((AR_SREV_9280_20_OR_LATER(sc->sc_ah) ||
-	    AR_SREV_9285_10_OR_LATER(sc->sc_ah)) &&
+	    AR_SREV_9285_12_OR_LATER(sc->sc_ah)) &&
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_AP) &&
 	    (sc->rx.rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;

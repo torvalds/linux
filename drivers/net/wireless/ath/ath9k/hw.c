@@ -1190,7 +1190,7 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 	int count = 50;
 	u32 reg;
 
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9285_12_OR_LATER(ah))
 		return true;
 
 	do {
@@ -1787,7 +1787,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	regulatory->current_rd = eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_1);
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9285_12_OR_LATER(ah))
 		eeval |= AR9285_RDEXT_DEFAULT;
 	regulatory->current_rd_ext = eeval;
 
@@ -1893,7 +1893,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->num_gpio_pins = AR9271_NUM_GPIO;
 	else if (AR_DEVID_7010(ah))
 		pCap->num_gpio_pins = AR7010_NUM_GPIO;
-	else if (AR_SREV_9285_10_OR_LATER(ah))
+	else if (AR_SREV_9285_12_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
 	else if (AR_SREV_9280_20_OR_LATER(ah))
 		pCap->num_gpio_pins = AR928X_NUM_GPIO;
@@ -2075,7 +2075,7 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 		return MS_REG_READ(AR9271, gpio) != 0;
 	else if (AR_SREV_9287_10_OR_LATER(ah))
 		return MS_REG_READ(AR9287, gpio) != 0;
-	else if (AR_SREV_9285_10_OR_LATER(ah))
+	else if (AR_SREV_9285_12_OR_LATER(ah))
 		return MS_REG_READ(AR9285, gpio) != 0;
 	else if (AR_SREV_9280_20_OR_LATER(ah))
 		return MS_REG_READ(AR928X, gpio) != 0;

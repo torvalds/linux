@@ -701,7 +701,7 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 	u32 phymode;
 	u32 enableDacFifo = 0;
 
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9285_12_OR_LATER(ah))
 		enableDacFifo = (REG_READ(ah, AR_PHY_TURBO) &
 					 AR_PHY_FC_ENABLE_DAC_FIFO);
 

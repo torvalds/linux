@@ -567,11 +567,6 @@ static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 	    AR5416_EEP_TXGAIN_HIGH_POWER)
 		return;
 
-	if (AR_SREV_9285_11(ah)) {
-		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
-		udelay(10);
-	}
-
 	for (i = 0; i < ARRAY_SIZE(regList); i++)
 		regList[i][1] = REG_READ(ah, regList[i][0]);
 
@@ -651,10 +646,6 @@ static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
 
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_CCOMP, ccomp_org);
-
-	if (AR_SREV_9285_11(ah))
-		REG_WRITE(ah, AR9285_AN_TOP4, AR9285_AN_TOP4_DEFAULT);
-
 }
 
 static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
@@ -664,7 +655,7 @@ static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 			ar9271_hw_pa_cal(ah, is_reset);
 		else
 			ah->pacal_info.skipcount--;
-	} else if (AR_SREV_9285_11_OR_LATER(ah)) {
+	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
 		if (is_reset || !ah->pacal_info.skipcount)
 			ar9285_hw_pa_cal(ah, is_reset);
 		else
