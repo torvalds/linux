@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
 #include <linux/dmi.h>
-
+#include <linux/pci.h>
 #include <video/vga.h>
 
 static struct fb_var_screeninfo efifb_defined __initdata = {
@@ -113,7 +113,7 @@ static int set_system(const struct dmi_system_id *id)
 {
 	struct efifb_dmi_info *info = id->driver_data;
 	if (info->base == 0)
-		return -ENODEV;
+		return 0;
 
 	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at %p "
 			 "(%dx%d, stride %d)\n", id->ident,
@@ -121,18 +121,55 @@ static int set_system(const struct dmi_system_id *id)
 			 info->stride);
 
 	/* Trust the bootloader over the DMI tables */
-	if (screen_info.lfb_base == 0)
+	if (screen_info.lfb_base == 0) {
+#if defined(CONFIG_PCI)
+		struct pci_dev *dev = NULL;
+		int found_bar = 0;
+#endif
 		screen_info.lfb_base = info->base;
-	if (screen_info.lfb_linelength == 0)
-		screen_info.lfb_linelength = info->stride;
-	if (screen_info.lfb_width == 0)
-		screen_info.lfb_width = info->width;
-	if (screen_info.lfb_height == 0)
-		screen_info.lfb_height = info->height;
-	if (screen_info.orig_video_isVGA == 0)
-		screen_info.orig_video_isVGA = VIDEO_TYPE_EFI;
 
-	return 0;
+#if defined(CONFIG_PCI)
+		/* make sure that the address in the table is actually on a
+		 * VGA device's PCI BAR */
+
+		for_each_pci_dev(dev) {
+			int i;
+			if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+				continue;
+			for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+				resource_size_t start, end;
+
+				start = pci_resource_start(dev, i);
+				if (start == 0)
+					break;
+				end = pci_resource_end(dev, i);
+				if (screen_info.lfb_base >= start &&
+						screen_info.lfb_base < end) {
+					found_bar = 1;
+				}
+			}
+		}
+		if (!found_bar)
+			screen_info.lfb_base = 0;
+#endif
+	}
+	if (screen_info.lfb_base) {
+		if (screen_info.lfb_linelength == 0)
+			screen_info.lfb_linelength = info->stride;
+		if (screen_info.lfb_width == 0)
+			screen_info.lfb_width = info->width;
+		if (screen_info.lfb_height == 0)
+			screen_info.lfb_height = info->height;
+		if (screen_info.orig_video_isVGA == 0)
+			screen_info.orig_video_isVGA = VIDEO_TYPE_EFI;
+	} else {
+		screen_info.lfb_linelength = 0;
+		screen_info.lfb_width = 0;
+		screen_info.lfb_height = 0;
+		screen_info.orig_video_isVGA = 0;
+		return 0;
+	}
+	return 1;
 }
 
 static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
