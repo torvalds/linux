@@ -1271,8 +1271,12 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
 
+	intel_wait_for_vblank(intel_tv->base.base.dev,
+			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
+
 	type = -1;
 	if (wait_for((tv_dac = I915_READ(TV_DAC)) & TVDAC_STATE_CHG, 20) == 0) {
+		DRM_DEBUG_KMS("TV detected: %x, %x\n", tv_ctl, tv_dac);
 		/*
 		 *  A B C
 		 *  0 1 1 Composite
@@ -1289,8 +1293,7 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 			DRM_DEBUG_KMS("Detected Component TV connection\n");
 			type = DRM_MODE_CONNECTOR_Component;
 		} else {
-			DRM_DEBUG_KMS("Unrecognised TV connection: %x\n",
-				      tv_dac);
+			DRM_DEBUG_KMS("Unrecognised TV connection\n");
 		}
 	}
 
