@@ -261,6 +261,21 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
+static bool intel_crt_ddc_probe(struct drm_i915_private *dev_priv, int ddc_bus)
+{
+	u8 buf;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = 0xA0,
+			.flags = 0,
+			.len = 1,
+			.buf = &buf,
+		},
+	};
+	/* DDC monitor detect: Does it ACK a write to 0xA0? */
+	return i2c_transfer(&dev_priv->gmbus[ddc_bus].adapter, msgs, 1) == 1;
+}
+
 static bool intel_crt_detect_ddc(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
@@ -270,7 +285,17 @@ static bool intel_crt_detect_ddc(struct drm_encoder *encoder)
 	if (intel_encoder->type != INTEL_OUTPUT_ANALOG)
 		return false;
 
-	return intel_ddc_probe(intel_encoder, dev_priv->crt_ddc_pin);
+	if (intel_crt_ddc_probe(dev_priv, dev_priv->crt_ddc_pin)) {
+		DRM_DEBUG_KMS("CRT detected via DDC:0xa0\n");
+		return true;
+	}
+
+	if (intel_ddc_probe(intel_encoder, dev_priv->crt_ddc_pin)) {
+		DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
+		return true;
+	}
+
+	return false;
 }
 
 static enum drm_connector_status
@@ -295,6 +320,8 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 	uint32_t pipe_dsl_reg;
 	uint8_t	st00;
 	enum drm_connector_status status;
+
+	DRM_DEBUG_KMS("starting load-detect on CRT\n");
 
 	if (pipe == 0) {
 		bclrpat_reg = BCLRPAT_A;
@@ -412,9 +439,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 
 	if (I915_HAS_HOTPLUG(dev)) {
-		if (intel_crt_detect_hotplug(connector))
+		if (intel_crt_detect_hotplug(connector)) {
+			DRM_DEBUG_KMS("CRT detected via hotplug\n");
 			return connector_status_connected;
-		else
+		} else
 			return connector_status_disconnected;
 	}
 
@@ -431,7 +459,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		crtc = intel_get_load_detect_pipe(encoder, connector,
 						  NULL, &dpms_mode);
 		if (crtc) {
-			status = intel_crt_load_detect(crtc, encoder);
+			if (intel_crt_detect_ddc(&encoder->base))
+				status = connector_status_connected;
+			else
+				status = intel_crt_load_detect(crtc, encoder);
 			intel_release_load_detect_pipe(encoder,
 						       connector, dpms_mode);
 		} else
