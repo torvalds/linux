@@ -2299,6 +2299,32 @@ static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
 
+static int iwl3945_add_bssid_station(struct iwl_priv *priv,
+				     const u8 *addr, u8 *sta_id_r)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	int ret;
+	u8 sta_id;
+	unsigned long flags;
+
+	if (sta_id_r)
+		*sta_id_r = IWL_INVALID_STATION;
+
+	ret = iwl_add_station_common(priv, ctx, addr, 0, NULL, &sta_id);
+	if (ret) {
+		IWL_ERR(priv, "Unable to add station %pM\n", addr);
+		return ret;
+	}
+
+	if (sta_id_r)
+		*sta_id_r = sta_id;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].used |= IWL_STA_LOCAL;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return 0;
+}
 static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
 				       struct ieee80211_vif *vif, bool add)
 {
@@ -2306,10 +2332,8 @@ static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
 	int ret;
 
 	if (add) {
-		ret = iwl_add_bssid_station(
-				priv, &priv->contexts[IWL_RXON_CTX_BSS],
-				vif->bss_conf.bssid, false,
-				&vif_priv->ibss_bssid_sta_id);
+		ret = iwl3945_add_bssid_station(priv, vif->bss_conf.bssid,
+						&vif_priv->ibss_bssid_sta_id);
 		if (ret)
 			return ret;
 

@@ -3089,7 +3089,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	}
 
 	for_each_context(priv, ctx) {
-		ret = iwl_alloc_bcast_station(priv, ctx, true);
+		ret = iwlagn_alloc_bcast_station(priv, ctx);
 		if (ret) {
 			iwl_dealloc_bcast_stations(priv);
 			return ret;

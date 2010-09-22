@@ -43,35 +43,13 @@
 #define IWL_STA_BCAST BIT(4) /* this station is the special bcast station */
 
 
-int iwl_remove_default_wep_key(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx,
-			       struct ieee80211_key_conf *key);
-int iwl_set_default_wep_key(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx,
-			    struct ieee80211_key_conf *key);
-int iwl_restore_default_wep_keys(struct iwl_priv *priv,
-				 struct iwl_rxon_context *ctx);
-int iwl_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			struct ieee80211_key_conf *key, u8 sta_id);
-int iwl_remove_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			   struct ieee80211_key_conf *key, u8 sta_id);
-void iwl_update_tkip_key(struct iwl_priv *priv,
-			 struct iwl_rxon_context *ctx,
-			 struct ieee80211_key_conf *keyconf,
-			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
-
 void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwl_clear_ucode_stations(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx);
-int iwl_alloc_bcast_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			    bool init_lq);
 void iwl_dealloc_bcast_stations(struct iwl_priv *priv);
-int iwl_update_bcast_stations(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
-int iwl_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			  const u8 *addr, bool init_rs, u8 *sta_id_r);
 int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   const u8 *addr, bool is_ap,
 			   struct ieee80211_sta *sta, u8 *sta_id_r);
@@ -79,13 +57,12 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
-int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
-int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
-			 int tid, u16 ssn);
-int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
-			int tid);
-void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
-void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
+
+u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
+
+int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+		    struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 
 /**
  * iwl_clear_driver_stations - clear knowledge of all stations from driver

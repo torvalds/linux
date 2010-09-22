@@ -39,6 +39,7 @@
 #include "iwl-dev.h"
 #include "iwl-sta.h"
 #include "iwl-core.h"
+#include "iwl-agn.h"
 
 #define RS_NAME "iwl-agn-rs"
 

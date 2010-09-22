@@ -1587,9 +1587,9 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 
 	if (add)
-		return iwl_add_bssid_station(priv, vif_priv->ctx,
-					     vif->bss_conf.bssid, true,
-					     &vif_priv->ibss_bssid_sta_id);
+		return iwlagn_add_bssid_station(priv, vif_priv->ctx,
+						vif->bss_conf.bssid,
+						&vif_priv->ibss_bssid_sta_id);
 	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
 				  vif->bss_conf.bssid);
 }
