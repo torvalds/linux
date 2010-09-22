@@ -2704,6 +2704,16 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 psrctl = 0;
 	u32 pages = 0;
 
+	/* Workaround Si errata on 82579 - configure jumbo frame flow */
+	if (hw->mac.type == e1000_pch2lan) {
+		s32 ret_val;
+
+		if (adapter->netdev->mtu > ETH_DATA_LEN)
+			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
+		else
+			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
+	}
+
 	/* Program MC offset vector base */
 	rctl = er32(RCTL);
 	rctl &= ~(3 << E1000_RCTL_MO_SHIFT);
@@ -2742,16 +2752,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 		e1e_wphy(hw, 0x10, 0x2823);
 		e1e_wphy(hw, 0x11, 0x0003);
 		e1e_wphy(hw, 22, phy_data);
-	}
-
-	/* Workaround Si errata on 82579 - configure jumbo frame flow */
-	if (hw->mac.type == e1000_pch2lan) {
-		s32 ret_val;
-
-		if (rctl & E1000_RCTL_LPE)
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
-		else
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
 	}
 
 	/* Setup buffer sizes */
@@ -4830,6 +4830,15 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((new_mtu < ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN) ||
 	    (max_frame > adapter->max_hw_frame_size)) {
 		e_err("Unsupported MTU setting\n");
+		return -EINVAL;
+	}
+
+	/* Jumbo frame workaround on 82579 requires CRC be stripped */
+	if ((adapter->hw.mac.type == e1000_pch2lan) &&
+	    !(adapter->flags2 & FLAG2_CRC_STRIPPING) &&
+	    (new_mtu > ETH_DATA_LEN)) {
+		e_err("Jumbo Frames not supported on 82579 when CRC "
+		      "stripping is disabled.\n");
 		return -EINVAL;
 	}
 

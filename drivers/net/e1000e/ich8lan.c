@@ -1475,10 +1475,6 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 			goto out;
 
 		/* Enable jumbo frame workaround in the PHY */
-		e1e_rphy(hw, PHY_REG(769, 20), &data);
-		ret_val = e1e_wphy(hw, PHY_REG(769, 20), data & ~(1 << 14));
-		if (ret_val)
-			goto out;
 		e1e_rphy(hw, PHY_REG(769, 23), &data);
 		data &= ~(0x7F << 5);
 		data |= (0x37 << 5);
@@ -1487,7 +1483,6 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 			goto out;
 		e1e_rphy(hw, PHY_REG(769, 16), &data);
 		data &= ~(1 << 13);
-		data |= (1 << 12);
 		ret_val = e1e_wphy(hw, PHY_REG(769, 16), data);
 		if (ret_val)
 			goto out;
@@ -1512,7 +1507,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 
 		mac_reg = er32(RCTL);
 		mac_reg &= ~E1000_RCTL_SECRC;
-		ew32(FFLT_DBG, mac_reg);
+		ew32(RCTL, mac_reg);
 
 		ret_val = e1000e_read_kmrn_reg(hw,
 						E1000_KMRNCTRLSTA_CTRL_OFFSET,
@@ -1538,17 +1533,12 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 			goto out;
 
 		/* Write PHY register values back to h/w defaults */
-		e1e_rphy(hw, PHY_REG(769, 20), &data);
-		ret_val = e1e_wphy(hw, PHY_REG(769, 20), data & ~(1 << 14));
-		if (ret_val)
-			goto out;
 		e1e_rphy(hw, PHY_REG(769, 23), &data);
 		data &= ~(0x7F << 5);
 		ret_val = e1e_wphy(hw, PHY_REG(769, 23), data);
 		if (ret_val)
 			goto out;
 		e1e_rphy(hw, PHY_REG(769, 16), &data);
-		data &= ~(1 << 12);
 		data |= (1 << 13);
 		ret_val = e1e_wphy(hw, PHY_REG(769, 16), data);
 		if (ret_val)
