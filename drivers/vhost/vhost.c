@@ -858,11 +858,12 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		if (r < 0)
 			return r;
 		len -= l;
-		if (!len)
+		if (!len) {
+			if (vq->log_ctx)
+				eventfd_signal(vq->log_ctx, 1);
 			return 0;
+		}
 	}
-	if (vq->log_ctx)
-		eventfd_signal(vq->log_ctx, 1);
 	/* Length written exceeds what we have stored. This is a bug. */
 	BUG();
 	return 0;
