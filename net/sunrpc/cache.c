@@ -671,8 +671,10 @@ void cache_clean_deferred(void *owner)
 	spin_lock(&cache_defer_lock);
 
 	list_for_each_entry_safe(dreq, tmp, &cache_defer_list, recent) {
-		if (dreq->owner == owner)
+		if (dreq->owner == owner) {
 			__unhash_deferred_req(dreq);
+			list_add(&dreq->recent, &pending);
+		}
 	}
 	spin_unlock(&cache_defer_lock);
 
