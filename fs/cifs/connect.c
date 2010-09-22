@@ -47,7 +47,6 @@
 #include "ntlmssp.h"
 #include "nterr.h"
 #include "rfc1002pdu.h"
-#include "cn_cifs.h"
 #include "fscache.h"
 
 #define CIFS_PORT 445
