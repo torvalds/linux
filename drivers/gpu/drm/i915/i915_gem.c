@@ -1470,24 +1470,12 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 	obj_priv->pages = NULL;
 }
 
-static uint32_t
-i915_gem_next_request_seqno(struct drm_device *dev,
-			    struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	ring->outstanding_lazy_request = true;
-
-	return dev_priv->next_seqno;
-}
-
 static void
 i915_gem_object_move_to_active(struct drm_gem_object *obj,
 			       struct intel_ring_buffer *ring)
 {
-	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = obj->dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
-	uint32_t seqno = i915_gem_next_request_seqno(dev, ring);
 
 	BUG_ON(ring == NULL);
 	obj_priv->ring = ring;
@@ -1500,7 +1488,7 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj,
 
 	/* Move from whatever list we were on to the tail of execution. */
 	list_move_tail(&obj_priv->list, &ring->active_list);
-	obj_priv->last_rendering_seqno = seqno;
+	obj_priv->last_rendering_seqno = dev_priv->next_seqno;
 }
 
 static void
@@ -1945,11 +1933,6 @@ i915_gem_flush_ring(struct drm_device *dev,
 {
 	ring->flush(dev, ring, invalidate_domains, flush_domains);
 	i915_gem_process_flushing_list(dev, flush_domains, ring);
-
-	if (ring->outstanding_lazy_request) {
-		(void)i915_add_request(dev, file_priv, NULL, ring);
-		ring->outstanding_lazy_request = false;
-	}
 }
 
 static void
@@ -2098,7 +2081,7 @@ i915_gpu_idle(struct drm_device *dev)
 		return 0;
 
 	/* Flush everything onto the inactive list. */
-	seqno = i915_gem_next_request_seqno(dev, &dev_priv->render_ring);
+	seqno = dev_priv->next_seqno;
 	i915_gem_flush_ring(dev, NULL, &dev_priv->render_ring,
 			    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	ret = i915_wait_request(dev, seqno, &dev_priv->render_ring);
@@ -2106,7 +2089,7 @@ i915_gpu_idle(struct drm_device *dev)
 		return ret;
 
 	if (HAS_BSD(dev)) {
-		seqno = i915_gem_next_request_seqno(dev, &dev_priv->render_ring);
+		seqno = dev_priv->next_seqno;
 		i915_gem_flush_ring(dev, NULL, &dev_priv->bsd_ring,
 				    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 		ret = i915_wait_request(dev, seqno, &dev_priv->bsd_ring);
@@ -3573,7 +3556,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_request *request = NULL;
 	int ret = 0, ret2, i, pinned = 0;
 	uint64_t exec_offset;
-	uint32_t seqno, reloc_index;
+	uint32_t reloc_index;
 	int pin_tries, flips;
 
 	struct intel_ring_buffer *ring = NULL;
@@ -3854,15 +3837,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		DRM_INFO("%s: move to exec list %p\n", __func__, obj);
 #endif
 	}
-
-	/*
-	 * Get a seqno representing the execution of the current buffer,
-	 * which we can wait on.  We would like to mitigate these interrupts,
-	 * likely by only creating seqnos occasionally (so that we have
-	 * *some* interrupts representing completion of buffers that we can
-	 * wait on when trying to clear up gtt space).
-	 */
-	seqno = i915_add_request(dev, file_priv, request, ring);
+	i915_add_request(dev, file_priv, request, ring);
 	request = NULL;
 
 #if WATCH_LRU
