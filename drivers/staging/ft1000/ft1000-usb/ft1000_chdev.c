@@ -3,16 +3,16 @@
 //
 // Copyright (C) 2006 Flarion Technologies, All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it 
+// This program is free software; you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
-// Software Foundation; either version 2 of the License, or (at your option) any 
-// later version. This program is distributed in the hope that it will be useful, 
-// but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
-// more details. You should have received a copy of the GNU General Public 
-// License along with this program; if not, write to the 
-// Free Software Foundation, Inc., 59 Temple Place - 
-// Suite 330, Boston, MA 02111-1307, USA. 
+// Software Foundation; either version 2 of the License, or (at your option) any
+// later version. This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details. You should have received a copy of the GNU General Public
+// License along with this program; if not, write to the
+// Free Software Foundation, Inc., 59 Temple Place -
+// Suite 330, Boston, MA 02111-1307, USA.
 //---------------------------------------------------------------------------
 //
 // File:         ft1000_chdev.c
@@ -49,10 +49,10 @@ extern inline u16 ft1000_asic_read (struct net_device *dev, u16 offset);
 extern inline void ft1000_asic_write (struct net_device *dev, u16 offset, u16 value);
 extern void CardSendCommand(struct ft1000_device *ft1000dev, unsigned short *ptempbuffer, int size);
 
-static int ft1000_ChOpen (struct inode *Inode, struct file *File); 
+static int ft1000_ChOpen (struct inode *Inode, struct file *File);
 static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait);
 static int ft1000_ChIoctl(struct file *File, unsigned int Command,
-                           unsigned long Argument); 
+                           unsigned long Argument);
 static int ft1000_ChRelease (struct inode *Inode, struct file *File);
 
 static int ft1000_flarion_cnt = 0;
@@ -69,7 +69,7 @@ static struct ft1000_device *pdevobj[MAX_NUM_CARDS + 2];
 struct list_head freercvpool;
 
 // lock to arbitrate free buffer list for receive command data
-spinlock_t free_buff_lock;   
+spinlock_t free_buff_lock;
 
 int numofmsgbuf = 0;
 
@@ -82,8 +82,8 @@ int numofmsgbuf = 0;
 static struct file_operations ft1000fops =
 {
     unlocked_ioctl:    ft1000_ChIoctl,
-    poll:     ft1000_ChPoll,    
-    open:     ft1000_ChOpen,        
+    poll:     ft1000_ChPoll,
+    open:     ft1000_ChOpen,
     release:  ft1000_ChRelease
 };
 
@@ -93,7 +93,7 @@ static struct file_operations ft1000fops =
 //---------------------------------------------------------------------------
 // Function:    exec_mknod
 //
-// Parameters:  
+// Parameters:
 //
 // Returns:
 //
@@ -102,12 +102,12 @@ static struct file_operations ft1000fops =
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int exec_mknod (void *pdata) 
+static int exec_mknod (void *pdata)
 {
     PFT1000_INFO info;
     char mjnum[4];
     char minornum[4];
-    char temp[32];    
+    char temp[32];
     int retcode;
 //    int i;					//aelias [-] reason : unused variable
     char *envp[] = { "HOME=/", "PATH=/usr/bin:/bin", NULL };
@@ -118,20 +118,20 @@ static int exec_mknod (void *pdata)
     sprintf(temp, "%s%s", "/dev/", info->DeviceName) ;
     sprintf(mjnum, "%d", info->DeviceMajor);
     sprintf(minornum, "%d", info->CardNumber);
-    
+
     //char *argv[]={"mknod","-m 666",temp,"c",mjnum,minornum,NULL};
 //    char *argv[]={"-m 666",temp,"c",mjnum,minornum,NULL};
 
     //for (i=0; i<7;i++)
     //    DEBUG("argv[%d]=%s\n", i, argv[i]);
 
-	
+
     retcode = call_usermodehelper ("/bin/mknod", argv, envp, 1);
     if (retcode) {
         DEBUG("ft1000_chdev:exec_mknod failed to make the node: retcode = %d\n", retcode);
     }
 
-    
+
 
     return retcode;
 
@@ -143,21 +143,21 @@ static int exec_mknod (void *pdata)
 // Description: This module removes the FT1000 device file
 //
 //---------------------------------------------------------------------------
-static int rm_mknod (void *pdata) 
+static int rm_mknod (void *pdata)
 {
-   
+
     PFT1000_INFO info;
     //char *argv[4]={"rm", "-f", "/dev/FT1000", NULL};
     int retcode;
-    char temp[32];    
+    char temp[32];
     char *argv[]={"rm", "-f", temp, NULL};
 
     info = (PFT1000_INFO)pdata;
     DEBUG("ft1000_chdev:rm_mknod is called for device %s\n", info->DeviceName);
     sprintf(temp, "%s%s", "/dev/", info->DeviceName) ;
-    
+
 //    char *argv[]={"rm", "-f", temp, NULL};
-    
+
     retcode = call_usermodehelper ("/bin/rm", argv, NULL, 1);
     if (retcode) {
         DEBUG("ft1000_chdev:rm_mknod failed to remove the node: retcode = %d\n", retcode);
@@ -172,7 +172,7 @@ static int rm_mknod (void *pdata)
 //---------------------------------------------------------------------------
 // Function:    ft1000_get_buffer
 //
-// Parameters:  
+// Parameters:
 //
 // Returns:
 //
@@ -185,7 +185,7 @@ PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist)
 {
     unsigned long flags;
     PDPRAM_BLK ptr;
-    
+
     spin_lock_irqsave(&free_buff_lock, flags);
     // Check if buffer is available
     if ( list_empty(bufflist) ) {
@@ -209,7 +209,7 @@ PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist)
 //---------------------------------------------------------------------------
 // Function:    ft1000_free_buffer
 //
-// Parameters:  
+// Parameters:
 //
 // Returns:
 //
@@ -221,7 +221,7 @@ PDPRAM_BLK ft1000_get_buffer (struct list_head *bufflist)
 void ft1000_free_buffer (PDPRAM_BLK pdpram_blk, struct list_head *plist)
 {
     unsigned long flags;
-    
+
     spin_lock_irqsave(&free_buff_lock, flags);
     // Put memory back to list
     list_add_tail(&pdpram_blk->list, plist);
@@ -255,15 +255,15 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
     // Delete any existing FT1000 node
     pid = kernel_thread (rm_mknod,(void *)info, 0);
     msleep(1000);
-    
+
     DEBUG("ft1000_CreateDevice: number of instance = %d\n", ft1000_flarion_cnt);
     DEBUG("DeviceCreated = %x\n", info->DeviceCreated);
-    
+
     //save the device info to global array
     pdevobj[info->CardNumber] = dev;
 
     DEBUG("ft1000_CreateDevice: ******SAVED pdevobj[%d]=%x\n", info->CardNumber, (unsigned int)pdevobj[info->CardNumber]);	//aelias [+] reason:up
-    
+
     if (info->DeviceCreated)
     {
 	DEBUG("ft1000_CreateDevice: \"%s\" already registered\n", info->DeviceName);
@@ -274,7 +274,7 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
     // register the device
     DEBUG("ft1000_CreateDevice: \"%s\" device registration\n", info->DeviceName);
     info->DeviceMajor = 0;
-	
+
     result = register_chrdev(info->DeviceMajor, info->DeviceName, &ft1000fops);
     if (result < 0)
     {
@@ -293,12 +293,12 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 
     // Create a thread to call user mode app to mknod
     pid = kernel_thread (exec_mknod, (void *)info, 0);
-    
-    // initialize application information 
+
+    // initialize application information
     info->appcnt = 0;
-    
+
 //    if (ft1000_flarion_cnt == 0) {
-//    	
+//
 //    	  DEBUG("Initialize free_buff_lock and freercvpool\n");
 //        spin_lock_init(&free_buff_lock);
 //
@@ -310,15 +310,15 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 //            // Get memory for DPRAM_DATA link list
 //            pdpram_blk = kmalloc ( sizeof(DPRAM_BLK), GFP_KERNEL );
 //            // Get a block of memory to store command data
-//            pdpram_blk->pbuffer = kmalloc ( MAX_CMD_SQSIZE, GFP_KERNEL );         
-//            // link provisioning data 
+//            pdpram_blk->pbuffer = kmalloc ( MAX_CMD_SQSIZE, GFP_KERNEL );
+//            // link provisioning data
 //            list_add_tail (&pdpram_blk->list, &freercvpool);
 //        }
 //        numofmsgbuf = NUM_OF_FREE_BUFFERS;
 //    }
-    
 
-    // initialize application information 
+
+    // initialize application information
     info->appcnt = 0;
     for (i=0; i<MAX_NUM_APP; i++) {
         info->app_info[i].nTxMsg = 0;
@@ -336,7 +336,7 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 
 
 
-//    ft1000Handle[info->CardNumber] = devfs_register(NULL, info->DeviceName, DEVFS_FL_AUTO_DEVNUM, 0, 0, 
+//    ft1000Handle[info->CardNumber] = devfs_register(NULL, info->DeviceName, DEVFS_FL_AUTO_DEVNUM, 0, 0,
 //                                  S_IFCHR | S_IRUGO | S_IWUGO, &ft1000fops, NULL);
 
 
@@ -364,16 +364,16 @@ void ft1000_DestroyDevice(struct net_device *dev)
 		int i;
     PDPRAM_BLK pdpram_blk;
     DPRAM_BLK *ptr;
-		
+
     DEBUG("ft1000_chdev:ft1000_DestroyDevice called\n");
 
-        
-    
+
+
     if (info->DeviceCreated)
 	{
-        ft1000_flarion_cnt--;		
+        ft1000_flarion_cnt--;
 		unregister_chrdev(info->DeviceMajor, info->DeviceName);
-		DEBUG("ft1000_DestroyDevice: unregistered device \"%s\", result = %d\n", 
+		DEBUG("ft1000_DestroyDevice: unregistered device \"%s\", result = %d\n",
 					   info->DeviceName, result);
 
        pid = kernel_thread (rm_mknod, (void *)info, 0);
@@ -381,10 +381,10 @@ void ft1000_DestroyDevice(struct net_device *dev)
         // Make sure we free any memory reserve for slow Queue
         for (i=0; i<MAX_NUM_APP; i++) {
             while (list_empty(&info->app_info[i].app_sqlist) == 0) {
-                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);                
+                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);
                 list_del(&pdpram_blk->list);
                 ft1000_free_buffer(pdpram_blk, &freercvpool);
-                
+
             }
             wake_up_interruptible(&info->app_info[i].wait_dpram_msg);
         }
@@ -395,39 +395,39 @@ void ft1000_DestroyDevice(struct net_device *dev)
                 ptr = list_entry(freercvpool.next, DPRAM_BLK, list);
                 list_del(&ptr->list);
                 kfree(ptr->pbuffer);
-                kfree(ptr);   
+                kfree(ptr);
             }
         }
 
 //        devfs_unregister(ft1000Handle[info->CardNumber]);
 
 		info->DeviceCreated = FALSE;
-		
+
 		pdevobj[info->CardNumber] = NULL;
 	}
-	
-	    
+
+
 }
 
 //---------------------------------------------------------------------------
 // Function:    ft1000_ChOpen
 //
-// Parameters:  
+// Parameters:
 //
-// Description: 
+// Description:
 //
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int ft1000_ChOpen (struct inode *Inode, struct file *File) 
+static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 {
     PFT1000_INFO info;
     int i,num;
-    
+
     DEBUG("ft1000_ChOpen called\n");
     num = (MINOR(Inode->i_rdev) & 0xf);
     DEBUG("ft1000_ChOpen: minor number=%d\n", num);
-    
+
     for (i=0; i<5; i++)
         DEBUG("pdevobj[%d]=%x\n", i, (unsigned int)pdevobj[i]); //aelias [+] reason: down
 
@@ -477,9 +477,9 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 //---------------------------------------------------------------------------
 // Function:    ft1000_ChPoll
 //
-// Parameters:  
+// Parameters:
 //
-// Description: 
+// Description:
 //
 // Notes:
 //
@@ -490,7 +490,7 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
     struct net_device *dev = file->private_data;
     PFT1000_INFO info;
     int i;
-    
+
     //DEBUG("ft1000_ChPoll called\n");
     if (ft1000_flarion_cnt == 0) {
         DEBUG("FT1000:ft1000_ChPoll called when ft1000_flarion_cnt is zero\n");
@@ -498,7 +498,7 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
     }
 
 	info = (FT1000_INFO *) netdev_priv (dev);
-    
+
     // Search for matching file object
     for (i=0; i<MAX_NUM_APP; i++) {
         if ( info->app_info[i].fileobject == (u32)(&file->f_owner) ) {
@@ -511,13 +511,13 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
     if (i == MAX_NUM_APP) {
         DEBUG("FT1000:ft1000_ChIoctl:Could not find application info block\n");
         return ( -EACCES );
-    }    
-    
+    }
+
     if (list_empty(&info->app_info[i].app_sqlist) == 0) {
         DEBUG("FT1000:ft1000_ChPoll:Message detected in slow queue\n");
         return(POLLIN | POLLRDNORM | POLLPRI);
     }
-    
+
     poll_wait (file, &info->app_info[i].wait_dpram_msg, wait);
     //DEBUG("FT1000:ft1000_ChPoll:Polling for data from DSP\n");
 
@@ -527,24 +527,24 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
 //---------------------------------------------------------------------------
 // Function:    ft1000_ChIoctl
 //
-// Parameters:  
+// Parameters:
 //
-// Description: 
+// Description:
 //
 // Notes:
 //
 //---------------------------------------------------------------------------
 static int ft1000_ChIoctl (struct file *File, unsigned int Command,
-                           unsigned long Argument) 
+                           unsigned long Argument)
 {
     struct net_device *dev;
     PFT1000_INFO info;
     struct ft1000_device *ft1000dev;
     int result=0;
     int cmd;
-    int i;    
-    u16 tempword;    
-    unsigned long flags;    
+    int i;
+    u16 tempword;
+    unsigned long flags;
     struct timeval tv;
     IOCTL_GET_VER get_ver_data;
     IOCTL_GET_DSP_STAT get_stat_data;
@@ -556,8 +556,8 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                           0x00,0x01,0x00,0x00};
 
     unsigned short ledStat=0;
-    unsigned short conStat=0;                                                     
-    
+    unsigned short conStat=0;
+
     //DEBUG("ft1000_ChIoctl called\n");
 
     if (ft1000_flarion_cnt == 0) {
@@ -572,7 +572,7 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
     ft1000dev = info->pFt1000Dev;
     cmd = _IOC_NR(Command);
     //DEBUG("FT1000:ft1000_ChIoctl:cmd = 0x%x\n", cmd);
-   
+
     // process the command
     switch (cmd) {
     case IOCTL_REGISTER_CMD:
@@ -593,7 +593,7 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                 }
             }
             break;
-    
+
     case IOCTL_GET_VER_CMD:
         DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_GET_VER called\n");
 
@@ -612,14 +612,14 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
         // Connect Message
         DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_CONNECT\n");
         ConnectionMsg[79] = 0xfc;
-			   CardSendCommand(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);  								
-        
+			   CardSendCommand(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+
         break;
     case IOCTL_DISCONNECT:
         // Disconnect Message
         DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_DISCONNECT\n");
         ConnectionMsg[79] = 0xfd;
-			   CardSendCommand(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);  								
+			   CardSendCommand(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
         break;
     case IOCTL_GET_DSP_STAT_CMD:
         //DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_GET_DSP_STAT called\n");
@@ -640,22 +640,22 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
             else {
                 get_stat_data.ConStat = 0x0f;
             }
-            
-            
+
+
         get_stat_data.nTxPkts = info->stats.tx_packets;
         get_stat_data.nRxPkts = info->stats.rx_packets;
         get_stat_data.nTxBytes = info->stats.tx_bytes;
         get_stat_data.nRxBytes = info->stats.rx_bytes;
         do_gettimeofday ( &tv );
         get_stat_data.ConTm = (u32)(tv.tv_sec - info->ConTm);
-        DEBUG("Connection Time = %d\n", (int)get_stat_data.ConTm); 
+        DEBUG("Connection Time = %d\n", (int)get_stat_data.ConTm);
         if (copy_to_user((PIOCTL_GET_DSP_STAT)Argument, &get_stat_data, sizeof(get_stat_data)) ) {
             DEBUG("FT1000:ft1000_ChIoctl: copy fault occurred\n");
             result = -EFAULT;
             break;
         }
         DEBUG("ft1000_chioctl: GET_DSP_STAT succeed\n");
-        break;    
+        break;
     case IOCTL_SET_DPRAM_CMD:
         {
             IOCTL_DPRAM_BLK dpram_data;
@@ -669,12 +669,12 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
             u16 status;
 
             //DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_SET_DPRAM called\n");
-            
+
 
             if (ft1000_flarion_cnt == 0) {
                 return (-EBADF);
             }
-            
+
             if (info->DrvMsgPend) {
                 return (-ENOTTY);
             }
@@ -684,16 +684,16 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
             }
 
             info->fAppMsgPend = 1;
-           
+
             if (info->CardReady) {
-            
+
                //DEBUG("FT1000:ft1000_ChIoctl: try to SET_DPRAM \n");
 
                 // Get the length field to see how many bytes to copy
                 result = get_user(msgsz, (unsigned short *)Argument);
                 msgsz = ntohs (msgsz);
                 //DEBUG("FT1000:ft1000_ChIoctl: length of message = %d\n", msgsz);
-                
+
                 if (msgsz > MAX_CMD_SQSIZE) {
                     DEBUG("FT1000:ft1000_ChIoctl: bad message length = %d\n", msgsz);
                     result = -EINVAL;
@@ -731,8 +731,8 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                     qtype = ntohs(dpram_data.pseudohdr.qos_class) & 0xff;
                     //DEBUG("FT1000_ft1000_ChIoctl: qtype = %d\n", qtype);
                     if (qtype) {
-                    } 
-                    else {                        
+                    }
+                    else {
                         // Put message into Slow Queue
                         // Only put a message into the DPRAM if msg doorbell is available
                         status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_DOORBELL);
@@ -760,9 +760,9 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                                 }
                             }
                         }
-                        
+
                         //DEBUG("FT1000_ft1000_ChIoctl: finished reading register\n");
-                        
+
                         // Make sure we are within the limits of the slow queue memory limitation
                         if ( (msgsz < MAX_CMD_SQSIZE) && (msgsz > PSEUDOSZ) ) {
                             // Need to put sequence number plus new checksum for message
@@ -773,7 +773,7 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                             if (total_len & 0x1) {
                                 total_len++;
                             }
-                            
+
                             // Insert slow queue sequence number
                             ppseudo_hdr->seq_num = info->squeseqnum++;
                             ppseudo_hdr->portsrc = info->app_info[app_index].app_id;
@@ -794,11 +794,11 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                             }
 #endif
                             //dpram_command.extra = 0;
-                            
-                            //CardSendCommand(ft1000dev,(unsigned char*)&dpram_command,total_len+2); 
-                            CardSendCommand(ft1000dev,(unsigned short*)&dpram_data,total_len+2); 
 
-                            
+                            //CardSendCommand(ft1000dev,(unsigned char*)&dpram_command,total_len+2);
+                            CardSendCommand(ft1000dev,(unsigned short*)&dpram_data,total_len+2);
+
+
                             info->app_info[app_index].nTxMsg++;
                             break;
                         }
@@ -846,15 +846,15 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
             result = 0;
             pioctl_dpram = (PIOCTL_DPRAM_BLK)Argument;
             if (list_empty(&info->app_info[i].app_sqlist) == 0) {
-                //DEBUG("FT1000:ft1000_ChIoctl:Message detected in slow queue\n");                            
+                //DEBUG("FT1000:ft1000_ChIoctl:Message detected in slow queue\n");
                 spin_lock_irqsave(&free_buff_lock, flags);
-                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);                
+                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);
                 list_del(&pdpram_blk->list);
                 info->app_info[i].NumOfMsg--;
                 //DEBUG("FT1000:ft1000_ChIoctl:NumOfMsg for app %d = %d\n", i, info->app_info[i].NumOfMsg);
                 spin_unlock_irqrestore(&free_buff_lock, flags);
                 msglen = ntohs(*(u16 *)pdpram_blk->pbuffer) + PSEUDOSZ;
-                pioctl_dpram->total_len = htons(msglen); 
+                pioctl_dpram->total_len = htons(msglen);
                 //DEBUG("FT1000:ft1000_ChIoctl:msg length = %x\n", msglen);
                 if(copy_to_user (&pioctl_dpram->pseudohdr, pdpram_blk->pbuffer, msglen))
 				{
@@ -882,9 +882,9 @@ static int ft1000_ChIoctl (struct file *File, unsigned int Command,
 //---------------------------------------------------------------------------
 // Function:    ft1000_ChRelease
 //
-// Parameters:  
+// Parameters:
 //
-// Description: 
+// Description:
 //
 // Notes:
 //
@@ -895,7 +895,7 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
     struct net_device *dev;
     int i;
     PDPRAM_BLK pdpram_blk;
-    
+
     DEBUG("ft1000_ChRelease called\n");
 
     dev = File->private_data;
@@ -919,16 +919,16 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
 
     while (list_empty(&info->app_info[i].app_sqlist) == 0) {
         DEBUG("Remove and free memory queue up on slow queue\n");
-        pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);                
+        pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, DPRAM_BLK, list);
         list_del(&pdpram_blk->list);
         ft1000_free_buffer(pdpram_blk, &freercvpool);
     }
-    
-    // initialize application information 
+
+    // initialize application information
     info->appcnt--;
     DEBUG("ft1000_chdev:%s:appcnt = %d\n", __FUNCTION__, info->appcnt);
     info->app_info[i].fileobject = 0;
-    
+
     return 0;
 }
 

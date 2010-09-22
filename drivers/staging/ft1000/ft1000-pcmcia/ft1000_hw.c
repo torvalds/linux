@@ -1,20 +1,20 @@
 /*---------------------------------------------------------------------------
    FT1000 driver for Flarion Flash OFDM NIC Device
-  
+
    Copyright (C) 2002 Flarion Technologies, All rights reserved.
    Copyright (C) 2006 Patrik Ostrihon, All rights reserved.
    Copyright (C) 2006 ProWeb Consulting, a.s, All rights reserved.
-  
-   This program is free software; you can redistribute it and/or modify it 
+
+   This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the Free
-   Software Foundation; either version 2 of the License, or (at your option) any 
-   later version. This program is distributed in the hope that it will be useful, 
-   but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
-   more details. You should have received a copy of the GNU General Public 
-   License along with this program; if not, write to the 
-   Free Software Foundation, Inc., 59 Temple Place - 
-   Suite 330, Boston, MA 02111-1307, USA. 
+   Software Foundation; either version 2 of the License, or (at your option) any
+   later version. This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+   more details. You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the
+   Free Software Foundation, Inc., 59 Temple Place -
+   Suite 330, Boston, MA 02111-1307, USA.
 -----------------------------------------------------------------------------*/
 
 #include <linux/kernel.h>
@@ -86,7 +86,7 @@ MODULE_SUPPORTED_DEVICE("FT1000");
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_asic_read
-// Descripton: This function will retrieve the value of a specific ASIC 
+// Descripton: This function will retrieve the value of a specific ASIC
 //             register.
 // Input:
 //    dev - network device structure
@@ -120,7 +120,7 @@ inline void ft1000_asic_write(struct net_device *dev, u16 offset, u16 value)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_read_fifo_len
-// Descripton: This function will read the ASIC Uplink FIFO status register 
+// Descripton: This function will read the ASIC Uplink FIFO status register
 //             which will return the number of bytes remaining in the Uplink FIFO.
 //             Sixteen bytes are subtracted to make sure that the ASIC does not
 //             reach its threshold.
@@ -409,7 +409,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 //     dev    - device structure
 // Output:
 //     status - FALSE (card reset fail)
-//              TRUE  (card reset successful) 
+//              TRUE  (card reset successful)
 //
 //---------------------------------------------------------------------------
 static int ft1000_reset_card(struct net_device *dev)
@@ -449,7 +449,7 @@ static int ft1000_reset_card(struct net_device *dev)
 				 (DSP_RESET_BIT | ASIC_RESET_BIT));
 	}
 
-	// Copy DSP session record into info block if this is not a coldstart    
+	// Copy DSP session record into info block if this is not a coldstart
 	if (ft1000_card_present == 1) {
 		spin_lock_irqsave(&info->dpram_lock, flags);
 		if (info->AsicID == ELECTRABUZZ_ID) {
@@ -573,7 +573,7 @@ static int ft1000_reset_card(struct net_device *dev)
 //     dev    - device structure
 // Output:
 //     status - FALSE (device is not present)
-//              TRUE  (device is present) 
+//              TRUE  (device is present)
 //
 //---------------------------------------------------------------------------
 static int ft1000_chkcard(struct net_device *dev)
@@ -640,7 +640,7 @@ static void ft1000_hbchk(u_long data)
 			else {
 				tempword = ntohs(ft1000_read_dpram_mag_16(dev, FT1000_MAG_HI_HO, FT1000_MAG_HI_HO_INDX));
 			}
-		} 
+		}
 		if (tempword != ho) {
 			printk(KERN_INFO
 				   "ft1000: heartbeat failed - no ho detected\n");
@@ -689,7 +689,7 @@ static void ft1000_hbchk(u_long data)
 		// Let's check doorbell again if fail
 		if (tempword & FT1000_DB_HB) {
 			tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
-		} 
+		}
 		if (tempword & FT1000_DB_HB) {
 			printk(KERN_INFO
 				   "ft1000: heartbeat doorbell not clear by firmware\n");
@@ -733,7 +733,7 @@ static void ft1000_hbchk(u_long data)
 			add_timer(&poll_timer);
 			return;
 		}
-		// Set dedicated area to hi and ring appropriate doorbell according 
+		// Set dedicated area to hi and ring appropriate doorbell according
 		// to hi/ho heartbeat protocol
 		if (info->AsicID == ELECTRABUZZ_ID) {
 			ft1000_write_dpram(dev, FT1000_HI_HO, hi);
@@ -765,9 +765,9 @@ static void ft1000_hbchk(u_long data)
 			else {
 				tempword = ntohs(ft1000_read_dpram_mag_16(dev, FT1000_MAG_HI_HO, FT1000_MAG_HI_HO_INDX));
 			}
-			
+
 		}
-							
+
 		if (tempword != hi) {
 			printk(KERN_INFO
 				   "ft1000: heartbeat failed - cannot write hi into DPRAM\n");
@@ -824,7 +824,7 @@ static void ft1000_hbchk(u_long data)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_send_cmd
-// Descripton: 
+// Descripton:
 // Input:
 // Output:
 //
@@ -904,7 +904,7 @@ void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qt
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_receive_cmd
-// Descripton: This function will read a message from the dpram area. 
+// Descripton: This function will read a message from the dpram area.
 // Input:
 //    dev - network device structure
 //    pbuffer - caller supply address to buffer
@@ -1105,7 +1105,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 					netif_carrier_off(dev);
 					netif_stop_queue(dev);
 					info->ConTm = 0;
-				} 
+				}
 			}
             }
             else {
@@ -1196,7 +1196,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				ppseudo_hdr->qos_class = 0;
 				// Insert slow queue sequence number
 				ppseudo_hdr->seq_num = info->squeseqnum++;
-				// Insert application id 
+				// Insert application id
 				ppseudo_hdr->portsrc = 0;
 				// Calculate new checksum
 				ppseudo_hdr->checksum = *pmsg++;
@@ -1244,7 +1244,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				ppseudo_hdr->qos_class = 0;
 				// Insert slow queue sequence number
 				ppseudo_hdr->seq_num = info->squeseqnum++;
-				// Insert application id 
+				// Insert application id
 				ppseudo_hdr->portsrc = 0;
 				// Calculate new checksum
                 ppseudo_hdr->checksum = *pmsg++;
@@ -1286,8 +1286,8 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 // Input:
 //     dev    - device structure
 // Output:
-//     status - FAILURE 
-//              SUCCESS 
+//     status - FAILURE
+//              SUCCESS
 //
 //---------------------------------------------------------------------------
 int ft1000_parse_dpram_msg(struct net_device *dev)
@@ -1392,7 +1392,7 @@ int ft1000_parse_dpram_msg(struct net_device *dev)
 	}
 
 	if (doorbell & FT1000_DB_COND_RESET) {
-		// Reset ASIC and DSP        
+		// Reset ASIC and DSP
 		if (info->AsicID == ELECTRABUZZ_ID) {
 			info->DSP_TIME[0] =
 				ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
@@ -1583,14 +1583,14 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_up_pkt
-// Descripton: This function will pull Flarion packets out of the Downlink   
+// Descripton: This function will pull Flarion packets out of the Downlink
 //             FIFO and convert it to an ethernet packet.  The ethernet packet will
 //             then be deliver to the TCP/IP stack.
 // Input:
 //     dev    - device structure
 // Output:
-//     status - FAILURE 
-//              SUCCESS 
+//     status - FAILURE
+//              SUCCESS
 //
 //---------------------------------------------------------------------------
 int ft1000_copy_up_pkt(struct net_device *dev)
@@ -1767,16 +1767,16 @@ int ft1000_copy_up_pkt(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_down_pkt
-// Descripton: This function will take an ethernet packet and convert it to  
-//             a Flarion packet prior to sending it to the ASIC Downlink 
+// Descripton: This function will take an ethernet packet and convert it to
+//             a Flarion packet prior to sending it to the ASIC Downlink
 //             FIFO.
 // Input:
 //     dev    - device structure
 //     packet - address of ethernet packet
 //     len    - length of IP packet
 // Output:
-//     status - FAILURE 
-//              SUCCESS 
+//     status - FAILURE
+//              SUCCESS
 //
 //---------------------------------------------------------------------------
 int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
@@ -1792,7 +1792,7 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 
 	DEBUG(1, "ft1000_hw: copy_down_pkt()\n");
 
-	// Check if there is room on the FIFO 
+	// Check if there is room on the FIFO
 	if (len > ft1000_read_fifo_len(dev)) {
 		udelay(10);
 		if (len > ft1000_read_fifo_len(dev)) {
@@ -1841,12 +1841,12 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 
 	// Production Mode
 	if (info->AsicID == ELECTRABUZZ_ID) {
-		// copy first word to UFIFO_BEG reg 
+		// copy first word to UFIFO_BEG reg
 		ft1000_write_reg(dev, FT1000_REG_UFIFO_BEG, pseudo.buff[0]);
 		DEBUG(1, "ft1000_hw:ft1000_copy_down_pkt:data 0 BEG = 0x%04x\n",
 			  pseudo.buff[0]);
 
-		// copy subsequent words to UFIFO_MID reg 
+		// copy subsequent words to UFIFO_MID reg
 		ft1000_write_reg(dev, FT1000_REG_UFIFO_MID, pseudo.buff[1]);
 		DEBUG(1, "ft1000_hw:ft1000_copy_down_pkt:data 1 MID = 0x%04x\n",
 			  pseudo.buff[1]);
@@ -1879,7 +1879,7 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 			packet++;
 		}
 
-		// Check for odd byte 
+		// Check for odd byte
 		if (len & 0x0001) {
 			ft1000_write_reg(dev, FT1000_REG_UFIFO_MID,
 					 htons(*packet));
@@ -1923,7 +1923,7 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 			outl(*plong++, dev->base_addr + FT1000_REG_MAG_UFDR);
 		}
 
-		// Check for odd alignment 
+		// Check for odd alignment
 		if (len & 0x0003) {
 			DEBUG(1,
 				  "ft1000_hw:ft1000_copy_down_pkt:data = 0x%8x\n",

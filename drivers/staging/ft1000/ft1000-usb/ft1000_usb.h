@@ -24,7 +24,7 @@
 #define MAX_CMD_SQSIZE          1780
 #define SLOWQ_TYPE              0
 #define PSEUDOSZ                16
-#define DSP_QID_OFFSET          4     
+#define DSP_QID_OFFSET          4
 
 
 // MEMORY MAP FOR ELECTRABUZZ ASIC
@@ -58,7 +58,7 @@ typedef struct _MEDIAMSG {
 	u16 state;
 	u32 ip_addr;
         u32 net_mask;
-	u32 gateway;  
+	u32 gateway;
 	u32 dns_1;
 	u32 dns_2;
 } __attribute__ ((packed)) MEDIAMSG, *PMEDIAMSG;
@@ -209,7 +209,7 @@ typedef struct _PROV_RECORD {
 
 // DSP doorbells
 
-#define FT1000_DB_DPRAM_RX		0x0001	// this value indicates that DSP has 
+#define FT1000_DB_DPRAM_RX		0x0001	// this value indicates that DSP has
 
                                         //      data for host in DPRAM SlowQ
 
@@ -227,15 +227,15 @@ typedef struct _PROV_RECORD {
 
 // Host doorbells
 
-#define FT1000_DB_DPRAM_TX		0x0100	// this value indicates that host has 
+#define FT1000_DB_DPRAM_TX		0x0100	// this value indicates that host has
 
-                                        //      data for DSP in DPRAM. 
+                                        //      data for DSP in DPRAM.
 
 #define FT1000_DB_DNLD_TX       0x0200  // Downloader handshake doorbell
 
 #define FT1000_ASIC_RESET_DSP   0x0400
 
-#define FT1000_DB_HB            0x1000  // this value indicates that supervisor 
+#define FT1000_DB_HB            0x1000  // this value indicates that supervisor
 
 
 
@@ -267,7 +267,7 @@ typedef struct _PROV_RECORD {
 
 #define DSP_TIMESTAMP           0x1FFC  // dsp timestamp
 
-#define DSP_TIMESTAMP_DIFF      0x1FFA  // difference of dsp timestamp in DPRAM and Pseudo header.  
+#define DSP_TIMESTAMP_DIFF      0x1FFA  // difference of dsp timestamp in DPRAM and Pseudo header.
 
 
 
@@ -295,7 +295,7 @@ typedef struct _PROV_RECORD {
 
 #define FT1000_MAG_FIFO_LEN              0x1FF   // total length for DSP FIFO tracking
 
-#define FT1000_MAG_FIFO_LEN_INDX         0x1     // low-word index 
+#define FT1000_MAG_FIFO_LEN_INDX         0x1     // low-word index
 
 #define FT1000_MAG_HI_HO                 0x1FF   // heartbeat with HI/HO
 
@@ -345,7 +345,7 @@ typedef struct _PROV_RECORD {
 
 #define FT1000_MAG_TOTAL_LEN             0x200
 
-#define FT1000_MAG_TOTAL_LEN_INDX        0x1    
+#define FT1000_MAG_TOTAL_LEN_INDX        0x1
 
 
 
@@ -377,13 +377,13 @@ typedef struct _PROV_RECORD {
 
 #define ISR_EMPTY			(UCHAR)0x00 	 // no bits set in ISR
 
-#define ISR_DOORBELL_ACK	(UCHAR)0x01		 //  the doorbell i sent has been recieved. 	   
+#define ISR_DOORBELL_ACK	(UCHAR)0x01		 //  the doorbell i sent has been recieved.
 
 #define ISR_DOORBELL_PEND	(UCHAR)0x02 	 //  doorbell for me
 
 #define ISR_RCV				(UCHAR)0x04 	 // packet received with no errors
 
-#define ISR_WATERMARK		(UCHAR)0x08 	 //  
+#define ISR_WATERMARK		(UCHAR)0x08 	 //
 
 
 
@@ -391,15 +391,15 @@ typedef struct _PROV_RECORD {
 
 // note these are different from the ISR BIT MAPS.
 
-#define ISR_MASK_NONE			0x0000 	  
+#define ISR_MASK_NONE			0x0000
 
-#define ISR_MASK_DOORBELL_ACK	0x0001	
+#define ISR_MASK_DOORBELL_ACK	0x0001
 
-#define ISR_MASK_DOORBELL_PEND	0x0002 	
+#define ISR_MASK_DOORBELL_PEND	0x0002
 
-#define ISR_MASK_RCV			0x0004 	
+#define ISR_MASK_RCV			0x0004
 
-#define ISR_MASK_WATERMARK		0x0008 	  // Normally we will only mask the watermark interrupt when we want to enable interrupts. 
+#define ISR_MASK_WATERMARK		0x0008 	  // Normally we will only mask the watermark interrupt when we want to enable interrupts.
 
 #define ISR_MASK_ALL			0xffff
 
@@ -411,7 +411,7 @@ typedef struct _PROV_RECORD {
 
 
 
-#define ISR_DEFAULT_MASK		0x7ff9		
+#define ISR_DEFAULT_MASK		0x7ff9
 
 
 
@@ -515,7 +515,7 @@ struct ft1000_device
 
 	u8 tx_buf[MAX_BUF_SIZE];
 	u8 rx_buf[MAX_BUF_SIZE];
-	
+
 	u8 bulk_in_endpointAddr;
 	u8 bulk_out_endpointAddr;
 
@@ -527,18 +527,18 @@ struct ft1000_device
 typedef struct _FT1000_INFO {
     struct ft1000_device *pFt1000Dev;
     struct net_device_stats stats;
-    
+
     struct task_struct *pPollThread;
-    
-    unsigned char fcodeldr; 
+
+    unsigned char fcodeldr;
     unsigned char bootmode;
 	unsigned char usbboot;
     unsigned short dspalive;
     u16 ASIC_ID;
-    BOOLEAN fProvComplete;   
-    BOOLEAN fCondResetPend;    
-    BOOLEAN fAppMsgPend;     
-    char *pfwimg;                 
+    BOOLEAN fProvComplete;
+    BOOLEAN fCondResetPend;
+    BOOLEAN fAppMsgPend;
+    char *pfwimg;
     int fwimgsz;
     u16 DrvErrNum;
     u8  *pTestImage;
@@ -585,7 +585,7 @@ typedef struct _FT1000_INFO {
     u16 ProgConStat;
     struct list_head prov_list;
     int appcnt;
-    APP_INFO_BLOCK app_info[MAX_NUM_APP]; //Added by Jim    
+    APP_INFO_BLOCK app_info[MAX_NUM_APP]; //Added by Jim
     u16 DSPInfoBlklen;
     u16 DrvMsgPend;
     int (*ft1000_reset)(struct net_device *dev);

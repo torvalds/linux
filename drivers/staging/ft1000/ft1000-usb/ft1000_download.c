@@ -47,7 +47,7 @@
 #define  REQUEST_DONE_CL         0x0004
 #define  REQUEST_VERSION_INFO    0x0005
 #define  REQUEST_CODE_BY_VERSION 0x0006
-#define  REQUEST_MAILBOX_DATA    0x0007       
+#define  REQUEST_MAILBOX_DATA    0x0007
 #define  REQUEST_FILE_CHECKSUM   0x0008
 
 #define  STATE_START_DWNLD       0x01
@@ -72,7 +72,7 @@
 #define  HANDSHAKE_MAG_DSP_DATA      0x02000000   /* Dsp writes this to request for data block */
 #define  HANDSHAKE_MAG_DSP_DONE      0x03000000   /* Dsp writes this to indicate download done */
 
-#define  HANDSHAKE_MAG_DRV_READY     0xFFFF0000   /* Driver writes this to indicate ready to download */ 
+#define  HANDSHAKE_MAG_DRV_READY     0xFFFF0000   /* Driver writes this to indicate ready to download */
 #define  HANDSHAKE_MAG_DRV_DATA      0x02FECDAB   /* Driver writes this to indicate data available to DSP */
 #define  HANDSHAKE_MAG_DRV_ENTRY     0x01FECDAB   /* Driver writes this to indicate entry point to DSP */
 
@@ -208,7 +208,7 @@ char *getfw (char *fn, int *pimgsz)
 // Function:    check_usb_db
 //
 // Parameters:  struct ft1000_device  - device structure
-//              
+//
 // Returns:     0 - success
 //
 // Description: This function checks if the doorbell register is cleared
@@ -225,32 +225,32 @@ ULONG check_usb_db (struct ft1000_device *ft1000dev)
    loopcnt = 0;
    while (loopcnt < 10)
    {
-       
+
       status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
       DEBUG("check_usb_db: read FT1000_REG_DOORBELL value is %x\n", temp);
-      if (temp & 0x0080) 
+      if (temp & 0x0080)
       {
            DEBUG("FT1000:Got checkusb doorbell\n");
            status = ft1000_write_register (ft1000dev, 0x0080, FT1000_REG_DOORBELL);
 #if FIFO_DNLD
            status = ft1000_write_register (ft1000dev, 0x0100, FT1000_REG_DOORBELL);
-#endif 
+#endif
            status = ft1000_write_register (ft1000dev,  0x8000, FT1000_REG_DOORBELL);
            break;
       }
-      else 
+      else
       {
            loopcnt++;
            msleep (10);
       }
 
-   } //end of while 
+   } //end of while
 
-   
+
    loopcnt = 0;
    while (loopcnt < 20)
    {
-       
+
       status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
       DEBUG("FT1000:check_usb_db:Doorbell = 0x%x\n", temp);
       if (temp & 0x8000)
@@ -286,7 +286,7 @@ ULONG check_usb_db (struct ft1000_device *ft1000dev)
 //
 // Parameters:  struct ft1000_device  - device structure
 //              USHORT expected_value - the handshake value expected
-//              
+//
 // Returns:     handshakevalue - success
 //              HANDSHAKE_TIMEOUT_VALUE - failure
 //
@@ -305,17 +305,17 @@ USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
    loopcnt = 0;
    while (loopcnt < 100)
    {
-        
+
 #if FIFO_DNLD
            // Need to clear downloader doorbell if Hartley ASIC
            status = ft1000_write_register (ft1000dev,  FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
            //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
-               if (pft1000info->fcodeldr) 
+               if (pft1000info->fcodeldr)
                {
                    DEBUG(" get_handshake: fcodeldr is %d\n", pft1000info->fcodeldr);
                    pft1000info->fcodeldr = 0;
                    status = check_usb_db(ft1000dev);
-                   if (status != STATUS_SUCCESS) 
+                   if (status != STATUS_SUCCESS)
                    {
                        DEBUG("get_handshake: check_usb_db failed\n");
                        status = STATUS_FAILURE;
@@ -332,29 +332,29 @@ USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
            // Need to clear downloader doorbell if Hartley ASIC
            status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
            //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
-           if (temp) 
+           if (temp)
            {
                if (temp & FT1000_DB_DNLD_RX)
                {
                    //DEBUG("get_handshake: write FT1000_DB_DNLD_RX to doorbell register\n");
                    status = ft1000_write_register(ft1000dev, FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
                }
-          
-               if (pft1000info->fcodeldr) 
+
+               if (pft1000info->fcodeldr)
                {
                    DEBUG(" get_handshake: fcodeldr is %d\n", pft1000info->fcodeldr);
                    pft1000info->fcodeldr = 0;
                    status = check_usb_db(ft1000dev);
-                   if (status != STATUS_SUCCESS) 
+                   if (status != STATUS_SUCCESS)
                    {
                        DEBUG("get_handshake: check_usb_db failed\n");
                        status = STATUS_FAILURE;
                        break;
-                   }                           
+                   }
 
                    status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
                    //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
-                   if (temp) 
+                   if (temp)
                    {
                        if (temp & FT1000_DB_DNLD_RX)
                            status = ft1000_write_register(ft1000dev,FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
@@ -370,7 +370,7 @@ USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
 #endif
 
 
-        if (status) 
+        if (status)
            return HANDSHAKE_TIMEOUT_VALUE;
 
         //DEBUG("get_handshake: handshake= %x\n", handshake);
@@ -387,7 +387,7 @@ USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
         //DEBUG("HANDSHKE LOOP: %d\n", loopcnt);
 
    }
-   
+
    //DEBUG("get_handshake: return handshake time out\n");
    return HANDSHAKE_TIMEOUT_VALUE;
 }
@@ -397,7 +397,7 @@ USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_value)
 //
 // Parameters:  struct ft1000_device  - device structure
 //              USHORT handshake_value - handshake to be written
-//              
+//
 // Returns:     none
 //
 // Description: This function write the handshake value to the handshake location
@@ -426,13 +426,13 @@ void put_handshake(struct ft1000_device *ft1000dev,USHORT handshake_value)
 #if FIFO_DNLD
         for (i=0; i<1000; i++);
 #else
-        for (i=0; i<10; i++) 
-        {            
+        for (i=0; i<10; i++)
+        {
             status = ft1000_read_register (ft1000dev, &tempword, FT1000_REG_DOORBELL);
             if ((tempword & FT1000_DB_DNLD_TX) == 0)
                 break;
         }
-        if (i==10) 
+        if (i==10)
         {
             DEBUG("FT1000:put_handshake could not clear Tx doorbell\n");
             status = ft1000_read_register (ft1000dev, &tempword, FT1000_REG_DOORBELL);
@@ -457,7 +457,7 @@ USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected_value)
        if (pft1000info->usbboot == 2) {
            status = ft1000_read_dpram32 (ft1000dev, 0, (PUCHAR)&(pft1000info->tempbuf[0]), 64);
            for (temp=0; temp<16; temp++)
-               DEBUG("tempbuf %d = 0x%x\n", temp, pft1000info->tempbuf[temp]); 
+               DEBUG("tempbuf %d = 0x%x\n", temp, pft1000info->tempbuf[temp]);
            status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (PUCHAR)&handshake, 1);
            DEBUG("handshake from read_dpram16 = 0x%x\n", handshake);
            if (pft1000info->dspalive == pft1000info->tempbuf[6])
@@ -493,7 +493,7 @@ void put_handshake_usb(struct ft1000_device *ft1000dev,USHORT handshake_value)
 // Function:    get_request_type
 //
 // Parameters:  struct ft1000_device  - device structure
-//              
+//
 // Returns:     request type - success
 //
 // Description: This function returns the request type
@@ -569,7 +569,7 @@ USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
 // Function:    get_request_value
 //
 // Parameters:  struct ft1000_device  - device structure
-//              
+//
 // Returns:     request value - success
 //
 // Description: This function returns the request value
@@ -597,9 +597,9 @@ long get_request_value(struct ft1000_device *ft1000dev)
            status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&tempword, 1);
 	   value |= (tempword << 16);
 	   value = ntohl(value);
-       }                                 
+       }
 
-   
+
    //DEBUG("get_request_value: value is %x\n", value);
    return value;
 
@@ -628,7 +628,7 @@ long get_request_value_usb(struct ft1000_device *ft1000dev)
    if (pft1000info->usbboot == 1)
        pft1000info->usbboot = 2;
 #endif
-   
+
    //DEBUG("get_request_value_usb: value is %x\n", value);
    return value;
 
@@ -639,7 +639,7 @@ long get_request_value_usb(struct ft1000_device *ft1000dev)
 //
 // Parameters:  struct ft1000_device  - device structure
 //              long lvalue - value to be put into DPRAM location DWNLD_MAG1_SIZE_LOC
-//              
+//
 // Returns:     none
 //
 // Description: This function writes a value to DWNLD_MAG1_SIZE_LOC
@@ -656,7 +656,7 @@ void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
        status = fix_ft1000_write_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&tempx);
 
 
-   
+
    //DEBUG("put_request_value: value is %x\n", lvalue);
 
 }
@@ -667,7 +667,7 @@ void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 // Function:    hdr_checksum
 //
 // Parameters:  PPSEUDO_HDR pHdr - Pseudo header pointer
-//              
+//
 // Returns:     checksum - success
 //
 // Description: This function returns the checksum of the pseudo header
@@ -680,7 +680,7 @@ USHORT hdr_checksum(PPSEUDO_HDR pHdr)
    USHORT   *usPtr = (USHORT *)pHdr;
    USHORT   chksum;
 
-  
+
   chksum = ((((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
                     usPtr[4]) ^ usPtr[5]) ^ usPtr[6]);
 
@@ -696,7 +696,7 @@ USHORT hdr_checksum(PPSEUDO_HDR pHdr)
 //              UCHAR  **pUcFile - DSP image file pointer in UCHAR
 //              long   word_length - lenght of the buffer to be written
 //                                   to DPRAM
-//              
+//
 // Returns:     STATUS_SUCCESS - success
 //              STATUS_FAILURE - failure
 //
@@ -736,9 +736,9 @@ ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcF
    {
 	   loopcnt = 0;
 
-	      for (i=0; i<32; i++) 
+	      for (i=0; i<32; i++)
 	      {
-		       if (tempword != 0) 
+		       if (tempword != 0)
 		       {
     		           tempbuffer[i++] = *(*pUsFile);
 			   (*pUsFile)++;
@@ -748,42 +748,42 @@ ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcF
 			   loopcnt++;
 			   tempword--;
 		       }
-		       else 
+		       else
 		       {
 			   tempbuffer[i++] = 0;
 			   tempbuffer[i] = 0;
                        }
 	      }
-              
+
               //DEBUG("write_blk: loopcnt is %d\n", loopcnt);
               //DEBUG("write_blk: bootmode = %d\n", bootmode);
               //DEBUG("write_blk: dpram = %x\n", dpram);
-	      if (pft1000info->bootmode == 0) 
-	      {	         
-		 if (dpram >= 0x3F4) 
+	      if (pft1000info->bootmode == 0)
+	      {
+		 if (dpram >= 0x3F4)
                      Status = ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)&tempbuffer[0], 8);
-	         else 
+	         else
                     Status = ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)&tempbuffer[0], 64);
 	      }
-	      else 
+	      else
 	      {
-                 for (j=0; j<10; j++) 
+                 for (j=0; j<10; j++)
                  {
                    Status = ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)&tempbuffer[0], 64);
-		   if (Status == STATUS_SUCCESS) 
+		   if (Status == STATUS_SUCCESS)
 		   {
 		       // Work around for ASIC bit stuffing problem.
-		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00) 
+		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
 		       {
       		           Status = ft1000_write_dpram32(ft1000dev, dpram+12, (PUCHAR)&tempbuffer[24], 64);
 		       }
     		       // Let's check the data written
 	    	       Status = ft1000_read_dpram32 (ft1000dev, dpram, (PUCHAR)&resultbuffer[0], 64);
-		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00) 
+		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
 		       {
-		           for (i=0; i<28; i++) 
+		           for (i=0; i<28; i++)
 		           {
-			       if (resultbuffer[i] != tempbuffer[i]) 
+			       if (resultbuffer[i] != tempbuffer[i])
 			       {
 			           //NdisMSleep (100);
                                    DEBUG("FT1000:download:DPRAM write failed 1 during bootloading\n");
@@ -793,7 +793,7 @@ ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcF
 				}
 			   }
    			   Status = ft1000_read_dpram32 (ft1000dev, dpram+12, (PUCHAR)&resultbuffer[0], 64);
-		           for (i=0; i<16; i++) 
+		           for (i=0; i<16; i++)
 		           {
     			       if (resultbuffer[i] != tempbuffer[i+24])
     			       {
@@ -805,11 +805,11 @@ ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcF
 				}
 			   }
 			}
-			else 
+			else
 			{
-			    for (i=0; i<32; i++) 
+			    for (i=0; i<32; i++)
 			    {
-    			        if (resultbuffer[i] != tempbuffer[i]) 
+    			        if (resultbuffer[i] != tempbuffer[i])
     			        {
                                     //NdisMSleep (100);
                                     DEBUG("FT1000:download:DPRAM write failed 3 during bootloading\n");
@@ -820,13 +820,13 @@ ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcF
 			    }
 			}
 
-			if (Status == STATUS_SUCCESS) 
+			if (Status == STATUS_SUCCESS)
 			    break;
-				  
+
 		    }
 		}
-		
-		if (Status != STATUS_SUCCESS) 
+
+		if (Status != STATUS_SUCCESS)
 		{
                     DEBUG("FT1000:download:Write failed tempbuffer[31] = 0x%x\n", tempbuffer[31]);
 		    break;
@@ -835,7 +835,7 @@ ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcF
 	     }
    	     dpram = dpram + loopcnt;
    }
-   
+
    return Status;
 }
 
@@ -852,7 +852,7 @@ static void usb_dnld_complete (struct urb *urb)
 //              UCHAR  **pUcFile - DSP image file pointer in UCHAR
 //              long   word_length - lenght of the buffer to be written
 //                                   to DPRAM
-//              
+//
 // Returns:     STATUS_SUCCESS - success
 //              STATUS_FAILURE - failure
 //
@@ -894,7 +894,7 @@ ULONG write_blk_fifo (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR *
                           byte_length,
                           &cnt,
                           10);
-   DEBUG("write_blk_fifo Status = 0x%8x Bytes Transfer = %d Data = 0x%x\n", Status, cnt, *pblk); 
+   DEBUG("write_blk_fifo Status = 0x%8x Bytes Transfer = %d Data = 0x%x\n", Status, cnt, *pblk);
 
    kfree(pblk);
 #else
@@ -907,7 +907,7 @@ ULONG write_blk_fifo (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR *
                       byte_length,
                       usb_dnld_complete,
                       (void*)ft1000dev);
- 
+
     usb_submit_urb(ft1000dev->tx_urb, GFP_ATOMIC);
 #endif
 
@@ -962,9 +962,9 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
    USHORT                  dpram = 0;
    PUCHAR                  pbuffer;
    PPROV_RECORD            pprov_record;
-   FT1000_INFO *pft1000info = netdev_priv(ft1000dev->net); 
-                                
-   DEBUG("Entered   scram_dnldr...\n");                      
+   FT1000_INFO *pft1000info = netdev_priv(ft1000dev->net);
+
+   DEBUG("Entered   scram_dnldr...\n");
 
    pft1000info->fcodeldr = 0;
    pft1000info->usbboot = 0;
@@ -988,7 +988,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
       pBootEnd = (UCHAR *)(pFileStart + pFileHdr5->loader_code_end);
 
       loader_code_address = pFileHdr5->loader_code_address;
-      loader_code_size = pFileHdr5->loader_code_size;      
+      loader_code_size = pFileHdr5->loader_code_size;
       bGoodVersion = FALSE;
 
    while ((Status == STATUS_SUCCESS) && (uiState != STATE_DONE_FILE))
@@ -1031,7 +1031,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
             {
             case  REQUEST_RUN_ADDRESS:
                DEBUG("FT1000:REQUEST_RUN_ADDRESS\n");
-               put_request_value(ft1000dev, loader_code_address);               
+               put_request_value(ft1000dev, loader_code_address);
                break;
             case  REQUEST_CODE_LENGTH:
                DEBUG("FT1000:REQUEST_CODE_LENGTH\n");
@@ -1100,7 +1100,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
       case STATE_CODE_DWNLD:
          //DEBUG("FT1000:STATE_CODE_DWNLD\n");
          pft1000info->bootmode = 0;
-         if (pft1000info->usbboot) 
+         if (pft1000info->usbboot)
             handshake = get_handshake_usb(ft1000dev, HANDSHAKE_REQUEST);
          else
             handshake = get_handshake(ft1000dev, HANDSHAKE_REQUEST);
@@ -1111,7 +1111,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
              */
             if (pft1000info->usbboot)
                 request = get_request_type_usb(ft1000dev);
-            else 
+            else
                 request = get_request_type(ft1000dev);
             switch (request)
             {
@@ -1168,7 +1168,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                word_length = get_request_value_usb(ft1000dev);
                //DEBUG("FT1000:download:word_length = %d\n", (int)word_length);
                if (word_length > MAX_LENGTH/2)
-#else 
+#else
                word_length = get_request_value(ft1000dev);
                //DEBUG("FT1000:download:word_length = %d\n", (int)word_length);
                if (word_length > MAX_LENGTH)
@@ -1207,35 +1207,35 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 #else
    	       write_blk (ft1000dev, &pUsFile, &pUcFile, word_length);
    	       //ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)pUcFile, word_length);
-#endif			   
+#endif
                break;
 
             case  REQUEST_MAILBOX_DATA:
                DEBUG("FT1000:download: REQUEST_MAILBOX_DATA\n");
                // Convert length from byte count to word count. Make sure we round up.
-               word_length = (long)(pft1000info->DSPInfoBlklen + 1)/2; 
+               word_length = (long)(pft1000info->DSPInfoBlklen + 1)/2;
                put_request_value(ft1000dev, word_length);
                pMailBoxData = (PDRVMSG)&(pft1000info->DSPInfoBlk[0]);
                /*
                 * Position ASIC DPRAM auto-increment pointer.
-                */         
-               
+                */
+
 
                    pUsData = (USHORT *)&pMailBoxData->data[0];
-                   dpram = (USHORT)DWNLD_MAG1_PS_HDR_LOC; 
+                   dpram = (USHORT)DWNLD_MAG1_PS_HDR_LOC;
                    if (word_length & 0x1)
                        word_length++;
-                    
+
                    word_length = (word_length / 2);
-             
+
 
                for (; word_length > 0; word_length--) /* In words */
                {
-                   
+
                       templong = *pUsData++;
 					  templong |= (*pUsData++ << 16);
-                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (PUCHAR)&templong);                     
-                   
+                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (PUCHAR)&templong);
+
                }
                break;
 
@@ -1245,26 +1245,26 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                put_request_value(ft1000dev, word_length);
                /*
                 * Position ASIC DPRAM auto-increment pointer.
-                */               
-               
+                */
+
                pUsFile = (USHORT *)(pFileStart + pFileHdr5->version_data_offset);
 
-               
-                   dpram = (USHORT)DWNLD_MAG1_PS_HDR_LOC;                 
+
+                   dpram = (USHORT)DWNLD_MAG1_PS_HDR_LOC;
                    if (word_length & 0x1)
                        word_length++;
-                       
+
                    word_length = (word_length / 2);
-               
+
 
                for (; word_length > 0; word_length--) /* In words */
                {
-                   
+
                       templong = ntohs(*pUsFile++);
 					  temp = ntohs(*pUsFile++);
 					  templong |= (temp << 16);
-                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (PUCHAR)&templong);                    
-                   
+                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (PUCHAR)&templong);
+
                }
                break;
 
@@ -1272,12 +1272,12 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                DEBUG("FT1000:download:REQUEST_CODE_BY_VERSION\n");
                bGoodVersion = FALSE;
                requested_version = get_request_value(ft1000dev);
-               
-                   pDspImageInfoV6 = (PDSP_IMAGE_INFO_V6)(pFileStart + sizeof(DSP_FILE_HDR_5));              
-               
+
+                   pDspImageInfoV6 = (PDSP_IMAGE_INFO_V6)(pFileStart + sizeof(DSP_FILE_HDR_5));
+
                for (imageN = 0; imageN < pFileHdr5->nDspImages; imageN++)
                {
-                   
+
                        temp = (USHORT)(pDspImageInfoV6->version);
                        templong = temp;
                        temp = (USHORT)(pDspImageInfoV6->version >> 16);
@@ -1295,10 +1295,10 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                            break;
                         }
                         pDspImageInfoV6++;
-                    
+
 
                } //end of for
-               
+
                if (!bGoodVersion)
                {
                   /*
@@ -1332,7 +1332,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
          DEBUG("FT1000:download:Code loader is done...\n");
          uiState = STATE_SECTION_PROV;
          break;
- 
+
       case  STATE_SECTION_PROV:
          DEBUG("FT1000:download:STATE_SECTION_PROV\n");
          pHdr = (PPSEUDO_HDR)pUcFile;
@@ -1350,7 +1350,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
             pbuffer = kmalloc ( (usHdrLength + sizeof(PSEUDO_HDR) ), GFP_ATOMIC );
             if (pbuffer) {
                 memcpy(pbuffer, (void *)pUcFile, (UINT)(usHdrLength + sizeof(PSEUDO_HDR)));
-                // link provisioning data 
+                // link provisioning data
                 pprov_record = kmalloc( sizeof(PROV_RECORD), GFP_ATOMIC );
                 if (pprov_record) {
                     pprov_record->pprov_data = pbuffer;
@@ -1400,14 +1400,14 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
           break;
       }
 
-      Status = Harley_Read_Register(&temp, FT1000_REG_ASIC_ID); 
+      Status = Harley_Read_Register(&temp, FT1000_REG_ASIC_ID);
       if ( (Status != NDIS_STATUS_SUCCESS) || (temp == 0xffff) ) {
           break;
       }
 ****/
 
    } /* End while */
-   
+
    DEBUG("Download exiting with status = 0x%8x\n", Status);
    ft1000_write_register(ft1000dev, FT1000_DB_DNLD_TX, FT1000_REG_DOORBELL);
 

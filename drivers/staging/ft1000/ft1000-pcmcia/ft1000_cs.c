@@ -13,7 +13,7 @@
    by Wai Chan (w.chan@flarion.com).
 
    Port for kernel 2.6 created by Patrik Ostrihon (patrik.ostrihon@pwc.sk)
-  
+
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the Free
    Software Foundation; either version 2 of the License, or (at your option) any
@@ -182,7 +182,7 @@ static int get_tuple_next(struct pcmcia_device *link, tuple_t * tuple,
 
 /*======================================================================
 
-    
+
 ======================================================================*/
 
 static int ft1000_attach(struct pcmcia_device *link)
@@ -247,7 +247,7 @@ static void ft1000_detach(struct pcmcia_device *link)
     ft1000_config() is scheduled to run after a CARD_INSERTION event
     is received, to configure the PCMCIA socket, and to make the
     device available to the system.
-    
+
 ======================================================================*/
 
 #define CS_CHECK(fn, ret) \
@@ -348,7 +348,7 @@ static int ft1000_config(struct pcmcia_device * link)
 	if (last_ret != CS_SUCCESS) {
 		cs_error(link, RequestIO, last_ret);
 		goto failed;
-	}  
+	}
 
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
@@ -415,7 +415,7 @@ failed:
     After a card is removed, ft1000_release() will unregister the
     device, and release the PCMCIA configuration.  If the device is
     still open, this will be postponed until it is closed.
-    
+
 ======================================================================*/
 
 static void ft1000_release(struct pcmcia_device * link)
@@ -434,7 +434,7 @@ static void ft1000_release(struct pcmcia_device * link)
 
 	/*
 	   In a normal driver, additional code may be needed to release
-	   other kernel data structures associated with this device. 
+	   other kernel data structures associated with this device.
 	 */
 
 	/* Don't bother checking to see if these succeed or not */
@@ -451,7 +451,7 @@ static void ft1000_release(struct pcmcia_device * link)
     private flag to block future accesses to this device.  All the
     functions that actually access the device should check this flag
     to make sure the card is still present.
-    
+
 ======================================================================*/
 
 static int ft1000_suspend(struct pcmcia_device *link)

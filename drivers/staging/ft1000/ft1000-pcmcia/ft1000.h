@@ -3,16 +3,16 @@
 //
 // Copyright (C) 2002 Flarion Technologies, All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it 
+// This program is free software; you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
-// Software Foundation; either version 2 of the License, or (at your option) any 
-// later version. This program is distributed in the hope that it will be useful, 
-// but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
-// more details. You should have received a copy of the GNU General Public 
-// License along with this program; if not, write to the 
-// Free Software Foundation, Inc., 59 Temple Place - 
-// Suite 330, Boston, MA 02111-1307, USA. 
+// Software Foundation; either version 2 of the License, or (at your option) any
+// later version. This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details. You should have received a copy of the GNU General Public
+// License along with this program; if not, write to the
+// Free Software Foundation, Inc., 59 Temple Place -
+// Suite 330, Boston, MA 02111-1307, USA.
 //---------------------------------------------------------------------------
 //
 // File:         ft1000.h
@@ -41,7 +41,7 @@
 #define CALVERSZ                2
 #define CALDATESZ               6
 
-// Pseudo Header structure 
+// Pseudo Header structure
 typedef struct _PSEUDO_HDR
 {
    unsigned short    length;        // length of msg body
@@ -58,7 +58,7 @@ typedef struct _PSEUDO_HDR
                                     //    Dsp Loader = 0xa0
                                     //    Dsp MIP = 0xb0
    unsigned char     portsrc;       // software source port id (refer to portdest)
-   unsigned short    sh_str_id;     // not used 
+   unsigned short    sh_str_id;     // not used
    unsigned char     control;       // not used
    unsigned char     rsvd1;
    unsigned char     seq_num;       // message sequence number
@@ -78,7 +78,7 @@ typedef struct _PSEUDO_HDR
 #define PCHAR                u8 *
 #define UINT                 u32
 
-#define ELECTRABUZZ_ID       0          // ASIC ID for Electrabuzz 
+#define ELECTRABUZZ_ID       0          // ASIC ID for Electrabuzz
 #define MAGNEMITE_ID         0x1a01     // ASIC ID for Magnemite
 
 // MEMORY MAP common to both ELECTRABUZZ and MAGNEMITE
@@ -89,7 +89,7 @@ typedef struct _PSEUDO_HDR
 #define	FT1000_REG_SUP_ISR		0x0026	// HISR - Host Interrupt Status Register
 #define	FT1000_REG_SUP_IMASK	0x0028	// HIMASK - Host Interrupt Mask
 #define	FT1000_REG_DOORBELL		0x002a	// DBELL - Door Bell Register
-#define FT1000_REG_ASIC_ID      0x002e  // ASICID - ASIC Identification Number 
+#define FT1000_REG_ASIC_ID      0x002e  // ASICID - ASIC Identification Number
                                         // (Electrabuzz=0 Magnemite=0x1A01)
 
 // MEMORY MAP FOR ELECTRABUZZ ASIC
@@ -113,10 +113,10 @@ typedef struct _PSEUDO_HDR
 #define FT1000_REG_MAG_DFRL     0x0008  // DFRL - Downlink FIFO Register low-word (16-bits)
 #define FT1000_REG_MAG_DFRH     0x000a  // DFRH - Downlink FIFO Register high-word (16-bits)
 #define FT1000_REG_MAG_DFSR     0x000c  // DFSR - Downlink FIFO Status Register
-#define FT1000_REG_MAG_DPDATA   0x0010  // DPDATA - Dual Port RAM Indirect Data Register (32-bits) 
+#define FT1000_REG_MAG_DPDATA   0x0010  // DPDATA - Dual Port RAM Indirect Data Register (32-bits)
 #define FT1000_REG_MAG_DPDATAL  0x0010  // DPDATAL - Dual Port RAM Indirect Data Register low-word (16-bits)
 #define FT1000_REG_MAG_DPDATAH  0x0012  // DPDATAH - Dual Port RAM Indirect Data Register high-word (16-bits)
-#define	FT1000_REG_MAG_WATERMARK 0x002c	// WMARK - Watermark Register 
+#define	FT1000_REG_MAG_WATERMARK 0x002c	// WMARK - Watermark Register
 
 // Reserved Dual Port RAM offsets for Electrabuzz
 #define FT1000_DPRAM_TX_BASE	0x0002	// Host to PC Card Messaging Area
@@ -136,7 +136,7 @@ typedef struct _PSEUDO_HDR
 #define FT1000_DPRAM_MAG_TX_BASE		 0x0000	 //  Host to PC Card Messaging Area
 #define FT1000_DPRAM_MAG_RX_BASE		 0x0200	 //  PC Card to Host Messaging Area
 #define FT1000_MAG_FIFO_LEN              0x1FF   // total length for DSP FIFO tracking
-#define FT1000_MAG_FIFO_LEN_INDX         0x1     // low-word index 
+#define FT1000_MAG_FIFO_LEN_INDX         0x1     // low-word index
 #define FT1000_MAG_HI_HO                 0x1FF   // heartbeat with HI/HO
 #define FT1000_MAG_HI_HO_INDX            0x0     // high-word index
 #define FT1000_MAG_DSP_LED               0x3FE   // dsp led status for PAD device
@@ -161,7 +161,7 @@ typedef struct _PSEUDO_HDR
 #define FT1000_MAG_DSP_TIMER3_INDX       0x0
 
 #define FT1000_MAG_TOTAL_LEN             0x200
-#define FT1000_MAG_TOTAL_LEN_INDX        0x1    
+#define FT1000_MAG_TOTAL_LEN_INDX        0x1
 
 #define FT1000_MAG_PH_LEN                0x200
 #define FT1000_MAG_PH_LEN_INDX           0x0
@@ -173,17 +173,17 @@ typedef struct _PSEUDO_HDR
 #define HOST_INTF_BE                     0x1     // Host interface big endian mode
 
 // PC Card to Host Doorbell assignments
-#define FT1000_DB_DPRAM_RX		0x0001	// this value indicates that DSP has 
-                                        //      data for host in DPRAM 
+#define FT1000_DB_DPRAM_RX		0x0001	// this value indicates that DSP has
+                                        //      data for host in DPRAM
 #define FT1000_ASIC_RESET_REQ   0x0004  // DSP requesting host to reset the ASIC
 #define FT1000_DSP_ASIC_RESET   0x0008  // DSP indicating host that it will reset the ASIC
 #define FT1000_DB_COND_RESET    0x0010  // DSP request for a card reset.
 
 // Host to PC Card Doorbell assignments
-#define FT1000_DB_DPRAM_TX		0x0100	// this value indicates that host has 
-                                        //      data for DSP in DPRAM. 
+#define FT1000_DB_DPRAM_TX		0x0100	// this value indicates that host has
+                                        //      data for DSP in DPRAM.
 #define FT1000_ASIC_RESET_DSP   0x0400  // Responds to FT1000_ASIC_RESET_REQ
-#define FT1000_DB_HB            0x1000  // Indicates that supervisor 
+#define FT1000_DB_HB            0x1000  // Indicates that supervisor
                                         //      has a heartbeat message for DSP.
 
 #define FT1000_DPRAM_BASE		0x0000	// Dual Port RAM starting offset
@@ -201,27 +201,27 @@ typedef struct _PSEUDO_HDR
 // Indicate the cause of an interrupt.
 //
 #define ISR_EMPTY				0x00	  // no bits set
-#define ISR_DOORBELL_ACK		0x01	  // Doorbell acknowledge from DSP	   
+#define ISR_DOORBELL_ACK		0x01	  // Doorbell acknowledge from DSP
 #define ISR_DOORBELL_PEND		0x02	  // Doorbell pending from DSP
 #define ISR_RCV					0x04	  // Packet available in Downlink FIFO
-#define ISR_WATERMARK			0x08	  // Watermark requirements satisfied 
+#define ISR_WATERMARK			0x08	  // Watermark requirements satisfied
 
 // Bit field definition for Host Interrupt Mask
 #define ISR_MASK_NONE			0x0000	  // no bits set
 #define ISR_MASK_DOORBELL_ACK	0x0001	  // Doorbell acknowledge mask
 #define ISR_MASK_DOORBELL_PEND	0x0002	  // Doorbell pending mask
 #define ISR_MASK_RCV			0x0004	  // Downlink Packet available mask
-#define ISR_MASK_WATERMARK		0x0008	  // Watermark interrupt mask 
+#define ISR_MASK_WATERMARK		0x0008	  // Watermark interrupt mask
 #define ISR_MASK_ALL			0xffff    // Mask all interrupts
 
 // Bit field definition for Host Control Register
 #define DSP_RESET_BIT           0x0001    // Bit field to control dsp reset state
                                           // (0 = out of reset 1 = reset)
 #define ASIC_RESET_BIT          0x0002    // Bit field to control ASIC reset state
-                                          // (0 = out of reset 1 = reset) 
+                                          // (0 = out of reset 1 = reset)
 
-// Default interrupt mask (Enable Doorbell pending and Packet available interrupts) 
-#define ISR_DEFAULT_MASK		0x7ff9		
+// Default interrupt mask (Enable Doorbell pending and Packet available interrupts)
+#define ISR_DEFAULT_MASK		0x7ff9
 
 // Application specific IDs
 #define DSPID                   0x20
@@ -241,7 +241,7 @@ typedef struct _PSEUDO_HDR
 
 #define MAX_DSP_SESS_REC        1024
 
-#define DSP_QID_OFFSET          4     
+#define DSP_QID_OFFSET          4
 #define PSEUDOSZ                16
 #define PSEUDOSZWRD             8
 
@@ -299,7 +299,7 @@ typedef struct _MEDIAMSG {
 	u16 state;
 	u32 ip_addr;
     u32 net_mask;
-	u32 gateway;  
+	u32 gateway;
 	u32 dns_1;
 	u32 dns_2;
 } __attribute__ ((packed)) MEDIAMSG, *PMEDIAMSG;

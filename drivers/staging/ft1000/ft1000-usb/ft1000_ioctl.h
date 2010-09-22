@@ -3,21 +3,21 @@
 //
 // Copyright (C) 2002 Flarion Technologies, All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it 
+// This program is free software; you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
-// Software Foundation; either version 2 of the License, or (at your option) any 
-// later version. This program is distributed in the hope that it will be useful, 
-// but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
-// more details. You should have received a copy of the GNU General Public 
-// License along with this program; if not, write to the 
-// Free Software Foundation, Inc., 59 Temple Place - 
-// Suite 330, Boston, MA 02111-1307, USA. 
+// Software Foundation; either version 2 of the License, or (at your option) any
+// later version. This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details. You should have received a copy of the GNU General Public
+// License along with this program; if not, write to the
+// Free Software Foundation, Inc., 59 Temple Place -
+// Suite 330, Boston, MA 02111-1307, USA.
 //---------------------------------------------------------------------------
 //
 // File:         ft1000_ioctl.h
 //
-// Description:    Common structures and defines relating to IOCTL 
+// Description:    Common structures and defines relating to IOCTL
 //
 // History:
 // 11/5/02    Whc                Created.
@@ -37,18 +37,18 @@
 
 // Standard Flarion Pseudo header
 typedef struct _PSEUDO_HDR
-{               
+{
    unsigned short    length;           //length of msg body
    unsigned char     source;           //source address (0x10=Host 0x20=DSP)
    unsigned char     destination;      //destination address (refer to source address)
-   unsigned char     portdest;         //destination port id 
+   unsigned char     portdest;         //destination port id
                                        //    0x00=Driver
                                        //    0x10=Application Broadcast
                                        //    0x20=Network Stack
                                        //    0x80=Dsp OAM
                                        //    0x90=Dsp Airlink
                                        //    0xa0=Dsp Loader
-                                       //    0xb0=Dsp MIP                 
+                                       //    0xb0=Dsp MIP
    unsigned char     portsrc;          //source port id (refer to portdest)
    unsigned short    sh_str_id;        //stream id (Not applicable on Mobile)
    unsigned char     control;          //stream id (Not applicable on Mobile)
@@ -97,14 +97,14 @@ typedef struct _IOCTL_GET_DSP_STAT
     unsigned long nRxPkts;                // Number of packets received from dsp to host
     unsigned long nTxBytes;               // Number of bytes transmitted from host to dsp
     unsigned long nRxBytes;               // Number of bytes received from dsp to host
-    unsigned long ConTm;                  // Current session connection time in seconds 
+    unsigned long ConTm;                  // Current session connection time in seconds
     unsigned char CalVer[CALVERSZ];       // Proprietary Calibration Version
     unsigned char CalDate[CALDATESZ];     // Proprietary Calibration Date
 } __attribute__ ((packed)) IOCTL_GET_DSP_STAT, *PIOCTL_GET_DSP_STAT;
 
 //Data structure for Dual Ported RAM messaging between Host and Dsp
 typedef struct _IOCTL_DPRAM_BLK
-{  
+{
     unsigned short total_len;
     PSEUDO_HDR pseudohdr;
     unsigned char buffer[1780];
