@@ -932,7 +932,6 @@ out:
  **/
 static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 {
-	struct e1000_adapter *adapter = hw->adapter;
 	struct e1000_phy_info *phy = &hw->phy;
 	u32 i, data, cnf_size, cnf_base_addr, sw_cfg_mask;
 	s32 ret_val = 0;
@@ -950,7 +949,8 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 		if (phy->type != e1000_phy_igp_3)
 			return ret_val;
 
-		if (adapter->pdev->device == E1000_DEV_ID_ICH8_IGP_AMT) {
+		if ((hw->adapter->pdev->device == E1000_DEV_ID_ICH8_IGP_AMT) ||
+		    (hw->adapter->pdev->device == E1000_DEV_ID_ICH8_IGP_C)) {
 			sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG;
 			break;
 		}
@@ -1625,6 +1625,9 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 
 	if (e1000_check_reset_block(hw))
 		goto out;
+
+	/* Allow time for h/w to get to quiescent state after reset */
+	msleep(10);
 
 	/* Perform any necessary post-reset workarounds */
 	switch (hw->mac.type) {
