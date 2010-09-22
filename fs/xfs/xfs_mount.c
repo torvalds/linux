@@ -980,42 +980,35 @@ xfs_check_sizes(xfs_mount_t *mp)
 {
 	xfs_buf_t	*bp;
 	xfs_daddr_t	d;
-	int		error;
 
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_dblocks) {
-		cmn_err(CE_WARN, "XFS: size check 1 failed");
+		cmn_err(CE_WARN, "XFS: filesystem size mismatch detected");
 		return XFS_ERROR(EFBIG);
 	}
-	error = xfs_read_buf(mp, mp->m_ddev_targp,
-			     d - XFS_FSS_TO_BB(mp, 1),
-			     XFS_FSS_TO_BB(mp, 1), 0, &bp);
-	if (!error) {
-		xfs_buf_relse(bp);
-	} else {
-		cmn_err(CE_WARN, "XFS: size check 2 failed");
-		if (error == ENOSPC)
-			error = XFS_ERROR(EFBIG);
-		return error;
+	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
+					d - XFS_FSS_TO_BB(mp, 1),
+					BBTOB(XFS_FSS_TO_BB(mp, 1)), 0);
+	if (!bp) {
+		cmn_err(CE_WARN, "XFS: last sector read failed");
+		return EIO;
 	}
+	xfs_buf_relse(bp);
 
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
 		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
-			cmn_err(CE_WARN, "XFS: size check 3 failed");
+			cmn_err(CE_WARN, "XFS: log size mismatch detected");
 			return XFS_ERROR(EFBIG);
 		}
-		error = xfs_read_buf(mp, mp->m_logdev_targp,
-				     d - XFS_FSB_TO_BB(mp, 1),
-				     XFS_FSB_TO_BB(mp, 1), 0, &bp);
-		if (!error) {
-			xfs_buf_relse(bp);
-		} else {
-			cmn_err(CE_WARN, "XFS: size check 3 failed");
-			if (error == ENOSPC)
-				error = XFS_ERROR(EFBIG);
-			return error;
+		bp = xfs_buf_read_uncached(mp, mp->m_logdev_targp,
+					d - XFS_FSB_TO_BB(mp, 1),
+					XFS_FSB_TO_B(mp, 1), 0);
+		if (!bp) {
+			cmn_err(CE_WARN, "XFS: log device read failed");
+			return EIO;
 		}
+		xfs_buf_relse(bp);
 	}
 	return 0;
 }
