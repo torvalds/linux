@@ -2140,6 +2140,13 @@ W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5400_edac.c
 
+EDAC-I7300
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-edac@vger.kernel.org
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+F:	drivers/edac/i7300_edac.c
+
 EDAC-I7CORE
 M:	Mauro Carvalho Chehab <mchehab@redhat.com>
 L:	linux-edac@vger.kernel.org
