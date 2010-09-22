@@ -229,4 +229,5 @@ struct abx500_ops {
 };
 
 int abx500_register_ops(struct device *core_dev, struct abx500_ops *ops);
+void abx500_remove_ops(struct device *dev);
 #endif
