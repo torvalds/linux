@@ -2400,7 +2400,7 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 		I915_WRITE64(FENCE_REG_965_0 + (obj_priv->fence_reg * 8), 0);
 		break;
 	case 3:
-		if (obj_priv->fence_reg > 8)
+		if (obj_priv->fence_reg >= 8)
 			fence_reg = FENCE_REG_945_8 + (obj_priv->fence_reg - 8) * 4;
 		else
 	case 2:
