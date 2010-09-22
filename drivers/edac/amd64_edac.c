@@ -2055,8 +2055,8 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 					    struct err_regs *info)
 {
-	u32 ec  = ERROR_CODE(info->nbsl);
-	u32 xec = EXT_ERROR_CODE(info->nbsl);
+	u16 ec = EC(info->nbsl);
+	u8 xec = XEC(info->nbsl, 0x1f);
 	int ecc_type = (info->nbsh >> 13) & 0x3;
 
 	/* Bail early out if this was an 'observed' error */

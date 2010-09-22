@@ -133,13 +133,13 @@ static bool f12h_dc_mce(u16 ec, u8 xec)
 	bool ret = false;
 
 	if (MEM_ERROR(ec)) {
-		u8 ll = ec & 0x3;
+		u8 ll = LL(ec);
 		ret = true;
 
 		if (ll == LL_L2)
 			pr_cont("during L1 linefill from L2.\n");
 		else if (ll == LL_L1)
-			pr_cont("Data/Tag %s error.\n", RRRR_MSG(ec));
+			pr_cont("Data/Tag %s error.\n", R4_MSG(ec));
 		else
 			ret = false;
 	}
@@ -148,10 +148,7 @@ static bool f12h_dc_mce(u16 ec, u8 xec)
 
 static bool f10h_dc_mce(u16 ec, u8 xec)
 {
-	u8 r4  = (ec >> 4) & 0xf;
-	u8 ll  = ec & 0x3;
-
-	if (r4 == R4_GEN && ll == LL_L1) {
+	if (R4(ec) == R4_GEN && LL(ec) == LL_L1) {
 		pr_cont("during data scrub.\n");
 		return true;
 	}
@@ -170,15 +167,12 @@ static bool k8_dc_mce(u16 ec, u8 xec)
 
 static bool f14h_dc_mce(u16 ec, u8 xec)
 {
-	u8 r4	 = (ec >> 4) & 0xf;
-	u8 ll	 = ec & 0x3;
-	u8 tt	 = (ec >> 2) & 0x3;
-	u8 ii	 = tt;
+	u8 r4	 = R4(ec);
 	bool ret = true;
 
 	if (MEM_ERROR(ec)) {
 
-		if (tt != TT_DATA || ll != LL_L1)
+		if (TT(ec) != TT_DATA || LL(ec) != LL_L1)
 			return false;
 
 		switch (r4) {
@@ -198,7 +192,7 @@ static bool f14h_dc_mce(u16 ec, u8 xec)
 		}
 	} else if (BUS_ERROR(ec)) {
 
-		if ((ii != II_MEM && ii != II_IO) || ll != LL_LG)
+		if ((II(ec) != II_MEM && II(ec) != II_IO) || LL(ec) != LL_LG)
 			return false;
 
 		pr_cont("System read data error on a ");
@@ -273,16 +267,14 @@ static bool f15h_dc_mce(u16 ec, u8 xec)
 
 static void amd_decode_dc_mce(struct mce *m)
 {
-	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & xec_mask;
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, xec_mask);
 
 	pr_emerg(HW_ERR "Data Cache Error: ");
 
 	/* TLB error signatures are the same across families */
 	if (TLB_ERROR(ec)) {
-		u8 tt = (ec >> 2) & 0x3;
-
-		if (tt == TT_DATA) {
+		if (TT(ec) == TT_DATA) {
 			pr_cont("%s TLB %s.\n", LL_MSG(ec),
 				((xec == 2) ? "locked miss"
 					    : (xec ? "multimatch" : "parity")));
@@ -296,8 +288,7 @@ static void amd_decode_dc_mce(struct mce *m)
 
 static bool k8_ic_mce(u16 ec, u8 xec)
 {
-	u8 ll	 = ec & 0x3;
-	u8 r4	 = (ec >> 4) & 0xf;
+	u8 ll	 = LL(ec);
 	bool ret = true;
 
 	if (!MEM_ERROR(ec))
@@ -306,7 +297,7 @@ static bool k8_ic_mce(u16 ec, u8 xec)
 	if (ll == 0x2)
 		pr_cont("during a linefill from L2.\n");
 	else if (ll == 0x1) {
-		switch (r4) {
+		switch (R4(ec)) {
 		case R4_IRD:
 			pr_cont("Parity error during data load.\n");
 			break;
@@ -331,13 +322,11 @@ static bool k8_ic_mce(u16 ec, u8 xec)
 
 static bool f14h_ic_mce(u16 ec, u8 xec)
 {
-	u8 ll    = ec & 0x3;
-	u8 tt    = (ec >> 2) & 0x3;
-	u8 r4  = (ec >> 4) & 0xf;
+	u8 r4    = R4(ec);
 	bool ret = true;
 
 	if (MEM_ERROR(ec)) {
-		if (tt != 0 || ll != 1)
+		if (TT(ec) != 0 || LL(ec) != 1)
 			ret = false;
 
 		if (r4 == R4_IRD)
@@ -378,8 +367,8 @@ static bool f15h_ic_mce(u16 ec, u8 xec)
 
 static void amd_decode_ic_mce(struct mce *m)
 {
-	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & xec_mask;
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, xec_mask);
 
 	pr_emerg(HW_ERR "Instruction Cache Error: ");
 
@@ -398,8 +387,8 @@ static void amd_decode_ic_mce(struct mce *m)
 
 static void amd_decode_bu_mce(struct mce *m)
 {
-	u32 ec = m->status & 0xffff;
-	u32 xec = (m->status >> 16) & xec_mask;
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, xec_mask);
 
 	pr_emerg(HW_ERR "Bus Unit Error");
 
@@ -408,23 +397,23 @@ static void amd_decode_bu_mce(struct mce *m)
 	else if (xec == 0x3)
 		pr_cont(" in the victim data buffers.\n");
 	else if (xec == 0x2 && MEM_ERROR(ec))
-		pr_cont(": %s error in the L2 cache tags.\n", RRRR_MSG(ec));
+		pr_cont(": %s error in the L2 cache tags.\n", R4_MSG(ec));
 	else if (xec == 0x0) {
 		if (TLB_ERROR(ec))
 			pr_cont(": %s error in a Page Descriptor Cache or "
 				"Guest TLB.\n", TT_MSG(ec));
 		else if (BUS_ERROR(ec))
 			pr_cont(": %s/ECC error in data read from NB: %s.\n",
-				RRRR_MSG(ec), PP_MSG(ec));
+				R4_MSG(ec), PP_MSG(ec));
 		else if (MEM_ERROR(ec)) {
-			u8 rrrr = (ec >> 4) & 0xf;
+			u8 r4 = R4(ec);
 
-			if (rrrr >= 0x7)
+			if (r4 >= 0x7)
 				pr_cont(": %s error during data copyback.\n",
-					RRRR_MSG(ec));
-			else if (rrrr <= 0x1)
+					R4_MSG(ec));
+			else if (r4 <= 0x1)
 				pr_cont(": %s parity/ECC error during data "
-					"access from L2.\n", RRRR_MSG(ec));
+					"access from L2.\n", R4_MSG(ec));
 			else
 				goto wrong_bu_mce;
 		} else
@@ -440,8 +429,8 @@ wrong_bu_mce:
 
 static void amd_decode_cu_mce(struct mce *m)
 {
-	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & xec_mask;
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, xec_mask);
 
 	pr_emerg(HW_ERR "Combined Unit Error: ");
 
@@ -480,8 +469,8 @@ wrong_cu_mce:
 
 static void amd_decode_ls_mce(struct mce *m)
 {
-	u16 ec = m->status & 0xffff;
-	u8 xec = (m->status >> 16) & xec_mask;
+	u16 ec = EC(m->status);
+	u8 xec = XEC(m->status, xec_mask);
 
 	if (boot_cpu_data.x86 >= 0x14) {
 		pr_emerg("You shouldn't be seeing an LS MCE on this cpu family,"
@@ -492,12 +481,12 @@ static void amd_decode_ls_mce(struct mce *m)
 	pr_emerg(HW_ERR "Load Store Error");
 
 	if (xec == 0x0) {
-		u8 r4 = (ec >> 4) & 0xf;
+		u8 r4 = R4(ec);
 
 		if (!BUS_ERROR(ec) || (r4 != R4_DRD && r4 != R4_DWR))
 			goto wrong_ls_mce;
 
-		pr_cont(" during %s.\n", RRRR_MSG(ec));
+		pr_cont(" during %s.\n", R4_MSG(ec));
 	} else
 		goto wrong_ls_mce;
 
@@ -605,8 +594,8 @@ static bool nb_noop_mce(u16 ec, u8 xec)
 
 void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 {
-	u8 xec   = (m->status >> 16) & 0x1f;
-	u16 ec   = m->status & 0xffff;
+	u16 ec   = EC(m->status);
+	u8 xec   = XEC(m->status, 0x1f);
 	u32 nbsh = (u32)(m->status >> 32);
 
 	pr_emerg(HW_ERR "Northbridge Error, node %d: ", node_id);
@@ -668,7 +657,7 @@ EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
 static void amd_decode_fr_mce(struct mce *m)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	u8 xec = (m->status >> 16) & xec_mask;
+	u8 xec = XEC(m->status, xec_mask);
 
 	if (c->x86 == 0xf || c->x86 == 0x11)
 		goto wrong_fr_mce;
@@ -694,7 +683,7 @@ wrong_fr_mce:
 
 static void amd_decode_fp_mce(struct mce *m)
 {
-	u8 xec = (m->status >> 16) & xec_mask;
+	u8 xec = XEC(m->status, xec_mask);
 
 	pr_emerg(HW_ERR "Floating Point Unit Error: ");
 
@@ -739,11 +728,11 @@ static inline void amd_decode_err_code(u16 ec)
 			 TT_MSG(ec), LL_MSG(ec));
 	} else if (MEM_ERROR(ec)) {
 		pr_emerg(HW_ERR "Transaction: %s, Type: %s, Cache Level: %s\n",
-			 RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
+			 R4_MSG(ec), TT_MSG(ec), LL_MSG(ec));
 	} else if (BUS_ERROR(ec)) {
 		pr_emerg(HW_ERR "Transaction: %s (%s), %s, Cache Level: %s, "
 			 "Participating Processor: %s\n",
-			  RRRR_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec),
+			  R4_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec),
 			  PP_MSG(ec));
 	} else
 		pr_emerg(HW_ERR "Huh? Unknown MCE error 0x%x\n", ec);
