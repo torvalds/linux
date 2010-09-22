@@ -52,7 +52,7 @@ static struct snd_soc_dai_link smdk_dai = {
 };
 
 static struct snd_soc_card smdk = {
-	.name = "SMDK",
+	.name = "SMDK WM9713",
 	.dai_link = &smdk_dai,
 	.num_links = 1,
 };
