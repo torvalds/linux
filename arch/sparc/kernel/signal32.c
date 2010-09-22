@@ -616,7 +616,7 @@ static int setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 
 		flush_signal_insns(address);
 	}
-	return;
+	return 0;
 
 sigill:
 	do_exit(SIGILL);
@@ -840,12 +840,14 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
+		pt_regs_clear_syscall(regs);
 	}
 	if (restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
+		pt_regs_clear_syscall(regs);
 	}
 
 	/* If there's no signal to deliver, we just put the saved sigmask

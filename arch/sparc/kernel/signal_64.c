@@ -600,12 +600,14 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
+		pt_regs_clear_syscall(regs);
 	}
 	if (restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
+		pt_regs_clear_syscall(regs);
 	}
 
 	/* If there's no signal to deliver, we just put the saved sigmask
