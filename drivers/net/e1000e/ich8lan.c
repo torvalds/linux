@@ -105,6 +105,10 @@
 #define E1000_FEXTNVM_SW_CONFIG		1
 #define E1000_FEXTNVM_SW_CONFIG_ICH8M (1 << 27) /* Bit redefined for ICH8M :/ */
 
+#define E1000_FEXTNVM4_BEACON_DURATION_MASK    0x7
+#define E1000_FEXTNVM4_BEACON_DURATION_8USEC   0x7
+#define E1000_FEXTNVM4_BEACON_DURATION_16USEC  0x3
+
 #define PCIE_ICH8_SNOOP_ALL		PCIE_NO_SNOOP_ALL
 
 #define E1000_ICH_RAR_ENTRIES		7
@@ -238,6 +242,7 @@ static s32  e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
 static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw);
+static s32 e1000_k1_workaround_lv(struct e1000_hw *hw);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -649,6 +654,12 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 	if (hw->phy.type == e1000_phy_82578) {
 		ret_val = e1000_link_stall_workaround_hv(hw);
+		if (ret_val)
+			goto out;
+	}
+
+	if (hw->mac.type == e1000_pch2lan) {
+		ret_val = e1000_k1_workaround_lv(hw);
 		if (ret_val)
 			goto out;
 	}
@@ -1577,6 +1588,43 @@ static s32 e1000_lv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 
 	/* Set MDIO slow mode before any other MDIO access */
 	ret_val = e1000_set_mdio_slow_mode_hv(hw);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_k1_gig_workaround_lv - K1 Si workaround
+ *  @hw:   pointer to the HW structure
+ *
+ *  Workaround to set the K1 beacon duration for 82579 parts
+ **/
+static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u16 status_reg = 0;
+	u32 mac_reg;
+
+	if (hw->mac.type != e1000_pch2lan)
+		goto out;
+
+	/* Set K1 beacon duration based on 1Gbps speed or otherwise */
+	ret_val = e1e_rphy(hw, HV_M_STATUS, &status_reg);
+	if (ret_val)
+		goto out;
+
+	if ((status_reg & (HV_M_STATUS_LINK_UP | HV_M_STATUS_AUTONEG_COMPLETE))
+	    == (HV_M_STATUS_LINK_UP | HV_M_STATUS_AUTONEG_COMPLETE)) {
+		mac_reg = er32(FEXTNVM4);
+		mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
+
+		if (status_reg & HV_M_STATUS_SPEED_1000)
+			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_8USEC;
+		else
+			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_16USEC;
+
+		ew32(FEXTNVM4, mac_reg);
+	}
 
 out:
 	return ret_val;
