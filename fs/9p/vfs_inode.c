@@ -564,13 +564,6 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	return retval;
 }
 
-static int
-v9fs_open_created(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-
 /**
  * v9fs_create - Create a file
  * @v9ses: session information
@@ -775,7 +768,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
-		filp = lookup_instantiate_filp(nd, dentry, v9fs_open_created);
+		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 		if (IS_ERR(filp)) {
 			p9_client_clunk(ofid);
 			return PTR_ERR(filp);
@@ -834,7 +827,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
-		filp = lookup_instantiate_filp(nd, dentry, v9fs_open_created);
+		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 		if (IS_ERR(filp)) {
 			err = PTR_ERR(filp);
 			goto error;
