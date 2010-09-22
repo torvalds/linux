@@ -4659,12 +4659,13 @@ static int igb_set_vf_promisc(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 	u32 vmolr = rd32(E1000_VMOLR(vf));
 	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
 
-	vf_data->flags |= ~(IGB_VF_FLAG_UNI_PROMISC |
+	vf_data->flags &= ~(IGB_VF_FLAG_UNI_PROMISC |
 	                    IGB_VF_FLAG_MULTI_PROMISC);
 	vmolr &= ~(E1000_VMOLR_ROPE | E1000_VMOLR_ROMPE | E1000_VMOLR_MPME);
 
 	if (*msgbuf & E1000_VF_SET_PROMISC_MULTICAST) {
 		vmolr |= E1000_VMOLR_MPME;
+		vf_data->flags |= IGB_VF_FLAG_MULTI_PROMISC;
 		*msgbuf &= ~E1000_VF_SET_PROMISC_MULTICAST;
 	} else {
 		/*
