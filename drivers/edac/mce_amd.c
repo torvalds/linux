@@ -467,7 +467,7 @@ static void amd_decode_ls_mce(struct mce *m)
 	u16 ec = m->status & 0xffff;
 	u8 xec = (m->status >> 16) & xec_mask;
 
-	if (boot_cpu_data.x86 == 0x14) {
+	if (boot_cpu_data.x86 >= 0x14) {
 		pr_emerg("You shouldn't be seeing an LS MCE on this cpu family,"
 			 " please report on LKML.\n");
 		return;
