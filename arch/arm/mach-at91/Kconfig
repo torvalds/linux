@@ -383,8 +383,8 @@ if ARCH_AT91SAM9G45
 
 comment "AT91SAM9G45 Board Type"
 
-config MACH_AT91SAM9G45EKES
-	bool "Atmel AT91SAM9G45-EKES Evaluation Kit"
+config MACH_AT91SAM9M10G45EK
+	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
 	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
