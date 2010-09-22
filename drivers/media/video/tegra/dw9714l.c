@@ -156,7 +156,7 @@ static int dw9714l_set_position(struct dw9714l_info *info, u32 position)
 	return ret;
 }
 
-static int dw9714l_ioctl(struct inode *inode, struct file *file,
+static long dw9714l_ioctl(struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct dw9714l_info *info = file->private_data;
@@ -221,7 +221,7 @@ int dw9714l_release(struct inode *inode, struct file *file)
 static const struct file_operations dw9714l_fileops = {
 	.owner = THIS_MODULE,
 	.open = dw9714l_open,
-	.ioctl = dw9714l_ioctl,
+	.unlocked_ioctl = dw9714l_ioctl,
 	.release = dw9714l_release,
 };
 
