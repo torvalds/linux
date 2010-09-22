@@ -15,7 +15,6 @@
 #include <linux/device.h>
 #include <sound/soc.h>
 
-#include "../codecs/wm9713.h"
 #include "s3c-dma.h"
 #include "s3c-ac97.h"
 
