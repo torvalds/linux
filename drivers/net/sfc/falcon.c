@@ -831,6 +831,9 @@ static int falcon_probe_port(struct efx_nic *efx)
 	case PHY_TYPE_QT2025C:
 		efx->phy_op = &falcon_qt202x_phy_ops;
 		break;
+	case PHY_TYPE_TXC43128:
+		efx->phy_op = &falcon_txc_phy_ops;
+		break;
 	default:
 		netif_err(efx, probe, efx->net_dev, "Unknown PHY type %d\n",
 			  efx->phy_type);

@@ -37,6 +37,17 @@ extern struct efx_phy_operations falcon_qt202x_phy_ops;
 extern void falcon_qt202x_set_led(struct efx_nic *p, int led, int state);
 
 /****************************************************************************
+* Transwitch CX4 retimer
+*/
+extern struct efx_phy_operations falcon_txc_phy_ops;
+
+#define TXC_GPIO_DIR_INPUT	0
+#define TXC_GPIO_DIR_OUTPUT	1
+
+extern void falcon_txc_set_gpio_dir(struct efx_nic *efx, int pin, int dir);
+extern void falcon_txc_set_gpio_val(struct efx_nic *efx, int pin, int val);
+
+/****************************************************************************
  * Siena managed PHYs
  */
 extern struct efx_phy_operations efx_mcdi_phy_ops;

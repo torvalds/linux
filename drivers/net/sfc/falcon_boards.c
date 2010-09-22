@@ -26,6 +26,7 @@
 /* Board types */
 #define FALCON_BOARD_SFE4001 0x01
 #define FALCON_BOARD_SFE4002 0x02
+#define FALCON_BOARD_SFE4003 0x03
 #define FALCON_BOARD_SFN4112F 0x52
 
 /* Board temperature is about 15°C above ambient when air flow is
@@ -582,6 +583,75 @@ static int sfn4112f_init(struct efx_nic *efx)
 	return efx_init_lm87(efx, &sfn4112f_hwmon_info, sfn4112f_lm87_regs);
 }
 
+/*****************************************************************************
+ * Support for the SFE4003
+ *
+ */
+static u8 sfe4003_lm87_channel = 0x03; /* use AIN not FAN inputs */
+
+static const u8 sfe4003_lm87_regs[] = {
+	LM87_IN_LIMITS(0, 0x67, 0x7f),		/* 2.5V:  1.5V +/- 10% */
+	LM87_IN_LIMITS(1, 0x4c, 0x5e),		/* Vccp1: 1.2V +/- 10% */
+	LM87_IN_LIMITS(2, 0xac, 0xd4),		/* 3.3V:  3.3V +/- 10% */
+	LM87_IN_LIMITS(4, 0xac, 0xe0),		/* 12V:   10.8-14V */
+	LM87_IN_LIMITS(5, 0x3f, 0x4f),		/* Vccp2: 1.0V +/- 10% */
+	LM87_TEMP_INT_LIMITS(0, 70 + FALCON_BOARD_TEMP_BIAS),
+	0
+};
+
+static struct i2c_board_info sfe4003_hwmon_info = {
+	I2C_BOARD_INFO("lm87", 0x2e),
+	.platform_data	= &sfe4003_lm87_channel,
+};
+
+/* Board-specific LED info. */
+#define SFE4003_RED_LED_GPIO	11
+#define SFE4003_LED_ON		1
+#define SFE4003_LED_OFF		0
+
+static void sfe4003_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+{
+	struct falcon_board *board = falcon_board(efx);
+
+	/* The LEDs were not wired to GPIOs before A3 */
+	if (board->minor < 3 && board->major == 0)
+		return;
+
+	falcon_txc_set_gpio_val(
+		efx, SFE4003_RED_LED_GPIO,
+		(mode == EFX_LED_ON) ? SFE4003_LED_ON : SFE4003_LED_OFF);
+}
+
+static void sfe4003_init_phy(struct efx_nic *efx)
+{
+	struct falcon_board *board = falcon_board(efx);
+
+	/* The LEDs were not wired to GPIOs before A3 */
+	if (board->minor < 3 && board->major == 0)
+		return;
+
+	falcon_txc_set_gpio_dir(efx, SFE4003_RED_LED_GPIO, TXC_GPIO_DIR_OUTPUT);
+	falcon_txc_set_gpio_val(efx, SFE4003_RED_LED_GPIO, SFE4003_LED_OFF);
+}
+
+static int sfe4003_check_hw(struct efx_nic *efx)
+{
+	struct falcon_board *board = falcon_board(efx);
+
+	/* A0/A1/A2 board rev. 4003s  report a temperature fault the whole time
+	 * (bad sensor) so we mask it out. */
+	unsigned alarm_mask =
+		(board->major == 0 && board->minor <= 2) ?
+		~LM87_ALARM_TEMP_EXT1 : ~0;
+
+	return efx_check_lm87(efx, alarm_mask);
+}
+
+static int sfe4003_init(struct efx_nic *efx)
+{
+	return efx_init_lm87(efx, &sfe4003_hwmon_info, sfe4003_lm87_regs);
+}
+
 static const struct falcon_board_type board_types[] = {
 	{
 		.id		= FALCON_BOARD_SFE4001,
@@ -602,6 +672,16 @@ static const struct falcon_board_type board_types[] = {
 		.fini		= efx_fini_lm87,
 		.set_id_led	= sfe4002_set_id_led,
 		.monitor	= sfe4002_check_hw,
+	},
+	{
+		.id		= FALCON_BOARD_SFE4003,
+		.ref_model	= "SFE4003",
+		.gen_type	= "10GBASE-CX4 adapter",
+		.init		= sfe4003_init,
+		.init_phy	= sfe4003_init_phy,
+		.fini		= efx_fini_lm87,
+		.set_id_led	= sfe4003_set_id_led,
+		.monitor	= sfe4003_check_hw,
 	},
 	{
 		.id		= FALCON_BOARD_SFN4112F,
