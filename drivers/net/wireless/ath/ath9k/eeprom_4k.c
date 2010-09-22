@@ -333,7 +333,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 
 		if (i == 0) {
-			if (AR_SREV_9280_10_OR_LATER(ah))
+			if (AR_SREV_9280_20_OR_LATER(ah))
 				ss = (int16_t)(0 - (minPwrT4[i] / 2));
 			else
 				ss = 0;
@@ -761,7 +761,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 
 	regulatory->max_power_level = ratesArray[i];
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
 			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
 	}
