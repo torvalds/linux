@@ -556,6 +556,15 @@ static bool f10h_nb_mce(u16 ec, u8 xec)
 		goto out;
 		break;
 
+	case 0x19:
+		if (boot_cpu_data.x86 == 0x15)
+			pr_cont("Compute Unit Data Error.\n");
+		else
+			ret = false;
+
+		goto out;
+		break;
+
 	case 0x1c ... 0x1f:
 		offset = 24;
 		break;
@@ -804,6 +813,7 @@ static int __init mce_amd_init(void)
 		xec_mask = 0x1f;
 		fam_ops->dc_mce = f15h_dc_mce;
 		fam_ops->ic_mce = f15h_ic_mce;
+		fam_ops->nb_mce = f10h_nb_mce;
 		break;
 
 	default:
