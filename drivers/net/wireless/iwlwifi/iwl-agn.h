@@ -129,6 +129,9 @@ void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);
 
+/* RXON */
+int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+
 /* uCode */
 int iwlagn_load_ucode(struct iwl_priv *priv);
 void iwlagn_rx_calib_result(struct iwl_priv *priv,

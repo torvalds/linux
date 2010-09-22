@@ -91,14 +91,14 @@ static int iwlagn_ant_coupling;
 static bool iwlagn_bt_ch_announce = 1;
 
 /**
- * iwl_commit_rxon - commit staging_rxon to hardware
+ * iwlagn_commit_rxon - commit staging_rxon to hardware
  *
  * The RXON command in staging_rxon is committed to the hardware and
  * the active_rxon structure is updated with the new data.  This
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
  */
-int iwl_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
+int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active_rxon = (void *)&ctx->active;
