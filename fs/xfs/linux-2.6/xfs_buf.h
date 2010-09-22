@@ -132,6 +132,7 @@ typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
 	struct address_space	*bt_mapping;
+	struct xfs_mount	*bt_mount;
 	unsigned int		bt_bsize;
 	unsigned int		bt_sshift;
 	size_t			bt_smask;
@@ -189,7 +190,6 @@ typedef struct xfs_buf {
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
-	struct xfs_mount	*b_mount;
 	unsigned short		b_error;	/* error code on I/O */
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
@@ -377,7 +377,8 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 /*
  *	Handling of buftargs.
  */
-extern xfs_buftarg_t *xfs_alloc_buftarg(struct block_device *, int, const char *);
+extern xfs_buftarg_t *xfs_alloc_buftarg(struct xfs_mount *,
+			struct block_device *, int, const char *);
 extern void xfs_free_buftarg(struct xfs_mount *, struct xfs_buftarg *);
 extern void xfs_wait_buftarg(xfs_buftarg_t *);
 extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int, unsigned int);

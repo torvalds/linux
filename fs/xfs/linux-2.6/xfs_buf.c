@@ -894,7 +894,7 @@ xfs_buf_lock(
 	trace_xfs_buf_lock(bp, _RET_IP_);
 
 	if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
-		xfs_log_force(bp->b_mount, 0);
+		xfs_log_force(bp->b_target->bt_mount, 0);
 	if (atomic_read(&bp->b_io_remaining))
 		blk_run_address_space(bp->b_target->bt_mapping);
 	down(&bp->b_sema);
@@ -1017,7 +1017,6 @@ xfs_bwrite(
 {
 	int			error;
 
-	bp->b_mount = mp;
 	bp->b_flags |= XBF_WRITE;
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ);
 
@@ -1037,8 +1036,6 @@ xfs_bdwrite(
 	struct xfs_buf		*bp)
 {
 	trace_xfs_buf_bdwrite(bp, _RET_IP_);
-
-	bp->b_mount = mp;
 
 	bp->b_flags &= ~XBF_READ;
 	bp->b_flags |= (XBF_DELWRI | XBF_ASYNC);
@@ -1128,7 +1125,7 @@ int
 xfs_bdstrat_cb(
 	struct xfs_buf	*bp)
 {
-	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
+	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
 		trace_xfs_bdstrat_shut(bp, _RET_IP_);
 		/*
 		 * Metadata write that didn't get logged but
@@ -1644,6 +1641,7 @@ out_error:
 
 xfs_buftarg_t *
 xfs_alloc_buftarg(
+	struct xfs_mount	*mp,
 	struct block_device	*bdev,
 	int			external,
 	const char		*fsname)
@@ -1652,6 +1650,7 @@ xfs_alloc_buftarg(
 
 	btp = kmem_zalloc(sizeof(*btp), KM_SLEEP);
 
+	btp->bt_mount = mp;
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
 	if (xfs_setsize_buftarg_early(btp, bdev))
