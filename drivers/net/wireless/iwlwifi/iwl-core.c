@@ -2653,7 +2653,6 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iwl_force_reset);
 
 /**
  * iwl_bg_monitor_recover - Timer callback to check for stuck queue and recover

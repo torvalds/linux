@@ -121,7 +121,6 @@ void iwl_force_scan_end(struct iwl_priv *priv)
 	clear_bit(STATUS_SCAN_ABORTING, &priv->status);
 	iwl_complete_scan(priv, true);
 }
-EXPORT_SYMBOL(iwl_force_scan_end);
 
 static void iwl_do_scan_abort(struct iwl_priv *priv)
 {

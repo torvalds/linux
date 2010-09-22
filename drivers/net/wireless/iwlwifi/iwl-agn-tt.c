@@ -571,7 +571,6 @@ void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 	IWL_DEBUG_POWER(priv, "Queueing critical temperature enter.\n");
 	queue_work(priv->workqueue, &priv->ct_enter);
 }
-EXPORT_SYMBOL(iwl_tt_enter_ct_kill);
 
 void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 {
@@ -581,7 +580,6 @@ void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 	IWL_DEBUG_POWER(priv, "Queueing critical temperature exit.\n");
 	queue_work(priv->workqueue, &priv->ct_exit);
 }
-EXPORT_SYMBOL(iwl_tt_exit_ct_kill);
 
 static void iwl_bg_tt_work(struct work_struct *work)
 {
@@ -608,7 +606,6 @@ void iwl_tt_handler(struct iwl_priv *priv)
 	IWL_DEBUG_POWER(priv, "Queueing thermal throttling work.\n");
 	queue_work(priv->workqueue, &priv->tt_work);
 }
-EXPORT_SYMBOL(iwl_tt_handler);
 
 /* Thermal throttling initialization
  * For advance thermal throttling:
@@ -678,7 +675,6 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 		priv->thermal_throttle.advanced_tt = false;
 	}
 }
-EXPORT_SYMBOL(iwl_tt_initialize);
 
 /* cleanup thermal throttling management related memory and timer */
 void iwl_tt_exit(struct iwl_priv *priv)
@@ -701,4 +697,3 @@ void iwl_tt_exit(struct iwl_priv *priv)
 		tt->transaction = NULL;
 	}
 }
-EXPORT_SYMBOL(iwl_tt_exit);
