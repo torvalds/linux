@@ -310,7 +310,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,
 		.config = iwl6000_nic_config,
-		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -383,7 +382,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,
 		.config = iwl6000_nic_config,
-		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {

@@ -119,7 +119,6 @@ struct iwl_apm_ops {
 	int (*init)(struct iwl_priv *priv);
 	void (*stop)(struct iwl_priv *priv);
 	void (*config)(struct iwl_priv *priv);
-	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
 };
 
 struct iwl_debugfs_ops {

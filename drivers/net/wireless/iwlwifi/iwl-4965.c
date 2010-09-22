@@ -2268,7 +2268,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,
 		.config = iwl4965_nic_config,
-		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {

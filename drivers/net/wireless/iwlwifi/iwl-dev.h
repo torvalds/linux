@@ -282,13 +282,6 @@ struct iwl_channel_info {
  */
 #define IWL_IPAN_MCAST_QUEUE		8
 
-/* Power management (not Tx power) structures */
-
-enum iwl_pwr_src {
-	IWL_PWR_SRC_VMAIN,
-	IWL_PWR_SRC_VAUX,
-};
-
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
@@ -732,7 +725,6 @@ struct iwl_hw_params {
  *
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
-extern int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);

@@ -816,9 +816,12 @@ static u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate)
 	return sta_id;
 }
 
-static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
+static void iwl3945_set_pwr_vmain(struct iwl_priv *priv)
 {
-	if (src == IWL_PWR_SRC_VAUX) {
+/*
+ * (for documentation purposes)
+ * to set power to V_AUX, do
+
 		if (pci_pme_capable(priv->pci_dev, PCI_D3cold)) {
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 					APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
@@ -828,16 +831,14 @@ static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 				     CSR_GPIO_IN_VAL_VAUX_PWR_SRC,
 				     CSR_GPIO_IN_BIT_AUX_POWER, 5000);
 		}
-	} else {
-		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-				~APMG_PS_CTRL_MSK_PWR_SRC);
+ */
 
-		iwl_poll_bit(priv, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
-			     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
-	}
+	iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+			~APMG_PS_CTRL_MSK_PWR_SRC);
 
-	return 0;
+	iwl_poll_bit(priv, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
+		     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
 }
 
 static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
@@ -1031,9 +1032,7 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 	priv->cfg->ops->lib->apm_ops.init(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
-	if (rc)
-		return rc;
+	iwl3945_set_pwr_vmain(priv);
 
 	priv->cfg->ops->lib->apm_ops.config(priv);
 
@@ -2707,7 +2706,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 		.init = iwl3945_apm_init,
 		.stop = iwl_apm_stop,
 		.config = iwl3945_nic_config,
-		.set_pwr_src = iwl3945_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
