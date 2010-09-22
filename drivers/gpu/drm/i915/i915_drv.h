@@ -1041,7 +1041,7 @@ int i915_gem_object_set_domain(struct drm_gem_object *obj,
 int i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
-		     unsigned long end);
+		     unsigned long mappable_end, unsigned long end);
 int i915_gpu_idle(struct drm_device *dev);
 int i915_gem_idle(struct drm_device *dev);
 int i915_add_request(struct drm_device *dev,

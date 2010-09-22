@@ -1195,12 +1195,16 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
-static int i915_load_modeset_init(struct drm_device *dev,
-				  unsigned long prealloc_size,
-				  unsigned long agp_size)
+static int i915_load_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long prealloc_size, gtt_size, mappable_size;
 	int ret = 0;
+
+	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
+	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
+	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	gtt_size -= PAGE_SIZE;
 
 	/* Basic memrange allocator for stolen space (aka mm.vram) */
 	drm_mm_init(&dev_priv->mm.vram, 0, prealloc_size);
@@ -1214,7 +1218,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 * at the last page of the aperture.  One page should be enough to
 	 * keep any prefetching inside of the aperture.
 	 */
-	i915_gem_do_init(dev, prealloc_size, agp_size - 4096);
+	i915_gem_do_init(dev, prealloc_size, mappable_size, gtt_size);
 
 	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_init_ringbuffer(dev);
@@ -2056,7 +2060,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_load_modeset_init(dev, prealloc_size, agp_size);
+		ret = i915_load_modeset_init(dev);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
 			goto out_workqueue_free;

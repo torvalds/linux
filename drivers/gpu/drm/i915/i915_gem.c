@@ -173,6 +173,7 @@ i915_gem_object_is_inactive(struct drm_i915_gem_object *obj_priv)
 
 int i915_gem_do_init(struct drm_device *dev,
 		     unsigned long start,
+		     unsigned long mappable_end,
 		     unsigned long end)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -187,7 +188,7 @@ int i915_gem_do_init(struct drm_device *dev,
 		    end - start);
 
 	dev_priv->mm.gtt_total = end - start;
-	dev_priv->mm.gtt_mappable_end = end;
+	dev_priv->mm.gtt_mappable_end = mappable_end;
 
 	return 0;
 }
@@ -200,7 +201,7 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_do_init(dev, args->gtt_start, args->gtt_end);
+	ret = i915_gem_do_init(dev, args->gtt_start, args->gtt_end, args->gtt_end);
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
