@@ -44,6 +44,7 @@
 #include "cache.h"
 
 static const struct file_operations v9fs_cached_file_operations;
+static const struct file_operations v9fs_cached_file_operations_dotl;
 
 /**
  * v9fs_file_open - open a file (or directory)
@@ -92,6 +93,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		/* enable cached file options */
 		if(file->f_op == &v9fs_file_operations)
 			file->f_op = &v9fs_cached_file_operations;
+		else if (file->f_op == &v9fs_file_operations_dotl)
+			file->f_op = &v9fs_cached_file_operations_dotl;
 
 #ifdef CONFIG_9P_FSCACHE
 		v9fs_cache_inode_set_cookie(inode, file);
@@ -288,6 +291,18 @@ static int v9fs_file_fsync(struct file *filp, int datasync)
 }
 
 static const struct file_operations v9fs_cached_file_operations = {
+	.llseek = generic_file_llseek,
+	.read = do_sync_read,
+	.aio_read = generic_file_aio_read,
+	.write = v9fs_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock,
+	.mmap = generic_file_readonly_mmap,
+	.fsync = v9fs_file_fsync,
+};
+
+static const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
 	.read = do_sync_read,
 	.aio_read = generic_file_aio_read,
