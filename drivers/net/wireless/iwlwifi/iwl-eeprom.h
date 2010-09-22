@@ -493,7 +493,6 @@ struct iwl_eeprom_calib_info {
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
-	int (*verify_signature) (struct iwl_priv *priv);
 	int (*acquire_semaphore) (struct iwl_priv *priv);
 	void (*release_semaphore) (struct iwl_priv *priv);
 	u16 (*calib_version) (struct iwl_priv *priv);

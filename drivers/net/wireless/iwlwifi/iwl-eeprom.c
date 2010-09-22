@@ -214,7 +214,7 @@ static const struct iwl_txpwr_section enhinfo[] = {
  *
 ******************************************************************************/
 
-int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
+static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 {
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
@@ -246,7 +246,6 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
 static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
 {
@@ -523,7 +522,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 
 	priv->cfg->ops->lib->apm_ops.init(priv);
 
-	ret = priv->cfg->ops->lib->eeprom_ops.verify_signature(priv);
+	ret = iwl_eeprom_verify_signature(priv);
 	if (ret < 0) {
 		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;

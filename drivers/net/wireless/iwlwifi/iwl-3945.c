@@ -2686,7 +2686,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 			EEPROM_REGULATORY_BAND_NO_HT40,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwl3945_eeprom_acquire_semaphore,
 		.release_semaphore = iwl3945_eeprom_release_semaphore,
 		.query_addr = iwlcore_eeprom_query_addr,

@@ -2280,7 +2280,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 			EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS,
 			EEPROM_4965_REGULATORY_BAND_52_HT40_CHANNELS
 		},
-		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 		.calib_version = iwl4965_eeprom_calib_version,
