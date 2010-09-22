@@ -166,7 +166,7 @@ irnet_ctrl_write(irnet_socket *	ap,
     }
 
   /* Success : we have parsed all commands successfully */
-  return(count);
+  return count;
 }
 
 #ifdef INITIAL_DISCOVERY
@@ -300,7 +300,7 @@ irnet_ctrl_read(irnet_socket *	ap,
 	}
 
       DEXIT(CTRL_TRACE, "\n");
-      return(strlen(event));
+      return strlen(event);
     }
 #endif /* INITIAL_DISCOVERY */
 
@@ -409,7 +409,7 @@ irnet_ctrl_read(irnet_socket *	ap,
     }
 
   DEXIT(CTRL_TRACE, "\n");
-  return(strlen(event));
+  return strlen(event);
 }
 
 /*------------------------------------------------------------------*/
@@ -623,7 +623,7 @@ dev_irnet_poll(struct file *	file,
     mask |= irnet_ctrl_poll(ap, file, wait);
 
   DEXIT(FS_TRACE, " - mask=0x%X\n", mask);
-  return(mask);
+  return mask;
 }
 
 /*------------------------------------------------------------------*/

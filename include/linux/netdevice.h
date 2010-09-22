@@ -1676,7 +1676,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
  */
 static inline int netif_is_multiqueue(const struct net_device *dev)
 {
-	return (dev->num_tx_queues > 1);
+	return dev->num_tx_queues > 1;
 }
 
 extern void netif_set_real_num_tx_queues(struct net_device *dev,

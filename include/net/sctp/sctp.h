@@ -405,7 +405,7 @@ static inline void sctp_v6_del_protocol(void) { return; }
 /* Map an association to an assoc_id. */
 static inline sctp_assoc_t sctp_assoc2id(const struct sctp_association *asoc)
 {
-	return (asoc?asoc->assoc_id:0);
+	return asoc ? asoc->assoc_id : 0;
 }
 
 /* Look up the association by its id.  */
@@ -473,7 +473,7 @@ static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 /* Tests if the list has one and only one entry. */
 static inline int sctp_list_single_entry(struct list_head *head)
 {
-	return ((head->next != head) && (head->next == head->prev));
+	return (head->next != head) && (head->next == head->prev);
 }
 
 /* Generate a random jitter in the range of -50% ~ +50% of input RTO. */
@@ -631,13 +631,13 @@ static inline int sctp_sanity_check(void)
 /* This is the hash function for the SCTP port hash table. */
 static inline int sctp_phashfn(__u16 lport)
 {
-	return (lport & (sctp_port_hashsize - 1));
+	return lport & (sctp_port_hashsize - 1);
 }
 
 /* This is the hash function for the endpoint hash table. */
 static inline int sctp_ep_hashfn(__u16 lport)
 {
-	return (lport & (sctp_ep_hashsize - 1));
+	return lport & (sctp_ep_hashsize - 1);
 }
 
 /* This is the hash function for the association hash table. */
@@ -645,7 +645,7 @@ static inline int sctp_assoc_hashfn(__u16 lport, __u16 rport)
 {
 	int h = (lport << 16) + rport;
 	h ^= h>>8;
-	return (h & (sctp_assoc_hashsize - 1));
+	return h & (sctp_assoc_hashsize - 1);
 }
 
 /* This is the hash function for the association hash table.  This is
@@ -656,7 +656,7 @@ static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
 {
 	int h = (lport << 16) + rport;
 	h ^= vtag;
-	return (h & (sctp_assoc_hashsize-1));
+	return h & (sctp_assoc_hashsize - 1);
 }
 
 #define sctp_for_each_hentry(epb, node, head) \

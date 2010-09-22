@@ -63,7 +63,7 @@ static int media_name_valid(const char *name)
 	len = strlen(name);
 	if ((len + 1) > TIPC_MAX_MEDIA_NAME)
 		return 0;
-	return (strspn(name, tipc_alphabet) == len);
+	return strspn(name, tipc_alphabet) == len;
 }
 
 /**

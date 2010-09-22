@@ -3884,7 +3884,7 @@ static int sctp_getsockopt_sctp_status(struct sock *sk, int len,
 	}
 
 out:
-	return (retval);
+	return retval;
 }
 
 
@@ -3940,7 +3940,7 @@ static int sctp_getsockopt_peer_addr_info(struct sock *sk, int len,
 	}
 
 out:
-	return (retval);
+	return retval;
 }
 
 /* 7.1.12 Enable/Disable message fragmentation (SCTP_DISABLE_FRAGMENTS)
@@ -5594,7 +5594,7 @@ static int sctp_get_port(struct sock *sk, unsigned short snum)
 	/* Note: sk->sk_num gets filled in if ephemeral port request. */
 	ret = sctp_get_port_local(sk, &addr);
 
-	return (ret ? 1 : 0);
+	return ret ? 1 : 0;
 }
 
 /*

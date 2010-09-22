@@ -449,7 +449,7 @@ void vcc_insert_socket(struct sock *sk);
 
 static inline int atm_guess_pdu2truesize(int size)
 {
-	return (SKB_DATA_ALIGN(size) + sizeof(struct skb_shared_info));
+	return SKB_DATA_ALIGN(size) + sizeof(struct skb_shared_info);
 }
 
 

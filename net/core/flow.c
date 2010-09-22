@@ -176,8 +176,8 @@ static u32 flow_hash_code(struct flow_cache *fc,
 {
 	u32 *k = (u32 *) key;
 
-	return (jhash2(k, (sizeof(*key) / sizeof(u32)), fcp->hash_rnd)
-		& (flow_cache_hash_size(fc) - 1));
+	return jhash2(k, (sizeof(*key) / sizeof(u32)), fcp->hash_rnd)
+		& (flow_cache_hash_size(fc) - 1);
 }
 
 typedef unsigned long flow_compare_t;

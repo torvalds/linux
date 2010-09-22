@@ -61,13 +61,13 @@ static const match_table_t tokens = {
 
 inline int p9_is_proto_dotl(struct p9_client *clnt)
 {
-	return (clnt->proto_version == p9_proto_2000L);
+	return clnt->proto_version == p9_proto_2000L;
 }
 EXPORT_SYMBOL(p9_is_proto_dotl);
 
 inline int p9_is_proto_dotu(struct p9_client *clnt)
 {
-	return (clnt->proto_version == p9_proto_2000u);
+	return clnt->proto_version == p9_proto_2000u;
 }
 EXPORT_SYMBOL(p9_is_proto_dotu);
 

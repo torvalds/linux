@@ -71,7 +71,7 @@ static inline int is_zero_ether_addr(const u8 *addr)
  */
 static inline int is_multicast_ether_addr(const u8 *addr)
 {
-	return (0x01 & addr[0]);
+	return 0x01 & addr[0];
 }
 
 /**
@@ -82,7 +82,7 @@ static inline int is_multicast_ether_addr(const u8 *addr)
  */
 static inline int is_local_ether_addr(const u8 *addr)
 {
-	return (0x02 & addr[0]);
+	return 0x02 & addr[0];
 }
 
 /**

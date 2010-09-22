@@ -2301,7 +2301,7 @@ static inline int tcp_dupack_heuristics(struct tcp_sock *tp)
 
 static inline int tcp_skb_timedout(struct sock *sk, struct sk_buff *skb)
 {
-	return (tcp_time_stamp - TCP_SKB_CB(skb)->when > inet_csk(sk)->icsk_rto);
+	return tcp_time_stamp - TCP_SKB_CB(skb)->when > inet_csk(sk)->icsk_rto;
 }
 
 static inline int tcp_head_timedout(struct sock *sk)
@@ -3398,8 +3398,8 @@ static void tcp_ack_probe(struct sock *sk)
 
 static inline int tcp_ack_is_dubious(const struct sock *sk, const int flag)
 {
-	return (!(flag & FLAG_NOT_DUP) || (flag & FLAG_CA_ALERT) ||
-		inet_csk(sk)->icsk_ca_state != TCP_CA_Open);
+	return !(flag & FLAG_NOT_DUP) || (flag & FLAG_CA_ALERT) ||
+		inet_csk(sk)->icsk_ca_state != TCP_CA_Open;
 }
 
 static inline int tcp_may_raise_cwnd(const struct sock *sk, const int flag)
@@ -3416,9 +3416,9 @@ static inline int tcp_may_update_window(const struct tcp_sock *tp,
 					const u32 ack, const u32 ack_seq,
 					const u32 nwin)
 {
-	return (after(ack, tp->snd_una) ||
+	return	after(ack, tp->snd_una) ||
 		after(ack_seq, tp->snd_wl1) ||
-		(ack_seq == tp->snd_wl1 && nwin > tp->snd_wnd));
+		(ack_seq == tp->snd_wl1 && nwin > tp->snd_wnd);
 }
 
 /* Update our send window.

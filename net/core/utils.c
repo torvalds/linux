@@ -75,7 +75,7 @@ __be32 in_aton(const char *str)
 				str++;
 		}
 	}
-	return(htonl(l));
+	return htonl(l);
 }
 EXPORT_SYMBOL(in_aton);
 

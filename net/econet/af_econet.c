@@ -392,7 +392,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		dev_queue_xmit(skb);
 		dev_put(dev);
 		mutex_unlock(&econet_mutex);
-		return(len);
+		return len;
 
 	out_free:
 		kfree_skb(skb);
@@ -637,7 +637,7 @@ static int econet_create(struct net *net, struct socket *sock, int protocol,
 	eo->num = protocol;
 
 	econet_insert_socket(&econet_sklist, sk);
-	return(0);
+	return 0;
 out:
 	return err;
 }

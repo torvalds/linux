@@ -243,7 +243,7 @@ static inline bool addrconf_qdisc_ok(const struct net_device *dev)
 /* Check if a route is valid prefix route */
 static inline int addrconf_is_prefix_route(const struct rt6_info *rt)
 {
-	return ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0);
+	return (rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0;
 }
 
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)

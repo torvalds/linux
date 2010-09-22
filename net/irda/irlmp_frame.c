@@ -448,7 +448,7 @@ static struct lsap_cb *irlmp_find_lsap(struct lap_cb *self, __u8 dlsap_sel,
 	    (self->cache.slsap_sel == slsap_sel) &&
 	    (self->cache.dlsap_sel == dlsap_sel))
 	{
-		return (self->cache.lsap);
+		return self->cache.lsap;
 	}
 #endif
 

@@ -139,7 +139,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		return -EINVAL;
 
 	if (usin->sin6_family != AF_INET6)
-		return(-EAFNOSUPPORT);
+		return -EAFNOSUPPORT;
 
 	memset(&fl, 0, sizeof(fl));
 

@@ -27,7 +27,7 @@ static inline int INET_ECN_is_not_ect(__u8 dsfield)
 
 static inline int INET_ECN_is_capable(__u8 dsfield)
 {
-	return (dsfield & INET_ECN_ECT_0);
+	return dsfield & INET_ECN_ECT_0;
 }
 
 static inline __u8 INET_ECN_encapsulate(__u8 outer, __u8 inner)

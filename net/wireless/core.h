@@ -86,7 +86,7 @@ struct cfg80211_registered_device *wiphy_to_dev(struct wiphy *wiphy)
 static inline
 bool wiphy_idx_valid(int wiphy_idx)
 {
-	return (wiphy_idx >= 0);
+	return wiphy_idx >= 0;
 }
 
 

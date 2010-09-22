@@ -799,7 +799,7 @@ static void sctp_inet_skb_msgname(struct sk_buff *skb, char *msgname, int *len)
 static int sctp_inet_af_supported(sa_family_t family, struct sctp_sock *sp)
 {
 	/* PF_INET only supports AF_INET addresses. */
-	return (AF_INET == family);
+	return AF_INET == family;
 }
 
 /* Address matching with wildcards allowed. */

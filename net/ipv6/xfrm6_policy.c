@@ -199,7 +199,7 @@ static inline int xfrm6_garbage_collect(struct dst_ops *ops)
 	struct net *net = container_of(ops, struct net, xfrm.xfrm6_dst_ops);
 
 	xfrm6_policy_afinfo.garbage_collect(net);
-	return (atomic_read(&ops->entries) > ops->gc_thresh * 2);
+	return atomic_read(&ops->entries) > ops->gc_thresh * 2;
 }
 
 static void xfrm6_update_pmtu(struct dst_entry *dst, u32 mtu)

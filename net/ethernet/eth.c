@@ -387,6 +387,6 @@ ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 
 	l = _format_mac_addr(buf, PAGE_SIZE, addr, len);
 	l += scnprintf(buf + l, PAGE_SIZE - l, "\n");
-	return ((ssize_t) l);
+	return (ssize_t)l;
 }
 EXPORT_SYMBOL(sysfs_format_mac);

@@ -573,9 +573,9 @@ static int irda_find_lsap_sel(struct irda_sock *self, char *name)
 		/* Requested object/attribute doesn't exist */
 		if((self->errno == IAS_CLASS_UNKNOWN) ||
 		   (self->errno == IAS_ATTRIB_UNKNOWN))
-			return (-EADDRNOTAVAIL);
+			return -EADDRNOTAVAIL;
 		else
-			return (-EHOSTUNREACH);
+			return -EHOSTUNREACH;
 	}
 
 	/* Get the remote TSAP selector */
@@ -663,7 +663,7 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
 					   __func__, name);
 				self->daddr = DEV_ADDR_ANY;
 				kfree(discoveries);
-				return(-ENOTUNIQ);
+				return -ENOTUNIQ;
 			}
 			/* First time we found that one, save it ! */
 			daddr = self->daddr;
@@ -677,7 +677,7 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
 			IRDA_DEBUG(0, "%s(), unexpected IAS query failure\n", __func__);
 			self->daddr = DEV_ADDR_ANY;
 			kfree(discoveries);
-			return(-EHOSTUNREACH);
+			return -EHOSTUNREACH;
 			break;
 		}
 	}
@@ -689,7 +689,7 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
 		IRDA_DEBUG(1, "%s(), cannot discover service ''%s'' in any device !!!\n",
 			   __func__, name);
 		self->daddr = DEV_ADDR_ANY;
-		return(-EADDRNOTAVAIL);
+		return -EADDRNOTAVAIL;
 	}
 
 	/* Revert back to discovered device & service */
@@ -2465,9 +2465,9 @@ bed:
 			/* Requested object/attribute doesn't exist */
 			if((self->errno == IAS_CLASS_UNKNOWN) ||
 			   (self->errno == IAS_ATTRIB_UNKNOWN))
-				return (-EADDRNOTAVAIL);
+				return -EADDRNOTAVAIL;
 			else
-				return (-EHOSTUNREACH);
+				return -EHOSTUNREACH;
 		}
 
 		/* Translate from internal to user structure */

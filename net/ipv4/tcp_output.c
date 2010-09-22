@@ -1370,9 +1370,9 @@ static inline int tcp_nagle_check(const struct tcp_sock *tp,
 				  const struct sk_buff *skb,
 				  unsigned mss_now, int nonagle)
 {
-	return (skb->len < mss_now &&
+	return skb->len < mss_now &&
 		((nonagle & TCP_NAGLE_CORK) ||
-		 (!nonagle && tp->packets_out && tcp_minshall_check(tp))));
+		 (!nonagle && tp->packets_out && tcp_minshall_check(tp)));
 }
 
 /* Return non-zero if the Nagle test allows this packet to be
@@ -1443,10 +1443,10 @@ int tcp_may_send_now(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb = tcp_send_head(sk);
 
-	return (skb &&
+	return skb &&
 		tcp_snd_test(sk, skb, tcp_current_mss(sk),
 			     (tcp_skb_is_last(sk, skb) ?
-			      tp->nonagle : TCP_NAGLE_PUSH)));
+			      tp->nonagle : TCP_NAGLE_PUSH));
 }
 
 /* Trim TSO SKB to LEN bytes, put the remaining data into a new packet

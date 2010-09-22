@@ -1195,7 +1195,7 @@ static int rx_queue_full(struct tipc_msg *msg, u32 queue_size, u32 base)
 	if (msg_connected(msg))
 		threshold *= 4;
 
-	return (queue_size >= threshold);
+	return queue_size >= threshold;
 }
 
 /**

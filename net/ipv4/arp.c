@@ -567,7 +567,7 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
 	if (out_dev)
 		omi = IN_DEV_MEDIUM_ID(out_dev);
 
-	return (omi != imi && omi != -1);
+	return omi != imi && omi != -1;
 }
 
 /*

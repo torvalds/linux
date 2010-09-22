@@ -116,7 +116,7 @@ DEFINE_RWLOCK(tipc_nametbl_lock);
 
 static int hash(int x)
 {
-	return(x & (tipc_nametbl_size - 1));
+	return x & (tipc_nametbl_size - 1);
 }
 
 /**

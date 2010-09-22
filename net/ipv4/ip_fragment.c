@@ -116,11 +116,11 @@ static int ip4_frag_match(struct inet_frag_queue *q, void *a)
 	struct ip4_create_arg *arg = a;
 
 	qp = container_of(q, struct ipq, q);
-	return (qp->id == arg->iph->id &&
+	return	qp->id == arg->iph->id &&
 			qp->saddr == arg->iph->saddr &&
 			qp->daddr == arg->iph->daddr &&
 			qp->protocol == arg->iph->protocol &&
-			qp->user == arg->user);
+			qp->user == arg->user;
 }
 
 /* Memory Tracking Functions. */

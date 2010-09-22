@@ -179,13 +179,13 @@ static unsigned char rfcomm_crc_table[256] = {
 /* FCS on 2 bytes */
 static inline u8 __fcs(u8 *data)
 {
-	return (0xff - __crc(data));
+	return 0xff - __crc(data);
 }
 
 /* FCS on 3 bytes */
 static inline u8 __fcs2(u8 *data)
 {
-	return (0xff - rfcomm_crc_table[__crc(data) ^ data[2]]);
+	return 0xff - rfcomm_crc_table[__crc(data) ^ data[2]];
 }
 
 /* Check FCS */

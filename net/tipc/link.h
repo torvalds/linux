@@ -279,12 +279,12 @@ static inline int between(u32 lower, u32 upper, u32 n)
 
 static inline int less_eq(u32 left, u32 right)
 {
-	return (mod(right - left) < 32768u);
+	return mod(right - left) < 32768u;
 }
 
 static inline int less(u32 left, u32 right)
 {
-	return (less_eq(left, right) && (mod(right) != mod(left)));
+	return less_eq(left, right) && (mod(right) != mod(left));
 }
 
 static inline u32 lesser(u32 left, u32 right)
@@ -299,32 +299,32 @@ static inline u32 lesser(u32 left, u32 right)
 
 static inline int link_working_working(struct link *l_ptr)
 {
-	return (l_ptr->state == WORKING_WORKING);
+	return l_ptr->state == WORKING_WORKING;
 }
 
 static inline int link_working_unknown(struct link *l_ptr)
 {
-	return (l_ptr->state == WORKING_UNKNOWN);
+	return l_ptr->state == WORKING_UNKNOWN;
 }
 
 static inline int link_reset_unknown(struct link *l_ptr)
 {
-	return (l_ptr->state == RESET_UNKNOWN);
+	return l_ptr->state == RESET_UNKNOWN;
 }
 
 static inline int link_reset_reset(struct link *l_ptr)
 {
-	return (l_ptr->state == RESET_RESET);
+	return l_ptr->state == RESET_RESET;
 }
 
 static inline int link_blocked(struct link *l_ptr)
 {
-	return (l_ptr->exp_msg_count || l_ptr->blocked);
+	return l_ptr->exp_msg_count || l_ptr->blocked;
 }
 
 static inline int link_congested(struct link *l_ptr)
 {
-	return (l_ptr->out_queue_size >= l_ptr->queue_limit[0]);
+	return l_ptr->out_queue_size >= l_ptr->queue_limit[0];
 }
 
 #endif

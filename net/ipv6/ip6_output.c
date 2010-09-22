@@ -870,8 +870,8 @@ static inline int ip6_rt_check(struct rt6key *rt_key,
 			       struct in6_addr *fl_addr,
 			       struct in6_addr *addr_cache)
 {
-	return ((rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
-		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache)));
+	return (rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
+		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache));
 }
 
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,

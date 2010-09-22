@@ -157,7 +157,7 @@ static inline u32 tipc_peer_node(struct port *p_ptr)
 
 static inline int tipc_port_congested(struct port *p_ptr)
 {
-	return((p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2));
+	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
 }
 
 /**

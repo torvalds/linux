@@ -27,7 +27,7 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 	else if (vlan_id)
 		goto drop;
 
-	return (polling ? netif_receive_skb(skb) : netif_rx(skb));
+	return polling ? netif_receive_skb(skb) : netif_rx(skb);
 
 drop:
 	dev_kfree_skb_any(skb);

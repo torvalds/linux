@@ -239,13 +239,13 @@ int tipc_link_is_up(struct link *l_ptr)
 {
 	if (!l_ptr)
 		return 0;
-	return (link_working_working(l_ptr) || link_working_unknown(l_ptr));
+	return link_working_working(l_ptr) || link_working_unknown(l_ptr);
 }
 
 int tipc_link_is_active(struct link *l_ptr)
 {
-	return ((l_ptr->owner->active_links[0] == l_ptr) ||
-		(l_ptr->owner->active_links[1] == l_ptr));
+	return	(l_ptr->owner->active_links[0] == l_ptr) ||
+		(l_ptr->owner->active_links[1] == l_ptr);
 }
 
 /**

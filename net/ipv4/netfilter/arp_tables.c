@@ -72,7 +72,7 @@ static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 	for (i = 0; i < len; i++)
 		ret |= (hdr_addr[i] ^ ap->addr[i]) & ap->mask[i];
 
-	return (ret != 0);
+	return ret != 0;
 }
 
 /*

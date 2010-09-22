@@ -601,7 +601,7 @@ static inline u32 qdisc_l2t(struct qdisc_rate_table* rtab, unsigned int pktlen)
 		slot = 0;
 	slot >>= rtab->rate.cell_log;
 	if (slot > 255)
-		return (rtab->data[255]*(slot >> 8) + rtab->data[slot & 0xFF]);
+		return rtab->data[255]*(slot >> 8) + rtab->data[slot & 0xFF];
 	return rtab->data[slot];
 }
 

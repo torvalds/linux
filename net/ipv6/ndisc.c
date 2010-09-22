@@ -228,12 +228,12 @@ static struct nd_opt_hdr *ndisc_next_option(struct nd_opt_hdr *cur,
 	do {
 		cur = ((void *)cur) + (cur->nd_opt_len << 3);
 	} while(cur < end && cur->nd_opt_type != type);
-	return (cur <= end && cur->nd_opt_type == type ? cur : NULL);
+	return cur <= end && cur->nd_opt_type == type ? cur : NULL;
 }
 
 static inline int ndisc_is_useropt(struct nd_opt_hdr *opt)
 {
-	return (opt->nd_opt_type == ND_OPT_RDNSS);
+	return opt->nd_opt_type == ND_OPT_RDNSS;
 }
 
 static struct nd_opt_hdr *ndisc_next_useropt(struct nd_opt_hdr *cur,
@@ -244,7 +244,7 @@ static struct nd_opt_hdr *ndisc_next_useropt(struct nd_opt_hdr *cur,
 	do {
 		cur = ((void *)cur) + (cur->nd_opt_len << 3);
 	} while(cur < end && !ndisc_is_useropt(cur));
-	return (cur <= end && ndisc_is_useropt(cur) ? cur : NULL);
+	return cur <= end && ndisc_is_useropt(cur) ? cur : NULL;
 }
 
 static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
@@ -319,7 +319,7 @@ static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
 	int prepad = ndisc_addr_option_pad(dev->type);
 	if (lladdrlen != NDISC_OPT_SPACE(dev->addr_len + prepad))
 		return NULL;
-	return (lladdr + prepad);
+	return lladdr + prepad;
 }
 
 int ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir)

@@ -601,7 +601,7 @@ static inline int skb_queue_empty(const struct sk_buff_head *list)
 static inline bool skb_queue_is_last(const struct sk_buff_head *list,
 				     const struct sk_buff *skb)
 {
-	return (skb->next == (struct sk_buff *) list);
+	return skb->next == (struct sk_buff *)list;
 }
 
 /**
@@ -614,7 +614,7 @@ static inline bool skb_queue_is_last(const struct sk_buff_head *list,
 static inline bool skb_queue_is_first(const struct sk_buff_head *list,
 				      const struct sk_buff *skb)
 {
-	return (skb->prev == (struct sk_buff *) list);
+	return skb->prev == (struct sk_buff *)list;
 }
 
 /**
@@ -2156,7 +2156,7 @@ static inline u16 skb_get_rx_queue(const struct sk_buff *skb)
 
 static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 {
-	return (skb->queue_mapping != 0);
+	return skb->queue_mapping != 0;
 }
 
 extern u16 skb_tx_hash(const struct net_device *dev,

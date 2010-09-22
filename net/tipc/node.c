@@ -242,17 +242,17 @@ int tipc_node_has_active_links(struct tipc_node *n_ptr)
 
 int tipc_node_has_redundant_links(struct tipc_node *n_ptr)
 {
-	return (n_ptr->working_links > 1);
+	return n_ptr->working_links > 1;
 }
 
 static int tipc_node_has_active_routes(struct tipc_node *n_ptr)
 {
-	return (n_ptr && (n_ptr->last_router >= 0));
+	return n_ptr && (n_ptr->last_router >= 0);
 }
 
 int tipc_node_is_up(struct tipc_node *n_ptr)
 {
-	return (tipc_node_has_active_links(n_ptr) || tipc_node_has_active_routes(n_ptr));
+	return tipc_node_has_active_links(n_ptr) || tipc_node_has_active_routes(n_ptr);
 }
 
 struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
