@@ -177,7 +177,7 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[0] = reg;
 	data[1] = value & 0xff;
 
-	if (!snd_soc_codec_volatile_register(codec, value) &&
+	if (!snd_soc_codec_volatile_register(codec, reg) &&
 		reg < codec->driver->reg_cache_size)
 			cache[reg] = value;
 
