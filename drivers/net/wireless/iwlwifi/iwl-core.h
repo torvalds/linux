@@ -547,8 +547,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  * Rate
  ******************************************************************************/
 
-int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
-
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx);
 
