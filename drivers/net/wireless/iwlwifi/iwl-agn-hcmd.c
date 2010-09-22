@@ -384,4 +384,5 @@ struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
 	.tx_cmd_protection = iwlagn_tx_cmd_protection,
 	.calc_rssi = iwlagn_calc_rssi,
 	.request_scan = iwlagn_request_scan,
+	.post_scan = iwlagn_post_scan,
 };

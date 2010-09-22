@@ -2221,6 +2221,18 @@ static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.send_bt_config = iwl_send_bt_config,
 };
 
+static void iwl4965_post_scan(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
+	/*
+	 * Since setting the RXON may have been deferred while
+	 * performing the scan, fire one off if needed
+	 */
+	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
+		iwlcore_commit_rxon(priv, ctx);
+}
+
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
@@ -2229,6 +2241,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.tx_cmd_protection = iwlcore_tx_cmd_protection,
 	.calc_rssi = iwl4965_calc_rssi,
 	.request_scan = iwlagn_request_scan,
+	.post_scan = iwl4965_post_scan,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {

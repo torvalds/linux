@@ -112,6 +112,7 @@ struct iwl_hcmd_utils_ops {
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
 	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
+	void (*post_scan)(struct iwl_priv *priv);
 };
 
 struct iwl_apm_ops {
