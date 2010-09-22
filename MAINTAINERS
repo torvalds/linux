@@ -1220,7 +1220,7 @@ F:	drivers/auxdisplay/
 F:	include/linux/cfag12864b.h
 
 AVR32 ARCHITECTURE
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
 W:	http://www.atmel.com/products/AVR32/
 W:	http://avr32linux.org/
 W:	http://avrfreaks.net/
@@ -1228,7 +1228,7 @@ S:	Supported
 F:	arch/avr32/
 
 AVR32/AT32AP MACHINE SUPPORT
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
 S:	Supported
 F:	arch/avr32/mach-at32ap/
 
