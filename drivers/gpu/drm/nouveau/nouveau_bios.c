@@ -5809,7 +5809,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 		entries   = gpio[2];
 		recordlen = gpio[3];
 	} else
-	if (dcb[0] >= 0x22) {
+	if (dcb[0] >= 0x22 && dcb[-1] >= 0x13) {
 		gpio = ROMPTR(bios, dcb[-15]);
 		if (!gpio)
 			goto no_table;
@@ -5817,6 +5817,19 @@ parse_dcb_gpio_table(struct nvbios *bios)
 		headerlen = 3;
 		entries   = gpio[2];
 		recordlen = gpio[1];
+	} else
+	if (dcb[0] >= 0x22) {
+		/* No GPIO table present, parse the TVDAC GPIO data. */
+		uint8_t *tvdac_gpio = &dcb[-5];
+
+		if (tvdac_gpio[0] & 1) {
+			e = new_gpio_entry(bios);
+			e->tag = DCB_GPIO_TVDAC0;
+			e->line = tvdac_gpio[1] >> 4;
+			e->invert = tvdac_gpio[0] & 2;
+		}
+
+		goto no_table;
 	} else {
 		NV_DEBUG(dev, "no/unknown gpio table on DCB 0x%02x\n", dcb[0]);
 		goto no_table;
