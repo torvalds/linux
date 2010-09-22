@@ -131,6 +131,7 @@ void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 
 /* RXON */
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 
 /* uCode */
 int iwlagn_load_ucode(struct iwl_priv *priv);
