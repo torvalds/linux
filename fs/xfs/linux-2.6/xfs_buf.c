@@ -826,8 +826,6 @@ xfs_buf_rele(
 			atomic_inc(&bp->b_hold);
 			spin_unlock(&hash->bh_lock);
 			(*(bp->b_relse)) (bp);
-		} else if (bp->b_flags & XBF_FS_MANAGED) {
-			spin_unlock(&hash->bh_lock);
 		} else {
 			ASSERT(!(bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)));
 			list_del_init(&bp->b_hash_list);
@@ -1433,26 +1431,16 @@ void
 xfs_wait_buftarg(
 	xfs_buftarg_t	*btp)
 {
-	xfs_buf_t	*bp, *n;
 	xfs_bufhash_t	*hash;
 	uint		i;
 
 	for (i = 0; i < (1 << btp->bt_hashshift); i++) {
 		hash = &btp->bt_hash[i];
-again:
 		spin_lock(&hash->bh_lock);
-		list_for_each_entry_safe(bp, n, &hash->bh_list, b_hash_list) {
-			ASSERT(btp == bp->b_target);
-			if (!(bp->b_flags & XBF_FS_MANAGED)) {
-				spin_unlock(&hash->bh_lock);
-				/*
-				 * Catch superblock reference count leaks
-				 * immediately
-				 */
-				BUG_ON(bp->b_bn == 0);
-				delay(100);
-				goto again;
-			}
+		while (!list_empty(&hash->bh_list)) {
+			spin_unlock(&hash->bh_lock);
+			delay(100);
+			spin_lock(&hash->bh_lock);
 		}
 		spin_unlock(&hash->bh_lock);
 	}

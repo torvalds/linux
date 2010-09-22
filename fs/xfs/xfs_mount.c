@@ -646,7 +646,6 @@ int
 xfs_readsb(xfs_mount_t *mp, int flags)
 {
 	unsigned int	sector_size;
-	unsigned int	extra_flags;
 	xfs_buf_t	*bp;
 	int		error;
 
@@ -659,28 +658,24 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * access to the superblock.
 	 */
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
-	extra_flags = XBF_LOCK | XBF_FS_MANAGED | XBF_MAPPED;
 
-	bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR, BTOBB(sector_size),
-			  extra_flags);
-	if (!bp || XFS_BUF_ISERROR(bp)) {
-		xfs_fs_mount_cmn_err(flags, "SB read failed");
-		error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
-		goto fail;
+reread:
+	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
+					XFS_SB_DADDR, sector_size, 0);
+	if (!bp) {
+		xfs_fs_mount_cmn_err(flags, "SB buffer read failed");
+		return EIO;
 	}
-	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 
 	/*
 	 * Initialize the mount structure from the superblock.
 	 * But first do some basic consistency checking.
 	 */
 	xfs_sb_from_disk(&mp->m_sb, XFS_BUF_TO_SBP(bp));
-
 	error = xfs_mount_validate_sb(mp, &(mp->m_sb), flags);
 	if (error) {
 		xfs_fs_mount_cmn_err(flags, "SB validate failed");
-		goto fail;
+		goto release_buf;
 	}
 
 	/*
@@ -691,7 +686,7 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 			"device supports only %u byte sectors (not %u)",
 			sector_size, mp->m_sb.sb_sectsize);
 		error = ENOSYS;
-		goto fail;
+		goto release_buf;
 	}
 
 	/*
@@ -699,33 +694,20 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * re-read the superblock so the buffer is correctly sized.
 	 */
 	if (sector_size < mp->m_sb.sb_sectsize) {
-		XFS_BUF_UNMANAGE(bp);
 		xfs_buf_relse(bp);
 		sector_size = mp->m_sb.sb_sectsize;
-		bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR,
-				  BTOBB(sector_size), extra_flags);
-		if (!bp || XFS_BUF_ISERROR(bp)) {
-			xfs_fs_mount_cmn_err(flags, "SB re-read failed");
-			error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
-			goto fail;
-		}
-		ASSERT(XFS_BUF_ISBUSY(bp));
-		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+		goto reread;
 	}
 
 	/* Initialize per-cpu counters */
 	xfs_icsb_reinit_counters(mp);
 
 	mp->m_sb_bp = bp;
-	xfs_buf_relse(bp);
-	ASSERT(XFS_BUF_VALUSEMA(bp) > 0);
+	xfs_buf_unlock(bp);
 	return 0;
 
- fail:
-	if (bp) {
-		XFS_BUF_UNMANAGE(bp);
-		xfs_buf_relse(bp);
-	}
+release_buf:
+	xfs_buf_relse(bp);
 	return error;
 }
 
@@ -2005,18 +1987,13 @@ xfs_getsb(
  */
 void
 xfs_freesb(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf		*bp = mp->m_sb_bp;
 
-	/*
-	 * Use xfs_getsb() so that the buffer will be locked
-	 * when we call xfs_buf_relse().
-	 */
-	bp = xfs_getsb(mp, 0);
-	XFS_BUF_UNMANAGE(bp);
-	xfs_buf_relse(bp);
+	xfs_buf_lock(bp);
 	mp->m_sb_bp = NULL;
+	xfs_buf_relse(bp);
 }
 
 /*

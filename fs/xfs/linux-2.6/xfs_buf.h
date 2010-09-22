@@ -51,7 +51,6 @@ typedef enum {
 #define XBF_DONE	(1 << 5) /* all pages in the buffer uptodate */
 #define XBF_DELWRI	(1 << 6) /* buffer has dirty pages */
 #define XBF_STALE	(1 << 7) /* buffer has been staled, do not find it */
-#define XBF_FS_MANAGED	(1 << 8) /* filesystem controls freeing memory */
 #define XBF_ORDERED	(1 << 11)/* use ordered writes */
 #define XBF_READ_AHEAD	(1 << 12)/* asynchronous read-ahead */
 #define XBF_LOG_BUFFER	(1 << 13)/* this is a buffer used for the log */
@@ -104,7 +103,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_DELWRI,		"DELWRI" }, \
 	{ XBF_STALE,		"STALE" }, \
-	{ XBF_FS_MANAGED,	"FS_MANAGED" }, \
 	{ XBF_ORDERED,		"ORDERED" }, \
 	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
 	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
@@ -278,8 +276,6 @@ extern void xfs_buf_terminate(void);
 					xfs_buf_delwri_dequeue(bp);	\
 					XFS_BUF_DONE(bp);	\
 				} while (0)
-
-#define XFS_BUF_UNMANAGE(bp)	((bp)->b_flags &= ~XBF_FS_MANAGED)
 
 #define XFS_BUF_DELAYWRITE(bp)		((bp)->b_flags |= XBF_DELWRI)
 #define XFS_BUF_UNDELAYWRITE(bp)	xfs_buf_delwri_dequeue(bp)
