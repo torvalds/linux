@@ -409,7 +409,7 @@ static inline void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *
 	return (void __user *) sp;
 }
 
-static inline void
+static inline int
 setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	       int signo, sigset_t *oldset, siginfo_t *info)
 {
@@ -483,26 +483,37 @@ setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	}
 	/* 4. return to kernel instructions */
 	regs->u_regs[UREG_I7] = (unsigned long)ka->ka_restorer;
-	return;
+	return 0;
 
 sigill:
 	do_exit(SIGILL);
+	return -EINVAL;
+
 sigsegv:
 	force_sigsegv(signo, current);
+	return -EFAULT;
 }
 
-static inline void handle_signal(unsigned long signr, struct k_sigaction *ka,
-				 siginfo_t *info,
-				 sigset_t *oldset, struct pt_regs *regs)
+static inline int handle_signal(unsigned long signr, struct k_sigaction *ka,
+				siginfo_t *info,
+				sigset_t *oldset, struct pt_regs *regs)
 {
-	setup_rt_frame(ka, regs, signr, oldset,
-		       (ka->sa.sa_flags & SA_SIGINFO) ? info : NULL);
+	int err;
+
+	err = setup_rt_frame(ka, regs, signr, oldset,
+			     (ka->sa.sa_flags & SA_SIGINFO) ? info : NULL);
+	if (err)
+		return err;
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NOMASK))
 		sigaddset(&current->blocked,signr);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	tracehook_signal_handler(signr, info, ka, regs, 0);
+
+	return 0;
 }
 
 static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
@@ -571,16 +582,14 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (signr > 0) {
 		if (restart_syscall)
 			syscall_restart(orig_i0, regs, &ka.sa);
-		handle_signal(signr, &ka, &info, oldset, regs);
-
-		/* A signal was successfully delivered; the saved
-		 * sigmask will have been stored in the signal frame,
-		 * and will be restored by sigreturn, so we can simply
-		 * clear the TS_RESTORE_SIGMASK flag.
-		 */
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-
-		tracehook_signal_handler(signr, &info, &ka, regs, 0);
+		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
+			/* A signal was successfully delivered; the saved
+			 * sigmask will have been stored in the signal frame,
+			 * and will be restored by sigreturn, so we can simply
+			 * clear the TS_RESTORE_SIGMASK flag.
+			 */
+			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+		}
 		return;
 	}
 	if (restart_syscall &&
