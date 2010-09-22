@@ -310,7 +310,8 @@ static void ds2781_battery_update_status(struct ds2781_device_info *di)
 
 	ds2781_battery_read_status(di);
 
-	if (last_level != di->status.percentage)
+	if ((last_level != di->status.percentage) ||
+	    (di->status.temp_C >= TEMP_HOT))
 		power_supply_changed(&di->bat);
 }
 
