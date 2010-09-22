@@ -22,6 +22,7 @@
  */
 enum {
 	NFSD_Root = 1,
+#ifdef CONFIG_NFSD_DEPRECATED
 	NFSD_Svc,
 	NFSD_Add,
 	NFSD_Del,
@@ -29,6 +30,7 @@ enum {
 	NFSD_Unexport,
 	NFSD_Getfd,
 	NFSD_Getfs,
+#endif
 	NFSD_List,
 	NFSD_Export_features,
 	NFSD_Fh,
@@ -54,6 +56,7 @@ enum {
 /*
  * write() for these nodes.
  */
+#ifdef CONFIG_NFSD_DEPRECATED
 static ssize_t write_svc(struct file *file, char *buf, size_t size);
 static ssize_t write_add(struct file *file, char *buf, size_t size);
 static ssize_t write_del(struct file *file, char *buf, size_t size);
@@ -61,6 +64,7 @@ static ssize_t write_export(struct file *file, char *buf, size_t size);
 static ssize_t write_unexport(struct file *file, char *buf, size_t size);
 static ssize_t write_getfd(struct file *file, char *buf, size_t size);
 static ssize_t write_getfs(struct file *file, char *buf, size_t size);
+#endif
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
 static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size);
 static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size);
@@ -76,6 +80,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 #endif
 
 static ssize_t (*write_op[])(struct file *, char *, size_t) = {
+#ifdef CONFIG_NFSD_DEPRECATED
 	[NFSD_Svc] = write_svc,
 	[NFSD_Add] = write_add,
 	[NFSD_Del] = write_del,
@@ -83,6 +88,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Unexport] = write_unexport,
 	[NFSD_Getfd] = write_getfd,
 	[NFSD_Getfs] = write_getfs,
+#endif
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_FO_UnlockIP] = write_unlock_ip,
 	[NFSD_FO_UnlockFS] = write_unlock_fs,
@@ -196,6 +202,7 @@ static const struct file_operations pool_stats_operations = {
  * payload - write methods
  */
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /**
  * write_svc - Start kernel's NFSD server
  *
@@ -491,6 +498,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
  out:
 	return err;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /**
  * write_unlock_ip - Release all locks used by a client
@@ -1365,6 +1373,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 {
 	static struct tree_descr nfsd_files[] = {
+#ifdef CONFIG_NFSD_DEPRECATED
 		[NFSD_Svc] = {".svc", &transaction_ops, S_IWUSR},
 		[NFSD_Add] = {".add", &transaction_ops, S_IWUSR},
 		[NFSD_Del] = {".del", &transaction_ops, S_IWUSR},
@@ -1372,6 +1381,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Unexport] = {".unexport", &transaction_ops, S_IWUSR},
 		[NFSD_Getfd] = {".getfd", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Getfs] = {".getfs", &transaction_ops, S_IWUSR|S_IRUSR},
+#endif
 		[NFSD_List] = {"exports", &exports_operations, S_IRUGO},
 		[NFSD_Export_features] = {"export_features",
 					&export_features_operations, S_IRUGO},
