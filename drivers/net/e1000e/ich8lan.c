@@ -243,6 +243,7 @@ static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw);
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw);
+static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -278,7 +279,7 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
 static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	u32 ctrl;
+	u32 ctrl, fwsm;
 	s32 ret_val = 0;
 
 	phy->addr                     = 1;
@@ -300,7 +301,8 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	 * disabled, then toggle the LANPHYPC Value bit to force
 	 * the interconnect to PCIe mode.
 	 */
-	if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+	fwsm = er32(FWSM);
+	if (!(fwsm & E1000_ICH_FWSM_FW_VALID)) {
 		ctrl = er32(CTRL);
 		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
 		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
@@ -309,6 +311,13 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		ctrl &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
 		ew32(CTRL, ctrl);
 		msleep(50);
+
+		/*
+		 * Gate automatic PHY configuration by hardware on
+		 * non-managed 82579
+		 */
+		if (hw->mac.type == e1000_pch2lan)
+			e1000_gate_hw_phy_config_ich8lan(hw, true);
 	}
 
 	/*
@@ -320,6 +329,13 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	ret_val = e1000e_phy_hw_reset_generic(hw);
 	if (ret_val)
 		goto out;
+
+	/* Ungate automatic PHY configuration on non-managed 82579 */
+	if ((hw->mac.type == e1000_pch2lan)  &&
+	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+		msleep(10);
+		e1000_gate_hw_phy_config_ich8lan(hw, false);
+	}
 
 	phy->id = e1000_phy_unknown;
 	ret_val = e1000e_get_phy_id(hw);
@@ -567,13 +583,10 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 	if (mac->type == e1000_ich8lan)
 		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
 
-	/* Disable PHY configuration by hardware, config by software */
-	if (mac->type == e1000_pch2lan) {
-		u32 extcnf_ctrl = er32(EXTCNF_CTRL);
-
-		extcnf_ctrl |= E1000_EXTCNF_CTRL_GATE_PHY_CFG;
-		ew32(EXTCNF_CTRL, extcnf_ctrl);
-	}
+	/* Gate automatic PHY configuration by hardware on managed 82579 */
+	if ((mac->type == e1000_pch2lan) &&
+	    (er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
+		e1000_gate_hw_phy_config_ich8lan(hw, true);
 
 	return 0;
 }
@@ -1621,6 +1634,32 @@ out:
 }
 
 /**
+ *  e1000_gate_hw_phy_config_ich8lan - disable PHY config via hardware
+ *  @hw:   pointer to the HW structure
+ *  @gate: boolean set to true to gate, false to ungate
+ *
+ *  Gate/ungate the automatic PHY configuration via hardware; perform
+ *  the configuration via software instead.
+ **/
+static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate)
+{
+	u32 extcnf_ctrl;
+
+	if (hw->mac.type != e1000_pch2lan)
+		return;
+
+	extcnf_ctrl = er32(EXTCNF_CTRL);
+
+	if (gate)
+		extcnf_ctrl |= E1000_EXTCNF_CTRL_GATE_PHY_CFG;
+	else
+		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_GATE_PHY_CFG;
+
+	ew32(EXTCNF_CTRL, extcnf_ctrl);
+	return;
+}
+
+/**
  *  e1000_lan_init_done_ich8lan - Check for PHY config completion
  *  @hw: pointer to the HW structure
  *
@@ -1695,6 +1734,13 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	/* Configure the LCD with the OEM bits in NVM */
 	ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 
+	/* Ungate automatic PHY configuration on non-managed 82579 */
+	if ((hw->mac.type == e1000_pch2lan) &&
+	    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+		msleep(10);
+		e1000_gate_hw_phy_config_ich8lan(hw, false);
+	}
+
 out:
 	return ret_val;
 }
@@ -1710,6 +1756,11 @@ out:
 static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
+
+	/* Gate automatic PHY configuration by hardware on non-managed 82579 */
+	if ((hw->mac.type == e1000_pch2lan) &&
+	    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
+		e1000_gate_hw_phy_config_ich8lan(hw, true);
 
 	ret_val = e1000e_phy_hw_reset_generic(hw);
 	if (ret_val)
@@ -2975,6 +3026,14 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		 * external PHY is reset.
 		 */
 		ctrl |= E1000_CTRL_PHY_RST;
+
+		/*
+		 * Gate automatic PHY configuration by hardware on
+		 * non-managed 82579
+		 */
+		if ((hw->mac.type == e1000_pch2lan) &&
+		    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
+			e1000_gate_hw_phy_config_ich8lan(hw, true);
 	}
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
 	e_dbg("Issuing a global reset to ich8lan\n");
