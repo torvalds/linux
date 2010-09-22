@@ -23,25 +23,15 @@
 #endif /* __KERNEL__ */
 
 #ifdef CONFIG_X86_64
-
 typedef u64 jump_label_t;
-
-struct jump_entry {
-	jump_label_t code;
-	jump_label_t target;
-	jump_label_t key;
-};
-
 #else
-
 typedef u32 jump_label_t;
+#endif
 
 struct jump_entry {
 	jump_label_t code;
 	jump_label_t target;
 	jump_label_t key;
 };
-
-#endif
 
 #endif
