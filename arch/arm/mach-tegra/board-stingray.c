@@ -877,6 +877,8 @@ static int __init stingray_revision_parse(char *options)
 		stingray_board_revision = STINGRAY_REVISION_P1;
 	else if (!strcmp(options, "p2"))
 		stingray_board_revision = STINGRAY_REVISION_P2;
+	else if (!strcmp(options, "p3"))
+		stingray_board_revision = STINGRAY_REVISION_P3;
 	else
 		stingray_board_revision = system_rev;
 
