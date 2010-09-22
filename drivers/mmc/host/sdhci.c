@@ -1849,7 +1849,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	else
 		mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->caps |= MMC_CAP_SDIO_IRQ;
+	mmc->caps = 0;
 
 	if (host->quirks & SDHCI_QUIRK_8_BIT_DATA)
 		mmc->caps |= MMC_CAP_8_BIT_DATA;
