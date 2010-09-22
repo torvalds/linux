@@ -193,6 +193,9 @@ static int capella_cm3602_setup(struct capella_cm3602_data *ip)
 	setup_timer(&ip->cm3602_timer,cm3602_timer,(unsigned long)ip);
 	ip->cm3602_timer.expires = jiffies + HZ;
 	add_timer(&ip->cm3602_timer);
+
+	//chenli:psensor off by default
+	ip->pdata->power(0);
 /*
 	rc = set_irq_wake(irq, 1);
 	if (rc < 0) {
@@ -318,7 +321,7 @@ static int capella_cm3602_probe(struct platform_device *pdev)
 	rc = capella_cm3602_setup(ip);
 	if (!rc)
 		goto done;
-
+	
 	misc_deregister(&capella_cm3602_misc);
 err_unregister_input_device:
 	input_unregister_device(input_dev);
