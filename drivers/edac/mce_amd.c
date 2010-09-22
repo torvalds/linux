@@ -692,6 +692,46 @@ wrong_fr_mce:
 	pr_emerg(HW_ERR "Corrupted FR MCE info?\n");
 }
 
+static void amd_decode_fp_mce(struct mce *m)
+{
+	u8 xec = (m->status >> 16) & xec_mask;
+
+	pr_emerg(HW_ERR "Floating Point Unit Error: ");
+
+	switch (xec) {
+	case 0x1:
+		pr_cont("Free List");
+		break;
+
+	case 0x2:
+		pr_cont("Physical Register File");
+		break;
+
+	case 0x3:
+		pr_cont("Retire Queue");
+		break;
+
+	case 0x4:
+		pr_cont("Scheduler table");
+		break;
+
+	case 0x5:
+		pr_cont("Status Register File");
+		break;
+
+	default:
+		goto wrong_fp_mce;
+		break;
+	}
+
+	pr_cont(" parity error.\n");
+
+	return;
+
+wrong_fp_mce:
+	pr_emerg(HW_ERR "Corrupted FP MCE info?\n");
+}
+
 static inline void amd_decode_err_code(u16 ec)
 {
 	if (TLB_ERROR(ec)) {
@@ -775,6 +815,10 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	case 5:
 		amd_decode_fr_mce(m);
+		break;
+
+	case 6:
+		amd_decode_fp_mce(m);
 		break;
 
 	default:
