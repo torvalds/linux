@@ -395,21 +395,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 
 	mutex_lock(&dev->struct_mutex);
 
-	/*
-	 * Clear request list
-	 */
-	i915_gem_retire_requests(dev);
-
-	/* Remove anything from the flushing lists. The GPU cache is likely
-	 * to be lost on reset along with the data, so simply move the
-	 * lost bo to the inactive list.
-	 */
-	i915_gem_reset_flushing_list(dev);
-
-	/* Move everything out of the GPU domains to ensure we do any
-	 * necessary invalidation upon reuse.
-	 */
-	i915_gem_reset_inactive_gpu_domains(dev);
+	i915_gem_reset_lists(dev);
 
 	/*
 	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as

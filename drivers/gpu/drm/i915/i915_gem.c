@@ -1682,27 +1682,60 @@ i915_get_gem_seqno(struct drm_device *dev,
 	return ring->get_gem_seqno(dev, ring);
 }
 
-void i915_gem_reset_flushing_list(struct drm_device *dev)
+static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
+				      struct intel_ring_buffer *ring)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	while (!list_empty(&ring->request_list)) {
+		struct drm_i915_gem_request *request;
 
-	while (!list_empty(&dev_priv->mm.flushing_list)) {
+		request = list_first_entry(&ring->request_list,
+					   struct drm_i915_gem_request,
+					   list);
+
+		list_del(&request->list);
+		list_del(&request->client_list);
+		kfree(request);
+	}
+
+	while (!list_empty(&ring->active_list)) {
 		struct drm_i915_gem_object *obj_priv;
 
+		obj_priv = list_first_entry(&ring->active_list,
+					    struct drm_i915_gem_object,
+					    list);
+
+		obj_priv->base.write_domain = 0;
+		list_del_init(&obj_priv->gpu_write_list);
+		i915_gem_object_move_to_inactive(&obj_priv->base);
+	}
+}
+
+void i915_gem_reset_lists(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv;
+
+	i915_gem_reset_ring_lists(dev_priv, &dev_priv->render_ring);
+	if (HAS_BSD(dev))
+		i915_gem_reset_ring_lists(dev_priv, &dev_priv->bsd_ring);
+
+	/* Remove anything from the flushing lists. The GPU cache is likely
+	 * to be lost on reset along with the data, so simply move the
+	 * lost bo to the inactive list.
+	 */
+	while (!list_empty(&dev_priv->mm.flushing_list)) {
 		obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
 					    struct drm_i915_gem_object,
 					    list);
 
 		obj_priv->base.write_domain = 0;
+		list_del_init(&obj_priv->gpu_write_list);
 		i915_gem_object_move_to_inactive(&obj_priv->base);
 	}
-}
 
-void i915_gem_reset_inactive_gpu_domains(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv;
-
+	/* Move everything out of the GPU domains to ensure we do any
+	 * necessary invalidation upon reuse.
+	 */
 	list_for_each_entry(obj_priv,
 			    &dev_priv->mm.inactive_list,
 			    list)
@@ -1720,15 +1753,12 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
-	bool wedged;
 
 	if (!ring->status_page.page_addr ||
 	    list_empty(&ring->request_list))
 		return;
 
 	seqno = i915_get_gem_seqno(dev, ring);
-	wedged = atomic_read(&dev_priv->mm.wedged);
-
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 
@@ -1736,7 +1766,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 					   struct drm_i915_gem_request,
 					   list);
 
-		if (!wedged && !i915_seqno_passed(seqno, request->seqno))
+		if (!i915_seqno_passed(seqno, request->seqno))
 			break;
 
 		trace_i915_gem_request_retire(dev, request->seqno);
@@ -1757,8 +1787,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 					    struct drm_i915_gem_object,
 					    list);
 
-		if (!wedged &&
-		    !i915_seqno_passed(seqno, obj_priv->last_rendering_seqno))
+		if (!i915_seqno_passed(seqno, obj_priv->last_rendering_seqno))
 			break;
 
 		obj = &obj_priv->base;
