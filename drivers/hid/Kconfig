@@ -235,6 +235,14 @@ config LOGIG940_FF
 	  Say Y here if you want to enable force feedback support for Logitech
 	  Flight System G940 devices.
 
+config LOGIWII_FF
+	bool "Logitech Speed Force Wireless force feedback support"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Speed Force Wireless (Wii) devices.
+
 config HID_MAGICMOUSE
 	tristate "Apple MagicMouse multi-touch support"
 	depends on BT_HIDP
