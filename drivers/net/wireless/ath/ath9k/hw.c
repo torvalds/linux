@@ -1989,7 +1989,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_RAC_SUPPORTED;
 
-	if (AR_SREV_9287_10_OR_LATER(ah) || AR_SREV_9271(ah))
+	if (AR_SREV_9287_11_OR_LATER(ah) || AR_SREV_9271(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_SGI_20;
 
 	if (AR_SREV_9285(ah))
@@ -2073,7 +2073,7 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 		return MS_REG_READ(AR9300, gpio) != 0;
 	else if (AR_SREV_9271(ah))
 		return MS_REG_READ(AR9271, gpio) != 0;
-	else if (AR_SREV_9287_10_OR_LATER(ah))
+	else if (AR_SREV_9287_11_OR_LATER(ah))
 		return MS_REG_READ(AR9287, gpio) != 0;
 	else if (AR_SREV_9285_12_OR_LATER(ah))
 		return MS_REG_READ(AR9285, gpio) != 0;

@@ -833,7 +833,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			return false;
 	} else {
 		if (AR_SREV_9280_20_OR_LATER(ah)) {
-			if (!AR_SREV_9287_10_OR_LATER(ah))
+			if (!AR_SREV_9287_11_OR_LATER(ah))
 				REG_CLR_BIT(ah, AR_PHY_ADC_CTL,
 					    AR_PHY_ADC_CTL_OFF_PWDADC);
 			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
@@ -856,7 +856,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		}
 
 		if (AR_SREV_9280_20_OR_LATER(ah)) {
-			if (!AR_SREV_9287_10_OR_LATER(ah))
+			if (!AR_SREV_9287_11_OR_LATER(ah))
 				REG_SET_BIT(ah, AR_PHY_ADC_CTL,
 					    AR_PHY_ADC_CTL_OFF_PWDADC);
 			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,

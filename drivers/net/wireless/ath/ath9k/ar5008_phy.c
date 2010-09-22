@@ -669,7 +669,7 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 		if (!AR_SREV_9271(ah))
 			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
-		if (AR_SREV_9287_10_OR_LATER(ah))
+		if (AR_SREV_9287_11_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
 		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
@@ -820,11 +820,11 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	REGWRITE_BUFFER_FLUSH(ah);
 	DISABLE_REGWRITE_BUFFER(ah);
 
-	if (AR_SREV_9280(ah) || AR_SREV_9287_10_OR_LATER(ah))
+	if (AR_SREV_9280(ah) || AR_SREV_9287_11_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
 
 	if (AR_SREV_9280(ah) || AR_SREV_9285_12_OR_LATER(ah) ||
-	    AR_SREV_9287_10_OR_LATER(ah))
+	    AR_SREV_9287_11_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
 	if (AR_SREV_9271_10(ah))
