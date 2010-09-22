@@ -248,8 +248,10 @@ void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
+const char *iwl_get_tx_fail_reason(u32 status);
 const char *iwl_get_agg_tx_fail_reason(u16 status);
 #else
+static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
 static inline const char *iwl_get_agg_tx_fail_reason(u16 status) { return ""; }
 #endif
 

@@ -1566,7 +1566,6 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-const char *iwl_get_tx_fail_reason(u32 status);
 /*
  * iwl_get_debug_level: Return active debug level for device
  *
@@ -1582,8 +1581,6 @@ static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 		return iwl_debug_level;
 }
 #else
-static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
-
 static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 {
 	return iwl_debug_level;
