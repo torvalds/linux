@@ -12,7 +12,10 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/tty.h>
+#include <linux/tty_driver.h>
+#include <linux/console.h>
 #include <linux/seq_file.h>
+#include <linux/fdtable.h>
 #include <linux/bitops.h>
 
 /*
@@ -137,6 +140,160 @@ static const struct file_operations proc_tty_drivers_operations = {
 };
 
 /*
+ * The device ID of file descriptor 0 of the current reading
+ * task if a character device...
+ */
+static dev_t current_dev;
+
+/*
+ * This is the handler for /proc/tty/consoles
+ */
+static int show_console_dev(struct seq_file *m, void *v)
+{
+	const struct tty_driver *driver;
+	struct console *con;
+	int index, len;
+	char flags[10];
+	dev_t dev;
+
+	if (v == SEQ_START_TOKEN)
+		return 0;
+	con = (struct console *)v;
+	if (!con)
+		return 0;
+	driver = con->device(con, &index);
+	if (!driver)
+		return 0;
+	dev = MKDEV(driver->major, driver->minor_start) + index;
+
+	index = 0;
+	if (con->flags & CON_ENABLED)
+		flags[index++] = 'E';
+	if (con->flags & CON_CONSDEV)
+		flags[index++] = 'C';
+	if (con->flags & CON_BOOT)
+		flags[index++] = 'B';
+	if (con->flags & CON_PRINTBUFFER)
+		flags[index++] = 'p';
+	if (con->flags & CON_BRL)
+		flags[index++] = 'b';
+	if (con->flags & CON_ANYTIME)
+		flags[index++] = 'a';
+	if (current_dev == dev)
+		flags[index++] = '*';
+	flags[index] = 0;
+
+	seq_printf(m, "%s%d%n", con->name, con->index, &len);
+	len = 21 - len;
+	if (len < 1)
+		len = 1;
+	seq_printf(m, "%*c", len, ' ');
+	seq_printf(m, "%c%c%c (%s)%n", con->read ? 'R' : '-',
+			con->write ? 'W' : '-', con->unblank ? 'U' : '-',
+			flags, &len);
+	len = 13 - len;
+	if (len < 1)
+		len = 1;
+	seq_printf(m, "%*c%4d:%d\n", len, ' ', MAJOR(dev), MINOR(dev));
+
+	return 0;
+}
+
+/* iterator for consoles */
+static void *c_start(struct seq_file *m, loff_t *pos)
+{
+	struct console *con;
+	loff_t off = 0;
+
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
+
+	acquire_console_sem();
+	for (con = console_drivers; con; con = con->next) {
+		if (!con->device)
+			continue;
+		if (++off == *pos)
+			break;
+	}
+	release_console_sem();
+
+	return con;
+}
+
+static void *c_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct console *con;
+
+	acquire_console_sem();
+	if (v == SEQ_START_TOKEN)
+		con = console_drivers;
+	else
+		con = ((struct console *)v)->next;
+	for (; con; con = con->next) {
+		if (!con->device)
+			continue;
+		++*pos;
+		break;
+	}
+	release_console_sem();
+
+	return con;
+}
+
+static void c_stop(struct seq_file *m, void *v)
+{
+}
+
+static const struct seq_operations tty_consoles_op = {
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= show_console_dev
+};
+
+/*
+ * Used for open /proc/tty/consoles. Before this detect
+ * the device ID of file descriptor 0 of the current
+ * reading task if a character device...
+ */
+static int tty_consoles_open(struct inode *inode, struct file *file)
+{
+	struct files_struct *curfiles;
+
+	current_dev = 0;
+	curfiles = get_files_struct(current);
+	if (curfiles) {
+		const struct file *curfp;
+		spin_lock(&curfiles->file_lock);
+		curfp = fcheck_files(curfiles, 0);
+		if (curfp && curfp->private_data) {
+			const struct inode *inode;
+			dget(curfp->f_dentry);
+			inode = curfp->f_dentry->d_inode;
+			if (S_ISCHR(inode->i_mode)) {
+				struct tty_struct *tty;
+				tty = (struct tty_struct *)curfp->private_data;
+				if (tty && tty->magic == TTY_MAGIC) {
+					tty = tty_pair_get_tty(tty);
+					current_dev = tty_devnum(tty);
+				}
+			}
+			dput(curfp->f_dentry);
+		}
+		spin_unlock(&curfiles->file_lock);
+		put_files_struct(curfiles);
+	}
+	return seq_open(file, &tty_consoles_op);
+}
+
+static const struct file_operations proc_tty_consoles_operations = {
+	.open		= tty_consoles_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+/*
  * This function is called by tty_register_driver() to handle
  * registering the driver's /proc handler into /proc/tty/driver/<foo>
  */
@@ -186,4 +343,5 @@ void __init proc_tty_init(void)
 	proc_tty_driver = proc_mkdir_mode("tty/driver", S_IRUSR|S_IXUSR, NULL);
 	proc_create("tty/ldiscs", 0, NULL, &tty_ldiscs_proc_fops);
 	proc_create("tty/drivers", 0, NULL, &proc_tty_drivers_operations);
+	proc_create("tty/consoles", 0, NULL, &proc_tty_consoles_operations);
 }
