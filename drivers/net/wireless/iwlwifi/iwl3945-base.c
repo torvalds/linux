@@ -2637,7 +2637,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	udelay(5);
 
 	/* Stop the device, and put it in low power state */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
@@ -4212,7 +4212,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	 * paths to avoid running iwl_down() at all before leaving driver.
 	 * This (inexpensive) call *makes sure* device is reset.
 	 */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
 	/* make sure we flush any pending irq or
 	 * tasklet for the driver

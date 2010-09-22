@@ -117,7 +117,6 @@ struct iwl_hcmd_utils_ops {
 
 struct iwl_apm_ops {
 	int (*init)(struct iwl_priv *priv);
-	void (*stop)(struct iwl_priv *priv);
 	void (*config)(struct iwl_priv *priv);
 };
 

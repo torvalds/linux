@@ -2704,7 +2704,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.dump_nic_error_log = iwl3945_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl3945_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl3945_nic_config,
 	},
 	.eeprom_ops = {

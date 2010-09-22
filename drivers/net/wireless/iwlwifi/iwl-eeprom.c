@@ -603,7 +603,7 @@ err:
 	if (ret)
 		iwl_eeprom_free(priv);
 	/* Reset chip to save power until we load uCode during "up". */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 alloc_err:
 	return ret;
 }

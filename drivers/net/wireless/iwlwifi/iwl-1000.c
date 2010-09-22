@@ -194,7 +194,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl1000_nic_config,
 	},
 	.eeprom_ops = {

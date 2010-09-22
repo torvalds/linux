@@ -2266,7 +2266,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.set_channel_switch = iwl4965_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl4965_nic_config,
 	},
 	.eeprom_ops = {

@@ -2599,7 +2599,7 @@ int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 * it will not call apm_ops.stop() to stop the DMA operation.
 	 * Calling apm_ops.stop here to make sure we stop the DMA.
 	 */
-	priv->cfg->ops->lib->apm_ops.stop(priv);
+	iwl_apm_stop(priv);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);

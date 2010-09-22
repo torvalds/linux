@@ -368,7 +368,6 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl5000_nic_config,
 	},
 	.eeprom_ops = {
@@ -437,7 +436,6 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl5000_nic_config,
 	},
 	.eeprom_ops = {
