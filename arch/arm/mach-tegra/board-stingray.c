@@ -626,6 +626,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&mdm6600_modem,
 	&tegra_spdif_device,
 	&tegra_avp_device,
+	&pmu_device,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
