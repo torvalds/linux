@@ -4,9 +4,7 @@
 
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
-ifeq ($(CONFIG_PPC64),y)
-EXTRA_CFLAGS		+= -mno-minimal-toc
-endif
+ccflags-$(CONFIG_PPC64)	:= -mno-minimal-toc
 
 CFLAGS_REMOVE_code-patching.o = -pg
 CFLAGS_REMOVE_feature-fixups.o = -pg
