@@ -348,7 +348,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 	IWL_DEBUG_TX_REPLY(priv, "Tx queue reclaim %d\n", index);
 	iwl3945_tx_queue_reclaim(priv, txq_id, index);
 
-	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
+	if (status & TX_ABORT_REQUIRED_MSK)
 		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
