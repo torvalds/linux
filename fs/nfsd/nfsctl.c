@@ -121,6 +121,16 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 
 static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size_t size, loff_t *pos)
 {
+	static int warned;
+	if (file->f_dentry->d_name.name[0] == '.' && !warned) {
+		char name[sizeof(current->comm)];
+		printk(KERN_INFO
+		       "Warning: \"%s\" uses deprecated NFSD interface: %s."
+		       "  This will be removed in 2.6.40\n",
+		       get_task_comm(name, current),
+		       file->f_dentry->d_name.name);
+		warned = 1;
+	}
 	if (! file->private_data) {
 		/* An attempt to read a transaction file without writing
 		 * causes a 0-byte write so that the file can return
