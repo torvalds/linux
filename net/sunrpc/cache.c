@@ -578,10 +578,9 @@ static int cache_wait_req(struct cache_req *req, struct cache_head *item)
 	dreq->revisit = cache_restart_thread;
 
 	ret = setup_deferral(dreq, item);
-	if (ret)
-		return ret;
 
-	if (wait_for_completion_interruptible_timeout(
+	if (ret ||
+	    wait_for_completion_interruptible_timeout(
 		    &sleeper.completion, req->thread_wait) <= 0) {
 		/* The completion wasn't completed, so we need
 		 * to clean up
