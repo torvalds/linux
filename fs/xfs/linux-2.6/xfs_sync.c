@@ -150,17 +150,17 @@ xfs_inode_ag_iter_next_pag(
 		int found;
 		int ref;
 
-		spin_lock(&mp->m_perag_lock);
+		rcu_read_lock();
 		found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
 				(void **)&pag, *first, 1, tag);
 		if (found <= 0) {
-			spin_unlock(&mp->m_perag_lock);
+			rcu_read_unlock();
 			return NULL;
 		}
 		*first = pag->pag_agno + 1;
 		/* open coded pag reference increment */
 		ref = atomic_inc_return(&pag->pag_ref);
-		spin_unlock(&mp->m_perag_lock);
+		rcu_read_unlock();
 		trace_xfs_perag_get_reclaim(mp, pag->pag_agno, ref, _RET_IP_);
 	} else {
 		pag = xfs_perag_get(mp, *first);

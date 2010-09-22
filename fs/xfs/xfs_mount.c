@@ -199,6 +199,8 @@ xfs_uuid_unmount(
 
 /*
  * Reference counting access wrappers to the perag structures.
+ * Because we never free per-ag structures, the only thing we
+ * have to protect against changes is the tree structure itself.
  */
 struct xfs_perag *
 xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
@@ -206,13 +208,13 @@ xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
 	struct xfs_perag	*pag;
 	int			ref = 0;
 
-	spin_lock(&mp->m_perag_lock);
+	rcu_read_lock();
 	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
 	if (pag) {
 		ASSERT(atomic_read(&pag->pag_ref) >= 0);
 		ref = atomic_inc_return(&pag->pag_ref);
 	}
-	spin_unlock(&mp->m_perag_lock);
+	rcu_read_unlock();
 	trace_xfs_perag_get(mp, agno, ref, _RET_IP_);
 	return pag;
 }
@@ -227,10 +229,18 @@ xfs_perag_put(struct xfs_perag *pag)
 	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
 }
 
+STATIC void
+__xfs_free_perag(
+	struct rcu_head	*head)
+{
+	struct xfs_perag *pag = container_of(head, struct xfs_perag, rcu_head);
+
+	ASSERT(atomic_read(&pag->pag_ref) == 0);
+	kmem_free(pag);
+}
+
 /*
- * Free up the resources associated with a mount structure.  Assume that
- * the structure was initially zeroed, so we can tell which fields got
- * initialized.
+ * Free up the per-ag resources associated with the mount structure.
  */
 STATIC void
 xfs_free_perag(
@@ -242,10 +252,9 @@ xfs_free_perag(
 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
 		spin_lock(&mp->m_perag_lock);
 		pag = radix_tree_delete(&mp->m_perag_tree, agno);
-		ASSERT(pag);
-		ASSERT(atomic_read(&pag->pag_ref) == 0);
 		spin_unlock(&mp->m_perag_lock);
-		kmem_free(pag);
+		ASSERT(pag);
+		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
 
