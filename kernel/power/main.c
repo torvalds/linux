@@ -237,18 +237,18 @@ static ssize_t wakeup_count_show(struct kobject *kobj,
 				struct kobj_attribute *attr,
 				char *buf)
 {
-	unsigned long val;
+	unsigned int val;
 
-	return pm_get_wakeup_count(&val) ? sprintf(buf, "%lu\n", val) : -EINTR;
+	return pm_get_wakeup_count(&val) ? sprintf(buf, "%u\n", val) : -EINTR;
 }
 
 static ssize_t wakeup_count_store(struct kobject *kobj,
 				struct kobj_attribute *attr,
 				const char *buf, size_t n)
 {
-	unsigned long val;
+	unsigned int val;
 
-	if (sscanf(buf, "%lu", &val) == 1) {
+	if (sscanf(buf, "%u", &val) == 1) {
 		if (pm_save_wakeup_count(val))
 			return n;
 	}

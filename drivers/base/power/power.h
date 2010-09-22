@@ -34,6 +34,7 @@ extern void device_pm_move_last(struct device *);
 
 static inline void device_pm_init(struct device *dev)
 {
+	spin_lock_init(&dev->power.lock);
 	pm_runtime_init(dev);
 }
 
