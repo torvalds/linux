@@ -2547,7 +2547,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	priv->cfg->ops->hcmd->send_bt_config(priv);
 
 	/* Configure the adapter for unassociated operation */
-	iwlcore_commit_rxon(priv, ctx);
+	iwl3945_commit_rxon(priv, ctx);
 
 	iwl3945_reg_txpower_periodic(priv);
 
@@ -2992,7 +2992,7 @@ void iwl3945_post_scan(struct iwl_priv *priv)
 	 * performing the scan, fire one off if needed
 	 */
 	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
-		iwlcore_commit_rxon(priv, ctx);
+		iwl3945_commit_rxon(priv, ctx);
 }
 
 static void iwl3945_bg_restart(struct work_struct *data)
@@ -3061,7 +3061,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	conf = ieee80211_get_hw_conf(priv->hw);
 
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwlcore_commit_rxon(priv, ctx);
+	iwl3945_commit_rxon(priv, ctx);
 
 	rc = iwl_send_rxon_timing(priv, ctx);
 	if (rc)
@@ -3087,7 +3087,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
-	iwlcore_commit_rxon(priv, ctx);
+	iwl3945_commit_rxon(priv, ctx);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -3226,7 +3226,7 @@ void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		/* RXON - unassoc (to set timing command) */
 		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv, ctx);
+		iwl3945_commit_rxon(priv, ctx);
 
 		/* RXON Timing */
 		rc = iwl_send_rxon_timing(priv, ctx);
@@ -3253,7 +3253,7 @@ void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		}
 		/* restore RXON assoc */
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv, ctx);
+		iwl3945_commit_rxon(priv, ctx);
 	}
 	iwl3945_send_beacon_cmd(priv);
 
@@ -3519,7 +3519,7 @@ static ssize_t store_flags(struct device *d,
 			IWL_DEBUG_INFO(priv, "Committing rxon.flags = 0x%04X\n",
 				       flags);
 			ctx->staging.flags = cpu_to_le32(flags);
-			iwlcore_commit_rxon(priv, ctx);
+			iwl3945_commit_rxon(priv, ctx);
 		}
 	}
 	mutex_unlock(&priv->mutex);
@@ -3557,7 +3557,7 @@ static ssize_t store_filter_flags(struct device *d,
 				       "0x%04X\n", filter_flags);
 			ctx->staging.filter_flags =
 				cpu_to_le32(filter_flags);
-			iwlcore_commit_rxon(priv, ctx);
+			iwl3945_commit_rxon(priv, ctx);
 		}
 	}
 	mutex_unlock(&priv->mutex);

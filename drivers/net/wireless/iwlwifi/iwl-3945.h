@@ -271,6 +271,9 @@ extern void iwl3945_post_associate(struct iwl_priv *priv,
 extern void iwl3945_config_ap(struct iwl_priv *priv,
 			      struct ieee80211_vif *vif);
 
+extern int iwl3945_commit_rxon(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx);
+
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID
  * @bssid: MAC address of station ID to find

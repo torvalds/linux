@@ -1763,8 +1763,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv,
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
  */
-static int iwl3945_commit_rxon(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx)
+int iwl3945_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct iwl3945_rxon_cmd *active_rxon = (void *)&ctx->active;
