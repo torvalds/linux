@@ -1110,6 +1110,9 @@ void i8xx_disable_fbc(struct drm_device *dev)
 
 	/* Disable compression */
 	fbc_ctl = I915_READ(FBC_CONTROL);
+	if ((fbc_ctl & FBC_CTL_EN) == 0)
+		return;
+
 	fbc_ctl &= ~FBC_CTL_EN;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
