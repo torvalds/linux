@@ -231,6 +231,7 @@ int __init early_irq_init(void)
 		alloc_desc_masks(&desc[i], 0, true);
 		init_desc_masks(&desc[i]);
 		desc[i].kstat_irqs = kstat_irqs_all[i];
+		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 	}
 	return arch_early_irq_init();
 }
@@ -249,16 +250,6 @@ struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node)
 void clear_kstat_irqs(struct irq_desc *desc)
 {
 	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
-}
-
-void early_init_irq_lock_class(void)
-{
-	struct irq_desc *desc;
-	int i;
-
-	for_each_irq_desc(i, desc) {
-		lockdep_set_class(&desc->lock, &irq_desc_lock_class);
-	}
 }
 
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
