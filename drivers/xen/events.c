@@ -436,17 +436,17 @@ static int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 	irq = per_cpu(virq_to_irq, cpu)[virq];
 
 	if (irq == -1) {
+		irq = find_unbound_irq();
+
+		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
+					      handle_percpu_irq, "virq");
+
 		bind_virq.virq = virq;
 		bind_virq.vcpu = cpu;
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 						&bind_virq) != 0)
 			BUG();
 		evtchn = bind_virq.port;
-
-		irq = find_unbound_irq();
-
-		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
-					      handle_percpu_irq, "virq");
 
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_virq_info(evtchn, virq);
