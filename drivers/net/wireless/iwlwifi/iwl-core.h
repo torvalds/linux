@@ -550,8 +550,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx);
 
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
-
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
 {
 	return BIT(ant_idx) << RATE_MCS_ANT_POS;

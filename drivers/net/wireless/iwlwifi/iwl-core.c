@@ -72,24 +72,6 @@ MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 u32 iwl_debug_level;
 EXPORT_SYMBOL(iwl_debug_level);
 
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant, u8 valid)
-{
-	int i;
-	u8 ind = ant;
-
-	if (priv->band == IEEE80211_BAND_2GHZ &&
-	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)
-		return 0;
-
-	for (i = 0; i < RATE_ANT_NUM - 1; i++) {
-		ind = (ind + 1) < RATE_ANT_NUM ?  ind + 1 : 0;
-		if (valid & BIT(ind))
-			return ind;
-	}
-	return ant;
-}
-EXPORT_SYMBOL(iwl_toggle_tx_ant);
-
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 EXPORT_SYMBOL(iwl_bcast_addr);
 
