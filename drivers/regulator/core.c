@@ -700,7 +700,7 @@ static void print_constraints(struct regulator_dev *rdev)
 	    constraints->min_uA != constraints->max_uA) {
 		ret = _regulator_get_current_limit(rdev);
 		if (ret > 0)
-			count += sprintf(buf + count, "at %d uA ", ret / 1000);
+			count += sprintf(buf + count, "at %d mA ", ret / 1000);
 	}
 
 	if (constraints->valid_modes_mask & REGULATOR_MODE_FAST)
