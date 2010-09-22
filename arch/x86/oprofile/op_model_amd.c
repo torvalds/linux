@@ -83,6 +83,7 @@ static struct ibs_state ibs_state;
 #define IBS_CAPS_RDWROPCNT		(1U<<3)
 #define IBS_CAPS_OPCNT			(1U<<4)
 #define IBS_CAPS_BRNTRGT		(1U<<5)
+#define IBS_CAPS_OPCNTEXT		(1U<<6)
 
 #define IBS_CAPS_DEFAULT		(IBS_CAPS_AVAIL		\
 					 | IBS_CAPS_FETCHSAM	\
@@ -246,8 +247,16 @@ static inline void op_amd_start_ibs(void)
 
 	memset(&ibs_state, 0, sizeof(ibs_state));
 
+	/*
+	 * Note: Since the max count settings may out of range we
+	 * write back the actual used values so that userland can read
+	 * it.
+	 */
+
 	if (ibs_config.fetch_enabled) {
-		val = (ibs_config.max_cnt_fetch >> 4) & IBS_FETCH_MAX_CNT;
+		val = ibs_config.max_cnt_fetch >> 4;
+		val = min(val, IBS_FETCH_MAX_CNT);
+		ibs_config.max_cnt_fetch = val << 4;
 		val |= ibs_config.rand_en ? IBS_FETCH_RAND_EN : 0;
 		val |= IBS_FETCH_ENABLE;
 		wrmsrl(MSR_AMD64_IBSFETCHCTL, val);
@@ -261,6 +270,7 @@ static inline void op_amd_start_ibs(void)
 			 * op_amd_randomize_ibs_op() for details.
 			 */
 			val = clamp(val, 0x0081ULL, 0xFF80ULL);
+			ibs_config.max_cnt_op = val << 4;
 		} else {
 			/*
 			 * The start value is randomized with a
@@ -268,9 +278,15 @@ static inline void op_amd_start_ibs(void)
 			 * with the half of the randomized range. Also
 			 * avoid underflows.
 			 */
-			val = min(val + IBS_RANDOM_MAXCNT_OFFSET,
-				  IBS_OP_MAX_CNT);
+			val += IBS_RANDOM_MAXCNT_OFFSET;
+			if (ibs_caps & IBS_CAPS_OPCNTEXT)
+				val = min(val, IBS_OP_MAX_CNT_EXT);
+			else
+				val = min(val, IBS_OP_MAX_CNT);
+			ibs_config.max_cnt_op =
+				(val - IBS_RANDOM_MAXCNT_OFFSET) << 4;
 		}
+		val = ((val & ~IBS_OP_MAX_CNT) << 4) | (val & IBS_OP_MAX_CNT);
 		val |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
 		val |= IBS_OP_ENABLE;
 		ibs_state.ibs_op_ctl = val;
