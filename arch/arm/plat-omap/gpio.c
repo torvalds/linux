@@ -2085,8 +2085,9 @@ void omap2_gpio_prepare_for_idle(int power_state)
 	for (i = min; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
 		u32 l1, l2;
+		int j;
 
-		if (bank->dbck_enable_mask)
+		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
 			clk_disable(bank->dbck);
 
 		if (power_state > PWRDM_POWER_OFF)
@@ -2152,8 +2153,9 @@ void omap2_gpio_resume_after_idle(void)
 	for (i = min; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
 		u32 l, gen, gen0, gen1;
+		int j;
 
-		if (bank->dbck_enable_mask)
+		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
 			clk_enable(bank->dbck);
 
 		if (!workaround_enabled)
