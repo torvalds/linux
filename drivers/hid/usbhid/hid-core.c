@@ -810,6 +810,7 @@ static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t co
 	if (usbhid->urbout) {
 		int actual_length;
 		int skipped_report_id = 0;
+
 		if (buf[0] == 0x0) {
 			/* Don't send the Report ID */
 			buf++;
