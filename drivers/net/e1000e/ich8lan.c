@@ -990,9 +990,9 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	cnf_base_addr = data & E1000_EXTCNF_CTRL_EXT_CNF_POINTER_MASK;
 	cnf_base_addr >>= E1000_EXTCNF_CTRL_EXT_CNF_POINTER_SHIFT;
 
-	if (!(data & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE) &&
-	    ((hw->mac.type == e1000_pchlan) ||
-	     (hw->mac.type == e1000_pch2lan))) {
+	if ((!(data & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE) &&
+	    (hw->mac.type == e1000_pchlan)) ||
+	     (hw->mac.type == e1000_pch2lan)) {
 		/*
 		 * HW configures the SMBus address and LEDs when the
 		 * OEM and LCD Write Enable bits are set in the NVM.
