@@ -193,6 +193,9 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
 
+	if (wl1273->mode == ucontrol->value.integer.value[0])
+		return 0;
+
 	/* Do not allow changes while stream is running */
 	if (codec->active)
 		return -EPERM;

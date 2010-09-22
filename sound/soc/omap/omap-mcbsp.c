@@ -759,7 +759,7 @@ static struct snd_soc_dai_driver omap_mcbsp_dai =
 	.ops = &mcbsp_dai_ops,
 };
 
-int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
+static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
 	struct soc_mixer_control *mc =
