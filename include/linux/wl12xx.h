@@ -21,14 +21,18 @@
  *
  */
 
-#ifndef _LINUX_SPI_WL12XX_H
-#define _LINUX_SPI_WL12XX_H
+#ifndef _LINUX_WL12XX_H
+#define _LINUX_WL12XX_H
 
 struct wl12xx_platform_data {
 	void (*set_power)(bool enable);
 	/* SDIO only: IRQ number if WLAN_IRQ line is used, 0 for SDIO IRQs */
 	int irq;
 	bool use_eeprom;
+	int board_ref_clock;
 };
+
+int wl12xx_set_platform_data(const struct wl12xx_platform_data *data);
+const struct wl12xx_platform_data *wl12xx_get_platform_data(void);
 
 #endif

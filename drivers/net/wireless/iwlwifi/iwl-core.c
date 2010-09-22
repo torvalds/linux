@@ -196,6 +196,9 @@ static void iwl_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
+	if (!ctx->is_active)
+		return;
+
 	ctx->qos_data.def_qos_parm.qos_flags = 0;
 
 	if (ctx->qos_data.qos_active)
@@ -488,8 +491,29 @@ EXPORT_SYMBOL(iwl_is_ht40_tx_allowed);
 
 static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 {
-	u16 new_val = 0;
-	u16 beacon_factor = 0;
+	u16 new_val;
+	u16 beacon_factor;
+
+	/*
+	 * If mac80211 hasn't given us a beacon interval, program
+	 * the default into the device (not checking this here
+	 * would cause the adjustment below to return the maximum
+	 * value, which may break PAN.)
+	 */
+	if (!beacon_val)
+		return DEFAULT_BEACON_INTERVAL;
+
+	/*
+	 * If the beacon interval we obtained from the peer
+	 * is too large, we'll have to wake up more often
+	 * (and in IBSS case, we'll beacon too much)
+	 *
+	 * For example, if max_beacon_val is 4096, and the
+	 * requested beacon interval is 7000, we'll have to
+	 * use 3500 to be able to wake up on the beacons.
+	 *
+	 * This could badly influence beacon detection stats.
+	 */
 
 	beacon_factor = (beacon_val + max_beacon_val) / max_beacon_val;
 	new_val = beacon_val / beacon_factor;
@@ -526,9 +550,21 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	ctx->timing.atim_window = 0;
 
 	if (ctx->ctxid == IWL_RXON_CTX_PAN &&
-	    (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION)) {
+	    (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION) &&
+	    iwl_is_associated(priv, IWL_RXON_CTX_BSS) &&
+	    priv->contexts[IWL_RXON_CTX_BSS].vif &&
+	    priv->contexts[IWL_RXON_CTX_BSS].vif->bss_conf.beacon_int) {
 		ctx->timing.beacon_interval =
 			priv->contexts[IWL_RXON_CTX_BSS].timing.beacon_interval;
+		beacon_int = le16_to_cpu(ctx->timing.beacon_interval);
+	} else if (ctx->ctxid == IWL_RXON_CTX_BSS &&
+		   iwl_is_associated(priv, IWL_RXON_CTX_PAN) &&
+		   priv->contexts[IWL_RXON_CTX_PAN].vif &&
+		   priv->contexts[IWL_RXON_CTX_PAN].vif->bss_conf.beacon_int &&
+		   (!iwl_is_associated_ctx(ctx) || !ctx->vif ||
+		    !ctx->vif->bss_conf.beacon_int)) {
+		ctx->timing.beacon_interval =
+			priv->contexts[IWL_RXON_CTX_PAN].timing.beacon_interval;
 		beacon_int = le16_to_cpu(ctx->timing.beacon_interval);
 	} else {
 		beacon_int = iwl_adjust_beacon_interval(beacon_int,
@@ -1797,9 +1833,8 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
 	}
 
-	if (changes & BSS_CHANGED_BEACON_INT) {
-		/* TODO: in AP mode, do something to make this take effect */
-	}
+	if (changes & BSS_CHANGED_BEACON_INT && vif->type == NL80211_IFTYPE_AP)
+		iwl_send_rxon_timing(priv, ctx);
 
 	if (changes & BSS_CHANGED_BSSID) {
 		IWL_DEBUG_MAC80211(priv, "BSSID %pM\n", bss_conf->bssid);
@@ -2009,9 +2044,14 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	 */
 	priv->iw_mode = vif->type;
 
+	ctx->is_active = true;
+
 	err = iwl_set_mode(priv, vif);
-	if (err)
+	if (err) {
+		if (!ctx->always_active)
+			ctx->is_active = false;
 		goto out_err;
+	}
 
 	if (priv->cfg->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
@@ -2041,7 +2081,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-	bool scan_completed = false;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -2050,14 +2089,14 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(ctx->vif != vif);
 	ctx->vif = NULL;
 
-	iwl_scan_cancel_timeout(priv, 100);
+	if (priv->scan_vif == vif) {
+		iwl_scan_cancel_timeout(priv, 200);
+		iwl_force_scan_end(priv);
+	}
 	iwl_set_mode(priv, vif);
 
-	if (priv->scan_vif == vif) {
-		scan_completed = true;
-		priv->scan_vif = NULL;
-		priv->scan_request = NULL;
-	}
+	if (!ctx->always_active)
+		ctx->is_active = false;
 
 	/*
 	 * When removing the IBSS interface, overwrite the
@@ -2071,9 +2110,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 	memset(priv->bssid, 0, ETH_ALEN);
 	mutex_unlock(&priv->mutex);
-
-	if (scan_completed)
-		ieee80211_scan_completed(priv->hw, true);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -2255,6 +2291,7 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	iwl_scan_cancel_timeout(priv, 100);
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->mutex);
@@ -2264,7 +2301,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	/* we are restarting association process
 	 * clear RXON_FILTER_ASSOC_MSK bit
 	 */
-	iwl_scan_cancel_timeout(priv, 100);
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv, ctx);
 

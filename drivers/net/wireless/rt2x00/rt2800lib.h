@@ -169,7 +169,8 @@ void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			  const unsigned int filter_flags);
 void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 			struct rt2x00intf_conf *conf, const unsigned int flags);
-void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp);
+void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
+		       u32 changed);
 void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant);
 void rt2800_config(struct rt2x00_dev *rt2x00dev,
 		   struct rt2x00lib_conf *libconf,

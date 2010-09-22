@@ -181,29 +181,19 @@ enum wireless_mode {
 };
 
 enum ath9k_hw_caps {
-	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(0),
-	ATH9K_HW_CAP_MIC_CKIP                   = BIT(1),
-	ATH9K_HW_CAP_MIC_TKIP                   = BIT(2),
-	ATH9K_HW_CAP_CIPHER_AESCCM              = BIT(3),
-	ATH9K_HW_CAP_CIPHER_CKIP                = BIT(4),
-	ATH9K_HW_CAP_CIPHER_TKIP                = BIT(5),
-	ATH9K_HW_CAP_VEOL                       = BIT(6),
-	ATH9K_HW_CAP_BSSIDMASK                  = BIT(7),
-	ATH9K_HW_CAP_MCAST_KEYSEARCH            = BIT(8),
-	ATH9K_HW_CAP_HT                         = BIT(9),
-	ATH9K_HW_CAP_GTT                        = BIT(10),
-	ATH9K_HW_CAP_FASTCC                     = BIT(11),
-	ATH9K_HW_CAP_RFSILENT                   = BIT(12),
-	ATH9K_HW_CAP_CST                        = BIT(13),
-	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(14),
-	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(15),
-	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(16),
-	ATH9K_HW_CAP_EDMA			= BIT(17),
-	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(18),
-	ATH9K_HW_CAP_LDPC			= BIT(19),
-	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
-	ATH9K_HW_CAP_SGI_20			= BIT(21),
-	ATH9K_HW_CAP_PAPRD			= BIT(22),
+	ATH9K_HW_CAP_HT                         = BIT(0),
+	ATH9K_HW_CAP_RFSILENT                   = BIT(1),
+	ATH9K_HW_CAP_CST                        = BIT(2),
+	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(3),
+	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(4),
+	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(5),
+	ATH9K_HW_CAP_EDMA			= BIT(6),
+	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(7),
+	ATH9K_HW_CAP_LDPC			= BIT(8),
+	ATH9K_HW_CAP_FASTCLOCK			= BIT(9),
+	ATH9K_HW_CAP_SGI_20			= BIT(10),
+	ATH9K_HW_CAP_PAPRD			= BIT(11),
+	ATH9K_HW_CAP_ANT_DIV_COMB		= BIT(12),
 };
 
 struct ath9k_hw_capabilities {
@@ -493,6 +483,12 @@ struct ath_gen_timer_table {
 		unsigned long timer_bits;
 		u16 val;
 	} timer_mask;
+};
+
+struct ath_hw_antcomb_conf {
+	u8 main_lna_conf;
+	u8 alt_lna_conf;
+	u8 fast_div_bias;
 };
 
 /**
@@ -874,12 +870,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
-/* Key Cache Management */
-bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
-bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
-				 const struct ath9k_keyval *k,
-				 const u8 *mac);
-
 /* GPIO / RFKILL / Antennae */
 void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio);
 u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio);
@@ -888,6 +878,10 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
+void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf);
+void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
@@ -985,6 +979,7 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 void ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
+void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
 /*
  * ANI work can be shared between all families but a next
  * generation implementation of ANI will be used only for AR9003 only

@@ -596,7 +596,8 @@ struct rt2x00lib_ops {
 #define CONFIG_UPDATE_BSSID		( 1 << 3 )
 
 	void (*config_erp) (struct rt2x00_dev *rt2x00dev,
-			    struct rt2x00lib_erp *erp);
+			    struct rt2x00lib_erp *erp,
+			    u32 changed);
 	void (*config_ant) (struct rt2x00_dev *rt2x00dev,
 			    struct antenna_setup *ant);
 	void (*config) (struct rt2x00_dev *rt2x00dev,

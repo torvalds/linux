@@ -1258,11 +1258,13 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	    (chan->channel != ah->curchan->channel) &&
 	    ((chan->channelFlags & CHANNEL_ALL) ==
 	     (ah->curchan->channelFlags & CHANNEL_ALL)) &&
-	    !AR_SREV_9280(ah)) {
+	    (!AR_SREV_9280(ah) || AR_DEVID_7010(ah))) {
 
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
 			ath9k_hw_start_nfcal(ah, true);
+			if (AR_SREV_9271(ah))
+				ar9002_hw_load_ani_reg(ah, chan);
 			return 0;
 		}
 	}
@@ -1473,283 +1475,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_reset);
-
-/************************/
-/* Key Cache Management */
-/************************/
-
-bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
-{
-	u32 keyType;
-
-	if (entry >= ah->caps.keycache_size) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "keychache entry %u out of range\n", entry);
-		return false;
-	}
-
-	keyType = REG_READ(ah, AR_KEYTABLE_TYPE(entry));
-
-	REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), 0);
-	REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), 0);
-	REG_WRITE(ah, AR_KEYTABLE_KEY2(entry), 0);
-	REG_WRITE(ah, AR_KEYTABLE_KEY3(entry), 0);
-	REG_WRITE(ah, AR_KEYTABLE_KEY4(entry), 0);
-	REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), AR_KEYTABLE_TYPE_CLR);
-	REG_WRITE(ah, AR_KEYTABLE_MAC0(entry), 0);
-	REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), 0);
-
-	if (keyType == AR_KEYTABLE_TYPE_TKIP && ATH9K_IS_MIC_ENABLED(ah)) {
-		u16 micentry = entry + 64;
-
-		REG_WRITE(ah, AR_KEYTABLE_KEY0(micentry), 0);
-		REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), 0);
-		REG_WRITE(ah, AR_KEYTABLE_KEY2(micentry), 0);
-		REG_WRITE(ah, AR_KEYTABLE_KEY3(micentry), 0);
-
-	}
-
-	return true;
-}
-EXPORT_SYMBOL(ath9k_hw_keyreset);
-
-static bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
-{
-	u32 macHi, macLo;
-	u32 unicast_flag = AR_KEYTABLE_VALID;
-
-	if (entry >= ah->caps.keycache_size) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "keychache entry %u out of range\n", entry);
-		return false;
-	}
-
-	if (mac != NULL) {
-		/*
-		 * AR_KEYTABLE_VALID indicates that the address is a unicast
-		 * address, which must match the transmitter address for
-		 * decrypting frames.
-		 * Not setting this bit allows the hardware to use the key
-		 * for multicast frame decryption.
-		 */
-		if (mac[0] & 0x01)
-			unicast_flag = 0;
-
-		macHi = (mac[5] << 8) | mac[4];
-		macLo = (mac[3] << 24) |
-			(mac[2] << 16) |
-			(mac[1] << 8) |
-			mac[0];
-		macLo >>= 1;
-		macLo |= (macHi & 1) << 31;
-		macHi >>= 1;
-	} else {
-		macLo = macHi = 0;
-	}
-	REG_WRITE(ah, AR_KEYTABLE_MAC0(entry), macLo);
-	REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), macHi | unicast_flag);
-
-	return true;
-}
-
-bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
-				 const struct ath9k_keyval *k,
-				 const u8 *mac)
-{
-	const struct ath9k_hw_capabilities *pCap = &ah->caps;
-	struct ath_common *common = ath9k_hw_common(ah);
-	u32 key0, key1, key2, key3, key4;
-	u32 keyType;
-
-	if (entry >= pCap->keycache_size) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "keycache entry %u out of range\n", entry);
-		return false;
-	}
-
-	switch (k->kv_type) {
-	case ATH9K_CIPHER_AES_OCB:
-		keyType = AR_KEYTABLE_TYPE_AES;
-		break;
-	case ATH9K_CIPHER_AES_CCM:
-		if (!(pCap->hw_caps & ATH9K_HW_CAP_CIPHER_AESCCM)) {
-			ath_print(common, ATH_DBG_ANY,
-				  "AES-CCM not supported by mac rev 0x%x\n",
-				  ah->hw_version.macRev);
-			return false;
-		}
-		keyType = AR_KEYTABLE_TYPE_CCM;
-		break;
-	case ATH9K_CIPHER_TKIP:
-		keyType = AR_KEYTABLE_TYPE_TKIP;
-		if (ATH9K_IS_MIC_ENABLED(ah)
-		    && entry + 64 >= pCap->keycache_size) {
-			ath_print(common, ATH_DBG_ANY,
-				  "entry %u inappropriate for TKIP\n", entry);
-			return false;
-		}
-		break;
-	case ATH9K_CIPHER_WEP:
-		if (k->kv_len < WLAN_KEY_LEN_WEP40) {
-			ath_print(common, ATH_DBG_ANY,
-				  "WEP key length %u too small\n", k->kv_len);
-			return false;
-		}
-		if (k->kv_len <= WLAN_KEY_LEN_WEP40)
-			keyType = AR_KEYTABLE_TYPE_40;
-		else if (k->kv_len <= WLAN_KEY_LEN_WEP104)
-			keyType = AR_KEYTABLE_TYPE_104;
-		else
-			keyType = AR_KEYTABLE_TYPE_128;
-		break;
-	case ATH9K_CIPHER_CLR:
-		keyType = AR_KEYTABLE_TYPE_CLR;
-		break;
-	default:
-		ath_print(common, ATH_DBG_FATAL,
-			  "cipher %u not supported\n", k->kv_type);
-		return false;
-	}
-
-	key0 = get_unaligned_le32(k->kv_val + 0);
-	key1 = get_unaligned_le16(k->kv_val + 4);
-	key2 = get_unaligned_le32(k->kv_val + 6);
-	key3 = get_unaligned_le16(k->kv_val + 10);
-	key4 = get_unaligned_le32(k->kv_val + 12);
-	if (k->kv_len <= WLAN_KEY_LEN_WEP104)
-		key4 &= 0xff;
-
-	/*
-	 * Note: Key cache registers access special memory area that requires
-	 * two 32-bit writes to actually update the values in the internal
-	 * memory. Consequently, the exact order and pairs used here must be
-	 * maintained.
-	 */
-
-	if (keyType == AR_KEYTABLE_TYPE_TKIP && ATH9K_IS_MIC_ENABLED(ah)) {
-		u16 micentry = entry + 64;
-
-		/*
-		 * Write inverted key[47:0] first to avoid Michael MIC errors
-		 * on frames that could be sent or received at the same time.
-		 * The correct key will be written in the end once everything
-		 * else is ready.
-		 */
-		REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), ~key0);
-		REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), ~key1);
-
-		/* Write key[95:48] */
-		REG_WRITE(ah, AR_KEYTABLE_KEY2(entry), key2);
-		REG_WRITE(ah, AR_KEYTABLE_KEY3(entry), key3);
-
-		/* Write key[127:96] and key type */
-		REG_WRITE(ah, AR_KEYTABLE_KEY4(entry), key4);
-		REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), keyType);
-
-		/* Write MAC address for the entry */
-		(void) ath9k_hw_keysetmac(ah, entry, mac);
-
-		if (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) {
-			/*
-			 * TKIP uses two key cache entries:
-			 * Michael MIC TX/RX keys in the same key cache entry
-			 * (idx = main index + 64):
-			 * key0 [31:0] = RX key [31:0]
-			 * key1 [15:0] = TX key [31:16]
-			 * key1 [31:16] = reserved
-			 * key2 [31:0] = RX key [63:32]
-			 * key3 [15:0] = TX key [15:0]
-			 * key3 [31:16] = reserved
-			 * key4 [31:0] = TX key [63:32]
-			 */
-			u32 mic0, mic1, mic2, mic3, mic4;
-
-			mic0 = get_unaligned_le32(k->kv_mic + 0);
-			mic2 = get_unaligned_le32(k->kv_mic + 4);
-			mic1 = get_unaligned_le16(k->kv_txmic + 2) & 0xffff;
-			mic3 = get_unaligned_le16(k->kv_txmic + 0) & 0xffff;
-			mic4 = get_unaligned_le32(k->kv_txmic + 4);
-
-			/* Write RX[31:0] and TX[31:16] */
-			REG_WRITE(ah, AR_KEYTABLE_KEY0(micentry), mic0);
-			REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), mic1);
-
-			/* Write RX[63:32] and TX[15:0] */
-			REG_WRITE(ah, AR_KEYTABLE_KEY2(micentry), mic2);
-			REG_WRITE(ah, AR_KEYTABLE_KEY3(micentry), mic3);
-
-			/* Write TX[63:32] and keyType(reserved) */
-			REG_WRITE(ah, AR_KEYTABLE_KEY4(micentry), mic4);
-			REG_WRITE(ah, AR_KEYTABLE_TYPE(micentry),
-				  AR_KEYTABLE_TYPE_CLR);
-
-		} else {
-			/*
-			 * TKIP uses four key cache entries (two for group
-			 * keys):
-			 * Michael MIC TX/RX keys are in different key cache
-			 * entries (idx = main index + 64 for TX and
-			 * main index + 32 + 96 for RX):
-			 * key0 [31:0] = TX/RX MIC key [31:0]
-			 * key1 [31:0] = reserved
-			 * key2 [31:0] = TX/RX MIC key [63:32]
-			 * key3 [31:0] = reserved
-			 * key4 [31:0] = reserved
-			 *
-			 * Upper layer code will call this function separately
-			 * for TX and RX keys when these registers offsets are
-			 * used.
-			 */
-			u32 mic0, mic2;
-
-			mic0 = get_unaligned_le32(k->kv_mic + 0);
-			mic2 = get_unaligned_le32(k->kv_mic + 4);
-
-			/* Write MIC key[31:0] */
-			REG_WRITE(ah, AR_KEYTABLE_KEY0(micentry), mic0);
-			REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), 0);
-
-			/* Write MIC key[63:32] */
-			REG_WRITE(ah, AR_KEYTABLE_KEY2(micentry), mic2);
-			REG_WRITE(ah, AR_KEYTABLE_KEY3(micentry), 0);
-
-			/* Write TX[63:32] and keyType(reserved) */
-			REG_WRITE(ah, AR_KEYTABLE_KEY4(micentry), 0);
-			REG_WRITE(ah, AR_KEYTABLE_TYPE(micentry),
-				  AR_KEYTABLE_TYPE_CLR);
-		}
-
-		/* MAC address registers are reserved for the MIC entry */
-		REG_WRITE(ah, AR_KEYTABLE_MAC0(micentry), 0);
-		REG_WRITE(ah, AR_KEYTABLE_MAC1(micentry), 0);
-
-		/*
-		 * Write the correct (un-inverted) key[47:0] last to enable
-		 * TKIP now that all other registers are set with correct
-		 * values.
-		 */
-		REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), key0);
-		REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), key1);
-	} else {
-		/* Write key[47:0] */
-		REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), key0);
-		REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), key1);
-
-		/* Write key[95:48] */
-		REG_WRITE(ah, AR_KEYTABLE_KEY2(entry), key2);
-		REG_WRITE(ah, AR_KEYTABLE_KEY3(entry), key3);
-
-		/* Write key[127:96] and key type */
-		REG_WRITE(ah, AR_KEYTABLE_KEY4(entry), key4);
-		REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), keyType);
-
-		/* Write MAC address for the entry */
-		(void) ath9k_hw_keysetmac(ah, entry, mac);
-	}
-
-	return true;
-}
-EXPORT_SYMBOL(ath9k_hw_set_keycache_entry);
 
 /******************************/
 /* Power Management (Chipset) */
@@ -2056,6 +1781,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	u16 capField = 0, eeval;
+	u8 ant_div_ctl1;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
 	regulatory->current_rd = eeval;
@@ -2140,23 +1866,12 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->low_5ghz_chan = 4920;
 	pCap->high_5ghz_chan = 6100;
 
-	pCap->hw_caps &= ~ATH9K_HW_CAP_CIPHER_CKIP;
-	pCap->hw_caps |= ATH9K_HW_CAP_CIPHER_TKIP;
-	pCap->hw_caps |= ATH9K_HW_CAP_CIPHER_AESCCM;
-
-	pCap->hw_caps &= ~ATH9K_HW_CAP_MIC_CKIP;
-	pCap->hw_caps |= ATH9K_HW_CAP_MIC_TKIP;
-	pCap->hw_caps |= ATH9K_HW_CAP_MIC_AESCCM;
+	common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
 
 	if (ah->config.ht_enable)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
-
-	pCap->hw_caps |= ATH9K_HW_CAP_GTT;
-	pCap->hw_caps |= ATH9K_HW_CAP_VEOL;
-	pCap->hw_caps |= ATH9K_HW_CAP_BSSIDMASK;
-	pCap->hw_caps &= ~ATH9K_HW_CAP_MCAST_KEYSEARCH;
 
 	if (capField & AR_EEPROM_EEPCAP_MAXQCU)
 		pCap->total_queues =
@@ -2169,8 +1884,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			1 << MS(capField, AR_EEPROM_EEPCAP_KC_ENTRIES);
 	else
 		pCap->keycache_size = AR_KEYTABLE_SIZE;
-
-	pCap->hw_caps |= ATH9K_HW_CAP_FASTCC;
 
 	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD >> 1;
@@ -2279,6 +1992,14 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9287_10_OR_LATER(ah) || AR_SREV_9271(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_SGI_20;
+
+	if (AR_SREV_9285(ah))
+		if (ah->eep_ops->get_eeprom(ah, EEP_MODAL_VER) >= 3) {
+			ant_div_ctl1 =
+				ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
+			if ((ant_div_ctl1 & 0x1) && ((ant_div_ctl1 >> 3) & 0x1))
+				pCap->hw_caps |= ATH9K_HW_CAP_ANT_DIV_COMB;
+		}
 
 	return 0;
 }

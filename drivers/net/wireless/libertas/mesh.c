@@ -574,7 +574,7 @@ int lbs_mesh_bt_set_inverted(struct lbs_private *priv, bool inverted)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_BT_ACCESS_SET_INVERT);
-	cmd.id = !!inverted;
+	cmd.id = cpu_to_le32(!!inverted);
 
 	ret = lbs_cmd_with_response(priv, CMD_BT_ACCESS, &cmd);
 

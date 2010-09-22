@@ -76,7 +76,6 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 {
-	struct ieee80211_rx_status rx_status;
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
 	u16 *fc;
@@ -109,14 +108,13 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	if ((*fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
 		beacon = 1;
 
-	wl1271_rx_status(wl, desc, &rx_status, beacon);
+	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
 	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
 		     beacon ? "beacon" : "");
 
 	skb_trim(skb, skb->len - desc->pad_len);
 
-	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 	ieee80211_rx_ni(wl->hw, skb);
 }
 

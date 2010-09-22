@@ -474,16 +474,10 @@ void ieee80211_iterate_active_interfaces(
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case NUM_NL80211_IFTYPES:
-		case NL80211_IFTYPE_UNSPECIFIED:
 		case NL80211_IFTYPE_MONITOR:
 		case NL80211_IFTYPE_AP_VLAN:
 			continue;
-		case NL80211_IFTYPE_AP:
-		case NL80211_IFTYPE_STATION:
-		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_WDS:
-		case NL80211_IFTYPE_MESH_POINT:
+		default:
 			break;
 		}
 		if (ieee80211_sdata_running(sdata))
@@ -508,16 +502,10 @@ void ieee80211_iterate_active_interfaces_atomic(
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case NUM_NL80211_IFTYPES:
-		case NL80211_IFTYPE_UNSPECIFIED:
 		case NL80211_IFTYPE_MONITOR:
 		case NL80211_IFTYPE_AP_VLAN:
 			continue;
-		case NL80211_IFTYPE_AP:
-		case NL80211_IFTYPE_STATION:
-		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_WDS:
-		case NL80211_IFTYPE_MESH_POINT:
+		default:
 			break;
 		}
 		if (ieee80211_sdata_running(sdata))
@@ -1193,6 +1181,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_P2P_GO:
 			WARN_ON(1);
 			break;
 		}
@@ -1296,9 +1286,9 @@ void ieee80211_recalc_smps(struct ieee80211_local *local,
 	int count = 0;
 
 	if (forsdata)
-		WARN_ON(!mutex_is_locked(&forsdata->u.mgd.mtx));
+		lockdep_assert_held(&forsdata->u.mgd.mtx);
 
-	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+	lockdep_assert_held(&local->iflist_mtx);
 
 	/*
 	 * This function could be improved to handle multiple

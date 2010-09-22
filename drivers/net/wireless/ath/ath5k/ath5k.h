@@ -206,6 +206,8 @@
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
 
+#define ATH5K_TX_COMPLETE_POLL_INT		3000	/* 3 sec */
+
 #define AR5K_INIT_CARR_SENSE_EN			1
 
 /*Swap RX/TX Descriptor for big endian archs*/
@@ -256,8 +258,6 @@
 	(AR5K_INIT_PROG_IFS_TURBO)					\
 )
 
-/* token to use for aifs, cwmin, cwmax in MadWiFi */
-#define	AR5K_TXQ_USEDEFAULT	((u32) -1)
 
 /* GENERIC CHIPSET DEFINITIONS */
 
@@ -528,9 +528,9 @@ struct ath5k_txq_info {
 	enum ath5k_tx_queue tqi_type;
 	enum ath5k_tx_queue_subtype tqi_subtype;
 	u16	tqi_flags;	/* Tx queue flags (see above) */
-	u32	tqi_aifs;	/* Arbitrated Interframe Space */
-	s32	tqi_cw_min;	/* Minimum Contention Window */
-	s32	tqi_cw_max;	/* Maximum Contention Window */
+	u8	tqi_aifs;	/* Arbitrated Interframe Space */
+	u16	tqi_cw_min;	/* Minimum Contention Window */
+	u16	tqi_cw_max;	/* Maximum Contention Window */
 	u32	tqi_cbr_period; /* Constant bit rate period */
 	u32	tqi_cbr_overflow_limit;
 	u32	tqi_burst_time;
@@ -1028,8 +1028,6 @@ struct ath5k_hw {
 	bool			ah_turbo;
 	bool			ah_calibration;
 	bool			ah_single_chip;
-	bool			ah_aes_support;
-	bool			ah_combined_mic;
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
@@ -1044,9 +1042,6 @@ struct ath5k_hw {
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
 
 	u32			ah_atim_window;
-	u32			ah_aifs;
-	u32			ah_cw_min;
-	u32			ah_cw_max;
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
 
@@ -1207,11 +1202,6 @@ void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec);
 unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock);
 unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah);
-/* Key table (WEP) functions */
-int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry);
-int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
-		     const struct ieee80211_key_conf *key, const u8 *mac);
-int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac);
 
 /* Queue Control Unit, DFS Control Unit Functions */
 int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,

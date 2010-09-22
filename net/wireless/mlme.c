@@ -882,7 +882,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		if (!wdev->current_bss ||
 		    memcmp(wdev->current_bss->pub.bssid, mgmt->bssid,
 			   ETH_ALEN) != 0 ||
-		    (wdev->iftype == NL80211_IFTYPE_STATION &&
+		    ((wdev->iftype == NL80211_IFTYPE_STATION ||
+		      wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
 		     memcmp(wdev->current_bss->pub.bssid, mgmt->da,
 			    ETH_ALEN) != 0)) {
 			wdev_unlock(wdev);

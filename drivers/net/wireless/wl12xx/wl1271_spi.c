@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/wl12xx.h>
+#include <linux/wl12xx.h>
 #include <linux/slab.h>
 
 #include "wl1271.h"
@@ -312,10 +312,12 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
-static void wl1271_spi_set_power(struct wl1271 *wl, bool enable)
+static int wl1271_spi_set_power(struct wl1271 *wl, bool enable)
 {
 	if (wl->set_power)
 		wl->set_power(enable);
+
+	return 0;
 }
 
 static struct wl1271_if_operations spi_ops = {
@@ -369,6 +371,8 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		ret = -ENODEV;
 		goto out_free;
 	}
+
+	wl->ref_clock = pdata->board_ref_clock;
 
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {

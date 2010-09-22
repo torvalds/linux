@@ -224,7 +224,18 @@ enum ath9k_internal_frame_type {
 	ATH9K_IFT_UNPAUSE
 };
 
+#ifdef CONFIG_ATH9K_RATE_CONTROL
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
+#else
+static inline int ath_rate_control_register(void)
+{
+	return 0;
+}
+
+static inline void ath_rate_control_unregister(void)
+{
+}
+#endif
 
 #endif /* RC_H */

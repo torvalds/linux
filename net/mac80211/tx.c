@@ -1609,6 +1609,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
+	hdr = (struct ieee80211_hdr *) skb->data;
 	info->control.vif = &sdata->vif;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&

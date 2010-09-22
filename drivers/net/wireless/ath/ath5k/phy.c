@@ -1377,7 +1377,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 
 	/* protect against divide by 0 and loss of sign bits */
 	if (i_coffd == 0 || q_coffd < 2)
-		return -1;
+		return 0;
 
 	i_coff = (-iq_corr) / i_coffd;
 	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */

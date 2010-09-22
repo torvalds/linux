@@ -621,7 +621,9 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 	int ret = 0;
 
 	msleep(WL1271_PRE_POWER_ON_SLEEP);
-	wl1271_power_on(wl);
+	ret = wl1271_power_on(wl);
+	if (ret < 0)
+		goto out;
 	msleep(WL1271_POWER_ON_SLEEP);
 	wl1271_io_reset(wl);
 	wl1271_io_init(wl);
@@ -1632,7 +1634,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if ((changed && BSS_CHANGED_BEACON_INT) &&
+	if ((changed & BSS_CHANGED_BEACON_INT) &&
 	    (wl->bss_type == BSS_TYPE_IBSS)) {
 		wl1271_debug(DEBUG_ADHOC, "ad-hoc beacon interval updated: %d",
 			bss_conf->beacon_int);
@@ -1641,7 +1643,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		do_join = true;
 	}
 
-	if ((changed && BSS_CHANGED_BEACON) &&
+	if ((changed & BSS_CHANGED_BEACON) &&
 	    (wl->bss_type == BSS_TYPE_IBSS)) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
 

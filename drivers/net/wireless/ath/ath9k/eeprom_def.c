@@ -1418,11 +1418,11 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 }
 
 static u8 ath9k_hw_def_get_num_ant_config(struct ath_hw *ah,
-					  enum ieee80211_band freq_band)
+					  enum ath9k_hal_freq_band freq_band)
 {
 	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	struct modal_eep_header *pModal =
-		&(eep->modalHeader[ATH9K_HAL_FREQ_BAND_2GHZ == freq_band]);
+		&(eep->modalHeader[freq_band]);
 	struct base_eep_header *pBase = &eep->baseEepHeader;
 	u8 num_ant_config;
 
