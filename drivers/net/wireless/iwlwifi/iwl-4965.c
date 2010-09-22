@@ -669,8 +669,8 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
-	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
-		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+
+	iwl4965_set_ct_threshold(priv);
 
 	priv->hw_params.sens = &iwl4965_sensitivity;
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
@@ -2292,7 +2292,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.isr = iwl_isr_legacy,
 	.temp_ops = {
 		.temperature = iwl4965_temperature_calib,
-		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,

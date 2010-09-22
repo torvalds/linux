@@ -195,8 +195,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
-	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
-		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
@@ -242,8 +241,7 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
-	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
-		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+	iwl5150_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
@@ -394,7 +392,6 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
-		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
@@ -465,7 +462,6 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
 		.temperature = iwl5150_temperature,
-		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,

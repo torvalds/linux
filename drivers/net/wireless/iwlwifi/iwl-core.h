@@ -137,7 +137,6 @@ struct iwl_debugfs_ops {
 
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
-	void (*set_ct_kill)(struct iwl_priv *priv);
 };
 
 struct iwl_tt_ops {
