@@ -836,18 +836,21 @@ static struct notifier_block amd_mce_dec_nb = {
 
 static int __init mce_amd_init(void)
 {
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (c->x86_vendor != X86_VENDOR_AMD)
 		return 0;
 
-	if ((boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x12) &&
-	    (boot_cpu_data.x86 != 0x14 || boot_cpu_data.x86_model > 0xf))
+	if ((c->x86 < 0xf || c->x86 > 0x12) &&
+	    (c->x86 != 0x14 || c->x86_model > 0xf) &&
+	    (c->x86 != 0x15 || c->x86_model > 0xf))
 		return 0;
 
 	fam_ops = kzalloc(sizeof(struct amd_decoder_ops), GFP_KERNEL);
 	if (!fam_ops)
 		return -ENOMEM;
 
-	switch (boot_cpu_data.x86) {
+	switch (c->x86) {
 	case 0xf:
 		fam_ops->dc_mce = k8_dc_mce;
 		fam_ops->ic_mce = k8_ic_mce;
@@ -887,8 +890,7 @@ static int __init mce_amd_init(void)
 		break;
 
 	default:
-		printk(KERN_WARNING "Huh? What family is that: %d?!\n",
-				    boot_cpu_data.x86);
+		printk(KERN_WARNING "Huh? What family is that: %d?!\n", c->x86);
 		kfree(fam_ops);
 		return -EINVAL;
 	}
