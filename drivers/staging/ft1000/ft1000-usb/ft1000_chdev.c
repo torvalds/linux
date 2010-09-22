@@ -51,7 +51,7 @@ extern void CardSendCommand(struct ft1000_device *ft1000dev, unsigned short *pte
 
 static int ft1000_ChOpen (struct inode *Inode, struct file *File); 
 static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait);
-static int ft1000_ChIoctl (struct inode *Inode, struct file *File, unsigned int Command,
+static int ft1000_ChIoctl(struct file *File, unsigned int Command,
                            unsigned long Argument); 
 static int ft1000_ChRelease (struct inode *Inode, struct file *File);
 
@@ -81,7 +81,7 @@ int numofmsgbuf = 0;
 //
 static struct file_operations ft1000fops =
 {
-    ioctl:    ft1000_ChIoctl,
+    unlocked_ioctl:    ft1000_ChIoctl,
     poll:     ft1000_ChPoll,    
     open:     ft1000_ChOpen,        
     release:  ft1000_ChRelease
@@ -534,7 +534,7 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int ft1000_ChIoctl (struct inode *Inode, struct file *File, unsigned int Command,
+static int ft1000_ChIoctl (struct file *File, unsigned int Command,
                            unsigned long Argument) 
 {
     struct net_device *dev;

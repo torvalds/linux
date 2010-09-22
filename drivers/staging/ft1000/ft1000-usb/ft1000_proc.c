@@ -31,11 +31,11 @@
 
 
 
-#ifdef INIT_NET_NS
+//#ifdef INIT_NET_NS
 #define FTNET_PROC init_net.proc_net
-#else
-#define FTNET_PROC proc_net
-#endif
+//#else
+//#define FTNET_PROC proc_net
+//#endif
 
 
 u16 ft1000_read_dpram16 (struct ft1000_device *ft1000dev, USHORT indx,
