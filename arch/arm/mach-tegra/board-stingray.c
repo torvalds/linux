@@ -632,14 +632,6 @@ static struct platform_device *stingray_devices[] __initdata = {
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
 
-static struct tegra_sdhci_platform_data stingray_sdhci_platform_data3 = {
-	.clk_id = NULL,
-	.force_hs = 0,
-	.cd_gpio = -1,
-	.wp_gpio = -1,
-	.power_gpio = -1,
-};
-
 static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 	.clk_id = NULL,
 	.force_hs = 0,
@@ -704,11 +696,9 @@ static void stingray_sdhci_init(void)
 {
 	/* TODO: setup GPIOs for cd, wd, and power */
 	tegra_sdhci_device2.dev.platform_data = &stingray_wifi_data;
-	tegra_sdhci_device3.dev.platform_data = &stingray_sdhci_platform_data3;
 	tegra_sdhci_device4.dev.platform_data = &stingray_sdhci_platform_data4;
 
 	platform_device_register(&tegra_sdhci_device2);
-	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device4);
 }
 #define ATAG_BDADDR 0x43294329	/* stingray bluetooth address tag */
