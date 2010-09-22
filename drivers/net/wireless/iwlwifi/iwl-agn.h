@@ -162,6 +162,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv);
 int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+void iwl_dump_csr(struct iwl_priv *priv);
 
 /* rx */
 void iwlagn_rx_queue_restock(struct iwl_priv *priv);
