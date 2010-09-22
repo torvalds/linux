@@ -100,6 +100,10 @@ enum ip_conntrack_expect_events {
 	IPEXP_NEW,		/* new expectation */
 };
 
+/* expectation flags */
+#define NF_CT_EXPECT_PERMANENT		0x1
+#define NF_CT_EXPECT_INACTIVE		0x2
+
 #ifdef __KERNEL__
 struct ip_conntrack_stat {
 	unsigned int searched;

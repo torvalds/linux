@@ -1577,6 +1577,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 
 	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout));
 	NLA_PUT_BE32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp));
+	NLA_PUT_BE32(skb, CTA_EXPECT_FLAGS, htonl(exp->flags));
 	helper = rcu_dereference(nfct_help(master)->helper);
 	if (helper)
 		NLA_PUT_STRING(skb, CTA_EXPECT_HELP_NAME, helper->name);
@@ -1734,6 +1735,7 @@ static const struct nla_policy exp_nla_policy[CTA_EXPECT_MAX+1] = {
 	[CTA_EXPECT_ID]		= { .type = NLA_U32 },
 	[CTA_EXPECT_HELP_NAME]	= { .type = NLA_NUL_STRING },
 	[CTA_EXPECT_ZONE]	= { .type = NLA_U16 },
+	[CTA_EXPECT_FLAGS]	= { .type = NLA_U32 },
 };
 
 static int
@@ -1933,9 +1935,13 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 		goto out;
 	}
 
+	if (cda[CTA_EXPECT_FLAGS])
+		exp->flags = ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
+	else
+		exp->flags = 0;
+
 	exp->class = 0;
 	exp->expectfn = NULL;
-	exp->flags = 0;
 	exp->master = ct;
 	exp->helper = NULL;
 	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
