@@ -611,7 +611,7 @@ static int __init mce_amd_init(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return 0;
 
-	if ((boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11) &&
+	if ((boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x12) &&
 	    (boot_cpu_data.x86 != 0x14 || boot_cpu_data.x86_model > 0xf))
 		return 0;
 
