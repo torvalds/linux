@@ -1037,7 +1037,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	result = v9fs_fid_add(dentry, fid);
 	if (result < 0)
-		goto error;
+		goto error_iput;
 
 inst_out:
 	if (v9ses->cache)
@@ -1048,6 +1048,8 @@ inst_out:
 	d_add(dentry, inode);
 	return NULL;
 
+error_iput:
+	iput(inode);
 error:
 	p9_client_clunk(fid);
 
