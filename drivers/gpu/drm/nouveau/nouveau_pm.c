@@ -27,6 +27,9 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+
 static int
 nouveau_pm_clock_set(struct drm_device *dev, u8 id, u32 khz)
 {
@@ -189,7 +192,7 @@ nouveau_pm_get_perflvl_info(struct device *d,
 static ssize_t
 nouveau_pm_get_perflvl(struct device *d, struct device_attribute *a, char *buf)
 {
-        struct drm_device *dev = pci_get_drvdata(to_pci_dev(d));
+	struct drm_device *dev = pci_get_drvdata(to_pci_dev(d));
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_level cur;
@@ -215,7 +218,7 @@ static ssize_t
 nouveau_pm_set_perflvl(struct device *d, struct device_attribute *a,
 		       const char *buf, size_t count)
 {
-        struct drm_device *dev = pci_get_drvdata(to_pci_dev(d));
+	struct drm_device *dev = pci_get_drvdata(to_pci_dev(d));
 	int ret;
 
 	ret = nouveau_pm_profile_set(dev, buf);
@@ -227,43 +230,14 @@ nouveau_pm_set_perflvl(struct device *d, struct device_attribute *a,
 DEVICE_ATTR(performance_level, S_IRUGO | S_IWUSR,
 	    nouveau_pm_get_perflvl, nouveau_pm_set_perflvl);
 
-int
-nouveau_pm_init(struct drm_device *dev)
+static int
+nouveau_sysfs_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct device *d = &dev->pdev->dev;
-	char info[256];
 	int ret, i;
 
-	nouveau_volt_init(dev);
-	nouveau_perf_init(dev);
-
-	NV_INFO(dev, "%d available performance level(s)\n", pm->nr_perflvl);
-	for (i = 0; i < pm->nr_perflvl; i++) {
-		nouveau_pm_perflvl_info(&pm->perflvl[i], info, sizeof(info));
-		NV_INFO(dev, "%d: %s", pm->perflvl[i].id, info);
-	}
-
-	/* determine current ("boot") performance level */
-	ret = nouveau_pm_perflvl_get(dev, &pm->boot);
-	if (ret == 0) {
-		pm->cur = &pm->boot;
-
-		nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));
-		NV_INFO(dev, "c: %s", info);
-	}
-
-	/* switch performance levels now if requested */
-	if (nouveau_perflvl != NULL) {
-		ret = nouveau_pm_profile_set(dev, nouveau_perflvl);
-		if (ret) {
-			NV_ERROR(dev, "error setting perflvl \"%s\": %d\n",
-				 nouveau_perflvl, ret);
-		}
-	}
-
-	/* initialise sysfs */
 	ret = device_create_file(d, &dev_attr_performance_level);
 	if (ret)
 		return ret;
@@ -290,16 +264,13 @@ nouveau_pm_init(struct drm_device *dev)
 	return 0;
 }
 
-void
-nouveau_pm_fini(struct drm_device *dev)
+static void
+nouveau_sysfs_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct device *d = &dev->pdev->dev;
 	int i;
-
-	if (pm->cur != &pm->boot)
-		nouveau_pm_perflvl_set(dev, &pm->boot);
 
 	device_remove_file(d, &dev_attr_performance_level);
 	for (i = 0; i < pm->nr_perflvl; i++) {
@@ -310,9 +281,221 @@ nouveau_pm_fini(struct drm_device *dev)
 
 		device_remove_file(d, &pl->dev_attr);
 	}
+}
+
+
+
+static ssize_t
+nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", nouveau_temp_get(dev)*1000);
+}
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, nouveau_hwmon_show_temp,
+						  NULL, 0);
+
+static ssize_t
+nouveau_hwmon_max_temp(struct device *d, struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", temp->down_clock*1000);
+}
+static ssize_t
+nouveau_hwmon_set_max_temp(struct device *d, struct device_attribute *a,
+						const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
+	long value;
+
+	if (strict_strtoul(buf, 10, &value) == -EINVAL)
+		return count;
+
+	temp->down_clock = value/1000;
+
+	nouveau_temp_safety_checks(dev);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR, nouveau_hwmon_max_temp,
+						  nouveau_hwmon_set_max_temp,
+						  0);
+
+static ssize_t
+nouveau_hwmon_critical_temp(struct device *d, struct device_attribute *a,
+							char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", temp->critical*1000);
+}
+static ssize_t
+nouveau_hwmon_set_critical_temp(struct device *d, struct device_attribute *a,
+							    const char *buf,
+								size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
+	long value;
+
+	if (strict_strtoul(buf, 10, &value) == -EINVAL)
+		return count;
+
+	temp->critical = value/1000;
+
+	nouveau_temp_safety_checks(dev);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO | S_IWUSR,
+						nouveau_hwmon_critical_temp,
+						nouveau_hwmon_set_critical_temp,
+						0);
+
+static ssize_t nouveau_hwmon_show_name(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "nouveau\n");
+}
+static SENSOR_DEVICE_ATTR(name, S_IRUGO, nouveau_hwmon_show_name, NULL, 0);
+
+static ssize_t nouveau_hwmon_show_update_rate(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "1000\n");
+}
+static SENSOR_DEVICE_ATTR(update_rate, S_IRUGO,
+						nouveau_hwmon_show_update_rate,
+						NULL, 0);
+
+static struct attribute *hwmon_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_name.dev_attr.attr,
+	&sensor_dev_attr_update_rate.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group hwmon_attrgroup = {
+	.attrs = hwmon_attributes,
+};
+
+static int
+nouveau_hwmon_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct device *hwmon_dev;
+	int ret;
+
+	dev_priv->int_hwmon_dev = NULL;
+
+	hwmon_dev = hwmon_device_register(&dev->pdev->dev);
+	if (IS_ERR(hwmon_dev)) {
+		ret = PTR_ERR(hwmon_dev);
+		NV_ERROR(dev,
+			"Unable to register hwmon device: %d\n", ret);
+		return ret;
+	}
+	dev_set_drvdata(hwmon_dev, dev);
+	ret = sysfs_create_group(&hwmon_dev->kobj,
+					&hwmon_attrgroup);
+	if (ret) {
+		NV_ERROR(dev,
+			"Unable to create hwmon sysfs file: %d\n", ret);
+		hwmon_device_unregister(hwmon_dev);
+		return ret;
+	}
+
+	dev_priv->int_hwmon_dev = hwmon_dev;
+
+	return 0;
+}
+
+static void
+nouveau_hwmon_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->int_hwmon_dev) {
+		sysfs_remove_group(&dev_priv->int_hwmon_dev->kobj,
+						   &hwmon_attrgroup);
+		hwmon_device_unregister(dev_priv->int_hwmon_dev);
+	}
+}
+
+
+int
+nouveau_pm_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	char info[256];
+	int ret, i;
+
+	nouveau_volt_init(dev);
+	nouveau_perf_init(dev);
+	nouveau_temp_init(dev);
+
+	NV_INFO(dev, "%d available performance level(s)\n", pm->nr_perflvl);
+	for (i = 0; i < pm->nr_perflvl; i++) {
+		nouveau_pm_perflvl_info(&pm->perflvl[i], info, sizeof(info));
+		NV_INFO(dev, "%d: %s", pm->perflvl[i].id, info);
+	}
+
+	/* determine current ("boot") performance level */
+	ret = nouveau_pm_perflvl_get(dev, &pm->boot);
+	if (ret == 0) {
+		pm->cur = &pm->boot;
+
+		nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));
+		NV_INFO(dev, "c: %s", info);
+	}
+
+	/* switch performance levels now if requested */
+	if (nouveau_perflvl != NULL) {
+		ret = nouveau_pm_profile_set(dev, nouveau_perflvl);
+		if (ret) {
+			NV_ERROR(dev, "error setting perflvl \"%s\": %d\n",
+				 nouveau_perflvl, ret);
+		}
+	}
+
+	nouveau_sysfs_init(dev);
+	nouveau_hwmon_init(dev);
+
+	return 0;
+}
+
+void
+nouveau_pm_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+
+	if (pm->cur != &pm->boot)
+		nouveau_pm_perflvl_set(dev, &pm->boot);
 
 	nouveau_perf_fini(dev);
 	nouveau_volt_fini(dev);
+	nouveau_temp_fini(dev);
+
+	nouveau_hwmon_fini(dev);
+	nouveau_sysfs_fini(dev);
 }
 
 void

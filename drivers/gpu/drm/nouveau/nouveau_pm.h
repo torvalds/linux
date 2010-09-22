@@ -52,4 +52,10 @@ int nv50_pm_clock_get(struct drm_device *, u32 id);
 void *nv50_pm_clock_pre(struct drm_device *, u32 id, int khz);
 void nv50_pm_clock_set(struct drm_device *, void *);
 
+/* nouveau_temp.c */
+void nouveau_temp_init(struct drm_device *dev);
+void nouveau_temp_fini(struct drm_device *dev);
+void nouveau_temp_safety_checks(struct drm_device *dev);
+int16_t nouveau_temp_get(struct drm_device *dev);
+
 #endif

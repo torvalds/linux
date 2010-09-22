@@ -387,10 +387,26 @@ struct nouveau_pm_level {
 	u8 fanspeed;
 };
 
+struct nouveau_pm_temp_sensor_constants {
+	u16 offset_constant;
+	s16 offset_mult;
+	u16 offset_div;
+	u16 slope_mult;
+	u16 slope_div;
+};
+
+struct nouveau_pm_threshold_temp {
+	s16 critical;
+	s16 down_clock;
+	s16 fan_boost;
+};
+
 struct nouveau_pm_engine {
 	struct nouveau_pm_voltage voltage;
 	struct nouveau_pm_level perflvl[NOUVEAU_PM_MAX_LEVEL];
 	int nr_perflvl;
+	struct nouveau_pm_temp_sensor_constants sensor_constants;
+	struct nouveau_pm_threshold_temp threshold_temp;
 
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;
@@ -663,6 +679,8 @@ struct drm_nouveau_private {
 
 	struct nouveau_fbdev *nfbdev;
 	struct apertures_struct *apertures;
+
+	struct device *int_hwmon_dev;
 };
 
 static inline struct drm_nouveau_private *
