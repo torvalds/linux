@@ -11,16 +11,11 @@
 #define EFX_PHY_H
 
 /****************************************************************************
- * 10Xpress (SFX7101 and SFT9001) PHYs
+ * 10Xpress (SFX7101) PHY
  */
 extern struct efx_phy_operations falcon_sfx7101_phy_ops;
-extern struct efx_phy_operations falcon_sft9001_phy_ops;
 
 extern void tenxpress_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
-
-/* Wait for the PHY to boot. Return 0 on success, -EINVAL if the PHY failed
- * to boot due to corrupt flash, or some other negative error code. */
-extern int sft9001_wait_boot(struct efx_nic *efx);
 
 /****************************************************************************
  * AMCC/Quake QT202x PHYs

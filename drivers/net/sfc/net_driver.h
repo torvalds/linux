@@ -406,8 +406,6 @@ enum efx_int_mode {
 };
 #define EFX_INT_MODE_USE_MSI(x) (((x)->interrupt_mode) <= EFX_INT_MODE_MSI)
 
-#define EFX_IS10G(efx) ((efx)->link_state.speed == 10000)
-
 enum nic_state {
 	STATE_INIT = 0,
 	STATE_RUNNING = 1,
