@@ -43,7 +43,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
-#include "iwl-calib.h"
+#include "iwl-agn-calib.h"
 #include "iwl-sta.h"
 #include "iwl-agn-led.h"
 #include "iwl-agn.h"

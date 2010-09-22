@@ -79,4 +79,8 @@ static inline void iwl_chain_noise_reset(struct iwl_priv *priv)
 		priv->cfg->ops->utils->chain_noise_reset(priv);
 }
 
+int iwl_send_calib_results(struct iwl_priv *priv);
+int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len);
+void iwl_calib_free_results(struct iwl_priv *priv);
+
 #endif /* __iwl_calib_h__ */

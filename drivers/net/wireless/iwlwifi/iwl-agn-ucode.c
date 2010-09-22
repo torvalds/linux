@@ -38,6 +38,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
+#include "iwl-agn-calib.h"
 
 static const s8 iwlagn_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_VO,

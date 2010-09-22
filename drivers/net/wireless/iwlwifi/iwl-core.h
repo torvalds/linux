@@ -396,7 +396,6 @@ struct iwl_cfg {
 
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
-void iwl_activate_qos(struct iwl_priv *priv);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);
@@ -505,7 +504,6 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 ******************************************************/
 void iwl_cmd_queue_free(struct iwl_priv *priv);
 int iwl_rx_queue_alloc(struct iwl_priv *priv);
-void iwl_rx_handle(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
@@ -523,12 +521,6 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /*****************************************************
 * TX
 ******************************************************/
-void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
-				 struct iwl_tx_queue *txq,
-				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
-int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-			 struct iwl_tx_queue *txq);
 void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 		      int slots_num, u32 txq_id);
@@ -546,24 +538,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx);
-
-static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
-{
-	return BIT(ant_idx) << RATE_MCS_ANT_POS;
-}
-
-static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0xFF;
-}
-static inline u32 iwl_hw_get_rate_n_flags(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0x1FFFF;
-}
-static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
-{
-	return cpu_to_le32(flags|(u32)rate);
-}
 
 /*******************************************************************************
  * Scanning
@@ -599,13 +573,6 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
 #define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
-
-/*******************************************************************************
- * Calibrations - implemented in iwl-calib.c
- ******************************************************************************/
-int iwl_send_calib_results(struct iwl_priv *priv);
-int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len);
-void iwl_calib_free_results(struct iwl_priv *priv);
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *

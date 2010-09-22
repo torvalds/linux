@@ -177,8 +177,15 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 		     struct iwl_rx_mem_buffer *rxb);
 void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 			 struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_handle(struct iwl_priv *priv);
 
 /* tx */
+void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				 struct iwl_tx_queue *txq,
+				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
+int iwl_hw_tx_queue_init(struct iwl_priv *priv,
+			 struct iwl_tx_queue *txq);
 void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
@@ -288,5 +295,21 @@ int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
+
+/* rate */
+static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
+{
+	return BIT(ant_idx) << RATE_MCS_ANT_POS;
+}
+
+static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
+{
+	return le32_to_cpu(rate_n_flags) & 0xFF;
+}
+
+static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
+{
+	return cpu_to_le32(flags|(u32)rate);
+}
 
 #endif /* __iwl_agn_h__ */

@@ -57,7 +57,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-sta.h"
-#include "iwl-calib.h"
+#include "iwl-agn-calib.h"
 #include "iwl-agn.h"
 
 
