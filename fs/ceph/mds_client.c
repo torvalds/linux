@@ -1,11 +1,12 @@
 #include <linux/ceph/ceph_debug.h>
 
+#include <linux/fs.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -2369,13 +2370,13 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 		ceph_pagelist_set_cursor(pagelist, &trunc_point);
 		do {
-			lock_kernel();
+			lock_flocks();
 			ceph_count_locks(inode, &num_fcntl_locks,
 					 &num_flock_locks);
 			rec.v2.flock_len = (2*sizeof(u32) +
 					    (num_fcntl_locks+num_flock_locks) *
 					    sizeof(struct ceph_filelock));
-			unlock_kernel();
+			unlock_flocks();
 
 			/* pre-alloc pagelist */
 			ceph_pagelist_truncate(pagelist, &trunc_point);
@@ -2386,12 +2387,12 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 			/* encode locks */
 			if (!err) {
-				lock_kernel();
+				lock_flocks();
 				err = ceph_encode_locks(inode,
 							pagelist,
 							num_fcntl_locks,
 							num_flock_locks);
-				unlock_kernel();
+				unlock_flocks();
 			}
 		} while (err == -ENOSPC);
 	} else {
