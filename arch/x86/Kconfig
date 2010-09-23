@@ -1900,7 +1900,7 @@ config PCI_GODIRECT
 	bool "Direct"
 
 config PCI_GOOLPC
-	bool "OLPC"
+	bool "OLPC XO-1"
 	depends on OLPC
 
 config PCI_GOANY

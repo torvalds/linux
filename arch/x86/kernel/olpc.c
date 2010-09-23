@@ -242,8 +242,10 @@ static int __init olpc_init(void)
 			(unsigned char *) &olpc_platform_info.ecver, 1);
 
 #ifdef CONFIG_PCI_OLPC
-	/* If the VSA exists let it emulate PCI, if not emulate in kernel */
-	if (!cs5535_has_vsa2())
+	/* If the VSA exists let it emulate PCI, if not emulate in kernel.
+	 * XO-1 only. */
+	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0) &&
+			!cs5535_has_vsa2())
 		x86_init.pci.arch_init = pci_olpc_init;
 #endif
 
