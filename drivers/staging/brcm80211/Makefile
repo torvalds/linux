@@ -27,11 +27,7 @@ ccflags-y :=					\
 	-Idrivers/staging/brcm80211/sys		\
 	-Idrivers/staging/brcm80211/phy		\
 	-Idrivers/staging/brcm80211/util	\
-	-Idrivers/staging/brcm80211/include	\
-	-Wall					\
-	-Wstrict-prototypes			\
-	-Werror					\
-	-Wmissing-prototypes
+	-Idrivers/staging/brcm80211/include
 
 PCI_CFLAGS := -DWLC_LOW
 
