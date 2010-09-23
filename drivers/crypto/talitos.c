@@ -161,7 +161,7 @@ struct talitos_private {
 static void to_talitos_ptr(struct talitos_ptr *talitos_ptr, dma_addr_t dma_addr)
 {
 	talitos_ptr->ptr = cpu_to_be32(lower_32_bits(dma_addr));
-	talitos_ptr->eptr = cpu_to_be32(upper_32_bits(dma_addr));
+	talitos_ptr->eptr = upper_32_bits(dma_addr);
 }
 
 /*
@@ -332,10 +332,9 @@ static int talitos_submit(struct device *dev, struct talitos_desc *desc,
 
 	/* GO! */
 	wmb();
-	out_be32(priv->reg + TALITOS_FF(ch),
-		 cpu_to_be32(upper_32_bits(request->dma_desc)));
+	out_be32(priv->reg + TALITOS_FF(ch), upper_32_bits(request->dma_desc));
 	out_be32(priv->reg + TALITOS_FF_LO(ch),
-		 cpu_to_be32(lower_32_bits(request->dma_desc)));
+		 lower_32_bits(request->dma_desc));
 
 	spin_unlock_irqrestore(&priv->chan[ch].head_lock, flags);
 
@@ -1751,14 +1750,14 @@ static int ahash_init_sha224_swinit(struct ahash_request *areq)
 	ahash_init(areq);
 	req_ctx->swinit = 1;/* prevent h/w initting context with sha256 values*/
 
-	req_ctx->hw_context[0] = cpu_to_be32(SHA224_H0);
-	req_ctx->hw_context[1] = cpu_to_be32(SHA224_H1);
-	req_ctx->hw_context[2] = cpu_to_be32(SHA224_H2);
-	req_ctx->hw_context[3] = cpu_to_be32(SHA224_H3);
-	req_ctx->hw_context[4] = cpu_to_be32(SHA224_H4);
-	req_ctx->hw_context[5] = cpu_to_be32(SHA224_H5);
-	req_ctx->hw_context[6] = cpu_to_be32(SHA224_H6);
-	req_ctx->hw_context[7] = cpu_to_be32(SHA224_H7);
+	req_ctx->hw_context[0] = SHA224_H0;
+	req_ctx->hw_context[1] = SHA224_H1;
+	req_ctx->hw_context[2] = SHA224_H2;
+	req_ctx->hw_context[3] = SHA224_H3;
+	req_ctx->hw_context[4] = SHA224_H4;
+	req_ctx->hw_context[5] = SHA224_H5;
+	req_ctx->hw_context[6] = SHA224_H6;
+	req_ctx->hw_context[7] = SHA224_H7;
 
 	/* init 64-bit count */
 	req_ctx->hw_context[8] = 0;
