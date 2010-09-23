@@ -2835,8 +2835,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
-		if (bt_coex_active && priv->iw_mode != NL80211_IFTYPE_ADHOC)
-			iwlagn_send_prio_tbl(priv);
+		iwlagn_send_prio_tbl(priv);
 
 		/* FIXME: w/a to force change uCode BT state machine */
 		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
