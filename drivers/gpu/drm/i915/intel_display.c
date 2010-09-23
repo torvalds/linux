@@ -4693,8 +4693,6 @@ static void intel_gpu_idle_timer(unsigned long arg)
 	struct drm_device *dev = (struct drm_device *)arg;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG_DRIVER("idle timer fired, downclocking\n");
-
 	dev_priv->busy = false;
 
 	queue_work(dev_priv->wq, &dev_priv->idle_work);
@@ -4707,8 +4705,6 @@ static void intel_crtc_idle_timer(unsigned long arg)
 	struct intel_crtc *intel_crtc = (struct intel_crtc *)arg;
 	struct drm_crtc *crtc = &intel_crtc->base;
 	drm_i915_private_t *dev_priv = crtc->dev->dev_private;
-
-	DRM_DEBUG_DRIVER("idle timer fired, downclocking\n");
 
 	intel_crtc->busy = false;
 
