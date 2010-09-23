@@ -4727,7 +4727,7 @@ get_pll_register(struct drm_device *dev, enum pll_types type)
 	else {
 		u8 *plim = &bios->data[bios->pll_limit_tbl_ptr];
 
-		if (plim[0] >= 0x40) {
+		if (plim[0] >= 0x30) {
 			u8 *entry = plim + plim[1];
 			for (i = 0; i < plim[3]; i++, entry += plim[2]) {
 				if (entry[0] == type)
