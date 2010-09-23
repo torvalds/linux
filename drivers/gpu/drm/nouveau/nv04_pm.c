@@ -25,6 +25,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
+#include "nouveau_pm.h"
 
 struct nv04_pm_state {
 	struct pll_lims pll;

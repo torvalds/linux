@@ -27,7 +27,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 
-void
+static void
 nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

@@ -227,8 +227,8 @@ nouveau_pm_set_perflvl(struct device *d, struct device_attribute *a,
 	return strlen(buf);
 }
 
-DEVICE_ATTR(performance_level, S_IRUGO | S_IWUSR,
-	    nouveau_pm_get_perflvl, nouveau_pm_set_perflvl);
+static DEVICE_ATTR(performance_level, S_IRUGO | S_IWUSR,
+		   nouveau_pm_get_perflvl, nouveau_pm_set_perflvl);
 
 static int
 nouveau_sysfs_init(struct drm_device *dev)
@@ -283,8 +283,6 @@ nouveau_sysfs_fini(struct drm_device *dev)
 	}
 }
 
-
-
 static ssize_t
 nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)
 {
@@ -317,7 +315,7 @@ nouveau_hwmon_set_max_temp(struct device *d, struct device_attribute *a,
 	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
 	long value;
 
-	if (strict_strtoul(buf, 10, &value) == -EINVAL)
+	if (strict_strtol(buf, 10, &value) == -EINVAL)
 		return count;
 
 	temp->down_clock = value/1000;
@@ -352,7 +350,7 @@ nouveau_hwmon_set_critical_temp(struct device *d, struct device_attribute *a,
 	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
 	long value;
 
-	if (strict_strtoul(buf, 10, &value) == -EINVAL)
+	if (strict_strtol(buf, 10, &value) == -EINVAL)
 		return count;
 
 	temp->critical = value/1000;
