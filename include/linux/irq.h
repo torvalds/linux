@@ -106,7 +106,6 @@ struct msi_desc;
  * @bus_sync_unlock:	function to sync and unlock slow bus (i2c) chips
  *
  * @release:		release function solely used by UML
- * @typename:		obsoleted by name, kept as migration helper
  */
 struct irq_chip {
 	const char	*name;
@@ -135,11 +134,6 @@ struct irq_chip {
 #ifdef CONFIG_IRQ_RELEASE_METHOD
 	void		(*release)(unsigned int irq, void *dev_id);
 #endif
-	/*
-	 * For compatibility, ->typename is copied into ->name.
-	 * Will disappear.
-	 */
-	const char	*typename;
 };
 
 struct timer_rand_state;

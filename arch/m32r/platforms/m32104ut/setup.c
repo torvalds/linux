@@ -65,7 +65,7 @@ static void shutdown_m32104ut_irq(unsigned int irq)
 
 static struct irq_chip m32104ut_irq_type =
 {
-	.typename = "M32104UT-IRQ",
+	.name = "M32104UT-IRQ",
 	.startup = startup_m32104ut_irq,
 	.shutdown = shutdown_m32104ut_irq,
 	.enable = enable_m32104ut_irq,

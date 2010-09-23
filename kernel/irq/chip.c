@@ -344,8 +344,6 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 	if (!chip->shutdown)
 		chip->shutdown = chip->disable != default_disable ?
 			chip->disable : default_shutdown;
-	if (!chip->name)
-		chip->name = chip->typename;
 	if (!chip->end)
 		chip->end = dummy_irq_chip.end;
 }
