@@ -89,7 +89,7 @@ static void s3c_ac97_activate(struct snd_ac97 *ac97)
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		printk(KERN_ERR "AC97: Unable to activate!");
+		pr_err("AC97: Unable to activate!");
 }
 
 static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
@@ -115,14 +115,15 @@ static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		printk(KERN_ERR "AC97: Unable to read!");
+		pr_err("AC97: Unable to read!");
 
 	stat = readl(s3c_ac97.regs + S3C_AC97_STAT);
 	addr = (stat >> 16) & 0x7f;
 	data = (stat & 0xffff);
 
 	if (addr != reg)
-		printk(KERN_ERR "s3c-ac97: req addr = %02x, rep addr = %02x\n", reg, addr);
+		pr_err("s3c-ac97: req addr = %02x, rep addr = %02x\n",
+			reg, addr);
 
 	mutex_unlock(&s3c_ac97.lock);
 
@@ -151,7 +152,7 @@ static void s3c_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		printk(KERN_ERR "AC97: Unable to write!");
+		pr_err("AC97: Unable to write!");
 
 	ac_codec_cmd = readl(s3c_ac97.regs + S3C_AC97_CODEC_CMD);
 	ac_codec_cmd |= S3C_AC97_CODEC_CMD_READ;
@@ -442,7 +443,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	ret = request_irq(irq_res->start, s3c_ac97_irq,
 					IRQF_DISABLED, "AC97", NULL);
 	if (ret < 0) {
-		printk(KERN_ERR "s3c-ac97: interrupt request failed.\n");
+		dev_err(&pdev->dev, "s3c-ac97: interrupt request failed.\n");
 		goto err4;
 	}
 
