@@ -229,7 +229,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	/* Make sure pre-965s set dither correctly */
 	if (INTEL_INFO(dev)->gen < 4) {
-		if (dev_priv->panel_wants_dither || dev_priv->lvds_dither)
+		if (dev_priv->lvds_dither)
 			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 	}
 
