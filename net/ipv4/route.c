@@ -2579,7 +2579,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			goto out;
 
 		/* RACE: Check return value of inet_select_addr instead. */
-		if (__in_dev_get_rtnl(dev_out) == NULL) {
+		if (rcu_dereference_raw(dev_out->ip_ptr) == NULL) {
 			dev_put(dev_out);
 			goto out;	/* Wrong error code */
 		}
