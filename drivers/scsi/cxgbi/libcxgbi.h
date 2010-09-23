@@ -500,6 +500,7 @@ void cxgbi_sock_free_cpl_skbs(struct cxgbi_sock *);
 
 struct cxgbi_hba {
 	struct net_device *ndev;
+	struct net_device *vdev;	/* vlan dev */
 	struct Scsi_Host *shost;
 	struct cxgbi_device *cdev;
 	__be32 ipv4addr;

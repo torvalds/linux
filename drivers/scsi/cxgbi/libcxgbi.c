@@ -195,16 +195,22 @@ EXPORT_SYMBOL_GPL(cxgbi_device_find_by_lldev);
 static struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *ndev,
 							int *port)
 {
+	struct net_device *vdev = NULL;
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN)
+	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
+		log_debug(1 << CXGBI_DBG_DEV,
+			"vlan dev %s -> %s.\n", vdev->name, ndev->name);
+	}
 
 	mutex_lock(&cdev_mutex);
 	list_for_each_entry_safe(cdev, tmp, &cdev_list, list_head) {
 		for (i = 0; i < cdev->nports; i++) {
 			if (ndev == cdev->ports[i]) {
+				cdev->hbas[i]->vdev = vdev;
 				mutex_unlock(&cdev_mutex);
 				if (port)
 					*port = i;
@@ -215,24 +221,6 @@ static struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *ndev,
 	mutex_unlock(&cdev_mutex);
 	log_debug(1 << CXGBI_DBG_DEV,
 		"ndev 0x%p, %s, NO match found.\n", ndev, ndev->name);
-	return NULL;
-}
-
-struct cxgbi_hba *cxgbi_hba_find_by_netdev(struct net_device *dev,
-					struct cxgbi_device *cdev)
-{
-	int i;
-
-	if (dev->priv_flags & IFF_802_1Q_VLAN)
-		dev = vlan_dev_real_dev(dev);
-
-	for (i = 0; i < cdev->nports; i++) {
-		if (cdev->hbas[i]->ndev == dev)
-			return cdev->hbas[i];
-	}
-	log_debug(1 << CXGBI_DBG_DEV,
-		"ndev 0x%p, %s, cdev 0x%p, NO match found.\n",
-		dev, dev->name, cdev);
 	return NULL;
 }
 
@@ -532,12 +520,6 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 			dst->neighbour->dev->name, ndev->name, mtu);
 	}
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
-		ndev = vlan_dev_real_dev(ndev);
-		pr_info("rt dev %s, vlan -> %s.\n",
-			dst->neighbour->dev->name, ndev->name);
-	}
-
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
 	if (!cdev) {
 		pr_info("dst %pI4, %s, NOT cxgbi device.\n",
@@ -561,10 +543,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	csk->dst = dst;
 	csk->daddr.sin_addr.s_addr = daddr->sin_addr.s_addr;
 	csk->daddr.sin_port = daddr->sin_port;
-	if (cdev->hbas[port]->ipv4addr)
-		csk->saddr.sin_addr.s_addr = cdev->hbas[port]->ipv4addr;
-	else
-		csk->saddr.sin_addr.s_addr = rt->rt_src;
+	csk->saddr.sin_addr.s_addr = rt->rt_src;
 
 	return csk;
 
