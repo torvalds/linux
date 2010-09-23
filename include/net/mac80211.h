@@ -2432,25 +2432,28 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 					 const u8 *addr);
 
 /**
- * ieee80211_find_sta_by_hw - find a station on hardware
+ * ieee80211_find_sta_by_ifaddr - find a station on hardware
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @addr: station's address
+ * @addr: remote station's address
+ * @localaddr: local address (vif->sdata->vif.addr). Use NULL for 'any'.
  *
  * This function must be called under RCU lock and the
  * resulting pointer is only valid under RCU lock as well.
  *
- * NOTE: This function should not be used! When mac80211 is converted
- *	 internally to properly keep track of stations on multiple
- *	 virtual interfaces, it will not always know which station to
- *	 return here since a single address might be used by multiple
- *	 logical stations (e.g. consider a station connecting to another
- *	 BSSID on the same AP hardware without disconnecting first).
+ * NOTE: You may pass NULL for localaddr, but then you will just get
+ *      the first STA that matches the remote address 'addr'.
+ *      We can have multiple STA associated with multiple
+ *      logical stations (e.g. consider a station connecting to another
+ *      BSSID on the same AP hardware without disconnecting first).
+ *      In this case, the result of this method with localaddr NULL
+ *      is not reliable.
  *
- * DO NOT USE THIS FUNCTION.
+ * DO NOT USE THIS FUNCTION with localaddr NULL if at all possible.
  */
-struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
-					       const u8 *addr);
+struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
+					       const u8 *addr,
+					       const u8 *localaddr);
 
 /**
  * ieee80211_sta_block_awake - block station from waking up
