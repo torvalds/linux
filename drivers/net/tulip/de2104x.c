@@ -364,6 +364,8 @@ static u16 t21040_csr15[] = { 0, 0, 0x0006, 0x0000, 0x0000, };
 /* 21041 transceiver register settings: TP AUTO, BNC, AUI, TP, TP FD*/
 static u16 t21041_csr13[] = { 0xEF01, 0xEF09, 0xEF09, 0xEF01, 0xEF09, };
 static u16 t21041_csr14[] = { 0xFFFF, 0xF7FD, 0xF7FD, 0x6F3F, 0x6F3D, };
+/* If on-chip autonegotiation is broken, use half-duplex (FF3F) instead */
+static u16 t21041_csr14_brk[] = { 0xFF3F, 0xF7FD, 0xF7FD, 0x6F3F, 0x6F3D, };
 static u16 t21041_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 
 
@@ -1911,8 +1913,14 @@ fill_defaults:
 	for (i = 0; i < DE_MAX_MEDIA; i++) {
 		if (de->media[i].csr13 == 0xffff)
 			de->media[i].csr13 = t21041_csr13[i];
-		if (de->media[i].csr14 == 0xffff)
-			de->media[i].csr14 = t21041_csr14[i];
+		if (de->media[i].csr14 == 0xffff) {
+			/* autonegotiation is broken at least on some chip
+			   revisions - rev. 0x21 works, 0x11 does not */
+			if (de->pdev->revision < 0x20)
+				de->media[i].csr14 = t21041_csr14_brk[i];
+			else
+				de->media[i].csr14 = t21041_csr14[i];
+		}
 		if (de->media[i].csr15 == 0xffff)
 			de->media[i].csr15 = t21041_csr15[i];
 	}
