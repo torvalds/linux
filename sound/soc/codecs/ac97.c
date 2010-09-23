@@ -22,8 +22,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#define AC97_VERSION "0.6"
-
 static int ac97_prepare(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
@@ -81,11 +79,9 @@ static int ac97_soc_probe(struct snd_soc_codec *codec)
 	struct snd_ac97_template ac97_template;
 	int ret;
 
-	printk(KERN_INFO "AC97 SoC Audio Codec %s\n", AC97_VERSION);
-
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "ASoC: failed to init gen ac97 glue\n");
+		printk(KERN_ERR "ASoC: failed to init generic ac97 glue\n");
 		return ret;
 	}
 
@@ -127,8 +123,8 @@ static int ac97_soc_resume(struct snd_soc_codec *codec)
 #endif
 
 static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
-	.write = ac97_write,
-	.read = ac97_read,
+	.write =	ac97_write,
+	.read =		ac97_read,
 	.probe = 	ac97_soc_probe,
 	.remove = 	ac97_soc_remove,
 	.suspend =	ac97_soc_suspend,
@@ -149,8 +145,8 @@ static int __devexit ac97_remove(struct platform_device *pdev)
 
 static struct platform_driver ac97_codec_driver = {
 	.driver = {
-			.name = "ac97-codec",
-			.owner = THIS_MODULE,
+		.name = "ac97-codec",
+		.owner = THIS_MODULE,
 	},
 
 	.probe = ac97_probe,
