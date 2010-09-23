@@ -1022,7 +1022,6 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 	if (!strcmp("lock_nolock", proto)) {
 		lm = &nolock_ops;
 		sdp->sd_args.ar_localflocks = 1;
-		sdp->sd_args.ar_localcaching = 1;
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 	} else if (!strcmp("lock_dlm", proto)) {
 		lm = &gfs2_dlm_ops;

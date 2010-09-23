@@ -165,7 +165,7 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_localflocks = 1;
 			break;
 		case Opt_localcaching:
-			args->ar_localcaching = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_debug:
 			if (args->ar_errors == GFS2_ERRORS_PANIC) {
@@ -1129,7 +1129,6 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	/* Some flags must not be changed */
 	if (args_neq(&args, &sdp->sd_args, spectator) ||
 	    args_neq(&args, &sdp->sd_args, localflocks) ||
-	    args_neq(&args, &sdp->sd_args, localcaching) ||
 	    args_neq(&args, &sdp->sd_args, meta))
 		return -EINVAL;
 
@@ -1234,8 +1233,6 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",spectator");
 	if (args->ar_localflocks)
 		seq_printf(s, ",localflocks");
-	if (args->ar_localcaching)
-		seq_printf(s, ",localcaching");
 	if (args->ar_debug)
 		seq_printf(s, ",debug");
 	if (args->ar_upgrade)
