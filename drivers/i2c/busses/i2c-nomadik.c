@@ -103,6 +103,9 @@
 /* maximum threshold value */
 #define MAX_I2C_FIFO_THRESHOLD	15
 
+/* per-transfer delay, required for the hardware to stabilize */
+#define I2C_DELAY		150
+
 enum i2c_status {
 	I2C_NOP,
 	I2C_ON_GOING,
@@ -118,7 +121,7 @@ enum i2c_operation {
 };
 
 /* controller response timeout in ms */
-#define I2C_TIMEOUT_MS	500
+#define I2C_TIMEOUT_MS	2000
 
 /**
  * struct i2c_nmk_client - client specific data
@@ -267,6 +270,7 @@ static int init_hw(struct nmk_i2c_dev *dev)
 
 	clk_disable(dev->clk);
 
+	udelay(I2C_DELAY);
 	return 0;
 }
 
@@ -599,7 +603,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 			clk_disable(dev->clk);
 			return status;
 		}
-		mdelay(1);
+		udelay(I2C_DELAY);
 	}
 	clk_disable(dev->clk);
 
