@@ -113,8 +113,8 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 
 		switch (temp[0]) {
 		case 0x01:
-			value = (value&0x8f) == 0 ? (value >> 9) & 0x7f : 0;
-			sensor->offset_constant = value;
+			if ((value & 0x8f) == 0)
+				sensor->offset_constant = (value >> 9) & 0x7f;
 			break;
 
 		case 0x04:
