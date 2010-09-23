@@ -304,7 +304,7 @@ static struct pci_raw_ops pci_olpc_conf = {
 
 int __init pci_olpc_init(void)
 {
-	printk(KERN_INFO "PCI: Using configuration type OLPC\n");
+	printk(KERN_INFO "PCI: Using configuration type OLPC XO-1\n");
 	raw_pci_ops = &pci_olpc_conf;
 	is_lx = is_geode_lx();
 	return 0;
