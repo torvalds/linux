@@ -393,7 +393,8 @@ static void write_bitmap_word(struct go7007 *go)
 	for (i = 0; i < 16; ++i) {
 		y = (((go->parse_length - 1) << 3) + i) / (go->width >> 4);
 		x = (((go->parse_length - 1) << 3) + i) % (go->width >> 4);
-		go->active_map[stride * y + (x >> 3)] |=
+		if (stride * y + (x >> 3) < sizeof(go->active_map))
+			go->active_map[stride * y + (x >> 3)] |=
 					(go->modet_word & 1) << (x & 0x7);
 		go->modet_word >>= 1;
 	}
@@ -485,6 +486,15 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			}
 			break;
 		case STATE_00_00_01:
+			if (buf[i] == 0xF8 && go->modet_enable == 0) {
+				/* MODET start code, but MODET not enabled */
+				store_byte(go->active_buf, 0x00);
+				store_byte(go->active_buf, 0x00);
+				store_byte(go->active_buf, 0x01);
+				store_byte(go->active_buf, 0xF8);
+				go->state = STATE_DATA;
+				break;
+			}
 			/* If this is the start of a new MPEG frame,
 			 * get a new buffer */
 			if ((go->format == GO7007_FORMAT_MPEG1 ||
