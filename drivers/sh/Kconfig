@@ -22,3 +22,12 @@ config INTC_BALANCING
 	  vectors.
 
 	  If in doubt, say N.
+
+config INTC_MAPPING_DEBUG
+	bool "Expose IRQ to per-controller id mapping via debugfs"
+	depends on DEBUG_FS
+	help
+	  This will create a debugfs entry for showing the relationship
+	  between system IRQs and the per-controller id tables.
+
+	  If in doubt, say N.

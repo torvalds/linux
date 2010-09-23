@@ -30,6 +30,11 @@
 #include <linux/topology.h>
 #include <linux/bitmap.h>
 #include <linux/cpumask.h>
+#include <linux/spinlock.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#include <linux/radix-tree.h>
+#include <linux/mutex.h>
 #include <asm/sizes.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
@@ -54,9 +59,15 @@ struct intc_window {
 	unsigned long size;
 };
 
+struct intc_map_entry {
+	intc_enum enum_id;
+	struct intc_desc_int *desc;
+};
+
 struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
+	struct radix_tree_root tree;
 	pm_message_t state;
 	unsigned long *reg;
 #ifdef CONFIG_SMP
@@ -86,7 +97,9 @@ static LIST_HEAD(intc_list);
  * unused irq_desc positions in the sparse array.
  */
 static DECLARE_BITMAP(intc_irq_map, NR_IRQS);
+static struct intc_map_entry intc_irq_xlate[NR_IRQS];
 static DEFINE_SPINLOCK(vector_lock);
+static DEFINE_MUTEX(irq_xlate_mutex);
 
 #ifdef CONFIG_SMP
 #define IS_SMP(x) x.smp
@@ -828,6 +841,26 @@ static unsigned int __init intc_sense_data(struct intc_desc *desc,
 	return 0;
 }
 
+unsigned int intc_irq_lookup(const char *chipname, intc_enum enum_id)
+{
+	struct intc_map_entry *ptr;
+	struct intc_desc_int *d;
+	unsigned int irq = 0;
+
+	list_for_each_entry(d, &intc_list, list) {
+		if (strcmp(d->chip.name, chipname) == 0) {
+			ptr = radix_tree_lookup(&d->tree, enum_id);
+			if (ptr) {
+				irq = ptr - intc_irq_xlate;
+				break;
+			}
+		}
+	}
+
+	return irq;
+}
+EXPORT_SYMBOL_GPL(intc_irq_lookup);
+
 static void __init intc_register_irq(struct intc_desc *desc,
 				     struct intc_desc_int *d,
 				     intc_enum enum_id,
@@ -837,9 +870,14 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	unsigned int data[2], primary;
 
 	/*
-	 * Register the IRQ position with the global IRQ map
+	 * Register the IRQ position with the global IRQ map, then insert
+	 * it in to the radix tree.
 	 */
 	set_bit(irq, intc_irq_map);
+
+	mutex_lock(&irq_xlate_mutex);
+	radix_tree_insert(&d->tree, enum_id, &intc_irq_xlate[irq]);
+	mutex_unlock(&irq_xlate_mutex);
 
 	/*
 	 * Prefer single interrupt source bitmap over other combinations:
@@ -1082,6 +1120,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 			continue;
 		}
 
+		intc_irq_xlate[irq].enum_id = vect->enum_id;
+		intc_irq_xlate[irq].desc = d;
+
 		intc_register_irq(desc, d, vect->enum_id, irq);
 
 		for (k = i + 1; k < hw->nr_vectors; k++) {
@@ -1194,6 +1235,54 @@ store_intc_userimask(struct sysdev_class *cls,
 
 static SYSDEV_CLASS_ATTR(userimask, S_IRUSR | S_IWUSR,
 			 show_intc_userimask, store_intc_userimask);
+#endif
+
+#ifdef CONFIG_INTC_MAPPING_DEBUG
+static int intc_irq_xlate_debug(struct seq_file *m, void *priv)
+{
+	int i;
+
+	seq_printf(m, "%-5s  %-7s  %-15s\n", "irq", "enum", "chip name");
+
+	for (i = 1; i < nr_irqs; i++) {
+		struct intc_desc_int *desc = intc_irq_xlate[i].desc;
+
+		if (!desc)
+			continue;
+
+		seq_printf(m, "%5d  ", i);
+		seq_printf(m, "0x%05x  ", intc_irq_xlate[i].enum_id);
+		seq_printf(m, "%-15s\n", desc->chip.name);
+	}
+
+	return 0;
+}
+
+static int intc_irq_xlate_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, intc_irq_xlate_debug, inode->i_private);
+}
+
+static const struct file_operations intc_irq_xlate_fops = {
+	.open = intc_irq_xlate_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init intc_irq_xlate_init(void)
+{
+	/*
+	 * XXX.. use arch_debugfs_dir here when all of the intc users are
+	 * converted.
+	 */
+	if (debugfs_create_file("intc_irq_xlate", S_IRUGO, NULL, NULL,
+				&intc_irq_xlate_fops) == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+fs_initcall(intc_irq_xlate_init);
 #endif
 
 static ssize_t
