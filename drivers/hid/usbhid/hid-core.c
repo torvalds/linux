@@ -1470,9 +1470,6 @@ static int __init hid_init(void)
 	retval = usbhid_quirks_init(quirks_param);
 	if (retval)
 		goto usbhid_quirks_init_fail;
-	retval = hiddev_init();
-	if (retval)
-		goto hiddev_init_fail;
 	retval = usb_register(&hid_driver);
 	if (retval)
 		goto usb_register_fail;
@@ -1480,8 +1477,6 @@ static int __init hid_init(void)
 
 	return 0;
 usb_register_fail:
-	hiddev_exit();
-hiddev_init_fail:
 	usbhid_quirks_exit();
 usbhid_quirks_init_fail:
 	hid_unregister_driver(&hid_usb_driver);
@@ -1494,7 +1489,6 @@ no_queue:
 static void __exit hid_exit(void)
 {
 	usb_deregister(&hid_driver);
-	hiddev_exit();
 	usbhid_quirks_exit();
 	hid_unregister_driver(&hid_usb_driver);
 	destroy_workqueue(resumption_waker);
