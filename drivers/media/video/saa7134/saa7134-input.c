@@ -959,6 +959,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "MSI TV@nywhere Plus";
 		dev->init_data.get_key = get_key_msi_tvanywhere_plus;
 		dev->init_data.ir_codes = RC_MAP_MSI_TVANYWHERE_PLUS;
+		/*
+		 * MSI TV@nyware Plus requires more frequent polling
+		 * otherwise it will miss some keypresses
+		 */
+		dev->init_data.polling_interval = 50;
 		info.addr = 0x30;
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from

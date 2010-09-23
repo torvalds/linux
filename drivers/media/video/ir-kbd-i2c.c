@@ -259,15 +259,9 @@ static void ir_key_poll(struct IR_i2c *ir)
 static void ir_work(struct work_struct *work)
 {
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
-	int polling_interval = 100;
-
-	/* MSI TV@nywhere Plus requires more frequent polling
-	   otherwise it will miss some keypresses */
-	if (ir->c->adapter->id == I2C_HW_SAA7134 && ir->c->addr == 0x30)
-		polling_interval = 50;
 
 	ir_key_poll(ir);
-	schedule_delayed_work(&ir->work, msecs_to_jiffies(polling_interval));
+	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling_interval));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -292,6 +286,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ir->c = client;
 	ir->input = input_dev;
+	ir->polling_interval = DEFAULT_POLLING_INTERVAL;
 	i2c_set_clientdata(client, ir);
 
 	switch(addr) {
@@ -342,6 +337,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name = init_data->name;
 		if (init_data->type)
 			ir_type = init_data->type;
+
+		if (init_data->polling_interval)
+			ir->polling_interval = init_data->polling_interval;
 
 		switch (init_data->internal_get_key_func) {
 		case IR_KBD_GET_KEY_CUSTOM:
