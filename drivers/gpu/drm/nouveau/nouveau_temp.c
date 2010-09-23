@@ -178,7 +178,7 @@ nouveau_nv40_sensor_setup(struct drm_device *dev)
 	msleep(5);
 
 	/* read */
-	return nv_rd32(dev, 0x0015b4);
+	return nv_rd32(dev, 0x0015b4) & 0x1fff;
 }
 
 s16
@@ -197,7 +197,7 @@ nouveau_temp_get(struct drm_device *dev)
 		if (dev_priv->chipset >= 0x50) {
 			core_temp = nv_rd32(dev, 0x20008);
 		} else {
-			core_temp = nv_rd32(dev, 0x0015b4);
+			core_temp = nv_rd32(dev, 0x0015b4) & 0x1fff;
 			/* Setup the sensor if the temperature is 0 */
 			if (core_temp == 0)
 				core_temp = nouveau_nv40_sensor_setup(dev);
