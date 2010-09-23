@@ -3735,7 +3735,7 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 					/* Clear first 3 bits of the control */
 					val &= ~0x7;
 					/* Set control bits according to
-					configuation */
+					configuration */
 					val |= (params->xgxs_config_rx[i] &
 						0x7);
 					DP(NETIF_MSG_LINK, "Setting RX"
