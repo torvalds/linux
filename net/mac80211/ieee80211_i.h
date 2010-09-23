@@ -564,6 +564,7 @@ struct ieee80211_sub_if_data {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *dir;
+		struct dentry *subdir_stations;
 		struct dentry *default_key;
 		struct dentry *default_mgmt_key;
 	} debugfs;
@@ -899,7 +900,6 @@ struct ieee80211_local {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
 		struct dentry *rcdir;
-		struct dentry *stations;
 		struct dentry *keys;
 	} debugfs;
 #endif
