@@ -654,11 +654,14 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
 	struct inode *inode = ctx->path.dentry->d_inode;
 
-	if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
+	if (inode) {
+		if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
+			return;
+		list_del(&ctx->list);
+		spin_unlock(&inode->i_lock);
+		NFS_PROTO(inode)->close_context(ctx, is_sync);
+	} else if (!atomic_dec_and_test(&ctx->lock_context.count))
 		return;
-	list_del(&ctx->list);
-	spin_unlock(&inode->i_lock);
-	NFS_PROTO(inode)->close_context(ctx, is_sync);
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	path_put(&ctx->path);
