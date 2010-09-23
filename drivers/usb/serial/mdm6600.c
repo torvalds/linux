@@ -673,12 +673,25 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 	size_t c;
 	struct urb *u;
 	struct tty_struct *tty;
+	unsigned long flags;
 	struct mdm6600_port *modem = container_of(work, struct mdm6600_port,
 		read.work);
+	struct usb_anchor *anchor = &modem->read.pending;
 
 	dbg("%s", __func__);
 
-	while ((u = usb_get_from_anchor(&modem->read.pending))) {
+	while (true) {
+		spin_lock_irqsave(&anchor->lock, flags);
+		if (list_empty(&anchor->urb_list)) {
+			spin_unlock_irqrestore(&anchor->lock, flags);
+			return;
+		}
+
+		u = list_entry(anchor->urb_list.next, struct urb,
+				    anchor_list);
+		usb_get_urb(u);
+		spin_unlock_irqrestore(&anchor->lock, flags);
+
 		dbg("%s: processing urb %p len %u", __func__, u,
 			u->actual_length);
 		usb_serial_debug_data(debug_data, &modem->port->dev, __func__,
@@ -697,7 +710,14 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 		tty_kref_put(tty);
 
 next:
+		usb_unanchor_urb(u);
+		if (modem->susp_count) {
+			usb_put_urb(u);
+			continue;
+		}
+
 		usb_anchor_urb(u, &modem->read.in_flight);
+		usb_put_urb(u);
 		rc = usb_submit_urb(u, GFP_KERNEL);
 		if (rc) {
 			pr_err("%s: Error %d re-submitting read urb %p\n",
@@ -759,6 +779,8 @@ static int mdm6600_suspend(struct usb_interface *intf, pm_message_t message)
 		spin_unlock_irq(&modem->susp_lock);
 		dbg("%s: kill urbs", __func__);
 		mdm6600_kill_urbs(modem);
+		if (!usb_wait_anchor_empty_timeout(&modem->read.pending, 1000))
+			usb_scuttle_anchored_urbs(&modem->read.pending);
 		return 0;
 	}
 
@@ -788,6 +810,7 @@ static int mdm6600_resume(struct usb_interface *intf)
 
 		while ((u = usb_get_from_anchor(&modem->write.delayed))) {
 			usb_anchor_urb(u, &modem->write.in_flight);
+			usb_put_urb(u);
 			rc = usb_submit_urb(u, GFP_KERNEL);
 			if (rc < 0) {
 				usb_unanchor_urb(u);
