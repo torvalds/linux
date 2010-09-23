@@ -414,6 +414,15 @@ struct amd_iommu {
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
+
+	/*
+	 * This array is required to work around a potential BIOS bug.
+	 * The BIOS may miss to restore parts of the PCI configuration
+	 * space when the system resumes from S3. The result is that the
+	 * IOMMU does not execute commands anymore which leads to system
+	 * failure.
+	 */
+	u32 cache_cfg[4];
 };
 
 /*
