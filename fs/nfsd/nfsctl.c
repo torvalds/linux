@@ -129,12 +129,10 @@ static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size
 {
 	static int warned;
 	if (file->f_dentry->d_name.name[0] == '.' && !warned) {
-		char name[sizeof(current->comm)];
 		printk(KERN_INFO
 		       "Warning: \"%s\" uses deprecated NFSD interface: %s."
 		       "  This will be removed in 2.6.40\n",
-		       get_task_comm(name, current),
-		       file->f_dentry->d_name.name);
+		       current->comm, file->f_dentry->d_name.name);
 		warned = 1;
 	}
 	if (! file->private_data) {
