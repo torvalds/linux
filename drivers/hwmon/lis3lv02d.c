@@ -138,6 +138,7 @@ static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 /* conversion btw sampling rate and the register values */
 static int lis3_12_rates[4] = {40, 160, 640, 2560};
 static int lis3_8_rates[2] = {100, 400};
+static int lis3_3dc_rates[16] = {0, 1, 10, 25, 50, 100, 200, 400, 1600, 5000};
 
 /* ODR is Output Data Rate */
 static int lis3lv02d_get_odr(void)
@@ -156,6 +157,9 @@ static int lis3lv02d_set_odr(int rate)
 	u8 ctrl;
 	int i, len, shift;
 
+	if (!rate)
+		return -EINVAL;
+
 	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
 	ctrl &= ~lis3_dev.odr_mask;
 	len = 1 << hweight_long(lis3_dev.odr_mask); /* # of possible values */
@@ -172,19 +176,25 @@ static int lis3lv02d_set_odr(int rate)
 
 static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 {
-	u8 reg;
+	u8 ctlreg, reg;
 	s16 x, y, z;
 	u8 selftest;
 	int ret;
 
 	mutex_lock(&lis3->mutex);
-	if (lis3_dev.whoami == WAI_12B)
-		selftest = CTRL1_ST;
-	else
-		selftest = CTRL1_STP;
+	if (lis3_dev.whoami == WAI_3DC) {
+		ctlreg = CTRL_REG4;
+		selftest = CTRL4_ST0;
+	} else {
+		ctlreg = CTRL_REG1;
+		if (lis3_dev.whoami == WAI_12B)
+			selftest = CTRL1_ST;
+		else
+			selftest = CTRL1_STP;
+	}
 
-	lis3->read(lis3, CTRL_REG1, &reg);
-	lis3->write(lis3, CTRL_REG1, (reg | selftest));
+	lis3->read(lis3, ctlreg, &reg);
+	lis3->write(lis3, ctlreg, (reg | selftest));
 	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
 
 	/* Read directly to avoid axis remap */
@@ -193,7 +203,7 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 	z = lis3->read_data(lis3, OUTZ);
 
 	/* back to normal settings */
-	lis3->write(lis3, CTRL_REG1, reg);
+	lis3->write(lis3, ctlreg, reg);
 	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
 
 	results[0] = x - lis3->read_data(lis3, OUTX);
@@ -672,6 +682,15 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
 		dev->odrs = lis3_8_rates;
 		dev->odr_mask = CTRL1_DR;
+		dev->scale = LIS3_SENSITIVITY_8B;
+		break;
+	case WAI_3DC:
+		printk(KERN_INFO DRIVER_NAME ": 8 bits 3DC sensor found\n");
+		dev->read_data = lis3lv02d_read_8;
+		dev->mdps_max_val = 128;
+		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
+		dev->odrs = lis3_3dc_rates;
+		dev->odr_mask = CTRL1_ODR0|CTRL1_ODR1|CTRL1_ODR2|CTRL1_ODR3;
 		dev->scale = LIS3_SENSITIVITY_8B;
 		break;
 	default:

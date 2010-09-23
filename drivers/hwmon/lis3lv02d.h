@@ -45,6 +45,7 @@ enum lis3_reg {
 	CTRL_REG1	= 0x20,
 	CTRL_REG2	= 0x21,
 	CTRL_REG3	= 0x22,
+	CTRL_REG4	= 0x23,
 	HP_FILTER_RESET	= 0x23,
 	STATUS_REG	= 0x27,
 	OUTX_L		= 0x28,
@@ -93,6 +94,7 @@ enum lis3lv02d_reg {
 };
 
 enum lis3_who_am_i {
+	WAI_3DC		= 0x33,	/* 8 bits: LIS3DC, HP3DC */
 	WAI_12B		= 0x3A, /* 12 bits: LIS3LV02D[LQ]... */
 	WAI_8B		= 0x3B, /* 8 bits: LIS[23]02D[LQ]... */
 	WAI_6B		= 0x52, /* 6 bits: LIS331DLF - not supported */
@@ -118,6 +120,13 @@ enum lis3lv02d_ctrl1_8b {
 	CTRL1_DR	= 0x80,
 };
 
+enum lis3lv02d_ctrl1_3dc {
+	CTRL1_ODR0	= 0x10,
+	CTRL1_ODR1	= 0x20,
+	CTRL1_ODR2	= 0x40,
+	CTRL1_ODR3	= 0x80,
+};
+
 enum lis3lv02d_ctrl2 {
 	CTRL2_DAS	= 0x01,
 	CTRL2_SIM	= 0x02,
@@ -127,6 +136,14 @@ enum lis3lv02d_ctrl2 {
 	CTRL2_BLE	= 0x20,
 	CTRL2_BDU	= 0x40, /* Block Data Update */
 	CTRL2_FS	= 0x80, /* Full Scale selection */
+};
+
+enum lis3lv02d_ctrl4_3dc {
+	CTRL4_SIM	= 0x01,
+	CTRL4_ST0	= 0x02,
+	CTRL4_ST1	= 0x04,
+	CTRL4_FS0	= 0x10,
+	CTRL4_FS1	= 0x20,
 };
 
 enum lis302d_ctrl2 {
