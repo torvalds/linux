@@ -1593,17 +1593,12 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	if (old_fb) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
 		struct drm_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
 		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
-		if (atomic_read(&obj_priv->pending_flip)) {
-			ret = i915_gem_wait_for_pending_flip(dev, &obj, 1);
-			if (ret) {
-				i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
-				mutex_unlock(&dev->struct_mutex);
-				return ret;
-			}
-		}
+		wait_event(dev_priv->pending_flip_queue,
+			   atomic_read(&obj_priv->pending_flip) == 0);
 	}
 
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y);
@@ -1954,6 +1949,20 @@ static void intel_clear_scanline_wait(struct drm_device *dev)
 	}
 }
 
+static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
+{
+	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_private *dev_priv;
+
+	if (crtc->fb == NULL)
+		return;
+
+	obj_priv = to_intel_bo(to_intel_framebuffer(crtc->fb)->obj);
+	dev_priv = crtc->dev->dev_private;
+	wait_event(dev_priv->pending_flip_queue,
+		   atomic_read(&obj_priv->pending_flip) == 0);
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -2130,6 +2139,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
+	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
 	intel_crtc_update_cursor(crtc, false);
 
@@ -2377,9 +2387,10 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		return;
 
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
+	intel_crtc_wait_for_pending_flips(crtc);
+	drm_vblank_off(dev, pipe);
 	intel_crtc_dpms_overlay(intel_crtc, false);
 	intel_crtc_update_cursor(crtc, false);
-	drm_vblank_off(dev, pipe);
 
 	if (dev_priv->cfb_plane == plane &&
 	    dev_priv->display.disable_fbc)
