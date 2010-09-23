@@ -663,7 +663,7 @@ dev_irnet_ioctl(
       if((val == N_SYNC_PPP) || (val == N_PPP))
 	{
 	  DEBUG(FS_INFO, "Entering PPP discipline.\n");
-	  /* PPP channel setup (ap->chan in configued in dev_irnet_open())*/
+	  /* PPP channel setup (ap->chan in configured in dev_irnet_open())*/
 	  lock_kernel();
 	  err = ppp_register_channel(&ap->chan);
 	  if(err == 0)
