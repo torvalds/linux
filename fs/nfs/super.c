@@ -632,6 +632,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	const struct proc_nfs_info *nfs_infop;
 	struct nfs_client *clp = nfss->nfs_client;
 	u32 version = clp->rpc_ops->version;
+	int local_flock, local_fcntl;
 
 	seq_printf(m, ",vers=%u", version);
 	seq_printf(m, ",rsize=%u", nfss->rsize);
@@ -680,6 +681,18 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		else
 			seq_printf(m, ",lookupcache=pos");
 	}
+
+	local_flock = nfss->flags & NFS_MOUNT_LOCAL_FLOCK;
+	local_fcntl = nfss->flags & NFS_MOUNT_LOCAL_FCNTL;
+
+	if (!local_flock && !local_fcntl)
+		seq_printf(m, ",local_lock=none");
+	else if (local_flock && local_fcntl)
+		seq_printf(m, ",local_lock=all");
+	else if (local_flock)
+		seq_printf(m, ",local_lock=flock");
+	else
+		seq_printf(m, ",local_lock=posix");
 }
 
 /*
