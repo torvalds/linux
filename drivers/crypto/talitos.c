@@ -2333,8 +2333,7 @@ static int talitos_remove(struct of_device *ofdev)
 		talitos_unregister_rng(dev);
 
 	for (i = 0; i < priv->num_channels; i++)
-		if (priv->chan[i].fifo)
-			kfree(priv->chan[i].fifo);
+		kfree(priv->chan[i].fifo);
 
 	kfree(priv->chan);
 
