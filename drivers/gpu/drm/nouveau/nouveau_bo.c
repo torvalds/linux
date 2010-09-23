@@ -912,7 +912,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	 * nothing to do here.
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
-		if (dev_priv->chipset < NV_50 || !nvbo->tile_flags)
+		if (dev_priv->card_type < NV_50 || !nvbo->tile_flags)
 			return 0;
 	}
 
