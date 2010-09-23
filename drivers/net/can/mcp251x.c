@@ -258,6 +258,16 @@ struct mcp251x_priv {
 	int restart_tx;
 };
 
+#define MCP251X_IS(_model) \
+static inline int mcp251x_is_##_model(struct spi_device *spi) \
+{ \
+	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev); \
+	return priv->model == CAN_MCP251X_MCP##_model; \
+}
+
+MCP251X_IS(2510);
+MCP251X_IS(2515);
+
 static void mcp251x_clean(struct net_device *net)
 {
 	struct mcp251x_priv *priv = netdev_priv(net);
@@ -370,7 +380,7 @@ static void mcp251x_hw_tx_frame(struct spi_device *spi, u8 *buf,
 {
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
 
-	if (priv->model == CAN_MCP251X_MCP2510) {
+	if (mcp251x_is_2510(spi)) {
 		int i;
 
 		for (i = 1; i < TXBDAT_OFF + len; i++)
@@ -414,7 +424,7 @@ static void mcp251x_hw_rx_frame(struct spi_device *spi, u8 *buf,
 {
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
 
-	if (priv->model == CAN_MCP251X_MCP2510) {
+	if (mcp251x_is_2510(spi)) {
 		int i, len;
 
 		for (i = 1; i < RXBDAT_OFF; i++)
