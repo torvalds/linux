@@ -2609,7 +2609,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	int prepares;
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
-	struct sta_info *sta, *tmp;
+	struct sta_info *sta, *tmp, *prev_sta;
 	bool found_sta = false;
 	int err = 0;
 
@@ -2640,22 +2640,74 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	ieee80211_verify_alignment(&rx);
 
 	if (ieee80211_is_data(fc)) {
+		prev_sta = NULL;
 		for_each_sta_info(local, hdr->addr2, sta, tmp) {
-			rx.sta = sta;
 			found_sta = true;
-			rx.sdata = sta->sdata;
+			if (!prev_sta) {
+				prev_sta = sta;
+				continue;
+			}
+
+			rx.sta = prev_sta;
+			rx.sdata = prev_sta->sdata;
 
 			rx.flags |= IEEE80211_RX_RA_MATCH;
 			prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
-			if (prepares) {
-				if (status->flag & RX_FLAG_MMIC_ERROR) {
-					if (rx.flags & IEEE80211_RX_RA_MATCH)
-						ieee80211_rx_michael_mic_report(hdr, &rx);
-				} else
-					prev = rx.sdata;
+			if (!prepares)
+				goto next_sta;
+
+			if (status->flag & RX_FLAG_MMIC_ERROR) {
+				if (rx.flags & IEEE80211_RX_RA_MATCH)
+					ieee80211_rx_michael_mic_report(hdr, &rx);
+				goto next_sta;
+			}
+
+			/*
+			 * frame was destined for the previous interface
+			 * so invoke RX handlers for it
+			 */
+			skb_new = skb_copy(skb, GFP_ATOMIC);
+			if (!skb_new) {
+				if (net_ratelimit())
+					wiphy_debug(local->hw.wiphy,
+						    "failed to copy multicast"
+						    " frame for %s\n",
+						    prev_sta->sdata->name);
+				goto next_sta;
+			}
+			ieee80211_invoke_rx_handlers(prev_sta->sdata, &rx,
+						     skb_new);
+next_sta:
+			prev_sta = sta;
+		} /* for all STA info */
+
+		if (prev_sta) {
+			rx.sta = prev_sta;
+			rx.sdata = prev_sta->sdata;
+
+			rx.flags |= IEEE80211_RX_RA_MATCH;
+			prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
+			if (!prepares)
+				prev_sta = NULL;
+
+			if (prev_sta && status->flag & RX_FLAG_MMIC_ERROR) {
+				if (rx.flags & IEEE80211_RX_RA_MATCH)
+					ieee80211_rx_michael_mic_report(hdr, &rx);
+				prev_sta = NULL;
 			}
 		}
-	}
+
+
+		if (prev_sta) {
+			ieee80211_invoke_rx_handlers(prev_sta->sdata, &rx, skb);
+			return;
+		} else {
+			if (found_sta) {
+				dev_kfree_skb(skb);
+				return;
+			}
+		}
+	} /* if data frame */
 	if (!found_sta) {
 		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 			if (!ieee80211_sdata_running(sdata))
@@ -2718,6 +2770,14 @@ next:
 
 			if (!prepares)
 				prev = NULL;
+
+			if (prev && status->flag & RX_FLAG_MMIC_ERROR) {
+				rx.sdata = prev;
+				if (rx.flags & IEEE80211_RX_RA_MATCH)
+					ieee80211_rx_michael_mic_report(hdr,
+									&rx);
+				prev = NULL;
+			}
 		}
 	}
 	if (prev)
