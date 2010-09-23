@@ -136,7 +136,7 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->fanspeed = entry[55];
 			perflvl->voltage = entry[56];
 			perflvl->core = ROM32(entry[1]) * 10;
-			perflvl->memory = ROM32(entry[5]) * 10;
+			perflvl->memory = ROM32(entry[5]) * 20;
 			break;
 		case 0x21:
 		case 0x23:
@@ -144,7 +144,13 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->fanspeed = entry[4];
 			perflvl->voltage = entry[5];
 			perflvl->core = ROM16(entry[6]) * 1000;
-			perflvl->memory = ROM16(entry[11]) * 1000;
+
+			if (dev_priv->chipset == 0x49 ||
+			    dev_priv->chipset == 0x4b)
+				perflvl->memory = ROM16(entry[11]) * 1000;
+			else
+				perflvl->memory = ROM16(entry[11]) * 2000;
+
 			break;
 		case 0x25:
 			perflvl->fanspeed = entry[4];
