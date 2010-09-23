@@ -592,6 +592,8 @@ struct cxgbi_task_data {
 	unsigned int count;
 	unsigned int sgoffset;
 };
+#define iscsi_task_cxgbi_data(task) \
+	((task)->dd_data + sizeof(struct iscsi_tcp_task))
 
 static inline int cxgbi_is_ddp_tag(struct cxgbi_tag_format *tformat, u32 tag)
 {
