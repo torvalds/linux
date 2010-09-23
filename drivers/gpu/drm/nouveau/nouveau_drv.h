@@ -411,6 +411,8 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;
 
+	struct device *hwmon;
+
 	int (*clock_get)(struct drm_device *, u32 id);
 	void *(*clock_pre)(struct drm_device *, u32 id, int khz);
 	void (*clock_set)(struct drm_device *, void *);
@@ -418,6 +420,7 @@ struct nouveau_pm_engine {
 	int (*voltage_set)(struct drm_device *, int voltage);
 	int (*fanspeed_get)(struct drm_device *);
 	int (*fanspeed_set)(struct drm_device *, int fanspeed);
+	int (*temp_get)(struct drm_device *);
 };
 
 struct nouveau_engine {
@@ -679,8 +682,6 @@ struct drm_nouveau_private {
 
 	struct nouveau_fbdev *nfbdev;
 	struct apertures_struct *apertures;
-
-	struct device *int_hwmon_dev;
 };
 
 static inline struct drm_nouveau_private *

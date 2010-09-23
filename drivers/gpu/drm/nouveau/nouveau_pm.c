@@ -289,8 +289,10 @@ static ssize_t
 nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", nouveau_temp_get(dev)*1000);
+	return snprintf(buf, PAGE_SIZE, "%d\n", pm->temp_get(dev)*1000);
 }
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, nouveau_hwmon_show_temp,
 						  NULL, 0);
@@ -399,10 +401,12 @@ static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct device *hwmon_dev;
 	int ret;
 
-	dev_priv->int_hwmon_dev = NULL;
+	if (!pm->temp_get)
+		return -ENODEV;
 
 	hwmon_dev = hwmon_device_register(&dev->pdev->dev);
 	if (IS_ERR(hwmon_dev)) {
@@ -421,7 +425,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return ret;
 	}
 
-	dev_priv->int_hwmon_dev = hwmon_dev;
+	pm->hwmon = hwmon_dev;
 
 	return 0;
 }
@@ -430,14 +434,13 @@ static void
 nouveau_hwmon_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 
-	if (dev_priv->int_hwmon_dev) {
-		sysfs_remove_group(&dev_priv->int_hwmon_dev->kobj,
-						   &hwmon_attrgroup);
-		hwmon_device_unregister(dev_priv->int_hwmon_dev);
+	if (pm->hwmon) {
+		sysfs_remove_group(&pm->hwmon->kobj, &hwmon_attrgroup);
+		hwmon_device_unregister(pm->hwmon);
 	}
 }
-
 
 int
 nouveau_pm_init(struct drm_device *dev)

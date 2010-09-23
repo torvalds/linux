@@ -320,6 +320,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_set		= nv04_pm_clock_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
+		engine->pm.temp_get		= nv40_temp_get;
 		break;
 	case 0x50:
 	case 0x80: /* gotta love NVIDIA's consistency.. */
@@ -379,6 +380,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_set		= nv50_pm_clock_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
+		if (dev_priv->chipset >= 0x84)
+			engine->pm.temp_get	= nv84_temp_get;
+		else
+			engine->pm.temp_get	= nv40_temp_get;
 		break;
 	case 0xC0:
 		engine->instmem.init		= nvc0_instmem_init;

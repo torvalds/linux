@@ -154,8 +154,8 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 	nouveau_temp_safety_checks(dev);
 }
 
-static s16
-nouveau_nv40_sensor_setup(struct drm_device *dev)
+static int
+nv40_sensor_setup(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
@@ -182,40 +182,34 @@ nouveau_nv40_sensor_setup(struct drm_device *dev)
 	return nv_rd32(dev, 0x0015b4) & 0x1fff;
 }
 
-s16
-nouveau_temp_get(struct drm_device *dev)
+int
+nv40_temp_get(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
+	int offset = sensor->offset_mult / sensor->offset_div;
+	int core_temp;
 
-	if (dev_priv->chipset >= 0x84) {
-		return nv_rd32(dev, 0x20400);
-	} else if (dev_priv->chipset >= 0x40) {
-		u32 offset = sensor->offset_mult / sensor->offset_div;
-		u32 core_temp;
-
-		if (dev_priv->chipset >= 0x50) {
-			core_temp = nv_rd32(dev, 0x20008);
-		} else {
-			core_temp = nv_rd32(dev, 0x0015b4) & 0x1fff;
-			/* Setup the sensor if the temperature is 0 */
-			if (core_temp == 0)
-				core_temp = nouveau_nv40_sensor_setup(dev);
-		}
-
-		core_temp = core_temp * sensor->slope_mult / sensor->slope_div;
-		core_temp = core_temp + offset + sensor->offset_constant;
-
-		return core_temp;
+	if (dev_priv->chipset >= 0x50) {
+		core_temp = nv_rd32(dev, 0x20008);
 	} else {
-		NV_ERROR(dev,
-				 "Temperature cannot be retrieved from an nv%x card\n",
-				 dev_priv->chipset);
-		return 0;
+		core_temp = nv_rd32(dev, 0x0015b4) & 0x1fff;
+		/* Setup the sensor if the temperature is 0 */
+		if (core_temp == 0)
+			core_temp = nv40_sensor_setup(dev);
 	}
 
-	return 0;
+	core_temp = core_temp * sensor->slope_mult / sensor->slope_div;
+	core_temp = core_temp + offset + sensor->offset_constant;
+
+	return core_temp;
+}
+
+int
+nv84_temp_get(struct drm_device *dev)
+{
+	return nv_rd32(dev, 0x20400);
 }
 
 void
