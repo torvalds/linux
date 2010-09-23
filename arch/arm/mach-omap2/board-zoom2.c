@@ -41,10 +41,6 @@ void zoom2_set_hs_extmute(int mute)
 	gpio_set_value(ZOOM2_HEADSET_EXTMUTE_GPIO, mute);
 }
 
-static struct twl4030_madc_platform_data zoom2_madc_data = {
-	.irq_line	= 1,
-};
-
 static struct twl4030_codec_audio_data zoom2_audio_data = {
 	.audio_mclk = 26000000,
 	.ramp_delay_value = 3,	/* 161 ms */
@@ -62,15 +58,7 @@ static struct twl4030_platform_data zoom2_twldata = {
 	.irq_end	= TWL4030_IRQ_END,
 
 	/* platform_data for children goes here */
-	.bci		= &zoom2_bci_data,
-	.madc		= &zoom2_madc_data,
-	.usb		= &zoom2_usb_data,
-	.gpio		= &zoom2_gpio_data,
-	.keypad		= &zoom2_kp_twl4030_data,
 	.codec		= &zoom2_codec_data,
-	.vmmc1          = &zoom2_vmmc1,
-	.vmmc2          = &zoom2_vmmc2,
-	.vsim           = &zoom2_vsim,
 };
 
 static struct i2c_board_info __initdata zoom2_i2c_boardinfo[] = {
