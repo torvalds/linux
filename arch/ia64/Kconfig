@@ -62,6 +62,9 @@ config NEED_SG_DMA_LENGTH
 config SWIOTLB
        bool
 
+config STACKTRACE_SUPPORT
+	def_bool y
+
 config GENERIC_LOCKBREAK
 	def_bool n
 
