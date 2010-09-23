@@ -1076,11 +1076,22 @@ static int sparc_pmu_event_init(struct perf_event *event)
 		break;
 
 	case PERF_TYPE_RAW:
-		return -EOPNOTSUPP;
+		pmap = NULL;
+		break;
 
 	default:
 		return -ENOENT;
 
+	}
+
+	if (pmap) {
+		hwc->event_base = perf_event_encode(pmap);
+	} else {
+		/*
+		 * User gives us "(encoding << 16) | pic_mask" for
+		 * PERF_TYPE_RAW events.
+		 */
+		hwc->event_base = attr->config;
 	}
 
 	/* We save the enable bits in the config_base.  */
@@ -1091,8 +1102,6 @@ static int sparc_pmu_event_init(struct perf_event *event)
 		hwc->config_base |= PCR_STRACE;
 	if (!attr->exclude_hv)
 		hwc->config_base |= sparc_pmu->hv_bit;
-
-	hwc->event_base = perf_event_encode(pmap);
 
 	n = 0;
 	if (event->group_leader != event) {

@@ -680,6 +680,8 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	if (r == 0)
 		r = num;
+
+	omap_i2c_wait_for_bb(dev);
 out:
 	omap_i2c_idle(dev);
 	return r;
