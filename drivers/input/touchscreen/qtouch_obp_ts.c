@@ -850,15 +850,6 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	width = msg->touch_area;
 	pressure = msg->touch_amp;
 
-	if (ts->pdata->flags & QTOUCH_SWAP_XY)
-		swap(x, y);
-
-	if (ts->pdata->flags & QTOUCH_FLIP_X)
-		x = ts->pdata->abs_max_x - x;
-
-	if (ts->pdata->flags & QTOUCH_FLIP_Y)
-		y = ts->pdata->abs_max_y - y;
-
 	if (qtouch_tsdebug & 2)
 		pr_info("%s: stat=%02x, f=%d x=%d y=%d p=%d w=%d\n", __func__,
 			msg->status, finger, x, y, pressure, width);
@@ -870,23 +861,9 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 
 	down = !(msg->status & QTM_TOUCH_MULTI_STATUS_RELEASE);
 
-	/* The chip may report erroneous points way
-	beyond what a user could possibly perform so we filter
-	these out */
-	if (ts->finger_data[finger].down &&
-			(abs(ts->finger_data[finger].x_data - x) > ts->x_delta ||
-			abs(ts->finger_data[finger].y_data - y) > ts->y_delta)) {
-				down = 0;
-				if (qtouch_tsdebug & 2)
-					pr_info("%s: x0 %i x1 %i y0 %i y1 %i\n",
-						__func__,
-						ts->finger_data[finger].x_data, x,
-						ts->finger_data[finger].y_data, y);
-	} else {
-		ts->finger_data[finger].x_data = x;
-		ts->finger_data[finger].y_data = y;
-		ts->finger_data[finger].w_data = width;
-	}
+	ts->finger_data[finger].x_data = x;
+	ts->finger_data[finger].y_data = y;
+	ts->finger_data[finger].w_data = width;
 
 	/* The touch IC will not give back a pressure of zero
 	   so send a 0 when a liftoff is produced */
