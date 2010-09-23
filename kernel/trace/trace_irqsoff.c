@@ -229,62 +229,22 @@ static void irqsoff_trace_close(struct trace_iterator *iter)
 
 static enum print_line_t irqsoff_print_line(struct trace_iterator *iter)
 {
-	u32 flags = GRAPH_TRACER_FLAGS;
-
-	if (trace_flags & TRACE_ITER_LATENCY_FMT)
-		flags |= TRACE_GRAPH_PRINT_DURATION;
-	else
-		flags |= TRACE_GRAPH_PRINT_ABS_TIME;
-
 	/*
 	 * In graph mode call the graph tracer output function,
 	 * otherwise go with the TRACE_FN event handler
 	 */
 	if (is_graph())
-		return print_graph_function_flags(iter, flags);
+		return print_graph_function_flags(iter, GRAPH_TRACER_FLAGS);
 
 	return TRACE_TYPE_UNHANDLED;
 }
 
 static void irqsoff_print_header(struct seq_file *s)
 {
-	if (is_graph()) {
-		struct trace_iterator *iter = s->private;
-		u32 flags = GRAPH_TRACER_FLAGS;
-
-		if (trace_flags & TRACE_ITER_LATENCY_FMT) {
-			/* print nothing if the buffers are empty */
-			if (trace_empty(iter))
-				return;
-
-			print_trace_header(s, iter);
-			flags |= TRACE_GRAPH_PRINT_DURATION;
-		} else
-			flags |= TRACE_GRAPH_PRINT_ABS_TIME;
-
-		print_graph_headers_flags(s, flags);
-	} else
+	if (is_graph())
+		print_graph_headers_flags(s, GRAPH_TRACER_FLAGS);
+	else
 		trace_default_header(s);
-}
-
-static void
-trace_graph_function(struct trace_array *tr,
-		 unsigned long ip, unsigned long flags, int pc)
-{
-	u64 time = trace_clock_local();
-	struct ftrace_graph_ent ent = {
-		.func  = ip,
-		.depth = 0,
-	};
-	struct ftrace_graph_ret ret = {
-		.func     = ip,
-		.depth    = 0,
-		.calltime = time,
-		.rettime  = time,
-	};
-
-	__trace_graph_entry(tr, &ent, flags, pc);
-	__trace_graph_return(tr, &ret, flags, pc);
 }
 
 static void
@@ -292,12 +252,10 @@ __trace_function(struct trace_array *tr,
 		 unsigned long ip, unsigned long parent_ip,
 		 unsigned long flags, int pc)
 {
-	if (!is_graph())
+	if (is_graph())
+		trace_graph_function(tr, ip, parent_ip, flags, pc);
+	else
 		trace_function(tr, ip, parent_ip, flags, pc);
-	else {
-		trace_graph_function(tr, parent_ip, flags, pc);
-		trace_graph_function(tr, ip, flags, pc);
-	}
 }
 
 #else
