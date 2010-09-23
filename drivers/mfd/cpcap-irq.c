@@ -434,7 +434,7 @@ int cpcap_irq_init(struct cpcap_device *cpcap)
 
 	cpcap_irq_mask_all(cpcap);
 
-	data->workqueue = create_workqueue("cpcap_irq");
+	data->workqueue = create_singlethread_workqueue("cpcap_irq");
 	INIT_WORK(&data->work, irq_work_func);
 	mutex_init(&data->lock);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "cpcap-irq");
@@ -635,8 +635,10 @@ EXPORT_SYMBOL_GPL(cpcap_irq_sense);
 int cpcap_irq_suspend(struct cpcap_device *cpcap)
 {
 	struct spi_device *spi = cpcap->spi;
+	struct cpcap_irqdata *data = cpcap->irqdata;
 
 	disable_irq(spi->irq);
+	flush_work(&data->work);
 	return 0;
 }
 
