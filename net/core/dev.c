@@ -4964,6 +4964,34 @@ void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 }
 EXPORT_SYMBOL(netif_stacked_transfer_operstate);
 
+static int netif_alloc_rx_queues(struct net_device *dev)
+{
+#ifdef CONFIG_RPS
+	unsigned int i, count = dev->num_rx_queues;
+
+	if (count) {
+		struct netdev_rx_queue *rx;
+
+		rx = kcalloc(count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
+		if (!rx) {
+			pr_err("netdev: Unable to allocate %u rx queues.\n",
+			       count);
+			return -ENOMEM;
+		}
+		dev->_rx = rx;
+		atomic_set(&rx->count, count);
+
+		/*
+		 * Set a pointer to first element in the array which holds the
+		 * reference count.
+		 */
+		for (i = 0; i < count; i++)
+			rx[i].first = rx;
+	}
+#endif
+	return 0;
+}
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -5001,24 +5029,10 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
-#ifdef CONFIG_RPS
-	if (!dev->num_rx_queues) {
-		/*
-		 * Allocate a single RX queue if driver never called
-		 * alloc_netdev_mq
-		 */
+	ret = netif_alloc_rx_queues(dev);
+	if (ret)
+		goto out;
 
-		dev->_rx = kzalloc(sizeof(struct netdev_rx_queue), GFP_KERNEL);
-		if (!dev->_rx) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		dev->_rx->first = dev->_rx;
-		atomic_set(&dev->_rx->count, 1);
-		dev->num_rx_queues = 1;
-	}
-#endif
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
 		ret = dev->netdev_ops->ndo_init(dev);
@@ -5415,10 +5429,6 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	struct net_device *dev;
 	size_t alloc_size;
 	struct net_device *p;
-#ifdef CONFIG_RPS
-	struct netdev_rx_queue *rx;
-	int i;
-#endif
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -5444,29 +5454,12 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
-#ifdef CONFIG_RPS
-	rx = kcalloc(queue_count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
-	if (!rx) {
-		printk(KERN_ERR "alloc_netdev: Unable to allocate "
-		       "rx queues.\n");
-		goto free_tx;
-	}
-
-	atomic_set(&rx->count, queue_count);
-
-	/*
-	 * Set a pointer to first element in the array which holds the
-	 * reference count.
-	 */
-	for (i = 0; i < queue_count; i++)
-		rx[i].first = rx;
-#endif
 
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
 
 	if (dev_addr_init(dev))
-		goto free_rx;
+		goto free_tx;
 
 	dev_mc_init(dev);
 	dev_uc_init(dev);
@@ -5478,7 +5471,6 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev->real_num_tx_queues = queue_count;
 
 #ifdef CONFIG_RPS
-	dev->_rx = rx;
 	dev->num_rx_queues = queue_count;
 #endif
 
@@ -5496,11 +5488,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	strcpy(dev->name, name);
 	return dev;
 
-free_rx:
-#ifdef CONFIG_RPS
-	kfree(rx);
 free_tx:
-#endif
 	kfree(tx);
 free_p:
 	kfree(p);
