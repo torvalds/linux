@@ -156,11 +156,16 @@ static void __init xen_fill_possible_map(void)
 {
 	int i, rc;
 
+	num_processors = 0;
+	disabled_cpus = 0;
 	for (i = 0; i < nr_cpu_ids; i++) {
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
 		if (rc >= 0) {
 			num_processors++;
 			set_cpu_possible(i, true);
+		} else {
+			set_cpu_possible(i, false);
+			set_cpu_present(i, false);
 		}
 	}
 }
@@ -189,6 +194,8 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 
 	if (xen_smp_intr_init(0))
 		BUG();
+
+	xen_fill_possible_map();
 
 	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
 		panic("could not allocate xen_cpu_initialized_map\n");
@@ -480,6 +487,5 @@ static const struct smp_ops xen_smp_ops __initdata = {
 void __init xen_smp_init(void)
 {
 	smp_ops = xen_smp_ops;
-	xen_fill_possible_map();
 	xen_init_spinlocks();
 }
