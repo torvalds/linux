@@ -65,6 +65,7 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 
 		case 0x44:
 		case 0x47:
+		case 0x4a:
 			sensor->offset_mult = 27839;
 			sensor->offset_div = 1000;
 			sensor->slope_mult = 780;
