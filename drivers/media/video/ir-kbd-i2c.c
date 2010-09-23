@@ -146,26 +146,6 @@ static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
-{
-	unsigned char b;
-
-	/* poll IR chip */
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		dprintk(1,"read error\n");
-		return -EIO;
-	}
-
-	/* ignore 0xaa */
-	if (b==0xaa)
-		return 0;
-	dprintk(2,"key %02x\n", b);
-
-	*ir_key = b;
-	*ir_raw = b;
-	return 1;
-}
-
 static int get_key_fusionhdtv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[4];
@@ -321,12 +301,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
 		break;
-	case 0x4b:
-		name        = "PV951";
-		ir->get_key = get_key_pv951;
-		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = RC_MAP_PV951;
-		break;
 	case 0x18:
 	case 0x1f:
 	case 0x1a:
@@ -395,9 +369,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			break;
 		case IR_KBD_GET_KEY_PIXELVIEW:
 			ir->get_key = get_key_pixelview;
-			break;
-		case IR_KBD_GET_KEY_PV951:
-			ir->get_key = get_key_pv951;
 			break;
 		case IR_KBD_GET_KEY_HAUP:
 			ir->get_key = get_key_haup;
