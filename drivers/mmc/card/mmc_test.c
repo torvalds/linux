@@ -318,8 +318,8 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 
 	if (max_page_cnt > limit)
 		max_page_cnt = limit;
-	if (max_page_cnt < min_page_cnt)
-		max_page_cnt = min_page_cnt;
+	if (min_page_cnt > max_page_cnt)
+		min_page_cnt = max_page_cnt;
 
 	if (max_seg_page_cnt > max_page_cnt)
 		max_seg_page_cnt = max_page_cnt;
@@ -359,13 +359,13 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 		mem->cnt += 1;
 		if (max_page_cnt <= (1UL << order))
 			break;
+		max_page_cnt -= 1UL << order;
+		page_cnt += 1UL << order;
 		if (mem->cnt >= max_segs) {
 			if (page_cnt < min_page_cnt)
 				goto out_free;
 			break;
 		}
-		max_page_cnt -= 1UL << order;
-		page_cnt += 1UL << order;
 	}
 
 	return mem;
@@ -1470,12 +1470,12 @@ static int mmc_test_area_init(struct mmc_test_card *test, int erase, int fill)
 		t->max_tfr = t->max_segs * t->max_seg_sz;
 
 	/*
-	 * Try to allocate enough memory for the whole area.  Less is OK
+	 * Try to allocate enough memory for a max. sized transfer.  Less is OK
 	 * because the same memory can be mapped into the scatterlist more than
 	 * once.  Also, take into account the limits imposed on scatterlist
 	 * segments by the host driver.
 	 */
-	t->mem = mmc_test_alloc_mem(min_sz, t->max_sz, t->max_segs,
+	t->mem = mmc_test_alloc_mem(min_sz, t->max_tfr, t->max_segs,
 				    t->max_seg_sz);
 	if (!t->mem)
 		return -ENOMEM;
