@@ -2483,13 +2483,10 @@ static int iwl_check_stuck_queue(struct iwl_priv *priv, int cnt)
 					"queue %d, not read %d time\n",
 					q->id,
 					q->repeat_same_read_ptr);
-			if (priv->cfg->bt_params &&
-			    !priv->cfg->bt_params->advanced_bt_coexist) {
-				mod_timer(&priv->monitor_recover,
-					jiffies + msecs_to_jiffies(
-					IWL_ONE_HUNDRED_MSECS));
-				return 1;
-			}
+			mod_timer(&priv->monitor_recover,
+				jiffies + msecs_to_jiffies(
+				IWL_ONE_HUNDRED_MSECS));
+			return 1;
 		}
 	} else {
 		q->last_read_ptr = q->read_ptr;
