@@ -539,7 +539,7 @@ static void mmc_test_print_rate(struct mmc_test_card *test, uint64_t bytes,
 	printk(KERN_INFO "%s: Transfer of %u sectors (%u%s KiB) took %lu.%09lu "
 			 "seconds (%u kB/s, %u KiB/s)\n",
 			 mmc_hostname(test->card->host), sectors, sectors >> 1,
-			 (sectors == 1 ? ".5" : ""), (unsigned long)ts.tv_sec,
+			 (sectors & 1 ? ".5" : ""), (unsigned long)ts.tv_sec,
 			 (unsigned long)ts.tv_nsec, rate / 1000, rate / 1024);
 
 	mmc_test_save_transfer_result(test, 1, sectors, ts, rate);
@@ -563,7 +563,7 @@ static void mmc_test_print_avg_rate(struct mmc_test_card *test, uint64_t bytes,
 	printk(KERN_INFO "%s: Transfer of %u x %u sectors (%u x %u%s KiB) took "
 			 "%lu.%09lu seconds (%u kB/s, %u KiB/s)\n",
 			 mmc_hostname(test->card->host), count, sectors, count,
-			 sectors >> 1, (sectors == 1 ? ".5" : ""),
+			 sectors >> 1, (sectors & 1 ? ".5" : ""),
 			 (unsigned long)ts.tv_sec, (unsigned long)ts.tv_nsec,
 			 rate / 1000, rate / 1024);
 
