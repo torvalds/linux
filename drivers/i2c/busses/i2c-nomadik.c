@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 ST-Ericsson
+ * Copyright (C) 2009 ST-Ericsson SA
  * Copyright (C) 2009 STMicroelectronics
  *
  * I2C master mode controller driver, used in Nomadik 8815
@@ -431,7 +431,6 @@ static int read_i2c(struct nmk_i2c_dev *dev)
 		(void) init_hw(dev);
 		status = -ETIMEDOUT;
 	}
-
 	return status;
 }
 
@@ -502,9 +501,9 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 
 /**
  * nmk_i2c_xfer() - I2C transfer function used by kernel framework
- * @i2c_adap 	- Adapter pointer to the controller
- * @msgs[] - Pointer to data to be written.
- * @num_msgs - Number of messages to be executed
+ * @i2c_adap: Adapter pointer to the controller
+ * @msgs: Pointer to data to be written.
+ * @num_msgs: Number of messages to be executed
  *
  * This is the function called by the generic kernel i2c_transfer()
  * or i2c_smbus...() API calls. Note that this code is protected by the
@@ -605,6 +604,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 /**
  * disable_interrupts() - disable the interrupts
  * @dev: private data of controller
+ * @irq: interrupt number
  */
 static int disable_interrupts(struct nmk_i2c_dev *dev, u32 irq)
 {
