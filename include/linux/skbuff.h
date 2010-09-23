@@ -129,8 +129,13 @@ typedef struct skb_frag_struct skb_frag_t;
 
 struct skb_frag_struct {
 	struct page *page;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
 	__u32 page_offset;
 	__u32 size;
+#else
+	__u16 page_offset;
+	__u16 size;
+#endif
 };
 
 #define HAVE_HW_TIME_STAMP
