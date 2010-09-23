@@ -15,16 +15,43 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2	\
-	-DUNRELEASEDCHIP -Dlinux -DDHD_SDALIGN=64 -DMAX_HDR_READ=64	\
-	-DDHD_FIRSTREAD=64 -DDHD_GPL -DDHD_SCHED -DBDC -DTOE -DDHD_BCMEVENTS	\
-	-DSHOW_EVENTS -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS	\
-	-Wall -Wstrict-prototypes -Werror -DOEM_CHROMIUMOS -DEMBEDDED_PLATFORM	\
-	-DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT -DBRCM_FULLMAC	\
-	-DCONFIG_CFG80211 -DMMC_SDIO_ABORT -DDHD_DEBUG_TRAP -DBCMDBG -DDHD_DEBUG	\
-	-Idrivers/staging/brcm80211/brcmfmac	\
+ccflags-y :=			\
+	-DLINUX			\
+	-DBCMDRIVER		\
+	-DBCMDONGLEHOST		\
+	-DDHDTHREAD		\
+	-DBCMWPA2		\
+	-DUNRELEASEDCHIP	\
+	-Dlinux			\
+	-DDHD_SDALIGN=64	\
+	-DMAX_HDR_READ=64	\
+	-DDHD_FIRSTREAD=64	\
+	-DDHD_GPL		\
+	-DDHD_SCHED		\
+	-DBDC			\
+	-DTOE			\
+	-DDHD_BCMEVENTS		\
+	-DSHOW_EVENTS		\
+	-DBCMSDIO		\
+	-DDHD_GPL		\
+	-DBCMLXSDMMC		\
+	-DBCMPLATFORM_BUS	\
+	-Wall			\
+	-Wstrict-prototypes	\
+	-Werror			\
+	-DOEM_CHROMIUMOS	\
+	-DEMBEDDED_PLATFORM	\
+	-DARP_OFFLOAD_SUPPORT	\
+	-DPKT_FILTER_SUPPORT	\
+	-DBRCM_FULLMAC		\
+	-DCONFIG_CFG80211	\
+	-DMMC_SDIO_ABORT	\
+	-DDHD_DEBUG_TRAP	\
+	-DBCMDBG		\
+	-DDHD_DEBUG		\
+	-Idrivers/staging/brcm80211/brcmfmac		\
 	-Idrivers/staging/brcm80211/brcmfmac/include	\
-	-Idrivers/staging/brcm80211/include	\
+	-Idrivers/staging/brcm80211/include		\
 	-Idrivers/staging/brcm80211/util
 
 DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o	\
@@ -34,5 +61,4 @@ DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o	\
 
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
-EXTRA_CFLAGS = $(DHDCFLAGS)
 EXTRA_LDFLAGS += --strip-debug
