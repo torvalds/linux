@@ -1162,6 +1162,31 @@ int p9_client_link(struct p9_fid *dfid, struct p9_fid *oldfid, char *newname)
 }
 EXPORT_SYMBOL(p9_client_link);
 
+int p9_client_fsync(struct p9_fid *fid)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TFSYNC fid %d\n", fid->fid);
+	err = 0;
+	clnt = fid->clnt;
+
+	req = p9_client_rpc(clnt, P9_TFSYNC, "d", fid->fid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RFSYNC fid %d\n", fid->fid);
+
+	p9_free_req(clnt, req);
+
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_fsync);
+
 int p9_client_clunk(struct p9_fid *fid)
 {
 	int err;
