@@ -159,7 +159,7 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_spectator = 1;
 			break;
 		case Opt_ignore_local_fs:
-			args->ar_ignore_local_fs = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_localflocks:
 			args->ar_localflocks = 1;
@@ -1128,7 +1128,6 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	/* Some flags must not be changed */
 	if (args_neq(&args, &sdp->sd_args, spectator) ||
-	    args_neq(&args, &sdp->sd_args, ignore_local_fs) ||
 	    args_neq(&args, &sdp->sd_args, localflocks) ||
 	    args_neq(&args, &sdp->sd_args, localcaching) ||
 	    args_neq(&args, &sdp->sd_args, meta))
@@ -1233,8 +1232,6 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",hostdata=%s", args->ar_hostdata);
 	if (args->ar_spectator)
 		seq_printf(s, ",spectator");
-	if (args->ar_ignore_local_fs)
-		seq_printf(s, ",ignore_local_fs");
 	if (args->ar_localflocks)
 		seq_printf(s, ",localflocks");
 	if (args->ar_localcaching)
