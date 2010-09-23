@@ -5028,7 +5028,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_unpin_work *work;
 	unsigned long flags, offset;
 	int pipe = intel_crtc->pipe;
-	u32 was_dirty, pf, pipesrc;
+	u32 pf, pipesrc;
 	int ret;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -5057,7 +5057,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	was_dirty = obj->write_domain & I915_GEM_GPU_DOMAINS;
 	ret = intel_pin_and_fence_fb_obj(dev, obj, true);
 	if (ret)
 		goto cleanup_work;
@@ -5075,10 +5074,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj_priv = to_intel_bo(obj);
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
-
-	/* Schedule the pipelined flush */
-	if (was_dirty)
-		i915_gem_flush_ring(dev, NULL, obj_priv->ring, 0, was_dirty);
 
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
 		u32 flip_mask;

@@ -1007,11 +1007,6 @@ int i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_reset_lists(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
-void i915_gem_flush_ring(struct drm_device *dev,
-			 struct drm_file *file_priv,
-			 struct intel_ring_buffer *ring,
-			 uint32_t invalidate_domains,
-			 uint32_t flush_domains);
 int i915_gem_object_set_domain(struct drm_gem_object *obj,
 			       uint32_t read_domains,
 			       uint32_t write_domain);
