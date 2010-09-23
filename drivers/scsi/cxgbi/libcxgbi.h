@@ -162,16 +162,6 @@ struct cxgbi_ddp_info {
 #define PPOD_VALID(x)		((x) << PPOD_VALID_SHIFT)
 #define PPOD_VALID_FLAG		PPOD_VALID(1U)
 
-#define W_TCB_ULP_TYPE          0
-#define TCB_ULP_TYPE_SHIFT      0
-#define TCB_ULP_TYPE_MASK       0xfULL
-#define TCB_ULP_TYPE(x)         ((x) << TCB_ULP_TYPE_SHIFT)
-
-#define W_TCB_ULP_RAW           0
-#define TCB_ULP_RAW_SHIFT       4
-#define TCB_ULP_RAW_MASK        0xffULL
-#define TCB_ULP_RAW(x)          ((x) << TCB_ULP_RAW_SHIFT)
-
 /*
  * sge_opaque_hdr -
  * Opaque version of structure the SGE stores at skb->head of TX_DATA packets

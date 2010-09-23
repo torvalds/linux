@@ -23,6 +23,11 @@
 #define CXGB4I_TX_HEADER_LEN \
 	(sizeof(struct fw_ofld_tx_data_wr) + sizeof(struct sge_opaque_hdr))
 
+struct ulptx_idata {
+	__be32 cmd_more;
+	__be32 len;
+};
+
 struct cpl_rx_data_ddp {
 	union opcode_tid ot;
 	__be16 urg;
