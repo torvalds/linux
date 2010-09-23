@@ -332,7 +332,7 @@ static u32 send_rx_credits(struct cxgbi_sock *csk, u32 credits)
 		"csk 0x%p,%u,0x%lx,%u, credit %u.\n",
 		csk, csk->state, csk->flags, csk->tid, credits);
 
-	skb = alloc_cpl(sizeof(*req), 0, GFP_ATOMIC);
+	skb = alloc_wr(sizeof(*req), 0, GFP_ATOMIC);
 	if (!skb) {
 		pr_info("csk 0x%p, credit %u, OOM.\n", csk, credits);
 		return 0;
@@ -388,7 +388,7 @@ static inline void send_tx_flowc_wr(struct cxgbi_sock *csk)
 	int flowclen, i;
 
 	flowclen = 80;
-	skb = alloc_cpl(flowclen, 0, GFP_ATOMIC);
+	skb = alloc_wr(flowclen, 0, GFP_ATOMIC);
 	flowc = (struct fw_flowc_wr *)skb->head;
 	flowc->op_to_nparams =
 		htonl(FW_WR_OP(FW_FLOWC_WR) | FW_FLOWC_WR_NPARAMS(8));
@@ -651,7 +651,7 @@ static void csk_act_open_retry_timer(unsigned long data)
 
 	cxgbi_sock_get(csk);
 	spin_lock_bh(&csk->lock);
-	skb = alloc_cpl(sizeof(struct cpl_act_open_req), 0, GFP_ATOMIC);
+	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_ATOMIC);
 	if (!skb)
 		cxgbi_sock_fail_act_open(csk, -ENOMEM);
 	else {
@@ -1073,18 +1073,18 @@ static void do_set_tcb_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 
 static int alloc_cpls(struct cxgbi_sock *csk)
 {
-	csk->cpl_close = alloc_cpl(sizeof(struct cpl_close_con_req),
-					0, GFP_NOIO);
+	csk->cpl_close = alloc_wr(sizeof(struct cpl_close_con_req),
+					0, GFP_KERNEL);
 	if (!csk->cpl_close)
 		return -ENOMEM;
 
-	csk->cpl_abort_req = alloc_cpl(sizeof(struct cpl_abort_req),
-					0, GFP_NOIO);
+	csk->cpl_abort_req = alloc_wr(sizeof(struct cpl_abort_req),
+					0, GFP_KERNEL);
 	if (!csk->cpl_abort_req)
 		goto free_cpls;
 
-	csk->cpl_abort_rpl = alloc_cpl(sizeof(struct cpl_abort_rpl),
-					0, GFP_NOIO);
+	csk->cpl_abort_rpl = alloc_wr(sizeof(struct cpl_abort_rpl),
+					0, GFP_KERNEL);
 	if (!csk->cpl_abort_rpl)
 		goto free_cpls;
 	return 0;
@@ -1158,7 +1158,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	}
 	cxgbi_sock_get(csk);
 
-	skb = alloc_cpl(sizeof(struct cpl_act_open_req), 0, GFP_NOIO);
+	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_KERNEL);
 	if (!skb)
 		goto rel_resource;
 	skb->sk = (struct sock *)csk;
@@ -1268,7 +1268,7 @@ static int ddp_ppod_write_sgl(struct cxgbi_device *cdev, unsigned int port_id,
 	dlen = PPOD_SIZE * npods;
 	pm_addr = idx * PPOD_SIZE + ddp->llimit;
 
-	skb = alloc_cpl(sizeof(*req) + sizeof(*sgl), dlen, GFP_ATOMIC);
+	skb = alloc_wr(sizeof(*req) + sizeof(*sgl), dlen, GFP_ATOMIC);
 	if (!skb) {
 		pr_err("cdev 0x%p, idx %u, npods %u, OOM.\n",
 			cdev, idx, npods);
@@ -1339,7 +1339,7 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk, unsigned int tid,
 	if (!pg_idx)
 		return 0;
 
-	skb = alloc_cpl(sizeof(*req), 0, GFP_KERNEL);
+	skb = alloc_wr(sizeof(*req), 0, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1373,7 +1373,7 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 	val = TCB_ULP_RAW(val);
 	val |= TCB_ULP_TYPE(ULP2_MODE_ISCSI);
 
-	skb = alloc_cpl(sizeof(*req), 0, GFP_KERNEL);
+	skb = alloc_wr(sizeof(*req), 0, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1516,7 +1516,7 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 	if (pgl == NULL) {
 		unsigned int len = 64 - sizeof(struct rsp_ctrl) - 8;
 
-		skb = alloc_cpl(len, 0, GFP_ATOMIC);
+		skb = alloc_wr(len, 0, GFP_ATOMIC);
 		if (!skb)
 			goto nomem;
 		skb_copy_to_linear_data(skb, &rsp[1], len);

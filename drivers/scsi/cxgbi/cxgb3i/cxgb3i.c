@@ -320,7 +320,7 @@ static u32 send_rx_credits(struct cxgbi_sock *csk, u32 credits)
 		"csk 0x%p,%u,0x%lx,%u, credit %u, dack %u.\n",
 		csk, csk->state, csk->flags, csk->tid, credits, dack);
 
-	skb = alloc_cpl(sizeof(*req), 0, GFP_ATOMIC);
+	skb = alloc_wr(sizeof(*req), 0, GFP_ATOMIC);
 	if (!skb) {
 		pr_info("csk 0x%p, credit %u, OOM.\n", csk, credits);
 		return 0;
@@ -572,7 +572,7 @@ static void act_open_retry_timer(unsigned long data)
 
 	cxgbi_sock_get(csk);
 	spin_lock_bh(&csk->lock);
-	skb = alloc_cpl(sizeof(struct cpl_act_open_req), 0, GFP_ATOMIC);
+	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_ATOMIC);
 	if (!skb)
 		cxgbi_sock_fail_act_open(csk, -ENOMEM);
 	else {
@@ -881,16 +881,16 @@ static int do_wr_ack(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
  */
 static int alloc_cpls(struct cxgbi_sock *csk)
 {
-	csk->cpl_close = alloc_cpl(sizeof(struct cpl_close_con_req), 0,
+	csk->cpl_close = alloc_wr(sizeof(struct cpl_close_con_req), 0,
 					GFP_KERNEL);
 	if (!csk->cpl_close)
 		return -ENOMEM;
-	csk->cpl_abort_req = alloc_cpl(sizeof(struct cpl_abort_req), 0,
+	csk->cpl_abort_req = alloc_wr(sizeof(struct cpl_abort_req), 0,
 					GFP_KERNEL);
 	if (!csk->cpl_abort_req)
 		goto free_cpl_skbs;
 
-	csk->cpl_abort_rpl = alloc_cpl(sizeof(struct cpl_abort_rpl), 0,
+	csk->cpl_abort_rpl = alloc_wr(sizeof(struct cpl_abort_rpl), 0,
 					GFP_KERNEL);
 	if (!csk->cpl_abort_rpl)
 		goto free_cpl_skbs;
@@ -972,7 +972,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
 	cxgbi_sock_get(csk);
 
-	skb = alloc_cpl(sizeof(struct cpl_act_open_req), 0, GFP_KERNEL);
+	skb = alloc_wr(sizeof(struct cpl_act_open_req), 0, GFP_KERNEL);
 	if (!skb)
 		goto rel_resource;
 	skb->sk = (struct sock *)csk;
@@ -1141,7 +1141,7 @@ static int ddp_alloc_gl_skb(struct cxgbi_ddp_info *ddp, int idx,
 		"ddp 0x%p, idx %d, cnt %d.\n", ddp, idx, cnt);
 
 	for (i = 0; i < cnt; i++) {
-		struct sk_buff *skb = alloc_cpl(sizeof(struct ulp_mem_io) +
+		struct sk_buff *skb = alloc_wr(sizeof(struct ulp_mem_io) +
 						PPOD_SIZE, 0, gfp);
 		if (skb) {
 			ddp->gl_skb[idx + i] = skb;
@@ -1156,7 +1156,7 @@ static int ddp_alloc_gl_skb(struct cxgbi_ddp_info *ddp, int idx,
 static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
 				       unsigned int tid, int pg_idx, bool reply)
 {
-	struct sk_buff *skb = alloc_cpl(sizeof(struct cpl_set_tcb_field), 0,
+	struct sk_buff *skb = alloc_wr(sizeof(struct cpl_set_tcb_field), 0,
 					GFP_KERNEL);
 	struct cpl_set_tcb_field *req;
 	u64 val = pg_idx < DDP_PGIDX_MAX ? pg_idx : 0;
@@ -1193,7 +1193,7 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
 static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 			     int hcrc, int dcrc, int reply)
 {
-	struct sk_buff *skb = alloc_cpl(sizeof(struct cpl_set_tcb_field), 0,
+	struct sk_buff *skb = alloc_wr(sizeof(struct cpl_set_tcb_field), 0,
 					GFP_KERNEL);
 	struct cpl_set_tcb_field *req;
 	u64 val = (hcrc ? 1 : 0) | (dcrc ? 2 : 0);

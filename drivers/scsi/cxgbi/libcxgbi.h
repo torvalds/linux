@@ -410,16 +410,15 @@ static inline unsigned int cxgbi_sock_compute_wscale(unsigned int win)
 	return wscale;
 }
 
-static inline struct sk_buff *alloc_cpl(int cpl_len, int dlen, gfp_t gfp)
+static inline struct sk_buff *alloc_wr(int wrlen, int dlen, gfp_t gfp)
 {
-	int wrlen = roundup(cpl_len, 16);
 	struct sk_buff *skb = alloc_skb(wrlen + dlen, gfp);
 
 	if (skb) {
 		__skb_put(skb, wrlen);
 		memset(skb->head, 0, wrlen + dlen);
 	} else
-		pr_info("alloc cpl skb %u+%u, OOM.\n", cpl_len, dlen);
+		pr_info("alloc cpl wr skb %u+%u, OOM.\n", wrlen, dlen);
 	return skb;
 }
 
