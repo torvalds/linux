@@ -95,6 +95,7 @@ err:
 static void __exit smdk_exit(void)
 {
 	platform_device_unregister(smdk_snd_ac97_device);
+	platform_device_unregister(smdk_snd_wm9713_device);
 }
 
 module_init(smdk_init);
