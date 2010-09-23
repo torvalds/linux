@@ -31,9 +31,8 @@
 #include <media/videobuf-dma-sg.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/cx2341x.h>
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 #include <media/videobuf-dvb.h>
-#endif
+#include <media/ir-kbd-i2c.h>
 
 #include "btcx-risc.h"
 #include "cx88-reg.h"
@@ -377,6 +376,9 @@ struct cx88_core {
 	/* IR remote control state */
 	struct cx88_IR             *ir;
 
+	/* I2C remote data */
+	struct IR_i2c_init_data    init_data;
+
 	struct mutex               lock;
 	/* various v4l controls */
 	u32                        freq;
@@ -650,7 +652,6 @@ extern const struct videobuf_queue_ops cx8800_vbi_qops;
 /* cx88-i2c.c                                                  */
 
 extern int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci);
-extern void cx88_i2c_init_ir(struct cx88_core *core);
 
 
 /* ----------------------------------------------------------- */
@@ -688,6 +689,7 @@ int cx88_ir_fini(struct cx88_core *core);
 void cx88_ir_irq(struct cx88_core *core);
 int cx88_ir_start(struct cx88_core *core);
 void cx88_ir_stop(struct cx88_core *core);
+extern void cx88_i2c_init_ir(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-mpeg.c                                                 */
@@ -707,10 +709,3 @@ int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
 int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);
 int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */

@@ -183,30 +183,3 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 	return core->i2c_rc;
 }
-
-void cx88_i2c_init_ir(struct cx88_core *core)
-{
-	/* Instantiate the IR receiver device, if present */
-	if (0 == core->i2c_rc) {
-		struct i2c_board_info info;
-		const unsigned short addr_list[] = {
-			0x18, 0x6b, 0x71,
-			I2C_CLIENT_END
-		};
-
-		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-		/* Use quick read command for probe, some IR chips don't
-		 * support writes */
-		i2c_new_probed_device(&core->i2c_adap, &info, addr_list,
-				      i2c_probe_func_quick_read);
-	}
-}
-
-/* ----------------------------------------------------------------------- */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -325,25 +325,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = RC_MAP_FUSIONHDTV_MCE;
 		break;
-	case 0x0b:
-	case 0x47:
-	case 0x71:
-		if (adap->id == I2C_HW_B_CX2388x) {
-			/* Handled by cx88-input */
-			name = "CX2388x remote";
-			ir_type     = IR_TYPE_RC5;
-			ir->get_key = get_key_haup_xvr;
-			if (hauppauge == 1) {
-				ir_codes    = RC_MAP_HAUPPAUGE_NEW;
-			} else {
-				ir_codes    = RC_MAP_RC5_TV;
-			}
-		} else {
-			/* Handled by saa7134-input */
-			name        = "SAA713x remote";
-			ir_type     = IR_TYPE_OTHER;
-		}
-		break;
 	case 0x40:
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
