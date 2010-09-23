@@ -2389,6 +2389,9 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 					DESC_HDR_MODE0_MDEU_SHA256;
 		}
 		break;
+	default:
+		dev_err(dev, "unknown algorithm type %d\n", t_alg->algt.type);
+		return ERR_PTR(-EINVAL);
 	}
 
 	alg->cra_module = THIS_MODULE;
