@@ -440,7 +440,7 @@ static  int skfp_driver_init(struct net_device *dev)
 
 	smt_reset_defaults(smc, 0);
 
-	return (0);
+	return 0;
 
 fail:
 	if (bp->SharedMemAddr) {
@@ -516,7 +516,7 @@ static int skfp_open(struct net_device *dev)
 	mac_drv_rx_mode(smc, RX_DISABLE_PROMISC);
 
 	netif_start_queue(dev);
-	return (0);
+	return 0;
 }				// skfp_open
 
 
@@ -565,7 +565,7 @@ static int skfp_close(struct net_device *dev)
 	skb_queue_purge(&bp->SendSkbQueue);
 	bp->QueueSkb = MAX_TX_QUEUE_LEN;
 
-	return (0);
+	return 0;
 }				// skfp_close
 
 
@@ -794,7 +794,7 @@ static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
 	bp->stats.port_lem_cts[1] = bp->cmd_rsp_virt->cntrs_get.cntrs.link_errors[1].ls;
 
 #endif
-	return ((struct net_device_stats *) &bp->os.MacStat);
+	return (struct net_device_stats *)&bp->os.MacStat;
 }				// ctl_get_stat
 
 
@@ -932,7 +932,7 @@ static int skfp_ctl_set_mac_address(struct net_device *dev, void *addr)
 	ResetAdapter(smc);
 	spin_unlock_irqrestore(&bp->DriverLock, Flags);
 
-	return (0);		/* always return zero */
+	return 0;		/* always return zero */
 }				// skfp_ctl_set_mac_address
 
 
@@ -1313,7 +1313,7 @@ void *mac_drv_get_space(struct s_smc *smc, unsigned int size)
 
 	if ((smc->os.SharedMemHeap + size) > smc->os.SharedMemSize) {
 		printk("Unexpected SMT memory size requested: %d\n", size);
-		return (NULL);
+		return NULL;
 	}
 	smc->os.SharedMemHeap += size;	// Move heap pointer.
 
@@ -1322,7 +1322,7 @@ void *mac_drv_get_space(struct s_smc *smc, unsigned int size)
 	pr_debug("bus  addr: %lx\n", (ulong)
 	       (smc->os.SharedMemDMA +
 		((char *) virt - (char *)smc->os.SharedMemAddr)));
-	return (virt);
+	return virt;
 }				// mac_drv_get_space
 
 
@@ -1363,9 +1363,9 @@ void *mac_drv_get_desc_mem(struct s_smc *smc, unsigned int size)
 
 	if (!mac_drv_get_space(smc, size)) {
 		printk("fddi: Unable to align descriptor memory.\n");
-		return (NULL);
+		return NULL;
 	}
-	return (virt + size);
+	return virt + size;
 }				// mac_drv_get_desc_mem
 
 
@@ -1384,8 +1384,8 @@ void *mac_drv_get_desc_mem(struct s_smc *smc, unsigned int size)
  ************************/
 unsigned long mac_drv_virt2phys(struct s_smc *smc, void *virt)
 {
-	return (smc->os.SharedMemDMA +
-		((char *) virt - (char *)smc->os.SharedMemAddr));
+	return smc->os.SharedMemDMA +
+		((char *) virt - (char *)smc->os.SharedMemAddr);
 }				// mac_drv_virt2phys
 
 
@@ -1419,8 +1419,8 @@ unsigned long mac_drv_virt2phys(struct s_smc *smc, void *virt)
  ************************/
 u_long dma_master(struct s_smc * smc, void *virt, int len, int flag)
 {
-	return (smc->os.SharedMemDMA +
-		((char *) virt - (char *)smc->os.SharedMemAddr));
+	return smc->os.SharedMemDMA +
+		((char *) virt - (char *)smc->os.SharedMemAddr);
 }				// dma_master
 
 
@@ -1904,12 +1904,12 @@ int mac_drv_rx_init(struct s_smc *smc, int len, int fc,
 		pr_debug("fddi: Discard invalid local SMT frame\n");
 		pr_debug("  len=%d, la_len=%d, (ULONG) look_ahead=%08lXh.\n",
 		       len, la_len, (unsigned long) look_ahead);
-		return (0);
+		return 0;
 	}
 	skb = alloc_skb(len + 3, GFP_ATOMIC);
 	if (!skb) {
 		pr_debug("fddi: Local SMT: skb memory exhausted.\n");
-		return (0);
+		return 0;
 	}
 	skb_reserve(skb, 3);
 	skb_put(skb, len);
@@ -1919,7 +1919,7 @@ int mac_drv_rx_init(struct s_smc *smc, int len, int fc,
 	skb->protocol = fddi_type_trans(skb, smc->os.dev);
 	netif_rx(skb);
 
-	return (0);
+	return 0;
 }				// mac_drv_rx_init
 
 

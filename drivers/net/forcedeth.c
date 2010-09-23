@@ -4620,7 +4620,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 static u32 nv_get_rx_csum(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	return (np->rx_csum) != 0;
+	return np->rx_csum != 0;
 }
 
 static int nv_set_rx_csum(struct net_device *dev, u32 data)

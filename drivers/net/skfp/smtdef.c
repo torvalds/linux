@@ -303,7 +303,7 @@ int smt_set_mac_opvalues(struct s_smc *smc)
 			FDDI_SMT_EVENT, (u_long) FDDI_REMOTE_T_REQ,
 			smt_get_event_word(smc));
 	}
-	return(st) ;
+	return st;
 }
 
 void smt_fixup_mib(struct s_smc *smc)
@@ -350,6 +350,6 @@ static int set_min_max(int maxflag, u_long mib, u_long limit, u_long *oper)
 		*oper = limit ;
 	else
 		*oper = mib ;
-	return(old != *oper) ;
+	return old != *oper;
 }
 

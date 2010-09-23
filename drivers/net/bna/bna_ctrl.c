@@ -25,8 +25,8 @@
 static int
 bna_is_aen(u8 msg_id)
 {
-	return (msg_id == BFI_LL_I2H_LINK_DOWN_AEN ||
-		msg_id == BFI_LL_I2H_LINK_UP_AEN);
+	return msg_id == BFI_LL_I2H_LINK_DOWN_AEN ||
+	       msg_id == BFI_LL_I2H_LINK_UP_AEN;
 }
 
 static void
@@ -1702,7 +1702,7 @@ bna_device_cb_port_stopped(void *arg, enum bna_cb_status status)
 int
 bna_device_status_get(struct bna_device *device)
 {
-	return (device->fsm == (bfa_fsm_t)bna_device_sm_ready);
+	return device->fsm == (bfa_fsm_t)bna_device_sm_ready;
 }
 
 void

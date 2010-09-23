@@ -1312,7 +1312,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 		for (p = (ringptr->pdl); p < (ringptr->pdl + 5); p++)
 			printk("hp100: %s: Adr 0x%.8x = 0x%.8x\n", dev->name, (u_int) p, (u_int) * p);
 #endif
-		return (1);
+		return 1;
 	}
 	/* else: */
 	/* alloc_skb failed (no memory) -> still can receive the header
@@ -1325,7 +1325,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 
 	ringptr->pdl[0] = 0x00010000;	/* PDH: Count=1 Fragment */
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -2752,7 +2752,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		hp100_outw(HP100_MISC_ERROR, IRQ_STATUS);
 
 		if (val & HP100_LINK_UP_ST)
-			return (0);	/* login was ok */
+			return 0;	/* login was ok */
 		else {
 			printk("hp100: %s: Training failed.\n", dev->name);
 			hp100_down_vg_link(dev);

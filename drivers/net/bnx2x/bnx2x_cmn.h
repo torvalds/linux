@@ -399,7 +399,7 @@ static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
 {
 	/* Tell compiler that consumer and producer can change */
 	barrier();
-	return (fp->tx_pkt_prod != fp->tx_pkt_cons);
+	return fp->tx_pkt_prod != fp->tx_pkt_cons;
 }
 
 static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
@@ -632,7 +632,7 @@ static inline int bnx2x_has_rx_work(struct bnx2x_fastpath *fp)
 	rx_cons_sb = le16_to_cpu(*fp->rx_cons_sb);
 	if ((rx_cons_sb & MAX_RCQ_DESC_CNT) == MAX_RCQ_DESC_CNT)
 		rx_cons_sb++;
-	return (fp->rx_comp_cons != rx_cons_sb);
+	return fp->rx_comp_cons != rx_cons_sb;
 }
 
 /* HW Lock for shared dual port PHYs */

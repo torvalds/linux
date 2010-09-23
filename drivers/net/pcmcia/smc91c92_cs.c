@@ -815,7 +815,7 @@ static int check_sig(struct pcmcia_device *link)
 	((s >> 8) != (s & 0xff))) {
 	SMC_SELECT_BANK(3);
 	s = inw(ioaddr + REVISION);
-	return (s & 0xff);
+	return s & 0xff;
     }
 
     if (width) {

@@ -540,7 +540,7 @@ static int cpc_tty_chars_in_buffer(struct tty_struct *tty)
 		return -ENODEV; 
 	}
    
-	return(0); 
+	return 0;
 } 
 
 static int pc300_tiocmset(struct tty_struct *tty, struct file *file,

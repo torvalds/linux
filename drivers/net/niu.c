@@ -283,7 +283,7 @@ static int niu_enable_interrupts(struct niu *np, int on)
 
 static u32 phy_encode(u32 type, int port)
 {
-	return (type << (port * 2));
+	return type << (port * 2);
 }
 
 static u32 phy_decode(u32 val, int port)
@@ -3043,8 +3043,7 @@ static int tcam_flush_all(struct niu *np)
 
 static u64 hash_addr_regval(unsigned long index, unsigned long num_entries)
 {
-	return ((u64)index | (num_entries == 1 ?
-			      HASH_TBL_ADDR_AUTOINC : 0));
+	return (u64)index | (num_entries == 1 ? HASH_TBL_ADDR_AUTOINC : 0);
 }
 
 #if 0
@@ -3276,7 +3275,7 @@ static u16 tcam_get_index(struct niu *np, u16 idx)
 	/* One entry reserved for IP fragment rule */
 	if (idx >= (np->clas.tcam_sz - 1))
 		idx = 0;
-	return (np->clas.tcam_top + ((idx+1) * np->parent->num_ports));
+	return np->clas.tcam_top + ((idx+1) * np->parent->num_ports);
 }
 
 static u16 tcam_get_size(struct niu *np)
@@ -3313,7 +3312,7 @@ static unsigned int niu_hash_rxaddr(struct rx_ring_info *rp, u64 a)
 	a >>= PAGE_SHIFT;
 	a ^= (a >> ilog2(MAX_RBR_RING_SIZE));
 
-	return (a & (MAX_RBR_RING_SIZE - 1));
+	return a & (MAX_RBR_RING_SIZE - 1);
 }
 
 static struct page *niu_find_rxpage(struct rx_ring_info *rp, u64 addr,
@@ -7796,11 +7795,11 @@ static int niu_get_sset_count(struct net_device *dev, int stringset)
 	if (stringset != ETH_SS_STATS)
 		return -EINVAL;
 
-	return ((np->flags & NIU_FLAGS_XMAC ?
+	return (np->flags & NIU_FLAGS_XMAC ?
 		 NUM_XMAC_STAT_KEYS :
 		 NUM_BMAC_STAT_KEYS) +
 		(np->num_rx_rings * NUM_RXCHAN_STAT_KEYS) +
-		(np->num_tx_rings * NUM_TXCHAN_STAT_KEYS));
+		(np->num_tx_rings * NUM_TXCHAN_STAT_KEYS);
 }
 
 static void niu_get_ethtool_stats(struct net_device *dev,

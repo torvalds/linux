@@ -3119,7 +3119,7 @@ dc2114x_autoconf(struct net_device *dev)
 	  if (lp->media == _100Mb) {
 	      if ((slnk = test_for_100Mb(dev, 6500)) < 0) {
 		  lp->media = SPD_DET;
-		  return  (slnk & ~TIMER_CB);
+		  return slnk & ~TIMER_CB;
 	      }
 	  } else {
 	      if (wait_for_link(dev) < 0) {
@@ -3484,7 +3484,7 @@ is_spd_100(struct net_device *dev)
 	spd = ((~gep_rd(dev)) & GEP_SLNK);
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return ((lp->chipset == DC21143)?(~inl(DE4X5_SISR)&SISR_LS100):0);
+	    return (lp->chipset == DC21143) ? (~inl(DE4X5_SISR)&SISR_LS100) : 0;
 
 	spd = (lp->asBitValid & (lp->asPolarity ^ (gep_rd(dev) & lp->asBit))) |
 	          (lp->linkOK & ~lp->asBitValid);
@@ -3502,15 +3502,15 @@ is_100_up(struct net_device *dev)
     if (lp->useMII) {
 	/* Double read for sticky bits & temporary drops */
 	mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS);
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS;
     } else if (!lp->useSROM) {                       /* de500-xa */
-	return ((~gep_rd(dev)) & GEP_SLNK);
+	return (~gep_rd(dev)) & GEP_SLNK;
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return ((lp->chipset == DC21143)?(~inl(DE4X5_SISR)&SISR_LS100):0);
+	    return (lp->chipset == DC21143) ? (~inl(DE4X5_SISR)&SISR_LS100) : 0;
 
-        return ((lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
-		(lp->linkOK & ~lp->asBitValid));
+        return (lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
+		(lp->linkOK & ~lp->asBitValid);
     }
 }
 
@@ -3523,17 +3523,17 @@ is_10_up(struct net_device *dev)
     if (lp->useMII) {
 	/* Double read for sticky bits & temporary drops */
 	mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS);
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS;
     } else if (!lp->useSROM) {                       /* de500-xa */
-	return ((~gep_rd(dev)) & GEP_LNP);
+	return (~gep_rd(dev)) & GEP_LNP;
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return (((lp->chipset & ~0x00ff) == DC2114x) ?
+	    return ((lp->chipset & ~0x00ff) == DC2114x) ?
 		    (~inl(DE4X5_SISR)&SISR_LS10):
-		    0);
+		    0;
 
-	return ((lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
-		(lp->linkOK & ~lp->asBitValid));
+	return	(lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
+		(lp->linkOK & ~lp->asBitValid);
     }
 }
 
@@ -3544,7 +3544,7 @@ is_anc_capable(struct net_device *dev)
     u_long iobase = dev->base_addr;
 
     if (lp->phy[lp->active].id && (!lp->useSROM || lp->useMII)) {
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII));
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	return (inl(DE4X5_SISR) & SISR_LPN) >> 12;
     } else {
@@ -4930,7 +4930,7 @@ getfrom_mii(u32 command, u_long ioaddr)
     outl(command | MII_MDC, ioaddr);
     udelay(1);
 
-    return ((inl(ioaddr) >> 19) & 1);
+    return (inl(ioaddr) >> 19) & 1;
 }
 
 /*
@@ -4975,8 +4975,8 @@ mii_get_oui(u_char phyaddr, u_long ioaddr)
     a.breg[0]=a.breg[1];
     a.breg[1]=i;
 
-    return ((a.reg<<8)|ret); */                 /* SEEQ and Cypress way */
-/*    return ((r2<<6)|(u_int)(r3>>10)); */      /* NATIONAL and BROADCOM way */
+    return (a.reg<<8)|ret; */                 /* SEEQ and Cypress way */
+/*    return (r2<<6)|(u_int)(r3>>10); */      /* NATIONAL and BROADCOM way */
     return r2;                                  /* (I did it) My way */
 }
 
@@ -5144,7 +5144,7 @@ gep_rd(struct net_device *dev)
     if (lp->chipset == DC21140) {
 	return inl(DE4X5_GEP);
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
-	return (inl(DE4X5_SIGR) & 0x000fffff);
+	return inl(DE4X5_SIGR) & 0x000fffff;
     }
 
     return 0;

@@ -98,9 +98,9 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 
 static inline bool is_link_state_evt(u32 trailer)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
 		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_LINK_STATE);
+				ASYNC_EVENT_CODE_LINK_STATE;
 }
 
 static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)

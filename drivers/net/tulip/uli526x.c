@@ -1747,7 +1747,7 @@ static u16 phy_readby_cr10(unsigned long iobase, u8 phy_addr, u8 offset)
 		if(cr10_value&0x10000000)
 			break;
 	}
-	return (cr10_value&0x0ffff);
+	return cr10_value & 0x0ffff;
 }
 
 static void phy_writeby_cr10(unsigned long iobase, u8 phy_addr, u8 offset, u16 phy_data)

@@ -944,7 +944,7 @@ static int slip_esc(unsigned char *s, unsigned char *d, int len)
 		}
 	}
 	*ptr++ = END;
-	return (ptr - d);
+	return ptr - d;
 }
 
 static void slip_unesc(struct slip *sl, unsigned char s)

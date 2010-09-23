@@ -826,7 +826,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	tx_ring->total_packets += total_packets;
 	tx_ring->stats.packets += total_packets;
 	tx_ring->stats.bytes += total_bytes;
-	return (count < tx_ring->work_limit);
+	return count < tx_ring->work_limit;
 }
 
 #ifdef CONFIG_IXGBE_DCA

@@ -135,7 +135,7 @@ static void skb_entry_set_link(union skb_entry *list, unsigned short id)
 static int skb_entry_is_link(const union skb_entry *list)
 {
 	BUILD_BUG_ON(sizeof(list->skb) != sizeof(list->link));
-	return ((unsigned long)list->skb < PAGE_OFFSET);
+	return (unsigned long)list->skb < PAGE_OFFSET;
 }
 
 /*
@@ -203,8 +203,8 @@ static void rx_refill_timeout(unsigned long data)
 
 static int netfront_tx_slot_available(struct netfront_info *np)
 {
-	return ((np->tx.req_prod_pvt - np->tx.rsp_cons) <
-		(TX_MAX_TARGET - MAX_SKB_FRAGS - 2));
+	return (np->tx.req_prod_pvt - np->tx.rsp_cons) <
+		(TX_MAX_TARGET - MAX_SKB_FRAGS - 2);
 }
 
 static void xennet_maybe_wake_tx(struct net_device *dev)

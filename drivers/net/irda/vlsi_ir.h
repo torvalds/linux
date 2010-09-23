@@ -595,7 +595,7 @@ struct ring_descr {
 
 static inline int rd_is_active(struct ring_descr *rd)
 {
-	return ((rd->hw->rd_status & RD_ACTIVE) != 0);
+	return (rd->hw->rd_status & RD_ACTIVE) != 0;
 }
 
 static inline void rd_activate(struct ring_descr *rd)

@@ -1514,7 +1514,7 @@ static inline int irda_usb_parse_endpoints(struct irda_usb_cb *self, struct usb_
 	IRDA_DEBUG(0, "%s(), And our endpoints are : in=%02X, out=%02X (%d), int=%02X\n",
 		__func__, self->bulk_in_ep, self->bulk_out_ep, self->bulk_out_mtu, self->bulk_int_ep);
 
-	return((self->bulk_in_ep != 0) && (self->bulk_out_ep != 0));
+	return (self->bulk_in_ep != 0) && (self->bulk_out_ep != 0);
 }
 
 #ifdef IU_DUMP_CLASS_DESC

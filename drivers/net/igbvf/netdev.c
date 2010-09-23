@@ -845,7 +845,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 	}
 	adapter->net_stats.tx_bytes += total_bytes;
 	adapter->net_stats.tx_packets += total_packets;
-	return (count < tx_ring->count);
+	return count < tx_ring->count;
 }
 
 static irqreturn_t igbvf_msix_other(int irq, void *data)

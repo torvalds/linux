@@ -3187,7 +3187,7 @@ static int TLan_EeSendByte( u16 io_base, u8 data, int stop )
 		TLan_SetBit( TLAN_NET_SIO_EDATA, sio );
 	}
 
-	return ( err );
+	return err;
 
 } /* TLan_EeSendByte */
 

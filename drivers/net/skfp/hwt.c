@@ -179,7 +179,7 @@ u_long hwt_read(struct s_smc *smc)
 		else
 			smc->hw.t_stop = smc->hw.t_start - tr ;
 	}
-	return (smc->hw.t_stop) ;
+	return smc->hw.t_stop;
 }
 
 #ifdef	PCI
@@ -208,7 +208,7 @@ u_long hwt_quick_read(struct s_smc *smc)
 	outpw(ADDR(B2_TI_CRTL), TIM_START) ;
 	outpd(ADDR(B2_TI_INI),interval) ;
 
-	return(time) ;
+	return time;
 }
 
 /************************

@@ -460,7 +460,7 @@ init_rx_bufs(struct net_device *dev, int num) {
 	}
 	lp->rbd_tail->next = rfd->rbd;
 #endif
-	return (i);
+	return i;
 }
 
 static inline void

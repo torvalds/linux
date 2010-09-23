@@ -521,7 +521,7 @@ static int mace_read(mace_private *lp, unsigned int ioaddr, int reg)
       spin_unlock_irqrestore(&lp->bank_lock, flags);
       break;
   }
-  return (data & 0xFF);
+  return data & 0xFF;
 } /* mace_read */
 
 /* ----------------------------------------------------------------------------

@@ -107,7 +107,7 @@ static int mlx4_en_test_loopback(struct mlx4_en_priv *priv)
 mlx4_en_test_loopback_exit:
 
 	priv->validate_loopback = 0;
-	return (!loopback_ok);
+	return !loopback_ok;
 }
 
 

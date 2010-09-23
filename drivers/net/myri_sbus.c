@@ -735,7 +735,7 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev,
 		int i;
 		for (i = 0; i < dev->addr_len; i++)
 			eth->h_dest[i] = 0;
-		return(dev->hard_header_len);
+		return dev->hard_header_len;
 	}
 
 	if (daddr) {

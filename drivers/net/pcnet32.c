@@ -376,7 +376,7 @@ static void pcnet32_wio_reset(unsigned long addr)
 static int pcnet32_wio_check(unsigned long addr)
 {
 	outw(88, addr + PCNET32_WIO_RAP);
-	return (inw(addr + PCNET32_WIO_RAP) == 88);
+	return inw(addr + PCNET32_WIO_RAP) == 88;
 }
 
 static struct pcnet32_access pcnet32_wio = {
@@ -431,7 +431,7 @@ static void pcnet32_dwio_reset(unsigned long addr)
 static int pcnet32_dwio_check(unsigned long addr)
 {
 	outl(88, addr + PCNET32_DWIO_RAP);
-	return ((inl(addr + PCNET32_DWIO_RAP) & 0xffff) == 88);
+	return (inl(addr + PCNET32_DWIO_RAP) & 0xffff) == 88;
 }
 
 static struct pcnet32_access pcnet32_dwio = {

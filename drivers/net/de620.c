@@ -676,7 +676,7 @@ static int de620_rx_intr(struct net_device *dev)
 	de620_set_register(dev, W_NPRF, next_rx_page);
 	pr_debug("next_rx_page=%d CPR=%d\n", next_rx_page, curr_page);
 
-	return (next_rx_page != curr_page); /* That was slightly tricky... */
+	return next_rx_page != curr_page; /* That was slightly tricky... */
 }
 
 /*********************************************

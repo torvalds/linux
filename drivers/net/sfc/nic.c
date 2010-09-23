@@ -104,7 +104,7 @@ static inline void efx_write_buf_tbl(struct efx_nic *efx, efx_qword_t *value,
 static inline efx_qword_t *efx_event(struct efx_channel *channel,
 				     unsigned int index)
 {
-	return (((efx_qword_t *) (channel->eventq.addr)) + index);
+	return ((efx_qword_t *) (channel->eventq.addr)) + index;
 }
 
 /* See if an event is present
@@ -119,8 +119,8 @@ static inline efx_qword_t *efx_event(struct efx_channel *channel,
  */
 static inline int efx_event_present(efx_qword_t *event)
 {
-	return (!(EFX_DWORD_IS_ALL_ONES(event->dword[0]) |
-		  EFX_DWORD_IS_ALL_ONES(event->dword[1])));
+	return !(EFX_DWORD_IS_ALL_ONES(event->dword[0]) |
+		  EFX_DWORD_IS_ALL_ONES(event->dword[1]));
 }
 
 static bool efx_masked_compare_oword(const efx_oword_t *a, const efx_oword_t *b,
@@ -347,7 +347,7 @@ void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer)
 static inline efx_qword_t *
 efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 {
-	return (((efx_qword_t *) (tx_queue->txd.addr)) + index);
+	return ((efx_qword_t *) (tx_queue->txd.addr)) + index;
 }
 
 /* This writes to the TX_DESC_WPTR; write pointer for TX descriptor ring */
@@ -502,7 +502,7 @@ void efx_nic_remove_tx(struct efx_tx_queue *tx_queue)
 static inline efx_qword_t *
 efx_rx_desc(struct efx_rx_queue *rx_queue, unsigned int index)
 {
-	return (((efx_qword_t *) (rx_queue->rxd.addr)) + index);
+	return ((efx_qword_t *) (rx_queue->rxd.addr)) + index;
 }
 
 /* This creates an entry in the RX descriptor queue */

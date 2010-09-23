@@ -143,7 +143,7 @@ static inline void vnic_rq_post(struct vnic_rq *rq,
 
 static inline int vnic_rq_posting_soon(struct vnic_rq *rq)
 {
-	return ((rq->to_use->index & VNIC_RQ_RETURN_RATE) == 0);
+	return (rq->to_use->index & VNIC_RQ_RETURN_RATE) == 0;
 }
 
 static inline void vnic_rq_return_descs(struct vnic_rq *rq, unsigned int count)

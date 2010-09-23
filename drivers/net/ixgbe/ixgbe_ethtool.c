@@ -401,7 +401,7 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 static u32 ixgbe_get_rx_csum(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	return (adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED);
+	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
 }
 
 static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
@@ -988,8 +988,8 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return IXGBE_STATS_LEN;
 	case ETH_SS_NTUPLE_FILTERS:
-		return (ETHTOOL_MAX_NTUPLE_LIST_ENTRY *
-		        ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY);
+		return ETHTOOL_MAX_NTUPLE_LIST_ENTRY *
+		       ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY;
 	default:
 		return -EOPNOTSUPP;
 	}

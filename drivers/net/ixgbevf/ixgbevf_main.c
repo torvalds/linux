@@ -311,7 +311,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	netdev->stats.tx_bytes += total_bytes;
 	netdev->stats.tx_packets += total_packets;
 
-	return (count < tx_ring->work_limit);
+	return count < tx_ring->work_limit;
 }
 
 /**

@@ -796,7 +796,7 @@ static int eth16i_receive_probe_packet(int ioaddr)
 
 			if(eth16i_debug > 1)
 				printk(KERN_DEBUG "RECEIVE_PACKET\n");
-			return(0); /* Found receive packet */
+			return 0; /* Found receive packet */
 		}
 	}
 
@@ -805,7 +805,7 @@ static int eth16i_receive_probe_packet(int ioaddr)
 		printk(KERN_DEBUG "RX_STATUS_REG = %x\n", inb(ioaddr + RX_STATUS_REG));
 	}
 
-	return(0); /* Return success */
+	return 0; /* Return success */
 }
 
 #if 0
@@ -841,7 +841,7 @@ static int __init eth16i_get_irq(int ioaddr)
 
 	if( ioaddr < 0x1000) {
 		cbyte = inb(ioaddr + JUMPERLESS_CONFIG);
-		return( eth16i_irqmap[ ((cbyte & 0xC0) >> 6) ] );
+		return eth16i_irqmap[((cbyte & 0xC0) >> 6)];
 	} else {  /* Oh..the card is EISA so method getting IRQ different */
 		unsigned short index = 0;
 		cbyte = inb(ioaddr + EISA_IRQ_REG);
@@ -849,7 +849,7 @@ static int __init eth16i_get_irq(int ioaddr)
 			cbyte = cbyte >> 1;
 			index++;
 		}
-		return( eth32i_irqmap[ index ] );
+		return eth32i_irqmap[index];
 	}
 }
 
@@ -909,7 +909,7 @@ static int eth16i_read_eeprom(int ioaddr, int offset)
 	data = eth16i_read_eeprom_word(ioaddr);
 	outb(CS_0 | SK_0, ioaddr + EEPROM_CTRL_REG);
 
-	return(data);
+	return data;
 }
 
 static int eth16i_read_eeprom_word(int ioaddr)
@@ -928,7 +928,7 @@ static int eth16i_read_eeprom_word(int ioaddr)
 		eeprom_slow_io();
 	}
 
-	return(data);
+	return data;
 }
 
 static void eth16i_eeprom_cmd(int ioaddr, unsigned char command)

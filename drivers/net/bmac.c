@@ -1581,7 +1581,7 @@ bmac_proc_info(char *buffer, char **start, off_t offset, int length)
 	int i;
 
 	if (bmac_devs == NULL)
-		return (-ENOSYS);
+		return -ENOSYS;
 
 	len += sprintf(buffer, "BMAC counters & registers\n");
 

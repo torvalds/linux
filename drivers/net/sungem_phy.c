@@ -88,7 +88,7 @@ static int reset_one_mii_phy(struct mii_phy* phy, int phy_id)
 	if ((val & BMCR_ISOLATE) && limit > 0)
 		__phy_write(phy, phy_id, MII_BMCR, val & ~BMCR_ISOLATE);
 
-	return (limit <= 0);
+	return limit <= 0;
 }
 
 static int bcm5201_init(struct mii_phy* phy)

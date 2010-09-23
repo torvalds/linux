@@ -541,7 +541,7 @@ cleanup:
 
 	indexes->respCleared = cpu_to_le32(cleared);
 	wmb();
-	return (resp_save == NULL);
+	return resp_save == NULL;
 }
 
 static inline int

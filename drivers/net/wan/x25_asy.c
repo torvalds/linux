@@ -648,7 +648,7 @@ static int x25_asy_esc(unsigned char *s, unsigned char *d, int len)
 		}
 	}
 	*ptr++ = X25_END;
-	return (ptr - d);
+	return ptr - d;
 }
 
 static void x25_asy_unesc(struct x25_asy *sl, unsigned char s)

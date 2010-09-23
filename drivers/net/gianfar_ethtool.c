@@ -254,7 +254,7 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv, unsigned int use
 
 	/* Make sure we return a number greater than 0
 	 * if usecs > 0 */
-	return ((usecs * 1000 + count - 1) / count);
+	return (usecs * 1000 + count - 1) / count;
 }
 
 /* Convert ethernet clock ticks to microseconds */
@@ -278,7 +278,7 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 
 	/* Make sure we return a number greater than 0 */
 	/* if ticks is > 0 */
-	return ((ticks * count) / 1000);
+	return (ticks * count) / 1000;
 }
 
 /* Get the coalescing parameters, and put them in the cvals

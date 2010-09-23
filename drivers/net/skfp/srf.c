@@ -165,7 +165,7 @@ static struct s_srf_evc *smt_get_evc(struct s_smc *smc, int code, int index)
 
 	for (i = 0, evc = smc->evcs ; (unsigned) i < MAX_EVCS ; i++, evc++) {
 		if (evc->evc_code == code && evc->evc_index == index)
-			return(evc) ;
+			return evc;
 	}
 	return NULL;
 }

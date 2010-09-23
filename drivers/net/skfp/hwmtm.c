@@ -232,16 +232,16 @@ u_int mac_drv_check_space(void)
 #ifdef	COMMON_MB_POOL
 	call_count++ ;
 	if (call_count == 1) {
-		return(EXT_VIRT_MEM) ;
+		return EXT_VIRT_MEM;
 	}
 	else {
-		return(EXT_VIRT_MEM_2) ;
+		return EXT_VIRT_MEM_2;
 	}
 #else
-	return (EXT_VIRT_MEM) ;
+	return EXT_VIRT_MEM;
 #endif
 #else
-	return (0) ;
+	return 0;
 #endif
 }
 
@@ -271,7 +271,7 @@ int mac_drv_init(struct s_smc *smc)
 	if (!(smc->os.hwm.descr_p = (union s_fp_descr volatile *)
 		mac_drv_get_desc_mem(smc,(u_int)
 		(RXD_TXD_COUNT+1)*sizeof(struct s_smt_fp_txd)))) {
-		return(1) ;	/* no space the hwm modul can't work */
+		return 1;	/* no space the hwm modul can't work */
 	}
 
 	/*
@@ -283,18 +283,18 @@ int mac_drv_init(struct s_smc *smc)
 #ifndef	COMMON_MB_POOL
 	if (!(smc->os.hwm.mbuf_pool.mb_start = (SMbuf *) mac_drv_get_space(smc,
 		MAX_MBUF*sizeof(SMbuf)))) {
-		return(1) ;	/* no space the hwm modul can't work */
+		return 1;	/* no space the hwm modul can't work */
 	}
 #else
 	if (!mb_start) {
 		if (!(mb_start = (SMbuf *) mac_drv_get_space(smc,
 			MAX_MBUF*sizeof(SMbuf)))) {
-			return(1) ;	/* no space the hwm modul can't work */
+			return 1;	/* no space the hwm modul can't work */
 		}
 	}
 #endif
 #endif
-	return (0) ;
+	return 0;
 }
 
 /*
@@ -349,7 +349,7 @@ static u_long init_descr_ring(struct s_smc *smc,
 		DRV_BUF_FLUSH(&d1->r,DDI_DMA_SYNC_FORDEV) ;
 		d1++;
 	}
-	return(phys) ;
+	return phys;
 }
 
 static void init_txd_ring(struct s_smc *smc)
@@ -502,7 +502,7 @@ SMbuf *smt_get_mbuf(struct s_smc *smc)
 		mb->sm_use_count = 1 ;
 	}
 	DB_GEN("get SMbuf: mb = %x",(void *)mb,0,3) ;
-	return (mb) ;	/* May be NULL */
+	return mb;	/* May be NULL */
 }
 
 void smt_free_mbuf(struct s_smc *smc, SMbuf *mb)
@@ -621,7 +621,7 @@ static u_long repair_txd_ring(struct s_smc *smc, struct s_smt_tx_queue *queue)
 		t = t->txd_next ;
 		tx_used-- ;
 	}
-	return(phys) ;
+	return phys;
 }
 
 /*
@@ -673,7 +673,7 @@ static u_long repair_rxd_ring(struct s_smc *smc, struct s_smt_rx_queue *queue)
 		r = r->rxd_next ;
 		rx_used-- ;
 	}
-	return(phys) ;
+	return phys;
 }
 
 
@@ -1595,7 +1595,7 @@ int hwm_tx_init(struct s_smc *smc, u_char fc, int frag_count, int frame_len,
 	}
 	DB_TX("frame_status = %x",frame_status,0,3) ;
 	NDD_TRACE("THiE",frame_status,smc->os.hwm.tx_p->tx_free,0) ;
-	return(frame_status) ;
+	return frame_status;
 }
 
 /*
@@ -1764,7 +1764,7 @@ static SMbuf *get_llc_rx(struct s_smc *smc)
 		smc->os.hwm.llc_rx_pipe = mb->sm_next ;
 	}
 	DB_GEN("get_llc_rx: mb = 0x%x",(void *)mb,0,4) ;
-	return(mb) ;
+	return mb;
 }
 
 /*
@@ -1797,7 +1797,7 @@ static SMbuf *get_txd_mb(struct s_smc *smc)
 		smc->os.hwm.txd_tx_pipe = mb->sm_next ;
 	}
 	DB_GEN("get_txd_mb: mb = 0x%x",(void *)mb,0,4) ;
-	return(mb) ;
+	return mb;
 }
 
 /*

@@ -494,7 +494,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 	lp->options |= options;
 	mutex_unlock(&lp->indirect_mutex);
 
-	return (0);
+	return 0;
 }
 
 /* Initialize temac */
