@@ -49,8 +49,8 @@ static struct i2c_board_info nv04_tv_encoder_info[] = {
 
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
-	return nouveau_i2c_identify(dev, "TV encoder",
-				    nv04_tv_encoder_info, i2c_index);
+	return nouveau_i2c_identify(dev, "TV encoder", nv04_tv_encoder_info,
+				    NULL, i2c_index);
 }
 
 

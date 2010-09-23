@@ -235,6 +235,48 @@ nouveau_temp_safety_checks(struct drm_device *dev)
 		temps->fan_boost = 40;
 }
 
+static bool
+probe_monitoring_device(struct nouveau_i2c_chan *i2c,
+			struct i2c_board_info *info)
+{
+	char modalias[16] = "i2c:";
+	struct i2c_client *client;
+
+	strlcat(modalias, info->type, sizeof(modalias));
+	request_module(modalias);
+
+	client = i2c_new_device(&i2c->adapter, info);
+	if (!client)
+		return false;
+
+	if (!client->driver || client->driver->detect(client, info)) {
+		i2c_unregister_device(client);
+		return false;
+	}
+
+	return true;
+}
+
+static void
+nouveau_temp_probe_i2c(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct i2c_board_info info[] = {
+		{ I2C_BOARD_INFO("w83l785ts", 0x2d) },
+		{ I2C_BOARD_INFO("w83781d", 0x2d) },
+		{ I2C_BOARD_INFO("f75375", 0x2e) },
+		{ I2C_BOARD_INFO("adt7473", 0x2e) },
+		{ I2C_BOARD_INFO("lm99", 0x4c) },
+		{ }
+	};
+	int idx = (dcb->version >= 0x40 ?
+		   dcb->i2c_default_indices & 0xf : 2);
+
+	nouveau_i2c_identify(dev, "monitoring device", info,
+			     probe_monitoring_device, idx);
+}
+
 void
 nouveau_temp_init(struct drm_device *dev)
 {
@@ -253,11 +295,11 @@ nouveau_temp_init(struct drm_device *dev)
 			temp = ROMPTR(bios, P.data[16]);
 		else
 			NV_WARN(dev, "unknown temp for BIT P %d\n", P.version);
-	} else {
-		NV_WARN(dev, "BMP entry unknown for temperature table.\n");
+
+		nouveau_temp_vbios_parse(dev, temp);
 	}
 
-	nouveau_temp_vbios_parse(dev, temp);
+	nouveau_temp_probe_i2c(dev);
 }
 
 void

@@ -635,7 +635,7 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	    get_tmds_slave(encoder))
 		return;
 
-	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, 2);
+	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, NULL, 2);
 	if (type < 0)
 		return;
 
