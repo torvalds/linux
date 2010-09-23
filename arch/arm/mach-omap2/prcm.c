@@ -33,6 +33,7 @@
 #include "cm.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"
+#include "prm-regbits-44xx.h"
 
 static void __iomem *prm_base;
 static void __iomem *cm_base;
@@ -161,8 +162,8 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
 						 OMAP2_RM_RSTCTRL);
 	if (cpu_is_omap44xx())
-		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
-						 OMAP4_RM_RSTCTRL);
+		prm_set_mod_reg_bits(OMAP4430_RST_GLOBAL_WARM_SW_MASK,
+				     prcm_offs, OMAP4_RM_RSTCTRL);
 }
 
 static inline u32 __omap_prcm_read(void __iomem *base, s16 module, u16 reg)
@@ -215,6 +216,30 @@ u32 prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
 	return v;
 }
 
+/* Read a PRM register, AND it, and shift the result down to bit 0 */
+u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask)
+{
+	u32 v;
+
+	v = __raw_readl(reg);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	return v;
+}
+
+/* Read-modify-write a register in a PRM module. Caller must lock */
+u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg)
+{
+	u32 v;
+
+	v = __raw_readl(reg);
+	v &= ~mask;
+	v |= bits;
+	__raw_writel(v, reg);
+
+	return v;
+}
 /* Read a register in a CM module */
 u32 cm_read_mod_reg(s16 module, u16 idx)
 {
