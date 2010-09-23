@@ -529,8 +529,8 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	while (length) {
 		u32 amount, stride, height;
 
-		amount  = min(length, (u64)(16 * 1024 * 1024));
-		stride  = 64 * 4;
+		amount  = min(length, (u64)(4 * 1024 * 1024));
+		stride  = 16 * 4;
 		height  = amount / stride;
 
 		if (new_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
@@ -540,7 +540,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 			BEGIN_RING(chan, NvSubM2MF, 0x0200, 7);
 			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0x20);
+			OUT_RING  (chan, 0);
 			OUT_RING  (chan, stride);
 			OUT_RING  (chan, height);
 			OUT_RING  (chan, 1);
@@ -561,7 +561,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 			BEGIN_RING(chan, NvSubM2MF, 0x021c, 7);
 			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0x20);
+			OUT_RING  (chan, 0);
 			OUT_RING  (chan, stride);
 			OUT_RING  (chan, height);
 			OUT_RING  (chan, 1);
