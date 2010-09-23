@@ -323,7 +323,7 @@ int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 	return -EIO;
 }
 
-int __init musb_platform_init(struct musb *musb, void *board_data)
+int __init musb_platform_init(struct musb *musb)
 {
 
 	/*
