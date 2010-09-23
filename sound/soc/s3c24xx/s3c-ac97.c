@@ -163,6 +163,7 @@ static void s3c_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 
 static void s3c_ac97_cold_reset(struct snd_ac97 *ac97)
 {
+	pr_debug("AC97: Cold reset\n");
 	writel(S3C_AC97_GLBCTRL_COLDRESET,
 			s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	msleep(1);
@@ -178,6 +179,8 @@ static void s3c_ac97_warm_reset(struct snd_ac97 *ac97)
 	stat = readl(s3c_ac97.regs + S3C_AC97_GLBSTAT) & 0x7;
 	if (stat == S3C_AC97_GLBSTAT_MAINSTATE_ACTIVE)
 		return; /* Return if already active */
+
+	pr_debug("AC97: Warm reset\n");
 
 	writel(S3C_AC97_GLBCTRL_WARMRESET, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	msleep(1);
