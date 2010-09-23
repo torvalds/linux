@@ -108,36 +108,45 @@ nouveau_call_method(struct nouveau_channel *chan, int class, int mthd, int data)
 }
 
 static bool
-nouveau_fifo_swmthd(struct nouveau_channel *chan, uint32_t addr, uint32_t data)
+nouveau_fifo_swmthd(struct drm_device *dev, u32 chid, u32 addr, u32 data)
 {
-	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan = NULL;
+	struct nouveau_gpuobj *obj;
 	const int subc = (addr >> 13) & 0x7;
 	const int mthd = addr & 0x1ffc;
+	bool handled = false;
+	u32 engine;
 
-	if (mthd == 0x0000) {
-		struct nouveau_gpuobj *gpuobj;
+	if (likely(chid >= 0 && chid < dev_priv->engine.fifo.channels))
+		chan = dev_priv->fifos[chid];
+	if (unlikely(!chan))
+		return false;
 
-		gpuobj = nouveau_ramht_find(chan, data);
-		if (!gpuobj)
-			return false;
+	switch (mthd) {
+	case 0x0000: /* bind object to subchannel */
+		obj = nouveau_ramht_find(chan, data);
+		if (unlikely(!obj || obj->engine != NVOBJ_ENGINE_SW))
+			break;
 
-		if (gpuobj->engine != NVOBJ_ENGINE_SW)
-			return false;
+		chan->sw_subchannel[subc] = obj->class;
+		engine = 0x0000000f << (subc * 4);
 
-		chan->sw_subchannel[subc] = gpuobj->class;
-		nv_wr32(dev, NV04_PFIFO_CACHE1_ENGINE, nv_rd32(dev,
-			NV04_PFIFO_CACHE1_ENGINE) & ~(0xf << subc * 4));
-		return true;
+		nv_mask(dev, NV04_PFIFO_CACHE1_ENGINE, engine, 0x00000000);
+		handled = true;
+		break;
+	default:
+		engine = nv_rd32(dev, NV04_PFIFO_CACHE1_ENGINE);
+		if (unlikely(((engine >> (subc * 4)) & 0xf) != 0))
+			break;
+
+		if (!nouveau_call_method(chan, chan->sw_subchannel[subc],
+					 mthd, data))
+			handled = true;
+		break;
 	}
 
-	/* hw object */
-	if (nv_rd32(dev, NV04_PFIFO_CACHE1_ENGINE) & (1 << (subc*4)))
-		return false;
-
-	if (nouveau_call_method(chan, chan->sw_subchannel[subc], mthd, data))
-		return false;
-
-	return true;
+	return handled;
 }
 
 static void
@@ -150,14 +159,11 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 
 	reassign = nv_rd32(dev, NV03_PFIFO_CACHES) & 1;
 	while ((status = nv_rd32(dev, NV03_PFIFO_INTR_0)) && (cnt++ < 100)) {
-		struct nouveau_channel *chan = NULL;
 		uint32_t chid, get;
 
 		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 
 		chid = engine->fifo.channel_id(dev);
-		if (chid >= 0 && chid < engine->fifo.channels)
-			chan = dev_priv->fifos[chid];
 		get  = nv_rd32(dev, NV03_PFIFO_CACHE1_GET);
 
 		if (status & NV_PFIFO_INTR_CACHE_ERROR) {
@@ -184,7 +190,7 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 					NV40_PFIFO_CACHE1_DATA(ptr));
 			}
 
-			if (!chan || !nouveau_fifo_swmthd(chan, mthd, data)) {
+			if (!nouveau_fifo_swmthd(dev, chid, mthd, data)) {
 				NV_INFO(dev, "PFIFO_CACHE_ERROR - Ch %d/%d "
 					     "Mthd 0x%04x Data 0x%08x\n",
 					chid, (mthd >> 13) & 7, mthd & 0x1ffc,
