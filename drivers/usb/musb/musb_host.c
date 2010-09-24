@@ -1120,6 +1120,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
+	bool			transfer_pending = false;
 
 	musb_ep_select(mbase, epnum);
 	tx_csr = musb_readw(epio, MUSB_TXCSR);
@@ -1280,7 +1281,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 				offset = d->offset;
 				length = d->length;
 			}
-		} else if (dma) {
+		} else if (dma && urb->transfer_buffer_length == qh->offset) {
 			done = true;
 		} else {
 			/* see if we need to send more data, or ZLP */
@@ -1293,6 +1294,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 			if (!done) {
 				offset = qh->offset;
 				length = urb->transfer_buffer_length - offset;
+				transfer_pending = true;
 			}
 		}
 	}
@@ -1312,7 +1314,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		urb->actual_length = qh->offset;
 		musb_advance_schedule(musb, urb, hw_ep, USB_DIR_OUT);
 		return;
-	} else	if (usb_pipeisoc(pipe) && dma) {
+	} else if ((usb_pipeisoc(pipe) || transfer_pending) && dma) {
 		if (musb_tx_dma_program(musb->dma_controller, hw_ep, qh, urb,
 				offset, length)) {
 			if (is_cppi_enabled() || tusb_dma_omap())
