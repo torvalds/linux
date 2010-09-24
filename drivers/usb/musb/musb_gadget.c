@@ -1169,8 +1169,6 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 						: DMA_FROM_DEVICE);
 			request->mapped = 0;
 		}
-	} else if (!req->buf) {
-		return -ENODATA;
 	} else
 		request->mapped = 0;
 
