@@ -2,9 +2,7 @@
 # Makefile for kernel SPI drivers.
 #
 
-ifeq ($(CONFIG_SPI_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+ccflags-$(CONFIG_SPI_DEBUG) := -DDEBUG
 
 # small core, mostly translating board-specific
 # config declarations into driver model code
