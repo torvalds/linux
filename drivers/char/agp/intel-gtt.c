@@ -814,7 +814,6 @@ static void i830_cleanup(void)
 {
 	kunmap(intel_private.i8xx_page);
 	intel_private.i8xx_flush_page = NULL;
-	unmap_page_from_agp(intel_private.i8xx_page);
 
 	__free_page(intel_private.i8xx_page);
 	intel_private.i8xx_page = NULL;
@@ -826,7 +825,7 @@ static void intel_i830_setup_flush(void)
 	if (intel_private.i8xx_page)
 		return;
 
-	intel_private.i8xx_page = alloc_page(GFP_KERNEL | __GFP_ZERO | GFP_DMA32);
+	intel_private.i8xx_page = alloc_page(GFP_KERNEL);
 	if (!intel_private.i8xx_page)
 		return;
 
