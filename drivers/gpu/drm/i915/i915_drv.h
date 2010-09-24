@@ -746,6 +746,8 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv : 2;
+	unsigned int fenceable : 1;
+	unsigned int mappable : 1;
 
 	/**
 	 * Current tiling mode for the object.
@@ -1005,7 +1007,7 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 					      size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
-			bool mappable);
+			bool mappable, bool need_fence);
 void i915_gem_object_unpin(struct drm_gem_object *obj);
 int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_release_mmap(struct drm_gem_object *obj);
@@ -1068,10 +1070,6 @@ int i915_gem_evict_inactive(struct drm_device *dev);
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
 void i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj);
 void i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj);
-bool i915_tiling_ok(struct drm_device *dev, int stride, int size,
-		    int tiling_mode);
-bool i915_gem_object_fence_offset_ok(struct drm_gem_object *obj,
-				     int tiling_mode);
 
 /* i915_gem_debug.c */
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,

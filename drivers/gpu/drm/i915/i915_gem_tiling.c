@@ -181,7 +181,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 }
 
 /* Check pitch constriants for all chips & tiling formats */
-bool
+static bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 {
 	int tile_width;
@@ -232,25 +232,35 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	return true;
 }
 
-bool
-i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
+/* Is the current GTT allocation valid for the change in tiling? */
+static bool
+i915_gem_object_fence_ok(struct drm_gem_object *obj, int tiling_mode)
 {
-	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
-
-	if (obj_priv->gtt_space == NULL)
-		return true;
+	u32 size;
 
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_INFO(obj->dev)->gen >= 4)
 		return true;
 
-	if (obj_priv->gtt_offset & (obj->size - 1))
+	/*
+	 * Previous chips need to be aligned to the size of the smallest
+	 * fence register that can contain the object.
+	 */
+	if (INTEL_INFO(obj->dev)->gen == 3)
+		size = 1024*1024;
+	else
+		size = 512*1024;
+
+	while (size < obj_priv->base.size)
+		size <<= 1;
+
+	if (obj_priv->gtt_offset & (size - 1))
 		return false;
 
-	if (IS_GEN3(dev)) {
+	if (INTEL_INFO(obj->dev)->gen == 3) {
 		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
 			return false;
 	} else {
@@ -331,7 +341,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * tiling mode. Otherwise we can just leave it alone, but
 		 * need to ensure that any fence register is cleared.
 		 */
-		if (!i915_gem_object_fence_offset_ok(obj, args->tiling_mode))
+		if (!i915_gem_object_fence_ok(obj, args->tiling_mode))
 			ret = i915_gem_object_unbind(obj);
 		else if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 			ret = i915_gem_object_put_fence_reg(obj, true);

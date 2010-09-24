@@ -287,6 +287,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXECBUF2          9
 #define I915_PARAM_HAS_BSD		 10
 #define I915_PARAM_HAS_BLT		 11
+#define I915_PARAM_HAS_RELAXED_FENCING	 12
 
 typedef struct drm_i915_getparam {
 	int param;

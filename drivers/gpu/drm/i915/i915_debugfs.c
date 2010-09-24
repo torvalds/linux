@@ -130,7 +130,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	if (obj->gtt_space != NULL)
-		seq_printf(m, " (gtt_offset: %08x)", obj->gtt_offset);
+		seq_printf(m, " (gtt offset: %08x, size: %08x)",
+			   obj->gtt_offset, (unsigned int)obj->gtt_space->size);
 	if (obj->pin_mappable || obj->fault_mappable)
 		seq_printf(m, " (mappable)");
 	if (obj->ring != NULL)
