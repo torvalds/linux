@@ -784,6 +784,11 @@ static bool ironlake_edp_panel_on (struct drm_device *dev)
 	pp |= POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 
+	/* Ouch. We need to wait here for some panels, like Dell e6510
+	 * https://bugs.freedesktop.org/show_bug.cgi?id=29278i
+	 */
+	msleep(300);
+
 	if (wait_for(I915_READ(PCH_PP_STATUS) & PP_ON, 5000))
 		DRM_ERROR("panel on wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
@@ -819,6 +824,11 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
+
+	/* Ouch. We need to wait here for some panels, like Dell e6510
+	 * https://bugs.freedesktop.org/show_bug.cgi?id=29278i
+	 */
+	msleep(300);
 }
 
 static void ironlake_edp_panel_vdd_on(struct drm_device *dev)
