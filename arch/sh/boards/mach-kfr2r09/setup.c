@@ -333,7 +333,6 @@ static struct soc_camera_link rj54n1_link = {
 	.power		= camera_power,
 	.board_info	= &kfr2r09_i2c_camera,
 	.i2c_adapter_id	= 1,
-	.module_name	= "rj54n1cb0c",
 	.priv		= &rj54n1_priv,
 };
 

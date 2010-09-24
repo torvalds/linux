@@ -753,7 +753,6 @@ static struct soc_camera_link a780_iclink = {
 	.flags          = SOCAM_SENSOR_INVERT_PCLK,
 	.i2c_adapter_id = 0,
 	.board_info     = &a780_camera_i2c_board_info,
-	.module_name    = "mt9m111",
 	.power          = a780_camera_power,
 	.reset          = a780_camera_reset,
 };
@@ -1025,7 +1024,6 @@ static struct soc_camera_link a910_iclink = {
 	.bus_id         = 0,
 	.i2c_adapter_id = 0,
 	.board_info     = &a910_camera_i2c_board_info,
-	.module_name    = "mt9m111",
 	.power          = a910_camera_power,
 	.reset          = a910_camera_reset,
 };

@@ -481,7 +481,6 @@ static struct soc_camera_link ov7725_link = {
 	.power		= ov7725_power,
 	.board_info	= &ap325rxa_i2c_camera[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "ov772x",
 	.priv		= &ov7725_info,
 };
 

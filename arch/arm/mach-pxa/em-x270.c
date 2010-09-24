@@ -1015,7 +1015,6 @@ static struct soc_camera_link iclink = {
 	.power		= em_x270_sensor_power,
 	.board_info	= &em_x270_i2c_cam_info[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9m111",
 };
 
 static struct platform_device em_x270_camera = {

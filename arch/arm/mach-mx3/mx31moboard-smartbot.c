@@ -88,7 +88,6 @@ static struct soc_camera_link base_iclink = {
 	.reset		= smartbot_cam_reset,
 	.board_info	= &smartbot_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9t031",
 };
 
 static struct platform_device smartbot_camera[] = {

@@ -179,7 +179,6 @@ static struct soc_camera_link base_iclink = {
 	.reset		= marxbot_basecam_reset,
 	.board_info	= &marxbot_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9t031",
 };
 
 static struct platform_device marxbot_camera[] = {
