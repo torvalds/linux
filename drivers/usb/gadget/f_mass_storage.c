@@ -2932,6 +2932,8 @@ static void fsg_function_disable(struct usb_function *f)
 	DBG(fsg, "fsg_function_disable\n");
 	fsg->new_config = 0;
 	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
+	// yk 201009
+	set_msc_connect_flag(0);
 }
 
 static int __init fsg_probe(struct platform_device *pdev)
