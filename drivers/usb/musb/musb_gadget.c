@@ -644,7 +644,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	 */
 
 				csr |= MUSB_RXCSR_DMAENAB;
-				if (!musb_ep->hb_mult)
+				if (!musb_ep->hb_mult &&
+					musb_ep->hw_ep->rx_double_buffered)
 					csr |= MUSB_RXCSR_AUTOCLEAR;
 #ifdef USE_MODE1
 				/* csr |= MUSB_RXCSR_DMAMODE; */
