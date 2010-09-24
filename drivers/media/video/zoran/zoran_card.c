@@ -1343,13 +1343,12 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	}
 
 	zr->decoder = v4l2_i2c_new_subdev(&zr->v4l2_dev,
-		&zr->i2c_adapter, NULL, zr->card.i2c_decoder,
+		&zr->i2c_adapter, zr->card.i2c_decoder,
 		0, zr->card.addrs_decoder);
 
 	if (zr->card.i2c_encoder)
 		zr->encoder = v4l2_i2c_new_subdev(&zr->v4l2_dev,
-			&zr->i2c_adapter,
-			NULL, zr->card.i2c_encoder,
+			&zr->i2c_adapter, zr->card.i2c_encoder,
 			0, zr->card.addrs_encoder);
 
 	dprintk(2,
