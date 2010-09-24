@@ -252,7 +252,7 @@ static u8 tegra_w1_touch_bit(void *data, u8 bit)
 	return_bit = 0;
 	mutex_lock(&dev->mutex);
 	if (!dev->ready)
-		goto done;
+		goto done_unlock;
 
 	clk_enable(dev->clk);
 	w1_imask(dev, OI_BIT_XFER_DONE);
@@ -292,6 +292,7 @@ done:
 	w1_imask(dev, 0);
 	dev->transfer_completion = NULL;
 	clk_disable(dev->clk);
+done_unlock:
 	mutex_unlock(&dev->mutex);
 	return return_bit;
 }
