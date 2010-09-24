@@ -239,8 +239,6 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 
 
 #define eqMacAddr(a,b) ( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
-/* 2007/07/25 MH Defien temp tx fw info. */
-static TX_FWINFO_T Tmp_TxFwInfo;
 
 
 #define 	rx_hal_is_cck_rate(_pdrvinfo)\
@@ -1464,25 +1462,6 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
         pTxFwInfo->TxSubCarrier = 0;
     }
 
-    if (0)
-    {
-	    /* 2007/07/25 MH  Copy current TX FW info.*/
-	    memcpy((void*)(&Tmp_TxFwInfo), (void*)(pTxFwInfo), sizeof(TX_FWINFO_8190PCI));
-	    printk("&&&&&&&&&&&&&&&&&&&&&&====>print out fwinf\n");
-	    printk("===>enable fwcacl:%d\n", Tmp_TxFwInfo.EnableCPUDur);
-	    printk("===>RTS STBC:%d\n", Tmp_TxFwInfo.RtsSTBC);
-	    printk("===>RTS Subcarrier:%d\n", Tmp_TxFwInfo.RtsSubcarrier);
-	    printk("===>Allow Aggregation:%d\n", Tmp_TxFwInfo.AllowAggregation);
-	    printk("===>TX HT bit:%d\n", Tmp_TxFwInfo.TxHT);
-	    printk("===>Tx rate:%d\n", Tmp_TxFwInfo.TxRate);
-	    printk("===>Received AMPDU Density:%d\n", Tmp_TxFwInfo.RxAMD);
-	    printk("===>Received MPDU Factor:%d\n", Tmp_TxFwInfo.RxMF);
-	    printk("===>TxBandwidth:%d\n", Tmp_TxFwInfo.TxBandwidth);
-	    printk("===>TxSubCarrier:%d\n", Tmp_TxFwInfo.TxSubCarrier);
-
-        printk("<=====**********************out of print\n");
-
-    }
     spin_lock_irqsave(&priv->irq_th_lock,flags);
     ring = &priv->tx_ring[tcb_desc->queue_index];
     if (tcb_desc->queue_index != BEACON_QUEUE) {
