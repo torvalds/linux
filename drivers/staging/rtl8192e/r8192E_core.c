@@ -1872,53 +1872,49 @@ static int rtl8192_handle_beacon(struct net_device * dev,
 static int rtl8192_qos_association_resp(struct r8192_priv *priv,
                                     struct ieee80211_network *network)
 {
-        int ret = 0;
-        unsigned long flags;
-        u32 size = sizeof(struct ieee80211_qos_parameters);
-        int set_qos_param = 0;
+	int ret = 0;
+	unsigned long flags;
+	u32 size = sizeof(struct ieee80211_qos_parameters);
+	int set_qos_param = 0;
 
-        if ((priv == NULL) || (network == NULL))
-                return ret;
+	if ((priv == NULL) || (network == NULL))
+		return ret;
 
-	if(priv->ieee80211->state !=IEEE80211_LINKED)
-                return ret;
+	if (priv->ieee80211->state != IEEE80211_LINKED)
+		return ret;
 
-        if ((priv->ieee80211->iw_mode != IW_MODE_INFRA))
-                return ret;
+	if ((priv->ieee80211->iw_mode != IW_MODE_INFRA))
+		return ret;
 
-        spin_lock_irqsave(&priv->ieee80211->lock, flags);
-	if(network->flags & NETWORK_HAS_QOS_PARAMETERS) {
+	spin_lock_irqsave(&priv->ieee80211->lock, flags);
+	if (network->flags & NETWORK_HAS_QOS_PARAMETERS) {
 		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
 			 &network->qos_data.parameters,
 			sizeof(struct ieee80211_qos_parameters));
 		priv->ieee80211->current_network.qos_data.active = 1;
-#if 0
-		if((priv->ieee80211->current_network.qos_data.param_count !=
-					network->qos_data.param_count))
-#endif
-		 {
-                        set_qos_param = 1;
-			/* update qos parameter for current network */
-			priv->ieee80211->current_network.qos_data.old_param_count =
-				 priv->ieee80211->current_network.qos_data.param_count;
-			priv->ieee80211->current_network.qos_data.param_count =
-			     	 network->qos_data.param_count;
-		}
-        } else {
+		set_qos_param = 1;
+		/* update qos parameter for current network */
+		priv->ieee80211->current_network.qos_data.old_param_count =
+			priv->ieee80211->current_network.qos_data.param_count;
+		priv->ieee80211->current_network.qos_data.param_count =
+			network->qos_data.param_count;
+
+	} else {
 		memcpy(&priv->ieee80211->current_network.qos_data.parameters,
 		       &def_qos_parameters, size);
 		priv->ieee80211->current_network.qos_data.active = 0;
 		priv->ieee80211->current_network.qos_data.supported = 0;
-                set_qos_param = 1;
-        }
+		set_qos_param = 1;
+	}
 
-        spin_unlock_irqrestore(&priv->ieee80211->lock, flags);
+	spin_unlock_irqrestore(&priv->ieee80211->lock, flags);
 
-	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n",__FUNCTION__,network->flags ,priv->ieee80211->current_network.qos_data.active);
+	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n", __FUNCTION__,
+		network->flags, priv->ieee80211->current_network.qos_data.active);
 	if (set_qos_param == 1)
 		queue_work(priv->priv_wq, &priv->qos_activate);
 
-        return ret;
+	return ret;
 }
 
 
