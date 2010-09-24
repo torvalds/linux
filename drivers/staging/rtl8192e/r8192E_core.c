@@ -1048,43 +1048,42 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 
 static void rtl8192_tx_isr(struct net_device *dev, int prio)
 {
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
 
-    struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
+	while (skb_queue_len(&ring->queue)) {
+		tx_desc_819x_pci *entry = &ring->desc[ring->idx];
+		struct sk_buff *skb;
 
-    while (skb_queue_len(&ring->queue)) {
-        tx_desc_819x_pci *entry = &ring->desc[ring->idx];
-        struct sk_buff *skb;
+		/*
+		 * beacon packet will only use the first descriptor defaultly,
+		 * and the OWN may not be cleared by the hardware
+		 */
+		if (prio != BEACON_QUEUE) {
+			if (entry->OWN)
+				return;
+			ring->idx = (ring->idx + 1) % ring->entries;
+		}
 
-        /* beacon packet will only use the first descriptor defaultly,
-         * and the OWN may not be cleared by the hardware
-         * */
-        if(prio != BEACON_QUEUE) {
-            if(entry->OWN)
-                return;
-            ring->idx = (ring->idx + 1) % ring->entries;
-        }
+		skb = __skb_dequeue(&ring->queue);
+		pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
+				 skb->len, PCI_DMA_TODEVICE);
 
-        skb = __skb_dequeue(&ring->queue);
-        pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
-                skb->len, PCI_DMA_TODEVICE);
+		kfree_skb(skb);
+	}
+	if (prio == MGNT_QUEUE) {
+		if (priv->ieee80211->ack_tx_to_ieee) {
+			if (rtl8192_is_tx_queue_empty(dev)) {
+				priv->ieee80211->ack_tx_to_ieee = 0;
+				ieee80211_ps_tx_ack(priv->ieee80211, 1);
+			}
+		}
+	}
 
-        kfree_skb(skb);
-    }
-    if (prio == MGNT_QUEUE){
-        if (priv->ieee80211->ack_tx_to_ieee){
-            if (rtl8192_is_tx_queue_empty(dev)){
-                priv->ieee80211->ack_tx_to_ieee = 0;
-                ieee80211_ps_tx_ack(priv->ieee80211, 1);
-            }
-        }
-    }
-
-    if(prio != BEACON_QUEUE) {
-        /* try to deal with the pending packets  */
-        tasklet_schedule(&priv->irq_tx_tasklet);
-    }
-
+	if (prio != BEACON_QUEUE) {
+		/* try to deal with the pending packets  */
+		tasklet_schedule(&priv->irq_tx_tasklet);
+	}
 }
 
 static void rtl8192_stop_beacon(struct net_device *dev)
