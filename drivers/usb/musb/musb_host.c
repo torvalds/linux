@@ -41,6 +41,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/dma-mapping.h>
 
 #include "musb_core.h"
 #include "musb_host.h"
@@ -1332,6 +1333,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	 */
 	if (length > qh->maxpacket)
 		length = qh->maxpacket;
+	/* Unmap the buffer so that CPU can use it */
+	unmap_urb_for_dma(musb_to_hcd(musb), urb);
 	musb_write_fifo(hw_ep, length, urb->transfer_buffer + offset);
 	qh->segsize = length;
 
@@ -1752,6 +1755,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 #endif	/* Mentor DMA */
 
 		if (!dma) {
+			/* Unmap the buffer so that CPU can use it */
+			unmap_urb_for_dma(musb_to_hcd(musb), urb);
 			done = musb_host_packet_rx(musb, urb,
 					epnum, iso_err);
 			DBG(6, "read %spacket\n", done ? "last " : "");
