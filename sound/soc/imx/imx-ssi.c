@@ -254,6 +254,9 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 		dma_data = &ssi->dma_params_rx;
 	}
 
+	if (ssi->flags & IMX_SSI_SYN)
+		reg = SSI_STCCR;
+
 	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	sccr = readl(ssi->base + reg) & ~SSI_STCCR_WL_MASK;

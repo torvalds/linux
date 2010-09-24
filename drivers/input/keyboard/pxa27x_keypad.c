@@ -567,8 +567,6 @@ static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
 	clk_put(keypad->clk);
 
 	input_unregister_device(keypad->input_dev);
-	input_free_device(keypad->input_dev);
-
 	iounmap(keypad->mmio_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

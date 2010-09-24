@@ -132,7 +132,7 @@ void qla4_8xxx_idc_unlock(struct scsi_qla_host *ha);
 int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_need_qsnt_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha);
-inline void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
+void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;

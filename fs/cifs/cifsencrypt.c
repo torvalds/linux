@@ -223,63 +223,6 @@ int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
 	return 0;
 }
 
-int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *ses,
-			       const struct nls_table *nls_info)
-{
-	char temp_hash[16];
-	struct HMACMD5Context ctx;
-	char *ucase_buf;
-	__le16 *unicode_buf;
-	unsigned int i, user_name_len, dom_name_len;
-
-	if (ses == NULL)
-		return -EINVAL;
-
-	E_md4hash(ses->password, temp_hash);
-
-	hmac_md5_init_limK_to_64(temp_hash, 16, &ctx);
-	user_name_len = strlen(ses->userName);
-	if (user_name_len > MAX_USERNAME_SIZE)
-		return -EINVAL;
-	if (ses->domainName == NULL)
-		return -EINVAL; /* BB should we use CIFS_LINUX_DOM */
-	dom_name_len = strlen(ses->domainName);
-	if (dom_name_len > MAX_USERNAME_SIZE)
-		return -EINVAL;
-
-	ucase_buf = kmalloc((MAX_USERNAME_SIZE+1), GFP_KERNEL);
-	if (ucase_buf == NULL)
-		return -ENOMEM;
-	unicode_buf = kmalloc((MAX_USERNAME_SIZE+1)*4, GFP_KERNEL);
-	if (unicode_buf == NULL) {
-		kfree(ucase_buf);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < user_name_len; i++)
-		ucase_buf[i] = nls_info->charset2upper[(int)ses->userName[i]];
-	ucase_buf[i] = 0;
-	user_name_len = cifs_strtoUCS(unicode_buf, ucase_buf,
-				      MAX_USERNAME_SIZE*2, nls_info);
-	unicode_buf[user_name_len] = 0;
-	user_name_len++;
-
-	for (i = 0; i < dom_name_len; i++)
-		ucase_buf[i] = nls_info->charset2upper[(int)ses->domainName[i]];
-	ucase_buf[i] = 0;
-	dom_name_len = cifs_strtoUCS(unicode_buf+user_name_len, ucase_buf,
-				     MAX_USERNAME_SIZE*2, nls_info);
-
-	unicode_buf[user_name_len + dom_name_len] = 0;
-	hmac_md5_update((const unsigned char *) unicode_buf,
-		(user_name_len+dom_name_len)*2, &ctx);
-
-	hmac_md5_final(ses->server->ntlmv2_hash, &ctx);
-	kfree(ucase_buf);
-	kfree(unicode_buf);
-	return 0;
-}
-
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 			char *lnm_session_key)

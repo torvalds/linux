@@ -992,5 +992,5 @@ extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 extern int be_cmd_get_phy_info(struct be_adapter *adapter,
 		struct be_dma_mem *cmd);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
-extern void be_dump_ue(struct be_adapter *adapter);
+extern void be_detect_dump_ue(struct be_adapter *adapter);
 

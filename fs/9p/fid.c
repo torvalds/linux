@@ -242,7 +242,8 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	}
 	kfree(wnames);
 fid_out:
-	v9fs_fid_add(dentry, fid);
+	if (!IS_ERR(fid))
+		v9fs_fid_add(dentry, fid);
 err_out:
 	up_read(&v9ses->rename_sem);
 	return fid;

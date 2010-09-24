@@ -2020,18 +2020,7 @@ bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *l
 		return false;
 	}
 	elapsed = jiffies_to_msecs(cjiffies - lockup->last_jiffies);
-	if (elapsed >= 3000) {
-		/* very likely the improbable case where current
-		 * rptr is equal to last recorded, a while ago, rptr
-		 * this is more likely a false positive update tracking
-		 * information which should force us to be recall at
-		 * latter point
-		 */
-		lockup->last_cp_rptr = cp->rptr;
-		lockup->last_jiffies = jiffies;
-		return false;
-	}
-	if (elapsed >= 1000) {
+	if (elapsed >= 10000) {
 		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
 		return true;
 	}
@@ -3308,13 +3297,14 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 	unsigned long size;
 	unsigned prim_walk;
 	unsigned nverts;
+	unsigned num_cb = track->num_cb;
 
-	for (i = 0; i < track->num_cb; i++) {
+	if (!track->zb_cb_clear && !track->color_channel_mask &&
+	    !track->blend_read_enable)
+		num_cb = 0;
+
+	for (i = 0; i < num_cb; i++) {
 		if (track->cb[i].robj == NULL) {
-			if (!(track->zb_cb_clear || track->color_channel_mask ||
-			      track->blend_read_enable)) {
-				continue;
-			}
 			DRM_ERROR("[drm] No buffer for color buffer %d !\n", i);
 			return -EINVAL;
 		}

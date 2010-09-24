@@ -251,7 +251,7 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 		printk(KERN_WARNING
 		       "ASoC: Failed to create codec register debugfs file\n");
 
-	codec->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0744,
+	codec->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0644,
 						     codec->debugfs_codec_root,
 						     &codec->pop_time);
 	if (!codec->debugfs_pop_time)

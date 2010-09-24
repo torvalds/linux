@@ -677,6 +677,7 @@ static int fill_inode(struct inode *inode,
 		if (ci->i_files == 0 && ci->i_subdirs == 0 &&
 		    ceph_snap(inode) == CEPH_NOSNAP &&
 		    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
+		    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
 			dout(" marking %p complete (empty)\n", inode);
 			ci->i_ceph_flags |= CEPH_I_COMPLETE;
@@ -844,7 +845,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
  * the caller) if we fail.
  */
 static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
-				    bool *prehash)
+				    bool *prehash, bool set_offset)
 {
 	struct dentry *realdn;
 
@@ -876,7 +877,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	}
 	if ((!prehash || *prehash) && d_unhashed(dn))
 		d_rehash(dn);
-	ceph_set_dentry_offset(dn);
+	if (set_offset)
+		ceph_set_dentry_offset(dn);
 out:
 	return dn;
 }
@@ -1061,7 +1063,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				d_delete(dn);
 				goto done;
 			}
-			dn = splice_dentry(dn, in, &have_lease);
+			dn = splice_dentry(dn, in, &have_lease, true);
 			if (IS_ERR(dn)) {
 				err = PTR_ERR(dn);
 				goto done;
@@ -1104,7 +1106,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			goto done;
 		}
 		dout(" linking snapped dir %p to dn %p\n", in, dn);
-		dn = splice_dentry(dn, in, NULL);
+		dn = splice_dentry(dn, in, NULL, true);
 		if (IS_ERR(dn)) {
 			err = PTR_ERR(dn);
 			goto done;
@@ -1229,14 +1231,14 @@ retry_lookup:
 			in = dn->d_inode;
 		} else {
 			in = ceph_get_inode(parent->d_sb, vino);
-			if (in == NULL) {
+			if (IS_ERR(in)) {
 				dout("new_inode badness\n");
 				d_delete(dn);
 				dput(dn);
-				err = -ENOMEM;
+				err = PTR_ERR(in);
 				goto out;
 			}
-			dn = splice_dentry(dn, in, NULL);
+			dn = splice_dentry(dn, in, NULL, false);
 			if (IS_ERR(dn))
 				dn = NULL;
 		}

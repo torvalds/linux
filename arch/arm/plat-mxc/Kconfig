@@ -43,6 +43,7 @@ config ARCH_MXC91231
 config ARCH_MX5
 	bool "MX5-based"
 	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
 	help
 	  This enables support for systems based on the Freescale i.MX51 family
 

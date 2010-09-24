@@ -206,11 +206,27 @@ int arch_check_bp_in_kernelspace(struct perf_event *bp)
 int arch_bp_generic_fields(int x86_len, int x86_type,
 			   int *gen_len, int *gen_type)
 {
+	/* Type */
+	switch (x86_type) {
+	case X86_BREAKPOINT_EXECUTE:
+		if (x86_len != X86_BREAKPOINT_LEN_X)
+			return -EINVAL;
+
+		*gen_type = HW_BREAKPOINT_X;
+		*gen_len = sizeof(long);
+		return 0;
+	case X86_BREAKPOINT_WRITE:
+		*gen_type = HW_BREAKPOINT_W;
+		break;
+	case X86_BREAKPOINT_RW:
+		*gen_type = HW_BREAKPOINT_W | HW_BREAKPOINT_R;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	/* Len */
 	switch (x86_len) {
-	case X86_BREAKPOINT_LEN_X:
-		*gen_len = sizeof(long);
-		break;
 	case X86_BREAKPOINT_LEN_1:
 		*gen_len = HW_BREAKPOINT_LEN_1;
 		break;
@@ -225,21 +241,6 @@ int arch_bp_generic_fields(int x86_len, int x86_type,
 		*gen_len = HW_BREAKPOINT_LEN_8;
 		break;
 #endif
-	default:
-		return -EINVAL;
-	}
-
-	/* Type */
-	switch (x86_type) {
-	case X86_BREAKPOINT_EXECUTE:
-		*gen_type = HW_BREAKPOINT_X;
-		break;
-	case X86_BREAKPOINT_WRITE:
-		*gen_type = HW_BREAKPOINT_W;
-		break;
-	case X86_BREAKPOINT_RW:
-		*gen_type = HW_BREAKPOINT_W | HW_BREAKPOINT_R;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -316,9 +317,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	ret = -EINVAL;
 
 	switch (info->len) {
-	case X86_BREAKPOINT_LEN_X:
-		align = sizeof(long) -1;
-		break;
 	case X86_BREAKPOINT_LEN_1:
 		align = 0;
 		break;

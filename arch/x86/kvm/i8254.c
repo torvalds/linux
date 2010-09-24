@@ -697,6 +697,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit->wq = create_singlethread_workqueue("kvm-pit-wq");
 	if (!pit->wq) {
 		mutex_unlock(&pit->pit_state.lock);
+		kvm_free_irq_source_id(kvm, pit->irq_source_id);
 		kfree(pit);
 		return NULL;
 	}
@@ -742,7 +743,7 @@ fail:
 	kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	kvm_unregister_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
 	kvm_free_irq_source_id(kvm, pit->irq_source_id);
-
+	destroy_workqueue(pit->wq);
 	kfree(pit);
 	return NULL;
 }

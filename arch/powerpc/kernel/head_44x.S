@@ -113,6 +113,10 @@ _ENTRY(_start);
 	stw	r5, 0(r4)	/* Save abatron_pteptrs at a fixed location */
 	stw	r6, 0(r5)
 
+	/* Clear the Machine Check Syndrome Register */
+	li	r0,0
+	mtspr	SPRN_MCSR,r0
+
 	/* Let's move on */
 	lis	r4,start_kernel@h
 	ori	r4,r4,start_kernel@l

@@ -1,8 +1,0 @@
-Todo's so far (from Alan Cox)
-- Fix firmware loading
-- Get firmware into firmware git tree
-- Review and tidy each algorithm function
-- Check whether it can be plugged into any of the kernel crypto API
-  interfaces
-- Do something about the magic shared memory interface and replace it
-  with something saner (in Linux terms)

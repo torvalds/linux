@@ -245,7 +245,7 @@ static void __ar9170_dump_txstats(struct ar9170 *ar)
 {
 	int i;
 
-	wiphy_debug(ar->hw->wiphy, "qos queue stats\n");
+	wiphy_debug(ar->hw->wiphy, "QoS queue stats\n");
 
 	for (i = 0; i < __AR9170_NUM_TXQ; i++)
 		wiphy_debug(ar->hw->wiphy,
@@ -387,7 +387,7 @@ static struct sk_buff *ar9170_get_queued_skb(struct ar9170 *ar,
 		if (mac && compare_ether_addr(ieee80211_get_DA(hdr), mac)) {
 #ifdef AR9170_QUEUE_DEBUG
 			wiphy_debug(ar->hw->wiphy,
-				    "skip frame => da %pm != %pm\n",
+				    "skip frame => DA %pM != %pM\n",
 				    mac, ieee80211_get_DA(hdr));
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */

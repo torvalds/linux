@@ -217,6 +217,7 @@ Details of cgroup files
 CFQ sysfs tunable
 =================
 /sys/block/<disk>/queue/iosched/group_isolation
+-----------------------------------------------
 
 If group_isolation=1, it provides stronger isolation between groups at the
 expense of throughput. By default group_isolation is 0. In general that
@@ -242,6 +243,33 @@ idling on root sync-noidle tree.
 By default one should run with group_isolation=0. If that is not sufficient
 and one wants stronger isolation between groups, then set group_isolation=1
 but this will come at cost of reduced throughput.
+
+/sys/block/<disk>/queue/iosched/slice_idle
+------------------------------------------
+On a faster hardware CFQ can be slow, especially with sequential workload.
+This happens because CFQ idles on a single queue and single queue might not
+drive deeper request queue depths to keep the storage busy. In such scenarios
+one can try setting slice_idle=0 and that would switch CFQ to IOPS
+(IO operations per second) mode on NCQ supporting hardware.
+
+That means CFQ will not idle between cfq queues of a cfq group and hence be
+able to driver higher queue depth and achieve better throughput. That also
+means that cfq provides fairness among groups in terms of IOPS and not in
+terms of disk time.
+
+/sys/block/<disk>/queue/iosched/group_idle
+------------------------------------------
+If one disables idling on individual cfq queues and cfq service trees by
+setting slice_idle=0, group_idle kicks in. That means CFQ will still idle
+on the group in an attempt to provide fairness among groups.
+
+By default group_idle is same as slice_idle and does not do anything if
+slice_idle is enabled.
+
+One can experience an overall throughput drop if you have created multiple
+groups and put applications in that group which are not driving enough
+IO to keep disk busy. In that case set group_idle=0, and CFQ will not idle
+on individual groups and throughput should improve.
 
 What works
 ==========

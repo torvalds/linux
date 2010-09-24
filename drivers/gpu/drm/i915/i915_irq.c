@@ -425,9 +425,11 @@ static struct drm_i915_error_object *
 i915_error_object_create(struct drm_device *dev,
 			 struct drm_gem_object *src)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_object *dst;
 	struct drm_i915_gem_object *src_priv;
 	int page, page_count;
+	u32 reloc_offset;
 
 	if (src == NULL)
 		return NULL;
@@ -442,18 +444,27 @@ i915_error_object_create(struct drm_device *dev,
 	if (dst == NULL)
 		return NULL;
 
+	reloc_offset = src_priv->gtt_offset;
 	for (page = 0; page < page_count; page++) {
-		void *s, *d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		unsigned long flags;
+		void __iomem *s;
+		void *d;
 
+		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		if (d == NULL)
 			goto unwind;
+
 		local_irq_save(flags);
-		s = kmap_atomic(src_priv->pages[page], KM_IRQ0);
-		memcpy(d, s, PAGE_SIZE);
-		kunmap_atomic(s, KM_IRQ0);
+		s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+					     reloc_offset,
+					     KM_IRQ0);
+		memcpy_fromio(d, s, PAGE_SIZE);
+		io_mapping_unmap_atomic(s, KM_IRQ0);
 		local_irq_restore(flags);
+
 		dst->pages[page] = d;
+
+		reloc_offset += PAGE_SIZE;
 	}
 	dst->page_count = page_count;
 	dst->gtt_offset = src_priv->gtt_offset;
@@ -489,6 +500,7 @@ i915_error_state_free(struct drm_device *dev,
 	i915_error_object_free(error->batchbuffer[1]);
 	i915_error_object_free(error->ringbuffer);
 	kfree(error->active_bo);
+	kfree(error->overlay);
 	kfree(error);
 }
 
@@ -612,18 +624,57 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 		if (batchbuffer[1] == NULL &&
 		    error->acthd >= obj_priv->gtt_offset &&
-		    error->acthd < obj_priv->gtt_offset + obj->size &&
-		    batchbuffer[0] != obj)
+		    error->acthd < obj_priv->gtt_offset + obj->size)
 			batchbuffer[1] = obj;
 
 		count++;
+	}
+	/* Scan the other lists for completeness for those bizarre errors. */
+	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
+			struct drm_gem_object *obj = &obj_priv->base;
+
+			if (batchbuffer[0] == NULL &&
+			    bbaddr >= obj_priv->gtt_offset &&
+			    bbaddr < obj_priv->gtt_offset + obj->size)
+				batchbuffer[0] = obj;
+
+			if (batchbuffer[1] == NULL &&
+			    error->acthd >= obj_priv->gtt_offset &&
+			    error->acthd < obj_priv->gtt_offset + obj->size)
+				batchbuffer[1] = obj;
+
+			if (batchbuffer[0] && batchbuffer[1])
+				break;
+		}
+	}
+	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
+		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
+			struct drm_gem_object *obj = &obj_priv->base;
+
+			if (batchbuffer[0] == NULL &&
+			    bbaddr >= obj_priv->gtt_offset &&
+			    bbaddr < obj_priv->gtt_offset + obj->size)
+				batchbuffer[0] = obj;
+
+			if (batchbuffer[1] == NULL &&
+			    error->acthd >= obj_priv->gtt_offset &&
+			    error->acthd < obj_priv->gtt_offset + obj->size)
+				batchbuffer[1] = obj;
+
+			if (batchbuffer[0] && batchbuffer[1])
+				break;
+		}
 	}
 
 	/* We need to copy these to an anonymous buffer as the simplest
 	 * method to avoid being overwritten by userpace.
 	 */
 	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
-	error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
+	if (batchbuffer[1] != batchbuffer[0])
+		error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
+	else
+		error->batchbuffer[1] = NULL;
 
 	/* Record the ringbuffer */
 	error->ringbuffer = i915_error_object_create(dev,
@@ -666,6 +717,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 
 	do_gettimeofday(&error->time);
+
+	error->overlay = intel_overlay_capture_error_state(dev);
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (dev_priv->first_error == NULL) {
@@ -834,6 +887,49 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 	queue_work(dev_priv->wq, &dev_priv->error_work);
 }
 
+static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_gem_object *obj_priv;
+	struct intel_unpin_work *work;
+	unsigned long flags;
+	bool stall_detected;
+
+	/* Ignore early vblank irqs */
+	if (intel_crtc == NULL)
+		return;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	work = intel_crtc->unpin_work;
+
+	if (work == NULL || work->pending || !work->enable_stall_check) {
+		/* Either the pending flip IRQ arrived, or we're too early. Don't check */
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		return;
+	}
+
+	/* Potential stall - if we see that the flip has happened, assume a missed interrupt */
+	obj_priv = to_intel_bo(work->pending_flip_obj);
+	if(IS_I965G(dev)) {
+		int dspsurf = intel_crtc->plane == 0 ? DSPASURF : DSPBSURF;
+		stall_detected = I915_READ(dspsurf) == obj_priv->gtt_offset;
+	} else {
+		int dspaddr = intel_crtc->plane == 0 ? DSPAADDR : DSPBADDR;
+		stall_detected = I915_READ(dspaddr) == (obj_priv->gtt_offset +
+							crtc->y * crtc->fb->pitch +
+							crtc->x * crtc->fb->bits_per_pixel/8);
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (stall_detected) {
+		DRM_DEBUG_DRIVER("Pageflip stall detected\n");
+		intel_prepare_page_flip(dev, intel_crtc->plane);
+	}
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -951,15 +1047,19 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		if (pipea_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 0);
-			if (!dev_priv->flip_pending_is_done)
+			if (!dev_priv->flip_pending_is_done) {
+				i915_pageflip_stall_check(dev, 0);
 				intel_finish_page_flip(dev, 0);
+			}
 		}
 
 		if (pipeb_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 1);
-			if (!dev_priv->flip_pending_is_done)
+			if (!dev_priv->flip_pending_is_done) {
+				i915_pageflip_stall_check(dev, 1);
 				intel_finish_page_flip(dev, 1);
+			}
 		}
 
 		if ((pipea_stats & PIPE_LEGACY_BLC_EVENT_STATUS) ||
@@ -1250,7 +1350,25 @@ void i915_hangcheck_elapsed(unsigned long data)
 		i915_seqno_passed(i915_get_gem_seqno(dev,
 				&dev_priv->render_ring),
 			i915_get_tail_request(dev)->seqno)) {
+		bool missed_wakeup = false;
+
 		dev_priv->hangcheck_count = 0;
+
+		/* Issue a wake-up to catch stuck h/w. */
+		if (dev_priv->render_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->render_ring.irq_queue)) {
+			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+			missed_wakeup = true;
+		}
+
+		if (dev_priv->bsd_ring.waiting_gem_seqno &&
+		    waitqueue_active(&dev_priv->bsd_ring.irq_queue)) {
+			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+			missed_wakeup = true;
+		}
+
+		if (missed_wakeup)
+			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
 		return;
 	}
 
@@ -1318,12 +1436,17 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(DEIER, dev_priv->de_irq_enable_reg);
 	(void) I915_READ(DEIER);
 
-	/* user interrupt should be enabled, but masked initial */
+	/* Gen6 only needs render pipe_control now */
+	if (IS_GEN6(dev))
+		render_mask = GT_PIPE_NOTIFY;
+
 	dev_priv->gt_irq_mask_reg = ~render_mask;
 	dev_priv->gt_irq_enable_reg = render_mask;
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
+	if (IS_GEN6(dev))
+		I915_WRITE(GEN6_RENDER_IMR, ~GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT);
 	I915_WRITE(GTIER, dev_priv->gt_irq_enable_reg);
 	(void) I915_READ(GTIER);
 

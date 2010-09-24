@@ -596,6 +596,8 @@ void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld)
 }
 EXPORT_SYMBOL_HDA(snd_hda_eld_proc_free);
 
+#endif /* CONFIG_PROC_FS */
+
 /* update PCM info based on ELD */
 void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 			      struct hda_pcm_stream *codec_pars)
@@ -644,5 +646,3 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 	pcm->maxbps = min(pcm->maxbps, codec_pars->maxbps);
 }
 EXPORT_SYMBOL_HDA(hdmi_eld_update_pcm_info);
-
-#endif /* CONFIG_PROC_FS */

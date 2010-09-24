@@ -50,8 +50,7 @@ static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm,
 	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
 
 	tlb->mm = mm;
-	tlb->fullmm = full_mm_flush || (num_online_cpus() == 1) ||
-		(atomic_read(&mm->mm_users) <= 1 && mm == current->active_mm);
+	tlb->fullmm = full_mm_flush;
 	tlb->nr_ptes = 0;
 	tlb->nr_pxds = TLB_NR_PTRS;
 	if (tlb->fullmm)

@@ -3,6 +3,7 @@ config CEPH_FS
 	depends on INET && EXPERIMENTAL
 	select LIBCRC32C
 	select CRYPTO_AES
+	select CRYPTO
 	help
 	  Choose Y or M here to include support for mounting the
 	  experimental Ceph distributed file system.  Ceph is an extremely
