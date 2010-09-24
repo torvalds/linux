@@ -592,7 +592,8 @@ static int ov5650_get_otp(struct ov5650_info *info, void __user *ubuffer)
 	}
 
 	/* Serial number is BE. */
-	info->otp_data.serial_num = __be32_to_cpu(info->otp_data.serial_num);
+	info->otp_data.module_serial_num =
+		__be32_to_cpu(info->otp_data.module_serial_num);
 
 	/* Read the CRC and compared to computed. */
 	i = offsetof(struct ov5650_otp_data, crc);
