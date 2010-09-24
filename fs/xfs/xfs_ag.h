@@ -233,6 +233,10 @@ typedef struct xfs_perag {
 	struct mutex	pag_ici_reclaim_lock;	/* serialisation point */
 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
 
+	/* buffer cache index */
+	spinlock_t	pag_buf_lock;	/* lock for pag_buf_tree */
+	struct rb_root	pag_buf_tree;	/* ordered tree of active buffers */
+
 	/* for rcu-safe freeing */
 	struct rcu_head	rcu_head;
 #endif

@@ -135,10 +135,6 @@ typedef struct xfs_buftarg {
 	unsigned int		bt_sshift;
 	size_t			bt_smask;
 
-	/* per device buffer hash table */
-	uint			bt_hashshift;
-	xfs_bufhash_t		*bt_hash;
-
 	/* per device delwri queue */
 	struct task_struct	*bt_task;
 	struct list_head	bt_list;
@@ -172,8 +168,8 @@ typedef struct xfs_buf {
 	wait_queue_head_t	b_waiters;	/* unpin waiters */
 	struct list_head	b_list;
 	xfs_buf_flags_t		b_flags;	/* status flags */
-	struct list_head	b_hash_list;	/* hash table list */
-	xfs_bufhash_t		*b_hash;	/* hash table list start */
+	struct rb_node		b_rbnode;	/* rbtree node */
+	struct xfs_perag	*b_pag;		/* contains rbtree root */
 	xfs_buftarg_t		*b_target;	/* buffer target (device) */
 	atomic_t		b_hold;		/* reference count */
 	xfs_daddr_t		b_bn;		/* block number for I/O */
