@@ -477,40 +477,39 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 				epnum, csr, musb_ep->dma->actual_len, request);
 		}
 
-		if (is_dma || request->actual == request->length) {
-			/*
-			 * First, maybe a terminating short packet. Some DMA
-			 * engines might handle this by themselves.
-			 */
-			if ((request->zero && request->length
-				&& request->length % musb_ep->packet_sz == 0)
+		/*
+		 * First, maybe a terminating short packet. Some DMA
+		 * engines might handle this by themselves.
+		 */
+		if ((request->zero && request->length
+			&& (request->length % musb_ep->packet_sz == 0)
+			&& (request->actual == request->length))
 #ifdef CONFIG_USB_INVENTRA_DMA
-				|| (is_dma && (!dma->desired_mode ||
-					(request->actual &
-						(musb_ep->packet_sz - 1))))
+			|| (is_dma && (!dma->desired_mode ||
+				(request->actual &
+					(musb_ep->packet_sz - 1))))
 #endif
-			) {
-				/*
-				 * On DMA completion, FIFO may not be
-				 * available yet...
-				 */
-				if (csr & MUSB_TXCSR_TXPKTRDY)
-					return;
+		) {
+			/*
+			 * On DMA completion, FIFO may not be
+			 * available yet...
+			 */
+			if (csr & MUSB_TXCSR_TXPKTRDY)
+				return;
 
-				DBG(4, "sending zero pkt\n");
-				musb_writew(epio, MUSB_TXCSR, MUSB_TXCSR_MODE
-						| MUSB_TXCSR_TXPKTRDY);
-				request->zero = 0;
-			}
+			DBG(4, "sending zero pkt\n");
+			musb_writew(epio, MUSB_TXCSR, MUSB_TXCSR_MODE
+					| MUSB_TXCSR_TXPKTRDY);
+			request->zero = 0;
+		}
 
-			if (request->actual == request->length) {
-				musb_g_giveback(musb_ep, request, 0);
-				request = musb_ep->desc ? next_request(musb_ep) : NULL;
-				if (!request) {
-					DBG(4, "%s idle now\n",
-						musb_ep->end_point.name);
-					return;
-				}
+		if (request->actual == request->length) {
+			musb_g_giveback(musb_ep, request, 0);
+			request = musb_ep->desc ? next_request(musb_ep) : NULL;
+			if (!request) {
+				DBG(4, "%s idle now\n",
+					musb_ep->end_point.name);
+				return;
 			}
 		}
 
