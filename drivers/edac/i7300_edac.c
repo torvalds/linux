@@ -617,7 +617,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
 		      struct i7300_dimm_info *dinfo,
 		      struct csrow_info *p_csrow,
-		      u32 *last_page)
+		      u32 *nr_pages)
 {
 	int mtr, ans, addrBits, channel;
 
@@ -649,6 +649,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	addrBits -= 3;	/* 8 bits per bytes */
 
 	dinfo->megabytes = 1 << addrBits;
+	*nr_pages = dinfo->megabytes << 8;
 
 	debugf2("\t\tWIDTH: x%d\n", MTR_DRAM_WIDTH(mtr));
 
@@ -662,12 +663,8 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	debugf2("\t\tSIZE: %d MB\n", dinfo->megabytes);
 
 	p_csrow->grain = 8;
-	p_csrow->nr_pages = dinfo->megabytes << 8;
 	p_csrow->mtype = MEM_FB_DDR2;
 	p_csrow->csrow_idx = slot;
-	p_csrow->first_page = *last_page;
-	*last_page += p_csrow->nr_pages;
-	p_csrow->last_page = *last_page;
 	p_csrow->page_mask = 0;
 
 	/*
@@ -780,7 +777,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	int rc = -ENODEV;
 	int mtr;
 	int ch, branch, slot, channel;
-	u32 last_page = 0;
+	u32 last_page = 0, nr_pages;
 
 	pvt = mci->pvt_info;
 
@@ -818,10 +815,16 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				p_csrow = &mci->csrows[slot];
 
 				mtr = decode_mtr(pvt, slot, ch, branch,
-						 dinfo, p_csrow, &last_page);
+						 dinfo, p_csrow, &nr_pages);
 				/* if no DIMMS on this row, continue */
 				if (!MTR_DIMMS_PRESENT(mtr))
 					continue;
+
+				/* Update per_csrow memory count */
+				p_csrow->nr_pages += nr_pages;
+				p_csrow->first_page = last_page;
+				last_page += nr_pages;
+				p_csrow->last_page = last_page;
 
 				rc = 0;
 			}
