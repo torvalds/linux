@@ -1981,41 +1981,11 @@ static void rtl8192_update_ratr_table(struct net_device* dev)
 
 static bool GetNmodeSupportBySecCfg8190Pci(struct net_device*dev)
 {
-#if 1
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
+
 	return !(ieee->rtllib_ap_sec_type &&
-	   (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP)));
-#else
-	struct r8192_priv* priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
-        int wpa_ie_len= ieee->wpa_ie_len;
-        struct ieee80211_crypt_data* crypt;
-        int encrypt;
-
-        crypt = ieee->crypt[ieee->tx_keyidx];
-        encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY) || (ieee->host_encrypt && crypt && crypt->ops && (0 == strcmp(crypt->ops->name,"WEP")));
-
-	/* simply judge  */
-	if(encrypt && (wpa_ie_len == 0)) {
-		/* wep encryption, no N mode setting */
-		return false;
-//	} else if((wpa_ie_len != 0)&&(memcmp(&(ieee->wpa_ie[14]),ccmp_ie,4))) {
-	} else if((wpa_ie_len != 0)) {
-		/* parse pairwise key type */
-		//if((pairwisekey = WEP40)||(pairwisekey = WEP104)||(pairwisekey = TKIP))
-		if (((ieee->wpa_ie[0] == 0xdd) && (!memcmp(&(ieee->wpa_ie[14]),ccmp_ie,4))) || ((ieee->wpa_ie[0] == 0x30) && (!memcmp(&ieee->wpa_ie[10],ccmp_rsn_ie, 4))))
-			return true;
-		else
-			return false;
-	} else {
-		//RT_TRACE(COMP_ERR,"In %s The GroupEncAlgorithm is [4]\n",__FUNCTION__ );
-		return true;
-	}
-
-	return true;
-#endif
+		 (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP)));
 }
 
 static void rtl8192_refresh_supportrate(struct r8192_priv* priv)
