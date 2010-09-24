@@ -581,7 +581,7 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	 * When the functional clock disappears, too quick writes seem
 	 * to cause an abort. XXX Is this still necessary?
 	 */
-	__delay(150000);
+	__delay(300000);
 
 	return ret;
 }
