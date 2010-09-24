@@ -343,8 +343,8 @@ struct usb_cdc_ncm_ndp16 {
 
 /* 32-bit NCM Datagram Pointer Entry */
 struct usb_cdc_ncm_dpe32 {
-	__le32	wDatagramIndex;
-	__le32	wDatagramLength;
+	__le32	dwDatagramIndex;
+	__le32	dwDatagramLength;
 } __attribute__((__packed__));
 
 /* 32-bit NCM Datagram Pointer Table */
