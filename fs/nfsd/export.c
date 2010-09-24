@@ -1470,25 +1470,43 @@ static void show_secinfo_flags(struct seq_file *m, int flags)
 	show_expflags(m, flags, NFSEXP_SECINFO_FLAGS);
 }
 
+static bool secinfo_flags_equal(int f, int g)
+{
+	f &= NFSEXP_SECINFO_FLAGS;
+	g &= NFSEXP_SECINFO_FLAGS;
+	return f == g;
+}
+
+static int show_secinfo_run(struct seq_file *m, struct exp_flavor_info **fp, struct exp_flavor_info *end)
+{
+	int flags;
+
+	flags = (*fp)->flags;
+	seq_printf(m, ",sec=%d", (*fp)->pseudoflavor);
+	(*fp)++;
+	while (*fp != end && secinfo_flags_equal(flags, (*fp)->flags)) {
+		seq_printf(m, ":%d", (*fp)->pseudoflavor);
+		(*fp)++;
+	}
+	return flags;
+}
+
 static void show_secinfo(struct seq_file *m, struct svc_export *exp)
 {
 	struct exp_flavor_info *f;
 	struct exp_flavor_info *end = exp->ex_flavors + exp->ex_nflavors;
-	int lastflags = 0, first = 0;
+	int flags;
 
 	if (exp->ex_nflavors == 0)
 		return;
-	for (f = exp->ex_flavors; f < end; f++) {
-		if (first || f->flags != lastflags) {
-			if (!first)
-				show_secinfo_flags(m, lastflags);
-			seq_printf(m, ",sec=%d", f->pseudoflavor);
-			lastflags = f->flags;
-		} else {
-			seq_printf(m, ":%d", f->pseudoflavor);
-		}
+	f = exp->ex_flavors;
+	flags = show_secinfo_run(m, &f, end);
+	if (!secinfo_flags_equal(flags, exp->ex_flags))
+		show_secinfo_flags(m, flags);
+	while (f != end) {
+		flags = show_secinfo_run(m, &f, end);
+		show_secinfo_flags(m, flags);
 	}
-	show_secinfo_flags(m, lastflags);
 }
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
