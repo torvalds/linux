@@ -162,33 +162,41 @@ typedef int (*xfs_buf_bdstrat_t)(struct xfs_buf *);
 #define XB_PAGES	2
 
 typedef struct xfs_buf {
-	struct semaphore	b_sema;		/* semaphore for lockables */
-	unsigned long		b_queuetime;	/* time buffer was queued */
-	atomic_t		b_pin_count;	/* pin count */
-	wait_queue_head_t	b_waiters;	/* unpin waiters */
-	struct list_head	b_list;
-	xfs_buf_flags_t		b_flags;	/* status flags */
+	/*
+	 * first cacheline holds all the fields needed for an uncontended cache
+	 * hit to be fully processed. The semaphore straddles the cacheline
+	 * boundary, but the counter and lock sits on the first cacheline,
+	 * which is the only bit that is touched if we hit the semaphore
+	 * fast-path on locking.
+	 */
 	struct rb_node		b_rbnode;	/* rbtree node */
-	struct xfs_perag	*b_pag;		/* contains rbtree root */
-	xfs_buftarg_t		*b_target;	/* buffer target (device) */
-	atomic_t		b_hold;		/* reference count */
-	xfs_daddr_t		b_bn;		/* block number for I/O */
 	xfs_off_t		b_file_offset;	/* offset in file */
 	size_t			b_buffer_length;/* size of buffer in bytes */
+	atomic_t		b_hold;		/* reference count */
+	xfs_buf_flags_t		b_flags;	/* status flags */
+	struct semaphore	b_sema;		/* semaphore for lockables */
+
+	wait_queue_head_t	b_waiters;	/* unpin waiters */
+	struct list_head	b_list;
+	struct xfs_perag	*b_pag;		/* contains rbtree root */
+	xfs_buftarg_t		*b_target;	/* buffer target (device) */
+	xfs_daddr_t		b_bn;		/* block number for I/O */
 	size_t			b_count_desired;/* desired transfer size */
 	void			*b_addr;	/* virtual address of buffer */
 	struct work_struct	b_iodone_work;
-	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
 	xfs_buf_relse_t		b_relse;	/* releasing function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
-	unsigned short		b_error;	/* error code on I/O */
-	unsigned int		b_page_count;	/* size of page array */
-	unsigned int		b_offset;	/* page offset in first page */
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
+	unsigned long		b_queuetime;	/* time buffer was queued */
+	atomic_t		b_pin_count;	/* pin count */
+	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
+	unsigned int		b_page_count;	/* size of page array */
+	unsigned int		b_offset;	/* page offset in first page */
+	unsigned short		b_error;	/* error code on I/O */
 #ifdef XFS_BUF_LOCK_TRACKING
 	int			b_last_holder;
 #endif
