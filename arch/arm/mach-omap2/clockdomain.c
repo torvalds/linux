@@ -258,97 +258,6 @@ static void _omap2_clkdm_set_hwsup(struct clockdomain *clkdm, int enable)
 
 }
 
-/**
- * _init_wkdep_usecount - initialize wkdep usecounts to match hardware
- * @clkdm: clockdomain to initialize wkdep usecounts
- *
- * Initialize the wakeup dependency usecount variables for clockdomain @clkdm.
- * If a wakeup dependency is present in the hardware, the usecount will be
- * set to 1; otherwise, it will be set to 0.  Software should clear all
- * software wakeup dependencies prior to calling this function if it wishes
- * to ensure that all usecounts start at 0.  No return value.
- */
-static void _init_wkdep_usecount(struct clockdomain *clkdm)
-{
-	u32 v;
-	struct clkdm_dep *cd;
-
-	if (!clkdm->wkdep_srcs)
-		return;
-
-	for (cd = clkdm->wkdep_srcs; cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
-
-		if (!cd->clkdm && cd->clkdm_name)
-			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
-
-		if (!cd->clkdm) {
-			WARN(!cd->clkdm, "clockdomain: %s: wkdep clkdm %s not "
-			     "found\n", clkdm->name, cd->clkdm_name);
-			continue;
-		}
-
-		v = prm_read_mod_bits_shift(clkdm->pwrdm.ptr->prcm_offs,
-					    PM_WKDEP,
-					    (1 << cd->clkdm->dep_bit));
-
-		if (v)
-			pr_debug("clockdomain: %s: wakeup dependency already "
-				 "set to wake up when %s wakes\n",
-				 clkdm->name, cd->clkdm->name);
-
-		atomic_set(&cd->wkdep_usecount, (v) ? 1 : 0);
-	}
-}
-
-/**
- * _init_sleepdep_usecount - initialize sleepdep usecounts to match hardware
- * @clkdm: clockdomain to initialize sleepdep usecounts
- *
- * Initialize the sleep dependency usecount variables for clockdomain @clkdm.
- * If a sleep dependency is present in the hardware, the usecount will be
- * set to 1; otherwise, it will be set to 0.  Software should clear all
- * software sleep dependencies prior to calling this function if it wishes
- * to ensure that all usecounts start at 0.  No return value.
- */
-static void _init_sleepdep_usecount(struct clockdomain *clkdm)
-{
-	u32 v;
-	struct clkdm_dep *cd;
-
-	if (!cpu_is_omap34xx())
-		return;
-
-	if (!clkdm->sleepdep_srcs)
-		return;
-
-	for (cd = clkdm->sleepdep_srcs; cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
-
-		if (!cd->clkdm && cd->clkdm_name)
-			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
-
-		if (!cd->clkdm) {
-			WARN(!cd->clkdm, "clockdomain: %s: sleepdep clkdm %s "
-			     "not found\n", clkdm->name, cd->clkdm_name);
-			continue;
-		}
-
-		v = prm_read_mod_bits_shift(clkdm->pwrdm.ptr->prcm_offs,
-					    OMAP3430_CM_SLEEPDEP,
-					    (1 << cd->clkdm->dep_bit));
-
-		if (v)
-			pr_debug("clockdomain: %s: sleep dependency already "
-				 "set to prevent from idling until %s "
-				 "idles\n", clkdm->name, cd->clkdm->name);
-
-		atomic_set(&cd->sleepdep_usecount, (v) ? 1 : 0);
-	}
-};
-
 /* Public functions */
 
 /**
@@ -379,12 +288,17 @@ void clkdm_init(struct clockdomain **clkdms,
 			_autodep_lookup(autodep);
 
 	/*
-	 * Ensure that the *dep_usecount registers reflect the current
-	 * state of the PRCM.
+	 * Put all clockdomains into software-supervised mode; PM code
+	 * should later enable hardware-supervised mode as appropriate
 	 */
 	list_for_each_entry(clkdm, &clkdm_list, node) {
-		_init_wkdep_usecount(clkdm);
-		_init_sleepdep_usecount(clkdm);
+		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+			omap2_clkdm_wakeup(clkdm);
+		else if (clkdm->flags & CLKDM_CAN_DISABLE_AUTO)
+			omap2_clkdm_deny_idle(clkdm);
+
+		clkdm_clear_all_wkdeps(clkdm);
+		clkdm_clear_all_sleepdeps(clkdm);
 	}
 }
 
@@ -592,6 +506,9 @@ int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 		if (!omap_chip_is(cd->omap_chip))
 			continue;
 
+		if (!cd->clkdm && cd->clkdm_name)
+			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
+
 		/* PRM accesses are slow, so minimize them */
 		mask |= 1 << cd->clkdm->dep_bit;
 		atomic_set(&cd->wkdep_usecount, 0);
@@ -751,6 +668,9 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 	for (cd = clkdm->sleepdep_srcs; cd && cd->clkdm_name; cd++) {
 		if (!omap_chip_is(cd->omap_chip))
 			continue;
+
+		if (!cd->clkdm && cd->clkdm_name)
+			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
 
 		/* PRM accesses are slow, so minimize them */
 		mask |= 1 << cd->clkdm->dep_bit;

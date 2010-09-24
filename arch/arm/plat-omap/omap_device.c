@@ -91,12 +91,6 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-/*
- * OMAP_DEVICE_MAGIC: used to determine whether a struct omap_device
- * obtained via container_of() is in fact a struct omap_device
- */
-#define OMAP_DEVICE_MAGIC		 0xf00dcafe
-
 /* Private functions */
 
 /**
@@ -453,8 +447,6 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	od->pm_lats = pm_lats;
 	od->pm_lats_cnt = pm_lats_cnt;
 
-	od->magic = OMAP_DEVICE_MAGIC;
-
 	if (is_early_device)
 		ret = omap_early_device_register(od);
 	else
@@ -514,6 +506,7 @@ int omap_device_register(struct omap_device *od)
 {
 	pr_debug("omap_device: %s: registering\n", od->pdev.name);
 
+	od->pdev.dev.parent = &omap_device_parent;
 	return platform_device_register(&od->pdev);
 }
 
@@ -668,18 +661,6 @@ int omap_device_align_pm_lat(struct platform_device *pdev,
 }
 
 /**
- * omap_device_is_valid - Check if pointer is a valid omap_device
- * @od: struct omap_device *
- *
- * Return whether struct omap_device pointer @od points to a valid
- * omap_device.
- */
-bool omap_device_is_valid(struct omap_device *od)
-{
-	return (od && od->magic == OMAP_DEVICE_MAGIC);
-}
-
-/**
  * omap_device_get_pwrdm - return the powerdomain * associated with @od
  * @od: struct omap_device *
  *
@@ -798,3 +779,14 @@ int omap_device_enable_clocks(struct omap_device *od)
 	/* XXX pass along return value here? */
 	return 0;
 }
+
+struct device omap_device_parent = {
+	.init_name	= "omap",
+	.parent         = &platform_bus,
+};
+
+static int __init omap_device_init(void)
+{
+	return device_register(&omap_device_parent);
+}
+core_initcall(omap_device_init);
