@@ -159,7 +159,7 @@ static int rk2818_get_charge_status(void)
     {
         DBG("CHARGE!\n");
         if(gVbuscharge !=1) {
-            if(rdev== pChargeregulator )
+            if(!IS_ERR(rdev))
                 regulator_set_current_limit(rdev,0,1200000);
         }
         gVbuscharge = 1;
@@ -169,7 +169,7 @@ static int rk2818_get_charge_status(void)
     {
         DBG("NOT CHARGING!\n");
         if(gVbuscharge !=0 ) {
-            if(rdev== pChargeregulator )
+            if(!IS_ERR(rdev))
             regulator_set_current_limit(rdev,0,475000);     
         }
         gVbuscharge = 0;
