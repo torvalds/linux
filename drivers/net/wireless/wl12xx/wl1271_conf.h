@@ -912,6 +912,22 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 
 	/*
+	 * Specifies the maximum number of times to try transmit the PSM entry
+	 * null-func frame for each PSM entry attempt
+	 *
+	 * Range 0 - 255
+	 */
+	u8 psm_entry_nullfunc_retries;
+
+	/*
+	 * Specifies the time to linger in active mode after successfully
+	 * transmitting the PSM entry null-func frame.
+	 *
+	 * Range 0 - 255 TU's
+	 */
+	u8 psm_entry_hangover_period;
+
+	/*
 	 *
 	 * Specifies the interval of the connection keep-alive null-func
 	 * frame in ms.

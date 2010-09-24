@@ -96,7 +96,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 {
 	int ret = 0;
 	u32 total_retries = wl->conf.conn.psm_entry_retries;
-	u32 rates;
 
 	wl1271_debug(DEBUG_EVENT, "ps_status: 0x%x", mbox->ps_status);
 
@@ -112,12 +111,8 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 		if (wl->psm_entry_retry < total_retries) {
 			wl->psm_entry_retry++;
-			if (wl->psm_entry_retry == total_retries)
-				rates = wl->basic_rate;
-			else
-				rates = wl->basic_rate_set;
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-						 rates, true);
+						 wl->basic_rate, true);
 		} else {
 			wl1271_info("No ack to nullfunc from AP.");
 			wl->psm_entry_retry = 0;

@@ -214,7 +214,9 @@ static struct conf_drv_settings default_conf = {
 		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
-		.psm_entry_retries           = 3,
+		.psm_entry_retries           = 5,
+		.psm_entry_nullfunc_retries  = 3,
+		.psm_entry_hangover_period   = 1,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
@@ -1360,7 +1362,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-						 wl->basic_rate_set, true);
+						 wl->basic_rate, true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
@@ -1370,7 +1372,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
 			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-						 wl->basic_rate_set, true);
+						 wl->basic_rate, true);
 	}
 
 	if (conf->power_level != wl->power_level) {
@@ -1846,7 +1848,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 				mode = STATION_POWER_SAVE_MODE;
 				ret = wl1271_ps_set_mode(wl, mode,
-							 wl->basic_rate_set,
+							 wl->basic_rate,
 							 true);
 				if (ret < 0)
 					goto out_sleep;

@@ -408,8 +408,8 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send)
 
 	ps_params->ps_mode = ps_mode;
 	ps_params->send_null_data = send;
-	ps_params->retries = 5;
-	ps_params->hang_over_period = 1;
+	ps_params->retries = wl->conf.conn.psm_entry_nullfunc_retries;
+	ps_params->hang_over_period = wl->conf.conn.psm_entry_hangover_period;
 	ps_params->null_data_rate = cpu_to_le32(rates);
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
@@ -484,7 +484,7 @@ int wl1271_cmd_build_null_data(struct wl1271 *wl)
 	}
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0,
-				      WL1271_RATE_AUTOMATIC);
+				      wl->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -507,7 +507,7 @@ int wl1271_cmd_build_klv_null_data(struct wl1271 *wl)
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
 				      CMD_TEMPL_KLV_IDX_NULL_DATA,
-				      WL1271_RATE_AUTOMATIC);
+				      wl->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -584,7 +584,7 @@ int wl1271_build_qos_null_data(struct wl1271 *wl)
 
 	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
 				       sizeof(template), 0,
-				       WL1271_RATE_AUTOMATIC);
+				       wl->basic_rate);
 }
 
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)
