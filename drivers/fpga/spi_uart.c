@@ -407,12 +407,8 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 	int ret,count,stat = *status;
 	int i = 0;
 	unsigned char buf[SPI_UART_FIFO_LEN];
-	while (max_count >0)
+	while (stat & UART_LSR_DR)
 	{
-		if((((stat >> 8) & 0x3f) != 0) && (!(stat & UART_LSR_DR)))
-		printk("%s:warning:no receive data but count =%d \n",__FUNCTION__,((stat >> 8) & 0x3f));
-		if(!(stat & UART_LSR_DR))
-			break;
 		ret = spi_in(port, UART_RX, SEL_UART);
 		count = (ret >> 8) & 0x3f;	
 		DBG("%s:count=%d\n",__FUNCTION__,count);
@@ -436,6 +432,7 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 		}
 		tty_flip_buffer_push(tty); 
 		DBG("\n");
+		stat = spi_in(port, UART_LSR, SEL_UART) & 0xff;
 	}	
 
 	DBG("\n");
