@@ -771,7 +771,8 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
  * If it is not present, return false.
  * If no child dev is parsed from VBT, it assumes that the LVDS is present.
  */
-static bool lvds_is_present_in_vbt(struct drm_device *dev)
+static bool lvds_is_present_in_vbt(struct drm_device *dev,
+				   u8 *i2c_pin)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
@@ -789,6 +790,9 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev)
 		if (child->device_type != DEVICE_TYPE_INT_LFP &&
 		    child->device_type != DEVICE_TYPE_LFP)
 			continue;
+
+		if (child->i2c_pin)
+		    *i2c_pin = child->i2c_pin;
 
 		/* However, we cannot trust the BIOS writers to populate
 		 * the VBT correctly.  Since LVDS requires additional
@@ -810,7 +814,7 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev)
 	return false;
 }
 
-static bool intel_lvds_ddc_probe(struct drm_device *dev)
+static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u8 buf = 0;
@@ -822,7 +826,7 @@ static bool intel_lvds_ddc_probe(struct drm_device *dev)
 			.buf = &buf,
 		},
 	};
-	struct i2c_adapter *i2c = &dev_priv->gmbus[GMBUS_PORT_PANEL].adapter;
+	struct i2c_adapter *i2c = &dev_priv->gmbus[pin].adapter;
 	return i2c_transfer(i2c, msgs, 1) == 1;
 }
 
@@ -844,13 +848,15 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_crtc *crtc;
 	u32 lvds;
-	int pipe, gpio = GPIOC;
+	int pipe;
+	u8 pin;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	if (!lvds_is_present_in_vbt(dev)) {
+	pin = GMBUS_PORT_PANEL;
+	if (!lvds_is_present_in_vbt(dev, &pin)) {
 		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
 		return;
 	}
@@ -862,10 +868,9 @@ void intel_lvds_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return;
 		}
-		gpio = PCH_GPIOC;
 	}
 
-	if (!intel_lvds_ddc_probe(dev)) {
+	if (!intel_lvds_ddc_probe(dev, pin)) {
 		DRM_DEBUG_KMS("LVDS did not respond to DDC probe\n");
 		return;
 	}
@@ -930,7 +935,7 @@ void intel_lvds_init(struct drm_device *dev)
 	 * preferred mode is the right one.
 	 */
 	intel_lvds->edid = drm_get_edid(connector,
-					&dev_priv->gmbus[GMBUS_PORT_PANEL].adapter);
+					&dev_priv->gmbus[pin].adapter);
 
 	if (!intel_lvds->edid) {
 		/* Didn't get an EDID, so
