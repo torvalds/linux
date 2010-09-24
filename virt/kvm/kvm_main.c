@@ -1970,10 +1970,12 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 
 asmlinkage void kvm_handle_fault_on_reboot(void)
 {
-	if (kvm_rebooting)
+	if (kvm_rebooting) {
 		/* spin while reset goes on */
+		local_irq_enable();
 		while (true)
 			;
+	}
 	/* Fault while not rebooting.  We want the trace. */
 	BUG();
 }
