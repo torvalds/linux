@@ -1285,46 +1285,41 @@ void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
  */
 static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
-	u8 QueueSelect = 0x0;       //defualt set to
+	u8 QueueSelect = 0;
 
-	switch(QueueID) {
-		case BE_QUEUE:
-			QueueSelect = QSLT_BE;  //or QSelect = pTcb->priority;
-			break;
+	switch (QueueID) {
+	case BE_QUEUE:
+		QueueSelect = QSLT_BE;
+		break;
 
-		case BK_QUEUE:
-			QueueSelect = QSLT_BK;  //or QSelect = pTcb->priority;
-			break;
+	case BK_QUEUE:
+		QueueSelect = QSLT_BK;
+		break;
 
-		case VO_QUEUE:
-			QueueSelect = QSLT_VO;  //or QSelect = pTcb->priority;
-			break;
+	case VO_QUEUE:
+		QueueSelect = QSLT_VO;
+		break;
 
-		case VI_QUEUE:
-			QueueSelect = QSLT_VI;  //or QSelect = pTcb->priority;
-			break;
-		case MGNT_QUEUE:
-			QueueSelect = QSLT_MGNT;
-			break;
+	case VI_QUEUE:
+		QueueSelect = QSLT_VI;
+		break;
 
-		case BEACON_QUEUE:
-			QueueSelect = QSLT_BEACON;
-			break;
+	case MGNT_QUEUE:
+		QueueSelect = QSLT_MGNT;
+		break;
 
-			// TODO: 2006.10.30 mark other queue selection until we verify it is OK
-			// TODO: Remove Assertions
-//#if (RTL819X_FPGA_VER & RTL819X_FPGA_GUANGAN_070502)
-		case TXCMD_QUEUE:
-			QueueSelect = QSLT_CMD;
-			break;
-//#endif
-		case HIGH_QUEUE:
-			//QueueSelect = QSLT_HIGH;
-			//break;
+	case BEACON_QUEUE:
+		QueueSelect = QSLT_BEACON;
+		break;
 
-		default:
-			RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d \n", QueueID);
-			break;
+	case TXCMD_QUEUE:
+		QueueSelect = QSLT_CMD;
+		break;
+
+	case HIGH_QUEUE:
+	default:
+		RT_TRACE(COMP_ERR, "Impossible Queue Selection: %d\n", QueueID);
+		break;
 	}
 	return QueueSelect;
 }
