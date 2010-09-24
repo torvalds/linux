@@ -327,16 +327,16 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	}
 
 	if (gt_iir & GT_PIPE_NOTIFY) {
-		u32 seqno = render_ring->get_gem_seqno(dev, render_ring);
+		u32 seqno = render_ring->get_seqno(dev, render_ring);
 		render_ring->irq_gem_seqno = seqno;
 		trace_i915_gem_request_complete(dev, seqno);
-		DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+		wake_up_all(&dev_priv->render_ring.irq_queue);
 		dev_priv->hangcheck_count = 0;
 		mod_timer(&dev_priv->hangcheck_timer,
 			  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 	}
 	if (gt_iir & bsd_usr_interrupt)
-		DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+		wake_up_all(&dev_priv->bsd_ring.irq_queue);
 
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
@@ -573,7 +573,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	error->seqno = i915_get_gem_seqno(dev, &dev_priv->render_ring);
+	error->seqno =
+	       	dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	error->pipeastat = I915_READ(PIPEASTAT);
@@ -873,7 +874,9 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 		/*
 		 * Wakeup waiting processes so they don't hang
 		 */
-		DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+		wake_up_all(&dev_priv->render_ring.irq_queue);
+		if (HAS_BSD(dev))
+			wake_up_all(&dev_priv->bsd_ring.irq_queue);
 	}
 
 	queue_work(dev_priv->wq, &dev_priv->error_work);
@@ -1012,18 +1015,17 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		}
 
 		if (iir & I915_USER_INTERRUPT) {
-			u32 seqno =
-				render_ring->get_gem_seqno(dev, render_ring);
+			u32 seqno = render_ring->get_seqno(dev, render_ring);
 			render_ring->irq_gem_seqno = seqno;
 			trace_i915_gem_request_complete(dev, seqno);
-			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+			wake_up_all(&dev_priv->render_ring.irq_queue);
 			dev_priv->hangcheck_count = 0;
 			mod_timer(&dev_priv->hangcheck_timer,
 				  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 		}
 
 		if (HAS_BSD(dev) && (iir & I915_BSD_USER_INTERRUPT))
-			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+			wake_up_all(&dev_priv->bsd_ring.irq_queue);
 
 		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 0);
@@ -1333,9 +1335,8 @@ void i915_hangcheck_elapsed(unsigned long data)
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
 	if (list_empty(&dev_priv->render_ring.request_list) ||
-		i915_seqno_passed(i915_get_gem_seqno(dev,
-				&dev_priv->render_ring),
-			i915_get_tail_request(dev)->seqno)) {
+		i915_seqno_passed(dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring),
+				  i915_get_tail_request(dev)->seqno)) {
 		bool missed_wakeup = false;
 
 		dev_priv->hangcheck_count = 0;
@@ -1343,13 +1344,13 @@ void i915_hangcheck_elapsed(unsigned long data)
 		/* Issue a wake-up to catch stuck h/w. */
 		if (dev_priv->render_ring.waiting_gem_seqno &&
 		    waitqueue_active(&dev_priv->render_ring.irq_queue)) {
-			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
+			wake_up_all(&dev_priv->render_ring.irq_queue);
 			missed_wakeup = true;
 		}
 
 		if (dev_priv->bsd_ring.waiting_gem_seqno &&
 		    waitqueue_active(&dev_priv->bsd_ring.irq_queue)) {
-			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+			wake_up_all(&dev_priv->bsd_ring.irq_queue);
 			missed_wakeup = true;
 		}
 

@@ -261,7 +261,7 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 
 	if (dev_priv->render_ring.status_page.page_addr != NULL) {
 		seq_printf(m, "Current sequence: %d\n",
-			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
+			   dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring));
 	} else {
 		seq_printf(m, "Current sequence: hws uninitialized\n");
 	}
@@ -321,7 +321,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		   atomic_read(&dev_priv->irq_received));
 	if (dev_priv->render_ring.status_page.page_addr != NULL) {
 		seq_printf(m, "Current sequence:    %d\n",
-			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
+			   dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring));
 	} else {
 		seq_printf(m, "Current sequence:    hws uninitialized\n");
 	}
@@ -932,7 +932,7 @@ i915_wedged_write(struct file *filp,
 
 	atomic_set(&dev_priv->mm.wedged, val);
 	if (val) {
-		DRM_WAKEUP(&dev_priv->irq_queue);
+		wake_up_all(&dev_priv->irq_queue);
 		queue_work(dev_priv->wq, &dev_priv->error_work);
 	}
 

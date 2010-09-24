@@ -2162,20 +2162,19 @@ int i915_driver_unload(struct drm_device *dev)
 	return 0;
 }
 
-int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv)
+int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_i915_file_private *i915_file_priv;
+	struct drm_i915_file_private *file_priv;
 
 	DRM_DEBUG_DRIVER("\n");
-	i915_file_priv = (struct drm_i915_file_private *)
-	    kmalloc(sizeof(*i915_file_priv), GFP_KERNEL);
-
-	if (!i915_file_priv)
+	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
+	if (!file_priv)
 		return -ENOMEM;
 
-	file_priv->driver_priv = i915_file_priv;
+	file->driver_priv = file_priv;
 
-	INIT_LIST_HEAD(&i915_file_priv->mm.request_list);
+	INIT_LIST_HEAD(&file_priv->mm.request_list);
+	mutex_init(&file_priv->mutex);
 
 	return 0;
 }
@@ -2218,11 +2217,12 @@ void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 		i915_mem_release(dev, file_priv, dev_priv->agp_heap);
 }
 
-void i915_driver_postclose(struct drm_device *dev, struct drm_file *file_priv)
+void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	kfree(i915_file_priv);
+	mutex_destroy(&file_priv->mutex);
+	kfree(file_priv);
 }
 
 struct drm_ioctl_desc i915_ioctls[] = {

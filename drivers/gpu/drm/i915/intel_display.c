@@ -4983,7 +4983,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	/* Initial scanout buffer will have a 0 pending flip count */
 	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
 	    atomic_dec_and_test(&obj_priv->pending_flip))
-		DRM_WAKEUP(&dev_priv->pending_flip_queue);
+		wake_up(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 
 	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);

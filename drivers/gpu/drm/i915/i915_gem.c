@@ -1592,17 +1592,17 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 
 uint32_t
 i915_add_request(struct drm_device *dev,
-		 struct drm_file *file_priv,
+		 struct drm_file *file,
 		 struct drm_i915_gem_request *request,
 		 struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_file_private *i915_file_priv = NULL;
+	struct drm_i915_file_private *file_priv = NULL;
 	uint32_t seqno;
 	int was_empty;
 
-	if (file_priv != NULL)
-		i915_file_priv = file_priv->driver_priv;
+	if (file != NULL)
+		file_priv = file->driver_priv;
 
 	if (request == NULL) {
 		request = kzalloc(sizeof(*request), GFP_KERNEL);
@@ -1610,7 +1610,7 @@ i915_add_request(struct drm_device *dev,
 			return 0;
 	}
 
-	seqno = ring->add_request(dev, ring, file_priv, 0);
+	seqno = ring->add_request(dev, ring, 0);
 
 	request->seqno = seqno;
 	request->ring = ring;
@@ -1618,11 +1618,12 @@ i915_add_request(struct drm_device *dev,
 	was_empty = list_empty(&ring->request_list);
 	list_add_tail(&request->list, &ring->request_list);
 
-	if (i915_file_priv) {
+	if (file_priv) {
+		mutex_lock(&file_priv->mutex);
+		request->file_priv = file_priv;
 		list_add_tail(&request->client_list,
-			      &i915_file_priv->mm.request_list);
-	} else {
-		INIT_LIST_HEAD(&request->client_list);
+			      &file_priv->mm.request_list);
+		mutex_unlock(&file_priv->mutex);
 	}
 
 	if (!dev_priv->mm.suspended) {
@@ -1654,20 +1655,14 @@ i915_retire_commands(struct drm_device *dev, struct intel_ring_buffer *ring)
 			I915_GEM_DOMAIN_COMMAND, flush_domains);
 }
 
-/**
- * Returns true if seq1 is later than seq2.
- */
-bool
-i915_seqno_passed(uint32_t seq1, uint32_t seq2)
+static inline void
+i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 {
-	return (int32_t)(seq1 - seq2) >= 0;
-}
-
-uint32_t
-i915_get_gem_seqno(struct drm_device *dev,
-		   struct intel_ring_buffer *ring)
-{
-	return ring->get_gem_seqno(dev, ring);
+	if (request->file_priv) {
+		mutex_lock(&request->file_priv->mutex);
+		list_del(&request->client_list);
+		mutex_unlock(&request->file_priv->mutex);
+	}
 }
 
 static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
@@ -1681,7 +1676,7 @@ static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
 					   list);
 
 		list_del(&request->list);
-		list_del(&request->client_list);
+		i915_gem_request_remove_from_client(request);
 		kfree(request);
 	}
 
@@ -1746,7 +1741,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 	    list_empty(&ring->request_list))
 		return;
 
-	seqno = i915_get_gem_seqno(dev, ring);
+	seqno = ring->get_seqno(dev, ring);
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 
@@ -1760,7 +1755,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 		trace_i915_gem_request_retire(dev, request->seqno);
 
 		list_del(&request->list);
-		list_del(&request->client_list);
+		i915_gem_request_remove_from_client(request);
 		kfree(request);
 	}
 
@@ -1862,7 +1857,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 	if (atomic_read(&dev_priv->mm.wedged))
 		return -EIO;
 
-	if (!i915_seqno_passed(ring->get_gem_seqno(dev, ring), seqno)) {
+	if (!i915_seqno_passed(ring->get_seqno(dev, ring), seqno)) {
 		if (HAS_PCH_SPLIT(dev))
 			ier = I915_READ(DEIER) | I915_READ(GTIER);
 		else
@@ -1881,12 +1876,12 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		if (interruptible)
 			ret = wait_event_interruptible(ring->irq_queue,
 				i915_seqno_passed(
-					ring->get_gem_seqno(dev, ring), seqno)
+					ring->get_seqno(dev, ring), seqno)
 				|| atomic_read(&dev_priv->mm.wedged));
 		else
 			wait_event(ring->irq_queue,
 				i915_seqno_passed(
-					ring->get_gem_seqno(dev, ring), seqno)
+					ring->get_seqno(dev, ring), seqno)
 				|| atomic_read(&dev_priv->mm.wedged));
 
 		ring->user_irq_put(dev, ring);
@@ -1899,7 +1894,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 
 	if (ret && ret != -ERESTARTSYS)
 		DRM_ERROR("%s returns %d (awaiting %d at %d, next %d)\n",
-			  __func__, ret, seqno, ring->get_gem_seqno(dev, ring),
+			  __func__, ret, seqno, ring->get_seqno(dev, ring),
 			  dev_priv->next_seqno);
 
 	/* Directly dispatch request retiring.  While we have the work queue
@@ -3384,28 +3379,48 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
  * relatively low latency when blocking on a particular request to finish.
  */
 static int
-i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file_priv)
+i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
-	int ret = 0;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
 	unsigned long recent_enough = jiffies - msecs_to_jiffies(20);
+	struct drm_i915_gem_request *request;
+	struct intel_ring_buffer *ring = NULL;
+	u32 seqno = 0;
+	int ret;
 
-	mutex_lock(&dev->struct_mutex);
-	while (!list_empty(&i915_file_priv->mm.request_list)) {
-		struct drm_i915_gem_request *request;
-
-		request = list_first_entry(&i915_file_priv->mm.request_list,
-					   struct drm_i915_gem_request,
-					   client_list);
-
+	mutex_lock(&file_priv->mutex);
+	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
 		if (time_after_eq(request->emitted_jiffies, recent_enough))
 			break;
 
-		ret = i915_wait_request(dev, request->seqno, request->ring);
-		if (ret != 0)
-			break;
+		ring = request->ring;
+		seqno = request->seqno;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&file_priv->mutex);
+
+	if (seqno == 0)
+		return 0;
+
+	ret = 0;
+	if (!i915_seqno_passed(ring->get_seqno(dev, ring), seqno)) {
+		/* And wait for the seqno passing without holding any locks and
+		 * causing extra latency for others. This is safe as the irq
+		 * generation is designed to be run atomically and so is
+		 * lockless.
+		 */
+		ring->user_irq_get(dev, ring);
+		ret = wait_event_interruptible(ring->irq_queue,
+					       i915_seqno_passed(ring->get_seqno(dev, ring), seqno)
+					       || atomic_read(&dev_priv->mm.wedged));
+		ring->user_irq_put(dev, ring);
+
+		if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
+			ret = -EIO;
+	}
+
+	if (ret == 0)
+		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
 	return ret;
 }
@@ -4857,17 +4872,26 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	return 0;
 }
 
-void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
+void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
+	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	/* Clean up our request list when the client is going away, so that
 	 * later retire_requests won't dereference our soon-to-be-gone
 	 * file_priv.
 	 */
 	mutex_lock(&dev->struct_mutex);
-	while (!list_empty(&i915_file_priv->mm.request_list))
-		list_del_init(i915_file_priv->mm.request_list.next);
+	mutex_lock(&file_priv->mutex);
+	while (!list_empty(&file_priv->mm.request_list)) {
+		struct drm_i915_gem_request *request;
+
+		request = list_first_entry(&file_priv->mm.request_list,
+					   struct drm_i915_gem_request,
+					   client_list);
+		list_del(&request->client_list);
+		request->file_priv = NULL;
+	}
+	mutex_unlock(&file_priv->mutex);
 	mutex_unlock(&dev->struct_mutex);
 }
 

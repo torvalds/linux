@@ -58,10 +58,9 @@ struct  intel_ring_buffer {
 			u32	flush_domains);
 	u32		(*add_request)(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
-			struct drm_file *file_priv,
 			u32 flush_domains);
-	u32		(*get_gem_seqno)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
+	u32		(*get_seqno)(struct drm_device *dev,
+				     struct intel_ring_buffer *ring);
 	int		(*dispatch_gem_execbuffer)(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
 			struct drm_i915_gem_execbuffer2 *exec,

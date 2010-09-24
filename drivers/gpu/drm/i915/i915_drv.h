@@ -844,11 +844,13 @@ struct drm_i915_gem_request {
 	/** global list entry for this request */
 	struct list_head list;
 
+	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
 	struct list_head client_list;
 };
 
 struct drm_i915_file_private {
+	struct mutex mutex;
 	struct {
 		struct list_head request_list;
 	} mm;
@@ -1005,9 +1007,16 @@ void i915_gem_object_unpin(struct drm_gem_object *obj);
 int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_release_mmap(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
-uint32_t i915_get_gem_seqno(struct drm_device *dev,
-		struct intel_ring_buffer *ring);
-bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
+
+/**
+ * Returns true if seq1 is later than seq2.
+ */
+static inline bool
+i915_seqno_passed(uint32_t seq1, uint32_t seq2)
+{
+	return (int32_t)(seq1 - seq2) >= 0;
+}
+
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj,
 				  bool interruptible);
 int i915_gem_object_put_fence_reg(struct drm_gem_object *obj,

@@ -239,7 +239,6 @@ do {									\
 static u32
 render_ring_add_request(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
-			struct drm_file *file_priv,
 			u32 flush_domains)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -303,8 +302,8 @@ render_ring_add_request(struct drm_device *dev,
 }
 
 static u32
-render_ring_get_gem_seqno(struct drm_device *dev,
-			  struct intel_ring_buffer *ring)
+render_ring_get_seqno(struct drm_device *dev,
+		      struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	if (HAS_PIPE_CONTROL(dev))
@@ -390,7 +389,6 @@ static int init_bsd_ring(struct drm_device *dev,
 static u32
 bsd_ring_add_request(struct drm_device *dev,
 		     struct intel_ring_buffer *ring,
-		     struct drm_file *file_priv,
 		     u32 flush_domains)
 {
 	u32 seqno;
@@ -432,8 +430,8 @@ bsd_ring_put_user_irq(struct drm_device *dev,
 }
 
 static u32
-bsd_ring_get_gem_seqno(struct drm_device *dev,
-		       struct intel_ring_buffer *ring)
+bsd_ring_get_seqno(struct drm_device *dev,
+		   struct intel_ring_buffer *ring)
 {
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
@@ -773,7 +771,7 @@ static const struct intel_ring_buffer render_ring = {
 	.get_active_head	= render_ring_get_active_head,
 	.flush			= render_ring_flush,
 	.add_request		= render_ring_add_request,
-	.get_gem_seqno		= render_ring_get_gem_seqno,
+	.get_seqno		= render_ring_get_seqno,
 	.user_irq_get		= render_ring_get_user_irq,
 	.user_irq_put		= render_ring_put_user_irq,
 	.dispatch_gem_execbuffer = render_ring_dispatch_gem_execbuffer,
@@ -792,7 +790,7 @@ static const struct intel_ring_buffer bsd_ring = {
 	.get_active_head	= bsd_ring_get_active_head,
 	.flush			= bsd_ring_flush,
 	.add_request		= bsd_ring_add_request,
-	.get_gem_seqno		= bsd_ring_get_gem_seqno,
+	.get_seqno		= bsd_ring_get_seqno,
 	.user_irq_get		= bsd_ring_get_user_irq,
 	.user_irq_put		= bsd_ring_put_user_irq,
 	.dispatch_gem_execbuffer = bsd_ring_dispatch_gem_execbuffer,
@@ -883,7 +881,7 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .get_active_head		= gen6_bsd_ring_get_active_head,
        .flush			= gen6_bsd_ring_flush,
        .add_request		= bsd_ring_add_request,
-       .get_gem_seqno		= bsd_ring_get_gem_seqno,
+       .get_seqno		= bsd_ring_get_seqno,
        .user_irq_get		= bsd_ring_get_user_irq,
        .user_irq_put		= bsd_ring_put_user_irq,
        .dispatch_gem_execbuffer	= gen6_bsd_ring_dispatch_gem_execbuffer,
