@@ -887,14 +887,28 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 }
 
 
+/*
+ * Frame intervals.  Since frame rates are controlled with the clock
+ * divider, we can only do 30/n for integer n values.  So no continuous
+ * or stepwise options.  Here we just pick a handful of logical values.
+ */
+
+static int ov7670_frame_rates[] = { 30, 15, 10, 5, 1 };
+
+static int ov7670_enum_frameintervals(struct v4l2_subdev *sd,
+		struct v4l2_frmivalenum *interval)
+{
+	if (interval->index >= ARRAY_SIZE(ov7670_frame_rates))
+		return -EINVAL;
+	interval->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	interval->discrete.numerator = 1;
+	interval->discrete.denominator = ov7670_frame_rates[interval->index];
+	return 0;
+}
 
 /*
  * Code for dealing with controls.
  */
-
-
-
-
 
 static int ov7670_store_cmatrix(struct v4l2_subdev *sd,
 		int matrix[CMATRIX_LEN])
@@ -1438,6 +1452,7 @@ static const struct v4l2_subdev_video_ops ov7670_video_ops = {
 	.s_mbus_fmt = ov7670_s_mbus_fmt,
 	.s_parm = ov7670_s_parm,
 	.g_parm = ov7670_g_parm,
+	.enum_frameintervals = ov7670_enum_frameintervals,
 };
 
 static const struct v4l2_subdev_ops ov7670_ops = {
