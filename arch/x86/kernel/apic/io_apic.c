@@ -190,7 +190,7 @@ struct irq_cfg *irq_cfg(unsigned int irq)
 
 	desc = irq_to_desc(irq);
 	if (desc)
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 
 	return cfg;
 }
@@ -219,10 +219,11 @@ int arch_init_chip_data(struct irq_desc *desc, int node)
 {
 	struct irq_cfg *cfg;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 	if (!cfg) {
-		desc->chip_data = get_one_free_irq_cfg(node);
-		if (!desc->chip_data) {
+		cfg = get_one_free_irq_cfg(node);
+		desc->chip_data = cfg;
+		if (!cfg) {
 			printk(KERN_ERR "can not alloc irq_cfg\n");
 			BUG_ON(1);
 		}
@@ -325,8 +326,8 @@ void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 {
 	struct irq_cfg *old_cfg, *cfg;
 
-	old_cfg = old_desc->chip_data;
-	cfg = desc->chip_data;
+	old_cfg = get_irq_desc_chip_data(old_desc);
+	cfg = get_irq_desc_chip_data(desc);
 
 	if (old_cfg == cfg)
 		return;
@@ -594,7 +595,7 @@ static void __mask_IO_APIC_irq(struct irq_cfg *cfg)
 
 static void mask_IO_APIC_irq_desc(struct irq_desc *desc)
 {
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 	unsigned long flags;
 
 	BUG_ON(!cfg);
@@ -606,7 +607,7 @@ static void mask_IO_APIC_irq_desc(struct irq_desc *desc)
 
 static void unmask_IO_APIC_irq_desc(struct irq_desc *desc)
 {
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
@@ -1269,7 +1270,7 @@ void __setup_vector_irq(int cpu)
 	raw_spin_lock(&vector_lock);
 	/* Mark the inuse vectors */
 	for_each_irq_desc(irq, desc) {
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 
 		/*
 		 * If it is a legacy IRQ handled by the legacy PIC, this cpu
@@ -1427,7 +1428,7 @@ static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq
 	if (!IO_APIC_IRQ(irq))
 		return;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	/*
 	 * For legacy irqs, cfg->domain starts with cpu 0 for legacy
@@ -1516,7 +1517,7 @@ static void __init setup_IO_APIC_irqs(void)
 			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
 			continue;
 		}
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 		add_pin_to_irq_node(cfg, node, apic_id, pin);
 		/*
 		 * don't mark it in pin_programmed, so later acpi could
@@ -1567,7 +1568,7 @@ void setup_IO_APIC_irq_extra(u32 gsi)
 		return;
 	}
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 	add_pin_to_irq_node(cfg, node, apic_id, pin);
 
 	if (test_bit(pin, mp_ioapic_routing[apic_id].pin_programmed)) {
@@ -1718,7 +1719,7 @@ __apicdebuginit(void) print_IO_APIC(void)
 	for_each_irq_desc(irq, desc) {
 		struct irq_pin_list *entry;
 
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 		if (!cfg)
 			continue;
 		entry = cfg->irq_2_pin;
@@ -2323,7 +2324,7 @@ set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask,
 		return -1;
 
 	irq = desc->irq;
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 	if (assign_irq_vector(irq, cfg, mask))
 		return -1;
 
@@ -2343,7 +2344,7 @@ set_ioapic_affinity_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
 	int ret = -1;
 
 	irq = desc->irq;
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	ret = set_desc_affinity(desc, mask, &dest);
@@ -2396,7 +2397,7 @@ migrate_ioapic_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
 	if (get_irte(irq, &irte))
 		return ret;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 	if (assign_irq_vector(irq, cfg, mask))
 		return ret;
 
@@ -2500,7 +2501,7 @@ unlock:
 static void __irq_complete_move(struct irq_desc **descp, unsigned vector)
 {
 	struct irq_desc *desc = *descp;
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 	unsigned me;
 
 	if (likely(!cfg->move_in_progress))
@@ -2520,7 +2521,7 @@ static void irq_complete_move(struct irq_desc **descp)
 void irq_force_complete_move(int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 
 	if (!cfg)
 		return;
@@ -2588,7 +2589,7 @@ static void eoi_ioapic_irq(struct irq_desc *desc)
 	unsigned int irq;
 
 	irq = desc->irq;
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	__eoi_ioapic_irq(irq, cfg);
@@ -2644,7 +2645,7 @@ static void ack_apic_level(unsigned int irq)
 	 * we use the above logic (mask+edge followed by unmask+level) from
 	 * Manfred Spraul to clear the remote IRR.
 	 */
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 	i = cfg->vector;
 	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
 
@@ -2695,7 +2696,7 @@ static void ack_apic_level(unsigned int irq)
 		 * accurate and is causing problems then it is a hardware bug
 		 * and you can go talk to the chipset vendor about it.
 		 */
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 		if (!io_apic_level_ack_pending(cfg))
 			move_masked_irq(irq);
 		unmask_IO_APIC_irq_desc(desc);
@@ -2763,7 +2764,7 @@ static inline void init_IO_APIC_traps(void)
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
 	for_each_irq_desc(irq, desc) {
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 		if (IO_APIC_IRQ(irq) && cfg && !cfg->vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,
@@ -2917,7 +2918,7 @@ int timer_through_8259 __initdata;
 static inline void __init check_timer(void)
 {
 	struct irq_desc *desc = irq_to_desc(0);
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 	int node = cpu_to_node(0);
 	int apic1, pin1, apic2, pin2;
 	unsigned long flags;
@@ -3250,13 +3251,13 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 			printk(KERN_INFO "can not get irq_desc for %d\n", new);
 			continue;
 		}
-		cfg_new = desc_new->chip_data;
+		cfg_new = get_irq_desc_chip_data(desc_new);
 
 		if (cfg_new->vector != 0)
 			continue;
 
 		desc_new = move_irq_desc(desc_new, node);
-		cfg_new = desc_new->chip_data;
+		cfg_new = get_irq_desc_chip_data(desc_new);
 
 		if (__assign_irq_vector(new, cfg_new, apic->target_cpus()) == 0)
 			irq = new;
@@ -3381,7 +3382,7 @@ static int set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	__get_cached_msi_msg(desc->irq_data.msi_desc, &msg);
 
@@ -3403,7 +3404,7 @@ static int
 ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 	unsigned int dest;
 	struct irte irte;
 
@@ -3595,7 +3596,7 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	dmar_msi_read(irq, &msg);
 
@@ -3650,7 +3651,7 @@ static int hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	hpet_msi_read(irq, &msg);
 
@@ -3756,7 +3757,7 @@ static int set_ht_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
-	cfg = desc->chip_data;
+	cfg = get_irq_desc_chip_data(desc);
 
 	target_ht_irq(irq, dest, cfg->vector);
 
@@ -3903,7 +3904,7 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
 	if (irq >= legacy_pic->nr_legacy_irqs) {
-		cfg = desc->chip_data;
+		cfg = get_irq_desc_chip_data(desc);
 		if (add_pin_to_irq_node_nopanic(cfg, node, ioapic, pin)) {
 			printk(KERN_INFO "can not add pin %d for irq %d\n",
 				pin, irq);

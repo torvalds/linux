@@ -209,7 +209,7 @@ static void arch_disable_uv_irq(int mmr_pnode, unsigned long mmr_offset)
 static int uv_set_irq_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg = desc->chip_data;
+	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
 	unsigned int dest;
 	unsigned long mmr_value;
 	struct uv_IO_APIC_route_entry *entry;
