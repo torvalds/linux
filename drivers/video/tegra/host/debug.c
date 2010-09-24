@@ -100,6 +100,33 @@ static int nvhost_debug_handle_cmd(struct seq_file *s, u32 val, int *count)
 	}
 }
 
+static void nvhost_debug_handle_word(struct seq_file *s, int *state, int *count,
+				     unsigned long addr, int channel, u32 val)
+{
+	switch (*state) {
+	case NVHOST_DBG_STATE_CMD:
+		if (addr)
+			seq_printf(s, "%d: %08x: %08x:", channel, addr, val);
+		else
+			seq_printf(s, "%d: %08x:", channel, val);
+
+		*state = nvhost_debug_handle_cmd(s, val, count);
+		if (*state == NVHOST_DBG_STATE_DATA && *count == 0) {
+			*state = NVHOST_DBG_STATE_CMD;
+			seq_printf(s, "])\n");
+		}
+		break;
+
+	case NVHOST_DBG_STATE_DATA:
+		(*count)--;
+		seq_printf(s, "%08x%s", val, *count > 0 ? ", " : "])\n");
+		if (*count == 0)
+			*state = NVHOST_DBG_STATE_CMD;
+		break;
+	}
+}
+
+
 static int nvhost_debug_show(struct seq_file *s, void *unused)
 {
 	struct nvhost_master *m = s->private;
@@ -116,7 +143,8 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 		unsigned start, end;
 		unsigned wr_ptr, rd_ptr;
 		int state;
-		int count = 0;
+		int count;
+		u32 phys_addr, size;
 
 		dmaput = readl(regs + HOST1X_CHANNEL_DMAPUT);
 		dmaget = readl(regs + HOST1X_CHANNEL_DMAGET);
@@ -151,9 +179,35 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 			break;
 		}
 
+		nvhost_cdma_find_gather(&m->channels[i].cdma, dmaget, &phys_addr, &size);
+
+		/* If dmaget is in the pushbuffer (should always be?),
+		 * check if we're executing a fetch, and if so dump
+		 * it. */
+		if (size) {
+			u32 offset = dmaget - m->channels[i].cdma.push_buffer.phys;
+			u32 map_base = phys_addr & PAGE_MASK;
+			u32 map_size = (size * 4 + PAGE_SIZE - 1) & PAGE_MASK;
+			u32 map_offset = phys_addr - map_base;
+			void *map_addr = ioremap_nocache(map_base, map_size);
+
+			if (map_addr) {
+				u32 ii;
+
+				seq_printf(s, "\n%d: gather (%d words)\n", i, size);
+				state = NVHOST_DBG_STATE_CMD;
+				for (ii = 0; ii < size; ii++) {
+					val = readl(map_addr + map_offset + ii*sizeof(u32));
+					nvhost_debug_handle_word(s, &state, &count, phys_addr + ii, i, val);
+				}
+				iounmap(map_addr);
+			}
+		}
+
 		fifostat = readl(regs + HOST1X_CHANNEL_FIFOSTAT);
 		if ((fifostat & 1 << 10) == 0 ) {
 
+                    seq_printf(s, "\n%d: fifo:\n", i);
 			writel(0x0, m->aperture + HOST1X_SYNC_CFPEEK_CTRL);
 			writel(1 << 31 | i << 16, m->aperture + HOST1X_SYNC_CFPEEK_CTRL);
 			rd_ptr = readl(m->aperture + HOST1X_SYNC_CFPEEK_PTRS) & 0x1ff;
@@ -169,24 +223,7 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 				writel(1 << 31 | i << 16 | rd_ptr, m->aperture + HOST1X_SYNC_CFPEEK_CTRL);
 				val = readl(m->aperture + HOST1X_SYNC_CFPEEK_READ);
 
-				switch (state) {
-				case NVHOST_DBG_STATE_CMD:
-					seq_printf(s, "%d: %08x:", i, val);
-
-					state = nvhost_debug_handle_cmd(s, val, &count);
-					if (state == NVHOST_DBG_STATE_DATA && count == 0) {
-						state = NVHOST_DBG_STATE_CMD;
-						seq_printf(s, "])\n");
-					}
-					break;
-
-				case NVHOST_DBG_STATE_DATA:
-					count--;
-					seq_printf(s, "%08x%s", val, count > 0 ? ", " : "])\n");
-					if (count == 0)
-						state = NVHOST_DBG_STATE_CMD;
-					break;
-				}
+				nvhost_debug_handle_word(s, &state, &count, 0, i, val);
 
 				if (rd_ptr == end)
 					rd_ptr = start;
@@ -199,6 +236,7 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 			if (state == NVHOST_DBG_STATE_DATA)
 				seq_printf(s, ", ...])\n");
 		}
+
 		seq_printf(s, "\n");
 	}
 
