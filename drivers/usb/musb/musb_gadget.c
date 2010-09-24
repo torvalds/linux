@@ -337,13 +337,15 @@ static void txstate(struct musb *musb, struct musb_request *req)
 					csr |= (MUSB_TXCSR_DMAENAB |
 							MUSB_TXCSR_MODE);
 					/* against programming guide */
-				} else
-					csr |= (MUSB_TXCSR_AUTOSET
-							| MUSB_TXCSR_DMAENAB
+				} else {
+					csr |= (MUSB_TXCSR_DMAENAB
 							| MUSB_TXCSR_DMAMODE
 							| MUSB_TXCSR_MODE);
-
+					if (!musb_ep->hb_mult)
+						csr |= MUSB_TXCSR_AUTOSET;
+				}
 				csr &= ~MUSB_TXCSR_P_UNDERRUN;
+
 				musb_writew(epio, MUSB_TXCSR, csr);
 			}
 		}
@@ -643,7 +645,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	 */
 
 				csr |= MUSB_RXCSR_DMAENAB;
-				csr |= MUSB_RXCSR_AUTOCLEAR;
+				if (!musb_ep->hb_mult)
+					csr |= MUSB_RXCSR_AUTOCLEAR;
 #ifdef USE_MODE1
 				/* csr |= MUSB_RXCSR_DMAMODE; */
 
@@ -875,9 +878,25 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 	/* REVISIT this rules out high bandwidth periodic transfers */
 	tmp = le16_to_cpu(desc->wMaxPacketSize);
-	if (tmp & ~0x07ff)
-		goto fail;
-	musb_ep->packet_sz = tmp;
+	if (tmp & ~0x07ff) {
+		int ok;
+
+		if (usb_endpoint_dir_in(desc))
+			ok = musb->hb_iso_tx;
+		else
+			ok = musb->hb_iso_rx;
+
+		if (!ok) {
+			DBG(4, "%s: not support ISO high bandwidth\n", __func__);
+			goto fail;
+		}
+		musb_ep->hb_mult = (tmp >> 11) & 3;
+	} else {
+		musb_ep->hb_mult = 0;
+	}
+
+	musb_ep->packet_sz = tmp & 0x7ff;
+	tmp = musb_ep->packet_sz * (musb_ep->hb_mult + 1);
 
 	/* enable the interrupts for the endpoint, set the endpoint
 	 * packet size (or fail), set the mode, clear the fifo
@@ -890,8 +909,11 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			musb_ep->is_in = 1;
 		if (!musb_ep->is_in)
 			goto fail;
-		if (tmp > hw_ep->max_packet_sz_tx)
+
+		if (tmp > hw_ep->max_packet_sz_tx) {
+			DBG(4, "%s: packet size beyond hw fifo size\n", __func__);
 			goto fail;
+		}
 
 		int_txe |= (1 << epnum);
 		musb_writew(mbase, MUSB_INTRTXE, int_txe);
@@ -906,7 +928,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		if (musb->hwvers < MUSB_HWVERS_2000)
 			musb_writew(regs, MUSB_TXMAXP, hw_ep->max_packet_sz_tx);
 		else
-			musb_writew(regs, MUSB_TXMAXP, tmp);
+			musb_writew(regs, MUSB_TXMAXP, musb_ep->packet_sz | (musb_ep->hb_mult << 11));
 
 		csr = MUSB_TXCSR_MODE | MUSB_TXCSR_CLRDATATOG;
 		if (musb_readw(regs, MUSB_TXCSR)
@@ -927,8 +949,11 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			musb_ep->is_in = 0;
 		if (musb_ep->is_in)
 			goto fail;
-		if (tmp > hw_ep->max_packet_sz_rx)
+
+		if (tmp > hw_ep->max_packet_sz_rx) {
+			DBG(4, "%s: packet size beyond hw fifo size\n", __func__);
 			goto fail;
+		}
 
 		int_rxe |= (1 << epnum);
 		musb_writew(mbase, MUSB_INTRRXE, int_rxe);
@@ -942,7 +967,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		if (musb->hwvers < MUSB_HWVERS_2000)
 			musb_writew(regs, MUSB_RXMAXP, hw_ep->max_packet_sz_rx);
 		else
-			musb_writew(regs, MUSB_RXMAXP, tmp);
+			musb_writew(regs, MUSB_RXMAXP, musb_ep->packet_sz | (musb_ep->hb_mult << 11));
 
 		/* force shared fifo to OUT-only mode */
 		if (hw_ep->is_shared_fifo) {
