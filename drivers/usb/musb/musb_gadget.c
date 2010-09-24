@@ -775,7 +775,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		musb_writew(epio, MUSB_RXCSR, csr);
 
 		DBG(3, "%s iso overrun on %p\n", musb_ep->name, request);
-		if (request && request->status == -EINPROGRESS)
+		if (request->status == -EINPROGRESS)
 			request->status = -EOVERFLOW;
 	}
 	if (csr & MUSB_RXCSR_INCOMPRX) {
@@ -828,14 +828,8 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			return;
 	}
 
-	/* analyze request if the ep is hot */
-	if (request)
-		rxstate(musb, to_musb_request(request));
-	else
-		DBG(3, "packet waiting for %s%s request\n",
-				musb_ep->desc ? "" : "inactive ",
-				musb_ep->end_point.name);
-	return;
+	/* Analyze request */
+	rxstate(musb, to_musb_request(request));
 }
 
 /* ------------------------------------------------------------ */
