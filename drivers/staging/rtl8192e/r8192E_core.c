@@ -1598,41 +1598,31 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
     return 0;
 }
 
-
 static short rtl8192_pci_initdescring(struct net_device *dev)
 {
-    u32 ret;
-    int i;
-    struct r8192_priv *priv = ieee80211_priv(dev);
+	u32 ret;
+	int i;
+	struct r8192_priv *priv = ieee80211_priv(dev);
 
-    ret = rtl8192_alloc_rx_desc_ring(dev);
-    if (ret) {
-        return ret;
-    }
+	ret = rtl8192_alloc_rx_desc_ring(dev);
+	if (ret)
+		return ret;
 
+	/* general process for other queue */
+	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++) {
+		ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount);
+		if (ret)
+			goto err_free_rings;
+	}
 
-    /* general process for other queue */
-    for (i = 0; i < MAX_TX_QUEUE_COUNT; i++) {
-        ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount);
-        if (ret)
-            goto err_free_rings;
-    }
-
-#if 0
-    /* specific process for hardware beacon process */
-    ret = rtl8192_alloc_tx_desc_ring(dev, MAX_TX_QUEUE_COUNT - 1, 2);
-    if (ret)
-        goto err_free_rings;
-#endif
-
-    return 0;
+	return 0;
 
 err_free_rings:
-    rtl8192_free_rx_ring(dev);
-    for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
-        if (priv->tx_ring[i].desc)
-            rtl8192_free_tx_ring(dev, i);
-    return 1;
+	rtl8192_free_rx_ring(dev);
+	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
+		if (priv->tx_ring[i].desc)
+			rtl8192_free_tx_ring(dev, i);
+	return 1;
 }
 
 static void rtl8192_pci_resetdescring(struct net_device *dev)
