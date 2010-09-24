@@ -2651,7 +2651,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct ieee80211_rx_data rx;
 	struct ieee80211_sub_if_data *prev;
 	struct sta_info *sta, *tmp, *prev_sta;
-	bool found_sta = false;
 	int err = 0;
 
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
@@ -2684,8 +2683,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		prev_sta = NULL;
 
 		for_each_sta_info(local, hdr->addr2, sta, tmp) {
-			found_sta = true;
-
 			if (!prev_sta) {
 				prev_sta = sta;
 				continue;
@@ -2707,43 +2704,40 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (!found_sta) {
-		prev = NULL;
+	prev = NULL;
 
-		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-			if (!ieee80211_sdata_running(sdata))
-				continue;
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (!ieee80211_sdata_running(sdata))
+			continue;
 
-			if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-			    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-				continue;
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+		    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			continue;
 
-			/*
-			 * frame is destined for this interface, but if it's
-			 * not also for the previous one we handle that after
-			 * the loop to avoid copying the SKB once too much
-			 */
+		/*
+		 * frame is destined for this interface, but if it's
+		 * not also for the previous one we handle that after
+		 * the loop to avoid copying the SKB once too much
+		 */
 
-			if (!prev) {
-				prev = sdata;
-				continue;
-			}
-
-			rx.sta = sta_info_get_bss(prev, hdr->addr2);
-			rx.sdata = prev;
-			ieee80211_prepare_and_rx_handle(&rx, skb, false);
-
+		if (!prev) {
 			prev = sdata;
+			continue;
 		}
 
-		if (prev) {
-			rx.sta = sta_info_get_bss(prev, hdr->addr2);
-			rx.sdata = prev;
+		rx.sta = sta_info_get_bss(prev, hdr->addr2);
+		rx.sdata = prev;
+		ieee80211_prepare_and_rx_handle(&rx, skb, false);
 
-			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
-				return;
-		}
+		prev = sdata;
+	}
 
+	if (prev) {
+		rx.sta = sta_info_get_bss(prev, hdr->addr2);
+		rx.sdata = prev;
+
+		if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
+			return;
 	}
 
 	dev_kfree_skb(skb);
