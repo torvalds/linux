@@ -139,7 +139,7 @@ intel_dp_link_required(struct drm_device *dev, struct intel_dp *intel_dp, int pi
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp))
-		return (pixel_clock * dev_priv->edp_bpp) / 8;
+		return (pixel_clock * dev_priv->edp.bpp + 7) / 8;
 	else
 		return pixel_clock * 3;
 }
@@ -653,7 +653,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT) {
 			lane_count = intel_dp->lane_count;
 			if (IS_PCH_eDP(intel_dp))
-				bpp = dev_priv->edp_bpp;
+				bpp = dev_priv->edp.bpp;
 			break;
 		}
 	}

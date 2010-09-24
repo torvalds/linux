@@ -3705,7 +3705,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			else
 				temp |= PIPE_6BPC;
 		} else if (has_edp_encoder || (is_dp && intel_pch_has_edp(crtc))) {
-			switch (dev_priv->edp_bpp/3) {
+			switch (dev_priv->edp.bpp/3) {
 			case 8:
 				temp |= PIPE_8BPC;
 				break;

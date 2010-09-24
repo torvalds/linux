@@ -338,9 +338,18 @@ typedef struct drm_i915_private {
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
 	unsigned int lvds_use_ssc:1;
-	unsigned int edp_support:1;
 	int lvds_ssc_freq;
-	int edp_bpp;
+
+	struct {
+		u8 rate:4;
+		u8 lanes:4;
+		u8 preemphasis:4;
+		u8 vswing:4;
+
+		u8 initialized:1;
+		u8 support:1;
+		u8 bpp:6;
+	} edp;
 
 	struct notifier_block lid_notifier;
 

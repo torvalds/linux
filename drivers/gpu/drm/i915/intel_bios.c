@@ -401,14 +401,11 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	if (!driver)
 		return;
 
-	if (driver && SUPPORTS_EDP(dev) &&
-	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP) {
-		dev_priv->edp_support = 1;
-	} else {
-		dev_priv->edp_support = 0;
-	}
+	if (SUPPORTS_EDP(dev) &&
+	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+		dev_priv->edp.support = 1;
 
-	if (driver && driver->dual_frequency)
+	if (driver->dual_frequency)
 		dev_priv->render_reclock_avail = true;
 }
 
@@ -417,28 +414,44 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	struct bdb_edp *edp;
 
+	dev_priv->edp.bpp = 18;
+
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
-		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp_support) {
+		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp.support) {
 			DRM_DEBUG_KMS("No eDP BDB found but eDP panel "
-				      "supported, assume 18bpp panel color "
-				      "depth.\n");
-			dev_priv->edp_bpp = 18;
+				      "supported, assume %dbpp panel color "
+				      "depth.\n",
+				      dev_priv->edp.bpp);
 		}
 		return;
 	}
 
 	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
 	case EDP_18BPP:
-		dev_priv->edp_bpp = 18;
+		dev_priv->edp.bpp = 18;
 		break;
 	case EDP_24BPP:
-		dev_priv->edp_bpp = 24;
+		dev_priv->edp.bpp = 24;
 		break;
 	case EDP_30BPP:
-		dev_priv->edp_bpp = 30;
+		dev_priv->edp.bpp = 30;
 		break;
 	}
+
+	dev_priv->edp.rate = edp->link_params[panel_type].rate;
+	dev_priv->edp.lanes = edp->link_params[panel_type].lanes;
+	dev_priv->edp.preemphasis = edp->link_params[panel_type].preemphasis;
+	dev_priv->edp.vswing = edp->link_params[panel_type].vswing;
+
+	DRM_DEBUG_KMS("eDP vBIOS settings: bpp=%d, rate=%d, lanes=%d, preemphasis=%d, vswing=%d\n",
+		      dev_priv->edp.bpp,
+		      dev_priv->edp.rate,
+		      dev_priv->edp.lanes,
+		      dev_priv->edp.preemphasis,
+		      dev_priv->edp.vswing);
+
+	dev_priv->edp.initialized = true;
 }
 
 static void
