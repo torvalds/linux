@@ -550,6 +550,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	if (int_usb & MUSB_INTR_SESSREQ) {
 		void __iomem *mbase = musb->mregs;
 
+		if (devctl & MUSB_DEVCTL_BDEVICE) {
+			DBG(3, "SessReq while on B state\n");
+			return IRQ_HANDLED;
+		}
+
 		DBG(1, "SESSION_REQUEST (%s)\n", otg_state_string(musb));
 
 		/* IRQ arrives from ID pin sense or (later, if VBUS power
