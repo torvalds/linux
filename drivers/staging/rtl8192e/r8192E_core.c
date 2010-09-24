@@ -1371,172 +1371,165 @@ static u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
  */
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 {
-    struct r8192_priv *priv = ieee80211_priv(dev);
-    struct rtl8192_tx_ring  *ring;
-    unsigned long flags;
-    cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-    tx_desc_819x_pci *pdesc = NULL;
-    TX_FWINFO_8190PCI *pTxFwInfo = NULL;
-    dma_addr_t mapping;
-    bool  multi_addr=false,broad_addr=false,uni_addr=false;
-    u8*   pda_addr = NULL;
-    int   idx;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct rtl8192_tx_ring *ring;
+	unsigned long flags;
+	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	tx_desc_819x_pci *pdesc = NULL;
+	TX_FWINFO_8190PCI *pTxFwInfo = NULL;
+	dma_addr_t mapping;
+	bool multi_addr = false, broad_addr = false, uni_addr = false;
+	u8 *pda_addr = NULL;
+	int idx;
 
-    if(priv->bdisable_nic){
-       	RT_TRACE(COMP_ERR,"%s: ERR!! Nic is disabled! Can't tx packet len=%d qidx=%d!!!\n", __FUNCTION__, skb->len, tcb_desc->queue_index);
+	if (priv->bdisable_nic) {
+		RT_TRACE(COMP_ERR, "Nic is disabled! Can't tx packet len=%d qidx=%d!!!\n",
+			 skb->len, tcb_desc->queue_index);
 		return skb->len;
-    }
+	}
 
 #ifdef ENABLE_LPS
 	priv->ieee80211->bAwakePktSent = true;
 #endif
 
-    mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
-    /* collect the tx packets statitcs */
-    pda_addr = ((u8*)skb->data) + sizeof(TX_FWINFO_8190PCI);
-    if(is_multicast_ether_addr(pda_addr))
-        multi_addr = true;
-    else if(is_broadcast_ether_addr(pda_addr))
-        broad_addr = true;
-    else
-        uni_addr = true;
+	mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
 
-    if(uni_addr)
-        priv->stats.txbytesunicast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
-    else if(multi_addr)
-        priv->stats.txbytesmulticast +=(u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
-    else
-        priv->stats.txbytesbroadcast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
+	/* collect the tx packets statitcs */
+	pda_addr = ((u8 *)skb->data) + sizeof(TX_FWINFO_8190PCI);
+	if (is_multicast_ether_addr(pda_addr))
+		multi_addr = true;
+	else if (is_broadcast_ether_addr(pda_addr))
+		broad_addr = true;
+	else
+		uni_addr = true;
 
-    /* fill tx firmware */
-    pTxFwInfo = (PTX_FWINFO_8190PCI)skb->data;
-    memset(pTxFwInfo,0,sizeof(TX_FWINFO_8190PCI));
-    pTxFwInfo->TxHT = (tcb_desc->data_rate&0x80)?1:0;
-    pTxFwInfo->TxRate = MRateToHwRate8190Pci((u8)tcb_desc->data_rate);
-    pTxFwInfo->EnableCPUDur = tcb_desc->bTxEnableFwCalcDur;
-    pTxFwInfo->Short	= QueryIsShort(pTxFwInfo->TxHT, pTxFwInfo->TxRate, tcb_desc);
+	if (uni_addr)
+		priv->stats.txbytesunicast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
+	else if (multi_addr)
+		priv->stats.txbytesmulticast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
+	else
+		priv->stats.txbytesbroadcast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
 
-    /* Aggregation related */
-    if(tcb_desc->bAMPDUEnable) {
-        pTxFwInfo->AllowAggregation = 1;
-        pTxFwInfo->RxMF = tcb_desc->ampdu_factor;
-        pTxFwInfo->RxAMD = tcb_desc->ampdu_density;
-    } else {
-        pTxFwInfo->AllowAggregation = 0;
-        pTxFwInfo->RxMF = 0;
-        pTxFwInfo->RxAMD = 0;
-    }
+	/* fill tx firmware */
+	pTxFwInfo = (PTX_FWINFO_8190PCI)skb->data;
+	memset(pTxFwInfo, 0, sizeof(TX_FWINFO_8190PCI));
+	pTxFwInfo->TxHT = (tcb_desc->data_rate&0x80) ? 1 : 0;
+	pTxFwInfo->TxRate = MRateToHwRate8190Pci((u8)tcb_desc->data_rate);
+	pTxFwInfo->EnableCPUDur = tcb_desc->bTxEnableFwCalcDur;
+	pTxFwInfo->Short = QueryIsShort(pTxFwInfo->TxHT, pTxFwInfo->TxRate, tcb_desc);
 
-    //
-    // Protection mode related
-    //
-    pTxFwInfo->RtsEnable =	(tcb_desc->bRTSEnable)?1:0;
-    pTxFwInfo->CtsEnable =	(tcb_desc->bCTSEnable)?1:0;
-    pTxFwInfo->RtsSTBC =	(tcb_desc->bRTSSTBC)?1:0;
-    pTxFwInfo->RtsHT=		(tcb_desc->rts_rate&0x80)?1:0;
-    pTxFwInfo->RtsRate =		MRateToHwRate8190Pci((u8)tcb_desc->rts_rate);
-    pTxFwInfo->RtsBandwidth = 0;
-    pTxFwInfo->RtsSubcarrier = tcb_desc->RTSSC;
-    pTxFwInfo->RtsShort =	(pTxFwInfo->RtsHT==0)?(tcb_desc->bRTSUseShortPreamble?1:0):(tcb_desc->bRTSUseShortGI?1:0);
-    //
-    // Set Bandwidth and sub-channel settings.
-    //
-    if(priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40)
-    {
-        if(tcb_desc->bPacketBW)
-        {
-            pTxFwInfo->TxBandwidth = 1;
+	/* Aggregation related */
+	if (tcb_desc->bAMPDUEnable) {
+		pTxFwInfo->AllowAggregation = 1;
+		pTxFwInfo->RxMF = tcb_desc->ampdu_factor;
+		pTxFwInfo->RxAMD = tcb_desc->ampdu_density;
+	} else {
+		pTxFwInfo->AllowAggregation = 0;
+		pTxFwInfo->RxMF = 0;
+		pTxFwInfo->RxAMD = 0;
+	}
+
+	/* Protection mode related */
+	pTxFwInfo->RtsEnable = (tcb_desc->bRTSEnable) ? 1 : 0;
+	pTxFwInfo->CtsEnable = (tcb_desc->bCTSEnable) ? 1 : 0;
+	pTxFwInfo->RtsSTBC = (tcb_desc->bRTSSTBC) ? 1 : 0;
+	pTxFwInfo->RtsHT = (tcb_desc->rts_rate&0x80) ? 1 : 0;
+	pTxFwInfo->RtsRate = MRateToHwRate8190Pci((u8)tcb_desc->rts_rate);
+	pTxFwInfo->RtsBandwidth = 0;
+	pTxFwInfo->RtsSubcarrier = tcb_desc->RTSSC;
+	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ? (tcb_desc->bRTSUseShortPreamble ? 1 : 0) : (tcb_desc->bRTSUseShortGI? 1 : 0);
+
+	/* Set Bandwidth and sub-channel settings. */
+	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40) {
+		if (tcb_desc->bPacketBW) {
+			pTxFwInfo->TxBandwidth = 1;
 #ifdef RTL8190P
-            pTxFwInfo->TxSubCarrier = 3;
+			pTxFwInfo->TxSubCarrier = 3;
 #else
-            pTxFwInfo->TxSubCarrier = 0;	//By SD3's Jerry suggestion, use duplicated mode, cosa 04012008
+			/* use duplicated mode */
+			pTxFwInfo->TxSubCarrier = 0;
 #endif
-        }
-        else
-        {
-            pTxFwInfo->TxBandwidth = 0;
-            pTxFwInfo->TxSubCarrier = priv->nCur40MhzPrimeSC;
-        }
-    } else {
-        pTxFwInfo->TxBandwidth = 0;
-        pTxFwInfo->TxSubCarrier = 0;
-    }
+		} else {
+			pTxFwInfo->TxBandwidth = 0;
+			pTxFwInfo->TxSubCarrier = priv->nCur40MhzPrimeSC;
+		}
+	} else {
+		pTxFwInfo->TxBandwidth = 0;
+		pTxFwInfo->TxSubCarrier = 0;
+	}
 
-    spin_lock_irqsave(&priv->irq_th_lock,flags);
-    ring = &priv->tx_ring[tcb_desc->queue_index];
-    if (tcb_desc->queue_index != BEACON_QUEUE) {
-        idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
-    } else {
-        idx = 0;
-    }
+	spin_lock_irqsave(&priv->irq_th_lock, flags);
+	ring = &priv->tx_ring[tcb_desc->queue_index];
+	if (tcb_desc->queue_index != BEACON_QUEUE)
+		idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
+	else
+		idx = 0;
 
-    pdesc = &ring->desc[idx];
-    if((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
-	    RT_TRACE(COMP_ERR,"No more TX desc@%d, ring->idx = %d,idx = %d,%x",
-			    tcb_desc->queue_index,ring->idx, idx,skb->len);
-	    spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-	    return skb->len;
-    }
+	pdesc = &ring->desc[idx];
+	if ((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
+		RT_TRACE(COMP_ERR, "No more TX desc@%d, ring->idx = %d,idx = %d,%x",
+			 tcb_desc->queue_index, ring->idx, idx, skb->len);
+		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
+		return skb->len;
+	}
 
-    /* fill tx descriptor */
-    memset((u8*)pdesc,0,12);
-    /*DWORD 0*/
-    pdesc->LINIP = 0;
-    pdesc->CmdInit = 1;
-    pdesc->Offset = sizeof(TX_FWINFO_8190PCI) + 8; //We must add 8!! Emily
-    pdesc->PktSize = (u16)skb->len-sizeof(TX_FWINFO_8190PCI);
+	/* fill tx descriptor */
+	memset(pdesc, 0, 12);
 
-    /*DWORD 1*/
-    pdesc->SecCAMID= 0;
-    pdesc->RATid = tcb_desc->RATRIndex;
+	/*DWORD 0*/
+	pdesc->LINIP = 0;
+	pdesc->CmdInit = 1;
+	pdesc->Offset = sizeof(TX_FWINFO_8190PCI) + 8; /* We must add 8!! */
+	pdesc->PktSize = (u16)skb->len-sizeof(TX_FWINFO_8190PCI);
 
+	/*DWORD 1*/
+	pdesc->SecCAMID = 0;
+	pdesc->RATid = tcb_desc->RATRIndex;
 
-    pdesc->NoEnc = 1;
-    pdesc->SecType = 0x0;
-    if (tcb_desc->bHwSec) {
-        switch (priv->ieee80211->pairwise_key_type) {
-            case KEY_TYPE_WEP40:
-            case KEY_TYPE_WEP104:
-                pdesc->SecType = 0x1;
-                pdesc->NoEnc = 0;
-                break;
-            case KEY_TYPE_TKIP:
-                pdesc->SecType = 0x2;
-                pdesc->NoEnc = 0;
-                break;
-            case KEY_TYPE_CCMP:
-                pdesc->SecType = 0x3;
-                pdesc->NoEnc = 0;
-                break;
-            case KEY_TYPE_NA:
-                pdesc->SecType = 0x0;
-                pdesc->NoEnc = 1;
-                break;
-        }
-    }
+	pdesc->NoEnc = 1;
+	pdesc->SecType = 0x0;
+	if (tcb_desc->bHwSec) {
+		switch (priv->ieee80211->pairwise_key_type) {
+		case KEY_TYPE_WEP40:
+		case KEY_TYPE_WEP104:
+			pdesc->SecType = 0x1;
+			pdesc->NoEnc = 0;
+			break;
+		case KEY_TYPE_TKIP:
+			pdesc->SecType = 0x2;
+			pdesc->NoEnc = 0;
+			break;
+		case KEY_TYPE_CCMP:
+			pdesc->SecType = 0x3;
+			pdesc->NoEnc = 0;
+			break;
+		case KEY_TYPE_NA:
+			pdesc->SecType = 0x0;
+			pdesc->NoEnc = 1;
+			break;
+		}
+	}
 
-    //
-    // Set Packet ID
-    //
-    pdesc->PktId = 0x0;
+	/* Set Packet ID */
+	pdesc->PktId = 0x0;
 
-    pdesc->QueueSelect = MapHwQueueToFirmwareQueue(tcb_desc->queue_index);
-    pdesc->TxFWInfoSize = sizeof(TX_FWINFO_8190PCI);
+	pdesc->QueueSelect = MapHwQueueToFirmwareQueue(tcb_desc->queue_index);
+	pdesc->TxFWInfoSize = sizeof(TX_FWINFO_8190PCI);
 
-    pdesc->DISFB = tcb_desc->bTxDisableRateFallBack;
-    pdesc->USERATE = tcb_desc->bTxUseDriverAssingedRate;
+	pdesc->DISFB = tcb_desc->bTxDisableRateFallBack;
+	pdesc->USERATE = tcb_desc->bTxUseDriverAssingedRate;
 
-    pdesc->FirstSeg =1;
-    pdesc->LastSeg = 1;
-    pdesc->TxBufferSize = skb->len;
+	pdesc->FirstSeg = 1;
+	pdesc->LastSeg = 1;
+	pdesc->TxBufferSize = skb->len;
 
-    pdesc->TxBuffAddr = cpu_to_le32(mapping);
-    __skb_queue_tail(&ring->queue, skb);
-    pdesc->OWN = 1;
-    spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-    dev->trans_start = jiffies;
-    write_nic_word(dev,TPPoll,0x01<<tcb_desc->queue_index);
-    return 0;
+	pdesc->TxBuffAddr = cpu_to_le32(mapping);
+	__skb_queue_tail(&ring->queue, skb);
+	pdesc->OWN = 1;
+	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
+	dev->trans_start = jiffies;
+	write_nic_word(dev, TPPoll, 0x01<<tcb_desc->queue_index);
+	return 0;
 }
 
 static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
