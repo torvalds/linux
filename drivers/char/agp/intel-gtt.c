@@ -642,41 +642,85 @@ static unsigned int intel_gtt_stolen_entries(void)
 	return stolen_entries;
 }
 
+static void i965_adjust_pgetbl_size(unsigned int size_flag)
+{
+	u32 pgetbl_ctl, pgetbl_ctl2;
+
+	/* ensure that ppgtt is disabled */
+	pgetbl_ctl2 = readl(intel_private.registers+I965_PGETBL_CTL2);
+	pgetbl_ctl2 &= ~I810_PGETBL_ENABLED;
+	writel(pgetbl_ctl2, intel_private.registers+I965_PGETBL_CTL2);
+
+	/* write the new ggtt size */
+	pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
+	pgetbl_ctl &= ~I965_PGETBL_SIZE_MASK;
+	pgetbl_ctl |= size_flag;
+	writel(pgetbl_ctl, intel_private.registers+I810_PGETBL_CTL);
+}
+
+static unsigned int i965_gtt_total_entries(void)
+{
+	int size;
+	u32 pgetbl_ctl;
+	u16 gmch_ctl;
+
+	pci_read_config_word(intel_private.bridge_dev,
+			     I830_GMCH_CTRL, &gmch_ctl);
+
+	if (INTEL_GTT_GEN == 5) {
+		switch (gmch_ctl & G4x_GMCH_SIZE_MASK) {
+		case G4x_GMCH_SIZE_1M:
+		case G4x_GMCH_SIZE_VT_1M:
+			i965_adjust_pgetbl_size(I965_PGETBL_SIZE_1MB);
+			break;
+		case G4x_GMCH_SIZE_VT_1_5M:
+			i965_adjust_pgetbl_size(I965_PGETBL_SIZE_1_5MB);
+			break;
+		case G4x_GMCH_SIZE_2M:
+		case G4x_GMCH_SIZE_VT_2M:
+			i965_adjust_pgetbl_size(I965_PGETBL_SIZE_2MB);
+			break;
+		}
+	}
+
+	pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
+
+	switch (pgetbl_ctl & I965_PGETBL_SIZE_MASK) {
+	case I965_PGETBL_SIZE_128KB:
+		size = KB(128);
+		break;
+	case I965_PGETBL_SIZE_256KB:
+		size = KB(256);
+		break;
+	case I965_PGETBL_SIZE_512KB:
+		size = KB(512);
+		break;
+	/* GTT pagetable sizes bigger than 512KB are not possible on G33! */
+	case I965_PGETBL_SIZE_1MB:
+		size = KB(1024);
+		break;
+	case I965_PGETBL_SIZE_2MB:
+		size = KB(2048);
+		break;
+	case I965_PGETBL_SIZE_1_5MB:
+		size = KB(1024 + 512);
+		break;
+	default:
+		dev_info(&intel_private.pcidev->dev,
+			 "unknown page table size, assuming 512KB\n");
+		size = KB(512);
+	}
+
+	return size/4;
+}
+
 static unsigned int intel_gtt_total_entries(void)
 {
 	int size;
 
-	if (IS_G33 || INTEL_GTT_GEN == 4 || INTEL_GTT_GEN == 5) {
-		u32 pgetbl_ctl;
-		pgetbl_ctl = readl(intel_private.registers+I810_PGETBL_CTL);
-
-		switch (pgetbl_ctl & I965_PGETBL_SIZE_MASK) {
-		case I965_PGETBL_SIZE_128KB:
-			size = KB(128);
-			break;
-		case I965_PGETBL_SIZE_256KB:
-			size = KB(256);
-			break;
-		case I965_PGETBL_SIZE_512KB:
-			size = KB(512);
-			break;
-		case I965_PGETBL_SIZE_1MB:
-			size = KB(1024);
-			break;
-		case I965_PGETBL_SIZE_2MB:
-			size = KB(2048);
-			break;
-		case I965_PGETBL_SIZE_1_5MB:
-			size = KB(1024 + 512);
-			break;
-		default:
-			dev_info(&intel_private.pcidev->dev,
-				 "unknown page table size, assuming 512KB\n");
-			size = KB(512);
-		}
-
-		return size/4;
-	} else if (INTEL_GTT_GEN == 6) {
+	if (IS_G33 || INTEL_GTT_GEN == 4 || INTEL_GTT_GEN == 5)
+		return i965_gtt_total_entries();
+	else if (INTEL_GTT_GEN == 6) {
 		u16 snb_gmch_ctl;
 
 		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);

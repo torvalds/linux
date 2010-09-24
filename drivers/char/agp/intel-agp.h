@@ -75,6 +75,8 @@
 #define I810_GMS_DISABLE	0x00000000
 #define I810_PGETBL_CTL		0x2020
 #define I810_PGETBL_ENABLED	0x00000001
+/* Note: PGETBL_CTL2 has a different offset on G33. */
+#define I965_PGETBL_CTL2	0x20c4
 #define I965_PGETBL_SIZE_MASK	0x0000000e
 #define I965_PGETBL_SIZE_512KB	(0 << 1)
 #define I965_PGETBL_SIZE_256KB	(1 << 1)
@@ -82,9 +84,15 @@
 #define I965_PGETBL_SIZE_1MB	(3 << 1)
 #define I965_PGETBL_SIZE_2MB	(4 << 1)
 #define I965_PGETBL_SIZE_1_5MB	(5 << 1)
-#define G33_PGETBL_SIZE_MASK    (3 << 8)
-#define G33_PGETBL_SIZE_1M      (1 << 8)
-#define G33_PGETBL_SIZE_2M      (2 << 8)
+#define G33_GMCH_SIZE_MASK	(3 << 8)
+#define G33_GMCH_SIZE_1M	(1 << 8)
+#define G33_GMCH_SIZE_2M	(2 << 8)
+#define G4x_GMCH_SIZE_MASK	(0xf << 8)
+#define G4x_GMCH_SIZE_1M	(0x1 << 8)
+#define G4x_GMCH_SIZE_2M	(0x3 << 8)
+#define G4x_GMCH_SIZE_VT_1M	(0x9 << 8)
+#define G4x_GMCH_SIZE_VT_1_5M	(0xa << 8)
+#define G4x_GMCH_SIZE_VT_2M	(0xc << 8)
 
 #define I810_DRAM_CTL		0x3000
 #define I810_DRAM_ROW_0		0x00000001
