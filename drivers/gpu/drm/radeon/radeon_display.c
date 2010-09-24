@@ -349,6 +349,8 @@ static void radeon_print_display_setup(struct drm_device *dev)
 					DRM_INFO("    DFP4: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP5_SUPPORT)
 					DRM_INFO("    DFP5: %s\n", encoder_names[radeon_encoder->encoder_id]);
+				if (devices & ATOM_DEVICE_DFP6_SUPPORT)
+					DRM_INFO("    DFP6: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_TV1_SUPPORT)
 					DRM_INFO("    TV1: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_CV_SUPPORT)
