@@ -274,8 +274,6 @@ static int __init omap4_panda_i2c_init(void)
 }
 static void __init omap4_panda_init(void)
 {
-	int status;
-
 	omap4_panda_i2c_init();
 	omap_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);
