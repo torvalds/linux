@@ -194,51 +194,15 @@ int go7007_reset_encoder(struct go7007 *go)
  * Attempt to instantiate an I2C client by ID, probably loading a module.
  */
 static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
-			   int id, int addr)
+			   int addr)
 {
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
-	char *modname;
 
-	switch (id) {
-	case I2C_DRIVERID_WIS_SAA7115:
-		modname = "wis-saa7115";
-		break;
-	case I2C_DRIVERID_WIS_SAA7113:
-		modname = "wis-saa7113";
-		break;
-	case I2C_DRIVERID_WIS_UDA1342:
-		modname = "wis-uda1342";
-		break;
-	case I2C_DRIVERID_WIS_SONY_TUNER:
-		modname = "wis-sony-tuner";
-		break;
-	case I2C_DRIVERID_WIS_TW9903:
-		modname = "wis-tw9903";
-		break;
-	case I2C_DRIVERID_WIS_TW2804:
-		modname = "wis-tw2804";
-		break;
-	case I2C_DRIVERID_WIS_OV7640:
-		modname = "wis-ov7640";
-		break;
-	case I2C_DRIVERID_S2250:
-		modname = "s2250";
-		break;
-	default:
-		modname = NULL;
-		break;
-	}
-
-	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, modname, type, addr, NULL))
+	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, NULL, type, addr, NULL))
 		return 0;
 
-	if (modname != NULL)
-		printk(KERN_INFO
-			"go7007: probing for module %s failed\n", modname);
-	else
-		printk(KERN_INFO
-			"go7007: sensor %u seems to be unsupported!\n", id);
+	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", type);
 	return -1;
 }
 
@@ -277,7 +241,6 @@ int go7007_register_encoder(struct go7007 *go)
 		for (i = 0; i < go->board_info->num_i2c_devs; ++i)
 			init_i2c_module(&go->i2c_adapter,
 					go->board_info->i2c_devs[i].type,
-					go->board_info->i2c_devs[i].id,
 					go->board_info->i2c_devs[i].addr);
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
 			i2c_clients_command(&go->i2c_adapter,
