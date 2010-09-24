@@ -550,7 +550,6 @@ static struct sh_vou_pdata sh_vou_pdata = {
 	.flags		= SH_VOU_HSYNC_LOW | SH_VOU_VSYNC_LOW,
 	.board_info	= &ak8813,
 	.i2c_adap	= 0,
-	.module_name	= "ak881x",
 };
 
 static struct resource sh_vou_resources[] = {
