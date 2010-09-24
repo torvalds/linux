@@ -581,9 +581,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
  * @RX_FLAG_SHORT_GI: Short guard interval was used
- * @RX_FLAG_INTERNAL_CMTR: set internally after frame was reported
- *	on cooked monitor to avoid double-reporting it for multiple
- *	virtual interfaces
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -597,7 +594,6 @@ enum mac80211_rx_flags {
 	RX_FLAG_HT		= 1<<9,
 	RX_FLAG_40MHZ		= 1<<10,
 	RX_FLAG_SHORT_GI	= 1<<11,
-	RX_FLAG_INTERNAL_CMTR	= 1<<12,
 };
 
 /**
@@ -618,6 +614,7 @@ enum mac80211_rx_flags {
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
  * @flag: %RX_FLAG_*
+ * @rx_flags: internal RX flags for mac80211
  */
 struct ieee80211_rx_status {
 	u64 mactime;
@@ -627,6 +624,7 @@ struct ieee80211_rx_status {
 	int antenna;
 	int rate_idx;
 	int flag;
+	unsigned int rx_flags;
 };
 
 /**

@@ -159,13 +159,37 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 #define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
 #define RX_QUEUED		((__force ieee80211_rx_result) 3u)
 
-#define IEEE80211_RX_IN_SCAN		BIT(0)
-/* frame is destined to interface currently processed (incl. multicast frames) */
-#define IEEE80211_RX_RA_MATCH		BIT(1)
-#define IEEE80211_RX_AMSDU		BIT(2)
-#define IEEE80211_RX_FRAGMENTED		BIT(3)
-#define IEEE80211_MALFORMED_ACTION_FRM	BIT(4)
-/* only add flags here that do not change with subframes of an aMPDU */
+/**
+ * enum ieee80211_packet_rx_flags - packet RX flags
+ * @IEEE80211_RX_RA_MATCH: frame is destined to interface currently processed
+ *	(incl. multicast frames)
+ * @IEEE80211_RX_IN_SCAN: received while scanning
+ * @IEEE80211_RX_FRAGMENTED: fragmented frame
+ * @IEEE80211_RX_AMSDU: a-MSDU packet
+ * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
+ *
+ * These are per-frame flags that are attached to a frame in the
+ * @rx_flags field of &struct ieee80211_rx_status.
+ */
+enum ieee80211_packet_rx_flags {
+	IEEE80211_RX_IN_SCAN			= BIT(0),
+	IEEE80211_RX_RA_MATCH			= BIT(1),
+	IEEE80211_RX_FRAGMENTED			= BIT(2),
+	IEEE80211_RX_AMSDU			= BIT(3),
+	IEEE80211_RX_MALFORMED_ACTION_FRM	= BIT(4),
+};
+
+/**
+ * enum ieee80211_rx_flags - RX data flags
+ *
+ * @IEEE80211_RX_CMNTR: received on cooked monitor already
+ *
+ * These flags are used across handling multiple interfaces
+ * for a single frame.
+ */
+enum ieee80211_rx_flags {
+	IEEE80211_RX_CMNTR		= BIT(0),
+};
 
 struct ieee80211_rx_data {
 	struct sk_buff *skb;
