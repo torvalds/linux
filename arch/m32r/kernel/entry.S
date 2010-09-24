@@ -235,8 +235,7 @@ work_resched:
 work_notifysig:				; deal with pending signals and
 					; notify-resume requests
 	mv	r0, sp			; arg1 : struct pt_regs *regs
-	ldi	r1, #0			; arg2 : sigset_t *oldset
-	mv	r2, r9			; arg3 : __u32 thread_info_flags
+	ldi	r1, r9			; arg2 : __u32 thread_info_flags
 	bl	do_notify_resume
 	bra	restore_all
 
