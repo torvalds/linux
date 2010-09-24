@@ -1882,9 +1882,8 @@ static void cyas_ep0_start(
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_register_driver(
-				struct usb_gadget_driver *driver
-				)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	cyasgadget *dev = cy_as_gadget_controller ;
 	int		retval;
@@ -1898,7 +1897,7 @@ int usb_gadget_register_driver(
 	* "must not be used in normal operation"
 	*/
 	if (!driver
-		|| !driver->bind
+		|| !bind
 		|| !driver->unbind
 		|| !driver->setup)
 		return -EINVAL;
@@ -1919,7 +1918,7 @@ int usb_gadget_register_driver(
 	cyas_usb_reset(dev) ; /* External usb */
 	cyas_usb_reinit(dev) ; /* Internal */
 
-	retval = driver->bind(&dev->gadget);
+	retval = bind(&dev->gadget);
 	if (retval) {
 		#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message("%s bind to driver %s --> %d\n",
@@ -1938,7 +1937,7 @@ int usb_gadget_register_driver(
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void cyasgadget_nuke(
 							cyasgadget_ep *an_ep
