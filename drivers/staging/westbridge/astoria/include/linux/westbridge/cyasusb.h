@@ -213,21 +213,21 @@
 */
 typedef struct cy_as_usb_inquiry_data {
 	/* The bus for the event */
-	cy_as_bus_number_t bus ;
+	cy_as_bus_number_t bus;
 	/* The device the event */
-	uint32_t device ;
+	uint32_t device;
 	/* The EVPD bit from the SCSI INQUIRY request */
-	uint8_t evpd ;
+	uint8_t evpd;
 	/* The codepage in the inquiry request */
-	uint8_t codepage ;
+	uint8_t codepage;
 	/* This bool must be set to CyTrue indicate that the inquiry
 				   data was changed */
-	cy_bool updated ;
+	cy_bool updated;
 	/* The length of the data */
-	uint16_t length ;
+	uint16_t length;
 	/* The inquiry data */
-	void *data ;
-} cy_as_usb_inquiry_data ;
+	void *data;
+} cy_as_usb_inquiry_data;
 
 
 /* Summary
@@ -260,23 +260,23 @@ typedef struct cy_as_usb_inquiry_data {
 */
 typedef struct cy_as_usb_unknown_command_data {
 	/* The bus for the event */
-	cy_as_bus_number_t bus ;
+	cy_as_bus_number_t bus;
 	/* The device for the event */
-	uint32_t device ;
+	uint32_t device;
 
-	uint16_t reqlen ;
+	uint16_t reqlen;
 	/* The request */
-	void *request ;
+	void *request;
 
 	/* The returned status value for the command */
-	uint8_t status ;
+	uint8_t status;
 	/* If status is failed, the sense key */
-	uint8_t key ;
+	uint8_t key;
 	/* If status is failed, the additional sense code */
-	uint8_t asc ;
+	uint8_t asc;
 	/* If status if failed, the additional sense code qualifier */
-	uint8_t ascq ;
-} cy_as_usb_unknown_command_data ;
+	uint8_t ascq;
+} cy_as_usb_unknown_command_data;
 
 
 /* Summary
@@ -293,14 +293,14 @@ typedef struct cy_as_usb_unknown_command_data {
 */
 typedef struct cy_as_usb_start_stop_data {
 	/* The bus for the event */
-	cy_as_bus_number_t bus ;
+	cy_as_bus_number_t bus;
 	/* The device for the event */
-	uint32_t device ;
+	uint32_t device;
 	/* CyTrue means start request, CyFalse means stop request */
-	cy_bool start ;
+	cy_bool start;
 	/* CyTrue means LoEj bit set, otherwise false */
-	cy_bool loej ;
-} cy_as_usb_start_stop_data ;
+	cy_bool loej;
+} cy_as_usb_start_stop_data;
 
 /* Summary
    This data type is used to indicate which mass storage devices
@@ -317,7 +317,7 @@ typedef enum cy_as_usb_mass_storage_enum {
 	cy_as_usb_sd_enum = 0x02,
 	cy_as_usb_mmc_enum = 0x04,
 	cy_as_usb_ce_ata_enum = 0x08
-} cy_as_usb_mass_storage_enum ;
+} cy_as_usb_mass_storage_enum;
 
 /* Summary
    This data type specifies the type of descriptor to transfer
@@ -349,7 +349,7 @@ typedef enum cy_as_usb_desc_type {
 	 * See USB 2.0 specification Chapter 9 */
 	cy_as_usb_desc_h_s_configuration = 4,
 	cy_as_usb_desc_string = 5
-} cy_as_usb_desc_type ;
+} cy_as_usb_desc_type;
 
 /* Summary
    This type specifies the direction of an endpoint
@@ -371,7 +371,7 @@ typedef enum cy_as_usb_end_point_dir {
 	cy_as_usb_out = 1,
 	/* The endpoint direction is IN/OUT (valid only for EP 0 & 1) */
 	cy_as_usb_in_out = 2
-} cy_as_usb_end_point_dir ;
+} cy_as_usb_end_point_dir;
 
 /* Summary
    This type specifies the type of an endpoint
@@ -390,7 +390,7 @@ typedef enum cy_as_usb_end_point_type {
 	cy_as_usb_iso,
 	cy_as_usb_bulk,
 	cy_as_usb_int
-} cy_as_usb_end_point_type ;
+} cy_as_usb_end_point_type;
 
 /* Summary
    This type is a structure used to indicate the top level
@@ -418,20 +418,20 @@ typedef struct cy_as_usb_enum_control {
 	 * is false the P port controls enumeration.  if the P port
 	 * is controlling enumeration, traffic will be received via
 	 * endpoint zero. */
-	cy_bool antioch_enumeration ;
+	cy_bool antioch_enumeration;
 	/* This is the interface # to use for the mass storage
 	 * interface, if mass storage is enumerated.  if mass
 	 * storage is not enumerated this value should be zero. */
-	uint8_t mass_storage_interface ;
+	uint8_t mass_storage_interface;
 	/* This is the interface # to use for the MTP interface,
 	 * if MTP is enumerated.  if MTP is not enumerated
 	 * this value should be zero. */
-	uint8_t mtp_interface ;
+	uint8_t mtp_interface;
 	/* If true, Inquiry, START/STOP, and unknown mass storage
 	 * requests cause a callback to occur for handling by the
 	 *  baseband processor. */
-	cy_bool mass_storage_callbacks ;
-} cy_as_usb_enum_control ;
+	cy_bool mass_storage_callbacks;
+} cy_as_usb_enum_control;
 
 
 /* Summary
@@ -448,16 +448,16 @@ typedef struct cy_as_usb_enum_control {
 */
 typedef struct cy_as_usb_end_point_config {
 	/* If true, this endpoint is enabled */
-	cy_bool enabled ;
+	cy_bool enabled;
 	/* The direction of this endpoint */
-	cy_as_usb_end_point_dir dir ;
+	cy_as_usb_end_point_dir dir;
 	/* The type of endpoint */
-	cy_as_usb_end_point_type type ;
+	cy_as_usb_end_point_type type;
 	/* The physical endpoint #, 1, 2, 3, 4 */
-	cy_as_end_point_number_t physical ;
+	cy_as_end_point_number_t physical;
 	/* The size of the endpoint in bytes */
-	uint16_t size ;
-} cy_as_usb_end_point_config ;
+	uint16_t size;
+} cy_as_usb_end_point_config;
 
 /* Summary
    List of partition enumeration combinations that can
@@ -484,7 +484,7 @@ typedef enum cy_as_usb_m_s_type_t {
 	cy_as_usb_m_s_unit1,
 	/* Enumerate both units */
 	cy_as_usb_m_s_both
-} cy_as_usb_m_s_type_t ;
+} cy_as_usb_m_s_type_t;
 
 /* Summary
    This type specifies the type of USB event that has occurred
@@ -574,7 +574,7 @@ typedef void (*cy_as_usb_event_callback)(
 	cy_as_usb_event			ev,
 	/* The data assocaited with the event being reported */
 	void *evdata
-) ;
+);
 
 
 /* Summary
@@ -602,7 +602,7 @@ typedef void (*cy_as_usb_io_callback)(
 	void *buffer,
 	/* The error status of the operation */
 	cy_as_return_status_t status
-) ;
+);
 
 /* Summary
    This type is the callback function called after asynchronous
@@ -621,7 +621,7 @@ typedef void (*cy_as_usb_function_callback)(
 	cy_as_return_status_t			status,
 	/* A client supplied 32 bit tag */
 	uint32_t				client
-) ;
+);
 
 
 /********************************************
@@ -668,7 +668,7 @@ cy_as_usb_start(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function stops the USB stack
@@ -713,7 +713,7 @@ cy_as_usb_stop(
 	cy_as_function_callback		cb,
 	 /* Client supplied data */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function registers a callback function to be called when an
@@ -732,7 +732,7 @@ cy_as_usb_register_callback(
 	cy_as_device_handle		handle,
 	/* The function to call */
 	cy_as_usb_event_callback callback
-	) ;
+	);
 
 
 /* Summary
@@ -772,7 +772,7 @@ cy_as_usb_connect(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function disconnects the West Bridge device D+ and D-
@@ -811,7 +811,7 @@ cy_as_usb_disconnect(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function configures the USB stack
@@ -848,7 +848,7 @@ cy_as_usb_set_enum_config(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function retreives the current configuration of
@@ -884,7 +884,7 @@ cy_as_usb_get_enum_config(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function sets the USB descriptor
@@ -942,7 +942,7 @@ cy_as_usb_set_descriptor(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function clears all user descriptors stored
@@ -985,7 +985,7 @@ cy_as_usb_clear_descriptors(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 /* Summary
    This structure contains the descriptor buffer to be
    filled by CyAsUsbGetDescriptor API.
@@ -1008,7 +1008,7 @@ typedef struct cy_as_get_descriptor_data {
 	 * actually returned. */
 	uint32_t	 length;
 
-} cy_as_get_descriptor_data ;
+} cy_as_get_descriptor_data;
 
 /* Summary
    This function retreives a given descriptor from the
@@ -1059,7 +1059,7 @@ cy_as_usb_get_descriptor(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function sets the configuration of the physical
@@ -1123,7 +1123,7 @@ cy_as_usb_set_physical_configuration(
 	cy_as_device_handle		handle,
 	/* The physical endpoint configuration number */
 	uint8_t			config
-	) ;
+	);
 
 /* Summary
    This function sets the hardware configuration for a given endpoint
@@ -1166,7 +1166,7 @@ cy_as_usb_set_end_point_config(
 	cy_as_end_point_number_t ep,
 	/* The configuration information for the endpoint */
 	cy_as_usb_end_point_config *config_p
-	) ;
+	);
 
 /* Summary
    This function retreives the hardware configuration for
@@ -1205,7 +1205,7 @@ cy_as_usb_get_end_point_config(
 	/* The return value containing the endpoint config
 	 * information */
 	cy_as_usb_end_point_config *config_p
-	) ;
+	);
 
 /* Summary
    This function commits the configuration information that
@@ -1251,7 +1251,7 @@ cy_as_usb_commit_config(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function reads data from a USB endpoint.
@@ -1294,7 +1294,7 @@ cy_as_usb_read_data(
 	uint32_t *dataread,
 	/* The buffer to hold the data read */
 	void *data
-	) ;
+	);
 
 /* Summary
    This function reads data from a USB endpoint
@@ -1337,7 +1337,7 @@ cy_as_usb_read_data_async(
 	void *data,
 	/* The callback function to call when the data is read */
 	cy_as_usb_io_callback		callback
-	) ;
+	);
 
 /* Summary
    This function writes data to a USB endpoint
@@ -1377,7 +1377,7 @@ cy_as_usb_write_data(
 	uint32_t			dsize,
 	/* The data buffer */
 	void *data
-	) ;
+	);
 
 /* Summary
    This function writes data to a USB endpoint
@@ -1421,7 +1421,7 @@ cy_as_usb_write_data_async(
 	cy_bool	spacket,
 	/* The callback to call when the data is written */
 	cy_as_usb_io_callback		callback
-	) ;
+	);
 
 /* Summary
    This function aborts an outstanding asynchronous
@@ -1453,7 +1453,7 @@ cy_as_usb_cancel_async(
 	cy_as_device_handle		handle,
 	/* The endpoint of interest */
 	cy_as_end_point_number_t		ep
-	) ;
+	);
 
 /* Summary
    This function sets a stall condition on a given endpoint
@@ -1495,7 +1495,7 @@ cy_as_usb_set_stall(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t			client
-) ;
+);
 
 /* Summary
    This function clears a stall condition on a given endpoint
@@ -1538,7 +1538,7 @@ cy_as_usb_clear_stall(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t				client
-	) ;
+	);
 
 
 /* Summary
@@ -1580,7 +1580,7 @@ cy_as_usb_get_stall(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function sets a NAK condition on a given endpoint
@@ -1622,7 +1622,7 @@ cy_as_usb_set_nak(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t			client
-) ;
+);
 
 /* Summary
    This function clears a NAK condition on a given endpoint
@@ -1664,7 +1664,7 @@ cy_as_usb_clear_nak(
 	cy_as_function_callback	cb,
 	/* Client supplied data */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function returns the NAK status for a given endpoint
@@ -1703,7 +1703,7 @@ cy_as_usb_get_nak(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t					client
-) ;
+);
 
 /* Summary
    This function triggers a USB remote wakeup from the Processor
@@ -1736,7 +1736,7 @@ cy_as_usb_signal_remote_wakeup(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t					client
-	) ;
+	);
 
 /* Summary
    This function sets the threshold levels for mass storage progress
@@ -1784,7 +1784,7 @@ cy_as_usb_set_m_s_report_threshold(
 	cy_as_function_callback		cb,
 	/* Client supplied data */
 	uint32_t					client
-	) ;
+	);
 
 /* Summary
    Specify which of the partitions on a partitioned mass storage
@@ -1846,13 +1846,13 @@ cy_as_usb_select_m_s_partitions(
 	);
 
 extern cy_as_media_type
-cy_as_storage_get_media_from_address(uint16_t v) ;
+cy_as_storage_get_media_from_address(uint16_t v);
 
 extern cy_as_bus_number_t
-cy_as_storage_get_bus_from_address(uint16_t v) ;
+cy_as_storage_get_bus_from_address(uint16_t v);
 
 extern uint32_t
-cy_as_storage_get_device_from_address(uint16_t v) ;
+cy_as_storage_get_device_from_address(uint16_t v);
 
 /* For supporting deprecated functions */
 #include "cyasusb_dep.h"

@@ -40,7 +40,7 @@ typedef enum cy_as_physical_endpoint_state {
 * LEP register indexes into actual EP numbers.
 */
 static cy_as_end_point_number_t end_point_map[] = {
-	3, 5, 7, 9, 10, 11, 12, 13, 14, 15 } ;
+	3, 5, 7, 9, 10, 11, 12, 13, 14, 15 };
 
 #define CY_AS_EPCFG_1024			(1 << 3)
 #define CY_AS_EPCFG_DBL			 (0x02)
@@ -116,23 +116,23 @@ static uint8_t pep_register_values[12][4] = {
 		CY_AS_EPCFG_DBL,
 	},/* Config 12 - PEP1 (4 * 1024), PEP2 (N/A),
 	   * PEP3 (N/A), PEP4 (N/A) */
-} ;
+};
 
 static cy_as_return_status_t
 find_endpoint_directions(cy_as_device *dev_p,
 	cy_as_physical_endpoint_state epstate[4])
 {
-	int i ;
-	cy_as_physical_endpoint_state desired ;
+	int i;
+	cy_as_physical_endpoint_state desired;
 
 	/*
 	 * note, there is no error checking here becuase
 	 * ISO error checking happens when the API is called.
 	 */
-	for (i = 0 ; i < 10 ; i++) {
-		int epno = end_point_map[i] ;
+	for (i = 0; i < 10; i++) {
+		int epno = end_point_map[i];
 		if (dev_p->usb_config[epno].enabled) {
-			int pep = dev_p->usb_config[epno].physical ;
+			int pep = dev_p->usb_config[epno].physical;
 			if (dev_p->usb_config[epno].type == cy_as_usb_iso) {
 				/*
 				 * marking this as an ISO endpoint, removes the
@@ -140,14 +140,14 @@ find_endpoint_directions(cy_as_device *dev_p,
 				 * mapping the remaining E_ps.
 				 */
 				if (dev_p->usb_config[epno].dir == cy_as_usb_in)
-					desired = cy_as_e_p_iso_in ;
+					desired = cy_as_e_p_iso_in;
 				else
-					desired = cy_as_e_p_iso_out ;
+					desired = cy_as_e_p_iso_out;
 			} else {
 				if (dev_p->usb_config[epno].dir == cy_as_usb_in)
-					desired = cy_as_e_p_in ;
+					desired = cy_as_e_p_in;
 				else
-					desired = cy_as_e_p_out ;
+					desired = cy_as_e_p_out;
 			}
 
 			/*
@@ -157,9 +157,9 @@ find_endpoint_directions(cy_as_device *dev_p,
 			 */
 			if (epstate[pep - 1] !=
 				cy_as_e_p_free && epstate[pep - 1] != desired)
-				return CY_AS_ERROR_INVALID_CONFIGURATION ;
+				return CY_AS_ERROR_INVALID_CONFIGURATION;
 
-			epstate[pep - 1] = desired ;
+			epstate[pep - 1] = desired;
 		}
 	}
 
@@ -167,91 +167,91 @@ find_endpoint_directions(cy_as_device *dev_p,
 	 * create the EP1 config values directly.
 	 * both EP1OUT and EP1IN are invalid by default.
 	 */
-	dev_p->usb_ep1cfg[0] = 0 ;
-	dev_p->usb_ep1cfg[1] = 0 ;
+	dev_p->usb_ep1cfg[0] = 0;
+	dev_p->usb_ep1cfg[1] = 0;
 	if (dev_p->usb_config[1].enabled) {
 		if ((dev_p->usb_config[1].dir == cy_as_usb_out) ||
 			(dev_p->usb_config[1].dir == cy_as_usb_in_out)) {
 			/* Set the valid bit and type field. */
-			dev_p->usb_ep1cfg[0] = (1 << 7) ;
+			dev_p->usb_ep1cfg[0] = (1 << 7);
 			if (dev_p->usb_config[1].type == cy_as_usb_bulk)
-				dev_p->usb_ep1cfg[0] |= (2 << 4) ;
+				dev_p->usb_ep1cfg[0] |= (2 << 4);
 			else
-				dev_p->usb_ep1cfg[0] |= (3 << 4) ;
+				dev_p->usb_ep1cfg[0] |= (3 << 4);
 		}
 
 		if ((dev_p->usb_config[1].dir == cy_as_usb_in) ||
 		(dev_p->usb_config[1].dir == cy_as_usb_in_out)) {
 			/* Set the valid bit and type field. */
-			dev_p->usb_ep1cfg[1] = (1 << 7) ;
+			dev_p->usb_ep1cfg[1] = (1 << 7);
 			if (dev_p->usb_config[1].type == cy_as_usb_bulk)
-				dev_p->usb_ep1cfg[1] |= (2 << 4) ;
+				dev_p->usb_ep1cfg[1] |= (2 << 4);
 			else
-				dev_p->usb_ep1cfg[1] |= (3 << 4) ;
+				dev_p->usb_ep1cfg[1] |= (3 << 4);
 		}
 	}
 
-	return CY_AS_ERROR_SUCCESS ;
+	return CY_AS_ERROR_SUCCESS;
 }
 
 static void
 create_register_settings(cy_as_device *dev_p,
 	cy_as_physical_endpoint_state epstate[4])
 {
-	int i ;
-	uint8_t v ;
+	int i;
+	uint8_t v;
 
-	for (i = 0 ; i < 4 ; i++) {
+	for (i = 0; i < 4; i++) {
 		if (i == 0) {
 			/* Start with the values that specify size */
 			dev_p->usb_pepcfg[i] =
 				pep_register_values
-					[dev_p->usb_phy_config - 1][0] ;
+					[dev_p->usb_phy_config - 1][0];
 		} else if (i == 2) {
 			/* Start with the values that specify size */
 			dev_p->usb_pepcfg[i] =
 				pep_register_values
-					[dev_p->usb_phy_config - 1][1] ;
+					[dev_p->usb_phy_config - 1][1];
 		} else
-			dev_p->usb_pepcfg[i] = 0 ;
+			dev_p->usb_pepcfg[i] = 0;
 
 		/* Adjust direction if it is in */
 		if (epstate[i] == cy_as_e_p_iso_in ||
 			epstate[i] == cy_as_e_p_in)
-			dev_p->usb_pepcfg[i] |= (1 << 6) ;
+			dev_p->usb_pepcfg[i] |= (1 << 6);
 	}
 
 	/* Configure the logical EP registers */
-	for (i = 0 ; i < 10 ; i++) {
-		int val ;
-		int epnum = end_point_map[i] ;
+	for (i = 0; i < 10; i++) {
+		int val;
+		int epnum = end_point_map[i];
 
-		v = 0x10 ;	  /* PEP 1, Bulk Endpoint, EP not valid */
+		v = 0x10;	  /* PEP 1, Bulk Endpoint, EP not valid */
 		if (dev_p->usb_config[epnum].enabled) {
-			v |= (1 << 7) ;	 /* Enabled */
+			v |= (1 << 7);	 /* Enabled */
 
-			val = dev_p->usb_config[epnum].physical - 1 ;
-			cy_as_hal_assert(val >= 0 && val <= 3) ;
-			v |= (val << 5) ;
+			val = dev_p->usb_config[epnum].physical - 1;
+			cy_as_hal_assert(val >= 0 && val <= 3);
+			v |= (val << 5);
 
 			switch (dev_p->usb_config[epnum].type) {
 			case cy_as_usb_bulk:
-				val = 2 ;
-				break ;
+				val = 2;
+				break;
 			case cy_as_usb_int:
-				val = 3 ;
-				break ;
+				val = 3;
+				break;
 			case cy_as_usb_iso:
-				val = 1 ;
-				break ;
+				val = 1;
+				break;
 			default:
-				cy_as_hal_assert(cy_false) ;
-				break ;
+				cy_as_hal_assert(cy_false);
+				break;
 			}
-			v |= (val << 3) ;
+			v |= (val << 3);
 		}
 
-		dev_p->usb_lepcfg[i] = v ;
+		dev_p->usb_lepcfg[i] = v;
 	}
 }
 
@@ -259,100 +259,100 @@ create_register_settings(cy_as_device *dev_p,
 cy_as_return_status_t
 cy_as_usb_map_logical2_physical(cy_as_device *dev_p)
 {
-	cy_as_return_status_t ret ;
+	cy_as_return_status_t ret;
 
 	/* Physical EPs 3 5 7 9 respectively in the array */
 	cy_as_physical_endpoint_state epstate[4] = {
 		cy_as_e_p_free, cy_as_e_p_free,
-			cy_as_e_p_free, cy_as_e_p_free } ;
+			cy_as_e_p_free, cy_as_e_p_free };
 
 	/* Find the direction for the endpoints */
-	ret = find_endpoint_directions(dev_p, epstate) ;
+	ret = find_endpoint_directions(dev_p, epstate);
 	if (ret != CY_AS_ERROR_SUCCESS)
-		return ret ;
+		return ret;
 
 	/*
 	 * now create the register settings based on the given
 	 * assigned of logical E_ps to physical endpoints.
 	 */
-	create_register_settings(dev_p, epstate) ;
+	create_register_settings(dev_p, epstate);
 
-	return ret ;
+	return ret;
 }
 
 static uint16_t
 get_max_dma_size(cy_as_device *dev_p, cy_as_end_point_number_t ep)
 {
-	uint16_t size = dev_p->usb_config[ep].size ;
+	uint16_t size = dev_p->usb_config[ep].size;
 
 	if (size == 0) {
 		switch (dev_p->usb_config[ep].type) {
 		case cy_as_usb_control:
-			size = 64 ;
-			break ;
+			size = 64;
+			break;
 
 		case cy_as_usb_bulk:
 			size = cy_as_device_is_usb_high_speed(dev_p) ?
-				512 : 64 ;
-			break ;
+				512 : 64;
+			break;
 
 		case cy_as_usb_int:
 			size = cy_as_device_is_usb_high_speed(dev_p) ?
-				1024 : 64 ;
-			break ;
+				1024 : 64;
+			break;
 
 		case cy_as_usb_iso:
 			size = cy_as_device_is_usb_high_speed(dev_p) ?
-				1024 : 1023 ;
-			break ;
+				1024 : 1023;
+			break;
 		}
 	}
 
-	return size ;
+	return size;
 }
 
 cy_as_return_status_t
 cy_as_usb_set_dma_sizes(cy_as_device *dev_p)
 {
-	cy_as_return_status_t ret = CY_AS_ERROR_SUCCESS ;
-	uint32_t i ;
+	cy_as_return_status_t ret = CY_AS_ERROR_SUCCESS;
+	uint32_t i;
 
-	for (i = 0 ; i < 10 ; i++) {
+	for (i = 0; i < 10; i++) {
 		cy_as_usb_end_point_config *config_p =
-			&dev_p->usb_config[end_point_map[i]] ;
+			&dev_p->usb_config[end_point_map[i]];
 		if (config_p->enabled) {
 			ret = cy_as_dma_set_max_dma_size(dev_p,
 				end_point_map[i],
-				get_max_dma_size(dev_p, end_point_map[i])) ;
+				get_max_dma_size(dev_p, end_point_map[i]));
 			if (ret != CY_AS_ERROR_SUCCESS)
-				break ;
+				break;
 		}
 	}
 
-	return ret ;
+	return ret;
 }
 
 cy_as_return_status_t
 cy_as_usb_setup_dma(cy_as_device *dev_p)
 {
-	cy_as_return_status_t ret = CY_AS_ERROR_SUCCESS ;
-	uint32_t i ;
+	cy_as_return_status_t ret = CY_AS_ERROR_SUCCESS;
+	uint32_t i;
 
-	for (i = 0 ; i < 10 ; i++) {
+	for (i = 0; i < 10; i++) {
 		cy_as_usb_end_point_config *config_p =
-			&dev_p->usb_config[end_point_map[i]] ;
+			&dev_p->usb_config[end_point_map[i]];
 		if (config_p->enabled) {
 			/* Map the endpoint direction to the DMA direction */
-			cy_as_dma_direction dir = cy_as_direction_out ;
+			cy_as_dma_direction dir = cy_as_direction_out;
 			if (config_p->dir == cy_as_usb_in)
-				dir = cy_as_direction_in ;
+				dir = cy_as_direction_in;
 
 			ret = cy_as_dma_enable_end_point(dev_p,
-				end_point_map[i], cy_true, dir) ;
+				end_point_map[i], cy_true, dir);
 			if (ret != CY_AS_ERROR_SUCCESS)
-				break ;
+				break;
 		}
 	}
 
-	return ret ;
+	return ret;
 }

@@ -29,14 +29,14 @@
 
 typedef struct cy_as_gadget_ioctl_send_object {
 	uint32_t status;
-	uint32_t byte_count ;
-	uint32_t transaction_id ;
-} cy_as_gadget_ioctl_send_object ;
+	uint32_t byte_count;
+	uint32_t transaction_id;
+} cy_as_gadget_ioctl_send_object;
 
 typedef struct cy_as_gadget_ioctl_get_object {
 	uint32_t status;
-	uint32_t byte_count ;
-} cy_as_gadget_ioctl_get_object ;
+	uint32_t byte_count;
+} cy_as_gadget_ioctl_get_object;
 
 
 typedef struct cy_as_gadget_ioctl_tmtp_status {
@@ -46,7 +46,7 @@ typedef struct cy_as_gadget_ioctl_tmtp_status {
 	cy_as_gadget_ioctl_send_object tmtp_send_complete_data;
 	cy_as_gadget_ioctl_get_object tmtp_get_complete_data;
 	uint32_t t_usec;
-} cy_as_gadget_ioctl_tmtp_status ;
+} cy_as_gadget_ioctl_tmtp_status;
 
 /*Init send object data*/
 typedef struct cy_as_gadget_ioctl_i_s_o_j_d {
@@ -57,7 +57,7 @@ typedef struct cy_as_gadget_ioctl_i_s_o_j_d {
 	uint32_t	num_bytes;
 	/*  in case if more prcise timestamping is done in kernel mode  */
 	uint32_t	t_usec;
-	uint32_t	ret_val ;
+	uint32_t	ret_val;
 	char	*file_name;
 	uint32_t	name_length;
 
@@ -70,12 +70,12 @@ typedef struct cy_as_gadget_ioctl_i_g_o_j_d  {
 	uint16_t *blk_count_p;
 	uint32_t item_count;
 	uint32_t num_bytes;
-	uint32_t tid ;
-	uint32_t ret_val ;
+	uint32_t tid;
+	uint32_t ret_val;
 	char *file_name;
 	uint32_t name_length;
 
-} cy_as_gadget_ioctl_i_g_o_j_d ;
+} cy_as_gadget_ioctl_i_g_o_j_d;
 
 typedef struct cy_as_gadget_ioctl_cancel {
 	uint32_t ret_val;

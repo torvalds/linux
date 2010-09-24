@@ -300,7 +300,7 @@ typedef enum cy_as_storage_event {
 	 * percieves an interrrupt from an SDIO card */
 	cy_as_sdio_interrupt
 
-} cy_as_storage_event ;
+} cy_as_storage_event;
 
 /* Summary
    This type gives the type of the operation in a storage
@@ -322,7 +322,7 @@ typedef enum cy_as_oper_type {
 	cy_as_op_read,
 	/* A data write operation */
 	cy_as_op_write
-} cy_as_oper_type ;
+} cy_as_oper_type;
 
 /* Summary
    This data structure describes a specific type of media
@@ -337,22 +337,22 @@ typedef enum cy_as_oper_type {
 */
 typedef struct cy_as_device_desc {
 	/* Type of device */
-	cy_as_media_type   type ;
+	cy_as_media_type   type;
 	/* Is the device removable */
-	cy_bool		removable ;
+	cy_bool		removable;
 	/* Is the device writeable */
-	cy_bool		writeable ;
+	cy_bool		writeable;
 	/* Basic block size for device */
-	uint16_t		block_size ;
+	uint16_t		block_size;
 	/* Number of LUNs on the device */
-	uint32_t		number_units ;
+	uint32_t		number_units;
 	/* Is the device password locked */
-	cy_bool		locked ;
+	cy_bool		locked;
 	 /* Size in bytes of an Erase Unit. Block erase operation
 	is only supported for SD storage, and the erase_unit_size
 	is invalid for all other kinds of storage. */
-	uint32_t		erase_unit_size ;
-} cy_as_device_desc ;
+	uint32_t		erase_unit_size;
+} cy_as_device_desc;
 
 /* Summary
    This data structure describes a specific unit on a
@@ -368,14 +368,14 @@ typedef struct cy_as_device_desc {
 */
 typedef struct cy_as_unit_desc {
 	/* Type of device */
-	cy_as_media_type type ;
+	cy_as_media_type type;
 	/* Basic block size for device */
-	uint16_t block_size ;
+	uint16_t block_size;
 	/* Physical start block for LUN */
-	uint32_t start_block ;
+	uint32_t start_block;
 	/* Number of blocks in the LUN */
-	uint32_t unit_size ;
-} cy_as_unit_desc ;
+	uint32_t unit_size;
+} cy_as_unit_desc;
 
 /* Summary
    This function type defines a callback to be called after an
@@ -404,7 +404,7 @@ typedef void (*cy_as_storage_callback)(
 	cy_as_oper_type op,
 	/* The error status */
 	cy_as_return_status_t status
-	) ;
+	);
 
 /* Summary
    This function type defines a callback to be called in the
@@ -436,7 +436,7 @@ typedef void (*cy_as_storage_event_callback)(
 	cy_as_storage_event evtype,
 	/* Event related data */
 	void *evdata
-	) ;
+	);
 
 /* Summary
    This function type defines a callback to be called after
@@ -468,7 +468,7 @@ typedef void (*cy_as_sdio_callback)(
 	cy_as_oper_type op,
 	/* The status of the operation */
 	cy_as_return_status_t status
-	) ;
+	);
 
 /* Summary
    Enumeration of SD/MMC card registers that can be read
@@ -486,7 +486,7 @@ typedef enum cy_as_sd_card_reg_type {
 	cy_as_sd_reg_OCR = 0,
 	cy_as_sd_reg_CID,
 	cy_as_sd_reg_CSD
-} cy_as_sd_card_reg_type ;
+} cy_as_sd_card_reg_type;
 
 /* Summary
    Struct encapsulating parameters and return values for a
@@ -501,12 +501,12 @@ typedef enum cy_as_sd_card_reg_type {
  */
 typedef struct cy_as_storage_query_device_data {
 	/* The bus with the device to query */
-	cy_as_bus_number_t	bus ;
+	cy_as_bus_number_t	bus;
 	/* The logical device number to query */
-	uint32_t		device ;
+	uint32_t		device;
 	/* The return value for the device descriptor */
-	cy_as_device_desc	 desc_p ;
-} cy_as_storage_query_device_data ;
+	cy_as_device_desc	 desc_p;
+} cy_as_storage_query_device_data;
 
 
 /* Summary
@@ -522,14 +522,14 @@ typedef struct cy_as_storage_query_device_data {
  */
 typedef struct cy_as_storage_query_unit_data {
 	/* The bus with the device to query */
-	cy_as_bus_number_t	bus ;
+	cy_as_bus_number_t	bus;
 	/* The logical device number to query */
-	uint32_t			device ;
+	uint32_t			device;
 	/* The unit to query on the device */
-	uint32_t			unit ;
+	uint32_t			unit;
 	/* The return value for the unit descriptor */
-	cy_as_unit_desc	 desc_p ;
-} cy_as_storage_query_unit_data ;
+	cy_as_unit_desc	 desc_p;
+} cy_as_storage_query_unit_data;
 
 /* Summary
    Struct encapsulating the input parameter and return
@@ -548,7 +548,7 @@ typedef struct cy_as_storage_sd_reg_read_data {
 	uint8_t *buf_p;
 	/* Length of data to be copied in bytes. */
 	uint8_t  length;
-} cy_as_storage_sd_reg_read_data ;
+} cy_as_storage_sd_reg_read_data;
 
 /* Summary
    Controls which pins are used for card detection
@@ -564,7 +564,7 @@ typedef struct cy_as_storage_sd_reg_read_data {
 typedef enum cy_as_storage_card_detect {
 	cy_as_storage_detect_GPIO,
 	cy_as_storage_detect_SDAT_3
-} cy_as_storage_card_detect ;
+} cy_as_storage_card_detect;
 
 #ifndef __doxygen__
 #define cy_as_storage_detect_GPIO_0 cy_as_storage_detect_GPIO
@@ -601,7 +601,7 @@ typedef struct cy_as_m_s_c_progress_data {
 	uint32_t wr_count;
 	/* Number of sectors read since the last event. */
 	uint32_t rd_count;
-} cy_as_m_s_c_progress_data ;
+} cy_as_m_s_c_progress_data;
 
 /* Summary
 Flag to set Direct Write operation to read back from the
@@ -849,7 +849,7 @@ cy_as_storage_start(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback */
 	uint32_t		client
-	) ;
+	);
 
 /* Summary
    This function stops the West Bridge storage module.
@@ -900,7 +900,7 @@ cy_as_storage_stop(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback */
 	uint32_t		client
-	) ;
+	);
 
 /* Summary
    This function is used to register a callback function
@@ -947,7 +947,7 @@ cy_as_storage_register_callback(
 	cy_as_device_handle			handle,
 	/* The callback function to call for async storage events */
 	cy_as_storage_event_callback	callback
-	) ;
+	);
 
 /* Summary
    This function claims a given media type.
@@ -1007,7 +1007,7 @@ cy_as_storage_claim(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback */
 	uint32_t		client
-	) ;
+	);
 
 /* Summary
    This function releases a given media type.
@@ -1060,7 +1060,7 @@ cy_as_storage_release(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback */
 	uint32_t		client
-	) ;
+	);
 
 /* Summary
    This function information about the number of devices present
@@ -1113,7 +1113,7 @@ cy_as_storage_query_bus(
 	cy_as_function_callback	 cb,
 	/* Client data to be passed to the callback */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function information about the number of devices
@@ -1167,7 +1167,7 @@ cy_as_storage_query_media(
 	cy_as_function_callback	 cb,
 	/* Client data to be passed to the callback */
 	uint32_t		client
-	) ;
+	);
 
 /* Summary
    This function returns information about a given device
@@ -1224,7 +1224,7 @@ cy_as_storage_query_device(
 	cy_as_function_callback		cb,
 	 /* Client data to be passed to the callback */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function returns information about a given unit on a
@@ -1276,7 +1276,7 @@ cy_as_storage_query_unit(
 	cy_as_function_callback		cb,
 	/* Client data to be passed to the callback */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function enables/disables the handling of SD/MMC card
@@ -1332,7 +1332,7 @@ cy_as_storage_device_control(
 	cy_as_function_callback	 cb,
 	/* Client data to be passed to the callback */
 	uint32_t		client
-		) ;
+		);
 
 /* Summary
    This function reads one or more blocks of data from
@@ -1407,7 +1407,7 @@ cy_as_storage_read(
 	void *data_p,
 	/* The number of blocks to be read */
 	uint16_t		num_blocks
-	) ;
+	);
 
 /* Summary
    This function asynchronously reads one or more blocks of data
@@ -1490,7 +1490,7 @@ cy_as_storage_read_async(
 	/* The function to call when the read is complete
 	or an error occurs */
 	cy_as_storage_callback		callback
-	) ;
+	);
 
 /* Summary
    This function writes one or more blocks of data
@@ -1564,7 +1564,7 @@ cy_as_storage_write(
 	void *data_p,
 	/* The number of blocks to be written */
 	uint16_t num_blocks
-	) ;
+	);
 
 /* Summary
    This function asynchronously writes one or more blocks
@@ -1644,7 +1644,7 @@ cy_as_storage_write_async(
 	/* The function to call when the write is complete
 		or an error occurs */
 	cy_as_storage_callback	callback
-	) ;
+	);
 
 /* Summary
    This function aborts any outstanding asynchronous operation
@@ -1681,7 +1681,7 @@ EXTERN cy_as_return_status_t
 cy_as_storage_cancel_async(
 	/* Handle to the device with outstanding async request */
 	cy_as_device_handle		handle
-	) ;
+	);
 
 /* Summary
    This function is used to read the content of SD registers
@@ -1732,7 +1732,7 @@ cy_as_storage_sd_register_read(
 	cy_as_function_callback		cb,
 	/* Call context to send to the cb function. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    Creates a partition starting at the given block and using the
@@ -1892,7 +1892,7 @@ cy_as_storage_get_transfer_amount(
 	cy_as_function_callback cb,
 	/* Client context to pass to the callback */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    Performs a Sector Erase on an attached SD Card
@@ -1949,7 +1949,7 @@ cy_as_storage_erase(
 	cy_as_function_callback cb,
 	/* Client context to pass to the callback */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function is used to read a Tuple from the SDIO CIS area.

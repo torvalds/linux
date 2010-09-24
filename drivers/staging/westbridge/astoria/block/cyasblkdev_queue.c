@@ -98,7 +98,7 @@ static int cyasblkdev_prep_request(
 	if (req->cmd_type != REQ_TYPE_FS && !(req->cmd_flags & REQ_DISCARD)) {
 		#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message("%s:%x bad request received\n",
-			__func__, current->pid) ;
+			__func__, current->pid);
 		#endif
 
 		blk_dump_rq_flags(req, "cyasblkdev bad request");
@@ -136,7 +136,7 @@ static int cyasblkdev_queue_thread(void *d)
 
 	#ifndef WESTBRIDGE_NDEBUG
 	cy_as_hal_print_message(
-		"%s:%x started, bq:%p, q:%p\n", __func__, qth_pid, bq, q) ;
+		"%s:%x started, bq:%p, q:%p\n", __func__, qth_pid, bq, q);
 	#endif
 
 	do {
@@ -249,7 +249,7 @@ static int cyasblkdev_queue_thread(void *d)
 	complete_and_exit(&bq->thread_complete, 0);
 
 	#ifndef WESTBRIDGE_NDEBUG
-	cy_as_hal_print_message("%s: is finished\n", __func__) ;
+	cy_as_hal_print_message("%s: is finished\n", __func__);
 	#endif
 
 	return 0;

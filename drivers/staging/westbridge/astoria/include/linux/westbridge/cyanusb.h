@@ -33,9 +33,9 @@
 
 typedef cy_as_usb_inquiry_data_dep cy_an_usb_inquiry_data;
 typedef cy_as_usb_unknown_command_data_dep \
-	cy_an_usb_unknown_command_data ;
-typedef cy_as_usb_start_stop_data_dep cy_an_usb_start_stop_data ;
-typedef cy_as_m_s_c_progress_data cy_an_m_s_c_progress_data ;
+	cy_an_usb_unknown_command_data;
+typedef cy_as_usb_start_stop_data_dep cy_an_usb_start_stop_data;
+typedef cy_as_m_s_c_progress_data cy_an_m_s_c_progress_data;
 
 #define cy_an_usb_nand_enum cy_as_usb_nand_enum
 #define cy_an_usb_sd_enum cy_as_usb_sd_enum
@@ -50,28 +50,28 @@ typedef cy_as_usb_mass_storage_enum cy_an_usb_mass_storage_enum;
 #define cy_an_usb_desc_h_s_configuration \
 	cy_as_usb_desc_h_s_configuration
 #define cy_an_usb_desc_string cy_as_usb_desc_string
-typedef cy_as_usb_desc_type cy_an_usb_desc_type ;
+typedef cy_as_usb_desc_type cy_an_usb_desc_type;
 
 #define cy_an_usb_in	cy_as_usb_in
 #define cy_an_usb_out	cy_as_usb_out
 #define cy_an_usb_in_out	cy_as_usb_in_out
-typedef cy_as_usb_end_point_dir cy_an_usb_end_point_dir ;
+typedef cy_as_usb_end_point_dir cy_an_usb_end_point_dir;
 
 
 #define cy_an_usb_control cy_as_usb_control
 #define cy_an_usb_iso cy_as_usb_iso
 #define cy_an_usb_bulk cy_as_usb_bulk
 #define cy_an_usb_int cy_as_usb_int
-typedef cy_as_usb_end_point_type cy_an_usb_end_point_type ;
+typedef cy_as_usb_end_point_type cy_an_usb_end_point_type;
 
 
-typedef cy_as_usb_enum_control_dep cy_an_usb_enum_control ;
-typedef cy_as_usb_end_point_config cy_an_usb_end_point_config ;
+typedef cy_as_usb_enum_control_dep cy_an_usb_enum_control;
+typedef cy_as_usb_end_point_config cy_an_usb_end_point_config;
 
 #define cy_an_usb_m_s_unit0	cy_as_usb_m_s_unit0
 #define cy_an_usb_m_s_unit1	cy_as_usb_m_s_unit1
 #define cy_an_usb_m_s_both cy_as_usb_m_s_both
-typedef cy_as_usb_m_s_type_t cy_an_usb_m_s_type_t ;
+typedef cy_as_usb_m_s_type_t cy_an_usb_m_s_type_t;
 
 #define cy_an_event_usb_suspend	cy_as_event_usb_suspend
 #define cy_an_event_usb_resume cy_as_event_usb_resume
@@ -87,7 +87,7 @@ typedef cy_as_usb_m_s_type_t cy_an_usb_m_s_type_t ;
 #define cy_an_event_usb_m_s_c_progress cy_as_event_usb_m_s_c_progress
 typedef cy_as_usb_event cy_an_usb_event;
 
-typedef cy_as_usb_event_callback_dep cy_an_usb_event_callback ;
+typedef cy_as_usb_event_callback_dep cy_an_usb_event_callback;
 
 typedef cy_as_usb_io_callback cy_an_usb_io_callback;
 typedef cy_as_usb_function_callback cy_an_usb_function_callback;
@@ -98,7 +98,7 @@ typedef cy_as_usb_function_callback cy_an_usb_function_callback;
 extern cy_an_return_status_t
 cy_an_usb_start(
 	cy_an_device_handle		handle
-	) ;
+	);
 #define cy_an_usb_start(handle) \
 	cy_as_usb_start((cy_as_device_handle)(handle), 0, 0)
 
@@ -108,7 +108,7 @@ cy_an_usb_start_e_x(
 	cy_an_device_handle		handle,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_start_e_x(h, cb, client) \
 	cy_as_usb_start((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -117,7 +117,7 @@ cy_an_usb_start_e_x(
 extern cy_an_return_status_t
 cy_an_usb_stop(
 	cy_an_device_handle		handle
-	) ;
+	);
 #define cy_an_usb_stop(handle) \
 	cy_as_usb_stop((cy_as_device_handle)(handle), 0, 0)
 
@@ -127,7 +127,7 @@ cy_an_usb_stop_e_x(
 	cy_an_device_handle		handle,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_stop_e_x(h, cb, client) \
 	cy_as_usb_stop((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -137,7 +137,7 @@ EXTERN cy_an_return_status_t
 cy_an_usb_register_callback(
 	cy_an_device_handle		handle,
 	cy_an_usb_event_callback		callback
-	) ;
+	);
 #define cy_an_usb_register_callback(h, cb) \
 	cy_as_usb_register_callback_dep((cy_as_device_handle)(h), \
 	(cy_as_usb_event_callback_dep)(cb))
@@ -146,7 +146,7 @@ cy_an_usb_register_callback(
 EXTERN cy_an_return_status_t
 cy_an_usb_connect(
 	cy_an_device_handle		handle
-	) ;
+	);
 #define cy_an_usb_connect(handle) \
 	cy_as_usb_connect((cy_as_device_handle)(handle), 0, 0)
 
@@ -156,7 +156,7 @@ cy_an_usb_connect_e_x(
 	cy_an_device_handle		handle,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_connect_e_x(h, cb, client)		\
 	cy_as_usb_connect((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -165,7 +165,7 @@ cy_an_usb_connect_e_x(
 EXTERN cy_an_return_status_t
 cy_an_usb_disconnect(
 	cy_an_device_handle		handle
-	) ;
+	);
 #define cy_an_usb_disconnect(handle) \
 	cy_as_usb_disconnect((cy_as_device_handle)(handle), 0, 0)
 
@@ -175,7 +175,7 @@ cy_an_usb_disconnect_e_x(
 	cy_an_device_handle		handle,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_disconnect_e_x(h, cb, client)	\
 	cy_as_usb_disconnect((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -185,7 +185,7 @@ EXTERN cy_an_return_status_t
 cy_an_usb_set_enum_config(
 	cy_an_device_handle	handle,
 	cy_an_usb_enum_control *config_p
-	) ;
+	);
 #define cy_an_usb_set_enum_config(handle, config_p) \
 	cy_as_usb_set_enum_config_dep((cy_as_device_handle)(handle), \
 	(cy_as_usb_enum_control_dep *)(config_p), 0, 0)
@@ -197,7 +197,7 @@ cy_an_usb_set_enum_config_e_x(
 	cy_an_usb_enum_control *config_p,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_set_enum_config_e_x(h, config_p, cb, client) \
 	cy_as_usb_set_enum_config_dep((cy_as_device_handle)(h), \
 	(cy_as_usb_enum_control_dep *)(config_p),	 \
@@ -208,7 +208,7 @@ EXTERN cy_an_return_status_t
 cy_an_usb_get_enum_config(
 	cy_an_device_handle		handle,
 	cy_an_usb_enum_control *config_p
-	) ;
+	);
 #define cy_an_usb_get_enum_config(handle, config_p) \
 	cy_as_usb_get_enum_config_dep((cy_as_device_handle)(handle), \
 	(cy_as_usb_enum_control_dep *)(config_p), 0, 0)
@@ -220,7 +220,7 @@ cy_an_usb_get_enum_config_e_x(
 	cy_an_usb_enum_control *config_p,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_get_enum_config_e_x(h, config_p, cb, client) \
 	cy_as_usb_get_enum_config_dep((cy_as_device_handle)(h), \
 	(cy_as_usb_enum_control_dep *)(config_p),	 \
@@ -234,7 +234,7 @@ cy_an_usb_set_descriptor(
 	uint8_t				index,
 	void *desc_p,
 	uint16_t			length
-	) ;
+	);
 #define cy_an_usb_set_descriptor(handle, type, index, desc_p, length) \
 	cy_as_usb_set_descriptor((cy_as_device_handle)(handle), \
 	(cy_as_usb_desc_type)(type), (index), (desc_p), (length), 0, 0)
@@ -249,7 +249,7 @@ cy_an_usb_set_descriptor_e_x(
 	uint16_t			length,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_set_descriptor_e_x\
 	(h, type, index, desc_p, length, cb, client) \
 	cy_as_usb_set_descriptor((cy_as_device_handle)(h), \
@@ -262,7 +262,7 @@ cy_an_usb_clear_descriptors(
 	cy_an_device_handle		handle,
 		cy_an_function_callback			cb,
 		uint32_t						client
-	) ;
+	);
 #define cy_an_usb_clear_descriptors(h, cb, client) \
 	cy_as_usb_clear_descriptors((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -275,12 +275,12 @@ cy_an_usb_get_descriptor(
 	uint8_t			index,
 	void *desc_p,
 	uint32_t *length_p
-	) ;
+	);
 #define cy_an_usb_get_descriptor(h, type, index, desc_p, length_p)	\
 	cy_as_usb_get_descriptor_dep((cy_as_device_handle)(h), \
 	(cy_as_usb_desc_type)(type), (index), (desc_p), (length_p))
 
-typedef cy_as_get_descriptor_data cy_an_get_descriptor_data ;
+typedef cy_as_get_descriptor_data cy_an_get_descriptor_data;
 
 /* Async version of get descriptor */
 extern cy_an_return_status_t
@@ -291,7 +291,7 @@ cy_an_usb_get_descriptor_e_x(
 	cy_an_get_descriptor_data *data,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_get_descriptor_e_x\
 	(h, type, index, data, cb, client) \
 	cy_as_usb_get_descriptor((cy_as_device_handle)(h), \
@@ -303,7 +303,7 @@ EXTERN cy_an_return_status_t
 cy_an_usb_set_physical_configuration(
 	cy_an_device_handle		handle,
 	uint8_t			config
-	) ;
+	);
 #define cy_an_usb_set_physical_configuration(h, config)	\
 	cy_as_usb_set_physical_configuration\
 	((cy_as_device_handle)(h), (config))
@@ -313,7 +313,7 @@ cy_an_usb_set_end_point_config(
 	cy_an_device_handle			handle,
 	cy_an_end_point_number_t		ep,
 	cy_an_usb_end_point_config *config_p
-	) ;
+	);
 #define cy_an_usb_set_end_point_config(h, ep, config_p)	\
 	cy_as_usb_set_end_point_config((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -324,7 +324,7 @@ cy_an_usb_get_end_point_config(
 	cy_an_device_handle		handle,
 	cy_an_end_point_number_t		ep,
 	cy_an_usb_end_point_config *config_p
-	) ;
+	);
 #define cy_an_usb_get_end_point_config(h, ep, config_p)	\
 	cy_as_usb_get_end_point_config((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -334,7 +334,7 @@ cy_an_usb_get_end_point_config(
 EXTERN cy_an_return_status_t
 cy_an_usb_commit_config(
 	cy_an_device_handle		handle
-	) ;
+	);
 #define cy_an_usb_commit_config(handle) \
 	cy_as_usb_commit_config((cy_as_device_handle)(handle), 0, 0)
 
@@ -344,7 +344,7 @@ cy_an_usb_commit_config_e_x(
 	cy_an_device_handle		handle,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_commit_config_e_x(h, cb, client)	\
 	cy_as_usb_commit_config((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -357,7 +357,7 @@ cy_an_usb_read_data(
 	uint32_t			dsize,
 	uint32_t *dataread,
 	void *data
-	) ;
+	);
 #define cy_an_usb_read_data(h, ep, pkt, dsize, dataread, data_p) \
 	cy_as_usb_read_data((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), (pkt), (dsize), \
@@ -371,7 +371,7 @@ cy_an_usb_read_data_async(
 	uint32_t			dsize,
 	void *data,
 	cy_an_usb_io_callback		callback
-	) ;
+	);
 #define cy_an_usb_read_data_async(h, ep, pkt, dsize, data_p, cb) \
 	cy_as_usb_read_data_async((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), (pkt), (dsize), (data_p), \
@@ -383,7 +383,7 @@ cy_an_usb_write_data(
 	cy_an_end_point_number_t		ep,
 	uint32_t			dsize,
 	void *data
-	) ;
+	);
 #define cy_an_usb_write_data(h, ep, dsize, data_p) \
 	cy_as_usb_write_data((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), (dsize), (data_p))
@@ -396,7 +396,7 @@ cy_an_usb_write_data_async(
 	void *data,
 	cy_bool				spacket,
 	cy_an_usb_io_callback		callback
-	) ;
+	);
 #define cy_an_usb_write_data_async(h, ep, dsize, data_p, spacket, cb) \
 	cy_as_usb_write_data_async((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), (dsize), (data_p), (spacket), \
@@ -406,7 +406,7 @@ EXTERN cy_an_return_status_t
 cy_an_usb_cancel_async(
 	cy_an_device_handle		handle,
 	cy_an_end_point_number_t		ep
-	) ;
+	);
 #define cy_an_usb_cancel_async(h, ep) \
 	cy_as_usb_cancel_async((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep))
@@ -418,7 +418,7 @@ cy_an_usb_set_stall(
 	cy_an_end_point_number_t		ep,
 	cy_an_usb_function_callback		cb,
 	uint32_t			client
-) ;
+);
 #define cy_an_usb_set_stall(h, ep, cb, client)	\
 	cy_as_usb_set_stall_dep((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -431,7 +431,7 @@ cy_an_usb_set_stall_e_x(
 	cy_an_end_point_number_t		ep,
 	cy_an_function_callback		cb,
 	uint32_t			client
-) ;
+);
 #define cy_an_usb_set_stall_e_x(h, ep, cb, client)	\
 	cy_as_usb_set_stall((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -444,7 +444,7 @@ cy_an_usb_clear_stall(
 	cy_an_end_point_number_t		ep,
 	cy_an_usb_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_clear_stall(h, ep, cb, client)	\
 	cy_as_usb_clear_stall_dep((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -457,7 +457,7 @@ cy_an_usb_clear_stall_e_x(
 	cy_an_end_point_number_t		ep,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_clear_stall_e_x(h, ep, cb, client) \
 	cy_as_usb_clear_stall((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -469,7 +469,7 @@ cy_an_usb_get_stall(
 	cy_an_device_handle		handle,
 	cy_an_end_point_number_t		ep,
 	cy_bool *stall_p
-	) ;
+	);
 #define cy_an_usb_get_stall(handle, ep, stall_p) \
 	cy_as_usb_get_stall((cy_as_device_handle)(handle), \
 	(cy_as_end_point_number_t)(ep), (stall_p), 0, 0)
@@ -482,7 +482,7 @@ cy_an_usb_get_stall_e_x(
 	cy_bool *stall_p,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_get_stall_e_x(h, ep, stall_p, cb, client)	\
 	cy_as_usb_get_stall((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), (stall_p), \
@@ -495,7 +495,7 @@ cy_an_usb_set_nak(
 	cy_an_end_point_number_t		ep,
 	cy_an_usb_function_callback		cb,
 	uint32_t			client
-) ;
+);
 
 #define cy_an_usb_set_nak(h, ep, cb, client) \
 	cy_as_usb_set_nak_dep((cy_as_device_handle)(h), \
@@ -509,7 +509,7 @@ cy_an_usb_set_nak_e_x(
 	cy_an_end_point_number_t		ep,
 	cy_an_function_callback		cb,
 	uint32_t			client
-) ;
+);
 #define cy_an_usb_set_nak_e_x(h, ep, cb, client) \
 	cy_as_usb_set_nak((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -522,7 +522,7 @@ cy_an_usb_clear_nak(
 	cy_an_end_point_number_t		ep,
 	cy_an_usb_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_clear_nak(h, ep, cb, client) \
 	cy_as_usb_clear_nak_dep((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -535,7 +535,7 @@ cy_an_usb_clear_nak_e_x(
 	cy_an_end_point_number_t		ep,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_usb_clear_nak_e_x(h, ep, cb, client) \
 	cy_as_usb_clear_nak((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), \
@@ -547,7 +547,7 @@ cy_an_usb_get_nak(
 	cy_an_device_handle			handle,
 	cy_an_end_point_number_t		ep,
 	cy_bool *nak_p
-) ;
+);
 #define cy_an_usb_get_nak(handle, ep, nak_p) \
 	cy_as_usb_get_nak((cy_as_device_handle)(handle), \
 	(cy_as_end_point_number_t)(ep), (nak_p), 0, 0)
@@ -560,7 +560,7 @@ cy_an_usb_get_nak_e_x(
 	cy_bool *nak_p,
 	cy_an_function_callback		cb,
 	uint32_t				client
-) ;
+);
 #define cy_an_usb_get_nak_e_x(h, ep, nak_p, cb, client)	\
 	cy_as_usb_get_nak((cy_as_device_handle)(h), \
 	(cy_as_end_point_number_t)(ep), (nak_p), \
@@ -570,7 +570,7 @@ cy_an_usb_get_nak_e_x(
 EXTERN cy_an_return_status_t
 cy_an_usb_signal_remote_wakeup(
 		cy_an_device_handle			handle
-		) ;
+		);
 #define cy_an_usb_signal_remote_wakeup(handle) \
 	cy_as_usb_signal_remote_wakeup((cy_as_device_handle)(handle), 0, 0)
 
@@ -580,7 +580,7 @@ cy_an_usb_signal_remote_wakeup_e_x(
 		cy_an_device_handle			handle,
 		cy_an_function_callback		cb,
 		uint32_t					client
-		) ;
+		);
 #define cy_an_usb_signal_remote_wakeup_e_x(h, cb, client)	\
 	cy_as_usb_signal_remote_wakeup((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -593,7 +593,7 @@ cy_an_usb_set_m_s_report_threshold(
 		uint32_t					rd_sectors,
 		cy_an_function_callback		cb,
 		uint32_t					client
-		) ;
+		);
 #define cy_an_usb_set_m_s_report_threshold\
 	(h, wr_cnt, rd_cnt, cb, client) \
 	cy_as_usb_set_m_s_report_threshold((cy_as_device_handle)(h), \
@@ -608,7 +608,7 @@ cy_an_usb_select_m_s_partitions(
 		cy_an_usb_m_s_type_t				 type,
 		cy_an_function_callback			cb,
 		uint32_t						client
-		) ;
+		);
 #define cy_an_usb_select_m_s_partitions(h, media, dev, type, cb, client) \
 	cy_as_usb_select_m_s_partitions_dep((cy_as_device_handle)(h), \
 	(cy_as_media_type)(media), (dev),		\

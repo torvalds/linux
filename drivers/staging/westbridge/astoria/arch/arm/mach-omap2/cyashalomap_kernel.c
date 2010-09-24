@@ -135,7 +135,7 @@ typedef enum cy_as_hal_dma_type {
 	cy_as_hal_read,
 	cy_as_hal_write,
 	cy_as_hal_none
-} cy_as_hal_dma_type ;
+} cy_as_hal_dma_type;
 
 
 /*
@@ -146,9 +146,9 @@ typedef enum cy_as_hal_dma_type {
 	((struct scatterlist *) ((sg)->page_link & ~0x03))
 */
 typedef struct cy_as_hal_endpoint_dma {
-	cy_bool buffer_valid ;
-	uint8_t *data_p ;
-	uint32_t size ;
+	cy_bool buffer_valid;
+	uint8_t *data_p;
+	uint32_t size;
 	/*
 	 * sg_list_enabled - if true use, r/w DMA transfers use sg list,
 	 *		FALSE use pointer to a buffer
@@ -162,14 +162,14 @@ typedef struct cy_as_hal_endpoint_dma {
 	 * req_length - total request length
 	 */
 	bool sg_list_enabled;
-	struct scatterlist *sg_p ;
+	struct scatterlist *sg_p;
 	uint16_t dma_xfer_sz;
 	uint32_t seg_xfer_cnt;
 	uint16_t req_xfer_cnt;
 	uint16_t req_length;
-	cy_as_hal_dma_type type ;
-	cy_bool pending ;
-} cy_as_hal_endpoint_dma ;
+	cy_as_hal_dma_type type;
+	cy_bool pending;
+} cy_as_hal_endpoint_dma;
 
 /*
  * The list of OMAP devices (should be one)
@@ -184,7 +184,7 @@ static cy_as_hal_dma_complete_callback callback;
 /*
  * Pending data size for the endpoints
  */
-static cy_as_hal_endpoint_dma end_points[16] ;
+static cy_as_hal_endpoint_dma end_points[16];
 
 /*
  * Forward declaration
@@ -193,7 +193,7 @@ static void cy_handle_d_r_q_interrupt(cy_as_omap_dev_kernel *dev_p);
 
 static uint16_t intr_sequence_num;
 static uint8_t intr__enable;
-spinlock_t int_lock ;
+spinlock_t int_lock;
 
 static u32 iomux_vma;
 static u32 csa_phy;
@@ -201,7 +201,7 @@ static u32 csa_phy;
 /*
  * gpmc I/O registers VMA
  */
-static u32 gpmc_base ;
+static u32 gpmc_base;
 
 /*
  * gpmc data VMA associated with CS4 (ASTORIA CS on GPMC)
@@ -496,8 +496,8 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 				void *dev_id, struct pt_regs *regs)
 {
 	cy_as_omap_dev_kernel *dev_p;
-	uint16_t		  read_val = 0 ;
-	uint16_t		  mask_val = 0 ;
+	uint16_t		  read_val = 0;
+	uint16_t		  mask_val = 0;
 
 	/*
 	* debug stuff, counts number of loops per one intr trigger
@@ -520,7 +520,7 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 	/*
 	 * this one just for debugging
 	 */
-	intr_sequence_num++ ;
+	intr_sequence_num++;
 
 	/*
 	 * astoria device handle
@@ -531,13 +531,13 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 	 * read Astoria intr register
 	 */
 	read_val = cy_as_hal_read_register((cy_as_hal_device_tag)dev_p,
-						CY_AS_MEM_P0_INTR_REG) ;
+						CY_AS_MEM_P0_INTR_REG);
 
 	/*
 	 * save current mask value
 	 */
 	mask_val = cy_as_hal_read_register((cy_as_hal_device_tag)dev_p,
-						CY_AS_MEM_P0_INT_MASK_REG) ;
+						CY_AS_MEM_P0_INT_MASK_REG);
 
 	DBGPRN("<1>HAL__intr__enter:_seq:%d, P0_INTR_REG:%x\n",
 			intr_sequence_num, read_val);
@@ -546,7 +546,7 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 	 * Disable WB interrupt signal generation while we are in ISR
 	 */
 	cy_as_hal_write_register((cy_as_hal_device_tag)dev_p,
-					CY_AS_MEM_P0_INT_MASK_REG, 0x0000) ;
+					CY_AS_MEM_P0_INT_MASK_REG, 0x0000);
 
 	/*
 	* this is a DRQ Interrupt
@@ -559,7 +559,7 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 			 */
 			drq_loop_cnt++;
 
-			cy_handle_d_r_q_interrupt(dev_p) ;
+			cy_handle_d_r_q_interrupt(dev_p);
 
 			/*
 			 * spending to much time in ISR may impact
@@ -577,7 +577,7 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 	}
 
 	if (read_val & sentinel)
-		cy_as_intr_service_interrupt((cy_as_hal_device_tag)dev_p) ;
+		cy_as_intr_service_interrupt((cy_as_hal_device_tag)dev_p);
 
 	DBGPRN("<1>_hal:_intr__exit seq:%d, mask=%4.4x,"
 			"int_pin:%d DRQ_jobs:%d\n",
@@ -590,9 +590,9 @@ static irqreturn_t cy_astoria_int_handler(int irq,
 	 * re-enable WB hw interrupts
 	 */
 	cy_as_hal_write_register((cy_as_hal_device_tag)dev_p,
-					CY_AS_MEM_P0_INT_MASK_REG, mask_val) ;
+					CY_AS_MEM_P0_INT_MASK_REG, mask_val);
 
-	return IRQ_HANDLED ;
+	return IRQ_HANDLED;
 }
 
 static int cy_as_hal_configure_interrupts(void *dev_p)
@@ -827,34 +827,34 @@ void cy_as_hal_omap_hardware_deinit(cy_as_omap_dev_kernel *dev_p)
  */
 int stop_o_m_a_p_kernel(const char *pgm, cy_as_hal_device_tag tag)
 {
-	cy_as_omap_dev_kernel *dev_p = (cy_as_omap_dev_kernel *)tag ;
+	cy_as_omap_dev_kernel *dev_p = (cy_as_omap_dev_kernel *)tag;
 
 	/*
 	 * TODO: Need to disable WB interrupt handlere 1st
 	 */
 	if (0 == dev_p)
-		return 1 ;
+		return 1;
 
 	cy_as_hal_print_message("<1>_stopping OMAP34xx HAL layer object\n");
 	if (dev_p->m_sig != CY_AS_OMAP_KERNEL_HAL_SIG) {
 		cy_as_hal_print_message("<1>%s: %s: bad HAL tag\n",
-								pgm, __func__) ;
-		return 1 ;
+								pgm, __func__);
+		return 1;
 	}
 
 	/*
 	 * disable interrupt
 	 */
 	cy_as_hal_write_register((cy_as_hal_device_tag)dev_p,
-			CY_AS_MEM_P0_INT_MASK_REG, 0x0000) ;
+			CY_AS_MEM_P0_INT_MASK_REG, 0x0000);
 
 #if 0
 	if (dev_p->thread_flag == 0) {
-		dev_p->thread_flag = 1 ;
-		wait_for_completion(&dev_p->thread_complete) ;
+		dev_p->thread_flag = 1;
+		wait_for_completion(&dev_p->thread_complete);
 		cy_as_hal_print_message("cyasomaphal:"
 			"done cleaning thread\n");
-		cy_as_hal_destroy_sleep_channel(&dev_p->thread_sc) ;
+		cy_as_hal_destroy_sleep_channel(&dev_p->thread_sc);
 	}
 #endif
 
@@ -864,9 +864,9 @@ int stop_o_m_a_p_kernel(const char *pgm, cy_as_hal_device_tag tag)
 	 * Rearrange the list
 	 */
 	if (m_omap_list_p == dev_p)
-		m_omap_list_p = dev_p->m_next_p ;
+		m_omap_list_p = dev_p->m_next_p;
 
-	cy_as_hal_free(dev_p) ;
+	cy_as_hal_free(dev_p);
 
 	cy_as_hal_print_message(KERN_INFO"OMAP_kernel_hal stopped\n");
 	return 0;
@@ -874,23 +874,23 @@ int stop_o_m_a_p_kernel(const char *pgm, cy_as_hal_device_tag tag)
 
 int omap_start_intr(cy_as_hal_device_tag tag)
 {
-	cy_as_omap_dev_kernel *dev_p = (cy_as_omap_dev_kernel *)tag ;
-	int ret = 0 ;
+	cy_as_omap_dev_kernel *dev_p = (cy_as_omap_dev_kernel *)tag;
+	int ret = 0;
 	const uint16_t mask = CY_AS_MEM_P0_INTR_REG_DRQINT |
-				CY_AS_MEM_P0_INTR_REG_MBINT ;
+				CY_AS_MEM_P0_INTR_REG_MBINT;
 
 	/*
 	 * register for interrupts
 	 */
-	ret = cy_as_hal_configure_interrupts(dev_p) ;
+	ret = cy_as_hal_configure_interrupts(dev_p);
 
 	/*
 	 * enable only MBox & DRQ interrupts for now
 	 */
 	cy_as_hal_write_register((cy_as_hal_device_tag)dev_p,
-				CY_AS_MEM_P0_INT_MASK_REG, mask) ;
+				CY_AS_MEM_P0_INT_MASK_REG, mask);
 
-	return 1 ;
+	return 1;
 }
 
 /*
@@ -1175,7 +1175,7 @@ static void p_nand_lbd_read(u16 col_addr, u32 row_addr, u16 count, void *buff)
 	ptr32 = buff;
 
 	do {
-		pfe_status = IORD32(GPMC_VMA(GPMC_PREFETCH_STATUS)) ;
+		pfe_status = IORD32(GPMC_VMA(GPMC_PREFETCH_STATUS));
 		rd_cnt =  pfe_status >> (24+2);
 
 		while (rd_cnt--)
@@ -1481,14 +1481,14 @@ void cy_as_hal_write_register(
  */
 uint16_t cy_as_hal_read_register(cy_as_hal_device_tag tag, uint16_t addr)
 {
-	uint16_t data  = 0 ;
+	uint16_t data  = 0;
 
 	/*
 	 * READ ASTORIA REGISTER USING CASDO
 	 */
 	data = ast_p_nand_casdo_read((u8)addr);
 
-	return data ;
+	return data;
 }
 
 /*
@@ -1587,7 +1587,7 @@ static inline bool prep_for_next_xfer(cy_as_hal_device_tag tag, uint8_t ep)
 static void cy_service_e_p_dma_read_request(
 			cy_as_omap_dev_kernel *dev_p, uint8_t ep)
 {
-	cy_as_hal_device_tag tag = (cy_as_hal_device_tag)dev_p ;
+	cy_as_hal_device_tag tag = (cy_as_hal_device_tag)dev_p;
 	uint16_t  v, size;
 	void	*dptr;
 	uint16_t col_addr = 0x0000;
@@ -1628,7 +1628,7 @@ static void cy_service_e_p_dma_read_request(
 	/*
 	 * clear DMAVALID bit indicating that the data has been read
 	 */
-	cy_as_hal_write_register(tag, ep_dma_reg, 0) ;
+	cy_as_hal_write_register(tag, ep_dma_reg, 0);
 
 	end_points[ep].seg_xfer_cnt += size;
 	end_points[ep].req_xfer_cnt += size;
@@ -1646,12 +1646,12 @@ static void cy_service_e_p_dma_read_request(
 		 * data we are going to xfer next
 		 */
 		v = end_points[ep].dma_xfer_sz/*HAL_DMA_PKT_SZ*/ |
-				CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL ;
+				CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL;
 		cy_as_hal_write_register(tag, ep_dma_reg, v);
 	} else {
-		end_points[ep].pending	  = cy_false ;
-		end_points[ep].type		 = cy_as_hal_none ;
-		end_points[ep].buffer_valid = cy_false ;
+		end_points[ep].pending	  = cy_false;
+		end_points[ep].type		 = cy_as_hal_none;
+		end_points[ep].buffer_valid = cy_false;
 
 		/*
 		 * notify the API that we are done with rq on this EP
@@ -1679,13 +1679,13 @@ static void cy_service_e_p_dma_write_request(
 	uint32_t row_addr = CYAS_DEV_CALC_EP_ADDR(ep);
 	void	*dptr;
 
-	cy_as_hal_device_tag tag = (cy_as_hal_device_tag)dev_p ;
+	cy_as_hal_device_tag tag = (cy_as_hal_device_tag)dev_p;
 	/*
 	 * note: size here its the size of the dma transfer could be
 	 * anything > 0 && < P_PORT packet size
 	 */
-	size = end_points[ep].dma_xfer_sz ;
-	dptr = end_points[ep].data_p ;
+	size = end_points[ep].dma_xfer_sz;
+	dptr = end_points[ep].data_p;
 
 	/*
 	 * perform the soft DMA transfer, soft in this case
@@ -1708,8 +1708,8 @@ static void cy_service_e_p_dma_write_request(
 	 * or used internally.
 	 */
 
-	addr = CY_AS_MEM_P0_EP2_DMA_REG + ep - 2 ;
-	cy_as_hal_write_register(tag, addr, size) ;
+	addr = CY_AS_MEM_P0_EP2_DMA_REG + ep - 2;
+	cy_as_hal_write_register(tag, addr, size);
 
 	/*
 	 * finally, tell the USB subsystem that the
@@ -1721,13 +1721,13 @@ static void cy_service_e_p_dma_write_request(
 		 * There is more data to go. Re-init the WestBridge DMA side
 		 */
 		v = end_points[ep].dma_xfer_sz |
-			CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL ;
-		cy_as_hal_write_register(tag, addr, v) ;
+			CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL;
+		cy_as_hal_write_register(tag, addr, v);
 	} else {
 
-	   end_points[ep].pending	  = cy_false ;
-	   end_points[ep].type		 = cy_as_hal_none ;
-	   end_points[ep].buffer_valid = cy_false ;
+	   end_points[ep].pending	  = cy_false;
+	   end_points[ep].type		 = cy_as_hal_none;
+	   end_points[ep].buffer_valid = cy_false;
 
 		/*
 		 * notify the API that we are done with rq on this EP
@@ -1749,17 +1749,17 @@ static void cy_service_e_p_dma_write_request(
  */
 static void cy_handle_d_r_q_interrupt(cy_as_omap_dev_kernel *dev_p)
 {
-	uint16_t v ;
-	static uint8_t service_ep = 2 ;
+	uint16_t v;
+	static uint8_t service_ep = 2;
 
 	/*
 	 * We've got DRQ INT, read DRQ STATUS Register */
 	v = cy_as_hal_read_register((cy_as_hal_device_tag)dev_p,
-			CY_AS_MEM_P0_DRQ) ;
+			CY_AS_MEM_P0_DRQ);
 
 	if (v == 0) {
 #ifndef WESTBRIDGE_NDEBUG
-		cy_as_hal_print_message("stray DRQ interrupt detected\n") ;
+		cy_as_hal_print_message("stray DRQ interrupt detected\n");
 #endif
 		return;
 	}
@@ -1773,9 +1773,9 @@ static void cy_handle_d_r_q_interrupt(cy_as_omap_dev_kernel *dev_p)
 	while ((v & (1 << service_ep)) == 0) {
 
 		if (service_ep == 15)
-			service_ep = 2 ;
+			service_ep = 2;
 		else
-			service_ep++ ;
+			service_ep++;
 	}
 
 	if (end_points[service_ep].type == cy_as_hal_write) {
@@ -1783,19 +1783,19 @@ static void cy_handle_d_r_q_interrupt(cy_as_omap_dev_kernel *dev_p)
 		 * handle DMA WRITE REQUEST: app_cpu will
 		 * write data into astoria EP buffer
 		 */
-		cy_service_e_p_dma_write_request(dev_p, service_ep) ;
+		cy_service_e_p_dma_write_request(dev_p, service_ep);
 	} else if (end_points[service_ep].type == cy_as_hal_read) {
 		/*
 		 * handle DMA READ REQUEST: cpu will
 		 * read EP buffer from Astoria
 		 */
-		cy_service_e_p_dma_read_request(dev_p, service_ep) ;
+		cy_service_e_p_dma_read_request(dev_p, service_ep);
 	}
 #ifndef WESTBRIDGE_NDEBUG
 	else
 		cy_as_hal_print_message("cyashalomap:interrupt,"
 					" w/o pending DMA job,"
-					"-check DRQ_MASK logic\n") ;
+					"-check DRQ_MASK logic\n");
 #endif
 
 	/*
@@ -1804,9 +1804,9 @@ static void cy_handle_d_r_q_interrupt(cy_as_omap_dev_kernel *dev_p)
 	 */
 	if (end_points[service_ep].type == cy_as_hal_none) {
 		if (service_ep == 15)
-			service_ep = 2 ;
+			service_ep = 2;
 		else
-			service_ep++ ;
+			service_ep++;
 	}
 
 }
@@ -1818,7 +1818,7 @@ void cy_as_hal_dma_cancel_request(cy_as_hal_device_tag tag, uint8_t ep)
 		cy_as_hal_write_register(tag,
 				CY_AS_MEM_P0_EP2_DMA_REG + ep - 2, 0);
 
-	end_points[ep].buffer_valid = cy_false ;
+	end_points[ep].buffer_valid = cy_false;
 	end_points[ep].type = cy_as_hal_none;
 }
 
@@ -1845,7 +1845,7 @@ void cy_as_hal_dma_setup_write(cy_as_hal_device_tag tag,
 						uint8_t ep, void *buf,
 						uint32_t size, uint16_t maxsize)
 {
-	uint32_t addr = 0 ;
+	uint32_t addr = 0;
 	uint16_t v  = 0;
 
 	/*
@@ -1853,15 +1853,15 @@ void cy_as_hal_dma_setup_write(cy_as_hal_device_tag tag,
 	 * "maxsize" - is the P port fragment size
 	 * No EP0 or EP1 traffic should get here
 	 */
-	cy_as_hal_assert(ep != 0 && ep != 1) ;
+	cy_as_hal_assert(ep != 0 && ep != 1);
 
 	/*
 	 * If this asserts, we have an ordering problem.  Another DMA request
 	 * is coming down before the previous one has completed.
 	 */
-	cy_as_hal_assert(end_points[ep].buffer_valid == cy_false) ;
-	end_points[ep].buffer_valid = cy_true ;
-	end_points[ep].type = cy_as_hal_write ;
+	cy_as_hal_assert(end_points[ep].buffer_valid == cy_false);
+	end_points[ep].buffer_valid = cy_true;
+	end_points[ep].type = cy_as_hal_write;
 	end_points[ep].pending = cy_true;
 
 	/*
@@ -1899,7 +1899,7 @@ void cy_as_hal_dma_setup_write(cy_as_hal_device_tag tag,
 		 */
 		end_points[ep].sg_p = buf;
 		end_points[ep].data_p = sg_virt(end_points[ep].sg_p);
-		end_points[ep].seg_xfer_cnt = 0 ;
+		end_points[ep].seg_xfer_cnt = 0;
 		end_points[ep].req_xfer_cnt = 0;
 
 #ifdef DBGPRN_DMA_SETUP_WR
@@ -1940,11 +1940,11 @@ void cy_as_hal_dma_setup_write(cy_as_hal_device_tag tag,
 	 * Tell WB we are ready to send data on the given endpoint
 	 */
 	v = (end_points[ep].dma_xfer_sz & CY_AS_MEM_P0_E_pn_DMA_REG_COUNT_MASK)
-			| CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL ;
+			| CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL;
 
-	addr = CY_AS_MEM_P0_EP2_DMA_REG + ep - 2 ;
+	addr = CY_AS_MEM_P0_EP2_DMA_REG + ep - 2;
 
-	cy_as_hal_write_register(tag, addr, v) ;
+	cy_as_hal_write_register(tag, addr, v);
 }
 
 /*
@@ -1957,15 +1957,15 @@ void cy_as_hal_dma_setup_read(cy_as_hal_device_tag tag,
 					uint8_t ep, void *buf,
 					uint32_t size, uint16_t maxsize)
 {
-	uint32_t addr ;
-	uint16_t v ;
+	uint32_t addr;
+	uint16_t v;
 
 	/*
 	 * Note: "size" is the actual request size
 	 * "maxsize" - is the P port fragment size
 	 * No EP0 or EP1 traffic should get here
 	 */
-	cy_as_hal_assert(ep != 0 && ep != 1) ;
+	cy_as_hal_assert(ep != 0 && ep != 1);
 
 	/*
 	 * If this asserts, we have an ordering problem.
@@ -1976,8 +1976,8 @@ void cy_as_hal_dma_setup_read(cy_as_hal_device_tag tag,
 
 	cy_as_hal_assert(end_points[ep].buffer_valid == cy_false);
 
-	end_points[ep].buffer_valid = cy_true ;
-	end_points[ep].type = cy_as_hal_read ;
+	end_points[ep].buffer_valid = cy_true;
+	end_points[ep].type = cy_as_hal_read;
 	end_points[ep].pending = cy_true;
 	end_points[ep].req_xfer_cnt = 0;
 	end_points[ep].req_length = size;
@@ -1996,7 +1996,7 @@ void cy_as_hal_dma_setup_read(cy_as_hal_device_tag tag,
 		end_points[ep].dma_xfer_sz = size;
 	}
 
-	addr = CY_AS_MEM_P0_EP2_DMA_REG + ep - 2 ;
+	addr = CY_AS_MEM_P0_EP2_DMA_REG + ep - 2;
 
 	if (end_points[ep].sg_list_enabled) {
 		/*
@@ -2005,7 +2005,7 @@ void cy_as_hal_dma_setup_read(cy_as_hal_device_tag tag,
 		 * buf - pointer to the SG list
 		 * data_p - data pointer for the 1st DMA segment
 		 */
-		end_points[ep].seg_xfer_cnt = 0 ;
+		end_points[ep].seg_xfer_cnt = 0;
 		end_points[ep].sg_p = buf;
 		end_points[ep].data_p = sg_virt(end_points[ep].sg_p);
 
@@ -2020,7 +2020,7 @@ void cy_as_hal_dma_setup_read(cy_as_hal_device_tag tag,
 		#endif
 		v = (end_points[ep].dma_xfer_sz &
 				CY_AS_MEM_P0_E_pn_DMA_REG_COUNT_MASK) |
-				CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL ;
+				CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL;
 		cy_as_hal_write_register(tag, addr, v);
 	} else {
 		/*
@@ -2045,7 +2045,7 @@ void cy_as_hal_dma_setup_read(cy_as_hal_device_tag tag,
 		if (is_storage_e_p(ep)) {
 			v = (end_points[ep].dma_xfer_sz &
 					CY_AS_MEM_P0_E_pn_DMA_REG_COUNT_MASK) |
-					CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL ;
+					CY_AS_MEM_P0_E_pn_DMA_REG_DMAVAL;
 			cy_as_hal_write_register(tag, addr, v);
 		}
 	}
@@ -2061,7 +2061,7 @@ void cy_as_hal_dma_register_callback(cy_as_hal_device_tag tag,
 {
 	DBGPRN("<1>\n%s: WB API has registered a dma_complete callback:%x\n",
 			__func__, (uint32_t)cb);
-	callback = cb ;
+	callback = cb;
 }
 
 /*
@@ -2106,14 +2106,14 @@ cy_bool cy_as_hal_set_wakeup_pin(cy_as_hal_device_tag tag, cy_bool state)
 	/*
 	 * Not supported as of now.
 	 */
-	return cy_false ;
+	return cy_false;
 }
 
 void cy_as_hal_pll_lock_loss_handler(cy_as_hal_device_tag tag)
 {
-	cy_as_hal_print_message("error: astoria PLL lock is lost\n") ;
+	cy_as_hal_print_message("error: astoria PLL lock is lost\n");
 	cy_as_hal_print_message("please check the input voltage levels");
-	cy_as_hal_print_message("and clock, and restart the system\n") ;
+	cy_as_hal_print_message("and clock, and restart the system\n");
 }
 
 /*
@@ -2127,10 +2127,10 @@ void cy_as_hal_pll_lock_loss_handler(cy_as_hal_device_tag tag)
  */
 void *cy_as_hal_alloc(uint32_t cnt)
 {
-	void *ret_p ;
+	void *ret_p;
 
-	ret_p = kmalloc(cnt, GFP_ATOMIC) ;
-	return ret_p ;
+	ret_p = kmalloc(cnt, GFP_ATOMIC);
+	return ret_p;
 }
 
 /*
@@ -2140,7 +2140,7 @@ void *cy_as_hal_alloc(uint32_t cnt)
  */
 void cy_as_hal_free(void *mem_p)
 {
-	kfree(mem_p) ;
+	kfree(mem_p);
 }
 
 /*
@@ -2150,10 +2150,10 @@ void cy_as_hal_free(void *mem_p)
  */
 void *cy_as_hal_c_b_alloc(uint32_t cnt)
 {
-	void *ret_p ;
+	void *ret_p;
 
-	ret_p = kmalloc(cnt, GFP_ATOMIC) ;
-	return ret_p ;
+	ret_p = kmalloc(cnt, GFP_ATOMIC);
+	return ret_p;
 }
 
 /*
@@ -2163,7 +2163,7 @@ void *cy_as_hal_c_b_alloc(uint32_t cnt)
  */
 void cy_as_hal_mem_set(void *ptr, uint8_t value, uint32_t cnt)
 {
-	memset(ptr, value, cnt) ;
+	memset(ptr, value, cnt);
 }
 
 /*
@@ -2176,8 +2176,8 @@ void cy_as_hal_mem_set(void *ptr, uint8_t value, uint32_t cnt)
  */
 cy_bool cy_as_hal_create_sleep_channel(cy_as_hal_sleep_channel *channel)
 {
-	init_waitqueue_head(&channel->wq) ;
-	return cy_true ;
+	init_waitqueue_head(&channel->wq);
+	return cy_true;
 }
 
 /*
@@ -2187,7 +2187,7 @@ cy_bool cy_as_hal_create_sleep_channel(cy_as_hal_sleep_channel *channel)
  */
 cy_bool cy_as_hal_destroy_sleep_channel(cy_as_hal_sleep_channel *channel)
 {
-	return cy_true ;
+	return cy_true;
 }
 
 /*
@@ -2195,8 +2195,8 @@ cy_bool cy_as_hal_destroy_sleep_channel(cy_as_hal_sleep_channel *channel)
  */
 cy_bool cy_as_hal_sleep_on(cy_as_hal_sleep_channel *channel, uint32_t ms)
 {
-	wait_event_interruptible_timeout(channel->wq, 0, ((ms * HZ)/1000)) ;
-	return cy_true ;
+	wait_event_interruptible_timeout(channel->wq, 0, ((ms * HZ)/1000));
+	return cy_true;
 }
 
 /*
@@ -2205,7 +2205,7 @@ cy_bool cy_as_hal_sleep_on(cy_as_hal_sleep_channel *channel, uint32_t ms)
 cy_bool cy_as_hal_wake(cy_as_hal_sleep_channel *channel)
 {
 	wake_up_interruptible_all(&channel->wq);
-	return cy_true ;
+	return cy_true;
 }
 
 uint32_t cy_as_hal_disable_interrupts()
@@ -2213,13 +2213,13 @@ uint32_t cy_as_hal_disable_interrupts()
 	if (0 == intr__enable)
 		;
 
-	intr__enable++ ;
-	return 0 ;
+	intr__enable++;
+	return 0;
 }
 
 void cy_as_hal_enable_interrupts(uint32_t val)
 {
-	intr__enable-- ;
+	intr__enable--;
 	if (0 == intr__enable)
 		;
 }
@@ -2240,9 +2240,9 @@ void cy_as_hal_sleep(uint32_t ms)
 {
 	cy_as_hal_sleep_channel channel;
 
-	cy_as_hal_create_sleep_channel(&channel) ;
-	cy_as_hal_sleep_on(&channel, ms) ;
-	cy_as_hal_destroy_sleep_channel(&channel) ;
+	cy_as_hal_create_sleep_channel(&channel);
+	cy_as_hal_sleep_on(&channel, ms);
+	cy_as_hal_destroy_sleep_channel(&channel);
 }
 
 cy_bool cy_as_hal_is_polling()
@@ -2287,7 +2287,7 @@ cy_bool cy_as_hal_sync_device_clocks(cy_as_hal_device_tag tag)
 int start_o_m_a_p_kernel(const char *pgm,
 				cy_as_hal_device_tag *tag, cy_bool debug)
 {
-	cy_as_omap_dev_kernel *dev_p ;
+	cy_as_omap_dev_kernel *dev_p;
 	int i;
 	u16 data16[4];
 	u8 pncfg_reg;
@@ -2302,11 +2302,11 @@ int start_o_m_a_p_kernel(const char *pgm,
 	/*
 	 * Initialize the HAL level endpoint DMA data.
 	 */
-	for (i = 0 ; i < sizeof(end_points)/sizeof(end_points[0]) ; i++) {
-		end_points[i].data_p = 0 ;
-		end_points[i].pending = cy_false ;
-		end_points[i].size = 0 ;
-		end_points[i].type = cy_as_hal_none ;
+	for (i = 0; i < sizeof(end_points)/sizeof(end_points[0]); i++) {
+		end_points[i].data_p = 0;
+		end_points[i].pending = cy_false;
+		end_points[i].size = 0;
+		end_points[i].type = cy_as_hal_none;
 		end_points[i].sg_list_enabled = cy_false;
 
 		/*
@@ -2321,11 +2321,11 @@ int start_o_m_a_p_kernel(const char *pgm,
 	 * allocate memory for OMAP HAL
 	 */
 	dev_p = (cy_as_omap_dev_kernel *)cy_as_hal_alloc(
-						sizeof(cy_as_omap_dev_kernel)) ;
+						sizeof(cy_as_omap_dev_kernel));
 	if (dev_p == 0) {
 		cy_as_hal_print_message("out of memory allocating OMAP"
-					"device structure\n") ;
-		return 0 ;
+					"device structure\n");
+		return 0;
 	}
 
 	dev_p->m_sig = CY_AS_OMAP_KERNEL_HAL_SIG;
@@ -2403,11 +2403,11 @@ int start_o_m_a_p_kernel(const char *pgm,
 				"after cfg_wr:%4.4x\n\n",
 				data16[0], pncfg_reg, data16[1]);
 
-	dev_p->thread_flag = 1 ;
-	spin_lock_init(&int_lock) ;
-	dev_p->m_next_p = m_omap_list_p ;
+	dev_p->thread_flag = 1;
+	spin_lock_init(&int_lock);
+	dev_p->m_next_p = m_omap_list_p;
 
-	m_omap_list_p = dev_p ;
+	m_omap_list_p = dev_p;
 	*tag = dev_p;
 
 	cy_as_hal_configure_interrupts((void *)dev_p);
@@ -2421,7 +2421,7 @@ int start_o_m_a_p_kernel(const char *pgm,
 	cy_as_hal_set_ep_dma_mode(4, true);
 	cy_as_hal_set_ep_dma_mode(8, true);
 
-	return 1 ;
+	return 1;
 
 	/*
 	 * there's been a NAND bus access error or
@@ -2433,7 +2433,7 @@ bus_acc_error:
 	 * so the device will not call omap_stop
 	 */
 	cy_as_hal_omap_hardware_deinit(dev_p);
-	cy_as_hal_free(dev_p) ;
+	cy_as_hal_free(dev_p);
 	return 0;
 }
 

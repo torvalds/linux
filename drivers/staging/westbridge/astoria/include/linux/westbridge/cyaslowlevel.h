@@ -168,7 +168,7 @@ typedef enum cy_as_remove_request_result_t {
 	cy_as_remove_request_sucessful,
 	cy_as_remove_request_in_transit,
 	cy_as_remove_request_not_found
-} cy_as_remove_request_result_t ;
+} cy_as_remove_request_result_t;
 
 /* Summary
    Start the low level communications module
@@ -178,12 +178,12 @@ typedef enum cy_as_remove_request_result_t {
 cy_as_return_status_t
 cy_as_ll_start(
 		cy_as_device *dev_p
-		) ;
+		);
 
 cy_as_return_status_t
 cy_as_ll_stop(
    cy_as_device *dev_p
-   ) ;
+   );
 
 
 cy_as_ll_request_response *
@@ -193,31 +193,31 @@ cy_as_ll_create_request(
 		uint8_t context,
 		/* Length of the request in 16 bit words */
 		uint16_t length
-		) ;
+		);
 
 void
 cy_as_ll_init_request(
 	cy_as_ll_request_response *req_p,
 	uint16_t code,
 	uint16_t context,
-	uint16_t length) ;
+	uint16_t length);
 
 void
 cy_as_ll_init_response(
 	cy_as_ll_request_response *req_p,
-	uint16_t length) ;
+	uint16_t length);
 
 void
 cy_as_ll_destroy_request(
 		cy_as_device *dev_p,
-		cy_as_ll_request_response *) ;
+		cy_as_ll_request_response *);
 
 cy_as_ll_request_response *
 cy_as_ll_create_response(
 		cy_as_device *dev_p,
 		/* Length of the request in 16 bit words */
 		uint16_t length
-		) ;
+		);
 
 cy_as_remove_request_result_t
 cy_as_ll_remove_request(
@@ -225,15 +225,15 @@ cy_as_ll_remove_request(
 		cy_as_context *ctxt_p,
 		cy_as_ll_request_response *req_p,
 		cy_bool force
-		) ;
+		);
 void
 cy_as_ll_remove_all_requests(cy_as_device *dev_p,
-	cy_as_context *ctxt_p) ;
+	cy_as_context *ctxt_p);
 
 void
 cy_as_ll_destroy_response(
 	cy_as_device *dev_p,
-	cy_as_ll_request_response *) ;
+	cy_as_ll_request_response *);
 
 cy_as_return_status_t
 cy_as_ll_send_request(
@@ -247,7 +247,7 @@ cy_as_ll_send_request(
 	cy_bool	sync,
 	/* Callback to call when reply is received */
 	cy_as_response_callback cb
-) ;
+);
 
 cy_as_return_status_t
 cy_as_ll_send_request_wait_reply(
@@ -257,7 +257,7 @@ cy_as_ll_send_request_wait_reply(
 	cy_as_ll_request_response *req,
 	/* Storage for a reply, must be sure it is of sufficient size */
 	cy_as_ll_request_response *resp
-) ;
+);
 
 /* Summary
    This function registers a callback function to be called when a
@@ -273,7 +273,7 @@ cy_as_ll_register_request_callback(
 		cy_as_device *dev_p,
 		uint8_t context,
 		cy_as_response_callback cb
-		) ;
+		);
 
 /* Summary
    This function packs a set of bytes given by the data_p pointer
@@ -289,7 +289,7 @@ cy_as_ll_request_response__pack(
 	uint32_t length,
 	/* The data to pack */
 	void *data_p
-	) ;
+	);
 
 /* Summary
    This function unpacks a set of bytes from a request/reply
@@ -305,7 +305,7 @@ cy_as_ll_request_response__unpack(
 	uint32_t length,
 	/* The destination of the unpack operation */
 	void *data_p
-	) ;
+	);
 
 /* Summary
    This function sends a status response back to the West Bridge
@@ -320,7 +320,7 @@ cy_as_ll_send_status_response(
 	/* The success/failure code to send */
 	uint16_t code,
 	/* Flag to clear wait on storage context */
-	uint8_t clear_storage) ;
+	uint8_t clear_storage);
 
 /* Summary
    This function sends a response back to the West Bridge device.
@@ -344,7 +344,7 @@ cy_as_ll_send_data_response(
 	uint16_t length,
 	/* The data for the response */
 	void *data
-) ;
+);
 
 /* Summary
    This function removes any requests of the given type
@@ -359,7 +359,7 @@ cy_as_ll_remove_ep_data_requests(
 	/* The West Bridge device */
 	cy_as_device *dev_p,
 	cy_as_end_point_number_t ep
-	) ;
+	);
 
 #include "cyas_cplus_end.h"
 

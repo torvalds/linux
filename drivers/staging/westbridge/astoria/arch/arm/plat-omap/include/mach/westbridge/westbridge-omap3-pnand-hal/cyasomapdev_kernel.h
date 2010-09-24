@@ -44,7 +44,7 @@
  */
 typedef struct cy_as_omap_dev_kernel {
 	/* This is the signature for this data structure */
-	unsigned int m_sig ;
+	unsigned int m_sig;
 
 	/* Address base of Antioch Device */
 	void *m_addr_base;

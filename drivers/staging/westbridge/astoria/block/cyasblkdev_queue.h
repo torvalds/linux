@@ -55,7 +55,7 @@ extern void cyasblkdev_cleanup_queue(struct cyasblkdev_queue *);
 extern void cyasblkdev_queue_suspend(struct cyasblkdev_queue *);
 extern void cyasblkdev_queue_resume(struct cyasblkdev_queue *);
 
-extern cy_as_device_handle cyasdevice_getdevhandle(void) ;
+extern cy_as_device_handle cyasdevice_getdevhandle(void);
 #define MOD_LOGS 1
 void verbose_rq_flags(int flags);
 

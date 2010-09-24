@@ -66,7 +66,7 @@
    * CyAsMiscCreateDevice
    * CyAsMiscDestroyDevice
 */
-typedef void *cy_as_device_handle ;
+typedef void *cy_as_device_handle;
 
 /* Summary
    This data type gives the mode for the DACK# signal
@@ -74,7 +74,7 @@ typedef void *cy_as_device_handle ;
 typedef enum cy_as_device_dack_mode {
 	cy_as_device_dack_ack, /* Operate in the ACK mode */
 	cy_as_device_dack_eob /* Operate in the EOB mode */
-} cy_as_device_dack_mode ;
+} cy_as_device_dack_mode;
 
 /* Summary
    This data structure gives the options for all hardware features.
@@ -89,21 +89,21 @@ typedef enum cy_as_device_dack_mode {
 */
 typedef struct cy_as_device_config {
 	/* If TRUE, the P port is running in SRAM mode. */
-	cy_bool	srammode ;
+	cy_bool	srammode;
 	/* If TRUE, the P port is synchronous, otherwise async */
-	cy_bool	sync ;
+	cy_bool	sync;
 	/* If TRUE, DMA req will be delivered via the interrupt signal */
-	cy_bool	dmaintr ;
+	cy_bool	dmaintr;
 	/* Mode for the DACK# signal */
-	cy_as_device_dack_mode dackmode ;
+	cy_as_device_dack_mode dackmode;
 	/* If TRUE, the DRQ line is active high, otherwise active low */
-	cy_bool	drqpol ;
+	cy_bool	drqpol;
 	/* If TRUE, the DACK line is active high, otherwise active low */
-	cy_bool	dackpol ;
+	cy_bool	dackpol;
 	/* If TRUE, the clock is connected to a crystal, otherwise it is
 			connected to a clock */
-	cy_bool	crystal ;
-} cy_as_device_config ;
+	cy_bool	crystal;
+} cy_as_device_config;
 
 
 /* Summary
@@ -174,7 +174,7 @@ typedef enum cy_as_misc_signal_polarity {
 	cy_as_misc_active_high,
 	cy_as_misc_active_low
 
-} cy_as_misc_signal_polarity ;
+} cy_as_misc_signal_polarity;
 
 
 
@@ -303,7 +303,7 @@ typedef enum cy_as_funct_c_b_type {
 	CY_FUNCT_CB_MTP_STOP_STORAGE_ONLY,
 	CY_FUNCT_CB_NODATA = 0x40000000U,
 	CY_FUNCT_CB_DATA =   0x20000000U
-} cy_as_funct_c_b_type ;
+} cy_as_funct_c_b_type;
 
 /* Summary
    This type specifies the general West Bridge function callback.
@@ -321,7 +321,7 @@ typedef void (*cy_as_function_callback)(
 	cy_as_return_status_t	status,
 	uint32_t		client,
 	cy_as_funct_c_b_type	type,
-	void	*data) ;
+	void	*data);
 
 /* Summary
    This type specifies the general West Bridge event that has
@@ -354,7 +354,7 @@ typedef enum cy_as_misc_event_type {
 	 /* This event is sent when the firmware image downloaded
 	cannot run on the active west bridge device. */
 	cy_as_event_misc_device_mismatch
-} cy_as_misc_event_type ;
+} cy_as_misc_event_type;
 
 /* Summary
    This type is the type of a callback function that is called when a
@@ -378,7 +378,7 @@ typedef void (*cy_as_misc_event_callback)(
 	cy_as_misc_event_type		ev,
 	/* The data assocaited with the event being reported */
 	void *evdata
-) ;
+);
 
 #ifndef __doxygen__
 /* Summary
@@ -447,7 +447,7 @@ typedef enum cy_as_low_speed_sd_freq {
 	CY_AS_SD_DEFAULT_FREQ = 0,
 	/* 24 MHz */
 	CY_AS_SD_RATED_FREQ
-} cy_as_low_speed_sd_freq ;
+} cy_as_low_speed_sd_freq;
 
 /* Summary
    This enum lists the set of clock frequencies that are supported
@@ -465,7 +465,7 @@ typedef enum cy_as_low_speed_sd_freq {
 typedef enum cy_as_high_speed_sd_freq {
 	CY_AS_HS_SD_FREQ_48, /* 48 MHz, default value */
 	CY_AS_HS_SD_FREQ_24	/* 24 MHz */
-} cy_as_high_speed_sd_freq ;
+} cy_as_high_speed_sd_freq;
 
 /* Summary
    Struct encapsulating all information returned by the
@@ -490,7 +490,7 @@ typedef struct cy_as_get_firmware_version_data {
 	uint8_t	 media_type;
 	/* Return value to indicate the release or debug mode of firmware */
 	cy_bool	is_debug_mode;
-} cy_as_get_firmware_version_data ;
+} cy_as_get_firmware_version_data;
 
 
 /*****************************
@@ -519,7 +519,7 @@ cy_as_misc_create_device(
 	cy_as_device_handle *handle_p,
 	/* The HAL specific tag for this device */
 	cy_as_hal_device_tag		tag
-	) ;
+	);
 
 /* Summary
    This functions destroys a previously created West Bridge device.
@@ -543,7 +543,7 @@ EXTERN cy_as_return_status_t
 cy_as_misc_destroy_device(
 	/* Handle to the device to destroy */
 	cy_as_device_handle		handle
-	) ;
+	);
 
 /* Summary
    This function initializes the hardware for basic communication with
@@ -576,7 +576,7 @@ cy_as_misc_configure_device(
 	cy_as_device_handle		handle,
 	/* Configuration information */
 	cy_as_device_config		*config_p
-	) ;
+	);
 
 /* Summary
    This function returns non-zero if West Bridge is in standby and
@@ -599,7 +599,7 @@ cy_as_misc_in_standby(
 	cy_as_device_handle		handle,
 	/* Return value for standby state */
 	cy_bool					*standby
-	) ;
+	);
 
 /* Summary
    This function downloads the firmware to West Bridge device.
@@ -647,7 +647,7 @@ cy_as_misc_download_firmware(
 	cy_as_function_callback  cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			  client
-	) ;
+	);
 
 
 /* Summary
@@ -683,7 +683,7 @@ cy_as_misc_get_firmware_version(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 #if !defined(__doxygen__)
 
@@ -721,7 +721,7 @@ cy_as_misc_read_m_c_u_register(
 	cy_as_function_callback		cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function writes to an MCU accessible register on the West Bridge.
@@ -762,7 +762,7 @@ cy_as_misc_write_m_c_u_register(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback. */
 	uint32_t	client
-	) ;
+	);
 
 #endif
 
@@ -816,7 +816,7 @@ cy_as_misc_reset(
 	cy_as_function_callback cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function acquires a given resource.
@@ -864,7 +864,7 @@ cy_as_misc_acquire_resource(
 	cy_as_function_callback cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function releases a given resource.
@@ -898,7 +898,7 @@ cy_as_misc_release_resource(
 	cy_as_device_handle		handle,
 	/* The resource to release */
 	cy_as_resource_type		resource
-	) ;
+	);
 
 #ifndef __doxygen__
 /* Summary
@@ -955,7 +955,7 @@ cy_as_misc_set_trace_level(
 	cy_as_function_callback		cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			client
-	) ;
+	);
 #endif
 
 /* Summary
@@ -1015,7 +1015,7 @@ cy_as_misc_enter_standby_e_x_u(
 	cy_as_function_callback		cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function is provided for backwards compatibility.
@@ -1032,7 +1032,7 @@ cy_as_misc_enter_standby(cy_as_device_handle handle,
 			cy_bool pin,
 			cy_as_function_callback cb,
 			uint32_t client
-			) ;
+			);
 
 /* Summary
    This function brings West Bridge out of sleep mode.
@@ -1068,7 +1068,7 @@ cy_as_misc_leave_standby(
 	cy_as_device_handle		handle,
 	/* The resource causing the wakeup */
 	cy_as_resource_type		resource
-	) ;
+	);
 
 /* Summary
    This function registers a callback function to be called when an
@@ -1091,7 +1091,7 @@ cy_as_misc_register_callback(
 	cy_as_device_handle		handle,
 	/* The function to call */
 	cy_as_misc_event_callback		callback
-	) ;
+	);
 
 /* Summary
    This function sets the logging level for log messages.
@@ -1107,7 +1107,7 @@ EXTERN void
 cy_as_misc_set_log_level(
 	/* Level to set, 0 is fewer messages, 255 is all */
 	uint8_t	level
-	) ;
+	);
 
 
 /* Summary
@@ -1143,7 +1143,7 @@ cy_as_misc_storage_changed(
 	cy_as_function_callback		cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			client
-	) ;
+	);
 
 /* Summary
    This function instructs the West Bridge firmware to start/stop
@@ -1181,7 +1181,7 @@ cy_as_misc_heart_beat_control(
 	cy_as_function_callback		cb,
 	/* Client data to be passed to the callback. */
 	uint32_t			client
-		) ;
+		);
 
 /* Summary
    This function gets the current state of a GPIO pin on the
@@ -1227,7 +1227,7 @@ cy_as_misc_get_gpio_value(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function updates the state of a GPIO pin on the West
@@ -1273,7 +1273,7 @@ cy_as_misc_set_gpio_value(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    Set the West Bridge device in the low power suspend mode.
@@ -1328,7 +1328,7 @@ cy_as_misc_enter_suspend(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    Wake up the West Bridge device from suspend mode.
@@ -1371,7 +1371,7 @@ cy_as_misc_leave_suspend(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    Reserve first numzones zones of nand device for storing
@@ -1400,7 +1400,7 @@ cy_as_misc_reserve_l_n_a_boot_area(
 	cy_as_function_callback cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    Select the clock frequency to be used when talking to low
@@ -1448,7 +1448,7 @@ cy_as_misc_set_low_speed_sd_freq(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback */
 	uint32_t	client
-	) ;
+	);
 
 /* Summary
    Select the clock frequency to be used when talking to high speed
@@ -1493,7 +1493,7 @@ cy_as_misc_set_high_speed_sd_freq(
 	cy_as_function_callback	cb,
 	/* Client data to be passed to the callback */
 	uint32_t client
-	) ;
+	);
 /* Summary
    Select the polarity of the SD_POW output driven by West Bridge.
 
@@ -1539,7 +1539,7 @@ cy_as_misc_set_sd_power_polarity(
 	cy_as_function_callback cb,
 	/* Client data to be passed to the callback. */
 	uint32_t client
-	) ;
+	);
 
 /* For supporting deprecated functions */
 #include "cyasmisc_dep.h"

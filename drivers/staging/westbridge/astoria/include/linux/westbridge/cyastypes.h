@@ -44,18 +44,18 @@ typedef void *LPVOID;
 /* Summary
    This type represents an endpoint number
 */
-typedef uint8_t cy_as_end_point_number_t ;
+typedef uint8_t cy_as_end_point_number_t;
 
 /* Summary
    This type is used to return status information from
 	an API call.
 */
-typedef uint16_t cy_as_return_status_t ;
+typedef uint16_t cy_as_return_status_t;
 
 /* Summary
    This type represents a bus number
 */
-typedef uint32_t cy_as_bus_number_t ;
+typedef uint32_t cy_as_bus_number_t;
 
 /* Summary
    All APIs provided with this release are marked extern

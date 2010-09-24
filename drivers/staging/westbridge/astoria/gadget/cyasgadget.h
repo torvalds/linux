@@ -84,7 +84,7 @@
 
 extern int mpage_cleardirty(struct address_space *mapping, int num_pages);
 extern int fat_get_block(struct inode *, sector_t , struct buffer_head *, int);
-extern cy_as_device_handle *cyasdevice_getdevhandle(void) ;
+extern cy_as_device_handle *cyasdevice_getdevhandle(void);
 
 /* Driver data structures and utilities */
 typedef struct cyasgadget_ep {
@@ -102,7 +102,7 @@ typedef struct cyasgadget_ep {
 						is_in:1,
 						is_iso:1;
 	cy_as_usb_end_point_config cyepconfig;
-} cyasgadget_ep ;
+} cyasgadget_ep;
 
 typedef struct cyasgadget_req {
 	struct usb_request		req;
@@ -112,7 +112,7 @@ typedef struct cyasgadget_req {
 						valid:1,
 						complete:1,
 						ep_stopped:1;
-} cyasgadget_req ;
+} cyasgadget_req;
 
 typedef struct cyasgadget {
 	/* each device provides one gadget, several endpoints */
@@ -139,16 +139,16 @@ typedef struct cyasgadget {
 	/* Data member used to store the GetObjectComplete event data */
 	cy_as_mtp_get_object_complete_data tmtp_get_complete_data;
 
-} cyasgadget ;
+} cyasgadget;
 
 static inline void set_halt(cyasgadget_ep *ep)
 {
-	return ;
+	return;
 }
 
 static inline void clear_halt(cyasgadget_ep *ep)
 {
-	return ;
+	return;
 }
 
 #define xprintk(dev, level, fmt, args...) \
@@ -182,12 +182,12 @@ static inline void clear_halt(cyasgadget_ep *ep)
 
 static inline void start_out_naking(struct cyasgadget_ep *ep)
 {
-	return ;
+	return;
 }
 
 static inline void stop_out_naking(struct cyasgadget_ep *ep)
 {
-	return ;
+	return;
 }
 
 #endif	/* _INCLUDED_CYANGADGET_H_ */

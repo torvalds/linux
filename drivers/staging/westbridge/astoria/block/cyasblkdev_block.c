@@ -155,7 +155,7 @@ struct cyasblkdev_blk_data {
 };
 
 /* pointer to west bridge block data device superstructure */
-static struct cyasblkdev_blk_data *gl_bd ;
+static struct cyasblkdev_blk_data *gl_bd;
 
 static DECLARE_MUTEX(open_lock);
 
@@ -203,7 +203,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_get(
 		bd->usage++;
 		#ifndef NBDEBUG
 		cy_as_hal_print_message(
-			"cyasblkdev_blk_get: usage = %d\n", bd->usage) ;
+			"cyasblkdev_blk_get: usage = %d\n", bd->usage);
 		#endif
 	}
 	up(&open_lock);
@@ -232,7 +232,7 @@ static void cyasblkdev_blk_put(
 			bd->usage);
 		#endif
 		up(&open_lock);
-		return ;
+		return;
 	}
 
 	if (bd->usage == 0) {
@@ -245,7 +245,7 @@ static void cyasblkdev_blk_put(
 			cy_as_storage_release(bd->dev_handle, 0, 0, 0, 0)) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message(
-				"cyasblkdev: cannot release bus 0\n") ;
+				"cyasblkdev: cannot release bus 0\n");
 			#endif
 		}
 
@@ -253,7 +253,7 @@ static void cyasblkdev_blk_put(
 			cy_as_storage_release(bd->dev_handle, 1, 0, 0, 0)) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message(
-				"cyasblkdev: cannot release bus 1\n") ;
+				"cyasblkdev: cannot release bus 1\n");
 			#endif
 		}
 
@@ -261,7 +261,7 @@ static void cyasblkdev_blk_put(
 			cy_as_storage_stop(bd->dev_handle, 0, 0)) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message(
-				"cyasblkdev: cannot stop storage stack\n") ;
+				"cyasblkdev: cannot stop storage stack\n");
 			#endif
 		}
 
@@ -269,18 +269,18 @@ static void cyasblkdev_blk_put(
 		/* If the SCM Kernel HAL is being used, disable the use
 		 * of scatter/gather lists at the end of block driver usage.
 		 */
-		cy_as_hal_disable_scatter_list(cyasdevice_gethaltag()) ;
+		cy_as_hal_disable_scatter_list(cyasdevice_gethaltag());
 	#endif
 
 		/*ptr to global struct cyasblkdev_blk_data */
-		gl_bd = NULL ;
+		gl_bd = NULL;
 		kfree(bd);
 	}
 
 	#ifndef WESTBRIDGE_NDEBUG
 	cy_as_hal_print_message(
 		"cyasblkdev (blk_put): usage = %d\n",
-		bd->usage) ;
+		bd->usage);
 	#endif
 	up(&open_lock);
 }
@@ -498,7 +498,7 @@ static void cyasblkdev_issuecallback(
 		#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message(
 		  "%s: async r/w: op:%d failed with error %d at address %d\n",
-			__func__, op, status, block_number) ;
+			__func__, op, status, block_number);
 		#endif
 	}
 
@@ -507,7 +507,7 @@ static void cyasblkdev_issuecallback(
 		"%s calling blk_end_request from issue_callback "
 		"req=0x%x, status=0x%x, nr_sectors=0x%x\n",
 		__func__, (unsigned int) gl_bd->queue.req, status,
-		(unsigned int) blk_rq_sectors(gl_bd->queue.req)) ;
+		(unsigned int) blk_rq_sectors(gl_bd->queue.req));
 	#endif
 
 	/* note: blk_end_request w/o __ prefix should
@@ -560,7 +560,7 @@ static int cyasblkdev_blk_issue_rq(
 					)
 {
 	struct cyasblkdev_blk_data *bd = bq->data;
-	int index = 0 ;
+	int index = 0;
 	int ret = CY_AS_ERROR_SUCCESS;
 	uint32_t req_sector = 0;
 	uint32_t req_nr_sectors = 0;
@@ -648,7 +648,7 @@ static int cyasblkdev_blk_issue_rq(
 				req_nr_sectors*512))
 				;
 
-			bq->req = NULL ;
+			bq->req = NULL;
 		}
 	} else {
 		ret = cy_as_storage_write_async(bd->dev_handle, bus_num, 0,
@@ -669,7 +669,7 @@ static int cyasblkdev_blk_issue_rq(
 				req_nr_sectors*512))
 				;
 
-			bq->req = NULL ;
+			bq->req = NULL;
 		}
 	}
 
@@ -741,7 +741,7 @@ uint32_t cyasblkdev_get_vfat_offset(int bus_num, int unit_no)
 	*/
 	#ifndef WESTBRIDGE_NDEBUG
 	  cy_as_hal_print_message(
-		"%s scanning media for vfat partition...\n", __func__) ;
+		"%s scanning media for vfat partition...\n", __func__);
 	#endif
 
 	for (sect_no = 0; sect_no < SECTORS_TO_SCAN; sect_no++) {
@@ -808,7 +808,7 @@ uint32_t cyasblkdev_get_vfat_offset(int bus_num, int unit_no)
 	}
 }
 
-cy_as_storage_query_device_data dev_data = {0} ;
+cy_as_storage_query_device_data dev_data = {0};
 
 static int cyasblkdev_add_disks(int bus_num,
 	struct cyasblkdev_blk_data *bd,
@@ -818,7 +818,7 @@ static int cyasblkdev_add_disks(int bus_num,
 	int ret = 0;
 	uint64_t disk_cap;
 	int lcl_unit_no;
-	cy_as_storage_query_unit_data unit_data = {0} ;
+	cy_as_storage_query_unit_data unit_data = {0};
 
 	#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message("%s:query device: "
@@ -843,29 +843,29 @@ static int cyasblkdev_add_disks(int bus_num,
 			"%s: device is locked\n", __func__);
 		#endif
 		ret = cy_as_storage_release(
-			bd->dev_handle, bus_num, 0, 0, 0) ;
+			bd->dev_handle, bus_num, 0, 0, 0);
 		if (ret != CY_AS_ERROR_SUCCESS) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message("%s cannot release"
-				" storage\n", __func__) ;
+				" storage\n", __func__);
 			#endif
 			goto out;
 		}
 		goto out;
 	}
 
-	unit_data.device = 0 ;
-	unit_data.unit   = 0 ;
+	unit_data.device = 0;
+	unit_data.unit   = 0;
 	unit_data.bus    = bus_num;
 	ret = cy_as_storage_query_unit(bd->dev_handle,
-		&unit_data, 0, 0) ;
+		&unit_data, 0, 0);
 	if (ret != CY_AS_ERROR_SUCCESS) {
 		#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message("%s: cannot query "
 			"%d device unit - reason code %d\n",
-			__func__, bus_num, ret) ;
+			__func__, bus_num, ret);
 		#endif
-		goto out ;
+		goto out;
 	}
 
 	if (private_partition_bus == bus_num) {
@@ -906,15 +906,15 @@ static int cyasblkdev_add_disks(int bus_num,
 							bd->dev_handle, bus_num, 0,
 							private_partition_size, 0, 0);
 						if (ret == CY_AS_ERROR_SUCCESS) {
-							unit_data.bus = bus_num ;
-							unit_data.device = 0 ;
-							unit_data.unit = 1 ;
+							unit_data.bus = bus_num;
+							unit_data.device = 0;
+							unit_data.unit = 1;
 						} else {
 							#ifndef WESTBRIDGE_NDEBUG
 							cy_as_hal_print_message(
 							"%s: cy_as_storage_create_p_partition "
 							"after removal unexpectedly failed "
-							"with error %d\n", __func__, ret) ;
+							"with error %d\n", __func__, ret);
 							#endif
 
 							/* need to requery bus
@@ -922,22 +922,22 @@ static int cyasblkdev_add_disks(int bus_num,
 							 * successful and create
 							 * failed we have changed
 							 * the disk properties */
-							unit_data.bus	= bus_num ;
-							unit_data.device = 0 ;
-							unit_data.unit   = 0 ;
+							unit_data.bus	= bus_num;
+							unit_data.device = 0;
+							unit_data.unit   = 0;
 						}
 
 						ret = cy_as_storage_query_unit(
 						bd->dev_handle,
-						&unit_data, 0, 0) ;
+						&unit_data, 0, 0);
 						if (ret != CY_AS_ERROR_SUCCESS) {
 							#ifndef WESTBRIDGE_NDEBUG
 							cy_as_hal_print_message(
 							"%s: cannot query %d "
 							"device unit - reason code %d\n",
-							__func__, bus_num, ret) ;
+							__func__, bus_num, ret);
 							#endif
-							goto out ;
+							goto out;
 						} else {
 							disk_cap = (uint64_t)
 								(unit_data.desc_p.unit_size);
@@ -952,27 +952,27 @@ static int cyasblkdev_add_disks(int bus_num,
 					__func__, ret);
 					#endif
 
-						unit_data.bus = bus_num ;
-						unit_data.device = 0 ;
-						unit_data.unit = 1 ;
+						unit_data.bus = bus_num;
+						unit_data.device = 0;
+						unit_data.unit = 1;
 
 						ret = cy_as_storage_query_unit(
-							bd->dev_handle, &unit_data, 0, 0) ;
+							bd->dev_handle, &unit_data, 0, 0);
 						if (ret != CY_AS_ERROR_SUCCESS) {
 						#ifndef WESTBRIDGE_NDEBUG
 							cy_as_hal_print_message(
 							"%s: cannot query %d "
 							"device unit - reason "
 							"code %d\n", __func__,
-							bus_num, ret) ;
+							bus_num, ret);
 						#endif
-							goto out ;
+							goto out;
 						}
 
 						disk_cap = (uint64_t)
 							(unit_data.desc_p.unit_size);
 						lcl_unit_no =
-							unit_data.unit ;
+							unit_data.unit;
 					}
 				} else {
 					#ifndef WESTBRIDGE_NDEBUG
@@ -983,25 +983,25 @@ static int cyasblkdev_add_disks(int bus_num,
 
 					/*partition already existed,
 					 * need to query second unit*/
-					unit_data.bus = bus_num ;
-					unit_data.device = 0 ;
-					unit_data.unit = 1 ;
+					unit_data.bus = bus_num;
+					unit_data.device = 0;
+					unit_data.unit = 1;
 
 					ret = cy_as_storage_query_unit(
-						bd->dev_handle, &unit_data, 0, 0) ;
+						bd->dev_handle, &unit_data, 0, 0);
 					if (ret != CY_AS_ERROR_SUCCESS) {
 					#ifndef WESTBRIDGE_NDEBUG
 						cy_as_hal_print_message(
 							"%s: cannot query %d "
 							"device unit "
 							"- reason code %d\n",
-							__func__, bus_num, ret) ;
+							__func__, bus_num, ret);
 					#endif
-						goto out ;
+						goto out;
 					} else {
 						disk_cap = (uint64_t)
 						(unit_data.desc_p.unit_size);
-						lcl_unit_no = unit_data.unit ;
+						lcl_unit_no = unit_data.unit;
 					}
 				}
 			} else {
@@ -1067,7 +1067,7 @@ static int cyasblkdev_add_disks(int bus_num,
 		/* this will create a
 		 * queue kernel thread */
 		cyasblkdev_init_queue(
-			&bd->queue, &bd->lock) ;
+			&bd->queue, &bd->lock);
 
 		bd->queue.prep_fn = cyasblkdev_blk_prep_rq;
 		bd->queue.issue_fn = cyasblkdev_blk_issue_rq;
@@ -1261,7 +1261,7 @@ static int cyasblkdev_add_disks(int bus_num,
 			if (bd->system_disk == NULL) {
 				kfree(bd);
 				bd = ERR_PTR(-ENOMEM);
-				return bd ;
+				return bd;
 			}
 			disk_cap = (uint64_t)
 				(private_partition_size);
@@ -1294,7 +1294,7 @@ static int cyasblkdev_add_disks(int bus_num,
 		else {
 			cy_as_hal_print_message(
 				"%s: system disk already allocated %d\n",
-				__func__, bus_num) ;
+				__func__, bus_num);
 		}
 		#endif
 	}
@@ -1305,8 +1305,8 @@ out:
 static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 {
 	struct cyasblkdev_blk_data *bd;
-	int ret = 0 ;
-	cy_as_return_status_t stat = -1 ;
+	int ret = 0;
+	cy_as_return_status_t stat = -1;
 	int bus_num = 0;
 	int total_media_count = 0;
 	int devidx = 0;
@@ -1322,7 +1322,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 
 	bd = kzalloc(sizeof(struct cyasblkdev_blk_data), GFP_KERNEL);
 	if (bd) {
-		gl_bd = bd ;
+		gl_bd = bd;
 
 		spin_lock_init(&bd->lock);
 		bd->usage = 1;
@@ -1331,14 +1331,14 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 		bd->blkops = &cyasblkdev_bdops;
 
 		/* Get the device handle */
-		bd->dev_handle = cyasdevice_getdevhandle() ;
+		bd->dev_handle = cyasdevice_getdevhandle();
 		if (0 == bd->dev_handle) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message(
-				"%s: get device failed\n", __func__) ;
+				"%s: get device failed\n", __func__);
 			#endif
-			ret = ENODEV ;
-			goto out ;
+			ret = ENODEV;
+			goto out;
 		}
 
 		#ifndef WESTBRIDGE_NDEBUG
@@ -1350,7 +1350,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 		 * device we are interested in. */
 
 		/* Error code to use if the conditions are not satisfied. */
-		ret = ENOMEDIUM ;
+		ret = ENOMEDIUM;
 
 		stat = cy_as_misc_release_resource(bd->dev_handle, cy_as_bus_0);
 		if ((stat != CY_AS_ERROR_SUCCESS) &&
@@ -1358,7 +1358,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message("%s: cannot release "
 				"resource bus 0 - reason code %d\n",
-				__func__, stat) ;
+				__func__, stat);
 			#endif
 		}
 
@@ -1368,16 +1368,16 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message("%s: cannot release "
 				"resource bus 0 - reason code %d\n",
-				__func__, stat) ;
+				__func__, stat);
 			#endif
 		}
 
 		/* start storage stack*/
-		stat = cy_as_storage_start(bd->dev_handle, 0, 0x101) ;
+		stat = cy_as_storage_start(bd->dev_handle, 0, 0x101);
 		if (stat != CY_AS_ERROR_SUCCESS) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message("%s: cannot start storage "
-				"stack - reason code %d\n", __func__, stat) ;
+				"stack - reason code %d\n", __func__, stat);
 			#endif
 			goto out;
 		}
@@ -1392,14 +1392,14 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 		if (stat != CY_AS_ERROR_SUCCESS) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message("%s: cannot register callback "
-				"- reason code %d\n", __func__, stat) ;
+				"- reason code %d\n", __func__, stat);
 			#endif
 			goto out;
 		}
 
 		for (bus_num = 0; bus_num < 2; bus_num++) {
 			stat = cy_as_storage_query_bus(bd->dev_handle,
-				bus_num, &bd->media_count[bus_num],  0, 0) ;
+				bus_num, &bd->media_count[bus_num],  0, 0);
 			if (stat == CY_AS_ERROR_SUCCESS) {
 				total_media_count = total_media_count +
 					bd->media_count[bus_num];
@@ -1407,7 +1407,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 				#ifndef WESTBRIDGE_NDEBUG
 				cy_as_hal_print_message("%s: cannot query %d, "
 					"reason code: %d\n",
-					__func__, bus_num, stat) ;
+					__func__, bus_num, stat);
 				#endif
 				goto out;
 			}
@@ -1416,9 +1416,9 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 		if (total_media_count == 0) {
 			#ifndef WESTBRIDGE_NDEBUG
 			cy_as_hal_print_message(
-				"%s: no storage media was found\n", __func__) ;
+				"%s: no storage media was found\n", __func__);
 			#endif
-			goto out ;
+			goto out;
 		} else if (total_media_count >= 1) {
 			if (bd->user_disk_0 == NULL) {
 
@@ -1428,7 +1428,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 				if (bd->user_disk_0 == NULL) {
 					kfree(bd);
 					bd = ERR_PTR(-ENOMEM);
-					return bd ;
+					return bd;
 				}
 			}
 			#ifndef WESTBRIDGE_NDEBUG
@@ -1448,7 +1448,7 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 				if (bd->user_disk_1 == NULL) {
 					kfree(bd);
 					bd = ERR_PTR(-ENOMEM);
-					return bd ;
+					return bd;
 				}
 			}
 			#ifndef WESTBRIDGE_NDEBUG
@@ -1468,25 +1468,25 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 
 		#ifndef WESTBRIDGE_NDEBUG
 		cy_as_hal_print_message("%s: %d device(s) found\n",
-			__func__, total_media_count) ;
+			__func__, total_media_count);
 		#endif
 
 		for (bus_num = 0; bus_num <= 1; bus_num++) {
 			/*claim storage for cpu */
 			stat = cy_as_storage_claim(bd->dev_handle,
-				bus_num, 0, 0, 0) ;
+				bus_num, 0, 0, 0);
 			if (stat != CY_AS_ERROR_SUCCESS) {
 				cy_as_hal_print_message("%s: cannot claim "
 					"%d bus - reason code %d\n",
-					__func__, bus_num, stat) ;
+					__func__, bus_num, stat);
 				goto out;
 			}
 
-			dev_data.bus = bus_num ;
-			dev_data.device = 0 ;
+			dev_data.bus = bus_num;
+			dev_data.device = 0;
 
 			stat = cy_as_storage_query_device(bd->dev_handle,
-				&dev_data, 0, 0) ;
+				&dev_data, 0, 0);
 			if (stat == CY_AS_ERROR_SUCCESS) {
 				cyasblkdev_add_disks(bus_num, bd,
 					total_media_count, devidx);
@@ -1494,20 +1494,20 @@ static struct cyasblkdev_blk_data *cyasblkdev_blk_alloc(void)
 				#ifndef WESTBRIDGE_NDEBUG
 				cy_as_hal_print_message(
 					"%s: no device on bus %d\n",
-					__func__, bus_num) ;
+					__func__, bus_num);
 				#endif
 			} else {
 				#ifndef WESTBRIDGE_NDEBUG
 				cy_as_hal_print_message(
 					"%s: cannot query %d device "
 					"- reason code %d\n",
-					__func__, bus_num, stat) ;
+					__func__, bus_num, stat);
 				#endif
-				goto out ;
+				goto out;
 			}
 		} /* end for (bus_num = 0; bus_num <= 1; bus_num++)*/
 
-		return bd ;
+		return bd;
 	}
 out:
 	#ifndef WESTBRIDGE_NDEBUG
@@ -1546,7 +1546,7 @@ static int cyasblkdev_blk_initialize(void)
 	#ifndef WESTBRIDGE_NDEBUG
 	cy_as_hal_print_message(
 		"%s cyasblkdev registered with major number: %d\n",
-		__func__, major) ;
+		__func__, major);
 	#endif
 
 	bd = cyasblkdev_blk_alloc();

@@ -147,7 +147,7 @@
  * West Bridge Data Structures
  ****************************************/
 
-typedef struct cy_as_device cy_as_device ;
+typedef struct cy_as_device cy_as_device;
 
 /* Summary
    This type defines a callback function that will be called
@@ -173,7 +173,7 @@ typedef void (*cy_as_dma_callback)(
 	uint32_t size,
 	/* The error code for this DMA xfer */
 	cy_as_return_status_t error
-	) ;
+	);
 
 /* Summary
    This structure defines a DMA request that is queued
@@ -184,20 +184,20 @@ typedef void (*cy_as_dma_callback)(
 */
 typedef struct cy_as_dma_queue_entry {
 	/* Pointer to memory buffer for this request */
-	void *buf_p ;
+	void *buf_p;
 	/* Size of the memory buffer for DMA operation */
-	uint32_t size ;
+	uint32_t size;
 	/* Offset into memory buffer for next DMA operation */
-	uint32_t offset ;
+	uint32_t offset;
 	/* If TRUE and IN request */
-	cy_bool packet ;
+	cy_bool packet;
 	/* If TRUE, this is a read request */
-	cy_bool	readreq ;
+	cy_bool	readreq;
 	/* Callback function for when DMA is complete */
-	cy_as_dma_callback	cb ;
+	cy_as_dma_callback	cb;
 	/* Pointer to next entry in queue */
-	struct cy_as_dma_queue_entry *next_p ;
-} cy_as_dma_queue_entry ;
+	struct cy_as_dma_queue_entry *next_p;
+} cy_as_dma_queue_entry;
 
 /* Summary
    This structure defines the endpoint data for a given
@@ -208,21 +208,21 @@ typedef struct cy_as_dma_queue_entry {
 */
 typedef struct cy_as_dma_end_point {
 	/* The endpoint number */
-	cy_as_end_point_number_t ep ;
+	cy_as_end_point_number_t ep;
 	/* The state of this endpoint */
-	uint8_t	state ;
+	uint8_t	state;
 	/* The maximum amount of data accepted in a packet by the hw */
-	uint16_t maxhwdata ;
+	uint16_t maxhwdata;
 	/* The maximum amount of data accepted by the HAL layer */
-	uint32_t maxhaldata ;
+	uint32_t maxhaldata;
 	/* The queue for DMA operations */
-	cy_as_dma_queue_entry *queue_p ;
+	cy_as_dma_queue_entry *queue_p;
 	/* The last entry in the DMA queue */
-	cy_as_dma_queue_entry *last_p ;
+	cy_as_dma_queue_entry *last_p;
 	/* This sleep channel is used to wait while the DMA queue
 	 * drains for a given endpoint */
-	cy_as_hal_sleep_channel			 channel ;
-} cy_as_dma_end_point ;
+	cy_as_hal_sleep_channel			 channel;
+} cy_as_dma_end_point;
 
 #define cy_as_end_point_number_is_usb(n) \
 	((n) != 2 && (n) != 4 && (n) != 6 && (n) != 8)
@@ -274,16 +274,16 @@ typedef struct cy_as_dma_end_point {
 
 typedef struct cy_as_ll_request_response {
 	/* The mbox[0] contents - see low level comm section of API doc */
-	uint16_t	box0 ;
+	uint16_t	box0;
 	/* The amount of data stored in this request/response in bytes */
-	uint16_t	stored ;
+	uint16_t	stored;
 	/* Length of this request in words */
-	uint16_t	length ;
+	uint16_t	length;
 	/* Additional status information about the request */
-	uint16_t	flags ;
+	uint16_t	flags;
 	/* Note: This is over indexed and contains the request/response data */
-	uint16_t	data[1] ;
-} cy_as_ll_request_response ;
+	uint16_t	data[1];
+} cy_as_ll_request_response;
 
 /*
  * The callback function for responses
@@ -299,22 +299,22 @@ typedef void (*cy_as_response_callback)(
 	cy_as_ll_request_response *resp,
 	/* The status of the request */
 	cy_as_return_status_t status
-	) ;
+	);
 
 typedef struct cy_as_ll_request_list_node {
 	/* The request to send */
-	cy_as_ll_request_response *rqt ;
+	cy_as_ll_request_response *rqt;
 	/* The associated response for the request */
-	cy_as_ll_request_response *resp ;
+	cy_as_ll_request_response *resp;
 	/* Length of the response */
-	uint16_t						length ;
+	uint16_t						length;
 	/* The callback to call when done */
-	cy_as_response_callback			callback ;
+	cy_as_response_callback			callback;
 	/* The state of the request */
-	uint8_t						 state ;
+	uint8_t						 state;
 	/* The next request in the list */
-	struct cy_as_ll_request_list_node *next ;
-} cy_as_ll_request_list_node ;
+	struct cy_as_ll_request_list_node *next;
+} cy_as_ll_request_list_node;
 
 #define cy_as_request_get_node_state(node_p) \
 	((node_p)->state & CY_AS_REQUEST_LIST_STATE_MASK)
@@ -336,88 +336,88 @@ typedef enum cy_as_c_b_node_type {
 	CYAS_USB_IO_CB,
 	CYAS_STORAGE_IO_CB,
 	CYAS_FUNC_CB
-} cy_as_c_b_node_type ;
+} cy_as_c_b_node_type;
 
 typedef struct cy_as_func_c_b_node {
-	cy_as_c_b_node_type			  node_type ;
-	cy_as_function_callback		cb_p ;
-	uint32_t					client_data ;
-	cy_as_funct_c_b_type			 data_type ;
-	void	*data ;
-	struct cy_as_func_c_b_node *next_p ;
+	cy_as_c_b_node_type			  node_type;
+	cy_as_function_callback		cb_p;
+	uint32_t					client_data;
+	cy_as_funct_c_b_type			 data_type;
+	void	*data;
+	struct cy_as_func_c_b_node *next_p;
 } cy_as_func_c_b_node;
 
 extern cy_as_func_c_b_node*
 cy_as_create_func_c_b_node_data(cy_as_function_callback
-	cb, uint32_t client, cy_as_funct_c_b_type type, void *data) ;
+	cb, uint32_t client, cy_as_funct_c_b_type type, void *data);
 
 extern cy_as_func_c_b_node*
 cy_as_create_func_c_b_node(cy_as_function_callback cb,
-	uint32_t client) ;
+	uint32_t client);
 
 extern void
-cy_as_destroy_func_c_b_node(cy_as_func_c_b_node *node) ;
+cy_as_destroy_func_c_b_node(cy_as_func_c_b_node *node);
 
 typedef struct cy_as_mtp_func_c_b_node {
-	cy_as_c_b_node_type			  type ;
-	cy_as_mtp_function_callback	 cb_p ;
+	cy_as_c_b_node_type			  type;
+	cy_as_mtp_function_callback	 cb_p;
 	uint32_t					client_data;
-	struct cy_as_mtp_func_c_b_node *next_p ;
+	struct cy_as_mtp_func_c_b_node *next_p;
 } cy_as_mtp_func_c_b_node;
 
 extern cy_as_mtp_func_c_b_node*
 cy_as_create_mtp_func_c_b_node(cy_as_mtp_function_callback cb,
-	uint32_t client) ;
+	uint32_t client);
 
 extern void
-cy_as_destroy_mtp_func_c_b_node(cy_as_mtp_func_c_b_node *node) ;
+cy_as_destroy_mtp_func_c_b_node(cy_as_mtp_func_c_b_node *node);
 
 typedef struct cy_as_usb_func_c_b_node {
-	cy_as_c_b_node_type	type ;
-	cy_as_usb_function_callback	 cb_p ;
+	cy_as_c_b_node_type	type;
+	cy_as_usb_function_callback	 cb_p;
 	uint32_t client_data;
-	struct cy_as_usb_func_c_b_node *next_p ;
+	struct cy_as_usb_func_c_b_node *next_p;
 } cy_as_usb_func_c_b_node;
 
 extern cy_as_usb_func_c_b_node*
 cy_as_create_usb_func_c_b_node(cy_as_usb_function_callback cb,
-	uint32_t client) ;
+	uint32_t client);
 
 extern void
-cy_as_destroy_usb_func_c_b_node(cy_as_usb_func_c_b_node *node) ;
+cy_as_destroy_usb_func_c_b_node(cy_as_usb_func_c_b_node *node);
 
 typedef struct cy_as_usb_io_c_b_node {
-	cy_as_c_b_node_type			  type ;
-	cy_as_usb_io_callback		   cb_p ;
-	struct cy_as_usb_io_c_b_node *next_p ;
+	cy_as_c_b_node_type			  type;
+	cy_as_usb_io_callback		   cb_p;
+	struct cy_as_usb_io_c_b_node *next_p;
 } cy_as_usb_io_c_b_node;
 
 extern cy_as_usb_io_c_b_node*
-cy_as_create_usb_io_c_b_node(cy_as_usb_io_callback cb) ;
+cy_as_create_usb_io_c_b_node(cy_as_usb_io_callback cb);
 
 extern void
-cy_as_destroy_usb_io_c_b_node(cy_as_usb_io_c_b_node *node) ;
+cy_as_destroy_usb_io_c_b_node(cy_as_usb_io_c_b_node *node);
 
 typedef struct cy_as_storage_io_c_b_node {
-	cy_as_c_b_node_type			  type ;
-	cy_as_storage_callback		 cb_p ;
+	cy_as_c_b_node_type			  type;
+	cy_as_storage_callback		 cb_p;
 	/* The media for the currently outstanding async storage request */
-	cy_as_media_type			   media ;
+	cy_as_media_type			   media;
 	/* The device index for the currently outstanding async storage
 	 * request */
-	uint32_t					device_index ;
+	uint32_t					device_index;
 	/* The unit index for the currently outstanding async storage
 	 * request */
-	uint32_t					unit ;
+	uint32_t					unit;
 	/* The block address for the currently outstanding async storage
 	 * request */
-	uint32_t					block_addr ;
+	uint32_t					block_addr;
 	/* The operation for the currently outstanding async storage
 	 * request */
-	cy_as_oper_type				oper ;
-	cy_as_ll_request_response *req_p ;
-	cy_as_ll_request_response *reply_p ;
-	struct cy_as_storage_io_c_b_node *next_p ;
+	cy_as_oper_type				oper;
+	cy_as_ll_request_response *req_p;
+	cy_as_ll_request_response *reply_p;
+	struct cy_as_storage_io_c_b_node *next_p;
 } cy_as_storage_io_c_b_node;
 
 extern cy_as_storage_io_c_b_node*
@@ -425,39 +425,39 @@ cy_as_create_storage_io_c_b_node(cy_as_storage_callback cb,
 	cy_as_media_type media, uint32_t device_index,
 	uint32_t unit, uint32_t block_addr, cy_as_oper_type oper,
 	cy_as_ll_request_response *req_p,
-	cy_as_ll_request_response *reply_p) ;
+	cy_as_ll_request_response *reply_p);
 
 extern void
-cy_as_destroy_storage_io_c_b_node(cy_as_storage_io_c_b_node *node) ;
+cy_as_destroy_storage_io_c_b_node(cy_as_storage_io_c_b_node *node);
 
 typedef struct cy_as_c_b_queue {
 	void *head_p;
 	void *tail_p;
-	uint32_t count ;
-	cy_as_c_b_node_type type ;
-} cy_as_c_b_queue ;
+	uint32_t count;
+	cy_as_c_b_node_type type;
+} cy_as_c_b_queue;
 
 extern cy_as_c_b_queue *
-cy_as_create_c_b_queue(cy_as_c_b_node_type type) ;
+cy_as_create_c_b_queue(cy_as_c_b_node_type type);
 
 extern void
-cy_as_destroy_c_b_queue(cy_as_c_b_queue *queue) ;
+cy_as_destroy_c_b_queue(cy_as_c_b_queue *queue);
 
 /* Allocates a new CyAsCBNode */
 extern void
-cy_as_insert_c_b_node(cy_as_c_b_queue *queue_p, void *cbnode) ;
+cy_as_insert_c_b_node(cy_as_c_b_queue *queue_p, void *cbnode);
 
 /* Removes the first CyAsCBNode from the queue and frees it */
 extern void
-cy_as_remove_c_b_node(cy_as_c_b_queue *queue_p) ;
+cy_as_remove_c_b_node(cy_as_c_b_queue *queue_p);
 
 /* Remove the last CyAsCBNode from the queue and frees it */
 extern void
-cy_as_remove_c_b_tail_node(cy_as_c_b_queue *queue_p) ;
+cy_as_remove_c_b_tail_node(cy_as_c_b_queue *queue_p);
 
 /* Removes and frees all pending callbacks */
 extern void
-cy_as_clear_c_b_queue(cy_as_c_b_queue *queue_p) ;
+cy_as_clear_c_b_queue(cy_as_c_b_queue *queue_p);
 
 extern cy_as_return_status_t
 cy_as_misc_send_request(cy_as_device *dev_p,
@@ -469,10 +469,10 @@ cy_as_misc_send_request(cy_as_device *dev_p,
 					  uint16_t req_type,
 					  cy_as_ll_request_response *req_p,
 					  cy_as_ll_request_response *reply_p,
-					  cy_as_response_callback rcb) ;
+					  cy_as_response_callback rcb);
 
 extern void
-cy_as_misc_cancel_ex_requests(cy_as_device *dev_p) ;
+cy_as_misc_cancel_ex_requests(cy_as_device *dev_p);
 
 /* Summary
    Free all memory allocated by and zero all
@@ -480,7 +480,7 @@ cy_as_misc_cancel_ex_requests(cy_as_device *dev_p) ;
  */
 extern void
 cy_as_usb_cleanup(
-		cy_as_device *dev_p) ;
+		cy_as_device *dev_p);
 
 /* Summary
    Free all memory allocated and zero all structures initialized
@@ -488,7 +488,7 @@ cy_as_usb_cleanup(
  */
 extern void
 cy_as_storage_cleanup(
-		cy_as_device *dev_p) ;
+		cy_as_device *dev_p);
 #endif
 
 /* Summary
@@ -503,28 +503,28 @@ cy_as_storage_cleanup(
 */
 typedef struct cy_as_context {
 	/* The context number for this context */
-	uint8_t						 number ;
+	uint8_t						 number;
 	/* This sleep channel is used to sleep while waiting on a
 	 * response from the west bridge device for a request. */
-	cy_as_hal_sleep_channel			 channel ;
+	cy_as_hal_sleep_channel			 channel;
 	/* The buffer for received requests */
-	cy_as_ll_request_response *req_p ;
+	cy_as_ll_request_response *req_p;
 	/* The length of the request being received */
-	uint16_t request_length ;
+	uint16_t request_length;
 	/* The callback for the next request received */
-	cy_as_response_callback	request_callback ;
+	cy_as_response_callback	request_callback;
 	/* A list of low level requests to go to the firmware */
-	cy_as_ll_request_list_node *request_queue_p ;
+	cy_as_ll_request_list_node *request_queue_p;
 	/* The list node in the request queue */
-	cy_as_ll_request_list_node *last_node_p ;
+	cy_as_ll_request_list_node *last_node_p;
 	/* Index upto which data is stored. */
-	uint16_t queue_index ;
+	uint16_t queue_index;
 	/* Index to the next request in the queue. */
-	uint16_t rqt_index ;
+	uint16_t rqt_index;
 	/* Queue of data stored */
-	uint16_t data_queue[128] ;
+	uint16_t data_queue[128];
 
-} cy_as_context ;
+} cy_as_context;
 
 #define cy_as_context_is_waiting(ctxt) \
 	((ctxt)->state & CY_AS_CTXT_STATE_WAITING_RESPONSE)
@@ -638,175 +638,175 @@ Macros to access the SDIO card properties
 struct cy_as_device {
 	/* General stuff */
 	/* A signature to insure we have a valid handle */
-	uint32_t sig ;
+	uint32_t sig;
 	/* The ID of the silicon */
-	uint16_t silicon_id ;
+	uint16_t silicon_id;
 	/* Pointer to the next device */
-	struct cy_as_device *next_p ;
+	struct cy_as_device *next_p;
 	/* This is the client specific tag for this device */
-	cy_as_hal_device_tag tag ;
+	cy_as_hal_device_tag tag;
 	/* This contains various state information about the device */
-	uint32_t state ;
+	uint32_t state;
 	/* Flag indicating whether INT# pin is used for DRQ */
-	cy_bool	use_int_drq ;
+	cy_bool	use_int_drq;
 
 	/* DMA related */
 	/* The endpoint pointers associated with this device */
-	cy_as_dma_end_point	 *endp[16] ;
+	cy_as_dma_end_point	 *endp[16];
 	/* List of queue entries that can be used for xfers */
-	cy_as_dma_queue_entry *dma_freelist_p ;
+	cy_as_dma_queue_entry *dma_freelist_p;
 
 	/* Low level comm related */
 	/* The contexts available in this device */
-	cy_as_context *context[CY_RQT_CONTEXT_COUNT] ;
+	cy_as_context *context[CY_RQT_CONTEXT_COUNT];
 	/* The low level error returned from sending an async request */
-	cy_as_return_status_t ll_error ;
+	cy_as_return_status_t ll_error;
 	/* A request is currently being sent to West Bridge. */
-	cy_bool	ll_sending_rqt ;
+	cy_bool	ll_sending_rqt;
 	/* The current mailbox request should be aborted. */
-	cy_bool	ll_abort_curr_rqt ;
+	cy_bool	ll_abort_curr_rqt;
 	/* Indicates that the LL layer has queued mailbox data. */
-	cy_bool	ll_queued_data ;
+	cy_bool	ll_queued_data;
 
 	/* MISC API related */
 	/* Misc callback */
-	cy_as_misc_event_callback misc_event_cb ;
+	cy_as_misc_event_callback misc_event_cb;
 
 	/* Storage Related */
 	/* The reference count for the Storage API */
-	uint32_t storage_count ;
+	uint32_t storage_count;
 	/* Callback for storage events */
-	cy_as_storage_event_callback_dep	storage_event_cb ;
+	cy_as_storage_event_callback_dep	storage_event_cb;
 	/* V1.2+ callback for storage events */
-	cy_as_storage_event_callback  storage_event_cb_ms ;
+	cy_as_storage_event_callback  storage_event_cb_ms;
 	/* The error for a sleeping storage operation */
-	cy_as_return_status_t		  storage_error ;
+	cy_as_return_status_t		  storage_error;
 	/* Flag indicating that the storage stack is waiting for an operation */
-	cy_bool					  storage_wait ;
+	cy_bool					  storage_wait;
 	/* Request used for storage read/writes. */
-	cy_as_ll_request_response *storage_rw_req_p ;
+	cy_as_ll_request_response *storage_rw_req_p;
 	/* Response used for storage read/writes. */
-	cy_as_ll_request_response *storage_rw_resp_p ;
+	cy_as_ll_request_response *storage_rw_resp_p;
 	/* The storage callback */
-	cy_as_storage_callback_dep storage_cb ;
+	cy_as_storage_callback_dep storage_cb;
 	/* The V1.2+ storage callback */
-	cy_as_storage_callback storage_cb_ms ;
+	cy_as_storage_callback storage_cb_ms;
 	/* The bus index for the currently outstanding async storage request */
-	cy_as_bus_number_t storage_bus_index ;
+	cy_as_bus_number_t storage_bus_index;
 	/* The device index for the currently outstanding async storage
 	 * request */
-	uint32_t storage_device_index ;
+	uint32_t storage_device_index;
 	/* The unit index for the currently outstanding async storage request */
-	uint32_t storage_unit ;
+	uint32_t storage_unit;
 	/* The block address for the currently outstanding async storage
 	 * request */
-	uint32_t storage_block_addr ;
+	uint32_t storage_block_addr;
 	/* The operation for the currently outstanding async storage request */
-	cy_as_oper_type	storage_oper ;
+	cy_as_oper_type	storage_oper;
 	/* The endpoint used to read Storage data */
-	cy_as_end_point_number_t storage_read_endpoint ;
+	cy_as_end_point_number_t storage_read_endpoint;
 	/* The endpoint used to write endpoint data */
-	cy_as_end_point_number_t storage_write_endpoint ;
+	cy_as_end_point_number_t storage_write_endpoint;
 	cy_as_device_desc storage_device_info
-		[CY_AS_MAX_BUSES][CY_AS_MAX_STORAGE_DEVICES] ;
+		[CY_AS_MAX_BUSES][CY_AS_MAX_STORAGE_DEVICES];
 	/* The information on each device on each bus */
 
 	/* USB Related */
 	/* This conatins the endpoint async state */
-	uint16_t epasync ;
+	uint16_t epasync;
 	/* The reference count for the USB API */
-	uint32_t usb_count ;
+	uint32_t usb_count;
 	/* The physical endpoint configuration */
-	uint8_t	usb_phy_config ;
+	uint8_t	usb_phy_config;
 	/* The callbacks for async func calls */
-	cy_as_c_b_queue *usb_func_cbs ;
+	cy_as_c_b_queue *usb_func_cbs;
 	/* Endpoint configuration information */
-	cy_as_usb_end_point_config usb_config[16] ;
+	cy_as_usb_end_point_config usb_config[16];
 	/* The USB callback */
-	cy_as_usb_event_callback_dep usb_event_cb ;
+	cy_as_usb_event_callback_dep usb_event_cb;
 	/* The V1.2+ USB callback */
-	cy_as_usb_event_callback usb_event_cb_ms ;
+	cy_as_usb_event_callback usb_event_cb_ms;
 	/* The error for a sleeping usb operation */
-	cy_as_return_status_t usb_error ;
+	cy_as_return_status_t usb_error;
 	/* The USB callback for a pending storage operation */
-	cy_as_usb_io_callback usb_cb[16] ;
+	cy_as_usb_io_callback usb_cb[16];
 	/* The buffer pending from a USB operation */
-	void *usb_pending_buffer ;
+	void *usb_pending_buffer;
 	/* The size of the buffer pending from a USB operation */
-	uint32_t usb_pending_size ;
+	uint32_t usb_pending_size;
 	/* If true, send a short packet */
-	cy_bool	usb_spacket[16] ;
+	cy_bool	usb_spacket[16];
 	/* The amount of data actually xferred */
-	uint32_t usb_actual_cnt ;
+	uint32_t usb_actual_cnt;
 	/* EP1OUT and EP1IN config register contents */
-	uint8_t	usb_ep1cfg[2] ;
+	uint8_t	usb_ep1cfg[2];
 	/* LEP config register contents */
-	uint16_t usb_lepcfg[10] ;
+	uint16_t usb_lepcfg[10];
 	/* PEP config register contents */
-	uint16_t usb_pepcfg[4] ;
+	uint16_t usb_pepcfg[4];
 	/* Buffer for EP0 and EP1 data sent via mailboxes */
-	uint8_t *usb_ep_data ;
+	uint8_t *usb_ep_data;
 	/* Used to track how many ack requests are pending */
-	uint32_t usb_delay_ack_count ;
+	uint32_t usb_delay_ack_count;
 	/* Maximum transfer size for USB endpoints. */
-	uint32_t usb_max_tx_size ;
+	uint32_t usb_max_tx_size;
 
 	/* Request for sending EP0 data to West Bridge */
-	cy_as_ll_request_response *usb_ep0_dma_req ;
+	cy_as_ll_request_response *usb_ep0_dma_req;
 	/* Response for EP0 data sent to West Bridge */
-	cy_as_ll_request_response *usb_ep0_dma_resp ;
+	cy_as_ll_request_response *usb_ep0_dma_resp;
 	/* Request for sending EP1 data to West Bridge */
-	cy_as_ll_request_response *usb_ep1_dma_req ;
+	cy_as_ll_request_response *usb_ep1_dma_req;
 	/* Response for EP1 data sent to West Bridge */
-	cy_as_ll_request_response *usb_ep1_dma_resp ;
+	cy_as_ll_request_response *usb_ep1_dma_resp;
 
-	cy_as_ll_request_response *usb_ep0_dma_req_save ;
-	cy_as_ll_request_response *usb_ep0_dma_resp_save ;
+	cy_as_ll_request_response *usb_ep0_dma_req_save;
+	cy_as_ll_request_response *usb_ep0_dma_resp_save;
 
 	/* MTP Related */
 	/* The reference count for the MTP API */
-	uint32_t mtp_count ;
+	uint32_t mtp_count;
 	/* The MTP event callback supplied by the client */
-	cy_as_mtp_event_callback mtp_event_cb ;
+	cy_as_mtp_event_callback mtp_event_cb;
 	/* The current block table to be transfered */
-	cy_as_mtp_block_table *tp_blk_tbl ;
+	cy_as_mtp_block_table *tp_blk_tbl;
 
-	cy_as_c_b_queue *func_cbs_mtp ;
-	cy_as_c_b_queue *func_cbs_usb ;
-	cy_as_c_b_queue *func_cbs_stor ;
-	cy_as_c_b_queue *func_cbs_misc ;
-	cy_as_c_b_queue *func_cbs_res ;
+	cy_as_c_b_queue *func_cbs_mtp;
+	cy_as_c_b_queue *func_cbs_usb;
+	cy_as_c_b_queue *func_cbs_stor;
+	cy_as_c_b_queue *func_cbs_misc;
+	cy_as_c_b_queue *func_cbs_res;
 
 	/* The last USB event that was received */
-	cy_as_usb_event	usb_last_event ;
+	cy_as_usb_event	usb_last_event;
 	/* Types of storage media supported by the firmware */
-	uint8_t	media_supported[CY_AS_MAX_BUSES] ;
+	uint8_t	media_supported[CY_AS_MAX_BUSES];
 
 	/* SDIO card parameters*/
 	cy_as_sdio_device   sdiocard[CY_AS_MAX_BUSES];
 	/* if true, MTP enabled Firmware. */
-	cy_bool	is_mtp_firmware ;
+	cy_bool	is_mtp_firmware;
 	/* if true, mailbox message has come already */
-	cy_bool	is_mtp_data_pending ;
+	cy_bool	is_mtp_data_pending;
 	/* True between the time an Init was called and
 	 * the complete event is generated */
-	cy_bool	mtp_turbo_active ;
+	cy_bool	mtp_turbo_active;
 	/* mbox reported EP 2 data len */
-	uint16_t mtp_data_len ;
+	uint16_t mtp_data_len;
 	/* The error for mtp EP4 write operation */
-	cy_as_return_status_t mtp_error ;
+	cy_as_return_status_t mtp_error;
 	/* mtp send/get operation callback */
-	cy_as_function_callback	mtp_cb ;
+	cy_as_function_callback	mtp_cb;
 	/* mtp send/get operation client id */
-	uint32_t mtp_client ;
+	uint32_t mtp_client;
 	/* mtp operation type. To be used in callback */
-	cy_as_funct_c_b_type mtp_op ;
+	cy_as_funct_c_b_type mtp_op;
 
 	/* Firmware is running in P2S only mode. */
-	cy_bool	is_storage_only_mode ;
+	cy_bool	is_storage_only_mode;
 	/* Interrupt mask value during device standby. */
-	uint32_t stby_int_mask ;
-} ;
+	uint32_t stby_int_mask;
+};
 
 #define cy_as_device_is_configured(dp) \
 	((dp)->state & CY_AS_DEVICE_STATE_CONFIGURED)
@@ -1020,7 +1020,7 @@ struct cy_as_device {
 	((dp)->silicon_id == CY_AS_MEM_CM_WB_CFG_ID_HDID_ANTIOCH_VALUE)
 
 #ifdef CY_AS_LOG_SUPPORT
-extern void cy_as_log_debug_message(int value, const char *msg) ;
+extern void cy_as_log_debug_message(int value, const char *msg);
 #else
 #define cy_as_log_debug_message(value, msg)
 #endif
@@ -1050,7 +1050,7 @@ extern void cy_as_log_debug_message(int value, const char *msg) ;
 extern cy_as_device *
 cy_as_device_find_from_tag(
 		cy_as_hal_device_tag tag
-		) ;
+		);
 
 #include "cyas_cplus_end.h"
 

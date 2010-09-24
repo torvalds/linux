@@ -132,9 +132,9 @@
 
 */
 typedef struct cy_as_mtp_block_table {
-	uint32_t start_blocks[CY_AS_MAX_BLOCK_TABLE_ENTRIES] ;
-	uint16_t num_blocks[CY_AS_MAX_BLOCK_TABLE_ENTRIES] ;
-} cy_as_mtp_block_table ;
+	uint32_t start_blocks[CY_AS_MAX_BLOCK_TABLE_ENTRIES];
+	uint16_t num_blocks[CY_AS_MAX_BLOCK_TABLE_ENTRIES];
+} cy_as_mtp_block_table;
 
 /* Summary
    This type specifies the type of MTP event that has occurred.
@@ -178,7 +178,7 @@ typedef enum cy_as_mtp_event {
 	will result in an USB reset. this event has
 	no data */
 	cy_as_mtp_block_table_needed
-} cy_as_mtp_event ;
+} cy_as_mtp_event;
 
 /* Summary
    Data for the CyAsMTPSendObjectComplete event.
@@ -202,10 +202,10 @@ typedef enum cy_as_mtp_event {
 
  */
 typedef struct cy_as_mtp_send_object_complete_data {
-	cy_as_return_status_t status ;
-	uint32_t byte_count ;
-	uint32_t transaction_id ;
-} cy_as_mtp_send_object_complete_data ;
+	cy_as_return_status_t status;
+	uint32_t byte_count;
+	uint32_t transaction_id;
+} cy_as_mtp_send_object_complete_data;
 
 /*  Summary
 	Data for the CyAsMTPGetObjectComplete event.
@@ -220,9 +220,9 @@ typedef struct cy_as_mtp_send_object_complete_data {
 
 */
 typedef struct cy_as_mtp_get_object_complete_data {
-	cy_as_return_status_t status ;
-	uint32_t byte_count ;
-} cy_as_mtp_get_object_complete_data ;
+	cy_as_return_status_t status;
+	uint32_t byte_count;
+} cy_as_mtp_get_object_complete_data;
 
 /*  Summary
 	MTP Event callback.
@@ -238,7 +238,7 @@ typedef void (*cy_as_mtp_event_callback)(
 	cy_as_device_handle handle,
 	cy_as_mtp_event evtype,
 	void *evdata
-	) ;
+	);
 
 /* Summary
    This is the callback function called after asynchronous API
@@ -257,7 +257,7 @@ typedef void (*cy_as_mtp_function_callback)(
 	cy_as_return_status_t	status,
 	/* A client supplied 32 bit tag */
 	uint32_t client
-) ;
+);
 
 /**************************************
  * MTP Functions
@@ -310,7 +310,7 @@ cy_as_mtp_start(
 	cy_as_mtp_event_callback event_c_b,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 
 /*  Summary
@@ -345,7 +345,7 @@ cy_as_mtp_stop(
 	cy_as_device_handle handle,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 /*  Summary
 	This function sets up a Turbo SendObject operation.
@@ -397,7 +397,7 @@ cy_as_mtp_init_send_object(
 	uint32_t num_bytes,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function cancels an ongoing MTP operation.
@@ -433,7 +433,7 @@ cy_as_mtp_cancel_send_object(
 	cy_as_device_handle handle,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function sets up a turbo GetObject operation.
@@ -484,7 +484,7 @@ cy_as_mtp_init_get_object(
 	uint32_t transaction_id,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function cancels an ongoing turbo GetObject
@@ -518,7 +518,7 @@ cy_as_mtp_cancel_get_object(
 	cy_as_device_handle handle,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function is used to transfer a BlockTable as part of
@@ -560,7 +560,7 @@ cy_as_mtp_send_block_table(
 	cy_as_mtp_block_table *table,
 	cy_as_function_callback cb,
 	uint32_t client
-	) ;
+	);
 
 /* Summary
    This function is used to mark the start of a storage

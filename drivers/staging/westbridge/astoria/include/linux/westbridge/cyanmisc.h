@@ -130,7 +130,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_create_device(
 		cy_an_device_handle *handle_p,
 		cy_an_hal_device_tag tag
-		) ;
+		);
 #define cy_an_misc_create_device(h, tag) \
 	cy_as_misc_create_device((cy_as_device_handle *)(h), \
 	(cy_as_hal_device_tag)(tag))
@@ -138,7 +138,7 @@ cy_an_misc_create_device(
 EXTERN cy_an_return_status_t
 cy_an_misc_destroy_device(
 	cy_an_device_handle  handle
-	) ;
+	);
 #define cy_an_misc_destroy_device(h) \
 	cy_as_misc_destroy_device((cy_as_device_handle)(h))
 
@@ -146,7 +146,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_configure_device(
 		cy_an_device_handle		handle,
 		cy_an_device_config		*config_p
-		) ;
+		);
 #define cy_an_misc_configure_device(h, cfg) \
 	cy_as_misc_configure_device((cy_as_device_handle)(h), \
 	(cy_as_device_config *)(cfg))
@@ -155,7 +155,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_in_standby(
 		cy_an_device_handle		handle,
 		cy_bool					*standby
-		) ;
+		);
 #define cy_an_misc_in_standby(h, standby) \
 	cy_as_misc_in_standby((cy_as_device_handle)(h), (standby))
 
@@ -165,7 +165,7 @@ cy_an_misc_download_firmware(
 		cy_an_device_handle		handle,
 		const void			 *fw_p,
 		uint16_t			size
-		) ;
+		);
 
 #define cy_an_misc_download_firmware(handle, fw_p, size) \
 	cy_as_misc_download_firmware((cy_as_device_handle)\
@@ -179,7 +179,7 @@ cy_an_misc_download_firmware_e_x(
 		uint16_t			size,
 		cy_an_function_callback		cb,
 		uint32_t			client
-		) ;
+		);
 
 #define cy_an_misc_download_firmware_e_x(h, fw_p, size, cb, client) \
 	cy_as_misc_download_firmware((cy_as_device_handle)(h), \
@@ -207,7 +207,7 @@ cy_an_misc_get_firmware_version_e_x(
 		cy_an_get_firmware_version_data *data,
 		cy_an_function_callback			cb,
 		uint32_t			client
-		) ;
+		);
 #define cy_an_misc_get_firmware_version_e_x\
 	(h, data, cb, client) \
 	cy_as_misc_get_firmware_version((cy_as_device_handle)(h), \
@@ -219,7 +219,7 @@ cy_an_misc_read_m_c_u_register(
 	cy_an_device_handle	handle,
 	uint16_t			address,
 	uint8_t				*value
-	) ;
+	);
 
 #define cy_an_misc_read_m_c_u_register(handle, address, value) \
 	cy_as_misc_read_m_c_u_register((cy_as_device_handle)(handle), \
@@ -233,7 +233,7 @@ cy_an_misc_read_m_c_u_register_e_x(
 	uint8_t				*value,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 
 #define cy_an_misc_read_m_c_u_register_e_x\
 	(h, addr, val, cb, client) \
@@ -247,7 +247,7 @@ cy_an_misc_write_m_c_u_register(
 		uint16_t			address,
 		uint8_t				mask,
 		uint8_t			 value
-		) ;
+		);
 #define cy_an_misc_write_m_c_u_register\
 	(handle, address, mask, value) \
 	cy_as_misc_write_m_c_u_register((cy_as_device_handle)(handle), \
@@ -262,7 +262,7 @@ cy_an_misc_write_m_c_u_register_e_x(
 		uint8_t			  value,
 		cy_an_function_callback cb,
 		uint32_t		 client
-		) ;
+		);
 #define cy_an_misc_write_m_c_u_register_e_x\
 	(h, addr, mask, val, cb, client)	  \
 	cy_as_misc_write_m_c_u_register((cy_as_device_handle)(h), \
@@ -274,7 +274,7 @@ cy_an_misc_reset(
 	cy_an_device_handle		handle,
 	cy_an_reset_type			type,
 	cy_bool				flush
-	) ;
+	);
 #define cy_an_misc_reset(handle, type, flush) \
 	cy_as_misc_reset((cy_as_device_handle)(handle), \
 	(type), (flush), 0, 0)
@@ -287,7 +287,7 @@ cy_an_misc_reset_e_x(
 	cy_bool				flush,
 	cy_an_function_callback	cb,
 	uint32_t		client
-	) ;
+	);
 #define cy_an_misc_reset_e_x(h, type, flush, cb, client) \
 	cy_as_misc_reset((cy_as_device_handle)(h), \
 	(cy_as_reset_type)(type), (flush), \
@@ -299,7 +299,7 @@ cy_an_misc_acquire_resource(
 	cy_an_device_handle		handle,
 	cy_an_resource_type		type,
 	cy_bool				force
-	) ;
+	);
 #define cy_an_misc_acquire_resource(h, type, force)		\
 	cy_as_misc_acquire_resource_dep((cy_as_device_handle)(h), \
 	(cy_as_resource_type)(type), (force))
@@ -312,7 +312,7 @@ cy_an_misc_acquire_resource_e_x(
 	cy_bool				force,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_misc_acquire_resource_e_x\
 	(h, type_p, force, cb, client) \
 	cy_as_misc_acquire_resource((cy_as_device_handle)(h), \
@@ -324,7 +324,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_release_resource(
 	cy_an_device_handle		handle,
 	cy_an_resource_type		type
-	) ;
+	);
 #define cy_an_misc_release_resource(h, type)\
 	cy_as_misc_release_resource((cy_as_device_handle)(h), \
 	(cy_as_resource_type)(type))
@@ -337,7 +337,7 @@ cy_an_misc_set_trace_level(
 	cy_an_media_type		media,
 	uint32_t		 device,
 	uint32_t		unit
-	) ;
+	);
 
 #define cy_an_misc_set_trace_level\
 	(handle, level, media, device, unit) \
@@ -354,7 +354,7 @@ cy_an_misc_set_trace_level_e_x(
 	uint32_t			unit,
 	cy_an_function_callback		cb,
 	uint32_t			client
-	) ;
+	);
 #define cy_an_misc_set_trace_level_e_x\
 	(h, level, media, device, unit, cb, client)	\
 	cy_as_misc_set_trace_level_dep((cy_as_device_handle)(h), \
@@ -366,7 +366,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_enter_standby(
 	cy_an_device_handle	handle,
 	cy_bool			pin
-	) ;
+	);
 #define cy_an_misc_enter_standby(handle, pin) \
 	cy_as_misc_enter_standby(\
 		(cy_as_device_handle)(handle), (pin), 0, 0)
@@ -378,7 +378,7 @@ cy_an_misc_enter_standby_e_x(
 	cy_bool			pin,
 	cy_an_function_callback	cb,
 	uint32_t		client
-	) ;
+	);
 #define cy_an_misc_enter_standby_e_x(h, pin, cb, client) \
 	cy_as_misc_enter_standby((cy_as_device_handle)(h), \
 	(pin), (cy_as_function_callback)(cb), (client))
@@ -388,7 +388,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_leave_standby(
 	cy_an_device_handle		handle,
 	cy_an_resource_type		type
-	) ;
+	);
 #define cy_an_misc_leave_standby(h, type)				 \
 	cy_as_misc_leave_standby((cy_as_device_handle)(h), \
 	(cy_as_resource_type)(type))
@@ -398,7 +398,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_register_callback(
 	cy_an_device_handle	handle,
 	cy_an_misc_event_callback	callback
-	) ;
+	);
 #define cy_an_misc_register_callback(h, cb)			\
 	cy_as_misc_register_callback((cy_as_device_handle)(h), \
 	(cy_as_misc_event_callback)(cb))
@@ -407,7 +407,7 @@ cy_an_misc_register_callback(
 EXTERN void
 cy_an_misc_set_log_level(
 	uint8_t	level
-	) ;
+	);
 #define cy_an_misc_set_log_level(level) \
 	cy_as_misc_set_log_level(level)
 
@@ -415,7 +415,7 @@ cy_an_misc_set_log_level(
 EXTERN cy_an_return_status_t
 cy_an_misc_storage_changed(
 	cy_an_device_handle		handle
-	) ;
+	);
 #define cy_an_misc_storage_changed(handle) \
 	cy_as_misc_storage_changed((cy_as_device_handle)(handle), 0, 0)
 
@@ -425,7 +425,7 @@ cy_an_misc_storage_changed_e_x(
 	cy_an_device_handle	handle,
 	cy_an_function_callback	cb,
 	uint32_t		client
-	) ;
+	);
 #define cy_an_misc_storage_changed_e_x(h, cb, client) \
 	cy_as_misc_storage_changed((cy_as_device_handle)(h), \
 	(cy_as_function_callback)(cb), (client))
@@ -435,7 +435,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_heart_beat_control(
 		cy_an_device_handle				handle,
 		cy_bool						  enable
-		) ;
+		);
 #define cy_an_misc_heart_beat_control(handle, enable) \
 	cy_as_misc_heart_beat_control((cy_as_device_handle)\
 	(handle), (enable), 0, 0)
@@ -447,7 +447,7 @@ cy_an_misc_heart_beat_control_e_x(
 		cy_bool					 enable,
 		cy_an_function_callback	   cb,
 		uint32_t		client
-		) ;
+		);
 #define cy_an_misc_heart_beat_control_e_x(h, enable, cb, client) \
 	cy_as_misc_heart_beat_control((cy_as_device_handle)(h), \
 	(enable), (cy_as_function_callback)(cb), (client))
@@ -458,7 +458,7 @@ cy_an_misc_get_gpio_value(
 		cy_an_device_handle				handle,
 		cy_an_misc_gpio					pin,
 		uint8_t						*value
-		) ;
+		);
 #define cy_an_misc_get_gpio_value(handle, pin, value) \
 	cy_as_misc_get_gpio_value((cy_as_device_handle)(handle), \
 	(cy_as_misc_gpio)(pin), (value), 0, 0)
@@ -471,7 +471,7 @@ cy_an_misc_get_gpio_value_e_x(
 		uint8_t						*value,
 		cy_an_function_callback			cb,
 		uint32_t						client
-		) ;
+		);
 #define cy_an_misc_get_gpio_value_e_x(h, pin, value, cb, client) \
 	cy_as_misc_get_gpio_value((cy_as_device_handle)(h), \
 	(cy_as_misc_gpio)(pin), (value), \
@@ -483,7 +483,7 @@ cy_an_misc_set_gpio_value(
 		cy_an_device_handle handle,
 		cy_an_misc_gpio	 pin,
 		uint8_t		  value
-		) ;
+		);
 #define cy_an_misc_set_gpio_value(handle, pin, value) \
 	cy_as_misc_set_gpio_value((cy_as_device_handle)(handle), \
 	(cy_as_misc_gpio)(pin), (value), 0, 0)
@@ -496,7 +496,7 @@ cy_an_misc_set_gpio_value_e_x(
 		uint8_t						 value,
 		cy_an_function_callback			cb,
 		uint32_t						client
-		) ;
+		);
 #define cy_an_misc_set_gpio_value_e_x\
 	(h, pin, value, cb, client)	\
 	cy_as_misc_set_gpio_value((cy_as_device_handle)(h), \
@@ -509,7 +509,7 @@ cy_an_misc_enter_suspend(
 		cy_an_device_handle	handle,
 		cy_bool	usb_wakeup_en,
 		cy_bool	gpio_wakeup_en
-		) ;
+		);
 #define cy_an_misc_enter_suspend(handle, usb_wakeup_en, \
 	gpio_wakeup_en) \
 	cy_as_misc_enter_suspend((cy_as_device_handle)(handle), \
@@ -523,7 +523,7 @@ cy_an_misc_enter_suspend_e_x(
 		cy_bool	gpio_wakeup_en,
 		cy_an_function_callback	cb,
 		uint32_t client
-		) ;
+		);
 #define cy_an_misc_enter_suspend_e_x(h, usb_en, gpio_en, cb, client)\
 	cy_as_misc_enter_suspend((cy_as_device_handle)(h), (usb_en), \
 	(gpio_en), (cy_as_function_callback)(cb), (client))
@@ -532,7 +532,7 @@ cy_an_misc_enter_suspend_e_x(
 EXTERN cy_an_return_status_t
 cy_an_misc_leave_suspend(
 		cy_an_device_handle				handle
-		) ;
+		);
 #define cy_an_misc_leave_suspend(handle) \
 	cy_as_misc_leave_suspend((cy_as_device_handle)(handle), 0, 0)
 
@@ -542,7 +542,7 @@ cy_an_misc_leave_suspend_e_x(
 		cy_an_device_handle				handle,
 		cy_an_function_callback			cb,
 		uint32_t						client
-		) ;
+		);
 
 #define cy_an_misc_leave_suspend_e_x(h, cb, client)		\
 	cy_as_misc_leave_suspend((cy_as_device_handle)(h), \
@@ -553,7 +553,7 @@ EXTERN cy_an_return_status_t
 cy_an_misc_set_low_speed_sd_freq(
 		cy_an_device_handle				handle,
 		cy_an_low_speed_sd_freq			  setting
-		) ;
+		);
 #define cy_an_misc_set_low_speed_sd_freq(h, setting)		   \
 	cy_as_misc_set_low_speed_sd_freq((cy_as_device_handle)(h), \
 	(cy_as_low_speed_sd_freq)(setting), 0, 0)
@@ -565,7 +565,7 @@ cy_an_misc_set_low_speed_sd_freq_e_x(
 		cy_an_low_speed_sd_freq			  setting,
 		cy_an_function_callback			cb,
 		uint32_t						client
-		) ;
+		);
 #define cy_an_misc_set_low_speed_sd_freq_e_x\
 (h, setting, cb, client)	\
 	cy_as_misc_set_low_speed_sd_freq((cy_as_device_handle)(h), \
@@ -579,7 +579,7 @@ cy_an_misc_set_high_speed_sd_freq(
 		cy_an_high_speed_sd_freq			 setting,
 		cy_an_function_callback			cb,
 		uint32_t						client
-		) ;
+		);
 #define cy_an_misc_set_high_speed_sd_freq(h, setting, cb, client) \
 	cy_as_misc_set_high_speed_sd_freq((cy_as_device_handle)(h), \
 	(cy_as_high_speed_sd_freq)(setting),   \

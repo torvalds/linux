@@ -162,8 +162,8 @@
 typedef struct cy_as_hal_sleep_channel {
 	/* This structure is filled in with OS specific information
 	to implementat a sleep channel */
-	int					m_channel ;
-} cy_as_hal_sleep_channel ;
+	int					m_channel;
+} cy_as_hal_sleep_channel;
 
 /* Summary
    This function is called to write a register value
@@ -189,7 +189,7 @@ cy_as_hal_write_register(
 	uint16_t				addr,
 	/* The value to write to the register */
 	uint16_t				value
-	) ;
+	);
 
 /* Summary
    This function is called to read a register value
@@ -213,7 +213,7 @@ cy_as_hal_read_register(
 	cy_as_hal_device_tag tag,
 	/* The address we are writing to */
 	uint16_t addr
-	) ;
+	);
 
 /* Summary
    This function initiates a DMA write operation to write
@@ -247,7 +247,7 @@ cy_as_hal_dma_setup_write(
 	/* The maximum amount of data that the endpoint
 	 * can accept as one packet */
 	uint16_t				maxsize
-	) ;
+	);
 
 /* Summary
    This function initiates a DMA read operation from West Bridge
@@ -280,7 +280,7 @@ cy_as_hal_dma_setup_read(
 	/* The maximum amount of data that the endpoint
 	 * can provide in one DMA operation */
 	uint16_t				maxsize
-	) ;
+	);
 
 /* Summary
    This function cancels a pending DMA request
@@ -300,7 +300,7 @@ cy_as_hal_dma_cancel_request(
 	cy_as_hal_device_tag			tag,
 	/* The endpoint we are reading from */
 	cy_as_end_point_number_t		ep
-	) ;
+	);
 
 /* Summary
    This function registers a callback function to be called when
@@ -324,7 +324,7 @@ cy_as_hal_dma_register_callback(
 	cy_as_hal_device_tag tag,
 	/* The callback to call when a request has completed */
 	cy_as_hal_dma_complete_callback		cb
-	) ;
+	);
 
 /* Summary
    This function returns the maximum size of a DMA request that can
@@ -348,7 +348,7 @@ cy_as_hal_dma_max_request_size(
 	cy_as_hal_device_tag tag,
 	/* The endpoint of interest */
 	cy_as_end_point_number_t ep
-	) ;
+	);
 
 /* Summary
    This function sets the WAKEUP pin to a specific state on the
@@ -370,7 +370,7 @@ cy_as_hal_set_wakeup_pin(
 	cy_as_hal_device_tag tag,
 	/* The desired state of the wakeup pin */
 	cy_bool	state
-	) ;
+	);
 
 /* Summary
    Synchronise the West Bridge device clocks to re-establish device
@@ -392,7 +392,7 @@ EXTERN cy_bool
 cy_as_hal_sync_device_clocks(
 	/* The tag to ID a specific West Bridge device */
 	cy_as_hal_device_tag tag,
-	) ;
+	);
 
 /* Summary
    Initialize West Bridge device registers that may have been
@@ -418,7 +418,7 @@ cy_as_hal_init_dev_registers(
 	cy_as_hal_device_tag tag,
 	/* Indicates whether this is a wake-up from standby. */
 	cy_bool	is_standby_wakeup
-	) ;
+	);
 
 /* Summary
    This function reads a set of P-port accessible device registers and
@@ -447,7 +447,7 @@ EXTERN void
 cy_as_hal_read_regs_before_standby(
 	/* The tag to ID a specific West Bridge device */
 	cy_as_hal_device_tag tag
-	) ;
+	);
 
 /* Summary
    This function restores the old values to a set of P-port
@@ -470,7 +470,7 @@ EXTERN void
 cy_as_hal_restore_regs_after_standby(
 	/* The tag to ID a specific West Bridge device */
 	cy_as_hal_device_tag tag
-	) ;
+	);
 
 /*
  * The functions below this comment are part of the HAL layer,
@@ -497,7 +497,7 @@ EXTERN void *
 cy_as_hal_alloc(
 	/* The size of the memory block to allocate */
 	uint32_t				size
-	) ;
+	);
 
 /* Summary
    This function frees a previously allocated block of memory
@@ -515,7 +515,7 @@ EXTERN void
 cy_as_hal_free(
 	/* Pointer to a memory block to free */
 	void *ptr
-	) ;
+	);
 
 /* Summary
    This function is a malloc equivalent that can be used from an
@@ -545,7 +545,7 @@ EXTERN void *
 cy_as_hal_c_b_alloc(
 	/* The size of the memory block to allocate */
 	uint32_t size
-	) ;
+	);
 
 /* Summary
    This function frees the memory allocated through the CyAsHalCBAlloc
@@ -567,7 +567,7 @@ EXTERN void
 cy_as_hal_c_b_free(
 	/* Pointer to the memory block to be freed */
 	void *ptr
-	) ;
+	);
 
 /* Summary
    This function sets a block of memory to a specific value
@@ -586,7 +586,7 @@ cy_as_mem_set(
 	uint8_t	value,
 	/* The number of bytes to set */
 	uint32_t cnt
-	) ;
+	);
 
 /* Summary
    This function creates or initializes a sleep channel
@@ -609,7 +609,7 @@ EXTERN cy_bool
 cy_as_hal_create_sleep_channel(
 	/* Pointer to the sleep channel to create/initialize */
 	cy_as_hal_sleep_channel	*chan
-	) ;
+	);
 
 /* Summary
    This function destroys an existing sleep channel
@@ -631,7 +631,7 @@ EXTERN cy_bool
 cy_as_hal_destroy_sleep_channel(
 	/* The sleep channel to destroy */
 	cy_as_hal_sleep_channel		chan
-	) ;
+	);
 
 /* Summary
    This function causes the calling process or thread to sleep until
@@ -655,7 +655,7 @@ cy_as_hal_sleep_on(
 	cy_as_hal_sleep_channel chan,
 	/* The maximum time to sleep in milli-seconds */
 	uint32_t ms
-	) ;
+	);
 
 /* Summary
    This function casues the process or thread sleeping on the given
@@ -676,7 +676,7 @@ EXTERN cy_bool
 cy_as_hal_wake(
 	/* The sleep channel to wake */
 	cy_as_hal_sleep_channel		chan
-	) ;
+	);
 
 /* Summary
    This function disables interrupts, insuring that short bursts
@@ -701,7 +701,7 @@ cy_as_hal_wake(
    * CyAsHalEnableInterrupts
 */
 EXTERN uint32_t
-cy_as_hal_disable_interrupts() ;
+cy_as_hal_disable_interrupts();
 
 /* Summary
    This function re-enables interrupts after a critical section of
@@ -722,7 +722,7 @@ EXTERN void
 cy_as_hal_enable_interrupts(
 	/* Value returned by the previous CyAsHalDisableInterrupts call. */
 	uint32_t value
-	) ;
+	);
 
 /* Summary
    This function sleeps for 150 ns.
@@ -734,7 +734,7 @@ cy_as_hal_enable_interrupts(
 */
 EXTERN void
 cy_as_hal_sleep150(
-		) ;
+		);
 
 /* Summary
    This function sleeps for the given number of milliseconds
@@ -745,7 +745,7 @@ cy_as_hal_sleep150(
 EXTERN void
 cy_as_hal_sleep(
 		uint32_t ms
-		) ;
+		);
 
 /* Summary
    This function asserts when the condition evaluates to zero
@@ -761,7 +761,7 @@ EXTERN void
 cy_as_hal_assert(
 	/* The condition to evaluate */
 	cy_bool	cond
-	) ;
+	);
 
 /* Summary
    This function prints a message from the API to a human readable device
@@ -779,7 +779,7 @@ cy_as_hal_print_message(
 	/* The message to print */
 	const char *fmt_p,
 	...	/* Variable arguments */
-	) ;
+	);
 
 /* Summary
    This function reports whether the HAL implementation uses
@@ -795,6 +795,6 @@ cy_as_hal_print_message(
  */
 EXTERN cy_bool
 cy_as_hal_is_polling(
-		void) ;
+		void);
 
 #endif

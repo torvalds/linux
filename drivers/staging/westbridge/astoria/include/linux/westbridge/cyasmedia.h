@@ -47,7 +47,7 @@ typedef enum cy_as_media_type {
 	cy_as_media_sdio = 0x04,
 	cy_as_media_max_media_value = 0x05
 
-} cy_as_media_type ;
+} cy_as_media_type;
 
 #include "cyas_cplus_end.h"
 

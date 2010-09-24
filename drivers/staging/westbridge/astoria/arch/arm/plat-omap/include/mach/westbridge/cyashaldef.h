@@ -47,7 +47,7 @@
 
 
 #if !defined(__doxygen__)
-typedef int cy_bool ;
+typedef int cy_bool;
 #define cy_true				(1)
 #define cy_false				(0)
 #endif
