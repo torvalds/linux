@@ -412,13 +412,19 @@ static struct i2c_board_info __initdata beagle_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
+       {
+               I2C_BOARD_INFO("eeprom", 0x50),
+       },
+};
+
 static int __init omap3_beagle_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
 			ARRAY_SIZE(beagle_i2c_boardinfo));
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
-	omap_register_i2c_bus(3, 100, NULL, 0);
+	omap_register_i2c_bus(3, 100, beagle_i2c_eeprom, ARRAY_SIZE(beagle_i2c_eeprom));
 	return 0;
 }
 
