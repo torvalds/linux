@@ -635,6 +635,9 @@ struct vortex_private {
 		must_free_region:1,				/* Flag: if zero, Cardbus owns the I/O region */
 		large_frames:1,			/* accept large frames */
 		handling_irq:1;			/* private in_irq indicator */
+	/* {get|set}_wol operations are already serialized by rtnl.
+	 * no additional locking is required for the enable_wol and acpi_set_WOL()
+	 */
 	int drv_flags;
 	u16 status_enable;
 	u16 intr_enable;
@@ -647,7 +650,7 @@ struct vortex_private {
 	u16 io_size;						/* Size of PCI region (for release_region) */
 
 	/* Serialises access to hardware other than MII and variables below.
-	 * The lock hierarchy is rtnl_lock > lock > mii_lock > window_lock. */
+	 * The lock hierarchy is rtnl_lock > {lock, mii_lock} > window_lock. */
 	spinlock_t lock;
 
 	spinlock_t mii_lock;		/* Serialises access to MII */
@@ -1994,10 +1997,9 @@ vortex_error(struct net_device *dev, int status)
 		}
 	}
 
-	if (status & RxEarly) {				/* Rx early is unused. */
-		vortex_rx(dev);
+	if (status & RxEarly)				/* Rx early is unused. */
 		iowrite16(AckIntr | RxEarly, ioaddr + EL3_CMD);
-	}
+
 	if (status & StatsFull) {			/* Empty statistics. */
 		static int DoneDidThat;
 		if (vortex_debug > 4)
@@ -2298,7 +2300,12 @@ vortex_interrupt(int irq, void *dev_id)
 		if (status & (HostError | RxEarly | StatsFull | TxComplete | IntReq)) {
 			if (status == 0xffff)
 				break;
+			if (status & RxEarly)
+				vortex_rx(dev);
+			spin_unlock(&vp->window_lock);
 			vortex_error(dev, status);
+			spin_lock(&vp->window_lock);
+			window_set(vp, 7);
 		}
 
 		if (--work_done < 0) {
@@ -2935,13 +2942,11 @@ static void vortex_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	spin_lock_irq(&vp->lock);
 	wol->supported = WAKE_MAGIC;
 
 	wol->wolopts = 0;
 	if (vp->enable_wol)
 		wol->wolopts |= WAKE_MAGIC;
-	spin_unlock_irq(&vp->lock);
 }
 
 static int vortex_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -2950,13 +2955,11 @@ static int vortex_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
-	spin_lock_irq(&vp->lock);
 	if (wol->wolopts & WAKE_MAGIC)
 		vp->enable_wol = 1;
 	else
 		vp->enable_wol = 0;
 	acpi_set_WOL(dev);
-	spin_unlock_irq(&vp->lock);
 
 	return 0;
 }
@@ -2984,7 +2987,6 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int err;
 	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
 	pci_power_t state = 0;
 
 	if(VORTEX_PCI(vp))
@@ -2994,9 +2996,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if(state != 0)
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D0);
-	spin_lock_irqsave(&vp->lock, flags);
 	err = generic_mii_ioctl(&vp->mii, if_mii(rq), cmd, NULL);
-	spin_unlock_irqrestore(&vp->lock, flags);
 	if(state != 0)
 		pci_set_power_state(VORTEX_PCI(vp), state);
 

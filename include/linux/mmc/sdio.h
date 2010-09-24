@@ -38,6 +38,8 @@
  *      [8:0] Byte/block count
  */
 
+#define R4_MEMORY_PRESENT (1 << 27)
+
 /*
   SDIO status in R5
   Type

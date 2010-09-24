@@ -115,7 +115,7 @@ static int minix_mkdir(struct inode * dir, struct dentry *dentry, int mode)
 
 	inode_inc_link_count(dir);
 
-	inode = minix_new_inode(dir, mode, &err);
+	inode = minix_new_inode(dir, S_IFDIR | mode, &err);
 	if (!inode)
 		goto out_dir;
 

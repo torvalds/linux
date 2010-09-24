@@ -858,21 +858,3 @@ int radeon_asic_init(struct radeon_device *rdev)
 	return 0;
 }
 
-/*
- * Wrapper around modesetting bits. Move to radeon_clocks.c?
- */
-int radeon_clocks_init(struct radeon_device *rdev)
-{
-	int r;
-
-	r = radeon_static_clocks_init(rdev->ddev);
-	if (r) {
-		return r;
-	}
-	DRM_INFO("Clocks initialized !\n");
-	return 0;
-}
-
-void radeon_clocks_fini(struct radeon_device *rdev)
-{
-}

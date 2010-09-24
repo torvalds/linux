@@ -3468,6 +3468,19 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				return; /* Ignore it, wait for close complete */
 
 			if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
+				if ((tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) &&
+					(nesqp->ibqp_state == IB_QPS_RTS) &&
+					((nesadapter->eeprom_version >> 16) != NES_A0)) {
+					spin_lock_irqsave(&nesqp->lock, flags);
+					nesqp->hw_iwarp_state = iwarp_state;
+					nesqp->hw_tcp_state = tcp_state;
+					nesqp->last_aeq = async_event_id;
+					next_iwarp_state = NES_CQP_QP_IWARP_STATE_CLOSING;
+					nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_CLOSING;
+					spin_unlock_irqrestore(&nesqp->lock, flags);
+					nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 0);
+					nes_cm_disconn(nesqp);
+				}
 				nesqp->cm_id->add_ref(nesqp->cm_id);
 				schedule_nes_timer(nesqp->cm_node, (struct sk_buff *)nesqp,
 						NES_TIMER_TYPE_CLOSE, 1, 0);
@@ -3477,7 +3490,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 						nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 						async_event_id, nesqp->last_aeq, tcp_state);
 			}
-
 			break;
 		case NES_AEQE_AEID_LLP_CLOSE_COMPLETE:
 			if (nesqp->term_flags) {
