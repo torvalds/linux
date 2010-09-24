@@ -557,12 +557,10 @@ static int wm8985_dac_mute(struct snd_soc_dai *dai, int mute)
 
 static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct wm8985_priv *wm8985;
 	struct snd_soc_codec *codec;
 	u16 format, master, bcp, lrp;
 
 	codec = dai->codec;
-	wm8985 = snd_soc_codec_get_drvdata(codec);
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
