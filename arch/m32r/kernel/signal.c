@@ -251,6 +251,19 @@ give_sigsegv:
 	return -EFAULT;
 }
 
+static int prev_insn(struct pt_regs *regs)
+{
+	u16 inst;
+	if (get_user(&inst, (u16 __user *)(regs->bpc - 2)))
+		return -EFAULT;
+	if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
+		regs->bpc -= 2;
+	else
+		regs->bpc -= 4;
+	regs->syscall_nr = -1;
+	return 0;
+}
+
 /*
  * OK, we're invoking a handler
  */
@@ -259,8 +272,6 @@ static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
-	unsigned short inst;
-
 	/* Are we from a system call? */
 	if (regs->syscall_nr >= 0) {
 		/* If so, check system call restarting.. */
@@ -278,12 +289,8 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 			/* fallthrough */
 			case -ERESTARTNOINTR:
 				regs->r0 = regs->orig_r0;
-				inst = *(unsigned short *)(regs->bpc - 2);
-				if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
-					regs->bpc -= 2;
-				else
-					regs->bpc -= 4;
-				regs->syscall_nr = -1;
+				if (prev_insn(regs) < 0)
+					return -EFAULT;
 		}
 	}
 
@@ -310,7 +317,6 @@ static void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	unsigned short inst;
 	sigset_t *oldset;
 
 	/*
@@ -353,21 +359,11 @@ static void do_signal(struct pt_regs *regs)
 		    regs->r0 == -ERESTARTSYS ||
 		    regs->r0 == -ERESTARTNOINTR) {
 			regs->r0 = regs->orig_r0;
-			inst = *(unsigned short *)(regs->bpc - 2);
-			if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
-				regs->bpc -= 2;
-			else
-				regs->bpc -= 4;
-			regs->syscall_nr = -1;
+			prev_insn(regs);
 		} else if (regs->r0 == -ERESTART_RESTARTBLOCK){
 			regs->r0 = regs->orig_r0;
 			regs->r7 = __NR_restart_syscall;
-			inst = *(unsigned short *)(regs->bpc - 2);
-			if ((inst & 0xfff0) == 0x10f0)	/* trap ? */
-				regs->bpc -= 2;
-			else
-				regs->bpc -= 4;
-			regs->syscall_nr = -1;
+			prev_insn(regs);
 		}
 	}
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
