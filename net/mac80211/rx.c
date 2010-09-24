@@ -2513,10 +2513,10 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 
 /* main receive path */
 
-static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
-				struct ieee80211_rx_data *rx,
+static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 				struct ieee80211_hdr *hdr)
 {
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	u8 *bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
@@ -2656,7 +2656,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			rx.sdata = prev_sta->sdata;
 
 			rx.flags |= IEEE80211_RX_RA_MATCH;
-			prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
+			prepares = prepare_for_handlers(&rx, hdr);
 			if (!prepares)
 				goto next_sta;
 
@@ -2690,7 +2690,7 @@ next_sta:
 			rx.sdata = prev_sta->sdata;
 
 			rx.flags |= IEEE80211_RX_RA_MATCH;
-			prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
+			prepares = prepare_for_handlers(&rx, hdr);
 			if (!prepares)
 				prev_sta = NULL;
 
@@ -2733,15 +2733,15 @@ next_sta:
 			}
 
 			rx.sta = sta_info_get_bss(prev, hdr->addr2);
+			rx.sdata = prev;
 
 			rx.flags |= IEEE80211_RX_RA_MATCH;
-			prepares = prepare_for_handlers(prev, &rx, hdr);
+			prepares = prepare_for_handlers(&rx, hdr);
 
 			if (!prepares)
 				goto next;
 
 			if (status->flag & RX_FLAG_MMIC_ERROR) {
-				rx.sdata = prev;
 				if (rx.flags & IEEE80211_RX_RA_MATCH)
 					ieee80211_rx_michael_mic_report(hdr,
 									&rx);
@@ -2768,15 +2768,15 @@ next:
 
 		if (prev) {
 			rx.sta = sta_info_get_bss(prev, hdr->addr2);
+			rx.sdata = prev;
 
 			rx.flags |= IEEE80211_RX_RA_MATCH;
-			prepares = prepare_for_handlers(prev, &rx, hdr);
+			prepares = prepare_for_handlers(&rx, hdr);
 
 			if (!prepares)
 				prev = NULL;
 
 			if (prev && status->flag & RX_FLAG_MMIC_ERROR) {
-				rx.sdata = prev;
 				if (rx.flags & IEEE80211_RX_RA_MATCH)
 					ieee80211_rx_michael_mic_report(hdr,
 									&rx);
