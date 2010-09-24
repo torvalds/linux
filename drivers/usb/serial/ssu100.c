@@ -444,8 +444,6 @@ static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
-	void __user *user_arg = (void __user *)arg;
 
 	dbg("%s cmd 0x%04x", __func__, cmd);
 
