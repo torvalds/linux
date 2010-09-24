@@ -1231,6 +1231,7 @@ static void de_adapter_sleep (struct de_private *de)
 	if (de->de21040)
 		return;
 
+	dw32(CSR13, 0); /* Reset phy */
 	pci_read_config_dword(de->pdev, PCIPM, &pmctl);
 	pmctl |= PM_Sleep;
 	pci_write_config_dword(de->pdev, PCIPM, pmctl);
@@ -2166,6 +2167,8 @@ static int de_resume (struct pci_dev *pdev)
 		dev_err(&dev->dev, "pci_enable_device failed in resume\n");
 		goto out;
 	}
+	pci_set_master(pdev);
+	de_init_rings(de);
 	de_init_hw(de);
 out_attach:
 	netif_device_attach(dev);
