@@ -400,16 +400,15 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 {
 	struct tty_struct *tty = uart->tty;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	unsigned int ch, flag;
+	unsigned char ch, flag;
 	int max_count = 1024;
 	DBG("rx:");
 #if SPI_UART_TXRX_BUF
-	int ret,count,stat = 0;
+	int ret,count,stat = *status;
 	int i = 0;
 	unsigned char buf[SPI_UART_FIFO_LEN];
-	while (max_count >0 )
+	while (max_count >0)
 	{
-		stat = spi_in(port, UART_LSR, SEL_UART);
 		if((((stat >> 8) & 0x3f) != 0) && (!(stat & UART_LSR_DR)))
 		printk("%s:warning:no receive data but count =%d \n",__FUNCTION__,((stat >> 8) & 0x3f));
 		if(!(stat & UART_LSR_DR))
@@ -427,18 +426,18 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 			printk("err:%s:stat=%d,fail to read uart data because of spi bus error!\n",__FUNCTION__,stat);	
 		}
 		max_count -= count;
+		flag = TTY_NORMAL;
+		uart->icount.rx += count;
 		for(i=0;i<count;i++)
 		{
-			flag = TTY_NORMAL;
-			uart->icount.rx++;
 			ch = buf[i];
 			tty_insert_flip_char(tty, ch, flag);
 			DBG("0x%x,",ch);
 		}
+		tty_flip_buffer_push(tty); 
 		DBG("\n");
 	}	
 
-	tty_flip_buffer_push(tty); 
 	DBG("\n");
 	
 #else	
@@ -912,7 +911,7 @@ static int spi_uart_open (struct tty_struct *tty, struct file * filp)
 static void spi_uart_close(struct tty_struct *tty, struct file * filp)
 {
 	struct spi_uart *uart = tty->driver_data;
-	printk("%s:LINE=%d,tty->hw_stopped=%d\n",__FUNCTION__,__LINE__,tty->hw_stopped);
+	DBG("%s:LINE=%d,tty->hw_stopped=%d\n",__FUNCTION__,__LINE__,tty->hw_stopped);
 	if (!uart)
 		return;
 
@@ -1001,7 +1000,7 @@ static int spi_uart_write_room(struct tty_struct *tty)
 static int spi_uart_chars_in_buffer(struct tty_struct *tty)
 {
 	struct spi_uart *uart = tty->driver_data;
-	printk("%s:LINE=%d,circ=%ld\n",__FUNCTION__,__LINE__,circ_chars_pending(&uart->xmit));	
+	DBG("%s:LINE=%d,circ=%ld\n",__FUNCTION__,__LINE__,circ_chars_pending(&uart->xmit));	
 	return uart ? circ_chars_pending(&uart->xmit) : 0;
 }
 
@@ -1009,7 +1008,7 @@ static void spi_uart_send_xchar(struct tty_struct *tty, char ch)
 {
 	struct spi_uart *uart = tty->driver_data;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	printk("%s:LINE=%d\n",__FUNCTION__,__LINE__);
+	DBG("%s:LINE=%d\n",__FUNCTION__,__LINE__);
 	uart->x_char = ch;
 	if (ch && !(uart->ier & UART_IER_THRI)) {
 		mutex_lock(&port->spi_lock);

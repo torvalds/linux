@@ -59,7 +59,7 @@ struct spi_fpga_port *pFpgaPort;
 #define ID_SPI_FPGA_READ 2
 struct spi_fpga_transfer
 {
-	const u8 *txbuf;
+	u8 *txbuf;
 	unsigned n_tx;
 	u8 *rxbuf;
 	unsigned n_rx;
@@ -72,9 +72,10 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, fpga_trans_work);
 	unsigned long flags;
-	
+	spin_lock_irqsave(&port->work_lock, flags);
 	while (!list_empty(&port->trans_queue)) 
 	{
+		spin_unlock_irqrestore(&port->work_lock, flags);
 		struct spi_fpga_transfer	*t = NULL, *tmp;
 		list_for_each_entry_safe(t, tmp, &port->trans_queue, queue)
 		{
@@ -96,13 +97,13 @@ static void spi_fpga_trans_work_handler(struct work_struct *work)
 		}
 		spin_lock_irqsave(&port->work_lock, flags);
 		list_del_init(&port->trans_queue);
-		spin_unlock_irqrestore(&port->work_lock, flags);
-	}
 
+	}
+	spin_unlock_irqrestore(&port->work_lock, flags);
 
 }
 
-int spi_write_work(struct spi_device *spi, const u8 *buf, size_t len)
+int spi_write_work(struct spi_device *spi, u8 *buf, size_t len)
 {
 	struct spi_fpga_port *port = spi_get_drvdata(spi);
 	struct spi_fpga_transfer *t;
@@ -325,7 +326,7 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 			tx_buf[1] = (value>>8) & 0xff;
 			tx_buf[2] = value & 0xff;
 			if(reg_temp == UART_IER)
-			spi_write_work(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf));
+			spi_write_work(port->spi, tx_buf, sizeof(tx_buf));
 			else
 			spi_write(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf));
 			DBG("%s,SEL_UART reg=0x%x,value=0x%x\n",__FUNCTION__,reg&0xff,value&0xffff);
