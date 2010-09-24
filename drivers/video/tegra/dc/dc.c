@@ -337,6 +337,7 @@ struct tegra_dc_win *tegra_dc_get_window(struct tegra_dc *dc, unsigned win)
 }
 EXPORT_SYMBOL(tegra_dc_get_window);
 
+
 static int get_topmost_window(u32 *depths, unsigned long *wins)
 {
 	int idx, best = -1;
@@ -411,12 +412,6 @@ static void tegra_dc_set_blending(struct tegra_dc *dc, struct tegra_dc_blend *bl
 				DC_WIN_BLEND_3WIN_XY);
 	}
 }
-
-u32 tegra_dc_get_syncpt_id(struct tegra_dc *dc)
-{
-	return dc->syncpt_id;
-}
-EXPORT_SYMBOL(tegra_dc_get_syncpt_id);
 
 /* does not support updating windows on multiple dcs in one call */
 int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
@@ -528,14 +523,39 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	}
 
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
-
-	dc->syncpt_max = nvhost_syncpt_incr_max(&dc->ndev->host->syncpt, dc->syncpt_id, 1);
-
 	mutex_unlock(&dc->lock);
 
-	return dc->syncpt_max;
+	return 0;
 }
 EXPORT_SYMBOL(tegra_dc_update_windows);
+
+u32 tegra_dc_get_syncpt_id(struct tegra_dc *dc)
+{
+	return dc->syncpt_id;
+}
+EXPORT_SYMBOL(tegra_dc_get_syncpt_id);
+
+u32 tegra_dc_incr_syncpt_max(struct tegra_dc *dc)
+{
+	u32 max;
+
+	mutex_lock(&dc->lock);
+	max = nvhost_syncpt_incr_max(&dc->ndev->host->syncpt, dc->syncpt_id, 1);
+	dc->syncpt_max = max;
+	mutex_unlock(&dc->lock);
+
+	return max;
+}
+
+void tegra_dc_incr_syncpt_min(struct tegra_dc *dc, u32 val)
+{
+	mutex_lock(&dc->lock);
+	while (dc->syncpt_min < val) {
+		dc->syncpt_min++;
+		nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt, dc->syncpt_id);
+	}
+	mutex_unlock(&dc->lock);
+}
 
 static bool tegra_dc_windows_are_clean(struct tegra_dc_win *windows[],
 					     int n)
@@ -712,11 +732,6 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 			tegra_dc_writel(dc, val, DC_CMD_INT_ENABLE);
 		}
 
-		while (dc->syncpt_min < dc->syncpt_max) {
-			dc->syncpt_min++;
-			nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt, dc->syncpt_id);
-		}
-
 		if (completed)
 			wake_up(&dc->wq);
 	}
@@ -794,6 +809,7 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
 
 	tegra_dc_set_color_control(dc);
+
 	dc->syncpt_id = disp_syncpt;
 
 	dc->syncpt_min = dc->syncpt_max =

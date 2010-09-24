@@ -28,6 +28,7 @@
 #include <linux/file.h>
 #include <linux/nvhost.h>
 #include <linux/nvmap.h>
+#include <linux/workqueue.h>
 
 #include <asm/atomic.h>
 
@@ -51,6 +52,15 @@ struct tegra_fb_info {
 
 	atomic_t		in_use;
 	struct file		*nvmap_file;
+
+	struct workqueue_struct *flip_wq;
+};
+
+struct tegra_fb_flip_data {
+	struct work_struct		work;
+	struct tegra_fb_info		*fb;
+	struct tegra_fb_flip_args	args;
+	u32				syncpt_max;
 };
 
 /* palette array used by the fbcon */
@@ -74,6 +84,8 @@ static int tegra_fb_release(struct fb_info *info, int user)
 
 	if (tegra_fb->nvmap_file)
 		fput(tegra_fb->nvmap_file);
+
+	flush_workqueue(tegra_fb->flip_wq);
 
 	WARN_ON(!atomic_xchg(&tegra_fb->in_use, 0));
 
@@ -323,27 +335,24 @@ static void tegra_fb_set_windowhandle(struct tegra_fb_info *tegra_fb,
 	win->cur_handle = handle;
 }
 
-static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
-			 struct tegra_fb_flip_args *args)
+static void tegra_fb_flip_worker(struct work_struct *work)
 {
+	struct tegra_fb_flip_data *data =
+		container_of(work, struct tegra_fb_flip_data, work);
+	struct tegra_fb_info *tegra_fb = data->fb;
 	struct tegra_dc_win *win;
 	struct tegra_dc_win *wins[TEGRA_FB_FLIP_N_WINDOWS];
 	struct tegra_dc_win **w = wins;
 	struct tegra_dc *dc = tegra_fb->win->dc;
-	int err = 0;
 	int i;
 
-	if (WARN_ON(!tegra_fb->nvmap_file))
-		return -EFAULT;
-
-	if (WARN_ON(!tegra_fb->ndev))
-		return -EFAULT;
 
 	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		int idx = args->win[i].index;
+		int idx = data->args.win[i].index;
 		win = tegra_dc_get_window(dc, idx);
 		if (win) {
-			tegra_fb_set_windowattr(tegra_fb, win, &args->win[i]);
+			tegra_fb_set_windowattr(tegra_fb, win,
+						&data->args.win[i]);
 			*w++ = win;
 		} else if (idx != -1) {
 			dev_warn(&tegra_fb->ndev->dev,
@@ -351,18 +360,53 @@ static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
 		}
 	}
 
-	err = tegra_dc_update_windows(wins, w - wins);
-	if (err < 0)
-		return err;
+	tegra_dc_update_windows(wins, w - wins);
 
 	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		win = tegra_dc_get_window(dc, args->win[i].index);
+		win = tegra_dc_get_window(dc, data->args.win[i].index);
 		if (win)
 			tegra_fb_set_windowhandle(tegra_fb, win,
-						  args->win[i].buff_id);
+						  data->args.win[i].buff_id);
 	}
 
-	args->post_syncpt_val = err;
+	/* TODO: implement swapinterval here */
+	tegra_dc_sync_windows(wins, w - wins);
+
+	tegra_dc_incr_syncpt_min(tegra_fb->win->dc, data->syncpt_max);
+
+	kfree(data);
+}
+
+
+static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
+			 struct tegra_fb_flip_args *args)
+{
+	struct tegra_fb_flip_data *data;
+	u32 syncpt_max;
+
+	if (WARN_ON(!tegra_fb->nvmap_file))
+		return -EFAULT;
+
+	if (WARN_ON(!tegra_fb->ndev))
+		return -EFAULT;
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (data == NULL) {
+		dev_err(&tegra_fb->ndev->dev,
+			"can't allocate memory for flip\n");
+		return -ENOMEM;
+	}
+
+	INIT_WORK(&data->work, tegra_fb_flip_worker);
+	data->fb = tegra_fb;
+	memcpy(&data->args, args, sizeof(data->args));
+
+	syncpt_max = tegra_dc_incr_syncpt_max(tegra_fb->win->dc);
+	data->syncpt_max =  syncpt_max;
+
+	queue_work(tegra_fb->flip_wq, &data->work);
+
+	args->post_syncpt_val = syncpt_max;
 	args->post_syncpt_id = tegra_dc_get_syncpt_id(tegra_fb->win->dc);
 
 	return 0;
@@ -483,6 +527,12 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	tegra_fb->yres = fb_data->yres;
 	atomic_set(&tegra_fb->in_use, 0);
 
+	tegra_fb->flip_wq = create_singlethread_workqueue("tegra_flip");
+	if (!tegra_fb->flip_wq) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
 	if (fb_mem) {
 		fb_size = resource_size(fb_mem);
 		fb_phys = fb_mem->start;
@@ -490,7 +540,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 		if (!fb_base) {
 			dev_err(&ndev->dev, "fb can't be mapped\n");
 			ret = -EBUSY;
-			goto err_free;
+			goto err_delete_wq;
 		}
 		tegra_fb->valid = true;
 	}
@@ -559,6 +609,8 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 
 err_iounmap_fb:
 	iounmap(fb_base);
+err_delete_wq:
+
 err_free:
 	framebuffer_release(info);
 err:
@@ -570,6 +622,10 @@ void tegra_fb_unregister(struct tegra_fb_info *fb_info)
 	struct fb_info *info = fb_info->info;
 
 	unregister_framebuffer(info);
+
+	flush_workqueue(fb_info->flip_wq);
+	destroy_workqueue(fb_info->flip_wq);
+
 	iounmap(info->screen_base);
 	framebuffer_release(info);
 }
