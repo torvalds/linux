@@ -1367,6 +1367,10 @@ static struct xpt2046_platform_data xpt2046_info = {
 };
 #endif
 
+static struct rk2818_spi_chip cmb_spi_chip = {
+	.transfer_mode = RK2818_SPI_FULL_DUPLEX,
+};
+
 static struct spi_board_info board_spi_devices[] = {
 #if defined(CONFIG_SPI_FPGA)
 	{	/* fpga ice65l08xx */
@@ -1405,6 +1409,7 @@ static struct spi_board_info board_spi_devices[] = {
 		.max_speed_hz	= 12*1000*1000,         
 		.bus_num	= 0,
 		.irq		= RK2818_PIN_PA6,
+		.controller_data = &cmb_spi_chip,
 	},
 #endif
 }; 

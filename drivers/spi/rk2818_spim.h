@@ -196,6 +196,10 @@ static inline void spi_umask_intr(struct rk2818_spi *dws, u32 mask)
 	rk2818_writel(dws, SPIM_IMR, new_mask);
 }
 
+//spi transfer mode                   add by lyx
+#define RK2818_SPI_HALF_DUPLEX 0
+#define RK2818_SPI_FULL_DUPLEX 1
+
 /*
  * Each SPI slave device to work with rk2818_api controller should
  * has such a structure claiming its working mode (PIO/DMA etc),
@@ -203,6 +207,7 @@ static inline void spi_umask_intr(struct rk2818_spi *dws, u32 mask)
  * struct spi_device
  */
 struct rk2818_spi_chip {
+	u8 transfer_mode;/*full or half duplex*/
 	u8 poll_mode;	/* 0 for contoller polling mode */
 	u8 type;	/* SPI/SSP/Micrwire */
 	u8 enable_dma;

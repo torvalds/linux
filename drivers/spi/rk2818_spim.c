@@ -34,12 +34,11 @@
 
 /*原有的spi驱动效率比较低，
 无法满足大数据量的传输；
-下面提高两种优化后的spi驱动，
-QUICK_INT_TRANSFER使用中断，QUICK_TRANSFER直接处理，
-两种方式最多只能打开一种*/
+QUICK_TRANSFER用于快速传输，同时可指定半双工或全双工，
+默认使用半双工
+*/
 
 #define QUICK_TRANSFER         
-//#define QUICK_INT_TRANSFER
 
 #if 0
 #define DBG(x...)   printk(x)
@@ -236,8 +235,8 @@ static int null_writer(struct rk2818_spi *dws)
 		return 0;
 	rk2818_writew(dws, SPIM_DR0, 0);
 	dws->tx += n_bytes;
-
 	//wait_till_not_busy(dws);
+
 	return 1;
 }
 
@@ -260,8 +259,8 @@ static int u8_writer(struct rk2818_spi *dws)
 		return 0;
 	rk2818_writew(dws, SPIM_DR0, *(u8 *)(dws->tx));
 	++dws->tx;
-
 	//wait_till_not_busy(dws);
+
 	return 1;
 }
 
@@ -285,8 +284,8 @@ static int u16_writer(struct rk2818_spi *dws)
 
 	rk2818_writew(dws, SPIM_DR0, *(u16 *)(dws->tx));
 	dws->tx += 2;
-
 	//wait_till_not_busy(dws);
+
 	return 1;
 }
 
@@ -737,6 +736,7 @@ static int rk2818_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	return 0;
 }
 
+#if defined(QUICK_TRANSFER)
 static void do_read(struct rk2818_spi *dws)
 {
 	int count = 0;
@@ -744,11 +744,11 @@ static void do_read(struct rk2818_spi *dws)
 	spi_enable_chip(dws, 0);
 	rk2818_writew(dws, SPIM_CTRLR1, dws->rx_end-dws->rx-1);
 	spi_enable_chip(dws, 1);		
-	rk2818_writew(dws, SPIM_DR0, 0);
 	while (1) {
+		rk2818_writew(dws, SPIM_DR0, 0);
 		if (dws->read(dws))
 			break;
-		if (count ++ == 0x10) {
+		if (count ++ == 0x20) {
 			printk("+++++++++++spi receive data time out+++++++++++++\n");
 			break;
 		}
@@ -762,9 +762,6 @@ static void do_write(struct rk2818_spi *dws)
 		dws->write(dws);
 	}
 }
-
-
-#if defined(QUICK_TRANSFER)
 
 /* Caller already set message->status; dma and pio irqs are blocked */
 static void msg_giveback(struct rk2818_spi *dws)
@@ -793,7 +790,42 @@ static void msg_giveback(struct rk2818_spi *dws)
 }
 
 /* Must be called inside pump_transfers() */
-static int do_transfer(struct rk2818_spi *dws)
+static int do_full_transfer(struct rk2818_spi *dws)
+{
+	if ((dws->read(dws))) {
+		goto comple;
+	}
+	
+	while (dws->tx<dws->tx_end){
+		dws->write(dws);		
+		dws->read(dws);
+	}
+	
+	if (dws->rx < dws->rx_end) {
+		dws->read(dws);
+	}
+
+comple:
+	
+	dws->cur_msg->actual_length += dws->len;
+	
+	/* Move to next transfer */
+	dws->cur_msg->state = next_transfer(dws);
+					
+	if (dws->cur_msg->state == DONE_STATE) {
+		dws->cur_msg->status = 0;
+		msg_giveback(dws);
+		return 0;
+	}
+	else {
+		return -1;
+	}
+	
+}
+
+
+/* Must be called inside pump_transfers() */
+static int do_half_transfer(struct rk2818_spi *dws)
 {
 	if (dws->rx) {
 		if (dws->tx) {
@@ -822,10 +854,10 @@ static int do_transfer(struct rk2818_spi *dws)
 	else {
 		return -1;
 	}
-	
 }
 
-static int rk2818_pump_transfers(struct rk2818_spi *dws)
+
+static int rk2818_pump_transfers(struct rk2818_spi *dws, int mode)
 {
 	struct spi_message *message = NULL;
 	struct spi_transfer *transfer = NULL;
@@ -972,20 +1004,21 @@ static int rk2818_pump_transfers(struct rk2818_spi *dws)
 	 *	2. clk_div is changed
 	 *	3. control value changes
 	 */
-	if (rk2818_readw(dws, SPIM_CTRLR0) != cr0 || cs_change || clk_div) {
 		spi_enable_chip(dws, 0);
 		if (rk2818_readw(dws, SPIM_CTRLR0) != cr0)
 			rk2818_writew(dws, SPIM_CTRLR0, cr0);
 
 		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);		
-		spi_chip_sel(dws, spi->chip_select);
+		spi_chip_sel(dws, spi->chip_select);		
+		rk2818_writew(dws, SPIM_CTRLR1, 0);//add by lyx
 		spi_enable_chip(dws, 1);
 		if (cs_change)
 			dws->prev_chip = chip;
-	}
 
-	return do_transfer(dws);
-	
+	if (mode)
+		return do_full_transfer(dws);
+	else
+		return do_half_transfer(dws);
 early_exit:
 	
 	msg_giveback(dws);
@@ -993,10 +1026,8 @@ early_exit:
 	return 0;
 }
 
-static void rk2818_pump_messages(struct work_struct *work)
+static void rk2818_pump_messages(struct rk2818_spi *dws, int mode)
 {
-	struct rk2818_spi *dws =
-		container_of(work, struct rk2818_spi, pump_messages);
 	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
 
 	if (list_empty(&dws->queue) || dws->run == QUEUE_STOPPED) {
@@ -1024,7 +1055,7 @@ static void rk2818_pump_messages(struct work_struct *work)
 	/* Mark as busy and launch transfers */
 	dws->busy = 1;
 
-	while (rk2818_pump_transfers(dws)) ;
+	while (rk2818_pump_transfers(dws, mode)) ;
 }
 
 /* spi_device use this to queue in their spi_msg */
@@ -1032,6 +1063,7 @@ static int rk2818_spi_quick_transfer(struct spi_device *spi, struct spi_message 
 {
 	struct rk2818_spi *dws = spi_master_get_devdata(spi->master);
 	unsigned long flags;
+	struct rk2818_spi_chip *chip_info = spi->controller_data;
 	
 	DBG("+++++++++++++++enter %s++++++++++++++++++\n", __func__);
 	
@@ -1048,387 +1080,18 @@ static int rk2818_spi_quick_transfer(struct spi_device *spi, struct spi_message 
 
 	list_add_tail(&msg->queue, &dws->queue);
 
-	if (dws->run == QUEUE_RUNNING && !dws->busy) {
-		rk2818_pump_messages(&dws->pump_messages);
+	if (chip_info && (chip_info->transfer_mode == RK2818_SPI_FULL_DUPLEX)) {
+		rk2818_pump_messages(dws,1);
+		//printk("+++++++++++++full transfer++++++++++++++\n");
+	}
+	else {		
+		rk2818_pump_messages(dws,0);
+		//printk("+++++++++++++half transfer++++++++++++++\n");
 	}
 
 	spin_unlock_irqrestore(&dws->lock, flags);
 	return 0;
 }
-
-#elif defined(QUICK_INT_TRANSFER)
-
-/* Caller already set message->status; dma and pio irqs are blocked */
-static void msg_giveback(struct rk2818_spi *dws)
-{
-	struct spi_transfer *last_transfer;
-	unsigned long flags;
-	struct spi_message *msg;
-
-	spin_lock_irqsave(&dws->lock, flags);
-	msg = dws->cur_msg;
-	dws->cur_msg = NULL;
-	dws->cur_transfer = NULL;
-	dws->prev_chip = dws->cur_chip;
-	dws->cur_chip = NULL;
-	dws->dma_mapped = 0;
-	spin_unlock_irqrestore(&dws->lock, flags);
-
-	last_transfer = list_entry(msg->transfers.prev,
-					struct spi_transfer,
-					transfer_list);
-
-	if (!last_transfer->cs_change)
-		dws->cs_control(dws,msg->spi->chip_select,MRST_SPI_DEASSERT);
-
-	msg->state = NULL;
-	if (msg->complete)
-		msg->complete(msg->context);
-}
-
-static void *get_next_transfer(struct rk2818_spi *dws)
-{
-	struct spi_message *msg = dws->cur_msg;
-	struct spi_transfer *trans = dws->cur_transfer;
-
-	/* Move to next transfer */
-	if (trans->transfer_list.next != &msg->transfers) {
-		dws->cur_transfer =
-			list_entry(trans->transfer_list.next,
-					struct spi_transfer,
-					transfer_list);
-		dws->cur_transfer->state = START_STATE;
-		return RUNNING_STATE;
-	} else
-		return DONE_STATE;
-}
-
-static void msg_transfer_complete(struct rk2818_spi *dws)
-{
-	/* Update total byte transfered return count actual bytes read */
-	dws->cur_msg->actual_length += dws->len;
-
-	/* Move to next transfer */
-	dws->cur_msg->state = get_next_transfer(dws);
-
-	/* Handle end of message */
-	if (dws->cur_msg->state == DONE_STATE) {
-		dws->cur_msg->status = 0;
-		msg_giveback(dws);
-	}
-}
-
-static void spi_set_transfers(struct rk2818_spi *dws)
-{
-	struct spi_message *message = NULL;
-	struct spi_transfer *transfer = NULL;
-	struct spi_device *spi = NULL;
-	struct chip_data *chip = NULL;
-	u8 bits = 0;
-	u8 imask = 0;
-	u8 cs_change = 0;
-	u16 txint_level = 0;
-	u16 clk_div = 0;
-	u32 speed = 0;
-	u32 cr0 = 0;
-
-	/* Get current state information */
-	message = dws->cur_msg;
-	transfer = dws->cur_transfer;
-	chip = dws->cur_chip;
-	spi = message->spi;	
-	if (unlikely(!chip->clk_div))
-		chip->clk_div = clk_get_rate(dws->clock_spim) / chip->speed_hz;	
-
-	dws->n_bytes = chip->n_bytes;
-	dws->dma_width = chip->dma_width;
-	dws->cs_control = chip->cs_control;
-
-	dws->rx_dma = transfer->rx_dma;
-	dws->tx_dma = transfer->tx_dma;
-	dws->tx = (void *)transfer->tx_buf;
-	dws->tx_end = dws->tx + transfer->len;
-	dws->rx = transfer->rx_buf;
-	dws->rx_end = dws->rx + transfer->len;
-	dws->write = dws->tx ? chip->write : null_writer;
-	dws->read = dws->rx ? chip->read : null_reader;	
-	if (dws->rx && dws->tx) {
-		int temp_len = transfer->len;
-		int len;
-		unsigned char *tx_buf;
-		for (len=0; *tx_buf++ != 0; len++);
-		dws->tx_end = dws->tx + len;
-		dws->rx_end = dws->rx + temp_len - len;
-	}
-	dws->cs_change = transfer->cs_change;
-	dws->len = dws->cur_transfer->len;
-	if (chip != dws->prev_chip)
-		cs_change = 1;
-
-	cr0 = chip->cr0;
-
-	/* Handle per transfer options for bpw and speed */
-	if (transfer->speed_hz) {
-		speed = chip->speed_hz;
-
-		if (transfer->speed_hz != speed) {
-			speed = transfer->speed_hz;
-			if (speed > clk_get_rate(dws->clock_spim)) {
-				printk(KERN_ERR "MRST SPI0: unsupported"
-					"freq: %dHz\n", speed);
-				message->status = -EIO;
-				goto early_exit;
-			}
-
-			/* clk_div doesn't support odd number */
-			clk_div = clk_get_rate(dws->clock_spim) / speed;
-			clk_div = (clk_div + 1) & 0xfffe;
-
-			chip->speed_hz = speed;
-			chip->clk_div = clk_div;
-		}
-	}
-	if (transfer->bits_per_word) {
-		bits = transfer->bits_per_word;
-
-		switch (bits) {
-		case 8:
-			dws->n_bytes = 1;
-			dws->dma_width = 1;
-			dws->read = (dws->read != null_reader) ?
-					u8_reader : null_reader;
-			dws->write = (dws->write != null_writer) ?
-					u8_writer : null_writer;
-			break;
-		case 16:
-			dws->n_bytes = 2;
-			dws->dma_width = 2;
-			dws->read = (dws->read != null_reader) ?
-					u16_reader : null_reader;
-			dws->write = (dws->write != null_writer) ?
-					u16_writer : null_writer;
-			break;
-		default:
-			printk(KERN_ERR "MRST SPI0: unsupported bits:"
-				"%db\n", bits);
-			message->status = -EIO;
-			goto early_exit;
-		}
-
-		cr0 = (bits - 1)
-			| (chip->type << SPI_FRF_OFFSET)
-			| (spi->mode << SPI_MODE_OFFSET)
-			| (chip->tmode << SPI_TMOD_OFFSET);
-	}
-	
-	/*
-	 * Adjust transfer mode if necessary. Requires platform dependent
-	 * chipselect mechanism.
-	 */
-	if (dws->cs_control) {
-		if (dws->rx && dws->tx)
-			chip->tmode = 0x00;
-		else if (dws->rx)
-			chip->tmode = 0x02;
-		else
-			chip->tmode = 0x01;
-
-		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
-		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
-	}
-
-	//set state
-	dws->cur_msg->state = RUNNING_STATE;
-	dws->cur_transfer->state = RUNNING_STATE;
-
-	dws->busy = 1;
-
-	/*
-	 * Interrupt mode
-	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
-	 */
-	txint_level = dws->fifo_len / 2;
-	imask |= SPI_INT_TXEI;
-	
-	/*
-	 * Reprogram registers only if
-	 *	1. chip select changes
-	 *	2. clk_div is changed
-	 *	3. control value changes
-	 */
-	if (rk2818_readw(dws, SPIM_CTRLR0) != cr0 || cs_change || clk_div || imask) {		
-		DBG("[function: %s] [line: %d] [reprogram registers]\n", __func__, __LINE__);
-
-		spi_enable_chip(dws, 0);
-		if (rk2818_readw(dws, SPIM_CTRLR0) != cr0)
-			rk2818_writew(dws, SPIM_CTRLR0, cr0);
-
-		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);	
-		
-
-		spi_chip_sel(dws, spi->chip_select);
-		/* Set the interrupt mask, for poll mode just diable all int */
-		spi_mask_intr(dws, 0xff);
-		if (imask)
-			spi_umask_intr(dws, SPI_INT_TXEI | SPI_INT_RXFI);
-		if (txint_level) {
-			rk2818_writew(dws, SPIM_TXFTLR, txint_level);			
-			rk2818_writew(dws, SPIM_RXFTLR, txint_level);
-		}
-		if (cs_change)
-			dws->prev_chip = chip;
-				
-		spi_enable_chip(dws, 1);
-		
-	}
-	
-
-	return;
-
-early_exit:
-	giveback(dws);
-	dws->busy = 0;
-
-	return;
-}
-
-static void transfer_delay(struct rk2818_spi *dws)
-{
-	/* Delay if requested at end of transfer*/
-	if (dws->cur_msg->state == RUNNING_STATE) {
-		if (dws->cur_transfer->state == RUNNING_STATE) {
-			DBG("[function: %s] [line: %d] [msg is under transfer]\n", __func__, __LINE__);
-			return ;
-		}
-		else {					
-			/* Delay if requested at end of transfer*/
-			struct spi_transfer *previous = list_entry(dws->cur_transfer->transfer_list.prev,
-						struct spi_transfer,
-						transfer_list);
-			if (previous->delay_usecs)
-				udelay(previous->delay_usecs);
-		}
-	}
-
-}
-
-static void rk2818_pump_transfers(struct rk2818_spi *dws)
-{
-	unsigned long flags;
-
-	DBG("enter [function: %s] [line: %d]\n", __func__, __LINE__);
-
-	/* Lock queue and check for queue work */
-	spin_lock_irqsave(&dws->lock, flags);
-	
-	if (!(dws->cur_msg)) {		
-		//check for queue work
-		if (list_empty(&dws->queue) || dws->run == QUEUE_STOPPED) {			
-			DBG("[function: %s] [line: %d] [queue is empty]\n", __func__, __LINE__);
-			dws->busy = 0;
-			spin_unlock_irqrestore(&dws->lock, flags);
-			return;
-		}
-		DBG("[function: %s] [line: %d]\n", __func__, __LINE__);
-		/* Extract head of queue */
-		dws->cur_msg = list_entry(dws->queue.next, struct spi_message, queue);
-		list_del_init(&dws->cur_msg->queue);
-		
-		/* Initial message state*/
-		dws->cur_msg->state = START_STATE;
-		dws->cur_transfer = list_entry(dws->cur_msg->transfers.next,
-							struct spi_transfer,
-							transfer_list);
-		dws->cur_transfer->state = START_STATE;
-		dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
-		dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
-	}
-	
-   	spin_unlock_irqrestore(&dws->lock, flags);
-	
-	//init transfer	
-	transfer_delay(dws);
-	return spi_set_transfers(dws);
-}
-
-static irqreturn_t rk2818_spi_irq_handle(int irq, void *dev_id)
-{
-	struct rk2818_spi *dws = dev_id;
-	u16 irq_status, irq_mask = 0x3f;
-	
-	DBG("enter [function: %s] [line: %d]\n", __func__, __LINE__);
-	
-	if (!dws->cur_msg) {
-		spi_mask_intr(dws, SPI_INT_TXEI);		
-		rk2818_pump_transfers(dws);
-		return IRQ_HANDLED;
-	}
-	
-	irq_status = rk2818_readw(dws, SPIM_ISR) & irq_mask;
-	/* Error handling */
-	if (irq_status & (SPI_INT_TXOI | SPI_INT_RXOI | SPI_INT_RXUI)) {		
-		DBG("[function: %s] [line: %d] [Error handling]\n", __func__, __LINE__);
-		rk2818_readw(dws, SPIM_TXOICR);
-		rk2818_readw(dws, SPIM_RXOICR);
-		rk2818_readw(dws, SPIM_RXUICR);
-		int_error_stop(dws, "interrupt_transfer: fifo overrun");
-		rk2818_pump_transfers(dws);
-		return IRQ_HANDLED;
-	}
-	
-	spi_mask_intr(dws, SPI_INT_TXEI | SPI_INT_RXFI);
-
-	if (dws->rx) {
-		if (dws->tx) {
-			do_write(dws);
-		}
-		do_read(dws);
-	}
-	else {
-		do_write(dws);
-	}
-	
-	wait_till_tf_empty(dws);
-	wait_till_not_busy(dws);
-
-	msg_transfer_complete(dws);
-	rk2818_pump_transfers(dws);
-
-	return IRQ_HANDLED;
-
-}
-
-static int rk2818_spi_quick_int_transfer(struct spi_device *spi, struct spi_message *msg)
-{
-	struct rk2818_spi *dws = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	spin_lock_irqsave(&dws->lock, flags);
-
-	if (dws->run == QUEUE_STOPPED) {
-		spin_unlock_irqrestore(&dws->lock, flags);
-		return -ESHUTDOWN;
-	}
-
-	msg->actual_length = 0;
-	msg->status = -EINPROGRESS;
-	msg->state = START_STATE;
-
-	list_add_tail(&msg->queue, &dws->queue);
-
-	DBG("[function: %s] [line: %d] [post msg]\n", __func__, __LINE__);
-
-	spin_unlock_irqrestore(&dws->lock, flags);
-
-	if (dws->run == QUEUE_RUNNING && !dws->busy) {		
-		dws->busy = 1;
-		rk2818_pump_transfers(dws);
-	}
-
-	
-	return 0;
-}
-
 #endif
 
 /* This may be called twice for each spi dev */
@@ -1693,13 +1356,8 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	dws->prev_chip = NULL;
 	dws->dma_inited = 1;  ///0;	
 	///dws->dma_addr = (dma_addr_t)(dws->paddr + 0x60);
-	#ifndef QUICK_INT_TRANSFER
 	ret = request_irq(dws->irq, rk2818_spi_irq, 0,
 			"rk2818_spim", dws);
-	#else
-	ret = request_irq(dws->irq, rk2818_spi_irq_handle, 0,
-			"rk2818_spim", dws);
-	#endif
 	if (ret < 0) {
 		dev_err(&master->dev, "can not get IRQ\n");
 		goto err_free_master;
@@ -1712,8 +1370,6 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	master->setup = rk2818_spi_setup;
 	#if defined(QUICK_TRANSFER)
 	master->transfer = rk2818_spi_quick_transfer;
-	#elif defined(QUICK_INT_TRANSFER)
-	master->transfer = rk2818_spi_quick_int_transfer;
 	#else
 	master->transfer = rk2818_spi_transfer;
 	#endif
