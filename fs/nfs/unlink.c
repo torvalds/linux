@@ -262,7 +262,6 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 		status = PTR_ERR(data->cred);
 		goto out_free;
 	}
-	data->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 	data->res.dir_attr = &data->dir_attr;
 
 	status = -EBUSY;
@@ -427,7 +426,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 		.flags = RPC_TASK_ASYNC,
 	};
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return ERR_PTR(-ENOMEM);
 	task_setup_data.callback_data = data,

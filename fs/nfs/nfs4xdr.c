@@ -4665,7 +4665,6 @@ static int decode_sequence(struct xdr_stream *xdr,
 			   struct rpc_rqst *rqstp)
 {
 #if defined(CONFIG_NFS_V4_1)
-	struct nfs4_slot *slot;
 	struct nfs4_sessionid id;
 	u32 dummy;
 	int status;
@@ -4697,15 +4696,14 @@ static int decode_sequence(struct xdr_stream *xdr,
 		goto out_overflow;
 
 	/* seqid */
-	slot = &res->sr_session->fc_slot_table.slots[res->sr_slotid];
 	dummy = be32_to_cpup(p++);
-	if (dummy != slot->seq_nr) {
+	if (dummy != res->sr_slot->seq_nr) {
 		dprintk("%s Invalid sequence number\n", __func__);
 		goto out_err;
 	}
 	/* slot id */
 	dummy = be32_to_cpup(p++);
-	if (dummy != res->sr_slotid) {
+	if (dummy != res->sr_slot - res->sr_session->fc_slot_table.slots) {
 		dprintk("%s Invalid slot id\n", __func__);
 		goto out_err;
 	}
