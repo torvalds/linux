@@ -235,9 +235,9 @@ work_resched:
 work_notifysig:				; deal with pending signals and
 					; notify-resume requests
 	mv	r0, sp			; arg1 : struct pt_regs *regs
-	ldi	r1, r9			; arg2 : __u32 thread_info_flags
+	mv	r1, r9			; arg2 : __u32 thread_info_flags
 	bl	do_notify_resume
-	bra	restore_all
+	bra	resume_userspace
 
 	; perform syscall exit tracing
 	ALIGN

@@ -282,6 +282,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 					regs->bpc -= 2;
 				else
 					regs->bpc -= 4;
+				regs->syscall_nr = -1;
 		}
 	}
 
@@ -353,8 +354,8 @@ static int do_signal(struct pt_regs *regs)
 				regs->bpc -= 2;
 			else
 				regs->bpc -= 4;
-		}
-		if (regs->r0 == -ERESTART_RESTARTBLOCK){
+			regs->syscall_nr = -1;
+		} else if (regs->r0 == -ERESTART_RESTARTBLOCK){
 			regs->r0 = regs->orig_r0;
 			regs->r7 = __NR_restart_syscall;
 			inst = *(unsigned short *)(regs->bpc - 2);
@@ -362,6 +363,7 @@ static int do_signal(struct pt_regs *regs)
 				regs->bpc -= 2;
 			else
 				regs->bpc -= 4;
+			regs->syscall_nr = -1;
 		}
 	}
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
