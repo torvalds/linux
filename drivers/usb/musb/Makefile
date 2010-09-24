@@ -10,6 +10,10 @@ ifeq ($(CONFIG_ARCH_DAVINCI_DMx),y)
 	musb_hdrc-objs	+= davinci.o
 endif
 
+ifeq ($(CONFIG_ARCH_DAVINCI_DA8XX),y)
+	musb_hdrc-objs	+= da8xx.o
+endif
+
 ifeq ($(CONFIG_USB_TUSB6010),y)
 	musb_hdrc-objs	+= tusb6010.o
 endif
