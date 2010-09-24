@@ -234,9 +234,6 @@ nfs_init_locked(struct inode *inode, void *opaque)
 	return 0;
 }
 
-/* Don't use READDIRPLUS on directories that we believe are too large */
-#define NFS_LIMIT_READDIRPLUS (8*PAGE_SIZE)
-
 /*
  * This is our front-end to iget that looks up inodes by file handle
  * instead of inode number.
@@ -291,8 +288,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_op = NFS_SB(sb)->nfs_client->rpc_ops->dir_inode_ops;
 			inode->i_fop = &nfs_dir_operations;
-			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS)
-			    && fattr->size <= NFS_LIMIT_READDIRPLUS)
+			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS))
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			/* Deal with crossing mountpoints */
 			if ((fattr->valid & NFS_ATTR_FATTR_FSID)
