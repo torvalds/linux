@@ -479,7 +479,7 @@ static int davinci_spi_request_dma(struct spi_device *spi)
  */
 static int davinci_spi_setup(struct spi_device *spi)
 {
-	int retval;
+	int retval = 0;
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_dma *davinci_spi_dma;
 	struct davinci_spi_platform_data *pdata;
@@ -512,15 +512,10 @@ static int davinci_spi_setup(struct spi_device *spi)
 	if (use_dma && davinci_spi->dma_channels) {
 		davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
 
-		if ((davinci_spi_dma->dma_rx_channel == -1)
-				|| (davinci_spi_dma->dma_tx_channel == -1)) {
+		if ((davinci_spi_dma->dma_rx_channel == -1) ||
+		    (davinci_spi_dma->dma_tx_channel == -1))
 			retval = davinci_spi_request_dma(spi);
-			if (retval < 0)
-				return retval;
-		}
 	}
-
-	retval = davinci_spi_setup_transfer(spi, NULL);
 
 	return retval;
 }
