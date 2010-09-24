@@ -30,49 +30,11 @@
 /*
  * The Bridge device's PCI config space has information about the
  * fb aperture size and the amount of pre-reserved memory.
+ * This is all handled in the intel-gtt.ko module. i915.ko only
+ * cares about the vga bit for the vga rbiter.
  */
 #define INTEL_GMCH_CTRL		0x52
 #define INTEL_GMCH_VGA_DISABLE  (1 << 1)
-#define INTEL_GMCH_ENABLED	0x4
-#define INTEL_GMCH_MEM_MASK	0x1
-#define INTEL_GMCH_MEM_64M	0x1
-#define INTEL_GMCH_MEM_128M	0
-
-#define INTEL_GMCH_GMS_MASK		(0xf << 4)
-#define INTEL_855_GMCH_GMS_DISABLED	(0x0 << 4)
-#define INTEL_855_GMCH_GMS_STOLEN_1M	(0x1 << 4)
-#define INTEL_855_GMCH_GMS_STOLEN_4M	(0x2 << 4)
-#define INTEL_855_GMCH_GMS_STOLEN_8M	(0x3 << 4)
-#define INTEL_855_GMCH_GMS_STOLEN_16M	(0x4 << 4)
-#define INTEL_855_GMCH_GMS_STOLEN_32M	(0x5 << 4)
-
-#define INTEL_915G_GMCH_GMS_STOLEN_48M	(0x6 << 4)
-#define INTEL_915G_GMCH_GMS_STOLEN_64M	(0x7 << 4)
-#define INTEL_GMCH_GMS_STOLEN_128M	(0x8 << 4)
-#define INTEL_GMCH_GMS_STOLEN_256M	(0x9 << 4)
-#define INTEL_GMCH_GMS_STOLEN_96M	(0xa << 4)
-#define INTEL_GMCH_GMS_STOLEN_160M	(0xb << 4)
-#define INTEL_GMCH_GMS_STOLEN_224M	(0xc << 4)
-#define INTEL_GMCH_GMS_STOLEN_352M	(0xd << 4)
-
-#define SNB_GMCH_CTRL	0x50
-#define SNB_GMCH_GMS_STOLEN_MASK	0xF8
-#define SNB_GMCH_GMS_STOLEN_32M		(1 << 3)
-#define SNB_GMCH_GMS_STOLEN_64M		(2 << 3)
-#define SNB_GMCH_GMS_STOLEN_96M		(3 << 3)
-#define SNB_GMCH_GMS_STOLEN_128M	(4 << 3)
-#define SNB_GMCH_GMS_STOLEN_160M	(5 << 3)
-#define SNB_GMCH_GMS_STOLEN_192M	(6 << 3)
-#define SNB_GMCH_GMS_STOLEN_224M	(7 << 3)
-#define SNB_GMCH_GMS_STOLEN_256M	(8 << 3)
-#define SNB_GMCH_GMS_STOLEN_288M	(9 << 3)
-#define SNB_GMCH_GMS_STOLEN_320M	(0xa << 3)
-#define SNB_GMCH_GMS_STOLEN_352M	(0xb << 3)
-#define SNB_GMCH_GMS_STOLEN_384M	(0xc << 3)
-#define SNB_GMCH_GMS_STOLEN_416M	(0xd << 3)
-#define SNB_GMCH_GMS_STOLEN_448M	(0xe << 3)
-#define SNB_GMCH_GMS_STOLEN_480M	(0xf << 3)
-#define SNB_GMCH_GMS_STOLEN_512M	(0x10 << 3)
 
 /* PCI config space */
 
