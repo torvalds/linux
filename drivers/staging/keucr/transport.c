@@ -763,24 +763,19 @@ int usb_stor_port_reset(struct us_data *us)
 	int result, rc_lock;
 
 	//printk("transport --- usb_stor_port_reset\n");
-	result = rc_lock = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
+	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)
 		printk("unable to lock device for reset: %d\n", result);
-	else
-	{
+	else {
 		/* Were we disconnected while waiting for the lock? */
-		if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags))
-		{
+		if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 			result = -EIO;
 			//printk("No reset during disconnect\n");
-		}
-		else
-		{
+		} else {
 			result = usb_reset_device(us->pusb_dev);
 			//printk("usb_reset_composite_device returns %d\n", result);
 		}
-		if (rc_lock)
-			usb_unlock_device(us->pusb_dev);
+		usb_unlock_device(us->pusb_dev);
 	}
 	return result;
 }
