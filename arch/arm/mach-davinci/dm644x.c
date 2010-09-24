@@ -653,8 +653,7 @@ static struct map_desc dm644x_io_desc[] = {
 		.virtual	= SRAM_VIRT,
 		.pfn		= __phys_to_pfn(0x00008000),
 		.length		= SZ_16K,
-		/* MT_MEMORY_NONCACHED requires supersection alignment */
-		.type		= MT_DEVICE,
+		.type		= MT_MEMORY_NONCACHED,
 	},
 };
 
