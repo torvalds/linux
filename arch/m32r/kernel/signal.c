@@ -187,7 +187,7 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 	return (void __user *)((sp - frame_size) & -8ul);
 }
 
-static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			   sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
@@ -244,17 +244,18 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->pc);
 #endif
 
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
 /*
  * OK, we're invoking a handler
  */
 
-static void
+static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
@@ -287,7 +288,8 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	}
 
 	/* Set up the stack frame */
-	setup_rt_frame(sig, ka, info, oldset, regs);
+	if (setup_rt_frame(sig, ka, info, oldset, regs))
+		return -EFAULT;
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -295,6 +297,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+	return 0;
 }
 
 /*
@@ -302,7 +305,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-static int do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
@@ -317,7 +320,7 @@ static int do_signal(struct pt_regs *regs)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (try_to_freeze()) 
 		goto no_signal;
@@ -336,9 +339,10 @@ static int do_signal(struct pt_regs *regs)
 		 */
 
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &ka, &info, oldset, regs);
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		return 1;
+		if (handle_signal(signr, &ka, &info, oldset, regs) == 0)
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		return;
 	}
 
  no_signal:
@@ -370,7 +374,6 @@ static int do_signal(struct pt_regs *regs)
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
-	return 0;
 }
 
 /*
