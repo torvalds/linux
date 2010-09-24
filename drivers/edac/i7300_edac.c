@@ -616,7 +616,8 @@ static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
 		      struct i7300_dimm_info *dinfo,
-		      struct csrow_info *p_csrow)
+		      struct csrow_info *p_csrow,
+		      u32 *last_page)
 {
 	int mtr, ans, addrBits, channel;
 
@@ -663,6 +664,11 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	p_csrow->grain = 8;
 	p_csrow->nr_pages = dinfo->megabytes << 8;
 	p_csrow->mtype = MEM_FB_DDR2;
+	p_csrow->csrow_idx = slot;
+	p_csrow->first_page = *last_page;
+	*last_page += p_csrow->nr_pages;
+	p_csrow->last_page = *last_page;
+	p_csrow->page_mask = 0;
 
 	/*
 	 * The type of error detection actually depends of the
@@ -774,6 +780,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	int rc = -ENODEV;
 	int mtr;
 	int ch, branch, slot, channel;
+	u32 last_page = 0;
 
 	pvt = mci->pvt_info;
 
@@ -811,17 +818,10 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				p_csrow = &mci->csrows[slot];
 
 				mtr = decode_mtr(pvt, slot, ch, branch,
-							dinfo, p_csrow);
+						 dinfo, p_csrow, &last_page);
 				/* if no DIMMS on this row, continue */
 				if (!MTR_DIMMS_PRESENT(mtr))
 					continue;
-
-				p_csrow->csrow_idx = slot;
-
-				/* FAKE OUT VALUES, FIXME */
-				p_csrow->first_page = 0 + slot * 20;
-				p_csrow->last_page = 9 + slot * 20;
-				p_csrow->page_mask = 0xfff;
 
 				rc = 0;
 			}
