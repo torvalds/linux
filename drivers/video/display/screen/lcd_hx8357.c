@@ -10,18 +10,18 @@
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P666	/*OUT_P888*/
-#define OUT_CLK			12	//***27
+#define OUT_CLK			10	//***27
 
 /* Timing */
 #define H_PW			8
 #define H_BP			6
 #define H_VD			320	//***800 
-#define H_FP			6
+#define H_FP			60
 
 #define V_PW			12
 #define V_BP			4
 #define V_VD			480	//***480
-#define V_FP			4
+#define V_FP			40
 
 /* Other */
 #define DCLK_POL		0 
