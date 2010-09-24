@@ -418,7 +418,6 @@ struct gfs2_args {
 	unsigned int ar_spectator:1;		/* Don't get a journal */
 	unsigned int ar_localflocks:1;		/* Let the VFS do flock|fcntl */
 	unsigned int ar_debug:1;		/* Oops on errors */
-	unsigned int ar_upgrade:1;		/* Upgrade ondisk format */
 	unsigned int ar_posix_acl:1;		/* Enable posix acls */
 	unsigned int ar_quota:2;		/* off/account/on */
 	unsigned int ar_suiddir:1;		/* suiddir support */
