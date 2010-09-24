@@ -694,6 +694,51 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
+static void tegra_dc_set_color_control(struct tegra_dc *dc)
+{
+	u32 color_control;
+
+	switch (dc->out->depth) {
+	case 3:
+		color_control = BASE_COLOR_SIZE111;
+		break;
+
+	case 6:
+		color_control = BASE_COLOR_SIZE222;
+		break;
+
+	case 8:
+		color_control = BASE_COLOR_SIZE332;
+		break;
+
+	case 9:
+		color_control = BASE_COLOR_SIZE333;
+		break;
+
+	case 12:
+		color_control = BASE_COLOR_SIZE444;
+		break;
+
+	case 15:
+		color_control = BASE_COLOR_SIZE555;
+		break;
+
+	case 16:
+		color_control = BASE_COLOR_SIZE565;
+		break;
+
+	case 18:
+		color_control = BASE_COLOR_SIZE666;
+		break;
+
+	default:
+		color_control = BASE_COLOR_SIZE888;
+		break;
+	}
+
+	tegra_dc_writel(dc, color_control, DC_DISP_DISP_COLOR_CONTROL);
+}
+
 static void tegra_dc_init(struct tegra_dc *dc)
 {
 	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
@@ -710,6 +755,8 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_ENABLE);
 
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
+
+	tegra_dc_set_color_control(dc);
 
 	if (dc->mode.pclk)
 		tegra_dc_program_mode(dc, &dc->mode);
