@@ -459,7 +459,7 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
     //root@zyc-desktop:/usr/android_source/android_cmmb_dev/kernel/kernel/drivers/cmmb/siano# 
     //
     //1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
-    request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,NULL,spiphy_dev);
+    request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,"inno_irq",spiphy_dev);
 
     if(ret<0){
         printk("siano 1186 request irq failed !!\n");
@@ -475,7 +475,7 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 	return spiphy_dev;
     
 fail1:
-	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), NULL);
+	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), spiphy_dev);
 	return 0;
 }
 
@@ -491,7 +491,7 @@ int smsspiphy_deinit(void *context)
 						 &sms_panic_notifier);
         chip_powerdown();
 	sms_info("exiting\n");
-	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), NULL);
+	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), spiphy_dev);
 	gpio_free(CMMB_1186_SPIIRQ);
 	return 0;
 }
