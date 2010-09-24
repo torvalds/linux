@@ -40,77 +40,45 @@
 #include <linux/freezer.h>
 
 
-STATIC xfs_inode_t *
-xfs_inode_ag_lookup(
-	struct xfs_mount	*mp,
-	struct xfs_perag	*pag,
-	uint32_t		*first_index,
-	int			tag)
-{
-	int			nr_found;
-	struct xfs_inode	*ip;
-
-	/*
-	 * use a gang lookup to find the next inode in the tree
-	 * as the tree is sparse and a gang lookup walks to find
-	 * the number of objects requested.
-	 */
-	if (tag == XFS_ICI_NO_TAG) {
-		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
-				(void **)&ip, *first_index, 1);
-	} else {
-		nr_found = radix_tree_gang_lookup_tag(&pag->pag_ici_root,
-				(void **)&ip, *first_index, 1, tag);
-	}
-	if (!nr_found)
-		return NULL;
-
-	/*
-	 * Update the index for the next lookup. Catch overflows
-	 * into the next AG range which can occur if we have inodes
-	 * in the last block of the AG and we are currently
-	 * pointing to the last inode.
-	 */
-	*first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
-	if (*first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
-		return NULL;
-	return ip;
-}
-
 STATIC int
 xfs_inode_ag_walk(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	int			(*execute)(struct xfs_inode *ip,
 					   struct xfs_perag *pag, int flags),
-	int			flags,
-	int			tag,
-	int			exclusive,
-	int			*nr_to_scan)
+	int			flags)
 {
 	uint32_t		first_index;
 	int			last_error = 0;
 	int			skipped;
+	int			done;
 
 restart:
+	done = 0;
 	skipped = 0;
 	first_index = 0;
 	do {
 		int		error = 0;
+		int		nr_found;
 		xfs_inode_t	*ip;
 
-		if (exclusive)
-			write_lock(&pag->pag_ici_lock);
-		else
-			read_lock(&pag->pag_ici_lock);
-		ip = xfs_inode_ag_lookup(mp, pag, &first_index, tag);
-		if (!ip) {
-			if (exclusive)
-				write_unlock(&pag->pag_ici_lock);
-			else
-				read_unlock(&pag->pag_ici_lock);
+		read_lock(&pag->pag_ici_lock);
+		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
+				(void **)&ip, first_index, 1);
+		if (!nr_found) {
+			read_unlock(&pag->pag_ici_lock);
 			break;
 		}
+
+		/*
+		 * Update the index for the next lookup. Catch overflows
+		 * into the next AG range which can occur if we have inodes
+		 * in the last block of the AG and we are currently
+		 * pointing to the last inode.
+		 */
+		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
+			done = 1;
 
 		/* execute releases pag->pag_ici_lock */
 		error = execute(ip, pag, flags);
@@ -125,7 +93,7 @@ restart:
 		if (error == EFSCORRUPTED)
 			break;
 
-	} while ((*nr_to_scan)--);
+	} while (!done);
 
 	if (skipped) {
 		delay(1);
@@ -134,73 +102,29 @@ restart:
 	return last_error;
 }
 
-/*
- * Select the next per-ag structure to iterate during the walk. The reclaim
- * walk is optimised only to walk AGs with reclaimable inodes in them.
- */
-static struct xfs_perag *
-xfs_inode_ag_iter_next_pag(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		*first,
-	int			tag)
-{
-	struct xfs_perag	*pag = NULL;
-
-	if (tag == XFS_ICI_RECLAIM_TAG) {
-		int found;
-		int ref;
-
-		rcu_read_lock();
-		found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
-				(void **)&pag, *first, 1, tag);
-		if (found <= 0) {
-			rcu_read_unlock();
-			return NULL;
-		}
-		*first = pag->pag_agno + 1;
-		/* open coded pag reference increment */
-		ref = atomic_inc_return(&pag->pag_ref);
-		rcu_read_unlock();
-		trace_xfs_perag_get_reclaim(mp, pag->pag_agno, ref, _RET_IP_);
-	} else {
-		pag = xfs_perag_get(mp, *first);
-		(*first)++;
-	}
-	return pag;
-}
-
 int
 xfs_inode_ag_iterator(
 	struct xfs_mount	*mp,
 	int			(*execute)(struct xfs_inode *ip,
 					   struct xfs_perag *pag, int flags),
-	int			flags,
-	int			tag,
-	int			exclusive,
-	int			*nr_to_scan)
+	int			flags)
 {
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			last_error = 0;
 	xfs_agnumber_t		ag;
-	int			nr;
 
-	nr = nr_to_scan ? *nr_to_scan : INT_MAX;
 	ag = 0;
-	while ((pag = xfs_inode_ag_iter_next_pag(mp, &ag, tag))) {
-		error = xfs_inode_ag_walk(mp, pag, execute, flags, tag,
-						exclusive, &nr);
+	while ((pag = xfs_perag_get(mp, ag))) {
+		ag = pag->pag_agno + 1;
+		error = xfs_inode_ag_walk(mp, pag, execute, flags);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
 			if (error == EFSCORRUPTED)
 				break;
 		}
-		if (nr <= 0)
-			break;
 	}
-	if (nr_to_scan)
-		*nr_to_scan = nr;
 	return XFS_ERROR(last_error);
 }
 
@@ -318,8 +242,7 @@ xfs_sync_data(
 
 	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
 
-	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
-				      XFS_ICI_NO_TAG, 0, NULL);
+	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -337,8 +260,7 @@ xfs_sync_attr(
 {
 	ASSERT((flags & ~SYNC_WAIT) == 0);
 
-	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags,
-				     XFS_ICI_NO_TAG, 0, NULL);
+	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags);
 }
 
 STATIC int
@@ -868,13 +790,72 @@ reclaim:
 
 }
 
+/*
+ * Walk the AGs and reclaim the inodes in them. Even if the filesystem is
+ * corrupted, we still want to try to reclaim all the inodes. If we don't,
+ * then a shut down during filesystem unmount reclaim walk leak all the
+ * unreclaimed inodes.
+ */
+int
+xfs_reclaim_inodes_ag(
+	struct xfs_mount	*mp,
+	int			flags,
+	int			*nr_to_scan)
+{
+	struct xfs_perag	*pag;
+	int			error = 0;
+	int			last_error = 0;
+	xfs_agnumber_t		ag;
+
+	ag = 0;
+	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
+		unsigned long	first_index = 0;
+		int		done = 0;
+
+		ag = pag->pag_agno + 1;
+
+		do {
+			struct xfs_inode *ip;
+			int	nr_found;
+
+			write_lock(&pag->pag_ici_lock);
+			nr_found = radix_tree_gang_lookup_tag(&pag->pag_ici_root,
+					(void **)&ip, first_index, 1,
+					XFS_ICI_RECLAIM_TAG);
+			if (!nr_found) {
+				write_unlock(&pag->pag_ici_lock);
+				break;
+			}
+
+			/*
+			 * Update the index for the next lookup. Catch overflows
+			 * into the next AG range which can occur if we have inodes
+			 * in the last block of the AG and we are currently
+			 * pointing to the last inode.
+			 */
+			first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+			if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
+				done = 1;
+
+			error = xfs_reclaim_inode(ip, pag, flags);
+			if (error && last_error != EFSCORRUPTED)
+				last_error = error;
+
+		} while (!done && (*nr_to_scan)--);
+
+		xfs_perag_put(pag);
+	}
+	return XFS_ERROR(last_error);
+}
+
 int
 xfs_reclaim_inodes(
 	xfs_mount_t	*mp,
 	int		mode)
 {
-	return xfs_inode_ag_iterator(mp, xfs_reclaim_inode, mode,
-					XFS_ICI_RECLAIM_TAG, 1, NULL);
+	int		nr_to_scan = INT_MAX;
+
+	return xfs_reclaim_inodes_ag(mp, mode, &nr_to_scan);
 }
 
 /*
@@ -896,17 +877,16 @@ xfs_reclaim_inode_shrink(
 		if (!(gfp_mask & __GFP_FS))
 			return -1;
 
-		xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
-					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
-		/* if we don't exhaust the scan, don't bother coming back */
+		xfs_reclaim_inodes_ag(mp, 0, &nr_to_scan);
+		/* terminate if we don't exhaust the scan */
 		if (nr_to_scan > 0)
 			return -1;
        }
 
 	reclaimable = 0;
 	ag = 0;
-	while ((pag = xfs_inode_ag_iter_next_pag(mp, &ag,
-					XFS_ICI_RECLAIM_TAG))) {
+	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
+		ag = pag->pag_agno + 1;
 		reclaimable += pag->pag_ici_reclaimable;
 		xfs_perag_put(pag);
 	}
