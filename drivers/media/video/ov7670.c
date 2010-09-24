@@ -907,6 +907,22 @@ static int ov7670_enum_frameintervals(struct v4l2_subdev *sd,
 }
 
 /*
+ * Frame size enumeration
+ */
+static int ov7670_enum_framesizes(struct v4l2_subdev *sd,
+		struct v4l2_frmsizeenum *fsize)
+{
+	__u32 index = fsize->index;
+	if (index >= N_WIN_SIZES)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	fsize->discrete.width = ov7670_win_sizes[index].width;
+	fsize->discrete.height = ov7670_win_sizes[index].height;
+	return 0;
+}
+
+/*
  * Code for dealing with controls.
  */
 
@@ -1453,6 +1469,7 @@ static const struct v4l2_subdev_video_ops ov7670_video_ops = {
 	.s_parm = ov7670_s_parm,
 	.g_parm = ov7670_g_parm,
 	.enum_frameintervals = ov7670_enum_frameintervals,
+	.enum_framesizes = ov7670_enum_framesizes,
 };
 
 static const struct v4l2_subdev_ops ov7670_ops = {
