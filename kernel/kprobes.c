@@ -47,6 +47,7 @@
 #include <linux/memory.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
+#include <linux/jump_label.h>
 
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
@@ -1146,7 +1147,8 @@ int __kprobes register_kprobe(struct kprobe *p)
 	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr) ||
-	    ftrace_text_reserved(p->addr, p->addr)) {
+	    ftrace_text_reserved(p->addr, p->addr) ||
+	    jump_label_text_reserved(p->addr, p->addr)) {
 		preempt_enable();
 		return -EINVAL;
 	}
