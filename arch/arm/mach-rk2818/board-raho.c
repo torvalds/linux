@@ -1127,7 +1127,7 @@ struct platform_device rk2818_soc_camera_pdrv = {
  * battery  devices
  * author: lw@rock-chips.com
  *****************************************************************************************/
-#define CHARGEOK_PIN	SPI_GPIO_P6_06//RK2818_PIN_PB1
+#define CHARGEOK_PIN	FPGA_PIO0_06
 struct rk2818_battery_platform_data rk2818_battery_platdata = {
 	.charge_ok_pin = CHARGEOK_PIN,
 	.charge_ok_level = 0,

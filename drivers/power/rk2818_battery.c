@@ -40,7 +40,7 @@
 #define	SLOPE_SECOND_COUNTS	120		//统计电压斜率的时间间隔s
 #define	TIME_UPDATE_STATUS	5000	//更新电池状态的时间间隔ms
 #define BATT_MAX_VOL_VALUE	4180	//满电时的电池电压	 FOR A7
-#define	BATT_ZERO_VOL_VALUE  3400	//关机时的电池电压
+#define	BATT_ZERO_VOL_VALUE  3500	//关机时的电池电压
 #define BATT_NOMAL_VOL_VALUE  3800
 #define THRESHOLD_VOLTAGE_LEVEL0          4050
 #define THRESHOLD_VOLTAGE_LEVEL1          3950
@@ -56,7 +56,7 @@
 #define BATT_LEVEL_EMPTY	0
 #define BATT_PRESENT_TRUE	 1
 #define BATT_PRESENT_FALSE  0
-#define BAT_1V2_VALUE	1330
+#define BAT_1V2_VALUE	1270
 
 #define BAT_LOADER_STATUS		0	//用电状态
 #define BAT_CHANGE_STATUS		1	//波动状态
@@ -73,6 +73,8 @@
 #define	VOLTAGE_RELEASE_LEVEL	3
 
 #define	NUM_VOLTAGE_SAMPLE	((1000*SLOPE_SECOND_COUNTS) / TIMER_MS_COUNTS)	//存储的采样点个数
+
+static int gBatFullFlag =  0;
 
 static int gBatLastStatus = 0;
 static int gBatStatus =  POWER_SUPPLY_STATUS_UNKNOWN;
@@ -148,49 +150,52 @@ static int rk2818_get_charge_status(void)
 {
  struct regulator * rdev = pChargeregulator;
 	//DBG("gAdcValue[CHN_USB_ADC]=%d\n",gAdcValue[CHN_USB_ADC]);
-	if(gAdcValue[CHN_USB_ADC] > 250)	//about 0.5V
-		{
-		return 1;
-		}
-	else if((1 == dwc_vbus_status())&& (0 == get_msc_connect_flag()))
-		{
-		  if(gVbuscharge !=1)
-{
-     if(rdev== pChargeregulator )
-		        regulator_set_current_limit(rdev,0,1200000);
-}
-		   gVbuscharge = 1;
-		return 1;
-		}
-	else
-		{
-		if(gVbuscharge !=0 )
-{
-     if(rdev== pChargeregulator )
-			regulator_set_current_limit(rdev,0,475000);		
-}
-		 gVbuscharge = 0;
-		
-		return 0;
-		}
+    /*if(gAdcValue[CHN_USB_ADC] > 250) 
+    {   //about 0.5V 
+        return 1;
+    } 
+    else */
+    if((1 == dwc_vbus_status())&& (0 == get_msc_connect_flag())) 
+    {
+        DBG("CHARGE!\n");
+        if(gVbuscharge !=1) {
+            if(rdev== pChargeregulator )
+                regulator_set_current_limit(rdev,0,1200000);
+        }
+        gVbuscharge = 1;
+        return 1;
+    } 
+    else 
+    {
+        DBG("NOT CHARGING!\n");
+        if(gVbuscharge !=0 ) {
+            if(rdev== pChargeregulator )
+            regulator_set_current_limit(rdev,0,475000);     
+        }
+        gVbuscharge = 0;
+        return 0;
+    }
+
 }
 
 static void rk2818_get_bat_status(struct rk2818_battery_data *bat)
 {
 	if(rk2818_get_charge_status() == 1)
 	{
-		/*
-		if(gpio_get_value (bat->charge_ok_pin) == bat->charge_ok_level)
-		{
-			gBatStatus = POWER_SUPPLY_STATUS_FULL;
-			DBG("Battery is Full!\n");
-		}
-		else
-		*/	
-		gBatStatus = POWER_SUPPLY_STATUS_CHARGING;		
+	    //local_irq_disable();
+	    if (gBatFullFlag == 0) {
+            gBatStatus = POWER_SUPPLY_STATUS_CHARGING;
+	    } else {
+            gBatStatus = POWER_SUPPLY_STATUS_FULL;
+	    }
+	    //local_irq_enable();
+        DBG("Battery is Charging!\n");
 	}
-	else
-	gBatStatus = POWER_SUPPLY_STATUS_NOT_CHARGING;	
+	else {
+	    gBatFullFlag = 0;
+        gBatStatus = POWER_SUPPLY_STATUS_NOT_CHARGING;
+        DBG("Battery is Not Charging!\n");
+	}
 }
 
 static void rk2818_get_bat_health(struct rk2818_battery_data *bat)
@@ -555,12 +560,23 @@ static int rk2818_battery_resume(struct platform_device *dev)
 #define rk2818_battery_resume NULL
 #endif
 
+static irqreturn_t rk2818_battery_interrupt(int irq, void *dev_id)
+{
+    if((1 == dwc_vbus_status())&& (0 == get_msc_connect_flag())) {//detech when charging
+        gBatFullFlag = 1;
+    }
+
+    DBG(KERN_INFO "-----battery is full-----\n");
+
+    return 0;
+}
 
 static int rk2818_battery_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct rk2818_battery_data *data;
 	struct rk2818_battery_platform_data *pdata = pdev->dev.platform_data;
+	int irq_flag;
 
 	if (pdata && pdata->io_init) {
 		ret = pdata->io_init();
@@ -614,7 +630,14 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 
 	data->charge_ok_pin = pdata->charge_ok_pin;
 	data->charge_ok_level = pdata->charge_ok_level;
-	
+
+	irq_flag = (!pdata->charge_ok_level) ? IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
+	ret = request_irq(gpio_to_irq(pdata->charge_ok_pin), rk2818_battery_interrupt, irq_flag, "rk2818_battery", data);
+	if (ret) {
+		printk("failed to request irq\n");
+		goto err_irq_failed;
+	}
+
 	ret = power_supply_register(&pdev->dev, &data->ac);
 	if (ret)
 	{
@@ -659,6 +682,8 @@ err_battery_failed:
 err_usb_failed:
 	power_supply_unregister(&data->ac);
 err_ac_failed:
+	free_irq(gpio_to_irq(pdata->charge_ok_pin), data);
+err_irq_failed:
 	kfree(data);
 err_data_alloc_failed:
 
