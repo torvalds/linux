@@ -253,11 +253,13 @@
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
-#define RING_TAIL(base)		(base)+0x30
-#define RING_HEAD(base)		(base)+0x34
-#define RING_START(base)	(base)+0x38
-#define RING_CTL(base)		(base)+0x3c
-#define RING_HWS_PGA(base)	(base)+0x80
+#define RING_TAIL(base)		((base)+0x30)
+#define RING_HEAD(base)		((base)+0x34)
+#define RING_START(base)	((base)+0x38)
+#define RING_CTL(base)		((base)+0x3c)
+#define RING_HWS_PGA(base)	((base)+0x80)
+#define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
+#define RING_ACTHD(base)	((base)+0x74)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
 #define   HEAD_WRAP_ONE		0x00200000
@@ -283,7 +285,6 @@
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
-#define HWS_PGA_GEN6	0x04080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
 #define PWRCTXA		0x2088 /* 965GM+ only */
@@ -441,28 +442,6 @@
 #define   GEN6_BLITTER_COMMAND_PARSER_MASTER_ERROR	(1 << 25)
 #define   GEN6_BLITTER_SYNC_STATUS			(1 << 24)
 #define   GEN6_BLITTER_USER_INTERRUPT			(1 << 22)
-/*
- * BSD (bit stream decoder instruction and interrupt control register defines
- * (G4X and Ironlake only)
- */
-
-#define BSD_RING_TAIL          0x04030
-#define BSD_RING_HEAD          0x04034
-#define BSD_RING_START         0x04038
-#define BSD_RING_CTL           0x0403c
-#define BSD_RING_ACTHD         0x04074
-#define BSD_HWS_PGA            0x04080
-
-/*
- * video command stream instruction and interrupt control register defines
- * for GEN6
- */
-#define GEN6_BSD_RING_TAIL		0x12030
-#define GEN6_BSD_RING_HEAD		0x12034
-#define GEN6_BSD_RING_START		0x12038
-#define GEN6_BSD_RING_CTL		0x1203c
-#define GEN6_BSD_RING_ACTHD		0x12074
-#define GEN6_BSD_HWS_PGA		0x14080
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
 #define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK	(1 << 16)

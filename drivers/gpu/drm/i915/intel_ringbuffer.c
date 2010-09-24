@@ -131,7 +131,8 @@ static unsigned int render_ring_get_active_head(struct drm_device *dev,
 						struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 acthd_reg = INTEL_INFO(dev)->gen >= 4 ? ACTHD_I965 : ACTHD;
+	u32 acthd_reg = INTEL_INFO(dev)->gen >= 4 ?
+			RING_ACTHD(ring->mmio_base) : ACTHD;
 
 	return I915_READ(acthd_reg);
 }
@@ -352,11 +353,13 @@ static void render_setup_status_page(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	if (IS_GEN6(dev)) {
-		I915_WRITE(HWS_PGA_GEN6, ring->status_page.gfx_addr);
-		I915_READ(HWS_PGA_GEN6); /* posting read */
+		I915_WRITE(RING_HWS_PGA_GEN6(ring->mmio_base),
+			   ring->status_page.gfx_addr);
+		I915_READ(RING_HWS_PGA_GEN6(ring->mmio_base)); /* posting read */
 	} else {
-		I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
-		I915_READ(HWS_PGA); /* posting read */
+		I915_WRITE(RING_HWS_PGA(ring->mmio_base),
+			   ring->status_page.gfx_addr);
+		I915_READ(RING_HWS_PGA(ring->mmio_base)); /* posting read */
 	}
 
 }
@@ -377,7 +380,7 @@ static unsigned int bsd_ring_get_active_head(struct drm_device *dev,
 					     struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	return I915_READ(BSD_RING_ACTHD);
+	return I915_READ(RING_ACTHD(ring->mmio_base));
 }
 
 static int init_bsd_ring(struct drm_device *dev,
@@ -412,8 +415,8 @@ static void bsd_setup_status_page(struct drm_device *dev,
 				  struct  intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE(BSD_HWS_PGA, ring->status_page.gfx_addr);
-	I915_READ(BSD_HWS_PGA);
+	I915_WRITE(RING_HWS_PGA(ring->mmio_base), ring->status_page.gfx_addr);
+	I915_READ(RING_HWS_PGA(ring->mmio_base));
 }
 
 static void
@@ -801,8 +804,8 @@ static void gen6_bsd_setup_status_page(struct drm_device *dev,
 				       struct  intel_ring_buffer *ring)
 {
        drm_i915_private_t *dev_priv = dev->dev_private;
-       I915_WRITE(GEN6_BSD_HWS_PGA, ring->status_page.gfx_addr);
-       I915_READ(GEN6_BSD_HWS_PGA);
+       I915_WRITE(RING_HWS_PGA_GEN6(ring->mmio_base), ring->status_page.gfx_addr);
+       I915_READ(RING_HWS_PGA_GEN6(ring->mmio_base));
 }
 
 static void gen6_bsd_ring_set_tail(struct drm_device *dev,
@@ -832,7 +835,7 @@ static unsigned int gen6_bsd_ring_get_active_head(struct drm_device *dev,
 						  struct intel_ring_buffer *ring)
 {
        drm_i915_private_t *dev_priv = dev->dev_private;
-       return I915_READ(GEN6_BSD_RING_ACTHD);
+       return I915_READ(RING_ACTHD(ring->mmio_base));
 }
 
 static void gen6_bsd_ring_flush(struct drm_device *dev,
