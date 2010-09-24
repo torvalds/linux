@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/i2c/twl.h>
@@ -39,6 +40,36 @@
 #include <plat/mmc.h>
 #include "hsmmc.h"
 
+
+static struct gpio_led gpio_leds[] = {
+	{
+		.name			= "pandaboard::status1",
+		.default_trigger	= "heartbeat",
+		.gpio			= 7,
+	},
+	{
+		.name			= "pandaboard::status2",
+		.default_trigger	= "mmc0",
+		.gpio			= 8,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_info,
+	},
+};
+
+static struct platform_device *panda_devices[] __initdata = {
+	&leds_gpio,
+};
 
 static void __init omap4_panda_init_irq(void)
 {
@@ -277,6 +308,7 @@ static void __init omap4_panda_init(void)
 	int status;
 
 	omap4_panda_i2c_init();
+	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
 	omap_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);
 	/* OMAP4 Panda uses internal transceiver so register nop transceiver */
