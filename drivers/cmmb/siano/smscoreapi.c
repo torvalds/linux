@@ -52,8 +52,8 @@
 #endif
 
 // to enable log
-int sms_debug =7;
-//int sms_debug =0;   //hzb 0526
+//int sms_debug =7;
+int sms_debug =0;   //hzb 0526
 // for loopback
 char g_LbResBuf[256]={0};
 //
@@ -1777,8 +1777,9 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
 	return rc;
 }
 
+
 //zyc
-static request_cmmb_gpio(void)
+static void request_cmmb_gpio(void)
 {
 	int ret;
 	ret = gpio_request(CMMB_1186_POWER_RESET, NULL);
@@ -1803,6 +1804,16 @@ static request_cmmb_gpio(void)
 
 }
 
+static void release_cmmb_gpio(void)
+{
+	gpio_free(CMMB_1186_POWER_RESET);
+	gpio_free(CMMB_1186_POWER_DOWN);
+	gpio_free(CMMB_1186_POWER_ENABLE);
+	printk("leave the release_cmmb_gpio\n");
+
+
+}
+
 static int __init smscore_module_init(void)
 {
 	int rc = 0;
@@ -1817,8 +1828,9 @@ static int __init smscore_module_init(void)
 	kmutex_init(&g_smscore_registrylock);
 
 //request the gpio used by cmmb
-	request_cmmb_gpio();
+	//request_cmmb_gpio();
 	/* Register sub system adapter objects */
+	request_cmmb_gpio();
 
 #ifdef SMS_NET_SUBSYS
 	/* NET Register */
@@ -1903,6 +1915,9 @@ smsnet_error:
 
 static void __exit smscore_module_exit(void)
 {
+
+
+
 #ifdef SMS_NET_SUBSYS
 	/* Net Unregister */
 	smsnet_unregister();
@@ -1955,6 +1970,8 @@ static void __exit smscore_module_exit(void)
 		kfree(entry);
 	}
 	kmutex_unlock(&g_smscore_registrylock);
+	
+	release_cmmb_gpio();
 
 	sms_debug("");
 }

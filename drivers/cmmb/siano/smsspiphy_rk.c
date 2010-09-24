@@ -41,6 +41,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "smscoreapi.h"
 #include <linux/notifier.h>
 
+#include <mach/iomux.h>
+
 //#define CMMB_1186_SPIIRQ RK2818_PIN_PE1  //This Pin is SDK Board GPIOPortE_Pin1 
 //#define CMMB_1186_PWR_EN   GPIOPortH_Pin7//This Pin is SDK Board GPIOPortE_Pin1 
 
@@ -277,7 +279,7 @@ void smsspibus_ssp_suspend(void* context )
 	}
 	spiphy_dev = (struct spiphy_dev_s *) context;
 
-  free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), NULL);
+ // free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), NULL);
 
 	chip_powerdown();
     
@@ -389,7 +391,6 @@ fail1:
     return -1 ;
 }
 
-
 void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 		     void *intr_context)
 {
@@ -406,12 +407,16 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 		sms_err("spiphy_dev is null in smsspiphy_init\n") ;
         return NULL;
 	}
+	
 	chip_powerdown();
 	spiphy_dev->interruptHandler = smsspi_interruptHandler;
 	spiphy_dev->intr_context = intr_context;
   spiphy_dev->Smsdevice = (struct spi_device*)context;
     
     //gpio_pull_updown(CMMB_1186_SPIIRQ, IRQT_FALLING);
+    //ÉèÖÃCMMB ÖÐ¶Ï½ÅIOMUX	
+    
+	rk2818_mux_api_set(GPIOA6_FLASHCS2_SEL_NAME, 0);
    	error = gpio_request(CMMB_1186_SPIIRQ,"cmmb irq");
 	if (error) {
 		//dev_err(&pdev->dev, "failed to request play key gpio\n");
@@ -420,7 +425,40 @@ void *smsspiphy_init(void *context, void (*smsspi_interruptHandler) (void *),
 	}
     //ret = request_gpio_irq(CMMB_1186_SPIIRQ, spibus_interrupt, GPIOEdgelRising, spiphy_dev);//
     gpio_pull_updown(CMMB_1186_SPIIRQ,GPIOPullUp);
-    //ret = request_gpio_irq(CMMB_1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
+    //ret = request_gpio_irq(CMMB_-rwxrwxrwx 1 root root     8 2010-09-20 17:43 built-in.o
+    //-rwxrwxrwx 1 root root  6927 2010-09-19 10:42 compat.h
+    //-rwxrwxrwx 1 root root  1748 2010-09-21 15:06 Kconfig
+    //-rwxrwxrwx 1 root root  2518 2010-09-19 10:42 Makefile
+    //-rwxrwxrwx 1 root root    37 2010-09-21 20:27 modules.order
+    //-rwxrwxrwx 1 root root  9890 2010-09-19 10:42 sms-cards.c
+    //-rwxrwxrwx 1 root root  2752 2010-09-19 10:42 sms-cards.h
+    //-rwxrwxrwx 1 root root  5416 2010-09-21 19:47 sms-cards.o
+    //-rwxrwxrwx 1 root root 20493 2010-09-21 19:46 smschar.c
+    //-rwxrwxrwx 1 root root  1916 2010-09-19 10:42 smscharioctl.h
+    //-rwxrwxrwx 1 root root 12440 2010-09-21 19:47 smschar.o
+    //-rwxrwxrwx 1 root root 53173 2010-09-21 19:46 smscoreapi.c
+    //-rwxrwxrwx 1 root root 16701 2010-09-21 19:46 smscoreapi.h
+    //-rwxrwxrwx 1 root root 25516 2010-09-21 19:47 smscoreapi.o
+    //-rwxrwxrwx 1 root root  1982 2010-09-19 10:42 smsdbg_prn.h
+    //-rwxrwxrwx 1 root root  2409 2010-09-19 10:42 smsendian.c
+    //-rwxrwxrwx 1 root root  1100 2010-09-19 10:42 smsendian.h
+    //-rwxrwxrwx 1 root root  1140 2010-09-21 19:47 smsendian.o
+    //-rwxrwxrwx 1 root root 58990 2010-09-21 19:48 smsmdtv.ko
+    //-rwxrwxrwx 1 root root  1578 2010-09-19 16:15 smsmdtv.mod.c
+    //-rwxrwxrwx 1 root root  2984 2010-09-20 17:43 smsmdtv.mod.o
+    //-rwxrwxrwx 1 root root 56673 2010-09-21 19:47 smsmdtv.o
+    //-rwxrwxrwx 1 root root 11950 2010-09-21 19:46 smsspicommon.c
+    //-rwxrwxrwx 1 root root  2496 2010-09-19 10:42 smsspicommon.h
+    //-rwxrwxrwx 1 root root  3800 2010-09-21 19:47 smsspicommon.o
+    //-rwxrwxrwx 1 root root 23441 2010-09-21 19:46 smsspilog.c
+    //-rwxrwxrwx 1 root root 12260 2010-09-21 19:47 smsspilog.o
+    //-rwxrwxrwx 1 root root  1512 2010-09-19 10:42 smsspiphy.h
+    //-rwxrwxrwx 1 root root 20394 2010-09-17 11:22 smsspiphy_pxa.c
+    //-rwxrwxrwx 1 root root 11895 2010-09-21 19:46 smsspiphy_rk.c
+    //-rwxrwxrwx 1 root root  5480 2010-09-21 19:47 smsspiphy_rk.o
+    //root@zyc-desktop:/usr/android_source/android_cmmb_dev/kernel/kernel/drivers/cmmb/siano# 
+    //
+    //1186_SPIIRQ, (pFunc)spibus_interrupt, GPIOEdgelRising, spiphy_dev);       
     request_irq(gpio_to_irq(CMMB_1186_SPIIRQ),spibus_interrupt,IRQF_TRIGGER_RISING,NULL,spiphy_dev);
 
     if(ret<0){
@@ -454,7 +492,7 @@ int smsspiphy_deinit(void *context)
         chip_powerdown();
 	sms_info("exiting\n");
 	free_irq(gpio_to_irq(CMMB_1186_SPIIRQ), NULL);
-	
+	gpio_free(CMMB_1186_SPIIRQ);
 	return 0;
 }
 
