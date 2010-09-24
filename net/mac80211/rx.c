@@ -389,24 +389,22 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 	struct ieee80211_local *local = rx->local;
 	struct sk_buff *skb = rx->skb;
 
-	if (unlikely(test_bit(SCAN_HW_SCANNING, &local->scanning)))
+	if (likely(!(rx->flags & IEEE80211_RX_IN_SCAN)))
+		return RX_CONTINUE;
+
+	if (test_bit(SCAN_HW_SCANNING, &local->scanning))
 		return ieee80211_scan_rx(rx->sdata, skb);
 
-	if (unlikely(test_bit(SCAN_SW_SCANNING, &local->scanning) &&
-		     (rx->flags & IEEE80211_RX_IN_SCAN))) {
+	if (test_bit(SCAN_SW_SCANNING, &local->scanning)) {
 		/* drop all the other packets during a software scan anyway */
 		if (ieee80211_scan_rx(rx->sdata, skb) != RX_QUEUED)
 			dev_kfree_skb(skb);
 		return RX_QUEUED;
 	}
 
-	if (unlikely(rx->flags & IEEE80211_RX_IN_SCAN)) {
-		/* scanning finished during invoking of handlers */
-		I802_DEBUG_INC(local->rx_handlers_drop_passive_scan);
-		return RX_DROP_UNUSABLE;
-	}
-
-	return RX_CONTINUE;
+	/* scanning finished during invoking of handlers */
+	I802_DEBUG_INC(local->rx_handlers_drop_passive_scan);
+	return RX_DROP_UNUSABLE;
 }
 
 
@@ -2494,10 +2492,6 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 	rx.local = sta->local;
 	rx.queue = tid;
 	rx.flags |= IEEE80211_RX_RA_MATCH;
-
-	if (unlikely(test_bit(SCAN_HW_SCANNING, &sta->local->scanning) ||
-		     test_bit(SCAN_OFF_CHANNEL, &sta->local->scanning)))
-		rx.flags |= IEEE80211_RX_IN_SCAN;
 
 	spin_lock(&tid_agg_rx->reorder_lock);
 	ieee80211_sta_reorder_release(&sta->local->hw, tid_agg_rx, &frames);
