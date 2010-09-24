@@ -127,8 +127,8 @@ static void ring_set_tail(struct drm_device *dev,
 	I915_WRITE_TAIL(ring, ring->tail);
 }
 
-static unsigned int render_ring_get_active_head(struct drm_device *dev,
-						struct intel_ring_buffer *ring)
+u32 intel_ring_get_active_head(struct drm_device *dev,
+			       struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 acthd_reg = INTEL_INFO(dev)->gen >= 4 ?
@@ -374,13 +374,6 @@ bsd_ring_flush(struct drm_device *dev,
 	intel_ring_emit(dev, ring, MI_FLUSH);
 	intel_ring_emit(dev, ring, MI_NOOP);
 	intel_ring_advance(dev, ring);
-}
-
-static unsigned int bsd_ring_get_active_head(struct drm_device *dev,
-					     struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	return I915_READ(RING_ACTHD(ring->mmio_base));
 }
 
 static int init_bsd_ring(struct drm_device *dev,
@@ -771,7 +764,6 @@ static const struct intel_ring_buffer render_ring = {
 	.setup_status_page	= render_setup_status_page,
 	.init			= init_render_ring,
 	.set_tail		= ring_set_tail,
-	.get_active_head	= render_ring_get_active_head,
 	.flush			= render_ring_flush,
 	.add_request		= render_ring_add_request,
 	.get_seqno		= render_ring_get_seqno,
@@ -790,7 +782,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.setup_status_page	= bsd_setup_status_page,
 	.init			= init_bsd_ring,
 	.set_tail		= ring_set_tail,
-	.get_active_head	= bsd_ring_get_active_head,
 	.flush			= bsd_ring_flush,
 	.add_request		= bsd_ring_add_request,
 	.get_seqno		= bsd_ring_get_seqno,
@@ -829,13 +820,6 @@ static void gen6_bsd_ring_set_tail(struct drm_device *dev,
        I915_WRITE(GEN6_BSD_SLEEP_PSMI_CONTROL,
 	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK |
 	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
-}
-
-static unsigned int gen6_bsd_ring_get_active_head(struct drm_device *dev,
-						  struct intel_ring_buffer *ring)
-{
-       drm_i915_private_t *dev_priv = dev->dev_private;
-       return I915_READ(RING_ACTHD(ring->mmio_base));
 }
 
 static void gen6_bsd_ring_flush(struct drm_device *dev,
@@ -881,7 +865,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .setup_status_page	= gen6_bsd_setup_status_page,
        .init			= init_bsd_ring,
        .set_tail		= gen6_bsd_ring_set_tail,
-       .get_active_head		= gen6_bsd_ring_get_active_head,
        .flush			= gen6_bsd_ring_flush,
        .add_request		= bsd_ring_add_request,
        .get_seqno		= bsd_ring_get_seqno,

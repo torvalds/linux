@@ -50,8 +50,6 @@ struct  intel_ring_buffer {
 	void		(*set_tail)(struct drm_device *dev,
 				    struct intel_ring_buffer *ring,
 				    u32 value);
-	unsigned int	(*get_active_head)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
 	void		(*flush)(struct drm_device *dev,
 			struct intel_ring_buffer *ring,
 			u32	invalidate_domains,
@@ -127,5 +125,8 @@ u32 intel_ring_get_seqno(struct drm_device *dev,
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
+
+u32 intel_ring_get_active_head(struct drm_device *dev,
+			       struct intel_ring_buffer *ring);
 
 #endif /* _INTEL_RINGBUFFER_H_ */
