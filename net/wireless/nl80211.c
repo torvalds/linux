@@ -4990,7 +4990,7 @@ static int nl80211_set_power_save(struct sk_buff *skb, struct genl_info *info)
 
 	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
 	if (err)
-		goto unlock_rdev;
+		goto unlock_rtnl;
 
 	wdev = dev->ieee80211_ptr;
 
@@ -5014,6 +5014,7 @@ static int nl80211_set_power_save(struct sk_buff *skb, struct genl_info *info)
 unlock_rdev:
 	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
+unlock_rtnl:
 	rtnl_unlock();
 
 out:
