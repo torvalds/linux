@@ -132,10 +132,12 @@ struct drm_i915_fence_reg {
 };
 
 struct sdvo_device_mapping {
+	u8 initialized;
 	u8 dvo_port;
 	u8 slave_addr;
 	u8 dvo_wiring;
-	u8 initialized;
+	u8 i2c_pin;
+	u8 i2c_speed;
 	u8 ddc_pin;
 };
 
@@ -248,8 +250,8 @@ typedef struct drm_i915_private {
 
 	struct intel_gmbus {
 		struct i2c_adapter adapter;
-		struct i2c_adapter *force_bitbanging;
-		int pin;
+		struct i2c_adapter *force_bit;
+		u32 reg0;
 	} *gmbus;
 
 	struct pci_dev *bridge_dev;
@@ -1104,6 +1106,8 @@ extern int i915_restore_state(struct drm_device *dev);
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
+extern void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
+extern void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
 extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */

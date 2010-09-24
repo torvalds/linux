@@ -197,7 +197,8 @@ struct bdb_general_features {
 struct child_device_config {
 	u16 handle;
 	u16 device_type;
-	u8  device_id[10]; /* See DEVICE_TYPE_* above */
+	u8  i2c_speed;
+	u8  rsvd[9];
 	u16 addin_offset;
 	u8  dvo_port; /* See Device_PORT_* above */
 	u8  i2c_pin;

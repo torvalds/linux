@@ -38,6 +38,12 @@
 
 #define I2C_RISEFALL_TIME 20
 
+static inline struct intel_gmbus *
+to_intel_gmbus(struct i2c_adapter *i2c)
+{
+	return container_of(i2c, struct intel_gmbus, adapter);
+}
+
 struct intel_gpio {
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo;
@@ -71,10 +77,27 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 	I915_WRITE(DSPCLK_GATE_D, val);
 }
 
+static u32 get_reserved(struct intel_gpio *gpio)
+{
+	struct drm_i915_private *dev_priv = gpio->dev_priv;
+	struct drm_device *dev = dev_priv->dev;
+	u32 reserved = 0;
+
+	/* On most chips, these bits must be preserved in software. */
+	if (!IS_I830(dev) && !IS_845G(dev))
+		reserved = I915_READ(gpio->reg) & (GPIO_DATA_PULLUP_DISABLE |
+						   GPIO_CLOCK_PULLUP_DISABLE);
+
+	return reserved;
+}
+
 static int get_clock(void *data)
 {
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
+	u32 reserved = get_reserved(gpio);
+	I915_WRITE(gpio->reg, reserved | GPIO_CLOCK_DIR_MASK);
+	I915_WRITE(gpio->reg, reserved);
 	return (I915_READ(gpio->reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
@@ -82,6 +105,9 @@ static int get_data(void *data)
 {
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
+	u32 reserved = get_reserved(gpio);
+	I915_WRITE(gpio->reg, reserved | GPIO_DATA_DIR_MASK);
+	I915_WRITE(gpio->reg, reserved);
 	return (I915_READ(gpio->reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
@@ -89,13 +115,8 @@ static void set_clock(void *data, int state_high)
 {
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
-	struct drm_device *dev = dev_priv->dev;
-	u32 reserved = 0, clock_bits;
-
-	/* On most chips, these bits must be preserved in software. */
-	if (!IS_I830(dev) && !IS_845G(dev))
-		reserved = I915_READ(gpio->reg) & (GPIO_DATA_PULLUP_DISABLE |
-						   GPIO_CLOCK_PULLUP_DISABLE);
+	u32 reserved = get_reserved(gpio);
+	u32 clock_bits;
 
 	if (state_high)
 		clock_bits = GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK;
@@ -111,13 +132,8 @@ static void set_data(void *data, int state_high)
 {
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
-	struct drm_device *dev = dev_priv->dev;
-	u32 reserved = 0, data_bits;
-
-	/* On most chips, these bits must be preserved in software. */
-	if (!IS_I830(dev) && !IS_845G(dev))
-		reserved = I915_READ(gpio->reg) & (GPIO_DATA_PULLUP_DISABLE |
-						   GPIO_CLOCK_PULLUP_DISABLE);
+	u32 reserved = get_reserved(gpio);
+	u32 data_bits;
 
 	if (state_high)
 		data_bits = GPIO_DATA_DIR_IN | GPIO_DATA_DIR_MASK;
@@ -155,7 +171,7 @@ intel_gpio_create(struct drm_i915_private *dev_priv, u32 pin)
 		gpio->reg += PCH_GPIOA - GPIOA;
 	gpio->dev_priv = dev_priv;
 
-	snprintf(gpio->adapter.name, I2C_NAME_SIZE, "GPIO %d", pin);
+	snprintf(gpio->adapter.name, I2C_NAME_SIZE, "GPIO%c", "?BACDEF?"[pin]);
 	gpio->adapter.owner = THIS_MODULE;
 	gpio->adapter.algo_data	= &gpio->algo;
 	gpio->adapter.dev.parent = &dev_priv->dev->pdev->dev;
@@ -170,16 +186,6 @@ intel_gpio_create(struct drm_i915_private *dev_priv, u32 pin)
 	if (i2c_bit_add_bus(&gpio->adapter))
 		goto out_free;
 
-	intel_i2c_reset(dev_priv->dev);
-
-	/* JJJ:  raise SCL and SDA? */
-	intel_i2c_quirk_set(dev_priv, true);
-	set_data(gpio, 1);
-	udelay(I2C_RISEFALL_TIME);
-	set_clock(gpio, 1);
-	udelay(I2C_RISEFALL_TIME);
-	intel_i2c_quirk_set(dev_priv, false);
-
 	return &gpio->adapter;
 
 out_free:
@@ -188,17 +194,27 @@ out_free:
 }
 
 static int
-quirk_i2c_transfer(struct drm_i915_private *dev_priv,
-		   struct i2c_adapter *adapter,
-		   struct i2c_msg *msgs,
-		   int num)
+intel_i2c_quirk_xfer(struct drm_i915_private *dev_priv,
+		     struct i2c_adapter *adapter,
+		     struct i2c_msg *msgs,
+		     int num)
 {
+	struct intel_gpio *gpio = container_of(adapter,
+					       struct intel_gpio,
+					       adapter);
 	int ret;
 
 	intel_i2c_reset(dev_priv->dev);
 
 	intel_i2c_quirk_set(dev_priv, true);
-	ret = i2c_transfer(adapter, msgs, num);
+	set_data(gpio, 1);
+	set_clock(gpio, 1);
+	udelay(I2C_RISEFALL_TIME);
+
+	ret = adapter->algo->master_xfer(adapter, msgs, num);
+
+	set_data(gpio, 1);
+	set_clock(gpio, 1);
 	intel_i2c_quirk_set(dev_priv, false);
 
 	return ret;
@@ -213,21 +229,15 @@ gmbus_xfer(struct i2c_adapter *adapter,
 					       struct intel_gmbus,
 					       adapter);
 	struct drm_i915_private *dev_priv = adapter->algo_data;
-	int i, speed, reg_offset;
+	int i, reg_offset;
 
-	if (bus->force_bitbanging)
-		return quirk_i2c_transfer(dev_priv, bus->force_bitbanging, msgs, num);
+	if (bus->force_bit)
+		return intel_i2c_quirk_xfer(dev_priv,
+					    bus->force_bit, msgs, num);
 
 	reg_offset = HAS_PCH_SPLIT(dev_priv->dev) ? PCH_GMBUS0 - GMBUS0 : 0;
 
-	speed = GMBUS_RATE_100KHZ;
-	if (INTEL_INFO(dev_priv->dev)->gen > 4 || IS_G4X(dev_priv->dev)) {
-		if (bus->pin == GMBUS_PORT_DPB) /* SDVO only? */
-			speed = GMBUS_RATE_1MHZ;
-		else
-			speed = GMBUS_RATE_400KHZ;
-	}
-	I915_WRITE(GMBUS0 + reg_offset, speed | bus->pin);
+	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
 		u16 len = msgs[i].len;
@@ -239,6 +249,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 				   (len << GMBUS_BYTE_COUNT_SHIFT) |
 				   (msgs[i].addr << GMBUS_SLAVE_ADDR_SHIFT) |
 				   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
+			POSTING_READ(GMBUS2+reg_offset);
 			do {
 				u32 val, loop = 0;
 
@@ -254,20 +265,35 @@ gmbus_xfer(struct i2c_adapter *adapter,
 				} while (--len && ++loop < 4);
 			} while (len);
 		} else {
-			u32 val = 0, loop = 0;
+			u32 val, loop;
 
-			BUG_ON(msgs[i].len > 4);
-
+			val = loop = 0;
 			do {
-				val |= *buf++ << (loop*8);
-			} while (--len && +loop < 4);
+				val |= *buf++ << (8 * loop);
+			} while (--len && ++loop < 4);
 
 			I915_WRITE(GMBUS3 + reg_offset, val);
 			I915_WRITE(GMBUS1 + reg_offset,
-				   (i + 1 == num ? GMBUS_CYCLE_STOP : GMBUS_CYCLE_WAIT ) |
+				   (i + 1 == num ? GMBUS_CYCLE_STOP : GMBUS_CYCLE_WAIT) |
 				   (msgs[i].len << GMBUS_BYTE_COUNT_SHIFT) |
 				   (msgs[i].addr << GMBUS_SLAVE_ADDR_SHIFT) |
 				   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
+			POSTING_READ(GMBUS2+reg_offset);
+
+			while (len) {
+				if (wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_RDY), 50))
+					goto timeout;
+				if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
+					return 0;
+
+				val = loop = 0;
+				do {
+					val |= *buf++ << (8 * loop);
+				} while (--len && ++loop < 4);
+
+				I915_WRITE(GMBUS3 + reg_offset, val);
+				POSTING_READ(GMBUS2+reg_offset);
+			}
 		}
 
 		if (i + 1 < num && wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE), 50))
@@ -279,17 +305,25 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	return num;
 
 timeout:
-	DRM_INFO("GMBUS timed out, falling back to bit banging on pin %d\n", bus->pin);
+	DRM_INFO("GMBUS timed out, falling back to bit banging on pin %d [%s]\n",
+		 bus->reg0 & 0xff, bus->adapter.name);
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
-	bus->force_bitbanging = intel_gpio_create(dev_priv, bus->pin);
-	if (!bus->force_bitbanging)
+	bus->force_bit = intel_gpio_create(dev_priv, bus->reg0 & 0xff);
+	if (!bus->force_bit)
 		return -ENOMEM;
 
-	return quirk_i2c_transfer(dev_priv, bus->force_bitbanging, msgs, num);
+	return intel_i2c_quirk_xfer(dev_priv, bus->force_bit, msgs, num);
 }
 
 static u32 gmbus_func(struct i2c_adapter *adapter)
 {
+	struct intel_gmbus *bus = container_of(adapter,
+					       struct intel_gmbus,
+					       adapter);
+
+	if (bus->force_bit)
+		bus->force_bit->algo->functionality(bus->force_bit);
+
 	return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
 		/* I2C_FUNC_10BIT_ADDR | */
 		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
@@ -307,15 +341,15 @@ static const struct i2c_algorithm gmbus_algorithm = {
  */
 int intel_setup_gmbus(struct drm_device *dev)
 {
-	static const char *names[] = {
+	static const char *names[GMBUS_NUM_PORTS] = {
 		"disabled",
 		"ssc",
 		"vga",
 		"panel",
 		"dpc",
 		"dpb",
-		"dpd",
 		"reserved"
+		"dpd",
 	};
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
@@ -343,7 +377,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 		if (ret)
 			goto err;
 
-		bus->pin = i;
+		/* By default use a conservative clock rate */
+		bus->reg0 = i | GMBUS_RATE_100KHZ;
 	}
 
 	intel_i2c_reset(dev_priv->dev);
@@ -360,6 +395,38 @@ err:
 	return ret;
 }
 
+void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
+{
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
+
+	/* speed:
+	 * 0x0 = 100 KHz
+	 * 0x1 = 50 KHz
+	 * 0x2 = 400 KHz
+	 * 0x3 = 1000 Khz
+	 */
+	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | (speed << 8);
+}
+
+void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
+{
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
+
+	if (force_bit) {
+		if (bus->force_bit == NULL) {
+			struct drm_i915_private *dev_priv = adapter->algo_data;
+			bus->force_bit = intel_gpio_create(dev_priv,
+							   bus->reg0 & 0xff);
+		}
+	} else {
+		if (bus->force_bit) {
+			i2c_del_adapter(bus->force_bit);
+			kfree(bus->force_bit);
+			bus->force_bit = NULL;
+		}
+	}
+}
+
 void intel_teardown_gmbus(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -370,9 +437,9 @@ void intel_teardown_gmbus(struct drm_device *dev)
 
 	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
-		if (bus->force_bitbanging) {
-			i2c_del_adapter(bus->force_bitbanging);
-			kfree(bus->force_bitbanging);
+		if (bus->force_bit) {
+			i2c_del_adapter(bus->force_bit);
+			kfree(bus->force_bit);
 		}
 		i2c_del_adapter(&bus->adapter);
 	}

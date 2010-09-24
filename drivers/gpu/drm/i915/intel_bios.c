@@ -369,7 +369,16 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			p_mapping->slave_addr = p_child->slave_addr;
 			p_mapping->dvo_wiring = p_child->dvo_wiring;
 			p_mapping->ddc_pin = p_child->ddc_pin;
+			p_mapping->i2c_pin = p_child->i2c_pin;
+			p_mapping->i2c_speed = p_child->i2c_speed;
 			p_mapping->initialized = 1;
+			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d, i2c_speed=%d\n",
+				      p_mapping->dvo_port,
+				      p_mapping->slave_addr,
+				      p_mapping->dvo_wiring,
+				      p_mapping->ddc_pin,
+				      p_mapping->i2c_pin,
+				      p_mapping->i2c_speed);
 		} else {
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
