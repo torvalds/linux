@@ -1271,7 +1271,6 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omap_dss_device *display = fb2display(fbi);
-	int do_update = 0;
 	int r = 0;
 
 	if (!display)
@@ -1286,11 +1285,6 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 
 		if (display->driver->resume)
 			r = display->driver->resume(display);
-
-		if (r == 0 && display->driver->get_update_mode &&
-				display->driver->get_update_mode(display) ==
-				OMAP_DSS_UPDATE_MANUAL)
-			do_update = 1;
 
 		break;
 
@@ -1314,13 +1308,6 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 
 exit:
 	omapfb_unlock(fbdev);
-
-	if (r == 0 && do_update && display->driver->update) {
-		u16 w, h;
-		display->driver->get_resolution(display, &w, &h);
-
-		r = display->driver->update(display, 0, 0, w, h);
-	}
 
 	return r;
 }
