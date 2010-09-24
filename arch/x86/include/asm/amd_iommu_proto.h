@@ -38,4 +38,10 @@ static inline void amd_iommu_stats_init(void) { }
 
 #endif /* !CONFIG_AMD_IOMMU_STATS */
 
+static inline bool is_rd890_iommu(struct pci_dev *pdev)
+{
+	return (pdev->vendor == PCI_VENDOR_ID_ATI) &&
+	       (pdev->device == PCI_DEVICE_ID_RD890_IOMMU);
+}
+
 #endif /* _ASM_X86_AMD_IOMMU_PROTO_H  */
