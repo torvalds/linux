@@ -131,7 +131,7 @@ static unsigned int render_ring_get_active_head(struct drm_device *dev,
 						struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 acthd_reg = INTEL_INFO(dev)->gen ? ACTHD_I965 : ACTHD;
+	u32 acthd_reg = INTEL_INFO(dev)->gen >= 4 ? ACTHD_I965 : ACTHD;
 
 	return I915_READ(acthd_reg);
 }
