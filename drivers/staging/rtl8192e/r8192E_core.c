@@ -237,17 +237,14 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 }
 #endif
 
-
-#define eqMacAddr(a,b) ( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
-
-
-#define 	rx_hal_is_cck_rate(_pdrvinfo)\
-			(_pdrvinfo->RxRate == DESC90_RATE1M ||\
-			_pdrvinfo->RxRate == DESC90_RATE2M ||\
-			_pdrvinfo->RxRate == DESC90_RATE5_5M ||\
-			_pdrvinfo->RxRate == DESC90_RATE11M) &&\
-			!_pdrvinfo->RxHT\
-
+static inline bool rx_hal_is_cck_rate(prx_fwinfo_819x_pci pdrvinfo)
+{
+	return (pdrvinfo->RxRate == DESC90_RATE1M ||
+		pdrvinfo->RxRate == DESC90_RATE2M ||
+		pdrvinfo->RxRate == DESC90_RATE5_5M ||
+		pdrvinfo->RxRate == DESC90_RATE11M) &&
+		!pdrvinfo->RxHT;
+}
 
 void CamResetAllEntry(struct net_device *dev)
 {
