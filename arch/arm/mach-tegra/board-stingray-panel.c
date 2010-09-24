@@ -148,6 +148,7 @@ static struct tegra_dc_out stingray_disp1_out = {
 
 	.align = TEGRA_DC_ALIGN_MSB,
 	.order = TEGRA_DC_ORDER_RED_BLUE,
+	.depth = 24,
 
 	.modes = stingray_panel_modes,
 	.n_modes = ARRAY_SIZE(stingray_panel_modes),
