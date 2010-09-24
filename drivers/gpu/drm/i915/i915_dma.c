@@ -221,7 +221,7 @@ static int i915_dma_resume(struct drm_device * dev)
 	DRM_DEBUG_DRIVER("hw status page @ %p\n",
 				ring->status_page.page_addr);
 	if (ring->status_page.gfx_addr != 0)
-		ring->setup_status_page(dev, ring);
+		intel_ring_setup_status_page(dev, ring);
 	else
 		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
 

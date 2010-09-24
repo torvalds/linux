@@ -348,8 +348,8 @@ render_ring_put_user_irq(struct drm_device *dev,
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
-static void render_setup_status_page(struct drm_device *dev,
-				     struct	intel_ring_buffer *ring)
+void intel_ring_setup_status_page(struct drm_device *dev,
+				  struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	if (IS_GEN6(dev)) {
@@ -402,14 +402,6 @@ bsd_ring_add_request(struct drm_device *dev,
 	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
 
 	return seqno;
-}
-
-static void bsd_setup_status_page(struct drm_device *dev,
-				  struct  intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	I915_WRITE(RING_HWS_PGA(ring->mmio_base), ring->status_page.gfx_addr);
-	I915_READ(RING_HWS_PGA(ring->mmio_base));
 }
 
 static void
@@ -564,7 +556,7 @@ static int init_status_page(struct drm_device *dev,
 	ring->status_page.obj = obj;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
-	ring->setup_status_page(dev, ring);
+	intel_ring_setup_status_page(dev, ring);
 	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
 			ring->name, ring->status_page.gfx_addr);
 
@@ -761,7 +753,6 @@ static const struct intel_ring_buffer render_ring = {
 	.id			= RING_RENDER,
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
-	.setup_status_page	= render_setup_status_page,
 	.init			= init_render_ring,
 	.set_tail		= ring_set_tail,
 	.flush			= render_ring_flush,
@@ -779,7 +770,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.id			= RING_BSD,
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
-	.setup_status_page	= bsd_setup_status_page,
 	.init			= init_bsd_ring,
 	.set_tail		= ring_set_tail,
 	.flush			= bsd_ring_flush,
@@ -790,14 +780,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.dispatch_gem_execbuffer = bsd_ring_dispatch_gem_execbuffer,
 };
 
-
-static void gen6_bsd_setup_status_page(struct drm_device *dev,
-				       struct  intel_ring_buffer *ring)
-{
-       drm_i915_private_t *dev_priv = dev->dev_private;
-       I915_WRITE(RING_HWS_PGA_GEN6(ring->mmio_base), ring->status_page.gfx_addr);
-       I915_READ(RING_HWS_PGA_GEN6(ring->mmio_base));
-}
 
 static void gen6_bsd_ring_set_tail(struct drm_device *dev,
 				   struct intel_ring_buffer *ring,
@@ -862,7 +844,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
        .id			= RING_BSD,
        .mmio_base		= GEN6_BSD_RING_BASE,
        .size			= 32 * PAGE_SIZE,
-       .setup_status_page	= gen6_bsd_setup_status_page,
        .init			= init_bsd_ring,
        .set_tail		= gen6_bsd_ring_set_tail,
        .flush			= gen6_bsd_ring_flush,

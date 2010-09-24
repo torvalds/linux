@@ -41,8 +41,6 @@ struct  intel_ring_buffer {
 			struct intel_ring_buffer *ring);
 	void		(*user_irq_put)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
-	void		(*setup_status_page)(struct drm_device *dev,
-			struct	intel_ring_buffer *ring);
 
 	int		(*init)(struct drm_device *dev,
 			struct intel_ring_buffer *ring);
@@ -128,5 +126,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct drm_device *dev,
 			       struct intel_ring_buffer *ring);
+void intel_ring_setup_status_page(struct drm_device *dev,
+				  struct intel_ring_buffer *ring);
 
 #endif /* _INTEL_RINGBUFFER_H_ */
