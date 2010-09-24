@@ -802,6 +802,9 @@ void __cpuinit per_cpu_trap_init(void)
 		     : /* no output */
 		     : "r" (&vbr_base)
 		     : "memory");
+
+	/* disable exception blocking now when the vbr has been setup */
+	clear_bl_bit();
 }
 
 void *set_exception_table_vec(unsigned int vec, void *handler)
