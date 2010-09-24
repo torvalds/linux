@@ -1185,47 +1185,44 @@ static void rtl8192_update_cap(struct net_device* dev, u16 cap)
 
 static void rtl8192_net_update(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_network *net;
 	u16 BcnTimeCfg = 0, BcnCW = 6, BcnIFS = 0xf;
 	u16 rate_config = 0;
 	net = &priv->ieee80211->current_network;
-	//update Basic rate: RR, BRSR
+
+	/* update Basic rate: RR, BRSR */
 	rtl8192_config_rate(dev, &rate_config);
-	// 2007.01.16, by Emily
-	// Select RRSR (in Legacy-OFDM and CCK)
-	// For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate.
-	// We do not use other rates.
-	 priv->basic_rate = rate_config &= 0x15f;
-	//BSSID
-	write_nic_dword(dev,BSSIDR,((u32*)net->bssid)[0]);
-	write_nic_word(dev,BSSIDR+4,((u16*)net->bssid)[2]);
-#if 0
-	//MSR
-	rtl8192_update_msr(dev);
-#endif
 
+	/*
+	 * Select RRSR (in Legacy-OFDM and CCK)
+	 * For 8190, we select only 24M, 12M, 6M, 11M, 5.5M,
+	 * 2M, and 1M from the Basic rate.
+	 * We do not use other rates.
+	 */
+	priv->basic_rate = rate_config &= 0x15f;
 
-//	rtl8192_update_cap(dev, net->capability);
+	/* BSSID */
+	write_nic_dword(dev, BSSIDR, ((u32 *)net->bssid)[0]);
+	write_nic_word(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
+
 	if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 	{
 		write_nic_word(dev, ATIMWND, 2);
 		write_nic_word(dev, BCN_DMATIME, 256);
 		write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
-	//	write_nic_word(dev, BcnIntTime, 100);
-	//BIT15 of BCN_DRV_EARLY_INT will indicate whether software beacon or hw beacon is applied.
+		/*
+		 * BIT15 of BCN_DRV_EARLY_INT will indicate
+		 * whether software beacon or hw beacon is applied.
+		 */
 		write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
 		write_nic_byte(dev, BCN_ERR_THRESH, 100);
 
 		BcnTimeCfg |= (BcnCW<<BCN_TCFG_CW_SHIFT);
-	// TODO: BcnIFS may required to be changed on ASIC
-	 	BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
-
+		/* TODO: BcnIFS may required to be changed on ASIC */
+		BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
 		write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
 	}
-
-
 }
 
 void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
