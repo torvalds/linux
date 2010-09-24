@@ -58,6 +58,60 @@ static struct intel_hdmi *intel_attached_hdmi(struct drm_connector *connector)
 			    struct intel_hdmi, base);
 }
 
+void intel_dip_infoframe_csum(struct dip_infoframe *avi_if)
+{
+	uint8_t *data = (uint8_t *)avi_if;
+	uint8_t sum = 0;
+	unsigned i;
+
+	avi_if->checksum = 0;
+	avi_if->ecc = 0;
+
+	for (i = 0; i < sizeof(*avi_if); i++)
+		sum += data[i];
+
+	avi_if->checksum = 0x100 - sum;
+}
+
+static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
+{
+	struct dip_infoframe avi_if = {
+		.type = DIP_TYPE_AVI,
+		.ver = DIP_VERSION_AVI,
+		.len = DIP_LEN_AVI,
+	};
+	uint32_t *data = (uint32_t *)&avi_if;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	u32 port;
+	unsigned i;
+
+	if (!intel_hdmi->has_hdmi_sink)
+		return;
+
+	/* XXX first guess at handling video port, is this corrent? */
+	if (intel_hdmi->sdvox_reg == SDVOB)
+		port = VIDEO_DIP_PORT_B;
+	else if (intel_hdmi->sdvox_reg == SDVOC)
+		port = VIDEO_DIP_PORT_C;
+	else
+		return;
+
+	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | port |
+		   VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC);
+
+	intel_dip_infoframe_csum(&avi_if);
+	for (i = 0; i < sizeof(avi_if); i += 4) {
+		I915_WRITE(VIDEO_DIP_DATA, *data);
+		data++;
+	}
+
+	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | port |
+		   VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC |
+		   VIDEO_DIP_ENABLE_AVI);
+}
+
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -79,8 +133,10 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
 		sdvox |= HDMI_MODE_SELECT;
 
-	if (intel_hdmi->has_audio)
+	if (intel_hdmi->has_audio) {
 		sdvox |= SDVO_AUDIO_ENABLE;
+		sdvox |= SDVO_NULL_PACKETS_DURING_VSYNC;
+	}
 
 	if (intel_crtc->pipe == 1) {
 		if (HAS_PCH_CPT(dev))
@@ -91,6 +147,8 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
 	POSTING_READ(intel_hdmi->sdvox_reg);
+
+	intel_hdmi_set_avi_infoframe(encoder);
 }
 
 static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)

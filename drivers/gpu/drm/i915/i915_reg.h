@@ -1353,6 +1353,22 @@
 #define   LVDS_B0B3_POWER_DOWN		(0 << 2)
 #define   LVDS_B0B3_POWER_UP		(3 << 2)
 
+/* Video Data Island Packet control */
+#define VIDEO_DIP_DATA		0x61178
+#define VIDEO_DIP_CTL		0x61170
+#define   VIDEO_DIP_ENABLE		(1 << 31)
+#define   VIDEO_DIP_PORT_B		(1 << 29)
+#define   VIDEO_DIP_PORT_C		(2 << 29)
+#define   VIDEO_DIP_ENABLE_AVI		(1 << 21)
+#define   VIDEO_DIP_ENABLE_VENDOR	(2 << 21)
+#define   VIDEO_DIP_ENABLE_SPD		(8 << 21)
+#define   VIDEO_DIP_SELECT_AVI		(0 << 19)
+#define   VIDEO_DIP_SELECT_VENDOR	(1 << 19)
+#define   VIDEO_DIP_SELECT_SPD		(3 << 19)
+#define   VIDEO_DIP_FREQ_ONCE		(0 << 16)
+#define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
+#define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
+
 /* Panel power sequencing */
 #define PP_STATUS	0x61200
 #define   PP_ON		(1 << 31)

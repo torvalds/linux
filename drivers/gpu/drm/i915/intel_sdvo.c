@@ -854,115 +854,33 @@ static void intel_sdvo_dump_hdmi_buf(struct intel_sdvo *intel_sdvo)
 }
 #endif
 
-static bool intel_sdvo_set_hdmi_buf(struct intel_sdvo *intel_sdvo,
-				    int index,
-				    uint8_t *data, int8_t size, uint8_t tx_rate)
-{
-    uint8_t set_buf_index[2];
-
-    set_buf_index[0] = index;
-    set_buf_index[1] = 0;
-
-    if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_INDEX,
-			      set_buf_index, 2))
-	    return false;
-
-    for (; size > 0; size -= 8) {
-	if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_DATA, data, 8))
-		return false;
-
-	data += 8;
-    }
-
-    return intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_TXRATE, &tx_rate, 1);
-}
-
-static uint8_t intel_sdvo_calc_hbuf_csum(uint8_t *data, uint8_t size)
-{
-	uint8_t csum = 0;
-	int i;
-
-	for (i = 0; i < size; i++)
-		csum += data[i];
-
-	return 0x100 - csum;
-}
-
-#define DIP_TYPE_AVI	0x82
-#define DIP_VERSION_AVI	0x2
-#define DIP_LEN_AVI	13
-
-struct dip_infoframe {
-	uint8_t type;
-	uint8_t version;
-	uint8_t len;
-	uint8_t checksum;
-	union {
-		struct {
-			/* Packet Byte #1 */
-			uint8_t S:2;
-			uint8_t B:2;
-			uint8_t A:1;
-			uint8_t Y:2;
-			uint8_t rsvd1:1;
-			/* Packet Byte #2 */
-			uint8_t R:4;
-			uint8_t M:2;
-			uint8_t C:2;
-			/* Packet Byte #3 */
-			uint8_t SC:2;
-			uint8_t Q:2;
-			uint8_t EC:3;
-			uint8_t ITC:1;
-			/* Packet Byte #4 */
-			uint8_t VIC:7;
-			uint8_t rsvd2:1;
-			/* Packet Byte #5 */
-			uint8_t PR:4;
-			uint8_t rsvd3:4;
-			/* Packet Byte #6~13 */
-			uint16_t top_bar_end;
-			uint16_t bottom_bar_start;
-			uint16_t left_bar_end;
-			uint16_t right_bar_start;
-		} avi;
-		struct {
-			/* Packet Byte #1 */
-			uint8_t channel_count:3;
-			uint8_t rsvd1:1;
-			uint8_t coding_type:4;
-			/* Packet Byte #2 */
-			uint8_t sample_size:2; /* SS0, SS1 */
-			uint8_t sample_frequency:3;
-			uint8_t rsvd2:3;
-			/* Packet Byte #3 */
-			uint8_t coding_type_private:5;
-			uint8_t rsvd3:3;
-			/* Packet Byte #4 */
-			uint8_t channel_allocation;
-			/* Packet Byte #5 */
-			uint8_t rsvd4:3;
-			uint8_t level_shift:4;
-			uint8_t downmix_inhibit:1;
-		} audio;
-		uint8_t payload[28];
-	} __attribute__ ((packed)) u;
-} __attribute__((packed));
-
-static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
-					 struct drm_display_mode * mode)
+static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
 {
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
-		.version = DIP_VERSION_AVI,
+		.ver = DIP_VERSION_AVI,
 		.len = DIP_LEN_AVI,
 	};
+	uint8_t tx_rate = SDVO_HBUF_TX_VSYNC;
+	uint8_t set_buf_index[2] = { 1, 0 };
+	uint64_t *data = (uint64_t *)&avi_if;
+	unsigned i;
 
-	avi_if.checksum = intel_sdvo_calc_hbuf_csum((uint8_t *)&avi_if,
-						    4 + avi_if.len);
-	return intel_sdvo_set_hdmi_buf(intel_sdvo, 1, (uint8_t *)&avi_if,
-				       4 + avi_if.len,
-				       SDVO_HBUF_TX_VSYNC);
+	intel_dip_infoframe_csum(&avi_if);
+
+	if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_INDEX,
+				  set_buf_index, 2))
+		return false;
+
+	for (i = 0; i < sizeof(avi_if); i += 8) {
+		if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_DATA,
+					  data, 8))
+			return false;
+		data++;
+	}
+
+	return intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_TXRATE,
+				    &tx_rate, 1);
 }
 
 static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo)
@@ -1116,7 +1034,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		return;
 
 	if (intel_sdvo->is_hdmi &&
-	    !intel_sdvo_set_avi_infoframe(intel_sdvo, mode))
+	    !intel_sdvo_set_avi_infoframe(intel_sdvo))
 		return;
 
 	if (intel_sdvo->is_tv &&
