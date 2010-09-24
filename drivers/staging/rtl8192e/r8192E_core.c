@@ -902,60 +902,47 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int i;
-	u8	OpMode;
-	u8	u1bTmp;
-	u32	ulRegRead;
+	u8 OpMode;
+	u32 ulRegRead;
 
 	OpMode = RT_OP_MODE_NO_LINK;
 	priv->ieee80211->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &OpMode);
 
-	if(!priv->ieee80211->bSupportRemoteWakeUp)
-	{
-		u1bTmp = 0x0;	// disable tx/rx. In 8185 we write 0x10 (Reset bit), but here we make reference to WMAC and wirte 0x0. 2006.11.21 Emily
-		//priv->ieee80211->SetHwRegHandler(dev, HW_VAR_COMMAND, &u1bTmp );	// Using HW_VAR_COMMAND instead of writing CMDR directly. Rewrited by Annie, 2006-04-07.
-		write_nic_byte(dev, CMDR, u1bTmp);
+	if (!priv->ieee80211->bSupportRemoteWakeUp) {
+		/*
+		 * disable tx/rx. In 8185 we write 0x10 (Reset bit),
+		 * but here we make reference to WMAC and wirte 0x0
+		 */
+		write_nic_byte(dev, CMDR, 0);
 	}
 
 	mdelay(20);
 
-	if(!reset)
-	{
-		//PlatformStallExecution(150000);
+	if (!reset) {
 		mdelay(150);
 
 #ifdef RTL8192E
-			priv->bHwRfOffAction = 2;
+		priv->bHwRfOffAction = 2;
 #endif
 
-		//
-		// Call MgntActSet_RF_State instead to prevent RF config race condition.
-		// By Bruce, 2008-01-17.
-		//
-		if(!priv->ieee80211->bSupportRemoteWakeUp)
-		{
-			//MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_INIT);
-			//MgntActSet_RF_State(Adapter, eRfOff, Adapter->MgntInfo.RfOffReason);
-			//if(Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
-
+		/*
+		 * Call MgntActSet_RF_State instead to
+		 * prevent RF config race condition.
+		 */
+		if (!priv->ieee80211->bSupportRemoteWakeUp) {
 			PHY_SetRtl8192eRfOff(dev);
-
-			// 2006.11.30. System reset bit
-			//priv->ieee80211->GetHwRegHandler(dev, HW_VAR_CPU_RST, (u32*)(&ulRegRead) );
 			ulRegRead = read_nic_dword(dev,CPU_GEN);
-			ulRegRead|=CPU_GEN_SYSTEM_RESET;
-			//priv->ieee80211->SetHwRegHandler(dev, HW_VAR_CPU_RST, &ulRegRead);
+			ulRegRead |= CPU_GEN_SYSTEM_RESET;
 			write_nic_dword(dev,CPU_GEN, ulRegRead);
-		}
-	 	else
-		{
-			//2008.06.03 for WOL
+		} else {
+			/* for WOL */
 			write_nic_dword(dev, WFCRC0, 0xffffffff);
 			write_nic_dword(dev, WFCRC1, 0xffffffff);
 			write_nic_dword(dev, WFCRC2, 0xffffffff);
 
-			//Write PMR register
+			/* Write PMR register */
 			write_nic_byte(dev, PMR, 0x5);
-			//Disable tx, enanble rx
+			/* Disable tx, enanble rx */
 			write_nic_byte(dev, MacBlkCtrl, 0xa);
 		}
 	}
