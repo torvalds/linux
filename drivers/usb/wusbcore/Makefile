@@ -21,6 +21,4 @@ wusb-wa-objs :=	wa-hc.o		\
 		wa-rpipe.o	\
 		wa-xfer.o
 
-ifeq ($(CONFIG_USB_WUSB_CBAF_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+ccflags-$(CONFIG_USB_WUSB_CBAF_DEBUG) := -DDEBUG

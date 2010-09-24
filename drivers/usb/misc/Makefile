@@ -26,6 +26,4 @@ obj-$(CONFIG_USB_YUREX)		+= yurex.o
 
 obj-$(CONFIG_USB_SISUSBVGA)	+= sisusbvga/
 
-ifeq ($(CONFIG_USB_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+ccflags-$(CONFIG_USB_DEBUG)	:= -DDEBUG

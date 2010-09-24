@@ -5,7 +5,7 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-EXTRA_CFLAGS	:= -Idrivers/scsi
+ccflags-y	:= -Idrivers/scsi
 
 obj-$(CONFIG_USB_UAS)		+= uas.o
 obj-$(CONFIG_USB_STORAGE)	+= usb-storage.o
