@@ -325,7 +325,7 @@ ssize_t iio_read_ring_length(struct device *dev,
 }
 EXPORT_SYMBOL(iio_read_ring_length);
 
- ssize_t iio_write_ring_length(struct device *dev,
+ssize_t iio_write_ring_length(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf,
 			       size_t len)

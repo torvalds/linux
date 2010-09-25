@@ -59,7 +59,7 @@ EXPORT_SYMBOL(__iio_change_event);
  * are queued. Hence a client MUST open the chrdev before the ring buffer is
  * switched on.
  */
- int __iio_push_event(struct iio_event_interface *ev_int,
+int __iio_push_event(struct iio_event_interface *ev_int,
 		     int ev_code,
 		     s64 timestamp,
 		     struct iio_shared_ev_pointer *
