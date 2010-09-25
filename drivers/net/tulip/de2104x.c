@@ -243,6 +243,7 @@ enum {
 	NWayState		= (1 << 14) | (1 << 13) | (1 << 12),
 	NWayRestart		= (1 << 12),
 	NonselPortActive	= (1 << 9),
+	SelPortActive		= (1 << 8),
 	LinkFailStatus		= (1 << 2),
 	NetCxnErr		= (1 << 1),
 };
@@ -1066,6 +1067,9 @@ static void de21041_media_timer (unsigned long data)
 	unsigned int carrier;
 	unsigned long flags;
 
+	/* clear port active bits */
+	dw32(SIAStatus, NonselPortActive | SelPortActive);
+
 	carrier = (status & NetCxnErr) ? 0 : 1;
 
 	if (carrier) {
@@ -1160,14 +1164,29 @@ no_link_yet:
 static void de_media_interrupt (struct de_private *de, u32 status)
 {
 	if (status & LinkPass) {
+		/* Ignore if current media is AUI or BNC and we can't use TP */
+		if ((de->media_type == DE_MEDIA_AUI ||
+		     de->media_type == DE_MEDIA_BNC) &&
+		    (de->media_lock ||
+		     !de_ok_to_advertise(de, DE_MEDIA_TP_AUTO)))
+			return;
+		/* If current media is not TP, change it to TP */
+		if ((de->media_type == DE_MEDIA_AUI ||
+		     de->media_type == DE_MEDIA_BNC)) {
+			de->media_type = DE_MEDIA_TP_AUTO;
+			de_stop_rxtx(de);
+			de_set_media(de);
+			de_start_rxtx(de);
+		}
 		de_link_up(de);
 		mod_timer(&de->media_timer, jiffies + DE_TIMER_LINK);
 		return;
 	}
 
 	BUG_ON(!(status & LinkFail));
-
-	if (netif_carrier_ok(de->dev)) {
+	/* Mark the link as down only if current media is TP */
+	if (netif_carrier_ok(de->dev) && de->media_type != DE_MEDIA_AUI &&
+	    de->media_type != DE_MEDIA_BNC) {
 		de_link_down(de);
 		mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
 	}
