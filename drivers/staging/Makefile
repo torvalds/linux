@@ -18,6 +18,7 @@ obj-$(CONFIG_BRCM80211)		+= brcm80211/
 obj-$(CONFIG_RT2860)		+= rt2860/
 obj-$(CONFIG_RT2870)		+= rt2870/
 obj-$(CONFIG_COMEDI)		+= comedi/
+obj-$(CONFIG_FB_OLPC_DCON)	+= olpc_dcon/
 obj-$(CONFIG_ASUS_OLED)		+= asus_oled/
 obj-$(CONFIG_PANEL)		+= panel/
 obj-$(CONFIG_R8187SE)		+= rtl8187se/
