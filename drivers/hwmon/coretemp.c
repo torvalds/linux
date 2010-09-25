@@ -423,9 +423,18 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 	int err;
 	struct platform_device *pdev;
 	struct pdev_entry *pdev_entry;
-#ifdef CONFIG_SMP
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-#endif
+
+	/*
+	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
+	 * sensors. We check this bit only, all the early CPUs
+	 * without thermal sensors will be filtered out.
+	 */
+	if (!cpu_has(c, X86_FEATURE_DTS)) {
+		printk(KERN_INFO DRVNAME ": CPU (model=0x%x)"
+		       " has no thermal sensor.\n", c->x86_model);
+		return 0;
+	}
 
 	mutex_lock(&pdev_list_mutex);
 
@@ -482,14 +491,22 @@ exit:
 
 static void coretemp_device_remove(unsigned int cpu)
 {
-	struct pdev_entry *p, *n;
+	struct pdev_entry *p;
+	unsigned int i;
+
 	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		if (p->cpu == cpu) {
-			platform_device_unregister(p->pdev);
-			list_del(&p->list);
-			kfree(p);
-		}
+	list_for_each_entry(p, &pdev_list, list) {
+		if (p->cpu != cpu)
+			continue;
+
+		platform_device_unregister(p->pdev);
+		list_del(&p->list);
+		mutex_unlock(&pdev_list_mutex);
+		kfree(p);
+		for_each_cpu(i, cpu_sibling_mask(cpu))
+			if (i != cpu && !coretemp_device_add(i))
+				break;
+		return;
 	}
 	mutex_unlock(&pdev_list_mutex);
 }
@@ -527,30 +544,21 @@ static int __init coretemp_init(void)
 	if (err)
 		goto exit;
 
-	for_each_online_cpu(i) {
-		struct cpuinfo_x86 *c = &cpu_data(i);
-		/*
-		 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
-		 * sensors. We check this bit only, all the early CPUs
-		 * without thermal sensors will be filtered out.
-		 */
-		if (c->cpuid_level >= 6 && (cpuid_eax(0x06) & 0x01))
-			coretemp_device_add(i);
-		else {
-			printk(KERN_INFO DRVNAME ": CPU (model=0x%x)"
-				" has no thermal sensor.\n", c->x86_model);
-		}
-	}
+	for_each_online_cpu(i)
+		coretemp_device_add(i);
+
+#ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
 		err = -ENODEV;
 		goto exit_driver_unreg;
 	}
+#endif
 
 	register_hotcpu_notifier(&coretemp_cpu_notifier);
 	return 0;
 
-exit_driver_unreg:
 #ifndef CONFIG_HOTPLUG_CPU
+exit_driver_unreg:
 	platform_driver_unregister(&coretemp_driver);
 #endif
 exit:
