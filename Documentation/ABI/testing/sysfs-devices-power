@@ -147,3 +147,21 @@ Description:
 		milliseconds.  This attribute is read-only.  If the device is
 		not enabled to wake up the system from sleep states, this
 		attribute is empty.
+
+What:		/sys/devices/.../power/autosuspend_delay_ms
+Date:		September 2010
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		The /sys/devices/.../power/autosuspend_delay_ms attribute
+		contains the autosuspend delay value (in milliseconds).  Some
+		drivers do not want their device to suspend as soon as it
+		becomes idle at run time; they want the device to remain
+		inactive for a certain minimum period of time first.  That
+		period is called the autosuspend delay.  Negative values will
+		prevent the device from being suspended at run time (similar
+		to writing "on" to the power/control attribute).  Values >=
+		1000 will cause the autosuspend timer expiration to be rounded
+		up to the nearest second.
+
+		Not all drivers support this attribute.  If it isn't supported,
+		attempts to read or write it will yield I/O errors.

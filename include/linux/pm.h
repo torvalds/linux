@@ -444,6 +444,9 @@ enum rpm_status {
  *
  * RPM_REQ_SUSPEND	Run the device bus type's ->runtime_suspend() callback
  *
+ * RPM_REQ_AUTOSUSPEND	Same as RPM_REQ_SUSPEND, but not until the device has
+ *			been inactive for as long as power.autosuspend_delay
+ *
  * RPM_REQ_RESUME	Run the device bus type's ->runtime_resume() callback
  */
 
@@ -451,6 +454,7 @@ enum rpm_request {
 	RPM_REQ_NONE = 0,
 	RPM_REQ_IDLE,
 	RPM_REQ_SUSPEND,
+	RPM_REQ_AUTOSUSPEND,
 	RPM_REQ_RESUME,
 };
 
@@ -482,9 +486,13 @@ struct dev_pm_info {
 	unsigned int		run_wake:1;
 	unsigned int		runtime_auto:1;
 	unsigned int		no_callbacks:1;
+	unsigned int		use_autosuspend:1;
+	unsigned int		timer_autosuspends:1;
 	enum rpm_request	request;
 	enum rpm_status		runtime_status;
 	int			runtime_error;
+	int			autosuspend_delay;
+	unsigned long		last_busy;
 	unsigned long		active_jiffies;
 	unsigned long		suspended_jiffies;
 	unsigned long		accounting_timestamp;

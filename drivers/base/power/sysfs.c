@@ -75,6 +75,18 @@
  *	attribute is set to "enabled" by bus type code or device drivers and in
  *	that cases it should be safe to leave the default value.
  *
+ *	autosuspend_delay_ms - Report/change a device's autosuspend_delay value
+ *
+ *	Some drivers don't want to carry out a runtime suspend as soon as a
+ *	device becomes idle; they want it always to remain idle for some period
+ *	of time before suspending it.  This period is the autosuspend_delay
+ *	value (expressed in milliseconds) and it can be controlled by the user.
+ *	If the value is negative then the device will never be runtime
+ *	suspended.
+ *
+ *	NOTE: The autosuspend_delay_ms attribute and the autosuspend_delay
+ *	value are used only if the driver calls pm_runtime_use_autosuspend().
+ *
  *	wakeup_count - Report the number of wakeup events related to the device
  */
 
@@ -173,6 +185,33 @@ static ssize_t rtpm_status_show(struct device *dev,
 }
 
 static DEVICE_ATTR(runtime_status, 0444, rtpm_status_show, NULL);
+
+static ssize_t autosuspend_delay_ms_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	if (!dev->power.use_autosuspend)
+		return -EIO;
+	return sprintf(buf, "%d\n", dev->power.autosuspend_delay);
+}
+
+static ssize_t autosuspend_delay_ms_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t n)
+{
+	long delay;
+
+	if (!dev->power.use_autosuspend)
+		return -EIO;
+
+	if (strict_strtol(buf, 10, &delay) != 0 || delay != (int) delay)
+		return -EINVAL;
+
+	pm_runtime_set_autosuspend_delay(dev, delay);
+	return n;
+}
+
+static DEVICE_ATTR(autosuspend_delay_ms, 0644, autosuspend_delay_ms_show,
+		autosuspend_delay_ms_store);
+
 #endif
 
 static ssize_t
@@ -428,6 +467,7 @@ static struct attribute *runtime_attrs[] = {
 	&dev_attr_control.attr,
 	&dev_attr_runtime_suspended_time.attr,
 	&dev_attr_runtime_active_time.attr,
+	&dev_attr_autosuspend_delay_ms.attr,
 	NULL,
 };
 static struct attribute_group pm_runtime_attr_group = {
