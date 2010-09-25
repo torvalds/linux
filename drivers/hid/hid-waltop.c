@@ -224,6 +224,206 @@ static __u8 slim_tablet_5_8_inch_rdesc_fixed[] = {
 };
 
 /*
+ * Original Slim Tablet 12.1 inch report descriptor.
+ *
+ * The descriptor is similar to the Slim Tablet 5.8 inch descriptor with the
+ * addition of a keyboard report, seemingly unused. It may have get here
+ * from a Media Tablet - probably an unimplemented feature.
+ *
+ *  Usage Page (Desktop),             ; Generic desktop controls (01h)
+ *  Usage (Mouse),                    ; Mouse (02h, application collection)
+ *  Collection (Application),
+ *    Report ID (1),
+ *    Usage (Pointer),                ; Pointer (01h, physical collection)
+ *    Collection (Physical),
+ *      Usage Page (Button),          ; Button (09h)
+ *      Usage Minimum (01h),
+ *      Usage Maximum (05h),
+ *      Logical Minimum (0),
+ *      Logical Maximum (1),
+ *      Report Size (1),
+ *      Report Count (5),
+ *      Input (Variable),
+ *      Report Size (3),
+ *      Report Count (1),
+ *      Input (Constant, Variable),
+ *      Usage Page (Desktop),         ; Generic desktop controls (01h)
+ *      Usage (X),                    ; X (30h, dynamic value)
+ *      Usage (Y),                    ; Y (31h, dynamic value)
+ *      Usage (Wheel),                ; Wheel (38h, dynamic value)
+ *      Logical Minimum (-127),
+ *      Logical Maximum (127),
+ *      Report Size (8),
+ *      Report Count (3),
+ *      Input (Variable, Relative),
+ *    End Collection,
+ *  End Collection,
+ *  Usage Page (Digitizer),           ; Digitizer (0Dh)
+ *  Usage (Pen),                      ; Pen (02h, application collection)
+ *  Collection (Application),
+ *    Report ID (2),
+ *    Usage (Stylus),                 ; Stylus (20h, logical collection)
+ *    Collection (Physical),
+ *      Usage (00h),
+ *      Logical Minimum (0),
+ *      Logical Maximum (255),
+ *      Report Size (8),
+ *      Report Count (7),
+ *      Input (Variable),
+ *      Usage (Azimuth),              ; Azimuth (3Fh, dynamic value)
+ *      Usage (Altitude),             ; Altitude (40h, dynamic value)
+ *      Logical Minimum (0),
+ *      Logical Maximum (255),
+ *      Report Size (8),
+ *      Report Count (2),
+ *      Feature (Variable),
+ *    End Collection,
+ *    Report ID (5),
+ *    Usage Page (Digitizer),         ; Digitizer (0Dh)
+ *    Usage (Stylus),                 ; Stylus (20h, logical collection)
+ *    Collection (Physical),
+ *      Usage (00h),
+ *      Logical Minimum (0),
+ *      Logical Maximum (255),
+ *      Report Size (8),
+ *      Report Count (7),
+ *      Input (Variable),
+ *    End Collection,
+ *    Report ID (10),
+ *    Usage Page (Digitizer),         ; Digitizer (0Dh)
+ *    Usage (Stylus),                 ; Stylus (20h, logical collection)
+ *    Collection (Physical),
+ *      Usage (00h),
+ *      Logical Minimum (0),
+ *      Logical Maximum (255),
+ *      Report Size (8),
+ *      Report Count (3),
+ *      Input (Variable),
+ *    End Collection,
+ *    Report ID (16),
+ *    Usage (Stylus),                 ; Stylus (20h, logical collection)
+ *    Collection (Physical),
+ *      Usage (Tip Switch),           ; Tip switch (42h, momentary control)
+ *      Usage (Barrel Switch),        ; Barrel switch (44h, momentary control)
+ *      Usage (Invert),               ; Invert (3Ch, momentary control)
+ *      Usage (Eraser),               ; Eraser (45h, momentary control)
+ *      Usage (In Range),             ; In range (32h, momentary control)
+ *      Logical Minimum (0),
+ *      Logical Maximum (1),
+ *      Report Size (1),
+ *      Report Count (5),
+ *      Input (Variable),
+ *      Report Count (3),
+ *      Input (Constant, Variable),
+ *      Usage Page (Desktop),         ; Generic desktop controls (01h)
+ *      Usage (X),                    ; X (30h, dynamic value)
+ *      Report Size (16),
+ *      Report Count (1),
+ *      Push,
+ *      Unit Exponent (13),
+ *      Unit (Inch^3),
+ *      Logical Minimum (0),
+ *      Logical Maximum (20000),
+ *      Physical Minimum (0),
+ *      Physical Maximum (20000),
+ *      Input (Variable),
+ *      Usage (Y),                    ; Y (31h, dynamic value)
+ *      Logical Maximum (12500),
+ *      Physical Maximum (12500),
+ *      Input (Variable),
+ *      Usage Page (Digitizer),       ; Digitizer (0Dh)
+ *      Usage (Tip Pressure),         ; Tip pressure (30h, dynamic value)
+ *      Logical Minimum (0),
+ *      Logical Maximum (1023),
+ *      Physical Minimum (0),
+ *      Physical Maximum (1023),
+ *      Input (Variable),
+ *    End Collection,
+ *  End Collection,
+ *  Usage Page (Desktop),             ; Generic desktop controls (01h)
+ *  Usage (Keyboard),                 ; Keyboard (06h, application collection)
+ *  Collection (Application),
+ *    Report ID (13),
+ *    Usage Page (Keyboard),          ; Keyboard/keypad (07h)
+ *    Usage Minimum (KB Leftcontrol), ; Keyboard left control
+ *                                    ; (E0h, dynamic value)
+ *    Usage Maximum (KB Right GUI),   ; Keyboard right GUI (E7h, dynamic value)
+ *    Logical Minimum (0),
+ *    Logical Maximum (1),
+ *    Report Size (1),
+ *    Report Count (8),
+ *    Input (Variable),
+ *    Report Size (8),
+ *    Report Count (1),
+ *    Input (Constant),
+ *    Usage Page (Keyboard),          ; Keyboard/keypad (07h)
+ *    Usage Minimum (None),           ; No event (00h, selector)
+ *    Usage Maximum (KB Application), ; Keyboard Application (65h, selector)
+ *    Logical Minimum (0),
+ *    Logical Maximum (101),
+ *    Report Size (8),
+ *    Report Count (5),
+ *    Input,
+ *  End Collection
+ */
+
+/* Size of the original report descriptor of Slim Tablet 12.1 inch */
+#define SLIM_TABLET_12_1_INCH_RDESC_ORIG_SIZE	269
+
+/*
+ * Fixed Slim Tablet 12.1 inch descriptor.
+ *
+ * All the reports except the stylus report (ID 16) were removed as unused.
+ * The stylus buttons description was fixed.
+ */
+static __u8 slim_tablet_12_1_inch_rdesc_fixed[] = {
+	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
+	0x09, 0x02,         /*  Usage (Pen),                        */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x10,         /*      Report ID (16),                 */
+	0x09, 0x20,         /*      Usage (Stylus),                 */
+	0xA0,               /*      Collection (Physical),          */
+	0x09, 0x42,         /*          Usage (Tip Switch),         */
+	0x09, 0x44,         /*          Usage (Barrel Switch),      */
+	0x09, 0x46,         /*          Usage (Tablet Pick),        */
+	0x15, 0x01,         /*          Logical Minimum (1),        */
+	0x25, 0x03,         /*          Logical Maximum (3),        */
+	0x75, 0x04,         /*          Report Size (4),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x80,               /*          Input,                      */
+	0x09, 0x32,         /*          Usage (In Range),           */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x03,         /*          Report Count (3),           */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0x75, 0x10,         /*          Report Size (16),           */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x14,               /*          Logical Minimum (0),        */
+	0xA4,               /*          Push,                       */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x65, 0x13,         /*          Unit (Inch),                */
+	0x55, 0xFD,         /*          Unit Exponent (-3),         */
+	0x34,               /*          Physical Minimum (0),       */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x46, 0x10, 0x27,   /*          Physical Maximum (10000),   */
+	0x26, 0x20, 0x4E,   /*          Logical Maximum (20000),    */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x46, 0x6A, 0x18,   /*          Physical Maximum (6250),    */
+	0x26, 0xD4, 0x30,   /*          Logical Maximum (12500),    */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xB4,               /*          Pop,                        */
+	0x09, 0x30,         /*          Usage (Tip Pressure),       */
+	0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),     */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
+};
+
+/*
  * Original Media Tablet 10.6 inch report descriptor.
  *
  * There are at least two versions of this model in the wild. They are
@@ -843,6 +1043,12 @@ static __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			*rsize = sizeof(slim_tablet_5_8_inch_rdesc_fixed);
 		}
 		break;
+	case USB_DEVICE_ID_WALTOP_SLIM_TABLET_12_1_INCH:
+		if (*rsize == SLIM_TABLET_12_1_INCH_RDESC_ORIG_SIZE) {
+			rdesc = slim_tablet_12_1_inch_rdesc_fixed;
+			*rsize = sizeof(slim_tablet_12_1_inch_rdesc_fixed);
+		}
+		break;
 	case USB_DEVICE_ID_WALTOP_MEDIA_TABLET_10_6_INCH:
 		if (*rsize == MEDIA_TABLET_10_6_INCH_RDESC_ORIG_SIZE) {
 			rdesc = media_tablet_10_6_inch_rdesc_fixed;
@@ -862,6 +1068,8 @@ static __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 static const struct hid_device_id waltop_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
 				USB_DEVICE_ID_WALTOP_SLIM_TABLET_5_8_INCH) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
+				USB_DEVICE_ID_WALTOP_SLIM_TABLET_12_1_INCH) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
 				USB_DEVICE_ID_WALTOP_MEDIA_TABLET_10_6_INCH) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
