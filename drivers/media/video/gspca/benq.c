@@ -62,7 +62,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -180,7 +180,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		err("urb status: %d", urb->status);
 		return;
 	}
 
@@ -208,8 +208,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (st == 0)
 			st = urb->iso_frame_desc[i].status;
 		if (st) {
-			PDEBUG(D_ERR,
-				"ISOC data error: [%d] status=%d",
+			err("ISOC data error: [%d] status=%d",
 				i, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
@@ -256,10 +255,10 @@ static void sd_isoc_irq(struct urb *urb)
 	/* resubmit the URBs */
 	st = usb_submit_urb(urb0, GFP_ATOMIC);
 	if (st < 0)
-		PDEBUG(D_ERR|D_PACK, "usb_submit_urb(0) ret %d", st);
+		err("usb_submit_urb(0) ret %d", st);
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
-		PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", st);
+		err("usb_submit_urb() ret %d", st);
 }
 
 /* sub-driver description */
