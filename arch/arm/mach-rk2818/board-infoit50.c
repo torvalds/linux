@@ -553,6 +553,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.type    		= "rtc_hym8563",
 		.addr           = 0x51,
 		.flags			= 0,
+		.irq            = RK2818_PIN_PA4,
 	},
 #endif
 #if defined (CONFIG_FM_QN8006)

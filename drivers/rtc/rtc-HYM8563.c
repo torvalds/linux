@@ -26,6 +26,13 @@
 #define DBG(x...)
 #endif
 #define RTC_SPEED 	100 * 1000
+
+struct hym8563 {
+	int irq_num;
+	struct i2c_client *client;
+	struct work_struct work;	
+};
+
 static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
 	int ret; 
@@ -181,6 +188,7 @@ static int hym8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	u8 regs[4] = { 0, };
+	
 	hym8563_i2c_read_regs(client, RTC_A_MIN, regs, 4);
 	regs[0] = 0x0;
 	hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
@@ -192,6 +200,7 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	struct i2c_client *client = to_i2c_client(dev);
 	u8 regs[4] = { 0, };
 	u8 mon_day;
+	
 	regs[0] = 0x0;
 	hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
 	mon_day = rtc_month_days((tm->time.tm_mon), tm->time.tm_year + 1900);
@@ -280,6 +289,26 @@ static int hym8563_rtc_proc(struct device *dev, struct seq_file *seq)
 #define hym8563_rtc_proc NULL
 #endif
 
+static irqreturn_t hym8563_wakeup_irq(int irq, void *dev_id)
+{	
+	struct hym8563 *hym8563 = (struct hym8563 *)dev_id;
+	DBG("Enter::%s %d\n",__FUNCTION__,__LINE__);
+	disable_irq_nosync(irq);
+	schedule_work(&hym8563->work);
+	return IRQ_HANDLED;
+}
+static void hym8563_work_func(struct work_struct *work)
+{	
+	struct hym8563 *hym8563 = container_of(work, struct hym8563, work);
+	struct i2c_client *client = hym8563->client;
+	u8 data;
+	DBG("Enter::%s %d\n",__FUNCTION__,__LINE__);
+	hym8563_i2c_read_regs(client, RTC_CTL2, &data, 1);
+	data &= ~AF;
+	hym8563_i2c_set_regs(client, RTC_CTL2, &data, 1);
+	enable_irq(hym8563->irq_num);
+}
+
 static const struct rtc_class_ops hym8563_rtc_ops = {
 	.read_time	= hym8563_rtc_read_time,
 	.set_time	= hym8563_rtc_set_time,
@@ -292,6 +321,7 @@ static const struct rtc_class_ops hym8563_rtc_ops = {
 static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int rc = 0;
+	struct hym8563 *hym8563;
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm_read, tm = {
 	.tm_wday = 4,
@@ -305,6 +335,12 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
+		
+	hym8563 = kzalloc(sizeof(struct hym8563), GFP_KERNEL);
+	if (!hym8563) {
+		return -ENOMEM;
+	}
+		
 	rtc = rtc_device_register(client->name, &client->dev,
 				  &hym8563_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
@@ -312,6 +348,7 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 		rtc = NULL;
 		goto exit;
 	}
+	hym8563->client = client;
 	hym8563_init_device(client);
 	hym8563_read_datetime(client, &tm_read);	//read time from hym8563
 	
@@ -319,6 +356,23 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	{
 		hym8563_set_time(client, &tm);	//initialize the hym8563 
 	}	
+	
+	if(gpio_request(client->irq, "rtc gpio"))
+	{
+		dev_err(&client->dev, "gpio request fail\n");
+		gpio_free(client->irq);
+		goto exit;
+	}
+	
+	hym8563->irq_num = gpio_to_irq(client->irq);
+	gpio_pull_updown(client->irq,GPIOPullUp);
+	if(request_irq(hym8563->irq_num, hym8563_wakeup_irq,IRQF_TRIGGER_FALLING,NULL,hym8563) <0)	
+	{
+		printk("unable to request rtc irq\n");
+		goto exit;
+	}	
+	enable_irq_wake(hym8563->irq_num);
+	INIT_WORK(&hym8563->work, hym8563_work_func);
 	return 0;
 
 exit:
