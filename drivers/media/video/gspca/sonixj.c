@@ -1326,13 +1326,17 @@ static const u8 (*sensor_init[])[8] = {
 static void reg_r(struct gspca_dev *gspca_dev,
 		  u16 value, int len)
 {
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 #ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
 		err("reg_r: buffer overflow");
 		return;
 	}
 #endif
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -1340,15 +1344,23 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, len,
 			500);
 	PDEBUG(D_USBI, "reg_r [%02x] -> %02x", value, gspca_dev->usb_buf[0]);
+	if (ret < 0) {
+		err("reg_r err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 
 static void reg_w1(struct gspca_dev *gspca_dev,
 		   u16 value,
 		   u8 data)
 {
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 	PDEBUG(D_USBO, "reg_w1 [%04x] = %02x", value, data);
 	gspca_dev->usb_buf[0] = data;
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -1356,12 +1368,20 @@ static void reg_w1(struct gspca_dev *gspca_dev,
 			0,
 			gspca_dev->usb_buf, 1,
 			500);
+	if (ret < 0) {
+		err("reg_w1 err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 static void reg_w(struct gspca_dev *gspca_dev,
 			  u16 value,
 			  const u8 *buffer,
 			  int len)
 {
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 	PDEBUG(D_USBO, "reg_w [%04x] = %02x %02x ..",
 		value, buffer[0], buffer[1]);
 #ifdef GSPCA_DEBUG
@@ -1371,20 +1391,27 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	}
 #endif
 	memcpy(gspca_dev->usb_buf, buffer, len);
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value, 0,
 			gspca_dev->usb_buf, len,
 			500);
+	if (ret < 0) {
+		err("reg_w err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 
 /* I2C write 1 byte */
 static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	int ret;
 
+	if (gspca_dev->usb_err < 0)
+		return;
 	PDEBUG(D_USBO, "i2c_w1 [%02x] = %02x", reg, val);
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
@@ -1403,7 +1430,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	gspca_dev->usb_buf[5] = 0;
 	gspca_dev->usb_buf[6] = 0;
 	gspca_dev->usb_buf[7] = 0x10;
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -1411,16 +1438,24 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 			0,
 			gspca_dev->usb_buf, 8,
 			500);
+	if (ret < 0) {
+		err("i2c_w1 err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 
 /* I2C write 8 bytes */
 static void i2c_w8(struct gspca_dev *gspca_dev,
 		   const u8 *buffer)
 {
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 	PDEBUG(D_USBO, "i2c_w8 [%02x] = %02x ..",
 		buffer[2], buffer[3]);
 	memcpy(gspca_dev->usb_buf, buffer, 8);
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -1428,6 +1463,10 @@ static void i2c_w8(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 8,
 			500);
 	msleep(2);
+	if (ret < 0) {
+		err("i2c_w8 err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 
 /* sensor read 'len' (1..5) bytes in gspca_dev->usb_buf */
@@ -1529,6 +1568,8 @@ static void mi0360_probe(struct gspca_dev *gspca_dev)
 		if (val != 0xffff)
 			break;
 	}
+	if (gspca_dev->usb_err < 0)
+		return;
 	switch (val) {
 	case 0x823a:
 		PDEBUG(D_PROBE, "Sensor mt9v111");
@@ -1556,6 +1597,8 @@ static void ov7630_probe(struct gspca_dev *gspca_dev)
 	val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	reg_w1(gspca_dev, 0x01, 0x29);
 	reg_w1(gspca_dev, 0x17, 0x42);
+	if (gspca_dev->usb_err < 0)
+		return;
 	if (val == 0x7628) {			/* soi768 */
 		sd->sensor = SENSOR_SOI768;
 /*fixme: only valid for 0c45:613e?*/
@@ -1593,6 +1636,8 @@ static void ov7648_probe(struct gspca_dev *gspca_dev)
 	val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	reg_w1(gspca_dev, 0x01, 0x29);
 	reg_w1(gspca_dev, 0x17, 0x42);
+	if (gspca_dev->usb_err < 0)
+		return;
 	if (val == 0x1030) {			/* po1030 */
 		PDEBUG(D_PROBE, "Sensor po1030");
 		sd->sensor = SENSOR_PO1030;
@@ -1631,6 +1676,8 @@ static void po2030n_probe(struct gspca_dev *gspca_dev)
 	val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	reg_w1(gspca_dev, 0x01, 0x29);
 	reg_w1(gspca_dev, 0x17, 0x42);
+	if (gspca_dev->usb_err < 0)
+		return;
 	if (val == 0x2030) {
 		PDEBUG(D_PROBE, "Sensor po2030n");
 /*		sd->sensor = SENSOR_PO2030N; */
@@ -1828,6 +1875,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0xf1, gspca_dev->usb_buf[0]);
 	reg_r(gspca_dev, 0x00, 1);		/* get sonix chip id */
 	regF1 = gspca_dev->usb_buf[0];
+	if (gspca_dev->usb_err < 0)
+		return gspca_dev->usb_err;
 	PDEBUG(D_PROBE, "Sonix chip id: %02x", regF1);
 	switch (sd->bridge) {
 	case BRIDGE_SN9C102P:
@@ -1881,7 +1930,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
 
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static u32 setexposure(struct gspca_dev *gspca_dev,
@@ -2541,7 +2590,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setcolors(gspca_dev);
 	setautogain(gspca_dev);
 	setfreq(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -2704,7 +2753,7 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 	sd->brightness = val;
 	if (gspca_dev->streaming)
 		setbrightness(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2722,7 +2771,7 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	sd->contrast = val;
 	if (gspca_dev->streaming)
 		setcontrast(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2740,7 +2789,7 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val)
 	sd->colors = val;
 	if (gspca_dev->streaming)
 		setcolors(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2758,7 +2807,7 @@ static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	sd->blue = val;
 	if (gspca_dev->streaming)
 		setredblue(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2776,7 +2825,7 @@ static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val)
 	sd->red = val;
 	if (gspca_dev->streaming)
 		setredblue(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2794,7 +2843,7 @@ static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val)
 	sd->gamma = val;
 	if (gspca_dev->streaming)
 		setgamma(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2812,7 +2861,7 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	sd->autogain = val;
 	if (gspca_dev->streaming)
 		setautogain(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2830,7 +2879,7 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
 	sd->sharpness = val;
 	if (gspca_dev->streaming)
 		setsharpness(sd);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2848,7 +2897,7 @@ static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
 	sd->vflip = val;
 	if (gspca_dev->streaming)
 		setvflip(sd);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2866,7 +2915,7 @@ static int sd_setinfrared(struct gspca_dev *gspca_dev, __s32 val)
 	sd->infrared = val;
 	if (gspca_dev->streaming)
 		setinfrared(sd);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val)
@@ -2884,7 +2933,7 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
 	sd->freq = val;
 	if (gspca_dev->streaming)
 		setfreq(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
