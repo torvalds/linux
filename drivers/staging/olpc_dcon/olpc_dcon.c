@@ -201,7 +201,7 @@ power_up:
 	if (x < 0) {
 		printk(KERN_ERR "olpc-dcon:  unable to stabilize dcon's "
 				"smbus, reasserting power and praying.\n");
-		BUG_ON(olpc_board_at_least(olpc_board(BOARD_XO_1_C2)));
+		BUG_ON(olpc_board_at_least(olpc_board(0xc2)));
 		x = 0;
 		olpc_ec_cmd(0x26, (unsigned char *) &x, 1, NULL, 0);
 		msleep(100);
@@ -295,7 +295,7 @@ static void dcon_sleep(int state)
 	if (state == dcon_sleep_val)
 		return;
 
-	if (!olpc_board_at_least(olpc_board(BOARD_XO_1_C2)))
+	if (!olpc_board_at_least(olpc_board(0xc2)))
 		return;
 
 	if (state == DCON_SLEEP) {
