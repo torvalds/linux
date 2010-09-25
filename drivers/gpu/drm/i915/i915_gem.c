@@ -91,6 +91,26 @@ i915_gem_check_is_wedged(struct drm_device *dev)
 	return -EIO;
 }
 
+static int i915_mutex_lock_interruptible(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_gem_check_is_wedged(dev);
+	if (ret)
+		return ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (atomic_read(&dev_priv->mm.wedged)) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
 
 static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj_priv)
@@ -299,7 +319,9 @@ i915_gem_shmem_pread_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
 
 	ret = i915_gem_object_get_pages(obj, 0);
 	if (ret != 0)
@@ -418,7 +440,9 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 
 	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto fail_put_user_pages;
 
 	ret = i915_gem_object_get_pages_or_evict(obj);
 	if (ret)
@@ -617,8 +641,10 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	if (!access_ok(VERIFY_READ, user_data, remain))
 		return -EFAULT;
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
 
-	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_object_pin(obj, 0);
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
@@ -713,7 +739,10 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		goto out_unpin_pages;
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto out_unpin_pages;
+
 	ret = i915_gem_object_pin(obj, 0);
 	if (ret)
 		goto out_unlock;
@@ -787,7 +816,9 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
 
 	ret = i915_gem_object_get_pages(obj, 0);
 	if (ret != 0)
@@ -883,7 +914,9 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 
 	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto fail_put_user_pages;
 
 	ret = i915_gem_object_get_pages_or_evict(obj);
 	if (ret)
@@ -1051,7 +1084,11 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	obj_priv = to_intel_bo(obj);
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
 
 	intel_mark_busy(dev, obj);
 
@@ -1106,11 +1143,14 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
-	mutex_lock(&dev->struct_mutex);
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (obj == NULL) {
-		mutex_unlock(&dev->struct_mutex);
+	if (obj == NULL)
 		return -ENOENT;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
 	}
 
 #if WATCH_BUF
@@ -1425,7 +1465,11 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL)
 		return -ENOENT;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
 
 	obj_priv = to_intel_bo(obj);
 
@@ -3668,15 +3712,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret != 0)
 		goto pre_mutex_err;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto pre_mutex_err;
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
-
-	if (atomic_read(&dev_priv->mm.wedged)) {
-		mutex_unlock(&dev->struct_mutex);
-		ret = -EAGAIN;
-		goto pre_mutex_err;
-	}
 
 	if (dev_priv->mm.suspended) {
 		mutex_unlock(&dev->struct_mutex);
@@ -4161,20 +4201,19 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
 
-	ret = i915_gem_check_is_wedged(dev);
-	if (ret)
-		return ret;
-
-	mutex_lock(&dev->struct_mutex);
-
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
 		DRM_ERROR("Bad handle in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
-		mutex_unlock(&dev->struct_mutex);
 		return -ENOENT;
 	}
 	obj_priv = to_intel_bo(obj);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
 
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to pin a purgeable buffer\n");
@@ -4220,18 +4259,23 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pin *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-
-	mutex_lock(&dev->struct_mutex);
+	int ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
 		DRM_ERROR("Bad handle in i915_gem_unpin_ioctl(): %d\n",
 			  args->handle);
-		mutex_unlock(&dev->struct_mutex);
 		return -ENOENT;
 	}
 
 	obj_priv = to_intel_bo(obj);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
+
 	if (obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
@@ -4254,15 +4298,10 @@ int
 i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_busy *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
-
-	ret = i915_gem_check_is_wedged(dev);
-	if (ret)
-		return ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
@@ -4271,11 +4310,10 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
-	if (atomic_read(&dev_priv->mm.wedged)) {
-		ret = -EAGAIN;
-		goto unlock;
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
 	}
 
 	/* Count all active objects as busy, even if they are currently not used
@@ -4306,10 +4344,9 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		args->busy = obj_priv->active;
 	}
 
-unlock:
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	return 0;
 }
 
 int
@@ -4326,6 +4363,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_madvise *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
+	int ret;
 
 	switch (args->madv) {
 	case I915_MADV_DONTNEED:
@@ -4341,9 +4379,13 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			  args->handle);
 		return -ENOENT;
 	}
-
-	mutex_lock(&dev->struct_mutex);
 	obj_priv = to_intel_bo(obj);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
 
 	if (obj_priv->pin_count) {
 		drm_gem_object_unreference(obj);
