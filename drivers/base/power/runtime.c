@@ -15,6 +15,44 @@ static int __pm_request_idle(struct device *dev);
 static int __pm_request_resume(struct device *dev);
 
 /**
+ * update_pm_runtime_accounting - Update the time accounting of power states
+ * @dev: Device to update the accounting for
+ *
+ * In order to be able to have time accounting of the various power states
+ * (as used by programs such as PowerTOP to show the effectiveness of runtime
+ * PM), we need to track the time spent in each state.
+ * update_pm_runtime_accounting must be called each time before the
+ * runtime_status field is updated, to account the time in the old state
+ * correctly.
+ */
+void update_pm_runtime_accounting(struct device *dev)
+{
+	unsigned long now = jiffies;
+	int delta;
+
+	delta = now - dev->power.accounting_timestamp;
+
+	if (delta < 0)
+		delta = 0;
+
+	dev->power.accounting_timestamp = now;
+
+	if (dev->power.disable_depth > 0)
+		return;
+
+	if (dev->power.runtime_status == RPM_SUSPENDED)
+		dev->power.suspended_jiffies += delta;
+	else
+		dev->power.active_jiffies += delta;
+}
+
+static void __update_runtime_status(struct device *dev, enum rpm_status status)
+{
+	update_pm_runtime_accounting(dev);
+	dev->power.runtime_status = status;
+}
+
+/**
  * pm_runtime_deactivate_timer - Deactivate given device's suspend timer.
  * @dev: Device to handle.
  */
@@ -122,45 +160,6 @@ int pm_runtime_idle(struct device *dev)
 	return retval;
 }
 EXPORT_SYMBOL_GPL(pm_runtime_idle);
-
-
-/**
- * update_pm_runtime_accounting - Update the time accounting of power states
- * @dev: Device to update the accounting for
- *
- * In order to be able to have time accounting of the various power states
- * (as used by programs such as PowerTOP to show the effectiveness of runtime
- * PM), we need to track the time spent in each state.
- * update_pm_runtime_accounting must be called each time before the
- * runtime_status field is updated, to account the time in the old state
- * correctly.
- */
-void update_pm_runtime_accounting(struct device *dev)
-{
-	unsigned long now = jiffies;
-	int delta;
-
-	delta = now - dev->power.accounting_timestamp;
-
-	if (delta < 0)
-		delta = 0;
-
-	dev->power.accounting_timestamp = now;
-
-	if (dev->power.disable_depth > 0)
-		return;
-
-	if (dev->power.runtime_status == RPM_SUSPENDED)
-		dev->power.suspended_jiffies += delta;
-	else
-		dev->power.active_jiffies += delta;
-}
-
-static void __update_runtime_status(struct device *dev, enum rpm_status status)
-{
-	update_pm_runtime_accounting(dev);
-	dev->power.runtime_status = status;
-}
 
 /**
  * __pm_runtime_suspend - Carry out run-time suspend of given device.
