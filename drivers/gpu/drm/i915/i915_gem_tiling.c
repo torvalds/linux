@@ -273,7 +273,11 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	int ret = 0;
+	int ret;
+
+	ret = i915_gem_check_is_wedged(dev);
+	if (ret)
+		return ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)

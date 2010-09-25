@@ -61,6 +61,37 @@ static void i915_gem_free_object_tail(struct drm_gem_object *obj);
 static LIST_HEAD(shrink_list);
 static DEFINE_SPINLOCK(shrink_list_lock);
 
+int
+i915_gem_check_is_wedged(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct completion *x = &dev_priv->error_completion;
+	unsigned long flags;
+	int ret;
+
+	if (!atomic_read(&dev_priv->mm.wedged))
+		return 0;
+
+	ret = wait_for_completion_interruptible(x);
+	if (ret)
+		return ret;
+
+	/* Success, we reset the GPU! */
+	if (!atomic_read(&dev_priv->mm.wedged))
+		return 0;
+
+	/* GPU is hung, bump the completion count to account for
+	 * the token we just consumed so that we never hit zero and
+	 * end up waiting upon a subsequent completion event that
+	 * will never happen.
+	 */
+	spin_lock_irqsave(&x->wait.lock, flags);
+	x->done++;
+	spin_unlock_irqrestore(&x->wait.lock, flags);
+	return -EIO;
+}
+
+
 static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj_priv)
 {
@@ -1848,14 +1879,14 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 
 	BUG_ON(seqno == 0);
 
+	if (atomic_read(&dev_priv->mm.wedged))
+		return -EAGAIN;
+
 	if (seqno == dev_priv->next_seqno) {
 		seqno = i915_add_request(dev, NULL, NULL, ring);
 		if (seqno == 0)
 			return -ENOMEM;
 	}
-
-	if (atomic_read(&dev_priv->mm.wedged))
-		return -EIO;
 
 	if (!i915_seqno_passed(ring->get_seqno(dev, ring), seqno)) {
 		if (HAS_PCH_SPLIT(dev))
@@ -1890,7 +1921,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		trace_i915_gem_request_wait_end(dev, seqno);
 	}
 	if (atomic_read(&dev_priv->mm.wedged))
-		ret = -EIO;
+		ret = -EAGAIN;
 
 	if (ret && ret != -ERESTARTSYS)
 		DRM_ERROR("%s returns %d (awaiting %d at %d, next %d)\n",
@@ -3569,12 +3600,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_clip_rect *cliprects = NULL;
 	struct drm_i915_gem_relocation_entry *relocs = NULL;
 	struct drm_i915_gem_request *request = NULL;
-	int ret = 0, ret2, i, pinned = 0;
+	int ret, ret2, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t reloc_index;
 	int pin_tries, flips;
 
 	struct intel_ring_buffer *ring = NULL;
+
+	ret = i915_gem_check_is_wedged(dev);
+	if (ret)
+		return ret;
 
 #if WATCH_EXEC
 	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
@@ -3639,7 +3674,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		mutex_unlock(&dev->struct_mutex);
-		ret = -EIO;
+		ret = -EAGAIN;
 		goto pre_mutex_err;
 	}
 
@@ -4126,6 +4161,10 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
 
+	ret = i915_gem_check_is_wedged(dev);
+	if (ret)
+		return ret;
+
 	mutex_lock(&dev->struct_mutex);
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
@@ -4215,9 +4254,15 @@ int
 i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_busy *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
+	int ret;
+
+	ret = i915_gem_check_is_wedged(dev);
+	if (ret)
+		return ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
@@ -4227,6 +4272,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&dev->struct_mutex);
+
+	if (atomic_read(&dev_priv->mm.wedged)) {
+		ret = -EAGAIN;
+		goto unlock;
+	}
 
 	/* Count all active objects as busy, even if they are currently not used
 	 * by the gpu. Users of this interface expect objects to eventually
@@ -4256,9 +4306,10 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		args->busy = obj_priv->active;
 	}
 
+unlock:
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
-	return 0;
+	return ret;
 }
 
 int
@@ -4643,6 +4694,7 @@ i915_gem_load(struct drm_device *dev)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
+	init_completion(&dev_priv->error_completion);
 	spin_lock(&shrink_list_lock);
 	list_add(&dev_priv->mm.shrink_list, &shrink_list);
 	spin_unlock(&shrink_list_lock);

@@ -406,6 +406,7 @@ static void i915_error_work_func(struct work_struct *work)
 			atomic_set(&dev_priv->mm.wedged, 0);
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 		}
+		complete_all(&dev_priv->error_completion);
 	}
 }
 
@@ -869,6 +870,7 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
+		INIT_COMPLETION(dev_priv->error_completion);
 		atomic_set(&dev_priv->mm.wedged, 1);
 
 		/*

@@ -363,6 +363,7 @@ typedef struct drm_i915_private {
 	spinlock_t error_lock;
 	struct drm_i915_error_state *first_error;
 	struct work_struct error_work;
+	struct completion error_completion;
 	struct workqueue_struct *wq;
 
 	/* Display functions */
@@ -957,6 +958,7 @@ extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(struct drm_device * dev,
 			     struct drm_file *file_priv, struct mem_block *heap);
 /* i915_gem.c */
+int i915_gem_check_is_wedged(struct drm_device *dev);
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,
