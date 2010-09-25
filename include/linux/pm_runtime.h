@@ -16,19 +16,17 @@
 #define RPM_ASYNC		0x01	/* Request is asynchronous */
 #define RPM_NOWAIT		0x02	/* Don't wait for concurrent
 					    state change */
+#define RPM_GET_PUT		0x04	/* Increment/decrement the
+					    usage_count */
 
 #ifdef CONFIG_PM_RUNTIME
 
 extern struct workqueue_struct *pm_wq;
 
-extern int pm_runtime_idle(struct device *dev);
-extern int pm_runtime_suspend(struct device *dev);
-extern int pm_runtime_resume(struct device *dev);
-extern int pm_request_idle(struct device *dev);
+extern int __pm_runtime_idle(struct device *dev, int rpmflags);
+extern int __pm_runtime_suspend(struct device *dev, int rpmflags);
+extern int __pm_runtime_resume(struct device *dev, int rpmflags);
 extern int pm_schedule_suspend(struct device *dev, unsigned int delay);
-extern int pm_request_resume(struct device *dev);
-extern int __pm_runtime_get(struct device *dev, int rpmflags);
-extern int __pm_runtime_put(struct device *dev, int rpmflags);
 extern int __pm_runtime_set_status(struct device *dev, unsigned int status);
 extern int pm_runtime_barrier(struct device *dev);
 extern void pm_runtime_enable(struct device *dev);
@@ -77,19 +75,22 @@ static inline bool pm_runtime_suspended(struct device *dev)
 
 #else /* !CONFIG_PM_RUNTIME */
 
-static inline int pm_runtime_idle(struct device *dev) { return -ENOSYS; }
-static inline int pm_runtime_suspend(struct device *dev) { return -ENOSYS; }
-static inline int pm_runtime_resume(struct device *dev) { return 0; }
-static inline int pm_request_idle(struct device *dev) { return -ENOSYS; }
+static inline int __pm_runtime_idle(struct device *dev, int rpmflags)
+{
+	return -ENOSYS;
+}
+static inline int __pm_runtime_suspend(struct device *dev, int rpmflags)
+{
+	return -ENOSYS;
+}
+static inline int __pm_runtime_resume(struct device *dev, int rpmflags)
+{
+	return 1;
+}
 static inline int pm_schedule_suspend(struct device *dev, unsigned int delay)
 {
 	return -ENOSYS;
 }
-static inline int pm_request_resume(struct device *dev) { return 0; }
-static inline int __pm_runtime_get(struct device *dev, int rpmflags)
-					{ return 1; }
-static inline int __pm_runtime_put(struct device *dev, int rpmflags)
-					{ return 0; }
 static inline int __pm_runtime_set_status(struct device *dev,
 					    unsigned int status) { return 0; }
 static inline int pm_runtime_barrier(struct device *dev) { return 0; }
@@ -112,24 +113,49 @@ static inline int pm_generic_runtime_resume(struct device *dev) { return 0; }
 
 #endif /* !CONFIG_PM_RUNTIME */
 
+static inline int pm_runtime_idle(struct device *dev)
+{
+	return __pm_runtime_idle(dev, 0);
+}
+
+static inline int pm_runtime_suspend(struct device *dev)
+{
+	return __pm_runtime_suspend(dev, 0);
+}
+
+static inline int pm_runtime_resume(struct device *dev)
+{
+	return __pm_runtime_resume(dev, 0);
+}
+
+static inline int pm_request_idle(struct device *dev)
+{
+	return __pm_runtime_idle(dev, RPM_ASYNC);
+}
+
+static inline int pm_request_resume(struct device *dev)
+{
+	return __pm_runtime_resume(dev, RPM_ASYNC);
+}
+
 static inline int pm_runtime_get(struct device *dev)
 {
-	return __pm_runtime_get(dev, RPM_ASYNC);
+	return __pm_runtime_resume(dev, RPM_GET_PUT | RPM_ASYNC);
 }
 
 static inline int pm_runtime_get_sync(struct device *dev)
 {
-	return __pm_runtime_get(dev, 0);
+	return __pm_runtime_resume(dev, RPM_GET_PUT);
 }
 
 static inline int pm_runtime_put(struct device *dev)
 {
-	return __pm_runtime_put(dev, RPM_ASYNC);
+	return __pm_runtime_idle(dev, RPM_GET_PUT | RPM_ASYNC);
 }
 
 static inline int pm_runtime_put_sync(struct device *dev)
 {
-	return __pm_runtime_put(dev, 0);
+	return __pm_runtime_idle(dev, RPM_GET_PUT);
 }
 
 static inline int pm_runtime_set_active(struct device *dev)
