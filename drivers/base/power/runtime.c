@@ -10,8 +10,10 @@
 #include <linux/sched.h>
 #include <linux/pm_runtime.h>
 #include <linux/jiffies.h>
+#include "power.h"
 
 static int rpm_resume(struct device *dev, int rpmflags);
+static int rpm_suspend(struct device *dev, int rpmflags);
 
 /**
  * update_pm_runtime_accounting - Update the time accounting of power states
@@ -148,6 +150,12 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	/* Pending requests need to be canceled. */
 	dev->power.request = RPM_REQ_NONE;
 
+	if (dev->power.no_callbacks) {
+		/* Assume ->runtime_idle() callback would have suspended. */
+		retval = rpm_suspend(dev, rpmflags);
+		goto out;
+	}
+
 	/* Carry out an asynchronous or a synchronous idle notification. */
 	if (rpmflags & RPM_ASYNC) {
 		dev->power.request = RPM_REQ_IDLE;
@@ -254,6 +262,10 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		goto repeat;
 	}
 
+	dev->power.deferred_resume = false;
+	if (dev->power.no_callbacks)
+		goto no_callback;	/* Assume success. */
+
 	/* Carry out an asynchronous or a synchronous suspend. */
 	if (rpmflags & RPM_ASYNC) {
 		dev->power.request = RPM_REQ_SUSPEND;
@@ -265,7 +277,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	}
 
 	__update_runtime_status(dev, RPM_SUSPENDING);
-	dev->power.deferred_resume = false;
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend) {
 		spin_unlock_irq(&dev->power.lock);
@@ -305,6 +316,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 			pm_runtime_cancel_pending(dev);
 		}
 	} else {
+ no_callback:
 		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_deactivate_timer(dev);
 
@@ -409,6 +421,23 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto repeat;
 	}
 
+	/*
+	 * See if we can skip waking up the parent.  This is safe only if
+	 * power.no_callbacks is set, because otherwise we don't know whether
+	 * the resume will actually succeed.
+	 */
+	if (dev->power.no_callbacks && !parent && dev->parent) {
+		spin_lock(&dev->parent->power.lock);
+		if (dev->parent->power.disable_depth > 0
+		    || dev->parent->power.ignore_children
+		    || dev->parent->power.runtime_status == RPM_ACTIVE) {
+			atomic_inc(&dev->parent->power.child_count);
+			spin_unlock(&dev->parent->power.lock);
+			goto no_callback;	/* Assume success. */
+		}
+		spin_unlock(&dev->parent->power.lock);
+	}
+
 	/* Carry out an asynchronous or a synchronous resume. */
 	if (rpmflags & RPM_ASYNC) {
 		dev->power.request = RPM_REQ_RESUME;
@@ -449,6 +478,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto repeat;
 	}
 
+	if (dev->power.no_callbacks)
+		goto no_callback;	/* Assume success. */
+
 	__update_runtime_status(dev, RPM_RESUMING);
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_resume) {
@@ -482,6 +514,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_cancel_pending(dev);
 	} else {
+ no_callback:
 		__update_runtime_status(dev, RPM_ACTIVE);
 		if (parent)
 			atomic_inc(&parent->power.child_count);
@@ -953,6 +986,25 @@ void pm_runtime_allow(struct device *dev)
 	spin_unlock_irq(&dev->power.lock);
 }
 EXPORT_SYMBOL_GPL(pm_runtime_allow);
+
+/**
+ * pm_runtime_no_callbacks - Ignore run-time PM callbacks for a device.
+ * @dev: Device to handle.
+ *
+ * Set the power.no_callbacks flag, which tells the PM core that this
+ * device is power-managed through its parent and has no run-time PM
+ * callbacks of its own.  The run-time sysfs attributes will be removed.
+ *
+ */
+void pm_runtime_no_callbacks(struct device *dev)
+{
+	spin_lock_irq(&dev->power.lock);
+	dev->power.no_callbacks = 1;
+	spin_unlock_irq(&dev->power.lock);
+	if (device_is_registered(dev))
+		rpm_sysfs_remove(dev);
+}
+EXPORT_SYMBOL_GPL(pm_runtime_no_callbacks);
 
 /**
  * pm_runtime_init - Initialize run-time PM fields in given device object.

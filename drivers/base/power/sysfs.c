@@ -81,6 +81,9 @@
 static const char enabled[] = "enabled";
 static const char disabled[] = "disabled";
 
+const char power_group_name[] = "power";
+EXPORT_SYMBOL_GPL(power_group_name);
+
 #ifdef CONFIG_PM_RUNTIME
 static const char ctrl_auto[] = "auto";
 static const char ctrl_on[] = "on";
@@ -390,12 +393,6 @@ static DEVICE_ATTR(async, 0644, async_show, async_store);
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 
 static struct attribute * power_attrs[] = {
-#ifdef CONFIG_PM_RUNTIME
-	&dev_attr_control.attr,
-	&dev_attr_runtime_status.attr,
-	&dev_attr_runtime_suspended_time.attr,
-	&dev_attr_runtime_active_time.attr,
-#endif
 	&dev_attr_wakeup.attr,
 #ifdef CONFIG_PM_SLEEP
 	&dev_attr_wakeup_count.attr,
@@ -409,6 +406,7 @@ static struct attribute * power_attrs[] = {
 #ifdef CONFIG_PM_ADVANCED_DEBUG
 	&dev_attr_async.attr,
 #ifdef CONFIG_PM_RUNTIME
+	&dev_attr_runtime_status.attr,
 	&dev_attr_runtime_usage.attr,
 	&dev_attr_runtime_active_kids.attr,
 	&dev_attr_runtime_enabled.attr,
@@ -417,9 +415,51 @@ static struct attribute * power_attrs[] = {
 	NULL,
 };
 static struct attribute_group pm_attr_group = {
-	.name	= "power",
+	.name	= power_group_name,
 	.attrs	= power_attrs,
 };
+
+#ifdef CONFIG_PM_RUNTIME
+
+static struct attribute *runtime_attrs[] = {
+#ifndef CONFIG_PM_ADVANCED_DEBUG
+	&dev_attr_runtime_status.attr,
+#endif
+	&dev_attr_control.attr,
+	&dev_attr_runtime_suspended_time.attr,
+	&dev_attr_runtime_active_time.attr,
+	NULL,
+};
+static struct attribute_group pm_runtime_attr_group = {
+	.name	= power_group_name,
+	.attrs	= runtime_attrs,
+};
+
+int dpm_sysfs_add(struct device *dev)
+{
+	int rc;
+
+	rc = sysfs_create_group(&dev->kobj, &pm_attr_group);
+	if (rc == 0 && !dev->power.no_callbacks) {
+		rc = sysfs_merge_group(&dev->kobj, &pm_runtime_attr_group);
+		if (rc)
+			sysfs_remove_group(&dev->kobj, &pm_attr_group);
+	}
+	return rc;
+}
+
+void rpm_sysfs_remove(struct device *dev)
+{
+	sysfs_unmerge_group(&dev->kobj, &pm_runtime_attr_group);
+}
+
+void dpm_sysfs_remove(struct device *dev)
+{
+	rpm_sysfs_remove(dev);
+	sysfs_remove_group(&dev->kobj, &pm_attr_group);
+}
+
+#else /* CONFIG_PM_RUNTIME */
 
 int dpm_sysfs_add(struct device * dev)
 {
@@ -430,3 +470,5 @@ void dpm_sysfs_remove(struct device * dev)
 {
 	sysfs_remove_group(&dev->kobj, &pm_attr_group);
 }
+
+#endif

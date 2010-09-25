@@ -36,6 +36,7 @@ extern void pm_runtime_forbid(struct device *dev);
 extern int pm_generic_runtime_idle(struct device *dev);
 extern int pm_generic_runtime_suspend(struct device *dev);
 extern int pm_generic_runtime_resume(struct device *dev);
+extern void pm_runtime_no_callbacks(struct device *dev);
 
 static inline bool pm_children_suspended(struct device *dev)
 {
@@ -110,6 +111,7 @@ static inline bool pm_runtime_suspended(struct device *dev) { return false; }
 static inline int pm_generic_runtime_idle(struct device *dev) { return 0; }
 static inline int pm_generic_runtime_suspend(struct device *dev) { return 0; }
 static inline int pm_generic_runtime_resume(struct device *dev) { return 0; }
+static inline void pm_runtime_no_callbacks(struct device *dev) {}
 
 #endif /* !CONFIG_PM_RUNTIME */
 

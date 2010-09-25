@@ -41,6 +41,12 @@ extern void (*pm_power_off_prepare)(void);
 
 struct device;
 
+#ifdef CONFIG_PM
+extern const char power_group_name[];		/* = "power" */
+#else
+#define power_group_name	NULL
+#endif
+
 typedef struct pm_message {
 	int event;
 } pm_message_t;
@@ -475,6 +481,7 @@ struct dev_pm_info {
 	unsigned int		deferred_resume:1;
 	unsigned int		run_wake:1;
 	unsigned int		runtime_auto:1;
+	unsigned int		no_callbacks:1;
 	enum rpm_request	request;
 	enum rpm_status		runtime_status;
 	int			runtime_error;

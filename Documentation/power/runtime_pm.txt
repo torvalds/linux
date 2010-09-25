@@ -1,6 +1,7 @@
 Run-time Power Management Framework for I/O Devices
 
 (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+(C) 2010 Alan Stern <stern@rowland.harvard.edu>
 
 1. Introduction
 
@@ -230,6 +231,11 @@ defined in include/linux/pm.h:
       interface; it may only be modified with the help of the pm_runtime_allow()
       and pm_runtime_forbid() helper functions
 
+  unsigned int no_callbacks;
+    - indicates that the device does not use the run-time PM callbacks (see
+      Section 8); it may be modified only by the pm_runtime_no_callbacks()
+      helper function
+
 All of the above fields are members of the 'power' member of 'struct device'.
 
 4. Run-time PM Device Helper Functions
@@ -348,6 +354,11 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - unset the power.runtime_auto flag for the device and increase its usage
       counter (used by the /sys/devices/.../power/control interface to
       effectively prevent the device from being power managed at run time)
+
+  void pm_runtime_no_callbacks(struct device *dev);
+    - set the power.no_callbacks flag for the device and remove the run-time
+      PM attributes from /sys/devices/.../power (or prevent them from being
+      added when the device is registered)
 
 It is safe to execute the following helper functions from interrupt context:
 
@@ -524,3 +535,29 @@ poweroff and run-time suspend callback, and similarly for system resume, thaw,
 restore, and run-time resume, can achieve this with the help of the
 UNIVERSAL_DEV_PM_OPS macro defined in include/linux/pm.h (possibly setting its
 last argument to NULL).
+
+8. "No-Callback" Devices
+
+Some "devices" are only logical sub-devices of their parent and cannot be
+power-managed on their own.  (The prototype example is a USB interface.  Entire
+USB devices can go into low-power mode or send wake-up requests, but neither is
+possible for individual interfaces.)  The drivers for these devices have no
+need of run-time PM callbacks; if the callbacks did exist, ->runtime_suspend()
+and ->runtime_resume() would always return 0 without doing anything else and
+->runtime_idle() would always call pm_runtime_suspend().
+
+Subsystems can tell the PM core about these devices by calling
+pm_runtime_no_callbacks().  This should be done after the device structure is
+initialized and before it is registered (although after device registration is
+also okay).  The routine will set the device's power.no_callbacks flag and
+prevent the non-debugging run-time PM sysfs attributes from being created.
+
+When power.no_callbacks is set, the PM core will not invoke the
+->runtime_idle(), ->runtime_suspend(), or ->runtime_resume() callbacks.
+Instead it will assume that suspends and resumes always succeed and that idle
+devices should be suspended.
+
+As a consequence, the PM core will never directly inform the device's subsystem
+or driver about run-time power changes.  Instead, the driver for the device's
+parent must take responsibility for telling the device's driver when the
+parent's power state changes.
