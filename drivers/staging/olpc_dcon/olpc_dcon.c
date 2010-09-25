@@ -869,21 +869,11 @@ static struct i2c_driver dcon_driver = {
 #endif
 };
 
-#if defined(CONFIG_OLPC_XO_1)
 #include "olpc_dcon_xo_1.c"
-#elif defined(CONFIG_OLPC_XO_1_5)
-#include "olpc_dcon_xo_1_5.c"
-#else
-#error "Trying to build OLPC DCON driver but kernel not configured for XO"
-#endif
 
 static int __init olpc_dcon_init(void)
 {
-#ifdef CONFIG_OLPC_XO_1
 	pdata = &dcon_pdata_xo_1;
-#else
-	pdata = &dcon_pdata_xo_1_5;
-#endif
 
 	i2c_add_driver(&dcon_driver);
 	return 0;
