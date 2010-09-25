@@ -744,8 +744,8 @@ static void do_read(struct rk2818_spi *dws)
 	spi_enable_chip(dws, 0);
 	rk2818_writew(dws, SPIM_CTRLR1, dws->rx_end-dws->rx-1);
 	spi_enable_chip(dws, 1);		
+	rk2818_writew(dws, SPIM_DR0, 0);
 	while (1) {
-		rk2818_writew(dws, SPIM_DR0, 0);
 		if (dws->read(dws))
 			break;
 		if (count ++ == 0x20) {
