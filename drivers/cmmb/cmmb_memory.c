@@ -3,7 +3,7 @@
 #include <linux/errno.h>
 #include <linux/workqueue.h>
 #include <asm/atomic.h>
-
+#include <linux/vmalloc.h> 
 #if 1
 #define DBGERR(x...)	printk(KERN_INFO x)
 #else
@@ -31,9 +31,9 @@ static int cmmbmemo_release(struct inode *inode, struct file *file)
 	cmmb_memo->usr--;
     
 	if(cmmb_memo->usr == 0){
-        kfree(cmmb_memo->video_buf);
-        kfree(cmmb_memo->audio_buf);
-        kfree(cmmb_memo->data_buf);
+        vfree(cmmb_memo->video_buf);
+        vfree(cmmb_memo->audio_buf);
+        vfree(cmmb_memo->data_buf);
 		mutex_unlock(&cmmb_memo->mutex);
         DBG("[CMMB HW]:[memory]: enter cmmb av memory release free buffer\n");
 	} else{
@@ -63,7 +63,8 @@ static int cmmbmemo_open(struct inode * inode, struct file * file)
         cmmbmemo->audio_buf = NULL;
         cmmbmemo->data_buf  = NULL;
 
-        cmmbmemo->video_buf = kmalloc(CMMB_VIDEO_BUFFER_SIZE+1, GFP_KERNEL);
+        //cmmbmemo->video_buf = vmalloc(CMMB_VIDEO_BUFFER_SIZE+1, GFP_KERNEL);
+	cmmbmemo->video_buf   = vmalloc(CMMB_VIDEO_BUFFER_SIZE+1);
 
         if (cmmbmemo->video_buf == NULL){
             ret = - ENOMEM;
@@ -71,15 +72,17 @@ static int cmmbmemo_open(struct inode * inode, struct file * file)
             goto kmalloc_fail;
         }
 
-        cmmbmemo->audio_buf = kmalloc(CMMB_AUDIO_BUFFER_SIZE+1, GFP_KERNEL);
-
+        //cmmbmemo->audio_buf = vmalloc(CMMB_AUDIO_BUFFER_SIZE+1, GFP_KERNEL);
+	cmmbmemo->audio_buf = vmalloc(CMMB_AUDIO_BUFFER_SIZE+1);
+	
+	
         if (cmmbmemo->audio_buf == NULL){
             ret = - ENOMEM;
             DBGERR("[CMMB HW]:[memory]:[err]: cmmb audio buffer malloc fail!!!\n");
             goto kmalloc_fail;
         }
 
-        cmmbmemo->data_buf = kmalloc(1, GFP_KERNEL);
+        cmmbmemo->data_buf = vmalloc(1);
 
         if (cmmbmemo->data_buf == NULL){
             ret = - ENOMEM;
@@ -100,9 +103,9 @@ static int cmmbmemo_open(struct inode * inode, struct file * file)
     return ret;
         
 kmalloc_fail:
-    kfree(cmmbmemo->video_buf);
-    kfree(cmmbmemo->audio_buf);
-    kfree(cmmbmemo->data_buf);
+    vfree(cmmbmemo->video_buf);
+    vfree(cmmbmemo->audio_buf);
+    vfree(cmmbmemo->data_buf);
     mutex_unlock(&cmmbmemo->mutex);    
     return ret;        
 }
@@ -252,30 +255,36 @@ static ssize_t cmmbmemo_write(struct file *file, char __user *buf, size_t count,
            ret = cmmb_ringbuffer_write(&cmmbmemo->buffer_Video, buf, count);
         }
         //cmmbmemo->w_datatype = CMMB_NULL_TYPE;
+#if 0
         spin_lock(cmmbmemo->buffer_Video.lock);
         cmmbmemo->buffer_Video.condition = 1;
         spin_unlock(cmmbmemo->buffer_Video.lock);
         wake_up_interruptible(&cmmbmemo->buffer_Video.queue);
+#endif
     }else if (cmmbmemo->w_datatype == CMMB_AUDIO_TYPE){
         free_A = cmmb_ringbuffer_free(&cmmbmemo->buffer_Audio);
         if (free_A >= count){
            ret = cmmb_ringbuffer_write(&cmmbmemo->buffer_Audio, buf, count);
         }
         //cmmbmemo->w_datatype = CMMB_NULL_TYPE;
+#if 0
         spin_lock(cmmbmemo->buffer_Audio.lock);
         cmmbmemo->buffer_Audio.condition = 1;
         spin_unlock(cmmbmemo->buffer_Audio.lock);
-        wake_up_interruptible(&cmmbmemo->buffer_Audio.queue);
+#endif
+        //wake_up_interruptible(&cmmbmemo->buffer_Audio.queue);
     }else if(cmmbmemo->w_datatype == CMMB_DATA_TYPE){
         free_D = cmmb_ringbuffer_free(&cmmbmemo->buffer_Data);
         if (free_D >= count){
            ret = cmmb_ringbuffer_write(&cmmbmemo->buffer_Data, buf, count);
         }
         //cmmbmemo->w_datatype = CMMB_NULL_TYPE;
+#if 0
         spin_lock(cmmbmemo->buffer_Data.lock);
         cmmbmemo->buffer_Data.condition = 1;
         spin_unlock(cmmbmemo->buffer_Data.lock);
-        wake_up_interruptible(&cmmbmemo->buffer_Data.queue);
+#endif
+        //wake_up_interruptible(&cmmbmemo->buffer_Data.queue);
     }
 
     return ret;

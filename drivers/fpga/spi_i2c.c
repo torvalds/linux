@@ -153,7 +153,7 @@ int spi_i2c_readbuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 	spi_out(port,reg,len,SEL_I2C);
 
 #if SPI_FPGA_I2C_EVENT
-	ret = wait_event_timeout(port->i2c.wait_r, port->i2c.interrupt == INT_I2C_READ_ACK, msecs_to_jiffies(60));	
+	ret = wait_event_timeout(port->i2c.wait_r, ((port->i2c.interrupt == INT_I2C_READ_ACK) || (port->i2c.interrupt == INT_I2C_READ_NACK)), msecs_to_jiffies(60));	
 	if(ret == 0)
 	{
 		printk("%s:60ms time out!\n",__FUNCTION__);
@@ -243,7 +243,7 @@ int spi_i2c_writebuf(struct spi_fpga_port *port ,struct i2c_msg *pmsg,int ch)
 		reg = channel|ICE_SEL_I2C_STOP;
 		spi_out(port,reg,pmsg->buf[i],SEL_I2C);
 	#if SPI_FPGA_I2C_EVENT
-		ret = wait_event_timeout(port->i2c.wait_w, port->i2c.interrupt == INT_I2C_WRITE_ACK, msecs_to_jiffies(60));
+		ret = wait_event_timeout(port->i2c.wait_w, ((port->i2c.interrupt == INT_I2C_WRITE_ACK) || (port->i2c.interrupt == INT_I2C_WRITE_NACK)), msecs_to_jiffies(60));
 		if(ret == 0)
 		{
 			printk("%s:60ms time out!\n",__FUNCTION__);

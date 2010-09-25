@@ -410,7 +410,7 @@ static const struct rockchip_pll_set arm_pll[] = {
 // clk_hz = 24*clkf/(clkr*clkod) clkr clkf clkod hdiv pdiv flags (pdiv=1,2,4,no 3!!)
 	ARM_PLL(576 * SCU_CLK_MHZ, 4, 96, 1, 12, 31, 41, 1),
 	ARM_PLL(384 * SCU_CLK_MHZ, 3, 96, 2,  8, 21, 41, 1),
-	ARM_PLL(192 * SCU_CLK_MHZ, 4, 96, 3,  4, 21, 21, 1),
+	ARM_PLL(192 * SCU_CLK_MHZ, 4, 96, 3,  4, 11, 41, 1),
 	// last item, pll power down. set real clk == SCU_ARM_MID_CLK
 	ARM_PLL( 24 * SCU_CLK_MHZ, 4, 48, 1,  6, 31, 21, 0),	// POWER down
 };

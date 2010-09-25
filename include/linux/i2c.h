@@ -62,6 +62,7 @@ extern int i2c_master_reg8_send(struct i2c_client *client, const char reg, const
 extern int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, int count, int scl_rate);
 extern int i2c_master_reg16_send(struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate);
 extern int i2c_master_reg16_recv(struct i2c_client *client, const short regs, short *buf, int count, int scl_rate);
+extern int i2c_suspended(struct i2c_adapter *adap);
 #endif
 
 extern int i2c_master_send(struct i2c_client *client, const char *buf,

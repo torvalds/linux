@@ -528,7 +528,7 @@ typedef enum eSpiGpioPinIntIsr
 
 extern struct spi_fpga_port *pFpgaPort;
 #if SPI_FPGA_TRANS_WORK
-extern int spi_write_work(struct spi_device *spi, const u8 *buf, size_t len);
+extern int spi_write_work(struct spi_device *spi, u8 *buf, size_t len);
 #endif
 extern unsigned int spi_in(struct spi_fpga_port *port, int reg, int type);
 extern void spi_out(struct spi_fpga_port *port, int reg, int value, int type);

@@ -39,6 +39,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "dvb_frontend.h"
 #endif
 
+#define SIANO_HALFDUPLEX 1
+
 #define kmutex_init(_p_) mutex_init(_p_)
 #define kmutex_lock(_p_) mutex_lock(_p_)
 #define kmutex_trylock(_p_) mutex_trylock(_p_)
@@ -200,6 +202,10 @@ struct smsclient_params_t {
 #define MSG_SMS_LOOPBACK_REQ				718
 #define MSG_SMS_LOOPBACK_RES				719
 
+#if SIANO_HALFDUPLEX
+#define	MSG_SMS_SPI_HALFDUPLEX_TOKEN_HOST_TO_DEVICE  518	//,	// SPI Half-Duplex protocol
+#define	MSG_SMS_SPI_HALFDUPLEX_TOKEN_DEVICE_TO_HOST	519	//,	//
+#endif
 
 #define SMS_INIT_MSG_EX(ptr, type, src, dst, len) do { \
 	(ptr)->msgType = type; (ptr)->msgSrcId = src; (ptr)->msgDstId = dst; \
@@ -536,8 +542,7 @@ extern int sms_debug;
 #define sms_info(fmt, arg...) \
 	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
 #define sms_debug(fmt, arg...) \
-	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)//
-
+	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
 
 //define the gpio used 
 #define CMMB_1186_SPIIRQ         RK2818_PIN_PA6  //This Pin is SDK Board GPIOPortA_Pin6 

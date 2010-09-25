@@ -27,7 +27,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-
+#if SIANO_HALFDUPLEX
+#include <asm/semaphore.h>
+#endif
 #include <linux/firmware.h>
 #include <asm/byteorder.h>
 
@@ -60,6 +62,13 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
 //static int default_mode = 4;
 static int default_mode = DEVICE_MODE_CMMB;
+
+#if SIANO_HALFDUPLEX
+extern int g_IsTokenEnable;
+extern int g_IsTokenOwned;
+extern struct semaphore 	HalfDuplexSemaphore;
+#endif
+
 module_param(default_mode, int, 0644);
 MODULE_PARM_DESC(default_mode, "default firmware id (device mode)");
 
@@ -128,6 +137,7 @@ struct smscore_device_t {
 
 	wait_queue_head_t buffer_mng_waitq;
 };
+
 
 
 
@@ -542,8 +552,6 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	u8 *payload = firmware->Payload;
 	int rc = 0;
 
-	int index = 0;
-
 	firmware->StartAddress = le32_to_cpu(firmware->StartAddress);
 	firmware->Length = le32_to_cpu(firmware->Length);
 
@@ -567,10 +575,9 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!msg)
 		return -ENOMEM;
-    #if 1
-   // while (index < 300)//hzb test 0527
+    
+    //while (1)//hzb test 0527
     {
-	index++;
 
     	//if (coredev->mode != DEVICE_MODE_NONE) //hzb test 0527
     	{
@@ -582,12 +589,10 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
     				&coredev->version_ex_done);
     //		mem_address = *(u32 *) &payload[20];
 		sms_info("sms get version req ret=0x%x",rc);
-		mdelay(5);
+		//mdelay(5);
     	}
     }//hzb test 0527
-#endif
-
-    #if 1
+    
 	while (size && rc >= 0) {
 		struct SmsDataDownload_ST *DataMsg =
 				(struct SmsDataDownload_ST *) msg;
@@ -648,7 +653,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		}
 		msleep(500);
 	}
-#endif
+
 	sms_debug("rc=%d, postload=%p ", rc, coredev->postload_handler);
 
 	kfree(msg);
@@ -977,7 +982,24 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	}
 
 	if (rc >= 0) {
-		sms_err("device is ready");
+		sms_info("device is ready");
+		{
+			struct SmsMsgHdr_ST *msg;
+			
+			msg = kmalloc(sizeof(struct SmsMsgHdr_ST), GFP_KERNEL | GFP_DMA);
+			
+			sms_debug("sending MSG_SMS_GET_VERSION_EX_REQ command.");
+			SMS_INIT_MSG(msg, MSG_SMS_GET_VERSION_EX_REQ,sizeof(struct SmsMsgHdr_ST));
+			smsendian_handle_tx_message((struct SmsMsgHdr_ST *)msg);
+			rc = smscore_sendrequest_and_wait(coredev, msg, msg->msgLength,	&coredev->version_ex_done);   
+			kfree(msg);
+		}	
+#if SIANO_HALFDUPLEX
+	       g_IsTokenEnable = true;
+		g_IsTokenOwned = true;
+		up(&HalfDuplexSemaphore);
+		sms_debug("g_IsTokenEnable = true  \n");
+#endif		
 		coredev->mode = mode;
 		coredev->device_flags &= ~SMS_DEVICE_NOT_READY;
 	}
@@ -1127,30 +1149,6 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 	static int data_total; /* = 0; */
 	unsigned long time_now = jiffies_to_msecs(jiffies);
 
-
-//for test , print the version , zyc
-	if(0)
-	{
-		struct SmsVersionRes_ST *vers = (struct SmsVersionRes_ST *)phdr;
-
-		if(phdr->msgType == MSG_SMS_GET_VERSION_EX_RES)
-		{
-			smsendian_handle_rx_message((struct SmsMsgData_ST *)phdr);
-		
-		
-			//struct SmsVersionRes_ST *ver = (struct SmsVersionRes_ST *) phdr;
-            
-			sms_debug("MSG_SMS_GET_VERSION_EX_RES "
-					"id %d prots 0x%x ver %d.%d\n",
-					vers->FirmwareId,
-					vers->SupportedProtocols,
-					vers->RomVersionMajor,
-					vers->RomVersionMinor);
-		}
-
-		
-	}
-
 	if (!last_sample_time)
 		last_sample_time = time_now;
 
@@ -1170,20 +1168,24 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 	 
 	if (client)
 	{
-		//sms_debug("client=0x %x\n", client);
+		sms_debug("client=0x %x\n", client);
 		rc = client->onresponse_handler(client->context, cb);
 	}	
-	//sms_debug("onresponse_handler ret = 0x%x\n", rc);
-      //  sms_debug("phdr->msgType %d\n", phdr->msgType);
-
-
-
-	if (rc < 0) {
+	sms_debug("onresponse_handler ret = 0x%x\n", rc);
+	sms_debug("phdr->msgType %d\n", phdr->msgType);
+#if SIANO_HALFDUPLEX
+	if (phdr->msgType==MSG_SMS_SPI_HALFDUPLEX_TOKEN_DEVICE_TO_HOST){
+		g_IsTokenOwned = true;
+		sms_debug("MSG_SMS_SPI_HALFDUPLEX_TOKEN_DEVICE_TO_HOST \n");
+		return;
+	}
+#endif
+	if (rc < 0){
 		smsendian_handle_rx_message((struct SmsMsgData_ST *)phdr);
 
 		switch (phdr->msgType) {
 		case MSG_SMS_GET_VERSION_EX_RES: {
-			struct SmsVersionRes_ST *ver = (struct SmsVersionRes_ST *)phdr;
+			struct SmsVersionRes_ST *ver = (struct SmsVersionRes_ST *) phdr;
             
 			sms_debug("MSG_SMS_GET_VERSION_EX_RES "
 					"id %d prots 0x%x ver %d.%d",
@@ -1191,7 +1193,18 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 					ver->SupportedProtocols,
 					ver->RomVersionMajor,
 					ver->RomVersionMinor);
-
+			
+			printk("MSG_SMS_GET_VERSION_EX_RES "
+					"id %d prots 0x%x ver %d.%d\n",
+					ver->FirmwareId,
+					ver->SupportedProtocols,
+					ver->RomVersionMajor,
+					ver->RomVersionMinor);
+			
+			ver->TextLabel[33] = 0x0;
+			
+                     printk("fw version is  %s\n",ver->TextLabel);
+					 
 			coredev->mode = ver->FirmwareId == 255 ? DEVICE_MODE_NONE : ver->FirmwareId;
 			coredev->modes_supported = ver->SupportedProtocols;
 
@@ -1764,8 +1777,9 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
 	return rc;
 }
 
+
 //zyc
-static request_cmmb_gpio(void)
+static void request_cmmb_gpio(void)
 {
 	int ret;
 	ret = gpio_request(CMMB_1186_POWER_RESET, NULL);
@@ -1790,6 +1804,16 @@ static request_cmmb_gpio(void)
 
 }
 
+static void release_cmmb_gpio(void)
+{
+	gpio_free(CMMB_1186_POWER_RESET);
+	gpio_free(CMMB_1186_POWER_DOWN);
+	gpio_free(CMMB_1186_POWER_ENABLE);
+	printk("leave the release_cmmb_gpio\n");
+
+
+}
+
 static int __init smscore_module_init(void)
 {
 	int rc = 0;
@@ -1804,8 +1828,9 @@ static int __init smscore_module_init(void)
 	kmutex_init(&g_smscore_registrylock);
 
 //request the gpio used by cmmb
-	request_cmmb_gpio();
+	//request_cmmb_gpio();
 	/* Register sub system adapter objects */
+	request_cmmb_gpio();
 
 #ifdef SMS_NET_SUBSYS
 	/* NET Register */
@@ -1856,7 +1881,6 @@ static int __init smscore_module_init(void)
 
 
 #ifdef SMS_SPI_ROCKCHIP
-
     sms_debug(KERN_INFO "smsspi_register\n");
 	rc = smsspi_register();  
 	if (rc) {
@@ -1891,6 +1915,9 @@ smsnet_error:
 
 static void __exit smscore_module_exit(void)
 {
+
+
+
 #ifdef SMS_NET_SUBSYS
 	/* Net Unregister */
 	smsnet_unregister();
@@ -1943,6 +1970,8 @@ static void __exit smscore_module_exit(void)
 		kfree(entry);
 	}
 	kmutex_unlock(&g_smscore_registrylock);
+	
+	release_cmmb_gpio();
 
 	sms_debug("");
 }

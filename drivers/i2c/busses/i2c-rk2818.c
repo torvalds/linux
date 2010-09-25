@@ -85,7 +85,7 @@ struct rk2818_i2c_data {
 	unsigned int			msg_num;
 #ifdef CONFIG_CPU_FREQ
 		struct notifier_block	freq_transition;
-#endif
+#endif	
 };
 
 static void rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c);
@@ -230,19 +230,22 @@ static int rk2818_wait_event(struct rk2818_i2c_data *i2c,
 					enum rk2818_event mr_event)
 {
 	int ret = 0;
-
-	if(unlikely(irqs_disabled()))
+	unsigned long flags;
+	if(i2c->mode == I2C_MODE_IRQ)
 	{
-		dev_err(i2c->dev, "irqs are disabled on this system!\n");
-		return -EIO;
-	}	
-	spin_lock_irq(&i2c->cmd_lock);
+		if(unlikely(irqs_disabled()))
+		{
+			dev_err(i2c->dev, "irqs are disabled on this system!\n");
+			return -EIO;
+		}
+	}
+	spin_lock_irqsave(&i2c->cmd_lock,flags);
 	i2c->cmd_err = RK2818_ERROR_NONE;
 	i2c->cmd_event = mr_event;
 
 	init_completion(&i2c->cmd_complete);
 
-	spin_unlock_irq(&i2c->cmd_lock);
+	spin_unlock_irqrestore(&i2c->cmd_lock,flags);
 
 	rk2818_i2c_enable_irqs(i2c);
 	if(i2c->mode == I2C_MODE_IRQ)
@@ -461,6 +464,17 @@ exit:
 		{
 			dev_err(i2c->dev, "<error>rk2818_i2c_stop timeout\n");
 		}
+
+		//not I2C code,add by sxj,used for extend gpio intrrupt,set SCL and SDA pin.
+		if(msg->flags & I2C_M_RD)
+		{
+			#if defined (CONFIG_IOEXTEND_TCA6424)
+			if (pdata && pdata->reseti2cpin) {
+				pdata->reseti2cpin();
+			}
+			#endif	
+		}
+			
 	}
 	return ret;
 
@@ -473,9 +487,10 @@ static int rk2818_i2c_xfer(struct i2c_adapter *adap,
 	int i;
 	struct rk2818_i2c_data *i2c = (struct rk2818_i2c_data *)adap->algo_data;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
-	
+	/*
 	if(i2c->suspended ==1)
 		return -EIO;
+	*/
 	if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate > 0)
 		i2c->scl_rate = msgs[0].scl_rate;
 	else
@@ -516,7 +531,17 @@ static const struct i2c_algorithm rk2818_i2c_algorithm = {
 	.functionality		= rk2818_i2c_func,
 };
 
-
+int i2c_suspended(struct i2c_adapter *adap)
+{
+	struct rk2818_i2c_data *i2c = (struct rk2818_i2c_data *)adap->algo_data;
+	if(adap->nr > 1)
+		return 1;
+	if(i2c == NULL)
+		return 1;
+	return i2c->suspended;
+}
+EXPORT_SYMBOL(i2c_suspended);
+	
 static void rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c)
 {
 	unsigned long lcmr = 0x00000000;
@@ -735,6 +760,7 @@ static int rk2818_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+
 static int rk2818_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct rk2818_i2c_data *i2c = platform_get_drvdata(pdev);

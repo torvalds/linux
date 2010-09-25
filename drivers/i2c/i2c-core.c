@@ -1091,8 +1091,12 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 				(msgs[ret].flags & I2C_M_RECV_LEN) ? "+" : "");
 		}
 #endif
-
+#ifdef CONFIG_I2C_RK2818
+		if (!(i2c_suspended(adap)) && (in_atomic() || irqs_disabled())) {
+#else
 		if (in_atomic() || irqs_disabled()) {
+#endif
+
 			ret = mutex_trylock(&adap->bus_lock);
 			if (!ret)
 				/* I2C activity is ongoing. */
