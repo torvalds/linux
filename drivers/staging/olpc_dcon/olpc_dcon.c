@@ -214,12 +214,6 @@ power_up:
 	return 0;
 }
 
-
-/* Backlight notes - turning off the backlight enable bit in the DCON
- * doesn't save us any power over just pushing the BL to zero, so we
- * don't use that bit in this code.
- */
-
 static int dcon_get_backlight(void)
 {
 	if (dcon_client == NULL)
