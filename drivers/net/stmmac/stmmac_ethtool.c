@@ -322,7 +322,7 @@ static void stmmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	spin_lock_irq(&priv->lock);
-	if (priv->wolenabled == PMT_SUPPORTED) {
+	if (device_can_wakeup(priv->device)) {
 		wol->supported = WAKE_MAGIC;
 		wol->wolopts = priv->wolopts;
 	}
@@ -334,16 +334,20 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 support = WAKE_MAGIC;
 
-	if (priv->wolenabled == PMT_NOT_SUPPORTED)
+	if (!device_can_wakeup(priv->device))
 		return -EINVAL;
 
 	if (wol->wolopts & ~support)
 		return -EINVAL;
 
-	if (wol->wolopts == 0)
-		device_set_wakeup_enable(priv->device, 0);
-	else
+	if (wol->wolopts) {
+		pr_info("stmmac: wakeup enable\n");
 		device_set_wakeup_enable(priv->device, 1);
+		enable_irq_wake(dev->irq);
+	} else {
+		device_set_wakeup_enable(priv->device, 0);
+		disable_irq_wake(dev->irq);
+	}
 
 	spin_lock_irq(&priv->lock);
 	priv->wolopts = wol->wolopts;

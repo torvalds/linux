@@ -1568,9 +1568,8 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 
 	priv->hw = device;
 
-	priv->wolenabled = priv->hw->pmt;	/* PMT supported */
-	if (priv->wolenabled == PMT_SUPPORTED)
-		priv->wolopts = WAKE_MAGIC;		/* Magic Frame */
+	if (device_can_wakeup(priv->device))
+		priv->wolopts = WAKE_MAGIC; /* Magic Frame as default */
 
 	return 0;
 }
@@ -1709,6 +1708,12 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv->enh_desc = plat_dat->enh_desc;
 	priv->ioaddr = addr;
 
+	/* PMT module is not integrated in all the MAC devices. */
+	if (plat_dat->pmt) {
+		pr_info("\tPMT module supported\n");
+		device_set_wakeup_capable(&pdev->dev, 1);
+	}
+
 	platform_set_drvdata(pdev, ndev);
 
 	/* Set the I/O base addr */
@@ -1836,13 +1841,11 @@ static int stmmac_suspend(struct platform_device *pdev, pm_message_t state)
 
 		stmmac_mac_disable_tx(priv->ioaddr);
 
-		if (device_may_wakeup(&(pdev->dev))) {
-			/* Enable Power down mode by programming the PMT regs */
-			if (priv->wolenabled == PMT_SUPPORTED)
-				priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
-		} else {
+		/* Enable Power down mode by programming the PMT regs */
+		if (device_can_wakeup(priv->device))
+			priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
+		else
 			stmmac_mac_disable_rx(priv->ioaddr);
-		}
 	} else {
 		priv->shutdown = 1;
 		/* Although this can appear slightly redundant it actually
@@ -1877,9 +1880,8 @@ static int stmmac_resume(struct platform_device *pdev)
 	 * is received. Anyway, it's better to manually clear
 	 * this bit because it can generate problems while resuming
 	 * from another devices (e.g. serial console). */
-	if (device_may_wakeup(&(pdev->dev)))
-		if (priv->wolenabled == PMT_SUPPORTED)
-			priv->hw->mac->pmt(priv->ioaddr, 0);
+	if (device_can_wakeup(priv->device))
+		priv->hw->mac->pmt(priv->ioaddr, 0);
 
 	netif_device_attach(dev);
 

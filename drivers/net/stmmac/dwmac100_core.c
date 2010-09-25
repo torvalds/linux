@@ -193,7 +193,6 @@ struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
 	mac->mac = &dwmac100_ops;
 	mac->dma = &dwmac100_dma_ops;
 
-	mac->pmt = PMT_NOT_SUPPORTED;
 	mac->link.port = MAC_CONTROL_PS;
 	mac->link.duplex = MAC_CONTROL_F;
 	mac->link.speed = 0;

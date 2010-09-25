@@ -37,6 +37,7 @@ struct plat_stmmacenet_data {
 	int enh_desc;
 	int tx_coe;
 	int bugged_jumbo;
+	int pmt;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
 #ifdef CONFIG_STM_DRIVERS
