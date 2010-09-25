@@ -1594,12 +1594,22 @@ static void alc_auto_parse_digital(struct hda_codec *codec)
 	}
 
 	if (spec->autocfg.dig_in_pin) {
-		hda_nid_t dig_nid;
-		err = snd_hda_get_connections(codec,
-					      spec->autocfg.dig_in_pin,
-					      &dig_nid, 1);
-		if (err > 0)
-			spec->dig_in_nid = dig_nid;
+		dig_nid = codec->start_nid;
+		for (i = 0; i < codec->num_nodes; i++, dig_nid++) {
+			unsigned int wcaps = get_wcaps(codec, dig_nid);
+			if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
+				continue;
+			if (!(wcaps & AC_WCAP_DIGITAL))
+				continue;
+			if (!(wcaps & AC_WCAP_CONN_LIST))
+				continue;
+			err = get_connection_index(codec, dig_nid,
+						   spec->autocfg.dig_in_pin);
+			if (err >= 0) {
+				spec->dig_in_nid = dig_nid;
+				break;
+			}
+		}
 	}
 }
 
