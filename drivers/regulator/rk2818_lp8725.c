@@ -219,7 +219,7 @@ static int lp8725_lilo_is_enabled(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
 	int lilo = rdev_get_id(dev) - LP8725_LILO1;
-	u16 mask = 1 << (lilo+4);
+	u16 mask = 1 << (lilo+5);
 	u16 val;
 
 	val = lp8725_reg_read(lp8725, LP8725_LILO_ENABLE_REG);
@@ -230,7 +230,7 @@ static int lp8725_lilo_enable(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
 	int lilo = rdev_get_id(dev) - LP8725_LILO1;
-	u16 mask = 1 << (lilo+4);
+	u16 mask = 1 << (lilo+5);
 
 	return lp8725_set_bits(lp8725, LP8725_LILO_ENABLE_REG, mask, mask);
 }
@@ -239,7 +239,7 @@ static int lp8725_lilo_disable(struct regulator_dev *dev)
 {
 	struct lp8725 *lp8725 = rdev_get_drvdata(dev);
 	int lilo = rdev_get_id(dev) - LP8725_LILO1;
-	u16 mask = 1 << (lilo+4);
+	u16 mask = 1 << (lilo+5);
 
 	return lp8725_set_bits(lp8725, LP8725_LILO_ENABLE_REG, mask, 0);
 }
