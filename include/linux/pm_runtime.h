@@ -12,6 +12,11 @@
 #include <linux/device.h>
 #include <linux/pm.h>
 
+/* Runtime PM flag argument bits */
+#define RPM_ASYNC		0x01	/* Request is asynchronous */
+#define RPM_NOWAIT		0x02	/* Don't wait for concurrent
+					    state change */
+
 #ifdef CONFIG_PM_RUNTIME
 
 extern struct workqueue_struct *pm_wq;
@@ -22,8 +27,8 @@ extern int pm_runtime_resume(struct device *dev);
 extern int pm_request_idle(struct device *dev);
 extern int pm_schedule_suspend(struct device *dev, unsigned int delay);
 extern int pm_request_resume(struct device *dev);
-extern int __pm_runtime_get(struct device *dev, bool sync);
-extern int __pm_runtime_put(struct device *dev, bool sync);
+extern int __pm_runtime_get(struct device *dev, int rpmflags);
+extern int __pm_runtime_put(struct device *dev, int rpmflags);
 extern int __pm_runtime_set_status(struct device *dev, unsigned int status);
 extern int pm_runtime_barrier(struct device *dev);
 extern void pm_runtime_enable(struct device *dev);
@@ -81,8 +86,10 @@ static inline int pm_schedule_suspend(struct device *dev, unsigned int delay)
 	return -ENOSYS;
 }
 static inline int pm_request_resume(struct device *dev) { return 0; }
-static inline int __pm_runtime_get(struct device *dev, bool sync) { return 1; }
-static inline int __pm_runtime_put(struct device *dev, bool sync) { return 0; }
+static inline int __pm_runtime_get(struct device *dev, int rpmflags)
+					{ return 1; }
+static inline int __pm_runtime_put(struct device *dev, int rpmflags)
+					{ return 0; }
 static inline int __pm_runtime_set_status(struct device *dev,
 					    unsigned int status) { return 0; }
 static inline int pm_runtime_barrier(struct device *dev) { return 0; }
@@ -107,22 +114,22 @@ static inline int pm_generic_runtime_resume(struct device *dev) { return 0; }
 
 static inline int pm_runtime_get(struct device *dev)
 {
-	return __pm_runtime_get(dev, false);
+	return __pm_runtime_get(dev, RPM_ASYNC);
 }
 
 static inline int pm_runtime_get_sync(struct device *dev)
 {
-	return __pm_runtime_get(dev, true);
+	return __pm_runtime_get(dev, 0);
 }
 
 static inline int pm_runtime_put(struct device *dev)
 {
-	return __pm_runtime_put(dev, false);
+	return __pm_runtime_put(dev, RPM_ASYNC);
 }
 
 static inline int pm_runtime_put_sync(struct device *dev)
 {
-	return __pm_runtime_put(dev, true);
+	return __pm_runtime_put(dev, 0);
 }
 
 static inline int pm_runtime_set_active(struct device *dev)
