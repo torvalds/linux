@@ -112,8 +112,7 @@ static unsigned int latch_state = H1940_LATCH_BIT(H1940_LATCH_LCD_P4) |
 	H1940_LATCH_BIT(H1940_LATCH_LCD_P1)			|
 	H1940_LATCH_BIT(H1940_LATCH_LCD_P2)			|
 	H1940_LATCH_BIT(H1940_LATCH_LCD_P3)			|
-	H1940_LATCH_BIT(H1940_LATCH_MAX1698_nSHUTDOWN)   |
-	H1940_LATCH_BIT(H1940_LATCH_CPUQ5);
+	H1940_LATCH_BIT(H1940_LATCH_MAX1698_nSHUTDOWN);
 
 static void h1940_latch_control(unsigned int clear, unsigned int set)
 {
@@ -247,10 +246,25 @@ static struct platform_device h1940_device_bluetooth = {
 	.id               = -1,
 };
 
+static void h1940_set_mmc_power(unsigned char power_mode, unsigned short vdd)
+{
+	switch (power_mode) {
+	case MMC_POWER_OFF:
+		gpio_set_value(H1940_LATCH_SD_POWER, 0);
+		break;
+	case MMC_POWER_UP:
+	case MMC_POWER_ON:
+		gpio_set_value(H1940_LATCH_SD_POWER, 1);
+		break;
+	default:
+		break;
+	};
+}
+
 static struct s3c24xx_mci_pdata h1940_mmc_cfg __initdata = {
 	.gpio_detect   = S3C2410_GPF(5),
 	.gpio_wprotect = S3C2410_GPH(8),
-	.set_power     = NULL,
+	.set_power     = h1940_set_mmc_power,
 	.ocr_avail     = MMC_VDD_32_33,
 };
 
@@ -396,6 +410,9 @@ static void __init h1940_init(void)
 
 	gpio_request(H1940_LATCH_USB_DP, "USB pullup");
 	gpio_direction_output(H1940_LATCH_USB_DP, 0);
+
+	gpio_request(H1940_LATCH_SD_POWER, "SD power");
+	gpio_direction_output(H1940_LATCH_SD_POWER, 0);
 
 	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));
 }
