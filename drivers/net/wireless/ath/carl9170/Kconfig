@@ -10,7 +10,7 @@ config CARL9170
 	  but it needs a special firmware (carl9170-1.fw) to do that.
 
 	  The firmware can be downloaded from our wiki here:
-	  http://wireless.kernel.org/en/users/Drivers/carl9170
+	  <http://wireless.kernel.org/en/users/Drivers/carl9170>
 
 	  If you choose to build a module, it'll be called carl9170.
 
