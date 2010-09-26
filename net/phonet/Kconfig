@@ -14,3 +14,14 @@ config PHONET
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called phonet. If unsure, say N.
+
+config PHONET_PIPECTRLR
+	bool "Phonet Pipe Controller"
+	depends on PHONET
+	default N
+	help
+	  The Pipe Controller implementation in Phonet stack to support Pipe
+	  data with Nokia Slim modems like WG2.5 used on ST-Ericsson U8500
+	  platform.
+
+	  If unsure, say N.
