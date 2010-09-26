@@ -760,8 +760,8 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 	struct carl9170_tx_info *arinfo;
 	unsigned int hw_queue;
 	int i;
-	u16 keytype = 0;
-	u16 len, icv = 0;
+	__le16 mac_tmp;
+	u16 len;
 	bool ampdu, no_ack;
 
 	BUILD_BUG_ON(sizeof(*arinfo) > sizeof(info->rate_driver_data));
@@ -772,6 +772,10 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 		     AR9170_TX_HWDESC_LEN);
 
 	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES < CARL9170_TX_MAX_RATES);
+
+	BUILD_BUG_ON(AR9170_MAX_VIRTUAL_MAC >
+		((CARL9170_TX_SUPER_MISC_VIF_ID >>
+		 CARL9170_TX_SUPER_MISC_VIF_ID_S) + 1));
 
 	hw_queue = ar9170_qmap[carl9170_get_queue(ar, skb)];
 
@@ -793,20 +797,37 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 	txc = (void *)skb_push(skb, sizeof(*txc));
 	memset(txc, 0, sizeof(*txc));
 
-	ampdu = !!(info->flags & IEEE80211_TX_CTL_AMPDU);
+	SET_VAL(CARL9170_TX_SUPER_MISC_QUEUE, txc->s.misc, hw_queue);
+
+	if (likely(cvif))
+		SET_VAL(CARL9170_TX_SUPER_MISC_VIF_ID, txc->s.misc, cvif->id);
+
+	if (unlikely(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM))
+		txc->s.misc |= CARL9170_TX_SUPER_MISC_CAB;
+
+	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control)))
+		txc->s.misc |= CARL9170_TX_SUPER_MISC_FILL_IN_TSF;
+
+	mac_tmp = cpu_to_le16(AR9170_TX_MAC_HW_DURATION |
+			      AR9170_TX_MAC_BACKOFF);
+	mac_tmp |= cpu_to_le16((hw_queue << AR9170_TX_MAC_QOS_S) &&
+			       AR9170_TX_MAC_QOS);
+
 	no_ack = !!(info->flags & IEEE80211_TX_CTL_NO_ACK);
+	if (unlikely(no_ack))
+		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_NO_ACK);
 
 	if (info->control.hw_key) {
-		icv = info->control.hw_key->icv_len;
+		len += info->control.hw_key->icv_len;
 
 		switch (info->control.hw_key->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
 		case WLAN_CIPHER_SUITE_TKIP:
-			keytype = AR9170_TX_MAC_ENCR_RC4;
+			mac_tmp |= cpu_to_le16(AR9170_TX_MAC_ENCR_RC4);
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
-			keytype = AR9170_TX_MAC_ENCR_AES;
+			mac_tmp |= cpu_to_le16(AR9170_TX_MAC_ENCR_AES);
 			break;
 		default:
 			WARN_ON(1);
@@ -814,48 +835,58 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 		}
 	}
 
-	BUILD_BUG_ON(AR9170_MAX_VIRTUAL_MAC >
-		((CARL9170_TX_SUPER_MISC_VIF_ID >>
-		 CARL9170_TX_SUPER_MISC_VIF_ID_S) + 1));
+	ampdu = !!(info->flags & IEEE80211_TX_CTL_AMPDU);
+	if (ampdu) {
+		unsigned int density, factor;
 
-	txc->s.len = cpu_to_le16(len + sizeof(*txc));
-	txc->f.length = cpu_to_le16(len + icv + 4);
-	SET_VAL(CARL9170_TX_SUPER_MISC_VIF_ID, txc->s.misc,
-		cvif ? cvif->id : 0);
+		if (unlikely(!sta || !cvif))
+			goto err_out;
 
-	txc->f.mac_control = cpu_to_le16(AR9170_TX_MAC_HW_DURATION |
-					 AR9170_TX_MAC_BACKOFF);
+		factor = min_t(unsigned int, 1u,
+			 info->control.sta->ht_cap.ampdu_factor);
 
-	SET_VAL(CARL9170_TX_SUPER_MISC_QUEUE, txc->s.misc, hw_queue);
+		density = info->control.sta->ht_cap.ampdu_density;
 
-	txc->f.mac_control |= cpu_to_le16(hw_queue << AR9170_TX_MAC_QOS_S);
-	txc->f.mac_control |= cpu_to_le16(keytype);
-	txc->f.phy_control = cpu_to_le32(0);
+		if (density) {
+			/*
+			 * Watch out!
+			 *
+			 * Otus uses slightly different density values than
+			 * those from the 802.11n spec.
+			 */
 
-	if (no_ack)
-		txc->f.mac_control |= cpu_to_le16(AR9170_TX_MAC_NO_ACK);
+			density = max_t(unsigned int, density + 1, 7u);
+		}
 
-	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
-		txc->s.misc |= CARL9170_TX_SUPER_MISC_CAB;
+		SET_VAL(CARL9170_TX_SUPER_AMPDU_DENSITY,
+			txc->s.ampdu_settings, density);
 
-	txrate = &info->control.rates[0];
-	if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
-		txc->f.mac_control |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
-	else if (carl9170_tx_cts_check(ar, txrate))
-		txc->f.mac_control |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
+		SET_VAL(CARL9170_TX_SUPER_AMPDU_FACTOR,
+			txc->s.ampdu_settings, factor);
 
-	SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[0], txrate->count);
-	txc->f.phy_control |= carl9170_tx_physet(ar, info, txrate);
-
-	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-		for (i = 1; i < CARL9170_TX_MAX_RATES; i++) {
+		for (i = 0; i < CARL9170_TX_MAX_RATES; i++) {
 			txrate = &info->control.rates[i];
-			if (txrate->idx >= 0)
+			if (txrate->idx >= 0) {
+				txc->s.ri[i] =
+					CARL9170_TX_SUPER_RI_AMPDU;
+
+				if (WARN_ON(!(txrate->flags &
+					      IEEE80211_TX_RC_MCS))) {
+					/*
+					 * Not sure if it's even possible
+					 * to aggregate non-ht rates with
+					 * this HW.
+					 */
+					goto err_out;
+				}
 				continue;
+			}
 
 			txrate->idx = 0;
 			txrate->count = ar->hw->max_rate_tries;
 		}
+
+		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_AGGR);
 	}
 
 	/*
@@ -878,57 +909,21 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_CTS <<
 				CARL9170_TX_SUPER_RI_ERP_PROT_S);
 
-		/*
-		 * unaggregated fallback, in case aggregation
-		 * proves to be unsuccessful and unreliable.
-		 */
-		if (ampdu && i < 3)
-			txc->s.ri[i] |= CARL9170_TX_SUPER_RI_AMPDU;
-
 		txc->s.rr[i - 1] = carl9170_tx_physet(ar, info, txrate);
 	}
 
-	if (ieee80211_is_probe_resp(hdr->frame_control))
-		txc->s.misc |= CARL9170_TX_SUPER_MISC_FILL_IN_TSF;
+	txrate = &info->control.rates[0];
+	SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[0], txrate->count);
 
-	if (ampdu) {
-		unsigned int density, factor;
+	if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
+		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
+	else if (carl9170_tx_cts_check(ar, txrate))
+		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
 
-		if (unlikely(!sta || !cvif))
-			goto err_out;
-
-		density = info->control.sta->ht_cap.ampdu_density;
-		factor = info->control.sta->ht_cap.ampdu_factor;
-
-		if (density) {
-			/*
-			 * Watch out!
-			 *
-			 * Otus uses slightly different density values than
-			 * those from the 802.11n spec.
-			 */
-
-			density = max_t(unsigned int, density + 1, 7u);
-		}
-
-		factor = min_t(unsigned int, 1u, factor);
-
-		SET_VAL(CARL9170_TX_SUPER_AMPDU_DENSITY,
-			txc->s.ampdu_settings, density);
-
-		SET_VAL(CARL9170_TX_SUPER_AMPDU_FACTOR,
-			txc->s.ampdu_settings, factor);
-
-		if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS) {
-			txc->f.mac_control |= cpu_to_le16(AR9170_TX_MAC_AGGR);
-		} else {
-			/*
-			 * Not sure if it's even possible to aggregate
-			 * non-ht rates with this HW.
-			 */
-			WARN_ON_ONCE(1);
-		}
-	}
+	txc->s.len = cpu_to_le16(skb->len);
+	txc->f.length = cpu_to_le16(len + FCS_LEN);
+	txc->f.mac_control = mac_tmp;
+	txc->f.phy_control = carl9170_tx_physet(ar, info, txrate);
 
 	arinfo = (void *)info->rate_driver_data;
 	arinfo->timeout = jiffies;
