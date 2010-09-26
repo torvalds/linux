@@ -576,7 +576,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pread *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	int ret;
+	int ret = 0;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
@@ -586,14 +586,17 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* Bounds check source.  */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
 		ret = -EINVAL;
-		goto err;
+		goto out;
 	}
+
+	if (args->size == 0)
+		goto out;
 
 	if (!access_ok(VERIFY_WRITE,
 		       (char __user *)(uintptr_t)args->data_ptr,
 		       args->size)) {
 		ret = -EFAULT;
-		goto err;
+		goto out;
 	}
 
 	if (i915_gem_object_needs_bit17_swizzle(obj)) {
@@ -605,7 +608,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 							file_priv);
 	}
 
-err:
+out:
 	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
@@ -1059,14 +1062,17 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	/* Bounds check destination. */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
 		ret = -EINVAL;
-		goto err;
+		goto out;
 	}
+
+	if (args->size == 0)
+		goto out;
 
 	if (!access_ok(VERIFY_READ,
 		       (char __user *)(uintptr_t)args->data_ptr,
 		       args->size)) {
 		ret = -EFAULT;
-		goto err;
+		goto out;
 	}
 
 	/* We can only do the GTT pwrite on untiled buffers, as otherwise
@@ -1100,7 +1106,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		DRM_INFO("pwrite failed %d\n", ret);
 #endif
 
-err:
+out:
 	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
