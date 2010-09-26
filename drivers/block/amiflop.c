@@ -1347,12 +1347,12 @@ static struct request *set_next_request(void)
 	if (fdc_queue == FD_MAX_UNITS)
 		fdc_queue = 0;
 
-	for(cnt = FD_MAX_UNITS; cnt > 0, cnt--) {
+	for(cnt = FD_MAX_UNITS; cnt > 0; cnt--) {
 
 		if (unit[fdc_queue].type->code == FD_NODRIVE) {
 			if (++fdc_queue == FD_MAX_UNITS)
 				fdc_queue = 0;
-			cotinue;
+			continue;
 		}
 
 		q = unit[fdc_queue].gendisk->queue;
@@ -1827,7 +1827,6 @@ static int __init amiga_floppy_probe(struct platform_device *pdev)
 	return 0;
 
 out_probe:
-out_queue:
 	free_irq(IRQ_AMIGA_CIAA_TB, NULL);
 out_irq2:
 	free_irq(IRQ_AMIGA_DSKBLK, NULL);
