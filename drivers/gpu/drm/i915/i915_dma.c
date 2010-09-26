@@ -2221,7 +2221,6 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	mutex_destroy(&file_priv->mutex);
 	kfree(file_priv);
 }
 
