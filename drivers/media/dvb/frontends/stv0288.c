@@ -6,6 +6,8 @@
 	Copyright (C) 2008 Igor M. Liplianin <liplianin@me.by>
 		Removed stb6000 specific tuner code and revised some
 		procedures.
+	2010-09-01 Josef Pavlik <josef@pavlik.it>
+		Fixed diseqc_msg, diseqc_burst and set_tone problems
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -156,14 +158,13 @@ static int stv0288_send_diseqc_msg(struct dvb_frontend *fe,
 
 	stv0288_writeregI(state, 0x09, 0);
 	msleep(30);
-	stv0288_writeregI(state, 0x05, 0x16);
+	stv0288_writeregI(state, 0x05, 0x12);/* modulated mode, single shot */
 
 	for (i = 0; i < m->msg_len; i++) {
 		if (stv0288_writeregI(state, 0x06, m->msg[i]))
 			return -EREMOTEIO;
-		msleep(12);
 	}
-
+	msleep(m->msg_len*12);
 	return 0;
 }
 
@@ -174,13 +175,14 @@ static int stv0288_send_diseqc_burst(struct dvb_frontend *fe,
 
 	dprintk("%s\n", __func__);
 
-	if (stv0288_writeregI(state, 0x05, 0x16))/* burst mode */
+	if (stv0288_writeregI(state, 0x05, 0x03))/* burst mode, single shot */
 		return -EREMOTEIO;
 
 	if (stv0288_writeregI(state, 0x06, burst == SEC_MINI_A ? 0x00 : 0xff))
 		return -EREMOTEIO;
 
-	if (stv0288_writeregI(state, 0x06, 0x12))
+	msleep(15);
+	if (stv0288_writeregI(state, 0x05, 0x12))
 		return -EREMOTEIO;
 
 	return 0;
@@ -192,18 +194,19 @@ static int stv0288_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 
 	switch (tone) {
 	case SEC_TONE_ON:
-		if (stv0288_writeregI(state, 0x05, 0x10))/* burst mode */
+		if (stv0288_writeregI(state, 0x05, 0x10))/* cont carrier */
 			return -EREMOTEIO;
-		return stv0288_writeregI(state, 0x06, 0xff);
+	break;
 
 	case SEC_TONE_OFF:
-		if (stv0288_writeregI(state, 0x05, 0x13))/* burst mode */
+		if (stv0288_writeregI(state, 0x05, 0x12))/* burst mode off*/
 			return -EREMOTEIO;
-		return stv0288_writeregI(state, 0x06, 0x00);
+	break;
 
 	default:
 		return -EINVAL;
 	}
+	return 0;
 }
 
 static u8 stv0288_inittab[] = {
