@@ -333,9 +333,10 @@ struct cx231xx_board {
 	struct cx231xx_reg_seq *dvb_gpio;
 	struct cx231xx_reg_seq *suspend_gpio;
 	struct cx231xx_reg_seq *tuner_gpio;
-	u8 tuner_sif_gpio;
-	u8 tuner_scl_gpio;
-	u8 tuner_sda_gpio;
+		/* Negative means don't use it */
+	s8 tuner_sif_gpio;
+	s8 tuner_scl_gpio;
+	s8 tuner_sda_gpio;
 
 	/* PIN ctrl */
 	u32 ctl_pin_status_mask;

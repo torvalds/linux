@@ -495,10 +495,11 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 	if (dev->board.tuner_gpio) {
 		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
 		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
+	}
+	if (dev->board.tuner_sif_gpio >= 0)
 		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
 
-		/* request some modules if any required */
-	}
+	/* request some modules if any required */
 
 	/* set the mode to Analog mode initially */
 	cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
