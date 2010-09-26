@@ -33,6 +33,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_hw.h"
 #include "nvreg.h"
+#include "nouveau_fbcon.h"
 
 static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -860,6 +861,14 @@ nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       struct drm_framebuffer *fb,
 			       int x, int y, int enter)
 {
+	struct drm_nouveau_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
+
+	if (enter)
+		nouveau_fbcon_save_disable_accel(dev);
+	else
+		nouveau_fbcon_restore_accel(dev);
+
 	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }
 
