@@ -4890,6 +4890,12 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 				break;
 			}
 
+		if ((dev_priv->card_type >= NV_50) && (pllindex == 0)) {
+			NV_ERROR(dev, "Register 0x%08x not found in PLL "
+				 "limits table", pll_lim->reg);
+			return -ENOENT;
+		}
+
 		pll_rec = &bios->data[plloffs + recordlen * pllindex];
 
 		BIOSLOG(bios, "Loading PLL limits for reg 0x%08x\n",
