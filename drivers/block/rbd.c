@@ -241,6 +241,7 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt)
 	rbdc->client = ceph_create_client(opt, rbdc);
 	if (IS_ERR(rbdc->client))
 		goto out_rbdc;
+	opt = NULL; /* Now rbdc->client is responsible for opt */
 
 	ret = ceph_open_session(rbdc->client);
 	if (ret < 0)
@@ -255,13 +256,12 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt)
 
 out_err:
 	ceph_destroy_client(rbdc->client);
-	return ERR_PTR(ret);
-
 out_rbdc:
 	kfree(rbdc);
 out_opt:
-	ceph_destroy_options(opt);
-	return ERR_PTR(-ENOMEM);
+	if (opt)
+		ceph_destroy_options(opt);
+	return ERR_PTR(ret);
 }
 
 /*
@@ -889,8 +889,10 @@ static int rbd_do_op(struct request *rq,
 				  rbd_dev->header.block_name,
 				  ofs, len,
 				  seg_name, &seg_ofs);
-	if (seg_len < 0)
-		return seg_len;
+	if ((s64)seg_len < 0) {
+		ret = seg_len;
+		goto done;
+	}
 
 	payload_len = (flags & CEPH_OSD_FLAG_WRITE ? seg_len : 0);
 
