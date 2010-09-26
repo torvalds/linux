@@ -103,7 +103,7 @@ nouveau_perf_init(struct drm_device *dev)
 			entries   = perf[5];
 		}
 	} else {
-		if (bios->data[bios->offset + 6] < 0x27) {
+		if (bios->data[bios->offset + 6] < 0x25) {
 			legacy_perf_init(dev);
 			return;
 		}
