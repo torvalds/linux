@@ -432,6 +432,12 @@ give_sigsegv:
 	return -EFAULT;
 }
 
+static inline void stepback(struct pt_regs *regs)
+{
+	regs->pc -= 2;
+	regs->orig_d0 = -1;
+}
+
 /*
  * handle the actual delivery of a signal to userspace
  */
@@ -459,7 +465,7 @@ static int handle_signal(int sig,
 			/* fallthrough */
 		case -ERESTARTNOINTR:
 			regs->d0 = regs->orig_d0;
-			regs->pc -= 2;
+			stepback(regs);
 		}
 	}
 
@@ -527,12 +533,12 @@ static void do_signal(struct pt_regs *regs)
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
 			regs->d0 = regs->orig_d0;
-			regs->pc -= 2;
+			stepback(regs);
 			break;
 
 		case -ERESTART_RESTARTBLOCK:
 			regs->d0 = __NR_restart_syscall;
-			regs->pc -= 2;
+			stepback(regs);
 			break;
 		}
 	}
