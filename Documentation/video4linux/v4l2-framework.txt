@@ -551,9 +551,8 @@ from /dev).
 
 After video_unregister_device() returns no new opens can be done. However,
 in the case of USB devices some application might still have one of these
-device nodes open. So after the unregister all file operations will return
-an error as well, except for the ioctl and unlocked_ioctl file operations:
-those will still be passed on since some buffer ioctls may still be needed.
+device nodes open. So after the unregister all file operations (except
+release, of course) will return an error as well.
 
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.

@@ -221,8 +221,8 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct video_device *vdev = video_devdata(filp);
 	int ret;
 
-	/* Allow ioctl to continue even if the device was unregistered.
-	   Things like dequeueing buffers might still be useful. */
+	if (!vdev->fops->ioctl)
+		return -ENOTTY;
 	if (vdev->fops->unlocked_ioctl) {
 		ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
 	} else if (vdev->fops->ioctl) {
