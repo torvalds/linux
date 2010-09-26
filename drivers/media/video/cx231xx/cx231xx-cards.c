@@ -395,14 +395,49 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = 0,
 		} },
 	},
+	[CX231XX_BOARD_PV_PLAYTV_USB_HYBRID] = {
+		.name = "Pixelview PlayTV USB Hybrid",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x00,	/* According with PV cxPolaris.inf file */
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 2,
+		.demod_i2c_master = 1,
+		.has_dvb = 0,		/* FIXME: need driver for mb86a20s */
+		.demod_addr = 0x10,
+		.norm = V4L2_STD_PAL_M,
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id cx231xx_id_table[] = {
 	{USB_DEVICE(0x0572, 0x5A3C),
-	 .driver_info = CX231XX_BOARD_UNKNOWN},
-	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000,0x4fff),
 	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{USB_DEVICE(0x0572, 0x58A2),
 	 .driver_info = CX231XX_BOARD_CNXT_CARRAERA},
@@ -424,6 +459,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{USB_DEVICE(0x2040, 0xc200),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
+	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
+	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
 	{},
 };
 
