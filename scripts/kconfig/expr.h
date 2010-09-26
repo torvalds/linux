@@ -165,7 +165,6 @@ struct menu {
 	struct symbol *sym;
 	struct property *prompt;
 	struct expr *dep;
-	struct expr *dir_dep;
 	unsigned int flags;
 	char *help;
 	struct file *file;
