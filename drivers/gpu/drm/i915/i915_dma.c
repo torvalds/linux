@@ -2173,8 +2173,8 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 
 	file->driver_priv = file_priv;
 
+	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
-	mutex_init(&file_priv->mutex);
 
 	return 0;
 }

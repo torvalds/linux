@@ -1694,11 +1694,11 @@ i915_add_request(struct drm_device *dev,
 	list_add_tail(&request->list, &ring->request_list);
 
 	if (file_priv) {
-		mutex_lock(&file_priv->mutex);
+		spin_lock(&file_priv->mm.lock);
 		request->file_priv = file_priv;
 		list_add_tail(&request->client_list,
 			      &file_priv->mm.request_list);
-		mutex_unlock(&file_priv->mutex);
+		spin_unlock(&file_priv->mm.lock);
 	}
 
 	if (!dev_priv->mm.suspended) {
@@ -1733,11 +1733,15 @@ i915_retire_commands(struct drm_device *dev, struct intel_ring_buffer *ring)
 static inline void
 i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 {
-	if (request->file_priv) {
-		mutex_lock(&request->file_priv->mutex);
-		list_del(&request->client_list);
-		mutex_unlock(&request->file_priv->mutex);
-	}
+	struct drm_i915_file_private *file_priv = request->file_priv;
+
+	if (!file_priv)
+		return;
+
+	spin_lock(&file_priv->mm.lock);
+	list_del(&request->client_list);
+	request->file_priv = NULL;
+	spin_unlock(&file_priv->mm.lock);
 }
 
 static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
@@ -3464,7 +3468,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	u32 seqno = 0;
 	int ret;
 
-	mutex_lock(&file_priv->mutex);
+	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
 		if (time_after_eq(request->emitted_jiffies, recent_enough))
 			break;
@@ -3472,7 +3476,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		ring = request->ring;
 		seqno = request->seqno;
 	}
-	mutex_unlock(&file_priv->mutex);
+	spin_unlock(&file_priv->mm.lock);
 
 	if (seqno == 0)
 		return 0;
@@ -4974,8 +4978,7 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	 * later retire_requests won't dereference our soon-to-be-gone
 	 * file_priv.
 	 */
-	mutex_lock(&dev->struct_mutex);
-	mutex_lock(&file_priv->mutex);
+	spin_lock(&file_priv->mm.lock);
 	while (!list_empty(&file_priv->mm.request_list)) {
 		struct drm_i915_gem_request *request;
 
@@ -4985,8 +4988,7 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 		list_del(&request->client_list);
 		request->file_priv = NULL;
 	}
-	mutex_unlock(&file_priv->mutex);
-	mutex_unlock(&dev->struct_mutex);
+	spin_unlock(&file_priv->mm.lock);
 }
 
 static int
