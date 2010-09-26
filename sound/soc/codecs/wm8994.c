@@ -675,10 +675,6 @@ void handsetMIC_to_baseband_to_headset(void)
 		wm8994_write(0x1E,  0x0006);  //mic vol
 		wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
 	}
-	vol=CONFIG_WM8994_HEADSET_INCALL_VOL;
-	if(vol>0)vol=0;
-	if(vol<-21)vol=-21;
-	wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);  //-21dB
 
 	wm8994_write(0x22,  0x0000);
 	wm8994_write(0x23,  0x0100);
@@ -690,8 +686,11 @@ void handsetMIC_to_baseband_to_headset(void)
 	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
 #endif
 #ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
+	vol=CONFIG_WM8994_HEADSET_INCALL_VOL;
+	if(vol>6)vol=6;
+	if(vol<-12)vol=-12;
+	wm8994_write(0x2B,  (vol+12)/3+1);  //-12~6dB
 	wm8994_write(0x02,  0x6240);
-	wm8994_write(0x2B,  0x0005);  //VRX_MIXINL_VOL
 	wm8994_write(0x2D,  0x0041);  //bit 1 MIXINL_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
 	wm8994_write(0x2E,  0x0081);  //bit 1 MIXINL_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
 #endif

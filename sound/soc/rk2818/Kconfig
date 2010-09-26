@@ -78,11 +78,13 @@ config WM8994_EARPIECE_INCALL_VOL
 	  -27dB to 30dB
 endif
 
+if SND_BB_DIFFERENTIAL_INPUT
 config WM8994_HEADSET_INCALL_VOL
-	default -9
+	default 6
 	int "Setting the wm8994 headset incall vol"
 	help
-	  -21dB to 0dB
+	  -12dB to 6dB
+endif
 
 config WM8994_HEADSET_INCALL_MIC_VOL  
 	default -6
