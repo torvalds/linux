@@ -67,7 +67,8 @@ nv50_pm_clock_get(struct drm_device *dev, u32 id)
 }
 
 void *
-nv50_pm_clock_pre(struct drm_device *dev, u32 id, int khz)
+nv50_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
+		  u32 id, int khz)
 {
 	struct nv50_pm_state *state;
 	int dummy, ret;

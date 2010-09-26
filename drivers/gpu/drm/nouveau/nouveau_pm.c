@@ -31,7 +31,8 @@
 #include <linux/hwmon-sysfs.h>
 
 static int
-nouveau_pm_clock_set(struct drm_device *dev, u8 id, u32 khz)
+nouveau_pm_clock_set(struct drm_device *dev, struct nouveau_pm_level *perflvl,
+		     u8 id, u32 khz)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
@@ -40,7 +41,7 @@ nouveau_pm_clock_set(struct drm_device *dev, u8 id, u32 khz)
 	if (khz == 0)
 		return 0;
 
-	pre_state = pm->clock_pre(dev, id, khz);
+	pre_state = pm->clock_pre(dev, perflvl, id, khz);
 	if (IS_ERR(pre_state))
 		return PTR_ERR(pre_state);
 
@@ -67,10 +68,10 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		}
 	}
 
-	nouveau_pm_clock_set(dev, PLL_CORE, perflvl->core);
-	nouveau_pm_clock_set(dev, PLL_SHADER, perflvl->shader);
-	nouveau_pm_clock_set(dev, PLL_MEMORY, perflvl->memory);
-	nouveau_pm_clock_set(dev, PLL_UNK05, perflvl->unk05);
+	nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
+	nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
+	nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
+	nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
 
 	pm->cur = perflvl;
 	return 0;
