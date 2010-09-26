@@ -2445,6 +2445,7 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 
 	/* set default norm */
 	dev->norm = em28xx_video_template.current_norm;
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
 	dev->ctl_input = 0;
 
