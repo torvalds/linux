@@ -275,7 +275,7 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	videobuf_waiton(&buf->vb, 0, 0);
+	videobuf_waiton(vq, &buf->vb, 0, 0);
 	videobuf_dma_unmap(vq->dev, dma);
 	videobuf_dma_free(dma);
 

@@ -180,7 +180,8 @@ static inline void videobuf_queue_unlock(struct videobuf_queue *q)
 		mutex_unlock(&q->vb_lock);
 }
 
-int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
+int videobuf_waiton(struct videobuf_queue *q, struct videobuf_buffer *vb,
+		int non_blocking, int intr);
 int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		struct v4l2_framebuffer *fbuf);
 

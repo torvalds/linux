@@ -463,7 +463,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx2_buffer *buf)
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 
 	videobuf_dma_contig_free(vq, vb);
 	dev_dbg(&icd->dev, "%s freed\n", __func__);

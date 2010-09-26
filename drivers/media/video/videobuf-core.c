@@ -73,25 +73,46 @@ struct videobuf_buffer *videobuf_alloc_vb(struct videobuf_queue *q)
 }
 EXPORT_SYMBOL_GPL(videobuf_alloc_vb);
 
-#define WAITON_CONDITION (vb->state != VIDEOBUF_ACTIVE &&\
-				vb->state != VIDEOBUF_QUEUED)
-int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr)
+static int is_state_active_or_queued(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
+	unsigned long flags;
+	bool rc;
+
+	spin_lock_irqsave(q->irqlock, flags);
+	rc = vb->state != VIDEOBUF_ACTIVE && vb->state != VIDEOBUF_QUEUED;
+	spin_unlock_irqrestore(q->irqlock, flags);
+	return rc;
+};
+
+int videobuf_waiton(struct videobuf_queue *q, struct videobuf_buffer *vb,
+		int non_blocking, int intr)
+{
+	bool is_ext_locked;
+	int ret = 0;
+
 	MAGIC_CHECK(vb->magic, MAGIC_BUFFER);
 
 	if (non_blocking) {
-		if (WAITON_CONDITION)
+		if (is_state_active_or_queued(q, vb))
 			return 0;
-		else
-			return -EAGAIN;
+		return -EAGAIN;
 	}
 
-	if (intr)
-		return wait_event_interruptible(vb->done, WAITON_CONDITION);
-	else
-		wait_event(vb->done, WAITON_CONDITION);
+	is_ext_locked = q->ext_lock && mutex_is_locked(q->ext_lock);
 
-	return 0;
+	/* Release vdev lock to prevent this wait from blocking outside access to
+	   the device. */
+	if (is_ext_locked)
+		mutex_unlock(q->ext_lock);
+	if (intr)
+		ret = wait_event_interruptible(vb->done, is_state_active_or_queued(q, vb));
+	else
+		wait_event(vb->done, is_state_active_or_queued(q, vb));
+	/* Relock */
+	if (is_ext_locked)
+		mutex_lock(q->ext_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(videobuf_waiton);
 
@@ -671,7 +692,7 @@ static int stream_next_buffer(struct videobuf_queue *q,
 		goto done;
 
 	buf = list_entry(q->stream.next, struct videobuf_buffer, stream);
-	retval = videobuf_waiton(buf, nonblocking, 1);
+	retval = videobuf_waiton(q, buf, nonblocking, 1);
 	if (retval < 0)
 		goto done;
 
@@ -799,7 +820,7 @@ static ssize_t videobuf_read_zerocopy(struct videobuf_queue *q,
 	spin_lock_irqsave(q->irqlock, flags);
 	q->ops->buf_queue(q, q->read_buf);
 	spin_unlock_irqrestore(q->irqlock, flags);
-	retval = videobuf_waiton(q->read_buf, 0, 0);
+	retval = videobuf_waiton(q, q->read_buf, 0, 0);
 	if (0 == retval) {
 		CALL(q, sync, q, q->read_buf);
 		if (VIDEOBUF_ERROR == q->read_buf->state)
@@ -911,7 +932,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
 	/* wait until capture is done */
-	retval = videobuf_waiton(q->read_buf, nonblocking, 1);
+	retval = videobuf_waiton(q, q->read_buf, nonblocking, 1);
 	if (0 != retval)
 		goto done;
 
@@ -1061,7 +1082,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 			list_del(&q->read_buf->stream);
 			q->read_off = 0;
 		}
-		rc = videobuf_waiton(q->read_buf, nonblocking, 1);
+		rc = videobuf_waiton(q, q->read_buf, nonblocking, 1);
 		if (rc < 0) {
 			if (0 == retval)
 				retval = rc;

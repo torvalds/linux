@@ -420,7 +420,7 @@ static void omap24xxcam_vbq_release(struct videobuf_queue *vbq,
 	struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
 
 	/* wait for buffer, especially to get out of the sgdma queue */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vbq, vb, 0, 0);
 	if (vb->memory == V4L2_MEMORY_MMAP) {
 		dma_unmap_sg(vbq->dev, dma->sglist, dma->sglen,
 			     dma->direction);

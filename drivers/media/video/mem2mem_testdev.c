@@ -848,7 +848,7 @@ static void queue_init(void *priv, struct videobuf_queue *vq,
 
 	videobuf_queue_vmalloc_init(vq, &m2mtest_qops, ctx->dev->v4l2_dev.dev,
 				    &ctx->dev->irqlock, type, V4L2_FIELD_NONE,
-				    sizeof(struct m2mtest_buffer), priv);
+				    sizeof(struct m2mtest_buffer), priv, NULL);
 }
 
 

@@ -185,7 +185,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx3_camera_buffer *buf
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 	if (txd) {
 		ichan = to_idmac_chan(txd->chan);
 		async_tx_ack(txd);

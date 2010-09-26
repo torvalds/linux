@@ -217,7 +217,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 	BUG_ON(in_interrupt());
-	videobuf_waiton(&buf->vb,0,0);
+	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);

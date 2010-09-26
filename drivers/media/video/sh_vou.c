@@ -230,7 +230,7 @@ static void free_buffer(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	BUG_ON(in_interrupt());
 
 	/* Wait until this buffer is no longer in STATE_QUEUED or STATE_ACTIVE */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 	videobuf_dma_contig_free(vq, vb);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
