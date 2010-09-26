@@ -1044,7 +1044,7 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	/* transfer to the chip */
 	dprintk(2, "Loading firmware to GPIO...\n");
 	p_fw_data = (u32 *)firmware->data;
-	dprintk(2, "firmware->size=%d\n", firmware->size);
+	dprintk(2, "firmware->size=%zd\n", firmware->size);
 	for (transfer_size = 0; transfer_size < firmware->size;
 		 transfer_size += 4) {
 		fw_data = *p_fw_data;

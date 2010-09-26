@@ -1605,7 +1605,7 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 	if_freq = 16000000;
     }
 
-    cx231xx_info("Enter IF=%d\n",
+    cx231xx_info("Enter IF=%zd\n",
 		 sizeof(Dif_set_array)/sizeof(struct dif_settings));
     for (i = 0; i < sizeof(Dif_set_array)/sizeof(struct dif_settings); i++) {
 	if (Dif_set_array[i].if_freq == if_freq) {
