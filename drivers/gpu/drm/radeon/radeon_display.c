@@ -138,6 +138,38 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 		legacy_crtc_load_lut(crtc);
 }
 
+void radeon_crtc_save_lut(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	int i;
+
+	if (!crtc->enabled)
+		return;
+
+	for (i = 0; i < 256; i++) {
+		radeon_crtc->lut_r_copy[i] = radeon_crtc->lut_r[i];
+		radeon_crtc->lut_g_copy[i] = radeon_crtc->lut_g[i];
+		radeon_crtc->lut_b_copy[i] = radeon_crtc->lut_b[i];
+	}
+}
+
+void radeon_crtc_restore_lut(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	int i;
+
+	if (!crtc->enabled)
+		return;
+
+	for (i = 0; i < 256; i++) {
+		radeon_crtc->lut_r[i] = radeon_crtc->lut_r_copy[i];
+		radeon_crtc->lut_g[i] = radeon_crtc->lut_g_copy[i];
+		radeon_crtc->lut_b[i] = radeon_crtc->lut_b_copy[i];
+	}
+
+	radeon_crtc_load_lut(crtc);
+}
+
 /** Sets the color ramps on behalf of fbcon */
 void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			      u16 blue, int regno)

@@ -355,6 +355,11 @@ int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				int x, int y, int enter)
 {
+	if (enter)
+		radeon_crtc_save_lut(crtc);
+	else
+		radeon_crtc_restore_lut(crtc);
+
 	return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
 }
 
