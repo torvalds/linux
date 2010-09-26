@@ -58,7 +58,7 @@ sys_call_table:
 	.quad sys_open				/* 45 */
 	.quad alpha_ni_syscall
 	.quad sys_getxgid
-	.quad osf_sigprocmask
+	.quad sys_osf_sigprocmask
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 50 */
 	.quad sys_acct
