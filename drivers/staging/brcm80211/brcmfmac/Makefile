@@ -56,6 +56,7 @@ DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o	\
 	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o	\
 	bcmsdh_sdmmc_linux.o
 
-obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
+#obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
+obj-m += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
 EXTRA_LDFLAGS += --strip-debug
