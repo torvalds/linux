@@ -139,7 +139,7 @@ static void ncp_update_dates(struct inode *inode, struct nw_info_struct *nwi)
 		inode->i_mode = nwi->nfs.mode;
 	}
 
-	inode->i_blocks = (inode->i_size + NCP_BLOCK_SIZE - 1) >> NCP_BLOCK_SHIFT;
+	inode->i_blocks = (i_size_read(inode) + NCP_BLOCK_SIZE - 1) >> NCP_BLOCK_SHIFT;
 
 	inode->i_mtime.tv_sec = ncp_date_dos2unix(nwi->modifyTime, nwi->modifyDate);
 	inode->i_ctime.tv_sec = ncp_date_dos2unix(nwi->creationTime, nwi->creationDate);
@@ -158,18 +158,21 @@ static void ncp_update_attrs(struct inode *inode, struct ncp_entry_info *nwinfo)
 		inode->i_mode = server->m.dir_mode;
 		/* for directories dataStreamSize seems to be some
 		   Object ID ??? */
-		inode->i_size = NCP_BLOCK_SIZE;
+		i_size_write(inode, NCP_BLOCK_SIZE);
 	} else {
+		u32 size;
+
 		inode->i_mode = server->m.file_mode;
-		inode->i_size = le32_to_cpu(nwi->dataStreamSize);
+		size = le32_to_cpu(nwi->dataStreamSize);
+		i_size_write(inode, size);
 #ifdef CONFIG_NCPFS_EXTRAS
 		if ((server->m.flags & (NCP_MOUNT_EXTRAS|NCP_MOUNT_SYMLINKS)) 
 		 && (nwi->attributes & aSHARED)) {
 			switch (nwi->attributes & (aHIDDEN|aSYSTEM)) {
 				case aHIDDEN:
 					if (server->m.flags & NCP_MOUNT_SYMLINKS) {
-						if (/* (inode->i_size >= NCP_MIN_SYMLINK_SIZE)
-						 && */ (inode->i_size <= NCP_MAX_SYMLINK_SIZE)) {
+						if (/* (size >= NCP_MIN_SYMLINK_SIZE)
+						 && */ (size <= NCP_MAX_SYMLINK_SIZE)) {
 							inode->i_mode = (inode->i_mode & ~S_IFMT) | S_IFLNK;
 							NCP_FINFO(inode)->flags |= NCPI_KLUDGE_SYMLINK;
 							break;
@@ -208,7 +211,7 @@ void ncp_update_inode2(struct inode* inode, struct ncp_entry_info *nwinfo)
 }
 
 /*
- * Fill in the inode based on the ncp_entry_info structure.
+ * Fill in the inode based on the ncp_entry_info structure.  Used only for brand new inodes.
  */
 static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 {
@@ -254,6 +257,7 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 	if (inode) {
 		atomic_set(&NCP_FINFO(inode)->opened, info->opened);
 
+		inode->i_mapping->backing_dev_info = sb->s_bdi;
 		inode->i_ino = info->ino;
 		ncp_set_attr(inode, info);
 		if (S_ISREG(inode->i_mode)) {
@@ -565,10 +569,12 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 /*	server->conn_status = 0;	*/
 /*	server->root_dentry = NULL;	*/
 /*	server->root_setuped = 0;	*/
+	mutex_init(&server->root_setup_lock);
 #ifdef CONFIG_NCPFS_PACKET_SIGNING
 /*	server->sign_wanted = 0;	*/
 /*	server->sign_active = 0;	*/
 #endif
+	init_rwsem(&server->auth_rwsem);
 	server->auth.auth_type = NCP_AUTH_NONE;
 /*	server->auth.object_name_len = 0;	*/
 /*	server->auth.object_name = NULL;	*/
@@ -593,7 +599,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server->nls_io = load_nls_default();
 #endif /* CONFIG_NCPFS_NLS */
 
-	server->dentry_ttl = 0;	/* no caching */
+	atomic_set(&server->dentry_ttl, 0);	/* no caching */
 
 	INIT_LIST_HEAD(&server->tx.requests);
 	mutex_init(&server->rcv.creq_mutex);
@@ -658,8 +664,10 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 				goto out_disconnect;
 			}
 		}
+		ncp_lock_server(server);
 		if (options & 2)
 			server->sign_wanted = 1;
+		ncp_unlock_server(server);
 	}
 	else 
 #endif	/* CONFIG_NCPFS_PACKET_SIGNING */
@@ -720,6 +728,9 @@ out_nls:
 	unload_nls(server->nls_io);
 	unload_nls(server->nls_vol);
 #endif
+	mutex_destroy(&server->rcv.creq_mutex);
+	mutex_destroy(&server->root_setup_lock);
+	mutex_destroy(&server->mutex);
 out_fput2:
 	if (server->info_filp)
 		fput(server->info_filp);
@@ -743,8 +754,6 @@ static void ncp_put_super(struct super_block *sb)
 {
 	struct ncp_server *server = NCP_SBP(sb);
 
-	lock_kernel();
-
 	ncp_lock_server(server);
 	ncp_disconnect(server);
 	ncp_unlock_server(server);
@@ -756,6 +765,9 @@ static void ncp_put_super(struct super_block *sb)
 	unload_nls(server->nls_vol);
 	unload_nls(server->nls_io);
 #endif /* CONFIG_NCPFS_NLS */
+	mutex_destroy(&server->rcv.creq_mutex);
+	mutex_destroy(&server->root_setup_lock);
+	mutex_destroy(&server->mutex);
 
 	if (server->info_filp)
 		fput(server->info_filp);
@@ -771,8 +783,6 @@ static void ncp_put_super(struct super_block *sb)
 	vfree(server->packet);
 	sb->s_fs_info = NULL;
 	kfree(server);
-
-	unlock_kernel();
 }
 
 static int ncp_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -851,10 +861,8 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	result = -EIO;
 
-	lock_kernel();	
-
 	server = NCP_SERVER(inode);
-	if ((!server) || !ncp_conn_valid(server))
+	if (!server)	/* How this could happen? */
 		goto out;
 
 	/* ageing the dentry to force validation */
@@ -981,8 +989,6 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		result = ncp_modify_file_or_subdir_dos_info(NCP_SERVER(inode),
 				      inode, info_mask, &info);
 		if (result != 0) {
-			result = -EACCES;
-
 			if (info_mask == (DM_CREATE_TIME | DM_CREATE_DATE)) {
 				/* NetWare seems not to allow this. I
 				   do not know why. So, just tell the
@@ -1005,7 +1011,8 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 	mark_inode_dirty(inode);
 
 out:
-	unlock_kernel();
+	if (result > 0)
+		result = -EACCES;
 	return result;
 }
 
