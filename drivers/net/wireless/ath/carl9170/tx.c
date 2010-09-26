@@ -1042,41 +1042,8 @@ retry:
 		queue = TID_TO_WME_AC(tid_info->tid);
 
 		spin_lock_bh(&tid_info->lock);
-		if (tid_info->state != CARL9170_TID_STATE_XMIT) {
-			first = skb_peek(&tid_info->queue);
-			if (first) {
-				struct ieee80211_tx_info *txinfo;
-				struct carl9170_tx_info *arinfo;
-
-				txinfo = IEEE80211_SKB_CB(first);
-				arinfo = (void *) txinfo->rate_driver_data;
-
-				if (time_is_after_jiffies(arinfo->timeout +
-				    msecs_to_jiffies(CARL9170_QUEUE_TIMEOUT))
-				    == true)
-					goto processed;
-
-				/*
-				 * We've been waiting for the frame which
-				 * matches "snx" (start sequence of the
-				 * next aggregate) for some time now.
-				 *
-				 * But it never arrived. Therefore
-				 * jump to the next available frame
-				 * and kick-start the transmission.
-				 *
-				 * Note: This might induce odd latency
-				 * spikes because the receiver will be
-				 * waiting for the lost frame too.
-				 */
-				ar->tx_ampdu_timeout++;
-
-				tid_info->snx = carl9170_get_seq(first);
-				tid_info->state = CARL9170_TID_STATE_XMIT;
-			} else {
-				goto processed;
-			}
-		}
+		if (tid_info->state != CARL9170_TID_STATE_XMIT)
+			goto processed;
 
 		tid_info->counter++;
 		first = skb_peek(&tid_info->queue);

@@ -798,8 +798,6 @@ DEBUGFS_READONLY_FILE(tx_total_queued, 20, "%d",
 		      atomic_read(&ar->tx_total_queued));
 DEBUGFS_READONLY_FILE(tx_ampdu_scheduler, 20, "%d",
 		      atomic_read(&ar->tx_ampdu_scheduler));
-DEBUGFS_READONLY_FILE(tx_ampdu_timeout, 20, "%d",
-		      ar->tx_ampdu_timeout);
 
 DEBUGFS_READONLY_FILE(tx_total_pending, 20, "%d",
 		      atomic_read(&ar->tx_total_pending));
@@ -871,8 +869,6 @@ void carl9170_debugfs_register(struct ar9170 *ar)
 
 	DEBUGFS_ADD(ampdu_density);
 	DEBUGFS_ADD(ampdu_factor);
-
-	DEBUGFS_ADD(tx_ampdu_timeout);
 
 	DEBUGFS_ADD(tx_janitor_last_run);
 

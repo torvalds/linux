@@ -364,7 +364,6 @@ struct ar9170 {
 	unsigned int tx_dropped;
 	unsigned int tx_ack_failures;
 	unsigned int tx_fcs_errors;
-	unsigned int tx_ampdu_timeout;
 	unsigned int rx_dropped;
 
 	/* EEPROM */
