@@ -569,7 +569,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	/* Initialize the tuner */
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		dev->sd_tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-						    &dev->i2c_bus[1].i2c_adap,
+						    &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 						    "tuner", "tuner",
 						    dev->tuner_addr, NULL);
 		if (dev->sd_tuner == NULL)

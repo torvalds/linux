@@ -347,7 +347,7 @@ static int attach_xc5000(u8 addr, struct cx231xx *dev)
 	struct xc5000_config cfg;
 
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.i2c_adap = &dev->i2c_bus[1].i2c_adap;
+	cfg.i2c_adap = &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap;
 	cfg.i2c_addr = addr;
 
 	if (!dev->dvb->frontend) {
@@ -573,7 +573,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1432_attach,
 					&dvico_s5h1432_config,
-					&dev->i2c_bus[2].i2c_adap);
+					&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
@@ -586,7 +586,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(xc5000_attach, dev->dvb->frontend,
-			       &dev->i2c_bus[1].i2c_adap,
+			       &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 			       &cnxt_rde250_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -598,7 +598,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1411_attach,
 					       &xc5000_s5h1411_config,
-					       &dev->i2c_bus[2].i2c_adap);
+					       &dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
@@ -611,7 +611,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(xc5000_attach, dev->dvb->frontend,
-			       &dev->i2c_bus[1].i2c_adap,
+			       &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 			       &cnxt_rdu250_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -621,7 +621,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1432_attach,
 					&dvico_s5h1432_config,
-					&dev->i2c_bus[2].i2c_adap);
+					&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
@@ -634,7 +634,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(tda18271_attach, dev->dvb->frontend,
-			       0x60, &dev->i2c_bus[1].i2c_adap,
+			       0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 			       &cnxt_rde253s_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -644,7 +644,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1411_attach,
 					       &tda18271_s5h1411_config,
-					       &dev->i2c_bus[2].i2c_adap);
+					       &dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
@@ -657,7 +657,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(tda18271_attach, dev->dvb->frontend,
-			       0x60, &dev->i2c_bus[1].i2c_adap,
+			       0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 			       &cnxt_rde253s_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -666,11 +666,11 @@ static int dvb_init(struct cx231xx *dev)
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 
 		printk(KERN_INFO "%s: looking for tuner / demod on i2c bus: %d\n",
-		       __func__, i2c_adapter_id(&dev->i2c_bus[1].i2c_adap));
+		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
 
 		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
 						&hcw_lgdt3305_config,
-						&dev->i2c_bus[1].i2c_adap);
+						&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
@@ -683,7 +683,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend,
-			   0x60, &dev->i2c_bus[1].i2c_adap,
+			   0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
 			   &hcw_tda18271_config);
 		break;
 
