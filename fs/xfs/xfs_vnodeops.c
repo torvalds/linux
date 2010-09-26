@@ -114,7 +114,7 @@ xfs_setattr(
 		 */
 		ASSERT(udqp == NULL);
 		ASSERT(gdqp == NULL);
-		code = xfs_qm_vop_dqalloc(ip, uid, gid, ip->i_d.di_projid,
+		code = xfs_qm_vop_dqalloc(ip, uid, gid, xfs_get_projid(ip),
 					 qflags, &udqp, &gdqp);
 		if (code)
 			return code;
@@ -1268,7 +1268,7 @@ xfs_create(
 	boolean_t		unlock_dp_on_error = B_FALSE;
 	uint			cancel_flags;
 	int			committed;
-	xfs_prid_t		prid;
+	prid_t			prid;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	uint			resblks;
@@ -1281,9 +1281,9 @@ xfs_create(
 		return XFS_ERROR(EIO);
 
 	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		prid = dp->i_d.di_projid;
+		prid = xfs_get_projid(dp);
 	else
-		prid = dfltprid;
+		prid = XFS_PROJID_DEFAULT;
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.
@@ -1882,7 +1882,7 @@ xfs_link(
 	 * the tree quota mechanism could be circumvented.
 	 */
 	if (unlikely((tdp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
-		     (tdp->i_d.di_projid != sip->i_d.di_projid))) {
+		     (xfs_get_projid(tdp) != xfs_get_projid(sip)))) {
 		error = XFS_ERROR(EXDEV);
 		goto error_return;
 	}
@@ -1956,7 +1956,7 @@ xfs_symlink(
 	int			byte_cnt;
 	int			n;
 	xfs_buf_t		*bp;
-	xfs_prid_t		prid;
+	prid_t			prid;
 	struct xfs_dquot	*udqp, *gdqp;
 	uint			resblks;
 
@@ -1979,9 +1979,9 @@ xfs_symlink(
 
 	udqp = gdqp = NULL;
 	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		prid = dp->i_d.di_projid;
+		prid = xfs_get_projid(dp);
 	else
-		prid = (xfs_prid_t)dfltprid;
+		prid = XFS_PROJID_DEFAULT;
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.

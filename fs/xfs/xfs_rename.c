@@ -183,7 +183,7 @@ xfs_rename(
 	 * tree quota mechanism would be circumvented.
 	 */
 	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
-		     (target_dp->i_d.di_projid != src_ip->i_d.di_projid))) {
+		     (xfs_get_projid(target_dp) != xfs_get_projid(src_ip)))) {
 		error = XFS_ERROR(EXDEV);
 		goto error_return;
 	}

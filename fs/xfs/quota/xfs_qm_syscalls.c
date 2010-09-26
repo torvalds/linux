@@ -1165,7 +1165,7 @@ xfs_qm_internalqcheck_adjust(
 	}
 	xfs_qm_internalqcheck_get_dquots(mp,
 					(xfs_dqid_t) ip->i_d.di_uid,
-					(xfs_dqid_t) ip->i_d.di_projid,
+					(xfs_dqid_t) xfs_get_projid(ip),
 					(xfs_dqid_t) ip->i_d.di_gid,
 					&ud, &gd);
 	if (XFS_IS_UQUOTA_ON(mp)) {
