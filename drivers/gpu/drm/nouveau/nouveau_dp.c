@@ -317,7 +317,8 @@ train:
 		return false;
 
 	config[0] = nv_encoder->dp.link_nr;
-	if (nv_encoder->dp.dpcd_version >= 0x11)
+	if (nv_encoder->dp.dpcd_version >= 0x11 &&
+	    nv_encoder->dp.enhanced_frame)
 		config[0] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
 	ret = nouveau_dp_lane_count_set(encoder, config[0]);
@@ -468,9 +469,11 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	    !nv_encoder->dcb->dpconf.link_bw)
 		nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
 
-	nv_encoder->dp.link_nr = dpcd[2] & 0xf;
+	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT;
 	if (nv_encoder->dp.link_nr > nv_encoder->dcb->dpconf.link_nr)
 		nv_encoder->dp.link_nr = nv_encoder->dcb->dpconf.link_nr;
+
+	nv_encoder->dp.enhanced_frame = (dpcd[2] & DP_ENHANCED_FRAME_CAP);
 
 	return true;
 }
