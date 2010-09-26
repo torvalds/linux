@@ -1453,9 +1453,6 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 				while ((skb = __skb_dequeue(&tid_info->queue)))
 					__skb_queue_tail(&free, skb);
 				spin_unlock_bh(&tid_info->lock);
-
-				ieee80211_stop_tx_ba_session(sta,
-					tid_info->tid);
 			}
 			rcu_read_unlock();
 		}
