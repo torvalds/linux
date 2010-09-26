@@ -42,17 +42,18 @@
 #define SIO_REG_DEVID		0x20	/* Device ID (2 bytes) */
 #define SIO_REG_DEVREV		0x22	/* Device revision */
 #define SIO_REG_MANID		0x23	/* Fintek ID (2 bytes) */
+#define SIO_REG_MFUNCT1		0x29	/* Multi function select 1 */
+#define SIO_REG_MFUNCT2		0x2a	/* Multi function select 2 */
+#define SIO_REG_MFUNCT3		0x2b	/* Multi function select 3 */
 #define SIO_REG_ENABLE		0x30	/* Logical device enable */
 #define SIO_REG_ADDR		0x60	/* Logical device address (2 bytes) */
 
 #define SIO_FINTEK_ID		0x1934	/* Manufacturers ID */
-#define SIO_F71808_ID		0x0901  /* Chipset ID */
-#define SIO_F71858_ID		0x0507  /* Chipset ID */
+#define SIO_F71808_ID		0x0901	/* Chipset ID */
+#define SIO_F71858_ID		0x0507	/* Chipset ID */
 #define SIO_F71862_ID		0x0601	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
-
-#define	F71882FG_REG_START		0x01
 
 #define F71808FG_REG_WDO_CONF		0xf0
 #define F71808FG_REG_WDT_CONF		0xf5
@@ -76,7 +77,7 @@ module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
 static const int max_timeout = WATCHDOG_MAX_TIMEOUT;
-static int timeout = 60;	/* default timeout in seconds */
+static int timeout = WATCHDOG_TIMEOUT;	/* default timeout in seconds */
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <="
@@ -299,19 +300,19 @@ static int watchdog_start(void)
 	switch (watchdog.type) {
 	case f71808fg:
 		/* Set pin 21 to GPIO23/WDTRST#, then to WDTRST# */
-		superio_clear_bit(watchdog.sioaddr, 0x2a, 3);
-		superio_clear_bit(watchdog.sioaddr, 0x2b, 3);
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_MFUNCT2, 3);
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_MFUNCT3, 3);
 		break;
 
 	case f71882fg:
 		/* Set pin 56 to WDTRST# */
-		superio_set_bit(watchdog.sioaddr, 0x29, 1);
+		superio_set_bit(watchdog.sioaddr, SIO_REG_MFUNCT1, 1);
 		break;
 
 	case f71889fg:
 		/* set pin 40 to WDTRST# */
-		superio_outb(watchdog.sioaddr, 0x2b,
-				superio_inb(watchdog.sioaddr, 0x2b) & 0xcf);
+		superio_outb(watchdog.sioaddr, SIO_REG_MFUNCT3,
+			superio_inb(watchdog.sioaddr, SIO_REG_MFUNCT3) & 0xcf);
 		break;
 
 	default:
