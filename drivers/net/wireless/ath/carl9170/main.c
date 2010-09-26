@@ -230,8 +230,15 @@ static void carl9170_flush(struct ar9170 *ar, bool drop_queued)
 		for (i = 0; i < ar->hw->queues; i++) {
 			struct sk_buff *skb;
 
-			while ((skb = skb_dequeue(&ar->tx_pending[i])))
+			while ((skb = skb_dequeue(&ar->tx_pending[i]))) {
+				struct ieee80211_tx_info *info;
+
+				info = IEEE80211_SKB_CB(skb);
+				if (info->flags & IEEE80211_TX_CTL_AMPDU)
+					atomic_dec(&ar->tx_ampdu_upload);
+
 				carl9170_tx_status(ar, skb, false);
+			}
 		}
 	}
 
@@ -1462,6 +1469,7 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 			skb_queue_walk_safe(&ar->tx_pending[i], skb, tmp) {
 				struct _carl9170_tx_superframe *super;
 				struct ieee80211_hdr *hdr;
+				struct ieee80211_tx_info *info;
 
 				super = (void *) skb->data;
 				hdr = (void *) super->frame_data;
@@ -1470,6 +1478,11 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 					continue;
 
 				__skb_unlink(skb, &ar->tx_pending[i]);
+
+				info = IEEE80211_SKB_CB(skb);
+				if (info->flags & IEEE80211_TX_CTL_AMPDU)
+					atomic_dec(&ar->tx_ampdu_upload);
+
 				carl9170_tx_status(ar, skb, false);
 			}
 			spin_unlock_bh(&ar->tx_pending[i].lock);
