@@ -1268,36 +1268,39 @@ int cx231xx_set_agc_analog_digital_mux_select(struct cx231xx *dev,
 	return status;
 }
 
-int cx231xx_enable_i2c_for_tuner(struct cx231xx *dev, u8 I2CIndex)
+int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 {
 	u8 value[4] = { 0, 0, 0, 0 };
 	int status = 0;
-
-	cx231xx_info("Changing the i2c port for tuner to %d\n", I2CIndex);
+	bool current_is_port_3;
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER,
 				       PWR_CTL_EN, value, 4);
 	if (status < 0)
 		return status;
 
-	if (I2CIndex == I2C_1) {
-		if (value[0] & I2C_DEMOD_EN) {
-			value[0] &= ~I2C_DEMOD_EN;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-						   PWR_CTL_EN, value, 4);
-		}
-	} else {
-		if (!(value[0] & I2C_DEMOD_EN)) {
-			value[0] |= I2C_DEMOD_EN;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-						   PWR_CTL_EN, value, 4);
-		}
-	}
+	current_is_port_3 = value[0] & I2C_DEMOD_EN ? true : false;
+
+	/* Just return, if already using the right port */
+	if (current_is_port_3 == is_port_3)
+		return 0;
+
+	if (is_port_3)
+		value[0] |= I2C_DEMOD_EN;
+	else
+		value[0] &= ~I2C_DEMOD_EN;
+
+	cx231xx_info("Changing the i2c master port to %d\n",
+		     is_port_3 ?  3 : 1);
+
+	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
+					PWR_CTL_EN, value, 4);
 
 	return status;
 
 }
-EXPORT_SYMBOL_GPL(cx231xx_enable_i2c_for_tuner);
+EXPORT_SYMBOL_GPL(cx231xx_enable_i2c_port_3);
+
 void update_HH_register_after_set_DIF(struct cx231xx *dev)
 {
 /*
@@ -2324,24 +2327,14 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 			msleep(PWR_SLEEP_INTERVAL);
 		}
 
-		if ((dev->model == CX231XX_BOARD_CNXT_CARRAERA) ||
-		    (dev->model == CX231XX_BOARD_CNXT_RDE_250) ||
-		    (dev->model == CX231XX_BOARD_CNXT_SHELBY) ||
-		    (dev->model == CX231XX_BOARD_CNXT_RDU_250)) {
-			/* tuner path to channel 1 from port 3 */
-			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
+		if (dev->board.tuner_type != TUNER_ABSENT) {
+			/* Enable tuner */
+			cx231xx_enable_i2c_port_3(dev, true);
 
 			/* reset the Tuner */
-			cx231xx_gpio_set(dev, dev->board.tuner_gpio);
+			if (dev->board.tuner_gpio)
+				cx231xx_gpio_set(dev, dev->board.tuner_gpio);
 
-			if (dev->cx231xx_reset_analog_tuner)
-				dev->cx231xx_reset_analog_tuner(dev);
-		} else if ((dev->model == CX231XX_BOARD_CNXT_RDE_253S) ||
-			   (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) ||
-			   (dev->model == CX231XX_BOARD_CNXT_RDU_253S) ||
-			   (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER)) {
-			/* tuner path to channel 1 from port 3 */
-			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
 			if (dev->cx231xx_reset_analog_tuner)
 				dev->cx231xx_reset_analog_tuner(dev);
 		}
@@ -2401,33 +2394,23 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 			msleep(PWR_SLEEP_INTERVAL);
 		}
 
-		if ((dev->model == CX231XX_BOARD_CNXT_CARRAERA) ||
-		    (dev->model == CX231XX_BOARD_CNXT_RDE_250) ||
-		    (dev->model == CX231XX_BOARD_CNXT_SHELBY) ||
-		    (dev->model == CX231XX_BOARD_CNXT_RDU_250)) {
-			/* tuner path to channel 1 from port 3 */
-			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
+		if (dev->board.tuner_type != TUNER_ABSENT) {
+			/*
+			 * Enable tuner
+			 *	Hauppauge Exeter seems to need to do something different!
+			 */
+			if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER)
+				cx231xx_enable_i2c_port_3(dev, false);
+			else
+				cx231xx_enable_i2c_port_3(dev, true);
 
 			/* reset the Tuner */
-			cx231xx_gpio_set(dev, dev->board.tuner_gpio);
-
-			if (dev->cx231xx_reset_analog_tuner)
-				dev->cx231xx_reset_analog_tuner(dev);
-		} else if ((dev->model == CX231XX_BOARD_CNXT_RDE_253S) ||
-		    (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) ||
-		    (dev->model == CX231XX_BOARD_CNXT_RDU_253S)) {
-			/* tuner path to channel 1 from port 3 */
-			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
-			if (dev->cx231xx_reset_analog_tuner)
-				dev->cx231xx_reset_analog_tuner(dev);
-		} else if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER) {
-			/* tuner path to channel 1 from port 1 ?? */
-			cx231xx_enable_i2c_for_tuner(dev, I2C_1);
+			if (dev->board.tuner_gpio)
+				cx231xx_gpio_set(dev, dev->board.tuner_gpio);
 
 			if (dev->cx231xx_reset_analog_tuner)
 				dev->cx231xx_reset_analog_tuner(dev);
 		}
-
 		break;
 
 	default:

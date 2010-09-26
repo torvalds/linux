@@ -235,11 +235,11 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 
 	if (dev->USE_ISO) {
 		cx231xx_info("DVB transfer mode is ISO.\n");
-mutex_lock(&dev->i2c_lock);
-		cx231xx_enable_i2c_for_tuner(dev, I2C_1);
+		mutex_lock(&dev->i2c_lock);
+		cx231xx_enable_i2c_port_3(dev, false);
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 4);
-		cx231xx_enable_i2c_for_tuner(dev, I2C_3);
-mutex_unlock(&dev->i2c_lock);
+		cx231xx_enable_i2c_port_3(dev, true);
+		mutex_unlock(&dev->i2c_lock);
 		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 		if (rc < 0)
 			return rc;

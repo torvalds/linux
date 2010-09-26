@@ -1401,9 +1401,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 
 	/* set the I2C master port to 3 on channel 1 */
-	if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
-	    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
-		errCode = cx231xx_enable_i2c_for_tuner(dev, I2C_3);
+	errCode = cx231xx_enable_i2c_port_3(dev, true);
 
 	return errCode;
 }

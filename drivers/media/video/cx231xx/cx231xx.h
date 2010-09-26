@@ -929,7 +929,7 @@ int cx231xx_power_suspend(struct cx231xx *dev);
 int cx231xx_init_ctrl_pin_status(struct cx231xx *dev);
 int cx231xx_set_agc_analog_digital_mux_select(struct cx231xx *dev,
 					      u8 analog_or_digital);
-int cx231xx_enable_i2c_for_tuner(struct cx231xx *dev, u8 I2CIndex);
+int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3);
 
 /* video audio decoder related functions */
 void video_mux(struct cx231xx *dev, int index);
