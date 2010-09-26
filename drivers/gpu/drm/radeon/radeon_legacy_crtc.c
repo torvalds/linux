@@ -353,7 +353,7 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
-				int x, int y)
+				int x, int y, int enter)
 {
 	return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
 }

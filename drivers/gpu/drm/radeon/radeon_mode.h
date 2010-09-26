@@ -516,7 +516,7 @@ extern int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				   struct drm_framebuffer *old_fb);
 extern int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
-					 int x, int y);
+					 int x, int y, int enter);
 extern int atombios_crtc_mode_set(struct drm_crtc *crtc,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode,
@@ -528,7 +528,7 @@ extern int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				 struct drm_framebuffer *old_fb);
 extern int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 				       struct drm_framebuffer *fb,
-				       int x, int y);
+				       int x, int y, int enter);
 extern int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 				   struct drm_framebuffer *fb,
 				   int x, int y, int atomic);

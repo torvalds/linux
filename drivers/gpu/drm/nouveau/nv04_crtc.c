@@ -858,7 +858,7 @@ nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 static int
 nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       struct drm_framebuffer *fb,
-			       int x, int y)
+			       int x, int y, int enter)
 {
 	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }

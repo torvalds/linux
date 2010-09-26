@@ -1180,7 +1180,7 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
                                   struct drm_framebuffer *fb,
-                                  int x, int y)
+                                  int x, int y, int enter)
 {
        struct drm_device *dev = crtc->dev;
        struct radeon_device *rdev = dev->dev_private;

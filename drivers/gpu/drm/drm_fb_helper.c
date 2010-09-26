@@ -263,7 +263,8 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 			funcs->mode_set_base_atomic(mode_set->crtc,
 						    mode_set->fb,
 						    mode_set->x,
-						    mode_set->y);
+						    mode_set->y,
+						    1);
 
 		}
 	}
@@ -309,7 +310,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 		}
 
 		funcs->mode_set_base_atomic(mode_set->crtc, fb, crtc->x,
-					    crtc->y);
+					    crtc->y, 0);
 	}
 
 	return 0;
