@@ -2858,9 +2858,16 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 	if (obj_priv->gtt_space == NULL)
 		return -EINVAL;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, pipelined);
+	ret = i915_gem_object_flush_gpu_write_domain(obj, true);
 	if (ret)
 		return ret;
+
+	/* Currently, we are always called from an non-interruptible context. */
+	if (!pipelined) {
+		ret = i915_gem_object_wait_rendering(obj, false);
+		if (ret)
+			return ret;
+	}
 
 	i915_gem_object_flush_cpu_write_domain(obj);
 
