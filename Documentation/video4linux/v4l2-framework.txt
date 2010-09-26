@@ -453,6 +453,10 @@ You should also set these fields:
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
+- lock: leave to NULL if you want to do all the locking in the driver.
+  Otherwise you give it a pointer to a struct mutex_lock and before any
+  of the v4l2_file_operations is called this lock will be taken by the
+  core and released afterwards.
 - parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
@@ -469,6 +473,22 @@ If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
 
+v4l2_file_operations and locking
+--------------------------------
+
+You can set a pointer to a mutex_lock in struct video_device. Usually this
+will be either a top-level mutex or a mutex per device node. If you want
+finer-grained locking then you have to set it to NULL and do you own locking.
+
+If a lock is specified then all file operations will be serialized on that
+lock. If you use videobuf then you must pass the same lock to the videobuf
+queue initialize function: if videobuf has to wait for a frame to arrive, then
+it will temporarily unlock the lock and relock it afterwards. If your driver
+also waits in the code, then you should do the same to allow other processes
+to access the device node while the first process is waiting for something.
+
+The implementation of a hotplug disconnect should also take the lock before
+calling v4l2_device_disconnect and video_unregister_device.
 
 video_device registration
 -------------------------

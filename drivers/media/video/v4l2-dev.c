@@ -187,33 +187,50 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = -EIO;
 
 	if (!vdev->fops->read)
 		return -EINVAL;
-	if (!video_is_registered(vdev))
-		return -EIO;
-	return vdev->fops->read(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->read(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = -EIO;
 
 	if (!vdev->fops->write)
 		return -EINVAL;
-	if (!video_is_registered(vdev))
-		return -EIO;
-	return vdev->fops->write(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->write(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = DEFAULT_POLLMASK;
 
-	if (!vdev->fops->poll || !video_is_registered(vdev))
-		return DEFAULT_POLLMASK;
-	return vdev->fops->poll(filp, poll);
+	if (!vdev->fops->poll)
+		return ret;
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->poll(filp, poll);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -224,7 +241,11 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (!vdev->fops->ioctl)
 		return -ENOTTY;
 	if (vdev->fops->unlocked_ioctl) {
+		if (vdev->lock)
+			mutex_lock(vdev->lock);
 		ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
+		if (vdev->lock)
+			mutex_unlock(vdev->lock);
 	} else if (vdev->fops->ioctl) {
 		/* TODO: convert all drivers to unlocked_ioctl */
 		lock_kernel();
@@ -239,10 +260,17 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = -ENODEV;
 
-	if (!vdev->fops->mmap || !video_is_registered(vdev))
-		return -ENODEV;
-	return vdev->fops->mmap(filp, vm);
+	if (!vdev->fops->mmap)
+		return ret;
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->mmap(filp, vm);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 /* Override for the open function */
@@ -254,17 +282,24 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	/* Check if the video device is available */
 	mutex_lock(&videodev_lock);
 	vdev = video_devdata(filp);
-	/* return ENODEV if the video device has been removed
-	   already or if it is not registered anymore. */
-	if (vdev == NULL || !video_is_registered(vdev)) {
+	/* return ENODEV if the video device has already been removed. */
+	if (vdev == NULL) {
 		mutex_unlock(&videodev_lock);
 		return -ENODEV;
 	}
 	/* and increase the device refcount */
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
-	if (vdev->fops->open)
-		ret = vdev->fops->open(filp);
+	if (vdev->fops->open) {
+		if (vdev->lock)
+			mutex_lock(vdev->lock);
+		if (video_is_registered(vdev))
+			ret = vdev->fops->open(filp);
+		else
+			ret = -ENODEV;
+		if (vdev->lock)
+			mutex_unlock(vdev->lock);
+	}
 
 	/* decrease the refcount in case of an error */
 	if (ret)
@@ -278,8 +313,13 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 	struct video_device *vdev = video_devdata(filp);
 	int ret = 0;
 
-	if (vdev->fops->release)
+	if (vdev->fops->release) {
+		if (vdev->lock)
+			mutex_lock(vdev->lock);
 		vdev->fops->release(filp);
+		if (vdev->lock)
+			mutex_unlock(vdev->lock);
+	}
 
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */

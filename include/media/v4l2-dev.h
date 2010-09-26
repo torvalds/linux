@@ -94,6 +94,9 @@ struct video_device
 
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
+
+	/* serialization lock */
+	struct mutex *lock;
 };
 
 /* dev to video-device */
