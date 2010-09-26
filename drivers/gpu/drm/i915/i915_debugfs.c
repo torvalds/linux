@@ -45,7 +45,8 @@ enum {
 	BSD_LIST,
 	FLUSHING_LIST,
 	INACTIVE_LIST,
-	PINNED_LIST
+	PINNED_LIST,
+	DEFERRED_FREE_LIST,
 };
 
 static const char *yesno(int v)
@@ -160,6 +161,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case FLUSHING_LIST:
 		seq_printf(m, "Flushing:\n");
 		head = &dev_priv->mm.flushing_list;
+		break;
+	case DEFERRED_FREE_LIST:
+		seq_printf(m, "Deferred free:\n");
+		head = &dev_priv->mm.deferred_free_list;
 		break;
 	default:
 		mutex_unlock(&dev->struct_mutex);
@@ -991,6 +996,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_pinned", i915_gem_object_list_info, 0, (void *) PINNED_LIST},
+	{"i915_gem_deferred_free", i915_gem_object_list_info, 0, (void *) DEFERRED_FREE_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
