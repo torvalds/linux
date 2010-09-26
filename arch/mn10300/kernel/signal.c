@@ -333,8 +333,6 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	regs->d0 = sig;
 	regs->d1 = (unsigned long) &frame->sc;
 
-	set_fs(USER_DS);
-
 	/* the tracer may want to single-step inside the handler */
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
@@ -415,8 +413,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 	regs->d0 = sig;
 	regs->d1 = (long) &frame->info;
-
-	set_fs(USER_DS);
 
 	/* the tracer may want to single-step inside the handler */
 	if (test_thread_flag(TIF_SINGLESTEP))
