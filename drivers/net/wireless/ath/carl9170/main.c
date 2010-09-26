@@ -1248,7 +1248,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_TX_START:
-		if (WARN_ON_ONCE(!sta_info->ht_sta))
+		if (!sta_info->ht_sta)
 			return -EOPNOTSUPP;
 
 		rcu_read_lock();
