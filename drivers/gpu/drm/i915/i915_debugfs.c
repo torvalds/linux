@@ -135,7 +135,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
-	int ret;
+	size_t total_obj_size, total_gtt_size;
+	int count, ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -171,13 +172,19 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		return -EINVAL;
 	}
 
+	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj_priv, head, list) {
 		seq_printf(m, "   ");
 		describe_obj(m, obj_priv);
 		seq_printf(m, "\n");
+		total_obj_size += obj_priv->base.size;
+		total_gtt_size += obj_priv->gtt_space->size;
+		count++;
 	}
-
 	mutex_unlock(&dev->struct_mutex);
+
+	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+		   count, total_obj_size, total_gtt_size);
 	return 0;
 }
 
