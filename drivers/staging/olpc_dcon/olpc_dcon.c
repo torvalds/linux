@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/i2c-id.h>
 #include <linux/pci.h>
-#include <linux/vt_kern.h>
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -634,22 +633,8 @@ static int dcon_reboot_notify(struct notifier_block *nb, unsigned long foo, void
 	return 0;
 }
 
-static int dcon_conswitch_notify(struct notifier_block *nb,
-				 unsigned long mode, void *dummy)
-{
-	if (mode == CONSOLE_EVENT_SWITCH_TEXT)
-		dcon_sleep(DCON_ACTIVE);
-
-	return 0;
-}
-
 static struct notifier_block dcon_nb = {
 	.notifier_call = dcon_reboot_notify,
-	.priority = -1,
-};
-
-static struct notifier_block dcon_console_nb = {
-	.notifier_call = dcon_conswitch_notify,
 	.priority = -1,
 };
 
@@ -663,13 +648,16 @@ static struct notifier_block dcon_panic_nb = {
 	.notifier_call = unfreeze_on_panic,
 };
 
-/* when framebuffer sleeps due to external source (e.g. user idle), power down
- * the DCON. also power up when the framebuffer comes back to life. */
+/*
+ * When the framebuffer sleeps due to external sources (e.g. user idle), power
+ * down the DCON as well.  Power it back up when the fb comes back to life.
+ */
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct fb_event *evdata = data;
 	int *blank = (int *) evdata->data;
-	if (event != FB_EVENT_BLANK || ignore_fb_events)
+	if (((event != FB_EVENT_BLANK) && (event != FB_EVENT_CONBLANK)) ||
+			ignore_fb_events)
 		return 0;
 	dcon_sleep((*blank) ? DCON_SLEEP : DCON_ACTIVE);
 	return 0;
@@ -737,7 +725,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	register_reboot_notifier(&dcon_nb);
-	console_event_register(&dcon_console_nb);
 	atomic_notifier_chain_register(&panic_notifier_list, &dcon_panic_nb);
 	fb_register_client(&fb_nb);
 
@@ -759,7 +746,6 @@ static int dcon_remove(struct i2c_client *client)
 
 	fb_unregister_client(&fb_nb);
 	unregister_reboot_notifier(&dcon_nb);
-	console_event_unregister(&dcon_console_nb);
 	atomic_notifier_chain_unregister(&panic_notifier_list, &dcon_panic_nb);
 
 	free_irq(DCON_IRQ, &dcon_driver);
