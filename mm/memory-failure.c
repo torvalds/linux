@@ -7,21 +7,26 @@
  * Free Software Foundation.
  *
  * High level machine check handler. Handles pages reported by the
- * hardware as being corrupted usually due to a 2bit ECC memory or cache
+ * hardware as being corrupted usually due to a multi-bit ECC memory or cache
  * failure.
+ * 
+ * In addition there is a "soft offline" entry point that allows stop using
+ * not-yet-corrupted-by-suspicious pages without killing anything.
  *
  * Handles page cache pages in various states.	The tricky part
- * here is that we can access any page asynchronous to other VM
- * users, because memory failures could happen anytime and anywhere,
- * possibly violating some of their assumptions. This is why this code
- * has to be extremely careful. Generally it tries to use normal locking
- * rules, as in get the standard locks, even if that means the
- * error handling takes potentially a long time.
- *
- * The operation to map back from RMAP chains to processes has to walk
- * the complete process list and has non linear complexity with the number
- * mappings. In short it can be quite slow. But since memory corruptions
- * are rare we hope to get away with this.
+ * here is that we can access any page asynchronously in respect to 
+ * other VM users, because memory failures could happen anytime and 
+ * anywhere. This could violate some of their assumptions. This is why 
+ * this code has to be extremely careful. Generally it tries to use 
+ * normal locking rules, as in get the standard locks, even if that means 
+ * the error handling takes potentially a long time.
+ * 
+ * There are several operations here with exponential complexity because
+ * of unsuitable VM data structures. For example the operation to map back 
+ * from RMAP chains to processes has to walk the complete process list and 
+ * has non linear complexity with the number. But since memory corruptions
+ * are rare we hope to get away with this. This avoids impacting the core 
+ * VM.
  */
 
 /*
@@ -78,7 +83,7 @@ static int hwpoison_filter_dev(struct page *p)
 		return 0;
 
 	/*
-	 * page_mapping() does not accept slab page
+	 * page_mapping() does not accept slab pages.
 	 */
 	if (PageSlab(p))
 		return -EINVAL;
