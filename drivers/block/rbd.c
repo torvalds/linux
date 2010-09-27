@@ -889,10 +889,6 @@ static int rbd_do_op(struct request *rq,
 				  rbd_dev->header.block_name,
 				  ofs, len,
 				  seg_name, &seg_ofs);
-	if ((s64)seg_len < 0) {
-		ret = seg_len;
-		goto done;
-	}
 
 	payload_len = (flags & CEPH_OSD_FLAG_WRITE ? seg_len : 0);
 
