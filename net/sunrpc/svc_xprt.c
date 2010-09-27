@@ -130,6 +130,7 @@ static void svc_xprt_free(struct kref *kref)
 	struct module *owner = xprt->xpt_class->xcl_owner;
 	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags))
 		svcauth_unix_info_release(xprt);
+	put_net(xprt->xpt_net);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
 }
@@ -159,6 +160,7 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
 	spin_lock_init(&xprt->xpt_lock);
 	set_bit(XPT_BUSY, &xprt->xpt_flags);
 	rpc_init_wait_queue(&xprt->xpt_bc_pending, "xpt_bc_pending");
+	xprt->xpt_net = get_net(&init_net);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 
