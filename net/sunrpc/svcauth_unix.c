@@ -178,8 +178,8 @@ static int ip_map_upcall(struct cache_detail *cd, struct cache_head *h)
 	return sunrpc_cache_pipe_upcall(cd, h, ip_map_request);
 }
 
-static struct ip_map *ip_map_lookup(char *class, struct in6_addr *addr);
-static int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t expiry);
+static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class, struct in6_addr *addr);
+static int __ip_map_update(struct cache_detail *cd, struct ip_map *ipm, struct unix_domain *udom, time_t expiry);
 
 static int ip_map_parse(struct cache_detail *cd,
 			  char *mesg, int mlen)
@@ -249,9 +249,9 @@ static int ip_map_parse(struct cache_detail *cd,
 		dom = NULL;
 
 	/* IPv6 scope IDs are ignored for now */
-	ipmp = ip_map_lookup(class, &sin6.sin6_addr);
+	ipmp = __ip_map_lookup(cd, class, &sin6.sin6_addr);
 	if (ipmp) {
-		err = ip_map_update(ipmp,
+		err = __ip_map_update(cd, ipmp,
 			     container_of(dom, struct unix_domain, h),
 			     expiry);
 	} else
@@ -309,14 +309,15 @@ struct cache_detail ip_map_cache = {
 	.alloc		= ip_map_alloc,
 };
 
-static struct ip_map *ip_map_lookup(char *class, struct in6_addr *addr)
+static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
+		struct in6_addr *addr)
 {
 	struct ip_map ip;
 	struct cache_head *ch;
 
 	strcpy(ip.m_class, class);
 	ipv6_addr_copy(&ip.m_addr, addr);
-	ch = sunrpc_cache_lookup(&ip_map_cache, &ip.h,
+	ch = sunrpc_cache_lookup(cd, &ip.h,
 				 hash_str(class, IP_HASHBITS) ^
 				 hash_ip6(*addr));
 
@@ -326,7 +327,13 @@ static struct ip_map *ip_map_lookup(char *class, struct in6_addr *addr)
 		return NULL;
 }
 
-static int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t expiry)
+static inline struct ip_map *ip_map_lookup(char *class, struct in6_addr *addr)
+{
+	return __ip_map_lookup(&ip_map_cache, class, addr);
+}
+
+static int __ip_map_update(struct cache_detail *cd, struct ip_map *ipm,
+		struct unix_domain *udom, time_t expiry)
 {
 	struct ip_map ip;
 	struct cache_head *ch;
@@ -344,14 +351,18 @@ static int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t ex
 			ip.m_add_change++;
 	}
 	ip.h.expiry_time = expiry;
-	ch = sunrpc_cache_update(&ip_map_cache,
-				 &ip.h, &ipm->h,
+	ch = sunrpc_cache_update(cd, &ip.h, &ipm->h,
 				 hash_str(ipm->m_class, IP_HASHBITS) ^
 				 hash_ip6(ipm->m_addr));
 	if (!ch)
 		return -ENOMEM;
-	cache_put(ch, &ip_map_cache);
+	cache_put(ch, cd);
 	return 0;
+}
+
+static inline int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t expiry)
+{
+	return __ip_map_update(&ip_map_cache, ipm, udom, expiry);
 }
 
 int auth_unix_add_addr(struct in6_addr *addr, struct auth_domain *dom)
