@@ -225,9 +225,11 @@ jumped:
 			err = ops->action(rule, fl, flags, arg);
 
 		if (err != -EAGAIN) {
-			fib_rule_get(rule);
-			arg->rule = rule;
-			goto out;
+			if (likely(atomic_inc_not_zero(&rule->refcnt))) {
+				arg->rule = rule;
+				goto out;
+			}
+			break;
 		}
 	}
 
