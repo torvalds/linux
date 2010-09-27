@@ -57,8 +57,9 @@ unsigned long probe_irq_on(void)
 			 * Some chips need to know about probing in
 			 * progress:
 			 */
-			if (desc->irq_data.chip->set_type)
-				desc->irq_data.chip->set_type(i, IRQ_TYPE_PROBE);
+			if (desc->irq_data.chip->irq_set_type)
+				desc->irq_data.chip->irq_set_type(&desc->irq_data,
+							 IRQ_TYPE_PROBE);
 			desc->irq_data.chip->irq_startup(&desc->irq_data);
 		}
 		raw_spin_unlock_irq(&desc->lock);

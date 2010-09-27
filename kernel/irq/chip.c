@@ -376,6 +376,11 @@ static int compat_irq_set_affinity(struct irq_data *data,
 	return data->chip->set_affinity(data->irq, dest);
 }
 
+static int compat_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	return data->chip->set_type(data->irq, type);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -444,6 +449,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_eoi = compat_irq_eoi;
 	if (chip->set_affinity)
 		chip->irq_set_affinity = compat_irq_set_affinity;
+	if (chip->set_type)
+		chip->irq_set_type = compat_irq_set_type;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc)

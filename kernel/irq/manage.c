@@ -430,12 +430,12 @@ void compat_irq_chip_set_default_handler(struct irq_desc *desc)
 }
 
 int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
-		unsigned long flags)
+		      unsigned long flags)
 {
 	int ret;
 	struct irq_chip *chip = desc->irq_data.chip;
 
-	if (!chip || !chip->set_type) {
+	if (!chip || !chip->irq_set_type) {
 		/*
 		 * IRQF_TRIGGER_* but the PIC does not support multiple
 		 * flow-types?
@@ -446,11 +446,11 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 	}
 
 	/* caller masked out all except trigger mode flags */
-	ret = chip->set_type(irq, flags);
+	ret = chip->irq_set_type(&desc->irq_data, flags);
 
 	if (ret)
-		pr_err("setting trigger mode %d for irq %u failed (%pF)\n",
-				(int)flags, irq, chip->set_type);
+		pr_err("setting trigger mode %lu for irq %u failed (%pF)\n",
+		       flags, irq, chip->irq_set_type);
 	else {
 		if (flags & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
 			flags |= IRQ_LEVEL;
