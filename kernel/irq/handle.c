@@ -75,12 +75,10 @@ EXPORT_SYMBOL_GPL(nr_irqs);
 #ifdef CONFIG_SPARSE_IRQ
 
 static struct irq_desc irq_desc_init = {
-	.irq	    = -1,
-	.status	    = IRQ_DISABLED,
-	.chip	    = &no_irq_chip,
-	.handle_irq = handle_bad_irq,
-	.depth      = 1,
-	.lock       = __RAW_SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
+	.status		= IRQ_DISABLED,
+	.handle_irq	= handle_bad_irq,
+	.depth		= 1,
+	.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
 };
 
 void __ref init_kstat_irqs(struct irq_desc *desc, int node, int nr)
@@ -105,7 +103,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int node)
 	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
 
 	raw_spin_lock_init(&desc->lock);
-	desc->irq = irq;
+	desc->irq_data.irq = irq;
 #ifdef CONFIG_SMP
 	desc->node = node;
 #endif
@@ -151,12 +149,10 @@ void replace_irq_desc(unsigned int irq, struct irq_desc *desc)
 
 static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS_LEGACY-1] = {
-		.irq	    = -1,
-		.status	    = IRQ_DISABLED,
-		.chip	    = &no_irq_chip,
-		.handle_irq = handle_bad_irq,
-		.depth	    = 1,
-		.lock	    = __RAW_SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
+		.status		= IRQ_DISABLED,
+		.handle_irq	= handle_bad_irq,
+		.depth		= 1,
+		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
 	}
 };
 
@@ -183,8 +179,11 @@ int __init early_irq_init(void)
 	kstat_irqs_legacy = kzalloc_node(NR_IRQS_LEGACY * nr_cpu_ids *
 					  sizeof(int), GFP_NOWAIT, node);
 
+	irq_desc_init.irq_data.chip = &no_irq_chip;
+
 	for (i = 0; i < legacy_count; i++) {
-		desc[i].irq = i;
+		desc[i].irq_data.irq = i;
+		desc[i].irq_data.chip = &no_irq_chip;
 #ifdef CONFIG_SMP
 		desc[i].node = node;
 #endif
@@ -241,11 +240,10 @@ out_unlock:
 
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
-		.status = IRQ_DISABLED,
-		.chip = &no_irq_chip,
-		.handle_irq = handle_bad_irq,
-		.depth = 1,
-		.lock = __RAW_SPIN_LOCK_UNLOCKED(irq_desc->lock),
+		.status		= IRQ_DISABLED,
+		.handle_irq	= handle_bad_irq,
+		.depth		= 1,
+		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc->lock),
 	}
 };
 
@@ -264,7 +262,8 @@ int __init early_irq_init(void)
 	count = ARRAY_SIZE(irq_desc);
 
 	for (i = 0; i < count; i++) {
-		desc[i].irq = i;
+		desc[i].irq_data.irq = i;
+		desc[i].irq_data.chip = &no_irq_chip;
 		alloc_desc_masks(&desc[i], 0, true);
 		init_desc_masks(&desc[i]);
 		desc[i].kstat_irqs = kstat_irqs_all[i];

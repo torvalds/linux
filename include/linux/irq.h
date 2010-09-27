@@ -84,6 +84,37 @@ struct proc_dir_entry;
 struct msi_desc;
 
 /**
+ * struct irq_data - per irq and irq chip data passed down to chip functions
+ * @irq:		interrupt number
+ * @node:		node index useful for balancing
+ * @chip:		low level interrupt hardware access
+ * @handler_data:	per-IRQ data for the irq_chip methods
+ * @chip_data:		platform-specific per-chip private data for the chip
+ *			methods, to allow shared chip implementations
+ * @msi_desc:		MSI descriptor
+ * @affinity:		IRQ affinity on SMP
+ * @irq_2_iommu:	iommu with this irq
+ *
+ * The fields here need to overlay the ones in irq_desc until we
+ * cleaned up the direct references and switched everything over to
+ * irq_data.
+ */
+struct irq_data {
+	unsigned int		irq;
+	unsigned int		node;
+	struct irq_chip		*chip;
+	void			*handler_data;
+	void			*chip_data;
+	struct msi_desc		*msi_desc;
+#ifdef CONFIG_SMP
+	cpumask_var_t		affinity;
+#endif
+#ifdef CONFIG_INTR_REMAP
+	struct irq_2_iommu      *irq_2_iommu;
+#endif
+};
+
+/**
  * struct irq_chip - hardware interrupt chip descriptor
  *
  * @name:		name for /proc/interrupts
@@ -140,16 +171,10 @@ struct timer_rand_state;
 struct irq_2_iommu;
 /**
  * struct irq_desc - interrupt descriptor
- * @irq:		interrupt number for this descriptor
+ * @irq_data:		per irq and chip data passed down to chip functions
  * @timer_rand_state:	pointer to timer rand state struct
  * @kstat_irqs:		irq stats per cpu
- * @irq_2_iommu:	iommu with this irq
  * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
- * @chip:		low level interrupt hardware access
- * @msi_desc:		MSI descriptor
- * @handler_data:	per-IRQ data for the irq_chip methods
- * @chip_data:		platform-specific per-chip private data for the chip
- *			methods, to allow shared chip implementations
  * @action:		the irq action chain
  * @status:		status information
  * @depth:		disable-depth, for nested irq_disable() calls
@@ -158,8 +183,6 @@ struct irq_2_iommu;
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
- * @affinity:		IRQ affinity on SMP
- * @node:		node index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
@@ -167,17 +190,32 @@ struct irq_2_iommu;
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
-	unsigned int		irq;
+
+	/*
+	 * This union will go away, once we fixed the direct access to
+	 * irq_desc all over the place. The direct fields are a 1:1
+	 * overlay of irq_data.
+	 */
+	union {
+		struct irq_data		irq_data;
+		struct {
+			unsigned int		irq;
+			unsigned int		node;
+			struct irq_chip		*chip;
+			void			*handler_data;
+			void			*chip_data;
+			struct msi_desc		*msi_desc;
+#ifdef CONFIG_SMP
+			cpumask_var_t		affinity;
+#endif
+#ifdef CONFIG_INTR_REMAP
+			struct irq_2_iommu      *irq_2_iommu;
+#endif
+		};
+	};
 	struct timer_rand_state *timer_rand_state;
 	unsigned int            *kstat_irqs;
-#ifdef CONFIG_INTR_REMAP
-	struct irq_2_iommu      *irq_2_iommu;
-#endif
 	irq_flow_handler_t	handle_irq;
-	struct irq_chip		*chip;
-	struct msi_desc		*msi_desc;
-	void			*handler_data;
-	void			*chip_data;
 	struct irqaction	*action;	/* IRQ action list */
 	unsigned int		status;		/* IRQ status */
 
@@ -188,9 +226,7 @@ struct irq_desc {
 	unsigned int		irqs_unhandled;
 	raw_spinlock_t		lock;
 #ifdef CONFIG_SMP
-	cpumask_var_t		affinity;
 	const struct cpumask	*affinity_hint;
-	unsigned int		node;
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_var_t		pending_mask;
 #endif
@@ -406,15 +442,15 @@ extern int set_irq_chip_data(unsigned int irq, void *data);
 extern int set_irq_type(unsigned int irq, unsigned int type);
 extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 
-#define get_irq_chip(irq)	(irq_to_desc(irq)->chip)
-#define get_irq_chip_data(irq)	(irq_to_desc(irq)->chip_data)
-#define get_irq_data(irq)	(irq_to_desc(irq)->handler_data)
-#define get_irq_msi(irq)	(irq_to_desc(irq)->msi_desc)
+#define get_irq_chip(irq)	(irq_to_desc(irq)->irq_data.chip)
+#define get_irq_chip_data(irq)	(irq_to_desc(irq)->irq_data.chip_data)
+#define get_irq_data(irq)	(irq_to_desc(irq)->irq_data.handler_data)
+#define get_irq_msi(irq)	(irq_to_desc(irq)->irq_data.msi_desc)
 
-#define get_irq_desc_chip(desc)		((desc)->chip)
-#define get_irq_desc_chip_data(desc)	((desc)->chip_data)
-#define get_irq_desc_data(desc)		((desc)->handler_data)
-#define get_irq_desc_msi(desc)		((desc)->msi_desc)
+#define get_irq_desc_chip(desc)		((desc)->irq_data.chip)
+#define get_irq_desc_chip_data(desc)	((desc)->irq_data.chip_data)
+#define get_irq_desc_data(desc)		((desc)->irq_data.handler_data)
+#define get_irq_desc_msi(desc)		((desc)->irq_data.msi_desc)
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
