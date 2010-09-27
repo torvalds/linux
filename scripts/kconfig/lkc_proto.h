@@ -28,6 +28,7 @@ P(symbol_hash,struct symbol *,[SYMBOL_HASHSIZE]);
 
 P(sym_lookup,struct symbol *,(const char *name, int flags));
 P(sym_find,struct symbol *,(const char *name));
+P(sym_expand_string_value,const char *,(const char *in));
 P(sym_re_search,struct symbol **,(const char *pattern));
 P(sym_type_name,const char *,(enum symbol_type type));
 P(sym_calc_value,void,(struct symbol *sym));

@@ -1,8 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-mainmenu "Linux/SCORE Kernel Configuration"
-
 menu "Machine selection"
 
 choice

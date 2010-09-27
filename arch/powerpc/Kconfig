@@ -1,9 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/PowerPC Kernel Configuration"
-
 source "arch/powerpc/platforms/Kconfig.cputype"
 
 config PPC32

@@ -8,7 +8,7 @@ PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-c
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
 else
-Kconfig := arch/$(SRCARCH)/Kconfig
+Kconfig := Kconfig
 endif
 
 xconfig: $(obj)/qconf
