@@ -1025,7 +1025,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	 */
 	dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
-	dev->real_num_tx_queues = MLX4_EN_NUM_TX_RINGS;
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
+	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
