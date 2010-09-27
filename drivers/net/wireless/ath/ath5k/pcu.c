@@ -600,7 +600,7 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	/* Timer3 marks the end of our ATIM window
 	 * a zero length window is not allowed because
 	 * we 'll get no beacons */
-	timer3 = next_beacon + (ah->ah_atim_window ? ah->ah_atim_window : 1);
+	timer3 = next_beacon + 1;
 
 	/*
 	 * Set the beacon register and enable all timers.

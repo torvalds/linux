@@ -1041,7 +1041,6 @@ struct ath5k_hw {
 #define ah_modes		ah_capabilities.cap_mode
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
 
-	u32			ah_atim_window;
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
 
