@@ -1284,6 +1284,12 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 
 	setattr_copy(dentry->d_inode, iattr);
 	mark_inode_dirty(dentry->d_inode);
+	if (iattr->ia_valid & ATTR_MODE) {
+		/* We also want to update ACL when we update mode bits */
+		retval = v9fs_acl_chmod(dentry);
+		if (retval < 0)
+			return retval;
+	}
 	return 0;
 }
 
