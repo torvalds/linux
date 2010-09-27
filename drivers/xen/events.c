@@ -930,7 +930,7 @@ static struct irq_chip xen_dynamic_chip __read_mostly = {
 	.retrigger	= retrigger_dynirq,
 };
 
-static struct irq_chip en_percpu_chip __read_mostly = {
+static struct irq_chip xen_percpu_chip __read_mostly = {
 	.name		= "xen-percpu",
 
 	.disable	= disable_dynirq,
