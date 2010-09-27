@@ -25,6 +25,7 @@
 #include "sdrc.h"
 
 static void __iomem *omap2_ctrl_base;
+static void __iomem *omap4_ctrl_pad_base;
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 struct omap3_scratchpad {
@@ -137,6 +138,7 @@ static struct omap3_control_regs control_context;
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
 
 #define OMAP_CTRL_REGADDR(reg)		(omap2_ctrl_base + (reg))
+#define OMAP4_CTRL_PAD_REGADDR(reg)	(omap4_ctrl_pad_base + (reg))
 
 void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 {
@@ -144,6 +146,12 @@ void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 	if (omap2_globals->ctrl) {
 		omap2_ctrl_base = ioremap(omap2_globals->ctrl, SZ_4K);
 		WARN_ON(!omap2_ctrl_base);
+	}
+
+	/* Static mapping, never released */
+	if (omap2_globals->ctrl_pad) {
+		omap4_ctrl_pad_base = ioremap(omap2_globals->ctrl_pad, SZ_4K);
+		WARN_ON(!omap4_ctrl_pad_base);
 	}
 }
 
@@ -180,6 +188,23 @@ void omap_ctrl_writew(u16 val, u16 offset)
 void omap_ctrl_writel(u32 val, u16 offset)
 {
 	__raw_writel(val, OMAP_CTRL_REGADDR(offset));
+}
+
+/*
+ * On OMAP4 control pad are not addressable from control
+ * core base. So the common omap_ctrl_read/write APIs breaks
+ * Hence export separate APIs to manage the omap4 pad control
+ * registers. This APIs will work only for OMAP4
+ */
+
+u32 omap4_ctrl_pad_readl(u16 offset)
+{
+	return __raw_readl(OMAP4_CTRL_PAD_REGADDR(offset));
+}
+
+void omap4_ctrl_pad_writel(u32 val, u16 offset)
+{
+	__raw_writel(val, OMAP4_CTRL_PAD_REGADDR(offset));
 }
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)

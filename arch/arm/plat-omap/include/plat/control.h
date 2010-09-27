@@ -17,6 +17,10 @@
 #define __ASM_ARCH_CONTROL_H
 
 #include <mach/io.h>
+#include <mach/ctrl_module_core_44xx.h>
+#include <mach/ctrl_module_wkup_44xx.h>
+#include <mach/ctrl_module_pad_core_44xx.h>
+#include <mach/ctrl_module_pad_wkup_44xx.h>
 
 #ifndef __ASSEMBLY__
 #define OMAP242X_CTRL_REGADDR(reg)					\
@@ -204,12 +208,6 @@
 #define OMAP3_PADCONF_SAD2D_MSTANDBY   0x250
 #define OMAP3_PADCONF_SAD2D_IDLEACK    0x254
 
-/* 44xx control status register offset */
-#define OMAP44XX_CONTROL_STATUS		0x2c4
-
-/* 44xx-only CONTROL_GENERAL register offsets */
-#define OMAP44XX_CONTROL_MMC1			0x628
-#define OMAP44XX_CONTROL_PBIAS_LITE		0x600
 /*
  * REVISIT: This list of registers is not comprehensive - there are more
  * that should be added.
@@ -254,23 +252,6 @@
 #define OMAP2_PBIASSPEEDCTRL0		(1 << 2)
 #define OMAP2_PBIASLITEPWRDNZ0		(1 << 1)
 #define OMAP2_PBIASLITEVMODE0		(1 << 0)
-
-/* CONTROL_PBIAS_LITE bits for OMAP4 */
-#define OMAP4_MMC1_PWRDNZ			(1 << 26)
-#define OMAP4_MMC1_PBIASLITE_HIZ_MODE		(1 << 25)
-#define OMAP4_MMC1_PBIASLITE_SUPPLY_HI_OUT	(1 << 24)
-#define OMAP4_MMC1_PBIASLITE_VMODE_ERROR	(1 << 23)
-#define OMAP4_MMC1_PBIASLITE_PWRDNZ		(1 << 22)
-#define OMAP4_MMC1_PBIASLITE_VMODE		(1 << 21)
-#define OMAP4_USBC1_ICUSB_PWRDNZ		(1 << 20)
-
-#define OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP0	(1 << 31)
-#define OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP1	(1 << 30)
-#define OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP2	(1 << 29)
-#define OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP3	(1 << 28)
-#define OMAP4_CONTROL_SDMMC1_DR0_SPEEDCTRL	(1 << 27)
-#define OMAP4_CONTROL_SDMMC1_DR1_SPEEDCTRL	(1 << 26)
-#define OMAP4_CONTROL_SDMMC1_DR2_SPEEDCTRL	(1 << 25)
 
 /* CONTROL_PROG_IO1 bits */
 #define OMAP3630_PRG_SDMMC1_SPEEDCTRL	(1 << 20)
@@ -354,9 +335,11 @@ extern void __iomem *omap_ctrl_base_get(void);
 extern u8 omap_ctrl_readb(u16 offset);
 extern u16 omap_ctrl_readw(u16 offset);
 extern u32 omap_ctrl_readl(u16 offset);
+extern u32 omap4_ctrl_pad_readl(u16 offset);
 extern void omap_ctrl_writeb(u8 val, u16 offset);
 extern void omap_ctrl_writew(u16 val, u16 offset);
 extern void omap_ctrl_writel(u32 val, u16 offset);
+extern void omap4_ctrl_pad_writel(u32 val, u16 offset);
 
 extern void omap3_save_scratchpad_contents(void);
 extern void omap3_clear_scratchpad_contents(void);
@@ -371,9 +354,11 @@ extern void omap3_control_restore_context(void);
 #define omap_ctrl_readb(x)		0
 #define omap_ctrl_readw(x)		0
 #define omap_ctrl_readl(x)		0
+#define omap4_ctrl_pad_readl(x)		0
 #define omap_ctrl_writeb(x, y)		WARN_ON(1)
 #define omap_ctrl_writew(x, y)		WARN_ON(1)
 #define omap_ctrl_writel(x, y)		WARN_ON(1)
+#define omap4_ctrl_pad_writel(x, y)	WARN_ON(1)
 #endif
 #endif	/* __ASSEMBLY__ */
 
