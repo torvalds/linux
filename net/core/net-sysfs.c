@@ -742,34 +742,38 @@ static int rx_queue_add_kobject(struct net_device *net, int index)
 	return error;
 }
 
-static int rx_queue_register_kobjects(struct net_device *net)
+int
+net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 {
 	int i;
 	int error = 0;
 
-	net->queues_kset = kset_create_and_add("queues",
-	    NULL, &net->dev.kobj);
-	if (!net->queues_kset)
-		return -ENOMEM;
-	for (i = 0; i < net->num_rx_queues; i++) {
+	for (i = old_num; i < new_num; i++) {
 		error = rx_queue_add_kobject(net, i);
-		if (error)
+		if (error) {
+			new_num = old_num;
 			break;
+		}
 	}
 
-	if (error)
-		while (--i >= 0)
-			kobject_put(&net->_rx[i].kobj);
+	while (--i >= new_num)
+		kobject_put(&net->_rx[i].kobj);
 
 	return error;
 }
 
+static int rx_queue_register_kobjects(struct net_device *net)
+{
+	net->queues_kset = kset_create_and_add("queues",
+	    NULL, &net->dev.kobj);
+	if (!net->queues_kset)
+		return -ENOMEM;
+	return net_rx_queue_update_kobjects(net, 0, net->real_num_rx_queues);
+}
+
 static void rx_queue_remove_kobjects(struct net_device *net)
 {
-	int i;
-
-	for (i = 0; i < net->num_rx_queues; i++)
-		kobject_put(&net->_rx[i].kobj);
+	net_rx_queue_update_kobjects(net, net->real_num_rx_queues, 0);
 	kset_unregister(net->queues_kset);
 }
 #endif /* CONFIG_RPS */

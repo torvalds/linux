@@ -976,8 +976,11 @@ struct net_device {
 
 	struct netdev_rx_queue	*_rx;
 
-	/* Number of RX queues allocated at alloc_netdev_mq() time  */
+	/* Number of RX queues allocated at register_netdev() time */
 	unsigned int		num_rx_queues;
+
+	/* Number of RX queues currently active in device */
+	unsigned int		real_num_rx_queues;
 #endif
 
 	rx_handler_func_t	*rx_handler;
@@ -1684,6 +1687,17 @@ static inline int netif_is_multiqueue(const struct net_device *dev)
 
 extern void netif_set_real_num_tx_queues(struct net_device *dev,
 					 unsigned int txq);
+
+#ifdef CONFIG_RPS
+extern int netif_set_real_num_rx_queues(struct net_device *dev,
+					unsigned int rxq);
+#else
+static inline int netif_set_real_num_rx_queues(struct net_device *dev,
+						unsigned int rxq)
+{
+	return 0;
+}
+#endif
 
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts
