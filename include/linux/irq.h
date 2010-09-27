@@ -118,23 +118,38 @@ struct irq_data {
  * struct irq_chip - hardware interrupt chip descriptor
  *
  * @name:		name for /proc/interrupts
- * @startup:		start up the interrupt (defaults to ->enable if NULL)
- * @shutdown:		shut down the interrupt (defaults to ->disable if NULL)
- * @enable:		enable the interrupt (defaults to chip->unmask if NULL)
- * @disable:		disable the interrupt
- * @ack:		start of a new interrupt
- * @mask:		mask an interrupt source
- * @mask_ack:		ack and mask an interrupt source
- * @unmask:		unmask an interrupt source
- * @eoi:		end of interrupt - chip level
- * @end:		end of interrupt - flow level
- * @set_affinity:	set the CPU affinity on SMP machines
- * @retrigger:		resend an IRQ to the CPU
- * @set_type:		set the flow type (IRQ_TYPE_LEVEL/etc.) of an IRQ
- * @set_wake:		enable/disable power-management wake-on of an IRQ
+ * @startup:		deprecated, replaced by irq_startup
+ * @shutdown:		deprecated, replaced by irq_shutdown
+ * @enable:		deprecated, replaced by irq_enable
+ * @disable:		deprecated, replaced by irq_disable
+ * @ack:		deprecated, replaced by irq_ack
+ * @mask:		deprecated, replaced by irq_mask
+ * @mask_ack:		deprecated, replaced by irq_mask_ack
+ * @unmask:		deprecated, replaced by irq_unmask
+ * @eoi:		deprecated, replaced by irq_eoi
+ * @end:		deprecated, will go away with __do_IRQ()
+ * @set_affinity:	deprecated, replaced by irq_set_affinity
+ * @retrigger:		deprecated, replaced by irq_retrigger
+ * @set_type:		deprecated, replaced by irq_set_type
+ * @set_wake:		deprecated, replaced by irq_wake
+ * @bus_lock:		deprecated, replaced by irq_bus_lock
+ * @bus_sync_unlock:	deprecated, replaced by irq_bus_sync_unlock
  *
- * @bus_lock:		function to lock access to slow bus (i2c) chips
- * @bus_sync_unlock:	function to sync and unlock slow bus (i2c) chips
+ * @irq_startup:	start up the interrupt (defaults to ->enable if NULL)
+ * @irq_shutdown:	shut down the interrupt (defaults to ->disable if NULL)
+ * @irq_enable:		enable the interrupt (defaults to chip->unmask if NULL)
+ * @irq_disable:	disable the interrupt
+ * @irq_ack:		start of a new interrupt
+ * @irq_mask:		mask an interrupt source
+ * @irq_mask_ack:	ack and mask an interrupt source
+ * @irq_unmask:		unmask an interrupt source
+ * @irq_eoi:		end of interrupt
+ * @irq_set_affinity:	set the CPU affinity on SMP machines
+ * @irq_retrigger:	resend an IRQ to the CPU
+ * @irq_set_type:	set the flow type (IRQ_TYPE_LEVEL/etc.) of an IRQ
+ * @irq_set_wake:	enable/disable power-management wake-on of an IRQ
+ * @irq_bus_lock:	function to lock access to slow bus (i2c) chips
+ * @irq_bus_sync_unlock:function to sync and unlock slow bus (i2c) chips
  *
  * @release:		release function solely used by UML
  */
@@ -160,6 +175,25 @@ struct irq_chip {
 
 	void		(*bus_lock)(unsigned int irq);
 	void		(*bus_sync_unlock)(unsigned int irq);
+
+	unsigned int	(*irq_startup)(struct irq_data *data);
+	void		(*irq_shutdown)(struct irq_data *data);
+	void		(*irq_enable)(struct irq_data *data);
+	void		(*irq_disable)(struct irq_data *data);
+
+	void		(*irq_ack)(struct irq_data *data);
+	void		(*irq_mask)(struct irq_data *data);
+	void		(*irq_mask_ack)(struct irq_data *data);
+	void		(*irq_unmask)(struct irq_data *data);
+	void		(*irq_eoi)(struct irq_data *data);
+
+	int		(*irq_set_affinity)(struct irq_data *data, const struct cpumask *dest, bool force);
+	int		(*irq_retrigger)(struct irq_data *data);
+	int		(*irq_set_type)(struct irq_data *data, unsigned int flow_type);
+	int		(*irq_set_wake)(struct irq_data *data, unsigned int on);
+
+	void		(*irq_bus_lock)(struct irq_data *data);
+	void		(*irq_bus_sync_unlock)(struct irq_data *data);
 
 	/* Currently used only by UML, might disappear one day.*/
 #ifdef CONFIG_IRQ_RELEASE_METHOD
