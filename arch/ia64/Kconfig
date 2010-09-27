@@ -683,8 +683,10 @@ source "lib/Kconfig"
 # Use the generic interrupt handling code in kernel/irq/:
 #
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
 
 config GENERIC_IRQ_PROBE
 	bool

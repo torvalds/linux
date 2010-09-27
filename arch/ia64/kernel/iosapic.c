@@ -394,7 +394,7 @@ iosapic_startup_level_irq (unsigned int irq)
 }
 
 static void
-iosapic_end_level_irq (unsigned int irq)
+iosapic_unmask_level_irq (unsigned int irq)
 {
 	ia64_vector vec = irq_to_vector(irq);
 	struct iosapic_rte_info *rte;
@@ -404,7 +404,8 @@ iosapic_end_level_irq (unsigned int irq)
 	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
 		do_unmask_irq = 1;
 		mask_irq(irq);
-	}
+	} else
+		unmask_irq(irq);
 
 	list_for_each_entry(rte, &iosapic_intr_info[irq].rtes, rte_list)
 		iosapic_eoi(rte->iosapic->addr, vec);
@@ -427,9 +428,8 @@ static struct irq_chip irq_type_iosapic_level = {
 	.enable =	iosapic_enable_level_irq,
 	.disable =	iosapic_disable_level_irq,
 	.ack =		iosapic_ack_level_irq,
-	.end =		iosapic_end_level_irq,
 	.mask =		mask_irq,
-	.unmask =	unmask_irq,
+	.unmask =	iosapic_unmask_level_irq,
 	.set_affinity =	iosapic_set_affinity
 };
 
@@ -658,6 +658,10 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 			       idesc->chip->name, irq_type->name);
 		idesc->chip = irq_type;
 	}
+	if (trigger == IOSAPIC_EDGE)
+		__set_irq_handler_unlocked(irq, handle_edge_irq);
+	else
+		__set_irq_handler_unlocked(irq, handle_level_irq);
 	return 0;
 }
 
