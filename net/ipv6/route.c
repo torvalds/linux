@@ -1169,6 +1169,8 @@ int ip6_route_add(struct fib6_config *cfg)
 
 	if (addr_type & IPV6_ADDR_MULTICAST)
 		rt->dst.input = ip6_mc_input;
+	else if (cfg->fc_flags & RTF_LOCAL)
+		rt->dst.input = ip6_input;
 	else
 		rt->dst.input = ip6_forward;
 
@@ -1190,7 +1192,8 @@ int ip6_route_add(struct fib6_config *cfg)
 	   they would result in kernel looping; promote them to reject routes
 	 */
 	if ((cfg->fc_flags & RTF_REJECT) ||
-	    (dev && (dev->flags&IFF_LOOPBACK) && !(addr_type&IPV6_ADDR_LOOPBACK))) {
+	    (dev && (dev->flags&IFF_LOOPBACK) && !(addr_type&IPV6_ADDR_LOOPBACK)
+					      && !(cfg->fc_flags&RTF_LOCAL))) {
 		/* hold loopback dev/idev if we haven't done so. */
 		if (dev != net->loopback_dev) {
 			if (dev) {
@@ -2082,6 +2085,9 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rtm->rtm_type == RTN_UNREACHABLE)
 		cfg->fc_flags |= RTF_REJECT;
 
+	if (rtm->rtm_type == RTN_LOCAL)
+		cfg->fc_flags |= RTF_LOCAL;
+
 	cfg->fc_nlinfo.pid = NETLINK_CB(skb).pid;
 	cfg->fc_nlinfo.nlh = nlh;
 	cfg->fc_nlinfo.nl_net = sock_net(skb->sk);
@@ -2202,6 +2208,8 @@ static int rt6_fill_node(struct net *net,
 	NLA_PUT_U32(skb, RTA_TABLE, table);
 	if (rt->rt6i_flags&RTF_REJECT)
 		rtm->rtm_type = RTN_UNREACHABLE;
+	else if (rt->rt6i_flags&RTF_LOCAL)
+		rtm->rtm_type = RTN_LOCAL;
 	else if (rt->rt6i_dev && (rt->rt6i_dev->flags&IFF_LOOPBACK))
 		rtm->rtm_type = RTN_LOCAL;
 	else
