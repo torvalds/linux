@@ -360,7 +360,6 @@ struct irq_chip dummy_irq_chip = {
 	.enable		= compat_noop,
 	.disable	= compat_noop,
 	.ack		= compat_noop,
-	.mask		= compat_noop,
 	.unmask		= compat_noop,
 	.end		= compat_noop,
 };

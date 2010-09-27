@@ -61,7 +61,7 @@ void move_native_irq(int irq)
 	if (unlikely(desc->status & IRQ_DISABLED))
 		return;
 
-	desc->irq_data.chip->mask(irq);
+	desc->irq_data.chip->irq_mask(&desc->irq_data);
 	move_masked_irq(irq);
 	desc->irq_data.chip->unmask(irq);
 }
