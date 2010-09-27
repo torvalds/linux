@@ -36,6 +36,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
+#include <linux/posix_acl.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -44,6 +45,7 @@
 #include "fid.h"
 #include "cache.h"
 #include "xattr.h"
+#include "acl.h"
 
 static const struct inode_operations v9fs_dir_inode_operations;
 static const struct inode_operations v9fs_dir_inode_operations_dotu;
@@ -500,6 +502,11 @@ v9fs_inode_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	v9fs_vcookie_set_qid(ret, &st->qid);
 	v9fs_cache_inode_get_cookie(ret);
 #endif
+	err = v9fs_get_acl(ret, fid);
+	if (err) {
+		iput(ret);
+		goto error;
+	}
 	kfree(st);
 	return ret;
 error:
@@ -1959,7 +1966,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = v9fs_listxattr,
-
+	.check_acl = v9fs_check_acl,
 };
 
 static const struct inode_operations v9fs_dir_inode_operations = {
@@ -1986,6 +1993,7 @@ static const struct inode_operations v9fs_file_inode_operations_dotl = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = v9fs_listxattr,
+	.check_acl = v9fs_check_acl,
 };
 
 static const struct inode_operations v9fs_symlink_inode_operations = {
