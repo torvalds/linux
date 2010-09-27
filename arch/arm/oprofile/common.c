@@ -349,7 +349,7 @@ static void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 		tail = user_backtrace(tail);
 }
 
-int __init oprofile_arch_init(struct oprofile_operations *ops)
+int __init oprofile_perf_init(struct oprofile_operations *ops)
 {
 	int cpu, ret = 0;
 
@@ -387,7 +387,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		}
 	}
 
-	ops->backtrace		= arm_backtrace;
 	ops->create_files	= oprofile_perf_create_files;
 	ops->setup		= oprofile_perf_setup;
 	ops->start		= oprofile_perf_start;
@@ -410,7 +409,14 @@ out:
 	return ret;
 }
 
-void __exit oprofile_arch_exit(void)
+int __init oprofile_arch_init(struct oprofile_operations *ops)
+{
+	ops->backtrace		= arm_backtrace;
+
+	return oprofile_perf_init(ops);
+}
+
+void __exit oprofile_perf_exit(void)
 {
 	int cpu, id;
 	struct perf_event *event;
@@ -427,6 +433,11 @@ void __exit oprofile_arch_exit(void)
 
 	kfree(counter_config);
 	exit_driverfs();
+}
+
+void __exit oprofile_arch_exit(void)
+{
+	oprofile_perf_exit();
 }
 #else
 int __init oprofile_arch_init(struct oprofile_operations *ops)
