@@ -167,6 +167,8 @@ enum p9_msg_t {
 	P9_RFSYNC,
 	P9_TLOCK = 52,
 	P9_RLOCK,
+	P9_TGETLOCK = 54,
+	P9_RGETLOCK,
 	P9_TLINK = 70,
 	P9_RLINK,
 	P9_TMKDIR = 72,
@@ -486,6 +488,22 @@ struct p9_iattr_dotl {
 struct p9_flock {
 	u8 type;
 	u32 flags;
+	u64 start;
+	u64 length;
+	u32 proc_id;
+	char *client_id;
+};
+
+/* struct p9_getlock: getlock structure
+ * @type - type of lock
+ * @start - starting offset of the lock
+ * @length - number of bytes
+ * @proc_id - process id which wants to take lock
+ * @client_id - client id
+ */
+
+struct p9_getlock {
+	u8 type;
 	u64 start;
 	u64 length;
 	u32 proc_id;

@@ -211,6 +211,51 @@ out:
 	return res;
 }
 
+static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
+{
+	struct p9_getlock glock;
+	struct p9_fid *fid;
+	int res = 0;
+
+	fid = filp->private_data;
+	BUG_ON(fid == NULL);
+
+	posix_test_lock(filp, fl);
+	/*
+	 * if we have a conflicting lock locally, no need to validate
+	 * with server
+	 */
+	if (fl->fl_type != F_UNLCK)
+		return res;
+
+	/* convert posix lock to p9 tgetlock args */
+	memset(&glock, 0, sizeof(glock));
+	glock.type = fl->fl_type;
+	glock.start = fl->fl_start;
+	if (fl->fl_end == OFFSET_MAX)
+		glock.length = 0;
+	else
+		glock.length = fl->fl_end - fl->fl_start + 1;
+	glock.proc_id = fl->fl_pid;
+	glock.client_id = utsname()->nodename;
+
+	res = p9_client_getlock_dotl(fid, &glock);
+	if (res < 0)
+		return res;
+	if (glock.type != F_UNLCK) {
+		fl->fl_type = glock.type;
+		fl->fl_start = glock.start;
+		if (glock.length == 0)
+			fl->fl_end = OFFSET_MAX;
+		else
+			fl->fl_end = glock.start + glock.length - 1;
+		fl->fl_pid = glock.proc_id;
+	} else
+		fl->fl_type = F_UNLCK;
+
+	return res;
+}
+
 /**
  * v9fs_file_lock_dotl - lock a file (or directory)
  * @filp: file to be locked
@@ -238,6 +283,8 @@ static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 
 	if (IS_SETLK(cmd) || IS_SETLKW(cmd))
 		ret = v9fs_file_do_lock(filp, cmd, fl);
+	else if (IS_GETLK(cmd))
+		ret = v9fs_file_getlock(filp, fl);
 	else
 		ret = -EINVAL;
 out_err:

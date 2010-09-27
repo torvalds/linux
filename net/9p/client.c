@@ -1836,3 +1836,37 @@ error:
 
 }
 EXPORT_SYMBOL(p9_client_lock_dotl);
+
+int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *glock)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TGETLOCK fid %d, type %i start %lld "
+		"length %lld proc_id %d client_id %s\n", fid->fid, glock->type,
+		glock->start, glock->length, glock->proc_id, glock->client_id);
+
+	req = p9_client_rpc(clnt, P9_TGETLOCK, "dbqqds", fid->fid,  glock->type,
+		glock->start, glock->length, glock->proc_id, glock->client_id);
+
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "bqqds", &glock->type,
+			&glock->start, &glock->length, &glock->proc_id,
+			&glock->client_id);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RGETLOCK type %i start %lld length %lld "
+		"proc_id %d client_id %s\n", glock->type, glock->start,
+		glock->length, glock->proc_id, glock->client_id);
+error:
+	p9_free_req(clnt, req);
+	return err;
+}
+EXPORT_SYMBOL(p9_client_getlock_dotl);
