@@ -43,7 +43,7 @@ static DEFINE_MUTEX(op_arm_mutex);
 
 static struct op_counter_config *counter_config;
 static struct perf_event **perf_events[nr_cpumask_bits];
-static int perf_num_counters;
+static int num_counters;
 
 /*
  * Overflow callback for oprofile.
@@ -54,11 +54,11 @@ static void op_overflow_handler(struct perf_event *event, int unused,
 	int id;
 	u32 cpu = smp_processor_id();
 
-	for (id = 0; id < perf_num_counters; ++id)
+	for (id = 0; id < num_counters; ++id)
 		if (perf_events[cpu][id] == event)
 			break;
 
-	if (id != perf_num_counters)
+	if (id != num_counters)
 		oprofile_add_sample(regs, id);
 	else
 		pr_warning("oprofile: ignoring spurious overflow "
@@ -76,7 +76,7 @@ static void op_perf_setup(void)
 	u32 size = sizeof(struct perf_event_attr);
 	struct perf_event_attr *attr;
 
-	for (i = 0; i < perf_num_counters; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		attr = &counter_config[i].attr;
 		memset(attr, 0, size);
 		attr->type		= PERF_TYPE_RAW;
@@ -131,7 +131,7 @@ static int op_perf_start(void)
 	int cpu, event, ret = 0;
 
 	for_each_online_cpu(cpu) {
-		for (event = 0; event < perf_num_counters; ++event) {
+		for (event = 0; event < num_counters; ++event) {
 			ret = op_create_counter(cpu, event);
 			if (ret)
 				goto out;
@@ -150,7 +150,7 @@ static void op_perf_stop(void)
 	int cpu, event;
 
 	for_each_online_cpu(cpu)
-		for (event = 0; event < perf_num_counters; ++event)
+		for (event = 0; event < num_counters; ++event)
 			op_destroy_counter(cpu, event);
 }
 
@@ -179,7 +179,7 @@ static int op_arm_create_files(struct super_block *sb, struct dentry *root)
 {
 	unsigned int i;
 
-	for (i = 0; i < perf_num_counters; i++) {
+	for (i = 0; i < num_counters; i++) {
 		struct dentry *dir;
 		char buf[4];
 
@@ -353,14 +353,19 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	memset(&perf_events, 0, sizeof(perf_events));
 
-	perf_num_counters = armpmu_get_max_events();
+	num_counters = perf_num_counters();
+	if (num_counters <= 0) {
+		pr_info("oprofile: no performance counters\n");
+		ret = -ENODEV;
+		goto out;
+	}
 
-	counter_config = kcalloc(perf_num_counters,
+	counter_config = kcalloc(num_counters,
 			sizeof(struct op_counter_config), GFP_KERNEL);
 
 	if (!counter_config) {
 		pr_info("oprofile: failed to allocate %d "
-				"counters\n", perf_num_counters);
+				"counters\n", num_counters);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -370,11 +375,11 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		goto out;
 
 	for_each_possible_cpu(cpu) {
-		perf_events[cpu] = kcalloc(perf_num_counters,
+		perf_events[cpu] = kcalloc(num_counters,
 				sizeof(struct perf_event *), GFP_KERNEL);
 		if (!perf_events[cpu]) {
 			pr_info("oprofile: failed to allocate %d perf events "
-					"for cpu %d\n", perf_num_counters, cpu);
+					"for cpu %d\n", num_counters, cpu);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -409,7 +414,7 @@ void __exit oprofile_arch_exit(void)
 	struct perf_event *event;
 
 	for_each_possible_cpu(cpu) {
-		for (id = 0; id < perf_num_counters; ++id) {
+		for (id = 0; id < num_counters; ++id) {
 			event = perf_events[cpu][id];
 			if (event)
 				perf_event_release_kernel(event);

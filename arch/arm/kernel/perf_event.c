@@ -123,6 +123,12 @@ armpmu_get_max_events(void)
 }
 EXPORT_SYMBOL_GPL(armpmu_get_max_events);
 
+int perf_num_counters(void)
+{
+	return armpmu_get_max_events();
+}
+EXPORT_SYMBOL_GPL(perf_num_counters);
+
 #define HW_OP_UNSUPPORTED		0xFFFF
 
 #define C(_x) \
