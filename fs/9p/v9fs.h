@@ -33,13 +33,17 @@
  *
  * Session flags reflect options selected by users at mount time
  */
+#define	V9FS_ACCESS_ANY (V9FS_ACCESS_SINGLE | \
+			 V9FS_ACCESS_USER |   \
+			 V9FS_ACCESS_CLIENT)
+#define V9FS_ACCESS_MASK V9FS_ACCESS_ANY
+
 enum p9_session_flags {
 	V9FS_PROTO_2000U	= 0x01,
 	V9FS_PROTO_2000L	= 0x02,
 	V9FS_ACCESS_SINGLE	= 0x04,
 	V9FS_ACCESS_USER	= 0x08,
-	V9FS_ACCESS_ANY		= 0x0C,
-	V9FS_ACCESS_MASK	= 0x0C,
+	V9FS_ACCESS_CLIENT	= 0x10
 };
 
 /* possible values of ->cache */

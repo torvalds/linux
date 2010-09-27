@@ -22,6 +22,7 @@
 #include "xattr.h"
 #include "acl.h"
 #include "v9fs_vfs.h"
+#include "v9fs.h"
 
 static struct posix_acl *__v9fs_get_acl(struct p9_fid *fid, char *name)
 {
@@ -55,7 +56,14 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 {
 	int retval = 0;
 	struct posix_acl *pacl, *dacl;
+	struct v9fs_session_info *v9ses;
 
+	v9ses = v9fs_inode2v9ses(inode);
+	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) {
+		set_cached_acl(inode, ACL_TYPE_DEFAULT, NULL);
+		set_cached_acl(inode, ACL_TYPE_ACCESS, NULL);
+		return 0;
+	}
 	/* get the default/access acl values and cache them */
 	dacl = __v9fs_get_acl(fid, POSIX_ACL_XATTR_DEFAULT);
 	pacl = __v9fs_get_acl(fid, POSIX_ACL_XATTR_ACCESS);
@@ -85,7 +93,18 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 
 int v9fs_check_acl(struct inode *inode, int mask)
 {
-	struct posix_acl *acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
+	struct posix_acl *acl;
+	struct v9fs_session_info *v9ses;
+
+	v9ses = v9fs_inode2v9ses(inode);
+	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) {
+		/*
+		 * On access = client mode get the acl
+		 * values from the server
+		 */
+		return 0;
+	}
+	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
 
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
@@ -204,14 +223,40 @@ cleanup:
 
 }
 
+static int v9fs_remote_get_acl(struct dentry *dentry, const char *name,
+			       void *buffer, size_t size, int type)
+{
+	char *full_name;
+
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		full_name =  POSIX_ACL_XATTR_ACCESS;
+		break;
+	case ACL_TYPE_DEFAULT:
+		full_name = POSIX_ACL_XATTR_DEFAULT;
+		break;
+	default:
+		BUG();
+	}
+	return v9fs_xattr_get(dentry, full_name, buffer, size);
+}
+
 static int v9fs_xattr_get_acl(struct dentry *dentry, const char *name,
 			      void *buffer, size_t size, int type)
 {
+	struct v9fs_session_info *v9ses;
 	struct posix_acl *acl;
 	int error;
 
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
+
+	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	/*
+	 * We allow set/get/list of acl when access=client is not specified
+	 */
+	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
+		return v9fs_remote_get_acl(dentry, name, buffer, size, type);
 
 	acl = v9fs_get_cached_acl(dentry->d_inode, type);
 	if (IS_ERR(acl))
@@ -224,16 +269,47 @@ static int v9fs_xattr_get_acl(struct dentry *dentry, const char *name,
 	return error;
 }
 
+static int v9fs_remote_set_acl(struct dentry *dentry, const char *name,
+			      const void *value, size_t size,
+			      int flags, int type)
+{
+	char *full_name;
+
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		full_name =  POSIX_ACL_XATTR_ACCESS;
+		break;
+	case ACL_TYPE_DEFAULT:
+		full_name = POSIX_ACL_XATTR_DEFAULT;
+		break;
+	default:
+		BUG();
+	}
+	return v9fs_xattr_set(dentry, full_name, value, size, flags);
+}
+
+
 static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 			      const void *value, size_t size,
 			      int flags, int type)
 {
 	int retval;
 	struct posix_acl *acl;
+	struct v9fs_session_info *v9ses;
 	struct inode *inode = dentry->d_inode;
 
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
+
+	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	/*
+	 * set the attribute on the remote. Without even looking at the
+	 * xattr value. We leave it to the server to validate
+	 */
+	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
+		return v9fs_remote_set_acl(dentry, name,
+					   value, size, flags, type);
+
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 	if (!is_owner_or_cap(inode))
