@@ -340,6 +340,11 @@ static void compat_irq_ack(struct irq_data *data)
 	data->chip->ack(data->irq);
 }
 
+static void compat_irq_mask_ack(struct irq_data *data)
+{
+	data->chip->mask_ack(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -383,12 +388,14 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_unmask = compat_irq_unmask;
 	if (chip->ack)
 		chip->irq_ack = compat_irq_ack;
+	if (chip->mask_ack)
+		chip->irq_mask_ack = compat_irq_mask_ack;
 }
 
-static inline void mask_ack_irq(struct irq_desc *desc, int irq)
+static inline void mask_ack_irq(struct irq_desc *desc)
 {
-	if (desc->irq_data.chip->mask_ack)
-		desc->irq_data.chip->mask_ack(irq);
+	if (desc->irq_data.chip->irq_mask_ack)
+		desc->irq_data.chip->irq_mask_ack(&desc->irq_data);
 	else {
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
 		if (desc->irq_data.chip->irq_ack)
@@ -511,7 +518,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	irqreturn_t action_ret;
 
 	raw_spin_lock(&desc->lock);
-	mask_ack_irq(desc, irq);
+	mask_ack_irq(desc);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
 		goto out_unlock;
@@ -625,7 +632,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	if (unlikely((desc->status & (IRQ_INPROGRESS | IRQ_DISABLED)) ||
 		    !desc->action)) {
 		desc->status |= (IRQ_PENDING | IRQ_MASKED);
-		mask_ack_irq(desc, irq);
+		mask_ack_irq(desc);
 		goto out_unlock;
 	}
 	kstat_incr_irqs_this_cpu(irq, desc);
@@ -729,7 +736,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	/* Uninstall? */
 	if (handle == handle_bad_irq) {
 		if (desc->irq_data.chip != &no_irq_chip)
-			mask_ack_irq(desc, irq);
+			mask_ack_irq(desc);
 		desc->status |= IRQ_DISABLED;
 		desc->depth = 1;
 	}
