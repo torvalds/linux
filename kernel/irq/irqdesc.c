@@ -39,7 +39,7 @@ EXPORT_SYMBOL_GPL(nr_irqs);
 #ifdef CONFIG_SPARSE_IRQ
 
 static struct irq_desc irq_desc_init = {
-	.status		= IRQ_DISABLED,
+	.status		= IRQ_DEFAULT_INIT_FLAGS,
 	.handle_irq	= handle_bad_irq,
 	.depth		= 1,
 	.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
@@ -113,7 +113,7 @@ void replace_irq_desc(unsigned int irq, struct irq_desc *desc)
 
 static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS_LEGACY-1] = {
-		.status		= IRQ_DISABLED,
+		.status		= IRQ_DEFAULT_INIT_FLAGS,
 		.handle_irq	= handle_bad_irq,
 		.depth		= 1,
 		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
@@ -204,7 +204,7 @@ out_unlock:
 
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
-		.status		= IRQ_DISABLED,
+		.status		= IRQ_DEFAULT_INIT_FLAGS,
 		.handle_irq	= handle_bad_irq,
 		.depth		= 1,
 		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc->lock),

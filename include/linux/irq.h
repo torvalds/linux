@@ -214,6 +214,12 @@ struct irq_chip {
  */
 #include <asm/hw_irq.h>
 
+#ifndef ARCH_IRQ_INIT_FLAGS
+# define ARCH_IRQ_INIT_FLAGS	0
+#endif
+
+#define IRQ_DEFAULT_INIT_FLAGS	(IRQ_DISABLED | ARCH_IRQ_INIT_FLAGS)
+
 struct irqaction;
 extern int setup_irq(unsigned int irq, struct irqaction *new);
 extern void remove_irq(unsigned int irq, struct irqaction *act);

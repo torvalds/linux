@@ -31,7 +31,7 @@ static void dynamic_irq_init_x(unsigned int irq, bool keep_chip_data)
 
 	/* Ensure we don't have left over values from a previous use of this irq */
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->status = IRQ_DISABLED;
+	desc->status = IRQ_DEFAULT_INIT_FLAGS;
 	desc->irq_data.chip = &no_irq_chip;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
