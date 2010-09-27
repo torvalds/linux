@@ -375,9 +375,21 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv50_gpio_get;
 		engine->gpio.set		= nv50_gpio_set;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
-		engine->pm.clock_get		= nv50_pm_clock_get;
-		engine->pm.clock_pre		= nv50_pm_clock_pre;
-		engine->pm.clock_set		= nv50_pm_clock_set;
+		switch (dev_priv->chipset) {
+		case 0xa3:
+		case 0xa5:
+		case 0xa8:
+		case 0xaf:
+			engine->pm.clock_get	= nva3_pm_clock_get;
+			engine->pm.clock_pre	= nva3_pm_clock_pre;
+			engine->pm.clock_set	= nva3_pm_clock_set;
+			break;
+		default:
+			engine->pm.clock_get	= nv50_pm_clock_get;
+			engine->pm.clock_pre	= nv50_pm_clock_pre;
+			engine->pm.clock_set	= nv50_pm_clock_set;
+			break;
+		}
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		if (dev_priv->chipset >= 0x84)
