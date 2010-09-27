@@ -110,6 +110,8 @@
 #define PLLD_MISC_DIV_RST		(1<<23)
 #define PLLD_MISC_DCCON_SHIFT		12
 
+#define PLLE_MISC_READY			(1 << 15)
+
 #define PERIPH_CLK_TO_ENB_REG(c)	((c->clk_num / 32) * 4)
 #define PERIPH_CLK_TO_ENB_SET_REG(c)	((c->clk_num / 32) * 8)
 #define PERIPH_CLK_TO_ENB_BIT(c)	(1 << (c->clk_num % 32))
@@ -565,6 +567,31 @@ static struct clk_ops tegra_pllx_ops = {
 	.enable   = tegra2_pll_clk_enable,
 	.disable  = tegra2_pll_clk_disable,
 	.set_rate = tegra2_pll_clk_set_rate,
+};
+
+static int tegra2_plle_clk_enable(struct clk *c)
+{
+	u32 val;
+
+	pr_debug("%s on clock %s\n", __func__, c->name);
+
+	mdelay(1);
+
+	val = clk_readl(c->reg + PLL_BASE);
+	if (!(val & PLLE_MISC_READY))
+		return -EBUSY;
+
+	val = clk_readl(c->reg + PLL_BASE);
+	val |= PLL_BASE_ENABLE | PLL_BASE_BYPASS;
+	clk_writel(val, c->reg + PLL_BASE);
+
+	return 0;
+}
+
+static struct clk_ops tegra_plle_ops = {
+	.init       = tegra2_pll_clk_init,
+	.enable     = tegra2_plle_clk_enable,
+	.set_rate   = tegra2_pll_clk_set_rate,
 };
 
 /* Clock divider ops */
@@ -1317,6 +1344,23 @@ static struct clk tegra_pll_x = {
 	.max_rate  = 1000000000,
 };
 
+static struct clk_pll_table tegra_pll_e_table[] = {
+	{ 12000000, 100000000,  200,  24, 1, 0 },
+	{ 0, 0, 0, 0, 0, 0 },
+};
+
+static struct clk tegra_pll_e = {
+	.name      = "pll_e",
+	.flags	   = PLL_ALT_MISC_REG,
+	.ops       = &tegra_plle_ops,
+	.input_min = 12000000,
+	.input_max = 12000000,
+	.max_rate  = 100000000,
+	.parent    = &tegra_clk_m,
+	.reg       = 0xe8,
+	.pll_table = tegra_pll_e_table,
+};
+
 static struct clk tegra_clk_d = {
 	.name      = "clk_d",
 	.flags     = PERIPH_NO_RESET,
@@ -1626,6 +1670,9 @@ struct clk tegra_periph_clks[] = {
 	PERIPH_CLK("csi",	"csi",			NULL,	52,	0,	72000000,  mux_pllp_out3,		0),
 	PERIPH_CLK("isp",	"isp",			NULL,	23,	0,	150000000, mux_clk_m,			0), /* same frequency as VI */
 	PERIPH_CLK("csus",	"csus",			NULL,	92,	0,	150000000, mux_clk_m,			PERIPH_NO_RESET),
+	PERIPH_CLK("pex",       NULL,			"pex",  70,     0,	26000000,  mux_clk_m,			PERIPH_MANUAL_RESET),
+	PERIPH_CLK("afi",       NULL,			"afi",  72,     0,	26000000,  mux_clk_m,			PERIPH_MANUAL_RESET),
+	PERIPH_CLK("pcie_xclk", NULL,		  "pcie_xclk",  74,     0,	26000000,  mux_clk_m,			PERIPH_MANUAL_RESET),
 };
 
 #define CLK_DUPLICATE(_name, _dev, _con)		\
@@ -1679,6 +1726,7 @@ struct clk_lookup tegra_clk_lookups[] = {
 	CLK(NULL,	"pll_d_out0",	&tegra_pll_d_out0),
 	CLK(NULL,	"pll_u",	&tegra_pll_u),
 	CLK(NULL,	"pll_x",	&tegra_pll_x),
+	CLK(NULL,	"pll_e",	&tegra_pll_e),
 	CLK(NULL,	"cclk",		&tegra_clk_cclk),
 	CLK(NULL,	"sclk",		&tegra_clk_sclk),
 	CLK(NULL,	"hclk",		&tegra_clk_hclk),
