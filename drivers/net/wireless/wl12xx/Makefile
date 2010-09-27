@@ -16,3 +16,6 @@ wl1271-$(CONFIG_NL80211_TESTMODE)	+= wl1271_testmode.o
 obj-$(CONFIG_WL1271)	+= wl1271.o
 obj-$(CONFIG_WL1271_SPI)	+= wl1271_spi.o
 obj-$(CONFIG_WL1271_SDIO)	+= wl1271_sdio.o
+
+# small builtin driver bit
+obj-$(CONFIG_WL12XX_PLATFORM_DATA)	+= wl12xx_platform_data.o
