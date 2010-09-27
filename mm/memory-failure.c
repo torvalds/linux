@@ -314,7 +314,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
 	 * a SIGKILL because the error is not contained anymore.
 	 */
 	if (tk->addr == -EFAULT) {
-		pr_debug("MCE: Unable to find user space address %lx in %s\n",
+		pr_info("MCE: Unable to find user space address %lx in %s\n",
 			page_to_pfn(p), tsk->comm);
 		tk->addr_valid = 0;
 	}
@@ -582,7 +582,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 					pfn, err);
 		} else if (page_has_private(p) &&
 				!try_to_release_page(p, GFP_NOIO)) {
-			pr_debug("MCE %#lx: failed to release buffers\n", pfn);
+			pr_info("MCE %#lx: failed to release buffers\n", pfn);
 		} else {
 			ret = RECOVERED;
 		}
@@ -1152,7 +1152,7 @@ int unpoison_memory(unsigned long pfn)
 	page = compound_head(p);
 
 	if (!PageHWPoison(p)) {
-		pr_debug("MCE: Page was already unpoisoned %#lx\n", pfn);
+		pr_info("MCE: Page was already unpoisoned %#lx\n", pfn);
 		return 0;
 	}
 
@@ -1161,7 +1161,7 @@ int unpoison_memory(unsigned long pfn)
 	if (!get_page_unless_zero(page)) {
 		if (TestClearPageHWPoison(p))
 			atomic_long_sub(nr_pages, &mce_bad_pages);
-		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
+		pr_info("MCE: Software-unpoisoned free page %#lx\n", pfn);
 		return 0;
 	}
 
@@ -1173,7 +1173,7 @@ int unpoison_memory(unsigned long pfn)
 	 * the free buddy page pool.
 	 */
 	if (TestClearPageHWPoison(page)) {
-		pr_debug("MCE: Software-unpoisoned page %#lx\n", pfn);
+		pr_info("MCE: Software-unpoisoned page %#lx\n", pfn);
 		atomic_long_sub(nr_pages, &mce_bad_pages);
 		freeit = 1;
 	}
@@ -1222,12 +1222,12 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 	set_migratetype_isolate(p);
 	if (!get_page_unless_zero(compound_head(p))) {
 		if (is_free_buddy_page(p)) {
-			pr_debug("get_any_page: %#lx free buddy page\n", pfn);
+			pr_info("get_any_page: %#lx free buddy page\n", pfn);
 			/* Set hwpoison bit while page is still isolated */
 			SetPageHWPoison(p);
 			ret = 0;
 		} else {
-			pr_debug("get_any_page: %#lx: unknown zero refcount page type %lx\n",
+			pr_info("get_any_page: %#lx: unknown zero refcount page type %lx\n",
 				pfn, p->flags);
 			ret = -EIO;
 		}
@@ -1293,7 +1293,7 @@ int soft_offline_page(struct page *page, int flags)
 			goto done;
 	}
 	if (!PageLRU(page)) {
-		pr_debug("soft_offline: %#lx: unknown non LRU page type %lx\n",
+		pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
 				pfn, page->flags);
 		return -EIO;
 	}
@@ -1307,7 +1307,7 @@ int soft_offline_page(struct page *page, int flags)
 	if (PageHWPoison(page)) {
 		unlock_page(page);
 		put_page(page);
-		pr_debug("soft offline: %#lx page already poisoned\n", pfn);
+		pr_info("soft offline: %#lx page already poisoned\n", pfn);
 		return -EBUSY;
 	}
 
@@ -1328,7 +1328,7 @@ int soft_offline_page(struct page *page, int flags)
 	put_page(page);
 	if (ret == 1) {
 		ret = 0;
-		pr_debug("soft_offline: %#lx: invalidated\n", pfn);
+		pr_info("soft_offline: %#lx: invalidated\n", pfn);
 		goto done;
 	}
 
@@ -1344,13 +1344,13 @@ int soft_offline_page(struct page *page, int flags)
 		list_add(&page->lru, &pagelist);
 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
 		if (ret) {
-			pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
 				pfn, ret, page->flags);
 			if (ret > 0)
 				ret = -EIO;
 		}
 	} else {
-		pr_debug("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
 				pfn, ret, page_count(page), page->flags);
 	}
 	if (ret)
