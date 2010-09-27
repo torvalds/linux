@@ -1315,7 +1315,8 @@ static int efx_probe_nic(struct efx_nic *efx)
 		efx->rx_indir_table[i] = i % efx->n_rx_channels;
 
 	efx_set_channels(efx);
-	efx->net_dev->real_num_tx_queues = efx->n_tx_channels;
+	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
+	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 
 	/* Initialise the interrupt moderation settings */
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true);
