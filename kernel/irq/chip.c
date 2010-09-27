@@ -345,6 +345,11 @@ static void compat_irq_mask_ack(struct irq_data *data)
 	data->chip->mask_ack(data->irq);
 }
 
+static void compat_irq_eoi(struct irq_data *data)
+{
+	data->chip->eoi(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -390,6 +395,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_ack = compat_irq_ack;
 	if (chip->mask_ack)
 		chip->irq_mask_ack = compat_irq_mask_ack;
+	if (chip->eoi)
+		chip->irq_eoi = compat_irq_eoi;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc)
@@ -596,7 +603,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 out:
-	desc->irq_data.chip->eoi(irq);
+	desc->irq_data.chip->irq_eoi(&desc->irq_data);
 
 	raw_spin_unlock(&desc->lock);
 }
@@ -698,8 +705,8 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 	if (!noirqdebug)
 		note_interrupt(irq, desc, action_ret);
 
-	if (desc->irq_data.chip->eoi)
-		desc->irq_data.chip->eoi(irq);
+	if (desc->irq_data.chip->irq_eoi)
+		desc->irq_data.chip->irq_eoi(&desc->irq_data);
 }
 
 void
