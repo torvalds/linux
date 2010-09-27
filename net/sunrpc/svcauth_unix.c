@@ -426,10 +426,9 @@ void svcauth_unix_purge(void)
 EXPORT_SYMBOL_GPL(svcauth_unix_purge);
 
 static inline struct ip_map *
-ip_map_cached_get(struct svc_rqst *rqstp)
+ip_map_cached_get(struct svc_xprt *xprt)
 {
 	struct ip_map *ipm = NULL;
-	struct svc_xprt *xprt = rqstp->rq_xprt;
 
 	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags)) {
 		spin_lock(&xprt->xpt_lock);
@@ -454,10 +453,8 @@ ip_map_cached_get(struct svc_rqst *rqstp)
 }
 
 static inline void
-ip_map_cached_put(struct svc_rqst *rqstp, struct ip_map *ipm)
+ip_map_cached_put(struct svc_xprt *xprt, struct ip_map *ipm)
 {
-	struct svc_xprt *xprt = rqstp->rq_xprt;
-
 	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags)) {
 		spin_lock(&xprt->xpt_lock);
 		if (xprt->xpt_auth_cache == NULL) {
@@ -707,6 +704,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	struct ip_map *ipm;
 	struct group_info *gi;
 	struct svc_cred *cred = &rqstp->rq_cred;
+	struct svc_xprt *xprt = rqstp->rq_xprt;
 
 	switch (rqstp->rq_addr.ss_family) {
 	case AF_INET:
@@ -725,7 +723,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	if (rqstp->rq_proc == 0)
 		return SVC_OK;
 
-	ipm = ip_map_cached_get(rqstp);
+	ipm = ip_map_cached_get(xprt);
 	if (ipm == NULL)
 		ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
 				    &sin6->sin6_addr);
@@ -745,7 +743,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		case 0:
 			rqstp->rq_client = &ipm->m_client->h;
 			kref_get(&rqstp->rq_client->ref);
-			ip_map_cached_put(rqstp, ipm);
+			ip_map_cached_put(xprt, ipm);
 			break;
 	}
 
