@@ -164,6 +164,14 @@ static void audit_sptes_have_rmaps(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 		inspect_spte_has_rmap(vcpu->kvm, sptep);
 }
 
+static void audit_spte_after_sync(struct kvm_vcpu *vcpu, u64 *sptep, int level)
+{
+	struct kvm_mmu_page *sp = page_header(__pa(sptep));
+
+	if (audit_point == AUDIT_POST_SYNC && sp->unsync)
+		audit_printk("meet unsync sp(%p) after sync root.\n", sp);
+}
+
 static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	int i;
@@ -179,7 +187,7 @@ static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
 	}
 }
 
-void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
+static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
@@ -215,6 +223,7 @@ static void audit_spte(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 {
 	audit_sptes_have_rmaps(vcpu, sptep, level);
 	audit_mappings(vcpu, sptep, level);
+	audit_spte_after_sync(vcpu, sptep, level);
 }
 
 static void audit_vcpu_spte(struct kvm_vcpu *vcpu)

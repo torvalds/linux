@@ -53,14 +53,18 @@ enum {
 	AUDIT_PRE_PAGE_FAULT,
 	AUDIT_POST_PAGE_FAULT,
 	AUDIT_PRE_PTE_WRITE,
-	AUDIT_POST_PTE_WRITE
+	AUDIT_POST_PTE_WRITE,
+	AUDIT_PRE_SYNC,
+	AUDIT_POST_SYNC
 };
 
 char *audit_point_name[] = {
 	"pre page fault",
 	"post page fault",
 	"pre pte write",
-	"post pte write"
+	"post pte write",
+	"pre sync",
+	"post sync"
 };
 
 #undef MMU_DEBUG
@@ -2516,6 +2520,8 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
+
+	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
 	if (vcpu->arch.mmu.root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 		sp = page_header(root);
@@ -2531,6 +2537,7 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 			mmu_sync_children(vcpu, sp);
 		}
 	}
+	trace_kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 }
 
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
