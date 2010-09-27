@@ -2976,8 +2976,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	chip->chipsize = (uint64_t)type->chipsize << 20;
 
-	/* Newer devices have all the information in additional id bytes */
-	if (!type->pagesize) {
+	if (!type->pagesize && chip->init_size) {
+		/* set the pagesize, oobsize, erasesize by the driver*/
+		busw = chip->init_size(mtd, chip, id_data);
+	} else if (!type->pagesize) {
 		int extid;
 		/* The 3rd id byte holds MLC / multichip data */
 		chip->cellinfo = id_data[2];
