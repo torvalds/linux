@@ -837,14 +837,27 @@ xfs_reclaim_inodes_ag(
 	int			error = 0;
 	int			last_error = 0;
 	xfs_agnumber_t		ag;
+	int			trylock = flags & SYNC_TRYLOCK;
+	int			skipped;
 
+restart:
 	ag = 0;
+	skipped = 0;
 	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
 		unsigned long	first_index = 0;
 		int		done = 0;
 		int		nr_found = 0;
 
 		ag = pag->pag_agno + 1;
+
+		if (trylock) {
+			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
+				skipped++;
+				continue;
+			}
+			first_index = pag->pag_ici_reclaim_cursor;
+		} else
+			mutex_lock(&pag->pag_ici_reclaim_lock);
 
 		do {
 			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
@@ -898,7 +911,24 @@ xfs_reclaim_inodes_ag(
 
 		} while (nr_found && !done && *nr_to_scan > 0);
 
+		if (trylock && !done)
+			pag->pag_ici_reclaim_cursor = first_index;
+		else
+			pag->pag_ici_reclaim_cursor = 0;
+		mutex_unlock(&pag->pag_ici_reclaim_lock);
 		xfs_perag_put(pag);
+	}
+
+	/*
+	 * if we skipped any AG, and we still have scan count remaining, do
+	 * another pass this time using blocking reclaim semantics (i.e
+	 * waiting on the reclaim locks and ignoring the reclaim cursors). This
+	 * ensure that when we get more reclaimers than AGs we block rather
+	 * than spin trying to execute reclaim.
+	 */
+	if (trylock && skipped && *nr_to_scan > 0) {
+		trylock = 0;
+		goto restart;
 	}
 	return XFS_ERROR(last_error);
 }
