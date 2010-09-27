@@ -789,7 +789,7 @@ static int ipip_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static void __net_init ipip_fb_tunnel_init(struct net_device *dev)
+static int __net_init ipip_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -802,8 +802,13 @@ static void __net_init ipip_fb_tunnel_init(struct net_device *dev)
 	iph->protocol		= IPPROTO_IPIP;
 	iph->ihl		= 5;
 
+	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	if (!dev->tstats)
+		return -ENOMEM;
+
 	dev_hold(dev);
 	rcu_assign_pointer(ipn->tunnels_wc[0], tunnel);
+	return 0;
 }
 
 static struct xfrm_tunnel ipip_handler __read_mostly = {
@@ -852,7 +857,9 @@ static int __net_init ipip_init_net(struct net *net)
 	}
 	dev_net_set(ipn->fb_tunnel_dev, net);
 
-	ipip_fb_tunnel_init(ipn->fb_tunnel_dev);
+	err = ipip_fb_tunnel_init(ipn->fb_tunnel_dev);
+	if (err)
+		goto err_reg_dev;
 
 	if ((err = register_netdev(ipn->fb_tunnel_dev)))
 		goto err_reg_dev;
@@ -860,7 +867,7 @@ static int __net_init ipip_init_net(struct net *net)
 	return 0;
 
 err_reg_dev:
-	free_netdev(ipn->fb_tunnel_dev);
+	ipip_dev_free(ipn->fb_tunnel_dev);
 err_alloc_dev:
 	/* nothing */
 	return err;
