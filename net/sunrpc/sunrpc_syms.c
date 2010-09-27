@@ -28,11 +28,21 @@ int sunrpc_net_id;
 
 static __net_init int sunrpc_init_net(struct net *net)
 {
+	int err;
+
+	err = rpc_proc_init(net);
+	if (err)
+		goto err_proc;
+
 	return 0;
+
+err_proc:
+	return err;
 }
 
 static __net_exit void sunrpc_exit_net(struct net *net)
 {
+	rpc_proc_exit(net);
 }
 
 static struct pernet_operations sunrpc_net_ops = {
@@ -67,9 +77,6 @@ init_sunrpc(void)
 #ifdef RPC_DEBUG
 	rpc_register_sysctl();
 #endif
-#ifdef CONFIG_PROC_FS
-	rpc_proc_init();
-#endif
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	svc_init_xprt_sock();	/* svc sock transport */
@@ -100,9 +107,6 @@ cleanup_sunrpc(void)
 	unregister_pernet_subsys(&sunrpc_net_ops);
 #ifdef RPC_DEBUG
 	rpc_unregister_sysctl();
-#endif
-#ifdef CONFIG_PROC_FS
-	rpc_proc_exit();
 #endif
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }

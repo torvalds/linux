@@ -5,6 +5,7 @@
 #include <net/netns/generic.h>
 
 struct sunrpc_net {
+	struct proc_dir_entry *proc_net_rpc;
 };
 
 extern int sunrpc_net_id;

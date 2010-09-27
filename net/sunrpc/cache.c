@@ -34,7 +34,7 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
-#include <net/net_namespace.h>
+#include "netns.h"
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
@@ -1540,6 +1540,8 @@ static const struct file_operations cache_flush_operations_procfs = {
 
 static void remove_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
+	struct sunrpc_net *sn;
+
 	if (cd->u.procfs.proc_ent == NULL)
 		return;
 	if (cd->u.procfs.flush_ent)
@@ -1549,15 +1551,18 @@ static void remove_cache_proc_entries(struct cache_detail *cd, struct net *net)
 	if (cd->u.procfs.content_ent)
 		remove_proc_entry("content", cd->u.procfs.proc_ent);
 	cd->u.procfs.proc_ent = NULL;
-	remove_proc_entry(cd->name, proc_net_rpc);
+	sn = net_generic(net, sunrpc_net_id);
+	remove_proc_entry(cd->name, sn->proc_net_rpc);
 }
 
 #ifdef CONFIG_PROC_FS
 static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
 	struct proc_dir_entry *p;
+	struct sunrpc_net *sn;
 
-	cd->u.procfs.proc_ent = proc_mkdir(cd->name, proc_net_rpc);
+	sn = net_generic(net, sunrpc_net_id);
+	cd->u.procfs.proc_ent = proc_mkdir(cd->name, sn->proc_net_rpc);
 	if (cd->u.procfs.proc_ent == NULL)
 		goto out_nomem;
 	cd->u.procfs.channel_ent = NULL;
