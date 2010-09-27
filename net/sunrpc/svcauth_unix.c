@@ -472,10 +472,13 @@ ip_map_cached_put(struct svc_rqst *rqstp, struct ip_map *ipm)
 }
 
 void
-svcauth_unix_info_release(void *info)
+svcauth_unix_info_release(struct svc_xprt *xpt)
 {
-	struct ip_map *ipm = info;
-	cache_put(&ipm->h, &ip_map_cache);
+	struct ip_map *ipm;
+
+	ipm = xpt->xpt_auth_cache;
+	if (ipm != NULL)
+		cache_put(&ipm->h, &ip_map_cache);
 }
 
 /****************************************************************************

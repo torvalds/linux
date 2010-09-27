@@ -128,9 +128,8 @@ static void svc_xprt_free(struct kref *kref)
 	struct svc_xprt *xprt =
 		container_of(kref, struct svc_xprt, xpt_ref);
 	struct module *owner = xprt->xpt_class->xcl_owner;
-	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags) &&
-	    xprt->xpt_auth_cache != NULL)
-		svcauth_unix_info_release(xprt->xpt_auth_cache);
+	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags))
+		svcauth_unix_info_release(xprt);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
 }

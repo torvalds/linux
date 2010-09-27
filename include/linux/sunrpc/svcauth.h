@@ -116,6 +116,7 @@ struct auth_ops {
 #define	SVC_PENDING	9
 #define	SVC_COMPLETE	10
 
+struct svc_xprt;
 
 extern int	svc_authenticate(struct svc_rqst *rqstp, __be32 *authp);
 extern int	svc_authorise(struct svc_rqst *rqstp);
@@ -131,7 +132,7 @@ extern struct auth_domain *auth_domain_find(char *name);
 extern struct auth_domain *auth_unix_lookup(struct in6_addr *addr);
 extern int auth_unix_forget_old(struct auth_domain *dom);
 extern void svcauth_unix_purge(void);
-extern void svcauth_unix_info_release(void *);
+extern void svcauth_unix_info_release(struct svc_xprt *xpt);
 extern int svcauth_unix_set_client(struct svc_rqst *rqstp);
 
 static inline unsigned long hash_str(char *name, int bits)
