@@ -990,7 +990,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 		 * RX queues, so if we get an error, first retry using a
 		 * single TX queue before giving up */
 		if (status != 0 && mgp->dev->real_num_tx_queues > 1) {
-			mgp->dev->real_num_tx_queues = 1;
+			netif_set_real_num_tx_queues(mgp->dev, 1);
 			cmd.data0 = mgp->num_slices;
 			cmd.data1 = MXGEFW_SLICE_INTR_MODE_ONE_PER_SLICE;
 			status = myri10ge_send_cmd(mgp,
@@ -3923,7 +3923,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "failed to alloc slice state\n");
 		goto abort_with_firmware;
 	}
-	netdev->real_num_tx_queues = mgp->num_slices;
+	netif_set_real_num_tx_queues(netdev, mgp->num_slices);
+	netif_set_real_num_rx_queues(netdev, mgp->num_slices);
 	status = myri10ge_reset(mgp);
 	if (status != 0) {
 		dev_err(&pdev->dev, "failed reset\n");
