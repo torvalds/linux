@@ -1207,8 +1207,8 @@ static int bnx2x_set_num_queues(struct bnx2x *bp)
 			bp->num_queues = 1;
 		break;
 	}
-	bp->dev->real_num_tx_queues = bp->num_queues;
-	return rc;
+	netif_set_real_num_tx_queues(bp->dev, bp->num_queues);
+	return netif_set_real_num_rx_queues(bp->dev, bp->num_queues);
 }
 
 static void bnx2x_release_firmware(struct bnx2x *bp)
@@ -1240,6 +1240,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	bp->state = BNX2X_STATE_OPENING_WAIT4_LOAD;
 
 	rc = bnx2x_set_num_queues(bp);
+	if (rc)
+		return rc;
 
 	if (bnx2x_alloc_mem(bp)) {
 		bnx2x_free_irq(bp, true);
