@@ -840,8 +840,6 @@ static int page_action(struct page_state *ps, struct page *p,
 	return (result == RECOVERED || result == DELAYED) ? 0 : -EBUSY;
 }
 
-#define N_UNMAP_TRIES 5
-
 /*
  * Do all that is necessary to remove user space mappings. Unmap
  * the pages and send SIGBUS to the processes if the data was dirty.
@@ -853,7 +851,6 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
 	int ret;
-	int i;
 	int kill = 1;
 	struct page *hpage = compound_head(p);
 
@@ -907,17 +904,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	if (kill)
 		collect_procs(hpage, &tokill);
 
-	/*
-	 * try_to_unmap can fail temporarily due to races.
-	 * Try a few times (RED-PEN better strategy?)
-	 */
-	for (i = 0; i < N_UNMAP_TRIES; i++) {
-		ret = try_to_unmap(hpage, ttu);
-		if (ret == SWAP_SUCCESS)
-			break;
-		pr_debug("MCE %#lx: try_to_unmap retry needed %d\n", pfn,  ret);
-	}
-
+	ret = try_to_unmap(hpage, ttu);
 	if (ret != SWAP_SUCCESS)
 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
 				pfn, page_mapcount(hpage));
