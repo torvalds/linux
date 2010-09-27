@@ -2240,7 +2240,8 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			__set_spte(iterator.sptep,
 				   __pa(sp->spt)
 				   | PT_PRESENT_MASK | PT_WRITABLE_MASK
-				   | shadow_user_mask | shadow_x_mask);
+				   | shadow_user_mask | shadow_x_mask
+				   | shadow_accessed_mask);
 		}
 	}
 	return pt_write;
