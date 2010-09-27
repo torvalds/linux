@@ -644,7 +644,7 @@ static int wm8985_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	size_t i;
+	int i;
 	struct snd_soc_codec *codec;
 	struct wm8985_priv *wm8985;
 	u16 blen, srate_idx;
