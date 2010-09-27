@@ -44,6 +44,7 @@
 #include <linux/ktime.h>
 #include <linux/sysfs.h>
 #include <linux/pm_qos_params.h>
+#include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
 
@@ -88,6 +89,8 @@ struct audio_stream {
 	struct tegra_dma_req dma_req;
 
 	struct pm_qos_request_list pm_qos;
+	struct wake_lock wake_lock;
+	char wake_lock_name[100];
 };
 
 struct spdif_pio_stats {
@@ -162,6 +165,7 @@ static inline struct audio_driver_state *ads_from_out(
 static inline void prevent_suspend(struct audio_stream *as)
 {
 	pr_debug("%s\n", __func__);
+	wake_lock(&as->wake_lock);
 	pm_qos_update_request(&as->pm_qos, 0);
 }
 
@@ -169,6 +173,7 @@ static inline void allow_suspend(struct audio_stream *as)
 {
 	pr_debug("%s\n", __func__);
 	pm_qos_update_request(&as->pm_qos, PM_QOS_DEFAULT_VALUE);
+	wake_unlock(&as->wake_lock);
 }
 
 #define I2S_I2S_FIFO_TX_BUSY	I2S_I2S_STATUS_FIFO1_BSY
@@ -986,6 +991,8 @@ static int tegra_spdif_out_release(struct inode *inode, struct file *file)
 	if (!ads->out.opened) {
 		stop_playback_if_necessary(&ads->out);
 
+		if (wake_lock_active(&ads->out.wake_lock))
+			pr_err("%s: wake lock is still held!\n", __func__);
 		if (kfifo_len(&ads->out.fifo))
 			pr_err("%s: output fifo is not empty (%d bytes left)\n",
 				__func__, kfifo_len(&ads->out.fifo));
@@ -1336,6 +1343,10 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 
 	pm_qos_add_request(&state->out.pm_qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
+	snprintf(state->out.wake_lock_name, sizeof(state->out.wake_lock_name),
+		"tegra-audio-spdif");
+	wake_lock_init(&state->out.wake_lock, WAKE_LOCK_SUSPEND,
+			state->out.wake_lock_name);
 
 	if (request_irq(state->irq, spdif_interrupt,
 			IRQF_DISABLED, state->pdev->name, state) < 0) {
