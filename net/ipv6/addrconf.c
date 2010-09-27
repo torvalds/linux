@@ -4638,10 +4638,12 @@ int __init addrconf_init(void)
 	if (err < 0) {
 		printk(KERN_CRIT "IPv6 Addrconf:"
 		       " cannot initialize default policy table: %d.\n", err);
-		return err;
+		goto out;
 	}
 
-	register_pernet_subsys(&addrconf_ops);
+	err = register_pernet_subsys(&addrconf_ops);
+	if (err < 0)
+		goto out_addrlabel;
 
 	/* The addrconf netdev notifier requires that loopback_dev
 	 * has it's ipv6 private information allocated and setup
@@ -4693,7 +4695,9 @@ errout:
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 errlo:
 	unregister_pernet_subsys(&addrconf_ops);
-
+out_addrlabel:
+	ipv6_addr_label_cleanup();
+out:
 	return err;
 }
 
@@ -4704,6 +4708,7 @@ void addrconf_cleanup(void)
 
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 	unregister_pernet_subsys(&addrconf_ops);
+	ipv6_addr_label_cleanup();
 
 	rtnl_lock();
 

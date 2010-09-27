@@ -255,10 +255,6 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 			error = -EINVAL;
 			goto err_out;
 		}
-		if (!list_empty(&flow->list)) {
-			error = -EEXIST;
-			goto err_out;
-		}
 	} else {
 		int i;
 		unsigned long cl;

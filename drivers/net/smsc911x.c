@@ -58,6 +58,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(SMSC_DRV_VERSION);
+MODULE_ALIAS("platform:smsc911x");
 
 #if USE_DEBUG > 0
 static int debug = 16;
