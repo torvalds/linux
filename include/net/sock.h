@@ -1558,7 +1558,11 @@ static inline void sk_wake_async(struct sock *sk, int how, int band)
 }
 
 #define SOCK_MIN_SNDBUF 2048
-#define SOCK_MIN_RCVBUF 256
+/*
+ * Since sk_rmem_alloc sums skb->truesize, even a small frame might need
+ * sizeof(sk_buff) + MTU + padding, unless net driver perform copybreak
+ */
+#define SOCK_MIN_RCVBUF (2048 + sizeof(struct sk_buff))
 
 static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 {
