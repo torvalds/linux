@@ -2393,8 +2393,8 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 			++sp->root_count;
 			spin_unlock(&vcpu->kvm->mmu_lock);
 			vcpu->arch.mmu.pae_root[i] = root | PT_PRESENT_MASK;
-			vcpu->arch.mmu.root_hpa = __pa(vcpu->arch.mmu.pae_root);
 		}
+		vcpu->arch.mmu.root_hpa = __pa(vcpu->arch.mmu.pae_root);
 	} else
 		BUG();
 
@@ -2466,8 +2466,8 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		spin_unlock(&vcpu->kvm->mmu_lock);
 
 		vcpu->arch.mmu.pae_root[i] = root | pm_mask;
-		vcpu->arch.mmu.root_hpa = __pa(vcpu->arch.mmu.pae_root);
 	}
+	vcpu->arch.mmu.root_hpa = __pa(vcpu->arch.mmu.pae_root);
 
 	/*
 	 * If we shadow a 32 bit page table with a long mode page
