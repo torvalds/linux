@@ -39,6 +39,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/statfs.h>
+#include <linux/magic.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -256,7 +257,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (v9fs_proto_dotl(v9ses)) {
 		res = p9_client_statfs(fid, &rs);
 		if (res == 0) {
-			buf->f_type = rs.type;
+			buf->f_type = V9FS_MAGIC;
 			buf->f_bsize = rs.bsize;
 			buf->f_blocks = rs.blocks;
 			buf->f_bfree = rs.bfree;
