@@ -84,6 +84,19 @@
 #include <mach/irqs-board-mop500.h>
 #endif
 
-#define NR_IRQS				IRQ_BOARD_END
+/*
+ * After the board specific IRQ:s we reserve a range of IRQ:s in which virtual
+ * IRQ:s representing modem IRQ:s can be allocated
+ */
+#define IRQ_MODEM_EVENTS_BASE (IRQ_BOARD_END + 1)
+#define IRQ_MODEM_EVENTS_NBR 72
+#define IRQ_MODEM_EVENTS_END (IRQ_MODEM_EVENTS_BASE + IRQ_MODEM_EVENTS_NBR)
+
+/* List of virtual IRQ:s that are allocated from the range above */
+#define MBOX_PAIR0_VIRT_IRQ (IRQ_MODEM_EVENTS_BASE + 43)
+#define MBOX_PAIR1_VIRT_IRQ (IRQ_MODEM_EVENTS_BASE + 45)
+#define MBOX_PAIR2_VIRT_IRQ (IRQ_MODEM_EVENTS_BASE + 41)
+
+#define NR_IRQS				IRQ_MODEM_EVENTS_END
 
 #endif /* ASM_ARCH_IRQS_H */
