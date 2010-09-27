@@ -878,7 +878,7 @@ EXPORT_SYMBOL(omap_mcbsp_free);
 void omap_mcbsp_start(unsigned int id, int tx, int rx)
 {
 	struct omap_mcbsp *mcbsp;
-	int idle;
+	int enable_srg = 0;
 	u16 w;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
@@ -893,10 +893,13 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 	mcbsp->rx_word_length = (MCBSP_READ_CACHE(mcbsp, RCR1) >> 5) & 0x7;
 	mcbsp->tx_word_length = (MCBSP_READ_CACHE(mcbsp, XCR1) >> 5) & 0x7;
 
-	idle = !((MCBSP_READ_CACHE(mcbsp, SPCR2) |
-			MCBSP_READ_CACHE(mcbsp, SPCR1)) & 1);
+	/* Only enable SRG, if McBSP is master */
+	w = MCBSP_READ_CACHE(mcbsp, PCR0);
+	if (w & (FSXM | FSRM | CLKXM | CLKRM))
+		enable_srg = !((MCBSP_READ_CACHE(mcbsp, SPCR2) |
+				MCBSP_READ_CACHE(mcbsp, SPCR1)) & 1);
 
-	if (idle) {
+	if (enable_srg) {
 		/* Start the sample generator */
 		w = MCBSP_READ_CACHE(mcbsp, SPCR2);
 		MCBSP_WRITE(mcbsp, SPCR2, w | (1 << 6));
@@ -919,7 +922,7 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 	 */
 	udelay(500);
 
-	if (idle) {
+	if (enable_srg) {
 		/* Start frame sync */
 		w = MCBSP_READ_CACHE(mcbsp, SPCR2);
 		MCBSP_WRITE(mcbsp, SPCR2, w | (1 << 7));

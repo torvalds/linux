@@ -73,10 +73,9 @@ struct omap_mmc_platform_data {
 
 	struct omap_mmc_slot_data {
 
-		/* 4 wire signaling is optional, and is used for SD/SDIO/HSMMC;
-		 * 8 wire signaling is also optional, and is used with HSMMC
-		 */
-		u8 wires;
+		/* 4/8 wires and any additional host capabilities
+		 * need to OR'd all capabilities (ref. linux/mmc/host.h) */
+		u32 caps;
 
 		/*
 		 * nomux means "standard" muxing is wrong on this board, and

@@ -258,7 +258,7 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 				"mmc%islot%i", c->mmc, 1);
 		mmc->slots[0].name = hc->name;
 		mmc->nr_slots = 1;
-		mmc->slots[0].wires = c->wires;
+		mmc->slots[0].caps = c->caps;
 		mmc->slots[0].internal_clock = !c->ext_clock;
 		mmc->dma_mask = 0xffffffff;
 
@@ -316,16 +316,20 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 			}
 
 			/* Omap3630 HSMMC1 supports only 4-bit */
-			if (cpu_is_omap3630() && c->wires > 4) {
-				c->wires = 4;
-				mmc->slots[0].wires = c->wires;
+			if (cpu_is_omap3630() &&
+					(c->caps & MMC_CAP_8_BIT_DATA)) {
+				c->caps &= ~MMC_CAP_8_BIT_DATA;
+				c->caps |= MMC_CAP_4_BIT_DATA;
+				mmc->slots[0].caps = c->caps;
 			}
 			break;
 		case 2:
 			if (c->ext_clock)
 				c->transceiver = 1;
-			if (c->transceiver && c->wires > 4)
-				c->wires = 4;
+			if (c->transceiver && (c->caps & MMC_CAP_8_BIT_DATA)) {
+				c->caps &= ~MMC_CAP_8_BIT_DATA;
+				c->caps |= MMC_CAP_4_BIT_DATA;
+			}
 			/* FALLTHROUGH */
 		case 3:
 			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
