@@ -1,0 +1,54 @@
+config HAVE_GENERIC_HARDIRQS
+	def_bool n
+
+if HAVE_GENERIC_HARDIRQS
+menu "IRQ subsystem"
+#
+# Interrupt subsystem related configuration options
+#
+config GENERIC_HARDIRQS
+       def_bool y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+       def_bool y
+
+# Options selectable by the architecture code
+config HAVE_SPARSE_IRQ
+       def_bool n
+
+config GENERIC_IRQ_PROBE
+	def_bool n
+
+config GENERIC_PENDING_IRQ
+	def_bool n
+
+if SPARSE_IRQ && NUMA
+config NUMA_IRQ_DESC
+	def_bool n
+endif
+
+config AUTO_IRQ_AFFINITY
+       def_bool n
+
+config IRQ_PER_CPU
+       def_bool n
+
+config HARDIRQS_SW_RESEND
+       def_bool n
+
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	depends on HAVE_SPARSE_IRQ
+	---help---
+
+	  Sparse irq numbering is useful for distro kernels that want
+	  to define a high CONFIG_NR_CPUS value but still want to have
+	  low kernel memory footprint on smaller machines.
+
+	  ( Sparse irqs can also be beneficial on NUMA boxes, as they spread
+	    out the interrupt descriptors in a more NUMA-friendly way. )
+
+	  If you don't know what to do here, say N.
+
+endmenu
+endif
