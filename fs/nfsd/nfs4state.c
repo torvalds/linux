@@ -639,9 +639,7 @@ static inline int slot_bytes(struct nfsd4_channel_attrs *ca)
 	return ca->maxresp_cached - NFSD_MIN_HDR_SEQ_SZ;
 }
 
-static int
-alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
-		   struct nfsd4_create_session *cses)
+static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp, struct nfsd4_create_session *cses)
 {
 	struct nfsd4_session *new, tmp;
 	struct nfsd4_slot *sp;
