@@ -988,7 +988,7 @@ static void igb_clear_interrupt_scheme(struct igb_adapter *adapter)
  * Attempt to configure interrupts using the best available
  * capabilities of the hardware and kernel.
  **/
-static void igb_set_interrupt_capability(struct igb_adapter *adapter)
+static int igb_set_interrupt_capability(struct igb_adapter *adapter)
 {
 	int err;
 	int numvecs, i;
@@ -1054,8 +1054,10 @@ msi_only:
 	if (!pci_enable_msi(adapter->pdev))
 		adapter->flags |= IGB_FLAG_HAS_MSI;
 out:
-	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
+	/* Notify the stack of the (possibly) reduced queue counts. */
+	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
+	return netif_set_real_num_rx_queues(adapter->netdev,
+					    adapter->num_rx_queues);
 }
 
 /**
@@ -1154,7 +1156,9 @@ static int igb_init_interrupt_scheme(struct igb_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int err;
 
-	igb_set_interrupt_capability(adapter);
+	err = igb_set_interrupt_capability(adapter);
+	if (err)
+		return err;
 
 	err = igb_alloc_q_vectors(adapter);
 	if (err) {
