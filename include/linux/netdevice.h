@@ -1053,6 +1053,7 @@ struct net_device {
 	union {
 		void				*ml_priv;
 		struct pcpu_lstats __percpu	*lstats; /* loopback stats */
+		struct pcpu_tstats __percpu	*tstats; /* tunnel stats */
 	};
 	/* GARP */
 	struct garp_port	*garp_port;
