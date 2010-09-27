@@ -49,6 +49,9 @@ struct tegra_dc_hdmi_data {
 	struct resource			*base_res;
 	void __iomem			*base;
 	struct clk			*clk;
+
+	struct clk			*disp1_clk;
+	struct clk			*disp2_clk;
 };
 
 const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
@@ -475,7 +478,9 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 	struct resource *res;
 	struct resource *base_res;
 	void __iomem *base;
-	struct clk *clk;
+	struct clk *clk = NULL;
+	struct clk *disp1_clk = NULL;
+	struct clk *disp2_clk = NULL;
 	int err;
 
 	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
@@ -510,6 +515,20 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 		goto err_iounmap_reg;
 	}
 
+	disp1_clk = clk_get_sys("tegradc.0", NULL);
+	if (IS_ERR_OR_NULL(disp1_clk)) {
+		dev_err(&dc->ndev->dev, "hdmi: can't disp1 clock\n");
+		err = -ENOENT;
+		goto err_put_clock;
+	}
+
+	disp2_clk = clk_get_sys("tegradc.1", NULL);
+	if (IS_ERR_OR_NULL(disp2_clk)) {
+		dev_err(&dc->ndev->dev, "hdmi: can't disp2 clock\n");
+		err = -ENOENT;
+		goto err_put_clock;
+	}
+
 	/* TODO: support non-hotplug */
 	if (request_irq(gpio_to_irq(dc->out->hotplug_gpio), tegra_dc_hdmi_irq,
 			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -533,6 +552,8 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 	hdmi->base = base;
 	hdmi->base_res = base_res;
 	hdmi->clk = clk;
+	hdmi->disp1_clk = disp1_clk;
+	hdmi->disp2_clk = disp2_clk;
 
 	tegra_dc_set_outdata(dc, hdmi);
 
@@ -541,7 +562,12 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 err_free_irq:
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 err_put_clock:
-	clk_put(clk);
+	if (!IS_ERR_OR_NULL(disp2_clk))
+		clk_put(disp2_clk);
+	if (!IS_ERR_OR_NULL(disp1_clk))
+		clk_put(disp1_clk);
+	if (!IS_ERR_OR_NULL(clk))
+		clk_put(clk);
 err_iounmap_reg:
 	iounmap(base);
 err_release_resource_reg:
@@ -560,6 +586,8 @@ static void tegra_dc_hdmi_destroy(struct tegra_dc *dc)
 	iounmap(hdmi->base);
 	release_resource(hdmi->base_res);
 	clk_put(hdmi->clk);
+	clk_put(hdmi->disp1_clk);
+	clk_put(hdmi->disp2_clk);
 	tegra_edid_destroy(hdmi->edid);
 
 	kfree(hdmi);
@@ -792,6 +820,13 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	bool dvi = false;
 
 	/* enbale power, clocks, resets, etc. */
+
+	/* The upstream DC needs to be clocked for accesses to HDMI to not
+	 * hard lock the system.  Because we don't know if HDMI is conencted
+	 * to disp1 or disp2 we need to enable both until we set the DC mux.
+	 */
+	clk_enable(hdmi->disp1_clk);
+	clk_enable(hdmi->disp2_clk);
 	tegra_dc_setup_clk(dc, hdmi->clk);
 	clk_set_rate(hdmi->clk, dc->mode.pclk);
 
@@ -833,6 +868,9 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 			  (dc->ndev->id ? HDMI_SRC_DISPLAYB : HDMI_SRC_DISPLAYA) |
 			  ARM_VIDEO_RANGE_LIMITED,
 			  HDMI_NV_PDISP_INPUT_CONTROL);
+
+	clk_disable(hdmi->disp1_clk);
+	clk_disable(hdmi->disp2_clk);
 
 	dispclk_div_8_2 = clk_get_rate(hdmi->clk) / 1000000 * 4;
 	tegra_hdmi_writel(hdmi,
