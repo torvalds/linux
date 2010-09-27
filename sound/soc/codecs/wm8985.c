@@ -185,8 +185,8 @@ static const SOC_ENUM_SINGLE_DECL(filter_mode, WM8985_ADC_CONTROL, 7,
 
 static const char *eq_bw_text[] = { "Narrow", "Wide" };
 static const char *eqmode_text[] = { "Capture", "Playback" };
-static const SOC_ENUM_SINGLE_DECL(eqmode, WM8985_EQ1_LOW_SHELF, 8,
-				  eqmode_text);
+static const SOC_ENUM_SINGLE_EXT_DECL(eqmode, eqmode_text);
+
 static const char *eq1_cutoff_text[] = {
 	"80Hz", "105Hz", "135Hz", "175Hz"
 };
