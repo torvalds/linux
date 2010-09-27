@@ -416,7 +416,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 
 	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
 
-	clp = auth_unix_lookup(&in6);
+	clp = auth_unix_lookup(&init_net, &in6);
 	if (!clp)
 		err = -EPERM;
 	else {
@@ -479,7 +479,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 
 	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
 
-	clp = auth_unix_lookup(&in6);
+	clp = auth_unix_lookup(&init_net, &in6);
 	if (!clp)
 		err = -EPERM;
 	else {

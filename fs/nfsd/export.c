@@ -1593,7 +1593,7 @@ exp_addclient(struct nfsctl_client *ncp)
 	/* Insert client into hashtable. */
 	for (i = 0; i < ncp->cl_naddr; i++) {
 		ipv6_addr_set_v4mapped(ncp->cl_addrlist[i].s_addr, &addr6);
-		auth_unix_add_addr(&addr6, dom);
+		auth_unix_add_addr(&init_net, &addr6, dom);
 	}
 	auth_unix_forget_old(dom);
 	auth_domain_put(dom);

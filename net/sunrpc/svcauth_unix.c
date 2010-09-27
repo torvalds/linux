@@ -327,7 +327,8 @@ static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
 		return NULL;
 }
 
-static inline struct ip_map *ip_map_lookup(char *class, struct in6_addr *addr)
+static inline struct ip_map *ip_map_lookup(struct net *net, char *class,
+		struct in6_addr *addr)
 {
 	return __ip_map_lookup(&ip_map_cache, class, addr);
 }
@@ -360,12 +361,13 @@ static int __ip_map_update(struct cache_detail *cd, struct ip_map *ipm,
 	return 0;
 }
 
-static inline int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t expiry)
+static inline int ip_map_update(struct net *net, struct ip_map *ipm,
+		struct unix_domain *udom, time_t expiry)
 {
 	return __ip_map_update(&ip_map_cache, ipm, udom, expiry);
 }
 
-int auth_unix_add_addr(struct in6_addr *addr, struct auth_domain *dom)
+int auth_unix_add_addr(struct net *net, struct in6_addr *addr, struct auth_domain *dom)
 {
 	struct unix_domain *udom;
 	struct ip_map *ipmp;
@@ -373,10 +375,10 @@ int auth_unix_add_addr(struct in6_addr *addr, struct auth_domain *dom)
 	if (dom->flavour != &svcauth_unix)
 		return -EINVAL;
 	udom = container_of(dom, struct unix_domain, h);
-	ipmp = ip_map_lookup("nfsd", addr);
+	ipmp = ip_map_lookup(net, "nfsd", addr);
 
 	if (ipmp)
-		return ip_map_update(ipmp, udom, NEVER);
+		return ip_map_update(net, ipmp, udom, NEVER);
 	else
 		return -ENOMEM;
 }
@@ -394,12 +396,12 @@ int auth_unix_forget_old(struct auth_domain *dom)
 }
 EXPORT_SYMBOL_GPL(auth_unix_forget_old);
 
-struct auth_domain *auth_unix_lookup(struct in6_addr *addr)
+struct auth_domain *auth_unix_lookup(struct net *net, struct in6_addr *addr)
 {
 	struct ip_map *ipm;
 	struct auth_domain *rv;
 
-	ipm = ip_map_lookup("nfsd", addr);
+	ipm = ip_map_lookup(net, "nfsd", addr);
 
 	if (!ipm)
 		return NULL;
@@ -725,7 +727,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 
 	ipm = ip_map_cached_get(xprt);
 	if (ipm == NULL)
-		ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
+		ipm = ip_map_lookup(&init_net, rqstp->rq_server->sv_program->pg_class,
 				    &sin6->sin6_addr);
 
 	if (ipm == NULL)
