@@ -838,7 +838,7 @@ static void hpt3xxn_set_clock(ide_hwif_t *hwif, u8 mode)
 
 static void hpt3xxn_rw_disk(ide_drive_t *drive, struct request *rq)
 {
-	hpt3xxn_set_clock(drive->hwif, rq_data_dir(rq) ? 0x23 : 0x21);
+	hpt3xxn_set_clock(drive->hwif, rq_data_dir(rq) ? 0x21 : 0x23);
 }
 
 /**
