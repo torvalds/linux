@@ -39,9 +39,8 @@
 #define SPI_GPIO_TEST 0
 #define HIGH_SPI_TEST 1
 
-spinlock_t		gpio_lock;
-spinlock_t		gpio_state_lock;
-spinlock_t		gpio_irq_lock;
+static DEFINE_SPINLOCK(gpio_state_lock);
+//static DEFINE_SPINLOCK(gpio_irq_lock);
 static unsigned short int gGpio0State = 0;		
 #define SPI_GPIO_IRQ_NUM 16
 static SPI_GPIO_PDATA g_spiGpioVectorTable[SPI_GPIO_IRQ_NUM] = \
@@ -480,10 +479,10 @@ int spi_request_gpio_irq(eSpiGpioPinNum_t PinNum, pSpiFunc Routine, eSpiGpioIntT
 int spi_free_gpio_irq(eSpiGpioPinNum_t PinNum)
 {	
 	spi_gpio_disable_int(PinNum);
-	spin_lock(&gpio_irq_lock);
+//	spin_lock(&gpio_irq_lock);
 	g_spiGpioVectorTable[PinNum].gpio_vector = NULL;
 	g_spiGpioVectorTable[PinNum].gpio_devid= NULL;
-	spin_unlock(&gpio_irq_lock);
+//	spin_unlock(&gpio_irq_lock);
 
 	return 0;
 }
@@ -547,7 +546,7 @@ static irqreturn_t spi_gpio_int_test_3(int irq, void *dev)
 }
 
 
-volatile int TestGpioPinLevel = 0;
+static volatile int TestGpioPinLevel = 0;
 void spi_gpio_work_handler(struct work_struct *work)
 {
 	//struct spi_fpga_port *port =
@@ -722,7 +721,7 @@ int spi_gpio_init_first(void)
 
 }
 
-void spi_gpio_irq_work_handler(struct work_struct *work);
+static void spi_gpio_irq_work_handler(struct work_struct *work);
 
 int spi_gpio_register(struct spi_fpga_port *port)
 {
@@ -741,17 +740,13 @@ int spi_gpio_register(struct spi_fpga_port *port)
 
 #endif 
 
-	spin_lock_init(&gpio_lock);
-	spin_lock_init(&gpio_state_lock);
-	spin_lock_init(&gpio_irq_lock);
-
+	INIT_LIST_HEAD(&port->gpio.msg_queue);
 	port->gpio.spi_gpio_irq_workqueue = create_freezeable_workqueue("spi_gpio_irq_workqueue");
 	if (!port->gpio.spi_gpio_irq_workqueue) {
 		printk("cannot create spi_gpio_irq workqueue\n");
 		return -EBUSY;
 	}
 	INIT_WORK(&port->gpio.spi_gpio_irq_work, spi_gpio_irq_work_handler);
-	INIT_LIST_HEAD(&port->gpio.msg_queue);
 
 	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	return 0;
@@ -946,48 +941,54 @@ static int _spi_gpio_irq_set_wake(unsigned irq, unsigned state)
 	return 0;
 }
 
-void spi_gpio_irq_work_handler(struct work_struct *work)
+static void spi_gpio_irq_work_handler(struct work_struct *work)
 {
-	unsigned int irq;
-	unsigned int type;
-	unsigned int state;
-	unsigned int id;
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, gpio.spi_gpio_irq_work);
 
-	while (!list_empty(&port->gpio.msg_queue)) 
-	{
-		struct spi_gpio_irq_transfer	*t = NULL;
-		list_for_each_entry(t, &port->gpio.msg_queue, queue)
-		{
-			irq = t->irq;
-			type = t->type;
-			state = t->state;
-			id = t->id;
-			if ((irq == 0) || (id == 0)) 
-				break;	
-			printk("%s:irq=%d,type=%d,state=%d,id=%d\n",__FUNCTION__,irq,type,state,id);
-			switch(id)
-			{
-				case ID_SPI_GPIO_IRQ_ENABLE:
-					_spi_gpio_irq_enable(irq);
-					break;
-				case ID_SPI_GPIO_IRQ_DISABLE:
-					_spi_gpio_irq_disable(irq);
-					break;
-				case ID_SPI_GPIO_IRQ_SET_TYPE:
-					_spi_gpio_irq_set_type(irq,type);
-					break;
-				case ID_SPI_GPIO_IRQ_SET_WAKE:
-					_spi_gpio_irq_set_wake(irq,state);
-					break;
-				default:
-					break;
-					
-			}
-			kfree(t);
+	while (1) {
+		struct spi_gpio_irq_transfer *t = NULL;
+		unsigned long flags;
+		unsigned int irq;
+		unsigned int type;
+		unsigned int state;
+		unsigned int id;
+
+		spin_lock_irqsave(&port->work_lock, flags);
+		if (!list_empty(&port->gpio.msg_queue)) {
+			t = list_first_entry(&port->gpio.msg_queue, struct spi_gpio_irq_transfer, queue);
+			list_del(&t->queue);
 		}
-		list_del_init(&port->gpio.msg_queue);
+		spin_unlock_irqrestore(&port->work_lock, flags);
+
+		if (!t)	// msg_queue empty
+			break;
+
+		irq = t->irq;
+		type = t->type;
+		state = t->state;
+		id = t->id;
+		kfree(t);
+
+		if ((irq == 0) || (id == 0))
+			continue;
+		printk("%s:irq=%d,type=%d,state=%d,id=%d\n",__FUNCTION__,irq,type,state,id);
+		switch (id) {
+			case ID_SPI_GPIO_IRQ_ENABLE:
+				_spi_gpio_irq_enable(irq);
+				break;
+			case ID_SPI_GPIO_IRQ_DISABLE:
+				_spi_gpio_irq_disable(irq);
+				break;
+			case ID_SPI_GPIO_IRQ_SET_TYPE:
+				_spi_gpio_irq_set_type(irq, type);
+				break;
+			case ID_SPI_GPIO_IRQ_SET_WAKE:
+				_spi_gpio_irq_set_wake(irq, state);
+				break;
+			default:
+				break;
+		}
 	}
 }
 
@@ -997,7 +998,7 @@ static void spi_gpio_irq_enable(unsigned irq)
 	struct spi_fpga_port *port = pFpgaPort;
 	struct spi_gpio_irq_transfer *t;
 	unsigned long flags;
-	t = kzalloc(sizeof(struct spi_gpio_irq_transfer), GFP_KERNEL);
+	t = kzalloc(sizeof(struct spi_gpio_irq_transfer), GFP_ATOMIC);
 	if (!t)
 	{
 		printk("err:%s:ENOMEM\n",__FUNCTION__);
@@ -1008,8 +1009,9 @@ static void spi_gpio_irq_enable(unsigned irq)
 	
 	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
-	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
 	spin_unlock_irqrestore(&port->work_lock, flags);
+
+	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
 }
 
 static void spi_gpio_irq_disable(unsigned irq)
@@ -1017,7 +1019,7 @@ static void spi_gpio_irq_disable(unsigned irq)
 	struct spi_fpga_port *port = pFpgaPort;
 	struct spi_gpio_irq_transfer *t;
 	unsigned long flags;
-	t = kzalloc(sizeof(struct spi_gpio_irq_transfer), GFP_KERNEL);
+	t = kzalloc(sizeof(struct spi_gpio_irq_transfer), GFP_ATOMIC);
 	if (!t)
 	{
 		printk("err:%s:ENOMEM\n",__FUNCTION__);
@@ -1028,10 +1030,9 @@ static void spi_gpio_irq_disable(unsigned irq)
 	
 	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
-	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
 	spin_unlock_irqrestore(&port->work_lock, flags);
 
-
+	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
 }
 
 static void spi_gpio_irq_mask(unsigned int irq)
@@ -1061,8 +1062,10 @@ static int spi_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	
 	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
-	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
 	spin_unlock_irqrestore(&port->work_lock, flags);
+
+	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
+
 	return 0;
 }
 
@@ -1083,8 +1086,10 @@ static int spi_gpio_irq_set_wake(unsigned irq, unsigned state)
 	
 	spin_lock_irqsave(&port->work_lock, flags);
 	list_add_tail(&t->queue, &port->gpio.msg_queue);
-	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
 	spin_unlock_irqrestore(&port->work_lock, flags);
+
+	queue_work(port->gpio.spi_gpio_irq_workqueue, &port->gpio.spi_gpio_irq_work);
+
 	return 0;
 }
 
@@ -1167,7 +1172,7 @@ void spi_gpio_test_gpio_irq_init(void)
 
 }
 
-int spi_gpio_banks;
+static int spi_gpio_banks;
 static struct lock_class_key gpio_lock_class;
 
 /*
