@@ -1780,15 +1780,13 @@ static int capella_cm3602_power(int on)
 {	/* TODO eolsen Add Voltage reg control */	
     if (on) {		
         printk("[%s]:on---\n",__FUNCTION__);
-        gpio_direction_output(capella_cm3602_pdata.pwd_out_pin, SPI_GPIO_OUT);
-        gpio_set_value(capella_cm3602_pdata.pwd_out_pin, SPI_GPIO_LOW);     //CM3605_PWD output
-        gpio_direction_output(capella_cm3602_pdata.ps_shutdown_pin, SPI_GPIO_OUT);
-        gpio_set_value(capella_cm3602_pdata.ps_shutdown_pin, SPI_GPIO_LOW);     //CM3605_PS_SHUTDOWN
+       gpio_direction_output(capella_cm3602_pdata.pwd_out_pin, SPI_GPIO_LOW);
+	gpio_direction_output(capella_cm3602_pdata.ps_shutdown_pin, SPI_GPIO_LOW);  
     }
     else {
 	    printk("[%s]:off---\n",__FUNCTION__);
-    	gpio_set_value(capella_cm3602_pdata.pwd_out_pin, SPI_GPIO_HIGH);
-	    gpio_set_value(capella_cm3602_pdata.ps_shutdown_pin, SPI_GPIO_HIGH);
+       gpio_direction_output(capella_cm3602_pdata.pwd_out_pin, SPI_GPIO_HIGH);
+	gpio_direction_output(capella_cm3602_pdata.ps_shutdown_pin, SPI_GPIO_HIGH);  
     }	
     return 0;
 }
