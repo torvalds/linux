@@ -279,7 +279,7 @@ enum wl1271_cmd_key_type {
 	KEY_WEP  = 1,
 	KEY_TKIP = 2,
 	KEY_AES  = 3,
-	KEY_GEM  = 4
+	KEY_GEM  = 4,
 };
 
 /* FIXME: Add description for key-types */

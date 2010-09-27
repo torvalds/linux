@@ -1549,6 +1549,11 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
 		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
 		break;
+	case WL1271_CIPHER_SUITE_GEM:
+		key_type = KEY_GEM;
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
+		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
 
@@ -2403,6 +2408,14 @@ EXPORT_SYMBOL_GPL(wl1271_unregister_hw);
 
 int wl1271_init_ieee80211(struct wl1271 *wl)
 {
+	static const u32 cipher_suites[] = {
+		WLAN_CIPHER_SUITE_WEP40,
+		WLAN_CIPHER_SUITE_WEP104,
+		WLAN_CIPHER_SUITE_TKIP,
+		WLAN_CIPHER_SUITE_CCMP,
+		WL1271_CIPHER_SUITE_GEM,
+	};
+
 	/* The tx descriptor buffer and the TKIP space. */
 	wl->hw->extra_tx_headroom = WL1271_TKIP_IV_SPACE +
 		sizeof(struct wl1271_tx_hw_descr);
@@ -2419,6 +2432,9 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_HAS_RATE_CONTROL |
 		IEEE80211_HW_CONNECTION_MONITOR |
 		IEEE80211_HW_SUPPORTS_CQM_RSSI;
+
+	wl->hw->wiphy->cipher_suites = cipher_suites;
+	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);

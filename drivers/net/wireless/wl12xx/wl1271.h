@@ -117,6 +117,8 @@ enum {
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
 
+#define WL1271_CIPHER_SUITE_GEM 0x00147201
+
 #define WL1271_BUSY_WORD_CNT 1
 #define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
 
