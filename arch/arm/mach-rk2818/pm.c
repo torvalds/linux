@@ -658,7 +658,7 @@ static void rk2818_idle(void)
 	rk2818_tcm_idle();
 	asm volatile ("mov sp, %0" :: "r" (old_sp));
 
-	printk("rk2818_idle\n");
+	//printk("rk2818_idle\n");
 
 }
 
@@ -697,7 +697,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	printk(KERN_DEBUG "before core halt\n");
 
-	pmu_suspend( );
+	//pmu_suspend( );
 	clk_set_rate(arm_clk, 24000000);
 	dump_register();
 
@@ -721,7 +721,7 @@ static int rk2818_pm_enter(suspend_state_t state)
 
 	rockchip_timer_clocksource_suspend_resume(0);
 #endif
-	pmu_resume( );
+	//pmu_resume( );
 	dump_register();
 	clk_set_rate(arm_clk, arm_rate);
 	//rk2818_socpm_print();
