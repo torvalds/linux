@@ -257,4 +257,3 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 	struct irq_desc *desc = irq_to_desc(irq);
 	return desc ? desc->kstat_irqs[cpu] : 0;
 }
-EXPORT_SYMBOL(kstat_irqs_cpu);
