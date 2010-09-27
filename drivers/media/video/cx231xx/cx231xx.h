@@ -27,6 +27,7 @@
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/workqueue.h>
 #include <linux/mutex.h>
 
 #include <media/cx2341x.h>
@@ -387,9 +388,6 @@ enum AUDIO_INPUT {
 #define CX231XX_AUDIO_BUFS              5
 #define CX231XX_NUM_AUDIO_PACKETS       16
 #define CX231XX_ISO_NUM_AUDIO_PACKETS	64
-#define CX231XX_CAPTURE_STREAM_EN       1
-#define CX231XX_STOP_AUDIO              0
-#define CX231XX_START_AUDIO             1
 
 /* cx231xx extensions */
 #define CX231XX_AUDIO                   0x10
@@ -407,7 +405,6 @@ struct cx231xx_audio {
 	struct snd_card *sndcard;
 
 	int users, shutdown;
-	enum cx231xx_stream_state capture_stream;
 	/* locks */
 	spinlock_t slock;
 
@@ -623,6 +620,9 @@ struct cx231xx {
 	struct v4l2_subdev *sd_tuner;
 
 	struct cx231xx_IR *ir;
+
+	struct work_struct wq_trigger;		/* Trigger to start/stop audio for alsa module */
+	atomic_t	   stream_started;	/* stream should be running if true */
 
 	struct list_head devlist;
 
