@@ -335,6 +335,11 @@ static void compat_irq_unmask(struct irq_data *data)
 	data->chip->unmask(data->irq);
 }
 
+static void compat_irq_ack(struct irq_data *data)
+{
+	data->chip->ack(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -372,12 +377,12 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_bus_lock = compat_bus_lock;
 	if (chip->bus_sync_unlock)
 		chip->irq_bus_sync_unlock = compat_bus_sync_unlock;
-
 	if (chip->mask)
 		chip->irq_mask = compat_irq_mask;
-
 	if (chip->unmask)
 		chip->irq_unmask = compat_irq_unmask;
+	if (chip->ack)
+		chip->irq_ack = compat_irq_ack;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc, int irq)
@@ -386,8 +391,8 @@ static inline void mask_ack_irq(struct irq_desc *desc, int irq)
 		desc->irq_data.chip->mask_ack(irq);
 	else {
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
-		if (desc->irq_data.chip->ack)
-			desc->irq_data.chip->ack(irq);
+		if (desc->irq_data.chip->irq_ack)
+			desc->irq_data.chip->irq_ack(&desc->irq_data);
 	}
 	desc->status |= IRQ_MASKED;
 }
@@ -626,8 +631,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	/* Start handling the irq */
-	if (desc->irq_data.chip->ack)
-		desc->irq_data.chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	/* Mark the IRQ currently in progress.*/
 	desc->status |= IRQ_INPROGRESS;
@@ -680,8 +684,8 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 
 	kstat_incr_irqs_this_cpu(irq, desc);
 
-	if (desc->irq_data.chip->ack)
-		desc->irq_data.chip->ack(irq);
+	if (desc->irq_data.chip->irq_ack)
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	action_ret = handle_IRQ_event(irq, desc->action);
 	if (!noirqdebug)

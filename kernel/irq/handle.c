@@ -299,14 +299,6 @@ static void ack_bad(struct irq_data *data)
 	ack_bad_irq(data->irq);
 }
 
-static void compat_ack_bad(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	print_irq_desc(irq, desc);
-	ack_bad_irq(irq);
-}
-
 /*
  * NOP functions
  */
@@ -338,7 +330,6 @@ struct irq_chip no_irq_chip = {
 	.shutdown	= compat_noop,
 	.enable		= compat_noop,
 	.disable	= compat_noop,
-	.ack		= compat_ack_bad,
 	.end		= compat_noop,
 };
 
@@ -359,7 +350,6 @@ struct irq_chip dummy_irq_chip = {
 	.shutdown	= compat_noop,
 	.enable		= compat_noop,
 	.disable	= compat_noop,
-	.ack		= compat_noop,
 	.end		= compat_noop,
 };
 
