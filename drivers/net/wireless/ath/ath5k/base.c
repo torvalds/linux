@@ -1191,6 +1191,15 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 		 */
 		if (hw_tu >= sc->nexttbtt)
 			ath5k_beacon_update_timers(sc, bc_tstamp);
+
+		/* Check if the beacon timers are still correct, because a TSF
+		 * update might have created a window between them - for a
+		 * longer description see the comment of this function: */
+		if (!ath5k_hw_check_beacon_timers(sc->ah, sc->bintval)) {
+			ath5k_beacon_update_timers(sc, bc_tstamp);
+			ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
+				"fixed beacon timers after beacon receive\n");
+		}
 	}
 }
 

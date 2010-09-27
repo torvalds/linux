@@ -641,6 +641,97 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 }
 
 /**
+ * ath5k_check_timer_win - Check if timer B is timer A + window
+ *
+ * @a: timer a (before b)
+ * @b: timer b (after a)
+ * @window: difference between a and b
+ * @intval: timers are increased by this interval
+ *
+ * This helper function checks if timer B is timer A + window and covers
+ * cases where timer A or B might have already been updated or wrapped
+ * around (Timers are 16 bit).
+ *
+ * Returns true if O.K.
+ */
+static inline bool
+ath5k_check_timer_win(int a, int b, int window, int intval)
+{
+	/*
+	 * 1.) usually B should be A + window
+	 * 2.) A already updated, B not updated yet
+	 * 3.) A already updated and has wrapped around
+	 * 4.) B has wrapped around
+	 */
+	if ((b - a == window) ||				/* 1.) */
+	    (a - b == intval - window) ||			/* 2.) */
+	    ((a | 0x10000) - b == intval - window) ||		/* 3.) */
+	    ((b | 0x10000) - a == window))			/* 4.) */
+		return true; /* O.K. */
+	return false;
+}
+
+/**
+ * ath5k_hw_check_beacon_timers - Check if the beacon timers are correct
+ *
+ * @ah: The &struct ath5k_hw
+ * @intval: beacon interval
+ *
+ * This is a workaround for IBSS mode:
+ *
+ * The need for this function arises from the fact that we have 4 separate
+ * HW timer registers (TIMER0 - TIMER3), which are closely related to the
+ * next beacon target time (NBTT), and that the HW updates these timers
+ * seperately based on the current TSF value. The hardware increments each
+ * timer by the beacon interval, when the local TSF coverted to TU is equal
+ * to the value stored in the timer.
+ *
+ * The reception of a beacon with the same BSSID can update the local HW TSF
+ * at any time - this is something we can't avoid. If the TSF jumps to a
+ * time which is later than the time stored in a timer, this timer will not
+ * be updated until the TSF in TU wraps around at 16 bit (the size of the
+ * timers) and reaches the time which is stored in the timer.
+ *
+ * The problem is that these timers are closely related to TIMER0 (NBTT) and
+ * that they define a time "window". When the TSF jumps between two timers
+ * (e.g. ATIM and NBTT), the one in the past will be left behind (not
+ * updated), while the one in the future will be updated every beacon
+ * interval. This causes the window to get larger, until the TSF wraps
+ * around as described above and the timer which was left behind gets
+ * updated again. But - because the beacon interval is usually not an exact
+ * divisor of the size of the timers (16 bit), an unwanted "window" between
+ * these timers has developed!
+ *
+ * This is especially important with the ATIM window, because during
+ * the ATIM window only ATIM frames and no data frames are allowed to be
+ * sent, which creates transmission pauses after each beacon. This symptom
+ * has been described as "ramping ping" because ping times increase linearly
+ * for some time and then drop down again. A wrong window on the DMA beacon
+ * timer has the same effect, so we check for these two conditions.
+ *
+ * Returns true if O.K.
+ */
+bool
+ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval)
+{
+	unsigned int nbtt, atim, dma;
+
+	nbtt = ath5k_hw_reg_read(ah, AR5K_TIMER0);
+	atim = ath5k_hw_reg_read(ah, AR5K_TIMER3);
+	dma = ath5k_hw_reg_read(ah, AR5K_TIMER1) >> 3;
+
+	/* NOTE: SWBA is different. Having a wrong window there does not
+	 * stop us from sending data and this condition is catched thru
+	 * other means (SWBA interrupt) */
+
+	if (ath5k_check_timer_win(nbtt, atim, 1, intval) &&
+	    ath5k_check_timer_win(dma, nbtt, AR5K_TUNE_DMA_BEACON_RESP,
+				  intval))
+		return true; /* O.K. */
+	return false;
+}
+
+/**
  * ath5k_hw_set_coverage_class - Set IEEE 802.11 coverage class
  *
  * @ah: The &struct ath5k_hw
