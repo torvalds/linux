@@ -90,6 +90,7 @@ static struct resource resources_i2c1[] = {
 /*
  * rk2818 4 uarts device
  */
+#ifdef CONFIG_UART0_RK2818
 static struct resource resources_uart0[] = {
 	{
 		.start	= IRQ_NR_UART0,
@@ -102,6 +103,8 @@ static struct resource resources_uart0[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
+#ifdef CONFIG_UART1_RK2818
 static struct resource resources_uart1[] = {
 	{
 		.start	= IRQ_NR_UART1,
@@ -114,6 +117,8 @@ static struct resource resources_uart1[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
+#ifdef CONFIG_UART2_RK2818
 static struct resource resources_uart2[] = {
 	{
 		.start	= IRQ_NR_UART2,
@@ -126,6 +131,8 @@ static struct resource resources_uart2[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
+#ifdef CONFIG_UART3_RK2818
 static struct resource resources_uart3[] = {
 	{
 		.start	= IRQ_NR_UART3,
@@ -138,6 +145,7 @@ static struct resource resources_uart3[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
 /* sdmmc */
 struct platform_device rk2818_device_sdmmc0 = {
 	.name			= "rk2818_sdmmc",
