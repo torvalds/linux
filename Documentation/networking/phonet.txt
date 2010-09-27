@@ -182,6 +182,59 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
     or zero if encapsulation is off.
 
 
+Phonet Pipe-controller Implementation
+-------------------------------------
+
+Phonet Pipe-controller is enabled by selecting the CONFIG_PHONET_PIPECTRLR Kconfig
+option. It is useful when communicating with those Nokia Modems which do not
+implement Pipe controller in them e.g. Nokia Slim Modem used in ST-Ericsson
+U8500 platform.
+
+The implementation is based on the Data Connection Establishment Sequence
+depicted in 'Nokia Wireless Modem API - Wireless_modem_user_guide.pdf'
+document.
+
+It allows a phonet sequenced socket (host-pep) to initiate a Pipe connection
+between itself and a remote pipe-end point (e.g. modem).
+
+The implementation adds socket options at SOL_PNPIPE level:
+
+ PNPIPE_CREATE
+	It accepts an integer argument where-in
+		lower order 16 bits: pn_dev and pn_port pair for remote pep.
+		higher order 16 bits: 8 bit pipe-handle
+
+	It sends a PNS_PEP_CONNECT_REQ on sequenced socket itself. On getting
+	PNS_PEP_CONNECT_RESP, it sends PNS_PEP_CONNECT_REQ to remote pep. On
+	getting response from remote pep, it selects the best possible Flow
+	control mechanism supported by remote-pep (modem) and then it sends
+	PNS_PEP_CREATED_IND to the sequenced socket and to the remote pep.
+
+	It then updates the pipe state associated with the sequenced socket to
+	be PIPE_DISABLED.
+
+  PNPIPE_ENABLE
+	It follows the same sequence as above for enabling a pipe by sending
+	PNS_PEP_ENABLE_REQ initially and then sending PNS_PEP_ENABLED_IND after
+	getting responses from sequenced socket and remote-pep.
+	It will also update the pipe state associated with the sequenced socket
+	to PIPE_ENABLED.
+
+   PNPIPE_DESTROY
+	This will send out PNS_PEP_DISCONNECT_REQ on the sequenced socket and
+	the remote pep.
+	It will also update the pipe state associated with the sequenced socket
+	to PIPE_IDLE
+
+   PNPIPE_INQ
+	This getsocktopt allows the user-space running on the sequenced socket
+	to examine the pipe state associated with that socket ie. whether the
+	pipe is created (PIPE_DISABLED) or enabled (PIPE_ENABLED) or disabled
+	(PIPE_DISABLED) or no pipe exists (PIPE_IDLE).
+
+After a pipe has been created and enabled successfully, the Pipe data can be
+exchanged between the host-pep and remote-pep (modem).
+
 Authors
 -------
 
