@@ -657,7 +657,7 @@ alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 	if (status)
 		goto out;
 
-	BUILD_BUG_ON(NFSD_MAX_SLOTS_PER_SESSION * sizeof(struct nfsd4_slot)
+	BUILD_BUG_ON(NFSD_MAX_SLOTS_PER_SESSION * sizeof(struct nfsd4_slot *)
 		     + sizeof(struct nfsd4_session) > PAGE_SIZE);
 
 	status = nfserr_jukebox;
