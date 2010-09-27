@@ -39,6 +39,11 @@ struct max8998_data {
 	struct max8998_dev	*iodev;
 	int			num_regulators;
 	struct regulator_dev	**rdev;
+	u8                      buck1_vol[4]; /* voltages for selection */
+	u8                      buck2_vol[2];
+	unsigned int		buck1_idx; /* index to last changed voltage */
+					   /* value in a set */
+	unsigned int		buck2_idx;
 };
 
 struct voltage_map_desc {
@@ -218,6 +223,7 @@ static int max8998_get_voltage_register(struct regulator_dev *rdev,
 				int *_reg, int *_shift, int *_mask)
 {
 	int ldo = max8998_get_ldo(rdev);
+	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
 	int reg, shift = 0, mask = 0xff;
 
 	switch (ldo) {
@@ -254,10 +260,10 @@ static int max8998_get_voltage_register(struct regulator_dev *rdev,
 		reg = MAX8998_REG_LDO12 + (ldo - MAX8998_LDO12);
 		break;
 	case MAX8998_BUCK1:
-		reg = MAX8998_REG_BUCK1_DVSARM1;
+		reg = MAX8998_REG_BUCK1_VOLTAGE1 + max8998->buck1_idx;
 		break;
 	case MAX8998_BUCK2:
-		reg = MAX8998_REG_BUCK2_DVSINT1;
+		reg = MAX8998_REG_BUCK2_VOLTAGE1 + max8998->buck2_idx;
 		break;
 	case MAX8998_BUCK3:
 		reg = MAX8998_REG_BUCK3;
