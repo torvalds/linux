@@ -654,9 +654,8 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	priv->node = ofdev->dev.of_node;
 	priv->ndev = dev;
 
-	dev->num_tx_queues = num_tx_qs;
-	dev->real_num_tx_queues = num_tx_qs;
 	priv->num_tx_queues = num_tx_qs;
+	netif_set_real_num_rx_queues(dev, num_rx_qs);
 	priv->num_rx_queues = num_rx_qs;
 	priv->num_grps = 0x0;
 
