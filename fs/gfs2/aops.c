@@ -663,6 +663,8 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		rblocks += RES_STATFS + RES_QUOTA;
 	if (&ip->i_inode == sdp->sd_rindex)
 		rblocks += 2 * RES_STATFS;
+	if (alloc_required)
+		rblocks += gfs2_rg_blocks(al);
 
 	error = gfs2_trans_begin(sdp, rblocks,
 				 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);

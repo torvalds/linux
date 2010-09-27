@@ -1151,7 +1151,7 @@ static int do_grow(struct inode *inode, u64 size)
 			goto do_grow_qunlock;
 	}
 
-	error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
+	error = gfs2_trans_begin(sdp, RES_DINODE + RES_STATFS + RES_RG_BIT, 0);
 	if (error)
 		goto do_grow_release;
 

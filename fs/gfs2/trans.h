@@ -26,6 +26,14 @@ struct gfs2_glock;
 #define RES_STATFS	1
 #define RES_QUOTA	2
 
+/* reserve either the number of blocks to be allocated plus the rg header
+ * block, or all of the blocks in the rg, whichever is smaller */
+static inline unsigned int gfs2_rg_blocks(const struct gfs2_alloc *al)
+{
+	return (al->al_requested < al->al_rgd->rd_length)?
+	       al->al_requested + 1 : al->al_rgd->rd_length;
+}
+
 int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 		     unsigned int revokes);
 
