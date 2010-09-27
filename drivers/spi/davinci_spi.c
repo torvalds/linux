@@ -143,7 +143,7 @@ struct davinci_spi {
 	u8			*tmp_buf;
 	int			rcount;
 	int			wcount;
-	struct davinci_spi_dma	*dma_channels;
+	struct davinci_spi_dma	dma_channels;
 	struct davinci_spi_platform_data *pdata;
 
 	void			(*get_rx)(u32 rx_data, struct davinci_spi *);
@@ -407,7 +407,7 @@ static void davinci_spi_dma_rx_callback(unsigned lch, u16 ch_status, void *data)
 	struct davinci_spi_dma *davinci_spi_dma;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
-	davinci_spi_dma = &(davinci_spi->dma_channels[spi->chip_select]);
+	davinci_spi_dma = &davinci_spi->dma_channels;
 
 	if (ch_status == DMA_COMPLETE)
 		edma_stop(davinci_spi_dma->dma_rx_channel);
@@ -426,7 +426,7 @@ static void davinci_spi_dma_tx_callback(unsigned lch, u16 ch_status, void *data)
 	struct davinci_spi_dma *davinci_spi_dma;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
-	davinci_spi_dma = &(davinci_spi->dma_channels[spi->chip_select]);
+	davinci_spi_dma = &davinci_spi->dma_channels;
 
 	if (ch_status == DMA_COMPLETE)
 		edma_stop(davinci_spi_dma->dma_tx_channel);
@@ -446,7 +446,7 @@ static int davinci_spi_request_dma(struct spi_device *spi)
 	int r;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
-	davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
+	davinci_spi_dma = &davinci_spi->dma_channels;
 	sdev = davinci_spi->bitbang.master->dev.parent;
 
 	r = edma_alloc_channel(davinci_spi_dma->dma_rx_sync_dev,
@@ -509,8 +509,8 @@ static int davinci_spi_setup(struct spi_device *spi)
 		clear_io_bits(davinci_spi->base + SPIGCR1,
 				SPIGCR1_LOOPBACK_MASK);
 
-	if (use_dma && davinci_spi->dma_channels) {
-		davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
+	if (use_dma) {
+		davinci_spi_dma = &davinci_spi->dma_channels;
 
 		if ((davinci_spi_dma->dma_rx_channel == -1) ||
 		    (davinci_spi_dma->dma_tx_channel == -1))
@@ -522,13 +522,11 @@ static int davinci_spi_setup(struct spi_device *spi)
 
 static void davinci_spi_cleanup(struct spi_device *spi)
 {
-	struct davinci_spi *davinci_spi = spi_master_get_devdata(spi->master);
-	struct davinci_spi_dma *davinci_spi_dma;
-
-	davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
-
-	if (use_dma && davinci_spi->dma_channels) {
-		davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
+	if (use_dma) {
+		struct davinci_spi *davinci_spi =
+					spi_master_get_devdata(spi->master);
+		struct davinci_spi_dma *davinci_spi_dma =
+					&davinci_spi->dma_channels;
 
 		if ((davinci_spi_dma->dma_rx_channel != -1)
 				&& (davinci_spi_dma->dma_tx_channel != -1)) {
@@ -730,7 +728,7 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	davinci_spi = spi_master_get_devdata(spi->master);
 	sdev = davinci_spi->bitbang.master->dev.parent;
 
-	davinci_spi_dma = &davinci_spi->dma_channels[spi->chip_select];
+	davinci_spi_dma = &davinci_spi->dma_channels;
 
 	tx_reg = (unsigned long)davinci_spi->pbase + SPIDAT1;
 	rx_reg = (unsigned long)davinci_spi->pbase + SPIBUF;
@@ -967,22 +965,13 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		use_dma = 0;
 	} else {
 		davinci_spi->bitbang.txrx_bufs = davinci_spi_bufs_dma;
-		davinci_spi->dma_channels = kzalloc(master->num_chipselect
-				* sizeof(struct davinci_spi_dma), GFP_KERNEL);
-		if (davinci_spi->dma_channels == NULL) {
-			ret = -ENOMEM;
-			goto free_clk;
-		}
 
-		for (i = 0; i < master->num_chipselect; i++) {
-			davinci_spi->dma_channels[i].dma_rx_channel = -1;
-			davinci_spi->dma_channels[i].dma_rx_sync_dev =
-				dma_rx_chan;
-			davinci_spi->dma_channels[i].dma_tx_channel = -1;
-			davinci_spi->dma_channels[i].dma_tx_sync_dev =
-				dma_tx_chan;
-			davinci_spi->dma_channels[i].eventq = dma_eventq;
-		}
+		davinci_spi->dma_channels.dma_rx_channel = -1;
+		davinci_spi->dma_channels.dma_rx_sync_dev = dma_rx_chan;
+		davinci_spi->dma_channels.dma_tx_channel = -1;
+		davinci_spi->dma_channels.dma_tx_sync_dev = dma_tx_chan;
+		davinci_spi->dma_channels.eventq = dma_eventq;
+
 		dev_info(&pdev->dev, "DaVinci SPI driver in EDMA mode\n"
 				"Using RX channel = %d , TX channel = %d and "
 				"event queue = %d", dma_rx_chan, dma_tx_chan,
