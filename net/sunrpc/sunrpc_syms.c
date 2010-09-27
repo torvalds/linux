@@ -34,14 +34,21 @@ static __net_init int sunrpc_init_net(struct net *net)
 	if (err)
 		goto err_proc;
 
+	err = ip_map_cache_create(net);
+	if (err)
+		goto err_ipmap;
+
 	return 0;
 
+err_ipmap:
+	rpc_proc_exit(net);
 err_proc:
 	return err;
 }
 
 static __net_exit void sunrpc_exit_net(struct net *net)
 {
+	ip_map_cache_destroy(net);
 	rpc_proc_exit(net);
 }
 
@@ -52,7 +59,7 @@ static struct pernet_operations sunrpc_net_ops = {
 	.size = sizeof(struct sunrpc_net),
 };
 
-extern struct cache_detail ip_map_cache, unix_gid_cache;
+extern struct cache_detail unix_gid_cache;
 
 extern void cleanup_rpcb_clnt(void);
 
@@ -77,7 +84,6 @@ init_sunrpc(void)
 #ifdef RPC_DEBUG
 	rpc_register_sysctl();
 #endif
-	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
 	svc_init_xprt_sock();	/* svc sock transport */
 	init_socket_xprt();	/* clnt sock transport */
@@ -102,7 +108,6 @@ cleanup_sunrpc(void)
 	svc_cleanup_xprt_sock();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
-	cache_unregister(&ip_map_cache);
 	cache_unregister(&unix_gid_cache);
 	unregister_pernet_subsys(&sunrpc_net_ops);
 #ifdef RPC_DEBUG
