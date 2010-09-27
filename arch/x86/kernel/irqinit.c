@@ -100,6 +100,8 @@ int vector_used_by_percpu_irq(unsigned int vector)
 
 void __init init_ISA_irqs(void)
 {
+	struct irq_chip *chip = legacy_pic->chip;
+	const char *name = chip->name;
 	int i;
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
@@ -107,19 +109,8 @@ void __init init_ISA_irqs(void)
 #endif
 	legacy_pic->init(0);
 
-	/*
-	 * 16 old-style INTA-cycle interrupts:
-	 */
-	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		desc->status = IRQ_DISABLED;
-		desc->action = NULL;
-		desc->depth = 1;
-
-		set_irq_chip_and_handler_name(i, &i8259A_chip,
-					      handle_level_irq, "XT");
-	}
+	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++)
+		set_irq_chip_and_handler_name(i, chip, handle_level_irq, name);
 }
 
 void __init init_IRQ(void)
