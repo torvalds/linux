@@ -148,7 +148,7 @@ int drm_gem_object_init(struct drm_device *dev,
 		return -ENOMEM;
 
 	kref_init(&obj->refcount);
-	kref_init(&obj->handlecount);
+	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
 
 	atomic_inc(&dev->object_count);
@@ -496,12 +496,8 @@ static void drm_gem_object_ref_bug(struct kref *list_kref)
  * called before drm_gem_object_free or we'll be touching
  * freed memory
  */
-void
-drm_gem_object_handle_free(struct kref *kref)
+void drm_gem_object_handle_free(struct drm_gem_object *obj)
 {
-	struct drm_gem_object *obj = container_of(kref,
-						  struct drm_gem_object,
-						  handlecount);
 	struct drm_device *dev = obj->dev;
 
 	/* Remove any name for this object */

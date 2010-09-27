@@ -136,13 +136,11 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(obj);
 	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
 		return ret;
 	}
-
-	/* Sink the floating reference from kref_init(handlecount) */
-	drm_gem_object_handle_unreference_unlocked(obj);
 
 	args->handle = handle;
 	return 0;

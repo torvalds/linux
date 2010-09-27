@@ -843,8 +843,9 @@ static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
 
-	if (radeon_fb->obj)
+	if (radeon_fb->obj) {
 		drm_gem_object_unreference_unlocked(radeon_fb->obj);
+	}
 	drm_framebuffer_cleanup(fb);
 	kfree(radeon_fb);
 }
