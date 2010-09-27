@@ -1557,6 +1557,10 @@ static int ipgre_newlink(struct net *src_net, struct net_device *dev, struct nla
 	if (!tb[IFLA_MTU])
 		dev->mtu = mtu;
 
+	/* Can use a lockless transmit, unless we generate output sequences */
+	if (!(nt->parms.o_flags & GRE_SEQ))
+		dev->features |= NETIF_F_LLTX;
+
 	err = register_netdevice(dev);
 	if (err)
 		goto out;
