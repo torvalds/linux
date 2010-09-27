@@ -3355,15 +3355,6 @@ int kvm_mmu_setup(struct kvm_vcpu *vcpu)
 	return init_kvm_mmu(vcpu);
 }
 
-void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
-{
-	ASSERT(vcpu);
-
-	destroy_kvm_mmu(vcpu);
-	free_mmu_pages(vcpu);
-	mmu_free_memory_caches(vcpu);
-}
-
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 {
 	struct kvm_mmu_page *sp;
@@ -3662,4 +3653,16 @@ EXPORT_SYMBOL_GPL(kvm_mmu_get_spte_hierarchy);
 
 #ifdef CONFIG_KVM_MMU_AUDIT
 #include "mmu_audit.c"
+#else
+static void mmu_audit_disable(void) { }
 #endif
+
+void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
+{
+	ASSERT(vcpu);
+
+	destroy_kvm_mmu(vcpu);
+	free_mmu_pages(vcpu);
+	mmu_free_memory_caches(vcpu);
+	mmu_audit_disable();
+}
