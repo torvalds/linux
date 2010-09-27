@@ -337,8 +337,8 @@ static int set_irq_wake_real(unsigned int irq, unsigned int on)
 	struct irq_desc *desc = irq_to_desc(irq);
 	int ret = -ENXIO;
 
-	if (desc->irq_data.chip->set_wake)
-		ret = desc->irq_data.chip->set_wake(irq, on);
+	if (desc->irq_data.chip->irq_set_wake)
+		ret = desc->irq_data.chip->irq_set_wake(&desc->irq_data, on);
 
 	return ret;
 }
