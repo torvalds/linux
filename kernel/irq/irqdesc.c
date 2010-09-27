@@ -226,16 +226,16 @@ struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 
 int __init early_irq_init(void)
 {
-	int i, node = first_online_node;
+	int i, initcnt, node = first_online_node;
 	struct irq_desc *desc;
 
 	init_irq_default_affinity();
 
-	 /* initialize nr_irqs based on nr_cpu_ids */
-	arch_probe_nr_irqs();
-	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d\n", NR_IRQS, nr_irqs);
+	/* Let arch update nr_irqs and return the nr of preallocated irqs */
+	initcnt = arch_probe_nr_irqs();
+	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d %d\n", NR_IRQS, nr_irqs, initcnt);
 
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+	for (i = 0; i < initcnt; i++) {
 		desc = alloc_desc(i, node);
 		set_bit(i, allocated_irqs);
 		irq_insert_desc(i, desc);

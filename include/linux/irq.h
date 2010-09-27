@@ -214,6 +214,10 @@ struct irq_chip {
  */
 #include <asm/hw_irq.h>
 
+#ifndef NR_IRQS_LEGACY
+# define NR_IRQS_LEGACY 0
+#endif
+
 #ifndef ARCH_IRQ_INIT_FLAGS
 # define ARCH_IRQ_INIT_FLAGS	0
 #endif

@@ -3880,7 +3880,7 @@ int __init arch_probe_nr_irqs(void)
 	if (nr < nr_irqs)
 		nr_irqs = nr;
 
-	return 0;
+	return NR_IRQS_LEGACY;
 }
 #endif
 
