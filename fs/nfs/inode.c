@@ -639,6 +639,7 @@ struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct rpc_cr
 		ctx->dir_cookie = 0;
 		nfs_init_lock_context(&ctx->lock_context);
 		ctx->lock_context.open_context = ctx;
+		INIT_LIST_HEAD(&ctx->list);
 	}
 	return ctx;
 }
@@ -654,14 +655,15 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
 	struct inode *inode = ctx->path.dentry->d_inode;
 
-	if (inode) {
+	if (!list_empty(&ctx->list)) {
 		if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
 			return;
 		list_del(&ctx->list);
 		spin_unlock(&inode->i_lock);
-		NFS_PROTO(inode)->close_context(ctx, is_sync);
 	} else if (!atomic_dec_and_test(&ctx->lock_context.count))
 		return;
+	if (inode != NULL)
+		NFS_PROTO(inode)->close_context(ctx, is_sync);
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	path_put(&ctx->path);
