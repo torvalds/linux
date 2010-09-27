@@ -1242,7 +1242,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
  *
  */
 
-static int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
+int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 {
 	int retval;
 	struct v9fs_session_info *v9ses;
