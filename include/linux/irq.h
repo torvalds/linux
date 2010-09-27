@@ -398,6 +398,29 @@ static inline struct irq_2_iommu *irq_data_get_iommu(struct irq_data *d)
 }
 #endif
 
+int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
+void irq_free_descs(unsigned int irq, unsigned int cnt);
+
+static inline int irq_alloc_desc(int node)
+{
+	return irq_alloc_descs(-1, 0, 1, node);
+}
+
+static inline int irq_alloc_desc_at(unsigned int at, int node)
+{
+	return irq_alloc_descs(at, at, 1, node);
+}
+
+static inline int irq_alloc_desc_from(unsigned int from, int node)
+{
+	return irq_alloc_descs(-1, from, 1, node);
+}
+
+static inline void irq_free_desc(unsigned int irq)
+{
+	irq_free_descs(irq, 1);
+}
+
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* !CONFIG_S390 */
