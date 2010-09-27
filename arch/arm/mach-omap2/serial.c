@@ -104,11 +104,6 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 
-
-void __init omap2_set_globals_uart(struct omap_globals *omap2_globals)
-{
-}
-
 static struct omap_device_pm_latency omap_uart_latency[] = {
 	{
 		.deactivate_func = omap_device_idle_hwmods,
