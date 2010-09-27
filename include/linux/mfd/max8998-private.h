@@ -101,6 +101,13 @@ enum {
 	MAX8998_IRQ_NR,
 };
 
+/* MAX8998 various variants */
+enum {
+	TYPE_MAX8998 = 0, /* Default */
+	TYPE_LP3974,	/* National version of MAX8998 */
+	TYPE_LP3979,	/* Added AVS */
+};
+
 #define MAX8998_IRQ_DCINF_MASK		(1 << 2)
 #define MAX8998_IRQ_DCINR_MASK		(1 << 3)
 #define MAX8998_IRQ_JIGF_MASK		(1 << 4)
@@ -123,6 +130,8 @@ enum {
 #define MAX8998_IRQ_LOBAT1_MASK		(1 << 0)
 #define MAX8998_IRQ_LOBAT2_MASK		(1 << 1)
 
+#define MAX8998_ENRAMP                  (1 << 4)
+
 /**
  * struct max8998_dev - max8998 master device for sub-drivers
  * @dev: master device of the chip (can be used to access platform data)
@@ -135,6 +144,7 @@ enum {
  * @ono: power onoff IRQ number for max8998
  * @irq_masks_cur: currently active value
  * @irq_masks_cache: cached hardware value
+ * @type: indicate which max8998 "variant" is used
  */
 struct max8998_dev {
 	struct device *dev;
@@ -148,6 +158,7 @@ struct max8998_dev {
 	int ono;
 	u8 irq_masks_cur[MAX8998_NUM_IRQ_REGS];
 	u8 irq_masks_cache[MAX8998_NUM_IRQ_REGS];
+	int type;
 };
 
 int max8998_irq_init(struct max8998_dev *max8998);

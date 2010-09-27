@@ -133,6 +133,7 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	max8998->dev = &i2c->dev;
 	max8998->i2c = i2c;
 	max8998->irq = i2c->irq;
+	max8998->type = id->driver_data;
 	if (pdata) {
 		max8998->ono = pdata->ono;
 		max8998->irq_base = pdata->irq_base;
@@ -169,8 +170,8 @@ static int max8998_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id max8998_i2c_id[] = {
-	{ "max8998", 0 },
-	{ "lp3974", 0 },
+	{ "max8998", TYPE_MAX8998 },
+	{ "lp3974", TYPE_LP3974},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
