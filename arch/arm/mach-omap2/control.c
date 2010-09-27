@@ -25,6 +25,7 @@
 #include "sdrc.h"
 
 static void __iomem *omap2_ctrl_base;
+static void __iomem *omap4_ctrl_pad_base;
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 struct omap3_scratchpad {
@@ -144,6 +145,12 @@ void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 	if (omap2_globals->ctrl) {
 		omap2_ctrl_base = ioremap(omap2_globals->ctrl, SZ_4K);
 		WARN_ON(!omap2_ctrl_base);
+	}
+
+	/* Static mapping, never released */
+	if (omap2_globals->ctrl_pad) {
+		omap4_ctrl_pad_base = ioremap(omap2_globals->ctrl_pad, SZ_4K);
+		WARN_ON(!omap4_ctrl_pad_base);
 	}
 }
 
