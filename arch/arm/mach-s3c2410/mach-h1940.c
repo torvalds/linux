@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/pwm_backlight.h>
+#include <linux/i2c.h>
 #include <video/platform_lcd.h>
 
 #include <linux/mmc/host.h>
@@ -58,6 +59,8 @@
 #include <plat/pm.h>
 #include <plat/mci.h>
 #include <plat/ts.h>
+
+#include <sound/uda1380.h>
 
 #define H1940_LATCH		((void __force __iomem *)0xF8000000)
 
@@ -365,12 +368,26 @@ static struct platform_device h1940_lcd_powerdev = {
 	.dev.platform_data      = &h1940_lcd_power_data,
 };
 
+static struct uda1380_platform_data uda1380_info = {
+	.gpio_power	= H1940_LATCH_UDA_POWER,
+	.gpio_reset	= S3C2410_GPA(12),
+	.dac_clk	= UDA1380_DAC_CLK_SYSCLK,
+};
+
+static struct i2c_board_info h1940_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("uda1380", 0x1a),
+		.platform_data = &uda1380_info,
+	},
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
+	&s3c_device_pcm,
 	&s3c_device_usbgadget,
 	&h1940_device_leds,
 	&h1940_device_bluetooth,
@@ -465,6 +482,9 @@ static void __init h1940_init(void)
 	gpio_direction_output(H1940_LATCH_SD_POWER, 0);
 
 	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));
+
+	i2c_register_board_info(0, h1940_i2c_devices,
+		ARRAY_SIZE(h1940_i2c_devices));
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")
