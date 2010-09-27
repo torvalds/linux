@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/serial_8250.h>
+#include <linux/pm_runtime.h>
 
 #ifdef CONFIG_SERIAL_OMAP
 #include <plat/omap-serial.h>
@@ -530,14 +531,17 @@ void omap_uart_enable_irqs(int enable)
 	struct omap_uart_state *uart;
 
 	list_for_each_entry(uart, &uart_list, node) {
-		if (enable)
+		if (enable) {
+			pm_runtime_put_sync(&uart->pdev->dev);
 			ret = request_threaded_irq(uart->irq, NULL,
 						   omap_uart_interrupt,
 						   IRQF_SHARED,
 						   "serial idle",
 						   (void *)uart);
-		else
+		} else {
+			pm_runtime_get_noresume(&uart->pdev->dev);
 			free_irq(uart->irq, (void *)uart);
+		}
 	}
 }
 
