@@ -555,6 +555,8 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 	hdmi->disp1_clk = disp1_clk;
 	hdmi->disp2_clk = disp2_clk;
 
+	dc->out->depth = 24;
+
 	tegra_dc_set_outdata(dc, hdmi);
 
 	return 0;
