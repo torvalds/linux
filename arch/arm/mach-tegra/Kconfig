@@ -16,6 +16,10 @@ config ARCH_TEGRA_2x_SOC
 
 endchoice
 
+config TEGRA_PCI
+	bool "PCI Express support"
+	select PCI
+
 comment "Tegra board type"
 
 config MACH_HARMONY
