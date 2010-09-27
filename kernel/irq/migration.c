@@ -63,6 +63,6 @@ void move_native_irq(int irq)
 
 	desc->irq_data.chip->irq_mask(&desc->irq_data);
 	move_masked_irq(irq);
-	desc->irq_data.chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 

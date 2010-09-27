@@ -528,7 +528,7 @@ again:
 
 	if (!(desc->status & IRQ_DISABLED) && (desc->status & IRQ_MASKED)) {
 		desc->status &= ~IRQ_MASKED;
-		desc->irq_data.chip->unmask(irq);
+		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	}
 	raw_spin_unlock_irq(&desc->lock);
 	chip_bus_sync_unlock(desc);

@@ -291,7 +291,7 @@ static void default_enable(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc->irq_data.chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	desc->status &= ~IRQ_MASKED;
 }
 
@@ -328,6 +328,11 @@ static void default_shutdown(unsigned int irq)
 static void compat_irq_mask(struct irq_data *data)
 {
 	data->chip->mask(data->irq);
+}
+
+static void compat_irq_unmask(struct irq_data *data)
+{
+	data->chip->unmask(data->irq);
 }
 
 static void compat_bus_lock(struct irq_data *data)
@@ -370,6 +375,9 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 
 	if (chip->mask)
 		chip->irq_mask = compat_irq_mask;
+
+	if (chip->unmask)
+		chip->irq_unmask = compat_irq_unmask;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc, int irq)
@@ -392,10 +400,10 @@ static inline void mask_irq(struct irq_desc *desc)
 	}
 }
 
-static inline void unmask_irq(struct irq_desc *desc, int irq)
+static inline void unmask_irq(struct irq_desc *desc)
 {
-	if (desc->irq_data.chip->unmask) {
-		desc->irq_data.chip->unmask(irq);
+	if (desc->irq_data.chip->irq_unmask) {
+		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 		desc->status &= ~IRQ_MASKED;
 	}
 }
@@ -524,7 +532,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	desc->status &= ~IRQ_INPROGRESS;
 
 	if (!(desc->status & (IRQ_DISABLED | IRQ_ONESHOT)))
-		unmask_irq(desc, irq);
+		unmask_irq(desc);
 out_unlock:
 	raw_spin_unlock(&desc->lock);
 }
@@ -641,7 +649,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 		if (unlikely((desc->status &
 			       (IRQ_PENDING | IRQ_MASKED | IRQ_DISABLED)) ==
 			      (IRQ_PENDING | IRQ_MASKED))) {
-			unmask_irq(desc, irq);
+			unmask_irq(desc);
 		}
 
 		desc->status &= ~IRQ_PENDING;
