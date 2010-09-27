@@ -1399,7 +1399,10 @@ static int cxgb_open(struct net_device *dev)
 			       "Could not initialize offload capabilities\n");
 	}
 
-	dev->real_num_tx_queues = pi->nqsets;
+	netif_set_real_num_tx_queues(dev, pi->nqsets);
+	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
+	if (err)
+		return err;
 	link_start(dev);
 	t3_port_intr_enable(adapter, pi->port_id);
 	netif_tx_start_all_queues(dev);
