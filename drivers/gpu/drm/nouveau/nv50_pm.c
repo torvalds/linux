@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "nouveau_drv.h"
+#include "nouveau_bios.h"
 #include "nouveau_pm.h"
 
 /*XXX: boards using limits 0x40 need fixing, the register layout
@@ -33,6 +34,7 @@
  */
 
 struct nv50_pm_state {
+	struct nouveau_pm_level *perflvl;
 	struct pll_lims pll;
 	enum pll_types type;
 	int N, M, P;
@@ -77,6 +79,7 @@ nv50_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 	state->type = id;
+	state->perflvl = perflvl;
 
 	ret = get_pll_limits(dev, id, &state->pll);
 	if (ret < 0) {
@@ -98,10 +101,29 @@ void
 nv50_pm_clock_set(struct drm_device *dev, void *pre_state)
 {
 	struct nv50_pm_state *state = pre_state;
+	struct nouveau_pm_level *perflvl = state->perflvl;
 	u32 reg = state->pll.reg, tmp;
+	struct bit_entry BIT_M;
+	u16 script;
 	int N = state->N;
 	int M = state->M;
 	int P = state->P;
+
+	if (state->type == PLL_MEMORY && perflvl->memscript &&
+	    bit_table(dev, 'M', &BIT_M) == 0 &&
+	    BIT_M.version == 1 && BIT_M.length >= 0x0b) {
+		script = ROM16(BIT_M.data[0x05]);
+		if (script)
+			nouveau_bios_run_init_table(dev, script, NULL);
+		script = ROM16(BIT_M.data[0x07]);
+		if (script)
+			nouveau_bios_run_init_table(dev, script, NULL);
+		script = ROM16(BIT_M.data[0x09]);
+		if (script)
+			nouveau_bios_run_init_table(dev, script, NULL);
+
+		nouveau_bios_run_init_table(dev, perflvl->memscript, NULL);
+	}
 
 	if (state->pll.vco2.maxfreq) {
 		if (state->type == PLL_MEMORY) {

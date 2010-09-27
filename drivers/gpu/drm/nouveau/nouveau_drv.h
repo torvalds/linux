@@ -385,6 +385,8 @@ struct nouveau_pm_level {
 
 	u8 voltage;
 	u8 fanspeed;
+
+	u16 memscript;
 };
 
 struct nouveau_pm_temp_sensor_constants {
