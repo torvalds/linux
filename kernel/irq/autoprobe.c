@@ -59,7 +59,7 @@ unsigned long probe_irq_on(void)
 			 */
 			if (desc->irq_data.chip->set_type)
 				desc->irq_data.chip->set_type(i, IRQ_TYPE_PROBE);
-			desc->irq_data.chip->startup(i);
+			desc->irq_data.chip->irq_startup(&desc->irq_data);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
@@ -76,7 +76,7 @@ unsigned long probe_irq_on(void)
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
 			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
-			if (desc->irq_data.chip->startup(i))
+			if (desc->irq_data.chip->irq_startup(&desc->irq_data))
 				desc->status |= IRQ_PENDING;
 		}
 		raw_spin_unlock_irq(&desc->lock);

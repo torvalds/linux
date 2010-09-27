@@ -305,11 +305,11 @@ static void default_disable(struct irq_data *data)
 /*
  * default startup function
  */
-static unsigned int default_startup(unsigned int irq)
+static unsigned int default_startup(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc = irq_data_to_desc(data);
 
-	desc->irq_data.chip->irq_enable(&desc->irq_data);
+	desc->irq_data.chip->irq_enable(data);
 	return 0;
 }
 
@@ -365,6 +365,11 @@ static void compat_irq_shutdown(struct irq_data *data)
 	data->chip->shutdown(data->irq);
 }
 
+static unsigned int compat_irq_startup(struct irq_data *data)
+{
+	return data->chip->startup(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -390,6 +395,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_disable = compat_irq_disable;
 	if (chip->shutdown)
 		chip->irq_shutdown = compat_irq_shutdown;
+	if (chip->startup)
+		chip->irq_startup = compat_irq_startup;
 
 	/*
 	 * The real defaults
@@ -398,8 +405,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_enable = default_enable;
 	if (!chip->irq_disable)
 		chip->irq_disable = default_disable;
-	if (!chip->startup)
-		chip->startup = default_startup;
+	if (!chip->irq_startup)
+		chip->irq_startup = default_startup;
 	/*
 	 * We use chip->irq_disable, when the user provided its own. When
 	 * we have default_disable set for chip->irq_disable, then we need
@@ -786,7 +793,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->status &= ~IRQ_DISABLED;
 		desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE;
 		desc->depth = 0;
-		desc->irq_data.chip->startup(irq);
+		desc->irq_data.chip->irq_startup(&desc->irq_data);
 	}
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	chip_bus_sync_unlock(desc);

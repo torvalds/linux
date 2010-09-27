@@ -311,11 +311,6 @@ static unsigned int noop_ret(struct irq_data *data)
 
 static void compat_noop(unsigned int irq) { }
 
-static unsigned int compat_noop_ret(unsigned int irq)
-{
-	return 0;
-}
-
 /*
  * Generic no controller implementation
  */
@@ -326,7 +321,6 @@ struct irq_chip no_irq_chip = {
 	.irq_enable	= noop,
 	.irq_disable	= noop,
 	.irq_ack	= ack_bad,
-	.startup	= compat_noop_ret,
 	.end		= compat_noop,
 };
 
@@ -343,7 +337,6 @@ struct irq_chip dummy_irq_chip = {
 	.irq_ack	= noop,
 	.irq_mask	= noop,
 	.irq_unmask	= noop,
-	.startup	= compat_noop_ret,
 	.end		= compat_noop,
 };
 
