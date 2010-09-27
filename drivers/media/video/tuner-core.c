@@ -427,7 +427,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	{
 		struct tda18271_config cfg = {
 			.config = t->config,
-			.small_i2c = TDA18271_08_BYTE_CHUNK_INIT,
+			.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 		};
 
 		if (!dvb_attach(tda18271_attach, &t->fe, t->i2c->addr,
