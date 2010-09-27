@@ -1671,7 +1671,7 @@ static void ipr_log_enhanced_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	array_entry = error->array_member;
 	num_entries = min_t(u32, be32_to_cpu(error->num_entries),
-			    sizeof(error->array_member));
+			    ARRAY_SIZE(error->array_member));
 
 	for (i = 0; i < num_entries; i++, array_entry++) {
 		if (!memcmp(array_entry->vpd.vpd.sn, zero_sn, IPR_SERIAL_NUM_LEN))
@@ -2152,8 +2152,8 @@ static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err_separator;
 
 	array_entry = error->array_member;
-	num_entries = min_t(u32, be32_to_cpu(error->num_entries),
-			    sizeof(error->array_member));
+	num_entries = min_t(u32, error->num_entries,
+			    ARRAY_SIZE(error->array_member));
 
 	for (i = 0; i < num_entries; i++, array_entry++) {
 
@@ -2167,10 +2167,10 @@ static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 		ipr_err("Array Member %d:\n", i);
 		ipr_log_ext_vpd(&array_entry->vpd);
-		ipr_err("Current Location: %s",
+		ipr_err("Current Location: %s\n",
 			 ipr_format_res_path(array_entry->res_path, buffer,
 					     sizeof(buffer)));
-		ipr_err("Expected Location: %s",
+		ipr_err("Expected Location: %s\n",
 			 ipr_format_res_path(array_entry->expected_res_path,
 					     buffer, sizeof(buffer)));
 

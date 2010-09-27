@@ -319,6 +319,11 @@ struct ipr_ext_vpd {
 	__be32 wwid[2];
 }__attribute__((packed));
 
+struct ipr_ext_vpd64 {
+	struct ipr_vpd vpd;
+	__be32 wwid[4];
+}__attribute__((packed));
+
 struct ipr_std_inq_data {
 	u8 peri_qual_dev_type;
 #define IPR_STD_INQ_PERI_QUAL(peri) ((peri) >> 5)
@@ -395,7 +400,7 @@ struct ipr_config_table_entry64 {
 	__be64 res_path;
 	struct ipr_std_inq_data std_inq_data;
 	u8 reserved2[4];
-	__be64 reserved3[2]; // description text
+	__be64 reserved3[2];
 	u8 reserved4[8];
 }__attribute__ ((packed, aligned (8)));
 
@@ -914,7 +919,7 @@ struct ipr_hostrcb_type_24_error {
 	u8 array_id;
 	u8 last_res_path[8];
 	u8 protection_level[8];
-	struct ipr_ext_vpd array_vpd;
+	struct ipr_ext_vpd64 array_vpd;
 	u8 description[16];
 	u8 reserved2[3];
 	u8 num_entries;
