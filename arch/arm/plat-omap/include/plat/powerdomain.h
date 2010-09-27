@@ -32,6 +32,7 @@
 
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_ON		(1 << PWRDM_POWER_ON)
+#define PWRSTS_OFF		(1 << PWRDM_POWER_OFF)
 #define PWRSTS_OFF_ON		((1 << PWRDM_POWER_OFF) | \
 				 (1 << PWRDM_POWER_ON))
 
