@@ -94,3 +94,44 @@ int v9fs_check_acl(struct inode *inode, int mask)
 	}
 	return -EAGAIN;
 }
+
+static int v9fs_xattr_get_acl(struct dentry *dentry, const char *name,
+			      void *buffer, size_t size, int type)
+{
+	struct posix_acl *acl;
+	int error;
+
+	if (strcmp(name, "") != 0)
+		return -EINVAL;
+
+	acl = v9fs_get_cached_acl(dentry->d_inode, type);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+	if (acl == NULL)
+		return -ENODATA;
+	error = posix_acl_to_xattr(acl, buffer, size);
+	posix_acl_release(acl);
+
+	return error;
+}
+
+static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
+			      const void *value, size_t size,
+			      int flags, int type)
+{
+	return 0;
+}
+
+const struct xattr_handler v9fs_xattr_acl_access_handler = {
+	.prefix	= POSIX_ACL_XATTR_ACCESS,
+	.flags	= ACL_TYPE_ACCESS,
+	.get	= v9fs_xattr_get_acl,
+	.set	= v9fs_xattr_set_acl,
+};
+
+const struct xattr_handler v9fs_xattr_acl_default_handler = {
+	.prefix	= POSIX_ACL_XATTR_DEFAULT,
+	.flags	= ACL_TYPE_DEFAULT,
+	.get	= v9fs_xattr_get_acl,
+	.set	= v9fs_xattr_set_acl,
+};
