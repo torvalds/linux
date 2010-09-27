@@ -535,6 +535,7 @@ static int s5pc110_dma_ops(void *dst, void *src, size_t count, int direction)
 {
 	void __iomem *base = onenand->dma_addr;
 	int status;
+	unsigned long timeout;
 
 	writel(src, base + S5PC110_DMA_SRC_ADDR);
 	writel(dst, base + S5PC110_DMA_DST_ADDR);
@@ -552,6 +553,13 @@ static int s5pc110_dma_ops(void *dst, void *src, size_t count, int direction)
 
 	writel(S5PC110_DMA_TRANS_CMD_TR, base + S5PC110_DMA_TRANS_CMD);
 
+	/*
+	 * There's no exact timeout values at Spec.
+	 * In real case it takes under 1 msec.
+	 * So 20 msecs are enough.
+	 */
+	timeout = jiffies + msecs_to_jiffies(20);
+
 	do {
 		status = readl(base + S5PC110_DMA_TRANS_STATUS);
 		if (status & S5PC110_DMA_TRANS_STATUS_TE) {
@@ -559,7 +567,8 @@ static int s5pc110_dma_ops(void *dst, void *src, size_t count, int direction)
 					base + S5PC110_DMA_TRANS_CMD);
 			return -EIO;
 		}
-	} while (!(status & S5PC110_DMA_TRANS_STATUS_TD));
+	} while (!(status & S5PC110_DMA_TRANS_STATUS_TD) &&
+		time_before(jiffies, timeout));
 
 	writel(S5PC110_DMA_TRANS_CMD_TDC, base + S5PC110_DMA_TRANS_CMD);
 
