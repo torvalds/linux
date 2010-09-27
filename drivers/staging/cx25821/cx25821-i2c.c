@@ -283,7 +283,7 @@ static struct i2c_algorithm cx25821_i2c_algo_template = {
 	.master_xfer = i2c_xfer,
 	.functionality = cx25821_functionality,
 #ifdef NEED_ALGO_CONTROL
-       .algo_control = dummy_algo_control,
+	.algo_control = dummy_algo_control,
 #endif
 };
 
