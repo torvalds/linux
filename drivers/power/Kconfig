@@ -179,4 +179,10 @@ config CHARGER_ISP1704
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
 
+config CHARGER_TWL4030
+	tristate "OMAP TWL4030 BCI charger driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL4030 Battery Charge Interface.
+
 endif # POWER_SUPPLY
