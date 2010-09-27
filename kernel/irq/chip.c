@@ -386,6 +386,11 @@ static int compat_irq_set_wake(struct irq_data *data, unsigned int on)
 	return data->chip->set_wake(data->irq, on);
 }
 
+static int compat_irq_retrigger(struct irq_data *data)
+{
+	return data->chip->retrigger(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -458,6 +463,8 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_set_type = compat_irq_set_type;
 	if (chip->set_wake)
 		chip->irq_set_wake = compat_irq_set_wake;
+	if (chip->retrigger)
+		chip->irq_retrigger = compat_irq_retrigger;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc)
