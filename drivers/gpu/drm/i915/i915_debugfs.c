@@ -406,16 +406,19 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static void i915_dump_pages(struct seq_file *m, struct page **pages, int page_count)
+static void i915_dump_object(struct seq_file *m,
+			     struct io_mapping *mapping,
+			     struct drm_i915_gem_object *obj_priv)
 {
-	int page, i;
-	uint32_t *mem;
+	int page, page_count, i;
 
+	page_count = obj_priv->base.size / PAGE_SIZE;
 	for (page = 0; page < page_count; page++) {
-		mem = kmap(pages[page]);
+		u32 *mem = io_mapping_map_wc(mapping,
+					     obj_priv->gtt_offset + page * PAGE_SIZE);
 		for (i = 0; i < PAGE_SIZE; i += 4)
 			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
-		kunmap(pages[page]);
+		io_mapping_unmap(mem);
 	}
 }
 
@@ -436,16 +439,9 @@ static int i915_batchbuffer_info(struct seq_file *m, void *data)
 			list) {
 		obj = &obj_priv->base;
 		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
-		    ret = i915_gem_object_get_pages(obj, 0);
-		    if (ret) {
-			    mutex_unlock(&dev->struct_mutex);
-			    return ret;
-		    }
-
-		    seq_printf(m, "--- gtt_offset = 0x%08x\n", obj_priv->gtt_offset);
-		    i915_dump_pages(m, obj_priv->pages, obj->size / PAGE_SIZE);
-
-		    i915_gem_object_put_pages(obj);
+		    seq_printf(m, "--- gtt_offset = 0x%08x\n",
+			       obj_priv->gtt_offset);
+		    i915_dump_object(m, dev_priv->mm.gtt_mapping, obj_priv);
 		}
 	}
 

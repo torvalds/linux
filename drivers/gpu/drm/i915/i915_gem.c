@@ -58,6 +58,13 @@ static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *o
 				struct drm_file *file_priv);
 static void i915_gem_free_object_tail(struct drm_gem_object *obj);
 
+static int
+i915_gem_object_get_pages(struct drm_gem_object *obj,
+			  gfp_t gfpmask);
+
+static void
+i915_gem_object_put_pages(struct drm_gem_object *obj);
+
 static LIST_HEAD(shrink_list);
 static DEFINE_SPINLOCK(shrink_list_lock);
 
@@ -1021,7 +1028,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (obj_priv->phys_obj)
 		ret = i915_gem_phys_pwrite(dev, obj, args, file_priv);
 	else if (obj_priv->tiling_mode == I915_TILING_NONE &&
-		 dev->gtt_total != 0 &&
+		 obj_priv->gtt_space &&
 		 obj->write_domain != I915_GEM_DOMAIN_CPU) {
 		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file_priv);
 		if (ret == -EFAULT) {
@@ -1501,7 +1508,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-void
+static void
 i915_gem_object_put_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
@@ -2174,7 +2181,7 @@ i915_gpu_idle(struct drm_device *dev)
 	return 0;
 }
 
-int
+static int
 i915_gem_object_get_pages(struct drm_gem_object *obj,
 			  gfp_t gfpmask)
 {
