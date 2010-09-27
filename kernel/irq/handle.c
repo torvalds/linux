@@ -328,7 +328,6 @@ struct irq_chip no_irq_chip = {
 	.irq_ack	= ack_bad,
 	.startup	= compat_noop_ret,
 	.shutdown	= compat_noop,
-	.enable		= compat_noop,
 	.disable	= compat_noop,
 	.end		= compat_noop,
 };
@@ -348,7 +347,6 @@ struct irq_chip dummy_irq_chip = {
 	.irq_unmask	= noop,
 	.startup	= compat_noop_ret,
 	.shutdown	= compat_noop,
-	.enable		= compat_noop,
 	.disable	= compat_noop,
 	.end		= compat_noop,
 };

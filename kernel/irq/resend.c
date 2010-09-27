@@ -60,7 +60,7 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 	/*
 	 * Make sure the interrupt is enabled, before resending it:
 	 */
-	desc->irq_data.chip->enable(irq);
+	desc->irq_data.chip->irq_enable(&desc->irq_data);
 
 	/*
 	 * We do not resend level type interrupts. Level type

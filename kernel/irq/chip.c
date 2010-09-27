@@ -287,9 +287,9 @@ EXPORT_SYMBOL_GPL(set_irq_nested_thread);
 /*
  * default enable function
  */
-static void default_enable(unsigned int irq)
+static void default_enable(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc = irq_data_to_desc(data);
 
 	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	desc->status &= ~IRQ_MASKED;
@@ -309,7 +309,7 @@ static unsigned int default_startup(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc->irq_data.chip->enable(irq);
+	desc->irq_data.chip->irq_enable(&desc->irq_data);
 	return 0;
 }
 
@@ -350,6 +350,11 @@ static void compat_irq_eoi(struct irq_data *data)
 	data->chip->eoi(data->irq);
 }
 
+static void compat_irq_enable(struct irq_data *data)
+{
+	data->chip->enable(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -365,8 +370,18 @@ static void compat_bus_sync_unlock(struct irq_data *data)
  */
 void irq_chip_set_defaults(struct irq_chip *chip)
 {
-	if (!chip->enable)
-		chip->enable = default_enable;
+	/*
+	 * Compat fixup functions need to be before we set the
+	 * defaults for enable/disable/startup/shutdown
+	 */
+	if (chip->enable)
+		chip->irq_enable = compat_irq_enable;
+
+	/*
+	 * The real defaults
+	 */
+	if (!chip->irq_enable)
+		chip->irq_enable = default_enable;
 	if (!chip->disable)
 		chip->disable = default_disable;
 	if (!chip->startup)
