@@ -35,7 +35,6 @@
  * - kcore/oldmem/vmcore/mem/kmem check for hwpoison pages
  * - pass bad pages to kdump next kernel
  */
-#define DEBUG 1		/* remove me in 2.6.34 */
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
