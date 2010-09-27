@@ -2054,8 +2054,8 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	 */
 	ubi = open_ubi(name, UBI_READONLY);
 	if (IS_ERR(ubi)) {
-		ubifs_err("cannot open \"%s\", error %d",
-			  name, (int)PTR_ERR(ubi));
+		dbg_err("cannot open \"%s\", error %d",
+			name, (int)PTR_ERR(ubi));
 		return PTR_ERR(ubi);
 	}
 	ubi_get_volume_info(ubi, &vi);
