@@ -224,9 +224,7 @@ walk:
 			    is_cpuid_PSE36())
 				gfn += pse36_gfn_delta(pte);
 
-			access |= write_fault ? PFERR_WRITE_MASK : 0;
-			access |= fetch_fault ? PFERR_FETCH_MASK : 0;
-			access |= user_fault  ? PFERR_USER_MASK  : 0;
+			access |= write_fault | fetch_fault | user_fault;
 
 			real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn),
 						      access);
@@ -268,10 +266,9 @@ error:
 	walker->error_code = 0;
 	if (present)
 		walker->error_code |= PFERR_PRESENT_MASK;
-	if (write_fault)
-		walker->error_code |= PFERR_WRITE_MASK;
-	if (user_fault)
-		walker->error_code |= PFERR_USER_MASK;
+
+	walker->error_code |= write_fault | user_fault;
+
 	if (fetch_fault && mmu->nx)
 		walker->error_code |= PFERR_FETCH_MASK;
 	if (rsvd_fault)
@@ -673,9 +670,9 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
 	int r;
 
 	r = FNAME(walk_addr)(&walker, vcpu, vaddr,
-			     !!(access & PFERR_WRITE_MASK),
-			     !!(access & PFERR_USER_MASK),
-			     !!(access & PFERR_FETCH_MASK));
+			     access & PFERR_WRITE_MASK,
+			     access & PFERR_USER_MASK,
+			     access & PFERR_FETCH_MASK);
 
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
