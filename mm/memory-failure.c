@@ -272,7 +272,7 @@ struct to_kill {
 	struct list_head nd;
 	struct task_struct *tsk;
 	unsigned long addr;
-	unsigned addr_valid:1;
+	char addr_valid;
 };
 
 /*
