@@ -72,7 +72,7 @@
 #include <linux/edac.h>
 #include <asm/msr.h>
 #include "edac_core.h"
-#include "edac_mce_amd.h"
+#include "mce_amd.h"
 
 #define amd64_printk(level, fmt, arg...) \
 	edac_printk(level, "amd64", fmt, ##arg)

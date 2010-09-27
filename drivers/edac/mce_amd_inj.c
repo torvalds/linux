@@ -15,7 +15,7 @@
 #include <linux/edac.h>
 #include <asm/mce.h>
 
-#include "edac_mce_amd.h"
+#include "mce_amd.h"
 
 struct edac_mce_attr {
 	struct attribute attr;

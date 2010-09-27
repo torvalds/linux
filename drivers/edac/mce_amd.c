@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include "edac_mce_amd.h"
+#include "mce_amd.h"
 
 static bool report_gart_errors;
 static void (*nb_bus_decoder)(int node_id, struct mce *m, u32 nbcfg);
