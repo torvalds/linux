@@ -105,10 +105,29 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 
+/*
+ * Since these idle/enable hooks are used in the idle path itself
+ * which has interrupts disabled, use the non-locking versions of
+ * the hwmod enable/disable functions.
+ */
+static int uart_idle_hwmod(struct omap_device *od)
+{
+	_omap_hwmod_idle(od->hwmods[0]);
+
+	return 0;
+}
+
+static int uart_enable_hwmod(struct omap_device *od)
+{
+	_omap_hwmod_enable(od->hwmods[0]);
+
+	return 0;
+}
+
 static struct omap_device_pm_latency omap_uart_latency[] = {
 	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func	 = omap_device_enable_hwmods,
+		.deactivate_func = uart_idle_hwmod,
+		.activate_func	 = uart_enable_hwmod,
 		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
 	},
 };
