@@ -880,8 +880,6 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 			  SOR_REFCLK_DIV_FRAC(dispclk_div_8_2),
 			  HDMI_NV_PDISP_SOR_REFCLK);
 
-	/* TODO: setup audio */
-
 	err = tegra_dc_hdmi_setup_audio(dc);
 	if (err < 0)
 		dvi = true;
