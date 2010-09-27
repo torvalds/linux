@@ -98,7 +98,7 @@ unsigned long probe_irq_on(void)
 			/* It triggered already - consider it spurious. */
 			if (!(status & IRQ_WAITING)) {
 				desc->status = status & ~IRQ_AUTODETECT;
-				desc->irq_data.chip->shutdown(i);
+				desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 			} else
 				if (i < 32)
 					mask |= 1 << i;
@@ -137,7 +137,7 @@ unsigned int probe_irq_mask(unsigned long val)
 				mask |= 1 << i;
 
 			desc->status = status & ~IRQ_AUTODETECT;
-			desc->irq_data.chip->shutdown(i);
+			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
@@ -181,7 +181,7 @@ int probe_irq_off(unsigned long val)
 				nr_of_irqs++;
 			}
 			desc->status = status & ~IRQ_AUTODETECT;
-			desc->irq_data.chip->shutdown(i);
+			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}

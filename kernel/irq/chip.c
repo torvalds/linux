@@ -298,7 +298,7 @@ static void default_enable(struct irq_data *data)
 /*
  * default disable function
  */
-static void default_disable(unsigned int irq)
+static void default_disable(struct irq_data *data)
 {
 }
 
@@ -316,9 +316,9 @@ static unsigned int default_startup(unsigned int irq)
 /*
  * default shutdown function
  */
-static void default_shutdown(unsigned int irq)
+static void default_shutdown(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc = irq_data_to_desc(data);
 
 	desc->irq_data.chip->irq_mask(&desc->irq_data);
 	desc->status |= IRQ_MASKED;
@@ -355,6 +355,16 @@ static void compat_irq_enable(struct irq_data *data)
 	data->chip->enable(data->irq);
 }
 
+static void compat_irq_disable(struct irq_data *data)
+{
+	data->chip->disable(data->irq);
+}
+
+static void compat_irq_shutdown(struct irq_data *data)
+{
+	data->chip->shutdown(data->irq);
+}
+
 static void compat_bus_lock(struct irq_data *data)
 {
 	data->chip->bus_lock(data->irq);
@@ -376,28 +386,35 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 	 */
 	if (chip->enable)
 		chip->irq_enable = compat_irq_enable;
+	if (chip->disable)
+		chip->irq_disable = compat_irq_disable;
+	if (chip->shutdown)
+		chip->irq_shutdown = compat_irq_shutdown;
 
 	/*
 	 * The real defaults
 	 */
 	if (!chip->irq_enable)
 		chip->irq_enable = default_enable;
-	if (!chip->disable)
-		chip->disable = default_disable;
+	if (!chip->irq_disable)
+		chip->irq_disable = default_disable;
 	if (!chip->startup)
 		chip->startup = default_startup;
 	/*
-	 * We use chip->disable, when the user provided its own. When
-	 * we have default_disable set for chip->disable, then we need
+	 * We use chip->irq_disable, when the user provided its own. When
+	 * we have default_disable set for chip->irq_disable, then we need
 	 * to use default_shutdown, otherwise the irq line is not
 	 * disabled on free_irq():
 	 */
-	if (!chip->shutdown)
-		chip->shutdown = chip->disable != default_disable ?
-			chip->disable : default_shutdown;
+	if (!chip->irq_shutdown)
+		chip->irq_shutdown = chip->irq_disable != default_disable ?
+			chip->irq_disable : default_shutdown;
 	if (!chip->end)
 		chip->end = dummy_irq_chip.end;
 
+	/*
+	 * Now fix up the remaining compat handlers
+	 */
 	if (chip->bus_lock)
 		chip->irq_bus_lock = compat_bus_lock;
 	if (chip->bus_sync_unlock)
