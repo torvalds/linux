@@ -1803,3 +1803,36 @@ error:
 
 }
 EXPORT_SYMBOL(p9_client_mkdir_dotl);
+
+int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TLOCK fid %d type %i flags %d "
+			"start %lld length %lld proc_id %d client_id %s\n",
+			fid->fid, flock->type, flock->flags, flock->start,
+			flock->length, flock->proc_id, flock->client_id);
+
+	req = p9_client_rpc(clnt, P9_TLOCK, "dbdqqds", fid->fid, flock->type,
+				flock->flags, flock->start, flock->length,
+					flock->proc_id, flock->client_id);
+
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "b", status);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RLOCK status %i\n", *status);
+error:
+	p9_free_req(clnt, req);
+	return err;
+
+}
+EXPORT_SYMBOL(p9_client_lock_dotl);

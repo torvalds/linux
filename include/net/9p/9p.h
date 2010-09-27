@@ -165,6 +165,8 @@ enum p9_msg_t {
 	P9_RREADDIR,
 	P9_TFSYNC = 50,
 	P9_RFSYNC,
+	P9_TLOCK = 52,
+	P9_RLOCK,
 	P9_TLINK = 70,
 	P9_RLINK,
 	P9_TMKDIR = 72,
@@ -462,6 +464,32 @@ struct p9_iattr_dotl {
 	u64 atime_nsec;
 	u64 mtime_sec;
 	u64 mtime_nsec;
+};
+
+#define P9_LOCK_SUCCESS 0
+#define P9_LOCK_BLOCKED 1
+#define P9_LOCK_ERROR 2
+#define P9_LOCK_GRACE 3
+
+#define P9_LOCK_FLAGS_BLOCK 1
+#define P9_LOCK_FLAGS_RECLAIM 2
+
+/* struct p9_flock: POSIX lock structure
+ * @type - type of lock
+ * @flags - lock flags
+ * @start - starting offset of the lock
+ * @length - number of bytes
+ * @proc_id - process id which wants to take lock
+ * @client_id - client id
+ */
+
+struct p9_flock {
+	u8 type;
+	u32 flags;
+	u64 start;
+	u64 length;
+	u32 proc_id;
+	char *client_id;
 };
 
 /* Structures for Protocol Operations */

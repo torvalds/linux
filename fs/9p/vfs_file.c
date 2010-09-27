@@ -33,6 +33,7 @@
 #include <linux/inet.h>
 #include <linux/list.h>
 #include <linux/pagemap.h>
+#include <linux/utsname.h>
 #include <asm/uaccess.h>
 #include <linux/idr.h>
 #include <net/9p/9p.h>
@@ -131,6 +132,159 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 	}
 
 	return res;
+}
+
+static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
+{
+	struct p9_flock flock;
+	struct p9_fid *fid;
+	uint8_t status;
+	int res = 0;
+	unsigned char fl_type;
+
+	fid = filp->private_data;
+	BUG_ON(fid == NULL);
+
+	if ((fl->fl_flags & FL_POSIX) != FL_POSIX)
+		BUG();
+
+	res = posix_lock_file_wait(filp, fl);
+	if (res < 0)
+		goto out;
+
+	/* convert posix lock to p9 tlock args */
+	memset(&flock, 0, sizeof(flock));
+	flock.type = fl->fl_type;
+	flock.start = fl->fl_start;
+	if (fl->fl_end == OFFSET_MAX)
+		flock.length = 0;
+	else
+		flock.length = fl->fl_end - fl->fl_start + 1;
+	flock.proc_id = fl->fl_pid;
+	flock.client_id = utsname()->nodename;
+	if (IS_SETLKW(cmd))
+		flock.flags = P9_LOCK_FLAGS_BLOCK;
+
+	/*
+	 * if its a blocked request and we get P9_LOCK_BLOCKED as the status
+	 * for lock request, keep on trying
+	 */
+	for (;;) {
+		res = p9_client_lock_dotl(fid, &flock, &status);
+		if (res < 0)
+			break;
+
+		if (status != P9_LOCK_BLOCKED)
+			break;
+		if (status == P9_LOCK_BLOCKED && !IS_SETLKW(cmd))
+			break;
+		schedule_timeout_interruptible(P9_LOCK_TIMEOUT);
+	}
+
+	/* map 9p status to VFS status */
+	switch (status) {
+	case P9_LOCK_SUCCESS:
+		res = 0;
+		break;
+	case P9_LOCK_BLOCKED:
+		res = -EAGAIN;
+		break;
+	case P9_LOCK_ERROR:
+	case P9_LOCK_GRACE:
+		res = -ENOLCK;
+		break;
+	default:
+		BUG();
+	}
+
+	/*
+	 * incase server returned error for lock request, revert
+	 * it locally
+	 */
+	if (res < 0 && fl->fl_type != F_UNLCK) {
+		fl_type = fl->fl_type;
+		fl->fl_type = F_UNLCK;
+		res = posix_lock_file_wait(filp, fl);
+		fl->fl_type = fl_type;
+	}
+out:
+	return res;
+}
+
+/**
+ * v9fs_file_lock_dotl - lock a file (or directory)
+ * @filp: file to be locked
+ * @cmd: lock command
+ * @fl: file lock structure
+ *
+ */
+
+static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	int ret = -ENOLCK;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n", filp,
+				cmd, fl, filp->f_path.dentry->d_name.name);
+
+	/* No mandatory locks */
+	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
+		goto out_err;
+
+	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
+		filemap_write_and_wait(inode->i_mapping);
+		invalidate_mapping_pages(&inode->i_data, 0, -1);
+	}
+
+	if (IS_SETLK(cmd) || IS_SETLKW(cmd))
+		ret = v9fs_file_do_lock(filp, cmd, fl);
+	else
+		ret = -EINVAL;
+out_err:
+	return ret;
+}
+
+/**
+ * v9fs_file_flock_dotl - lock a file
+ * @filp: file to be locked
+ * @cmd: lock command
+ * @fl: file lock structure
+ *
+ */
+
+static int v9fs_file_flock_dotl(struct file *filp, int cmd,
+	struct file_lock *fl)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	int ret = -ENOLCK;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n", filp,
+				cmd, fl, filp->f_path.dentry->d_name.name);
+
+	/* No mandatory locks */
+	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
+		goto out_err;
+
+	if (!(fl->fl_flags & FL_FLOCK))
+		goto out_err;
+
+	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
+		filemap_write_and_wait(inode->i_mapping);
+		invalidate_mapping_pages(&inode->i_data, 0, -1);
+	}
+	/* Convert flock to posix lock */
+	fl->fl_owner = (fl_owner_t)filp;
+	fl->fl_start = 0;
+	fl->fl_end = OFFSET_MAX;
+	fl->fl_flags |= FL_POSIX;
+	fl->fl_flags ^= FL_FLOCK;
+
+	if (IS_SETLK(cmd) | IS_SETLKW(cmd))
+		ret = v9fs_file_do_lock(filp, cmd, fl);
+	else
+		ret = -EINVAL;
+out_err:
+	return ret;
 }
 
 /**
@@ -323,7 +477,8 @@ static const struct file_operations v9fs_cached_file_operations_dotl = {
 	.write = v9fs_file_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
-	.lock = v9fs_file_lock,
+	.lock = v9fs_file_lock_dotl,
+	.flock = v9fs_file_flock_dotl,
 	.mmap = generic_file_readonly_mmap,
 	.fsync = v9fs_file_fsync_dotl,
 };
@@ -345,7 +500,8 @@ const struct file_operations v9fs_file_operations_dotl = {
 	.write = v9fs_file_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
-	.lock = v9fs_file_lock,
+	.lock = v9fs_file_lock_dotl,
+	.flock = v9fs_file_flock_dotl,
 	.mmap = generic_file_readonly_mmap,
 	.fsync = v9fs_file_fsync_dotl,
 };
