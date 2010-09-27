@@ -495,6 +495,10 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 {
 	u32 tsf_lower, tsf_upper1, tsf_upper2;
 	int i;
+	unsigned long flags;
+
+	/* This code is time critical - we don't want to be interrupted here */
+	local_irq_save(flags);
 
 	/*
 	 * While reading TSF upper and then lower part, the clock is still
@@ -516,6 +520,8 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 			break;
 		tsf_upper1 = tsf_upper2;
 	}
+
+	local_irq_restore(flags);
 
 	WARN_ON( i == ATH5K_MAX_TSF_READ );
 
