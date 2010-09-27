@@ -43,16 +43,16 @@ extern int irq_select_affinity_usr(unsigned int irq);
 extern void irq_set_thread_affinity(struct irq_desc *desc);
 
 /* Inline functions for support of irq chips on slow busses */
-static inline void chip_bus_lock(unsigned int irq, struct irq_desc *desc)
+static inline void chip_bus_lock(struct irq_desc *desc)
 {
-	if (unlikely(desc->irq_data.chip->bus_lock))
-		desc->irq_data.chip->bus_lock(irq);
+	if (unlikely(desc->irq_data.chip->irq_bus_lock))
+		desc->irq_data.chip->irq_bus_lock(&desc->irq_data);
 }
 
-static inline void chip_bus_sync_unlock(unsigned int irq, struct irq_desc *desc)
+static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 {
-	if (unlikely(desc->irq_data.chip->bus_sync_unlock))
-		desc->irq_data.chip->bus_sync_unlock(irq);
+	if (unlikely(desc->irq_data.chip->irq_bus_sync_unlock))
+		desc->irq_data.chip->irq_bus_sync_unlock(&desc->irq_data);
 }
 
 /*

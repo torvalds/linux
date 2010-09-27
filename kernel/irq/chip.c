@@ -324,6 +324,17 @@ static void default_shutdown(unsigned int irq)
 	desc->status |= IRQ_MASKED;
 }
 
+/* Temporary migration helpers */
+static void compat_bus_lock(struct irq_data *data)
+{
+	data->chip->bus_lock(data->irq);
+}
+
+static void compat_bus_sync_unlock(struct irq_data *data)
+{
+	data->chip->bus_sync_unlock(data->irq);
+}
+
 /*
  * Fixup enable/disable function pointers
  */
@@ -346,6 +357,11 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 			chip->disable : default_shutdown;
 	if (!chip->end)
 		chip->end = dummy_irq_chip.end;
+
+	if (chip->bus_lock)
+		chip->irq_bus_lock = compat_bus_lock;
+	if (chip->bus_sync_unlock)
+		chip->irq_bus_sync_unlock = compat_bus_sync_unlock;
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc, int irq)
@@ -687,7 +703,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->irq_data.chip = &dummy_irq_chip;
 	}
 
-	chip_bus_lock(irq, desc);
+	chip_bus_lock(desc);
 	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	/* Uninstall? */
@@ -707,7 +723,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->irq_data.chip->startup(irq);
 	}
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	chip_bus_sync_unlock(irq, desc);
+	chip_bus_sync_unlock(desc);
 }
 EXPORT_SYMBOL_GPL(__set_irq_handler);
 
