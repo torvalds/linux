@@ -70,12 +70,24 @@ struct max8998_regulator_data {
  * @num_regulators: number of regultors used
  * @irq_base: base IRQ number for max8998, required for IRQs
  * @ono: power onoff IRQ number for max8998
+ * @buck1_max_voltage1: BUCK1 maximum alowed voltage register 1
+ * @buck1_max_voltage2: BUCK1 maximum alowed voltage register 2
+ * @buck2_max_voltage: BUCK2 maximum alowed voltage
+ * @buck1_set1: BUCK1 gpio pin 1 to set output voltage
+ * @buck1_set2: BUCK1 gpio pin 2 to set output voltage
+ * @buck2_set3: BUCK2 gpio pin to set output voltage
  */
 struct max8998_platform_data {
 	struct max8998_regulator_data	*regulators;
 	int				num_regulators;
 	int				irq_base;
 	int				ono;
+	int                             buck1_max_voltage1;
+	int                             buck1_max_voltage2;
+	int                             buck2_max_voltage;
+	int				buck1_set1;
+	int				buck1_set2;
+	int				buck2_set3;
 };
 
 #endif /*  __LINUX_MFD_MAX8998_H */
