@@ -39,6 +39,10 @@
 #include "dc_reg.h"
 #include "dc_priv.h"
 
+static int no_vsync;
+
+module_param_named(no_vsync, no_vsync, int, S_IRUGO | S_IWUSR);
+
 struct tegra_dc *tegra_dcs[TEGRA_MAX_DC];
 
 DEFINE_MUTEX(tegra_dc_lock);
@@ -423,6 +427,11 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		return -EFAULT;
 	}
 
+	if (no_vsync)
+		tegra_dc_writel(dc, WRITE_MUX_ACTIVE | READ_MUX_ACTIVE, DC_CMD_STATE_ACCESS);
+	else
+		tegra_dc_writel(dc, WRITE_MUX_ASSEMBLY | WRITE_MUX_ASSEMBLY, DC_CMD_STATE_ACCESS);
+
 	for (i = 0; i < n; i++) {
 		struct tegra_dc_win *win = windows[i];
 		unsigned h_dda;
@@ -442,7 +451,8 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		tegra_dc_writel(dc, WINDOW_A_SELECT << win->idx,
 				DC_CMD_DISPLAY_WINDOW_HEADER);
 
-		update_mask |= WIN_A_ACT_REQ << win->idx;
+		if (!no_vsync)
+			update_mask |= WIN_A_ACT_REQ << win->idx;
 
 		if (!(win->flags & TEGRA_WIN_FLAG_ENABLED)) {
 			tegra_dc_writel(dc, 0, DC_WIN_WIN_OPTIONS);
@@ -473,36 +483,40 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		tegra_dc_writel(dc, win->stride, DC_WIN_LINE_STRIDE);
 		tegra_dc_writel(dc, 0, DC_WIN_BUF_STRIDE);
 
-		val = WIN_ENABLE;
-		if (tegra_dc_fmt_bpp(win->fmt) < 24)
-			val |= COLOR_EXPAND;
-		tegra_dc_writel(dc, val, DC_WIN_WIN_OPTIONS);
 
 		tegra_dc_writel(dc, (unsigned long)win->phys_addr,
 				DC_WINBUF_START_ADDR);
 		tegra_dc_writel(dc, win->x, DC_WINBUF_ADDR_H_OFFSET);
 		tegra_dc_writel(dc, win->y, DC_WINBUF_ADDR_V_OFFSET);
 
-		win->dirty = 1;
+		val = WIN_ENABLE;
+		if (tegra_dc_fmt_bpp(win->fmt) < 24)
+			val |= COLOR_EXPAND;
+		tegra_dc_writel(dc, val, DC_WIN_WIN_OPTIONS);
+
+		win->dirty = no_vsync ? 0 : 1;
 	}
 
 	if (update_blend) {
 		tegra_dc_set_blending(dc, &dc->blend);
 		for (i = 0; i < DC_N_WINDOWS; i++) {
-			dc->windows[i].dirty = 1;
+			if (!no_vsync)
+				dc->windows[i].dirty = 1;
 			update_mask |= WIN_A_ACT_REQ << i;
 		}
 	}
 
 	tegra_dc_writel(dc, update_mask << 8, DC_CMD_STATE_CONTROL);
 
-	val = tegra_dc_readl(dc, DC_CMD_INT_ENABLE);
-	val |= FRAME_END_INT;
-	tegra_dc_writel(dc, val, DC_CMD_INT_ENABLE);
+	if (!no_vsync) {
+		val = tegra_dc_readl(dc, DC_CMD_INT_ENABLE);
+		val |= FRAME_END_INT;
+		tegra_dc_writel(dc, val, DC_CMD_INT_ENABLE);
 
-	val = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	val |= FRAME_END_INT;
-	tegra_dc_writel(dc, val, DC_CMD_INT_MASK);
+		val = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+		val |= FRAME_END_INT;
+		tegra_dc_writel(dc, val, DC_CMD_INT_MASK);
+	}
 
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
 
@@ -751,8 +765,8 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00000020, DC_DISP_MEM_HIGH_PRIORITY);
 	tegra_dc_writel(dc, 0x00000001, DC_DISP_MEM_HIGH_PRIORITY_TIMER);
 
-	tegra_dc_writel(dc, 0x0001c702, DC_CMD_INT_MASK);
-	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_ENABLE);
+	tegra_dc_writel(dc, 0x00000002, DC_CMD_INT_MASK);
+	tegra_dc_writel(dc, 0x00000000, DC_CMD_INT_ENABLE);
 
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
 

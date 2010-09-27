@@ -79,6 +79,11 @@
 #define DC_CMD_SIGNAL_RAISE2			0x03d
 #define DC_CMD_SIGNAL_RAISE3			0x03e
 #define DC_CMD_STATE_ACCESS			0x040
+#define  READ_MUX_ASSEMBLY	(0 << 0)
+#define  READ_MUX_ACTIVE	(1 << 0)
+#define  WRITE_MUX_ASSEMBLY	(0 << 2)
+#define  WRITE_MUX_ACTIVE	(1 << 2)
+
 #define DC_CMD_STATE_CONTROL			0x041
 #define  GENERAL_ACT_REQ	(1 << 0)
 #define  WIN_A_ACT_REQ		(1 << 1)
