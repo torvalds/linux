@@ -7,6 +7,7 @@
 void move_masked_irq(int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_chip *chip = desc->irq_data.chip;
 
 	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
 		return;
@@ -24,7 +25,7 @@ void move_masked_irq(int irq)
 	if (unlikely(cpumask_empty(desc->pending_mask)))
 		return;
 
-	if (!desc->irq_data.chip->set_affinity)
+	if (!chip->irq_set_affinity)
 		return;
 
 	assert_raw_spin_locked(&desc->lock);
@@ -43,7 +44,8 @@ void move_masked_irq(int irq)
 	 */
 	if (likely(cpumask_any_and(desc->pending_mask, cpu_online_mask)
 		   < nr_cpu_ids))
-		if (!desc->irq_data.chip->set_affinity(irq, desc->pending_mask)) {
+		if (!chip->irq_set_affinity(&desc->irq_data,
+					    desc->pending_mask, false)) {
 			cpumask_copy(desc->irq_data.affinity, desc->pending_mask);
 			irq_set_thread_affinity(desc);
 		}

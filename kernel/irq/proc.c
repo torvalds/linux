@@ -65,7 +65,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	cpumask_var_t new_value;
 	int err;
 
-	if (!irq_to_desc(irq)->irq_data.chip->set_affinity || no_irq_affinity ||
+	if (!irq_to_desc(irq)->irq_data.chip->irq_set_affinity || no_irq_affinity ||
 	    irq_balancing_disabled(irq))
 		return -EIO;
 

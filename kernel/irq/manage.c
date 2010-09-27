@@ -74,7 +74,7 @@ int irq_can_set_affinity(unsigned int irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (CHECK_IRQ_PER_CPU(desc->status) || !desc->irq_data.chip ||
-	    !desc->irq_data.chip->set_affinity)
+	    !desc->irq_data.chip->irq_set_affinity)
 		return 0;
 
 	return 1;
@@ -109,16 +109,17 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_chip *chip = desc->irq_data.chip;
 	unsigned long flags;
 
-	if (!desc->irq_data.chip->set_affinity)
+	if (!chip->irq_set_affinity)
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PCNTXT) {
-		if (!desc->irq_data.chip->set_affinity(irq, cpumask)) {
+		if (!chip->irq_set_affinity(&desc->irq_data, cpumask, false)) {
 			cpumask_copy(desc->irq_data.affinity, cpumask);
 			irq_set_thread_affinity(desc);
 		}
@@ -128,7 +129,7 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 		cpumask_copy(desc->pending_mask, cpumask);
 	}
 #else
-	if (!desc->irq_data.chip->set_affinity(irq, cpumask)) {
+	if (!chip->irq_set_affinity(&desc->irq_data, cpumask, false)) {
 		cpumask_copy(desc->irq_data.affinity, cpumask);
 		irq_set_thread_affinity(desc);
 	}
@@ -177,7 +178,7 @@ static int setup_affinity(unsigned int irq, struct irq_desc *desc)
 
 	cpumask_and(desc->irq_data.affinity, cpu_online_mask, irq_default_affinity);
 set_affinity:
-	desc->irq_data.chip->set_affinity(irq, desc->irq_data.affinity);
+	desc->irq_data.chip->irq_set_affinity(&desc->irq_data, desc->irq_data.affinity, false);
 
 	return 0;
 }
