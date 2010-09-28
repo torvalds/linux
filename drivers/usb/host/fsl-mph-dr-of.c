@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 
 struct fsl_usb2_dev_data {
 	char *dr_mode;		/* controller mode */
@@ -153,6 +154,12 @@ static int __devinit fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 
 		pdata->operating_mode = FSL_USB2_MPH_HOST;
 	} else {
+		if (of_get_property(np, "fsl,invert-drvvbus", NULL))
+			pdata->invert_drvvbus = 1;
+
+		if (of_get_property(np, "fsl,invert-pwr-fault", NULL))
+			pdata->invert_pwr_fault = 1;
+
 		/* setup mode selected in the device tree */
 		pdata->operating_mode = dev_data->op_mode;
 	}
@@ -186,9 +193,91 @@ static int __devexit fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 	return 0;
 }
 
+#ifdef CONFIG_PPC_MPC512x
+
+#define USBGENCTRL		0x200		/* NOTE: big endian */
+#define GC_WU_INT_CLR		(1 << 5)	/* Wakeup int clear */
+#define GC_ULPI_SEL		(1 << 4)	/* ULPI i/f select (usb0 only)*/
+#define GC_PPP			(1 << 3)	/* Inv. Port Power Polarity */
+#define GC_PFP			(1 << 2)	/* Inv. Power Fault Polarity */
+#define GC_WU_ULPI_EN		(1 << 1)	/* Wakeup on ULPI event */
+#define GC_WU_IE		(1 << 1)	/* Wakeup interrupt enable */
+
+#define ISIPHYCTRL		0x204		/* NOTE: big endian */
+#define PHYCTRL_PHYE		(1 << 4)	/* On-chip UTMI PHY enable */
+#define PHYCTRL_BSENH		(1 << 3)	/* Bit Stuff Enable High */
+#define PHYCTRL_BSEN		(1 << 2)	/* Bit Stuff Enable */
+#define PHYCTRL_LSFE		(1 << 1)	/* Line State Filter Enable */
+#define PHYCTRL_PXE		(1 << 0)	/* PHY oscillator enable */
+
+int fsl_usb2_mpc5121_init(struct platform_device *pdev)
+{
+	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct clk *clk;
+	char clk_name[10];
+	int base, clk_num;
+
+	base = pdev->resource->start & 0xf000;
+	if (base == 0x3000)
+		clk_num = 1;
+	else if (base == 0x4000)
+		clk_num = 2;
+	else
+		return -ENODEV;
+
+	snprintf(clk_name, sizeof(clk_name), "usb%d_clk", clk_num);
+	clk = clk_get(&pdev->dev, clk_name);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "failed to get clk\n");
+		return PTR_ERR(clk);
+	}
+
+	clk_enable(clk);
+	pdata->clk = clk;
+
+	if (pdata->phy_mode == FSL_USB2_PHY_UTMI_WIDE) {
+		u32 reg = 0;
+
+		if (pdata->invert_drvvbus)
+			reg |= GC_PPP;
+
+		if (pdata->invert_pwr_fault)
+			reg |= GC_PFP;
+
+		out_be32(pdata->regs + ISIPHYCTRL, PHYCTRL_PHYE | PHYCTRL_PXE);
+		out_be32(pdata->regs + USBGENCTRL, reg);
+	}
+	return 0;
+}
+
+static void fsl_usb2_mpc5121_exit(struct platform_device *pdev)
+{
+	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+
+	pdata->regs = NULL;
+
+	if (pdata->clk) {
+		clk_disable(pdata->clk);
+		clk_put(pdata->clk);
+	}
+}
+
+struct fsl_usb2_platform_data fsl_usb2_mpc5121_pd = {
+	.big_endian_desc = 1,
+	.big_endian_mmio = 1,
+	.es = 1,
+	.le_setup_buf = 1,
+	.init = fsl_usb2_mpc5121_init,
+	.exit = fsl_usb2_mpc5121_exit,
+};
+#endif /* CONFIG_PPC_MPC512x */
+
 static const struct of_device_id fsl_usb2_mph_dr_of_match[] = {
 	{ .compatible = "fsl-usb2-mph", },
 	{ .compatible = "fsl-usb2-dr", },
+#ifdef CONFIG_PPC_MPC512x
+	{ .compatible = "fsl,mpc5121-usb2-dr", .data = &fsl_usb2_mpc5121_pd, },
+#endif
 	{},
 };
 

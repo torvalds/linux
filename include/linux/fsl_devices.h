@@ -58,11 +58,26 @@ enum fsl_usb2_phy_modes {
 	FSL_USB2_PHY_SERIAL,
 };
 
+struct clk;
+struct platform_device;
+
 struct fsl_usb2_platform_data {
 	/* board specific information */
 	enum fsl_usb2_operating_modes	operating_mode;
 	enum fsl_usb2_phy_modes		phy_mode;
 	unsigned int			port_enables;
+
+	int		(*init)(struct platform_device *);
+	void		(*exit)(struct platform_device *);
+	void __iomem	*regs;		/* ioremap'd register base */
+	struct clk	*clk;
+	unsigned	big_endian_mmio:1;
+	unsigned	big_endian_desc:1;
+	unsigned	es:1;		/* need USBMODE:ES */
+	unsigned	le_setup_buf:1;
+	unsigned	have_sysif_regs:1;
+	unsigned	invert_drvvbus:1;
+	unsigned	invert_pwr_fault:1;
 };
 
 /* Flags in fsl_usb2_mph_platform_data */
