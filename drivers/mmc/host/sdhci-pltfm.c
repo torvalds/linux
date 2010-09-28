@@ -165,6 +165,25 @@ static const struct platform_device_id sdhci_pltfm_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, sdhci_pltfm_ids);
 
+#ifdef CONFIG_PM
+static int sdhci_pltfm_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct sdhci_host *host = platform_get_drvdata(dev);
+
+	return sdhci_suspend_host(host, state);
+}
+
+static int sdhci_pltfm_resume(struct platform_device *dev)
+{
+	struct sdhci_host *host = platform_get_drvdata(dev);
+
+	return sdhci_resume_host(host);
+}
+#else
+#define sdhci_pltfm_suspend	NULL
+#define sdhci_pltfm_resume	NULL
+#endif	/* CONFIG_PM */
+
 static struct platform_driver sdhci_pltfm_driver = {
 	.driver = {
 		.name	= "sdhci",
@@ -173,6 +192,8 @@ static struct platform_driver sdhci_pltfm_driver = {
 	.probe		= sdhci_pltfm_probe,
 	.remove		= __devexit_p(sdhci_pltfm_remove),
 	.id_table	= sdhci_pltfm_ids,
+	.suspend	= sdhci_pltfm_suspend,
+	.resume		= sdhci_pltfm_resume,
 };
 
 /*****************************************************************************\
