@@ -85,6 +85,7 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #endif
 
 struct msi_desc;
+struct irq_2_iommu;
 
 /**
  * struct irq_data - per irq and irq chip data passed down to chip functions
@@ -332,11 +333,64 @@ extern int set_irq_data(unsigned int irq, void *data);
 extern int set_irq_chip_data(unsigned int irq, void *data);
 extern int set_irq_type(unsigned int irq, unsigned int type);
 extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
+extern struct irq_data *irq_get_irq_data(unsigned int irq);
 
-#define get_irq_chip(irq)	(irq_to_desc(irq)->irq_data.chip)
-#define get_irq_chip_data(irq)	(irq_to_desc(irq)->irq_data.chip_data)
-#define get_irq_data(irq)	(irq_to_desc(irq)->irq_data.handler_data)
-#define get_irq_msi(irq)	(irq_to_desc(irq)->irq_data.msi_desc)
+static inline struct irq_chip *get_irq_chip(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+	return d ? d->chip : NULL;
+}
+
+static inline struct irq_chip *irq_data_get_irq_chip(struct irq_data *d)
+{
+	return d->chip;
+}
+
+static inline void *get_irq_chip_data(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+	return d ? d->chip_data : NULL;
+}
+
+static inline void *irq_data_get_irq_chip_data(struct irq_data *d)
+{
+	return d->chip_data;
+}
+
+static inline void *get_irq_data(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+	return d ? d->handler_data : NULL;
+}
+
+static inline void *irq_data_get_irq_data(struct irq_data *d)
+{
+	return d->handler_data;
+}
+
+static inline struct msi_desc *get_irq_msi(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+	return d ? d->msi_desc : NULL;
+}
+
+static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
+{
+	return d->msi_desc;
+}
+
+#ifdef CONFIG_INTR_REMAP
+static inline struct irq_2_iommu *get_irq_iommu(unsigned int irq)
+{
+	struct irq_data *d = irq_get_irq_data(irq);
+	return d ? d->irq_2_iommu : NULL;
+}
+
+static inline struct irq_2_iommu *irq_data_get_iommu(struct irq_data *d)
+{
+	return d->irq_2_iommu;
+}
+#endif
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
