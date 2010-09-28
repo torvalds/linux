@@ -1638,8 +1638,8 @@ ftrace_failures_open(struct inode *inode, struct file *file)
 
 	ret = ftrace_avail_open(inode, file);
 	if (!ret) {
-		m = (struct seq_file *)file->private_data;
-		iter = (struct ftrace_iterator *)m->private;
+		m = file->private_data;
+		iter = m->private;
 		iter->flags = FTRACE_ITER_FAILURES;
 	}
 
