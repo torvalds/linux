@@ -4119,23 +4119,6 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 				goto out;
 			}
 		}
-	} else {
-		/*
-		* If no rates were explicitly configured,
-		* use the mandatory rate set for 11b or
-		* 11a for maximum compatibility.
-		*/
-		struct ieee80211_supported_band *sband =
-			wiphy->bands[ibss.channel->band];
-		int j;
-		u32 flag = ibss.channel->band == IEEE80211_BAND_5GHZ ?
-			IEEE80211_RATE_MANDATORY_A :
-			IEEE80211_RATE_MANDATORY_B;
-
-		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].flags & flag)
-				ibss.basic_rates |= BIT(j);
-		}
 	}
 
 	err = cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
