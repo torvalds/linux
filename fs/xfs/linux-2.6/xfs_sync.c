@@ -39,6 +39,14 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
+/*
+ * The inode lookup is done in batches to keep the amount of lock traffic and
+ * radix tree lookups to a minimum. The batch size is a trade off between
+ * lookup reduction and stack usage. This is in the reclaim path, so we can't
+ * be too greedy.
+ */
+#define XFS_LOOKUP_BATCH	32
+
 STATIC int
 xfs_inode_ag_walk_grab(
 	struct xfs_inode	*ip)
@@ -66,7 +74,6 @@ xfs_inode_ag_walk_grab(
 	return 0;
 }
 
-
 STATIC int
 xfs_inode_ag_walk(
 	struct xfs_mount	*mp,
@@ -79,54 +86,69 @@ xfs_inode_ag_walk(
 	int			last_error = 0;
 	int			skipped;
 	int			done;
+	int			nr_found;
 
 restart:
 	done = 0;
 	skipped = 0;
 	first_index = 0;
+	nr_found = 0;
 	do {
+		struct xfs_inode *batch[XFS_LOOKUP_BATCH];
 		int		error = 0;
-		int		nr_found;
-		xfs_inode_t	*ip;
+		int		i;
 
 		read_lock(&pag->pag_ici_lock);
 		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
-				(void **)&ip, first_index, 1);
+					(void **)batch, first_index,
+					XFS_LOOKUP_BATCH);
 		if (!nr_found) {
 			read_unlock(&pag->pag_ici_lock);
 			break;
 		}
 
 		/*
-		 * Update the index for the next lookup. Catch overflows
-		 * into the next AG range which can occur if we have inodes
-		 * in the last block of the AG and we are currently
-		 * pointing to the last inode.
+		 * Grab the inodes before we drop the lock. if we found
+		 * nothing, nr == 0 and the loop will be skipped.
 		 */
-		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
-		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
-			done = 1;
+		for (i = 0; i < nr_found; i++) {
+			struct xfs_inode *ip = batch[i];
 
-		if (xfs_inode_ag_walk_grab(ip)) {
-			read_unlock(&pag->pag_ici_lock);
-			continue;
+			if (done || xfs_inode_ag_walk_grab(ip))
+				batch[i] = NULL;
+
+			/*
+			 * Update the index for the next lookup. Catch overflows
+			 * into the next AG range which can occur if we have inodes
+			 * in the last block of the AG and we are currently
+			 * pointing to the last inode.
+			 */
+			first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+			if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
+				done = 1;
 		}
+
+		/* unlock now we've grabbed the inodes. */
 		read_unlock(&pag->pag_ici_lock);
 
-		error = execute(ip, pag, flags);
-		IRELE(ip);
-		if (error == EAGAIN) {
-			skipped++;
-			continue;
+		for (i = 0; i < nr_found; i++) {
+			if (!batch[i])
+				continue;
+			error = execute(batch[i], pag, flags);
+			IRELE(batch[i]);
+			if (error == EAGAIN) {
+				skipped++;
+				continue;
+			}
+			if (error && last_error != EFSCORRUPTED)
+				last_error = error;
 		}
-		if (error)
-			last_error = error;
 
 		/* bail out if the filesystem is corrupted.  */
 		if (error == EFSCORRUPTED)
 			break;
 
-	} while (!done);
+	} while (nr_found && !done);
 
 	if (skipped) {
 		delay(1);
