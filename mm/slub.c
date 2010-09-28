@@ -1310,13 +1310,19 @@ static void add_partial(struct kmem_cache_node *n,
 	spin_unlock(&n->list_lock);
 }
 
+static inline void __remove_partial(struct kmem_cache_node *n,
+					struct page *page)
+{
+	list_del(&page->lru);
+	n->nr_partial--;
+}
+
 static void remove_partial(struct kmem_cache *s, struct page *page)
 {
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 
 	spin_lock(&n->list_lock);
-	list_del(&page->lru);
-	n->nr_partial--;
+	__remove_partial(n, page);
 	spin_unlock(&n->list_lock);
 }
 
@@ -1329,8 +1335,7 @@ static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
 							struct page *page)
 {
 	if (slab_trylock(page)) {
-		list_del(&page->lru);
-		n->nr_partial--;
+		__remove_partial(n, page);
 		__SetPageSlubFrozen(page);
 		return 1;
 	}
@@ -2462,9 +2467,8 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 	spin_lock_irqsave(&n->list_lock, flags);
 	list_for_each_entry_safe(page, h, &n->partial, lru) {
 		if (!page->inuse) {
-			list_del(&page->lru);
+			__remove_partial(n, page);
 			discard_slab(s, page);
-			n->nr_partial--;
 		} else {
 			list_slab_objects(s, page,
 				"Objects remaining on kmem_cache_close()");
@@ -2822,8 +2826,7 @@ int kmem_cache_shrink(struct kmem_cache *s)
 				 * may have freed the last object and be
 				 * waiting to release the slab.
 				 */
-				list_del(&page->lru);
-				n->nr_partial--;
+				__remove_partial(n, page);
 				slab_unlock(page);
 				discard_slab(s, page);
 			} else {
