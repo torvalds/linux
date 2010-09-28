@@ -164,6 +164,11 @@ static inline int pm_request_resume(struct device *dev)
 	return __pm_runtime_resume(dev, RPM_ASYNC);
 }
 
+static inline int pm_request_autosuspend(struct device *dev)
+{
+	return __pm_runtime_suspend(dev, RPM_ASYNC | RPM_AUTO);
+}
+
 static inline int pm_runtime_get(struct device *dev)
 {
 	return __pm_runtime_resume(dev, RPM_GET_PUT | RPM_ASYNC);
