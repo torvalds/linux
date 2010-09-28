@@ -49,4 +49,11 @@ extern struct platform_device tegra_pwfm0_device;
 extern struct platform_device tegra_pwfm1_device;
 extern struct platform_device tegra_pwfm2_device;
 extern struct platform_device tegra_pwfm3_device;
+extern struct platform_device tegra_otg_device;
+extern struct platform_device tegra_uart0_device;
+extern struct platform_device tegra_uart1_device;
+extern struct platform_device tegra_uart2_device;
+extern struct platform_device tegra_uart3_device;
+extern struct platform_device tegra_uart4_device;
+
 #endif

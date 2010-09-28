@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
+#include <linux/serial_8250.h>
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -422,6 +423,26 @@ struct platform_device tegra_ehci3_device = {
 	.num_resources = ARRAY_SIZE(tegra_usb3_resources),
 };
 
+static struct resource tegra_otg_resources[] = {
+	[0] = {
+		.start	= TEGRA_USB_BASE,
+		.end	= TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_USB,
+		.end	= INT_USB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device tegra_otg_device = {
+	.name		= "tegra-otg",
+	.id		= -1,
+	.resource	= tegra_otg_resources,
+	.num_resources	= ARRAY_SIZE(tegra_otg_resources),
+};
+
 static struct resource i2s_resource1[] = {
 	[0] = {
 		.start	= INT_I2S1,
@@ -590,4 +611,104 @@ struct platform_device tegra_pwfm3_device = {
 	.id		= 3,
 	.num_resources	= 1,
 	.resource	= &tegra_pwfm3_resource,
+};
+
+static struct plat_serial8250_port tegra_uart0_port[] = {
+	[0] = {
+		.mapbase	= TEGRA_UARTA_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
+		.irq		= INT_UARTA,
+	},
+	[1] = {
+		.flags		= 0,
+	},
+};
+
+static struct plat_serial8250_port tegra_uart1_port[] = {
+	[0] = {
+		.mapbase	= TEGRA_UARTB_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTB_BASE),
+		.irq		= INT_UARTB,
+	},
+	[1] = {
+		.flags		= 0,
+	},
+};
+
+static struct plat_serial8250_port tegra_uart2_port[] = {
+	[0] = {
+		.mapbase	= TEGRA_UARTC_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTC_BASE),
+		.irq		= INT_UARTC,
+	},
+	[1] = {
+		.flags		= 0,
+	},
+};
+
+static struct plat_serial8250_port tegra_uart3_port[] = {
+	[0] = {
+		.mapbase	= TEGRA_UARTD_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
+		.irq		= INT_UARTD,
+	},
+	[1] = {
+		.flags		= 0,
+	},
+};
+
+static struct plat_serial8250_port tegra_uart4_port[] = {
+	[0] = {
+		.mapbase	= TEGRA_UARTE_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTE_BASE),
+		.irq		= INT_UARTE,
+	},
+	[1] = {
+		.flags		= 0,
+	},
+};
+
+struct platform_device tegra_uart0_device = {
+	.name	= "tegra_uart",
+	.id	= 0,
+	.dev	= {
+		.platform_data		= tegra_uart0_port,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+struct platform_device tegra_uart1_device = {
+	.name	= "tegra_uart",
+	.id	= 1,
+	.dev	= {
+		.platform_data		= tegra_uart1_port,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+struct platform_device tegra_uart2_device = {
+	.name	= "tegra_uart",
+	.id	= 2,
+	.dev	= {
+		.platform_data		= tegra_uart2_port,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+struct platform_device tegra_uart3_device = {
+	.name	= "tegra_uart",
+	.id	= 3,
+	.dev	= {
+		.platform_data		= tegra_uart3_port,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+struct platform_device tegra_uart4_device = {
+	.name	= "tegra_uart",
+	.id	= 4,
+	.dev	= {
+		.platform_data		= tegra_uart4_port,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
