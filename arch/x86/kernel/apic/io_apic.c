@@ -3605,26 +3605,25 @@ int arch_setup_dmar_msi(unsigned int irq)
 #ifdef CONFIG_HPET_TIMER
 
 #ifdef CONFIG_SMP
-static int hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
+static int hpet_msi_set_affinity(struct irq_data *data,
+				 const struct cpumask *mask, bool force)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg;
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct irq_cfg *cfg = data->chip_data;
 	struct msi_msg msg;
 	unsigned int dest;
 
 	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
-	cfg = get_irq_desc_chip_data(desc);
-
-	hpet_msi_read(irq, &msg);
+	hpet_msi_read(data->handler_data, &msg);
 
 	msg.data &= ~MSI_DATA_VECTOR_MASK;
 	msg.data |= MSI_DATA_VECTOR(cfg->vector);
 	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
 
-	hpet_msi_write(irq, &msg);
+	hpet_msi_write(data->handler_data, &msg);
 
 	return 0;
 }
@@ -3633,8 +3632,8 @@ static int hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 static struct irq_chip ir_hpet_msi_type = {
 	.name = "IR-HPET_MSI",
-	.unmask = hpet_msi_unmask,
-	.mask = hpet_msi_mask,
+	.irq_unmask = hpet_msi_unmask,
+	.irq_mask = hpet_msi_mask,
 #ifdef CONFIG_INTR_REMAP
 	.irq_ack = ir_ack_apic_edge,
 #ifdef CONFIG_SMP
@@ -3646,20 +3645,19 @@ static struct irq_chip ir_hpet_msi_type = {
 
 static struct irq_chip hpet_msi_type = {
 	.name = "HPET_MSI",
-	.unmask = hpet_msi_unmask,
-	.mask = hpet_msi_mask,
+	.irq_unmask = hpet_msi_unmask,
+	.irq_mask = hpet_msi_mask,
 	.irq_ack = ack_apic_edge,
 #ifdef CONFIG_SMP
-	.set_affinity = hpet_msi_set_affinity,
+	.irq_set_affinity = hpet_msi_set_affinity,
 #endif
 	.irq_retrigger = ioapic_retrigger_irq,
 };
 
 int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 {
-	int ret;
 	struct msi_msg msg;
-	struct irq_desc *desc = irq_to_desc(irq);
+	int ret;
 
 	if (intr_remapping_enabled) {
 		struct intel_iommu *iommu = map_hpet_to_ir(id);
@@ -3677,8 +3675,8 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 	if (ret < 0)
 		return ret;
 
-	hpet_msi_write(irq, &msg);
-	desc->status |= IRQ_MOVE_PCNTXT;
+	hpet_msi_write(get_irq_data(irq), &msg);
+	irq_set_status_flags(irq,IRQ_MOVE_PCNTXT);
 	if (irq_remapped(irq))
 		set_irq_chip_and_handler_name(irq, &ir_hpet_msi_type,
 					      handle_edge_irq, "edge");
