@@ -948,8 +948,9 @@ static void de_set_media (struct de_private *de)
 	else
 		macmode &= ~FullDuplex;
 
-	if (netif_msg_link(de)) {
+	if (netif_msg_link(de))
 		dev_info(&de->dev->dev, "set link %s\n", media_name[media]);
+	if (netif_msg_hw(de)) {
 		dev_info(&de->dev->dev, "mode 0x%x, sia 0x%x,0x%x,0x%x,0x%x\n",
 			 dr32(MacMode), dr32(SIAStatus),
 			 dr32(CSR13), dr32(CSR14), dr32(CSR15));
