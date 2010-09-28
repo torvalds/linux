@@ -150,10 +150,7 @@ static struct irq_cfg irq_cfgx[NR_IRQS];
 int __init arch_early_irq_init(void)
 {
 	struct irq_cfg *cfg;
-	struct irq_desc *desc;
-	int count;
-	int node;
-	int i;
+	int count, node, i;
 
 	if (!legacy_pic->nr_legacy_irqs) {
 		nr_irqs_gsi = 0;
@@ -165,8 +162,7 @@ int __init arch_early_irq_init(void)
 	node = cpu_to_node(0);
 
 	for (i = 0; i < count; i++) {
-		desc = irq_to_desc(i);
-		desc->chip_data = &cfg[i];
+		set_irq_chip_data(i, &cfg[i]);
 		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
 		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
 		/*
@@ -185,14 +181,7 @@ int __init arch_early_irq_init(void)
 #ifdef CONFIG_SPARSE_IRQ
 struct irq_cfg *irq_cfg(unsigned int irq)
 {
-	struct irq_cfg *cfg = NULL;
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-	if (desc)
-		cfg = get_irq_desc_chip_data(desc);
-
-	return cfg;
+	return get_irq_chip_data(irq);
 }
 
 static struct irq_cfg *get_one_free_irq_cfg(int node)
@@ -1316,17 +1305,17 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 #endif
 
-static void ioapic_register_intr(int irq, struct irq_desc *desc, unsigned long trigger)
+static void ioapic_register_intr(unsigned int irq, unsigned long trigger)
 {
 
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 	    trigger == IOAPIC_LEVEL)
-		desc->status |= IRQ_LEVEL;
+		irq_set_status_flags(irq, IRQ_LEVEL);
 	else
-		desc->status &= ~IRQ_LEVEL;
+		irq_clear_status_flags(irq, IRQ_LEVEL);
 
 	if (irq_remapped(irq)) {
-		desc->status |= IRQ_MOVE_PCNTXT;
+		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 		if (trigger)
 			set_irq_chip_and_handler_name(irq, &ir_ioapic_chip,
 						      handle_fasteoi_irq,
@@ -1406,18 +1395,14 @@ int setup_ioapic_entry(int apic_id, int irq,
 	return 0;
 }
 
-static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq_desc *desc,
-			      int trigger, int polarity)
+static void setup_ioapic_irq(int apic_id, int pin, unsigned int irq,
+			     struct irq_cfg *cfg, int trigger, int polarity)
 {
-	struct irq_cfg *cfg;
 	struct IO_APIC_route_entry entry;
 	unsigned int dest;
 
 	if (!IO_APIC_IRQ(irq))
 		return;
-
-	cfg = get_irq_desc_chip_data(desc);
-
 	/*
 	 * For legacy irqs, cfg->domain starts with cpu 0 for legacy
 	 * controllers like 8259. Now that IO-APIC can handle this irq, update
@@ -1446,7 +1431,7 @@ static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq
 		return;
 	}
 
-	ioapic_register_intr(irq, desc, trigger);
+	ioapic_register_intr(irq, trigger);
 	if (irq < legacy_pic->nr_legacy_irqs)
 		legacy_pic->mask(irq);
 
@@ -1511,8 +1496,8 @@ static void __init setup_IO_APIC_irqs(void)
 		 * don't mark it in pin_programmed, so later acpi could
 		 * set it correctly when irq < 16
 		 */
-		setup_IO_APIC_irq(apic_id, pin, irq, desc,
-				irq_trigger(idx), irq_polarity(idx));
+		setup_ioapic_irq(apic_id, pin, irq, cfg, irq_trigger(idx),
+				  irq_polarity(idx));
 	}
 
 	if (notcon)
@@ -1566,7 +1551,7 @@ void setup_IO_APIC_irq_extra(u32 gsi)
 	}
 	set_bit(pin, mp_ioapic_routing[apic_id].pin_programmed);
 
-	setup_IO_APIC_irq(apic_id, pin, irq, desc,
+	setup_ioapic_irq(apic_id, pin, irq, cfg,
 			irq_trigger(idx), irq_polarity(idx));
 }
 
@@ -2776,9 +2761,9 @@ static struct irq_chip lapic_chip __read_mostly = {
 	.irq_ack	= ack_lapic_irq,
 };
 
-static void lapic_register_intr(int irq, struct irq_desc *desc)
+static void lapic_register_intr(int irq)
 {
-	desc->status &= ~IRQ_LEVEL;
+	irq_clear_status_flags(irq, IRQ_LEVEL);
 	set_irq_chip_and_handler_name(irq, &lapic_chip, handle_edge_irq,
 				      "edge");
 }
@@ -2881,8 +2866,7 @@ int timer_through_8259 __initdata;
  */
 static inline void __init check_timer(void)
 {
-	struct irq_desc *desc = irq_to_desc(0);
-	struct irq_cfg *cfg = get_irq_desc_chip_data(desc);
+	struct irq_cfg *cfg = get_irq_chip_data(0);
 	int node = cpu_to_node(0);
 	int apic1, pin1, apic2, pin2;
 	unsigned long flags;
@@ -2952,7 +2936,7 @@ static inline void __init check_timer(void)
 			add_pin_to_irq_node(cfg, node, apic1, pin1);
 			setup_timer_IRQ0_pin(apic1, pin1, cfg->vector);
 		} else {
-			/* for edge trigger, setup_IO_APIC_irq already
+			/* for edge trigger, setup_ioapic_irq already
 			 * leave it unmasked.
 			 * so only need to unmask if it is level-trigger
 			 * do we really have level trigger timer?
@@ -3020,7 +3004,7 @@ static inline void __init check_timer(void)
 	apic_printk(APIC_QUIET, KERN_INFO
 		    "...trying to set up timer as Virtual Wire IRQ...\n");
 
-	lapic_register_intr(0, desc);
+	lapic_register_intr(0);
 	apic_write(APIC_LVT0, APIC_DM_FIXED | cfg->vector);	/* Fixed mode */
 	legacy_pic->unmask(0);
 
@@ -3457,8 +3441,8 @@ static int msi_alloc_irte(struct pci_dev *dev, int irq, int nvec)
 
 static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 {
-	int ret;
 	struct msi_msg msg;
+	int ret;
 
 	ret = msi_compose_msg(dev, irq, &msg, -1);
 	if (ret < 0)
@@ -3468,11 +3452,7 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 	write_msi_msg(irq, &msg);
 
 	if (irq_remapped(irq)) {
-		struct irq_desc *desc = irq_to_desc(irq);
-		/*
-		 * irq migration in process context
-		 */
-		desc->status |= IRQ_MOVE_PCNTXT;
+		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 		set_irq_chip_and_handler_name(irq, &msi_ir_chip, handle_edge_irq, "edge");
 	} else
 		set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
@@ -3484,13 +3464,10 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 
 int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	unsigned int irq;
-	int ret, sub_handle;
+	int node, ret, sub_handle, index = 0;
+	unsigned int irq, irq_want;
 	struct msi_desc *msidesc;
-	unsigned int irq_want;
 	struct intel_iommu *iommu = NULL;
-	int index = 0;
-	int node;
 
 	/* x86 doesn't support multiple MSI yet */
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
@@ -3676,7 +3653,7 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 		return ret;
 
 	hpet_msi_write(get_irq_data(irq), &msg);
-	irq_set_status_flags(irq,IRQ_MOVE_PCNTXT);
+	irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 	if (irq_remapped(irq))
 		set_irq_chip_and_handler_name(irq, &ir_hpet_msi_type,
 					      handle_edge_irq, "edge");
@@ -3862,11 +3839,12 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	trigger = irq_attr->trigger;
 	polarity = irq_attr->polarity;
 
+	cfg = get_irq_desc_chip_data(desc);
+
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
 	if (irq >= legacy_pic->nr_legacy_irqs) {
-		cfg = get_irq_desc_chip_data(desc);
 		if (add_pin_to_irq_node_nopanic(cfg, node, ioapic, pin)) {
 			printk(KERN_INFO "can not add pin %d for irq %d\n",
 				pin, irq);
@@ -3874,7 +3852,7 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 		}
 	}
 
-	setup_IO_APIC_irq(ioapic, pin, irq, desc, trigger, polarity);
+	setup_ioapic_irq(ioapic, pin, irq, cfg, trigger, polarity);
 
 	return 0;
 }
@@ -4258,13 +4236,12 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 void __init pre_init_apic_IRQ0(void)
 {
 	struct irq_cfg *cfg;
-	struct irq_desc *desc;
 
 	printk(KERN_INFO "Early APIC setup for system timer0\n");
 #ifndef CONFIG_SMP
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
 #endif
-	desc = irq_to_desc_alloc_node(0, 0);
+	irq_to_desc_alloc_node(0, 0);
 
 	setup_local_APIC();
 
@@ -4272,5 +4249,5 @@ void __init pre_init_apic_IRQ0(void)
 	add_pin_to_irq_node(cfg, 0, 0, 0);
 	set_irq_chip_and_handler_name(0, &ioapic_chip, handle_edge_irq, "edge");
 
-	setup_IO_APIC_irq(0, 0, 0, desc, 0, 0);
+	setup_ioapic_irq(0, 0, 0, cfg, 0, 0);
 }
