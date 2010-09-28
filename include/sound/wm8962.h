@@ -17,6 +17,8 @@
 struct wm8962_pdata {
 	u32 gpio_init[WM8962_MAX_GPIO];
 
+	bool irq_active_low;
+
 	bool spk_mono;   /* Speaker outputs tied together as mono */
 };
 

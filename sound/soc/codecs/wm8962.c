@@ -1461,6 +1461,29 @@ static struct snd_soc_dai_driver wm8962_dai = {
 	.symmetric_rates = 1,
 };
 
+static irqreturn_t wm8962_irq(int irq, void *data)
+{
+	struct snd_soc_codec *codec = data;
+	int mask;
+	int active;
+
+	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
+
+	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
+	active &= ~mask;
+
+	if (active & WM8962_FIFOS_ERR_EINT)
+		dev_err(codec->dev, "FIFO error\n");
+
+	if (active & WM8962_TEMP_SHUT_EINT)
+		dev_crit(codec->dev, "Thermal shutdown\n");
+
+	/* Acknowledge the interrupts */
+	snd_soc_write(codec, WM8962_INTERRUPT_STATUS_2, active);
+
+	return IRQ_HANDLED;
+}
+
 #ifdef CONFIG_PM
 static int wm8962_resume(struct snd_soc_codec *codec)
 {
@@ -1632,7 +1655,9 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
-	int i;
+	struct i2c_client *i2c = container_of(codec->dev, struct i2c_client,
+					      dev);
+	int i, trigger, irq_pol;
 
 	wm8962->codec = codec;
 
@@ -1748,6 +1773,34 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 
 	wm8962_init_beep(codec);
 
+	if (i2c->irq) {
+		if (pdata && pdata->irq_active_low) {
+			trigger = IRQF_TRIGGER_LOW;
+			irq_pol = WM8962_IRQ_POL;
+		} else {
+			trigger = IRQF_TRIGGER_HIGH;
+			irq_pol = 0;
+		}
+
+		snd_soc_update_bits(codec, WM8962_INTERRUPT_CONTROL,
+				    WM8962_IRQ_POL, irq_pol);
+
+		ret = request_threaded_irq(i2c->irq, NULL, wm8962_irq,
+					   trigger | IRQF_ONESHOT,
+					   "wm8962", codec);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to request IRQ %d: %d\n",
+				i2c->irq, ret);
+			/* Non-fatal */
+		} else {
+			/* Enable error reporting IRQs by default */
+			snd_soc_update_bits(codec,
+					    WM8962_INTERRUPT_STATUS_2_MASK,
+					    WM8962_TEMP_SHUT_EINT |
+					    WM8962_FIFOS_ERR_EINT, 0);
+		}
+	}
+
 	return 0;
 
 err_enable:
@@ -1762,7 +1815,12 @@ err:
 static int wm8962_remove(struct snd_soc_codec *codec)
 {
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *i2c = container_of(codec->dev, struct i2c_client,
+					      dev);
 	int i;
+
+	if (i2c->irq)
+		free_irq(i2c->irq, codec);
 
 	wm8962_free_beep(codec);
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
