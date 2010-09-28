@@ -96,6 +96,7 @@ enum wm831x_parent {
 	WM8312 = 0x8312,
 	WM8320 = 0x8320,
 	WM8321 = 0x8321,
+	WM8325 = 0x8325,
 };
 
 static int wm831x_reg_locked(struct wm831x *wm831x, unsigned short reg)
@@ -1540,6 +1541,12 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		dev_info(wm831x->dev, "WM8321 revision %c\n", 'A' + rev);
 		break;
 
+	case WM8325:
+		parent = WM8325;
+		wm831x->num_gpio = 12;
+		dev_info(wm831x->dev, "WM8325 revision %c\n", 'A' + rev);
+		break;
+
 	default:
 		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
 		ret = -EINVAL;
@@ -1615,6 +1622,12 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		break;
 
 	case WM8321:
+		ret = mfd_add_devices(wm831x->dev, -1,
+				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
+				      NULL, 0);
+		break;
+
+	case WM8325:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
 				      NULL, 0);
@@ -1791,6 +1804,7 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8312", WM8312 },
 	{ "wm8320", WM8320 },
 	{ "wm8321", WM8321 },
+	{ "wm8325", WM8325 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);
