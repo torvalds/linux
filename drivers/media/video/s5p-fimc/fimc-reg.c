@@ -507,9 +507,9 @@ void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *paddr)
 	cfg |= S5P_CIREAL_ISIZE_ADDR_CH_DIS;
 	writel(cfg, dev->regs + S5P_CIREAL_ISIZE);
 
-	writel(paddr->y, dev->regs + S5P_CIIYSA0);
-	writel(paddr->cb, dev->regs + S5P_CIICBSA0);
-	writel(paddr->cr, dev->regs + S5P_CIICRSA0);
+	writel(paddr->y, dev->regs + S5P_CIIYSA(0));
+	writel(paddr->cb, dev->regs + S5P_CIICBSA(0));
+	writel(paddr->cr, dev->regs + S5P_CIICRSA(0));
 
 	cfg &= ~S5P_CIREAL_ISIZE_ADDR_CH_DIS;
 	writel(cfg, dev->regs + S5P_CIREAL_ISIZE);
