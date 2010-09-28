@@ -170,27 +170,27 @@ static void msix_mask_irq(struct msi_desc *desc, u32 flag)
 	desc->masked = __msix_mask_irq(desc, flag);
 }
 
-static void msi_set_mask_bit(unsigned irq, u32 flag)
+static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 {
-	struct msi_desc *desc = get_irq_msi(irq);
+	struct msi_desc *desc = irq_data_get_msi(data);
 
 	if (desc->msi_attrib.is_msix) {
 		msix_mask_irq(desc, flag);
 		readl(desc->mask_base);		/* Flush write to device */
 	} else {
-		unsigned offset = irq - desc->dev->irq;
+		unsigned offset = data->irq - desc->dev->irq;
 		msi_mask_irq(desc, 1 << offset, flag << offset);
 	}
 }
 
-void mask_msi_irq(unsigned int irq)
+void mask_msi_irq(struct irq_data *data)
 {
-	msi_set_mask_bit(irq, 1);
+	msi_set_mask_bit(data, 1);
 }
 
-void unmask_msi_irq(unsigned int irq)
+void unmask_msi_irq(struct irq_data *data)
 {
-	msi_set_mask_bit(irq, 0);
+	msi_set_mask_bit(data, 0);
 }
 
 void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)

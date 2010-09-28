@@ -3441,8 +3441,8 @@ ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
  */
 static struct irq_chip msi_chip = {
 	.name		= "PCI-MSI",
-	.unmask		= unmask_msi_irq,
-	.mask		= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
 	.ack		= ack_apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_msi_irq_affinity,
@@ -3452,8 +3452,8 @@ static struct irq_chip msi_chip = {
 
 static struct irq_chip msi_ir_chip = {
 	.name		= "IR-PCI-MSI",
-	.unmask		= unmask_msi_irq,
-	.mask		= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
 #ifdef CONFIG_INTR_REMAP
 	.ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP

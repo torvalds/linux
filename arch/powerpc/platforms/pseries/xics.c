@@ -243,7 +243,7 @@ static unsigned int xics_startup(unsigned int virq)
 	 * at that level, so we do it here by hand.
 	 */
 	if (irq_to_desc(virq)->msi_desc)
-		unmask_msi_irq(virq);
+		unmask_msi_irq(irq_get_irq_data(virq));
 
 	/* unmask it */
 	xics_unmask_irq(virq);

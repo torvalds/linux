@@ -51,8 +51,8 @@ static void fsl_msi_end_irq(unsigned int virq)
 }
 
 static struct irq_chip fsl_msi_chip = {
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
 	.ack		= fsl_msi_end_irq,
 	.name		= "FSL-MSI",
 };

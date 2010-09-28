@@ -11,8 +11,9 @@ struct msi_msg {
 
 /* Helper functions */
 struct irq_desc;
-extern void mask_msi_irq(unsigned int irq);
-extern void unmask_msi_irq(unsigned int irq);
+struct irq_data;
+extern void mask_msi_irq(struct irq_data *data);
+extern void unmask_msi_irq(struct irq_data *data);
 extern void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg);
 extern void get_cached_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg);
 extern void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg);
