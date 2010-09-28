@@ -851,32 +851,20 @@ set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 	__set_irq_handler(irq, handle, 0, name);
 }
 
-void set_irq_noprobe(unsigned int irq)
+void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
 
-	if (!desc) {
-		printk(KERN_ERR "Trying to mark IRQ%d non-probeable\n", irq);
+	if (!desc)
 		return;
-	}
+
+	/* Sanitize flags */
+	set &= IRQF_MODIFY_MASK;
+	clr &= IRQF_MODIFY_MASK;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->status |= IRQ_NOPROBE;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-}
-
-void set_irq_probe(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	if (!desc) {
-		printk(KERN_ERR "Trying to mark IRQ%d probeable\n", irq);
-		return;
-	}
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->status &= ~IRQ_NOPROBE;
+	desc->status &= ~clr;
+	desc->status |= set;
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
