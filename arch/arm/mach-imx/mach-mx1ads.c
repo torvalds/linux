@@ -32,7 +32,7 @@
 #include "devices-imx1.h"
 #include "devices.h"
 
-static int mx1ads_pins[] = {
+static const int mx1ads_pins[] __initconst = {
 	/* UART1 */
 	PC9_PF_UART1_CTS,
 	PC10_PF_UART1_RTS,

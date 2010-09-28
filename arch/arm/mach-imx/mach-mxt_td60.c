@@ -37,7 +37,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static unsigned int mxt_td60_pins[] __initdata = {
+static const int mxt_td60_pins[] __initconst = {
 	/* UART0 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,

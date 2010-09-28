@@ -67,7 +67,7 @@
 #define MX21ADS_IO_LED4_ON      0x4000
 #define MX21ADS_IO_LED3_ON      0x8000
 
-static unsigned int mx21ads_pins[] = {
+static const int mx21ads_pins[] __initconst = {
 
 	/* CS8900A */
 	(GPIO_PORTE | GPIO_GPIO | GPIO_IN | 11),

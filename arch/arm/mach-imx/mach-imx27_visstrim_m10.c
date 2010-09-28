@@ -44,7 +44,7 @@
 #define OTG_PHY_CS_GPIO (GPIO_PORTF + 17)
 #define SDHC1_IRQ IRQ_GPIOB(25)
 
-static int visstrim_m10_pins[] = {
+static const int visstrim_m10_pins[] __initconst = {
 	/* UART1 (console) */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,

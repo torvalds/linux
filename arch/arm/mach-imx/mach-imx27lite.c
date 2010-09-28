@@ -27,7 +27,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static unsigned int mx27lite_pins[] = {
+static const int mx27lite_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,

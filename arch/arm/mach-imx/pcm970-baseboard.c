@@ -31,7 +31,7 @@
 
 #include "devices.h"
 
-static int pcm970_pins[] = {
+static const int pcm970_pins[] __initconst = {
 	/* SDHC */
 	PB4_PF_SD2_D0,
 	PB5_PF_SD2_D1,

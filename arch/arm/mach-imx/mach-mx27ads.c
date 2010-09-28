@@ -66,7 +66,7 @@
 /* to determine the correct external crystal reference */
 #define CKIH_27MHZ_BIT_SET      (1 << 3)
 
-static unsigned int mx27ads_pins[] = {
+static const int mx27ads_pins[] __initconst = {
 	/* UART0 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,

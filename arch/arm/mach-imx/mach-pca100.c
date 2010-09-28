@@ -54,7 +54,7 @@
 #define SPI1_SS1 (GPIO_PORTD + 27)
 #define SD2_CD (GPIO_PORTC + 29)
 
-static int pca100_pins[] = {
+static const int pca100_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,

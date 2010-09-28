@@ -95,7 +95,7 @@ static struct platform_device dm9000x_device = {
 	}
 };
 
-static int mxc_uart1_pins[] = {
+static const int mxc_uart1_pins[] = {
 	PC9_PF_UART1_CTS,
 	PC10_PF_UART1_RTS,
 	PC11_PF_UART1_TXD,

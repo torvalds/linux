@@ -41,7 +41,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static int eukrea_mbimx27_pins[] = {
+static const int eukrea_mbimx27_pins[] __initconst = {
 	/* UART2 */
 	PE3_PF_UART2_CTS,
 	PE4_PF_UART2_RTS,
