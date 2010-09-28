@@ -413,6 +413,7 @@ static struct davinci_spi_platform_data dm355_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
 	.clk_internal	= 1,
+	.cshold_bug	= true,
 };
 static struct platform_device dm355_spi0_device = {
 	.name = "spi_davinci",

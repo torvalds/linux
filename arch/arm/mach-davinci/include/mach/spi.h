@@ -33,6 +33,7 @@ struct davinci_spi_platform_data {
 	u8	intr_line;
 	u8	use_dma;
 	u8	*chip_sel;
+	bool	cshold_bug;
 };
 
 struct davinci_spi_config {

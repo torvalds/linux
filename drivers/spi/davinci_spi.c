@@ -719,13 +719,14 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	struct davinci_spi *davinci_spi;
 	int int_status = 0;
 	int count, temp_count;
-	u32 data1_reg_val;
 	struct davinci_spi_dma *davinci_spi_dma;
 	int data_type, ret;
 	unsigned long tx_reg, rx_reg;
+	struct davinci_spi_platform_data *pdata;
 	struct device *sdev;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
+	pdata = davinci_spi->pdata;
 	sdev = davinci_spi->bitbang.master->dev.parent;
 
 	davinci_spi_dma = &davinci_spi->dma_channels;
@@ -738,8 +739,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 
 	/* convert len to words based on bits_per_word */
 	data_type = davinci_spi->bytes_per_word[spi->chip_select];
-
-	data1_reg_val = ioread32(davinci_spi->base + SPIDAT1);
 
 	init_completion(&davinci_spi_dma->dma_rx_completion);
 	init_completion(&davinci_spi_dma->dma_tx_completion);
@@ -781,9 +780,6 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 	edma_set_dest_index(davinci_spi_dma->dma_tx_channel, 0, 0);
 
 	if (t->rx_buf) {
-		/* initiate transaction */
-		iowrite32(data1_reg_val, davinci_spi->base + SPIDAT1);
-
 		t->rx_dma = dma_map_single(&spi->dev, (void *)t->rx_buf, count,
 				DMA_FROM_DEVICE);
 		if (dma_mapping_error(&spi->dev, t->rx_dma)) {
@@ -805,18 +801,18 @@ static int davinci_spi_bufs_dma(struct spi_device *spi, struct spi_transfer *t)
 				data_type, 0);
 	}
 
-	if ((t->tx_buf) || (t->rx_buf))
-		edma_start(davinci_spi_dma->dma_tx_channel);
+	if (pdata->cshold_bug) {
+		u16 spidat1 = ioread16(davinci_spi->base + SPIDAT1 + 2);
+		iowrite16(spidat1, davinci_spi->base + SPIDAT1 + 2);
+	}
 
 	if (t->rx_buf)
 		edma_start(davinci_spi_dma->dma_rx_channel);
 
-	if ((t->rx_buf) || (t->tx_buf))
-		davinci_spi_set_dma_req(spi, 1);
+	edma_start(davinci_spi_dma->dma_tx_channel);
+	davinci_spi_set_dma_req(spi, 1);
 
-	if (t->tx_buf)
-		wait_for_completion_interruptible(
-				&davinci_spi_dma->dma_tx_completion);
+	wait_for_completion_interruptible(&davinci_spi_dma->dma_tx_completion);
 
 	if (t->rx_buf)
 		wait_for_completion_interruptible(
