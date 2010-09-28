@@ -103,6 +103,7 @@ enum ip_conntrack_expect_events {
 /* expectation flags */
 #define NF_CT_EXPECT_PERMANENT		0x1
 #define NF_CT_EXPECT_INACTIVE		0x2
+#define NF_CT_EXPECT_USERSPACE		0x4
 
 #ifdef __KERNEL__
 struct ip_conntrack_stat {

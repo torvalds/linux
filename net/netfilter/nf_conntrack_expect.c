@@ -38,20 +38,23 @@ static int nf_ct_expect_hash_rnd_initted __read_mostly;
 
 static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
 
+static HLIST_HEAD(nf_ct_userspace_expect_list);
+
 /* nf_conntrack_expect helper functions */
 void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 {
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 	struct net *net = nf_ct_exp_net(exp);
 
-	NF_CT_ASSERT(master_help);
 	NF_CT_ASSERT(!timer_pending(&exp->timeout));
 
 	hlist_del_rcu(&exp->hnode);
 	net->ct.expect_count--;
 
 	hlist_del(&exp->lnode);
-	master_help->expecting[exp->class]--;
+	if (!(exp->flags & NF_CT_EXPECT_USERSPACE))
+		master_help->expecting[exp->class]--;
+
 	nf_ct_expect_put(exp);
 
 	NF_CT_STAT_INC(net, expect_delete);
@@ -320,16 +323,21 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 
 	atomic_inc(&exp->use);
 
-	hlist_add_head(&exp->lnode, &master_help->expectations);
-	master_help->expecting[exp->class]++;
+	if (master_help) {
+		hlist_add_head(&exp->lnode, &master_help->expectations);
+		master_help->expecting[exp->class]++;
+	} else if (exp->flags & NF_CT_EXPECT_USERSPACE)
+		hlist_add_head(&exp->lnode, &nf_ct_userspace_expect_list);
 
 	hlist_add_head_rcu(&exp->hnode, &net->ct.expect_hash[h]);
 	net->ct.expect_count++;
 
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
 		    (unsigned long)exp);
-	p = &master_help->helper->expect_policy[exp->class];
-	exp->timeout.expires = jiffies + p->timeout * HZ;
+	if (master_help) {
+		p = &master_help->helper->expect_policy[exp->class];
+		exp->timeout.expires = jiffies + p->timeout * HZ;
+	}
 	add_timer(&exp->timeout);
 
 	atomic_inc(&exp->use);
@@ -380,7 +388,9 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	unsigned int h;
 	int ret = 1;
 
-	if (!master_help->helper) {
+	/* Don't allow expectations created from kernel-space with no helper */
+	if (!(expect->flags & NF_CT_EXPECT_USERSPACE) &&
+	    (!master_help || (master_help && !master_help->helper))) {
 		ret = -ESHUTDOWN;
 		goto out;
 	}
@@ -398,13 +408,16 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 		}
 	}
 	/* Will be over limit? */
-	p = &master_help->helper->expect_policy[expect->class];
-	if (p->max_expected &&
-	    master_help->expecting[expect->class] >= p->max_expected) {
-		evict_oldest_expect(master, expect);
-		if (master_help->expecting[expect->class] >= p->max_expected) {
-			ret = -EMFILE;
-			goto out;
+	if (master_help) {
+		p = &master_help->helper->expect_policy[expect->class];
+		if (p->max_expected &&
+		    master_help->expecting[expect->class] >= p->max_expected) {
+			evict_oldest_expect(master, expect);
+			if (master_help->expecting[expect->class]
+						>= p->max_expected) {
+				ret = -EMFILE;
+				goto out;
+			}
 		}
 	}
 
@@ -438,6 +451,21 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related_report);
+
+void nf_ct_remove_userspace_expectations(void)
+{
+	struct nf_conntrack_expect *exp;
+	struct hlist_node *n, *next;
+
+	hlist_for_each_entry_safe(exp, n, next,
+				  &nf_ct_userspace_expect_list, lnode) {
+		if (del_timer(&exp->timeout)) {
+			nf_ct_unlink_expect(exp);
+			nf_ct_expect_put(exp);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(nf_ct_remove_userspace_expectations);
 
 #ifdef CONFIG_PROC_FS
 struct ct_expect_iter_state {
@@ -529,8 +557,12 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		seq_printf(s, "PERMANENT");
 		delim = ",";
 	}
-	if (expect->flags & NF_CT_EXPECT_INACTIVE)
+	if (expect->flags & NF_CT_EXPECT_INACTIVE) {
 		seq_printf(s, "%sINACTIVE", delim);
+		delim = ",";
+	}
+	if (expect->flags & NF_CT_EXPECT_USERSPACE)
+		seq_printf(s, "%sUSERSPACE", delim);
 
 	helper = rcu_dereference(nfct_help(expect->master)->helper);
 	if (helper) {

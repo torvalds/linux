@@ -1560,8 +1560,8 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
 {
 	struct nf_conn *master = exp->master;
-	struct nf_conntrack_helper *helper;
 	long timeout = (exp->timeout.expires - jiffies) / HZ;
+	struct nf_conn_help *help;
 
 	if (timeout < 0)
 		timeout = 0;
@@ -1578,9 +1578,14 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout));
 	NLA_PUT_BE32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp));
 	NLA_PUT_BE32(skb, CTA_EXPECT_FLAGS, htonl(exp->flags));
-	helper = rcu_dereference(nfct_help(master)->helper);
-	if (helper)
-		NLA_PUT_STRING(skb, CTA_EXPECT_HELP_NAME, helper->name);
+	help = nfct_help(master);
+	if (help) {
+		struct nf_conntrack_helper *helper;
+
+		helper = rcu_dereference(help->helper);
+		if (helper)
+			NLA_PUT_STRING(skb, CTA_EXPECT_HELP_NAME, helper->name);
+	}
 
 	return 0;
 
@@ -1921,24 +1926,32 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 	if (!h)
 		return -ENOENT;
 	ct = nf_ct_tuplehash_to_ctrack(h);
-	help = nfct_help(ct);
-
-	if (!help || !help->helper) {
-		/* such conntrack hasn't got any helper, abort */
-		err = -EOPNOTSUPP;
-		goto out;
-	}
-
 	exp = nf_ct_expect_alloc(ct);
 	if (!exp) {
 		err = -ENOMEM;
 		goto out;
 	}
+	help = nfct_help(ct);
+	if (!help) {
+		if (!cda[CTA_EXPECT_TIMEOUT]) {
+			err = -EINVAL;
+			goto out;
+		}
+		exp->timeout.expires =
+		  jiffies + ntohl(nla_get_be32(cda[CTA_EXPECT_TIMEOUT])) * HZ;
 
-	if (cda[CTA_EXPECT_FLAGS])
-		exp->flags = ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
-	else
-		exp->flags = 0;
+		exp->flags = NF_CT_EXPECT_USERSPACE;
+		if (cda[CTA_EXPECT_FLAGS]) {
+			exp->flags |=
+				ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
+		}
+	} else {
+		if (cda[CTA_EXPECT_FLAGS]) {
+			exp->flags = ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
+			exp->flags &= ~NF_CT_EXPECT_USERSPACE;
+		} else
+			exp->flags = 0;
+	}
 
 	exp->class = 0;
 	exp->expectfn = NULL;
@@ -2109,6 +2122,7 @@ static void __exit ctnetlink_exit(void)
 {
 	pr_info("ctnetlink: unregistering from nfnetlink.\n");
 
+	nf_ct_remove_userspace_expectations();
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	nf_ct_expect_unregister_notifier(&ctnl_notifier_exp);
 	nf_conntrack_unregister_notifier(&ctnl_notifier);
