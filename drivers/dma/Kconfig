@@ -49,6 +49,14 @@ config INTEL_MID_DMAC
 config ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	bool
 
+config AMBA_PL08X
+	bool "ARM PrimeCell PL080 or PL081 support"
+	depends on ARM_AMBA && EXPERIMENTAL
+	select DMA_ENGINE
+	help
+	  Platform has a PL08x DMAC device
+	  which can provide DMA engine support
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
