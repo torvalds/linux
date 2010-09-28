@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2010 Marvell International Ltd.
  *		Sachin Sanap <ssanap@marvell.com>
+ *		Zhangfei Gao <zgao6@marvell.com>
  *		Philip Rakity <prakity@marvell.com>
  *		Mark Brown <markb@marvell.com>
  *
