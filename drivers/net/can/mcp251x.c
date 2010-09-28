@@ -785,7 +785,8 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 
 		mcp251x_write_bits(spi, CANINTF, intf, 0x00);
 
-		mcp251x_write_reg(spi, EFLG, 0x00);
+		if (eflag)
+			mcp251x_write_bits(spi, EFLG, eflag, 0x00);
 
 		/* Update can state */
 		if (eflag & EFLG_TXBO) {
