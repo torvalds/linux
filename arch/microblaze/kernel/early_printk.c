@@ -24,6 +24,7 @@
 static u32 early_console_initialized;
 static u32 base_addr;
 
+#ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 static void early_printk_uartlite_putc(char c)
 {
 	/*
@@ -62,6 +63,7 @@ static struct console early_serial_uartlite_console = {
 	.flags = CON_PRINTBUFFER,
 	.index = -1,
 };
+#endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
 
 static struct console *early_console;
 
@@ -84,6 +86,7 @@ int __init setup_early_printk(char *opt)
 	if (early_console_initialized)
 		return 1;
 
+#ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 	base_addr = early_uartlite_console();
 	if (base_addr) {
 		early_console_initialized = 1;
@@ -97,8 +100,10 @@ int __init setup_early_printk(char *opt)
 		/* register_console(early_console); */
 
 		return 0;
-	} else
-		return 1;
+	}
+#endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
+
+	return 1;
 }
 
 void __init disable_early_printk(void)
