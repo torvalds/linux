@@ -798,7 +798,7 @@ done:
 
 static void fetch_bit_operand(struct decode_cache *c)
 {
-	long sv, mask;
+	long sv = 0, mask;
 
 	if (c->dst.type == OP_MEM && c->src.type == OP_REG) {
 		mask = ~(c->dst.bytes * 8 - 1);
