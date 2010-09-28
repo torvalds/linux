@@ -55,5 +55,5 @@ extern struct platform_device tegra_uart1_device;
 extern struct platform_device tegra_uart2_device;
 extern struct platform_device tegra_uart3_device;
 extern struct platform_device tegra_uart4_device;
-
+extern struct platform_device tegra_spdif_device;
 #endif
