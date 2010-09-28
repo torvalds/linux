@@ -2323,7 +2323,7 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 	switch (rpl->type) {
 	case 1:
 		ret = (int)((be64_to_cpu(rpl->data[0]) >> 8) & 0xff);
-		wr_waitp = (__force struct c4iw_wr_wait *)rpl->data[1];
+		wr_waitp = (struct c4iw_wr_wait *)(__force unsigned long) rpl->data[1];
 		PDBG("%s wr_waitp %p ret %u\n", __func__, wr_waitp, ret);
 		if (wr_waitp) {
 			wr_waitp->ret = ret;
