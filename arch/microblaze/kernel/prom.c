@@ -89,6 +89,40 @@ int __init early_uartlite_console(void)
 {
 	return of_scan_flat_dt(early_init_dt_scan_serial, NULL);
 }
+
+/* MS this is Microblaze specifig function */
+static int __init early_init_dt_scan_serial_full(unsigned long node,
+				const char *uname, int depth, void *data)
+{
+	unsigned long l;
+	char *p;
+	unsigned int addr;
+
+	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
+
+/* find all serial nodes */
+	if (strncmp(uname, "serial", 6) != 0)
+		return 0;
+
+	early_init_dt_check_for_initrd(node);
+
+/* find compatible node with uartlite */
+	p = of_get_flat_dt_prop(node, "compatible", &l);
+
+	if ((strncmp(p, "xlnx,xps-uart16550", 18) != 0) &&
+		(strncmp(p, "xlnx,axi-uart16550", 18) != 0))
+		return 0;
+
+	addr = *(u32 *)of_get_flat_dt_prop(node, "reg", &l);
+	addr += *(u32 *)of_get_flat_dt_prop(node, "reg-offset", &l);
+	return addr; /* return address */
+}
+
+/* this function is looking for early uartlite console - Microblaze specific */
+int __init early_uart16550_console(void)
+{
+	return of_scan_flat_dt(early_init_dt_scan_serial_full, NULL);
+}
 #endif
 
 void __init early_init_devtree(void *params)

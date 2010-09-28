@@ -65,6 +65,50 @@ static struct console early_serial_uartlite_console = {
 };
 #endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
 
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+static void early_printk_uart16550_putc(char c)
+{
+	/*
+	 * Limit how many times we'll spin waiting for TX FIFO status.
+	 * This will prevent lockups if the base address is incorrectly
+	 * set, or any other issue on the UARTLITE.
+	 * This limit is pretty arbitrary, unless we are at about 10 baud
+	 * we'll never timeout on a working UART.
+	 */
+
+	#define UART_LSR_TEMT	0x40 /* Transmitter empty */
+	#define UART_LSR_THRE	0x20 /* Transmit-hold-register empty */
+	#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
+
+	unsigned retries = 10000;
+
+	while (--retries &&
+		!((in_be32(base_addr + 0x14) & BOTH_EMPTY) == BOTH_EMPTY))
+		;
+
+	if (retries)
+		out_be32(base_addr, c & 0xff);
+}
+
+static void early_printk_uart16550_write(struct console *unused,
+					const char *s, unsigned n)
+{
+	while (*s && n-- > 0) {
+		early_printk_uart16550_putc(*s);
+		if (*s == '\n')
+			early_printk_uart16550_putc('\r');
+		s++;
+	}
+}
+
+static struct console early_serial_uart16550_console = {
+	.name = "earlyser",
+	.write = early_printk_uart16550_write,
+	.flags = CON_PRINTBUFFER,
+	.index = -1,
+};
+#endif /* CONFIG_SERIAL_8250_CONSOLE */
+
 static struct console *early_console;
 
 void early_printk(const char *fmt, ...)
@@ -102,6 +146,25 @@ int __init setup_early_printk(char *opt)
 		return 0;
 	}
 #endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+	base_addr = early_uart16550_console();
+	base_addr &= ~3; /* clear register offset */
+	if (base_addr) {
+		early_console_initialized = 1;
+#ifdef CONFIG_MMU
+		early_console_reg_tlb_alloc(base_addr);
+#endif
+		early_console = &early_serial_uart16550_console;
+
+		early_printk("early_printk_console is enabled at 0x%08x\n",
+							base_addr);
+
+		/* register_console(early_console); */
+
+		return 0;
+	}
+#endif /* CONFIG_SERIAL_8250_CONSOLE */
 
 	return 1;
 }
