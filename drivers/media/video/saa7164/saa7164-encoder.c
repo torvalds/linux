@@ -239,7 +239,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	int n;
 
 	char *inputs[] = { "tuner", "composite", "svideo", "aux",
-		"composite", "svideo", "aux" };
+		"composite 2", "svideo 2", "aux 2" };
 
 	if (i->index >= 7)
 		return -EINVAL;
