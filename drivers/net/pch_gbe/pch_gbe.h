@@ -31,6 +31,8 @@
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
 #include <net/ip.h>
+#include <net/tcp.h>
+#include <net/udp.h>
 
 /**
  * pch_gbe_regs_mac_adr - Structure holding values of mac address registers
