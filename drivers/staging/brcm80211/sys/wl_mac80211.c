@@ -187,6 +187,7 @@ static struct pci_device_id wl_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, wl_id_table);
+static void __devexit wl_remove(struct pci_dev *pdev);
 #endif				/* !BCMSDIO */
 
 #ifdef BCMSDIO
@@ -902,9 +903,11 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 #ifndef WLC_HIGH_ONLY
 	/* prepare ucode */
 	if (wl_request_fw(wl, (struct pci_dev *)btparam)) {
-		printf("%s: %s driver failed\n", KBUILD_MODNAME,
-		       EPI_VERSION_STR);
-		goto fail;
+		printf("%s: Failed to find firmware usually in %s\n",
+			KBUILD_MODNAME, "/lib/firmware/brcm");
+		wl_release_fw(wl);
+		wl_remove((struct pci_dev *)btparam);
+		goto fail1;
 	}
 #endif
 
@@ -915,8 +918,8 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 	wl_release_fw(wl);
 #endif
 	if (!wl->wlc) {
-		printf("%s: %s driver failed with code %d\n", KBUILD_MODNAME,
-		       EPI_VERSION_STR, err);
+		printf("%s: %s wlc_attach() failed with code %d\n",
+			KBUILD_MODNAME, EPI_VERSION_STR, err);
 		goto fail;
 	}
 	wl->pub = wlc_pub(wl->wlc);
@@ -1018,6 +1021,7 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 
  fail:
 	wl_free(wl);
+ fail1:
 	return NULL;
 }
 
@@ -1189,9 +1193,6 @@ static void wl_dbus_disconnect_cb(void *arg)
 }
 #endif				/* WLC_HIGH_ONLY */
 
-#ifndef BCMSDIO
-static void __devexit wl_remove(struct pci_dev *pdev);
-#endif
 
 #define CHAN2GHZ(channel, freqency, chflags)  { \
 	.band = IEEE80211_BAND_2GHZ, \
@@ -1510,6 +1511,11 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	wl = wl_attach(pdev->vendor, pdev->device, pci_resource_start(pdev, 0),
 		       PCI_BUS, pdev, pdev->irq);
 
+	if (!wl) {
+		WL_ERROR(("%s: %s: wl_attach failed!\n",
+			KBUILD_MODNAME, __func__));
+		return -ENODEV;
+	}
 	return 0;
  err_1:
 	WL_ERROR(("%s: err_1: Major hoarkage\n", __func__));
@@ -1594,14 +1600,13 @@ static void __devexit wl_remove(struct pci_dev *pdev)
 		WL_ERROR(("wl: wl_remove: wlc_chipmatch failed\n"));
 		return;
 	}
-
-	ieee80211_unregister_hw(hw);
-
-	WL_LOCK(wl);
-	wl_down(wl);
-	WL_UNLOCK(wl);
-	WL_NONE(("%s: Down\n", __func__));
-
+	if (wl->wlc) {
+		ieee80211_unregister_hw(hw);
+		WL_LOCK(wl);
+		wl_down(wl);
+		WL_UNLOCK(wl);
+		WL_NONE(("%s: Down\n", __func__));
+	}
 	pci_disable_device(pdev);
 
 	wl_free(wl);
@@ -2511,7 +2516,8 @@ static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
 		WL_NONE(("request fw %s\n", fw_name));
 		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
 		if (status) {
-			printf("fail to request firmware %s\n", fw_name);
+			printf("%s: fail to load firmware %s\n",
+				KBUILD_MODNAME, fw_name);
 			wl_release_fw(wl);
 			return status;
 		}
@@ -2520,7 +2526,8 @@ static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
 			UCODE_LOADER_API_VER);
 		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
 		if (status) {
-			printf("fail to request firmware %s\n", fw_name);
+			printf("%s: fail to load firmware %s\n",
+				KBUILD_MODNAME, fw_name);
 			wl_release_fw(wl);
 			return status;
 		}
