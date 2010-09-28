@@ -110,7 +110,6 @@ struct zfcp_dbf_hba_record_response {
 	union {
 		struct {
 			u64 cmnd;
-			u64 serial;
 			u32 data_dir;
 		} fcp;
 		struct {
@@ -206,7 +205,6 @@ struct zfcp_dbf_scsi_record {
 	u32 scsi_lun;
 	u32 scsi_result;
 	u64 scsi_cmnd;
-	u64 scsi_serial;
 #define ZFCP_DBF_SCSI_OPCODE	16
 	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
 	u8 scsi_retries;

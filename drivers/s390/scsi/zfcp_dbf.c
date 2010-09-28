@@ -154,7 +154,6 @@ void _zfcp_dbf_hba_fsf_response(const char *tag2, int level,
 		scsi_cmnd = (struct scsi_cmnd *)fsf_req->data;
 		if (scsi_cmnd) {
 			response->u.fcp.cmnd = (unsigned long)scsi_cmnd;
-			response->u.fcp.serial = scsi_cmnd->serial_number;
 			response->u.fcp.data_dir =
 				qtcb->bottom.io.data_direction;
 		}
@@ -330,7 +329,6 @@ static void zfcp_dbf_hba_view_response(char **p,
 			break;
 		zfcp_dbf_out(p, "data_direction", "0x%04x", r->u.fcp.data_dir);
 		zfcp_dbf_out(p, "scsi_cmnd", "0x%0Lx", r->u.fcp.cmnd);
-		zfcp_dbf_out(p, "scsi_serial", "0x%016Lx", r->u.fcp.serial);
 		*p += sprintf(*p, "\n");
 		break;
 
@@ -881,7 +879,6 @@ void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 				}
 				rec->scsi_result = scsi_cmnd->result;
 				rec->scsi_cmnd = (unsigned long)scsi_cmnd;
-				rec->scsi_serial = scsi_cmnd->serial_number;
 				memcpy(rec->scsi_opcode, scsi_cmnd->cmnd,
 					min((int)scsi_cmnd->cmd_len,
 						ZFCP_DBF_SCSI_OPCODE));
@@ -950,7 +947,6 @@ static int zfcp_dbf_scsi_view_format(debug_info_t *id, struct debug_view *view,
 	zfcp_dbf_out(&p, "scsi_lun", "0x%08x", r->scsi_lun);
 	zfcp_dbf_out(&p, "scsi_result", "0x%08x", r->scsi_result);
 	zfcp_dbf_out(&p, "scsi_cmnd", "0x%0Lx", r->scsi_cmnd);
-	zfcp_dbf_out(&p, "scsi_serial", "0x%016Lx", r->scsi_serial);
 	zfcp_dbf_outd(&p, "scsi_opcode", r->scsi_opcode, ZFCP_DBF_SCSI_OPCODE,
 		      0, ZFCP_DBF_SCSI_OPCODE);
 	zfcp_dbf_out(&p, "scsi_retries", "0x%02x", r->scsi_retries);
