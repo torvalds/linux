@@ -582,7 +582,8 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	void __iomem *p;
 	void *buf = (void *) buffer;
 	dma_addr_t dma_src, dma_dst;
-	int err;
+	int err, page_dma = 0;
+	struct device *dev = &onenand->pdev->dev;
 
 	p = this->base + area;
 	if (ONENAND_CURRENT_BUFFERRAM(this)) {
@@ -606,21 +607,27 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		page = vmalloc_to_page(buf);
 		if (!page)
 			goto normal;
-		buf = page_address(page) + ((size_t) buf & ~PAGE_MASK);
-	}
 
-	/* DMA routine */
-	dma_src = onenand->phys_base + (p - this->base);
-	dma_dst = dma_map_single(&onenand->pdev->dev,
-			buf, count, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&onenand->pdev->dev, dma_dst)) {
-		dev_err(&onenand->pdev->dev,
-			"Couldn't map a %d byte buffer for DMA\n", count);
+		page_dma = 1;
+		/* DMA routine */
+		dma_src = onenand->phys_base + (p - this->base);
+		dma_dst = dma_map_page(dev, page, 0, count, DMA_FROM_DEVICE);
+	} else {
+		/* DMA routine */
+		dma_src = onenand->phys_base + (p - this->base);
+		dma_dst = dma_map_single(dev, buf, count, DMA_FROM_DEVICE);
+	}
+	if (dma_mapping_error(dev, dma_dst)) {
+		dev_err(dev, "Couldn't map a %d byte buffer for DMA\n", count);
 		goto normal;
 	}
 	err = s5pc110_dma_ops((void *) dma_dst, (void *) dma_src,
 			count, S5PC110_DMA_DIR_READ);
-	dma_unmap_single(&onenand->pdev->dev, dma_dst, count, DMA_FROM_DEVICE);
+
+	if (page_dma)
+		dma_unmap_page(dev, dma_dst, count, DMA_FROM_DEVICE);
+	else
+		dma_unmap_single(dev, dma_dst, count, DMA_FROM_DEVICE);
 
 	if (!err)
 		return 0;
