@@ -2143,11 +2143,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
         unregister_netdev(dev);
         is_netdev_registered = 0;
     }
-#ifndef free_netdev
-    kfree(dev);
-#else
     free_netdev(dev);
-#endif
 
 #ifdef ATH6K_CONFIG_CFG80211
     ar6k_cfg80211_deinit(ar);
@@ -6429,11 +6425,7 @@ A_STATUS ar6000_remove_ap_interface(AR_SOFTC_T *ar)
         ar6000_stop_ap_interface(ar);
 
         unregister_netdev(arApNetDev);
-#ifndef free_netdev
-        kfree(arApNetDev);
-#else
         free_netdev(apApNetDev);
-#endif
 
         A_PRINTF("Remove AP interface\n");
     }
