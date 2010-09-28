@@ -550,23 +550,26 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	struct mips_abi *abi = current->thread.abi;
 	void *vdso = current->mm->context.vdso;
 
-	switch(regs->regs[0]) {
-	case ERESTART_RESTARTBLOCK:
-	case ERESTARTNOHAND:
-		regs->regs[2] = EINTR;
-		break;
-	case ERESTARTSYS:
-		if (!(ka->sa.sa_flags & SA_RESTART)) {
+	if (regs->regs[0]) {
+		switch(regs->regs[2]) {
+		case ERESTART_RESTARTBLOCK:
+		case ERESTARTNOHAND:
 			regs->regs[2] = EINTR;
 			break;
+		case ERESTARTSYS:
+			if (!(ka->sa.sa_flags & SA_RESTART)) {
+				regs->regs[2] = EINTR;
+				break;
+			}
+		/* fallthrough */
+		case ERESTARTNOINTR:
+			regs->regs[7] = regs->regs[26];
+			regs->regs[2] = regs->regs[0];
+			regs->cp0_epc -= 4;
 		}
-	/* fallthrough */
-	case ERESTARTNOINTR:		/* Userland will reload $v0.  */
-		regs->regs[7] = regs->regs[26];
-		regs->cp0_epc -= 8;
-	}
 
-	regs->regs[0] = 0;		/* Don't deal with this again.  */
+		regs->regs[0] = 0;		/* Don't deal with this again.  */
+	}
 
 	if (sig_uses_siginfo(ka))
 		ret = abi->setup_rt_frame(vdso + abi->rt_signal_return_offset,
@@ -625,17 +628,13 @@ static void do_signal(struct pt_regs *regs)
 		return;
 	}
 
-	/*
-	 * Who's code doesn't conform to the restartable syscall convention
-	 * dies here!!!  The li instruction, a single machine instruction,
-	 * must directly be followed by the syscall instruction.
-	 */
 	if (regs->regs[0]) {
 		if (regs->regs[2] == ERESTARTNOHAND ||
 		    regs->regs[2] == ERESTARTSYS ||
 		    regs->regs[2] == ERESTARTNOINTR) {
+			regs->regs[2] = regs->regs[0];
 			regs->regs[7] = regs->regs[26];
-			regs->cp0_epc -= 8;
+			regs->cp0_epc -= 4;
 		}
 		if (regs->regs[2] == ERESTART_RESTARTBLOCK) {
 			regs->regs[2] = current->thread.abi->restart;
