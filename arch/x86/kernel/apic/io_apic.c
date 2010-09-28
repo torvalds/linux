@@ -157,6 +157,9 @@ int __init arch_early_irq_init(void)
 	count = ARRAY_SIZE(irq_cfgx);
 	node = cpu_to_node(0);
 
+	/* Make sure the legacy interrupts are marked in the bitmap */
+	irq_reserve_irqs(0, legacy_pic->nr_legacy_irqs);
+
 	for (i = 0; i < count; i++) {
 		set_irq_chip_data(i, &cfg[i]);
 		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
@@ -201,11 +204,15 @@ out_cfg:
 
 static void free_irq_cfg(unsigned int at, struct irq_cfg *cfg)
 {
+	if (!cfg)
+		return;
+	set_irq_chip_data(at, NULL);
 	free_cpumask_var(cfg->domain);
 	free_cpumask_var(cfg->old_domain);
 	kfree(cfg);
 }
 
+#if 0
 int arch_init_chip_data(struct irq_desc *desc, int node)
 {
 	struct irq_cfg *cfg;
@@ -323,6 +330,7 @@ void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 	}
 }
 /* end for move_irq_desc */
+#endif
 
 #else
 
@@ -1479,11 +1487,9 @@ static struct {
 
 static void __init setup_IO_APIC_irqs(void)
 {
-	int apic_id, pin, idx, irq;
-	int notcon = 0;
-	struct irq_desc *desc;
-	struct irq_cfg *cfg;
+	int apic_id, pin, idx, irq, notcon = 0;
 	int node = cpu_to_node(0);
+	struct irq_cfg *cfg;
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
 
@@ -1520,12 +1526,10 @@ static void __init setup_IO_APIC_irqs(void)
 				apic->multi_timer_check(apic_id, irq))
 			continue;
 
-		desc = irq_to_desc_alloc_node(irq, node);
-		if (!desc) {
-			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
+		cfg = alloc_irq_and_cfg_at(irq, node);
+		if (!cfg)
 			continue;
-		}
-		cfg = get_irq_desc_chip_data(desc);
+
 		add_pin_to_irq_node(cfg, node, apic_id, pin);
 		/*
 		 * don't mark it in pin_programmed, so later acpi could
@@ -1547,9 +1551,7 @@ static void __init setup_IO_APIC_irqs(void)
  */
 void setup_IO_APIC_irq_extra(u32 gsi)
 {
-	int apic_id = 0, pin, idx, irq;
-	int node = cpu_to_node(0);
-	struct irq_desc *desc;
+	int apic_id = 0, pin, idx, irq, node = cpu_to_node(0);
 	struct irq_cfg *cfg;
 
 	/*
@@ -1570,13 +1572,10 @@ void setup_IO_APIC_irq_extra(u32 gsi)
 	if (apic_id == 0 || irq < NR_IRQS_LEGACY)
 		return;
 
-	desc = irq_to_desc_alloc_node(irq, node);
-	if (!desc) {
-		printk(KERN_INFO "can not get irq_desc for %d\n", irq);
+	cfg = alloc_irq_and_cfg_at(irq, node);
+	if (!cfg)
 		return;
-	}
 
-	cfg = get_irq_desc_chip_data(desc);
 	add_pin_to_irq_node(cfg, node, apic_id, pin);
 
 	if (test_bit(pin, mp_ioapic_routing[apic_id].pin_programmed)) {
@@ -3177,44 +3176,37 @@ device_initcall(ioapic_init_sysfs);
 /*
  * Dynamic irq allocate and deallocation
  */
-unsigned int create_irq_nr(unsigned int irq_want, int node)
+unsigned int create_irq_nr(unsigned int from, int node)
 {
-	/* Allocate an unused irq */
-	unsigned int irq;
-	unsigned int new;
+	struct irq_cfg *cfg;
 	unsigned long flags;
-	struct irq_cfg *cfg_new = NULL;
-	struct irq_desc *desc_new = NULL;
+	unsigned int ret = 0;
+	int irq;
 
-	irq = 0;
-	if (irq_want < nr_irqs_gsi)
-		irq_want = nr_irqs_gsi;
+	if (from < nr_irqs_gsi)
+		from = nr_irqs_gsi;
+
+	irq = alloc_irq_from(from, node);
+	if (irq < 0)
+		return 0;
+	cfg = alloc_irq_cfg(irq, node);
+	if (!cfg) {
+		free_irq_at(irq, NULL);
+		return 0;
+	}
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	for (new = irq_want; new < nr_irqs; new++) {
-		desc_new = irq_to_desc_alloc_node(new, node);
-		if (!desc_new) {
-			printk(KERN_INFO "can not get irq_desc for %d\n", new);
-			continue;
-		}
-		cfg_new = get_irq_desc_chip_data(desc_new);
-
-		if (cfg_new->vector != 0)
-			continue;
-
-		desc_new = move_irq_desc(desc_new, node);
-		cfg_new = get_irq_desc_chip_data(desc_new);
-
-		if (__assign_irq_vector(new, cfg_new, apic->target_cpus()) == 0)
-			irq = new;
-		break;
-	}
+	if (!__assign_irq_vector(irq, cfg, apic->target_cpus()))
+		ret = irq;
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 
-	if (irq > 0)
-		dynamic_irq_init_keep_chip_data(irq);
-
-	return irq;
+	if (ret) {
+		set_irq_chip_data(irq, cfg);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST);
+	} else {
+		free_irq_at(irq, cfg);
+	}
+	return ret;
 }
 
 int create_irq(void)
@@ -3234,14 +3226,16 @@ int create_irq(void)
 
 void destroy_irq(unsigned int irq)
 {
+	struct irq_cfg *cfg = get_irq_chip_data(irq);
 	unsigned long flags;
 
-	dynamic_irq_cleanup_keep_chip_data(irq);
+	irq_set_status_flags(irq, IRQ_NOREQUEST|IRQ_NOPROBE);
 
 	free_irte(irq);
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	__clear_irq_vector(irq, get_irq_chip_data(irq));
+	__clear_irq_vector(irq, cfg);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	free_irq_at(irq, cfg);
 }
 
 /*
@@ -3802,7 +3796,6 @@ int __init arch_probe_nr_irqs(void)
 static int __io_apic_set_pci_routing(struct device *dev, int irq,
 				struct io_apic_irq_attr *irq_attr)
 {
-	struct irq_desc *desc;
 	struct irq_cfg *cfg;
 	int node;
 	int ioapic, pin;
@@ -3820,17 +3813,13 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	else
 		node = cpu_to_node(0);
 
-	desc = irq_to_desc_alloc_node(irq, node);
-	if (!desc) {
-		printk(KERN_INFO "can not get irq_desc %d\n", irq);
+	cfg = alloc_irq_and_cfg_at(irq, node);
+	if (!cfg)
 		return 0;
-	}
 
 	pin = irq_attr->ioapic_pin;
 	trigger = irq_attr->trigger;
 	polarity = irq_attr->polarity;
-
-	cfg = get_irq_desc_chip_data(desc);
 
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
@@ -4232,11 +4221,11 @@ void __init pre_init_apic_IRQ0(void)
 #ifndef CONFIG_SMP
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
 #endif
-	irq_to_desc_alloc_node(0, 0);
+	/* Make sure the irq descriptor is set up */
+	cfg = alloc_irq_and_cfg_at(0, 0);
 
 	setup_local_APIC();
 
-	cfg = irq_cfg(0);
 	add_pin_to_irq_node(cfg, 0, 0, 0);
 	set_irq_chip_and_handler_name(0, &ioapic_chip, handle_edge_irq, "edge");
 
