@@ -450,6 +450,45 @@ config TREE_RCU_TRACE
 	  TREE_PREEMPT_RCU implementations, permitting Makefile to
 	  trivially select kernel/rcutree_trace.c.
 
+config RCU_BOOST
+	bool "Enable RCU priority boosting"
+	depends on RT_MUTEXES && TINY_PREEMPT_RCU
+	default n
+	help
+	  This option boosts the priority of preempted RCU readers that
+	  block the current preemptible RCU grace period for too long.
+	  This option also prevents heavy loads from blocking RCU
+	  callback invocation for all flavors of RCU.
+
+	  Say Y here if you are working with real-time apps or heavy loads
+	  Say N here if you are unsure.
+
+config RCU_BOOST_PRIO
+	int "Real-time priority to boost RCU readers to"
+	range 1 99
+	depends on RCU_BOOST
+	default 1
+	help
+	  This option specifies the real-time priority to which preempted
+	  RCU readers are to be boosted.  If you are working with CPU-bound
+	  real-time applications, you should specify a priority higher then
+	  the highest-priority CPU-bound application.
+
+	  Specify the real-time priority, or take the default if unsure.
+
+config RCU_BOOST_DELAY
+	int "Milliseconds to delay boosting after RCU grace-period start"
+	range 0 3000
+	depends on RCU_BOOST
+	default 500
+	help
+	  This option specifies the time to wait after the beginning of
+	  a given grace period before priority-boosting preempted RCU
+	  readers blocking that grace period.  Note that any RCU reader
+	  blocking an expedited RCU grace period is boosted immediately.
+
+	  Accept the default if unsure.
+
 endmenu # "RCU Subsystem"
 
 config IKCONFIG
