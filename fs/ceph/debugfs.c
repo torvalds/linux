@@ -12,9 +12,10 @@
 #include <linux/ceph/auth.h>
 #include <linux/ceph/debugfs.h>
 
+#include "super.h"
+
 #ifdef CONFIG_DEBUG_FS
 
-#include "super.h"
 #include "mds_client.h"
 
 static int mdsmap_show(struct seq_file *s, void *p)
