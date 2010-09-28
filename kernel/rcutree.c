@@ -545,9 +545,9 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	if (rcu_cpu_stall_suppress)
 		return;
-	delta = jiffies - rsp->jiffies_stall;
+	delta = jiffies - ACCESS_ONCE(rsp->jiffies_stall);
 	rnp = rdp->mynode;
-	if ((rnp->qsmask & rdp->grpmask) && delta >= 0) {
+	if ((ACCESS_ONCE(rnp->qsmask) & rdp->grpmask) && delta >= 0) {
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(rsp);
