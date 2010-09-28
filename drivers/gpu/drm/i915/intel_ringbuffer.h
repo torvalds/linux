@@ -81,6 +81,11 @@ struct  intel_ring_buffer {
 	 */
 	struct list_head request_list;
 
+	/**
+	 * Do we have some not yet emitted requests outstanding?
+	 */
+	bool outstanding_lazy_request;
+
 	wait_queue_head_t irq_queue;
 	drm_local_map_t map;
 };
