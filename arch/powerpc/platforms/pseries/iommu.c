@@ -622,3 +622,17 @@ void iommu_init_early_pSeries(void)
 	set_pci_dma_ops(&dma_iommu_ops);
 }
 
+static int __init disable_multitce(char *str)
+{
+	if (strcmp(str, "off") == 0 &&
+	    firmware_has_feature(FW_FEATURE_LPAR) &&
+	    firmware_has_feature(FW_FEATURE_MULTITCE)) {
+		printk(KERN_INFO "Disabling MULTITCE firmware feature\n");
+		ppc_md.tce_build = tce_build_pSeriesLP;
+		ppc_md.tce_free	 = tce_free_pSeriesLP;
+		powerpc_firmware_features &= ~FW_FEATURE_MULTITCE;
+	}
+	return 1;
+}
+
+__setup("multitce=", disable_multitce);

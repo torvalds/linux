@@ -403,6 +403,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	bttv.pll=	See Documentation/video4linux/bttv/Insmod-options
 	bttv.tuner=	and Documentation/video4linux/bttv/CARDLIST
 
+	bulk_remove=off	[PPC]  This parameter disables the use of the pSeries
+			firmware feature for flushing multiple hpte entries
+			at a time.
+
 	c101=		[NET] Moxa C101 synchronous serial card
 
 	cachesize=	[BUGS=X86-32] Override level 2 CPU cache size detection.
@@ -1489,6 +1493,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mtdparts=	[MTD]
 			See drivers/mtd/cmdlinepart.c.
+
+	multitce=off	[PPC]  This parameter disables the use of the pSeries
+			firmware feature for updating multiple TCE entries
+			at a time.
 
 	onenand.bdry=	[HW,MTD] Flex-OneNAND Boundary Configuration
 
