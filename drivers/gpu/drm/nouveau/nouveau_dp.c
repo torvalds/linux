@@ -469,7 +469,7 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	    !nv_encoder->dcb->dpconf.link_bw)
 		nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
 
-	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT;
+	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
 	if (nv_encoder->dp.link_nr > nv_encoder->dcb->dpconf.link_nr)
 		nv_encoder->dp.link_nr = nv_encoder->dcb->dpconf.link_nr;
 
