@@ -690,7 +690,7 @@ void usbdrv_clear_structs(struct net_device *dev)
 
     kfree(macp);
 
-    kfree(dev);
+    free_netdev(dev);
 
 }
 
