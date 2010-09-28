@@ -26,6 +26,4 @@ extern struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 				  const unsigned char *target_hw);
 extern void arp_xmit(struct sk_buff *skb);
 
-extern const struct neigh_ops arp_broken_ops;
-
 #endif	/* _ARP_H */

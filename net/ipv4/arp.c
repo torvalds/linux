@@ -161,7 +161,7 @@ static const struct neigh_ops arp_direct_ops = {
 	.queue_xmit =		dev_queue_xmit,
 };
 
-const struct neigh_ops arp_broken_ops = {
+static const struct neigh_ops arp_broken_ops = {
 	.family =		AF_INET,
 	.solicit =		arp_solicit,
 	.error_report =		arp_error_report,
@@ -170,7 +170,6 @@ const struct neigh_ops arp_broken_ops = {
 	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
-EXPORT_SYMBOL(arp_broken_ops);
 
 struct neigh_table arp_tbl = {
 	.family		= AF_INET,
