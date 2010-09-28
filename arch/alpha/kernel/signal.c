@@ -49,10 +49,10 @@ SYSCALL_DEFINE2(osf_sigprocmask, int, how, unsigned long, newmask)
 	unsigned long res;
 
 	siginitset(&mask, newmask & ~_BLOCKABLE);
-	res = siprocmask(how, &mask, &oldmask);
+	res = sigprocmask(how, &mask, &oldmask);
 	if (!res) {
 		force_successful_syscall_return();
-		res = oldmask->sig[0];
+		res = oldmask.sig[0];
 	}
 	return res;
 }
