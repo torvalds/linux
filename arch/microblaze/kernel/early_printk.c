@@ -63,7 +63,7 @@ static struct console early_serial_uartlite_console = {
 	.index = -1,
 };
 
-static struct console *early_console = &early_serial_uartlite_console;
+static struct console *early_console;
 
 void early_printk(const char *fmt, ...)
 {
@@ -90,6 +90,7 @@ int __init setup_early_printk(char *opt)
 #ifdef CONFIG_MMU
 		early_console_reg_tlb_alloc(base_addr);
 #endif
+		early_console = &early_serial_uartlite_console;
 		early_printk("early_printk_console is enabled at 0x%08x\n",
 							base_addr);
 
