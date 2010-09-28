@@ -88,7 +88,7 @@ static const struct soc_mbus_pixelfmt mbus_fmt[] = {
 		.packing		= SOC_MBUS_PACKING_EXTEND16,
 		.order			= SOC_MBUS_ORDER_LE,
 	},
-	[MBUS_IDX(GREY8_1X8)] = {
+	[MBUS_IDX(Y8_1X8)] = {
 		.fourcc			= V4L2_PIX_FMT_GREY,
 		.name			= "Grey",
 		.bits_per_sample	= 8,
