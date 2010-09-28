@@ -58,7 +58,7 @@ enum soc_type {
 #define MAP_11				(0x3)
 
 #define S3C64XX_CMD_MAP_SHIFT		24
-#define S5PC1XX_CMD_MAP_SHIFT		26
+#define S5PC100_CMD_MAP_SHIFT		26
 
 #define S3C6400_FBA_SHIFT		10
 #define S3C6400_FPA_SHIFT		4
@@ -191,7 +191,7 @@ static unsigned int s3c64xx_cmd_map(unsigned type, unsigned val)
 
 static unsigned int s5pc1xx_cmd_map(unsigned type, unsigned val)
 {
-	return (type << S5PC1XX_CMD_MAP_SHIFT) | val;
+	return (type << S5PC100_CMD_MAP_SHIFT) | val;
 }
 
 static unsigned int s3c6400_mem_addr(int fba, int fpa, int fsa)
