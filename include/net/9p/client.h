@@ -262,5 +262,6 @@ int p9_is_proto_dotu(struct p9_client *clnt);
 int p9_is_proto_dotl(struct p9_client *clnt);
 struct p9_fid *p9_client_xattrwalk(struct p9_fid *, const char *, u64 *);
 int p9_client_xattrcreate(struct p9_fid *, const char *, u64, int);
+int p9_client_readlink(struct p9_fid *fid, char **target);
 
 #endif /* NET_9P_CLIENT_H */

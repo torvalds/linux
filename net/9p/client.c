@@ -1870,3 +1870,29 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_getlock_dotl);
+
+int p9_client_readlink(struct p9_fid *fid, char **target)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TREADLINK fid %d\n", fid->fid);
+
+	req = p9_client_rpc(clnt, P9_TREADLINK, "d", fid->fid);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "s", target);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RREADLINK target %s\n", *target);
+error:
+	p9_free_req(clnt, req);
+	return err;
+}
+EXPORT_SYMBOL(p9_client_readlink);
