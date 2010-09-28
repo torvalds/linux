@@ -575,6 +575,9 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 		ret = abi->setup_frame(vdso + abi->signal_return_offset,
 				       ka, regs, sig, oldset);
 
+	if (ret)
+		return ret;
+
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NODEFER))
