@@ -52,7 +52,7 @@ unsigned int saa_debug;
 module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-unsigned int fw_debug = 2;
+unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
 MODULE_PARM_DESC(fw_debug, "Firware debug level def:2");
 
