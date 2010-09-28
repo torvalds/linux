@@ -2307,7 +2307,7 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 		ret = -ENOENT;
 		goto unregister_win1fb;
 	}
-    inf->dclk_parent = clk_get(&pdev->dev, "codec_pll");
+    inf->dclk_parent = clk_get(&pdev->dev, "arm_pll");
     if (!inf->dclk_parent || IS_ERR(inf->dclk_parent))
     {
 		printk(KERN_ERR "failed to get lcd dclock parent source\n");
