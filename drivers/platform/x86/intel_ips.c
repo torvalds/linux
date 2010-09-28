@@ -600,17 +600,29 @@ static bool mcp_exceeded(struct ips_driver *ips)
 {
 	unsigned long flags;
 	bool ret = false;
+	u32 temp_limit;
+	u32 avg_power;
+	const char *msg = "MCP limit exceeded: ";
 
 	spin_lock_irqsave(&ips->turbo_status_lock, flags);
-	if (ips->mcp_avg_temp > (ips->mcp_temp_limit * 100))
-		ret = true;
-	if (ips->cpu_avg_power + ips->mch_avg_power > ips->mcp_power_limit)
-		ret = true;
-	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 
-	if (ret)
+	temp_limit = ips->mcp_temp_limit * 100;
+	if (ips->mcp_avg_temp > temp_limit) {
 		dev_info(&ips->dev->dev,
-			 "MCP power or thermal limit exceeded\n");
+			"%sAvg temp %u, limit %u\n", msg, ips->mcp_avg_temp,
+			temp_limit);
+		ret = true;
+	}
+
+	avg_power = ips->cpu_avg_power + ips->mch_avg_power;
+	if (avg_power > ips->mcp_power_limit) {
+		dev_info(&ips->dev->dev,
+			"%sAvg power %u, limit %u\n", msg, avg_power,
+			ips->mcp_power_limit);
+		ret = true;
+	}
+
+	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 
 	return ret;
 }
