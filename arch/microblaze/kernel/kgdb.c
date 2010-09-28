@@ -142,5 +142,9 @@ void kgdb_arch_exit(void)
  * Global data
  */
 struct kgdb_arch arch_kgdb_ops = {
+#ifdef __MICROBLAZEEL__
+	.gdb_bpt_instr = {0x18, 0x00, 0x0c, 0xba}, /* brki r16, 0x18 */
+#else
 	.gdb_bpt_instr = {0xba, 0x0c, 0x00, 0x18}, /* brki r16, 0x18 */
+#endif
 };
