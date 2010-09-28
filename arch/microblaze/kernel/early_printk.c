@@ -24,7 +24,7 @@
 static u32 early_console_initialized;
 static u32 base_addr;
 
-static void early_printk_putc(char c)
+static void early_printk_uartlite_putc(char c)
 {
 	/*
 	 * Limit how many times we'll spin waiting for TX FIFO status.
@@ -45,25 +45,25 @@ static void early_printk_putc(char c)
 		out_be32(base_addr + 4, c & 0xff);
 }
 
-static void early_printk_write(struct console *unused,
+static void early_printk_uartlite_write(struct console *unused,
 					const char *s, unsigned n)
 {
 	while (*s && n-- > 0) {
-		early_printk_putc(*s);
+		early_printk_uartlite_putc(*s);
 		if (*s == '\n')
-			early_printk_putc('\r');
+			early_printk_uartlite_putc('\r');
 		s++;
 	}
 }
 
-static struct console early_serial_console = {
+static struct console early_serial_uartlite_console = {
 	.name = "earlyser",
-	.write = early_printk_write,
+	.write = early_printk_uartlite_write,
 	.flags = CON_PRINTBUFFER,
 	.index = -1,
 };
 
-static struct console *early_console = &early_serial_console;
+static struct console *early_console = &early_serial_uartlite_console;
 
 void early_printk(const char *fmt, ...)
 {
