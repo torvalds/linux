@@ -131,13 +131,9 @@ struct irq_pin_list {
 	struct irq_pin_list *next;
 };
 
-static struct irq_pin_list *get_one_free_irq_2_pin(int node)
+static struct irq_pin_list *alloc_irq_pin_list(int node)
 {
-	struct irq_pin_list *pin;
-
-	pin = kzalloc_node(sizeof(*pin), GFP_ATOMIC, node);
-
-	return pin;
+	return kzalloc_node(sizeof(struct irq_pin_list), GFP_ATOMIC, node);
 }
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
@@ -232,7 +228,7 @@ init_copy_irq_2_pin(struct irq_cfg *old_cfg, struct irq_cfg *cfg, int node)
 	if (!old_entry)
 		return;
 
-	entry = get_one_free_irq_2_pin(node);
+	entry = alloc_irq_pin_list(node);
 	if (!entry)
 		return;
 
@@ -242,7 +238,7 @@ init_copy_irq_2_pin(struct irq_cfg *old_cfg, struct irq_cfg *cfg, int node)
 	tail		= entry;
 	old_entry	= old_entry->next;
 	while (old_entry) {
-		entry = get_one_free_irq_2_pin(node);
+		entry = alloc_irq_pin_list(node);
 		if (!entry) {
 			entry = head;
 			while (entry) {
@@ -471,7 +467,7 @@ static void ioapic_mask_entry(int apic, int pin)
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
 static int
-add_pin_to_irq_node_nopanic(struct irq_cfg *cfg, int node, int apic, int pin)
+__add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
 {
 	struct irq_pin_list **last, *entry;
 
@@ -483,7 +479,7 @@ add_pin_to_irq_node_nopanic(struct irq_cfg *cfg, int node, int apic, int pin)
 		last = &entry->next;
 	}
 
-	entry = get_one_free_irq_2_pin(node);
+	entry = alloc_irq_pin_list(node);
 	if (!entry) {
 		printk(KERN_ERR "can not alloc irq_pin_list (%d,%d,%d)\n",
 				node, apic, pin);
@@ -498,7 +494,7 @@ add_pin_to_irq_node_nopanic(struct irq_cfg *cfg, int node, int apic, int pin)
 
 static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
 {
-	if (add_pin_to_irq_node_nopanic(cfg, node, apic, pin))
+	if (__add_pin_to_irq_node(cfg, node, apic, pin))
 		panic("IO-APIC: failed to add irq-pin. Can not proceed\n");
 }
 
@@ -3801,7 +3797,7 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
 	if (irq >= legacy_pic->nr_legacy_irqs) {
-		if (add_pin_to_irq_node_nopanic(cfg, node, ioapic, pin)) {
+		if (__add_pin_to_irq_node(cfg, node, ioapic, pin)) {
 			printk(KERN_INFO "can not add pin %d for irq %d\n",
 				pin, irq);
 			return 0;
