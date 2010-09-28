@@ -39,6 +39,33 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
+STATIC int
+xfs_inode_ag_walk_grab(
+	struct xfs_inode	*ip)
+{
+	struct inode		*inode = VFS_I(ip);
+
+	/* nothing to sync during shutdown */
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		return EFSCORRUPTED;
+
+	/* avoid new or reclaimable inodes. Leave for reclaim code to flush */
+	if (xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIMABLE | XFS_IRECLAIM))
+		return ENOENT;
+
+	/* If we can't grab the inode, it must on it's way to reclaim. */
+	if (!igrab(inode))
+		return ENOENT;
+
+	if (is_bad_inode(inode)) {
+		IRELE(ip);
+		return ENOENT;
+	}
+
+	/* inode is valid */
+	return 0;
+}
+
 
 STATIC int
 xfs_inode_ag_walk(
@@ -80,8 +107,14 @@ restart:
 		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
 			done = 1;
 
-		/* execute releases pag->pag_ici_lock */
+		if (xfs_inode_ag_walk_grab(ip)) {
+			read_unlock(&pag->pag_ici_lock);
+			continue;
+		}
+		read_unlock(&pag->pag_ici_lock);
+
 		error = execute(ip, pag, flags);
+		IRELE(ip);
 		if (error == EAGAIN) {
 			skipped++;
 			continue;
@@ -128,40 +161,6 @@ xfs_inode_ag_iterator(
 	return XFS_ERROR(last_error);
 }
 
-/* must be called with pag_ici_lock held and releases it */
-int
-xfs_sync_inode_valid(
-	struct xfs_inode	*ip,
-	struct xfs_perag	*pag)
-{
-	struct inode		*inode = VFS_I(ip);
-	int			error = EFSCORRUPTED;
-
-	/* nothing to sync during shutdown */
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		goto out_unlock;
-
-	/* avoid new or reclaimable inodes. Leave for reclaim code to flush */
-	error = ENOENT;
-	if (xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIMABLE | XFS_IRECLAIM))
-		goto out_unlock;
-
-	/* If we can't grab the inode, it must on it's way to reclaim. */
-	if (!igrab(inode))
-		goto out_unlock;
-
-	if (is_bad_inode(inode)) {
-		IRELE(ip);
-		goto out_unlock;
-	}
-
-	/* inode is valid */
-	error = 0;
-out_unlock:
-	read_unlock(&pag->pag_ici_lock);
-	return error;
-}
-
 STATIC int
 xfs_sync_inode_data(
 	struct xfs_inode	*ip,
@@ -171,10 +170,6 @@ xfs_sync_inode_data(
 	struct inode		*inode = VFS_I(ip);
 	struct address_space *mapping = inode->i_mapping;
 	int			error = 0;
-
-	error = xfs_sync_inode_valid(ip, pag);
-	if (error)
-		return error;
 
 	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
 		goto out_wait;
@@ -192,7 +187,6 @@ xfs_sync_inode_data(
  out_wait:
 	if (flags & SYNC_WAIT)
 		xfs_ioend_wait(ip);
-	IRELE(ip);
 	return error;
 }
 
@@ -203,10 +197,6 @@ xfs_sync_inode_attr(
 	int			flags)
 {
 	int			error = 0;
-
-	error = xfs_sync_inode_valid(ip, pag);
-	if (error)
-		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	if (xfs_inode_clean(ip))
@@ -226,7 +216,6 @@ xfs_sync_inode_attr(
 
  out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	IRELE(ip);
 	return error;
 }
 

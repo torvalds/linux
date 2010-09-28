@@ -875,20 +875,13 @@ xfs_dqrele_inode(
 	struct xfs_perag	*pag,
 	int			flags)
 {
-	int			error;
-
 	/* skip quota inodes */
 	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
 	    ip == ip->i_mount->m_quotainfo->qi_gquotaip) {
 		ASSERT(ip->i_udquot == NULL);
 		ASSERT(ip->i_gdquot == NULL);
-		read_unlock(&pag->pag_ici_lock);
 		return 0;
 	}
-
-	error = xfs_sync_inode_valid(ip, pag);
-	if (error)
-		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
@@ -900,8 +893,6 @@ xfs_dqrele_inode(
 		ip->i_gdquot = NULL;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
-	IRELE(ip);
 	return 0;
 }
 
