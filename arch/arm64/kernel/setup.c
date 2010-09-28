@@ -69,6 +69,14 @@ static struct resource *standard_resources;
 
 phys_addr_t __fdt_pointer __initdata;
 
+/* Vendor stub */
+unsigned int boot_reason;
+EXPORT_SYMBOL_GPL(boot_reason);
+
+/* Vendor stub */
+unsigned int cold_boot;
+EXPORT_SYMBOL_GPL(cold_boot);
+
 /*
  * Standard memory resources
  */

@@ -116,6 +116,14 @@ EXPORT_SYMBOL(elf_hwcap2);
 char* (*arch_read_hardware_id)(void);
 EXPORT_SYMBOL(arch_read_hardware_id);
 
+/* Vendor stub */
+unsigned int boot_reason;
+EXPORT_SYMBOL_GPL(boot_reason);
+
+/* Vendor stub */
+unsigned int cold_boot;
+EXPORT_SYMBOL_GPL(cold_boot);
+
 #ifdef MULTI_CPU
 struct processor processor __ro_after_init;
 #if defined(CONFIG_BIG_LITTLE) && defined(CONFIG_HARDEN_BRANCH_PREDICTOR)
