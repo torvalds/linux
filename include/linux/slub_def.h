@@ -96,11 +96,8 @@ struct kmem_cache {
 	 * Defragmentation by allocating from a remote node.
 	 */
 	int remote_node_defrag_ratio;
-	struct kmem_cache_node *node[MAX_NUMNODES];
-#else
-	/* Avoid an extra cache line for UP */
-	struct kmem_cache_node local_node;
 #endif
+	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
 /*
