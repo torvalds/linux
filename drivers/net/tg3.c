@@ -8821,7 +8821,12 @@ static bool tg3_enable_msix(struct tg3 *tp)
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
-	tp->dev->real_num_tx_queues = 1;
+	netif_set_real_num_tx_queues(tp->dev, 1);
+	rc = tp->irq_cnt > 1 ? tp->irq_cnt - 1 : 1;
+	if (netif_set_real_num_rx_queues(tp->dev, rc)) {
+		pci_disable_msix(tp->pdev);
+		return false;
+	}
 	if (tp->irq_cnt > 1)
 		tp->tg3_flags3 |= TG3_FLG3_ENABLE_RSS;
 
@@ -8856,7 +8861,7 @@ defcfg:
 	if (!(tp->tg3_flags2 & TG3_FLG2_USING_MSIX)) {
 		tp->irq_cnt = 1;
 		tp->napi[0].irq_vec = tp->pdev->irq;
-		tp->dev->real_num_tx_queues = 1;
+		netif_set_real_num_tx_queues(tp->dev, 1);
 	}
 }
 
