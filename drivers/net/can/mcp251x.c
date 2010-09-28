@@ -319,6 +319,20 @@ static u8 mcp251x_read_reg(struct spi_device *spi, uint8_t reg)
 	return val;
 }
 
+static void mcp251x_read_2regs(struct spi_device *spi, uint8_t reg,
+		uint8_t *v1, uint8_t *v2)
+{
+	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
+
+	priv->spi_tx_buf[0] = INSTRUCTION_READ;
+	priv->spi_tx_buf[1] = reg;
+
+	mcp251x_spi_trans(spi, 4);
+
+	*v1 = priv->spi_rx_buf[2];
+	*v2 = priv->spi_rx_buf[3];
+}
+
 static void mcp251x_write_reg(struct spi_device *spi, u8 reg, uint8_t val)
 {
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
@@ -754,9 +768,10 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 	mutex_lock(&priv->mcp_lock);
 	while (!priv->force_quit) {
 		enum can_state new_state;
-		u8 intf = mcp251x_read_reg(spi, CANINTF);
-		u8 eflag;
+		u8 intf, eflag;
 		int can_id = 0, data1 = 0;
+
+		mcp251x_read_2regs(spi, CANINTF, &intf, &eflag);
 
 		if (intf & CANINTF_RX0IF) {
 			mcp251x_hw_rx(spi, 0);
@@ -770,7 +785,6 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 
 		mcp251x_write_bits(spi, CANINTF, intf, 0x00);
 
-		eflag = mcp251x_read_reg(spi, EFLG);
 		mcp251x_write_reg(spi, EFLG, 0x00);
 
 		/* Update can state */
