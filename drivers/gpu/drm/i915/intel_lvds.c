@@ -827,6 +827,9 @@ static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
 		},
 	};
 	struct i2c_adapter *i2c = &dev_priv->gmbus[pin].adapter;
+	/* XXX this only appears to work when using GMBUS */
+	if (intel_gmbus_is_forced_bit(i2c))
+		return true;
 	return i2c_transfer(i2c, msgs, 1) == 1;
 }
 
