@@ -257,6 +257,13 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	if (SUPP(CARL9170FW_USB_UP_STREAM))
 		ar->fw.rx_stream = true;
 
+	if (SUPP(CARL9170FW_RX_FILTER)) {
+		ar->fw.rx_filter = true;
+		ar->rx_filter_caps = FIF_FCSFAIL | FIF_PLCPFAIL |
+			FIF_CONTROL | FIF_PSPOLL | FIF_OTHER_BSS |
+			FIF_PROMISC_IN_BSS;
+	}
+
 	ar->fw.vif_num = otus_desc->vif_num;
 	ar->fw.cmd_bufs = otus_desc->cmd_bufs;
 	ar->fw.address = le32_to_cpu(otus_desc->fw_address);

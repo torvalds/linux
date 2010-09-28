@@ -380,6 +380,13 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 	if (err)
 		goto out;
 
+	if (ar->fw.rx_filter) {
+		err = carl9170_rx_filter(ar, CARL9170_RX_FILTER_OTHER_RA |
+			CARL9170_RX_FILTER_CTL_OTHER | CARL9170_RX_FILTER_BAD);
+		if (err)
+			goto out;
+	}
+
 	err = carl9170_write_reg(ar, AR9170_MAC_REG_DMA_TRIGGER,
 				 AR9170_DMA_TRIGGER_RXQ);
 	if (err)
@@ -840,8 +847,7 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	struct ar9170 *ar = hw->priv;
 
 	/* mask supported flags */
-	*new_flags &= FIF_ALLMULTI | FIF_FCSFAIL | FIF_PLCPFAIL |
-		      FIF_OTHER_BSS | FIF_PROMISC_IN_BSS;
+	*new_flags &= FIF_ALLMULTI | ar->rx_filter_caps;
 
 	if (!IS_ACCEPTING_CMD(ar))
 		return;
@@ -865,6 +871,26 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 			(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS));
 
 		WARN_ON(carl9170_set_operating_mode(ar));
+	}
+
+	if (ar->fw.rx_filter && changed_flags & ar->rx_filter_caps) {
+		u32 rx_filter = 0;
+
+		if (!(*new_flags & (FIF_FCSFAIL | FIF_PLCPFAIL)))
+			rx_filter |= CARL9170_RX_FILTER_BAD;
+
+		if (!(*new_flags & FIF_CONTROL))
+			rx_filter |= CARL9170_RX_FILTER_CTL_OTHER;
+
+		if (!(*new_flags & FIF_PSPOLL))
+			rx_filter |= CARL9170_RX_FILTER_CTL_PSPOLL;
+
+		if (!(*new_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS))) {
+			rx_filter |= CARL9170_RX_FILTER_OTHER_RA;
+			rx_filter |= CARL9170_RX_FILTER_DECRY_FAIL;
+		}
+
+		WARN_ON(carl9170_rx_filter(ar, rx_filter));
 	}
 
 	mutex_unlock(&ar->mutex);
