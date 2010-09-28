@@ -15,7 +15,11 @@ ENTRY(microblaze_start)
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
 
+#ifdef __MICROBLAZEEL__
+jiffies = jiffies_64;
+#else
 jiffies = jiffies_64 + 4;
+#endif
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;

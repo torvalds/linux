@@ -77,11 +77,12 @@ static int __init early_init_dt_scan_serial(unsigned long node,
 /* find compatible node with uartlite */
 	p = of_get_flat_dt_prop(node, "compatible", &l);
 	if ((strncmp(p, "xlnx,xps-uartlite", 17) != 0) &&
-			(strncmp(p, "xlnx,opb-uartlite", 17) != 0))
+			(strncmp(p, "xlnx,opb-uartlite", 17) != 0) &&
+			(strncmp(p, "xlnx,axi-uartlite", 17) != 0))
 		return 0;
 
 	addr = of_get_flat_dt_prop(node, "reg", &l);
-	return *addr; /* return address */
+	return be32_to_cpup(addr); /* return address */
 }
 
 /* this function is looking for early uartlite console - Microblaze specific */
@@ -115,7 +116,7 @@ static int __init early_init_dt_scan_serial_full(unsigned long node,
 
 	addr = *(u32 *)of_get_flat_dt_prop(node, "reg", &l);
 	addr += *(u32 *)of_get_flat_dt_prop(node, "reg-offset", &l);
-	return addr; /* return address */
+	return be32_to_cpu(addr); /* return address */
 }
 
 /* this function is looking for early uartlite console - Microblaze specific */

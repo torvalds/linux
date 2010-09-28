@@ -98,7 +98,8 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu);
 static inline unsigned int fcpu(struct device_node *cpu, char *n)
 {
 	int *val;
-	return (val = (int *) of_get_property(cpu, n, NULL)) ? *val : 0;
+	return (val = (int *) of_get_property(cpu, n, NULL)) ?
+							be32_to_cpup(val) : 0;
 }
 
 #endif /* _ASM_MICROBLAZE_CPUINFO_H */

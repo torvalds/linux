@@ -270,11 +270,11 @@ void __init time_init(void)
 	}
 	BUG_ON(!timer);
 
-	timer_baseaddr = *(int *) of_get_property(timer, "reg", NULL);
+	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
 	timer_baseaddr = (unsigned long) ioremap(timer_baseaddr, PAGE_SIZE);
-	irq = *(int *) of_get_property(timer, "interrupts", NULL);
-	timer_num =
-		*(int *) of_get_property(timer, "xlnx,one-timer-only", NULL);
+	irq = be32_to_cpup(of_get_property(timer, "interrupts", NULL));
+	timer_num = be32_to_cpup(of_get_property(timer,
+						"xlnx,one-timer-only", NULL));
 	if (timer_num) {
 		eprintk(KERN_EMERG "Please enable two timers in HW\n");
 		BUG();
