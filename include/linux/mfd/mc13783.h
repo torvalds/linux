@@ -35,24 +35,6 @@ int mc13783_irq_status(struct mc13783 *mc13783, int irq,
 		int *enabled, int *pending);
 int mc13783_irq_ack(struct mc13783 *mc13783, int irq);
 
-static inline int mc13783_mask(struct mc13783 *mc13783, int irq) __deprecated;
-static inline int mc13783_mask(struct mc13783 *mc13783, int irq)
-{
-	return mc13783_irq_mask(mc13783, irq);
-}
-
-static inline int mc13783_unmask(struct mc13783 *mc13783, int irq) __deprecated;
-static inline int mc13783_unmask(struct mc13783 *mc13783, int irq)
-{
-	return mc13783_irq_unmask(mc13783, irq);
-}
-
-static inline int mc13783_ackirq(struct mc13783 *mc13783, int irq) __deprecated;
-static inline int mc13783_ackirq(struct mc13783 *mc13783, int irq)
-{
-	return mc13783_irq_ack(mc13783, irq);
-}
-
 #define MC13783_ADC0		43
 #define MC13783_ADC0_ADREFEN		(1 << 10)
 #define MC13783_ADC0_ADREFMODE		(1 << 11)
