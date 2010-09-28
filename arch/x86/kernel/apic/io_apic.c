@@ -3383,14 +3383,14 @@ static int set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 
 	cfg = desc->chip_data;
 
-	get_cached_msi_msg_desc(desc, &msg);
+	__get_cached_msi_msg(desc->irq_data.msi_desc, &msg);
 
 	msg.data &= ~MSI_DATA_VECTOR_MASK;
 	msg.data |= MSI_DATA_VECTOR(cfg->vector);
 	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
 
-	write_msi_msg_desc(desc, &msg);
+	__write_msi_msg(desc->irq_data.msi_desc, &msg);
 
 	return 0;
 }
