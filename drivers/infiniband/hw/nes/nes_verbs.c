@@ -476,9 +476,9 @@ static struct ib_fast_reg_page_list *nes_alloc_fast_reg_page_list(
 	}
 	nes_debug(NES_DBG_MR, "nes_alloc_fast_reg_pbl: nes_frpl = %p, "
 		  "ibfrpl = %p, ibfrpl.page_list = %p, pbl.kva = %p, "
-		  "pbl.paddr= %p\n", pnesfrpl, &pnesfrpl->ibfrpl,
+		  "pbl.paddr = %llx\n", pnesfrpl, &pnesfrpl->ibfrpl,
 		  pnesfrpl->ibfrpl.page_list, pnesfrpl->nes_wqe_pbl.kva,
-		  (void *)pnesfrpl->nes_wqe_pbl.paddr);
+		  (unsigned long long) pnesfrpl->nes_wqe_pbl.paddr);
 
 	return pifrpl;
 }
@@ -3483,13 +3483,13 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 			for (i = 0; i < ib_wr->wr.fast_reg.page_list_len; i++)
 				dst_page_list[i] = cpu_to_le64(src_page_list[i]);
 
-			nes_debug(NES_DBG_IW_TX, "SQ_FMR: iova_start: %p, "
-				  "length: %d, rkey: %0x, pgl_paddr: %p, "
+			nes_debug(NES_DBG_IW_TX, "SQ_FMR: iova_start: %llx, "
+				  "length: %d, rkey: %0x, pgl_paddr: %llx, "
 				  "page_list_len: %u, wqe_misc: %x\n",
-				  (void *)ib_wr->wr.fast_reg.iova_start,
+				  (unsigned long long) ib_wr->wr.fast_reg.iova_start,
 				  ib_wr->wr.fast_reg.length,
 				  ib_wr->wr.fast_reg.rkey,
-				  (void *)pnesfrpl->nes_wqe_pbl.paddr,
+				  (unsigned long long) pnesfrpl->nes_wqe_pbl.paddr,
 				  ib_wr->wr.fast_reg.page_list_len,
 				  wqe_misc);
 			break;
