@@ -41,3 +41,7 @@ config SHARP_SCOOP
 config COMMON_CLKDEV
 	bool
 	select HAVE_CLK
+
+config FIQ_GLUE
+	bool
+	select FIQ
