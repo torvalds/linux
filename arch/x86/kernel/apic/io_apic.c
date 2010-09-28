@@ -2218,11 +2218,10 @@ static int __init timer_irq_works(void)
  * an edge even if it isn't on the 8259A...
  */
 
-static unsigned int startup_ioapic_irq(unsigned int irq)
+static unsigned int startup_ioapic_irq(struct irq_data *data)
 {
-	int was_pending = 0;
+	int was_pending = 0, irq = data->irq;
 	unsigned long flags;
-	struct irq_cfg *cfg;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	if (irq < legacy_pic->nr_legacy_irqs) {
@@ -2230,8 +2229,7 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 		if (legacy_pic->irq_pending(irq))
 			was_pending = 1;
 	}
-	cfg = irq_cfg(irq);
-	__unmask_ioapic(cfg);
+	__unmask_ioapic(data->chip_data);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	return was_pending;
@@ -2695,7 +2693,7 @@ static void ir_ack_apic_level(unsigned int irq)
 
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name		= "IO-APIC",
-	.startup	= startup_ioapic_irq,
+	.irq_startup	= startup_ioapic_irq,
 	.mask		= mask_ioapic_irq,
 	.unmask		= unmask_ioapic_irq,
 	.ack		= ack_apic_edge,
@@ -2708,7 +2706,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 
 static struct irq_chip ir_ioapic_chip __read_mostly = {
 	.name		= "IR-IO-APIC",
-	.startup	= startup_ioapic_irq,
+	.irq_startup	= startup_ioapic_irq,
 	.mask		= mask_ioapic_irq,
 	.unmask		= unmask_ioapic_irq,
 #ifdef CONFIG_INTR_REMAP
