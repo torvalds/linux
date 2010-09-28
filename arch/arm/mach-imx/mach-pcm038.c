@@ -257,7 +257,7 @@ static struct regulator_init_data cam_data = {
 	.consumer_supplies = cam_consumers,
 };
 
-struct mc13783_regulator_init_data pcm038_regulators[] = {
+static struct mc13783_regulator_init_data pcm038_regulators[] = {
 	{
 		.id = MC13783_REGU_VCAM,
 		.init_data = &cam_data,
