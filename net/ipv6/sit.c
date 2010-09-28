@@ -1160,7 +1160,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
+static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -1175,8 +1175,12 @@ static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	iph->ihl		= 5;
 	iph->ttl		= 64;
 
+	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	if (!dev->tstats)
+		return -ENOMEM;
 	dev_hold(dev);
 	sitn->tunnels_wc[0]	= tunnel;
+	return 0;
 }
 
 static struct xfrm_tunnel sit_handler __read_mostly = {
@@ -1220,7 +1224,10 @@ static int __net_init sit_init_net(struct net *net)
 	}
 	dev_net_set(sitn->fb_tunnel_dev, net);
 
-	ipip6_fb_tunnel_init(sitn->fb_tunnel_dev);
+	err = ipip6_fb_tunnel_init(sitn->fb_tunnel_dev);
+	if (err)
+		goto err_dev_free;
+
 	ipip6_tunnel_clone_6rd(sitn->fb_tunnel_dev, sitn);
 
 	if ((err = register_netdev(sitn->fb_tunnel_dev)))
@@ -1230,7 +1237,8 @@ static int __net_init sit_init_net(struct net *net)
 
 err_reg_dev:
 	dev_put(sitn->fb_tunnel_dev);
-	free_netdev(sitn->fb_tunnel_dev);
+err_dev_free:
+	ipip6_dev_free(sitn->fb_tunnel_dev);
 err_alloc_dev:
 	return err;
 }
