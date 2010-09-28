@@ -225,6 +225,7 @@ struct myri10ge_priv {
 	struct msix_entry *msix_vectors;
 #ifdef CONFIG_MYRI10GE_DCA
 	int dca_enabled;
+	int relaxed_order;
 #endif
 	u32 link_state;
 	unsigned int rdma_tags_available;
@@ -1074,10 +1075,28 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 }
 
 #ifdef CONFIG_MYRI10GE_DCA
+static int myri10ge_toggle_relaxed(struct pci_dev *pdev, int on)
+{
+	int ret, cap, err;
+	u16 ctl;
+
+	cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	if (!cap)
+		return 0;
+
+	err = pci_read_config_word(pdev, cap + PCI_EXP_DEVCTL, &ctl);
+	ret = (ctl & PCI_EXP_DEVCTL_RELAX_EN) >> 4;
+	if (ret != on) {
+		ctl &= ~PCI_EXP_DEVCTL_RELAX_EN;
+		ctl |= (on << 4);
+		pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL, ctl);
+	}
+	return ret;
+}
+
 static void
 myri10ge_write_dca(struct myri10ge_slice_state *ss, int cpu, int tag)
 {
-	ss->cpu = cpu;
 	ss->cached_dca_tag = tag;
 	put_be32(htonl(tag), ss->dca_tag);
 }
@@ -1088,9 +1107,10 @@ static inline void myri10ge_update_dca(struct myri10ge_slice_state *ss)
 	int tag;
 
 	if (cpu != ss->cpu) {
-		tag = dca_get_tag(cpu);
+		tag = dca3_get_tag(&ss->mgp->pdev->dev, cpu);
 		if (ss->cached_dca_tag != tag)
 			myri10ge_write_dca(ss, cpu, tag);
+		ss->cpu = cpu;
 	}
 	put_cpu();
 }
@@ -1113,9 +1133,13 @@ static void myri10ge_setup_dca(struct myri10ge_priv *mgp)
 				"dca_add_requester() failed, err=%d\n", err);
 		return;
 	}
+	mgp->relaxed_order = myri10ge_toggle_relaxed(pdev, 0);
 	mgp->dca_enabled = 1;
-	for (i = 0; i < mgp->num_slices; i++)
-		myri10ge_write_dca(&mgp->ss[i], -1, 0);
+	for (i = 0; i < mgp->num_slices; i++) {
+		mgp->ss[i].cpu = -1;
+		mgp->ss[i].cached_dca_tag = -1;
+		myri10ge_update_dca(&mgp->ss[i]);
+	 }
 }
 
 static void myri10ge_teardown_dca(struct myri10ge_priv *mgp)
@@ -1126,6 +1150,8 @@ static void myri10ge_teardown_dca(struct myri10ge_priv *mgp)
 	if (!mgp->dca_enabled)
 		return;
 	mgp->dca_enabled = 0;
+	if (mgp->relaxed_order)
+		myri10ge_toggle_relaxed(pdev, 1);
 	err = dca_remove_requester(&pdev->dev);
 }
 
