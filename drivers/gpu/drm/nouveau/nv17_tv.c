@@ -424,9 +424,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	}
 
 	if (tv_norm->kind == CTV_ENC_MODE)
-		*cr_lcd = 0x1 | (head ? 0x0 : 0x8);
-	else
-		*cr_lcd = 0;
+		*cr_lcd |= 0x1 | (head ? 0x0 : 0x8);
 
 	/* Set the DACCLK register */
 	dacclk = (NVReadRAMDAC(dev, 0, dacclk_off) & ~0x30) | 0x1;

@@ -345,14 +345,11 @@ static void nv04_dac_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int head = nouveau_crtc(encoder->crtc)->index;
-	struct nv04_crtc_reg *crtcstate = dev_priv->mode_reg.crtc_reg;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
 	nv04_dfp_disable(dev, head);
-	crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
 }
 
 static void nv04_dac_mode_set(struct drm_encoder *encoder,

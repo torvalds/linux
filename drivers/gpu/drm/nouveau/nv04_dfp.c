@@ -104,6 +104,8 @@ void nv04_dfp_disable(struct drm_device *dev, int head)
 	}
 	/* don't inadvertently turn it on when state written later */
 	crtcstate[head].fp_control = FP_TG_CONTROL_OFF;
+	crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX] &=
+		~NV_CIO_CRE_LCD_ROUTE_MASK;
 }
 
 void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
@@ -253,7 +255,7 @@ static void nv04_dfp_prepare(struct drm_encoder *encoder)
 
 	nv04_dfp_prepare_sel_clk(dev, nv_encoder, head);
 
-	*cr_lcd = 0x3;
+	*cr_lcd = (*cr_lcd & ~NV_CIO_CRE_LCD_ROUTE_MASK) | 0x3;
 
 	if (nv_two_heads(dev)) {
 		if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
