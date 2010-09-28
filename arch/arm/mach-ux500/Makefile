@@ -11,3 +11,5 @@ obj-$(CONFIG_SMP)		+= platsmp.o headsmp.o
 obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o
 obj-$(CONFIG_LOCAL_TIMERS)	+= localtimer.o
 obj-$(CONFIG_REGULATOR_AB8500)	+= board-mop500-regulators.o
+obj-$(CONFIG_U5500_MODEM_IRQ)	+= modem_irq.o
+obj-$(CONFIG_U5500_MBOX)	+= mbox.o
