@@ -3233,7 +3233,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 		slic_global.num_slic_cards--;
 		slic_card_cleanup(card);
 	}
-	kfree(dev);
+	free_netdev(dev);
 	pci_release_regions(pcidev);
 }
 
