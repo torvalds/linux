@@ -804,7 +804,7 @@ static int __devinit sgiseeq_probe(struct platform_device *pdev)
 err_out_free_page:
 	free_page((unsigned long) sp->srings);
 err_out_free_dev:
-	kfree(dev);
+	free_netdev(dev);
 
 err_out:
 	return err;

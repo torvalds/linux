@@ -48,15 +48,17 @@ nf_ct_ext_create(struct nf_ct_ext **ext, enum nf_ct_ext_id id, gfp_t gfp)
 {
 	unsigned int off, len;
 	struct nf_ct_ext_type *t;
+	size_t alloc_size;
 
 	rcu_read_lock();
 	t = rcu_dereference(nf_ct_ext_types[id]);
 	BUG_ON(t == NULL);
 	off = ALIGN(sizeof(struct nf_ct_ext), t->align);
 	len = off + t->len;
+	alloc_size = t->alloc_size;
 	rcu_read_unlock();
 
-	*ext = kzalloc(t->alloc_size, gfp);
+	*ext = kzalloc(alloc_size, gfp);
 	if (!*ext)
 		return NULL;
 
