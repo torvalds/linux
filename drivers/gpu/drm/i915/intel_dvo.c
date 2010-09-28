@@ -81,7 +81,6 @@ struct intel_dvo {
 	struct intel_encoder base;
 
 	struct intel_dvo_device dev;
-	int ddc_bus;
 
 	struct drm_display_mode *panel_fixed_mode;
 	bool panel_wants_dither;
@@ -245,7 +244,7 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	 * that's not the case.
 	 */
 	intel_ddc_get_modes(connector,
-			    &dev_priv->gmbus[intel_dvo->ddc_bus].adapter);
+			    &dev_priv->gmbus[GMBUS_PORT_DPC].adapter);
 	if (!list_empty(&connector->probed_modes))
 		return 1;
 
@@ -349,7 +348,6 @@ void intel_dvo_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_dvo *intel_dvo;
 	struct intel_connector *intel_connector;
-	int ret = 0;
 	int i;
 	int encoder_type = DRM_MODE_ENCODER_NONE;
 
@@ -367,9 +365,6 @@ void intel_dvo_init(struct drm_device *dev)
 	drm_encoder_init(dev, &intel_encoder->base,
 			 &intel_dvo_enc_funcs, encoder_type);
 
-	/* Set up the DDC bus */
-	intel_dvo->ddc_bus = GMBUS_PORT_DPB;
-
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
 		struct drm_connector *connector = &intel_connector->base;
@@ -384,7 +379,7 @@ void intel_dvo_init(struct drm_device *dev)
 		if (dvo->gpio != 0)
 			gpio = dvo->gpio;
 		else if (dvo->type == INTEL_DVO_CHIP_LVDS)
-			gpio = GMBUS_PORT_PANEL;
+			gpio = GMBUS_PORT_SSC;
 		else
 			gpio = GMBUS_PORT_DPB;
 
@@ -395,8 +390,7 @@ void intel_dvo_init(struct drm_device *dev)
 		i2c = &dev_priv->gmbus[gpio].adapter;
 
 		intel_dvo->dev = *dvo;
-		ret = dvo->dev_ops->init(&intel_dvo->dev, i2c);
-		if (!ret)
+		if (!dvo->dev_ops->init(&intel_dvo->dev, i2c))
 			continue;
 
 		intel_encoder->type = INTEL_OUTPUT_DVO;
