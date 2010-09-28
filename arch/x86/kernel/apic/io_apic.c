@@ -3730,8 +3730,8 @@ static int set_ht_irq_affinity(unsigned int irq, const struct cpumask *mask)
 
 static struct irq_chip ht_irq_chip = {
 	.name		= "PCI-HT",
-	.mask		= mask_ht_irq,
-	.unmask		= unmask_ht_irq,
+	.irq_mask	= mask_ht_irq,
+	.irq_unmask	= unmask_ht_irq,
 	.irq_ack	= ack_apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_ht_irq_affinity,
