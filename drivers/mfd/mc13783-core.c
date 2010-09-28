@@ -22,14 +22,10 @@ struct mc13783 {
 	struct spi_device *spidev;
 	struct mutex lock;
 	int irq;
-	int flags;
+	int adcflags;
 
 	irq_handler_t irqhandler[MC13783_NUM_IRQ];
 	void *irqdata[MC13783_NUM_IRQ];
-
-	/* XXX these should go as platformdata to the regulator subdevice */
-	struct mc13783_regulator_init_data *regulators;
-	int num_regulators;
 };
 
 #define MC13783_REG_REVISION			 7
@@ -250,7 +246,10 @@ EXPORT_SYMBOL(mc13783_reg_rmw);
 
 int mc13783_get_flags(struct mc13783 *mc13783)
 {
-	return mc13783->flags;
+	struct mc13783_platform_data *pdata =
+		dev_get_platdata(&mc13783->spidev->dev);
+
+	return pdata->flags;
 }
 EXPORT_SYMBOL(mc13783_get_flags);
 
@@ -493,7 +492,7 @@ static irqreturn_t mc13783_handler_adcdone(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#define MC13783_ADC_WORKING (1 << 16)
+#define MC13783_ADC_WORKING (1 << 0)
 
 int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 		unsigned int channel, unsigned int *sample)
@@ -509,12 +508,12 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 
 	mc13783_lock(mc13783);
 
-	if (mc13783->flags & MC13783_ADC_WORKING) {
+	if (mc13783->adcflags & MC13783_ADC_WORKING) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	mc13783->flags |= MC13783_ADC_WORKING;
+	mc13783->adcflags |= MC13783_ADC_WORKING;
 
 	mc13783_reg_read(mc13783, MC13783_ADC0, &old_adc0);
 
@@ -578,7 +577,7 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 		/* restore TSMOD */
 		mc13783_reg_write(mc13783, MC13783_REG_ADC_0, old_adc0);
 
-	mc13783->flags &= ~MC13783_ADC_WORKING;
+	mc13783->adcflags &= ~MC13783_ADC_WORKING;
 out:
 	mc13783_unlock(mc13783);
 
@@ -674,14 +673,6 @@ err_revision:
 		kfree(mc13783);
 		return ret;
 	}
-
-	/* This should go away (BEGIN) */
-	if (pdata) {
-		mc13783->flags = pdata->flags;
-		mc13783->regulators = pdata->regulators;
-		mc13783->num_regulators = pdata->num_regulators;
-	}
-	/* This should go away (END) */
 
 	mc13783_unlock(mc13783);
 
