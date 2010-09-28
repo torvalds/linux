@@ -409,11 +409,16 @@ config MFD_PCF50633
 	  so that function-specific drivers can bind to them.
 
 config MFD_MC13783
-	tristate "Support Freescale MC13783"
+	tristate
+
+config MFD_MC13XXX
+	tristate "Support Freescale MC13783 and MC13892"
 	depends on SPI_MASTER
 	select MFD_CORE
+	select MFD_MC13783
 	help
-	  Support for the Freescale (Atlas) MC13783 PMIC and audio CODEC.
+	  Support for the Freescale (Atlas) PMIC and audio CODECs
+	  MC13783 and MC13892.
 	  This driver provides common support for accessing  the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
