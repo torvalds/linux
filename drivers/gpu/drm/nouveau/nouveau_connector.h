@@ -55,4 +55,7 @@ nouveau_connector_create(struct drm_device *, int index);
 void
 nouveau_connector_set_polling(struct drm_connector *);
 
+int
+nouveau_connector_bpp(struct drm_connector *);
+
 #endif /* __NOUVEAU_CONNECTOR_H__ */

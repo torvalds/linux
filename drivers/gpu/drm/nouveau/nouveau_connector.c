@@ -76,6 +76,22 @@ nouveau_encoder_connector_get(struct nouveau_encoder *encoder)
 	return NULL;
 }
 
+/*TODO: This could use improvement, and learn to handle the fixed
+ *      BIOS tables etc.  It's fine currently, for its only user.
+ */
+int
+nouveau_connector_bpp(struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+
+	if (nv_connector->edid && nv_connector->edid->revision >= 4) {
+		u8 bpc = ((nv_connector->edid->input & 0x70) >> 3) + 4;
+		if (bpc > 4)
+			return bpc;
+	}
+
+	return 18;
+}
 
 static void
 nouveau_connector_destroy(struct drm_connector *drm_connector)
@@ -666,7 +682,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		else
 			max_clock = nv_encoder->dp.link_nr * 162000;
 
-		clock *= 3;
+		clock = clock * nouveau_connector_bpp(connector) / 8;
 		break;
 	default:
 		BUG_ON(1);
