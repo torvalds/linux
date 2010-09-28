@@ -346,8 +346,6 @@ static inline void tcp_dec_quickack_mode(struct sock *sk,
 	}
 }
 
-extern void tcp_enter_quickack_mode(struct sock *sk);
-
 #define	TCP_ECN_OK		1
 #define	TCP_ECN_QUEUE_CWR	2
 #define	TCP_ECN_DEMAND_CWR	4
