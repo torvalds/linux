@@ -235,7 +235,7 @@ void shake_page(struct page *p, int access)
 		int nr;
 		do {
 			nr = shrink_slab(1000, GFP_KERNEL, 1000);
-			if (page_count(p) == 0)
+			if (page_count(p) == 1)
 				break;
 		} while (nr > 10);
 	}
