@@ -929,13 +929,13 @@ put:
 		if (error)
 			blkdev_put(hib_resume_bdev, FMODE_READ);
 		else
-			pr_debug("PM: Signature found, resuming\n");
+			pr_debug("PM: Image signature found, resuming\n");
 	} else {
 		error = PTR_ERR(hib_resume_bdev);
 	}
 
 	if (error)
-		pr_debug("PM: Error %d checking image file\n", error);
+		pr_debug("PM: Image not found (code %d)\n", error);
 
 	return error;
 }
