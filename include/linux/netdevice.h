@@ -986,7 +986,7 @@ struct net_device {
 	rx_handler_func_t	*rx_handler;
 	void			*rx_handler_data;
 
-	struct netdev_queue	rx_queue; /* use two cache lines */
+	struct netdev_queue	ingress_queue; /* use two cache lines */
 
 /*
  * Cache lines mostly used on transmit path

@@ -240,7 +240,7 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 	if (q)
 		goto out;
 
-	q = qdisc_match_from_root(dev->rx_queue.qdisc_sleeping, handle);
+	q = qdisc_match_from_root(dev->ingress_queue.qdisc_sleeping, handle);
 out:
 	return q;
 }
@@ -701,7 +701,7 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 		}
 
 		for (i = 0; i < num_q; i++) {
-			struct netdev_queue *dev_queue = &dev->rx_queue;
+			struct netdev_queue *dev_queue = &dev->ingress_queue;
 
 			if (!ingress)
 				dev_queue = netdev_get_tx_queue(dev, i);
@@ -979,7 +979,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /* ingress */
-				q = dev->rx_queue.qdisc_sleeping;
+				q = dev->ingress_queue.qdisc_sleeping;
 			}
 		} else {
 			q = dev->qdisc;
@@ -1044,7 +1044,7 @@ replay:
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /*ingress */
-				q = dev->rx_queue.qdisc_sleeping;
+				q = dev->ingress_queue.qdisc_sleeping;
 			}
 		} else {
 			q = dev->qdisc;
@@ -1124,7 +1124,7 @@ create_n_graft:
 	if (!(n->nlmsg_flags&NLM_F_CREATE))
 		return -ENOENT;
 	if (clid == TC_H_INGRESS)
-		q = qdisc_create(dev, &dev->rx_queue, p,
+		q = qdisc_create(dev, &dev->ingress_queue, p,
 				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
 	else {
@@ -1304,7 +1304,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 		if (tc_dump_qdisc_root(dev->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
-		dev_queue = &dev->rx_queue;
+		dev_queue = &dev->ingress_queue;
 		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
@@ -1595,7 +1595,7 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	if (tc_dump_tclass_root(dev->qdisc, skb, tcm, cb, &t, s_t) < 0)
 		goto done;
 
-	dev_queue = &dev->rx_queue;
+	dev_queue = &dev->ingress_queue;
 	if (tc_dump_tclass_root(dev_queue->qdisc_sleeping, skb, tcm, cb, &t, s_t) < 0)
 		goto done;
 

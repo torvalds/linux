@@ -2720,7 +2720,7 @@ static int ing_filter(struct sk_buff *skb)
 	skb->tc_verd = SET_TC_RTTL(skb->tc_verd, ttl);
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
 
-	rxq = &dev->rx_queue;
+	rxq = &dev->ingress_queue;
 
 	q = rxq->qdisc;
 	if (q != &noop_qdisc) {
@@ -2737,7 +2737,7 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 					 struct packet_type **pt_prev,
 					 int *ret, struct net_device *orig_dev)
 {
-	if (skb->dev->rx_queue.qdisc == &noop_qdisc)
+	if (skb->dev->ingress_queue.qdisc == &noop_qdisc)
 		goto out;
 
 	if (*pt_prev) {
@@ -4940,7 +4940,7 @@ static void __netdev_init_queue_locks_one(struct net_device *dev,
 static void netdev_init_queue_locks(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, __netdev_init_queue_locks_one, NULL);
-	__netdev_init_queue_locks_one(dev, &dev->rx_queue, NULL);
+	__netdev_init_queue_locks_one(dev, &dev->ingress_queue, NULL);
 }
 
 unsigned long netdev_fix_features(unsigned long features, const char *name)
@@ -5452,7 +5452,7 @@ static void netdev_init_one_queue(struct net_device *dev,
 
 static void netdev_init_queues(struct net_device *dev)
 {
-	netdev_init_one_queue(dev, &dev->rx_queue, NULL);
+	netdev_init_one_queue(dev, &dev->ingress_queue, NULL);
 	netdev_for_each_tx_queue(dev, netdev_init_one_queue, NULL);
 	spin_lock_init(&dev->tx_global_lock);
 }
