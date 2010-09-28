@@ -972,12 +972,7 @@ xfs_fs_inode_init_once(
 
 /*
  * Dirty the XFS inode when mark_inode_dirty_sync() is called so that
- * we catch unlogged VFS level updates to the inode. Care must be taken
- * here - the transaction code calls mark_inode_dirty_sync() to mark the
- * VFS inode dirty in a transaction and clears the i_update_core field;
- * it must clear the field after calling mark_inode_dirty_sync() to
- * correctly indicate that the dirty state has been propagated into the
- * inode log item.
+ * we catch unlogged VFS level updates to the inode.
  *
  * We need the barrier() to maintain correct ordering between unlogged
  * updates and the transaction commit code that clears the i_update_core

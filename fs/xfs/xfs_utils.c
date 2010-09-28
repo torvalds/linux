@@ -235,7 +235,7 @@ xfs_droplink(
 {
 	int	error;
 
-	xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 
 	ASSERT (ip->i_d.di_nlink > 0);
 	ip->i_d.di_nlink--;
@@ -299,7 +299,7 @@ xfs_bumplink(
 {
 	if (ip->i_d.di_nlink >= XFS_MAXLINK)
 		return XFS_ERROR(EMLINK);
-	xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 
 	ASSERT(ip->i_d.di_nlink > 0);
 	ip->i_d.di_nlink++;

@@ -276,7 +276,7 @@ xfs_qm_scall_trunc_qfile(
 		goto out_unlock;
 	}
 
-	xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 
 out_unlock:
