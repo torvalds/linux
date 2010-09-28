@@ -305,7 +305,7 @@ setPLL_double_lowregs(struct drm_device *dev, uint32_t NMNMreg,
 	bool mpll = Preg == 0x4020;
 	uint32_t oldPval = nvReadMC(dev, Preg);
 	uint32_t NMNM = pv->NM2 << 16 | pv->NM1;
-	uint32_t Pval = (oldPval & (mpll ? ~(0x11 << 16) : ~(1 << 16))) |
+	uint32_t Pval = (oldPval & (mpll ? ~(0x77 << 16) : ~(7 << 16))) |
 			0xc << 28 | pv->log2P << 16;
 	uint32_t saved4600 = 0;
 	/* some cards have different maskc040s */
