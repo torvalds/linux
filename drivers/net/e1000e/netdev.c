@@ -2650,6 +2650,26 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	/* Tx irq moderation */
 	ew32(TADV, adapter->tx_abs_int_delay);
 
+	if (adapter->flags2 & FLAG2_DMA_BURST) {
+		u32 txdctl = er32(TXDCTL(0));
+		txdctl &= ~(E1000_TXDCTL_PTHRESH | E1000_TXDCTL_HTHRESH |
+			    E1000_TXDCTL_WTHRESH);
+		/*
+		 * set up some performance related parameters to encourage the
+		 * hardware to use the bus more efficiently in bursts, depends
+		 * on the tx_int_delay to be enabled,
+		 * wthresh = 5 ==> burst write a cacheline (64 bytes) at a time
+		 * hthresh = 1 ==> prefetch when one or more available
+		 * pthresh = 0x1f ==> prefetch if internal cache 31 or less
+		 * BEWARE: this seems to work but should be considered first if
+		 * there are tx hangs or other tx related bugs
+		 */
+		txdctl |= E1000_TXDCTL_DMA_BURST_ENABLE;
+		ew32(TXDCTL(0), txdctl);
+		/* erratum work around: set txdctl the same for both queues */
+		ew32(TXDCTL(1), txdctl);
+	}
+
 	/* Program the Transmit Control Register */
 	tctl = er32(TCTL);
 	tctl &= ~E1000_TCTL_CT;
@@ -2871,6 +2891,29 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	e1e_flush();
 	msleep(10);
+
+	if (adapter->flags2 & FLAG2_DMA_BURST) {
+		/*
+		 * set the writeback threshold (only takes effect if the RDTR
+		 * is set). set GRAN=1 and write back up to 0x4 worth, and
+		 * enable prefetching of 0x20 rx descriptors
+		 * granularity = 01
+		 * wthresh = 04,
+		 * hthresh = 04,
+		 * pthresh = 0x20
+		 */
+		ew32(RXDCTL(0), E1000_RXDCTL_DMA_BURST_ENABLE);
+		ew32(RXDCTL(1), E1000_RXDCTL_DMA_BURST_ENABLE);
+
+		/*
+		 * override the delay timers for enabling bursting, only if
+		 * the value was not set by the user via module options
+		 */
+		if (adapter->rx_int_delay == DEFAULT_RDTR)
+			adapter->rx_int_delay = BURST_RDTR;
+		if (adapter->rx_abs_int_delay == DEFAULT_RADV)
+			adapter->rx_abs_int_delay = BURST_RADV;
+	}
 
 	/* set the Receive Delay Timer Register */
 	ew32(RDTR, adapter->rx_int_delay);
@@ -4234,6 +4277,16 @@ link_up:
 
 	/* Force detection of hung controller every watchdog period */
 	adapter->detect_tx_hung = 1;
+
+	/* flush partial descriptors to memory before detecting tx hang */
+	if (adapter->flags2 & FLAG2_DMA_BURST) {
+		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
+		ew32(RDTR, adapter->rx_int_delay | E1000_RDTR_FPD);
+		/*
+		 * no need to flush the writes because the timeout code does
+		 * an er32 first thing
+		 */
+	}
 
 	/*
 	 * With 82571 controllers, LAA may be overwritten due to controller
