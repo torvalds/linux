@@ -346,7 +346,6 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		goto cifs_hl_exit;
 	}
 
-/*	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)*/
 	if (pTcon->unix_ext)
 		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
 					    cifs_sb->local_nls,

@@ -132,7 +132,7 @@ cifs_bp_rename_retry:
 
 struct cifsFileInfo *
 cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
-		  struct vfsmount *mnt, struct cifsTconInfo *tcon,
+		  struct vfsmount *mnt, struct tcon_link *tlink,
 		  unsigned int oflags, __u32 oplock)
 {
 	struct cifsFileInfo *pCifsFile;
@@ -149,7 +149,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
-	pCifsFile->tcon = tcon;
+	pCifsFile->tlink = cifs_get_tlink(tlink);
 	mutex_init(&pCifsFile->fh_mutex);
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
@@ -157,7 +157,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
 
 	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &tcon->openFileList);
+	list_add(&pCifsFile->tlist, &(tlink_tcon(tlink)->openFileList));
 	pCifsInode = CIFS_I(newinode);
 	if (pCifsInode) {
 		/* if readable file instance put first in list*/
@@ -483,7 +483,7 @@ cifs_create_set_dentry:
 		}
 
 		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
-					       nd->path.mnt, tcon, oflags,
+						nd->path.mnt, tlink, oflags,
 						oplock);
 		if (pfile_info == NULL) {
 			fput(filp);
@@ -758,7 +758,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			}
 
 			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
-						  nd->path.mnt, pTcon,
+						  nd->path.mnt, tlink,
 						  nd->intent.open.flags,
 						  oplock);
 			if (cfile == NULL) {

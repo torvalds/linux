@@ -289,7 +289,7 @@ int cifs_get_file_info_unix(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
-	struct cifsTconInfo *tcon = cfile->tcon;
+	struct cifsTconInfo *tcon = tlink_tcon(cfile->tlink);
 
 	xid = GetXid();
 	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -546,7 +546,7 @@ int cifs_get_file_info(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
-	struct cifsTconInfo *tcon = cfile->tcon;
+	struct cifsTconInfo *tcon = tlink_tcon(cfile->tlink);
 
 	xid = GetXid();
 	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -967,7 +967,7 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 	if (open_file) {
 		netfid = open_file->netfid;
 		netpid = open_file->pid;
-		pTcon = open_file->tcon;
+		pTcon = tlink_tcon(open_file->tlink);
 		goto set_via_filehandle;
 	}
 
@@ -1696,7 +1696,7 @@ int cifs_revalidate_file(struct file *filp)
 	if (!cifs_inode_needs_reval(inode))
 		goto check_inval;
 
-	if (cfile->tcon->unix_ext)
+	if (tlink_tcon(cfile->tlink)->unix_ext)
 		rc = cifs_get_file_info_unix(filp);
 	else
 		rc = cifs_get_file_info(filp);
@@ -1817,7 +1817,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	if (open_file) {
 		__u16 nfid = open_file->netfid;
 		__u32 npid = open_file->pid;
-		pTcon = open_file->tcon;
+		pTcon = tlink_tcon(open_file->tlink);
 		rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size, nfid,
 					npid, false);
 		cifsFileInfo_put(open_file);
@@ -1982,7 +1982,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (open_file) {
 		u16 nfid = open_file->netfid;
 		u32 npid = open_file->pid;
-		pTcon = open_file->tcon;
+		pTcon = tlink_tcon(open_file->tlink);
 		rc = CIFSSMBUnixSetFileInfo(xid, pTcon, args, nfid, npid);
 		cifsFileInfo_put(open_file);
 	} else {

@@ -341,6 +341,12 @@ cifs_put_tlink(struct tcon_link *tlink)
 	return;
 }
 
+static inline struct tcon_link *
+cifs_get_tlink(struct tcon_link *tlink)
+{
+	return tlink;
+}
+
 /* This function is always expected to succeed */
 static inline struct cifsTconInfo *
 cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb)
@@ -389,7 +395,7 @@ struct cifsFileInfo {
 	struct file *pfile; /* needed for writepage */
 	struct inode *pInode; /* needed for oplock break */
 	struct vfsmount *mnt;
-	struct cifsTconInfo *tcon;
+	struct tcon_link *tlink;
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
 	bool closePend:1;	/* file is marked to close */
@@ -411,6 +417,7 @@ static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 static inline void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
 	if (atomic_dec_and_test(&cifs_file->count)) {
+		cifs_put_tlink(cifs_file->tlink);
 		iput(cifs_file->pInode);
 		kfree(cifs_file);
 	}

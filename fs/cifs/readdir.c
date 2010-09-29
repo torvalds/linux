@@ -245,7 +245,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	cifsFile = file->private_data;
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
-	cifsFile->tcon = pTcon;
+	cifsFile->tlink = cifs_get_tlink(tlink);
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
@@ -838,7 +838,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		} */
 
-		pTcon = cifsFile->tcon;
+		pTcon = tlink_tcon(cifsFile->tlink);
 		rc = find_cifs_entry(xid, pTcon, file,
 				&current_entry, &num_to_fill);
 		if (rc) {
