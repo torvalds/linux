@@ -52,6 +52,7 @@
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
+					struct net *net,
 					struct sockaddr *sa, int salen,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
@@ -670,6 +671,7 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
  * Create a listening RDMA service endpoint.
  */
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
+					struct net *net,
 					struct sockaddr *sa, int salen,
 					int flags)
 {

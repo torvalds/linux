@@ -64,7 +64,8 @@ static void		svc_tcp_sock_detach(struct svc_xprt *);
 static void		svc_sock_free(struct svc_xprt *);
 
 static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
-					  struct sockaddr *, int, int);
+					  struct net *, struct sockaddr *,
+					  int, int);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key svc_key[2];
 static struct lock_class_key svc_slock_key[2];
@@ -657,10 +658,11 @@ static struct svc_xprt *svc_udp_accept(struct svc_xprt *xprt)
 }
 
 static struct svc_xprt *svc_udp_create(struct svc_serv *serv,
+				       struct net *net,
 				       struct sockaddr *sa, int salen,
 				       int flags)
 {
-	return svc_create_socket(serv, IPPROTO_UDP, sa, salen, flags);
+	return svc_create_socket(serv, IPPROTO_UDP, net, sa, salen, flags);
 }
 
 static struct svc_xprt_ops svc_udp_ops = {
@@ -1178,10 +1180,11 @@ static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 }
 
 static struct svc_xprt *svc_tcp_create(struct svc_serv *serv,
+				       struct net *net,
 				       struct sockaddr *sa, int salen,
 				       int flags)
 {
-	return svc_create_socket(serv, IPPROTO_TCP, sa, salen, flags);
+	return svc_create_socket(serv, IPPROTO_TCP, net, sa, salen, flags);
 }
 
 static struct svc_xprt_ops svc_tcp_ops = {
@@ -1385,6 +1388,7 @@ EXPORT_SYMBOL_GPL(svc_addsock);
  */
 static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 					  int protocol,
+					  struct net *net,
 					  struct sockaddr *sin, int len,
 					  int flags)
 {

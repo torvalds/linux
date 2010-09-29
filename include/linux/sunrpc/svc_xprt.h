@@ -12,6 +12,7 @@
 
 struct svc_xprt_ops {
 	struct svc_xprt	*(*xpo_create)(struct svc_serv *,
+				       struct net *net,
 				       struct sockaddr *, int,
 				       int);
 	struct svc_xprt	*(*xpo_accept)(struct svc_xprt *);

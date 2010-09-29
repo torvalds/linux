@@ -166,6 +166,7 @@ EXPORT_SYMBOL_GPL(svc_xprt_init);
 
 static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 					 struct svc_serv *serv,
+					 struct net *net,
 					 const int family,
 					 const unsigned short port,
 					 int flags)
@@ -200,7 +201,7 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 		return ERR_PTR(-EAFNOSUPPORT);
 	}
 
-	return xcl->xcl_ops->xpo_create(serv, sap, len, flags);
+	return xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
 }
 
 int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
@@ -221,7 +222,7 @@ int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
 			goto err;
 
 		spin_unlock(&svc_xprt_class_lock);
-		newxprt = __svc_xpo_create(xcl, serv, family, port, flags);
+		newxprt = __svc_xpo_create(xcl, serv, net, family, port, flags);
 		if (IS_ERR(newxprt)) {
 			module_put(xcl->xcl_owner);
 			return PTR_ERR(newxprt);
