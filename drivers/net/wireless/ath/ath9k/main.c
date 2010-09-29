@@ -2004,15 +2004,17 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &hw->conf;
 
 	 if (idx != 0)
 		return -ENOENT;
 
 	survey->channel = conf->channel;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = common->ani.noise_floor;
+	survey->filled = 0;
+	if (ah->curchan && ah->curchan->noisefloor) {
+		survey->filled |= SURVEY_INFO_NOISE_DBM;
+		survey->noise = ah->curchan->noisefloor;
+	}
 
 	return 0;
 }
