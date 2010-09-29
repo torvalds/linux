@@ -32,6 +32,7 @@
 #endif				/* BCMDRIVER */
 #include <bcmendian.h>
 #include <bcmdevs.h>
+#include <bcmnvram.h>
 #include <proto/ethernet.h>
 #include <proto/vlan.h>
 #include <proto/bcmip.h>
@@ -1744,6 +1745,25 @@ void bcm_print_bytes(char *name, const uchar *data, int len)
 		}
 	}
 	printf("\n");
+}
+
+int getintvar(char *vars, const char *name)
+{
+	return 0;
+}
+
+char *bcm_chipname(uint chipid, char *buf, uint len)
+{
+	const char *fmt;
+
+	fmt = ((chipid > 0xa000) || (chipid < 0x4000)) ? "%d" : "%x";
+	snprintf(buf, len, fmt, chipid);
+	return buf;
+}
+
+char *getvar(char *vars, const char *name)
+{
+	return NULL;
 }
 
 /*

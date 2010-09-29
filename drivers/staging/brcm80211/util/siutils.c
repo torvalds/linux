@@ -59,16 +59,12 @@ static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 			    void *sdh);
 static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 			     uint32 savewin, uint *origidx, void *regs);
-#ifndef BRCM_FULLMAC
 static void si_nvram_process(si_info_t *sii, char *pvars);
-#endif
 
 /* dev path concatenation util */
-#ifndef BRCM_FULLMAC
 static char *si_devpathvar(si_t *sih, char *var, int len, const char *name);
 static bool _si_clkctl_cc(si_info_t *sii, uint mode);
 static bool si_ispcie(si_info_t *sii);
-#endif
 static uint BCMINITFN(socram_banksize) (si_info_t *sii, sbsocramregs_t *r,
 					uint8 idx, uint8 mtype);
 
@@ -311,8 +307,7 @@ BCMATTACHFN(si_buscore_setup) (si_info_t *sii, chipcregs_t *cc, uint bustype,
 	return TRUE;
 }
 
-#ifndef BRCM_FULLMAC
-static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
+static __used void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 {
 	uint w = 0;
 
@@ -369,7 +364,6 @@ static void BCMATTACHFN(si_nvram_process) (si_info_t *sii, char *pvars)
 
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
-#endif	/* !BRCM_FULLMAC */
 
 /* this is will make Sonics calls directly, since Sonics is no longer supported in the Si abstraction */
 /* this has been customized for the bcm 4329 ONLY */
@@ -1256,7 +1250,6 @@ uint32 BCMINITFN(si_clock_rate) (uint32 pll_type, uint32 n, uint32 m)
 	}
 }
 
-#ifndef BRCM_FULLMAC
 uint32 BCMINITFN(si_clock) (si_t *sih)
 {
 	si_info_t *sii;
@@ -1315,7 +1308,6 @@ uint32 BCMINITFN(si_ilp_clock) (si_t *sih)
 
 	return ILP_CLOCK;
 }
-#endif
 
 /* set chip watchdog reset timer to fire in 'ticks' */
 #ifdef BRCM_FULLMAC
@@ -1394,7 +1386,6 @@ void si_watchdog_ms(si_t *sih, uint32 ms)
 	si_watchdog(sih, wd_msticks * ms);
 }
 
-#ifndef BRCM_FULLMAC
 uint16 BCMATTACHFN(si_d11_devid) (si_t *sih)
 {
 	si_info_t *sii = SI_INFO(sih);
@@ -1918,7 +1909,7 @@ si_pcieserdesreg(si_t *sih, uint32 mdioslave, uint32 offset, uint32 mask,
 }
 
 /* return TRUE if PCIE capability exists in the pci config space */
-static bool si_ispcie(si_info_t *sii)
+static __used bool si_ispcie(si_info_t *sii)
 {
 	uint8 cap_ptr;
 
@@ -1964,7 +1955,6 @@ void si_pci_pmeclr(si_t *sih)
 
 	pcicore_pmeclr(sii->pch);
 }
-#endif /* !BRCM_FULLMAC */
 
 #ifdef BCMSDIO
 /* initialize the sdio core */
@@ -2005,7 +1995,6 @@ void si_sdio_init(si_t *sih)
 }
 #endif				/* BCMSDIO */
 
-#ifndef BRCM_FULLMAC
 bool BCMATTACHFN(si_pci_war16165) (si_t *sih)
 {
 	si_info_t *sii;
@@ -2229,7 +2218,6 @@ int si_pci_fixcfg(si_t *sih)
 	pcicore_hwup(sii->pch);
 	return 0;
 }
-#endif	/* !BRCM_FULLMAC */
 
 /* change logical "focus" to the gpio core for optimized access */
 void *si_gpiosetcore(si_t *sih)
@@ -2870,7 +2858,6 @@ bool si_deviceremoved(si_t *sih)
 	return FALSE;
 }
 
-#ifndef BRCM_FULLMAC
 bool si_is_sprom_available(si_t *sih)
 {
 	if (sih->ccrev >= 31) {
@@ -3030,4 +3017,3 @@ int si_cis_source(si_t *sih)
 		return CIS_DEFAULT;
 	}
 }
-#endif	/* BRCM_FULLMAC */
