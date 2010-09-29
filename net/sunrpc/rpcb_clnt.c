@@ -177,6 +177,7 @@ static DEFINE_MUTEX(rpcb_create_local_mutex);
 static int rpcb_create_local(void)
 {
 	struct rpc_create_args args = {
+		.net		= &init_net,
 		.protocol	= XPRT_TRANSPORT_TCP,
 		.address	= (struct sockaddr *)&rpcb_inaddr_loopback,
 		.addrsize	= sizeof(rpcb_inaddr_loopback),
@@ -228,6 +229,7 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 				    size_t salen, int proto, u32 version)
 {
 	struct rpc_create_args args = {
+		.net		= &init_net,
 		.protocol	= proto,
 		.address	= srvaddr,
 		.addrsize	= salen,
