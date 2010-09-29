@@ -630,6 +630,8 @@ SND_SOC_DAPM_INPUT("IN4L"),
 SND_SOC_DAPM_INPUT("IN4R"),
 SND_SOC_DAPM_INPUT("Beep"),
 
+SND_SOC_DAPM_MICBIAS("MICBIAS", WM8962_PWR_MGMT_1, 1, 0),
+
 SND_SOC_DAPM_SUPPLY("Class G", WM8962_CHARGE_PUMP_B, 0, 1, NULL, 0),
 SND_SOC_DAPM_SUPPLY("SYSCLK", WM8962_CLOCKING2, 5, 0, sysclk_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -1755,6 +1757,16 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 		if (pdata->spk_mono)
 			wm8962->reg_cache[WM8962_CLASS_D_CONTROL_2]
 				|= WM8962_SPK_MONO;
+
+		/* Micbias setup, detection enable and detection
+		 * threasholds. */
+		if (pdata->mic_cfg)
+			snd_soc_update_bits(codec, WM8962_ADDITIONAL_CONTROL_4,
+					    WM8962_MICDET_ENA |
+					    WM8962_MICDET_THR_MASK |
+					    WM8962_MICSHORT_THR_MASK |
+					    WM8962_MICBIAS_LVL,
+					    pdata->mic_cfg);
 	}
 
 	/* Latch volume update bits */

@@ -17,6 +17,12 @@
 struct wm8962_pdata {
 	u32 gpio_init[WM8962_MAX_GPIO];
 
+	/* Setup for microphone detection, raw value to be written to
+	 * R48(0x30) - only microphone related bits will be updated.
+	 * Detection may be enabled here for use with signals brought
+	 * out on the GPIOs. */
+	u32 mic_cfg;
+
 	bool irq_active_low;
 
 	bool spk_mono;   /* Speaker outputs tied together as mono */
