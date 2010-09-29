@@ -404,7 +404,6 @@ static int lm3559_remove(struct i2c_client *client)
 			led_classdev_unregister(&torch_data->flash_dev);
 		}
 
-		kfree(torch_data->pdata);
 		kfree(torch_data);
 	}
 	return 0;
