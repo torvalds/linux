@@ -1680,7 +1680,7 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
 
-	err = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	err = __sock_create(xprt->xprt_net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
 	if (err < 0) {
 		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
 		goto out;
@@ -1725,7 +1725,7 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
 
-	err = sock_create_kern(PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	err = __sock_create(xprt->xprt_net, PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
 	if (err < 0) {
 		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
 		goto out;
@@ -1931,7 +1931,7 @@ static struct socket *xs_create_tcp_sock4(struct rpc_xprt *xprt,
 	int err;
 
 	/* start from scratch */
-	err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	err = __sock_create(xprt->xprt_net, PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock, 1);
 	if (err < 0) {
 		dprintk("RPC:       can't create TCP transport socket (%d).\n",
 				-err);
@@ -1970,7 +1970,7 @@ static struct socket *xs_create_tcp_sock6(struct rpc_xprt *xprt,
 	int err;
 
 	/* start from scratch */
-	err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock);
+	err = __sock_create(xprt->xprt_net, PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock, 1);
 	if (err < 0) {
 		dprintk("RPC:       can't create TCP transport socket (%d).\n",
 				-err);
