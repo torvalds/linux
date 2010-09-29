@@ -1185,8 +1185,10 @@ static int bnx2x_set_num_queues(struct bnx2x *bp)
 	int rc = 0;
 
 	switch (bp->int_mode) {
-	case INT_MODE_INTx:
 	case INT_MODE_MSI:
+		bnx2x_enable_msi(bp);
+		/* falling through... */
+	case INT_MODE_INTx:
 		bp->num_queues = 1;
 		DP(NETIF_MSG_IFUP, "set number of queues to 1\n");
 		break;
@@ -1202,9 +1204,16 @@ static int bnx2x_set_num_queues(struct bnx2x *bp)
 		 * and fallback to MSI or legacy INTx with one fp
 		 */
 		rc = bnx2x_enable_msix(bp);
-		if (rc)
+		if (rc) {
 			/* failed to enable MSI-X */
 			bp->num_queues = 1;
+
+			/* Fall to INTx if failed to enable MSI-X due to lack of
+			 * memory (in bnx2x_set_num_queues()) */
+			if ((rc != -ENOMEM) && (bp->int_mode != INT_MODE_INTx))
+				bnx2x_enable_msi(bp);
+		}
+
 		break;
 	}
 	netif_set_real_num_tx_queues(bp->dev, bp->num_queues);
@@ -1265,10 +1274,6 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 			goto load_error1;
 		}
 	} else {
-		/* Fall to INTx if failed to enable MSI-X due to lack of
-		   memory (in bnx2x_set_num_queues()) */
-		if ((rc != -ENOMEM) && (bp->int_mode != INT_MODE_INTx))
-			bnx2x_enable_msi(bp);
 		bnx2x_ack_int(bp);
 		rc = bnx2x_req_irq(bp);
 		if (rc) {
