@@ -212,7 +212,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab)
 		break;
 	}
 
-	blocking_notifier_call_chain(&ab->otg.notifier, event, v);
+	atomic_notifier_call_chain(&ab->otg.notifier, event, v);
 
 	return 0;
 }
@@ -281,7 +281,7 @@ static int ab8500_usb_set_power(struct otg_transceiver *otg, unsigned mA)
 	ab->vbus_draw = mA;
 
 	if (mA)
-		blocking_notifier_call_chain(&ab->otg.notifier,
+		atomic_notifier_call_chain(&ab->otg.notifier,
 				USB_EVENT_ENUMERATED, ab->otg.gadget);
 	return 0;
 }
@@ -500,7 +500,7 @@ static int __devinit ab8500_usb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ab);
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&ab->otg.notifier);
+	ATOMIC_INIT_NOTIFIER_HEAD(&ab->otg.notifier);
 
 	/* v1: Wait for link status to become stable.
 	 * all: Updates form set_host and set_peripheral as they are atomic.

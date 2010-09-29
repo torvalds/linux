@@ -263,13 +263,13 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 			twl->otg.state = OTG_STATE_B_IDLE;
 			twl->linkstat = status;
 			twl->otg.last_event = status;
-			blocking_notifier_call_chain(&twl->otg.notifier,
+			atomic_notifier_call_chain(&twl->otg.notifier,
 						status, twl->otg.gadget);
 		} else {
 			status = USB_EVENT_NONE;
 			twl->linkstat = status;
 			twl->otg.last_event = status;
-			blocking_notifier_call_chain(&twl->otg.notifier,
+			atomic_notifier_call_chain(&twl->otg.notifier,
 						status, twl->otg.gadget);
 			if (twl->asleep) {
 				regulator_disable(twl->usb3v3);
@@ -302,7 +302,7 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl->otg.state = OTG_STATE_A_IDLE;
 		twl->linkstat = status;
 		twl->otg.last_event = status;
-		blocking_notifier_call_chain(&twl->otg.notifier, status,
+		atomic_notifier_call_chain(&twl->otg.notifier, status,
 							twl->otg.gadget);
 	} else  {
 		twl6030_writeb(twl, TWL_MODULE_USB, USB_ID_INT_EN_HI_CLR,
@@ -419,7 +419,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
 		dev_warn(&pdev->dev, "could not create sysfs file\n");
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
+	ATOMIC_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
 
 	twl->irq_enabled = true;
 	status = request_threaded_irq(twl->irq1, NULL, twl6030_usbotg_irq,
