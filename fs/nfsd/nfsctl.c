@@ -1015,12 +1015,12 @@ static ssize_t __write_ports_addxprt(char *buf)
 	if (err != 0)
 		return err;
 
-	err = svc_create_xprt(nfsd_serv, transport,
+	err = svc_create_xprt(nfsd_serv, transport, &init_net,
 				PF_INET, port, SVC_SOCK_ANONYMOUS);
 	if (err < 0)
 		goto out_err;
 
-	err = svc_create_xprt(nfsd_serv, transport,
+	err = svc_create_xprt(nfsd_serv, transport, &init_net,
 				PF_INET6, port, SVC_SOCK_ANONYMOUS);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;

@@ -204,8 +204,8 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 }
 
 int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
-		    const int family, const unsigned short port,
-		    int flags)
+		    struct net *net, const int family,
+		    const unsigned short port, int flags)
 {
 	struct svc_xprt_class *xcl;
 
