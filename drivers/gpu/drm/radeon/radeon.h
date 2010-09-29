@@ -88,7 +88,6 @@ extern int radeon_benchmarking;
 extern int radeon_testing;
 extern int radeon_connector_table;
 extern int radeon_tv;
-extern int radeon_new_pll;
 extern int radeon_audio;
 extern int radeon_disp_priority;
 extern int radeon_hw_i2c;

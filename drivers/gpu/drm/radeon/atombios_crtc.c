@@ -482,19 +482,6 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	/* reset the pll flags */
 	pll->flags = 0;
 
-	/* select the PLL algo */
-	if (ASIC_IS_AVIVO(rdev)) {
-		if (radeon_new_pll == 0)
-			pll->algo = PLL_ALGO_LEGACY;
-		else
-			pll->algo = PLL_ALGO_NEW;
-	} else {
-		if (radeon_new_pll == 1)
-			pll->algo = PLL_ALGO_NEW;
-		else
-			pll->algo = PLL_ALGO_LEGACY;
-	}
-
 	if (ASIC_IS_AVIVO(rdev)) {
 		if ((rdev->family == CHIP_RS600) ||
 		    (rdev->family == CHIP_RS690) ||
@@ -523,25 +510,8 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
 				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)
 					adjusted_clock = mode->clock * 2;
-				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
-					pll->algo = PLL_ALGO_LEGACY;
+				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
 					pll->flags |= RADEON_PLL_PREFER_CLOSEST_LOWER;
-				}
-				/* There is some evidence (often anecdotal) that RV515/RV620 LVDS
-				 * (on some boards at least) prefers the legacy algo.  I'm not
-				 * sure whether this should handled generically or on a
-				 * case-by-case quirk basis.  Both algos should work fine in the
-				 * majority of cases.
-				 */
-				if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) &&
-				    ((rdev->family == CHIP_RV515) ||
-				     (rdev->family == CHIP_RV620))) {
-					/* allow the user to overrride just in case */
-					if (radeon_new_pll == 1)
-						pll->algo = PLL_ALGO_NEW;
-					else
-						pll->algo = PLL_ALGO_LEGACY;
-				}
 			} else {
 				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;

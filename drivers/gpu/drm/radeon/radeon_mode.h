@@ -144,12 +144,6 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_USE_POST_DIV         (1 << 6)
 #define RADEON_PLL_IS_LCD               (1 << 7)
 
-/* pll algo */
-enum radeon_pll_algo {
-	PLL_ALGO_LEGACY,
-	PLL_ALGO_NEW
-};
-
 struct radeon_pll {
 	/* reference frequency */
 	uint32_t reference_freq;
@@ -182,8 +176,6 @@ struct radeon_pll {
 
 	/* pll id */
 	uint32_t id;
-	/* pll algo */
-	enum radeon_pll_algo algo;
 };
 
 struct radeon_i2c_chan {
@@ -346,7 +338,6 @@ struct radeon_encoder_atom_dig {
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
-	enum radeon_pll_algo pll_algo;
 	struct radeon_atom_ss *ss;
 	/* panel mode */
 	struct drm_display_mode native_mode;

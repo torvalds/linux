@@ -717,10 +717,6 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		pll = &rdev->clock.p1pll;
 
 	pll->flags = RADEON_PLL_LEGACY;
-	if (radeon_new_pll == 1)
-		pll->algo = PLL_ALGO_NEW;
-	else
-		pll->algo = PLL_ALGO_LEGACY;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
