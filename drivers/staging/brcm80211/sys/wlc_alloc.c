@@ -21,7 +21,6 @@
 #include <bcmutils.h>
 #include <siutils.h>
 #include <proto/802.11.h>
-#include <proto/802.11e.h>
 #include <proto/wpa.h>
 #include <wlioctl.h>
 #include <bcmwpa.h>

@@ -25,7 +25,6 @@
 #include <bcmendian.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
-#include <proto/802.11e.h>
 #include <proto/wpa.h>
 #include <hndsoc.h>
 #include <sbchipc.h>
