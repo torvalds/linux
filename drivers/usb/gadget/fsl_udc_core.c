@@ -1162,24 +1162,25 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 			/* stop the controller and turn off the clocks */
 			dr_controller_stop(udc);
 			dr_controller_reset(udc);
+			spin_unlock_irqrestore(&udc->lock, flags);
 			fsl_udc_clk_suspend();
 			udc->vbus_active = 0;
 			udc->usb_state = USB_STATE_DEFAULT;
 		} else if (!udc->vbus_active && is_active) {
+			spin_unlock_irqrestore(&udc->lock, flags);
 			fsl_udc_clk_resume();
 			/* setup the controller in the device mode */
 			dr_controller_setup(udc);
 			/* setup EP0 for setup packet */
 			ep0_setup(udc);
-			/* start the controller */
-			dr_controller_run(udc);
 			/* initialize the USB and EP states */
 			udc->usb_state = USB_STATE_ATTACHED;
 			udc->ep0_state = WAIT_FOR_SETUP;
 			udc->ep0_dir = 0;
 			udc->vbus_active = 1;
+			/* start the controller */
+			dr_controller_run(udc);
 		}
-		spin_unlock_irqrestore(&udc->lock, flags);
 		return 0;
 	}
 
