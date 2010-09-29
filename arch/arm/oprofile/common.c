@@ -89,28 +89,28 @@ static void op_perf_setup(void)
 
 static int op_create_counter(int cpu, int event)
 {
-	int ret = 0;
 	struct perf_event *pevent;
 
-	if (!counter_config[event].enabled || (perf_events[cpu][event] != NULL))
-		return ret;
+	if (!counter_config[event].enabled || perf_events[cpu][event])
+		return 0;
 
 	pevent = perf_event_create_kernel_counter(&counter_config[event].attr,
 						  cpu, -1,
 						  op_overflow_handler);
 
-	if (IS_ERR(pevent)) {
-		ret = PTR_ERR(pevent);
-	} else if (pevent->state != PERF_EVENT_STATE_ACTIVE) {
+	if (IS_ERR(pevent))
+		return PTR_ERR(pevent);
+
+	if (pevent->state != PERF_EVENT_STATE_ACTIVE) {
 		perf_event_release_kernel(pevent);
 		pr_warning("oprofile: failed to enable event %d "
 				"on CPU %d\n", event, cpu);
-		ret = -EBUSY;
-	} else {
-		perf_events[cpu][event] = pevent;
+		return -EBUSY;
 	}
 
-	return ret;
+	perf_events[cpu][event] = pevent;
+
+	return 0;
 }
 
 static void op_destroy_counter(int cpu, int event)
