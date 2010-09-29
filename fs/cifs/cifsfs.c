@@ -369,8 +369,12 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	srcaddr = (struct sockaddr *)&tcon->ses->server->srcaddr;
 
 	seq_printf(s, ",unc=%s", tcon->treeName);
-	if (tcon->ses->userName)
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
+		seq_printf(s, ",multiuser");
+	else if (tcon->ses->userName)
 		seq_printf(s, ",username=%s", tcon->ses->userName);
+
 	if (tcon->ses->domainName)
 		seq_printf(s, ",domain=%s", tcon->ses->domainName);
 
