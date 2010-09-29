@@ -429,7 +429,7 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-void ir_raw_decode_timer_end(unsigned long data)
+static void ir_raw_decode_timer_end(unsigned long data)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev *)data;
 	struct card_ir *ir = dev->remote;
@@ -550,7 +550,7 @@ static void saa7134_ir_close(void *priv)
 }
 
 
-int saa7134_ir_change_protocol(void *priv, u64 ir_type)
+static int saa7134_ir_change_protocol(void *priv, u64 ir_type)
 {
 	struct saa7134_dev *dev = priv;
 	struct card_ir *ir = dev->remote;
