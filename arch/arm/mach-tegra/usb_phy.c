@@ -591,6 +591,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	if (!phy->config) {
 		if (instance == 1) {
 			pr_err("%s: ulpi phy configuration missing", __func__);
+			err = -EINVAL;
 			goto err0;
 		} else {
 			phy->config = &utmip_default[instance];
@@ -622,6 +623,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		phy->clk = clk_get_sys(NULL, ulpi_config->clk);
 		if (IS_ERR(phy->clk)) {
 			pr_err("%s: can't get ulpi clock\n", __func__);
+			err = -ENXIO;
 			goto err1;
 		}
 		tegra_gpio_enable(ulpi_config->reset_gpio);
