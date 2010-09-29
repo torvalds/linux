@@ -658,13 +658,18 @@ static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp)
 	return conn;
 }
 
+static void __nfsd4_hash_conn(struct nfsd4_conn *conn, struct nfsd4_session *ses)
+{
+	conn->cn_session = ses;
+	list_add(&conn->cn_persession, &ses->se_conns);
+}
+
 static void nfsd4_hash_conn(struct nfsd4_conn *conn, struct nfsd4_session *ses)
 {
 	struct nfs4_client *clp = ses->se_client;
 
 	spin_lock(&clp->cl_lock);
-	conn->cn_session = ses;
-	list_add(&conn->cn_persession, &ses->se_conns);
+	__nfsd4_hash_conn(conn, ses);
 	spin_unlock(&clp->cl_lock);
 }
 
@@ -1612,6 +1617,44 @@ out:
 	return status;
 }
 
+static struct nfsd4_conn *__nfsd4_find_conn(struct svc_rqst *r, struct nfsd4_session *s)
+{
+	struct nfsd4_conn *c;
+
+	list_for_each_entry(c, &s->se_conns, cn_persession) {
+		if (c->cn_xprt == r->rq_xprt) {
+			return c;
+		}
+	}
+	return NULL;
+}
+
+static void nfsd4_sequence_check_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+{
+	struct nfs4_client *clp = ses->se_client;
+	struct nfsd4_conn *c, *new = NULL;
+
+	spin_lock(&clp->cl_lock);
+	c = __nfsd4_find_conn(rqstp, ses);
+	spin_unlock(&clp->cl_lock);
+	if (c)
+		return;
+
+	new = alloc_conn(rqstp);
+
+	spin_lock(&clp->cl_lock);
+	c = __nfsd4_find_conn(rqstp, ses);
+	if (c) {
+		spin_unlock(&clp->cl_lock);
+		free_conn(new);
+		return;
+	}
+	__nfsd4_hash_conn(new, ses);
+	spin_unlock(&clp->cl_lock);
+	nfsd4_register_conn(new);
+	return;
+}
+
 __be32
 nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_compound_state *cstate,
@@ -1655,6 +1698,8 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	}
 	if (status)
 		goto out;
+
+	nfsd4_sequence_check_conn(rqstp, session);
 
 	/* Success! bump slot seqid */
 	slot->sl_inuse = true;
