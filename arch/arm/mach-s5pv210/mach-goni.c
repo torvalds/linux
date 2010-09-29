@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/mfd/max8998.h>
+#include <linux/regulator/fixed.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
@@ -137,6 +138,10 @@ static struct samsung_keypad_platdata keypad_data __initdata = {
 /* MAX8998 regulators */
 #if defined(CONFIG_REGULATOR_MAX8998) || defined(CONFIG_REGULATOR_MAX8998_MODULE)
 
+static struct regulator_consumer_supply goni_ldo5_consumers[] = {
+	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.0"),
+};
+
 static struct regulator_init_data goni_ldo2_data = {
 	.constraints	= {
 		.name		= "VALIVE_1.1V",
@@ -176,6 +181,8 @@ static struct regulator_init_data goni_ldo5_data = {
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(goni_ldo5_consumers),
+	.consumer_supplies = goni_ldo5_consumers,
 };
 
 static struct regulator_init_data goni_ldo6_data = {
@@ -467,11 +474,37 @@ static struct s3c_sdhci_platdata goni_hsmmc2_data __initdata = {
 	.ext_cd_gpio_invert	= 1,
 };
 
+static struct regulator_consumer_supply mmc2_supplies[] = {
+	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.2"),
+};
+
+static struct regulator_init_data mmc2_fixed_voltage_init_data = {
+	.constraints		= {
+		.name		= "V_TF_2.8V",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(mmc2_supplies),
+	.consumer_supplies	= mmc2_supplies,
+};
+
+static struct fixed_voltage_config mmc2_fixed_voltage_config = {
+	.supply_name		= "EXT_FLASH_EN",
+	.microvolts		= 2800000,
+	.gpio			= GONI_EXT_FLASH_EN,
+	.enable_high		= true,
+	.init_data		= &mmc2_fixed_voltage_init_data,
+};
+
+static struct platform_device mmc2_fixed_voltage = {
+	.name		= "reg-fixed-voltage",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &mmc2_fixed_voltage_config,
+	},
+};
+
 static void goni_setup_sdhci(void)
 {
-	gpio_request(GONI_EXT_FLASH_EN, "FLASH_EN");
-	gpio_direction_output(GONI_EXT_FLASH_EN, 1);
-
 	s3c_sdhci0_set_platdata(&goni_hsmmc0_data);
 	s3c_sdhci1_set_platdata(&goni_hsmmc1_data);
 	s3c_sdhci2_set_platdata(&goni_hsmmc2_data);
@@ -481,6 +514,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
 	&s5p_device_onenand,
 	&goni_i2c_gpio_pmic,
+	&mmc2_fixed_voltage,
 	&goni_device_gpiokeys,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
