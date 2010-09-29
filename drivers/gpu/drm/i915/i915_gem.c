@@ -109,6 +109,7 @@ static int i915_mutex_lock_interruptible(struct drm_device *dev)
 		return -EAGAIN;
 	}
 
+	WARN_ON(i915_verify_lists(dev));
 	return 0;
 }
 
@@ -1612,7 +1613,6 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
-	i915_verify_inactive(dev, __FILE__, __LINE__);
 	if (obj_priv->pin_count != 0)
 		list_move_tail(&obj_priv->list, &dev_priv->mm.pinned_list);
 	else
@@ -1626,7 +1626,7 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 		obj_priv->active = 0;
 		drm_gem_object_unreference(obj);
 	}
-	i915_verify_inactive(dev, __FILE__, __LINE__);
+	WARN_ON(i915_verify_lists(dev));
 }
 
 static void
@@ -1821,6 +1821,8 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 	    list_empty(&ring->request_list))
 		return;
 
+	WARN_ON(i915_verify_lists(dev));
+
 	seqno = ring->get_seqno(dev, ring);
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
@@ -1865,6 +1867,8 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 		ring->user_irq_put(dev, ring);
 		dev_priv->trace_irq_seqno = 0;
 	}
+
+	WARN_ON(i915_verify_lists(dev));
 }
 
 void
@@ -3690,8 +3694,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto pre_mutex_err;
 
-	i915_verify_inactive(dev, __FILE__, __LINE__);
-
 	if (dev_priv->mm.suspended) {
 		mutex_unlock(&dev->struct_mutex);
 		ret = -EBUSY;
@@ -3811,8 +3813,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 	}
 
-	i915_verify_inactive(dev, __FILE__, __LINE__);
-
 	/* Zero the global flush/invalidate flags. These
 	 * will be modified as new domains are computed
 	 * for each object
@@ -3827,8 +3827,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		/* Compute new gpu domains and update invalidate/flush */
 		i915_gem_object_set_to_gpu_domain(obj);
 	}
-
-	i915_verify_inactive(dev, __FILE__, __LINE__);
 
 	if (dev->invalidate_domains | dev->flush_domains) {
 #if WATCH_EXEC
@@ -3860,8 +3858,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 						    old_write_domain);
 	}
 
-	i915_verify_inactive(dev, __FILE__, __LINE__);
-
 #if WATCH_COHERENCY
 	for (i = 0; i < args->buffer_count; i++) {
 		i915_gem_object_check_coherency(object_list[i],
@@ -3890,8 +3886,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 */
 	i915_retire_commands(dev, ring);
 
-	i915_verify_inactive(dev, __FILE__, __LINE__);
-
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
 		obj_priv = to_intel_bo(obj);
@@ -3901,8 +3895,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	i915_add_request(dev, file_priv, request, ring);
 	request = NULL;
-
-	i915_verify_inactive(dev, __FILE__, __LINE__);
 
 err:
 	for (i = 0; i < pinned; i++)
@@ -4094,8 +4086,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	int ret;
 
 	BUG_ON(obj_priv->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
-
-	i915_verify_inactive(dev, __FILE__, __LINE__);
+	WARN_ON(i915_verify_lists(dev));
 
 	if (obj_priv->gtt_space != NULL) {
 		if (alignment == 0)
@@ -4129,8 +4120,8 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 			list_move_tail(&obj_priv->list,
 				       &dev_priv->mm.pinned_list);
 	}
-	i915_verify_inactive(dev, __FILE__, __LINE__);
 
+	WARN_ON(i915_verify_lists(dev));
 	return 0;
 }
 
@@ -4141,7 +4132,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
-	i915_verify_inactive(dev, __FILE__, __LINE__);
+	WARN_ON(i915_verify_lists(dev));
 	obj_priv->pin_count--;
 	BUG_ON(obj_priv->pin_count < 0);
 	BUG_ON(obj_priv->gtt_space == NULL);
@@ -4157,7 +4148,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 		atomic_dec(&dev->pin_count);
 		atomic_sub(obj->size, &dev->pin_memory);
 	}
-	i915_verify_inactive(dev, __FILE__, __LINE__);
+	WARN_ON(i915_verify_lists(dev));
 }
 
 int

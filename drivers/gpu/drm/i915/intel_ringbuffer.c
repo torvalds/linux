@@ -579,6 +579,8 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	int ret;
 
 	ring->dev = dev;
+	INIT_LIST_HEAD(&ring->active_list);
+	INIT_LIST_HEAD(&ring->request_list);
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(dev, ring);
@@ -627,8 +629,6 @@ int intel_init_ring_buffer(struct drm_device *dev,
 		if (ring->space < 0)
 			ring->space += ring->size;
 	}
-	INIT_LIST_HEAD(&ring->active_list);
-	INIT_LIST_HEAD(&ring->request_list);
 	return ret;
 
 err_unmap:

@@ -30,24 +30,107 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-#if WATCH_INACTIVE
-void
-i915_verify_inactive(struct drm_device *dev, char *file, int line)
+#if WATCH_LISTS
+int
+i915_verify_lists(struct drm_device *dev)
 {
+	static int warned;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
+	int err = 0;
 
-	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		obj = &obj_priv->base;
-		if (obj_priv->pin_count || obj_priv->active ||
-		    (obj->write_domain & ~(I915_GEM_DOMAIN_CPU |
-					   I915_GEM_DOMAIN_GTT)))
-			DRM_ERROR("inactive %p (p %d a %d w %x)  %s:%d\n",
+	if (warned)
+		return 0;
+
+	list_for_each_entry(obj, &dev_priv->render_ring.active_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed render active %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->active ||
+			   (obj->base.read_domains & I915_GEM_GPU_DOMAINS) == 0) {
+			DRM_ERROR("invalid render active %p (a %d r %x)\n",
 				  obj,
-				  obj_priv->pin_count, obj_priv->active,
-				  obj->write_domain, file, line);
+				  obj->active,
+				  obj->base.read_domains);
+			err++;
+		} else if (obj->base.write_domain && list_empty(&obj->gpu_write_list)) {
+			DRM_ERROR("invalid render active %p (w %x, gwl %d)\n",
+				  obj,
+				  obj->base.write_domain,
+				  !list_empty(&obj->gpu_write_list));
+			err++;
+		}
 	}
+
+	list_for_each_entry(obj, &dev_priv->mm.flushing_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed flushing %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS) == 0 ||
+			   list_empty(&obj->gpu_write_list)){
+			DRM_ERROR("invalid flushing %p (a %d w %x gwl %d)\n",
+				  obj,
+				  obj->active,
+				  obj->base.write_domain,
+				  !list_empty(&obj->gpu_write_list));
+			err++;
+		}
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.gpu_write_list, gpu_write_list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed gpu write %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS) == 0) {
+			DRM_ERROR("invalid gpu write %p (a %d w %x)\n",
+				  obj,
+				  obj->active,
+				  obj->base.write_domain);
+			err++;
+		}
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.inactive_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed inactive %p\n", obj);
+			err++;
+			break;
+		} else if (obj->pin_count || obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS)) {
+			DRM_ERROR("invalid inactive %p (p %d a %d w %x)\n",
+				  obj,
+				  obj->pin_count, obj->active,
+				  obj->base.write_domain);
+			err++;
+		}
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.pinned_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed pinned %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->pin_count || obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS)) {
+			DRM_ERROR("invalid pinned %p (p %d a %d w %x)\n",
+				  obj,
+				  obj->pin_count, obj->active,
+				  obj->base.write_domain);
+			err++;
+		}
+	}
+
+	return warned = err;
 }
 #endif /* WATCH_INACTIVE */
 

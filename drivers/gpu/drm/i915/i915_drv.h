@@ -77,7 +77,7 @@ enum plane {
 #define WATCH_COHERENCY	0
 #define WATCH_EXEC	0
 #define WATCH_RELOC	0
-#define WATCH_INACTIVE	0
+#define WATCH_LISTS	0
 #define WATCH_PWRITE	0
 
 #define I915_GEM_PHYS_CURSOR_0 1
@@ -1079,10 +1079,10 @@ bool i915_gem_object_fence_offset_ok(struct drm_gem_object *obj,
 /* i915_gem_debug.c */
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
-#if WATCH_INACTIVE
-void i915_verify_inactive(struct drm_device *dev, char *file, int line);
+#if WATCH_LISTS
+int i915_verify_lists(struct drm_device *dev);
 #else
-#define i915_verify_inactive(dev, file, line)
+#define i915_verify_lists(dev) 0
 #endif
 void i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle);
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
