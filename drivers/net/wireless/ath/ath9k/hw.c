@@ -1239,7 +1239,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
 
-	if (curchan && !ah->chip_fullsleep && ah->caldata)
+	if (curchan && !ah->chip_fullsleep)
 		ath9k_hw_getnf(ah, curchan);
 
 	ah->caldata = caldata;

@@ -342,7 +342,6 @@ struct ath9k_hw_cal_data {
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
-	int16_t rawNoiseFloor;
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;
@@ -356,6 +355,7 @@ struct ath9k_channel {
 	u16 channel;
 	u32 channelFlags;
 	u32 chanmode;
+	s16 noisefloor;
 };
 
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
