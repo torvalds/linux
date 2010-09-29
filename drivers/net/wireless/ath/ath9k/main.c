@@ -459,16 +459,6 @@ void ath_ani_calibrate(unsigned long data)
 						   ah->curchan,
 						   common->rx_chainmask,
 						   longcal);
-
-			if (longcal)
-				common->ani.noise_floor = ath9k_hw_getchan_noise(ah,
-								     ah->curchan);
-
-			ath_print(common, ATH_DBG_ANI,
-				  " calibrate chan %u/%x nf: %d\n",
-				  ah->curchan->channel,
-				  ah->curchan->channelFlags,
-				  common->ani.noise_floor);
 		}
 	}
 

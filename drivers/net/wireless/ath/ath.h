@@ -35,7 +35,6 @@ static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 struct ath_ani {
 	bool caldone;
-	int16_t noise_floor;
 	unsigned int longcal_timer;
 	unsigned int shortcal_timer;
 	unsigned int resetcal_timer;
