@@ -984,6 +984,13 @@ out:
 }
 EXPORT_SYMBOL_GPL(xprt_alloc);
 
+void xprt_free(struct rpc_xprt *xprt)
+{
+	kfree(xprt->slot);
+	kfree(xprt);
+}
+EXPORT_SYMBOL_GPL(xprt_free);
+
 /**
  * xprt_reserve - allocate an RPC request slot
  * @task: RPC task requesting a slot allocation

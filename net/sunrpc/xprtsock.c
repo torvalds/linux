@@ -774,8 +774,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	xs_close(xprt);
 	xs_free_peer_addresses(xprt);
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	module_put(THIS_MODULE);
 }
 
@@ -2362,8 +2361,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ret;
 }
 
@@ -2438,8 +2436,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ret;
 }
 
@@ -2519,8 +2516,7 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ret;
 }
 
