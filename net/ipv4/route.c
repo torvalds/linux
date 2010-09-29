@@ -2358,9 +2358,8 @@ static int __mkroute_output(struct rtable **result,
 	struct rtable *rth;
 	struct in_device *in_dev;
 	u32 tos = RT_FL_TOS(oldflp);
-	int err = 0;
 
-	if (ipv4_is_loopback(fl->fl4_src) && !(dev_out->flags&IFF_LOOPBACK))
+	if (ipv4_is_loopback(fl->fl4_src) && !(dev_out->flags & IFF_LOOPBACK))
 		return -EINVAL;
 
 	if (fl->fl4_dst == htonl(0xFFFFFFFF))
@@ -2373,11 +2372,12 @@ static int __mkroute_output(struct rtable **result,
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	/* get work reference to inet device */
-	in_dev = in_dev_get(dev_out);
-	if (!in_dev)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dev_out);
+	if (!in_dev) {
+		rcu_read_unlock();
 		return -EINVAL;
-
+	}
 	if (res->type == RTN_BROADCAST) {
 		flags |= RTCF_BROADCAST | RTCF_LOCAL;
 		if (res->fi) {
@@ -2385,13 +2385,13 @@ static int __mkroute_output(struct rtable **result,
 			res->fi = NULL;
 		}
 	} else if (res->type == RTN_MULTICAST) {
-		flags |= RTCF_MULTICAST|RTCF_LOCAL;
+		flags |= RTCF_MULTICAST | RTCF_LOCAL;
 		if (!ip_check_mc(in_dev, oldflp->fl4_dst, oldflp->fl4_src,
 				 oldflp->proto))
 			flags &= ~RTCF_LOCAL;
 		/* If multicast route do not exist use
-		   default one, but do not gateway in this case.
-		   Yes, it is hack.
+		 * default one, but do not gateway in this case.
+		 * Yes, it is hack.
 		 */
 		if (res->fi && res->prefixlen < 4) {
 			fib_info_put(res->fi);
@@ -2402,9 +2402,12 @@ static int __mkroute_output(struct rtable **result,
 
 	rth = dst_alloc(&ipv4_dst_ops);
 	if (!rth) {
-		err = -ENOBUFS;
-		goto cleanup;
+		rcu_read_unlock();
+		return -ENOBUFS;
 	}
+	in_dev_hold(in_dev);
+	rcu_read_unlock();
+	rth->idev = in_dev;
 
 	atomic_set(&rth->dst.__refcnt, 1);
 	rth->dst.flags= DST_HOST;
@@ -2425,7 +2428,6 @@ static int __mkroute_output(struct rtable **result,
 	   cache entry */
 	rth->dst.dev	= dev_out;
 	dev_hold(dev_out);
-	rth->idev	= in_dev_get(dev_out);
 	rth->rt_gateway = fl->fl4_dst;
 	rth->rt_spec_dst= fl->fl4_src;
 
@@ -2460,13 +2462,8 @@ static int __mkroute_output(struct rtable **result,
 	rt_set_nexthop(rth, res, 0);
 
 	rth->rt_flags = flags;
-
 	*result = rth;
- cleanup:
-	/* release work reference to inet device */
-	in_dev_put(in_dev);
-
-	return err;
+	return 0;
 }
 
 static int ip_mkroute_output(struct rtable **rp,
