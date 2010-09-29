@@ -1350,10 +1350,11 @@ static int verify_controller_parameters(struct pl022 *pl022,
 			if ((chip_info->duplex !=
 			     SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
 			    && (chip_info->duplex !=
-				SSP_MICROWIRE_CHANNEL_HALF_DUPLEX))
+				SSP_MICROWIRE_CHANNEL_HALF_DUPLEX)) {
 				dev_err(chip_info->dev,
 					"Microwire duplex mode is configured incorrectly\n");
 				return -EINVAL;
+			}
 		} else {
 			if (chip_info->duplex != SSP_MICROWIRE_CHANNEL_FULL_DUPLEX)
 				dev_err(chip_info->dev,
