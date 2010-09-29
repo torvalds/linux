@@ -347,7 +347,7 @@ static void copy_play_buf(struct loopback_pcm *play,
 			  unsigned int bytes)
 {
 	struct snd_pcm_runtime *runtime = play->substream->runtime;
-	char *src = play->substream->runtime->dma_area;
+	char *src = runtime->dma_area;
 	char *dst = capt->substream->runtime->dma_area;
 	unsigned int src_off = play->buf_pos;
 	unsigned int dst_off = capt->buf_pos;
@@ -385,8 +385,10 @@ static void copy_play_buf(struct loopback_pcm *play,
 		dst_off = (dst_off + size) % capt->pcm_buffer_size;
 	}
 
-	if (clear_bytes > 0)
+	if (clear_bytes > 0) {
 		clear_capture_buf(capt, clear_bytes);
+		capt->silent_size = 0;
+	}
 }
 
 #define BYTEPOS_UPDATE_POSONLY	0
