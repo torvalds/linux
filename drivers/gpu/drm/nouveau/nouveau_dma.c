@@ -214,7 +214,7 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 
 		chan->dma.ib_free = get - chan->dma.ib_put;
 		if (chan->dma.ib_free <= 0)
-			chan->dma.ib_free += chan->dma.ib_max + 1;
+			chan->dma.ib_free += chan->dma.ib_max;
 	}
 
 	return 0;
