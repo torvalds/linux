@@ -1446,6 +1446,7 @@ static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
  * On exit the slab lock will have been dropped.
  */
 static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
+	__releases(bitlock)
 {
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 
@@ -1488,6 +1489,7 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
  * Remove the cpu slab
  */
 static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+	__releases(bitlock)
 {
 	struct page *page = c->page;
 	int tail = 1;
