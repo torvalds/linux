@@ -755,6 +755,7 @@ extern char *nouveau_vbios;
 extern int nouveau_ignorelid;
 extern int nouveau_nofbaccel;
 extern int nouveau_noaccel;
+extern int nouveau_force_post;
 extern int nouveau_override_conntype;
 extern char *nouveau_perflvl;
 extern int nouveau_perflvl_wr;

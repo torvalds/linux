@@ -6872,6 +6872,8 @@ nouveau_bios_init(struct drm_device *dev)
 			"running VBIOS init tables.\n");
 		bios->execute = true;
 	}
+	if (nouveau_force_post)
+		bios->execute = true;
 
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)

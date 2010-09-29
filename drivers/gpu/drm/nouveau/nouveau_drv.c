@@ -80,6 +80,10 @@ MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
 int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
 
+MODULE_PARM_DESC(force_post, "Force POST");
+int nouveau_force_post = 0;
+module_param_named(force_post, nouveau_force_post, int, 0400);
+
 MODULE_PARM_DESC(override_conntype, "Ignore DCB connector type");
 int nouveau_override_conntype = 0;
 module_param_named(override_conntype, nouveau_override_conntype, int, 0400);
