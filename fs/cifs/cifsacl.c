@@ -615,7 +615,7 @@ static struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	struct cifsFileInfo *open_file = NULL;
 
 	if (inode)
-		open_file = find_readable_file(CIFS_I(inode));
+		open_file = find_readable_file(CIFS_I(inode), true);
 	if (!open_file)
 		return get_cifs_acl_by_path(cifs_sb, path, pacllen);
 
@@ -685,7 +685,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 
 	cFYI(DBG2, "set ACL for %s from mode 0x%x", path, inode->i_mode);
 
-	open_file = find_readable_file(CIFS_I(inode));
+	open_file = find_readable_file(CIFS_I(inode), true);
 	if (!open_file)
 		return set_cifs_acl_by_path(cifs_sb, path, pnntsd, acllen);
 

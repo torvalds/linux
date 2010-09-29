@@ -963,7 +963,7 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 	/*
 	 * If the file is already open for write, just use that fileid
 	 */
-	open_file = find_writable_file(cifsInode);
+	open_file = find_writable_file(cifsInode, true);
 	if (open_file) {
 		netfid = open_file->netfid;
 		netpid = open_file->pid;
@@ -1813,7 +1813,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	 * writebehind data than the SMB timeout for the SetPathInfo
 	 * request would allow
 	 */
-	open_file = find_writable_file(cifsInode);
+	open_file = find_writable_file(cifsInode, true);
 	if (open_file) {
 		__u16 nfid = open_file->netfid;
 		__u32 npid = open_file->pid;
@@ -1978,7 +1978,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		args->ctime = NO_CHANGE_64;
 
 	args->device = 0;
-	open_file = find_writable_file(cifsInode);
+	open_file = find_writable_file(cifsInode, true);
 	if (open_file) {
 		u16 nfid = open_file->netfid;
 		u32 npid = open_file->pid;

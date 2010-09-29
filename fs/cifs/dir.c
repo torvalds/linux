@@ -144,6 +144,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle, struct file *file,
 
 	pCifsFile->netfid = fileHandle;
 	pCifsFile->pid = current->tgid;
+	pCifsFile->uid = current_fsuid();
 	pCifsFile->pInode = igrab(newinode);
 	pCifsFile->mnt = mnt;
 	pCifsFile->pfile = file;

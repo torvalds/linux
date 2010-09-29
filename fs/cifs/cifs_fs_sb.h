@@ -37,6 +37,7 @@
 #define CIFS_MOUNT_NOSSYNC      0x4000 /* don't do slow SMBflush on every sync*/
 #define CIFS_MOUNT_FSCACHE	0x8000 /* local caching enabled */
 #define CIFS_MOUNT_MF_SYMLINKS	0x10000 /* Minshall+French Symlinks enabled */
+#define CIFS_MOUNT_MULTIUSER	0x20000 /* multiuser mount */
 
 struct cifs_sb_info {
 	struct cifsTconInfo *ptcon;	/* primary mount */
@@ -48,7 +49,7 @@ struct cifs_sb_info {
 	gid_t	mnt_gid;
 	mode_t	mnt_file_mode;
 	mode_t	mnt_dir_mode;
-	int     mnt_cifs_flags;
+	unsigned int mnt_cifs_flags;
 	int	prepathlen;
 	char   *prepath; /* relative path under the share to mount to */
 #ifdef CONFIG_CIFS_DFS_UPCALL
