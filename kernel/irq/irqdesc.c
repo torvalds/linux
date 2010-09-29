@@ -197,8 +197,6 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node)
 		desc = alloc_desc(start + i, node);
 		if (!desc)
 			goto err;
-		/* temporary until I fixed x86 madness */
-		arch_init_chip_data(desc, node);
 		raw_spin_lock_irqsave(&sparse_irq_lock, flags);
 		irq_insert_desc(start + i, desc);
 		raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);

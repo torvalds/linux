@@ -896,9 +896,4 @@ int __init __weak arch_early_irq_init(void)
 {
 	return 0;
 }
-
-int __weak arch_init_chip_data(struct irq_desc *desc, int node)
-{
-	return 0;
-}
 #endif

@@ -641,11 +641,8 @@ static inline void init_irq_proc(void)
 struct seq_file;
 int show_interrupts(struct seq_file *p, void *v);
 
-struct irq_desc;
-
 extern int early_irq_init(void);
 extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
-extern int arch_init_chip_data(struct irq_desc *desc, int node);
 
 #endif
