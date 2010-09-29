@@ -32,28 +32,35 @@ extern volatile struct adc_point gADPoint;
 #ifdef TS_PRESSURE
 extern volatile int gZvalue[3];
 #endif
-#ifdef CONFIG_TP_1024x600
-int screen_x[5] = {50, 974,  50, 974, 512};
-int screen_y[5] = {50,  50, 550, 550, 300};
+
+
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+	int screen_x[5] = { 50, 270,  50, 270, 160}; 
+	int screen_y[5] = { 40,  40, 440, 440, 240}; 
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI) 
+  int screen_x[5] = { 50, 750,  50, 750, 400};
+  int screen_y[5] = { 40,  40, 440, 440, 240};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_1024X600_CBN_SPI) 
+  int screen_x[5] = {50, 974,  50, 974, 512};
+  int screen_y[5] = {50,  50, 550, 550, 300};
 #endif
 
-#ifdef CONFIG_TP_800x480
-int screen_x[5] = { 50, 750,  50, 750, 400};
-int screen_y[5] = { 40,  40, 440, 440, 240};
+
+
+
+#if defined(CONFIG_MACH_RK2818INFO_IT50) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+	int uncali_x_default[5] = { 3735,  301, 3754,  290, 1993 };
+	int uncali_y_default[5] = {  3442,  3497, 413, 459, 1880 };
+#elif defined(CONFIG_MACH_RK2818INFO) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI) 
+	int uncali_x_default[5] = { 438,  565, 3507,  3631, 2105 };
+	int uncali_y_default[5] = {  3756,  489, 3792, 534, 2159 };
+#elif (defined(CONFIG_MACH_RAHO) || defined(CONFIG_MACH_RK2818INFO))&& defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+	int uncali_x_default[5] = { 812,  3341, 851,  3371, 2183 };
+	int uncali_y_default[5] = {  442,  435, 3193, 3195, 2004 };
 #endif
 
 int uncali_x[5] = { 0 };
 int uncali_y[5] = { 0 };
-
-#ifdef CONFIG_MACH_RK2818INFO_IT50
-int uncali_x_default[5] = { 3735,  301, 3754,  290, 1993 };
-int uncali_y_default[5] = {  3442,  3497, 413, 459, 1880 };
-#endif
-
-#ifdef CONFIG_MACH_RK2818INFO 
-int uncali_x_default[5] = { 438,  565, 3507,  3631, 2105 };
-int uncali_y_default[5] = {  3756,  489, 3792, 534, 2159 };
-#endif
 
 static ssize_t touch_mode_show(struct class *cls, char *_buf)
 {

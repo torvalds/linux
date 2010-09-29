@@ -201,22 +201,6 @@ struct dfr_req {
 	struct spi_transfer	xfer[4];
 };
 
-static struct xpt2046_platform_data xpt2046_info = {
-	.model			= 2046,
-	.keep_vref_on 	= 1,
-	.swap_xy		= 0,
-	.x_min			= 0,
-	.x_max			= 320,
-	.y_min			= 0,
-	.y_max			= 480,
-	.debounce_max		= 7,
-	.debounce_rep		= DEBOUNCE_REPTIME,
-	.debounce_tol		= 20,
-	.gpio_pendown		= RK2818_PIN_PE1,//RK2818_PIN_PE3, //modify by zhao
-	.penirq_recheck_delay_usecs = 1,
-
-};
-
 //add by zhao
 #define LEN_TO_PIX(x)	(unsigned int)( 320 * (x) / 47 )
 #define KEY1_X			6.3
