@@ -511,7 +511,7 @@ static int apanic(struct notifier_block *this, unsigned long event,
 		printk(KERN_EMERG "Crash partition in use!\n");
 		goto out;
 	}
-	console_offset = ctx->mtd->writesize;
+	console_offset = ctx->mtd->erasesize;
 
 	/*
 	 * Write out the console
