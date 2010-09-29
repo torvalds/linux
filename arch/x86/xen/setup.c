@@ -52,20 +52,19 @@ phys_addr_t xen_extra_mem_start, xen_extra_mem_size;
 static __init void xen_add_extra_mem(unsigned long pages)
 {
 	u64 size = (u64)pages * PAGE_SIZE;
+	u64 extra_start = xen_extra_mem_start + xen_extra_mem_size;
 
 	if (!pages)
 		return;
 
-	e820_add_region(xen_extra_mem_start + xen_extra_mem_size, size, E820_RAM);
+	e820_add_region(extra_start, size, E820_RAM);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
-	reserve_early(xen_extra_mem_start + xen_extra_mem_size,
-		      xen_extra_mem_start + xen_extra_mem_size + size,
-		      "XEN EXTRA");
+	reserve_early(extra_start, extra_start + size, "XEN EXTRA");
 
 	xen_extra_mem_size += size;
 
-	xen_max_p2m_pfn = PFN_DOWN(xen_extra_mem_start + xen_extra_mem_size);
+	xen_max_p2m_pfn = PFN_DOWN(extra_start + size);
 }
 
 static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
@@ -175,15 +174,21 @@ char * __init xen_memory_setup(void)
 		unsigned long long end = map[i].addr + map[i].size;
 
 		if (map[i].type == E820_RAM) {
-			if (end > mem_end) {
+			if (map[i].addr < mem_end && end > mem_end) {
 				/* Truncate region to max_mem. */
-				map[i].size -= end - mem_end;
+				u64 delta = end - mem_end;
 
-				extra_pages += PFN_DOWN(end - mem_end);
+				map[i].size -= delta;
+				extra_pages += PFN_DOWN(delta);
+
+				end = mem_end;
 			}
-		} else if (map[i].type != E820_RAM)
+		}
+
+		if (end > xen_extra_mem_start)
 			xen_extra_mem_start = end;
 
+		/* If region is non-RAM or below mem_end, add what remains */
 		if ((map[i].type != E820_RAM || map[i].addr < mem_end) &&
 		    map[i].size > 0)
 			e820_add_region(map[i].addr, map[i].size, map[i].type);
