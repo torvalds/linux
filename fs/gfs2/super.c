@@ -85,6 +85,7 @@ static const match_table_t tokens = {
 	{Opt_locktable, "locktable=%s"},
 	{Opt_hostdata, "hostdata=%s"},
 	{Opt_spectator, "spectator"},
+	{Opt_spectator, "norecovery"},
 	{Opt_ignore_local_fs, "ignore_local_fs"},
 	{Opt_localflocks, "localflocks"},
 	{Opt_localcaching, "localcaching"},
