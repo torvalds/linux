@@ -42,9 +42,15 @@
 /* Define delays in microsec for NAND device operations */
 #define TROP_US_DELAY   2000
 
-static struct mutex  rknand_mutex;
-//static  spinlock_t	rknand_lock;
 
+#ifdef CONFIG_DM9000_USE_NAND_CONTROL
+static DEFINE_MUTEX(rknand_mutex);
+#define RKNAND_LOCK()   do { int panic = in_interrupt() | in_atomic(); if (!panic) mutex_lock(&rknand_mutex); } while (0)
+#define RKNAND_UNLOCK() do { int panic = in_interrupt() | in_atomic(); if (!panic) mutex_unlock(&rknand_mutex); } while (0)
+#else
+#define RKNAND_LOCK()   do {} while (0)
+#define RKNAND_UNLOCK() do {} while (0)
+#endif
 
 struct rk2818_nand_mtd {
 	struct mtd_info		mtd;
@@ -213,7 +219,7 @@ static void rk2818_nand_read_buf(struct mtd_info *mtd, u_char* const buf, int le
 	pNANDC pRK28NC=  (pNANDC)(master->regs);
 	uint32_t  i, chipnr;
 	 
-       mutex_lock(&rknand_mutex);
+       RKNAND_LOCK();
 
        chipnr = master->cs ;
 	   
@@ -246,7 +252,7 @@ static void rk2818_nand_read_buf(struct mtd_info *mtd, u_char* const buf, int le
 	
 	rk2818_nand_select_chip(mtd,-1);
 
-	mutex_unlock(&rknand_mutex);
+	RKNAND_UNLOCK();
 
 	
 	return;	
@@ -262,7 +268,7 @@ static void rk2818_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int l
 	uint32_t  i = 0, chipnr;
 	   
     	 
-   	 mutex_lock(&rknand_mutex);
+   	 RKNAND_LOCK();
 
 	 chipnr = master->cs ;
 
@@ -283,7 +289,7 @@ static void rk2818_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int l
 	  
        rk2818_nand_select_chip(mtd,-1);
 	  
-	  mutex_unlock(&rknand_mutex);
+	  RKNAND_UNLOCK();
 
 
 }
@@ -529,7 +535,7 @@ int rk2818_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *e
 	int i,chipnr;
 
 	   
-	mutex_lock(&rknand_mutex);
+	RKNAND_LOCK();
 
 	chipnr = master->cs ;
 	
@@ -553,7 +559,7 @@ int rk2818_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *e
 		
 	rk2818_nand_select_chip(mtd,-1);
 
-	mutex_unlock(&rknand_mutex);
+	RKNAND_UNLOCK();
 	
     return 0;
 	
@@ -566,7 +572,7 @@ void  rk2818_nand_write_page(struct mtd_info *mtd,struct nand_chip *chip,const u
 	pNANDC pRK28NC=  (pNANDC)(master->regs);
        uint32_t  i = 0, chipnr;
 	   
-	mutex_lock(&rknand_mutex);
+	RKNAND_LOCK();
 
        chipnr = master->cs ;
 	   
@@ -594,7 +600,7 @@ void  rk2818_nand_write_page(struct mtd_info *mtd,struct nand_chip *chip,const u
 	  
 	 rk2818_nand_select_chip(mtd,-1);
 
-     mutex_unlock(&rknand_mutex);
+     RKNAND_UNLOCK();
 	
     return;
 	  
@@ -613,7 +619,7 @@ int rk2818_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page,
 		sndcmd = 0;
 	}
 
-    	mutex_lock(&rknand_mutex);
+    	RKNAND_LOCK();
 
 	chipnr = master->cs ;
 
@@ -640,7 +646,7 @@ int rk2818_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page,
 	   
  	 rk2818_nand_select_chip(mtd,-1);
 
-	 mutex_unlock(&rknand_mutex);
+	 RKNAND_UNLOCK();
 
 
 	return sndcmd;
@@ -655,7 +661,7 @@ int	rk2818_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint
 	int i,chipnr;
 
 	
-    mutex_lock(&rknand_mutex);
+    RKNAND_LOCK();
 
 	chipnr = master->cs ;
 	
@@ -680,7 +686,7 @@ int	rk2818_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint
 
 	 
 	 rk2818_nand_select_chip(mtd,-1);
-	 mutex_unlock(&rknand_mutex);
+	 RKNAND_UNLOCK();
 
 	 
     return 0;
@@ -724,11 +730,11 @@ static int rk2818_nand_setrate(struct rk2818_nand_mtd *info)
 	csrw = timingcfg/4;
 	rwcs = (timingcfg/4 >=1)?(timingcfg/4):1;
 
-	mutex_lock(&rknand_mutex);
+	RKNAND_LOCK();
 
 	pRK28NC ->FMWAIT |=  (rwcs<<FMW_RWCS_OFFSET)|(rwpw<<FMW_RWPW_OFFSET)|(csrw<<FMW_CSRW_OFFSET);
 
-	mutex_unlock(&rknand_mutex);
+	RKNAND_UNLOCK();
 
 
 	return 0;
@@ -854,7 +860,6 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 	}
 
 
-       mutex_init(&rknand_mutex);
 
 	master->clk = clk_get(NULL, "nandc");
 
@@ -1045,7 +1050,7 @@ static void __exit rk2818_nand_exit(void)
 	platform_driver_unregister(&rk2818_nand_driver);
 }
 
-
+#ifdef CONFIG_DM9000_USE_NAND_CONTROL
 // nandc dma cs mutex for dm9000 interface
 void rk2818_nand_status_mutex_lock(void)
 {
@@ -1072,6 +1077,7 @@ void rk2818_nand_status_mutex_unlock(void)
      mutex_unlock(&rknand_mutex);
      return;
 }
+#endif
 
 module_init(rk2818_nand_init);
 module_exit(rk2818_nand_exit);
