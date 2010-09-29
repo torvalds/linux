@@ -397,5 +397,6 @@ int musb_platform_exit(struct musb *musb)
 
 	gpio_free(musb->config->gpio_vrsel);
 
+	otg_put_transceiver(musb->xceiv);
 	return 0;
 }
