@@ -586,6 +586,11 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 			       phba->cfg_link_speed);
 		mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq,
 						     phba->fc_ratov * 2);
+		if ((mbxstatus == MBX_SUCCESS) &&
+		    (pmboxq->u.mb.mbxStatus == MBXERR_SEC_NO_PERMISSION))
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+					"2859 SLI authentication is required "
+					"for INIT_LINK but has not done yet\n");
 	}
 
 	lpfc_set_loopback_flag(phba);
@@ -3781,6 +3786,11 @@ sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 		case MBX_WRITE_WWN:
 		case MBX_PORT_CAPABILITIES:
 		case MBX_PORT_IOV_CONTROL:
+			break;
+		case MBX_SECURITY_MGMT:
+		case MBX_AUTH_PORT:
+			if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
+				return -EPERM;
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:

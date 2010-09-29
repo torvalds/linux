@@ -1076,21 +1076,16 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		} else {
 			/*
 			* If heart beat timeout called with hb_outstanding set
-			* we need to take the HBA offline.
+			* we need to give the hb mailbox cmd a chance to
+			* complete or TMO.
 			*/
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0459 Adapter heartbeat failure, "
-					"taking this port offline.\n");
-
-			spin_lock_irq(&phba->hbalock);
-			psli->sli_flag &= ~LPFC_SLI_ACTIVE;
-			spin_unlock_irq(&phba->hbalock);
-
-			lpfc_offline_prep(phba);
-			lpfc_offline(phba);
-			lpfc_unblock_mgmt_io(phba);
-			phba->link_state = LPFC_HBA_ERROR;
-			lpfc_hba_down_post(phba);
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"0459 Adapter heartbeat still out"
+					"standing:last compl time was %d ms.\n",
+					jiffies_to_msecs(jiffies
+						 - phba->last_completion_time));
+			mod_timer(&phba->hb_tmofunc,
+				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
 		}
 	}
 }
@@ -1277,13 +1272,21 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 	if (phba->hba_flag & DEFER_ERATT)
 		lpfc_handle_deferred_eratt(phba);
 
-	if (phba->work_hs & HS_FFER6) {
-		/* Re-establishing Link */
-		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
-				"1301 Re-establishing Link "
-				"Data: x%x x%x x%x\n",
-				phba->work_hs,
-				phba->work_status[0], phba->work_status[1]);
+	if ((phba->work_hs & HS_FFER6) || (phba->work_hs & HS_FFER8)) {
+		if (phba->work_hs & HS_FFER6)
+			/* Re-establishing Link */
+			lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+					"1301 Re-establishing Link "
+					"Data: x%x x%x x%x\n",
+					phba->work_hs, phba->work_status[0],
+					phba->work_status[1]);
+		if (phba->work_hs & HS_FFER8)
+			/* Device Zeroization */
+			lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+					"2861 Host Authentication device "
+					"zeroization Data:x%x x%x x%x\n",
+					phba->work_hs, phba->work_status[0],
+					phba->work_status[1]);
 
 		spin_lock_irq(&phba->hbalock);
 		psli->sli_flag &= ~LPFC_SLI_ACTIVE;
