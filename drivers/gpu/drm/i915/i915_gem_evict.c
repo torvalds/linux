@@ -190,9 +190,6 @@ found:
 	/* Unbinding will emit any required flushes */
 	list_for_each_entry_safe(obj_priv, tmp_obj_priv,
 				 &eviction_list, evict_list) {
-#if WATCH_LRU
-		DRM_INFO("%s: evicting %p\n", __func__, &obj_priv->base);
-#endif
 		ret = i915_gem_object_unbind(&obj_priv->base);
 		if (ret)
 			return ret;

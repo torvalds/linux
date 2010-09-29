@@ -77,7 +77,6 @@ enum plane {
 #define WATCH_COHERENCY	0
 #define WATCH_BUF	0
 #define WATCH_EXEC	0
-#define WATCH_LRU	0
 #define WATCH_RELOC	0
 #define WATCH_INACTIVE	0
 #define WATCH_PWRITE	0
@@ -1089,7 +1088,6 @@ void i915_verify_inactive(struct drm_device *dev, char *file, int line);
 void i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle);
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
-void i915_dump_lru(struct drm_device *dev, const char *where);
 
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);

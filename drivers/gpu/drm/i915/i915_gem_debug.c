@@ -97,41 +97,6 @@ i915_gem_dump_object(struct drm_gem_object *obj, int len,
 }
 #endif
 
-#if WATCH_LRU
-void
-i915_dump_lru(struct drm_device *dev, const char *where)
-{
-	drm_i915_private_t		*dev_priv = dev->dev_private;
-	struct drm_i915_gem_object	*obj_priv;
-
-	DRM_INFO("active list %s {\n", where);
-	spin_lock(&dev_priv->mm.active_list_lock);
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list,
-			    list)
-	{
-		DRM_INFO("    %p: %08x\n", obj_priv,
-			 obj_priv->last_rendering_seqno);
-	}
-	spin_unlock(&dev_priv->mm.active_list_lock);
-	DRM_INFO("}\n");
-	DRM_INFO("flushing list %s {\n", where);
-	list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list,
-			    list)
-	{
-		DRM_INFO("    %p: %08x\n", obj_priv,
-			 obj_priv->last_rendering_seqno);
-	}
-	DRM_INFO("}\n");
-	DRM_INFO("inactive %s {\n", where);
-	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		DRM_INFO("    %p: %08x\n", obj_priv,
-			 obj_priv->last_rendering_seqno);
-	}
-	DRM_INFO("}\n");
-}
-#endif
-
-
 #if WATCH_COHERENCY
 void
 i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)

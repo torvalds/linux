@@ -1865,12 +1865,6 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 			break;
 
 		obj = &obj_priv->base;
-
-#if WATCH_LRU
-		DRM_INFO("%s: retire %d moves to inactive list %p\n",
-			 __func__, request->seqno, obj);
-#endif
-
 		if (obj->write_domain != 0)
 			i915_gem_object_move_to_flushing(obj);
 		else
@@ -2646,9 +2640,6 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
-#if WATCH_LRU
-		DRM_INFO("%s: GTT full, evicting something\n", __func__);
-#endif
 		ret = i915_gem_evict_something(dev, obj->size, alignment);
 		if (ret)
 			return ret;
@@ -3950,17 +3941,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		obj_priv = to_intel_bo(obj);
 
 		i915_gem_object_move_to_active(obj, ring);
-#if WATCH_LRU
-		DRM_INFO("%s: move to exec list %p\n", __func__, obj);
-#endif
 	}
 
 	i915_add_request(dev, file_priv, request, ring);
 	request = NULL;
-
-#if WATCH_LRU
-	i915_dump_lru(dev, __func__);
-#endif
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
