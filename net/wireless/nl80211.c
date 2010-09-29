@@ -3489,6 +3489,8 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 pid, u32 seq,
 	if (survey->filled & SURVEY_INFO_NOISE_DBM)
 		NLA_PUT_U8(msg, NL80211_SURVEY_INFO_NOISE,
 			    survey->noise);
+	if (survey->filled & SURVEY_INFO_IN_USE)
+		NLA_PUT_FLAG(msg, NL80211_SURVEY_INFO_IN_USE);
 
 	nla_nest_end(msg, infoattr);
 

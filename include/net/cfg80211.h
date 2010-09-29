@@ -293,12 +293,14 @@ struct key_params {
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
+ * @SURVEY_INFO_IN_USE: channel is currently being used
  *
  * Used by the driver to indicate which info in &struct survey_info
  * it has filled in during the get_survey().
  */
 enum survey_info_flags {
 	SURVEY_INFO_NOISE_DBM = 1<<0,
+	SURVEY_INFO_IN_USE = 1<<1,
 };
 
 /**
