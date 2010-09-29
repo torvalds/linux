@@ -296,9 +296,6 @@ __v7_setup:
 	 */
 	ldr	r5, =0xff0a81a8			@ PRRR
 	ldr	r6, =0x40e040e0			@ NMRR
-	ldr     r5, =0xff0a89a8
-	ldr     r6, =0xc0e0c4e0
-
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif

@@ -9,6 +9,4 @@ endif
 ccflags-y += -Iarch/arm/mach-tegra/nv/include
 
 obj-y += nvos.o
-obj-y += nvos_page.o
 obj-y += nvustring.o
-obj-y += nvos_exports.o

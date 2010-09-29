@@ -23,21 +23,13 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/file.h>
 #include <linux/nvhost.h>
-#include <linux/nvmap.h>
-#include <linux/workqueue.h>
 
 #include <asm/atomic.h>
 
-#include <video/tegrafb.h>
-
 #include <mach/dc.h>
 #include <mach/fb.h>
-
-#include "host/dev.h"
 
 struct tegra_fb_info {
 	struct tegra_dc_win	*win;
@@ -51,16 +43,6 @@ struct tegra_fb_info {
 	int			yres;
 
 	atomic_t		in_use;
-	struct file		*nvmap_file;
-
-	struct workqueue_struct *flip_wq;
-};
-
-struct tegra_fb_flip_data {
-	struct work_struct		work;
-	struct tegra_fb_info		*fb;
-	struct tegra_fb_flip_args	args;
-	u32				syncpt_max;
 };
 
 /* palette array used by the fbcon */
@@ -73,19 +55,12 @@ static int tegra_fb_open(struct fb_info *info, int user)
 	if (atomic_xchg(&tegra_fb->in_use, 1))
 		return -EBUSY;
 
-	tegra_fb->nvmap_file = NULL;
-
 	return 0;
 }
 
 static int tegra_fb_release(struct fb_info *info, int user)
 {
 	struct tegra_fb_info *tegra_fb = info->par;
-
-	if (tegra_fb->nvmap_file)
-		fput(tegra_fb->nvmap_file);
-
-	flush_workqueue(tegra_fb->flip_wq);
 
 	WARN_ON(!atomic_xchg(&tegra_fb->in_use, 0));
 
@@ -139,7 +114,6 @@ static int tegra_fb_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 	info->fix.line_length = var->xres * var->bits_per_pixel / 8;
-	tegra_fb->win->stride = info->fix.line_length;
 
 	if (var->pixclock) {
 		struct tegra_dc_mode mode;
@@ -259,191 +233,6 @@ static void tegra_fb_imageblit(struct fb_info *info,
 	cfb_imageblit(info, image);
 }
 
-/* TODO: implement ALLOC, FREE, BLANK ioctls */
-
-static int tegra_fb_set_nvmap_fd(struct tegra_fb_info *tegra_fb, int fd)
-{
-	struct file *nvmap_file = NULL;
-	int err;
-
-	if (fd < 0)
-		return -EINVAL;
-
-	if (fd > 0) {
-		nvmap_file = fget(fd);
-		if (!nvmap_file)
-			return -EINVAL;
-
-		err = nvmap_validate_file(nvmap_file);
-		if (err)
-			goto err;
-	}
-
-	if (tegra_fb->nvmap_file)
-		fput(tegra_fb->nvmap_file);
-
-	tegra_fb->nvmap_file = nvmap_file;
-
-	return 0;
-
-err:
-	fput(nvmap_file);
-	return err;
-}
-
-static void tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
-				    struct tegra_dc_win *win,
-				    struct tegra_fb_windowattr *attr)
-{
-	if (!attr->buff_id) {
-		win->flags = 0;
-		return;
-	}
-	win->flags = TEGRA_WIN_FLAG_ENABLED;
-	if (attr->blend == TEGRA_FB_WIN_BLEND_PREMULT)
-		win->flags |= TEGRA_WIN_FLAG_BLEND_PREMULT;
-	else if (attr->blend == TEGRA_FB_WIN_BLEND_COVERAGE)
-		win->flags |= TEGRA_WIN_FLAG_BLEND_COVERAGE;
-	win->fmt = attr->pixformat;
-	win->x = attr->x;
-	win->y = attr->y;
-	win->w = attr->w;
-	win->h = attr->h;
-	win->out_x = attr->out_x;
-	win->out_y = attr->out_y;
-	win->out_w = attr->out_w;
-	win->out_h = attr->out_h;
-	win->z = attr->z;
-	// STOPSHIP need to check perms on handle
-	win->phys_addr = nvmap_pin_single((struct nvmap_handle *)attr->buff_id);
-	win->phys_addr += attr->offset;
-	win->stride = attr->stride;
-	if ((s32)attr->pre_syncpt_id >= 0) {
-		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt,
-					   attr->pre_syncpt_id,
-					   attr->pre_syncpt_val,
-					   msecs_to_jiffies(500));
-	}
-}
-
-static void tegra_fb_set_windowhandle(struct tegra_fb_info *tegra_fb,
-				      struct tegra_dc_win *win,
-				      unsigned long handle)
-{
-	if (win->cur_handle)
-		nvmap_unpin((struct nvmap_handle **)&win->cur_handle, 1);
-	win->cur_handle = handle;
-}
-
-static void tegra_fb_flip_worker(struct work_struct *work)
-{
-	struct tegra_fb_flip_data *data =
-		container_of(work, struct tegra_fb_flip_data, work);
-	struct tegra_fb_info *tegra_fb = data->fb;
-	struct tegra_dc_win *win;
-	struct tegra_dc_win *wins[TEGRA_FB_FLIP_N_WINDOWS];
-	struct tegra_dc_win **w = wins;
-	struct tegra_dc *dc = tegra_fb->win->dc;
-	int i;
-
-
-	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		int idx = data->args.win[i].index;
-		win = tegra_dc_get_window(dc, idx);
-		if (win) {
-			tegra_fb_set_windowattr(tegra_fb, win,
-						&data->args.win[i]);
-			*w++ = win;
-		} else if (idx != -1) {
-			dev_warn(&tegra_fb->ndev->dev,
-				 "invalid window index %d on flip\n", idx);
-		}
-	}
-
-	tegra_dc_update_windows(wins, w - wins);
-
-	for (i = 0; i < TEGRA_FB_FLIP_N_WINDOWS; i++) {
-		win = tegra_dc_get_window(dc, data->args.win[i].index);
-		if (win)
-			tegra_fb_set_windowhandle(tegra_fb, win,
-						  data->args.win[i].buff_id);
-	}
-
-	/* TODO: implement swapinterval here */
-	tegra_dc_sync_windows(wins, w - wins);
-
-	tegra_dc_incr_syncpt_min(tegra_fb->win->dc, data->syncpt_max);
-
-	kfree(data);
-}
-
-
-static int tegra_fb_flip(struct tegra_fb_info *tegra_fb,
-			 struct tegra_fb_flip_args *args)
-{
-	struct tegra_fb_flip_data *data;
-	u32 syncpt_max;
-
-	if (WARN_ON(!tegra_fb->nvmap_file))
-		return -EFAULT;
-
-	if (WARN_ON(!tegra_fb->ndev))
-		return -EFAULT;
-
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(&tegra_fb->ndev->dev,
-			"can't allocate memory for flip\n");
-		return -ENOMEM;
-	}
-
-	INIT_WORK(&data->work, tegra_fb_flip_worker);
-	data->fb = tegra_fb;
-	memcpy(&data->args, args, sizeof(data->args));
-
-	syncpt_max = tegra_dc_incr_syncpt_max(tegra_fb->win->dc);
-	data->syncpt_max =  syncpt_max;
-
-	queue_work(tegra_fb->flip_wq, &data->work);
-
-	args->post_syncpt_val = syncpt_max;
-	args->post_syncpt_id = tegra_dc_get_syncpt_id(tegra_fb->win->dc);
-
-	return 0;
-}
-
-static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
-{
-	struct tegra_fb_info *tegra_fb = info->par;
-	struct tegra_fb_flip_args flip_args;
-	int fd;
-	int ret;
-
-	switch (cmd) {
-	case FBIO_TEGRA_SET_NVMAP_FD:
-		if (copy_from_user(&fd, (void __user *)arg, sizeof(fd)))
-			return -EFAULT;
-
-		return tegra_fb_set_nvmap_fd(tegra_fb, fd);
-
-	case FBIO_TEGRA_FLIP:
-		if (copy_from_user(&flip_args, (void __user *)arg, sizeof(flip_args)))
-			return -EFAULT;
-
-		ret = tegra_fb_flip(tegra_fb, &flip_args);
-
-		if (copy_to_user((void __user *)arg, &flip_args, sizeof(flip_args)))
-			return -EFAULT;
-
-		return ret;
-
-	default:
-		return -ENOTTY;
-	}
-
-	return 0;
-}
-
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = tegra_fb_open,
@@ -456,7 +245,6 @@ static struct fb_ops tegra_fb_ops = {
 	.fb_fillrect = tegra_fb_fillrect,
 	.fb_copyarea = tegra_fb_copyarea,
 	.fb_imageblit = tegra_fb_imageblit,
-	.fb_ioctl = tegra_fb_ioctl,
 };
 
 void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
@@ -527,12 +315,6 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	tegra_fb->yres = fb_data->yres;
 	atomic_set(&tegra_fb->in_use, 0);
 
-	tegra_fb->flip_wq = create_singlethread_workqueue("tegra_flip");
-	if (!tegra_fb->flip_wq) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
 	if (fb_mem) {
 		fb_size = resource_size(fb_mem);
 		fb_phys = fb_mem->start;
@@ -540,7 +322,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 		if (!fb_base) {
 			dev_err(&ndev->dev, "fb can't be mapped\n");
 			ret = -EBUSY;
-			goto err_delete_wq;
+			goto err_free;
 		}
 		tegra_fb->valid = true;
 	}
@@ -609,8 +391,6 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 
 err_iounmap_fb:
 	iounmap(fb_base);
-err_delete_wq:
-
 err_free:
 	framebuffer_release(info);
 err:
@@ -622,10 +402,6 @@ void tegra_fb_unregister(struct tegra_fb_info *fb_info)
 	struct fb_info *info = fb_info->info;
 
 	unregister_framebuffer(info);
-
-	flush_workqueue(fb_info->flip_wq);
-	destroy_workqueue(fb_info->flip_wq);
-
 	iounmap(info->screen_base);
 	framebuffer_release(info);
 }

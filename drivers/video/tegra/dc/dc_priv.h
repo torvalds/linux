@@ -22,7 +22,6 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
-#include "../host/dev.h"
 
 struct tegra_dc;
 
@@ -55,6 +54,7 @@ struct tegra_dc {
 	int				irq;
 
 	struct clk			*clk;
+	struct clk			*host1x_clk;
 
 	bool				enabled;
 
@@ -74,33 +74,17 @@ struct tegra_dc {
 
 	struct resource			*fb_mem;
 	struct tegra_fb_info		*fb;
-
-	u32				syncpt_id;
-	u32				syncpt_min;
-	u32				syncpt_max;
 };
-
-static inline void tegra_dc_io_start(struct tegra_dc *dc)
-{
-	nvhost_module_busy(&dc->ndev->host->mod);
-}
-
-static inline void tegra_dc_io_end(struct tegra_dc *dc)
-{
-	nvhost_module_idle(&dc->ndev->host->mod);
-}
 
 static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 					   unsigned long reg)
 {
-	BUG_ON(!nvhost_module_powered(&dc->ndev->host->mod));
 	return readl(dc->base + reg * 4);
 }
 
 static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long val,
 				   unsigned long reg)
 {
-	BUG_ON(!nvhost_module_powered(&dc->ndev->host->mod));
 	writel(val, dc->base + reg * 4);
 }
 
