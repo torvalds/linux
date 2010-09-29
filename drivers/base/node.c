@@ -409,25 +409,27 @@ static int link_mem_sections(int nid)
 	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
 	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
 	unsigned long pfn;
+	struct memory_block *mem_blk = NULL;
 	int err = 0;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		unsigned long section_nr = pfn_to_section_nr(pfn);
 		struct mem_section *mem_sect;
-		struct memory_block *mem_blk;
 		int ret;
 
 		if (!present_section_nr(section_nr))
 			continue;
 		mem_sect = __nr_to_section(section_nr);
-		mem_blk = find_memory_block(mem_sect);
+		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
 		ret = register_mem_sect_under_node(mem_blk, nid);
 		if (!err)
 			err = ret;
 
 		/* discard ref obtained in find_memory_block() */
-		kobject_put(&mem_blk->sysdev.kobj);
 	}
+
+	if (mem_blk)
+		kobject_put(&mem_blk->sysdev.kobj);
 	return err;
 }
 
