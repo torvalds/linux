@@ -161,21 +161,22 @@ static int check_short_pattern(uint8_t *buf, struct nand_bbt_descr *td)
  * @buf:	temporary buffer
  * @page:	the starting page
  * @num:	the number of bbt descriptors to read
- * @bits:	number of bits per block
+ * @td:		the bbt describtion table
  * @offs:	offset in the memory table
- * @reserved_block_code:	Pattern to identify reserved blocks
  *
  * Read the bad block table starting from page.
  *
  */
 static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
-		    int bits, int offs, int reserved_block_code)
+		struct nand_bbt_descr *td, int offs)
 {
 	int res, i, j, act = 0;
 	struct nand_chip *this = mtd->priv;
 	size_t retlen, len, totlen;
 	loff_t from;
+	int bits = td->options & NAND_BBT_NRBITS_MSK;
 	uint8_t msk = (uint8_t) ((1 << bits) - 1);
+	int reserved_block_code = td->reserved_block_code;
 
 	totlen = (num * bits) >> 3;
 	from = ((loff_t) page) << this->page_shift;
@@ -238,20 +239,21 @@ static int read_abs_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 {
 	struct nand_chip *this = mtd->priv;
 	int res = 0, i;
-	int bits;
 
-	bits = td->options & NAND_BBT_NRBITS_MSK;
 	if (td->options & NAND_BBT_PERCHIP) {
 		int offs = 0;
 		for (i = 0; i < this->numchips; i++) {
 			if (chip == -1 || chip == i)
-				res = read_bbt (mtd, buf, td->pages[i], this->chipsize >> this->bbt_erase_shift, bits, offs, td->reserved_block_code);
+				res = read_bbt(mtd, buf, td->pages[i],
+					this->chipsize >> this->bbt_erase_shift,
+					td, offs);
 			if (res)
 				return res;
 			offs += this->chipsize >> (this->bbt_erase_shift + 2);
 		}
 	} else {
-		res = read_bbt (mtd, buf, td->pages[0], mtd->size >> this->bbt_erase_shift, bits, 0, td->reserved_block_code);
+		res = read_bbt(mtd, buf, td->pages[0],
+				mtd->size >> this->bbt_erase_shift, td, 0);
 		if (res)
 			return res;
 	}
