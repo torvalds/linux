@@ -1994,16 +1994,31 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_supported_band *sband;
+	struct ath9k_channel *chan;
 
-	 if (idx != 0)
-		return -ENOENT;
+	sband = hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (sband && idx >= sband->n_channels) {
+		idx -= sband->n_channels;
+		sband = NULL;
+	}
 
-	survey->channel = conf->channel;
+	if (!sband)
+		sband = hw->wiphy->bands[IEEE80211_BAND_5GHZ];
+
+	if (!sband || idx >= sband->n_channels)
+	    return -ENOENT;
+
+	survey->channel = &sband->channels[idx];
+	chan = &ah->channels[survey->channel->hw_value];
 	survey->filled = 0;
-	if (ah->curchan && ah->curchan->noisefloor) {
+
+	if (chan == ah->curchan)
+		survey->filled |= SURVEY_INFO_IN_USE;
+
+	if (chan->noisefloor) {
 		survey->filled |= SURVEY_INFO_NOISE_DBM;
-		survey->noise = ah->curchan->noisefloor;
+		survey->noise = chan->noisefloor;
 	}
 
 	return 0;
