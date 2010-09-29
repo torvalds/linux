@@ -737,8 +737,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Calc length */
 			len = (size_t) (numblocks >> sft);
 			/* Make it page aligned ! */
-			len = (len + (mtd->writesize - 1)) &
-				~(mtd->writesize - 1);
+			len = ALIGN(len, mtd->writesize);
 			/* Preset the buffer with 0xff */
 			memset(buf, 0xff, len +
 			       (len >> this->page_shift)* mtd->oobsize);
