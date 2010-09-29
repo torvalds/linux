@@ -2,7 +2,7 @@
  * APEI Error Record Serialization Table support
  *
  * ERST is a way provided by APEI to save and retrieve hardware error
- * infomation to and from a persistent store.
+ * information to and from a persistent store.
  *
  * For more information about ERST, please refer to ACPI Specification
  * version 4.0, section 17.4.
@@ -266,13 +266,30 @@ static int erst_exec_move_data(struct apei_exec_context *ctx,
 {
 	int rc;
 	u64 offset;
+	void *src, *dst;
+
+	/* ioremap does not work in interrupt context */
+	if (in_interrupt()) {
+		pr_warning(ERST_PFX
+			   "MOVE_DATA can not be used in interrupt context");
+		return -EBUSY;
+	}
 
 	rc = __apei_exec_read_register(entry, &offset);
 	if (rc)
 		return rc;
-	memmove((void *)ctx->dst_base + offset,
-		(void *)ctx->src_base + offset,
-		ctx->var2);
+
+	src = ioremap(ctx->src_base + offset, ctx->var2);
+	if (!src)
+		return -ENOMEM;
+	dst = ioremap(ctx->dst_base + offset, ctx->var2);
+	if (!dst)
+		return -ENOMEM;
+
+	memmove(dst, src, ctx->var2);
+
+	iounmap(src);
+	iounmap(dst);
 
 	return 0;
 }
