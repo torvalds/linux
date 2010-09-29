@@ -48,3 +48,4 @@ obj-$(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)		+= xpt2046_cbn_ts.o calibration_ts.o 
 obj-$(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI)		+= xpt2046_ts_320X480.o
 obj-$(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)		+= xpt2046_cbn_ts.o calibration_ts.o largenum_ts.o calib_iface_ts.o
 obj-$(CONFIG_TOUCHSCREEN_IT7250) += ctp_it7250.o
+obj-$(CONFIG_RK28_I2C_TS_NTP070)	+= ntp070.o

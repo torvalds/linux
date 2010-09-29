@@ -67,6 +67,10 @@ config TOUCHSCREEN_AD7877
 	  module will be called ad7877.
 	  
 
+
+config RK28_I2C_TS_NTP070
+	tristate "NTP070 based touchscreens: NTP070 Interface"
+	depends on I2C_RK2818
       
 config TOUCHSCREEN_IT7250
 	tristate "IT7250 based touchscreens: IT7250 Interface"
