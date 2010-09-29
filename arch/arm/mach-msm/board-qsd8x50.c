@@ -35,6 +35,45 @@
 
 extern struct sys_timer msm_timer;
 
+static const resource_size_t qsd8x50_surf_smc91x_base __initdata = 0x70000300;
+static const unsigned        qsd8x50_surf_smc91x_gpio __initdata = 156;
+
+/* Leave smc91x resources empty here, as we'll fill them in
+ * at run-time: they vary from board to board, and the true
+ * configuration won't be known until boot.
+ */
+static struct resource smc91x_resources[] __initdata = {
+	[0] = {
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smc91x_device __initdata = {
+	.name           = "smc91x",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(smc91x_resources),
+	.resource       = smc91x_resources,
+};
+
+static int __init msm_init_smc91x(void)
+{
+	if (machine_is_qsd8x50_surf()) {
+		smc91x_resources[0].start = qsd8x50_surf_smc91x_base;
+		smc91x_resources[0].end   = qsd8x50_surf_smc91x_base + 0xff;
+		smc91x_resources[1].start =
+			gpio_to_irq(qsd8x50_surf_smc91x_gpio);
+		smc91x_resources[1].end   =
+			gpio_to_irq(qsd8x50_surf_smc91x_gpio);
+		platform_device_register(&smc91x_device);
+	}
+
+	return 0;
+}
+module_init(msm_init_smc91x);
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
 };
