@@ -99,14 +99,25 @@ static inline void pxamci_init_ocr(struct pxamci_host *host)
 	}
 }
 
-static inline void pxamci_set_power(struct pxamci_host *host, unsigned int vdd)
+static inline int pxamci_set_power(struct pxamci_host *host,
+				    unsigned char power_mode,
+				    unsigned int vdd)
 {
 	int on;
 
-#ifdef CONFIG_REGULATOR
-	if (host->vcc)
-		mmc_regulator_set_ocr(host->vcc, vdd);
-#endif
+	if (host->vcc) {
+		int ret;
+
+		if (power_mode == MMC_POWER_UP) {
+			ret = mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
+			if (ret)
+				return ret;
+		} else if (power_mode == MMC_POWER_OFF) {
+			ret = mmc_regulator_set_ocr(host->mmc, host->vcc, 0);
+			if (ret)
+				return ret;
+		}
+	}
 	if (!host->vcc && host->pdata &&
 	    gpio_is_valid(host->pdata->gpio_power)) {
 		on = ((1 << vdd) & host->pdata->ocr_mask);
@@ -115,6 +126,8 @@ static inline void pxamci_set_power(struct pxamci_host *host, unsigned int vdd)
 	}
 	if (!host->vcc && host->pdata && host->pdata->setpower)
 		host->pdata->setpower(mmc_dev(host->mmc), vdd);
+
+	return 0;
 }
 
 static void pxamci_stop_clock(struct pxamci_host *host)
@@ -490,9 +503,21 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	if (host->power_mode != ios->power_mode) {
+		int ret;
+
 		host->power_mode = ios->power_mode;
 
-		pxamci_set_power(host, ios->vdd);
+		ret = pxamci_set_power(host, ios->power_mode, ios->vdd);
+		if (ret) {
+			dev_err(mmc_dev(mmc), "unable to set power\n");
+			/*
+			 * The .set_ios() function in the mmc_host_ops
+			 * struct return void, and failing to set the
+			 * power should be rare so we print an error and
+			 * return here.
+			 */
+			return;
+		}
 
 		if (ios->power_mode == MMC_POWER_ON)
 			host->cmdat |= CMDAT_INIT;
@@ -503,8 +528,8 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	else
 		host->cmdat &= ~CMDAT_SD_4DAT;
 
-	pr_debug("PXAMCI: clkrt = %x cmdat = %x\n",
-		 host->clkrt, host->cmdat);
+	dev_dbg(mmc_dev(mmc), "PXAMCI: clkrt = %x cmdat = %x\n",
+		host->clkrt, host->cmdat);
 }
 
 static void pxamci_enable_sdio_irq(struct mmc_host *host, int enable)

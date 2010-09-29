@@ -212,6 +212,10 @@ struct mmc_host {
 	struct led_trigger	*led;		/* activity led */
 #endif
 
+#ifdef CONFIG_REGULATOR
+	bool			regulator_enabled; /* regulator state */
+#endif
+
 	struct dentry		*debugfs_root;
 
 	unsigned long		private[0] ____cacheline_aligned;
@@ -250,8 +254,24 @@ static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 
 struct regulator;
 
+#ifdef CONFIG_REGULATOR
 int mmc_regulator_get_ocrmask(struct regulator *supply);
-int mmc_regulator_set_ocr(struct regulator *supply, unsigned short vdd_bit);
+int mmc_regulator_set_ocr(struct mmc_host *mmc,
+			struct regulator *supply,
+			unsigned short vdd_bit);
+#else
+static inline int mmc_regulator_get_ocrmask(struct regulator *supply)
+{
+	return 0;
+}
+
+static inline int mmc_regulator_set_ocr(struct mmc_host *mmc,
+				 struct regulator *supply,
+				 unsigned short vdd_bit)
+{
+	return 0;
+}
+#endif
 
 int mmc_card_awake(struct mmc_host *host);
 int mmc_card_sleep(struct mmc_host *host);
