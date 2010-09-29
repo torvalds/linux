@@ -236,14 +236,15 @@ struct uvc_control_mapping {
 
 struct uvc_control {
 	struct uvc_entity *entity;
-	struct uvc_control_info *info;
+	struct uvc_control_info info;
 
 	__u8 index;	/* Used to match the uvc_control entry with a
 			   uvc_control_info. */
-	__u8 dirty : 1,
-	     loaded : 1,
-	     modified : 1,
-	     cached : 1;
+	__u8 dirty:1,
+	     loaded:1,
+	     modified:1,
+	     cached:1,
+	     initialized:1;
 
 	__u8 *uvc_data;
 };
