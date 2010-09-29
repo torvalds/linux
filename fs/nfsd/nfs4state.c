@@ -644,25 +644,45 @@ static void nfsd4_conn_lost(struct svc_xpt_user *u)
 	spin_unlock(&clp->cl_lock);
 }
 
-static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp)
 {
-	struct nfs4_client *clp = ses->se_client;
 	struct nfsd4_conn *conn;
 
 	conn = kmalloc(sizeof(struct nfsd4_conn), GFP_KERNEL);
 	if (!conn)
-		return nfserr_jukebox;
-	conn->cn_flags = NFS4_CDFC4_FORE;
+		return NULL;
 	svc_xprt_get(rqstp->rq_xprt);
 	conn->cn_xprt = rqstp->rq_xprt;
-	conn->cn_session = ses;
+	conn->cn_flags = NFS4_CDFC4_FORE;
+	INIT_LIST_HEAD(&conn->cn_xpt_user.list);
+	return conn;
+}
+
+static void nfsd4_hash_conn(struct nfsd4_conn *conn, struct nfsd4_session *ses)
+{
+	struct nfs4_client *clp = ses->se_client;
 
 	spin_lock(&clp->cl_lock);
+	conn->cn_session = ses;
 	list_add(&conn->cn_persession, &ses->se_conns);
 	spin_unlock(&clp->cl_lock);
+}
 
+static void nfsd4_register_conn(struct nfsd4_conn *conn)
+{
 	conn->cn_xpt_user.callback = nfsd4_conn_lost;
-	register_xpt_user(rqstp->rq_xprt, &conn->cn_xpt_user);
+	register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
+}
+
+static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+{
+	struct nfsd4_conn *conn;
+
+	conn = alloc_conn(rqstp);
+	if (!conn)
+		return nfserr_jukebox;
+	nfsd4_hash_conn(conn, ses);
+	nfsd4_register_conn(conn);
 	return nfs_ok;
 }
 
