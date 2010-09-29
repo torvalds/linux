@@ -92,12 +92,6 @@ void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
 static void wl_timer(ulong data);
 static void _wl_timer(wl_timer_t *t);
 
-/* proc fs */
-static int wl_proc_read(char *buffer, char **start, off_t offset, int length,
-			int *eof, void *data);
-static int wl_proc_write(struct file *filp, const char __user *buff,
-			 unsigned long len, void *data);
-
 #ifdef WLC_HIGH_ONLY
 #define RPCQ_LOCK(_wl, _flags) spin_lock_irqsave(&(_wl)->rpcq_lock, (_flags))
 #define RPCQ_UNLOCK(_wl, _flags)  spin_unlock_irqrestore(&(_wl)->rpcq_lock, (_flags))
@@ -997,151 +991,13 @@ static wl_info_t *wl_attach(uint16 vendor, uint16 device, ulong regs,
 #endif				/* BCMDBG */
 	printf("\n");
 
-	wl->proc_entry = create_proc_entry(PROC_ENTRY_NAME, 0644, NULL);
-	if (wl->proc_entry == NULL) {
-		WL_ERROR(("create_proc_entry failed *******\n"));
-		ASSERT(0);
-	} else {
-		wl->proc_entry->read_proc = wl_proc_read;
-		wl->proc_entry->write_proc = wl_proc_write;
-		wl->proc_entry->data = wl;
-		/* wl->proc_entry->owner = THIS_MODULE; */
-
-		wl->ioctlbuf = (char *)vmalloc(PAGE_SIZE);
-		if (wl->ioctlbuf == NULL) {
-			WL_ERROR(("%s: Vmalloc failed\n", __func__));
-		}
-		wl->ioctlbuf_sz = PAGE_SIZE;
-		memset(wl->ioctlbuf, 0, PAGE_SIZE);
-		wl->ioctlbuf[0] = '!';
-	}
-
 	wl_found++;
 	return wl;
 
  fail:
 	wl_free(wl);
- fail1:
+fail1:
 	return NULL;
-}
-
-#define PROC_MESSAGE  "Broadcom driver debugger access only.  Requires matching 'wl' app\n"
-
-/* OS Entry point when app attempts to read */
-static int
-wl_proc_read(char *buffer, char **start, off_t offset, int length, int *eof,
-	     void *data)
-{
-	wl_info_t *wl = (wl_info_t *) data;
-
-	switch (wl->proc_state) {
-
-	case WL_PROC_IDLE:
-		return 0;
-
-	case WL_PROC_HAVE_IOC:
-		/* Give the processed buffer back to userland */
-		if (!wl->ioctl_in_progress) {
-			WL_ERROR(("%s: No ioctl in progress nothing to read, 2\n", __func__));
-			return 0;
-		}
-
-		if (wl->ioc.len > wl->ioctlbuf_sz) {
-		}
-		bcopy(wl->ioctlbuf, buffer + offset, wl->ioc.len);
-		wl->proc_state--;
-		wl->ioctl_in_progress = 0;
-		return wl->ioc.len + offset;
-
-	case WL_PROC_HAVE_BUF:
-		/* Give the processed IOC back to userland */
-		if (!wl->ioctl_in_progress) {
-			WL_ERROR(("%s: No ioctl in progress nothing to read, 1\n", __func__));
-			return 0;
-		}
-		if (length != sizeof(wl_ioctl_t)) {
-			WL_ERROR(("%s: Reading ioc but len != sizeof(wl_ioctl_t)\n", __func__));
-			return 0;
-		}
-		bcopy(&wl->ioc, buffer + offset, length);
-		wl->proc_state--;
-		return length + offset;
-
-	default:
-		WL_ERROR(("%s: Proc read out of sync. proc_state %d, ioctl_in_progress %d\n", __func__, wl->proc_state, wl->ioctl_in_progress));
-	}
-
-	WL_ERROR(("%s: Invalid ioctl!!!\n", __func__));
-	return 0;
-}
-
-/* OS Entry point when app attempts to write */
-static int
-wl_proc_write(struct file *filp, const char __user *buff, unsigned long length,
-	      void *data)
-{
-	wl_info_t *wl = (wl_info_t *) data;
-	int bcmerror;
-
-	switch (wl->proc_state) {
-
-	case WL_PROC_IDLE:
-		if (wl->ioctl_in_progress) {
-			WL_ERROR(("%s: ioctl still in progress\n", __func__));
-			return -EIO;
-		}
-		if (length != sizeof(wl_ioctl_t)) {
-			WL_ERROR(("%s: Expecting ioctl sized buf\n", __func__));
-			return -EIO;
-		}
-		if (copy_from_user(&wl->ioc, buff, sizeof(wl_ioctl_t))) {
-			WL_ERROR(("%s: copy from user failed\n", __func__));
-			return -EIO;
-		}
-		wl->proc_state++;
-		wl->ioctl_in_progress++;
-		return sizeof(wl_ioctl_t);
-
-	case WL_PROC_HAVE_IOC:
-		if (!wl->ioctl_in_progress) {
-			WL_ERROR(("%s: Ioctl not ready yet 1\n", __func__));
-			return -EIO;
-		}
-		if (wl->ioctlbuf_sz < length) {
-			WL_ERROR(("%s: Buf write, ioctl buf %d not big enough too hold buffer %d\n", __func__, (int)sizeof(wl->ioctlbuf), (int)length));
-			WL_ERROR(("Shortening input\n"));
-			length = wl->ioctlbuf_sz;
-		}
-		if (length != wl->ioc.len) {
-			WL_ERROR(("%s: ioc.len %d != length param %d\n",
-				  __func__, wl->ioc.len, (int)length));
-			return -EIO;
-		}
-		if (copy_from_user(wl->ioctlbuf, buff, length)) {
-			WL_ERROR(("%s: copy from user of %d bytes failed\n",
-				  __func__, (int)length));
-			return -EIO;
-		}
-		wl->proc_state++;
-
-		WL_LOCK(wl);
-		bcmerror =
-		    wlc_ioctl(wl->wlc, wl->ioc.cmd, wl->ioctlbuf, wl->ioc.len,
-			      NULL);
-		WL_UNLOCK(wl);
-
-		if (bcmerror < 0)
-			return bcmerror;
-
-		return length;
-
-	case WL_PROC_HAVE_BUF:
-		WL_ERROR(("%s: Illegal write.  Rejecting.\n", __func__));
-		return 0;
-	default:
-		WL_ERROR(("%s: Proc write out of sync. proc_state %d, ioctl_in_progress %d\n", __func__, wl->proc_state, wl->ioctl_in_progress));
-	}
-	return 0;
 }
 
 #ifdef WLC_HIGH_ONLY
@@ -1751,12 +1607,6 @@ void wl_free(wl_info_t *wl)
 			MFREE(wl->osh, t->name, strlen(t->name) + 1);
 #endif
 		MFREE(wl->osh, t, sizeof(wl_timer_t));
-	}
-
-	if (wl->ioctlbuf_sz) {
-		remove_proc_entry(PROC_ENTRY_NAME, NULL);
-		vfree(wl->ioctlbuf);
-		wl->ioctlbuf_sz = 0;
 	}
 
 	osh = wl->osh;

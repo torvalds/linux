@@ -108,18 +108,8 @@ struct wl_info {
 	uint stats_id;		/* the current set of stats */
 	/* ping-pong stats counters updated by Linux watchdog */
 	struct net_device_stats stats_watchdog[2];
-
-	struct proc_dir_entry *proc_entry;
-	char *ioctlbuf;
-	unsigned int ioctlbuf_sz;
-	wl_ioctl_t ioc;
-	int proc_state;
-	bool ioctl_in_progress;
 	struct wl_firmware fw;
 };
-#define WL_PROC_IDLE		(0)
-#define WL_PROC_HAVE_IOC	(1)
-#define WL_PROC_HAVE_BUF 	(2)
 
 #ifndef WLC_HIGH_ONLY
 #define WL_LOCK(wl)	spin_lock_bh(&(wl)->lock)
