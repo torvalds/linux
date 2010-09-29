@@ -1820,9 +1820,6 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 	u32 irq_src;
 	irqreturn_t status = IRQ_NONE;
 	unsigned long flags;
-#if defined(CONFIG_ARCH_TEGRA)
-	u32 temp;
-#endif
 
 	spin_lock_irqsave(&udc->lock, flags);
 
