@@ -717,6 +717,7 @@ config ARCH_S5PC100
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
