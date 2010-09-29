@@ -760,22 +760,11 @@ void ath9k_ani_work(struct work_struct *work)
 			ath9k_hw_ani_monitor(ah, ah->curchan);
 
 		/* Perform calibration if necessary */
-		if (longcal || shortcal) {
+		if (longcal || shortcal)
 			common->ani.caldone =
 				ath9k_hw_calibrate(ah, ah->curchan,
 						   common->rx_chainmask,
 						   longcal);
-
-			if (longcal)
-				common->ani.noise_floor =
-					ath9k_hw_getchan_noise(ah, ah->curchan);
-
-			ath_print(common, ATH_DBG_ANI,
-				  " calibrate chan %u/%x nf: %d\n",
-				  ah->curchan->channel,
-				  ah->curchan->channelFlags,
-				  common->ani.noise_floor);
-		}
 
 		ath9k_htc_ps_restore(priv);
 	}
