@@ -30,6 +30,7 @@
 #include <linux/reboot.h>
 #include <linux/i2c-tegra.h>
 #include <linux/spi/cpcap.h>
+#include <linux/bootmem.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -1044,6 +1045,10 @@ static void __init tegra_stingray_init(void)
 
 void __init stingray_map_io(void)
 {
+	if (reserve_bootmem(0x0, 4096, BOOTMEM_EXCLUSIVE) != 0) {
+		printk(KERN_WARNING "Cannot reserve first 4K of memory for safety\n");
+	}
+
 	tegra_map_common_io();
 	stingray_fb_alloc();
 }
