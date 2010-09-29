@@ -238,6 +238,7 @@ static struct cpcap_led stingray_privacy_led ={
 	.cpcap_reg_duty_cycle = 0x0038,
 	.cpcap_reg_current = 0x0002,
 	.class_name = LD_PRIVACY_LED_DEV,
+	.led_regulator = "sw5_led2",
 };
 
 static struct platform_device cpcap_privacy_led = {
@@ -256,6 +257,7 @@ static struct cpcap_led stingray_notification_led ={
 	.cpcap_reg_duty_cycle = 0x07F0,
 	.cpcap_reg_current = 0x0008,
 	.class_name = LD_NOTIF_LED_DEV,
+	.led_regulator = "sw5_led3",
 };
 
 static struct platform_device cpcap_notification_led = {
@@ -282,6 +284,7 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 	{CPCAP_REG_S3C,       0x0439},
 	{CPCAP_REG_S4C1,      0x4930},
 	{CPCAP_REG_S4C2,      0x301C},
+	{CPCAP_REG_S5C,       0x0000},
 	{CPCAP_REG_S6C,       0x0000},
 	{CPCAP_REG_VRF1C,     0x0000},
 	{CPCAP_REG_VRF2C,     0x0000},
@@ -298,7 +301,7 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW2]      = 0x0800,
 	[CPCAP_SW4]      = 0x0900,
-	[CPCAP_SW5]      = 0x0000,
+	[CPCAP_SW5]      = 0x0022,
 	[CPCAP_VCAM]     = 0x0007,
 	[CPCAP_VCSI]     = 0x0007,
 	[CPCAP_VDAC]     = 0x0003,
@@ -356,7 +359,8 @@ struct regulator_consumer_supply cpcap_sw4_consumers[] = {
 };
 
 struct regulator_consumer_supply cpcap_sw5_consumers[] = {
-	REGULATOR_CONSUMER("sw5", NULL),
+	REGULATOR_CONSUMER_BY_DEVICE("sw5_led2", &cpcap_privacy_led.dev),
+	REGULATOR_CONSUMER_BY_DEVICE("sw5_led3", &cpcap_notification_led.dev),
 };
 
 struct regulator_consumer_supply cpcap_vcam_consumers[] = {
@@ -412,7 +416,6 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 5050000,
 			.max_uV			= 5050000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
-			.boot_on		= 1,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw5_consumers),
 		.consumer_supplies	= cpcap_sw5_consumers,
@@ -703,13 +706,8 @@ int __init stingray_power_init(void)
 	pmc_cntrl_0 |= 0x00000200;
 	writel(pmc_cntrl_0, IO_ADDRESS(TEGRA_PMC_BASE));
 
-	if (stingray_revision() <= STINGRAY_REVISION_M1) {
-		cpcap_regulator_mode_values[CPCAP_SW5] = 0x0022;
-
-		stingray_privacy_led.led_regulator = "sw5";
-
+	if (stingray_revision() <= STINGRAY_REVISION_M1)
 		stingray_max8649_pdata.mode = 3;
-	}
 
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
 	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
