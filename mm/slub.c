@@ -490,7 +490,7 @@ static void slab_err(struct kmem_cache *s, struct page *page, char *fmt, ...)
 	dump_stack();
 }
 
-static void init_object(struct kmem_cache *s, void *object, int active)
+static void init_object(struct kmem_cache *s, void *object, u8 val)
 {
 	u8 *p = object;
 
@@ -500,9 +500,7 @@ static void init_object(struct kmem_cache *s, void *object, int active)
 	}
 
 	if (s->flags & SLAB_RED_ZONE)
-		memset(p + s->objsize,
-			active ? SLUB_RED_ACTIVE : SLUB_RED_INACTIVE,
-			s->inuse - s->objsize);
+		memset(p + s->objsize, val, s->inuse - s->objsize);
 }
 
 static u8 *check_bytes(u8 *start, unsigned int value, unsigned int bytes)
@@ -637,17 +635,14 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 }
 
 static int check_object(struct kmem_cache *s, struct page *page,
-					void *object, int active)
+					void *object, u8 val)
 {
 	u8 *p = object;
 	u8 *endobject = object + s->objsize;
 
 	if (s->flags & SLAB_RED_ZONE) {
-		unsigned int red =
-			active ? SLUB_RED_ACTIVE : SLUB_RED_INACTIVE;
-
 		if (!check_bytes_and_report(s, page, object, "Redzone",
-			endobject, red, s->inuse - s->objsize))
+			endobject, val, s->inuse - s->objsize))
 			return 0;
 	} else {
 		if ((s->flags & SLAB_POISON) && s->objsize < s->inuse) {
@@ -657,7 +652,7 @@ static int check_object(struct kmem_cache *s, struct page *page,
 	}
 
 	if (s->flags & SLAB_POISON) {
-		if (!active && (s->flags & __OBJECT_POISON) &&
+		if (val != SLUB_RED_ACTIVE && (s->flags & __OBJECT_POISON) &&
 			(!check_bytes_and_report(s, page, p, "Poison", p,
 					POISON_FREE, s->objsize - 1) ||
 			 !check_bytes_and_report(s, page, p, "Poison",
@@ -669,7 +664,7 @@ static int check_object(struct kmem_cache *s, struct page *page,
 		check_pad_bytes(s, page, p);
 	}
 
-	if (!s->offset && active)
+	if (!s->offset && val == SLUB_RED_ACTIVE)
 		/*
 		 * Object and freepointer overlap. Cannot check
 		 * freepointer while object is allocated.
@@ -887,7 +882,7 @@ static void setup_object_debug(struct kmem_cache *s, struct page *page,
 	if (!(s->flags & (SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON)))
 		return;
 
-	init_object(s, object, 0);
+	init_object(s, object, SLUB_RED_INACTIVE);
 	init_tracking(s, object);
 }
 
@@ -907,14 +902,14 @@ static noinline int alloc_debug_processing(struct kmem_cache *s, struct page *pa
 		goto bad;
 	}
 
-	if (!check_object(s, page, object, 0))
+	if (!check_object(s, page, object, SLUB_RED_INACTIVE))
 		goto bad;
 
 	/* Success perform special debug activities for allocs */
 	if (s->flags & SLAB_STORE_USER)
 		set_track(s, object, TRACK_ALLOC, addr);
 	trace(s, page, object, 1);
-	init_object(s, object, 1);
+	init_object(s, object, SLUB_RED_ACTIVE);
 	return 1;
 
 bad:
@@ -947,7 +942,7 @@ static noinline int free_debug_processing(struct kmem_cache *s,
 		goto fail;
 	}
 
-	if (!check_object(s, page, object, 1))
+	if (!check_object(s, page, object, SLUB_RED_ACTIVE))
 		return 0;
 
 	if (unlikely(s != page->slab)) {
@@ -971,7 +966,7 @@ static noinline int free_debug_processing(struct kmem_cache *s,
 	if (s->flags & SLAB_STORE_USER)
 		set_track(s, object, TRACK_FREE, addr);
 	trace(s, page, object, 0);
-	init_object(s, object, 0);
+	init_object(s, object, SLUB_RED_INACTIVE);
 	return 1;
 
 fail:
@@ -1075,7 +1070,7 @@ static inline int free_debug_processing(struct kmem_cache *s,
 static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
 			{ return 1; }
 static inline int check_object(struct kmem_cache *s, struct page *page,
-			void *object, int active) { return 1; }
+			void *object, u8 val) { return 1; }
 static inline void add_full(struct kmem_cache_node *n, struct page *page) {}
 static inline unsigned long kmem_cache_flags(unsigned long objsize,
 	unsigned long flags, const char *name,
@@ -1235,7 +1230,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		slab_pad_check(s, page);
 		for_each_object(p, s, page_address(page),
 						page->objects)
-			check_object(s, page, p, 0);
+			check_object(s, page, p, SLUB_RED_INACTIVE);
 	}
 
 	kmemcheck_free_shadow(page, compound_order(page));
@@ -2143,7 +2138,7 @@ static void early_kmem_cache_node_alloc(int node)
 	page->inuse++;
 	kmem_cache_node->node[node] = n;
 #ifdef CONFIG_SLUB_DEBUG
-	init_object(kmem_cache_node, n, 1);
+	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
 	init_tracking(kmem_cache_node, n);
 #endif
 	init_kmem_cache_node(n, kmem_cache_node);
