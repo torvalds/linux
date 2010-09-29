@@ -303,10 +303,12 @@ ncp_evict_inode(struct inode *inode)
 
 static void ncp_stop_tasks(struct ncp_server *server) {
 	struct sock* sk = server->ncp_sock->sk;
-		
+
+	lock_sock(sk);
 	sk->sk_error_report = server->error_report;
 	sk->sk_data_ready   = server->data_ready;
 	sk->sk_write_space  = server->write_space;
+	release_sock(sk);
 	del_timer_sync(&server->timeout_tm);
 	flush_scheduled_work();
 }
@@ -605,10 +607,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	mutex_init(&server->rcv.creq_mutex);
 	server->tx.creq		= NULL;
 	server->rcv.creq	= NULL;
-	server->data_ready	= sock->sk->sk_data_ready;
-	server->write_space	= sock->sk->sk_write_space;
-	server->error_report	= sock->sk->sk_error_report;
-	sock->sk->sk_user_data	= server;
 
 	init_timer(&server->timeout_tm);
 #undef NCP_PACKET_SIZE
@@ -625,6 +623,11 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	if (server->rxbuf == NULL)
 		goto out_txbuf;
 
+	lock_sock(sock->sk);
+	server->data_ready	= sock->sk->sk_data_ready;
+	server->write_space	= sock->sk->sk_write_space;
+	server->error_report	= sock->sk->sk_error_report;
+	sock->sk->sk_user_data	= server;
 	sock->sk->sk_data_ready	  = ncp_tcp_data_ready;
 	sock->sk->sk_error_report = ncp_tcp_error_report;
 	if (sock->type == SOCK_STREAM) {
@@ -640,6 +643,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 		server->timeout_tm.data = (unsigned long)server;
 		server->timeout_tm.function = ncpdgram_timeout_call;
 	}
+	release_sock(sock->sk);
 
 	ncp_lock_server(server);
 	error = ncp_connect(server);
