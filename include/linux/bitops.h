@@ -136,28 +136,6 @@ static inline unsigned long __ffs64(u64 word)
 }
 
 #ifdef __KERNEL__
-#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
-
-/**
- * find_first_bit - find the first set bit in a memory region
- * @addr: The address to start the search at
- * @size: The maximum size to search
- *
- * Returns the bit number of the first set bit.
- */
-extern unsigned long find_first_bit(const unsigned long *addr,
-				    unsigned long size);
-
-/**
- * find_first_zero_bit - find the first cleared bit in a memory region
- * @addr: The address to start the search at
- * @size: The maximum size to search
- *
- * Returns the bit number of the first cleared bit.
- */
-extern unsigned long find_first_zero_bit(const unsigned long *addr,
-					 unsigned long size);
-#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
 #ifdef CONFIG_GENERIC_FIND_LAST_BIT
 /**
