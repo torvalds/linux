@@ -16,38 +16,28 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y :=			\
-	-DLINUX			\
+	-DARP_OFFLOAD_SUPPORT	\
+	-DBCMDBG		\
 	-DBCMDRIVER		\
-	-DBCMDONGLEHOST		\
-	-DDHDTHREAD		\
-	-DBCMWPA2		\
-	-DUNRELEASEDCHIP	\
-	-Dlinux			\
-	-DDHD_SDALIGN=64	\
-	-DMAX_HDR_READ=64	\
-	-DDHD_FIRSTREAD=64	\
-	-DDHD_GPL		\
-	-DDHD_SCHED		\
-	-DBDC			\
-	-DTOE			\
-	-DDHD_BCMEVENTS		\
-	-DSHOW_EVENTS		\
-	-DBCMSDIO		\
-	-DDHD_GPL		\
 	-DBCMLXSDMMC		\
 	-DBCMPLATFORM_BUS	\
-	-DOEM_CHROMIUMOS	\
-	-DEMBEDDED_PLATFORM	\
-	-DARP_OFFLOAD_SUPPORT	\
-	-DPKT_FILTER_SUPPORT	\
+	-DBCMSDIO		\
+	-DBCMWPA2		\
+	-DBDC			\
 	-DBRCM_FULLMAC		\
 	-DCONFIG_CFG80211	\
-	-DMMC_SDIO_ABORT	\
-	-DDHD_DEBUG_TRAP	\
-	-DBCMDBG		\
 	-DDHD_DEBUG		\
+	-DDHD_FIRSTREAD=64	\
+	-DDHD_SCHED		\
+	-DDHD_SDALIGN=64	\
+	-DEMBEDDED_PLATFORM	\
+	-DLINUX			\
+	-DMAX_HDR_READ=64	\
+	-DMMC_SDIO_ABORT	\
+	-DPKT_FILTER_SUPPORT	\
+	-DSHOW_EVENTS		\
+	-DTOE			\
 	-Idrivers/staging/brcm80211/brcmfmac		\
-	-Idrivers/staging/brcm80211/brcmfmac/include	\
 	-Idrivers/staging/brcm80211/include		\
 	-Idrivers/staging/brcm80211/util
 
@@ -56,7 +46,6 @@ DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o	\
 	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o	\
 	bcmsdh_sdmmc_linux.o
 
-#obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 obj-m += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
-EXTRA_LDFLAGS += --strip-debug
+
