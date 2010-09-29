@@ -311,6 +311,44 @@ struct cifsTconInfo {
 };
 
 /*
+ * This is a refcounted and timestamped container for a tcon pointer. The
+ * container holds a tcon reference. It is considered safe to free one of
+ * these when the tl_count goes to 0. The tl_time is the time of the last
+ * "get" on the container.
+ */
+struct tcon_link {
+	spinlock_t		tl_lock;
+	u32			tl_count;
+	u64			tl_time;
+	struct cifsTconInfo	*tl_tcon;
+};
+
+static inline struct tcon_link *
+cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
+{
+	return (struct tcon_link *)cifs_sb->ptcon;
+}
+
+static inline struct cifsTconInfo *
+tlink_tcon(struct tcon_link *tlink)
+{
+	return (struct cifsTconInfo *)tlink;
+}
+
+static inline void
+cifs_put_tlink(struct tcon_link *tlink)
+{
+	return;
+}
+
+/* This function is always expected to succeed */
+static inline struct cifsTconInfo *
+cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb)
+{
+	return cifs_sb->ptcon;
+}
+
+/*
  * This info hangs off the cifsFileInfo structure, pointed to by llist.
  * This is used to track byte stream locks on the file
  */
@@ -411,19 +449,6 @@ static inline struct cifs_sb_info *
 CIFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
-}
-
-static inline struct cifsTconInfo *
-cifs_sb_tcon(struct cifs_sb_info *cifs_sb)
-{
-	return cifs_sb->ptcon;
-}
-
-/* This function is always expected to succeed */
-static inline struct cifsTconInfo *
-cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb)
-{
-	return cifs_sb->ptcon;
 }
 
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)

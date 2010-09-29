@@ -223,33 +223,35 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 static int initiate_cifs_search(const int xid, struct file *file)
 {
 	int rc = 0;
-	char *full_path;
+	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	if (cifs_sb == NULL)
-		return -EINVAL;
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
 
 	if (file->private_data == NULL)
 		file->private_data =
 			kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+	if (file->private_data == NULL) {
+		rc = -ENOMEM;
+		goto error_exit;
+	}
 
-	if (file->private_data == NULL)
-		return -ENOMEM;
 	cifsFile = file->private_data;
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
-	cifsFile->tcon = cifs_sb_tcon(cifs_sb);
-	pTcon = cifsFile->tcon;
-	if (pTcon == NULL)
-		return -EINVAL;
+	cifsFile->tcon = pTcon;
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
-
-	if (full_path == NULL)
-		return -ENOMEM;
+	if (full_path == NULL) {
+		rc = -ENOMEM;
+		goto error_exit;
+	}
 
 	cFYI(1, "Full path: %s start at: %lld", full_path, file->f_pos);
 
@@ -282,7 +284,9 @@ ffirst_retry:
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		goto ffirst_retry;
 	}
+error_exit:
 	kfree(full_path);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 

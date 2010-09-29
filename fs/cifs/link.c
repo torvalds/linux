@@ -249,7 +249,8 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 	int rc;
 	int oplock = 0;
 	__u16 netfid = 0;
-	struct cifsTconInfo *pTcon = cifs_sb_tcon(cifs_sb);
+	struct tcon_link *tlink;
+	struct cifsTconInfo *pTcon;
 	u8 *buf;
 	char *pbuf;
 	unsigned int bytes_read = 0;
@@ -261,23 +262,30 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		/* it's not a symlink */
 		return 0;
 
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
 	rc = CIFSSMBOpen(xid, pTcon, path, FILE_OPEN, GENERIC_READ,
 			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
 			 cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc != 0)
-		return rc;
+		goto out;
 
 	if (file_info.EndOfFile != CIFS_MF_SYMLINK_FILE_SIZE) {
 		CIFSSMBClose(xid, pTcon, netfid);
 		/* it's not a symlink */
-		return 0;
+		goto out;
 	}
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (!buf) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	pbuf = buf;
 
 	rc = CIFSSMBRead(xid, pTcon, netfid,
@@ -287,23 +295,28 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 	CIFSSMBClose(xid, pTcon, netfid);
 	if (rc != 0) {
 		kfree(buf);
-		return rc;
+		goto out;
 	}
 
 	rc = CIFSParseMFSymlink(buf, bytes_read, &link_len, NULL);
 	kfree(buf);
-	if (rc == -EINVAL)
+	if (rc == -EINVAL) {
 		/* it's not a symlink */
-		return 0;
+		rc = 0;
+		goto out;
+	}
+
 	if (rc != 0)
-		return rc;
+		goto out;
 
 	/* it is a symlink */
 	fattr->cf_eof = link_len;
 	fattr->cf_mode &= ~S_IFMT;
 	fattr->cf_mode |= S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO;
 	fattr->cf_dtype = DT_LNK;
-	return 0;
+out:
+	cifs_put_tlink(tlink);
+	return rc;
 }
 
 int
@@ -314,17 +327,17 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	int xid;
 	char *fromName = NULL;
 	char *toName = NULL;
-	struct cifs_sb_info *cifs_sb_target;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct cifsInodeInfo *cifsInode;
 
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
 	xid = GetXid();
-
-	cifs_sb_target = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb_tcon(cifs_sb_target);
-
-/* No need to check for cross device links since server will do that
-   BB note DFS case in future though (when we may have to check) */
 
 	fromName = build_path_from_dentry(old_file);
 	toName = build_path_from_dentry(direntry);
@@ -336,13 +349,13 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 /*	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)*/
 	if (pTcon->unix_ext)
 		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
-					    cifs_sb_target->local_nls,
-					    cifs_sb_target->mnt_cifs_flags &
+					    cifs_sb->local_nls,
+					    cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else {
 		rc = CIFSCreateHardLink(xid, pTcon, fromName, toName,
-					cifs_sb_target->local_nls,
-					cifs_sb_target->mnt_cifs_flags &
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if ((rc == -EIO) || (rc == -EINVAL))
 			rc = -EOPNOTSUPP;
@@ -378,6 +391,7 @@ cifs_hl_exit:
 	kfree(fromName);
 	kfree(toName);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -390,9 +404,18 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	char *full_path = NULL;
 	char *target_path = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *tcon = cifs_sb_tcon(cifs_sb);
+	struct tcon_link *tlink = NULL;
+	struct cifsTconInfo *tcon;
 
 	xid = GetXid();
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		tlink = NULL;
+		goto out;
+	}
+	tcon = tlink_tcon(tlink);
 
 	/*
 	 * For now, we just handle symlinks with unix extensions enabled.
@@ -442,6 +465,8 @@ out:
 	}
 
 	FreeXid(xid);
+	if (tlink)
+		cifs_put_tlink(tlink);
 	nd_set_link(nd, target_path);
 	return NULL;
 }
@@ -451,22 +476,25 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;
 	int xid;
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 
 	xid = GetXid();
 
-	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		goto symlink_exit;
+	}
+	pTcon = tlink_tcon(tlink);
 
 	full_path = build_path_from_dentry(direntry);
-
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto symlink_exit;
 	}
 
 	cFYI(1, "Full path: %s", full_path);
@@ -504,8 +532,9 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 			d_instantiate(direntry, newinode);
 		}
 	}
-
+symlink_exit:
 	kfree(full_path);
+	cifs_put_tlink(tlink);
 	FreeXid(xid);
 	return rc;
 }

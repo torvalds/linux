@@ -313,16 +313,21 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	FILE_UNIX_BASIC_INFO find_data;
 	struct cifs_fattr fattr;
 	struct cifsTconInfo *tcon;
+	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
-	tcon = cifs_sb_tcon(cifs_sb);
-
 	cFYI(1, "Getting info on %s", full_path);
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
 	/* could have done a find first instead but this returns more info */
 	rc = CIFSSMBUnixQPathInfo(xid, tcon, full_path, &find_data,
 				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
+	cifs_put_tlink(tlink);
 
 	if (!rc) {
 		cifs_unix_basic_to_fattr(&fattr, &find_data, cifs_sb);
@@ -361,7 +366,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 	int rc;
 	int oplock = 0;
 	__u16 netfid;
-	struct cifsTconInfo *pTcon = cifs_sb_tcon(cifs_sb);
+	struct tcon_link *tlink;
+	struct cifsTconInfo *tcon;
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
@@ -380,7 +386,12 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 		return -EINVAL;	 /* EOPNOTSUPP? */
 	}
 
-	rc = CIFSSMBOpen(xid, pTcon, path, FILE_OPEN, GENERIC_READ,
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
+
+	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, GENERIC_READ,
 			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
 			 cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags &
@@ -388,7 +399,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 	if (rc == 0) {
 		int buf_type = CIFS_NO_BUFFER;
 			/* Read header */
-		rc = CIFSSMBRead(xid, pTcon, netfid,
+		rc = CIFSSMBRead(xid, tcon, netfid,
 				 24 /* length */, 0 /* offset */,
 				 &bytes_read, &pbuf, &buf_type);
 		if ((rc == 0) && (bytes_read >= 8)) {
@@ -430,8 +441,9 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 			fattr->cf_dtype = DT_REG;
 			rc = -EOPNOTSUPP; /* or some unknown SFU type */
 		}
-		CIFSSMBClose(xid, pTcon, netfid);
+		CIFSSMBClose(xid, tcon, netfid);
 	}
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -449,11 +461,19 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 	ssize_t rc;
 	char ea_value[4];
 	__u32 mode;
+	struct tcon_link *tlink;
+	struct cifsTconInfo *tcon;
 
-	rc = CIFSSMBQAllEAs(xid, cifs_sb_tcon(cifs_sb), path, "SETFILEBITS",
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
+
+	rc = CIFSSMBQAllEAs(xid, tcon, path, "SETFILEBITS",
 			    ea_value, 4 /* size of buf */, cifs_sb->local_nls,
 			    cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	cifs_put_tlink(tlink);
 	if (rc < 0)
 		return (int)rc;
 	else if (rc > 3) {
@@ -564,26 +584,33 @@ int cifs_get_inode_info(struct inode **pinode,
 {
 	int rc = 0, tmprc;
 	struct cifsTconInfo *pTcon;
+	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	char *buf = NULL;
 	bool adjustTZ = false;
 	struct cifs_fattr fattr;
 
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
 	cFYI(1, "Getting info on %s", full_path);
 
 	if ((pfindData == NULL) && (*pinode != NULL)) {
 		if (CIFS_I(*pinode)->clientCanCacheRead) {
 			cFYI(1, "No need to revalidate cached inode sizes");
-			return rc;
+			goto cgii_exit;
 		}
 	}
 
 	/* if file info not passed in then get it from server */
 	if (pfindData == NULL) {
 		buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
-		if (buf == NULL)
-			return -ENOMEM;
+		if (buf == NULL) {
+			rc = -ENOMEM;
+			goto cgii_exit;
+		}
 		pfindData = (FILE_ALL_INFO *)buf;
 
 		/* could do find first instead but this returns more info */
@@ -688,6 +715,7 @@ int cifs_get_inode_info(struct inode **pinode,
 
 cgii_exit:
 	kfree(buf);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -895,6 +923,7 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 	struct cifsFileInfo *open_file;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink = NULL;
 	struct cifsTconInfo *pTcon;
 	FILE_BASIC_INFO	info_buf;
 
@@ -942,7 +971,13 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 		goto set_via_filehandle;
 	}
 
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		tlink = NULL;
+		goto out;
+	}
+	pTcon = tlink_tcon(tlink);
 
 	/*
 	 * NT4 apparently returns success on this call, but it doesn't
@@ -987,6 +1022,8 @@ set_via_filehandle:
 	else
 		cifsFileInfo_put(open_file);
 out:
+	if (tlink != NULL)
+		cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -1004,9 +1041,15 @@ cifs_rename_pending_delete(char *full_path, struct dentry *dentry, int xid)
 	struct inode *inode = dentry->d_inode;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *tcon = cifs_sb_tcon(cifs_sb);
+	struct tcon_link *tlink;
+	struct cifsTconInfo *tcon;
 	__u32 dosattr, origattr;
 	FILE_BASIC_INFO *info_buf = NULL;
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
 			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
@@ -1076,6 +1119,7 @@ out_close:
 	CIFSSMBClose(xid, tcon, netfid);
 out:
 	kfree(info_buf);
+	cifs_put_tlink(tlink);
 	return rc;
 
 	/*
@@ -1115,11 +1159,17 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	struct cifsInodeInfo *cifs_inode;
 	struct super_block *sb = dir->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsTconInfo *tcon = cifs_sb_tcon(cifs_sb);
+	struct tcon_link *tlink;
+	struct cifsTconInfo *tcon;
 	struct iattr *attrs = NULL;
 	__u32 dosattr = 0, origattr = 0;
 
 	cFYI(1, "cifs_unlink, dir=0x%p, dentry=0x%p", dir, dentry);
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
 	xid = GetXid();
 
@@ -1128,8 +1178,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto unlink_out;
 	}
 
 	if ((tcon->ses->capabilities & CAP_UNIX) &&
@@ -1195,10 +1244,11 @@ out_reval:
 	dir->i_ctime = dir->i_mtime = current_fs_time(sb);
 	cifs_inode = CIFS_I(dir);
 	CIFS_I(dir)->time = 0;	/* force revalidate of dir as well */
-
+unlink_out:
 	kfree(full_path);
 	kfree(attrs);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -1207,6 +1257,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	int rc = 0, tmprc;
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
@@ -1214,16 +1265,18 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 
 	cFYI(1, "In cifs_mkdir, mode = 0x%x inode = 0x%p", mode, inode);
 
-	xid = GetXid();
-
 	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
+	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto mkdir_out;
 	}
 
 	if ((pTcon->ses->capabilities & CAP_UNIX) &&
@@ -1381,6 +1434,7 @@ mkdir_get_info:
 mkdir_out:
 	kfree(full_path);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -1389,6 +1443,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	int rc = 0;
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	struct cifsInodeInfo *cifsInode;
@@ -1397,18 +1452,23 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	xid = GetXid();
 
-	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
-
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto rmdir_exit;
 	}
+
+	cifs_sb = CIFS_SB(inode->i_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		goto rmdir_exit;
+	}
+	pTcon = tlink_tcon(tlink);
 
 	rc = CIFSSMBRmDir(xid, pTcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	cifs_put_tlink(tlink);
 
 	if (!rc) {
 		drop_nlink(inode);
@@ -1429,6 +1489,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	direntry->d_inode->i_ctime = inode->i_ctime = inode->i_mtime =
 		current_fs_time(inode->i_sb);
 
+rmdir_exit:
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
@@ -1439,9 +1500,15 @@ cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
 		struct dentry *to_dentry, const char *toPath)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(from_dentry->d_sb);
-	struct cifsTconInfo *pTcon = cifs_sb_tcon(cifs_sb);
+	struct tcon_link *tlink;
+	struct cifsTconInfo *pTcon;
 	__u16 srcfid;
 	int oplock, rc;
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
 
 	/* try path-based rename first */
 	rc = CIFSSMBRename(xid, pTcon, fromPath, toPath, cifs_sb->local_nls,
@@ -1454,11 +1521,11 @@ cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
 	 * rename by filehandle to various Windows servers.
 	 */
 	if (rc == 0 || rc != -ETXTBSY)
-		return rc;
+		goto do_rename_exit;
 
 	/* open-file renames don't work across directories */
 	if (to_dentry->d_parent != from_dentry->d_parent)
-		return rc;
+		goto do_rename_exit;
 
 	/* open the file to be renamed -- we need DELETE perms */
 	rc = CIFSSMBOpen(xid, pTcon, fromPath, FILE_OPEN, DELETE,
@@ -1474,7 +1541,8 @@ cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
 
 		CIFSSMBClose(xid, pTcon, srcfid);
 	}
-
+do_rename_exit:
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -1484,13 +1552,17 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 	char *fromName = NULL;
 	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *tcon;
 	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid, rc, tmprc;
 
 	cifs_sb = CIFS_SB(source_dir->i_sb);
-	tcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
 	xid = GetXid();
 
@@ -1566,6 +1638,7 @@ cifs_rename_exit:
 	kfree(fromName);
 	kfree(toName);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -1728,6 +1801,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	struct cifsFileInfo *open_file;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink = NULL;
 	struct cifsTconInfo *pTcon = NULL;
 
 	/*
@@ -1758,8 +1832,12 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		rc = -EINVAL;
 
 	if (rc != 0) {
-		if (pTcon == NULL)
-			pTcon = cifs_sb_tcon(cifs_sb);
+		if (pTcon == NULL) {
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink))
+				return PTR_ERR(tlink);
+			pTcon = tlink_tcon(tlink);
+		}
 
 		/* Set file size by pathname rather than by handle
 		   either because no valid, writeable file handle for
@@ -1790,6 +1868,8 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 				CIFSSMBClose(xid, pTcon, netfid);
 			}
 		}
+		if (tlink)
+			cifs_put_tlink(tlink);
 	}
 
 	if (rc == 0) {
@@ -1810,6 +1890,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	struct inode *inode = direntry->d_inode;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct cifs_unix_set_info_args *args = NULL;
 	struct cifsFileInfo *open_file;
@@ -1905,11 +1986,17 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		rc = CIFSSMBUnixSetFileInfo(xid, pTcon, args, nfid, npid);
 		cifsFileInfo_put(open_file);
 	} else {
-		pTcon = cifs_sb_tcon(cifs_sb);
+		tlink = cifs_sb_tlink(cifs_sb);
+		if (IS_ERR(tlink)) {
+			rc = PTR_ERR(tlink);
+			goto out;
+		}
+		pTcon = tlink_tcon(tlink);
 		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
 				    cifs_sb->local_nls,
 				    cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cifs_put_tlink(tlink);
 	}
 
 	if (rc)
