@@ -32,6 +32,8 @@ struct s3c64xx_spi_csinfo {
  * struct s3c64xx_spi_info - SPI Controller defining structure
  * @src_clk_nr: Clock source index for the CLK_CFG[SPI_CLKSEL] field.
  * @src_clk_name: Platform name of the corresponding clock.
+ * @clk_from_cmu: If the SPI clock/prescalar control block is present
+ *     by the platform's clock-management-unit and not in SPI controller.
  * @num_cs: Number of CS this controller emulates.
  * @cfg_gpio: Configure pins for this SPI controller.
  * @fifo_lvl_mask: All tx fifo_lvl fields start at offset-6
@@ -41,6 +43,7 @@ struct s3c64xx_spi_csinfo {
 struct s3c64xx_spi_info {
 	int src_clk_nr;
 	char *src_clk_name;
+	bool clk_from_cmu;
 
 	int num_cs;
 
