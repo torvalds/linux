@@ -8,6 +8,7 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 
 #include <asm/mach/map.h>
 
@@ -15,6 +16,8 @@
 #include <mach/devices.h>
 #include <mach/setup.h>
 #include <mach/irqs.h>
+
+#include "devices-db5500.h"
 
 static struct map_desc u5500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U5500_GPIO0_BASE, SZ_4K),
@@ -132,7 +135,7 @@ void __init u5500_map_io(void)
 
 void __init u5500_init_devices(void)
 {
-	ux500_init_devices();
+	db5500_add_rtc();
 
 	platform_add_devices(u5500_platform_devs,
 			     ARRAY_SIZE(u5500_platform_devs));

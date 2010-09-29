@@ -6,7 +6,6 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/amba/bus.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 
@@ -45,18 +44,9 @@ static struct map_desc ux500_io_desc[] __initdata = {
 	__IO_DEV_DESC(UX500_BACKUPRAM0_BASE, SZ_8K),
 };
 
-static struct amba_device *ux500_amba_devs[] __initdata = {
-	&ux500_pl031_device,
-};
-
 void __init ux500_map_io(void)
 {
 	iotable_init(ux500_io_desc, ARRAY_SIZE(ux500_io_desc));
-}
-
-void __init ux500_init_devices(void)
-{
-	amba_add_devices(ux500_amba_devs, ARRAY_SIZE(ux500_amba_devs));
 }
 
 void __init ux500_init_irq(void)

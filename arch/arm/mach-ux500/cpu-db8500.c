@@ -22,6 +22,8 @@
 #include <mach/setup.h>
 #include <mach/devices.h>
 
+#include "devices-db8500.h"
+
 static struct platform_device *platform_devs[] __initdata = {
 	&u8500_gpio_devs[0],
 	&u8500_gpio_devs[1],
@@ -152,12 +154,11 @@ void __init u8500_init_devices(void)
 	else
 		pr_warning("ASIC: UNKNOWN SILICON VERSION!\n");
 
-	ux500_init_devices();
-
 	if (cpu_is_u8500ed())
 		dma40_u8500ed_fixup();
 
-	/* Register the platform devices */
+	db8500_add_rtc();
+
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	return ;

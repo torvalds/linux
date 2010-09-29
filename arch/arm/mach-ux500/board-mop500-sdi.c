@@ -16,6 +16,7 @@
 #include <mach/devices.h>
 #include <mach/hardware.h>
 
+#include "devices-db8500.h"
 #include "pins-db8500.h"
 #include "board-mop500.h"
 
@@ -108,7 +109,7 @@ void mop500_sdi_tc35892_init(void)
 	gpio_direction_output(GPIO_SDMMC_1V8_3V_SEL, 1);
 	gpio_direction_output(GPIO_SDMMC_EN, 0);
 
-	amba_device_register(&u8500_sdi0_device, &iomem_resource);
+	db8500_add_sdi0(&mop500_sdi0_data);
 }
 
 /*
@@ -140,15 +141,11 @@ void mop500_sdi_init(void)
 {
 	nmk_config_pins(mop500_sdi_pins, ARRAY_SIZE(mop500_sdi_pins));
 
-	u8500_sdi0_device.dev.platform_data = &mop500_sdi0_data;
-	u8500_sdi2_device.dev.platform_data = &mop500_sdi2_data;
-	u8500_sdi4_device.dev.platform_data = &mop500_sdi4_data;
-
 	if (!cpu_is_u8500ed()) {
 		nmk_config_pins(mop500_sdi2_pins, ARRAY_SIZE(mop500_sdi2_pins));
-		amba_device_register(&u8500_sdi2_device, &iomem_resource);
+		db8500_add_sdi2(&mop500_sdi2_data);
 	}
 
 	/* On-board eMMC */
-	amba_device_register(&u8500_sdi4_device, &iomem_resource);
+	db8500_add_sdi4(&mop500_sdi4_data);
 }

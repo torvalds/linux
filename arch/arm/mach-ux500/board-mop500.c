@@ -34,6 +34,7 @@
 #include <mach/devices.h>
 #include <mach/irqs.h>
 
+#include "devices-db8500.h"
 #include "pins-db8500.h"
 #include "board-mop500.h"
 
@@ -192,12 +193,13 @@ U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 
-static struct amba_device *amba_devs[] __initdata = {
-	&ux500_uart0_device,
-	&ux500_uart1_device,
-	&ux500_uart2_device,
-	&u8500_ssp0_device,
-};
+static void __init mop500_i2c_init(void)
+{
+	db8500_add_i2c0(&u8500_i2c0_data);
+	db8500_add_i2c1(&u8500_i2c1_data);
+	db8500_add_i2c2(&u8500_i2c2_data);
+	db8500_add_i2c3(&u8500_i2c3_data);
+}
 
 static const unsigned int ux500_keymap[] = {
 	KEY(2, 5, KEY_END),
@@ -308,36 +310,34 @@ static struct ske_keypad_platform_data ske_keypad_board = {
 
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
-	&u8500_i2c0_device,
-	&ux500_i2c1_device,
-	&ux500_i2c2_device,
-	&ux500_i2c3_device,
 	&ux500_ske_keypad_device,
 };
 
+static void __init mop500_spi_init(void)
+{
+	db8500_add_ssp0(&ssp0_platform_data);
+}
+
+static void __init mop500_uart_init(void)
+{
+	db8500_add_uart0();
+	db8500_add_uart1();
+	db8500_add_uart2();
+}
+
 static void __init u8500_init_machine(void)
 {
-	int i;
-
 	u8500_init_devices();
 
 	nmk_config_pins(mop500_pins, ARRAY_SIZE(mop500_pins));
 
-	u8500_i2c0_device.dev.platform_data = &u8500_i2c0_data;
-	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
-	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
-	ux500_i2c3_device.dev.platform_data = &u8500_i2c3_data;
 	ux500_ske_keypad_device.dev.platform_data = &ske_keypad_board;
-
-	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
-
-	/* Register the active AMBA devices on this board */
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
-		amba_device_register(amba_devs[i], &iomem_resource);
-
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
+	mop500_i2c_init();
 	mop500_sdi_init();
+	mop500_spi_init();
+	mop500_uart_init();
 
 	/* If HW is early drop (ED) or V1.0 then use SPI to access AB8500 */
 	if (cpu_is_u8500ed() || cpu_is_u8500v10())
