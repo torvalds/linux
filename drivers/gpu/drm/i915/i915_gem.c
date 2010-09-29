@@ -1901,7 +1901,12 @@ i915_gem_retire_work_handler(struct work_struct *work)
 				mm.retire_work.work);
 	dev = dev_priv->dev;
 
-	mutex_lock(&dev->struct_mutex);
+	/* Come back later if the device is busy... */
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+		return;
+	}
+
 	i915_gem_retire_requests(dev);
 
 	if (!dev_priv->mm.suspended &&
