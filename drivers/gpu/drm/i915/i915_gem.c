@@ -1092,10 +1092,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	intel_mark_busy(dev, obj);
 
-#if WATCH_BUF
-	DRM_INFO("set_domain_ioctl %p(%zd), %08x %08x\n",
-		 obj, obj->size, read_domains, write_domain);
-#endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
 
@@ -1137,7 +1133,6 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_sw_finish *args = data;
 	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
 	int ret = 0;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
@@ -1153,14 +1148,8 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-#if WATCH_BUF
-	DRM_INFO("%s: sw_finish %d (%p %zd)\n",
-		 __func__, args->handle, obj, obj->size);
-#endif
-	obj_priv = to_intel_bo(obj);
-
 	/* Pinned buffers may be scanout, so flush the cache */
-	if (obj_priv->pin_count)
+	if (to_intel_bo(obj)->pin_count)
 		i915_gem_object_flush_cpu_write_domain(obj);
 
 	drm_gem_object_unreference(obj);
@@ -2061,10 +2050,6 @@ i915_gem_object_wait_rendering(struct drm_gem_object *obj,
 	 * it.
 	 */
 	if (obj_priv->active) {
-#if WATCH_BUF
-		DRM_INFO("%s: object %p wait for seqno %08x\n",
-			  __func__, obj, obj_priv->last_rendering_seqno);
-#endif
 		ret = i915_do_wait_request(dev,
 					   obj_priv->last_rendering_seqno,
 					   interruptible,
@@ -2086,10 +2071,6 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret = 0;
 
-#if WATCH_BUF
-	DRM_INFO("%s:%d %p\n", __func__, __LINE__, obj);
-	DRM_INFO("gtt_space %p\n", obj_priv->gtt_space);
-#endif
 	if (obj_priv->gtt_space == NULL)
 		return 0;
 
@@ -2647,10 +2628,6 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		goto search_free;
 	}
 
-#if WATCH_BUF
-	DRM_INFO("Binding object of size %zd at 0x%08x\n",
-		 obj->size, obj_priv->gtt_offset);
-#endif
 	ret = i915_gem_object_get_pages(obj, gfpmask);
 	if (ret) {
 		drm_mm_put_block(obj_priv->gtt_space);
@@ -3073,12 +3050,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 
 	intel_mark_busy(dev, obj);
 
-#if WATCH_BUF
-	DRM_INFO("%s: object %p read %08x -> %08x write %08x -> %08x\n",
-		 __func__, obj,
-		 obj->read_domains, obj->pending_read_domains,
-		 obj->write_domain, obj->pending_write_domain);
-#endif
 	/*
 	 * If the object isn't moving to a new write domain,
 	 * let the object stay in multiple read domains
@@ -3105,13 +3076,8 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 	 * stale data. That is, any new read domains.
 	 */
 	invalidate_domains |= obj->pending_read_domains & ~obj->read_domains;
-	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU) {
-#if WATCH_BUF
-		DRM_INFO("%s: CPU domain flush %08x invalidate %08x\n",
-			 __func__, flush_domains, invalidate_domains);
-#endif
+	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU)
 		i915_gem_clflush_object(obj);
-	}
 
 	old_read_domains = obj->read_domains;
 
@@ -3129,12 +3095,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 	dev->flush_domains |= flush_domains;
 	if (obj_priv->ring)
 		dev_priv->mm.flush_rings |= obj_priv->ring->id;
-#if WATCH_BUF
-	DRM_INFO("%s: read %08x write %08x invalidate %08x flush %08x\n",
-		 __func__,
-		 obj->read_domains, obj->write_domain,
-		 dev->invalidate_domains, dev->flush_domains);
-#endif
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -3438,11 +3398,6 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 						   (reloc_offset & (PAGE_SIZE - 1)));
 		reloc_val = target_obj_priv->gtt_offset + reloc->delta;
 
-#if WATCH_BUF
-		DRM_INFO("Applied relocation: %p@0x%08x %08x -> %08x\n",
-			  obj, (unsigned int) reloc->offset,
-			  readl(reloc_entry), reloc_val);
-#endif
 		writel(reloc_val, reloc_entry);
 		io_mapping_unmap_atomic(reloc_page, KM_USER0);
 
@@ -3454,10 +3409,6 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 		drm_gem_object_unreference(target_obj);
 	}
 
-#if WATCH_BUF
-	if (0)
-		i915_gem_dump_object(obj, 128, __func__, ~0);
-#endif
 	return 0;
 }
 

@@ -75,7 +75,6 @@ enum plane {
 #define DRIVER_PATCHLEVEL	0
 
 #define WATCH_COHERENCY	0
-#define WATCH_BUF	0
 #define WATCH_EXEC	0
 #define WATCH_RELOC	0
 #define WATCH_INACTIVE	0

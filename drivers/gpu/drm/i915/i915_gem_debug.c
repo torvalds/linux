@@ -52,7 +52,7 @@ i915_verify_inactive(struct drm_device *dev, char *file, int line)
 #endif /* WATCH_INACTIVE */
 
 
-#if WATCH_BUF | WATCH_EXEC | WATCH_PWRITE
+#if WATCH_EXEC | WATCH_PWRITE
 static void
 i915_gem_dump_page(struct page *page, uint32_t start, uint32_t end,
 		   uint32_t bias, uint32_t mark)
