@@ -348,9 +348,32 @@ static void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 		tail = user_backtrace(tail);
 }
 
+void oprofile_arch_exit(void)
+{
+	int cpu, id;
+	struct perf_event *event;
+
+	for_each_possible_cpu(cpu) {
+		for (id = 0; id < perf_num_counters; ++id) {
+			event = perf_events[cpu][id];
+			if (event)
+				perf_event_release_kernel(event);
+		}
+
+		kfree(perf_events[cpu]);
+	}
+
+	kfree(counter_config);
+	exit_driverfs();
+}
+
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	int cpu, ret = 0;
+
+	ret = init_driverfs();
+	if (ret)
+		return ret;
 
 	memset(&perf_events, 0, sizeof(perf_events));
 
@@ -363,12 +386,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		pr_info("oprofile: failed to allocate %d "
 				"counters\n", perf_num_counters);
 		ret = -ENOMEM;
+		perf_num_counters = 0;
 		goto out;
 	}
-
-	ret = init_driverfs();
-	if (ret)
-		goto out;
 
 	for_each_possible_cpu(cpu) {
 		perf_events[cpu] = kcalloc(perf_num_counters,
@@ -395,33 +415,12 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		pr_info("oprofile: using %s\n", ops->cpu_type);
 
 out:
-	if (ret) {
-		for_each_possible_cpu(cpu)
-			kfree(perf_events[cpu]);
-		kfree(counter_config);
-	}
+	if (ret)
+		oprofile_arch_exit();
 
 	return ret;
 }
 
-void __exit oprofile_arch_exit(void)
-{
-	int cpu, id;
-	struct perf_event *event;
-
-	for_each_possible_cpu(cpu) {
-		for (id = 0; id < perf_num_counters; ++id) {
-			event = perf_events[cpu][id];
-			if (event)
-				perf_event_release_kernel(event);
-		}
-
-		kfree(perf_events[cpu]);
-	}
-
-	kfree(counter_config);
-	exit_driverfs();
-}
 #else
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
