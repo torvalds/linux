@@ -394,9 +394,9 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 
 int musb_platform_exit(struct musb *musb)
 {
-
 	gpio_free(musb->config->gpio_vrsel);
 
 	otg_put_transceiver(musb->xceiv);
+	usb_nop_xceiv_unregister();
 	return 0;
 }
