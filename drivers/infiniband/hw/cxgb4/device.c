@@ -68,32 +68,8 @@ static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count,
 			    loff_t *ppos)
 {
 	struct c4iw_debugfs_data *d = file->private_data;
-	loff_t pos = *ppos;
-	loff_t avail = d->pos;
 
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= avail)
-		return 0;
-	if (count > avail - pos)
-		count = avail - pos;
-
-	while (count) {
-		size_t len = 0;
-
-		len = min((int)count, (int)d->pos - (int)pos);
-		if (copy_to_user(buf, d->buf + pos, len))
-			return -EFAULT;
-		if (len == 0)
-			return -EINVAL;
-
-		buf += len;
-		pos += len;
-		count -= len;
-	}
-	count = pos - *ppos;
-	*ppos = pos;
-	return count;
+	return simple_read_from_buffer(buf, count, ppos, d->buf, d->pos);
 }
 
 static int dump_qp(int id, void *p, void *data)
