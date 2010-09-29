@@ -53,12 +53,21 @@ static void desc_smp_init(struct irq_desc *desc, int node)
 {
 	desc->irq_data.node = node;
 	cpumask_copy(desc->irq_data.affinity, irq_default_affinity);
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	cpumask_clear(desc->pending_mask);
+#endif
+}
+
+static inline int desc_node(struct irq_desc *desc)
+{
+	return desc->irq_data.node;
 }
 
 #else
 static inline int
 alloc_masks(struct irq_desc *desc, gfp_t gfp, int node) { return 0; }
 static inline void desc_smp_init(struct irq_desc *desc, int node) { }
+static inline int desc_node(struct irq_desc *desc) { return 0; }
 #endif
 
 static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
@@ -71,6 +80,8 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 	desc->status = IRQ_DEFAULT_INIT_FLAGS;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
+	desc->irq_count = 0;
+	desc->irqs_unhandled = 0;
 	desc->name = NULL;
 	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
 	desc_smp_init(desc, node);
@@ -286,23 +297,9 @@ struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node)
 	return irq_to_desc(irq);
 }
 
-#ifdef CONFIG_SMP
-static inline int desc_node(struct irq_desc *desc)
-{
-	return desc->irq_data.node;
-}
-#else
-static inline int desc_node(struct irq_desc *desc) { return 0; }
-#endif
-
 static void free_desc(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, desc_node(desc));
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	dynamic_irq_cleanup(irq);
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
@@ -409,10 +406,18 @@ unsigned int irq_get_next_irq(unsigned int offset)
 	return find_next_bit(allocated_irqs, nr_irqs, offset);
 }
 
-/* Statistics access */
-void clear_kstat_irqs(struct irq_desc *desc)
+/**
+ * dynamic_irq_cleanup - cleanup a dynamically allocated irq
+ * @irq:	irq number to initialize
+ */
+void dynamic_irq_cleanup(unsigned int irq)
 {
-	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	desc_set_defaults(irq, desc, desc_node(desc));
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)

@@ -326,11 +326,15 @@ extern unsigned int create_irq_nr(unsigned int irq_want, int node);
 extern int create_irq(void);
 extern void destroy_irq(unsigned int irq);
 
-/* Dynamic irq helper functions */
-extern void dynamic_irq_init(unsigned int irq);
-void dynamic_irq_init_keep_chip_data(unsigned int irq);
+/*
+ * Dynamic irq helper functions. Obsolete. Use irq_alloc_desc* and
+ * irq_free_desc instead.
+ */
 extern void dynamic_irq_cleanup(unsigned int irq);
-void dynamic_irq_cleanup_keep_chip_data(unsigned int irq);
+static inline void dynamic_irq_init(unsigned int irq)
+{
+	dynamic_irq_cleanup(irq);
+}
 
 /* Set/get chip/data for an IRQ: */
 extern int set_irq_chip(unsigned int irq, struct irq_chip *chip);

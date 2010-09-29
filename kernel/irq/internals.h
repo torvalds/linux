@@ -20,7 +20,6 @@ extern void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume);
 
 extern struct lock_class_key irq_desc_lock_class;
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
-extern void clear_kstat_irqs(struct irq_desc *desc);
 extern raw_spinlock_t sparse_irq_lock;
 
 /* Resending of interrupts :*/
