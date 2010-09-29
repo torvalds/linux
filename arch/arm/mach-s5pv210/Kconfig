@@ -136,6 +136,24 @@ config MACH_SMDKV210
 	help
 	  Machine support for Samsung SMDKV210
 
+config MACH_TORBRECK
+	bool "Torbreck"
+	select CPU_S5PV210
+	select ARCH_SPARSEMEM_ENABLE
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C2
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S5PV210_SETUP_I2C1
+	select S5PV210_SETUP_I2C2
+	select S5PV210_SETUP_SDHCI
+	help
+	  Machine support for aESOP Torbreck
+
 endmenu
 
 endif
