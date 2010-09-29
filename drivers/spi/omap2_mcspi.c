@@ -489,10 +489,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 					dev_err(&spi->dev, "TXS timed out\n");
 					goto out;
 				}
-#ifdef VERBOSE
-				dev_dbg(&spi->dev, "write-%d %02x\n",
+				dev_vdbg(&spi->dev, "write-%d %02x\n",
 						word_len, *tx);
-#endif
 				__raw_writel(*tx++, tx_reg);
 			}
 			if (rx != NULL) {
@@ -506,10 +504,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				    (l & OMAP2_MCSPI_CHCONF_TURBO)) {
 					omap2_mcspi_set_enable(spi, 0);
 					*rx++ = __raw_readl(rx_reg);
-#ifdef VERBOSE
-					dev_dbg(&spi->dev, "read-%d %02x\n",
+					dev_vdbg(&spi->dev, "read-%d %02x\n",
 						    word_len, *(rx - 1));
-#endif
 					if (mcspi_wait_for_reg_bit(chstat_reg,
 						OMAP2_MCSPI_CHSTAT_RXS) < 0) {
 						dev_err(&spi->dev,
@@ -522,10 +518,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				}
 
 				*rx++ = __raw_readl(rx_reg);
-#ifdef VERBOSE
-				dev_dbg(&spi->dev, "read-%d %02x\n",
+				dev_vdbg(&spi->dev, "read-%d %02x\n",
 						word_len, *(rx - 1));
-#endif
 			}
 		} while (c);
 	} else if (word_len <= 16) {
@@ -542,10 +536,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 					dev_err(&spi->dev, "TXS timed out\n");
 					goto out;
 				}
-#ifdef VERBOSE
-				dev_dbg(&spi->dev, "write-%d %04x\n",
+				dev_vdbg(&spi->dev, "write-%d %04x\n",
 						word_len, *tx);
-#endif
 				__raw_writel(*tx++, tx_reg);
 			}
 			if (rx != NULL) {
@@ -559,10 +551,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				    (l & OMAP2_MCSPI_CHCONF_TURBO)) {
 					omap2_mcspi_set_enable(spi, 0);
 					*rx++ = __raw_readl(rx_reg);
-#ifdef VERBOSE
-					dev_dbg(&spi->dev, "read-%d %04x\n",
+					dev_vdbg(&spi->dev, "read-%d %04x\n",
 						    word_len, *(rx - 1));
-#endif
 					if (mcspi_wait_for_reg_bit(chstat_reg,
 						OMAP2_MCSPI_CHSTAT_RXS) < 0) {
 						dev_err(&spi->dev,
@@ -575,10 +565,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				}
 
 				*rx++ = __raw_readl(rx_reg);
-#ifdef VERBOSE
-				dev_dbg(&spi->dev, "read-%d %04x\n",
+				dev_vdbg(&spi->dev, "read-%d %04x\n",
 						word_len, *(rx - 1));
-#endif
 			}
 		} while (c);
 	} else if (word_len <= 32) {
@@ -595,10 +583,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 					dev_err(&spi->dev, "TXS timed out\n");
 					goto out;
 				}
-#ifdef VERBOSE
-				dev_dbg(&spi->dev, "write-%d %08x\n",
+				dev_vdbg(&spi->dev, "write-%d %08x\n",
 						word_len, *tx);
-#endif
 				__raw_writel(*tx++, tx_reg);
 			}
 			if (rx != NULL) {
@@ -612,10 +598,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				    (l & OMAP2_MCSPI_CHCONF_TURBO)) {
 					omap2_mcspi_set_enable(spi, 0);
 					*rx++ = __raw_readl(rx_reg);
-#ifdef VERBOSE
-					dev_dbg(&spi->dev, "read-%d %08x\n",
+					dev_vdbg(&spi->dev, "read-%d %08x\n",
 						    word_len, *(rx - 1));
-#endif
 					if (mcspi_wait_for_reg_bit(chstat_reg,
 						OMAP2_MCSPI_CHSTAT_RXS) < 0) {
 						dev_err(&spi->dev,
@@ -628,10 +612,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				}
 
 				*rx++ = __raw_readl(rx_reg);
-#ifdef VERBOSE
-				dev_dbg(&spi->dev, "read-%d %08x\n",
+				dev_vdbg(&spi->dev, "read-%d %08x\n",
 						word_len, *(rx - 1));
-#endif
 			}
 		} while (c);
 	}
