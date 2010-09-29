@@ -182,6 +182,7 @@ static const struct file_operations qp_debugfs_fops = {
 	.open    = qp_open,
 	.release = qp_release,
 	.read    = debugfs_read,
+	.llseek  = default_llseek,
 };
 
 static int dump_stag(int id, void *p, void *data)
@@ -255,6 +256,7 @@ static const struct file_operations stag_debugfs_fops = {
 	.open    = stag_open,
 	.release = stag_release,
 	.read    = debugfs_read,
+	.llseek  = default_llseek,
 };
 
 static int setup_debugfs(struct c4iw_dev *devp)
