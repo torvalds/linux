@@ -3250,6 +3250,8 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
 
 	pmb->context1 = NULL;
+	pmb->context2 = NULL;
+
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);

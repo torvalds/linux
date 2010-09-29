@@ -580,7 +580,9 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				 "static vport.\n");
 		return VPORT_ERROR;
 	}
-
+	spin_lock_irq(&phba->hbalock);
+	vport->load_flag |= FC_UNLOADING;
+	spin_unlock_irq(&phba->hbalock);
 	/*
 	 * If we are not unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
@@ -618,10 +620,6 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		scsi_host_put(shost);
 		return VPORT_INVAL;
 	}
-	spin_lock_irq(&phba->hbalock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(&phba->hbalock);
-
 	lpfc_free_sysfs_attr(vport);
 
 	lpfc_debugfs_terminate(vport);

@@ -1015,7 +1015,6 @@ static void
 lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
-	unsigned long flags;
 
 	if (mboxq->u.mb.mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
@@ -1029,18 +1028,18 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	/* Start FCoE discovery by sending a FLOGI. */
 	phba->fcf.fcfi = bf_get(lpfc_reg_fcfi_fcfi, &mboxq->u.mqe.un.reg_fcfi);
 	/* Set the FCFI registered flag */
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag |= FCF_REGISTERED;
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irq(&phba->hbalock);
 	/* If there is a pending FCoE event, restart FCF table scan. */
 	if (lpfc_check_pending_fcoe_event(phba, 1)) {
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		return;
 	}
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag |= (FCF_SCAN_DONE | FCF_IN_USE);
 	phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irq(&phba->hbalock);
 	if (vport->port_state != LPFC_FLOGI)
 		lpfc_initial_flogi(vport);
 
@@ -1240,14 +1239,13 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *fcf_mbxq;
 	int rc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irq(&phba->hbalock);
 
 	/* If the FCF is not availabe do nothing. */
 	if (!(phba->fcf.fcf_flag & FCF_AVAILABLE)) {
 		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock_irq(&phba->hbalock);
 		return;
 	}
 
@@ -1255,19 +1253,19 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	if (phba->fcf.fcf_flag & FCF_REGISTERED) {
 		phba->fcf.fcf_flag |= (FCF_SCAN_DONE | FCF_IN_USE);
 		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock_irq(&phba->hbalock);
 		if (phba->pport->port_state != LPFC_FLOGI)
 			lpfc_initial_flogi(phba->pport);
 		return;
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irq(&phba->hbalock);
 
 	fcf_mbxq = mempool_alloc(phba->mbox_mem_pool,
 		GFP_KERNEL);
 	if (!fcf_mbxq) {
-		spin_lock_irqsave(&phba->hbalock, flags);
+		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock_irq(&phba->hbalock);
 		return;
 	}
 
@@ -1276,9 +1274,9 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	fcf_mbxq->mbox_cmpl = lpfc_mbx_cmpl_reg_fcfi;
 	rc = lpfc_sli_issue_mbox(phba, fcf_mbxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		spin_lock_irqsave(&phba->hbalock, flags);
+		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock_irq(&phba->hbalock);
 		mempool_free(fcf_mbxq, phba->mbox_mem_pool);
 	}
 
@@ -2851,6 +2849,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
 	pmb->context1 = NULL;
+	pmb->context2 = NULL;
 
 	if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
 		ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
@@ -3149,6 +3148,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	ndlp = (struct lpfc_nodelist *) pmb->context2;
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
+
 	if (mb->mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 				 "0258 Register Fabric login error: 0x%x\n",
@@ -3218,6 +3218,9 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
 	struct lpfc_vport *vport = pmb->vport;
 
+	pmb->context1 = NULL;
+	pmb->context2 = NULL;
+
 	if (mb->mbxStatus) {
 out:
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
@@ -3248,8 +3251,6 @@ out:
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
 	}
-
-	pmb->context1 = NULL;
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_flag |= NLP_RPI_VALID;
@@ -4784,6 +4785,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport    *vport = pmb->vport;
 
 	pmb->context1 = NULL;
+	pmb->context2 = NULL;
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_flag |= NLP_RPI_VALID;

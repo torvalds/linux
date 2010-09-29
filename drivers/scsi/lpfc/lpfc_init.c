@@ -4727,8 +4727,8 @@ out_free_mem:
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
@@ -5421,7 +5421,7 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - could not allocated memory.
+ * 	-ENOMEM - could not allocated memory.
  **/
 static int
 lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
@@ -5520,8 +5520,8 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
 lpfc_sli4_read_config(struct lpfc_hba *phba)
@@ -5624,8 +5624,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
 lpfc_setup_endian_order(struct lpfc_hba *phba)
@@ -5673,8 +5673,8 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
 lpfc_sli4_queue_create(struct lpfc_hba *phba)
@@ -5968,8 +5968,8 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static void
 lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
@@ -6032,8 +6032,8 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_sli4_queue_setup(struct lpfc_hba *phba)
@@ -6277,8 +6277,8 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 void
 lpfc_sli4_queue_unset(struct lpfc_hba *phba)
@@ -6483,8 +6483,8 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_pci_function_reset(struct lpfc_hba *phba)
