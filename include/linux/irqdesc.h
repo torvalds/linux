@@ -82,24 +82,16 @@ struct irq_desc {
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-extern void arch_init_copy_chip_data(struct irq_desc *old_desc,
-					struct irq_desc *desc, int node);
-extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc);
-
 #ifndef CONFIG_SPARSE_IRQ
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
-#ifdef CONFIG_NUMA_IRQ_DESC
-extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int node);
-#else
+/* Will be removed once the last users in power and sh are gone */
+extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
 static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 {
 	return desc;
 }
-#endif
-
-extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 

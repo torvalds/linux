@@ -26,11 +26,6 @@ config GENERIC_IRQ_PROBE
 config GENERIC_PENDING_IRQ
 	def_bool n
 
-if SPARSE_IRQ && NUMA
-config NUMA_IRQ_DESC
-	def_bool n
-endif
-
 config AUTO_IRQ_AFFINITY
        def_bool n
 

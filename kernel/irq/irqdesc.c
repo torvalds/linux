@@ -20,7 +20,7 @@
 /*
  * lockdep: we want to handle all irq_desc locks as a single lock-class:
  */
-struct lock_class_key irq_desc_lock_class;
+static struct lock_class_key irq_desc_lock_class;
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
 static void __init init_irq_default_affinity(void)
@@ -90,27 +90,10 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
-DEFINE_RAW_SPINLOCK(sparse_irq_lock);
+static DEFINE_RAW_SPINLOCK(sparse_irq_lock);
 static DECLARE_BITMAP(allocated_irqs, NR_IRQS);
 
 #ifdef CONFIG_SPARSE_IRQ
-
-void __ref init_kstat_irqs(struct irq_desc *desc, int node, int nr)
-{
-	void *ptr;
-
-	ptr = kzalloc_node(nr * sizeof(*desc->kstat_irqs),
-			   GFP_ATOMIC, node);
-
-	/*
-	 * don't overwite if can not get new one
-	 * init_copy_kstat_irqs() could still use old one
-	 */
-	if (ptr) {
-		printk(KERN_DEBUG "  alloc kstat_irqs on node %d\n", node);
-		desc->kstat_irqs = ptr;
-	}
-}
 
 static RADIX_TREE(irq_desc_tree, GFP_ATOMIC);
 
@@ -122,15 +105,6 @@ static void irq_insert_desc(unsigned int irq, struct irq_desc *desc)
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return radix_tree_lookup(&irq_desc_tree, irq);
-}
-
-void replace_irq_desc(unsigned int irq, struct irq_desc *desc)
-{
-	void **ptr;
-
-	ptr = radix_tree_lookup_slot(&irq_desc_tree, irq);
-	if (ptr)
-		radix_tree_replace_slot(ptr, desc);
 }
 
 static void delete_irq_desc(unsigned int irq)
