@@ -88,7 +88,6 @@ static struct s3c2410_uartcfg goni_uartcfgs[] __initdata = {
 /* Frame Buffer */
 static struct s3c_fb_pd_win goni_fb_win0 = {
 	.win_mode = {
-		.pixclock = 1000000000000ULL / ((16+16+2+480)*(28+3+2+800)*55),
 		.left_margin	= 16,
 		.right_margin	= 16,
 		.upper_margin	= 2,
