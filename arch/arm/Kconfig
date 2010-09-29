@@ -731,6 +731,7 @@ config ARCH_S5PV210
 config ARCH_S5PV310
 	bool "Samsung S5PV310/S5PC210"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS

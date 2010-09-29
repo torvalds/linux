@@ -32,7 +32,6 @@ menu "S5PC210 Machines"
 config MACH_SMDKC210
 	bool "SMDKC210"
 	select CPU_S5PV310
-	select ARCH_SPARSEMEM_ENABLE
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
 	help
@@ -42,7 +41,6 @@ config MACH_SMDKC210
 config MACH_UNIVERSAL_C210
 	bool "Mobile UNIVERSAL_C210 Board"
 	select CPU_S5PV310
-	select ARCH_SPARSEMEM_ENABLE
 	help
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board. S5PC210(MCP) is one of package option of S5PV310
@@ -54,7 +52,6 @@ menu "S5PV310 Machines"
 config MACH_SMDKV310
 	bool "SMDKV310"
 	select CPU_S5PV310
-	select ARCH_SPARSEMEM_ENABLE
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
 	help
