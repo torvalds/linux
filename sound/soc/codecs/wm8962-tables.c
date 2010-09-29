@@ -21204,7 +21204,7 @@ const struct wm8962_reg_access wm8962_reg_access[WM8962_MAX_REGISTER + 1] = {
 	{ 0x0000, 0x0000, 0x0000 }, /* R45 */
 	{ 0x0000, 0x0000, 0x0000 }, /* R46 */
 	{ 0x000F, 0x0000, 0x0000 }, /* R47    - Thermal Shutdown Status */
-	{ 0x7EC7, 0x7E07, 0x0000 }, /* R48    - Additional Control (4) */
+	{ 0x7EC7, 0x7E07, 0xFFFF }, /* R48    - Additional Control (4) */
 	{ 0x00D3, 0x00D7, 0xFFFF }, /* R49    - Class D Control 1 */
 	{ 0x0000, 0x0000, 0x0000 }, /* R50 */
 	{ 0x0047, 0x0047, 0x0000 }, /* R51    - Class D Control 2 */
