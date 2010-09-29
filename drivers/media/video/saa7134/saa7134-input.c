@@ -28,7 +28,7 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 
-#define MODULE_NAME "saa7134"
+#define MODULE_NAME "saa7134-rc"
 
 static unsigned int disable_ir;
 module_param(disable_ir, int, 0444);
@@ -1211,3 +1211,6 @@ static int saa7134_nec_irq(struct saa7134_dev *dev)
 
 	return 1;
 }
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
