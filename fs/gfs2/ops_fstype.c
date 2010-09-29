@@ -1056,8 +1056,6 @@ static int gfs2_journalid_wait(void *word)
 
 static int wait_on_journal(struct gfs2_sbd *sdp)
 {
-	if (sdp->sd_args.ar_spectator)
-		return 0;
 	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
 		return 0;
 
@@ -1159,6 +1157,20 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	error = wait_on_journal(sdp);
 	if (error)
 		goto fail_sb;
+
+	/*
+	 * If user space has failed to join the cluster or some similar
+	 * failure has occurred, then the journal id will contain a
+	 * negative (error) number. This will then be returned to the
+	 * caller (of the mount syscall). We do this even for spectator
+	 * mounts (which just write a jid of 0 to indicate "ok" even though
+	 * the jid is unused in the spectator case)
+	 */
+	if (sdp->sd_lockstruct.ls_jid < 0) {
+		error = sdp->sd_lockstruct.ls_jid;
+		sdp->sd_lockstruct.ls_jid = 0;
+		goto fail_sb;
+	}
 
 	error = init_inodes(sdp, DO);
 	if (error)
