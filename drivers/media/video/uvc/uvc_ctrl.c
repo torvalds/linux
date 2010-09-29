@@ -1164,6 +1164,90 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
  * Dynamic controls
  */
 
+/*
+ * Query control information (size and flags) for XU controls.
+ */
+static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
+	const struct uvc_control *ctrl, struct uvc_control_info *info)
+{
+	u8 *data;
+	int ret;
+
+	data = kmalloc(2, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	memcpy(info->entity, ctrl->entity->extension.guidExtensionCode,
+	       sizeof(info->entity));
+	info->index = ctrl->index;
+	info->selector = ctrl->index + 1;
+
+	/* Query and verify the control length (GET_LEN) */
+	ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id, dev->intfnum,
+			     info->selector, data, 2);
+	if (ret < 0) {
+		uvc_trace(UVC_TRACE_CONTROL,
+			  "GET_LEN failed on control %pUl/%u (%d).\n",
+			   info->entity, info->selector, ret);
+		goto done;
+	}
+
+	info->size = le16_to_cpup((__le16 *)data);
+
+	/* Query the control information (GET_INFO) */
+	ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id, dev->intfnum,
+			     info->selector, data, 1);
+	if (ret < 0) {
+		uvc_trace(UVC_TRACE_CONTROL,
+			  "GET_INFO failed on control %pUl/%u (%d).\n",
+			  info->entity, info->selector, ret);
+		goto done;
+	}
+
+	info->flags = UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX
+		    | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
+		    | (data[0] & UVC_CONTROL_CAP_GET ? UVC_CONTROL_GET_CUR : 0)
+		    | (data[0] & UVC_CONTROL_CAP_SET ? UVC_CONTROL_SET_CUR : 0)
+		    | (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
+		       UVC_CONTROL_AUTO_UPDATE : 0);
+
+	uvc_trace(UVC_TRACE_CONTROL, "XU control %pUl/%u queried: len %u, "
+		  "flags { get %u set %u auto %u }.\n",
+		  info->entity, info->selector, info->size,
+		  (info->flags & UVC_CONTROL_GET_CUR) ? 1 : 0,
+		  (info->flags & UVC_CONTROL_SET_CUR) ? 1 : 0,
+		  (info->flags & UVC_CONTROL_AUTO_UPDATE) ? 1 : 0);
+
+done:
+	kfree(data);
+	return ret;
+}
+
+static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
+	const struct uvc_control_info *info);
+
+static int uvc_ctrl_init_xu_ctrl(struct uvc_device *dev,
+	struct uvc_control *ctrl)
+{
+	struct uvc_control_info info;
+	int ret;
+
+	if (ctrl->initialized)
+		return 0;
+
+	ret = uvc_ctrl_fill_xu_info(dev, ctrl, &info);
+	if (ret < 0)
+		return ret;
+
+	ret = uvc_ctrl_add_info(dev, ctrl, &info);
+	if (ret < 0)
+		uvc_trace(UVC_TRACE_CONTROL, "Failed to initialize control "
+			  "%pUl/%u on device %s entity %u\n", info.entity,
+			  info.selector, dev->udev->devpath, ctrl->entity->id);
+
+	return ret;
+}
+
 int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	struct uvc_xu_control *xctrl, int set)
 {
@@ -1186,13 +1270,10 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		return -EINVAL;
 	}
 
-	/* Find the control. */
+	/* Find the control and perform delayed initialization if needed. */
 	for (i = 0; i < entity->ncontrols; ++i) {
 		ctrl = &entity->controls[i];
-		if (!ctrl->initialized)
-			continue;
-
-		if (ctrl->info.selector == xctrl->selector) {
+		if (ctrl->index == xctrl->selector - 1) {
 			found = 1;
 			break;
 		}
@@ -1203,6 +1284,10 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 			entity->extension.guidExtensionCode, xctrl->selector);
 		return -EINVAL;
 	}
+
+	ret = uvc_ctrl_init_xu_ctrl(chain->dev, ctrl);
+	if (ret < 0)
+		return -ENOENT;
 
 	/* Validate control data size. */
 	if (ctrl->info.size != xctrl->size)
@@ -1295,65 +1380,6 @@ int uvc_ctrl_resume_device(struct uvc_device *dev)
  */
 
 /*
- * Query control information (size and flags) for XU controls.
- */
-static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
-	const struct uvc_control *ctrl, struct uvc_control_info *info)
-{
-	u8 *data;
-	int ret;
-
-	data = kmalloc(2, GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	memcpy(info->entity, ctrl->entity->extension.guidExtensionCode,
-	       sizeof(info->entity));
-	info->index = ctrl->index;
-	info->selector = ctrl->index + 1;
-
-	/* Query and verify the control length (GET_LEN) */
-	ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id, dev->intfnum,
-			     info->selector, data, 2);
-	if (ret < 0) {
-		uvc_trace(UVC_TRACE_CONTROL,
-			  "GET_LEN failed on control %pUl/%u (%d).\n",
-			   info->entity, info->selector, ret);
-		goto done;
-	}
-
-	info->size = le16_to_cpup((__le16 *)data);
-
-	/* Query the control information (GET_INFO) */
-	ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id, dev->intfnum,
-			     info->selector, data, 1);
-	if (ret < 0) {
-		uvc_trace(UVC_TRACE_CONTROL,
-			  "GET_INFO failed on control %pUl/%u (%d).\n",
-			  info->entity, info->selector, ret);
-		goto done;
-	}
-
-	info->flags = UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX
-		    | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
-		    | (data[0] & UVC_CONTROL_CAP_GET ? UVC_CONTROL_GET_CUR : 0)
-		    | (data[0] & UVC_CONTROL_CAP_SET ? UVC_CONTROL_SET_CUR : 0)
-		    | (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
-		       UVC_CONTROL_AUTO_UPDATE : 0);
-
-	uvc_trace(UVC_TRACE_CONTROL, "XU control %pUl/%u queried: len %u, "
-		  "flags { get %u set %u auto %u }.\n",
-		  info->entity, info->selector, info->size,
-		  (info->flags & UVC_CONTROL_GET_CUR) ? 1 : 0,
-		  (info->flags & UVC_CONTROL_SET_CUR) ? 1 : 0,
-		  (info->flags & UVC_CONTROL_AUTO_UPDATE) ? 1 : 0);
-
-done:
-	kfree(data);
-	return ret;
-}
-
-/*
  * Add control information to a given control.
  */
 static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
@@ -1434,7 +1460,7 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 
 	if (mapping->id & ~V4L2_CTRL_ID_MASK) {
 		uvc_trace(UVC_TRACE_CONTROL, "Can't add mapping '%s', control "
-			"control id 0x%08x is invalid.\n", mapping->name,
+			"id 0x%08x is invalid.\n", mapping->name,
 			mapping->id);
 		return -EINVAL;
 	}
@@ -1443,13 +1469,13 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	list_for_each_entry(entity, &dev->entities, list) {
 		unsigned int i;
 
-		if (!uvc_entity_match_guid(entity, mapping->entity))
+		if (UVC_ENTITY_TYPE(entity) != UVC_VC_EXTENSION_UNIT ||
+		    !uvc_entity_match_guid(entity, mapping->entity))
 			continue;
 
 		for (i = 0; i < entity->ncontrols; ++i) {
 			ctrl = &entity->controls[i];
-			if (ctrl->initialized &&
-			    ctrl->info.selector == mapping->selector) {
+			if (ctrl->index == mapping->selector - 1) {
 				found = 1;
 				break;
 			}
@@ -1463,6 +1489,13 @@ int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 
 	if (mutex_lock_interruptible(&chain->ctrl_mutex))
 		return -ERESTARTSYS;
+
+	/* Perform delayed initialization of XU controls */
+	ret = uvc_ctrl_init_xu_ctrl(dev, ctrl);
+	if (ret < 0) {
+		ret = -ENOENT;
+		goto done;
+	}
 
 	list_for_each_entry(map, &ctrl->info.mappings, list) {
 		if (mapping->id == map->id) {
@@ -1567,26 +1600,13 @@ static void uvc_ctrl_init_ctrl(struct uvc_device *dev, struct uvc_control *ctrl)
 	const struct uvc_control_mapping *mend =
 		mapping + ARRAY_SIZE(uvc_ctrl_mappings);
 
-	/* Query XU controls for control information */
-	if (UVC_ENTITY_TYPE(ctrl->entity) == UVC_VC_EXTENSION_UNIT) {
-		struct uvc_control_info info;
-		int ret;
-
-		ret = uvc_ctrl_fill_xu_info(dev, ctrl, &info);
-		if (ret < 0)
-			return;
-
-		ret = uvc_ctrl_add_info(dev, ctrl, &info);
-		if (ret < 0) {
-			/* Skip the control */
-			uvc_trace(UVC_TRACE_CONTROL, "Failed to initialize "
-				"control %pUl/%u on device %s entity %u\n",
-				info.entity, info.selector, dev->udev->devpath,
-				ctrl->entity->id);
-			memset(ctrl, 0, sizeof(*ctrl));
-		}
+	/* XU controls initialization requires querying the device for control
+	 * information. As some buggy UVC devices will crash when queried
+	 * repeatedly in a tight loop, delay XU controls initialization until
+	 * first use.
+	 */
+	if (UVC_ENTITY_TYPE(ctrl->entity) == UVC_VC_EXTENSION_UNIT)
 		return;
-	}
 
 	for (; info < iend; ++info) {
 		if (uvc_entity_match_guid(ctrl->entity, info->entity) &&
