@@ -579,7 +579,8 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 					if ((best_vco == 0 && error < best_error) ||
 					    (best_vco != 0 &&
 					     ((best_error > 100 && error < best_error - 100) ||
-					      (abs(error - best_error) < 100 && vco_diff < best_vco_diff)))) {
+					      (abs(error - best_error) < 100 &&
+					       vco_diff < best_vco_diff)))) {
 						best_post_div = post_div;
 						best_ref_div = ref_div;
 						best_feedback_div = feedback_div;
@@ -587,29 +588,6 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 						best_freq = current_freq;
 						best_error = error;
 						best_vco_diff = vco_diff;
-					} else if (current_freq == freq) {
-						if (best_freq == -1) {
-							best_post_div = post_div;
-							best_ref_div = ref_div;
-							best_feedback_div = feedback_div;
-							best_frac_feedback_div = frac_feedback_div;
-							best_freq = current_freq;
-							best_error = error;
-							best_vco_diff = vco_diff;
-						} else if (((pll->flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
-							   ((pll->flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
-							   ((pll->flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
-							   ((pll->flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
-							   ((pll->flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
-							   ((pll->flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
-							best_post_div = post_div;
-							best_ref_div = ref_div;
-							best_feedback_div = feedback_div;
-							best_frac_feedback_div = frac_feedback_div;
-							best_freq = current_freq;
-							best_error = error;
-							best_vco_diff = vco_diff;
-						}
 					}
 					if (current_freq < freq)
 						min_frac_feed_div = frac_feedback_div + 1;

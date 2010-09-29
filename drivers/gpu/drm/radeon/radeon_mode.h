@@ -139,16 +139,10 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_NO_ODD_POST_DIV      (1 << 1)
 #define RADEON_PLL_USE_REF_DIV          (1 << 2)
 #define RADEON_PLL_LEGACY               (1 << 3)
-#define RADEON_PLL_PREFER_LOW_REF_DIV   (1 << 4)
-#define RADEON_PLL_PREFER_HIGH_REF_DIV  (1 << 5)
-#define RADEON_PLL_PREFER_LOW_FB_DIV    (1 << 6)
-#define RADEON_PLL_PREFER_HIGH_FB_DIV   (1 << 7)
-#define RADEON_PLL_PREFER_LOW_POST_DIV  (1 << 8)
-#define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
-#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
-#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
-#define RADEON_PLL_USE_POST_DIV         (1 << 12)
-#define RADEON_PLL_IS_LCD               (1 << 13)
+#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 4)
+#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 5)
+#define RADEON_PLL_USE_POST_DIV         (1 << 6)
+#define RADEON_PLL_IS_LCD               (1 << 7)
 
 /* pll algo */
 enum radeon_pll_algo {

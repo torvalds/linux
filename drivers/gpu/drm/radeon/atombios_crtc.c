@@ -501,20 +501,8 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		    (rdev->family == CHIP_RS740))
 			pll->flags |= (/*RADEON_PLL_USE_FRAC_FB_DIV |*/
 				       RADEON_PLL_PREFER_CLOSEST_LOWER);
-
-		if (ASIC_IS_DCE32(rdev) && mode->clock > 200000)	/* range limits??? */
-			pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
-		else
-			pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
-	} else {
+	} else
 		pll->flags |= RADEON_PLL_LEGACY;
-
-		if (mode->clock > 200000)	/* range limits??? */
-			pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
-		else
-			pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
-
-	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
