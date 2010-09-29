@@ -3857,8 +3857,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (obj->write_domain)
 			list_move_tail(&obj_priv->gpu_write_list,
 				       &dev_priv->mm.gpu_write_list);
-		else
-			list_del_init(&obj_priv->gpu_write_list);
 
 		trace_i915_gem_object_change_domain(obj,
 						    obj->read_domains,
