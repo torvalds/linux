@@ -51,7 +51,7 @@
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
-#define IWL6050_UCODE_API_MAX 4
+#define IWL6050_UCODE_API_MAX 5
 #define IWL6000G2_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
