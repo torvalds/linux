@@ -2888,65 +2888,6 @@ lpfc_stop_port(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_remove_dflt_fcf - Remove the driver default fcf record from the port.
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine is invoked to remove the driver default fcf record from
- * the port.  This routine currently acts on FCF Index 0.
- *
- **/
-void
-lpfc_sli_remove_dflt_fcf(struct lpfc_hba *phba)
-{
-	int rc = 0;
-	LPFC_MBOXQ_t *mboxq;
-	struct lpfc_mbx_del_fcf_tbl_entry *del_fcf_record;
-	uint32_t mbox_tmo, req_len;
-	uint32_t shdr_status, shdr_add_status;
-
-	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2020 Failed to allocate mbox for ADD_FCF cmd\n");
-		return;
-	}
-
-	req_len = sizeof(struct lpfc_mbx_del_fcf_tbl_entry) -
-		  sizeof(struct lpfc_sli4_cfg_mhdr);
-	rc = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
-			      LPFC_MBOX_OPCODE_FCOE_DELETE_FCF,
-			      req_len, LPFC_SLI4_MBX_EMBED);
-	/*
-	 * In phase 1, there is a single FCF index, 0.  In phase2, the driver
-	 * supports multiple FCF indices.
-	 */
-	del_fcf_record = &mboxq->u.mqe.un.del_fcf_entry;
-	bf_set(lpfc_mbx_del_fcf_tbl_count, del_fcf_record, 1);
-	bf_set(lpfc_mbx_del_fcf_tbl_index, del_fcf_record,
-	       phba->fcf.current_rec.fcf_indx);
-
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	else {
-		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
-		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
-	}
-	/* The IOCTL status is embedded in the mailbox subheader. */
-	shdr_status = bf_get(lpfc_mbox_hdr_status,
-			     &del_fcf_record->header.cfg_shdr.response);
-	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
-				 &del_fcf_record->header.cfg_shdr.response);
-	if (shdr_status || shdr_add_status || rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"2516 DEL FCF of default FCF Index failed "
-				"mbx status x%x, status x%x add_status x%x\n",
-				rc, shdr_status, shdr_add_status);
-	}
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mboxq, phba->mbox_mem_pool);
-}
-
-/**
  * lpfc_fcf_redisc_wait_start_timer - Start fcf rediscover wait timer
  * @phba: Pointer to hba for which this call is being executed.
  *
@@ -4288,12 +4229,6 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 {
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
 
-	/* unregister default FCFI from the HBA */
-	lpfc_sli4_fcfi_unreg(phba, phba->fcf.fcfi);
-
-	/* Free the default FCR table */
-	lpfc_sli_remove_dflt_fcf(phba);
-
 	/* Free memory allocated for msi-x interrupt vector entries */
 	kfree(phba->sli4_hba.msix_entries);
 
@@ -4320,9 +4255,6 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	/* Free the completion queue EQ event pool */
 	lpfc_sli4_cq_event_release_all(phba);
 	lpfc_sli4_cq_event_pool_destroy(phba);
-
-	/* Reset SLI4 HBA FCoE function */
-	lpfc_pci_function_reset(phba);
 
 	/* Free the bsmbx region. */
 	lpfc_destroy_bootstrap_mbox(phba);
@@ -4550,7 +4482,6 @@ lpfc_free_sgl_list(struct lpfc_hba *phba)
 {
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	LIST_HEAD(sglq_list);
-	int rc = 0;
 
 	spin_lock_irq(&phba->hbalock);
 	list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &sglq_list);
@@ -4562,11 +4493,6 @@ lpfc_free_sgl_list(struct lpfc_hba *phba)
 		lpfc_mbuf_free(phba, sglq_entry->virt, sglq_entry->phys);
 		kfree(sglq_entry);
 		phba->sli4_hba.total_sglq_bufs--;
-	}
-	rc = lpfc_sli4_remove_all_sgl_pages(phba);
-	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2005 Unable to deregister pages from HBA: %x\n", rc);
 	}
 	kfree(phba->sli4_hba.lpfc_els_sgl_array);
 }
@@ -6597,50 +6523,6 @@ lpfc_sli4_send_nop_mbox_cmds(struct lpfc_hba *phba, uint32_t cnt)
 }
 
 /**
- * lpfc_sli4_fcfi_unreg - Unregister fcfi to device
- * @phba: pointer to lpfc hba data structure.
- * @fcfi: fcf index.
- *
- * This routine is invoked to unregister a FCFI from device.
- **/
-void
-lpfc_sli4_fcfi_unreg(struct lpfc_hba *phba, uint16_t fcfi)
-{
-	LPFC_MBOXQ_t *mbox;
-	uint32_t mbox_tmo;
-	int rc;
-	unsigned long flags;
-
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-
-	if (!mbox)
-		return;
-
-	lpfc_unreg_fcfi(mbox, fcfi);
-
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	else {
-		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
-	}
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
-	if (rc != MBX_SUCCESS)
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"2517 Unregister FCFI command failed "
-				"status %d, mbxStatus x%x\n", rc,
-				bf_get(lpfc_mqe_status, &mbox->u.mqe));
-	else {
-		spin_lock_irqsave(&phba->hbalock, flags);
-		/* Mark the FCFI is no longer registered */
-		phba->fcf.fcf_flag &=
-			~(FCF_AVAILABLE | FCF_REGISTERED | FCF_SCAN_DONE);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-	}
-}
-
-/**
  * lpfc_sli4_pci_mem_setup - Setup SLI4 HBA PCI memory space.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -7377,9 +7259,13 @@ lpfc_sli4_unset_hba(struct lpfc_hba *phba)
 
 	phba->pport->work_port_events = 0;
 
-	lpfc_sli4_hba_down(phba);
+	/* Stop the SLI4 device port */
+	lpfc_stop_port(phba);
 
 	lpfc_sli4_disable_intr(phba);
+
+	/* Reset SLI4 HBA FCoE function */
+	lpfc_pci_function_reset(phba);
 
 	return;
 }
@@ -7429,14 +7315,14 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 		spin_unlock_irq(&phba->hbalock);
 	}
 
-	/* Tear down the queues in the HBA */
-	lpfc_sli4_queue_unset(phba);
-
 	/* Disable PCI subsystem interrupt */
 	lpfc_sli4_disable_intr(phba);
 
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);
+
+	/* Reset SLI4 HBA FCoE function */
+	lpfc_pci_function_reset(phba);
 
 	/* Stop the SLI4 device port */
 	phba->pport->work_port_events = 0;
@@ -8373,7 +8259,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	list_del_init(&vport->listentry);
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Call scsi_free before lpfc_sli4_driver_resource_unset since scsi
+	/* Perform scsi free before driver resource_unset since scsi
 	 * buffers are released to their corresponding pools here.
 	 */
 	lpfc_scsi_free(phba);

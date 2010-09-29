@@ -481,7 +481,6 @@ struct lpfc_rpi_hdr {
  */
 int lpfc_pci_function_reset(struct lpfc_hba *);
 int lpfc_sli4_hba_setup(struct lpfc_hba *);
-int lpfc_sli4_hba_down(struct lpfc_hba *);
 int lpfc_sli4_config(struct lpfc_hba *, struct lpfcMboxq *, uint8_t,
 		     uint8_t, uint32_t, bool);
 void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
@@ -514,7 +513,6 @@ int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
-int lpfc_sli4_remove_all_sgl_pages(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
 int lpfc_sli4_post_sgl_list(struct lpfc_hba *phba);

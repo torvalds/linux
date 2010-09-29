@@ -6930,37 +6930,6 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_hba_down - PCI function resource cleanup for the SLI4 HBA
- * @phba: Pointer to HBA context object.
- *
- * This function cleans up all queues, iocb, buffers, mailbox commands while
- * shutting down the SLI4 HBA FCoE function. This function is called with no
- * lock held and always returns 1.
- *
- * This function does the following to cleanup driver FCoE function resources:
- * - Free discovery resources for each virtual port
- * - Cleanup any pending fabric iocbs
- * - Iterate through the iocb txq and free each entry in the list.
- * - Free up any buffer posted to the HBA.
- * - Clean up all the queue entries: WQ, RQ, MQ, EQ, CQ, etc.
- * - Free mailbox commands in the mailbox queue.
- **/
-int
-lpfc_sli4_hba_down(struct lpfc_hba *phba)
-{
-	/* Stop the SLI4 device port */
-	lpfc_stop_port(phba);
-
-	/* Tear down the queues in the HBA */
-	lpfc_sli4_queue_unset(phba);
-
-	/* unregister default FCFI from the HBA */
-	lpfc_sli4_fcfi_unreg(phba, phba->fcf.fcfi);
-
-	return 1;
-}
-
-/**
  * lpfc_sli_pcimem_bcopy - SLI memory copy function
  * @srcp: Source memory pointer.
  * @destp: Destination memory pointer.
@@ -10787,51 +10756,6 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 		rc = -ENXIO;
 	}
 	return 0;
-}
-/**
- * lpfc_sli4_remove_all_sgl_pages - Post scatter gather list for an XRI to HBA
- * @phba: The virtual port for which this call being executed.
- *
- * This routine will remove all of the sgl pages registered with the hba.
- *
- * Return codes:
- * 	0 - Success
- * 	-ENXIO, -ENOMEM - Failure
- **/
-int
-lpfc_sli4_remove_all_sgl_pages(struct lpfc_hba *phba)
-{
-	LPFC_MBOXQ_t *mbox;
-	int rc;
-	uint32_t shdr_status, shdr_add_status;
-	union lpfc_sli4_cfg_shdr *shdr;
-
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox)
-		return -ENOMEM;
-
-	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
-			LPFC_MBOX_OPCODE_FCOE_REMOVE_SGL_PAGES, 0,
-			LPFC_SLI4_MBX_EMBED);
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	else
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
-	/* The IOCTL status is embedded in the mailbox subheader. */
-	shdr = (union lpfc_sli4_cfg_shdr *)
-		&mbox->u.mqe.un.sli4_config.header.cfg_shdr;
-	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
-	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
-	if (shdr_status || shdr_add_status || rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2512 REMOVE_ALL_SGL_PAGES mailbox failed with "
-				"status x%x add_status x%x, mbx status x%x\n",
-				shdr_status, shdr_add_status, rc);
-		rc = -ENXIO;
-	}
-	return rc;
 }
 
 /**
