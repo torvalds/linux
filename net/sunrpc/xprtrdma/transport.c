@@ -283,7 +283,7 @@ xprt_setup_rdma(struct xprt_create *args)
 		return ERR_PTR(-EBADF);
 	}
 
-	xprt = xprt_alloc(sizeof(struct rpcrdma_xprt),
+	xprt = xprt_alloc(args->net, sizeof(struct rpcrdma_xprt),
 			xprt_rdma_slot_table_entries);
 	if (xprt == NULL) {
 		dprintk("RPC:       %s: couldn't allocate rpcrdma_xprt\n",

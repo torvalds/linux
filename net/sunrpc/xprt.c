@@ -962,7 +962,7 @@ static void xprt_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
 	spin_unlock(&xprt->reserve_lock);
 }
 
-struct rpc_xprt *xprt_alloc(int size, int max_req)
+struct rpc_xprt *xprt_alloc(struct net *net, int size, int max_req)
 {
 	struct rpc_xprt *xprt;
 
@@ -975,6 +975,7 @@ struct rpc_xprt *xprt_alloc(int size, int max_req)
 	if (xprt->slot == NULL)
 		goto out_free;
 
+	xprt->xprt_net = get_net(net);
 	return xprt;
 
 out_free:
@@ -986,6 +987,7 @@ EXPORT_SYMBOL_GPL(xprt_alloc);
 
 void xprt_free(struct rpc_xprt *xprt)
 {
+	put_net(xprt->xprt_net);
 	kfree(xprt->slot);
 	kfree(xprt);
 }
