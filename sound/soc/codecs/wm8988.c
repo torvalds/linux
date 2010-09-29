@@ -844,7 +844,6 @@ static int __devexit wm8988_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8988_spi_driver = {
 	.driver = {
 		.name	= "wm8988-codec",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8988_spi_probe,

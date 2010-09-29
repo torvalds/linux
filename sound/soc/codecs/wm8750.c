@@ -782,7 +782,6 @@ static int __devexit wm8750_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8750_spi_driver = {
 	.driver = {
 		.name	= "wm8750-codec",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8750_spi_probe,
