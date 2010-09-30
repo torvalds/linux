@@ -3863,7 +3863,7 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		pci_disable_device(pdev);
 		pci_release_regions(pdev);
 		pci_set_drvdata(pdev, NULL);
-	} else if (PCI_FUNC(pdev->devfn) > 0)
+	} else
 		pci_release_regions(pdev);
 }
 
