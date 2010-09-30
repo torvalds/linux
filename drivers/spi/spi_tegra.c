@@ -274,6 +274,7 @@ static void spi_tegra_start_transfer(struct spi_device *spi,
 		val |= SLINK_TXEN;
 	val |= SLINK_SS_EN_CS(spi->chip_select);
 	val |= SLINK_SPIE;
+	val |= SLINK_SS_SETUP(3);
 	spi_tegra_writel(tspi, val, SLINK_COMMAND2);
 
 	val = spi_tegra_readl(tspi, SLINK_COMMAND);
