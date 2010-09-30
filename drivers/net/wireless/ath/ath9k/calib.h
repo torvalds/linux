@@ -59,7 +59,6 @@ struct ar5416IniArray {
 	} while (0)
 
 enum ath9k_cal_types {
-	ADC_DC_INIT_CAL = 0x1,
 	ADC_GAIN_CAL = 0x2,
 	ADC_DC_CAL = 0x4,
 	IQ_MISMATCH_CAL = 0x8,

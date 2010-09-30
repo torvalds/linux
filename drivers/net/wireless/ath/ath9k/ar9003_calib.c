@@ -50,7 +50,6 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "starting Temperature Compensation Calibration\n");
 		break;
-	case ADC_DC_INIT_CAL:
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
 		/* Not yet */

@@ -692,7 +692,6 @@ struct ath_hw {
 	enum ath9k_cal_types supp_cals;
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
-	struct ath9k_cal_list adcdc_calinitdata;
 	struct ath9k_cal_list adcdc_caldata;
 	struct ath9k_cal_list tempCompCalData;
 	struct ath9k_cal_list *cal_list;
