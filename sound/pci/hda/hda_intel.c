@@ -78,8 +78,8 @@ MODULE_PARM_DESC(enable, "Enable Intel HD audio interface.");
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
-MODULE_PARM_DESC(position_fix, "Fix DMA pointer "
-		 "(0 = auto, 1 = none, 2 = POSBUF).");
+MODULE_PARM_DESC(position_fix, "DMA pointer read method."
+		 "(0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO).");
 module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
@@ -305,6 +305,7 @@ enum {
 	POS_FIX_AUTO,
 	POS_FIX_LPIB,
 	POS_FIX_POSBUF,
+	POS_FIX_VIACOMBO,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -433,7 +434,6 @@ struct azx {
 	unsigned int polling_mode :1;
 	unsigned int msi :1;
 	unsigned int irq_pending_warned :1;
-	unsigned int via_dmapos_patch :1; /* enable DMA-position fix for VIA */
 	unsigned int probing :1; /* codec probing phase */
 
 	/* for debugging */
@@ -1309,11 +1309,8 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	azx_sd_writel(azx_dev, SD_BDLPU, upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
-	if (chip->position_fix[0] == POS_FIX_POSBUF ||
-	    chip->position_fix[0] == POS_FIX_AUTO ||
-	    chip->position_fix[1] == POS_FIX_POSBUF ||
-	    chip->position_fix[1] == POS_FIX_AUTO ||
-	    chip->via_dmapos_patch) {
+	if (chip->position_fix[0] != POS_FIX_LPIB ||
+	    chip->position_fix[1] != POS_FIX_LPIB) {
 		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
 				(u32)chip->posbuf.addr | ICH6_DPLBASE_ENABLE);
@@ -1852,20 +1849,21 @@ static unsigned int azx_get_position(struct azx *chip,
 				     struct azx_dev *azx_dev)
 {
 	unsigned int pos;
+	int stream = azx_dev->substream->stream;
 
-	if (chip->via_dmapos_patch)
+	switch (chip->position_fix[stream]) {
+	case POS_FIX_LPIB:
+		/* read LPIB */
+		pos = azx_sd_readl(azx_dev, SD_LPIB);
+		break;
+	case POS_FIX_VIACOMBO:
 		pos = azx_via_get_position(chip, azx_dev);
-	else {
-		int stream = azx_dev->substream->stream;
-		if (chip->position_fix[stream] == POS_FIX_POSBUF ||
-		    chip->position_fix[stream] == POS_FIX_AUTO) {
-			/* use the position buffer */
-			pos = le32_to_cpu(*azx_dev->posbuf);
-		} else {
-			/* read LPIB */
-			pos = azx_sd_readl(azx_dev, SD_LPIB);
-		}
+		break;
+	default:
+		/* use the position buffer */
+		pos = le32_to_cpu(*azx_dev->posbuf);
 	}
+
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
 	return pos;
@@ -2313,6 +2311,7 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	switch (fix) {
 	case POS_FIX_LPIB:
 	case POS_FIX_POSBUF:
+	case POS_FIX_VIACOMBO:
 		return fix;
 	}
 
@@ -2320,11 +2319,9 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	switch (chip->driver_type) {
 	case AZX_DRIVER_VIA:
 	case AZX_DRIVER_ATI:
-		chip->via_dmapos_patch = 1;
 		/* Use link position directly, avoid any transfer problem. */
-		return POS_FIX_LPIB;
+		return POS_FIX_VIACOMBO;
 	}
-	chip->via_dmapos_patch = 0;
 
 	q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
 	if (q) {
