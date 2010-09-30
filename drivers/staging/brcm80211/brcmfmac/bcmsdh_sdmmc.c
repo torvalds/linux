@@ -123,7 +123,8 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 		return NULL;
 	}
 
-	if ((sd = (sdioh_info_t *) MALLOC(osh, sizeof(sdioh_info_t))) == NULL) {
+	sd = (sdioh_info_t *) MALLOC(osh, sizeof(sdioh_info_t));
+	if (sd == NULL) {
 		sd_err(("sdioh_attach: out of memory, malloced %d bytes\n",
 			MALLOCED(osh)));
 		return NULL;
@@ -417,12 +418,14 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	sd_trace(("%s: Enter (%s %s)\n", __func__, (set ? "set" : "get"),
 		  name));
 
-	if ((vi = bcm_iovar_lookup(sdioh_iovars, name)) == NULL) {
+	vi = bcm_iovar_lookup(sdioh_iovars, name);
+	if (vi == NULL) {
 		bcmerror = BCME_UNSUPPORTED;
 		goto exit;
 	}
 
-	if ((bcmerror = bcm_iovar_lencheck(vi, arg, len, set)) != 0)
+	bcmerror = bcm_iovar_lencheck(vi, arg, len, set);
+	if (bcmerror != 0)
 		goto exit;
 
 	/* Set up params so get and set can share the convenience variables */
@@ -1037,12 +1040,11 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
 #ifdef DHD_USE_STATIC_BUF
-		if (!(mypkt =
-		     PKTGET_STATIC(sd->osh, buflen_u, write ? TRUE : FALSE))) {
+		mypkt = PKTGET_STATIC(sd->osh, buflen_u, write ? TRUE : FALSE);
 #else
-		if (!(mypkt = PKTGET(sd->osh, buflen_u,
-			write ? TRUE : FALSE))) {
+		mypkt = PKTGET(sd->osh, buflen_u, write ? TRUE : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
+		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
@@ -1073,13 +1075,12 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", PKTLEN(pkt)));
 #ifdef DHD_USE_STATIC_BUF
-		if (!(mypkt =
-		     PKTGET_STATIC(sd->osh, PKTLEN(pkt),
-				   write ? TRUE : FALSE))) {
+		mypkt = PKTGET_STATIC(sd->osh, PKTLEN(pkt),
+					write ? TRUE : FALSE);
 #else
-		if (!(mypkt =
-		     PKTGET(sd->osh, PKTLEN(pkt), write ? TRUE : FALSE))) {
+		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? TRUE : FALSE);
 #endif				/* DHD_USE_STATIC_BUF */
+		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
 				__func__, PKTLEN(pkt)));
 			return SDIOH_API_RC_FAIL;
