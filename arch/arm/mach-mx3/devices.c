@@ -327,14 +327,14 @@ static struct resource imx_ssi_resources1[] = {
 };
 
 struct platform_device imx_ssi_device0 = {
-	.name = "imx-ssi-dai",
+	.name = "imx-ssi",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
 	.resource = imx_ssi_resources0,
 };
 
 struct platform_device imx_ssi_device1 = {
-	.name = "imx-ssi-dai",
+	.name = "imx-ssi",
 	.id = 1,
 	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
 	.resource = imx_ssi_resources1,

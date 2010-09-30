@@ -34,7 +34,7 @@ static struct snd_soc_dai_link imx_phycore_dai_ac97[] = {
 		.stream_name	= "HiFi",
 		.codec_dai_name		= "wm9712-hifi",
 		.codec_name	= "wm9712-codec",
-		.cpu_dai_name	= "imx-ssi-dai.0",
+		.cpu_dai_name	= "imx-ssi.0",
 		.platform_name	= "imx-fiq-pcm-audio.0",
 		.ops		= &imx_phycore_hifi_ops,
 	},

@@ -734,7 +734,7 @@ static struct platform_driver imx_ssi_driver = {
 	.remove = __devexit_p(imx_ssi_remove),
 
 	.driver = {
-		.name = "imx-ssi-dai",
+		.name = "imx-ssi",
 		.owner = THIS_MODULE,
 	},
 };

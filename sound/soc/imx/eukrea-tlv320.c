@@ -82,7 +82,7 @@ static struct snd_soc_dai_link eukrea_tlv320_dai = {
 	.codec_dai	= "tlv320aic23-hifi",
 	.platform_name	= "imx-pcm-audio.0",
 	.codec_name	= "tlv320aic23-codec.0-001a",
-	.cpu_dai = "imx-ssi-dai.0",
+	.cpu_dai = "imx-ssi.0",
 	.ops		= &eukrea_tlv320_snd_ops,
 };
 
