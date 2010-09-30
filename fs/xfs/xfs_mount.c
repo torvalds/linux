@@ -1856,98 +1856,54 @@ xfs_mod_incore_sb(
 }
 
 /*
- * xfs_mod_incore_sb_batch() is used to change more than one field
- * in the in-core superblock structure at a time.  This modification
- * is protected by a lock internal to this module.  The fields and
- * changes to those fields are specified in the array of xfs_mod_sb
- * structures passed in.
+ * Change more than one field in the in-core superblock structure at a time.
  *
- * Either all of the specified deltas will be applied or none of
- * them will.  If any modified field dips below 0, then all modifications
- * will be backed out and EINVAL will be returned.
+ * The fields and changes to those fields are specified in the array of
+ * xfs_mod_sb structures passed in.  Either all of the specified deltas
+ * will be applied or none of them will.  If any modified field dips below 0,
+ * then all modifications will be backed out and EINVAL will be returned.
+ *
+ * Note that this function may not be used for the superblock values that
+ * are tracked with the in-memory per-cpu counters - a direct call to
+ * xfs_icsb_modify_counters is required for these.
  */
 int
-xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
+xfs_mod_incore_sb_batch(
+	struct xfs_mount	*mp,
+	xfs_mod_sb_t		*msb,
+	uint			nmsb,
+	int			rsvd)
 {
-	int		status=0;
-	xfs_mod_sb_t	*msbp;
+	xfs_mod_sb_t		*msbp = &msb[0];
+	int			error = 0;
 
 	/*
-	 * Loop through the array of mod structures and apply each
-	 * individually.  If any fail, then back out all those
-	 * which have already been applied.  Do all of this within
-	 * the scope of the m_sb_lock so that all of the changes will
-	 * be atomic.
+	 * Loop through the array of mod structures and apply each individually.
+	 * If any fail, then back out all those which have already been applied.
+	 * Do all of this within the scope of the m_sb_lock so that all of the
+	 * changes will be atomic.
 	 */
 	spin_lock(&mp->m_sb_lock);
-	msbp = &msb[0];
 	for (msbp = &msbp[0]; msbp < (msb + nmsb); msbp++) {
-		/*
-		 * Apply the delta at index n.  If it fails, break
-		 * from the loop so we'll fall into the undo loop
-		 * below.
-		 */
-		switch (msbp->msb_field) {
-#ifdef HAVE_PERCPU_SB
-		case XFS_SBS_ICOUNT:
-		case XFS_SBS_IFREE:
-		case XFS_SBS_FDBLOCKS:
-			spin_unlock(&mp->m_sb_lock);
-			status = xfs_icsb_modify_counters(mp,
-						msbp->msb_field,
-						msbp->msb_delta, rsvd);
-			spin_lock(&mp->m_sb_lock);
-			break;
-#endif
-		default:
-			status = xfs_mod_incore_sb_unlocked(mp,
-						msbp->msb_field,
-						msbp->msb_delta, rsvd);
-			break;
-		}
+		ASSERT(msbp->msb_field < XFS_SBS_ICOUNT ||
+		       msbp->msb_field > XFS_SBS_FDBLOCKS);
 
-		if (status != 0) {
-			break;
-		}
-	}
-
-	/*
-	 * If we didn't complete the loop above, then back out
-	 * any changes made to the superblock.  If you add code
-	 * between the loop above and here, make sure that you
-	 * preserve the value of status. Loop back until
-	 * we step below the beginning of the array.  Make sure
-	 * we don't touch anything back there.
-	 */
-	if (status != 0) {
-		msbp--;
-		while (msbp >= msb) {
-			switch (msbp->msb_field) {
-#ifdef HAVE_PERCPU_SB
-			case XFS_SBS_ICOUNT:
-			case XFS_SBS_IFREE:
-			case XFS_SBS_FDBLOCKS:
-				spin_unlock(&mp->m_sb_lock);
-				status = xfs_icsb_modify_counters(mp,
-						msbp->msb_field,
-						-(msbp->msb_delta),
-						rsvd);
-				spin_lock(&mp->m_sb_lock);
-				break;
-#endif
-			default:
-				status = xfs_mod_incore_sb_unlocked(mp,
-							msbp->msb_field,
-							-(msbp->msb_delta),
-							rsvd);
-				break;
-			}
-			ASSERT(status == 0);
-			msbp--;
-		}
+		error = xfs_mod_incore_sb_unlocked(mp, msbp->msb_field,
+						   msbp->msb_delta, rsvd);
+		if (error)
+			goto unwind;
 	}
 	spin_unlock(&mp->m_sb_lock);
-	return status;
+	return 0;
+
+unwind:
+	while (--msbp >= msb) {
+		error = xfs_mod_incore_sb_unlocked(mp, msbp->msb_field,
+						   -msbp->msb_delta, rsvd);
+		ASSERT(error == 0);
+	}
+	spin_unlock(&mp->m_sb_lock);
+	return error;
 }
 
 /*
@@ -2478,7 +2434,7 @@ xfs_icsb_balance_counter(
 	spin_unlock(&mp->m_sb_lock);
 }
 
-STATIC int
+int
 xfs_icsb_modify_counters(
 	xfs_mount_t	*mp,
 	xfs_sb_field_t	field,

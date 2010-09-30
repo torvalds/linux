@@ -1009,7 +1009,7 @@ void
 xfs_trans_unreserve_and_mod_sb(
 	xfs_trans_t	*tp)
 {
-	xfs_mod_sb_t	msb[14];	/* If you add cases, add entries */
+	xfs_mod_sb_t	msb[9];	/* If you add cases, add entries */
 	xfs_mod_sb_t	*msbp;
 	xfs_mount_t	*mp = tp->t_mountp;
 	/* REFERENCED */
@@ -1017,53 +1017,59 @@ xfs_trans_unreserve_and_mod_sb(
 	int		rsvd;
 	int64_t		blkdelta = 0;
 	int64_t		rtxdelta = 0;
+	int64_t		idelta = 0;
+	int64_t		ifreedelta = 0;
 
 	msbp = msb;
 	rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
 
-	/* calculate free blocks delta */
+	/* calculate deltas */
 	if (tp->t_blk_res > 0)
 		blkdelta = tp->t_blk_res;
-
 	if ((tp->t_fdblocks_delta != 0) &&
 	    (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
 	     (tp->t_flags & XFS_TRANS_SB_DIRTY)))
 	        blkdelta += tp->t_fdblocks_delta;
 
-	if (blkdelta != 0) {
-		msbp->msb_field = XFS_SBS_FDBLOCKS;
-		msbp->msb_delta = blkdelta;
-		msbp++;
-	}
-
-	/* calculate free realtime extents delta */
 	if (tp->t_rtx_res > 0)
 		rtxdelta = tp->t_rtx_res;
-
 	if ((tp->t_frextents_delta != 0) &&
 	    (tp->t_flags & XFS_TRANS_SB_DIRTY))
 		rtxdelta += tp->t_frextents_delta;
 
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
+		idelta = tp->t_icount_delta;
+		ifreedelta = tp->t_ifree_delta;
+	}
+
+	/* apply the per-cpu counters */
+	if (blkdelta) {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+						 blkdelta, rsvd);
+		if (error)
+			goto out;
+	}
+
+	if (idelta) {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_ICOUNT,
+						 idelta, rsvd);
+		if (error)
+			goto out_undo_fdblocks;
+	}
+
+	if (ifreedelta) {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_IFREE,
+						 ifreedelta, rsvd);
+		if (error)
+			goto out_undo_icount;
+	}
+
+	/* apply remaining deltas */
 	if (rtxdelta != 0) {
 		msbp->msb_field = XFS_SBS_FREXTENTS;
 		msbp->msb_delta = rtxdelta;
 		msbp++;
-	}
-
-	/* apply remaining deltas */
-
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
-	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
-		if (tp->t_icount_delta != 0) {
-			msbp->msb_field = XFS_SBS_ICOUNT;
-			msbp->msb_delta = tp->t_icount_delta;
-			msbp++;
-		}
-		if (tp->t_ifree_delta != 0) {
-			msbp->msb_field = XFS_SBS_IFREE;
-			msbp->msb_delta = tp->t_ifree_delta;
-			msbp++;
-		}
 	}
 
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {
@@ -1115,8 +1121,24 @@ xfs_trans_unreserve_and_mod_sb(
 	if (msbp > msb) {
 		error = xfs_mod_incore_sb_batch(tp->t_mountp, msb,
 			(uint)(msbp - msb), rsvd);
-		ASSERT(error == 0);
+		if (error)
+			goto out_undo_ifreecount;
 	}
+
+	return;
+
+out_undo_ifreecount:
+	if (ifreedelta)
+		xfs_icsb_modify_counters(mp, XFS_SBS_IFREE, -ifreedelta, rsvd);
+out_undo_icount:
+	if (idelta)
+		xfs_icsb_modify_counters(mp, XFS_SBS_ICOUNT, -idelta, rsvd);
+out_undo_fdblocks:
+	if (blkdelta)
+		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, -blkdelta, rsvd);
+out:
+	ASSERT(error = 0);
+	return;
 }
 
 /*
