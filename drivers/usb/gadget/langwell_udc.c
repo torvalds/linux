@@ -2440,11 +2440,13 @@ static int process_ep_req(struct langwell_udc *dev, int index,
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
 	for (i = 0; i < curr_req->dtd_count; i++) {
-		remaining_length = le16_to_cpu(curr_dtd->dtd_total);
-		actual -= remaining_length;
 
 		/* command execution states by dTD */
 		dtd_status = curr_dtd->dtd_status;
+
+		barrier();
+		remaining_length = le16_to_cpu(curr_dtd->dtd_total);
+		actual -= remaining_length;
 
 		if (!dtd_status) {
 			/* transfers completed successfully */
