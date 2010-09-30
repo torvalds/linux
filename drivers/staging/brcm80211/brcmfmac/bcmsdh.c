@@ -58,8 +58,8 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 {
 	bcmsdh_info_t *bcmsdh;
 
-	if ((bcmsdh =
-	     (bcmsdh_info_t *) MALLOC(osh, sizeof(bcmsdh_info_t))) == NULL) {
+	bcmsdh = (bcmsdh_info_t *) MALLOC(osh, sizeof(bcmsdh_info_t));
+	if (bcmsdh == NULL) {
 		BCMSDH_ERROR(("bcmsdh_attach: out of memory, "
 			"malloced %d bytes\n", MALLOCED(osh)));
 		return NULL;
@@ -69,7 +69,8 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 	/* save the handler locally */
 	l_bcmsdh = bcmsdh;
 
-	if (!(bcmsdh->sdioh = sdioh_attach(osh, cfghdl, irq))) {
+	bcmsdh->sdioh = sdioh_attach(osh, cfghdl, irq);
+	if (!bcmsdh->sdioh) {
 		bcmsdh_detach(osh, bcmsdh);
 		return NULL;
 	}
@@ -317,7 +318,8 @@ int bcmsdh_cis_read(void *sdh, uint func, uint8 * cis, uint length)
 	if (ascii) {
 		/* Move binary bits to tmp and format them
 			 into the provided buffer. */
-		if ((tmp_buf = (uint8 *) MALLOC(bcmsdh->osh, length)) == NULL) {
+		tmp_buf = (uint8 *) MALLOC(bcmsdh->osh, length);
+		if (tmp_buf == NULL) {
 			BCMSDH_ERROR(("%s: out of memory\n", __func__));
 			return BCME_NOMEM;
 		}
@@ -420,7 +422,8 @@ uint32 bcmsdh_reg_write(void *sdh, uint32 addr, uint size, uint32 data)
 	ASSERT(bcmsdh->init_success);
 
 	if (bar0 != bcmsdh->sbwad) {
-		if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0)))
+		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
+		if (err)
 			return err;
 
 		bcmsdh->sbwad = bar0;
@@ -471,7 +474,8 @@ bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
 		return BCME_UNSUPPORTED;
 
 	if (bar0 != bcmsdh->sbwad) {
-		if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0)))
+		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
+		if (err)
 			return err;
 
 		bcmsdh->sbwad = bar0;
@@ -515,7 +519,8 @@ bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
 		return BCME_UNSUPPORTED;
 
 	if (bar0 != bcmsdh->sbwad) {
-		if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0)))
+		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
+		if (err)
 			return err;
 
 		bcmsdh->sbwad = bar0;
