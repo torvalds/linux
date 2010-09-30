@@ -462,28 +462,6 @@ drm_gem_object_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
-/**
- * Called after the last reference to the object has been lost.
- * Must be called without holding struct_mutex
- *
- * Frees the object
- */
-void
-drm_gem_object_free_unlocked(struct kref *kref)
-{
-	struct drm_gem_object *obj = (struct drm_gem_object *) kref;
-	struct drm_device *dev = obj->dev;
-
-	if (dev->driver->gem_free_object_unlocked != NULL)
-		dev->driver->gem_free_object_unlocked(obj);
-	else if (dev->driver->gem_free_object != NULL) {
-		mutex_lock(&dev->struct_mutex);
-		dev->driver->gem_free_object(obj);
-		mutex_unlock(&dev->struct_mutex);
-	}
-}
-EXPORT_SYMBOL(drm_gem_object_free_unlocked);
-
 static void drm_gem_object_ref_bug(struct kref *list_kref)
 {
 	BUG();

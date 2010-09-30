@@ -808,7 +808,6 @@ struct drm_driver {
 	 */
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
-	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
@@ -1456,7 +1455,6 @@ int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_release(struct drm_gem_object *obj);
 void drm_gem_object_free(struct kref *kref);
-void drm_gem_object_free_unlocked(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
@@ -1484,8 +1482,12 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 {
-	if (obj != NULL)
-		kref_put(&obj->refcount, drm_gem_object_free_unlocked);
+	if (obj != NULL) {
+		struct drm_device *dev = obj->dev;
+		mutex_lock(&dev->struct_mutex);
+		kref_put(&obj->refcount, drm_gem_object_free);
+		mutex_unlock(&dev->struct_mutex);
+	}
 }
 
 int drm_gem_handle_create(struct drm_file *file_priv,
