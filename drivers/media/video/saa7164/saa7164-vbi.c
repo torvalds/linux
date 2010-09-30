@@ -1112,7 +1112,7 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	struct saa7164_port *port = fh->port;
 	struct saa7164_user_buffer *ubuf = NULL;
 	struct saa7164_dev *dev = port->dev;
-	unsigned int ret = 0;
+	int ret = 0;
 	int rem, cnt;
 	u8 *p;
 
