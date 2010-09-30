@@ -25,11 +25,6 @@
 #ifndef TI_WILINK_ST_H
 #define TI_WILINK_ST_H
 
-/* TODO:
- * Move the following to tty.h upon acceptance
- */
-#define N_TI_WL	22	/* Ldisc for TI's WL BT, FM, GPS combo chips */
-
 #ifdef __KERNEL__
 /**
  * enum kim_gpio_state - Few protocols such as FM have ACTIVE LOW
