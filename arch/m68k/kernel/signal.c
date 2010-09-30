@@ -51,8 +51,6 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs);
-
 const int frame_extra_sizes[16] = {
   [1]	= -1, /* sizeof(((struct frame *)0)->un.fmt1), */
   [2]	= sizeof(((struct frame *)0)->un.fmt2),
@@ -74,51 +72,21 @@ const int frame_extra_sizes[16] = {
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int do_sigsuspend(struct pt_regs *regs)
+asmlinkage int
+sys_sigsuspend(int unused0, int unused1, old_sigset_t mask)
 {
-	old_sigset_t mask = regs->d3;
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
-	saveset = current->blocked;
+	spin_lock_irq(&current->sighand->siglock);
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 
-	regs->d0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return -EINTR;
-	}
-}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_restore_sigmask();
 
-asmlinkage int
-do_rt_sigsuspend(struct pt_regs *regs)
-{
-	sigset_t __user *unewset = (sigset_t __user *)regs->d1;
-	size_t sigsetsize = (size_t)regs->d2;
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-
-	regs->d0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return -EINTR;
-	}
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int
@@ -1017,21 +985,25 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
+asmlinkage int do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
+	sigset_t *oldset;
 
 	current->thread.esp0 = (unsigned long) regs;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &ka, &info, oldset, regs);
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		return 1;
 	}
 
@@ -1039,6 +1011,12 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	if (regs->orig_d0 >= 0)
 		/* Restart the system call - no handlers present */
 		handle_restart(regs, NULL, 0);
+
+	/* If there's no signal to deliver, we just restore the saved mask.  */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 
 	return 0;
 }
