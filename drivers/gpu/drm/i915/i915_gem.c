@@ -2775,7 +2775,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 	BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 	obj_priv->gtt_offset = obj_priv->gtt_space->start;
-	trace_i915_gem_object_bind(obj, obj_priv->gtt_offset);
+	trace_i915_gem_object_bind(obj, obj_priv->gtt_offset, mappable);
 
 	return 0;
 }

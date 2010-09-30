@@ -35,22 +35,25 @@ TRACE_EVENT(i915_gem_object_create,
 
 TRACE_EVENT(i915_gem_object_bind,
 
-	    TP_PROTO(struct drm_gem_object *obj, u32 gtt_offset),
+	    TP_PROTO(struct drm_gem_object *obj, u32 gtt_offset, bool mappable),
 
-	    TP_ARGS(obj, gtt_offset),
+	    TP_ARGS(obj, gtt_offset, mappable),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_gem_object *, obj)
 			     __field(u32, gtt_offset)
+			     __field(bool, mappable)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->obj = obj;
 			   __entry->gtt_offset = gtt_offset;
+			   __entry->mappable = mappable;
 			   ),
 
-	    TP_printk("obj=%p, gtt_offset=%08x",
-		      __entry->obj, __entry->gtt_offset)
+	    TP_printk("obj=%p, gtt_offset=%08x%s",
+		      __entry->obj, __entry->gtt_offset,
+		      __entry->mappable ? ", mappable" : "")
 );
 
 TRACE_EVENT(i915_gem_object_change_domain,
