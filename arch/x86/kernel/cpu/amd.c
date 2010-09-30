@@ -256,21 +256,29 @@ static int __cpuinit nearby_node(int apicid)
  * Fixup core topology information for
  * (1) AMD multi-node processors
  *     Assumption: Number of cores in each internal node is the same.
+ * (2) AMD processors supporting compute units
  */
 #ifdef CONFIG_X86_HT
 static void __cpuinit amd_get_topology(struct cpuinfo_x86 *c)
 {
-	u32 nodes, cores_per_node;
+	u32 nodes;
 	u8 node_id;
-	unsigned long long value;
 	int cpu = smp_processor_id();
 
 	/* get information required for multi-node processors */
 	if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
-		value = cpuid_ecx(0x8000001e);
-		nodes = ((value >> 8) & 7) + 1;
-		node_id = value & 7;
+		u32 eax, ebx, ecx, edx;
+
+		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
+		nodes = ((ecx >> 8) & 7) + 1;
+		node_id = ecx & 7;
+
+		/* get compute unit information */
+		smp_num_siblings = ((ebx >> 8) & 3) + 1;
+		c->compute_unit_id = ebx & 0xff;
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
+		u64 value;
+
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
 		nodes = ((value >> 3) & 7) + 1;
 		node_id = value & 7;
@@ -279,6 +287,8 @@ static void __cpuinit amd_get_topology(struct cpuinfo_x86 *c)
 
 	/* fixup multi-node processor information */
 	if (nodes > 1) {
+		u32 cores_per_node;
+
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
 		cores_per_node = c->x86_max_cores / nodes;
 
