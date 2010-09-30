@@ -75,6 +75,8 @@ struct virtio_chan {
 	struct p9_client *client;
 	struct virtio_device *vdev;
 	struct virtqueue *vq;
+	int ring_bufs_avail;
+	wait_queue_head_t *vc_wq;
 
 	/* Scatterlist: can be too big for stack. */
 	struct scatterlist sg[VIRTQUEUE_NUM];
@@ -141,15 +143,21 @@ static void req_done(struct virtqueue *vq)
 	do {
 		spin_lock_irqsave(&chan->lock, flags);
 		rc = virtqueue_get_buf(chan->vq, &len);
-		spin_unlock_irqrestore(&chan->lock, flags);
 
 		if (rc != NULL) {
+			if (!chan->ring_bufs_avail) {
+				chan->ring_bufs_avail = 1;
+				wake_up(chan->vc_wq);
+			}
+			spin_unlock_irqrestore(&chan->lock, flags);
 			P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
 			P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n",
 					rc->tag);
 			req = p9_tag_lookup(chan->client, rc->tag);
 			req->status = REQ_STATUS_RCVD;
 			p9_client_cb(chan->client, req);
+		} else {
+			spin_unlock_irqrestore(&chan->lock, flags);
 		}
 	} while (rc != NULL);
 }
@@ -212,6 +220,7 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio request\n");
 
+req_retry:
 	req->status = REQ_STATUS_SENT;
 
 	spin_lock_irqsave(&chan->lock, flags);
@@ -222,10 +231,23 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc);
 	if (err < 0) {
-		spin_unlock_irqrestore(&chan->lock, flags);
-		P9_DPRINTK(P9_DEBUG_TRANS,
-			"9p debug: virtio rpc add_buf returned failure");
-		return -EIO;
+		if (err == -ENOSPC) {
+			chan->ring_bufs_avail = 0;
+			spin_unlock_irqrestore(&chan->lock, flags);
+			err = wait_event_interruptible(*chan->vc_wq,
+							chan->ring_bufs_avail);
+			if (err  == -ERESTARTSYS)
+				return err;
+
+			P9_DPRINTK(P9_DEBUG_TRANS, "9p:Retry virtio request\n");
+			goto req_retry;
+		} else {
+			spin_unlock_irqrestore(&chan->lock, flags);
+			P9_DPRINTK(P9_DEBUG_TRANS,
+					"9p debug: "
+					"virtio rpc add_buf returned failure");
+			return -EIO;
+		}
 	}
 
 	virtqueue_kick(chan->vq);
@@ -304,14 +326,23 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	chan->tag_len = tag_len;
 	err = sysfs_create_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
 	if (err) {
-		kfree(tag);
-		goto out_free_vq;
+		goto out_free_tag;
 	}
+	chan->vc_wq = kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
+	if (!chan->vc_wq) {
+		err = -ENOMEM;
+		goto out_free_tag;
+	}
+	init_waitqueue_head(chan->vc_wq);
+	chan->ring_bufs_avail = 1;
+
 	mutex_lock(&virtio_9p_lock);
 	list_add_tail(&chan->chan_list, &virtio_chan_list);
 	mutex_unlock(&virtio_9p_lock);
 	return 0;
 
+out_free_tag:
+	kfree(tag);
 out_free_vq:
 	vdev->config->del_vqs(vdev);
 	kfree(chan);
@@ -385,6 +416,7 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 	mutex_unlock(&virtio_9p_lock);
 	sysfs_remove_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
 	kfree(chan->tag);
+	kfree(chan->vc_wq);
 	kfree(chan);
 
 }

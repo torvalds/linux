@@ -583,7 +583,8 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 
 	err = c->trans_mod->request(c, req);
 	if (err < 0) {
-		c->status = Disconnected;
+		if (err != -ERESTARTSYS)
+			c->status = Disconnected;
 		goto reterr;
 	}
 
