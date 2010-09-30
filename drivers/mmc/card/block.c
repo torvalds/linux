@@ -373,7 +373,8 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			readcmd = MMC_READ_SINGLE_BLOCK;
 			writecmd = MMC_WRITE_BLOCK;
 		}
-
+		if (mmc_card_ddr_mode(card))
+			brq.data.flags |= MMC_DDR_MODE;
 		if (rq_data_dir(req) == READ) {
 			brq.cmd.opcode = readcmd;
 			brq.data.flags |= MMC_DATA_READ;
@@ -655,8 +656,11 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 	struct mmc_command cmd;
 	int err;
 
-	/* Block-addressed cards ignore MMC_SET_BLOCKLEN. */
-	if (mmc_card_blockaddr(card))
+	/*
+	 * Block-addressed and ddr mode supported cards
+	 * ignore MMC_SET_BLOCKLEN.
+	 */
+	if (mmc_card_blockaddr(card) || mmc_card_ddr_mode(card))
 		return 0;
 
 	mmc_claim_host(card->host);

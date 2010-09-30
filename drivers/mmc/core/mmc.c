@@ -258,6 +258,21 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 	}
 
 	switch (ext_csd[EXT_CSD_CARD_TYPE] & EXT_CSD_CARD_TYPE_MASK) {
+	case EXT_CSD_CARD_TYPE_DDR_52 | EXT_CSD_CARD_TYPE_52 |
+	     EXT_CSD_CARD_TYPE_26:
+		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.card_type = EXT_CSD_CARD_TYPE_DDR_52;
+		break;
+	case EXT_CSD_CARD_TYPE_DDR_1_2V | EXT_CSD_CARD_TYPE_52 |
+	     EXT_CSD_CARD_TYPE_26:
+		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.card_type = EXT_CSD_CARD_TYPE_DDR_1_2V;
+		break;
+	case EXT_CSD_CARD_TYPE_DDR_1_8V | EXT_CSD_CARD_TYPE_52 |
+	     EXT_CSD_CARD_TYPE_26:
+		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.card_type = EXT_CSD_CARD_TYPE_DDR_1_8V;
+		break;
 	case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
 		card->ext_csd.hs_max_dtr = 52000000;
 		break;
@@ -503,6 +518,18 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	mmc_set_clock(host, max_dtr);
 
 	/*
+	 * Activate DDR50 mode (if supported).
+	 */
+	if (mmc_card_highspeed(card)) {
+		if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
+			&& (host->caps & (MMC_CAP_1_8V_DDR)))
+				mmc_card_set_ddr_mode(card);
+		else if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
+			&& (host->caps & (MMC_CAP_1_2V_DDR)))
+				mmc_card_set_ddr_mode(card);
+	}
+
+	/*
 	 * Activate wide bus (if supported).
 	 */
 	if ((card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
@@ -510,10 +537,16 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		unsigned ext_csd_bit, bus_width;
 
 		if (host->caps & MMC_CAP_8_BIT_DATA) {
-			ext_csd_bit = EXT_CSD_BUS_WIDTH_8;
+			if (mmc_card_ddr_mode(card))
+				ext_csd_bit = EXT_CSD_DDR_BUS_WIDTH_8;
+			else
+				ext_csd_bit = EXT_CSD_BUS_WIDTH_8;
 			bus_width = MMC_BUS_WIDTH_8;
 		} else {
-			ext_csd_bit = EXT_CSD_BUS_WIDTH_4;
+			if (mmc_card_ddr_mode(card))
+				ext_csd_bit = EXT_CSD_DDR_BUS_WIDTH_4;
+			else
+				ext_csd_bit = EXT_CSD_BUS_WIDTH_4;
 			bus_width = MMC_BUS_WIDTH_4;
 		}
 
