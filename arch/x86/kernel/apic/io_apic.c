@@ -1160,7 +1160,6 @@ void __setup_vector_irq(int cpu)
 	/* Initialize vector_irq on a new cpu */
 	int irq, vector;
 	struct irq_cfg *cfg;
-	struct irq_desc *desc;
 
 	/*
 	 * vector_lock will make sure that we don't run into irq vector
@@ -1169,9 +1168,10 @@ void __setup_vector_irq(int cpu)
 	 */
 	raw_spin_lock(&vector_lock);
 	/* Mark the inuse vectors */
-	for_each_irq_desc(irq, desc) {
-		cfg = get_irq_desc_chip_data(desc);
-
+	for_each_active_irq(irq) {
+		cfg = get_irq_chip_data(irq);
+		if (!cfg)
+			continue;
 		/*
 		 * If it is a legacy IRQ handled by the legacy PIC, this cpu
 		 * will be part of the irq_cfg's domain.
@@ -1516,7 +1516,6 @@ __apicdebuginit(void) print_IO_APIC(void)
 	union IO_APIC_reg_03 reg_03;
 	unsigned long flags;
 	struct irq_cfg *cfg;
-	struct irq_desc *desc;
 	unsigned int irq;
 
 	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
@@ -1603,10 +1602,10 @@ __apicdebuginit(void) print_IO_APIC(void)
 	}
 	}
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
-	for_each_irq_desc(irq, desc) {
+	for_each_active_irq(irq) {
 		struct irq_pin_list *entry;
 
-		cfg = get_irq_desc_chip_data(desc);
+		cfg = get_irq_chip_data(irq);
 		if (!cfg)
 			continue;
 		entry = cfg->irq_2_pin;
@@ -2574,9 +2573,8 @@ static struct irq_chip ir_ioapic_chip __read_mostly = {
 
 static inline void init_IO_APIC_traps(void)
 {
-	int irq;
-	struct irq_desc *desc;
 	struct irq_cfg *cfg;
+	unsigned int irq;
 
 	/*
 	 * NOTE! The local APIC isn't very good at handling
@@ -2589,8 +2587,8 @@ static inline void init_IO_APIC_traps(void)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	for_each_irq_desc(irq, desc) {
-		cfg = get_irq_desc_chip_data(desc);
+	for_each_active_irq(irq) {
+		cfg = get_irq_chip_data(irq);
 		if (IO_APIC_IRQ(irq) && cfg && !cfg->vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,
@@ -2601,7 +2599,7 @@ static inline void init_IO_APIC_traps(void)
 				legacy_pic->make_irq(irq);
 			else
 				/* Strange. Oh, well.. */
-				desc->chip = &no_irq_chip;
+				set_irq_chip(irq, &no_irq_chip);
 		}
 	}
 }
