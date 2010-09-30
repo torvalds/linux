@@ -159,7 +159,12 @@ struct in_ifaddr {
 extern int register_inetaddr_notifier(struct notifier_block *nb);
 extern int unregister_inetaddr_notifier(struct notifier_block *nb);
 
-extern struct net_device *ip_dev_find(struct net *net, __be32 addr);
+extern struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
+static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)
+{
+	return __ip_dev_find(net, addr, true);
+}
+
 extern int		inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 extern int		devinet_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern void		devinet_init(void);
