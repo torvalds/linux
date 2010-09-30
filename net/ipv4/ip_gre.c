@@ -64,13 +64,13 @@
    We cannot track such dead loops during route installation,
    it is infeasible task. The most general solutions would be
    to keep skb->encapsulation counter (sort of local ttl),
-   and silently drop packet when it expires. It is the best
+   and silently drop packet when it expires. It is a good
    solution, but it supposes maintaing new variable in ALL
    skb, even if no tunneling is used.
 
-   Current solution: HARD_TX_LOCK lock breaks dead loops.
-
-
+   Current solution: xmit_recursion breaks dead loops. This is a percpu
+   counter, since when we enter the first ndo_xmit(), cpu migration is
+   forbidden. We force an exit if this counter reaches RECURSION_LIMIT
 
    2. Networking dead loops would not kill routers, but would really
    kill network. IP hop limit plays role of "t->recursion" in this case,
