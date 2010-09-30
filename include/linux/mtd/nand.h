@@ -206,8 +206,10 @@ typedef enum {
 #define NAND_CHIPOPTIONS_MSK	(0x0000ffff & ~NAND_NO_AUTOINCR)
 
 /* Non chip related options */
-/* Use a flash based bad block table. This option is passed to the
- * default bad block table function. */
+/*
+ * Use a flash based bad block table. OOB identifier is saved in OOB area.
+ * This option is passed to the default bad block table function.
+ */
 #define NAND_USE_FLASH_BBT	0x00010000
 /* This option skips the bbt scan during initialization. */
 #define NAND_SKIP_BBTSCAN	0x00020000
@@ -216,6 +218,11 @@ typedef enum {
 #define NAND_OWN_BUFFERS	0x00040000
 /* Chip may not exist, so silence any errors in scan */
 #define NAND_SCAN_SILENT_NODEV	0x00080000
+/*
+ * If passed additionally to NAND_USE_FLASH_BBT then BBT code will not touch
+ * the OOB area.
+ */
+#define NAND_USE_FLASH_BBT_NO_OOB	0x00100000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */

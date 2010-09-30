@@ -102,6 +102,8 @@ struct nand_bbt_descr {
 #define NAND_BBT_SCANBYTE1AND6 0x00100000
 /* The nand_bbt_descr was created dynamicaly and must be freed */
 #define NAND_BBT_DYNAMICSTRUCT 0x00200000
+/* The bad block table does not OOB for marker */
+#define NAND_BBT_NO_OOB		0x00400000
 
 /* The maximum number of blocks to scan for a bbt */
 #define NAND_BBT_SCAN_MAXBLOCKS	4
