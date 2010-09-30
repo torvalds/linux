@@ -853,7 +853,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 					    &video_qops, NULL,
 					    &common->irqlock,
 					    reqbuf->type, field,
-					    sizeof(struct videobuf_buffer), fh);
+					    sizeof(struct videobuf_buffer), fh,
+					    NULL);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;

@@ -441,7 +441,8 @@ static void mx3_camera_init_videobuf(struct videobuf_queue *q,
 				       &mx3_cam->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       V4L2_FIELD_NONE,
-				       sizeof(struct mx3_camera_buffer), icd);
+				       sizeof(struct mx3_camera_buffer), icd,
+				       NULL);
 }
 
 /* First part of ipu_csi_init_interface() */

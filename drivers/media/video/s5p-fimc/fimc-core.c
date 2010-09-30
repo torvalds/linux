@@ -1138,7 +1138,7 @@ static void queue_init(void *priv, struct videobuf_queue *vq,
 	videobuf_queue_dma_contig_init(vq, &fimc_qops,
 		fimc->m2m.v4l2_dev.dev,
 		&fimc->irqlock, type, V4L2_FIELD_NONE,
-		sizeof(struct fimc_vid_buffer), priv);
+		sizeof(struct fimc_vid_buffer), priv, NULL);
 }
 
 static int fimc_m2m_open(struct file *file)

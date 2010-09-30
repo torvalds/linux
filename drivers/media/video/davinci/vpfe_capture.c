@@ -1372,7 +1372,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 				req_buf->type,
 				vpfe_dev->fmt.fmt.pix.field,
 				sizeof(struct videobuf_buffer),
-				fh);
+				fh, NULL);
 
 	fh->io_allowed = 1;
 	vpfe_dev->io_usrs = 1;

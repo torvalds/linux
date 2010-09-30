@@ -682,7 +682,7 @@ static void mx2_camera_init_videobuf(struct videobuf_queue *q,
 
 	videobuf_queue_dma_contig_init(q, &mx2_videobuf_ops, pcdev->dev,
 			&pcdev->lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			V4L2_FIELD_NONE, sizeof(struct mx2_buffer), icd);
+			V4L2_FIELD_NONE, sizeof(struct mx2_buffer), icd, NULL);
 }
 
 #define MX2_BUS_FLAGS	(SOCAM_DATAWIDTH_8 | \

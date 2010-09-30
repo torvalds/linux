@@ -1189,7 +1189,8 @@ static int sh_vou_open(struct file *file)
 				       vou_dev->v4l2_dev.dev, &vou_dev->lock,
 				       V4L2_BUF_TYPE_VIDEO_OUTPUT,
 				       V4L2_FIELD_NONE,
-				       sizeof(struct videobuf_buffer), vdev);
+				       sizeof(struct videobuf_buffer), vdev,
+				       NULL);
 
 	return 0;
 }

@@ -1491,7 +1491,7 @@ static int omap24xxcam_open(struct file *file)
 	videobuf_queue_sg_init(&fh->vbq, &omap24xxcam_vbq_ops, NULL,
 				&fh->vbq_lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_NONE,
-				sizeof(struct videobuf_buffer), fh);
+				sizeof(struct videobuf_buffer), fh, NULL);
 
 	return 0;
 
