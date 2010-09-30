@@ -1972,7 +1972,7 @@ static int enic_dev_hang_notify(struct enic *enic)
 	return err;
 }
 
-int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic)
+static int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic)
 {
 	int err;
 
@@ -2147,14 +2147,14 @@ static const struct net_device_ops enic_netdev_ops = {
 #endif
 };
 
-void enic_dev_deinit(struct enic *enic)
+static void enic_dev_deinit(struct enic *enic)
 {
 	netif_napi_del(&enic->napi);
 	enic_free_vnic_resources(enic);
 	enic_clear_intr_mode(enic);
 }
 
-int enic_dev_init(struct enic *enic)
+static int enic_dev_init(struct enic *enic)
 {
 	struct device *dev = enic_get_dev(enic);
 	struct net_device *netdev = enic->netdev;
