@@ -47,9 +47,9 @@ static struct usb_device_id yurex_table[] = {
 MODULE_DEVICE_TABLE(usb, yurex_table);
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
-#define YUREX_MINOR_BASE       0
+#define YUREX_MINOR_BASE	0
 #else
-#define YUREX_MINOR_BASE       224  /* not official yet */
+#define YUREX_MINOR_BASE	192
 #endif
 
 /* Structure to hold all of our device specific stuff */
