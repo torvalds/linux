@@ -116,6 +116,18 @@ config GPIO_SCH
 	  This driver can also be built as a module. If so, the module
 	  will be called sch-gpio.
 
+config GPIO_VX855
+	tristate "VIA VX855/VX875 GPIO"
+	depends on GPIOLIB
+	select MFD_CORE
+	select MFD_VX855
+	help
+	  Support access to the VX855/VX875 GPIO lines through the gpio library.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 comment "I2C GPIO expanders:"
 
 config GPIO_MAX7300
