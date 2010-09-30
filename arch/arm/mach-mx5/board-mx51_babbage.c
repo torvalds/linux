@@ -23,7 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx51.h>
-#include <mach/i2c.h>
 #include <mach/mxc_ehci.h>
 
 #include <asm/irq.h>
@@ -137,7 +136,7 @@ static inline void mxc_init_imx_uart(void)
 }
 #endif /* SERIAL_IMX */
 
-static struct imxi2c_platform_data babbage_i2c_data = {
+static const struct imxi2c_platform_data babbage_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -293,8 +292,8 @@ static void __init mxc_board_init(void)
 	babbage_fec_reset();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_i2c_device0, &babbage_i2c_data);
-	mxc_register_device(&mxc_i2c_device1, &babbage_i2c_data);
+	imx51_add_imx_i2c(0, &babbage_i2c_data);
+	imx51_add_imx_i2c(1, &babbage_i2c_data);
 	mxc_register_device(&mxc_hsi2c_device, &babbage_hsi2c_data);
 
 	if (otg_mode_host)

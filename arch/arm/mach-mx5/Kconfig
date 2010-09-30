@@ -10,6 +10,7 @@ comment "MX5 platforms:"
 
 config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	help
 	  Include support for MX51 Babbage platform, also known as MX51EVK in
 	  u-boot. This includes specific configurations for the board and its
@@ -24,6 +25,7 @@ config MACH_MX51_3DS
 
 config MACH_EUKREA_CPUIMX51
 	bool "Support Eukrea CPUIMX51 module"
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	help
 	  Include support for Eukrea CPUIMX51 platform. This includes
 	  specific configurations for the module and its peripherals.

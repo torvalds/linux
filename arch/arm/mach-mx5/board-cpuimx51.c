@@ -30,7 +30,6 @@
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx51.h>
-#include <mach/i2c.h>
 #include <mach/mxc_ehci.h>
 
 #include <asm/irq.h>
@@ -152,7 +151,8 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct imxi2c_platform_data eukrea_cpuimx51_i2c_data = {
+static const
+struct imxi2c_platform_data eukrea_cpuimx51_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -255,7 +255,7 @@ static void __init eukrea_cpuimx51_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_i2c_device1, &eukrea_cpuimx51_i2c_data);
+	imx51_add_imx_i2c(1, &eukrea_cpuimx51_i2c_data);
 	i2c_register_board_info(1, eukrea_cpuimx51_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx51_i2c_devices));
 
