@@ -118,8 +118,8 @@ Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 What:	Video4Linux obsolete drivers using V4L1 API
 When:	kernel 2.6.38
-Files:	drivers/staging/cpia/*
-Check:	drivers/staging/cpia/cpia.c
+Files:	drivers/staging/cpia/* drivers/staging/stradis/*
+Check:	drivers/staging/cpia/cpia.c drivers/staging/stradis/stradis.c
 Why:	There are some drivers still using V4L1 API, despite all efforts we've done
 	to migrate. Those drivers are for obsolete hardware that the old maintainer
 	didn't care (or not have the hardware anymore), and that no other developer
