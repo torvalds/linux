@@ -101,7 +101,6 @@ struct irq_cfg {
 #endif
 };
 
-extern struct irq_cfg *irq_cfg(unsigned int);
 extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
 extern void send_cleanup_vector(struct irq_cfg *);
 

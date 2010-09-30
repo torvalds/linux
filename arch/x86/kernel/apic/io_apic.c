@@ -178,7 +178,7 @@ int __init arch_early_irq_init(void)
 }
 
 #ifdef CONFIG_SPARSE_IRQ
-struct irq_cfg *irq_cfg(unsigned int irq)
+static struct irq_cfg *irq_cfg(unsigned int irq)
 {
 	return get_irq_chip_data(irq);
 }
