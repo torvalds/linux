@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -62,6 +63,9 @@ struct wm8962_priv {
 	int fll_src;
 	int fll_fref;
 	int fll_fout;
+
+	struct delayed_work mic_work;
+	struct snd_soc_jack *jack;
 
 	struct regulator_bulk_data supplies[WM8962_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8962_NUM_SUPPLIES];
@@ -1462,9 +1466,40 @@ static struct snd_soc_dai_driver wm8962_dai = {
 	.symmetric_rates = 1,
 };
 
+static void wm8962_mic_work(struct work_struct *work)
+{
+	struct wm8962_priv *wm8962 = container_of(work,
+						  struct wm8962_priv,
+						  mic_work.work);
+	struct snd_soc_codec *codec = wm8962->codec;
+	int status = 0;
+	int irq_pol = 0;
+	int reg;
+
+	reg = snd_soc_read(codec, WM8962_ADDITIONAL_CONTROL_4);
+
+	if (reg & WM8962_MICDET_STS) {
+		status |= SND_JACK_MICROPHONE;
+		irq_pol |= WM8962_MICD_IRQ_POL;
+	}
+
+	if (reg & WM8962_MICSHORT_STS) {
+		status |= SND_JACK_BTN_0;
+		irq_pol |= WM8962_MICSCD_IRQ_POL;
+	}
+
+	snd_soc_jack_report(wm8962->jack, status,
+			    SND_JACK_MICROPHONE | SND_JACK_BTN_0);
+
+	snd_soc_update_bits(codec, WM8962_MICINT_SOURCE_POL,
+			    WM8962_MICSCD_IRQ_POL |
+			    WM8962_MICD_IRQ_POL, irq_pol);
+}
+
 static irqreturn_t wm8962_irq(int irq, void *data)
 {
 	struct snd_soc_codec *codec = data;
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int mask;
 	int active;
 
@@ -1479,11 +1514,58 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	if (active & WM8962_TEMP_SHUT_EINT)
 		dev_crit(codec->dev, "Thermal shutdown\n");
 
+	if (active & (WM8962_MICSCD_EINT | WM8962_MICD_EINT)) {
+		dev_dbg(codec->dev, "Microphone event detected\n");
+
+		schedule_delayed_work(&wm8962->mic_work,
+				      msecs_to_jiffies(250));
+	}
+
 	/* Acknowledge the interrupts */
 	snd_soc_write(codec, WM8962_INTERRUPT_STATUS_2, active);
 
 	return IRQ_HANDLED;
 }
+
+/**
+ * wm8962_mic_detect - Enable microphone detection via the WM8962 IRQ
+ *
+ * @codec:  WM8962 codec
+ * @jack:   jack to report detection events on
+ *
+ * Enable microphone detection via IRQ on the WM8962.  If GPIOs are
+ * being used to bring out signals to the processor then only platform
+ * data configuration is needed for WM8962 and processor GPIOs should
+ * be configured using snd_soc_jack_add_gpios() instead.
+ *
+ * If no jack is supplied detection will be disabled.
+ */
+int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
+{
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	int irq_mask, enable;
+
+	wm8962->jack = jack;
+	if (jack) {
+		irq_mask = 0;
+		enable = WM8962_MICDET_ENA;
+	} else {
+		irq_mask = WM8962_MICD_EINT | WM8962_MICSCD_EINT;
+		enable = 0;
+	}
+
+	snd_soc_update_bits(codec, WM8962_INTERRUPT_STATUS_2_MASK,
+			    WM8962_MICD_EINT | WM8962_MICSCD_EINT, irq_mask);
+	snd_soc_update_bits(codec, WM8962_ADDITIONAL_CONTROL_4,
+			    WM8962_MICDET_ENA, enable);
+
+	/* Send an initial empty report */
+	snd_soc_jack_report(wm8962->jack, 0,
+			    SND_JACK_MICROPHONE | SND_JACK_BTN_0);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8962_mic_detect);
 
 #ifdef CONFIG_PM
 static int wm8962_resume(struct snd_soc_codec *codec)
@@ -1773,6 +1855,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	int i, trigger, irq_pol;
 
 	wm8962->codec = codec;
+	INIT_DELAYED_WORK(&wm8962->mic_work, wm8962_mic_work);
 
 	codec->cache_sync = 1;
 	codec->idle_bias_off = 1;
@@ -1945,6 +2028,8 @@ static int wm8962_remove(struct snd_soc_codec *codec)
 
 	if (i2c->irq)
 		free_irq(i2c->irq, codec);
+
+	cancel_delayed_work_sync(&wm8962->mic_work);
 
 	wm8962_free_gpio(codec);
 	wm8962_free_beep(codec);
