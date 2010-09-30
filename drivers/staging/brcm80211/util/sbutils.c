@@ -543,7 +543,8 @@ void sb_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 	if (R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_SERR)
 		W_SBREG(sii, &sb->sbtmstatehigh, 0);
 
-	if ((dummy = R_SBREG(sii, &sb->sbimstate)) & (SBIM_IBE | SBIM_TO))
+	dummy = R_SBREG(sii, &sb->sbimstate);
+	if (dummy & (SBIM_IBE | SBIM_TO))
 		AND_SBREG(sii, &sb->sbimstate, ~(SBIM_IBE | SBIM_TO));
 
 	/* clear reset and allow it to propagate throughout the core */
