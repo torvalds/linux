@@ -596,7 +596,8 @@ out:
 		 * the extra reserve blocks from the reserve.....
 		 */
 		int error;
-		error = xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS, fdblks_delta, 0);
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+						 fdblks_delta, 0);
 		if (error == ENOSPC)
 			goto retry;
 	}

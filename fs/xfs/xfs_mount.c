@@ -52,16 +52,11 @@ STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 						int);
 STATIC void	xfs_icsb_balance_counter_locked(xfs_mount_t *, xfs_sb_field_t,
 						int);
-STATIC int	xfs_icsb_modify_counters(xfs_mount_t *, xfs_sb_field_t,
-						int64_t, int);
 STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
-
 #else
 
 #define xfs_icsb_balance_counter(mp, a, b)		do { } while (0)
 #define xfs_icsb_balance_counter_locked(mp, a, b)	do { } while (0)
-#define xfs_icsb_modify_counters(mp, a, b, c)		do { } while (0)
-
 #endif
 
 static const struct {
@@ -1843,28 +1838,19 @@ xfs_mod_incore_sb_unlocked(
  */
 int
 xfs_mod_incore_sb(
-	xfs_mount_t	*mp,
-	xfs_sb_field_t	field,
-	int64_t		delta,
-	int		rsvd)
+	struct xfs_mount	*mp,
+	xfs_sb_field_t		field,
+	int64_t			delta,
+	int			rsvd)
 {
-	int	status;
+	int			status;
 
-	/* check for per-cpu counters */
-	switch (field) {
 #ifdef HAVE_PERCPU_SB
-	case XFS_SBS_ICOUNT:
-	case XFS_SBS_IFREE:
-	case XFS_SBS_FDBLOCKS:
-		status = xfs_icsb_modify_counters(mp, field, delta, rsvd);
-		break;
+	ASSERT(field < XFS_SBS_ICOUNT || field > XFS_SBS_FDBLOCKS);
 #endif
-	default:
-		spin_lock(&mp->m_sb_lock);
-		status = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
-		spin_unlock(&mp->m_sb_lock);
-		break;
-	}
+	spin_lock(&mp->m_sb_lock);
+	status = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
+	spin_unlock(&mp->m_sb_lock);
 
 	return status;
 }
