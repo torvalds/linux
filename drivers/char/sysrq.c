@@ -566,10 +566,16 @@ static const unsigned char sysrq_xlate[KEY_MAX + 1] =
 static bool sysrq_down;
 static int sysrq_alt_use;
 static int sysrq_alt;
+static DEFINE_SPINLOCK(sysrq_event_lock);
 
 static bool sysrq_filter(struct input_handle *handle, unsigned int type,
 		         unsigned int code, int value)
 {
+	bool suppress;
+
+	/* We are called with interrupts disabled, just take the lock */
+	spin_lock(&sysrq_event_lock);
+
 	if (type != EV_KEY)
 		goto out;
 
@@ -601,7 +607,10 @@ static bool sysrq_filter(struct input_handle *handle, unsigned int type,
 	}
 
 out:
-	return sysrq_down;
+	suppress = sysrq_down;
+	spin_unlock(&sysrq_event_lock);
+
+	return suppress;
 }
 
 static int sysrq_connect(struct input_handler *handler,
@@ -652,8 +661,8 @@ static void sysrq_disconnect(struct input_handle *handle)
 }
 
 /*
- * We are matching on KEY_LEFTALT insteard of KEY_SYSRQ because not all
- * keyboards have SysRq ikey predefined and so user may add it to keymap
+ * We are matching on KEY_LEFTALT instead of KEY_SYSRQ because not all
+ * keyboards have SysRq key predefined and so user may add it to keymap
  * later, but we expect all such keyboards to have left alt.
  */
 static const struct input_device_id sysrq_ids[] = {
