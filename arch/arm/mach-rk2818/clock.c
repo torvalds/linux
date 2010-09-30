@@ -303,6 +303,8 @@ void __tcmfunc tcm_udelay(unsigned long usecs, unsigned long arm_freq_mhz)
 
 #define ARM_PLL_IDX	0
 #define DSP_PLL_IDX	1
+#define CODEC_PLL_IDX   2
+
 
 static void scu_hw_pll_wait_lock(int pll_idx, int delay)
 {
@@ -583,6 +585,61 @@ static int rockchip_scu_set_dsp_pllclk_hw(const struct rockchip_pll_set *ps)
 
 	return 0;
 }
+
+static int rockchip_scu_set_codec_pllclk_hw(const struct rockchip_pll_set *ps)
+{
+	const int delay = OTHER_PLL_DELAY;
+
+	if (ps->clk_hz == 24 * SCU_CLK_MHZ) {
+//		dsp_pll_clk_slow_mode(1);
+		/* 20100615,HSL@RK,when power down,set pll out=300 M. */
+		scu_writel_force(ps->pll_con, SCU_CPLL_CON);
+		pr_debug("codec power down\n");
+		tcm_udelay(1, 600);
+		scu_writel_force(scu_readl(SCU_CPLL_CON) | PLL_PD, SCU_CPLL_CON);
+	} else {
+		u32 reg_val;
+
+//		dsp_pll_clk_slow_mode(1);
+
+		reg_val = scu_readl(SCU_CPLL_CON);
+		if (reg_val & PLL_PD) {
+			scu_writel_force(reg_val & ~PLL_PD, SCU_CPLL_CON);
+			pr_debug("codec pll power on, set to %d, delay = %d\n", ps->clk_hz, delay);
+			scu_hw_pll_wait_lock(CODEC_PLL_IDX, delay * 2);
+		}
+
+		/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf */
+		/* 鍙兘灞忓箷浼氬€掑姩,濡傛灉涓嶄慨鏀?clkr鍜宑lkf鍒欎笉鐢ㄨ繘鍏low mode . */
+		scu_writel_force(ps->pll_con, SCU_CPLL_CON);
+		scu_hw_pll_wait_lock(CODEC_PLL_IDX, delay);
+
+//		dsp_pll_clk_slow_mode(0);
+	}
+
+	return 0;
+}
+
+#define CODEC_PLL(_clk_hz, nr, nf, od) \
+{							\
+	.clk_hz		= _clk_hz,			\
+	.pll_con	= PLL_SAT | PLL_FAST | PLL_CLKR(nr-1) | PLL_CLKF(nf-1) | PLL_CLKOD(od-1), \
+}
+
+static const struct rockchip_pll_set codec_pll[] = {
+// clk_hz = 24*clkf/(clkr*clkod) clkr clkf clkod
+	CODEC_PLL(600 * SCU_CLK_MHZ, 6, 150, 1),
+	CODEC_PLL(560 * SCU_CLK_MHZ, 6, 140, 1),
+//	CODEC_PLL(500 * SCU_CLK_MHZ, 6, 125, 1),
+//	CODEC_PLL(450 * SCU_CLK_MHZ, 4,  75, 1),
+//	CODEC_PLL(400 * SCU_CLK_MHZ, 6, 100, 1),
+#if MAYCHG_VDD
+	CODEC_PLL(364 * SCU_CLK_MHZ, 6,  91, 1),	// VDD_110 for ddr 364M will crash.
+#endif
+	// pll power down.
+	CODEC_PLL( 136 * SCU_CLK_MHZ, 6,  34*2,2),
+	CODEC_PLL( 24 * SCU_CLK_MHZ, 4,  50, 1),	// POWER down,by the real clk = 300M
+};
 
 #define DSP_PLL(_clk_hz, nr, nf, od) \
 {							\
@@ -1466,6 +1523,61 @@ void clk_recalculate_root_clocks(void)
 	recalculate_root_clocks();
 	UNLOCK();
 }
+
+
+
+
+static int register_show (void)
+{
+	printk("SCU_APLL_CON     : 0x%08x\n", scu_readl(SCU_APLL_CON));
+	printk("SCU_DPLL_CON     : 0x%08x\n", scu_readl(SCU_DPLL_CON));
+	printk("SCU_CPLL_CON     : 0x%08x\n", scu_readl(SCU_CPLL_CON));
+	printk("SCU_MODE_CON     : 0x%08x\n", scu_readl(SCU_MODE_CON));
+	printk("SCU_PMU_CON      : 0x%08x\n", scu_readl(SCU_PMU_CON));
+	printk("SCU_CLKSEL0_CON  : 0x%08x\n", scu_readl(SCU_CLKSEL0_CON));
+	printk("SCU_CLKSEL1_CON  : 0x%08x\n", scu_readl(SCU_CLKSEL1_CON));
+	printk("SCU_CLKGATE0_CON : 0x%08x\n", scu_readl(SCU_CLKGATE0_CON));
+	printk("SCU_CLKGATE1_CON : 0x%08x\n", scu_readl(SCU_CLKGATE1_CON));
+	printk("SCU_CLKGATE2_CON : 0x%08x\n", scu_readl(SCU_CLKGATE2_CON));
+	printk("SCU_SOFTRST_CON : 0x%08x\n", scu_readl(SCU_SOFTRST_CON));
+	printk("SCU_CHIPCFG_CON : 0x%08x\n", scu_readl(SCU_CHIPCFG_CON));
+	printk("SCU_CPUPD : 0x%08x\n", scu_readl(SCU_CPUPD));
+	printk("SCU_CLKSEL2_CON  : 0x%08x\n", scu_readl(SCU_CLKSEL2_CON));
+}
+
+
+
+static void scu_ddr_early_suspend(void)
+{
+	static const struct rockchip_pll_set arm_tmp_pll =ARM_PLL(192 * SCU_CLK_MHZ, 4, 96, 3,  4, 11, 41, 1);
+	static const struct rockchip_pll_set arm_tmp_pll2 =ARM_PLL( 24 * SCU_CLK_MHZ, 4, 48, 1,  6, 11, 21, 0);
+
+//	register_show();
+
+	rockchip_scu_set_arm_pllclk_hw(&arm_tmp_pll);
+
+	ddr_change_mode(0 );
+
+	scu_writel_force(scu_readl(SCU_CLKGATE0_CON)&~(0x1<<11), SCU_CLKGATE0_CON);
+	scu_writel_force(scu_readl(SCU_CLKGATE1_CON)&~(0x1<<19), SCU_CLKGATE1_CON);
+	scu_writel_force(((scu_readl(SCU_CLKSEL0_CON)&~(0xff<<8))|(0x05<<8)), SCU_CLKSEL0_CON);
+
+	change_ddr_freq(136);
+
+	rockchip_scu_set_arm_pllclk_hw(&arm_tmp_pll2);
+
+//	register_show();
+}
+
+
+void scu_set_clk_for_reboot( void)
+{
+ //       scu_unlock_arm_force(); /* for force change freq. */
+        scu_ddr_early_suspend( );
+        //ddr_change_mode( 1 );
+ //       rockchip_clk_set_arm( 24 ) ; /* for loader , maskrom , AHB 1:1--do it at rk281x_reboot */
+}
+
 
 /**
  * clk_preinit - initialize any fields in the struct clk before clk init

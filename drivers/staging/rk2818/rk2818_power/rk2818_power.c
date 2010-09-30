@@ -24,6 +24,7 @@
 #include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <mach/rk2818_iomap.h>
+#include <mach/scu.h>
 
 /***************
 *	 DEBUG
@@ -46,14 +47,32 @@ extern void setup_mm_for_reboot(char mode);
  * boot : 0: normal , 1: loader , 2: maskrom , 3:recovery
  *
  */
+void rk2818_soft_restart( void )
+{
+	scu_set_clk_for_reboot( );   // MUST slow down ddr freq
+	rk2818_reboot( );	// normal 
+}
+
+
+
+static void rk_reboot( void)
+{
+	local_irq_disable();
+//	cpu_proc_fin();
+       setup_mm_for_reboot('r');
+	rk2818_soft_restart();
+}
+
+
+
+
 
  int rk2818_restart( int	mode, const char *cmd) 
 {
 		restart_dbg("%s->%s->%d",__FILE__,__FUNCTION__,__LINE__);
 		switch ( mode ) {
 		case 0:
-				local_irq_disable();
-				rk2818_reboot( );	// normal 
+				rk_reboot( );
 				break;
 		case 1:
 				//rk28_usb();

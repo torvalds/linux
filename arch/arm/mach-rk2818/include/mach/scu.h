@@ -124,5 +124,8 @@ extern void __tcmfunc ddr_pll_delay( int loops ) ;
  * for example when arm run at slow mode, call tcm_udelay(usecs, 24)
  */
 extern void __tcmfunc tcm_udelay(unsigned long usecs, unsigned long arm_freq_mhz);
-
+void scu_set_clk_for_reboot( void );
+void ddr_change_mode( int performance );
+void change_ddr_freq(int freq_MHZ);
+extern void kernel_restart(char *cmd);
 #endif

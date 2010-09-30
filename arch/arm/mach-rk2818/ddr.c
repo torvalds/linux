@@ -1736,6 +1736,24 @@ static void __tcmfunc  ddr_change_freq( int freq_MHZ )
 }
 void change_ddr_freq(int freq_MHZ)
 {
+
+#if 0
+		g_intcReg->FIQ_INTEN &= 0x0;
+		g_intcReg->IRQ_INTEN_H &= 0x0;
+		g_intcReg->IRQ_INTEN_L &= 0x0;
+		g_intcReg->IRQ_INTMASK_L &= 0x0;
+		g_intcReg->IRQ_INTMASK_H &= 0x0;	
+#endif
+#if 0	
+	uint32 i;
+	uint32 *p;
+		for(i=0;i<93; i++)
+		{
+			p = (uint32 *)(DDR_REG_BASE + (4*i));
+			printk("DDR Reg[%d]=0x%x\n", i, *p);
+		}
+#endif
+
         unsigned long flags;
         local_irq_save(flags);
         DDR_SAVE_SP;
@@ -1746,6 +1764,18 @@ void change_ddr_freq(int freq_MHZ)
 #else
 #define change_ddr_freq( mhz )
 #endif
+
+/* change ddr to mode :1:performance , 0:power save*/
+/* 20100909,HSL@RK,exchange performance and power save */
+void ddr_change_mode( int performance )
+{
+        if( performance ){
+                pDDR_Reg->CTRL_REG_63 = 0x0000ffff; 
+         } else {
+                pDDR_Reg->CTRL_REG_63 = 200 ; //  0x64; 
+        }
+}  
+
 
 /****************************************************************/
 //º¯ÊýÃû:SDRAM_Init
@@ -1913,87 +1943,157 @@ static void __tcmlocalfunc rk2818_reduce_armfrq(void)
 }
 static void __tcmfunc rk281x_reboot( void )
 {
+	uint32 i;
+	uint32 *p;
 #define pSCU_Reg	((pSCU_REG)SCU_BASE_ADDR_VA)
 #define g_intcReg 	((pINTC_REG)(INTC_BASE_ADDR_VA))
 #if 0
-		g_intcReg->FIQ_INTEN &= 0x0;
-		g_intcReg->IRQ_INTEN_H &= 0x0;
-		g_intcReg->IRQ_INTEN_L &= 0x0;
-		g_intcReg->IRQ_INTMASK_L &= 0x0;
-		g_intcReg->IRQ_INTMASK_H &= 0x0;	
+	g_intcReg->FIQ_INTEN &= 0x0;
+	g_intcReg->IRQ_INTEN_H &= 0x0;
+	g_intcReg->IRQ_INTEN_L &= 0x0;
+	g_intcReg->IRQ_INTMASK_L &= 0x0;
+	g_intcReg->IRQ_INTMASK_H &= 0x0;	
 #endif		
-		//rk2818_reduce_armfrq();
-		disable_DDR_Sleep();
-		printk("start reboot!!!\n");
-		asm( "MRC p15,0,r0,c1,c0,0\n"
-				"BIC r0,r0,#(1<<0)	   @disable mmu\n"
-				"BIC r0,r0,#(1<<13)    @set vector to 0x00000000\n"
-				"MCR p15,0,r0,c1,c0,0\n"
-				"mov r1,r1\n"
-				"mov r1,r1\n" 
-							
+	//rk2818_reduce_armfrq();
+	//printk("disable DDR sleep!!!\n");
+	//disable_DDR_Sleep();
+	printk("start reboot!!!\n");
+	#if 0
+	for(i=0;i<93; i++)
+	{
+		p = (uint32 *)(DDR_REG_BASE + (4*i));
+		printk("DDR Reg[%d]=0x%x\n", i, *p);
+	}
+	#else
+	//WAIT_ME();
+	#endif
+	asm(    
+		"ldr r6,=0x18018000      @ get scu reg base first.\n"
+                "ldr r7,=0x10002FF8     @load sram for stack.\n"
+                "mov r0,#0\n"
+		"MCR  p15, 0, r0, c7, c7, 0    @flush I-cache & D-cache\n"
+		"MRC p15,0,r0,c1,c0,0\n"
+		"BIC r0,r0,#(1<<2)	@ disable Dcache \n"
+		"BIC r0,r0,#(1<<12)     @ disable Icache \n"
+		"MCR p15,0,r0,c1,c0,0\n"
+			
+		"MRC p15,0,r0,c1,c0,0\n"
+		"BIC r0,r0,#(1<<0)	   @disable mmu\n"
+		"BIC r0,r0,#(1<<13)    @set vector to 0x00000000\n"
+		"MCR p15,0,r0,c1,c0,0\n"
+		"mov r1,r1\n"
+		"mov r1,r1\n" 
+		"mov r1,r1\n"
 
-				"ldr r2,=0x18018000        @ set dsp power domain on\n"
-  				"ldr r3,[r2,#0x10]\n"
-  				"bic r3,r3,#(1<<0)\n"
-  				"str r3,[r2,#0x10]\n"
-  
- 				" ldr r3,[r2,#0x24]     @ enable dsp ahb clk\n"
-  				"bic r3,r3,#(1<<2)\n"
-  				"str r3,[r2,#0x24]\n"
-  
-  				"ldr r3,[r2,#0x1c]     @ gate 0 ,enable dsp clk\n"
-  				"bic r3,r3,#(1<<1)\n"
-  				"str r3,[r2,#0x1c]\n"
-  
-  				"ldr r3,[r2,#0x28]     @dsp soft reset , for dsp l2 cache as maskrom stack.\n"
-  				"ORR r3,r3,#((1<<5))\n"
-  				"str r3,[r2,#0x28]\n"
-  				"BIC r3,r3,#((1<<5))\n"
-  				"str r3,[r2,#0x28]\n"
-
-				"ldr r2,=0x18018000      @ enable sram arm dsp clock\n"
-  				"ldr r3,[r2,#0x1c]\n"
-  				"bic r3,r3,#(1<<3)\n"
-  				"bic r3,r3,#(1<<4)\n"
-  				"str r3,[r2,#0x1c]\n"
+                "mov sp , r7\n"     // set SP for call other functions at itcm.
+                // print char '0'
+		//"mov r0,#0x30\n"
+		//"bl ddr_put_char\n"
 				
-				
-				 "ldr r2,=0x10040804        @usb soft disconnect.\n"
-                 		" mov r3,#2\n"
-               		 "str r3,[r2,#0]\n"
+		//"ldr r2,=0x18018000      @ enable sram arm dsp clock\n"
+		//"mov    r2,r6\n"
+		"ldr r3,[r6,#0x1c]\n"
+		"bic r3,r3,#(1<<3)\n"
+		"bic r3,r3,#(1<<4)\n"
+		"str r3,[r6,#0x1c]\n"
 
 				
+		// print char 'A'
+		//"mov r0,#0x41\n"
+		//"bl ddr_put_char\n"
+				
+		"ldr r3,[r6,#0x1c]         @ITCM not map to address 0, it is right in linux system\n"
+		"bic r3,r3,#(1<<15)      @maskrom clock enable\n"
+		"bic r3,r3,#(1<<8)       @nandc clock enable\n"
+		"bic r3,r3,#(1<<22)      @spi0 clock enable\n"
+		"bic r3,r3,#(1<<18)      @uart0 clock enable\n"
+		"bic r3,r3,#(1<<6)       @usb clock enable\n"
+		"bic r3,r3,#(1<<7)\n"
+		"bic r3,r3,#(1<<9)       @intc clock enable\n"
+		"bic r3,r3,#(1<<5)       @hif clock enable\n"
+		"str r3,[r6,#0x1c]\n"
 
-               		 "ldr r2,=0x100AE00C       @ BCH reset.\n"
-                		" mov r3,#1\n"
-                		"str r3,[r2,#0]\n"
+                // print char '1'
+		//"mov r0,#0x31\n"
+		//"bl ddr_put_char\n"
 
-				"MRC p15,0,r0,c1,c0,0\n"
-				"BIC r0,r0,#(1<<2)	@ disable IDcache \n"
-				"MCR p15,0,r0,c1,c0,0\n"
-				"mov r0,#0\n"
-				"MCR  p15, 0, r0, c7, c7, 0    @flush I-cache & D-cache\n"
+		"ldr r2,=0x10040804        @usb soft disconnect.\n"
+       		" mov r3,#2\n"
+	        "str r3,[r2,#0]\n"
 
-				"ldr r2,=0x18019000        @ DisableRemap\n"
-  				"ldr r3,[r2,#0x14]\n"
-  				"bic r3,r3,#(1<<0)\n"
-  				"bic r3,r3,#(1<<1)\n"
-  				"str r3,[r2,#0x14]\n"
+	        "ldr r2,=0x100AE00C       @ BCH reset.\n"
+		" mov r3,#1\n"
+		"str r3,[r2,#0]\n"
+                		
+		"ldr r3,[r6,#0x14]       @ARM:AHB=1:1, AHB:APB=2:1\n"
+		"bic r3,r3,#0xF\n"
+		"orr r3,r3,#0x4\n"
+		"str r3,[r6,#0x14]\n"
 
-                #if 0
-				"ldr r2,=0x18009000       @rk2818_reduce_corevoltage\n"
-				"ldr r3,[r2,#0x24]\n"
-				"bic r3,#(1<<6)\n"
-				"str r3,[r2,#0x24]\n"
-				"ldr r3,[r2,#0x28]\n"
-				"bic r3,#(1<<6)\n"
-				"str r3,[r2,#0x28]\n"
+                // print char 'B'
+		//"mov r0,#0x42\n"
+		//"bl ddr_put_char\n"
+				
+		"ldr r3,[r6,#0x28]      @reset nandc\n"
+		"orr r3,r3,#(1<<3)\n"
+		"orr r3,r3,#(1<<0)\n"
+		"orr r3,r3,#(1<<11)\n"
+		"orr r3,r3,#(1<<12)\n"
+		//"orr r3,r3,#(1<<14)  @reset uart1\n"
+		"orr r3,r3,#(1<<15)\n"
+		"str r3,[r6,#0x28]\n"
+			
+		"mov r0,#1000\n"
+		"bl ddr_pll_delay\n"
+				
+		//"ldr r2,=0x18018000\n"
+		"ldr r3,[r6,#0x28]\n"
+		"bic r3,r3,#(1<<3)\n"
+		"bic r3,r3,#(1<<0)\n"
+		"bic r3,r3,#(1<<11)\n"
+		"bic r3,r3,#(1<<12)\n"
+		"bic r3,r3,#(1<<14)\n"
+		"bic r3,r3,#(1<<15)\n"
+		"str r3,[r6,#0x28]\n"
+
+		"mov r0,#100\n"
+		"bl ddr_pll_delay\n"
+
+	        // print char '2'
+		//"mov r0,#0x32\n"
+		//"bl ddr_put_char\n"
+			
+		//"ldr r2,=0x18018000\n"
+		"ldr r3,[r6,#0x18]      @uart0 use 24MHz clock\n"
+		"bic r3,r3,#(1<<31)\n"
+		"str r3,[r6,#0x18]\n"
+				
+		"ldr r6,=0x18019000        @ DisableRemap\n"
+		"ldr r3,[r6,#0x14]\n"
+		"bic r3,r3,#(1<<0)\n"
+		"bic r3,r3,#(1<<1)\n"
+		"str r3,[r6,#0x14]\n"
+
+		"ldr r3,[r6,#0x10]   @hif interface enable\n"
+		"orr r3,r3,#(1<<27)\n"
+		"str r3,[r6,#0x10]\n"
+
+                // print char '3'
+		//"mov r0,#0x33\n"
+		//"bl ddr_put_char\n"
+
+#if 0
+		"ldr r2,=0x18009000       @rk2818_reduce_corevoltage\n"
+		"ldr r3,[r2,#0x24]\n"
+		"bic r3,#(1<<6)\n"
+		"str r3,[r2,#0x24]\n"
+		"ldr r3,[r2,#0x28]\n"
+		"bic r3,#(1<<6)\n"
+		"str r3,[r2,#0x28]\n"
                 #endif
-				"mov r12,#0\n"
-				"mov pc ,r12\n"
-				);
-
+		"mov r12,#0\n"
+		"mov pc ,r12\n"
+		);
 }
 
 void(*rk2818_reboot)(void )= (void(*)(void ))rk281x_reboot;

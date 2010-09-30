@@ -93,6 +93,8 @@ struct rk28dsp_inf {
 
 	struct clk *clk;
 	int clk_enabled;
+
+	int in_suspend;
 };
 
 #define SCU_BASE_ADDR_VA		RK2818_SCU_BASE
@@ -163,6 +165,9 @@ static int wq_condition = 1;
 
 static DECLARE_WAIT_QUEUE_HEAD(wq2);
 static int wq2_condition = 0;
+
+static DECLARE_WAIT_QUEUE_HEAD(wq3);
+static int wq3_condition = 0;
 
 static DECLARE_MUTEX(sem);
 
@@ -1172,6 +1177,47 @@ static int dsp_drv_resume(struct platform_device *pdev)
 #define dsp_drv_resume		NULL
 #endif /* CONFIG_PM */
 
+typedef struct android_early_suspend android_early_suspend_t;
+struct android_early_suspend
+{
+	struct list_head link;
+	int level;
+	void (*suspend)(android_early_suspend_t *h);
+	void (*resume)(android_early_suspend_t *h);
+};
+
+static void dsp_early_suspend(android_early_suspend_t *h)
+{
+	dspprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+	if(g_inf)
+	{
+		down(&sem);
+		if(0==g_inf->cur_req) {
+			g_inf->in_suspend = 1;
+		    up(&sem);
+		} else if(2==g_inf->cur_req){	//can not in early suspend
+		        up(&sem);
+			return;
+		} else {
+			g_inf->in_suspend = 1;
+		    wq3_condition = 0;
+		    up(&sem);
+			wait_event(wq3, wq3_condition);
+		}
+                del_timer(&g_inf->dsp_timer);
+		if(DS_SLEEP != g_inf->dsp_status ) {
+		    g_inf->dsp_status = DS_SLEEP;
+		    dsp_powerctl(DPC_SLEEP, 0);
+		    dspprintk("dsp : normal -> sleep \n");
+		}
+	}
+}
+
+static void dsp_drv_shutdown(struct platform_device *pdev)
+{
+        printk("%s:: shutdown dsp\n" , __func__ );
+        dsp_early_suspend( NULL );
+}
 
 static struct platform_driver dsp_driver = {
 	.probe		= dsp_drv_probe,
@@ -1181,6 +1227,7 @@ static struct platform_driver dsp_driver = {
 	.driver		= {
 		.name	= "rk28-dsp",
 	},
+	.shutdown       = dsp_drv_shutdown,
 };
 
 static int __init rk2818_dsp_init(void)
