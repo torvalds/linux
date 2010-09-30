@@ -625,7 +625,6 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	struct bridge_dev_context *dev_context = dev_ctxt;
 	struct pg_table_attrs *pt_attrs;
 	u32 dsp_pwr_state;
-	int clk_status;
 	struct dspbridge_platform_data *pdata =
 				omap_dspbridge_dev->dev.platform_data;
 
@@ -679,7 +678,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK | OMAP3430_RST2_IVA2_MASK |
 			OMAP3430_RST3_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
-	clk_status = dsp_clk_disable(DSP_CLK_IVA2);
+	dsp_clock_disable_all(dev_context->dsp_per_clks);
+	dsp_clk_disable(DSP_CLK_IVA2);
 
 	return status;
 }
