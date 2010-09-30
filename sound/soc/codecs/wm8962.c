@@ -911,12 +911,6 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 	int clocking2 = 0;
 	int aif2 = 0;
 
-	/* If the CODEC is powered on we can configure BCLK */
-	if (codec->bias_level != SND_SOC_BIAS_OFF) {
-		dev_dbg(codec->dev, "Bias is off, can't configure BCLK\n");
-		return;
-	}
-
 	if (!wm8962->bclk) {
 		dev_dbg(codec->dev, "No BCLK rate configured\n");
 		return;
