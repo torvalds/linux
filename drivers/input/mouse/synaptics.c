@@ -731,7 +731,7 @@ int synaptics_init(struct psmouse *psmouse)
 
 	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
 	if (!priv)
-		return -1;
+		return -ENOMEM;
 
 	psmouse_reset(psmouse);
 
