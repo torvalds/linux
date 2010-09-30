@@ -10647,7 +10647,8 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	tnapi = &tp->napi[0];
 	rnapi = &tp->napi[0];
 	if (tp->irq_cnt > 1) {
-		rnapi = &tp->napi[1];
+		if (tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS)
+			rnapi = &tp->napi[1];
 		if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
 			tnapi = &tp->napi[1];
 	}
